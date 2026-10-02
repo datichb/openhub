@@ -200,6 +200,72 @@ Les composants s'organisent en niveaux de composition :
 
 ---
 
+## Design It Twice — Variations structurelles (conditionnel)
+
+### Déclenchement
+
+Produire 2-3 variations UI structurellement différentes quand **toutes** ces conditions sont réunies :
+- L'interface est complexe (multi-zones d'information, interactions riches, multi-écrans)
+- Le design system ne prescrit pas une solution unique (les composants disponibles permettent plusieurs organisations)
+- Il y a une ambiguïté sur l'organisation de l'information ou la hiérarchie visuelle
+
+**Ne PAS produire de variations quand :**
+- Le design system prescrit un composant/layout spécifique (DSFR formulaire standard, etc.)
+- L'interface est simple (1 action, 1 résultat, peu de données)
+- La spec UX a déjà prescrit la structure (les variations UI seraient cosmétiques, pas structurelles)
+
+### Ce que "structurellement différent" signifie
+
+Les variations doivent différer sur **l'organisation de l'information**, pas sur les détails visuels :
+- Variation A : layout en grille avec filtres latéraux
+- Variation B : layout en liste avec filtres en barre supérieure
+- Variation C : layout en cards avec navigation par onglets
+
+❌ Ne sont PAS des variations structurelles :
+- Même layout avec des couleurs différentes
+- Même structure avec des icônes à la place du texte
+- Même organisation avec des tailles de composants différentes
+
+### Format des variations
+
+Pour chaque variation, produire un résumé structuré :
+
+```markdown
+### Variation A — <nom court : ex "Grille + filtres latéraux">
+**Organisation :** <description en 2-3 phrases>
+**Forces :** <ce que cette approche fait mieux>
+**Faiblesses :** <ce que cette approche fait moins bien>
+**Composants design system :** <liste>
+**Accessibilité :** <implications spécifiques>
+```
+
+Conclure avec une recommandation argumentée :
+```markdown
+### Recommandation
+**Variation recommandée :** <A/B/C> parce que <raison basée sur les forces/faiblesses>.
+```
+
+### Workflow en standalone
+
+1. Produire les variations → les afficher
+2. Question : "Quelle variation préférez-vous ? (Ou une combinaison ?)"
+3. Produire la spec finale basée sur le choix
+
+### Workflow en subagent
+
+1. Produire les variations dans le handoff block
+2. Ajouter `### Statut : choix-requis` (au lieu de `spec-complète`)
+3. TERMINER LA SESSION → l'orchestrateur relaie le choix à l'utilisateur
+4. À la ré-invocation avec le choix → produire la spec finale avec `### Statut : spec-complète`
+
+> **Comptage** : le round de choix de variation + les corrections éventuelles comptent dans la review bornée (3 rounds max). Donc : 1 round variations + 1 round spec finale + 1 round corrections max.
+
+### `### Alternatives écartées` enrichi
+
+Quand des variations sont produites, la section `### Alternatives écartées` du handoff block devient **obligatoire et structurée** : chaque variation non choisie y est documentée avec ses forces, faiblesses et la raison du rejet.
+
+---
+
 ## Checklist de complétude UI
 
 Avant de valider une spec de composant, vérifier :

@@ -38,9 +38,16 @@ Le designer travaille en **session unique sans interruption** :
 2. Charger `designer/figma-deep-protocol` si Figma disponible
 3. Identifier les composants concernés et les tokens à utiliser ou créer
 4. Si aucun design system détecté : proposer les fondations en hypothèse documentée
-5. Produire la spec UI complète (voir skill `designer/ui-protocol`)
-6. Produire le bloc `## Retour vers orchestrator` (voir skill `design/design-handoff-format`)
-7. **TERMINER LA SESSION**
+5. **Évaluer le déclenchement Design It Twice** (voir `ui-protocol` §Design It Twice) :
+   - Si conditions réunies → produire 2-3 variations avec `### Statut : choix-requis` → **TERMINER LA SESSION**
+   - L'orchestrateur relaie le choix à l'utilisateur et ré-invoque avec : `"Réponse Design It Twice : Variation <A/B/C ou combinaison>. Produire la spec finale."`
+   - À la ré-invocation → produire la spec UI finale basée sur le choix
+   - Si conditions non réunies → produire la spec UI directement (pas de variations)
+6. Produire la spec UI complète (voir skill `designer/ui-protocol`)
+7. Produire le bloc `## Retour vers orchestrator` (voir skill `design/design-handoff-format`)
+8. **TERMINER LA SESSION**
+
+> Le mode `ux+ui` intègre ce flow : si Design It Twice se déclenche en UI, la session se termine avec `choix-requis` après la spec UX. La ré-invocation produit la spec UI finale.
 
 **Mode ux+ui :**
 1. Exécuter entièrement le workflow mode **ux** (étapes 1-4)

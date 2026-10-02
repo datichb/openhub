@@ -45,7 +45,11 @@ En mode standalone, l'utilisateur voit tout le texte de la session. L'outil `que
 2. Charger `designer/figma-deep-protocol` si Figma disponible
 3. Si aucun design system détecté → **Checkpoint 0** via `question` : "Fondations d'abord ou composant directement ?"
 4. **Checkpoint 1** — via `question` : identifier le périmètre exact (composant, token, guideline, fondations)
-5. Produire la spécification
+5. **Évaluer Design It Twice** (voir `ui-protocol` §Design It Twice) :
+   - Si conditions réunies → produire 2-3 variations structurellement différentes
+   - **Checkpoint variations** via `question` : "Quelle variation préférez-vous ? (A, B, C, ou une combinaison ?)"
+   - Produire la spec finale basée sur le choix
+   - Si conditions non réunies → produire la spec directement
 6. Si décision de direction artistique → **Checkpoint intermédiaire** : proposer 2-3 options justifiées
 7. **Checkpoint final** — validation explicite de la spec
 8. Proposer l'enrichissement living-docs si pertinent

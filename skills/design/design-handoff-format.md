@@ -78,7 +78,7 @@ Accompagne toujours un `## Retour intermédiaire vers orchestrator`.
 - **Retranscription** : afficher les champs du bloc de manière formatée dans la discussion (voir skill `retranscription-coordinateur`). La `### Spec complète` est affichée intégralement.
 - **Délégation** : intégrer `### Contraintes d'implémentation` dans le prompt de délégation à `orchestrator-dev`.
 - **CP-spec** : signaler `### Points ouverts` à l'utilisateur pour décision avant implémentation.
-- **Statut** : `spec-complète` ou `spec-partielle` → CP-spec normal · `bloqué` → ne pas router vers `orchestrator-dev` · `prototype-livré` → la réponse est dans le bloc, pas de spec à implémenter.
+- **Statut** : `spec-complète` ou `spec-partielle` → CP-spec normal · `bloqué` → ne pas router vers `orchestrator-dev` · `prototype-livré` → la réponse est dans le bloc, pas de spec à implémenter · `choix-requis` → le designer propose 2-3 variations UI et attend un choix (voir Design It Twice dans `ui-protocol`) — l'orchestrateur relaie le choix à l'utilisateur et ré-invoque le designer avec la réponse.
 
 ---
 
