@@ -173,9 +173,15 @@ Phase 1 → Phase 1 (explorer davantage)
 Phase 1.5 → Phase 2 (normal)
 Phase 1.5 → Phase 1 (les specs modifient le périmètre)
 
-Phase 2 → Phase 3 (normal)
+Phase 2 → Phase 2.5 (understanding gate, si complexité >= Large — obligatoire)
+Phase 2 → Phase 3 (normal, si complexité < Large ou gate optionnel non choisi)
 Phase 2 → Phase 2 (autres questions)
 Phase 2 → Phase 1 (nouvelle exploration)
+
+Phase 2.5 → Phase 3 (compréhension validée)
+Phase 2.5 → Phase 2.5 (corriger la compréhension — max 3 itérations)
+Phase 2.5 → Phase 2 (nouvelles questions nécessaires)
+Phase 2.5 → Phase 1 (nouvelle exploration)
 
 Phase 3 → Phase 4 (normal)
 Phase 3 → Phase 3 (modifier le plan)

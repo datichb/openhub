@@ -502,7 +502,64 @@ Quelques questions issues de l'exploration pour affiner la planification :
 - `autres-questions` — Poser d'autres questions de clarification
 - `retour-phase-1` — Revenir à Phase 1 avec les nouvelles informations
 
-**Instruction de reprise :** "Réponse Phase 2 : [option]. Reprendre depuis Phase 3 / Phase 2 / Phase 1."
+**Instruction de reprise :** "Réponse Phase 2 : [option]. Reprendre depuis Phase 3 / Phase 2.5 / Phase 2 / Phase 1."
+```
+→ **TERMINER LA SESSION**
+
+> **Si complexité >= Large** : l'option `phase-3` est remplacée par `phase-2.5` (understanding gate). L'option `phase-3` directe n'est pas proposée.
+> **Si complexité Medium** : ajouter l'option `verifier-comprehension` — Phase 2.5 optionnelle.
+> **Si complexité Small** : pas de changement.
+
+### Phase 2.5 — Compréhension partagée (Understanding Gate)
+
+> Produit uniquement si complexité >= Large (obligatoire) ou si l'utilisateur choisit "vérifier la compréhension" (complexité Medium).
+
+```markdown
+## Retour intermédiaire vers orchestrator
+
+**Agent :** planner
+**Phase :** 2.5 — Compréhension partagée
+**task_id :** <sessionID courant>
+
+**Résumé :** Résumé de compréhension produit pour validation avant décomposition.
+**Points clés :** <objectif métier identifié, décisions prises, hypothèses retenues, hors périmètre confirmé>
+
+### Compréhension partagée
+
+**Ce que je comprends de la feature :**
+<2-4 phrases : objectif, valeur métier, périmètre technique, utilisateurs>
+
+**Décisions prises :**
+- <décision 1 — issue des réponses Phase 2>
+- <décision 2>
+
+**Hypothèses retenues :**
+- <hypothèse 1 — non confirmée mais intégrée au plan>
+
+**Hors périmètre confirmé :**
+- <élément 1 exclu explicitement>
+
+**Points d'attention pour la décomposition :**
+- <risque ou contrainte qui influencera Phase 3>
+
+---
+
+## Question pour l'orchestrator
+
+**Phase :** 2.5
+**task_id :** <sessionID courant>
+
+**Contexte :** Résumé de compréhension produit (voir ci-dessus). Validation requise avant décomposition en tickets.
+
+**Question :** Cette compréhension est-elle correcte et complète ?
+
+**Options :**
+- `correct-phase-3` — Correct, passer à Phase 3 (recommandé)
+- `corriger` — Points à ajuster dans la compréhension
+- `autres-questions` — Revenir en Phase 2 pour poser d'autres questions
+- `retour-phase-1` — Revenir à Phase 1 pour explorer davantage
+
+**Instruction de reprise :** "Réponse Phase 2.5 : [option]. Si 'corriger' : corrections = [texte utilisateur]. Reprendre depuis Phase 3 / Phase 2.5 / Phase 2 / Phase 1."
 ```
 → **TERMINER LA SESSION**
 

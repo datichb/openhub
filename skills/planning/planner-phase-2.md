@@ -226,7 +226,75 @@ Toujours expliquer le raisonnement :
 
 > **Traitement des réponses libres :** Si l'utilisateur a saisi une réponse libre (texte personnalisé), l'intégrer telle quelle dans le tableau. Ces réponses libres sont souvent plus précises que les labels prédéfinis.
 
-## Question de validation obligatoire
+---
+
+## Phase 2.5 — Compréhension partagée (Understanding Gate)
+
+### Déclenchement
+
+- **Complexité >= Large (11+ pts)** : gate **obligatoire** — toujours produire le résumé de compréhension et demander validation avant Phase 3
+- **Complexité Medium (7-10 pts)** : gate **optionnel** — proposer comme option dans la question de validation ("Vérifier la compréhension avant de continuer")
+- **Complexité Small (4-6 pts)** : gate **omis** — passer directement à la question de validation standard
+
+### Objectif
+
+Présenter un résumé structuré de la compréhension acquise en Phase 1 + Phase 2, pour vérifier l'alignement avec l'utilisateur **avant** de décomposer en tickets. Un malentendu détecté ici coûte une question. Un malentendu détecté en Phase 5 coûte une re-planification.
+
+### Format du résumé de compréhension
+
+Afficher avant la question de validation :
+
+```markdown
+## [Phase 2.5] Compréhension partagée
+
+### Ce que je comprends de la feature
+<2-4 phrases : l'objectif, la valeur métier, le périmètre technique, les utilisateurs concernés>
+
+### Décisions prises (issues des réponses Phase 2)
+- <décision 1 — ex : "L'optimisation performance est hors scope pour cette itération">
+- <décision 2 — ex : "Le design system DSFR sera utilisé">
+
+### Hypothèses retenues (non confirmées mais intégrées au plan)
+- <hypothèse 1 — ex : "La lib X supporte le mode streaming (basé sur doc v3.2, non testé)">
+
+### Hors périmètre confirmé
+- <élément 1 explicitement exclu par l'utilisateur>
+
+### Points d'attention pour la décomposition
+- <risque ou contrainte qui influencera Phase 3 — ex : "Le module partagé Y devra rester rétrocompatible">
+```
+
+> Ce résumé devient le **brief de décomposition** utilisé en Phase 3. Toute correction apportée ici est intégrée avant de décomposer.
+
+### Question de validation (avec understanding gate)
+
+**Si CONTEXTE = standalone et complexité >= Large :**
+```
+question({
+  questions: [{
+    header: "Compréhension partagée",
+    question: "[Planner — Phase 2.5 | Feature : <nom>]\nVoici ma compréhension de la feature (résumé ci-dessus). Est-ce correct et complet ?",
+    options: [
+      { label: "Correct — passer à Phase 3 (Recommandé)", description: "Compréhension validée, démarrer la décomposition" },
+      { label: "Corriger", description: "Des points à ajuster dans la compréhension" },
+      { label: "Poser d'autres questions", description: "Rester en Phase 2 pour préciser d'autres points" },
+      { label: "Revenir à Phase 1", description: "Explorer à nouveau avec les nouvelles informations" }
+    ]
+  }]
+})
+```
+
+**Selon la réponse :**
+- **Correct** → Phase 3 (avec le résumé de compréhension comme brief)
+- **Corriger** → l'utilisateur précise ce qui est incorrect, le planner met à jour le résumé et le re-présente (max 3 itérations)
+- **Poser d'autres questions** → retour en Phase 2
+- **Revenir à Phase 1** → Phase 1
+
+---
+
+## Question de validation obligatoire (sans understanding gate)
+
+> Cette section s'applique quand le gate est omis (complexité Small) ou optionnel et non choisi (complexité Medium).
 
 **Si CONTEXTE = standalone :**
 ```
@@ -236,6 +304,7 @@ question({
     question: "[Planner — Phase 2 complétée | Feature : <nom>]\nQuestions traitées. Passer à l'analyse approfondie (Phase 3 — Plan hiérarchique) ?",
     options: [
       { label: "Passer à Phase 3 (Recommandé)", description: "Démarrer la décomposition en epics et tickets" },
+      { label: "Vérifier la compréhension d'abord", description: "Afficher un résumé de ma compréhension avant de continuer (Phase 2.5)" },
       { label: "Poser d'autres questions", description: "Rester en Phase 2 pour préciser d'autres points" },
       { label: "Revenir à Phase 1", description: "Explorer à nouveau avec les nouvelles informations reçues" }
     ]
@@ -245,11 +314,12 @@ question({
 
 **Si CONTEXTE = orchestrator_feature :**
 
-La question de validation est incluse dans le bloc `## Question pour l'orchestrator` standard (Phase 2 — réponses traitées) défini dans `planner-execution-modes`. Ce bloc est produit **après** la ré-invocation avec les réponses de l'utilisateur — voir le format "Phase 2 — Questions complémentaires (réponses traitées)" dans `planner-execution-modes`.
+La question de validation (avec ou sans understanding gate) est incluse dans le bloc `## Question pour l'orchestrator` standard (Phase 2 — réponses traitées) défini dans `planner-execution-modes`. Ce bloc est produit **après** la ré-invocation avec les réponses de l'utilisateur — voir le format "Phase 2 — Questions complémentaires (réponses traitées)" dans `planner-execution-modes`.
 
 > ❌ Ne jamais appeler l'outil `question` en mode subagent — toujours terminer la session avec les blocs structurés.
 
 **Selon la réponse (dans tous les contextes) :**
 - **Passer à Phase 3** → Phase 3
+- **Vérifier la compréhension** → Phase 2.5 (produire le résumé de compréhension)
 - **Poser d'autres questions** → rester en Phase 2, poser de nouvelles questions, re-produire le récap
 - **Revenir à Phase 1** → Phase 1 (les réponses reçues modifient le périmètre d'exploration)
