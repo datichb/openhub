@@ -10,7 +10,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/datichb/openhub/cli/internal/config"
@@ -322,9 +321,9 @@ func RunHeadless(ctx context.Context, opts HeadlessOpts) (string, error) {
 		return buf.String(), nil
 
 	case <-ctx.Done():
-		// Context cancelled — graceful shutdown: SIGTERM then SIGKILL.
+		// Context cancelled — graceful shutdown: SIGTERM (Unix) / Kill (Windows) then SIGKILL.
 		if cmd.Process != nil {
-			_ = cmd.Process.Signal(syscall.SIGTERM)
+			_ = signalGraceful(cmd.Process)
 		}
 		select {
 		case <-done:

@@ -8,7 +8,6 @@ import (
 	"os"
 	"os/signal"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/gdamore/tcell/v2"
@@ -211,7 +210,7 @@ func runSweepMode(cmd *cobra.Command, a *app.App, ctx context.Context) error {
 
 		coord := result.Coordinator
 		// Trap SIGINT/SIGTERM for graceful subprocess cleanup (same as parallel mode).
-		ctx, stop := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
+		ctx, stop := signal.NotifyContext(ctx, gracefulSignals()...)
 		defer stop()
 		defer coord.Cleanup()
 

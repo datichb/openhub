@@ -10,7 +10,6 @@ import (
 	"os/signal"
 	"path/filepath"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/gdamore/tcell/v2"
@@ -161,7 +160,7 @@ func runParallelMode(cmd *cobra.Command, a *app.App, ctx context.Context) error 
 	// graceful cleanup of subprocess servers. Without this, defer Cleanup()
 	// would not run on os.Exit() triggered by unhandled signals, leaving
 	// opencode serve processes orphaned.
-	ctx, stop := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
+	ctx, stop := signal.NotifyContext(ctx, gracefulSignals()...)
 	defer stop()
 	defer coord.Cleanup()
 

@@ -10,7 +10,6 @@ import (
 	"io"
 	"os"
 	"os/signal"
-	"syscall"
 )
 
 // Request represents a JSON-RPC request.
@@ -84,7 +83,7 @@ func (s *Server) RegisterTool(tool Tool, handler Handler) {
 // Serve starts the server, reading from stdin and writing to stdout.
 // It exits gracefully on EOF, SIGINT, or SIGTERM.
 func (s *Server) Serve() error {
-	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	ctx, cancel := signal.NotifyContext(context.Background(), gracefulSignals()...)
 	defer cancel()
 
 	reader := bufio.NewReader(os.Stdin)
