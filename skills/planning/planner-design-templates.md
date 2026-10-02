@@ -174,6 +174,34 @@ Appliquer la stratégie de traçabilité en Phase 5 : pour chaque ticket concern
 
 ---
 
+### Prototype rapide (signal ambigu)
+
+Si l'utilisateur choisit **"Prototype rapide"** dans la question de délégation Phase 1 :
+
+1. **Identifier la question précise** que le prototype doit résoudre (ex : "Comment organiser les 3 zones d'information sur l'écran principal ?")
+
+2. **Invoquer le designer** avec le skill prototype injecté :
+   ```
+   task(
+     subagent_type: "designer",
+     prompt: "Mode: ux [SKILL:designer/prototype-protocol] [QUESTION: <question précise>]\n\nFeature : [nom]\nContexte : [résumé du besoin]\nSignal ambigu détecté : [description du signal]\n\n[SKILL:designer/designer-subagent]"
+   )
+   ```
+
+3. **À la réception du retour prototype** :
+   - Lire `### Réponse à la question` et `### Recommandation`
+   - Si recommandation = `spec-complete-necessaire` → proposer une délégation design complète (Option A)
+   - Si recommandation = `resolu` → intégrer la réponse dans le contexte Phase 2
+   - Si recommandation = `clarification` → poser la nouvelle question en Phase 2
+
+4. **Inclure dans le récap Phase 1.5** :
+   ```markdown
+   **Prototypes produits :**
+   - <question> — réponse : <résumé 1 ligne> (recommandation : <suite>)
+   ```
+
+---
+
 ### Récap de fin de Phase 1.5
 
 ```markdown

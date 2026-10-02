@@ -75,6 +75,23 @@ Pendant la lecture, **détecter les signaux design** :
 - Des variantes visuelles ou des états (hover, focus, disabled, error, loading) doivent être spécifiés
 - Le design system (DSFR ou interne) est sollicité et les bons composants à utiliser ne sont pas évidents
 
+### Classification des signaux : clair vs ambigu
+
+Quand des signaux design sont détectés, les classifier :
+
+**Signal clair** — la feature nécessite une spec design complète :
+- Le parcours utilisateur est nouveau ou complexe (multi-étapes, branching)
+- Plusieurs composants UI sont à créer ou à modifier structurellement
+- Les maquettes Figma existent mais doivent être traduites en spec
+
+**Signal ambigu** — un aspect visuel spécifique nécessite clarification, mais pas une spec complète :
+- "Comment organiser l'information sur cet écran ?" (question de layout)
+- "Quel feedback visuel pour cette action ?" (question d'interaction)
+- "Ce state model est-il correct pour l'UI ?" (question de comportement)
+- L'utilisateur en Phase 2 hésite ou répond "ça dépend de ce que ça rend" à une question design
+
+> Les signaux ambigus sont des candidats pour un **prototype rapide** (voir option B dans la question ci-dessous).
+
 Lire les fichiers, puis proposer d'aller plus loin si pertinent :
 > "J'ai lu [X, Y, Z]. Je pourrais aussi explorer [A, B] si utile."
 
@@ -218,14 +235,18 @@ Si **signaux UX ou UI détectés** (depuis codebase ou Figma) :
 question({
   questions: [{
     header: "Délégation design",
-    question: "[Planner — Phase 1 complétée | Feature : <nom>]\n\n**Résumé de l'exploration (X fichiers lus) :**\n- Architecture : <pattern détecté — ex : Clean Architecture, composants Vue>\n- Tests existants : <état — ex : couverture partielle sur le périmètre>\n- Signal <UX/UI> détecté : <raison concrète — ex : nouveau composant formulaire multi-étapes>\n- Zones d'ombre : <liste courte — ex : comportement modal non documenté>\n\nComment procéder ?",
+    question: "[Planner — Phase 1 complétée | Feature : <nom>]\n\n**Résumé de l'exploration (X fichiers lus) :**\n- Architecture : <pattern détecté — ex : Clean Architecture, composants Vue>\n- Tests existants : <état — ex : couverture partielle sur le périmètre>\n- Signal <UX/UI> détecté : <raison concrète — ex : nouveau composant formulaire multi-étapes>\n- Classification signal : <clair | ambigu — ex : 'ambigu — question de layout non résoluble par texte'>\n- Zones d'ombre : <liste courte — ex : comportement modal non documenté>\n\nComment procéder ?",
     options: [
-      { label: "Phase 1.5 — Délégation design (Recommandé)", description: "Invoquer l'agent designer (mode ux/ui/ux+ui) avant de planifier" },
+      { label: "Phase 1.5 — Spec design complète (Recommandé si signal clair)", description: "Invoquer l'agent designer (mode ux/ui/ux+ui) pour une spec complète" },
+      { label: "Phase 1.5 — Prototype rapide (Recommandé si signal ambigu)", description: "Invoquer l'agent designer en mode prototype pour répondre à : <question précise>" },
       { label: "Skip design — Phase 2", description: "Passer aux questions complémentaires sans spec design" },
       { label: "Explorer davantage", description: "Lire d'autres fichiers avant de décider" }
     ]
   }]
 })
+```
+
+> **Option B — Prototype rapide** : L'orchestrateur invoque le designer avec `[SKILL:designer/prototype-protocol]` + `[QUESTION: <question précise>]`. Le designer produit un artefact rapide (wireframe, schéma, description) pour répondre à la question. Le résultat alimente Phase 2.
 ```
 
 Si **aucun signal design** :
