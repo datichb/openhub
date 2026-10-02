@@ -107,6 +107,28 @@ Après le gate de complétion et **avant** de construire le récap feature, **in
 - **Hypothèses dangereuses :** <résumé si applicable>
 - **Edge-case (si activé) :** <résumé des chemins non gérés identifiés>
 
+### Bloc rétrospectif (si >= 3 tickets traités)
+*(Omettre cette section si la feature a < 3 tickets — pas assez de données pour une retro.)*
+
+**Métriques :**
+- Cycles de review : <total, min, max, moyenne par ticket>
+- Findings reviewer : <total 🔴, total 🟠, total 🟡 — toutes reviews confondues>
+- Tickets avec drift : <nombre — raisons principales>
+
+**Patterns récurrents :**
+- <pattern 1 : ex "3 tickets sur 5 ont eu des findings 🟠 sur la gestion d'erreur — conventions insuffisantes ?">
+- <pattern 2 : ex "Le drift a été détecté sur les 2 tickets touchant le module auth — architecture fragile ?">
+*(Si aucun pattern notable : "Aucun pattern récurrent identifié.")*
+
+**Recommandations pour l'équipe :**
+- <reco 1 : ex "Renforcer la couverture des cas d'erreur dans les conventions projet">
+- <reco 2 : ex "Le module auth nécessite un audit d'architecture dédié">
+*(Si rien à recommander : "Aucune recommandation — la feature s'est déroulée sans friction notable.")*
+
+> **Capitalisation :** Ce bloc sera proposé comme enrichissement wiki vers `docs/wiki/technical/retro-log.md`
+> via le mécanisme `living-docs-enrichment` standard. L'écriture wiki est un bonus —
+> si la délégation au documentarian échoue, le bloc reste visible dans la discussion.
+
 ### Prochaines étapes suggérées
 <Ce qui reste si des tickets ont été ignorés ou des blocages signalés>
 ```
