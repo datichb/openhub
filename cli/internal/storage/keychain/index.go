@@ -57,8 +57,15 @@ func (idx *secretsIndex) save() {
 	if err != nil {
 		return
 	}
-	_ = os.MkdirAll(filepath.Dir(idx.path), 0o755)
-	_ = os.WriteFile(idx.path, data, 0o600)
+	dir := filepath.Dir(idx.path)
+	_ = os.MkdirAll(dir, 0o755)
+	tmpFile := idx.path + ".tmp"
+	if err := os.WriteFile(tmpFile, data, 0o600); err != nil {
+		return
+	}
+	if err := os.Rename(tmpFile, idx.path); err != nil {
+		os.Remove(tmpFile)
+	}
 }
 
 func (idx *secretsIndex) add(key, scope string) {

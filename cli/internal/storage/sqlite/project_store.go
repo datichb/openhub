@@ -33,7 +33,7 @@ func (ps *ProjectStore) List(ctx context.Context, status domain.ProjectStatus) (
 	}
 	query += " ORDER BY name ASC"
 
-	rows, err := ps.db.Query(query, args...)
+	rows, err := ps.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("listing projects: %w", err)
 	}
@@ -51,7 +51,7 @@ func (ps *ProjectStore) List(ctx context.Context, status domain.ProjectStatus) (
 }
 
 func (ps *ProjectStore) Get(ctx context.Context, id string) (*domain.Project, error) {
-	row := ps.db.QueryRow(
+	row := ps.db.QueryRowContext(ctx,
 		`SELECT id, name, path, language, tracker, provider, model, model_overrides, mcp_config, provider_config, team_config, tracker_config, labels, agents, mcp, status, created_at, updated_at, team_id, workflow_config FROM projects WHERE id = ?`,
 		id,
 	)
@@ -66,7 +66,7 @@ func (ps *ProjectStore) Get(ctx context.Context, id string) (*domain.Project, er
 }
 
 func (ps *ProjectStore) GetByPath(ctx context.Context, path string) (*domain.Project, error) {
-	row := ps.db.QueryRow(
+	row := ps.db.QueryRowContext(ctx,
 		`SELECT id, name, path, language, tracker, provider, model, model_overrides, mcp_config, provider_config, team_config, tracker_config, labels, agents, mcp, status, created_at, updated_at, team_id, workflow_config FROM projects WHERE path = ?`,
 		path,
 	)
@@ -81,7 +81,7 @@ func (ps *ProjectStore) GetByPath(ctx context.Context, path string) (*domain.Pro
 }
 
 func (ps *ProjectStore) GetByName(ctx context.Context, name string) (*domain.Project, error) {
-	row := ps.db.QueryRow(
+	row := ps.db.QueryRowContext(ctx,
 		`SELECT id, name, path, language, tracker, provider, model, model_overrides, mcp_config, provider_config, team_config, tracker_config, labels, agents, mcp, status, created_at, updated_at, team_id, workflow_config FROM projects WHERE name = ?`,
 		name,
 	)
@@ -103,7 +103,7 @@ func (ps *ProjectStore) Create(ctx context.Context, p *domain.Project) error {
 		p.UpdatedAt = p.CreatedAt
 	}
 
-	_, err := ps.db.Exec(
+	_, err := ps.db.ExecContext(ctx,
 		`INSERT INTO projects (id, name, path, language, tracker, provider, model, model_overrides, mcp_config, provider_config, team_config, tracker_config, labels, agents, mcp, status, created_at, updated_at, team_id, workflow_config)
 		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		p.ID, p.Name, p.Path, p.Language, "", p.Provider, p.Model, marshalModelOverrides(p.ModelOverrides),
@@ -124,7 +124,7 @@ func (ps *ProjectStore) Create(ctx context.Context, p *domain.Project) error {
 
 func (ps *ProjectStore) Update(ctx context.Context, p *domain.Project) error {
 	p.UpdatedAt = time.Now()
-	result, err := ps.db.Exec(
+	result, err := ps.db.ExecContext(ctx,
 		`UPDATE projects SET name=?, path=?, language=?, tracker=?, provider=?, model=?, model_overrides=?, mcp_config=?, provider_config=?, team_config=?, tracker_config=?, labels=?, agents=?, mcp=?, status=?, updated_at=?, team_id=?, workflow_config=?
 		 WHERE id=?`,
 		p.Name, p.Path, p.Language, "", p.Provider, p.Model, marshalModelOverrides(p.ModelOverrides),
@@ -145,7 +145,7 @@ func (ps *ProjectStore) Update(ctx context.Context, p *domain.Project) error {
 }
 
 func (ps *ProjectStore) Delete(ctx context.Context, id string) error {
-	result, err := ps.db.Exec("DELETE FROM projects WHERE id = ?", id)
+	result, err := ps.db.ExecContext(ctx, "DELETE FROM projects WHERE id = ?", id)
 	if err != nil {
 		return fmt.Errorf("deleting project %s: %w", id, err)
 	}

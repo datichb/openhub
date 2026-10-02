@@ -168,14 +168,14 @@ func configureGitLab(ctx context.Context, a *app.App, repo *teamstate.Repo, team
 				tokenKey := askInput(out, "Nom de la clé dans le keychain (ex: gitlab-token)", a.Config.MCP.Gitlab.Token)
 				fmt.Fprintf(out, "  Pour stocker le token: %s\n",
 					theme.Bold.Render("oh secrets set "+tokenKey))
-				writeLocal(config.ConfigPath(), "mcp.gitlab.token_key", tokenKey)
-				writeLocal(config.ConfigPath(), "mcp.gitlab.enabled", "true")
+				writeLocalLog(config.ConfigPath(), "mcp.gitlab.token_key", tokenKey)
+				writeLocalLog(config.ConfigPath(), "mcp.gitlab.enabled", "true")
 			}
 		}
 
 		// write_enabled
 		writeEnabled := askYN(out, "Activer write_enabled (création MR, push labels) ?", a.Config.MCP.Gitlab.WriteEnabled)
-		writeLocal(config.ConfigPath(), "mcp.gitlab.write_enabled", fmt.Sprintf("%v", writeEnabled))
+		writeLocalLog(config.ConfigPath(), "mcp.gitlab.write_enabled", fmt.Sprintf("%v", writeEnabled))
 
 		fmt.Fprintf(out, "%s Config locale GitLab sauvegardée\n",
 			theme.SuccessStyle.Render(theme.IconSuccess))
@@ -221,12 +221,12 @@ func configureJira(ctx context.Context, a *app.App, repo *teamstate.Repo, teamCf
 			if askYN(out, "Configurer un nouveau token Jira ?", true) {
 				tokenKey := askInput(out, "Nom de la clé dans le keychain (ex: jira-token)", a.Config.MCP.Jira.Token)
 				fmt.Fprintf(out, "  Pour stocker le token: %s\n", theme.Bold.Render("oh secrets set "+tokenKey))
-				writeLocal(config.ConfigPath(), "mcp.jira.token_key", tokenKey)
-				writeLocal(config.ConfigPath(), "mcp.jira.enabled", "true")
+				writeLocalLog(config.ConfigPath(), "mcp.jira.token_key", tokenKey)
+				writeLocalLog(config.ConfigPath(), "mcp.jira.enabled", "true")
 			}
 		}
 		writeEnabled := askYN(out, "Activer write_enabled (push labels) ?", a.Config.MCP.Jira.WriteEnabled)
-		writeLocal(config.ConfigPath(), "mcp.jira.write_enabled", fmt.Sprintf("%v", writeEnabled))
+		writeLocalLog(config.ConfigPath(), "mcp.jira.write_enabled", fmt.Sprintf("%v", writeEnabled))
 		fmt.Fprintf(out, "%s Config locale Jira sauvegardée\n", theme.SuccessStyle.Render(theme.IconSuccess))
 	}
 
@@ -262,8 +262,8 @@ func configureFigma(ctx context.Context, a *app.App, repo *teamstate.Repo, teamC
 		tokenKey := askInput(out, "Nom de la clé dans le keychain (ex: figma-token)", a.Config.MCP.Figma.Token)
 		if tokenKey != "" {
 			fmt.Fprintf(out, "  Pour stocker le token: %s\n", theme.Bold.Render("oh secrets set "+tokenKey))
-			writeLocal(config.ConfigPath(), "mcp.figma.token_key", tokenKey)
-			writeLocal(config.ConfigPath(), "mcp.figma.enabled", "true")
+			writeLocalLog(config.ConfigPath(), "mcp.figma.token_key", tokenKey)
+			writeLocalLog(config.ConfigPath(), "mcp.figma.enabled", "true")
 			fmt.Fprintf(out, "%s Config locale Figma sauvegardée\n", theme.SuccessStyle.Render(theme.IconSuccess))
 		}
 	}
@@ -486,17 +486,17 @@ func configureTrackerSync(ctx context.Context, a *app.App, repo *teamstate.Repo,
 
 		// enabled override
 		if askYN(out, "Désactiver le tracker sync localement ?", false) {
-			writeLocal(config.ConfigPath(), "tracker.enabled", "false")
+			writeLocalLog(config.ConfigPath(), "tracker.enabled", "false")
 		} else {
-			writeLocal(config.ConfigPath(), "tracker.enabled", "true")
+			writeLocalLog(config.ConfigPath(), "tracker.enabled", "true")
 		}
 
 		// auto_sync override
 		sharedAutoSync := teamCfg.Tracker.AutoSync
 		if askYN(out, fmt.Sprintf("Sync automatique ? (équipe: %v)", sharedAutoSync), sharedAutoSync) {
-			writeLocal(config.ConfigPath(), "tracker.auto_sync", "true")
+			writeLocalLog(config.ConfigPath(), "tracker.auto_sync", "true")
 		} else {
-			writeLocal(config.ConfigPath(), "tracker.auto_sync", "false")
+			writeLocalLog(config.ConfigPath(), "tracker.auto_sync", "false")
 		}
 
 		// push_labels override
@@ -509,9 +509,9 @@ func configureTrackerSync(ctx context.Context, a *app.App, repo *teamstate.Repo,
 			fmt.Fprintf(out, "  Activez write_enabled dans [mcp.%s] pour activer le push\n", teamCfg.Tracker.Type)
 		} else if writeEnabled {
 			if askYN(out, i18n.Tf("cmd.team_config.push_labels_prompt", sharedPush), sharedPush) {
-				writeLocal(config.ConfigPath(), "tracker.push_labels", "true")
+				writeLocalLog(config.ConfigPath(), "tracker.push_labels", "true")
 			} else {
-				writeLocal(config.ConfigPath(), "tracker.push_labels", "false")
+				writeLocalLog(config.ConfigPath(), "tracker.push_labels", "false")
 			}
 		}
 
@@ -897,22 +897,29 @@ func coerceValue(s string) interface{} {
 	return s
 }
 
+// writeLocalLog calls writeLocal and logs any error to stderr.
+// Used by interactive config commands where write failures are non-fatal
+// but should be visible to the user.
+func writeLocalLog(configPath, keyPath, value string) {
+	if err := writeLocal(configPath, keyPath, value); err != nil {
+		fmt.Fprintf(os.Stderr, "  warning: %v\n", err)
+	}
+}
+
 // reading the file, updating the value, and rewriting. This is intentionally
 // simple — for complex edits the user can edit hub.toml directly.
-func writeLocal(configPath, keyPath, value string) {
+func writeLocal(configPath, keyPath, value string) error {
 	// Read current content
 	data, err := os.ReadFile(configPath)
 	if err != nil && !os.IsNotExist(err) {
-		fmt.Printf("  Erreur lecture %s: %v\n", configPath, err)
-		return
+		return fmt.Errorf("reading %s: %w", configPath, err)
 	}
 
 	// Parse existing TOML into a nested map
 	var tree map[string]interface{}
 	if len(data) > 0 {
 		if err := toml.Unmarshal(data, &tree); err != nil {
-			fmt.Printf("  Erreur parsing %s: %v\n", configPath, err)
-			return
+			return fmt.Errorf("parsing %s: %w", configPath, err)
 		}
 	}
 	if tree == nil {
@@ -932,8 +939,7 @@ func writeLocal(configPath, keyPath, value string) {
 		} else if childMap, ok := child.(map[string]interface{}); ok {
 			current = childMap
 		} else {
-			fmt.Printf("  Erreur: %q n'est pas une table TOML\n", strings.Join(parts[:i+1], "."))
-			return
+			return fmt.Errorf("%q is not a TOML table", strings.Join(parts[:i+1], "."))
 		}
 	}
 	current[parts[len(parts)-1]] = coerceValue(value)
@@ -941,20 +947,18 @@ func writeLocal(configPath, keyPath, value string) {
 	// Marshal and write atomically
 	out, err := toml.Marshal(tree)
 	if err != nil {
-		fmt.Printf("  Erreur sérialisation: %v\n", err)
-		return
+		return fmt.Errorf("marshaling TOML: %w", err)
 	}
 	tmpFile := configPath + ".tmp"
 	if err := os.WriteFile(tmpFile, out, 0o600); err != nil {
-		fmt.Printf("  Erreur écriture: %v\n", err)
-		return
+		return fmt.Errorf("writing %s: %w", tmpFile, err)
 	}
 	if err := os.Rename(tmpFile, configPath); err != nil {
-		fmt.Printf("  Erreur rename: %v\n", err)
 		os.Remove(tmpFile)
-		return
+		return fmt.Errorf("renaming %s: %w", tmpFile, err)
 	}
 	fmt.Printf("  %s mis à jour: %s = %s\n", configPath, keyPath, value)
+	return nil
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

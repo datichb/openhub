@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"time"
 
@@ -193,5 +194,12 @@ func writeError(w http.ResponseWriter, err error, code int) {
 	w.Header().Set("Content-Type", "application/json")
 	setCORS(w)
 	w.WriteHeader(code)
-	_ = json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+	// Only expose error details for client errors (4xx).
+	// Server errors (5xx) get a generic message to avoid leaking internals.
+	msg := http.StatusText(code)
+	if code < 500 {
+		msg = err.Error()
+	}
+	_ = json.NewEncoder(w).Encode(map[string]string{"error": msg})
+	slog.Warn("HTTP error", "code", code, "error", err.Error())
 }

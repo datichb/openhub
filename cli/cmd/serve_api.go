@@ -3,6 +3,7 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
+	"html"
 	"math"
 	"net/http"
 	"path/filepath"
@@ -272,7 +273,7 @@ func costSparklineSVG(costs []platform.DayCost) string {
 func emptySVG(msg string) string {
 	return fmt.Sprintf(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 60" width="300" height="60">
 <text x="150" y="35" font-family="monospace" font-size="11" fill="#888" text-anchor="middle">%s</text>
-</svg>`, msg)
+</svg>`, html.EscapeString(msg))
 }
 
 // ── Sessions with cost info (for the Sessions+Costs panel) ───────────────────

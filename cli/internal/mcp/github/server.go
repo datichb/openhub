@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"os"
@@ -26,6 +27,9 @@ var httpClient = httplog.Wrap(&http.Client{Timeout: 30 * time.Second}, "mcp.gith
 
 // Serve starts the GitHub MCP server.
 func Serve() error {
+	if githubToken() == "" {
+		slog.Warn("github-mcp: no GITHUB_TOKEN or GH_TOKEN set — requests will use unauthenticated rate limit (60/hr)")
+	}
 	server := protocol.NewServer("github-mcp", "1.0.0")
 
 	server.RegisterTool(protocol.Tool{
