@@ -63,6 +63,13 @@ type Service struct {
 	Daemon     func(ctx context.Context) (DaemonClient, error)
 	ServersDir string // ~/.oh/servers
 	BundlesDir string // ~/.oh/bundles (resume loads the session bundle by hash)
+	// SessionsDir (~/.oh/sessions) keeps per-session files (static environment).
+	SessionsDir string
+	// SessionEnv returns dynamic per-session variables (S7), e.g. a gateway
+	// token minted for the session. Optional.
+	SessionEnv SessionEnvFunc
+	// Decisions, when set, closes the pending decisions of stopped sessions.
+	Decisions domain.DecisionStore
 	// OnSessionEnd is called when a session is stopped for good (team
 	// session.complete event).
 	OnSessionEnd func(ctx context.Context, s domain.Session)
@@ -102,6 +109,10 @@ type StartRequest struct {
 	BuildArgs  map[string]string // dev image build arguments
 	Volumes    []string          // cache volumes
 	Progress   func(line string) // preparation output (image build)
+
+	// SessionEnv holds static, non-secret variables of the session shell
+	// (persisted for resumes). Secrets go through Service.SessionEnv.
+	SessionEnv map[string]string
 }
 
 // StartResult is the outcome of StartSession.
@@ -181,12 +192,25 @@ func (s *Service) StartSession(ctx context.Context, req StartRequest) (*StartRes
 
 	res := &StartResult{GroupKey: gk, Server: srv, Reused: reused, Report: report}
 	h := handle(srv)
+	if !reused {
+		if err := s.reapplyGroupEnv(ctx, srv, ""); err != nil {
+			slog.Warn("runsvc: session environment not restored", "group", gk, "error", err)
+		}
+	}
 	sid := sessionspec.NewSessionID()
+	env, err := s.buildSessionEnv(ctx, req.SessionEnv, SessionEnvRequest{SessionID: sid, GroupKey: gk, ProjectID: req.ProjectID, Location: req.Location})
+	if err != nil {
+		return nil, err
+	}
 	ss := sessionspec.SessionSpec{
 		SessionID: sid, Title: req.Title, Group: key, ProjectID: req.ProjectID,
 		Location: innerPath(pg, req.Location), EntryAgent: entry, Mode: req.Mode, Prompt: req.Prompt,
 		Runtime: kind, Attach: req.Attach,
 		Model: entryModel(spec, entry), Provider: sessionspec.ProviderSpec{Region: region},
+		SessionEnv: env,
+	}
+	if err := s.saveStaticEnv(sid, req.SessionEnv); err != nil {
+		return nil, fmt.Errorf("saving session environment: %w", err)
 	}
 	// The oh row is written before the tool session exists, so that the
 	// daemon tracks the session from its very first event.
@@ -533,6 +557,22 @@ func (s *Service) markFailed(ctx context.Context, sid string) {
 	sess.State = domain.RunFailed
 	sess.Status = domain.SessionStatusFailed
 	_ = s.Sessions.Update(ctx, sess)
+	s.removeStaticEnv(sid)
+}
+
+// closeDecisions resolves the open decisions of a stopped session.
+func (s *Service) closeDecisions(ctx context.Context, sessionID string) {
+	if s.Decisions == nil {
+		return
+	}
+	open, err := s.Decisions.ListOpen(ctx, domain.DecisionFilter{SessionID: sessionID})
+	if err != nil {
+		return
+	}
+	now := time.Now()
+	for _, d := range open {
+		_, _ = s.Decisions.Resolve(ctx, d.ID, domain.ResolvedByGone, nil, now)
+	}
 }
 
 // Attach opens an interactive client for a session in a new terminal tab or
@@ -669,10 +709,18 @@ func (s *Service) ResumeSession(ctx context.Context, sessionID string, req Start
 	if err != nil {
 		return err
 	}
-	srv, _, _, _, err := s.ensureServer(ctx, dc, req, key, gk, cred, region, rt, !s.groupBusy(ctx, sess.ProjectID, gk))
+	srv, reused, _, _, err := s.ensureServer(ctx, dc, req, key, gk, cred, region, rt, !s.groupBusy(ctx, sess.ProjectID, gk))
 	unlock()
 	if err != nil {
 		return err
+	}
+	if !reused {
+		if err := s.reapplyGroupEnv(ctx, srv, sess.ID); err != nil {
+			slog.Warn("runsvc: session environment not restored", "group", gk, "error", err)
+		}
+		if err := s.reapplySessionEnv(ctx, srv, sess); err != nil {
+			return fmt.Errorf("restoring the session environment: %w", err)
+		}
 	}
 	now := time.Now()
 	sess.State, sess.StateChangedAt, sess.PID = domain.RunIdle, &now, srv.PID
@@ -713,6 +761,8 @@ func (s *Service) StopSession(ctx context.Context, sessionID string) error {
 	if err := s.Sessions.Update(ctx, sess); err != nil {
 		return err
 	}
+	s.removeStaticEnv(sessionID)
+	s.closeDecisions(ctx, sessionID)
 	if s.OnSessionEnd != nil {
 		s.OnSessionEnd(ctx, *sess)
 	}

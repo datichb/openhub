@@ -3,6 +3,7 @@ package daemon
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"sync"
@@ -20,17 +21,18 @@ import (
 
 // fakeAdapter feeds events from a channel and serves pending/usage from maps.
 type fakeAdapter struct {
-	mu      sync.Mutex
-	events  chan chan adapters.ToolEvent // one channel per subscription
-	pending map[string]int
-	active  map[string]bool
-	usage   map[string]adapters.SessionResult
-	subs    int
-	failAll bool // ActiveSessions fails (server not authenticated / not ours)
+	mu        sync.Mutex
+	events    chan chan adapters.ToolEvent // one channel per subscription
+	pending   map[string]int
+	decisions map[string][]adapters.PendingDecision // overrides pending when set
+	active    map[string]bool
+	usage     map[string]adapters.SessionResult
+	subs      int
+	failAll   bool // ActiveSessions fails (server not authenticated / not ours)
 }
 
 func newFake() *fakeAdapter {
-	return &fakeAdapter{events: make(chan chan adapters.ToolEvent, 4), pending: map[string]int{}, active: map[string]bool{}, usage: map[string]adapters.SessionResult{}}
+	return &fakeAdapter{events: make(chan chan adapters.ToolEvent, 4), pending: map[string]int{}, decisions: map[string][]adapters.PendingDecision{}, active: map[string]bool{}, usage: map[string]adapters.SessionResult{}}
 }
 
 func (f *fakeAdapter) Name() string { return "fake" }
@@ -82,7 +84,14 @@ func (f *fakeAdapter) ActiveSessions(context.Context, adapters.ServerHandle) ([]
 func (f *fakeAdapter) Pending(_ context.Context, _ adapters.ServerHandle, id string) ([]adapters.PendingDecision, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	return make([]adapters.PendingDecision, f.pending[id]), nil
+	if d, ok := f.decisions[id]; ok {
+		return append([]adapters.PendingDecision(nil), d...), nil
+	}
+	out := make([]adapters.PendingDecision, f.pending[id])
+	for i := range out {
+		out[i] = adapters.PendingDecision{ID: fmt.Sprintf("per_%d", i), SessionID: id, Kind: adapters.DecisionPermission}
+	}
+	return out, nil
 }
 func (f *fakeAdapter) Reply(context.Context, adapters.ServerHandle, adapters.DecisionReply) error {
 	return nil

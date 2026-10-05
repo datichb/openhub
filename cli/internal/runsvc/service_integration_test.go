@@ -96,7 +96,7 @@ func newFixture(t *testing.T, secrets mapSecrets) *fixture {
 
 	svc := &Service{
 		Adapter: a, AdapterVer: a.Ver, Servers: sqlite.NewServerStore(st), Sessions: sqlite.NewSessionStore(st),
-		Secrets: secrets, ServersDir: filepath.Join(root, "servers"), BundlesDir: filepath.Join(root, "bundles"), Executable: "/usr/local/bin/oh",
+		Secrets: secrets, ServersDir: filepath.Join(root, "servers"), BundlesDir: filepath.Join(root, "bundles"), SessionsDir: filepath.Join(root, "sessions"), Executable: "/usr/local/bin/oh",
 		Daemon: func(context.Context) (DaemonClient, error) { return dc, nil },
 	}
 	t.Cleanup(func() {
@@ -170,10 +170,16 @@ func TestResumeSleepingSessionAndStop(t *testing.T) {
 	require.NoError(t, os.MkdirAll(dir, 0o755))
 	data, _ := json.Marshal(f.bundle.Spec)
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "bundle.json"), data, 0o644))
-
-	r, err := f.svc.StartSession(ctx, f.request(""))
+	minted := 0
+	f.svc.SessionEnv = func(context.Context, SessionEnvRequest) (map[string]string, error) {
+		v := "tok-" + strconv.Itoa(minted)
+		minted++
+		return map[string]string{"OH_TEST_DYN": v}, nil
+	}
+	r, err := f.svc.StartSession(ctx, withEnv(f.request("")))
 	require.NoError(t, err)
 	firstPID := r.Server.PID
+	assert.Equal(t, "static=one dyn=tok-0 id="+r.SessionID, sessionShellEnv(t, r.Server, r.SessionID, f.project))
 
 	// Simulate the daemon putting the group to sleep.
 	require.NoError(t, f.adapter.StopServer(ctx, handle(r.Server)))
@@ -195,6 +201,8 @@ func TestResumeSleepingSessionAndStop(t *testing.T) {
 	got, err := opencodev2.NewClient(srv.URL, srv.Password).GetSession(ctx, r.SessionID)
 	require.NoError(t, err)
 	assert.Equal(t, r.SessionID, got.ID)
+	// Its environment was applied again (static + fresh dynamic values).
+	assert.Equal(t, "static=one dyn=tok-1 id="+r.SessionID, sessionShellEnv(t, srv, r.SessionID, f.project))
 
 	require.NoError(t, f.svc.StopSession(ctx, r.SessionID))
 	sess, _ := f.svc.Sessions.Get(ctx, r.SessionID)
@@ -202,4 +210,26 @@ func TestResumeSleepingSessionAndStop(t *testing.T) {
 	srv, _ = f.svc.Servers.Get(ctx, r.GroupKey)
 	assert.Equal(t, domain.ServerStopped, srv.Status)
 	assert.Error(t, f.svc.ResumeSession(ctx, r.SessionID, f.request("")), "a stopped session cannot be resumed")
+}
+
+func withEnv(r StartRequest) StartRequest {
+	r.SessionEnv = map[string]string{"OH_TEST_STATIC": "one"}
+	return r
+}
+
+// sessionShellEnv runs a shell command in the session and reads back the
+// session-specific variables it saw (through a file: no LLM involved).
+func sessionShellEnv(t *testing.T, srv *domain.Server, sessionID, dir string) string {
+	t.Helper()
+	out := filepath.Join(dir, "env-"+strconv.FormatInt(time.Now().UnixNano(), 10)+".txt")
+	c := opencodev2.NewClient(srv.URL, srv.Password)
+	require.NoError(t, c.Shell(context.Background(), sessionID,
+		`printf 'static=%s dyn=%s id=%s' "$OH_TEST_STATIC" "$OH_TEST_DYN" "$OH_SESSION_ID" > `+out))
+	var got string
+	require.Eventually(t, func() bool {
+		data, err := os.ReadFile(out)
+		got = string(data)
+		return err == nil && got != ""
+	}, 10*time.Second, 50*time.Millisecond)
+	return got
 }

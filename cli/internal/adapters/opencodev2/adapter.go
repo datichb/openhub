@@ -284,6 +284,17 @@ func (a *Adapter) SendPrompt(ctx context.Context, h adapters.ServerHandle, sessi
 	return client(h).Prompt(ctx, sessionID, text)
 }
 
+var _ adapters.SessionEnvSetter = (*Adapter)(nil)
+
+// SetSessionEnv implements adapters.SessionEnvSetter. opencode keeps the
+// session environment in memory only (lost when the server restarts).
+func (a *Adapter) SetSessionEnv(ctx context.Context, h adapters.ServerHandle, sessionID string, env map[string]string) error {
+	if env == nil {
+		env = map[string]string{}
+	}
+	return client(h).SetEnvironment(ctx, sessionID, env)
+}
+
 // AttachCommand implements adapters.ToolAdapter: the interactive client
 // connects to the server and opens the session.
 func (a *Adapter) AttachCommand(h adapters.ServerHandle, sessionID string) (argv, env []string) {

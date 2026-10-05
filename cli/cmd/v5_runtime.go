@@ -24,9 +24,10 @@ import (
 
 // v5 runtime wiring: tool adapter, oh daemon, RunService.
 
-func ohRunDir() string     { return filepath.Join(config.HubDir(), "run") }
-func ohServersDir() string { return filepath.Join(config.HubDir(), "servers") }
-func ohCacheDir() string   { return filepath.Join(config.HubDir(), "cache") }
+func ohRunDir() string      { return filepath.Join(config.HubDir(), "run") }
+func ohServersDir() string  { return filepath.Join(config.HubDir(), "servers") }
+func ohSessionsDir() string { return filepath.Join(config.HubDir(), "sessions") }
+func ohCacheDir() string    { return filepath.Join(config.HubDir(), "cache") }
 
 // ensureDaemon returns a client to ohd, starting it when needed.
 func ensureDaemon(ctx context.Context) (*daemon.Client, daemon.Health, error) {
@@ -118,6 +119,8 @@ func newRunService(ctx context.Context, a *app.App) (*runsvc.Service, error) {
 		Secrets:      a.Secrets,
 		ServersDir:   ohServersDir(),
 		BundlesDir:   ohBundlesDir(),
+		SessionsDir:  ohSessionsDir(),
+		Decisions:    sqlite.NewDecisionStore(store),
 		OnSessionEnd: sessionEndHook(a, false),
 		Runtimes:     v5Runtimes(),
 		Daemon: func(ctx context.Context) (runsvc.DaemonClient, error) {

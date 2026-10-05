@@ -320,6 +320,12 @@ func (c *Client) SetEnvironment(ctx context.Context, sessionID string, vars map[
 	return c.do(ctx, http.MethodPut, sessionPath(sessionID, "environment"), nil, map[string]any{"variables": vars}, nil)
 }
 
+// Shell runs one shell command in the session working directory; the output
+// arrives with the session.shell.ended event.
+func (c *Client) Shell(ctx context.Context, sessionID, command string) error {
+	return c.do(ctx, http.MethodPost, sessionPath(sessionID, "shell"), nil, map[string]any{"command": command}, nil)
+}
+
 // Permissions lists pending permission requests of a session.
 func (c *Client) Permissions(ctx context.Context, sessionID string) ([]PermissionRequest, error) {
 	var out struct {

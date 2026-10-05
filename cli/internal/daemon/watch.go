@@ -23,7 +23,8 @@ const (
 
 type sessionTrack struct {
 	executing bool
-	pending   int
+	pending   int // tool requests waiting (permissions, questions)
+	alerts    int // decisions raised by oh (error, budget)
 	lastUsage time.Time
 }
 
@@ -192,8 +193,16 @@ func (w *watcher) onEvent(ctx context.Context, ev adapters.ToolEvent) {
 	}
 	w.mu.Unlock()
 
+	switch {
+	case ev.Kind == adapters.EventExecStarted:
+		w.clearAlerts(ctx, ev.SessionID)
+	case ev.Kind == adapters.EventExecEnded && ev.Outcome == "failed":
+		w.raiseFailure(ctx, ev)
+	}
 	if refreshPending {
 		w.refreshPending(ctx, ev.SessionID)
+	} else if ev.Kind == adapters.EventExecStarted {
+		w.refreshAlerts(ctx, ev.SessionID)
 	}
 	w.persist(ctx, ev.SessionID, refreshUsage)
 	if ev.Kind == adapters.EventExecEnded {
@@ -280,8 +289,18 @@ func (w *watcher) refreshPending(ctx context.Context, id string) {
 	if err != nil {
 		return
 	}
+	w.syncToolDecisions(ctx, id, pending)
+	alerts := w.openAlerts(ctx, id)
 	w.mu.Lock()
-	w.track(id).pending = len(pending)
+	t := w.track(id)
+	t.pending, t.alerts = len(pending), alerts
+	w.mu.Unlock()
+}
+
+func (w *watcher) refreshAlerts(ctx context.Context, id string) {
+	alerts := w.openAlerts(ctx, id)
+	w.mu.Lock()
+	w.track(id).alerts = alerts
 	w.mu.Unlock()
 }
 
@@ -295,7 +314,7 @@ func (w *watcher) persist(ctx context.Context, id string, withUsage bool) {
 	t := w.track(id)
 	state := domain.RunIdle
 	switch {
-	case t.pending > 0:
+	case t.pending > 0 || t.alerts > 0:
 		state = domain.RunWaiting
 	case t.executing:
 		state = domain.RunActive

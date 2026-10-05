@@ -43,6 +43,7 @@ var daemonRunCmd = &cobra.Command{
 			Grants:    sqlite.NewGrantStore(store),
 			Servers:   sqlite.NewServerStore(store),
 			Sessions:  a.Sessions,
+			Decisions: sqlite.NewDecisionStore(store),
 			Secrets:   a.Secrets,
 			IdleSleep: time.Duration(a.Config.Session.IdleSleepMinutes) * time.Minute,
 			// Async: a git push must not stall supervision (the daemon

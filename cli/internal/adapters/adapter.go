@@ -198,3 +198,10 @@ type ToolAdapter interface {
 	Control(ctx context.Context, h ServerHandle, sessionID string, op ControlOp) error
 	Results(ctx context.Context, h ServerHandle, sessionID string) (SessionResult, error)
 }
+
+// SessionEnvSetter is implemented by adapters that can (re)apply the
+// session environment (S7) of an existing session. Tools may keep it in
+// memory only (opencode V2): it must be applied again after a server restart.
+type SessionEnvSetter interface {
+	SetSessionEnv(ctx context.Context, h ServerHandle, sessionID string, env map[string]string) error
+}

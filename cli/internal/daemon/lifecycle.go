@@ -182,6 +182,7 @@ func (d *Daemon) putToSleep(ctx context.Context, srv domain.Server, final bool) 
 		w.stop(3 * time.Second)
 	}
 	d.markSessions(ctx, srv, state)
+	d.closeDecisions(ctx, srv.GroupKey, final)
 	slog.Info("ohd: server group put to "+string(status), "group", srv.GroupKey)
 }
 

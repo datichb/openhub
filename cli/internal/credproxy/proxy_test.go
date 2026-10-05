@@ -188,8 +188,11 @@ func TestProxyBudget(t *testing.T) {
 		resp.Body.Close()
 		return resp.StatusCode
 	}
+	assert.False(t, p.Exhausted(tok))
 	assert.Equal(t, http.StatusOK, call())
+	assert.Eventually(t, func() bool { return p.Exhausted(tok) }, 2*time.Second, 20*time.Millisecond)
 	assert.Equal(t, http.StatusTooManyRequests, call(), "110 tokens used ≥ budget 100")
+	assert.False(t, p.Exhausted("ohs_unknown"))
 }
 
 func TestProxyUpstreamDown(t *testing.T) {
