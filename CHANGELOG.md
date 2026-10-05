@@ -37,6 +37,15 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
   - **Préférences** (migration v32 `preferences`) : workflows épinglés (5 par portée : hub, projet, équipe), récents tirés des sessions, suggestions par défaut, réglages d'interface.
   - **Sélecteur de tickets Beads en tview** : recherche, filtres de label et d'épopée, regroupement par épopée, aperçu, multi-sélection, tickets réservés signalés.
 
+### Added — exécution en conteneur (phase 4, en cours)
+
+- **Runtime conteneur** (pas encore proposé dans `oh run` ni la TUI) : le serveur opencode d'un groupe de sessions tourne dans un conteneur, piloté par la ligne de commande de Colima, Podman ou Docker (choix automatique ; `OH_CONTAINER_ENGINE` pour forcer un moteur). macOS et Linux.
+  - Image par projet : Dockerfile de développement du projet (`Dockerfile.dev`, `dev.Dockerfile`, `.devcontainer/Dockerfile`, `Dockerfile`, sinon une base Debian minimale) plus une couche oh avec opencode à la même version que sur la machine (téléchargé depuis npm, empreinte vérifiée) et un faux `bd`. Images mises en cache et étiquetées par empreinte ; les deux plus récentes sont gardées par projet.
+  - Le paquet de session est monté en lecture seule ; le projet et ses worktrees en lecture-écriture, avec l'utilisateur de la machine (fichiers créés à son nom) ; la configuration opencode de l'utilisateur n'est pas visible.
+  - Port du serveur publié sur `127.0.0.1` seulement ; l'interface opencode de la machine s'y attache comme en local.
+  - Aucun secret dans le conteneur : le proxy d'identifiants reste sur la machine et n'est joignable qu'avec le jeton de session.
+- `make test-container` : tests réels avec Colima et/ou Podman.
+
 ### Changed
 
 - Les migrations SQLite v28–v31 s'appliquent à la base locale (`servers`, `proxy_grants`, colonnes de suivi des sessions) ; `~/.oh` passe en 0700 et `oh.db` (avec ses fichiers WAL) en 0600.
