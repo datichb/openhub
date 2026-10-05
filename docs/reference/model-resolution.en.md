@@ -42,6 +42,17 @@ Resolution is performed for each deployed agent. First match wins (decreasing pr
 > **Team-level models (7-9) are always recommendations** — hub and project overrides take priority.
 > There is no enforcement mechanism for models (unlike MCP services).
 
+### Workflow level (v5 session bundles)
+
+For sessions launched from a workflow (`oh/v1`), the workflow `models:` block sits **above** the cascade (decision O9):
+
+| Priority | Level | Source |
+|----------|-------|--------|
+| 0a | Workflow agent | `models.agents.<id>` of the workflow |
+| 0b | Workflow global | `models.default` of the workflow |
+
+Then levels 1 to 10 above. The workflow level has no families. Full identifiers (`amazon-bedrock/eu.anthropic.claude-sonnet-4-6`, `#variant` suffix) are accepted: the Bedrock regional prefix is removed, then added back by the adapter for the session region; the variant is kept.
+
 ### Families
 
 An agent's family is derived from its parent directory in `agents/`:

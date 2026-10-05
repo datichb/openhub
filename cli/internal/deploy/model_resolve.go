@@ -126,19 +126,37 @@ normalize:
 //   - Short name: "claude-sonnet-4-5"
 //   - Provider-prefixed: "anthropic/claude-sonnet-4-5"
 //   - Already normalized: "amazon-bedrock/anthropic.claude-sonnet-4-5-20250929-v1:0"
+//   - Bedrock inference profile: "amazon-bedrock/eu.anthropic.claude-sonnet-4-6"
+//   - With a variant suffix: "claude-sonnet-4-6#high" (kept as-is)
 //
 // The function extracts the short model name and re-formats it for the target provider.
+// Bedrock models of other vendors (e.g. "amazon-bedrock/amazon.nova-pro-v1:0")
+// are returned without their regional prefix when the provider is bedrock.
 func NormalizeModelForProvider(model, provider string) string {
 	if model == "" || provider == "" {
 		return model
+	}
+	variant := ""
+	if i := strings.LastIndex(model, "#"); i >= 0 {
+		model, variant = model[:i], model[i:]
+	}
+	if provider == "bedrock" {
+		if rest, ok := strings.CutPrefix(model, "amazon-bedrock/"); ok {
+			if rest = stripBedrockGeo(rest); !strings.HasPrefix(rest, "anthropic.") {
+				return "amazon-bedrock/" + rest + variant
+			}
+		}
 	}
 
 	// Extract the short model name (strip any existing provider prefix)
 	shortName := extractShortModelName(model)
 	if shortName == "" {
-		return model // cannot parse, return as-is
+		return model + variant // cannot parse, return as-is
 	}
+	return normalizeShortName(shortName, provider) + variant
+}
 
+func normalizeShortName(shortName, provider string) string {
 	switch provider {
 	case "anthropic":
 		return "anthropic/" + shortName
@@ -163,7 +181,7 @@ func NormalizeModelForProvider(model, provider string) string {
 func extractShortModelName(model string) string {
 	// Handle bedrock format: "amazon-bedrock/anthropic.claude-xxx-YYYYMMDD-vN:M"
 	if strings.HasPrefix(model, "amazon-bedrock/") {
-		after := strings.TrimPrefix(model, "amazon-bedrock/")
+		after := stripBedrockGeo(strings.TrimPrefix(model, "amazon-bedrock/"))
 		// Remove "anthropic." prefix
 		after = strings.TrimPrefix(after, "anthropic.")
 		// Remove date-version suffix (-YYYYMMDD-vN:M)
@@ -186,6 +204,18 @@ func extractShortModelName(model string) string {
 
 	// Already a short name
 	return model
+}
+
+// stripBedrockGeo removes the regional inference profile prefix of a Bedrock
+// model ID ("eu.anthropic.x" → "anthropic.x"); the adapter adds the prefix
+// matching the session region.
+func stripBedrockGeo(id string) string {
+	for _, geo := range []string{"eu.", "us.", "apac.", "jp.", "au.", "global.", "us-gov."} {
+		if rest, ok := strings.CutPrefix(id, geo); ok {
+			return rest
+		}
+	}
+	return id
 }
 
 // stripBedrockVersionSuffix removes the date-version suffix from a bedrock model name.

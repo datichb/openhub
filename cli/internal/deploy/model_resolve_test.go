@@ -156,6 +156,12 @@ func TestNormalizeModelForProvider(t *testing.T) {
 		{"bedrock sonnet", "claude-sonnet-4-5", "bedrock", "amazon-bedrock/anthropic.claude-sonnet-4-5-20250929-v1:0"},
 		{"bedrock sonnet 4-6", "claude-sonnet-4-6", "bedrock", "amazon-bedrock/anthropic.claude-sonnet-4-6"},
 		{"bedrock unknown model fallback", "claude-future-5", "bedrock", "amazon-bedrock/anthropic.claude-future-5"},
+		{"bedrock inference profile", "amazon-bedrock/eu.anthropic.claude-sonnet-4-6", "bedrock", "amazon-bedrock/anthropic.claude-sonnet-4-6"},
+		{"bedrock inference profile irregular id", "amazon-bedrock/us.anthropic.claude-sonnet-4-5-20250929-v1:0", "bedrock", "amazon-bedrock/anthropic.claude-sonnet-4-5-20250929-v1:0"},
+		{"bedrock variant kept", "claude-sonnet-4-5#high", "bedrock", "amazon-bedrock/anthropic.claude-sonnet-4-5-20250929-v1:0#high"},
+		{"bedrock other vendor kept", "amazon-bedrock/eu.amazon.nova-pro-v1:0", "bedrock", "amazon-bedrock/amazon.nova-pro-v1:0"},
+		{"anthropic from inference profile", "amazon-bedrock/eu.anthropic.claude-opus-4-6-v1", "anthropic", "anthropic/claude-opus-4-6"},
+		{"anthropic variant kept", "anthropic/claude-opus-4-6#max", "anthropic", "anthropic/claude-opus-4-6#max"},
 
 		// GitHub Copilot
 		{"github-copilot sonnet", "claude-sonnet-4-5", "github-copilot", "github-copilot/claude-sonnet-4.5"},

@@ -35,7 +35,9 @@ type Request struct {
 	Workflow *deploy.WorkflowDeployResult
 
 	// Model resolution (cascade levels, nil = none) and hub provider name ("bedrock"…).
+	// WorkflowModels is the workflow level (O9), see WorkflowModels().
 	Provider         string
+	WorkflowModels   *deploy.ModelOverrides
 	ProjectOverrides *deploy.ModelOverrides
 	HubOverrides     *deploy.ModelOverrides
 	TeamOverrides    *deploy.ModelOverrides
@@ -166,14 +168,10 @@ func Build(req Request) (*Bundle, error) {
 	if def := findAgent(spec.Agents, req.EntryAgent); def != nil && def.Model != nil {
 		m := *def.Model
 		spec.DefaultModel = &m
-	} else if m := deploy.ResolveAgentModel(req.EntryAgent, "", req.ProjectOverrides, req.HubOverrides, req.TeamOverrides, fallbackModel, req.Provider); m != "" && req.Provider != "" {
+	} else if m := req.ResolveModel(req.EntryAgent, "", fallbackModel); m != "" && req.Provider != "" {
 		// Without a session model the tool picks its own default for the
 		// provider (opencode V2 + Bedrock: a non-Anthropic model).
-		ref := sessionspec.ParseModelRef(m)
-		if ref.Provider == "" {
-			ref.Provider = deploy.OpencodeProviderID(req.Provider)
-		}
-		spec.DefaultModel = &ref
+		spec.DefaultModel = req.modelRef(m)
 	}
 
 	hash, err := hashBundle(tmp, spec)
@@ -246,12 +244,8 @@ func agentDef(req Request, a *deploy.AssembledAgent, slot *workflow.AgentSlot, i
 		def.Description = fm.Label
 	}
 
-	if m := deploy.ResolveAgentModel(fm.ID, a.Family, req.ProjectOverrides, req.HubOverrides, req.TeamOverrides, fm.Model, req.Provider); m != "" {
-		ref := sessionspec.ParseModelRef(m)
-		if ref.Provider == "" {
-			ref.Provider = deploy.OpencodeProviderID(req.Provider)
-		}
-		def.Model = &ref
+	if m := req.ResolveModel(fm.ID, a.Family, fm.Model); m != "" {
+		def.Model = req.modelRef(m)
 	}
 
 	perms, err := deploy.ResolvePermissions(req.HubDir, fm)
