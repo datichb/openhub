@@ -1,0 +1,20 @@
+{
+  "name": "test-project",
+  "agent": {
+    "orchestrator": {
+      "model": "anthropic/claude-sonnet-4-6",
+      "permission": {
+        "task": {
+          "explore": {}
+        }
+      }
+    }
+  },
+  "mcp": {
+    "gitlab": {
+      "type": "local",
+      "command": ["oh", "mcp", "serve", "gitlab"],
+      "enabled": true
+    }
+  }
+}
