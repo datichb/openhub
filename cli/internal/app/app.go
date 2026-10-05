@@ -21,9 +21,12 @@ type App struct {
 	Sessions    domain.SessionStore
 	AgentEvents domain.AgentEventStore
 	Secrets     domain.SecretStore
-	Platform    platform.SessionPlatform // AI session backend (ADR-036)
-	Stats       platform.StatsProvider   // Session metrics provider (ADR-036)
-	IO          *IOStreams
+	// Preferences and WorkflowUsage back the PreferenceService (prefsvc).
+	Preferences   domain.PreferenceStore
+	WorkflowUsage domain.WorkflowUsageReader
+	Platform      platform.SessionPlatform // AI session backend (ADR-036)
+	Stats         platform.StatsProvider   // Session metrics provider (ADR-036)
+	IO            *IOStreams
 }
 
 // IOStreams abstracts standard I/O for testability.
@@ -83,6 +86,13 @@ func (a *App) WithAgentEventStore(s domain.AgentEventStore) *App {
 // WithSecretStore sets the secret store.
 func (a *App) WithSecretStore(s domain.SecretStore) *App {
 	a.Secrets = s
+	return a
+}
+
+// WithPreferences sets the preference store and the workflow usage reader.
+func (a *App) WithPreferences(s domain.PreferenceStore, usage domain.WorkflowUsageReader) *App {
+	a.Preferences = s
+	a.WorkflowUsage = usage
 	return a
 }
 

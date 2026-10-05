@@ -183,6 +183,8 @@ func initApp() error {
 	a.WithProjectStore(sqlite.NewProjectStore(s))
 	a.WithSessionStore(sqlite.NewSessionStore(s))
 	a.WithAgentEventStore(sqlite.NewAgentEventStore(s))
+	prefs := sqlite.NewPreferenceStore(s)
+	a.WithPreferences(prefs, prefs)
 	a.WithSecretStore(resolveSecretStore())
 
 	// Wire platform abstraction (ADR-036)
