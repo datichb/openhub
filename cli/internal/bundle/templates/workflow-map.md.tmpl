@@ -1,0 +1,31 @@
+---
+name: workflow-map
+description: "Carte du workflow {{ .ID }} : agents, délégations, checkpoints, modes et sorties. GÉNÉRÉ AUTOMATIQUEMENT depuis le YAML du workflow."
+---
+
+# Carte du workflow `{{ .ID }}`
+{{ if .Description }}
+{{ .Description }}
+{{ end }}
+- Agent d'entrée : `{{ .Entry }}`
+- Risque : `{{ .Risk }}`{{ if eq .Risk "read" }} : aucune modification de fichier, aucune écriture Beads{{ end }}
+{{- if .Beads }}
+- Commandes Beads autorisées : {{ codes .Beads }}
+{{- end }}
+
+Cette carte est la seule référence sur l'enchaînement : n'invente ni agent, ni étape, ni checkpoint qui n'y figure pas.
+
+{{ template "agents" . }}
+
+{{ template "checkpoints" . }}
+
+{{ template "modes" . }}
+{{- if .Outputs }}
+
+## Sorties à déclarer
+
+En fin de travail, annonce chaque sortie produite sur une ligne `Sortie <id> : <valeur>` :
+{{- range .Outputs }}
+- `{{ .ID }}` ({{ .Type }}){{ if .Label }} : {{ .Label }}{{ end }}
+{{- end }}
+{{- end }}

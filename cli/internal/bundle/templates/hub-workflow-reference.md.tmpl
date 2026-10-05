@@ -1,0 +1,10 @@
+---
+name: hub-workflow-reference
+description: "Agents et délégations du workflow {{ .ID }}. GÉNÉRÉ AUTOMATIQUEMENT depuis le YAML du workflow."
+---
+
+# Référence du workflow `{{ .ID }}`
+
+Agent d'entrée : `{{ .Entry }}`. Seuls les agents ci-dessous existent dans cette session.
+
+{{ template "agents" . }}

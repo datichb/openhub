@@ -38,10 +38,22 @@ func selectAgents(req Request, wf *workflow.WorkflowDefinition, files map[string
 }
 
 // specWorkflow replaces the legacy workflow by the oh/v1 one: no legacy
-// agent slots (modes come from the agents and the workflow), and the chain
-// skills generated from the legacy definition until P1-T11.
-func specWorkflow(_ *workflow.Spec, legacy *deploy.WorkflowDeployResult) (*deploy.WorkflowDeployResult, error) {
-	return &deploy.WorkflowDeployResult{GeneratedSkills: legacy.GeneratedSkills}, nil
+// agent slots (modes come from the agents and the workflow), and chain
+// skills generated from the YAML (P1-T11).
+func specWorkflow(hubDir string, spec *workflow.Spec) (*deploy.WorkflowDeployResult, error) {
+	cat, err := hubcat.New(hubDir)
+	if err != nil {
+		return nil, err
+	}
+	_, graph := workflow.SubagentGraph(spec, cat)
+	gen, err := GenerateWorkflowSkills(spec, graph, func(id string) workflow.AgentMode {
+		info, _ := cat.Agent(id)
+		return info.Mode
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &deploy.WorkflowDeployResult{GeneratedSkills: gen}, nil
 }
 
 // bundleGraph restricts graph to the shipped agents (sorted targets).

@@ -84,7 +84,7 @@ func Build(req Request) (*Bundle, error) {
 		return nil, fmt.Errorf("bundle: HubDir, OutDir and EntryAgent are required")
 	}
 	wf := req.Workflow
-	if wf == nil {
+	if wf == nil && req.Spec == nil {
 		var err error
 		if wf, err = deploy.ResolveAndPrepareWorkflow(workflow.BaseWorkflow()); err != nil {
 			return nil, err
@@ -92,7 +92,7 @@ func Build(req Request) (*Bundle, error) {
 	}
 	if req.Spec != nil {
 		var err error
-		if wf, err = specWorkflow(req.Spec, wf); err != nil {
+		if wf, err = specWorkflow(req.HubDir, req.Spec); err != nil {
 			return nil, err
 		}
 	}
