@@ -22,10 +22,20 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 ### Added — workflows déclaratifs (phase 1, en cours)
 
 - Schéma de document **`oh/v1`** (`cli/internal/workflow/schema.go`) : entrées, agents et checkpoints ordonnés, textes localisés (`fr`/`en`), délégations explicites (`calls`), politiques distantes, sorties typées, plugins, runtimes. Pas encore utilisé par les lancements.
+- **Briques** (pas encore branchées aux lancements) :
+  - **Niveau workflow dans la cascade des modèles** : `models.agents.<id>` puis `models.default` du workflow passent avant les réglages projet, hub et équipe. Identifiants complets acceptés (`amazon-bedrock/eu.anthropic…`, suffixe `#variante`).
+  - **Dépendances entre skills** : champ `requires:` du frontmatter ; le paquet de session ajoute les skills requises (inlinées avec une skill inlinée, à la demande avec une skill à la demande). Dépendance introuvable, cycle, identifiant en double ou `name:` différent du nom de fichier bloquent la construction du paquet.
+  - **Gabarits livrés avec les skills** : champ `annexes:` ; les fichiers de `skills/templates/` sont copiés dans le paquet à côté de la skill et lisibles par les agents sans demande d'autorisation.
+  - **`oh skill check [--json]`** : vérifie le catalogue des skills (doublons, `requires:`, frontmatter, annexes manquantes ou inutilisées, skills citées par les agents mais absentes).
+  - **Préférences** (migration v32 `preferences`) : workflows épinglés (5 par portée : hub, projet, équipe), récents tirés des sessions, suggestions par défaut, réglages d'interface.
+  - **Sélecteur de tickets Beads en tview** : recherche, filtres de label et d'épopée, regroupement par épopée, aperçu, multi-sélection, tickets réservés signalés.
 
 ### Changed
 
 - Les migrations SQLite v28–v31 s'appliquent à la base locale (`servers`, `proxy_grants`, colonnes de suivi des sessions) ; `~/.oh` passe en 0700 et `oh.db` (avec ses fichiers WAL) en 0600.
+- Au-delà de v31, une migration absente est appliquée même si une version plus récente l'est déjà (versions réservées par branches parallèles, fusionnées dans le désordre).
+- Les fichiers du paquet de session (`~/.oh/bundles/<hash>`) sont en lecture seule.
+- Skills : champ `bucket:` supprimé (jamais lu ; le bucket est décidé par le frontmatter de l'agent).
 
 ### Fixed
 
@@ -33,9 +43,15 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 - Bascule silencieuse d'opencode vers ses modèles hébergés quand le modèle demandé est indisponible (fournisseur de la session imposé).
 - Modèles Anthropic sur Bedrock sans profil d'inférence régional (`eu.`, `us.`…).
 - TUI : projet et équipe actifs ignorés, lancements hors boucle d'événements, Quick/Onboard/Audit incohérents, Debug absent de l'accueil, Ctrl+T sans liste d'équipes.
+- 7 skills sans `name:` ni `description:` (`team-awareness`, `team-coordination`, `parallel-coordination`…), non reconnues par opencode V2.
+- Normalisation des modèles Bedrock : préfixe régional (`eu.anthropic…`) et variante `#…` cassaient l'identifiant.
+- Skills d'orchestration et `docs/worktree.md` : les worktrees sont des dossiers frères du dépôt (`../<projet>-<branche>`), pas `.worktrees/<slug>`.
+- Test `TestDeployAgentConfigE2E` en échec dans un clone neuf (fixture ignorée par `.gitignore`).
 
 ### Documentation
 
+- **Cascade des modèles** — `model-resolution.{en,fr}.md` : niveau workflow ; niveaux équipe ajoutés à la version française
+- **Rédaction des skills** — `authoring-skills.{en,fr}.md` : `requires:`, `annexes:`, `oh skill check`
 - **Guide « Sessions v5 »** — `sessions-v5.{en,fr}.md` : ouverture, veille, reprise, commandes, clés LLM, variables d'environnement, limites ; `SECURITY` : proxy d'identifiants et limite connue du mode local
 - **Référence MCP GitLab** — `mcp-gitlab.{en,fr}.md` : 11 outils documentés (5 read + 6 write)
 - **Guide GitLab réécrit** — Noms d'outils v1→v2, variables d'env corrigées, mode write ajouté
