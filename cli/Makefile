@@ -1,4 +1,4 @@
-.PHONY: build run test test-tui test-unit lint clean install embed-sync
+.PHONY: build run test test-tui test-unit test-integration lint clean install embed-sync
 
 # Build variables
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
@@ -31,6 +31,10 @@ test-tui:
 # Run unit tests (skip integration/long-running)
 test-unit:
 	go test ./... -v -race -short
+
+# Contract tests against a real `opencode serve` (requires the opencode binary, no LLM call)
+test-integration:
+	go test ./... -race -count=1 -tags integration
 
 # Run tests with coverage
 test-cover:
