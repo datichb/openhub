@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -23,6 +24,14 @@ type Adapter struct {
 	Ver      string   // detected version
 	Natives  []string // native agents to disable (see LoadNatives)
 	CacheDir string   // where discovery results are cached
+
+	// DisablePlugin forces the fallback mode (agent bodies rendered as
+	// `system` + tooling posture) instead of the oh plugin.
+	DisablePlugin bool
+	// PluginTrace, when set, makes the oh plugin trace injected prompts (tests).
+	PluginTrace string
+	// PluginTimeout bounds the wait for the oh plugin to become active (default 10s).
+	PluginTimeout time.Duration
 }
 
 var _ adapters.ToolAdapter = (*Adapter)(nil)
@@ -86,8 +95,37 @@ func (a *Adapter) Render(b sessionspec.BundleSpec, p sessionspec.ProviderSpec) (
 }
 
 // StartServer implements adapters.ToolAdapter.
+//
+// The oh plugin is installed in the group data dir and agent bodies are
+// injected by it (opencode's base prompt is kept). If the plugin does not
+// become active, the server is restarted in fallback mode (bodies rendered as
+// `system`, prefixed with the tooling posture).
 func (a *Adapter) StartServer(ctx context.Context, g adapters.ServerGroup) (adapters.ServerHandle, error) {
-	rc, err := a.Render(g.Bundle, g.Provider)
+	if !a.DisablePlugin {
+		dir := filepath.Join(g.DataDir, PluginDirName)
+		if err := installPlugin(dir, g.Bundle); err != nil {
+			return adapters.ServerHandle{}, fmt.Errorf("installing oh plugin: %w", err)
+		}
+		h, err := a.start(ctx, g, withOhPlugin(g.Bundle, dir, a.PluginTrace))
+		if err != nil {
+			return h, err
+		}
+		timeout := a.PluginTimeout
+		if timeout == 0 {
+			timeout = 10 * time.Second
+		}
+		perr := waitPluginActive(ctx, client(h), g.WorkDir, OhPluginID, timeout)
+		if perr == nil {
+			return h, nil
+		}
+		slog.Warn("oh plugin not active, restarting in fallback mode", "error", perr)
+		_ = a.StopServer(context.Background(), h)
+	}
+	return a.start(ctx, g, withoutOhPlugin(g.Bundle))
+}
+
+func (a *Adapter) start(ctx context.Context, g adapters.ServerGroup, b sessionspec.BundleSpec) (adapters.ServerHandle, error) {
+	rc, err := a.Render(b, g.Provider)
 	if err != nil {
 		return adapters.ServerHandle{}, err
 	}
@@ -106,7 +144,7 @@ func (a *Adapter) StartServer(ctx context.Context, g adapters.ServerGroup) (adap
 		DataDir:       g.DataDir,
 		ConfigContent: rc.Env["OPENCODE_CONFIG_CONTENT"],
 		Env:           env,
-		ReadyAgent:    g.Bundle.EntryAgent,
+		ReadyAgent:    b.EntryAgent,
 		LogPath:       filepath.Join(g.DataDir, "oh-server.log"),
 	})
 	if err != nil {

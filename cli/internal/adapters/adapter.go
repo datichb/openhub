@@ -59,6 +59,7 @@ type VisibilityReport struct {
 	Skills     []string
 	MCP        []string
 	Unexpected []string // anything outside the bundle (non-empty = isolation broken)
+	Warnings   []string // non-blocking findings (e.g. user plugins loaded globally)
 	Level      sessionspec.IsolationLevel
 }
 

@@ -260,6 +260,17 @@ func TestContractRenderAndAttest(t *testing.T) {
 	assert.ElementsMatch(t, []string{"lead", "helper"}, rep.Agents)
 	assert.ElementsMatch(t, []string{"alpha", "beta"}, rep.Skills, "built-in skills must be hidden")
 	assert.Empty(t, rep.MCP)
+	t.Logf("warnings: %v", rep.Warnings)
+
+	plugins, err := NewClient(h.URL, h.Password).Plugins(context.Background(), project)
+	require.NoError(t, err)
+	active := false
+	for _, p := range plugins {
+		if p.ID == OhPluginID && p.State.Status == "active" {
+			active = true
+		}
+	}
+	assert.True(t, active, "oh plugin active")
 }
 
 func TestContractAttestDetectsParasiteAgent(t *testing.T) {

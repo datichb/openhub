@@ -77,6 +77,22 @@ func Attest(ctx context.Context, c *Client, b sessionspec.BundleSpec, location s
 		}
 	}
 
+	// Plugins loaded from the user's global config also run in oh sessions.
+	// They are reported as warnings: they do not add agents or skills (that is
+	// checked above) but may alter prompts or tools.
+	if plugins, err := c.Plugins(ctx, location); err == nil {
+		allowed := map[string]bool{OhPluginID: true}
+		for _, p := range b.Plugins {
+			allowed[p.ID] = true
+		}
+		for _, p := range plugins {
+			if p.Source.Type == "builtin" || allowed[p.ID] {
+				continue
+			}
+			rep.Warnings = append(rep.Warnings, fmt.Sprintf("plugin:%s (%s)", p.ID, p.Source.Path))
+		}
+	}
+
 	sort.Strings(rep.Unexpected)
 	if !rep.OK() {
 		rep.Level = sessionspec.IsolationNone
