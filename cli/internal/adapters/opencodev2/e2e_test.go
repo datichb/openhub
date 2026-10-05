@@ -201,3 +201,24 @@ func TestE2EThroughCredentialProxy(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotContains(t, string(ps), real)
 }
+
+// Requires OH_E2E_AWS_PROFILE: an AWS profile with Bedrock access in eu-west-1.
+func TestE2EThroughCredentialProxySigV4(t *testing.T) {
+	profile := os.Getenv("OH_E2E_AWS_PROFILE")
+	if profile == "" {
+		t.Skip("OH_E2E_AWS_PROFILE not set")
+	}
+	auth, err := credproxy.NewSigV4FromProfile(context.Background(), profile, "eu-west-1")
+	require.NoError(t, err)
+	p := credproxy.New()
+	require.NoError(t, p.Start("127.0.0.1:0"))
+	t.Cleanup(func() { _ = p.Close(context.Background()) })
+	tok, err := p.Issue(credproxy.Grant{Provider: credproxy.ProviderBedrock, Upstream: credproxy.BedrockUpstream("eu-west-1", auth)})
+	require.NoError(t, err)
+
+	r := startE2EWith(t, e2eBundle(t), false, sessionspec.ProviderSpec{
+		ID: "amazon-bedrock", Region: "eu-west-1", BaseURL: p.BaseURL(credproxy.ProviderBedrock), SessionToken: tok,
+	})
+	reply := r.ask(t, "lead", "Say hello in three words.")
+	assert.True(t, strings.HasPrefix(strings.TrimSpace(reply), "LEAD:"), "reply: %q", reply)
+}
