@@ -2,6 +2,8 @@ package daemon
 
 import (
 	"encoding/json"
+	"log/slog"
+	"net"
 	"net/http"
 	"os"
 	"strings"
@@ -24,6 +26,7 @@ func (d *Daemon) routes() http.Handler {
 	mux.HandleFunc("POST "+apiPrefix+"/clients/heartbeat", d.handleHeartbeat)
 	mux.HandleFunc("DELETE "+apiPrefix+"/clients/{id}", d.handleClientGone)
 	mux.HandleFunc("POST "+apiPrefix+"/groups/{group}/policy", d.handlePolicy)
+	mux.HandleFunc("POST "+apiPrefix+"/proxy/listeners", d.handleListen)
 	return mux
 }
 
@@ -150,4 +153,29 @@ func (d *Daemon) handleShutdown(w http.ResponseWriter, r *http.Request) {
 	}
 	w.WriteHeader(http.StatusAccepted)
 	go d.requestStop()
+}
+
+// handleListen adds a proxy listener on a private or loopback address (a
+// container bridge gateway); public and unspecified addresses are refused so
+// that the proxy is never exposed on the network.
+func (d *Daemon) handleListen(w http.ResponseWriter, r *http.Request) {
+	var req ListenRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeErr(w, http.StatusBadRequest, "invalid body")
+		return
+	}
+	ip := net.ParseIP(req.Host)
+	if ip == nil || ip.IsUnspecified() || (!ip.IsPrivate() && !ip.IsLoopback()) {
+		writeErr(w, http.StatusBadRequest, "host must be a private or loopback IP address")
+		return
+	}
+	u, err := d.proxy.Listen(ip.String())
+	if err != nil {
+		writeErr(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	if err := d.saveState(); err != nil {
+		slog.Warn("ohd: cannot save state", "error", err)
+	}
+	writeJSON(w, http.StatusOK, ListenResponse{URL: u})
 }

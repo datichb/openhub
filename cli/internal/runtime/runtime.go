@@ -56,6 +56,9 @@ type Group struct {
 	// or relative to ProjectDir, "" = detected) and build arguments.
 	Dockerfile string
 	BuildArgs  map[string]string
+	// Volumes are persistent cache volumes: absolute paths in the runtime,
+	// or paths relative to each location (e.g. "node_modules").
+	Volumes []string
 	// Progress receives preparation output (image build), line by line.
 	Progress func(line string)
 }
@@ -65,6 +68,11 @@ type Prepared struct {
 	Group Group
 	// Paths maps host paths to the paths seen by the server process.
 	Paths PathMap
+	// HostAddress is the machine address seen from inside (proxy, gateways).
+	HostAddress string
+	// ListenHost is a machine IP the credential proxy must also listen on to
+	// be reachable from inside ("" = the machine loopback is reachable).
+	ListenHost string
 	// Spec is runtime-specific state (e.g. the container spec).
 	Spec any
 }

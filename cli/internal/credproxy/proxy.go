@@ -19,6 +19,7 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -84,6 +85,8 @@ type Proxy struct {
 	server   *http.Server
 	url      string
 	client   *http.Transport
+	extra    map[string]*http.Server // additional listeners by host (containers)
+	extraURL map[string]string
 }
 
 // New returns an unstarted proxy.
@@ -123,8 +126,59 @@ func (p *Proxy) URL() string { return p.url }
 // BaseURL returns the provider base URL to configure in the tool.
 func (p *Proxy) BaseURL(provider string) string { return p.url + "/" + provider }
 
+// Listen adds a listener on host (an address reachable from containers, e.g.
+// a bridge gateway), on the main port when free, and returns its base URL.
+// The same tokens are accepted on every listener. Idempotent per host.
+func (p *Proxy) Listen(host string) (string, error) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if u, ok := p.extraURL[host]; ok {
+		return u, nil
+	}
+	if p.listener == nil {
+		return "", errors.New("credproxy: not started")
+	}
+	port := p.listener.Addr().(*net.TCPAddr).Port
+	l, err := net.Listen("tcp", net.JoinHostPort(host, strconv.Itoa(port)))
+	if err != nil {
+		if l, err = net.Listen("tcp", net.JoinHostPort(host, "0")); err != nil {
+			return "", fmt.Errorf("credproxy: listen %s: %w", host, err)
+		}
+	}
+	srv := &http.Server{Handler: p, ReadHeaderTimeout: 30 * time.Second}
+	go func() {
+		if err := srv.Serve(l); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			slog.Error("credproxy listener stopped", "addr", l.Addr().String(), "error", err)
+		}
+	}()
+	if p.extra == nil {
+		p.extra, p.extraURL = map[string]*http.Server{}, map[string]string{}
+	}
+	u := "http://" + l.Addr().String()
+	p.extra[host], p.extraURL[host] = srv, u
+	return u, nil
+}
+
+// Listeners returns the base URLs of the additional listeners by host.
+func (p *Proxy) Listeners() map[string]string {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+	out := make(map[string]string, len(p.extraURL))
+	for k, v := range p.extraURL {
+		out[k] = v
+	}
+	return out
+}
+
 // Close stops the proxy.
 func (p *Proxy) Close(ctx context.Context) error {
+	p.mu.Lock()
+	extra := p.extra
+	p.extra, p.extraURL = nil, nil
+	p.mu.Unlock()
+	for _, s := range extra {
+		_ = s.Shutdown(ctx)
+	}
 	if p.server == nil {
 		return nil
 	}

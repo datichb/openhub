@@ -126,7 +126,10 @@ type Engine struct {
 	Version  string   // engine server version
 	Rootless bool     // podman rootless (keep-id applies)
 	VM       bool     // the engine runs in a VM (macOS)
-	Details  []string
+	// Shared are the machine directories shared with the VM (bind mount
+	// sources must be under one of them); empty = no VM, everything is shared.
+	Shared  []string
+	Details []string
 }
 
 // Command returns the CLI argv for an engine subcommand.
@@ -140,6 +143,7 @@ type Detector struct {
 	Runner        Runner
 	GOOS          string // runtime.GOOS
 	ColimaProfile string // default: "default"
+	Home          string // user home directory (Colima shares it with its VM)
 }
 
 // ParseEngine validates an engine setting ("" = auto).
@@ -237,7 +241,7 @@ func (d Detector) colima(ctx context.Context) (Engine, ohruntime.Availability, b
 	if profile != "default" {
 		ctxName += "-" + profile
 	}
-	e := Engine{Kind: EngineColima, CLI: cli, Args: []string{"--context", ctxName}, Host: hostDocker, VM: true}
+	e := Engine{Kind: EngineColima, CLI: cli, Args: []string{"--context", ctxName}, Host: hostDocker, VM: true, Shared: d.colimaShared()}
 	v, err := d.Runner.Run(ctx, cli, e.Command("version", "--format", "{{.Server.Version}}")[1:]...)
 	if err != nil {
 		return Engine{}, unavailable(name, reasonUnreachable, "Colima", err.Error()), true
@@ -252,6 +256,15 @@ func (d Detector) colima(ctx context.Context) (Engine, ohruntime.Availability, b
 	return e, available(e), true
 }
 
+// colimaShared returns the directories Colima shares by default (the home
+// directory; $TMPDIR is not shared).
+func (d Detector) colimaShared() []string {
+	if d.Home == "" {
+		return nil
+	}
+	return []string{d.Home}
+}
+
 // podman probes Podman (a machine on macOS, native on Linux).
 func (d Detector) podman(ctx context.Context) (Engine, ohruntime.Availability, bool) {
 	name := string(EnginePodman)
@@ -260,6 +273,9 @@ func (d Detector) podman(ctx context.Context) (Engine, ohruntime.Availability, b
 		return Engine{}, unavailable(name, reasonNotInstalled, "Podman"), false
 	}
 	e := Engine{Kind: EnginePodman, CLI: cli, Host: hostPodman, VM: d.GOOS != "linux"}
+	if e.VM {
+		e.Shared = []string{"/Users", "/private", "/var/folders"} // podman machine defaults
+	}
 	v, err := d.Runner.Run(ctx, cli, "version", "--format", "{{.Server.Version}}")
 	if err != nil || strings.TrimSpace(string(v)) == "" {
 		if e.VM {
@@ -290,6 +306,9 @@ func (d Detector) docker(ctx context.Context) (Engine, ohruntime.Availability, b
 		return Engine{}, unavailable(name, reasonNotInstalled, "Docker"), false
 	}
 	e := Engine{Kind: EngineDocker, CLI: cli, Host: hostDocker, VM: d.GOOS != "linux"}
+	if e.VM {
+		e.Shared = []string{"/Users", "/Volumes", "/private", "/tmp", "/var/folders"} // Docker Desktop defaults
+	}
 	v, err := d.Runner.Run(ctx, cli, "version", "--format", "{{.Server.Version}}")
 	if err != nil {
 		return Engine{}, unavailable(name, reasonUnreachable, "Docker", err.Error()), true

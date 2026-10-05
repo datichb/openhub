@@ -18,7 +18,7 @@ import (
 )
 
 // layerVersion changes whenever the thin oh layer changes (new tag for all images).
-const layerVersion = "1"
+const layerVersion = "2"
 
 // dockerfileCandidates are probed in order in the project directory.
 var dockerfileCandidates = []string{"Dockerfile.dev", "dev.Dockerfile", ".devcontainer/Dockerfile", "Dockerfile"}
@@ -237,7 +237,11 @@ func (r *Runtime) buildLayer(ctx context.Context, e Engine, g ohruntime.Group, i
 	if err := os.WriteFile(filepath.Join(dir, "oh-bd"), bd, 0o755); err != nil {
 		return err
 	}
-	dockerfile := fmt.Sprintf("FROM %s\nUSER root\nCOPY oh-tool /usr/local/bin/%s\nCOPY oh-bd /usr/local/bin/bd\n", img.BaseRef, g.Tool.Name())
+	// /opt/oh/home (per-project volume) is world-writable so that the
+	// machine uid used at run time can write to it.
+	dockerfile := fmt.Sprintf("FROM %s\nUSER root\nCOPY oh-tool /usr/local/bin/%s\nCOPY oh-bd /usr/local/bin/bd\n"+
+		"RUN mkdir -p %s %s %s %s && chmod 1777 %s %s\n",
+		img.BaseRef, g.Tool.Name(), InnerBundle, InnerData, InnerHome, InnerWork, InnerHome, InnerWork)
 	if err := os.WriteFile(filepath.Join(dir, "Dockerfile"), []byte(dockerfile), 0o644); err != nil {
 		return err
 	}

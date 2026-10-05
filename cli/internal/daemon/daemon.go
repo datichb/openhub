@@ -9,6 +9,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -69,6 +70,9 @@ type Daemon struct {
 
 type stateFile struct {
 	ProxyPort int `json:"proxy_port"`
+	// ListenHosts are additional proxy listen addresses (bridge gateways
+	// for containers on Linux), restored at startup.
+	ListenHosts []string `json:"listen_hosts,omitempty"`
 }
 
 // Run starts the daemon and blocks until it stops (idle timeout, shutdown
@@ -168,18 +172,40 @@ func (d *Daemon) startProxy() error {
 	if data, err := os.ReadFile(d.opts.Paths.State()); err == nil {
 		_ = json.Unmarshal(data, &st)
 	}
+	restored := false
 	if st.ProxyPort > 0 {
 		if err := d.proxy.Start(fmt.Sprintf("127.0.0.1:%d", st.ProxyPort)); err == nil {
-			return nil
+			restored = true
+		} else {
+			slog.Warn("ohd: previous proxy port unavailable, picking a new one", "port", st.ProxyPort)
 		}
-		slog.Warn("ohd: previous proxy port unavailable, picking a new one", "port", st.ProxyPort)
 	}
-	if err := d.proxy.Start("127.0.0.1:0"); err != nil {
-		return err
+	if !restored {
+		if err := d.proxy.Start("127.0.0.1:0"); err != nil {
+			return err
+		}
 	}
+	for _, h := range st.ListenHosts {
+		if _, err := d.proxy.Listen(h); err != nil {
+			slog.Warn("ohd: cannot restore proxy listener", "host", h, "error", err)
+		}
+	}
+	if restored {
+		return nil
+	}
+	return d.saveState()
+}
+
+// saveState persists the proxy port and additional listen hosts.
+func (d *Daemon) saveState() error {
 	_, port, _ := net.SplitHostPort(strings.TrimPrefix(d.proxy.URL(), "http://"))
 	p, _ := strconv.Atoi(port)
-	data, _ := json.Marshal(stateFile{ProxyPort: p})
+	st := stateFile{ProxyPort: p}
+	for h := range d.proxy.Listeners() {
+		st.ListenHosts = append(st.ListenHosts, h)
+	}
+	sort.Strings(st.ListenHosts)
+	data, _ := json.Marshal(st)
 	return os.WriteFile(d.opts.Paths.State(), data, 0o600)
 }
 
