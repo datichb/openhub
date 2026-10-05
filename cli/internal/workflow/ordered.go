@@ -1,8 +1,6 @@
 package workflow
 
 import (
-	"fmt"
-
 	"gopkg.in/yaml.v3"
 )
 
@@ -85,7 +83,7 @@ func (m *OrderedMap[T]) UnmarshalYAML(unmarshal func(any) error) error {
 		return nil
 	}
 	if node.Kind != yaml.MappingNode {
-		return fmt.Errorf("line %d: expected a mapping", node.Line)
+		return nodeError(node, "expected_mapping")
 	}
 	var values map[string]T
 	if err := unmarshal(&values); err != nil {
