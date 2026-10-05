@@ -14,10 +14,12 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/adapters"
 	"github.com/datichb/openhub/cli/internal/adapters/opencodev2"
+	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/buildinfo"
 	"github.com/datichb/openhub/cli/internal/daemon"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/storage/sqlite"
+	"github.com/datichb/openhub/cli/internal/sysnotify"
 )
 
 var daemonCmd = &cobra.Command{
@@ -45,8 +47,15 @@ var daemonRunCmd = &cobra.Command{
 			Sessions:    a.Sessions,
 			Decisions:   sqlite.NewDecisionStore(store),
 			SessionsDir: ohSessionsDir(),
-			Secrets:     a.Secrets,
-			IdleSleep:   time.Duration(a.Config.Session.IdleSleepMinutes) * time.Minute,
+			Notify:      daemonNotifier(a),
+			ProjectName: func(ctx context.Context, id string) string {
+				if p, err := a.Projects.Get(ctx, id); err == nil {
+					return p.Name
+				}
+				return ""
+			},
+			Secrets:   a.Secrets,
+			IdleSleep: time.Duration(a.Config.Session.IdleSleepMinutes) * time.Minute,
 			// Async: a git push must not stall supervision (the daemon
 			// outlives the last server by IdleAfter).
 			OnSessionEnd: sessionEndHook(a, true),
@@ -108,6 +117,17 @@ var daemonStopCmd = &cobra.Command{
 		fmt.Fprintln(cmd.OutOrStdout(), i18n.T("cmd.daemon.stopping"))
 		return nil
 	},
+}
+
+// daemonNotifier returns the desktop notifier of the daemon ([session] notify).
+func daemonNotifier(a *app.App) daemon.NotifyFunc {
+	if !a.Config.Session.NotifyEnabled() {
+		return nil
+	}
+	n := sysnotify.New()
+	return func(ctx context.Context, title, message string) error {
+		return n.Notify(ctx, sysnotify.Note{Title: title, Message: message, Group: "oh-sessions", Sound: true})
+	}
 }
 
 func init() {

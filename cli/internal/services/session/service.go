@@ -26,6 +26,10 @@ type Service struct {
 	SessionsDir string
 	// Resolvers answer decision kinds owned by other services (checkpoint).
 	Resolvers map[domain.DecisionKind]Resolver
+	// Live opens the oh daemon live stream (nil = polling only).
+	Live LiveStream
+	// PollEvery is the refresh period of Subscribe without the daemon (default 2s).
+	PollEvery time.Duration
 	// Alive reports whether a server PID is alive (nil = trust the store).
 	Alive func(pid int) bool
 	Now   func() time.Time

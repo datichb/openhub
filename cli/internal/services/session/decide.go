@@ -78,14 +78,14 @@ func (s *Service) Decide(ctx context.Context, r Reply) error {
 			return err
 		}
 		deliver = func(ctx context.Context) error {
-			return s.replyTool(ctx, d, adapters.DecisionReply{SessionID: d.SessionID, ID: d.ToolRef, Kind: adapters.DecisionPermission, Decision: r.Decision, Message: r.Message})
+			return s.replyTool(ctx, d, adapters.DecisionReply{SessionID: d.ToolSessionID(), ID: d.ToolRef, Kind: adapters.DecisionPermission, Decision: r.Decision, Message: r.Message})
 		}
 	case domain.DecisionQuestion:
 		if err := ValidateAnswers(d.Payload.Fields, r.Answer); err != nil {
 			return err
 		}
 		deliver = func(ctx context.Context) error {
-			return s.replyTool(ctx, d, adapters.DecisionReply{SessionID: d.SessionID, ID: d.ToolRef, Kind: adapters.DecisionQuestion, Answer: r.Answer})
+			return s.replyTool(ctx, d, adapters.DecisionReply{SessionID: d.ToolSessionID(), ID: d.ToolRef, Kind: adapters.DecisionQuestion, Answer: r.Answer})
 		}
 	case domain.DecisionError, domain.DecisionBudget:
 		if r.Decision != "" && r.Decision != "dismiss" {

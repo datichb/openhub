@@ -209,8 +209,15 @@ func (d *Daemon) markSessions(ctx context.Context, srv domain.Server, state doma
 			s.Status = domain.SessionStatusCompleted
 			s.EndedAt = &now
 		}
-		if err := d.opts.Sessions.Update(ctx, s); err == nil && state == domain.RunStopped && d.opts.OnSessionEnd != nil {
-			d.opts.OnSessionEnd(ctx, *s)
+		if err := d.opts.Sessions.Update(ctx, s); err != nil {
+			continue
+		}
+		d.feed.publishChange(domain.SessionChange{SessionID: s.ID, GroupKey: s.GroupKey, State: state})
+		if state == domain.RunStopped {
+			d.feed.forget(s.ID)
+			if d.opts.OnSessionEnd != nil {
+				d.opts.OnSessionEnd(ctx, *s)
+			}
 		}
 	}
 }

@@ -42,6 +42,12 @@ type Options struct {
 	Sessions domain.SessionStore
 	// Decisions receives the pending decisions of the tracked sessions (inbox).
 	Decisions domain.DecisionStore
+	// Notify shows desktop notifications (nil = disabled).
+	Notify NotifyFunc
+	// NotifyWindow groups the notifications of this period (default 3s).
+	NotifyWindow time.Duration
+	// ProjectName names a project in notifications (optional).
+	ProjectName func(ctx context.Context, projectID string) string
 	// SessionsDir (~/.oh/sessions) receives the results snapshot of the
 	// sessions of a group before its server sleeps or stops.
 	SessionsDir string
@@ -60,6 +66,8 @@ type Daemon struct {
 
 	wmu      sync.Mutex
 	watchers map[string]*watcher
+	feed     *hub
+	notes    *notifier
 
 	mu          sync.Mutex
 	clients     map[string]client
@@ -107,7 +115,7 @@ func Run(ctx context.Context, opts Options) error {
 	}
 	defer unlock()
 
-	d := &Daemon{opts: opts, proxy: credproxy.New(), pending: map[string]domain.ProxyGrant{}, clients: map[string]client{}, verified: map[string]bool{}, verifyFails: map[string]int{}, policies: map[string]QuitPolicy{}, watchers: map[string]*watcher{}, lastBusy: time.Now(), stop: make(chan struct{}), kick: make(chan struct{}, 1)}
+	d := &Daemon{opts: opts, proxy: credproxy.New(), pending: map[string]domain.ProxyGrant{}, clients: map[string]client{}, verified: map[string]bool{}, verifyFails: map[string]int{}, policies: map[string]QuitPolicy{}, watchers: map[string]*watcher{}, feed: newHub(), lastBusy: time.Now(), stop: make(chan struct{}), kick: make(chan struct{}, 1)}
 	if err := d.startProxy(); err != nil {
 		return err
 	}
@@ -129,6 +137,10 @@ func Run(ctx context.Context, opts Options) error {
 	}()
 	slog.Info("ohd started", "pid", os.Getpid(), "proxy", d.proxy.URL(), "socket", opts.Paths.Socket())
 	defer d.stopWatchers()
+	if opts.Notify != nil {
+		d.notes = newNotifier(d, opts.Notify)
+		go d.notes.run(ctx)
+	}
 	d.supervise(ctx)
 
 	ticker := time.NewTicker(opts.Tick)
@@ -153,6 +165,7 @@ func Run(ctx context.Context, opts Options) error {
 func (d *Daemon) shutdown() error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
+	d.feed.close() // ends the live streams, so that Shutdown does not wait for them
 	if d.http != nil {
 		_ = d.http.Shutdown(ctx)
 	}
@@ -318,6 +331,7 @@ func (d *Daemon) supervise(ctx context.Context) bool {
 	}
 	d.syncWatchers(ctx, ready)
 	d.applyLifecycle(ctx, ready)
+	d.notes.requestScan() // decisions raised by other processes (CLI, TUI)
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	if live > 0 {

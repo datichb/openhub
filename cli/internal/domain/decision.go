@@ -77,6 +77,19 @@ type Decision struct {
 	Resolution *DecisionResolution
 }
 
+// DataToolSession is the Payload.Data key of the tool session that asked,
+// when it is not the oh session itself (a subagent child session).
+const DataToolSession = "tool_session_id"
+
+// ToolSessionID returns the tool session to answer (the oh session, or the
+// subagent session that asked).
+func (d Decision) ToolSessionID() string {
+	if s, ok := d.Payload.Data[DataToolSession].(string); ok && s != "" {
+		return s
+	}
+	return d.SessionID
+}
+
 // Open reports whether the decision still waits for an answer.
 func (d Decision) Open() bool { return d.ResolvedAt == nil }
 

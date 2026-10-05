@@ -15,16 +15,18 @@ import (
 // decisions oh owns (agent loop failure, exhausted budget). The table is the
 // source of the inbox; the tool remains the source of truth after a resync.
 
-// syncToolDecisions records the requests the tool lists for a session and
-// closes the ones it no longer lists (answered in the tool UI or the browser).
-func (w *watcher) syncToolDecisions(ctx context.Context, id string, pending []adapters.PendingDecision) {
+// syncToolDecisions records the requests the tool lists for a tool session
+// and closes the ones it no longer lists (answered in the tool UI or the
+// browser). Requests of a subagent (child) session are filed under the oh
+// session that delegated it (root).
+func (w *watcher) syncToolDecisions(ctx context.Context, root, toolSession string, pending []adapters.PendingDecision) {
 	store := w.d.opts.Decisions
 	if store == nil {
 		return
 	}
 	listed := map[string]bool{}
 	for _, p := range pending {
-		d := toolDecision(w.srv.GroupKey, id, p)
+		d := toolDecision(w.srv.GroupKey, root, toolSession, p)
 		listed[d.ID] = true
 		if prev, err := store.Get(ctx, d.ID); err == nil && !prev.Open() && prev.ResolvedBy == domain.ResolvedByGone {
 			// Lost with its server, asked again after the resume.
@@ -34,13 +36,13 @@ func (w *watcher) syncToolDecisions(ctx context.Context, id string, pending []ad
 			slog.Debug("ohd: decision update failed", "decision", d.ID, "error", err)
 		}
 	}
-	open, err := store.ListOpen(ctx, domain.DecisionFilter{SessionID: id})
+	open, err := store.ListOpen(ctx, domain.DecisionFilter{SessionID: root})
 	if err != nil {
 		return
 	}
 	now := time.Now()
 	for _, d := range open {
-		if d.ToolRef == "" || listed[d.ID] || !isToolKind(d.Kind) {
+		if d.ToolRef == "" || listed[d.ID] || !isToolKind(d.Kind) || d.ToolSessionID() != toolSession {
 			continue
 		}
 		_, _ = store.Resolve(ctx, d.ID, domain.ResolvedByTool, nil, now)
@@ -52,11 +54,11 @@ func isToolKind(k domain.DecisionKind) bool {
 	return k == domain.DecisionPermission || k == domain.DecisionQuestion
 }
 
-func toolDecision(group, sessionID string, p adapters.PendingDecision) domain.Decision {
-	if p.SessionID != "" {
-		sessionID = p.SessionID
-	}
+func toolDecision(group, sessionID, toolSession string, p adapters.PendingDecision) domain.Decision {
 	d := domain.Decision{SessionID: sessionID, GroupKey: group, ToolRef: p.ID}
+	if toolSession != "" && toolSession != sessionID {
+		d.Payload.Data = map[string]any{domain.DataToolSession: toolSession}
+	}
 	switch p.Kind {
 	case adapters.DecisionQuestion:
 		d.Kind = domain.DecisionQuestion
@@ -153,7 +155,9 @@ func (d *Daemon) closeDecisions(ctx context.Context, group string, final bool) {
 	now := time.Now()
 	for _, dec := range open {
 		if final || isToolKind(dec.Kind) {
-			_, _ = store.Resolve(ctx, dec.ID, domain.ResolvedByGone, nil, now)
+			if ok, _ := store.Resolve(ctx, dec.ID, domain.ResolvedByGone, nil, now); ok {
+				d.feed.publishChange(domain.SessionChange{SessionID: dec.SessionID, GroupKey: group, Decisions: true})
+			}
 		}
 	}
 }

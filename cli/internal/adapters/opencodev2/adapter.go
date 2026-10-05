@@ -314,9 +314,11 @@ func (a *Adapter) Events(ctx context.Context, h adapters.ServerHandle) (<-chan a
 	out := make(chan adapters.ToolEvent, 64)
 	go func() {
 		defer close(out)
+		feed := newFeedDecoder()
 		for e := range evs {
 			te := adapters.ToolEvent{ID: e.ID, Type: e.Type, SessionID: e.SessionID(), Time: e.Time()}
 			te.Kind, te.Outcome = EventKind(e.Type)
+			te.Feed, te.ParentID = feed.decode(e)
 			if e.Location != nil {
 				te.Location = e.Location.Directory
 			}
@@ -432,6 +434,23 @@ func (a *Adapter) Control(ctx context.Context, h adapters.ServerHandle, sessionI
 }
 
 var _ adapters.Forker = (*Adapter)(nil)
+
+var _ adapters.ChildLister = (*Adapter)(nil)
+
+// Children implements adapters.ChildLister.
+func (a *Adapter) Children(ctx context.Context, h adapters.ServerHandle) (map[string]string, error) {
+	list, err := client(h).ListSessions(ctx, "")
+	if err != nil {
+		return nil, err
+	}
+	out := map[string]string{}
+	for _, s := range list {
+		if s.ParentID != "" {
+			out[s.ID] = s.ParentID
+		}
+	}
+	return out, nil
+}
 
 // Fork implements adapters.Forker.
 func (a *Adapter) Fork(ctx context.Context, h adapters.ServerHandle, sessionID string) (string, error) {

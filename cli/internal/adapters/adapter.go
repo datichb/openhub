@@ -9,6 +9,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/datichb/openhub/cli/internal/domain"
 	ohruntime "github.com/datichb/openhub/cli/internal/runtime"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 )
@@ -96,9 +97,11 @@ type ToolEvent struct {
 	Outcome   string // for EventExecEnded: succeeded | failed | interrupted | …
 	Type      string // raw tool event type, e.g. "permission.asked"
 	SessionID string
+	ParentID  string // EventSessionCreated: parent of a child (subagent) session
 	Location  string
 	Time      time.Time
 	Data      map[string]any
+	Feed      *domain.FeedItem // live feed entry, when the event is shown to users
 }
 
 // DecisionKind classifies a pending human decision.
@@ -181,6 +184,12 @@ type ControlOp struct {
 	Model    *sessionspec.ModelRef
 	Region   string // provider region (model id resolution)
 	Delivery Delivery
+}
+
+// ChildLister is implemented by adapters whose sessions can delegate to
+// child (subagent) sessions: it returns child session id → parent id.
+type ChildLister interface {
+	Children(ctx context.Context, h ServerHandle) (map[string]string, error)
 }
 
 // Forker is implemented by adapters that can fork a session (S9): a new
