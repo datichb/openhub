@@ -7,6 +7,9 @@ internal/hubcontent/hub/agents/
 internal/hubcontent/hub/skills/
 internal/hubcontent/hub/permissions/
 
+# Linux helpers embedded in container images (make embed-bd)
+internal/runtime/container/assets/bd-linux-*
+
 # Test coverage
 coverage.out
 coverage.html

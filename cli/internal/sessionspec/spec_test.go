@@ -38,6 +38,8 @@ func TestGroupKeyString(t *testing.T) {
 	assert.Equal(t, "none--container", GroupKey{Runtime: RuntimeContainer}.String())
 	g.Config = "fedcba9876543210"
 	assert.Equal(t, "my_proj_x-0123456789ab-fedcba9876-local", g.String())
+	g.Runtime, g.Slot = RuntimeContainer, 2
+	assert.Equal(t, "my_proj_x-0123456789ab-fedcba9876-container-s2", g.String())
 }
 
 func TestBundleIDs(t *testing.T) {

@@ -232,6 +232,10 @@ type GroupKey struct {
 	// bundle (exact project id, provider, region, credential source), so that
 	// changing any of them never reuses a server started with the old ones.
 	Config string `json:"config,omitempty"`
+	// Slot separates groups that share everything else: a container group
+	// whose mounts do not cover a new location while it is busy gets a
+	// sibling group (slot 1, 2…) instead of being restarted.
+	Slot int `json:"slot,omitempty"`
 }
 
 // String renders a stable, filesystem-safe key.
@@ -249,9 +253,16 @@ func (g GroupKey) String() string {
 		if len(c) > 10 {
 			c = c[:10]
 		}
-		return fmt.Sprintf("%s-%s-%s-%s", sanitize(p), h, c, g.Runtime)
+		return fmt.Sprintf("%s-%s-%s-%s%s", sanitize(p), h, c, g.Runtime, g.slotSuffix())
 	}
-	return fmt.Sprintf("%s-%s-%s", sanitize(p), h, g.Runtime)
+	return fmt.Sprintf("%s-%s-%s%s", sanitize(p), h, g.Runtime, g.slotSuffix())
+}
+
+func (g GroupKey) slotSuffix() string {
+	if g.Slot <= 0 {
+		return ""
+	}
+	return fmt.Sprintf("-s%d", g.Slot)
 }
 
 func sanitize(s string) string {

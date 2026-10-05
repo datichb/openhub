@@ -117,6 +117,13 @@ func (c *Client) Usage(ctx context.Context, token string) (UsageResponse, error)
 	return out, err
 }
 
+// ProxyListen makes the proxy also listen on host and returns its base URL there.
+func (c *Client) ProxyListen(ctx context.Context, host string) (string, error) {
+	var out ListenResponse
+	err := c.do(ctx, http.MethodPost, "/proxy/listeners", ListenRequest{Host: host}, &out)
+	return out.URL, err
+}
+
 // Touch records activity of a server group.
 func (c *Client) Touch(ctx context.Context, group string) error {
 	return c.do(ctx, http.MethodPost, "/servers/"+url.PathEscape(group)+"/touch", nil, nil)

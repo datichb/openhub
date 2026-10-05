@@ -51,3 +51,14 @@ type PendingGrant struct {
 	Owner  string                  `json:"owner"`
 	Source domain.CredentialSource `json:"source"`
 }
+
+// ListenRequest asks the proxy to also listen on a host address reachable
+// from containers (POST /v1/proxy/listeners).
+type ListenRequest struct {
+	Host string `json:"host"`
+}
+
+// ListenResponse is the proxy base URL on that address.
+type ListenResponse struct {
+	URL string `json:"url"`
+}

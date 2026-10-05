@@ -8,6 +8,7 @@ import (
 	"context"
 	"time"
 
+	ohruntime "github.com/datichb/openhub/cli/internal/runtime"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 )
 
@@ -42,6 +43,12 @@ type ServerGroup struct {
 	DataDir  string // isolated tool data directory
 	WorkDir  string // process working directory
 	Env      map[string]string
+
+	// Runtime and Prepared, when set, run the server in another environment
+	// (container): paths are translated with Prepared.Paths; the server URL
+	// stays on the machine loopback.
+	Runtime  ohruntime.Runtime
+	Prepared *ohruntime.Prepared
 }
 
 // ServerHandle identifies a running tool server.
