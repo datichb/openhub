@@ -9,6 +9,7 @@ import (
 	"bufio"
 	"context"
 	"encoding/json"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -20,6 +21,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/datichb/openhub/cli/internal/adapters"
+	"github.com/datichb/openhub/cli/internal/credproxy"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 )
 
@@ -62,6 +64,11 @@ type e2eRun struct {
 func startE2E(t *testing.T, b sessionspec.BundleSpec, disablePlugin bool) *e2eRun {
 	t.Helper()
 	tok := bedrockToken(t)
+	return startE2EWith(t, b, disablePlugin, sessionspec.ProviderSpec{ID: "amazon-bedrock", Region: "eu-west-1", SessionToken: tok})
+}
+
+func startE2EWith(t *testing.T, b sessionspec.BundleSpec, disablePlugin bool, prov sessionspec.ProviderSpec) *e2eRun {
+	t.Helper()
 	a := newContractAdapter(t)
 	a.DisablePlugin = disablePlugin
 	root := t.TempDir()
@@ -74,7 +81,7 @@ func startE2E(t *testing.T, b sessionspec.BundleSpec, disablePlugin bool) *e2eRu
 	b.DefaultModel = &m
 	h, err := a.StartServer(context.Background(), adapters.ServerGroup{
 		Bundle:   b,
-		Provider: sessionspec.ProviderSpec{ID: "amazon-bedrock", Region: "eu-west-1", SessionToken: tok},
+		Provider: prov,
 		DataDir:  filepath.Join(root, "data"),
 		WorkDir:  project,
 	})
@@ -156,4 +163,41 @@ func TestE2EFallbackWithoutPlugin(t *testing.T) {
 	r := startE2E(t, e2eBundle(t), true)
 	reply := r.ask(t, "lead", "Say hello in three words.")
 	assert.True(t, strings.HasPrefix(strings.TrimSpace(reply), "LEAD:"), "reply: %q", reply)
+}
+
+func TestE2EThroughCredentialProxy(t *testing.T) {
+	real := bedrockToken(t)
+	p := credproxy.New()
+	require.NoError(t, p.Start("127.0.0.1:0"))
+	t.Cleanup(func() { _ = p.Close(context.Background()) })
+	tok, err := p.Issue(credproxy.Grant{
+		SessionID:     "e2e",
+		Provider:      credproxy.ProviderBedrock,
+		Upstream:      credproxy.BedrockUpstream("eu-west-1", credproxy.BearerAuth{Token: real}),
+		AllowedModels: []string{"eu.anthropic.claude-haiku-*"},
+	})
+	require.NoError(t, err)
+
+	b := e2eBundle(t)
+	b.Agents[0].Body = "You are LEAD. Run the shell command `env` exactly once, then reply with only the lines of its output that contain the word BEDROCK, verbatim."
+	b.Agents[0].Permissions = []sessionspec.PermissionRule{{Action: "shell", Resource: "env*", Effect: "allow"}}
+	r := startE2EWith(t, b, false, sessionspec.ProviderSpec{
+		ID: "amazon-bedrock", Region: "eu-west-1", BaseURL: p.BaseURL(credproxy.ProviderBedrock), SessionToken: tok,
+	})
+
+	reply := r.ask(t, "lead", "go")
+	assert.NotContains(t, reply, real, "the real key must never reach the agent")
+	assert.Contains(t, reply, "ohs_", "the agent only sees the session token: %q", reply)
+
+	u, ok := p.Usage(tok)
+	require.True(t, ok)
+	assert.Greater(t, u.Requests, int64(0))
+	assert.Greater(t, u.InputTokens, int64(0), "usage counted from the Bedrock stream")
+	assert.Greater(t, u.OutputTokens, int64(0))
+	t.Logf("proxy usage: %+v", u)
+
+	// The server process environment does not hold the real key either.
+	ps, err := exec.Command("ps", "eww", "-p", fmt.Sprint(r.handle.PID)).Output()
+	require.NoError(t, err)
+	assert.NotContains(t, string(ps), real)
 }
