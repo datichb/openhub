@@ -12,6 +12,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -26,6 +27,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/filelock"
 	"github.com/datichb/openhub/cli/internal/provider"
+	ohruntime "github.com/datichb/openhub/cli/internal/runtime"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 	"github.com/datichb/openhub/cli/internal/termlaunch"
 )
@@ -36,6 +38,14 @@ type DaemonClient interface {
 	RevokeOwner(ctx context.Context, owner string) error
 	Usage(ctx context.Context, token string) (daemon.UsageResponse, error)
 	Touch(ctx context.Context, group string) error
+	// ProxyListen makes the proxy also listen on host (containers on Linux).
+	ProxyListen(ctx context.Context, host string) (string, error)
+}
+
+// containerTooler is implemented by adapters able to install their tool in
+// container images.
+type containerTooler interface {
+	ContainerTool() ohruntime.Tool
 }
 
 // nativeRefresher is implemented by adapters able to re-discover native agents.
@@ -57,6 +67,8 @@ type Service struct {
 	// session.complete event).
 	OnSessionEnd func(ctx context.Context, s domain.Session)
 	Executable   string // oh binary used to attach (default os.Executable)
+	// Runtimes are the non-local execution environments (container…).
+	Runtimes map[sessionspec.RuntimeKind]ohruntime.Runtime
 }
 
 // StartRequest describes a session to start.
@@ -80,6 +92,16 @@ type StartRequest struct {
 
 	Attach     sessionspec.AttachPref
 	ITermStyle termlaunch.ITermStyle
+
+	// Runtime is where the server group runs ("" = local). Internal for now:
+	// not exposed by `oh run` nor the TUI yet (phase 4, lot 4.C).
+	Runtime sessionspec.RuntimeKind
+	// Container settings (runtime container).
+	ProjectDir string            // project base directory (dev Dockerfile); default Location
+	Dockerfile string            // "" = detected
+	BuildArgs  map[string]string // dev image build arguments
+	Volumes    []string          // cache volumes
+	Progress   func(line string) // preparation output (image build)
 }
 
 // StartResult is the outcome of StartSession.
@@ -121,17 +143,40 @@ func (s *Service) StartSession(ctx context.Context, req StartRequest) (*StartRes
 	if err != nil {
 		return nil, err
 	}
-	key := sessionspec.GroupKey{BundleHash: spec.Hash, ProjectID: req.ProjectID, Runtime: sessionspec.RuntimeLocal,
-		Config: configFingerprint(req, cred, region)}
-	gk := key.String()
-	unlock, err := filelock.Lock(filepath.Join(s.ServersDir, gk, "lock"))
+	kind := runtimeKind(req.Runtime)
+	rt, err := s.runtime(kind)
 	if err != nil {
 		return nil, err
 	}
-	srv, reused, report, err := s.ensureServer(ctx, dc, req, key, gk, cred, region)
-	unlock()
-	if err != nil {
-		return nil, err
+	key := sessionspec.GroupKey{BundleHash: spec.Hash, ProjectID: req.ProjectID, Runtime: kind,
+		Config: configFingerprint(req, cred, region)}
+	var (
+		gk     string
+		srv    *domain.Server
+		reused bool
+		report adapters.VisibilityReport
+		pg     *ohruntime.Prepared
+	)
+	// A container group whose mounts do not cover the location is restarted
+	// when idle; when busy, the next slot (sibling group) is used.
+	for ; ; key.Slot++ {
+		if key.Slot > maxSlots {
+			return nil, fmt.Errorf("runsvc: no container group can host %s (all %d slots busy)", req.Location, maxSlots)
+		}
+		gk = key.String()
+		unlock, err := filelock.Lock(filepath.Join(s.ServersDir, gk, "lock"))
+		if err != nil {
+			return nil, err
+		}
+		srv, reused, report, pg, err = s.ensureServer(ctx, dc, req, key, gk, cred, region, rt, !s.groupBusy(ctx, req.ProjectID, gk))
+		unlock()
+		if errors.Is(err, errNotMounted) {
+			continue
+		}
+		if err != nil {
+			return nil, err
+		}
+		break
 	}
 
 	res := &StartResult{GroupKey: gk, Server: srv, Reused: reused, Report: report}
@@ -139,8 +184,8 @@ func (s *Service) StartSession(ctx context.Context, req StartRequest) (*StartRes
 	sid := sessionspec.NewSessionID()
 	ss := sessionspec.SessionSpec{
 		SessionID: sid, Title: req.Title, Group: key, ProjectID: req.ProjectID,
-		Location: req.Location, EntryAgent: entry, Mode: req.Mode, Prompt: req.Prompt,
-		Runtime: sessionspec.RuntimeLocal, Attach: req.Attach,
+		Location: innerPath(pg, req.Location), EntryAgent: entry, Mode: req.Mode, Prompt: req.Prompt,
+		Runtime: kind, Attach: req.Attach,
 		Model: entryModel(spec, entry), Provider: sessionspec.ProviderSpec{Region: region},
 	}
 	// The oh row is written before the tool session exists, so that the
@@ -163,6 +208,94 @@ func (s *Service) StartSession(ctx context.Context, req StartRequest) (*StartRes
 		res.AttachMethod, res.AttachErr = s.Attach(ctx, sid, req.Location, attachPref(req.Attach), req.ITermStyle, req.Title)
 	}
 	return res, nil
+}
+
+// maxSlots bounds the sibling container groups of one configuration.
+const maxSlots = 8
+
+// errNotMounted means a running container group does not see the location
+// and cannot be restarted (busy).
+var errNotMounted = errors.New("location not mounted in the running container group")
+
+func runtimeKind(k sessionspec.RuntimeKind) sessionspec.RuntimeKind {
+	if k == "" {
+		return sessionspec.RuntimeLocal
+	}
+	return k
+}
+
+// runtime returns the execution environment of a kind (nil = local).
+func (s *Service) runtime(k sessionspec.RuntimeKind) (ohruntime.Runtime, error) {
+	if k == sessionspec.RuntimeLocal {
+		return nil, nil
+	}
+	if rt := s.Runtimes[k]; rt != nil {
+		return rt, nil
+	}
+	return nil, fmt.Errorf("runsvc: runtime %q is not available", k)
+}
+
+// groupBusy reports whether a session of the group is working or waiting
+// for a decision (its server must not be restarted).
+func (s *Service) groupBusy(ctx context.Context, projectID, gk string) bool {
+	if s.Sessions == nil {
+		return false
+	}
+	list, err := s.Sessions.List(ctx, projectID)
+	if err != nil {
+		return true
+	}
+	for _, o := range list {
+		if o.GroupKey == gk && (o.State == domain.RunActive || o.State == domain.RunWaiting || o.State == domain.RunPreparing) {
+			return true
+		}
+	}
+	return false
+}
+
+// innerPath is a machine path as seen by the server of a prepared group.
+func innerPath(pg *ohruntime.Prepared, p string) string {
+	if pg == nil {
+		return p
+	}
+	if in, ok := pg.Paths.ToInner(p); ok {
+		return in
+	}
+	return p
+}
+
+// runtimeGroup describes a group to its runtime.
+func (s *Service) runtimeGroup(req StartRequest, key sessionspec.GroupKey, gk string) ohruntime.Group {
+	g := ohruntime.Group{
+		Key: key, GroupID: gk, ProjectID: req.ProjectID, ProjectDir: req.ProjectDir,
+		Locations: []string{req.Location}, DataDir: filepath.Join(s.ServersDir, gk, "data"),
+		Dockerfile: req.Dockerfile, BuildArgs: req.BuildArgs, Volumes: req.Volumes, Progress: req.Progress,
+	}
+	if g.ProjectDir == "" {
+		g.ProjectDir = req.Location
+	}
+	if req.Bundle != nil {
+		g.BundleDir = req.Bundle.Spec.Root
+		if g.BundleDir == "" {
+			g.BundleDir = req.Bundle.Dir
+		}
+	}
+	if t, ok := s.Adapter.(containerTooler); ok {
+		g.Tool = t.ContainerTool()
+	}
+	return g
+}
+
+// stopServer stops a tool server and removes its runtime environment.
+func (s *Service) stopServer(ctx context.Context, srv *domain.Server) {
+	_ = s.Adapter.StopServer(ctx, handle(srv))
+	rt, err := s.runtime(runtimeKind(sessionspec.RuntimeKind(srv.Runtime)))
+	if err != nil || rt == nil {
+		return
+	}
+	if pg, err := rt.Load(ctx, ohruntime.Group{GroupID: srv.GroupKey, DataDir: srv.DataDir}); err == nil {
+		_ = rt.Teardown(ctx, pg)
+	}
 }
 
 // entryModel is the session model: the entry agent model, else the bundle default.
@@ -220,52 +353,90 @@ func attachPref(p sessionspec.AttachPref) termlaunch.Pref {
 }
 
 // ensureServer returns a healthy server for the group, starting one if needed.
-// Must be called with the group lock held.
-func (s *Service) ensureServer(ctx context.Context, dc DaemonClient, req StartRequest, key sessionspec.GroupKey, gk string, cred provider.ResolvedCredential, region string) (*domain.Server, bool, adapters.VisibilityReport, error) {
+// With a runtime, a running group must see the location: otherwise it is
+// restarted with the location added when restart is allowed, else
+// errNotMounted is returned. Must be called with the group lock held.
+func (s *Service) ensureServer(ctx context.Context, dc DaemonClient, req StartRequest, key sessionspec.GroupKey, gk string, cred provider.ResolvedCredential, region string, rt ohruntime.Runtime, restart bool) (*domain.Server, bool, adapters.VisibilityReport, *ohruntime.Prepared, error) {
+	g := s.runtimeGroup(req, key, gk)
+	var prev *ohruntime.Prepared
+	if rt != nil {
+		prev, _ = rt.Load(ctx, g)
+	}
 	if srv, err := s.Servers.Get(ctx, gk); err == nil && srv.Status == domain.ServerReady && filelock.ProcessAlive(srv.PID) {
-		if _, uerr := dc.Usage(ctx, srv.ProxyToken); uerr == nil {
-			rep, aerr := s.Adapter.Attest(ctx, handle(srv), req.Bundle.Spec, req.Location)
+		switch _, uerr := dc.Usage(ctx, srv.ProxyToken); {
+		case uerr != nil:
+			slog.Warn("runsvc: existing server lost its proxy grant, restarting", "group", gk)
+		case rt != nil && (prev == nil || !prev.Paths.Covers(req.Location)):
+			if !restart {
+				return nil, false, adapters.VisibilityReport{}, nil, errNotMounted
+			}
+			slog.Info("runsvc: restarting the container group to mount a new location", "group", gk, "location", req.Location)
+		default:
+			rep, aerr := s.Adapter.Attest(ctx, handle(srv), req.Bundle.Spec, innerPath(prev, req.Location))
 			if aerr == nil && rep.OK() {
-				return srv, true, rep, nil
+				return srv, true, rep, prev, nil
 			}
 			slog.Warn("runsvc: existing server failed attestation, restarting", "group", gk, "error", aerr, "unexpected", rep.Unexpected)
-		} else {
-			slog.Warn("runsvc: existing server lost its proxy grant, restarting", "group", gk)
 		}
-		_ = s.Adapter.StopServer(ctx, handle(srv))
+		s.stopServer(ctx, srv)
 		_ = dc.RevokeOwner(ctx, gk)
 	}
+	if prev != nil {
+		// Keep the locations of the group's other sessions (resumable).
+		for _, l := range prev.Group.Locations {
+			if st, err := os.Stat(l); err == nil && st.IsDir() && l != req.Location {
+				g.Locations = append(g.Locations, l)
+			}
+		}
+	}
 
-	srv, rep, err := s.startServer(ctx, dc, req, key, gk, cred, region)
+	srv, rep, pg, err := s.startServer(ctx, dc, req, key, gk, cred, region, rt, g)
 	if err == nil && !rep.OK() {
 		if r, ok := s.Adapter.(nativeRefresher); ok {
 			slog.Info("runsvc: unexpected agents, re-discovering native agents", "unexpected", rep.Unexpected)
 			r.RefreshNatives(ctx)
-			_ = s.Adapter.StopServer(ctx, handle(srv))
+			s.stopServer(ctx, srv)
 			_ = dc.RevokeOwner(ctx, gk)
-			srv, rep, err = s.startServer(ctx, dc, req, key, gk, cred, region)
+			srv, rep, pg, err = s.startServer(ctx, dc, req, key, gk, cred, region, rt, g)
 		}
 	}
 	if err != nil {
-		return nil, false, rep, err
+		return nil, false, rep, nil, err
 	}
 	if !rep.OK() {
-		_ = s.Adapter.StopServer(ctx, handle(srv))
+		s.stopServer(ctx, srv)
 		_ = dc.RevokeOwner(ctx, gk)
 		_ = s.Servers.SetStatus(ctx, gk, domain.ServerStopped)
-		return nil, false, rep, fmt.Errorf("%w: visible outside the bundle: %v", ErrIsolation, rep.Unexpected)
+		return nil, false, rep, nil, fmt.Errorf("%w: visible outside the bundle: %v", ErrIsolation, rep.Unexpected)
 	}
-	return srv, false, rep, nil
+	return srv, false, rep, pg, nil
 }
 
-func (s *Service) startServer(ctx context.Context, dc DaemonClient, req StartRequest, key sessionspec.GroupKey, gk string, cred provider.ResolvedCredential, region string) (*domain.Server, adapters.VisibilityReport, error) {
+func (s *Service) startServer(ctx context.Context, dc DaemonClient, req StartRequest, key sessionspec.GroupKey, gk string, cred provider.ResolvedCredential, region string, rt ohruntime.Runtime, g ohruntime.Group) (*domain.Server, adapters.VisibilityReport, *ohruntime.Prepared, error) {
+	var pg *ohruntime.Prepared
+	if rt != nil {
+		if g.Tool == nil {
+			return nil, adapters.VisibilityReport{}, nil, fmt.Errorf("runsvc: adapter %s cannot run in a container", s.Adapter.Name())
+		}
+		var err error
+		if pg, err = rt.Prepare(ctx, g); err != nil {
+			return nil, adapters.VisibilityReport{}, nil, fmt.Errorf("preparing the %s runtime: %w", rt.Kind(), err)
+		}
+	}
 	ocProvider := deploy.OpencodeProviderID(req.Provider)
 	grant, err := dc.IssueGrant(ctx, daemon.GrantRequest{
 		Owner: gk, Provider: ocProvider, Region: region, Source: cred.Source, Secret: cred.Secret,
 		AllowedModels: req.AllowedModels, MaxTokens: req.MaxTokens,
 	})
 	if err != nil {
-		return nil, adapters.VisibilityReport{}, fmt.Errorf("issuing proxy grant: %w", err)
+		return nil, adapters.VisibilityReport{}, nil, fmt.Errorf("issuing proxy grant: %w", err)
+	}
+	baseURL := grant.BaseURL
+	if pg != nil {
+		if baseURL, err = s.proxyURLFor(ctx, dc, pg, grant.BaseURL); err != nil {
+			_ = dc.RevokeOwner(ctx, gk)
+			return nil, adapters.VisibilityReport{}, nil, err
+		}
 	}
 
 	dataDir := filepath.Join(s.ServersDir, gk, "data")
@@ -275,28 +446,59 @@ func (s *Service) startServer(ctx context.Context, dc DaemonClient, req StartReq
 		ProxyToken: grant.Token, Status: domain.ServerStarting, CreatedAt: time.Now(),
 	}
 	if err := s.Servers.Upsert(ctx, srv); err != nil {
-		return nil, adapters.VisibilityReport{}, err
+		return nil, adapters.VisibilityReport{}, nil, err
 	}
 	h, err := s.Adapter.StartServer(ctx, adapters.ServerGroup{
 		Key: key, Bundle: req.Bundle.Spec, DataDir: dataDir, WorkDir: req.Location,
-		Provider: sessionspec.ProviderSpec{ID: ocProvider, Region: region, BaseURL: grant.BaseURL, SessionToken: grant.Token},
+		Provider: sessionspec.ProviderSpec{ID: ocProvider, Region: region, BaseURL: baseURL, SessionToken: grant.Token},
+		Runtime:  rt, Prepared: pg,
 	})
 	if err != nil {
 		_ = dc.RevokeOwner(ctx, gk)
 		_ = s.Servers.SetStatus(ctx, gk, domain.ServerStopped)
-		return nil, adapters.VisibilityReport{}, fmt.Errorf("starting tool server: %w", err)
+		if rt != nil {
+			_ = rt.Teardown(ctx, pg)
+		}
+		return nil, adapters.VisibilityReport{}, nil, fmt.Errorf("starting tool server: %w", err)
 	}
 	srv.PID, srv.URL, srv.Password, srv.Status = h.PID, h.URL, h.Password, domain.ServerReady
 	srv.Port = portOf(h.URL)
 	srv.LastActivityAt = time.Now()
 	if err := s.Servers.Upsert(ctx, srv); err != nil {
-		return nil, adapters.VisibilityReport{}, err
+		return nil, adapters.VisibilityReport{}, nil, err
 	}
-	rep, err := s.Adapter.Attest(ctx, h, req.Bundle.Spec, req.Location)
+	rep, err := s.Adapter.Attest(ctx, h, req.Bundle.Spec, innerPath(pg, req.Location))
 	if err != nil {
-		return srv, rep, fmt.Errorf("checking isolation: %w", err)
+		return srv, rep, pg, fmt.Errorf("checking isolation: %w", err)
 	}
-	return srv, rep, nil
+	return srv, rep, pg, nil
+}
+
+// proxyURLFor rewrites the proxy base URL for a runtime: the host becomes
+// the machine address seen from inside; when the machine loopback is not
+// reachable (Linux), the daemon also listens on the runtime's host IP.
+func (s *Service) proxyURLFor(ctx context.Context, dc DaemonClient, pg *ohruntime.Prepared, base string) (string, error) {
+	u, err := url.Parse(base)
+	if err != nil {
+		return "", fmt.Errorf("proxy URL %q: %w", base, err)
+	}
+	port := u.Port()
+	if pg.ListenHost != "" {
+		l, err := dc.ProxyListen(ctx, pg.ListenHost)
+		if err != nil {
+			return "", fmt.Errorf("making the credential proxy reachable from the %s runtime: %w", pg.Group.Key.Runtime, err)
+		}
+		lu, err := url.Parse(l)
+		if err != nil {
+			return "", err
+		}
+		port = lu.Port()
+	}
+	if pg.HostAddress == "" {
+		return "", errors.New("runsvc: the runtime has no machine address")
+	}
+	u.Host = net.JoinHostPort(pg.HostAddress, port)
+	return u.String(), nil
 }
 
 func (s *Service) persistSession(ctx context.Context, req StartRequest, srv *domain.Server, sid, entry string) {
@@ -448,7 +650,13 @@ func (s *Service) ResumeSession(ctx context.Context, sessionID string, req Start
 	if err != nil {
 		return err
 	}
-	key := sessionspec.GroupKey{BundleHash: sess.BundleHash, ProjectID: sess.ProjectID, Runtime: sessionspec.RuntimeLocal,
+	kind := runtimeKind(sessionspec.RuntimeKind(sess.Runtime))
+	rt, err := s.runtime(kind)
+	if err != nil {
+		return err
+	}
+	req.Runtime = kind
+	key := sessionspec.GroupKey{BundleHash: sess.BundleHash, ProjectID: sess.ProjectID, Runtime: kind,
 		Config: configFingerprint(req, cred, region)}
 	// The session data lives in its original group: keep it even when the
 	// provider settings changed. A sleeping server restarts with the new
@@ -461,7 +669,7 @@ func (s *Service) ResumeSession(ctx context.Context, sessionID string, req Start
 	if err != nil {
 		return err
 	}
-	srv, _, _, err := s.ensureServer(ctx, dc, req, key, gk, cred, region)
+	srv, _, _, _, err := s.ensureServer(ctx, dc, req, key, gk, cred, region, rt, !s.groupBusy(ctx, sess.ProjectID, gk))
 	unlock()
 	if err != nil {
 		return err
@@ -493,7 +701,7 @@ func (s *Service) StopSession(ctx context.Context, sessionID string) error {
 			}
 		}
 		if others == 0 {
-			_ = s.Adapter.StopServer(ctx, handle(srv))
+			s.stopServer(ctx, srv)
 			_ = s.Servers.SetStatus(ctx, sess.GroupKey, domain.ServerStopped)
 			if dc, err := s.Daemon(ctx); err == nil {
 				_ = dc.RevokeOwner(ctx, sess.GroupKey)

@@ -16,6 +16,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	ohruntime "github.com/datichb/openhub/cli/internal/runtime"
 )
 
 // DefaultNPMRegistry publishes the opencode V2 native binaries
@@ -32,9 +34,11 @@ type LinuxTool struct {
 }
 
 // ContainerTool returns the container tool matching the adapter version.
-func (a *Adapter) ContainerTool() *LinuxTool {
+func (a *Adapter) ContainerTool() ohruntime.Tool {
 	return &LinuxTool{Ver: a.Ver, CacheDir: a.CacheDir}
 }
+
+var _ ohruntime.Tool = (*LinuxTool)(nil)
 
 // Name is the command name of the tool inside the image.
 func (t *LinuxTool) Name() string { return "opencode" }

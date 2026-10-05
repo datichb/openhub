@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net"
@@ -14,6 +15,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	ohruntime "github.com/datichb/openhub/cli/internal/runtime"
 )
 
 // ServerOptions configures a dedicated `opencode serve` process.
@@ -29,7 +32,15 @@ type ServerOptions struct {
 	LogPath       string            // default: <DataDir>/oh-server.log
 	ReadyDir      string            // location probed for readiness (default: WorkDir)
 	ReadyAgent    string            // agent that must be listed before the server is considered ready
-	ReadyTimeout  time.Duration     // default: 30s
+	ReadyTimeout  time.Duration     // default: 30s (60s with Run)
+
+	// Run, when set, runs the server in another environment (container).
+	// It returns the machine command running argv with env in dir, all
+	// expressed in the environment's paths (translated with Paths); the
+	// server listens on every interface inside and port is published on the
+	// machine loopback. The machine environment is never inherited.
+	Run   func(argv []string, env map[string]string, dir string, port int) (*exec.Cmd, error)
+	Paths ohruntime.PathMap
 }
 
 // Server is a running (or re-attached) opencode server.
@@ -98,6 +109,43 @@ func buildEnv(parent []string, opts ServerOptions, password string) []string {
 	return env
 }
 
+// runtimeEnv is the complete server environment in another runtime: only
+// oh's settings (no machine variable is inherited).
+func runtimeEnv(opts ServerOptions, password, dataDir string) map[string]string {
+	env := map[string]string{
+		"OPENCODE_SERVER_PASSWORD":        password,
+		"OPENCODE_DISABLE_PROJECT_CONFIG": "1",
+		"OPENCODE_DISABLE_AUTOUPDATE":     "true",
+		"XDG_DATA_HOME":                   dataDir,
+	}
+	if opts.ConfigContent != "" {
+		// Container env files hold one variable per line.
+		var buf bytes.Buffer
+		if err := json.Compact(&buf, []byte(opts.ConfigContent)); err == nil {
+			env["OPENCODE_CONFIG_CONTENT"] = buf.String()
+		} else {
+			env["OPENCODE_CONFIG_CONTENT"] = opts.ConfigContent
+		}
+	}
+	for k, v := range opts.Env {
+		env[k] = v
+	}
+	return env
+}
+
+// innerPaths translates machine paths to the runtime's view.
+func innerPaths(m ohruntime.PathMap, paths ...string) ([]string, error) {
+	out := make([]string, len(paths))
+	for i, p := range paths {
+		in, ok := m.ToInner(p)
+		if !ok {
+			return nil, fmt.Errorf("%s is not visible in the server runtime", p)
+		}
+		out[i] = in
+	}
+	return out, nil
+}
+
 // RandomPassword returns a 32-byte hex password.
 func RandomPassword() string {
 	b := make([]byte, 32)
@@ -156,9 +204,32 @@ func StartServer(ctx context.Context, opts ServerOptions) (*Server, error) {
 		return nil, fmt.Errorf("opening server log: %w", err)
 	}
 
-	cmd := exec.Command(bin, "serve", "--hostname", "127.0.0.1", "--port", fmt.Sprint(port))
-	cmd.Dir = opts.WorkDir
-	cmd.Env = buildEnv(os.Environ(), opts, password)
+	readyDir := opts.ReadyDir
+	if readyDir == "" {
+		readyDir = opts.WorkDir
+	}
+	timeout := opts.ReadyTimeout
+	var cmd *exec.Cmd
+	if opts.Run != nil {
+		inner, err := innerPaths(opts.Paths, opts.WorkDir, opts.DataDir, readyDir)
+		if err != nil {
+			logFile.Close()
+			return nil, err
+		}
+		readyDir = inner[2]
+		if timeout == 0 {
+			timeout = 60 * time.Second
+		}
+		if cmd, err = opts.Run([]string{"opencode", "serve", "--hostname", "0.0.0.0", "--port", fmt.Sprint(port)},
+			runtimeEnv(opts, password, inner[1]), inner[0], port); err != nil {
+			logFile.Close()
+			return nil, fmt.Errorf("preparing the server command: %w", err)
+		}
+	} else {
+		cmd = exec.Command(bin, "serve", "--hostname", "127.0.0.1", "--port", fmt.Sprint(port))
+		cmd.Dir = opts.WorkDir
+		cmd.Env = buildEnv(os.Environ(), opts, password)
+	}
 	cmd.Stdout = logFile
 	cmd.Stderr = logFile
 	cmd.Stdin = nil
@@ -187,11 +258,6 @@ func StartServer(ctx context.Context, opts ServerOptions) (*Server, error) {
 		close(s.exited)
 	}()
 
-	readyDir := opts.ReadyDir
-	if readyDir == "" {
-		readyDir = opts.WorkDir
-	}
-	timeout := opts.ReadyTimeout
 	if timeout == 0 {
 		timeout = 30 * time.Second
 	}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"os"
 	"path/filepath"
 	"time"
 
@@ -14,6 +15,9 @@ import (
 	"github.com/datichb/openhub/cli/internal/daemon"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/runsvc"
+	ohruntime "github.com/datichb/openhub/cli/internal/runtime"
+	"github.com/datichb/openhub/cli/internal/runtime/container"
+	"github.com/datichb/openhub/cli/internal/sessionspec"
 	"github.com/datichb/openhub/cli/internal/storage/sqlite"
 	"github.com/datichb/openhub/cli/internal/teamstate"
 )
@@ -87,6 +91,16 @@ func sessionEndHook(a *app.App, async bool) func(context.Context, domain.Session
 	}
 }
 
+// v5Runtimes are the non-local execution environments. The container
+// runtime is not exposed in the CLI/TUI yet (phase 4, lot 4.C); its engine
+// can be forced with OH_CONTAINER_ENGINE (auto|colima|podman|docker).
+func v5Runtimes() map[sessionspec.RuntimeKind]ohruntime.Runtime {
+	engine, _ := container.ParseEngine(os.Getenv("OH_CONTAINER_ENGINE"))
+	return map[sessionspec.RuntimeKind]ohruntime.Runtime{
+		sessionspec.RuntimeContainer: container.New(container.Options{Engine: engine, CacheDir: filepath.Join(ohCacheDir(), "container")}),
+	}
+}
+
 // newRunService wires the RunService for the current app.
 func newRunService(ctx context.Context, a *app.App) (*runsvc.Service, error) {
 	if store == nil {
@@ -105,6 +119,7 @@ func newRunService(ctx context.Context, a *app.App) (*runsvc.Service, error) {
 		ServersDir:   ohServersDir(),
 		BundlesDir:   ohBundlesDir(),
 		OnSessionEnd: sessionEndHook(a, false),
+		Runtimes:     v5Runtimes(),
 		Daemon: func(ctx context.Context) (runsvc.DaemonClient, error) {
 			c, _, err := ensureDaemon(ctx)
 			if err != nil {

@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/datichb/openhub/cli/internal/adapters"
+	ohruntime "github.com/datichb/openhub/cli/internal/runtime"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 )
 
@@ -115,7 +116,7 @@ func (a *Adapter) StartServer(ctx context.Context, g adapters.ServerGroup) (adap
 		if timeout == 0 {
 			timeout = 10 * time.Second
 		}
-		perr := waitPluginActive(ctx, client(h), g.WorkDir, OhPluginID, timeout)
+		perr := waitPluginActive(ctx, client(h), innerDir(g, g.WorkDir), OhPluginID, timeout)
 		if perr == nil {
 			return h, nil
 		}
@@ -125,7 +126,86 @@ func (a *Adapter) StartServer(ctx context.Context, g adapters.ServerGroup) (adap
 	return a.start(ctx, g, withoutOhPlugin(g.Bundle))
 }
 
+// innerDir is a machine directory as seen by the server.
+func innerDir(g adapters.ServerGroup, dir string) string {
+	if g.Prepared == nil {
+		return dir
+	}
+	if in, ok := g.Prepared.Paths.ToInner(dir); ok {
+		return in
+	}
+	return dir
+}
+
+// innerBundle rewrites the machine paths of a bundle (root, skills, plugins
+// and their path options) to the server runtime's view.
+func innerBundle(b sessionspec.BundleSpec, m ohruntime.PathMap) (sessionspec.BundleSpec, error) {
+	tr := func(p string) (string, error) {
+		if p == "" {
+			return "", nil
+		}
+		in, ok := m.ToInner(p)
+		if !ok {
+			return "", fmt.Errorf("%s is not visible in the server runtime", p)
+		}
+		return in, nil
+	}
+	var err error
+	out := b
+	if out.Root, err = tr(b.Root); err != nil {
+		return out, err
+	}
+	if out.SkillsDir, err = tr(b.SkillsDir); err != nil {
+		return out, err
+	}
+	out.Skills = make([]sessionspec.SkillDef, len(b.Skills))
+	for i, sk := range b.Skills {
+		out.Skills[i] = sk
+		if out.Skills[i].Dir, err = tr(sk.Dir); err != nil {
+			return out, err
+		}
+	}
+	out.Plugins = make([]sessionspec.PluginDef, len(b.Plugins))
+	for i, pl := range b.Plugins {
+		out.Plugins[i] = pl
+		if out.Plugins[i].Dir, err = tr(pl.Dir); err != nil {
+			return out, err
+		}
+		if len(pl.Options) > 0 {
+			opts := make(map[string]any, len(pl.Options))
+			for k, v := range pl.Options {
+				if s, ok := v.(string); ok && filepath.IsAbs(s) {
+					if in, ok := m.ToInner(s); ok {
+						v = in
+					}
+				}
+				opts[k] = v
+			}
+			out.Plugins[i].Options = opts
+		}
+	}
+	return out, nil
+}
+
 func (a *Adapter) start(ctx context.Context, g adapters.ServerGroup, b sessionspec.BundleSpec) (adapters.ServerHandle, error) {
+	opts := ServerOptions{
+		Binary:     a.Binary,
+		WorkDir:    g.WorkDir,
+		DataDir:    g.DataDir,
+		ReadyAgent: b.EntryAgent,
+		LogPath:    filepath.Join(g.DataDir, "oh-server.log"),
+	}
+	if g.Runtime != nil && g.Prepared != nil {
+		var err error
+		if b, err = innerBundle(b, g.Prepared.Paths); err != nil {
+			return adapters.ServerHandle{}, err
+		}
+		rt, pg := g.Runtime, g.Prepared
+		opts.Paths = pg.Paths
+		opts.Run = func(argv []string, env map[string]string, dir string, port int) (*exec.Cmd, error) {
+			return rt.Command(ctx, pg, ohruntime.Proc{Argv: argv, Env: env, Dir: dir, Ports: []int{port}})
+		}
+	}
 	rc, err := a.Render(b, g.Provider)
 	if err != nil {
 		return adapters.ServerHandle{}, err
@@ -139,15 +219,9 @@ func (a *Adapter) start(ctx context.Context, g adapters.ServerGroup, b sessionsp
 	for k, v := range g.Env {
 		env[k] = v
 	}
-	srv, err := StartServer(ctx, ServerOptions{
-		Binary:        a.Binary,
-		WorkDir:       g.WorkDir,
-		DataDir:       g.DataDir,
-		ConfigContent: rc.Env["OPENCODE_CONFIG_CONTENT"],
-		Env:           env,
-		ReadyAgent:    b.EntryAgent,
-		LogPath:       filepath.Join(g.DataDir, "oh-server.log"),
-	})
+	opts.ConfigContent = rc.Env["OPENCODE_CONFIG_CONTENT"]
+	opts.Env = env
+	srv, err := StartServer(ctx, opts)
 	if err != nil {
 		return adapters.ServerHandle{}, err
 	}

@@ -118,7 +118,11 @@ func (r *Runtime) Prepare(ctx context.Context, g ohruntime.Group) (*ohruntime.Pr
 	if err != nil {
 		return nil, err
 	}
-	spec, err := buildSpec(e, specInput{GOOS: r.opts.GOOS, UID: os.Getuid(), GID: os.Getgid()}, g, img.Ref, g.Key.String())
+	id := g.GroupID
+	if id == "" {
+		id = g.Key.String()
+	}
+	spec, err := buildSpec(e, specInput{GOOS: r.opts.GOOS, UID: os.Getuid(), GID: os.Getgid()}, g, img.Ref, id)
 	if err != nil {
 		return nil, err
 	}
@@ -137,6 +141,25 @@ func (r *Runtime) Prepare(ctx context.Context, g ohruntime.Group) (*ohruntime.Pr
 			return nil, err
 		}
 	}
+	return pg, nil
+}
+
+// Load implements ohruntime.Runtime.
+func (r *Runtime) Load(ctx context.Context, g ohruntime.Group) (*ohruntime.Prepared, error) {
+	spec, err := LoadSpec(g.DataDir)
+	if err != nil {
+		return nil, err
+	}
+	if g.GroupID != "" && spec.Name != ContainerName(g.GroupID) {
+		return nil, fmt.Errorf("container spec of %s belongs to %s", g.GroupID, spec.Name)
+	}
+	g.Locations = append([]string(nil), spec.Locations...)
+	e, av := r.Engine(ctx)
+	host := spec.Host
+	if av.OK {
+		host = e.Host
+	}
+	pg := &ohruntime.Prepared{Group: g, Paths: spec.Paths, HostAddress: host, Spec: spec}
 	return pg, nil
 }
 

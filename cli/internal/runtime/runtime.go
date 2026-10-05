@@ -45,6 +45,7 @@ type Tool interface {
 // Group describes the server group to prepare.
 type Group struct {
 	Key        sessionspec.GroupKey
+	GroupID    string // stable group identifier (server registry key)
 	ProjectID  string
 	ProjectDir string   // project base directory (holds the dev Dockerfile)
 	Locations  []string // session working directories to expose
@@ -92,6 +93,10 @@ type Runtime interface {
 	Kind() sessionspec.RuntimeKind
 	Available(ctx context.Context) (Availability, error)
 	Prepare(ctx context.Context, g Group) (*Prepared, error)
+	// Load returns the prepared state saved for a group (by GroupID and
+	// DataDir) without preparing anything; Group.Locations lists the
+	// machine locations visible in it.
+	Load(ctx context.Context, g Group) (*Prepared, error)
 	// Command returns the (not yet started) machine command that runs p.
 	Command(ctx context.Context, pg *Prepared, p Proc) (*exec.Cmd, error)
 	// HostAddress is the machine address seen from inside (proxy, gateways).
