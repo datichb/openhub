@@ -130,6 +130,46 @@ func (c *Client) Shutdown(ctx context.Context, force bool) error {
 	return c.do(ctx, http.MethodPost, "/shutdown"+q, nil, nil)
 }
 
+// Heartbeat declares a live client (attached session or open oh UI).
+func (c *Client) Heartbeat(ctx context.Context, req HeartbeatRequest) error {
+	return c.do(ctx, http.MethodPost, "/clients/heartbeat", req, nil)
+}
+
+// ClientGone removes a client.
+func (c *Client) ClientGone(ctx context.Context, id string) error {
+	return c.do(ctx, http.MethodDelete, "/clients/"+url.PathEscape(id), nil, nil)
+}
+
+// SetPolicy sets the quit policy of a server group.
+func (c *Client) SetPolicy(ctx context.Context, group string, p QuitPolicy) error {
+	return c.do(ctx, http.MethodPost, "/groups/"+url.PathEscape(group)+"/policy", PolicyRequest{Policy: p}, nil)
+}
+
+// KeepAlive sends heartbeats for a client until ctx is cancelled, then
+// removes it. Errors are ignored (the daemon may restart).
+func (c *Client) KeepAlive(ctx context.Context, req HeartbeatRequest, every time.Duration) {
+	if every <= 0 {
+		every = 30 * time.Second
+	}
+	if req.TTL == 0 {
+		req.TTL = int(3 * every / time.Second)
+	}
+	_ = c.Heartbeat(ctx, req)
+	t := time.NewTicker(every)
+	defer t.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			gone, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+			_ = c.ClientGone(gone, req.ClientID)
+			cancel()
+			return
+		case <-t.C:
+			_ = c.Heartbeat(ctx, req)
+		}
+	}
+}
+
 // EnsureOptions configures Ensure.
 type EnsureOptions struct {
 	Executable string        // oh binary (default os.Executable)

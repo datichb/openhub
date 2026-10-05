@@ -49,6 +49,7 @@ type Service struct {
 	Secrets    provider.SecretStore
 	Daemon     func(ctx context.Context) (DaemonClient, error)
 	ServersDir string // ~/.oh/servers
+	BundlesDir string // ~/.oh/bundles (resume loads the session bundle by hash)
 	Executable string // oh binary used to attach (default os.Executable)
 }
 
@@ -85,6 +86,9 @@ type StartResult struct {
 	AttachMethod termlaunch.Method
 	AttachErr    error // non-nil when no terminal could be opened (caller: browser/suspend)
 }
+
+// ErrServerNotRunning is returned when the server of a session is asleep or stopped.
+var ErrServerNotRunning = errors.New("the tool server of this session is not running")
 
 // ErrIsolation is returned when the closed world cannot be guaranteed.
 var ErrIsolation = errors.New("session isolation check failed")
@@ -357,9 +361,99 @@ func (s *Service) serverForSession(ctx context.Context, sessionID string) (*doma
 		return nil, fmt.Errorf("server of session %s: %w", sessionID, err)
 	}
 	if srv.Status != domain.ServerReady || !filelock.ProcessAlive(srv.PID) {
-		return nil, fmt.Errorf("the server of session %s is not running (status %s)", sessionID, srv.Status)
+		return nil, fmt.Errorf("%w (session %s, status %s)", ErrServerNotRunning, sessionID, srv.Status)
 	}
 	return srv, nil
+}
+
+// Session returns a v5 session.
+func (s *Service) Session(ctx context.Context, sessionID string) (*domain.Session, error) {
+	if s.Sessions == nil {
+		return nil, errors.New("runsvc: no session store")
+	}
+	return s.Sessions.Get(ctx, sessionID)
+}
+
+// ResumeSession wakes up the server group of an existing session (after a
+// sleep or a machine restart). req carries the provider settings; its bundle
+// and location default to the session's.
+func (s *Service) ResumeSession(ctx context.Context, sessionID string, req StartRequest) error {
+	sess, err := s.Session(ctx, sessionID)
+	if err != nil {
+		return err
+	}
+	if sess.GroupKey == "" || sess.BundleHash == "" {
+		return fmt.Errorf("session %s was not started by the v5 launcher", sessionID)
+	}
+	if sess.State == domain.RunStopped {
+		return fmt.Errorf("session %s was stopped", sessionID)
+	}
+	if req.Bundle == nil {
+		b, err := bundle.Load(s.BundlesDir, sess.BundleHash)
+		if err != nil {
+			return fmt.Errorf("loading the session bundle: %w", err)
+		}
+		req.Bundle = b
+	}
+	if req.Location == "" {
+		req.Location = sess.LaunchPath
+	}
+	req.ProjectID = sess.ProjectID
+	dc, err := s.Daemon(ctx)
+	if err != nil {
+		return err
+	}
+	key := sessionspec.GroupKey{BundleHash: sess.BundleHash, ProjectID: sess.ProjectID, Runtime: sessionspec.RuntimeLocal}
+	unlock, err := filelock.Lock(filepath.Join(s.ServersDir, key.String(), "lock"))
+	if err != nil {
+		return err
+	}
+	srv, _, _, err := s.ensureServer(ctx, dc, req, key)
+	unlock()
+	if err != nil {
+		return err
+	}
+	now := time.Now()
+	sess.State, sess.StateChangedAt, sess.PID = domain.RunIdle, &now, srv.PID
+	if err := s.Sessions.Update(ctx, sess); err != nil {
+		slog.Warn("runsvc: session update failed", "session", sessionID, "error", err)
+	}
+	_ = dc.Touch(ctx, key.String())
+	return nil
+}
+
+// StopSession stops a session: its agent loop is interrupted and, when no
+// other session of the group is still open, the tool server is stopped.
+func (s *Service) StopSession(ctx context.Context, sessionID string) error {
+	sess, err := s.Session(ctx, sessionID)
+	if err != nil {
+		return err
+	}
+	if srv, err := s.Servers.Get(ctx, sess.GroupKey); err == nil && srv.Status == domain.ServerReady && filelock.ProcessAlive(srv.PID) {
+		_ = s.Adapter.Control(ctx, handle(srv), sessionID, adapters.ControlOp{Kind: "interrupt"})
+		others := 0
+		if list, err := s.Sessions.List(ctx, sess.ProjectID); err == nil {
+			for _, o := range list {
+				if o.ID != sessionID && o.GroupKey == sess.GroupKey && !terminal(o.State) {
+					others++
+				}
+			}
+		}
+		if others == 0 {
+			_ = s.Adapter.StopServer(ctx, handle(srv))
+			_ = s.Servers.SetStatus(ctx, sess.GroupKey, domain.ServerStopped)
+			if dc, err := s.Daemon(ctx); err == nil {
+				_ = dc.RevokeOwner(ctx, sess.GroupKey)
+			}
+		}
+	}
+	now := time.Now()
+	sess.State, sess.StateChangedAt, sess.Status, sess.EndedAt = domain.RunStopped, &now, domain.SessionStatusCompleted, &now
+	return s.Sessions.Update(ctx, sess)
+}
+
+func terminal(s domain.RunState) bool {
+	return s == domain.RunStopped || s == domain.RunCompleted || s == domain.RunFailed
 }
 
 func handle(srv *domain.Server) adapters.ServerHandle {

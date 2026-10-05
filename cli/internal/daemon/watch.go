@@ -36,6 +36,35 @@ type watcher struct {
 	tracks    map[string]*sessionTrack
 	known     map[string]bool // session id → belongs to oh (row in sessions table for this group)
 	lastTouch time.Time
+	lastEvent time.Time // last session activity seen (idle-sleep timer)
+	started   time.Time
+	done      chan struct{} // closed when run returns
+}
+
+// stop cancels the watcher and waits for its goroutine (no write after return).
+func (w *watcher) stop(timeout time.Duration) {
+	w.cancel()
+	select {
+	case <-w.done:
+	case <-time.After(timeout):
+	}
+}
+
+// snapshot summarizes the tracked sessions of the group.
+func (w *watcher) snapshot() (executing, pending int, lastEvent time.Time) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	for _, t := range w.tracks {
+		if t.executing {
+			executing++
+		}
+		pending += t.pending
+	}
+	lastEvent = w.lastEvent
+	if lastEvent.IsZero() {
+		lastEvent = w.started
+	}
+	return executing, pending, lastEvent
 }
 
 func (w *watcher) handle() adapters.ServerHandle {
@@ -62,7 +91,7 @@ func (d *Daemon) syncWatchers(ctx context.Context, live []domain.Server) {
 			continue
 		}
 		wctx, cancel := context.WithCancel(ctx)
-		w := &watcher{d: d, srv: s, ad: ad, cancel: cancel, tracks: map[string]*sessionTrack{}, known: map[string]bool{}}
+		w := &watcher{d: d, srv: s, ad: ad, cancel: cancel, tracks: map[string]*sessionTrack{}, known: map[string]bool{}, started: time.Now(), done: make(chan struct{})}
 		d.watchers[s.GroupKey] = w
 		go w.run(wctx)
 	}
@@ -84,6 +113,7 @@ func (d *Daemon) stopWatchers() {
 }
 
 func (w *watcher) run(ctx context.Context) {
+	defer close(w.done)
 	backoff := time.Second
 	for ctx.Err() == nil {
 		evs, err := w.ad.Events(ctx, w.handle())
@@ -100,8 +130,17 @@ func (w *watcher) run(ctx context.Context) {
 			continue
 		}
 		backoff = time.Second
-		for ev := range evs {
-			w.onEvent(ctx, ev)
+	read:
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case ev, ok := <-evs:
+				if !ok {
+					break read
+				}
+				w.onEvent(ctx, ev)
+			}
 		}
 		select {
 		case <-ctx.Done():
@@ -120,6 +159,7 @@ func (w *watcher) onEvent(ctx context.Context, ev adapters.ToolEvent) {
 		return
 	}
 	w.mu.Lock()
+	w.lastEvent = time.Now()
 	t := w.track(ev.SessionID)
 	refreshUsage := false
 	refreshPending := false
@@ -150,6 +190,9 @@ func (w *watcher) onEvent(ctx context.Context, ev adapters.ToolEvent) {
 		w.refreshPending(ctx, ev.SessionID)
 	}
 	w.persist(ctx, ev.SessionID, refreshUsage)
+	if ev.Kind == adapters.EventExecEnded {
+		w.d.wake() // a pending "sleep when idle" policy may apply now
+	}
 	if touch && w.d.opts.Servers != nil {
 		_ = w.d.opts.Servers.Touch(ctx, w.srv.GroupKey, time.Now())
 	}
@@ -236,6 +279,10 @@ func (w *watcher) persist(ctx context.Context, id string, withUsage bool) {
 		return
 	}
 	changed := sess.State != state
+	if changed {
+		now := time.Now()
+		sess.StateChangedAt = &now
+	}
 	sess.State = state
 	if withUsage {
 		if res, err := w.usage(ctx, id); err == nil {

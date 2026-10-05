@@ -42,6 +42,8 @@ type Session struct {
 	Runtime    string   // local | container | remote
 	Mode       string   // workflow mode (manuel | semi-auto | auto)
 	State      RunState // fine-grained lifecycle state (empty for legacy sessions)
+	// StateChangedAt is when State last changed (migration v31).
+	StateChangedAt *time.Time
 }
 
 // RunState is the fine-grained lifecycle of a v5 session.

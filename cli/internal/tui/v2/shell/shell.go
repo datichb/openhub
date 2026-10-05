@@ -78,6 +78,10 @@ type Config struct {
 	// Used by Ctrl+T to switch to team mode (ADR-032 Phase 3).
 	// If nil, Ctrl+T falls back to navigating to the teams list view.
 	TeamsProvider func() []views.SelectOption
+	// BeforeQuit, when set, is called on Ctrl+Q/Ctrl+C instead of quitting
+	// right away (e.g. to ask what to do with running sessions). It must call
+	// quit to stop the TUI. A second Ctrl+Q while it is pending forces the quit.
+	BeforeQuit func(quit func())
 }
 
 // shellAware is an optional interface that views can implement to receive
@@ -89,6 +93,7 @@ type shellAware interface {
 // Shell is the top-level TUI container with omnibar-first design.
 // Layout: content (fills screen) + suggestions (dynamic) + omnibar (3 rows at bottom).
 type Shell struct {
+	quitPending      bool
 	app              *tview.Application
 	pages            *tview.Pages
 	root             *tview.Flex // main vertical layout (content + suggestions + omnibar)
@@ -398,6 +403,9 @@ func (s *Shell) ShowPasswordModal(title string, onConfirm func(value string)) {
 }
 
 // ShowSelectModal displays an inline select list (fzf-style).
+// CancelQuit clears a pending quit request (BeforeQuit dialog cancelled).
+func (s *Shell) CancelQuit() { s.quitPending = false }
+
 func (s *Shell) ShowSelectModal(title string, options []views.SelectOption, currentValue string, onConfirm func(value string)) {
 	s.showInlineSelect(title, options, currentValue, onConfirm)
 }
@@ -1226,7 +1234,12 @@ func (s *Shell) isInteractiveZone(x, y int) bool {
 func (s *Shell) globalKeyHandler(event *tcell.EventKey) *tcell.EventKey {
 	// Ctrl+Q / Ctrl+C: quit (always available)
 	if event.Key() == tcell.KeyCtrlQ || event.Key() == tcell.KeyCtrlC {
-		s.app.Stop()
+		if s.cfg.BeforeQuit == nil || s.quitPending {
+			s.app.Stop()
+			return nil
+		}
+		s.quitPending = true
+		s.cfg.BeforeQuit(func() { s.app.Stop() })
 		return nil
 	}
 

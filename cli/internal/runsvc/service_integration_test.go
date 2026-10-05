@@ -4,6 +4,7 @@ package runsvc
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"os"
 	"os/exec"
@@ -96,7 +97,7 @@ func newFixture(t *testing.T, secrets mapSecrets) *fixture {
 
 	svc := &Service{
 		Adapter: a, AdapterVer: a.Ver, Servers: sqlite.NewServerStore(st), Sessions: sqlite.NewSessionStore(st),
-		Secrets: secrets, ServersDir: filepath.Join(root, "servers"), Executable: "/usr/local/bin/oh",
+		Secrets: secrets, ServersDir: filepath.Join(root, "servers"), BundlesDir: filepath.Join(root, "bundles"), Executable: "/usr/local/bin/oh",
 		Daemon: func(context.Context) (DaemonClient, error) { return dc, nil },
 	}
 	t.Cleanup(func() {
@@ -160,4 +161,46 @@ func TestStartSessionWithoutCredential(t *testing.T) {
 	req.Provider = "anthropic"
 	_, err := f.svc.StartSession(context.Background(), req)
 	assert.ErrorContains(t, err, "no credential")
+}
+
+func TestResumeSleepingSessionAndStop(t *testing.T) {
+	f := newFixture(t, mapSecrets{"openhub.provider.bedrock.token": "fake-key"})
+	ctx := context.Background()
+	// Resume loads the bundle by hash: persist the fixture bundle.
+	dir := filepath.Join(f.svc.BundlesDir, f.bundle.Spec.Hash)
+	require.NoError(t, os.MkdirAll(dir, 0o755))
+	data, _ := json.Marshal(f.bundle.Spec)
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "bundle.json"), data, 0o644))
+
+	r, err := f.svc.StartSession(ctx, f.request(""))
+	require.NoError(t, err)
+	firstPID := r.Server.PID
+
+	// Simulate the daemon putting the group to sleep.
+	require.NoError(t, f.adapter.StopServer(ctx, handle(r.Server)))
+	require.NoError(t, f.svc.Servers.SetStatus(ctx, r.GroupKey, domain.ServerSleeping))
+	_, _, err = f.svc.AttachCommand(ctx, r.SessionID)
+	require.ErrorIs(t, err, ErrServerNotRunning)
+
+	req := f.request("")
+	req.Bundle, req.Location = nil, ""
+	require.NoError(t, f.svc.ResumeSession(ctx, r.SessionID, req))
+	srv, err := f.svc.Servers.Get(ctx, r.GroupKey)
+	require.NoError(t, err)
+	assert.Equal(t, domain.ServerReady, srv.Status)
+	assert.NotEqual(t, firstPID, srv.PID, "a new server process")
+	_, _, err = f.svc.AttachCommand(ctx, r.SessionID)
+	require.NoError(t, err)
+
+	// The session survived the restart (same data dir).
+	got, err := opencodev2.NewClient(srv.URL, srv.Password).GetSession(ctx, r.SessionID)
+	require.NoError(t, err)
+	assert.Equal(t, r.SessionID, got.ID)
+
+	require.NoError(t, f.svc.StopSession(ctx, r.SessionID))
+	sess, _ := f.svc.Sessions.Get(ctx, r.SessionID)
+	assert.Equal(t, domain.RunStopped, sess.State)
+	srv, _ = f.svc.Servers.Get(ctx, r.GroupKey)
+	assert.Equal(t, domain.ServerStopped, srv.Status)
+	assert.Error(t, f.svc.ResumeSession(ctx, r.SessionID, f.request("")), "a stopped session cannot be resumed")
 }

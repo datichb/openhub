@@ -454,4 +454,9 @@ CREATE INDEX IF NOT EXISTS idx_sessions_group ON sessions(group_key)`,
 CREATE INDEX IF NOT EXISTS idx_proxy_grants_owner ON proxy_grants(owner)`,
 		down: `DROP TABLE IF EXISTS proxy_grants`,
 	},
+	{
+		version:      31,
+		up:           `ALTER TABLE sessions ADD COLUMN state_changed_at DATETIME DEFAULT NULL`,
+		irreversible: false,
+	},
 }

@@ -2,18 +2,22 @@ package cmd
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
 	"os/exec"
+	"os/signal"
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/datichb/openhub/cli/internal/adapters/opencodev2"
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/bundle"
 	"github.com/datichb/openhub/cli/internal/config"
+	"github.com/datichb/openhub/cli/internal/daemon"
 	"github.com/datichb/openhub/cli/internal/deploy"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/hubcontent"
@@ -72,18 +76,9 @@ func v5Launch(ctx context.Context, a *app.App, ui launcher.LaunchUI, opts launch
 		entry = "orchestrator"
 	}
 
-	prov := provider.ResolveProvider(opts.Provider, project.Provider, a.Config.Opencode.DefaultProvider)
-	var projProv *provider.ProviderConfig
-	tokenKey := ""
-	if project.ProviderConfig != nil {
-		projProv = &provider.ProviderConfig{AWSProfile: project.ProviderConfig.AWSProfile, AWSRegion: project.ProviderConfig.AWSRegion}
-		tokenKey = project.ProviderConfig.TokenKey
-	}
-	provCfg := provider.ResolveProviderConfig(projProv, hubProviderCfg(a, prov))
-	team := config.ResolveTeamForProject(a.Config, project)
-
+	req := v5Request(a, project, opts.Provider)
 	ui.Notify(i18n.Tf("cmd.v5.preparing", entry), launcher.LevelInfo)
-	b, err := buildSessionBundle(a, project, team, entry, prov)
+	b, err := buildSessionBundle(a, project, config.ResolveTeamForProject(a.Config, project), entry, req.Provider)
 	if err != nil {
 		return true, fmt.Errorf("building session bundle: %w", err)
 	}
@@ -92,20 +87,8 @@ func v5Launch(ctx context.Context, a *app.App, ui launcher.LaunchUI, opts launch
 	if err != nil {
 		return true, err
 	}
-
-	req := runsvc.StartRequest{
-		ProjectID: project.ID, ProjectTokenKey: tokenKey, Location: location, Bundle: b, EntryAgent: entry,
-		Title: sessionTitle(project, entry), Prompt: opts.Prompt, WorkflowID: entry,
-		Provider: prov, ProviderCfg: provCfg,
-		Attach: sessionspec.AttachPref(attachPreference(a)), ITermStyle: termlaunch.ITermStyle(a.Config.Session.ITermStyle),
-	}
-	if team.Enabled {
-		req.TeamID = team.TeamID
-		if team.MemberID != "" {
-			mid := team.MemberID
-			req.MemberID = &mid
-		}
-	}
+	req.Location, req.Bundle, req.EntryAgent = location, b, entry
+	req.Title, req.Prompt, req.WorkflowID = sessionTitle(project, entry), opts.Prompt, entry
 	res, err := svc.StartSession(ctx, req)
 	if err != nil {
 		return true, err
@@ -126,10 +109,49 @@ func v5Launch(ctx context.Context, a *app.App, ui launcher.LaunchUI, opts launch
 		if res.AttachErr != nil {
 			ui.Notify(i18n.T("cmd.session.no_terminal"), launcher.LevelWarning)
 		}
-		return true, runAttachInline(ctx, svc, ui, res.SessionID)
+		return true, runAttachInline(ctx, a, svc, ui, res.SessionID)
 	}
 	ui.Notify(i18n.Tf("cmd.v5.opened_in", string(res.AttachMethod), res.SessionID), launcher.LevelSuccess)
 	return true, nil
+}
+
+// v5Request returns the provider, team and attach settings of a project
+// session (bundle, location and prompt are set by the caller).
+func v5Request(a *app.App, project *domain.Project, providerFlag string) runsvc.StartRequest {
+	prov := provider.ResolveProvider(providerFlag, project.Provider, a.Config.Opencode.DefaultProvider)
+	var projProv *provider.ProviderConfig
+	tokenKey := ""
+	if project.ProviderConfig != nil {
+		projProv = &provider.ProviderConfig{AWSProfile: project.ProviderConfig.AWSProfile, AWSRegion: project.ProviderConfig.AWSRegion}
+		tokenKey = project.ProviderConfig.TokenKey
+	}
+	req := runsvc.StartRequest{
+		ProjectID: project.ID, ProjectTokenKey: tokenKey, Provider: prov,
+		ProviderCfg: provider.ResolveProviderConfig(projProv, hubProviderCfg(a, prov)),
+		Attach:      sessionspec.AttachPref(attachPreference(a)), ITermStyle: termlaunch.ITermStyle(a.Config.Session.ITermStyle),
+	}
+	if team := config.ResolveTeamForProject(a.Config, project); team.Enabled {
+		req.TeamID = team.TeamID
+		if team.MemberID != "" {
+			mid := team.MemberID
+			req.MemberID = &mid
+		}
+	}
+	return req
+}
+
+// resumeV5Session wakes the server group of a sleeping session.
+func resumeV5Session(ctx context.Context, a *app.App, svc *runsvc.Service, sessionID string) error {
+	sess, err := svc.Session(ctx, sessionID)
+	if err != nil {
+		return err
+	}
+	project, err := a.Projects.Get(ctx, sess.ProjectID)
+	if err != nil {
+		return err
+	}
+	req := v5Request(a, project, sess.Provider)
+	return svc.ResumeSession(ctx, sessionID, req)
 }
 
 func attachPreference(a *app.App) string {
@@ -147,21 +169,42 @@ func sessionTitle(p *domain.Project, entry string) string {
 }
 
 // runAttachInline runs the tool client in the current terminal (TUI suspended).
-func runAttachInline(ctx context.Context, svc *runsvc.Service, ui launcher.LaunchUI, sessionID string) error {
-	argv, env, err := svc.AttachCommand(ctx, sessionID)
-	if err != nil {
-		return err
-	}
-	run := func() error {
-		c := exec.CommandContext(ctx, argv[0], argv[1:]...)
-		c.Stdin, c.Stdout, c.Stderr = os.Stdin, os.Stdout, os.Stderr
-		c.Env = append(os.Environ(), env...)
-		return c.Run()
-	}
+func runAttachInline(ctx context.Context, a *app.App, svc *runsvc.Service, ui launcher.LaunchUI, sessionID string) error {
+	run := func() error { return runAttachChild(ctx, a, svc, sessionID) }
 	if suspend := ui.SuspendAndExec(); suspend != nil {
 		return suspend(run)
 	}
 	return run()
+}
+
+// runAttachChild runs the tool client attached to a session in the current
+// terminal and declares it to the daemon while it runs (an attached session
+// is never put to sleep). A sleeping session is resumed first.
+func runAttachChild(ctx context.Context, a *app.App, svc *runsvc.Service, sessionID string) error {
+	argv, env, err := svc.AttachCommand(ctx, sessionID)
+	if errors.Is(err, runsvc.ErrServerNotRunning) {
+		if rerr := resumeV5Session(ctx, a, svc, sessionID); rerr != nil {
+			return rerr
+		}
+		argv, env, err = svc.AttachCommand(ctx, sessionID)
+	}
+	if err != nil {
+		return err
+	}
+	sess, _ := svc.Session(ctx, sessionID)
+	hbCtx, stop := context.WithCancel(ctx)
+	defer stop()
+	if dc, _, derr := ensureDaemon(ctx); derr == nil && sess != nil {
+		go dc.KeepAlive(hbCtx, daemon.HeartbeatRequest{
+			ClientID: "attach-" + sessionspec.NewSessionID(), Kind: daemon.ClientAttach, Group: sess.GroupKey, SessionID: sessionID,
+		}, 30*time.Second)
+	}
+	c := exec.CommandContext(ctx, argv[0], argv[1:]...)
+	c.Stdin, c.Stdout, c.Stderr = os.Stdin, os.Stdout, os.Stderr
+	c.Env = append(os.Environ(), env...)
+	signal.Ignore(os.Interrupt) // the client handles Ctrl+C itself
+	defer signal.Reset(os.Interrupt)
+	return c.Run()
 }
 
 // buildSessionBundle compiles the phase 0 bundle for an entry agent.

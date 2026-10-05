@@ -32,6 +32,7 @@ type Options struct {
 	Servers   domain.ServerStore
 	Secrets   SecretGetter  // nil = no secret store (pending grants wait for clients)
 	IdleAfter time.Duration // stop after this long without live servers (default 10m)
+	IdleSleep time.Duration // put an idle server group to sleep after this long (default 5m)
 	Tick      time.Duration // supervision period (default 15s)
 	// Sessions is updated by the session watchers (run state, cost, tokens).
 	Sessions domain.SessionStore
@@ -52,6 +53,8 @@ type Daemon struct {
 	watchers map[string]*watcher
 
 	mu       sync.Mutex
+	clients  map[string]client
+	policies map[string]QuitPolicy
 	pending  map[string]domain.ProxyGrant
 	lastBusy time.Time
 	stop     chan struct{}
@@ -73,6 +76,9 @@ func Run(ctx context.Context, opts Options) error {
 	if opts.Tick == 0 {
 		opts.Tick = 15 * time.Second
 	}
+	if opts.IdleSleep == 0 {
+		opts.IdleSleep = 5 * time.Minute
+	}
 	if opts.SigV4 == nil {
 		opts.SigV4 = func(ctx context.Context, profile, region string) (credproxy.Auth, error) {
 			return credproxy.NewSigV4FromProfile(ctx, profile, region)
@@ -87,7 +93,7 @@ func Run(ctx context.Context, opts Options) error {
 	}
 	defer unlock()
 
-	d := &Daemon{opts: opts, proxy: credproxy.New(), pending: map[string]domain.ProxyGrant{}, watchers: map[string]*watcher{}, lastBusy: time.Now(), stop: make(chan struct{}), kick: make(chan struct{}, 1)}
+	d := &Daemon{opts: opts, proxy: credproxy.New(), pending: map[string]domain.ProxyGrant{}, clients: map[string]client{}, policies: map[string]QuitPolicy{}, watchers: map[string]*watcher{}, lastBusy: time.Now(), stop: make(chan struct{}), kick: make(chan struct{}, 1)}
 	if err := d.startProxy(); err != nil {
 		return err
 	}
@@ -272,6 +278,7 @@ func (d *Daemon) supervise(ctx context.Context) bool {
 		}
 	}
 	d.syncWatchers(ctx, ready)
+	d.applyLifecycle(ctx, ready)
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	if live > 0 {

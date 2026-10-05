@@ -51,6 +51,7 @@ func newRunService(ctx context.Context, a *app.App) (*runsvc.Service, error) {
 		Sessions:   a.Sessions,
 		Secrets:    a.Secrets,
 		ServersDir: ohServersDir(),
+		BundlesDir: ohBundlesDir(),
 		Daemon: func(ctx context.Context) (runsvc.DaemonClient, error) {
 			c, _, err := ensureDaemon(ctx)
 			if err != nil {

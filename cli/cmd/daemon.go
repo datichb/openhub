@@ -8,6 +8,7 @@ import (
 	"os/signal"
 	"sync"
 	"syscall"
+	"time"
 
 	"github.com/spf13/cobra"
 
@@ -37,12 +38,13 @@ var daemonRunCmd = &cobra.Command{
 			ad     *opencodev2.Adapter
 		)
 		err := daemon.Run(ctx, daemon.Options{
-			Paths:    daemon.Paths{Dir: ohRunDir()},
-			Version:  buildinfo.Version,
-			Grants:   sqlite.NewGrantStore(store),
-			Servers:  sqlite.NewServerStore(store),
-			Sessions: a.Sessions,
-			Secrets:  a.Secrets,
+			Paths:     daemon.Paths{Dir: ohRunDir()},
+			Version:   buildinfo.Version,
+			Grants:    sqlite.NewGrantStore(store),
+			Servers:   sqlite.NewServerStore(store),
+			Sessions:  a.Sessions,
+			Secrets:   a.Secrets,
+			IdleSleep: time.Duration(a.Config.Session.IdleSleepMinutes) * time.Minute,
 			Adapter: func(name string) adapters.ToolAdapter {
 				if name != opencodev2.Name {
 					return nil
