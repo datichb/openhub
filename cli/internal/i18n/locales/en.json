@@ -2674,5 +2674,11 @@
   "tui.wiki.time_1hour": "1 hour ago",
   "tui.wiki.time_nhours": "%d hours ago",
   "tui.wiki.time_yesterday": "yesterday",
-  "tui.wiki.time_ndays": "%d days ago"
+  "tui.wiki.time_ndays": "%d days ago",
+  "cmd.daemon.already_running": "The oh daemon is already running.",
+  "cmd.daemon.not_running": "The oh daemon is not running.",
+  "cmd.daemon.status_line": "ohd %s · pid %d · proxy %s · live servers %d · tokens %d · pending %d",
+  "cmd.daemon.stopping": "oh daemon shutdown requested.",
+  "cmd.session.no_terminal": "No terminal could be opened: attaching in the current terminal.",
+  "cmd.session.opened_in": "Session opened (%s)."
 }

@@ -39,11 +39,21 @@ func Open(path string) (*Store, error) {
 		return nil, fmt.Errorf("setting WAL mode: %w", err)
 	}
 
+	// Wait for locks instead of failing immediately: the oh daemon and the
+	// CLI/TUI processes share this database.
+	if _, err := db.Exec("PRAGMA busy_timeout=5000"); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("setting busy timeout: %w", err)
+	}
+
 	// Foreign keys
 	if _, err := db.Exec("PRAGMA foreign_keys=ON"); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("enabling foreign keys: %w", err)
 	}
+
+	// The database holds server passwords and proxy tokens: owner-only access.
+	_ = os.Chmod(path, 0o600)
 
 	s := &Store{db: db}
 	if err := s.migrate(); err != nil {
@@ -393,5 +403,55 @@ ALTER TABLE sessions ADD COLUMN slug TEXT DEFAULT NULL`,
 ALTER TABLE sessions ADD COLUMN label TEXT DEFAULT NULL;
 ALTER TABLE sessions ADD COLUMN correlation_id TEXT DEFAULT NULL`,
 		irreversible: false,
+	},
+	{
+		version: 28,
+		up: `CREATE TABLE IF NOT EXISTS servers (
+			group_key        TEXT PRIMARY KEY,
+			adapter          TEXT NOT NULL,
+			adapter_version  TEXT NOT NULL DEFAULT '',
+			runtime          TEXT NOT NULL DEFAULT 'local',
+			project_id       TEXT NOT NULL DEFAULT '',
+			bundle_hash      TEXT NOT NULL DEFAULT '',
+			pid              INTEGER NOT NULL DEFAULT 0,
+			url              TEXT NOT NULL DEFAULT '',
+			port             INTEGER NOT NULL DEFAULT 0,
+			password         TEXT NOT NULL DEFAULT '',
+			data_dir         TEXT NOT NULL DEFAULT '',
+			work_dir         TEXT NOT NULL DEFAULT '',
+			proxy_token      TEXT NOT NULL DEFAULT '',
+			status           TEXT NOT NULL DEFAULT 'starting',
+			created_at       DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			last_activity_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+		)`,
+		down: `DROP TABLE IF EXISTS servers`,
+	},
+	{
+		version: 29,
+		up: `ALTER TABLE sessions ADD COLUMN workflow_id TEXT NOT NULL DEFAULT '';
+ALTER TABLE sessions ADD COLUMN entry_agent TEXT NOT NULL DEFAULT '';
+ALTER TABLE sessions ADD COLUMN bundle_hash TEXT NOT NULL DEFAULT '';
+ALTER TABLE sessions ADD COLUMN group_key TEXT NOT NULL DEFAULT '';
+ALTER TABLE sessions ADD COLUMN runtime TEXT NOT NULL DEFAULT '';
+ALTER TABLE sessions ADD COLUMN mode TEXT NOT NULL DEFAULT '';
+ALTER TABLE sessions ADD COLUMN state TEXT NOT NULL DEFAULT '';
+CREATE INDEX IF NOT EXISTS idx_sessions_group ON sessions(group_key)`,
+		irreversible: false,
+	},
+	{
+		version: 30,
+		up: `CREATE TABLE IF NOT EXISTS proxy_grants (
+			token          TEXT PRIMARY KEY,
+			owner          TEXT NOT NULL,
+			provider       TEXT NOT NULL,
+			region         TEXT NOT NULL DEFAULT '',
+			source         TEXT NOT NULL DEFAULT '{}',
+			allowed_models TEXT NOT NULL DEFAULT '[]',
+			max_tokens     INTEGER NOT NULL DEFAULT 0,
+			created_at     DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			revoked_at     DATETIME
+		);
+CREATE INDEX IF NOT EXISTS idx_proxy_grants_owner ON proxy_grants(owner)`,
+		down: `DROP TABLE IF EXISTS proxy_grants`,
 	},
 }

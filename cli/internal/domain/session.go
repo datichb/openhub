@@ -33,7 +33,30 @@ type Session struct {
 	Type          SessionType // "interactive" (default) or "headless"
 	Label         *string     // human-readable use-case label (e.g. "brief-enrichment", "sweep-decomposition")
 	CorrelationID *string     // groups related headless runs (e.g. all runs in a single sweep)
+
+	// Session bundle / server group fields (v5, migration v29)
+	WorkflowID string   // workflow (phase 0: entry agent based)
+	EntryAgent string   // agent the session started with
+	BundleHash string   // compiled session bundle
+	GroupKey   string   // tool server group
+	Runtime    string   // local | container | remote
+	Mode       string   // workflow mode (manuel | semi-auto | auto)
+	State      RunState // fine-grained lifecycle state (empty for legacy sessions)
 }
+
+// RunState is the fine-grained lifecycle of a v5 session.
+type RunState string
+
+const (
+	RunPreparing RunState = "preparing"
+	RunActive    RunState = "active"
+	RunWaiting   RunState = "waiting"
+	RunIdle      RunState = "idle"
+	RunSleeping  RunState = "sleeping"
+	RunCompleted RunState = "completed"
+	RunFailed    RunState = "failed"
+	RunStopped   RunState = "stopped"
+)
 
 // SessionStatus represents the state of a session.
 type SessionStatus string

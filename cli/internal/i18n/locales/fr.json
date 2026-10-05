@@ -2674,5 +2674,11 @@
   "tui.wiki.time_1hour": "il y a 1 heure",
   "tui.wiki.time_nhours": "il y a %d heures",
   "tui.wiki.time_yesterday": "hier",
-  "tui.wiki.time_ndays": "il y a %d jours"
+  "tui.wiki.time_ndays": "il y a %d jours",
+  "cmd.daemon.already_running": "Le démon oh tourne déjà.",
+  "cmd.daemon.not_running": "Le démon oh ne tourne pas.",
+  "cmd.daemon.status_line": "ohd %s · pid %d · proxy %s · serveurs actifs %d · jetons %d · en attente %d",
+  "cmd.daemon.stopping": "Arrêt du démon oh demandé.",
+  "cmd.session.no_terminal": "Aucun terminal n'a pu être ouvert : ouverture dans le terminal courant.",
+  "cmd.session.opened_in": "Session ouverte (%s)."
 }

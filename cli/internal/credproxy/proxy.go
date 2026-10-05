@@ -133,17 +133,44 @@ func (p *Proxy) Close(ctx context.Context) error {
 
 // Issue registers a grant and returns the session token to hand to the tool.
 func (p *Proxy) Issue(g Grant) (string, error) {
-	if g.Provider == "" || g.Upstream.BaseURL == "" || g.Upstream.Auth == nil {
-		return "", errors.New("credproxy: grant needs provider, upstream URL and auth")
-	}
 	if _, err := url.Parse(g.Upstream.BaseURL); err != nil {
 		return "", fmt.Errorf("credproxy: invalid upstream: %w", err)
 	}
-	tok := newToken()
-	p.mu.Lock()
-	p.byToken[tok] = &grantState{Grant: g, token: tok}
-	p.mu.Unlock()
+	tok := NewToken()
+	if err := p.IssueWithToken(tok, g); err != nil {
+		return "", err
+	}
 	return tok, nil
+}
+
+// IssueWithToken registers a grant under an existing token (restoring a
+// persisted grant after a daemon restart, or replacing its credential).
+func (p *Proxy) IssueWithToken(token string, g Grant) error {
+	if !strings.HasPrefix(token, "ohs_") {
+		return errors.New("credproxy: invalid token format")
+	}
+	if g.Provider == "" || g.Upstream.BaseURL == "" || g.Upstream.Auth == nil {
+		return errors.New("credproxy: grant needs provider, upstream URL and auth")
+	}
+	p.mu.Lock()
+	prev := p.byToken[token]
+	st := &grantState{Grant: g, token: token}
+	if prev != nil {
+		prev.mu.Lock()
+		st.usage = prev.usage
+		prev.mu.Unlock()
+	}
+	p.byToken[token] = st
+	p.mu.Unlock()
+	return nil
+}
+
+// Has reports whether a token is currently active.
+func (p *Proxy) Has(token string) bool {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+	_, ok := p.byToken[token]
+	return ok
 }
 
 // Revoke invalidates a session token.
@@ -177,7 +204,8 @@ func (p *Proxy) Usage(token string) (Usage, bool) {
 	return g.usage, true
 }
 
-func newToken() string {
+// NewToken returns a new random session token ("ohs_" + 64 hex chars).
+func NewToken() string {
 	b := make([]byte, 32)
 	if _, err := rand.Read(b); err != nil {
 		panic(fmt.Sprintf("credproxy: crypto/rand failed: %v", err))
