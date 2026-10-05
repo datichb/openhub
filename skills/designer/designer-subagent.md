@@ -1,7 +1,6 @@
 ---
 name: designer-subagent
 description: Parcours d'exécution du Designer en mode sous-agent (invoqué via task depuis l'agent orchestrator) — session unique sans interruption de phase sauf clarification critique, seul output = le bloc Retour vers orchestrator (spec intégrée dans le bloc), outil question interdit.
-bucket: B
 ---
 
 # Skill — Parcours Designer Sous-agent

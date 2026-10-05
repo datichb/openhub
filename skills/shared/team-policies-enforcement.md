@@ -1,6 +1,6 @@
 ---
-id: team-policies-enforcement
-bucket: A
+name: team-policies-enforcement
+description: Respect des politiques d'équipe (team policies) par les agents, en complément de team-awareness.
 scope: all
 condition: team_enabled
 ---

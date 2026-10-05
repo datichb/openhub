@@ -113,6 +113,30 @@ description: Protocole de retransmission pour coordinateurs — règles d'affich
   des résultats agents. Complémentaire à posture/coordination-only (restrictions d'outils).
 ```
 
+### Dépendances entre skills (`requires:`)
+
+Une skill peut déclarer les skills sans lesquelles elle n'a pas de sens :
+
+```yaml
+---
+name: orchestrator-dev-parallel
+description: …
+requires: [orchestrator/parallel-coordination]
+---
+```
+
+À la compilation du paquet de session (`oh bundle`), oh ajoute la fermeture transitive des `requires:` : une skill inlinée (Bucket A) tire des skills inlinées (placées avant elle), une skill à la demande (Bucket B) tire des skills à la demande. Une dépendance introuvable, un cycle, une dépendance refusée par le workflow (`skills.deny`) ou deux skills de même identifiant **bloquent** la construction du paquet. Le champ `requires:` n'est pas transmis à l'outil (retiré du `SKILL.md` livré).
+
+### Gabarits et annexes (`annexes:`)
+
+Les fichiers qu'une skill demande de charger « via `read` » (gabarits de `skills/templates/`, références…) se déclarent dans le frontmatter, chemins relatifs à `skills/` :
+
+```yaml
+annexes: [templates/review-report-format.md]
+```
+
+Dans le paquet de session, ils sont copiés à côté de la skill (`skills/<id>/templates/…`, fichiers en lecture seule). Pour une skill chargée à la demande, le chemin relatif écrit dans le texte fonctionne tel quel (opencode donne le répertoire de base de la skill). Pour une skill inlinée dans un agent, oh réécrit les références vers l'emplacement de l'annexe dans le paquet ; la lecture ne déclenche pas de demande d'autorisation. Une annexe déclarée mais absente bloque la construction du paquet ; `oh skill check` signale aussi les gabarits cités mais non déclarés et ceux qu'aucune skill n'utilise. Les skills communautaires livrent tout le contenu de leur paquet.
+
 ---
 
 ## 4 — Rationalization table
@@ -224,8 +248,10 @@ Avant de merger ou de déclarer un skill terminé :
 
 **SDO**
 - [ ] `description:` ≤ 2 phrases, keywords discriminants, cross-refs si nécessaire
-- [ ] `bucket:` renseigné (A ou B)
-- [ ] `name:` correspond au path du fichier
+- [ ] `name:` identique au nom du fichier (sans `.md`) : c'est l'identifiant de la skill dans le paquet de session, unique dans tout le catalogue
+- [ ] `requires:` liste les skills indispensables (références `<catégorie>/<nom>`), si besoin ; pas de champ `bucket:` (le bucket est décidé par le frontmatter de l'agent : `skills:` = A, `native_skills:` = B)
+- [ ] Gabarits cités déclarés dans `annexes:`
+- [ ] `oh skill check` sans erreur
 
 **Intégration**
 - [ ] Bucket A : skill dans `skills:` des agents concernés + matrice `skills.fr.md` mise à jour

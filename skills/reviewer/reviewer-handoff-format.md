@@ -1,6 +1,7 @@
 ---
 name: reviewer-handoff-format
 description: Source de vérité pour le format de retour du reviewer vers orchestrator-dev. Définit le bloc structuré unique à produire en fin de review quand invoqué depuis orchestrator-dev. Le rapport de review complet est intégré dans le bloc. Injecté dans le reviewer et dans orchestrator-dev pour garantir que producteur et consommateur partagent le même contrat.
+annexes: [templates/reviewer-handoff-block.md]
 ---
 
 # Skill — Format de handoff reviewer → orchestrator-dev

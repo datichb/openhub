@@ -48,3 +48,12 @@ func TestBundleIDs(t *testing.T) {
 	assert.Equal(t, []string{"a", "b"}, b.AgentIDs())
 	assert.Equal(t, []string{"s"}, b.SkillIDs())
 }
+
+func TestWithBundleRoot(t *testing.T) {
+	b := BundleSpec{Root: "/r", Agents: []AgentDef{{ID: "a", Body: "read " + BundleRootVar + "/skills/x/t.md and " + BundleRootVar + "/y"}}}
+	got := b.WithBundleRoot(b.Root)
+	assert.Equal(t, "read /r/skills/x/t.md and /r/y", got.Agents[0].Body)
+	assert.Contains(t, b.Agents[0].Body, BundleRootVar, "the original is not modified")
+	assert.Equal(t, got, got.WithBundleRoot("/other"), "idempotent once expanded")
+	assert.Equal(t, b, b.WithBundleRoot(""))
+}

@@ -105,6 +105,10 @@ func (s *Store) IntegrityCheck() error {
 	return rows.Err()
 }
 
+// sequentialMigrations is the last migration of the strictly ordered era;
+// later versions are reserved by parallel branches (v5 phase 1+).
+const sequentialMigrations = 31
+
 // migration represents a single schema change with an optional rollback.
 type migration struct {
 	version      int
@@ -122,10 +126,29 @@ func (s *Store) migrate() error {
 		return fmt.Errorf("creating schema_migrations table: %w", err)
 	}
 
-	// Get current schema version
-	currentVersion := 0
-	row := s.db.QueryRow(`SELECT COALESCE(MAX(version), 0) FROM schema_migrations`)
-	_ = row.Scan(&currentVersion)
+	// Applied versions. Up to sequentialMigrations, a version below the
+	// highest applied one counts as applied (historical behaviour). Above it,
+	// every missing migration is applied: parallel branches reserve version
+	// numbers and may merge out of order (a v32 merged after a v33 must run).
+	applied := map[int]bool{}
+	maxApplied := 0
+	rows, err := s.db.Query(`SELECT version FROM schema_migrations`)
+	if err != nil {
+		return fmt.Errorf("reading applied migrations: %w", err)
+	}
+	for rows.Next() {
+		var v int
+		if err := rows.Scan(&v); err != nil {
+			rows.Close()
+			return fmt.Errorf("reading applied migrations: %w", err)
+		}
+		applied[v] = true
+		maxApplied = max(maxApplied, v)
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		return fmt.Errorf("reading applied migrations: %w", err)
+	}
 
 	// Define migrations (ordered by version).
 	// Each migration runs inside a transaction so that the schema change and the
@@ -134,7 +157,7 @@ func (s *Store) migrate() error {
 	// inconsistent state where the column exists but the migration is re-attempted
 	// on next startup, causing a "duplicate column name" error.
 	for _, m := range schemaMigrations {
-		if m.version <= currentVersion {
+		if applied[m.version] || (m.version <= sequentialMigrations && m.version <= maxApplied) {
 			continue
 		}
 		if err := s.runMigration(m); err != nil {
@@ -454,5 +477,18 @@ CREATE INDEX IF NOT EXISTS idx_proxy_grants_owner ON proxy_grants(owner)`,
 		version:      31,
 		up:           `ALTER TABLE sessions ADD COLUMN state_changed_at DATETIME DEFAULT NULL`,
 		irreversible: false,
+	},
+	{
+		// v5 phase 1 (P1-T21): pinned workflows and UI settings. scope =
+		// "global" | "project:<id>" | "team:<id>"; value = JSON.
+		version: 32,
+		up: `CREATE TABLE IF NOT EXISTS preferences (
+			scope      TEXT NOT NULL,
+			key        TEXT NOT NULL,
+			value      TEXT NOT NULL DEFAULT 'null',
+			updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			PRIMARY KEY (scope, key)
+		)`,
+		down: `DROP TABLE IF EXISTS preferences`,
 	},
 }

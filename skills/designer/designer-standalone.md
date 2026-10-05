@@ -1,7 +1,6 @@
 ---
 name: designer-standalone
 description: Parcours d'exécution du Designer en mode standalone (invoqué directement par l'utilisateur, hors orchestrator) — utilise l'outil question aux checkpoints, propose l'enrichissement living-docs après la spec, bloc handoff non obligatoire.
-bucket: B
 ---
 
 # Skill — Parcours Designer Standalone

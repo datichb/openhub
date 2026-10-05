@@ -35,10 +35,17 @@ type Request struct {
 	Workflow *deploy.WorkflowDeployResult
 
 	// Model resolution (cascade levels, nil = none) and hub provider name ("bedrock"…).
+	// WorkflowModels is the workflow level (O9), see WorkflowModels().
 	Provider         string
+	WorkflowModels   *deploy.ModelOverrides
 	ProjectOverrides *deploy.ModelOverrides
 	HubOverrides     *deploy.ModelOverrides
 	TeamOverrides    *deploy.ModelOverrides
+
+	// ExtraSkills / DenySkills apply the workflow `skills:` block (refs or
+	// identifiers for DenySkills). Requirements of extra skills are added.
+	ExtraSkills []string
+	DenySkills  []string
 
 	ExtraInstructionFiles []string
 	MCP                   []sessionspec.MCPServerDef
@@ -113,9 +120,34 @@ func Build(req Request) (*Bundle, error) {
 	}
 
 	skillRefs := map[string]bool{}
+	loader := newSkillLoader(req.HubDir, wf.GeneratedSkills)
+	denied := denyList(req.DenySkills)
+	ids := skillIndex{}
 	slots := slotIndex(&wf.Resolved)
 	for _, id := range selected {
-		a, err := deploy.AssembleAgent(req.HubDir, files[id], wf.GeneratedSkills)
+		fm, err := deploy.ParseAgentFrontmatter(files[id])
+		if err != nil {
+			return nil, err
+		}
+		inline, err := loader.closure(fm.Skills, denied)
+		if err != nil {
+			return nil, fmt.Errorf("agent %s: %w", id, err)
+		}
+		bodies := make([][]byte, 0, len(inline))
+		for _, d := range inline {
+			if err := ids.add(d); err != nil {
+				return nil, err
+			}
+			files, err := loader.annexes(d)
+			if err != nil {
+				return nil, err
+			}
+			if err := writeAnnexes(filepath.Join(tmp, skillsDir), d, files); err != nil {
+				return nil, err
+			}
+			bodies = append(bodies, inlineAnnexRefs(d.body(), d, files))
+		}
+		a, err := deploy.AssembleAgentInline(req.HubDir, files[id], bodies)
 		if err != nil {
 			return nil, err
 		}
@@ -130,7 +162,7 @@ func Build(req Request) (*Bundle, error) {
 		if err := os.MkdirAll(filepath.Join(tmp, agentsDir), 0o755); err != nil {
 			return nil, err
 		}
-		if err := os.WriteFile(filepath.Join(tmp, agentsDir, id+".md"), []byte(def.Body), 0o644); err != nil {
+		if err := os.WriteFile(filepath.Join(tmp, agentsDir, id+".md"), []byte(def.Body), bundleFileMode); err != nil {
 			return nil, err
 		}
 	}
@@ -139,7 +171,29 @@ func Build(req Request) (*Bundle, error) {
 			skillRefs[ref] = true
 		}
 	}
-	skills, err := writeSkills(req.HubDir, filepath.Join(tmp, skillsDir), skillRefs, wf.GeneratedSkills)
+	for _, ref := range req.ExtraSkills {
+		skillRefs[ref] = true
+	}
+	native, err := loader.closure(sortedKeys(skillRefs), denied)
+	if err != nil {
+		return nil, err
+	}
+	for _, d := range native {
+		if err := ids.add(d); err != nil {
+			return nil, err
+		}
+		if err := checkName(d); err != nil {
+			return nil, err
+		}
+		files, err := loader.annexes(d)
+		if err != nil {
+			return nil, err
+		}
+		if err := writeAnnexes(filepath.Join(tmp, skillsDir), d, files); err != nil {
+			return nil, err
+		}
+	}
+	skills, err := writeSkills(filepath.Join(tmp, skillsDir), native)
 	if err != nil {
 		return nil, err
 	}
@@ -166,14 +220,10 @@ func Build(req Request) (*Bundle, error) {
 	if def := findAgent(spec.Agents, req.EntryAgent); def != nil && def.Model != nil {
 		m := *def.Model
 		spec.DefaultModel = &m
-	} else if m := deploy.ResolveAgentModel(req.EntryAgent, "", req.ProjectOverrides, req.HubOverrides, req.TeamOverrides, fallbackModel, req.Provider); m != "" && req.Provider != "" {
+	} else if m := req.ResolveModel(req.EntryAgent, "", fallbackModel); m != "" && req.Provider != "" {
 		// Without a session model the tool picks its own default for the
 		// provider (opencode V2 + Bedrock: a non-Anthropic model).
-		ref := sessionspec.ParseModelRef(m)
-		if ref.Provider == "" {
-			ref.Provider = deploy.OpencodeProviderID(req.Provider)
-		}
-		spec.DefaultModel = &ref
+		spec.DefaultModel = req.modelRef(m)
 	}
 
 	hash, err := hashBundle(tmp, spec)
@@ -195,7 +245,7 @@ func Build(req Request) (*Bundle, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err := os.WriteFile(filepath.Join(tmp, specFile), data, 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(tmp, specFile), data, bundleFileMode); err != nil {
 		return nil, err
 	}
 	if err := os.Rename(tmp, final); err != nil {
@@ -246,12 +296,8 @@ func agentDef(req Request, a *deploy.AssembledAgent, slot *workflow.AgentSlot, i
 		def.Description = fm.Label
 	}
 
-	if m := deploy.ResolveAgentModel(fm.ID, a.Family, req.ProjectOverrides, req.HubOverrides, req.TeamOverrides, fm.Model, req.Provider); m != "" {
-		ref := sessionspec.ParseModelRef(m)
-		if ref.Provider == "" {
-			ref.Provider = deploy.OpencodeProviderID(req.Provider)
-		}
-		def.Model = &ref
+	if m := req.ResolveModel(fm.ID, a.Family, fm.Model); m != "" {
+		def.Model = req.modelRef(m)
 	}
 
 	perms, err := deploy.ResolvePermissions(req.HubDir, fm)
@@ -303,66 +349,6 @@ func readInstructions(projectPath string, extra []string) (string, error) {
 		fmt.Fprintf(&b, "\n## %s\n\n%s\n", rel, strings.TrimSpace(string(data)))
 	}
 	return b.String(), nil
-}
-
-// writeSkills copies Bucket B skills to <dst>/<id>/SKILL.md (generated
-// workflow skills override static ones). Skill IDs are the ref base names.
-func writeSkills(hubDir, dst string, refs map[string]bool, generated map[string]string) ([]sessionspec.SkillDef, error) {
-	ordered := make([]string, 0, len(refs))
-	for r := range refs {
-		ordered = append(ordered, r)
-	}
-	sort.Strings(ordered)
-
-	var out []sessionspec.SkillDef
-	owner := map[string]string{}
-	for _, ref := range ordered {
-		id := filepath.Base(ref)
-		if prev, dup := owner[id]; dup {
-			slog.Warn("bundle: duplicate skill id, keeping first", "id", id, "kept", prev, "skipped", ref)
-			continue
-		}
-		var content []byte
-		if gen, ok := generated[ref]; ok {
-			content = []byte(gen)
-		} else {
-			src, err := deploy.SkillSourcePath(hubDir, ref)
-			if err != nil {
-				slog.Warn("bundle: skill not found, skipped", "ref", ref, "error", err)
-				continue
-			}
-			if content, err = os.ReadFile(src); err != nil {
-				return nil, err
-			}
-		}
-		dir := filepath.Join(dst, id)
-		if err := os.MkdirAll(dir, 0o755); err != nil {
-			return nil, err
-		}
-		if err := os.WriteFile(filepath.Join(dir, "SKILL.md"), content, 0o644); err != nil {
-			return nil, err
-		}
-		owner[id] = ref
-		out = append(out, sessionspec.SkillDef{ID: id, Description: skillDescription(content), Dir: dir})
-	}
-	return out, nil
-}
-
-func skillDescription(content []byte) string {
-	text := string(content)
-	if !strings.HasPrefix(text, "---") {
-		return ""
-	}
-	end := strings.Index(text[3:], "\n---")
-	if end < 0 {
-		return ""
-	}
-	for _, line := range strings.Split(text[3:3+end], "\n") {
-		if v, ok := strings.CutPrefix(strings.TrimSpace(line), "description:"); ok {
-			return strings.Trim(strings.TrimSpace(v), `"'`)
-		}
-	}
-	return ""
 }
 
 // hashBundle hashes the spec (without absolute paths) and every file of dir.

@@ -1,7 +1,6 @@
 ---
 name: planner-beads-templates
 description: Templates complets de création de tickets Beads (Phase 5) — epics, features, tasks, composants UI, dépendances, scissions, estimations, types, priorités, labels, règles d'enrichissement et gestion des aléas. Chargé à la demande après validation du plan en Phase 4.
-bucket: B
 ---
 
 # Skill — Planner : Templates de création Beads (Phase 5)

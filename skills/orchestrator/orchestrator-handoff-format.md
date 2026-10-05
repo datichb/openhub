@@ -1,6 +1,7 @@
 ---
 name: orchestrator-handoff-format
 description: Source de vérité unique pour les formats de communication entre orchestrator-dev et orchestrator — le bloc de retour en fin de session (succès/partiel/bloqué), le bloc de question montante pour les CPs à enjeu fort (CP-2, blocage 3 cycles, dépendance, ticket bloqué), et le bloc de question batch pour les CP-2 groupés (N tickets avec verdict commit). Injecté dans orchestrator et orchestrator-dev pour garantir que le producteur et le consommateur partagent le même contrat de communication.
+annexes: [templates/orchestrator-dev-handoff-blocks.md]
 ---
 
 # Skill — Format de handoff orchestrator-dev → orchestrator

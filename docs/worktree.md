@@ -53,8 +53,8 @@ Liste les worktrees actifs du projet avec leur branche et leur statut (mergé ou
 ```
 $ oh worktree list MON-APP
 
-  .worktrees/feat-bd-42    feat/bd-42
-  .worktrees/fix-auth      fix/auth-null-check  [merged]
+  ../mon-app-feat-bd-42    feat/bd-42
+  ../mon-app-fix-auth      fix/auth-null-check  [merged]
 ```
 
 ### `oh worktree create BRANCH [PROJECT_ID]`
@@ -65,7 +65,7 @@ Crée un worktree pour la branche donnée. Si la branche n'existe pas encore, el
 $ oh worktree create feat/nouvelle-feature MON-APP
 ```
 
-Le worktree est créé dans `.worktrees/feat-nouvelle-feature/`.
+Le worktree est créé dans un dossier frère du dépôt : `../mon-app-feat-nouvelle-feature/` (`<projet>-<slug de la branche>`).
 
 ### `oh worktree remove BRANCH [PROJECT_ID]`
 
@@ -125,7 +125,7 @@ oh start --worktree MON-APP
 **Après la session :**
 ```bash
 # Commiter et pousser depuis le worktree
-git -C .worktrees/feat-ma-feature add . && git -C .worktrees/feat-ma-feature commit -m "feat: ..."
+git -C ../mon-app-feat-ma-feature add . && git -C ../mon-app-feat-ma-feature commit -m "feat: ..."
 
 # Une fois la PR mergée, nettoyer
 oh worktree remove feat/ma-feature MON-APP
@@ -159,7 +159,7 @@ oh start --parallel MON-APP
 
 Quand `Worktree: enabled` est configuré pour le projet, l'`orchestrator-dev` utilise automatiquement `git worktree` à l'étape 1b (création de branche) :
 
-- Au lieu de `git checkout -b <branche>`, il crée `.worktrees/<slug>/`
+- Au lieu de `git checkout -b <branche>`, il crée le dossier frère `../<projet>-<slug>/`
 - Chaque `developer-*` délégué travaille dans son répertoire isolé
 - Aucun risque de conflit filesystem entre sessions parallèles
 - À CP-2 après commit validé, la suppression du worktree est proposée
@@ -170,8 +170,6 @@ Quand `Worktree: enabled` est configuré pour le projet, l'`orchestrator-dev` ut
 
 ```
 oh init / config         →  Worktree: enabled activé dans projects.md
-                                     │
-oh deploy                →  .worktrees/ ajouté à .git/info/exclude
                                      │
          ┌───────────────────────────┴─────────────────────┐
          │                                                   │

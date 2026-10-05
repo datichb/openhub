@@ -1,7 +1,6 @@
 ---
 name: reviewer-reception
 description: "Utiliser quand le developer reçoit un feedback de review (handoff depuis orchestrator-dev ou standalone). Protocole structuré pour traiter le retour de code review — lecture, compréhension, vérification technique, évaluation, réponse, implémentation. Couvre : pushback argumenté, YAGNI check, réponses aux feedbacks flous, gestion des conflits techniques. Distinct de review-protocol (qui définit comment produire une review) — ce skill définit comment y répondre. Mots-clés : review feedback, code review response, pushback, YAGNI, reviewer findings, receiving review."
-bucket: B
 ---
 
 # Skill — Réception de Code Review

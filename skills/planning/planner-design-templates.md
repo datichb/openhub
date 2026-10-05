@@ -1,7 +1,6 @@
 ---
 name: planner-design-templates
 description: Templates de délégation design Phase 1.5 — options A/B/C pour UX et UI, contextes à transmettre aux sous-agents, instructions de reprise après spec reçue. Chargé à la demande quand des signaux design sont détectés en Phase 1.
-bucket: B
 ---
 
 # Skill — Planner : Templates de délégation design (Phase 1.5)

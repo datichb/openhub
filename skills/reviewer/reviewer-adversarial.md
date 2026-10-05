@@ -1,7 +1,6 @@
 ---
 name: reviewer-adversarial
 description: "Utiliser quand une review critique approfondie est demandée — posture de scepticisme maximal pour détecter des problèmes que la review standard manque. Effectue une revue cynique avec minimum 10 findings obligatoires. HALT si zéro finding (re-analyser). Couvre : choix d'architecture, dette technique, cas limites non gérés, hypothèses implicites dangereuses, fragilité, couplage caché, surfaces d'attaque. Invocable par le reviewer en mode standalone, en parallèle avec la review standard (multi-mode), ou par l'orchestrateur feature au CP-feature pour une review pré-merge critique sur l'ensemble d'une feature. Mots-clés : adversarial review, critique, cynical review, devil's advocate, architecture issues, technical debt, CP-feature, feature review."
-bucket: B
 ---
 
 # Skill — Revue Adversariale

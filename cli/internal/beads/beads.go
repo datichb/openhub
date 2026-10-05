@@ -489,6 +489,10 @@ func isDevPickableStatus(status string) bool {
 	return isReadyStatus(status) || IsInProgressStatus(status)
 }
 
+// IsPickableStatus reports whether a ticket can be picked for a session
+// (ready or in progress).
+func IsPickableStatus(status string) bool { return isDevPickableStatus(status) }
+
 // hasLabel checks if a ticket has a specific label.
 func hasLabel(t Ticket, label string) bool {
 	for _, l := range t.Labels {

@@ -1,7 +1,6 @@
 ---
 name: subagent-execution-protocol
 description: "Protocole d'exécution sub-agent — mécanisme d'interruption, checklist, erreurs fréquentes."
-bucket: B
 ---
 
 # Protocole d'exécution — mode sub-agent

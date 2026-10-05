@@ -1,6 +1,5 @@
 ---
 name: orchestrator-dev-feedback-mode
-bucket: B
 description: Mini-workflow de correction basé sur le feedback de review humain. Short-circuite le workflow standard quand le prompt contient [MODE:feedback].
 condition: mode_feedback
 ---

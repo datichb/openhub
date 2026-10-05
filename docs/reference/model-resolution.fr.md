@@ -34,7 +34,23 @@ La résolution s'effectue pour chaque agent déployé. Premier match gagne (prio
 | 4 | Hub agent | Override modèle pour un agent spécifique au hub | `oh config model agent <id> <model>` |
 | 5 | Hub family | Override modèle pour une famille d'agents au hub | `oh config model family <name> <model>` |
 | 6 | Hub global | Modèle global du hub | `oh config model default <model>` |
-| 7 | Frontmatter floor | Champ `model:` dans le `.md` de l'agent | Édition directe du fichier agent |
+| 7 | **Team agent** | Recommandation de modèle pour un agent, depuis team-state | `config.toml` d'équipe `[models.agents]` |
+| 8 | **Team family** | Recommandation de modèle pour une famille, depuis team-state | `config.toml` d'équipe `[models.families]` |
+| 9 | **Team global** | Recommandation de modèle global de l'équipe | `config.toml` d'équipe `[models] default` |
+| 10 | Frontmatter floor | Champ `model:` dans le `.md` de l'agent | Édition directe du fichier agent |
+
+> **Les modèles d'équipe (7-9) sont toujours des recommandations** : les overrides du hub et du projet passent avant.
+
+### Niveau workflow (paquets de session v5)
+
+Pour les sessions lancées depuis un workflow (`oh/v1`), le bloc `models:` du workflow s'ajoute **au-dessus** de la cascade (décision O9) :
+
+| Priorité | Niveau | Source |
+|----------|--------|--------|
+| 0a | Workflow agent | `models.agents.<id>` du workflow |
+| 0b | Workflow global | `models.default` du workflow |
+
+Puis les niveaux 1 à 10 ci-dessus. Le niveau workflow n'a pas de familles. Les identifiants complets (`amazon-bedrock/eu.anthropic.claude-sonnet-4-6`, suffixe `#variante`) sont acceptés : le préfixe régional Bedrock est retiré puis remis par l'adaptateur selon la région de la session, la variante est conservée.
 
 ### Familles
 

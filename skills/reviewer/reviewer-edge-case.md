@@ -1,7 +1,6 @@
 ---
 name: reviewer-edge-case
 description: "Utiliser quand une analyse exhaustive des chemins non gérés est demandée — chasse aux cas limites oubliés dans du code ou une spec. Parcourt tous les branchements conditionnels, frontières de domaine, et conditions aux limites pour identifier les chemins non couverts. Disponible partout en option : via `oh review` (choix interactif), au CP-feature (prompt optionnel), ou combiné avec standard et/ou adversarial. Couvre : control flow (conditionnels, boucles, early returns, error handlers), frontières de valeurs (null, empty, overflow, underflow), race conditions, timeouts, coercions implicites. Ne rapporte que les chemins non gérés — ignore les gérés. Mots-clés : edge case, missing else, null handling, off-by-one, race condition, boundary condition, unhandled path."
-bucket: B
 ---
 
 # Skill — Chasse aux Cas Limites (Edge Case Hunter)

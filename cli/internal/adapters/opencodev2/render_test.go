@@ -219,3 +219,22 @@ func TestProviderPolicy(t *testing.T) {
 		{"action": "provider.use", "resource": "amazon-bedrock", "effect": "allow"},
 	}, exp["policies"])
 }
+
+// Annex paths in agent bodies are expanded with the bundle root, and every
+// agent may read the bundle skill directories without an external_directory prompt.
+func TestRenderExpandsBundleRootAndAllowsSkillAnnexes(t *testing.T) {
+	b := sampleBundle()
+	b.Root = "/b"
+	b.Agents[0].Body = "Load `" + sessionspec.BundleRootVar + "/skills/x/templates/t.md`."
+	cfg, err := BuildConfig(b, sampleProvider(), DefaultNatives)
+	require.NoError(t, err)
+	agent := cfg["agents"].(map[string]any)["orchestrator-dev"].(map[string]any)
+	assert.Equal(t, "Load `/b/skills/x/templates/t.md`.", agent["system"])
+	assert.Contains(t, agent["permissions"], Rule{Action: ActionExternalDir, Resource: "/b/skills/*", Effect: "allow"})
+
+	dir := t.TempDir()
+	require.NoError(t, installPlugin(dir, b.WithBundleRoot(b.Root)))
+	data, err := os.ReadFile(filepath.Join(dir, "agents", "orchestrator-dev.md"))
+	require.NoError(t, err)
+	assert.Equal(t, "Load `/b/skills/x/templates/t.md`.", string(data))
+}

@@ -24,6 +24,10 @@ var DefaultNatives = []string{"build", "plan", "general", "explore"}
 // replacing opencode's base prompt with `system`.
 const OhPluginID = "oh"
 
+// ActionExternalDir is the opencode permission asked before a tool touches a
+// path outside the project.
+const ActionExternalDir = "external_directory"
+
 // ConfigFileName is the rendered config file name inside the bundle.
 const ConfigFileName = "config.json"
 
@@ -63,6 +67,7 @@ func BuildConfig(b sessionspec.BundleSpec, p sessionspec.ProviderSpec, natives [
 	if !b.HasAgent(b.EntryAgent) {
 		return nil, fmt.Errorf("entry agent %q is not part of the bundle", b.EntryAgent)
 	}
+	b = b.WithBundleRoot(b.Root)
 	usePlugin := hasPlugin(b, OhPluginID)
 
 	agents := map[string]any{}
@@ -163,6 +168,11 @@ func agentRules(a sessionspec.AgentDef, b sessionspec.BundleSpec, bundleSkills [
 		if effect := evaluate(a.Permissions, sessionspec.ActionSkill, id, sessionspec.EffectAllow); effect != sessionspec.EffectDeny {
 			rules = append(rules, sessionspec.PermissionRule{Action: sessionspec.ActionSkill, Resource: id, Effect: effect})
 		}
+	}
+	// Skill annexes live in the bundle, outside the project: reading them
+	// must not ask for an external directory (bundle files are read-only).
+	if b.SkillsDir != "" {
+		rules = append(rules, sessionspec.PermissionRule{Action: ActionExternalDir, Resource: path.Join(b.SkillsDir, "*"), Effect: sessionspec.EffectAllow})
 	}
 	// Subagents: only the graph targets.
 	rules = append(rules, sessionspec.PermissionRule{Action: sessionspec.ActionSubagent, Resource: "*", Effect: sessionspec.EffectDeny})

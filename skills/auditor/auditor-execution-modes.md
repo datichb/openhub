@@ -1,7 +1,6 @@
 ---
 name: auditor-execution-modes
 description: Parcours d'exécution de l'auditor — mode standalone (invoqué directement par l'utilisateur, récaps en texte clair avant chaque appel question, validation via outil question, synthèse finale sans bloc handoff orchestrateur) et mode sous-agent (invoqué via task depuis l'agent orchestrator feature, mécanisme d'interruption de session à chaque fin de phase 0 à 3, blocs structurés Retour intermédiaire + Question pour l'agent orchestrator, task_id obligatoire, ne jamais appeler l'outil question).
-bucket: B
 ---
 
 # Modes d'exécution — Auditor

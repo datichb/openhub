@@ -1,6 +1,6 @@
 ---
-id: team-coordination
-bucket: B
+name: team-coordination
+description: Règles de coordination d'équipe pour l'orchestrator-dev (claims, conflits, passage de relais) quand le contexte d'équipe est pertinent.
 agent: orchestrator-dev
 ---
 
