@@ -22,6 +22,13 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 ### Added — workflows déclaratifs (phase 1, en cours)
 
 - Schéma de document **`oh/v1`** (`cli/internal/workflow/schema.go`) : entrées, agents et checkpoints ordonnés, textes localisés (`fr`/`en`), délégations explicites (`calls`), politiques distantes, sorties typées, plugins, runtimes. Pas encore utilisé par les lancements.
+- **Moteur des workflows** (pas encore branché aux lancements) :
+  - Lecture stricte des fichiers `oh/v1` : champs inconnus, types, clés en double et documents multiples refusés ; toutes les erreurs sont listées avec ligne et colonne.
+  - `extends` : un workflow d'équipe ou de projet complète celui de la couche inférieure ; chaque valeur résolue indique le fichier qui l'a posée. Les champs de sécurité (`risk`, `isolation`, `runtime.allowed`, `beads.allow`, checkpoints obligatoires, `remote`, `limits`) ne peuvent que se durcir ; un workflow de même identifiant doit étendre celui de la couche inférieure.
+  - Validation complète : agents connus, graphe de délégation sans cycle, agents atteignables, variables des gabarits de prompt (`{{ .entrée }}`, `{{ .oh.project }}`…), skills et leurs `requires:`, `risk: read` sans agent qui écrit ni commande Beads d'écriture, checkpoints compatibles avec l'exécution distante.
+  - **`oh workflow validate <fichier|id> [--layer] [--json] [--all]`**.
+  - Paquet de session construit depuis un workflow : agents du workflow, délégations et profondeur maximale tirées du YAML, skills d'enchaînement générées (nouvelle carte du workflow `workflow/workflow-map`).
+  - Nouvel agent **`conductor`** : agent d'entrée générique qui suit la carte du workflow.
 - **Briques** (pas encore branchées aux lancements) :
   - **Niveau workflow dans la cascade des modèles** : `models.agents.<id>` puis `models.default` du workflow passent avant les réglages projet, hub et équipe. Identifiants complets acceptés (`amazon-bedrock/eu.anthropic…`, suffixe `#variante`).
   - **Dépendances entre skills** : champ `requires:` du frontmatter ; le paquet de session ajoute les skills requises (inlinées avec une skill inlinée, à la demande avec une skill à la demande). Dépendance introuvable, cycle, identifiant en double ou `name:` différent du nom de fichier bloquent la construction du paquet.
@@ -36,6 +43,7 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 - Au-delà de v31, une migration absente est appliquée même si une version plus récente l'est déjà (versions réservées par branches parallèles, fusionnées dans le désordre).
 - Les fichiers du paquet de session (`~/.oh/bundles/<hash>`) sont en lecture seule.
 - Skills : champ `bucket:` supprimé (jamais lu ; le bucket est décidé par le frontmatter de l'agent).
+- `orchestrator` : les modes d'entrée A–E et les checkpoints écrits en dur sont retirés (ils deviennent des workflows) ; l'agent garde sa posture et ses contrats. En attendant les workflows livrés, `oh start` n'aiguille plus selon le mode.
 
 ### Fixed
 
