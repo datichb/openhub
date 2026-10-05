@@ -20,23 +20,15 @@ import (
 )
 
 type liveServer struct {
+	*Server
 	client  *Client
 	project string
-	cmd     *exec.Cmd
+	root    string
 }
 
-func freePort(t *testing.T) int {
+func startLiveServer(t *testing.T, config string, readyAgent string) *liveServer {
 	t.Helper()
-	l, err := net.Listen("tcp", "127.0.0.1:0")
-	require.NoError(t, err)
-	defer l.Close()
-	return l.Addr().(*net.TCPAddr).Port
-}
-
-func startLiveServer(t *testing.T, config string) *liveServer {
-	t.Helper()
-	bin, err := exec.LookPath("opencode")
-	if err != nil {
+	if _, err := exec.LookPath("opencode"); err != nil {
 		t.Skip("opencode binary not found")
 	}
 	root := t.TempDir()
@@ -44,43 +36,21 @@ func startLiveServer(t *testing.T, config string) *liveServer {
 	require.NoError(t, os.MkdirAll(project, 0o755))
 	require.NoError(t, exec.Command("git", "init", "-q", project).Run())
 
-	port := freePort(t)
-	cmd := exec.Command(bin, "serve", "--hostname", "127.0.0.1", "--port", fmt.Sprint(port))
-	cmd.Dir = project
-	cmd.Env = append(os.Environ(),
-		"OPENCODE_SERVER_PASSWORD=contract",
-		"XDG_DATA_HOME="+filepath.Join(root, "data"),
-		"OPENCODE_DISABLE_PROJECT_CONFIG=1",
-		"OPENCODE_DISABLE_AUTOUPDATE=true",
-		"OPENCODE_CONFIG_CONTENT="+config,
-	)
-	require.NoError(t, cmd.Start())
-	t.Cleanup(func() {
-		_ = cmd.Process.Kill()
-		_ = cmd.Wait()
+	srv, err := StartServer(context.Background(), ServerOptions{
+		WorkDir:       project,
+		DataDir:       filepath.Join(root, "data"),
+		ConfigContent: config,
+		ReadyAgent:    readyAgent,
 	})
-
-	c := NewClient(fmt.Sprintf("http://127.0.0.1:%d", port), "contract")
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-	for {
-		agents, err := c.Agents(ctx, project)
-		if err == nil && len(agents) > 0 {
-			break
-		}
-		select {
-		case <-ctx.Done():
-			t.Fatalf("server not ready: %v", err)
-		case <-time.After(200 * time.Millisecond):
-		}
-	}
-	return &liveServer{client: c, project: project, cmd: cmd}
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = srv.Stop(context.Background(), 5*time.Second) })
+	return &liveServer{Server: srv, client: srv.Client, project: project, root: root}
 }
 
 func TestContractServer(t *testing.T) {
 	cfg := `{"agents":{"build":{"disabled":true},"plan":{"disabled":true},"general":{"disabled":true},"explore":{"disabled":true},` +
 		`"pinger":{"mode":"primary","description":"contract agent"}}}`
-	s := startLiveServer(t, cfg)
+	s := startLiveServer(t, cfg, "pinger")
 	ctx := context.Background()
 	c := s.client
 
@@ -170,4 +140,52 @@ func TestContractServer(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotEmpty(t, code.Code)
 	assert.Contains(t, c.PairURL(code.Code), "/auth/connect/")
+}
+
+func TestContractServerLifecycle(t *testing.T) {
+	cfg := `{"agents":{"pinger":{"mode":"primary","description":"p"}}}`
+	t0 := time.Now()
+	s := startLiveServer(t, cfg, "pinger")
+	startup := time.Since(t0)
+	t.Logf("server ready in %s", startup)
+	assert.Less(t, startup, 10*time.Second)
+	assert.True(t, s.Alive())
+	assert.True(t, s.Healthy(context.Background()))
+
+	// Data isolation: the tool database lives in the oh-provided data dir.
+	_, err := os.Stat(filepath.Join(s.root, "data", "opencode", "opencode.db"))
+	assert.NoError(t, err)
+
+	// Re-attach from another "oh process" with only url/password/pid.
+	again := AttachServer(s.URL, s.Password, s.PID)
+	assert.True(t, again.Alive())
+	assert.True(t, again.Healthy(context.Background()))
+
+	require.NoError(t, s.Stop(context.Background(), 5*time.Second))
+	assert.False(t, s.Alive())
+	assert.False(t, again.Healthy(context.Background()))
+
+	// No process left in the server's process group.
+	out, _ := exec.Command("pgrep", "-g", fmt.Sprint(s.PID)).Output()
+	assert.Empty(t, strings.TrimSpace(string(out)), "orphan processes in group %d", s.PID)
+
+	// Port released.
+	l, err := net.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", s.Port))
+	require.NoError(t, err)
+	l.Close()
+}
+
+func TestContractServerStartupFailure(t *testing.T) {
+	if _, err := exec.LookPath("opencode"); err != nil {
+		t.Skip("opencode binary not found")
+	}
+	root := t.TempDir()
+	_, err := StartServer(context.Background(), ServerOptions{
+		WorkDir:      root,
+		DataDir:      filepath.Join(root, "data"),
+		ReadyAgent:   "does-not-exist",
+		ReadyTimeout: 4 * time.Second,
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "does-not-exist")
 }
