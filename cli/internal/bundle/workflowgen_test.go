@@ -112,3 +112,27 @@ func TestBuildFromWorkflowSpec_InlinesGeneratedSkills(t *testing.T) {
 	assert.Contains(t, od.Body, "- Modes autorisés : `manuel`, `semi-auto`, `auto`")
 	assert.NotContains(t, od.Body, "Protocole de sélection du mode (CP-0)", "not the skill generated from the legacy workflow")
 }
+
+func TestBuildConductorWorkflow(t *testing.T) {
+	src := `apiVersion: oh/v1
+kind: Workflow
+id: cadrage
+risk: read
+beads: { allow: [show, list] }
+agents:
+  pathfinder: { role: workflow }
+  planner: { role: workflow, after: cp-scope }
+checkpoints:
+  cp-scope: { label: Périmètre, mode: { manuel: pause, semi-auto: pause, auto: auto } }
+`
+	b, err := Build(Request{HubDir: repoHub(t), OutDir: t.TempDir(), Spec: parseSpec(t, src)})
+	require.NoError(t, err)
+	s := b.Spec
+	assert.Equal(t, "conductor", s.EntryAgent, "implicit entry")
+	assert.Equal(t, []string{"pathfinder", "planner"}, s.SubagentGraph["conductor"], "task \"*\" restricted to the members")
+	c := findAgent(s.Agents, "conductor")
+	require.NotNil(t, c)
+	assert.Contains(t, c.Body, "# Carte du workflow `cadrage`", "the generated map is inlined")
+	assert.Contains(t, c.Body, "| **cp-scope** — Périmètre | pause | pause | auto |")
+	assert.NotContains(t, c.Body, "Aucune carte de workflow n'a été générée", "not the static fallback")
+}

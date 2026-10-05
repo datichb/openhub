@@ -179,3 +179,20 @@ func write(t *testing.T, path, content string) {
 		t.Fatal(err)
 	}
 }
+
+func TestConductorIsAReadOnlyCoordinator(t *testing.T) {
+	c, err := New(repoHub)
+	if err != nil {
+		t.Fatal(err)
+	}
+	a, ok := c.Agent(workflow.DefaultEntryAgent)
+	if !ok {
+		t.Fatal("conductor agent missing from the hub")
+	}
+	if a.Mode != workflow.ModePrimary || a.Edits || a.Shell || !reflect.DeepEqual(a.Tasks, []string{"*"}) {
+		t.Fatalf("conductor = %+v", a)
+	}
+	if !contains(a.Skills, "workflow/workflow-map") || !c.HasSkill("workflow/workflow-map") {
+		t.Fatal("conductor must load the workflow map")
+	}
+}
