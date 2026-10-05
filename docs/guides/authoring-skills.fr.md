@@ -113,6 +113,20 @@ description: Protocole de retransmission pour coordinateurs — règles d'affich
   des résultats agents. Complémentaire à posture/coordination-only (restrictions d'outils).
 ```
 
+### Dépendances entre skills (`requires:`)
+
+Une skill peut déclarer les skills sans lesquelles elle n'a pas de sens :
+
+```yaml
+---
+name: orchestrator-dev-parallel
+description: …
+requires: [orchestrator/parallel-coordination]
+---
+```
+
+À la compilation du paquet de session (`oh bundle`), oh ajoute la fermeture transitive des `requires:` : une skill inlinée (Bucket A) tire des skills inlinées (placées avant elle), une skill à la demande (Bucket B) tire des skills à la demande. Une dépendance introuvable, un cycle, une dépendance refusée par le workflow (`skills.deny`) ou deux skills de même identifiant **bloquent** la construction du paquet. Le champ `requires:` n'est pas transmis à l'outil (retiré du `SKILL.md` livré).
+
 ---
 
 ## 4 — Rationalization table
@@ -224,8 +238,9 @@ Avant de merger ou de déclarer un skill terminé :
 
 **SDO**
 - [ ] `description:` ≤ 2 phrases, keywords discriminants, cross-refs si nécessaire
-- [ ] `bucket:` renseigné (A ou B)
-- [ ] `name:` correspond au path du fichier
+- [ ] `name:` identique au nom du fichier (sans `.md`) : c'est l'identifiant de la skill dans le paquet de session, unique dans tout le catalogue
+- [ ] `requires:` liste les skills indispensables (références `<catégorie>/<nom>`), si besoin ; pas de champ `bucket:` (le bucket est décidé par le frontmatter de l'agent : `skills:` = A, `native_skills:` = B)
+- [ ] `oh skill check` sans erreur
 
 **Intégration**
 - [ ] Bucket A : skill dans `skills:` des agents concernés + matrice `skills.fr.md` mise à jour

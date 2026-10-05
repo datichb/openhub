@@ -1,7 +1,6 @@
 ---
 name: review-merge
 description: "Skill de fusion de rapports multi-modes du reviewer. Reçoit N rapports bruts (standard, adversarial, edge-case) issus de sessions parallèles indépendantes et produit un rapport unifié dédupliqué. Travail purement structurel — aucune analyse de code. Mots-clés : merge, fusion, dedup, rapport unifié, multi-mode."
-bucket: B
 ---
 
 # Skill — Fusion de rapports multi-modes (Review Merge)

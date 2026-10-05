@@ -113,6 +113,20 @@ description: Transcription protocol for coordinators — verbatim display rules
   for agent results. Complementary to posture/coordination-only (tool restrictions).
 ```
 
+### Dependencies between skills (`requires:`)
+
+A skill can declare the skills it makes no sense without:
+
+```yaml
+---
+name: orchestrator-dev-parallel
+description: …
+requires: [orchestrator/parallel-coordination]
+---
+```
+
+When the session bundle is compiled (`oh bundle`), oh adds the transitive closure of `requires:`: an inlined skill (Bucket A) pulls inlined skills (placed before it), an on-demand skill (Bucket B) pulls on-demand skills. A missing dependency, a cycle, a dependency denied by the workflow (`skills.deny`) or two skills with the same identifier **block** the bundle build. The `requires:` field is not passed to the tool (removed from the delivered `SKILL.md`).
+
 ---
 
 ## 4 — Rationalization table
@@ -224,8 +238,9 @@ Before merging or declaring a skill complete:
 
 **SDO**
 - [ ] `description:` ≤ 2 sentences, discriminating keywords, cross-refs if needed
-- [ ] `bucket:` filled in (A or B)
-- [ ] `name:` matches the file path
+- [ ] `name:` equal to the file name (without `.md`): it is the skill identifier in the session bundle, unique across the catalogue
+- [ ] `requires:` lists the skills it cannot work without (`<category>/<name>` refs), if any; no `bucket:` field (the bucket is decided by the agent frontmatter: `skills:` = A, `native_skills:` = B)
+- [ ] `oh skill check` reports no error
 
 **Integration**
 - [ ] Bucket A: skill in `skills:` of the relevant agents + `skills.fr.md` matrix updated

@@ -1,7 +1,6 @@
 ---
 name: phase-0-validation-loop
 description: "Boucle de validation Phase 0 — question 3 options (Démarrer/Préciser/Arrêter), routing, variante sub-agent."
-bucket: B
 ---
 
 # Phase 0 — Boucle de validation

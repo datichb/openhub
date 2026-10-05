@@ -1,7 +1,6 @@
 ---
 name: standalone-execution-protocol
 description: "Protocole d'exécution standalone — mode detection, ordering recap→question, checklist universelle."
-bucket: B
 ---
 
 # Protocole d'exécution — mode standalone

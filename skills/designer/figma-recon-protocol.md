@@ -1,7 +1,6 @@
 ---
 name: figma-recon-protocol
 description: Protocole de reconnaissance Figma légère pour l'agent Designer — mode recon. Détecte les signaux UX/UI, extrait la structure et les tokens de base, produit un bloc structuré compact. Ne réalise pas de spec — recommande l'escalade si pertinent.
-bucket: B
 ---
 
 # Skill — Figma Recon Protocol

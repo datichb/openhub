@@ -1,7 +1,6 @@
 ---
 name: debugger-report-templates
 description: Templates de rapport de diagnostic (Phase 5) — structure exacte du rapport, template de ticket Beads de correction, commandes bd create/update, labels, priorités suggérées. Chargé à la demande en Phase 5 après validation explicite.
-bucket: B
 ---
 
 # Skill — Debugger : Templates de rapport et ticket Beads (Phase 5)

@@ -1,6 +1,6 @@
 ---
-id: prototype-protocol
-bucket: B
+name: prototype-protocol
+description: Produire un artefact visuel rapide (prototype) pour répondre à une question de design précise, en complément d'un mode ux/ui.
 agent: designer
 ---
 

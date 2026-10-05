@@ -1,6 +1,6 @@
 ---
-id: planner-patterns-protocol
-bucket: B
+name: planner-patterns-protocol
+description: Utilisation de la bibliothèque de patterns par le planner pour accélérer et améliorer la décomposition des tickets.
 agent: planner
 ---
 

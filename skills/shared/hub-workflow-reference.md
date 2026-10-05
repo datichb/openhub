@@ -1,7 +1,6 @@
 ---
 name: hub-workflow-reference
 description: Source de vérité canonique du hub — catalogue des agents, heuristique pathfinder vs planner, séquences standard par type de feature, table des handoffs, intégration du complexity scoring. Chargé automatiquement (bucket A) par l'orchestrator et le planner.
-bucket: A
 source-of-truth: true
 ---
 

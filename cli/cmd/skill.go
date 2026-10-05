@@ -34,6 +34,7 @@ func init() {
 	skillCmd.AddCommand(skillRemoveCmd())
 	skillCmd.AddCommand(skillSearchCmd())
 	skillCmd.AddCommand(skillBudgetCmd())
+	skillCmd.AddCommand(skillCheckCmd())
 }
 
 func skillListCmd() *cobra.Command {

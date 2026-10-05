@@ -1,6 +1,6 @@
 ---
-id: parallel-coordination
-bucket: B
+name: parallel-coordination
+description: Coordination de l'orchestrator-dev quand plusieurs sessions travaillent en parallèle sur différents tickets.
 agent: orchestrator-dev
 condition: parallel_mode
 ---

@@ -4,7 +4,6 @@ description: Protocole condensé d'authoring skills — TDD RED/GREEN/REFACTOR, 
   (description discriminante, keyword coverage, token efficiency), 5 anti-patterns, rationalization
   table template, checklist de validation 12 points. Charger quand le documentarian crée ou
   améliore un skill.
-bucket: B
 ---
 
 # Skill — Authoring Protocol
@@ -99,8 +98,9 @@ Pour chaque règle : "Comment un modèle respecterait-il la lettre en violant l'
 
 **SDO**
 - [ ] `description:` ≤ 2 phrases, discriminante, keywords couverts
-- [ ] `bucket:` renseigné (A ou B)
-- [ ] `name:` correspond au path
+- [ ] `name:` identique au nom du fichier (identifiant unique dans le catalogue)
+- [ ] `requires:` si la skill dépend d'autres skills (pas de champ `bucket:`)
+- [ ] `oh skill check` sans erreur
 
 **Intégration**
 - [ ] Bucket A → dans `skills:` agents + `skills.fr.md` mis à jour

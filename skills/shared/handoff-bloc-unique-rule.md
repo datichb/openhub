@@ -1,7 +1,6 @@
 ---
 name: handoff-bloc-unique-rule
 description: "Contrat universel de handoff — règles producer/consumer communes à tous les agents produisant un bloc structuré pour un orchestrator."
-bucket: B
 ---
 
 # Règle du bloc unique — Contrat universel de handoff

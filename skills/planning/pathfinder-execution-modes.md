@@ -1,7 +1,6 @@
 ---
 name: pathfinder-execution-modes
 description: Parcours d'exécution du pathfinder — mode standalone (invoqué directement par l'utilisateur, récap en texte clair avant question, outil question pour les pauses, rapport final sans bloc handoff orchestrateur) et mode sous-agent (invoqué via task depuis l'agent orchestrator feature, session unique sans interruption si aucune clarification critique, ou mécanisme d'interruption si clarification critique détectée, bloc Retour vers orchestrator obligatoire en fin de session, ne jamais appeler l'outil question).
-bucket: B
 ---
 
 # Modes d'exécution — Pathfinder

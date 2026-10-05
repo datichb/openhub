@@ -1,7 +1,6 @@
 ---
 name: tracker-integration-protocol
 description: "Protocole d'intégration tracker (GitLab/GitHub) — triggers, workflow lecture ticket, table d'impact, gestion erreurs."
-bucket: B
 ---
 
 # Protocole d'intégration tracker

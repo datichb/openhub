@@ -21,10 +21,10 @@ type AssembledAgent struct {
 	Body        string // markdown body without frontmatter, Bucket A skills appended
 }
 
-// AssembleAgent reads agents/<…>/<id>.md and returns its body with Bucket A
-// skills inlined. When generated contains a skill ref, the generated content
-// (from the resolved workflow) is inlined instead of the static skill file.
-func AssembleAgent(hubDir, agentPath string, generated map[string]string) (*AssembledAgent, error) {
+// AssembleAgentInline reads agents/<…>/<id>.md and returns its body followed
+// by the given skill bodies (already resolved by the caller, without
+// frontmatter), separated by horizontal rules.
+func AssembleAgentInline(hubDir, agentPath string, skillBodies [][]byte) (*AssembledAgent, error) {
 	data, err := os.ReadFile(agentPath)
 	if err != nil {
 		return nil, fmt.Errorf("reading agent file: %w", err)
@@ -37,14 +37,7 @@ func AssembleAgent(hubDir, agentPath string, generated map[string]string) (*Asse
 
 	var out bytes.Buffer
 	out.Write(bytes.TrimRight(body, "\n"))
-	skillsDir := filepath.Join(hubDir, "skills")
-	for _, ref := range fm.Skills {
-		var content []byte
-		if gen, ok := generated[ref]; ok {
-			_, content = splitFrontmatterAndBody([]byte(gen))
-		} else if content, err = readSkillContent(skillsDir, ref); err != nil {
-			continue // same tolerance as DeployAgents: missing skills are skipped
-		}
+	for _, content := range skillBodies {
 		out.WriteString("\n\n---\n\n")
 		out.Write(bytes.TrimRight(content, "\n"))
 	}
@@ -52,6 +45,12 @@ func AssembleAgent(hubDir, agentPath string, generated map[string]string) (*Asse
 
 	rel, _ := filepath.Rel(filepath.Join(hubDir, "agents"), agentPath)
 	return &AssembledAgent{Frontmatter: fm, Family: AgentFamily(rel), Path: agentPath, Body: out.String()}, nil
+}
+
+// SplitFrontmatter splits a markdown file into its frontmatter (with the
+// "---" delimiters, nil when absent) and its body.
+func SplitFrontmatter(data []byte) (frontmatter, body []byte) {
+	return splitFrontmatterAndBody(data)
 }
 
 // FindAgentFiles maps agent IDs (file names without .md) to their paths under hubDir/agents.
