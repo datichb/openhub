@@ -42,6 +42,9 @@ type Options struct {
 	Sessions domain.SessionStore
 	// Decisions receives the pending decisions of the tracked sessions (inbox).
 	Decisions domain.DecisionStore
+	// SessionsDir (~/.oh/sessions) receives the results snapshot of the
+	// sessions of a group before its server sleeps or stops.
+	SessionsDir string
 	// Adapter returns the tool adapter for a server's adapter name (nil = no watcher).
 	Adapter func(name string) adapters.ToolAdapter
 	// SigV4 builds an AWS signer for a profile/region (overridable in tests).

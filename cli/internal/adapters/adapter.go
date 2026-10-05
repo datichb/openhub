@@ -6,6 +6,7 @@ package adapters
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	ohruntime "github.com/datichb/openhub/cli/internal/runtime"
@@ -116,8 +117,16 @@ type PendingDecision struct {
 	Action    string   // permission action
 	Resources []string // permission resources
 	Title     string   // question/form title
+	Message   string   // optional explanation from the tool
 	Fields    []FormField
 }
+
+// ErrRequestGone is returned by Reply when the request no longer waits for
+// an answer (answered elsewhere, cancelled, or unknown): first answer wins.
+var ErrRequestGone = errors.New("the request was already answered or no longer exists")
+
+// ErrInvalidAnswer is returned by Reply when the tool rejects the answer.
+var ErrInvalidAnswer = errors.New("the tool rejected the answer")
 
 // FormField is a typed question field.
 type FormField struct {
@@ -127,6 +136,7 @@ type FormField struct {
 	Type        string
 	Options     []FormOption
 	Custom      bool
+	Required    bool
 }
 
 // FormOption is one choice of a FormField.
@@ -146,11 +156,37 @@ type DecisionReply struct {
 	Answer    map[string]any // question answers by field key
 }
 
+// Control operation kinds.
+const (
+	ControlPrompt      = "prompt"       // user prompt (Text)
+	ControlSynthetic   = "synthetic"    // synthetic message (Text), S6
+	ControlInterrupt   = "interrupt"    // stop the running agent loop
+	ControlSwitchModel = "switch_model" // Model, for the next turns
+	ControlCompact     = "compact"      // compact the session history
+)
+
+// Delivery tells when a prompt or synthetic message is taken into account.
+type Delivery string
+
+const (
+	DeliveryDefault Delivery = ""      // tool default
+	DeliverySteer   Delivery = "steer" // at the next step boundary of the running loop
+	DeliveryQueue   Delivery = "queue" // after the running loop
+)
+
 // ControlOp is a session control operation.
 type ControlOp struct {
-	Kind  string // interrupt | synthetic | switch_model | compact | fork
-	Text  string
-	Model *sessionspec.ModelRef
+	Kind     string
+	Text     string
+	Model    *sessionspec.ModelRef
+	Region   string // provider region (model id resolution)
+	Delivery Delivery
+}
+
+// Forker is implemented by adapters that can fork a session (S9): a new
+// session with a copy of the history. It returns the new tool session ID.
+type Forker interface {
+	Fork(ctx context.Context, h ServerHandle, sessionID string) (string, error)
 }
 
 // FileChange is one changed file of a session.
@@ -173,6 +209,7 @@ type SessionResult struct {
 	TokensReasoning  int64
 	TokensCacheRead  int64
 	TokensCacheWrite int64
+	Branch           string // current VCS branch of the session location ("" if unknown)
 	Changes          []FileChange
 }
 

@@ -233,3 +233,21 @@ func sessionShellEnv(t *testing.T, srv *domain.Server, sessionID, dir string) st
 	}, 10*time.Second, 50*time.Millisecond)
 	return got
 }
+
+func TestForkSession(t *testing.T) {
+	f := newFixture(t, mapSecrets{"openhub.provider.bedrock.token": "fake-key"})
+	ctx := context.Background()
+	r, err := f.svc.StartSession(ctx, withEnv(f.request("")))
+	require.NoError(t, err)
+	_, err = f.svc.ForkSession(ctx, r.SessionID)
+	assert.ErrorContains(t, err, "empty", "opencode refuses to fork a session without history")
+	sessionShellEnv(t, r.Server, r.SessionID, f.project) // gives the session some history
+
+	child, err := f.svc.ForkSession(ctx, r.SessionID)
+	require.NoError(t, err)
+	sess, err := f.svc.Sessions.Get(ctx, child)
+	require.NoError(t, err)
+	assert.Equal(t, r.GroupKey, sess.GroupKey)
+	assert.Equal(t, "fork · test", *sess.Title)
+	assert.Equal(t, "static=one dyn= id="+child, sessionShellEnv(t, r.Server, child, f.project), "static environment copied, own session id")
+}

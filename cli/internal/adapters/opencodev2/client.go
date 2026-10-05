@@ -60,6 +60,22 @@ func IsNotFound(err error) bool {
 	return errors.As(err, &ae) && ae.Status == http.StatusNotFound
 }
 
+// IsSettled reports whether err tells that a permission or form no longer
+// waits for an answer (unknown, already answered or cancelled).
+func IsSettled(err error) bool {
+	var ae *APIError
+	if !errors.As(err, &ae) {
+		return false
+	}
+	return ae.Status == http.StatusNotFound || strings.Contains(ae.Tag, "AlreadySettled") || strings.Contains(ae.Tag, "NotFound")
+}
+
+// IsInvalidAnswer reports whether err is a rejected form answer.
+func IsInvalidAnswer(err error) bool {
+	var ae *APIError
+	return errors.As(err, &ae) && strings.Contains(ae.Tag, "InvalidAnswer")
+}
+
 // IsUnauthorized reports whether err is a 401 API error.
 func IsUnauthorized(err error) bool {
 	var ae *APIError
@@ -167,6 +183,7 @@ type PermissionRequest struct {
 	Action    string   `json:"action"`
 	Resources []string `json:"resources"`
 	Save      []string `json:"save,omitempty"`
+	Message   string   `json:"message,omitempty"`
 }
 
 // FormOption is one choice of a form field.
@@ -184,6 +201,7 @@ type FormField struct {
 	Type        string       `json:"type"`
 	Options     []FormOption `json:"options,omitempty"`
 	Custom      bool         `json:"custom,omitempty"`
+	Required    bool         `json:"required,omitempty"`
 }
 
 // Form is a pending form (e.g. an agent question).
@@ -292,12 +310,62 @@ func (c *Client) ActiveSessions(ctx context.Context) ([]string, error) {
 
 // Prompt admits a user prompt; execution continues asynchronously.
 func (c *Client) Prompt(ctx context.Context, sessionID, text string) error {
-	return c.do(ctx, http.MethodPost, sessionPath(sessionID, "prompt"), nil, map[string]any{"text": text}, nil)
+	return c.PromptWith(ctx, sessionID, text, "")
+}
+
+// PromptWith admits a user prompt with a delivery mode (steer | queue | "" = server default).
+func (c *Client) PromptWith(ctx context.Context, sessionID, text, delivery string) error {
+	return c.do(ctx, http.MethodPost, sessionPath(sessionID, "prompt"), nil, withDelivery(map[string]any{"text": text}, delivery), nil)
 }
 
 // Synthetic admits a synthetic (non-user) message.
 func (c *Client) Synthetic(ctx context.Context, sessionID, text string) error {
-	return c.do(ctx, http.MethodPost, sessionPath(sessionID, "synthetic"), nil, map[string]any{"text": text}, nil)
+	return c.SyntheticWith(ctx, sessionID, text, "")
+}
+
+// SyntheticWith admits a synthetic message with a delivery mode.
+func (c *Client) SyntheticWith(ctx context.Context, sessionID, text, delivery string) error {
+	return c.do(ctx, http.MethodPost, sessionPath(sessionID, "synthetic"), nil, withDelivery(map[string]any{"text": text}, delivery), nil)
+}
+
+func withDelivery(body map[string]any, delivery string) map[string]any {
+	if delivery != "" {
+		body["delivery"] = delivery
+	}
+	return body
+}
+
+// Compact asks the server to compact the session history (at the next step
+// boundary when a loop runs).
+func (c *Client) Compact(ctx context.Context, sessionID string) error {
+	return c.do(ctx, http.MethodPost, sessionPath(sessionID, "compact"), nil, map[string]any{}, nil)
+}
+
+// Fork creates a child session with a copy of the full history.
+func (c *Client) Fork(ctx context.Context, sessionID string) (Session, error) {
+	var out struct {
+		Data Session `json:"data"`
+	}
+	err := c.do(ctx, http.MethodPost, sessionPath(sessionID, "fork"), nil, map[string]any{}, &out)
+	return out.Data, err
+}
+
+// VCSInfo is the VCS state of a location.
+type VCSInfo struct {
+	Provider string `json:"provider,omitempty"`
+	Branch   struct {
+		Current string `json:"current,omitempty"`
+		Default string `json:"default,omitempty"`
+	} `json:"branch"`
+}
+
+// VCS returns the current and default branches of a location.
+func (c *Client) VCS(ctx context.Context, dir string) (VCSInfo, error) {
+	var out struct {
+		Data VCSInfo `json:"data"`
+	}
+	err := c.do(ctx, http.MethodGet, "/api/vcs", locQuery(dir), nil, &out)
+	return out.Data, err
 }
 
 // Interrupt stops the running agent loop of a session.

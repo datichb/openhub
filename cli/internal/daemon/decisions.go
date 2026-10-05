@@ -62,7 +62,7 @@ func toolDecision(group, sessionID string, p adapters.PendingDecision) domain.De
 		d.Kind = domain.DecisionQuestion
 		d.Payload.Title = p.Title
 		for _, f := range p.Fields {
-			df := domain.DecisionField{Key: f.Key, Title: f.Title, Description: f.Description, Type: f.Type, Custom: f.Custom}
+			df := domain.DecisionField{Key: f.Key, Title: f.Title, Description: f.Description, Type: f.Type, Custom: f.Custom, Required: f.Required}
 			for _, o := range f.Options {
 				df.Options = append(df.Options, domain.DecisionOption{Value: o.Value, Label: o.Label, Description: o.Description})
 			}
@@ -70,7 +70,7 @@ func toolDecision(group, sessionID string, p adapters.PendingDecision) domain.De
 		}
 	default:
 		d.Kind = domain.DecisionPermission
-		d.Payload.Action, d.Payload.Resources = p.Action, p.Resources
+		d.Payload.Action, d.Payload.Resources, d.Payload.Message = p.Action, p.Resources, p.Message
 	}
 	d.ID = domain.DecisionID(d.Kind, sessionID, p.ID)
 	return d

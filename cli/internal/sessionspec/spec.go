@@ -166,7 +166,10 @@ type BundleSpec struct {
 	MaxDepth      int                 `json:"max_depth"`
 	CodeMode      bool                `json:"code_mode"`
 	Isolation     IsolationLevel      `json:"isolation"`
-	DefaultModel  *ModelRef           `json:"default_model,omitempty"`
+	// StrictIsolation mirrors the workflow `isolation: strict`: no permission
+	// may be granted "always" from oh.
+	StrictIsolation bool      `json:"strict_isolation,omitempty"`
+	DefaultModel    *ModelRef `json:"default_model,omitempty"`
 }
 
 // BundleRootVar stands for the bundle root directory in agent bodies (paths

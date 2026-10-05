@@ -38,14 +38,15 @@ var daemonRunCmd = &cobra.Command{
 			ad     *opencodev2.Adapter
 		)
 		err := daemon.Run(ctx, daemon.Options{
-			Paths:     daemon.Paths{Dir: ohRunDir()},
-			Version:   buildinfo.Version,
-			Grants:    sqlite.NewGrantStore(store),
-			Servers:   sqlite.NewServerStore(store),
-			Sessions:  a.Sessions,
-			Decisions: sqlite.NewDecisionStore(store),
-			Secrets:   a.Secrets,
-			IdleSleep: time.Duration(a.Config.Session.IdleSleepMinutes) * time.Minute,
+			Paths:       daemon.Paths{Dir: ohRunDir()},
+			Version:     buildinfo.Version,
+			Grants:      sqlite.NewGrantStore(store),
+			Servers:     sqlite.NewServerStore(store),
+			Sessions:    a.Sessions,
+			Decisions:   sqlite.NewDecisionStore(store),
+			SessionsDir: ohSessionsDir(),
+			Secrets:     a.Secrets,
+			IdleSleep:   time.Duration(a.Config.Session.IdleSleepMinutes) * time.Minute,
 			// Async: a git push must not stall supervision (the daemon
 			// outlives the last server by IdleAfter).
 			OnSessionEnd: sessionEndHook(a, true),

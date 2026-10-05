@@ -19,7 +19,7 @@ func newTestService(t *testing.T) (*Service, context.Context) {
 	t.Cleanup(func() { st.Close() })
 	_, err = st.DB().Exec(`INSERT INTO projects (id, name, path) VALUES ('p1','p1','/p1')`)
 	require.NoError(t, err)
-	return &Service{Sessions: sqlite.NewSessionStore(st), Decisions: sqlite.NewDecisionStore(st)}, context.Background()
+	return &Service{Sessions: sqlite.NewSessionStore(st), Decisions: sqlite.NewDecisionStore(st), Servers: sqlite.NewServerStore(st)}, context.Background()
 }
 
 func TestRaiseAndInbox(t *testing.T) {

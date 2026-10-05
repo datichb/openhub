@@ -11,7 +11,9 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/datichb/openhub/cli/internal/adapters"
+	"github.com/datichb/openhub/cli/internal/credproxy"
 	"github.com/datichb/openhub/cli/internal/domain"
+	"github.com/datichb/openhub/cli/internal/sessionresults"
 	"github.com/datichb/openhub/cli/internal/storage/sqlite"
 )
 
@@ -99,4 +101,36 @@ func TestEventError(t *testing.T) {
 	assert.Equal(t, "boom", eventError(map[string]any{"error": "boom"}))
 	assert.Equal(t, "x", eventError(map[string]any{"error": map[string]any{"data": map[string]any{"message": "x"}}}))
 	assert.Equal(t, "", eventError(nil))
+}
+
+func TestSleepSavesResults(t *testing.T) {
+	st, err := sqlite.Open(filepath.Join(t.TempDir(), "oh.db"))
+	require.NoError(t, err)
+	t.Cleanup(func() { st.Close() })
+	ctx := context.Background()
+	_, err = st.DB().Exec(`INSERT INTO projects (id, name, path) VALUES ('p1','p1','/p1')`)
+	require.NoError(t, err)
+	sessions := sqlite.NewSessionStore(st)
+	decisions := sqlite.NewDecisionStore(st)
+	require.NoError(t, sessions.Create(ctx, &domain.Session{ID: "ses_a", ProjectID: "p1", Status: domain.SessionStatusRunning, GroupKey: "g1", State: domain.RunWaiting}))
+	require.NoError(t, decisions.Upsert(ctx, &domain.Decision{ID: "permission:ses_a:per_1", SessionID: "ses_a", GroupKey: "g1", Kind: domain.DecisionPermission, ToolRef: "per_1"}))
+	require.NoError(t, decisions.Upsert(ctx, &domain.Decision{ID: "error:ses_a:e1", SessionID: "ses_a", GroupKey: "g1", Kind: domain.DecisionError}))
+	fake := newFake()
+	fake.usage["ses_a"] = adapters.SessionResult{SessionID: "ses_a", Cost: 1.5, Branch: "feat/x",
+		Changes: []adapters.FileChange{{File: "a.go", Additions: 3, Patch: "+x\n"}}}
+	dir := t.TempDir()
+	d := &Daemon{opts: Options{Sessions: sessions, Decisions: decisions, SessionsDir: dir, Adapter: func(string) adapters.ToolAdapter { return fake }},
+		proxy: credproxy.New(), pending: map[string]domain.ProxyGrant{}, policies: map[string]QuitPolicy{}, watchers: map[string]*watcher{}}
+
+	d.putToSleep(ctx, domain.Server{GroupKey: "g1", ProjectID: "p1", Adapter: "fake"}, false)
+	sum, patch, err := sessionresults.Load(dir, "ses_a")
+	require.NoError(t, err)
+	assert.Equal(t, "feat/x", sum.Branch)
+	assert.Equal(t, 3, sum.Additions)
+	assert.Equal(t, "+x\n", patch)
+	s, _ := sessions.Get(ctx, "ses_a")
+	assert.Equal(t, domain.RunSleeping, s.State)
+	open, _ := decisions.ListOpen(ctx, domain.DecisionFilter{SessionID: "ses_a"})
+	require.Len(t, open, 1, "tool requests die with the server, oh alerts stay")
+	assert.Equal(t, domain.DecisionError, open[0].Kind)
 }

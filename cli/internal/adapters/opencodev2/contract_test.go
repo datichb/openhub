@@ -356,3 +356,49 @@ func TestContractSessionEnvironment(t *testing.T) {
 	require.NoError(t, ad.SetSessionEnv(ctx, h2, sid, map[string]string{"OH_CONTRACT": "two"}))
 	assert.Equal(t, "VAL=two", shellOutput(t, srv.Client, sid, "echo VAL=$OH_CONTRACT"))
 }
+
+// Control operations and decision errors without any LLM call.
+func TestContractControlForkResults(t *testing.T) {
+	cfg := `{"agents":{"pinger":{"mode":"primary","description":"p"}}}`
+	s := startLiveServer(t, cfg, "pinger")
+	ctx := context.Background()
+	ad := &Adapter{}
+	h := adapters.ServerHandle{URL: s.URL, Password: s.Password, PID: s.PID}
+	sid := sessionspec.NewSessionID()
+	require.NoError(t, ad.CreateSession(ctx, h, sessionspec.SessionSpec{SessionID: sid, EntryAgent: "pinger", Location: s.project}))
+
+	// Answering an unknown request: settled → ErrRequestGone (first answer wins).
+	err := ad.Reply(ctx, h, adapters.DecisionReply{SessionID: sid, ID: "per_unknown0000000000000000", Kind: adapters.DecisionPermission, Decision: "once"})
+	assert.ErrorIs(t, err, adapters.ErrRequestGone, "%v", err)
+	err = ad.Reply(ctx, h, adapters.DecisionReply{SessionID: sid, ID: "frm_unknown0000000000000000", Kind: adapters.DecisionQuestion, Answer: map[string]any{"q0": "x"}})
+	assert.ErrorIs(t, err, adapters.ErrRequestGone, "%v", err)
+
+	require.NoError(t, ad.Control(ctx, h, sid, adapters.ControlOp{Kind: adapters.ControlInterrupt}))
+	model := sessionspec.ParseModelRef("amazon-bedrock/anthropic.claude-haiku-4-5-20251001-v1:0")
+	require.NoError(t, ad.Control(ctx, h, sid, adapters.ControlOp{Kind: adapters.ControlSwitchModel, Model: &model, Region: "eu-west-1"}))
+	got, err := s.client.GetSession(ctx, sid)
+	require.NoError(t, err)
+	if assert.NotNil(t, got.Model) {
+		assert.Equal(t, "eu.anthropic.claude-haiku-4-5-20251001-v1:0", got.Model.ID)
+	}
+	// Without a region, the prefix of the current model is kept.
+	model = sessionspec.ParseModelRef("amazon-bedrock/anthropic.claude-sonnet-4-6")
+	require.NoError(t, ad.Control(ctx, h, sid, adapters.ControlOp{Kind: adapters.ControlSwitchModel, Model: &model}))
+	got, _ = s.client.GetSession(ctx, sid)
+	assert.Equal(t, "eu.anthropic.claude-sonnet-4-6", got.Model.ID)
+
+	require.NoError(t, ad.Control(ctx, h, sid, adapters.ControlOp{Kind: adapters.ControlCompact}))
+
+	child, err := ad.Fork(ctx, h, sid)
+	require.NoError(t, err)
+	assert.True(t, strings.HasPrefix(child, "ses"), child)
+	assert.NotEqual(t, sid, child)
+	cs, err := s.client.GetSession(ctx, child)
+	require.NoError(t, err)
+	assert.Equal(t, s.project, cs.Location.Directory)
+
+	res, err := ad.Results(ctx, h, sid)
+	require.NoError(t, err)
+	assert.Equal(t, sid, res.SessionID)
+	t.Logf("branch of a fresh repository: %q", res.Branch)
+}

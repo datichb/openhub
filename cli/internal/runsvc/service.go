@@ -739,7 +739,8 @@ func (s *Service) StopSession(ctx context.Context, sessionID string) error {
 		return err
 	}
 	if srv, err := s.Servers.Get(ctx, sess.GroupKey); err == nil && srv.Status == domain.ServerReady && filelock.ProcessAlive(srv.PID) {
-		_ = s.Adapter.Control(ctx, handle(srv), sessionID, adapters.ControlOp{Kind: "interrupt"})
+		_ = s.Adapter.Control(ctx, handle(srv), sessionID, adapters.ControlOp{Kind: adapters.ControlInterrupt})
+		s.snapshotResults(ctx, srv, sessionID)
 		others := 0
 		if list, err := s.Sessions.List(ctx, sess.ProjectID); err == nil {
 			for _, o := range list {

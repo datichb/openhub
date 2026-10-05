@@ -8,7 +8,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
+	"github.com/datichb/openhub/cli/internal/adapters"
 	"github.com/datichb/openhub/cli/internal/domain"
 )
 
@@ -16,6 +18,17 @@ import (
 type Service struct {
 	Sessions  domain.SessionStore
 	Decisions domain.DecisionStore
+	Servers   domain.ServerStore
+	Adapter   adapters.ToolAdapter
+	// BundlesDir locates session bundles (strict isolation of a session).
+	BundlesDir string
+	// SessionsDir keeps per-session results snapshots (~/.oh/sessions).
+	SessionsDir string
+	// Resolvers answer decision kinds owned by other services (checkpoint).
+	Resolvers map[domain.DecisionKind]Resolver
+	// Alive reports whether a server PID is alive (nil = trust the store).
+	Alive func(pid int) bool
+	Now   func() time.Time
 }
 
 // InboxItem is an open decision with its session (nil when unknown).

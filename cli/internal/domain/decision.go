@@ -35,6 +35,7 @@ type DecisionField struct {
 	Type        string           `json:"type,omitempty"`
 	Options     []DecisionOption `json:"options,omitempty"`
 	Custom      bool             `json:"custom,omitempty"` // free answer allowed
+	Required    bool             `json:"required,omitempty"`
 }
 
 // DecisionOption is one choice of a DecisionField.
