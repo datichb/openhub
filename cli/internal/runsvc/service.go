@@ -126,6 +126,7 @@ func (s *Service) StartSession(ctx context.Context, req StartRequest) (*StartRes
 		SessionID: sid, Title: req.Title, Group: key, ProjectID: req.ProjectID,
 		Location: req.Location, EntryAgent: entry, Mode: req.Mode, Prompt: req.Prompt,
 		Runtime: sessionspec.RuntimeLocal, Attach: req.Attach,
+		Model: entryModel(spec, entry), Provider: sessionspec.ProviderSpec{Region: regionFor(req)},
 	}
 	if err := s.Adapter.CreateSession(ctx, h, ss); err != nil {
 		return nil, fmt.Errorf("creating session: %w", err)
@@ -144,6 +145,27 @@ func (s *Service) StartSession(ctx context.Context, req StartRequest) (*StartRes
 		res.AttachMethod, res.AttachErr = s.Attach(ctx, sid, req.Location, attachPref(req.Attach), req.ITermStyle, req.Title)
 	}
 	return res, nil
+}
+
+// entryModel is the session model: the entry agent model, else the bundle default.
+func entryModel(spec sessionspec.BundleSpec, entry string) *sessionspec.ModelRef {
+	for _, a := range spec.Agents {
+		if a.ID == entry && a.Model != nil {
+			return a.Model
+		}
+	}
+	return spec.DefaultModel
+}
+
+// regionFor is the provider region of a request (Bedrock defaults to us-east-1).
+func regionFor(req StartRequest) string {
+	if req.ProviderCfg.AWSRegion != "" {
+		return req.ProviderCfg.AWSRegion
+	}
+	if deploy.OpencodeProviderID(req.Provider) == "amazon-bedrock" {
+		return "us-east-1"
+	}
+	return ""
 }
 
 func attachPref(p sessionspec.AttachPref) termlaunch.Pref {
@@ -205,10 +227,7 @@ func (s *Service) startServer(ctx context.Context, dc DaemonClient, req StartReq
 	if err != nil {
 		return nil, adapters.VisibilityReport{}, err
 	}
-	region := cred.Region
-	if region == "" && ocProvider == "amazon-bedrock" {
-		region = "us-east-1"
-	}
+	region := regionFor(req)
 	grant, err := dc.IssueGrant(ctx, daemon.GrantRequest{
 		Owner: gk, Provider: ocProvider, Region: region, Source: cred.Source, Secret: cred.Secret,
 		AllowedModels: req.AllowedModels, MaxTokens: req.MaxTokens,
@@ -282,7 +301,7 @@ func (s *Service) Attach(ctx context.Context, sessionID, dir string, pref termla
 	}
 	m, attempts, err := termlaunch.Launch(ctx, termlaunch.Options{
 		Pref: pref, ITermStyle: style, Dir: dir, Title: title,
-		Argv: []string{exe, "session", "attach", sessionID, "--exec"},
+		Argv: attachArgv(exe, sessionID),
 	})
 	for _, a := range attempts {
 		if a.Err != nil {
@@ -290,6 +309,16 @@ func (s *Service) Attach(ctx context.Context, sessionID, dir string, pref termla
 		}
 	}
 	return m, err
+}
+
+// attachArgv is the command run in the new terminal. OH_HOME (relocated hub)
+// is forwarded because the new terminal does not inherit oh's environment.
+func attachArgv(exe, sessionID string) []string {
+	argv := []string{exe, "session", "attach", sessionID, "--exec"}
+	if home := os.Getenv("OH_HOME"); home != "" {
+		argv = append([]string{"/usr/bin/env", "OH_HOME=" + home}, argv...)
+	}
+	return argv
 }
 
 // AttachCommand returns the tool client command and environment for a

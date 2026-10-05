@@ -175,7 +175,11 @@ func (a *Adapter) CreateSession(ctx context.Context, h adapters.ServerHandle, s 
 		Permissions: toRules(s.SessionRules),
 	}
 	if s.Model != nil && s.Model.Provider != "" && s.Model.Model != "" {
-		req.Model = &ModelRef{ProviderID: s.Model.Provider, ID: s.Model.Model, Variant: s.Model.Variant}
+		id := strings.TrimPrefix(ModelID(*s.Model, s.Provider.Region), s.Model.Provider+"/")
+		if i := strings.LastIndex(id, "#"); i >= 0 {
+			id = id[:i]
+		}
+		req.Model = &ModelRef{ProviderID: s.Model.Provider, ID: id, Variant: s.Model.Variant}
 	}
 	c := client(h)
 	if _, err := c.CreateSession(ctx, req); err != nil {

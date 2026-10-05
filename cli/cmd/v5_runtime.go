@@ -40,10 +40,10 @@ func newRunService(ctx context.Context, a *app.App) (*runsvc.Service, error) {
 	if store == nil {
 		return nil, fmt.Errorf("database not initialized")
 	}
-	ad, err := detectV2Adapter(ctx)
-	if err != nil {
-		return nil, err
+	if !v5Available(ctx) {
+		return nil, fmt.Errorf("opencode V2 is required for v5 sessions: %v", v5Err)
 	}
+	ad := v5Adapter
 	return &runsvc.Service{
 		Adapter:    ad,
 		AdapterVer: ad.Ver,

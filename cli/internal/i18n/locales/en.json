@@ -2680,5 +2680,9 @@
   "cmd.daemon.status_line": "ohd %s · pid %d · proxy %s · live servers %d · tokens %d · pending %d",
   "cmd.daemon.stopping": "oh daemon shutdown requested.",
   "cmd.session.no_terminal": "No terminal could be opened: attaching in the current terminal.",
-  "cmd.session.opened_in": "Session opened (%s)."
+  "cmd.session.opened_in": "Session opened (%s).",
+  "cmd.v5.preparing": "Preparing the session (%s)…",
+  "cmd.v5.isolation_warning": "Isolation: %s",
+  "cmd.v5.opened_browser": "Session opened in the browser: %s",
+  "cmd.v5.opened_in": "Session opened (%s): %s"
 }

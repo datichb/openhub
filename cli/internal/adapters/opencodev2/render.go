@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"path"
 	"sort"
+	"strings"
 
 	"github.com/datichb/openhub/cli/internal/adapters"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
@@ -73,7 +74,7 @@ func BuildConfig(b sessionspec.BundleSpec, p sessionspec.ProviderSpec, natives [
 	}
 	skillIDs := b.SkillIDs()
 	for _, a := range b.Agents {
-		agents[a.ID] = renderAgent(a, b, skillIDs, usePlugin)
+		agents[a.ID] = renderAgent(a, b, skillIDs, usePlugin, p.Region)
 	}
 
 	cfg := map[string]any{
@@ -81,11 +82,11 @@ func BuildConfig(b sessionspec.BundleSpec, p sessionspec.ProviderSpec, natives [
 		"default_agent": b.EntryAgent,
 		"agents":        agents,
 		"permissions":   toRules(globalRules(b, skillIDs)),
-		"experimental":  map[string]any{"subagent_depth": maxInt(b.MaxDepth, 1)},
+		"experimental":  experimental(b, p),
 		"snapshots":     true,
 	}
 	if b.DefaultModel != nil && b.DefaultModel.String() != "" {
-		cfg["model"] = b.DefaultModel.String()
+		cfg["model"] = ModelID(*b.DefaultModel, p.Region)
 	}
 	if b.SkillsDir != "" {
 		cfg["skills"] = []string{b.SkillsDir}
@@ -121,7 +122,7 @@ func BuildConfig(b sessionspec.BundleSpec, p sessionspec.ProviderSpec, natives [
 	return cfg, nil
 }
 
-func renderAgent(a sessionspec.AgentDef, b sessionspec.BundleSpec, bundleSkills []string, usePlugin bool) map[string]any {
+func renderAgent(a sessionspec.AgentDef, b sessionspec.BundleSpec, bundleSkills []string, usePlugin bool, region string) map[string]any {
 	mode := a.Mode
 	if mode == "" {
 		mode = "primary"
@@ -134,7 +135,7 @@ func renderAgent(a sessionspec.AgentDef, b sessionspec.BundleSpec, bundleSkills 
 		out["hidden"] = true
 	}
 	if a.Model != nil && a.Model.String() != "" {
-		out["model"] = a.Model.String()
+		out["model"] = ModelID(*a.Model, region)
 	}
 	if !usePlugin && a.Body != "" {
 		out["system"] = a.Body
@@ -185,6 +186,48 @@ func globalRules(b sessionspec.BundleSpec, skills []string) []sessionspec.Permis
 		rules = append(rules, sessionspec.PermissionRule{Action: "execute", Resource: "*", Effect: sessionspec.EffectDeny})
 	}
 	return rules
+}
+
+// experimental renders the delegation depth and the provider policy: only the
+// session provider may be used (prevents opencode from silently falling back
+// to another provider, e.g. its hosted free models, when a model is unavailable).
+func experimental(b sessionspec.BundleSpec, p sessionspec.ProviderSpec) map[string]any {
+	out := map[string]any{"subagent_depth": maxInt(b.MaxDepth, 1)}
+	if p.ID != "" {
+		out["policies"] = []map[string]string{
+			{"action": "provider.use", "resource": "*", "effect": "deny"},
+			{"action": "provider.use", "resource": p.ID, "effect": "allow"},
+		}
+	}
+	return out
+}
+
+// ModelID renders a model reference for opencode. Bedrock Anthropic models
+// need a cross-region inference profile prefix matching the region
+// (eu.anthropic…, us.anthropic…); ids that already carry one are kept.
+func ModelID(m sessionspec.ModelRef, region string) string {
+	if m.Provider == "amazon-bedrock" && strings.HasPrefix(m.Model, "anthropic.") {
+		if geo := bedrockGeo(region); geo != "" {
+			m.Model = geo + "." + m.Model
+		}
+	}
+	return m.String()
+}
+
+func bedrockGeo(region string) string {
+	switch {
+	case strings.HasPrefix(region, "eu-"):
+		return "eu"
+	case strings.HasPrefix(region, "us-"), strings.HasPrefix(region, "ca-"):
+		return "us"
+	case region == "ap-northeast-1":
+		return "jp"
+	case region == "ap-southeast-2":
+		return "au"
+	case strings.HasPrefix(region, "ap-"):
+		return "apac"
+	}
+	return ""
 }
 
 func renderMCP(b sessionspec.BundleSpec) map[string]any {

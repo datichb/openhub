@@ -92,3 +92,7 @@ func InstructionFiles(projectPath string, extra []string) []string {
 func OpencodeProviderID(provider string) string {
 	return providerOpencodeName(provider)
 }
+
+// MCPServerUsable reports whether an MCP server has a usable token source
+// (same rule as DeployMCP).
+func MCPServerUsable(s MCPServerDef) bool { return checkMCPToken(s) }

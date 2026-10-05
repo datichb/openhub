@@ -187,8 +187,8 @@ func runStart(cmd *cobra.Command, args []string) error {
 	agent, _ := cmd.Flags().GetString("agent")
 	userPrompt, _ := cmd.Flags().GetString("prompt")
 
-	// --- Auto-deploy if needed ---
-	if !onboardMode {
+	// --- Auto-deploy if needed (legacy runtime only: v5 sessions use a bundle) ---
+	if !onboardMode && !v5Available(ctx) {
 		autoDeployIfNeeded(a, project, findHubDir(), providerFlag, "", !recapMode)
 	}
 

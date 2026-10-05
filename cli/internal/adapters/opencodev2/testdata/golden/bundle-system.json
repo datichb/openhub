@@ -103,6 +103,18 @@
   },
   "default_agent": "orchestrator-dev",
   "experimental": {
+    "policies": [
+      {
+        "action": "provider.use",
+        "effect": "deny",
+        "resource": "*"
+      },
+      {
+        "action": "provider.use",
+        "effect": "allow",
+        "resource": "amazon-bedrock"
+      }
+    ],
     "subagent_depth": 2
   },
   "mcp": {

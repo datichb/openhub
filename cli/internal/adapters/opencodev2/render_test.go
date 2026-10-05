@@ -197,3 +197,25 @@ func TestSkillVisibilityIgnoresAgentAllowOutsideBundle(t *testing.T) {
 	assert.Empty(t, skillVisibleTo(b, "opencode"), "built-in skills stay hidden even if an agent allowed them")
 	assert.ElementsMatch(t, []string{"orchestrator-dev", "developer"}, skillVisibleTo(b, "beads-dev"))
 }
+
+func TestModelIDBedrockGeoPrefix(t *testing.T) {
+	m := sessionspec.ParseModelRef("amazon-bedrock/anthropic.claude-haiku-4-5-20251001-v1:0")
+	assert.Equal(t, "amazon-bedrock/eu.anthropic.claude-haiku-4-5-20251001-v1:0", ModelID(m, "eu-west-1"))
+	assert.Equal(t, "amazon-bedrock/us.anthropic.claude-haiku-4-5-20251001-v1:0", ModelID(m, "us-east-1"))
+	assert.Equal(t, "amazon-bedrock/jp.anthropic.claude-haiku-4-5-20251001-v1:0", ModelID(m, "ap-northeast-1"))
+	assert.Equal(t, "amazon-bedrock/anthropic.claude-haiku-4-5-20251001-v1:0", ModelID(m, ""))
+	already := sessionspec.ParseModelRef("amazon-bedrock/global.anthropic.claude-haiku-4-5-20251001-v1:0")
+	assert.Equal(t, already.String(), ModelID(already, "eu-west-1"))
+	other := sessionspec.ParseModelRef("anthropic/claude-sonnet-4-5")
+	assert.Equal(t, "anthropic/claude-sonnet-4-5", ModelID(other, "eu-west-1"))
+}
+
+func TestProviderPolicy(t *testing.T) {
+	cfg, err := BuildConfig(sampleBundle(), sampleProvider(), DefaultNatives)
+	require.NoError(t, err)
+	exp := cfg["experimental"].(map[string]any)
+	assert.Equal(t, []map[string]string{
+		{"action": "provider.use", "resource": "*", "effect": "deny"},
+		{"action": "provider.use", "resource": "amazon-bedrock", "effect": "allow"},
+	}, exp["policies"])
+}
