@@ -1,4 +1,4 @@
-.PHONY: build run test test-tui test-unit test-integration test-e2e lint clean install embed-sync
+.PHONY: build run test test-tui test-unit test-integration test-e2e test-container lint clean install embed-sync
 
 # Build variables
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
@@ -39,6 +39,10 @@ test-integration:
 # End-to-end tests with a real model (Bedrock EU Haiku; OH_E2E_BEDROCK_TOKEN or `opencode auth` key)
 test-e2e:
 	go test ./... -count=1 -tags "integration e2e" -run 'TestE2E'
+
+# Container runtime tests against real engines (Colima and/or Podman running)
+test-container:
+	go test ./internal/runtime/... ./internal/runsvc/... -count=1 -tags container -v -run 'TestReal'
 
 # Run tests with coverage
 test-cover:
