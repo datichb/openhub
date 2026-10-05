@@ -66,9 +66,26 @@ type VisibilityReport struct {
 // OK reports whether the closed world invariant holds.
 func (r VisibilityReport) OK() bool { return len(r.Unexpected) == 0 }
 
+// EventKind is the tool-agnostic meaning of an event.
+type EventKind string
+
+const (
+	EventConnected       EventKind = "connected"        // stream (re)connected: resynchronize
+	EventExecStarted     EventKind = "exec_started"     // the agent loop started working
+	EventExecEnded       EventKind = "exec_ended"       // the agent loop stopped (turn finished, failed or interrupted)
+	EventDecisionAsked   EventKind = "decision_asked"   // a permission or question waits for an answer
+	EventDecisionReplied EventKind = "decision_replied" // a pending decision was answered
+	EventUsage           EventKind = "usage"            // cost/token usage changed
+	EventSessionCreated  EventKind = "session_created"
+	EventActivity        EventKind = "activity" // any other session activity (text, tools…)
+	EventOther           EventKind = "other"
+)
+
 // ToolEvent is a normalized event from the tool event stream.
 type ToolEvent struct {
 	ID        string
+	Kind      EventKind
+	Outcome   string // for EventExecEnded: succeeded | failed | interrupted | …
 	Type      string // raw tool event type, e.g. "permission.asked"
 	SessionID string
 	Location  string
@@ -168,6 +185,7 @@ type ToolAdapter interface {
 	AttachCommand(h ServerHandle, sessionID string) (argv []string, env []string)
 
 	Events(ctx context.Context, h ServerHandle) (<-chan ToolEvent, error)
+	ActiveSessions(ctx context.Context, h ServerHandle) ([]string, error)
 	Pending(ctx context.Context, h ServerHandle, sessionID string) ([]PendingDecision, error)
 	Reply(ctx context.Context, h ServerHandle, d DecisionReply) error
 	Control(ctx context.Context, h ServerHandle, sessionID string, op ControlOp) error

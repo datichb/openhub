@@ -135,6 +135,7 @@ func (d *Daemon) handleTouch(w http.ResponseWriter, r *http.Request) {
 	d.mu.Lock()
 	d.lastBusy = time.Now()
 	d.mu.Unlock()
+	d.wake()
 	w.WriteHeader(http.StatusNoContent)
 }
 

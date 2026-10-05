@@ -9,6 +9,8 @@ import (
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/datichb/openhub/cli/internal/adapters"
 )
 
 // Event is one server event from /api/event.
@@ -129,4 +131,27 @@ func parseSSE(ctx context.Context, r io.Reader, out chan<- Event) error {
 
 func decodeEvent(raw string, ev *Event) bool {
 	return json.Unmarshal([]byte(raw), ev) == nil
+}
+
+// EventKind maps an opencode V2 event type to its tool-agnostic kind.
+func EventKind(t string) (kind adapters.EventKind, outcome string) {
+	switch {
+	case t == EventTypeConnected:
+		return adapters.EventConnected, ""
+	case t == "session.execution.started":
+		return adapters.EventExecStarted, ""
+	case strings.HasPrefix(t, "session.execution."):
+		return adapters.EventExecEnded, strings.TrimPrefix(t, "session.execution.")
+	case t == "permission.asked", t == "form.created":
+		return adapters.EventDecisionAsked, ""
+	case t == "permission.replied", t == "form.replied", t == "form.cancelled":
+		return adapters.EventDecisionReplied, ""
+	case t == "session.usage.updated":
+		return adapters.EventUsage, ""
+	case t == "session.created":
+		return adapters.EventSessionCreated, ""
+	case strings.HasPrefix(t, "session."), strings.HasPrefix(t, "shell."):
+		return adapters.EventActivity, ""
+	}
+	return adapters.EventOther, ""
 }

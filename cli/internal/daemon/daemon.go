@@ -14,6 +14,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/datichb/openhub/cli/internal/adapters"
 	"github.com/datichb/openhub/cli/internal/credproxy"
 	"github.com/datichb/openhub/cli/internal/domain"
 )
@@ -32,6 +33,10 @@ type Options struct {
 	Secrets   SecretGetter  // nil = no secret store (pending grants wait for clients)
 	IdleAfter time.Duration // stop after this long without live servers (default 10m)
 	Tick      time.Duration // supervision period (default 15s)
+	// Sessions is updated by the session watchers (run state, cost, tokens).
+	Sessions domain.SessionStore
+	// Adapter returns the tool adapter for a server's adapter name (nil = no watcher).
+	Adapter func(name string) adapters.ToolAdapter
 	// SigV4 builds an AWS signer for a profile/region (overridable in tests).
 	SigV4 func(ctx context.Context, profile, region string) (credproxy.Auth, error)
 }
@@ -43,11 +48,15 @@ type Daemon struct {
 	listener net.Listener
 	http     *http.Server
 
+	wmu      sync.Mutex
+	watchers map[string]*watcher
+
 	mu       sync.Mutex
 	pending  map[string]domain.ProxyGrant
 	lastBusy time.Time
 	stop     chan struct{}
 	stopOnce sync.Once
+	kick     chan struct{}
 }
 
 type stateFile struct {
@@ -78,7 +87,7 @@ func Run(ctx context.Context, opts Options) error {
 	}
 	defer unlock()
 
-	d := &Daemon{opts: opts, proxy: credproxy.New(), pending: map[string]domain.ProxyGrant{}, lastBusy: time.Now(), stop: make(chan struct{})}
+	d := &Daemon{opts: opts, proxy: credproxy.New(), pending: map[string]domain.ProxyGrant{}, watchers: map[string]*watcher{}, lastBusy: time.Now(), stop: make(chan struct{}), kick: make(chan struct{}, 1)}
 	if err := d.startProxy(); err != nil {
 		return err
 	}
@@ -99,6 +108,8 @@ func Run(ctx context.Context, opts Options) error {
 		}
 	}()
 	slog.Info("ohd started", "pid", os.Getpid(), "proxy", d.proxy.URL(), "socket", opts.Paths.Socket())
+	defer d.stopWatchers()
+	d.supervise(ctx)
 
 	ticker := time.NewTicker(opts.Tick)
 	defer ticker.Stop()
@@ -108,6 +119,8 @@ func Run(ctx context.Context, opts Options) error {
 			return d.shutdown()
 		case <-d.stop:
 			return d.shutdown()
+		case <-d.kick:
+			d.supervise(ctx)
 		case <-ticker.C:
 			if d.supervise(ctx) {
 				slog.Info("ohd idle, stopping", "idle_after", opts.IdleAfter)
@@ -128,6 +141,14 @@ func (d *Daemon) shutdown() error {
 }
 
 func (d *Daemon) requestStop() { d.stopOnce.Do(func() { close(d.stop) }) }
+
+// wake schedules an immediate supervision pass (e.g. a server was registered).
+func (d *Daemon) wake() {
+	select {
+	case d.kick <- struct{}{}:
+	default:
+	}
+}
 
 // startProxy binds the proxy on the port saved by a previous daemon: running
 // tool servers have that URL in their configuration.
@@ -226,6 +247,7 @@ func upstreamFor(provider, region string, auth credproxy.Auth) (credproxy.Upstre
 // whether the daemon has been idle long enough to exit.
 func (d *Daemon) supervise(ctx context.Context) bool {
 	live := 0
+	var ready []domain.Server
 	if d.opts.Servers != nil {
 		servers, err := d.opts.Servers.List(ctx)
 		if err == nil {
@@ -235,6 +257,9 @@ func (d *Daemon) supervise(ctx context.Context) bool {
 				}
 				if s.PID > 0 && processAlive(s.PID) {
 					live++
+					if s.Status == domain.ServerReady {
+						ready = append(ready, s)
+					}
 					continue
 				}
 				if s.Status == domain.ServerStarting && time.Since(s.CreatedAt) < 2*time.Minute {
@@ -246,6 +271,7 @@ func (d *Daemon) supervise(ctx context.Context) bool {
 			}
 		}
 	}
+	d.syncWatchers(ctx, ready)
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	if live > 0 {

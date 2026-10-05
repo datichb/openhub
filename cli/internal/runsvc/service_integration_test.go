@@ -16,6 +16,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/datichb/openhub/cli/internal/adapters"
 	"github.com/datichb/openhub/cli/internal/adapters/opencodev2"
 	"github.com/datichb/openhub/cli/internal/bundle"
 	"github.com/datichb/openhub/cli/internal/daemon"
@@ -64,19 +65,21 @@ func newFixture(t *testing.T, secrets mapSecrets) *fixture {
 	_, err = st.DB().Exec(`INSERT INTO projects (id, name, path) VALUES ('p1', 'p1', ?)`, project)
 	require.NoError(t, err)
 
+	a := opencodev2.New("", filepath.Join(root, "cache"))
+	_, err = a.Detect(context.Background())
+	require.NoError(t, err)
+
 	paths := daemon.Paths{Dir: filepath.Join(root, "run")}
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan error, 1)
 	go func() {
-		done <- daemon.Run(ctx, daemon.Options{Paths: paths, Version: "test", Grants: sqlite.NewGrantStore(st), Servers: sqlite.NewServerStore(st), Secrets: secrets, Tick: time.Second})
+		done <- daemon.Run(ctx, daemon.Options{Paths: paths, Version: "test", Grants: sqlite.NewGrantStore(st), Servers: sqlite.NewServerStore(st), Secrets: secrets, Tick: time.Second,
+			Sessions: sqlite.NewSessionStore(st),
+			Adapter:  func(string) adapters.ToolAdapter { return a }})
 	}()
 	t.Cleanup(func() { cancel(); <-done })
 	dc := daemon.NewClient(paths)
 	require.Eventually(t, func() bool { _, err := dc.Health(context.Background()); return err == nil }, 5*time.Second, 20*time.Millisecond)
-
-	a := opencodev2.New("", filepath.Join(root, "cache"))
-	_, err = a.Detect(context.Background())
-	require.NoError(t, err)
 
 	skills := filepath.Join(root, "bundle-src", "skills")
 	writeSkill(t, skills, "alpha")
@@ -129,7 +132,7 @@ func TestStartSessionAndReuseServer(t *testing.T) {
 	sess, err := f.svc.Sessions.Get(ctx, r1.SessionID)
 	require.NoError(t, err)
 	assert.Equal(t, r1.GroupKey, sess.GroupKey)
-	assert.Equal(t, domain.RunActive, sess.State)
+	assert.Contains(t, []domain.RunState{domain.RunActive, domain.RunIdle}, sess.State, "no prompt: the watcher may already report idle")
 	assert.Equal(t, "lead", sess.EntryAgent)
 
 	r2, err := f.svc.StartSession(ctx, f.request(""))

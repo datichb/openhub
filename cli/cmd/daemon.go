@@ -6,10 +6,13 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
 
 	"github.com/spf13/cobra"
 
+	"github.com/datichb/openhub/cli/internal/adapters"
+	"github.com/datichb/openhub/cli/internal/adapters/opencodev2"
 	"github.com/datichb/openhub/cli/internal/buildinfo"
 	"github.com/datichb/openhub/cli/internal/daemon"
 	"github.com/datichb/openhub/cli/internal/i18n"
@@ -29,12 +32,31 @@ var daemonRunCmd = &cobra.Command{
 		a := MustApp()
 		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 		defer stop()
+		var (
+			adOnce sync.Once
+			ad     *opencodev2.Adapter
+		)
 		err := daemon.Run(ctx, daemon.Options{
-			Paths:   daemon.Paths{Dir: ohRunDir()},
-			Version: buildinfo.Version,
-			Grants:  sqlite.NewGrantStore(store),
-			Servers: sqlite.NewServerStore(store),
-			Secrets: a.Secrets,
+			Paths:    daemon.Paths{Dir: ohRunDir()},
+			Version:  buildinfo.Version,
+			Grants:   sqlite.NewGrantStore(store),
+			Servers:  sqlite.NewServerStore(store),
+			Sessions: a.Sessions,
+			Secrets:  a.Secrets,
+			Adapter: func(name string) adapters.ToolAdapter {
+				if name != opencodev2.Name {
+					return nil
+				}
+				adOnce.Do(func() {
+					if detected, err := detectV2Adapter(ctx); err == nil {
+						ad = detected
+					}
+				})
+				if ad == nil {
+					return nil
+				}
+				return ad
+			},
 		})
 		if errors.Is(err, daemon.ErrAlreadyRunning) {
 			fmt.Fprintln(cmd.ErrOrStderr(), i18n.T("cmd.daemon.already_running"))

@@ -273,6 +273,23 @@ func (c *Client) ListSessions(ctx context.Context, dir string) ([]Session, error
 	return out.Data, err
 }
 
+// ActiveSessions returns the IDs of sessions whose agent loop is running.
+func (c *Client) ActiveSessions(ctx context.Context) ([]string, error) {
+	var out struct {
+		Data map[string]struct {
+			Type string `json:"type"`
+		} `json:"data"`
+	}
+	if err := c.do(ctx, http.MethodGet, "/api/session/active", nil, nil, &out); err != nil {
+		return nil, err
+	}
+	ids := make([]string, 0, len(out.Data))
+	for id := range out.Data {
+		ids = append(ids, id)
+	}
+	return ids, nil
+}
+
 // Prompt admits a user prompt; execution continues asynchronously.
 func (c *Client) Prompt(ctx context.Context, sessionID, text string) error {
 	return c.do(ctx, http.MethodPost, sessionPath(sessionID, "prompt"), nil, map[string]any{"text": text}, nil)

@@ -15,6 +15,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/datichb/openhub/cli/internal/adapters/opencodev2"
+	"github.com/datichb/openhub/cli/internal/domain"
 )
 
 func bedrockKey(t *testing.T) string {
@@ -75,4 +76,10 @@ func TestE2EStartSessionThroughDaemonProxy(t *testing.T) {
 		}
 	}
 	assert.True(t, strings.HasPrefix(strings.TrimSpace(text.String()), "LEAD:"), "reply: %q", text.String())
+
+	// E10: the daemon watcher tracked the session (idle after the turn, usage recorded).
+	require.Eventually(t, func() bool {
+		sess, err := f.svc.Sessions.Get(ctx, r.SessionID)
+		return err == nil && sess.State == domain.RunIdle && sess.TokensOut > 0 && sess.Cost > 0
+	}, 20*time.Second, 200*time.Millisecond)
 }

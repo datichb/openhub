@@ -13,6 +13,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/datichb/openhub/cli/internal/adapters"
 )
 
 type recorded struct {
@@ -181,4 +183,20 @@ func TestEventsStream(t *testing.T) {
 	for range events {
 	}
 	assert.NoError(t, <-errc)
+}
+
+func TestEventKind(t *testing.T) {
+	cases := map[string]adapters.EventKind{
+		"server.connected": adapters.EventConnected, "session.execution.started": adapters.EventExecStarted,
+		"session.execution.succeeded": adapters.EventExecEnded, "permission.asked": adapters.EventDecisionAsked,
+		"form.created": adapters.EventDecisionAsked, "permission.replied": adapters.EventDecisionReplied,
+		"session.usage.updated": adapters.EventUsage, "session.tool.called": adapters.EventActivity,
+		"provider.updated": adapters.EventOther,
+	}
+	for in, want := range cases {
+		got, _ := EventKind(in)
+		assert.Equal(t, want, got, in)
+	}
+	_, outcome := EventKind("session.execution.failed")
+	assert.Equal(t, "failed", outcome)
 }

@@ -219,6 +219,7 @@ func (a *Adapter) Events(ctx context.Context, h adapters.ServerHandle) (<-chan a
 		defer close(out)
 		for e := range evs {
 			te := adapters.ToolEvent{ID: e.ID, Type: e.Type, SessionID: e.SessionID(), Time: e.Time()}
+			te.Kind, te.Outcome = EventKind(e.Type)
 			if e.Location != nil {
 				te.Location = e.Location.Directory
 			}
@@ -233,6 +234,11 @@ func (a *Adapter) Events(ctx context.Context, h adapters.ServerHandle) (<-chan a
 		}
 	}()
 	return out, nil
+}
+
+// ActiveSessions implements adapters.ToolAdapter.
+func (a *Adapter) ActiveSessions(ctx context.Context, h adapters.ServerHandle) ([]string, error) {
+	return client(h).ActiveSessions(ctx)
 }
 
 // Pending implements adapters.ToolAdapter.
@@ -301,6 +307,19 @@ func (a *Adapter) Control(ctx context.Context, h adapters.ServerHandle, sessionI
 		return c.SwitchModel(ctx, sessionID, ModelRef{ProviderID: op.Model.Provider, ID: op.Model.Model, Variant: op.Model.Variant})
 	}
 	return fmt.Errorf("unsupported control %q", op.Kind)
+}
+
+// Usage returns the cost and token usage of a session (no diff).
+func (a *Adapter) Usage(ctx context.Context, h adapters.ServerHandle, sessionID string) (adapters.SessionResult, error) {
+	s, err := client(h).GetSession(ctx, sessionID)
+	if err != nil {
+		return adapters.SessionResult{}, err
+	}
+	return adapters.SessionResult{
+		SessionID: s.ID, Title: s.Title, Agent: s.Agent, Cost: s.Cost,
+		TokensIn: s.Tokens.Input, TokensOut: s.Tokens.Output, TokensReasoning: s.Tokens.Reasoning,
+		TokensCacheRead: s.Tokens.Cache.Read, TokensCacheWrite: s.Tokens.Cache.Write,
+	}, nil
 }
 
 // Results implements adapters.ToolAdapter.
