@@ -2,6 +2,8 @@ package container
 
 import (
 	"context"
+	"os"
+	"path/filepath"
 	"runtime"
 	"sync"
 
@@ -15,6 +17,8 @@ type Options struct {
 	ColimaProfile string
 	Runner        Runner // default: ExecRunner
 	GOOS          string // default: runtime.GOOS
+	CacheDir      string // build contexts and probes (~/.oh/cache/container)
+	KeepImages    int    // images kept per project and role (default 2)
 }
 
 // Runtime runs server groups in containers.
@@ -23,6 +27,7 @@ type Runtime struct {
 
 	mu     sync.Mutex
 	engine *Engine
+	bd     func(arch string) ([]byte, error) // fake bd (overridable in tests)
 }
 
 // New returns a container runtime.
@@ -33,7 +38,10 @@ func New(opts Options) *Runtime {
 	if opts.GOOS == "" {
 		opts.GOOS = runtime.GOOS
 	}
-	return &Runtime{opts: opts}
+	if opts.CacheDir == "" {
+		opts.CacheDir = filepath.Join(os.TempDir(), "oh-container")
+	}
+	return &Runtime{opts: opts, bd: bdBinary}
 }
 
 // Kind implements ohruntime.Runtime.

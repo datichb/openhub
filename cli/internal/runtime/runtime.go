@@ -32,15 +32,32 @@ func (a Availability) Message() string {
 	return i18n.Tf(a.Reason, a.Args...)
 }
 
+// Tool provides the tool binary installed in container images. It is
+// implemented by the tool adapter (download source, version pinning).
+type Tool interface {
+	Name() string    // command name inside the image, e.g. "opencode"
+	Version() string // pinned version (= adapter version)
+	// LinuxBinary returns a local path to the Linux binary for arch
+	// (amd64|arm64) and libc (glibc|musl).
+	LinuxBinary(ctx context.Context, arch, libc string) (string, error)
+}
+
 // Group describes the server group to prepare.
 type Group struct {
-	Key         sessionspec.GroupKey
-	ProjectID   string
-	ProjectDir  string   // project base directory (holds the dev Dockerfile)
-	Locations   []string // session working directories to expose
-	BundleDir   string   // immutable bundle (read-only)
-	DataDir     string   // tool data directory of the group (read-write)
-	ToolVersion string   // tool version pinned in the environment
+	Key        sessionspec.GroupKey
+	ProjectID  string
+	ProjectDir string   // project base directory (holds the dev Dockerfile)
+	Locations  []string // session working directories to expose
+	BundleDir  string   // immutable bundle (read-only)
+	DataDir    string   // tool data directory of the group (read-write)
+	Tool       Tool
+
+	// Dev environment of the project (container): Dockerfile path (absolute
+	// or relative to ProjectDir, "" = detected) and build arguments.
+	Dockerfile string
+	BuildArgs  map[string]string
+	// Progress receives preparation output (image build), line by line.
+	Progress func(line string)
 }
 
 // Prepared is a group ready to run commands.

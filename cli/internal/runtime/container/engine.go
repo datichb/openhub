@@ -5,10 +5,12 @@
 package container
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os/exec"
 	"strings"
 
@@ -49,10 +51,48 @@ type Runner interface {
 	LookPath(name string) (string, error)
 	// Run returns stdout; on failure the error includes stderr.
 	Run(ctx context.Context, name string, args ...string) ([]byte, error)
+	// Stream runs a long command (image build) and sends each output line
+	// (stdout and stderr) to line; on failure the error includes the last lines.
+	Stream(ctx context.Context, line func(string), name string, args ...string) error
 }
 
 // ExecRunner runs real commands.
 type ExecRunner struct{}
+
+// Stream implements Runner.
+func (ExecRunner) Stream(ctx context.Context, line func(string), name string, args ...string) error {
+	pr, pw := io.Pipe()
+	cmd := exec.CommandContext(ctx, name, args...)
+	cmd.Stdout, cmd.Stderr = pw, pw
+	if err := cmd.Start(); err != nil {
+		return err
+	}
+	var tail []string
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		sc := bufio.NewScanner(pr)
+		sc.Buffer(make([]byte, 64*1024), 1024*1024)
+		for sc.Scan() {
+			l := sc.Text()
+			if len(tail) == 10 {
+				tail = tail[1:]
+			}
+			tail = append(tail, l)
+			if line != nil {
+				line(l)
+			}
+		}
+		_, _ = io.Copy(io.Discard, pr)
+	}()
+	err := cmd.Wait()
+	_ = pw.Close()
+	<-done
+	if err != nil {
+		return fmt.Errorf("%s %s: %w\n%s", name, strings.Join(args, " "), err, strings.Join(tail, "\n"))
+	}
+	return nil
+}
 
 // LookPath implements Runner.
 func (ExecRunner) LookPath(name string) (string, error) { return exec.LookPath(name) }

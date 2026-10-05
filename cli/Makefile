@@ -1,4 +1,4 @@
-.PHONY: build run test test-tui test-unit test-integration test-e2e test-container lint clean install embed-sync
+.PHONY: build run test test-tui test-unit test-integration test-e2e test-container lint clean install embed-sync embed-bd
 
 # Build variables
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
@@ -86,3 +86,8 @@ embed-sync:
 	cp -r ../agents internal/hubcontent/hub/agents
 	cp -r ../skills internal/hubcontent/hub/skills
 	cp -r ../permissions internal/hubcontent/hub/permissions
+	$(MAKE) embed-bd
+
+# Cross-compile the fake bd embedded in container images (linux/amd64, linux/arm64).
+embed-bd:
+	for a in amd64 arm64; do CGO_ENABLED=0 GOOS=linux GOARCH=$$a go build -trimpath -ldflags "-s -w" -o internal/runtime/container/assets/bd-linux-$$a ./cmd/oh-bd-stub || exit 1; done
