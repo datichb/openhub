@@ -19,6 +19,10 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 - `--parallel`, `--sweep` et les exécutions sans interface passent par le runtime v5 (un serveur pour toute l'exécution).
 - `OH_HOME` relocalise `~/.oh` ; nouvelles vérifications `oh doctor` (runtime v5, démon, git, terminal).
 
+### Added — workflows déclaratifs (phase 1, en cours)
+
+- Schéma de document **`oh/v1`** (`cli/internal/workflow/schema.go`) : entrées, agents et checkpoints ordonnés, textes localisés (`fr`/`en`), délégations explicites (`calls`), politiques distantes, sorties typées, plugins, runtimes. Pas encore utilisé par les lancements.
+
 ### Changed
 
 - Les migrations SQLite v28–v31 s'appliquent à la base locale (`servers`, `proxy_grants`, colonnes de suivi des sessions) ; `~/.oh` passe en 0700 et `oh.db` (avec ses fichiers WAL) en 0600.

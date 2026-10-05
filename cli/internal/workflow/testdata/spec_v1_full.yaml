@@ -1,0 +1,58 @@
+apiVersion: oh/v1
+kind: Workflow
+id: ticket
+version: 3
+category: develop
+label: { fr: Ticket, en: Ticket }
+description:
+  fr: Implémenter un ticket Beads déjà détaillé
+  en: Implement a detailed Beads ticket
+risk: write
+isolation: strict
+code_mode: false
+entry:
+  agent: orchestrator-dev
+inputs:
+  ticket:
+    type: beads-id
+    required: true
+    label: { fr: Ticket, en: Ticket }
+    help: Ticket Beads délégué à l'IA
+    picker: { filter: ai-delegated, multi: true }
+  branch: { type: string, default: "feat/{{ .ticket }}" }
+  publish: { type: bool, default: false }
+  type: { type: enum, values: [security, performance, architecture], default: security }
+prompt:
+  template: prompts/ticket.md.tmpl
+agents:
+  orchestrator-dev: { role: workflow, calls: [developer, reviewer, documentarian] }
+  developer: { role: workflow, after: cp-1 }
+  reviewer: { role: workflow, after: developer }
+  documentarian: { role: independent }
+checkpoints:
+  cp-1:
+    label: { fr: Démarrer, en: Start }
+    mode: { manuel: pause, semi-auto: auto, auto: auto }
+    remote: auto
+  cp-2:
+    label: Commit ou correction
+    mandatory: true
+    mode: { manuel: pause, semi-auto: pause, auto: pause }
+    remote: defer
+modes: { default: semi-auto, allowed: [manuel, semi-auto] }
+circuit_breaker: { max_consecutive_subagents: 12 }
+models:
+  default: amazon-bedrock/eu.anthropic.claude-sonnet-4-6
+  agents: { reviewer: amazon-bedrock/eu.anthropic.claude-opus-4-6-v1 }
+skills: { extra: [shared/beads-dev] }
+plugins:
+  - context-mode
+  - { id: probe, options: { verbose: true } }
+mcp: [gitlab]
+beads: { allow: [show, update, close, list, children] }
+runtime: { default: local, allowed: [local, container, remote] }
+outputs:
+  - { id: branch, type: branch }
+  - { id: mr, type: merge_request }
+  - { id: tickets, type: beads-ids }
+limits: { budget_usd: 5 }
