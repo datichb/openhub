@@ -47,6 +47,19 @@ type Config struct {
 	Websearch WebsearchConfig `mapstructure:"websearch" toml:"websearch,omitempty"`
 	// Workflow holds hub-level workflow overrides (applied on top of the base workflow).
 	Workflow *WorkflowHubConfig `mapstructure:"workflow" toml:"workflow,omitempty"`
+	// Session holds v5 session settings (how sessions are opened, idle sleep).
+	Session SessionConfig `mapstructure:"session" toml:"session,omitempty"`
+}
+
+// SessionConfig configures v5 agentic sessions.
+type SessionConfig struct {
+	// Attach selects how a session client is opened:
+	// auto (default) | iterm | terminal | tmux | browser | suspend.
+	Attach string `mapstructure:"attach" toml:"attach,omitempty"`
+	// ITermStyle selects tab (default) | split | window when iTerm2 is used.
+	ITermStyle string `mapstructure:"iterm_style" toml:"iterm_style,omitempty"`
+	// IdleSleepMinutes stops an idle tool server after N minutes (default 5).
+	IdleSleepMinutes int `mapstructure:"idle_sleep_minutes" toml:"idle_sleep_minutes,omitempty"`
 }
 
 // WorkflowHubConfig holds workflow customization at the hub level.
@@ -333,6 +346,10 @@ func TeamGitLabTokenKey(teamID string) string {
 
 // HubDir returns the path to the .oh configuration directory.
 func HubDir() string {
+	// OH_HOME relocates the hub directory (tests, isolated environments).
+	if dir := os.Getenv("OH_HOME"); dir != "" {
+		return dir
+	}
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return ".oh"

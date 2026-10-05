@@ -53,6 +53,10 @@ oh serve                       # Local web dashboard on http://127.0.0.1:8080
 | `oh start --dev` | Dev mode: ticket picker + orchestrator-dev |
 | `oh start --onboard` | Onboarding: create/refresh project wiki |
 | `oh start --recap` | Launch with configuration recap |
+| `oh session list` | List v5 sessions (working, waiting, sleeping) |
+| `oh session attach <id>` | Open a session (new tab/window; resumes a sleeping session) |
+| `oh session stop <id>` | Stop a session |
+| `oh daemon status` | oh daemon status (credential proxy, live servers) |
 | `oh deploy` | Deploy agents, skills, config, MCP |
 | `oh sync` | Sync all registered projects |
 | `oh project list` | List registered projects |
@@ -92,11 +96,15 @@ openhub/
 ├── cli/             <- Go CLI binary (oh)
 │   └── internal/
 │       ├── beads/       <- Beads ticket integration
-│       ├── deploy/      <- Transactional deployment engine
+│       ├── deploy/      <- Legacy per-project deployment (opencode V1)
+│       ├── bundle/      <- Session bundles (agents, skills, permissions)
+│       ├── adapters/    <- Tool adapters (opencode V2)
+│       ├── daemon/      <- oh daemon: credential proxy, session tracking
+│       ├── runsvc/      <- Session launcher (server groups, attach, resume)
 │       ├── mcp/         <- Native MCP servers (figma, gitlab, gslides, github, jira, linear, team)
 │       ├── skillregistry/ <- Community skill discovery and install
 │       ├── selfupdate/  <- oh binary self-update
-│       ├── tui/         <- BubbleTea views (dashboard, board, picker)
+│       ├── tui/         <- tview/tcell TUI (dashboard, board, sessions)
 │       └── ...
 └── docs/            <- Documentation (bilingual fr/en)
 ```

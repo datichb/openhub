@@ -19,6 +19,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/mcpresolve"
+	"github.com/datichb/openhub/cli/internal/provider"
 	"github.com/datichb/openhub/cli/internal/storage/keychain"
 	"github.com/datichb/openhub/cli/internal/teamstate"
 	"github.com/datichb/openhub/cli/internal/tracker"
@@ -337,6 +338,8 @@ func buildViews(a *app.App, notifStore *shell.NotificationStore) []views.View {
 				launchSessionWithPrompt(resolvedAgent, resolvedPrompt)
 			},
 			OnReviewPicker: actionReviewLauncher,
+			OnAuditPicker:  actionAuditLauncher,
+			OnDebugPicker:  actionDebugLauncher,
 		}),
 		views.NewBoardView(views.BoardViewConfig{
 			Tickets: fetchBoardTicketsForPath(resolveActiveProjectPath(a)),
@@ -615,6 +618,17 @@ func buildViews(a *app.App, notifStore *shell.NotificationStore) []views.View {
 					masked = "****" + val[len(val)-4:]
 				}
 				return true, masked
+			},
+			TeamProviderKey: func(prov string) string {
+				teamID := ""
+				if tuiShell != nil && tuiShell.ActiveTeam() != nil {
+					teamID = tuiShell.ActiveTeam().ID
+				} else if p, err := resolveActiveProject(a); err == nil {
+					if tc := resolvedTeamConfig(a, p); tc.Enabled {
+						teamID = tc.TeamID
+					}
+				}
+				return provider.TeamKeychainKey(provider.Name(prov), teamID)
 			},
 			SetSecret: func(ctx context.Context, key, value string) error {
 				if a.Secrets == nil {

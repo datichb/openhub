@@ -32,6 +32,11 @@ type Launcher struct {
 	UI  LaunchUI
 }
 
+// V5Launch, when set (by cmd), handles launches on the v5 runtime (session
+// bundles, oh daemon, tool servers). It returns handled=false to fall back to
+// the legacy pipeline (e.g. opencode V1).
+var V5Launch func(ctx context.Context, a *app.App, ui LaunchUI, opts LaunchOpts) (handled bool, err error)
+
 // New creates a Launcher with the given app and UI layer.
 func New(a *app.App, ui LaunchUI) *Launcher {
 	return &Launcher{App: a, UI: ui}
@@ -52,6 +57,12 @@ func New(a *app.App, ui LaunchUI) *Launcher {
 //   - post-session team-state events
 func (l *Launcher) Launch(ctx context.Context, opts LaunchOpts) error {
 	a := l.App
+
+	if V5Launch != nil {
+		if handled, err := V5Launch(ctx, a, l.UI, opts); handled {
+			return err
+		}
+	}
 
 	// ── 1. Compatibility check ──
 	if a.Platform != nil {

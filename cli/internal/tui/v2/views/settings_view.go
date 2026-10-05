@@ -287,6 +287,53 @@ func (v *SettingsView) buildFields() {
 		{Key: "models", Kind: CfgFieldLink, Label: i18n.T("tui.config.link.models"), LinkTarget: "models",
 			Get: func() string { return "" }},
 
+		// ── Sessions (v5) ───────────────────────────────────────────────────
+		{Kind: CfgFieldSectionHeader, Label: i18n.T("tui.config.section.sessions")},
+		{Key: "session_attach", Kind: CfgFieldSelect, Label: i18n.T("tui.config.field.session_attach.label"),
+			Description: i18n.T("tui.config.field.session_attach.desc"),
+			Options: []SelectOption{
+				{Label: i18n.T("tui.config.attach.auto"), Value: "auto"},
+				{Label: "iTerm2", Value: "iterm"},
+				{Label: "Terminal.app", Value: "terminal"},
+				{Label: "tmux", Value: "tmux"},
+				{Label: i18n.T("tui.config.attach.browser"), Value: "browser"},
+				{Label: i18n.T("tui.config.attach.suspend"), Value: "suspend"},
+			},
+			Validator: &FieldValidator{AllowedValues: []string{"auto", "iterm", "terminal", "tmux", "browser", "suspend"}, AllowEmpty: true},
+			Get: func() string {
+				if v.live.Session.Attach == "" {
+					return "auto"
+				}
+				return v.live.Session.Attach
+			},
+			Set: func(val string) { v.live.Session.Attach = val }},
+		{Key: "session_iterm_style", Kind: CfgFieldSelect, Label: i18n.T("tui.config.field.session_iterm_style.label"),
+			Description: i18n.T("tui.config.field.session_iterm_style.desc"),
+			Options: []SelectOption{
+				{Label: i18n.T("tui.config.iterm.tab"), Value: "tab"},
+				{Label: i18n.T("tui.config.iterm.split"), Value: "split"},
+				{Label: i18n.T("tui.config.iterm.window"), Value: "window"},
+			},
+			Validator: &FieldValidator{AllowedValues: []string{"tab", "split", "window"}, AllowEmpty: true},
+			Get: func() string {
+				if v.live.Session.ITermStyle == "" {
+					return "tab"
+				}
+				return v.live.Session.ITermStyle
+			},
+			Set: func(val string) { v.live.Session.ITermStyle = val }},
+		{Key: "session_idle_sleep", Kind: CfgFieldInt, Label: i18n.T("tui.config.field.session_idle_sleep.label"),
+			Description: i18n.T("tui.config.field.session_idle_sleep.desc"),
+			Placeholder: "5",
+			Validator:   &FieldValidator{Numeric: true, MinInt: intPtr(1), MaxInt: intPtr(1440), AllowEmpty: true},
+			Get: func() string {
+				if v.live.Session.IdleSleepMinutes == 0 {
+					return ""
+				}
+				return strconv.Itoa(v.live.Session.IdleSleepMinutes)
+			},
+			Set: func(val string) { v.live.Session.IdleSleepMinutes, _ = strconv.Atoi(val) }},
+
 		// ── Deploy ──────────────────────────────────────────────────────────
 		{Kind: CfgFieldSectionHeader, Label: i18n.T("tui.config.section.deploy")},
 		{Key: "disable_native_agents", Kind: CfgFieldReadonly, Label: i18n.T("tui.config.field.disable_native_agents.label"),

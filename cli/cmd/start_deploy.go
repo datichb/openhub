@@ -17,6 +17,10 @@ import (
 // line so the user knows what happened. On error it prints a warning and waits
 // for the user to press Enter (unless skipPrompt is true).
 func autoDeployIfNeeded(a *app.App, project *domain.Project, hubDir, provider, model string, skipPrompt bool) {
+	// v5 runtime: sessions use a bundle, nothing is deployed into the project.
+	if v5Available(context.Background()) {
+		return
+	}
 	if hubDir == "" {
 		return // hub content not available — nothing to deploy
 	}

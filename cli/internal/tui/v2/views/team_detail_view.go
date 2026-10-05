@@ -37,6 +37,9 @@ type TeamDetailViewConfig struct {
 	CheckSecret func(ctx context.Context, key string) (present bool, masked string)
 	// SetSecret stores a secret value in the keychain.
 	SetSecret func(ctx context.Context, key, value string) error
+	// TeamProviderKey returns the keychain key of the team-level LLM
+	// credential for a provider ("" when no team is active). Used by 'k'.
+	TeamProviderKey func(provider string) string
 	// OnDiscoverTracker launches the tracker discovery wizard.
 	// Called when the user presses 'y' in the team detail view.
 	OnDiscoverTracker func()
@@ -85,10 +88,11 @@ func (v *TeamDetailView) ID() string             { return "team.detail" }
 func (v *TeamDetailView) Title() string          { return i18n.T("tui.team.detail") }
 
 func (v *TeamDetailView) StatusHints() string {
-	return fmt.Sprintf("j/k %s · Space %s · Enter edit · w %s · s %s · t %s · a %s · d %s · u %s · r %s · y discovery",
+	return fmt.Sprintf("j/k %s · Space %s · Enter edit · w %s · s %s · t %s · a %s · d %s · u %s · r %s · y discovery · K %s",
 		i18n.T("tui.hints.nav"), i18n.T("tui.hints.toggle"), i18n.T("tui.hints.save"),
 		i18n.T("tui.hints.sync"), i18n.T("tui.hints.test"), i18n.T("tui.hints.add"),
-		i18n.T("tui.hints.del"), i18n.T("tui.hints.undo"), i18n.T("tui.hints.refresh"))
+		i18n.T("tui.hints.del"), i18n.T("tui.hints.undo"), i18n.T("tui.hints.refresh"),
+		i18n.T("tui.team.llm_key.hint"))
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -165,6 +169,9 @@ func (v *TeamDetailView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 		return nil
 	case 'u':
 		v.undo()
+		return nil
+	case 'K':
+		v.setTeamProviderKey()
 		return nil
 	case 'r':
 		tc := v.cfg.ResolveTeam()
@@ -956,4 +963,34 @@ func formatSyncTrackerResultView(r *SyncTrackerResult) string {
 		}
 	}
 	return sb.String()
+}
+
+// setTeamProviderKey stores the team-level LLM credential of a provider in
+// the keychain (cascade: project key → team key → hub key).
+func (v *TeamDetailView) setTeamProviderKey() {
+	if v.shell == nil || v.cfg.TeamProviderKey == nil || v.cfg.SetSecret == nil {
+		return
+	}
+	options := []SelectOption{
+		{Label: i18n.T("tui.team.llm_key.bedrock"), Value: "bedrock"},
+		{Label: "Anthropic", Value: "anthropic"},
+		{Label: "OpenRouter", Value: "openrouter"},
+	}
+	v.shell.ShowSelectModal(i18n.T("tui.team.llm_key.choose_provider"), options, "bedrock", func(prov string) {
+		key := v.cfg.TeamProviderKey(prov)
+		if key == "" {
+			v.shell.ShowToastMsg(i18n.T("tui.team.llm_key.no_team"), false)
+			return
+		}
+		v.shell.ShowPasswordModal(i18n.Tf("tui.team.llm_key.prompt", prov), func(value string) {
+			if value == "" {
+				return
+			}
+			if err := v.cfg.SetSecret(context.Background(), key, value); err != nil {
+				v.shell.ShowToastMsg(err.Error(), false)
+				return
+			}
+			v.shell.ShowToastMsg(i18n.Tf("tui.team.llm_key.saved", prov), true)
+		})
+	})
 }

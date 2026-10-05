@@ -57,6 +57,10 @@ func runDoctor(cmd *cobra.Command, args []string) error {
 		{"Clés API (keychain)", checkAPIKeys},
 		{"Beads zero-impact (hooks & gitignore)", checkBeadsSanity},
 	}
+	for _, c := range v5DoctorChecks() {
+		c := c
+		checks = append(checks, check{c.Name, func() (string, bool) { return c.Detail, c.OK }})
+	}
 
 	allPassed := true
 	for _, c := range checks {

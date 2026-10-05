@@ -251,6 +251,14 @@ func launchSessionWithPrompt(agent, sessionPrompt string) {
 
 	a := MustApp()
 
+	// Same defaults everywhere (B7): Quick = orchestrator, Onboard = wiki prompt.
+	if agent == "" {
+		agent = "orchestrator"
+	}
+	if agent == "onboarder" && sessionPrompt == "" {
+		sessionPrompt = buildOnboardPromptForTUI()
+	}
+
 	// If no active project, try to resolve one — or prompt the user to choose.
 	project, err := resolveActiveProject(a)
 	if err != nil {
@@ -287,19 +295,42 @@ func launchSessionWithPrompt(agent, sessionPrompt string) {
 // launchSessionForProject launches an opencode session on the given project
 // via the unified launcher pipeline (session tracking, credentials, team events).
 func launchSessionForProject(a *app.App, project *domain.Project, agent, sessionPrompt string) {
-	l := launcher.New(a, launcher.NewTUIUI(tuiShell.SuspendAndExec, tuiShell.ShowToastMsg))
-	err := l.Launch(context.Background(), launcher.LaunchOpts{
+	runTUILaunch(a, launcher.LaunchOpts{
 		ProjectID:   project.ID,
 		ProjectPath: project.Path,
 		Agent:       agent,
 		Prompt:      sessionPrompt,
 		SkipSummary: true,
 		SkipConfirm: true,
-		SkipDeploy:  true, // TUI auto-deploy is handled at project mode entry
+		SkipDeploy:  true,
 	})
-	if err != nil {
-		slog.Warn("TUI session ended with error", "error", err)
+}
+
+// runTUILaunch is the single TUI entry point for launching a session (B6).
+// The launch runs off the event loop (bundle compilation and server start take
+// a few seconds); every UI call it makes is marshalled back onto the event
+// loop, including the terminal suspension of the legacy/inline client.
+func runTUILaunch(a *app.App, opts launcher.LaunchOpts) {
+	if tuiShell == nil {
+		return
 	}
+	sh := tuiShell
+	ui := launcher.NewTUIUI(
+		func(fn func() error) error {
+			done := make(chan error, 1)
+			sh.App().QueueUpdateDraw(func() { done <- sh.SuspendAndExec(fn) })
+			return <-done
+		},
+		func(msg string, ok bool) {
+			sh.App().QueueUpdateDraw(func() { sh.ShowToastMsg(msg, ok) })
+		},
+	)
+	go func() {
+		if err := launcher.New(a, ui).Launch(context.Background(), opts); err != nil {
+			slog.Warn("TUI session ended with error", "error", err)
+			sh.App().QueueUpdateDraw(func() { sh.ShowToastMsg(err.Error(), false) })
+		}
+	}()
 }
 
 // launchSessionAtPath launches an opencode session at an arbitrary filesystem path.
@@ -315,21 +346,15 @@ func launchSessionAtPath(launchPath, projectID, agent, sessionPrompt string) {
 		return
 	}
 
-	a := MustApp()
-
-	l := launcher.New(a, launcher.NewTUIUI(tuiShell.SuspendAndExec, tuiShell.ShowToastMsg))
-	err := l.Launch(context.Background(), launcher.LaunchOpts{
+	runTUILaunch(MustApp(), launcher.LaunchOpts{
 		ProjectID:   projectID,
 		ProjectPath: launchPath,
 		Agent:       agent,
 		Prompt:      sessionPrompt,
 		SkipSummary: true,
 		SkipConfirm: true,
-		SkipDeploy:  true, // board path: deploy is handled upstream
+		SkipDeploy:  true,
 	})
-	if err != nil {
-		slog.Warn("quick-action session ended with error", "error", err, "path", launchPath)
-	}
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

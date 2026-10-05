@@ -28,21 +28,27 @@ func Open(path string) (*Store, error) {
 		return nil, fmt.Errorf("creating db directory: %w", err)
 	}
 
-	db, err := sql.Open("sqlite", path)
+	// The database holds server passwords and proxy tokens: owner-only
+	// access. SQLite creates the -wal/-shm files with the mode of the main
+	// file, so it is created (or fixed) before the first connection.
+	_ = os.Chmod(filepath.Dir(path), 0o700)
+	if f, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0o600); err == nil {
+		f.Close()
+	}
+	for _, p := range []string{path, path + "-wal", path + "-shm"} {
+		_ = os.Chmod(p, 0o600)
+	}
+
+	// Pragmas in the DSN apply to every pooled connection (the oh daemon and
+	// the CLI/TUI processes share this database: wait for locks instead of
+	// failing immediately).
+	db, err := sql.Open("sqlite", path+"?_pragma=busy_timeout(5000)&_pragma=foreign_keys(1)&_pragma=journal_mode(WAL)")
 	if err != nil {
 		return nil, fmt.Errorf("opening database: %w", err)
 	}
-
-	// Enable WAL mode for better concurrent read performance
-	if _, err := db.Exec("PRAGMA journal_mode=WAL"); err != nil {
+	if err := db.Ping(); err != nil {
 		db.Close()
-		return nil, fmt.Errorf("setting WAL mode: %w", err)
-	}
-
-	// Foreign keys
-	if _, err := db.Exec("PRAGMA foreign_keys=ON"); err != nil {
-		db.Close()
-		return nil, fmt.Errorf("enabling foreign keys: %w", err)
+		return nil, fmt.Errorf("opening database: %w", err)
 	}
 
 	s := &Store{db: db}
@@ -392,6 +398,61 @@ ALTER TABLE sessions ADD COLUMN slug TEXT DEFAULT NULL`,
 		up: `ALTER TABLE sessions ADD COLUMN type TEXT NOT NULL DEFAULT 'interactive';
 ALTER TABLE sessions ADD COLUMN label TEXT DEFAULT NULL;
 ALTER TABLE sessions ADD COLUMN correlation_id TEXT DEFAULT NULL`,
+		irreversible: false,
+	},
+	{
+		version: 28,
+		up: `CREATE TABLE IF NOT EXISTS servers (
+			group_key        TEXT PRIMARY KEY,
+			adapter          TEXT NOT NULL,
+			adapter_version  TEXT NOT NULL DEFAULT '',
+			runtime          TEXT NOT NULL DEFAULT 'local',
+			project_id       TEXT NOT NULL DEFAULT '',
+			bundle_hash      TEXT NOT NULL DEFAULT '',
+			pid              INTEGER NOT NULL DEFAULT 0,
+			url              TEXT NOT NULL DEFAULT '',
+			port             INTEGER NOT NULL DEFAULT 0,
+			password         TEXT NOT NULL DEFAULT '',
+			data_dir         TEXT NOT NULL DEFAULT '',
+			work_dir         TEXT NOT NULL DEFAULT '',
+			proxy_token      TEXT NOT NULL DEFAULT '',
+			status           TEXT NOT NULL DEFAULT 'starting',
+			created_at       DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			last_activity_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+		)`,
+		down: `DROP TABLE IF EXISTS servers`,
+	},
+	{
+		version: 29,
+		up: `ALTER TABLE sessions ADD COLUMN workflow_id TEXT NOT NULL DEFAULT '';
+ALTER TABLE sessions ADD COLUMN entry_agent TEXT NOT NULL DEFAULT '';
+ALTER TABLE sessions ADD COLUMN bundle_hash TEXT NOT NULL DEFAULT '';
+ALTER TABLE sessions ADD COLUMN group_key TEXT NOT NULL DEFAULT '';
+ALTER TABLE sessions ADD COLUMN runtime TEXT NOT NULL DEFAULT '';
+ALTER TABLE sessions ADD COLUMN mode TEXT NOT NULL DEFAULT '';
+ALTER TABLE sessions ADD COLUMN state TEXT NOT NULL DEFAULT '';
+CREATE INDEX IF NOT EXISTS idx_sessions_group ON sessions(group_key)`,
+		irreversible: false,
+	},
+	{
+		version: 30,
+		up: `CREATE TABLE IF NOT EXISTS proxy_grants (
+			token          TEXT PRIMARY KEY,
+			owner          TEXT NOT NULL,
+			provider       TEXT NOT NULL,
+			region         TEXT NOT NULL DEFAULT '',
+			source         TEXT NOT NULL DEFAULT '{}',
+			allowed_models TEXT NOT NULL DEFAULT '[]',
+			max_tokens     INTEGER NOT NULL DEFAULT 0,
+			created_at     DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			revoked_at     DATETIME
+		);
+CREATE INDEX IF NOT EXISTS idx_proxy_grants_owner ON proxy_grants(owner)`,
+		down: `DROP TABLE IF EXISTS proxy_grants`,
+	},
+	{
+		version:      31,
+		up:           `ALTER TABLE sessions ADD COLUMN state_changed_at DATETIME DEFAULT NULL`,
 		irreversible: false,
 	},
 }

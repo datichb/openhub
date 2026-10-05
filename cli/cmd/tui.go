@@ -7,6 +7,7 @@ import (
 	"log"
 	"log/slog"
 	"path/filepath"
+	"time"
 
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/i18n"
@@ -70,6 +71,16 @@ func runTUIWithProject(projectName string) error {
 		Views:         builtViews,
 		HomeViewID:    homeViewID,
 		Notifications: notifStore,
+		BeforeQuit:    func(quit func()) { v5BeforeQuit(a, tuiShell)(quit) },
+		TeamsProvider: func() []views.SelectOption { // B12
+			var out []views.SelectOption
+			for _, t := range a.Config.Teams {
+				if t.Enabled {
+					out = append(out, views.SelectOption{Label: t.DisplayName(), Value: t.ID})
+				}
+			}
+			return out
+		},
 	}
 
 	tuiShell = shell.New(cfg)
@@ -109,6 +120,14 @@ func runTUIWithProject(projectName string) error {
 			defer releaseInitLock(lockPath)
 		}
 	}
+
+	// v5 sessions: presence heartbeat + recap of what ran while oh was closed.
+	stopPresence := startTUIPresence(context.Background())
+	defer stopPresence()
+	go func() {
+		time.Sleep(500 * time.Millisecond)
+		tuiShell.App().QueueUpdateDraw(func() { showAbsenceRecap(context.Background(), a, tuiShell) })
+	}()
 
 	err := tuiShell.Run()
 

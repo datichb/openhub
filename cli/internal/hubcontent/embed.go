@@ -21,6 +21,9 @@ var embedded embed.FS
 
 // HubContentDir returns the path where hub content is extracted (~/.oh/hub/).
 func HubContentDir() string {
+	if dir := os.Getenv("OH_HOME"); dir != "" { // relocated hub (see config.HubDir)
+		return filepath.Join(dir, "hub")
+	}
 	home, _ := os.UserHomeDir()
 	return filepath.Join(home, ".oh", "hub")
 }

@@ -1,4 +1,4 @@
-.PHONY: build run test test-tui test-unit lint clean install embed-sync
+.PHONY: build run test test-tui test-unit test-integration test-e2e lint clean install embed-sync
 
 # Build variables
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
@@ -31,6 +31,14 @@ test-tui:
 # Run unit tests (skip integration/long-running)
 test-unit:
 	go test ./... -v -race -short
+
+# Contract tests against a real `opencode serve` (requires the opencode binary, no LLM call)
+test-integration:
+	go test ./... -race -count=1 -tags integration
+
+# End-to-end tests with a real model (Bedrock EU Haiku; OH_E2E_BEDROCK_TOKEN or `opencode auth` key)
+test-e2e:
+	go test ./... -count=1 -tags "integration e2e" -run 'TestE2E'
 
 # Run tests with coverage
 test-cover:

@@ -106,7 +106,7 @@ func (v *DoctorView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 // collectChecks runs all health checks and returns the results.
 // Safe to call from any goroutine.
 func (v *DoctorView) collectChecks() []DoctorCheck {
-	return []DoctorCheck{
+	checks := []DoctorCheck{
 		v.checkOS(),
 		v.checkBinary("git"),
 		v.checkOpencode(),
@@ -114,7 +114,15 @@ func (v *DoctorView) collectChecks() []DoctorCheck {
 		v.checkDatabase(),
 		v.checkWorkflow(),
 	}
+	if ExtraDoctorChecks != nil {
+		checks = append(checks, ExtraDoctorChecks()...)
+	}
+	return checks
 }
+
+// ExtraDoctorChecks lets the command layer add runtime checks (v5 runtime,
+// oh daemon, terminal integration) without the view depending on them.
+var ExtraDoctorChecks func() []DoctorCheck
 
 func (v *DoctorView) render() {
 	if v.tv == nil {
