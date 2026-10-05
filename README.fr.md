@@ -53,6 +53,10 @@ oh serve                       # Dashboard web local sur http://127.0.0.1:8080
 | `oh start --dev` | Mode dev : picker tickets + orchestrator-dev |
 | `oh start --onboard` | Onboarding : creer/enrichir le wiki projet |
 | `oh start --recap` | Lancer avec récap de configuration |
+| `oh session list` | Liste les sessions v5 (en cours, en attente, en veille) |
+| `oh session attach <id>` | Ouvre une session (nouvel onglet/fenêtre ; reprend une session en veille) |
+| `oh session stop <id>` | Arrête une session |
+| `oh daemon status` | État du démon oh (proxy d'identifiants, serveurs actifs) |
 | `oh deploy` | Deployer agents, skills, config, MCP |
 | `oh sync` | Synchroniser tous les projets enregistres |
 | `oh project list` | Lister les projets enregistres |
@@ -92,11 +96,15 @@ openhub/
 ├── cli/             <- Binaire Go (oh)
 │   └── internal/
 │       ├── beads/       <- Integration tickets Beads
-│       ├── deploy/      <- Moteur de deploiement transactionnel
+│       ├── deploy/      <- Déploiement par projet historique (opencode V1)
+│       ├── bundle/      <- Paquets de session (agents, skills, permissions)
+│       ├── adapters/    <- Adaptateurs d'outil (opencode V2)
+│       ├── daemon/      <- Démon oh : proxy d'identifiants, suivi des sessions
+│       ├── runsvc/      <- Lancement des sessions (groupes de serveurs, ouverture, reprise)
 │       ├── mcp/         <- Serveurs MCP natifs (figma, gitlab, gslides, github, jira, linear, team)
 │       ├── skillregistry/ <- Decouverte et installation de skills communautaires
 │       ├── selfupdate/  <- Auto-mise a jour du binaire oh
-│       ├── tui/         <- Vues BubbleTea (dashboard, board, picker)
+│       ├── tui/         <- TUI tview/tcell (dashboard, board, sessions)
 │       └── ...
 └── docs/            <- Documentation (bilingue fr/en)
 ```

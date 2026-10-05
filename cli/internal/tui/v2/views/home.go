@@ -25,6 +25,10 @@ type homeItem struct {
 // HomeViewConfig holds external dependencies for the home view.
 type HomeViewConfig struct {
 	OnLaunchSession func(agent string, args ...string)
+	// OnAuditPicker / OnDebugPicker open the audit type picker and the issue
+	// prompt (same flows as project mode). Nil = launch the agent directly.
+	OnAuditPicker func()
+	OnDebugPicker func()
 	// OnReviewPicker is called when the user selects the Review item.
 	// If non-nil, shows the review mode picker instead of launching directly.
 	OnReviewPicker func()
@@ -226,13 +230,26 @@ func (v *HomeView) buildStaticItems() []homeItem {
 		items = append(items,
 			homeItem{Icon: "💻", Label: i18n.T("tui.pm.item.quick"), Desc: i18n.T("tui.pm.item.quick_desc"), Action: func() { launch("") }},
 			homeItem{Icon: "🎯", Label: i18n.T("tui.pm.item.start_dev"), Desc: i18n.T("tui.pm.item.start_dev_desc"), Action: func() { launch("", "--dev") }},
-			homeItem{Icon: "🔍", Label: i18n.T("tui.pm.item.audit"), Desc: i18n.T("tui.pm.item.audit_desc"), Action: func() { launch("auditor") }},
+			homeItem{Icon: "🔍", Label: i18n.T("tui.pm.item.audit"), Desc: i18n.T("tui.pm.item.audit_desc"), Action: func() {
+				if v.cfg.OnAuditPicker != nil {
+					v.cfg.OnAuditPicker()
+					return
+				}
+				launch("auditor")
+			}},
 			homeItem{Icon: "👀", Label: i18n.T("tui.pm.item.review"), Desc: i18n.T("tui.pm.item.review_desc"), Action: func() {
 				if v.cfg.OnReviewPicker != nil {
 					v.cfg.OnReviewPicker()
 					return
 				}
 				launch("reviewer")
+			}},
+			homeItem{Icon: "🐛", Label: i18n.T("tui.pm.item.debug"), Desc: i18n.T("tui.pm.item.debug_desc"), Action: func() {
+				if v.cfg.OnDebugPicker != nil {
+					v.cfg.OnDebugPicker()
+					return
+				}
+				launch("debugger")
 			}},
 		)
 	}

@@ -72,6 +72,15 @@ func runTUIWithProject(projectName string) error {
 		HomeViewID:    homeViewID,
 		Notifications: notifStore,
 		BeforeQuit:    func(quit func()) { v5BeforeQuit(a, tuiShell)(quit) },
+		TeamsProvider: func() []views.SelectOption { // B12
+			var out []views.SelectOption
+			for _, t := range a.Config.Teams {
+				if t.Enabled {
+					out = append(out, views.SelectOption{Label: t.DisplayName(), Value: t.ID})
+				}
+			}
+			return out
+		},
 	}
 
 	tuiShell = shell.New(cfg)

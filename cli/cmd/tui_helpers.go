@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"strings"
 	"time"
@@ -14,9 +15,27 @@ import (
 )
 
 // resolveActiveProject returns the currently selected project or the first one.
+//
+// In the TUI the shell's active project is the single source of truth (B4):
+// no interactive picker is ever started from here (it would fight with tview);
+// when nothing is selected and several projects exist, an error is returned
+// and the caller shows its own selector.
 func resolveActiveProject(a *app.App) (*domain.Project, error) {
 	ctx := context.Background()
-	return resolveProject(ctx, a, "")
+	if tuiShell == nil {
+		return resolveProject(ctx, a, "")
+	}
+	if ap := tuiShell.ActiveProject(); ap != nil && ap.ID != "" {
+		return a.Projects.Get(ctx, ap.ID)
+	}
+	projects, err := a.Projects.List(ctx, domain.ProjectStatusActive)
+	if err != nil {
+		return nil, err
+	}
+	if len(projects) == 1 {
+		return &projects[0], nil
+	}
+	return nil, fmt.Errorf("no active project selected")
 }
 
 // makeResolveTeamFunc returns a ResolveTeamFunc for use in team views.
@@ -24,6 +43,12 @@ func resolveActiveProject(a *app.App) (*domain.Project, error) {
 // (project-level override → hub fallback) each time it is called.
 func makeResolveTeamFunc(a *app.App) views.ResolveTeamFunc {
 	return func() views.TeamResolution {
+		// Team mode: the team chosen in the TUI wins (B5).
+		if tuiShell != nil && tuiShell.ActiveTeam() != nil {
+			if t := a.Config.FindTeam(tuiShell.ActiveTeam().ID); t != nil {
+				return views.TeamResolution{Enabled: t.Enabled, StateRepo: t.StateRepo, StatePath: t.StatePath, MemberID: t.MemberID}
+			}
+		}
 		project, _ := resolveActiveProject(a)
 		tc := resolvedTeamConfig(a, project)
 		return views.TeamResolution{
