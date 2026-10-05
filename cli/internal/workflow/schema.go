@@ -1,8 +1,6 @@
 package workflow
 
 import (
-	"fmt"
-
 	"gopkg.in/yaml.v3"
 )
 
@@ -261,7 +259,7 @@ func (p *PluginRef) UnmarshalYAML(unmarshal func(any) error) error {
 		return nil
 	}
 	if node.Kind != yaml.MappingNode {
-		return fmt.Errorf("line %d: plugin must be an id or a mapping", node.Line)
+		return nodeError(node, "expected_plugin")
 	}
 	type plain PluginRef
 	var v plain

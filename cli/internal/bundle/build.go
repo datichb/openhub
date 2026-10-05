@@ -52,6 +52,12 @@ type Request struct {
 	Plugins               []sessionspec.PluginDef
 	WebsearchEnabled      bool
 	CodeMode              bool
+
+	// Spec is the resolved oh/v1 workflow. When set, it selects the agents
+	// and the delegation graph (P1-T06), generates the chain skills (P1-T11)
+	// and fills EntryAgent, WorkflowModels, ExtraSkills and DenySkills when
+	// they are not set.
+	Spec *workflow.Spec
 }
 
 // Bundle is a compiled bundle on disk.
@@ -69,13 +75,24 @@ const (
 // Build compiles the bundle. It is idempotent: identical inputs produce the
 // same hash and reuse the existing directory.
 func Build(req Request) (*Bundle, error) {
+	if req.Spec != nil {
+		if err := req.applySpec(); err != nil {
+			return nil, err
+		}
+	}
 	if req.HubDir == "" || req.OutDir == "" || req.EntryAgent == "" {
 		return nil, fmt.Errorf("bundle: HubDir, OutDir and EntryAgent are required")
 	}
 	wf := req.Workflow
-	if wf == nil {
+	if wf == nil && req.Spec == nil {
 		var err error
 		if wf, err = deploy.ResolveAndPrepareWorkflow(workflow.BaseWorkflow()); err != nil {
+			return nil, err
+		}
+	}
+	if req.Spec != nil {
+		var err error
+		if wf, err = specWorkflow(req.HubDir, req.Spec); err != nil {
 			return nil, err
 		}
 	}
@@ -88,8 +105,10 @@ func Build(req Request) (*Bundle, error) {
 		return nil, fmt.Errorf("bundle: unknown entry agent %q", req.EntryAgent)
 	}
 
-	graph := deriveGraph(req.HubDir, &wf.Resolved, files)
-	selected := reachable(req.EntryAgent, graph)
+	graph, selected, err := selectAgents(req, &wf.Resolved, files)
+	if err != nil {
+		return nil, err
+	}
 
 	instructions, err := readInstructions(req.ProjectPath, req.ExtraInstructionFiles)
 	if err != nil {
@@ -199,24 +218,9 @@ func Build(req Request) (*Bundle, error) {
 	}
 	spec.Skills = skills
 
-	spec.SubagentGraph = map[string][]string{}
-	inBundle := map[string]bool{}
-	for _, id := range selected {
-		inBundle[id] = true
-	}
-	for _, id := range selected {
-		var targets []string
-		for _, t := range graph[id] {
-			if inBundle[t] && t != id {
-				targets = append(targets, t)
-			}
-		}
-		if len(targets) > 0 {
-			sort.Strings(targets)
-			spec.SubagentGraph[id] = targets
-		}
-	}
-	spec.MaxDepth = maxDepth(req.EntryAgent, spec.SubagentGraph)
+	applyWorkflowModes(spec.Agents, req.Spec)
+	spec.SubagentGraph = bundleGraph(graph, selected)
+	spec.MaxDepth = workflow.MaxDepth(req.EntryAgent, spec.SubagentGraph)
 	if def := findAgent(spec.Agents, req.EntryAgent); def != nil && def.Model != nil {
 		m := *def.Model
 		spec.DefaultModel = &m

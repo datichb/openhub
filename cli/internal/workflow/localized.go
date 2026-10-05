@@ -1,7 +1,6 @@
 package workflow
 
 import (
-	"fmt"
 	"sort"
 
 	"gopkg.in/yaml.v3"
@@ -73,7 +72,7 @@ func (t *LocalizedText) UnmarshalYAML(unmarshal func(any) error) error {
 		*t = LocalizedText{ByLang: m}
 		return nil
 	default:
-		return fmt.Errorf("line %d: expected a string or a mapping of language codes", node.Line)
+		return nodeError(node, "expected_text")
 	}
 }
 
