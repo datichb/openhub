@@ -91,9 +91,6 @@ func TestGenerateWorkflowSkills_Content(t *testing.T) {
 	assert.Contains(t, m, "Commandes Beads autorisées : `show`, `update`, `close`")
 	assert.Less(t, strings.Index(m, "cp-1"), strings.Index(m, "cp-2"), "declaration order kept")
 
-	routing := generateFor(t, genSpec)[ticketRoutingSkill]
-	assert.NotContains(t, routing, "pathfinder", "agents absent from the workflow are not mentioned")
-
 	// Minimal workflow: implicit conductor, no checkpoint, no remote column.
 	quick := generateFor(t, "apiVersion: oh/v1\nkind: Workflow\nid: quick\nrisk: read\n")[WorkflowMapSkill]
 	assert.Contains(t, quick, "Agent d'entrée : `conductor`")

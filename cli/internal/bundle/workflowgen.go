@@ -26,19 +26,15 @@ var templateFS embed.FS
 const (
 	// WorkflowMapSkill is the full map, read by the conductor (P1-T12).
 	WorkflowMapSkill = "workflow/workflow-map"
-	// Legacy references kept for the agents that already load them.
+	// Existing references, loaded by orchestrator, orchestrator-dev and planner.
 	workflowModesSkill     = "orchestrator/orchestrator-workflow-modes"
 	workflowReferenceSkill = "shared/hub-workflow-reference"
-	orchestratorModesSkill = "orchestrator/orchestrator-modes"
-	ticketRoutingSkill     = "orchestrator/orchestrator-ticket-routing"
 )
 
 var generatedTemplates = map[string]string{
 	WorkflowMapSkill:       "workflow-map.md.tmpl",
 	workflowModesSkill:     "orchestrator-workflow-modes.md.tmpl",
 	workflowReferenceSkill: "hub-workflow-reference.md.tmpl",
-	orchestratorModesSkill: "orchestrator-modes.md.tmpl",
-	ticketRoutingSkill:     "orchestrator-ticket-routing.md.tmpl",
 }
 
 // generatedLang is the language of the generated text (the hub content is
@@ -52,23 +48,21 @@ type mapData struct {
 	Risk                   workflow.Risk
 	Beads                  []string
 	Agents                 []agentRow
-	// ActiveAgents feeds the legacy orchestrator-modes / ticket-routing templates.
-	ActiveAgents   []agentRow
-	Modes          []string
-	DefaultMode    string
-	Checkpoints    []checkpointRow
-	Remote         bool
-	MaxConsecutive int
-	Outputs        []outputRow
+	Modes                  []string
+	DefaultMode            string
+	Checkpoints            []checkpointRow
+	Remote                 bool
+	MaxConsecutive         int
+	Outputs                []outputRow
 }
 
 type agentRow struct {
-	ID, AgentID string
-	Role        workflow.AgentRole
-	Mode        workflow.AgentMode
-	Entry       bool
-	After       string
-	Calls       []string
+	ID    string
+	Role  workflow.AgentRole
+	Mode  workflow.AgentMode
+	Entry bool
+	After string
+	Calls []string
 }
 
 type checkpointRow struct {
@@ -96,24 +90,6 @@ func GenerateWorkflowSkills(spec *workflow.Spec, graph map[string][]string, mode
 				out[i] = "`" + s + "`"
 			}
 			return strings.Join(out, ", ")
-		},
-		"hasAgent": func(agents []agentRow, id string) bool {
-			for _, a := range agents {
-				if a.ID == id {
-					return true
-				}
-			}
-			return false
-		},
-		"planningAgent": func(agents []agentRow) string {
-			for _, want := range []string{"planner", "pathfinder"} {
-				for _, a := range agents {
-					if a.ID == want {
-						return want
-					}
-				}
-			}
-			return "planning agent"
 		},
 	}).ParseFS(templateFS, "templates/*.md.tmpl")
 	if err != nil {
@@ -148,7 +124,7 @@ func buildMapData(spec *workflow.Spec, graph map[string][]string, modeOf func(st
 	}
 	for _, id := range spec.Members() {
 		ref, listed := spec.Agents.Get(id)
-		row := agentRow{ID: id, AgentID: id, Role: workflow.RoleWorkflow, Entry: id == d.Entry, Calls: graph[id]}
+		row := agentRow{ID: id, Role: workflow.RoleWorkflow, Entry: id == d.Entry, Calls: graph[id]}
 		if listed {
 			row.Role, row.After, row.Mode = ref.Role, ref.After, ref.Mode
 		}
@@ -160,7 +136,6 @@ func buildMapData(spec *workflow.Spec, graph map[string][]string, modeOf func(st
 		}
 		d.Agents = append(d.Agents, row)
 	}
-	d.ActiveAgents = d.Agents
 	for _, id := range spec.Checkpoints.Keys() {
 		cp, _ := spec.Checkpoints.Get(id)
 		row := checkpointRow{

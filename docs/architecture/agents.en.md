@@ -111,7 +111,7 @@ This table is the authoritative reference for which skills each agent loads. It 
 
 | Agent | Bucket A (inline) | Bucket B (native / on-demand) |
 |-------|-------------------|-------------------------------|
-| **orchestrator** | `posture/coordination-only`, `posture/concision-posture`, `posture/retranscription-coordinateur`, `orchestrator/orchestrator-workflow-modes`, `orchestrator/orchestrator-handoff-format`, `orchestrator/orchestrator-protocol`, `developer/beads-plan`, `posture/tool-question`, `posture/tool-todowrite`, `planning/planner-handoff-format`, `shared/hub-workflow-reference` | `planning/pathfinder-handoff-format`, `design/design-handoff-format`, `auditor/audit-handoff-format`, `planning/onboarder-handoff-format`, `quality/debugger-handoff-format`, `documentarian/documentarian-handoff-format`, `shared/rtk-usage`, `orchestrator/orchestrator-modes`, `orchestrator/orchestrator-ticket-routing`, `orchestrator/orchestrator-recap-edge` |
+| **orchestrator** | `posture/coordination-only`, `posture/concision-posture`, `posture/retranscription-coordinateur`, `orchestrator/orchestrator-workflow-modes`, `orchestrator/orchestrator-handoff-format`, `orchestrator/orchestrator-protocol`, `developer/beads-plan`, `posture/tool-question`, `posture/tool-todowrite`, `planning/planner-handoff-format`, `shared/hub-workflow-reference` | `planning/pathfinder-handoff-format`, `design/design-handoff-format`, `auditor/audit-handoff-format`, `planning/onboarder-handoff-format`, `quality/debugger-handoff-format`, `documentarian/documentarian-handoff-format`, `shared/rtk-usage`, `orchestrator/orchestrator-recap-edge` |
 | **orchestrator-dev** | `posture/coordination-only`, `posture/concision-posture`, `posture/retranscription-coordinateur`, `orchestrator/orchestrator-workflow-modes`, `orchestrator/orchestrator-dev-protocol`, `orchestrator/orchestrator-handoff-format`, `posture/tool-question`, `posture/tool-todowrite`, `developer/developer-handoff-format`, `reviewer/reviewer-handoff-format`, `documentarian/documentarian-handoff-format` | `orchestrator/orchestrator-dev-standalone`, `orchestrator/orchestrator-dev-subagent`, `developer/dev-drift-detection`, `orchestrator/session-state-protocol`, `shared/rtk-usage`, `orchestrator/orchestrator-dev-ticket-workflow`, `orchestrator/orchestrator-dev-parallel`, `orchestrator/orchestrator-dev-recap`, `orchestrator/orchestrator-dev-edge-cases` |
 | **conductor** | `shared/universal-guardrails`, `posture/coordination-only`, `posture/concision-posture`, `posture/retranscription-coordinateur`, `posture/tool-question`, `posture/tool-todowrite`, `workflow/workflow-map` (generated from the workflow YAML) | `shared/rtk-usage`, `shared/team-awareness` |
 | **planner** | `developer/beads-plan`, `planning/planner-workflow`, `planning/planner-handoff-format`, `planning/planner-design-templates`, `planning/planner-beads-templates`, `design/design-planner-format`, `adapters/gitlab-planner-protocol`, `posture/expert-posture`, `posture/concision-posture`, `posture/tool-question`, `shared/websearch-usage`, `shared/hub-workflow-reference` | `planning/planner-execution-modes`, `planning/websearch-stack-research`, `shared/rtk-usage`, `planning/planner-phase-0`, `planning/planner-phase-1`, `planning/planner-phase-2`, `planning/planner-phase-3-4`, `planning/planner-phase-5-6`, `planning/planner-patterns-protocol`, `shared/living-docs-enrichment` |
@@ -210,11 +210,10 @@ necessary agents: design (`designer`), audit (auditor-*),
 implementation (via orchestrator-dev). Enforces explicit checkpoints at each
 phase. Never codes.
 
-**Four entry modes:**
-- **Mode D** — bug reported → delegates immediately to `debugger`, no analysis
-- **Mode C** — no project context in session → proposes `onboarder` if needed
-- **Mode A** — feature in natural language → delegates to `planner`
-- **Mode B** — existing Beads tickets → transmits IDs directly to `planner` (no `bd show`)
+**Chain:** set by the session workflow (v5, `oh/v1`), no longer by the agent. The former entry modes A–E become
+workflows: `feature` and `cadrage` (A/B), `onboarding` (C), `debug` (D), `ticket` and `quick` (E). The agent keeps
+only its posture and contracts (transcription, invocation of and return from planning agents, routing delegated to
+the planner).
 
 Never routes directly to `developer-*` — always delegates to `orchestrator-dev`.
 

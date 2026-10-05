@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/datichb/openhub/cli/internal/deploy"
@@ -194,5 +195,20 @@ func TestConductorIsAReadOnlyCoordinator(t *testing.T) {
 	}
 	if !contains(a.Skills, "workflow/workflow-map") || !c.HasSkill("workflow/workflow-map") {
 		t.Fatal("conductor must load the workflow map")
+	}
+}
+
+// The enchaînement comes from the workflows (P1-T13): the orchestrator keeps
+// only its posture and contracts.
+func TestOrchestratorHasNoHardCodedModes(t *testing.T) {
+	data, err := os.ReadFile(filepath.Join(repoHub, "agents", "planning", "orchestrator.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	body := string(data)
+	for _, banned := range []string{"Mode A", "Mode B", "Mode C", "Mode D", "Mode E", "CP-0", "CP-onboard", "CP-spec", "CP-audit", "CP-feature", "orchestrator-modes", "orchestrator-ticket-routing"} {
+		if strings.Contains(body, banned) {
+			t.Errorf("orchestrator.md still contains %q", banned)
+		}
 	}
 }
