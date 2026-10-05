@@ -43,6 +43,21 @@ func NewSigV4FromProfile(ctx context.Context, profile, region string) (*SigV4Aut
 	return &SigV4Auth{Credentials: aws.NewCredentialsCache(cfg.Credentials), Region: region, Service: "bedrock"}, nil
 }
 
+// AWSRegion is the region the AWS SDK resolves for profile (empty = default
+// chain): AWS_REGION / AWS_DEFAULT_REGION, then the shared config profile.
+// Empty when none is configured.
+func AWSRegion(ctx context.Context, profile string) string {
+	var opts []func(*config.LoadOptions) error
+	if profile != "" {
+		opts = append(opts, config.WithSharedConfigProfile(profile))
+	}
+	cfg, err := config.LoadDefaultConfig(ctx, opts...)
+	if err != nil {
+		return ""
+	}
+	return cfg.Region
+}
+
 // Apply implements Auth.
 func (a *SigV4Auth) Apply(req *http.Request, body []byte) error {
 	if a.Credentials == nil {

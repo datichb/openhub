@@ -227,7 +227,9 @@ func inboundToken(r *http.Request) string {
 }
 
 // strippedHeaders never reach the upstream (tool credentials, hop-by-hop).
-var strippedHeaders = []string{"Authorization", "X-Api-Key", "Proxy-Authorization", "X-Amz-Security-Token", "X-Amz-Date", "X-Amz-Content-Sha256"}
+// Accept-Encoding is removed so that the transport negotiates compression
+// itself and hands back a decoded body (usage accounting reads it).
+var strippedHeaders = []string{"Authorization", "X-Api-Key", "Proxy-Authorization", "X-Amz-Security-Token", "X-Amz-Date", "X-Amz-Content-Sha256", "Accept-Encoding"}
 
 func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	provider, rest, _ := strings.Cut(strings.TrimPrefix(r.URL.Path, "/"), "/")

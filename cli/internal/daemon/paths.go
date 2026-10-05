@@ -5,6 +5,7 @@
 package daemon
 
 import (
+	"errors"
 	"path/filepath"
 
 	"github.com/datichb/openhub/cli/internal/config"
@@ -32,3 +33,6 @@ func (p Paths) Log() string { return filepath.Join(p.Dir, "ohd.log") }
 
 // SpawnLock serializes daemon spawns between concurrent oh clients.
 func (p Paths) SpawnLock() string { return filepath.Join(p.Dir, "spawn.lock") }
+
+// ErrUnsupported: the background daemon is not supported on Windows yet (O16).
+var ErrUnsupported = errors.New("ohd is not supported on Windows")

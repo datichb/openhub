@@ -75,6 +75,12 @@ MCP server tokens (GitLab, Figma, Jira, Linear, Google) are:
 - Passed to MCP server subprocesses via environment variables
 - Never logged, never written to session state, never transmitted to AI providers
 
+### LLM credentials and the oh daemon (opencode V2 sessions)
+
+With opencode V2, the tool server never receives the LLM key. A per-user daemon (`ohd`, Unix socket `~/.oh/run/ohd.sock`, mode 0600) runs a credential proxy on `127.0.0.1`. Each server group gets a random 256-bit session token. The proxy swaps that token for the real key (or signs with AWS SigV4) and forwards only to the provider's endpoint. The database stores only the token and a reference to the credential, never the secret. `~/.oh` is 0700, and `oh.db` and its WAL files are 0600.
+
+**Known limitation of the local mode:** the agent's shell runs as your user. It can therefore reach the daemon socket and `oh.db`, so it can use, or ask for, a proxy token, and it can stop the daemon. It still never sees the LLM key itself. Isolation from the agent comes with container sessions (v5 phase 4). Until then, treat the local mode as "the agent acts with your user rights", as with opencode V1.
+
 ## Best Practices for Users
 
 1. **Use the OS keychain** — it is the most secure storage. Avoid the file fallback unless necessary.

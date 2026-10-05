@@ -1,7 +1,7 @@
-//go:build e2e
+//go:build integration && e2e
 
 // End-to-end tests with a real model (Claude Haiku on Bedrock EU).
-// Run with: go test -tags e2e ./internal/adapters/opencodev2/...
+// Run with: go test -tags "integration e2e" ./internal/adapters/opencodev2/...
 // Credentials: OH_E2E_BEDROCK_TOKEN, or the Bedrock key stored by `opencode auth`.
 package opencodev2
 

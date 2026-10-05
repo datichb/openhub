@@ -36,6 +36,11 @@ func v5DoctorChecks() []views.DoctorCheck {
 			Detail: i18n.Tf("cmd.doctor.v5.runtime_legacy", reason)})
 	}
 
+	if !v5Available(ctx) {
+		// opencode V1: the v5 runtime checks below do not apply.
+		return out
+	}
+
 	dc := daemon.NewClient(daemon.Paths{Dir: ohRunDir()})
 	if h, err := dc.Health(ctx); err == nil {
 		detail := i18n.Tf("cmd.doctor.v5.daemon_ok", h.Version, h.Servers, h.Grants)
@@ -48,8 +53,9 @@ func v5DoctorChecks() []views.DoctorCheck {
 		out = append(out, views.DoctorCheck{Name: i18n.T("cmd.doctor.v5.daemon"), OK: true, Detail: i18n.T("cmd.doctor.v5.daemon_off")})
 	}
 
-	gitOK, gitDetail := gitRelativeWorktrees()
-	out = append(out, views.DoctorCheck{Name: i18n.T("cmd.doctor.v5.git"), OK: gitOK, Detail: gitDetail})
+	// Informational until containers (phase 4) need --relative-paths.
+	_, gitDetail := gitRelativeWorktrees()
+	out = append(out, views.DoctorCheck{Name: i18n.T("cmd.doctor.v5.git"), OK: true, Detail: gitDetail})
 
 	pref := termlaunch.PrefAuto
 	if app := TryApp(); app != nil && app.Config.Session.Attach != "" {

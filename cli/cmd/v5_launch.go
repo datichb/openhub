@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"os/signal"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -63,6 +64,11 @@ func v5Available(ctx context.Context) bool {
 func v5Launch(ctx context.Context, a *app.App, ui launcher.LaunchUI, opts launcher.LaunchOpts) (bool, error) {
 	if !v5Available(ctx) {
 		return false, nil
+	}
+	if runtime.GOOS == "windows" {
+		// The background daemon (credential proxy host) does not exist on
+		// Windows yet; the legacy pipeline does not work with opencode V2.
+		return true, errors.New(i18n.T("cmd.v5.windows_unsupported"))
 	}
 	if opts.ProjectID == "" || a.Projects == nil {
 		return false, nil
@@ -206,8 +212,11 @@ func runAttachChild(ctx context.Context, a *app.App, svc *runsvc.Service, sessio
 	c := exec.CommandContext(ctx, argv[0], argv[1:]...)
 	c.Stdin, c.Stdout, c.Stderr = os.Stdin, os.Stdout, os.Stderr
 	c.Env = append(os.Environ(), env...)
-	signal.Ignore(os.Interrupt) // the client handles Ctrl+C itself
-	defer signal.Reset(os.Interrupt)
+	// The client handles Ctrl+C itself: absorb it here without removing the
+	// handlers other parts of oh registered (parallel monitor).
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, os.Interrupt)
+	defer signal.Stop(sigs)
 	return c.Run()
 }
 

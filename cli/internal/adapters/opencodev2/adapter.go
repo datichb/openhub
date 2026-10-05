@@ -153,9 +153,18 @@ func (a *Adapter) start(ctx context.Context, g adapters.ServerGroup, b sessionsp
 	return adapters.ServerHandle{Key: g.Key, URL: srv.URL, Password: srv.Password, PID: srv.PID, Started: srv.Started}, nil
 }
 
-// StopServer implements adapters.ToolAdapter.
+// StopServer implements adapters.ToolAdapter. The process is signalled only
+// after an authenticated call proves it is the tool server: a PID reused by
+// another program (after a reboot) is never killed.
 func (a *Adapter) StopServer(ctx context.Context, h adapters.ServerHandle) error {
-	return AttachServer(h.URL, h.Password, h.PID).Stop(ctx, 5*time.Second)
+	srv := AttachServer(h.URL, h.Password, h.PID)
+	if !srv.Healthy(ctx) {
+		if srv.Alive() {
+			slog.Warn("opencode server not answering with its credentials; not signalling PID", "pid", h.PID, "url", h.URL)
+		}
+		return nil
+	}
+	return srv.Stop(ctx, 5*time.Second)
 }
 
 func client(h adapters.ServerHandle) *Client { return NewClient(h.URL, h.Password) }

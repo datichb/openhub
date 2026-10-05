@@ -36,6 +36,8 @@ func TestGroupKeyString(t *testing.T) {
 	g := GroupKey{BundleHash: "0123456789abcdef0123", ProjectID: "my proj/x", Runtime: RuntimeLocal}
 	assert.Equal(t, "my_proj_x-0123456789ab-local", g.String())
 	assert.Equal(t, "none--container", GroupKey{Runtime: RuntimeContainer}.String())
+	g.Config = "fedcba9876543210"
+	assert.Equal(t, "my_proj_x-0123456789ab-fedcba9876-local", g.String())
 }
 
 func TestBundleIDs(t *testing.T) {

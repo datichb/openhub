@@ -32,7 +32,7 @@ type Server struct {
 	WorkDir        string
 	ProxyToken     string // credential proxy token held by the server process
 	Status         ServerStatus
-	CreatedAt      time.Time
+	CreatedAt      time.Time // (re)start time of the current process
 	LastActivityAt time.Time
 }
 
@@ -42,6 +42,9 @@ type ServerStore interface {
 	Get(ctx context.Context, groupKey string) (*Server, error)
 	List(ctx context.Context) ([]Server, error)
 	SetStatus(ctx context.Context, groupKey string, status ServerStatus) error
+	// SetStatusIf changes the status only if the row still describes the same
+	// process (pid) in the expected status. Returns whether it changed.
+	SetStatusIf(ctx context.Context, groupKey string, pid int, from, to ServerStatus) (bool, error)
 	Touch(ctx context.Context, groupKey string, at time.Time) error
 	Delete(ctx context.Context, groupKey string) error
 }

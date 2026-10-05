@@ -17,6 +17,7 @@ import (
 
 const (
 	touchEvery = 10 * time.Second
+	unknownTTL = 5 * time.Second
 	usageEvery = 5 * time.Second
 )
 
@@ -34,7 +35,9 @@ type watcher struct {
 
 	mu        sync.Mutex
 	tracks    map[string]*sessionTrack
-	known     map[string]bool // session id → belongs to oh (row in sessions table for this group)
+	known     map[string]bool      // session id → belongs to oh (row in sessions table for this group)
+	unknownAt map[string]time.Time // session id → last negative lookup (short negative cache)
+	synced    bool                 // a resync succeeded since the last (re)connection
 	lastTouch time.Time
 	lastEvent time.Time // last session activity seen (idle-sleep timer)
 	started   time.Time
@@ -91,7 +94,7 @@ func (d *Daemon) syncWatchers(ctx context.Context, live []domain.Server) {
 			continue
 		}
 		wctx, cancel := context.WithCancel(ctx)
-		w := &watcher{d: d, srv: s, ad: ad, cancel: cancel, tracks: map[string]*sessionTrack{}, known: map[string]bool{}, started: time.Now(), done: make(chan struct{})}
+		w := &watcher{d: d, srv: s, ad: ad, cancel: cancel, tracks: map[string]*sessionTrack{}, known: map[string]bool{}, unknownAt: map[string]time.Time{}, started: time.Now(), done: make(chan struct{})}
 		d.watchers[s.GroupKey] = w
 		go w.run(wctx)
 	}
@@ -137,6 +140,9 @@ func (w *watcher) run(ctx context.Context) {
 				return
 			case ev, ok := <-evs:
 				if !ok {
+					w.mu.Lock()
+					w.synced = false
+					w.mu.Unlock()
 					break read
 				}
 				w.onEvent(ctx, ev)
@@ -209,15 +215,26 @@ func (w *watcher) track(id string) *sessionTrack {
 
 func (w *watcher) isKnown(ctx context.Context, id string) bool {
 	w.mu.Lock()
-	known, seen := w.known[id]
+	known := w.known[id]
+	at, negative := w.unknownAt[id]
 	w.mu.Unlock()
-	if seen {
-		return known
+	if known {
+		return true
+	}
+	// Negative answers are cached briefly only: the oh row may be written
+	// just after the tool session (or belong to a child session).
+	if negative && time.Since(at) < unknownTTL {
+		return false
 	}
 	s, err := w.d.opts.Sessions.Get(ctx, id)
 	known = err == nil && s.GroupKey == w.srv.GroupKey
 	w.mu.Lock()
-	w.known[id] = known
+	if known {
+		w.known[id] = true
+		delete(w.unknownAt, id)
+	} else {
+		w.unknownAt[id] = time.Now()
+	}
 	w.mu.Unlock()
 	return known
 }
@@ -228,11 +245,13 @@ func (w *watcher) resync(ctx context.Context) {
 	if err != nil {
 		return
 	}
+	ids, err := w.ad.ActiveSessions(ctx, w.handle())
+	if err != nil {
+		return // not synced: the group must not be put to sleep on guesses
+	}
 	active := map[string]bool{}
-	if ids, err := w.ad.ActiveSessions(ctx, w.handle()); err == nil {
-		for _, id := range ids {
-			active[id] = true
-		}
+	for _, id := range ids {
+		active[id] = true
 	}
 	for _, s := range sessions {
 		if s.GroupKey != w.srv.GroupKey || isTerminal(s.State) {
@@ -245,6 +264,15 @@ func (w *watcher) resync(ctx context.Context) {
 		w.refreshPending(ctx, s.ID)
 		w.persist(ctx, s.ID, true)
 	}
+	w.mu.Lock()
+	w.synced = true
+	w.mu.Unlock()
+}
+
+func (w *watcher) isSynced() bool {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	return w.synced
 }
 
 func (w *watcher) refreshPending(ctx context.Context, id string) {

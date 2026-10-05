@@ -28,32 +28,28 @@ func Open(path string) (*Store, error) {
 		return nil, fmt.Errorf("creating db directory: %w", err)
 	}
 
-	db, err := sql.Open("sqlite", path)
+	// The database holds server passwords and proxy tokens: owner-only
+	// access. SQLite creates the -wal/-shm files with the mode of the main
+	// file, so it is created (or fixed) before the first connection.
+	_ = os.Chmod(filepath.Dir(path), 0o700)
+	if f, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0o600); err == nil {
+		f.Close()
+	}
+	for _, p := range []string{path, path + "-wal", path + "-shm"} {
+		_ = os.Chmod(p, 0o600)
+	}
+
+	// Pragmas in the DSN apply to every pooled connection (the oh daemon and
+	// the CLI/TUI processes share this database: wait for locks instead of
+	// failing immediately).
+	db, err := sql.Open("sqlite", path+"?_pragma=busy_timeout(5000)&_pragma=foreign_keys(1)&_pragma=journal_mode(WAL)")
 	if err != nil {
 		return nil, fmt.Errorf("opening database: %w", err)
 	}
-
-	// Enable WAL mode for better concurrent read performance
-	if _, err := db.Exec("PRAGMA journal_mode=WAL"); err != nil {
+	if err := db.Ping(); err != nil {
 		db.Close()
-		return nil, fmt.Errorf("setting WAL mode: %w", err)
+		return nil, fmt.Errorf("opening database: %w", err)
 	}
-
-	// Wait for locks instead of failing immediately: the oh daemon and the
-	// CLI/TUI processes share this database.
-	if _, err := db.Exec("PRAGMA busy_timeout=5000"); err != nil {
-		db.Close()
-		return nil, fmt.Errorf("setting busy timeout: %w", err)
-	}
-
-	// Foreign keys
-	if _, err := db.Exec("PRAGMA foreign_keys=ON"); err != nil {
-		db.Close()
-		return nil, fmt.Errorf("enabling foreign keys: %w", err)
-	}
-
-	// The database holds server passwords and proxy tokens: owner-only access.
-	_ = os.Chmod(path, 0o600)
 
 	s := &Store{db: db}
 	if err := s.migrate(); err != nil {

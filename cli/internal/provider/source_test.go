@@ -17,7 +17,7 @@ func (m mapSecrets) Get(_ context.Context, k string) (string, error) {
 	if v, ok := m[k]; ok {
 		return v, nil
 	}
-	return "", errors.New("not found")
+	return "", nil // real stores: absent key → empty value, no error
 }
 
 func TestResolveCredentialSourceCascade(t *testing.T) {
@@ -62,4 +62,17 @@ func TestResolveCredentialSourceFallbacks(t *testing.T) {
 	_, err = ResolveCredentialSource(ctx, nil, OpenRouter, "p", "", "", nil)
 	assert.Error(t, err)
 	assert.Equal(t, "", TeamKeychainKey(GithubCopilot, "core"))
+}
+
+type failingSecrets struct{}
+
+func (failingSecrets) Get(context.Context, string) (string, error) {
+	return "", errors.New("keychain locked")
+}
+
+// E14-K: a keychain failure never falls back to another key.
+func TestResolveCredentialSourceKeychainErrorIsReported(t *testing.T) {
+	_, err := ResolveCredentialSource(context.Background(), failingSecrets{}, Bedrock, "p1", "t1", "", nil)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "keychain locked")
 }

@@ -34,6 +34,9 @@ type Options struct {
 	IdleAfter time.Duration // stop after this long without live servers (default 10m)
 	IdleSleep time.Duration // put an idle server group to sleep after this long (default 5m)
 	Tick      time.Duration // supervision period (default 15s)
+	// OnSessionEnd is called when the daemon stops a session for good (team
+	// session.complete event).
+	OnSessionEnd func(ctx context.Context, s domain.Session)
 	// Sessions is updated by the session watchers (run state, cost, tokens).
 	Sessions domain.SessionStore
 	// Adapter returns the tool adapter for a server's adapter name (nil = no watcher).
@@ -52,14 +55,16 @@ type Daemon struct {
 	wmu      sync.Mutex
 	watchers map[string]*watcher
 
-	mu       sync.Mutex
-	clients  map[string]client
-	policies map[string]QuitPolicy
-	pending  map[string]domain.ProxyGrant
-	lastBusy time.Time
-	stop     chan struct{}
-	stopOnce sync.Once
-	kick     chan struct{}
+	mu          sync.Mutex
+	clients     map[string]client
+	verified    map[string]bool // "group#pid" → authenticated as our server
+	verifyFails map[string]int  // "group#pid" → consecutive failed checks
+	policies    map[string]QuitPolicy
+	pending     map[string]domain.ProxyGrant
+	lastBusy    time.Time
+	stop        chan struct{}
+	stopOnce    sync.Once
+	kick        chan struct{}
 }
 
 type stateFile struct {
@@ -93,7 +98,7 @@ func Run(ctx context.Context, opts Options) error {
 	}
 	defer unlock()
 
-	d := &Daemon{opts: opts, proxy: credproxy.New(), pending: map[string]domain.ProxyGrant{}, clients: map[string]client{}, policies: map[string]QuitPolicy{}, watchers: map[string]*watcher{}, lastBusy: time.Now(), stop: make(chan struct{}), kick: make(chan struct{}, 1)}
+	d := &Daemon{opts: opts, proxy: credproxy.New(), pending: map[string]domain.ProxyGrant{}, clients: map[string]client{}, verified: map[string]bool{}, verifyFails: map[string]int{}, policies: map[string]QuitPolicy{}, watchers: map[string]*watcher{}, lastBusy: time.Now(), stop: make(chan struct{}), kick: make(chan struct{}, 1)}
 	if err := d.startProxy(); err != nil {
 		return err
 	}
@@ -261,19 +266,22 @@ func (d *Daemon) supervise(ctx context.Context) bool {
 				if s.Status == domain.ServerStopped || s.Status == domain.ServerSleeping {
 					continue
 				}
-				if s.PID > 0 && processAlive(s.PID) {
+				if s.Status == domain.ServerStarting && time.Since(s.CreatedAt) < 2*time.Minute {
+					live++ // being started by a client: never touch it
+					continue
+				}
+				if s.PID > 0 && processAlive(s.PID) && d.isOurServer(ctx, s) {
 					live++
 					if s.Status == domain.ServerReady {
 						ready = append(ready, s)
 					}
 					continue
 				}
-				if s.Status == domain.ServerStarting && time.Since(s.CreatedAt) < 2*time.Minute {
-					live++
-					continue
+				// Dead, or the PID now belongs to another process (reboot): mark
+				// stopped without signalling it, only if the row is unchanged.
+				if ok, _ := d.opts.Servers.SetStatusIf(ctx, s.GroupKey, s.PID, s.Status, domain.ServerStopped); ok {
+					d.revokeOwner(ctx, s.GroupKey)
 				}
-				_ = d.opts.Servers.SetStatus(ctx, s.GroupKey, domain.ServerStopped)
-				d.revokeOwner(ctx, s.GroupKey)
 			}
 		}
 	}
@@ -286,6 +294,40 @@ func (d *Daemon) supervise(ctx context.Context) bool {
 		return false
 	}
 	return time.Since(d.lastBusy) > d.opts.IdleAfter
+}
+
+// isOurServer checks that a live PID is really the tool server (authenticated
+// API call), so that a reused PID (after a reboot) is never mistaken for it
+// nor signalled. Success is cached per (group, pid); a server is declared
+// foreign only after several consecutive failures (a busy server may be slow).
+// verifyFailLimit is the number of failed checks before a live PID is
+// considered foreign.
+const verifyFailLimit = 3
+
+func (d *Daemon) isOurServer(ctx context.Context, s domain.Server) bool {
+	key := s.GroupKey + "#" + strconv.Itoa(s.PID)
+	d.mu.Lock()
+	ok := d.verified[key]
+	d.mu.Unlock()
+	if ok || d.opts.Adapter == nil {
+		return true
+	}
+	ad := d.opts.Adapter(s.Adapter)
+	if ad == nil {
+		return true
+	}
+	cctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+	_, err := ad.ActiveSessions(cctx, adapters.ServerHandle{URL: s.URL, Password: s.Password, PID: s.PID})
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	if err == nil {
+		d.verified[key] = true
+		delete(d.verifyFails, key)
+		return true
+	}
+	d.verifyFails[key]++
+	return d.verifyFails[key] < verifyFailLimit
 }
 
 func (d *Daemon) revokeOwner(ctx context.Context, owner string) {

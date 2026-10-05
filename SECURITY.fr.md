@@ -75,6 +75,12 @@ Les tokens des serveurs MCP (GitLab, Figma, Jira, Linear, Google) sont :
 - Transmis aux sous-processus MCP via des variables d'environnement
 - Jamais logues, jamais ecrits dans l'etat de session, jamais transmis aux fournisseurs IA
 
+### Identifiants LLM et démon oh (sessions opencode V2)
+
+Avec opencode V2, le serveur de l'outil ne reçoit jamais la clé LLM. Un démon par utilisateur (`ohd`, socket Unix `~/.oh/run/ohd.sock`, droits 0600) fait tourner un proxy d'identifiants sur `127.0.0.1`. Chaque groupe de serveurs reçoit un jeton de session aléatoire de 256 bits. Le proxy remplace ce jeton par la vraie clé (ou signe avec AWS SigV4) et ne relaie que vers l'adresse du fournisseur. La base ne contient que le jeton et une référence à l'identifiant, jamais le secret. `~/.oh` est en 0700, `oh.db` et ses fichiers WAL en 0600.
+
+**Limite connue du mode local :** le shell de l'agent tourne sous votre utilisateur. Il peut donc atteindre le socket du démon et `oh.db`, et ainsi utiliser ou demander un jeton de proxy, ou arrêter le démon. Il ne voit jamais la clé LLM elle-même. L'isolation vis-à-vis de l'agent arrive avec les sessions en conteneur (phase 4 de v5). D'ici là, considérez que l'agent agit avec les droits de votre utilisateur, comme avec opencode V1.
+
 ## Bonnes pratiques pour les utilisateurs
 
 1. **Utilisez le trousseau systeme** — c'est le stockage le plus securise. Evitez le fallback fichier sauf si necessaire.

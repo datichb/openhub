@@ -62,10 +62,12 @@ func withOhPlugin(b sessionspec.BundleSpec, dir, traceFile string) sessionspec.B
 	for id := range SystemAgents {
 		systemAgents = append(systemAgents, id)
 	}
+	// Never nil: an empty list means "no skill" (null would disable the filter).
+	agents, skills := append([]string{}, b.AgentIDs()...), append([]string{}, b.SkillIDs()...)
 	opts := map[string]any{
 		"agentsDir":    filepath.Join(dir, "agents"),
-		"agents":       b.AgentIDs(),
-		"skills":       b.SkillIDs(),
+		"agents":       agents,
+		"skills":       skills,
 		"systemAgents": systemAgents,
 	}
 	if traceFile != "" {

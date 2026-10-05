@@ -45,7 +45,8 @@ func (ss *ServerStore) Upsert(ctx context.Context, s *domain.Server) error {
 			adapter=excluded.adapter, adapter_version=excluded.adapter_version, runtime=excluded.runtime,
 			project_id=excluded.project_id, bundle_hash=excluded.bundle_hash, pid=excluded.pid, url=excluded.url,
 			port=excluded.port, password=excluded.password, data_dir=excluded.data_dir, work_dir=excluded.work_dir,
-			proxy_token=excluded.proxy_token, status=excluded.status, last_activity_at=excluded.last_activity_at`,
+			proxy_token=excluded.proxy_token, status=excluded.status, created_at=excluded.created_at,
+			last_activity_at=excluded.last_activity_at`,
 		s.GroupKey, s.Adapter, s.AdapterVersion, s.Runtime, s.ProjectID, s.BundleHash, s.PID, s.URL, s.Port,
 		s.Password, s.DataDir, s.WorkDir, s.ProxyToken, string(s.Status), s.CreatedAt, s.LastActivityAt)
 	if err != nil {
@@ -88,6 +89,17 @@ func (ss *ServerStore) List(ctx context.Context) ([]domain.Server, error) {
 func (ss *ServerStore) SetStatus(ctx context.Context, groupKey string, status domain.ServerStatus) error {
 	_, err := ss.db.ExecContext(ctx, `UPDATE servers SET status = ? WHERE group_key = ?`, string(status), groupKey)
 	return err
+}
+
+// SetStatusIf changes the status only if pid and status are unchanged.
+func (ss *ServerStore) SetStatusIf(ctx context.Context, groupKey string, pid int, from, to domain.ServerStatus) (bool, error) {
+	res, err := ss.db.ExecContext(ctx, `UPDATE servers SET status = ? WHERE group_key = ? AND pid = ? AND status = ?`,
+		string(to), groupKey, pid, string(from))
+	if err != nil {
+		return false, err
+	}
+	n, _ := res.RowsAffected()
+	return n > 0, nil
 }
 
 // Touch records server activity.

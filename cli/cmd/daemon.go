@@ -45,6 +45,9 @@ var daemonRunCmd = &cobra.Command{
 			Sessions:  a.Sessions,
 			Secrets:   a.Secrets,
 			IdleSleep: time.Duration(a.Config.Session.IdleSleepMinutes) * time.Minute,
+			// Async: a git push must not stall supervision (the daemon
+			// outlives the last server by IdleAfter).
+			OnSessionEnd: sessionEndHook(a, true),
 			Adapter: func(name string) adapters.ToolAdapter {
 				if name != opencodev2.Name {
 					return nil

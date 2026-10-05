@@ -69,10 +69,9 @@ func startTUIPresence(ctx context.Context) func() {
 	}
 	pctx, cancel := context.WithCancel(ctx)
 	go func() {
+		// Heartbeats are retried every period: a daemon started (or
+		// restarted) after the TUI opened still learns that oh is open.
 		dc := daemon.NewClient(daemon.Paths{Dir: ohRunDir()})
-		if _, err := dc.Health(pctx); err != nil {
-			return // no daemon: nothing is running, nothing to keep awake
-		}
 		dc.KeepAlive(pctx, daemon.HeartbeatRequest{ClientID: "tui-" + sessionspec.NewSessionID(), Kind: daemon.ClientPresence}, 30*time.Second)
 	}()
 	return cancel

@@ -2,6 +2,7 @@ package daemon
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"sync"
@@ -25,6 +26,7 @@ type fakeAdapter struct {
 	active  map[string]bool
 	usage   map[string]adapters.SessionResult
 	subs    int
+	failAll bool // ActiveSessions fails (server not authenticated / not ours)
 }
 
 func newFake() *fakeAdapter {
@@ -66,6 +68,9 @@ func (f *fakeAdapter) Events(ctx context.Context, _ adapters.ServerHandle) (<-ch
 func (f *fakeAdapter) ActiveSessions(context.Context, adapters.ServerHandle) ([]string, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
+	if f.failAll {
+		return nil, errors.New("unauthorized")
+	}
 	var ids []string
 	for id, on := range f.active {
 		if on {

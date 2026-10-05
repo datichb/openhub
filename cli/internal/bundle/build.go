@@ -166,6 +166,14 @@ func Build(req Request) (*Bundle, error) {
 	if def := findAgent(spec.Agents, req.EntryAgent); def != nil && def.Model != nil {
 		m := *def.Model
 		spec.DefaultModel = &m
+	} else if m := deploy.ResolveAgentModel(req.EntryAgent, "", req.ProjectOverrides, req.HubOverrides, req.TeamOverrides, fallbackModel, req.Provider); m != "" && req.Provider != "" {
+		// Without a session model the tool picks its own default for the
+		// provider (opencode V2 + Bedrock: a non-Anthropic model).
+		ref := sessionspec.ParseModelRef(m)
+		if ref.Provider == "" {
+			ref.Provider = deploy.OpencodeProviderID(req.Provider)
+		}
+		spec.DefaultModel = &ref
 	}
 
 	hash, err := hashBundle(tmp, spec)
@@ -254,6 +262,10 @@ func agentDef(req Request, a *deploy.AssembledAgent, slot *workflow.AgentSlot, i
 	def.Permissions = ConvertPermissions(perms)
 	return def, nil
 }
+
+// fallbackModel is the session model when neither the entry agent nor the
+// overrides set one.
+const fallbackModel = "claude-sonnet-4-6"
 
 func findAgent(agents []sessionspec.AgentDef, id string) *sessionspec.AgentDef {
 	for i := range agents {

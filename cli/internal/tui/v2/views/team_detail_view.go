@@ -88,7 +88,7 @@ func (v *TeamDetailView) ID() string             { return "team.detail" }
 func (v *TeamDetailView) Title() string          { return i18n.T("tui.team.detail") }
 
 func (v *TeamDetailView) StatusHints() string {
-	return fmt.Sprintf("j/k %s · Space %s · Enter edit · w %s · s %s · t %s · a %s · d %s · u %s · r %s · y discovery · k %s",
+	return fmt.Sprintf("j/k %s · Space %s · Enter edit · w %s · s %s · t %s · a %s · d %s · u %s · r %s · y discovery · K %s",
 		i18n.T("tui.hints.nav"), i18n.T("tui.hints.toggle"), i18n.T("tui.hints.save"),
 		i18n.T("tui.hints.sync"), i18n.T("tui.hints.test"), i18n.T("tui.hints.add"),
 		i18n.T("tui.hints.del"), i18n.T("tui.hints.undo"), i18n.T("tui.hints.refresh"),
@@ -170,7 +170,7 @@ func (v *TeamDetailView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 	case 'u':
 		v.undo()
 		return nil
-	case 'k':
+	case 'K':
 		v.setTeamProviderKey()
 		return nil
 	case 'r':
@@ -972,7 +972,7 @@ func (v *TeamDetailView) setTeamProviderKey() {
 		return
 	}
 	options := []SelectOption{
-		{Label: "Amazon Bedrock (clé API)", Value: "bedrock"},
+		{Label: i18n.T("tui.team.llm_key.bedrock"), Value: "bedrock"},
 		{Label: "Anthropic", Value: "anthropic"},
 		{Label: "OpenRouter", Value: "openrouter"},
 	}

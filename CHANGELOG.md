@@ -11,13 +11,17 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ### Added — runtime v5 (phase 0, opencode V2)
 
-- **Sessions sur le runtime v5** dès qu'opencode V2 est installé (`OH_V5=0` pour l'ancien comportement) : paquet de session compilé hors du projet (`~/.oh/bundles/<hash>`), serveur `opencode serve` dédié par groupe (paquet, projet), « monde fermé » vérifié (seuls les agents/skills du paquet sont visibles), plugin oh embarqué (prompt d'agent ajouté au prompt de base d'opencode).
+- **Sessions sur le runtime v5** dès qu'opencode V2 est installé (l'ancien chemin de lancement ne fonctionne pas avec V2 ; pas encore pris en charge sous Windows) : paquet de session compilé hors du projet (`~/.oh/bundles/<hash>`), serveur `opencode serve` dédié par groupe (paquet, projet), « monde fermé » vérifié (seuls les agents/skills du paquet sont visibles), plugin oh embarqué (prompt d'agent ajouté au prompt de base d'opencode).
 - **Démon `ohd`** (`oh daemon status|stop`) : proxy d'identifiants LLM (opencode ne reçoit qu'un jeton de session ; Bedrock jeton ou profil AWS SigV4, Anthropic, OpenRouter), suivi temps réel des sessions (état, coût, tokens), mise en veille des serveurs inactifs, reprise.
 - **`oh session attach|list|stop`** ; ouverture des sessions dans un nouvel onglet/fenêtre (iTerm2, Terminal.app, tmux, navigateur) ; fermer la fenêtre ne coupe pas la session.
-- **Clés LLM au niveau équipe** (`openhub.team.<équipe>.provider.<p>.token`, touche `k` dans Détail équipe).
+- **Clés LLM au niveau équipe** (`openhub.team.<équipe>.provider.<p>.token`, touche `K` dans Détail équipe).
 - **Réglages `[session]`** (`attach`, `iterm_style`, `idle_sleep_minutes`) ; question à la fermeture de la TUI ; récapitulatif « pendant votre absence ».
 - `--parallel`, `--sweep` et les exécutions sans interface passent par le runtime v5 (un serveur pour toute l'exécution).
 - `OH_HOME` relocalise `~/.oh` ; nouvelles vérifications `oh doctor` (runtime v5, démon, git, terminal).
+
+### Changed
+
+- Les migrations SQLite v28–v31 s'appliquent à la base locale (`servers`, `proxy_grants`, colonnes de suivi des sessions) ; `~/.oh` passe en 0700 et `oh.db` (avec ses fichiers WAL) en 0600.
 
 ### Fixed
 
@@ -28,6 +32,7 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ### Documentation
 
+- **Guide « Sessions v5 »** — `sessions-v5.{en,fr}.md` : ouverture, veille, reprise, commandes, clés LLM, variables d'environnement, limites ; `SECURITY` : proxy d'identifiants et limite connue du mode local
 - **Référence MCP GitLab** — `mcp-gitlab.{en,fr}.md` : 11 outils documentés (5 read + 6 write)
 - **Guide GitLab réécrit** — Noms d'outils v1→v2, variables d'env corrigées, mode write ajouté
 - **Skills adapters GitLab corrigés** — Noms d'outils v1→v2 dans pathfinder, planner, onboarder ; outils supprimés (`list_gitlab_labels`, `list_gitlab_milestones`) remplacés par alternatives

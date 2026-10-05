@@ -125,8 +125,8 @@ func TestConvertPermissions(t *testing.T) {
 	}
 	assert.Equal(t, []string{
 		"shell * deny", "shell bd * allow", "shell git * allow", "shell git push* deny",
-		"edit * allow", "question * ask", "skill * allow", "edit * deny",
-	}, got)
+		"edit * deny", "question * ask", "skill * allow",
+	}, got, "write: false is not widened by edit: allow")
 }
 
 func TestBuildResolvesModels(t *testing.T) {
@@ -143,4 +143,29 @@ func TestBuildResolvesModels(t *testing.T) {
 	require.NotNil(t, rev.Model)
 	assert.Contains(t, rev.Model.Model, "claude-opus-4-6")
 	require.NotNil(t, b.Spec.DefaultModel, "entry agent model becomes the default model")
+}
+
+// E14-M3: write/patch never widen edit (benchmarker: edit deny + write allow).
+func TestConvertPermissionsMergedKeysAreRestrictive(t *testing.T) {
+	rules := ConvertPermissions(map[string]interface{}{"edit": "deny", "write": "allow"})
+	require.Len(t, rules, 1)
+	assert.Equal(t, sessionspec.PermissionRule{Action: sessionspec.ActionEdit, Resource: "*", Effect: sessionspec.EffectDeny}, rules[0])
+
+	rules = ConvertPermissions(map[string]interface{}{
+		"edit":  map[string]interface{}{"*": "allow", "secrets/**": "deny"},
+		"patch": "ask",
+	})
+	assert.Equal(t, []sessionspec.PermissionRule{
+		{Action: sessionspec.ActionEdit, Resource: "*", Effect: sessionspec.EffectAsk},
+		{Action: sessionspec.ActionEdit, Resource: "secrets/**", Effect: sessionspec.EffectDeny},
+	}, rules)
+}
+
+// An entry agent without a model still gets a session model (never the tool's own default).
+func TestBuildEntryWithoutModelGetsFallback(t *testing.T) {
+	b, err := Build(Request{HubDir: repoHub(t), OutDir: t.TempDir(), EntryAgent: "developer", Provider: "bedrock"})
+	require.NoError(t, err)
+	require.NotNil(t, b.Spec.DefaultModel)
+	assert.Equal(t, "amazon-bedrock", b.Spec.DefaultModel.Provider)
+	assert.Contains(t, b.Spec.DefaultModel.Model, "claude-sonnet-4-6")
 }

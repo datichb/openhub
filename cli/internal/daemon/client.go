@@ -13,6 +13,7 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
+	"runtime"
 	"time"
 )
 
@@ -182,6 +183,9 @@ type EnsureOptions struct {
 // Ensure returns a client to a running daemon, spawning one if needed.
 // A daemon of another version is replaced only when it has no live server.
 func Ensure(ctx context.Context, paths Paths, opts EnsureOptions) (*Client, Health, error) {
+	if runtime.GOOS == "windows" {
+		return nil, Health{}, ErrUnsupported
+	}
 	c := NewClient(paths)
 	if h, err := c.Health(ctx); err == nil {
 		if opts.Version == "" || h.Version == opts.Version {

@@ -136,8 +136,8 @@ func (d *Daemon) sleepDecision(srv domain.Server, w *watcher) (sleep, stop bool)
 		return false, true
 	}
 	attached, presence := d.clientState(srv.GroupKey)
-	if attached || w == nil {
-		return false, false
+	if attached || w == nil || !w.isSynced() {
+		return false, false // never sleep on a state that was not resynchronized
 	}
 	executing, pending, lastEvent := w.snapshot()
 	if executing > 0 {
@@ -205,17 +205,38 @@ func (d *Daemon) markSessions(ctx context.Context, srv domain.Server, state doma
 			s.Status = domain.SessionStatusCompleted
 			s.EndedAt = &now
 		}
-		_ = d.opts.Sessions.Update(ctx, s)
+		if err := d.opts.Sessions.Update(ctx, s); err == nil && state == domain.RunStopped && d.opts.OnSessionEnd != nil {
+			d.opts.OnSessionEnd(ctx, *s)
+		}
 	}
 }
 
 // applyLifecycle evaluates sleep/stop decisions for the ready servers.
+// toolBusy asks the tool itself whether any session of the group is executing
+// (including sessions oh does not track yet). Errors count as busy.
+func (d *Daemon) toolBusy(ctx context.Context, srv domain.Server) bool {
+	if d.opts.Adapter == nil {
+		return false
+	}
+	ad := d.opts.Adapter(srv.Adapter)
+	if ad == nil {
+		return false
+	}
+	cctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	ids, err := ad.ActiveSessions(cctx, adapters.ServerHandle{URL: srv.URL, Password: srv.Password, PID: srv.PID})
+	return err != nil || len(ids) > 0
+}
+
 func (d *Daemon) applyLifecycle(ctx context.Context, ready []domain.Server) {
 	for _, srv := range ready {
 		d.wmu.Lock()
 		w := d.watchers[srv.GroupKey]
 		d.wmu.Unlock()
 		sleep, stop := d.sleepDecision(srv, w)
+		if sleep && d.toolBusy(ctx, srv) {
+			sleep = false
+		}
 		switch {
 		case stop:
 			d.putToSleep(ctx, srv, true)

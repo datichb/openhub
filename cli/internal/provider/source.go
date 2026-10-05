@@ -2,6 +2,7 @@ package provider
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/datichb/openhub/cli/internal/domain"
@@ -59,7 +60,16 @@ func ResolveCredentialSource(ctx context.Context, secrets SecretStore, prov Name
 			if c.key == "" {
 				continue
 			}
-			if v, err := secrets.Get(ctx, c.key); err == nil && v != "" {
+			v, err := secrets.Get(ctx, c.key)
+			if errors.Is(err, domain.ErrNotFound) {
+				continue
+			}
+			if err != nil {
+				// Locked keychain, access denied...: never fall back silently
+				// to another key (it would bill another account).
+				return out, fmt.Errorf("reading %s credential %q: %w", c.scope, c.key, err)
+			}
+			if v != "" {
 				out.Source = domain.CredentialSource{Kind: kind, KeychainKey: c.key, Scope: c.scope}
 				out.Secret = v
 				return out, nil

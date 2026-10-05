@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -34,6 +35,14 @@ type lcEnv struct {
 	ad       *stopCountingAdapter
 	client   *Client
 	events   chan adapters.ToolEvent
+	endedMu  sync.Mutex
+	ended    []string // OnSessionEnd calls
+}
+
+func (e *lcEnv) endedIDs() []string {
+	e.endedMu.Lock()
+	defer e.endedMu.Unlock()
+	return append([]string(nil), e.ended...)
 }
 
 func startLifecycle(t *testing.T, idleSleep time.Duration, group string, sessionIDs ...string) *lcEnv {
@@ -55,7 +64,12 @@ func startLifecycle(t *testing.T, idleSleep time.Duration, group string, session
 	go func() {
 		done <- Run(dctx, Options{Paths: p, Version: "t", Servers: e.servers, Sessions: e.sessions, Grants: sqlite.NewGrantStore(st),
 			Tick: 50 * time.Millisecond, IdleAfter: time.Hour, IdleSleep: idleSleep,
-			Adapter: func(string) adapters.ToolAdapter { return e.ad }})
+			Adapter: func(string) adapters.ToolAdapter { return e.ad },
+			OnSessionEnd: func(_ context.Context, s domain.Session) {
+				e.endedMu.Lock()
+				e.ended = append(e.ended, s.ID)
+				e.endedMu.Unlock()
+			}})
 	}()
 	t.Cleanup(func() { cancel(); <-done })
 	e.client = NewClient(p)
@@ -123,8 +137,31 @@ func TestSleepWhenIdlePolicyWaitsForTheTurn(t *testing.T) {
 	time.Sleep(300 * time.Millisecond)
 	assert.Equal(t, domain.ServerReady, e.serverStatus("g1"), "the agent is still working")
 
+	e.ad.set(func() { e.ad.active["ses_a"] = false })
 	e.events <- adapters.ToolEvent{Kind: adapters.EventExecEnded, SessionID: "ses_a", Outcome: "succeeded"}
 	require.Eventually(t, func() bool { return e.serverStatus("g1") == domain.ServerSleeping }, 3*time.Second, 20*time.Millisecond)
+}
+
+// E14-M2: a session the tool runs but oh does not track keeps the group awake.
+func TestUntrackedToolSessionKeepsGroupAwake(t *testing.T) {
+	e := startLifecycle(t, 100*time.Millisecond, "g1")
+	e.ad.set(func() { e.ad.active["ses_untracked"] = true })
+	time.Sleep(600 * time.Millisecond)
+	assert.Equal(t, domain.ServerReady, e.serverStatus("g1"), "the tool reports an executing session")
+	e.ad.set(func() { e.ad.active["ses_untracked"] = false })
+	require.Eventually(t, func() bool { return e.serverStatus("g1") == domain.ServerSleeping }, 5*time.Second, 50*time.Millisecond)
+}
+
+// E14-M2: an event for a session whose row appears just after is tracked.
+func TestLateSessionRowIsTracked(t *testing.T) {
+	e := startLifecycle(t, time.Hour, "g1")
+	e.events <- adapters.ToolEvent{Kind: adapters.EventExecStarted, SessionID: "ses_late"}
+	time.Sleep(100 * time.Millisecond)
+	require.NoError(t, e.sessions.Create(e.ctx, &domain.Session{ID: "ses_late", ProjectID: "p1", Status: domain.SessionStatusRunning, GroupKey: "g1", State: domain.RunIdle}))
+	require.Eventually(t, func() bool {
+		e.events <- adapters.ToolEvent{Kind: adapters.EventExecStarted, SessionID: "ses_late"}
+		return e.state("ses_late") == domain.RunActive
+	}, 10*time.Second, 500*time.Millisecond)
 }
 
 func TestStopNowPolicy(t *testing.T) {
@@ -136,4 +173,5 @@ func TestStopNowPolicy(t *testing.T) {
 	assert.Equal(t, domain.RunStopped, s.State)
 	assert.Equal(t, domain.SessionStatusCompleted, s.Status)
 	assert.NotNil(t, s.EndedAt)
+	assert.Equal(t, []string{"ses_a"}, e.endedIDs(), "E14-M10: session.complete hook")
 }

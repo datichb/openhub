@@ -7,6 +7,8 @@ package runsvc
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -18,6 +20,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/adapters"
 	"github.com/datichb/openhub/cli/internal/bundle"
+	"github.com/datichb/openhub/cli/internal/credproxy"
 	"github.com/datichb/openhub/cli/internal/daemon"
 	"github.com/datichb/openhub/cli/internal/deploy"
 	"github.com/datichb/openhub/cli/internal/domain"
@@ -50,7 +53,10 @@ type Service struct {
 	Daemon     func(ctx context.Context) (DaemonClient, error)
 	ServersDir string // ~/.oh/servers
 	BundlesDir string // ~/.oh/bundles (resume loads the session bundle by hash)
-	Executable string // oh binary used to attach (default os.Executable)
+	// OnSessionEnd is called when a session is stopped for good (team
+	// session.complete event).
+	OnSessionEnd func(ctx context.Context, s domain.Session)
+	Executable   string // oh binary used to attach (default os.Executable)
 }
 
 // StartRequest describes a session to start.
@@ -111,13 +117,18 @@ func (s *Service) StartSession(ctx context.Context, req StartRequest) (*StartRes
 		return nil, fmt.Errorf("starting oh daemon: %w", err)
 	}
 
-	key := sessionspec.GroupKey{BundleHash: spec.Hash, ProjectID: req.ProjectID, Runtime: sessionspec.RuntimeLocal}
+	cred, region, err := s.resolveProvider(ctx, &req)
+	if err != nil {
+		return nil, err
+	}
+	key := sessionspec.GroupKey{BundleHash: spec.Hash, ProjectID: req.ProjectID, Runtime: sessionspec.RuntimeLocal,
+		Config: configFingerprint(req, cred, region)}
 	gk := key.String()
 	unlock, err := filelock.Lock(filepath.Join(s.ServersDir, gk, "lock"))
 	if err != nil {
 		return nil, err
 	}
-	srv, reused, report, err := s.ensureServer(ctx, dc, req, key)
+	srv, reused, report, err := s.ensureServer(ctx, dc, req, key, gk, cred, region)
 	unlock()
 	if err != nil {
 		return nil, err
@@ -130,13 +141,16 @@ func (s *Service) StartSession(ctx context.Context, req StartRequest) (*StartRes
 		SessionID: sid, Title: req.Title, Group: key, ProjectID: req.ProjectID,
 		Location: req.Location, EntryAgent: entry, Mode: req.Mode, Prompt: req.Prompt,
 		Runtime: sessionspec.RuntimeLocal, Attach: req.Attach,
-		Model: entryModel(spec, entry), Provider: sessionspec.ProviderSpec{Region: regionFor(req)},
+		Model: entryModel(spec, entry), Provider: sessionspec.ProviderSpec{Region: region},
 	}
+	// The oh row is written before the tool session exists, so that the
+	// daemon tracks the session from its very first event.
+	s.persistSession(ctx, req, srv, sid, entry)
 	if err := s.Adapter.CreateSession(ctx, h, ss); err != nil {
+		s.markFailed(ctx, sid)
 		return nil, fmt.Errorf("creating session: %w", err)
 	}
 	res.SessionID = sid
-	s.persistSession(ctx, req, srv, sid, entry)
 
 	if req.Prompt != "" {
 		if err := s.Adapter.SendPrompt(ctx, h, sid, req.Prompt); err != nil {
@@ -161,15 +175,36 @@ func entryModel(spec sessionspec.BundleSpec, entry string) *sessionspec.ModelRef
 	return spec.DefaultModel
 }
 
-// regionFor is the provider region of a request (Bedrock defaults to us-east-1).
-func regionFor(req StartRequest) string {
-	if req.ProviderCfg.AWSRegion != "" {
-		return req.ProviderCfg.AWSRegion
+// resolveProvider resolves the credential source and the region of a
+// request. The Bedrock region follows the oh config, then the AWS SDK chain
+// (AWS_REGION, AWS_DEFAULT_REGION, profile), then us-east-1 with a warning.
+func (s *Service) resolveProvider(ctx context.Context, req *StartRequest) (provider.ResolvedCredential, string, error) {
+	cred, err := provider.ResolveCredentialSource(ctx, s.Secrets, provider.Name(req.Provider), req.ProjectID, req.TeamID, req.ProjectTokenKey, &req.ProviderCfg)
+	if err != nil {
+		return cred, "", err
 	}
-	if deploy.OpencodeProviderID(req.Provider) == "amazon-bedrock" {
-		return "us-east-1"
+	region := req.ProviderCfg.AWSRegion
+	if region == "" && deploy.OpencodeProviderID(req.Provider) == "amazon-bedrock" {
+		region = credproxy.AWSRegion(ctx, req.ProviderCfg.AWSProfile)
+		if region == "" {
+			region = "us-east-1"
+			slog.Warn("runsvc: no AWS region configured (oh config, AWS_REGION, profile); using us-east-1")
+		}
 	}
-	return ""
+	return cred, region, nil
+}
+
+// configFingerprint identifies the provider settings a server is bound to.
+// The secret only contributes through its hash.
+func configFingerprint(req StartRequest, cred provider.ResolvedCredential, region string) string {
+	h := sha256.New()
+	secret := sha256.Sum256([]byte(cred.Secret))
+	for _, part := range []string{req.ProjectID, deploy.OpencodeProviderID(req.Provider), region,
+		string(cred.Source.Kind), cred.Source.KeychainKey, cred.Source.Profile, hex.EncodeToString(secret[:])} {
+		h.Write([]byte(part))
+		h.Write([]byte{0})
+	}
+	return hex.EncodeToString(h.Sum(nil))
 }
 
 func attachPref(p sessionspec.AttachPref) termlaunch.Pref {
@@ -186,8 +221,7 @@ func attachPref(p sessionspec.AttachPref) termlaunch.Pref {
 
 // ensureServer returns a healthy server for the group, starting one if needed.
 // Must be called with the group lock held.
-func (s *Service) ensureServer(ctx context.Context, dc DaemonClient, req StartRequest, key sessionspec.GroupKey) (*domain.Server, bool, adapters.VisibilityReport, error) {
-	gk := key.String()
+func (s *Service) ensureServer(ctx context.Context, dc DaemonClient, req StartRequest, key sessionspec.GroupKey, gk string, cred provider.ResolvedCredential, region string) (*domain.Server, bool, adapters.VisibilityReport, error) {
 	if srv, err := s.Servers.Get(ctx, gk); err == nil && srv.Status == domain.ServerReady && filelock.ProcessAlive(srv.PID) {
 		if _, uerr := dc.Usage(ctx, srv.ProxyToken); uerr == nil {
 			rep, aerr := s.Adapter.Attest(ctx, handle(srv), req.Bundle.Spec, req.Location)
@@ -202,14 +236,14 @@ func (s *Service) ensureServer(ctx context.Context, dc DaemonClient, req StartRe
 		_ = dc.RevokeOwner(ctx, gk)
 	}
 
-	srv, rep, err := s.startServer(ctx, dc, req, key)
+	srv, rep, err := s.startServer(ctx, dc, req, key, gk, cred, region)
 	if err == nil && !rep.OK() {
 		if r, ok := s.Adapter.(nativeRefresher); ok {
 			slog.Info("runsvc: unexpected agents, re-discovering native agents", "unexpected", rep.Unexpected)
 			r.RefreshNatives(ctx)
 			_ = s.Adapter.StopServer(ctx, handle(srv))
 			_ = dc.RevokeOwner(ctx, gk)
-			srv, rep, err = s.startServer(ctx, dc, req, key)
+			srv, rep, err = s.startServer(ctx, dc, req, key, gk, cred, region)
 		}
 	}
 	if err != nil {
@@ -224,14 +258,8 @@ func (s *Service) ensureServer(ctx context.Context, dc DaemonClient, req StartRe
 	return srv, false, rep, nil
 }
 
-func (s *Service) startServer(ctx context.Context, dc DaemonClient, req StartRequest, key sessionspec.GroupKey) (*domain.Server, adapters.VisibilityReport, error) {
-	gk := key.String()
+func (s *Service) startServer(ctx context.Context, dc DaemonClient, req StartRequest, key sessionspec.GroupKey, gk string, cred provider.ResolvedCredential, region string) (*domain.Server, adapters.VisibilityReport, error) {
 	ocProvider := deploy.OpencodeProviderID(req.Provider)
-	cred, err := provider.ResolveCredentialSource(ctx, s.Secrets, provider.Name(req.Provider), req.ProjectID, req.TeamID, req.ProjectTokenKey, &req.ProviderCfg)
-	if err != nil {
-		return nil, adapters.VisibilityReport{}, err
-	}
-	region := regionFor(req)
 	grant, err := dc.IssueGrant(ctx, daemon.GrantRequest{
 		Owner: gk, Provider: ocProvider, Region: region, Source: cred.Source, Secret: cred.Secret,
 		AllowedModels: req.AllowedModels, MaxTokens: req.MaxTokens,
@@ -290,6 +318,19 @@ func (s *Service) persistSession(ctx context.Context, req StartRequest, srv *dom
 	if err := s.Sessions.Create(ctx, sess); err != nil {
 		slog.Warn("runsvc: session tracking failed", "session", sid, "error", err)
 	}
+}
+
+func (s *Service) markFailed(ctx context.Context, sid string) {
+	if s.Sessions == nil {
+		return
+	}
+	sess, err := s.Sessions.Get(ctx, sid)
+	if err != nil {
+		return
+	}
+	sess.State = domain.RunFailed
+	sess.Status = domain.SessionStatusFailed
+	_ = s.Sessions.Update(ctx, sess)
 }
 
 // Attach opens an interactive client for a session in a new terminal tab or
@@ -403,12 +444,24 @@ func (s *Service) ResumeSession(ctx context.Context, sessionID string, req Start
 	if err != nil {
 		return err
 	}
-	key := sessionspec.GroupKey{BundleHash: sess.BundleHash, ProjectID: sess.ProjectID, Runtime: sessionspec.RuntimeLocal}
-	unlock, err := filelock.Lock(filepath.Join(s.ServersDir, key.String(), "lock"))
+	cred, region, err := s.resolveProvider(ctx, &req)
 	if err != nil {
 		return err
 	}
-	srv, _, _, err := s.ensureServer(ctx, dc, req, key)
+	key := sessionspec.GroupKey{BundleHash: sess.BundleHash, ProjectID: sess.ProjectID, Runtime: sessionspec.RuntimeLocal,
+		Config: configFingerprint(req, cred, region)}
+	// The session data lives in its original group: keep it even when the
+	// provider settings changed. A sleeping server restarts with the new
+	// settings; a running one keeps its own until it sleeps.
+	gk := sess.GroupKey
+	if key.String() != gk {
+		slog.Info("runsvc: provider settings changed since the session started", "session", sessionID)
+	}
+	unlock, err := filelock.Lock(filepath.Join(s.ServersDir, gk, "lock"))
+	if err != nil {
+		return err
+	}
+	srv, _, _, err := s.ensureServer(ctx, dc, req, key, gk, cred, region)
 	unlock()
 	if err != nil {
 		return err
@@ -418,7 +471,7 @@ func (s *Service) ResumeSession(ctx context.Context, sessionID string, req Start
 	if err := s.Sessions.Update(ctx, sess); err != nil {
 		slog.Warn("runsvc: session update failed", "session", sessionID, "error", err)
 	}
-	_ = dc.Touch(ctx, key.String())
+	_ = dc.Touch(ctx, gk)
 	return nil
 }
 
@@ -449,7 +502,13 @@ func (s *Service) StopSession(ctx context.Context, sessionID string) error {
 	}
 	now := time.Now()
 	sess.State, sess.StateChangedAt, sess.Status, sess.EndedAt = domain.RunStopped, &now, domain.SessionStatusCompleted, &now
-	return s.Sessions.Update(ctx, sess)
+	if err := s.Sessions.Update(ctx, sess); err != nil {
+		return err
+	}
+	if s.OnSessionEnd != nil {
+		s.OnSessionEnd(ctx, *sess)
+	}
+	return nil
 }
 
 func terminal(s domain.RunState) bool {

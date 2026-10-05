@@ -208,6 +208,10 @@ type GroupKey struct {
 	BundleHash string      `json:"bundle_hash"`
 	ProjectID  string      `json:"project_id"`
 	Runtime    RuntimeKind `json:"runtime"`
+	// Config fingerprints what a running server is bound to besides its
+	// bundle (exact project id, provider, region, credential source), so that
+	// changing any of them never reuses a server started with the old ones.
+	Config string `json:"config,omitempty"`
 }
 
 // String renders a stable, filesystem-safe key.
@@ -219,6 +223,13 @@ func (g GroupKey) String() string {
 	p := g.ProjectID
 	if p == "" {
 		p = "none"
+	}
+	if g.Config != "" {
+		c := g.Config
+		if len(c) > 10 {
+			c = c[:10]
+		}
+		return fmt.Sprintf("%s-%s-%s-%s", sanitize(p), h, c, g.Runtime)
 	}
 	return fmt.Sprintf("%s-%s-%s", sanitize(p), h, g.Runtime)
 }

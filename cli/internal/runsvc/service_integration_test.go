@@ -5,7 +5,6 @@ package runsvc
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -32,7 +31,7 @@ func (m mapSecrets) Get(_ context.Context, k string) (string, error) {
 	if v, ok := m[k]; ok {
 		return v, nil
 	}
-	return "", errors.New("not found")
+	return "", nil // real stores: absent key → empty value
 }
 
 type fixture struct {
