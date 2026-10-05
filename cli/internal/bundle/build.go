@@ -54,7 +54,9 @@ type Request struct {
 	CodeMode              bool
 
 	// Spec is the resolved oh/v1 workflow. When set, it selects the agents
-	// and the delegation graph (P1-T06); EntryAgent defaults to its entry.
+	// and the delegation graph (P1-T06), generates the chain skills (P1-T11)
+	// and fills EntryAgent, WorkflowModels, ExtraSkills and DenySkills when
+	// they are not set.
 	Spec *workflow.Spec
 }
 
@@ -74,10 +76,8 @@ const (
 // same hash and reuse the existing directory.
 func Build(req Request) (*Bundle, error) {
 	if req.Spec != nil {
-		if req.EntryAgent == "" {
-			req.EntryAgent = req.Spec.EntryAgent()
-		} else if req.EntryAgent != req.Spec.EntryAgent() {
-			return nil, fmt.Errorf("bundle: entry agent %q differs from the workflow entry %q", req.EntryAgent, req.Spec.EntryAgent())
+		if err := req.applySpec(); err != nil {
+			return nil, err
 		}
 	}
 	if req.HubDir == "" || req.OutDir == "" || req.EntryAgent == "" {

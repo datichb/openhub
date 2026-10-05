@@ -180,9 +180,10 @@ func (c *Catalog) HasSkill(ref string) bool {
 	return err == nil
 }
 
-// Closure implements workflow.SkillCatalog. Skill dependencies (`requires:`)
-// are not declared yet (P1-T08): the closure is the deduplicated roots, and
-// unknown roots are reported as missing.
+// Closure implements workflow.SkillCatalog without `requires:`: the closure
+// is the deduplicated roots, unknown roots are reported as missing. The full
+// closure (requires:, duplicate identifiers) is bundle.NewSkillCatalog, which
+// this package cannot import (bundle depends on it).
 func (c *Catalog) Closure(roots []string) ([]string, []workflow.SkillIssue) {
 	var out []string
 	var issues []workflow.SkillIssue

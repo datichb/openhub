@@ -37,6 +37,28 @@ func selectAgents(req Request, wf *workflow.WorkflowDefinition, files map[string
 	return graph, members, nil
 }
 
+// applySpec fills the request from the workflow where the caller left it empty.
+func (req *Request) applySpec() error {
+	s := req.Spec
+	if req.EntryAgent == "" {
+		req.EntryAgent = s.EntryAgent()
+	} else if req.EntryAgent != s.EntryAgent() {
+		return fmt.Errorf("bundle: entry agent %q differs from the workflow entry %q", req.EntryAgent, s.EntryAgent())
+	}
+	if req.WorkflowModels == nil {
+		req.WorkflowModels = WorkflowModels(s.Models)
+	}
+	if s.Skills != nil {
+		if req.ExtraSkills == nil {
+			req.ExtraSkills = s.Skills.Extra
+		}
+		if req.DenySkills == nil {
+			req.DenySkills = s.Skills.Deny
+		}
+	}
+	return nil
+}
+
 // specWorkflow replaces the legacy workflow by the oh/v1 one: no legacy
 // agent slots (modes come from the agents and the workflow), and chain
 // skills generated from the YAML (P1-T11).

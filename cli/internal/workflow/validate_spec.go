@@ -571,7 +571,8 @@ func (v *validator) skills(members []string) {
 		}
 	}
 	for i, ref := range deny {
-		if !cat.HasSkill(ref) {
+		// A deny entry is a ref or a bare identifier (any skill of that name).
+		if strings.Contains(ref, "/") && !cat.HasSkill(ref) {
 			v.warn("skill_unknown_deny", fmt.Sprintf("skills.deny[%d]", i), ref)
 		}
 	}
@@ -584,9 +585,10 @@ func (v *validator) skills(members []string) {
 		}
 	}
 	roots = append(roots, extra...)
+	denied := func(ref string) bool { return containsStr(deny, ref) || containsStr(deny, path.Base(ref)) }
 	var kept []string
 	for _, r := range roots {
-		if !containsStr(deny, r) && !containsStr(kept, r) {
+		if !denied(r) && !containsStr(kept, r) {
 			kept = append(kept, r)
 		}
 	}
@@ -602,8 +604,8 @@ func (v *validator) skills(members []string) {
 		v.err(code, "skills", is.Skill, is.Detail)
 	}
 	for _, ref := range closure {
-		if containsStr(deny, ref) {
-			v.warn("skill_denied_required", "skills.deny", ref)
+		if denied(ref) {
+			v.err("skill_denied_required", "skills.deny", ref)
 		}
 	}
 }

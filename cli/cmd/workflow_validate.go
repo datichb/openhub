@@ -11,6 +11,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/datichb/openhub/cli/internal/bundle"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/workflow"
@@ -84,6 +85,7 @@ func runWorkflowValidate(hubDir, target string, layer workflow.Layer, all bool) 
 			return nil, err
 		}
 		env = hc.Env()
+		env.Skills = bundle.NewSkillCatalog(hubDir)
 	}
 
 	report := &workflowValidateReport{Diagnostics: workflow.Diagnostics{}}
