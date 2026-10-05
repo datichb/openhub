@@ -22,16 +22,34 @@ type Event struct {
 	Data     json.RawMessage `json:"data,omitempty"`
 }
 
-// SessionID extracts data.sessionID when present.
+// SessionID extracts the session of an event: data.sessionID, or the
+// sessionID of the object it carries (form.created: data.form.sessionID,
+// permission requests…).
 func (e Event) SessionID() string {
 	if len(e.Data) == 0 {
 		return ""
 	}
-	var d struct {
-		SessionID string `json:"sessionID"`
+	var d map[string]json.RawMessage
+	if json.Unmarshal(e.Data, &d) != nil {
+		return ""
 	}
-	_ = json.Unmarshal(e.Data, &d)
-	return d.SessionID
+	var id string
+	if raw, ok := d["sessionID"]; ok && json.Unmarshal(raw, &id) == nil && id != "" {
+		return id
+	}
+	for _, k := range []string{"form", "request", "permission", "info", "session"} {
+		raw, ok := d[k]
+		if !ok {
+			continue
+		}
+		var inner struct {
+			SessionID string `json:"sessionID"`
+		}
+		if json.Unmarshal(raw, &inner) == nil && inner.SessionID != "" {
+			return inner.SessionID
+		}
+	}
+	return ""
 }
 
 // Time returns the event creation time (zero if unknown).

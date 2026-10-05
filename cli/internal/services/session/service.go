@@ -19,6 +19,7 @@ type Service struct {
 	Sessions  domain.SessionStore
 	Decisions domain.DecisionStore
 	Servers   domain.ServerStore
+	Projects  domain.ProjectStore // optional: project names
 	Adapter   adapters.ToolAdapter
 	// BundlesDir locates session bundles (strict isolation of a session).
 	BundlesDir string

@@ -14,9 +14,11 @@ import (
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/daemon"
 	"github.com/datichb/openhub/cli/internal/domain"
+	"github.com/datichb/openhub/cli/internal/filelock"
 	"github.com/datichb/openhub/cli/internal/runsvc"
 	ohruntime "github.com/datichb/openhub/cli/internal/runtime"
 	"github.com/datichb/openhub/cli/internal/runtime/container"
+	sessionsvc "github.com/datichb/openhub/cli/internal/services/session"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 	"github.com/datichb/openhub/cli/internal/storage/sqlite"
 	"github.com/datichb/openhub/cli/internal/teamstate"
@@ -131,4 +133,50 @@ func newRunService(ctx context.Context, a *app.App) (*runsvc.Service, error) {
 			return c, nil
 		},
 	}, nil
+}
+
+// newSessionService wires the SessionService (inbox, decisions, instructions,
+// results, live follow-up). Without opencode V2, only the stored state is
+// available.
+func newSessionService(ctx context.Context, a *app.App) (*sessionsvc.Service, error) {
+	if store == nil {
+		return nil, fmt.Errorf("database not initialized")
+	}
+	dc := daemon.NewClient(daemon.Paths{Dir: ohRunDir()})
+	svc := &sessionsvc.Service{
+		Sessions:    a.Sessions,
+		Projects:    a.Projects,
+		Decisions:   sqlite.NewDecisionStore(store),
+		Servers:     sqlite.NewServerStore(store),
+		BundlesDir:  ohBundlesDir(),
+		SessionsDir: ohSessionsDir(),
+		Alive:       filelock.ProcessAlive,
+		Live:        dc.Stream,
+	}
+	if v5Available(ctx) {
+		svc.Adapter = v5Adapter
+		ensureDaemonForLiveServers(ctx, svc.Servers)
+	}
+	return svc, nil
+}
+
+// ensureDaemonForLiveServers starts the oh daemon when a tool server runs
+// without it (daemon stopped or crashed): sessions are only tracked, and
+// their decisions recorded, while the daemon runs.
+func ensureDaemonForLiveServers(ctx context.Context, servers domain.ServerStore) {
+	if _, err := daemon.NewClient(daemon.Paths{Dir: ohRunDir()}).Health(ctx); err == nil {
+		return
+	}
+	list, err := servers.List(ctx)
+	if err != nil {
+		return
+	}
+	for _, s := range list {
+		if s.Status == domain.ServerReady && filelock.ProcessAlive(s.PID) {
+			if _, _, err := ensureDaemon(ctx); err != nil {
+				slog.Debug("oh daemon not started", "error", err)
+			}
+			return
+		}
+	}
 }

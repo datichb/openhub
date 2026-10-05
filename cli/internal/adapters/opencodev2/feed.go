@@ -80,8 +80,8 @@ func (f *feedDecoder) decode(e Event) (item *domain.FeedItem, parentID string) {
 	case "session.tool.success", "session.tool.failed", "session.tool.error":
 		name := f.tools[d.ID]
 		delete(f.tools, d.ID)
-		if name == toolSubagent {
-			return nil, ""
+		if name == toolSubagent || name == "" {
+			return nil, "" // delegation result, or a call started before the stream
 		}
 		it.Kind, it.Tool, it.Status = domain.FeedTool, name, "ok"
 		if e.Type != "session.tool.success" {

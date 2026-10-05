@@ -14,6 +14,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -302,6 +303,25 @@ func TestE2EHeadlessDecisions(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 4*time.Minute)
 	defer cancel()
 	c := NewClient(r.handle.URL, r.handle.Password)
+	evs, err := r.adapter.Events(ctx, r.handle)
+	require.NoError(t, err)
+	var seenMu sync.Mutex
+	seen := map[string]map[adapters.EventKind]bool{}
+	go func() {
+		for ev := range evs {
+			seenMu.Lock()
+			if seen[ev.SessionID] == nil {
+				seen[ev.SessionID] = map[adapters.EventKind]bool{}
+			}
+			seen[ev.SessionID][ev.Kind] = true
+			seenMu.Unlock()
+		}
+	}()
+	asked := func(id string, k adapters.EventKind) bool {
+		seenMu.Lock()
+		defer seenMu.Unlock()
+		return seen[id][k]
+	}
 
 	id := sessionspec.NewSessionID()
 	require.NoError(t, r.adapter.CreateSession(ctx, r.handle, sessionspec.SessionSpec{SessionID: id, Title: "e2e", EntryAgent: "lead", Location: r.project,
@@ -311,7 +331,7 @@ func TestE2EHeadlessDecisions(t *testing.T) {
 	assert.Equal(t, "shell", p.Action)
 	require.NoError(t, r.adapter.Reply(ctx, r.handle, adapters.DecisionReply{SessionID: id, ID: p.ID, Kind: adapters.DecisionPermission, Decision: "once", Message: "approved by oh e2e"}))
 	// Answering twice: the second answer is refused (first answer wins).
-	err := r.adapter.Reply(ctx, r.handle, adapters.DecisionReply{SessionID: id, ID: p.ID, Kind: adapters.DecisionPermission, Decision: "reject"})
+	err = r.adapter.Reply(ctx, r.handle, adapters.DecisionReply{SessionID: id, ID: p.ID, Kind: adapters.DecisionPermission, Decision: "reject"})
 	assert.ErrorIs(t, err, adapters.ErrRequestGone, "%v", err)
 	require.NoError(t, c.Wait(ctx, id))
 	assert.Contains(t, r.text(t, ctx, id), "e2e-perm-ok")
@@ -336,4 +356,11 @@ func TestE2EHeadlessDecisions(t *testing.T) {
 	require.NoError(t, r.adapter.Reply(ctx, r.handle, adapters.DecisionReply{SessionID: q, ID: form.ID, Kind: adapters.DecisionQuestion, Answer: map[string]any{f.Key: answer}}))
 	require.NoError(t, c.Wait(ctx, q))
 	assert.Contains(t, strings.ToLower(r.text(t, ctx, q)), "blue")
+
+	// The decision events carry their session (permission.asked, form.created
+	// nest it in data.request / data.form).
+	for _, s := range []string{id, q} {
+		assert.True(t, asked(s, adapters.EventDecisionAsked), "decision asked event for %s", s)
+		assert.True(t, asked(s, adapters.EventDecisionReplied), "decision replied event for %s", s)
+	}
 }

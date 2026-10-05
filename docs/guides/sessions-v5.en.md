@@ -48,12 +48,30 @@ idle_sleep_minutes = 5     # an idle server goes to sleep after N minutes
 
 | Command | Purpose |
 |---|---|
-| `oh session list` | sessions and their state (active, waiting, idle, sleeping, stopped) |
-| `oh session attach <id>` | open (or resume) a session |
+| `oh session list [--all] [--json]` | sessions, their state (active, waiting, idle, sleeping, stopped) and their waiting decisions |
+| `oh session inbox [--json]` | decisions waiting in every session: `⏸` checkpoint, `?` question, `!` permission, `$` budget, `✗` error |
+| `oh session approve <id> [--decision once\|always\|reject] [-m "…"]` | answer a permission without opening the session (`always` refused under strict isolation) |
+| `oh session answer <id> --field key=value…` | answer an agent question; without `--field`, shows the expected fields |
+| `oh session dismiss <id>` | dismiss an alert (error, budget) |
+| `oh session send <id> "…" [--queue] [--synthetic]` | send a short instruction (taken at the next step, or after the step with `--queue`) |
+| `oh session follow <id>` | follow a session live, read-only (Ctrl+C to quit) |
+| `oh session interrupt\|compact <id>` | interrupt the current step, compact the history |
+| `oh session model <id> <provider/model>` | switch the model of the next steps |
+| `oh session fork <id>` | create a variant (copy of the history, same server) |
+| `oh session results <id> [--mr] [--patch] [--json]` | changed files, branch, cost; merge request description; diff |
+| `oh session attach <id> [--how auto\|iterm\|terminal\|tmux\|browser\|suspend]` | open (or resume) a session |
+| `oh session open <id> --browser [--print]` | open a session in the browser (one-time code, 5 min) |
+| `oh session resume <id>` | resume a sleeping session without opening a client |
 | `oh session stop <id>` | stop a session, and its server if no other session uses it |
 | `oh daemon status` | daemon state (servers, proxy tokens) |
 | `oh daemon stop [--force]` | stop the daemon (refused while sessions run, unless `--force`) |
 | `oh doctor` | v5 checks: runtime, daemon, git, terminal |
+
+In these commands, `<id>` may be the beginning of an ID (`oh session follow dRcJ`); `approve`, `answer` and `dismiss` also accept a decision ID (shown by `inbox`) when a session has several. **First answer wins**: when the decision was already made in the opencode UI or the browser, oh says so and sends nothing.
+
+## Notifications
+
+The oh daemon shows a system notification when a decision waits for you and when a session finishes its step while nobody is attached. Close notifications are grouped and never contain session content. With [`terminal-notifier`](https://github.com/julienXX/terminal-notifier) installed, a click brings oh's terminal back; otherwise oh uses `osascript` (or `notify-send` on Linux). To turn them off: `[session] notify = "off"` in `hub.toml` (applied when the daemon next starts).
 
 ## LLM keys
 
