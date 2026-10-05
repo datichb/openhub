@@ -169,6 +169,26 @@ type BundleSpec struct {
 	DefaultModel  *ModelRef           `json:"default_model,omitempty"`
 }
 
+// BundleRootVar stands for the bundle root directory in agent bodies (paths
+// to skill annexes). Adapters expand it with WithBundleRoot when they render
+// or install the agents; the bundle hash covers the unexpanded text.
+const BundleRootVar = "{{oh.bundle}}"
+
+// WithBundleRoot returns a copy of b whose agent bodies reference root (the
+// bundle directory as seen by the tool: b.Root locally, a mount point in a
+// container). Idempotent.
+func (b BundleSpec) WithBundleRoot(root string) BundleSpec {
+	if root == "" {
+		return b
+	}
+	out := b
+	out.Agents = append([]AgentDef(nil), b.Agents...)
+	for i := range out.Agents {
+		out.Agents[i].Body = strings.ReplaceAll(out.Agents[i].Body, BundleRootVar, root)
+	}
+	return out
+}
+
 // AgentIDs returns the IDs of all agents in the bundle.
 func (b BundleSpec) AgentIDs() []string {
 	ids := make([]string, 0, len(b.Agents))

@@ -15,10 +15,10 @@ Ce workflow s'applique quand les 4 critères de parallélisabilité sont vérifi
 Pour chaque ticket du batch, **dans l'ordre, un par un** :
 
 1. Calculer le nom de branche : `<type>/<ticket-id>-<description-courte>`
-2. Calculer le slug : remplacer `/` par `-` → `<type>-<ticket-id>-<description-courte>`
+2. Calculer le slug : remplacer `/` par `-` → `<type>-<ticket-id>-<description-courte>` ; le worktree est un dossier **frère du dépôt** : `../<projet>-<slug>` (`<projet>` = nom du dossier du dépôt, comme `oh worktree create`)
 3. Exécuter directement (via bash) :
    ```bash
-   git worktree add -b <nom-branche> .worktrees/<slug>
+   git worktree add -b <nom-branche> ../<projet>-<slug>
    ```
 4. Vérifier le succès de la commande avant de passer au ticket suivant
 5. En cas d'échec, appliquer le protocole de recovery worktree (voir skill `orchestrator/error-recovery-protocol`) :
@@ -28,7 +28,7 @@ Pour chaque ticket du batch, **dans l'ordre, un par un** :
 
 Ne pas lancer les sessions parallèles tant que tous les worktrees actifs ne sont pas créés.
 
-Stocker pour chaque ticket : `{ ticket_id, branch_name, worktree_path: ".worktrees/<slug>" }`
+Stocker pour chaque ticket : `{ ticket_id, branch_name, worktree_path: "../<projet>-<slug>" }`
 
 **SEULEMENT une fois tous les worktrees créés avec succès**, passer au lancement simultané.
 
@@ -37,7 +37,7 @@ Stocker pour chaque ticket : `{ ticket_id, branch_name, worktree_path: ".worktre
 Invoquer N sessions `developer-*` dans le même appel — chacune reçoit son ticket, son contexte, et l'instruction TDD si applicable. Le nombre de sessions est limité par le budget de points et le plafond technique (voir critère 4 dans `orchestrator-dev-protocol`).
 
 Quand les worktrees sont activés, chaque developer reçoit dans son prompt le chemin du worktree **déjà existant** :
-> « Travaille exclusivement dans `.worktrees/<slug>/`. Le worktree et la branche `<nom-branche>` ont déjà été créés — ne pas relancer `git worktree add`. Tous tes changements doivent être faits depuis ce répertoire. »
+> « Travaille exclusivement dans `../<projet>-<slug>/`. Le worktree et la branche `<nom-branche>` ont déjà été créés — ne pas relancer `git worktree add`. Tous tes changements doivent être faits depuis ce répertoire. »
 
 ### Attente et agrégation des résultats
 

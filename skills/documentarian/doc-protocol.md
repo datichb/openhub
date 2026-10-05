@@ -1,6 +1,7 @@
 ---
 name: doc-protocol
 description: Protocole de l'agent documentarian — exploration préalable, adaptation à l'existant, routing par type de documentation, règles d'écriture et gestion des standards manquants.
+annexes: [templates/doc-lacunes-checklist.md]
 ---
 
 # Skill — Protocole Documentarian

@@ -101,6 +101,13 @@ func (r *e2eRun) ask(t *testing.T, agent, prompt string) string {
 	require.NoError(t, r.adapter.SendPrompt(ctx, r.handle, id, prompt))
 	c := NewClient(r.handle.URL, r.handle.Password)
 	require.NoError(t, c.Wait(ctx, id))
+	return r.replyText(ctx, t, id)
+}
+
+// replyText returns the text of the assistant messages of a session.
+func (r *e2eRun) replyText(ctx context.Context, t *testing.T, id string) string {
+	t.Helper()
+	c := NewClient(r.handle.URL, r.handle.Password)
 	var msgs struct {
 		Data []struct {
 			Type    string `json:"type"`
@@ -221,4 +228,45 @@ func TestE2EThroughCredentialProxySigV4(t *testing.T) {
 	})
 	reply := r.ask(t, "lead", "Say hello in three words.")
 	assert.True(t, strings.HasPrefix(strings.TrimSpace(reply), "LEAD:"), "reply: %q", reply)
+}
+
+// P1-T09: an agent reads a skill annex stored in the bundle (outside the
+// project) through the expanded BundleRootVar path, without any
+// external_directory permission prompt.
+func TestE2EAgentReadsSkillAnnexOutsideProject(t *testing.T) {
+	b := e2eBundle(t)
+	b.Root = filepath.Dir(b.SkillsDir)
+	annex := filepath.Join(b.SkillsDir, "alpha", "templates", "codeword.md")
+	require.NoError(t, os.MkdirAll(filepath.Dir(annex), 0o755))
+	require.NoError(t, os.WriteFile(annex, []byte("The codeword is PAPAYA-47.\n"), 0o444))
+	b.Agents[0].Body += "\n\nWhen asked for the codeword, read the file `" + sessionspec.BundleRootVar + "/skills/alpha/templates/codeword.md` with the read tool and answer with the codeword only."
+	b.Agents[0].Permissions = []sessionspec.PermissionRule{{Action: sessionspec.ActionRead, Resource: "*", Effect: sessionspec.EffectAllow}}
+
+	r := startE2E(t, b, false)
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+	id := sessionspec.NewSessionID()
+	require.NoError(t, r.adapter.CreateSession(ctx, r.handle, sessionspec.SessionSpec{SessionID: id, Title: "e2e", EntryAgent: "lead", Location: r.project}))
+	require.NoError(t, r.adapter.SendPrompt(ctx, r.handle, id, "What is the codeword?"))
+	c := NewClient(r.handle.URL, r.handle.Password)
+
+	asked := make(chan []string, 1)
+	go func() {
+		for ctx.Err() == nil {
+			if perms, err := c.Permissions(ctx, id); err == nil && len(perms) > 0 {
+				asked <- append([]string{perms[0].Action}, perms[0].Resources...)
+				cancel()
+				return
+			}
+			time.Sleep(time.Second)
+		}
+	}()
+	err := c.Wait(ctx, id)
+	select {
+	case p := <-asked:
+		t.Fatalf("permission asked while reading the annex: %v", p)
+	default:
+	}
+	require.NoError(t, err)
+	assert.Contains(t, r.replyText(context.Background(), t, id), "PAPAYA-47")
 }

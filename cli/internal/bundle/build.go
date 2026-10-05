@@ -138,7 +138,14 @@ func Build(req Request) (*Bundle, error) {
 			if err := ids.add(d); err != nil {
 				return nil, err
 			}
-			bodies = append(bodies, d.body())
+			files, err := loader.annexes(d)
+			if err != nil {
+				return nil, err
+			}
+			if err := writeAnnexes(filepath.Join(tmp, skillsDir), d, files); err != nil {
+				return nil, err
+			}
+			bodies = append(bodies, inlineAnnexRefs(d.body(), d, files))
 		}
 		a, err := deploy.AssembleAgentInline(req.HubDir, files[id], bodies)
 		if err != nil {
@@ -155,7 +162,7 @@ func Build(req Request) (*Bundle, error) {
 		if err := os.MkdirAll(filepath.Join(tmp, agentsDir), 0o755); err != nil {
 			return nil, err
 		}
-		if err := os.WriteFile(filepath.Join(tmp, agentsDir, id+".md"), []byte(def.Body), 0o644); err != nil {
+		if err := os.WriteFile(filepath.Join(tmp, agentsDir, id+".md"), []byte(def.Body), bundleFileMode); err != nil {
 			return nil, err
 		}
 	}
@@ -176,6 +183,13 @@ func Build(req Request) (*Bundle, error) {
 			return nil, err
 		}
 		if err := checkName(d); err != nil {
+			return nil, err
+		}
+		files, err := loader.annexes(d)
+		if err != nil {
+			return nil, err
+		}
+		if err := writeAnnexes(filepath.Join(tmp, skillsDir), d, files); err != nil {
 			return nil, err
 		}
 	}
@@ -231,7 +245,7 @@ func Build(req Request) (*Bundle, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err := os.WriteFile(filepath.Join(tmp, specFile), data, 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(tmp, specFile), data, bundleFileMode); err != nil {
 		return nil, err
 	}
 	if err := os.Rename(tmp, final); err != nil {

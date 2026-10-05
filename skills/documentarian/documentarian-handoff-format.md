@@ -1,6 +1,7 @@
 ---
 name: documentarian-handoff-format
 description: Source de vérité pour le format de retour du documentarian vers orchestrator-dev. Définit le bloc structuré unique à produire en fin de session de documentation quand invoqué depuis orchestrator-dev. Injecté dans le documentarian et dans orchestrator-dev pour garantir que producteur et consommateur partagent le même contrat.
+annexes: [templates/documentarian-handoff-block.md]
 ---
 
 # Skill — Format de handoff documentarian → orchestrator-dev

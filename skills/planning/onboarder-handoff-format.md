@@ -1,6 +1,7 @@
 ---
 name: onboarder-handoff-format
 description: Source de vérité pour le format de retour de l'onboarder vers l'orchestrator. Définit le bloc structuré unique à produire quand l'onboarder termine son exploration et est invoqué depuis l'orchestrator (Mode C). Le rapport d'onboarding est intégré dans le bloc. Injecté dans l'onboarder et dans l'orchestrator pour garantir que producteur et consommateur partagent le même contrat.
+annexes: [templates/onboarder-handoff-block.md]
 ---
 
 # Skill — Format de handoff onboarder → orchestrator

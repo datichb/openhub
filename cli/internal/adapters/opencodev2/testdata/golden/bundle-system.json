@@ -20,6 +20,11 @@
           "effect": "allow"
         },
         {
+          "action": "external_directory",
+          "resource": "/b/skills/*",
+          "effect": "allow"
+        },
+        {
           "action": "subagent",
           "resource": "*",
           "effect": "deny"
@@ -63,6 +68,11 @@
           "effect": "allow"
         },
         {
+          "action": "external_directory",
+          "resource": "/b/skills/*",
+          "effect": "allow"
+        },
+        {
           "action": "subagent",
           "resource": "*",
           "effect": "deny"
@@ -91,6 +101,11 @@
           "action": "skill",
           "resource": "*",
           "effect": "deny"
+        },
+        {
+          "action": "external_directory",
+          "resource": "/b/skills/*",
+          "effect": "allow"
         },
         {
           "action": "subagent",

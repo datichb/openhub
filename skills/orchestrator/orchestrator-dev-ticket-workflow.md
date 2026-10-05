@@ -174,10 +174,10 @@ question({
   > `git checkout -b <nom>` »
 
   > **Worktrees activés (`worktree.enabled = true` dans `opencode.json`) — mode séquentiel uniquement** : utiliser `git worktree` au lieu de `git checkout -b`.
-  > Créer le worktree à `.worktrees/<slug>` où `<slug>` = nom de branche avec `/` remplacés par `-`.
+  > Créer le worktree dans le dossier **frère du dépôt** `../<projet>-<slug>` où `<projet>` = nom du dossier du dépôt et `<slug>` = nom de branche avec `/` remplacés par `-` (même emplacement que `oh worktree create`).
   > Transmettre à l'agent développeur :
-  > « Travaille dans le worktree pré-créé `.worktrees/<slug>/`. Tous tes changements doivent être faits dans ce répertoire. »
-  > À CP-2 après commit validé, proposer : `git worktree remove .worktrees/<slug>` si la branche est prête pour PR.
+  > « Travaille dans le worktree pré-créé `../<projet>-<slug>/`. Tous tes changements doivent être faits dans ce répertoire. »
+  > À CP-2 après commit validé, proposer : `git worktree remove ../<projet>-<slug>` si la branche est prête pour PR.
   >
   > ⚠️ **Mode parallèle (`auto` avec N tickets simultanés) : ne pas déléguer la création du worktree au developer agent.** Les worktrees sont pré-créés séquentiellement par l'orchestrator-dev lui-même avant le lancement parallèle (voir section "Workflow parallèle"). Chaque developer reçoit uniquement le chemin du worktree déjà existant.
 

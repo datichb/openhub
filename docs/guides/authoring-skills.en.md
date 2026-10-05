@@ -127,6 +127,16 @@ requires: [orchestrator/parallel-coordination]
 
 When the session bundle is compiled (`oh bundle`), oh adds the transitive closure of `requires:`: an inlined skill (Bucket A) pulls inlined skills (placed before it), an on-demand skill (Bucket B) pulls on-demand skills. A missing dependency, a cycle, a dependency denied by the workflow (`skills.deny`) or two skills with the same identifier **block** the bundle build. The `requires:` field is not passed to the tool (removed from the delivered `SKILL.md`).
 
+### Templates and annexes (`annexes:`)
+
+Files a skill asks to load "via `read`" (templates from `skills/templates/`, references…) are declared in the frontmatter, paths relative to `skills/`:
+
+```yaml
+annexes: [templates/review-report-format.md]
+```
+
+In the session bundle they are copied next to the skill (`skills/<id>/templates/…`, read-only files). For an on-demand skill the relative path written in the text works as is (opencode provides the skill base directory). For a skill inlined in an agent, oh rewrites the references to the annex location in the bundle; reading it does not trigger a permission prompt. A declared annex that is missing blocks the bundle build; `oh skill check` also reports templates that are referenced but not declared and templates no skill uses. Community skills ship their whole package.
+
 ---
 
 ## 4 — Rationalization table
@@ -240,6 +250,7 @@ Before merging or declaring a skill complete:
 - [ ] `description:` ≤ 2 sentences, discriminating keywords, cross-refs if needed
 - [ ] `name:` equal to the file name (without `.md`): it is the skill identifier in the session bundle, unique across the catalogue
 - [ ] `requires:` lists the skills it cannot work without (`<category>/<name>` refs), if any; no `bucket:` field (the bucket is decided by the agent frontmatter: `skills:` = A, `native_skills:` = B)
+- [ ] Referenced templates declared in `annexes:`
 - [ ] `oh skill check` reports no error
 
 **Integration**

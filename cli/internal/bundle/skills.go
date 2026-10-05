@@ -7,6 +7,7 @@ import (
 	"io/fs"
 	"log/slog"
 	"os"
+	"path"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -27,14 +28,16 @@ import (
 // Hub-only frontmatter fields (stripped from the delivered SKILL.md):
 //
 //	requires: [<ref>, …]   skills that must be present with this one
+//	annexes:  [<path>, …]  files shipped next to the skill (see annexes.go)
 
 // hubSkillKeys are frontmatter keys consumed by oh, never delivered to the tool.
-var hubSkillKeys = []string{"requires"}
+var hubSkillKeys = []string{"requires", "annexes"}
 
 type skillFront struct {
 	Name        string   `yaml:"name"`
 	Description string   `yaml:"description"`
 	Requires    []string `yaml:"requires"`
+	Annexes     []string `yaml:"annexes"`
 	Bucket      string   `yaml:"bucket"` // legacy (B17), reported by CheckSkills
 }
 
@@ -57,6 +60,10 @@ func (d *skillDoc) delivered() []byte {
 }
 
 var errSkillNotFound = errors.New("skill not found")
+
+// bundleFileMode makes bundle files read-only: a bundle is immutable and its
+// skill directories are readable by the agents (external_directory rule).
+const bundleFileMode = 0o444
 
 func skillID(ref string) string { return filepath.Base(ref) }
 
@@ -223,7 +230,7 @@ func writeSkills(dst string, docs []*skillDoc) ([]sessionspec.SkillDef, error) {
 		if err := os.MkdirAll(dir, 0o755); err != nil {
 			return nil, err
 		}
-		if err := os.WriteFile(filepath.Join(dir, "SKILL.md"), d.delivered(), 0o644); err != nil {
+		if err := os.WriteFile(filepath.Join(dir, "SKILL.md"), d.delivered(), bundleFileMode); err != nil {
 			return nil, err
 		}
 		out = append(out, sessionspec.SkillDef{ID: d.ID, Description: d.Front.Description, Dir: dir})
@@ -290,6 +297,9 @@ const (
 	SkillNoDescription      SkillProblemKind = "no_description"      // warning
 	SkillMissingAgentSkill  SkillProblemKind = "missing_agent_skill" // warning
 	SkillLegacyBucket       SkillProblemKind = "legacy_bucket"       // warning (B17)
+	SkillMissingAnnex       SkillProblemKind = "missing_annex"       // error
+	SkillUndeclaredAnnex    SkillProblemKind = "undeclared_annex"    // warning: referenced in the text, not in annexes:
+	SkillOrphanAnnex        SkillProblemKind = "orphan_annex"        // warning: file of skills/templates/ used by no skill
 )
 
 // SkillProblem is one finding of CheckSkills.
@@ -305,7 +315,7 @@ type SkillProblem struct {
 func problem(kind SkillProblemKind, ref, detail string) SkillProblem {
 	isErr := true
 	switch kind {
-	case SkillShadowed, SkillNoDescription, SkillMissingAgentSkill, SkillLegacyBucket:
+	case SkillShadowed, SkillNoDescription, SkillMissingAgentSkill, SkillLegacyBucket, SkillUndeclaredAnnex, SkillOrphanAnnex:
 		isErr = false
 	}
 	return SkillProblem{Kind: kind, Error: isErr, Ref: ref, Detail: detail}
@@ -361,15 +371,15 @@ func CheckSkills(hubDir string) ([]SkillProblem, error) {
 			problems = append(problems, problem(SkillShadowed, name, refs[0]))
 			continue
 		}
-		path, err := skillregistry.NewRegistry().SkillMDPath(name)
+		skillFile, err := skillregistry.NewRegistry().SkillMDPath(name)
 		if err != nil {
 			continue
 		}
-		content, err := os.ReadFile(path)
+		content, err := os.ReadFile(skillFile)
 		if err != nil {
 			continue
 		}
-		doc, perr := parseSkill(name, path, content)
+		doc, perr := parseSkill(name, skillFile, content)
 		if perr != nil {
 			problems = append(problems, problem(SkillInvalidFrontmatter, name, perr.Error()))
 			continue
@@ -422,6 +432,8 @@ func CheckSkills(hubDir string) ([]SkillProblem, error) {
 		}
 	}
 
+	problems = append(problems, checkAnnexes(root, docs)...)
+
 	agents, err := deploy.FindAgentFiles(hubDir)
 	if err == nil {
 		for _, id := range sortedKeys(agents) {
@@ -446,4 +458,40 @@ func sortedKeys[V any](m map[string]V) []string {
 	}
 	sort.Strings(out)
 	return out
+}
+
+// checkAnnexes reports missing, undeclared and unused annexes of hub skills.
+func checkAnnexes(skillsRoot string, docs map[string]*skillDoc) []SkillProblem {
+	var problems []SkillProblem
+	used := map[string]bool{}
+	for _, ref := range sortedKeys(docs) {
+		d := docs[ref]
+		if !isUnder(d.Source, skillsRoot) {
+			continue // community skill: the whole package is shipped
+		}
+		declared := map[string]bool{}
+		for _, rel := range d.Front.Annexes {
+			clean := path.Clean(filepath.ToSlash(rel))
+			declared[clean] = true
+			used[clean] = true
+			st, err := os.Stat(filepath.Join(skillsRoot, filepath.FromSlash(clean)))
+			if err != nil || st.IsDir() || strings.HasPrefix(clean, "../") || path.IsAbs(clean) {
+				problems = append(problems, problem(SkillMissingAnnex, ref, rel))
+			}
+		}
+		seen := map[string]bool{}
+		for _, rel := range annexRef.FindAllString(string(d.body()), -1) {
+			if !declared[rel] && !seen[rel] {
+				seen[rel] = true
+				problems = append(problems, problem(SkillUndeclaredAnnex, ref, rel))
+			}
+		}
+	}
+	entries, _ := os.ReadDir(filepath.Join(skillsRoot, "templates"))
+	for _, e := range entries {
+		if rel := "templates/" + e.Name(); !e.IsDir() && !used[rel] {
+			problems = append(problems, problem(SkillOrphanAnnex, rel, ""))
+		}
+	}
+	return problems
 }

@@ -169,6 +169,7 @@ func TestCheckSkills(t *testing.T) {
 		"legacy_bucket c/legacy A":                  false,
 		"no_description c/nodesc ":                  false,
 		"missing_agent_skill b/ghost solo":          false,
+		"orphan_annex templates/annex.md ":          false,
 	}, withoutKind(got, SkillInvalidFrontmatter))
 	assert.True(t, hasKind(problems, SkillInvalidFrontmatter, "c/broken"))
 }

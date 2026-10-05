@@ -1,6 +1,7 @@
 ---
 name: debugger-handoff-format
 description: Source de vérité pour le format de retour du debugger vers l'orchestrator. Définit le bloc structuré unique à produire quand le debugger termine son diagnostic et est invoqué depuis l'orchestrator (Mode D). Le rapport de diagnostic complet est intégré dans le bloc. Injecté dans le debugger et dans l'orchestrator pour garantir que producteur et consommateur partagent le même contrat.
+annexes: [templates/debugger-handoff-block.md]
 ---
 
 # Skill — Format de handoff debugger → orchestrator
