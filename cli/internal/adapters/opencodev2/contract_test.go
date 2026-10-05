@@ -17,6 +17,9 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/datichb/openhub/cli/internal/adapters"
+	"github.com/datichb/openhub/cli/internal/sessionspec"
 )
 
 type liveServer struct {
@@ -188,4 +191,102 @@ func TestContractServerStartupFailure(t *testing.T) {
 	})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "does-not-exist")
+}
+
+func writeSkill(t *testing.T, dir, id string) {
+	t.Helper()
+	require.NoError(t, os.MkdirAll(filepath.Join(dir, id), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, id, "SKILL.md"),
+		[]byte("---\nname: "+id+"\ndescription: test skill "+id+"\n---\nbody of "+id+"\n"), 0o644))
+}
+
+func contractBundle(t *testing.T, root string) sessionspec.BundleSpec {
+	skills := filepath.Join(root, "bundle", "skills")
+	writeSkill(t, skills, "alpha")
+	writeSkill(t, skills, "beta")
+	return sessionspec.BundleSpec{
+		EntryAgent: "lead",
+		Agents: []sessionspec.AgentDef{
+			{ID: "lead", Description: "entry", Mode: "primary", Body: "lead body"},
+			{ID: "helper", Description: "helper", Mode: "subagent", Body: "helper body"},
+		},
+		Skills:        []sessionspec.SkillDef{{ID: "alpha", Dir: filepath.Join(skills, "alpha")}, {ID: "beta", Dir: filepath.Join(skills, "beta")}},
+		SkillsDir:     skills,
+		SubagentGraph: map[string][]string{"lead": {"helper"}},
+		MaxDepth:      1,
+	}
+}
+
+func newContractAdapter(t *testing.T) *Adapter {
+	t.Helper()
+	if _, err := exec.LookPath("opencode"); err != nil {
+		t.Skip("opencode binary not found")
+	}
+	a := New("", t.TempDir())
+	_, err := a.Detect(context.Background())
+	require.NoError(t, err)
+	return a
+}
+
+func TestContractDiscoverNatives(t *testing.T) {
+	a := newContractAdapter(t)
+	for _, n := range DefaultNatives {
+		assert.Contains(t, a.Natives, n)
+	}
+	assert.NotContains(t, a.Natives, "title")
+	_, err := os.Stat(NativesCachePath(a.CacheDir, a.Ver))
+	assert.NoError(t, err, "natives cached")
+}
+
+func TestContractRenderAndAttest(t *testing.T) {
+	a := newContractAdapter(t)
+	root := t.TempDir()
+	project := filepath.Join(root, "proj")
+	require.NoError(t, os.MkdirAll(project, 0o755))
+	b := contractBundle(t, root)
+
+	h, err := a.StartServer(context.Background(), adapters.ServerGroup{
+		Bundle:   b,
+		Provider: sessionspec.ProviderSpec{ID: "amazon-bedrock", Region: "eu-west-1"},
+		DataDir:  filepath.Join(root, "data"),
+		WorkDir:  project,
+	})
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = a.StopServer(context.Background(), h) })
+
+	rep, err := a.Attest(context.Background(), h, b, project)
+	require.NoError(t, err)
+	assert.True(t, rep.OK(), "unexpected: %v", rep.Unexpected)
+	assert.ElementsMatch(t, []string{"lead", "helper"}, rep.Agents)
+	assert.ElementsMatch(t, []string{"alpha", "beta"}, rep.Skills, "built-in skills must be hidden")
+	assert.Empty(t, rep.MCP)
+}
+
+func TestContractAttestDetectsParasiteAgent(t *testing.T) {
+	a := newContractAdapter(t)
+	root := t.TempDir()
+	project := filepath.Join(root, "proj")
+	require.NoError(t, os.MkdirAll(project, 0o755))
+	b := contractBundle(t, root)
+
+	// A user-global agent that the adapter does not know about.
+	cfgHome := filepath.Join(root, "config")
+	require.NoError(t, os.MkdirAll(filepath.Join(cfgHome, "opencode", "agents"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(cfgHome, "opencode", "agents", "parasite.md"),
+		[]byte("---\ndescription: parasite\nmode: primary\n---\nI should not be here.\n"), 0o644))
+
+	h, err := a.StartServer(context.Background(), adapters.ServerGroup{
+		Bundle:  b,
+		DataDir: filepath.Join(root, "data"),
+		WorkDir: project,
+		Env:     map[string]string{"XDG_CONFIG_HOME": cfgHome},
+	})
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = a.StopServer(context.Background(), h) })
+
+	rep, err := a.Attest(context.Background(), h, b, project)
+	require.NoError(t, err)
+	assert.False(t, rep.OK())
+	assert.Equal(t, []string{"parasite"}, UnexpectedAgents(rep))
+	assert.Equal(t, sessionspec.IsolationNone, rep.Level)
 }

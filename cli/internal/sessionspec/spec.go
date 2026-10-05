@@ -178,6 +178,16 @@ func (b BundleSpec) AgentIDs() []string {
 	return ids
 }
 
+// HasAgent reports whether the bundle contains the agent.
+func (b BundleSpec) HasAgent(id string) bool {
+	for _, a := range b.Agents {
+		if a.ID == id {
+			return true
+		}
+	}
+	return false
+}
+
 // SkillIDs returns the IDs of all skills in the bundle.
 func (b BundleSpec) SkillIDs() []string {
 	ids := make([]string, 0, len(b.Skills))

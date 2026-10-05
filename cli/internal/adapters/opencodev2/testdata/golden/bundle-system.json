@@ -1,0 +1,157 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "agents": {
+    "build": {
+      "disabled": true
+    },
+    "developer": {
+      "description": "Implements",
+      "mode": "subagent",
+      "model": "amazon-bedrock/eu.anthropic.claude-sonnet-4-6",
+      "permissions": [
+        {
+          "action": "skill",
+          "resource": "*",
+          "effect": "deny"
+        },
+        {
+          "action": "skill",
+          "resource": "beads-dev",
+          "effect": "allow"
+        },
+        {
+          "action": "subagent",
+          "resource": "*",
+          "effect": "deny"
+        }
+      ],
+      "system": "You are developer."
+    },
+    "explore": {
+      "disabled": true
+    },
+    "general": {
+      "disabled": true
+    },
+    "orchestrator-dev": {
+      "description": "Drives developers",
+      "mode": "primary",
+      "permissions": [
+        {
+          "action": "shell",
+          "resource": "*",
+          "effect": "deny"
+        },
+        {
+          "action": "shell",
+          "resource": "bd show *",
+          "effect": "allow"
+        },
+        {
+          "action": "skill",
+          "resource": "*",
+          "effect": "deny"
+        },
+        {
+          "action": "skill",
+          "resource": "beads-dev",
+          "effect": "allow"
+        },
+        {
+          "action": "skill",
+          "resource": "orchestrator-protocol",
+          "effect": "allow"
+        },
+        {
+          "action": "subagent",
+          "resource": "*",
+          "effect": "deny"
+        },
+        {
+          "action": "subagent",
+          "resource": "developer",
+          "effect": "allow"
+        },
+        {
+          "action": "subagent",
+          "resource": "reviewer",
+          "effect": "allow"
+        }
+      ],
+      "system": "You are orchestrator-dev."
+    },
+    "plan": {
+      "disabled": true
+    },
+    "reviewer": {
+      "description": "Reviews",
+      "mode": "subagent",
+      "permissions": [
+        {
+          "action": "skill",
+          "resource": "*",
+          "effect": "deny"
+        },
+        {
+          "action": "subagent",
+          "resource": "*",
+          "effect": "deny"
+        }
+      ],
+      "system": "You are reviewer."
+    }
+  },
+  "default_agent": "orchestrator-dev",
+  "experimental": {
+    "subagent_depth": 2
+  },
+  "mcp": {
+    "servers": {
+      "gitlab": {
+        "codemode": false,
+        "command": [
+          "oh",
+          "mcp",
+          "serve",
+          "gitlab"
+        ],
+        "type": "local"
+      }
+    }
+  },
+  "model": "amazon-bedrock/eu.anthropic.claude-sonnet-4-6",
+  "permissions": [
+    {
+      "action": "skill",
+      "resource": "*",
+      "effect": "deny"
+    },
+    {
+      "action": "skill",
+      "resource": "beads-dev",
+      "effect": "allow"
+    },
+    {
+      "action": "skill",
+      "resource": "orchestrator-protocol",
+      "effect": "allow"
+    },
+    {
+      "action": "execute",
+      "resource": "*",
+      "effect": "deny"
+    }
+  ],
+  "providers": {
+    "amazon-bedrock": {
+      "settings": {
+        "baseURL": "http://127.0.0.1:47000/bedrock",
+        "region": "eu-west-1"
+      }
+    }
+  },
+  "skills": [
+    "/b/skills"
+  ],
+  "snapshots": true
+}
