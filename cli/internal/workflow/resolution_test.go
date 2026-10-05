@@ -407,3 +407,37 @@ func TestSpecClone_Independent(t *testing.T) {
 		t.Fatal("clone shares state")
 	}
 }
+
+func TestSubagentGraphAndMaxDepth(t *testing.T) {
+	cat := catalogOf(t, map[string]string{"hub:ticket": hubTicket})
+	r := resolveOK(t, cat, "hub:ticket")
+	members, graph := SubagentGraph(r.Spec, testAgents)
+	if !reflect.DeepEqual(members, []string{"orchestrator-dev", "developer", "reviewer", "documentarian"}) {
+		t.Fatalf("members = %v", members)
+	}
+	want := map[string][]string{
+		"orchestrator-dev": {"developer", "reviewer"}, // explicit calls
+		"developer":        {"documentarian"},         // derived from task permission
+		"reviewer":         {"documentarian"},
+	}
+	if !reflect.DeepEqual(graph, want) {
+		t.Fatalf("graph = %v", graph)
+	}
+	if d := MaxDepth("orchestrator-dev", graph); d != 2 {
+		t.Fatalf("depth = %d", d)
+	}
+	if d := MaxDepth("documentarian", graph); d != 1 {
+		t.Fatalf("leaf depth = %d, want the minimum 1", d)
+	}
+	if d := MaxDepth("a", map[string][]string{"a": {"b"}, "b": {"c", "a"}, "c": {"d"}}); d != 3 {
+		t.Fatalf("cyclic depth = %d", d)
+	}
+
+	// Implicit conductor entry: derived from its task permission ("*").
+	quick := catalogOf(t, map[string]string{"hub:quick": vHeader + "risk: write\nagents:\n  developer: { role: workflow }\n"})
+	rq, _ := ResolveSpec(quick, Ref{LayerHub, "x"}, nil)
+	members, graph = SubagentGraph(rq.Spec, testAgents)
+	if members[0] != "conductor" || !reflect.DeepEqual(graph["conductor"], []string{"developer"}) {
+		t.Fatalf("members = %v graph = %v", members, graph)
+	}
+}

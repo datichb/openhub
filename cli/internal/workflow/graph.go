@@ -1,6 +1,9 @@
 package workflow
 
-import "path"
+import (
+	"path"
+	"sort"
+)
 
 // Delegation graph of an oh/v1 workflow (who may launch whom).
 
@@ -93,6 +96,42 @@ func graphKnown(s *Spec, agents AgentCatalog) bool {
 		}
 	}
 	return true
+}
+
+// SubagentGraph is the delegation graph compiled into a bundle (O1): the
+// workflow members (entry first, then declaration order) and, for each
+// member, the members it may launch (sorted).
+func SubagentGraph(s *Spec, agents AgentCatalog) (members []string, graph map[string][]string) {
+	graph = DelegationGraph(s, agents)
+	for id := range graph {
+		sort.Strings(graph[id])
+	}
+	return s.Members(), graph
+}
+
+// MaxDepth is the length of the longest delegation chain from entry without
+// revisiting an agent (1 = the entry launches subagents that do not delegate
+// further). It is at least 1: the tool needs a positive subagent depth.
+func MaxDepth(entry string, graph map[string][]string) int {
+	var walk func(node string, onPath map[string]bool) int
+	walk = func(node string, onPath map[string]bool) int {
+		best := 0
+		onPath[node] = true
+		for _, next := range graph[node] {
+			if onPath[next] {
+				continue
+			}
+			if d := 1 + walk(next, onPath); d > best {
+				best = d
+			}
+		}
+		delete(onPath, node)
+		return best
+	}
+	if d := walk(entry, map[string]bool{}); d > 1 {
+		return d
+	}
+	return 1
 }
 
 // Reachable returns the members reachable from entry (entry included).
