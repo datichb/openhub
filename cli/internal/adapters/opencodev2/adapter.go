@@ -102,7 +102,9 @@ func (a *Adapter) Render(b sessionspec.BundleSpec, p sessionspec.ProviderSpec) (
 // become active, the server is restarted in fallback mode (bodies rendered as
 // `system`, prefixed with the tooling posture).
 func (a *Adapter) StartServer(ctx context.Context, g adapters.ServerGroup) (adapters.ServerHandle, error) {
-	g.Bundle = g.Bundle.WithBundleRoot(g.Bundle.Root)
+	// Agent bodies reference the bundle as the server sees it (a mount point
+	// in a container).
+	g.Bundle = g.Bundle.WithBundleRoot(innerDir(g, g.Bundle.Root))
 	if !a.DisablePlugin {
 		dir := filepath.Join(g.DataDir, PluginDirName)
 		if err := installPlugin(dir, g.Bundle); err != nil {

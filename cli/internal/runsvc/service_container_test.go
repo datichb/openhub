@@ -117,7 +117,7 @@ func realContainerSession(t *testing.T, engine container.EngineKind) {
 	model := sessionspec.ParseModelRef("amazon-bedrock/eu.anthropic.claude-haiku-4-5-20251001-v1:0")
 	b := &bundle.Bundle{Dir: filepath.Join(root, "bundle"), Spec: sessionspec.BundleSpec{
 		Hash: "containerbundle01", Root: filepath.Join(root, "bundle"), EntryAgent: "lead",
-		Agents:    []sessionspec.AgentDef{{ID: "lead", Description: "lead", Mode: "primary", Body: "You are LEAD."}},
+		Agents:    []sessionspec.AgentDef{{ID: "lead", Description: "lead", Mode: "primary", Body: "You are LEAD. Annex: " + sessionspec.BundleRootVar + "/skills/alpha/SKILL.md"}},
 		Skills:    []sessionspec.SkillDef{{ID: "alpha", Dir: filepath.Join(skills, "alpha")}},
 		SkillsDir: skills, MaxDepth: 1, DefaultModel: &model,
 	}}
@@ -185,6 +185,10 @@ func realContainerSession(t *testing.T, engine container.EngineKind) {
 	}
 	if !strings.Contains(env, "AWS_BEARER_TOKEN_BEDROCK=ohs_") {
 		t.Fatalf("proxy session token missing:\n%s", env)
+	}
+	// Annex paths in agent bodies point to the bundle mount point.
+	if body := run("cat " + container.InnerData + "/oh-plugin/agents/lead.md; test -f " + container.InnerBundle + "/skills/alpha/SKILL.md && echo ANNEX-OK"); !strings.Contains(body, container.InnerBundle+"/skills/alpha/SKILL.md") || !strings.Contains(body, "ANNEX-OK") {
+		t.Fatalf("bundle root not expanded for the container: %s", body)
 	}
 	if v := run("opencode --version"); !strings.Contains(v, a.Ver) {
 		t.Fatalf("opencode in the image = %s, adapter %s", v, a.Ver)
