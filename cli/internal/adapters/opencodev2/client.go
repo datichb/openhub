@@ -366,6 +366,34 @@ func (c *Client) Diff(ctx context.Context, sessionID string) ([]FileDiff, error)
 	return out.Data, err
 }
 
+// AssistantText returns the concatenated text produced by the assistant in a session.
+func (c *Client) AssistantText(ctx context.Context, sessionID string) (string, error) {
+	var out struct {
+		Data []struct {
+			Type    string `json:"type"`
+			Content []struct {
+				Type string `json:"type"`
+				Text string `json:"text"`
+			} `json:"content"`
+		} `json:"data"`
+	}
+	if err := c.do(ctx, http.MethodGet, sessionPath(sessionID, "message"), nil, nil, &out); err != nil {
+		return "", err
+	}
+	var b strings.Builder
+	for _, m := range out.Data {
+		if m.Type != "assistant" {
+			continue
+		}
+		for _, p := range m.Content {
+			if p.Type == "text" {
+				b.WriteString(p.Text)
+			}
+		}
+	}
+	return b.String(), nil
+}
+
 // Pair returns a one-time browser/app connection code.
 func (c *Client) Pair(ctx context.Context) (PairingCode, error) {
 	var out PairingCode

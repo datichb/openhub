@@ -186,7 +186,7 @@ func initApp() error {
 	a.WithSecretStore(resolveSecretStore())
 
 	// Wire platform abstraction (ADR-036)
-	a.WithPlatform(opencode.NewPlatform())
+	a.WithPlatform(wrapV5Platform(a, opencode.NewPlatform()))
 	a.WithStats(opencode.NewStatsProvider())
 
 	// Auto-migrate legacy ProjectTeamConfig → TeamID (ADR-029).

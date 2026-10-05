@@ -28,6 +28,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 	"github.com/datichb/openhub/cli/internal/termlaunch"
 	"github.com/datichb/openhub/cli/internal/workflow"
+	"github.com/datichb/openhub/cli/internal/worktree"
 )
 
 func init() {
@@ -46,7 +47,10 @@ func v5Available(ctx context.Context) bool {
 	if os.Getenv("OH_V5") == "0" {
 		return false
 	}
-	v5Once.Do(func() { v5Adapter, v5Err = detectV2Adapter(ctx) })
+	v5Once.Do(func() {
+		v5Adapter, v5Err = detectV2Adapter(ctx)
+		worktree.SessionBundles = v5Err == nil
+	})
 	if v5Err != nil {
 		slog.Debug("v5 runtime unavailable, using legacy launch", "reason", v5Err)
 	}
