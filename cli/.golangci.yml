@@ -28,6 +28,7 @@ linters:
         - conflit
         - normalis
         - exemple
+        - incluse
   exclusions:
     generated: lax
     presets:
