@@ -98,7 +98,7 @@ func buildBoardQuickActions(a *app.App) *views.BoardQuickActions {
 
 		CreateWorktree: worktree.ResolveOrCreate,
 
-		EnsureWorktreeConfig: worktree.EnsureWorktreeConfig,
+		EnsureWorktreeConfig: ensureWorktreeConfigLegacy,
 
 		BranchPattern: func() string {
 			return a.Config.Worktree.BranchPattern
@@ -232,4 +232,13 @@ func sanitizeForBranch(s string) string {
 		s = strings.ReplaceAll(s, "--", "-")
 	}
 	return strings.Trim(s, "-")
+}
+
+// ensureWorktreeConfigLegacy links a worktree to the deployed project
+// configuration; v5 sessions use a session bundle and need nothing.
+func ensureWorktreeConfigLegacy(wtPath, projectPath string) error {
+	if v5Available(context.Background()) {
+		return nil
+	}
+	return worktree.EnsureWorktreeConfig(wtPath, projectPath)
 }

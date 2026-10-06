@@ -42,6 +42,11 @@ type CoordinatorOpts struct {
 	// Deprecated: PromptFunc generates the prompt from a ticket ID string.
 	// Used when TaskPromptFunc is nil.
 	PromptFunc func(ticketID string) string
+
+	// SessionBundles means the sessions get their configuration from a
+	// session bundle outside the project (v5): worktrees need no linked
+	// .opencode/ configuration.
+	SessionBundles bool
 }
 
 // Coordinator orchestrates multiple parallel coding sessions.
@@ -182,8 +187,10 @@ func (c *Coordinator) createWorktrees(ctx context.Context) error {
 			return fmt.Errorf("creating worktree for %s: %w", t.ID, err)
 		}
 
-		if err := worktree.EnsureWorktreeConfig(wtPath, c.opts.ProjectPath); err != nil {
-			return fmt.Errorf("linking config for worktree %s: %w", t.ID, err)
+		if !c.opts.SessionBundles {
+			if err := worktree.EnsureWorktreeConfig(wtPath, c.opts.ProjectPath); err != nil {
+				return fmt.Errorf("linking config for worktree %s: %w", t.ID, err)
+			}
 		}
 
 		c.state.AddSession(SessionInfo{

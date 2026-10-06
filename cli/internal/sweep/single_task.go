@@ -39,8 +39,10 @@ func runSingleTask(ctx context.Context, t task.Task, opts RunOpts) (*RunResult, 
 	if err != nil {
 		return nil, fmt.Errorf("creating worktree for %s: %w", t.ID, err)
 	}
-	if err := worktree.EnsureWorktreeConfig(wtPath, opts.ProjectPath); err != nil {
-		slog.Warn("sweep: worktree config setup failed (non-fatal)", "error", err)
+	if opts.Platform == nil || opts.Platform.RequiresDeploy() {
+		if err := worktree.EnsureWorktreeConfig(wtPath, opts.ProjectPath); err != nil {
+			slog.Warn("sweep: worktree config setup failed (non-fatal)", "error", err)
+		}
 	}
 
 	// 2. Build prompt and run headless.

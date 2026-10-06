@@ -40,6 +40,14 @@ type runOptions struct {
 	Location        string // base | new | <worktree path>
 	Attach          string // "" = configured preference
 	ParentSessionID string
+	// LooseInputs are kept only when the workflow declares them (aliases of
+	// the former commands map their flags this way).
+	LooseInputs map[string]string
+	// Text goes to the first free text input (text, else string) that is
+	// not set otherwise (former --prompt, --issue…).
+	Text string
+	// Branch names the worktree branch when the workflow has no branch input.
+	Branch string
 	// Progress receives preparation output (container image build).
 	Progress func(line string)
 }
@@ -74,10 +82,7 @@ func prepareWorkflowRun(ctx context.Context, a *app.App, opts runOptions, errOut
 	if err != nil {
 		return nil, workflowError(errOut, opts.Workflow, err)
 	}
-	inputs := map[string]any{}
-	for k, v := range opts.Inputs {
-		inputs[k] = v
-	}
+	inputs := launchInputs(probe.Spec, opts)
 	ticketInput, multi := workflowsvc.TicketInput(probe.Spec)
 	var perSession []string // ticket of each session (multi)
 	if len(opts.Tickets) > 0 {
@@ -168,7 +173,7 @@ func prepareWorkflowRun(ctx context.Context, a *app.App, opts runOptions, errOut
 		if label != "" {
 			title += " · " + label
 		}
-		req.Sessions = append(req.Sessions, runsvc.PlannedInput{Label: label, Title: title, Branch: sessionBranch(res.Spec, v, label)})
+		req.Sessions = append(req.Sessions, runsvc.PlannedInput{Label: label, Title: title, Branch: sessionBranch(res.Spec, v, label, opts.Branch)})
 	}
 	plan, err := svc.Plan(ctx, req)
 	if err != nil {
@@ -185,19 +190,55 @@ func prepareWorkflowRun(ctx context.Context, a *app.App, opts runOptions, errOut
 	return &preparedRun{opts: opts, project: opts.Project, resolution: res, bundle: b, svc: svc, plan: plan}, nil
 }
 
+// launchInputs merges the explicit inputs, the alias inputs declared by the
+// workflow and the free text (first text input not set otherwise).
+func launchInputs(sp *workflow.Spec, opts runOptions) map[string]any {
+	inputs := map[string]any{}
+	for k, v := range opts.Inputs {
+		inputs[k] = v
+	}
+	for k, v := range opts.LooseInputs {
+		if _, declared := sp.Inputs.Get(k); declared && v != "" {
+			if _, set := inputs[k]; !set {
+				inputs[k] = v
+			}
+		}
+	}
+	if opts.Text != "" {
+		if k := textInput(sp); k != "" {
+			if _, set := inputs[k]; !set {
+				inputs[k] = opts.Text
+			}
+		}
+	}
+	return inputs
+}
+
 // sessionBranch is the branch of a session worktree: the workflow `branch`
 // input, else oh/<workflow>-<ticket|time>.
-func sessionBranch(sp *workflow.Spec, values map[string]any, label string) string {
+func sessionBranch(sp *workflow.Spec, values map[string]any, label, fallback string) string {
 	if k := workflowsvc.FirstInput(sp, workflow.InputBranch); k != "" {
 		if b, ok := values[k].(string); ok && b != "" {
 			return b
 		}
+	}
+	if fallback != "" {
+		return fallback
 	}
 	suffix := label
 	if suffix == "" {
 		suffix = time.Now().Format("20060102-150405")
 	}
 	return "oh/" + sp.ID + "-" + suffix
+}
+
+// textInput is the input receiving free text: the first `text` input, else
+// the first `string` one.
+func textInput(sp *workflow.Spec) string {
+	if k := workflowsvc.FirstInput(sp, workflow.InputText); k != "" {
+		return k
+	}
+	return workflowsvc.FirstInput(sp, workflow.InputString)
 }
 
 func runPlanError(err error) error {

@@ -22,7 +22,12 @@ var runCmd = &cobra.Command{
 
 func init() {
 	rootCmd.AddCommand(runCmd)
-	f := runCmd.Flags()
+	addRunFlags(runCmd)
+}
+
+// addRunFlags registers the flags of oh run.
+func addRunFlags(c *cobra.Command) {
+	f := c.Flags()
 	f.StringArrayP("input", "i", nil, "Entrée du workflow (clé=valeur, répétable)")
 	f.String("mode", "", "Mode du workflow (manuel, semi-auto, auto)")
 	f.String("runtime", "", "Environnement d'exécution (local, container)")

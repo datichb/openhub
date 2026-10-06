@@ -12,7 +12,7 @@ import (
 func runFlagsCmd(t *testing.T, args ...string) *cobra.Command {
 	t.Helper()
 	c := &cobra.Command{Use: "x"}
-	c.Flags().AddFlagSet(runCmd.Flags())
+	addRunFlags(c)
 	if err := c.Flags().Parse(args); err != nil {
 		t.Fatal(err)
 	}
@@ -42,13 +42,16 @@ func TestSessionBranch(t *testing.T) {
 	if diags.HasErrors() {
 		t.Fatal(diags)
 	}
-	if got := sessionBranch(doc.Spec, map[string]any{"branch": "feat/bd-1"}, "bd-1"); got != "feat/bd-1" {
+	if got := sessionBranch(doc.Spec, map[string]any{"branch": "feat/bd-1"}, "bd-1", "x"); got != "feat/bd-1" {
 		t.Fatalf("branch input: %q", got)
 	}
-	if got := sessionBranch(doc.Spec, map[string]any{}, "bd-1"); got != "oh/ticket-bd-1" {
+	if got := sessionBranch(doc.Spec, map[string]any{}, "bd-1", ""); got != "oh/ticket-bd-1" {
 		t.Fatalf("fallback: %q", got)
 	}
-	if got := sessionBranch(doc.Spec, nil, ""); !strings.HasPrefix(got, "oh/ticket-2") {
+	if got := sessionBranch(doc.Spec, map[string]any{}, "bd-1", "feat/w"); got != "feat/w" {
+		t.Fatalf("explicit fallback: %q", got)
+	}
+	if got := sessionBranch(doc.Spec, nil, "", ""); !strings.HasPrefix(got, "oh/ticket-2") {
 		t.Fatalf("timestamp fallback: %q", got)
 	}
 }

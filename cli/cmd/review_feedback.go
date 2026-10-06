@@ -98,6 +98,12 @@ func runReviewFeedback(cmd *cobra.Command, args []string) error {
 	}
 
 	prompt := buildFeedbackPrompt(mr, branch, discussions)
+	// v5: the review-feedback workflow receives the gathered feedback as its
+	// free text input (MR, branch and discussions are read here, on the machine).
+	if handled, err := tryWorkflowAlias(cmd, workflowAlias{Old: "oh review feedback", Workflow: "review-feedback",
+		Opts: runOptions{Project: project, Text: prompt, LooseInputs: map[string]string{"branch": branch, "mr": mr.WebURL}}}); handled {
+		return err
+	}
 	fmt.Fprintf(a.IO.Out, "\n%s %s\n",
 		theme.Title.Render("oh review feedback"), i18n.Tf("cmd.review.feedback.launching", theme.Bold.Render(project.Name)))
 

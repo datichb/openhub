@@ -2,6 +2,8 @@
 
 # CLI Reference — Sessions
 
+> **v5 — deprecated aliases.** With opencode V2 and the hub workflows, these commands launch their workflow through [`oh run`](cli-workflows.en.md#oh-run) and print a warning: `oh start` → `oh run feature` (`--prompt` = first text input), `--dev [-t <id>]` → `oh run ticket --tickets <id>` (an epic chosen in the picker keeps the former launch), `--onboard` → `oh run onboarding`, `--parallel --tickets` → `oh run ticket --tickets`, `--sweep` → `oh run sweep`, `--worktree <branch>` → `--location new`, `oh audit|review|debug` → `oh run audit|review|debug` (flags become inputs when the workflow declares them), `oh review feedback` → `oh run review-feedback` (MR feedback as the text input). `--agent` and opencode V1 keep the former launch, as does a workflow missing from the catalogue.
+
 ## Sessions
 
 ### oh start
