@@ -136,6 +136,8 @@ func daemonOptions(ctx context.Context, a *app.App, capability string) daemon.Op
 			return ""
 		},
 		Secrets:   a.Secrets,
+		Teardown:  daemonTeardown(a),
+		Periodic:  daemonRemoteTracking(a),
 		IdleSleep: time.Duration(a.Config.Session.IdleSleepMinutes) * time.Minute,
 		// Async: a git push must not stall supervision (the daemon
 		// outlives the last server by IdleAfter).

@@ -113,6 +113,7 @@ func (fakeTool) LinuxBinary(context.Context, string, string) (string, error) {
 
 // fakeRuntime maps every location to /work/<base>.
 type fakeRuntime struct {
+	delay      time.Duration // Prepare duration (image build)
 	mu         sync.Mutex
 	listenHost string
 	prepared   map[string]*ohruntime.Prepared // by group id
@@ -126,6 +127,7 @@ func (r *fakeRuntime) Available(context.Context) (ohruntime.Availability, error)
 }
 func (r *fakeRuntime) HostAddress() string { return "host.docker.internal" }
 func (r *fakeRuntime) Prepare(_ context.Context, g ohruntime.Group) (*ohruntime.Prepared, error) {
+	time.Sleep(r.delay)
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.prepares = append(r.prepares, g)
@@ -164,6 +166,7 @@ type fakeDaemon struct {
 	revoked  []string
 	memoryMB int
 	grants   []daemon.GrantRequest
+	touches  int
 }
 
 func (d *fakeDaemon) Health(context.Context) (daemon.Health, error) {
@@ -187,7 +190,12 @@ func (d *fakeDaemon) RevokeOwner(_ context.Context, owner string) error {
 func (d *fakeDaemon) Usage(context.Context, string) (daemon.UsageResponse, error) {
 	return daemon.UsageResponse{}, nil
 }
-func (d *fakeDaemon) Touch(context.Context, string) error { return nil }
+func (d *fakeDaemon) Touch(context.Context, string) error {
+	d.mu.Lock()
+	d.touches++
+	d.mu.Unlock()
+	return nil
+}
 func (d *fakeDaemon) ProxyListen(_ context.Context, host string) (string, error) {
 	d.mu.Lock()
 	d.listens = append(d.listens, host)
@@ -516,4 +524,22 @@ func TestStartSessionRefusedWhenDailyBudgetSpent(t *testing.T) {
 	require.NoError(t, f.svc.Usage.AddBudgetExtra(ctx, "project:p1", day, 1))
 	_, err = f.svc.StartSession(ctx, req)
 	assert.NoError(t, err, "raised for today")
+}
+
+// A long image build keeps the daemon busy (no live server yet), and the
+// grant is asked to a fresh client afterwards.
+func TestLongPreparationKeepsTheDaemonBusy(t *testing.T) {
+	defer func(d time.Duration) { daemonBusyEvery = d }(daemonBusyEvery)
+	daemonBusyEvery = 20 * time.Millisecond
+	f := newRTFixture(t)
+	f.rt.delay = 200 * time.Millisecond
+	calls := 0
+	f.svc.Daemon = func(context.Context) (DaemonClient, error) { calls++; return f.dc, nil }
+	_, err := f.svc.StartSession(context.Background(), f.request(f.project))
+	require.NoError(t, err)
+	f.dc.mu.Lock()
+	touches := f.dc.touches
+	f.dc.mu.Unlock()
+	assert.GreaterOrEqual(t, touches, 3, "activity signalled during the build")
+	assert.GreaterOrEqual(t, calls, 2, "fresh daemon client after the build")
 }

@@ -214,7 +214,7 @@ Limites : les serveurs MCP qui ont besoin d'un jeton de votre machine (gitlab, j
 
 ## 7. Suivre, récupérer, rejouer
 
-**Suivi.** `oh session list` et la vue Sessions de la TUI consultent l'état des pipelines (toutes les 30 s dans la TUI) : la session ☁ est « En cours » (pipeline en attente ou en cours), puis passe dans **« À récupérer »** quand le pipeline est terminé (ou en échec : ses artefacts restent récupérables). Une notification système le signale. L'avancement est aussi visible par l'équipe dans le claim du ticket.
+**Suivi.** `oh session list` et la vue Sessions de la TUI consultent l'état des pipelines (toutes les 30 s dans la TUI) : la session ☁ est « En cours » (pipeline en attente ou en cours), puis passe dans **« À récupérer »** quand le pipeline est terminé (ou en échec : ses artefacts restent récupérables). Une notification système le signale, même oh fermé : le démon oh continue de consulter les pipelines toutes les minutes (et entretient les baux Beads des tickets réservés, `bd heartbeat`) tant qu'une session distante tourne. L'avancement est aussi visible par l'équipe dans le claim du ticket.
 
 **Récupération** — `oh session fetch <id>` ou `g` dans la vue Sessions :
 

@@ -75,6 +75,15 @@ type Options struct {
 	Usage domain.UsageStore
 	// Memory measures the tool servers (default: ps process trees).
 	Memory MemoryFunc
+	// Teardown removes the runtime environment of a server group whose
+	// server the daemon stopped (container), after StopServer (nil = none).
+	Teardown func(ctx context.Context, srv domain.Server)
+	// Periodic runs every PeriodicEvery (default 1 min), besides the
+	// supervision, for work that outlives the local servers (remote
+	// sessions: pipeline tracking, Beads leases). While it reports busy,
+	// the daemon does not stop for idleness.
+	Periodic      func(ctx context.Context) (busy bool)
+	PeriodicEvery time.Duration
 	// StopServersOnExit puts the live server groups to sleep when the
 	// daemon stops (in-process daemon: the proxy ends with the oh process,
 	// the servers could not reach their provider any more).
@@ -118,6 +127,7 @@ type Daemon struct {
 	memoryMB      int                          // memory used by the ready servers (last measure)
 	memoryOver    bool                         // above the cap at the last pass (warned)
 	queuedGroups  map[string]bool              // groups holding queued sessions (never sleep)
+	periodicBusy  bool                         // the periodic task has work (remote sessions)
 	proxyUsage    map[string]domain.ProxyUsage // proxy traffic not flushed yet, by group
 	sigMu         sync.Mutex
 	sigCache      map[string]credproxy.Auth // SigV4 signers by profile/region
@@ -200,6 +210,9 @@ func Run(ctx context.Context, opts Options) error {
 		d.notes = newNotifier(d, opts.Notify)
 		go d.notes.run(ctx)
 	}
+	if opts.Periodic != nil {
+		go d.runPeriodic(ctx)
+	}
 	// Supervision revokes grants: it must not race with their restoration.
 	select {
 	case <-d.restored:
@@ -243,6 +256,48 @@ func (d *Daemon) shutdown() error {
 	}
 	_ = os.Remove(d.opts.Paths.Socket())
 	return nil
+}
+
+// teardown removes the runtime environment of a stopped group.
+func (d *Daemon) teardown(ctx context.Context, srv domain.Server) {
+	if d.opts.Teardown == nil || srv.Runtime == "" || srv.Runtime == "local" {
+		return
+	}
+	cctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+	d.opts.Teardown(cctx, srv)
+}
+
+// runPeriodic runs the periodic task until ctx is done (after the grants
+// are restored: it may use the proxy).
+func (d *Daemon) runPeriodic(ctx context.Context) {
+	every := d.opts.PeriodicEvery
+	if every <= 0 {
+		every = time.Minute
+	}
+	select {
+	case <-d.restored:
+	case <-ctx.Done():
+		return
+	}
+	t := time.NewTicker(every)
+	defer t.Stop()
+	for {
+		busy := d.opts.Periodic(ctx)
+		d.mu.Lock()
+		d.periodicBusy = busy
+		if busy {
+			d.lastBusy = time.Now()
+		}
+		d.mu.Unlock()
+		select {
+		case <-ctx.Done():
+			return
+		case <-d.stop:
+			return
+		case <-t.C:
+		}
+	}
 }
 
 // sleepAll puts every ready server group to sleep (resumable sessions).
@@ -487,6 +542,7 @@ func (d *Daemon) supervise(ctx context.Context) bool {
 				// stopped without signalling it, only if the row is unchanged.
 				if ok, _ := d.opts.Servers.SetStatusIf(ctx, s.GroupKey, s.PID, s.Status, domain.ServerStopped); ok {
 					d.revokeOwner(ctx, s.GroupKey)
+					d.teardown(ctx, s) // e.g. a container left behind by a killed CLI
 				}
 			}
 		}
@@ -504,7 +560,7 @@ func (d *Daemon) supervise(ctx context.Context) bool {
 	d.notes.requestScan() // decisions raised by other processes (CLI, TUI)
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	if live > 0 {
+	if live > 0 || d.periodicBusy {
 		d.lastBusy = time.Now()
 		return false
 	}
