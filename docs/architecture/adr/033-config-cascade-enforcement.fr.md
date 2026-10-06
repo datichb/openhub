@@ -2,7 +2,7 @@
 
 ## Statut
 
-accepted
+accepted — **Évolué par [ADR-040](./040-workflows-team-state-governance.fr.md)** et **[ADR-044](./044-credential-proxy-session-limits.fr.md)**
 
 ## Date
 

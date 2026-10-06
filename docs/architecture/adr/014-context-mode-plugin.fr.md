@@ -4,7 +4,7 @@
 
 ## Statut
 
-Accepté
+~~Accepté~~ **Déprécié** — voir [ADR-048](./048-opencode-v1-abandonment.fr.md) et [ADR-039](./039-declarative-workflows-oh-v1.fr.md) (`plugins:`)
 
 ## Contexte
 

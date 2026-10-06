@@ -4,7 +4,7 @@
 
 ## Status
 
-Accepted
+~~Accepted~~ **Superseded by [ADR-043](./043-session-bundle-deploy-removal.en.md)**
 
 ## Context
 

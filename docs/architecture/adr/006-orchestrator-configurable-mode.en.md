@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted
+~~Accepted~~ **Superseded by [ADR-039](./039-declarative-workflows-oh-v1.en.md)**
 
 ## Context
 

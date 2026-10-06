@@ -4,7 +4,7 @@
 
 ## Status
 
-Accepted
+Accepted — **Evolved by [ADR-041](./041-closed-world-isolation.en.md)** and **[ADR-044](./044-credential-proxy-session-limits.en.md)**
 
 ## Date
 

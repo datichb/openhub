@@ -2,7 +2,7 @@
 
 ## Statut
 
-Accepté
+~~Accepté~~ **Remplacé par [ADR-042](./042-checkpoints-headless-decisions.fr.md)**
 
 ## Contexte
 
