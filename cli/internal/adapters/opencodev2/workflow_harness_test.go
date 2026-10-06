@@ -85,7 +85,7 @@ func newWorkflowEnv(t *testing.T, a *Adapter) *workflowEnv {
 	require.NoError(t, err)
 	e.sessions, e.servers = sqlite.NewSessionStore(st), sqlite.NewServerStore(st)
 	e.decisions = sqlite.NewDecisionStore(st)
-	e.cp = &checkpoint.Service{Sessions: e.sessions, States: sqlite.NewCheckpointStore(st), BundlesDir: e.bundles, SessionsDir: filepath.Join(home, "sessions")}
+	e.cp = &checkpoint.Service{Sessions: e.sessions, States: sqlite.NewCheckpointStore(st), SessionOutputs: sqlite.NewCheckpointStore(st), BundlesDir: e.bundles, SessionsDir: filepath.Join(home, "sessions")}
 
 	paths := daemon.Paths{Dir: filepath.Join(home, "run")}
 	ctx, cancel := context.WithCancel(context.Background())

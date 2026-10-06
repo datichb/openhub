@@ -40,3 +40,10 @@ func TestCheckpointDefBehavior(t *testing.T) {
 	assert.Equal(t, "Démarrer", c.LabelFor("fr"))
 	assert.Equal(t, "Start", c.LabelFor("de"))
 }
+
+func TestCheckpointLookupIgnoresCase(t *testing.T) {
+	wf := &WorkflowRuntime{Checkpoints: []CheckpointDef{{ID: "cp-1"}}}
+	c, ok := wf.Checkpoint(" CP-1 ")
+	assert.True(t, ok)
+	assert.Equal(t, "cp-1", c.ID)
+}

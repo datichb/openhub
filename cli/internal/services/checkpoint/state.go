@@ -112,12 +112,12 @@ func (s *Service) Asked(ctx context.Context, root, toolSession string, p adapter
 		id, _ = p.Call.Input["id"].(string)
 		summary, _ = p.Call.Input["summary"].(string)
 	}
-	id = strings.TrimSpace(id)
 	c, known := wf.Checkpoint(id)
 	behavior := c.Behavior(sess.Mode)
 	if !known || !bundle.NeedsDecision(behavior) {
 		return nil, true, nil
 	}
+	id = c.ID
 	label := c.LabelFor(i18n.Locale())
 	d = &domain.Decision{SessionID: root, GroupKey: sess.GroupKey, Kind: domain.DecisionCheckpoint, ToolRef: p.ID,
 		Payload: domain.DecisionPayload{Title: label, Message: summary, Data: map[string]any{

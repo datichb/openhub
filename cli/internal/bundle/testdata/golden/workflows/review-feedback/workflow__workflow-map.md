@@ -33,21 +33,22 @@ Règles de délégation :
 
 - **cp-fix** : Présenter les corrections classées (critiques, majeures, suggestions) et confirmer lesquelles appliquer.
 
-Comportements :
-- `pause` : arrête-toi, présente l'état et demande la validation de l'utilisateur avec l'outil `question` ; ne continue jamais sans réponse.
-- `auto` : annonce le passage du checkpoint en une ligne, puis continue.
-- `skip` : le checkpoint est ignoré dans ce mode.
-- `conditional` : évalue la condition ; si elle est remplie, comporte-toi comme `pause`, sinon comme `auto`.
+Passage d'un checkpoint : appelle l'outil `workflow_checkpoint` avec `id` (identifiant du tableau) et `summary` (ce qui est fait, ce qui va suivre, points d'attention), **avant** de lancer l'étape suivante. C'est oh qui applique le comportement du mode :
+- `pause` (et `conditional`) : l'appel attend la validation de l'utilisateur (depuis oh ou l'interface). S'il est refusé, ne continue pas : suis la consigne reçue (corriger, préciser), puis rappelle `workflow_checkpoint` pour le même checkpoint.
+- `auto` : l'appel passe aussitôt ; continue.
+- `skip` : le checkpoint est ignoré dans ce mode, ne l'appelle pas.
+- La réponse de l'outil peut contenir une consigne de l'utilisateur : applique-la.
 - Un checkpoint obligatoire n'est jamais sauté, quel que soit le mode.
+- N'utilise pas l'outil `question` pour valider un checkpoint ; `workflow_status` donne l'état courant (checkpoints passés, prochain checkpoint, agents encore verrouillés).
 
 ## Mode de workflow
 
 - Modes autorisés : `manuel`, `semi-auto`, `auto` · mode par défaut : `semi-auto`.
 - Le mode de la session est indiqué dans le premier message (`Mode de workflow : <mode>`) ; sans indication, applique le mode par défaut. Ne le redemande pas.
 - Quand tu lances un agent avec l'outil `task`, inclus la ligne `Mode de workflow : <mode>` dans le prompt.
-- Disjoncteur : après 12 lancements `task` consécutifs sans interaction de l'utilisateur, fais une pause et demande s'il faut continuer, faire une revue ou arrêter. Le compteur repart de zéro à chaque échange avec l'utilisateur.
+- Disjoncteur : après 12 lancements `task` consécutifs sans interaction de l'utilisateur, oh suspend les délégations jusqu'à ce que l'utilisateur intervienne. Si un lancement est refusé, fais le point et attends.
 
 ## Sorties à déclarer
 
-En fin de travail, annonce chaque sortie produite sur une ligne `Sortie <id> : <valeur>` :
+Dès qu'une sortie est produite, déclare-la avec l'outil `workflow_outputs` (`type`, `value`, `id`) ; en fin de travail, rappelle chaque sortie sur une ligne `Sortie <id> : <valeur>` :
 - `branch` (branch) : Branche corrigée

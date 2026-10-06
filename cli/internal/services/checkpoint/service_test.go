@@ -43,7 +43,8 @@ func newTestService(t *testing.T) (*Service, context.Context) {
 	t.Cleanup(func() { st.Close() })
 	_, err = st.DB().Exec(`INSERT INTO projects (id, name, path) VALUES ('p1','p1','/p1')`)
 	require.NoError(t, err)
-	svc := &Service{Sessions: sqlite.NewSessionStore(st), States: sqlite.NewCheckpointStore(st), BundlesDir: t.TempDir(), SessionsDir: t.TempDir()}
+	cs := sqlite.NewCheckpointStore(st)
+	svc := &Service{Sessions: sqlite.NewSessionStore(st), States: cs, SessionOutputs: cs, BundlesDir: t.TempDir(), SessionsDir: t.TempDir()}
 	writeBundle(t, svc.BundlesDir, "h_wf", &TestWorkflow)
 	writeBundle(t, svc.BundlesDir, "h_plain", nil)
 	ctx := context.Background()
@@ -91,16 +92,15 @@ func TestDeclareOutputs(t *testing.T) {
 	assert.ErrorContains(t, svc.Declare(ctx, "ses_a", Output{Type: "path", Value: "x"}), "branch:branch, mr:merge_request")
 	assert.Error(t, svc.Declare(ctx, "ses_a", Output{Type: "branch"}))
 
-	out, err := svc.Outputs("ses_a")
+	out, err := svc.Outputs(ctx, "ses_a")
 	require.NoError(t, err)
 	require.Len(t, out, 2, "same output replaced")
-	assert.Equal(t, "mr", out[0].ID)
-	assert.Equal(t, "branch", out[1].ID, "id taken from the workflow")
-	assert.Equal(t, "feat/b", out[1].Value)
+	assert.Equal(t, Output{ID: "branch", Type: "branch", Value: "feat/b"}, out[0], "id taken from the workflow")
+	assert.Equal(t, Output{ID: "mr", Type: "merge_request", Value: "!12"}, out[1])
 
-	info, err := os.Stat(filepath.Join(svc.SessionsDir, "ses_a", "outputs.json"))
+	sess, err := svc.Sessions.Get(ctx, "ses_a")
 	require.NoError(t, err)
-	assert.Equal(t, os.FileMode(0o600), info.Mode().Perm())
+	assert.Equal(t, map[string]any{"branch": "feat/b", "mr": "!12"}, sess.Outputs, "in sessions.outputs (chaining)")
 }
 
 type fakeTool struct {

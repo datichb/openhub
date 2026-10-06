@@ -78,3 +78,23 @@ func (c *CheckpointStore) UpdateCheckpointState(ctx context.Context, id string, 
 	}
 	return domain.CheckpointState{}, errors.New("checkpoint state: too many concurrent updates")
 }
+
+var _ domain.SessionOutputStore = (*CheckpointStore)(nil)
+
+// SetSessionOutput implements domain.SessionOutputStore (sessions.outputs, v34).
+func (c *CheckpointStore) SetSessionOutput(ctx context.Context, id, key string, value any) error {
+	data, err := json.Marshal(value)
+	if err != nil {
+		return err
+	}
+	res, err := c.db.ExecContext(ctx,
+		`UPDATE sessions SET outputs = json_set(CASE WHEN json_valid(outputs) THEN outputs ELSE '{}' END, '$.' || json_quote(?), json(?)) WHERE id = ?`,
+		key, string(data), id)
+	if err != nil {
+		return fmt.Errorf("setting session output: %w", err)
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		return domain.ErrNotFound
+	}
+	return nil
+}

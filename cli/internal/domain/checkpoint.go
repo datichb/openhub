@@ -85,3 +85,9 @@ type CheckpointStore interface {
 	// new state. fn returning an error leaves the state unchanged.
 	UpdateCheckpointState(ctx context.Context, sessionID string, fn func(*CheckpointState) error) (CheckpointState, error)
 }
+
+// SessionOutputStore records the typed outputs declared by a session
+// (sessions.outputs, by output id) without rewriting the session row.
+type SessionOutputStore interface {
+	SetSessionOutput(ctx context.Context, sessionID, key string, value any) error
+}

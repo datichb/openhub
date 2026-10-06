@@ -122,13 +122,15 @@ type OutputDef struct {
 	Label map[string]string `json:"label,omitempty"`
 }
 
-// Checkpoint returns the checkpoint with id.
+// Checkpoint returns the checkpoint with id (case-insensitive: agent
+// prompts often write "CP-1" for "cp-1").
 func (w *WorkflowRuntime) Checkpoint(id string) (CheckpointDef, bool) {
 	if w == nil {
 		return CheckpointDef{}, false
 	}
+	id = strings.TrimSpace(id)
 	for _, c := range w.Checkpoints {
-		if c.ID == id {
+		if strings.EqualFold(c.ID, id) {
 			return c, true
 		}
 	}

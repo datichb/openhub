@@ -6,11 +6,8 @@ package checkpoint
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"os"
-	"path/filepath"
 	"sort"
 	"strings"
 	"time"
@@ -28,9 +25,12 @@ type Service struct {
 	States domain.CheckpointStore
 	// BundlesDir locates the session bundles (~/.oh/bundles).
 	BundlesDir string
-	// SessionsDir keeps per-session files (~/.oh/sessions/<id>/outputs.json).
+	// SessionsDir keeps per-session files (~/.oh/sessions/<id>).
 	SessionsDir string
-	Now         func() time.Time
+	// SessionOutputs records the outputs declared by workflow_outputs
+	// (sessions.outputs).
+	SessionOutputs domain.SessionOutputStore
+	Now            func() time.Time
 }
 
 // Errors.
@@ -94,7 +94,7 @@ type Output struct {
 	ID    string    `json:"id,omitempty"`
 	Type  string    `json:"type"`
 	Value string    `json:"value"`
-	At    time.Time `json:"at"`
+	At    time.Time `json:"at,omitzero"`
 }
 
 // session loads a session and the workflow runtime of its bundle.
@@ -157,7 +157,7 @@ func (s *Service) Status(ctx context.Context, sessionID string) (Status, error) 
 		}
 	}
 	st.Breaker = cs.Breaker
-	st.Outputs, _ = s.Outputs(sessionID)
+	st.Outputs, _ = s.Outputs(ctx, sessionID)
 	return st, nil
 }
 
@@ -197,34 +197,49 @@ func checkpointIDs(wf *sessionspec.WorkflowRuntime) []string {
 	return ids
 }
 
-// outputsFile is ~/.oh/sessions/<id>/outputs.json. It stands in for the
-// sessions.outputs column (migration v34, launch track) until it exists.
-func (s *Service) outputsFile(id string) string {
-	return filepath.Join(s.SessionsDir, id, "outputs.json")
-}
-
-// Outputs returns the outputs declared by a session.
-func (s *Service) Outputs(sessionID string) ([]Output, error) {
-	if s.SessionsDir == "" {
-		return nil, nil
-	}
-	data, err := os.ReadFile(s.outputsFile(sessionID))
-	if errors.Is(err, os.ErrNotExist) {
-		return nil, nil
-	}
-	if err != nil {
+// Outputs returns the outputs declared by a session (sessions.outputs, by
+// output id), typed after the workflow outputs.
+func (s *Service) Outputs(ctx context.Context, sessionID string) ([]Output, error) {
+	sess, wf, err := s.session(ctx, sessionID)
+	if err != nil && !errors.Is(err, ErrNoWorkflow) {
 		return nil, err
 	}
-	var out []Output
-	if err := json.Unmarshal(data, &out); err != nil {
-		return nil, err
+	if sess == nil || len(sess.Outputs) == 0 {
+		return nil, nil
+	}
+	types := map[string]string{}
+	if wf != nil {
+		for _, d := range wf.Outputs {
+			types[d.ID] = d.Type
+		}
+	}
+	keys := make([]string, 0, len(sess.Outputs))
+	for k := range sess.Outputs {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	out := make([]Output, 0, len(keys))
+	for _, k := range keys {
+		o := Output{ID: k, Type: firstNonEmpty(types[k], k)}
+		switch v := sess.Outputs[k].(type) {
+		case []any:
+			parts := make([]string, 0, len(v))
+			for _, e := range v {
+				parts = append(parts, fmt.Sprint(e))
+			}
+			o.Value = strings.Join(parts, ",")
+		default:
+			o.Value = fmt.Sprint(v)
+		}
+		out = append(out, o)
 	}
 	return out, nil
 }
 
-// Declare records an output of a session. An output with the same id (or,
-// without id, the same type) replaces the previous one. A workflow that
-// declares its outputs only accepts those (by id or type).
+// Declare records an output of a session in sessions.outputs (key: the
+// workflow output id, else the type), replacing a previous value. A workflow
+// that declares its outputs only accepts those (by id or type). Beads ids
+// are stored as a list.
 func (s *Service) Declare(ctx context.Context, sessionID string, o Output) error {
 	_, wf, err := s.session(ctx, sessionID)
 	if err != nil {
@@ -241,33 +256,20 @@ func (s *Service) Declare(ctx context.Context, sessionID string, o Output) error
 		}
 		o.ID = d.ID
 	}
-	if s.SessionsDir == "" {
-		return errors.New("checkpoint: no sessions directory")
+	if s.SessionOutputs == nil {
+		return errors.New("checkpoint: no output store")
 	}
-	list, err := s.Outputs(sessionID)
-	if err != nil {
-		return err
-	}
-	if o.At.IsZero() {
-		o.At = s.now()
-	}
-	kept := list[:0]
-	for _, prev := range list {
-		if (o.ID != "" && prev.ID == o.ID) || (o.ID == "" && prev.ID == "" && prev.Type == o.Type) {
-			continue
+	var value any = o.Value
+	if o.Type == "beads-ids" {
+		var ids []string
+		for _, p := range strings.Split(o.Value, ",") {
+			if p = strings.TrimSpace(p); p != "" {
+				ids = append(ids, p)
+			}
 		}
-		kept = append(kept, prev)
+		value = ids
 	}
-	kept = append(kept, o)
-	sort.SliceStable(kept, func(i, j int) bool { return kept[i].At.Before(kept[j].At) })
-	data, err := json.MarshalIndent(kept, "", "  ")
-	if err != nil {
-		return err
-	}
-	if err := os.MkdirAll(filepath.Dir(s.outputsFile(sessionID)), 0o700); err != nil {
-		return err
-	}
-	return os.WriteFile(s.outputsFile(sessionID), data, 0o600)
+	return s.SessionOutputs.SetSessionOutput(ctx, sessionID, firstNonEmpty(o.ID, o.Type), value)
 }
 
 // match finds the workflow output o stands for: same id and type, or the

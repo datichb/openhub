@@ -41,7 +41,7 @@ func TestWorkflowAPI(t *testing.T) {
 
 	dctx, cancel := context.WithCancel(ctx)
 	done := make(chan error, 1)
-	cp := &checkpoint.Service{Sessions: sessions, BundlesDir: bundles, SessionsDir: t.TempDir()}
+	cp := &checkpoint.Service{Sessions: sessions, SessionOutputs: sqlite.NewCheckpointStore(st), BundlesDir: bundles, SessionsDir: t.TempDir()}
 	go func() {
 		done <- Run(dctx, Options{Paths: p, Version: "t", Servers: sqlite.NewServerStore(st), Sessions: sessions, Checkpoints: cp, Tick: time.Hour, IdleAfter: time.Hour})
 	}()
