@@ -143,6 +143,8 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 - Port du proxy pris par un autre programme au redémarrage du démon : les serveurs qui utilisaient l'ancien (proxy, passerelle Beads, MCP distants) sont mis en veille tout de suite au lieu de rester injoignables, avec une erreur pour les sessions qui travaillaient ; la reprise les relance avec le nouveau port.
 - Ouverture dans tmux < 3.0 (commande d'attachement passée en un seul argument) ; `OH_HOME` transmis à la fenêtre ouverte sans `/usr/bin/env`.
 - La question de fermeture de la TUI ne reste plus bloquée par un démon qui ne répond pas.
+- Le démon oh s'arrêtait pendant une longue construction d'image (premier lancement en conteneur en échec) ; un conteneur laissé par une session arrêtée brutalement est supprimé dès que le démon le constate.
+- Sessions distantes : suivies aussi oh fermé (notification « À récupérer », baux Beads des tickets réservés entretenus pendant le pipeline).
 - Les questions des agents n'étaient suivies qu'à la reconnexion suivante du démon (session de l'événement `form.created` mal lue).
 - Un toast affiché pendant un formulaire de la TUI lui prenait le focus (flèches sans effet) ; l'accueil reprenait aussi le focus en se reconstruisant.
 - La commande `quit` de l'omnibar contournait la question de fermeture, et Échap sur cette question laissait la fermeture en suspens.
