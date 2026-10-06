@@ -24,6 +24,8 @@ import (
 // Service is the CheckpointService.
 type Service struct {
 	Sessions domain.SessionStore
+	// States keeps the workflow state of the sessions (sessions.checkpoint_state).
+	States domain.CheckpointStore
 	// BundlesDir locates the session bundles (~/.oh/bundles).
 	BundlesDir string
 	// SessionsDir keeps per-session files (~/.oh/sessions/<id>/outputs.json).
@@ -57,6 +59,8 @@ type Status struct {
 	Locked          []sessionspec.AgentGate `json:"locked_agents,omitempty"`
 	ExpectedOutputs []sessionspec.OutputDef `json:"expected_outputs,omitempty"`
 	Outputs         []Output                `json:"outputs,omitempty"`
+	// Breaker: delegation is held by the circuit breaker until the user steps in.
+	Breaker bool `json:"circuit_breaker,omitempty"`
 }
 
 // CheckpointStatus is a checkpoint of the workflow in the session mode.
@@ -121,23 +125,45 @@ func (s *Service) Status(ctx context.Context, sessionID string) (Status, error) 
 	if err != nil {
 		return Status{}, err
 	}
+	cs, err := s.state(ctx, sessionID)
+	if err != nil {
+		return Status{}, err
+	}
 	lang := i18n.Locale()
 	st := Status{SessionID: sess.ID, Workflow: wf.ID, Mode: sess.Mode, ExpectedOutputs: wf.Outputs}
 	for _, c := range wf.Checkpoints {
-		cs := CheckpointStatus{ID: c.ID, Label: c.LabelFor(lang), Behavior: c.Behavior(sess.Mode), State: StateTodo}
-		if cs.Behavior == sessionspec.CheckpointSkip {
-			cs.State = StateSkipped
-		} else if st.Next == "" {
+		row := CheckpointStatus{ID: c.ID, Label: c.LabelFor(lang), Behavior: c.Behavior(sess.Mode), State: StateTodo}
+		switch {
+		case cs.HasPassed(c.ID):
+			at := cs.Passed[c.ID]
+			row.State, row.At = StatePassed, &at
+		case cs.Waiting == c.ID:
+			row.State = StateWaiting
+		case row.Behavior == sessionspec.CheckpointSkip:
+			row.State = StateSkipped
+		}
+		if st.Next == "" && (row.State == StateTodo || row.State == StateWaiting) {
 			st.Next = c.ID
 		}
-		st.Checkpoints = append(st.Checkpoints, cs)
+		st.Checkpoints = append(st.Checkpoints, row)
 	}
-	st.Locked = append(st.Locked, wf.Gates...)
+	locked := map[string]bool{}
+	for _, a := range bundle.LockedAgents(wf, sess.Mode, &cs) {
+		locked[a] = true
+	}
+	for _, g := range wf.Gates {
+		if locked[g.Agent] {
+			st.Locked = append(st.Locked, g)
+		}
+	}
+	st.Breaker = cs.Breaker
 	st.Outputs, _ = s.Outputs(sessionID)
 	return st, nil
 }
 
-// Reached records a workflow_checkpoint call that the tool let run.
+// Reached records a workflow_checkpoint call that the tool let run: the
+// checkpoint is passed; the result carries the instruction given with the
+// validation. The caller re-applies the session rules (locks released).
 func (s *Service) Reached(ctx context.Context, sessionID string, call Call) (Result, error) {
 	sess, wf, err := s.session(ctx, sessionID)
 	if err != nil {
@@ -148,6 +174,13 @@ func (s *Service) Reached(ctx context.Context, sessionID string, call Call) (Res
 		return Result{}, fmt.Errorf("%w %q (%s)", ErrUnknownCP, call.ID, strings.Join(checkpointIDs(wf), ", "))
 	}
 	res := Result{ID: c.ID, Label: c.LabelFor(i18n.Locale()), Behavior: c.Behavior(sess.Mode)}
+	if s.States != nil {
+		ap, err := s.pass(ctx, sessionID, c.ID)
+		if err != nil {
+			return res, err
+		}
+		res.Message = ap.Message
+	}
 	for i, cp := range wf.Checkpoints {
 		if cp.ID == c.ID && i+1 < len(wf.Checkpoints) {
 			res.Next = wf.Checkpoints[i+1].ID

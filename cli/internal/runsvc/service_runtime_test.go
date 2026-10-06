@@ -338,3 +338,19 @@ func TestContainerRuntimeMissing(t *testing.T) {
 }
 
 func providerCfg() provider.Config { return provider.Config{AWSRegion: "eu-west-1"} }
+
+func TestStartSessionSetsCheckpointRules(t *testing.T) {
+	f := newRTFixture(t)
+	f.b.Spec.Workflow = &sessionspec.WorkflowRuntime{ID: "wf", DefaultMode: "manuel",
+		Checkpoints: []sessionspec.CheckpointDef{{ID: "cp-1", Behaviors: map[string]string{"manuel": "pause"}}},
+		Gates:       []sessionspec.AgentGate{{Agent: "developer", After: "cp-1"}}}
+	ctx := context.Background()
+	res, err := f.svc.StartSession(ctx, f.request(f.project))
+	require.NoError(t, err)
+	require.Len(t, f.ad.created, 1)
+	assert.Equal(t, "manuel", f.ad.created[0].Mode, "workflow default mode")
+	assert.Equal(t, bundle.SessionRules(f.b.Spec.Workflow, "manuel", nil), f.ad.created[0].SessionRules)
+	sess, err := f.svc.Sessions.Get(ctx, res.SessionID)
+	require.NoError(t, err)
+	assert.Equal(t, "manuel", sess.Mode)
+}

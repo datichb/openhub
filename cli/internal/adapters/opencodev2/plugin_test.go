@@ -8,6 +8,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/datichb/openhub/cli/internal/sessionspec"
 )
 
 func TestInstallPluginAndOptions(t *testing.T) {
@@ -21,7 +23,7 @@ func TestInstallPluginAndOptions(t *testing.T) {
 	body, _ := os.ReadFile(filepath.Join(dir, "agents", "developer.md"))
 	assert.Equal(t, "You are developer.", string(body))
 
-	withP := withOhPlugin(b, dir, "/tmp/trace")
+	withP := withOhPlugin(b, dir, "/tmp/trace", nil)
 	require.Len(t, withP.Plugins, 1)
 	opts := withP.Plugins[0].Options
 	assert.Equal(t, filepath.Join(dir, "agents"), opts["agentsDir"])
@@ -38,7 +40,7 @@ func TestInstallPluginAndOptions(t *testing.T) {
 
 func TestFallbackBundle(t *testing.T) {
 	b := sampleBundle()
-	b.Plugins = append(b.Plugins, withOhPlugin(b, "/x", "").Plugins...)
+	b.Plugins = append(b.Plugins, withOhPlugin(b, "/x", "", nil).Plugins...)
 	fb := withoutOhPlugin(b)
 	assert.Empty(t, fb.Plugins)
 	assert.True(t, strings.HasPrefix(fb.Agents[0].Body, "You are working inside an oh session"))
@@ -49,4 +51,15 @@ func TestFallbackBundle(t *testing.T) {
 	require.NoError(t, err)
 	agent := cfg["agents"].(map[string]any)["orchestrator-dev"].(map[string]any)
 	assert.Contains(t, agent["system"], "You are orchestrator-dev.")
+}
+
+func TestHookOptions(t *testing.T) {
+	assert.Nil(t, hookOptions(sessionspec.ProviderSpec{ID: "amazon-bedrock"}), "no proxy, no hooks")
+	got := hookOptions(sessionspec.ProviderSpec{ID: "amazon-bedrock", BaseURL: "http://host.docker.internal:5555/amazon-bedrock", SessionToken: "ohs_x"})
+	assert.Equal(t, map[string]any{"hookURL": "http://host.docker.internal:5555/oh/v1/hooks", "tokenEnv": "AWS_BEARER_TOKEN_BEDROCK"}, got)
+
+	b := withOhPlugin(sessionspec.BundleSpec{}, "/p", "", got)
+	opts := b.Plugins[len(b.Plugins)-1].Options
+	assert.Equal(t, "http://host.docker.internal:5555/oh/v1/hooks", opts["hookURL"])
+	assert.NotContains(t, opts, "token", "the token stays in the server environment")
 }

@@ -8,6 +8,10 @@
 //   2. Closed world: agents and skills that are not part of the session bundle
 //      are removed from the registries (defence in depth on top of the
 //      rendered `disabled` / permission rules).
+//   3. Checkpoints (level 3): before a permission is asked, the request is
+//      relayed to the oh daemon, which may turn it into allow / deny. The
+//      plugin only forwards: oh decides. Without an answer (oh unreachable,
+//      timeout) the rendered decision stands.
 //
 // Options (set by oh):
 //   agentsDir     directory holding <agent-id>.md bodies
@@ -15,6 +19,8 @@
 //   skills        skill IDs of the bundle
 //   systemAgents  internal opencode agents to keep (compaction, title, summary)
 //   traceFile     optional JSONL trace of injected prompts (tests only)
+//   hookURL       oh hooks base URL (credential proxy listener)
+//   tokenEnv      environment variable holding the session token for hookURL
 
 import { appendFileSync, readFileSync } from "fs"
 import { join } from "path"
@@ -25,7 +31,12 @@ type Options = {
   skills?: string[]
   systemAgents?: string[]
   traceFile?: string
+  hookURL?: string
+  tokenEnv?: string
 }
+
+const hookTimeoutMs = 2000
+const maxCalls = 500
 
 const bodies = new Map<string, string | null>()
 
@@ -64,6 +75,41 @@ export default {
       await ctx.skill.transform((editor: any) => {
         for (const s of editor.list()) {
           if (!skills.has(s.id)) editor.remove(s.id)
+        }
+      })
+    }
+
+    if (opts.hookURL && opts.tokenEnv) {
+      // The permission event does not carry the tool input: keep it by call id.
+      const inputs = new Map<string, any>()
+      await ctx.tool.hook("execute.before", (event: any) => {
+        if (!event?.id) return
+        inputs.set(event.id, event.input)
+        if (inputs.size > maxCalls) inputs.delete(inputs.keys().next().value as string)
+      })
+      await ctx.permission.hook("evaluate", async (event: any) => {
+        if (event?.effect !== "ask") return
+        const callID = event.source?.id
+        try {
+          const res = await fetch(`${opts.hookURL}/permission`, {
+            method: "POST",
+            headers: { "content-type": "application/json", authorization: `Bearer ${process.env[opts.tokenEnv!] ?? ""}` },
+            body: JSON.stringify({
+              sessionID: event.sessionID,
+              agent: event.agent,
+              action: event.action,
+              resources: event.resources,
+              callID,
+              input: callID ? inputs.get(callID) : undefined,
+            }),
+            signal: AbortSignal.timeout(hookTimeoutMs),
+          })
+          if (!res.ok) return
+          const out: any = await res.json()
+          if (out?.effect === "allow" || out?.effect === "deny" || out?.effect === "ask") event.effect = out.effect
+          if (typeof out?.message === "string" && out.message) event.message = out.message
+        } catch {
+          // oh unreachable: the rendered decision stands
         }
       })
     }

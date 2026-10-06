@@ -184,6 +184,11 @@ type PermissionRequest struct {
 	Resources []string `json:"resources"`
 	Save      []string `json:"save,omitempty"`
 	Message   string   `json:"message,omitempty"`
+	Source    *struct {
+		Type      string `json:"type"`
+		MessageID string `json:"messageID"`
+		ID        string `json:"id"` // tool call id
+	} `json:"source,omitempty"`
 }
 
 // FormOption is one choice of a form field.
@@ -410,6 +415,40 @@ func (c *Client) ReplyPermission(ctx context.Context, sessionID, requestID, deci
 		body["message"] = message
 	}
 	return c.do(ctx, http.MethodPost, sessionPath(sessionID, "permission/"+url.PathEscape(requestID)+"/reply"), nil, body, nil)
+}
+
+// SetSessionPermissions replaces the permission rules of a session.
+func (c *Client) SetSessionPermissions(ctx context.Context, sessionID string, rules []Rule) error {
+	if rules == nil {
+		rules = []Rule{}
+	}
+	return c.do(ctx, http.MethodPatch, "/api/session/"+url.PathEscape(sessionID), nil, map[string]any{"permissions": rules}, nil)
+}
+
+// ToolCallInput returns the input of a tool call of a session (nil when not found).
+func (c *Client) ToolCallInput(ctx context.Context, sessionID, callID string) (map[string]any, error) {
+	var out struct {
+		Data []struct {
+			Content []struct {
+				Type  string `json:"type"`
+				ID    string `json:"id"`
+				State struct {
+					Input map[string]any `json:"input"`
+				} `json:"state"`
+			} `json:"content"`
+		} `json:"data"`
+	}
+	if err := c.do(ctx, http.MethodGet, sessionPath(sessionID, "message"), nil, nil, &out); err != nil {
+		return nil, err
+	}
+	for i := len(out.Data) - 1; i >= 0; i-- {
+		for _, p := range out.Data[i].Content {
+			if p.Type == "tool" && p.ID == callID {
+				return p.State.Input, nil
+			}
+		}
+	}
+	return nil, nil
 }
 
 // Forms lists pending forms (agent questions) of a session.

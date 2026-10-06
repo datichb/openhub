@@ -18,7 +18,6 @@ import (
 	"github.com/datichb/openhub/cli/internal/buildinfo"
 	"github.com/datichb/openhub/cli/internal/daemon"
 	"github.com/datichb/openhub/cli/internal/i18n"
-	"github.com/datichb/openhub/cli/internal/services/checkpoint"
 	"github.com/datichb/openhub/cli/internal/storage/sqlite"
 	"github.com/datichb/openhub/cli/internal/sysnotify"
 )
@@ -48,7 +47,7 @@ var daemonRunCmd = &cobra.Command{
 			Sessions:    a.Sessions,
 			Decisions:   sqlite.NewDecisionStore(store),
 			SessionsDir: ohSessionsDir(),
-			Checkpoints: &checkpoint.Service{Sessions: a.Sessions, BundlesDir: ohBundlesDir(), SessionsDir: ohSessionsDir()},
+			Checkpoints: newCheckpointService(a),
 			Notify:      daemonNotifier(a),
 			ProjectName: func(ctx context.Context, id string) string {
 				if p, err := a.Projects.Get(ctx, id); err == nil {

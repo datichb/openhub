@@ -60,17 +60,19 @@ type buildError struct {
 func (e *buildError) Error() string { return e.err.Error() + "\n" + e.out }
 
 type workflowEnv struct {
-	home     string // OH_HOME (short: it holds the daemon socket)
-	ohBin    string
-	bundles  string
-	sessions domain.SessionStore
-	servers  domain.ServerStore
-	cp       *checkpoint.Service
-	client   *daemon.Client
+	home      string // OH_HOME (short: it holds the daemon socket)
+	ohBin     string
+	bundles   string
+	sessions  domain.SessionStore
+	servers   domain.ServerStore
+	decisions domain.DecisionStore
+	cp        *checkpoint.Service
+	client    *daemon.Client
 }
 
-// newWorkflowEnv starts an oh daemon on an isolated OH_HOME.
-func newWorkflowEnv(t *testing.T) *workflowEnv {
+// newWorkflowEnv starts an oh daemon on an isolated OH_HOME, watching the
+// servers of adapter a.
+func newWorkflowEnv(t *testing.T, a *Adapter) *workflowEnv {
 	t.Helper()
 	home, err := os.MkdirTemp("/tmp", "ohw-")
 	require.NoError(t, err)
@@ -82,14 +84,21 @@ func newWorkflowEnv(t *testing.T) *workflowEnv {
 	_, err = st.DB().Exec(`INSERT INTO projects (id, name, path) VALUES ('p1','p1','/p1')`)
 	require.NoError(t, err)
 	e.sessions, e.servers = sqlite.NewSessionStore(st), sqlite.NewServerStore(st)
-	e.cp = &checkpoint.Service{Sessions: e.sessions, BundlesDir: e.bundles, SessionsDir: filepath.Join(home, "sessions")}
+	e.decisions = sqlite.NewDecisionStore(st)
+	e.cp = &checkpoint.Service{Sessions: e.sessions, States: sqlite.NewCheckpointStore(st), BundlesDir: e.bundles, SessionsDir: filepath.Join(home, "sessions")}
 
 	paths := daemon.Paths{Dir: filepath.Join(home, "run")}
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan error, 1)
 	go func() {
 		done <- daemon.Run(ctx, daemon.Options{Paths: paths, Version: "test", Servers: e.servers, Sessions: e.sessions,
-			Decisions: sqlite.NewDecisionStore(st), Checkpoints: e.cp, Tick: time.Hour, IdleAfter: time.Hour})
+			Decisions: e.decisions, Checkpoints: e.cp, Tick: 200 * time.Millisecond, IdleAfter: time.Hour, IdleSleep: time.Hour,
+			Adapter: func(name string) adapters.ToolAdapter {
+				if name == Name {
+					return a
+				}
+				return nil
+			}})
 	}()
 	t.Cleanup(func() {
 		cancel()
@@ -140,6 +149,21 @@ func (e *workflowEnv) startServer(t *testing.T, a *Adapter, b sessionspec.Bundle
 	})
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = a.StopServer(context.Background(), h) })
+	return h, project
+}
+
+// startGroup starts a server for b through the daemon's credential proxy
+// (the oh plugin reaches the daemon hooks there) and registers it as group
+// "g1", watched by the daemon.
+func (e *workflowEnv) startGroup(t *testing.T, a *Adapter, b sessionspec.BundleSpec, bedrockToken string) (adapters.ServerHandle, string) {
+	t.Helper()
+	ctx := context.Background()
+	g, err := e.client.IssueGrant(ctx, daemon.GrantRequest{Owner: "g1", Provider: "amazon-bedrock", Region: "eu-west-1",
+		Source: domain.CredentialSource{Kind: domain.CredentialBearer}, Secret: bedrockToken})
+	require.NoError(t, err)
+	h, project := e.startServer(t, a, b, sessionspec.ProviderSpec{ID: "amazon-bedrock", Region: "eu-west-1", BaseURL: g.BaseURL, SessionToken: g.Token})
+	require.NoError(t, e.servers.Upsert(ctx, &domain.Server{GroupKey: "g1", Adapter: Name, ProjectID: "p1", BundleHash: b.Hash,
+		PID: h.PID, URL: h.URL, Password: h.Password, ProxyToken: g.Token, Status: domain.ServerReady, CreatedAt: time.Now()}))
 	return h, project
 }
 

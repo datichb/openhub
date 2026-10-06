@@ -87,6 +87,21 @@ type Proxy struct {
 	client   *http.Transport
 	extra    map[string]*http.Server // additional listeners by host (containers)
 	extraURL map[string]string
+	// Hooks serves HooksPrefix routes for the tools holding a valid session
+	// token (oh plugin → oh daemon); the grant owner is in the request
+	// context (HookOwner).
+	Hooks http.Handler
+}
+
+// HooksPrefix is the path prefix of the oh hook routes on the proxy listeners.
+const HooksPrefix = "/oh/v1/hooks/"
+
+type ownerKey struct{}
+
+// HookOwner returns the owner (server group) of the token of a hook request.
+func HookOwner(r *http.Request) string {
+	s, _ := r.Context().Value(ownerKey{}).(string)
+	return s
 }
 
 // New returns an unstarted proxy.
@@ -293,12 +308,33 @@ func inboundToken(r *http.Request) string {
 	return ""
 }
 
+func (p *Proxy) serveHook(w http.ResponseWriter, r *http.Request) {
+	p.mu.RLock()
+	g, ok := p.byToken[inboundToken(r)]
+	hooks := p.Hooks
+	p.mu.RUnlock()
+	if !ok {
+		http.Error(w, "credproxy: invalid session token", http.StatusUnauthorized)
+		return
+	}
+	if hooks == nil {
+		http.NotFound(w, r)
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
+	hooks.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), ownerKey{}, g.SessionID)))
+}
+
 // strippedHeaders never reach the upstream (tool credentials, hop-by-hop).
 // Accept-Encoding is removed so that the transport negotiates compression
 // itself and hands back a decoded body (usage accounting reads it).
 var strippedHeaders = []string{"Authorization", "X-Api-Key", "Proxy-Authorization", "X-Amz-Security-Token", "X-Amz-Date", "X-Amz-Content-Sha256", "Accept-Encoding"}
 
 func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if strings.HasPrefix(r.URL.Path, HooksPrefix) {
+		p.serveHook(w, r)
+		return
+	}
 	provider, rest, _ := strings.Cut(strings.TrimPrefix(r.URL.Path, "/"), "/")
 	p.mu.RLock()
 	g, ok := p.byToken[inboundToken(r)]

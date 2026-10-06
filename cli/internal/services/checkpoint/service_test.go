@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/datichb/openhub/cli/internal/adapters"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 	"github.com/datichb/openhub/cli/internal/storage/sqlite"
@@ -42,7 +43,7 @@ func newTestService(t *testing.T) (*Service, context.Context) {
 	t.Cleanup(func() { st.Close() })
 	_, err = st.DB().Exec(`INSERT INTO projects (id, name, path) VALUES ('p1','p1','/p1')`)
 	require.NoError(t, err)
-	svc := &Service{Sessions: sqlite.NewSessionStore(st), BundlesDir: t.TempDir(), SessionsDir: t.TempDir()}
+	svc := &Service{Sessions: sqlite.NewSessionStore(st), States: sqlite.NewCheckpointStore(st), BundlesDir: t.TempDir(), SessionsDir: t.TempDir()}
 	writeBundle(t, svc.BundlesDir, "h_wf", &TestWorkflow)
 	writeBundle(t, svc.BundlesDir, "h_plain", nil)
 	ctx := context.Background()
@@ -100,4 +101,118 @@ func TestDeclareOutputs(t *testing.T) {
 	info, err := os.Stat(filepath.Join(svc.SessionsDir, "ses_a", "outputs.json"))
 	require.NoError(t, err)
 	assert.Equal(t, os.FileMode(0o600), info.Mode().Perm())
+}
+
+type fakeTool struct {
+	replies  []string
+	steers   []string
+	refresh  int
+	replyErr error
+}
+
+func (f *fakeTool) ReplyPermission(_ context.Context, _ domain.Decision, decision string) error {
+	f.replies = append(f.replies, decision)
+	return f.replyErr
+}
+func (f *fakeTool) Steer(_ context.Context, _ string, text string) error {
+	f.steers = append(f.steers, text)
+	return nil
+}
+func (f *fakeTool) Refresh(context.Context, string) error { f.refresh++; return nil }
+
+func cpDecision(t *testing.T, svc *Service, ctx context.Context, id string) *domain.Decision {
+	t.Helper()
+	d, auto, err := svc.Asked(ctx, "ses_a", "ses_a", adapters.PendingDecision{ID: "per_" + id, Call: &adapters.ToolCall{Input: map[string]any{"id": id, "summary": "done"}}})
+	require.NoError(t, err)
+	require.False(t, auto)
+	return d
+}
+
+func TestCheckpointLifecycle(t *testing.T) {
+	svc, ctx := newTestService(t)
+	tool := &fakeTool{}
+
+	// semi-auto: cp-1 automatic (let through), cp-2 paused.
+	_, auto, err := svc.Asked(ctx, "ses_a", "ses_a", adapters.PendingDecision{ID: "per_1", Call: &adapters.ToolCall{Input: map[string]any{"id": "cp-1"}}})
+	require.NoError(t, err)
+	assert.True(t, auto)
+	_, auto, _ = svc.Asked(ctx, "ses_a", "ses_a", adapters.PendingDecision{ID: "per_x", Call: &adapters.ToolCall{Input: map[string]any{"id": "cp-9"}}})
+	assert.True(t, auto, "unknown checkpoint: the call fails with the list")
+
+	rules, err := svc.Rules(ctx, "ses_a")
+	require.NoError(t, err)
+	assert.Contains(t, rules, sessionspec.PermissionRule{Action: sessionspec.ActionSubagent, Resource: "developer", Effect: sessionspec.EffectDeny})
+	_, err = svc.Reached(ctx, "ses_a", Call{ID: "cp-1"})
+	require.NoError(t, err)
+	rules, _ = svc.Rules(ctx, "ses_a")
+	assert.NotContains(t, rules, sessionspec.PermissionRule{Action: sessionspec.ActionSubagent, Resource: "developer", Effect: sessionspec.EffectDeny}, "cp-1 releases developer")
+
+	d := cpDecision(t, svc, ctx, "cp-2")
+	assert.Equal(t, domain.DecisionCheckpoint, d.Kind)
+	assert.Equal(t, "Commit", d.Payload.Title)
+	assert.Equal(t, "done", d.Payload.Message)
+	st, _ := svc.Status(ctx, "ses_a")
+	assert.Equal(t, StatePassed, st.Checkpoints[0].State)
+	assert.Equal(t, StateWaiting, st.Checkpoints[1].State)
+	assert.Equal(t, "cp-2", st.Next)
+	assert.Empty(t, st.Locked)
+
+	// Refused with an instruction: reject, then the instruction is sent.
+	require.Error(t, svc.Resolve(ctx, tool, *d, ChoiceFix, ""), "fix needs an instruction")
+	require.NoError(t, svc.Resolve(ctx, tool, *d, ChoiceFix, "renomme la fonction"))
+	assert.Equal(t, []string{"reject"}, tool.replies)
+	require.Len(t, tool.steers, 1)
+	assert.Contains(t, tool.steers[0], "renomme la fonction")
+	cs, _ := svc.State(ctx, "ses_a")
+	assert.Empty(t, cs.Waiting)
+
+	// Asked again, validated with an instruction: returned by the call.
+	d = cpDecision(t, svc, ctx, "cp-2")
+	require.NoError(t, svc.Resolve(ctx, tool, *d, ChoiceApprove, "squash avant"))
+	assert.Equal(t, []string{"reject", "once"}, tool.replies)
+	res, err := svc.Reached(ctx, "ses_a", Call{ID: "cp-2"})
+	require.NoError(t, err)
+	assert.Equal(t, "squash avant", res.Message)
+	cs, _ = svc.State(ctx, "ses_a")
+	assert.True(t, cs.HasPassed("cp-2"))
+	kinds := []string{}
+	for _, e := range cs.Timeline {
+		kinds = append(kinds, e.Kind+":"+e.ID+":"+e.By)
+	}
+	assert.Equal(t, []string{"passed:cp-1:mode", "waiting:cp-2:", "refused:cp-2:oh", "waiting:cp-2:", "passed:cp-2:oh"}, kinds)
+	assert.Error(t, svc.Resolve(ctx, tool, *d, "maybe", ""))
+}
+
+func TestCircuitBreaker(t *testing.T) {
+	svc, ctx := newTestService(t)
+	writeBundle(t, svc.BundlesDir, "h_cb", &sessionspec.WorkflowRuntime{ID: "cb", MaxConsecutiveSubagents: 2})
+	require.NoError(t, svc.Sessions.Create(ctx, &domain.Session{ID: "ses_cb", ProjectID: "p1", Status: domain.SessionStatusRunning, GroupKey: "g1", BundleHash: "h_cb", Mode: "manuel", State: domain.RunActive}))
+	call := adapters.ToolCall{Action: sessionspec.ActionSubagent, Status: adapters.CallCalled, Input: map[string]any{"agent": "developer"}}
+
+	changed, raised, err := svc.OnCall(ctx, "ses_cb", call)
+	require.NoError(t, err)
+	assert.False(t, changed)
+	assert.Nil(t, raised)
+	svc.OnUserInput(ctx, "ses_cb")
+	_, raised, _ = svc.OnCall(ctx, "ses_cb", call)
+	assert.Nil(t, raised, "the user spoke: counter reset")
+	changed, raised, _ = svc.OnCall(ctx, "ses_cb", call)
+	require.NotNil(t, raised)
+	assert.True(t, changed)
+	assert.Equal(t, domain.DecisionCircuit, raised.Kind)
+	rules, _ := svc.Rules(ctx, "ses_cb")
+	assert.Contains(t, rules, sessionspec.PermissionRule{Action: sessionspec.ActionSubagent, Resource: "*", Effect: sessionspec.EffectDeny})
+	_, again, _ := svc.OnCall(ctx, "ses_cb", call)
+	assert.Nil(t, again, "raised once")
+
+	tool := &fakeTool{}
+	require.NoError(t, svc.Resolve(ctx, tool, *raised, ChoiceDismiss, ""))
+	assert.Equal(t, 1, tool.refresh)
+	rules, _ = svc.Rules(ctx, "ses_cb")
+	assert.NotContains(t, rules, sessionspec.PermissionRule{Action: sessionspec.ActionSubagent, Resource: "*", Effect: sessionspec.EffectDeny})
+
+	changed, _, _ = svc.OnCall(ctx, "ses_cb", adapters.ToolCall{Action: sessionspec.ActionSubagent, Status: adapters.CallOK, Input: map[string]any{"agent": "developer"}})
+	assert.False(t, changed, "developer locks nothing here")
+	cs, _ := svc.State(ctx, "ses_cb")
+	assert.Equal(t, []string{"developer"}, cs.Ran)
 }

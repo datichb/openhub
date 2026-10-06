@@ -4,8 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io"
+	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -65,6 +68,35 @@ func TestWorkflowAPI(t *testing.T) {
 	_, err = c.WorkflowStatus(ctx, "ses_unknown")
 	require.True(t, errors.As(err, &api))
 	assert.Equal(t, 404, api.Status)
+
+	// Plugin hooks on the proxy listener, authenticated by the group token.
+	g, err := c.IssueGrant(ctx, GrantRequest{Owner: "g1", Provider: "amazon-bedrock", Region: "eu-west-1",
+		Source: domain.CredentialSource{Kind: domain.CredentialBearer}, Secret: "real"})
+	require.NoError(t, err)
+	other, err := c.IssueGrant(ctx, GrantRequest{Owner: "g2", Provider: "amazon-bedrock", Region: "eu-west-1",
+		Source: domain.CredentialSource{Kind: domain.CredentialBearer}, Secret: "real"})
+	require.NoError(t, err)
+	h, _ := c.Health(ctx)
+	hook := func(token string, body string) (int, string) {
+		req, _ := http.NewRequest(http.MethodPost, h.ProxyURL+"/oh/v1/hooks/permission", strings.NewReader(body))
+		req.Header.Set("Authorization", "Bearer "+token)
+		resp, err := http.DefaultClient.Do(req)
+		require.NoError(t, err)
+		defer resp.Body.Close()
+		data, _ := io.ReadAll(resp.Body)
+		return resp.StatusCode, string(data)
+	}
+	cpReq := `{"sessionID":"ses_a","action":"mcp:workflow/workflow_checkpoint","input":{"id":"cp-1"}}`
+	code, out := hook(g.Token, cpReq)
+	assert.Equal(t, 200, code)
+	assert.JSONEq(t, `{}`, out, "cp-1 pauses in manuel: decision kept")
+	code, _ = hook(other.Token, cpReq)
+	assert.Equal(t, 403, code, "another group cannot ask about this session")
+	code, _ = hook("nope", cpReq)
+	assert.Equal(t, 401, code)
+	code, out = hook(g.Token, `{"sessionID":"ses_a","action":"mcp:workflow/workflow_checkpoint","input":{"id":"cp-9"}}`)
+	assert.Equal(t, 200, code)
+	assert.JSONEq(t, `{"effect":"allow"}`, out, "unknown checkpoint let through (the call lists the checkpoints)")
 }
 
 func TestRootSessionOfSubagent(t *testing.T) {

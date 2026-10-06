@@ -4,11 +4,13 @@ import (
 	"context"
 	_ "embed"
 	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
+	"github.com/datichb/openhub/cli/internal/credproxy"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 )
 
@@ -53,8 +55,29 @@ func installPlugin(dir string, b sessionspec.BundleSpec) error {
 	return nil
 }
 
+// hookOptions returns the plugin options that relay permission evaluations
+// to the oh daemon (level 3 checkpoints, P3-T05): the hooks are served on
+// the credential proxy listeners, authenticated by the session token the
+// server already holds (read from its environment, never written in the
+// config). Nil without a proxy.
+func hookOptions(p sessionspec.ProviderSpec) map[string]any {
+	if p.BaseURL == "" || p.SessionToken == "" {
+		return nil
+	}
+	u, err := url.Parse(p.BaseURL)
+	if err != nil || u.Host == "" {
+		return nil
+	}
+	env := providerTokenEnv(p)
+	if env == "" {
+		return nil
+	}
+	u.Path, u.RawQuery = strings.TrimSuffix(credproxy.HooksPrefix, "/"), ""
+	return map[string]any{"hookURL": u.String(), "tokenEnv": env}
+}
+
 // withOhPlugin returns a copy of b that ships the oh plugin installed in dir.
-func withOhPlugin(b sessionspec.BundleSpec, dir, traceFile string) sessionspec.BundleSpec {
+func withOhPlugin(b sessionspec.BundleSpec, dir, traceFile string, hooks map[string]any) sessionspec.BundleSpec {
 	// agent bodies are written next to the plugin by installPlugin
 	out := b
 	out.Plugins = append([]sessionspec.PluginDef(nil), b.Plugins...)
@@ -72,6 +95,9 @@ func withOhPlugin(b sessionspec.BundleSpec, dir, traceFile string) sessionspec.B
 	}
 	if traceFile != "" {
 		opts["traceFile"] = traceFile
+	}
+	for k, v := range hooks {
+		opts[k] = v
 	}
 	out.Plugins = append(out.Plugins, sessionspec.PluginDef{ID: OhPluginID, Dir: dir, Options: opts})
 	return out

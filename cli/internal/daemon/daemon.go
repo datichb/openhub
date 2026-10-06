@@ -120,6 +120,7 @@ func Run(ctx context.Context, opts Options) error {
 	defer unlock()
 
 	d := &Daemon{opts: opts, proxy: credproxy.New(), pending: map[string]domain.ProxyGrant{}, clients: map[string]client{}, verified: map[string]bool{}, verifyFails: map[string]int{}, policies: map[string]QuitPolicy{}, watchers: map[string]*watcher{}, feed: newHub(), lastBusy: time.Now(), stop: make(chan struct{}), kick: make(chan struct{}, 1)}
+	d.proxy.Hooks = d.hooksHandler()
 	if err := d.startProxy(); err != nil {
 		return err
 	}

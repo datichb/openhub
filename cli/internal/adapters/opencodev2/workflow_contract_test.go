@@ -13,7 +13,7 @@ import (
 // started by the tool for the session location (P3-T01).
 func TestContractWorkflowMCPConnected(t *testing.T) {
 	a := newContractAdapter(t)
-	e := newWorkflowEnv(t)
+	e := newWorkflowEnv(t, a)
 	b := workflowBundle(t, sessionspec.WorkflowRuntime{ID: "contract"})
 	h, project := e.startServer(t, a, b, sessionspec.ProviderSpec{})
 	waitMCPConnected(t, NewClient(h.URL, h.Password), project, sessionspec.WorkflowMCPServer)

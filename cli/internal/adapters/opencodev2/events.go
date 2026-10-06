@@ -168,6 +168,8 @@ func EventKind(t string) (kind adapters.EventKind, outcome string) {
 		return adapters.EventUsage, ""
 	case t == "session.created":
 		return adapters.EventSessionCreated, ""
+	case t == "session.inbox.enqueued":
+		return adapters.EventUserInput, ""
 	case strings.HasPrefix(t, "session."), strings.HasPrefix(t, "shell."):
 		return adapters.EventActivity, ""
 	}

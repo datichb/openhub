@@ -5,7 +5,9 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"github.com/datichb/openhub/cli/internal/adapters"
 	"github.com/datichb/openhub/cli/internal/domain"
+	"github.com/datichb/openhub/cli/internal/sessionspec"
 )
 
 // Live feed decoding (P3-T10): opencode V2 events → tool-agnostic feed items.
@@ -145,4 +147,58 @@ func clip(s string, n int) string {
 	}
 	r := []rune(s)
 	return string(r[:n-1]) + "…"
+}
+
+// callOf returns the tool call carried by a tool event (nil otherwise). It
+// must run before decode, which forgets the tool name of finished calls.
+func (f *feedDecoder) callOf(e Event) *adapters.ToolCall {
+	switch e.Type {
+	case "session.tool.called", "session.tool.success", "session.tool.failed", "session.tool.error":
+	default:
+		return nil
+	}
+	var d struct {
+		ID    string          `json:"id"`
+		Input json.RawMessage `json:"input"`
+		Error struct {
+			Message string `json:"message"`
+		} `json:"error"`
+	}
+	if len(e.Data) == 0 || json.Unmarshal(e.Data, &d) != nil || d.ID == "" {
+		return nil
+	}
+	name := f.tools[d.ID]
+	if name == "" {
+		return nil
+	}
+	c := &adapters.ToolCall{ID: d.ID, Action: NeutralAction(name)}
+	switch e.Type {
+	case "session.tool.called":
+		c.Status = adapters.CallCalled
+		_ = json.Unmarshal(d.Input, &c.Input)
+	case "session.tool.success":
+		c.Status = adapters.CallOK
+	default:
+		c.Status, c.Error = adapters.CallFailed, d.Error.Message
+	}
+	return c
+}
+
+// workflowTools are the oh workflow MCP tools, by opencode tool name.
+var workflowTools = func() map[string]string {
+	out := map[string]string{}
+	for _, t := range []string{sessionspec.WorkflowToolStatus, sessionspec.WorkflowToolCheckpoint, sessionspec.WorkflowToolOutputs} {
+		a := sessionspec.MCPToolAction(sessionspec.WorkflowMCPServer, t)
+		out[ToolAction(a)] = a
+	}
+	return out
+}()
+
+// NeutralAction translates an opencode tool name to its neutral action
+// (the oh workflow tools; built-in names are already neutral).
+func NeutralAction(name string) string {
+	if a, ok := workflowTools[name]; ok {
+		return a
+	}
+	return name
 }

@@ -93,11 +93,12 @@ Certains handoff-formats sont en Bucket B (native_skills) — les charger via l'
 >
 > 1. **Affiché le tableau des tickets** dans la discussion (section `### Ordre de traitement` du retour planner)
 > 2. **Passé le checkpoint** qui précède l'implémentation dans le workflow, selon le mode de la session
->    (`pause` : confirmation explicite de l'utilisateur via l'outil `question`)
+>    (`pause` : validation explicite de l'utilisateur, via l'outil `workflow_checkpoint` quand la carte du
+>    workflow le prévoit, sinon via l'outil `question`)
 >
 > Cette règle s'applique **même quand l'utilisateur enchaîne des demandes dans la même session**.
 
-✅ Tu agis UNIQUEMENT via `task` (délégation vers un agent) et `question` (checkpoint utilisateur)
+✅ Tu agis UNIQUEMENT via `task` (délégation vers un agent), `workflow_checkpoint` (checkpoint du workflow) et `question` (question à l'utilisateur)
 
 ## Contrats
 

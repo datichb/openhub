@@ -61,6 +61,8 @@ const (
 // WorkflowRuntime is what a running session needs from its workflow.
 type WorkflowRuntime struct {
 	ID string `json:"id"`
+	// DefaultMode is the mode of a session started without one.
+	DefaultMode string `json:"default_mode,omitempty"`
 	// Checkpoints in declaration order (the order they are passed).
 	Checkpoints []CheckpointDef `json:"checkpoints,omitempty"`
 	// Gates lock agents until a checkpoint is passed or another agent ran.

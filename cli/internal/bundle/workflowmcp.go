@@ -15,6 +15,7 @@ func applyWorkflowRuntime(spec *sessionspec.BundleSpec, s *workflow.Spec) {
 		return
 	}
 	spec.Workflow = WorkflowRuntime(s)
+	spec.Permissions = append(append([]sessionspec.PermissionRule(nil), spec.Permissions...), BaseCheckpointRules()...)
 	for _, m := range spec.MCP {
 		if m.Name == sessionspec.WorkflowMCPServer {
 			return
@@ -26,7 +27,7 @@ func applyWorkflowRuntime(spec *sessionspec.BundleSpec, s *workflow.Spec) {
 // WorkflowRuntime extracts from a resolved workflow what a running session
 // needs (tool-agnostic).
 func WorkflowRuntime(s *workflow.Spec) *sessionspec.WorkflowRuntime {
-	rt := &sessionspec.WorkflowRuntime{ID: s.ID}
+	rt := &sessionspec.WorkflowRuntime{ID: s.ID, DefaultMode: s.DefaultMode()}
 	for _, id := range s.Checkpoints.Keys() {
 		cp, _ := s.Checkpoints.Get(id)
 		if cp.Disabled {

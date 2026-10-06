@@ -214,12 +214,18 @@ func (s *Service) StartSession(ctx context.Context, req StartRequest) (*StartRes
 	if err != nil {
 		return nil, err
 	}
+	if req.Mode == "" && spec.Workflow != nil {
+		req.Mode = spec.Workflow.DefaultMode
+	}
 	ss := sessionspec.SessionSpec{
 		SessionID: sid, Title: req.Title, Group: key, ProjectID: req.ProjectID,
 		Location: innerPath(pg, req.Location), EntryAgent: entry, Mode: req.Mode, Prompt: req.Prompt,
 		Runtime: kind, Attach: req.Attach,
 		Model: entryModel(spec, entry), Provider: sessionspec.ProviderSpec{Region: region},
 		SessionEnv: env,
+		// Checkpoints and agent locks of the workflow (P3-T02/T04); the
+		// daemon replaces them as the session moves on.
+		SessionRules: bundle.SessionRules(spec.Workflow, req.Mode, nil),
 	}
 	if err := s.saveStaticEnv(sid, req.SessionEnv); err != nil {
 		return nil, fmt.Errorf("saving session environment: %w", err)

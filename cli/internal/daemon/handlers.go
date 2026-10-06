@@ -31,6 +31,7 @@ func (d *Daemon) routes() http.Handler {
 	mux.HandleFunc("GET "+apiPrefix+"/workflow/status", d.handleWorkflowStatus)
 	mux.HandleFunc("POST "+apiPrefix+"/workflow/checkpoint", d.handleWorkflowCheckpoint)
 	mux.HandleFunc("POST "+apiPrefix+"/workflow/outputs", d.handleWorkflowOutputs)
+	mux.HandleFunc("POST "+apiPrefix+"/workflow/rules", d.handleWorkflowRules)
 	return mux
 }
 

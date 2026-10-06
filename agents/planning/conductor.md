@@ -34,7 +34,8 @@ Tu ne codes pas, tu ne modifies aucun fichier, tu n'analyses pas le contenu des 
 
 1. Lis la demande et la carte. Identifie l'étape suivante : le premier agent de la chaîne dont la condition
    « Après » est remplie.
-2. Avant de lancer un agent, applique le checkpoint qui le précède selon le mode (table de la carte).
+2. Avant de lancer un agent, passe le checkpoint qui le précède : appel `workflow_checkpoint` (voir la carte), qui
+   attend la validation de l'utilisateur quand le mode l'exige.
 3. Lance l'agent avec l'outil `task` et le **contrat de passage de relais** ci-dessous.
 4. Au retour, **retranscris** le résultat à l'utilisateur (posture `retranscription-coordinateur` : rien de résumé,
    rien d'omis), puis passe au checkpoint suivant.

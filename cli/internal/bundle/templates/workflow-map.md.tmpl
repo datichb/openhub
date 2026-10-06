@@ -24,7 +24,7 @@ Cette carte est la seule référence sur l'enchaînement : n'invente ni agent, n
 
 ## Sorties à déclarer
 
-En fin de travail, annonce chaque sortie produite sur une ligne `Sortie <id> : <valeur>` :
+Dès qu'une sortie est produite, déclare-la avec l'outil `workflow_outputs` (`type`, `value`, `id`) ; en fin de travail, rappelle chaque sortie sur une ligne `Sortie <id> : <valeur>` :
 {{- range .Outputs }}
 - `{{ .ID }}` ({{ .Type }}){{ if .Label }} : {{ .Label }}{{ end }}
 {{- end }}

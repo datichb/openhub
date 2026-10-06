@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"net/url"
 
+	"github.com/datichb/openhub/cli/internal/adapters"
+	"github.com/datichb/openhub/cli/internal/credproxy"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/services/checkpoint"
 )
@@ -80,12 +82,36 @@ func (d *Daemon) handleWorkflowCheckpoint(w http.ResponseWriter, r *http.Request
 		writeErr(w, http.StatusBadRequest, "tool_session and id are required")
 		return
 	}
-	res, err := d.opts.Checkpoints.Reached(r.Context(), d.rootSession(req.ToolSession), req.Call)
+	root := d.rootSession(req.ToolSession)
+	res, err := d.opts.Checkpoints.Reached(r.Context(), root, req.Call)
 	if err != nil {
 		d.workflowErr(w, err)
 		return
 	}
+	d.applyRules(r.Context(), root) // locks released by the checkpoint
 	writeJSON(w, http.StatusOK, res)
+}
+
+// WorkflowRulesRequest is the body of POST /v1/workflow/rules.
+type WorkflowRulesRequest struct {
+	SessionID string `json:"session_id"`
+}
+
+// handleWorkflowRules re-applies the session rules of an oh session (its
+// workflow state changed in another process: circuit breaker dismissed).
+func (d *Daemon) handleWorkflowRules(w http.ResponseWriter, r *http.Request) {
+	var req WorkflowRulesRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.SessionID == "" {
+		writeErr(w, http.StatusBadRequest, "session_id is required")
+		return
+	}
+	d.applyRules(r.Context(), req.SessionID)
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// WorkflowRefresh asks the daemon to re-apply the session rules of a session.
+func (c *Client) WorkflowRefresh(ctx context.Context, sessionID string) error {
+	return c.do(ctx, http.MethodPost, "/workflow/rules", WorkflowRulesRequest{SessionID: sessionID}, nil)
 }
 
 func (d *Daemon) handleWorkflowOutputs(w http.ResponseWriter, r *http.Request) {
@@ -126,4 +152,62 @@ func (c *Client) WorkflowCheckpoint(ctx context.Context, toolSession string, cal
 // WorkflowOutput records an output declared by workflow_outputs.
 func (c *Client) WorkflowOutput(ctx context.Context, toolSession string, o checkpoint.Output) error {
 	return c.do(ctx, http.MethodPost, "/workflow/outputs", WorkflowOutputRequest{ToolSession: toolSession, Output: o}, nil)
+}
+
+// HookPermissionRequest is sent by the oh plugin before a permission is
+// asked (POST /oh/v1/hooks/permission on the proxy listeners).
+type HookPermissionRequest struct {
+	SessionID string         `json:"sessionID"`
+	Agent     string         `json:"agent,omitempty"`
+	Action    string         `json:"action"`
+	Resources []string       `json:"resources,omitempty"`
+	CallID    string         `json:"callID,omitempty"`
+	Input     map[string]any `json:"input,omitempty"`
+}
+
+// HookPermissionResponse: effect "" keeps the rendered decision.
+type HookPermissionResponse struct {
+	Effect  string `json:"effect,omitempty"`
+	Message string `json:"message,omitempty"`
+}
+
+// hooksHandler serves the plugin hooks (P3-T05). The proxy has checked the
+// session token; a group may only ask about its own sessions.
+func (d *Daemon) hooksHandler() http.Handler {
+	mux := http.NewServeMux()
+	mux.HandleFunc("POST "+credproxy.HooksPrefix+"permission", d.handleHookPermission)
+	return mux
+}
+
+func (d *Daemon) handleHookPermission(w http.ResponseWriter, r *http.Request) {
+	var req HookPermissionRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.SessionID == "" || req.Action == "" {
+		writeErr(w, http.StatusBadRequest, "sessionID and action are required")
+		return
+	}
+	if d.opts.Checkpoints == nil || d.opts.Sessions == nil {
+		writeJSON(w, http.StatusOK, HookPermissionResponse{})
+		return
+	}
+	root := d.rootSession(req.SessionID)
+	s, err := d.opts.Sessions.Get(r.Context(), root)
+	if err != nil || s.GroupKey != credproxy.HookOwner(r) {
+		writeErr(w, http.StatusForbidden, "unknown session for this token")
+		return
+	}
+	d.wmu.Lock()
+	wt := d.watchers[s.GroupKey]
+	d.wmu.Unlock()
+	action := req.Action
+	if wt != nil {
+		if n, ok := wt.ad.(adapters.ActionNamer); ok {
+			action = n.NeutralAction(action)
+		}
+	}
+	effect, err := d.opts.Checkpoints.Evaluate(r.Context(), root, action, req.Input)
+	if err != nil {
+		writeJSON(w, http.StatusOK, HookPermissionResponse{})
+		return
+	}
+	writeJSON(w, http.StatusOK, HookPermissionResponse{Effect: effect})
 }

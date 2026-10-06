@@ -2,11 +2,13 @@ package daemon
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"time"
 
 	"github.com/datichb/openhub/cli/internal/adapters"
+	"github.com/datichb/openhub/cli/internal/bundle"
 	"github.com/datichb/openhub/cli/internal/domain"
 )
 
@@ -26,7 +28,16 @@ func (w *watcher) syncToolDecisions(ctx context.Context, root, toolSession strin
 	}
 	listed := map[string]bool{}
 	for _, p := range pending {
-		d := toolDecision(w.srv.GroupKey, root, toolSession, p)
+		var d domain.Decision
+		cd, handled := w.checkpointDecision(ctx, root, toolSession, p)
+		switch {
+		case handled && cd == nil:
+			continue // let through by the workflow mode
+		case handled:
+			d = *cd
+		default:
+			d = toolDecision(w.srv.GroupKey, root, toolSession, p)
+		}
 		listed[d.ID] = true
 		if prev, err := store.Get(ctx, d.ID); err == nil && !prev.Open() && prev.ResolvedBy == domain.ResolvedByGone {
 			// Lost with its server, asked again after the resume.
@@ -45,13 +56,38 @@ func (w *watcher) syncToolDecisions(ctx context.Context, root, toolSession strin
 		if d.ToolRef == "" || listed[d.ID] || !isToolKind(d.Kind) || d.ToolSessionID() != toolSession {
 			continue
 		}
-		_, _ = store.Resolve(ctx, d.ID, domain.ResolvedByTool, nil, now)
+		if ok, _ := store.Resolve(ctx, d.ID, domain.ResolvedByTool, nil, now); ok && d.Kind == domain.DecisionCheckpoint && w.d.opts.Checkpoints != nil {
+			w.d.opts.Checkpoints.Settled(ctx, d)
+		}
 	}
 }
 
 // isToolKind reports whether a decision kind mirrors a tool request.
 func isToolKind(k domain.DecisionKind) bool {
-	return k == domain.DecisionPermission || k == domain.DecisionQuestion
+	return k == domain.DecisionPermission || k == domain.DecisionQuestion || k == domain.DecisionCheckpoint
+}
+
+// checkpointDecision turns a workflow_checkpoint permission request into a
+// ⏸ decision (handled, d set), or lets it through when the checkpoint is
+// automatic in the session mode (handled, d nil). Other requests: not handled.
+func (w *watcher) checkpointDecision(ctx context.Context, root, toolSession string, p adapters.PendingDecision) (*domain.Decision, bool) {
+	cp := w.d.opts.Checkpoints
+	if cp == nil || p.Call == nil || p.Call.Action != bundle.CheckpointAction() {
+		return nil, false
+	}
+	d, auto, err := cp.Asked(ctx, root, toolSession, p)
+	if err != nil {
+		slog.Debug("ohd: checkpoint request", "session", root, "error", err)
+		return nil, false
+	}
+	if auto {
+		err := w.ad.Reply(ctx, w.handle(), adapters.DecisionReply{SessionID: toolSession, ID: p.ID, Kind: adapters.DecisionPermission, Decision: "once"})
+		if err != nil && !errors.Is(err, adapters.ErrRequestGone) {
+			slog.Warn("ohd: automatic checkpoint not let through", "session", root, "error", err)
+		}
+		return nil, true
+	}
+	return d, true
 }
 
 func toolDecision(group, sessionID, toolSession string, p adapters.PendingDecision) domain.Decision {
