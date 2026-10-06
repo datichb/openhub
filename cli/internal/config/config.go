@@ -50,6 +50,39 @@ type Config struct {
 	Workflow *WorkflowHubConfig `mapstructure:"workflow" toml:"workflow,omitempty"`
 	// Session holds v5 session settings (how sessions are opened, idle sleep).
 	Session SessionConfig `mapstructure:"session" toml:"session,omitempty"`
+	// Execution holds the v5 execution settings (default runtime, container
+	// engine, image cache, pinned tool version, strict isolation).
+	Execution ExecutionConfig `mapstructure:"execution" toml:"execution,omitempty"`
+}
+
+// ExecutionConfig configures where v5 sessions run.
+type ExecutionConfig struct {
+	// Runtime is the preferred runtime (local | container), used when the
+	// workflow allows it and the project sets none ("" = workflow default).
+	Runtime string `mapstructure:"runtime" toml:"runtime,omitempty"`
+	// Engine selects the container engine: auto (default) | colima | podman | docker.
+	Engine string `mapstructure:"engine" toml:"engine,omitempty"`
+	// KeepImages is the number of container images kept per project and
+	// role (base, dev) — default 2.
+	KeepImages int `mapstructure:"keep_images" toml:"keep_images,omitempty"`
+	// OpencodeVersion pins the tool version of the container images: when
+	// set and different from the machine client, container launches are
+	// refused ("" = the machine client version).
+	OpencodeVersion string `mapstructure:"opencode_version" toml:"opencode_version,omitempty"`
+	// StrictIsolation hides the user tool configuration (XDG_CONFIG_HOME) of
+	// local servers too (containers never see it).
+	StrictIsolation bool `mapstructure:"strict_isolation" toml:"strict_isolation,omitempty"`
+}
+
+// DefaultKeepImages is the default number of container images kept.
+const DefaultKeepImages = 2
+
+// Images returns the number of container images kept (default 2).
+func (e ExecutionConfig) Images() int {
+	if e.KeepImages <= 0 {
+		return DefaultKeepImages
+	}
+	return e.KeepImages
 }
 
 // SessionConfig configures v5 agentic sessions.

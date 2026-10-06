@@ -31,6 +31,9 @@ type SettingsViewConfig struct {
 	CheckSecret func(ctx context.Context, key string) (present bool, masked string)
 	// SetSecret stores a new secret value in the keychain.
 	SetSecret func(ctx context.Context, key, value string) error
+	// ToolVersion returns the machine tool client version (pinned version
+	// check; "" = unknown). Nil = unknown.
+	ToolVersion func() string
 }
 
 // SettingsView displays and edits hub.toml using the unified configField system.
@@ -333,7 +336,9 @@ func (v *SettingsView) buildFields() {
 				return strconv.Itoa(v.live.Session.IdleSleepMinutes)
 			},
 			Set: func(val string) { v.live.Session.IdleSleepMinutes, _ = strconv.Atoi(val) }},
-
+	}
+	v.fields = append(v.fields, v.execSettingsFields()...)
+	v.fields = append(v.fields, []configField{
 		// ── Deploy ──────────────────────────────────────────────────────────
 		{Kind: CfgFieldSectionHeader, Label: i18n.T("tui.config.section.deploy")},
 		{Key: "disable_native_agents", Kind: CfgFieldReadonly, Label: i18n.T("tui.config.field.disable_native_agents.label"),
@@ -473,7 +478,7 @@ func (v *SettingsView) buildFields() {
 			i18n.T("tui.config.field.tracker_write_enabled.desc"),
 			func() *bool { return v.live.Tracker.WriteEnabled },
 			func(b *bool) { v.live.Tracker.WriteEnabled = b }),
-	}
+	}...)
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -39,6 +39,23 @@ From highest to lowest priority:
 
 A runtime the workflow does not allow (`runtime.allowed`) is skipped.
 
+## Settings
+
+TUI: **Settings › Execution**, or the `[execution]` section of `~/.oh/hub.toml`:
+
+```toml
+[execution]
+runtime = "container"        # preferred runtime when the workflow allows it and the project sets none
+engine = "colima"            # auto (default: Colima, then Podman, then Docker) | colima | podman | docker
+keep_images = 2              # images kept per project and role (base, oh); the oldest are removed
+opencode_version = "2.0.20"  # empty = the machine client version
+strict_isolation = true      # also hides your opencode config from local servers
+```
+
+- **Pinned opencode version**: the image and the machine client must run the same version. When the pinned version differs from the client (for instance after a Homebrew upgrade), container launches are refused with the reason. Reinstall the pinned version or change the setting. Without a pinned version, the image follows the client: an opencode upgrade rebuilds the oh layer at the next launch.
+- **Strict isolation**: locally, the server gets its own `XDG_CONFIG_HOME`. It is a copy of your config folder without `opencode/`, with links to the other folders, so git, gh… keep working. The plugins, agents and commands of your global opencode config are no longer loaded. In a container, this config is never visible.
+- The engine choice replaces the `OH_CONTAINER_ENGINE` variable, which no longer exists.
+
 ## What happens at launch
 
 1. **Image**: oh builds a base image from the dev Dockerfile (`oh-base/<project>:<hash>`), then a thin layer (`oh-dev/<project>:<hash>`). The layer adds opencode at the version of the machine client, and the fake `bd`. The tags depend on the content: an image already built is reused.

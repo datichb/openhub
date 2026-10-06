@@ -215,6 +215,12 @@ func (a *Adapter) start(ctx context.Context, g adapters.ServerGroup, b sessionsp
 		opts.Run = func(argv []string, env map[string]string, dir string, port int) (*exec.Cmd, error) {
 			return rt.Command(ctx, pg, ohruntime.Proc{Argv: argv, Env: env, Dir: dir, Ports: []int{port}})
 		}
+	} else if g.IsolateUserConfig {
+		home, err := isolatedConfigHome(filepath.Join(filepath.Dir(g.DataDir), "config-home"))
+		if err != nil {
+			return adapters.ServerHandle{}, fmt.Errorf("strict isolation: %w", err)
+		}
+		opts.ConfigHome = home
 	}
 	rc, err := a.Render(b, g.Provider)
 	if err != nil {

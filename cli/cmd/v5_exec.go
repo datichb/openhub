@@ -1,11 +1,16 @@
 package cmd
 
 import (
+	"context"
+	"errors"
 	"path/filepath"
+	"strings"
+	"sync/atomic"
 
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/runsvc"
+	ohruntime "github.com/datichb/openhub/cli/internal/runtime"
 	"github.com/datichb/openhub/cli/internal/runtime/container"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
@@ -35,10 +40,56 @@ func applyProjectExec(req *runsvc.StartRequest, p *domain.Project) {
 }
 
 // runtimePrefs are the preferred runtimes of a launch without --runtime,
-// most specific first. The workflow keeps the last word
-// (`runtime.allowed`, then `runtime.default`).
-func runtimePrefs(_ *app.App, p *domain.Project) []string {
-	return []string{projectExec(p).DefaultRuntime}
+// most specific first: the project default, then the Settings one. The
+// workflow keeps the last word (`runtime.allowed`, then `runtime.default`).
+func runtimePrefs(a *app.App, p *domain.Project) []string {
+	prefs := []string{projectExec(p).DefaultRuntime}
+	if a != nil && a.Config != nil {
+		prefs = append(prefs, a.Config.Execution.Runtime)
+	}
+	return prefs
+}
+
+// pinRuntime refuses container launches when the pinned tool version
+// (Settings › Exécution) differs from the machine client: the image and the
+// client must run the same version. "" = no pin.
+func pinRuntime(rt ohruntime.Runtime, pinned, client string) ohruntime.Runtime {
+	pinned = strings.TrimPrefix(strings.TrimSpace(pinned), "v")
+	if pinned == "" || pinned == strings.TrimPrefix(client, "v") {
+		return rt
+	}
+	return pinnedRuntime{Runtime: rt, pinned: pinned, client: client}
+}
+
+type pinnedRuntime struct {
+	ohruntime.Runtime
+	pinned, client string
+}
+
+func (r pinnedRuntime) unavailable() ohruntime.Availability {
+	return ohruntime.Availability{Reason: "tui.settings.exec.opencode.mismatch", Args: []any{r.pinned, r.client}}
+}
+
+// Available reports the version mismatch (the engine state comes first).
+func (r pinnedRuntime) Available(ctx context.Context) (ohruntime.Availability, error) {
+	av, err := r.Runtime.Available(ctx)
+	if err != nil || !av.OK {
+		return av, err
+	}
+	out := r.unavailable()
+	out.Engine, out.Version = av.Engine, av.Version
+	return out, nil
+}
+
+// Prepare refuses to build an image for another client version.
+func (r pinnedRuntime) Prepare(context.Context, ohruntime.Group) (*ohruntime.Prepared, error) {
+	return nil, errors.New(r.unavailable().Message())
+}
+
+// pinnedVersionOK tells whether the pinned version matches the machine client.
+func pinnedVersionOK(pinned, client string) bool {
+	_, ok := pinRuntime(nil, pinned, client).(pinnedRuntime)
+	return !ok
 }
 
 // projectExecHints detects the dev Dockerfile of a project (config view).
@@ -63,4 +114,14 @@ func tuiWorkflowIDs() []string {
 		return nil
 	}
 	return tuiStartWiring.workflowIDs()
+}
+
+// v5Ver is the opencode V2 client version, once detected.
+var v5Ver atomic.Value
+
+// v5ToolVersion returns the detected client version without detecting it
+// (event loop safe; "" before the first detection).
+func v5ToolVersion() string {
+	s, _ := v5Ver.Load().(string)
+	return s
 }

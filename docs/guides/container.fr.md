@@ -39,6 +39,23 @@ Du plus prioritaire au moins prioritaire :
 
 Un runtime que le workflow n'autorise pas (`runtime.allowed`) est ignoré.
 
+## Réglages
+
+TUI : **Réglages › Exécution**, ou la section `[execution]` de `~/.oh/hub.toml` :
+
+```toml
+[execution]
+runtime = "container"        # runtime préféré si le workflow l'autorise et que le projet n'en choisit pas
+engine = "colima"            # auto (défaut : Colima, puis Podman, puis Docker) | colima | podman | docker
+keep_images = 2              # images gardées par projet et par rôle (base, oh) ; les plus anciennes sont supprimées
+opencode_version = "2.0.20"  # vide = version du client de la machine
+strict_isolation = true      # masque aussi votre config opencode aux serveurs locaux
+```
+
+- **Version d'opencode figée** : l'image et le client de la machine doivent avoir la même version. Si la version figée diffère de celle du client (par exemple après une mise à jour Homebrew), les lancements en conteneur sont refusés avec la raison. Réinstallez la version figée ou changez le réglage. Sans version figée, l'image suit le client : une mise à jour d'opencode reconstruit la couche oh au lancement suivant.
+- **Isolation stricte** : en local, le serveur reçoit un `XDG_CONFIG_HOME` propre. C'est une copie de votre dossier de configuration sans `opencode/`, avec des liens vers les autres dossiers, donc git, gh… continuent de fonctionner. Les plugins, agents et commandes de votre config opencode globale ne sont plus chargés. En conteneur, cette config n'est jamais visible.
+- Le choix du moteur remplace la variable `OH_CONTAINER_ENGINE`, qui n'existe plus.
+
 ## Ce qui se passe au lancement
 
 1. **Image** : oh construit une image de base depuis le Dockerfile de dev (`oh-base/<projet>:<hash>`), puis une couche fine (`oh-dev/<projet>:<hash>`). La couche ajoute opencode à la version du client de la machine et le faux `bd`. Les tags dépendent du contenu : une image déjà construite est réutilisée.

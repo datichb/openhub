@@ -121,6 +121,9 @@ type StartRequest struct {
 	BuildArgs  map[string]string // dev image build arguments
 	Volumes    []string          // cache volumes
 	Progress   func(line string) // preparation output (image build)
+	// IsolateUserConfig hides the user tool configuration from local
+	// servers (strict isolation setting, part of the group key).
+	IsolateUserConfig bool
 
 	// SessionEnv holds static, non-secret variables of the session shell
 	// (persisted for resumes). Secrets go through Service.SessionEnv.
@@ -400,6 +403,9 @@ func configFingerprint(req StartRequest, cred provider.ResolvedCredential, regio
 		h.Write([]byte(part))
 		h.Write([]byte{0})
 	}
+	if req.IsolateUserConfig {
+		h.Write([]byte("isolate-user-config")) // only when set: other keys unchanged
+	}
 	return hex.EncodeToString(h.Sum(nil))
 }
 
@@ -519,7 +525,7 @@ func (s *Service) startServer(ctx context.Context, dc DaemonClient, req StartReq
 	h, err := s.Adapter.StartServer(ctx, adapters.ServerGroup{
 		Key: key, Bundle: req.Bundle.Spec, DataDir: dataDir, WorkDir: req.Location,
 		Provider: sessionspec.ProviderSpec{ID: ocProvider, Region: region, BaseURL: baseURL, SessionToken: grant.Token},
-		Runtime:  rt, Prepared: pg,
+		Runtime:  rt, Prepared: pg, IsolateUserConfig: req.IsolateUserConfig,
 	})
 	if err != nil {
 		cctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 15*time.Second)

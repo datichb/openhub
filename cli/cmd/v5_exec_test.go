@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"testing"
@@ -8,8 +9,11 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/datichb/openhub/cli/internal/app"
+	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/runsvc"
+	ohruntime "github.com/datichb/openhub/cli/internal/runtime"
 )
 
 func TestApplyProjectExec(t *testing.T) {
@@ -44,4 +48,39 @@ func TestProjectExecHints(t *testing.T) {
 	require.NoError(t, os.WriteFile(filepath.Join(dir, ".devcontainer", "Dockerfile"), []byte("FROM alpine\n"), 0o644))
 	assert.Equal(t, filepath.Join(".devcontainer", "Dockerfile"), projectExecHints(dir).DetectedDockerfile)
 	assert.Empty(t, projectExecHints("").DetectedDockerfile)
+}
+
+type stubRuntime struct {
+	ohruntime.Runtime
+	av ohruntime.Availability
+}
+
+func (s stubRuntime) Available(context.Context) (ohruntime.Availability, error) { return s.av, nil }
+
+func TestPinRuntime(t *testing.T) {
+	up := stubRuntime{av: ohruntime.Availability{OK: true, Engine: "colima", Version: "28"}}
+	assert.Equal(t, up, pinRuntime(up, "", "2.0.20"), "no pin")
+	assert.Equal(t, up, pinRuntime(up, "v2.0.20", "2.0.20"), "same version")
+
+	rt := pinRuntime(up, "2.0.19", "2.0.20")
+	av, err := rt.Available(context.Background())
+	require.NoError(t, err)
+	assert.False(t, av.OK)
+	assert.Equal(t, "colima", av.Engine)
+	assert.Equal(t, "tui.settings.exec.opencode.mismatch", av.Reason)
+	_, err = rt.Prepare(context.Background(), ohruntime.Group{})
+	assert.Error(t, err, "no image built for another client version")
+
+	down := stubRuntime{av: ohruntime.Availability{Reason: "cmd.runtime.container.vm_stopped"}}
+	av, _ = pinRuntime(down, "2.0.19", "2.0.20").Available(context.Background())
+	assert.Equal(t, "cmd.runtime.container.vm_stopped", av.Reason, "the engine state comes first")
+
+	assert.True(t, pinnedVersionOK("", "2.0.20"))
+	assert.False(t, pinnedVersionOK("2.0.19", "2.0.20"))
+}
+
+func TestRuntimePrefsWithSettings(t *testing.T) {
+	a := &app.App{Config: &config.Config{Execution: config.ExecutionConfig{Runtime: "container"}}}
+	assert.Equal(t, []string{"", "container"}, runtimePrefs(a, &domain.Project{}))
+	assert.Equal(t, []string{"local", "container"}, runtimePrefs(a, &domain.Project{ExecConfig: &domain.ProjectExecConfig{DefaultRuntime: "local"}}))
 }

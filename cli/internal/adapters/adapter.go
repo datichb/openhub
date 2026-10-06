@@ -51,6 +51,11 @@ type ServerGroup struct {
 	// stays on the machine loopback.
 	Runtime  ohruntime.Runtime
 	Prepared *ohruntime.Prepared
+
+	// IsolateUserConfig hides the user tool configuration from a server run
+	// on the machine (strict isolation setting); runtimes outside the machine
+	// never see it.
+	IsolateUserConfig bool
 }
 
 // ServerHandle identifies a running tool server.

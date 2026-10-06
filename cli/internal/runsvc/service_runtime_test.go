@@ -408,3 +408,21 @@ func TestResumeUsesProjectDevImageSettings(t *testing.T) {
 	assert.Equal(t, map[string]string{"B": "2"}, g.BuildArgs)
 	assert.Equal(t, []string{"node_modules"}, g.Volumes)
 }
+
+func TestIsolateUserConfigReachesTheAdapter(t *testing.T) {
+	f := newRTFixture(t)
+	ctx := context.Background()
+	req := f.request(f.project)
+	req.Runtime = ""
+	req.IsolateUserConfig = true
+	r, err := f.svc.StartSession(ctx, req)
+	require.NoError(t, err)
+	require.Len(t, f.ad.started, 1)
+	assert.True(t, f.ad.started[0].IsolateUserConfig)
+
+	plain := f.request(f.project)
+	plain.Runtime = ""
+	cred := provider.ResolvedCredential{Secret: "s"}
+	assert.NotEqual(t, configFingerprint(plain, cred, "r"), configFingerprint(req, cred, "r"), "a strict group is not shared")
+	assert.NotEmpty(t, r.GroupKey)
+}

@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"os"
 	"path/filepath"
 	"time"
 
@@ -95,14 +94,21 @@ func sessionEndHook(a *app.App, async bool) func(context.Context, domain.Session
 	}
 }
 
-// v5Runtimes are the non-local execution environments. The container
-// runtime is not exposed in the CLI/TUI yet (phase 4, lot 4.C); its engine
-// can be forced with OH_CONTAINER_ENGINE (auto|colima|podman|docker).
-func v5Runtimes() map[sessionspec.RuntimeKind]ohruntime.Runtime {
-	engine, _ := container.ParseEngine(os.Getenv("OH_CONTAINER_ENGINE"))
-	return map[sessionspec.RuntimeKind]ohruntime.Runtime{
-		sessionspec.RuntimeContainer: container.New(container.Options{Engine: engine, CacheDir: filepath.Join(ohCacheDir(), "container")}),
+// v5Runtimes are the non-local execution environments, configured by the
+// Settings › Exécution (`[execution]` of hub.toml): engine, image cache,
+// pinned tool version.
+func v5Runtimes(a *app.App) map[sessionspec.RuntimeKind]ohruntime.Runtime {
+	var ex config.ExecutionConfig
+	if a != nil && a.Config != nil {
+		ex = a.Config.Execution
 	}
+	engine, _ := container.ParseEngine(ex.Engine)
+	var rt ohruntime.Runtime = container.New(container.Options{Engine: engine, KeepImages: ex.Images(),
+		CacheDir: filepath.Join(ohCacheDir(), "container")})
+	if v5Adapter != nil {
+		rt = pinRuntime(rt, ex.OpencodeVersion, v5Adapter.Ver)
+	}
+	return map[sessionspec.RuntimeKind]ohruntime.Runtime{sessionspec.RuntimeContainer: rt}
 }
 
 // newRunService wires the RunService for the current app.
@@ -125,7 +131,7 @@ func newRunService(ctx context.Context, a *app.App) (*runsvc.Service, error) {
 		SessionsDir:  ohSessionsDir(),
 		Decisions:    sqlite.NewDecisionStore(store),
 		OnSessionEnd: sessionEndHook(a, false),
-		Runtimes:     v5Runtimes(),
+		Runtimes:     v5Runtimes(a),
 		SessionEnv: gatewaySessionEnv(func(ctx context.Context) (gatewayGranter, error) {
 			c, _, err := ensureDaemon(ctx)
 			return c, err
