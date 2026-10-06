@@ -83,7 +83,7 @@ enforce: [checkpoints, modes]   # or ["*"] for the whole document
 
 ## Drafts, publication, history
 
-The life cycle of a team or project workflow goes through the WorkflowService (the `oh workflow new|edit|publish…` commands come with the phase 2 CLI):
+The life cycle of a team or project workflow goes through the WorkflowService (CLI: `oh workflow new|edit|diff|publish|history|restore|archive`, see the [reference](../reference/cli-workflows.en.md#editing-team-and-project-workflows)):
 
 1. **Draft**: `workflows/drafts/<member>/<id>.yaml` (and its own template `<id>.prompt.md.tmpl` when it has one). It is **validated when saved** (refused with its errors), pushed with the team-state, but never loaded for other members.
 2. **Test**: `oh run <id> --draft` runs the draft, locally only, and refuses it when it widens the published version (a draft cannot loosen security).

@@ -83,7 +83,7 @@ enforce: [checkpoints, modes]   # ou ["*"] pour tout le document
 
 ## Brouillons, publication, historique
 
-Le cycle de vie d'un workflow d'équipe ou de projet passe par le WorkflowService (les commandes `oh workflow new|edit|publish…` arrivent avec la CLI de la phase 2) :
+Le cycle de vie d'un workflow d'équipe ou de projet passe par le WorkflowService (CLI : `oh workflow new|edit|diff|publish|history|restore|archive`, voir la [référence](../reference/cli-workflows.fr.md#édition-des-workflows-déquipe-et-de-projet)) :
 
 1. **Brouillon** : `workflows/drafts/<membre>/<id>.yaml` (et son propre gabarit `<id>.prompt.md.tmpl` s'il en a un). Il est **validé à l'enregistrement** (refusé avec ses erreurs), poussé avec le team-state, mais n'est jamais chargé pour les autres membres.
 2. **Test** : `oh run <id> --draft` lance le brouillon, en local seulement, et le refuse s'il élargit la version publiée (un brouillon ne peut pas assouplir la sécurité).

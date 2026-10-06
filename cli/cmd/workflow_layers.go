@@ -85,6 +85,18 @@ func workflowTeamState(ctx context.Context, c workflowsvc.Context) (*workflowsvc
 		}
 	default:
 		layers, err = resolveWorkflowTeamLayers(ctx, a, "")
+		if err == nil && layers == nil {
+			// No regular team: a single solo space is the default.
+			var solo []config.TeamConfig
+			for _, t := range a.Config.Teams {
+				if t.Solo && t.Enabled {
+					solo = append(solo, t)
+				}
+			}
+			if len(solo) == 1 {
+				return workflowTeamState(ctx, workflowsvc.Context{TeamID: solo[0].ID})
+			}
+		}
 	}
 	if err != nil || layers == nil {
 		return nil, err
