@@ -92,7 +92,7 @@ func newLimitEnv(t *testing.T, sessionIDs ...string) *limitEnv {
 			Decisions: e.decisions, Usage: e.usage, SessionsDir: e.dir, ServersDir: filepath.Join(p.Dir, "servers"),
 			Tick: 50 * time.Millisecond, IdleAfter: time.Hour, IdleSleep: time.Hour,
 			Adapter: func(string) adapters.ToolAdapter { return e.ad },
-			Memory: func(context.Context, []int) (int, error) { return int(e.memoryMB.Load()), nil }})
+			Memory:  func(context.Context, []int) (int, error) { return int(e.memoryMB.Load()), nil }})
 	}()
 	t.Cleanup(func() { cancel(); <-done })
 	c := NewClient(p)

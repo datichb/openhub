@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"os/exec"
 	"strings"
 
@@ -188,6 +189,12 @@ func (p *preparedRun) sendRemote(ctx context.Context, a *app.App, ui launcher.La
 		}
 		ui.Notify(i18n.Tf("cmd.remote.send.sent", res.SessionID, res.Ref.Pipeline, res.Ref.PipelineURL), launcher.LevelSuccess)
 		out = append(out, &runsvc.StartResult{SessionID: res.SessionID})
+	}
+	if len(out) > 0 {
+		// The daemon follows the pipelines while oh is closed (BL-17).
+		if _, _, err := ensureDaemon(ctx); err != nil {
+			slog.Debug("oh daemon not started for remote tracking", "error", err)
+		}
 	}
 	return out, nil
 }

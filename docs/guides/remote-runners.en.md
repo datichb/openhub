@@ -214,7 +214,7 @@ Limits: MCP servers that need a token of your machine (gitlab, jira, figma…) a
 
 ## 7. Follow, fetch, replay
 
-**Following.** `oh session list` and the Sessions view of the TUI check the pipelines (every 30 s in the TUI): the ☁ session is "Running" (pipeline pending or running), then moves to **"To fetch"** once the pipeline is over (or failed: its artifacts can still be fetched). A system notification says so. Progress is also visible to the team in the ticket claim.
+**Following.** `oh session list` and the Sessions view of the TUI check the pipelines (every 30 s in the TUI): the ☁ session is "Running" (pipeline pending or running), then moves to **"To fetch"** once the pipeline is over (or failed: its artifacts can still be fetched). A system notification says so, even when oh is closed: the oh daemon keeps checking the pipelines every minute (and refreshes the Beads leases of the reserved tickets, `bd heartbeat`) as long as a remote session runs. Progress is also visible to the team in the ticket claim.
 
 **Fetching** — `oh session fetch <id>` or `g` in the Sessions view:
 

@@ -171,6 +171,7 @@ func (d *Daemon) putToSleep(ctx context.Context, srv domain.Server, final bool) 
 			_ = a.StopServer(ctx, h)
 		}
 	}
+	d.teardown(ctx, srv)
 	status, state := domain.ServerSleeping, domain.RunSleeping
 	if final {
 		status, state = domain.ServerStopped, domain.RunStopped

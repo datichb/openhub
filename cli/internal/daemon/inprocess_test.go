@@ -25,7 +25,9 @@ func TestEnsureInProcess(t *testing.T) {
 	var starts atomic.Int32
 	opts := EnsureOptions{Version: "t", InProcess: func() error {
 		starts.Add(1)
-		go func() { done <- Run(ctx, Options{Paths: p, Version: "t", Servers: servers, Grants: grants, Tick: time.Hour, IdleAfter: time.Hour}) }()
+		go func() {
+			done <- Run(ctx, Options{Paths: p, Version: "t", Servers: servers, Grants: grants, Tick: time.Hour, IdleAfter: time.Hour})
+		}()
 		return nil
 	}}
 	t.Cleanup(func() { cancel(); <-done })

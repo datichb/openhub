@@ -539,9 +539,17 @@ func (s *Service) startServer(ctx context.Context, dc DaemonClient, req StartReq
 		if g.Tool == nil {
 			return nil, adapters.VisibilityReport{}, nil, fmt.Errorf("runsvc: adapter %s cannot run in a container", s.Adapter.Name())
 		}
+		// Building an image may take longer than the daemon's idle timeout
+		// (no live server yet): keep it busy, and take a fresh client after.
+		stopBusy := keepDaemonBusy(ctx, dc, gk)
 		var err error
-		if pg, err = rt.Prepare(ctx, g); err != nil {
+		pg, err = rt.Prepare(ctx, g)
+		stopBusy()
+		if err != nil {
 			return nil, adapters.VisibilityReport{}, nil, fmt.Errorf("preparing the %s runtime: %w", rt.Kind(), err)
+		}
+		if fresh, derr := s.Daemon(ctx); derr == nil {
+			dc = fresh
 		}
 	}
 	ocProvider := deploy.OpencodeProviderID(req.Provider)

@@ -118,3 +118,28 @@ func (s *Service) waitDequeued(ctx context.Context, sessionID string) error {
 		}
 	}
 }
+
+// daemonBusyEvery is the period of the activity signal sent to the daemon
+// during a long preparation (well below its 10 min idle timeout).
+var daemonBusyEvery = time.Minute
+
+// keepDaemonBusy signals activity to the daemon (Touch) until the returned
+// function is called, so that it does not stop for idleness meanwhile.
+func keepDaemonBusy(ctx context.Context, dc DaemonClient, gk string) func() {
+	cctx, cancel := context.WithCancel(ctx)
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		t := time.NewTicker(daemonBusyEvery)
+		defer t.Stop()
+		for {
+			select {
+			case <-cctx.Done():
+				return
+			case <-t.C:
+				_ = dc.Touch(cctx, gk)
+			}
+		}
+	}()
+	return func() { cancel(); <-done }
+}
