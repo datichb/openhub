@@ -1,0 +1,81 @@
+apiVersion: oh/v1
+kind: Workflow
+id: feature
+category: develop
+label: { fr: Feature, en: Feature }
+description:
+  fr: Réaliser une feature de bout en bout (exploration ou planification, design, implémentation, review)
+  en: Deliver a feature end to end (exploration or planning, design, implementation, review)
+risk: write
+entry:
+  agent: orchestrator
+inputs:
+  request:
+    type: text
+    label: { fr: Demande, en: Request }
+    help:
+      fr: La feature décrite en langage naturel (ou l'identifiant d'un ticket ou d'une MR GitLab)
+      en: The feature in natural language (or the id of a GitLab issue or merge request)
+    max_length: 8000
+  tickets:
+    type: beads-ids
+    label: { fr: Tickets existants, en: Existing tickets }
+    help:
+      fr: Tickets Beads déjà créés à prendre en charge (facultatif)
+      en: Beads tickets already created to take on (optional)
+    picker: { multi: true }
+prompt:
+  template: prompts/feature.md.tmpl
+agents:
+  orchestrator: { role: workflow }
+  pathfinder: { role: workflow, mode: subagent }
+  planner: { role: workflow, mode: subagent }
+  designer: { role: workflow, mode: subagent }
+  orchestrator-dev: { role: workflow, mode: subagent, after: cp-0 }
+  developer: { role: workflow, after: cp-1 }
+  developer-refactor: { role: workflow, after: cp-1 }
+  developer-migrator: { role: workflow, after: cp-1 }
+  reviewer: { role: workflow, mode: subagent }
+  documentarian: { role: independent }
+checkpoints:
+  cp-0:
+    label: { fr: Valider le plan, en: Approve the plan }
+    description:
+      fr: Afficher le tableau des tickets (ordre de traitement, agent prévu) et attendre la confirmation avant toute implémentation.
+      en: Show the ticket table (processing order, planned agent) and wait for confirmation before any implementation.
+    mandatory: true
+    mode: { manuel: pause, semi-auto: pause, auto: pause }
+  cp-spec:
+    label: { fr: Valider la spec UX/UI, en: Approve the UX/UI spec }
+    condition:
+      le designer a produit une spécification UX ou UI pour la feature
+    mode: { manuel: conditional, semi-auto: conditional, auto: conditional }
+  cp-1:
+    label: { fr: Démarrer le ticket, en: Start the ticket }
+    mode: { manuel: pause, semi-auto: auto, auto: auto }
+  cp-2:
+    label: { fr: Commit ou correction, en: Commit or fix }
+    mandatory: true
+    mode: { manuel: pause, semi-auto: pause, auto: pause }
+  cp-3:
+    label: { fr: Ticket suivant, en: Next ticket }
+    mode: { manuel: pause, semi-auto: auto, auto: auto }
+  cp-feature:
+    label: { fr: Récap de la feature, en: Feature recap }
+    description:
+      fr: Récap global en fin de feature (tickets traités, commits, points ouverts).
+      en: Global recap at the end of the feature (processed tickets, commits, open points).
+    mode: { manuel: pause, semi-auto: pause, auto: auto }
+modes: { default: semi-auto, allowed: [manuel, semi-auto, auto] }
+circuit_breaker: { max_consecutive_subagents: 12 }
+preconditions:
+  project-context:
+    label:
+      fr: Aucun contexte projet trouvé (docs/wiki/index.md, ONBOARDING.md ou CONVENTIONS.md)
+      en: No project context found (docs/wiki/index.md, ONBOARDING.md or CONVENTIONS.md)
+    check: { path_exists: [docs/wiki/index.md, ONBOARDING.md, CONVENTIONS.md] }
+    suggest: { workflow: onboarding, resume: true }
+runtime: { default: local, allowed: [local] }
+outputs:
+  - { id: tickets, type: beads-ids, label: { fr: Tickets de la feature, en: Feature tickets } }
+  - { id: branch, type: branch, label: { fr: Branche de travail, en: Working branch } }

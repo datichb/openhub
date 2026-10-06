@@ -16,6 +16,9 @@ type Env struct {
 	Agents  AgentCatalog
 	Skills  SkillCatalog
 	Prompts PromptSource
+	// Workflows tells whether a workflow id exists (target of a
+	// precondition suggestion). Check fills it from the catalog.
+	Workflows WorkflowCatalog
 	// Isolation is the closed-world level of the current adapter (empty:
 	// unknown, the isolation rule is skipped).
 	Isolation sessionspec.IsolationLevel
@@ -38,6 +41,11 @@ type SkillIssue struct {
 	Detail string
 }
 
+// WorkflowCatalog tells whether a workflow id exists in any layer.
+type WorkflowCatalog interface {
+	HasWorkflow(id string) bool
+}
+
 // PromptSource reads prompt templates. origin is the document that set
 // `prompt.template`; path is relative to that layer's workflows directory.
 type PromptSource interface {
@@ -53,7 +61,10 @@ const ReservedInputID = "oh"
 var OhVariables = []string{"project", "location", "mode", "runtime", "lang", "workflow"}
 
 // BeadsWriteCommands are the `bd` subcommands that modify tickets.
-var BeadsWriteCommands = []string{"create", "update", "close", "reopen", "delete", "edit", "comment", "label", "dep"}
+var BeadsWriteCommands = []string{"create", "update", "close", "reopen", "delete", "edit", "comment", "comments", "label", "dep", "duplicate", "supersede"}
+
+// BeadsPlanForbidden are the write subcommands refused even with risk: plan.
+var BeadsPlanForbidden = []string{"delete"}
 
 var (
 	reKebabID = regexp.MustCompile(`^[a-z0-9]+(?:-[a-z0-9]+)*$`)
@@ -66,6 +77,9 @@ func Check(cat Catalog, ref Ref, opts *SessionOptions, env Env) (*Resolved, Diag
 	r, diags := ResolveSpec(cat, ref, opts)
 	if r == nil {
 		return nil, diags
+	}
+	if wc, ok := cat.(WorkflowCatalog); ok && env.Workflows == nil {
+		env.Workflows = wc
 	}
 	diags = append(diags, r.Validate(env)...)
 	return r, diags
@@ -82,6 +96,7 @@ func (r *Resolved) Validate(env Env) Diagnostics {
 	v.prompt()
 	v.agents()
 	v.checkpoints()
+	v.preconditions()
 	v.modes()
 	v.resources()
 	v.security()
@@ -120,7 +135,7 @@ func (v *validator) header() {
 	if s.Risk == "" {
 		v.err("field_required", "risk", "risk")
 	} else {
-		v.enum("risk", string(s.Risk), s.Risk.Valid(), "read", "write", "publish")
+		v.enum("risk", string(s.Risk), s.Risk.Valid(), "read", "plan", "write", "publish")
 	}
 	if s.Isolation != "" {
 		v.enum("isolation", string(s.Isolation), s.Isolation.Valid(), "strict", "standard")
@@ -396,7 +411,7 @@ func (v *validator) agents() {
 			}
 		}
 		for i, c := range a.Calls {
-			if c == k || !containsStr(members, c) {
+			if !containsStr(members, c) {
 				v.err("calls_unknown", fmt.Sprintf("%s.calls[%d]", base, i), c)
 			}
 		}
@@ -461,6 +476,40 @@ func (v *validator) checkpoints() {
 		}
 		if cp.Remote != "" {
 			v.enum(base+".remote", string(cp.Remote), cp.Remote.Valid(), "auto", "defer", "forbid")
+		}
+	}
+}
+
+func (v *validator) preconditions() {
+	s := v.s
+	for _, k := range s.Preconditions.Keys() {
+		pc, _ := s.Preconditions.Get(k)
+		base := "preconditions." + k
+		if !reKebabID.MatchString(k) {
+			v.err("precondition_id_invalid", base, k)
+		}
+		if len(pc.Check.PathExists) == 0 {
+			v.err("precondition_check_invalid", base+".check", k)
+		}
+		for i, p := range pc.Check.PathExists {
+			clean := path.Clean(p)
+			if p == "" || path.IsAbs(p) || clean == ".." || strings.HasPrefix(clean, "../") {
+				v.err("precondition_path_invalid", fmt.Sprintf("%s.check.path_exists[%d]", base, i), p)
+			}
+		}
+		if pc.OnFail != "" {
+			v.enum(base+".on_fail", string(pc.OnFail), pc.OnFail.Valid(), "suggest", "block")
+		}
+		if pc.Suggest == nil {
+			continue
+		}
+		switch wf := pc.Suggest.Workflow; {
+		case wf == "":
+			v.err("field_required", base+".suggest.workflow", "workflow")
+		case wf == s.ID:
+			v.err("precondition_self", base+".suggest.workflow", wf)
+		case v.env.Workflows != nil && !v.env.Workflows.HasWorkflow(wf):
+			v.err("precondition_unknown_workflow", base+".suggest.workflow", wf)
 		}
 	}
 }
@@ -612,6 +661,9 @@ func (v *validator) skills(members []string) {
 
 func (v *validator) security() {
 	s := v.s
+	if s.Risk == RiskPlan {
+		v.planRules()
+	}
 	if s.Risk == RiskRead {
 		if v.env.Agents != nil {
 			for _, m := range s.Members() {
@@ -660,6 +712,45 @@ func (v *validator) security() {
 	}
 	if s.Isolation == IsolationStrict && v.env.Isolation != "" && v.env.Isolation != sessionspec.IsolationFull {
 		v.warn("isolation_unsupported", "isolation", string(v.env.Isolation))
+	}
+}
+
+// planRules: risk: plan edits no file and writes Beads only through an
+// explicit allow-list without delete.
+func (v *validator) planRules() {
+	s := v.s
+	if v.env.Agents != nil {
+		for _, m := range s.Members() {
+			info, ok := v.env.Agents.Agent(m)
+			if !ok {
+				continue
+			}
+			p := "agents." + m
+			if _, listed := s.Agents.Get(m); !listed {
+				p = v.entryPath()
+			}
+			if info.Edits {
+				v.err("plan_agent_writes", p, m, "edit")
+			}
+			if info.Shell {
+				v.err("plan_agent_writes", p, m, "shell")
+			}
+		}
+	}
+	if s.Beads == nil {
+		v.err("plan_beads_unrestricted", "risk")
+		return
+	}
+	writes := false
+	for i, cmd := range s.Beads.Allow {
+		if containsStr(BeadsPlanForbidden, cmd) {
+			v.err("plan_beads_delete", fmt.Sprintf("beads.allow[%d]", i), cmd)
+		} else if containsStr(BeadsWriteCommands, cmd) {
+			writes = true
+		}
+	}
+	if !writes {
+		v.warn("plan_without_beads_write", "risk")
 	}
 }
 

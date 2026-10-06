@@ -103,6 +103,7 @@ Complete index of all openhub documentation. Guides and references are bilingual
 | [Beads Model](reference/beads-model.en.md) | Ticket system data model |
 | [Glossary](reference/glossary.en.md) | Terms and definitions |
 | [Model Resolution](reference/model-resolution.en.md) | LLM model selection cascade |
+| [Shipped Workflows](reference/workflows.en.md) | `oh/v1` workflows shipped by the hub, inputs, checkpoints, prompt templates |
 | [Services](reference/services.en.md) | Internal services reference |
 | [TUI Reference](reference/tui.en.md) | TUI keybindings and views |
 | [TUI Inline Wizard](reference/tui-inline-wizard.en.md) | Wizard engine reference |

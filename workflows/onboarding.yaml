@@ -1,0 +1,33 @@
+apiVersion: oh/v1
+kind: Workflow
+id: onboarding
+category: knowledge
+label: { fr: Onboarding, en: Onboarding }
+description:
+  fr: Découvrir le projet et créer ou enrichir son wiki documentaire vivant (docs/wiki/)
+  en: Discover the project and create or enrich its living documentation wiki (docs/wiki/)
+risk: write
+entry:
+  agent: onboarder
+inputs:
+  refresh:
+    type: bool
+    default: false
+    label: { fr: Rafraîchir le wiki, en: Refresh the wiki }
+    help:
+      fr: Re-découvrir le projet et enrichir le wiki existant, sans rien supprimer
+      en: Rediscover the project and enrich the existing wiki, without deleting anything
+  focus:
+    type: text
+    label: { fr: Points d'attention, en: Focus }
+    help:
+      fr: Modules ou sujets à approfondir (facultatif)
+      en: Modules or topics to dig into (optional)
+    max_length: 4000
+prompt:
+  template: prompts/onboarding.md.tmpl
+agents:
+  onboarder: { role: workflow }
+runtime: { default: local, allowed: [local, remote] }
+outputs:
+  - { id: wiki, type: path, label: { fr: Wiki du projet, en: Project wiki } }

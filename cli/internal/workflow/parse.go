@@ -354,7 +354,7 @@ func friendlyType(goType string) string {
 			return "text"
 		case "workflow.Risk", "workflow.Isolation", "workflow.Category", "workflow.RemotePolicy",
 			"workflow.InputType", "workflow.OutputType", "workflow.Runtime", "workflow.AgentRole",
-			"workflow.AgentMode", "workflow.CheckpointBehavior":
+			"workflow.AgentMode", "workflow.CheckpointBehavior", "workflow.PreconditionOnFail":
 			return "string"
 		}
 		return "mapping"

@@ -86,6 +86,7 @@ embed-sync:
 	cp -r ../agents internal/hubcontent/hub/agents
 	cp -r ../skills internal/hubcontent/hub/skills
 	cp -r ../permissions internal/hubcontent/hub/permissions
+	cp -r ../workflows internal/hubcontent/hub/workflows
 	$(MAKE) embed-bd
 
 # Cross-compile the fake bd embedded in container images (linux/amd64, linux/arm64).

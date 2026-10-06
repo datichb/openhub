@@ -1,0 +1,55 @@
+apiVersion: oh/v1
+kind: Workflow
+id: cadrage
+category: frame
+label: { fr: Cadrage, en: Scoping }
+description:
+  fr: Explorer, planifier et spécifier une feature sans l'implémenter (création des tickets Beads)
+  en: Explore, plan and specify a feature without implementing it (creates the Beads tickets)
+risk: plan
+inputs:
+  request:
+    type: text
+    required: true
+    label: { fr: Demande, en: Request }
+    help:
+      fr: La feature à cadrer en langage naturel (ou l'identifiant d'un ticket ou d'une MR GitLab)
+      en: The feature to scope in natural language (or the id of a GitLab issue or merge request)
+    max_length: 8000
+prompt:
+  template: prompts/cadrage.md.tmpl
+agents:
+  pathfinder: { role: workflow, mode: subagent }
+  planner: { role: workflow, mode: subagent, after: cp-scope }
+  designer: { role: workflow, mode: subagent }
+checkpoints:
+  cp-scope:
+    label: { fr: Valider le périmètre, en: Approve the scope }
+    description:
+      fr: Présenter le rapport d'exploration et confirmer le périmètre avant la planification.
+      en: Present the exploration report and confirm the scope before planning.
+    mode: { manuel: pause, semi-auto: pause, auto: auto }
+  cp-tickets:
+    label: { fr: Valider le découpage, en: Approve the breakdown }
+    description:
+      fr: Les tickets ne sont créés qu'après validation du découpage par l'utilisateur.
+      en: Tickets are only created once the user has approved the breakdown.
+    mandatory: true
+    mode: { manuel: pause, semi-auto: pause, auto: pause }
+  cp-recap:
+    label: { fr: Récap du cadrage, en: Scoping recap }
+    mode: { manuel: pause, semi-auto: pause, auto: auto }
+modes: { default: semi-auto, allowed: [manuel, semi-auto, auto] }
+circuit_breaker: { max_consecutive_subagents: 12 }
+preconditions:
+  project-context:
+    label:
+      fr: Aucun contexte projet trouvé (docs/wiki/index.md, ONBOARDING.md ou CONVENTIONS.md)
+      en: No project context found (docs/wiki/index.md, ONBOARDING.md or CONVENTIONS.md)
+    check: { path_exists: [docs/wiki/index.md, ONBOARDING.md, CONVENTIONS.md] }
+    suggest: { workflow: onboarding, resume: true }
+beads:
+  allow: [show, list, ready, children, search, count, label, dep, create, update, comments, duplicate, supersede]
+runtime: { default: local, allowed: [local] }
+outputs:
+  - { id: tickets, type: beads-ids, label: { fr: Tickets créés, en: Created tickets } }

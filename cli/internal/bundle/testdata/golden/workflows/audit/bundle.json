@@ -1,0 +1,59 @@
+{
+  "entry_agent": "auditor",
+  "agents": [
+    {
+      "id": "auditor",
+      "mode": "primary",
+      "model": "/claude-sonnet-4-6",
+      "permissions": [
+        "shell * deny",
+        "ctx_batch_execute * allow",
+        "ctx_search * allow",
+        "edit * deny",
+        "glob * allow",
+        "grep * allow",
+        "question * allow",
+        "read * allow",
+        "skill * allow",
+        "subagent * deny",
+        "subagent documentarian allow",
+        "subagent auditor-subagent allow"
+      ]
+    },
+    {
+      "id": "auditor-subagent",
+      "mode": "subagent",
+      "model": "/claude-sonnet-4-6",
+      "permissions": [
+        "shell * deny",
+        "ctx_batch_execute * allow",
+        "ctx_search * allow",
+        "edit * deny",
+        "glob * allow",
+        "grep * allow",
+        "read * allow",
+        "skill * allow",
+        "webfetch * allow",
+        "websearch * allow"
+      ]
+    }
+  ],
+  "skills": [
+    "auditor-execution-modes",
+    "expert-posture",
+    "living-docs-enrichment",
+    "rtk-usage",
+    "team-awareness",
+    "team-policies-enforcement",
+    "websearch-cve-lookup",
+    "websearch-performance-research",
+    "websearch-usage"
+  ],
+  "subagent_graph": {
+    "auditor": [
+      "auditor-subagent"
+    ]
+  },
+  "max_depth": 1,
+  "code_mode": false
+}

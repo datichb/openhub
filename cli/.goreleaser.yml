@@ -10,7 +10,7 @@ release:
 before:
   hooks:
     - go mod tidy
-    - sh -c "rm -rf internal/hubcontent/hub && mkdir -p internal/hubcontent/hub && cp -r ../agents internal/hubcontent/hub/agents && cp -r ../skills internal/hubcontent/hub/skills && cp -r ../permissions internal/hubcontent/hub/permissions"
+    - sh -c "rm -rf internal/hubcontent/hub && mkdir -p internal/hubcontent/hub && cp -r ../agents internal/hubcontent/hub/agents && cp -r ../skills internal/hubcontent/hub/skills && cp -r ../permissions internal/hubcontent/hub/permissions && cp -r ../workflows internal/hubcontent/hub/workflows"
     - sh -c "for a in amd64 arm64; do CGO_ENABLED=0 GOOS=linux GOARCH=$a go build -trimpath -ldflags '-s -w' -o internal/runtime/container/assets/bd-linux-$a ./cmd/oh-bd-stub || exit 1; done"
 
 builds:

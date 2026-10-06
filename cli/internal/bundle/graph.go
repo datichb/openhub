@@ -88,7 +88,7 @@ func bundleGraph(graph map[string][]string, selected []string) map[string][]stri
 	for _, id := range selected {
 		var targets []string
 		for _, t := range graph[id] {
-			if inBundle[t] && t != id {
+			if inBundle[t] {
 				targets = append(targets, t)
 			}
 		}
@@ -140,8 +140,10 @@ func deriveGraph(hubDir string, wf *workflow.WorkflowDefinition, files map[strin
 		}
 		task, _ := perms["task"].(map[string]interface{})
 		var targets []string
+		// A key naming the agent itself is an explicit self-delegation
+		// (reviewer → parallel reviewer sessions); "*" never includes it.
 		for target, v := range task {
-			if target == "*" || target == id || disabled[target] {
+			if target == "*" || disabled[target] {
 				continue
 			}
 			if _, ok := files[target]; !ok {

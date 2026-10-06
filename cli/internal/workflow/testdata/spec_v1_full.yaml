@@ -56,3 +56,8 @@ outputs:
   - { id: mr, type: merge_request }
   - { id: tickets, type: beads-ids }
 limits: { budget_usd: 5 }
+preconditions:
+  context:
+    label: { fr: Aucun contexte projet, en: No project context }
+    check: { path_exists: [docs/wiki/index.md, ONBOARDING.md] }
+    on_fail: suggest

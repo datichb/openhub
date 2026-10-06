@@ -1,0 +1,66 @@
+apiVersion: oh/v1
+kind: Workflow
+id: ticket
+category: develop
+label: { fr: Ticket, en: Ticket }
+description:
+  fr: Implémenter un ou plusieurs tickets Beads déjà détaillés (développement, review, commit)
+  en: Implement one or more detailed Beads tickets (development, review, commit)
+risk: write
+entry:
+  agent: orchestrator-dev
+inputs:
+  ticket:
+    type: beads-id
+    required: true
+    label: { fr: Ticket, en: Ticket }
+    help:
+      fr: Ticket Beads prêt à implémenter (plusieurs tickets sélectionnés = une session par ticket)
+      en: Beads ticket ready to implement (several selected tickets = one session per ticket)
+    picker: { filter: ai-delegated, multi: true }
+  instructions:
+    type: text
+    label: { fr: Consignes, en: Instructions }
+    help:
+      fr: Précisions facultatives pour cette session
+      en: Optional details for this session
+    max_length: 4000
+prompt:
+  template: prompts/ticket.md.tmpl
+agents:
+  orchestrator-dev: { role: workflow }
+  developer: { role: workflow, after: cp-1 }
+  developer-refactor: { role: workflow, after: cp-1 }
+  developer-migrator: { role: workflow, after: cp-1 }
+  reviewer: { role: workflow, mode: subagent }
+  documentarian: { role: independent }
+checkpoints:
+  cp-1:
+    label: { fr: Démarrer le ticket, en: Start the ticket }
+    description:
+      fr: Présenter le ticket et l'agent prévu avant de lancer l'implémentation.
+      en: Present the ticket and the planned agent before starting the implementation.
+    mode: { manuel: pause, semi-auto: auto, auto: auto }
+    remote: auto
+  cp-2:
+    label: { fr: Commit ou correction, en: Commit or fix }
+    description:
+      fr: Après la review, présenter le résultat et demander s'il faut committer ou corriger.
+      en: After the review, present the result and ask whether to commit or fix.
+    mandatory: true
+    mode: { manuel: pause, semi-auto: pause, auto: pause }
+    remote: defer
+  cp-3:
+    label: { fr: Ticket suivant, en: Next ticket }
+    description:
+      fr: Passer au ticket suivant ou s'arrêter.
+      en: Move on to the next ticket or stop.
+    mode: { manuel: pause, semi-auto: auto, auto: auto }
+    remote: auto
+modes: { default: semi-auto, allowed: [manuel, semi-auto, auto] }
+circuit_breaker: { max_consecutive_subagents: 12 }
+beads: { allow: [show, list, ready, children, dep, update, close, comments, label] }
+runtime: { default: local, allowed: [local, container, remote] }
+outputs:
+  - { id: branch, type: branch, label: { fr: Branche de travail, en: Working branch } }
+  - { id: tickets, type: beads-ids, label: { fr: Tickets traités, en: Processed tickets } }

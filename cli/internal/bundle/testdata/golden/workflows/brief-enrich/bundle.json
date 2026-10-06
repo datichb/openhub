@@ -1,0 +1,28 @@
+{
+  "entry_agent": "brief-enricher",
+  "agents": [
+    {
+      "id": "brief-enricher",
+      "mode": "primary",
+      "model": "anthropic/claude-sonnet-4-5",
+      "permissions": [
+        "shell * deny",
+        "edit * deny",
+        "glob * allow",
+        "grep * allow",
+        "read * allow",
+        "skill * allow",
+        "subagent * deny",
+        "todowrite * deny",
+        "webfetch * deny"
+      ]
+    }
+  ],
+  "skills": [
+    "team-awareness",
+    "team-policies-enforcement"
+  ],
+  "subagent_graph": {},
+  "max_depth": 1,
+  "code_mode": false
+}

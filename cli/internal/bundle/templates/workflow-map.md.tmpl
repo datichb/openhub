@@ -8,7 +8,7 @@ description: "Carte du workflow {{ .ID }} : agents, délégations, checkpoints, 
 {{ .Description }}
 {{ end }}
 - Agent d'entrée : `{{ .Entry }}`
-- Risque : `{{ .Risk }}`{{ if eq .Risk "read" }} : aucune modification de fichier, aucune écriture Beads{{ end }}
+- Risque : `{{ .Risk }}`{{ if eq .Risk "read" }} : aucune modification de fichier, aucune écriture Beads{{ else if eq .Risk "plan" }} : aucune modification de fichier ; écritures Beads limitées aux commandes autorisées{{ end }}
 {{- if .Beads }}
 - Commandes Beads autorisées : {{ codes .Beads }}
 {{- end }}

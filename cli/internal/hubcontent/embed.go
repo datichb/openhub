@@ -1,8 +1,8 @@
-// Package hubcontent provides embedded hub content (agents, skills and
-// permissions) and extraction logic to deploy them to ~/.oh/hub/.
+// Package hubcontent provides embedded hub content (agents, skills,
+// permissions and workflows) and extraction logic to deploy them to ~/.oh/hub/.
 //
 // The hub/ subdirectory is populated at build time (goreleaser copies agents/,
-// skills/ and permissions/ from the repo root). In development, run
+// skills/, permissions/ and workflows/ from the repo root). In development, run
 // `make embed-sync` or the equivalent copy commands to populate it.
 package hubcontent
 
@@ -16,7 +16,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/buildinfo"
 )
 
-//go:embed all:hub/agents all:hub/skills all:hub/permissions
+//go:embed all:hub/agents all:hub/skills all:hub/permissions all:hub/workflows
 var embedded embed.FS
 
 // HubContentDir returns the path where hub content is extracted (~/.oh/hub/).

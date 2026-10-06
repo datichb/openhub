@@ -1,0 +1,27 @@
+apiVersion: oh/v1
+kind: Workflow
+id: debug
+category: quality
+label: { fr: Debug, en: Debug }
+description:
+  fr: Diagnostiquer un bug ou un problème isolé (rapport de diagnostic, ticket de correction)
+  en: Diagnose a bug or an isolated problem (diagnostic report, fix ticket)
+risk: write
+entry:
+  agent: debugger
+inputs:
+  issue:
+    type: text
+    label: { fr: Problème, en: Problem }
+    help:
+      fr: Le problème observé (symptômes, message d'erreur, étapes) ; vide = la session le demande
+      en: The observed problem (symptoms, error message, steps); empty = the session asks for it
+    max_length: 8000
+prompt:
+  template: prompts/debug.md.tmpl
+agents:
+  debugger: { role: workflow }
+  developer: { role: independent, mode: primary }
+runtime: { default: local, allowed: [local] }
+outputs:
+  - { id: tickets, type: beads-ids, label: { fr: Tickets de correction, en: Fix tickets } }

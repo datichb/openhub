@@ -98,6 +98,16 @@ func (c *MemCatalog) Add(doc *Document) Diagnostics {
 // Put registers doc, replacing a document with the same reference.
 func (c *MemCatalog) Put(doc *Document) { c.docs[doc.Ref()] = doc }
 
+// HasWorkflow implements WorkflowCatalog: id exists in some layer.
+func (c *MemCatalog) HasWorkflow(id string) bool {
+	for r := range c.docs {
+		if r.ID == id {
+			return true
+		}
+	}
+	return false
+}
+
 // Refs returns every reference, by layer then id.
 func (c *MemCatalog) Refs() []Ref {
 	out := make([]Ref, 0, len(c.docs))

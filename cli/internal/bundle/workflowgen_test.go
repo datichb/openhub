@@ -93,6 +93,8 @@ func TestGenerateWorkflowSkills_Content(t *testing.T) {
 
 	// Minimal workflow: implicit conductor, no checkpoint, no remote column.
 	quick := generateFor(t, "apiVersion: oh/v1\nkind: Workflow\nid: quick\nrisk: read\n")[WorkflowMapSkill]
+	plan := generateFor(t, "apiVersion: oh/v1\nkind: Workflow\nid: cadrage\nrisk: plan\nbeads: { allow: [show, create] }\n")[WorkflowMapSkill]
+	assert.Contains(t, plan, "- Risque : `plan` : aucune modification de fichier ; écritures Beads limitées aux commandes autorisées")
 	assert.Contains(t, quick, "Agent d'entrée : `conductor`")
 	assert.Contains(t, quick, "Aucun checkpoint")
 	assert.Contains(t, quick, "aucune modification de fichier")

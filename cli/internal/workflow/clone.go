@@ -26,6 +26,12 @@ func (s *Spec) Clone() *Spec {
 		a.Calls = cloneSlice(a.Calls)
 		return a
 	})
+	c.Preconditions = s.Preconditions.cloneWith(func(pc Precondition) Precondition {
+		pc.Label = pc.Label.clone()
+		pc.Check.PathExists = cloneSlice(pc.Check.PathExists)
+		pc.Suggest = clonePtr(pc.Suggest)
+		return pc
+	})
 	c.Checkpoints = s.Checkpoints.cloneWith(func(cp CheckpointSpec) CheckpointSpec {
 		cp.Label = cp.Label.clone()
 		cp.Description = cp.Description.clone()
