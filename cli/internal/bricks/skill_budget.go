@@ -85,7 +85,7 @@ func ComputeAllBudgets(agentsDir, skillsDir string) ([]*AgentBudget, error) {
 		}
 		budget, err := ComputeAgentBudget(path, skillsDir)
 		if err != nil {
-			return nil // skip agents that fail to parse
+			return nil //nolint:nilerr // skip agents that fail to parse
 		}
 		budgets = append(budgets, budget)
 		return nil

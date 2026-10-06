@@ -269,7 +269,7 @@ func handleListMRDiscussions(_ context.Context, params json.RawMessage) (*protoc
 	// Client-side filtering: remove system notes and optionally filter unresolved.
 	var all []json.RawMessage
 	if err := json.Unmarshal(data, &all); err != nil {
-		return &protocol.ToolResult{
+		return &protocol.ToolResult{ //nolint:nilerr // not a JSON array: return the raw payload
 			Content: []protocol.ContentBlock{{Type: "text", Text: string(data)}},
 		}, nil
 	}

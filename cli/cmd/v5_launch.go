@@ -45,10 +45,10 @@ func v5Request(a *app.App, project *domain.Project, providerFlag string) runsvc.
 	applyProjectExec(&req, project)
 	req.IsolateUserConfig = a.Config.Execution.StrictIsolation
 	req.Limits = sessionLimits(context.Background(), a, project, nil)
-	if team := config.ResolveTeamForProject(a.Config, project); team.Enabled {
-		req.TeamID = team.TeamID
-		if team.MemberID != "" {
-			mid := team.MemberID
+	if tc := config.ResolveTeamForProject(a.Config, project); tc.Enabled {
+		req.TeamID = tc.TeamID
+		if tc.MemberID != "" {
+			mid := tc.MemberID
 			req.MemberID = &mid
 		}
 	}
@@ -139,11 +139,11 @@ func buildWorkflowBundle(a *app.App, project *domain.Project, res *workflowsvc.R
 // directory ("" = ~/.oh/bundles; the editor preview builds in a temporary
 // one).
 func buildWorkflowBundleIn(a *app.App, project *domain.Project, res *workflowsvc.Resolution, prov, outDir string) (b *bundle.Bundle, missing []string, err error) {
-	var team config.ResolvedTeamConfig
+	var tc config.ResolvedTeamConfig
 	if project != nil {
-		team = config.ResolveTeamForProject(a.Config, project)
+		tc = config.ResolveTeamForProject(a.Config, project)
 	}
-	req := sessionBundleRequest(a, project, team, prov)
+	req := sessionBundleRequest(a, project, tc, prov)
 	if outDir != "" {
 		req.OutDir = outDir
 	}
@@ -186,7 +186,7 @@ func selectMCP(available []sessionspec.MCPServerDef, ids []string) (kept []sessi
 
 // sessionBundleRequest is the part of a bundle request shared by every
 // launch: hub, project instructions, model cascade and MCP servers.
-func sessionBundleRequest(a *app.App, project *domain.Project, team config.ResolvedTeamConfig, prov string) bundle.Request {
+func sessionBundleRequest(a *app.App, project *domain.Project, tc config.ResolvedTeamConfig, prov string) bundle.Request {
 	req := bundle.Request{
 		HubDir: hubcontent.HubContentDir(), OutDir: ohBundlesDir(), Provider: prov,
 		ExtraInstructionFiles: a.Config.Deploy.InstructionFiles,
@@ -195,7 +195,7 @@ func sessionBundleRequest(a *app.App, project *domain.Project, team config.Resol
 	req.HubOverrides, req.ProjectOverrides = modelOverridesFor(a, project)
 	if project != nil {
 		req.ProjectPath = project.Path
-		req.MCP = sessionMCP(a, project, team)
+		req.MCP = sessionMCP(a, project, tc)
 	}
 	return req
 }

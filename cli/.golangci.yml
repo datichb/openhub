@@ -27,6 +27,7 @@ linters:
         - activit
         - conflit
         - normalis
+        - exemple
   exclusions:
     generated: lax
     presets:

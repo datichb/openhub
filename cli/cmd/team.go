@@ -1055,7 +1055,7 @@ func runTeamRejoin(cmd *cobra.Command, _ []string) error {
 			fmt.Fprintf(a.IO.Out, "  [3] %s\n", i18n.T("cmd.init.wizard_rejoin_token_skip"))
 			fmt.Fprintf(a.IO.Out, "  Choice [1]: ")
 			var choiceStr string
-			fmt.Fscanln(a.IO.In, &choiceStr)
+			_, _ = fmt.Fscanln(a.IO.In, &choiceStr)
 			switch choiceStr {
 			case "2":
 				// Enter new token
@@ -1084,7 +1084,7 @@ func runTeamRejoin(cmd *cobra.Command, _ []string) error {
 			fmt.Fprintf(a.IO.Out, "  [2] %s\n", i18n.T("cmd.init.wizard_rejoin_token_skip"))
 			fmt.Fprintf(a.IO.Out, "  Choice [1]: ")
 			var choiceStr string
-			fmt.Fscanln(a.IO.In, &choiceStr)
+			_, _ = fmt.Fscanln(a.IO.In, &choiceStr)
 			if choiceStr != "2" {
 				fmt.Fprintf(a.IO.Out, "  %s: ", i18n.T("cmd.init.wizard_rejoin_gitlab_token_label"))
 				if term.IsTerminal(int(os.Stdin.Fd())) {
@@ -1131,7 +1131,7 @@ func runTeamRejoin(cmd *cobra.Command, _ []string) error {
 		fmt.Fprintf(a.IO.Out, "  [2] %s\n", i18n.T("cmd.init.wizard_identity_skip"))
 		fmt.Fprintf(a.IO.Out, "  Choice [2]: ")
 		var choiceStr string
-		fmt.Fscanln(a.IO.In, &choiceStr)
+		_, _ = fmt.Fscanln(a.IO.In, &choiceStr)
 		if choiceStr == "1" {
 			fmt.Fprintf(a.IO.Out, "  %s: ", i18n.T("cmd.init.wizard_rejoin_gitlab_token_label"))
 			if term.IsTerminal(int(os.Stdin.Fd())) {

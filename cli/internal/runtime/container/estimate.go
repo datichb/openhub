@@ -93,7 +93,7 @@ func (r *Runtime) Estimate(ctx context.Context, g ohruntime.Group) (ohruntime.Pr
 	var p baseProbe
 	data, err := os.ReadFile(filepath.Join(r.opts.CacheDir, "images", base.hash[:16]+".json"))
 	if err != nil || json.Unmarshal(data, &p) != nil || p.Arch == "" {
-		return steps(StepLayer), nil // base not probed yet: the layer was never built on it
+		return steps(StepLayer), nil //nolint:nilerr // base not probed yet: the layer was never built on it
 	}
 	bd, err := r.bd(p.Arch)
 	if err != nil {

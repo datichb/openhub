@@ -19,7 +19,7 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 - Les exécutions sans interface passent par le runtime v5 (`oh run --headless`).
 - `OH_HOME` relocalise `~/.oh` ; nouvelles vérifications `oh doctor` (runtime v5, démon, git, terminal).
 
-### Added — workflows déclaratifs (phase 1, en cours)
+### Added — workflows déclaratifs (phase 1)
 
 - Schéma de document **`oh/v1`** (`cli/internal/workflow/schema.go`) : entrées, agents et checkpoints ordonnés, textes localisés (`fr`/`en`), délégations explicites (`calls`), politiques distantes, sorties typées, plugins, runtimes. Pas encore utilisé par les lancements.
 - **Moteur des workflows** :
@@ -77,7 +77,7 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
   - Écrans **Publication** (version suivante, validation, impact, nouvelles briques, diff, message obligatoire, publication en attente visible) et **Historique** (diff avec la version actuelle, restauration).
   - **Espace solo** : choix « Espace solo » au premier lancement et à l'ajout d'un projet (`oh project add` aussi), création depuis le catalogue sans team-state ; **« Passer en équipe »** dans le détail d'équipe d'un espace solo ; **gouvernance** des workflows affichée dans le détail d'équipe.
 
-### Added — pilotage des sessions (phase 3, en cours)
+### Added — pilotage des sessions (phase 3)
 
 - **Décisions en attente** (migration v33 `pending_decisions`) : permissions et questions des agents (sous-agents compris), erreurs et budget épuisé, recopiées en continu par le démon ; **première réponse gagne** entre oh, l'interface opencode et le navigateur.
 - **`oh session inbox|approve|answer|dismiss|send|follow|interrupt|compact|model|fork|results|resume|open --browser`** ; `oh session list --json` avec les décisions ; un début d'identifiant suffit.

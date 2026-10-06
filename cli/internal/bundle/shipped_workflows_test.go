@@ -49,7 +49,7 @@ func sampleInputs(s *workflow.Spec, all bool) map[string]any {
 	out := map[string]any{}
 	for _, k := range s.Inputs.Keys() {
 		in, _ := s.Inputs.Get(k)
-		if !all && !(in.Required && in.Default == nil) {
+		if !all && (!in.Required || in.Default != nil) {
 			continue
 		}
 		switch in.Type {
