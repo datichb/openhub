@@ -60,9 +60,6 @@ func mergeProjectFields(dst, src *domain.Project) {
 	if len(src.Labels) > 0 {
 		dst.Labels = src.Labels
 	}
-	if len(src.Agents) > 0 {
-		dst.Agents = src.Agents
-	}
 	if len(src.MCP) > 0 {
 		dst.MCP = src.MCP
 	}
@@ -77,9 +74,6 @@ func mergeProjectFields(dst, src *domain.Project) {
 	}
 	if src.TrackerConfig != nil {
 		dst.TrackerConfig = src.TrackerConfig
-	}
-	if src.WorkflowConfig != nil {
-		dst.WorkflowConfig = src.WorkflowConfig
 	}
 	if src.TeamID != nil {
 		dst.TeamID = src.TeamID

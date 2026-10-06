@@ -35,7 +35,6 @@ func TestProjectStore_CRUD(t *testing.T) {
 		Path:      "/tmp/test-project",
 		Language:  "go",
 		Labels:    []string{"backend", "cli"},
-		Agents:    []string{"coder", "reviewer"},
 		MCP:       []string{"gitlab"},
 		Status:    domain.ProjectStatusActive,
 		CreatedAt: now,
@@ -51,7 +50,6 @@ func TestProjectStore_CRUD(t *testing.T) {
 	assert.Equal(t, "go", got.Language)
 	assert.Equal(t, domain.ProjectStatusActive, got.Status)
 	assert.Equal(t, []string{"backend", "cli"}, got.Labels)
-	assert.Equal(t, []string{"coder", "reviewer"}, got.Agents)
 
 	// GetByPath
 	byPath, err := ps.GetByPath(ctx, "/tmp/test-project")

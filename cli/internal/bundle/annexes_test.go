@@ -10,9 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/datichb/openhub/cli/internal/config"
-	"github.com/datichb/openhub/cli/internal/deploy"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
-	"github.com/datichb/openhub/cli/internal/workflow"
 )
 
 func TestBuildShipsAnnexes(t *testing.T) {
@@ -115,37 +113,8 @@ func TestCheckSkillsAnnexes(t *testing.T) {
 	}, got)
 }
 
-// B8: the inlined Bucket A skill is the version generated from the workflow,
-// not the static hub file.
-func TestBuildInlinesGeneratedSkills(t *testing.T) {
-	hub := repoHub(t)
-	wf, err := deploy.ResolveAndPrepareWorkflow(workflow.BaseWorkflow())
-	require.NoError(t, err)
-	fm, err := deploy.ParseAgentFrontmatter(filepath.Join(hub, "agents", "planning", "orchestrator.md"))
-	require.NoError(t, err)
-	var ref string
-	for _, r := range fm.Skills {
-		if _, ok := wf.GeneratedSkills[r]; ok {
-			ref = r
-			break
-		}
-	}
-	require.NotEmpty(t, ref, "orchestrator inlines at least one generated skill")
-	static, err := os.ReadFile(filepath.Join(hub, "skills", ref+".md"))
-	require.NoError(t, err)
-	_, staticBody := deploy.SplitFrontmatter(static)
-
-	wf.GeneratedSkills[ref] = "---\nname: " + filepath.Base(ref) + "\ndescription: generated\n---\nGENERATED-SENTINEL\n"
-	b, err := Build(Request{HubDir: hub, OutDir: t.TempDir(), EntryAgent: "orchestrator", Workflow: wf})
-	require.NoError(t, err)
-	body := findAgent(b.Spec.Agents, "orchestrator").Body
-	assert.Contains(t, body, "GENERATED-SENTINEL")
-	firstLine := strings.SplitN(strings.TrimSpace(string(staticBody)), "\n", 2)[0]
-	assert.NotContains(t, body, firstLine+"\n\n", "static version not inlined")
-}
-
 func TestHubAnnexesResolve(t *testing.T) {
-	b, err := Build(Request{HubDir: repoHub(t), OutDir: t.TempDir(), EntryAgent: "orchestrator", Provider: "bedrock"})
+	b, err := Build(Request{HubDir: repoHub(t), OutDir: t.TempDir(), Spec: agentSpec(t, repoHub(t), "orchestrator"), Provider: "bedrock"})
 	require.NoError(t, err)
 	found := 0
 	for _, a := range b.Spec.WithBundleRoot(b.Spec.Root).Agents {

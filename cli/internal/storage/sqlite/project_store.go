@@ -25,7 +25,7 @@ func NewProjectStore(s *Store) *ProjectStore {
 var _ domain.ProjectStore = (*ProjectStore)(nil)
 
 func (ps *ProjectStore) List(ctx context.Context, status domain.ProjectStatus) ([]domain.Project, error) {
-	query := `SELECT id, name, path, language, tracker, provider, model, model_overrides, mcp_config, provider_config, team_config, tracker_config, labels, agents, mcp, status, created_at, updated_at, team_id, workflow_config, exec_config FROM projects`
+	query := `SELECT id, name, path, language, tracker, provider, model, model_overrides, mcp_config, provider_config, team_config, tracker_config, labels, mcp, status, created_at, updated_at, team_id, exec_config FROM projects`
 	var args []interface{}
 	if status != "" {
 		query += " WHERE status = ?"
@@ -52,7 +52,7 @@ func (ps *ProjectStore) List(ctx context.Context, status domain.ProjectStatus) (
 
 func (ps *ProjectStore) Get(ctx context.Context, id string) (*domain.Project, error) {
 	row := ps.db.QueryRowContext(ctx,
-		`SELECT id, name, path, language, tracker, provider, model, model_overrides, mcp_config, provider_config, team_config, tracker_config, labels, agents, mcp, status, created_at, updated_at, team_id, workflow_config, exec_config FROM projects WHERE id = ?`,
+		`SELECT id, name, path, language, tracker, provider, model, model_overrides, mcp_config, provider_config, team_config, tracker_config, labels, mcp, status, created_at, updated_at, team_id, exec_config FROM projects WHERE id = ?`,
 		id,
 	)
 	p, err := scanProjectRow(row)
@@ -67,7 +67,7 @@ func (ps *ProjectStore) Get(ctx context.Context, id string) (*domain.Project, er
 
 func (ps *ProjectStore) GetByPath(ctx context.Context, path string) (*domain.Project, error) {
 	row := ps.db.QueryRowContext(ctx,
-		`SELECT id, name, path, language, tracker, provider, model, model_overrides, mcp_config, provider_config, team_config, tracker_config, labels, agents, mcp, status, created_at, updated_at, team_id, workflow_config, exec_config FROM projects WHERE path = ?`,
+		`SELECT id, name, path, language, tracker, provider, model, model_overrides, mcp_config, provider_config, team_config, tracker_config, labels, mcp, status, created_at, updated_at, team_id, exec_config FROM projects WHERE path = ?`,
 		path,
 	)
 	p, err := scanProjectRow(row)
@@ -82,7 +82,7 @@ func (ps *ProjectStore) GetByPath(ctx context.Context, path string) (*domain.Pro
 
 func (ps *ProjectStore) GetByName(ctx context.Context, name string) (*domain.Project, error) {
 	row := ps.db.QueryRowContext(ctx,
-		`SELECT id, name, path, language, tracker, provider, model, model_overrides, mcp_config, provider_config, team_config, tracker_config, labels, agents, mcp, status, created_at, updated_at, team_id, workflow_config, exec_config FROM projects WHERE name = ?`,
+		`SELECT id, name, path, language, tracker, provider, model, model_overrides, mcp_config, provider_config, team_config, tracker_config, labels, mcp, status, created_at, updated_at, team_id, exec_config FROM projects WHERE name = ?`,
 		name,
 	)
 	p, err := scanProjectRow(row)
@@ -104,14 +104,14 @@ func (ps *ProjectStore) Create(ctx context.Context, p *domain.Project) error {
 	}
 
 	_, err := ps.db.ExecContext(ctx,
-		`INSERT INTO projects (id, name, path, language, tracker, provider, model, model_overrides, mcp_config, provider_config, team_config, tracker_config, labels, agents, mcp, status, created_at, updated_at, team_id, workflow_config, exec_config)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		`INSERT INTO projects (id, name, path, language, tracker, provider, model, model_overrides, mcp_config, provider_config, team_config, tracker_config, labels, mcp, status, created_at, updated_at, team_id, exec_config)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		p.ID, p.Name, p.Path, p.Language, "", p.Provider, p.Model, marshalModelOverrides(p.ModelOverrides),
 		marshalMCPConfig(p.MCPConfig), marshalProviderConfig(p.ProviderConfig), marshalTeamConfig(p.TeamConfig),
 		marshalTrackerConfig(p.TrackerConfig),
-		joinStrings(p.Labels), joinStrings(p.Agents), joinStrings(p.MCP),
+		joinStrings(p.Labels), joinStrings(p.MCP),
 		string(p.Status), p.CreatedAt, p.UpdatedAt, teamIDToNullable(p.TeamID),
-		marshalWorkflowConfig(p.WorkflowConfig), marshalExecConfig(p.ExecConfig),
+		marshalExecConfig(p.ExecConfig),
 	)
 	if err != nil {
 		if strings.Contains(err.Error(), "UNIQUE constraint") {
@@ -125,14 +125,14 @@ func (ps *ProjectStore) Create(ctx context.Context, p *domain.Project) error {
 func (ps *ProjectStore) Update(ctx context.Context, p *domain.Project) error {
 	p.UpdatedAt = time.Now()
 	result, err := ps.db.ExecContext(ctx,
-		`UPDATE projects SET name=?, path=?, language=?, tracker=?, provider=?, model=?, model_overrides=?, mcp_config=?, provider_config=?, team_config=?, tracker_config=?, labels=?, agents=?, mcp=?, status=?, updated_at=?, team_id=?, workflow_config=?, exec_config=?
+		`UPDATE projects SET name=?, path=?, language=?, tracker=?, provider=?, model=?, model_overrides=?, mcp_config=?, provider_config=?, team_config=?, tracker_config=?, labels=?, mcp=?, status=?, updated_at=?, team_id=?, exec_config=?
 		 WHERE id=?`,
 		p.Name, p.Path, p.Language, "", p.Provider, p.Model, marshalModelOverrides(p.ModelOverrides),
 		marshalMCPConfig(p.MCPConfig), marshalProviderConfig(p.ProviderConfig), marshalTeamConfig(p.TeamConfig),
 		marshalTrackerConfig(p.TrackerConfig),
-		joinStrings(p.Labels), joinStrings(p.Agents), joinStrings(p.MCP),
+		joinStrings(p.Labels), joinStrings(p.MCP),
 		string(p.Status), p.UpdatedAt, teamIDToNullable(p.TeamID),
-		marshalWorkflowConfig(p.WorkflowConfig), marshalExecConfig(p.ExecConfig), p.ID,
+		marshalExecConfig(p.ExecConfig), p.ID,
 	)
 	if err != nil {
 		return fmt.Errorf("updating project %s: %w", p.ID, err)
@@ -160,15 +160,14 @@ func (ps *ProjectStore) Delete(ctx context.Context, id string) error {
 
 func scanProject(rows *sql.Rows) (*domain.Project, error) {
 	var p domain.Project
-	var labels, agents, mcp, status, tracker, modelOverrides, mcpConfig, providerConfig, teamConfig, trackerConfig, workflowConfig, execConfig string
+	var labels, mcp, status, tracker, modelOverrides, mcpConfig, providerConfig, teamConfig, trackerConfig, execConfig string
 	var teamID sql.NullString
 	err := rows.Scan(&p.ID, &p.Name, &p.Path, &p.Language, &tracker, &p.Provider, &p.Model,
-		&modelOverrides, &mcpConfig, &providerConfig, &teamConfig, &trackerConfig, &labels, &agents, &mcp, &status, &p.CreatedAt, &p.UpdatedAt, &teamID, &workflowConfig, &execConfig)
+		&modelOverrides, &mcpConfig, &providerConfig, &teamConfig, &trackerConfig, &labels, &mcp, &status, &p.CreatedAt, &p.UpdatedAt, &teamID, &execConfig)
 	if err != nil {
 		return nil, fmt.Errorf("scanning project: %w", err)
 	}
 	p.Labels = splitStrings(labels)
-	p.Agents = splitStrings(agents)
 	p.MCP = splitStrings(mcp)
 	p.Status = domain.ProjectStatus(status)
 	p.ModelOverrides = unmarshalModelOverrides(modelOverrides)
@@ -177,22 +176,20 @@ func scanProject(rows *sql.Rows) (*domain.Project, error) {
 	p.TeamConfig = unmarshalTeamConfig(teamConfig)
 	p.TrackerConfig = unmarshalTrackerConfig(trackerConfig)
 	p.TeamID = nullableToTeamID(teamID)
-	p.WorkflowConfig = unmarshalWorkflowConfig(workflowConfig)
 	p.ExecConfig = unmarshalExecConfig(execConfig)
 	return &p, nil
 }
 
 func scanProjectRow(row *sql.Row) (*domain.Project, error) {
 	var p domain.Project
-	var labels, agents, mcp, status, tracker, modelOverrides, mcpConfig, providerConfig, teamConfig, trackerConfig, workflowConfig, execConfig string
+	var labels, mcp, status, tracker, modelOverrides, mcpConfig, providerConfig, teamConfig, trackerConfig, execConfig string
 	var teamID sql.NullString
 	err := row.Scan(&p.ID, &p.Name, &p.Path, &p.Language, &tracker, &p.Provider, &p.Model,
-		&modelOverrides, &mcpConfig, &providerConfig, &teamConfig, &trackerConfig, &labels, &agents, &mcp, &status, &p.CreatedAt, &p.UpdatedAt, &teamID, &workflowConfig, &execConfig)
+		&modelOverrides, &mcpConfig, &providerConfig, &teamConfig, &trackerConfig, &labels, &mcp, &status, &p.CreatedAt, &p.UpdatedAt, &teamID, &execConfig)
 	if err != nil {
 		return nil, err
 	}
 	p.Labels = splitStrings(labels)
-	p.Agents = splitStrings(agents)
 	p.MCP = splitStrings(mcp)
 	p.Status = domain.ProjectStatus(status)
 	p.ModelOverrides = unmarshalModelOverrides(modelOverrides)
@@ -201,7 +198,6 @@ func scanProjectRow(row *sql.Row) (*domain.Project, error) {
 	p.TeamConfig = unmarshalTeamConfig(teamConfig)
 	p.TrackerConfig = unmarshalTrackerConfig(trackerConfig)
 	p.TeamID = nullableToTeamID(teamID)
-	p.WorkflowConfig = unmarshalWorkflowConfig(workflowConfig)
 	p.ExecConfig = unmarshalExecConfig(execConfig)
 	return &p, nil
 }
@@ -391,38 +387,6 @@ func unmarshalTrackerConfig(s string) *domain.ProjectTrackerConfig {
 		return nil
 	}
 	return &tc
-}
-
-// marshalWorkflowConfig serializes project workflow config to JSON for storage.
-// Returns "" for nil config (no override → inherit team/hub workflow).
-func marshalWorkflowConfig(wc *domain.ProjectWorkflowConfig) string {
-	if wc == nil {
-		return ""
-	}
-	if wc.Overrides == nil || wc.Overrides.IsEmpty() {
-		return ""
-	}
-	data, err := json.Marshal(wc)
-	if err != nil {
-		return ""
-	}
-	return string(data)
-}
-
-// unmarshalWorkflowConfig deserializes project workflow config from JSON storage.
-// Returns nil for empty strings (no override → inherit team/hub workflow).
-func unmarshalWorkflowConfig(s string) *domain.ProjectWorkflowConfig {
-	if s == "" {
-		return nil
-	}
-	var wc domain.ProjectWorkflowConfig
-	if err := json.Unmarshal([]byte(s), &wc); err != nil {
-		return nil
-	}
-	if wc.Overrides == nil || wc.Overrides.IsEmpty() {
-		return nil
-	}
-	return &wc
 }
 
 // marshalExecConfig serializes the project execution settings ("" when empty).

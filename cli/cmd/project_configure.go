@@ -232,7 +232,6 @@ func runProjectConfigureInteractive(ctx context.Context, a *app.App, project *do
 	language := project.Language
 	provider := project.Provider
 	model := project.Model
-	var modifyAgents bool
 	changed := false
 
 	languageOptions := []string{"Go", "TypeScript", "Python", "Rust", "Java",
@@ -296,58 +295,6 @@ func runProjectConfigureInteractive(ctx context.Context, a *app.App, project *do
 					{Label: "Language", Value: displayOrDefault(project.Language, "-")},
 					{Label: "Provider", Value: displayOrDefault(project.Provider, i18n.T("form.configure.hub_default"))},
 					{Label: "Model", Value: displayOrDefault(project.Model, i18n.T("form.configure.hub_default"))},
-				}
-			},
-			Processing: i18n.T("form.configure.applying"),
-		},
-		// Step 2: Agents modification
-		{
-			Label: i18n.T("form.configure.modify_agents"),
-			Form: func(_ *tview.Application, onDone func()) *tview.Form {
-				form := tview.NewForm()
-				// Discover available agents
-				available := discoverAgents()
-				if len(available) == 0 {
-					form.AddCheckbox("No agents found — skip", true, nil)
-					form.AddButton("Next", func() { onDone() })
-					return form
-				}
-				// Add a checkbox per agent (default: current project agents selected)
-				agentSelected := make(map[string]bool)
-				for _, ag := range project.Agents {
-					agentSelected[ag] = true
-				}
-				for _, ag := range available {
-					agName := ag
-					form.AddCheckbox(agName, agentSelected[agName],
-						func(checked bool) { agentSelected[agName] = checked })
-				}
-				form.AddButton("Apply", func() {
-					// Build selected list
-					var selected []string
-					for _, ag := range available {
-						if agentSelected[ag] {
-							selected = append(selected, ag)
-						}
-					}
-					project.Agents = selected
-					changed = true
-					modifyAgents = true
-					onDone()
-				})
-				return form
-			},
-			OnDone: func() error {
-				return nil
-			},
-			InfoFields: func() []views.InfoField {
-				if modifyAgents {
-					return []views.InfoField{
-						{Label: "Agents", Value: fmt.Sprintf("%d configured", len(project.Agents))},
-					}
-				}
-				return []views.InfoField{
-					{Label: "Agents", Value: "unchanged"},
 				}
 			},
 			Processing: i18n.T("form.configure.applying"),

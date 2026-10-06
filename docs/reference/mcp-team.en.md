@@ -6,43 +6,19 @@ The `team` MCP server exposes team collaboration data to AI agents via the MCP p
 
 ## Activation
 
-The team MCP server is deployed automatically when team features are **enabled for the
-project** being deployed. Activation is resolved in two layers:
-
-1. **`.opencode/team.json`** (primary) — written by `oh deploy` with the fully-resolved
-   config for this project. Present when team is enabled; absent when disabled.
-2. **`hub.toml` `[team]` section** (fallback) — used for backward compatibility on
-   projects not yet redeployed after the per-project team config feature was introduced.
-
-No token is required — the server reads from the local team-state clone.
-
-### Resolution cascade
-
-```
-Project mode (stored in SQLite)
-  ├── "inherit"  → use hub.toml [team] config as-is
-  ├── "custom"   → use project-specific state_repo / member_id
-  └── "disabled" → team.json not written, MCP server not injected
-```
-
-See [Team Setup Guide — Per-project configuration](../guides/team-setup.en.md#4b-per-project-team-configuration)
-for how to configure the mode per project.
+The team MCP server is part of the session bundle when team features are **enabled for the project** of the session (team of the project, else the active team; never for a solo space). oh declares it in the bundle with the team and project of the session in its environment:
 
 ```json
-// Injected into opencode.json by oh deploy (when team is enabled for the project)
-{
-  "mcpServers": {
-    "team": {
-      "command": "oh",
-      "args": ["mcp", "serve", "team"]
-    }
-  }
+"team": {
+  "type": "local",
+  "command": ["oh", "mcp", "serve", "team"],
+  "environment": { "OH_TEAM_ID": "core", "OH_PROJECT_ID": "web-1a2b" }
 }
 ```
 
-At runtime the MCP server process reads `.opencode/team.json` from the **current working
-directory** (the project root). If that file is absent, it falls back to reading
-`hub.toml` directly.
+At startup the server reads team `OH_TEAM_ID` from `hub.toml` (`[[teams]]`); without this variable (server started outside a session) it uses the active team. No token is required: the server reads the local team-state clone.
+
+> v5: the former `.opencode/team.json` file written by `oh deploy` is no longer read (`oh migrate deploy-cleanup` removes it).
 
 ## Tools
 

@@ -66,24 +66,6 @@ func TestSpecGraphModel(t *testing.T) {
 	}
 }
 
-func TestLegacyLayoutUnchanged(t *testing.T) {
-	base := workflow.BaseWorkflow()
-	l := ComputeLayout(&base)
-	require.NotEmpty(t, l.Nodes)
-	agentY := -1
-	for _, n := range l.Nodes {
-		if n.Type == ElementStart {
-			t.Fatal("no start column in the legacy graph")
-		}
-		if n.Type == ElementAgent {
-			if agentY < 0 {
-				agentY = n.Y
-			}
-			assert.Equal(t, agentY, n.Y, "legacy agents side by side")
-		}
-	}
-}
-
 // Golden rendering of the editor graph (P2-T14).
 func TestSpecGraphGolden(t *testing.T) {
 	g := NewModelGraph(SpecGraphModel(graphSpecOf(t), "semi-auto", "fr", "▶ Start", nil), false)

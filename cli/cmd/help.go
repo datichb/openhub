@@ -246,31 +246,6 @@ func buildHelpSections() []helpSection {
 			},
 		},
 		{
-			Title: i18n.T("help.section.deploy"),
-			Commands: []helpCommand{
-				{
-					Name: "deploy",
-					Desc: i18n.T("cmd.deploy.short"),
-					Flags: []helpFlag{
-						{"project", "p", i18n.T("help.flag.start.project")},
-						{"provider", "P", i18n.T("help.flag.start.provider")},
-						{"model", "m", i18n.T("help.flag.deploy.model")},
-						{"check", "", i18n.T("help.flag.deploy.check")},
-						{"diff", "", i18n.T("help.flag.deploy.diff")},
-					},
-				},
-				{
-					Name: "sync",
-					Desc: i18n.T("cmd.sync.short"),
-					Flags: []helpFlag{
-						{"project", "p", i18n.T("help.flag.start.project")},
-						{"all", "", i18n.T("help.flag.sync.all")},
-						{"dry-run", "", i18n.T("help.flag.sync.dryrun")},
-					},
-				},
-			},
-		},
-		{
 			Title: i18n.T("help.section.mcp"),
 			Commands: []helpCommand{
 				{

@@ -10,11 +10,13 @@ import (
 	"strings"
 	"time"
 
+	"github.com/datichb/openhub/cli/internal/mcp/team"
+
 	"github.com/datichb/openhub/cli/internal/app"
+	"github.com/datichb/openhub/cli/internal/bricks"
 	"github.com/datichb/openhub/cli/internal/bundle"
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/daemon"
-	"github.com/datichb/openhub/cli/internal/deploy"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/hubcontent"
 	"github.com/datichb/openhub/cli/internal/launcher"
@@ -201,12 +203,12 @@ func sessionBundleRequest(a *app.App, project *domain.Project, team config.Resol
 func ohBundlesDir() string { return filepath.Join(config.HubDir(), "bundles") }
 
 // modelOverridesFor returns the hub and project model cascade levels.
-func modelOverridesFor(a *app.App, project *domain.Project) (hub, proj *deploy.ModelOverrides) {
+func modelOverridesFor(a *app.App, project *domain.Project) (hub, proj *bricks.ModelOverrides) {
 	if a.Config.Models.Default != "" || len(a.Config.Models.Families) > 0 || len(a.Config.Models.Agents) > 0 {
-		hub = &deploy.ModelOverrides{Default: a.Config.Models.Default, Families: a.Config.Models.Families, Agents: a.Config.Models.Agents}
+		hub = &bricks.ModelOverrides{Default: a.Config.Models.Default, Families: a.Config.Models.Families, Agents: a.Config.Models.Agents}
 	}
 	if project != nil && (project.Model != "" || project.ModelOverrides != nil) {
-		proj = &deploy.ModelOverrides{Default: project.Model}
+		proj = &bricks.ModelOverrides{Default: project.Model}
 		if project.ModelOverrides != nil {
 			proj.Families, proj.Agents = project.ModelOverrides.Families, project.ModelOverrides.Agents
 		}
@@ -216,14 +218,14 @@ func modelOverridesFor(a *app.App, project *domain.Project) (hub, proj *deploy.M
 
 // sessionMCP converts the project MCP cascade into bundle MCP servers
 // (`oh mcp serve <name>` reads its token from the host secret store).
-func sessionMCP(a *app.App, project *domain.Project, team config.ResolvedTeamConfig) []sessionspec.MCPServerDef {
+func sessionMCP(a *app.App, project *domain.Project, teamCfg config.ResolvedTeamConfig) []sessionspec.MCPServerDef {
 	exe, err := os.Executable()
 	if err != nil {
 		exe = "oh"
 	}
 	var out []sessionspec.MCPServerDef
-	for _, s := range buildMCPServersForProject(a, project.MCPConfig, team) {
-		if !s.Enabled || !deploy.MCPServerUsable(s) {
+	for _, s := range buildMCPServersForProject(a, project.MCPConfig, teamCfg) {
+		if !s.Enabled || !bricks.MCPServerUsable(s) {
 			continue
 		}
 		cmd := []string{exe, "mcp", "serve", s.Name}
@@ -239,6 +241,11 @@ func sessionMCP(a *app.App, project *domain.Project, team config.ResolvedTeamCon
 		}
 		for k, v := range s.Environment {
 			env[k] = v
+		}
+		if s.Name == "team" {
+			// The team server reads the team of the session project from its
+			// environment (P3-T29; formerly .opencode/team.json of `oh deploy`).
+			env[team.EnvTeamID], env[team.EnvProjectID] = teamCfg.TeamID, project.ID
 		}
 		def := sessionspec.MCPServerDef{Name: s.Name, Type: "local", Command: cmd}
 		if len(env) > 0 {

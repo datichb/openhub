@@ -4,7 +4,6 @@ package views
 
 import (
 	"context"
-	"time"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -246,35 +245,4 @@ type SyncTrackerResult struct {
 	Projects      []string // per-project summary lines
 	Warnings      []string
 	Errors        []string
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Deploy status types (used by project mode view)
-// ─────────────────────────────────────────────────────────────────────────────
-
-// DeployStatusResult holds the lightweight deploy state read from .deploy-state.
-// This is cheap to compute (~1ms, single file read) and safe for synchronous use in Mount().
-type DeployStatusResult struct {
-	// Deployed is true when a .deploy-state file exists (project was deployed at least once).
-	Deployed bool
-	// DeployedAt is the timestamp of the last successful deploy.
-	DeployedAt time.Time
-	// HubDir is the source hub directory used for the last deploy.
-	HubDir string
-}
-
-// DeployDiffResult holds the outcome of a full diff computation between the hub
-// and a project's deployed files. This is expensive (~60-70 file reads + SHA-256
-// hashing) and must only be called asynchronously from a goroutine.
-type DeployDiffResult struct {
-	// HasChanges is true when at least one file differs.
-	HasChanges bool
-	// ChangeCount is the number of files that changed (added + modified + removed).
-	ChangeCount int
-	// Summary is a human-readable one-line summary (e.g. "3 ajouté(s), 1 modifié(s)").
-	Summary string
-	// MissingMCPInfo is an optional short summary of MCP integrations not enabled.
-	// Empty when all agent MCP requirements are satisfied.
-	// Example: "2 MCP optionnels (designer, planner)"
-	MissingMCPInfo string
 }

@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"github.com/datichb/openhub/cli/internal/limits"
-	"github.com/datichb/openhub/cli/internal/workflow"
 	toml "github.com/pelletier/go-toml/v2"
 )
 
@@ -252,29 +251,11 @@ type TeamConfig struct {
 	// These are always recommendations (overridable) — never enforced.
 	// Resolution: Project > Hub > Team(recommended) > Agent Frontmatter.
 	Models TeamModelsConfig `toml:"models"`
-	// Workflow held team-level overrides of the former workflow. Read only
-	// by the v38 migration (→ team workflow `feature`, then removed).
-	Workflow *WorkflowTeamConfig `toml:"workflow,omitempty"`
 	// Governance holds who may publish the team workflows (v5 phase 2).
 	Governance GovernanceConfig `toml:"governance,omitempty"`
 	// Limits holds the team session restrictions (I6): recommended values
 	// and enforced ceilings ([limits.recommended], [limits.enforced]).
 	Limits *limits.TeamLimits `toml:"limits,omitempty"`
-}
-
-// WorkflowTeamConfig holds team-level workflow customization.
-type WorkflowTeamConfig struct {
-	// Overrides are applied on top of the hub-level workflow (which itself
-	// is applied on top of the base workflow).
-	Overrides *workflow.WorkflowOverride `toml:"overrides,omitempty"`
-	// Enforced locks the workflow for all projects in this team.
-	// When true, project-level WorkflowOverrides are ignored.
-	Enforced *bool `toml:"enforced,omitempty"`
-}
-
-// IsEnforced reports whether the team workflow is enforced.
-func (w *WorkflowTeamConfig) IsEnforced() bool {
-	return w != nil && w.Enforced != nil && *w.Enforced
 }
 
 // TeamModelsConfig holds team-level model recommendations.

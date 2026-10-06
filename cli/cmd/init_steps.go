@@ -3,7 +3,6 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"log/slog"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -15,7 +14,6 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/config"
-	"github.com/datichb/openhub/cli/internal/deploy"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	providerPkg "github.com/datichb/openhub/cli/internal/provider"
@@ -63,7 +61,6 @@ type initStepState struct {
 	ProjectID       string
 	ProjectCreated  bool
 	ProjectSkipped  bool
-	DeployConfirmed bool
 	ProjectChoice   string          // "keep" or "reconfigure" (only when ExistingProject != nil)
 	ExistingProject *domain.Project // non-nil if a project was found at CWD
 
@@ -76,10 +73,6 @@ type initStepState struct {
 	JiraToken    string
 	JiraURL      string
 	MCPSkipped   bool
-
-	// ── Deploy ──
-	SelectedAgents []string
-	DeploySkipped  bool
 
 	// ── Shared refs ──
 	TeamState *initWizardTeamState
@@ -948,10 +941,11 @@ func buildProjectStep(s *initStepState) views.WizardStep {
 
 			// "reconfigure" or new project — upsert logic.
 			p := &domain.Project{
-				ID:     uuid.New().String()[:8],
-				Name:   s.ProjectName,
-				Path:   s.ProjectPath,
-				Status: domain.ProjectStatusActive,
+				ID:       uuid.New().String()[:8],
+				Name:     s.ProjectName,
+				Path:     s.ProjectPath,
+				Status:   domain.ProjectStatusActive,
+				Provider: s.SelectedProvider,
 			}
 			if s.TeamState.Configured && s.TeamState.attachProject && s.TeamState.TeamID != "" {
 				tid := s.TeamState.TeamID
@@ -984,313 +978,6 @@ func buildProjectStep(s *initStepState) views.WizardStep {
 			return fields
 		},
 		Processing: i18n.T("cmd.init.wizard_processing_project"),
-	}
-}
-
-// countHubContent returns the number of agent and skill files found
-// in the hub content directory. Returns (0, 0) when hubDir is empty or unreadable.
-func countHubContent(hubDir string) (agents int, skills int) {
-	if hubDir == "" {
-		return 0, 0
-	}
-	agentDir := filepath.Join(hubDir, "agents")
-	if entries, err := os.ReadDir(agentDir); err == nil {
-		for _, e := range entries {
-			if !e.IsDir() && strings.HasSuffix(e.Name(), ".md") {
-				agents++
-			}
-		}
-	}
-	skillDir := filepath.Join(hubDir, "skills")
-	if entries, err := os.ReadDir(skillDir); err == nil {
-		for _, e := range entries {
-			if e.IsDir() {
-				skills++
-			}
-		}
-	}
-	return
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// buildAgentSelectionIntroStep / buildAgentSelectionStep — agent selection
-// ─────────────────────────────────────────────────────────────────────────────
-
-// buildAgentSelectionIntroStep creates the intro page for the Deploy/Agents group.
-func buildAgentSelectionIntroStep(s *initStepState) views.WizardStep {
-	step := buildIntroStep(
-		i18n.T("cmd.init.wizard_step_agents"),
-		"cmd.init.wizard_intro_deploy_title",
-		"cmd.init.wizard_intro_deploy_desc",
-		"cmd.init.wizard_intro_deploy_list",
-		"cmd.init.wizard_deploy_list_items",
-		"",                                  // no prereqs
-		"cmd.init.wizard_intro_deploy_note", // note
-		nil,                                 // onContinue
-		func() { s.DeploySkipped = true },   // onSkip
-	)
-	step.SkipIf = func() bool { return s.DeploySkipped || s.ProjectSkipped || !s.ProjectCreated }
-	return step
-}
-
-// buildAgentSelectionStep creates a form step with a checkbox per hub agent.
-// All agents are selected by default. The result is stored in s.SelectedAgents.
-// The collection of selected agents happens in Validate (called by the wizard
-// engine before advancing) rather than in a form button callback, because in
-// grouped mode the engine strips form buttons and replaces them with its own.
-func buildAgentSelectionStep(s *initStepState) views.WizardStep {
-	// Shared between CustomView and Validate closures.
-	var available []string
-	var selected map[string]bool
-
-	return views.WizardStep{
-		ID:    "agents",
-		Label: i18n.T("cmd.init.wizard_step_agents"),
-		SkipIf: func() bool {
-			return s.DeploySkipped || s.ProjectSkipped || !s.ProjectCreated
-		},
-		CustomView: func(tvApp *tview.Application, container *tview.Flex, onDone func()) {
-			// ── Form with checkboxes only ──
-			form := tview.NewForm()
-			available = discoverAgents()
-			selected = make(map[string]bool, len(available))
-			for _, ag := range available {
-				selected[ag] = true
-			}
-			for _, ag := range available {
-				agName := ag
-				form.AddCheckbox(agName, true, func(checked bool) {
-					selected[agName] = checked
-				})
-			}
-
-			// ── Button bar with Submit + Skip (double-click confirm) ──
-			buttonForm := views.NewStyledButtonForm()
-			buttonForm.AddButton("  "+i18n.T("wizard.hint.submit")+"  ", func() {
-				s.DeploySkipped = false
-				onDone()
-			})
-			skipConfirmed := false
-			buttonForm.AddButton("  "+i18n.T("wizard.intro.skip")+"  ", func() {
-				if !skipConfirmed {
-					skipConfirmed = true
-					if btn := buttonForm.GetButton(1); btn != nil {
-						btn.SetLabel("  " + i18n.T("wizard.intro.skip_confirm") + "  ")
-					}
-					return
-				}
-				s.DeploySkipped = true
-				s.SelectedAgents = nil
-				onDone()
-			})
-
-			styleWizardForm(form)
-
-			views.BuildWizardPage(tvApp, container, views.WizardPageLayout{
-				Badge:           i18n.T("cmd.init.wizard_step_agents"),
-				Content:         form,
-				ContentMaxWidth: views.ComputeFormMaxWidth(form),
-				Buttons:         buttonForm,
-				FocusTarget:     form,
-			})
-			views.SetupFormNavigation(form)
-			views.SetupCrossSectionNav(views.CrossSectionNavConfig{
-				App:     tvApp,
-				Content: form,
-				Buttons: buttonForm,
-			})
-		},
-		Validate: func() string {
-			if s.DeploySkipped {
-				return "" // Skip mode: bypass validation.
-			}
-			// Collect selected agents into shared state before advancing.
-			s.SelectedAgents = nil
-			for _, ag := range available {
-				if selected[ag] {
-					s.SelectedAgents = append(s.SelectedAgents, ag)
-				}
-			}
-			return "" // no validation error
-		},
-		InfoFields: func() []views.InfoField {
-			return []views.InfoField{{
-				Label: i18n.T("cmd.init.wizard_step_agents"),
-				Value: i18n.Tf("cmd.init.wizard_deploy_recap_agents", len(s.SelectedAgents)),
-			}}
-		},
-	}
-}
-
-// buildDeployStep creates the deploy confirmation step with a recap of what
-// will be deployed, and two buttons: "Deploy now" / "Deploy later".
-// The step displays a summary of selected agents, detected skills, configured
-// MCP servers, and the chosen provider.
-func buildDeployStep(s *initStepState) views.WizardStep {
-	return views.WizardStep{
-		ID:    "deploy",
-		Label: i18n.T("cmd.init.wizard_step_deploy_confirm"),
-		SkipIf: func() bool {
-			return s.DeploySkipped || s.ProjectSkipped || !s.ProjectCreated
-		},
-		CustomView: func(tvApp *tview.Application, container *tview.Flex, onDone func()) {
-			s.DeployConfirmed = false
-
-			accent := theme.ColorTag(theme.ActiveMode.AccentHex)
-			secondary := theme.ColorTag(theme.TextSecondaryHex)
-			muted := theme.ColorTag(theme.TextMutedHex)
-			reset := theme.TagColor
-
-			hubDir := findHubDir()
-			_, skillCount := countHubContent(hubDir)
-
-			// Build recap text.
-			var b strings.Builder
-			b.WriteString("\n")
-			fmt.Fprintf(&b, "%s%s%s\n\n", accent, i18n.T("cmd.init.wizard_deploy_recap_title"), reset)
-
-			// ── Agents recap ──
-			agentCount := len(s.SelectedAgents)
-			fmt.Fprintf(&b, "  %s%s%s\n", secondary,
-				i18n.Tf("cmd.init.wizard_deploy_recap_agents", agentCount), reset)
-			if agentCount > 0 {
-				const maxShow = 6
-				shown := s.SelectedAgents
-				if len(shown) > maxShow {
-					list := strings.Join(shown[:maxShow], ", ")
-					fmt.Fprintf(&b, "  %s%s%s\n", muted,
-						i18n.Tf("cmd.init.wizard_deploy_recap_agents_more", list, agentCount-maxShow), reset)
-				} else {
-					fmt.Fprintf(&b, "  %s%s%s\n", muted,
-						i18n.Tf("cmd.init.wizard_deploy_recap_agents_list", strings.Join(shown, ", ")), reset)
-				}
-			}
-			b.WriteString("\n")
-
-			// ── Skills recap ──
-			fmt.Fprintf(&b, "  %s%s%s\n\n", secondary,
-				i18n.Tf("cmd.init.wizard_deploy_recap_skills", skillCount), reset)
-
-			// ── MCP recap ──
-			var mcpList []string
-			if s.FigmaToken != "" {
-				mcpList = append(mcpList, "Figma")
-			}
-			if s.GitlabToken != "" {
-				mcpList = append(mcpList, "GitLab")
-			}
-			if s.JiraToken != "" {
-				mcpList = append(mcpList, "Jira")
-			}
-			if s.GslidesToken != "" {
-				mcpList = append(mcpList, "Google Slides")
-			}
-			if len(mcpList) > 0 {
-				fmt.Fprintf(&b, "  %s%s%s\n\n", secondary,
-					i18n.Tf("cmd.init.wizard_deploy_recap_mcp", strings.Join(mcpList, ", ")), reset)
-			} else {
-				fmt.Fprintf(&b, "  %s%s%s\n\n", muted,
-					i18n.T("cmd.init.wizard_deploy_recap_mcp_none"), reset)
-			}
-
-			// ── Provider recap ──
-			if s.SelectedProvider != "" {
-				fmt.Fprintf(&b, "  %s%s%s\n", secondary,
-					i18n.Tf("cmd.init.wizard_deploy_recap_provider", s.SelectedProvider), reset)
-			}
-
-			tv := tview.NewTextView().
-				SetDynamicColors(true).
-				SetTextAlign(tview.AlignCenter)
-			tv.SetBackgroundColor(theme.BgPanel)
-			tv.SetText(b.String())
-
-			buttonForm := views.NewStyledButtonForm()
-			buttonForm.AddButton("  "+i18n.T("cmd.init.wizard_deploy_now")+"  ", func() {
-				s.DeployConfirmed = true
-				onDone()
-			})
-			buttonForm.AddButton("  "+i18n.T("cmd.init.wizard_deploy_skip_btn")+"  ", func() {
-				s.DeployConfirmed = false
-				onDone()
-			})
-
-			views.BuildWizardPage(tvApp, container, views.WizardPageLayout{
-				Badge:       i18n.T("cmd.init.wizard_step_deploy_confirm"),
-				Intro:       b.String(),
-				Buttons:     buttonForm,
-				FocusTarget: buttonForm,
-			})
-			views.SetupCrossSectionNav(views.CrossSectionNavConfig{
-				App:     tvApp,
-				Buttons: buttonForm,
-			})
-		},
-		OnDone: func() error {
-			ctx := context.Background()
-			a := *s.AppPtr
-
-			// Always persist the agent selection to the project in DB,
-			// whether deploying now or later. A future 'oh deploy' will
-			// pick up project.Agents automatically.
-			if s.ProjectCreated && s.ProjectID != "" && a.Projects != nil {
-				project, err := a.Projects.Get(ctx, s.ProjectID)
-				if err != nil {
-					slog.Warn("deploy step: could not fetch project for agent update", "err", err)
-				} else {
-					project.Agents = s.SelectedAgents
-					project.Provider = s.SelectedProvider
-					if err := a.Projects.Update(ctx, project); err != nil {
-						slog.Warn("deploy step: could not update project agents", "err", err)
-					}
-				}
-			}
-
-			if !s.DeployConfirmed {
-				return nil
-			}
-
-			config.Reset()
-			newApp, err := ReloadApp()
-			if err != nil {
-				return fmt.Errorf("reload: %w", err)
-			}
-			*s.AppPtr = newApp
-
-			hubDir := findHubDir()
-			if hubDir == "" {
-				slog.Warn("deploy step skipped: hub content directory not found")
-				return nil
-			}
-
-			// Fetch the updated project so buildDeployPlan gets the full
-			// context (Agents, MCPConfig, ModelOverrides, WorkflowConfig).
-			a = *s.AppPtr
-			var proj *domain.Project
-			if a.Projects != nil && s.ProjectID != "" {
-				proj, _ = a.Projects.Get(ctx, s.ProjectID)
-			}
-
-			plan := buildDeployPlan(a, DeployRequest{
-				Project:        proj,
-				ProjectPath:    s.ProjectPath,
-				HubDir:         hubDir,
-				Provider:       s.SelectedProvider,
-				SelectedAgents: s.SelectedAgents,
-			})
-			_, err = deploy.Execute(ctx, plan)
-			return err
-		},
-		InfoFields: func() []views.InfoField {
-			if s.DeploySkipped {
-				return []views.InfoField{{Label: "Deploy", Value: infoMuted(i18n.T("cmd.init.wizard_deploy_section_skipped"))}}
-			}
-			if s.DeployConfirmed {
-				return []views.InfoField{{Label: "Deploy", Value: infoSuccess(i18n.T("cmd.init.wizard_deploy_done"))}}
-			}
-			return []views.InfoField{{Label: "Deploy", Value: infoMuted(i18n.T("cmd.init.wizard_deploy_skipped"))}}
-		},
-		Processing: i18n.T("cmd.init.wizard_deploy_processing"),
 	}
 }
 

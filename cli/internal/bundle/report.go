@@ -6,7 +6,7 @@ import (
 	"sort"
 	"unicode/utf8"
 
-	"github.com/datichb/openhub/cli/internal/deploy"
+	"github.com/datichb/openhub/cli/internal/bricks"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 )
 
@@ -96,7 +96,7 @@ func Show(b *Bundle) *Report {
 	for _, sk := range s.Skills {
 		sr := SkillReport{ID: sk.ID, Description: sk.Description}
 		if data, err := os.ReadFile(filepath.Join(b.Dir, skillsDir, sk.ID, "SKILL.md")); err == nil {
-			_, body := deploy.SplitFrontmatter(data)
+			_, body := bricks.SplitFrontmatter(data)
 			sr.Tokens = EstimateTokens(string(body))
 		}
 		r.Skills = append(r.Skills, sr)

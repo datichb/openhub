@@ -1,18 +1,18 @@
 package bundle
 
 import (
-	"github.com/datichb/openhub/cli/internal/deploy"
+	"github.com/datichb/openhub/cli/internal/bricks"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 	"github.com/datichb/openhub/cli/internal/workflow"
 )
 
 // WorkflowModels converts the `models:` block of a workflow into the workflow
 // level of the model cascade (nil when the workflow sets no model).
-func WorkflowModels(m *workflow.Models) *deploy.ModelOverrides {
+func WorkflowModels(m *workflow.Models) *bricks.ModelOverrides {
 	if m == nil || (m.Default == "" && len(m.Agents) == 0) {
 		return nil
 	}
-	out := &deploy.ModelOverrides{Default: m.Default}
+	out := &bricks.ModelOverrides{Default: m.Default}
 	if len(m.Agents) > 0 {
 		out.Agents = make(map[string]string, len(m.Agents))
 		for id, model := range m.Agents {
@@ -38,14 +38,14 @@ func (req Request) ResolveModel(agentID, family, frontmatter string) string {
 			return normalize(wf.Default, req.Provider)
 		}
 	}
-	return deploy.ResolveAgentModel(agentID, family, req.ProjectOverrides, req.HubOverrides, req.TeamOverrides, frontmatter, req.Provider)
+	return bricks.ResolveAgentModel(agentID, family, req.ProjectOverrides, req.HubOverrides, req.TeamOverrides, frontmatter, req.Provider)
 }
 
 // modelRef turns a resolved model string into a reference with a provider.
 func (req Request) modelRef(m string) *sessionspec.ModelRef {
 	ref := sessionspec.ParseModelRef(m)
 	if ref.Provider == "" {
-		ref.Provider = deploy.OpencodeProviderID(req.Provider)
+		ref.Provider = bricks.OpencodeProviderID(req.Provider)
 	}
 	return &ref
 }
@@ -54,5 +54,5 @@ func normalize(model, provider string) string {
 	if provider == "" {
 		return model
 	}
-	return deploy.NormalizeModelForProvider(model, provider)
+	return bricks.NormalizeModelForProvider(model, provider)
 }

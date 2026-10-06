@@ -97,7 +97,7 @@ Complete index of all openhub documentation. Guides and references are bilingual
 | [CLI Reference (Index)](reference/cli.en.md) | Table of contents, global flags, exit codes |
 | [CLI — Sessions](reference/cli-sessions.en.md) | `oh start`, `oh review`, `oh audit`, `oh debug` |
 | [CLI — Projects](reference/cli-projects.en.md) | `oh project list\|add\|remove\|rename\|move\|configure` |
-| [CLI — Deployment](reference/cli-deploy.en.md) | `oh deploy`, `oh sync` |
+| [CLI — Deployment](reference/cli-deploy.en.md) | `oh deploy`, `oh sync` (removed in v5) |
 | [CLI — Configuration](reference/cli-config.en.md) | `oh config *`, `oh provider setup`, `oh config model` |
 | [CLI — Infrastructure](reference/cli-infra.en.md) | `oh init`, `oh doctor`, `oh repair`, `oh upgrade`, `oh purge`, `oh serve` |
 | [CLI — MCP & Plugins](reference/cli-mcp.en.md) | `oh mcp *`, `oh plugin *` |

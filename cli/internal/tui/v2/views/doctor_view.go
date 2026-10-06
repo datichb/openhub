@@ -13,7 +13,6 @@ import (
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
-	"github.com/datichb/openhub/cli/internal/workflow"
 )
 
 // DoctorCheck represents a single health check result.
@@ -109,10 +108,8 @@ func (v *DoctorView) collectChecks() []DoctorCheck {
 	checks := []DoctorCheck{
 		v.checkOS(),
 		v.checkBinary("git"),
-		v.checkOpencode(),
 		v.checkConfig(),
 		v.checkDatabase(),
-		v.checkWorkflow(),
 	}
 	if ExtraDoctorChecks != nil {
 		checks = append(checks, ExtraDoctorChecks()...)
@@ -181,17 +178,6 @@ func (v *DoctorView) checkBinary(name string) DoctorCheck {
 	return DoctorCheck{Name: name, Detail: version, OK: true}
 }
 
-func (v *DoctorView) checkOpencode() DoctorCheck {
-	if v.appCtx != nil && v.appCtx.ToolVersion != nil {
-		ver, err := v.appCtx.ToolVersion()
-		if err != nil {
-			return DoctorCheck{Name: "opencode", Detail: err.Error(), OK: false}
-		}
-		return DoctorCheck{Name: "opencode", Detail: ver, OK: true}
-	}
-	return DoctorCheck{Name: "opencode", Detail: i18n.T("tui.doctor.not_found"), OK: false}
-}
-
 func (v *DoctorView) checkConfig() DoctorCheck {
 	if v.appCtx == nil || v.appCtx.Config == nil {
 		return DoctorCheck{Name: i18n.T("tui.doctor.check_config"), Detail: i18n.T("tui.doctor.not_loaded"), OK: false}
@@ -208,17 +194,4 @@ func (v *DoctorView) checkDatabase() DoctorCheck {
 		return DoctorCheck{Name: i18n.T("tui.doctor.check_database"), Detail: err.Error(), OK: false}
 	}
 	return DoctorCheck{Name: i18n.T("tui.doctor.check_database"), Detail: i18n.Tf("tui.doctor.db_ok_projects", len(projects)), OK: true}
-}
-
-func (v *DoctorView) checkWorkflow() DoctorCheck {
-	// Former hub overrides were migrated to team-state workflows (v38).
-	resolved, err := workflow.Resolve(workflow.BaseWorkflow())
-	if err != nil {
-		return DoctorCheck{Name: i18n.T("tui.doctor.check_workflow"), Detail: err.Error(), OK: false}
-	}
-
-	activeCount := len(resolved.ActiveAgents())
-	cpCount := len(resolved.Checkpoints)
-	detail := i18n.Tf("tui.doctor.workflow_ok", activeCount, cpCount, resolved.Modes.Default)
-	return DoctorCheck{Name: i18n.T("tui.doctor.check_workflow"), Detail: detail, OK: true}
 }

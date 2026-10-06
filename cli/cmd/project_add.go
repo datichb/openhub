@@ -3,8 +3,6 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"io/fs"
-	"log/slog"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -17,7 +15,6 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/beads"
-	"github.com/datichb/openhub/cli/internal/deploy"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	providerPkg "github.com/datichb/openhub/cli/internal/provider"
@@ -86,11 +83,9 @@ func runProjectAddInteractive(ctx context.Context, a *app.App) error {
 		provider      string
 		model         string
 		apiKey        string
-		agents        []string
 		mcpServices   []string
 		projectTeamID *string
 		projectSolo   bool
-		doDeploy      bool
 	)
 
 	hubProvider := a.Config.Opencode.DefaultProvider
@@ -103,23 +98,6 @@ func runProjectAddInteractive(ctx context.Context, a *app.App) error {
 
 	providerOptions := []string{"Amazon Bedrock", "Anthropic (direct)", "OpenAI", "OpenRouter", i18n.T("form.option.other")}
 	providerValues := []string{"bedrock", "anthropic", "openai", "openrouter", "other"}
-
-	// Discover available agents
-	var availableAgents []string
-	if hubDir := findHubDir(); hubDir != "" {
-		agentsDir := filepath.Join(hubDir, "agents")
-		if _, err := os.Stat(agentsDir); err == nil {
-			_ = filepath.WalkDir(agentsDir, func(p string, d fs.DirEntry, err error) error {
-				if err != nil || d.IsDir() {
-					return err
-				}
-				if filepath.Ext(p) == ".md" {
-					availableAgents = append(availableAgents, strings.TrimSuffix(d.Name(), ".md"))
-				}
-				return nil
-			})
-		}
-	}
 
 	// MCP service definitions
 	mcpOptions := []struct {
@@ -287,44 +265,7 @@ func runProjectAddInteractive(ctx context.Context, a *app.App) error {
 				return fields
 			},
 		},
-		// ── Step 5: Agents ──
-		{
-			Label: "Agents",
-			SkipIf: func() bool {
-				return len(availableAgents) == 0
-			},
-			Form: func(_ *tview.Application, onDone func()) *tview.Form {
-				form := tview.NewForm()
-				// Track selection per agent (default: all selected)
-				selected := make(map[string]bool, len(availableAgents))
-				for _, ag := range availableAgents {
-					selected[ag] = true
-				}
-				for _, ag := range availableAgents {
-					agName := ag // capture
-					form.AddCheckbox(agName, true,
-						func(checked bool) { selected[agName] = checked })
-				}
-				form.AddButton("Next", func() {
-					agents = nil
-					for _, ag := range availableAgents {
-						if selected[ag] {
-							agents = append(agents, ag)
-						}
-					}
-					onDone()
-				})
-				return form
-			},
-			OnDone: func() error { return nil },
-			InfoFields: func() []views.InfoField {
-				if len(agents) == 0 {
-					return []views.InfoField{{Label: "Agents", Value: "none"}}
-				}
-				return []views.InfoField{{Label: "Agents", Value: fmt.Sprintf("%d selected", len(agents))}}
-			},
-		},
-		// ── Step 6: MCP Services ──
+		// ── Step 5: MCP Services ──
 		{
 			Label: "MCP",
 			Form: func(_ *tview.Application, onDone func()) *tview.Form {
@@ -354,26 +295,8 @@ func runProjectAddInteractive(ctx context.Context, a *app.App) error {
 				return []views.InfoField{{Label: "MCP", Value: strings.Join(mcpServices, ", ")}}
 			},
 		},
-		// ── Step 7: Team ──
+		// ── Step 6: Team ──
 		buildProjectTeamStep(a, &projectTeamID, &projectSolo),
-		// ── Step 8: Deploy ──
-		{
-			Label: "Deploy",
-			Form: func(_ *tview.Application, onDone func()) *tview.Form {
-				form := tview.NewForm()
-				form.AddCheckbox(i18n.T("form.project.deploy_now"), false,
-					func(checked bool) { doDeploy = checked })
-				form.AddButton("Next", func() { onDone() })
-				return form
-			},
-			OnDone: func() error { return nil },
-			InfoFields: func() []views.InfoField {
-				if doDeploy {
-					return []views.InfoField{{Label: "Deploy", Value: "yes"}}
-				}
-				return []views.InfoField{{Label: "Deploy", Value: "skip"}}
-			},
-		},
 	}
 
 	wizResult := views.RunWizard(views.WizardConfig{
@@ -402,7 +325,6 @@ func runProjectAddInteractive(ctx context.Context, a *app.App) error {
 		Language:  language,
 		Provider:  provider,
 		Model:     model,
-		Agents:    agents,
 		MCP:       mcpServices,
 		MCPConfig: buildProjectMCPConfig(mcpServices),
 		TeamID:    projectTeamID,
@@ -428,38 +350,6 @@ func runProjectAddInteractive(ctx context.Context, a *app.App) error {
 		}
 	}
 
-	// ── Execute deploy if requested ──
-	if doDeploy {
-		hubDir := findHubDir()
-		if hubDir == "" {
-			fmt.Fprintf(a.IO.Out, "%s %s\n",
-				theme.WarningStyle.Render(theme.IconWarning), i18n.T("cmd.start.hub_not_found_warning"))
-		} else {
-			fmt.Fprintf(a.IO.Out, "%s %s\n",
-				theme.SuccessStyle.Render(theme.IconArrow), i18n.T("form.project.deploying"))
-
-			plan := buildDeployPlan(a, DeployRequest{ProjectPath: absPath, ProjectID: id, HubDir: hubDir, Provider: provider, Model: model, SelectedAgents: agents})
-			results, err := deploy.Execute(context.Background(), plan)
-			if err != nil {
-				fmt.Fprintf(a.IO.Out, "  %s %s\n",
-					theme.ErrorStyle.Render(theme.IconError), err.Error())
-			} else {
-				for _, r := range results {
-					icon := theme.SuccessStyle.Render(theme.IconSuccess)
-					if !r.Success {
-						icon = theme.ErrorStyle.Render(theme.IconError)
-					}
-					fmt.Fprintf(a.IO.Out, "  %s %s\n", icon, r.Name)
-				}
-			}
-		}
-
-		// Add .opencode/ and opencode.json to git excludes
-		if err := addGitExcludes(absPath); err != nil {
-			slog.Warn("failed to update git excludes", "error", err)
-		}
-	}
-
 	// ── Summary ──
 	fields := []summary.Field{
 		{Label: "ID", Value: id},
@@ -473,9 +363,6 @@ func runProjectAddInteractive(ctx context.Context, a *app.App) error {
 	if model != "" {
 		fields = append(fields, summary.Field{Label: "Model", Value: model})
 	}
-	if len(agents) > 0 {
-		fields = append(fields, summary.Field{Label: "Agents", Value: fmt.Sprintf("%d configured", len(agents))})
-	}
 	if len(mcpServices) > 0 {
 		fields = append(fields, summary.Field{Label: "MCP", Value: strings.Join(mcpServices, ", ")})
 	}
@@ -485,37 +372,10 @@ func runProjectAddInteractive(ctx context.Context, a *app.App) error {
 		Icon:      theme.IconSuccess,
 		IconColor: theme.LipSuccess,
 		Fields:    fields,
-		Footer:    i18n.Tf("form.project.next_step", "oh start -p "+id),
+		Footer:    i18n.Tf("form.project.next_step", "oh run feature -p "+id),
 	}))
 
 	return nil
-}
-
-// discoverAgents returns the list of available agent names from the hub agents/ directory.
-// Pure discovery logic (no UI). Returns nil if no agents found.
-func discoverAgents() []string {
-	hubDir := findHubDir()
-	if hubDir == "" {
-		return nil
-	}
-
-	agentsDir := filepath.Join(hubDir, "agents")
-	if _, err := os.Stat(agentsDir); os.IsNotExist(err) {
-		return nil
-	}
-
-	var available []string
-	_ = filepath.WalkDir(agentsDir, func(path string, d fs.DirEntry, err error) error {
-		if err != nil || d.IsDir() {
-			return err
-		}
-		if filepath.Ext(path) == ".md" {
-			name := strings.TrimSuffix(d.Name(), ".md")
-			available = append(available, name)
-		}
-		return nil
-	})
-	return available
 }
 
 // ── Non-interactive (minimal) ──

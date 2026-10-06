@@ -6,8 +6,6 @@ package domain
 import (
 	"context"
 	"time"
-
-	"github.com/datichb/openhub/cli/internal/workflow"
 )
 
 // Project represents a registered project in the hub.
@@ -19,16 +17,12 @@ type Project struct {
 	Provider       string // LLM provider override (bedrock, anthropic, openai, openrouter); empty = use hub default
 	Model          string // LLM model override (claude-sonnet-4-5, etc.); empty = use hub default
 	Labels         []string
-	Agents         []string
 	MCP            []string               // deprecated: use MCPConfig. Kept for backward compat migration.
 	MCPConfig      *ProjectMCPConfig      // per-project MCP overrides (nil = inherit hub defaults)
 	ProviderConfig *ProjectProviderConfig // per-project provider config overrides (nil = inherit hub)
 	ModelOverrides *ProjectModelOverrides // per-project model cascade overrides (nil = no overrides)
 	TeamConfig     *ProjectTeamConfig     // deprecated: use TeamID. Kept for backward compat migration.
 	TrackerConfig  *ProjectTrackerConfig  // per-project tracker overrides (nil = inherit team defaults)
-	// WorkflowConfig held per-project overrides of the former workflow.
-	// Neutralized by migration v38 (always nil; see cmd/workflow_migrate.go).
-	WorkflowConfig *ProjectWorkflowConfig
 	// ExecConfig holds the execution settings of the project (dev image,
 	// default workflow and runtime). nil = defaults.
 	ExecConfig *ProjectExecConfig
@@ -167,11 +161,6 @@ const (
 	ProjectTeamModeCustom   = "custom"
 	ProjectTeamModeDisabled = "disabled"
 )
-
-// ProjectWorkflowConfig holds per-project workflow overrides.
-type ProjectWorkflowConfig struct {
-	Overrides *workflow.WorkflowOverride `json:"overrides,omitempty"`
-}
 
 // ProjectStatus represents the lifecycle state of a project.
 type ProjectStatus string

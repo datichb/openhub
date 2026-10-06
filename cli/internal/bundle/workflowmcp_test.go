@@ -57,10 +57,3 @@ func TestBuildInjectsWorkflowRuntime(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, wf, loaded.Spec.Workflow, "persisted in bundle.json")
 }
-
-func TestBuildWithoutSpecHasNoWorkflowRuntime(t *testing.T) {
-	b, err := Build(Request{HubDir: repoHub(t), OutDir: t.TempDir(), EntryAgent: "developer", Provider: "bedrock"})
-	require.NoError(t, err)
-	assert.Nil(t, b.Spec.Workflow)
-	assert.Empty(t, b.Spec.MCP)
-}

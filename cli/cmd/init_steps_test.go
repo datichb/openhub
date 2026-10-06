@@ -187,37 +187,6 @@ func TestBuildProjectStep_FormRendering(t *testing.T) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// buildDeployStep
-// ─────────────────────────────────────────────────────────────────────────────
-
-func TestBuildDeployStep_Structure(t *testing.T) {
-	s := newTestState()
-	step := buildDeployStep(s)
-
-	assert.Equal(t, "deploy", step.ID)
-	assert.NotNil(t, step.CustomView, "deploy must have CustomView")
-	assert.NotNil(t, step.SkipIf, "deploy must have SkipIf")
-	assert.NotNil(t, step.OnDone, "deploy must have OnDone")
-	assert.NotNil(t, step.InfoFields, "deploy must have InfoFields")
-	assert.NotEmpty(t, step.Processing, "deploy must have Processing label")
-}
-
-func TestBuildDeployStep_SkipWithoutProject(t *testing.T) {
-	s := newTestState()
-	step := buildDeployStep(s)
-
-	s.ProjectSkipped = false
-	s.ProjectCreated = false
-	assert.True(t, step.SkipIf(), "should skip when no project was created")
-
-	s.ProjectCreated = true
-	assert.False(t, step.SkipIf(), "should not skip when project was created")
-
-	s.ProjectSkipped = true
-	assert.True(t, step.SkipIf(), "should skip when project section was skipped")
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
 // MCP GitLab step (via buildMCPTokenStep with checkbox opts)
 // ─────────────────────────────────────────────────────────────────────────────
 

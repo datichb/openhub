@@ -3,7 +3,6 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"io/fs"
 	"log/slog"
 	"os"
 	"os/exec"
@@ -15,44 +14,10 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/beads"
-	"github.com/datichb/openhub/cli/internal/deploy"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
-
-// runDeployForProject deploys hub content to a project in-process.
-func runDeployForProject(a *app.App, project *domain.Project) error {
-	hubDir := findHubDir()
-	if hubDir == "" {
-		return fmt.Errorf("hub content not found")
-	}
-
-	plan := buildDeployPlan(a, DeployRequest{Project: project, HubDir: hubDir, Provider: project.Provider})
-
-	_, err := deploy.Execute(context.Background(), plan)
-	if err != nil {
-		return fmt.Errorf("deploy %s: %w", project.Name, err)
-	}
-	return nil
-}
-
-// runSyncAll synchronizes hub content to all active projects.
-func runSyncAll(a *app.App) error {
-	ctx := context.Background()
-	projects, err := a.Projects.List(ctx, domain.ProjectStatusActive)
-	if err != nil {
-		return fmt.Errorf("listing projects: %w", err)
-	}
-
-	var lastErr error
-	for i := range projects {
-		if err := runDeployForProject(a, &projects[i]); err != nil {
-			lastErr = err
-		}
-	}
-	return lastErr
-}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Project Add inline wizard
@@ -79,11 +44,9 @@ func buildProjectAddInlineWizard(a *app.App) *views.InlineWizardView {
 		providerVal   string
 		model         string
 		apiKey        string
-		agents        []string
 		mcpServices   []string
 		projectTeamID *string
 		projectSolo   bool
-		doDeploy      bool
 	)
 
 	hubProvider := a.Config.Opencode.DefaultProvider
@@ -96,23 +59,6 @@ func buildProjectAddInlineWizard(a *app.App) *views.InlineWizardView {
 
 	providerOptions := []string{"Amazon Bedrock", "Anthropic (direct)", "OpenAI", "OpenRouter", i18n.T("form.option.other")}
 	providerValues := []string{"bedrock", "anthropic", "openai", "openrouter", "other"}
-
-	// Discover available agents
-	var availableAgents []string
-	if hubDir := findHubDir(); hubDir != "" {
-		agentsDir := filepath.Join(hubDir, "agents")
-		if _, err := os.Stat(agentsDir); err == nil {
-			_ = filepath.WalkDir(agentsDir, func(p string, d fs.DirEntry, err error) error {
-				if err != nil || d.IsDir() {
-					return err
-				}
-				if filepath.Ext(p) == ".md" {
-					availableAgents = append(availableAgents, strings.TrimSuffix(d.Name(), ".md"))
-				}
-				return nil
-			})
-		}
-	}
 
 	mcpOpts := []struct {
 		label string
@@ -260,43 +206,7 @@ func buildProjectAddInlineWizard(a *app.App) *views.InlineWizardView {
 			},
 		},
 
-		// ── Step 5: Agents ──
-		{
-			Label: "Agents",
-			SkipIf: func() bool {
-				return len(availableAgents) == 0
-			},
-			Form: func(_ *tview.Application, onDone func()) *tview.Form {
-				form := tview.NewForm()
-				selected := make(map[string]bool, len(availableAgents))
-				for _, ag := range availableAgents {
-					selected[ag] = true
-				}
-				for _, ag := range availableAgents {
-					agName := ag
-					form.AddCheckbox(agName, true,
-						func(checked bool) { selected[agName] = checked })
-				}
-				form.AddButton(i18n.T("wizard.hint.submit"), func() {
-					agents = nil
-					for _, ag := range availableAgents {
-						if selected[ag] {
-							agents = append(agents, ag)
-						}
-					}
-					onDone()
-				})
-				return form
-			},
-			InfoFields: func() []views.InfoField {
-				if len(agents) == 0 {
-					return []views.InfoField{{Label: "Agents", Value: "none"}}
-				}
-				return []views.InfoField{{Label: "Agents", Value: fmt.Sprintf("%d selected", len(agents))}}
-			},
-		},
-
-		// ── Step 6: MCP Services ──
+		// ── Step 5: MCP Services ──
 		{
 			Label: "MCP",
 			Form: func(_ *tview.Application, onDone func()) *tview.Form {
@@ -326,26 +236,8 @@ func buildProjectAddInlineWizard(a *app.App) *views.InlineWizardView {
 			},
 		},
 
-		// ── Step 7: Team ──
+		// ── Step 6: Team ──
 		buildProjectTeamStep(a, &projectTeamID, &projectSolo),
-
-		// ── Step 8: Deploy ──
-		{
-			Label: "Deploy",
-			Form: func(_ *tview.Application, onDone func()) *tview.Form {
-				form := tview.NewForm()
-				form.AddCheckbox(i18n.T("form.project.deploy_now"), false,
-					func(checked bool) { doDeploy = checked })
-				form.AddButton(i18n.T("wizard.hint.submit"), func() { onDone() })
-				return form
-			},
-			InfoFields: func() []views.InfoField {
-				if doDeploy {
-					return []views.InfoField{{Label: "Deploy", Value: "yes"}}
-				}
-				return []views.InfoField{{Label: "Deploy", Value: "skip"}}
-			},
-		},
 	}
 
 	return views.NewInlineWizardView(views.InlineWizardConfig{
@@ -368,7 +260,6 @@ func buildProjectAddInlineWizard(a *app.App) *views.InlineWizardView {
 				Language:  language,
 				Provider:  providerVal,
 				Model:     model,
-				Agents:    agents,
 				MCP:       mcpServices,
 				MCPConfig: buildProjectMCPConfig(mcpServices),
 				TeamID:    projectTeamID,
@@ -383,18 +274,6 @@ func buildProjectAddInlineWizard(a *app.App) *views.InlineWizardView {
 			}
 			if projectSolo {
 				tuiAttachProjectSolo(result)
-			}
-
-			if doDeploy {
-				if err := runDeployForProject(a, result); err != nil {
-					slog.Warn("deploy failed during project add", "project", result.Name, "error", err)
-					if tuiShell != nil {
-						tuiShell.ShowToastMsg("Deploy failed: "+err.Error(), false)
-					}
-				}
-				if err := addGitExcludes(absPath); err != nil {
-					slog.Warn("failed to update git excludes", "error", err)
-				}
 			}
 		},
 	})

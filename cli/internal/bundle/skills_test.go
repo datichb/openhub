@@ -34,7 +34,7 @@ func skillMD(name, extra, body string) string {
 
 func buildSolo(t *testing.T, hub string, mutate ...func(*Request)) (*Bundle, error) {
 	t.Helper()
-	req := Request{HubDir: hub, OutDir: t.TempDir(), EntryAgent: "solo"}
+	req := Request{HubDir: hub, OutDir: t.TempDir(), Spec: agentSpec(t, hub, "solo")}
 	for _, m := range mutate {
 		m(&req)
 	}

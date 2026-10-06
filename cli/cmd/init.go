@@ -160,60 +160,6 @@ func addBedrockRegionDropDown(form *tview.Form, region *string, regionIdx *int, 
 // Git helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
-// addGitExcludes adds opencode and oh artifacts to .git/info/exclude.
-// Returns an error if any file operation fails (other than a missing .git directory).
-func addGitExcludes(projectPath string) error {
-	excludeFile := filepath.Join(projectPath, ".git", "info", "exclude")
-
-	if _, err := os.Stat(filepath.Join(projectPath, ".git")); err != nil {
-		return nil // not a git repo — nothing to do
-	}
-
-	existing, err := os.ReadFile(excludeFile)
-	if err != nil && !os.IsNotExist(err) {
-		return fmt.Errorf("reading %s: %w", excludeFile, err)
-	}
-	content := string(existing)
-
-	patterns := []string{".opencode/", "opencode.json"}
-
-	var toAdd []string
-	for _, p := range patterns {
-		if !strings.Contains(content, p) {
-			toAdd = append(toAdd, p)
-		}
-	}
-
-	if len(toAdd) == 0 {
-		return nil
-	}
-
-	if err := os.MkdirAll(filepath.Dir(excludeFile), 0o755); err != nil {
-		return fmt.Errorf("creating %s: %w", filepath.Dir(excludeFile), err)
-	}
-
-	f, err := os.OpenFile(excludeFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
-	if err != nil {
-		return fmt.Errorf("opening %s: %w", excludeFile, err)
-	}
-	defer f.Close()
-
-	if len(existing) > 0 && !strings.HasSuffix(content, "\n") {
-		if _, err := f.WriteString("\n"); err != nil {
-			return err
-		}
-	}
-	if _, err := f.WriteString("\n# oh — OpenHub CLI artifacts\n"); err != nil {
-		return err
-	}
-	for _, p := range toAdd {
-		if _, err := f.WriteString(p + "\n"); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
 // detectBranchPatternHeuristic scans local and remote branches in dir to infer
 // the project's branch naming convention and returns a fmt.Sprintf-style pattern
 // (e.g. "feat/%s") suitable for [worktree].branch_pattern.

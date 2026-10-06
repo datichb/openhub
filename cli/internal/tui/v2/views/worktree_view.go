@@ -51,7 +51,7 @@ func (v *WorktreeView) Title() string { return i18n.T("tui.worktree.title") }
 
 // StatusHints returns keybinding hints.
 func (v *WorktreeView) StatusHints() string {
-	return fmt.Sprintf("j/k %s · Enter %s · a %s · d %s · o %s · s %s · p %s · x %s · r %s · Esc %s", i18n.T("tui.hints.nav"), i18n.T("tui.hints.open"), i18n.T("tui.hints.add"), i18n.T("tui.hints.delete"), i18n.T("tui.hints.open"), i18n.T("tui.hints.sync"), i18n.T("tui.hints.prune"), i18n.T("tui.hints.cleanup"), i18n.T("tui.hints.refresh"), i18n.T("tui.hints.back"))
+	return fmt.Sprintf("j/k %s · Enter %s · a %s · d %s · o %s · p %s · x %s · r %s · Esc %s", i18n.T("tui.hints.nav"), i18n.T("tui.hints.open"), i18n.T("tui.hints.add"), i18n.T("tui.hints.delete"), i18n.T("tui.hints.open"), i18n.T("tui.hints.prune"), i18n.T("tui.hints.cleanup"), i18n.T("tui.hints.refresh"), i18n.T("tui.hints.back"))
 }
 
 // Mount builds the worktree list.
@@ -101,9 +101,6 @@ func (v *WorktreeView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 		return nil
 	case 'x':
 		v.cleanupWorktrees()
-		return nil
-	case 's':
-		v.syncWorktree()
 		return nil
 	}
 	return event
@@ -244,39 +241,6 @@ func (v *WorktreeView) removeWorktree() {
 			v.shell.ShowToastMsg(i18n.T("tui.worktree.removed"), true)
 		}
 		v.refresh()
-	}
-}
-
-// syncWorktree forces a resync of the .opencode/ configuration for the
-// selected worktree. It migrates legacy full-directory symlinks to the current
-// layout (real .opencode/ dir + internal symlinks) and refreshes copied files
-// from the main project.
-func (v *WorktreeView) syncWorktree() {
-	wt, ok := v.selectedItem()
-	if !ok {
-		if v.shell != nil {
-			v.shell.ShowToastMsg(i18n.T("tui.worktree.select_secondary"), false)
-		}
-		return
-	}
-
-	projectPath := v.getProjectPath()
-	if projectPath == "" {
-		if v.shell != nil {
-			v.shell.ShowToastMsg(i18n.T("tui.worktree.no_active_project"), false)
-		}
-		return
-	}
-
-	if err := worktree.ResyncConfig(wt.Path, projectPath); err != nil {
-		if v.shell != nil {
-			v.shell.ShowToastMsg(i18n.T("tui.worktree.sync_error")+err.Error(), false)
-		}
-		return
-	}
-
-	if v.shell != nil {
-		v.shell.ShowToastMsg(i18n.T("tui.worktree.synced"), true)
 	}
 }
 

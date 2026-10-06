@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/datichb/openhub/cli/internal/deploy"
+	"github.com/datichb/openhub/cli/internal/bricks"
 	"github.com/datichb/openhub/cli/internal/workflow"
 )
 
@@ -57,7 +57,7 @@ func TestAgentInfo_FromRepositoryAgents(t *testing.T) {
 }
 
 func TestAgentInfoFrom_Permissions(t *testing.T) {
-	fm := &deploy.AgentFrontmatter{Mode: "primary"}
+	fm := &bricks.AgentFrontmatter{Mode: "primary"}
 	cases := []struct {
 		name         string
 		perms        map[string]any

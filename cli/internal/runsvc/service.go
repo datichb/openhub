@@ -21,10 +21,10 @@ import (
 	"time"
 
 	"github.com/datichb/openhub/cli/internal/adapters"
+	"github.com/datichb/openhub/cli/internal/bricks"
 	"github.com/datichb/openhub/cli/internal/bundle"
 	"github.com/datichb/openhub/cli/internal/credproxy"
 	"github.com/datichb/openhub/cli/internal/daemon"
-	"github.com/datichb/openhub/cli/internal/deploy"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/filelock"
 	"github.com/datichb/openhub/cli/internal/limits"
@@ -430,7 +430,7 @@ func (s *Service) resolveProvider(ctx context.Context, req *StartRequest) (provi
 		return cred, "", err
 	}
 	region := req.ProviderCfg.AWSRegion
-	if region == "" && deploy.OpencodeProviderID(req.Provider) == "amazon-bedrock" {
+	if region == "" && bricks.OpencodeProviderID(req.Provider) == "amazon-bedrock" {
 		region = credproxy.AWSRegion(ctx, req.ProviderCfg.AWSProfile)
 		if region == "" {
 			region = "us-east-1"
@@ -445,7 +445,7 @@ func (s *Service) resolveProvider(ctx context.Context, req *StartRequest) (provi
 func configFingerprint(req StartRequest, cred provider.ResolvedCredential, region string) string {
 	h := sha256.New()
 	secret := sha256.Sum256([]byte(cred.Secret))
-	parts := []string{req.ProjectID, deploy.OpencodeProviderID(req.Provider), region,
+	parts := []string{req.ProjectID, bricks.OpencodeProviderID(req.Provider), region,
 		string(cred.Source.Kind), cred.Source.KeychainKey, cred.Source.Profile, hex.EncodeToString(secret[:])}
 	if len(req.AllowedModels) > 0 {
 		// The allow-list is enforced on the group's proxy grant: another
@@ -553,7 +553,7 @@ func (s *Service) startServer(ctx context.Context, dc DaemonClient, req StartReq
 			dc = fresh
 		}
 	}
-	ocProvider := deploy.OpencodeProviderID(req.Provider)
+	ocProvider := bricks.OpencodeProviderID(req.Provider)
 	grant, err := dc.IssueGrant(ctx, daemon.GrantRequest{
 		Owner: gk, Provider: ocProvider, Region: region, Source: cred.Source, Secret: cred.Secret,
 		AllowedModels: req.AllowedModels, MaxTokens: req.MaxTokens,

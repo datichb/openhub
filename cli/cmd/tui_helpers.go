@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log/slog"
 	"strings"
-	"time"
 
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/beads"
@@ -187,19 +186,4 @@ func resolveActiveProjectPath(a *app.App) string {
 		return ""
 	}
 	return projects[0].Path
-}
-
-// formatDeployAgeFromTime returns a human-readable relative time string for the home view.
-func formatDeployAgeFromTime(t time.Time) string {
-	d := time.Since(t)
-	switch {
-	case d < time.Minute:
-		return i18n.T("tui.helpers.deployed_just_now")
-	case d < time.Hour:
-		return i18n.Tf("tui.helpers.deployed_minutes_ago", int(d.Minutes()))
-	case d < 24*time.Hour:
-		return i18n.Tf("tui.helpers.deployed_hours_ago", int(d.Hours()))
-	default:
-		return i18n.Tf("tui.helpers.deployed_days_ago", int(d.Hours()/24))
-	}
 }

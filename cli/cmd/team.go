@@ -280,7 +280,7 @@ func runTeamInit(cmd *cobra.Command, args []string) error {
 						"  Path: %s\n"+
 						"  Référencé par: %s\n\n"+
 						"Pour réutiliser ce clone, configurez state_path = %q\n"+
-						"dans la config projet (oh deploy) plutôt que d'en créer un nouveau.\n"+
+						"dans hub.toml ([[teams]]) plutôt que d'en créer un nouveau.\n"+
 						"Si ce clone est obsolète, supprimez-le d'abord: rm -rf %s",
 					existing.Path, existing.Source, existing.Path, existing.Path,
 				)

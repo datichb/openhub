@@ -11,6 +11,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/tui/common"
 	"github.com/datichb/openhub/cli/internal/tui/v2/shell"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
@@ -142,4 +143,9 @@ func runTUIWithProject(projectName string) error {
 	log.SetOutput(originalLogOutput)
 
 	return err
+}
+
+// canLaunchTUI returns true if the environment supports launching the TUI shell.
+func canLaunchTUI() bool {
+	return common.UseRichTUI()
 }

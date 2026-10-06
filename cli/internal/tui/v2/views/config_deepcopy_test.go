@@ -6,7 +6,6 @@ import (
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/teamstate"
-	"github.com/datichb/openhub/cli/internal/workflow"
 )
 
 // ---------- helpers ----------
@@ -66,51 +65,6 @@ func TestDeepCopyConfig_TrackerPointers(t *testing.T) {
 	}
 }
 
-func TestDeepCopyConfig_Workflow(t *testing.T) {
-	orig := &config.Config{
-		Workflow: &config.WorkflowHubConfig{
-			Overrides: &workflow.WorkflowOverride{
-				CheckpointOverrides: []workflow.CheckpointOverride{
-					{ID: "cp1", Label: dcStrPtr("original")},
-				},
-				AgentOverrides: []workflow.AgentOverride{
-					{AgentID: "a1", Disabled: dcBoolPtr(false)},
-				},
-				CircuitBreakerOverride: dcIntPtr(10),
-			},
-		},
-	}
-	cp := deepCopyConfig(orig)
-
-	// Mutate copy
-	cp.Workflow.Overrides.CheckpointOverrides[0].ID = "changed"
-	*cp.Workflow.Overrides.CheckpointOverrides[0].Label = "changed"
-	*cp.Workflow.Overrides.AgentOverrides[0].Disabled = true
-	*cp.Workflow.Overrides.CircuitBreakerOverride = 99
-
-	// Verify original unchanged
-	if orig.Workflow.Overrides.CheckpointOverrides[0].ID != "cp1" {
-		t.Fatal("Workflow CheckpointOverrides aliased (ID)")
-	}
-	if *orig.Workflow.Overrides.CheckpointOverrides[0].Label != "original" {
-		t.Fatal("Workflow CheckpointOverrides aliased (Label)")
-	}
-	if *orig.Workflow.Overrides.AgentOverrides[0].Disabled != false {
-		t.Fatal("Workflow AgentOverrides aliased")
-	}
-	if *orig.Workflow.Overrides.CircuitBreakerOverride != 10 {
-		t.Fatal("Workflow CircuitBreakerOverride aliased")
-	}
-}
-
-func TestDeepCopyConfig_WorkflowNil(t *testing.T) {
-	orig := &config.Config{Workflow: nil}
-	cp := deepCopyConfig(orig)
-	if cp.Workflow != nil {
-		t.Fatal("nil Workflow should stay nil after copy")
-	}
-}
-
 func TestDeepCopyConfig_Teams(t *testing.T) {
 	orig := &config.Config{
 		Teams: []config.TeamConfig{{ID: "t1", Name: "team1"}},
@@ -123,37 +77,6 @@ func TestDeepCopyConfig_Teams(t *testing.T) {
 }
 
 // ---------- deepCopyProject ----------
-
-func TestDeepCopyProject_WorkflowConfig(t *testing.T) {
-	orig := &domain.Project{
-		ID:   "p1",
-		Name: "myproject",
-		WorkflowConfig: &domain.ProjectWorkflowConfig{
-			Overrides: &workflow.WorkflowOverride{
-				AgentOverrides: []workflow.AgentOverride{
-					{AgentID: "coder", Disabled: dcBoolPtr(false)},
-				},
-			},
-		},
-	}
-	cp := deepCopyProject(orig)
-
-	// Mutate copy
-	*cp.WorkflowConfig.Overrides.AgentOverrides[0].Disabled = true
-
-	// Verify original unchanged
-	if *orig.WorkflowConfig.Overrides.AgentOverrides[0].Disabled != false {
-		t.Fatal("Project WorkflowConfig aliased")
-	}
-}
-
-func TestDeepCopyProject_WorkflowConfigNil(t *testing.T) {
-	orig := &domain.Project{ID: "p1", WorkflowConfig: nil}
-	cp := deepCopyProject(orig)
-	if cp.WorkflowConfig != nil {
-		t.Fatal("nil WorkflowConfig should stay nil after copy")
-	}
-}
 
 func TestDeepCopyProject_MCPServices(t *testing.T) {
 	orig := &domain.Project{
@@ -296,39 +219,6 @@ func TestDeepCopyTeamConfig_Models(t *testing.T) {
 	}
 	if _, ok := orig.Models.Agents["new"]; ok {
 		t.Fatal("Models.Agents aliased")
-	}
-}
-
-func TestDeepCopyTeamConfig_Workflow(t *testing.T) {
-	orig := &teamstate.TeamConfig{
-		Workflow: &teamstate.WorkflowTeamConfig{
-			Overrides: &workflow.WorkflowOverride{
-				AgentOverrides: []workflow.AgentOverride{
-					{AgentID: "coder", Disabled: dcBoolPtr(false)},
-				},
-			},
-			Enforced: dcBoolPtr(true),
-		},
-	}
-	cp := deepCopyTeamConfig(orig)
-
-	// Mutate copy
-	*cp.Workflow.Overrides.AgentOverrides[0].Disabled = true
-	*cp.Workflow.Enforced = false
-
-	if *orig.Workflow.Overrides.AgentOverrides[0].Disabled != false {
-		t.Fatal("Workflow.Overrides aliased")
-	}
-	if *orig.Workflow.Enforced != true {
-		t.Fatal("Workflow.Enforced aliased")
-	}
-}
-
-func TestDeepCopyTeamConfig_WorkflowNil(t *testing.T) {
-	orig := &teamstate.TeamConfig{Workflow: nil}
-	cp := deepCopyTeamConfig(orig)
-	if cp.Workflow != nil {
-		t.Fatal("nil Workflow should stay nil after copy")
 	}
 }
 

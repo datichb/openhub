@@ -1,12 +1,9 @@
 package views
 
 import (
-	"encoding/json"
-
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/teamstate"
-	"github.com/datichb/openhub/cli/internal/workflow"
 )
 
 // deepCopyConfig creates a fully independent copy of a config.Config.
@@ -21,10 +18,9 @@ func deepCopyConfig(c *config.Config) config.Config {
 		copy(cp.Teams, c.Teams)
 	}
 
-	// Clone Deploy.DisableNativeAgents slice
-	if c.Deploy.DisableNativeAgents != nil {
-		cp.Deploy.DisableNativeAgents = make([]string, len(c.Deploy.DisableNativeAgents))
-		copy(cp.Deploy.DisableNativeAgents, c.Deploy.DisableNativeAgents)
+	// Clone Deploy.InstructionFiles slice
+	if c.Deploy.InstructionFiles != nil {
+		cp.Deploy.InstructionFiles = append([]string(nil), c.Deploy.InstructionFiles...)
 	}
 
 	// Clone Models maps
@@ -67,9 +63,6 @@ func deepCopyConfig(c *config.Config) config.Config {
 		cp.Tracker.WriteEnabled = &b
 	}
 
-	// Clone Workflow (contains nested slices, maps, and pointers)
-	cp.Workflow = deepCopyWorkflowHubConfig(c.Workflow)
-
 	// Clone Remote targets (slice of structs holding a map) and project map
 	if c.Remote.Targets != nil {
 		cp.Remote.Targets = make([]config.RemoteTarget, len(c.Remote.Targets))
@@ -97,12 +90,6 @@ func deepCopyConfig(c *config.Config) config.Config {
 // All pointer fields, slices, and nested structs are cloned.
 func deepCopyProject(p *domain.Project) domain.Project {
 	cp := *p // shallow struct copy
-
-	// Clone Agents slice
-	if p.Agents != nil {
-		cp.Agents = make([]string, len(p.Agents))
-		copy(cp.Agents, p.Agents)
-	}
 
 	// Clone TeamConfig
 	if p.TeamConfig != nil {
@@ -185,9 +172,6 @@ func deepCopyProject(p *domain.Project) domain.Project {
 		copy(cp.MCP, p.MCP)
 	}
 
-	// Clone WorkflowConfig (contains nested slices, maps, and pointers)
-	cp.WorkflowConfig = deepCopyProjectWorkflowConfig(p.WorkflowConfig)
-
 	return cp
 }
 
@@ -256,63 +240,6 @@ func deepCopyTeamConfig(c *teamstate.TeamConfig) teamstate.TeamConfig {
 		copy(cp.Notification.Destinations, c.Notification.Destinations)
 	}
 
-	// Clone Workflow (contains WorkflowOverride with slices/maps/pointers + Enforced *bool)
-	cp.Workflow = deepCopyWorkflowTeamConfig(c.Workflow)
-
-	return cp
-}
-
-// ---------- Workflow deep copy helpers ----------
-
-// deepCopyWorkflowOverride uses JSON roundtrip to deep copy a WorkflowOverride.
-// This matches the approach used by WorkflowDefinition.DeepCopy() in workflow/types.go.
-func deepCopyWorkflowOverride(o *workflow.WorkflowOverride) *workflow.WorkflowOverride {
-	if o == nil {
-		return nil
-	}
-	data, err := json.Marshal(o)
-	if err != nil {
-		// Should never happen for a well-formed struct; fallback to shallow copy.
-		cp := *o
-		return &cp
-	}
-	var cp workflow.WorkflowOverride
-	if err := json.Unmarshal(data, &cp); err != nil {
-		shallow := *o
-		return &shallow
-	}
-	return &cp
-}
-
-func deepCopyWorkflowHubConfig(w *config.WorkflowHubConfig) *config.WorkflowHubConfig {
-	if w == nil {
-		return nil
-	}
-	return &config.WorkflowHubConfig{
-		Overrides: deepCopyWorkflowOverride(w.Overrides),
-	}
-}
-
-func deepCopyProjectWorkflowConfig(w *domain.ProjectWorkflowConfig) *domain.ProjectWorkflowConfig {
-	if w == nil {
-		return nil
-	}
-	return &domain.ProjectWorkflowConfig{
-		Overrides: deepCopyWorkflowOverride(w.Overrides),
-	}
-}
-
-func deepCopyWorkflowTeamConfig(w *teamstate.WorkflowTeamConfig) *teamstate.WorkflowTeamConfig {
-	if w == nil {
-		return nil
-	}
-	cp := &teamstate.WorkflowTeamConfig{
-		Overrides: deepCopyWorkflowOverride(w.Overrides),
-	}
-	if w.Enforced != nil {
-		b := *w.Enforced
-		cp.Enforced = &b
-	}
 	return cp
 }
 

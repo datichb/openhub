@@ -101,15 +101,6 @@ func buildCommands(a *app.App) []shell.Command {
 			Priority:    50,
 			ViewID:      "mcp",
 		},
-		{
-			ID:          "workflow",
-			Label:       i18n.T("tui.cmd.workflow"),
-			Aliases:     []string{"wf", "pipeline", "steps"},
-			Description: i18n.T("tui.cmd.workflow.desc"),
-			Category:    i18n.T("tui.category.configuration"),
-			Priority:    50,
-			ViewID:      "workflow",
-		},
 		// team-detail moved into hasTeam block (ADR-032)
 
 		// ── Système ──────────────────────────────────────────────────────
@@ -283,26 +274,6 @@ func buildCommands(a *app.App) []shell.Command {
 					initBeadsForActiveProject(a)
 				},
 				Modes: modeProject,
-			},
-			shell.Command{
-				ID:          "deploy",
-				Label:       i18n.T("tui.cmd.deploy"),
-				Aliases:     []string{"dep", "push"},
-				Description: i18n.T("tui.cmd.deploy.desc"),
-				Category:    i18n.T("tui.category.projects"),
-				Priority:    30,
-				Action:      actionDeploy,
-				Modes:       modeProject,
-			},
-			shell.Command{
-				ID:          "sync",
-				Label:       i18n.T("tui.cmd.sync"),
-				Aliases:     []string{"synchronize"},
-				Description: i18n.T("tui.cmd.sync.desc"),
-				Category:    i18n.T("tui.category.projects"),
-				Priority:    30,
-				Action:      actionSync,
-				Modes:       modeProject,
 			},
 			shell.Command{
 				ID:          "project-config",

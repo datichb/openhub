@@ -166,4 +166,4 @@ Les surcharges de l'ancien workflow unique (onglet Workflow de la TUI) sont migr
 - Un workflow migré invalide, ou une portée qui a déjà un `feature` publié, reste **votre brouillon** : `oh workflow diff feature`, `oh workflow edit feature`, puis `oh workflow publish`.
 - Si l'équipe verrouillait son workflow, les surcharges de projet (ignorées auparavant) restent un brouillon : la publication est refusée par le verrou.
 - Hors ligne, la migration d'une équipe est simplement retentée au lancement suivant.
-- L'ancienne vue Workflow de la TUI n'affiche plus que le workflow de base, en lecture seule ; `oh deploy` (opencode V1) n'applique plus les anciennes surcharges.
+- L'ancienne vue Workflow de la TUI et `oh deploy` ont été supprimés en v5 : les workflows se consultent dans le catalogue (`workflows`) et s'éditent dans l'éditeur.

@@ -175,12 +175,6 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 	steps = append(steps, buildMCPIntroStep(s))
 	steps = append(steps, buildMCPConsolidatedStep(s, a))
 
-	// Group: Déploiement (intro + agent selection + deploy confirmation)
-	deployGroupStart := len(steps)
-	steps = append(steps, buildAgentSelectionIntroStep(s))
-	steps = append(steps, buildAgentSelectionStep(s))
-	steps = append(steps, buildDeployStep(s))
-
 	// ── Resolve step indices ─────────────────────────────────────────────
 	s.LangStepIdx = 1 // lang is always at index 1 (after welcome)
 	for i, step := range steps {
@@ -206,7 +200,6 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 			{Label: i18n.T("cmd.init.wizard_group_team"), StartIdx: teamGroupStart},
 			{Label: i18n.T("cmd.init.wizard_group_project"), StartIdx: projectGroupStart},
 			{Label: i18n.T("cmd.init.wizard_group_mcp"), StartIdx: mcpGroupStart},
-			{Label: i18n.T("cmd.init.wizard_group_deploy"), StartIdx: deployGroupStart},
 		},
 		FocusButtonAfterRender: &focusBtn,
 		SummaryTargetViewFunc: func() string {
@@ -311,7 +304,6 @@ func buildInitRefreshLabels(cfg *views.InlineWizardConfig, steps []views.WizardS
 		cfg.Groups[2].Label = i18n.T("cmd.init.wizard_group_team")
 		cfg.Groups[3].Label = i18n.T("cmd.init.wizard_group_project")
 		cfg.Groups[4].Label = i18n.T("cmd.init.wizard_group_mcp")
-		cfg.Groups[5].Label = i18n.T("cmd.init.wizard_group_deploy")
 
 		// Step labels — resolved by ID (no fragile positional indices)
 		refresh := func(id, labelKey string) {
@@ -344,10 +336,6 @@ func buildInitRefreshLabels(cfg *views.InlineWizardConfig, steps []views.WizardS
 
 		// Project steps
 		refreshP("project", "cmd.init.wizard_step_project", "cmd.init.wizard_processing_project")
-
-		// Deploy steps
-		refresh("agents", "cmd.init.wizard_step_agents")
-		refreshP("deploy", "cmd.init.wizard_step_deploy_confirm", "cmd.init.wizard_deploy_processing")
 
 		// MCP steps
 		refresh("mcp_consolidated", "cmd.init.wizard_step_mcp")

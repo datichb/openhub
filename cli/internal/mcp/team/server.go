@@ -10,12 +10,10 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
-	"path/filepath"
 	"sync"
 	"time"
 
 	"github.com/datichb/openhub/cli/internal/config"
-	"github.com/datichb/openhub/cli/internal/deploy"
 	"github.com/datichb/openhub/cli/internal/mcp/protocol"
 	"github.com/datichb/openhub/cli/internal/notify"
 	"github.com/datichb/openhub/cli/internal/teamstate"
@@ -300,8 +298,10 @@ func Serve() error {
 // getRepo returns an initialized team-state repo using the effective team config.
 //
 // Resolution order:
-//  1. .opencode/team.json in the current working directory (written by "oh deploy")
-//  2. hub.toml [team] section (legacy / fallback for projects not yet redeployed)
+//  1. the team of the session project, named by OH_TEAM_ID in the
+//     environment of the server declaration in the session bundle (set by
+//     oh at launch, P3-T29);
+//  2. the active team of hub.toml (server started outside a session).
 //
 // Repo cache: avoids re-creating the Repo + pulling on every handler call.
 // The TTL ensures freshness while preventing redundant network I/O during
@@ -359,38 +359,39 @@ func getRepo() (*teamstate.Repo, error) {
 	return repo, nil
 }
 
-// loadEffectiveTeamConfig reads the resolved team configuration for the running project.
-//
-// It first looks for .opencode/team.json (written by "oh deploy") in the current
-// working directory. If found and valid it is used as-is — it already contains the
-// fully-resolved config (project override → hub fallback) baked in at deploy time.
-//
-// If .opencode/team.json is absent (project not yet redeployed after upgrade, or
-// deployed without a team config), we fall back to hub.toml for backward compatibility.
-func loadEffectiveTeamConfig() (deploy.DeployedTeamConfig, error) {
-	cwd, err := os.Getwd()
-	if err == nil {
-		teamJSONPath := filepath.Join(cwd, ".opencode", deploy.TeamConfigFile)
-		if data, err := os.ReadFile(teamJSONPath); err == nil {
-			var tc deploy.DeployedTeamConfig
-			if err := json.Unmarshal(data, &tc); err == nil {
-				return tc, nil
-			}
-		}
-	}
+// EnvTeamID names the team of the session project (environment of the
+// `team` server declaration in the session bundle). EnvProjectID is the
+// session project, for messages.
+const (
+	EnvTeamID    = "OH_TEAM_ID"
+	EnvProjectID = "OH_PROJECT_ID"
+)
 
-	// Fallback: hub.toml (backward compat — projects not yet redeployed)
+// effectiveTeam is the team configuration the server works with.
+type effectiveTeam struct {
+	Enabled   bool
+	StateRepo string
+	StatePath string
+	MemberID  string
+}
+
+// loadEffectiveTeamConfig reads the team of the session project (OH_TEAM_ID)
+// from hub.toml, else the active team. A solo space never enables the team
+// features.
+func loadEffectiveTeamConfig() (effectiveTeam, error) {
 	cfg, err := config.Load()
 	if err != nil {
-		return deploy.DeployedTeamConfig{}, fmt.Errorf("loading hub config: %w", err)
+		return effectiveTeam{}, fmt.Errorf("loading hub config: %w", err)
 	}
-	activeTeam := cfg.ActiveTeam()
-	return deploy.DeployedTeamConfig{
-		Enabled:   activeTeam.Enabled,
-		StateRepo: activeTeam.StateRepo,
-		StatePath: activeTeam.StatePath,
-		MemberID:  activeTeam.MemberID,
-	}, nil
+	if id := os.Getenv(EnvTeamID); id != "" {
+		t := cfg.FindTeam(id)
+		if t == nil {
+			return effectiveTeam{}, fmt.Errorf("team %q of project %q not found in hub.toml", id, os.Getenv(EnvProjectID))
+		}
+		return effectiveTeam{Enabled: t.Enabled && !t.Solo, StateRepo: t.StateRepo, StatePath: t.StatePath, MemberID: t.MemberID}, nil
+	}
+	t := cfg.ActiveTeam()
+	return effectiveTeam{Enabled: t.Enabled, StateRepo: t.StateRepo, StatePath: t.StatePath, MemberID: t.MemberID}, nil
 }
 
 func handleTeamMembers(ctx context.Context, params json.RawMessage) (*protocol.ToolResult, error) {

@@ -65,10 +65,7 @@ base_branch = ""                   # vide = detection auto (main/master)
 branch_pattern = "oh/%s"           # pattern de nommage de branche (%s = nom worktree)
 
 [deploy]
-disable_native_agents = []         # liste d'IDs d'agents a exclure du deploy
-
-[workflow]
-# overrides appliques pendant le deploy (personnalisation workflow hub)
+instruction_files = []             # fichiers du projet ajoutes aux instructions des agents (en plus d'ONBOARDING.md, CONVENTIONS.md, .claude/CLAUDE.md)
 
 [tracker]                          # overrides locaux pour la sync tracker equipe
 # enabled = false                  # decommenter pour desactiver la sync localement

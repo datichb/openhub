@@ -57,3 +57,15 @@ Dans la TUI : commande `coder`, ou ouverture d'une session depuis la vue Worktre
 ## 5. Métriques
 
 `oh metrics`, le tableau de bord et la vue Métriques lisent désormais le registre des sessions d'oh (`~/.oh/oh.db`), alimenté par le démon pour chaque session v5. Les sessions lancées hors d'oh, ou avant v5, ne sont plus comptées.
+
+## 6. Plus de déploiement dans les projets
+
+`oh deploy` et `oh sync` sont supprimés : chaque session part d'un paquet construit au lancement, hors du projet (`oh bundle show <workflow>` pour le voir). Pendant v5.x, les deux commandes affichent un message de migration. Sont aussi retirés :
+
+- les étapes **Agents** et **Déploiement** de l'assistant d'initialisation, de `oh project add` et de `oh project configure` (le paquet contient les agents du workflow ; la sélection d'agents par projet, colonne `projects.agents`, est supprimée par les migrations v36 et v37) ;
+- la section Déploiement du mode projet, les commandes `deploy`/`sync` de l'omnibar et le toast d'écart ;
+- `[deploy] disable_native_agents` (le monde fermé du paquet masque toujours les agents natifs) ; `[deploy] instruction_files` reste ;
+- les liens `.opencode` des worktrees (et la resynchronisation `s` de la vue Worktrees) ;
+- l'ancienne vue Workflow (remplacée par le catalogue et l'éditeur de workflows).
+
+Le serveur MCP `team` lit l'équipe de la session dans son environnement (`OH_TEAM_ID`) au lieu de `.opencode/team.json`.

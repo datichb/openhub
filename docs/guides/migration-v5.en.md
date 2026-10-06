@@ -57,3 +57,15 @@ In the TUI: the `coder` command, or opening a session from the Worktrees view.
 ## 5. Metrics
 
 `oh metrics`, the dashboard and the Metrics view now read the oh session registry (`~/.oh/oh.db`), fed by the daemon for every v5 session. Sessions started outside oh, or before v5, are no longer counted.
+
+## 6. No more deployment into projects
+
+`oh deploy` and `oh sync` are removed: every session starts from a bundle built at launch, outside the project (`oh bundle show <workflow>` to see it). During v5.x, both commands print a migration message. Also removed:
+
+- the **Agents** and **Deployment** steps of the init wizard, `oh project add` and `oh project configure` (the bundle holds the agents of the workflow; the per-project agent selection, column `projects.agents`, is dropped by migrations v36 and v37);
+- the Deployment section of the project mode, the `deploy`/`sync` omnibar commands and the drift toast;
+- `[deploy] disable_native_agents` (the closed world of the bundle always hides the native agents); `[deploy] instruction_files` stays;
+- the `.opencode` links of worktrees (and the `s` resync of the Worktrees view);
+- the former Workflow view (replaced by the workflow catalogue and editor).
+
+The `team` MCP server reads the team of the session from its environment (`OH_TEAM_ID`) instead of `.opencode/team.json`.

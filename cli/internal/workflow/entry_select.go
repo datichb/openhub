@@ -51,6 +51,21 @@ func (r *Resolved) SelectEntry(id string, agents AgentCatalog) Diagnostics {
 			queue = append(queue, other)
 		}
 	}
+	// An explicit self-delegation (reviewer → parallel reviewer sessions)
+	// is never derived from the task permission: keep it as `calls`.
+	for _, id := range members.Keys() {
+		info, ok := agents.Agent(id)
+		if !ok || !info.SelfTask {
+			continue
+		}
+		ref, _ := members.Get(id)
+		for _, other := range members.Keys() {
+			if other == id || matchAny(info.Tasks, other) {
+				ref.Calls = append(ref.Calls, other)
+			}
+		}
+		members.Set(id, ref)
+	}
 	entry := *s.Entry
 	entry.Agent = id
 	s.Entry = &entry

@@ -554,6 +554,20 @@ ALTER TABLE sessions ADD COLUMN parent_session_id TEXT NOT NULL DEFAULT ''`,
 		down:    `ALTER TABLE sessions DROP COLUMN checkpoint_state`,
 	},
 	{
+		// v5 phase 3 (P3-T25): projects.agents (agent selection of the
+		// former per-project deployment) is neutralized: sessions ship the
+		// agents of their workflow bundle. The selection is not kept.
+		version: 36,
+		up:      `UPDATE projects SET agents = ''`,
+		down:    `SELECT 1`,
+	},
+	{
+		// v5 phase 3 (P3-T25): projects.agents is dropped.
+		version: 37,
+		up:      `ALTER TABLE projects DROP COLUMN agents`,
+		down:    `ALTER TABLE projects ADD COLUMN agents TEXT NOT NULL DEFAULT ''`,
+	},
+	{
 		// v5 phase 2 (P2-T11): projects.workflow_config is neutralized. Its
 		// content moves to workflow_config_legacy, read only by the migration
 		// to the team-state (cmd/workflow_migrate.go), then cleared there.

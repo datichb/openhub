@@ -1,7 +1,7 @@
 package team
 
 import (
-	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -9,12 +9,11 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/datichb/openhub/cli/internal/deploy"
+	"github.com/datichb/openhub/cli/internal/config"
 )
 
 // chdir changes the working directory for the duration of the test and restores
-// it afterwards via t.Cleanup. This is required because loadEffectiveTeamConfig
-// calls os.Getwd() to locate .opencode/team.json.
+// it afterwards via t.Cleanup.
 func chdir(t *testing.T, dir string) {
 	t.Helper()
 	orig, err := os.Getwd()
@@ -23,78 +22,69 @@ func chdir(t *testing.T, dir string) {
 	t.Cleanup(func() { os.Chdir(orig) }) //nolint:errcheck
 }
 
-func writeTeamJSON(t *testing.T, projectDir string, tc deploy.DeployedTeamConfig) {
+// useHub writes a hub.toml in a temporary OH_HOME (teams given as TOML).
+func useHub(t *testing.T, teams string) {
 	t.Helper()
-	opencodeDir := filepath.Join(projectDir, ".opencode")
-	require.NoError(t, os.MkdirAll(opencodeDir, 0o755))
-	data, err := json.MarshalIndent(tc, "", "  ")
-	require.NoError(t, err)
-	require.NoError(t, os.WriteFile(
-		filepath.Join(opencodeDir, deploy.TeamConfigFile),
-		data, 0o600,
-	))
+	home := t.TempDir()
+	t.Setenv("OH_HOME", home)
+	t.Setenv("HOME", home)
+	require.NoError(t, os.WriteFile(filepath.Join(home, "hub.toml"), []byte(teams), 0o600))
+	config.Reset()
+	t.Cleanup(config.Reset)
+	resetRepoCache()
 }
 
-func TestLoadEffectiveTeamConfig_WithTeamJSON(t *testing.T) {
-	projectDir := t.TempDir()
+// useSessionTeam configures the team of the session project as oh does at
+// launch (OH_TEAM_ID in the server environment, team in hub.toml).
+func useSessionTeam(t *testing.T, tc effectiveTeam) {
+	t.Helper()
+	useHub(t, fmt.Sprintf("[[teams]]\nid = \"acme\"\nenabled = %t\nstate_repo = %q\nstate_path = %q\nmember_id = %q\n",
+		tc.Enabled, tc.StateRepo, tc.StatePath, tc.MemberID))
+	t.Setenv(EnvTeamID, "acme")
+	t.Setenv(EnvProjectID, "myproject")
+}
 
-	want := deploy.DeployedTeamConfig{
-		Enabled:   true,
-		StateRepo: "git@gitlab.com:acme/team-state.git",
-		StatePath: "/home/alice/.oh/team-states/team-state",
-		MemberID:  "alice",
-	}
-	writeTeamJSON(t, projectDir, want)
-	chdir(t, projectDir)
+func TestLoadEffectiveTeamConfig_SessionTeam(t *testing.T) {
+	want := effectiveTeam{Enabled: true, StateRepo: "git@gitlab.com:acme/team-state.git",
+		StatePath: "/home/alice/.oh/team-states/team-state", MemberID: "alice"}
+	useSessionTeam(t, want)
 
 	got, err := loadEffectiveTeamConfig()
 	require.NoError(t, err)
-	assert.True(t, got.Enabled)
-	assert.Equal(t, want.StateRepo, got.StateRepo)
-	assert.Equal(t, want.StatePath, got.StatePath)
-	assert.Equal(t, want.MemberID, got.MemberID)
+	assert.Equal(t, want, got)
 }
 
-func TestLoadEffectiveTeamConfig_DisabledTeamJSON(t *testing.T) {
-	projectDir := t.TempDir()
-	writeTeamJSON(t, projectDir, deploy.DeployedTeamConfig{Enabled: false})
-	chdir(t, projectDir)
-
+func TestLoadEffectiveTeamConfig_DisabledTeam(t *testing.T) {
+	useSessionTeam(t, effectiveTeam{Enabled: false, StateRepo: "x", StatePath: "/x"})
 	got, err := loadEffectiveTeamConfig()
 	require.NoError(t, err)
-	assert.False(t, got.Enabled, "enabled=false in team.json should be respected")
+	assert.False(t, got.Enabled)
 }
 
-func TestLoadEffectiveTeamConfig_InvalidJSON_FallsBackToHub(t *testing.T) {
-	projectDir := t.TempDir()
-
-	// Write invalid JSON in .opencode/team.json
-	opencodeDir := filepath.Join(projectDir, ".opencode")
-	require.NoError(t, os.MkdirAll(opencodeDir, 0o755))
-	require.NoError(t, os.WriteFile(
-		filepath.Join(opencodeDir, deploy.TeamConfigFile),
-		[]byte(`{not valid json`), 0o600,
-	))
-	chdir(t, projectDir)
-
-	// Point hub config to a temp dir so config.Load() doesn't fail
-	t.Setenv("HOME", t.TempDir())
-
-	// Invalid JSON → fallback to hub.toml (hub has no team → Enabled=false)
-	got, err := loadEffectiveTeamConfig()
-	require.NoError(t, err, "invalid team.json should not error — fallback to hub")
-	assert.False(t, got.Enabled, "hub has no team → fallback should return Enabled=false")
+func TestLoadEffectiveTeamConfig_UnknownTeam(t *testing.T) {
+	useHub(t, "")
+	t.Setenv(EnvTeamID, "ghost")
+	_, err := loadEffectiveTeamConfig()
+	assert.ErrorContains(t, err, "ghost")
 }
 
-func TestLoadEffectiveTeamConfig_NoFile_FallsBackToHub(t *testing.T) {
-	projectDir := t.TempDir()
-	// No .opencode/ directory at all
-	chdir(t, projectDir)
-
-	// Hub has no team configured
-	t.Setenv("HOME", t.TempDir())
-
+func TestLoadEffectiveTeamConfig_NoSessionTeam_FallsBackToHub(t *testing.T) {
+	useHub(t, "")
+	t.Setenv(EnvTeamID, "")
 	got, err := loadEffectiveTeamConfig()
 	require.NoError(t, err)
-	assert.False(t, got.Enabled, "no team.json + hub has no team → Enabled=false")
+	assert.False(t, got.Enabled, "hub has no team → Enabled=false")
+}
+
+// A leftover .opencode/team.json of a former deploy is ignored.
+func TestLoadEffectiveTeamConfig_IgnoresDeployedTeamJSON(t *testing.T) {
+	projectDir := t.TempDir()
+	require.NoError(t, os.MkdirAll(filepath.Join(projectDir, ".opencode"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(projectDir, ".opencode", "team.json"), []byte(`{"enabled":true,"state_repo":"old"}`), 0o600))
+	chdir(t, projectDir)
+	useHub(t, "")
+	t.Setenv(EnvTeamID, "")
+	got, err := loadEffectiveTeamConfig()
+	require.NoError(t, err)
+	assert.False(t, got.Enabled)
 }
