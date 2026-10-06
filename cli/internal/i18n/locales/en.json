@@ -2117,7 +2117,6 @@
   "cmd.init.wizard_rejoin_token_source_mcp": "MCP GitLab",
   "cmd.init.wizard_rejoin_token_source_tracker": "Tracker GitLab",
   "cmd.init.wizard_rejoin_token_stored": "stored",
-  "cmd.init.wizard_rejoin_gitlab_token_label": "GitLab token",
   "cmd.init.wizard_rejoin_member_gitlab": "gitlab: %s",
   "cmd.init.wizard_identity_verified": "verified",
   "cmd.team.tracker_hint": "To configure the team tracker: oh tracker discover",

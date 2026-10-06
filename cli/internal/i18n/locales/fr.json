@@ -2117,7 +2117,6 @@
   "cmd.init.wizard_rejoin_token_source_mcp": "MCP GitLab",
   "cmd.init.wizard_rejoin_token_source_tracker": "Tracker GitLab",
   "cmd.init.wizard_rejoin_token_stored": "enregistré",
-  "cmd.init.wizard_rejoin_gitlab_token_label": "Jeton GitLab",
   "cmd.init.wizard_rejoin_member_gitlab": "gitlab : %s",
   "cmd.init.wizard_identity_verified": "vérifié",
   "cmd.team.tracker_hint": "Pour configurer le tracker : oh tracker discover",
