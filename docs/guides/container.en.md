@@ -39,6 +39,16 @@ From highest to lowest priority:
 
 A runtime the workflow does not allow (`runtime.allowed`) is skipped.
 
+### In the launch form
+
+The **▣ container** option shows whether the engine is available. When the VM is stopped or the pinned opencode version does not match, the option is marked ✗ with the reason and the launch is refused. When the option is selected, a line gives the state:
+
+- `colima 28.1 · mount=virtiofs ✔ · image oh-dev/<project>:9f3c… cached`: nothing to build;
+- `oh layer to rebuild (~40 s)`: only the oh layer changes (for instance after an opencode upgrade);
+- `image to build: project environment + oh layer (~3 min)`: the Dockerfile or the build args changed.
+
+The estimated time comes from the latest builds of the project. Before the first build, the line says « several minutes ». While launching, the last build lines are shown in the form.
+
 ## Settings
 
 TUI: **Settings › Execution**, or the `[execution]` section of `~/.oh/hub.toml`:

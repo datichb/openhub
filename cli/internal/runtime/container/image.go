@@ -123,30 +123,21 @@ func (r *Runtime) EnsureImage(ctx context.Context, g ohruntime.Group) (Image, er
 	if !av.OK {
 		return Image{}, fmt.Errorf("%w: %s", ErrUnavailable, av.Message())
 	}
-	df, err := DetectDockerfile(g.ProjectDir, g.Dockerfile)
+	base, err := planBase(g)
 	if err != nil {
 		return Image{}, err
 	}
-	content := defaultBaseDockerfile
-	if df != "" {
-		data, err := os.ReadFile(df)
-		if err != nil {
-			return Image{}, err
-		}
-		content = string(data)
-	}
-	args := sortedArgs(g.BuildArgs)
-	name := imageName(g.ProjectID)
-	baseHash := hashParts(append([]string{"base", content}, args...)...)
-	img := Image{BaseRef: "oh-base/" + name + ":" + baseHash[:12], Dockerfile: df}
+	img := Image{BaseRef: base.ref, Dockerfile: base.dockerfile}
 
 	if !r.imageExists(ctx, e, img.BaseRef) {
-		if err := r.buildBase(ctx, e, g, img.BaseRef, df, args); err != nil {
+		start := time.Now()
+		if err := r.buildBase(ctx, e, g, img.BaseRef, base.dockerfile, base.args); err != nil {
 			return Image{}, err
 		}
+		r.recordBuild(g.ProjectID, "base", time.Since(start))
 		img.Built = true
 	}
-	img.Arch, img.Libc, err = r.probeBase(ctx, e, img.BaseRef, baseHash)
+	img.Arch, img.Libc, err = r.probeBase(ctx, e, img.BaseRef, base.hash)
 	if err != nil {
 		return Image{}, err
 	}
@@ -154,13 +145,12 @@ func (r *Runtime) EnsureImage(ctx context.Context, g ohruntime.Group) (Image, er
 	if err != nil {
 		return Image{}, err
 	}
-	bdSum := sha256.Sum256(bd)
-	tool := g.Tool.Name() + "@" + g.Tool.Version()
-	finalHash := hashParts("dev", baseHash, layerVersion, tool, img.Arch, img.Libc, hex.EncodeToString(bdSum[:]))
-	img.Ref = "oh-dev/" + name + ":" + finalHash[:12]
+	img.Ref = devRef(g, base.hash, img.Arch, img.Libc, bd)
 	if r.imageExists(ctx, e, img.Ref) {
 		return img, nil
 	}
+	tool := g.Tool.Name() + "@" + g.Tool.Version()
+	start := time.Now()
 	bin, err := g.Tool.LinuxBinary(ctx, img.Arch, img.Libc)
 	if err != nil {
 		return Image{}, fmt.Errorf("getting %s for linux/%s (%s): %w", tool, img.Arch, img.Libc, err)
@@ -168,10 +158,46 @@ func (r *Runtime) EnsureImage(ctx context.Context, g ohruntime.Group) (Image, er
 	if err := r.buildLayer(ctx, e, g, img, bin, bd); err != nil {
 		return Image{}, err
 	}
+	r.recordBuild(g.ProjectID, "dev", time.Since(start))
 	img.Built = true
 	r.prune(ctx, e, g.ProjectID, "dev", img.Ref)
 	r.prune(ctx, e, g.ProjectID, "base", img.BaseRef)
 	return img, nil
+}
+
+// basePlan is the base image of a group (content hash of the dev Dockerfile
+// and build arguments).
+type basePlan struct {
+	dockerfile string // "" = oh default base
+	args       []string
+	hash, ref  string
+}
+
+func planBase(g ohruntime.Group) (basePlan, error) {
+	df, err := DetectDockerfile(g.ProjectDir, g.Dockerfile)
+	if err != nil {
+		return basePlan{}, err
+	}
+	content := defaultBaseDockerfile
+	if df != "" {
+		data, err := os.ReadFile(df)
+		if err != nil {
+			return basePlan{}, err
+		}
+		content = string(data)
+	}
+	args := sortedArgs(g.BuildArgs)
+	h := hashParts(append([]string{"base", content}, args...)...)
+	return basePlan{dockerfile: df, args: args, hash: h, ref: "oh-base/" + imageName(g.ProjectID) + ":" + h[:12]}, nil
+}
+
+// devRef is the oh image of a base: its hash covers the base, the layer
+// version, the tool version, the architecture, the libc and the fake bd.
+func devRef(g ohruntime.Group, baseHash, arch, libc string, bd []byte) string {
+	bdSum := sha256.Sum256(bd)
+	tool := g.Tool.Name() + "@" + g.Tool.Version()
+	h := hashParts("dev", baseHash, layerVersion, tool, arch, libc, hex.EncodeToString(bdSum[:]))
+	return "oh-dev/" + imageName(g.ProjectID) + ":" + h[:12]
 }
 
 func (r *Runtime) imageExists(ctx context.Context, e Engine, ref string) bool {

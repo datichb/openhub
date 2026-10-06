@@ -72,9 +72,15 @@ func TestRealImage(t *testing.T) {
 				}
 				g := ohruntime.Group{ProjectID: "oh-real-" + base.name, ProjectDir: dir, Tool: realTool(t),
 					Progress: func(l string) { t.Log(l) }}
+				if est, err := rt.Estimate(context.Background(), g); err != nil || est.Ready {
+					t.Fatalf("estimate before the build: %+v %v", est, err)
+				}
 				img, err := rt.EnsureImage(context.Background(), g)
 				if err != nil {
 					t.Fatal(err)
+				}
+				if est, err := rt.Estimate(context.Background(), g); err != nil || !est.Ready || !sameRef(est.Image, img.Ref) {
+					t.Fatalf("estimate after the build: %+v %v (image %s)", est, err, img.Ref)
 				}
 				if img.Libc != base.libc {
 					t.Fatalf("libc = %s, want %s", img.Libc, base.libc)

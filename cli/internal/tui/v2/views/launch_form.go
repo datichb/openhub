@@ -54,6 +54,10 @@ type LaunchFormConfig struct {
 	// LaunchFirst starts a suggested workflow instead (failed precondition),
 	// remembering this launch when the workflow asks to come back.
 	LaunchFirst func(ctx context.Context, c LaunchChoices, workflowID string) error
+	// RuntimeStatus details the selected runtime outside the machine (nil =
+	// none); Progress relays the preparation output while launching.
+	RuntimeStatus RuntimeStatusFunc
+	Progress      *LaunchProgress
 }
 
 const (
@@ -83,6 +87,7 @@ type LaunchFormView struct {
 	recapGen  int
 	launching bool
 	launchErr error
+	rt        runtimeState
 	ctx       context.Context
 	cancel    context.CancelFunc
 }
@@ -147,7 +152,8 @@ func (v *LaunchFormView) Unmount() {
 	if v.cancel != nil {
 		v.cancel()
 	}
-	v.app, v.content, v.form, v.picker, v.recapTV = nil, nil, nil, nil, nil
+	v.stopProgress()
+	v.app, v.content, v.form, v.picker, v.recapTV, v.rt.tv = nil, nil, nil, nil, nil, nil
 }
 
 func (v *LaunchFormView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
@@ -186,7 +192,7 @@ func (v *LaunchFormView) render() {
 	if v.app == nil {
 		return
 	}
-	v.picker, v.form, v.recapTV = nil, nil, nil
+	v.picker, v.form, v.recapTV, v.rt.tv = nil, nil, nil, nil
 	v.body.Clear()
 	v.header.SetText(v.headerText())
 	v.hints.SetText("[" + theme.TextMutedHex + "]" + v.StatusHints())
@@ -316,8 +322,10 @@ func (v *LaunchFormView) renderOptions() {
 		f.AddDropDown(i18n.T("tui.launch.runtime"), rts, cur, func(_ string, i int) {
 			if i >= 0 && i < len(v.cfg.Runtimes) {
 				m.runtime = v.cfg.Runtimes[i].Kind
+				v.loadRuntimeStatus()
 			}
 		})
+		v.runtimeStatusLine()
 	}
 	if len(v.cfg.Locations) > 0 {
 		labels, values := selectLists(v.cfg.Locations)
@@ -380,6 +388,7 @@ func (v *LaunchFormView) recapText() string {
 	switch {
 	case v.launching:
 		b.WriteString("⠋ " + i18n.T("tui.launch.launching") + "\n")
+		b.WriteString(v.progressText())
 	case v.recap == nil && v.recapErr == nil:
 		b.WriteString("⠋ " + i18n.T("tui.launch.preparing") + "\n")
 	}
@@ -485,12 +494,14 @@ func (v *LaunchFormView) launchWith(fn func(ctx context.Context, c LaunchChoices
 		v.recapTV.SetText(v.recapText())
 	}
 	app, ctx, choices := v.app, v.ctx, v.m.choices()
+	v.listenProgress()
 	go func() {
 		err := fn(ctx, choices)
 		if app == nil {
 			return
 		}
 		app.QueueUpdateDraw(func() {
+			v.stopProgress()
 			v.launching = false
 			if err == nil {
 				v.close()

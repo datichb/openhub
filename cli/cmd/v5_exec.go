@@ -125,3 +125,11 @@ func v5ToolVersion() string {
 	s, _ := v5Ver.Load().(string)
 	return s
 }
+
+// Estimate delegates to the wrapped runtime (launch form).
+func (r pinnedRuntime) Estimate(ctx context.Context, g ohruntime.Group) (ohruntime.PrepareEstimate, error) {
+	if e, ok := r.Runtime.(ohruntime.Estimator); ok {
+		return e.Estimate(ctx, g)
+	}
+	return ohruntime.PrepareEstimate{}, errors.New(r.unavailable().Message())
+}

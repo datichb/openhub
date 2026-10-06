@@ -39,6 +39,16 @@ Du plus prioritaire au moins prioritaire :
 
 Un runtime que le workflow n'autorise pas (`runtime.allowed`) est ignoré.
 
+### Dans la fiche de lancement
+
+L'option **▣ conteneur** indique la disponibilité du moteur. Si la VM est arrêtée ou si la version d'opencode figée ne correspond pas, l'option est marquée ✗ avec la raison et le lancement est refusé. Quand l'option est choisie, une ligne précise l'état :
+
+- `colima 28.1 · mount=virtiofs ✔ · image oh-dev/<projet>:9f3c… en cache` : rien à construire ;
+- `couche oh à reconstruire (~40 s)` : seule la couche oh change (par exemple après une mise à jour d'opencode) ;
+- `image à construire : environnement du projet + couche oh (~3 min)` : le Dockerfile ou les build args ont changé.
+
+Le temps estimé vient des dernières constructions du projet. Avant la première construction, la ligne indique « plusieurs minutes ». Pendant le lancement, les dernières lignes de la construction s'affichent dans la fiche.
+
 ## Réglages
 
 TUI : **Réglages › Exécution**, ou la section `[execution]` de `~/.oh/hub.toml` :

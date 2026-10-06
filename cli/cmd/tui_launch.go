@@ -132,6 +132,7 @@ func launchFormConfig(ctx context.Context, a *app.App, project *domain.Project, 
 	if cfg.DefaultRuntime == "" {
 		cfg.DefaultRuntime = string(sp.PickRuntime(runtimePrefs(a, project)...))
 	}
+	cfg.RuntimeStatus, cfg.Progress = tuiRuntimeStatus(a, project), &views.LaunchProgress{}
 	if beads.Available() == nil && beads.IsInitialized(project.Path) {
 		cfg.Beads = views.NewBeadsSource(project.Path)
 	}
@@ -165,6 +166,8 @@ func launchFormConfig(ctx context.Context, a *app.App, project *domain.Project, 
 			return err
 		}
 		runs.reset() // a plan starts once
+		// Image build output, shown by the form while launching.
+		p.plan.Request.Base.Progress = cfg.Progress.Line
 		_, err = p.start(ctx, a, tuiLaunchUI())
 		if tuiStartWiring != nil {
 			tuiStartWiring.invalidate() // recents
