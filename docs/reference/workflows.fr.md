@@ -206,6 +206,21 @@ Enrichit un brief de reprise de ticket, sans interaction (session sans interface
 
 ---
 
+## Restrictions
+
+```yaml
+limits:
+  budget_usd: 5                          # budget de chaque session (USD)
+  models: ["eu.anthropic.claude-*"]      # modèles autorisés (motifs)
+```
+
+- Les deux sont facultatifs et s'ajoutent aux restrictions du hub, de l'équipe et du projet (`oh budget show`, guide [Sessions v5](../guides/sessions-v5.fr.md#restrictions)). La valeur la plus précise l'emporte ; une valeur imposée par l'équipe est un plafond.
+- `budget_usd` est un plafond souple sur le coût que l'outil indique pour la session et ses sous-agents : l'étape qui le dépasse se termine, puis une décision `$` demande de relever le budget ou d'arrêter.
+- `models` porte sur l'identifiant envoyé au fournisseur (Bedrock : `eu.anthropic.…`) ; le proxy d'identifiants refuse les autres.
+- Avec `extends`, un workflow peut seulement les durcir : budget plus bas, modèles couverts par les motifs du parent.
+
+---
+
 ## Plugins et code mode
 
 ```yaml

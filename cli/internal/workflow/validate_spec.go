@@ -151,6 +151,13 @@ func (v *validator) header() {
 	if s.Limits != nil && s.Limits.BudgetUSD != nil && *s.Limits.BudgetUSD < 0 {
 		v.err("negative_value", "limits.budget_usd", *s.Limits.BudgetUSD)
 	}
+	if s.Limits != nil {
+		for i, m := range s.Limits.Models {
+			if strings.TrimSpace(m) == "" {
+				v.err("field_required", fmt.Sprintf("limits.models[%d]", i), fmt.Sprintf("limits.models[%d]", i))
+			}
+		}
+	}
 }
 
 // entryPath is where the entry agent is declared.

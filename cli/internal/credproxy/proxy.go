@@ -11,6 +11,7 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -91,6 +92,9 @@ type Proxy struct {
 	// ready is non-nil while persisted grants are being restored (Hold):
 	// requests with an unknown token wait for it instead of failing.
 	ready chan struct{}
+	// OnUsage, when set, receives the usage accounted to the grants (by
+	// owner), for a persistent ledger shared across restarts and new tokens.
+	OnUsage func(owner string, delta Usage)
 	// Hooks serves HooksPrefix routes for the tools holding a valid session
 	// token (oh plugin → oh daemon); the grant owner is in the request
 	// context (HookOwner).
@@ -503,6 +507,7 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	body = withStreamUsage(provider, escapedRest, body)
 	upstream, _ := url.Parse(g.Upstream.BaseURL)
 	rp := &httputil.ReverseProxy{
 		// Credentials are applied last, on the final request: a failure
@@ -523,7 +528,8 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			pr.Out.ContentLength = int64(len(body))
 		},
 		ModifyResponse: func(resp *http.Response) error {
-			resp.Body = &usageReader{rc: resp.Body, g: g}
+			resp.Body = &usageReader{rc: resp.Body, g: g, frames: base64Frames(provider, escapedRest),
+				onReport: func(in, out int64) { p.account(g, Usage{InputTokens: in, OutputTokens: out}) }}
 			return nil
 		},
 		ErrorHandler: func(w http.ResponseWriter, _ *http.Request, err error) {
@@ -539,7 +545,72 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	g.mu.Lock()
 	g.usage.Requests++
 	g.mu.Unlock()
+	p.account(g, Usage{Requests: 1})
 	rp.ServeHTTP(w, r)
+}
+
+func (p *Proxy) account(g *grantState, delta Usage) {
+	p.mu.RLock()
+	f := p.OnUsage
+	p.mu.RUnlock()
+	if f != nil {
+		f(g.SessionID, delta)
+	}
+}
+
+// SetUsage sets the usage of a token (or token hash): a restored or newly
+// issued grant of a group continues the group's counters.
+func (p *Proxy) SetUsage(ref string, u Usage) {
+	p.mu.RLock()
+	g, ok := p.byToken[RefHash(ref)]
+	p.mu.RUnlock()
+	if !ok {
+		return
+	}
+	g.mu.Lock()
+	g.usage = u
+	g.mu.Unlock()
+}
+
+// base64Frames reports whether a route answers AWS event-stream frames with
+// base64 model chunks (Bedrock InvokeModel with response stream).
+func base64Frames(provider, escapedRest string) bool {
+	return provider == ProviderBedrock && strings.HasSuffix(escapedRest, "/invoke-with-response-stream")
+}
+
+// withStreamUsage asks OpenAI-compatible streams to end with a usage chunk
+// (stream_options.include_usage), which they omit otherwise: without it the
+// proxy could not count streamed tokens.
+func withStreamUsage(provider, escapedRest string, body []byte) []byte {
+	if (provider != ProviderOpenAI && provider != ProviderOpenRouter) || (escapedRest != "chat/completions" && escapedRest != "completions") {
+		return body
+	}
+	var m map[string]json.RawMessage
+	if json.Unmarshal(body, &m) != nil {
+		return body
+	}
+	var stream bool
+	if json.Unmarshal(m["stream"], &stream) != nil || !stream {
+		return body
+	}
+	opts := map[string]json.RawMessage{}
+	if raw, ok := m["stream_options"]; ok && json.Unmarshal(raw, &opts) != nil {
+		return body
+	}
+	if string(opts["include_usage"]) == "true" {
+		return body
+	}
+	opts["include_usage"] = json.RawMessage("true")
+	raw, err := json.Marshal(opts)
+	if err != nil {
+		return body
+	}
+	m["stream_options"] = raw
+	out, err := json.Marshal(m)
+	if err != nil {
+		return body
+	}
+	return out
 }
 
 // MaxRequestBytes bounds a relayed request body (413 beyond).

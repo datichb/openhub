@@ -11,6 +11,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/adapters"
 	"github.com/datichb/openhub/cli/internal/bundle"
 	"github.com/datichb/openhub/cli/internal/domain"
+	"github.com/datichb/openhub/cli/internal/limits"
 )
 
 // Decisions (P3-T08): oh answers permissions and questions through the tool
@@ -21,8 +22,9 @@ import (
 // Reply answers a decision.
 type Reply struct {
 	DecisionID string
-	// Decision: permission once | always | reject; error/budget dismiss
-	// (default); other kinds: the choice understood by their resolver.
+	// Decision: permission once | always | reject; error dismiss (default);
+	// budget of the restrictions raise | stop | dismiss (one more step);
+	// other kinds: the choice understood by their resolver.
 	Decision string
 	Message  string         // note forwarded to the agent (permission, checkpoint)
 	Answer   map[string]any // question answers by field key (see ParseAnswers)
@@ -87,7 +89,30 @@ func (s *Service) Decide(ctx context.Context, r Reply) error {
 		deliver = func(ctx context.Context) error {
 			return s.replyTool(ctx, d, adapters.DecisionReply{SessionID: d.ToolSessionID(), ID: d.ToolRef, Kind: adapters.DecisionQuestion, Answer: r.Answer})
 		}
-	case domain.DecisionError, domain.DecisionBudget:
+	case domain.DecisionBudget:
+		if !limits.IsBudgetData(d.Payload.Data) {
+			// Exhausted proxy token budget: acknowledged only.
+			if r.Decision != "" && r.Decision != "dismiss" {
+				return fmt.Errorf("invalid choice %q (dismiss)", r.Decision)
+			}
+			resolution.Decision = "dismiss"
+			deliver = func(context.Context) error { return nil }
+			break
+		}
+		switch r.Decision {
+		case "", "dismiss":
+			resolution.Decision = "dismiss" // one more step, asked again after it
+			deliver = func(context.Context) error { return nil }
+		case "raise", "stop":
+			res, ok := s.Resolvers[domain.DecisionBudget]
+			if !ok {
+				return fmt.Errorf("%w (%s)", ErrUnsupportedKind, d.Kind)
+			}
+			deliver = func(ctx context.Context) error { return res(ctx, *d, r) }
+		default:
+			return fmt.Errorf("invalid choice %q (raise, stop, dismiss)", r.Decision)
+		}
+	case domain.DecisionError:
 		if r.Decision != "" && r.Decision != "dismiss" {
 			return fmt.Errorf("invalid choice %q (dismiss)", r.Decision)
 		}

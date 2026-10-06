@@ -110,7 +110,7 @@ func v5Launch(ctx context.Context, a *app.App, ui launcher.LaunchUI, opts launch
 	req.Title, req.Prompt, req.WorkflowID = sessionTitle(project, entry), opts.Prompt, entry
 	res, err := svc.StartSession(ctx, req)
 	if err != nil {
-		return true, err
+		return true, budgetError(err)
 	}
 	for _, w := range res.Report.Warnings {
 		ui.Notify(i18n.Tf("cmd.v5.isolation_warning", w), launcher.LevelWarning)
@@ -136,6 +136,7 @@ func v5Request(a *app.App, project *domain.Project, providerFlag string) runsvc.
 	}
 	applyProjectExec(&req, project)
 	req.IsolateUserConfig = a.Config.Execution.StrictIsolation
+	req.Limits = sessionLimits(context.Background(), a, project, nil)
 	if team := config.ResolveTeamForProject(a.Config, project); team.Enabled {
 		req.TeamID = team.TeamID
 		if team.MemberID != "" {

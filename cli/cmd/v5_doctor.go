@@ -57,6 +57,7 @@ func v5DoctorChecks() []views.DoctorCheck {
 	}
 
 	out = append(out, securityDoctorChecks(ctx)...)
+	out = append(out, limitsDoctorChecks(ctx)...)
 
 	// Informational until containers (phase 4) need --relative-paths.
 	_, gitDetail := gitRelativeWorktrees()

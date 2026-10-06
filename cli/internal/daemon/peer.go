@@ -47,4 +47,3 @@ func sockoptUID(c net.Conn, get func(fd int) (int, error)) (int, error) {
 	}
 	return uid, gerr
 }
-

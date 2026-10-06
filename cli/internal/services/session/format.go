@@ -7,6 +7,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/limits"
 )
 
 // Plain-text renderings shared by the CLI and the TUI (the TUI adds colors).
@@ -35,6 +36,8 @@ func StateIcon(s domain.RunState) string {
 		return "●"
 	case domain.RunWaiting:
 		return "⏸"
+	case domain.RunQueued:
+		return "…"
 	case domain.RunIdle:
 		return "○"
 	case domain.RunSleeping:
@@ -78,6 +81,9 @@ func DecisionSummary(d domain.Decision) string {
 			return id
 		}
 	case domain.DecisionBudget:
+		if p.Message != "" && limits.IsBudgetData(p.Data) {
+			return oneLine(p.Message) // restrictions: spent / allowance
+		}
 		return i18n.T("cmd.session.decision.budget")
 	case domain.DecisionError:
 		if p.Message != "" {

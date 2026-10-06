@@ -53,6 +53,7 @@ var daemonRunCmd = &cobra.Command{
 			MCPCommand:  gatewayMCPCommand(ohBundlesDir()),
 			Sessions:    a.Sessions,
 			Decisions:   sqlite.NewDecisionStore(store),
+			Usage:       sqlite.NewUsageStore(store),
 			SessionsDir: ohSessionsDir(),
 			ServersDir:  ohServersDir(),
 			Checkpoints: newCheckpointService(a),

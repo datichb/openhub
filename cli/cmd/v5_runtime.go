@@ -159,6 +159,7 @@ func newRunService(ctx context.Context, a *app.App) (*runsvc.Service, error) {
 		BundlesDir:   ohBundlesDir(),
 		SessionsDir:  ohSessionsDir(),
 		Decisions:    sqlite.NewDecisionStore(store),
+		Usage:        sqlite.NewUsageStore(store),
 		OnSessionEnd: sessionEndHook(a, false),
 		Runtimes:     v5Runtimes(a),
 		SessionEnv: gatewaySessionEnv(func(ctx context.Context) (gatewayGranter, error) {
@@ -198,6 +199,13 @@ func newSessionService(ctx context.Context, a *app.App) (*sessionsvc.Service, er
 		ensureDaemonForLiveServers(ctx, svc.Servers)
 	}
 	svc.UseCheckpoints(newCheckpointService(a), dc.WorkflowRefresh)
+	svc.Resolvers[domain.DecisionBudget] = sessionsvc.BudgetResolver(sqlite.NewUsageStore(store), func(ctx context.Context, id string) error {
+		rs, err := newRunService(ctx, a)
+		if err != nil {
+			return err
+		}
+		return rs.StopSession(ctx, id)
+	})
 	return svc, nil
 }
 

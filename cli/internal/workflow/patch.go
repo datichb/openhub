@@ -3,7 +3,10 @@ package workflow
 import (
 	"fmt"
 	"regexp"
+	"slices"
 	"strings"
+
+	"github.com/datichb/openhub/cli/internal/limits"
 )
 
 // ApplyPatch returns parent with patch applied (`extends`). parent is not
@@ -398,6 +401,7 @@ func (p *patcher) runtime() {
 }
 
 func (p *patcher) limits() {
+	p.limitModels()
 	if !p.has("limits.budget_usd") {
 		return
 	}
@@ -417,6 +421,30 @@ func (p *patcher) limits() {
 		p.dst.Limits = &Limits{}
 	}
 	p.dst.Limits.BudgetUSD = newV
+}
+
+// limitModels narrows the model allow-list: every pattern of the child must
+// be covered by a pattern of the parent list (when the parent has one).
+func (p *patcher) limitModels() {
+	if !p.has("limits.models") {
+		return
+	}
+	newV := p.doc.Spec.Limits.Models
+	if p.dst.Limits != nil && len(p.dst.Limits.Models) > 0 {
+		parent := p.dst.Limits.Models
+		if len(newV) == 0 {
+			p.loosening("limits.models", "[]", strings.Join(parent, ", "))
+			return
+		}
+		if covered := limits.CoveredModels(newV, parent); len(covered) != len(newV) {
+			p.loosening("limits.models", strings.Join(newV, ", "), strings.Join(parent, ", "))
+			return
+		}
+	}
+	if p.dst.Limits == nil {
+		p.dst.Limits = &Limits{}
+	}
+	p.dst.Limits.Models = slices.Clone(newV)
 }
 
 // ---------------------------------------------------------------------------

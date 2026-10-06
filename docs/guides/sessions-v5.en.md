@@ -107,6 +107,22 @@ The Bedrock region comes from the oh config, then `AWS_REGION` / `AWS_DEFAULT_RE
 
 Changing the provider, region or key of a project starts a new server on the next launch. Running sessions keep their settings until their server sleeps.
 
+## Restrictions
+
+Off by default. They limit the sessions of the machine:
+
+| Restriction | Effect |
+|---|---|
+| `max_active_sessions` | number of sessions whose agent works at the same time; beyond, a new session waits in the queue (state `queued`, interactive sessions first) and starts when a slot frees up |
+| `session_budget_usd` | budget of a session, subagents included |
+| `daily_budget_usd` | budget of all the sessions of a day (of the project when set for a project); once spent, no new session |
+| `memory_mb` | memory of the session servers (estimate in `oh doctor`); beyond, new sessions wait, idle groups are put to sleep and oh warns once |
+| `models` | allowed models (patterns on the id sent to the provider, e.g. `eu.anthropic.*`); the proxy refuses the others |
+
+They are set in cascade: `hub.toml` `[limits]` (`oh budget set …`, or **Settings → Session restrictions**), the team `config.toml` (`[limits.recommended]`, `[limits.enforced]`), the project (`oh budget set … --project <p>`), then the workflow (`limits:`). The most specific value wins; a value enforced by the team is a ceiling nobody can loosen. `oh budget show [-p <project>]` shows the effective values, their origin and what was spent today.
+
+Budgets are **soft caps**, checked on the cost reported by the tool: the step that overruns a budget finishes, then a `$` decision appears in the inbox. While it is open, any new step of the session is interrupted. Answers: `oh budget raise <session> [amount]` (default: the configured budget once more), `oh session stop <session>`, or dismiss (one more step, the decision comes back after it). Spending is kept in `oh.db` (usage ledger): it survives daemon restarts and sleep/resume cycles.
+
 ## Environment variables
 
 | Variable | Effect |

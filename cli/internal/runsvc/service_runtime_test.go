@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -16,6 +17,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/bundle"
 	"github.com/datichb/openhub/cli/internal/daemon"
 	"github.com/datichb/openhub/cli/internal/domain"
+	"github.com/datichb/openhub/cli/internal/limits"
 	"github.com/datichb/openhub/cli/internal/provider"
 	ohruntime "github.com/datichb/openhub/cli/internal/runtime"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
@@ -157,12 +159,23 @@ func (r *fakeRuntime) Teardown(context.Context, *ohruntime.Prepared) error {
 }
 
 type fakeDaemon struct {
-	mu      sync.Mutex
-	listens []string
-	revoked []string
+	mu       sync.Mutex
+	listens  []string
+	revoked  []string
+	memoryMB int
+	grants   []daemon.GrantRequest
 }
 
-func (d *fakeDaemon) IssueGrant(context.Context, daemon.GrantRequest) (daemon.GrantResponse, error) {
+func (d *fakeDaemon) Health(context.Context) (daemon.Health, error) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	return daemon.Health{MemoryMB: d.memoryMB}, nil
+}
+
+func (d *fakeDaemon) IssueGrant(_ context.Context, req daemon.GrantRequest) (daemon.GrantResponse, error) {
+	d.mu.Lock()
+	d.grants = append(d.grants, req)
+	d.mu.Unlock()
 	return daemon.GrantResponse{Token: "ohs_tok", BaseURL: "http://127.0.0.1:5555/amazon-bedrock"}, nil
 }
 func (d *fakeDaemon) RevokeOwner(_ context.Context, owner string) error {
@@ -212,6 +225,7 @@ func newRTFixture(t *testing.T) *rtFixture {
 		Secrets: fakeSecrets{"openhub.provider.bedrock.token": "real-secret"}, ServersDir: filepath.Join(root, "servers"),
 		Daemon:   func(context.Context) (DaemonClient, error) { return f.dc, nil },
 		Runtimes: map[sessionspec.RuntimeKind]ohruntime.Runtime{sessionspec.RuntimeContainer: f.rt},
+		Usage:    sqlite.NewUsageStore(st),
 	}
 	return f
 }
@@ -428,4 +442,78 @@ func TestIsolateUserConfigReachesTheAdapter(t *testing.T) {
 	cred := provider.ResolvedCredential{Secret: "s"}
 	assert.NotEqual(t, configFingerprint(plain, cred, "r"), configFingerprint(req, cred, "r"), "a strict group is not shared")
 	assert.NotEmpty(t, r.GroupKey)
+}
+
+// I6: beyond the maximum of working sessions, the first prompt waits in the
+// queue (the daemon sends it later); the model allow-list goes to the grant.
+func TestStartSessionQueuesBeyondMaxActive(t *testing.T) {
+	f := newRTFixture(t)
+	f.svc.SessionsDir = filepath.Join(f.root, "sessions")
+	ctx := context.Background()
+	lim := limits.Resolve(limits.Input{Hub: limits.Limits{MaxActiveSessions: 1, Models: []string{"eu.anthropic.*"}}, ProjectID: "p1"})
+	req := f.request(f.project)
+	req.Limits, req.Prompt = lim, "do it"
+
+	r1, err := f.svc.StartSession(ctx, req)
+	require.NoError(t, err)
+	assert.False(t, r1.Queued)
+	got, err := limits.Load(f.svc.SessionsDir, r1.SessionID)
+	require.NoError(t, err)
+	assert.Equal(t, 1, got.MaxActiveSessions, "restrictions kept for the daemon and resumes")
+	require.NotEmpty(t, f.dc.grants)
+	assert.Equal(t, []string{"eu.anthropic.*"}, f.dc.grants[0].AllowedModels)
+
+	r2, err := f.svc.StartSession(ctx, req)
+	require.NoError(t, err)
+	assert.True(t, r2.Queued)
+	assert.Equal(t, 0, r2.Ahead)
+	q, ok, err := limits.LoadQueued(f.svc.SessionsDir, r2.SessionID)
+	require.NoError(t, err)
+	require.True(t, ok)
+	assert.Equal(t, "do it", q.Prompt)
+	assert.Equal(t, limits.ScopeGlobal, q.Scope)
+	sess, err := f.svc.Sessions.Get(ctx, r2.SessionID)
+	require.NoError(t, err)
+	assert.Equal(t, domain.RunQueued, sess.State)
+
+	r3, err := f.svc.StartSession(ctx, req)
+	require.NoError(t, err)
+	assert.True(t, r3.Queued)
+	assert.Equal(t, 1, r3.Ahead, "first come, first served")
+
+	// Without a prompt (interactive, the user drives it): never queued.
+	req.Prompt = ""
+	r4, err := f.svc.StartSession(ctx, req)
+	require.NoError(t, err)
+	assert.False(t, r4.Queued)
+}
+
+func TestStartSessionQueuesOverMemoryCap(t *testing.T) {
+	f := newRTFixture(t)
+	f.svc.SessionsDir = filepath.Join(f.root, "sessions")
+	f.dc.memoryMB = 5000
+	req := f.request(f.project)
+	req.Prompt = "go"
+	req.Limits = limits.Resolve(limits.Input{Hub: limits.Limits{MemoryMB: 4000}})
+	r, err := f.svc.StartSession(context.Background(), req)
+	require.NoError(t, err)
+	assert.True(t, r.Queued)
+}
+
+func TestStartSessionRefusedWhenDailyBudgetSpent(t *testing.T) {
+	f := newRTFixture(t)
+	ctx := context.Background()
+	day := domain.UsageDay(time.Now())
+	require.NoError(t, f.svc.Usage.AddSession(ctx, domain.SessionUsage{Day: day, SessionID: "old", ProjectID: "p1", CostUSD: 3}))
+	req := f.request(f.project)
+	req.Limits = limits.Resolve(limits.Input{Project: limits.Limits{DailyBudgetUSD: 3}, ProjectID: "p1"})
+	_, err := f.svc.StartSession(ctx, req)
+	require.ErrorIs(t, err, ErrDailyBudget)
+	var be *DailyBudgetError
+	require.ErrorAs(t, err, &be)
+	assert.Equal(t, "project:p1", be.Scope)
+
+	require.NoError(t, f.svc.Usage.AddBudgetExtra(ctx, "project:p1", day, 1))
+	_, err = f.svc.StartSession(ctx, req)
+	assert.NoError(t, err, "raised for today")
 }

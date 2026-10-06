@@ -226,7 +226,9 @@ func (w *watcher) onEvent(ctx context.Context, ev adapters.ToolEvent) {
 
 	switch {
 	case ev.Kind == adapters.EventExecStarted:
-		w.clearAlerts(ctx, ev.SessionID)
+		if !w.holdOverBudget(ctx, ev.SessionID, ev.SessionID) {
+			w.clearAlerts(ctx, ev.SessionID)
+		}
 	case ev.Kind == adapters.EventExecEnded && ev.Outcome == "failed":
 		w.raiseFailure(ctx, ev)
 	}
@@ -237,7 +239,8 @@ func (w *watcher) onEvent(ctx context.Context, ev adapters.ToolEvent) {
 	}
 	w.persist(ctx, ev.SessionID, refreshUsage)
 	if ev.Kind == adapters.EventExecEnded {
-		w.d.wake() // a pending "sleep when idle" policy may apply now
+		w.raiseBudget(ctx, ev.SessionID) // the step is over: budgets apply now
+		w.d.wake()                       // a pending "sleep when idle" policy may apply now
 		if ev.Outcome == "succeeded" {
 			if attached, _ := w.d.clientState(w.srv.GroupKey); !attached {
 				w.d.notes.turnDone(ev.SessionID)
@@ -405,6 +408,9 @@ func (w *watcher) persist(ctx context.Context, id string, withUsage bool) {
 	if err != nil || isTerminal(sess.State) {
 		return
 	}
+	if sess.State == domain.RunQueued && state == domain.RunIdle {
+		state = domain.RunQueued // its first prompt waits for a slot
+	}
 	changed := sess.State != state
 	if changed {
 		now := time.Now()
@@ -418,6 +424,7 @@ func (w *watcher) persist(ctx context.Context, id string, withUsage bool) {
 			}
 			sess.Cost, sess.TokensIn, sess.TokensOut = res.Cost, res.TokensIn, res.TokensOut
 			sess.TokensReasoning, sess.TokensCacheRead = res.TokensReasoning, res.TokensCacheRead
+			w.account(ctx, id, id, res)
 		}
 	}
 	if changed {
@@ -493,6 +500,12 @@ func (w *watcher) onChildEvent(ctx context.Context, root string, ev adapters.Too
 	switch ev.Kind {
 	case adapters.EventDecisionAsked, adapters.EventDecisionReplied, adapters.EventExecEnded:
 		w.refreshChildPending(ctx, root, ev.SessionID)
+	}
+	switch ev.Kind {
+	case adapters.EventExecStarted:
+		w.holdOverBudget(ctx, root, ev.SessionID)
+	case adapters.EventExecEnded:
+		w.accountChild(ctx, root, ev.SessionID) // subagent cost counts for the oh session
 	}
 }
 

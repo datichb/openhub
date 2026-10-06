@@ -17,6 +17,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/datichb/openhub/cli/internal/adapters"
@@ -26,6 +27,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/deploy"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/filelock"
+	"github.com/datichb/openhub/cli/internal/limits"
 	"github.com/datichb/openhub/cli/internal/provider"
 	ohruntime "github.com/datichb/openhub/cli/internal/runtime"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
@@ -40,6 +42,8 @@ type DaemonClient interface {
 	Touch(ctx context.Context, group string) error
 	// ProxyListen makes the proxy also listen on host (containers on Linux).
 	ProxyListen(ctx context.Context, host string) (string, error)
+	// Health reports the daemon state (memory used by the tool servers).
+	Health(ctx context.Context) (daemon.Health, error)
 }
 
 // containerTooler is implemented by adapters able to install their tool in
@@ -70,6 +74,9 @@ type Service struct {
 	SessionEnv SessionEnvFunc
 	// Decisions, when set, closes the pending decisions of stopped sessions.
 	Decisions domain.DecisionStore
+	// Usage is the usage ledger: a new session is refused when the daily
+	// budget of its restrictions is spent (nil = not checked).
+	Usage domain.UsageStore
 	// OnSessionEnd is called when a session is stopped for good (team
 	// session.complete event).
 	OnSessionEnd func(ctx context.Context, s domain.Session)
@@ -136,6 +143,11 @@ type StartRequest struct {
 	// gateway outside the local runtime (nil = no `beads:` block: read-only
 	// default; empty = no bd command). Kept for resumes.
 	BeadsAllow []string
+
+	// Limits are the resolved restrictions of the session (I6; zero = none).
+	// Their model allow-list applies to the group's proxy grant; budgets and
+	// the queue are enforced by the daemon. Kept for resumes.
+	Limits limits.Resolved
 }
 
 // StartResult is the outcome of StartSession.
@@ -147,6 +159,10 @@ type StartResult struct {
 	Report       adapters.VisibilityReport
 	AttachMethod termlaunch.Method
 	AttachErr    error // non-nil when no terminal could be opened (caller: browser/suspend)
+	// Queued: the first prompt waits for a free slot (restrictions); Ahead
+	// is the number of sessions queued before it.
+	Queued bool
+	Ahead  int
 }
 
 // ErrServerNotRunning is returned when the server of a session is asleep or stopped.
@@ -168,10 +184,14 @@ func (s *Service) StartSession(ctx context.Context, req StartRequest) (*StartRes
 	if !spec.HasAgent(entry) {
 		return nil, fmt.Errorf("runsvc: agent %q is not in the bundle", entry)
 	}
+	if err := s.checkDailyBudget(ctx, req.Limits); err != nil {
+		return nil, err
+	}
 	dc, err := s.Daemon(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("starting oh daemon: %w", err)
 	}
+	applyLimits(&req)
 
 	cred, region, err := s.resolveProvider(ctx, &req)
 	if err != nil {
@@ -248,16 +268,36 @@ func (s *Service) StartSession(ctx context.Context, req StartRequest) (*StartRes
 	if err := s.saveBeadsAllow(sid, req.BeadsAllow); err != nil {
 		return nil, fmt.Errorf("saving session Beads allow-list: %w", err)
 	}
+	if s.SessionsDir != "" {
+		if err := limits.Save(s.SessionsDir, sid, req.Limits); err != nil {
+			return nil, fmt.Errorf("saving session restrictions: %w", err)
+		}
+	}
+	var queued *limits.Queued
+	if req.Prompt != "" {
+		queued, res.Ahead = s.queueSlot(ctx, dc, req)
+	}
 	// The oh row is written before the tool session exists, so that the
 	// daemon tracks the session from its very first event.
-	s.persistSession(ctx, req, srv, sid, entry)
+	state := domain.RunActive
+	if queued != nil {
+		state = domain.RunQueued
+	}
+	s.persistSession(ctx, req, srv, sid, entry, state)
 	if err := s.Adapter.CreateSession(ctx, h, ss); err != nil {
 		s.markFailed(ctx, sid)
 		return nil, fmt.Errorf("creating session: %w", err)
 	}
 	res.SessionID = sid
 
-	if req.Prompt != "" {
+	switch {
+	case queued != nil:
+		// The daemon sends the prompt when a slot frees up.
+		if err := limits.SaveQueued(s.SessionsDir, sid, *queued); err != nil {
+			return res, fmt.Errorf("queueing the session: %w", err)
+		}
+		res.Queued = true
+	case req.Prompt != "":
 		if err := s.Adapter.SendPrompt(ctx, h, sid, req.Prompt); err != nil {
 			return res, fmt.Errorf("sending initial prompt: %w", err)
 		}
@@ -318,7 +358,7 @@ func (s *Service) groupBusy(ctx context.Context, projectID, gk string) bool {
 		return true
 	}
 	for _, o := range list {
-		if o.GroupKey == gk && (o.State == domain.RunActive || o.State == domain.RunWaiting || o.State == domain.RunPreparing) {
+		if o.GroupKey == gk && (o.State == domain.RunActive || o.State == domain.RunWaiting || o.State == domain.RunPreparing || o.State == domain.RunQueued) {
 			return true
 		}
 	}
@@ -404,8 +444,14 @@ func (s *Service) resolveProvider(ctx context.Context, req *StartRequest) (provi
 func configFingerprint(req StartRequest, cred provider.ResolvedCredential, region string) string {
 	h := sha256.New()
 	secret := sha256.Sum256([]byte(cred.Secret))
-	for _, part := range []string{req.ProjectID, deploy.OpencodeProviderID(req.Provider), region,
-		string(cred.Source.Kind), cred.Source.KeychainKey, cred.Source.Profile, hex.EncodeToString(secret[:])} {
+	parts := []string{req.ProjectID, deploy.OpencodeProviderID(req.Provider), region,
+		string(cred.Source.Kind), cred.Source.KeychainKey, cred.Source.Profile, hex.EncodeToString(secret[:])}
+	if len(req.AllowedModels) > 0 {
+		// The allow-list is enforced on the group's proxy grant: another
+		// list needs another server. (Absent = fingerprint unchanged.)
+		parts = append(parts, "models="+strings.Join(req.AllowedModels, ","))
+	}
+	for _, part := range parts {
 		h.Write([]byte(part))
 		h.Write([]byte{0})
 	}
@@ -600,7 +646,7 @@ func (s *Service) proxyURLFor(ctx context.Context, dc DaemonClient, pg *ohruntim
 	return u.String(), nil
 }
 
-func (s *Service) persistSession(ctx context.Context, req StartRequest, srv *domain.Server, sid, entry string) {
+func (s *Service) persistSession(ctx context.Context, req StartRequest, srv *domain.Server, sid, entry string, state domain.RunState) {
 	if s.Sessions == nil || req.ProjectID == "" {
 		return
 	}
@@ -611,7 +657,7 @@ func (s *Service) persistSession(ctx context.Context, req StartRequest, srv *dom
 		LaunchPath: req.Location, MemberID: req.MemberID, Platform: s.Adapter.Name(), ExternalSessionID: &ext,
 		PID: srv.PID, Type: domain.SessionTypeInteractive,
 		WorkflowID: req.WorkflowID, EntryAgent: entry, BundleHash: srv.BundleHash, GroupKey: srv.GroupKey,
-		Runtime: srv.Runtime, Mode: req.Mode, State: domain.RunActive,
+		Runtime: srv.Runtime, Mode: req.Mode, State: state,
 		WorkflowLayer: req.WorkflowLayer, WorkflowVersion: req.WorkflowVersion, WorkflowRisk: req.WorkflowRisk,
 		Location: req.LocationKind, ParentSessionID: req.ParentSessionID,
 	}
@@ -762,6 +808,12 @@ func (s *Service) ResumeSession(ctx context.Context, sessionID string, req Start
 		req.Location = sess.LaunchPath
 	}
 	req.ProjectID = sess.ProjectID
+	if s.SessionsDir != "" {
+		if l, err := limits.Load(s.SessionsDir, sessionID); err == nil {
+			req.Limits = l
+		}
+	}
+	applyLimits(&req)
 	dc, err := s.Daemon(ctx)
 	if err != nil {
 		return err

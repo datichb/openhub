@@ -70,6 +70,11 @@ type Options struct {
 	// server group, served over HTTP to runtimes outside the machine
 	// (P4-T08). Nil = MCP gateway unavailable.
 	MCPCommand func(ctx context.Context, srv domain.Server, name string) (gateway.MCPCommand, error)
+	// Usage is the usage ledger (I6 budgets, proxy traffic). Nil = no
+	// accounting, no budget enforcement.
+	Usage domain.UsageStore
+	// Memory measures the tool servers (default: ps process trees).
+	Memory MemoryFunc
 	// Capability guards the routes that hand out access or stop sessions
 	// (LoadCapability; "" = unguarded).
 	Capability string
@@ -105,6 +110,11 @@ type Daemon struct {
 	// prevProxyPort is the proxy port of the previous daemon when it could
 	// not be bound again (0 = unchanged).
 	prevProxyPort int
+	ledger        ledger
+	memoryMB      int                          // memory used by the ready servers (last measure)
+	memoryOver    bool                         // above the cap at the last pass (warned)
+	queuedGroups  map[string]bool              // groups holding queued sessions (never sleep)
+	proxyUsage    map[string]domain.ProxyUsage // proxy traffic not flushed yet, by group
 	sigMu         sync.Mutex
 	sigCache      map[string]credproxy.Auth // SigV4 signers by profile/region
 	kick          chan struct{}
@@ -144,8 +154,9 @@ func Run(ctx context.Context, opts Options) error {
 	}
 	defer unlock()
 
-	d := &Daemon{opts: opts, proxy: credproxy.New(), pending: map[string]domain.ProxyGrant{}, clients: map[string]client{}, verified: map[string]bool{}, verifyFails: map[string]int{}, policies: map[string]QuitPolicy{}, watchers: map[string]*watcher{}, feed: newHub(), lastBusy: time.Now(), started: time.Now(), stop: make(chan struct{}), restored: make(chan struct{}), sigCache: map[string]credproxy.Auth{}, kick: make(chan struct{}, 1)}
+	d := &Daemon{opts: opts, proxy: credproxy.New(), pending: map[string]domain.ProxyGrant{}, clients: map[string]client{}, verified: map[string]bool{}, verifyFails: map[string]int{}, policies: map[string]QuitPolicy{}, watchers: map[string]*watcher{}, feed: newHub(), lastBusy: time.Now(), started: time.Now(), stop: make(chan struct{}), restored: make(chan struct{}), sigCache: map[string]credproxy.Auth{}, ledger: ledger{last: map[string]adapters.SessionResult{}}, kick: make(chan struct{}, 1)}
 	d.proxy.Hooks = d.hooksHandler()
+	d.proxy.OnUsage = d.onProxyUsage
 	if err := d.startProxy(); err != nil {
 		return err
 	}
@@ -215,6 +226,7 @@ func Run(ctx context.Context, opts Options) error {
 func (d *Daemon) shutdown() error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
+	d.flushProxyUsage(ctx)
 	d.feed.close() // ends the live streams, so that Shutdown does not wait for them
 	if d.mcp != nil {
 		d.mcp.Close()
@@ -399,10 +411,14 @@ func (d *Daemon) register(ctx context.Context, g domain.ProxyGrant, secret strin
 	if err != nil {
 		return err
 	}
-	return d.proxy.IssueWithHash(g.TokenHash, credproxy.Grant{
+	if err := d.proxy.IssueWithHash(g.TokenHash, credproxy.Grant{
 		SessionID: g.Owner, Provider: g.Provider, Upstream: up,
 		AllowedModels: g.AllowedModels, MaxTokens: g.MaxTokens,
-	})
+	}); err != nil {
+		return err
+	}
+	d.continueProxyUsage(ctx, g.Owner, g.TokenHash)
+	return nil
 }
 
 func upstreamFor(provider, region string, auth credproxy.Auth) (credproxy.Upstream, error) {
@@ -452,7 +468,14 @@ func (d *Daemon) supervise(ctx context.Context) bool {
 	}
 	ready = d.sleepStaleGroups(ctx, ready)
 	d.syncWatchers(ctx, ready)
+	d.measureMemory(ctx, ready)
+	held := d.dequeue(ctx, ready)
+	d.mu.Lock()
+	d.queuedGroups = held
+	d.mu.Unlock()
 	d.applyLifecycle(ctx, ready)
+	d.enforceMemory(ctx, ready, held)
+	d.flushProxyUsage(ctx)
 	d.notes.requestScan() // decisions raised by other processes (CLI, TUI)
 	d.mu.Lock()
 	defer d.mu.Unlock()

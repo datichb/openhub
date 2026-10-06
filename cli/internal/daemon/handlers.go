@@ -78,6 +78,7 @@ func (d *Daemon) handleHealth(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, Health{
 		Version: d.opts.Version, PID: os.Getpid(), ProxyURL: d.proxy.URL(),
 		Servers: d.liveServers(r.Context()), Grants: grants, PendingGrants: pending, Restoring: restoring,
+		MemoryMB: d.memoryUsed(),
 	})
 }
 

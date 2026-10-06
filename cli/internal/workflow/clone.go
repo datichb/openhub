@@ -1,5 +1,7 @@
 package workflow
 
+import "slices"
+
 // Deep copies of the oh/v1 document, used by the resolver so that parent
 // documents are never mutated.
 
@@ -81,7 +83,7 @@ func (s *Spec) Clone() *Spec {
 		}
 	}
 	if s.Limits != nil {
-		c.Limits = &Limits{BudgetUSD: clonePtr(s.Limits.BudgetUSD)}
+		c.Limits = &Limits{BudgetUSD: clonePtr(s.Limits.BudgetUSD), Models: slices.Clone(s.Limits.Models)}
 	}
 	return &c
 }

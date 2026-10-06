@@ -332,9 +332,14 @@ type PreconditionSuggest struct {
 	Resume bool `yaml:"resume,omitempty"`
 }
 
-// Limits are optional per-session caps (I6).
+// Limits are optional per-session caps (I6), on top of the hub, team and
+// project restrictions (internal/limits).
 type Limits struct {
+	// BudgetUSD is the budget of a session (soft cap, checked between steps).
 	BudgetUSD *float64 `yaml:"budget_usd,omitempty"`
+	// Models restricts the models the sessions may use (wildcard patterns;
+	// additive to oh/v1).
+	Models []string `yaml:"models,omitempty"`
 }
 
 // ---------------------------------------------------------------------------

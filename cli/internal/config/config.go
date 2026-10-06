@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/datichb/openhub/cli/internal/limits"
 	"github.com/datichb/openhub/cli/internal/workflow"
 	toml "github.com/pelletier/go-toml/v2"
 	"github.com/spf13/viper"
@@ -55,6 +56,9 @@ type Config struct {
 	Execution ExecutionConfig `mapstructure:"execution" toml:"execution,omitempty"`
 	// Remote holds the GitLab CI targets of the remote runtime (v5 phase 5).
 	Remote RemoteConfig `mapstructure:"remote" toml:"remote,omitempty"`
+	// Limits holds the optional session restrictions of the hub level (I6,
+	// off by default; cascade in internal/limits).
+	Limits limits.Limits `mapstructure:"limits" toml:"limits,omitempty"`
 }
 
 // ExecutionConfig configures where v5 sessions run.

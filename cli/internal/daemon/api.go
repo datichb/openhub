@@ -14,6 +14,9 @@ type Health struct {
 	Grants        int    `json:"grants"`              // active proxy grants
 	PendingGrants int    `json:"pending_grants"`      // grants waiting for their secret
 	Restoring     bool   `json:"restoring,omitempty"` // persisted grants still being restored
+	// MemoryMB is the memory used by the live tool servers (resident size
+	// of their process trees), measured at each supervision.
+	MemoryMB int `json:"memory_mb,omitempty"`
 }
 
 // GrantRequest is the body of POST /v1/grants.
