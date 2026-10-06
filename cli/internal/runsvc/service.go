@@ -714,7 +714,7 @@ func (s *Service) Attach(ctx context.Context, sessionID, dir string, pref termla
 	}
 	m, attempts, err := termlaunch.Launch(ctx, termlaunch.Options{
 		Pref: pref, ITermStyle: style, Dir: dir, Title: title,
-		Argv: attachArgv(exe, sessionID),
+		Argv: attachArgv(exe, sessionID), Env: attachEnv(),
 	})
 	for _, a := range attempts {
 		if a.Err != nil {
@@ -724,14 +724,18 @@ func (s *Service) Attach(ctx context.Context, sessionID, dir string, pref termla
 	return m, err
 }
 
-// attachArgv is the command run in the new terminal. OH_HOME (relocated hub)
-// is forwarded because the new terminal does not inherit oh's environment.
+// attachArgv is the command run in the new terminal.
 func attachArgv(exe, sessionID string) []string {
-	argv := []string{exe, "session", "attach", sessionID, "--exec"}
+	return []string{exe, "session", "attach", sessionID, "--exec"}
+}
+
+// attachEnv is the environment of that command: OH_HOME (relocated hub) is
+// forwarded because the new terminal does not inherit oh's environment.
+func attachEnv() map[string]string {
 	if home := os.Getenv("OH_HOME"); home != "" {
-		argv = append([]string{"/usr/bin/env", "OH_HOME=" + home}, argv...)
+		return map[string]string{"OH_HOME": home}
 	}
-	return argv
+	return nil
 }
 
 // AttachCommand returns the tool client command and environment for a

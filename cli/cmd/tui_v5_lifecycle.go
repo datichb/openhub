@@ -95,7 +95,9 @@ func v5BeforeQuit(a *app.App, sh *shell.Shell) func(quit func()) {
 			quit()
 		}
 		go func() {
-			ctx := context.Background()
+			// Bounded reads: an unresponsive daemon must not hold the quit.
+			ctx, cancel := context.WithTimeout(context.Background(), quitReadTimeout)
+			defer cancel()
 			if !v5Available(ctx) {
 				sh.App().QueueUpdateDraw(finish)
 				return
@@ -118,6 +120,14 @@ func v5BeforeQuit(a *app.App, sh *shell.Shell) func(quit func()) {
 				go func() {
 					if err := svc.ApplyQuit(context.Background(), plan, choices); err != nil {
 						slog.Warn("quit policy not fully applied", "error", err)
+					}
+					if inProcessDaemonRunning() && len(plan.Working) > 0 {
+						// The daemon stops with this process (Windows): let the
+						// chosen steps finish first.
+						sh.App().QueueUpdateDraw(func() { sh.ShowToast(i18n.T("cmd.daemon.inprocess_waiting"), shell.ToastInfo) })
+						wctx, cancel := context.WithTimeout(context.Background(), quitStepWait)
+						_ = svc.WaitFinished(wctx, plan, choices)
+						cancel()
 					}
 					sh.App().QueueUpdateDraw(finish)
 				}()
@@ -149,13 +159,22 @@ func v5BeforeQuit(a *app.App, sh *shell.Shell) func(quit func()) {
 	}
 }
 
-// quitFields builds one choice per working session (10 §7.5).
+// quitStepWait bounds the wait for the working steps when the daemon lives
+// in this process (Windows); a second Ctrl+Q quits at once.
+const quitStepWait = 30 * time.Minute
+
+// quitReadTimeout bounds the reads of the quit dialog (daemon, stores).
+const quitReadTimeout = 10 * time.Second
+
+// quitFields builds one choice per working session (10 §7.5). "Keep running
+// in the background" is not offered when the daemon lives in this oh process
+// (Windows): it stops with it.
 func quitFields(ctx context.Context, a *app.App, plan runsvc.QuitPlan) []views.FormField {
-	opts := []views.SelectOption{
-		{Label: i18n.T("tui.sessions.quit_opt.finish"), Value: string(runsvc.QuitFinish)},
-		{Label: i18n.T("tui.sessions.quit_opt.background"), Value: string(runsvc.QuitBackground)},
-		{Label: i18n.T("tui.sessions.quit_opt.stop"), Value: string(runsvc.QuitStop)},
+	opts := []views.SelectOption{{Label: i18n.T("tui.sessions.quit_opt.finish"), Value: string(runsvc.QuitFinish)}}
+	if !inProcessDaemonRunning() {
+		opts = append(opts, views.SelectOption{Label: i18n.T("tui.sessions.quit_opt.background"), Value: string(runsvc.QuitBackground)})
 	}
+	opts = append(opts, views.SelectOption{Label: i18n.T("tui.sessions.quit_opt.stop"), Value: string(runsvc.QuitStop)})
 	names := map[string]string{}
 	fields := make([]views.FormField, 0, len(plan.Working))
 	for _, s := range plan.Working {

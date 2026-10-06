@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/datichb/openhub/cli/internal/daemon"
 	"github.com/datichb/openhub/cli/internal/domain"
@@ -101,4 +102,37 @@ func (s *Service) ApplyQuit(ctx context.Context, plan QuitPlan, choices map[stri
 		}
 	}
 	return errors.Join(errs...)
+}
+
+// WaitFinished waits until the server groups of the working sessions whose
+// choice is "finish the step" are asleep or stopped (the daemon sleeps them
+// after their step), until ctx is done. Used when the daemon lives in the
+// oh process (Windows): it must not stop before those steps end.
+func (s *Service) WaitFinished(ctx context.Context, plan QuitPlan, choices map[string]QuitChoice) error {
+	groups := map[string]bool{}
+	for _, sess := range plan.Working {
+		c := choices[sess.ID]
+		if (c == "" || c == QuitFinish) && sess.GroupKey != "" {
+			groups[sess.GroupKey] = true
+		}
+	}
+	t := time.NewTicker(time.Second)
+	defer t.Stop()
+	for len(groups) > 0 {
+		for g := range groups {
+			srv, err := s.Servers.Get(ctx, g)
+			if err != nil || srv.Status != domain.ServerReady {
+				delete(groups, g)
+			}
+		}
+		if len(groups) == 0 {
+			return nil
+		}
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-t.C:
+		}
+	}
+	return nil
 }

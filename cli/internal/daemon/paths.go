@@ -45,5 +45,6 @@ func GroupLockPath(serversDir, group string) string {
 	return filepath.Join(serversDir, group, "lock")
 }
 
-// ErrUnsupported: the background daemon is not supported on Windows yet (O16).
-var ErrUnsupported = errors.New("ohd is not supported on Windows")
+// ErrUnsupported: no daemon can be started (in-process mode without an
+// in-process starter).
+var ErrUnsupported = errors.New("ohd cannot be started here")

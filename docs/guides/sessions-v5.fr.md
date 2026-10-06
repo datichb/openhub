@@ -133,6 +133,6 @@ Les budgets sont des **plafonds souples**, vérifiés sur le coût indiqué par 
 
 ## Limites
 
-- **Windows** : les sessions v5 ne sont pas encore prises en charge, faute de démon. Utilisez opencode V1 ou WSL.
+- **Windows** (sessions locales seulement) : pas de démon en arrière-plan ; le proxy d'identifiants et le suivi des sessions tournent dans le processus oh (la TUI, ou la commande qui a ouvert la session dans le terminal courant). Les sessions ne tournent que tant que cet oh est ouvert : en le quittant, il attend la fin des étapes choisies, puis met les sessions en veille (reprise avec `oh session attach`). `oh doctor` le rappelle. Pour des sessions qui survivent à oh, utilisez WSL.
 - **Port du proxy** : le démon garde le port de son proxy d'un redémarrage à l'autre. Si un autre programme l'a pris entre-temps, le démon en choisit un autre et met en veille les serveurs qui utilisent encore l'ancien (ils ne joignent plus le fournisseur) ; les sessions qui travaillaient affichent une erreur dans « À traiter ». Reprenez-les (`oh session resume <id>` ou attachement) : leur serveur redémarre avec le nouveau port.
 - **Sécurité en local** : l'agent tourne sous votre utilisateur. Il peut atteindre le socket du démon et `oh.db` (empreintes de jetons seulement), mais jamais la clé LLM ; l'émission de nouveaux jetons est réservée à la CLI oh (capacité dans le trousseau, voir `oh doctor`). Voir [SECURITY.fr.md](../../SECURITY.fr.md).

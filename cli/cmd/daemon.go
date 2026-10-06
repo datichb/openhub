@@ -35,55 +35,11 @@ var daemonRunCmd = &cobra.Command{
 		a := MustApp()
 		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 		defer stop()
-		var (
-			adOnce sync.Once
-			ad     *opencodev2.Adapter
-		)
 		capability, _, err := daemonCapability(ctx)
 		if err != nil {
 			return err
 		}
-		err = daemon.Run(ctx, daemon.Options{
-			Capability:  capability,
-			Paths:       daemon.Paths{Dir: ohRunDir()},
-			Version:     buildinfo.Version,
-			Grants:      sqlite.NewGrantStore(store),
-			Servers:     sqlite.NewServerStore(store),
-			GatewayView: gatewayView(sqlite.NewServerStore(store)),
-			MCPCommand:  gatewayMCPCommand(ohBundlesDir()),
-			Sessions:    a.Sessions,
-			Decisions:   sqlite.NewDecisionStore(store),
-			Usage:       sqlite.NewUsageStore(store),
-			SessionsDir: ohSessionsDir(),
-			ServersDir:  ohServersDir(),
-			Checkpoints: newCheckpointService(a),
-			Notify:      daemonNotifier(a),
-			ProjectName: func(ctx context.Context, id string) string {
-				if p, err := a.Projects.Get(ctx, id); err == nil {
-					return p.Name
-				}
-				return ""
-			},
-			Secrets:   a.Secrets,
-			IdleSleep: time.Duration(a.Config.Session.IdleSleepMinutes) * time.Minute,
-			// Async: a git push must not stall supervision (the daemon
-			// outlives the last server by IdleAfter).
-			OnSessionEnd: sessionEndHook(a, true),
-			Adapter: func(name string) adapters.ToolAdapter {
-				if name != opencodev2.Name {
-					return nil
-				}
-				adOnce.Do(func() {
-					if detected, err := detectV2Adapter(ctx); err == nil {
-						ad = detected
-					}
-				})
-				if ad == nil {
-					return nil
-				}
-				return ad
-			},
-		})
+		err = daemon.Run(ctx, daemonOptions(ctx, a, capability))
 		if errors.Is(err, daemon.ErrAlreadyRunning) {
 			fmt.Fprintln(cmd.ErrOrStderr(), i18n.T("cmd.daemon.already_running"))
 			return nil
@@ -148,4 +104,55 @@ func init() {
 	daemonStopCmd.Flags().Bool("force", false, "Arrêter même si des sessions tournent")
 	daemonCmd.AddCommand(daemonRunCmd, daemonStatusCmd, daemonStopCmd)
 	rootCmd.AddCommand(daemonCmd)
+}
+
+// daemonOptions are the options of the oh daemon of this machine (`oh
+// daemon run`, or inside the oh process when the daemon cannot run in the
+// background: Windows).
+func daemonOptions(ctx context.Context, a *app.App, capability string) daemon.Options {
+	var (
+		adOnce sync.Once
+		ad     *opencodev2.Adapter
+	)
+	return daemon.Options{
+		Capability:  capability,
+		Paths:       daemon.Paths{Dir: ohRunDir()},
+		Version:     buildinfo.Version,
+		Grants:      sqlite.NewGrantStore(store),
+		Servers:     sqlite.NewServerStore(store),
+		GatewayView: gatewayView(sqlite.NewServerStore(store)),
+		MCPCommand:  gatewayMCPCommand(ohBundlesDir()),
+		Sessions:    a.Sessions,
+		Decisions:   sqlite.NewDecisionStore(store),
+		Usage:       sqlite.NewUsageStore(store),
+		SessionsDir: ohSessionsDir(),
+		ServersDir:  ohServersDir(),
+		Checkpoints: newCheckpointService(a),
+		Notify:      daemonNotifier(a),
+		ProjectName: func(ctx context.Context, id string) string {
+			if p, err := a.Projects.Get(ctx, id); err == nil {
+				return p.Name
+			}
+			return ""
+		},
+		Secrets:   a.Secrets,
+		IdleSleep: time.Duration(a.Config.Session.IdleSleepMinutes) * time.Minute,
+		// Async: a git push must not stall supervision (the daemon
+		// outlives the last server by IdleAfter).
+		OnSessionEnd: sessionEndHook(a, true),
+		Adapter: func(name string) adapters.ToolAdapter {
+			if name != opencodev2.Name {
+				return nil
+			}
+			adOnce.Do(func() {
+				if detected, err := detectV2Adapter(ctx); err == nil {
+					ad = detected
+				}
+			})
+			if ad == nil {
+				return nil
+			}
+			return ad
+		},
+	}
 }

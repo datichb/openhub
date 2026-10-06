@@ -75,6 +75,10 @@ type Options struct {
 	Usage domain.UsageStore
 	// Memory measures the tool servers (default: ps process trees).
 	Memory MemoryFunc
+	// StopServersOnExit puts the live server groups to sleep when the
+	// daemon stops (in-process daemon: the proxy ends with the oh process,
+	// the servers could not reach their provider any more).
+	StopServersOnExit bool
 	// Capability guards the routes that hand out access or stop sessions
 	// (LoadCapability; "" = unguarded).
 	Capability string
@@ -224,6 +228,9 @@ func Run(ctx context.Context, opts Options) error {
 }
 
 func (d *Daemon) shutdown() error {
+	if d.opts.StopServersOnExit {
+		d.sleepAll()
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	d.flushProxyUsage(ctx)
@@ -236,6 +243,24 @@ func (d *Daemon) shutdown() error {
 	}
 	_ = os.Remove(d.opts.Paths.Socket())
 	return nil
+}
+
+// sleepAll puts every ready server group to sleep (resumable sessions).
+func (d *Daemon) sleepAll() {
+	if d.opts.Servers == nil {
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	servers, err := d.opts.Servers.List(ctx)
+	if err != nil {
+		return
+	}
+	for _, s := range servers {
+		if s.Status == domain.ServerReady && s.PID > 0 && processAlive(s.PID) {
+			d.putToSleep(ctx, s, false)
+		}
+	}
 }
 
 func (d *Daemon) requestStop() { d.stopOnce.Do(func() { close(d.stop) }) }

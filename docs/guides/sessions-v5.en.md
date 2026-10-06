@@ -133,6 +133,6 @@ Budgets are **soft caps**, checked on the cost reported by the tool: the step th
 
 ## Limitations
 
-- **Windows**: v5 sessions are not supported yet, because the daemon is missing. Use opencode V1 or WSL.
+- **Windows** (local sessions only): there is no background daemon; the credential proxy and the session tracking run inside the oh process (TUI, or the command that opened the session in the current terminal). Sessions only run while that oh is open: when it quits, it first waits for the steps you chose to finish, then puts the sessions to sleep (resume with `oh session attach`). `oh doctor` reminds it. For sessions that outlive oh, use WSL.
 - **Proxy port**: the daemon keeps its proxy port across restarts. If that port was taken by another program meanwhile, the daemon picks another one and puts to sleep the servers that still use the old one (they can no longer reach the provider); working sessions show an error in the inbox. Resume them (`oh session resume <id>` or attach): their server restarts with the new port.
 - **Local security**: the agent runs as your user and can reach the daemon socket and `oh.db` (token hashes only), but never the LLM key; new tokens are reserved to the oh CLI (capability in the keychain, see `oh doctor`). See [SECURITY.md](../../SECURITY.md).

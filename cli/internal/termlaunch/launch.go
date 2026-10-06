@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"runtime"
+	"sort"
 	"strings"
 	"time"
 )
@@ -40,7 +41,10 @@ type Options struct {
 	ITermStyle ITermStyle
 	Dir        string
 	Argv       []string // command to run (no secrets: they would appear in the shell history)
-	Title      string
+	// Env holds variables set for the command only (non-secret, e.g.
+	// OH_HOME), written as shell assignments before it.
+	Env   map[string]string
+	Title string
 }
 
 // Method is one way of opening a terminal.
@@ -116,16 +120,16 @@ func Launch(ctx context.Context, o Options) (Method, []Attempt, error) {
 }
 
 func launchWith(ctx context.Context, m Method, o Options) error {
-	cmd := ShellCommand(o.Dir, o.Argv)
+	cmd := ShellCommandEnv(o.Dir, o.Env, o.Argv)
 	switch m {
 	case MethodITerm:
 		return osascript(ctx, iTermScript(cmd, o.ITermStyle))
 	case MethodTerminal:
 		return osascript(ctx, terminalScript(cmd))
 	case MethodTmux:
-		args := tmuxArgs(o)
-		args = append(args, "--")
-		args = append(args, o.Argv...)
+		// One shell command argument: tmux < 3.0 does not take the command
+		// as separate arguments (and `--` is not understood there).
+		args := append(tmuxArgs(o), cmd)
 		out, err := exec.CommandContext(ctx, "tmux", args...).CombinedOutput()
 		if err != nil {
 			return fmt.Errorf("tmux: %w: %s", err, strings.TrimSpace(string(out)))
@@ -149,16 +153,43 @@ func tmuxArgs(o Options) []string {
 }
 
 // ShellCommand renders `cd <dir> && exec <argv…>` with POSIX quoting.
-func ShellCommand(dir string, argv []string) string {
+func ShellCommand(dir string, argv []string) string { return ShellCommandEnv(dir, nil, argv) }
+
+// ShellCommandEnv renders `cd <dir> && NAME=value… exec <argv…>` with POSIX
+// quoting (variables sorted by name; invalid names are skipped).
+func ShellCommandEnv(dir string, env map[string]string, argv []string) string {
 	q := make([]string, len(argv))
 	for i, a := range argv {
 		q[i] = shellQuote(a)
 	}
-	s := "exec " + strings.Join(q, " ")
+	names := make([]string, 0, len(env))
+	for k := range env {
+		if validEnvName(k) {
+			names = append(names, k)
+		}
+	}
+	sort.Strings(names)
+	assign := ""
+	for _, k := range names {
+		assign += k + "=" + shellQuote(env[k]) + " "
+	}
+	s := assign + "exec " + strings.Join(q, " ")
 	if dir != "" {
 		s = "cd " + shellQuote(dir) + " && " + s
 	}
 	return s
+}
+
+func validEnvName(k string) bool {
+	if k == "" || (k[0] >= '0' && k[0] <= '9') {
+		return false
+	}
+	for _, r := range k {
+		if r != '_' && (r < 'a' || r > 'z') && (r < 'A' || r > 'Z') && (r < '0' || r > '9') {
+			return false
+		}
+	}
+	return true
 }
 
 func shellQuote(s string) string {

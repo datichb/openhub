@@ -39,7 +39,8 @@ func ensureDaemon(ctx context.Context) (*daemon.Client, daemon.Health, error) {
 	if err != nil {
 		return nil, daemon.Health{}, err
 	}
-	return daemon.Ensure(ctx, daemon.Paths{Dir: ohRunDir()}, daemon.EnsureOptions{Version: buildinfo.Version, Capability: capability})
+	return daemon.Ensure(ctx, daemon.Paths{Dir: ohRunDir()}, daemon.EnsureOptions{Version: buildinfo.Version, Capability: capability,
+		InProcess: startInProcessDaemon})
 }
 
 // daemonCapability returns the issuing capability shared with the daemon:
