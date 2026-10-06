@@ -78,14 +78,14 @@ func (f *feedDecoder) decode(e Event) (item *domain.FeedItem, parentID string) {
 			it.Kind, it.Agent, it.Title = domain.FeedDelegate, inputField(d.Input, "agent"), clip(inputField(d.Input, "description"), feedTitleMax)
 			return it, ""
 		}
-		it.Kind, it.Tool, it.Title = domain.FeedTool, name, clip(toolTitle(d.Input), feedTitleMax)
+		it.Kind, it.Tool, it.Title = domain.FeedTool, displayTool(name), clip(toolTitle(d.Input), feedTitleMax)
 	case "session.tool.success", "session.tool.failed", "session.tool.error":
 		name := f.tools[d.ID]
 		delete(f.tools, d.ID)
 		if name == toolSubagent || name == "" {
 			return nil, "" // delegation result, or a call started before the stream
 		}
-		it.Kind, it.Tool, it.Status = domain.FeedTool, name, "ok"
+		it.Kind, it.Tool, it.Status = domain.FeedTool, displayTool(name), "ok"
 		if e.Type != "session.tool.success" {
 			it.Status = "failed"
 		}
@@ -199,6 +199,15 @@ var workflowTools = func() map[string]string {
 func NeutralAction(name string) string {
 	if a, ok := workflowTools[name]; ok {
 		return a
+	}
+	return name
+}
+
+// displayTool is the name of a tool in the live feed: an oh workflow tool
+// without its MCP server prefix (workflow_checkpoint).
+func displayTool(name string) string {
+	if _, tool, ok := sessionspec.ParseMCPToolAction(NeutralAction(name)); ok {
+		return tool
 	}
 	return name
 }

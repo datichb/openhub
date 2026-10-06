@@ -2,7 +2,9 @@ package cmd
 
 import (
 	"context"
+	"strings"
 
+	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/services/checkpoint"
 	sessionsvc "github.com/datichb/openhub/cli/internal/services/session"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
@@ -39,7 +41,23 @@ func (t *tuiSessions) CheckpointCard(ctx context.Context, decisionID string) (vi
 		out.Files = append(out.Files, views.CheckpointFile{File: f.File, Status: f.Status, Additions: f.Additions, Deletions: f.Deletions})
 	}
 	for _, m := range c.Messages {
-		out.Messages = append(out.Messages, sessionsvc.FeedLine(m))
+		out.Messages = append(out.Messages, cardMessage(m))
 	}
 	return out, nil
+}
+
+// cardMessage renders a message on the card: "agent › text", the whole text
+// on one line (the view clips it), without Markdown separators.
+func cardMessage(it domain.FeedItem) string {
+	var words []string
+	for _, w := range strings.Fields(it.Text) {
+		if strings.Trim(w, "-*_=#") != "" {
+			words = append(words, w)
+		}
+	}
+	text := strings.Join(words, " ")
+	if it.Agent != "" {
+		return it.Agent + " › " + text
+	}
+	return text
 }
