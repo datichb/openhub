@@ -552,6 +552,22 @@ func (v *SessionsView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 		if r != nil {
 			v.showMR(r.ID)
 		}
+	case 'e':
+		if ch, ok := v.cfg.Backend.(SessionChainer); ok && r != nil && v.shell != nil {
+			id := r.ID
+			var opts []SelectOption
+			v.async(func(ctx context.Context) (string, error) {
+				var err error
+				opts, err = ch.ChainOptions(ctx, id)
+				return "", err
+			}, func(string) {
+				if len(opts) == 0 {
+					v.toast(i18n.T("tui.launch.chain_none"), false)
+					return
+				}
+				v.shell.ShowSelectModal(i18n.T("tui.launch.chain_title"), opts, "", func(wf string) { ch.Chain(id, wf) })
+			})
+		}
 	case 'w':
 		if r != nil && !r.Finished {
 			id := r.ID

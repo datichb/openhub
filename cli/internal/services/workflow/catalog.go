@@ -29,13 +29,22 @@ type Summary struct {
 	DefaultMode string       `json:"default_mode"`
 	// TicketInput is the first beads-id / beads-ids input ("" when the
 	// workflow does not take tickets); MultiTickets when it accepts several.
-	TicketInput  string `json:"ticket_input,omitempty"`
-	MultiTickets bool   `json:"multi_tickets,omitempty"`
-	Valid        bool   `json:"valid"`
-	Errors       int    `json:"errors"`
-	Warnings     int    `json:"warnings"`
+	TicketInput string `json:"ticket_input,omitempty"`
+	// Inputs lists the launch inputs, in declaration order.
+	Inputs       []InputSummary `json:"inputs,omitempty"`
+	MultiTickets bool           `json:"multi_tickets,omitempty"`
+	Valid        bool           `json:"valid"`
+	Errors       int            `json:"errors"`
+	Warnings     int            `json:"warnings"`
 	// Diagnostics are the findings of the validation (load errors included).
 	Diagnostics wf.Diagnostics `json:"diagnostics,omitempty"`
+}
+
+// InputSummary is a launch input of a workflow.
+type InputSummary struct {
+	ID       string       `json:"id"`
+	Type     wf.InputType `json:"type"`
+	Required bool         `json:"required,omitempty"` // required without default
 }
 
 // Catalog lists the workflows of every available layer, one entry per id
@@ -120,6 +129,10 @@ func (s *Service) summarize(cat *catalog, ref wf.Ref) Summary {
 		sum.EntryAgent = sp.EntryAgent()
 		sum.Runtimes, sum.Modes, sum.DefaultMode = sp.AllowedRuntimes(), sp.AllowedModes(), sp.DefaultMode()
 		sum.TicketInput, sum.MultiTickets = TicketInput(sp)
+		for _, k := range sp.Inputs.Keys() {
+			in, _ := sp.Inputs.Get(k)
+			sum.Inputs = append(sum.Inputs, InputSummary{ID: k, Type: in.Type, Required: in.Required && in.Default == nil})
+		}
 	}
 	sum.count()
 	return sum

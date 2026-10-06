@@ -7,6 +7,7 @@ risk: read
 entry: { agent: reviewer }
 inputs:
   ticket: { type: beads-id }
+  branch: { type: branch }
 agents:
   reviewer: { role: workflow, mode: primary }
 beads: { allow: [show, list] }

@@ -6,6 +6,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
+	workflowsvc "github.com/datichb/openhub/cli/internal/services/workflow"
 	"github.com/datichb/openhub/cli/internal/tui/v2/shell"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
@@ -22,54 +23,13 @@ func buildCommands(a *app.App) []shell.Command {
 		// ── Sessions ─────────────────────────────────────────────────────
 		{
 			ID:          "coder",
-			Label:       i18n.T("tui.pm.item.quick"),
-			Aliases:     []string{"quick", "q", "session", "code", "launch", "start", "fast"},
-			Description: i18n.T("tui.pm.item.quick_desc"),
+			Label:       i18n.T("tui.start.free"),
+			Aliases:     []string{"session", "code", "free", "libre"},
+			Description: i18n.T("tui.start.free_desc"),
 			Category:    "Sessions",
 			Priority:    80,
 			Action:      actionOpencode("orchestrator", ""),
 			RunsDirect:  true,
-			Modes:       modeSession,
-		},
-		{
-			ID:          "dev",
-			Label:       i18n.T("tui.pm.item.start_dev"),
-			Aliases:     []string{"start.dev", "ticket"},
-			Description: i18n.T("tui.pm.item.start_dev_desc"),
-			Category:    "Sessions",
-			Priority:    80,
-			Action:      func() { launchDevSession() },
-			RunsDirect:  true,
-			Modes:       modeSession,
-		},
-		{
-			ID:          "audit",
-			Label:       i18n.T("tui.pm.item.audit"),
-			Aliases:     []string{"audit.security", "audit.performance", "audit.architecture", "audit.accessibility", "audit.ecodesign", "audit.observability", "secu", "security", "perf", "archi", "a11y", "eco", "obs"},
-			Description: i18n.T("tui.pm.item.audit_desc"),
-			Category:    "Sessions",
-			Priority:    60,
-			Action:      actionAuditLauncher,
-			Modes:       modeSession,
-		},
-		{
-			ID:          "review",
-			Label:       i18n.T("tui.pm.item.review"),
-			Aliases:     []string{"rev", "cr", "review.standard", "review.adversarial", "review.edge", "review.complete", "adversarial", "edge"},
-			Description: i18n.T("tui.pm.item.review_desc"),
-			Category:    "Sessions",
-			Priority:    60,
-			Action:      actionReviewLauncher,
-			Modes:       modeSession,
-		},
-		{
-			ID:          "debug",
-			Label:       i18n.T("tui.pm.item.debug"),
-			Aliases:     []string{"dbg", "debugger", "diag"},
-			Description: i18n.T("tui.pm.item.debug_desc"),
-			Category:    "Sessions",
-			Priority:    60,
-			Action:      actionDebugLauncher,
 			Modes:       modeSession,
 		},
 		{
@@ -82,15 +42,13 @@ func buildCommands(a *app.App) []shell.Command {
 			ViewID:      "sessions",
 		},
 		{
-			ID:          "onboard",
-			Label:       i18n.T("tui.pm.item.onboard"),
-			Aliases:     []string{"start.onboard", "onboarding"},
-			Description: i18n.T("tui.pm.item.onboard_desc"),
-			Category:    "Sessions",
-			Priority:    50,
-			Action:      func() { launchSessionWithPrompt("onboarder", buildOnboardPromptForTUI()) },
-			RunsDirect:  true,
-			Modes:       modeSession,
+			ID:          "workflows",
+			Label:       i18n.T("tui.catalog.title"),
+			Aliases:     []string{"catalogue", "catalog", "wf", "workflow"},
+			Description: i18n.T("tui.start.all_desc"),
+			Category:    i18n.T("tui.category.workflows"),
+			Priority:    75,
+			ViewID:      "workflows",
 		},
 
 		// ── Projets ──────────────────────────────────────────────────────
@@ -540,30 +498,6 @@ func buildCommands(a *app.App) []shell.Command {
 		ViewID:      "worktrees",
 	})
 
-	if a.Config.MCP.Gitlab.WriteEnabled {
-		commands = append(commands, shell.Command{
-			ID:          "review.publish",
-			Label:       i18n.T("tui.cmd.review_publish"),
-			Aliases:     []string{"publish", "mr"},
-			Description: i18n.T("tui.cmd.review_publish.desc"),
-			Category:    "Sessions",
-			Action:      func() { launchSessionWithPrompt("reviewer", "[PUBLISH] "+buildReviewPrompt("")) },
-			RunsDirect:  true,
-			Modes:       modeSession,
-		})
-
-		commands = append(commands, shell.Command{
-			ID:          "review.feedback",
-			Label:       i18n.T("tui.cmd.review_feedback"),
-			Aliases:     []string{"feedback", "rf", "retours"},
-			Description: i18n.T("tui.cmd.review_feedback.desc"),
-			Category:    "Sessions",
-			Action:      func() { actionReviewFeedback() },
-			RunsDirect:  true,
-			Modes:       modeSession,
-		})
-	}
-
 	// ── Hub init — always visible (reconfigure hub) ─────────────────
 	commands = append(commands, shell.Command{
 		ID:          "init",
@@ -593,4 +527,49 @@ func buildCommands(a *app.App) []shell.Command {
 	})
 
 	return commands
+}
+
+// workflowCommandPrefix prefixes the generated `run <workflow>` commands.
+const workflowCommandPrefix = "run."
+
+// workflowCommandAliases are the former session commands, now aliases of
+// their workflow (O15).
+var workflowCommandAliases = map[string][]string{
+	"ticket":          {"dev", "start.dev"},
+	"feature":         {"start", "orchestrator"},
+	"quick":           {"q", "fast"},
+	"audit":           {"secu", "security", "perf", "archi", "a11y"},
+	"review":          {"rev", "cr"},
+	"debug":           {"dbg", "debugger", "diag"},
+	"onboarding":      {"onboard", "start.onboard"},
+	"review-feedback": {"feedback", "rf", "retours"},
+}
+
+// registerWorkflowCommands replaces the `run <workflow>` commands of the
+// omnibar by those of the catalogue (P1-T24).
+func registerWorkflowCommands(a *app.App, list []workflowsvc.Summary) {
+	sh := tuiShell
+	if sh == nil {
+		return
+	}
+	cmds := make([]shell.Command, 0, len(list))
+	for _, s := range list {
+		id := s.ID
+		desc := s.Description
+		if desc == "" {
+			desc = s.Label
+		}
+		cmds = append(cmds, shell.Command{
+			ID:          workflowCommandPrefix + id,
+			Label:       "run " + id,
+			Aliases:     append([]string{id}, workflowCommandAliases[id]...),
+			Description: desc,
+			Category:    i18n.T("tui.category.workflows"),
+			Priority:    85,
+			Action: func() {
+				openLaunchForm(a, tuiLaunchRequest{WorkflowID: id, ProjectID: activeScope().ProjectID})
+			},
+		})
+	}
+	sh.Commands().ReplaceGroup(workflowCommandPrefix, cmds)
 }

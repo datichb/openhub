@@ -17,8 +17,8 @@ import (
 type TeamModeConfig struct {
 	// OnNavigate is called when the user wants to navigate to a sub-view.
 	OnNavigate func(viewID string)
-	// OnLaunchSession is called to start a coding session (may trigger project selector).
-	OnLaunchSession func(agent string, extraArgs ...string)
+	// Start is the « Démarrer » section (P1-T20).
+	Start StartSectionConfig
 	// OnExitTeamMode is called when the user toggles back to hub mode.
 	OnExitTeamMode func()
 	// TeamStats returns live summary stats for the active team (positive metrics).
@@ -27,14 +27,6 @@ type TeamModeConfig struct {
 	OnSyncTracker func()
 	// OnBoardConfig is called when the user wants to configure board columns.
 	OnBoardConfig func()
-
-	// ── Session picker callbacks ────────────────────────────────────────
-	// OnAuditPicker opens the audit type picker.
-	OnAuditPicker func()
-	// OnReviewPicker opens the review mode picker.
-	OnReviewPicker func()
-	// OnDebugPicker opens the debug issue input.
-	OnDebugPicker func()
 
 	// Sessions shows the "Sessions de l'équipe" section (P3-T19).
 	Sessions SessionsSectionConfig
@@ -54,6 +46,7 @@ type teamModeItem struct {
 	Desc      string
 	Action    func()
 	SectionID string // structural ID for split logic (headers only)
+	start     *startItem
 }
 
 // TeamModeView is the team-scoped landing view — a mini dashboard with
@@ -235,7 +228,7 @@ func (v *TeamModeView) Mount(content *tview.Flex, app *tview.Application) {
 	combinedHeader := tview.NewFlex().SetDirection(tview.FlexRow)
 	combinedHeader.SetBackgroundColor(theme.BgPanel)
 	combinedHeader.AddItem(v.bannerTV, bh+1, 0, false) // banner + leading \n
-	combinedHeader.AddItem(v.header, 0, 1, false)       // badge/stats fills rest
+	combinedHeader.AddItem(v.header, 0, 1, false)      // badge/stats fills rest
 
 	buildFn := func(width int) homeFlexResult {
 		r := buildHomeLayout(width, homeFlexConfig{
@@ -274,7 +267,28 @@ func (v *TeamModeView) Unmount() {
 
 // HandleKey processes view-specific key events.
 func (v *TeamModeView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
+	if event.Rune() == '*' {
+		if ref, ok := homeCurrentRef(v.list, v.dual); ok && ref < len(v.items) &&
+			togglePinOf(v.cfg.Start, v.startScope(), v.items[ref].start) {
+			return nil
+		}
+	}
 	return homeHandleKey(event, v.list, v.dual, v.executeItem)
+}
+
+// startScope is the « Démarrer » scope of the active team.
+func (v *TeamModeView) startScope() StartScope {
+	if v.team == nil {
+		return StartScope{}
+	}
+	return StartScope{TeamID: v.team.ID}
+}
+
+// pick shows a choice through the shell (workflows of a category).
+func (v *TeamModeView) pick(title string, opts []SelectOption, onSelect func(string)) {
+	if v.shell != nil {
+		v.shell.ShowSelectModal(title, opts, "", onSelect)
+	}
 }
 
 func (v *TeamModeView) executeItem(idx int) {
@@ -302,33 +316,13 @@ func (v *TeamModeView) buildItems() []teamModeItem {
 
 	items := []teamModeItem{}
 
-	// ── Session launchers (with dynamic project selection) ──
-	if v.cfg.OnLaunchSession != nil {
-		launch := v.cfg.OnLaunchSession
-
-		// Audit/review/debug: use pickers if available, otherwise fall back to direct launch.
-		auditAction := func() { launch("auditor") }
-		if v.cfg.OnAuditPicker != nil {
-			auditAction = v.cfg.OnAuditPicker
+	// ── Démarrer (P1-T20) ──
+	if header, sitems, ok := startSection(v.cfg.Start, v.startScope(), true, v.pick); ok {
+		items = append(items, teamModeItem{Icon: "─", Label: header, SectionID: "sessions"})
+		for i := range sitems {
+			it := sitems[i]
+			items = append(items, teamModeItem{Icon: it.Icon, Label: it.Label, Desc: it.Desc, Action: it.Action, start: &it})
 		}
-		reviewAction := func() { launch("reviewer") }
-		if v.cfg.OnReviewPicker != nil {
-			reviewAction = v.cfg.OnReviewPicker
-		}
-		debugAction := func() { launch("debugger") }
-		if v.cfg.OnDebugPicker != nil {
-			debugAction = v.cfg.OnDebugPicker
-		}
-
-		items = append(items,
-			teamModeItem{Icon: "─", Label: i18n.T("tui.tm.section.sessions"), SectionID: "sessions"},
-			teamModeItem{Icon: "💻", Label: i18n.T("tui.tm.item.quick"), Desc: i18n.T("tui.tm.item.quick_desc"), Action: func() { launch("") }},
-			teamModeItem{Icon: "🎯", Label: i18n.T("tui.tm.item.start_dev"), Desc: i18n.T("tui.tm.item.start_dev_desc"), Action: func() { launch("", "--dev") }},
-			teamModeItem{Icon: "🔍", Label: i18n.T("tui.tm.item.audit"), Desc: i18n.T("tui.tm.item.audit_desc"), Action: auditAction},
-			teamModeItem{Icon: "👀", Label: i18n.T("tui.tm.item.review"), Desc: i18n.T("tui.tm.item.review_desc"), Action: reviewAction},
-			teamModeItem{Icon: "🐛", Label: i18n.T("tui.tm.item.debug"), Desc: i18n.T("tui.tm.item.debug_desc"), Action: debugAction},
-			teamModeItem{Icon: "🎓", Label: i18n.T("tui.pm.item.onboard"), Desc: i18n.T("tui.pm.item.onboard_desc"), Action: func() { launch("onboarder") }},
-		)
 	}
 
 	if header, sitems, ok := sessionsSection(v.cfg.Sessions, SessionsScope{TeamID: v.team.ID}, "tui.sessions.team_section"); ok {

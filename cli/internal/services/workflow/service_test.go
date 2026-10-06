@@ -166,3 +166,28 @@ func TestDelimitedKeepsIdentifiers(t *testing.T) {
 	assert.Equal(t, List{"bd-1", "bd-2"}, delimited("t", wf.Input{Type: wf.InputBeadsIDs}, List{"bd-1", "bd-2"}))
 	assert.Equal(t, true, delimited("p", wf.Input{Type: wf.InputBool}, true))
 }
+
+func TestChain(t *testing.T) {
+	svc := testService(t)
+	ctx := context.Background()
+	sg, err := svc.Chain(ctx, Context{}, "ticket", map[string]any{"branch": "feat/bd-1"},
+		map[wf.OutputType]any{wf.OutputBeadsIDs: "bd-1"})
+	require.NoError(t, err)
+	require.NotEmpty(t, sg)
+	assert.Equal(t, "review", sg[0].WorkflowID, "review takes the branch and the ticket")
+	assert.Equal(t, map[string]string{"branch": "feat/bd-1"}, sg[0].Prefill)
+	assert.Equal(t, []string{"bd-1"}, sg[0].Tickets)
+	for _, s := range sg {
+		assert.NotEqual(t, "ticket", s.WorkflowID, "never the same workflow")
+	}
+
+	sg, err = svc.Chain(ctx, Context{}, "ticket", nil, nil)
+	require.NoError(t, err)
+	assert.Empty(t, sg, "nothing to chain without outputs")
+
+	sg, err = svc.Chain(ctx, Context{}, "legacy-agent", nil, map[wf.OutputType]any{wf.OutputBranch: "feat/x"})
+	require.NoError(t, err)
+	require.Len(t, sg, 2, "review and ticket take a branch")
+	assert.Equal(t, "review", sg[0].WorkflowID)
+	assert.Equal(t, map[string]string{"branch": "feat/x"}, sg[1].Prefill)
+}

@@ -20,18 +20,14 @@ type homeItem struct {
 	Desc   string
 	ViewID string // navigate to this view (empty = action)
 	Action func() // direct action (if ViewID is empty)
+	// start is the « Démarrer » item (target of `*`).
+	start *startItem
 }
 
 // HomeViewConfig holds external dependencies for the home view.
 type HomeViewConfig struct {
-	OnLaunchSession func(agent string, args ...string)
-	// OnAuditPicker / OnDebugPicker open the audit type picker and the issue
-	// prompt (same flows as project mode). Nil = launch the agent directly.
-	OnAuditPicker func()
-	OnDebugPicker func()
-	// OnReviewPicker is called when the user selects the Review item.
-	// If non-nil, shows the review mode picker instead of launching directly.
-	OnReviewPicker func()
+	// Start is the « Démarrer » section (P1-T20).
+	Start StartSectionConfig
 	// HasProject returns true when at least one active project exists.
 	// Used to conditionally show project-specific items (ADR-032).
 	HasProject func() bool
@@ -211,7 +207,20 @@ func (v *HomeView) ModeInfo() ModeBarInfo {
 }
 
 func (v *HomeView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
+	if event.Rune() == '*' {
+		if ref, ok := homeCurrentRef(v.list, v.dual); ok && ref < len(v.items) &&
+			togglePinOf(v.cfg.Start, StartScope{}, v.items[ref].start) {
+			return nil
+		}
+	}
 	return homeHandleKey(event, v.list, v.dual, v.executeItem)
+}
+
+// pick shows a choice through the shell (workflows of a category).
+func (v *HomeView) pick(title string, opts []SelectOption, onSelect func(string)) {
+	if v.shell != nil {
+		v.shell.ShowSelectModal(title, opts, "", onSelect)
+	}
 }
 
 func (v *HomeView) executeItem(idx int) {
@@ -231,35 +240,13 @@ func (v *HomeView) executeItem(idx int) {
 func (v *HomeView) buildStaticItems() []homeItem {
 	var items []homeItem
 
-	// ── Sessions section (4 links — each asks for project first) ──
-	if v.cfg.OnLaunchSession != nil {
-		launch := v.cfg.OnLaunchSession
-		items = append(items, homeItem{Icon: "─", Label: i18n.T("tui.pm.section.sessions"), Desc: ""})
-		items = append(items,
-			homeItem{Icon: "💻", Label: i18n.T("tui.pm.item.quick"), Desc: i18n.T("tui.pm.item.quick_desc"), Action: func() { launch("") }},
-			homeItem{Icon: "🎯", Label: i18n.T("tui.pm.item.start_dev"), Desc: i18n.T("tui.pm.item.start_dev_desc"), Action: func() { launch("", "--dev") }},
-			homeItem{Icon: "🔍", Label: i18n.T("tui.pm.item.audit"), Desc: i18n.T("tui.pm.item.audit_desc"), Action: func() {
-				if v.cfg.OnAuditPicker != nil {
-					v.cfg.OnAuditPicker()
-					return
-				}
-				launch("auditor")
-			}},
-			homeItem{Icon: "👀", Label: i18n.T("tui.pm.item.review"), Desc: i18n.T("tui.pm.item.review_desc"), Action: func() {
-				if v.cfg.OnReviewPicker != nil {
-					v.cfg.OnReviewPicker()
-					return
-				}
-				launch("reviewer")
-			}},
-			homeItem{Icon: "🐛", Label: i18n.T("tui.pm.item.debug"), Desc: i18n.T("tui.pm.item.debug_desc"), Action: func() {
-				if v.cfg.OnDebugPicker != nil {
-					v.cfg.OnDebugPicker()
-					return
-				}
-				launch("debugger")
-			}},
-		)
+	// ── Démarrer (P1-T20) ──
+	if header, sitems, ok := startSection(v.cfg.Start, StartScope{}, false, v.pick); ok {
+		items = append(items, homeItem{Icon: "─", Label: header})
+		for i := range sitems {
+			it := sitems[i]
+			items = append(items, homeItem{Icon: it.Icon, Label: it.Label, Desc: it.Desc, Action: it.Action, start: &it})
+		}
 	}
 
 	// ── Running sessions (v5) ──

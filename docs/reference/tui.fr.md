@@ -82,18 +82,26 @@ Accepte la saisie avec suggestions fuzzy au-dessus :
 
 ## Commandes disponibles
 
-### Sessions
+### Workflows et sessions
 
 | Commande | Alias | Description |
 |----------|-------|-------------|
-| `start` | session, code, launch | Lancer une session opencode (avec sélecteur de mode) |
-| `start dev` | dev, ticket | Session orientée développement |
-| `start onboard` | onboard | Session d'onboarding projet |
-| `audit` | — | Lancer un audit (sélecteur de type) |
-| `review` | rev, cr | Lancer une code review (sélecteur de mode) |
-| `debug` | dbg | Session debug (avec prompt de description) |
-| `coder` | quick, q, fast | Coder (session libre) |
-| `parallel` | par, multi | Vue sessions parallèles |
+| `run <workflow>` | id du workflow ; anciens noms : `dev` → `run ticket`, `start` → `run feature`, `onboard` → `run onboarding`, `audit`, `review` (`rev`, `cr`), `debug` (`dbg`), `feedback` → `run review-feedback` | Ouvre la fiche de lancement du workflow (générée depuis le catalogue) |
+| `run <workflow> ⟨ticket⟩` | — | Sur le board : workflow lancé sur le ticket sélectionné |
+| `workflows` | catalogue, wf | Catalogue des workflows (lecture seule) |
+| `coder` | session, free, libre | Session libre (sans workflow ; opencode V1 ou catalogue vide) |
+| `sessions` | parallel, inbox | Vue Sessions |
+
+### Fiche de lancement
+
+Générée depuis le YAML du workflow, en trois étapes : **Entrées** (une ligne par entrée : ticket Beads avec sélecteur `Choisir…`, case pour `bool`, liste pour `enum`, zone de texte pour `text`), **Options** (mode, exécution — les environnements indisponibles affichent la raison —, emplacement : base, worktrees existants, nouveau worktree ; ouverture), **Récap** (agents, budget du 1er tour, isolation, sessions et emplacements, avertissements). `Ctrl+S` lance depuis n'importe quelle étape, `Ctrl+B` revient, `Esc` ferme. Un second lancement pendant la préparation est ignoré.
+
+### Démarrer, board, catalogue
+
+- **Démarrer** (accueil, projet, équipe) : ★ épinglés (5 max), récents (3), suggestions si vide ; en mode projet/équipe, catégories repliées (Entrée = choix du workflow). `*` épingle ou désépingle (portée : hub, projet ou équipe selon l'accueil). « Tous les workflows (N) » ouvre le catalogue.
+- **Board** : `a` sur un ticket liste les workflows qui prennent un ticket Beads ; la fiche s'ouvre à l'étape Options, ticket prérempli.
+- **Catalogue** : workflows par couche (version, risque, ⌂ ▣ ☁, validité), détail à droite ; Entrée lance, `*` épingle.
+- **Vue Sessions** : `e` « Enchaîner avec… » propose les workflows qui prennent une sortie de la session (branche, tickets), fiche préremplie.
 
 ### Projets
 

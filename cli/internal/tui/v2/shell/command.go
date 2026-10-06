@@ -109,6 +109,21 @@ func (r *CommandRegistry) All() []Command {
 	return result
 }
 
+// ReplaceGroup replaces the commands whose ID starts with prefix by cmds
+// (commands generated at run time: one per workflow).
+func (r *CommandRegistry) ReplaceGroup(prefix string, cmds []Command) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	kept := make([]Command, 0, len(r.commands)+len(cmds))
+	for _, c := range r.commands {
+		if !strings.HasPrefix(c.ID, prefix) {
+			kept = append(kept, c)
+		}
+	}
+	kept = append(kept, cmds...)
+	r.commands = kept
+}
+
 // RecordUsage records a command ID as recently used.
 func (r *CommandRegistry) RecordUsage(id string) {
 	r.mu.Lock()

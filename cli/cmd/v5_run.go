@@ -309,26 +309,31 @@ func afterStart(ctx context.Context, a *app.App, svc *runsvc.Service, ui launche
 	return nil
 }
 
-// printRunRecap prints what a launch will do (oh run --recap).
-func printRunRecap(w io.Writer, p *preparedRun) {
+// runRecap is what a launch will do: labelled rows and warnings (oh run
+// --recap, TUI launch form).
+func runRecap(p *preparedRun) (rows [][2]string, warnings []string) {
 	r := bundle.Show(p.bundle)
-	sp := p.resolution.Spec
-	fmt.Fprintln(w, theme.Title.Render(i18n.Tf("cmd.run.recap.title", sp.ID, p.resolution.Ref.String(), p.project.Name)))
-	row := func(label, value string) { fmt.Fprintf(w, "  %-14s %s\n", label, value) }
-	row(i18n.T("cmd.run.recap.mode"), p.resolution.Mode)
-	row(i18n.T("cmd.run.recap.runtime"), string(p.resolution.Runtime))
+	add := func(label, value string) { rows = append(rows, [2]string{label, value}) }
+	add(i18n.T("cmd.run.recap.mode"), p.resolution.Mode)
+	add(i18n.T("cmd.run.recap.runtime"), string(p.resolution.Runtime))
 	agents := make([]string, len(r.Agents))
 	for i, ag := range r.Agents {
 		agents[i] = ag.ID
+		if ag.Entry {
+			agents[i] += " (" + i18n.T("cmd.bundle.show.entry") + ")"
+		}
 	}
-	row(i18n.Tf("cmd.bundle.show.agents", len(r.Agents)), strings.Join(agents, " · "))
-	row(i18n.Tf("cmd.bundle.show.skills", len(r.Skills)), i18n.Tf("cmd.bundle.show.initial_value", r.Budget.Initial, r.Budget.EntryAgent, r.Budget.SkillCatalog))
+	add(i18n.Tf("cmd.bundle.show.agents", len(r.Agents)), strings.Join(agents, " · "))
+	add(i18n.Tf("cmd.bundle.show.skills", len(r.Skills)), i18n.Tf("cmd.bundle.show.initial_value", r.Budget.Initial, r.Budget.EntryAgent, r.Budget.SkillCatalog))
+	if len(r.MCP) > 0 {
+		add("MCP", strings.Join(r.MCP, ", "))
+	}
 	isolation := string(r.Isolation)
 	if r.StrictIsolation {
 		isolation += " · strict"
 	}
-	row(i18n.T("cmd.bundle.show.isolation"), isolation)
-	row(i18n.T("cmd.run.recap.sessions"), i18n.Tf("cmd.run.recap.sessions_value", len(p.plan.Sessions), p.plan.Worktrees()))
+	add(i18n.T("cmd.bundle.show.isolation"), isolation)
+	add(i18n.T("cmd.run.recap.sessions"), i18n.Tf("cmd.run.recap.sessions_value", len(p.plan.Sessions), p.plan.Worktrees()))
 	for _, s := range p.plan.Sessions {
 		loc := s.Location.Path
 		switch {
@@ -339,11 +344,26 @@ func printRunRecap(w io.Writer, p *preparedRun) {
 		}
 		label := s.Label
 		if label == "" {
-			label = "·"
+			label = theme.IconArrow
 		}
-		fmt.Fprintf(w, "    %s %s  %s\n", theme.Subtitle.Render(theme.IconArrow), label, loc)
+		add("  "+label, loc)
 	}
-	printRunWarnings(w, p.plan.Warnings)
+	for _, w := range p.plan.Warnings {
+		warnings = append(warnings, warningText(w))
+	}
+	return rows, warnings
+}
+
+// printRunRecap prints what a launch will do (oh run --recap).
+func printRunRecap(w io.Writer, p *preparedRun) {
+	fmt.Fprintln(w, theme.Title.Render(i18n.Tf("cmd.run.recap.title", p.resolution.Spec.ID, p.resolution.Ref.String(), p.project.Name)))
+	rows, warns := runRecap(p)
+	for _, r := range rows {
+		fmt.Fprintf(w, "  %-14s %s\n", r[0], r[1])
+	}
+	for _, wr := range warns {
+		fmt.Fprintf(w, "  %s %s\n", theme.WarningStyle.Render(theme.IconWarning), wr)
+	}
 }
 
 func printRunWarnings(w io.Writer, warns []runsvc.Warning) {

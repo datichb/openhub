@@ -14,25 +14,13 @@ import (
 
 // ProjectModeConfig holds the callbacks used by the project mode view.
 type ProjectModeConfig struct {
-	// OnLaunchSession is called when the user triggers a session action.
-	// agent is the opencode agent name, extraArgs are additional CLI flags.
-	OnLaunchSession func(project *ActiveProject, agent string, extraArgs ...string)
+	// Start is the « Démarrer » section (P1-T20).
+	Start StartSectionConfig
 	// OnNavigate is called when the user wants to navigate to a sub-view.
 	// viewID identifies the target view.
 	OnNavigate func(viewID string)
 	// OnExitProjectMode is called when the user toggles back to hub mode.
 	OnExitProjectMode func()
-
-	// ── Session picker callbacks ────────────────────────────────────────
-	// OnAuditPicker opens the audit type picker (security, perf, arch, ...).
-	// If nil, falls back to OnLaunchSession("auditor").
-	OnAuditPicker func()
-	// OnReviewPicker opens the review mode picker (standard, adversarial, ...).
-	// If nil, falls back to OnLaunchSession("reviewer").
-	OnReviewPicker func()
-	// OnDebugPicker opens the debug issue input.
-	// If nil, falls back to OnLaunchSession("debugger").
-	OnDebugPicker func()
 
 	// ── Deploy callbacks ────────────────────────────────────────────────
 	// OnDeploy triggers a deploy on the active project (shows diff preview + apply modal).
@@ -57,6 +45,7 @@ type projectModeItem struct {
 	Desc      string
 	Action    func()
 	SectionID string // structural ID for split logic (headers only)
+	start     *startItem
 }
 
 // ProjectModeView is the simplified project-scoped TUI view.
@@ -238,7 +227,7 @@ func (v *ProjectModeView) Mount(content *tview.Flex, app *tview.Application) {
 	combinedHeader := tview.NewFlex().SetDirection(tview.FlexRow)
 	combinedHeader.SetBackgroundColor(theme.BgPanel)
 	combinedHeader.AddItem(bannerView, bh+1, 0, false) // banner + leading \n
-	combinedHeader.AddItem(header, 0, 1, false)         // badge/path fills rest
+	combinedHeader.AddItem(header, 0, 1, false)        // badge/path fills rest
 
 	buildFn := func(width int) homeFlexResult {
 		r := buildHomeLayout(width, homeFlexConfig{
@@ -296,6 +285,12 @@ func (v *ProjectModeView) Unmount() {
 
 // HandleKey processes view-specific key events.
 func (v *ProjectModeView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
+	if event.Rune() == '*' {
+		if ref, ok := homeCurrentRef(v.list, v.dual); ok && ref < len(v.items) &&
+			togglePinOf(v.cfg.Start, v.startScope(), v.items[ref].start) {
+			return nil
+		}
+	}
 	// Common home-like handling (dual-column nav, Enter)
 	if result := homeHandleKey(event, v.list, v.dual, v.executeItem); result == nil {
 		return nil
@@ -344,6 +339,21 @@ func (v *ProjectModeView) refreshDeployStatus() {
 				}
 			})
 		}()
+	}
+}
+
+// startScope is the « Démarrer » scope of the active project.
+func (v *ProjectModeView) startScope() StartScope {
+	if v.project == nil {
+		return StartScope{}
+	}
+	return StartScope{ProjectID: v.project.ID}
+}
+
+// pick shows a choice through the shell (workflows of a category).
+func (v *ProjectModeView) pick(title string, opts []SelectOption, onSelect func(string)) {
+	if v.shell != nil {
+		v.shell.ShowSelectModal(title, opts, "", onSelect)
 	}
 }
 
@@ -445,31 +455,6 @@ func (v *ProjectModeView) maybeShowDeployToast() {
 // Items
 // ─────────────────────────────────────────────────────────────────────────────
 
-// auditAction returns the callback for the audit link.
-// Uses the picker if OnAuditPicker is configured, otherwise falls back to direct launch.
-func (v *ProjectModeView) auditAction(launch func(string, ...string) func()) func() {
-	if v.cfg.OnAuditPicker != nil {
-		return v.cfg.OnAuditPicker
-	}
-	return launch("auditor")
-}
-
-// reviewAction returns the callback for the review link.
-func (v *ProjectModeView) reviewAction(launch func(string, ...string) func()) func() {
-	if v.cfg.OnReviewPicker != nil {
-		return v.cfg.OnReviewPicker
-	}
-	return launch("reviewer")
-}
-
-// debugAction returns the callback for the debug link.
-func (v *ProjectModeView) debugAction(launch func(string, ...string) func()) func() {
-	if v.cfg.OnDebugPicker != nil {
-		return v.cfg.OnDebugPicker
-	}
-	return launch("debugger")
-}
-
 func (v *ProjectModeView) buildItems() []projectModeItem {
 	if v.project == nil {
 		return nil
@@ -483,23 +468,14 @@ func (v *ProjectModeView) buildItems() []projectModeItem {
 			}
 		}
 	}
-	launch := func(agent string, args ...string) func() {
-		return func() {
-			if v.cfg.OnLaunchSession != nil {
-				v.cfg.OnLaunchSession(p, agent, args...)
-			}
+	var items []projectModeItem
+	scope := v.startScope()
+	if header, sitems, ok := startSection(v.cfg.Start, scope, true, v.pick); ok {
+		items = append(items, projectModeItem{Icon: "─", Label: header, SectionID: "sessions"})
+		for i := range sitems {
+			it := sitems[i]
+			items = append(items, projectModeItem{Icon: it.Icon, Label: it.Label, Desc: it.Desc, Action: it.Action, start: &it})
 		}
-	}
-
-	items := []projectModeItem{
-		// ── Sessions section ──
-		{Icon: "─", Label: i18n.T("tui.pm.section.sessions"), SectionID: "sessions"},
-		{Icon: "💻", Label: i18n.T("tui.pm.item.quick"), Desc: i18n.T("tui.pm.item.quick_desc"), Action: launch("")},
-		{Icon: "🎯", Label: i18n.T("tui.pm.item.start_dev"), Desc: i18n.T("tui.pm.item.start_dev_desc"), Action: launch("", "--dev")},
-		{Icon: "🔍", Label: i18n.T("tui.pm.item.audit"), Desc: i18n.T("tui.pm.item.audit_desc"), Action: v.auditAction(launch)},
-		{Icon: "👀", Label: i18n.T("tui.pm.item.review"), Desc: i18n.T("tui.pm.item.review_desc"), Action: v.reviewAction(launch)},
-		{Icon: "🐛", Label: i18n.T("tui.pm.item.debug"), Desc: i18n.T("tui.pm.item.debug_desc"), Action: v.debugAction(launch)},
-		{Icon: "🎓", Label: i18n.T("tui.pm.item.onboard"), Desc: i18n.T("tui.pm.item.onboard_desc"), Action: launch("onboarder")},
 	}
 	if header, sitems, ok := sessionsSection(v.cfg.Sessions, SessionsScope{ProjectID: p.ID}, "tui.sessions.project_section"); ok {
 		items = append(items, projectModeItem{Icon: "─", Label: header, SectionID: "running"})
@@ -517,7 +493,7 @@ func (v *ProjectModeView) buildItems() []projectModeItem {
 		{Icon: "─", Label: i18n.T("tui.pm.section.configuration"), SectionID: "configuration"},
 		{Icon: "🔧", Label: i18n.T("tui.pm.item.config"), Desc: i18n.T("tui.pm.item.config_desc"), Action: navigate("project.config")},
 		{Icon: "🌿", Label: i18n.T("tui.pm.item.worktrees"), Desc: i18n.T("tui.pm.item.worktrees_desc"), Action: navigate("worktrees")},
-		{Icon: "🔗", Label: i18n.T("tui.pm.item.workflow"), Desc: i18n.T("tui.pm.item.workflow_desc"), Action: navigate("workflow")},
+		{Icon: "🔗", Label: i18n.T("tui.pm.item.workflows"), Desc: i18n.T("tui.pm.item.workflows_desc"), Action: navigate("workflows")},
 		// ── Deploy section ──
 		{Icon: "─", Label: i18n.T("tui.pm.section.deploy"), SectionID: "deploy"},
 		{Icon: "🚀", Label: i18n.T("tui.pm.item.deploy"), Desc: v.deployItemDesc(), Action: func() {

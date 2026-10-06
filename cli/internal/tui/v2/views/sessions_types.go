@@ -93,6 +93,15 @@ type SessionsBackend interface {
 	MRDescription(ctx context.Context, sessionID string) (string, error)
 }
 
+// SessionChainer is implemented by backends able to suggest the workflows to
+// chain after a session (« Enchaîner avec… », O7, P1-T27).
+type SessionChainer interface {
+	// ChainOptions lists the workflows to chain after a session.
+	ChainOptions(ctx context.Context, sessionID string) ([]SelectOption, error)
+	// Chain opens the launch form of a suggestion.
+	Chain(sessionID, workflowID string)
+}
+
 // SessionsSummary is the cached overview shown on the home, project and team
 // landings and in the mode bar badge.
 type SessionsSummary struct {

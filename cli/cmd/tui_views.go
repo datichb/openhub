@@ -79,6 +79,8 @@ func buildViews(a *app.App, notifStore *shell.NotificationStore) []views.View {
 	projectItems := loadProjectItems(a.Projects)
 	tuiSess = newTUISessions(a)
 	sessionsSection := tuiSess.sectionConfig()
+	tuiStartWiring = newTUIStart(a)
+	startSection := tuiStartWiring.sectionConfig()
 
 	projectsView := views.NewProjectsView(views.ProjectsViewConfig{
 		Projects:         projectItems,
@@ -198,20 +200,7 @@ func buildViews(a *app.App, notifStore *shell.NotificationStore) []views.View {
 	// ── Project mode view ────────────────────────────────────────────────────
 	projectModeView := views.NewProjectModeView(views.ProjectModeConfig{
 		Sessions: sessionsSection,
-		OnLaunchSession: func(p *views.ActiveProject, agent string, extraArgs ...string) {
-			if tuiShell == nil {
-				return
-			}
-			// Translate oh-specific flags into opencode-compatible agent+prompt.
-			resolvedAgent, resolvedPrompt := translateOhFlags(agent, extraArgs...)
-			if resolvedAgent == "orchestrator-dev" && resolvedPrompt == "" {
-				// --dev requires the ticket picker → delegate to the full dev flow.
-				launchDevSession()
-				return
-			}
-			proj := &domain.Project{ID: p.ID, Path: p.Path}
-			launchSessionForProject(a, proj, resolvedAgent, resolvedPrompt)
-		},
+		Start:    startSection,
 		OnNavigate: func(viewID string) {
 			if tuiShell != nil {
 				tuiShell.NavigateTo(viewID)
@@ -222,9 +211,6 @@ func buildViews(a *app.App, notifStore *shell.NotificationStore) []views.View {
 				tuiShell.SetProjectMode(nil)
 			}
 		},
-		OnAuditPicker:  actionAuditLauncher,
-		OnReviewPicker: actionReviewLauncher,
-		OnDebugPicker:  actionDebugLauncher,
 		OnDeploy: func(_ string) {
 			actionDeploy()
 		},
@@ -333,17 +319,7 @@ func buildViews(a *app.App, notifStore *shell.NotificationStore) []views.View {
 			OnAddProject: func() {
 				actionProjectAdd()
 			},
-			OnLaunchSession: func(agent string, extraArgs ...string) {
-				resolvedAgent, resolvedPrompt := translateOhFlags(agent, extraArgs...)
-				if resolvedAgent == "orchestrator-dev" && resolvedPrompt == "" {
-					launchDevSession()
-					return
-				}
-				launchSessionWithPrompt(resolvedAgent, resolvedPrompt)
-			},
-			OnReviewPicker: actionReviewLauncher,
-			OnAuditPicker:  actionAuditLauncher,
-			OnDebugPicker:  actionDebugLauncher,
+			Start: startSection,
 		}),
 		views.NewBoardView(views.BoardViewConfig{
 			Tickets: fetchBoardTicketsForPath(resolveActiveProjectPath(a)),
@@ -382,14 +358,7 @@ func buildViews(a *app.App, notifStore *shell.NotificationStore) []views.View {
 					tuiShell.NavigateTo(viewID)
 				}
 			},
-			OnLaunchSession: func(agent string, extraArgs ...string) {
-				resolvedAgent, resolvedPrompt := translateOhFlags(agent, extraArgs...)
-				if resolvedAgent == "orchestrator-dev" && resolvedPrompt == "" {
-					launchDevSession()
-					return
-				}
-				launchSessionWithPrompt(resolvedAgent, resolvedPrompt)
-			},
+			Start: startSection,
 			OnExitTeamMode: func() {
 				if tuiShell != nil {
 					tuiShell.SetMode(views.ModeHub)
@@ -424,11 +393,9 @@ func buildViews(a *app.App, notifStore *shell.NotificationStore) []views.View {
 			OnBoardConfig: func() {
 				actionBoardColumnConfig()
 			},
-			OnAuditPicker:  actionAuditLauncher,
-			OnReviewPicker: actionReviewLauncher,
-			OnDebugPicker:  actionDebugLauncher,
 		}),
 		tuiSess.view,
+		newWorkflowCatalogView(tuiStartWiring),
 		projectsView,
 		projectModeView,
 		views.NewTeamStatusView(makeResolveTeamFunc(a)),

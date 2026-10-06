@@ -1130,6 +1130,9 @@ func (s *Shell) updateModeBar(v views.View) {
 	s.omnibar.UpdateModeBar(s.activeMode, info)
 }
 
+// Commands returns the omnibar command registry (generated commands).
+func (s *Shell) Commands() *CommandRegistry { return s.registry }
+
 // RemountIf mounts the current view again when its ID is one of ids (e.g.
 // a landing whose cached sessions summary changed). Event loop only.
 func (s *Shell) RemountIf(ids ...string) {
