@@ -164,8 +164,8 @@ func TestWatcherCheckpoints(t *testing.T) {
 		ch <- adapters.ToolEvent{Kind: adapters.EventActivity, SessionID: "ses_a", Call: &adapters.ToolCall{ID: "sub" + string(rune('a'+i)), Action: sessionspec.ActionSubagent, Status: adapters.CallCalled, Input: map[string]any{"agent": "developer"}}}
 	}
 	require.Eventually(t, func() bool { l := open(); return len(l) == 1 && l[0].Kind == domain.DecisionCircuit }, 3*time.Second, 20*time.Millisecond)
-	assert.True(t, denies(fake.rulesOf("ses_a"), "*"))
-	assert.Equal(t, domain.RunWaiting, func() domain.RunState { s, _ := sessions.Get(ctx, "ses_a"); return s.State }())
+	require.Eventually(t, func() bool { return denies(fake.rulesOf("ses_a"), "*") }, 3*time.Second, 20*time.Millisecond)
+	require.Eventually(t, func() bool { s, _ := sessions.Get(ctx, "ses_a"); return s.State == domain.RunWaiting }, 3*time.Second, 20*time.Millisecond)
 
 	// A delegation done records the agent.
 	ch <- adapters.ToolEvent{Kind: adapters.EventActivity, SessionID: "ses_a", Call: &adapters.ToolCall{ID: "suba", Action: sessionspec.ActionSubagent, Status: adapters.CallOK}}
