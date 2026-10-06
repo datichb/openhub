@@ -18,9 +18,9 @@ import (
 )
 
 var runCmd = &cobra.Command{
-	Use:   "run <workflow>",
-	Short: "Lance un workflow (une session par ticket)",
-	Args:  cobra.ExactArgs(1),
+	Use:   "run [workflow]",
+	Short: "Lance un workflow (une session par ticket ; sans argument : workflow par défaut du projet)",
+	Args:  cobra.MaximumNArgs(1),
 	RunE:  runWorkflowCmd,
 }
 
@@ -52,13 +52,22 @@ func addRunFlags(c *cobra.Command) {
 func runWorkflowCmd(cmd *cobra.Command, args []string) error {
 	a := MustApp()
 	ctx := cmd.Context()
-	opts, err := runOptionsFromFlags(cmd, args[0])
+	workflowID := ""
+	if len(args) > 0 {
+		workflowID = args[0]
+	}
+	opts, err := runOptionsFromFlags(cmd, workflowID)
 	if err != nil {
 		return err
 	}
 	projectID, _ := cmd.Flags().GetString("project")
 	if opts.Project, err = resolveProject(ctx, a, projectID); err != nil {
 		return err
+	}
+	if opts.Workflow == "" {
+		if opts.Workflow = projectExec(opts.Project).DefaultWorkflow; opts.Workflow == "" {
+			return errors.New(i18n.Tf("cmd.run.no_default_workflow", opts.Project.Name))
+		}
 	}
 	recap, _ := cmd.Flags().GetBool("recap")
 	if headless, _ := cmd.Flags().GetBool("headless"); headless {

@@ -29,6 +29,9 @@ type Project struct {
 	// WorkflowConfig held per-project overrides of the former workflow.
 	// Neutralized by migration v38 (always nil; see cmd/workflow_migrate.go).
 	WorkflowConfig *ProjectWorkflowConfig
+	// ExecConfig holds the execution settings of the project (dev image,
+	// default workflow and runtime). nil = defaults.
+	ExecConfig *ProjectExecConfig
 	// TeamID links this project to a team by its ID (matching a teams[].id entry
 	// in hub.toml). nil = solo project (no team affiliation). When set, the project
 	// inherits team-level configuration (MCP, tracker, models, policies).
@@ -74,6 +77,50 @@ type ProjectProviderConfig struct {
 	AWSRegion  string `json:"aws_region,omitempty"`  // override AWS region for this project
 	AuthMode   string `json:"auth_mode,omitempty"`   // override auth mode for this project
 	TokenKey   string `json:"token_key,omitempty"`   // project-specific keychain key for credentials
+}
+
+// ProjectExecConfig holds the execution settings of a project (v5 phase 4):
+// the dev environment of the container runtime and the launch defaults.
+type ProjectExecConfig struct {
+	// Dockerfile is the dev Dockerfile, absolute or relative to the project
+	// path ("" = detected: Dockerfile.dev, dev.Dockerfile,
+	// .devcontainer/Dockerfile, Dockerfile).
+	Dockerfile string `json:"dockerfile,omitempty"`
+	// BuildArgs are the build arguments of the dev image.
+	BuildArgs map[string]string `json:"build_args,omitempty"`
+	// Volumes are persistent cache volumes: absolute paths in the container,
+	// or paths relative to each mounted location (e.g. "node_modules").
+	Volumes []string `json:"volumes,omitempty"`
+	// DefaultWorkflow is launched by `oh run` without a workflow and comes
+	// first in the « Démarrer » section ("" = none).
+	DefaultWorkflow string `json:"default_workflow,omitempty"`
+	// DefaultRuntime is the preferred runtime (local | container | remote),
+	// used when the workflow allows it ("" = settings, then workflow).
+	DefaultRuntime string `json:"default_runtime,omitempty"`
+}
+
+// IsEmpty reports whether the config holds no setting.
+func (c *ProjectExecConfig) IsEmpty() bool {
+	return c == nil || (c.Dockerfile == "" && len(c.BuildArgs) == 0 && len(c.Volumes) == 0 &&
+		c.DefaultWorkflow == "" && c.DefaultRuntime == "")
+}
+
+// Clone returns a deep copy (nil for nil).
+func (c *ProjectExecConfig) Clone() *ProjectExecConfig {
+	if c == nil {
+		return nil
+	}
+	cp := *c
+	if c.BuildArgs != nil {
+		cp.BuildArgs = make(map[string]string, len(c.BuildArgs))
+		for k, v := range c.BuildArgs {
+			cp.BuildArgs[k] = v
+		}
+	}
+	if c.Volumes != nil {
+		cp.Volumes = append([]string{}, c.Volumes...)
+	}
+	return &cp
 }
 
 // ProjectTrackerConfig holds per-project tracker overrides.

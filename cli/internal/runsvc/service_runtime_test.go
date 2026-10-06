@@ -381,3 +381,48 @@ func TestStartedServerCleanedUpWhenAttestFails(t *testing.T) {
 	require.Len(t, srvs, 1)
 	assert.Equal(t, domain.ServerStopped, srvs[0].Status)
 }
+
+func TestResumeUsesProjectDevImageSettings(t *testing.T) {
+	f := newRTFixture(t)
+	ctx := context.Background()
+	wt := f.worktree(t, "proj-wt")
+	r, err := f.svc.StartSession(ctx, f.request(wt))
+	require.NoError(t, err)
+	require.NoError(t, f.svc.Servers.SetStatus(ctx, r.GroupKey, domain.ServerSleeping))
+	sess, err := f.svc.Sessions.Get(ctx, r.SessionID)
+	require.NoError(t, err)
+	sess.State = domain.RunSleeping
+	require.NoError(t, f.svc.Sessions.Update(ctx, sess))
+
+	// The resume request carries the project settings of the moment (the
+	// session location is a worktree: the Dockerfile is not looked up there).
+	req := f.request("")
+	req.Runtime = ""
+	req.Dockerfile, req.BuildArgs, req.Volumes = "docker/dev.Dockerfile", map[string]string{"B": "2"}, []string{"node_modules"}
+	require.NoError(t, f.svc.ResumeSession(ctx, r.SessionID, req))
+	require.Len(t, f.rt.prepares, 2)
+	g := f.rt.prepares[1]
+	assert.Equal(t, f.project, g.ProjectDir)
+	assert.Equal(t, []string{wt}, g.Locations)
+	assert.Equal(t, "docker/dev.Dockerfile", g.Dockerfile)
+	assert.Equal(t, map[string]string{"B": "2"}, g.BuildArgs)
+	assert.Equal(t, []string{"node_modules"}, g.Volumes)
+}
+
+func TestIsolateUserConfigReachesTheAdapter(t *testing.T) {
+	f := newRTFixture(t)
+	ctx := context.Background()
+	req := f.request(f.project)
+	req.Runtime = ""
+	req.IsolateUserConfig = true
+	r, err := f.svc.StartSession(ctx, req)
+	require.NoError(t, err)
+	require.Len(t, f.ad.started, 1)
+	assert.True(t, f.ad.started[0].IsolateUserConfig)
+
+	plain := f.request(f.project)
+	plain.Runtime = ""
+	cred := provider.ResolvedCredential{Secret: "s"}
+	assert.NotEqual(t, configFingerprint(plain, cred, "r"), configFingerprint(req, cred, "r"), "a strict group is not shared")
+	assert.NotEmpty(t, r.GroupKey)
+}

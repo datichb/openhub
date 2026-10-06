@@ -38,6 +38,9 @@ type StartCategory struct {
 
 // StartEntries is the content of the section for a scope.
 type StartEntries struct {
+	// Default is the default workflow of the project (project config ›
+	// Exécution), shown first. Nil = none.
+	Default     *StartEntry
 	Pinned      []StartEntry
 	Recents     []StartEntry
 	Suggestions []StartEntry
@@ -100,6 +103,9 @@ func startSection(cfg StartSectionConfig, scope StartScope, collapsed bool, pick
 		return d
 	}
 	header = i18n.T("tui.start.section")
+	if e.Default != nil {
+		items = append(items, entry("◆", *e.Default, i18n.T("tui.pc.exec.workflow.badge")+" · "+describe(*e.Default)))
+	}
 	for _, en := range e.Pinned {
 		items = append(items, entry("★", en, describe(en)))
 	}

@@ -121,6 +121,16 @@ func (t *tuiStart) compute(ctx context.Context, scope views.StartScope) (views.S
 		s, _ := workflowsvc.Find(valid, id)
 		return views.StartEntry{ID: id, Label: summaryDesc(s), Origin: summaryOrigin(s)}
 	}
+	if scope.ProjectID != "" {
+		if p, err := t.a.Projects.Get(ctx, scope.ProjectID); err == nil {
+			if id := projectExec(p).DefaultWorkflow; id != "" {
+				if _, ok := workflowsvc.Find(valid, id); ok {
+					e := entry(id)
+					out.Default = &e
+				}
+			}
+		}
+	}
 	for _, p := range start.Pinned {
 		e := entry(p.WorkflowID)
 		e.Pinned, e.PinScope = true, p.Scope
@@ -204,8 +214,16 @@ func agoLabel(d time.Duration) string {
 // tuiStartWiring is the « Démarrer » wiring of the running TUI.
 var tuiStartWiring *tuiStart
 
-// ticketWorkflows returns the workflows taking a Beads ticket, pinned ones
-// first (board quick actions; event loop safe: cached catalogue).
+// workflowIDs lists the valid workflows of the cached catalogue (event loop
+// safe; empty before the first load).
+func (t *tuiStart) workflowIDs() []string {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	return workflowsvc.IDs(t.catalog)
+}
+
+// ticketWorkflows returns the workflows taking a Beads ticket, the project
+// default then pinned ones first (board quick actions; event loop safe: cached catalogue).
 func (t *tuiStart) ticketWorkflows(scope views.StartScope) []views.TicketWorkflow {
 	t.mu.Lock()
 	catalog := t.catalog
@@ -227,9 +245,12 @@ func (t *tuiStart) ticketWorkflows(scope views.StartScope) []views.TicketWorkflo
 		for _, r := range s.Runtimes {
 			w.Runtimes = append(w.Runtimes, string(r))
 		}
-		if w.Pinned {
+		switch {
+		case e.Default != nil && e.Default.ID == s.ID:
+			first = append([]views.TicketWorkflow{w}, first...)
+		case w.Pinned:
 			first = append(first, w)
-		} else {
+		default:
 			rest = append(rest, w)
 		}
 	}

@@ -97,6 +97,9 @@ func prepareWorkflowRun(ctx context.Context, a *app.App, opts runOptions, errOut
 		return nil, workflowError(errOut, opts.Workflow, err)
 	}
 	inputs := launchInputs(probe.Spec, opts)
+	if opts.Runtime == "" {
+		opts.Runtime = string(probe.Spec.PickRuntime(runtimePrefs(a, opts.Project)...))
+	}
 	ticketInput, multi := workflowsvc.TicketInput(probe.Spec)
 	var perSession []string // ticket of each session (multi)
 	if len(opts.Tickets) > 0 {
@@ -147,6 +150,11 @@ func prepareWorkflowRun(ctx context.Context, a *app.App, opts runOptions, errOut
 	base.Title = sessionTitle(opts.Project, res.Spec.ID)
 	if res.Spec.Beads != nil {
 		base.BeadsAllow = append([]string{}, res.Spec.Beads.Allow...) // non-nil: declared
+	}
+	if kind == sessionspec.RuntimeContainer {
+		if id := gitIdentityEnv(opts.Project.Path); len(id) > 0 {
+			base.SessionEnv = id // commits from the container shell
+		}
 	}
 	if opts.Attach != "" {
 		base.Attach = sessionspec.AttachPref(opts.Attach)

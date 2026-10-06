@@ -50,6 +50,9 @@ func v5Available(ctx context.Context) bool {
 	}
 	v5Once.Do(func() {
 		v5Adapter, v5Err = detectV2Adapter(ctx)
+		if v5Err == nil && v5Adapter != nil {
+			v5Ver.Store(v5Adapter.Ver)
+		}
 	})
 	if v5Err != nil {
 		slog.Debug("v5 runtime unavailable, using legacy launch", "reason", v5Err)
@@ -131,6 +134,8 @@ func v5Request(a *app.App, project *domain.Project, providerFlag string) runsvc.
 		ProviderCfg: provider.ResolveProviderConfig(projProv, hubProviderCfg(a, prov)),
 		Attach:      sessionspec.AttachPref(attachPreference(a)), ITermStyle: termlaunch.ITermStyle(a.Config.Session.ITermStyle),
 	}
+	applyProjectExec(&req, project)
+	req.IsolateUserConfig = a.Config.Execution.StrictIsolation
 	if team := config.ResolveTeamForProject(a.Config, project); team.Enabled {
 		req.TeamID = team.TeamID
 		if team.MemberID != "" {

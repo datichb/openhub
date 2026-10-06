@@ -7,7 +7,7 @@ Declarative workflows (`apiVersion: oh/v1`) describe a use case: entry agent, ag
 ## oh run
 
 ```
-oh run <workflow> [-i key=value]… [--tickets a,b] [--mode <mode>] [--runtime local|container]
+oh run [workflow] [-i key=value]… [--tickets a,b] [--mode <mode>] [--runtime local|container]
                   [--location base|new|<worktree>] [--attach <opening>] [--recap] [-p <project>] [-P <provider>]
 ```
 
@@ -16,7 +16,8 @@ Launches a workflow: layer resolution and validation, session bundle, session pl
 - **Inputs** (`-i`, repeatable): values of the workflow `inputs` (`true`, `3`, `a,b` are converted to the input type). Defaults may depend on other inputs (`branch: feat/{{ .ticket }}`). Free text is injected between `<oh:input name="…">…</oh:input>` tags and truncated (`max_length`, else 1,000 characters, 8,000 for `text`).
 - **Tickets** (`--tickets`): fill the first `beads-id` input; with `picker.multi`, **one session per ticket**, all in the same server group, each in its own worktree when the workflow writes. A `beads-ids` input receives the list in a single session.
 - **Location** (`--location`): `base` (default, project directory), `new` (a new worktree per session, branch = `branch` input or `oh/<workflow>-<ticket>`), or the path of an existing worktree. A writing session (`risk` other than `read`) **automatically gets a worktree** when another writing session is active in the same directory. Replaces `--worktree`.
-- **Runtime** (`--runtime`): `local` or `container` (must be in `runtime.allowed`; refused with the reason when the container engine is unavailable).
+- **Default workflow**: without argument, `oh run` launches the project default workflow (Project config › Execution).
+- **Runtime** (`--runtime`): `local` or `container` (must be in `runtime.allowed`; refused with the reason when the container engine is unavailable; without `--runtime`, the project default runtime, then the Settings one, then the workflow one, when allowed. See [Container](../guides/container.en.md)).
 - **Recap** (`--recap`): agents, first-turn budget, isolation, sessions and locations, warnings (uncommitted changes, automatic worktree, pending decisions), then confirmation.
 - **Single session** (`--one-session`): every ticket in the same session, instead of one session per ticket.
 - **MCP**: without an `mcp:` field in the workflow, the session gets the project MCP servers; with `mcp:` (even empty), only the listed ones (a listed server missing from the project is reported).

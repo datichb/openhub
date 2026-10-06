@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"os"
 	"path/filepath"
 	"time"
 
@@ -95,14 +94,33 @@ func sessionEndHook(a *app.App, async bool) func(context.Context, domain.Session
 	}
 }
 
-// v5Runtimes are the non-local execution environments. The container
-// runtime is not exposed in the CLI/TUI yet (phase 4, lot 4.C); its engine
-// can be forced with OH_CONTAINER_ENGINE (auto|colima|podman|docker).
-func v5Runtimes() map[sessionspec.RuntimeKind]ohruntime.Runtime {
-	engine, _ := container.ParseEngine(os.Getenv("OH_CONTAINER_ENGINE"))
-	return map[sessionspec.RuntimeKind]ohruntime.Runtime{
-		sessionspec.RuntimeContainer: container.New(container.Options{Engine: engine, CacheDir: filepath.Join(ohCacheDir(), "container")}),
+// v5Runtimes are the non-local execution environments, configured by the
+// Settings › Exécution (`[execution]` of hub.toml): engine, image cache,
+// pinned tool version.
+func v5Runtimes(a *app.App) map[sessionspec.RuntimeKind]ohruntime.Runtime {
+	ex := executionConfig(a)
+	var rt ohruntime.Runtime = v5ContainerRuntime(a)
+	if v5Adapter != nil {
+		rt = pinRuntime(rt, ex.OpencodeVersion, v5Adapter.Ver)
 	}
+	return map[sessionspec.RuntimeKind]ohruntime.Runtime{sessionspec.RuntimeContainer: rt}
+}
+
+// executionConfig returns the Settings › Exécution of the app.
+func executionConfig(a *app.App) config.ExecutionConfig {
+	if a != nil && a.Config != nil {
+		return a.Config.Execution
+	}
+	return config.ExecutionConfig{}
+}
+
+// v5ContainerRuntime is the container runtime configured by the Settings
+// (engine, image cache), without the pinned version check (Doctor).
+func v5ContainerRuntime(a *app.App) *container.Runtime {
+	ex := executionConfig(a)
+	engine, _ := container.ParseEngine(ex.Engine)
+	return container.New(container.Options{Engine: engine, KeepImages: ex.Images(),
+		CacheDir: filepath.Join(ohCacheDir(), "container")})
 }
 
 // newRunService wires the RunService for the current app.
@@ -125,7 +143,7 @@ func newRunService(ctx context.Context, a *app.App) (*runsvc.Service, error) {
 		SessionsDir:  ohSessionsDir(),
 		Decisions:    sqlite.NewDecisionStore(store),
 		OnSessionEnd: sessionEndHook(a, false),
-		Runtimes:     v5Runtimes(),
+		Runtimes:     v5Runtimes(a),
 		SessionEnv: gatewaySessionEnv(func(ctx context.Context) (gatewayGranter, error) {
 			c, _, err := ensureDaemon(ctx)
 			return c, err

@@ -7,7 +7,7 @@ Les workflows déclaratifs (`apiVersion: oh/v1`) décrivent un cas d'usage : age
 ## oh run
 
 ```
-oh run <workflow> [-i clé=valeur]… [--tickets a,b] [--mode <mode>] [--runtime local|container]
+oh run [workflow] [-i clé=valeur]… [--tickets a,b] [--mode <mode>] [--runtime local|container]
                   [--location base|new|<worktree>] [--attach <ouverture>] [--recap] [-p <projet>] [-P <fournisseur>]
 ```
 
@@ -16,7 +16,8 @@ Lance un workflow : résolution des couches et validation, paquet de session, pl
 - **Entrées** (`-i`, répétable) : valeurs des `inputs` du workflow (`true`, `3`, `a,b` sont convertis selon le type). Les valeurs par défaut peuvent dépendre d'autres entrées (`branch: feat/{{ .ticket }}`). Le texte libre est injecté entre balises `<oh:input name="…">…</oh:input>` et tronqué (`max_length`, sinon 1 000 caractères, 8 000 pour `text`).
 - **Tickets** (`--tickets`) : remplissent la première entrée `beads-id` ; avec `picker.multi`, **une session par ticket**, toutes dans le même groupe de serveur, chacune dans son worktree si le workflow écrit. Une entrée `beads-ids` reçoit la liste dans une seule session.
 - **Emplacement** (`--location`) : `base` (défaut, dossier du projet), `new` (un nouveau worktree par session, branche = entrée `branch` ou `oh/<workflow>-<ticket>`), ou le chemin d'un worktree existant. Une session qui écrit (`risk` autre que `read`) reçoit **automatiquement un worktree** si une autre session qui écrit est active dans le même dossier. Remplace `--worktree`.
-- **Exécution** (`--runtime`) : `local` ou `container` (doit figurer dans `runtime.allowed` ; refusé avec la raison si le moteur de conteneurs est indisponible).
+- **Workflow par défaut** : sans argument, `oh run` lance le workflow par défaut du projet (Config projet › Exécution).
+- **Exécution** (`--runtime`) : `local` ou `container` (doit figurer dans `runtime.allowed` ; refusé avec la raison si le moteur de conteneurs est indisponible) ; sans `--runtime`, runtime par défaut du projet, puis des Réglages, puis du workflow, s'il est autorisé. Voir [Conteneur](../guides/container.fr.md).
 - **Récapitulatif** (`--recap`) : agents, budget du premier tour, isolation, sessions et emplacements, avertissements (modifications non commitées, worktree automatique, décisions en attente), puis confirmation.
 - **Une seule session** (`--one-session`) : tous les tickets dans la même session, au lieu d'une session par ticket.
 - **MCP** : sans champ `mcp:` dans le workflow, la session reçoit les serveurs MCP du projet ; avec `mcp:` (même vide), seulement ceux listés (un serveur listé mais absent du projet est signalé).

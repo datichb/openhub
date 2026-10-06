@@ -663,6 +663,7 @@ func buildViews(a *app.App, notifStore *shell.NotificationStore) []views.View {
 		}),
 		// Hub config view
 		views.NewSettingsView(views.SettingsViewConfig{
+			ToolVersion: v5ToolVersion,
 			GetConfig: func() *config.Config {
 				// Return the live config directly — no copy.
 				// The SettingsView uses undo (reload from disk) instead of
@@ -727,6 +728,8 @@ func buildViews(a *app.App, notifStore *shell.NotificationStore) []views.View {
 			Deploy: func(ctx context.Context, p *domain.Project) error {
 				return runDeployForProject(a, p)
 			},
+			ExecHints:   projectExecHints,
+			WorkflowIDs: tuiWorkflowIDs,
 			AllAgents: func() []string {
 				return []string{
 					"auditor", "auditor-subagent", "debugger", "designer",

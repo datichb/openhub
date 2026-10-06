@@ -72,7 +72,25 @@ func v5DoctorChecks() []views.DoctorCheck {
 	} else {
 		out = append(out, views.DoctorCheck{Name: i18n.T("cmd.doctor.v5.terminal"), OK: true, Detail: strings.Join(methods, " → ")})
 	}
+	for _, fn := range doctorChecks {
+		cctx, cancel := context.WithTimeout(context.Background(), doctorCheckTimeout)
+		out = append(out, fn(cctx)...)
+		cancel()
+	}
 	return out
+}
+
+// doctorChecks are the v5 checks registered by their own file (one check per
+// file: container, gateways…), run after the checks above with opencode V2.
+var doctorChecks []func(ctx context.Context) []views.DoctorCheck
+
+// doctorCheckTimeout bounds each registered check (short containers, first
+// pull of the probe image).
+const doctorCheckTimeout = 90 * time.Second
+
+// registerDoctorCheck adds a v5 check (called from init).
+func registerDoctorCheck(fn func(ctx context.Context) []views.DoctorCheck) {
+	doctorChecks = append(doctorChecks, fn)
 }
 
 // gitRelativeWorktrees checks git ≥ 2.48 (`git worktree add --relative-paths`,
