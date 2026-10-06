@@ -80,6 +80,19 @@ Open it from the omnibar (`sessions`) or from the "Sessions" sections of the hom
 
 With tmux, the session opens in a new window; with `[session] iterm_style = "split"`, in a pane next to it.
 
+## Checkpoints
+
+A session started from a workflow passes its checkpoints through the `workflow_checkpoint` tool (oh's `workflow` MCP server, added to every bundle). oh applies the mode:
+
+- a checkpoint that is **automatic** in the mode goes through without asking;
+- a **paused** checkpoint shows up in "To handle" (⏸) and the agent waits. `Enter` opens the card: the agent's summary, the changes (`Full diff`), the last messages, the timeline; then **Decide**: *Validate*, *Fix first* or *Other instruction*, with a message to the agent (required for the last two). `y` validates directly, `n` opens the card on "Fix first". You can still validate in the opencode UI: the first answer wins;
+- an agent locked by `after:` in the workflow is refused until its checkpoint is passed;
+- **circuit breaker** (`circuit_breaker`): after N delegations in a row without you, delegations are held and a ✗ alert shows up; `x` (or `oh session dismiss`) dismisses it and releases them.
+
+The session detail shows the timeline: `✔ cp-1 10:03 → developer (3) → ⏸ cp-2 → ○ cp-3`.
+
+From the command line: `oh session approve <id>` validates (`--decision once`), `--decision fix -m "…"` or `--decision other -m "…"` refuses with an instruction, `--decision reject` refuses without one.
+
 ## Notifications
 
 The oh daemon shows a system notification when a decision waits for you and when a session finishes its step while nobody is attached. Close notifications are grouped and never contain session content. With [`terminal-notifier`](https://github.com/julienXX/terminal-notifier) installed, a click brings oh's terminal back; otherwise oh uses `osascript` (or `notify-send` on Linux). To turn them off: `[session] notify = "off"` in `hub.toml` (applied when the daemon next starts).
