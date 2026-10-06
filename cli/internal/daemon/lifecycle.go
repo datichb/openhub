@@ -9,6 +9,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/adapters"
 	"github.com/datichb/openhub/cli/internal/domain"
+	"github.com/datichb/openhub/cli/internal/sessionresults"
 )
 
 // Session lifecycle (E11):
@@ -160,7 +161,9 @@ func (d *Daemon) sleepDecision(srv domain.Server, w *watcher) (sleep, stop bool)
 func (d *Daemon) putToSleep(ctx context.Context, srv domain.Server, final bool) {
 	if ad := d.opts.Adapter; ad != nil {
 		if a := ad(srv.Adapter); a != nil {
-			_ = a.StopServer(ctx, adapters.ServerHandle{URL: srv.URL, Password: srv.Password, PID: srv.PID})
+			h := adapters.ServerHandle{URL: srv.URL, Password: srv.Password, PID: srv.PID}
+			d.snapshotResults(ctx, a, h, srv)
+			_ = a.StopServer(ctx, h)
 		}
 	}
 	status, state := domain.ServerSleeping, domain.RunSleeping
@@ -182,6 +185,7 @@ func (d *Daemon) putToSleep(ctx context.Context, srv domain.Server, final bool) 
 		w.stop(3 * time.Second)
 	}
 	d.markSessions(ctx, srv, state)
+	d.closeDecisions(ctx, srv.GroupKey, final)
 	slog.Info("ohd: server group put to "+string(status), "group", srv.GroupKey)
 }
 
@@ -205,8 +209,15 @@ func (d *Daemon) markSessions(ctx context.Context, srv domain.Server, state doma
 			s.Status = domain.SessionStatusCompleted
 			s.EndedAt = &now
 		}
-		if err := d.opts.Sessions.Update(ctx, s); err == nil && state == domain.RunStopped && d.opts.OnSessionEnd != nil {
-			d.opts.OnSessionEnd(ctx, *s)
+		if err := d.opts.Sessions.Update(ctx, s); err != nil {
+			continue
+		}
+		d.feed.publishChange(domain.SessionChange{SessionID: s.ID, GroupKey: s.GroupKey, State: state})
+		if state == domain.RunStopped {
+			d.feed.forget(s.ID)
+			if d.opts.OnSessionEnd != nil {
+				d.opts.OnSessionEnd(ctx, *s)
+			}
 		}
 	}
 }
@@ -242,6 +253,32 @@ func (d *Daemon) applyLifecycle(ctx context.Context, ready []domain.Server) {
 			d.putToSleep(ctx, srv, true)
 		case sleep:
 			d.putToSleep(ctx, srv, false)
+		}
+	}
+}
+
+// snapshotResults saves the results (diff, cost) of the open sessions of a
+// group while its server still runs: they stay readable once it sleeps.
+func (d *Daemon) snapshotResults(ctx context.Context, a adapters.ToolAdapter, h adapters.ServerHandle, srv domain.Server) {
+	if d.opts.SessionsDir == "" || d.opts.Sessions == nil {
+		return
+	}
+	sessions, err := d.opts.Sessions.List(ctx, srv.ProjectID)
+	if err != nil {
+		return
+	}
+	for _, s := range sessions {
+		if s.GroupKey != srv.GroupKey || isTerminal(s.State) {
+			continue
+		}
+		cctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+		res, err := a.Results(cctx, h, s.ID)
+		cancel()
+		if err != nil {
+			continue
+		}
+		if err := sessionresults.Save(d.opts.SessionsDir, res, time.Now()); err != nil {
+			slog.Debug("ohd: results not saved", "session", s.ID, "error", err)
 		}
 	}
 }

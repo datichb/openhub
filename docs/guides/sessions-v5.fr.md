@@ -42,18 +42,47 @@ idle_sleep_minutes = 5     # un serveur inactif se met en veille après N minute
 
 - Un serveur se met en veille quand **aucune** session ne travaille, qu'aucun client n'est attaché et que rien ne s'est passé depuis `idle_sleep_minutes`. Une décision qui vous attend (permission, question) garde le serveur éveillé tant que oh est ouvert.
 - Une session en veille reprend quand vous la rouvrez : `oh session attach <id>` redémarre son serveur, puis ouvre le client.
-- Si vous quittez la TUI pendant que des sessions travaillent, oh vous demande quoi faire. Le choix par défaut est « finir l'étape en cours, puis mettre en veille ».
+- Si vous quittez la TUI (Ctrl+Q ou commande `quit`) pendant que des sessions travaillent, oh demande quoi faire **pour chacune** : « finir l'étape, veille » (défaut), « arrière-plan » ou « arrêter maintenant ». Échap annule. Les sessions en attente ou inactives sont mises en veille tout de suite.
+- Au retour, un message résume ce qui s'est passé pendant votre absence (sessions changées, décisions arrivées, coût).
 
 ## Commandes
 
 | Commande | Rôle |
 |---|---|
-| `oh session list` | sessions et leur état (active, en attente, inactive, en veille, arrêtée) |
-| `oh session attach <id>` | ouvrir (ou reprendre) une session |
+| `oh session list [--all] [--json]` | sessions, leur état (active, en attente, inactive, en veille, arrêtée) et leurs décisions en attente |
+| `oh session inbox [--json]` | décisions en attente de toutes les sessions : `⏸` checkpoint, `?` question, `!` permission, `$` budget, `✗` erreur |
+| `oh session approve <id> [--decision once\|always\|reject] [-m "…"]` | répondre à une permission sans ouvrir la session (`always` refusé en isolation stricte) |
+| `oh session answer <id> --field clé=valeur…` | répondre à une question de l'agent ; sans `--field`, affiche les champs attendus |
+| `oh session dismiss <id>` | classer une alerte (erreur, budget) |
+| `oh session send <id> "…" [--queue] [--synthetic]` | envoyer une consigne courte (prise en compte à la prochaine étape, ou après l'étape avec `--queue`) |
+| `oh session follow <id>` | suivre une session en direct, en lecture seule (Ctrl+C pour quitter) |
+| `oh session interrupt\|compact <id>` | interrompre l'étape en cours, compacter l'historique |
+| `oh session model <id> <fournisseur/modèle>` | changer le modèle des prochaines étapes |
+| `oh session fork <id>` | créer une variante (copie de l'historique, même serveur) |
+| `oh session results <id> [--mr] [--patch] [--json]` | fichiers modifiés, branche, coût ; description de MR ; diff |
+| `oh session attach <id> [--how auto\|iterm\|terminal\|tmux\|browser\|suspend]` | ouvrir (ou reprendre) une session |
+| `oh session open <id> --browser [--print]` | ouvrir une session dans le navigateur (code à usage unique, 5 min) |
+| `oh session resume <id>` | reprendre une session en veille sans ouvrir d'interface |
 | `oh session stop <id>` | arrêter une session, et son serveur si aucune autre session ne l'utilise |
 | `oh daemon status` | état du démon (serveurs, jetons de proxy) |
 | `oh daemon stop [--force]` | arrêter le démon (refusé si des sessions tournent, sauf `--force`) |
 | `oh doctor` | vérifications v5 : runtime, démon, git, terminal |
+
+Dans ces commandes, `<id>` peut être un début d'identifiant (`oh session follow dRcJ`) ; `approve`, `answer` et `dismiss` acceptent aussi l'identifiant d'une décision (affiché par `inbox`) quand une session en a plusieurs. **Première réponse gagne** : si la décision a déjà été prise dans l'interface opencode ou le navigateur, oh le dit et n'envoie rien.
+
+## Vue Sessions (TUI)
+
+Ouvrez-la depuis l'omnibar (`sessions`) ou les sections « Sessions » des pages d'accueil, de projet et d'équipe. La barre du bas affiche partout `● N ⏸ M` (sessions vivantes, décisions en attente).
+
+- **À traiter** : décisions de toutes les sessions. `Entrée` ouvre la fiche (permission : une fois / toujours / refuser + message ; question : formulaire généré ; alerte : classer ou attacher), `y`/`n` valident ou refusent une permission, `x` classe une alerte.
+- **En cours, En veille, Terminées (7 j)** ; détail de la session sélectionnée en bas.
+- `t` (ou `Entrée` sur une session) : flux en direct à droite (agent, outils, messages, coût). `a` attacher, `A` choisir comment ouvrir (iTerm2, Terminal.app, tmux, navigateur, ici), `m` consigne, `i` interrompre, `M` modèle, `s` arrêter, `c` reprendre, `o` résultats et description de MR, `w` navigateur, `f` projet actif / tous les projets, `r` rafraîchir.
+
+Avec tmux, la session s'ouvre dans une nouvelle fenêtre ; avec `[session] iterm_style = "split"`, dans un volet à côté.
+
+## Notifications
+
+Le démon oh affiche une notification système quand une décision vous attend et quand une session finit son étape sans que personne n'y soit attaché. Les notifications proches sont regroupées et ne contiennent jamais le contenu de la session. Avec [`terminal-notifier`](https://github.com/julienXX/terminal-notifier) installé, un clic ramène le terminal d'oh ; sinon oh utilise `osascript` (ou `notify-send` sous Linux). Pour les couper : `[session] notify = "off"` dans `hub.toml` (pris en compte au prochain démarrage du démon).
 
 ## Clés LLM
 

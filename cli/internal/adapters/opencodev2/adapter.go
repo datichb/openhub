@@ -284,6 +284,17 @@ func (a *Adapter) SendPrompt(ctx context.Context, h adapters.ServerHandle, sessi
 	return client(h).Prompt(ctx, sessionID, text)
 }
 
+var _ adapters.SessionEnvSetter = (*Adapter)(nil)
+
+// SetSessionEnv implements adapters.SessionEnvSetter. opencode keeps the
+// session environment in memory only (lost when the server restarts).
+func (a *Adapter) SetSessionEnv(ctx context.Context, h adapters.ServerHandle, sessionID string, env map[string]string) error {
+	if env == nil {
+		env = map[string]string{}
+	}
+	return client(h).SetEnvironment(ctx, sessionID, env)
+}
+
 // AttachCommand implements adapters.ToolAdapter: the interactive client
 // connects to the server and opens the session.
 func (a *Adapter) AttachCommand(h adapters.ServerHandle, sessionID string) (argv, env []string) {
@@ -303,9 +314,11 @@ func (a *Adapter) Events(ctx context.Context, h adapters.ServerHandle) (<-chan a
 	out := make(chan adapters.ToolEvent, 64)
 	go func() {
 		defer close(out)
+		feed := newFeedDecoder()
 		for e := range evs {
 			te := adapters.ToolEvent{ID: e.ID, Type: e.Type, SessionID: e.SessionID(), Time: e.Time()}
 			te.Kind, te.Outcome = EventKind(e.Type)
+			te.Feed, te.ParentID = feed.decode(e)
 			if e.Location != nil {
 				te.Location = e.Location.Directory
 			}
@@ -342,13 +355,13 @@ func (a *Adapter) Pending(ctx context.Context, h adapters.ServerHandle, sessionI
 	for _, p := range perms {
 		out = append(out, adapters.PendingDecision{
 			ID: p.ID, SessionID: p.SessionID, Kind: adapters.DecisionPermission,
-			Action: p.Action, Resources: p.Resources,
+			Action: p.Action, Resources: p.Resources, Message: p.Message,
 		})
 	}
 	for _, f := range forms {
 		d := adapters.PendingDecision{ID: f.ID, SessionID: f.SessionID, Kind: adapters.DecisionQuestion, Title: f.Title}
 		for _, fl := range f.Fields {
-			ff := adapters.FormField{Key: fl.Key, Title: fl.Title, Description: fl.Description, Type: fl.Type, Custom: fl.Custom}
+			ff := adapters.FormField{Key: fl.Key, Title: fl.Title, Description: fl.Description, Type: fl.Type, Custom: fl.Custom, Required: fl.Required}
 			for _, o := range fl.Options {
 				ff.Options = append(ff.Options, adapters.FormOption{Value: o.Value, Label: o.Label, Description: o.Description})
 			}
@@ -362,6 +375,7 @@ func (a *Adapter) Pending(ctx context.Context, h adapters.ServerHandle, sessionI
 // Reply implements adapters.ToolAdapter.
 func (a *Adapter) Reply(ctx context.Context, h adapters.ServerHandle, d adapters.DecisionReply) error {
 	c := client(h)
+	var err error
 	switch d.Kind {
 	case adapters.DecisionPermission:
 		switch d.Decision {
@@ -369,30 +383,94 @@ func (a *Adapter) Reply(ctx context.Context, h adapters.ServerHandle, d adapters
 		default:
 			return fmt.Errorf("invalid permission decision %q", d.Decision)
 		}
-		return c.ReplyPermission(ctx, d.SessionID, d.ID, d.Decision, d.Message)
+		err = c.ReplyPermission(ctx, d.SessionID, d.ID, d.Decision, d.Message)
 	case adapters.DecisionQuestion:
-		return c.ReplyForm(ctx, d.SessionID, d.ID, d.Answer)
+		err = c.ReplyForm(ctx, d.SessionID, d.ID, d.Answer)
+	default:
+		return fmt.Errorf("unknown decision kind %q", d.Kind)
 	}
-	return fmt.Errorf("unknown decision kind %q", d.Kind)
+	switch {
+	case err == nil:
+		return nil
+	case IsSettled(err):
+		return fmt.Errorf("%w: %v", adapters.ErrRequestGone, err)
+	case IsInvalidAnswer(err):
+		return fmt.Errorf("%w: %v", adapters.ErrInvalidAnswer, err)
+	}
+	return err
 }
 
 // Control implements adapters.ToolAdapter.
 func (a *Adapter) Control(ctx context.Context, h adapters.ServerHandle, sessionID string, op adapters.ControlOp) error {
 	c := client(h)
 	switch op.Kind {
-	case "interrupt":
+	case adapters.ControlInterrupt:
 		return c.Interrupt(ctx, sessionID)
-	case "synthetic":
-		return c.Synthetic(ctx, sessionID, op.Text)
-	case "prompt":
-		return c.Prompt(ctx, sessionID, op.Text)
-	case "switch_model":
-		if op.Model == nil {
+	case adapters.ControlSynthetic:
+		return c.SyntheticWith(ctx, sessionID, op.Text, string(op.Delivery))
+	case adapters.ControlPrompt:
+		return c.PromptWith(ctx, sessionID, op.Text, string(op.Delivery))
+	case adapters.ControlCompact:
+		return c.Compact(ctx, sessionID)
+	case adapters.ControlSwitchModel:
+		if op.Model == nil || op.Model.Provider == "" || op.Model.Model == "" {
 			return errors.New("switch_model requires a model")
 		}
-		return c.SwitchModel(ctx, sessionID, ModelRef{ProviderID: op.Model.Provider, ID: op.Model.Model, Variant: op.Model.Variant})
+		region := op.Region
+		ref := ModelRef{ProviderID: op.Model.Provider, Variant: op.Model.Variant}
+		ref.ID = strings.TrimPrefix(ModelID(*op.Model, region), op.Model.Provider+"/")
+		if i := strings.LastIndex(ref.ID, "#"); i >= 0 {
+			ref.ID = ref.ID[:i]
+		}
+		if region == "" {
+			// Keep the inference profile prefix of the current model (eu., us.…).
+			if cur, err := c.GetSession(ctx, sessionID); err == nil && cur.Model != nil {
+				ref.ID = withGeoOf(ref.ID, cur.Model.ID, op.Model.Provider)
+			}
+		}
+		return c.SwitchModel(ctx, sessionID, ref)
 	}
 	return fmt.Errorf("unsupported control %q", op.Kind)
+}
+
+var _ adapters.Forker = (*Adapter)(nil)
+
+var _ adapters.ChildLister = (*Adapter)(nil)
+
+// Children implements adapters.ChildLister.
+func (a *Adapter) Children(ctx context.Context, h adapters.ServerHandle) (map[string]string, error) {
+	list, err := client(h).ListSessions(ctx, "")
+	if err != nil {
+		return nil, err
+	}
+	out := map[string]string{}
+	for _, s := range list {
+		if s.ParentID != "" {
+			out[s.ID] = s.ParentID
+		}
+	}
+	return out, nil
+}
+
+// Fork implements adapters.Forker.
+func (a *Adapter) Fork(ctx context.Context, h adapters.ServerHandle, sessionID string) (string, error) {
+	s, err := client(h).Fork(ctx, sessionID)
+	if err != nil {
+		return "", err
+	}
+	return s.ID, nil
+}
+
+// withGeoOf adds to a Bedrock Anthropic model id the inference profile
+// prefix ("eu.", "us."…) of the current model of the session.
+func withGeoOf(id, current, provider string) string {
+	if provider != "amazon-bedrock" || !strings.HasPrefix(id, "anthropic.") {
+		return id
+	}
+	if i := strings.Index(current, ".anthropic."); i > 0 {
+		return current[:i] + "." + id
+	}
+	return id
 }
 
 // Usage returns the cost and token usage of a session (no diff).
@@ -419,6 +497,11 @@ func (a *Adapter) Results(ctx context.Context, h adapters.ServerHandle, sessionI
 		SessionID: s.ID, Title: s.Title, Agent: s.Agent, Cost: s.Cost,
 		TokensIn: s.Tokens.Input, TokensOut: s.Tokens.Output, TokensReasoning: s.Tokens.Reasoning,
 		TokensCacheRead: s.Tokens.Cache.Read, TokensCacheWrite: s.Tokens.Cache.Write,
+	}
+	if s.Location.Directory != "" {
+		if vcs, err := c.VCS(ctx, s.Location.Directory); err == nil {
+			res.Branch = vcs.Branch.Current
+		}
 	}
 	diff, err := c.Diff(ctx, sessionID)
 	if err != nil {

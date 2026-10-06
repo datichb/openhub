@@ -6,8 +6,10 @@ package adapters
 
 import (
 	"context"
+	"errors"
 	"time"
 
+	"github.com/datichb/openhub/cli/internal/domain"
 	ohruntime "github.com/datichb/openhub/cli/internal/runtime"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 )
@@ -95,9 +97,11 @@ type ToolEvent struct {
 	Outcome   string // for EventExecEnded: succeeded | failed | interrupted | …
 	Type      string // raw tool event type, e.g. "permission.asked"
 	SessionID string
+	ParentID  string // EventSessionCreated: parent of a child (subagent) session
 	Location  string
 	Time      time.Time
 	Data      map[string]any
+	Feed      *domain.FeedItem // live feed entry, when the event is shown to users
 }
 
 // DecisionKind classifies a pending human decision.
@@ -116,8 +120,16 @@ type PendingDecision struct {
 	Action    string   // permission action
 	Resources []string // permission resources
 	Title     string   // question/form title
+	Message   string   // optional explanation from the tool
 	Fields    []FormField
 }
+
+// ErrRequestGone is returned by Reply when the request no longer waits for
+// an answer (answered elsewhere, cancelled, or unknown): first answer wins.
+var ErrRequestGone = errors.New("the request was already answered or no longer exists")
+
+// ErrInvalidAnswer is returned by Reply when the tool rejects the answer.
+var ErrInvalidAnswer = errors.New("the tool rejected the answer")
 
 // FormField is a typed question field.
 type FormField struct {
@@ -127,6 +139,7 @@ type FormField struct {
 	Type        string
 	Options     []FormOption
 	Custom      bool
+	Required    bool
 }
 
 // FormOption is one choice of a FormField.
@@ -146,11 +159,43 @@ type DecisionReply struct {
 	Answer    map[string]any // question answers by field key
 }
 
+// Control operation kinds.
+const (
+	ControlPrompt      = "prompt"       // user prompt (Text)
+	ControlSynthetic   = "synthetic"    // synthetic message (Text), S6
+	ControlInterrupt   = "interrupt"    // stop the running agent loop
+	ControlSwitchModel = "switch_model" // Model, for the next turns
+	ControlCompact     = "compact"      // compact the session history
+)
+
+// Delivery tells when a prompt or synthetic message is taken into account.
+type Delivery string
+
+const (
+	DeliveryDefault Delivery = ""      // tool default
+	DeliverySteer   Delivery = "steer" // at the next step boundary of the running loop
+	DeliveryQueue   Delivery = "queue" // after the running loop
+)
+
 // ControlOp is a session control operation.
 type ControlOp struct {
-	Kind  string // interrupt | synthetic | switch_model | compact | fork
-	Text  string
-	Model *sessionspec.ModelRef
+	Kind     string
+	Text     string
+	Model    *sessionspec.ModelRef
+	Region   string // provider region (model id resolution)
+	Delivery Delivery
+}
+
+// ChildLister is implemented by adapters whose sessions can delegate to
+// child (subagent) sessions: it returns child session id → parent id.
+type ChildLister interface {
+	Children(ctx context.Context, h ServerHandle) (map[string]string, error)
+}
+
+// Forker is implemented by adapters that can fork a session (S9): a new
+// session with a copy of the history. It returns the new tool session ID.
+type Forker interface {
+	Fork(ctx context.Context, h ServerHandle, sessionID string) (string, error)
 }
 
 // FileChange is one changed file of a session.
@@ -173,6 +218,7 @@ type SessionResult struct {
 	TokensReasoning  int64
 	TokensCacheRead  int64
 	TokensCacheWrite int64
+	Branch           string // current VCS branch of the session location ("" if unknown)
 	Changes          []FileChange
 }
 
@@ -197,4 +243,11 @@ type ToolAdapter interface {
 	Reply(ctx context.Context, h ServerHandle, d DecisionReply) error
 	Control(ctx context.Context, h ServerHandle, sessionID string, op ControlOp) error
 	Results(ctx context.Context, h ServerHandle, sessionID string) (SessionResult, error)
+}
+
+// SessionEnvSetter is implemented by adapters that can (re)apply the
+// session environment (S7) of an existing session. Tools may keep it in
+// memory only (opencode V2): it must be applied again after a server restart.
+type SessionEnvSetter interface {
+	SetSessionEnv(ctx context.Context, h ServerHandle, sessionID string, env map[string]string) error
 }

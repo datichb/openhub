@@ -14,6 +14,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -269,4 +270,97 @@ func TestE2EAgentReadsSkillAnnexOutsideProject(t *testing.T) {
 	}
 	require.NoError(t, err)
 	assert.Contains(t, r.replyText(context.Background(), t, id), "PAPAYA-47")
+}
+
+// pendingOf polls the pending decisions of a session until one of kind shows up.
+func (r *e2eRun) pendingOf(t *testing.T, ctx context.Context, id string, kind adapters.DecisionKind) adapters.PendingDecision {
+	t.Helper()
+	for ctx.Err() == nil {
+		list, err := r.adapter.Pending(ctx, r.handle, id)
+		require.NoError(t, err)
+		for _, d := range list {
+			if d.Kind == kind {
+				return d
+			}
+		}
+		time.Sleep(300 * time.Millisecond)
+	}
+	t.Fatalf("no pending %s decision", kind)
+	return adapters.PendingDecision{}
+}
+
+func (r *e2eRun) text(t *testing.T, ctx context.Context, id string) string {
+	t.Helper()
+	txt, err := NewClient(r.handle.URL, r.handle.Password).AssistantText(ctx, id)
+	require.NoError(t, err)
+	return txt
+}
+
+// Headless decisions (S3/S4, P3-T08): a permission and an agent question
+// answered through the API, then the agent goes on.
+func TestE2EHeadlessDecisions(t *testing.T) {
+	r := startE2E(t, e2eBundle(t), false)
+	ctx, cancel := context.WithTimeout(context.Background(), 4*time.Minute)
+	defer cancel()
+	c := NewClient(r.handle.URL, r.handle.Password)
+	evs, err := r.adapter.Events(ctx, r.handle)
+	require.NoError(t, err)
+	var seenMu sync.Mutex
+	seen := map[string]map[adapters.EventKind]bool{}
+	go func() {
+		for ev := range evs {
+			seenMu.Lock()
+			if seen[ev.SessionID] == nil {
+				seen[ev.SessionID] = map[adapters.EventKind]bool{}
+			}
+			seen[ev.SessionID][ev.Kind] = true
+			seenMu.Unlock()
+		}
+	}()
+	asked := func(id string, k adapters.EventKind) bool {
+		seenMu.Lock()
+		defer seenMu.Unlock()
+		return seen[id][k]
+	}
+
+	id := sessionspec.NewSessionID()
+	require.NoError(t, r.adapter.CreateSession(ctx, r.handle, sessionspec.SessionSpec{SessionID: id, Title: "e2e", EntryAgent: "lead", Location: r.project,
+		SessionRules: []sessionspec.PermissionRule{{Action: "shell", Resource: "*", Effect: sessionspec.EffectAsk}}}))
+	require.NoError(t, r.adapter.SendPrompt(ctx, r.handle, id, "Run the shell command `echo e2e-perm-ok` and reply with its exact output."))
+	p := r.pendingOf(t, ctx, id, adapters.DecisionPermission)
+	assert.Equal(t, "shell", p.Action)
+	require.NoError(t, r.adapter.Reply(ctx, r.handle, adapters.DecisionReply{SessionID: id, ID: p.ID, Kind: adapters.DecisionPermission, Decision: "once", Message: "approved by oh e2e"}))
+	// Answering twice: the second answer is refused (first answer wins).
+	err = r.adapter.Reply(ctx, r.handle, adapters.DecisionReply{SessionID: id, ID: p.ID, Kind: adapters.DecisionPermission, Decision: "reject"})
+	assert.ErrorIs(t, err, adapters.ErrRequestGone, "%v", err)
+	require.NoError(t, c.Wait(ctx, id))
+	assert.Contains(t, r.text(t, ctx, id), "e2e-perm-ok")
+
+	q := sessionspec.NewSessionID()
+	require.NoError(t, r.adapter.CreateSession(ctx, r.handle, sessionspec.SessionSpec{SessionID: q, Title: "e2e", EntryAgent: "lead", Location: r.project}))
+	require.NoError(t, r.adapter.SendPrompt(ctx, r.handle, q, "Use your question tool to ask me which colour I prefer, with exactly two options: Blue and Red. Then reply with the single word I chose."))
+	form := r.pendingOf(t, ctx, q, adapters.DecisionQuestion)
+	require.NotEmpty(t, form.Fields)
+	f := form.Fields[0]
+	value := "Blue"
+	for _, o := range f.Options {
+		if strings.EqualFold(o.Label, "blue") || strings.EqualFold(o.Value, "blue") {
+			value = o.Value
+		}
+	}
+	var answer any = value
+	if f.Type == "multiselect" {
+		answer = []string{value}
+	}
+	t.Logf("question field %+v", f)
+	require.NoError(t, r.adapter.Reply(ctx, r.handle, adapters.DecisionReply{SessionID: q, ID: form.ID, Kind: adapters.DecisionQuestion, Answer: map[string]any{f.Key: answer}}))
+	require.NoError(t, c.Wait(ctx, q))
+	assert.Contains(t, strings.ToLower(r.text(t, ctx, q)), "blue")
+
+	// The decision events carry their session (permission.asked, form.created
+	// nest it in data.request / data.form).
+	for _, s := range []string{id, q} {
+		assert.True(t, asked(s, adapters.EventDecisionAsked), "decision asked event for %s", s)
+		assert.True(t, asked(s, adapters.EventDecisionReplied), "decision replied event for %s", s)
+	}
 }

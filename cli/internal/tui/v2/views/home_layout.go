@@ -55,6 +55,16 @@ type homeDualLayout struct {
 	app       *tview.Application
 }
 
+// homeOwnsFocus reports whether one of the landing lists has the focus (or
+// nothing has), i.e. no modal holds it.
+func homeOwnsFocus(app *tview.Application, list *widgets.SectionedList, dual *homeDualLayout) bool {
+	f := app.GetFocus()
+	if f == nil || (list != nil && f == list) {
+		return true
+	}
+	return dual != nil && (f == dual.left || f == dual.right)
+}
+
 func (d *homeDualLayout) activeList() *widgets.SectionedList {
 	if d.activeCol == 1 {
 		return d.right
@@ -315,6 +325,8 @@ func adaptiveHomeMount(
 			go func() {
 				if app != nil {
 					app.QueueUpdateDraw(func() {
+						// A modal (quit dialog, form) keeps the focus.
+						owned := homeOwnsFocus(app, result.SingleList, result.Dual)
 						// Clear and rebuild
 						content.RemoveItem(result.Root)
 						result = buildFn(width)
@@ -322,6 +334,9 @@ func adaptiveHomeMount(
 						content.AddItem(result.Root, 0, 1, true)
 
 						// Focus the appropriate widget
+						if !owned {
+							return
+						}
 						if result.Dual != nil {
 							result.Dual.focusLeft()
 						} else if result.SingleList != nil {

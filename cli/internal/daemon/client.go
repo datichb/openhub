@@ -19,8 +19,9 @@ import (
 
 // Client talks to ohd over its Unix socket.
 type Client struct {
-	paths Paths
-	http  *http.Client
+	paths  Paths
+	http   *http.Client
+	stream *http.Client // no timeout (live stream)
 }
 
 // NewClient returns a client for the daemon at paths.
@@ -31,7 +32,7 @@ func NewClient(paths Paths) *Client {
 			return d.DialContext(ctx, "unix", paths.Socket())
 		},
 	}
-	return &Client{paths: paths, http: &http.Client{Transport: tr, Timeout: 30 * time.Second}}
+	return &Client{paths: paths, http: &http.Client{Transport: tr, Timeout: 30 * time.Second}, stream: &http.Client{Transport: tr}}
 }
 
 // ErrNotRunning is returned when the daemon socket does not answer.
@@ -151,6 +152,53 @@ func (c *Client) ClientGone(ctx context.Context, id string) error {
 // SetPolicy sets the quit policy of a server group.
 func (c *Client) SetPolicy(ctx context.Context, group string, p QuitPolicy) error {
 	return c.do(ctx, http.MethodPost, "/groups/"+url.PathEscape(group)+"/policy", PolicyRequest{Policy: p}, nil)
+}
+
+// Stream subscribes to the live stream of the daemon: session changes, plus
+// the feed of one session when sessionID is set (its recent backlog first).
+// The channel is closed when the stream ends (ctx cancelled, daemon gone).
+func (c *Client) Stream(ctx context.Context, sessionID string) (<-chan StreamEvent, error) {
+	path := "http://ohd" + apiPrefix + "/stream"
+	if sessionID != "" {
+		path += "?session=" + url.QueryEscape(sessionID)
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, path, http.NoBody)
+	if err != nil {
+		return nil, err
+	}
+	resp, err := c.stream.Do(req) //nolint:bodyclose // closed by the reader goroutine
+	if err != nil {
+		var opErr *net.OpError
+		if errors.As(err, &opErr) {
+			return nil, ErrNotRunning
+		}
+		return nil, err
+	}
+	if resp.StatusCode != http.StatusOK {
+		resp.Body.Close()
+		return nil, fmt.Errorf("ohd stream: %s", resp.Status)
+	}
+	out := make(chan StreamEvent, 64)
+	go func() {
+		defer close(out)
+		defer resp.Body.Close()
+		dec := json.NewDecoder(resp.Body)
+		for {
+			var ev StreamEvent
+			if err := dec.Decode(&ev); err != nil {
+				return
+			}
+			if ev.Feed == nil && ev.Change == nil {
+				continue // keep-alive
+			}
+			select {
+			case out <- ev:
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+	return out, nil
 }
 
 // KeepAlive sends heartbeats for a client until ctx is cancelled, then

@@ -6,6 +6,7 @@ package opencodev2
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net"
 	"os"
@@ -300,4 +301,104 @@ func TestContractAttestDetectsParasiteAgent(t *testing.T) {
 	assert.False(t, rep.OK())
 	assert.Equal(t, []string{"parasite"}, UnexpectedAgents(rep))
 	assert.Equal(t, sessionspec.IsolationNone, rep.Level)
+}
+
+// shellOutput runs a shell command in a session and returns its output
+// (session.shell.ended event; no LLM involved).
+func shellOutput(t *testing.T, c *Client, sessionID, command string) string {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+	evs, _, err := c.Events(ctx)
+	require.NoError(t, err)
+	require.NoError(t, c.Shell(ctx, sessionID, command))
+	for ev := range evs {
+		if ev.Type != "session.shell.ended" || ev.SessionID() != sessionID {
+			continue
+		}
+		var d struct {
+			Output struct {
+				Output string `json:"output"`
+			} `json:"output"`
+		}
+		require.NoError(t, json.Unmarshal(ev.Data, &d))
+		return strings.TrimSpace(d.Output.Output)
+	}
+	t.Fatal("no session.shell.ended event")
+	return ""
+}
+
+// The session environment (S7) applies to the session shell only, and is
+// kept in memory: it is lost when the server restarts (oh applies it again).
+func TestContractSessionEnvironment(t *testing.T) {
+	cfg := `{"agents":{"pinger":{"mode":"primary","description":"p"}}}`
+	s := startLiveServer(t, cfg, "pinger")
+	ctx := context.Background()
+	ad := &Adapter{}
+	h := adapters.ServerHandle{URL: s.URL, Password: s.Password, PID: s.PID}
+	sid := sessionspec.NewSessionID()
+	require.NoError(t, ad.CreateSession(ctx, h, sessionspec.SessionSpec{SessionID: sid, EntryAgent: "pinger", Location: s.project,
+		SessionEnv: map[string]string{"OH_CONTRACT": "one"}}))
+	assert.Equal(t, "VAL=one", shellOutput(t, s.client, sid, "echo VAL=$OH_CONTRACT"))
+
+	other := sessionspec.NewSessionID()
+	require.NoError(t, ad.CreateSession(ctx, h, sessionspec.SessionSpec{SessionID: other, EntryAgent: "pinger", Location: s.project}))
+	assert.Equal(t, "VAL=", shellOutput(t, s.client, other, "echo VAL=$OH_CONTRACT"), "per session, not per server")
+
+	// Restart on the same data dir: the session survives, its environment does not.
+	require.NoError(t, s.Stop(ctx, 5*time.Second))
+	srv, err := StartServer(ctx, ServerOptions{WorkDir: s.project, DataDir: filepath.Join(s.root, "data"), ConfigContent: cfg, ReadyAgent: "pinger"})
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = srv.Stop(context.Background(), 5*time.Second) })
+	assert.Equal(t, "VAL=", shellOutput(t, srv.Client, sid, "echo VAL=$OH_CONTRACT"))
+
+	h2 := adapters.ServerHandle{URL: srv.URL, Password: srv.Password, PID: srv.PID}
+	require.NoError(t, ad.SetSessionEnv(ctx, h2, sid, map[string]string{"OH_CONTRACT": "two"}))
+	assert.Equal(t, "VAL=two", shellOutput(t, srv.Client, sid, "echo VAL=$OH_CONTRACT"))
+}
+
+// Control operations and decision errors without any LLM call.
+func TestContractControlForkResults(t *testing.T) {
+	cfg := `{"agents":{"pinger":{"mode":"primary","description":"p"}}}`
+	s := startLiveServer(t, cfg, "pinger")
+	ctx := context.Background()
+	ad := &Adapter{}
+	h := adapters.ServerHandle{URL: s.URL, Password: s.Password, PID: s.PID}
+	sid := sessionspec.NewSessionID()
+	require.NoError(t, ad.CreateSession(ctx, h, sessionspec.SessionSpec{SessionID: sid, EntryAgent: "pinger", Location: s.project}))
+
+	// Answering an unknown request: settled → ErrRequestGone (first answer wins).
+	err := ad.Reply(ctx, h, adapters.DecisionReply{SessionID: sid, ID: "per_unknown0000000000000000", Kind: adapters.DecisionPermission, Decision: "once"})
+	assert.ErrorIs(t, err, adapters.ErrRequestGone, "%v", err)
+	err = ad.Reply(ctx, h, adapters.DecisionReply{SessionID: sid, ID: "frm_unknown0000000000000000", Kind: adapters.DecisionQuestion, Answer: map[string]any{"q0": "x"}})
+	assert.ErrorIs(t, err, adapters.ErrRequestGone, "%v", err)
+
+	require.NoError(t, ad.Control(ctx, h, sid, adapters.ControlOp{Kind: adapters.ControlInterrupt}))
+	model := sessionspec.ParseModelRef("amazon-bedrock/anthropic.claude-haiku-4-5-20251001-v1:0")
+	require.NoError(t, ad.Control(ctx, h, sid, adapters.ControlOp{Kind: adapters.ControlSwitchModel, Model: &model, Region: "eu-west-1"}))
+	got, err := s.client.GetSession(ctx, sid)
+	require.NoError(t, err)
+	if assert.NotNil(t, got.Model) {
+		assert.Equal(t, "eu.anthropic.claude-haiku-4-5-20251001-v1:0", got.Model.ID)
+	}
+	// Without a region, the prefix of the current model is kept.
+	model = sessionspec.ParseModelRef("amazon-bedrock/anthropic.claude-sonnet-4-6")
+	require.NoError(t, ad.Control(ctx, h, sid, adapters.ControlOp{Kind: adapters.ControlSwitchModel, Model: &model}))
+	got, _ = s.client.GetSession(ctx, sid)
+	assert.Equal(t, "eu.anthropic.claude-sonnet-4-6", got.Model.ID)
+
+	require.NoError(t, ad.Control(ctx, h, sid, adapters.ControlOp{Kind: adapters.ControlCompact}))
+
+	child, err := ad.Fork(ctx, h, sid)
+	require.NoError(t, err)
+	assert.True(t, strings.HasPrefix(child, "ses"), child)
+	assert.NotEqual(t, sid, child)
+	cs, err := s.client.GetSession(ctx, child)
+	require.NoError(t, err)
+	assert.Equal(t, s.project, cs.Location.Directory)
+
+	res, err := ad.Results(ctx, h, sid)
+	require.NoError(t, err)
+	assert.Equal(t, sid, res.SessionID)
+	t.Logf("branch of a fresh repository: %q", res.Branch)
 }

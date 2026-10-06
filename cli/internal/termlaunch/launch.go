@@ -123,10 +123,7 @@ func launchWith(ctx context.Context, m Method, o Options) error {
 	case MethodTerminal:
 		return osascript(ctx, terminalScript(cmd))
 	case MethodTmux:
-		args := []string{"new-window", "-c", o.Dir}
-		if o.Title != "" {
-			args = append(args, "-n", o.Title)
-		}
+		args := tmuxArgs(o)
 		args = append(args, "--")
 		args = append(args, o.Argv...)
 		out, err := exec.CommandContext(ctx, "tmux", args...).CombinedOutput()
@@ -136,6 +133,19 @@ func launchWith(ctx context.Context, m Method, o Options) error {
 		return nil
 	}
 	return fmt.Errorf("unknown method %q", m)
+}
+
+// tmuxArgs opens the client in a new tmux window, or in a split pane when
+// the style is "split" (the iTerm2 style setting applies to tmux too).
+func tmuxArgs(o Options) []string {
+	if o.ITermStyle == ITermSplit {
+		return []string{"split-window", "-h", "-c", o.Dir}
+	}
+	args := []string{"new-window", "-c", o.Dir}
+	if o.Title != "" {
+		args = append(args, "-n", o.Title)
+	}
+	return args
 }
 
 // ShellCommand renders `cd <dir> && exec <argv…>` with POSIX quoting.

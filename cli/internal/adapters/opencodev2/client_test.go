@@ -200,3 +200,16 @@ func TestEventKind(t *testing.T) {
 	_, outcome := EventKind("session.execution.failed")
 	assert.Equal(t, "failed", outcome)
 }
+
+func TestEventSessionIDNested(t *testing.T) {
+	cases := map[string]string{
+		`{"sessionID":"ses_a"}`:                          "ses_a",
+		`{"form":{"id":"frm_1","sessionID":"ses_b"}}`:    "ses_b",
+		`{"request":{"id":"per_1","sessionID":"ses_c"}}`: "ses_c",
+		`{"id":"x"}`: "",
+		`[1]`:        "",
+	}
+	for data, want := range cases {
+		assert.Equal(t, want, Event{Data: []byte(data)}.SessionID(), data)
+	}
+}

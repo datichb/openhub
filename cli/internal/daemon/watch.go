@@ -22,9 +22,21 @@ const (
 )
 
 type sessionTrack struct {
-	executing bool
-	pending   int
-	lastUsage time.Time
+	executing    bool
+	pending      int            // tool requests waiting (permissions, questions)
+	childPending map[string]int // requests of its subagent sessions
+	alerts       int            // decisions raised by oh (error, budget)
+	lastUsage    time.Time
+	agent        string // current agent shown in the live feed
+}
+
+// waiting is the number of tool requests of the session and its subagents.
+func (t *sessionTrack) waiting() int {
+	n := t.pending
+	for _, c := range t.childPending {
+		n += c
+	}
+	return n
 }
 
 type watcher struct {
@@ -33,15 +45,17 @@ type watcher struct {
 	ad     adapters.ToolAdapter
 	cancel context.CancelFunc
 
-	mu        sync.Mutex
-	tracks    map[string]*sessionTrack
-	known     map[string]bool      // session id → belongs to oh (row in sessions table for this group)
-	unknownAt map[string]time.Time // session id → last negative lookup (short negative cache)
-	synced    bool                 // a resync succeeded since the last (re)connection
-	lastTouch time.Time
-	lastEvent time.Time // last session activity seen (idle-sleep timer)
-	started   time.Time
-	done      chan struct{} // closed when run returns
+	mu         sync.Mutex
+	tracks     map[string]*sessionTrack
+	known      map[string]bool      // session id → belongs to oh (row in sessions table for this group)
+	unknownAt  map[string]time.Time // session id → last negative lookup (short negative cache)
+	children   map[string]string    // subagent session id → oh session that delegated it
+	childAgent map[string]string    // subagent session id → its agent
+	synced     bool                 // a resync succeeded since the last (re)connection
+	lastTouch  time.Time
+	lastEvent  time.Time // last session activity seen (idle-sleep timer)
+	started    time.Time
+	done       chan struct{} // closed when run returns
 }
 
 // stop cancels the watcher and waits for its goroutine (no write after return).
@@ -61,7 +75,7 @@ func (w *watcher) snapshot() (executing, pending int, lastEvent time.Time) {
 		if t.executing {
 			executing++
 		}
-		pending += t.pending
+		pending += t.waiting()
 	}
 	lastEvent = w.lastEvent
 	if lastEvent.IsZero() {
@@ -94,7 +108,7 @@ func (d *Daemon) syncWatchers(ctx context.Context, live []domain.Server) {
 			continue
 		}
 		wctx, cancel := context.WithCancel(ctx)
-		w := &watcher{d: d, srv: s, ad: ad, cancel: cancel, tracks: map[string]*sessionTrack{}, known: map[string]bool{}, unknownAt: map[string]time.Time{}, started: time.Now(), done: make(chan struct{})}
+		w := &watcher{d: d, srv: s, ad: ad, cancel: cancel, tracks: map[string]*sessionTrack{}, known: map[string]bool{}, unknownAt: map[string]time.Time{}, children: map[string]string{}, childAgent: map[string]string{}, started: time.Now(), done: make(chan struct{})}
 		d.watchers[s.GroupKey] = w
 		go w.run(wctx)
 	}
@@ -161,9 +175,20 @@ func (w *watcher) onEvent(ctx context.Context, ev adapters.ToolEvent) {
 		w.resync(ctx)
 		return
 	}
-	if ev.SessionID == "" || !w.isKnown(ctx, ev.SessionID) {
+	if ev.SessionID == "" {
 		return
 	}
+	if ev.Kind == adapters.EventSessionCreated && ev.ParentID != "" {
+		w.adoptChild(ctx, ev.SessionID, ev.ParentID)
+	}
+	if root, ok := w.rootOf(ev.SessionID); ok {
+		w.onChildEvent(ctx, root, ev)
+		return
+	}
+	if !w.isKnown(ctx, ev.SessionID) {
+		return
+	}
+	w.publish(ev.SessionID, ev.Feed)
 	w.mu.Lock()
 	w.lastEvent = time.Now()
 	t := w.track(ev.SessionID)
@@ -192,12 +217,25 @@ func (w *watcher) onEvent(ctx context.Context, ev adapters.ToolEvent) {
 	}
 	w.mu.Unlock()
 
+	switch {
+	case ev.Kind == adapters.EventExecStarted:
+		w.clearAlerts(ctx, ev.SessionID)
+	case ev.Kind == adapters.EventExecEnded && ev.Outcome == "failed":
+		w.raiseFailure(ctx, ev)
+	}
 	if refreshPending {
 		w.refreshPending(ctx, ev.SessionID)
+	} else if ev.Kind == adapters.EventExecStarted {
+		w.refreshAlerts(ctx, ev.SessionID)
 	}
 	w.persist(ctx, ev.SessionID, refreshUsage)
 	if ev.Kind == adapters.EventExecEnded {
 		w.d.wake() // a pending "sleep when idle" policy may apply now
+		if ev.Outcome == "succeeded" {
+			if attached, _ := w.d.clientState(w.srv.GroupKey); !attached {
+				w.d.notes.turnDone(ev.SessionID)
+			}
+		}
 	}
 	if touch && w.d.opts.Servers != nil {
 		_ = w.d.opts.Servers.Touch(ctx, w.srv.GroupKey, time.Now())
@@ -264,9 +302,45 @@ func (w *watcher) resync(ctx context.Context) {
 		w.refreshPending(ctx, s.ID)
 		w.persist(ctx, s.ID, true)
 	}
+	w.adoptChildren(ctx)
 	w.mu.Lock()
 	w.synced = true
 	w.mu.Unlock()
+}
+
+// adoptChildren rebuilds the subagent links after a (re)connection (events
+// are not replayed) and refreshes the requests the subagents wait for.
+func (w *watcher) adoptChildren(ctx context.Context) {
+	cl, ok := w.ad.(adapters.ChildLister)
+	if !ok {
+		return
+	}
+	parents, err := cl.Children(ctx, w.handle())
+	if err != nil {
+		return
+	}
+	// Parents before children: walk until no new link appears.
+	for changed := true; changed; {
+		changed = false
+		for child, parent := range parents {
+			if _, done := w.rootOf(child); done {
+				continue
+			}
+			w.adoptChild(ctx, child, parent)
+			if _, ok := w.rootOf(child); ok {
+				changed = true
+			}
+		}
+	}
+	w.mu.Lock()
+	links := make(map[string]string, len(w.children))
+	for c, r := range w.children {
+		links[c] = r
+	}
+	w.mu.Unlock()
+	for child, root := range links {
+		w.refreshChildPending(ctx, root, child)
+	}
 }
 
 func (w *watcher) isSynced() bool {
@@ -280,9 +354,26 @@ func (w *watcher) refreshPending(ctx context.Context, id string) {
 	if err != nil {
 		return
 	}
+	w.syncToolDecisions(ctx, id, id, pending)
+	alerts := w.openAlerts(ctx, id)
 	w.mu.Lock()
-	w.track(id).pending = len(pending)
+	t := w.track(id)
+	t.pending, t.alerts = len(pending), alerts
 	w.mu.Unlock()
+	w.decisionsChanged(id)
+}
+
+func (w *watcher) refreshAlerts(ctx context.Context, id string) {
+	alerts := w.openAlerts(ctx, id)
+	w.mu.Lock()
+	w.track(id).alerts = alerts
+	w.mu.Unlock()
+	w.decisionsChanged(id)
+}
+
+func (w *watcher) decisionsChanged(id string) {
+	w.d.feed.publishChange(domain.SessionChange{SessionID: id, GroupKey: w.srv.GroupKey, Decisions: true})
+	w.d.notes.requestScan()
 }
 
 func isTerminal(s domain.RunState) bool {
@@ -295,7 +386,7 @@ func (w *watcher) persist(ctx context.Context, id string, withUsage bool) {
 	t := w.track(id)
 	state := domain.RunIdle
 	switch {
-	case t.pending > 0:
+	case t.waiting() > 0 || t.alerts > 0:
 		state = domain.RunWaiting
 	case t.executing:
 		state = domain.RunActive
@@ -324,7 +415,9 @@ func (w *watcher) persist(ctx context.Context, id string, withUsage bool) {
 	if changed {
 		if err := w.d.opts.Sessions.Update(ctx, sess); err != nil {
 			slog.Debug("ohd: session update failed", "session", id, "error", err)
+			return
 		}
+		w.d.feed.publishChange(domain.SessionChange{SessionID: id, GroupKey: w.srv.GroupKey, State: sess.State})
 	}
 }
 
@@ -338,4 +431,93 @@ func (w *watcher) usage(ctx context.Context, id string) (adapters.SessionResult,
 		return u.Usage(ctx, w.handle(), id)
 	}
 	return w.ad.Results(ctx, w.handle(), id)
+}
+
+// ── Subagent (child) sessions ───────────────────────────────────────────────
+
+// adoptChild links a subagent session to the oh session at the root of its
+// delegation chain.
+func (w *watcher) adoptChild(ctx context.Context, child, parent string) {
+	root := parent
+	if r, ok := w.rootOf(parent); ok {
+		root = r
+	}
+	if !w.isKnown(ctx, root) {
+		return
+	}
+	w.mu.Lock()
+	w.children[child] = root
+	w.mu.Unlock()
+}
+
+func (w *watcher) rootOf(id string) (string, bool) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	r, ok := w.children[id]
+	return r, ok
+}
+
+// onChildEvent reports the activity of a subagent on its root session: feed
+// entries (with the subagent name) and the requests it waits for.
+func (w *watcher) onChildEvent(ctx context.Context, root string, ev adapters.ToolEvent) {
+	w.mu.Lock()
+	w.lastEvent = time.Now()
+	if ev.Feed != nil && ev.Feed.Kind == domain.FeedAgent {
+		w.childAgent[ev.SessionID] = ev.Feed.Agent
+	}
+	agent := w.childAgent[ev.SessionID]
+	w.mu.Unlock()
+	if it := ev.Feed; it != nil && it.Kind != domain.FeedUsage && it.Kind != domain.FeedState {
+		item := *it
+		if item.Agent == "" {
+			item.Agent = agent
+		}
+		w.publish(root, &item)
+	}
+	switch ev.Kind {
+	case adapters.EventDecisionAsked, adapters.EventDecisionReplied, adapters.EventExecEnded:
+		w.refreshChildPending(ctx, root, ev.SessionID)
+	}
+}
+
+func (w *watcher) refreshChildPending(ctx context.Context, root, child string) {
+	pending, err := w.ad.Pending(ctx, w.handle(), child)
+	if err != nil {
+		return
+	}
+	w.syncToolDecisions(ctx, root, child, pending)
+	w.mu.Lock()
+	t := w.track(root)
+	if t.childPending == nil {
+		t.childPending = map[string]int{}
+	}
+	if len(pending) == 0 {
+		delete(t.childPending, child)
+	} else {
+		t.childPending[child] = len(pending)
+	}
+	w.mu.Unlock()
+	w.persist(ctx, root, false)
+	w.decisionsChanged(root)
+}
+
+// publish sends a feed entry of a tool session to the feed of its oh session.
+// Agent entries are shown only when the agent changes.
+func (w *watcher) publish(root string, it *domain.FeedItem) {
+	if it == nil {
+		return
+	}
+	item := *it
+	item.SessionID = root
+	if item.Kind == domain.FeedAgent {
+		w.mu.Lock()
+		t := w.track(root)
+		same := t.agent == item.Agent
+		t.agent = item.Agent
+		w.mu.Unlock()
+		if same {
+			return
+		}
+	}
+	w.d.feed.publishFeed(item)
 }

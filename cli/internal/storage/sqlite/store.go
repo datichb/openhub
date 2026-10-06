@@ -167,6 +167,24 @@ func (s *Store) migrate() error {
 	return nil
 }
 
+// appliedVersions returns the recorded migration versions.
+func (s *Store) appliedVersions() (map[int]bool, error) {
+	rows, err := s.db.Query(`SELECT version FROM schema_migrations`)
+	if err != nil {
+		return nil, fmt.Errorf("reading applied migrations: %w", err)
+	}
+	defer rows.Close()
+	out := map[int]bool{}
+	for rows.Next() {
+		var v int
+		if err := rows.Scan(&v); err != nil {
+			return nil, err
+		}
+		out[v] = true
+	}
+	return out, rows.Err()
+}
+
 // runMigration executes a single migration inside a transaction so that the
 // schema change and the version record are committed atomically.
 func (s *Store) runMigration(m migration) error {
@@ -198,11 +216,15 @@ func (s *Store) MigrateDown(targetVersion int) error {
 	if targetVersion >= currentVersion {
 		return nil // nothing to do
 	}
+	applied, err := s.appliedVersions()
+	if err != nil {
+		return err
+	}
 
 	// Apply down-migrations in reverse order
 	for i := len(schemaMigrations) - 1; i >= 0; i-- {
 		m := schemaMigrations[i]
-		if m.version <= targetVersion || m.version > currentVersion {
+		if m.version <= targetVersion || m.version > currentVersion || (!applied[m.version] && m.version > sequentialMigrations) {
 			continue
 		}
 		if m.irreversible {
@@ -490,5 +512,23 @@ CREATE INDEX IF NOT EXISTS idx_proxy_grants_owner ON proxy_grants(owner)`,
 			PRIMARY KEY (scope, key)
 		)`,
 		down: `DROP TABLE IF EXISTS preferences`,
+	},
+	{
+		version: 33,
+		up: `CREATE TABLE IF NOT EXISTS pending_decisions (
+			id          TEXT PRIMARY KEY,
+			session_id  TEXT NOT NULL,
+			group_key   TEXT NOT NULL DEFAULT '',
+			kind        TEXT NOT NULL,
+			tool_ref    TEXT NOT NULL DEFAULT '',
+			payload     TEXT NOT NULL DEFAULT '{}',
+			created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			resolved_at DATETIME,
+			resolved_by TEXT NOT NULL DEFAULT '',
+			resolution  TEXT NOT NULL DEFAULT ''
+		);
+CREATE INDEX IF NOT EXISTS idx_pending_decisions_open ON pending_decisions(resolved_at, session_id);
+CREATE INDEX IF NOT EXISTS idx_pending_decisions_session ON pending_decisions(session_id)`,
+		down: `DROP TABLE IF EXISTS pending_decisions`,
 	},
 }

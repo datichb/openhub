@@ -210,6 +210,11 @@ type ModeBarInfo struct {
 	Icon string
 	// Right is optional right-aligned context (e.g. "main · ✓ deployed").
 	Right string
+	// Badge summarizes the v5 sessions on every screen ("● 2 ⏸ 1"); set by
+	// the shell, not by views.
+	Badge string
+	// BadgeAlert highlights the badge (decisions waiting).
+	BadgeAlert bool
 }
 
 // ModeInfoProvider is an optional interface that views implement to supply

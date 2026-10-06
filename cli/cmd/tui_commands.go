@@ -73,14 +73,13 @@ func buildCommands(a *app.App) []shell.Command {
 			Modes:       modeSession,
 		},
 		{
-			ID:          "parallel",
-			Label:       i18n.T("tui.pm.item.parallel"),
-			Aliases:     []string{"par", "multi"},
-			Description: i18n.T("tui.pm.item.parallel_desc"),
+			ID:          "sessions",
+			Label:       i18n.T("tui.sessions.title"),
+			Aliases:     []string{"parallel", "par", "multi", "inbox", "à traiter", "decisions"},
+			Description: i18n.T("tui.sessions.desc"),
 			Category:    "Sessions",
-			Priority:    60,
-			ViewID:      "parallel",
-			Modes:       modeProject,
+			Priority:    70,
+			ViewID:      "sessions",
 		},
 		{
 			ID:          "onboard",
@@ -307,7 +306,7 @@ func buildCommands(a *app.App) []shell.Command {
 			Priority:    10,
 			Action: func() {
 				if tuiShell != nil {
-					tuiShell.App().Stop()
+					tuiShell.RequestQuit() // through the v5 quit dialog (I7)
 				}
 			},
 		},

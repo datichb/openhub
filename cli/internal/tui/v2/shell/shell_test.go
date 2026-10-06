@@ -107,3 +107,43 @@ func TestOmnibar_ActivateDeactivate(t *testing.T) {
 	s.omnibar.Deactivate()
 	assert.False(t, s.omnibar.IsActive())
 }
+
+func TestShell_SessionsBadge(t *testing.T) {
+	homeView := &testView{id: "home", title: "Home"}
+	s := New(Config{ProjectName: "test", Views: []views.View{homeView}, HomeViewID: "home"})
+	s.NavigateHome("home", views.ModeHub)
+	s.SetSessionsBadge("● 2  ⏸ 1", true)
+	assert.Contains(t, s.omnibar.modeBar.GetText(true), "● 2  ⏸ 1")
+	s.SetSessionsBadge("", false)
+	assert.NotContains(t, s.omnibar.modeBar.GetText(true), "●")
+}
+
+func TestShell_RequestQuitGoesThroughBeforeQuit(t *testing.T) {
+	homeView := &testView{id: "home", title: "Home"}
+	calls := 0
+	s := New(Config{ProjectName: "test", Views: []views.View{homeView}, HomeViewID: "home",
+		BeforeQuit: func(func()) { calls++ }})
+	s.RequestQuit()
+	assert.Equal(t, 1, calls)
+	assert.True(t, s.quitPending)
+	s.CancelQuit() // Esc on the quit dialog
+	assert.False(t, s.quitPending)
+	s.RequestQuit()
+	assert.Equal(t, 2, calls, "asked again after a cancel")
+}
+
+// A toast shown while a form is open must not take the focus from the form.
+func TestToastKeepsFormFocus(t *testing.T) {
+	homeView := &testView{id: "home", title: "Home"}
+	s := New(Config{ProjectName: "test", Views: []views.View{homeView}, HomeViewID: "home"})
+	s.NavigateHome("home", views.ModeHub)
+	s.ShowInlineForm(views.InlineFormConfig{Title: "q", Fields: []views.FormField{{Key: "k", Label: "k", Type: views.FieldText}}})
+	formFocus := s.app.GetFocus()
+	assert.NotNil(t, formFocus)
+	s.pages.AddPage("toast-x", tview.NewBox(), true, true)
+	s.restoreFocusAfterToast(formFocus)
+	assert.Equal(t, formFocus, s.app.GetFocus())
+	s.pages.RemovePage("inline-overlay")
+	s.restoreFocusAfterToast(formFocus)
+	assert.Equal(t, s.content, s.app.GetFocus(), "no modal: back to the view")
+}

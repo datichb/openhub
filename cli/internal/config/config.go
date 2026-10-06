@@ -60,7 +60,13 @@ type SessionConfig struct {
 	ITermStyle string `mapstructure:"iterm_style" toml:"iterm_style,omitempty"`
 	// IdleSleepMinutes stops an idle tool server after N minutes (default 5).
 	IdleSleepMinutes int `mapstructure:"idle_sleep_minutes" toml:"idle_sleep_minutes,omitempty"`
+	// Notify controls system notifications for sessions (decisions waiting,
+	// end of a turn): "" or "on" (default) | "off".
+	Notify string `mapstructure:"notify" toml:"notify,omitempty"`
 }
+
+// NotifyEnabled reports whether system notifications are on.
+func (s SessionConfig) NotifyEnabled() bool { return s.Notify != "off" }
 
 // WorkflowHubConfig holds workflow customization at the hub level.
 type WorkflowHubConfig struct {

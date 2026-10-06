@@ -45,6 +45,8 @@ type HomeViewConfig struct {
 	OnSelectProject func(projectID, projectName, projectPath string)
 	// OnAddProject is called when the user triggers the "add project" quick action.
 	OnAddProject func()
+	// Sessions shows the "Sessions" section (P3-T19).
+	Sessions SessionsSectionConfig
 }
 
 // TeamEntry represents a team with positive stats for the hub home.
@@ -161,10 +163,16 @@ func (v *HomeView) Mount(content *tview.Flex, app *tview.Application) {
 					return // view was unmounted or re-mounted, discard stale result
 				}
 				v.items = items
+				// Keep the focus where it is when a modal (e.g. the quit
+				// dialog) holds it: only the home lists give it back.
+				owned := homeOwnsFocus(app, v.list, v.dual)
 				// Full layout rebuild to update both columns with fresh data
 				content.Clear()
 				adaptiveHomeMount(app, content, buildFn)
 				// Restore focus to the new widget (same pattern as resize handler)
+				if !owned {
+					return
+				}
 				if v.dual != nil {
 					v.dual.focusLeft()
 				} else if v.list != nil {
@@ -252,6 +260,14 @@ func (v *HomeView) buildStaticItems() []homeItem {
 				launch("debugger")
 			}},
 		)
+	}
+
+	// ── Running sessions (v5) ──
+	if header, sitems, ok := sessionsSection(v.cfg.Sessions, SessionsScope{}, "tui.sessions.home_section"); ok {
+		items = append(items, homeItem{Icon: "─", Label: header})
+		for _, it := range sitems {
+			items = append(items, homeItem{Icon: it.Icon, Label: it.Label, Desc: it.Desc, Action: it.Action})
+		}
 	}
 
 	// ── System / navigation ──

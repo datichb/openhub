@@ -124,9 +124,14 @@ func runTUIWithProject(projectName string) error {
 	// v5 sessions: presence heartbeat + recap of what ran while oh was closed.
 	stopPresence := startTUIPresence(context.Background())
 	defer stopPresence()
+	sessCtx, stopSessions := context.WithCancel(context.Background())
+	defer stopSessions()
+	if tuiSess != nil {
+		tuiSess.start(sessCtx)
+	}
 	go func() {
 		time.Sleep(500 * time.Millisecond)
-		tuiShell.App().QueueUpdateDraw(func() { showAbsenceRecap(context.Background(), a, tuiShell) })
+		showAbsenceRecap(context.Background(), a, tuiShell) // reads off the event loop
 	}()
 
 	err := tuiShell.Run()

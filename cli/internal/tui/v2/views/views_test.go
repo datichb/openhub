@@ -171,28 +171,6 @@ func TestBoardView_MountEmpty_TransitionToPopulated(t *testing.T) {
 	v.Unmount()
 }
 
-func TestParallelView_ImplementsView(t *testing.T) {
-	var _ View = (*ParallelView)(nil)
-}
-
-func TestParallelView_MountUnmount(t *testing.T) {
-	v := NewParallelView(ParallelViewConfig{
-		Sessions: []ParallelSession{
-			{ID: "s1", Name: "session-1", Status: "running", Branch: "feat/x", Agent: "developer"},
-		},
-	})
-
-	content := tview.NewFlex().SetDirection(tview.FlexRow)
-	app := tview.NewApplication()
-
-	v.Mount(content, app)
-	assert.Greater(t, content.GetItemCount(), 0)
-	assert.Equal(t, "parallel", v.ID())
-
-	v.Unmount()
-	assert.Nil(t, v.app)
-}
-
 func TestHomeView_ImplementsView(t *testing.T) {
 	var _ View = (*HomeView)(nil)
 }

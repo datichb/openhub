@@ -258,6 +258,19 @@ func (p *Proxy) Usage(token string) (Usage, bool) {
 	return g.usage, true
 }
 
+// Exhausted reports whether a token has used up its token budget.
+func (p *Proxy) Exhausted(token string) bool {
+	p.mu.RLock()
+	g, ok := p.byToken[token]
+	p.mu.RUnlock()
+	if !ok || g.MaxTokens <= 0 {
+		return false
+	}
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	return g.usage.InputTokens+g.usage.OutputTokens >= g.MaxTokens
+}
+
 // NewToken returns a new random session token ("ohs_" + 64 hex chars).
 func NewToken() string {
 	b := make([]byte, 32)
