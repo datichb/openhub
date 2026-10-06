@@ -36,6 +36,10 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
   - **`oh skill check [--json]`** : vérifie le catalogue des skills (doublons, `requires:`, frontmatter, annexes manquantes ou inutilisées, skills citées par les agents mais absentes).
   - **Préférences** (migration v32 `preferences`) : workflows épinglés (5 par portée : hub, projet, équipe), récents tirés des sessions, suggestions par défaut, réglages d'interface.
   - **Sélecteur de tickets Beads en tview** : recherche, filtres de label et d'épopée, regroupement par épopée, aperçu, multi-sélection, tickets réservés signalés.
+- **Workflows livrés par le hub** (`workflows/`, embarqués dans le binaire et extraits dans `~/.oh/hub/workflows/` ; pas encore lancés par `oh run` ni la TUI) : `ticket`, `feature`, `quick`, `cadrage`, `onboarding`, `review`, `review-feedback`, `audit`, `debug`, `sweep`, `brief-enrich`, avec leurs gabarits de prompt (reprise des prompts de `--dev`, `--onboard`, `oh audit`, `oh review`, `oh debug`, `review feedback`, `takeover-brief enrich`). Référence : `docs/reference/workflows.{fr,en}.md`.
+  - **Rendu des prompts** : entrées libres placées dans des balises de données (`<oh:data>`), traitées comme des données et jamais comme des consignes, tronquées à `max_length` ; identifiants Beads et branches vérifiés.
+  - **`risk: plan`** : workflow qui ne modifie aucun fichier mais crée des tickets Beads, limité à `beads.allow` (utilisé par `cadrage`).
+  - **`preconditions:`** : contrôles avant lancement (`path_exists`), avec proposition d'un autre workflow puis retour (`feature` et `cadrage` proposent `onboarding` sans contexte projet), ou refus du lancement (`on_fail: block`).
 
 ### Added — pilotage des sessions (phase 3, en cours)
 
@@ -77,6 +81,7 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 - Normalisation des modèles Bedrock : préfixe régional (`eu.anthropic…`) et variante `#…` cassaient l'identifiant.
 - Skills d'orchestration et `docs/worktree.md` : les worktrees sont des dossiers frères du dépôt (`../<projet>-<branche>`), pas `.worktrees/<slug>`.
 - Test `TestDeployAgentConfigE2E` en échec dans un clone neuf (fixture ignorée par `.gitignore`).
+- Review parallèle (`oh review --mode standard+adversarial` / `all`) impossible sous opencode V2 : le reviewer ne pouvait pas lancer ses propres sessions (auto-délégation retirée du paquet). Une auto-délégation explicite (`task: { reviewer: allow }`, `calls: [reviewer]`) est désormais conservée.
 
 ### Documentation
 
