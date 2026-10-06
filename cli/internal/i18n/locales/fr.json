@@ -3145,6 +3145,8 @@
   "teamstate.workflow.workflow_read_failed": "Lecture impossible : %v",
   "teamstate.workflow.integrity_hint": "Seuls les workflows publiés depuis oh sont chargés. Republiez le workflow (oh workflow publish) ou restaurez le fichier (git checkout).",
   "teamstate.workflow.flag_project": "Projet (id ou nom) dont la couche est chargée avec celle de son équipe",
+  "teamstate.workflow.governance.not_member": "%q n'est pas membre de l'équipe (members.toml) : publication refusée",
+  "teamstate.workflow.governance.unsupported": "règle de publication %q non prise en charge par cette version d'oh ([governance] publish ; seule valeur possible : any_member) : publication refusée",
   "teamstate.workflow.doctor.name": "Workflows d'équipe (%s)",
   "teamstate.workflow.doctor.ok": "%d workflow(s) publié(s), intégrité vérifiée",
   "teamstate.workflow.doctor.issues": "%d workflow(s) chargé(s), %d ignoré(s) : %s"

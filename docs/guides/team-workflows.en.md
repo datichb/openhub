@@ -80,3 +80,15 @@ enforce: [checkpoints, modes]   # or ["*"] for the whole document
 - A document that extends a locked workflow and writes a locked field is **refused** (`enforced_field`). With `"*"`, only `id`, `version`, `extends` and `enforce` remain allowed.
 - Locks add up along the `extends` chain; a more specific layer cannot remove them.
 - Launch options (mode, runtime, inputs) are still chosen within the limits of the workflow.
+
+## Governance
+
+Publishing is configured in the team-state `config.toml`:
+
+```toml
+[governance]
+publish = "any_member"   # default, the only supported value
+```
+
+- `any_member`: any member listed in `members.toml` may publish; validating the workflow is still required.
+- A value this version of oh does not know **blocks publishing** (the rest of the configuration still works): update oh or go back to `any_member`.

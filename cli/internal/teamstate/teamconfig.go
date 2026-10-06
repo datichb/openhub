@@ -254,6 +254,8 @@ type TeamConfig struct {
 	// Workflow holds team-level workflow overrides.
 	// When Enforced is true, projects in the team cannot apply their own overrides.
 	Workflow *WorkflowTeamConfig `toml:"workflow,omitempty"`
+	// Governance holds who may publish the team workflows (v5 phase 2).
+	Governance GovernanceConfig `toml:"governance,omitempty"`
 }
 
 // WorkflowTeamConfig holds team-level workflow customization.

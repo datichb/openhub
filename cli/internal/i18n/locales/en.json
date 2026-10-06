@@ -3145,6 +3145,8 @@
   "teamstate.workflow.workflow_read_failed": "Cannot read: %v",
   "teamstate.workflow.integrity_hint": "Only workflows published from oh are loaded. Publish the workflow again (oh workflow publish) or restore the file (git checkout).",
   "teamstate.workflow.flag_project": "Project (id or name) whose layer is loaded with its team layer",
+  "teamstate.workflow.governance.not_member": "%q is not a team member (members.toml): publication refused",
+  "teamstate.workflow.governance.unsupported": "publication rule %q is not supported by this version of oh ([governance] publish; only possible value: any_member): publication refused",
   "teamstate.workflow.doctor.name": "Team workflows (%s)",
   "teamstate.workflow.doctor.ok": "%d published workflow(s), integrity checked",
   "teamstate.workflow.doctor.issues": "%d workflow(s) loaded, %d skipped: %s"

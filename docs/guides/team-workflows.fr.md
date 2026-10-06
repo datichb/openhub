@@ -80,3 +80,15 @@ enforce: [checkpoints, modes]   # ou ["*"] pour tout le document
 - Un document qui étend un workflow verrouillé et écrit un champ verrouillé est **refusé** (`enforced_field`). Avec `"*"`, seuls `id`, `version`, `extends` et `enforce` restent permis.
 - Les verrous s'additionnent le long de la chaîne `extends` ; une couche plus spécifique ne peut pas les retirer.
 - Les options de lancement (mode, environnement, entrées) restent choisies dans les limites du workflow.
+
+## Gouvernance
+
+La publication se règle dans `config.toml` du team-state :
+
+```toml
+[governance]
+publish = "any_member"   # valeur par défaut, seule prise en charge
+```
+
+- `any_member` : tout membre inscrit dans `members.toml` peut publier ; la validation du workflow reste obligatoire.
+- Une valeur inconnue de cette version d'oh **bloque la publication** (sans gêner le reste de la configuration) : mettez oh à jour ou revenez à `any_member`.
