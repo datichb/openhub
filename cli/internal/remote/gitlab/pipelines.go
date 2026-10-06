@@ -3,6 +3,7 @@ package gitlab
 import (
 	"context"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"sort"
@@ -92,4 +93,32 @@ func (c *Client) RegistryTagExists(ctx context.Context, project, name, tag strin
 		return err == nil, err
 	}
 	return false, nil
+}
+
+// Job is a CI job of a pipeline.
+type Job struct {
+	ID     int64  `json:"id"`
+	Name   string `json:"name"`
+	Stage  string `json:"stage"`
+	Status string `json:"status"`
+	WebURL string `json:"web_url"`
+}
+
+// PipelineJobs lists the jobs of a pipeline.
+func (c *Client) PipelineJobs(ctx context.Context, project string, pipeline int64) ([]Job, error) {
+	var jobs []Job
+	if err := c.do(ctx, http.MethodGet, fmt.Sprintf("%s/pipelines/%d/jobs?per_page=100", projectRef(project), pipeline), nil, &jobs); err != nil {
+		return nil, err
+	}
+	return jobs, nil
+}
+
+// JobArtifacts downloads the artifacts archive (zip) of a job.
+func (c *Client) JobArtifacts(ctx context.Context, project string, job int64) ([]byte, error) {
+	resp, err := c.send(ctx, http.MethodGet, fmt.Sprintf("%s/jobs/%d/artifacts", projectRef(project), job), nil, "")
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	return io.ReadAll(io.LimitReader(resp.Body, 1<<30))
 }

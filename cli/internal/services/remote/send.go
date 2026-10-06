@@ -7,7 +7,9 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"os"
 	"path"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"time"
@@ -253,6 +255,9 @@ func (s *Service) Send(ctx context.Context, req SendRequest) (*SendResult, error
 	if err != nil {
 		return nil, err
 	}
+	if err := s.saveEnvelope(sid, man, snap); err != nil {
+		return nil, err
+	}
 
 	// Trigger (P5-T08).
 	vars[remote.VarSessionID] = sid
@@ -273,7 +278,7 @@ func (s *Service) Send(ctx context.Context, req SendRequest) (*SendResult, error
 	ok = true
 
 	rref := domain.RemoteRef{
-		Target: t.Name, URL: t.URL, RunnerID: runner.ID, ProjectPath: proj.PathWithNamespace, ProjectID: proj.ID,
+		Target: t.Name, URL: t.URL, RunnerID: runner.ID, ProjectPath: proj.PathWithNamespace, ProjectID: proj.ID, ProjectDir: req.ProjectDir,
 		Ref: ref, Commit: commit, Branch: req.Branch, Pipeline: pl.ID, PipelineURL: pl.WebURL,
 		BundleURL: bundleURL, SessionURL: sessionURL, Image: img.Image, Tickets: req.Tickets,
 		Status: domain.RemoteSent, SentAt: now, UpdatedAt: now,
@@ -428,6 +433,32 @@ func (s *Service) persist(ctx context.Context, req SendRequest, sid string, ref 
 		return fmt.Errorf("recording the remote session: %w", err)
 	}
 	return s.Remote.SetRemoteRef(ctx, sid, ref)
+}
+
+// RemoteDir is where a remote session keeps its envelope and artifacts.
+func (s *Service) RemoteDir(sessionID string) string {
+	return filepath.Join(s.SessionsDir, sessionID, "remote")
+}
+
+// saveEnvelope keeps the manifest and the snapshot sent (replay, P5-T17).
+func (s *Service) saveEnvelope(sid string, man remote.Manifest, snap *remote.Snapshot) error {
+	if s.SessionsDir == "" {
+		return nil
+	}
+	dir := s.RemoteDir(sid)
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		return err
+	}
+	for name, v := range map[string]any{remote.ManifestFile: man, remote.SnapshotFile: snap} {
+		data, err := json.MarshalIndent(v, "", "  ")
+		if err != nil {
+			return err
+		}
+		if err := os.WriteFile(filepath.Join(dir, name), data, 0o600); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (s *Service) git() Git {

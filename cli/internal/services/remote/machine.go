@@ -25,6 +25,8 @@ type Beads interface {
 	Claim(ctx context.Context, dir, id string) error
 	// Unclaim runs `bd unclaim <id>`.
 	Unclaim(ctx context.Context, dir, id string) error
+	// Exec runs bd with argv in dir (journal replay) and returns stdout.
+	Exec(ctx context.Context, dir string, argv []string, stdin []byte) ([]byte, error)
 }
 
 // BdCLI runs the bd binary.
@@ -84,6 +86,26 @@ func (b BdCLI) Claim(ctx context.Context, dir, id string) error {
 func (b BdCLI) Unclaim(ctx context.Context, dir, id string) error {
 	_, err := b.run(ctx, dir, "unclaim", id)
 	return err
+}
+
+// Exec implements Beads.
+func (BdCLI) Exec(ctx context.Context, dir string, argv []string, stdin []byte) ([]byte, error) {
+	cmd := beads.BdCommand(ctx, argv...)
+	cmd.Dir = dir
+	if stdin != nil {
+		cmd.Stdin = bytes.NewReader(stdin)
+	}
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	out, err := cmd.Output()
+	if err != nil {
+		msg := strings.TrimSpace(stderr.String())
+		if msg == "" {
+			msg = err.Error()
+		}
+		return out, fmt.Errorf("bd %s: %s", strings.Join(argv, " "), msg)
+	}
+	return out, nil
 }
 
 // issueHead is the part of a bd record used by oh.
@@ -199,6 +221,8 @@ type Git interface {
 	Dirty(ctx context.Context, dir string) (bool, error)
 	// ShowFile returns path at commit.
 	ShowFile(ctx context.Context, dir, commit, path string) ([]byte, error)
+	// FetchBranch fetches branch from origin into the local branch.
+	FetchBranch(ctx context.Context, dir, branch string) error
 }
 
 // GitCLI runs git.
@@ -240,6 +264,12 @@ func (g GitCLI) FetchHead(ctx context.Context, dir, branch string) (string, erro
 		return "", err
 	}
 	return g.git(ctx, dir, "rev-parse", "FETCH_HEAD")
+}
+
+// FetchBranch implements Git.
+func (g GitCLI) FetchBranch(ctx context.Context, dir, branch string) error {
+	_, err := g.git(ctx, dir, "fetch", "--quiet", "origin", "refs/heads/"+branch+":refs/heads/"+branch)
+	return err
 }
 
 // IsAncestor implements Git.

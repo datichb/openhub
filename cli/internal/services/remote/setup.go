@@ -55,6 +55,19 @@ type Service struct {
 	Beads        Beads // default BdCLI
 	Now          func() time.Time
 	NewSessionID func() string
+
+	// Return (lot 5.C).
+	SessionsDir string // ~/.oh/sessions: <id>/remote/ keeps the envelope and the artifacts
+	BundlesDir  string // ~/.oh/bundles
+	// Target returns the remote target named name (hub.toml).
+	Target func(name string) (*config.RemoteTarget, bool)
+	// Adopt imports the transcripts into a local server group at location
+	// (runsvc.Service.AdoptSession).
+	Adopt func(ctx context.Context, sessionID string, transcripts [][]byte, location string) error
+	// Worktree returns a worktree of the project on branch (created when missing).
+	Worktree func(projectDir, branch string) (string, error)
+	// Notify tells the user that a remote session is ready (system notification).
+	Notify func(title, body string)
 }
 
 func (s *Service) client(t config.RemoteTarget, token string) *gitlab.Client {

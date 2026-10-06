@@ -62,6 +62,8 @@ idle_sleep_minutes = 5     # an idle server goes to sleep after N minutes
 | `oh session results <id> [--mr] [--patch] [--json]` | changed files, branch, cost; merge request description; diff |
 | `oh session attach <id> [--how auto\|iterm\|terminal\|tmux\|browser\|suspend]` | open (or resume) a session |
 | `oh session open <id> --browser [--print]` | open a session in the browser (one-time code, 5 min) |
+| `oh session fetch <id> [--no-import]` | fetch a finished remote session (artifacts, import to resume it) — [remote execution](remote-runners.en.md) |
+| `oh session resolve <id> [--dry-run] [--yes]` | replay its Beads journal (conflicts, confirmation) |
 | `oh session resume <id>` | resume a sleeping session without opening a client |
 | `oh session stop <id>` | stop a session, and its server if no other session uses it |
 | `oh daemon status` | daemon state (servers, proxy tokens) |

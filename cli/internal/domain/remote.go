@@ -24,6 +24,7 @@ type RemoteRef struct {
 	URL         string       `json:"url"`               // GitLab instance
 	RunnerID    int64        `json:"runner_project_id"` // oh-runner project
 	ProjectPath string       `json:"project_path"`      // target project (GitLab path)
+	ProjectDir  string       `json:"project_dir"`       // project base directory on the machine (Beads)
 	ProjectID   int64        `json:"project_id"`        // target project (GitLab ID)
 	Ref         string       `json:"ref"`               // branch the job starts from
 	Commit      string       `json:"commit,omitempty"`  // commit at sending time

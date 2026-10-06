@@ -155,6 +155,7 @@ var sessionListCmd = &cobra.Command{
 	Short: "Liste les sessions v5 (en cours, en attente, en veille ; --all pour les terminées)",
 	RunE: func(cmd *cobra.Command, _ []string) error {
 		ctx := cmd.Context()
+		trackRemoteSessions(ctx, MustApp())
 		svc, err := newSessionService(ctx, MustApp())
 		if err != nil {
 			return err

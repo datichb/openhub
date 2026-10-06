@@ -212,6 +212,30 @@ The `oh-run` job runs `oh runner run` in the project image:
 
 Limits: MCP servers that need a token of your machine (gitlab, jira, figma…) are not available in the job; oh's `workflow` server is. When the job is canceled or times out, the session is exported and the work pushed before stopping when possible.
 
+## 7. Follow, fetch, replay
+
+**Following.** `oh session list` and the Sessions view of the TUI check the pipelines (every 30 s in the TUI): the ☁ session is "Running" (pipeline pending or running), then moves to **"To fetch"** once the pipeline is over (or failed: its artifacts can still be fetched). A system notification says so. Progress is also visible to the team in the ticket claim.
+
+**Fetching** — `oh session fetch <id>` or `g` in the Sessions view:
+
+1. download of the artifacts of the `oh-run` job (`journal.jsonl`, `summary.json`, `session.export`) to `~/.oh/sessions/<id>/remote/`;
+2. summary: outcome (completed, deferred checkpoint, question, failed), cost, MR, requests refused by the policy;
+3. **import of the session** (and its sub-agents) into a local server, in a worktree of the branch pushed by the job: `oh session attach <id>` resumes it where it stopped (deferred checkpoint to approve, question to answer, rest of the work).
+
+`--no-import` only downloads the artifacts.
+
+**Replaying the Beads journal** — `oh session resolve <id>` or the TUI window:
+
+- every write is **checked again** on the machine (workflow `beads.allow`, refused options, job files, tickets of the session); the others are refused;
+- a ticket **changed on the machine since sending** (its revision changed) is a **conflict**: for each, *Keep local* (nothing applied to that ticket), *Apply remote* (all its writes), *Merge the notes* (notes and comments only);
+- **nothing is applied without confirmation**; tickets created in the job get their real id and the following writes use it;
+- can be run again: a failed write is retried, the others are not replayed.
+
+```bash
+oh session resolve <id> --dry-run                 # see the replay
+oh session resolve <id> --merge-notes bd-40 --yes # without a terminal
+```
+
 ## The generated pipeline
 
 Three jobs, triggered **only** by oh (never on push):

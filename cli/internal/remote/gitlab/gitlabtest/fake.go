@@ -50,6 +50,9 @@ type Pipeline struct {
 	Token     string
 	Variables map[string]string
 	Status    string
+	// Jobs of the pipeline (name, status) and their artifacts (zip) by job id.
+	Jobs      []map[string]any
+	Artifacts map[int64][]byte
 }
 
 // Server is the fake GitLab.
@@ -264,6 +267,29 @@ func (s *Server) serveProject(w http.ResponseWriter, r *http.Request, p *Project
 		}
 		p.Pipelines = append(p.Pipelines, pl)
 		writeJSON(w, 201, s.pipelineJSON(p, pl))
+	case len(rest) == 3 && rest[0] == "pipelines" && rest[2] == "jobs":
+		for _, pl := range p.Pipelines {
+			if strconv.FormatInt(pl.ID, 10) == rest[1] {
+				out := pl.Jobs
+				if out == nil {
+					out = []map[string]any{}
+				}
+				writeJSON(w, 200, out)
+				return
+			}
+		}
+		notFound(w)
+	case len(rest) == 3 && rest[0] == "jobs" && rest[2] == "artifacts":
+		for _, pl := range p.Pipelines {
+			for id, data := range pl.Artifacts {
+				if strconv.FormatInt(id, 10) == rest[1] {
+					w.Header().Set("Content-Type", "application/zip")
+					_, _ = w.Write(data)
+					return
+				}
+			}
+		}
+		notFound(w)
 	case len(rest) == 2 && rest[0] == "pipelines":
 		for _, pl := range p.Pipelines {
 			if strconv.FormatInt(pl.ID, 10) == rest[1] {
@@ -274,9 +300,7 @@ func (s *Server) serveProject(w http.ResponseWriter, r *http.Request, p *Project
 		notFound(w)
 	case len(rest) == 2 && rest[0] == "registry" && rest[1] == "repositories":
 		out := []map[string]any{}
-		i := 0
 		for name := range p.Images {
-			i++
 			if q := r.URL.Query().Get("search"); q == "" || strings.Contains(name, q) {
 				out = append(out, map[string]any{"id": imageID(name), "name": name, "path": p.Path + "/" + name})
 			}

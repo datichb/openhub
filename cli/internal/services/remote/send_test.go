@@ -29,6 +29,7 @@ type fakeGit struct {
 	remote, branch, head, fetched string
 	ancestor, dirty               bool
 	files                         map[string]string
+	fetchedBranches               []string
 }
 
 func (g *fakeGit) RemoteURL(context.Context, string) (string, error)     { return g.remote, nil }
@@ -41,6 +42,10 @@ func (g *fakeGit) IsAncestor(context.Context, string, string, string) (bool, err
 	return g.ancestor, nil
 }
 func (g *fakeGit) Dirty(context.Context, string) (bool, error) { return g.dirty, nil }
+func (g *fakeGit) FetchBranch(_ context.Context, _, b string) error {
+	g.fetchedBranches = append(g.fetchedBranches, b)
+	return nil
+}
 func (g *fakeGit) ShowFile(_ context.Context, _, _, p string) ([]byte, error) {
 	if c, ok := g.files[p]; ok {
 		return []byte(c), nil
@@ -49,11 +54,14 @@ func (g *fakeGit) ShowFile(_ context.Context, _, _, p string) ([]byte, error) {
 }
 
 type fakeBeads struct {
-	issues  map[string]map[string]any
-	kids    map[string][]string
-	claimed []string
-	unclaim []string
-	failOn  string
+	issues   map[string]map[string]any
+	kids     map[string][]string
+	claimed  []string
+	unclaim  []string
+	failOn   string
+	execs    []string
+	execFail string
+	created  int
 }
 
 func (b *fakeBeads) rec(id string) json.RawMessage {
@@ -85,6 +93,19 @@ func (b *fakeBeads) Claim(_ context.Context, _, id string) error {
 	b.issues[id]["status"] = "in_progress"
 	b.issues[id]["revision"] = "r2-" + id
 	return nil
+}
+func (b *fakeBeads) Exec(_ context.Context, _ string, argv []string, stdin []byte) ([]byte, error) {
+	b.execs = append(b.execs, strings.Join(argv, " "))
+	if b.execFail != "" && strings.Contains(strings.Join(argv, " "), b.execFail) {
+		return nil, errors.New("bd failed")
+	}
+	if len(argv) > 0 && argv[0] == "create" {
+		b.created++
+		id := "bd-n" + strconv.Itoa(b.created)
+		b.issues[id] = map[string]any{"id": id, "status": "open"}
+		return []byte(`{"id":"` + id + `"}`), nil
+	}
+	return nil, nil
 }
 func (b *fakeBeads) Unclaim(_ context.Context, _, id string) error {
 	b.unclaim = append(b.unclaim, id)

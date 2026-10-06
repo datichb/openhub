@@ -212,6 +212,30 @@ Le job `oh-run` exécute `oh runner run` dans l'image du projet :
 
 Limites : les serveurs MCP qui ont besoin d'un jeton de votre machine (gitlab, jira, figma…) ne sont pas disponibles dans le job ; le serveur `workflow` d'oh l'est. Si le job est annulé ou dépasse sa durée, la session est exportée et le travail poussé avant l'arrêt quand c'est possible.
 
+## 7. Suivre, récupérer, rejouer
+
+**Suivi.** `oh session list` et la vue Sessions de la TUI consultent l'état des pipelines (toutes les 30 s dans la TUI) : la session ☁ est « En cours » (pipeline en attente ou en cours), puis passe dans **« À récupérer »** quand le pipeline est terminé (ou en échec : ses artefacts restent récupérables). Une notification système le signale. L'avancement est aussi visible par l'équipe dans le claim du ticket.
+
+**Récupération** — `oh session fetch <id>` ou `g` dans la vue Sessions :
+
+1. téléchargement des artefacts du job `oh-run` (`journal.jsonl`, `summary.json`, `session.export`) dans `~/.oh/sessions/<id>/remote/` ;
+2. résumé : issue (terminée, checkpoint différé, question, échec), coût, MR, demandes refusées par la politique ;
+3. **import de la session** (et de ses sous-agents) dans un serveur local, dans un worktree de la branche poussée par le job : `oh session attach <id>` la reprend là où elle s'est arrêtée (checkpoint différé à valider, question à répondre, suite du travail).
+
+`--no-import` ne télécharge que les artefacts.
+
+**Rejeu du journal Beads** — `oh session resolve <id>` ou la fenêtre de la TUI :
+
+- chaque écriture est **revérifiée** sur la machine (`beads.allow` du workflow, options refusées, fichiers du job, tickets de la session) ; les autres sont refusées ;
+- un ticket **modifié sur la machine depuis l'envoi** (sa révision a changé) est un **conflit** : pour chacun, *Garder local* (rien n'est appliqué sur ce ticket), *Appliquer distant* (toutes ses écritures), *Fusionner les notes* (seulement les notes et commentaires) ;
+- **rien n'est appliqué sans confirmation** ; les tickets créés dans le job reçoivent leur vrai identifiant et les écritures suivantes l'utilisent ;
+- relançable : une écriture en échec est retentée, les autres ne sont pas rejouées.
+
+```bash
+oh session resolve <id> --dry-run                 # voir le rejeu
+oh session resolve <id> --merge-notes bd-40 --yes # sans terminal
+```
+
 ## Le pipeline généré
 
 Trois jobs, déclenchés **uniquement** par oh (jamais à un push) :

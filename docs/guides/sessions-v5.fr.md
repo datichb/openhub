@@ -62,6 +62,8 @@ idle_sleep_minutes = 5     # un serveur inactif se met en veille après N minute
 | `oh session results <id> [--mr] [--patch] [--json]` | fichiers modifiés, branche, coût ; description de MR ; diff |
 | `oh session attach <id> [--how auto\|iterm\|terminal\|tmux\|browser\|suspend]` | ouvrir (ou reprendre) une session |
 | `oh session open <id> --browser [--print]` | ouvrir une session dans le navigateur (code à usage unique, 5 min) |
+| `oh session fetch <id> [--no-import]` | récupérer une session distante terminée (artefacts, import pour la reprendre) — [exécution distante](remote-runners.fr.md) |
+| `oh session resolve <id> [--dry-run] [--yes]` | rejouer son journal Beads (conflits, confirmation) |
 | `oh session resume <id>` | reprendre une session en veille sans ouvrir d'interface |
 | `oh session stop <id>` | arrêter une session, et son serveur si aucune autre session ne l'utilise |
 | `oh daemon status` | état du démon (serveurs, jetons de proxy) |

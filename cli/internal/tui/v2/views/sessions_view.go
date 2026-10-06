@@ -236,7 +236,8 @@ func (v *SessionsView) render() {
 		keep = v.selectedKey()
 	}
 	v.focusID = ""
-	decisions, running, sleeping, finished := sessionsSections(v.rows, time.Now())
+	rest, toFetch := splitRemote(v.rows)
+	decisions, running, sleeping, finished := sessionsSections(rest, time.Now())
 	var items []widgets.SectionItem
 	header := func(key string, n int) {
 		items = append(items, widgets.SectionItem{MainText: i18n.Tf(key, n), IsHeader: true})
@@ -254,6 +255,7 @@ func (v *SessionsView) render() {
 	for _, r := range running {
 		items = append(items, sessionItem(r))
 	}
+	items = remoteSection(items, toFetch)
 	if len(sleeping) > 0 {
 		header("tui.sessions.section.sleeping", len(sleeping))
 		for _, r := range sleeping {
@@ -580,6 +582,8 @@ func (v *SessionsView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 				v.shell.ShowSelectModal(i18n.T("tui.launch.chain_title"), opts, "", func(wf string) { ch.Chain(id, wf) })
 			})
 		}
+	case 'g':
+		v.fetchSelected(r)
 	case 'w':
 		if r != nil && !r.Finished {
 			id := r.ID
