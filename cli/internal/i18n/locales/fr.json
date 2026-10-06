@@ -3566,6 +3566,7 @@
   "tui.solo.promoted_body": "%s est maintenant une équipe sur %s.\n\nPour inviter des membres : transmettez-leur l'URL du dépôt ; chacun lance « oh team init » (ou l'assistant d'équipe de la TUI) et rejoint l'équipe.",
   "cmd.doctor.security.capability": "Sécurité : capacité d'émission du démon",
   "cmd.doctor.security.capability_error": "illisible : %v",
+  "cmd.doctor.security.capability_none": "pas encore créée (au premier lancement d'une session)",
   "cmd.doctor.security.capability_file": "⚠ trousseau indisponible : fichier %s (0600), lisible par tout processus de votre utilisateur",
   "cmd.doctor.security.capability_keychain": "dans le trousseau, absente de l'environnement des serveurs",
   "cmd.doctor.security.socket": "Sécurité : socket du démon",

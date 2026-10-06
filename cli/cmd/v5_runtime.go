@@ -46,11 +46,16 @@ func ensureDaemon(ctx context.Context) (*daemon.Client, daemon.Health, error) {
 // in the OS keychain, else in a 0600 file under ~/.oh/run. The encrypted
 // file store is not used (it would prompt for a passphrase in the daemon).
 func daemonCapability(ctx context.Context) (string, daemon.CapabilitySource, error) {
-	var store daemon.CapabilityStore
-	if keychain.Probe() == nil {
-		store = keychain.New(config.HubDir())
+	return daemon.LoadCapability(ctx, capabilityStore(), daemon.Paths{Dir: ohRunDir()})
+}
+
+// capabilityStore is the OS keychain when items can be stored there
+// without a system dialog (nil otherwise: 0600 file).
+func capabilityStore() daemon.CapabilityStore {
+	if keychain.Probe() != nil || !keychain.HasDefault() {
+		return nil
 	}
-	return daemon.LoadCapability(ctx, store, daemon.Paths{Dir: ohRunDir()})
+	return keychain.New(config.HubDir())
 }
 
 // detectV2Adapter returns the opencode V2 adapter, or an error when the

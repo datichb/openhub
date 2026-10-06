@@ -3566,6 +3566,7 @@
   "tui.solo.promoted_body": "%s is now a team on %s.\n\nTo invite members: send them the repository URL; each one runs \"oh team init\" (or the TUI team wizard) and joins the team.",
   "cmd.doctor.security.capability": "Security: daemon issuing capability",
   "cmd.doctor.security.capability_error": "unreadable: %v",
+  "cmd.doctor.security.capability_none": "not created yet (at the first session launch)",
   "cmd.doctor.security.capability_file": "⚠ keychain unavailable: file %s (0600), readable by any process of your user",
   "cmd.doctor.security.capability_keychain": "in the keychain, never in the servers' environment",
   "cmd.doctor.security.socket": "Security: daemon socket",

@@ -50,7 +50,8 @@ func (p Paths) capabilityLock() string { return filepath.Join(p.Dir, "capability
 
 // LoadCapability returns the issuing capability, creating it on first use:
 // in store when it is usable, otherwise in the fallback file (0600). The
-// creation is serialized between processes.
+// creation is serialized between processes. Order: secret store, then an
+// existing file, then a new value in the store, else in a new file.
 func LoadCapability(ctx context.Context, store CapabilityStore, paths Paths) (string, CapabilitySource, error) {
 	if err := os.MkdirAll(paths.Dir, 0o700); err != nil {
 		return "", "", err
@@ -62,26 +63,24 @@ func LoadCapability(ctx context.Context, store CapabilityStore, paths Paths) (st
 		return "", "", err
 	}
 	defer unlock()
+	usable := false
 	if store != nil {
 		v, err := store.Get(ctx, CapabilityKey)
-		switch {
-		case err == nil && v != "":
+		if err == nil && v != "" {
 			return v, CapabilityKeychain, nil
-		case err == nil:
-			// A capability file left from a time without secret store is
-			// moved to the store, so that every process agrees.
-			c, ferr := readCapabilityFile(paths)
-			if ferr != nil {
-				c = newCapability()
-			}
-			if serr := store.Set(ctx, CapabilityKey, c); serr == nil {
-				_ = os.Remove(paths.CapabilityFile())
-				return c, CapabilityKeychain, nil
-			}
 		}
+		usable = err == nil // a read error (locked, denied): do not write there
 	}
+	// An existing file is used as is: trying the secret store again at every
+	// call would ask the user each time where it is not usable.
 	if c, err := readCapabilityFile(paths); err == nil {
 		return c, CapabilityFile, nil
+	}
+	if usable {
+		c := newCapability()
+		if err := store.Set(ctx, CapabilityKey, c); err == nil {
+			return c, CapabilityKeychain, nil
+		}
 	}
 	c := newCapability()
 	f, err := os.OpenFile(paths.CapabilityFile(), os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)
@@ -93,6 +92,22 @@ func LoadCapability(ctx context.Context, store CapabilityStore, paths Paths) (st
 		return "", "", err
 	}
 	return c, CapabilityFile, nil
+}
+
+// PeekCapability tells where the capability is kept without creating it
+// (Doctor): found false when none exists yet.
+func PeekCapability(ctx context.Context, store CapabilityStore, paths Paths) (src CapabilitySource, found bool, err error) {
+	if store != nil {
+		if v, gerr := store.Get(ctx, CapabilityKey); gerr == nil && v != "" {
+			return CapabilityKeychain, true, nil
+		}
+	}
+	if _, ferr := readCapabilityFile(paths); ferr == nil {
+		return CapabilityFile, true, nil
+	} else if !errors.Is(ferr, os.ErrNotExist) {
+		return "", false, ferr
+	}
+	return "", false, nil
 }
 
 func readCapabilityFile(paths Paths) (string, error) {

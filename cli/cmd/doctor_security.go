@@ -17,9 +17,12 @@ import (
 func securityDoctorChecks(ctx context.Context) []views.DoctorCheck {
 	var out []views.DoctorCheck
 	name := i18n.T("cmd.doctor.security.capability")
-	switch _, src, err := daemonCapability(ctx); {
+	// Read only: Doctor never creates the capability (first launch does).
+	switch src, found, err := daemon.PeekCapability(ctx, capabilityStore(), daemon.Paths{Dir: ohRunDir()}); {
 	case err != nil:
 		out = append(out, views.DoctorCheck{Name: name, OK: false, Detail: i18n.Tf("cmd.doctor.security.capability_error", err)})
+	case !found:
+		out = append(out, views.DoctorCheck{Name: name, OK: true, Detail: i18n.T("cmd.doctor.security.capability_none")})
 	case src == daemon.CapabilityFile:
 		out = append(out, views.DoctorCheck{Name: name, OK: true, Detail: i18n.Tf("cmd.doctor.security.capability_file", daemon.Paths{Dir: ohRunDir()}.CapabilityFile())})
 	default:

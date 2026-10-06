@@ -160,6 +160,17 @@ func Probe() error {
 	return nil
 }
 
+// HasDefault reports whether new items can be stored without asking the
+// user: on macOS, a default keychain must exist for the current HOME (an
+// isolated HOME, as in tests, has none, and an add would open the system
+// dialog "A keychain cannot be found to store …"). Other systems: true.
+func HasDefault() bool {
+	if runtime.GOOS != "darwin" {
+		return true
+	}
+	return exec.Command("security", "default-keychain").Run() == nil
+}
+
 // ListKeychainAccounts returns all account names stored in the OS keychain
 // for the openhub service. This bypasses the index file and reads the actual
 // keychain. macOS only — uses "security dump-keychain". Returns

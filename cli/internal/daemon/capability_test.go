@@ -68,14 +68,42 @@ func TestLoadCapability(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, f1, f2)
 
-	// The store becomes usable: the file is moved into it.
+	// An existing file is used as is: the store is not written again (a
+	// store that cannot write would ask the user at every call).
 	ks2 := &memStore{m: map[string]string{}}
 	f3, src, err := LoadCapability(ctx, ks2, q)
 	require.NoError(t, err)
-	assert.Equal(t, CapabilityKeychain, src)
+	assert.Equal(t, CapabilityFile, src)
 	assert.Equal(t, f1, f3)
-	_, err = os.Stat(q.CapabilityFile())
+	assert.Empty(t, ks2.m, "nothing written to the store")
+
+	// A store that refuses writes: file, created once.
+	r := Paths{Dir: t.TempDir()}
+	refusing := &memStore{m: map[string]string{}, setErr: errors.New("no default keychain")}
+	g1, src, err := LoadCapability(ctx, refusing, r)
+	require.NoError(t, err)
+	assert.Equal(t, CapabilityFile, src)
+	g2, _, err := LoadCapability(ctx, refusing, r)
+	require.NoError(t, err)
+	assert.Equal(t, g1, g2)
+}
+
+func TestPeekCapabilityNeverCreates(t *testing.T) {
+	ctx := context.Background()
+	p := Paths{Dir: t.TempDir()}
+	ks := &memStore{m: map[string]string{}}
+	_, found, err := PeekCapability(ctx, ks, p)
+	require.NoError(t, err)
+	assert.False(t, found)
+	assert.Empty(t, ks.m)
+	_, err = os.Stat(p.CapabilityFile())
 	assert.True(t, os.IsNotExist(err))
+	_, _, err = LoadCapability(ctx, ks, p)
+	require.NoError(t, err)
+	src, found, err := PeekCapability(ctx, ks, p)
+	require.NoError(t, err)
+	assert.True(t, found)
+	assert.Equal(t, CapabilityKeychain, src)
 }
 
 // M12: issuing tokens, revoking, opening listeners and stopping the daemon
