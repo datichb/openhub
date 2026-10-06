@@ -118,4 +118,5 @@ Changing the provider, region or key of a project starts a new server on the nex
 ## Limitations
 
 - **Windows**: v5 sessions are not supported yet, because the daemon is missing. Use opencode V1 or WSL.
+- **Proxy port**: the daemon keeps its proxy port across restarts. If that port was taken by another program meanwhile, the daemon picks another one and puts to sleep the servers that still use the old one (they can no longer reach the provider); working sessions show an error in the inbox. Resume them (`oh session resume <id>` or attach): their server restarts with the new port.
 - **Local security**: the agent runs as your user and can reach the daemon socket and `oh.db`, but never the LLM key. See [SECURITY.md](../../SECURITY.md).

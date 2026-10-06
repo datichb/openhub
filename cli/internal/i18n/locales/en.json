@@ -3169,6 +3169,7 @@
   "tui.wiki.time_ndays": "%d days ago",
   "cmd.daemon.already_running": "The oh daemon is already running.",
   "cmd.daemon.not_running": "The oh daemon is not running.",
+  "cmd.daemon.proxy_port_changed": "The oh daemon restarted on another proxy port (%d → %d): the session's server can no longer reach its provider and was put to sleep. Resume the session to restart it.",
   "cmd.daemon.status_line": "ohd %s · pid %d · proxy %s · live servers %d · tokens %d · pending %d",
   "cmd.daemon.stopping": "oh daemon shutdown requested.",
   "cmd.session.no_terminal": "No terminal could be opened: attaching in the current terminal.",

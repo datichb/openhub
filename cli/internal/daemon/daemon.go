@@ -98,9 +98,13 @@ type Daemon struct {
 	stop        chan struct{}
 	restored    chan struct{} // closed once the persisted grants are restored
 	stopOnce    sync.Once
-	sigMu       sync.Mutex
-	sigCache    map[string]credproxy.Auth // SigV4 signers by profile/region
-	kick        chan struct{}
+	started     time.Time
+	// prevProxyPort is the proxy port of the previous daemon when it could
+	// not be bound again (0 = unchanged).
+	prevProxyPort int
+	sigMu         sync.Mutex
+	sigCache      map[string]credproxy.Auth // SigV4 signers by profile/region
+	kick          chan struct{}
 }
 
 type stateFile struct {
@@ -137,7 +141,7 @@ func Run(ctx context.Context, opts Options) error {
 	}
 	defer unlock()
 
-	d := &Daemon{opts: opts, proxy: credproxy.New(), pending: map[string]domain.ProxyGrant{}, clients: map[string]client{}, verified: map[string]bool{}, verifyFails: map[string]int{}, policies: map[string]QuitPolicy{}, watchers: map[string]*watcher{}, feed: newHub(), lastBusy: time.Now(), stop: make(chan struct{}), restored: make(chan struct{}), sigCache: map[string]credproxy.Auth{}, kick: make(chan struct{}, 1)}
+	d := &Daemon{opts: opts, proxy: credproxy.New(), pending: map[string]domain.ProxyGrant{}, clients: map[string]client{}, verified: map[string]bool{}, verifyFails: map[string]int{}, policies: map[string]QuitPolicy{}, watchers: map[string]*watcher{}, feed: newHub(), lastBusy: time.Now(), started: time.Now(), stop: make(chan struct{}), restored: make(chan struct{}), sigCache: map[string]credproxy.Auth{}, kick: make(chan struct{}, 1)}
 	d.proxy.Hooks = d.hooksHandler()
 	if err := d.startProxy(); err != nil {
 		return err
@@ -237,10 +241,11 @@ func (d *Daemon) startProxy() error {
 	}
 	restored := false
 	if st.ProxyPort > 0 {
-		if err := d.proxy.Start(fmt.Sprintf("127.0.0.1:%d", st.ProxyPort)); err == nil {
+		if d.bindPreviousPort(st.ProxyPort) {
 			restored = true
 		} else {
-			slog.Warn("ohd: previous proxy port unavailable, picking a new one", "port", st.ProxyPort)
+			d.prevProxyPort = st.ProxyPort
+			slog.Warn("ohd: previous proxy port unavailable, picking a new one; servers using it are put to sleep", "port", st.ProxyPort)
 		}
 	}
 	if !restored {
@@ -423,6 +428,7 @@ func (d *Daemon) supervise(ctx context.Context) bool {
 			}
 		}
 	}
+	ready = d.sleepStaleGroups(ctx, ready)
 	d.syncWatchers(ctx, ready)
 	d.applyLifecycle(ctx, ready)
 	d.notes.requestScan() // decisions raised by other processes (CLI, TUI)

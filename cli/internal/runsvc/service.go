@@ -517,6 +517,10 @@ func (s *Service) startServer(ctx context.Context, dc DaemonClient, req StartReq
 		_ = dc.RevokeOwner(ctx, gk)
 		return nil, adapters.VisibilityReport{}, nil, err
 	}
+	if err := s.saveProxyURL(gk, baseURL); err != nil {
+		_ = dc.RevokeOwner(ctx, gk)
+		return nil, adapters.VisibilityReport{}, nil, err
+	}
 
 	dataDir := filepath.Join(s.ServersDir, gk, "data")
 	srv := &domain.Server{
