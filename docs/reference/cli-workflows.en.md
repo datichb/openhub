@@ -34,6 +34,22 @@ oh workflow validate --all [--json]
 
 Validates a file or a catalogue workflow: strict parsing, `extends` resolution, security rules, references to the brick catalogue. Non-zero exit on errors.
 
+## oh bundle build / show
+
+```
+oh bundle build <workflow> [-p <project>] [-P <provider>] [--json]
+oh bundle show <workflow>|<hash> [-p <project>] [--budget] [--json]
+```
+
+Compiles (idempotently, by hash) the session bundle of a workflow into `~/.oh/bundles/<hash>/` and shows it: agents (entry agent first), delegations, on-demand skills, MCP, plugins, default model, delegation depth, isolation (`strict` when the workflow requires it), global permissions and the estimated cost of the first turn (entry agent + skill catalogue). Without `-p`, the project is the one of the current directory (otherwise a hub-only bundle, without project instructions or MCP).
+
+| Flag | Type | Description |
+|------|------|-------------|
+| `--budget` | bool | Details the estimated budget: tokens per agent and per skill (≈ 4 characters per token) |
+| `--json` | bool | JSON output (`bundle.Report`) |
+
+`oh skill budget <workflow>` is a deprecated alias of `oh bundle show <workflow> --budget`; without a workflow, the former per-agent computation stays available with a warning.
+
 ## Environment variables
 
 | Variable | Effect |

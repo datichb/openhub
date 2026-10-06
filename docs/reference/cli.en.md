@@ -17,7 +17,7 @@
 | Section | File | Key Commands |
 |---------|------|--------------|
 | [Sessions](cli-sessions.en.md) | `cli-sessions.en.md` | `oh start`, `oh review`, `oh audit`, `oh debug` |
-| [Workflows](cli-workflows.en.md) | `cli-workflows.en.md` | `oh workflow list\|show\|validate` |
+| [Workflows](cli-workflows.en.md) | `cli-workflows.en.md` | `oh workflow list\|show\|validate`, `oh bundle build\|show` |
 | [Projects](cli-projects.en.md) | `cli-projects.en.md` | `oh project list\|add\|remove\|rename\|move\|configure` |
 | [Deployment](cli-deploy.en.md) | `cli-deploy.en.md` | `oh deploy`, `oh sync` |
 | [Configuration](cli-config.en.md) | `cli-config.en.md` | `oh config *`, `oh provider setup`, `oh config model` |

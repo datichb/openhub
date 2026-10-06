@@ -62,3 +62,18 @@ func TestReviewerSelfDelegation(t *testing.T) {
 	assert.Contains(t, b.Spec.SubagentGraph["reviewer"], "reviewer")
 	assert.GreaterOrEqual(t, b.Spec.MaxDepth, 2)
 }
+
+func TestBuildStrictIsolationFromSpec(t *testing.T) {
+	out := t.TempDir()
+	std, err := Build(Request{HubDir: repoHub(t), OutDir: out, Spec: parseSpec(t, ticketSpec)})
+	require.NoError(t, err)
+	assert.False(t, std.Spec.StrictIsolation)
+
+	strict, err := Build(Request{HubDir: repoHub(t), OutDir: out, Spec: parseSpec(t, ticketSpec+"isolation: strict\n")})
+	require.NoError(t, err)
+	assert.True(t, strict.Spec.StrictIsolation)
+	assert.NotEqual(t, std.Spec.Hash, strict.Spec.Hash, "the isolation level is part of the bundle hash")
+	loaded, err := Load(out, strict.Spec.Hash)
+	require.NoError(t, err)
+	assert.True(t, loaded.Spec.StrictIsolation, "stored in bundle.json (read by the SessionService)")
+}
