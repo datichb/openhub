@@ -16,3 +16,7 @@ func bdBinary(arch string) ([]byte, error) {
 	}
 	return data, nil
 }
+
+// FakeBD returns the embedded fake bd for a Linux architecture (also
+// installed by `oh runner install` in remote job images).
+func FakeBD(arch string) ([]byte, error) { return bdBinary(arch) }

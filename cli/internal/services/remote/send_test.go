@@ -166,7 +166,7 @@ func newSendEnv(t *testing.T) *sendEnv {
 	}, kids: map[string][]string{"bd-42": {"bd-43"}}}
 	team := &fakeTeam{claims: map[string]string{}, remote: map[string]teamstate.ClaimRemote{}}
 	svc.Sessions, svc.Remote = sqlite.NewSessionStore(st), sqlite.NewRemoteStore(st)
-	svc.Git, svc.Beads = g, bd
+	svc.Git, svc.Beads, svc.ToolVersion = g, bd, "2.0.20"
 	svc.NewSessionID = func() string { return "ses_remote1" }
 	svc.Now = func() time.Time { return time.Date(2026, 10, 6, 12, 0, 0, 0, time.UTC) }
 	member := "alice"
@@ -209,6 +209,7 @@ func TestSend(t *testing.T) {
 	assert.Equal(t, "c2", v[remote.VarCommit])
 	assert.Equal(t, "true", v[remote.VarImageBuild])
 	assert.Equal(t, "5.0.0", v[remote.VarCLIVersion])
+	assert.Equal(t, "2.0.20", v[remote.VarToolVersion])
 	assert.Equal(t, "", v[remote.VarDockerfile], "no dev Dockerfile: oh default base")
 	assert.True(t, strings.HasPrefix(v[remote.VarImage], "registry.example.com/acme/dev/oh-runner/acme-dev-api:"))
 	assert.True(t, strings.HasPrefix(v[remote.VarImageBase], "registry.example.com/acme/dev/oh-runner/acme-dev-api-base:"))

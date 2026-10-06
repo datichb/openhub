@@ -188,6 +188,30 @@ Si le déclenchement échoue, les réservations faites par oh sont annulées. `-
 
 Politique des checkpoints dans le job (jamais d'approbation aveugle) : `remote: auto` est validé par le répondeur de politique d'oh ; `remote: defer` arrête proprement la session quand la MR est prête, la suite se fait en local après récupération.
 
+## 6. Dans le job : `oh runner`
+
+Le job `oh-run` exécute `oh runner run` dans l'image du projet :
+
+1. **Récupération** du paquet et de l'enveloppe de session avec le jeton du job (`CI_JOB_TOKEN`), vérifiés par leur hash.
+2. **Nettoyage** de l'environnement : toutes les variables secrètes (clé LLM, jetons, `CI_JOB_TOKEN`, mots de passe du registre) sont retirées du processus avant de lancer quoi que ce soit.
+3. **Clone** du projet avec son jeton (`OH_PROJECT_TOKEN_<id>`, passé par l'environnement de git, jamais dans une URL ni un fichier) et création de la branche de la session.
+4. **Session** : même code que sur votre machine — démon oh, proxy d'identifiants (seul détenteur de la clé LLM), serveur opencode et paquet en « monde fermé ». Le serveur opencode tourne sous le compte `oh` (créé dans l'image), qui ne peut lire ni les processus du job, ni la base oh, ni les secrets.
+5. **Répondeur de politique** (jamais d'approbation aveugle) :
+
+   | Demande | Réponse |
+   |---|---|
+   | checkpoint `remote: auto` | validé |
+   | checkpoint `remote: defer` | la session s'arrête proprement : branche et MR poussées, suite en local |
+   | autre permission (`ask`) | refusée, avec un message à l'agent |
+   | question d'un agent | la session s'arrête (« question en attente »), à reprendre en local |
+   | erreur, budget, coupe-circuit | la session s'arrête (échec) |
+
+6. **Beads** : `bd` est le faux bd d'oh ; il passe par la passerelle Beads du démon du job, qui applique `beads.allow`. Les lectures viennent de l'instantané ; les écritures sont enregistrées dans `journal.jsonl` (et visibles par les lectures suivantes), puis rejouées sur votre machine à la récupération.
+7. **Branche et MR** : ce qui n'est pas commité l'est, la branche est poussée et une **MR en brouillon** est ouverte par les options de `git push`. L'avancement est publié dans le claim du ticket (`OH_TEAMSTATE_TOKEN`).
+8. **Artefacts** (`oh-out/`, 7 jours) : `journal.jsonl` (écritures Beads), `summary.json` (issue, coût, décisions, MR, sorties), `session.export` (transcription de la session et de ses sous-agents, pour la reprendre en local).
+
+Limites : les serveurs MCP qui ont besoin d'un jeton de votre machine (gitlab, jira, figma…) ne sont pas disponibles dans le job ; le serveur `workflow` d'oh l'est. Si le job est annulé ou dépasse sa durée, la session est exportée et le travail poussé avant l'arrêt quand c'est possible.
+
 ## Le pipeline généré
 
 Trois jobs, déclenchés **uniquement** par oh (jamais à un push) :

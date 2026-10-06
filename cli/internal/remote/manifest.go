@@ -114,3 +114,69 @@ type Snapshot struct {
 	// Children lists the child ids of each issue (bd children).
 	Children map[string][]string `json:"children,omitempty"`
 }
+
+// SummarySchema is the version of summary.json.
+const SummarySchema = 1
+
+// Outcomes of a remote session.
+const (
+	OutcomeCompleted = "completed" // the turn ended
+	OutcomeDeferred  = "deferred"  // stopped at a remote: defer checkpoint (MR ready, continue locally)
+	OutcomeQuestion  = "question"  // an agent question has no default answer: continue locally
+	OutcomeFailed    = "failed"    // error, budget, circuit breaker or job failure
+)
+
+// Summary is the result of a remote session (summary.json artifact).
+type Summary struct {
+	Schema    int       `json:"schema"`
+	SessionID string    `json:"session_id"`
+	Outcome   string    `json:"outcome"`
+	Error     string    `json:"error,omitempty"`
+	StartedAt time.Time `json:"started_at"`
+	EndedAt   time.Time `json:"ended_at"`
+
+	// Deferred is the checkpoint the session stopped at (OutcomeDeferred);
+	// Question the pending question (OutcomeQuestion).
+	Deferred *SummaryDecision `json:"deferred,omitempty"`
+	Question *SummaryDecision `json:"question,omitempty"`
+	// Decisions are the answers of the policy responder.
+	Decisions []SummaryDecision `json:"decisions,omitempty"`
+
+	Branch     string `json:"branch,omitempty"`
+	BaseCommit string `json:"base_commit,omitempty"`
+	Commit     string `json:"commit,omitempty"` // pushed commit ("" = nothing pushed)
+	MRURL      string `json:"mr_url,omitempty"`
+
+	Cost            float64 `json:"cost"`
+	TokensIn        int64   `json:"tokens_in"`
+	TokensOut       int64   `json:"tokens_out"`
+	TokensReasoning int64   `json:"tokens_reasoning,omitempty"`
+	TokensCacheRead int64   `json:"tokens_cache_read,omitempty"`
+	Model           string  `json:"model,omitempty"`
+
+	Outputs        map[string]any `json:"outputs,omitempty"`
+	JournalEntries int            `json:"journal_entries"`
+	// Sessions are the exported tool sessions, parents first.
+	Sessions []string `json:"sessions,omitempty"`
+	Text     string   `json:"text,omitempty"` // last text of the assistant
+}
+
+// SummaryDecision is a decision of the session and its answer.
+type SummaryDecision struct {
+	ID        string    `json:"id"`                  // checkpoint id or decision id
+	Kind      string    `json:"kind"`                // checkpoint | permission | question | error | budget | circuit
+	Label     string    `json:"label,omitempty"`     // checkpoint label, permission action, question title
+	Resources []string  `json:"resources,omitempty"` // permission resources
+	Answer    string    `json:"answer"`              // approved | rejected | deferred | pending | stopped
+	At        time.Time `json:"at"`
+}
+
+// ExportSchema is the version of session.export.
+const ExportSchema = 1
+
+// Export is the session.export artifact: the transcripts of the session and
+// of its sub-agent sessions, parents first (import order).
+type Export struct {
+	Schema   int               `json:"schema"`
+	Sessions []json.RawMessage `json:"sessions"`
+}

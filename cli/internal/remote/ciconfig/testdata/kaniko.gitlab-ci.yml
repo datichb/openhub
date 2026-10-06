@@ -42,6 +42,7 @@ oh-cli:
       cat > oh-layer/Dockerfile <<'OH_EOF'
       ARG OH_IMAGE_BASE
       FROM ${OH_IMAGE_BASE}
+      ARG OH_OPENCODE_VERSION
       USER root
       COPY oh /usr/local/bin/oh
       COPY ca-certificates.crt /opt/oh/ca-certificates.crt
@@ -84,7 +85,7 @@ oh-image:
       else
         /kaniko/executor --context "dir://$CI_PROJECT_DIR/oh-layer" --dockerfile "$CI_PROJECT_DIR/oh-layer/Dockerfile.base" --destination "$OH_IMAGE_BASE"
       fi
-      /kaniko/executor --context "dir://$CI_PROJECT_DIR/oh-layer" --dockerfile "$CI_PROJECT_DIR/oh-layer/Dockerfile" --build-arg "OH_IMAGE_BASE=$OH_IMAGE_BASE" --destination "$OH_IMAGE"
+      /kaniko/executor --context "dir://$CI_PROJECT_DIR/oh-layer" --dockerfile "$CI_PROJECT_DIR/oh-layer/Dockerfile" --build-arg "OH_IMAGE_BASE=$OH_IMAGE_BASE" --build-arg "OH_OPENCODE_VERSION=$OH_OPENCODE_VERSION" --destination "$OH_IMAGE"
 
 oh-run:
   stage: run

@@ -3755,5 +3755,16 @@
   "cmd.remote.send.err.foreign_remote": "the origin remote of the project is not on the target's instance",
   "cmd.remote.send.err.no_binary": "development build: upload the Linux binary (make build-linux then oh remote setup --oh-binary)",
   "cmd.remote.send.err.ticket_taken": "ticket already taken by another member in the team-state",
-  "cmd.remote.send.err.dockerfile": "the dev Dockerfile is not committed on the branch the job starts from"
+  "cmd.remote.send.err.dockerfile": "the dev Dockerfile is not committed on the branch the job starts from",
+  "cmd.runner.short": "CI side of remote execution (jobs of the oh-runner pipeline only)",
+  "cmd.runner.install.short": "Installs opencode, the fake bd and the server account in the job image",
+  "cmd.runner.run.short": "Runs the remote session of the pipeline (clone, session, policy, branch and MR, artifacts)",
+  "cmd.runner.run.flags.out": "artifacts directory (journal.jsonl, summary.json, session.export)",
+  "cmd.runner.run.fetching": "oh runner: fetching session %s",
+  "cmd.runner.run.version_differs": "oh runner: session sent by oh %s, job run by oh %s",
+  "cmd.runner.run.no_bd": "oh runner: no fake bd in the image (oh runner install was not run)",
+  "cmd.runner.run.no_server_user": "oh runner: no \"oh\" account, the tool server runs as the job user",
+  "cmd.runner.run.no_claims": "oh runner: team-state claims not updated (%v)",
+  "cmd.runner.run.starting": "oh runner: workflow %s on %s, branch %s",
+  "cmd.runner.run.done": "oh runner: %s · $%.2f · Beads journal %d op. · MR %s"
 }

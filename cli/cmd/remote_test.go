@@ -102,3 +102,10 @@ func TestHTTPSRepoURL(t *testing.T) {
 		}
 	}
 }
+
+func TestDescendants(t *testing.T) {
+	got := descendants("root", map[string]string{"b": "root", "a": "root", "c": "a", "x": "other"})
+	if strings.Join(got, ",") != "a,b,c" {
+		t.Fatalf("descendants = %v", got)
+	}
+}

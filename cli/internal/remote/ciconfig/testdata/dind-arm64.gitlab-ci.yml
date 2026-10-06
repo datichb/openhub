@@ -42,6 +42,7 @@ oh-cli:
       cat > oh-layer/Dockerfile <<'OH_EOF'
       ARG OH_IMAGE_BASE
       FROM ${OH_IMAGE_BASE}
+      ARG OH_OPENCODE_VERSION
       USER root
       COPY oh /usr/local/bin/oh
       COPY ca-certificates.crt /opt/oh/ca-certificates.crt
@@ -85,7 +86,7 @@ oh-image:
         docker build -f oh-layer/Dockerfile.base -t "$OH_IMAGE_BASE" oh-layer
       fi
       docker push "$OH_IMAGE_BASE"
-      docker build --build-arg "OH_IMAGE_BASE=$OH_IMAGE_BASE" -t "$OH_IMAGE" oh-layer
+      docker build --build-arg "OH_IMAGE_BASE=$OH_IMAGE_BASE" --build-arg "OH_OPENCODE_VERSION=$OH_OPENCODE_VERSION" -t "$OH_IMAGE" oh-layer
       docker push "$OH_IMAGE"
 
 oh-run:

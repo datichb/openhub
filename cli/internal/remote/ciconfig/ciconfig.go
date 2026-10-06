@@ -88,6 +88,7 @@ func (o Options) Validate() error {
 // (oh runner install), in the image's libc.
 const layerDockerfile = `ARG OH_IMAGE_BASE
 FROM ${OH_IMAGE_BASE}
+ARG OH_OPENCODE_VERSION
 USER root
 COPY oh /usr/local/bin/oh
 COPY ca-certificates.crt /opt/oh/ca-certificates.crt
@@ -207,7 +208,7 @@ if [ -n "${` + remote.VarDockerfile + `:-}" ]; then
 else
   /kaniko/executor --context "dir://$CI_PROJECT_DIR/oh-layer" --dockerfile "$CI_PROJECT_DIR/oh-layer/Dockerfile.base" --destination "$` + remote.VarImageBase + `"
 fi
-/kaniko/executor --context "dir://$CI_PROJECT_DIR/oh-layer" --dockerfile "$CI_PROJECT_DIR/oh-layer/Dockerfile" --build-arg "OH_IMAGE_BASE=$` + remote.VarImageBase + `" --destination "$` + remote.VarImage + `"
+/kaniko/executor --context "dir://$CI_PROJECT_DIR/oh-layer" --dockerfile "$CI_PROJECT_DIR/oh-layer/Dockerfile" --build-arg "OH_IMAGE_BASE=$` + remote.VarImageBase + `" --build-arg "` + remote.VarToolVersion + `=$` + remote.VarToolVersion + `" --destination "$` + remote.VarImage + `"
 `
 }
 
@@ -223,7 +224,7 @@ else
   docker build -f oh-layer/Dockerfile.base -t "$` + remote.VarImageBase + `" oh-layer
 fi
 docker push "$` + remote.VarImageBase + `"
-docker build --build-arg "OH_IMAGE_BASE=$` + remote.VarImageBase + `" -t "$` + remote.VarImage + `" oh-layer
+docker build --build-arg "OH_IMAGE_BASE=$` + remote.VarImageBase + `" --build-arg "` + remote.VarToolVersion + `=$` + remote.VarToolVersion + `" -t "$` + remote.VarImage + `" oh-layer
 docker push "$` + remote.VarImage + `"
 `
 }

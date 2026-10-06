@@ -44,6 +44,9 @@ type Service struct {
 	NewClient func(baseURL, token string) *gitlab.Client
 	// OhVersion is the version of the running oh (buildinfo.Version).
 	OhVersion string
+	// ToolVersion is the opencode version of the machine adapter, installed
+	// in the job image.
+	ToolVersion string
 
 	// Sending (lot 5.A).
 	Sessions     domain.SessionStore

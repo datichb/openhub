@@ -198,6 +198,11 @@ func (s *Service) Send(ctx context.Context, req SendRequest) (*SendResult, error
 	default:
 		return nil, ErrNoBinary
 	}
+	if s.ToolVersion == "" {
+		return nil, errors.New("remote: opencode version unknown (adapter not detected)")
+	}
+	vars[remote.VarToolVersion] = s.ToolVersion
+	identity += "+opencode:" + s.ToolVersion
 	img, err := planImage(ctx, g, req.ProjectDir, req.Dockerfile, commit, runner.ContainerRegistryImagePrefix, proj.PathWithNamespace, identity, archOf(t))
 	if err != nil {
 		return nil, err

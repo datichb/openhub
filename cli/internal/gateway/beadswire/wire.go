@@ -61,4 +61,10 @@ type JournalEntry struct {
 	Time time.Time `json:"time"`
 	Argv []string  `json:"argv"`
 	Cwd  string    `json:"cwd"`
+	// Seq orders the entries (1, 2…), Stdin is the input of --stdin / "-",
+	// Placeholder the temporary id answered for a `create` (replaced by the
+	// real id at replay). Added in phase 5 (P5-T12).
+	Seq         int    `json:"seq,omitempty"`
+	Stdin       []byte `json:"stdin,omitempty"`
+	Placeholder string `json:"placeholder,omitempty"`
 }

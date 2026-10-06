@@ -188,6 +188,30 @@ When the trigger fails, the reservations made by oh are undone. `--headless` doe
 
 Checkpoint policy in the job (never blind approval): `remote: auto` is approved by oh's policy responder; `remote: defer` stops the session cleanly once the MR is ready, the rest happens locally after fetching.
 
+## 6. In the job: `oh runner`
+
+The `oh-run` job runs `oh runner run` in the project image:
+
+1. **Fetch** of the bundle and of the session envelope with the job token (`CI_JOB_TOKEN`), checked by their hash.
+2. **Clean-up** of the environment: every secret variable (LLM key, tokens, `CI_JOB_TOKEN`, registry passwords) is removed from the process before anything is started.
+3. **Clone** of the project with its token (`OH_PROJECT_TOKEN_<id>`, passed through git's environment, never in a URL or a file) and creation of the session branch.
+4. **Session**: same code as on your machine — oh daemon, credential proxy (sole holder of the LLM key), opencode server and "closed world" bundle. The opencode server runs as the `oh` account (created in the image), which can read neither the job processes, nor the oh database, nor the secrets.
+5. **Policy responder** (never blind approval):
+
+   | Request | Answer |
+   |---|---|
+   | checkpoint `remote: auto` | approved |
+   | checkpoint `remote: defer` | the session stops cleanly: branch and MR pushed, continued locally |
+   | other permission (`ask`) | refused, with a message to the agent |
+   | agent question | the session stops ("question pending"), resumed locally |
+   | error, budget, circuit breaker | the session stops (failed) |
+
+6. **Beads**: `bd` is oh's fake bd; it goes through the Beads gateway of the job's daemon, which applies `beads.allow`. Reads come from the snapshot; writes are recorded in `journal.jsonl` (and seen by later reads), then replayed on your machine when fetching.
+7. **Branch and MR**: what is not committed gets committed, the branch is pushed and a **draft MR** is opened through `git push` options. Progress is published in the ticket claim (`OH_TEAMSTATE_TOKEN`).
+8. **Artifacts** (`oh-out/`, 7 days): `journal.jsonl` (Beads writes), `summary.json` (outcome, cost, decisions, MR, outputs), `session.export` (transcript of the session and its sub-agents, to resume it locally).
+
+Limits: MCP servers that need a token of your machine (gitlab, jira, figma…) are not available in the job; oh's `workflow` server is. When the job is canceled or times out, the session is exported and the work pushed before stopping when possible.
+
 ## The generated pipeline
 
 Three jobs, triggered **only** by oh (never on push):
