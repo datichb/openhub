@@ -195,6 +195,39 @@ Initialiser les fonctionnalites equipe avec un assistant interactif.
 oh team init
 ```
 
+#### Espace solo (`--solo`)
+
+Pour un projet sans équipe : crée un team-state local (dépôt git sans remote) dans `~/.oh/teams/<id>/`, qui accueille les workflows du projet. Le seul membre a le rôle `lead`. Les fonctions d'équipe (board, claims, notifications, serveur MCP `team`) restent désactivées ; l'équipe active n'est jamais un espace solo.
+
+```bash
+oh team init --solo --project web-app
+```
+
+| Flag | Description |
+|------|-------------|
+| `--solo` | Crée un espace solo au lieu de lancer l'assistant |
+| `--id` | Identifiant de l'espace (défaut : `solo`) |
+| `--name` | Nom affiché |
+| `--member-id` | Identifiant du membre (défaut : celui d'une autre équipe, sinon l'utilisateur système) |
+| `--project` | Projet à rattacher (id ou nom ; refusé s'il a déjà une équipe) |
+
+Dans `hub.toml`, l'espace est ajouté aux équipes existantes avec `solo = true` (sans `state_repo`).
+
+### oh team promote
+
+Partage un espace solo : ajoute le remote et pousse tout l'historique. L'identifiant, le dossier, les projets rattachés et les workflows publiés sont conservés.
+
+```bash
+oh team promote --remote git@gitlab.com:acme/team-state.git
+```
+
+| Flag | Description |
+|------|-------------|
+| `--remote` | URL d'un dépôt git **vide** (obligatoire) |
+| `--team` | Espace solo à partager, si vous en avez plusieurs |
+
+En cas d'échec (dépôt absent, non vide, accès refusé), l'espace reste solo. Les autres membres rejoignent ensuite l'équipe avec `oh team init` en saisissant l'URL du dépôt.
+
 ### oh team config
 
 Gerer la configuration equipe.

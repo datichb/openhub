@@ -92,3 +92,14 @@ publish = "any_member"   # default, the only supported value
 
 - `any_member`: any member listed in `members.toml` may publish; validating the workflow is still required.
 - A value this version of oh does not know **blocks publishing** (the rest of the configuration still works): update oh or go back to `any_member`.
+
+## Project without a team: solo space
+
+A project without a team keeps its workflows in a **solo space**: a local team-state, without remote, in `~/.oh/teams/<id>/`.
+
+```bash
+oh team init --solo --project web-app     # create the space and attach the project
+oh team promote --remote <empty-url>      # later: share it with a team
+```
+
+Publications there are local commits. `oh team promote` pushes the whole history to the remote, without loss (see [team CLI](../reference/cli-team.en.md#oh-team-promote)).

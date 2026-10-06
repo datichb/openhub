@@ -111,8 +111,12 @@ func runTeamsList(cmd *cobra.Command, _ []string) error {
 			status = theme.Subtitle.Render(i18n.T("cmd.teams.list.status_inactive"))
 		}
 		name := t.DisplayName()
+		repo := truncateStr(t.StateRepo, 50)
+		if t.Solo {
+			repo = i18n.T("cmd.team.solo.list_repo")
+		}
 		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n",
-			t.ID, name, t.MemberID, truncateStr(t.StateRepo, 50), status)
+			t.ID, name, t.MemberID, repo, status)
 	}
 	w.Flush()
 

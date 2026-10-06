@@ -183,6 +183,23 @@ webhook_url = "https://discord.com/api/webhooks/..."
 
 ---
 
+## Espace solo (`[[teams]]` avec `solo = true`)
+
+`oh team init --solo` ajoute dans `hub.toml` une équipe locale, sans `state_repo` :
+
+```toml
+[[teams]]
+id = "solo"
+enabled = true
+solo = true
+state_path = "~/.oh/teams/solo"
+member_id = "alice"
+```
+
+Un espace solo ne contient que des workflows : les fonctions d'équipe restent désactivées et il n'est jamais l'équipe active. `oh team promote --remote <url>` retire `solo` et renseigne `state_repo`.
+
+---
+
 ## Configuration Team par Projet
 
 Chaque projet peut surcharger indépendamment la configuration `[team]` du hub. La surcharge

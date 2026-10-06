@@ -35,7 +35,7 @@ func resolveWorkflowTeamLayers(ctx context.Context, a *app.App, projectRef strin
 	} else {
 		tc = resolvedTeamConfig(a, nil)
 	}
-	if !tc.Enabled {
+	if !tc.Enabled && !tc.Solo {
 		return nil, nil
 	}
 	path := tc.StatePath

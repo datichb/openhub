@@ -111,15 +111,18 @@ func (c *Config) MCPServer(name string) *MCPServerConfig {
 	}
 }
 
-// DefaultTeam returns the first enabled team, or nil if no teams are configured.
+// DefaultTeam returns the first enabled team, or nil if no teams are
+// configured. Solo teams are ignored.
 func (c *Config) DefaultTeam() *TeamConfig {
 	for i := range c.Teams {
-		if c.Teams[i].Enabled {
+		if c.Teams[i].Enabled && !c.Teams[i].Solo {
 			return &c.Teams[i]
 		}
 	}
-	if len(c.Teams) > 0 {
-		return &c.Teams[0]
+	for i := range c.Teams {
+		if !c.Teams[i].Solo {
+			return &c.Teams[i]
+		}
 	}
 	return nil
 }
@@ -149,6 +152,10 @@ type TeamConfig struct {
 	StateRepo string `mapstructure:"state_repo" toml:"state_repo"`           // Git remote URL for the team-state repo
 	StatePath string `mapstructure:"state_path" toml:"state_path,omitempty"` // Local clone path (default: ~/.oh/team-state)
 	MemberID  string `mapstructure:"member_id" toml:"member_id"`             // Current user's member ID
+	// Solo marks a local team-state without remote (v5 phase 2, `oh team
+	// init --solo`): it only holds workflows; team features (board, claims,
+	// notifications) stay off and ActiveTeam ignores it.
+	Solo bool `mapstructure:"solo" toml:"solo,omitempty"`
 }
 
 // DisplayName returns Name if set, otherwise falls back to ID.
@@ -172,7 +179,10 @@ func (t TeamConfig) Validate() error {
 		return fmt.Errorf("team ID %q must be a lowercase slug (letters, digits, hyphens)", t.ID)
 	}
 	if t.Enabled {
-		if t.StateRepo == "" {
+		if t.Solo && t.StatePath == "" {
+			return fmt.Errorf("team %q: state_path is required for a solo team", t.ID)
+		}
+		if t.StateRepo == "" && !t.Solo {
 			return fmt.Errorf("team %q: state_repo is required when enabled", t.ID)
 		}
 		if t.MemberID == "" {
@@ -379,16 +389,16 @@ func DefaultTeamStatePath() string {
 //  2. If Teams is empty but legacy Team has a StateRepo → return legacy Team
 //  3. Otherwise → return a zero TeamConfig (disabled)
 //
+// Solo teams (local workflow spaces) are never the active team.
+//
 // This method bridges the transition from single-team to multi-team. New code
 // should use FindTeam(id) with a project's TeamID instead.
 func (c *Config) ActiveTeam() TeamConfig {
+	if t := c.DefaultTeam(); t != nil {
+		return *t
+	}
 	if len(c.Teams) > 0 {
-		for _, t := range c.Teams {
-			if t.Enabled {
-				return t
-			}
-		}
-		return c.Teams[0]
+		return TeamConfig{}
 	}
 	// Legacy fallback
 	if c.Team.StateRepo != "" {
