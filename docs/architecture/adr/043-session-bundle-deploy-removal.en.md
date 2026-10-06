@@ -55,7 +55,7 @@ Decisions D4 and D14: one bundle per session, built outside the project, and no 
   - `EnsureWorktreeConfig`;
   - the Deployment section of the TUI project mode.
 - The `project.agents` view becomes the **Brick catalog**, read-only: agents and skills, origin, estimated cost, workflows that ship them.
-- Agents specific to a team or a project go through the team-state brick catalog (ADR-040). `.opencode/agents` is no longer read (`OPENCODE_DISABLE_PROJECT_CONFIG=1`).
+- Agents specific to a team or a project go through the team-state brick catalog ([ADR-040](./040-workflows-team-state-governance.en.md)). `.opencode/agents` is no longer read (`OPENCODE_DISABLE_PROJECT_CONFIG=1`).
 
 ### 4. Project cleanup: `oh migrate deploy-cleanup`
 

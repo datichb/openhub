@@ -2,7 +2,7 @@
 
 ## Statut
 
-Accepté
+~~Accepté~~ **Remplacé par [ADR-039](./039-declarative-workflows-oh-v1.fr.md)**
 
 ## Contexte
 

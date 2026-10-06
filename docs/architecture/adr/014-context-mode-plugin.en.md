@@ -4,7 +4,7 @@
 
 ## Status
 
-~~Accepted~~ **Deprecated** — see [ADR-048](./048-opencode-v1-abandonment.en.md)
+~~Accepted~~ **Deprecated** — see [ADR-048](./048-opencode-v1-abandonment.en.md) and [ADR-039](./039-declarative-workflows-oh-v1.en.md) (`plugins:`)
 
 ## Context
 

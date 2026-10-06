@@ -2,7 +2,7 @@
 
 ## Status
 
-accepted
+accepted — **Evolved by [ADR-040](./040-workflows-team-state-governance.en.md)**
 
 ## Date
 

@@ -4,7 +4,7 @@
 
 ## Statut
 
-Accepté — implémenté le 2026-06-29
+~~Accepté — implémenté le 2026-06-29~~ **Remplacé par [ADR-039](./039-declarative-workflows-oh-v1.fr.md)**
 
 ## Contexte
 

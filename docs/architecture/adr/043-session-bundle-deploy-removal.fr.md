@@ -55,7 +55,7 @@ Décisions D4 et D14 : un paquet par session, construit hors du projet, et plus 
   - `EnsureWorktreeConfig` ;
   - la section Déploiement du mode projet de la TUI.
 - La vue `project.agents` devient le **Catalogue des briques**, en lecture seule : agents et skills, origine, coût estimé, workflows qui les livrent.
-- Les agents propres à une équipe ou à un projet passent par le catalogue de briques du team-state (ADR-040). `.opencode/agents` n'est plus lu (`OPENCODE_DISABLE_PROJECT_CONFIG=1`).
+- Les agents propres à une équipe ou à un projet passent par le catalogue de briques du team-state ([ADR-040](./040-workflows-team-state-governance.fr.md)). `.opencode/agents` n'est plus lu (`OPENCODE_DISABLE_PROJECT_CONFIG=1`).
 
 ### 4. Nettoyage des projets : `oh migrate deploy-cleanup`
 

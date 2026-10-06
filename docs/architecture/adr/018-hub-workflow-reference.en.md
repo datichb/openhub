@@ -4,7 +4,7 @@
 
 ## Status
 
-Accepted — implemented 2026-06-29
+~~Accepted — implemented 2026-06-29~~ **Superseded by [ADR-039](./039-declarative-workflows-oh-v1.en.md)**
 
 ## Context
 

@@ -2,7 +2,7 @@
 
 ## Statut
 
-accepted
+accepted — **Évolué par [ADR-040](./040-workflows-team-state-governance.fr.md)**
 
 ## Date
 

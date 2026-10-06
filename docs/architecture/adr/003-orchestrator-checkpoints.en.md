@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted
+~~Accepted~~ **Superseded by [ADR-042](./042-checkpoints-headless-decisions.en.md)**
 
 ## Context
 

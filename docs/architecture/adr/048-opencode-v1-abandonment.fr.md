@@ -46,7 +46,7 @@ D3 a été révisée le 06/10/2026 : **V1 n'est plus pris en charge en v5**.
    - `--parallel` sans `--tickets` est refusé ;
    - un workflow absent donne une erreur explicite.
 5. Les **métriques** (`oh metrics`, tableau de bord, vue Métriques) sont lues dans `oh.db` (`internal/sessionstats`).
-6. Les **plugins** d'opencode se déclarent par workflow (`plugins:`) ; un plugin écrit pour V1 (export `server()`) n'est pas chargé par V2. L'[ADR-014](./014-context-mode-plugin.fr.md) (context-mode installé globalement) est donc déprécié.
+6. Les **plugins** d'opencode se déclarent par workflow (`plugins:`, [ADR-039](./039-declarative-workflows-oh-v1.fr.md)) ; un plugin écrit pour V1 (export `server()`) n'est pas chargé par V2. L'[ADR-014](./014-context-mode-plugin.fr.md) (context-mode installé globalement) est donc déprécié.
 7. Migration documentée : `docs/guides/migration-v5.{fr,en}.md`, `MIGRATION.md`.
 
 ## Conséquences
