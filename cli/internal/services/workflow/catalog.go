@@ -176,3 +176,27 @@ func categoryRank(c wf.Category) int {
 	}
 	return len(CategoryOrder)
 }
+
+// CategoryGroup is the workflows of a category, in display order.
+type CategoryGroup struct {
+	Category  wf.Category
+	Workflows []Summary
+}
+
+// ByCategory groups a catalogue by category (CategoryOrder; no category =
+// other), empty categories omitted.
+func ByCategory(list []Summary) []CategoryGroup {
+	var out []CategoryGroup
+	for _, c := range CategoryOrder {
+		g := CategoryGroup{Category: c}
+		for _, s := range list {
+			if s.Category == c || (c == wf.CategoryOther && !s.Category.Valid()) {
+				g.Workflows = append(g.Workflows, s)
+			}
+		}
+		if len(g.Workflows) > 0 {
+			out = append(out, g)
+		}
+	}
+	return out
+}

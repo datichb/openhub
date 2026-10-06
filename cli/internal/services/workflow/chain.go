@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	wf "github.com/datichb/openhub/cli/internal/workflow"
+	"github.com/datichb/openhub/cli/internal/worktree"
 )
 
 // « Enchaîner avec… » (O7, P1-T27): after a session, the workflows whose
@@ -142,6 +143,19 @@ func ticketList(v any) []string {
 		if e = strings.TrimSpace(e); e != "" {
 			out = append(out, e)
 		}
+	}
+	return out
+}
+
+// SessionFallback returns the outputs known from a session directory: its
+// branch, unless it is the main branch (a session that declared nothing).
+func SessionFallback(location string) map[wf.OutputType]any {
+	out := map[wf.OutputType]any{}
+	if location == "" {
+		return out
+	}
+	if b, err := worktree.CurrentBranch(location); err == nil && b != "" && b != "main" && b != "master" {
+		out[wf.OutputBranch] = b
 	}
 	return out
 }

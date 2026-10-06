@@ -8,6 +8,7 @@ import (
 	"github.com/charmbracelet/huh"
 	"github.com/spf13/cobra"
 
+	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/launcher"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
@@ -39,6 +40,7 @@ func addRunFlags(c *cobra.Command) {
 	f.StringP("project", "p", "", "Projet (détecté depuis le dossier courant)")
 	f.StringP("provider", "P", "", "Fournisseur LLM")
 	f.String("parent", "", "Session précédente (enchaînement)")
+	f.Bool("one-session", false, "Tous les tickets dans une seule session (au lieu d'une session par ticket)")
 }
 
 func runWorkflowCmd(cmd *cobra.Command, args []string) error {
@@ -77,6 +79,7 @@ func runOptionsFromFlags(cmd *cobra.Command, workflowID string) (runOptions, err
 	opts.Attach, _ = f.GetString("attach")
 	opts.Provider, _ = f.GetString("provider")
 	opts.ParentSessionID, _ = f.GetString("parent")
+	opts.OneSession, _ = f.GetBool("one-session")
 	tickets, _ := f.GetStringSlice("tickets")
 	for _, t := range tickets {
 		if t = strings.TrimSpace(t); t != "" {
@@ -97,6 +100,12 @@ func runWorkflowCLI(cmd *cobra.Command, opts runOptions, recap bool) error {
 	if err != nil {
 		return err
 	}
+	if len(p.suggestions) > 0 && isTerminal() {
+		handled, err := askPreconditionChoice(cmd, a, opts, p)
+		if handled || err != nil {
+			return err
+		}
+	}
 	if recap {
 		printRunRecap(out, p)
 		ok := true
@@ -113,4 +122,39 @@ func runWorkflowCLI(cmd *cobra.Command, opts runOptions, recap bool) error {
 	}
 	_, err = p.start(ctx, a, launcher.NewCLIUI(out))
 	return err
+}
+
+// askPreconditionChoice offers to run the suggested workflow first (failed
+// `suggest` precondition). handled is true when the original launch must not
+// start now (suggested workflow started, or cancelled).
+func askPreconditionChoice(cmd *cobra.Command, a *app.App, opts runOptions, p *preparedRun) (bool, error) {
+	s := p.suggestions[0]
+	out := cmd.OutOrStdout()
+	fmt.Fprintf(out, "%s %s\n", theme.WarningStyle.Render(theme.IconWarning), i18n.Tf("cmd.run.warn.precondition", s.Label, s.Workflow))
+	choice := "first"
+	first := i18n.Tf("cmd.run.precondition_first", s.Workflow)
+	if s.Resume {
+		first = i18n.Tf("cmd.run.precondition_first_resume", s.Workflow, opts.Workflow)
+	}
+	form := theme.NewForm(huh.NewGroup(huh.NewSelect[string]().Title(i18n.T("cmd.run.precondition_title")).
+		Options(huh.NewOption(first, "first"), huh.NewOption(i18n.T("cmd.run.precondition_continue"), "continue"),
+			huh.NewOption(i18n.T("cmd.run.precondition_cancel"), "cancel")).Value(&choice)))
+	if err := form.Run(); err != nil {
+		return true, err
+	}
+	switch choice {
+	case "continue":
+		return false, nil
+	case "cancel":
+		fmt.Fprintln(out, i18n.T("cmd.run.cancelled"))
+		return true, nil
+	}
+	if _, err := runSuggestedFirst(cmd.Context(), a, opts, s, launcher.NewCLIUI(out)); err != nil {
+		return true, err
+	}
+	if s.Resume {
+		fmt.Fprintf(out, "%s %s\n", theme.Subtitle.Render(theme.IconArrow), i18n.Tf("cmd.run.precondition_resume_hint", resumeCommand(resumeIntent{
+			Workflow: opts.Workflow, Inputs: opts.Inputs, Tickets: opts.Tickets})))
+	}
+	return true, nil
 }

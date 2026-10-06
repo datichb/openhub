@@ -18,6 +18,9 @@ Launches a workflow: layer resolution and validation, session bundle, session pl
 - **Location** (`--location`): `base` (default, project directory), `new` (a new worktree per session, branch = `branch` input or `oh/<workflow>-<ticket>`), or the path of an existing worktree. A writing session (`risk` other than `read`) **automatically gets a worktree** when another writing session is active in the same directory. Replaces `--worktree`.
 - **Runtime** (`--runtime`): `local` or `container` (must be in `runtime.allowed`; refused with the reason when the container engine is unavailable).
 - **Recap** (`--recap`): agents, first-turn budget, isolation, sessions and locations, warnings (uncommitted changes, automatic worktree, pending decisions), then confirmation.
+- **Single session** (`--one-session`): every ticket in the same session, instead of one session per ticket.
+- **MCP**: without an `mcp:` field in the workflow, the session gets the project MCP servers; with `mcp:` (even empty), only the listed ones (a listed server missing from the project is reported).
+- **Preconditions**: a blocking precondition refuses the launch; a suggestion (e.g. no wiki → `onboarding`) offers to run the suggested workflow first. With `resume: true`, the initial launch is remembered and offered again when that session ends ("Chain with…" in the TUI).
 - Two simultaneous launches in the same directory are refused ("launch in progress").
 - `--draft` (drafts) comes in phase 2. Requires opencode V2.
 

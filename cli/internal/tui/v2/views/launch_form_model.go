@@ -27,12 +27,22 @@ type LaunchChoices struct {
 	Runtime  string
 	Location string // base | new | <worktree path>
 	Attach   string
+	// OneSession gives every ticket to a single session.
+	OneSession bool
 }
 
 // LaunchRecap is the recap step content (computed by the wiring layer).
 type LaunchRecap struct {
 	Rows     []InfoField
 	Warnings []string
+	// Suggestions are workflows to run first (failed preconditions).
+	Suggestions []LaunchSuggestion
+}
+
+// LaunchSuggestion offers to run another workflow first.
+type LaunchSuggestion struct {
+	WorkflowID string
+	Label      string // button label (« Lancer onboarding d'abord, puis revenir »)
 }
 
 // launchModel holds the values of the form.
@@ -49,6 +59,7 @@ type launchModel struct {
 	location    string
 	attach      string
 	runtimes    []LaunchRuntime
+	oneSession  bool
 }
 
 func newLaunchModel(cfg LaunchFormConfig) *launchModel {
@@ -150,7 +161,8 @@ func (m *launchModel) validate() []string {
 
 // choices returns the launch choices.
 func (m *launchModel) choices() LaunchChoices {
-	c := LaunchChoices{Inputs: map[string]string{}, Mode: m.mode, Runtime: m.runtime, Location: m.location, Attach: m.attach}
+	c := LaunchChoices{Inputs: map[string]string{}, Mode: m.mode, Runtime: m.runtime, Location: m.location, Attach: m.attach,
+		OneSession: m.oneSession && m.perSession}
 	keys := make([]string, 0, len(m.values))
 	for k := range m.values {
 		keys = append(keys, k)
@@ -167,7 +179,7 @@ func (m *launchModel) choices() LaunchChoices {
 
 // sessionsLine summarizes a multi-ticket launch (« 3 sessions · 1 serveur »).
 func (m *launchModel) sessionsLine() string {
-	if !m.perSession || len(m.tickets) < 2 {
+	if !m.perSession || len(m.tickets) < 2 || m.oneSession {
 		return ""
 	}
 	return i18n.Tf("tui.launch.sessions_line", len(m.tickets))

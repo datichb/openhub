@@ -8,8 +8,6 @@ import (
 	"github.com/datichb/openhub/cli/internal/i18n"
 	workflowsvc "github.com/datichb/openhub/cli/internal/services/workflow"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
-	"github.com/datichb/openhub/cli/internal/workflow"
-	"github.com/datichb/openhub/cli/internal/worktree"
 )
 
 // « Enchaîner avec… » in the Sessions view (P1-T27): the WorkflowService
@@ -32,20 +30,18 @@ func (t *tuiSessions) ChainOptions(ctx context.Context, sessionID string) ([]vie
 	if err != nil {
 		return nil, err
 	}
-	fallback := map[workflow.OutputType]any{}
-	if sess.LaunchPath != "" {
-		if b, err := worktree.CurrentBranch(sess.LaunchPath); err == nil && b != "" && b != "main" && b != "master" {
-			fallback[workflow.OutputBranch] = b
-		}
-	}
-	list, err := newWorkflowService(ctx).Chain(ctx, workflowsvc.Context{ProjectID: sess.ProjectID}, sess.WorkflowID, sess.Outputs, fallback)
+	list, err := newWorkflowService(ctx).Chain(ctx, workflowsvc.Context{ProjectID: sess.ProjectID}, sess.WorkflowID, sess.Outputs,
+		workflowsvc.SessionFallback(sess.LaunchPath))
 	if err != nil {
 		return nil, err
 	}
 	tuiChainMu.Lock()
 	tuiChainSuggestions[sessionID] = list
 	tuiChainMu.Unlock()
-	opts := make([]views.SelectOption, 0, len(list))
+	opts := make([]views.SelectOption, 0, len(list)+1)
+	if intent, ok := loadResumeIntent(ctx, t.a, sess.ProjectID, sessionID); ok {
+		opts = append(opts, views.SelectOption{Label: i18n.Tf("tui.launch.chain_resume", intent.Workflow), Value: resumeChoice + intent.Workflow})
+	}
 	for _, s := range list {
 		var with []string
 		for k, v := range s.Prefill {
@@ -69,6 +65,10 @@ func (t *tuiSessions) ChainOptions(ctx context.Context, sessionID string) ([]vie
 // Chain implements views.SessionChainer: the launch form of the suggestion,
 // prefilled and chained to the session.
 func (t *tuiSessions) Chain(sessionID, workflowID string) {
+	if strings.HasPrefix(workflowID, resumeChoice) {
+		t.resume(sessionID)
+		return
+	}
 	tuiChainMu.Lock()
 	list := tuiChainSuggestions[sessionID]
 	tuiChainMu.Unlock()
@@ -85,4 +85,24 @@ func (t *tuiSessions) Chain(sessionID, workflowID string) {
 		tuiShell.ShowToastMsg(i18n.Tf("tui.launch.chained", workflowID), true)
 	}
 	openLaunchForm(t.a, req)
+}
+
+// resumeChoice prefixes the « reprendre » choice of « Enchaîner avec… ».
+const resumeChoice = "resume:"
+
+// resume opens the launch form remembered for after a session (failed
+// precondition with resume: true) and forgets it.
+func (t *tuiSessions) resume(sessionID string) {
+	ctx := context.Background()
+	sess, err := t.a.Sessions.Get(ctx, sessionID)
+	if err != nil {
+		return
+	}
+	intent, ok := loadResumeIntent(ctx, t.a, sess.ProjectID, sessionID)
+	if !ok {
+		return
+	}
+	forgetResumeIntent(ctx, t.a, sess.ProjectID, sessionID)
+	openLaunchForm(t.a, tuiLaunchRequest{WorkflowID: intent.Workflow, ProjectID: sess.ProjectID, Prefill: intent.Inputs,
+		Tickets: intent.Tickets, Parent: sessionID, Mode: intent.Mode, Runtime: intent.Runtime})
 }

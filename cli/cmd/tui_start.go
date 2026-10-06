@@ -134,16 +134,12 @@ func (t *tuiStart) compute(ctx context.Context, scope views.StartScope) (views.S
 	for _, id := range start.Suggested {
 		out.Suggestions = append(out.Suggestions, entry(id))
 	}
-	for _, c := range workflowsvc.CategoryOrder {
-		cat := views.StartCategory{ID: string(c), Label: i18n.T("tui.start.category." + string(c))}
-		for _, s := range valid {
-			if s.Category == c || (c == "other" && s.Category == "") {
-				cat.Entries = append(cat.Entries, entry(s.ID))
-			}
+	for _, g := range workflowsvc.ByCategory(valid) {
+		cat := views.StartCategory{ID: string(g.Category), Label: i18n.T("tui.start.category." + string(g.Category))}
+		for _, s := range g.Workflows {
+			cat.Entries = append(cat.Entries, entry(s.ID))
 		}
-		if len(cat.Entries) > 0 {
-			out.Categories = append(out.Categories, cat)
-		}
+		out.Categories = append(out.Categories, cat)
 	}
 	return out, nil
 }

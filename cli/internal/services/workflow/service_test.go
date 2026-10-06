@@ -160,3 +160,43 @@ func TestChain(t *testing.T) {
 	assert.Equal(t, "review", sg[0].WorkflowID)
 	assert.Equal(t, map[string]string{"branch": "feat/x"}, sg[1].Prefill)
 }
+
+func TestMCPSelection(t *testing.T) {
+	cat := wf.NewMemCatalog()
+	for _, src := range []string{
+		"apiVersion: oh/v1\nkind: Workflow\nid: none\nrisk: read\nentry: { agent: reviewer }\nagents:\n  reviewer: { role: workflow, mode: primary }\n",
+		"apiVersion: oh/v1\nkind: Workflow\nid: some\nrisk: read\nentry: { agent: reviewer }\nagents:\n  reviewer: { role: workflow, mode: primary }\nmcp: [gitlab]\n",
+		"apiVersion: oh/v1\nkind: Workflow\nid: empty\nrisk: read\nentry: { agent: reviewer }\nagents:\n  reviewer: { role: workflow, mode: primary }\nmcp: []\n",
+	} {
+		doc, diags := wf.Parse([]byte(src), wf.Source{Layer: wf.LayerHub})
+		require.False(t, diags.HasErrors(), "%v", diags)
+		cat.Put(doc)
+	}
+	sel := func(id string) ([]string, bool) {
+		r, _ := wf.ResolveSpec(cat, wf.Ref{Layer: wf.LayerHub, ID: id}, nil)
+		require.NotNil(t, r)
+		return (&Resolution{Resolved: r}).MCPSelection()
+	}
+	_, set := sel("none")
+	assert.False(t, set)
+	ids, set := sel("some")
+	assert.True(t, set)
+	assert.Equal(t, []string{"gitlab"}, ids)
+	ids, set = sel("empty")
+	assert.True(t, set, "an explicit empty list selects no server")
+	assert.Empty(t, ids)
+}
+
+func TestByCategory(t *testing.T) {
+	groups := ByCategory([]Summary{{ID: "a", Category: wf.CategoryQuality}, {ID: "b", Category: wf.CategoryDevelop}, {ID: "c"}})
+	require.Len(t, groups, 3)
+	assert.Equal(t, wf.CategoryDevelop, groups[0].Category)
+	assert.Equal(t, wf.CategoryQuality, groups[1].Category)
+	assert.Equal(t, wf.CategoryOther, groups[2].Category)
+	assert.Equal(t, "c", groups[2].Workflows[0].ID)
+}
+
+func TestSessionFallback(t *testing.T) {
+	assert.Empty(t, SessionFallback(""))
+	assert.Empty(t, SessionFallback(t.TempDir()), "not a git directory")
+}

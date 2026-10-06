@@ -17,6 +17,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/provider"
+	"github.com/datichb/openhub/cli/internal/runsvc"
 	workflowsvc "github.com/datichb/openhub/cli/internal/services/workflow"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
@@ -108,9 +109,12 @@ func buildBundleFor(cmd *cobra.Command, id string) (*bundle.Bundle, error) {
 	} else if prov == "" {
 		prov = a.Config.Opencode.DefaultProvider
 	}
-	b, err := buildWorkflowBundle(a, project, res.Spec, prov)
+	b, missing, err := buildWorkflowBundle(a, project, res, prov)
 	if err != nil {
 		return nil, fmt.Errorf("building session bundle: %w", err)
+	}
+	for _, m := range missing {
+		fmt.Fprintf(cmd.ErrOrStderr(), "%s %s\n", theme.WarningStyle.Render(theme.IconWarning), warningText(runsvc.Warning{Code: "mcp_missing", Args: []any{m}}))
 	}
 	return b, nil
 }

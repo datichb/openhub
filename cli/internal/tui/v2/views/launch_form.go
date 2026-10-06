@@ -51,6 +51,9 @@ type LaunchFormConfig struct {
 	// Launch starts the sessions (called off the event loop). The form shows
 	// « lancement en cours » until it returns; a nil error closes the form.
 	Launch func(ctx context.Context, c LaunchChoices) error
+	// LaunchFirst starts a suggested workflow instead (failed precondition),
+	// remembering this launch when the workflow asks to come back.
+	LaunchFirst func(ctx context.Context, c LaunchChoices, workflowID string) error
 }
 
 const (
@@ -332,6 +335,9 @@ func (v *LaunchFormView) renderOptions() {
 			}
 		})
 	}
+	if m.perSession && len(m.tickets) > 1 {
+		f.AddCheckbox(i18n.T("tui.launch.one_session"), m.oneSession, func(c bool) { m.oneSession = c; v.render() })
+	}
 	if line := m.sessionsLine(); line != "" {
 		v.body.AddItem(tview.NewTextView().SetDynamicColors(true).SetText("  ["+theme.TextMutedHex+"]"+line), 1, 0, false)
 	}
@@ -350,6 +356,14 @@ func (v *LaunchFormView) renderRecap() {
 	f := v.newForm()
 	f.AddButton(i18n.T("tui.launch.back"), v.back)
 	f.AddButton(i18n.T("tui.launch.launch"), v.launch)
+	if v.recap != nil && v.cfg.LaunchFirst != nil {
+		for _, s := range v.recap.Suggestions {
+			id := s.WorkflowID
+			f.AddButton(s.Label, func() {
+				v.launchWith(func(ctx context.Context, c LaunchChoices) error { return v.cfg.LaunchFirst(ctx, c, id) })
+			})
+		}
+	}
 	f.SetButtonsAlign(tview.AlignLeft)
 	v.form = f
 	fixFormDropDownStyles(f)
@@ -405,6 +419,10 @@ func (v *LaunchFormView) loadRecap() {
 				return
 			}
 			v.recap, v.recapErr = r, err
+			if r != nil && len(r.Suggestions) > 0 && v.step == launchStepRecap {
+				v.render() // suggestion buttons
+				return
+			}
 			if v.recapTV != nil {
 				v.recapTV.SetText(v.recapText())
 			}
@@ -451,11 +469,12 @@ func (v *LaunchFormView) blocked() bool {
 	return true
 }
 
-func (v *LaunchFormView) launch() {
-	if v.launching || v.blocked() {
-		return // double launch protection (m12)
-	}
-	if v.cfg.Launch == nil {
+func (v *LaunchFormView) launch() { v.launchWith(v.cfg.Launch) }
+
+// launchWith runs a launch function off the event loop (double launch
+// protection: ignored while a launch is in progress, m12).
+func (v *LaunchFormView) launchWith(fn func(ctx context.Context, c LaunchChoices) error) {
+	if v.launching || v.blocked() || fn == nil {
 		return
 	}
 	v.launching, v.launchErr = true, nil
@@ -467,7 +486,7 @@ func (v *LaunchFormView) launch() {
 	}
 	app, ctx, choices := v.app, v.ctx, v.m.choices()
 	go func() {
-		err := v.cfg.Launch(ctx, choices)
+		err := fn(ctx, choices)
 		if app == nil {
 			return
 		}

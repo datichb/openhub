@@ -2,7 +2,7 @@
 
 # Reference CLI — Sessions
 
-> **v5 — alias dépréciés.** Avec opencode V2 et les workflows du hub, ces commandes lancent leur workflow via [`oh run`](cli-workflows.fr.md#oh-run) et affichent un avertissement : `oh start` → `oh run feature` (`--prompt` = première entrée texte), `--dev [-t <id>]` → `oh run ticket --tickets <id>` (une épopée choisie dans le sélecteur garde l'ancien lancement), `--onboard` → `oh run onboarding`, `--parallel --tickets` → `oh run ticket --tickets`, `--sweep` → `oh run sweep`, `--worktree <branche>` → `--location new`, `oh audit|review|debug` → `oh run audit|review|debug` (les options deviennent des entrées si le workflow les déclare), `oh review feedback` → `oh run review-feedback` (retours de la MR en entrée texte). `--agent` et opencode V1 gardent l'ancien lancement, de même qu'un workflow absent du catalogue.
+> **v5 — alias dépréciés.** Avec opencode V2 et les workflows du hub, ces commandes lancent leur workflow via [`oh run`](cli-workflows.fr.md#oh-run) et affichent un avertissement : `oh start` → `oh run feature` (`--prompt` = première entrée texte), `--dev [-t <id>]` → `oh run ticket --tickets <id>` (une épopée choisie dans le sélecteur : une session pour toute l'épopée ou une par ticket, au choix), `--onboard` → `oh run onboarding`, `--parallel --tickets` → `oh run ticket --tickets`, `--sweep` → `oh run sweep`, `--worktree <branche>` → `--location new`, `oh audit|review|debug` → `oh run audit|review|debug` (les options deviennent des entrées si le workflow les déclare), `oh review feedback` → `oh run review-feedback` (retours de la MR en entrée texte). `--agent` et opencode V1 gardent l'ancien lancement, de même qu'un workflow absent du catalogue.
 
 ## Sessions
 

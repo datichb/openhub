@@ -89,12 +89,13 @@ Accepts text input with fuzzy suggestions displayed above:
 | `run <workflow>` | workflow id; former names: `dev` → `run ticket`, `start` → `run feature`, `onboard` → `run onboarding`, `audit`, `review` (`rev`, `cr`), `debug` (`dbg`), `feedback` → `run review-feedback` | Opens the launch form of the workflow (generated from the catalogue) |
 | `run <workflow> ⟨ticket⟩` | — | On the board: workflow launched on the selected ticket |
 | `workflows` | catalogue, wf | Workflow catalogue (read only) |
+| `review.publish` | publish, mr | Create the merge request of the current branch (GitLab API, suspended terminal; when GitLab writes are enabled) |
 | `coder` | session, free | Free session (no workflow; opencode V1 or empty catalogue) |
 | `sessions` | parallel, inbox | Sessions view |
 
 ### Launch form
 
-Generated from the workflow YAML, in three steps: **Inputs** (one line per input: Beads ticket with a `Pick…` picker, checkbox for `bool`, list for `enum`, text area for `text`), **Options** (mode, runtime — unavailable environments show the reason —, location: base, existing worktrees, new worktree; opening), **Recap** (agents, first-turn budget, isolation, sessions and locations, warnings). `Ctrl+S` launches from any step, `Ctrl+B` goes back, `Esc` closes. A second launch while preparing is ignored.
+Generated from the workflow YAML, in three steps: **Inputs** (one line per input: Beads ticket with a `Pick…` picker, checkbox for `bool`, list for `enum`, text area for `text`), **Options** (mode, runtime — unavailable environments show the reason —, location: base, existing worktrees, new worktree; opening), **Recap** (agents, first-turn budget, isolation, sessions and locations, warnings). `Ctrl+S` launches from any step, `Ctrl+B` goes back, `Esc` closes. A second launch while preparing is ignored. With several tickets, a "A single session for every ticket" checkbox is offered. When a precondition suggests another workflow, the recap offers a "Run <wf> first (then come back)" button.
 
 ### Start, board, catalogue
 

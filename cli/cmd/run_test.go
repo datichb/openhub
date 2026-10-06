@@ -8,6 +8,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/datichb/openhub/cli/internal/sessionspec"
 	"github.com/datichb/openhub/cli/internal/workflow"
 )
 
@@ -76,14 +77,31 @@ preconditions:
 		t.Fatal(diags)
 	}
 	dir := t.TempDir()
-	if _, err := preconditionWarnings(doc.Spec, dir); err == nil {
+	if _, _, err := preconditionWarnings(doc.Spec, dir); err == nil {
 		t.Fatal("failed block precondition must refuse the launch")
 	}
 	if err := os.WriteFile(filepath.Join(dir, "oh.toml"), nil, 0o600); err != nil {
 		t.Fatal(err)
 	}
-	warns, err := preconditionWarnings(doc.Spec, dir)
+	warns, sugg, err := preconditionWarnings(doc.Spec, dir)
 	if err != nil || len(warns) != 1 || warns[0].Code != "precondition" || warns[0].Args[1] != "onboarding" {
 		t.Fatalf("warns = %+v (%v)", warns, err)
+	}
+	if len(sugg) != 1 || sugg[0].Workflow != "onboarding" || !sugg[0].Resume || sugg[0].Label != "Contexte projet" {
+		t.Fatalf("suggestions = %+v", sugg)
+	}
+}
+
+func TestSelectMCP(t *testing.T) {
+	avail := []sessionspec.MCPServerDef{{Name: "gitlab"}, {Name: "team"}, {Name: "figma"}}
+	kept, missing := selectMCP(avail, []string{"team", "gitlab", "jira", "workflow"})
+	if len(kept) != 2 || kept[0].Name != "gitlab" || kept[1].Name != "team" {
+		t.Fatalf("kept = %+v (project order)", kept)
+	}
+	if len(missing) != 1 || missing[0] != "jira" {
+		t.Fatalf("missing = %v (workflow is the oh runtime server, never missing)", missing)
+	}
+	if kept, _ := selectMCP(avail, nil); len(kept) != 0 {
+		t.Fatal("an explicit empty selection keeps nothing")
 	}
 }

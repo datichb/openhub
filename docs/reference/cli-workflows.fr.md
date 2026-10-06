@@ -18,6 +18,9 @@ Lance un workflow : résolution des couches et validation, paquet de session, pl
 - **Emplacement** (`--location`) : `base` (défaut, dossier du projet), `new` (un nouveau worktree par session, branche = entrée `branch` ou `oh/<workflow>-<ticket>`), ou le chemin d'un worktree existant. Une session qui écrit (`risk` autre que `read`) reçoit **automatiquement un worktree** si une autre session qui écrit est active dans le même dossier. Remplace `--worktree`.
 - **Exécution** (`--runtime`) : `local` ou `container` (doit figurer dans `runtime.allowed` ; refusé avec la raison si le moteur de conteneurs est indisponible).
 - **Récapitulatif** (`--recap`) : agents, budget du premier tour, isolation, sessions et emplacements, avertissements (modifications non commitées, worktree automatique, décisions en attente), puis confirmation.
+- **Une seule session** (`--one-session`) : tous les tickets dans la même session, au lieu d'une session par ticket.
+- **MCP** : sans champ `mcp:` dans le workflow, la session reçoit les serveurs MCP du projet ; avec `mcp:` (même vide), seulement ceux listés (un serveur listé mais absent du projet est signalé).
+- **Préconditions** : une précondition bloquante refuse le lancement ; une suggestion (ex. pas de wiki → `onboarding`) propose de lancer d'abord le workflow suggéré. Avec `resume: true`, le lancement initial est mémorisé et reproposé à la fin de cette session (« Enchaîner avec… » dans la TUI).
 - Deux lancements simultanés dans le même dossier sont refusés (« lancement en cours »).
 - `--draft` (brouillons) arrive en phase 2. Exige opencode V2.
 

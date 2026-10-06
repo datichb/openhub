@@ -3,6 +3,8 @@ package cmd
 import (
 	"context"
 
+	"github.com/spf13/cobra"
+
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
@@ -498,6 +500,21 @@ func buildCommands(a *app.App) []shell.Command {
 		ViewID:      "worktrees",
 	})
 
+	if a.Config.MCP.Gitlab.WriteEnabled {
+		// review --publish: merge request through the GitLab API (no LLM),
+		// in the suspended terminal.
+		commands = append(commands, shell.Command{
+			ID:          "review.publish",
+			Label:       i18n.T("tui.cmd.review_publish"),
+			Aliases:     []string{"publish", "mr"},
+			Description: i18n.T("tui.cmd.review_publish.desc"),
+			Category:    i18n.T("tui.category.workflows"),
+			Action:      actionReviewPublish,
+			RunsDirect:  true,
+			Modes:       modeSession,
+		})
+	}
+
 	// ── Hub init — always visible (reconfigure hub) ─────────────────
 	commands = append(commands, shell.Command{
 		ID:          "init",
@@ -572,4 +589,23 @@ func registerWorkflowCommands(a *app.App, list []workflowsvc.Summary) {
 		})
 	}
 	sh.Commands().ReplaceGroup(workflowCommandPrefix, cmds)
+}
+
+// actionReviewPublish runs `oh review --publish` on the active project with
+// the TUI suspended (questions and output in the terminal).
+func actionReviewPublish() {
+	if tuiShell == nil {
+		return
+	}
+	c := &cobra.Command{Use: "publish"}
+	c.Flags().String("project", "", "")
+	c.Flags().String("reviewer", "", "")
+	if p := tuiShell.ActiveProject(); p != nil {
+		_ = c.Flags().Set("project", p.ID)
+	}
+	c.SetContext(tuiShell.Context())
+	err := tuiShell.SuspendAndExec(func() error { return runReviewPublish(c) })
+	if err != nil {
+		tuiShell.ShowToast(err.Error(), shell.ToastError)
+	}
 }

@@ -89,12 +89,13 @@ Accepte la saisie avec suggestions fuzzy au-dessus :
 | `run <workflow>` | id du workflow ; anciens noms : `dev` → `run ticket`, `start` → `run feature`, `onboard` → `run onboarding`, `audit`, `review` (`rev`, `cr`), `debug` (`dbg`), `feedback` → `run review-feedback` | Ouvre la fiche de lancement du workflow (générée depuis le catalogue) |
 | `run <workflow> ⟨ticket⟩` | — | Sur le board : workflow lancé sur le ticket sélectionné |
 | `workflows` | catalogue, wf | Catalogue des workflows (lecture seule) |
+| `review.publish` | publish, mr | Créer la MR de la branche courante (API GitLab, terminal suspendu ; si l'écriture GitLab est activée) |
 | `coder` | session, free, libre | Session libre (sans workflow ; opencode V1 ou catalogue vide) |
 | `sessions` | parallel, inbox | Vue Sessions |
 
 ### Fiche de lancement
 
-Générée depuis le YAML du workflow, en trois étapes : **Entrées** (une ligne par entrée : ticket Beads avec sélecteur `Choisir…`, case pour `bool`, liste pour `enum`, zone de texte pour `text`), **Options** (mode, exécution — les environnements indisponibles affichent la raison —, emplacement : base, worktrees existants, nouveau worktree ; ouverture), **Récap** (agents, budget du 1er tour, isolation, sessions et emplacements, avertissements). `Ctrl+S` lance depuis n'importe quelle étape, `Ctrl+B` revient, `Esc` ferme. Un second lancement pendant la préparation est ignoré.
+Générée depuis le YAML du workflow, en trois étapes : **Entrées** (une ligne par entrée : ticket Beads avec sélecteur `Choisir…`, case pour `bool`, liste pour `enum`, zone de texte pour `text`), **Options** (mode, exécution — les environnements indisponibles affichent la raison —, emplacement : base, worktrees existants, nouveau worktree ; ouverture), **Récap** (agents, budget du 1er tour, isolation, sessions et emplacements, avertissements). `Ctrl+S` lance depuis n'importe quelle étape, `Ctrl+B` revient, `Esc` ferme. Un second lancement pendant la préparation est ignoré. Avec plusieurs tickets, une case « Une seule session pour tous les tickets » est proposée. Quand une précondition suggère un autre workflow, le récap propose un bouton « Lancer <wf> d'abord (puis revenir) ».
 
 ### Démarrer, board, catalogue
 

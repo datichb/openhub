@@ -36,6 +36,8 @@ type tuiLaunchRequest struct {
 	Tickets    []string
 	AtOptions  bool
 	Parent     string // chained session (O7)
+	// Mode and Runtime preselect the options ("" = workflow defaults).
+	Mode, Runtime string
 }
 
 // openLaunchForm resolves the workflow and the project off the event loop,
@@ -112,6 +114,7 @@ func launchFormConfig(ctx context.Context, a *app.App, project *domain.Project, 
 		Prefill: req.Prefill, Tickets: req.Tickets, AtOptions: req.AtOptions,
 		Runtimes: tuiRuntimes(ctx, a, sp), Locations: tuiLocations(project),
 		Attach: tuiAttachOptions(), DefaultAttach: attachPreference(a),
+		DefaultMode: req.Mode, DefaultRuntime: req.Runtime,
 	}
 	if beads.Available() == nil && beads.IsInitialized(project.Path) {
 		cfg.Beads = views.NewBeadsSource(project.Path)
@@ -119,7 +122,7 @@ func launchFormConfig(ctx context.Context, a *app.App, project *domain.Project, 
 	runs := &tuiRunCache{}
 	opts := func(c views.LaunchChoices) runOptions {
 		return runOptions{Workflow: sp.ID, Project: project, Inputs: c.Inputs, Tickets: c.Tickets, Mode: c.Mode,
-			Runtime: c.Runtime, Location: c.Location, Attach: c.Attach, ParentSessionID: req.Parent}
+			Runtime: c.Runtime, Location: c.Location, Attach: c.Attach, ParentSessionID: req.Parent, OneSession: c.OneSession}
 	}
 	cfg.Recap = func(ctx context.Context, c views.LaunchChoices) (*views.LaunchRecap, error) {
 		p, err := runs.get(ctx, a, opts(c))
@@ -128,6 +131,13 @@ func launchFormConfig(ctx context.Context, a *app.App, project *domain.Project, 
 		}
 		rows, warns := runRecap(p)
 		out := &views.LaunchRecap{Warnings: warns}
+		for _, s := range p.suggestions {
+			label := i18n.Tf("cmd.run.precondition_first", s.Workflow)
+			if s.Resume {
+				label = i18n.Tf("cmd.run.precondition_first_resume", s.Workflow, sp.ID)
+			}
+			out.Suggestions = append(out.Suggestions, views.LaunchSuggestion{WorkflowID: s.Workflow, Label: label})
+		}
 		for _, r := range rows {
 			out.Rows = append(out.Rows, views.InfoField{Label: r[0], Value: r[1]})
 		}
@@ -144,6 +154,22 @@ func launchFormConfig(ctx context.Context, a *app.App, project *domain.Project, 
 			tuiStartWiring.invalidate() // recents
 		}
 		return err
+	}
+	cfg.LaunchFirst = func(ctx context.Context, c views.LaunchChoices, workflowID string) error {
+		p, err := runs.get(ctx, a, opts(c))
+		if err != nil {
+			return err
+		}
+		for _, s := range p.suggestions {
+			if s.Workflow == workflowID {
+				_, err = runSuggestedFirst(ctx, a, opts(c), s, tuiLaunchUI())
+				if tuiStartWiring != nil {
+					tuiStartWiring.invalidate()
+				}
+				return err
+			}
+		}
+		return nil
 	}
 	return cfg, nil
 }

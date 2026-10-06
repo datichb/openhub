@@ -278,3 +278,45 @@ func TestWorkflowCatalogView(t *testing.T) {
 	assert.Equal(t, "ticket", pinned)
 	assert.Empty(t, launched)
 }
+
+func TestLaunchModelOneSession(t *testing.T) {
+	m := newLaunchModel(launchCfg(t))
+	m.tickets = []string{"bd-1", "bd-2"}
+	assert.NotEmpty(t, m.sessionsLine())
+	m.oneSession = true
+	assert.Empty(t, m.sessionsLine(), "one session: no « N sessions » line")
+	assert.True(t, m.choices().OneSession)
+}
+
+func TestLaunchFormSuggestionRunsFirst(t *testing.T) {
+	cfg := launchCfg(t)
+	cfg.Tickets = []string{"bd-1"}
+	cfg.Recap = func(context.Context, LaunchChoices) (*LaunchRecap, error) {
+		return &LaunchRecap{Warnings: []string{"wiki absent"}, Suggestions: []LaunchSuggestion{{WorkflowID: "onboarding", Label: "Lancer onboarding d'abord"}}}, nil
+	}
+	first := make(chan string, 1)
+	cfg.LaunchFirst = func(_ context.Context, _ LaunchChoices, id string) error { first <- id; return nil }
+	cfg.Launch = func(context.Context, LaunchChoices) error { t.Error("original launch started"); return nil }
+	v := NewLaunchFormView(cfg)
+	sh := &recordingShell{}
+	v.SetShell(sh)
+	content := tview.NewFlex()
+	app := runApp(t, content)
+	onLoop(app, func() { v.Mount(content, app); v.next(); v.next() })
+	var idx int
+	require.Eventually(t, func() bool {
+		idx = -1
+		onLoop(app, func() { idx = v.form.GetButtonIndex("Lancer onboarding d'abord") })
+		return idx >= 0
+	}, 2*time.Second, 10*time.Millisecond, "suggestion button shown once the recap is loaded")
+	onLoop(app, func() {
+		v.app.SetFocus(v.form.GetButton(idx))
+		v.form.GetButton(idx).InputHandler()(tcell.NewEventKey(tcell.KeyEnter, 0, tcell.ModNone), func(tview.Primitive) {})
+	})
+	select {
+	case id := <-first:
+		assert.Equal(t, "onboarding", id)
+	case <-time.After(2 * time.Second):
+		t.Fatal("suggested workflow not launched")
+	}
+}

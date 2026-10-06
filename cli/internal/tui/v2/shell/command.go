@@ -10,24 +10,6 @@ import (
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
 
-// SessionLaunchConfig holds the options for a session launch dialog.
-type SessionLaunchConfig struct {
-	// Title is the dialog title (e.g., "Lancer une session").
-	Title string
-	// Options is the list of selectable session variants.
-	Options []SessionOption
-	// OnLaunch is called with the selected option when the user confirms.
-	OnLaunch func(selected SessionOption)
-}
-
-// SessionOption represents a single launchable session variant.
-type SessionOption struct {
-	Label       string   // Display label
-	Description string   // One-line description
-	Agent       string   // opencode --agent value
-	ExtraArgs   []string // Additional CLI arguments
-}
-
 // Command represents a user-triggerable action accessible via the omnibar.
 type Command struct {
 	// ID is the canonical identifier (e.g., "start", "audit.security", "board").

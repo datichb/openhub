@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
 	wf "github.com/datichb/openhub/cli/internal/workflow"
 )
@@ -89,4 +90,17 @@ func (s *Service) lookup(cat *catalog, id string, layer wf.Layer) (wf.Ref, bool)
 		}
 	}
 	return wf.Ref{}, false
+}
+
+// MCPSelection returns the oh MCP servers the workflow selects (`mcp:`)
+// and whether a document writes the field: absent, the session keeps the
+// MCP servers of the project; present (even empty), only those listed.
+func (r *Resolution) MCPSelection() (ids []string, set bool) {
+	for p := range r.Origins {
+		if p == "mcp" || strings.HasPrefix(p, "mcp[") {
+			set = true
+			break
+		}
+	}
+	return r.Spec.MCP, set
 }

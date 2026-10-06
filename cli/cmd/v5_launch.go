@@ -26,6 +26,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/launcher"
 	"github.com/datichb/openhub/cli/internal/provider"
 	"github.com/datichb/openhub/cli/internal/runsvc"
+	workflowsvc "github.com/datichb/openhub/cli/internal/services/workflow"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 	"github.com/datichb/openhub/cli/internal/termlaunch"
 	"github.com/datichb/openhub/cli/internal/workflow"
@@ -91,6 +92,13 @@ func v5Launch(ctx context.Context, a *app.App, ui launcher.LaunchUI, opts launch
 		return true, fmt.Errorf("building session bundle: %w", err)
 	}
 
+	if !opts.SkipConfirm {
+		r := bundle.Show(b)
+		ok, err := ui.Confirm(i18n.Tf("cmd.v5.recap_confirm", entry, project.Name, location, len(r.Agents), len(r.Skills), r.Budget.Initial))
+		if err != nil || !ok {
+			return true, err
+		}
+	}
 	svc, err := newRunService(ctx, a)
 	if err != nil {
 		return true, err
@@ -217,16 +225,48 @@ func buildSessionBundle(a *app.App, project *domain.Project, team config.Resolve
 
 // buildWorkflowBundle compiles the bundle of a resolved oh/v1 workflow: its
 // agents and delegation graph, generated chain skills, `models:` (workflow
-// level of the cascade), `skills:` and `isolation:` (bundle.Request.Spec).
-// project may be nil (hub-only bundle).
-func buildWorkflowBundle(a *app.App, project *domain.Project, spec *workflow.Spec, prov string) (*bundle.Bundle, error) {
+// level of the cascade), `skills:`, `isolation:`, `plugins:`, `code_mode:`
+// (bundle.Request.Spec) and `mcp:` (selection among the project MCP
+// servers). project may be nil (hub-only bundle). missing lists the MCP
+// servers the workflow asks for but the project does not provide.
+func buildWorkflowBundle(a *app.App, project *domain.Project, res *workflowsvc.Resolution, prov string) (b *bundle.Bundle, missing []string, err error) {
 	var team config.ResolvedTeamConfig
 	if project != nil {
 		team = config.ResolveTeamForProject(a.Config, project)
 	}
 	req := sessionBundleRequest(a, project, team, prov)
-	req.Spec = spec
-	return bundle.Build(req)
+	req.Spec = res.Spec
+	if ids, set := res.MCPSelection(); set {
+		req.MCP, missing = selectMCP(req.MCP, ids)
+	}
+	b, err = bundle.Build(req)
+	return b, missing, err
+}
+
+// workflowMCPServer is the oh MCP server of the workflow runtime (piste G),
+// added to every workflow bundle: listing it is never « missing ».
+const workflowMCPServer = "workflow"
+
+// selectMCP keeps the servers listed by the workflow, in the project order,
+// and returns the listed ones the project does not provide.
+func selectMCP(available []sessionspec.MCPServerDef, ids []string) (kept []sessionspec.MCPServerDef, missing []string) {
+	want := map[string]bool{}
+	for _, id := range ids {
+		want[id] = true
+	}
+	have := map[string]bool{}
+	for _, s := range available {
+		if want[s.Name] {
+			kept = append(kept, s)
+			have[s.Name] = true
+		}
+	}
+	for _, id := range ids {
+		if !have[id] && id != workflowMCPServer {
+			missing = append(missing, id)
+		}
+	}
+	return kept, missing
 }
 
 // sessionBundleRequest is the part of a bundle request shared by every

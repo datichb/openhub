@@ -3,10 +3,13 @@ package cmd
 import (
 	"strings"
 
+	"github.com/charmbracelet/huh"
 	"github.com/spf13/cobra"
 
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/domain"
+	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
 
 // startAlias runs `oh start` and its modes as workflows (O8, O15):
@@ -45,10 +48,17 @@ func startAlias(cmd *cobra.Command, a *app.App) (handled bool, project *domain.P
 		if err != nil {
 			return true, project, nil, err
 		}
-		if sel.Epic != "" || len(sel.Tickets) != 1 {
+		if len(sel.Tickets) == 0 {
 			return false, project, &sel, nil
 		}
 		al.Opts.Tickets = sel.Tickets
+		if sel.Epic != "" && len(sel.Tickets) > 1 {
+			one, err := askEpicSessions(len(sel.Tickets))
+			if err != nil {
+				return true, project, nil, err
+			}
+			al.Opts.OneSession = one
+		}
 		if ticket != "" {
 			al.Old += " -t " + ticket
 		}
@@ -117,4 +127,14 @@ func startAliasFor(cmd *cobra.Command) (al workflowAlias, ok bool) {
 		al.Old, al.Workflow, al.Opts.Text = "oh start", "feature", userPrompt
 	}
 	return al, true
+}
+
+// askEpicSessions asks how to run the tickets of an epic: one session for
+// the whole epic (default, as before) or one session per ticket.
+func askEpicSessions(n int) (oneSession bool, err error) {
+	choice := "one"
+	err = theme.NewForm(huh.NewGroup(huh.NewSelect[string]().Title(i18n.Tf("cmd.alias.epic_title", n)).
+		Options(huh.NewOption(i18n.T("cmd.alias.epic_one"), "one"), huh.NewOption(i18n.Tf("cmd.alias.epic_each", n), "each")).
+		Value(&choice))).Run()
+	return choice == "one", err
 }
