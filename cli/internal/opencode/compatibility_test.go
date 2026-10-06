@@ -55,10 +55,3 @@ func TestCheckCompatibilitySnapshotVersion(t *testing.T) {
 	assert.True(t, result.Compatible)
 }
 
-func TestParseVersionOutput(t *testing.T) {
-	for in, want := range map[string]string{"1.17.13\n": "1.17.13", "opencode v2.0.20\n": "2.0.20", "weird": "weird"} {
-		if got := parseVersionOutput(in); got != want {
-			t.Errorf("parseVersionOutput(%q) = %q, want %q", in, got, want)
-		}
-	}
-}

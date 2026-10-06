@@ -10,6 +10,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/datichb/openhub/cli/internal/semver"
 )
 
 // DiscoverNatives starts a throw-away server with an empty configuration and
@@ -111,15 +113,5 @@ func Version(ctx context.Context, binary string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("running %s --version: %w", binary, err)
 	}
-	return parseVersion(string(out)), nil
-}
-
-func parseVersion(s string) string {
-	for _, f := range strings.Fields(s) {
-		f = strings.TrimLeft(f, "vV")
-		if f != "" && f[0] >= '0' && f[0] <= '9' {
-			return f
-		}
-	}
-	return strings.TrimSpace(s)
+	return semver.FromOutput(string(out)), nil
 }

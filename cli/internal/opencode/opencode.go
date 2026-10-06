@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/datichb/openhub/cli/internal/config"
+	"github.com/datichb/openhub/cli/internal/semver"
 )
 
 // BinaryName is the name of the opencode binary.
@@ -82,19 +83,7 @@ func Version() (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("running opencode --version: %w", err)
 	}
-	return parseVersionOutput(string(out)), nil
-}
-
-// parseVersionOutput extracts the version number from `opencode --version`
-// ("1.17.13" for V1, "opencode v2.0.20" for V2).
-func parseVersionOutput(out string) string {
-	for _, f := range strings.Fields(out) {
-		f = strings.TrimLeft(f, "vV")
-		if f != "" && f[0] >= '0' && f[0] <= '9' {
-			return f
-		}
-	}
-	return strings.TrimSpace(out)
+	return semver.FromOutput(string(out)), nil
 }
 
 // Exec replaces the current process with opencode (unix exec).
