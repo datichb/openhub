@@ -37,6 +37,7 @@ func v5DoctorChecks() []views.DoctorCheck {
 	}
 
 	out = append(out, workflowIntegrityChecks()...)
+	out = append(out, remoteDoctorChecks()...)
 
 	if !v5Available(ctx) {
 		// opencode V1: the v5 runtime checks below do not apply.

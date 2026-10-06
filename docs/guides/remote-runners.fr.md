@@ -1,0 +1,196 @@
+> [Read in English](remote-runners.en.md)
+
+# Exécution distante : installer les runners GitLab CI
+
+Une session oh peut tourner sur un **runner GitLab CI** au lieu de votre machine. Ce guide couvre la mise en place : le runner, le projet central `oh-runner` d'un groupe GitLab, et `oh remote setup`. L'exécution distante est disponible sur macOS et Linux ; sous Windows, oh reste en local.
+
+## Principe
+
+```
+votre machine (oh)                          GitLab                                   runner (Docker)
+──────────────────                          ──────                                   ───────────────
+oh run … --runtime remote ──paquet──▶ registre de packages (oh-runner)
+                          ──déclenche──▶ pipeline oh-runner ───────────────▶ job : image du projet
+                                                                                oh runner : clone du projet,
+                                                                                opencode + proxy LLM, branche + MR
+oh session fetch ◀──artefacts── journal Beads, résumé, export de session ◀──
+```
+
+- **Un projet `oh-runner` par groupe GitLab.** Son `.gitlab-ci.yml` est **généré par oh** (`oh remote setup` le réécrit). La CI des projets n'est jamais modifiée.
+- **Les secrets de votre machine ne partent pas.** Le job ne reçoit que des **variables CI masquées et protégées** du projet `oh-runner` : la clé LLM des jobs, un jeton d'accès par projet cible, un jeton d'écriture du team-state. Votre trousseau garde seulement le jeton API GitLab (le vôtre) et le jeton de déclenchement.
+- **Beads reste sur votre machine.** Le job reçoit un instantané des tickets concernés et renvoie un journal de ses écritures, que vous rejouez à la récupération (avec résolution des conflits).
+- **L'image du job** est l'image de développement du projet (son Dockerfile de dev, ou une base Debian par défaut) plus une couche fine (oh, opencode, faux `bd`). Elle est construite sur le runner et gardée dans le registre de conteneurs d'`oh-runner`, avec un tag égal à son hash.
+
+## Ce qu'il faut
+
+| Élément | Détail |
+|---|---|
+| Instance GitLab | gitlab.com ou auto-hébergée (16.0 ou plus récente). **Registre de conteneurs** et **registre de packages** activés (auto-hébergée : à activer par l'administrateur). |
+| Groupe | Vous y êtes **Maintainer** (pour créer `oh-runner`, ses variables et son déclencheur). |
+| Runner | Une machine Linux (ou un Mac avec Colima) avec Docker et `gitlab-runner`, exécuteur **Docker**, étiquette `oh`. 2 CPU et 4 Go de mémoire au minimum par job simultané. |
+| Accès réseau du runner | GitLab et son registre ; `registry.npmjs.org` (binaire opencode Linux) ; `github.com` (binaire oh publié) ; le fournisseur LLM (ex. `bedrock-runtime.eu-west-1.amazonaws.com`) ; les registres des images de base (Docker Hub, `gcr.io` pour Kaniko). |
+| Jeton personnel | Portée `api`, sur votre compte : utilisé par oh depuis votre machine (mise en place, envoi des paquets, suivi, artefacts). |
+| Jeton de chaque projet cible | Jeton d'accès **de projet**, rôle Developer, portées `write_repository` et `read_api` : le job clone, pousse la branche et ouvre la MR (en brouillon, par les options de `git push`, sans portée `api`). |
+| Jeton team-state | Jeton d'accès du dépôt team-state, portée `write_repository` : le job y publie l'avancement dans le claim du ticket. |
+| Clé LLM des jobs | Une clé dédiée à la CI. Pour Bedrock : une **clé API Bedrock** longue durée (région `eu-west-1`) ; les profils AWS de votre machine ne sont pas utilisables dans un job. Anthropic et OpenRouter : une clé API. |
+
+## 1. Installer le runner
+
+### Créer le runner dans GitLab
+
+Groupe › **Build › Runners › New group runner** (gitlab.com ou auto-hébergée) :
+
+- **Tags** : `oh` ;
+- décochez « Run untagged jobs » ;
+- gardez le jeton `glrt-…` affiché.
+
+Un runner d'instance convient aussi (auto-hébergée), du moment qu'il porte l'étiquette `oh` et qu'il est disponible pour le projet `oh-runner`.
+
+### Installer `gitlab-runner` sur la machine
+
+Linux (Debian/Ubuntu) :
+
+```bash
+curl -L "https://packages.gitlab.com/install/repositories/runner/gitlab-runner/script.deb.sh" | sudo bash
+sudo apt-get install gitlab-runner
+```
+
+macOS avec Colima :
+
+```bash
+brew install gitlab-runner colima docker
+colima start --cpu 4 --memory 8
+brew services start gitlab-runner
+```
+
+### Enregistrer le runner
+
+Choisissez la construction de l'image projet :
+
+- **Kaniko** (par défaut, recommandé) : aucun mode privilégié.
+
+  ```bash
+  sudo gitlab-runner register --non-interactive \
+    --url https://gitlab.example.com \
+    --token glrt-XXXXXXXX \
+    --executor docker \
+    --docker-image alpine:3.20 \
+    --description "oh runner"
+  ```
+
+- **Docker-in-Docker** : le runner doit être **privilégié**, ce qui donne au job le contrôle du démon Docker de la machine. À réserver à une machine dédiée.
+
+  ```bash
+  sudo gitlab-runner register --non-interactive \
+    --url https://gitlab.example.com \
+    --token glrt-XXXXXXXX \
+    --executor docker \
+    --docker-image docker:27 \
+    --docker-privileged \
+    --docker-volumes /certs/client \
+    --description "oh runner (dind)"
+  ```
+
+  Puis `oh remote setup --builder dind`.
+
+Dans `/etc/gitlab-runner/config.toml` (ou `~/.gitlab-runner/config.toml` sur macOS), réglez `concurrent` selon la mémoire disponible (un job ≈ 1 à 2 Go).
+
+Vérifiez : `sudo gitlab-runner verify`, puis dans GitLab le runner apparaît « online ».
+
+Architecture : un runner arm64 (Mac Apple Silicon, Graviton) fonctionne ; indiquez-le avec `oh remote setup --arch arm64`.
+
+## 2. Créer les jetons
+
+1. **Jeton personnel** (`api`) : Préférences › Jetons d'accès.
+2. **Jeton de chaque projet cible** : projet › Paramètres › Jetons d'accès › rôle **Developer**, portées `write_repository` et `read_api`.
+3. **Jeton team-state** : dépôt team-state › Paramètres › Jetons d'accès › rôle **Developer**, portée `write_repository`.
+4. **Clé LLM des jobs** (ex. clé API Bedrock créée dans la console AWS, limitée à Bedrock).
+
+Ne les collez jamais dans une commande : `oh remote setup` les demande en saisie masquée, ou les lit dans une variable d'environnement (`--token-env`, `--llm-key-env`, `--project-token-env`, `--teamstate-token-env`).
+
+## 3. Configurer oh : `oh remote setup`
+
+Depuis un projet du groupe (l'instance et le groupe sont proposés à partir de son remote `origin`) :
+
+```bash
+oh remote setup --llm --teamstate --project acme/dev/api
+```
+
+oh :
+
+1. vérifie l'accès à l'API avec votre jeton (gardé dans le trousseau, clé `openhub.remote.<cible>.token`) ;
+2. crée le projet `oh-runner` dans le groupe s'il n'existe pas (privé, registres activés), ou le valide ;
+3. vérifie que sa branche par défaut est **protégée** (les variables protégées ne sont transmises qu'aux branches protégées) ;
+4. écrit `.gitlab-ci.yml` (refuse de remplacer un fichier qui n'a pas été généré par oh, sauf `--force`) ;
+5. crée le jeton de déclenchement et le garde dans le trousseau ;
+6. pose les variables CI : `OH_LLM_PROVIDER`, `OH_LLM_REGION` (non secrètes), `OH_LLM_KEY`, `OH_PROJECT_TOKEN_<id du projet>`, `OH_TEAMSTATE_TOKEN` (masquées et protégées) ;
+7. signale l'absence de runner en ligne avec l'étiquette ;
+8. enregistre la cible dans `~/.oh/hub.toml` (`[[remote.targets]]`, sans aucun secret).
+
+La commande est relançable : seul ce qui manque ou a changé est modifié. Ajoutez un projet cible plus tard avec `oh remote setup --project <chemin>`.
+
+Plusieurs équipes, plusieurs instances : chaque groupe a sa cible (`--name`, `--url`, `--group`). Un projet est envoyé à la cible de la même instance dont le groupe le contient (le plus profond l'emporte) ; pour forcer, `[remote.projects]` dans `hub.toml` (`<id du projet oh> = "<cible>"`).
+
+### Builds de développement
+
+Une version publiée d'oh est téléchargée par le job depuis la release GitHub. Pour un build de développement :
+
+```bash
+make -C cli build-linux            # ARCH=arm64 pour un runner arm64
+oh remote setup --oh-binary cli/bin/oh-linux-amd64
+```
+
+Le binaire est envoyé dans le registre de packages d'`oh-runner` (`oh-cli/<sha256>/oh-linux-<arch>`) ; à refaire à chaque nouveau build.
+
+### Options
+
+| Option | Effet |
+|---|---|
+| `--tag` | étiquette des runners (`oh`) |
+| `--builder kaniko\|dind` | construction de l'image projet |
+| `--arch amd64\|arm64` | architecture des runners |
+| `--timeout 3h` | durée maximale d'un job |
+| `--runner-project` | autre chemin que `<groupe>/oh-runner` |
+| `--token-key` | réutiliser un jeton déjà dans le trousseau |
+| `--no-create` | ne pas créer `oh-runner` |
+
+Les mêmes réglages sont visibles dans la TUI : **Configuration › Distant** ; une modification est appliquée au pipeline par le prochain `oh remote setup`.
+
+## 4. Vérifier : `oh remote status`
+
+```bash
+oh remote status
+```
+
+Affiche, par cible : accès API, projet, registres, branche protégée, pipeline à jour, jeton de déclenchement, variables manquantes, runners en ligne, binaire oh pour le job. `oh doctor` (et la vue Doctor de la TUI) reprend la même vérification.
+
+## Le pipeline généré
+
+Trois jobs, déclenchés **uniquement** par oh (jamais à un push) :
+
+| Job | Quand | Rôle |
+|---|---|---|
+| `oh-cli` | image absente du registre | récupère oh (release vérifiée par `checksums.txt`, ou binaire de développement vérifié par son SHA-256) et prépare la couche oh |
+| `oh-image` | image absente du registre | construit l'image de base (Dockerfile de dev du projet, cloné avec le jeton du projet ; sinon Debian + git + ripgrep) puis la couche oh, et les pousse |
+| `oh-run` | toujours | `oh runner run` dans l'image du projet ; artefacts dans `oh-out/` (7 jours) |
+
+Les variables du déclenchement (identifiant de session, projet, branche, adresses du paquet et de l'image) ne sont pas secrètes : elles sont visibles dans la page du pipeline.
+
+## Sécurité
+
+- Les variables secrètes sont **masquées** (absentes des journaux) et **protégées** (branche par défaut d'`oh-runner` seulement). Restreignez les Maintainers d'`oh-runner` : ils peuvent lire ces variables.
+- La clé LLM n'est lue que par le proxy d'identifiants d'oh dans le job ; opencode ne reçoit qu'un jeton de session.
+- Les jetons de projet ont la portée minimale : dépôt (lecture/écriture) et lecture de l'API ; la MR est ouverte par les options de `git push`.
+- Kaniko n'a pas besoin de mode privilégié ; Docker-in-Docker si, à réserver à une machine dédiée.
+
+## Dépannage
+
+| Symptôme | Cause probable |
+|---|---|
+| `Branche protégée — échec` | Protégez la branche par défaut d'`oh-runner` (Paramètres › Dépôt › Branches protégées). |
+| `Runners en ligne — à vérifier` | Runner arrêté, sans l'étiquette `oh`, ou non disponible pour `oh-runner`. |
+| `Registre de conteneurs et de packages — échec` | Registres désactivés sur le projet ou l'instance. |
+| `Variable CI — échec — OH_LLM_KEY` | `oh remote setup --llm`. Une valeur de moins de 8 caractères ou sur plusieurs lignes ne peut pas être masquée par GitLab. |
+| Job `oh-image` : `OH_PROJECT_TOKEN_<id> is missing` | `oh remote setup --project <chemin du projet>`. |
+| Job `oh-cli` : échec du téléchargement | Le runner n'atteint pas `github.com` : envoyez le binaire avec `--oh-binary`. |
+| `Pipeline généré — échec` (fichier non généré par oh) | `.gitlab-ci.yml` écrit à la main : `oh remote setup --force` le remplace. |

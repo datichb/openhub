@@ -70,6 +70,26 @@ func deepCopyConfig(c *config.Config) config.Config {
 	// Clone Workflow (contains nested slices, maps, and pointers)
 	cp.Workflow = deepCopyWorkflowHubConfig(c.Workflow)
 
+	// Clone Remote targets (slice of structs holding a map) and project map
+	if c.Remote.Targets != nil {
+		cp.Remote.Targets = make([]config.RemoteTarget, len(c.Remote.Targets))
+		copy(cp.Remote.Targets, c.Remote.Targets)
+		for i, t := range c.Remote.Targets {
+			if t.Binaries != nil {
+				cp.Remote.Targets[i].Binaries = make(map[string]string, len(t.Binaries))
+				for k, v := range t.Binaries {
+					cp.Remote.Targets[i].Binaries[k] = v
+				}
+			}
+		}
+	}
+	if c.Remote.Projects != nil {
+		cp.Remote.Projects = make(map[string]string, len(c.Remote.Projects))
+		for k, v := range c.Remote.Projects {
+			cp.Remote.Projects[k] = v
+		}
+	}
+
 	return cp
 }
 

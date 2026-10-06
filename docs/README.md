@@ -26,6 +26,7 @@ Complete index of all openhub documentation. Guides and references are bilingual
 | [Workflows](guides/workflows.en.md) | Full feature, audit, debug scenarios |
 | [v5 Sessions](guides/sessions-v5.en.md) | opencode V2 sessions: opening, sleep, resume, LLM keys |
 | [Container runtime](guides/container.en.md) | Sessions in a container (Colima, Podman): project dev image, settings, secrets |
+| [Remote runners](guides/remote-runners.en.md) ([fr](guides/remote-runners.fr.md)) | Remote sessions on GitLab CI: runners, oh-runner project, `oh remote setup` |
 | [Parallel Mode](guides/parallel-mode.en.md) | N concurrent sessions in isolated worktrees |
 | [Sweep Mode](guides/sweep-mode.en.md) | Goal-driven task decomposition and parallel execution |
 | [Review & Feedback](guides/review-feedback.en.md) | AI code review, MR publication, feedback processing |
