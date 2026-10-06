@@ -4,7 +4,7 @@
 
 ## Statut
 
-Accepté
+~~Accepté~~ **Déprécié** — voir [ADR-048](./048-opencode-v1-abandonment.fr.md)
 
 ## Contexte
 

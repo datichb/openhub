@@ -4,7 +4,7 @@
 
 ## Statut
 
-Accepté
+~~Accepté~~ **Remplacé par [ADR-043](./043-session-bundle-deploy-removal.fr.md)**
 
 ## Contexte
 
