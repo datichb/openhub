@@ -42,7 +42,8 @@ idle_sleep_minutes = 5     # un serveur inactif se met en veille après N minute
 
 - Un serveur se met en veille quand **aucune** session ne travaille, qu'aucun client n'est attaché et que rien ne s'est passé depuis `idle_sleep_minutes`. Une décision qui vous attend (permission, question) garde le serveur éveillé tant que oh est ouvert.
 - Une session en veille reprend quand vous la rouvrez : `oh session attach <id>` redémarre son serveur, puis ouvre le client.
-- Si vous quittez la TUI pendant que des sessions travaillent, oh vous demande quoi faire. Le choix par défaut est « finir l'étape en cours, puis mettre en veille ».
+- Si vous quittez la TUI (Ctrl+Q ou commande `quit`) pendant que des sessions travaillent, oh demande quoi faire **pour chacune** : « finir l'étape, veille » (défaut), « arrière-plan » ou « arrêter maintenant ». Échap annule. Les sessions en attente ou inactives sont mises en veille tout de suite.
+- Au retour, un message résume ce qui s'est passé pendant votre absence (sessions changées, décisions arrivées, coût).
 
 ## Commandes
 
@@ -75,7 +76,9 @@ Ouvrez-la depuis l'omnibar (`sessions`) ou les sections « Sessions » des pages
 
 - **À traiter** : décisions de toutes les sessions. `Entrée` ouvre la fiche (permission : une fois / toujours / refuser + message ; question : formulaire généré ; alerte : classer ou attacher), `y`/`n` valident ou refusent une permission, `x` classe une alerte.
 - **En cours, En veille, Terminées (7 j)** ; détail de la session sélectionnée en bas.
-- `t` (ou `Entrée` sur une session) : flux en direct à droite (agent, outils, messages, coût). `a` attacher, `m` consigne, `i` interrompre, `M` modèle, `s` arrêter, `c` reprendre, `o` résultats et description de MR, `w` navigateur, `f` projet actif / tous les projets, `r` rafraîchir.
+- `t` (ou `Entrée` sur une session) : flux en direct à droite (agent, outils, messages, coût). `a` attacher, `A` choisir comment ouvrir (iTerm2, Terminal.app, tmux, navigateur, ici), `m` consigne, `i` interrompre, `M` modèle, `s` arrêter, `c` reprendre, `o` résultats et description de MR, `w` navigateur, `f` projet actif / tous les projets, `r` rafraîchir.
+
+Avec tmux, la session s'ouvre dans une nouvelle fenêtre ; avec `[session] iterm_style = "split"`, dans un volet à côté.
 
 ## Notifications
 

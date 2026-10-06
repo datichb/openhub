@@ -408,6 +408,18 @@ func (s *Shell) ShowPasswordModal(title string, onConfirm func(value string)) {
 // CancelQuit clears a pending quit request (BeforeQuit dialog cancelled).
 func (s *Shell) CancelQuit() { s.quitPending = false }
 
+// RequestQuit quits through BeforeQuit (Ctrl+Q, Ctrl+C, omnibar "quit"). A
+// second request while the BeforeQuit dialog is pending quits at once.
+// Event loop only.
+func (s *Shell) RequestQuit() {
+	if s.cfg.BeforeQuit == nil || s.quitPending {
+		s.app.Stop()
+		return
+	}
+	s.quitPending = true
+	s.cfg.BeforeQuit(func() { s.app.Stop() })
+}
+
 func (s *Shell) ShowSelectModal(title string, options []views.SelectOption, currentValue string, onConfirm func(value string)) {
 	s.showInlineSelect(title, options, currentValue, onConfirm)
 }
@@ -1263,12 +1275,7 @@ func (s *Shell) isInteractiveZone(x, y int) bool {
 func (s *Shell) globalKeyHandler(event *tcell.EventKey) *tcell.EventKey {
 	// Ctrl+Q / Ctrl+C: quit (always available)
 	if event.Key() == tcell.KeyCtrlQ || event.Key() == tcell.KeyCtrlC {
-		if s.cfg.BeforeQuit == nil || s.quitPending {
-			s.app.Stop()
-			return nil
-		}
-		s.quitPending = true
-		s.cfg.BeforeQuit(func() { s.app.Stop() })
+		s.RequestQuit()
 		return nil
 	}
 

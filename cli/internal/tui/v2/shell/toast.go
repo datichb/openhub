@@ -134,11 +134,12 @@ func (s *Shell) showToast(msg string, level ToastLevel, duration time.Duration) 
 		pageName := fmt.Sprintf("toast-%d", time.Now().UnixNano())
 		s.activeToasts++
 		s.activeToastIDs = append(s.activeToastIDs, pageName)
+		prev := s.app.GetFocus()
 		s.pages.AddPage(pageName, grid, true, true)
 		// Pages.AddPage re-delegates focus to the last visible page (the toast),
 		// stealing it from whatever widget the user was interacting with.
 		// Restore focus immediately.
-		s.restoreFocusAfterToast()
+		s.restoreFocusAfterToast(prev)
 
 		// Auto-dismiss after duration
 		time.AfterFunc(duration, func() {
@@ -163,10 +164,11 @@ func (s *Shell) showToast(msg string, level ToastLevel, duration time.Duration) 
 // dismissToast removes a toast by page name and updates tracking state.
 // Must be called on the tview event loop (inside QueueUpdateDraw or a handler).
 func (s *Shell) dismissToast(pageName string) {
+	prev := s.app.GetFocus()
 	s.pages.RemovePage(pageName)
 	// Pages.RemovePage re-delegates focus to the last visible page (possibly
 	// another toast or the suggestions overlay). Restore focus properly.
-	s.restoreFocusAfterToast()
+	s.restoreFocusAfterToast(prev)
 	if s.activeToasts > 0 {
 		s.activeToasts--
 	}
@@ -195,9 +197,14 @@ func (s *Shell) DismissOldestToast() bool {
 // toast page is added or removed. tview.Pages.AddPage / RemovePage re-delegate
 // focus to the topmost visible page (the toast Grid), stealing it from
 // whichever widget the user was interacting with. This helper restores focus:
+//   - to the widget that had it when a modal (form, sub-selector) is open,
 //   - to the omnibar input when the omnibar is active,
 //   - to the content area (active view) otherwise.
-func (s *Shell) restoreFocusAfterToast() {
+func (s *Shell) restoreFocusAfterToast(prev tview.Primitive) {
+	if prev != nil && (s.pages.HasPage("inline-overlay") || s.pages.HasPage("sub-overlay")) {
+		s.app.SetFocus(prev)
+		return
+	}
 	if s.omnibar.IsActive() {
 		s.omnibar.RestoreFocus()
 		return

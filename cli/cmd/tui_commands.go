@@ -306,7 +306,7 @@ func buildCommands(a *app.App) []shell.Command {
 			Priority:    10,
 			Action: func() {
 				if tuiShell != nil {
-					tuiShell.App().Stop()
+					tuiShell.RequestQuit() // through the v5 quit dialog (I7)
 				}
 			},
 		},

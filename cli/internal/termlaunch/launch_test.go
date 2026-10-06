@@ -47,3 +47,8 @@ func TestLaunchExhaustedChain(t *testing.T) {
 	assert.Len(t, attempts, 1)
 	assert.Error(t, attempts[0].Err)
 }
+
+func TestTmuxArgs(t *testing.T) {
+	assert.Equal(t, []string{"new-window", "-c", "/p", "-n", "oh"}, tmuxArgs(Options{Dir: "/p", Title: "oh"}))
+	assert.Equal(t, []string{"split-window", "-h", "-c", "/p"}, tmuxArgs(Options{Dir: "/p", Title: "oh", ITermStyle: ITermSplit}))
+}

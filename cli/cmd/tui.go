@@ -131,7 +131,7 @@ func runTUIWithProject(projectName string) error {
 	}
 	go func() {
 		time.Sleep(500 * time.Millisecond)
-		tuiShell.App().QueueUpdateDraw(func() { showAbsenceRecap(context.Background(), a, tuiShell) })
+		showAbsenceRecap(context.Background(), a, tuiShell) // reads off the event loop
 	}()
 
 	err := tuiShell.Run()

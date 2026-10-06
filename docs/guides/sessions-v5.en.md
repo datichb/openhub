@@ -42,7 +42,8 @@ idle_sleep_minutes = 5     # an idle server goes to sleep after N minutes
 
 - A server goes to sleep when **no** session is executing, no client is attached, and nothing happened for `idle_sleep_minutes`. A decision waiting for you (permission, question) keeps the server awake while oh is open.
 - A sleeping session resumes when you reopen it: `oh session attach <id>` restarts its server, then opens the client.
-- When you quit the TUI while sessions are working, oh asks what to do. The default is "finish the current step, then sleep".
+- When you quit the TUI (Ctrl+Q or the `quit` command) while sessions are working, oh asks what to do **for each one**: "finish step, sleep" (default), "background" or "stop now". Esc cancels. Waiting or idle sessions go to sleep right away.
+- When you come back, a message sums up what happened while you were away (changed sessions, new decisions, cost).
 
 ## Commands
 
@@ -75,7 +76,9 @@ Open it from the omnibar (`sessions`) or from the "Sessions" sections of the hom
 
 - **To handle**: decisions of every session. `Enter` opens the card (permission: once / always / reject + message; question: generated form; alert: dismiss or attach), `y`/`n` approve or reject a permission, `x` dismisses an alert.
 - **Running, Sleeping, Finished (7 days)**; detail of the selected session at the bottom.
-- `t` (or `Enter` on a session): live feed on the right (agent, tools, messages, cost). `a` attach, `m` instruction, `i` interrupt, `M` model, `s` stop, `c` resume, `o` results and merge request description, `w` browser, `f` active project / every project, `r` refresh.
+- `t` (or `Enter` on a session): live feed on the right (agent, tools, messages, cost). `a` attach, `A` choose how to open (iTerm2, Terminal.app, tmux, browser, here), `m` instruction, `i` interrupt, `M` model, `s` stop, `c` resume, `o` results and merge request description, `w` browser, `f` active project / every project, `r` refresh.
+
+With tmux, the session opens in a new window; with `[session] iterm_style = "split"`, in a pane next to it.
 
 ## Notifications
 

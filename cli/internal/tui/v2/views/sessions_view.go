@@ -33,6 +33,9 @@ type SessionsViewConfig struct {
 	Backend SessionsBackend
 }
 
+// attachMethods are the ways to open a session client (I2).
+var attachMethods = []string{"auto", "iterm", "terminal", "tmux", "browser", "suspend"}
+
 // sessionRef / decisionRef are the list item references.
 type sessionRef struct{ id string }
 type decisionRef struct{ id, session string }
@@ -493,6 +496,17 @@ func (v *SessionsView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 	case 'a':
 		if r != nil {
 			v.cfg.Backend.Attach(r.ID, "")
+		}
+	case 'A':
+		if r != nil && v.shell != nil {
+			id := r.ID
+			opts := make([]SelectOption, 0, len(attachMethods))
+			for _, m := range attachMethods {
+				opts = append(opts, SelectOption{Label: i18n.T("tui.sessions.attach_how." + m), Value: m})
+			}
+			v.shell.ShowSelectModal(i18n.T("tui.sessions.attach_how_title"), opts, "auto", func(how string) {
+				v.cfg.Backend.Attach(id, how)
+			})
 		}
 	case 'm':
 		if r != nil && v.shell != nil {
