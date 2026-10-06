@@ -25,7 +25,7 @@ func TestExtract_CreatesFilesAndVersionMarker(t *testing.T) {
 	}
 
 	// Core directories must exist
-	for _, dir := range []string{"agents", "skills", "permissions"} {
+	for _, dir := range []string{"agents", "skills", "permissions", "workflows"} {
 		info, err := os.Stat(filepath.Join(destDir, dir))
 		if err != nil {
 			t.Errorf("expected directory %q to exist: %v", dir, err)
@@ -33,6 +33,14 @@ func TestExtract_CreatesFilesAndVersionMarker(t *testing.T) {
 		}
 		if !info.IsDir() {
 			t.Errorf("expected %q to be a directory", dir)
+		}
+	}
+
+	// Shipped workflows and their prompt templates (<hub>/workflows, read by
+	// hubcat.LoadWorkflows).
+	for _, f := range []string{"workflows/ticket.yaml", "workflows/feature.yaml", "workflows/quick.yaml", "workflows/prompts/ticket.md.tmpl"} {
+		if _, err := os.Stat(filepath.Join(destDir, f)); err != nil {
+			t.Errorf("expected %s to be extracted: %v", f, err)
 		}
 	}
 }

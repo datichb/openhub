@@ -6,6 +6,7 @@ dist/
 internal/hubcontent/hub/agents/
 internal/hubcontent/hub/skills/
 internal/hubcontent/hub/permissions/
+internal/hubcontent/hub/workflows/
 
 # Linux helpers embedded in container images (make embed-bd)
 internal/runtime/container/assets/bd-linux-*

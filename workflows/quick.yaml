@@ -1,0 +1,24 @@
+apiVersion: oh/v1
+kind: Workflow
+id: quick
+category: develop
+label: { fr: Session rapide, en: Quick session }
+description:
+  fr: Session de développement directe, sans planification ni checkpoint (petites modifications)
+  en: Direct development session, without planning or checkpoints (small changes)
+risk: write
+entry:
+  agent: developer
+inputs:
+  request:
+    type: text
+    label: { fr: Demande, en: Request }
+    help:
+      fr: "Ce qu'il faut faire (facultatif : sinon, la session attend ta demande)"
+      en: "What to do (optional: otherwise the session waits for your request)"
+    max_length: 8000
+prompt:
+  template: prompts/quick.md.tmpl
+agents:
+  developer: { role: workflow, mode: primary }
+runtime: { default: local, allowed: [local] }
