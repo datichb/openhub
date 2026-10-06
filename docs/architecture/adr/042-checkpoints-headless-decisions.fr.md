@@ -88,7 +88,7 @@ Au-delà de `circuit_breaker.max_consecutive_subagents` appels `subagent` consé
   - badge `● N ⏸ M` sur tous les écrans.
 - **Notifications système** envoyées par le démon, que la TUI soit ouverte ou non (`terminal-notifier`, `osascript`, `notify-send`), sans aucun contenu de la session.
 - **CLI** : `oh session inbox|approve|answer|dismiss|send|interrupt|model|compact|fork`.
-- **Distant** : un répondeur de politique remplace l'utilisateur (ADR-045).
+- **Distant** : un répondeur de politique remplace l'utilisateur ([ADR-045](./045-execution-environments.fr.md)).
 
 ## Conséquences
 

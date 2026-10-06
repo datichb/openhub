@@ -4,7 +4,7 @@
 
 ## Status
 
-Accepted — **Evolved by [ADR-010](./010-hybrid-skills-architecture.en.md)**
+Accepted — **Evolved by [ADR-010](./010-hybrid-skills-architecture.en.md)** and **[ADR-043](./043-session-bundle-deploy-removal.en.md)**
 
 The stack detection mechanism (`detect_stack()`, `config/stack-skills.json`) remains valid. ADR-010 changes the deployment path: stack skills are no longer assembled inline into agent system prompts. They are now deployed to `.opencode/skills/` by `deploy_native_skills()` and loaded on-demand at inference time via the `skill` tool (Bucket B). This completes the intent of ADR-008 — agents only receive stack context when the task requires it.
 

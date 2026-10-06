@@ -51,7 +51,7 @@ Decisions D4 and D14: one bundle per session, built outside the project, and no 
 - Also removed:
   - `Project.Agents` (migrations v36, then v37);
   - the Agents and Deployment steps of the wizards;
-  - `[deploy].disable_native_agents` (the closed world is mandatory, see ADR-041);
+  - `[deploy].disable_native_agents` (the closed world is mandatory, see [ADR-041](./041-closed-world-isolation.en.md));
   - `EnsureWorktreeConfig`;
   - the Deployment section of the TUI project mode.
 - The `project.agents` view becomes the **Brick catalog**, read-only: agents and skills, origin, estimated cost, workflows that ship them.
@@ -74,7 +74,7 @@ The cleanup is offered once at startup, in the CLI and the TUI (dedicated screen
 - Closed world per session: `cadrage` presents 4 agents and 30 skills to the model, versus 20 agents and ~184 skills with the former full deployment.
 - No more writes into the user's project, except `oh migrate deploy-cleanup` with a diff and confirmation.
 - Several workflows and several sessions can run on the same project, each with its own bundle.
-- Reproducible, immutable bundle: the container mounts it read-only, the remote job downloads it by hash (ADR-045).
+- Reproducible, immutable bundle: the container mounts it read-only, the remote job downloads it by hash ([ADR-045](./045-execution-environments.en.md)).
 - No more drift between the hub and what is deployed: a session always uses the bricks as they were at launch.
 
 ### Negative / Trade-offs

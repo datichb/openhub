@@ -4,7 +4,7 @@
 
 ## Statut
 
-Accepté — **Évolué par [ADR-016](./016-execution-path-skills.fr.md)**
+Accepté — **Évolué par [ADR-016](./016-execution-path-skills.fr.md)** et **[ADR-043](./043-session-bundle-deploy-removal.fr.md)**
 
 Les parcours d'exécution contextuels (standalone vs sous-agent) constituent un nouveau cas d'usage Bucket B introduit par ADR-016 : les skills `-standalone` et `-subagent` des agents primaires sont chargés sélectivement selon le contexte d'invocation, réduisant la charge contextuelle de ~30-60% sur les skills de parcours.
 

@@ -2,7 +2,7 @@
 
 # ADR-021 — Validation transparente des providers LLM
 
-- **Statut :** Accepté
+- **Statut :** Accepté — **Évolué par [ADR-044](./044-credential-proxy-session-limits.fr.md)**
 - **Date :** 2026-07-01
 - **Décideurs :** Équipe OpenCode Hub
 

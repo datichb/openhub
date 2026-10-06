@@ -88,7 +88,7 @@ Beyond `circuit_breaker.max_consecutive_subagents` consecutive `subagent` calls 
   - `● N ⏸ M` badge on every screen.
 - **System notifications** sent by the daemon, whether the TUI is open or not (`terminal-notifier`, `osascript`, `notify-send`), without any session content.
 - **CLI**: `oh session inbox|approve|answer|dismiss|send|interrupt|model|compact|fork`.
-- **Remote**: a policy responder replaces the user (ADR-045).
+- **Remote**: a policy responder replaces the user ([ADR-045](./045-execution-environments.en.md)).
 
 ## Consequences
 

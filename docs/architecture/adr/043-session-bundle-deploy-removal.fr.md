@@ -51,7 +51,7 @@ Décisions D4 et D14 : un paquet par session, construit hors du projet, et plus 
 - Supprimés aussi :
   - `Project.Agents` (migrations v36, puis v37) ;
   - les étapes Agents et Déploiement des assistants ;
-  - `[deploy].disable_native_agents` (le monde fermé est imposé, voir ADR-041) ;
+  - `[deploy].disable_native_agents` (le monde fermé est imposé, voir [ADR-041](./041-closed-world-isolation.fr.md)) ;
   - `EnsureWorktreeConfig` ;
   - la section Déploiement du mode projet de la TUI.
 - La vue `project.agents` devient le **Catalogue des briques**, en lecture seule : agents et skills, origine, coût estimé, workflows qui les livrent.
@@ -74,7 +74,7 @@ Le nettoyage est proposé une fois au démarrage, CLI et TUI (écran dédié, co
 - Monde fermé par session : `cadrage` présente 4 agents et 30 skills au modèle, contre 20 agents et ~184 skills avec l'ancien déploiement complet.
 - Plus aucune écriture dans le projet de l'utilisateur, hors `oh migrate deploy-cleanup` avec diff et confirmation.
 - Plusieurs workflows et plusieurs sessions peuvent tourner sur le même projet, chacun avec son paquet.
-- Paquet reproductible et immuable : le conteneur le monte en lecture seule, le job distant le télécharge par son hash (ADR-045).
+- Paquet reproductible et immuable : le conteneur le monte en lecture seule, le job distant le télécharge par son hash ([ADR-045](./045-execution-environments.fr.md)).
 - Plus de dérive entre le hub et ce qui est déployé : une session utilise toujours les briques au moment de son lancement.
 
 ### Négatives / Compromis
