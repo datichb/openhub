@@ -161,6 +161,9 @@ func (p *preparedRun) sendRemote(ctx context.Context, a *app.App, ui launcher.La
 		Checkpoints: rp.checkpoints, Provider: base.Provider, AllowedModels: base.AllowedModels, MaxTokens: base.MaxTokens,
 		BeadsAllow: base.BeadsAllow,
 	}
+	if ec := p.project.ExecConfig; ec != nil {
+		req.Dockerfile = ec.Dockerfile // build args are not sent (commit-addressed image)
+	}
 	if team := config.ResolveTeamForProject(a.Config, p.project); team.Enabled {
 		if repo, err := ensureTeamRepoForProject(ctx, a, p.project); err == nil {
 			req.Team = teamClaims{repo: repo}
