@@ -22,25 +22,38 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 ### Added — workflows déclaratifs (phase 1, en cours)
 
 - Schéma de document **`oh/v1`** (`cli/internal/workflow/schema.go`) : entrées, agents et checkpoints ordonnés, textes localisés (`fr`/`en`), délégations explicites (`calls`), politiques distantes, sorties typées, plugins, runtimes. Pas encore utilisé par les lancements.
-- **Moteur des workflows** (pas encore branché aux lancements) :
+- **Moteur des workflows** :
   - Lecture stricte des fichiers `oh/v1` : champs inconnus, types, clés en double et documents multiples refusés ; toutes les erreurs sont listées avec ligne et colonne.
   - `extends` : un workflow d'équipe ou de projet complète celui de la couche inférieure ; chaque valeur résolue indique le fichier qui l'a posée. Les champs de sécurité (`risk`, `isolation`, `runtime.allowed`, `beads.allow`, checkpoints obligatoires, `remote`, `limits`) ne peuvent que se durcir ; un workflow de même identifiant doit étendre celui de la couche inférieure.
   - Validation complète : agents connus, graphe de délégation sans cycle, agents atteignables, variables des gabarits de prompt (`{{ .entrée }}`, `{{ .oh.project }}`…), skills et leurs `requires:`, `risk: read` sans agent qui écrit ni commande Beads d'écriture, checkpoints compatibles avec l'exécution distante.
   - **`oh workflow validate <fichier|id> [--layer] [--json] [--all]`**.
   - Paquet de session construit depuis un workflow : agents du workflow, délégations et profondeur maximale tirées du YAML, skills d'enchaînement générées (nouvelle carte du workflow `workflow/workflow-map`).
   - Nouvel agent **`conductor`** : agent d'entrée générique qui suit la carte du workflow.
-- **Briques** (pas encore branchées aux lancements) :
+- **Briques** :
   - **Niveau workflow dans la cascade des modèles** : `models.agents.<id>` puis `models.default` du workflow passent avant les réglages projet, hub et équipe. Identifiants complets acceptés (`amazon-bedrock/eu.anthropic…`, suffixe `#variante`).
   - **Dépendances entre skills** : champ `requires:` du frontmatter ; le paquet de session ajoute les skills requises (inlinées avec une skill inlinée, à la demande avec une skill à la demande). Dépendance introuvable, cycle, identifiant en double ou `name:` différent du nom de fichier bloquent la construction du paquet.
   - **Gabarits livrés avec les skills** : champ `annexes:` ; les fichiers de `skills/templates/` sont copiés dans le paquet à côté de la skill et lisibles par les agents sans demande d'autorisation.
   - **`oh skill check [--json]`** : vérifie le catalogue des skills (doublons, `requires:`, frontmatter, annexes manquantes ou inutilisées, skills citées par les agents mais absentes).
   - **Préférences** (migration v32 `preferences`) : workflows épinglés (5 par portée : hub, projet, équipe), récents tirés des sessions, suggestions par défaut, réglages d'interface.
   - **Sélecteur de tickets Beads en tview** : recherche, filtres de label et d'épopée, regroupement par épopée, aperçu, multi-sélection, tickets réservés signalés.
-- **Workflows livrés par le hub** (`workflows/`, embarqués dans le binaire et extraits dans `~/.oh/hub/workflows/` ; pas encore lancés par `oh run` ni la TUI) : `ticket`, `feature`, `quick`, `cadrage`, `onboarding`, `review`, `review-feedback`, `audit`, `debug`, `sweep`, `brief-enrich`, avec leurs gabarits de prompt (reprise des prompts de `--dev`, `--onboard`, `oh audit`, `oh review`, `oh debug`, `review feedback`, `takeover-brief enrich`). Référence : `docs/reference/workflows.{fr,en}.md`.
+- **Workflows livrés par le hub** (`workflows/`, embarqués dans le binaire et extraits dans `~/.oh/hub/workflows/`) : `ticket`, `feature`, `quick`, `cadrage`, `onboarding`, `review`, `review-feedback`, `audit`, `debug`, `sweep`, `brief-enrich`, avec leurs gabarits de prompt (reprise des prompts de `--dev`, `--onboard`, `oh audit`, `oh review`, `oh debug`, `review feedback`, `takeover-brief enrich`). Référence : `docs/reference/workflows.{fr,en}.md`.
   - **Rendu des prompts** : entrées libres placées dans des balises de données (`<oh:data>`), traitées comme des données et jamais comme des consignes, tronquées à `max_length` ; identifiants Beads et branches vérifiés.
   - **`risk: plan`** : workflow qui ne modifie aucun fichier mais crée des tickets Beads, limité à `beads.allow` (utilisé par `cadrage`).
   - **`preconditions:`** : contrôles avant lancement (`path_exists`), avec proposition d'un autre workflow puis retour (`feature` et `cadrage` proposent `onboarding` sans contexte projet), ou refus du lancement (`on_fail: block`).
   - **`plugins:` et `code_mode:`** appliqués au paquet de session : plugins déclarés par spécification npm (avec `options`), installés par opencode, y compris en conteneur ; sans `code_mode: true`, l'outil `execute` reste refusé. `context-mode` (plugin opencode V1) ne se charge pas sous opencode V2.
+- **Lancement des workflows** :
+  - **`oh run <workflow>`** : entrées (`-i clé=valeur`), mode, exécution (`--runtime local|container`, disponibilité vérifiée), emplacement (`--location base|new|<worktree>` ; une session qui écrit reçoit un worktree si une autre session qui écrit occupe le dossier), plusieurs tickets (`--tickets a,b` : une session par ticket sur un seul serveur, un worktree chacune ; `--one-session`), récapitulatif et confirmation (`--recap`), lancement refusé si un autre est en cours dans le même dossier. Les préconditions du workflow sont évaluées : refus, ou proposition de lancer d'abord le workflow suggéré puis d'y revenir. `mcp:` du workflow : seuls les serveurs MCP listés (absent : ceux du projet).
+  - **`oh run --headless [--output] [--timeout]`** : sans fenêtre, réponse écrite à la fin du tour (refusé si un checkpoint attend une validation) ; `oh takeover-brief enrich` passe par le workflow `brief-enrich`.
+  - **`oh bundle build|show <workflow> [--budget] [--json]`** : contenu du paquet de session (agents, délégations, skills, MCP, isolation, budget estimé du premier tour) ; `oh skill budget <workflow>` en est un alias.
+  - **`oh workflow list`** et **`oh workflow show <id> [--origin] [--json]`** (couche qui a posé chaque valeur).
+  - Migration **v34** : colonnes de lancement des sessions (couche, version et risque du workflow, emplacement, sorties, session précédente).
+- **TUI** :
+  - **« Démarrer »** sur l'accueil, le mode projet et le mode équipe : workflows épinglés (`*`), récents, catégories, « Tous les workflows » ; « Session libre » sans workflow (opencode V1).
+  - **Fiche de lancement** générée depuis le workflow : entrées (sélecteur de tickets Beads), options (mode, exécution avec disponibilité, emplacement, ouverture, une seule session), récapitulatif (agents, budget, sessions, avertissements, workflow à lancer d'abord) ; `Ctrl+S` lance.
+  - Omnibar : une commande `run <workflow>` par workflow (anciens noms en alias), `run <workflow> ⟨ticket⟩` sur les boards, catalogue `workflows`, `review.publish`.
+  - Board : `a` propose les workflows qui prennent un ticket (fiche ouverte sur le ticket).
+  - **Catalogue des workflows** (lecture seule) : couches, version, risque, exécutions, validité, détail.
+  - **« Enchaîner avec… »** (`e` dans la vue Sessions) : workflows qui prennent une sortie de la session (branche, tickets), fiche préremplie ; annonce en fin de session.
 
 ### Added — pilotage des sessions (phase 3, en cours)
 
@@ -54,7 +67,7 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ### Added — exécution en conteneur (phase 4, en cours)
 
-- **Runtime conteneur** (pas encore proposé dans `oh run` ni la TUI) : le serveur opencode d'un groupe de sessions tourne dans un conteneur, piloté par la ligne de commande de Colima, Podman ou Docker (choix automatique ; `OH_CONTAINER_ENGINE` pour forcer un moteur). macOS et Linux.
+- **Runtime conteneur** (`oh run --runtime container`, option « Exécution » de la fiche de lancement) : le serveur opencode d'un groupe de sessions tourne dans un conteneur, piloté par la ligne de commande de Colima, Podman ou Docker (choix automatique ; `OH_CONTAINER_ENGINE` pour forcer un moteur). macOS et Linux.
   - Image par projet : Dockerfile de développement du projet (`Dockerfile.dev`, `dev.Dockerfile`, `.devcontainer/Dockerfile`, `Dockerfile`, sinon une base Debian minimale) plus une couche oh avec opencode à la même version que sur la machine (téléchargé depuis npm, empreinte vérifiée) et un faux `bd`. Images mises en cache et étiquetées par empreinte ; les deux plus récentes sont gardées par projet.
   - Le paquet de session est monté en lecture seule ; le projet et ses worktrees en lecture-écriture, avec l'utilisateur de la machine (fichiers créés à son nom) ; la configuration opencode de l'utilisateur n'est pas visible.
   - Port du serveur publié sur `127.0.0.1` seulement ; l'interface opencode de la machine s'y attache comme en local.
@@ -63,14 +76,19 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ### Changed
 
+- **Anciennes commandes de lancement = alias dépréciés** des workflows (avertissement) : `oh start` → `feature`, `--dev`/`-t` → `ticket` (épopée : une session ou une par ticket), `--onboard` → `onboarding`, `--parallel` → `ticket --tickets`, `--sweep` → `sweep`, `--worktree` → `--location new`, `oh audit|review|debug`, `oh review feedback` → `review-feedback` ; sans opencode V2 ou sans le workflow, l'ancien lancement reste. `--agent` garde le lancement par agent (avec confirmation si `--recap`).
+- TUI : les entrées codées en dur (Quick, Dev, Audit, Review, Debug, Onboard), leurs sous-menus et le sélecteur de tickets huh pendant la TUI sont remplacés par « Démarrer » et la fiche de lancement ; le board ne crée plus de worktree lui-même (emplacement choisi dans la fiche).
+
 - Les anciens modes d'entrée A–E de l'orchestrator ont disparu des skills et des guides : chaque cas est un workflow (`feature`, `cadrage`, `onboarding`, `debug`, `ticket`) ; `orchestrator-dev` lit le mode de la session au lieu de le redemander (il ne le demande plus que hors workflow).
 - Les migrations SQLite v28–v31 s'appliquent à la base locale (`servers`, `proxy_grants`, colonnes de suivi des sessions) ; `~/.oh` passe en 0700 et `oh.db` (avec ses fichiers WAL) en 0600.
 - Au-delà de v31, une migration absente est appliquée même si une version plus récente l'est déjà (versions réservées par branches parallèles, fusionnées dans le désordre).
 - Les fichiers du paquet de session (`~/.oh/bundles/<hash>`) sont en lecture seule.
 - Skills : champ `bucket:` supprimé (jamais lu ; le bucket est décidé par le frontmatter de l'agent).
-- `orchestrator` : les modes d'entrée A–E et les checkpoints écrits en dur sont retirés (ils deviennent des workflows) ; l'agent garde sa posture et ses contrats. En attendant les workflows livrés, `oh start` n'aiguille plus selon le mode.
+- `orchestrator` : les modes d'entrée A–E et les checkpoints écrits en dur sont retirés (ils deviennent des workflows) ; l'agent garde sa posture et ses contrats. `oh start` lance le workflow `feature`.
 
 ### Fixed
+
+- `oh <commande> --help` affichait la page d'aide générale au lieu de l'aide de la commande.
 
 - Les questions des agents n'étaient suivies qu'à la reconnexion suivante du démon (session de l'événement `form.created` mal lue).
 - Un toast affiché pendant un formulaire de la TUI lui prenait le focus (flèches sans effet) ; l'accueil reprenait aussi le focus en se reconstruisant.
