@@ -6,7 +6,7 @@ This document describes OpenCode's internal behavior for the `todowrite` tool,
 the isolation constraints that follow from it, and the architectural decisions
 made to adapt todo list usage in the multi-agent hub.
 
-> See also: [task-delegation.fr.md](task-delegation.fr.md) (delegation mechanism),
+> See also: [task-delegation.en.md](task-delegation.en.md) (delegation mechanism),
 > [`skills/posture/tool-todowrite.md`](../../skills/posture/tool-todowrite.md) (usage rules).
 
 ---
@@ -20,6 +20,10 @@ Investigation of OpenCode's source code (`packages/opencode/src/tool/todo.ts`,
 `packages/opencode/src/session/todo.ts`, `packages/core/src/session/sql.ts`)
 revealed a hard constraint that directly impacts the responsibility architecture
 between agents.
+
+> The code excerpts on this page were taken from an opencode version older than V2. oh v5 requires
+> opencode V2; the principle (one todo list per session, child sessions for `task`) remains the one described here.
+> What changes in v5 is summarized in [v5 Sessions](#v5-sessions).
 
 ---
 
@@ -100,8 +104,8 @@ Agent B (session_id = B)  →  todo list B  ← ISOLATED, invisible
 Agent C (session_id = C)  →  todo list C  ← ISOLATED, invisible
 ```
 
-**Direct consequence:** only the todo list of the highest-level agent invoked directly
-by the user is visible in the OpenCode interface.
+**Direct consequence:** only the todo list of the root session agent (the workflow entry agent)
+is visible in the OpenCode interface.
 
 ---
 
@@ -109,17 +113,21 @@ by the user is visible in the OpenCode interface.
 
 | Agent | Invocation context | Session | Todo list visible? | Responsibility |
 |-------|--------------------|---------|-------------------|----------------|
-| `orchestrator` | Invoked by the user | Main | ✅ Yes | Maintains the ticket list (1 task per ticket) |
-| `orchestrator-dev` | Invoked directly by the user | Main | ✅ Yes | Maintains the ticket list with phase labels |
+| `conductor` | Entry agent (`cadrage`, `sweep`) | Root | ✅ Yes | Maintains the list of steps (one entry per agent and per checkpoint of the workflow map) |
+| `orchestrator` | Entry agent (`feature`, `libre`) | Root | ✅ Yes | Maintains the ticket list (1 task per ticket) |
+| `orchestrator-dev` | Entry agent (`ticket`, `review-feedback`) | Root | ✅ Yes | Maintains the ticket list with phase labels |
 | `orchestrator-dev` | Invoked via `task` from `orchestrator` | Isolated (child) | ❌ No | May maintain an internal list (debugging) — not visible |
-| `planner`, `pathfinder`, `onboarder`, `auditor`, `debugger`, `designer` | Invoked via `task` from `orchestrator` | Isolated (child) | ❌ No | No todowrite list |
-| `developer-*`, `reviewer`, `documentarian` | Invoked via `task` from `orchestrator-dev` | Isolated (grandchild) | ❌ No | No todowrite list |
+| `planner`, `pathfinder`, `onboarder`, `debugger`, `designer` | Invoked via `task` from `orchestrator` or `conductor` | Isolated (child) | ❌ No | No todowrite list |
+| `developer`, `developer-refactor`, `developer-migrator`, `reviewer`, `documentarian` | Invoked via `task` from `orchestrator-dev` | Isolated (grandchild in `feature`) | ❌ No | No todowrite list |
+
+An agent that is the entry agent of its workflow (`auditor` in `audit`, `debugger` in `debug`, `developer`
+in `quick`…) runs in the root session: its todo list, if it keeps one, is visible.
 
 ---
 
 ## Responsibility Rule
 
-> **The agent active in the session directly opened by the user is always
+> **The root session agent (the workflow entry agent) is always
 > the sole owner of the visible todo list.**
 
 This rule implies:
@@ -179,12 +187,29 @@ so the user knows where the implementation stands:
 
 ---
 
+## v5 Sessions
+
+- **Root session**: created by oh at launch (`oh run <workflow>`). Its agent is the workflow entry agent
+  (`entry.agent`, or `conductor` by default). It can be open in several clients at once (opencode, browser);
+  closing opencode does not stop the session. The visible todo list is that of this session.
+- **Child sessions**: each `task` creates a child session. The `ohd` daemon attaches it to the root session
+  for activity and decisions ("To handle" section of the Sessions view), but the todo list is not shared:
+  it stays specific to each session.
+- **Tracking on the oh side**: workflow progress is also visible outside opencode, in the oh Sessions view and the
+  checkpoint card (timeline `✔ cp-1 → developer → ⏸ cp-2 → ○ cp-3`). This timeline comes from the checkpoint
+  state machine, not from `todowrite` ([ADR-042](./adr/042-checkpoints-headless-decisions.en.md),
+  [ADR-047](./adr/047-session-interaction-daemon.en.md)).
+- **Permissions**: `todowrite` is explicitly allowed for `conductor`, `orchestrator`, and `orchestrator-dev`,
+  and denied for `brief-enricher`.
+
+---
+
 ## What Does Not Change
 
 - The fundamental rules of `tool-todowrite.md` apply without exception: exactly
   1 task `in_progress` at a time, real-time updates, full list on every call.
-- Agents `developer-*`, `reviewer`, `documentarian` do not use `todowrite` —
-  they are always invoked as subagents and their sessions are invisible.
+- Agents `developer`, `developer-refactor`, `developer-migrator`, `reviewer`, `documentarian` do not use
+  `todowrite` when invoked as subagents: their sessions are invisible.
 - The inter-agent handoff mechanism (`## Return to <parent>`, `## Question for <parent>`)
   remains the only communication channel between isolated sessions.
 
@@ -195,4 +220,4 @@ so the user knows where the implementation stands:
 - [`skills/posture/tool-todowrite.md`](../../skills/posture/tool-todowrite.md) — Usage rules and phase suffixes
 - [`skills/orchestrator/orchestrator-protocol.md`](../../skills/orchestrator/orchestrator-protocol.md) — Update rules for the feature orchestrator
 - [`skills/orchestrator/orchestrator-dev-protocol.md`](../../skills/orchestrator/orchestrator-dev-protocol.md) — Dynamic labels for standalone orchestrator-dev
-- [`docs/architecture/task-delegation.fr.md`](task-delegation.fr.md) — Delegation via `task`, session isolation, `task_id`
+- [`docs/architecture/task-delegation.en.md`](task-delegation.en.md) — Delegation via `task`, session isolation, `task_id`

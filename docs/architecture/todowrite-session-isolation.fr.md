@@ -22,6 +22,10 @@ L'investigation du code source d'OpenCode (`packages/opencode/src/tool/todo.ts`,
 a révélé une contrainte forte qui impacte directement l'architecture de responsabilité
 entre agents.
 
+> Les extraits de code de cette page ont été relevés sur une version d'opencode antérieure à la V2. oh v5 exige
+> opencode V2 ; le principe (une todo list par session, sessions enfants pour `task`) reste celui décrit ici.
+> Ce qui change en v5 est résumé dans [Sessions v5](#sessions-v5).
+
 ---
 
 ## Architecture interne — Comment OpenCode stocke la todo list
@@ -101,8 +105,8 @@ Agent B (session_id = B)  →  todo list B  ← ISOLÉE, invisible
 Agent C (session_id = C)  →  todo list C  ← ISOLÉE, invisible
 ```
 
-**Conséquence directe :** seule la todo list de l'agent de plus haut niveau invoqué
-directement par l'utilisateur est visible dans l'interface OpenCode.
+**Conséquence directe :** seule la todo list de l'agent de la session racine (l'agent d'entrée
+du workflow) est visible dans l'interface OpenCode.
 
 ---
 
@@ -110,17 +114,21 @@ directement par l'utilisateur est visible dans l'interface OpenCode.
 
 | Agent | Contexte d'invocation | Session | Todo list visible ? | Responsabilité |
 |-------|-----------------------|---------|---------------------|----------------|
-| `orchestrator` | Invoqué par l'utilisateur | Principale | ✅ Oui | Maintient la liste des tickets (1 tâche par ticket) |
-| `orchestrator-dev` | Invoqué directement par l'utilisateur | Principale | ✅ Oui | Maintient la liste des tickets avec labels de phase |
+| `conductor` | Agent d'entrée (`cadrage`, `sweep`) | Racine | ✅ Oui | Maintient la liste des étapes (une entrée par agent et par checkpoint de la carte du workflow) |
+| `orchestrator` | Agent d'entrée (`feature`, `libre`) | Racine | ✅ Oui | Maintient la liste des tickets (1 tâche par ticket) |
+| `orchestrator-dev` | Agent d'entrée (`ticket`, `review-feedback`) | Racine | ✅ Oui | Maintient la liste des tickets avec labels de phase |
 | `orchestrator-dev` | Invoqué via `task` depuis `orchestrator` | Isolée (enfant) | ❌ Non | Peut maintenir une liste interne (débogage) — non visible |
-| `planner`, `pathfinder`, `onboarder`, `auditor`, `debugger`, `designer` | Invoqués via `task` depuis `orchestrator` | Isolée (enfant) | ❌ Non | Pas de liste todowrite |
-| `developer-*`, `reviewer`, `documentarian` | Invoqués via `task` depuis `orchestrator-dev` | Isolée (petit-enfant) | ❌ Non | Pas de liste todowrite |
+| `planner`, `pathfinder`, `onboarder`, `debugger`, `designer` | Invoqués via `task` depuis `orchestrator` ou `conductor` | Isolée (enfant) | ❌ Non | Pas de liste todowrite |
+| `developer`, `developer-refactor`, `developer-migrator`, `reviewer`, `documentarian` | Invoqués via `task` depuis `orchestrator-dev` | Isolée (petit-enfant dans `feature`) | ❌ Non | Pas de liste todowrite |
+
+Un agent qui est l'agent d'entrée de son workflow (`auditor` dans `audit`, `debugger` dans `debug`, `developer`
+dans `quick`…) tourne dans la session racine : sa todo list, s'il en tient une, est visible.
 
 ---
 
 ## Règle de responsabilité
 
-> **L'agent actif dans la session directement ouverte par l'utilisateur est toujours
+> **L'agent de la session racine (l'agent d'entrée du workflow) est toujours
 > le seul responsable de la todo list visible.**
 
 Cette règle implique :
@@ -180,12 +188,29 @@ Quand `orchestrator-dev` est invoqué directement, mettre à jour le label de la
 
 ---
 
+## Sessions v5
+
+- **Session racine** : créée par oh au lancement (`oh run <workflow>`). Son agent est l'agent d'entrée du workflow
+  (`entry.agent`, ou `conductor` par défaut). Elle peut être ouverte dans plusieurs clients à la fois (opencode,
+  navigateur) ; fermer opencode ne coupe pas la session. La todo list visible est celle de cette session.
+- **Sessions enfants** : chaque `task` crée une session enfant. Le démon `ohd` la rattache à la session racine
+  pour l'activité et les décisions (section « À traiter » de la vue Sessions), mais la todo list n'est pas
+  partagée : elle reste propre à chaque session.
+- **Suivi côté oh** : l'avancement du workflow est aussi visible hors d'opencode, dans la vue Sessions de oh et la
+  fiche checkpoint (frise `✔ cp-1 → developer → ⏸ cp-2 → ○ cp-3`). Cette frise vient de la machine à états des
+  checkpoints, pas de `todowrite` ([ADR-042](./adr/042-checkpoints-headless-decisions.fr.md),
+  [ADR-047](./adr/047-session-interaction-daemon.fr.md)).
+- **Permissions** : `todowrite` est autorisé explicitement pour `conductor`, `orchestrator` et `orchestrator-dev`,
+  et refusé pour `brief-enricher`.
+
+---
+
 ## Ce qui ne change pas
 
 - Les règles fondamentales de `tool-todowrite.md` s'appliquent sans exception : exactement
   1 tâche `in_progress` à la fois, mise à jour en temps réel, liste complète à chaque appel.
-- Les agents `developer-*`, `reviewer`, `documentarian` n'utilisent pas `todowrite` —
-  ils sont toujours invoqués en tant que sous-agents et leurs sessions sont invisibles.
+- Les agents `developer`, `developer-refactor`, `developer-migrator`, `reviewer`, `documentarian` n'utilisent pas
+  `todowrite` quand ils sont invoqués en tant que sous-agents : leurs sessions sont invisibles.
 - Le mécanisme de handoff inter-agents (`## Retour vers <parent>`, `## Question pour <parent>`)
   reste le seul canal de communication entre sessions isolées.
 

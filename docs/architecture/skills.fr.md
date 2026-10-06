@@ -1,248 +1,374 @@
+> [Read in English](skills.en.md)
+
 # Référence des skills
 
 Les skills contiennent des protocoles détaillés, des formats de sortie, des checklists et des règles que les agents appliquent.
-Le hub utilise une **architecture hybride** avec deux chemins de livraison — voir [ADR-010](./adr/010-hybrid-skills-architecture.fr.md).
+Le hub utilise une **architecture hybride** avec deux chemins de livraison (Bucket A inliné, Bucket B à la demande) — voir [ADR-010](./adr/010-hybrid-skills-architecture.fr.md).
 
-Depuis la v5, les skills ne sont plus déployées dans le projet (`oh deploy` supprimé en v5) : `internal/bundle` construit, à chaque lancement, un paquet de session `~/.oh/bundles/<hash>/` à partir du workflow — agents avec leurs skills Bucket A intégrées, skills à la demande (Bucket B, skills stack, `skills.extra`), permissions, MCP et plugin ; l'adaptateur en produit la config opencode. Monde fermé : seules les skills du paquet sont disponibles pour la session.
+Sources de vérité :
 
-> Voir le [Glossaire](../reference/glossary.fr.md) pour les definitions de Skill, Bucket A/B, Stack Skills et autres termes.
+- le dossier `skills/` du hub (198 fichiers : 184 skills et 14 annexes dans `skills/templates/`) ;
+- le frontmatter des agents (`agents/**/*.md`) : `skills:` = Bucket A (inliné), `native_skills:` = Bucket B (à la demande).
+
+Depuis la v5, rien n'est plus déployé dans le projet : les skills arrivent dans la session par le **paquet de session**, construit à chaque lancement depuis le workflow (voir ci-dessous).
+
+> Voir le [Glossaire](../reference/glossary.fr.md) pour les définitions de Skill, Bucket A/B, Stack Skills et autres termes.
+
+---
+
+## Livraison dans le paquet de session (v5)
+
+À chaque lancement (`oh run <workflow>`), `internal/bundle` construit le paquet de session `~/.oh/bundles/<hash>/` à partir du **workflow résolu** ([ADR-043](./adr/043-session-bundle-deploy-removal.fr.md), [ADR-039](./adr/039-declarative-workflows-oh-v1.fr.md)). Le paquet est immuable, en lecture seule et identifié par un hash de son contenu : même entrée, même paquet.
+
+### Ce que contient le paquet
+
+| Élément | Origine | Où dans le paquet |
+|---------|---------|-------------------|
+| **Agents membres du workflow** | Bloc `agents:` du workflow | `agents/<id>.md` |
+| **Skills Bucket A** | `skills:` du frontmatter de chaque agent membre (+ fermeture `requires:`) | Inlinées dans le corps de l'agent |
+| **Skills Bucket B** | `native_skills:` des agents membres, fermeture `requires:` résolue | `skills/<id>/SKILL.md` (+ annexes `annexes:`) |
+| **Skills de stack** | Détectées dans le projet au lancement (`ResolveStackSkills`) | `skills/<id>/SKILL.md` |
+| **`skills.extra` / `skills.deny`** | Bloc `skills:` du workflow : `extra` ajoute des skills (hub, catalogue de l'équipe, communautaires), `deny` en retire | Ajout ou retrait dans `skills/` |
+| **Skills générées depuis le YAML** | Le workflow lui-même | Remplacent la version statique de même référence |
+
+Skills générées depuis le YAML du workflow (`cli/internal/bundle/workflowgen.go`) :
+
+- `workflow/workflow-map` : carte du workflow (agents, délégations, checkpoints, modes, sorties). Inlinée dans `conductor`. La version statique de `skills/workflow/workflow-map.md` ne sert que hors workflow.
+- `orchestrator/orchestrator-workflow-modes` et `shared/hub-workflow-reference` : versions générées pour les agents qui les chargent (`orchestrator`, `orchestrator-dev`, `planner`). Elles remplacent le fichier statique du hub.
+
+Règles de construction :
+
+- l'identifiant d'une skill dans le paquet est le dernier segment de sa référence (`developer/beads-plan` → `beads-plan`). Il doit être unique et égal au `name:` du frontmatter ;
+- une dépendance `requires:` introuvable, refusée par `skills.deny` ou cyclique est une erreur au build ;
+- une skill référencée par un agent mais absente du hub est ignorée (avertissement) ; `oh skill check` signale ces cas.
+
+### Monde fermé
+
+Le modèle ne voit que les skills du paquet ([ADR-041](./adr/041-closed-world-isolation.fr.md)) :
+
+- l'outil `skill` est refusé sur `*`, puis autorisé pour les seules skills du paquet ;
+- les skills intégrées d'opencode (`opencode`, `report`) sont donc refusées ;
+- au démarrage, `Attest` compare ce que le serveur expose (agents, skills visibles pour chaque agent, MCP) au paquet. Un écart fait échouer le lancement.
+
+Conséquence : une skill que l'on demande dans un prompt (par exemple `[SKILL:...]` injecté par un coordinateur) n'est disponible que si elle est dans le paquet.
+
+### Coût d'un paquet
+
+```bash
+oh bundle show <workflow> --budget          # tokens estimés par agent et par skill
+oh bundle show <workflow> -p <projet>       # avec les skills de stack du projet
+oh bundle build <workflow> --json           # construit le paquet et décrit son contenu
+```
+
+`oh skill budget <wf>` est un alias déprécié de `oh bundle show <wf> --budget`. Le budget est une estimation (≈ 4 caractères par token). Dans la TUI, le **Catalogue des briques** (`bricks`) montre les skills, leur origine, leur coût estimé et les workflows qui les livrent.
+
+ADR liés : [ADR-043](./adr/043-session-bundle-deploy-removal.fr.md) (paquet de session), [ADR-041](./adr/041-closed-world-isolation.fr.md) (monde fermé), [ADR-039](./adr/039-declarative-workflows-oh-v1.fr.md) (workflows `oh/v1`), [ADR-010](./adr/010-hybrid-skills-architecture.fr.md) (Bucket A/B, évolué par 043), [ADR-008](./adr/008-stack-skills-dynamic-injection.fr.md) (skills de stack, évolué par 043).
+
+---
 
 ## Vue d'ensemble de l'injection de skills
 
 ```mermaid
 flowchart TD
-    START(["Agent invoque"]) --> P1 & P2 & P3 & P4
+    WF(["Workflow résolu<br/>oh/v1 · hub &lt; équipe &lt; projet"]) --> BUILD["internal/bundle<br/>construit ~/.oh/bundles/&lt;hash&gt;/"]
 
-    subgraph P1 ["Chemin 1 : Bucket A (Inline)"]
-        A1["skills: [...] dans le frontmatter"] --> A2["Toujours dans le system prompt"]
+    subgraph P1 ["1. Bucket A (inline)"]
+        A1["skills: [...] du frontmatter"] --> A2["Assemblé dans agents/&lt;id&gt;.md"]
     end
 
-    subgraph P2 ["Chemin 2 : Bucket B (Natif)"]
-        B1["native_skills: [...] dans le frontmatter"] --> B2["Charge a la demande via l'outil skill"]
+    subgraph P2 ["2. Bucket B (à la demande)"]
+        B1["native_skills: [...]<br/>+ fermeture requires:"] --> B2["skills/&lt;id&gt;/SKILL.md"] --> B3["Chargé via l'outil skill"]
     end
 
-    subgraph P3 ["Chemin 3 : Detection de stack"]
-        C1["La construction du paquet detecte la stack"] --> C2["Injecte les stack skills correspondants"]
+    subgraph P3 ["3. Skills de stack"]
+        C1["Fichiers du projet<br/>lus au lancement"] --> C2["dev-standards-react,<br/>dev-standards-golang…"]
     end
 
-    subgraph P4 ["Chemin 4 : Injection par domaine"]
-        D1["orchestrator-dev route le ticket"] --> D2["Injecte les native_skills du domaine"]
+    subgraph P4 ["4. Workflow"]
+        D1["skills.extra<br/>(hub, catalogue d'équipe,<br/>communautaires)"] --> D3["Ajoutées"]
+        D2["skills.deny"] --> D4["Retirées"]
     end
 
-    P1 & P2 & P3 & P4 --> AGENT["Runtime de l'agent"]
+    subgraph P5 ["5. Générées depuis le YAML"]
+        E1["workflow/workflow-map<br/>(inlinée dans conductor)"]
+        E2["orchestrator-workflow-modes ·<br/>hub-workflow-reference<br/>(versions générées)"]
+    end
+
+    BUILD --> P1 & P2 & P3 & P4 & P5
+    P1 & P2 & P3 & P4 & P5 --> AGENT["Agents de la session<br/>ne voient que les skills du paquet<br/>(skills intégrées d'opencode refusées,<br/>vérifié par Attest au démarrage)"]
 ```
 
 > Source du diagramme : [`docs/diagrams/skill-injection-flow.mermaid`](../diagrams/skill-injection-flow.mermaid)
 
+---
+
 ## Chemins de livraison
 
-| Chemin | Champ frontmatter | Livré dans | Quand chargé |
-|--------|------------------|--------------|--------------|
-| **Inline (Bucket A)** | `skills: [...]` | Assemblé dans le system prompt de l'agent à la construction du paquet de session | Toujours — dès le premier token |
-| **Natif (Bucket B)** | `native_skills: [...]` | `~/.oh/bundles/<hash>/skills/<name>/SKILL.md` (paquet de session) | À la demande — le LLM les charge via l'outil `skill` quand la tâche le requiert |
+| Chemin | Déclaration | Livré dans | Quand chargé |
+|--------|-------------|------------|--------------|
+| **Inline (Bucket A)** | `skills: [...]` du frontmatter de l'agent | Corps de l'agent, `agents/<id>.md` du paquet | Toujours — dès le premier token |
+| **Natif (Bucket B)** | `native_skills: [...]` du frontmatter de l'agent | `skills/<id>/SKILL.md` du paquet | À la demande — le LLM la charge via l'outil `skill` |
+| **Stack** | Détection automatique dans le projet | `skills/<id>/SKILL.md` du paquet | À la demande |
+| **Workflow** | `skills.extra` (ajout) / `skills.deny` (retrait) | `skills/<id>/SKILL.md` du paquet | À la demande |
+| **Générée** | YAML du workflow | Remplace la skill statique de même référence (inline ou à la demande) | Comme la skill remplacée |
 
-**Bucket A** — Protocoles de workflow, formats de handoff, principes universels, skills de posture, skills d'exécution de base (`beads-plan`, `beads-dev`, `quick-fix`). Doit être actif dès le premier token.
+**Bucket A** — Protocoles de workflow, formats de handoff, principes universels, skills de posture, skills d'exécution de base (`beads-dev`, `quick-fix`). Doit être actif dès le premier token.
 
-**Bucket B** — Standards de domaine, skills spécifiques aux stacks, checklists d'audit, skills de type documentaire, skills de recherche contextuelle. Chargées uniquement quand la tâche de l'agent nécessite ce contexte de domaine spécifique.
+**Bucket B** — Standards de domaine, skills de stack, checklists, skills de type documentaire, phases détaillées, skills de recherche. Chargées seulement quand la tâche en a besoin.
 
-Les agents qui utilisent des skills natives ont `permission: skill: allow` dans leur frontmatter.
-Les agents coordinateurs/orchestrateurs qui n'ont jamais besoin de skills contextuelles ont `permission: skill: deny`.
+Tous les agents du hub ont `permission: skill: allow`, directement ou par leur `permission_base` (`coordinator`, `developer-rw`, `readonly-code`). Dans la session, les règles du monde fermé limitent l'outil `skill` aux skills du paquet.
 
 ---
 
-## Inventaire complet des skills (source de verite)
+## Inventaire des skills (source de vérité)
 
-**176 fichiers skill** dans 13 repertoires (130 skills domaine + 46 skills stack).
+**184 skills** dans 13 dossiers (144 skills de domaine + 40 skills de stack), plus **14 annexes** dans `skills/templates/`.
 
-> Cet inventaire est genere depuis le filesystem. Pour savoir quels agents utilisent chaque skill, voir la [Matrice d'assignation des skills](./agents.fr.md#matrice-dassignation-des-skills-source-de-verite).
+Lecture des tableaux : la colonne **Agents** donne le bucket et les agents d'après leur frontmatter (`A` = `skills:`, `B` = `native_skills:`). `—` = aucun agent ne la référence : la skill n'est dans un paquet que si un workflow l'ajoute par `skills.extra`.
 
-### `shared/` — 12 skills (transversaux)
+Notations courtes :
 
-| Fichier | Description |
-|---------|-------------|
-| `universal-guardrails` | Contraintes de securite et garde-fous comportementaux (Bucket A dans tous les agents) |
-| `living-docs-enrichment` | Enrichissement incremental de la documentation vivante (Bucket B) |
-| `hub-workflow-reference` | Reference des modes workflow du hub (Bucket A) |
-| `rtk-usage` | Patterns et usage de RTK query (Bucket B) |
-| `websearch-usage` | Guide d'optimisation des queries WebSearch (Bucket A) |
-| `wiki-navigation` | Protocole de navigation du wiki vivant (Bucket A) |
-| `context-mode-usage` | Guide d'usage des outils context-mode (Bucket A) |
-| `elicitation-techniques` | Techniques d'elicitation pour le recueil de besoins (Bucket B) |
-| `skill-authoring-protocol` | Protocole de redaction de nouveaux skills (Bucket B) |
-| `team-awareness` | Conscience d'etat equipe pour la coordination multi-utilisateurs (Bucket B) |
-| `team-policies-enforcement` | Regles d'enforcement des policies equipe (Bucket B) |
+- **tous** = les 19 agents sauf `brief-enricher` ;
+- **dev-rw** = `developer`, `developer-refactor`, `developer-migrator`.
 
+### `shared/` — 16 skills (transverses)
+
+| Skill | Agents | Contenu |
+|-------|--------|---------|
+| `universal-guardrails` | A : tous | Garde-fous transverses — git push, ordre récap/question, usage de context-mode, nettoyage des processus en arrière-plan |
+| `wiki-navigation` | A : auditor-subagent, database, dev-rw, infra, onboarder, pathfinder, benchmarker, debugger, reviewer, test-generator | Navigation du wiki vivant : lire l'index d'abord, charger les pages utiles, jamais le wiki entier |
+| `hub-workflow-reference` | A : orchestrator, planner | Catalogue des agents, heuristique pathfinder vs planner, séquences standard, table des handoffs. **Version générée depuis le workflow** dans le paquet |
+| `websearch-usage` | A : pathfinder · B : auditor-subagent, designer, documentarian, onboarder, planner | Bonnes pratiques de l'outil `websearch` : requêtes ciblées, vérification des sources |
+| `living-docs-enrichment` | B : auditor, database, dev-rw, infra, onboarder, pathfinder, planner, benchmarker, debugger, reviewer, test-generator | Enrichissement incrémental du wiki (`docs/wiki/`), d'`ONBOARDING.md` et de `CONVENTIONS.md` ; délègue l'écriture au documentarian après confirmation |
+| `team-awareness` | B : les 20 agents | Collaboration via le serveur MCP `team` (claims, statut, activité) |
+| `team-policies-enforcement` | B : les 20 agents sauf conductor | Respect des politiques d'équipe |
+| `skill-authoring-protocol` | B : documentarian | Rédaction de skills — TDD RED/GREEN/REFACTOR, checklist SDO, anti-patterns, checklist de validation |
+| `rtk-usage` | B : 15 agents | **Antérieure à v5** — guide RTK (voir [Skills antérieures à v5](#skills-antérieures-à-v5)) |
+| `context-mode-usage` | A : dev-rw | **Antérieure à v5** — usage des outils `ctx_*` de context-mode (voir [Skills antérieures à v5](#skills-antérieures-à-v5)) |
+| `elicitation-techniques` | — | Techniques d'élicitation quand les besoins sont ambigus |
+| `handoff-bloc-unique-rule` | — | Contrat universel de handoff (règles producteur/consommateur) |
+| `phase-0-validation-loop` | — | Boucle de validation Phase 0 (Démarrer / Préciser / Arrêter) |
+| `standalone-execution-protocol` | — | Protocole d'exécution standalone (détection du mode, ordre récap → question) |
+| `subagent-execution-protocol` | — | Protocole d'exécution sous-agent (interruption, checklist) |
+| `tracker-integration-protocol` | — | Intégration tracker GitLab/GitHub (déclencheurs, lecture de ticket, erreurs) |
+
+Les six dernières ne sont dans aucun frontmatter : d'autres skills les citent dans leur texte, mais cela ne les ajoute pas au paquet (seul `requires:` le fait).
 
 ### `posture/` — 7 skills (posture comportementale)
 
-| Fichier | Description |
-|---------|-------------|
-| `coordination-only` | Agents coordinateurs : ne jamais coder, uniquement deleguer (Bucket A) |
-| `concision-posture` | Regles de formatage de sortie concise (Bucket A) |
-| `subagent-concision-posture` | Regles de concision specifiques aux sous-agents (Bucket A) |
-| `expert-posture` | Posture de raisonnement niveau expert (Bucket A) |
-| `retranscription-coordinateur` | Regles de retranscription structuree pour les coordinateurs (Bucket A) |
-| `tool-question` | Directives pour l'usage de l'outil `question` (Bucket A) |
-| `tool-todowrite` | Directives pour l'usage de l'outil `todowrite` (Bucket A) |
+| Skill | Agents | Contenu |
+|-------|--------|---------|
+| `coordination-only` | A : auditor, conductor, orchestrator, orchestrator-dev | Coordinateurs : ne jamais coder, seulement déléguer (`task`, `question`) |
+| `concision-posture` | A : conductor, orchestrator, orchestrator-dev, pathfinder, planner, reviewer | Concision niveau `lite` : supprime les formules d'intro, les reformulations du contexte connu, les transitions et formules de clôture. Ne touche ni aux blocs handoff, ni aux récaps obligatoires, ni au contenu technique. Voir [ADR-015](./adr/015-concision-posture.fr.md) |
+| `subagent-concision-posture` | A : auditor-subagent, dev-rw | Concision des sous-agents : seul le bloc de handoff est attendu |
+| `expert-posture` | B : auditor-subagent, designer, documentarian, onboarder, planner, debugger | Exploration avant de répondre, recommandation contraire argumentée (⚠️), pause de confirmation avant une action à risque (🛑) |
+| `retranscription-coordinateur` | A : auditor, conductor, orchestrator, orchestrator-dev | Retranscription des retours de sous-agents par les coordinateurs |
+| `tool-question` | A : tous sauf auditor-subagent et dev-rw | Outil `question` d'opencode — syntaxe, multi-questions, `multiple: true`, structure obligatoire (`header` ≤ 30 car.), option recommandée en premier |
+| `tool-todowrite` | A : conductor, orchestrator, orchestrator-dev | Outil `todowrite` — seuil des 3 étapes, mise à jour en temps réel, différence avec Beads |
 
-### `orchestrator/` — 17 skills
+### `orchestrator/` — 19 skills
 
-| Fichier | Description |
-|---------|-------------|
-| `orchestrator-protocol` | Protocole workflow principal de l'orchestrateur (Bucket A) |
-| `orchestrator-workflow-modes` | Definitions des modes workflow manuel/semi-auto/auto (Bucket A) |
-| `orchestrator-handoff-format` | Format de handoff structure pour la delegation (Bucket A) |
-| `orchestrator-modes` | Reference des modes d'entree de l'orchestrateur (Bucket B) |
-| `orchestrator-ticket-routing` | Logique de routage ticket-vers-agent (Bucket B) |
-| `orchestrator-recap-edge` | Cas limites du formatage des recaps (Bucket B) |
-| `orchestrator-dev-protocol` | Protocole workflow orchestrator-dev (Bucket A) |
-| `orchestrator-dev-standalone` | Comportement en mode standalone (Bucket B) |
-| `orchestrator-dev-subagent` | Comportement en mode sous-agent (Bucket B) |
-| `orchestrator-dev-ticket-workflow` | Workflow du cycle de vie des tickets (Bucket B) |
-| `orchestrator-dev-parallel` | Coordination des sessions paralleles (Bucket B) |
-| `orchestrator-dev-recap` | Formatage des recaps de session (Bucket B) |
-| `orchestrator-dev-edge-cases` | Gestion des cas limites (Bucket B) |
-| `parallel-coordination` | Protocole de coordination de sessions paralleles |
-| `session-state-protocol` | Protocole de persistance d'etat de session (Bucket B) |
-| `takeover-context-protocol` | Protocole de generation de contexte de reprise |
-| `team-coordination` | Protocole de coordination d'equipe |
+| Skill | Agents | Contenu |
+|-------|--------|---------|
+| `orchestrator-protocol` | A : orchestrator | Protocole de l'orchestrator feature — index, règles, entrées de session, CP-0. L'enchaînement vient du workflow de la session |
+| `orchestrator-workflow-modes` | A : orchestrator, orchestrator-dev | Les 3 modes (manuel / semi-auto / auto) — comportements par checkpoint, règles absolues. **Version générée depuis le workflow** dans le paquet |
+| `orchestrator-handoff-format` | A : orchestrator, orchestrator-dev | **Contrat de handoff** orchestrator-dev ↔ orchestrator : `## Retour vers orchestrator` (synthèse par ticket puis tableau de détail, statut `succès`/`partiel`/`bloqué`) et `## Question pour l'orchestrator` (CP à enjeu fort, `task_id` pour la reprise) |
+| `orchestrator-recap-edge` | B : orchestrator | Récap global de feature et cas particuliers |
+| `orchestrator-dev-protocol` | A : orchestrator-dev | Index, matrice de routage domaine → skills à demander à `developer`, détection du label `tdd`. Phases détaillées chargées à la demande |
+| `orchestrator-dev-ticket-workflow` | B : orchestrator-dev | Workflow ticket par ticket (étapes 1a à 6 : présentation, branche, délégation, pre-review, review, décision, compte rendu) |
+| `orchestrator-dev-standalone` | B : orchestrator-dev | Parcours standalone — CP-0 récapitule les tickets, CP via l'outil `question` |
+| `orchestrator-dev-subagent` | B : orchestrator-dev | Parcours sous-agent — CP à enjeu fort remontés par blocs `## Question pour l'orchestrator` |
+| `orchestrator-dev-recap` | B : orchestrator-dev | Récap d'implémentation, bloc retour, métriques |
+| `orchestrator-dev-edge-cases` | B : orchestrator-dev | Cas particuliers : dérive, review échouée, conflits, panne d'agent |
+| `orchestrator-dev-feedback-mode` | — | Mini-workflow de correction depuis un feedback de review (`[MODE:feedback]`) |
+| `orchestrator-dev-parallel` | B : orchestrator-dev | **Antérieure à v5** — parallélisme par worktrees dans une session (voir [Skills antérieures à v5](#skills-antérieures-à-v5)) |
+| `parallel-coordination` | B : orchestrator-dev | **Antérieure à v5** — coordination de l'ancien mode parallèle |
+| `session-state-protocol` | B : orchestrator-dev | **Antérieure à v5** — état de session pour l'ancien tableau de bord TUI |
+| `error-recovery-protocol` | B : orchestrator-dev | Retry et reprise après échec d'un sous-agent : classification, budget de retry, replis |
+| `team-coordination` | B : orchestrator-dev | Coordination d'équipe (claims, conflits, passage de relais) |
+| `takeover-context-protocol` | B : orchestrator, orchestrator-dev | Utiliser un brief de reprise sur un ticket transféré par un autre membre |
+| `orchestrator-modes` | — | **Antérieure à v5** — les 5 modes d'entrée de l'orchestrator (A à E) |
+| `orchestrator-ticket-routing` | — | **Antérieure à v5** — routage par type de ticket |
 
-### `planning/` — 18 skills
+### `planning/` — 24 skills
 
-| Fichier | Description |
-|---------|-------------|
-| `planner-workflow` | Workflow planner en 6 phases (Bucket A) |
-| `planner-handoff-format` | Contrat de handoff du planner (Bucket A) |
-| `planner-design-templates` | Templates pour les livrables design (Bucket A) |
-| `planner-beads-templates` | Templates pour la creation de tickets Beads (Bucket A) |
-| `planner-execution-modes` | Modes standalone vs sous-agent (Bucket B) |
-| `planner-patterns-protocol` | Integration de la bibliotheque de patterns (Bucket B) |
-| `planner-phase-0` a `planner-phase-5-6` | Protocoles detailles par phase (Bucket B, 5 fichiers) |
-| `pathfinder-protocol` | Protocole de reconnaissance pathfinder (Bucket A) |
-| `pathfinder-handoff-format` | Contrat de handoff pathfinder (Bucket A/B) |
-| `pathfinder-execution-modes` | Modes standalone vs sous-agent (Bucket B) |
-| `onboarder-workflow` | Workflow onboarder en 6 phases (Bucket A) |
-| `onboarder-handoff-format` | Contrat de handoff onboarder (Bucket A) |
-| `onboarder-profiles` | 7 profils d'exploration adaptive (Bucket A) |
-| `onboarder-execution-modes` | Modes standalone vs sous-agent (Bucket B) |
-| `onboarder-phase-0` a `onboarder-phase-5` | Protocoles detailles par phase (Bucket B, 5 fichiers) |
-| `websearch-stack-research` | WebSearch pour la recherche de stack (Bucket B) |
+| Skill | Agents | Contenu |
+|-------|--------|---------|
+| `planner-workflow` | A : planner | Workflow planner en 7 phases — index et principes (0 prérequis → 0.5 complexity scoring → 1 exploration + signaux UX/UI → 1.5 délégation design → 2 questions → 3 plan → 4 cas particuliers → 5 création Beads → 5.5 ai-delegated → 6 vérification) |
+| `planner-handoff-format` | A : orchestrator, planner | **Contrat de handoff** — tickets créés avec agent prévu et dépendances, hypothèses, estimation, risques, statut |
+| `planner-execution-modes` | B : planner | Parcours standalone et sous-agent du planner |
+| `planner-phase-0` | B : planner | Phase 0 (prérequis) et 0.5 (complexity scoring : 4 critères × 4 pts, tiers Small/Medium/Large/Enterprise) |
+| `planner-phase-1` | B : planner | Phase 1 (exploration) et 1.5 (délégation design) |
+| `planner-phase-2` | B : planner | Phase 2 — questions complémentaires |
+| `planner-phase-3-4` | B : planner | Phase 3 (plan hiérarchique) et 4 (cas particuliers) |
+| `planner-phase-5-6` | B : planner | Phase 5 (création Beads), 5.5 (ai-delegated), 6 (vérification) |
+| `planner-design-templates` | B : planner | Délégation design Phase 1.5 — options UX/UI, contexte à transmettre, reprise après spec |
+| `planner-beads-templates` | B : planner | Création de tickets Beads (Phase 5) — epics, features, tasks, dépendances, labels |
+| `planner-patterns-protocol` | B : planner | Utilisation de la bibliothèque de patterns |
+| `pathfinder-protocol` | A : pathfinder | Reconnaissance rapide, estimation XS→XL, draft de plan, recommandation direct / escalade |
+| `pathfinder-handoff-format` | A : pathfinder · B : orchestrator | **Contrat de handoff** — rapport pathfinder et format d'escalade vers le planner |
+| `pathfinder-execution-modes` | B : pathfinder | Parcours standalone et sous-agent du pathfinder |
+| `onboarder-workflow` | A : onboarder | Workflow onboarder en 6 phases — index et principes |
+| `onboarder-handoff-format` | A : onboarder · B : orchestrator | **Contrat de handoff** — stack, conventions, dette (🔴/🟠/🟡), zones d'incertitude, fichiers produits, statut |
+| `onboarder-profiles` | A : onboarder | Profils d'exploration par technologie (Vue.js, React/Next.js, Node.js, Python, API, Data/ML, DevOps, Mobile) |
+| `onboarder-execution-modes` | B : onboarder | Parcours standalone et sous-agent de l'onboarder |
+| `onboarder-phase-0` | B : onboarder | Phase 0 — prérequis |
+| `onboarder-phase-1` | B : onboarder | Phase 1 — exploration adaptative |
+| `onboarder-phase-2` | B : onboarder | Phase 2 — questions complémentaires |
+| `onboarder-phase-3-4` | B : onboarder | Phase 3 (rapport de contexte, matrice agents) et 4 (cas particuliers) |
+| `onboarder-phase-5` | B : onboarder | Phase 5 — production du wiki vivant |
+| `websearch-stack-research` | B : onboarder, pathfinder, planner | Recherche de stacks, librairies et patterns via websearch |
 
-### `developer/` — 16 skills generiques + 46 skills stack
+### `developer/` — 19 skills génériques + 40 skills de stack
 
-| Fichier | Description |
-|---------|-------------|
-| `dev-standards-universal` | Clean Code, SOLID, nommage (Bucket A) |
-| `dev-standards-simplicity` | KISS, YAGNI, seuils de complexite (Bucket A) |
-| `dev-standards-security` | Bonnes pratiques securite (Bucket B) |
-| `dev-standards-backend` | Architecture en couches, DTOs, services (Bucket B) |
-| `dev-standards-frontend` | Architecture composants, performance (Bucket B) |
-| `dev-standards-frontend-data` | Matrice de decision gestion d'etat frontend (Bucket B) |
-| `dev-standards-frontend-a11y` | Accessibilite WCAG 2.1 (Bucket B) |
-| `dev-standards-testing` | Strategie de tests, pyramide, couverture (Bucket B) |
-| `dev-standards-git` | Conventional Commits, branches, PRs (Bucket B) |
-| `dev-standards-api` | Versioning API, pagination, contrats (Bucket B) |
-| `dev-standards-devops` | Scripts shell, secrets, IaC (Bucket B) |
-| `dev-standards-security-hardening` | CORS, headers, JWT, rate limiting (Bucket B) |
-| `dev-standards-refactoring` | Patterns et strategies de refactoring (Bucket B) |
-| `dev-standards-migration` | Patterns et strategies de migration (Bucket B) |
-| `dev-drift-detection` | Detection de derive entre attendu et reel (Bucket B) |
-| `beads-plan` | Lecture et creation de tickets Beads (Bucket A) |
-| `beads-dev` | Workflow executeur Beads (Bucket A) |
-| `developer-handoff-format` | Contrat de handoff developer (Bucket A) |
-| `quick-fix` | Protocole quick fix pour petits changements (Bucket A) |
+| Skill | Agents | Contenu |
+|-------|--------|---------|
+| `dev-standards-universal` | A : dev-rw, database, infra, benchmarker, reviewer, test-generator | Clean Code, SOLID, nommage, structure — agnostique du langage. Gate de complétion (tests, comportement, régressions) et signal `BLOCKED_ARCHITECTURE` |
+| `dev-standards-simplicity` | A : dev-rw | KISS, YAGNI, pas d'abstraction ni d'optimisation prématurées, seuils de complexité mesurables |
+| `quick-fix` | A : dev-rw | Corrections déterministes sans review (lint, import manquant, typo, formatage) |
+| `beads-dev` | A : dev-rw, documentarian | Workflow exécuteur Beads : `bd update --claim`, `bd close --suggest-next`, règles `ai-delegated` |
+| `beads-plan` | A : developer-refactor, developer-migrator, pathfinder · B : developer, designer, documentarian, onboarder, orchestrator, planner | Lecture et création de tickets Beads : `bd list`, `bd show`, `bd create`, labels, dépendances, liens externes |
+| `developer-handoff-format` | A : dev-rw, orchestrator-dev | **Contrat de handoff** `## Retour vers orchestrator-dev` : fichiers modifiés, tests, critères d'acceptance, points d'attention, statut |
+| `dev-standards-security` | B : dev-rw, database, infra, reviewer | Secrets, validation des entrées, injections, auth, logs, dépendances |
+| `dev-standards-testing` | A : test-generator · B : dev-rw, reviewer | Stratégie de tests, pyramide, couverture, TDD, gate de complétion |
+| `dev-standards-git` | A : documentarian, onboarder · B : dev-rw, reviewer | Conventional Commits, branches, PR/MR |
+| `dev-standards-backend` | B : reviewer | Architecture en couches, DTOs, services, repositories |
+| `dev-standards-frontend` | B : reviewer | Séparation logique/présentation, performance, bundle, lazy loading |
+| `dev-standards-frontend-data` | B : reviewer | Gestion des données côté frontend — matrice de décision (état local, Store, Queries, Cookies, WebStorage, IndexedDB, Query String) |
+| `dev-standards-frontend-a11y` | B : reviewer | WCAG 2.1 A/AA, HTML sémantique, ARIA, contrastes |
+| `dev-standards-api` | B : reviewer | Versioning, pagination, erreurs, idempotence, schema-first, breaking changes, webhooks |
+| `dev-standards-devops` | B : reviewer | Scripts shell, secrets, registries d'images, observabilité, IaC |
+| `dev-standards-refactoring` | B : developer-refactor | Patterns de refactoring, analyse d'impact, petits pas, filet de tests |
+| `dev-standards-migration` | B : developer-migrator | Migrations (frameworks, versions, DB/ORM), Strangler Fig, rollback |
+| `dev-drift-detection` | B : orchestrator-dev | Dérive architecturale : signaux, 3 options (réviser scope / revert / bifurquer), rapport |
+| `dev-standards-security-hardening` | — | CORS, headers HTTP, hashing, JWT, sessions, rate limiting, chiffrement |
 
-**46 skills stack** dans `developer/stacks/` (tous Bucket B, injectes dans le paquet de session selon la stack detectee).
+Les standards de domaine (`dev-standards-frontend`, `-backend`, `-api`…) sont demandés à `developer` par `orchestrator-dev` dans le prompt de délégation (matrice de `orchestrator-dev-protocol`). Ils sont dans les paquets qui contiennent `reviewer`, qui les déclare en Bucket B.
+
+Les **40 skills de stack** de `developer/stacks/` sont décrites dans [Skills de stack](#skills-de-stack--developerstacks).
 
 ### `auditor/` — 13 skills
 
-| Fichier | Description |
-|---------|-------------|
-| `auditor-workflow` | Workflow auditor en 4 phases (Bucket A) |
-| `auditor-execution-modes` | Modes standalone vs sous-agent (Bucket B) |
-| `audit-protocol-light` | Protocole d'audit leger (Bucket A) |
-| `audit-handoff-format` | Contrat de handoff audit (Bucket A) |
-| `audit-security` | Checklist domaine audit securite (Bucket B) |
-| `audit-performance` | Checklist domaine audit performance (Bucket B) |
-| `audit-architecture` | Checklist domaine audit architecture (Bucket B) |
-| `audit-accessibility` | Checklist domaine audit accessibilite (Bucket B) |
-| `audit-ecodesign` | Checklist domaine audit eco-conception (Bucket B) |
-| `audit-privacy` | Checklist domaine audit vie privee (Bucket B) |
-| `audit-observability` | Checklist domaine audit observabilite (Bucket B) |
-| `websearch-cve-lookup` | WebSearch pour la recherche de CVE (Bucket B) |
-| `websearch-performance-research` | WebSearch pour la recherche de performance (Bucket B) |
+| Skill | Agents | Contenu |
+|-------|--------|---------|
+| `auditor-workflow` | A : auditor | Workflow du coordinateur en 5 phases (0 prérequis → 1 contexte projet → 2 sélection des domaines → 3 délégation aux sous-agents → 4 consolidation) |
+| `auditor-execution-modes` | B : auditor | Parcours standalone et sous-agent de l'auditor |
+| `audit-protocol-light` | A : auditor, auditor-subagent | Format de rapport commun : 4 niveaux de criticité (🔴/🟠/🟡/💡), score /10, format des findings |
+| `audit-handoff-format` | A : auditor, auditor-subagent · B : orchestrator | **Contrat de handoff** — périmètre, vulnérabilités par sévérité, recommandations, risque résiduel, statut |
+| `websearch-cve-lookup` | B : auditor-subagent | Recherche CVE (OWASP, NVD, advisories) |
+| `websearch-performance-research` | B : auditor-subagent | Recherche web pour les audits de performance |
+| `audit-security` | — | OWASP Top 10, CVE des dépendances, secrets, headers HTTP |
+| `audit-performance` | — | Web Vitals, N+1, taille du bundle, cache |
+| `audit-architecture` | — | SOLID, couplage, cohésion, dette technique |
+| `audit-accessibility` | — | WCAG 2.1 AA, RGAA 4.1 |
+| `audit-ecodesign` | — | RGESN, GreenIT, sobriété numérique |
+| `audit-privacy` | — | RGPD, EDPB, minimisation, consentement, PIA |
+| `audit-observability` | — | Méthode RED, logs structurés, traces, SLOs, alerting, dashboards |
+
+Les 7 checklists de domaine sont prévues pour être indiquées à `auditor-subagent` par le coordinateur, mais aucun agent ne les déclare : elles ne sont dans le paquet `audit` que si un workflow les ajoute par `skills.extra`.
 
 ### `quality/` — 8 skills
 
-| Fichier | Description |
-|---------|-------------|
-| `debugger-workflow` | Workflow debugger multi-phases (Bucket A) |
-| `debugger-handoff-format` | Contrat de handoff debugger (Bucket A) |
-| `debugger-forensic` | Techniques d'analyse forensique (Bucket A) |
-| `debugger-report-templates` | Templates de rapports (Bucket A) |
-| `debugger-execution-modes` | Modes standalone vs sous-agent (Bucket B) |
-| `debugger-phase-0-1` a `debugger-phase-4-5` | Protocoles par phase (Bucket B, 3 fichiers) |
+| Skill | Agents | Contenu |
+|-------|--------|---------|
+| `debugger-workflow` | A : debugger | Workflow debugger en 6 phases — index et principes |
+| `debugger-handoff-format` | A : debugger · B : orchestrator | **Contrat de handoff** — cause racine avec niveau de certitude, hypothèses explorées, impact, tickets de correction, statut |
+| `debugger-forensic` | A : debugger | Mode `--forensic` : preuves Confirmed/Deduced/Hypothesized, stronghold-first, case file `.investigation-{slug}.md`, seuils de délégation |
+| `debugger-report-templates` | A : debugger | Gabarits du rapport de diagnostic et du ticket Beads de correction |
+| `debugger-execution-modes` | B : debugger | Parcours standalone et sous-agent du debugger |
+| `debugger-phase-0-1` | B : debugger | Phase 0 (prérequis) et 1 (exploration) |
+| `debugger-phase-2-3` | B : debugger | Phase 2 (questions) et 3 (diagnostic en 4 étapes) |
+| `debugger-phase-4-5` | B : debugger | Phase 4 (cas particuliers) et 5 (rapport + ticket) |
 
 ### `reviewer/` — 8 skills
 
-| Fichier | Description |
-|---------|-------------|
-| `review-protocol` | Protocole et checklist de revue de code (Bucket A) |
-| `reviewer-handoff-format` | Contrat de handoff reviewer (Bucket A) |
-| `reviewer-standalone` | Comportement en mode standalone (Bucket B) |
-| `reviewer-subagent` | Comportement en mode sous-agent (Bucket B) |
-| `reviewer-adversarial` | Mode de revue adversarial (Bucket B) |
-| `reviewer-edge-case` | Mode de revue edge cases (Bucket B) |
-| `review-merge` | Protocole de revue de merge (Bucket B) |
-| `reviewer-reception` | Protocole de reception de revue pour les developers (Bucket B) |
+| Skill | Agents | Contenu |
+|-------|--------|---------|
+| `review-protocol` | A : reviewer | Protocole de review — format du rapport, sévérités, score de confiance, checklist, format brut pour la fusion multi-mode |
+| `reviewer-handoff-format` | A : orchestrator-dev, reviewer | **Contrat de handoff** `## Retour vers orchestrator-dev` : verdict (`commit` / `corriger` / `corriger-sécurité`), corrections verbatim, routage, statut |
+| `reviewer-standalone` | B : reviewer | Parcours standalone — choix du mode (standard / adversarial / edge-case / combinaisons), fusion via `review-merge` |
+| `reviewer-subagent` | B : reviewer | Parcours sous-agent — rapport complet et bloc handoff obligatoires |
+| `reviewer-adversarial` | B : reviewer | Review adversariale — scepticisme maximal, 10 findings minimum, 7 catégories, hypothèses dangereuses |
+| `reviewer-edge-case` | B : reviewer | Chasse aux cas limites — chemins non gérés, frontières, coercions, concurrence |
+| `review-merge` | B : reviewer | Fusion de N rapports : déduplication, provenance `[STD]`/`[ADV]`/`[EDGE]`, rapport unifié |
+| `reviewer-reception` | B : developer | Traitement d'un feedback de review par le développeur |
 
 ### `designer/` — 12 skills
 
-| Fichier | Description |
-|---------|-------------|
-| `designer-protocol` | Protocole principal designer avec 4 modes (Bucket A) |
-| `ux-protocol` | Protocole de specification UX (Bucket B) |
-| `ui-protocol` | Protocole de specification UI (Bucket B) |
-| `figma-recon-protocol` | Mode reconnaissance Figma (Bucket B) |
-| `figma-deep-protocol` | Protocole d'analyse Figma approfondie (Bucket B) |
-| `designer-standalone` | Comportement en mode standalone (Bucket B) |
-| `designer-subagent` | Comportement en mode sous-agent (Bucket B) |
-| `design-principles` | Reference de principes de design (Bucket B) |
-| `ui-patterns-reference` | Reference de patterns composants UI (Bucket B) |
-| `content-design` | Directives de content design (Bucket B) |
-| `tui-patterns` | Patterns UI terminal/TUI (Bucket B) |
-| `websearch-design-patterns` | WebSearch pour la recherche de patterns design (Bucket B) |
+| Skill | Agents | Contenu |
+|-------|--------|---------|
+| `designer-protocol` | A : designer | Protocole central — détection du mode (recon / ux / ui / ux+ui), routage vers les skills spécialisées, règles communes |
+| `designer-standalone` | B : designer | Parcours standalone — outil `question` aux checkpoints, enrichissement living-docs |
+| `designer-subagent` | B : designer | Parcours sous-agent — session unique, seul output = bloc `## Retour vers orchestrator` |
+| `ux-protocol` | B : designer | Heuristiques Nielsen, user flows, spec UX, audit de friction |
+| `ui-protocol` | B : designer | Tokens de design, spec de composants, cohérence visuelle |
+| `figma-recon-protocol` | B : designer | Reconnaissance Figma légère (mode recon) |
+| `figma-deep-protocol` | B : designer | Exploration Figma approfondie (modes ux, ui, ux+ui) |
+| `prototype-protocol` | B : designer | Prototype visuel rapide pour trancher une question de design |
+| `design-principles` | B : designer | Nielsen enrichi, Gestalt, Laws of UX, accessibilité opérationnelle |
+| `ui-patterns-reference` | B : designer | Patterns UI par type de composant (navigation, dashboard, états, formulaires, modals) |
+| `content-design` | B : designer | UX writing : messages d'interface, voice & tone |
+| `tui-patterns` | B : designer | Patterns d'interfaces terminal (clavier d'abord, widgets, anti-patterns) |
 
-### `design/` — 2 skills
+### `design/` — 3 skills
 
-| Fichier | Description |
-|---------|-------------|
-| `design-handoff-format` | Contrat de handoff design (Bucket A/B) |
-| `design-planner-format` | Format de livrable design pour le planner (Bucket A) |
+| Skill | Agents | Contenu |
+|-------|--------|---------|
+| `design-handoff-format` | A : designer · B : orchestrator | **Contrat de handoff** designer → orchestrator : spec intégrale, contraintes, points ouverts, statut |
+| `design-planner-format` | A : designer, planner | Contexte obligatoire de la délégation planner → designer (Phase 1.5) |
+| `websearch-design-patterns` | B : designer | Recherche web de patterns UI/UX et design systems |
 
 ### `documentarian/` — 8 skills
 
-| Fichier | Description |
-|---------|-------------|
-| `doc-protocol` | Protocole principal de documentation (Bucket A) |
-| `documentarian-handoff-format` | Contrat de handoff documentarian (Bucket A) |
-| `doc-standards` | Standards de qualite de documentation (Bucket B) |
-| `doc-adr` | Protocole de redaction d'ADR (Bucket B) |
-| `doc-api` | Protocole de documentation API (Bucket B) |
-| `doc-changelog` | Protocole de redaction de changelog (Bucket B) |
-| `doc-slides` | Protocole de slides/presentations (Bucket B) |
-| `doc-wiki-protocol` | Protocole de documentation wiki (Bucket B) |
+| Skill | Agents | Contenu |
+|-------|--------|---------|
+| `doc-protocol` | A : documentarian | Exploration avant rédaction, adaptation à l'existant, routage par type de doc, checklist de lacunes (annexe `templates/doc-lacunes-checklist.md`) |
+| `documentarian-handoff-format` | A : documentarian, orchestrator-dev · B : orchestrator | **Contrat de handoff** — type de doc, fichiers modifiés, statut |
+| `doc-standards` | B : documentarian | Diataxis, lisibilité, structures types, anti-patterns |
+| `doc-adr` | B : documentarian | ADR : détection du format, MADR, nommage, statuts |
+| `doc-api` | B : documentarian | OpenAPI 3.x, contrats, breaking changes, guide narratif |
+| `doc-changelog` | B : documentarian | Keep a Changelog, SemVer, Conventional Commits |
+| `doc-slides` | B : documentarian | Présentations Marp (4 gabarits, compilation HTML/PDF) |
+| `doc-wiki-protocol` | B : documentarian | Format du wiki vivant : pages, frontmatter, tags de confiance, mise à jour |
 
-### `adapters/` — 6 skills (integration trackers)
+### `adapters/` — 6 skills (intégration trackers)
 
-| Fichier | Description |
-|---------|-------------|
-| `gitlab-planner-protocol` | Adaptateur GitLab pour l'agent planner |
-| `gitlab-pathfinder-protocol` | Adaptateur GitLab pour l'agent pathfinder |
-| `gitlab-onboarder-protocol` | Adaptateur GitLab pour l'agent onboarder |
-| `github-planner-protocol` | Adaptateur GitHub pour l'agent planner |
-| `github-pathfinder-protocol` | Adaptateur GitHub pour l'agent pathfinder |
-| `github-onboarder-protocol` | Adaptateur GitHub pour l'agent onboarder |
+| Skill | Agents | Contenu |
+|-------|--------|---------|
+| `gitlab-planner-protocol` | A : planner | Lecture du ticket source GitLab, labels et milestones pour la décomposition |
+| `gitlab-pathfinder-protocol` | A : pathfinder | Lecture d'un ticket GitLab pour affiner l'estimation, détection de MR existantes |
+| `gitlab-onboarder-protocol` | A : onboarder | Labels, milestones et tickets récents GitLab pour enrichir `ONBOARDING.md` et `CONVENTIONS.md` |
+| `github-planner-protocol` | — | Équivalent GitHub pour le planner |
+| `github-pathfinder-protocol` | — | Équivalent GitHub pour le pathfinder |
+| `github-onboarder-protocol` | — | Équivalent GitHub pour l'onboarder |
+
+Les skills GitLab sont inlinées même sans MCP `gitlab` dans le paquet. Les intégrations Figma passent par l'agent `designer` ([ADR-020](./adr/020-designer-fusion.fr.md)).
+
+### `workflow/` — 1 skill
+
+| Skill | Agents | Contenu |
+|-------|--------|---------|
+| `workflow-map` | A : conductor | Carte du workflow de la session. **Générée depuis le YAML** à la construction du paquet ; le fichier statique ne sert que hors workflow |
+
+### `templates/` — 14 annexes
+
+Les fichiers de `skills/templates/` ne sont pas des skills : ce sont des annexes (`annexes:` du frontmatter d'une skill), copiées à côté du `SKILL.md` dans le paquet. Exemples : `review-report-format.md`, `doc-lacunes-checklist.md`, `debugger-case-file.md`, les blocs de handoff par agent.
+
+---
+
+## Skills antérieures à v5
+
+Ces fichiers existent toujours dans `skills/`. Ils décrivent un comportement antérieur à v5 ; certains sont encore livrés parce qu'un agent les déclare.
+
+| Skill | Encore livrée ? | Ce qui a changé en v5 |
+|-------|-----------------|-----------------------|
+| `shared/rtk-usage` | Oui — Bucket B de 15 agents, donc dans tous les paquets livrés sauf `brief-enrich` | RTK s'installait comme plugin global opencode V1 (`oh plugin`, supprimé en v5). oh ne l'installe plus |
+| `shared/context-mode-usage` | Oui — Bucket A de `developer`, `developer-refactor`, `developer-migrator` | Décrit les outils `ctx_*` du plugin `context-mode`, qui ne se charge pas sous opencode V2. `universal-guardrails` en parle aussi |
+| `orchestrator/orchestrator-dev-parallel` | Oui — Bucket B d'`orchestrator-dev` (paquets `feature`, `ticket`, `review-feedback`, `libre`) | Parallélisme par worktrees créés dans la session. En v5, le parallèle passe par `oh run ticket --tickets a,b` : une session et un worktree par ticket |
+| `orchestrator/parallel-coordination` | Oui — Bucket B d'`orchestrator-dev` | Décrit l'ancien mode parallèle (coordinateur externe, moniteur), supprimé en v5. Voir [Sessions v5](../guides/sessions-v5.fr.md) |
+| `orchestrator/session-state-protocol` | Oui — Bucket B d'`orchestrator-dev` | Écrit `.opencode/session-state.json` via `scripts/lib/session-state.sh` (absent) pour l'ancien tableau de bord. En v5, l'état des sessions vient du démon `ohd` |
+| `orchestrator/orchestrator-modes` | Non — aucun agent ne la référence | Les 5 modes d'entrée (A à E) de l'orchestrator sont remplacés par les workflows (`feature`, `ticket`, `debug`, `onboarding`…) |
+| `orchestrator/orchestrator-ticket-routing` | Non — aucun agent ne la référence | Le routage vient de la carte du workflow et d'`orchestrator-dev-protocol` |
 
 ---
 
@@ -250,8 +376,10 @@ Les agents coordinateurs/orchestrateurs qui n'ont jamais besoin de skills contex
 
 ```markdown
 ---
-name: <nom-du-skill>
-description: <Description courte — utilisée dans le paquet de session et dans la documentation>
+name: <nom-du-skill>          # = nom du fichier, identifiant dans le paquet
+description: <Description courte — affichée dans le catalogue de skills de la session>
+requires: [<ref>, …]          # facultatif — skills livrées avec celle-ci
+annexes: [templates/<f>.md]   # facultatif — fichiers copiés à côté du SKILL.md
 ---
 
 # Skill — <Titre>
@@ -259,151 +387,89 @@ description: <Description courte — utilisée dans le paquet de session et dans
 <Corps du skill>
 ```
 
-> La clé `name` est documentaire. Les scripts hub lisent uniquement `description`.
-> Le chemin du fichier est la référence utilisée dans le frontmatter des agents.
+> `name:` doit être égal au nom du fichier : opencode identifie les skills par leur nom. `requires:` et `annexes:` sont lus par oh et retirés du `SKILL.md` livré. Le champ `bucket:` est obsolète : le bucket se décide dans le frontmatter de l'agent.
+> La référence utilisée dans le frontmatter des agents est le chemin relatif à `skills/`, sans `.md` (`developer/beads-plan`).
+> `oh skill check` vérifie le catalogue : identifiants en double, `requires:` manquants ou cycliques, `name:` différent du nom de fichier, description absente, skills référencées par un agent mais introuvables.
 
 ---
 
-## Domaine — `developer/`
+## Skills de stack — `developer/stacks/`
 
-Skills de standards de développement. Partagés entre les agents développeurs et le reviewer.
+Ces skills sont livrées **à la demande** (comme le Bucket B). Au lancement, `ResolveStackSkills()` (`cli/internal/bricks/stack_skills.go`) détecte la stack du projet et ajoute les skills correspondantes au paquet. Elles sont communes au paquet, pas réservées à un agent. Voir [ADR-008](./adr/008-stack-skills-dynamic-injection.fr.md) (évolué par 043).
 
-### Skills génériques
+### Détection automatique
 
-Les skills marqués **(A)** sont Bucket A — toujours inline. Les skills marqués **(B)** sont Bucket B — natifs, chargés à la demande.
+La détection lit quelques fichiers à la racine du projet. Un seul langage est retenu, dans cet ordre : `go.mod`, `package.json`, `pyproject.toml`/`setup.py`, `Cargo.toml`, `build.gradle(.kts)`, `pom.xml`.
 
-| Fichier | Bucket | Agents qui l'utilisent | Contenu |
-|---------|--------|----------------------|---------|
-| `developer/beads-plan.md` | **A** | Tous les developer-*, planner, onboarder, designers, documentarian | Lecture et création de tickets Beads : `bd list`, `bd show`, `bd create`, `bd label list-all`, liens externes |
-| `developer/beads-dev.md` | **A** | Tous les developer-*, designers, documentarian | Workflow exécuteur Beads : `bd update --claim`, `bd close --suggest-next`, règles `ai-delegated` |
-| `developer/dev-standards-universal.md` | **A** | Tous les developer-*, reviewer | Clean Code, SOLID complet, nommage, structure — **agnostique du langage**. Gate de complétion (3 checks obligatoires avant tout DONE : tests passent, comportement observable conforme, régressions documentées). Signal `BLOCKED_ARCHITECTURE` — 6 conditions de déclenchement, format du rapport de dérive avec graduation des preuves, 3 options (réviser scope / revert / bifurquer). |
-| `developer/dev-standards-security.md` | **B** | Tous les developer-*, reviewer | Secrets/config, validation des inputs, injections (SQL/shell/LDAP), auth/autorisation, logs sans données sensibles, audit des dépendances — **agnostique des outils** |
-| `developer/dev-standards-backend.md` | **B** | developer-backend, developer-fullstack, developer-api, reviewer | Architecture en couches, DTOs, services, repositories, sécurité API |
-| `developer/dev-standards-frontend.md` | **B** | developer-frontend, developer-fullstack, reviewer | Séparation logique/présentation, performance, bundle, lazy loading |
-| `developer/dev-standards-frontend-data.md` | **B** | developer-frontend, developer-fullstack, reviewer | Gestion des données côté frontend — 5 questions de caractérisation, tableau de décision (état local, Context Provider, Store, Queries, Cookies, WebStorage, IndexedDB, Query String), fiches détaillées avec trade-offs, règle d'or "élaguer sa donnée" |
-| `developer/dev-standards-frontend-a11y.md` | **B** | developer-frontend, developer-fullstack, reviewer | WCAG 2.1 A/AA, sémantique HTML, ARIA, contrastes |
-| `developer/dev-standards-testing.md` | **B** | developer-frontend, developer-backend, developer-fullstack, developer-api, developer-data | Stratégie de tests, pyramide, coverage, TDD — **agnostique des outils** |
-| `developer/dev-standards-git.md` | **B** | Tous les developer-*, reviewer | Conventional Commits, branches, PR, messages de commit |
-| `developer/dev-standards-devops.md` | **B** | developer-devops | Scripts shell, gestion des secrets, registries d'images, observabilité, principes IaC — **agnostique des outils** |
-| `developer/dev-standards-api.md` | **B** | developer-api | Versioning d'API, pagination, format de réponse uniforme, codes HTTP, idempotence, contrat schema-first, breaking changes, webhooks, rate limiting |
-| `developer/dev-standards-security-hardening.md` | **B** | developer-security | CORS, headers HTTP (CSP, HSTS, X-Frame-Options), bcrypt/argon2id, JWT (rotation, révocation), sessions (httpOnly/secure/sameSite), rate limiting, chiffrement AES-256-GCM |
-| `developer/dev-standards-simplicity.md` | **A** | Tous les developer-* | KISS, YAGNI, pas d'abstraction prématurée, pas d'optimisation prématurée, limites de complexité mesurables (longueur de fonction, cyclomatique, paramètres, imbrication, dépendances injectées), signaux d'over-engineering à challenger |
-| `developer/developer-handoff-format.md` | **A** | Tous les developer-*, orchestrator-dev | **Contrat de handoff** — bloc structuré `## Retour vers orchestrator-dev` : fichiers modifiés, tests écrits, statut Beads `review`, critères d'acceptance cochés un par un, points d'attention pour la review, blocages rencontrés, statut (`implémenté` / `partiellement-implémenté` / `bloqué`) |
+| Signal détecté | Skills ajoutées |
+|----------------|-----------------|
+| `go.mod` | `dev-standards-golang` |
+| `package.json` | `dev-standards-typescript` |
+| `pyproject.toml` ou `setup.py` | `dev-standards-python` |
+| `Cargo.toml` | `dev-standards-rust` |
+| `build.gradle(.kts)` ou `pom.xml` | `dev-standards-kotlin` |
+| `next` dans `package.json` | `dev-standards-nextjs`, `dev-standards-react` |
+| `nuxt` dans `package.json` | `dev-standards-nuxtjs`, `dev-standards-vuejs` |
+| `"react"` dans `package.json` | `dev-standards-react` |
+| `"vue"` dans `package.json` | `dev-standards-vuejs` |
+| `"express"` dans `package.json` | `dev-standards-express` |
+| `vitest` / `jest` dans `package.json` | `dev-standards-vitest` / `dev-standards-jest` |
+| `Dockerfile` ou `docker-compose.y(a)ml` | `dev-standards-docker` |
+| `.github/workflows/` | `dev-standards-github-actions` |
+| `.gitlab-ci.yml` | `dev-standards-gitlab-ci` |
 
-### Skills spécifiques aux stacks — `developer/stacks/` (Bucket B — natif)
+Les autres skills de stack ne sont pas détectées : pour les livrer, un workflow (d'équipe ou de projet) les ajoute par `skills.extra`. `oh bundle show <workflow> -p <projet>` affiche celles qui sont retenues.
 
-Ces skills sont **Bucket B — natifs**. À la construction du paquet de session, `ResolveStackSkills()` les ajoute aux skills à la demande du paquet en fonction de la stack qu'il détecte dans le projet cible. Le LLM charge ceux qui sont pertinents à la demande lors de l'inférence.
+### Catalogue des 40 skills de stack
 
-Le mapping entre les stacks détectées et les skills à injecter est déclaré dans `config/stack-skills.json`. Chaque type d'agent (`developer-frontend`, `developer-backend`, etc.) a un scope défini qui limite les catégories de stack skills qu'il reçoit.
-
-#### Langages
-
-| Fichier | Stack détectée | Contenu |
-|---------|---------------|---------|
-| `developer/stacks/dev-standards-typescript.md` | `typescript` dans les dépendances | Config stricte, interfaces vs types, enums, types partagés, erreurs typées, type guards, generics |
-| `developer/stacks/dev-standards-python.md` | `pyproject.toml` / `requirements.txt` présent | Version, ruff, mypy/pyright, nommage, exceptions custom, logging, pytest |
-| `developer/stacks/dev-standards-golang.md` | `go.mod` présent | Conventions modules Go, gestion des erreurs, interfaces, goroutines/channels, testing (testify), linting (golangci-lint) |
-| `developer/stacks/dev-standards-rust.md` | `Cargo.toml` présent | Ownership/borrowing, gestion des erreurs (thiserror/anyhow), traits, async (tokio), testing, clippy |
-
-#### Frameworks frontend
-
-| Fichier | Stack détectée | Contenu |
-|---------|---------------|---------|
-| `developer/stacks/dev-standards-vuejs.md` | `vue` dans les dépendances | Composition API, `<script setup>`, Pinia, composables, Vue Router |
-| `developer/stacks/dev-standards-react.md` | `react` dans les dépendances | Hooks, TanStack Query, memo/useCallback, RTL, conventions |
-| `developer/stacks/dev-standards-nextjs.md` | `next` dans les dépendances | App Router, Server/Client Components, ISR, Server Actions, métadonnées |
-| `developer/stacks/dev-standards-nuxtjs.md` | `nuxt` dans les dépendances | Auto-imports, useFetch, routes serveur Nitro, Pinia setup, routeRules |
-| `developer/stacks/dev-standards-angular.md` | `@angular/core` dans les dépendances | Standalone components, Signals, inject(), RxJS, Reactive Forms, lazy routing |
-
-#### Frameworks backend
-
-| Fichier | Stack détectée | Contenu |
-|---------|---------------|---------|
-| `developer/stacks/dev-standards-nestjs.md` | `@nestjs/core` dans les dépendances | Modules, DTOs + class-validator, guards, ConfigService + Joi, tests unitaires |
-| `developer/stacks/dev-standards-express.md` | `express` ou `fastify` dans les dépendances | Routing par domaine, middleware zod, AppError, helmet/cors, handler d'erreur global |
-| `developer/stacks/dev-standards-django.md` | `django` dans les dépendances Python | BaseModel UUID, FormRequest, serializers I/O, services, migrations |
-| `developer/stacks/dev-standards-fastapi.md` | `fastapi` dans les dépendances Python | pydantic-settings, schemas Pydantic v2, inject(), services async, tests httpx |
-| `developer/stacks/dev-standards-laravel.md` | `laravel` dans Gemfile/composer | Eloquent, FormRequest, API Resources, service objects, queues/jobs |
-| `developer/stacks/dev-standards-rails.md` | `rails` dans Gemfile | MVC, service objects, query objects, scopes, RSpec request specs |
-| `developer/stacks/dev-standards-springboot.md` | `spring-boot` dans build.gradle/pom.xml | Entités JPA, record DTOs + @Valid, @Transactional, ProblemDetail, MockMvc |
-
-#### ORMs / Bases de données
-
-| Fichier | Stack détectée | Contenu |
-|---------|---------------|---------|
-| `developer/stacks/dev-standards-prisma.md` | `@prisma/client` dans les dépendances | Schema, client singleton, select explicite, transactions, migrate deploy |
-| `developer/stacks/dev-standards-typeorm.md` | `typeorm` dans les dépendances | Entités select:false, repository custom, QueryBuilder paramétré, QueryRunner |
-| `developer/stacks/dev-standards-sqlalchemy.md` | `sqlalchemy` dans les dépendances Python | Mapped v2, sessions async, Alembic, transactions context manager |
-| `developer/stacks/dev-standards-mongodb.md` | `mongoose` dans les dépendances | Schemas Mongoose, lean(), indexes, agrégations documentées, transactions |
-
-#### Spec API
-
-| Fichier | Stack détectée | Contenu |
-|---------|---------------|---------|
-| `developer/stacks/dev-standards-openapi.md` | `openapi.yaml` / `swagger.yaml` présent | `$ref`, schemas/réponses/params réutilisables, writeOnly, sécurité JWT, codegen |
-
-#### Outils de test
-
-| Fichier | Stack détectée | Contenu |
-|---------|---------------|---------|
-| `developer/stacks/dev-standards-vitest.md` | `vitest` dans les dépendances | vi.mock, vi.fn, vi.spyOn, vi.useFakeTimers, Vue Test Utils |
-| `developer/stacks/dev-standards-jest.md` | `jest` dans les dépendances | jest.mock, jest.fn, jest.spyOn, tests comportementaux RTL, snapshots |
-| `developer/stacks/dev-standards-playwright.md` | `@playwright/test` dans les dépendances | Locators sémantiques (getByRole), waits sémantiques, POM, fixtures de session |
-| `developer/stacks/dev-standards-cypress.md` | `cypress` dans les dépendances | data-cy, cy.intercept + alias, commandes custom, cy.session |
-
-#### Mobile
-
-| Fichier | Stack détectée | Contenu |
-|---------|---------------|---------|
-| `developer/stacks/dev-standards-react-native.md` | `react-native` dans les dépendances | Expo, React Navigation, Zustand/RTK, TanStack Query, Detox |
-| `developer/stacks/dev-standards-flutter.md` | `flutter` dans pubspec.yaml | BLoC/Riverpod, Clean Arch, freezed, flutter_test, mockito |
-| `developer/stacks/dev-standards-swift.md` | Projet Xcode détecté | SwiftUI, MVVM, Swift Concurrency, Keychain, XCTest async |
-| `developer/stacks/dev-standards-kotlin.md` | `jetpack compose` dans build.gradle | Jetpack Compose, MVVM+Clean, Hilt, Coroutines+Flow, JUnit5+Mockk+Turbine |
-
-#### Data / ML
-
-| Fichier | Stack détectée | Contenu |
-|---------|---------------|---------|
-| `developer/stacks/dev-standards-pandas.md` | `pandas` dans les dépendances Python | Vectorisation, pandera, pipeline .pipe(), tests DataFrame |
-| `developer/stacks/dev-standards-dbt.md` | `dbt-*` dans les dépendances Python | Layers staging/intermediate/mart, schema.yml, tests natifs + personnalisés |
-| `developer/stacks/dev-standards-airflow.md` | `apache-airflow` dans les dépendances Python | TaskFlow API, idempotence, Connections/Variables, tests de structure DAG |
-| `developer/stacks/dev-standards-pyspark.md` | `pyspark` dans les dépendances Python | DataFrame API, broadcast join, partitionnement, ML lifecycle, MLflow, tests locaux |
-
-#### DevOps / CI-CD
-
-| Fichier | Stack détectée | Contenu |
-|---------|---------------|---------|
-| `developer/stacks/dev-standards-docker.md` | `Dockerfile` présent | Multi-stage, non-root, .dockerignore, Compose healthchecks, BuildKit secrets |
-| `developer/stacks/dev-standards-github-actions.md` | `.github/workflows/` présent | Permissions minimales, concurrency, SHA pinning, OIDC, environments avec approbation |
-| `developer/stacks/dev-standards-gitlab-ci.md` | `.gitlab-ci.yml` présent | rules (pas only/except), templates YAML, variables masked, when:manual en prod |
-
-#### Platform / Infrastructure
-
-| Fichier | Stack détectée | Contenu |
-|---------|---------------|---------|
-| `developer/stacks/dev-standards-terraform.md` | Fichiers `*.tf` présents | Modules, variables + validation, state remote, cycle de vie (plan → PR → apply via pipeline) |
-| `developer/stacks/dev-standards-kubernetes.md` | Manifests K8s présents | Deployment, RBAC, NetworkPolicy, ResourceQuota, PDB, Kustomize |
-| `developer/stacks/dev-standards-helm.md` | `Chart.yaml` présent | Structure chart, values sans secrets, ExternalSecret dans les templates, helm diff + --atomic |
-| `developer/stacks/dev-standards-argocd.md` | Manifests ArgoCD présents | Principes GitOps, sync policies par env (auto staging / manuel prod), ESO, Vault |
-
----
-
-## Stack Skills — Go & Rust
-
-Deux nouvelles stack skills étendent la couverture linguistique pour les projets Go et Rust :
-
-| Fichier | Déclenchement auto | Contenu |
-|---------|-------------------|---------|
-| `developer/stacks/dev-standards-golang.md` | `go.mod` détecté à la racine du projet | Conventions modules Go, gestion idiomatique des erreurs, interfaces, goroutines/channels, testing avec testify, linting avec golangci-lint |
-| `developer/stacks/dev-standards-rust.md` | `Cargo.toml` détecté à la racine du projet | Règles ownership/borrowing, gestion des erreurs (thiserror/anyhow), traits et generics, async avec tokio, patterns de testing, lints clippy |
-
-Les deux sont **Bucket B — natifs**. Ils sont automatiquement ajoutés au paquet de session quand le fichier correspondant est détecté dans le projet au lancement. Le LLM les charge à la demande lors du travail sur du code Go ou Rust.
+| Catégorie | Skill | Détection | Contenu |
+|-----------|-------|-----------|---------|
+| Langages | `dev-standards-typescript` | Oui | Config stricte, interfaces vs types, erreurs typées, type guards, generics |
+| Langages | `dev-standards-python` | Oui | ruff, mypy/pyright, exceptions, logging, pytest |
+| Langages | `dev-standards-golang` | Oui | Modules, erreurs, interfaces, goroutines/channels, testify, golangci-lint |
+| Langages | `dev-standards-rust` | Oui | Ownership/borrowing, thiserror/anyhow, traits, tokio, clippy |
+| Frontend | `dev-standards-vuejs` | Oui | Composition API, `<script setup>`, Pinia, composables, Vue Router |
+| Frontend | `dev-standards-react` | Oui | Hooks, TanStack Query, memo/useCallback, RTL |
+| Frontend | `dev-standards-nextjs` | Oui | App Router, Server/Client Components, ISR, Server Actions |
+| Frontend | `dev-standards-nuxtjs` | Oui | Auto-imports, useFetch, routes Nitro, routeRules |
+| Frontend | `dev-standards-angular` | Non | Standalone components, Signals, inject(), RxJS, Reactive Forms |
+| Backend | `dev-standards-express` | Oui | Routage par domaine, middleware zod, AppError, helmet/cors |
+| Backend | `dev-standards-nestjs` | Non | Modules, DTOs + class-validator, guards, ConfigService |
+| Backend | `dev-standards-django` | Non | BaseModel UUID, serializers, services, migrations |
+| Backend | `dev-standards-fastapi` | Non | pydantic-settings, Pydantic v2, services async, tests httpx |
+| Backend | `dev-standards-laravel` | Non | Eloquent, FormRequest, API Resources, queues/jobs |
+| Backend | `dev-standards-rails` | Non | MVC, service objects, query objects, RSpec |
+| Backend | `dev-standards-springboot` | Non | JPA, record DTOs + @Valid, @Transactional, ProblemDetail |
+| ORM / BDD | `dev-standards-prisma` | Non | Schema, client singleton, select explicite, transactions |
+| ORM / BDD | `dev-standards-typeorm` | Non | Entités, repository custom, QueryBuilder paramétré |
+| ORM / BDD | `dev-standards-sqlalchemy` | Non | Mapped v2, sessions async, Alembic |
+| ORM / BDD | `dev-standards-mongodb` | Non | Schemas Mongoose, lean(), index, agrégations |
+| Spec API | `dev-standards-openapi` | Non | `$ref`, schemas réutilisables, writeOnly, sécurité JWT, codegen |
+| Tests | `dev-standards-vitest` | Oui | vi.mock, vi.fn, vi.spyOn, fake timers, Vue Test Utils |
+| Tests | `dev-standards-jest` | Oui | jest.mock, jest.fn, RTL, snapshots |
+| Tests | `dev-standards-playwright` | Non | Locators sémantiques, POM, fixtures de session |
+| Tests | `dev-standards-cypress` | Non | data-cy, cy.intercept, commandes custom, cy.session |
+| Mobile | `dev-standards-react-native` | Non | Expo, React Navigation, Zustand/RTK, Detox |
+| Mobile | `dev-standards-flutter` | Non | BLoC/Riverpod, freezed, flutter_test |
+| Mobile | `dev-standards-swift` | Non | SwiftUI, MVVM, Swift Concurrency, XCTest |
+| Mobile | `dev-standards-kotlin` | Oui (Gradle/Maven) | Jetpack Compose, MVVM+Clean, Hilt, Coroutines+Flow |
+| Data / ML | `dev-standards-pandas` | Non | Vectorisation, pandera, `.pipe()` |
+| Data / ML | `dev-standards-dbt` | Non | Couches staging/intermediate/mart, schema.yml, tests |
+| Data / ML | `dev-standards-airflow` | Non | TaskFlow API, idempotence, Connections/Variables |
+| Data / ML | `dev-standards-pyspark` | Non | DataFrame API, broadcast join, partitionnement, MLflow |
+| DevOps / CI | `dev-standards-docker` | Oui | Multi-stage, non-root, .dockerignore, healthchecks, secrets BuildKit |
+| DevOps / CI | `dev-standards-github-actions` | Oui | Permissions minimales, concurrency, SHA pinning, OIDC |
+| DevOps / CI | `dev-standards-gitlab-ci` | Oui | `rules`, templates YAML, variables masquées, `when: manual` en prod |
+| Plateforme | `dev-standards-terraform` | Non | Modules, variables + validation, state distant, plan → PR → apply |
+| Plateforme | `dev-standards-kubernetes` | Non | Deployment, RBAC, NetworkPolicy, ResourceQuota, PDB, Kustomize |
+| Plateforme | `dev-standards-helm` | Non | Structure de chart, values sans secrets, helm diff + --atomic |
+| Plateforme | `dev-standards-argocd` | Non | GitOps, sync policies par env, ESO, Vault |
 
 ---
 
 ## Marketplace de skills communautaires
 
-Les skills communautaires étendent le hub avec des protocoles tiers contribués par la communauté. Elles sont publiées dans le [oh-skills-index](https://github.com/datichb/oh-skills-index) ou distribuées via URL Git.
+Les skills communautaires étendent le hub avec des protocoles tiers. Elles sont publiées dans le [oh-skills-index](https://github.com/datichb/oh-skills-index) ou distribuées par URL Git.
 
 ### Installer des skills communautaires
 
@@ -417,392 +483,52 @@ oh skill search <requête>             # rechercher dans l'index communautaire
 
 ### Stockage
 
-Les skills communautaires sont stockées dans `~/.oh/skills/<name>/` avec la structure suivante :
-
 ```
 ~/.oh/skills/<name>/
-├── manifest.json     ← name, description, author, version, bucket (A|B), agents[]
-└── SKILL.md          ← contenu du skill
+├── manifest.json     ← name, description, version, author, skill_file, tags
+└── SKILL.md          ← contenu de la skill
 ```
 
-Le `manifest.json` déclare quels agents la skill cible et si elle est Bucket A ou Bucket B. Les skills communautaires sont livrées dans le paquet de session aux côtés des skills natives du hub quand un workflow les liste dans `skills.extra` (ou qu'un agent les référence) — sans redéploiement.
+### Livraison
+
+Une skill communautaire installée n'arrive dans une session que si le workflow la liste dans `skills.extra`, par son nom seul (sans dossier). Elle est alors livrée **à la demande** dans `skills/<nom>/SKILL.md` du paquet. Son nom ne doit pas entrer en conflit avec une skill du hub (identifiants uniques dans un paquet). Voir [Workflows livrés](../reference/workflows.fr.md) et [Workflows d'équipe](../guides/team-workflows.fr.md).
 
 ---
 
-## Domaine — `auditor/`
+## Matrice agents ↔ skills
 
-Skills d'audit. Les skills marqués **(A)** sont Bucket A — inline. Les skills marqués **(B)** sont Bucket B — natifs.
+Résumé du frontmatter des 20 agents (`agents/**/*.md`). Pour la vue par agent, voir aussi la [Matrice d'assignation des skills](./agents.fr.md#matrice-dassignation-des-skills-source-de-verite).
 
-| Fichier | Bucket | Agents qui l'utilisent | Contenu |
-|---------|--------|----------------------|---------|
-| `auditor/auditor-workflow.md` | **A** | auditor | **Workflow du coordinateur** — 5 phases (0 vérification prérequis → 1 chargement contexte projet → 2 sélection domaines avec compatibilité stack → 3 délégation sous-agents → 4 consolidation synthèse exécutive) — récaps systématiques, questions obligatoires. La logique standalone/sous-agent est extraite dans les skills de parcours dédiés. |
-| `auditor/auditor-standalone.md` | **B** | auditor | **Parcours standalone** — récaps texte avant outil `question`, questions de validation par phase, synthèse finale sans bloc handoff |
-| `auditor/auditor-subagent.md` | **B** | auditor | **Parcours sous-agent** — mécanisme d'interruption session à chaque phase (0-3), blocs structurés `## Retour intermédiaire` + `## Question pour l'orchestrator`, `task_id` obligatoire |
-| `auditor/auditor-execution-modes.md` | **B** | auditor | **Modes d'exécution** — consolidation des parcours standalone et sous-agent en un seul fichier de référence |
-| `auditor/audit-protocol-light.md` | **A** | auditor-subagent | Format de rapport commun allégé (sous-agents uniquement) : 4 niveaux de criticité (🔴/🟠/🟡/💡), scoring /10, format des findings individuels |
-| `auditor/audit-security.md` | **B** | auditor-subagent | OWASP Top 10, injections, secrets exposés, auth, CORS, CVE |
-| `auditor/audit-performance.md` | **B** | auditor-subagent | Core Web Vitals, LCP, CLS, TTI, requêtes N+1, cache, bundle |
-| `auditor/audit-accessibility.md` | **B** | auditor-subagent | WCAG 2.1 AA, RGAA 4.1, sémantique, ARIA, navigation clavier, contrastes |
-| `auditor/audit-ecodesign.md` | **B** | auditor-subagent | RGESN, GreenIT, Écoindex, transfert de données, ressources, obsolescence |
-| `auditor/audit-architecture.md` | **B** | auditor-subagent | SOLID, Clean Architecture, dette technique, couplage, cohésion |
-| `auditor/audit-privacy.md` | **B** | auditor-subagent | RGPD articles 5/6/17/25/32, EDPB, CNIL, minimisation, consentement |
-| `auditor/audit-observability.md` | **B** | auditor-subagent | Méthode RED (Rate/Errors/Duration), logs structurés, OpenTelemetry, SLOs/error budget, alerting (actionnable, runbooks), dashboards, grille des 5 questions |
-| `auditor/audit-handoff-format.md` | **A** | auditor-subagent, orchestrator | **Contrat de handoff** — bloc structuré `## Retour vers orchestrator` : périmètre audité, tableau des vulnérabilités par sévérité, recommandations priorisées avec estimation d'effort, risque résiduel, statut (`corrections-requises` / `acceptable` / `bloquant`) |
+Communs, non répétés dans le tableau :
 
----
+- `shared/universal-guardrails` (A) : tous les agents sauf `brief-enricher` ;
+- `shared/team-awareness` (B) : les 20 agents ;
+- `shared/team-policies-enforcement` (B) : tous sauf `conductor` ;
+- `shared/rtk-usage` (B, [antérieure à v5](#skills-antérieures-à-v5)) : les agents marqués ¹.
 
-## Domaine — `orchestrator/`
+Les skills de handoff (`*-handoff-format`) sont chargées par le producteur et par le consommateur pour partager le même contrat.
 
-| Fichier | Agents qui l'utilisent | Contenu |
-|---------|----------------------|---------|
-| `orchestrator/orchestrator-protocol.md` | orchestrator | Workflow feature complet, matrice de routing (3 familles : design, auditor, dev via orchestrator-dev), format des checkpoints ([CP-0], [CP-spec], [CP-audit], [CP-feature]), gestion des cas particuliers, validation des retours structurés pour chaque type de sous-agent |
-| `orchestrator/orchestrator-dev-protocol.md` | orchestrator-dev | Workflow Beads ticket par ticket, matrice de routing developer-* (9 signaux → 9 agents), format des checkpoints ([CP-1] à [CP-3]), 3 modes (manuel/semi-auto/auto), détection du label `tdd`, exploitation des retours structurés. La logique standalone/sous-agent est extraite dans les skills de parcours dédiés. |
-| `orchestrator/orchestrator-dev-standalone.md` | **B** | orchestrator-dev | **Parcours standalone** — CP-0 demande le mode, tous les CPs via outil `question`, todo list visible et mise à jour avec labels de phase |
-| `orchestrator/orchestrator-dev-subagent.md` | **B** | orchestrator-dev | **Parcours sous-agent** — CPs à enjeu fort produisent des blocs `## Question pour l'orchestrator` + `## Retour vers orchestrator` (partiel), session terminée après chaque CP à enjeu fort |
-| `orchestrator/orchestrator-handoff-format.md` | orchestrator-dev, orchestrator | **Contrat de handoff** — deux formats : `## Retour vers orchestrator` (fin de session : le producteur émet d'abord la synthèse condensée par ticket (statut, fichiers clés, critères couverts, points d'attention + points d'attention globaux agrégés), puis le bloc structuré avec tableau de détail par ticket — agent, cycles de review, critères couverts, statut — plus points d'attention et statut global `succès`/`partiel`/`bloqué` ; le consommateur affiche cette synthèse dans son fil de discussion avant de construire le [CP-feature]) et `## Question pour l'orchestrator` (CPs à enjeu fort : CP-2, blocage 3 cycles, dépendance non résolue, ticket bloqué — contexte complet, question en attente, options, `task_id` pour reprise de session) |
-| `orchestrator/orchestrator-workflow-modes.md` | orchestrator, orchestrator-dev | Source de vérité unique pour les 3 modes de workflow (manuel/semi-auto/auto) — blocs question canoniques, règles absolues par mode |
+| Agent | Bucket A (`skills:`) | Bucket B (`native_skills:`) |
+|-------|----------------------|-----------------------------|
+| `conductor` ¹ | coordination-only, concision-posture, retranscription-coordinateur, tool-question, tool-todowrite, **workflow-map** (générée) | — |
+| `orchestrator` ¹ | coordination-only, concision-posture, retranscription-coordinateur, orchestrator-workflow-modes (générée), orchestrator-handoff-format, orchestrator-protocol, tool-question, tool-todowrite, planner-handoff-format, hub-workflow-reference (générée) | pathfinder-handoff-format, design-handoff-format, audit-handoff-format, onboarder-handoff-format, debugger-handoff-format, documentarian-handoff-format, orchestrator-recap-edge, beads-plan, takeover-context-protocol |
+| `orchestrator-dev` ¹ | coordination-only, concision-posture, retranscription-coordinateur, orchestrator-workflow-modes (générée), orchestrator-dev-protocol, orchestrator-handoff-format, tool-question, tool-todowrite, developer-handoff-format, reviewer-handoff-format, documentarian-handoff-format | orchestrator-dev-standalone, orchestrator-dev-subagent, dev-drift-detection, session-state-protocol, orchestrator-dev-ticket-workflow, orchestrator-dev-parallel, orchestrator-dev-recap, orchestrator-dev-edge-cases, error-recovery-protocol, team-coordination, takeover-context-protocol, parallel-coordination |
+| `pathfinder` ¹ | beads-plan, pathfinder-protocol, pathfinder-handoff-format, gitlab-pathfinder-protocol, concision-posture, tool-question, websearch-usage, wiki-navigation | pathfinder-execution-modes, websearch-stack-research, living-docs-enrichment |
+| `planner` ¹ | planner-workflow, planner-handoff-format, design-planner-format, gitlab-planner-protocol, concision-posture, tool-question, hub-workflow-reference (générée) | planner-execution-modes, websearch-stack-research, planner-phase-0, -1, -2, -3-4, -5-6, planner-patterns-protocol, living-docs-enrichment, websearch-usage, planner-design-templates, planner-beads-templates, beads-plan, expert-posture |
+| `onboarder` ¹ | onboarder-workflow, onboarder-handoff-format, onboarder-profiles, gitlab-onboarder-protocol, tool-question, dev-standards-git, wiki-navigation | onboarder-execution-modes, websearch-stack-research, onboarder-phase-0, -1, -2, -3-4, -5, living-docs-enrichment, websearch-usage, beads-plan, expert-posture |
+| `designer` ¹ | designer-protocol, design-planner-format, design-handoff-format, tool-question | ux-protocol, ui-protocol, figma-recon-protocol, figma-deep-protocol, prototype-protocol, designer-subagent, designer-standalone, websearch-design-patterns, design-principles, ui-patterns-reference, content-design, tui-patterns, websearch-usage, beads-plan, expert-posture |
+| `documentarian` ¹ | dev-standards-git, beads-dev, doc-protocol, tool-question, documentarian-handoff-format | doc-standards, doc-adr, doc-api, doc-changelog, doc-slides, doc-wiki-protocol, skill-authoring-protocol, websearch-usage, beads-plan, expert-posture |
+| `developer` ¹ | dev-standards-universal, dev-standards-simplicity, quick-fix, beads-dev, developer-handoff-format, subagent-concision-posture, wiki-navigation, context-mode-usage | dev-standards-security, dev-standards-git, dev-standards-testing, reviewer-reception, living-docs-enrichment, beads-plan |
+| `developer-refactor` ¹ | dev-standards-universal, dev-standards-simplicity, quick-fix, beads-plan, beads-dev, developer-handoff-format, subagent-concision-posture, wiki-navigation, context-mode-usage | dev-standards-security, dev-standards-testing, dev-standards-git, dev-standards-refactoring, living-docs-enrichment |
+| `developer-migrator` ¹ | dev-standards-universal, dev-standards-simplicity, quick-fix, beads-plan, beads-dev, developer-handoff-format, subagent-concision-posture, wiki-navigation, context-mode-usage | dev-standards-security, dev-standards-testing, dev-standards-git, dev-standards-migration, living-docs-enrichment |
+| `reviewer` ¹ | dev-standards-universal, review-protocol, concision-posture, tool-question, reviewer-handoff-format, wiki-navigation | reviewer-standalone, reviewer-subagent, reviewer-adversarial, reviewer-edge-case, review-merge, dev-standards-security, -backend, -frontend, -frontend-data, -frontend-a11y, -testing, -git, -api, -devops, living-docs-enrichment |
+| `debugger` ¹ | debugger-workflow, debugger-handoff-format, debugger-forensic, debugger-report-templates, tool-question, wiki-navigation | debugger-execution-modes, debugger-phase-0-1, -2-3, -4-5, living-docs-enrichment, expert-posture |
+| `auditor` ¹ | coordination-only, retranscription-coordinateur, auditor-workflow, audit-protocol-light, audit-handoff-format, tool-question | auditor-execution-modes, living-docs-enrichment |
+| `auditor-subagent` ¹ | audit-protocol-light, subagent-concision-posture, audit-handoff-format, wiki-navigation | websearch-cve-lookup, websearch-performance-research, expert-posture, websearch-usage |
+| `database` | dev-standards-universal, tool-question, wiki-navigation | dev-standards-security, living-docs-enrichment |
+| `infra` | dev-standards-universal, tool-question, wiki-navigation | dev-standards-security, living-docs-enrichment |
+| `test-generator` | dev-standards-universal, dev-standards-testing, tool-question, wiki-navigation | living-docs-enrichment |
+| `benchmarker` | dev-standards-universal, tool-question, wiki-navigation | living-docs-enrichment |
+| `brief-enricher` | — (`skills: []`) | — (communs seulement) |
 
----
-
-## Domaine — `quality/`
-
-Skills de qualité pour les agents qui ne sont pas reviewer.
-
-| Fichier | Agents qui l'utilisent | Contenu |
-|---------|----------------------|---------|
-| `quality/debugger-workflow.md` | debugger | **Workflow unifié** — 6 phases (0 vérification artefacts → 1 exploration contextuelle → 2 questions complémentaires optionnel → 3 diagnostic 4 étapes : reproduction/isolation/identification/hypothèse graduée → 4 détection cas particuliers : race condition, environnement, données, configuration, dépendances, régression → 5 rapport + ticket Beads) — récaps systématiques, hypothèses graduées (haute/moyenne/faible probabilité), bloc `## Retour vers orchestrator` si invoqué depuis l'agent orchestrator. **Mode `--forensic`** : graduation de preuves Confirmed/Deduced/Hypothesized, stronghold-first, case file `.investigation-{slug}.md`, missing evidence = finding, délégation si >5 fichiers ou >10K tokens. |
-| `quality/debugger-handoff-format.md` | debugger, orchestrator | **Contrat de handoff** — bloc structuré `## Retour vers orchestrator` : cause racine avec niveau de certitude (confirmé/probable/incertain) + chaîne causale, hypothèses explorées, impact et régressions potentielles, tickets de correction créés, actions d'urgence si bug en prod, statut (`diagnostiqué` / `partiellement-diagnostiqué` / `non-reproductible`) |
-| `quality/debugger-subagent.md` | debugger (conditionnel) | **Parcours sous-agent** — chargé par le debugger quand `[SKILL:quality/debugger-subagent]` est détecté dans le prompt (injection orchestrateur). Mécanisme d'interruption de session à chaque phase, blocs `## Retour intermédiaire vers orchestrator` + `## Question pour l'orchestrator` avec `task_id`, interdiction de l'outil `question`. Calqué sur le pattern `planner-subagent`. |
-| `quality/debugger-forensic.md` | **B** | debugger | **Mode forensic** — protocole d'analyse criminalistique renforcée : graduation de preuves (Confirmed/Deduced/Hypothesized), stronghold-first (ancrage sur preuve Confirmed avant tout raisonnement), format du case file `.investigation-{slug}.md` (table d'hypothèses, preuves, timeline, preuves manquantes), règle "Evidence manquante = finding", seuils de délégation (>5 fichiers ou >10K tokens) |
-| `quality/debugger-report-templates.md` | **B** | debugger | **Templates de rapport** — formats canoniques de rapport de diagnostic par type de bug (null pointer, race condition, régression, bug environnement-spécifique, bug de données), structure des hypothèses graduées, format du ticket Beads de correction |
-
----
-
-## Domaine — `reviewer/`
-
-| Fichier | Agents qui l'utilisent | Contenu |
-|---------|----------------------|---------|
-| `reviewer/review-protocol.md` | reviewer | Protocole de review — format du rapport, niveaux de sévérité, checklist, mode "audit complet". Spécification du format de sortie brut pour la fusion multi-mode. La logique standalone/sous-agent est dans les skills de parcours dédiés. |
-| `reviewer/reviewer-standalone.md` | **B** | reviewer | **Parcours standalone** — prompt interactif de sélection de mode (standard / adversarial / edge-case / combinaisons), orchestration de sessions parallèles pour les modes combinés, fusion via `review-merge`, enrichissement living-docs, sans bloc handoff orchestrator |
-| `reviewer/reviewer-subagent.md` | **B** | reviewer | **Parcours sous-agent** — supporte le mode standard (par ticket depuis orchestrator-dev), le mode adversarial (CP-feature depuis orchestrator), et le mode combiné adversarial+edge-case. Produit toujours rapport complet + bloc `## Retour vers orchestrator-dev` obligatoire |
-| `reviewer/reviewer-adversarial.md` | **B** | reviewer | **Mode review adversariale** — posture de scepticisme maximal, min. 10 findings obligatoires, 7 catégories d'investigation (Architecture, Robustesse, Performance, Sécurité, Maintenabilité, Tests, Contrats), section "hypothèses dangereuses", score de confiance. Supporte le scope feature (`git diff main..feature-branch`) pour le CP-feature. Isolé contextuellement en multi-mode |
-| `reviewer/reviewer-edge-case.md` | **B** | reviewer | **Mode chasse aux cas limites** — analyse exhaustive des chemins d'exécution non gérés (control flow, frontières de valeurs, coercions implicites, concurrence/timing, dépendances externes, sécurité des entrées). Disponible partout en option. Isolé contextuellement en multi-mode |
-| `reviewer/review-merge.md` | **B** | reviewer | **Skill de fusion de rapports** — reçoit N rapports bruts issus de sessions parallèles, déduplique les findings (même fichier:ligne + même cause racine → conserver sévérité la plus haute), tague la provenance `[STD]`/`[ADV]`/`[EDGE]`, produit un rapport unifié avec annexes spécifiques par mode (hypothèses dangereuses, problèmes d'architecture, score de confiance, chemins manquants par classe) |
-| `reviewer/reviewer-handoff-format.md` | reviewer, orchestrator-dev | **Contrat de handoff** — bloc structuré `## Retour vers orchestrator-dev` : verdict actionnable (`commit` / `corriger` / `corriger-sécurité`), synthèse des problèmes par sévérité, corrections requises verbatim (collées directement dans le commentaire Beads), routing recommandé (`retour-initial` / `developer-security`), statut (`approuvé` / `corrections-requises` / `bloquant-sécurité`) |
-
----
-
-## Domaine — `documentarian/`
-
-Skills de documentation. Les skills marqués **(A)** sont Bucket A — inline. Les skills marqués **(B)** sont Bucket B — natifs.
-
-| Fichier | Bucket | Agents qui l'utilisent | Contenu |
-|---------|--------|----------------------|---------|
-| `documentarian/doc-protocol.md` | **A** | documentarian | Exploration obligatoire avant rédaction, tableau d'adaptation en 4 situations (format conforme / améliorable / absent / partiel), routing par type de doc, checklist de lacunes, workflow Beads et direct |
-| `documentarian/doc-standards.md` | **B** | documentarian | Framework Diataxis (4 quadrants), principes de lisibilité, structures type par document (README, how-to, référence), anti-patterns courants, critères de qualité, documentation fonctionnelle |
-| `documentarian/doc-adr.md` | **B** | documentarian | Détection du format existant (Nygard / MADR / Y-Statements / maison), format MADR de référence, règles de nommage, statuts (proposed/accepted/deprecated/superseded), critères de création |
-| `documentarian/doc-api.md` | **B** | documentarian | OpenAPI 3.x (squelette, endpoint, schemas réutilisables), codes HTTP, documentation narrative (guide d'utilisation, pagination, gestion des erreurs), identification et documentation des breaking changes |
-| `documentarian/doc-changelog.md` | **B** | documentarian | Keep a Changelog (6 sections), SemVer (MAJOR/MINOR/PATCH), Conventional Commits → sections changelog, génération depuis git log, workflow de release, release notes format étendu |
-| `documentarian/doc-slides.md` | **B** | documentarian | Génération de présentations Marp (Markdown → HTML/PDF) — 4 templates (tech-demo, product-pitch, retrospective, onboarding), directives Marp (frontmatter, `---`, `_class`, `backgroundColor`), bonnes pratiques (1 idée/slide, max 5 bullets, titres actionnables), détection automatique de Marp CLI post-génération et proposition de compilation, fallback avec options d'installation si absent |
-| `documentarian/documentarian-handoff-format.md` | **A** | documentarian, orchestrator-dev | **Contrat de handoff** — bloc structuré `## Retour vers orchestrator-dev` : type de documentation produite, fichiers modifiés, résumé de l'entrée, statut (`documenté` / `partiellement-documenté` / `bloqué`) |
-
----
-
-## Domaine — `planning/`
-
-Les skills marqués **(A)** sont Bucket A — inline. Les skills marqués **(B)** sont Bucket B — natifs.
-
-| Fichier | Bucket | Agents qui l'utilisent | Contenu |
-|---------|--------|----------------------|---------|
-| `planning/planner-workflow.md` | **A** | planner | **Workflow planner** — 7 phases (0 prérequis → **0.5 complexity scoring** (4 critères × 4 pts : domaines techniques, intégrations tiers, sensibilité sécurité, taille codebase ; tiers Small 4–6 / Medium 7–10 / Large 11–13 / Enterprise 14–16 ; conditionne pathfinder obligatoire et audit pré-implémentation) → 1 exploration contextuelle + signaux UX/UI → 1.5 délégation design → 2 questions → 3 plan hiérarchique → 4 cas particuliers → 5 création Beads → 5.5 ai-delegated → 6 vérification) — récaps systématiques, phases itératives. La logique standalone/sous-agent est extraite dans les skills de parcours dédiés. |
-| `planning/planner-standalone.md` | **B** | planner | **Parcours standalone** — récaps texte avant outil `question`, format des questions de validation par phase, sans bloc handoff orchestrateur |
-| `planning/planner-subagent.md` | **B** | planner | **Parcours sous-agent** — mécanisme d'interruption session à chaque phase, blocs structurés, `task_id` obligatoire, terminaison de session après chaque checkpoint |
-| `planning/planner-execution-modes.md` | **B** | planner | **Modes d'exécution** — consolidation des parcours standalone et sous-agent en un seul fichier de référence, règles de détection du mode, invariants par mode |
-| `planning/planner-design-templates.md` | **B** | planner | Templates de délégation design — formats de prompts `task: designer` pour les modes recon, ux, ui et ux+ui, intégration des résultats dans le plan, gestion des cas d'échec |
-| `planning/planner-beads-templates.md` | **B** | planner | Templates de tickets Beads — formats canoniques par type de feature (frontend, backend, fullstack, audit, design, migration), champs obligatoires, règles `--design` et `--deps` |
-| `planning/onboarder-workflow.md` | **A** | onboarder | **Workflow onboarder** — 6 phases (0 prérequis → 1 exploration adaptative 7 profils → 2 questions → 3 rapport contexte → 4 cas particuliers → 5 production wiki + handoff). La logique standalone/sous-agent est extraite dans les skills de parcours dédiés. |
-| `planning/onboarder-standalone.md` | **B** | onboarder | **Parcours standalone** — récaps texte avant outil `question`, sans bloc handoff orchestrateur |
-| `planning/onboarder-subagent.md` | **B** | onboarder | **Parcours sous-agent** — mécanisme d'interruption session à chaque phase, blocs structurés, `task_id` obligatoire |
-| `planning/onboarder-execution-modes.md` | **B** | onboarder | **Modes d'exécution** — consolidation des parcours standalone et sous-agent, règles de détection du mode d'invocation |
-| `planning/onboarder-profiles.md` | **B** | onboarder | **Profils d'exploration** — 7 profils adaptatifs (nouvelle feature, dette technique, sécurité, performance, migration, architecture, onboarding équipe), critères de sélection du profil, questions clés par profil |
-| `planning/pathfinder-protocol.md` | **A** | pathfinder | **Protocole pathfinder** — exploration rapide, estimation XS→XL, draft de plan, recommandation direct/escalade. La logique standalone/sous-agent est extraite dans les skills de parcours dédiés. |
-| `planning/pathfinder-standalone.md` | **B** | pathfinder | **Parcours standalone** — outil `question` pour les pauses, rapport final sans bloc handoff |
-| `planning/pathfinder-subagent.md` | **B** | pathfinder | **Parcours sous-agent** — session unique ou interruption si clarification critique, bloc handoff obligatoire |
-| `planning/pathfinder-execution-modes.md` | **B** | pathfinder | **Modes d'exécution** — consolidation des parcours standalone et sous-agent |
-| `planning/planner-handoff-format.md` | **A** | planner, orchestrator | **Contrat de handoff** — bloc structuré `## Retour vers orchestrator` : tableau complet des tickets créés avec agent prévu et dépendances, hypothèses et ambiguïtés, estimation globale, risques identifiés, statut (`planification-complète` / `planification-partielle` / `bloqué`) |
-| `planning/onboarder-handoff-format.md` | **A** | onboarder, orchestrator | **Contrat de handoff** — bloc structuré `## Retour vers orchestrator` : stack technique détaillée (langages, frameworks, BDD, infra, outils, versions clés), conventions identifiées, dette technique (🔴/🟠/🟡), zones d'incertitude, fichiers de contexte produits (`ONBOARDING.md`, `CONVENTIONS.md`), statut (`contexte-établi` / `contexte-partiel` / `bloqué`) |
-
----
-
-## Domaine — `designer/`
-
-Skills de design. Utilisés par l'agent `designer`.
-
-| Fichier | Bucket | Agents qui l'utilisent | Contenu |
-|---------|--------|----------------------|---------|
-| `designer/designer-protocol.md` | **A** | designer | **Protocole designer unifié** — 4 modes d'invocation (recon/ux/ui/ux+ui), détection du mode depuis le prompt, logique de routing, gate d'accès Figma (mode recon uniquement), mécanisme d'interruption de session |
-| `designer/ux-protocol.md` | **B** | designer | Heuristiques Nielsen (10 principes), grille des 5 questions UX, format user flow (nominal/alternatifs/erreurs), format spec UX avec critères d'acceptance, protocole d'audit friction |
-| `designer/ui-protocol.md` | **B** | designer | Tokens de design (couleurs, typographie, espacement, radius, ombres), format spec composant (variants/états/tokens/do-don't), règles de cohérence visuelle, protocole d'audit d'incohérences, échelle modulaire typographique |
-| `designer/figma-recon-protocol.md` | **B** | designer | Protocole de reconnaissance Figma — recherche de fichiers par nom de feature, exploration de l'arbre de composants, détection du design system (DSFR, Material, Custom), extraction des tokens (Figma Variables : couleurs, typographie, espacement), format de sortie pour les agents de planification |
-| `designer/figma-deep-protocol.md` | **B** | designer | Analyse Figma approfondie — énumération des variants de composants, cartographie des états, breakpoints responsives, extraction des annotations design-to-dev, checklist de handoff |
-| `designer/designer-execution-modes.md` | **B** | designer | **Parcours d'exécution** — parcours standalone (outil `question` actif, pas de bloc handoff) et parcours sous-agent (mécanisme d'interruption de session, blocs `## Question pour l'orchestrator` + `task_id`) |
-
----
-
-## Domaine — `design/`
-
-Skills de handoff pour l'agent designer. Injectés dans l'agent `designer` (producteur) et dans l'`orchestrator` (consommateur).
-
-| Fichier | Agents qui l'utilisent | Contenu |
-|---------|----------------------|---------|
-| `design/design-handoff-format.md` | designer, orchestrator | **Contrat de handoff** — bloc structuré `## Retour vers orchestrator` : spec produite intégrale (jamais résumée), contraintes d'implémentation, points ouverts, alternatives écartées, statut (`spec-complète` / `spec-partielle` / `bloqué`) — produit uniquement quand invoqué depuis l'orchestrator, après validation explicite de l'utilisateur |
-
----
-
-## Domaine — `adapters/`
-
-Skills d'intégration avec des outils externes (GitLab, etc.). Ces skills sont chargés en fonction des `mcpServers` déclarés dans l'agent.
-
-> **Note :** Les skills d'intégration Figma ont été centralisés dans le domaine `designer/` (ADR-020).
-> `planner`, `pathfinder` et `onboarder` délèguent désormais tous leurs besoins Figma à l'agent `designer` via `task`.
-
-| Fichier | Agents qui l'utilisent | MCP Server | Contenu |
-|---------|----------------------|------------|---------|
-| `adapters/gitlab-pathfinder-protocol.md` | pathfinder | `gitlab` | Protocole d'enrichissement GitLab pour le Pathfinder — lecture d'un ticket pour affiner l'estimation de complexité (ACs détaillés, labels priorité, milestone, blockers dans les commentaires), détection de MR existantes sur le même périmètre, ajustement selon les contraintes temporelles du milestone |
-| `adapters/gitlab-planner-protocol.md` | planner | `gitlab` | Protocole d'enrichissement GitLab pour le Planner — Phase 1.2bis optionnelle, lecture du ticket source comme cahier des charges, extraction des critères d'acceptation, exploitation des labels/milestone pour calibrer la priorité, détection des tickets liés pour identifier les dépendances, enrichissement du récap Phase 1 avec contexte GitLab |
-| `adapters/gitlab-onboarder-protocol.md` | onboarder | `gitlab` | Protocole d'intégration GitLab pour l'Onboarder — Phase 1.4bis optionnelle (si projet GitLab détecté), cartographie des labels par catégorie (types, priorités, domaines, workflow), milestones actifs pour comprendre la cadence de livraison, aperçu du backlog, enrichissement de ONBOARDING.md (section Gestion de projet) et CONVENTIONS.md (conventions de labelling) |
-
----
-
-## Domaine — `posture/`
-
-Skills de posture transverse. Injectables dans tout agent nécessitant une posture d'expert ou une interaction structurée.
-
-| Fichier | Agents qui l'utilisent | Contenu |
-|---------|----------------------|---------|
-| `posture/expert-posture.md` | auditor-subagent, onboarder, designer, planner, documentarian | Exploration systématique avant de répondre (annonce des artefacts consultés, identification des zones d'incertitude), recommandation contraire argumentée (format ⚠️ avec problème/alternative/pourquoi/trade-offs, formulation à la première personne), pause de confirmation avant toute action à risque élevé (format 🛑 avec question binaire explicite) |
-| `posture/tool-question.md` | orchestrator, orchestrator-dev, planner, onboarder, auditor, debugger, reviewer, documentarian, designer | Utilisation de l'outil `question` d'OpenCode — syntaxe `question({ questions: [{...}] })`, support multi-questions en un seul appel, multi-sélection (`multiple: true`), option "Type your own answer" automatique (ne pas dupliquer), format des réponses (tableau de labels), structure obligatoire (`header` ≤ 30 chars, `question`, `options` avec `label` + `description`), option recommandée en premier avec `(Recommandé)`, bloc de contexte obligatoire en tant que sous-agent |
-| `posture/concision-posture.md` | orchestrator, orchestrator-dev, planner, pathfinder, developer, reviewer | **(A)** — Posture de concision niveau `lite` : suppression des formules d'intro sans valeur ("Bien sûr !", "Je vais...", "Voici..."), reformulations du contexte déjà connu, transitions redondantes entre sections titrées, formules de clôture. Ne touche pas aux blocs handoff, récapitulatifs narratifs obligatoires, rapports formels ni au contenu technique. Calibré via `token_optimization.output_verbosity` dans `hub.json`. Voir [ADR-015](./adr/015-concision-posture.fr.md). |
-
----
-
-## Domaine — `shared/`
-
-Skills transverses partagés entre plusieurs familles d'agents. Les skills marqués **(A)** sont Bucket A — inline. Les skills marqués **(B)** sont Bucket B — natifs.
-
-| Fichier | Bucket | Agents qui l'utilisent | Contenu |
-|---------|--------|----------------------|---------|
-| `shared/hub-workflow-reference.md` | **A** | orchestrator, planner | **Source de vérité canonique** — catalogue des agents (famille, mode, quand invoquer, output attendu), heuristique pathfinder vs planner (keywords, complexity scoring, règle de doute), séquences standard par type de feature (solo/UX/audit/complète), table des handoffs (émetteur → format skill → récepteur). Toute modification d'un agent doit inclure une mise à jour de ce skill. `source-of-truth: true` |
-| `shared/rtk-usage.md` | **B** | Tous les agents (16) | **Guide RTK** — commandes token-optimisées pour réduire la consommation contextuelle de 60–90%. Charger via `skill("shared/rtk-usage")` quand le contexte approche de la limite ou pour optimiser les lectures de fichiers. Déclaré dans `native_skills:` de tous les agents. |
-| `shared/skill-authoring-protocol.md` | **B** | documentarian | **Protocole d'authoring condensé** — TDD RED/GREEN/REFACTOR pour skills, SDO checklist (description discriminante, keyword coverage, token efficiency), 5 anti-patterns, rationalization table template, checklist de validation 12 points. Charger via `skill("shared/skill-authoring-protocol")` lors de la création ou amélioration d'un skill. |
-| `shared/living-docs-enrichment.md` | **A** | auditor, planner, debugger, onboarder, pathfinder, reviewer, developer-* (tous les 11) | **Skill partagé** — enrichissement incrémental de ONBOARDING.md et CONVENTIONS.md depuis les travaux de tout agent (audit, planification, debug, implémentation, review, reconnaissance, re-onboarding) ; délègue l'écriture au documentarian après confirmation explicite de l'utilisateur |
-
----
-
-## Matrice de dépendances agents ↔ skills
-
-> **Note :** Les skills sont répartis en deux buckets (voir [ADR-010](./adr/010-hybrid-skills-architecture.fr.md)) :
-> - **(A)** = Bucket A — inline, toujours actif (depuis le champ frontmatter `skills:`)
-> - **(B)** = Bucket B — natif, chargé à la demande (depuis le champ frontmatter `native_skills:`, livré dans `skills/` du paquet de session)
->
-> Les skills spécifiques aux stacks dans `developer/stacks/` sont toujours Bucket B. L'ensemble livré dépend de la stack du projet cible. Voir `config/stack-skills.json` pour le mapping complet.
-> **Les skills de handoff** sont marqués avec `†` — injectés à la fois dans l'agent producteur et dans l'agent consommateur pour garantir le contrat partagé. Tous les skills de handoff sont Bucket A.
-
-```
-orchestrator          → (A) orchestrator/orchestrator-protocol,
-                             orchestrator/orchestrator-workflow-modes,
-                             orchestrator/orchestrator-handoff-format,
-                             developer/beads-plan,
-                             posture/coordination-only, posture/concision-posture,
-                             posture/retranscription-coordinateur,
-                             posture/tool-question, posture/tool-todowrite,
-                             planning/planner-handoff-format †,
-                             shared/hub-workflow-reference
-                        (B) planning/pathfinder-handoff-format,
-                             design/design-handoff-format †,
-                             auditor/audit-handoff-format †,
-                             planning/onboarder-handoff-format †,
-                             quality/debugger-handoff-format †
-                        skill: allow,
-              shared/rtk-usage
-orchestrator-dev      → (A) orchestrator/orchestrator-dev-protocol,
-                             orchestrator/orchestrator-handoff-format,
-                             orchestrator/orchestrator-workflow-modes,
-                             posture/coordination-only, posture/concision-posture,
-                             posture/retranscription-coordinateur,
-                             posture/tool-question, posture/tool-todowrite,
-                             developer/developer-handoff-format †,
-                             reviewer/reviewer-handoff-format †,
-                             documentarian/documentarian-handoff-format †
-                        (B) developer/dev-drift-detection,
-                             orchestrator/session-state-protocol,
-                             orchestrator/orchestrator-dev-standalone,
-                             orchestrator/orchestrator-dev-subagent
-                        skill: allow,
-              shared/rtk-usage
-onboarder             → (A) planning/onboarder-workflow,
-                             posture/expert-posture, posture/tool-question,
-                             developer/beads-plan, developer/dev-standards-git,
-                             shared/websearch-usage,
-                             shared/living-docs-enrichment, shared/wiki-navigation,
-                             planning/onboarder-handoff-format †,
-                             adapters/gitlab-onboarder-protocol
-                        (B) planning/onboarder-standalone, planning/onboarder-subagent,
-                             planning/websearch-stack-research,
-              shared/rtk-usage
-planner               → (A) developer/beads-plan, planning/planner-workflow,
-                             design/design-planner-format,
-                             posture/expert-posture, posture/concision-posture,
-                             posture/tool-question,
-                             shared/living-docs-enrichment, shared/websearch-usage,
-                             planning/planner-handoff-format †,
-                             shared/hub-workflow-reference,
-                             adapters/gitlab-planner-protocol
-                        (B) planning/planner-standalone, planning/planner-subagent,
-                             planning/websearch-stack-research,
-              shared/rtk-usage
-pathfinder            → (A) developer/beads-plan, planning/pathfinder-protocol,
-                             posture/concision-posture, posture/tool-question,
-                             shared/living-docs-enrichment, shared/wiki-navigation,
-                             shared/websearch-usage,
-                             planning/pathfinder-handoff-format †,
-                             adapters/gitlab-pathfinder-protocol
-                        (B) planning/pathfinder-standalone, planning/pathfinder-subagent,
-                             planning/websearch-stack-research,
-              shared/rtk-usage
-reviewer              → (A) dev-standards-universal, reviewer/review-protocol,
-                             posture/concision-posture, posture/tool-question,
-                             shared/living-docs-enrichment, shared/wiki-navigation,
-                             reviewer/reviewer-handoff-format †
-                          (B) reviewer/reviewer-standalone, reviewer/reviewer-subagent,
-                               reviewer/reviewer-adversarial, reviewer/reviewer-edge-case,
-                               reviewer/review-merge,
-                               dev-standards-security, dev-standards-backend,
-                               dev-standards-frontend, dev-standards-frontend-data,
-                               dev-standards-frontend-a11y,
-                               dev-standards-testing, dev-standards-git,
-              shared/rtk-usage
-debugger              → (A) quality/debugger-workflow, posture/tool-question,
-                             posture/expert-posture,
-                             shared/living-docs-enrichment, shared/wiki-navigation,
-                             quality/debugger-handoff-format †
-                         (B) quality/debugger-standalone, quality/debugger-subagent,
-              shared/rtk-usage
-auditor               → (A) auditor/auditor-workflow, posture/tool-question,
-                             posture/coordination-only, posture/retranscription-coordinateur,
-                             auditor/audit-protocol-light,
-                             shared/living-docs-enrichment,
-                             auditor/audit-handoff-format †
-                        (B) auditor/auditor-standalone, auditor/auditor-subagent
-                        skill: allow,
-              shared/rtk-usage
-auditor-subagent      → (A) auditor/audit-protocol-light, posture/expert-posture,
-                             posture/subagent-concision-posture,
-                             auditor/audit-handoff-format †,
-                             shared/websearch-usage
-                         (B) auditor/audit-<domaine>  ← injecté par le coordinateur via [SKILL:...]
-                              auditor/websearch-cve-lookup,
-                              auditor/websearch-performance-research,
-              shared/rtk-usage
-designer              → (A) designer/designer-protocol,
-                             design/design-planner-format,
-                             design/design-handoff-format †
-                        (B) designer/ux-protocol, designer/ui-protocol,
-                             designer/figma-recon-protocol, designer/figma-deep-protocol,
-                             designer/designer-execution-modes,
-                             design/websearch-design-patterns,
-              shared/rtk-usage
-documentarian         → (A) dev-standards-git, developer/beads-plan,
-                             developer/beads-dev,
-                             documentarian/doc-protocol, posture/expert-posture,
-                             posture/tool-question,
-                             documentarian/documentarian-handoff-format †,
-                             shared/websearch-usage
-                         (B) documentarian/doc-standards, documentarian/doc-adr,
-                              documentarian/doc-api, documentarian/doc-changelog,
-                              documentarian/doc-slides, documentarian/doc-wiki-protocol,
-                              shared/skill-authoring-protocol,
-              shared/rtk-usage
-developer-frontend    → (A) dev-standards-universal, dev-standards-simplicity,
-                             beads-plan, beads-dev,
-                             shared/living-docs-enrichment,
-                             developer/developer-handoff-format †
-                        (B) dev-standards-security, dev-standards-frontend,
-                             dev-standards-frontend-a11y, dev-standards-testing,
-                             dev-standards-git,
-              shared/rtk-usage
-                             + [stacks: language, frontend, test, api-spec]
-developer-backend     → (A) dev-standards-universal, dev-standards-simplicity,
-                             beads-plan, beads-dev,
-                             shared/living-docs-enrichment,
-                             developer/developer-handoff-format †
-                        (B) dev-standards-security, dev-standards-backend,
-                             dev-standards-testing, dev-standards-git,
-              shared/rtk-usage
-                             + [stacks: language, backend, orm, test, api-spec]
-developer-fullstack   → (A) dev-standards-universal, dev-standards-simplicity,
-                             beads-plan, beads-dev,
-                             shared/living-docs-enrichment,
-                             developer/developer-handoff-format †
-                        (B) dev-standards-security, dev-standards-frontend,
-                             dev-standards-frontend-a11y, dev-standards-backend,
-                             dev-standards-testing, dev-standards-git,
-              shared/rtk-usage
-                             + [stacks: language, frontend, backend, orm, test, api-spec]
-developer-data        → (A) dev-standards-universal, dev-standards-simplicity,
-                             beads-plan, beads-dev,
-                             shared/living-docs-enrichment,
-                             developer/developer-handoff-format †
-                        (B) dev-standards-security, dev-standards-testing, dev-standards-git,
-              shared/rtk-usage
-                             + [stacks: language, data, test]
-developer-devops      → (A) dev-standards-universal, dev-standards-simplicity,
-                             beads-plan, beads-dev,
-                             shared/living-docs-enrichment,
-                             developer/developer-handoff-format †
-                        (B) dev-standards-security, dev-standards-devops, dev-standards-git,
-              shared/rtk-usage
-                             + [stacks: infra]
-developer-mobile      → (A) dev-standards-universal, dev-standards-simplicity,
-                             beads-plan, beads-dev,
-                             shared/living-docs-enrichment,
-                             developer/developer-handoff-format †
-                        (B) dev-standards-security, dev-standards-testing, dev-standards-git,
-              shared/rtk-usage
-                             + [stacks: mobile, test]
-developer-api         → (A) dev-standards-universal, dev-standards-simplicity,
-                             beads-plan, beads-dev,
-                             shared/living-docs-enrichment,
-                             developer/developer-handoff-format †
-                        (B) dev-standards-security, dev-standards-backend, dev-standards-api,
-                             dev-standards-testing, dev-standards-git,
-              shared/rtk-usage
-developer-platform    → (A) dev-standards-universal, dev-standards-simplicity,
-                             beads-plan, beads-dev,
-                             shared/living-docs-enrichment,
-                             developer/developer-handoff-format †
-                        (B) dev-standards-security, dev-standards-devops, dev-standards-git,
-              shared/rtk-usage
-                             + [stacks: infra]
-developer-security    → (A) dev-standards-universal, dev-standards-simplicity,
-                             beads-plan, beads-dev,
-                             shared/living-docs-enrichment,
-                             developer/developer-handoff-format †
-                        (B) dev-standards-security, dev-standards-security-hardening,
-                             dev-standards-backend, dev-standards-testing, dev-standards-git,
-              shared/rtk-usage
-developer-migrator    → (A) dev-standards-universal, dev-standards-simplicity,
-                             beads-plan, beads-dev,
-                             shared/living-docs-enrichment,
-                             developer/developer-handoff-format †
-                        (B) dev-standards-security, dev-standards-testing,
-                             dev-standards-git, dev-standards-migration,
-              shared/rtk-usage
-developer-refactor    → (A) dev-standards-universal, dev-standards-simplicity,
-                             beads-plan, beads-dev,
-                             shared/living-docs-enrichment,
-                             developer/developer-handoff-format †
-                        (B) dev-standards-security, dev-standards-testing,
-                             dev-standards-git, dev-standards-refactoring,
-              shared/rtk-usage
-```
+`database`, `infra`, `test-generator` et `benchmarker` ne figurent dans aucun des 12 workflows livrés : leurs skills n'arrivent dans un paquet que si un workflow d'équipe ou de projet les déclare comme membres. Les skills de stack s'ajoutent à chaque paquet selon le projet ([Skills de stack](#skills-de-stack--developerstacks)).
