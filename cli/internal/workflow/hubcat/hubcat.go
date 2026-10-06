@@ -45,6 +45,10 @@ func New(hubDir string) (*Catalog, error) {
 	return &Catalog{hubDir: hubDir, files: files, agents: map[string]agentEntry{}}, nil
 }
 
+// Dir is the content directory the catalog reads (the hub, or the hub
+// merged with a team catalogue).
+func (c *Catalog) Dir() string { return c.hubDir }
+
 // Env returns a validation environment backed by the hub.
 func (c *Catalog) Env() workflow.Env {
 	return workflow.Env{Agents: c, Skills: c, Prompts: c}

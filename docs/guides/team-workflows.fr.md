@@ -81,6 +81,42 @@ enforce: [checkpoints, modes]   # ou ["*"] pour tout le document
 - Les verrous s'additionnent le long de la chaîne `extends` ; une couche plus spécifique ne peut pas les retirer.
 - Les options de lancement (mode, environnement, entrées) restent choisies dans les limites du workflow.
 
+## Brouillons, publication, historique
+
+Le cycle de vie d'un workflow d'équipe ou de projet passe par le WorkflowService (les commandes `oh workflow new|edit|publish…` arrivent avec la CLI de la phase 2) :
+
+1. **Brouillon** : `workflows/drafts/<membre>/<id>.yaml` (et son propre gabarit `<id>.prompt.md.tmpl` s'il en a un). Il est **validé à l'enregistrement** (refusé avec ses erreurs), poussé avec le team-state, mais n'est jamais chargé pour les autres membres.
+2. **Test** : `oh run <id> --draft` lance le brouillon, en local seulement, et le refuse s'il élargit la version publiée (un brouillon ne peut pas assouplir la sécurité).
+3. **Publication** : pull du team-state → **revalidation** du brouillon contre l'état à jour → version + 1 → version précédente copiée dans `history/<id>/` (document, gabarit et entrée du lock) → fichier publié et `workflows.lock` → commit + push. Si un autre membre a publié entre-temps, tout est **refait** au-dessus de sa publication (nouvelle revalidation, version suivante). Le brouillon est consommé ; un événement `workflow.published` est ajouté.
+4. **Hors ligne** : la publication est mise en **file d'attente** (dans le clone, non versionnée) et rejouée plus tard avec le même cycle ; le brouillon est conservé.
+
+### Résumé d'impact
+
+Chaque publication compare la nouvelle version à la précédente : risque relevé, nouveaux agents (et ceux qui écrivent), exécution distante ou nouveaux environnements autorisés, checkpoints retirés, rendus facultatifs ou assouplis, commandes Beads ajoutées, budget relevé, nouveaux MCP ou plugins, Code Mode, entrées et prompt modifiés. Les changements qui **élargissent** le workflow sont signalés. Les briques du catalogue d'équipe utilisées pour la première fois portent le badge « nouvelle brique ».
+
+### Historique, restauration, archivage
+
+- L'historique liste la version publiée puis les précédentes (auteur, date, message).
+- **Restaurer** une version la republie comme **nouvelle** version (événement `workflow.restored`).
+- **Archiver** retire le workflow publié (déplacé dans l'historique, entrée du lock supprimée, événement `workflow.archived`) ; il peut être restauré.
+- Les workflows publiés qui étendent celui-ci et deviendraient invalides sont signalés à la publication.
+
+Les événements des workflows d'équipe sont rangés dans `projects/_team/events/`, ceux d'un projet dans `projects/<projet>/events/`.
+
+## Catalogue de briques d'équipe
+
+Une équipe peut fournir ses propres agents et skills, au même format que ceux du hub :
+
+```
+team-state/catalog/
+├── agents/<famille>/<id>.md
+└── skills/<chemin>.md          # + skills/templates/… (annexes)
+```
+
+- Les workflows de l'équipe et des projets les utilisent comme les briques du hub (validation et paquet de session).
+- Un identifiant déjà utilisé par le hub (id d'agent, chemin ou nom de skill) est **refusé**, sauf si la brique déclare explicitement `extends: hub:<id>` (agent) ou `extends: hub:<chemin>` (skill) dans son frontmatter : elle remplace alors la brique du hub. Une brique refusée est ignorée avec un avertissement (`oh doctor`).
+- Une annexe ne peut pas remplacer un fichier du hub.
+
 ## Gouvernance
 
 La publication se règle dans `config.toml` du team-state :

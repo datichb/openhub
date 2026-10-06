@@ -3,8 +3,8 @@
 // origin of each value, validation against the brick catalogue and
 // rendering of the initial prompt. Shared by the CLI and the TUI; no UI code.
 //
-// Phase 1 reads the hub layer only; the team-state layers (team, project,
-// drafts) and the editing methods of phase 2 are added in separate files.
+// The team-state layers (team, project, drafts) and the editing methods of
+// phase 2 are in separate files (teamstate.go, draft.go, publish.go…).
 package workflow
 
 import (
@@ -31,6 +31,12 @@ type Service struct {
 	Isolation sessionspec.IsolationLevel
 	// Lang selects the language of labels ("" = current locale).
 	Lang string
+	// TeamState returns the team-state of a context (phase 2, teamstate.go);
+	// nil: hub layer only.
+	TeamState TeamStateFunc
+	// BricksCacheDir holds the hub merged with team catalogues (bricks.go);
+	// empty: <HubDir>/../cache/bricks.
+	BricksCacheDir string
 }
 
 // Context is the scope a workflow is listed or resolved in. The project and
@@ -43,14 +49,28 @@ type Context struct {
 // catalog holds the documents of every available layer and the validation
 // environment.
 type catalog struct {
-	docs  *wf.MemCatalog
-	diags wf.Diagnostics // load problems (files that could not be read)
-	env   wf.Env
+	docs   *wf.MemCatalog
+	diags  wf.Diagnostics // load problems (files that could not be read)
+	env    wf.Env
+	team   *TeamState // team-state layers loaded (nil: hub only)
+	bricks *Bricks    // hub merged with the team catalogue (nil: hub only)
 }
 
 // load reads the available layers. A missing hub directory gives an empty
 // catalogue.
-func (s *Service) load(_ context.Context, _ Context) (*catalog, error) {
+func (s *Service) load(ctx context.Context, c Context) (*catalog, error) {
+	cat, err := s.loadHub()
+	if err != nil {
+		return nil, err
+	}
+	if err := s.addTeamLayers(ctx, c, cat); err != nil {
+		return nil, err
+	}
+	return cat, nil
+}
+
+// loadHub reads the hub layer and the validation environment.
+func (s *Service) loadHub() (*catalog, error) {
 	c := &catalog{docs: wf.NewMemCatalog()}
 	if dir := s.hubWorkflowsDir(); dir != "" {
 		if s.HubWorkflowsDir != "" {

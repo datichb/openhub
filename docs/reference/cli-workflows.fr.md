@@ -2,7 +2,7 @@
 
 # Référence CLI — Workflows
 
-Les workflows déclaratifs (`apiVersion: oh/v1`) décrivent un cas d'usage : agent d'entrée, agents, checkpoints, entrées, ressources et environnements d'exécution autorisés. Ils sont lus par couches (hub, puis équipe et projet en phase 2) ; la couche la plus spécifique étend celle du dessous.
+Les workflows déclaratifs (`apiVersion: oh/v1`) décrivent un cas d'usage : agent d'entrée, agents, checkpoints, entrées, ressources et environnements d'exécution autorisés. Ils sont lus par couches (hub, puis équipe et projet du team-state, voir [Workflows d'équipe](../guides/team-workflows.fr.md)) ; la couche la plus spécifique étend celle du dessous.
 
 ## oh run
 
@@ -23,7 +23,8 @@ Lance un workflow : résolution des couches et validation, paquet de session, pl
 - **Préconditions** : une précondition bloquante refuse le lancement ; une suggestion (ex. pas de wiki → `onboarding`) propose de lancer d'abord le workflow suggéré. Avec `resume: true`, le lancement initial est mémorisé et reproposé à la fin de cette session (« Enchaîner avec… » dans la TUI).
 - **Sans interface** (`--headless [--output <fichier>] [--timeout 30m]`) : aucune fenêtre n'est ouverte ; oh attend la fin du tour, écrit la réponse (sortie standard ou fichier, un fichier par session : `<fichier>.<ticket>`) puis arrête la session. Refusé si un checkpoint attend une validation dans le mode choisi. Une session qui demande une décision (permission, question) reste ouverte : `oh session inbox`, `oh session approve`. `oh takeover-brief enrich` passe par `oh run brief-enrich --headless`.
 - Deux lancements simultanés dans le même dossier sont refusés (« lancement en cours »).
-- `--draft` (brouillons) arrive en phase 2. Exige opencode V2.
+- **Brouillon** (`--draft`) : lance la version en cours d'édition (votre brouillon, couche équipe ou projet) au lieu de la version publiée. Refusé en exécution distante et si le brouillon **élargit** la version publiée (risque, checkpoints, environnements, Beads, budget…) : publiez-le pour appliquer ces changements. Voir [Workflows d'équipe](../guides/team-workflows.fr.md).
+- Exige opencode V2.
 
 ## oh workflow list
 

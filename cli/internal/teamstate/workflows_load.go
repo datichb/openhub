@@ -169,6 +169,9 @@ type PromptSource struct {
 func (p PromptSource) ReadPrompt(origin workflow.Origin, path string) ([]byte, error) {
 	if p.Repo != nil && (origin.Layer == workflow.LayerTeam || origin.Layer == workflow.LayerProject) && origin.Source != "" {
 		if dir, ok := p.Repo.workflowsDirOf(origin.Source); ok {
+			if own := ownPromptOf(origin.Source); own != "" {
+				return os.ReadFile(own)
+			}
 			full := filepath.Join(dir, filepath.FromSlash(path))
 			if r, err := filepath.Rel(dir, full); err != nil || r == ".." || strings.HasPrefix(r, ".."+string(filepath.Separator)) {
 				return nil, fmt.Errorf("%w: prompt path %q", ErrUnsafeName, path)

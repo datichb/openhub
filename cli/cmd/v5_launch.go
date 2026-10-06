@@ -236,6 +236,9 @@ func buildWorkflowBundle(a *app.App, project *domain.Project, res *workflowsvc.R
 	}
 	req := sessionBundleRequest(a, project, team, prov)
 	req.Spec = res.Spec
+	if dir := res.BricksDir(); dir != "" {
+		req.HubDir = dir // team catalogue bricks (v5 phase 2)
+	}
 	if ids, set := res.MCPSelection(); set {
 		req.MCP, missing = selectMCP(req.MCP, ids)
 	}

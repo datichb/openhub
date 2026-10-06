@@ -52,6 +52,9 @@ type runOptions struct {
 	// OneSession gives every ticket to a single session (the workflow
 	// handles several tickets) instead of one session per ticket.
 	OneSession bool
+	// Draft resolves the workflow with the member's drafts (local only, may
+	// not loosen the published version).
+	Draft bool
 	// Progress receives preparation output (container image build).
 	Progress func(line string)
 }
@@ -84,8 +87,12 @@ func prepareWorkflowRun(ctx context.Context, a *app.App, opts runOptions, errOut
 		return nil, errors.New(i18n.T("cmd.run.no_project"))
 	}
 	wsvc := newWorkflowService(ctx)
+	resolve := wsvc.Resolve
+	if opts.Draft {
+		resolve = wsvc.ResolveDraft
+	}
 	// Resolve once to learn the inputs (ticket input), then with the inputs.
-	probe, err := wsvc.Resolve(ctx, workflowsvc.Context{ProjectID: opts.Project.ID}, opts.Workflow, workflowsvc.ResolveOpts{})
+	probe, err := resolve(ctx, workflowsvc.Context{ProjectID: opts.Project.ID}, opts.Workflow, workflowsvc.ResolveOpts{})
 	if err != nil {
 		return nil, workflowError(errOut, opts.Workflow, err)
 	}
@@ -110,7 +117,7 @@ func prepareWorkflowRun(ctx context.Context, a *app.App, opts runOptions, errOut
 			inputs[ticketInput] = opts.Tickets[0]
 		}
 	}
-	res, err := wsvc.Resolve(ctx, workflowsvc.Context{ProjectID: opts.Project.ID}, opts.Workflow, workflowsvc.ResolveOpts{
+	res, err := resolve(ctx, workflowsvc.Context{ProjectID: opts.Project.ID}, opts.Workflow, workflowsvc.ResolveOpts{
 		Session: &workflow.SessionOptions{Mode: opts.Mode, Runtime: workflow.Runtime(opts.Runtime), Inputs: inputs}})
 	if err != nil {
 		return nil, workflowError(errOut, opts.Workflow, err)

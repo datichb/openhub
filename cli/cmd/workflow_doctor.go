@@ -1,11 +1,13 @@
 package cmd
 
 import (
+	"context"
 	"path/filepath"
 	"strings"
 
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/i18n"
+	workflowsvc "github.com/datichb/openhub/cli/internal/services/workflow"
 	"github.com/datichb/openhub/cli/internal/teamstate"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 	"github.com/datichb/openhub/cli/internal/workflow"
@@ -49,6 +51,15 @@ func workflowIntegrityCheck(name string, repo *teamstate.Repo) views.DoctorCheck
 	var skipped []string
 	for _, d := range diags {
 		if teamstate.IsIntegrityDiag(d) {
+			skipped = append(skipped, filepath.Base(d.Source))
+		}
+	}
+	// Refused team bricks (catalog/), reported with the skipped workflows.
+	svc := &workflowsvc.Service{HubDir: findHubDir(), TeamState: func(context.Context, workflowsvc.Context) (*workflowsvc.TeamState, error) {
+		return &workflowsvc.TeamState{Repo: repo}, nil
+	}}
+	if b, err := svc.Bricks(context.Background(), workflowsvc.Context{}); err == nil {
+		for _, d := range b.Diagnostics {
 			skipped = append(skipped, filepath.Base(d.Source))
 		}
 	}

@@ -81,6 +81,42 @@ enforce: [checkpoints, modes]   # or ["*"] for the whole document
 - Locks add up along the `extends` chain; a more specific layer cannot remove them.
 - Launch options (mode, runtime, inputs) are still chosen within the limits of the workflow.
 
+## Drafts, publication, history
+
+The life cycle of a team or project workflow goes through the WorkflowService (the `oh workflow new|edit|publish…` commands come with the phase 2 CLI):
+
+1. **Draft**: `workflows/drafts/<member>/<id>.yaml` (and its own template `<id>.prompt.md.tmpl` when it has one). It is **validated when saved** (refused with its errors), pushed with the team-state, but never loaded for other members.
+2. **Test**: `oh run <id> --draft` runs the draft, locally only, and refuses it when it widens the published version (a draft cannot loosen security).
+3. **Publication**: team-state pull → **revalidation** of the draft against the up-to-date state → version + 1 → previous version copied to `history/<id>/` (document, template and lock entry) → published file and `workflows.lock` → commit + push. If another member published in the meantime, everything is **redone** on top of their publication (new revalidation, next version). The draft is consumed; a `workflow.published` event is added.
+4. **Offline**: the publication is **queued** (in the clone, not versioned) and replayed later with the same cycle; the draft is kept.
+
+### Impact summary
+
+Every publication compares the new version with the previous one: risk raised, new agents (and those that write), remote execution or new runtimes allowed, checkpoints removed, made optional or loosened, Beads commands added, budget raised, new MCP servers or plugins, Code Mode, inputs and prompt changed. Changes that **widen** the workflow are flagged. Team catalogue bricks used for the first time get the "new brick" badge.
+
+### History, restore, archive
+
+- The history lists the published version, then the previous ones (author, date, message).
+- **Restoring** a version publishes it again as a **new** version (`workflow.restored` event).
+- **Archiving** withdraws the published workflow (moved to history, lock entry removed, `workflow.archived` event); it can be restored.
+- Published workflows extending this one that would become invalid are reported when publishing.
+
+Team workflow events go to `projects/_team/events/`, project ones to `projects/<project>/events/`.
+
+## Team brick catalogue
+
+A team can provide its own agents and skills, in the same format as the hub:
+
+```
+team-state/catalog/
+├── agents/<family>/<id>.md
+└── skills/<path>.md            # + skills/templates/… (annexes)
+```
+
+- Team and project workflows use them like hub bricks (validation and session bundle).
+- An identifier already used by the hub (agent id, skill path or name) is **refused**, unless the brick explicitly declares `extends: hub:<id>` (agent) or `extends: hub:<path>` (skill) in its frontmatter: it then replaces the hub brick. A refused brick is skipped with a warning (`oh doctor`).
+- An annex cannot replace a hub file.
+
 ## Governance
 
 Publishing is configured in the team-state `config.toml`:

@@ -472,6 +472,11 @@ func (t TrackerConfig) IsPushLabelsEnforced() bool {
 func (r *Repo) LoadConfig() (*TeamConfig, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
+	return r.loadConfig()
+}
+
+// loadConfig is LoadConfig without the lock.
+func (r *Repo) loadConfig() (*TeamConfig, error) {
 	path := filepath.Join(r.path, "config.toml")
 	data, err := os.ReadFile(path)
 	if err != nil {

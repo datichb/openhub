@@ -39,6 +39,9 @@ type Repo struct {
 	path          string   // local clone path (e.g. ~/.oh/team-state/)
 	remote        string   // Git remote URL
 	boardStatuses []string // custom board column IDs (set via SetBoardStatuses)
+	// beforePush runs in Transact between the commit and the push (tests:
+	// simulate a concurrent push).
+	beforePush func()
 }
 
 // NewRepo creates a Repo instance. It does NOT clone or validate the repo.
