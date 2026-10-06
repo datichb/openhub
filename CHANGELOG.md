@@ -90,6 +90,9 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
   - Le paquet de session est monté en lecture seule ; le projet et ses worktrees en lecture-écriture, avec l'utilisateur de la machine (fichiers créés à son nom) ; la configuration opencode de l'utilisateur n'est pas visible.
   - Port du serveur publié sur `127.0.0.1` seulement ; l'interface opencode de la machine s'y attache comme en local.
   - Aucun secret dans le conteneur : le proxy d'identifiants reste sur la machine et n'est joignable qu'avec le jeton de session.
+- **Passerelle Beads** : dans un conteneur, `bd` envoie chaque commande au démon oh, qui lance le vrai `bd` sur la machine, dans le dossier de la session ; sortie et code retour sont relayés. Seules les commandes de `beads.allow` du workflow passent (lecture seule sans bloc `beads:`, rien avec une liste vide). Les options qui changent de base ou de dossier (`--db`, `-C`, `--global`…) et les fichiers hors des dossiers de la session sont refusés.
+  - Jeton propre à chaque session, donné aussi aux sous-agents ; le démon n'en garde que l'empreinte. Il survit à un redémarrage du démon et devient inutilisable quand la session s'arrête ou se met en veille.
+- **Passerelle MCP** : dans un conteneur, les serveurs MCP oh du paquet (gitlab, figma, jira, gslides, linear, github, team, workflow) tournent sur la machine, lancés par le démon, et sont joints en HTTP. Leurs jetons restent dans le trousseau : le conteneur ne voit que le jeton de session.
 - `make test-container` : tests réels avec Colima et/ou Podman.
 
 ### Changed
