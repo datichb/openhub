@@ -320,3 +320,9 @@ func TestLaunchFormSuggestionRunsFirst(t *testing.T) {
 		t.Fatal("suggested workflow not launched")
 	}
 }
+
+func TestSessionsDetailShowsNext(t *testing.T) {
+	v := &SessionsView{detail: tview.NewTextView()}
+	v.renderDetail(&SessionRow{ID: "ses_1", Workflow: "ticket", Next: "review"})
+	assert.Contains(t, v.detail.GetText(true), i18n.Tf("tui.launch.chain_next", "review"))
+}

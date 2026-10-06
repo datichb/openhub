@@ -102,7 +102,7 @@ Generated from the workflow YAML, in three steps: **Inputs** (one line per input
 - **Start** (hub, project, team landings): ★ pinned (5 max), recent (3), suggestions when empty; in project/team mode, collapsed categories (Enter = pick a workflow). `*` pins or unpins (scope: hub, project or team depending on the landing). "All workflows (N)" opens the catalogue.
 - **Board**: `a` on a ticket lists the workflows taking a Beads ticket; the form opens at the Options step, ticket prefilled.
 - **Catalogue**: workflows by layer (version, risk, ⌂ ▣ ☁, validity), detail on the right; Enter launches, `*` pins.
-- **Sessions view**: `e` "Chain with…" suggests the workflows taking an output of the session (branch, tickets), form prefilled.
+- **Sessions view**: `e` "Chain with…" suggests the workflows taking an output of the session (branch, tickets), form prefilled; a launch put on hold by a precondition ("run onboarding then come back") comes first. When a workflow session ends (or declares its outputs), a toast announces the suggested follow-up and the session detail shows it ("↪ Chain with review (e)").
 
 ### Projects
 

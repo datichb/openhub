@@ -102,7 +102,7 @@ Générée depuis le YAML du workflow, en trois étapes : **Entrées** (une lign
 - **Démarrer** (accueil, projet, équipe) : ★ épinglés (5 max), récents (3), suggestions si vide ; en mode projet/équipe, catégories repliées (Entrée = choix du workflow). `*` épingle ou désépingle (portée : hub, projet ou équipe selon l'accueil). « Tous les workflows (N) » ouvre le catalogue.
 - **Board** : `a` sur un ticket liste les workflows qui prennent un ticket Beads ; la fiche s'ouvre à l'étape Options, ticket prérempli.
 - **Catalogue** : workflows par couche (version, risque, ⌂ ▣ ☁, validité), détail à droite ; Entrée lance, `*` épingle.
-- **Vue Sessions** : `e` « Enchaîner avec… » propose les workflows qui prennent une sortie de la session (branche, tickets), fiche préremplie.
+- **Vue Sessions** : `e` « Enchaîner avec… » propose les workflows qui prennent une sortie de la session (branche, tickets), fiche préremplie ; un lancement mis en attente par une précondition (« lancer onboarding puis revenir ») est proposé en premier. Quand une session de workflow se termine (ou déclare ses sorties), un toast annonce la suite proposée et le détail de la session l'affiche (« ↪ Enchaîner avec review (e) »).
 
 ### Projets
 

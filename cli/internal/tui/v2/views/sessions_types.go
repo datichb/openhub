@@ -62,6 +62,8 @@ type SessionRow struct {
 	Changed    time.Time
 	Finished   bool
 	Decisions  []SessionDecision
+	// Next is the workflow suggested to chain with (« Enchaîner avec… »).
+	Next string
 }
 
 // SessionFeedLine is one line of a session live feed.

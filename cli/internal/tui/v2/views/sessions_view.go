@@ -437,6 +437,9 @@ func (v *SessionsView) renderDetail(r *SessionRow) {
 	for _, d := range r.Decisions {
 		fmt.Fprintf(&b, "%s%s%s %s\n", theme.ColorTag(theme.WarningHex), d.Icon, theme.TagColor, d.Summary)
 	}
+	if r.Next != "" {
+		fmt.Fprintf(&b, "%s↪ %s%s\n", theme.ColorTag(theme.SuccessHex), i18n.Tf("tui.launch.chain_next", r.Next), theme.TagColor)
+	}
 	b.WriteString(muted(r.ID))
 	v.detail.SetText(b.String())
 }

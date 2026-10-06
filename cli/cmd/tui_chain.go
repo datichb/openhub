@@ -2,11 +2,15 @@ package cmd
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"sync"
 
+	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
+	sessionsvc "github.com/datichb/openhub/cli/internal/services/session"
 	workflowsvc "github.com/datichb/openhub/cli/internal/services/workflow"
+	"github.com/datichb/openhub/cli/internal/tui/v2/shell"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
 
@@ -105,4 +109,64 @@ func (t *tuiSessions) resume(sessionID string) {
 	forgetResumeIntent(ctx, t.a, sess.ProjectID, sessionID)
 	openLaunchForm(t.a, tuiLaunchRequest{WorkflowID: intent.Workflow, ProjectID: sess.ProjectID, Prefill: intent.Inputs,
 		Tickets: intent.Tickets, Parent: sessionID, Mode: intent.Mode, Runtime: intent.Runtime})
+}
+
+// chainNextByID caches the first suggestion of ended sessions (Sessions view,
+// event loop safe).
+var chainNextByID = map[string]string{}
+
+func chainNext(sessionID string) string {
+	tuiChainMu.Lock()
+	defer tuiChainMu.Unlock()
+	return chainNextByID[sessionID]
+}
+
+// endedSessions returns the workflow sessions that just ended (stopped or
+// completed) or declared new outputs since the last refresh. Called with
+// t.mu held; nothing on the first refresh (already ended before the TUI).
+func (t *tuiSessions) endedSessions(list []sessionsvc.View) []domain.Session {
+	var out []domain.Session
+	for _, v := range list {
+		s := v.Session
+		if s.WorkflowID == "" || s.Type == domain.SessionTypeHeadless {
+			continue
+		}
+		sig := ""
+		if s.State == domain.RunCompleted || s.State == domain.RunStopped {
+			sig = "end"
+		}
+		if len(s.Outputs) > 0 {
+			sig += fmt.Sprintf(":%d", len(s.Outputs))
+		}
+		prev, known := t.ends[s.ID]
+		t.ends[s.ID] = sig
+		if t.primed && known && sig != "" && sig != prev {
+			out = append(out, s)
+		}
+	}
+	return out
+}
+
+// sessionEnded computes the suggestions of an ended session, keeps the first
+// one for the Sessions view and toasts it (10 §4.4).
+func (t *tuiSessions) sessionEnded(ctx context.Context, s domain.Session) {
+	opts, err := t.ChainOptions(ctx, s.ID)
+	if err != nil || len(opts) == 0 {
+		return
+	}
+	next := strings.TrimPrefix(opts[0].Value, resumeChoice)
+	tuiChainMu.Lock()
+	chainNextByID[s.ID] = next
+	tuiChainMu.Unlock()
+	sh := tuiShell
+	if sh == nil {
+		return
+	}
+	label := s.WorkflowID
+	if s.Title != nil && *s.Title != "" {
+		label = *s.Title
+	}
+	sh.App().QueueUpdateDraw(func() {
+		sh.ShowToast(i18n.Tf("tui.launch.session_done", label, s.Cost, next), shell.ToastSuccess)
+	})
 }
