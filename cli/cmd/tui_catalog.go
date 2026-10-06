@@ -29,7 +29,7 @@ func newWorkflowCatalogView(start *tuiStart) *views.WorkflowCatalogView {
 		},
 		TogglePin: func(id string) { start.togglePin(activeScope(), views.StartEntry{ID: id}) },
 		New:       tuiNewWorkflow,
-		Edit:      func(e views.CatalogEntry) { tuiEditWorkflow(e.Ref) },
+		Edit:      func(e views.CatalogEntry) { tuiOpenEditor(e.Ref) },
 		TestDraft: func(e views.CatalogEntry) {
 			openLaunchForm(start.a, tuiLaunchRequest{WorkflowID: e.ID, ProjectID: activeScope().ProjectID, Draft: true})
 		},
@@ -197,8 +197,8 @@ func tuiWorkflowError(err error) string {
 	return workflowEditError(io.Discard, err).Error()
 }
 
-// tuiNewWorkflow creates a draft from the « new » form: its starting text
-// opened in $EDITOR, then validated and saved.
+// tuiNewWorkflow opens the editor on the starting text of a new workflow
+// (saved as a draft with w).
 func tuiNewWorkflow(n views.CatalogNew) {
 	c := catalogContext()
 	in := workflowsvc.NewDraft{ID: n.ID, Layer: workflow.Layer(n.Layer)}
@@ -212,64 +212,7 @@ func tuiNewWorkflow(n views.CatalogNew) {
 	tuiAsync(func(ctx context.Context) (err error) {
 		t, err = newWorkflowService(ctx).NewDraftText(ctx, c, in)
 		return err
-	}, func() { editDraftInEditor(c, in.Layer, t.YAML, t.Prompt) })
-}
-
-// tuiEditWorkflow edits the draft of ref (or starts one from the published
-// document) in $EDITOR. Replaced by the editor view in lot 3; kept for `y`.
-func tuiEditWorkflow(ref string) {
-	c := catalogContext()
-	layer, id := splitRef(ref)
-	var t *workflowsvc.Text
-	tuiAsync(func(ctx context.Context) (err error) {
-		t, err = newWorkflowService(ctx).EditText(ctx, c, layer, id)
-		return err
-	}, func() { editDraftInEditor(c, layer, t.YAML, t.Prompt) })
-}
-
-// editDraftInEditor opens yaml in $EDITOR (terminal suspended), then saves
-// it as a draft; validation errors offer to reopen the editor.
-func editDraftInEditor(c workflowsvc.Context, layer workflow.Layer, yaml, prompt []byte) {
-	sh := tuiShell
-	if sh == nil {
-		return
-	}
-	var edited []byte
-	err := sh.SuspendAndExec(func() (err error) {
-		edited, _, err = editText("workflow.yaml", yaml)
-		return err
-	})
-	if err != nil {
-		sh.ShowToast(err.Error(), shell.ToastError)
-		return
-	}
-	go func() {
-		ctx := sh.Context()
-		d, err := newWorkflowService(ctx).SaveDraft(ctx, c, workflowsvc.DraftInput{Layer: layer, YAML: edited, Prompt: prompt})
-		sh.App().QueueUpdateDraw(func() {
-			var invalid *workflowsvc.InvalidError
-			switch {
-			case errors.As(err, &invalid):
-				body := ""
-				for _, l := range diagLines(invalid.Diagnostics) {
-					body += l + "\n"
-				}
-				sh.ShowScrollableModal(i18n.Tf("tui.catalog.edit.invalid_title", invalid.Ref), body, []views.ModalAction{
-					{Label: i18n.T("tui.catalog.edit.reopen"), Callback: func() { editDraftInEditor(c, layer, edited, prompt) }},
-					{Label: i18n.T("tui.catalog.edit.drop_changes"), Callback: func() {}, Separator: true},
-				})
-			case err != nil:
-				sh.ShowToast(tuiWorkflowError(err), shell.ToastError)
-			default:
-				msg := i18n.Tf("tui.catalog.edit.saved", d.Ref.String())
-				if !d.Pushed {
-					msg = i18n.Tf("tui.catalog.edit.saved_local", d.Ref.String())
-				}
-				sh.ShowToast(msg, shell.ToastSuccess)
-				refreshCatalog()
-			}
-		})
-	}()
+	}, func() { openWorkflowEditor(c, in.Layer, t, true, t.Prompt != nil) })
 }
 
 // tuiArchiveWorkflow archives a published workflow.

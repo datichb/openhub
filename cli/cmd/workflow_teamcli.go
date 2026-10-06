@@ -137,6 +137,12 @@ func editorArgv() []string {
 // editText opens content in the editor (file named name) and returns the
 // edited text.
 func editText(name string, content []byte) (edited []byte, path string, err error) {
+	return editTextAt(name, content, 0)
+}
+
+// editTextAt is editText with the cursor at line (when > 0 and the editor
+// is known to accept it).
+func editTextAt(name string, content []byte, line int) (edited []byte, path string, err error) {
 	dir, err := os.MkdirTemp("", "oh-workflow-")
 	if err != nil {
 		return nil, "", err
@@ -145,7 +151,7 @@ func editText(name string, content []byte) (edited []byte, path string, err erro
 	if err := os.WriteFile(path, content, 0o600); err != nil {
 		return nil, "", err
 	}
-	argv := append(editorArgv(), path)
+	argv := append(editorArgv(), editorLineArgs(editorArgv()[0], path, line)...)
 	c := exec.Command(argv[0], argv[1:]...) //nolint:gosec // the user's editor
 	c.Stdin, c.Stdout, c.Stderr = os.Stdin, os.Stdout, os.Stderr
 	if err := c.Run(); err != nil {
@@ -153,6 +159,23 @@ func editText(name string, content []byte) (edited []byte, path string, err erro
 	}
 	edited, err = os.ReadFile(path)
 	return edited, path, err
+}
+
+// editorLineArgs are the arguments opening path at line for the editor.
+func editorLineArgs(editor, path string, line int) []string {
+	if line <= 0 {
+		return []string{path}
+	}
+	switch filepath.Base(editor) {
+	case "vi", "vim", "nvim", "nano", "emacs", "emacsclient", "micro", "kak", "hx", "helix", "mg", "joe":
+		return []string{fmt.Sprintf("+%d", line), path}
+	case "code", "codium", "cursor", "subl", "zed":
+		if filepath.Base(editor) == "subl" || filepath.Base(editor) == "zed" {
+			return []string{fmt.Sprintf("%s:%d", path, line)}
+		}
+		return []string{"-g", fmt.Sprintf("%s:%d", path, line)}
+	}
+	return []string{path}
 }
 
 // draftEdit is the content to save as a draft.
