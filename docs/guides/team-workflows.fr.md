@@ -139,3 +139,19 @@ oh team promote --remote <url-vide>       # plus tard : le partager avec une éq
 ```
 
 Les publications y sont des commits locaux. `oh team promote` pousse tout l'historique vers le remote, sans rien perdre (voir [CLI équipe](../reference/cli-team.fr.md#oh-team-promote)).
+
+## Migration des anciennes surcharges de workflow (v5)
+
+Les surcharges de l'ancien workflow unique (onglet Workflow de la TUI) sont migrées **automatiquement** au premier lancement d'oh v5 (migration v38), vers des workflows qui étendent `hub:feature` (mêmes identifiants de checkpoints et d'agents) :
+
+| Ancienne configuration | Devient |
+|---|---|
+| `config.toml` du team-state, section `[workflow]` | brouillon puis workflow d'équipe `feature` (`extends: hub:feature` ; `enforced = true` → `enforce: ["*"]`), publié si l'équipe n'en a pas encore ; section retirée de `config.toml` |
+| configuration de workflow d'un projet (base oh) | brouillon puis workflow de projet `feature` (étend `team:feature` si l'équipe en a un, sinon `hub:feature`) ; un **espace solo** est créé pour un projet sans équipe |
+| `hub.toml`, section `[workflow.overrides]` (développement du hub) | fichiers `~/.oh/migrated/` (non chargés) ; section retirée de `hub.toml` |
+
+- **Rien n'est perdu** : la configuration d'origine est archivée (`workflows/migrated/…` du team-state, `~/.oh/migrated/`) ; ce qui n'a pas d'équivalent (`cp-routing`, agents d'un checkpoint, `insert_after`, `task_permissions`) est listé en commentaire en tête du workflow migré.
+- Un workflow migré invalide, ou une portée qui a déjà un `feature` publié, reste **votre brouillon** : `oh workflow diff feature`, `oh workflow edit feature`, puis `oh workflow publish`.
+- Si l'équipe verrouillait son workflow, les surcharges de projet (ignorées auparavant) restent un brouillon : la publication est refusée par le verrou.
+- Hors ligne, la migration d'une équipe est simplement retentée au lancement suivant.
+- L'ancienne vue Workflow de la TUI n'affiche plus que le workflow de base, en lecture seule ; `oh deploy` (opencode V1) n'applique plus les anciennes surcharges.

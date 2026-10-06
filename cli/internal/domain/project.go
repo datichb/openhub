@@ -26,7 +26,8 @@ type Project struct {
 	ModelOverrides *ProjectModelOverrides // per-project model cascade overrides (nil = no overrides)
 	TeamConfig     *ProjectTeamConfig     // deprecated: use TeamID. Kept for backward compat migration.
 	TrackerConfig  *ProjectTrackerConfig  // per-project tracker overrides (nil = inherit team defaults)
-	// WorkflowConfig holds per-project workflow overrides (nil = inherit team/hub workflow).
+	// WorkflowConfig held per-project overrides of the former workflow.
+	// Neutralized by migration v38 (always nil; see cmd/workflow_migrate.go).
 	WorkflowConfig *ProjectWorkflowConfig
 	// TeamID links this project to a team by its ID (matching a teams[].id entry
 	// in hub.toml). nil = solo project (no team affiliation). When set, the project

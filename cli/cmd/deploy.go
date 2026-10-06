@@ -472,37 +472,12 @@ func buildDeployPlan(a *app.App, req DeployRequest) *deploy.Plan {
 	}
 }
 
-// collectWorkflowOverrides gathers workflow overrides from the 3-level cascade:
-// hub config → team state → project config.
-func collectWorkflowOverrides(a *app.App, project *domain.Project, resolvedTeam config.ResolvedTeamConfig) []workflow.WorkflowOverride {
-	var overrides []workflow.WorkflowOverride
-
-	// Hub overrides
-	if a.Config.Workflow != nil && a.Config.Workflow.Overrides != nil {
-		overrides = append(overrides, *a.Config.Workflow.Overrides)
-	}
-
-	// Team overrides (load team config if available)
-	if resolvedTeam.Enabled && resolvedTeam.StatePath != "" {
-		teamRepo := teamstate.NewRepo(resolvedTeam.StateRepo, resolvedTeam.StatePath)
-		if teamRepo.IsCloned() {
-			teamCfg, err := teamRepo.LoadConfig()
-			if err == nil && teamCfg.Workflow != nil && teamCfg.Workflow.Overrides != nil {
-				ov := *teamCfg.Workflow.Overrides
-				if teamCfg.Workflow.IsEnforced() {
-					ov.Enforced = true
-				}
-				overrides = append(overrides, ov)
-			}
-		}
-	}
-
-	// Project overrides
-	if project != nil && project.WorkflowConfig != nil && project.WorkflowConfig.Overrides != nil {
-		overrides = append(overrides, *project.WorkflowConfig.Overrides)
-	}
-
-	return overrides
+// collectWorkflowOverrides returned the overrides of the former workflow
+// (hub.toml, team config.toml, projects.workflow_config). They were migrated
+// to team-state workflows (v5 phase 2, migration v38, cmd/workflow_migrate.go):
+// the legacy paths (oh deploy, phase 0 bundles) use the base workflow.
+func collectWorkflowOverrides(_ *app.App, _ *domain.Project, _ config.ResolvedTeamConfig) []workflow.WorkflowOverride {
+	return nil
 }
 
 // resolveWorkflowGeneratedSkills resolves the workflow cascade (base → hub → team → project)

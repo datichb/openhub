@@ -11,6 +11,8 @@ import (
 	"strings"
 	"time"
 
+	toml "github.com/pelletier/go-toml/v2"
+
 	"github.com/datichb/openhub/cli/internal/workflow"
 )
 
@@ -349,4 +351,16 @@ func ParseScope(s string) (WorkflowScope, error) {
 		return sc, sc.check()
 	}
 	return WorkflowScope{}, fmt.Errorf("invalid workflow scope %q", s)
+}
+
+// Config reads config.toml within the transaction.
+func (tx *Tx) Config() (*TeamConfig, error) { return tx.r.loadConfig() }
+
+// WriteConfig writes config.toml within the transaction.
+func (tx *Tx) WriteConfig(cfg *TeamConfig) error {
+	data, err := toml.Marshal(cfg)
+	if err != nil {
+		return fmt.Errorf("marshaling config.toml: %w", err)
+	}
+	return tx.WriteFile("config.toml", data)
 }

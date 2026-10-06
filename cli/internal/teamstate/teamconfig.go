@@ -251,8 +251,8 @@ type TeamConfig struct {
 	// These are always recommendations (overridable) — never enforced.
 	// Resolution: Project > Hub > Team(recommended) > Agent Frontmatter.
 	Models TeamModelsConfig `toml:"models"`
-	// Workflow holds team-level workflow overrides.
-	// When Enforced is true, projects in the team cannot apply their own overrides.
+	// Workflow held team-level overrides of the former workflow. Read only
+	// by the v38 migration (→ team workflow `feature`, then removed).
 	Workflow *WorkflowTeamConfig `toml:"workflow,omitempty"`
 	// Governance holds who may publish the team workflows (v5 phase 2).
 	Governance GovernanceConfig `toml:"governance,omitempty"`

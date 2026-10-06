@@ -45,7 +45,8 @@ type Config struct {
 	Tracker TrackerLocalConfig `mapstructure:"tracker" toml:"tracker,omitempty"`
 	// Websearch holds web search permission settings (Exa AI).
 	Websearch WebsearchConfig `mapstructure:"websearch" toml:"websearch,omitempty"`
-	// Workflow holds hub-level workflow overrides (applied on top of the base workflow).
+	// Workflow held hub-level overrides of the former workflow. Read only by
+	// the v38 migration (moved to ~/.oh/migrated/, then removed).
 	Workflow *WorkflowHubConfig `mapstructure:"workflow" toml:"workflow,omitempty"`
 	// Session holds v5 session settings (how sessions are opened, idle sleep).
 	Session SessionConfig `mapstructure:"session" toml:"session,omitempty"`

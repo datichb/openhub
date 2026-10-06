@@ -553,4 +553,15 @@ ALTER TABLE sessions ADD COLUMN parent_session_id TEXT NOT NULL DEFAULT ''`,
 		up:      `ALTER TABLE sessions ADD COLUMN checkpoint_state TEXT NOT NULL DEFAULT ''`,
 		down:    `ALTER TABLE sessions DROP COLUMN checkpoint_state`,
 	},
+	{
+		// v5 phase 2 (P2-T11): projects.workflow_config is neutralized. Its
+		// content moves to workflow_config_legacy, read only by the migration
+		// to the team-state (cmd/workflow_migrate.go), then cleared there.
+		version: 38,
+		up: `ALTER TABLE projects ADD COLUMN workflow_config_legacy TEXT NOT NULL DEFAULT '';
+UPDATE projects SET workflow_config_legacy = workflow_config WHERE workflow_config != '';
+UPDATE projects SET workflow_config = ''`,
+		down: `UPDATE projects SET workflow_config = workflow_config_legacy WHERE workflow_config_legacy != '';
+ALTER TABLE projects DROP COLUMN workflow_config_legacy`,
+	},
 }

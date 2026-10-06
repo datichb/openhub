@@ -139,3 +139,19 @@ oh team promote --remote <empty-url>      # later: share it with a team
 ```
 
 Publications there are local commits. `oh team promote` pushes the whole history to the remote, without loss (see [team CLI](../reference/cli-team.en.md#oh-team-promote)).
+
+## Migration of the former workflow overrides (v5)
+
+The overrides of the former single workflow (TUI Workflow tab) are migrated **automatically** at the first start of oh v5 (migration v38), to workflows extending `hub:feature` (same checkpoint and agent ids):
+
+| Former configuration | Becomes |
+|---|---|
+| team-state `config.toml`, `[workflow]` section | draft then team workflow `feature` (`extends: hub:feature`; `enforced = true` → `enforce: ["*"]`), published when the team has none yet; section removed from `config.toml` |
+| workflow configuration of a project (oh database) | draft then project workflow `feature` (extends `team:feature` when the team has one, else `hub:feature`); a **solo space** is created for a project without team |
+| `hub.toml`, `[workflow.overrides]` section (hub development) | files in `~/.oh/migrated/` (not loaded); section removed from `hub.toml` |
+
+- **Nothing is lost**: the original configuration is archived (team-state `workflows/migrated/…`, `~/.oh/migrated/`); what has no equivalent (`cp-routing`, checkpoint agents, `insert_after`, `task_permissions`) is listed as a comment at the top of the migrated workflow.
+- An invalid migrated workflow, or a scope that already has a published `feature`, stays **your draft**: `oh workflow diff feature`, `oh workflow edit feature`, then `oh workflow publish`.
+- When the team locked its workflow, the project overrides (ignored before) stay a draft: the lock refuses their publication.
+- Offline, the migration of a team is simply retried at the next start.
+- The former TUI Workflow view only shows the base workflow, read-only; `oh deploy` (opencode V1) no longer applies the former overrides.

@@ -88,6 +88,10 @@ et fournit un TUI interactif pour le suivi de développement.`,
 		if err := initApp(); err != nil {
 			return err
 		}
+		// Former workflow configurations → team-state (v5 phase 2, v38).
+		if cmd.Name() != "init" && cmd.Name() != "purge" {
+			migrateLegacyWorkflowsAtStartup(cmd.Context(), os.Stderr)
+		}
 		// Localize Cobra command descriptions after locale is loaded
 		localizeCommands(cmd.Root())
 		return nil
