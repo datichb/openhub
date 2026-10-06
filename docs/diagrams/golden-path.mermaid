@@ -1,26 +1,22 @@
-%% OpenHub -- Golden Path
-%% The 3 essential steps for a new user: init -> deploy -> start
+%% OpenHub -- Golden Path (v5)
+%% The essential steps for a new user: install -> oh init -> oh run.
+%% Nothing is deployed into the project: the session bundle is built at launch.
 
 flowchart TD
-    A["fa:fa-download 1. Install<br/><code>brew install datichb/tap/openhub</code>"] --> B
+    A["fa:fa-download 1. Install<br/><code>brew install datichb/tap/openhub</code><br/>+ opencode V2 (≥ 2.0.0)"] --> B
 
-    B["fa:fa-magic 2. oh init<br/>Configure hub, provider, MCP"] --> B1["Hub created at ~/.oh/"]
-    B1 --> B2["Provider credentials<br/>stored in keychain"]
-    B2 --> B3["OpenCode binary<br/>auto-downloaded"]
+    B["fa:fa-magic 2. oh init<br/>language · opencode V2 check · project<br/>MCP servers · Beads · workflow space"] --> B1["Hub created at ~/.oh/<br/>(agents, skills, workflows)"]
+    B1 --> B2["Provider key stored<br/>in the keychain"]
+    B2 --> B3["Team space or solo space<br/>(oh team init · --solo)"]
 
-    B3 --> C["fa:fa-rocket 3. oh deploy<br/>Deploy agents & skills to project"]
-    C --> C1["Phase 1: Agents (19)"]
-    C1 --> C2["Phase 2: Skills"]
-    C2 --> C3["Phase 3: Config"]
-    C3 --> C4["Phase 4: Models"]
-    C4 --> C5["Phase 5: MCP"]
-    C5 --> D[".opencode/ ready"]
+    B3 --> C["fa:fa-rocket 3. oh run &lt;workflow&gt;<br/>(or Start in the TUI)"]
+    C --> C1["Resolve the workflow<br/>(hub &lt; team &lt; project)"]
+    C1 --> C2["Launch form / --recap<br/>inputs · mode · runtime · location"]
+    C2 --> C3["Build the session bundle<br/>~/.oh/bundles/&lt;hash&gt;/"]
+    C3 --> C4["Start or join the server group<br/>check the closed world"]
+    C4 --> C5["Open the session<br/>iTerm2 · Terminal.app · tmux · browser"]
 
-    D --> E["fa:fa-play 4. oh start<br/>Launch AI session"]
-    E --> E1["Resolve project & provider"]
-    E1 --> E2["Detect stack"]
-    E2 --> E3["Display recap"]
-    E3 --> E4["Launch OpenCode"]
+    C5 --> E["fa:fa-tachometer 4. Follow and decide<br/>Sessions view · oh session inbox|approve|answer"]
 
     style A fill:#3498db,color:white
     style B fill:#2ecc71,color:white

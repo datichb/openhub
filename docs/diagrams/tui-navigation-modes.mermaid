@@ -1,3 +1,6 @@
+%% OpenHub -- TUI navigation modes (v5)
+%% Hub, project and team modes and their home sections.
+
 stateDiagram-v2
     [*] --> Hub : Default
 
@@ -12,24 +15,27 @@ stateDiagram-v2
 
     state Hub {
         [*] --> HubHome
+        HubHome : Start (pinned, recent workflows)
+        HubHome : Running sessions (● N ⏸ M)
         HubHome : Teams list
-        HubHome : Projects list
-        HubHome : System (Settings, Metrics, Worktrees, Doctor, Secrets)
-        HubHome : Quick Actions (Add project)
+        HubHome : System (Settings, Metrics, Doctor, Secrets)
+        HubHome : Projects (Add project, projects list)
     }
 
     state Project {
         [*] --> ProjectHome
-        ProjectHome : Sessions (Start Dev, Quick, Audit, Review, Debug, Parallel, Onboard)
-        ProjectHome : Projet (Board, Metrics, Status)
-        ProjectHome : Configuration (Config, Worktrees, Workflow)
-        ProjectHome : Deploy (Deploy, View diff)
+        ProjectHome : Start (pinned, recent, categories)
+        ProjectHome : Project sessions
+        ProjectHome : Project (Board, Metrics, Status)
+        ProjectHome : Configuration (Project config + Execution, Worktrees, Project workflows)
+        ProjectHome : Team (Status, Board, Activity)
     }
 
     state Team {
         [*] --> TeamHome
-        TeamHome : Sessions (Start Dev, Quick, Audit, Review, Debug)
-        TeamHome : Board (Team Board, Status, Activity, Briefs)
-        TeamHome : Configuration (Patterns, Policies, Config, Workflow, Sync Tracker)
+        TeamHome : Start (pinned, recent, categories)
+        TeamHome : Team sessions
+        TeamHome : Board (Team Board, Status, Activity, Takeovers, Board Columns)
+        TeamHome : Configuration (Patterns, Policies, Team Config, Workflows, Sync Tracker)
         TeamHome : Navigation (Projects, Mode Hub)
     }

@@ -1,53 +1,94 @@
-%% D8: CLI Command Tree
-%% Full oh CLI command hierarchy organized by domain.
-%% Shows the top-level command and its sub-commands grouped into
-%% six functional domains.
+%% OpenHub -- CLI command tree (v5)
+%% oh commands grouped by domain (from `oh --help` and the cobra tree).
+%% Deprecated aliases of `oh run` are listed under "Aliases (deprecated)".
 
 mindmap
   root((oh))
+    Workflows
+      run
+      workflow
+        list
+        show
+        validate
+        new
+        edit
+        diff
+        publish
+        history
+        restore
+        archive
+      bundle
+        build
+        show
     Sessions
+      session
+        list
+        inbox
+        attach
+        follow
+        approve
+        answer
+        dismiss
+        send
+        interrupt
+        compact
+        model
+        fork
+        results
+        resume
+        stop
+        open
+        fetch
+        resolve
+      budget
+        show
+        set
+        unset
+        raise
+      daemon
+        status
+        stop
+      remote
+        setup
+        status
+      history
+    Aliases (deprecated)
       start
-      quick
       audit
       review
       debug
+      takeover-brief enrich
+      deploy · sync
     Projects
       project
-        add
-        remove
-        configure
-        rename
-        move
-      deploy
-      sync
+        add · remove · rename
+        move · configure · list
+      worktree
     Configuration
       config
       provider
       mcp
       secrets
+      skill
     Team
       team
-        init
-        status
-        activity
-        claim
-        release
-        board
+        init · --solo
+        promote · rejoin
+        status · activity · board
+        claim · release
+        wiki · notify
       teams
-        list
-        add
-        remove
-    Quality
-      worktree
-      conventions
-      patterns
       policies
+      patterns
+      conventions
+      beads
     System
+      init
       doctor
-      status
-      metrics
-      serve
-      export
-      import
-      repair
-      upgrade
+      status · metrics
+      dashboard · board · serve
+      export · import
+      repair · purge
+      migrate deploy-cleanup
+      upgrade oh
+      version

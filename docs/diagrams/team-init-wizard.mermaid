@@ -1,26 +1,34 @@
-%% D13: Team Init Wizard
-%% Flowchart showing the oh team init wizard steps.
-%% 6 sequential steps producing 6 artefacts at the end.
+%% D13: Team Init Wizard (v5)
+%% oh team init: join or create the team-state repository, then 4 adaptive
+%% steps. --solo creates a local team-state without remote (workflow space
+%% of a project without a team), promotable later with oh team promote.
 
 flowchart TD
-    Start([oh team init]) --> S1[1. Connect repo\nLink to Git repository]
-    S1 --> S2[2. Global config\nSet team-wide defaults]
-    S2 --> S3[3. Set identity\nAssign member-id to each member]
-    S3 --> S4[4. Configure notifications\nSet up alerts & channels]
-    S4 --> S5[5. Set policies\nDefine enforced & recommended rules]
-    S5 --> Done([Done])
+    Start([oh team init]) --> Q{--solo?}
+
+    Q -- No --> S0[Team-state repository<br/>created beforehand on GitLab/GitHub]
+    S0 --> S1[1. Global config<br/>takeover, sessions]
+    S1 --> S2[2. Identity<br/>member registration]
+    S2 --> S3[3. Notifications<br/>Mattermost, optional]
+    S3 --> S4[4. Team policies<br/>automated conventions]
+    S4 --> Done([Team ready])
+
+    Q -- Yes --> SO[Solo space<br/>~/.oh/teams/&lt;id&gt;/ · git init, no remote<br/>single member, lead]
+    SO --> SP[Optional: attach a project<br/>--project &lt;p&gt;]
+    SP --> SDone([Solo space ready])
+    SDone -.->|"oh team promote --remote &lt;url&gt;"| Done
 
     Done --> Artefacts
+    SDone --> Artefacts
 
-    subgraph Artefacts["6 artefacts generated"]
-        A1[team.yaml]
-        A2[members.yaml]
-        A3[policies.yaml]
-        A4[notifications.yaml]
-        A5[conventions.yaml]
-        A6[.openhub/team/]
+    subgraph Artefacts["team-state repository"]
+        A1[config.toml · members.toml · policies.toml]
+        A2[workflows/ published · drafts · prompts · history<br/>workflows.lock]
+        A3[catalog/ agents · skills]
+        A4[projects/ · wiki/ · reports/]
     end
 
     style Start fill:#4a90d9,color:#fff
     style Done fill:#2ecc71,color:#fff
+    style SDone fill:#2ecc71,color:#fff
     style Artefacts fill:#f0f0f0,stroke:#ccc

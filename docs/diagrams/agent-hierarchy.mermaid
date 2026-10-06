@@ -1,10 +1,13 @@
-%% OpenHub -- Agent Hierarchy
-%% 19 agents across 7 families, showing mode (primary/subagent)
-%% and delegation relationships
+%% OpenHub -- Agent Hierarchy (v5)
+%% 20 agents across 7 families, showing mode (primary/subagent)
+%% and the delegations their permissions allow. In a session, the workflow
+%% decides which agents are members and which delegations are reachable
+%% (SubagentGraph, closed world): see ADR-039 and ADR-041.
 
 flowchart TD
-    subgraph Planning ["Planning Family (5 agents)"]
+    subgraph Planning ["Planning Family (6 agents)"]
         direction TB
+        COND["fa:fa-random <strong>conductor</strong><br/>Primary · Generic workflow entry<br/>read-only"]
         ORCH["fa:fa-sitemap <strong>orchestrator</strong><br/>Primary · Coordinator<br/>read-only"]
         ORCHDEV["fa:fa-code-branch <strong>orchestrator-dev</strong><br/>Primary · Coordinator<br/>read-only"]
         PLAN["fa:fa-tasks <strong>planner</strong><br/>Primary · Consultant<br/>read-only"]
@@ -48,6 +51,9 @@ flowchart TD
     end
 
     %% Delegation edges
+    COND -.->|"workflow members only"| PATH
+    COND -.->|"workflow members only"| PLAN
+    COND -.->|"workflow members only"| DEV
     ORCH -->|delegates| PATH
     ORCH -->|delegates| PLAN
     ORCH -->|delegates| ONB
