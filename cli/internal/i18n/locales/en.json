@@ -3807,5 +3807,6 @@
   "tui.worktree.cleaning_merged": "Removing merged worktrees…",
   "tui.worktree.no_merged": "No merged worktree to remove",
   "tui.worktree.cleanup_partial": "%d worktree(s) removed, %d skipped (uncommitted changes)",
-  "tui.worktree.cleanup_done": "%d merged worktree(s) removed"
+  "tui.worktree.cleanup_done": "%d merged worktree(s) removed",
+  "cmd.run.warn.volume_mount_point": "Container volume “%s”: %s does not exist, the engine creates it empty in the project as the mount point (its content stays in the volume)"
 }

@@ -3807,5 +3807,6 @@
   "tui.worktree.cleaning_merged": "Suppression des worktrees fusionnés…",
   "tui.worktree.no_merged": "Aucun worktree fusionné à supprimer",
   "tui.worktree.cleanup_partial": "%d worktree(s) supprimé(s), %d ignoré(s) (modifications non commitées)",
-  "tui.worktree.cleanup_done": "%d worktree(s) fusionné(s) supprimé(s)"
+  "tui.worktree.cleanup_done": "%d worktree(s) fusionné(s) supprimé(s)",
+  "cmd.run.warn.volume_mount_point": "Volume du conteneur « %s » : %s n'existe pas, le moteur le crée vide dans le projet comme point de montage (son contenu reste dans le volume)"
 }
