@@ -14,7 +14,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
 )
 
 // setupHandlerTest creates a fully functional team-state repo and project dir
