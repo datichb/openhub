@@ -55,6 +55,10 @@ type Location struct {
 	Auto bool `json:"auto,omitempty"`
 }
 
+// RiskWrites reports whether a workflow risk may modify files: read and plan
+// (Beads only) do not; an unknown risk (legacy launch) counts as writing.
+func RiskWrites(risk string) bool { return risk != "read" && risk != "plan" }
+
 // ErrNotGitRepo is returned when a worktree is needed outside a git repository.
 var ErrNotGitRepo = errors.New("the project is not a git repository: worktrees are unavailable")
 
@@ -79,7 +83,7 @@ func (s *Service) busyWriters(ctx context.Context, projectID string) map[string]
 		default:
 			continue
 		}
-		if o.WorkflowRisk == "read" || o.LaunchPath == "" {
+		if !RiskWrites(o.WorkflowRisk) || o.LaunchPath == "" {
 			continue
 		}
 		out[filepath.Clean(o.LaunchPath)] = o.ID

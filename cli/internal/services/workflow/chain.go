@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"sort"
+	"strings"
 
 	wf "github.com/datichb/openhub/cli/internal/workflow"
 )
@@ -74,7 +75,7 @@ func (s *Service) Chain(ctx context.Context, c Context, fromID string, outputs m
 				used[string(t)] = true
 				sg.Matched = append(sg.Matched, t)
 				if in.Type == wf.InputBeadsID || in.Type == wf.InputBeadsIDs {
-					sg.Tickets = toList(v)
+					sg.Tickets = ticketList(v)
 				} else {
 					sg.Prefill[k] = fmt.Sprint(v)
 				}
@@ -122,3 +123,25 @@ func mustRef(s string) wf.Ref {
 }
 
 func isUnknown(err error) bool { return errors.Is(err, ErrUnknownWorkflow) }
+
+// ticketList accepts a list or a comma-separated string of tickets.
+func ticketList(v any) []string {
+	var raw []string
+	switch x := v.(type) {
+	case []string:
+		raw = x
+	case []any:
+		for _, e := range x {
+			raw = append(raw, fmt.Sprint(e))
+		}
+	default:
+		raw = strings.Split(fmt.Sprint(v), ",")
+	}
+	var out []string
+	for _, e := range raw {
+		if e = strings.TrimSpace(e); e != "" {
+			out = append(out, e)
+		}
+	}
+	return out
+}

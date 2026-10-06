@@ -135,7 +135,7 @@ Sans flag --mode, un menu interactif est affiché.`,
 
 		mode, _ := cmd.Flags().GetString("mode")
 		reviewBranch, _ := cmd.Flags().GetString("branch")
-		if handled, err := agentCommandAlias(cmd, "oh review", "review", map[string]string{"mode": mode, "branch": reviewBranch}, ""); handled {
+		if handled, err := agentCommandAlias(cmd, "oh review", "review", map[string]string{"review_mode": mode, "branch": reviewBranch}, ""); handled {
 			return err
 		}
 

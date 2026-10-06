@@ -110,7 +110,7 @@ func (s *Service) Plan(ctx context.Context, req RunRequest) (*RunPlan, error) {
 	for i, in := range inputs {
 		branches[i] = in.Branch
 	}
-	writes := req.Workflow.Risk != "read"
+	writes := RiskWrites(req.Workflow.Risk)
 	locs, warns, err := s.planLocations(ctx, req.Base.ProjectID, req.ProjectPath, req.Location, writes, branches)
 	if err != nil {
 		return nil, err

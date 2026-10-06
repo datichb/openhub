@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"runtime"
 	"strings"
 	"time"
@@ -158,7 +159,7 @@ func prepareWorkflowRun(ctx context.Context, a *app.App, opts runOptions, errOut
 	}
 	values := make([]map[string]any, len(sessions))
 	for i, r := range sessions {
-		v, err := r.Values()
+		v, err := r.Values(workflowsvc.PromptContext{Project: opts.Project.Name, Lang: i18n.Locale()})
 		if err != nil {
 			return nil, err
 		}
@@ -175,19 +176,46 @@ func prepareWorkflowRun(ctx context.Context, a *app.App, opts runOptions, errOut
 		}
 		req.Sessions = append(req.Sessions, runsvc.PlannedInput{Label: label, Title: title, Branch: sessionBranch(res.Spec, v, label, opts.Branch)})
 	}
+	preconds, err := preconditionWarnings(res.Spec, opts.Project.Path)
+	if err != nil {
+		return nil, err
+	}
 	plan, err := svc.Plan(ctx, req)
 	if err != nil {
 		return nil, runPlanError(err)
 	}
+	plan.Warnings = append(preconds, plan.Warnings...)
 	for i := range plan.Sessions {
 		p, err := sessions[i].RenderPrompt(workflowsvc.PromptContext{Project: opts.Project.Name,
-			Location: plan.Sessions[i].Location.Path, Lang: i18n.Locale()}, values[i])
+			Location: plan.Sessions[i].Location.Path, Lang: i18n.Locale()})
 		if err != nil {
 			return nil, err
 		}
 		plan.Sessions[i].Prompt = p
 	}
 	return &preparedRun{opts: opts, project: opts.Project, resolution: res, bundle: b, svc: svc, plan: plan}, nil
+}
+
+// preconditionWarnings evaluates the workflow preconditions on the project
+// directory: a failed `block` refuses the launch, a failed `suggest` is a
+// warning naming the workflow to run first.
+func preconditionWarnings(sp *workflow.Spec, dir string) ([]runsvc.Warning, error) {
+	var out []runsvc.Warning
+	for _, r := range workflow.FailedPreconditions(workflow.EvaluatePreconditions(sp, os.DirFS(dir))) {
+		label := r.Label.Text(i18n.Locale())
+		if label == "" {
+			label = r.ID
+		}
+		switch {
+		case r.Block:
+			return nil, errors.New(i18n.Tf("cmd.run.precondition_block", label))
+		case r.Suggest != "":
+			out = append(out, runsvc.Warning{Code: "precondition", Args: []any{label, r.Suggest}})
+		default:
+			out = append(out, runsvc.Warning{Code: "precondition_failed", Args: []any{label}})
+		}
+	}
+	return out, nil
 }
 
 // launchInputs merges the explicit inputs, the alias inputs declared by the

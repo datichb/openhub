@@ -1,6 +1,8 @@
 package cmd
 
 import (
+	"strings"
+
 	"github.com/spf13/cobra"
 
 	"github.com/datichb/openhub/cli/internal/app"
@@ -84,8 +86,25 @@ func startAliasFor(cmd *cobra.Command) (al workflowAlias, ok bool) {
 	case sweepGoal != "":
 		al.Old, al.Workflow, al.Opts.Text = "oh start --sweep", "sweep", sweepGoal
 		al.Opts.LooseInputs["goal"] = sweepGoal
-		if s, _ := f.GetString("sweep-strategy"); s != "" {
-			al.Opts.LooseInputs["strategy"] = s
+		for flag, input := range map[string]string{"sweep-strategy": "strategy", "sweep-verify-cmd": "verify_cmd"} {
+			if v, _ := f.GetString(flag); v != "" {
+				al.Opts.LooseInputs[input] = v
+			}
+		}
+		if f.Changed("sweep-verify") {
+			al.Opts.LooseInputs["verify"], _ = f.GetString("sweep-verify")
+		}
+		for flag, input := range map[string]string{"sweep-tasks": "tasks", "sweep-include": "include", "sweep-exclude": "exclude"} {
+			if v, _ := f.GetStringSlice(flag); len(v) > 0 {
+				sep := ", "
+				if flag == "sweep-tasks" {
+					sep = "\n"
+				}
+				al.Opts.LooseInputs[input] = strings.Join(v, sep)
+			}
+		}
+		if dry, _ := f.GetBool("sweep-dry-run"); dry {
+			al.Opts.LooseInputs["dry_run"] = "true"
 		}
 	case devMode:
 		al.Old, al.Workflow = "oh start --dev", "ticket"
