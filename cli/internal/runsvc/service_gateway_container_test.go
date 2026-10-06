@@ -16,13 +16,30 @@ import (
 	"github.com/datichb/openhub/cli/internal/adapters/opencodev2"
 	"github.com/datichb/openhub/cli/internal/bundle"
 	"github.com/datichb/openhub/cli/internal/daemon"
+	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/gateway"
 	"github.com/datichb/openhub/cli/internal/gateway/beadswire"
+	"github.com/datichb/openhub/cli/internal/mcp/protocol"
 	ohruntime "github.com/datichb/openhub/cli/internal/runtime"
 	"github.com/datichb/openhub/cli/internal/runtime/container"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 	"github.com/datichb/openhub/cli/internal/storage/sqlite"
 )
+
+// TestMain runs the test binary as a stdio MCP server standing for an oh
+// MCP server on the machine (MCP gateway).
+func TestMain(m *testing.M) {
+	if os.Getenv("OH_RUNSVC_TEST_MCP") == "1" {
+		s := protocol.NewServer("oh-test", "1")
+		s.RegisterTool(protocol.Tool{Name: "ping", Description: "ping", InputSchema: map[string]any{"type": "object", "properties": map[string]any{}}},
+			func(context.Context, json.RawMessage) (*protocol.ToolResult, error) {
+				return &protocol.ToolResult{Content: []protocol.ContentBlock{{Type: "text", Text: "pong"}}}, nil
+			})
+		_ = s.Serve()
+		os.Exit(0)
+	}
+	os.Exit(m.Run())
+}
 
 // TestRealBeadsGateway runs bd from the shell of a container session (no
 // LLM call): reads go through the Beads gateway to the real bd of the
@@ -105,6 +122,11 @@ func realBeadsGateway(t *testing.T, engine container.EngineKind) {
 		done <- daemon.Run(dctx, daemon.Options{Paths: paths, Version: "test", Grants: sqlite.NewGrantStore(st), Servers: servers,
 			Secrets: secrets, Tick: time.Second, Sessions: sessions,
 			Adapter: func(string) adapters.ToolAdapter { return a },
+			MCPCommand: func(_ context.Context, srv domain.Server, name string) (gateway.MCPCommand, error) {
+				exe, err := os.Executable()
+				return gateway.MCPCommand{Argv: []string{exe}, Dir: srv.WorkDir,
+					Env: map[string]string{"OH_RUNSVC_TEST_MCP": "1", "OH_TEST_SERVICE_TOKEN": "service-secret-must-not-leak"}}, err
+			},
 			GatewayView: func(ctx context.Context, group string) (gateway.View, error) {
 				srv, err := servers.Get(ctx, group)
 				if err != nil {
@@ -139,6 +161,7 @@ func realBeadsGateway(t *testing.T, engine container.EngineKind) {
 		Hash: "gatewaybundle01", Root: bdir, EntryAgent: "lead",
 		Agents:    []sessionspec.AgentDef{{ID: "lead", Description: "lead", Mode: "primary", Body: "You are LEAD."}},
 		SkillsDir: filepath.Join(bdir, "skills"), MaxDepth: 1, DefaultModel: &model,
+		MCP: []sessionspec.MCPServerDef{{Name: "team", Type: "local", Command: []string{"/usr/local/bin/oh", "mcp", "serve", "team"}}},
 	}}
 	svc := &Service{
 		Adapter: a, AdapterVer: a.Ver, Servers: servers, Sessions: sessions, SessionsDir: filepath.Join(root, "sessions"),
@@ -224,6 +247,38 @@ func realBeadsGateway(t *testing.T, engine container.EngineKind) {
 	}
 	if out := shell("bd --db /tmp/x.db list; echo EXIT=$?"); !strings.Contains(out, "EXIT=1") {
 		t.Fatalf("--db must be refused:\n%s", out)
+	}
+	// The oh MCP server runs on the machine, reached over HTTP (P4-T08).
+	var mcpStatus string
+	for deadline := time.Now().Add(30 * time.Second); time.Now().Before(deadline); time.Sleep(500 * time.Millisecond) {
+		list, err := c.MCP(ctx, "/work/proj")
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, m := range list {
+			if m.Name == "team" {
+				mcpStatus = m.Status.Status
+			}
+		}
+		if mcpStatus == "connected" {
+			break
+		}
+	}
+	if mcpStatus != "connected" {
+		t.Fatalf("oh MCP server through the gateway: status %q", mcpStatus)
+	}
+	spec, err := container.LoadSpec(res.Server.DataDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	e, _ := rt.Engine(ctx)
+	procEnv, err := container.ExecRunner{}.Run(ctx, e.CLI, e.Command("exec", spec.Name, "env")[1:]...)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(procEnv), "service-secret-must-not-leak") || strings.Contains(string(procEnv), "mcp\",\"serve") ||
+		!strings.Contains(string(procEnv), "/oh/v1/hooks/mcp/team") || !strings.Contains(string(procEnv), "{env:AWS_BEARER_TOKEN_BEDROCK}") {
+		t.Fatalf("server environment of the container (MCP declared remote, no service secret):\n%s", procEnv)
 	}
 	env := shell("env")
 	if strings.Contains(env, "real-secret-must-not-leak") {

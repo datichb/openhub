@@ -10,6 +10,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -389,4 +391,72 @@ func TestE2ESubagentSessionEnvironment(t *testing.T) {
 	require.NoError(t, err, "the helper did not run the command: %s", r.replyText(context.Background(), t, id))
 	t.Logf("sub-session shell: %s", strings.TrimSpace(string(data)))
 	assert.Equal(t, "VAL=missing", strings.TrimSpace(string(data)), "opencode now passes the session environment to sub-sessions")
+}
+
+// A remote MCP server (oh MCP servers outside the machine, P4-T08) receives
+// the calling session in the `_meta` of tools/call, as a local one does
+// (the workflow server relies on it).
+func TestE2ERemoteMCPReceivesSessionMeta(t *testing.T) {
+	var (
+		mu   sync.Mutex
+		meta map[string]any
+		auth string
+	)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+		var req struct {
+			ID     json.RawMessage `json:"id"`
+			Method string          `json:"method"`
+			Params struct {
+				Meta map[string]any `json:"_meta"`
+			} `json:"params"`
+		}
+		_ = json.NewDecoder(r.Body).Decode(&req)
+		if req.ID == nil {
+			w.WriteHeader(http.StatusAccepted)
+			return
+		}
+		var result any
+		switch req.Method {
+		case "initialize":
+			result = map[string]any{"protocolVersion": "2024-11-05", "capabilities": map[string]any{"tools": map[string]any{}}, "serverInfo": map[string]any{"name": "probe", "version": "1"}}
+		case "tools/list":
+			result = map[string]any{"tools": []any{map[string]any{"name": "codeword", "description": "Returns the codeword", "inputSchema": map[string]any{"type": "object", "properties": map[string]any{}}}}}
+		default:
+			mu.Lock()
+			meta, auth = req.Params.Meta, r.Header.Get("Authorization")
+			mu.Unlock()
+			result = map[string]any{"content": []any{map[string]any{"type": "text", "text": "KIWI-12"}}}
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]any{"jsonrpc": "2.0", "id": req.ID, "result": result})
+	}))
+	defer srv.Close()
+	t.Setenv("OH_E2E_MCP_TOKEN", "tok-from-env")
+
+	b := e2eBundle(t)
+	b.Agents[0].Body = "You are LEAD. When asked for the codeword, call the probe_codeword tool and answer with its result only."
+	b.Agents[0].Permissions = []sessionspec.PermissionRule{{Action: sessionspec.MCPToolAction("probe", "codeword"), Resource: "*", Effect: sessionspec.EffectAllow}}
+	b.MCP = []sessionspec.MCPServerDef{{Name: "probe", Type: "remote", URL: srv.URL + "/mcp", Headers: map[string]string{"Authorization": "Bearer {env:OH_E2E_MCP_TOKEN}"}}}
+	r := startE2E(t, b, false)
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+	id := sessionspec.NewSessionID()
+	require.NoError(t, r.adapter.CreateSession(ctx, r.handle, sessionspec.SessionSpec{SessionID: id, Title: "e2e", EntryAgent: "lead", Location: r.project}))
+	require.NoError(t, r.adapter.SendPrompt(ctx, r.handle, id, "What is the codeword?"))
+	require.NoError(t, NewClient(r.handle.URL, r.handle.Password).Wait(ctx, id))
+	assert.Contains(t, r.replyText(context.Background(), t, id), "KIWI-12")
+	mu.Lock()
+	defer mu.Unlock()
+	assert.Equal(t, "Bearer tok-from-env", auth, "{env:…} expanded from the server environment")
+	found := false
+	for k, v := range meta {
+		if strings.HasSuffix(strings.ToLower(k), "sessionid") && v == id {
+			found = true
+		}
+	}
+	assert.True(t, found, "session in _meta: %v", meta)
 }

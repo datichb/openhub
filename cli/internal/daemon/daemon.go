@@ -63,6 +63,10 @@ type Options struct {
 	GatewayView func(ctx context.Context, group string) (gateway.View, error)
 	// BeadsBinary is the real bd run by the gateway ("" = looked up in PATH).
 	BeadsBinary string
+	// MCPCommand returns the machine command of the oh MCP server name of a
+	// server group, served over HTTP to runtimes outside the machine
+	// (P4-T08). Nil = MCP gateway unavailable.
+	MCPCommand func(ctx context.Context, srv domain.Server, name string) (gateway.MCPCommand, error)
 	// SigV4 builds an AWS signer for a profile/region (overridable in tests).
 	SigV4 func(ctx context.Context, profile, region string) (credproxy.Auth, error)
 }
@@ -72,6 +76,7 @@ type Daemon struct {
 	opts     Options
 	proxy    *credproxy.Proxy
 	gateway  *gateway.Store
+	mcp      *gateway.MCP
 	listener net.Listener
 	http     *http.Server
 
@@ -179,6 +184,9 @@ func (d *Daemon) shutdown() error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	d.feed.close() // ends the live streams, so that Shutdown does not wait for them
+	if d.mcp != nil {
+		d.mcp.Close()
+	}
 	if d.http != nil {
 		_ = d.http.Shutdown(ctx)
 	}
@@ -392,6 +400,9 @@ func (d *Daemon) revokeOwner(ctx context.Context, owner string) {
 	d.proxy.RevokeSession(owner)
 	if d.gateway != nil {
 		d.gateway.RevokeOwner(owner)
+	}
+	if d.mcp != nil {
+		d.mcp.StopGroup(owner)
 	}
 	if d.opts.Grants != nil {
 		_ = d.opts.Grants.RevokeOwner(ctx, owner, time.Now())

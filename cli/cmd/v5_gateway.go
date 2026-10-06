@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/datichb/openhub/cli/internal/bundle"
 	"github.com/datichb/openhub/cli/internal/daemon"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/gateway"
@@ -69,4 +70,27 @@ func gatewayView(servers domain.ServerStore) func(ctx context.Context, group str
 		}
 		return gateway.View{Paths: spec.Paths, Locations: spec.Locations}, nil
 	}
+}
+
+// gatewayMCPCommand returns the machine command of an oh MCP server of a
+// server group, read from its immutable bundle (P4-T08). The running oh
+// executable replaces the one recorded in the bundle (it may have moved).
+func gatewayMCPCommand(bundlesDir string) func(ctx context.Context, srv domain.Server, name string) (gateway.MCPCommand, error) {
+	return func(_ context.Context, srv domain.Server, name string) (gateway.MCPCommand, error) {
+		b, err := bundle.Load(bundlesDir, srv.BundleHash)
+		if err != nil {
+			return gateway.MCPCommand{}, fmt.Errorf("bundle of %s: %w", srv.GroupKey, err)
+		}
+		return ohMCPCommand(b.Spec, srv, name)
+	}
+}
+
+func ohMCPCommand(spec sessionspec.BundleSpec, srv domain.Server, name string) (gateway.MCPCommand, error) {
+	for _, m := range spec.MCP {
+		if n, ok := sessionspec.OhMCPName(m); ok && m.Name == name && n != "" {
+			argv := append([]string{sessionspec.OhExecutable()}, m.Command[1:]...)
+			return gateway.MCPCommand{Argv: argv, Env: m.Environment, Dir: srv.WorkDir}, nil
+		}
+	}
+	return gateway.MCPCommand{}, fmt.Errorf("no oh MCP server %q in the bundle of %s", name, srv.GroupKey)
 }

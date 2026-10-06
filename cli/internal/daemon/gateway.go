@@ -9,9 +9,11 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/datichb/openhub/cli/internal/adapters"
+	"github.com/datichb/openhub/cli/internal/credproxy"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/gateway"
 	"github.com/datichb/openhub/cli/internal/gateway/beadswire"
@@ -38,6 +40,7 @@ func (d *Daemon) startGateway(ctx context.Context) {
 		}
 	}
 	d.gateway = st
+	d.mcp = &gateway.MCP{Resolve: d.resolveMCP, Check: d.checkMCP}
 	d.proxy.Mount(beadswire.Prefix, &gateway.Beads{
 		Store:  st,
 		View:   d.opts.GatewayView,
@@ -130,4 +133,49 @@ func (w *watcher) applyChildEnv(child, root string) {
 	if err != nil {
 		slog.Warn("ohd: environment of a subagent session not applied", "session", root, "child", child, "error", err)
 	}
+}
+
+// handleHookMCP relays a message of an oh MCP server to its process on the
+// machine (P4-T08). The proxy has checked the session token of the group.
+func (d *Daemon) handleHookMCP(w http.ResponseWriter, r *http.Request) {
+	if d.mcp == nil || d.opts.MCPCommand == nil {
+		http.NotFound(w, r)
+		return
+	}
+	d.mcp.ServeHTTP(w, r, credproxy.HookOwner(r), r.PathValue("name"))
+}
+
+func (d *Daemon) resolveMCP(ctx context.Context, group, name string) (gateway.MCPCommand, error) {
+	if d.opts.Servers == nil {
+		return gateway.MCPCommand{}, errors.New("no server registry")
+	}
+	srv, err := d.opts.Servers.Get(ctx, group)
+	if err != nil {
+		return gateway.MCPCommand{}, err
+	}
+	return d.opts.MCPCommand(ctx, *srv, name)
+}
+
+// checkMCP refuses tool calls made for a session of another group (the
+// workflow server trusts the session given in `_meta`).
+func (d *Daemon) checkMCP(ctx context.Context, group string, msg map[string]json.RawMessage) error {
+	var p struct {
+		Meta map[string]any `json:"_meta"`
+	}
+	if len(msg["params"]) == 0 || d.opts.Sessions == nil {
+		return nil
+	}
+	if err := json.Unmarshal(msg["params"], &p); err != nil {
+		return fmt.Errorf("%w: %v", gateway.ErrMCPDenied, err)
+	}
+	for k, v := range p.Meta {
+		id, ok := v.(string)
+		if !ok || id == "" || !strings.HasSuffix(strings.ToLower(k), "sessionid") {
+			continue
+		}
+		if s, err := d.opts.Sessions.Get(ctx, d.rootSession(id)); err == nil && s.GroupKey != group {
+			return gateway.ErrMCPDenied
+		}
+	}
+	return nil
 }
