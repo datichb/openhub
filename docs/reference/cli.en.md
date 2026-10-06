@@ -16,7 +16,7 @@
 
 | Section | File | Key Commands |
 |---------|------|--------------|
-| [Sessions](cli-sessions.en.md) | `cli-sessions.en.md` | `oh start`, `oh review`, `oh audit`, `oh debug` |
+| [Sessions](cli-sessions.en.md) | `cli-sessions.en.md` | `oh start`, `oh review`, `oh audit`, `oh debug` (deprecated aliases of `oh run`), `oh budget` |
 | [Workflows](cli-workflows.en.md) | `cli-workflows.en.md` | `oh run`, `oh workflow list\|show\|validate`, `oh bundle build\|show` |
 | [Projects](cli-projects.en.md) | `cli-projects.en.md` | `oh project list\|add\|remove\|rename\|move\|configure` |
 | [Deployment](cli-deploy.en.md) | `cli-deploy.en.md` | `oh deploy`, `oh sync` (removed in v5) |

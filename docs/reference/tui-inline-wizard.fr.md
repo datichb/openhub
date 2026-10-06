@@ -1,3 +1,5 @@
+> [Read in English](tui-inline-wizard.en.md)
+
 # Référence — InlineWizardView
 
 > Composant TUI réutilisable pour les wizards multi-step dans le shell OpenHub.
@@ -193,7 +195,7 @@ il voit les valeurs mises à jour.
 Un step peut devenir skipable en fonction d'un choix fait dans un step précédent.
 
 **Processing-only** : un step sans `Form` ni `CustomView` lance directement le spinner
-+ `OnDone`. Utile pour les étapes de traitement pur (extraction, déploiement).
++ `OnDone`. Utile pour les étapes de traitement pur (extraction, construction d'un paquet).
 
 ### Intégration omnibar
 
@@ -254,11 +256,11 @@ et lance `OnDone` en goroutine. Utile pour les opérations longues sans input ut
 
 ```go
 {
-    Label:      "Déploiement",
-    Processing: "Déploiement en cours...",
-    OnDone:     func() error { return deploy.Execute(plan) },
+    Label:      "Extraction",
+    Processing: "Extraction du contenu du hub...",
+    OnDone:     func() error { return hubcontent.Extract(hubcontent.HubContentDir()) },
     InfoFields: func() []views.InfoField {
-        return []views.InfoField{{Label: "Deploy", Value: "done"}}
+        return []views.InfoField{{Label: "Hub", Value: "extrait"}}
     },
 }
 ```

@@ -1,6 +1,6 @@
-# Référence CLI — Serveurs MCP (`oh mcp`)
-
 > [Read in English](services.en.md)
+
+# Référence CLI — Serveurs MCP (`oh mcp`)
 
 Gestion des services MCP (Model Context Protocol) intégrés au binaire `oh`.
 

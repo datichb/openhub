@@ -1,3 +1,5 @@
+> [Read in English](model-resolution.en.md)
+
 # Résolution du modèle et du provider
 
 ---

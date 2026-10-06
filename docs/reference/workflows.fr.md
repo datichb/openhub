@@ -1,3 +1,5 @@
+> [Read in English](workflows.en.md)
+
 # Workflows livrés par le hub
 
 > v5 : chaque cas d'usage est un workflow déclaratif (`apiVersion: oh/v1`) livré par le hub. Les fichiers sont dans `workflows/` à la racine du dépôt, embarqués dans le binaire et extraits dans `~/.oh/hub/workflows/`. Une équipe ou un projet peut les étendre (`extends`) à partir de la phase 2.
@@ -150,7 +152,7 @@ La publication d'une MR (`oh review --publish`) n'est pas un workflow : elle res
 
 ## `review-feedback`
 
-Applique les commentaires non résolus d'une merge request. oh récupère les discussions sur GitLab au lancement et les passe dans l'entrée `feedback`.
+Applique les commentaires non résolus d'une merge request. `oh review feedback <ticket|branche>` récupère les discussions sur GitLab puis lance ce workflow en les passant dans l'entrée `feedback` ; avec `oh run review-feedback`, fournissez l'entrée vous-même (`-i feedback=…`).
 
 | Entrée | Type | Obligatoire | Rôle |
 |---|---|---|---|

@@ -63,7 +63,7 @@ oh skill search "code review"
 
 ### oh skill budget
 
-Display the context window budget per agent (always-loaded system prompt cost in lines and tokens).
+Display the context window budget per agent (always-loaded system prompt cost in lines and tokens). Deprecated alias in v5: the budget of a session is read with `oh bundle show <workflow> --budget` (`oh skill budget <workflow>` redirects to it; with an agent or `--all`, the former computation stays available with a warning).
 
 | Flag | Short | Type | Description |
 |------|-------|------|-------------|

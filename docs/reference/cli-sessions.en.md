@@ -2,7 +2,7 @@
 
 # CLI Reference — Sessions
 
-> **v5 — deprecated aliases.** These commands launch their workflow through [`oh run`](cli-workflows.en.md#oh-run) and print a warning: `oh start` → `oh run feature` (`--prompt` = first text input), `--agent <id>` → `oh run libre --agent <id>`, `--dev [-t <id>]` → `oh run ticket --tickets <id>` (an epic chosen in the picker: one session for the whole epic or one per ticket, as chosen), `--onboard` → `oh run onboarding`, `--parallel --tickets` → `oh run ticket --tickets`, `--sweep` → `oh run sweep`, `--worktree <branch>` → `--location new`, `--resume <id>` → `oh session attach <id> --how here`, `oh audit|review|debug` → `oh run audit|review|debug` (flags become inputs when the workflow declares them), `oh review feedback` → `oh run review-feedback` (MR feedback as the text input). They require opencode V2 and the target workflow; the former launch no longer exists (see the [v5 migration guide](../guides/migration-v5.en.md)).
+> **v5 — deprecated aliases.** These commands launch their workflow through [`oh run`](cli-workflows.en.md#oh-run) and print a warning: `oh start` → `oh run feature` (`--prompt` = first text input), `--agent <id>` → `oh run libre --agent <id>`, `--dev [-t <id>]` → `oh run ticket --tickets <id>` (an epic chosen in the picker: one session for the whole epic or one per ticket, as chosen), `--onboard` → `oh run onboarding`, `--parallel --tickets a,b` → `oh run ticket --tickets a,b` (without `--tickets`: refused), `--sweep <goal>` → `oh run sweep -i goal=<goal>`, `--worktree <branch>` → `--location new`, `--resume <id>` → `oh session attach <id> --how here`, `oh audit|review|debug` → `oh run audit|review|debug` (flags become inputs when the workflow declares them), `oh review feedback` → `oh run review-feedback` (MR feedback as the text input). They require opencode V2 and the target workflow; the former launch no longer exists (see the [v5 migration guide](../guides/migration-v5.en.md)). Sessions are then followed with `oh session …` or the TUI **Sessions** view (see [Sessions v5](../guides/sessions-v5.en.md)).
 
 ## Sessions
 
@@ -10,38 +10,56 @@
 
 Deprecated alias of `oh run` (see above).
 
-| Flag | Short | Type | Description |
-|------|-------|------|-------------|
-| `--agent` | `-a` | string | Entry agent (`oh run libre --agent`) |
-| `--prompt` | `-m` | string | Initial prompt |
-| `--provider` | `-P` | string | LLM provider (bedrock, anthropic, openai) |
-| `--project` | `-p` | string | Project ID (auto-detected otherwise) |
-| `--resume` | `-r` | string | Open an existing session in this terminal (`oh session attach --how here`) |
-| `--worktree` | `-w` | string | Branch to launch in a git worktree |
-| `--dev` | | bool | Dev mode: epic/ticket picker + orchestrator-dev |
-| `--ticket` | `-t` | string | Ticket ID to work on directly (skips picker, requires --dev) |
-| `--label` | `-l` | string | Filter tickets by label (requires --dev) |
-| `--assignee` | `-A` | string | Filter tickets by assignee (requires --dev) |
-| `--onboard` | | bool | Onboarding mode: creates/enriches project wiki |
-| `--refresh` | | bool | Force wiki re-discovery (requires --onboard) |
-| `--recap` | | bool | Show summary and ask for confirmation before launching |
-| `--parallel` | | bool | One session per ticket (`oh run ticket --tickets`), requires `--tickets` |
-| `--tickets` | | []string | List of tickets to process in parallel (comma-separated) |
-| `--sweep` | | string | High-level sweep objective (activates sweep mode) |
-| `--sweep-strategy` | | string | Decomposition strategy: `manual`, `by-file`, `by-package`, `llm` |
-| `--sweep-tasks` | | []string | Manual task list (requires `--sweep-strategy=manual`) |
-| `--sweep-include` | | []string | Glob patterns to include |
-| `--sweep-exclude` | | []string | Glob patterns to exclude |
-| `--sweep-verify` | | string | Post-sweep verification: `none`, `tests`, `lint`, `build`, `all`, `custom` |
-| `--sweep-verify-cmd` | | string | Custom verification command (requires `--sweep-verify=custom`) |
-| `--sweep-dry-run` | | bool | Display decomposed plan without executing |
+```
+oh start [options]
+```
+
+| Flag | Short | Description | v5 equivalent |
+|------|-------|-------------|---------------|
+| `--agent` | `-a` | Entry agent | `oh run libre --agent <id>` (the prompt becomes the `request` input). Refused with `--dev`, `--onboard`, `--parallel` or `--sweep` |
+| `--assignee` | `-A` | Filter the picker tickets by assignee (requires `--dev`, exclusive with `--label`) | No flag: pass the tickets with `oh run ticket --tickets` |
+| `--dev` | | Epic/ticket picker, then `ticket` | `oh run ticket --tickets <id>` (epic in one session: `--one-session`) |
+| `--label` | `-l` | Filter the picker tickets by label (requires `--dev`, exclusive with `--assignee`) | No flag: pass the tickets with `oh run ticket --tickets` |
+| `--onboard` | | Create or enrich the project wiki | `oh run onboarding` |
+| `--parallel` | | One session per ticket, requires `--tickets` (refused otherwise) | `oh run ticket --tickets a,b` |
+| `--project` | `-p` | Project ID (auto-detected otherwise) | `-p` |
+| `--prompt` | `-m` | Initial prompt | First text input (`-i request=…` for `feature`) |
+| `--provider` | `-P` | LLM provider (bedrock, anthropic, openai) | `-P` |
+| `--recap` | | Show summary and ask for confirmation | `--recap` |
+| `--refresh` | | Re-discover the wiki (requires `--onboard`) | `oh run onboarding -i refresh=true` |
+| `--resume` | `-r` | Open an existing session in this terminal | `oh session attach <id> --how here` |
+| `--sweep` | | High-level sweep goal | `oh run sweep -i goal=<goal>` |
+| `--sweep-dry-run` | | Show the decomposition without executing | `-i dry_run=true` |
+| `--sweep-exclude` | | Glob patterns to exclude | `-i exclude=<patterns>` |
+| `--sweep-include` | | Glob patterns to include | `-i include=<patterns>` |
+| `--sweep-strategy` | | Decomposition: `manual`, `by-file`, `by-package`, `llm` | `-i strategy=<strategy>` (workflow default: `llm`) |
+| `--sweep-tasks` | | Manual task list (`--sweep-strategy=manual`) | `-i tasks=<tasks>` (one per line) |
+| `--sweep-verify` | | Final verification: `none`, `tests`, `lint`, `build`, `all`, `custom` | `-i verify=<value>` |
+| `--sweep-verify-cmd` | | Verification command (`--sweep-verify=custom`) | `-i verify_cmd=<command>` |
+| `--ticket` | `-t` | Ticket to work on directly (skips the picker, requires `--dev`) | `oh run ticket --tickets <id>` |
+| `--tickets` | | Comma-separated tickets (with `--parallel`) | `--tickets` |
+| `--worktree` | `-w` | Branch to launch in a git worktree | `--location new` |
+
+`--max-sessions`, `--priority` and `--sweep-branch-prefix` are still accepted but have no effect (hidden from the help). The former sweep (one worktree per subtask) and the former parallel mode (monitor, merge view) no longer exist.
+
+**Example:**
 
 ```bash
+oh run feature -p my-app -i request="Fix the login bug"
+oh run libre --agent debugger -i request="Test X has been failing since yesterday"
+oh session attach abc123-session-id --how here
+oh run ticket --tickets TICKET-123 --location new
+oh run onboarding -i refresh=true
+oh run feature -i request="Refactor the auth module" --recap
+oh run ticket --tickets bd-42,bd-43,bd-44
+oh run sweep -i goal="Migrate deprecated API calls" -i strategy=llm -i verify=tests
+oh run sweep -i goal="Fix lint warnings" -i strategy=by-package -i dry_run=true
+
+# Equivalent deprecated aliases
 oh start -p my-app -m "Fix the login bug"
+oh start -a debugger -m "Test X has been failing since yesterday"
 oh start --resume abc123-session-id
-oh start -w feature/auth -a architect
-oh start --dev -l "priority:high" -A me
-oh start --dev -t TICKET-123
+oh start --dev -t TICKET-123 -w feat/ticket-123
 oh start --onboard --refresh
 oh start -m "Refactor the auth module" --recap
 oh start --parallel --tickets bd-42,bd-43,bd-44
@@ -49,38 +67,53 @@ oh start --sweep "Migrate deprecated API calls" --sweep-strategy llm --sweep-ver
 oh start --sweep "Fix lint warnings" --sweep-strategy by-package --sweep-dry-run
 ```
 
-> **See also:** [Parallel Mode Guide](../guides/parallel-mode.en.md) | [Sweep Mode Guide](../guides/sweep-mode.en.md)
+> **See also:** [Shipped workflows](workflows.en.md) | [Sessions v5](../guides/sessions-v5.en.md) | [Parallel mode (replaced)](../guides/parallel-mode.en.md) | [Sweep mode (replaced)](../guides/sweep-mode.en.md)
 
 ---
 
 ### oh audit
 
-Run an automated audit on a project.
+Deprecated alias of `oh run audit` (read-only code audit).
 
-| Flag | Short | Type | Description |
-|------|-------|------|-------------|
-| `--project` | `-p` | string | Project ID |
-| `--type` | `-t` | string | Audit type (security, performance, architecture, accessibility, ecodesign, observability, privacy). Default: security |
+```
+oh audit [options]
+```
+
+| Flag | Short | Description | v5 equivalent |
+|------|-------|-------------|---------------|
+| `--project` | `-p` | Project ID | `-p` |
+| `--type` | `-t` | Audit type (default: security) | `-i type=<type>` |
+
+Available types: `security`, `performance`, `architecture`, `accessibility`, `ecodesign`, `observability`, `privacy`.
+
+**Example:**
 
 ```bash
-oh audit -p my-app
+oh run audit -p my-app -i type=security
+oh run audit -p my-app -i type=performance
+oh run audit -i type=accessibility
+
+# Equivalent deprecated alias
 oh audit -p my-app -t performance
-oh audit --type accessibility
 ```
 
 ---
 
 ### oh review
 
-Launch an automated code review session with mode selection.
+Deprecated alias of `oh run review` (read-only code review). `--publish` is not a workflow: it remains an oh command.
 
-| Flag | Short | Type | Description |
-|------|-------|------|-------------|
-| `--project` | `-p` | string | Project ID |
-| `--mode` | `-m` | string | Review mode (see below) |
-| `--branch` | `-b` | string | Branch to review (diff vs main). Default: current branch if feature branch |
-| `--publish` | | bool | Create a MR on GitLab and optionally assign a reviewer (requires write_enabled) |
-| `--reviewer` | | string | Member ID of the reviewer to assign on the MR (used with --publish) |
+```
+oh review [options]
+```
+
+| Flag | Short | Description | v5 equivalent |
+|------|-------|-------------|---------------|
+| `--branch` | `-b` | Branch to review (diff vs main). Default: current branch if feature branch | `-i branch=<branch>` |
+| `--mode` | `-m` | Review mode (see below) | `-i review_mode=<mode>` |
+| `--project` | `-p` | Project ID | `-p` |
+| `--publish` | | Create a MR on GitLab and optionally assign a reviewer (requires write_enabled) | Unchanged: `oh review --publish` |
+| `--reviewer` | | Member ID of the reviewer to assign on the MR (with `--publish`) | Unchanged |
 
 **Available modes:**
 
@@ -92,15 +125,20 @@ Launch an automated code review session with mode selection.
 | `standard+adversarial` | Both modes in parallel (independent sessions) + unified report |
 | `all` | Standard + Adversarial + Edge-case — maximum coverage |
 
-Without `--mode`, an interactive prompt lets you choose the review mode at session start.
+Without a mode, the reviewer offers the choice at session start.
+
+**Example:**
 
 ```bash
-oh review -p my-app
-oh review -m adversarial
-oh review -m standard+adversarial -p backend
-oh review -m all
+oh run review -p my-app
+oh run review -i review_mode=adversarial
+oh run review -i review_mode=standard+adversarial -p backend
+oh run review -i review_mode=all -i branch=feat/auth
 oh review --publish --reviewer alice
 oh review --publish -b feat/auth
+
+# Equivalent deprecated alias
+oh review -m adversarial
 ```
 
 > **See also:** [Review & Feedback Guide](../guides/review-feedback.en.md)
@@ -109,7 +147,7 @@ oh review --publish -b feat/auth
 
 ### oh review feedback
 
-Launch a feedback correction session from MR review discussions. Fetches unresolved GitLab MR discussions and opens an AI session to address each comment.
+Fetches the unresolved GitLab discussions of a MR, shows a preview, asks for confirmation, then launches the `review-feedback` workflow (`mr`, `branch` and `feedback` inputs filled by oh). Warns that the alias is deprecated.
 
 ```
 oh review feedback <ticket-or-branch>
@@ -132,16 +170,25 @@ oh review feedback TICKET-123 --yes
 
 ### oh debug
 
-Start a debugging session with AI assistance.
+Deprecated alias of `oh run debug` (bug diagnosis).
 
-| Flag | Short | Type | Description |
-|------|-------|------|-------------|
-| `--project` | `-p` | string | Project ID |
-| `--issue` | `-i` | string | Issue description |
+```
+oh debug [options]
+```
+
+| Flag | Short | Description | v5 equivalent |
+|------|-------|-------------|---------------|
+| `--issue` | `-i` | Issue description | `-i issue=<description>` |
+| `--project` | `-p` | Project ID | `-p` |
+
+**Example:**
 
 ```bash
+oh run debug -p my-app -i issue="Users get 500 on /api/auth/callback"
+oh run debug -i issue="Memory leak in worker process"
+
+# Equivalent deprecated alias
 oh debug -p my-app -i "Users get 500 on /api/auth/callback"
-oh debug --issue "Memory leak in worker process"
 ```
 
 ---
@@ -162,16 +209,22 @@ oh budget raise <session> [amount]              # answer a $ decision
 
 ### oh beads
 
-Proxy to `bd` (Beads CLI). All arguments are passed through directly. Requires `bd` installed.
+Proxy to `bd` (Beads CLI). All arguments are passed through directly to `bd`.
+
+```
+oh beads [arguments...]
+```
+
+Requires `bd` installed and available in the PATH.
+
+**Example:**
 
 ```bash
 oh beads list
 oh beads run my-bead
-oh beads --help
+oh beads status
 ```
 
 ---
 
----
-
-> **See also:** [Parallel Mode Guide](../guides/parallel-mode.en.md) | [Sweep Mode Guide](../guides/sweep-mode.en.md) | [Review & Feedback Guide](../guides/review-feedback.en.md)
+> **See also:** [Shipped workflows](workflows.en.md) | [Sessions v5](../guides/sessions-v5.en.md) | [Review & Feedback Guide](../guides/review-feedback.en.md)

@@ -12,7 +12,7 @@ Initialise oh pour la premiere fois. Wizard interactif.
 oh init
 ```
 
-Pas de flags. Configure : langue, opencode, projet, serveurs MCP, base de donnees et deploiement.
+Pas de flags. Configure : langue et verification d'opencode V2, projet (nom, chemin, langage, tracker), serveurs MCP, tracker de tickets (`bd`) s'il est disponible et espace des workflows (equipe ou espace solo).
 
 **Exemple :**
 
@@ -254,7 +254,7 @@ oh serve --port 9090
 
 ### oh purge
 
-Suppression totale du hub et de ses donnees. Inventorie tous les artefacts (secrets keychain, deploiements, repertoire hub, donnees OpenCode, binaire) puis les supprime apres confirmation.
+Suppression totale du hub et de ses donnees. Inventorie tous les artefacts (secrets keychain, restes des anciens deploiements dans les projets (`.opencode/`), repertoire hub, donnees OpenCode, binaire) puis les supprime apres confirmation.
 
 | Flag | Type | Description |
 |------|------|-------------|

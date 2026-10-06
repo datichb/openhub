@@ -1,3 +1,5 @@
+> [Lire en français](mcp-team.fr.md)
+
 # MCP Server: team
 
 ## Overview

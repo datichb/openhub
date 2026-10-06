@@ -1,3 +1,5 @@
+> [Lire en français](tui-inline-wizard.fr.md)
+
 # Reference — InlineWizardView
 
 > Reusable TUI component for multi-step wizards in the OpenHub shell.
@@ -191,7 +193,7 @@ The `Form` callback is called at render time (not at init), so it sees updated v
 A step can become skippable based on choices made in previous steps.
 
 **Processing-only**: a step with neither `Form` nor `CustomView` directly shows the
-spinner + runs `OnDone`. Useful for pure processing steps (extraction, deployment).
+spinner + runs `OnDone`. Useful for pure processing steps (extraction, bundle build).
 
 ### Omnibar Integration
 

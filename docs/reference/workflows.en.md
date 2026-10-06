@@ -1,3 +1,5 @@
+> [Lire en français](workflows.fr.md)
+
 # Workflows shipped by the hub
 
 > v5: each use case is a declarative workflow (`apiVersion: oh/v1`) shipped by the hub. The files live in `workflows/` at the repository root, are embedded in the binary and extracted to `~/.oh/hub/workflows/`. A team or a project can extend them (`extends`) from phase 2.
@@ -150,7 +152,7 @@ Publishing a merge request (`oh review --publish`) is not a workflow: it remains
 
 ## `review-feedback`
 
-Applies the unresolved comments of a merge request. oh fetches the discussions from GitLab at launch and passes them in the `feedback` input.
+Applies the unresolved comments of a merge request. `oh review feedback <ticket|branch>` fetches the discussions from GitLab, then launches this workflow with them in the `feedback` input; with `oh run review-feedback`, provide the input yourself (`-i feedback=…`).
 
 | Input | Type | Required | Purpose |
 |---|---|---|---|

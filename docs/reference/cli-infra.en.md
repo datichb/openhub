@@ -6,7 +6,7 @@
 
 ### oh init
 
-First-time setup wizard. Configures language, opencode, project, MCP servers, and deploy targets interactively.
+First-time setup wizard. Configures interactively: language and the opencode V2 check, project (name, path, language, tracker), MCP servers, ticket tracker (`bd`) if available, and the workflow space (team or solo space).
 
 ```bash
 oh init
@@ -16,7 +16,7 @@ oh init
 
 ### oh doctor
 
-Run diagnostic checks on the environment. Checks: OS, git, opencode, bd, fzf, compatibility, config, database, API keys. Also checks for available `oh` binary updates.
+Run diagnostic checks on the environment. Checks: OS, git, opencode V2 (minimum version, V1 refused), bd, fzf, config, database, API keys, v5 runtime. Also checks for available `oh` binary updates.
 
 ```bash
 oh doctor
@@ -222,7 +222,7 @@ oh serve --port 9090
 
 ### oh purge
 
-Complete removal of the hub and all its data. Inventories all artifacts (keychain secrets, project deploy artifacts, hub directory, OpenCode data, binary) then deletes them after confirmation.
+Complete removal of the hub and all its data. Inventories all artifacts (keychain secrets, leftovers of former deployments in projects (`.opencode/`), hub directory, OpenCode data, binary) then deletes them after confirmation.
 
 | Flag | Type | Description |
 |------|------|-------------|

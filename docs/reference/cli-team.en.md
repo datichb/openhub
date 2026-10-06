@@ -303,7 +303,7 @@ Manage takeover briefs for ticket handoffs. Alias: `tb`.
 ```bash
 oh takeover-brief show <ticket-id>    # view takeover context
 oh takeover-brief list                # list available briefs
-oh takeover-brief enrich <ticket-id>  # enrich with code analysis
+oh takeover-brief enrich <ticket-id>  # enrich with code analysis (deprecated alias: runs `oh run brief-enrich --headless` with the brief and saves the result)
 ```
 
 ---

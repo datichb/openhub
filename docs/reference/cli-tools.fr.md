@@ -70,7 +70,7 @@ oh skill search "code review"
 
 ### oh skill budget
 
-Affiche le budget context window par agent (cout du system prompt toujours charge en lignes et tokens).
+Affiche le budget context window par agent (cout du system prompt toujours charge en lignes et tokens). Alias deprecie en v5 : le budget d'une session se lit avec `oh bundle show <workflow> --budget` (`oh skill budget <workflow>` y renvoie ; avec un agent ou `--all`, l'ancien calcul reste disponible avec un avertissement).
 
 | Flag | Court | Type | Description |
 |------|-------|------|-------------|

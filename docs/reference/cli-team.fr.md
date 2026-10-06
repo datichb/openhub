@@ -330,7 +330,7 @@ Gerer les briefs de reprise pour les handoffs de tickets. Alias : `tb`.
 ```bash
 oh takeover-brief show <ticket-id>    # voir le contexte de reprise
 oh takeover-brief list                # lister les briefs disponibles
-oh takeover-brief enrich <ticket-id>  # enrichir avec l'analyse du code
+oh takeover-brief enrich <ticket-id>  # enrichir avec l'analyse du code (alias deprecie : lance `oh run brief-enrich --headless` avec le brief et enregistre le resultat)
 ```
 
 ---

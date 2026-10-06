@@ -1,3 +1,5 @@
+> [Lire en français](model-resolution.fr.md)
+
 # Model and Provider Resolution
 
 ---

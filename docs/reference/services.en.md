@@ -1,6 +1,6 @@
-# CLI Reference — MCP Servers (`oh mcp`)
-
 > [Lire en français](services.fr.md)
+
+# CLI Reference — MCP Servers (`oh mcp`)
 
 Manage MCP (Model Context Protocol) servers built into the `oh` binary.
 

@@ -53,7 +53,7 @@ A service that exposes external tool capabilities to AI agents via the JSON-RPC 
 ### Mode (Agent)
 
 An agent can operate in two modes:
-- **Primary**: launched directly by the user via `oh start` or the TUI. Has its own session.
+- **Primary**: launched directly by the user via `oh run <workflow>` or the TUI (entry agent of the workflow). Has its own session.
 - **Subagent**: invoked by another agent via the `task` tool. Runs within the parent agent's session.
 
 ### Hub Mode
@@ -70,11 +70,11 @@ TUI navigation mode focused on an active team. The omnibar shows only team comma
 
 ### Onboarder
 
-A primary agent in the planning family that explores an existing codebase, detects the tech stack, identifies risks, and produces a [living wiki](#living-wiki). Invoked with `oh start --onboard`.
+A primary agent in the planning family that explores an existing codebase, detects the tech stack, identifies risks, and produces a [living wiki](#living-wiki). Invoked with `oh run onboarding`.
 
 ### OpenCode
 
-The underlying AI coding agent runtime (separate binary) that OpenHub orchestrates. OpenCode manages the actual LLM conversation, tool execution, and session persistence. Auto-downloaded by `oh init` or `oh start`.
+The underlying AI coding agent runtime (separate binary) that OpenHub orchestrates. OpenCode manages the actual LLM conversation, tool execution, and session persistence. oh requires opencode V2 (>= 2.0.0), installed with its own tool; V1 is no longer supported (`oh doctor` checks it). See the [v5 migration guide](../guides/migration-v5.en.md).
 
 ### Orchestrator
 
@@ -82,7 +82,7 @@ The main coordinator agent. Receives user requests, delegates to specialized age
 
 ### Orchestrator-dev
 
-A specialized coordinator agent for implementation workflows. Manages the Beads ticket lifecycle: picks tickets, routes to the appropriate [developer](#developer) domain, triggers review, and handles merge. See [Workflows](../guides/workflows.en.md).
+A specialized coordinator agent for implementation workflows. Manages the Beads ticket lifecycle: picks tickets, routes to the appropriate [developer](../architecture/agents.en.md) domain, triggers review, and handles merge. See [Workflows](../guides/workflows.en.md).
 
 ### Permission Profile
 
@@ -110,15 +110,15 @@ A Git repository shared by team members to synchronize collaboration state: clai
 
 ### TUI (Terminal User Interface)
 
-The interactive terminal dashboard launched by running `oh` without arguments. Provides visual navigation for projects, sessions, team board, configuration, and more. Built with the Charm/BubbleTea framework. See [TUI usage](../guides/tui-usage.en.md).
+The interactive terminal dashboard launched by running `oh` without arguments. Provides visual navigation for projects, sessions, team board, configuration, and more. Built with tview (huh is still used for a few inline prompts, outside the TUI). See [TUI usage](../guides/tui-usage.en.md).
 
 ### Workflow Mode
 
 Determines how [checkpoints](#checkpoint-cp) behave during an orchestrator session:
 - **Manual**: all checkpoints pause for user validation
 - **Semi-auto**: most checkpoints auto-proceed; key decision points (CP-0, CP-2) pause
-- **Auto**: all checkpoints auto-proceed except the initial plan validation (CP-0)
+- **Auto**: all checkpoints auto-proceed except the mandatory checkpoints of the workflow (e.g. plan validation CP-0, commit CP-2)
 
 ### Worktree
 
-A Git worktree used to isolate parallel AI sessions. Each worktree gets its own branch and working directory, allowing multiple agents to work simultaneously without conflicts. Managed via `oh worktree` or `oh start -w`. See [Worktree guide](../worktree.md).
+A Git worktree used to isolate parallel AI sessions. Each worktree gets its own branch and working directory, allowing multiple agents to work simultaneously without conflicts. Managed via `oh worktree` or `oh run <workflow> --location new`. See [Worktree guide](../worktree.md).

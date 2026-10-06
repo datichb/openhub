@@ -1,3 +1,5 @@
+> [Read in English](tui.en.md)
+
 # Référence TUI — OpenHub
 
 > Documentation complète de l'interface terminal interactive (TUI) d'OpenHub.
@@ -88,10 +90,11 @@ Accepte la saisie avec suggestions fuzzy au-dessus :
 |----------|-------|-------------|
 | `run <workflow>` | id du workflow ; anciens noms : `dev` → `run ticket`, `start` → `run feature`, `onboard` → `run onboarding`, `audit`, `review` (`rev`, `cr`), `debug` (`dbg`), `feedback` → `run review-feedback` | Ouvre la fiche de lancement du workflow (générée depuis le catalogue) |
 | `run <workflow> ⟨ticket⟩` | — | Sur le board : workflow lancé sur le ticket sélectionné |
-| `workflows` | catalogue, wf | Catalogue des workflows (brouillons, publication, historique) |
+| `workflows` | catalogue, wf, workflow | Catalogue des workflows (brouillons, publication, historique ; remplace l'ancienne vue Workflow) |
 | `review.publish` | publish, mr | Créer la MR de la branche courante (API GitLab, terminal suspendu ; si l'écriture GitLab est activée) |
-| `coder` | session, free, libre | Session libre (sans workflow ; opencode V1 ou catalogue vide) |
+| `coder` | session, code, free, libre | Fiche de lancement du workflow `libre` (agent d'entrée au choix, par défaut `orchestrator`) |
 | `sessions` | parallel, inbox | Vue Sessions |
+| `bricks` | briques, agents, skills | Catalogue des briques (agents et skills : origine, coût, workflows) |
 
 ### Fiche de lancement
 
@@ -117,8 +120,8 @@ Générée depuis le YAML du workflow, en trois étapes : **Entrées** (une lign
 |----------|-------|-------------|
 | `board` | kanban, tasks | Kanban du projet actif |
 | `projects` | proj, list | Liste des projets |
-| `deploy` | dep, push | Déployer agents/skills sur le projet actif |
-| `sync` | synchronize | Synchroniser tous les projets |
+
+`deploy` et `sync` n'existent plus (v5 : plus de déploiement dans les projets) ; les restes des anciens déploiements se retirent avec `cleanup`.
 
 ### Configuration
 
@@ -136,9 +139,10 @@ Générée depuis le YAML du workflow, en trois étapes : **Entrées** (une lign
 | `status` | stat, info | État du système |
 | `doctor` | health, check | Diagnostic de santé |
 | `metrics` | met, stats, tokens | Statistiques d'usage |
-| `plugins` | plug, extensions | Gestion des plugins |
-| `upgrade` | up, update | Mettre à jour opencode |
+| `cleanup` | deploy-cleanup, nettoyage, migrate | Écran de nettoyage des anciens déploiements (`oh migrate deploy-cleanup`) |
 | `help` | ?, aide, shortcuts | Aide et raccourcis |
+
+`plugins` et `upgrade` ont été retirés en v5 (plugins déclarés par workflow ; opencode V2 s'installe avec son propre outil).
 
 ### Navigation
 
@@ -147,7 +151,6 @@ Générée depuis le YAML du workflow, en trois étapes : **Entrées** (une lign
 | `home` | accueil, welcome | Retour au splash | Global |
 | `project.mode` | project mode | Mode Projet | `Ctrl+T` (Hub, Team modes) |
 | `hub.mode` | hub mode | Mode Hub | `Ctrl+T` (Team, Project modes) |
-| `workflow` | wf | Configuration du workflow | Global |
 | `quit` | exit, q | Quitter le TUI | Global |
 
 ### Team (si activé)
@@ -230,11 +233,13 @@ La méthode `PushView(v View)` sur `ShellAccess` permet de pusher une vue éphé
 
 ## Sessions opencode
 
-Quand une session est lancée (Start, Audit, Review, Debug, Quick) :
-1. Le TUI se met en pause
-2. opencode prend le contrôle du terminal
-3. À la fermeture d'opencode, le TUI reprend exactement où il en était
-4. Un toast confirme le résultat de la session
+Quand une session est lancée (fiche de lancement, `coder`, Démarrer) :
+1. oh construit le paquet de session et démarre la session sur le serveur `opencode serve` de son groupe
+2. Le client opencode s'ouvre à côté (onglet ou fenêtre iTerm2/Terminal, tmux, navigateur) ; le TUI reste utilisable
+3. Fermer opencode n'arrête pas la session : elle se suit et se rouvre depuis la vue **Sessions**
+4. La suspension du TUI n'est qu'un dernier recours (`attach = "suspend"`)
+
+Voir [Sessions v5](../guides/sessions-v5.fr.md).
 
 ## Synchronisation des vues d'équipe
 

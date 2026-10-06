@@ -53,7 +53,7 @@ Un service qui expose des outils externes aux agents IA via le protocole JSON-RP
 ### Mode (Agent)
 
 Un agent peut fonctionner selon deux modes :
-- **Primary (principal)** : lance directement par l'utilisateur via `oh start` ou le TUI. Possede sa propre session.
+- **Primary (principal)** : lance directement par l'utilisateur via `oh run <workflow>` ou le TUI (agent d'entree du workflow). Possede sa propre session.
 - **Subagent (sous-agent)** : invoque par un autre agent via l'outil `task`. S'execute dans la session de l'agent parent.
 
 ### Mode Equipe
@@ -70,11 +70,11 @@ Mode de navigation du TUI focalise sur un projet actif. L'omnibar affiche unique
 
 ### Onboarder
 
-Un agent principal de la famille planning qui explore un codebase existant, detecte la stack technique, identifie les risques et produit un [wiki vivant](#living-wiki-wiki-vivant). Invoque avec `oh start --onboard`.
+Un agent principal de la famille planning qui explore un codebase existant, detecte la stack technique, identifie les risques et produit un [wiki vivant](#living-wiki-wiki-vivant). Invoque avec `oh run onboarding`.
 
 ### OpenCode
 
-Le runtime sous-jacent de l'agent de code IA (binaire separe) qu'OpenHub orchestre. OpenCode gere la conversation LLM reelle, l'execution des outils et la persistance des sessions. Telecharge automatiquement par `oh init` ou `oh start`.
+Le runtime sous-jacent de l'agent de code IA (binaire separe) qu'OpenHub orchestre. OpenCode gere la conversation LLM reelle, l'execution des outils et la persistance des sessions. oh demande opencode V2 (>= 2.0.0), installe avec son propre outil ; V1 n'est plus pris en charge (`oh doctor` le verifie). Voir le [guide de migration v5](../guides/migration-v5.fr.md).
 
 ### Orchestrator (Orchestrateur)
 
@@ -82,7 +82,7 @@ L'agent coordinateur principal. Recoit les demandes utilisateur, delegue aux age
 
 ### Orchestrator-dev
 
-Un agent coordinateur specialise pour les workflows d'implementation. Gere le cycle de vie des tickets Beads : selectionne les tickets, route vers le domaine [developer](#developer) approprie, declenche la review et gere le merge. Voir [Workflows](../guides/workflows.fr.md).
+Un agent coordinateur specialise pour les workflows d'implementation. Gere le cycle de vie des tickets Beads : selectionne les tickets, route vers le domaine [developer](../architecture/agents.fr.md) approprie, declenche la review et gere le merge. Voir [Workflows](../guides/workflows.fr.md).
 
 ### Permission Profile (Profil de permissions)
 
@@ -110,15 +110,15 @@ Un depot Git partage par les membres de l'equipe pour synchroniser l'etat de col
 
 ### TUI (Terminal User Interface)
 
-Le tableau de bord terminal interactif lance en executant `oh` sans arguments. Fournit une navigation visuelle pour les projets, sessions, board equipe, configuration, et plus. Construit avec le framework Charm/BubbleTea. Voir [Usage TUI](../guides/tui-usage.fr.md).
+Le tableau de bord terminal interactif lance en executant `oh` sans arguments. Fournit une navigation visuelle pour les projets, sessions, board equipe, configuration, et plus. Construit avec tview (huh sert encore a quelques invites en ligne, hors TUI). Voir [Usage TUI](../guides/tui-usage.fr.md).
 
 ### Mode de Workflow
 
 Determine le comportement des [checkpoints](#checkpoint-cp) pendant une session d'orchestrateur :
 - **Manuel** : tous les checkpoints s'arretent pour validation utilisateur
 - **Semi-auto** : la plupart des checkpoints procedent automatiquement ; les points de decision cles (CP-0, CP-2) s'arretent
-- **Auto** : tous les checkpoints procedent automatiquement sauf la validation initiale du plan (CP-0)
+- **Auto** : tous les checkpoints procedent automatiquement sauf les checkpoints obligatoires du workflow (ex. validation du plan CP-0, commit CP-2)
 
 ### Worktree
 
-Un Git worktree utilise pour isoler les sessions IA en parallele. Chaque worktree obtient sa propre branche et son repertoire de travail, permettant a plusieurs agents de travailler simultanement sans conflits. Gere via `oh worktree` ou `oh start -w`. Voir [Guide worktree](../worktree.md).
+Un Git worktree utilise pour isoler les sessions IA en parallele. Chaque worktree obtient sa propre branche et son repertoire de travail, permettant a plusieurs agents de travailler simultanement sans conflits. Gere via `oh worktree` ou `oh run <workflow> --location new`. Voir [Guide worktree](../worktree.md).
