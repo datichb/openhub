@@ -28,11 +28,13 @@ Launches a workflow: layer resolution and validation, session bundle, session pl
 
 ## oh workflow list
 
-Lists the catalogue workflows, one per id (its most specific layer), with version, risk, execution environments and validity (`✓` valid, `!` warnings, `✗` errors).
+Lists the catalogue workflows, one per id (its most specific layer), with version, risk, execution environments and validity (`✓` valid, `!` warnings, `✗` errors). With a team-state: then **your drafts** (`✎`, error count, "new brick"), the files skipped by the integrity check and the publications waiting for the network (`⏳`). An unreadable team file is listed invalid in its own layer (team or project).
 
 | Flag | Type | Description |
 |------|------|-------------|
-| `--json` | bool | JSON output (array of summaries: id, layer, chain, risk, entry, modes, runtimes, Beads input, diagnostics) |
+| `-p, --project` | string | Team-state and layer of the project (same context as the editing commands) |
+| `--team` | string | Team or solo space, without a project |
+| `--json` | bool | JSON output (array of summaries: id, layer, chain, risk, entry, modes, runtimes, Beads input, diagnostics; drafts are included with `"draft": true`, plus `queued`, `team_bricks`, `new_bricks` when relevant) |
 
 ## oh workflow show
 
@@ -56,7 +58,7 @@ oh workflow validate --all [--json]
 
 Validates a file or a catalogue workflow: strict parsing, `extends` resolution, security rules, references to the brick catalogue. Non-zero exit on errors.
 
-With `--project <project>`, the team and project layers of its team-state are loaded (else the active team); published files changed outside a publication are skipped with a warning.
+With `--project <project>`, the team and project layers of its team-state are loaded (else the active team); published files changed outside a publication are skipped with a warning. Brick references are checked against the catalogue **merged** with the team bricks (`catalog/`), as at launch.
 
 ## Editing team and project workflows
 
@@ -93,7 +95,7 @@ oh workflow publish <id> -m "<message>" [--yes]
 oh workflow publish --retry
 ```
 
-Shows the next version and the impact, asks for confirmation when the workflow is widened (unless `--yes` or without a terminal), then publishes (sync, revalidation, version + 1, history, `workflows.lock`, commit + push, redone if another member published in the meantime). Offline: queued; `--retry` replays the pending publications. Team members only (`[governance] publish`).
+Shows the next version and the impact, asks for confirmation when the workflow is widened (unless `--yes` or without a terminal), then publishes (sync, revalidation, version + 1, history, `workflows.lock`, commit + push, redone if another member published in the meantime). Offline: queued; `--retry` replays the pending publications (the TUI also replays them automatically at each team-state synchronization). Team members only (`[governance] publish`).
 
 ### oh workflow history
 

@@ -28,11 +28,13 @@ Lance un workflow : résolution des couches et validation, paquet de session, pl
 
 ## oh workflow list
 
-Liste les workflows du catalogue, un par identifiant (sa couche la plus spécifique), avec version, risque, environnements d'exécution et validité (`✓` valide, `!` avertissements, `✗` erreurs).
+Liste les workflows du catalogue, un par identifiant (sa couche la plus spécifique), avec version, risque, environnements d'exécution et validité (`✓` valide, `!` avertissements, `✗` erreurs). Avec un team-state : puis **vos brouillons** (`✎`, nombre d'erreurs, « nouvelle brique »), les fichiers ignorés par le contrôle d'intégrité et les publications en attente du réseau (`⏳`). Un fichier d'équipe illisible est listé invalide dans sa couche (équipe ou projet).
 
 | Flag | Type | Description |
 |------|------|-------------|
-| `--json` | bool | Sortie JSON (tableau de résumés : id, couche, chaîne, risque, entrée, modes, runtimes, entrée Beads, diagnostics) |
+| `-p, --project` | string | Team-state et couche du projet (même contexte que les commandes d'édition) |
+| `--team` | string | Équipe ou espace solo, sans projet |
+| `--json` | bool | Sortie JSON (tableau de résumés : id, couche, chaîne, risque, entrée, modes, runtimes, entrée Beads, diagnostics ; les brouillons y figurent avec `"draft": true`, et `queued`, `team_bricks`, `new_bricks` le cas échéant) |
 
 ## oh workflow show
 
@@ -56,7 +58,7 @@ oh workflow validate --all [--json]
 
 Valide un fichier ou un workflow du catalogue : lecture stricte, résolution des `extends`, règles de sécurité, références au catalogue des briques. Sortie non nulle en cas d'erreur.
 
-Avec `--project <projet>`, les couches équipe et projet de son team-state sont chargées (sinon l'équipe active) ; les fichiers publiés modifiés hors publication sont ignorés avec un avertissement.
+Avec `--project <projet>`, les couches équipe et projet de son team-state sont chargées (sinon l'équipe active) ; les fichiers publiés modifiés hors publication sont ignorés avec un avertissement. Les références aux briques sont vérifiées contre le catalogue **fusionné** avec les briques d'équipe (`catalog/`), comme au lancement.
 
 ## Édition des workflows d'équipe et de projet
 
@@ -93,7 +95,7 @@ oh workflow publish <id> -m "<message>" [--yes]
 oh workflow publish --retry
 ```
 
-Affiche la version suivante et l'impact, demande confirmation si le workflow est élargi (sauf `--yes` ou sans terminal), puis publie (synchronisation, revalidation, version + 1, historique, `workflows.lock`, commit + push, refait si un autre membre a publié entre-temps). Hors ligne : mise en file d'attente ; `--retry` rejoue les publications en attente. Réservé aux membres de l'équipe (`[governance] publish`).
+Affiche la version suivante et l'impact, demande confirmation si le workflow est élargi (sauf `--yes` ou sans terminal), puis publie (synchronisation, revalidation, version + 1, historique, `workflows.lock`, commit + push, refait si un autre membre a publié entre-temps). Hors ligne : mise en file d'attente ; `--retry` rejoue les publications en attente (la TUI les rejoue aussi automatiquement à chaque synchronisation du team-state). Réservé aux membres de l'équipe (`[governance] publish`).
 
 ### oh workflow history
 

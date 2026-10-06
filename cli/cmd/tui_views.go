@@ -425,6 +425,9 @@ func buildViews(a *app.App, notifStore *shell.NotificationStore) []views.View {
 				go func() {
 					ctx := tuiShell.Context()
 					err := repo.Pull(ctx)
+					if err == nil || teamstate.IsPullWarning(err) {
+						views.AfterTeamSync(ctx, repo.Path())
+					}
 					select {
 					case <-ctx.Done():
 						return

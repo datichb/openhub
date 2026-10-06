@@ -119,7 +119,11 @@ func buildTeamBoardViewConfig(a *app.App) views.TeamBoardViewConfig {
 			if repo == nil {
 				return nil
 			}
-			return repo.Pull(ctx)
+			err := repo.Pull(ctx)
+			if (err == nil || teamstate.IsPullWarning(err)) && tuiShell != nil {
+				views.AfterTeamSync(tuiShell.Context(), repo.Path())
+			}
+			return err
 		},
 		TrackerSyncFunc: func() error {
 			// Full tracker API sync (GitLab/Jira) — called on manual 'r' key only.

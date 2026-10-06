@@ -22,61 +22,109 @@ func init() {
 func workflowListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "list",
-		Short: "Liste les workflows disponibles (toutes couches)",
+		Short: i18n.T("cmd.workflow.list.short"),
+		Long:  i18n.T("cmd.workflow.list.long"),
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			asJSON, _ := cmd.Flags().GetBool("json")
-			list, err := newWorkflowService(cmd.Context()).Catalog(cmd.Context(), workflowsvc.Context{})
+			c, err := workflowCmdContext(cmd)
 			if err != nil {
 				return err
 			}
-			return printWorkflowList(cmd.OutOrStdout(), list, asJSON)
+			w, err := newWorkflowService(cmd.Context()).Workspace(cmd.Context(), c)
+			if err != nil {
+				return err
+			}
+			return printWorkflowList(cmd.OutOrStdout(), w, asJSON)
 		},
 	}
-	cmd.Flags().Bool("json", false, "Sortie JSON")
+	cmd.Flags().Bool("json", false, i18n.T("cmd.workflow.list.flags.json"))
+	addWorkflowContextFlags(cmd)
 	return cmd
 }
 
-func printWorkflowList(w io.Writer, list []workflowsvc.Summary, asJSON bool) error {
+// printWorkflowList prints the catalogue, the current member's drafts, the
+// integrity warnings and the offline queue. JSON: one array, drafts marked
+// "draft": true.
+func printWorkflowList(w io.Writer, ws *workflowsvc.Workspace, asJSON bool) error {
 	if asJSON {
-		if list == nil {
-			list = []workflowsvc.Summary{}
-		}
+		list := append(append([]workflowsvc.Summary{}, ws.Workflows...), ws.Drafts...)
 		enc := json.NewEncoder(w)
 		enc.SetIndent("", "  ")
 		return enc.Encode(list)
 	}
-	if len(list) == 0 {
+	if len(ws.Workflows) == 0 && len(ws.Drafts) == 0 {
 		fmt.Fprintln(w, i18n.T("cmd.workflow.list.empty"))
-		return nil
-	}
-	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
-	fmt.Fprintf(tw, "  %s\t%s\t%s\t%s\t%s\t%s\n",
-		i18n.T("cmd.workflow.list.col_id"), i18n.T("cmd.workflow.list.col_layer"), i18n.T("cmd.workflow.list.col_version"),
-		i18n.T("cmd.workflow.list.col_risk"), i18n.T("cmd.workflow.list.col_runtime"), i18n.T("cmd.workflow.list.col_description"))
-	invalid := 0
-	for _, s := range list {
-		icon := theme.SuccessStyle.Render(theme.IconSuccess)
-		if !s.Valid {
-			icon = theme.ErrorStyle.Render(theme.IconError)
-			invalid++
-		} else if s.Warnings > 0 {
-			icon = theme.WarningStyle.Render(theme.IconWarning)
+	} else {
+		tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
+		fmt.Fprintf(tw, "  %s\t%s\t%s\t%s\t%s\t%s\n",
+			i18n.T("cmd.workflow.list.col_id"), i18n.T("cmd.workflow.list.col_layer"), i18n.T("cmd.workflow.list.col_version"),
+			i18n.T("cmd.workflow.list.col_risk"), i18n.T("cmd.workflow.list.col_runtime"), i18n.T("cmd.workflow.list.col_description"))
+		invalid := 0
+		for _, s := range ws.Workflows {
+			if !s.Valid {
+				invalid++
+			}
+			printWorkflowRow(tw, s)
 		}
-		desc := s.Description
-		if desc == "" {
-			desc = s.Label
+		if len(ws.Drafts) > 0 {
+			fmt.Fprintf(tw, "\t\t\t\t\t\n%s\t\t\t\t\t\n", i18n.Tf("cmd.workflow.list.drafts", ws.Member))
+			for _, s := range ws.Drafts {
+				printWorkflowRow(tw, s)
+			}
 		}
-		fmt.Fprintf(tw, "%s %s\t%s\t%s\t%s\t%s\t%s\n", icon, s.ID, s.Layer, versionLabel(s.Version), s.Risk,
-			runtimesLabel(s.Runtimes), desc)
+		if err := tw.Flush(); err != nil {
+			return err
+		}
+		if invalid > 0 {
+			fmt.Fprintln(w, theme.Subtitle.Render(i18n.Tf("cmd.workflow.list.invalid_hint", invalid)))
+		}
 	}
-	if err := tw.Flush(); err != nil {
-		return err
+	if len(ws.Integrity) > 0 {
+		fmt.Fprintf(w, "\n%s %s\n", theme.WarningStyle.Render(theme.IconWarning), i18n.Tf("cmd.workflow.list.integrity", len(ws.Integrity)))
+		for _, d := range ws.Integrity {
+			fmt.Fprintf(w, "  · %s\n", d.Message)
+			if d.Source != "" {
+				fmt.Fprintf(w, "    %s\n", theme.Subtitle.Render(d.Source))
+			}
+		}
 	}
-	if invalid > 0 {
-		fmt.Fprintln(w, theme.Subtitle.Render(i18n.Tf("cmd.workflow.list.invalid_hint", invalid)))
+	if len(ws.Queue) > 0 {
+		fmt.Fprintf(w, "\n%s\n", i18n.Tf("cmd.workflow.list.queued", len(ws.Queue)))
 	}
 	return nil
+}
+
+func printWorkflowRow(tw io.Writer, s workflowsvc.Summary) {
+	icon := theme.SuccessStyle.Render(theme.IconSuccess)
+	switch {
+	case !s.Valid:
+		icon = theme.ErrorStyle.Render(theme.IconError)
+	case s.Warnings > 0:
+		icon = theme.WarningStyle.Render(theme.IconWarning)
+	}
+	desc := s.Description
+	if desc == "" {
+		desc = s.Label
+	}
+	var marks []string
+	if s.Draft {
+		marks = append(marks, "✎")
+		if !s.Valid {
+			marks = append(marks, i18n.Tf("cmd.workflow.list.errors", s.Errors))
+		}
+	}
+	if s.Queued {
+		marks = append(marks, "⏳ "+i18n.T("cmd.workflow.list.pending"))
+	}
+	if len(s.NewBricks) > 0 {
+		marks = append(marks, i18n.Tf("cmd.workflow.list.new_bricks", strings.Join(s.NewBricks, ", ")))
+	}
+	if len(marks) > 0 {
+		desc = strings.Join(marks, " · ") + "  " + desc
+	}
+	fmt.Fprintf(tw, "%s %s\t%s\t%s\t%s\t%s\t%s\n", icon, s.ID, s.Layer, versionLabel(s.Version), s.Risk,
+		runtimesLabel(s.Runtimes), desc)
 }
 
 func versionLabel(v int) string {

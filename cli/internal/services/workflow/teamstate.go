@@ -75,6 +75,17 @@ func (s *Service) addTeamLayers(ctx context.Context, c Context, cat *catalog) er
 	return s.useTeamBricks(cat, ts)
 }
 
+// sourceLayer is the layer of a file that failed to load: team or project
+// for a file of the team-state, hub otherwise.
+func (c *catalog) sourceLayer(file string) wf.Layer {
+	if c.team != nil {
+		if l, ok := c.team.Repo.SourceLayer(file); ok {
+			return l
+		}
+	}
+	return wf.LayerHub
+}
+
 // Integrity returns the team-state files skipped by the integrity check
 // (hand-edited or unpublished files, workflows.lock problems) and the
 // refused team bricks, for the catalogue and Doctor.

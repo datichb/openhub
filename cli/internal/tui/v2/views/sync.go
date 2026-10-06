@@ -36,8 +36,31 @@ func syncAsync(
 	} else {
 		ctx = context.Background()
 	}
-	pullFn := func() error { return repo.Pull(ctx) }
+	pullFn := func() error {
+		err := repo.Pull(ctx)
+		if err == nil || teamstate.IsPullWarning(err) {
+			AfterTeamSync(ctx, repo.Path())
+		}
+		return err
+	}
 	syncFuncAsync(app, pullFn, shell, onDone)
+}
+
+// teamSyncHook runs after a successful team-state pull (SetTeamSyncHook).
+var teamSyncHook func(ctx context.Context, repoPath string)
+
+// SetTeamSyncHook registers the function run, off the event loop and
+// without delaying the view, after each successful team-state pull of the
+// TUI: the offline workflow publication queue is replayed there (O14).
+func SetTeamSyncHook(fn func(ctx context.Context, repoPath string)) { teamSyncHook = fn }
+
+// AfterTeamSync runs the team-sync hook in the background (no-op without
+// one). Callers that pull a team-state themselves call it after a
+// successful pull.
+func AfterTeamSync(ctx context.Context, repoPath string) {
+	if fn := teamSyncHook; fn != nil && repoPath != "" {
+		go fn(ctx, repoPath)
+	}
 }
 
 // syncFuncAsync is the low-level variant used when a bare sync function
