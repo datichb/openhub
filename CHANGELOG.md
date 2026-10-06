@@ -37,6 +37,16 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
   - **Préférences** (migration v32 `preferences`) : workflows épinglés (5 par portée : hub, projet, équipe), récents tirés des sessions, suggestions par défaut, réglages d'interface.
   - **Sélecteur de tickets Beads en tview** : recherche, filtres de label et d'épopée, regroupement par épopée, aperçu, multi-sélection, tickets réservés signalés.
 
+### Added — pilotage des sessions (phase 3, en cours)
+
+- **Décisions en attente** (migration v33 `pending_decisions`) : permissions et questions des agents (sous-agents compris), erreurs et budget épuisé, recopiées en continu par le démon ; **première réponse gagne** entre oh, l'interface opencode et le navigateur.
+- **`oh session inbox|approve|answer|dismiss|send|follow|interrupt|compact|model|fork|results|resume|open --browser`** ; `oh session list --json` avec les décisions ; un début d'identifiant suffit.
+- **Suivi en direct** des sessions (agent courant, outils, messages, coût), diffusé par le démon ; résultats de session (fichiers modifiés, branche, coût) conservés après la mise en veille, description de MR (`oh session results --mr`).
+- **Notifications système** quand une décision attend ou qu'une étape se termine sans personne attaché (`terminal-notifier` si installé, sinon `osascript` / `notify-send`) ; `[session] notify = "off"` pour les couper.
+- **Vue Sessions** dans la TUI (remplace la vue « parallèle ») : À traiter avec fiches permission / question / alerte, sessions en cours, en veille et terminées, flux en direct, consigne, interruption, modèle, arrêt, reprise, navigateur, choix de la méthode d'ouverture (`A`, tmux en volet avec `iterm_style = "split"`). Badge `● N ⏸ M` sur tous les écrans et sections « Sessions » sur les accueils hub, projet et équipe.
+- **Fermeture de la TUI** : choix par session qui travaille (finir l'étape puis veille, arrière-plan, arrêter) ; récap au retour avec les décisions arrivées pendant l'absence.
+- Variables d'environnement propres à chaque session, réappliquées à la reprise.
+
 ### Added — exécution en conteneur (phase 4, en cours)
 
 - **Runtime conteneur** (pas encore proposé dans `oh run` ni la TUI) : le serveur opencode d'un groupe de sessions tourne dans un conteneur, piloté par la ligne de commande de Colima, Podman ou Docker (choix automatique ; `OH_CONTAINER_ENGINE` pour forcer un moteur). macOS et Linux.
@@ -56,6 +66,9 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ### Fixed
 
+- Les questions des agents n'étaient suivies qu'à la reconnexion suivante du démon (session de l'événement `form.created` mal lue).
+- Un toast affiché pendant un formulaire de la TUI lui prenait le focus (flèches sans effet) ; l'accueil reprenait aussi le focus en se reconstruisant.
+- La commande `quit` de l'omnibar contournait la question de fermeture, et Échap sur cette question laissait la fermeture en suspens.
 - Lancements cassés avec opencode V2 (`--agent` n'existe plus en mode interactif) ; version `opencode v2.x` mal lue par la vérification de compatibilité.
 - Bascule silencieuse d'opencode vers ses modèles hébergés quand le modèle demandé est indisponible (fournisseur de la session imposé).
 - Modèles Anthropic sur Bedrock sans profil d'inférence régional (`eu.`, `us.`…).
