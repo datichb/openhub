@@ -86,7 +86,8 @@ const (
 	EventDecisionReplied EventKind = "decision_replied" // a pending decision was answered
 	EventUsage           EventKind = "usage"            // cost/token usage changed
 	EventSessionCreated  EventKind = "session_created"
-	EventActivity        EventKind = "activity" // any other session activity (text, tools…)
+	EventActivity        EventKind = "activity"   // any other session activity (text, tools…)
+	EventUserInput       EventKind = "user_input" // a user message reached the session (prompt, instruction)
 	EventOther           EventKind = "other"
 )
 
@@ -102,6 +103,39 @@ type ToolEvent struct {
 	Time      time.Time
 	Data      map[string]any
 	Feed      *domain.FeedItem // live feed entry, when the event is shown to users
+	// Call is set on tool call events (called, then succeeded or failed).
+	Call *ToolCall
+}
+
+// ToolCall is a tool call of the agent, in neutral terms.
+type ToolCall struct {
+	ID string
+	// Action is the neutral permission action of the tool (subagent,
+	// mcp:<server>/<tool>…; other tools keep their own name).
+	Action string
+	Input  map[string]any
+	// Status: called (input known, may still wait for a permission) | ok | failed.
+	Status string
+	Error  string
+}
+
+// Tool call statuses.
+const (
+	CallCalled = "called"
+	CallOK     = "ok"
+	CallFailed = "failed"
+)
+
+// ActionNamer translates the tool's own permission action names to neutral
+// actions (requests relayed by the tool plugin).
+type ActionNamer interface {
+	NeutralAction(toolAction string) string
+}
+
+// SessionRulesSetter is implemented by adapters that can replace the
+// permission rules of a running session (gating, circuit breaker).
+type SessionRulesSetter interface {
+	SetSessionRules(ctx context.Context, h ServerHandle, sessionID string, rules []sessionspec.PermissionRule) error
 }
 
 // DecisionKind classifies a pending human decision.
@@ -122,6 +156,9 @@ type PendingDecision struct {
 	Title     string   // question/form title
 	Message   string   // optional explanation from the tool
 	Fields    []FormField
+	// Call is the tool call a permission was asked for (input filled for
+	// the oh workflow tools), when the tool tells.
+	Call *ToolCall
 }
 
 // ErrRequestGone is returned by Reply when the request no longer waits for

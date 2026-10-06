@@ -170,6 +170,10 @@ type BundleSpec struct {
 	// may be granted "always" from oh.
 	StrictIsolation bool      `json:"strict_isolation,omitempty"`
 	DefaultModel    *ModelRef `json:"default_model,omitempty"`
+	// Workflow is set for bundles built from an oh/v1 workflow: checkpoints,
+	// gates, circuit breaker, outputs (omitted otherwise: the hash of phase 0
+	// bundles is unchanged).
+	Workflow *WorkflowRuntime `json:"workflow,omitempty"`
 }
 
 // BundleRootVar stands for the bundle root directory in agent bodies (paths

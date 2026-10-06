@@ -28,6 +28,10 @@ func (d *Daemon) routes() http.Handler {
 	mux.HandleFunc("POST "+apiPrefix+"/groups/{group}/policy", d.handlePolicy)
 	mux.HandleFunc("POST "+apiPrefix+"/proxy/listeners", d.handleListen)
 	mux.HandleFunc("GET "+apiPrefix+"/stream", d.handleStream)
+	mux.HandleFunc("GET "+apiPrefix+"/workflow/status", d.handleWorkflowStatus)
+	mux.HandleFunc("POST "+apiPrefix+"/workflow/checkpoint", d.handleWorkflowCheckpoint)
+	mux.HandleFunc("POST "+apiPrefix+"/workflow/outputs", d.handleWorkflowOutputs)
+	mux.HandleFunc("POST "+apiPrefix+"/workflow/rules", d.handleWorkflowRules)
 	return mux
 }
 

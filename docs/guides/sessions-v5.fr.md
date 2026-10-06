@@ -80,6 +80,19 @@ Ouvrez-la depuis l'omnibar (`sessions`) ou les sections « Sessions » des pages
 
 Avec tmux, la session s'ouvre dans une nouvelle fenêtre ; avec `[session] iterm_style = "split"`, dans un volet à côté.
 
+## Checkpoints
+
+Une session lancée depuis un workflow passe ses checkpoints par l'outil `workflow_checkpoint` (serveur MCP `workflow` d'oh, ajouté à chaque paquet). C'est oh qui applique le mode :
+
+- checkpoint **automatique** dans le mode : il passe sans demande ;
+- checkpoint **en pause** : il apparaît dans « À traiter » (⏸) et l'agent attend. `Entrée` ouvre la fiche : résumé de l'agent, changements (`Diff complet`), derniers messages, frise ; puis **Décider** : *Valider*, *Corriger d'abord* ou *Autre consigne*, avec un message à l'agent (obligatoire pour les deux derniers). `y` valide directement, `n` ouvre la fiche sur « Corriger d'abord ». La validation reste possible dans l'interface opencode : la première réponse gagne ;
+- un agent verrouillé par `after:` dans le workflow est refusé tant que son checkpoint n'est pas passé ;
+- **coupe-circuit** (`circuit_breaker`) : après N délégations d'affilée sans intervention, les délégations sont suspendues et une alerte ✗ apparaît ; `x` (ou `oh session dismiss`) la classe et les débloque.
+
+Le détail de la session affiche la frise : `✔ cp-1 10:03 → developer (3) → ⏸ cp-2 → ○ cp-3`.
+
+En ligne de commande : `oh session approve <id>` valide (`--decision once`), `--decision fix -m "…"` ou `--decision other -m "…"` refuse avec une consigne, `--decision reject` refuse sans consigne.
+
 ## Notifications
 
 Le démon oh affiche une notification système quand une décision vous attend et quand une session finit son étape sans que personne n'y soit attaché. Les notifications proches sont regroupées et ne contiennent jamais le contenu de la session. Avec [`terminal-notifier`](https://github.com/julienXX/terminal-notifier) installé, un clic ramène le terminal d'oh ; sinon oh utilise `osascript` (ou `notify-send` sous Linux). Pour les couper : `[session] notify = "off"` dans `hub.toml` (pris en compte au prochain démarrage du démon).

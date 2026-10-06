@@ -282,7 +282,7 @@ func (v *SessionsView) decisionItem(d SessionDecision) widgets.SectionItem {
 		who = sessionLabel(*r)
 	}
 	color := theme.WarningHex
-	if d.Kind == DecisionKindError || d.Kind == DecisionKindBudget {
+	if d.Kind == DecisionKindError || d.Kind == DecisionKindBudget || d.Kind == DecisionKindCircuit {
 		color = theme.ErrorHex
 	}
 	return widgets.SectionItem{
@@ -434,6 +434,9 @@ func (v *SessionsView) renderDetail(r *SessionRow) {
 	}
 	b.WriteString(strings.Join(parts, " · ") + "\n")
 	fmt.Fprintf(&b, "%s %s · %s · $%.3f · %s\n", r.StateIcon, r.StateLabel, r.Agent, r.Cost, i18n.Tf("tui.sessions.started", ago(r.Started)))
+	if r.Timeline != "" {
+		b.WriteString(tview.Escape(r.Timeline) + "\n")
+	}
 	for _, d := range r.Decisions {
 		fmt.Fprintf(&b, "%s%s%s %s\n", theme.ColorTag(theme.WarningHex), d.Icon, theme.TagColor, d.Summary)
 	}
@@ -485,15 +488,21 @@ func (v *SessionsView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 	case 't':
 		v.toggleFeed(r)
 	case 'y':
-		if d != nil && d.Kind == DecisionKindPermission {
+		switch {
+		case d != nil && d.Kind == DecisionKindPermission:
 			v.decide(d, "once", "", nil)
+		case d != nil && d.Kind == DecisionKindCheckpoint:
+			v.decide(d, checkpointApprove, "", nil)
 		}
 	case 'n':
-		if d != nil && d.Kind == DecisionKindPermission {
+		switch {
+		case d != nil && d.Kind == DecisionKindPermission:
 			v.decide(d, "reject", "", nil)
+		case d != nil && d.Kind == DecisionKindCheckpoint:
+			v.checkpointForm(r, d, checkpointFix)
 		}
 	case 'x':
-		if d != nil && (d.Kind == DecisionKindError || d.Kind == DecisionKindBudget) {
+		if d != nil && (d.Kind == DecisionKindError || d.Kind == DecisionKindBudget || d.Kind == DecisionKindCircuit) {
 			v.decide(d, "dismiss", "", nil)
 		}
 	case 'a':
@@ -646,8 +655,8 @@ func (v *SessionsView) showMR(id string) {
 	})
 }
 
-// ── Decision cards (simple): permission, question, alerts ─────────────────
-// The checkpoint card (diff, last messages) belongs to the checkpoint track.
+// ── Decision cards: permission, question, alerts (checkpoint card:
+// sessions_checkpoint.go) ─────────────────────────────────────────────────
 
 func (v *SessionsView) openDecision(r *SessionRow, d *SessionDecision) {
 	if v.shell == nil {
@@ -685,7 +694,9 @@ func (v *SessionsView) openDecision(r *SessionRow, d *SessionDecision) {
 				v.decide(&dec, "", "", toAnswers(values, multi))
 			},
 		})
-	case DecisionKindError, DecisionKindBudget:
+	case DecisionKindCheckpoint:
+		v.openCheckpoint(r, d)
+	case DecisionKindError, DecisionKindBudget, DecisionKindCircuit:
 		text := d.Summary
 		if d.Message != "" && d.Message != d.Summary {
 			text += "\n\n" + d.Message

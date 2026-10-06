@@ -22,7 +22,7 @@ func KindIcon(k domain.DecisionKind) string {
 		return "!"
 	case domain.DecisionBudget:
 		return "$"
-	case domain.DecisionError:
+	case domain.DecisionError, domain.DecisionCircuit:
 		return "✗"
 	}
 	return "•"
@@ -70,6 +70,13 @@ func DecisionSummary(d domain.Decision) string {
 		if p.Title != "" {
 			return oneLine(p.Title)
 		}
+	case domain.DecisionCheckpoint:
+		if id, _ := p.Data["checkpoint"].(string); id != "" {
+			if p.Title != "" && p.Title != id {
+				return id + " « " + oneLine(p.Title) + " »"
+			}
+			return id
+		}
 	case domain.DecisionBudget:
 		return i18n.T("cmd.session.decision.budget")
 	case domain.DecisionError:
@@ -83,7 +90,7 @@ func DecisionSummary(d domain.Decision) string {
 
 // DecisionBadges renders open decisions as "! 1  ? 2".
 func DecisionBadges(ds []domain.Decision) string {
-	order := []domain.DecisionKind{domain.DecisionCheckpoint, domain.DecisionQuestion, domain.DecisionPermission, domain.DecisionBudget, domain.DecisionError}
+	order := []domain.DecisionKind{domain.DecisionCheckpoint, domain.DecisionQuestion, domain.DecisionPermission, domain.DecisionBudget, domain.DecisionError, domain.DecisionCircuit}
 	counts := map[domain.DecisionKind]int{}
 	for _, d := range ds {
 		counts[d.Kind]++

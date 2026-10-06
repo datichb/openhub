@@ -33,6 +33,9 @@ type Adapter struct {
 	PluginTrace string
 	// PluginTimeout bounds the wait for the oh plugin to become active (default 10s).
 	PluginTimeout time.Duration
+	// OhBinary runs the oh MCP servers of a bundle (`{{oh.bin}}`; empty =
+	// the running executable).
+	OhBinary string
 }
 
 var _ adapters.ToolAdapter = (*Adapter)(nil)
@@ -104,13 +107,13 @@ func (a *Adapter) Render(b sessionspec.BundleSpec, p sessionspec.ProviderSpec) (
 func (a *Adapter) StartServer(ctx context.Context, g adapters.ServerGroup) (adapters.ServerHandle, error) {
 	// Agent bodies reference the bundle as the server sees it (a mount point
 	// in a container).
-	g.Bundle = g.Bundle.WithBundleRoot(innerDir(g, g.Bundle.Root))
+	g.Bundle = g.Bundle.WithBundleRoot(innerDir(g, g.Bundle.Root)).WithOhBinary(a.OhBinary)
 	if !a.DisablePlugin {
 		dir := filepath.Join(g.DataDir, PluginDirName)
 		if err := installPlugin(dir, g.Bundle); err != nil {
 			return adapters.ServerHandle{}, fmt.Errorf("installing oh plugin: %w", err)
 		}
-		h, err := a.start(ctx, g, withOhPlugin(g.Bundle, dir, a.PluginTrace))
+		h, err := a.start(ctx, g, withOhPlugin(g.Bundle, dir, a.PluginTrace, hookOptions(g.Provider)))
 		if err != nil {
 			return h, err
 		}
@@ -322,6 +325,7 @@ func (a *Adapter) Events(ctx context.Context, h adapters.ServerHandle) (<-chan a
 		for e := range evs {
 			te := adapters.ToolEvent{ID: e.ID, Type: e.Type, SessionID: e.SessionID(), Time: e.Time()}
 			te.Kind, te.Outcome = EventKind(e.Type)
+			te.Call = feed.callOf(e)
 			te.Feed, te.ParentID = feed.decode(e)
 			if e.Location != nil {
 				te.Location = e.Location.Directory
@@ -357,10 +361,21 @@ func (a *Adapter) Pending(ctx context.Context, h adapters.ServerHandle, sessionI
 	}
 	out := make([]adapters.PendingDecision, 0, len(perms)+len(forms))
 	for _, p := range perms {
-		out = append(out, adapters.PendingDecision{
+		d := adapters.PendingDecision{
 			ID: p.ID, SessionID: p.SessionID, Kind: adapters.DecisionPermission,
 			Action: p.Action, Resources: p.Resources, Message: p.Message,
-		})
+		}
+		if p.Source != nil && p.Source.ID != "" {
+			d.Call = &adapters.ToolCall{ID: p.Source.ID, Action: NeutralAction(p.Action), Status: adapters.CallCalled}
+			// The request does not carry the call input; the oh workflow
+			// tools need it (which checkpoint is reached).
+			if _, ours := workflowTools[p.Action]; ours {
+				if in, err := c.ToolCallInput(ctx, p.SessionID, p.Source.ID); err == nil {
+					d.Call.Input = in
+				}
+			}
+		}
+		out = append(out, d)
 	}
 	for _, f := range forms {
 		d := adapters.PendingDecision{ID: f.ID, SessionID: f.SessionID, Kind: adapters.DecisionQuestion, Title: f.Title}
@@ -435,6 +450,18 @@ func (a *Adapter) Control(ctx context.Context, h adapters.ServerHandle, sessionI
 		return c.SwitchModel(ctx, sessionID, ref)
 	}
 	return fmt.Errorf("unsupported control %q", op.Kind)
+}
+
+var _ adapters.ActionNamer = (*Adapter)(nil)
+
+// NeutralAction implements adapters.ActionNamer.
+func (a *Adapter) NeutralAction(action string) string { return NeutralAction(action) }
+
+var _ adapters.SessionRulesSetter = (*Adapter)(nil)
+
+// SetSessionRules implements adapters.SessionRulesSetter.
+func (a *Adapter) SetSessionRules(ctx context.Context, h adapters.ServerHandle, sessionID string, rules []sessionspec.PermissionRule) error {
+	return client(h).SetSessionPermissions(ctx, sessionID, toRules(rules))
 }
 
 var _ adapters.Forker = (*Adapter)(nil)

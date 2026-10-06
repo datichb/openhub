@@ -7,7 +7,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/datichb/openhub/cli/internal/adapters"
 	"github.com/datichb/openhub/cli/internal/domain"
+	"github.com/datichb/openhub/cli/internal/sessionspec"
 )
 
 // Event shapes recorded on opencode 2.0.20 (shell call + subagent delegation).
@@ -54,4 +56,33 @@ func TestFeedDecoder(t *testing.T) {
 	assert.Equal(t, domain.FeedDecision, decode(ev("permission.asked", `{"sessionID":"ses_r"}`)).Kind)
 	assert.Nil(t, decode(ev("vcs.branch.updated", `{}`)))
 	assert.Len(t, []rune(clip(string(make([]rune, 500)), 10)), 10)
+}
+
+func TestFeedToolCalls(t *testing.T) {
+	ev := func(typ, data string) Event { return Event{Type: typ, Data: json.RawMessage(data)} }
+	f := newFeedDecoder()
+	step := func(e Event) *adapters.ToolCall {
+		c := f.callOf(e)
+		f.decode(e)
+		return c
+	}
+	assert.Nil(t, step(ev("session.tool.input.started", `{"sessionID":"s","id":"c1","name":"workflow_workflow_checkpoint"}`)))
+	c := step(ev("session.tool.called", `{"sessionID":"s","id":"c1","input":{"id":"cp-1","summary":"ok"}}`))
+	require.NotNil(t, c)
+	assert.Equal(t, sessionspec.MCPToolAction("workflow", "workflow_checkpoint"), c.Action)
+	assert.Equal(t, adapters.CallCalled, c.Status)
+	assert.Equal(t, "cp-1", c.Input["id"])
+	c = step(ev("session.tool.success", `{"sessionID":"s","id":"c1"}`))
+	require.NotNil(t, c)
+	assert.Equal(t, adapters.CallOK, c.Status)
+
+	step(ev("session.tool.input.started", `{"sessionID":"s","id":"c2","name":"subagent"}`))
+	c = step(ev("session.tool.called", `{"sessionID":"s","id":"c2","input":{"agent":"developer"}}`))
+	assert.Equal(t, sessionspec.ActionSubagent, c.Action)
+	c = step(ev("session.tool.failed", `{"sessionID":"s","id":"c2","error":{"type":"permission.rejected","message":"Permission denied: subagent"}}`))
+	assert.Equal(t, adapters.CallFailed, c.Status)
+	assert.Equal(t, "Permission denied: subagent", c.Error)
+
+	assert.Nil(t, step(ev("session.tool.success", `{"sessionID":"s","id":"unknown"}`)), "call started before the stream")
+	assert.Equal(t, "shell", NeutralAction("shell"))
 }

@@ -18,6 +18,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/runsvc"
 	ohruntime "github.com/datichb/openhub/cli/internal/runtime"
 	"github.com/datichb/openhub/cli/internal/runtime/container"
+	"github.com/datichb/openhub/cli/internal/services/checkpoint"
 	sessionsvc "github.com/datichb/openhub/cli/internal/services/session"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 	"github.com/datichb/openhub/cli/internal/storage/sqlite"
@@ -157,7 +158,15 @@ func newSessionService(ctx context.Context, a *app.App) (*sessionsvc.Service, er
 		svc.Adapter = v5Adapter
 		ensureDaemonForLiveServers(ctx, svc.Servers)
 	}
+	svc.UseCheckpoints(newCheckpointService(a), dc.WorkflowRefresh)
 	return svc, nil
+}
+
+// newCheckpointService wires the CheckpointService (workflow state of the
+// sessions; the daemon feeds it, the CLI and the TUI answer its decisions).
+func newCheckpointService(a *app.App) *checkpoint.Service {
+	cs := sqlite.NewCheckpointStore(store)
+	return &checkpoint.Service{Sessions: a.Sessions, States: cs, SessionOutputs: cs, BundlesDir: ohBundlesDir(), SessionsDir: ohSessionsDir()}
 }
 
 // ensureDaemonForLiveServers starts the oh daemon when a tool server runs

@@ -36,5 +36,5 @@ Aucun checkpoint : avance sans pause imposée, en demandant confirmation avant t
 
 ## Sorties à déclarer
 
-En fin de travail, annonce chaque sortie produite sur une ligne `Sortie <id> : <valeur>` :
+Dès qu'une sortie est produite, déclare-la avec l'outil `workflow_outputs` (`type`, `value`, `id`) ; en fin de travail, rappelle chaque sortie sur une ligne `Sortie <id> : <valeur>` :
 - `tickets` (beads-ids) : Tickets de correction

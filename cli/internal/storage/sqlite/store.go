@@ -545,4 +545,12 @@ ALTER TABLE sessions ADD COLUMN outputs TEXT NOT NULL DEFAULT '{}';
 ALTER TABLE sessions ADD COLUMN parent_session_id TEXT NOT NULL DEFAULT ''`,
 		irreversible: false,
 	},
+	{
+		// v5 phase 3 (P3-T03): workflow state of a session (checkpoints
+		// passed, agents run, circuit breaker), JSON kept by the
+		// CheckpointService.
+		version: 35,
+		up:      `ALTER TABLE sessions ADD COLUMN checkpoint_state TEXT NOT NULL DEFAULT ''`,
+		down:    `ALTER TABLE sessions DROP COLUMN checkpoint_state`,
+	},
 }

@@ -3,6 +3,7 @@ package protocol
 import (
 	"context"
 	"encoding/json"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -245,4 +246,27 @@ type mockWriter struct {
 func (w *mockWriter) Write(p []byte) (n int, err error) {
 	*w.buf = append(*w.buf, p...)
 	return len(p), nil
+}
+
+func TestToolCallMeta(t *testing.T) {
+	s := NewServer("test-server", "1.0.0")
+	var got map[string]any
+	s.RegisterTool(Tool{Name: "m", InputSchema: map[string]interface{}{"type": "object"}}, func(ctx context.Context, _ json.RawMessage) (*ToolResult, error) {
+		got = Meta(ctx)
+		return &ToolResult{}, nil
+	})
+	s.handleRequest(context.Background(), &Request{ID: 1, Method: "tools/call", Params: json.RawMessage(`{"name":"m","arguments":{},"_meta":{"ai.opencode/sessionID":"ses_x"}}`)})
+	assert.Equal(t, map[string]any{"ai.opencode/sessionID": "ses_x"}, got)
+
+	s.handleRequest(context.Background(), &Request{ID: 2, Method: "tools/call", Params: json.RawMessage(`{"name":"m","arguments":{}}`)})
+	assert.Nil(t, got)
+}
+
+func TestServeIOAnswersTheLastRequestBeforeEOF(t *testing.T) {
+	s := NewServer("test-server", "1.0.0")
+	for i := 0; i < 50; i++ {
+		var out strings.Builder
+		require.NoError(t, s.ServeIO(context.Background(), strings.NewReader(`{"jsonrpc":"2.0","id":1,"method":"tools/list"}`+"\n"), &out))
+		require.Contains(t, out.String(), `"tools"`)
+	}
 }

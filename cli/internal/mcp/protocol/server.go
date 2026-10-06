@@ -53,6 +53,16 @@ type ContentBlock struct {
 	Text string `json:"text,omitempty"`
 }
 
+type metaKey struct{}
+
+// Meta returns the `_meta` object of the tool call being handled (nil when
+// the client sent none). Clients pass request context there (opencode:
+// the calling session).
+func Meta(ctx context.Context) map[string]any {
+	m, _ := ctx.Value(metaKey{}).(map[string]any)
+	return m
+}
+
 // Handler is a function that handles a tool call.
 type Handler func(ctx context.Context, params json.RawMessage) (*ToolResult, error)
 
@@ -85,9 +95,12 @@ func (s *Server) RegisterTool(tool Tool, handler Handler) {
 func (s *Server) Serve() error {
 	ctx, cancel := signal.NotifyContext(context.Background(), gracefulSignals()...)
 	defer cancel()
+	return s.ServeIO(ctx, os.Stdin, os.Stdout)
+}
 
-	reader := bufio.NewReader(os.Stdin)
-	writer := os.Stdout
+// ServeIO serves requests read from r until EOF or ctx cancellation.
+func (s *Server) ServeIO(ctx context.Context, r io.Reader, writer io.Writer) error {
+	reader := bufio.NewReader(r)
 
 	// Channel for lines read from stdin (buffered to avoid leaking the
 	// reader goroutine when the context is cancelled between a read and a send).
@@ -110,21 +123,30 @@ func (s *Server) Serve() error {
 		case <-ctx.Done():
 			return nil // graceful shutdown on signal
 		case err := <-errs:
+			// The reader sends every line before its error: answer the
+			// last request before stopping.
+			select {
+			case line := <-lines:
+				s.handleLine(ctx, writer, line)
+			default:
+			}
 			if err == io.EOF {
 				return nil
 			}
 			return fmt.Errorf("reading stdin: %w", err)
 		case line := <-lines:
-			var req Request
-			if err := json.Unmarshal(line, &req); err != nil {
-				s.writeError(writer, nil, -32700, "Parse error")
-				continue
-			}
-
-			resp := s.handleRequest(ctx, &req)
-			s.writeResponse(writer, resp)
+			s.handleLine(ctx, writer, line)
 		}
 	}
+}
+
+func (s *Server) handleLine(ctx context.Context, writer io.Writer, line []byte) {
+	var req Request
+	if err := json.Unmarshal(line, &req); err != nil {
+		s.writeError(writer, nil, -32700, "Parse error")
+		return
+	}
+	s.writeResponse(writer, s.handleRequest(ctx, &req))
 }
 
 func (s *Server) handleRequest(ctx context.Context, req *Request) *Response {
@@ -162,6 +184,7 @@ func (s *Server) handleRequest(ctx context.Context, req *Request) *Response {
 		var params struct {
 			Name      string          `json:"name"`
 			Arguments json.RawMessage `json:"arguments"`
+			Meta      map[string]any  `json:"_meta"`
 		}
 		if err := json.Unmarshal(req.Params, &params); err != nil {
 			return s.errorResponse(req.ID, -32602, "Invalid params")
@@ -172,6 +195,9 @@ func (s *Server) handleRequest(ctx context.Context, req *Request) *Response {
 			return s.errorResponse(req.ID, -32601, fmt.Sprintf("Tool not found: %s", params.Name))
 		}
 
+		if len(params.Meta) > 0 {
+			ctx = context.WithValue(ctx, metaKey{}, params.Meta)
+		}
 		result, err := handler(ctx, params.Arguments)
 		if err != nil {
 			return &Response{

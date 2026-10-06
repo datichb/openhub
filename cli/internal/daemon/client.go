@@ -72,12 +72,23 @@ func (c *Client) do(ctx context.Context, method, path string, body, out any) err
 		if e.Error == "" {
 			e.Error = resp.Status
 		}
-		return fmt.Errorf("ohd %s %s: %d %s", method, path, resp.StatusCode, e.Error)
+		return &APIError{Method: method, Path: path, Status: resp.StatusCode, Message: e.Error}
 	}
 	if out != nil && len(data) > 0 {
 		return json.Unmarshal(data, out)
 	}
 	return nil
+}
+
+// APIError is an error answer of the daemon.
+type APIError struct {
+	Method, Path string
+	Status       int
+	Message      string
+}
+
+func (e *APIError) Error() string {
+	return fmt.Sprintf("ohd %s %s: %d %s", e.Method, e.Path, e.Status, e.Message)
 }
 
 // Health returns the daemon status.

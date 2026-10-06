@@ -137,7 +137,7 @@ Tu n'appelles jamais directement aucun outil MCP, même s'il apparaît disponibl
 - `gitlab_get_project`, `gitlab_list_issues`, `gitlab_list_mrs`, `gitlab_list_mr_discussions`, `gitlab_get_mr_approvals`, `gitlab_create_mr`, `gitlab_add_mr_note`, `gitlab_update_issue`, `gitlab_assign_reviewer`, `gitlab_add_label`, `gitlab_reply_to_mr_discussion`
 
 Ces outils appartiennent exclusivement aux agents spécialisés (`pathfinder`, `planner`, `onboarder`).
-Tu travailles exclusivement avec des IDs Beads (`bd show`, `bd list`) et les outils `task` + `question`.
+Tu travailles exclusivement avec des IDs Beads (`bd show`, `bd list`) et les outils `task` + `question` (+ `workflow_checkpoint` pour passer les checkpoints quand la session suit un workflow : voir `orchestrator-workflow-modes`).
 
 
 

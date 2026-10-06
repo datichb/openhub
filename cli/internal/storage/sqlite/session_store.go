@@ -147,18 +147,22 @@ func (ss *SessionStore) Create(ctx context.Context, s *domain.Session) error {
 	return nil
 }
 
+// Update writes the session row. Outputs are merged into the stored ones
+// (never removed): an output declared by the session (SetSessionOutput)
+// survives a concurrent update from a stale copy of the row.
 func (ss *SessionStore) Update(ctx context.Context, s *domain.Session) error {
 	result, err := ss.db.ExecContext(ctx,
 		`UPDATE sessions SET ended_at=?, status=?, provider=?, model=?, tokens_in=?, tokens_out=?, launch_path=?, member_id=?, cost=?, tokens_reasoning=?, tokens_cache_read=?, platform=?, external_session_id=?, slug=?, pid=?, title=?, type=?, label=?, correlation_id=?,
 		 workflow_id=?, entry_agent=?, bundle_hash=?, group_key=?, runtime=?, mode=?, state=?, state_changed_at=?,
-		 workflow_layer=?, workflow_version=?, workflow_risk=?, location=?, outputs=?, parent_session_id=?
+		 workflow_layer=?, workflow_version=?, workflow_risk=?, location=?, parent_session_id=?,
+		 outputs=json_patch(CASE WHEN json_valid(outputs) THEN outputs ELSE '{}' END, ?)
 		 WHERE id=?`,
 		s.EndedAt, string(s.Status), s.Provider, s.Model, s.TokensIn, s.TokensOut, s.LaunchPath, s.MemberID,
 		s.Cost, s.TokensReasoning, s.TokensCacheRead, s.Platform, s.ExternalSessionID, s.Slug,
 		s.PID, s.Title, string(s.Type), s.Label, s.CorrelationID,
 		s.WorkflowID, s.EntryAgent, s.BundleHash, s.GroupKey, s.Runtime, s.Mode, string(s.State), s.StateChangedAt,
-		s.WorkflowLayer, s.WorkflowVersion, s.WorkflowRisk, s.Location, outputsJSON(s.Outputs), s.ParentSessionID,
-		s.ID,
+		s.WorkflowLayer, s.WorkflowVersion, s.WorkflowRisk, s.Location, s.ParentSessionID,
+		outputsJSON(s.Outputs), s.ID,
 	)
 	if err != nil {
 		return fmt.Errorf("updating session %s: %w", s.ID, err)

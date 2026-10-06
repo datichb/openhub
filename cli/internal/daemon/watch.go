@@ -51,6 +51,7 @@ type watcher struct {
 	unknownAt  map[string]time.Time // session id → last negative lookup (short negative cache)
 	children   map[string]string    // subagent session id → oh session that delegated it
 	childAgent map[string]string    // subagent session id → its agent
+	callAgent  map[string]string    // subagent tool call id → delegated agent (checkpoints)
 	synced     bool                 // a resync succeeded since the last (re)connection
 	lastTouch  time.Time
 	lastEvent  time.Time // last session activity seen (idle-sleep timer)
@@ -189,6 +190,12 @@ func (w *watcher) onEvent(ctx context.Context, ev adapters.ToolEvent) {
 		return
 	}
 	w.publish(ev.SessionID, ev.Feed)
+	if ev.Call != nil {
+		w.onCall(ctx, ev.SessionID, ev.Call)
+	}
+	if ev.Kind == adapters.EventUserInput {
+		w.onUserInput(ctx, ev.SessionID)
+	}
 	w.mu.Lock()
 	w.lastEvent = time.Now()
 	t := w.track(ev.SessionID)
@@ -303,6 +310,7 @@ func (w *watcher) resync(ctx context.Context) {
 		w.persist(ctx, s.ID, true)
 	}
 	w.adoptChildren(ctx)
+	w.applyAllRules(ctx, sessions)
 	w.mu.Lock()
 	w.synced = true
 	w.mu.Unlock()
@@ -446,8 +454,12 @@ func (w *watcher) adoptChild(ctx context.Context, child, parent string) {
 		return
 	}
 	w.mu.Lock()
+	_, had := w.children[child]
 	w.children[child] = root
 	w.mu.Unlock()
+	if !had {
+		w.applyRulesTo(ctx, root, child) // locks hold in nested delegations too
+	}
 }
 
 func (w *watcher) rootOf(id string) (string, bool) {
@@ -460,6 +472,9 @@ func (w *watcher) rootOf(id string) (string, bool) {
 // onChildEvent reports the activity of a subagent on its root session: feed
 // entries (with the subagent name) and the requests it waits for.
 func (w *watcher) onChildEvent(ctx context.Context, root string, ev adapters.ToolEvent) {
+	if ev.Call != nil {
+		w.onCall(ctx, root, ev.Call)
+	}
 	w.mu.Lock()
 	w.lastEvent = time.Now()
 	if ev.Feed != nil && ev.Feed.Kind == domain.FeedAgent {

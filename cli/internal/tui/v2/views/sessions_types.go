@@ -17,6 +17,7 @@ const (
 	DecisionKindCheckpoint = "checkpoint"
 	DecisionKindBudget     = "budget"
 	DecisionKindError      = "error"
+	DecisionKindCircuit    = "circuit" // circuit breaker (checkpoint track)
 )
 
 // SessionDecisionField is one field of an agent question.
@@ -64,6 +65,8 @@ type SessionRow struct {
 	Decisions  []SessionDecision
 	// Next is the workflow suggested to chain with (« Enchaîner avec… »).
 	Next string
+	// Timeline is the checkpoint timeline, rendered ("" without a workflow).
+	Timeline string
 }
 
 // SessionFeedLine is one line of a session live feed.

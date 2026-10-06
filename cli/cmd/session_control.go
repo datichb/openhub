@@ -189,14 +189,14 @@ func describeQuestion(d domain.Decision) string {
 
 var sessionDismissCmd = &cobra.Command{
 	Use:   "dismiss <session-id|decision-id>",
-	Short: "Classe une alerte (✗ erreur, $ budget) d'une session",
+	Short: "Classe une alerte (✗ erreur, ✗ coupe-circuit, $ budget) d'une session",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		svc, err := sessionService(cmd)
 		if err != nil {
 			return err
 		}
-		d, err := svc.Pick(cmd.Context(), args[0], domain.DecisionError, domain.DecisionBudget)
+		d, err := svc.Pick(cmd.Context(), args[0], domain.DecisionError, domain.DecisionBudget, domain.DecisionCircuit)
 		if err != nil {
 			return decisionError(err)
 		}
@@ -436,7 +436,7 @@ var sessionResultsCmd = &cobra.Command{
 
 func init() {
 	sessionInboxCmd.Flags().Bool("json", false, "Sortie JSON")
-	sessionApproveCmd.Flags().String("decision", "once", "once | always | reject (checkpoint : le choix attendu)")
+	sessionApproveCmd.Flags().String("decision", "once", "once | always | reject ; checkpoint : once (valider) | fix (corriger d'abord) | other (autre consigne) | reject — fix/other exigent -m")
 	sessionApproveCmd.Flags().StringP("message", "m", "", "Message transmis à l'agent")
 	sessionAnswerCmd.Flags().StringArray("field", nil, "Réponse clé=valeur (répétable ; liste : a,b)")
 	sessionSendCmd.Flags().Bool("synthetic", false, "Message d'oh (non utilisateur)")

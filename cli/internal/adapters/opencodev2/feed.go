@@ -5,7 +5,9 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"github.com/datichb/openhub/cli/internal/adapters"
 	"github.com/datichb/openhub/cli/internal/domain"
+	"github.com/datichb/openhub/cli/internal/sessionspec"
 )
 
 // Live feed decoding (P3-T10): opencode V2 events → tool-agnostic feed items.
@@ -76,14 +78,14 @@ func (f *feedDecoder) decode(e Event) (item *domain.FeedItem, parentID string) {
 			it.Kind, it.Agent, it.Title = domain.FeedDelegate, inputField(d.Input, "agent"), clip(inputField(d.Input, "description"), feedTitleMax)
 			return it, ""
 		}
-		it.Kind, it.Tool, it.Title = domain.FeedTool, name, clip(toolTitle(d.Input), feedTitleMax)
+		it.Kind, it.Tool, it.Title = domain.FeedTool, displayTool(name), clip(toolTitle(d.Input), feedTitleMax)
 	case "session.tool.success", "session.tool.failed", "session.tool.error":
 		name := f.tools[d.ID]
 		delete(f.tools, d.ID)
 		if name == toolSubagent || name == "" {
 			return nil, "" // delegation result, or a call started before the stream
 		}
-		it.Kind, it.Tool, it.Status = domain.FeedTool, name, "ok"
+		it.Kind, it.Tool, it.Status = domain.FeedTool, displayTool(name), "ok"
 		if e.Type != "session.tool.success" {
 			it.Status = "failed"
 		}
@@ -145,4 +147,67 @@ func clip(s string, n int) string {
 	}
 	r := []rune(s)
 	return string(r[:n-1]) + "…"
+}
+
+// callOf returns the tool call carried by a tool event (nil otherwise). It
+// must run before decode, which forgets the tool name of finished calls.
+func (f *feedDecoder) callOf(e Event) *adapters.ToolCall {
+	switch e.Type {
+	case "session.tool.called", "session.tool.success", "session.tool.failed", "session.tool.error":
+	default:
+		return nil
+	}
+	var d struct {
+		ID    string          `json:"id"`
+		Input json.RawMessage `json:"input"`
+		Error struct {
+			Message string `json:"message"`
+		} `json:"error"`
+	}
+	if len(e.Data) == 0 || json.Unmarshal(e.Data, &d) != nil || d.ID == "" {
+		return nil
+	}
+	name := f.tools[d.ID]
+	if name == "" {
+		return nil
+	}
+	c := &adapters.ToolCall{ID: d.ID, Action: NeutralAction(name)}
+	switch e.Type {
+	case "session.tool.called":
+		c.Status = adapters.CallCalled
+		_ = json.Unmarshal(d.Input, &c.Input)
+	case "session.tool.success":
+		c.Status = adapters.CallOK
+	default:
+		c.Status, c.Error = adapters.CallFailed, d.Error.Message
+	}
+	return c
+}
+
+// workflowTools are the oh workflow MCP tools, by opencode tool name.
+var workflowTools = func() map[string]string {
+	out := map[string]string{}
+	for _, t := range []string{sessionspec.WorkflowToolStatus, sessionspec.WorkflowToolCheckpoint, sessionspec.WorkflowToolOutputs} {
+		a := sessionspec.MCPToolAction(sessionspec.WorkflowMCPServer, t)
+		out[ToolAction(a)] = a
+	}
+	return out
+}()
+
+// NeutralAction translates an opencode tool name to its neutral action
+// (the oh workflow tools; built-in names are already neutral).
+func NeutralAction(name string) string {
+	if a, ok := workflowTools[name]; ok {
+		return a
+	}
+	return name
+}
+
+// displayTool is the name of a tool in the live feed: an oh workflow tool
+// without its MCP server prefix (workflow_checkpoint).
+func displayTool(name string) string {
+	if _, tool, ok := sessionspec.ParseMCPToolAction(NeutralAction(name)); ok {
+		return tool
+	}
+	return name
 }

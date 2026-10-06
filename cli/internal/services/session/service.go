@@ -12,6 +12,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/adapters"
 	"github.com/datichb/openhub/cli/internal/domain"
+	"github.com/datichb/openhub/cli/internal/services/checkpoint"
 )
 
 // Service is the SessionService.
@@ -27,6 +28,8 @@ type Service struct {
 	SessionsDir string
 	// Resolvers answer decision kinds owned by other services (checkpoint).
 	Resolvers map[domain.DecisionKind]Resolver
+	// Checkpoints is the CheckpointService (set by UseCheckpoints).
+	Checkpoints *checkpoint.Service
 	// Live opens the oh daemon live stream (nil = polling only).
 	Live LiveStream
 	// PollEvery is the refresh period of Subscribe without the daemon (default 2s).
