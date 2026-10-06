@@ -55,6 +55,20 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
   - **Catalogue des workflows** (lecture seule) : couches, version, risque, exécutions, validité, détail.
   - **« Enchaîner avec… »** (`e` dans la vue Sessions) : workflows qui prennent une sortie de la session (branche, tickets), fiche préremplie ; annonce en fin de session.
 
+### Added — workflows d'équipe (phase 2, hors TUI)
+
+- **Workflows dans le team-state** : `workflows/{published,drafts/<membre>,prompts,history/<id>}` pour l'équipe et `projects/<projet>/workflows/…` pour chaque projet, chargés comme couches `team` et `project` par `oh workflow list|show|validate`, `oh run` et la TUI.
+- **`workflows.lock`** : version et empreinte (document et gabarit de prompt) de chaque workflow publié. Un fichier publié modifié à la main, jamais publié ou dont le gabarit a changé est **ignoré avec un avertissement** (`oh workflow validate`, `oh doctor` « Workflows d'équipe »).
+- **Verrous `enforce: [champs]`** (ajout au schéma `oh/v1`, `"*"` pour tout le document) : une couche plus spécifique ne peut pas modifier un champ verrouillé.
+- **Gouvernance** : `[governance] publish = "any_member"` dans `config.toml` (seule règle prise en charge ; une règle inconnue bloque la publication).
+- **Espace solo** pour les projets sans équipe : **`oh team init --solo [--project]`** (team-state local sans remote dans `~/.oh/teams/<id>/`, `solo = true` dans `hub.toml`, fonctions d'équipe coupées) et **`oh team promote --remote <url>`** (partage sans perte : identifiant, historique, projets et workflows conservés).
+- **Brouillons** validés à l'enregistrement, poussés avec le team-state mais visibles de leur seul auteur, avec leur propre gabarit de prompt ; **`oh run <wf> --draft`** (local seulement, refusé si le brouillon élargit la version publiée).
+- **Publication** : synchronisation, revalidation, version suivante, historique, lock, commit et push ; **refaite au-dessus** d'une publication concurrente ; **file d'attente hors ligne** ; événements `workflow.published`, `workflow.restored`, `workflow.archived`.
+- **Résumé d'impact** (risque, agents qui écrivent, exécution distante, checkpoints, Beads, budget, MCP, plugins, Code Mode…) ; **historique, restauration** (nouvelle version) et **archivage**.
+- **Catalogue de briques d'équipe** (`catalog/agents`, `catalog/skills`) : agents et skills de l'équipe utilisés par ses workflows ; un identifiant du hub n'est remplacé qu'avec `extends: hub:<id>` explicite ; badge « nouvelle brique » dans l'impact.
+- **`oh workflow new|edit|diff|publish|history|restore|archive`** : brouillon dans `$EDITOR` avec revalidation, diff et impact, confirmation si le workflow est élargi, `publish --retry` pour la file hors ligne ; `--project`, `--team`.
+- **Migration des anciennes surcharges de workflow** (migration v38, automatique) : `[workflow]` du `config.toml` d'équipe, configuration de workflow des projets et `[workflow.overrides]` de `hub.toml` deviennent des workflows qui étendent `hub:feature` (brouillon puis publication ; espace solo créé pour un projet sans équipe) ; originaux archivés, éléments sans équivalent listés.
+
 ### Added — pilotage des sessions (phase 3, en cours)
 
 - **Décisions en attente** (migration v33 `pending_decisions`) : permissions et questions des agents (sous-agents compris), erreurs et budget épuisé, recopiées en continu par le démon ; **première réponse gagne** entre oh, l'interface opencode et le navigateur.
@@ -80,6 +94,7 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ### Changed
 
+- Les anciennes surcharges du workflow unique ne s'appliquent plus (migrées vers des workflows d'équipe ou de projet) : `oh deploy` (opencode V1) et l'ancien lancement utilisent le workflow de base ; la vue Workflow de la TUI est en lecture seule (remplacée par le catalogue et l'éditeur de workflows).
 - **Anciennes commandes de lancement = alias dépréciés** des workflows (avertissement) : `oh start` → `feature`, `--dev`/`-t` → `ticket` (épopée : une session ou une par ticket), `--onboard` → `onboarding`, `--parallel` → `ticket --tickets`, `--sweep` → `sweep`, `--worktree` → `--location new`, `oh audit|review|debug`, `oh review feedback` → `review-feedback` ; sans opencode V2 ou sans le workflow, l'ancien lancement reste. `--agent` garde le lancement par agent (avec confirmation si `--recap`).
 - TUI : les entrées codées en dur (Quick, Dev, Audit, Review, Debug, Onboard), leurs sous-menus et le sélecteur de tickets huh pendant la TUI sont remplacés par « Démarrer » et la fiche de lancement ; le board ne crée plus de worktree lui-même (emplacement choisi dans la fiche).
 
@@ -92,6 +107,7 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ### Fixed
 
+- Les surcharges de workflow de `hub.toml` n'étaient jamais chargées (clés non reconnues) et la vue Workflow de la TUI les perdait après les avoir enregistrées ; elles sont relues dans le fichier par la migration v38.
 - `oh <commande> --help` affichait la page d'aide générale au lieu de l'aide de la commande.
 
 - Les questions des agents n'étaient suivies qu'à la reconnexion suivante du démon (session de l'événement `form.created` mal lue).
@@ -109,6 +125,7 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ### Documentation
 
+- **Guide « Workflows d'équipe »** — `team-workflows.{en,fr}.md` : couches, arborescence, `workflows.lock`, verrous, brouillons et publication, impact, historique, catalogue de briques, gouvernance, espace solo, migration ; références `cli-workflows`, `cli-team`, `config` mises à jour
 - **Cascade des modèles** — `model-resolution.{en,fr}.md` : niveau workflow ; niveaux équipe ajoutés à la version française
 - **Rédaction des skills** — `authoring-skills.{en,fr}.md` : `requires:`, `annexes:`, `oh skill check`
 - **Guide « Sessions v5 »** — `sessions-v5.{en,fr}.md` : ouverture, veille, reprise, commandes, clés LLM, variables d'environnement, limites ; `SECURITY` : proxy d'identifiants et limite connue du mode local
