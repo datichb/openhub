@@ -1,0 +1,9 @@
+apiVersion: oh/v1
+kind: Workflow
+id: quick
+category: develop
+label: Rapide
+risk: write
+entry: { agent: developer }
+agents:
+  developer: { role: workflow, mode: primary }

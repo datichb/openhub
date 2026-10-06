@@ -1,0 +1,28 @@
+apiVersion: oh/v1
+kind: Workflow
+id: ticket
+category: develop
+label: { fr: Ticket, en: Ticket }
+description: { fr: Implémenter un ticket Beads, en: Implement a Beads ticket }
+risk: write
+entry: { agent: orchestrator-dev }
+inputs:
+  ticket:
+    type: beads-id
+    required: true
+    picker: { filter: ai-delegated, multi: true }
+  branch: { type: branch, default: "feat/{{ .ticket }}" }
+prompt:
+  template: prompts/ticket.md.tmpl
+agents:
+  orchestrator-dev: { role: workflow, calls: [developer, reviewer] }
+  developer: { role: workflow, after: cp-1 }
+  reviewer: { role: workflow, after: developer }
+checkpoints:
+  cp-1:
+    label: Démarrer
+    mode: { manuel: pause, semi-auto: auto, auto: auto }
+modes: { default: semi-auto, allowed: [manuel, semi-auto, auto] }
+runtime: { default: local, allowed: [local, container] }
+outputs:
+  - { id: branch, type: branch }

@@ -1,0 +1,5 @@
+apiVersion: oh/v1
+kind: Workflow
+id: broken
+risk: write
+entry: { agent: no-such-agent }
