@@ -64,6 +64,10 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 - **Vue Sessions** dans la TUI (remplace la vue « parallèle ») : À traiter avec fiches permission / question / alerte, sessions en cours, en veille et terminées, flux en direct, consigne, interruption, modèle, arrêt, reprise, navigateur, choix de la méthode d'ouverture (`A`, tmux en volet avec `iterm_style = "split"`). Badge `● N ⏸ M` sur tous les écrans et sections « Sessions » sur les accueils hub, projet et équipe.
 - **Fermeture de la TUI** : choix par session qui travaille (finir l'étape puis veille, arrière-plan, arrêter) ; récap au retour avec les décisions arrivées pendant l'absence.
 - Variables d'environnement propres à chaque session, réappliquées à la reprise.
+- **Checkpoints contrôlés par oh** (sessions lancées depuis un workflow) : chaque paquet reçoit le serveur MCP **`workflow`** (`workflow_status`, `workflow_checkpoint`, `workflow_outputs`) ; un checkpoint en pause dans le mode attend la validation de l'utilisateur, un checkpoint automatique passe sans demande ; état de chaque session conservé (migration v35 `sessions.checkpoint_state`).
+- **Agents verrouillés** (`after:` du workflow) refusés tant que leur checkpoint n'est pas passé, y compris dans les délégations imbriquées ; **coupe-circuit** (`circuit_breaker`) : délégations suspendues après N appels d'affilée sans intervention, alerte ✗ à classer.
+- **Fiche de décision checkpoint** dans « À traiter » : résumé de l'agent, changements et diff complet, derniers messages, frise ; *Valider*, *Corriger d'abord* ou *Autre consigne* avec un message transmis à l'agent ; frise des checkpoints dans le détail de session (`✔ cp-1 → developer (3) → ⏸ cp-2`). `oh session approve <id> --decision once|fix|other|reject [-m …]`, `oh session dismiss` classe le coupe-circuit.
+- Sorties déclarées par les agents (`workflow_outputs`) enregistrées avec la session et reprises par « Enchaîner avec… ».
 
 ### Added — exécution en conteneur (phase 4, en cours)
 
