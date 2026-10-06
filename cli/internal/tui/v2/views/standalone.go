@@ -127,9 +127,9 @@ type standaloneShellStub struct {
 
 func (s *standaloneShellStub) Context() context.Context { return context.Background() }
 func (s *standaloneShellStub) SetOmnibarVisible(bool)   {}
-func (s *standaloneShellStub) NavigateTo(string)         { s.app.Stop() }
-func (s *standaloneShellStub) PopView() bool             { s.app.Stop(); return true }
-func (s *standaloneShellStub) PushView(View)             {}
+func (s *standaloneShellStub) NavigateTo(string)        { s.app.Stop() }
+func (s *standaloneShellStub) PopView() bool            { s.app.Stop(); return true }
+func (s *standaloneShellStub) PushView(View)            {}
 
 // ── Methods never called by InlineWizardView — defensive panics ─────────────
 

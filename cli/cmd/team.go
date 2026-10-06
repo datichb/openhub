@@ -334,22 +334,22 @@ func runTeamInit(cmd *cobra.Command, args []string) error {
 
 	// ── Build shared team step state ──
 	tss := &teamStepState{
-		Ctx:               ctx,
-		Repo:              repo,
-		HasConfig:         hasConfig,
-		HasPolicies:       hasPolicies,
-		ExistingCfg:       existingCfg,
-		HasMember:         hasMember,
-		StaleDaysStr:      staleDaysStr,
-		MemberID:          memberID,
-		DisplayName:       displayName,
+		Ctx:                ctx,
+		Repo:               repo,
+		HasConfig:          hasConfig,
+		HasPolicies:        hasPolicies,
+		ExistingCfg:        existingCfg,
+		HasMember:          hasMember,
+		StaleDaysStr:       staleDaysStr,
+		MemberID:           memberID,
+		DisplayName:        displayName,
 		GitLabUsername:     gitlabUsername,
 		TrackerUsername:    trackerUsername,
 		MattermostUsername: mattermostUsername,
-		Role:              role,
-		WebhookURL:        webhookURL,
-		Channel:           channel,
-		BotName:           botName,
+		Role:               role,
+		WebhookURL:         webhookURL,
+		Channel:            channel,
+		BotName:            botName,
 	}
 	stepOpts := teamStepOpts{} // CLI wizard has no extra SkipIf
 	configStep := buildTeamConfigStep(tss, stepOpts)

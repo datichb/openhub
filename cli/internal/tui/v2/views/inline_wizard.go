@@ -95,8 +95,8 @@ type InlineWizardView struct {
 	mainFlex         *tview.Flex // root layout (classic: stepBar+header+content+info+hints)
 	stepBar          *widgets.StepBar
 	stepHeader       *tview.TextView
-	stepContent      *tview.Flex // outer container — keeps DrawFunc + InputCapture
-	stepContentInner *tview.Flex // inner content area — all mutations (Clear/AddItem) go here
+	stepContent      *tview.Flex     // outer container — keeps DrawFunc + InputCapture
+	stepContentInner *tview.Flex     // inner content area — all mutations (Clear/AddItem) go here
 	infoPanel        *tview.TextView // classic: bottom info panel  /  grouped: right sidebar
 	hintsBar         *widgets.StatusBar
 
@@ -362,9 +362,9 @@ func (w *InlineWizardView) mountGroupedLayout(content *tview.Flex) {
 	centeredWrapper := tview.NewFlex().SetDirection(tview.FlexColumn)
 	centeredWrapper.SetBackgroundColor(bg)
 	centeredWrapper.
-		AddItem(tview.NewBox().SetBackgroundColor(bg), 0, 1, false).  // left spacer
-		AddItem(w.stepContentInner, 0, 5, true).                      // content (5/7 of width)
-		AddItem(tview.NewBox().SetBackgroundColor(bg), 0, 1, false)   // right spacer
+		AddItem(tview.NewBox().SetBackgroundColor(bg), 0, 1, false). // left spacer
+		AddItem(w.stepContentInner, 0, 5, true).                     // content (5/7 of width)
+		AddItem(tview.NewBox().SetBackgroundColor(bg), 0, 1, false)  // right spacer
 	w.stepContent.AddItem(centeredWrapper, 0, 1, true)
 
 	// leftCol wraps stepContent + hintsBar so that hints are centered
@@ -764,8 +764,8 @@ func (w *InlineWizardView) runWithSpinner(step WizardStep, afterDone func()) {
 				// Show error in the step content but do NOT mark as completed.
 				// The user can press Ctrl+B to go back and fix the issue,
 				// or Enter to retry the current step.
-			w.stepContentInner.Clear()
-			errView := tview.NewTextView().SetDynamicColors(true)
+				w.stepContentInner.Clear()
+				errView := tview.NewTextView().SetDynamicColors(true)
 				errView.SetBackgroundColor(theme.BgPanel)
 				errView.SetText(fmt.Sprintf("  %s%s %s[-]\n\n  %s%s[-]\n\n  %sCtrl+B[-] %s  •  %sEnter[-] %s",
 					widgets.ColorTag(theme.Error), theme.IconError,
@@ -1054,9 +1054,9 @@ func (w *InlineWizardView) renderStep(idx int) {
 					form.ClearButtons()
 				}
 
-			if minimalLayout {
-				// ── Minimal layout — form only with inline buttons ──
-				w.stepContentInner.AddItem(form, 0, 1, true)
+				if minimalLayout {
+					// ── Minimal layout — form only with inline buttons ──
+					w.stepContentInner.AddItem(form, 0, 1, true)
 
 					form.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 						if w.escPending && event.Key() != tcell.KeyEscape {
@@ -1079,22 +1079,22 @@ func (w *InlineWizardView) renderStep(idx int) {
 				} else {
 					// ── Normal grouped layout — BuildWizardPage ──
 
-				// Compute dynamic max width from form content.
-				formMaxWidth := 60
-				for i := 0; i < form.GetFormItemCount(); i++ {
-					label := form.GetFormItem(i).GetLabel()
-					w2 := tview.TaggedStringWidth(label) + 40
-					if w2 > formMaxWidth {
-						formMaxWidth = w2
+					// Compute dynamic max width from form content.
+					formMaxWidth := 60
+					for i := 0; i < form.GetFormItemCount(); i++ {
+						label := form.GetFormItem(i).GetLabel()
+						w2 := tview.TaggedStringWidth(label) + 40
+						if w2 > formMaxWidth {
+							formMaxWidth = w2
+						}
 					}
-				}
-				if formMaxWidth > 80 {
-					formMaxWidth = 80
-				}
-				// Cap at available width to prevent clipping on small terminals.
-				if innerW := StepContentInnerWidth(); innerW > 0 && formMaxWidth > innerW {
-					formMaxWidth = innerW
-				}
+					if formMaxWidth > 80 {
+						formMaxWidth = 80
+					}
+					// Cap at available width to prevent clipping on small terminals.
+					if innerW := StepContentInnerWidth(); innerW > 0 && formMaxWidth > innerW {
+						formMaxWidth = innerW
+					}
 
 					form.SetBorderPadding(1, 1, 2, 2) // match styleWizardForm for visual consistency
 
@@ -1174,8 +1174,8 @@ func (w *InlineWizardView) renderStep(idx int) {
 					}
 				}
 			} else {
-			w.stepContentInner.AddItem(form, 0, 1, true)
-			w.app.SetFocus(form)
+				w.stepContentInner.AddItem(form, 0, 1, true)
+				w.app.SetFocus(form)
 			}
 		}
 	} else {
@@ -1358,9 +1358,9 @@ func (w *InlineWizardView) renderClassicInfoPanel() {
 		color := widgets.ColorTag(theme.FgMuted)
 		if i == w.currentStep {
 			icon = theme.IconActive
-		color = widgets.ColorTag(theme.ActiveMode.Primary)
-	}
-	fmt.Fprintf(&b, "  %s%s %s[-]\n", color, icon, w.cfg.Steps[i].Label)
+			color = widgets.ColorTag(theme.ActiveMode.Primary)
+		}
+		fmt.Fprintf(&b, "  %s%s %s[-]\n", color, icon, w.cfg.Steps[i].Label)
 	}
 
 	text := b.String()

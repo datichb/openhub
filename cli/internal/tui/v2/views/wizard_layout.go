@@ -429,8 +429,8 @@ func StepContentInnerWidth() int {
 	if err != nil || termW <= 0 {
 		return 0
 	}
-	bodyRow := termW - 4       // shell padding left=2 + right=2
-	remaining := bodyRow - 1   // minus vertical separator
+	bodyRow := termW - 4     // shell padding left=2 + right=2
+	remaining := bodyRow - 1 // minus vertical separator
 	leftCol := remaining * 3 / 4
 	leftColInner := leftCol - 3 // leftCol padding left=2 + right=1
 	if leftColInner <= 0 {

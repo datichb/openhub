@@ -133,35 +133,35 @@ type ModeTheme struct {
 var (
 	// ThemeHub is the mode theme for hub navigation (Warm saturated family).
 	ThemeHub = ModeTheme{
-		AccentHex:    TangerineHex,     // #f28c50 Tangerine
+		AccentHex:    TangerineHex, // #f28c50 Tangerine
 		Accent:       tcell.GetColor(TangerineHex),
-		PrimaryHex:   HoneyHex,         // #f5c468 Honey
+		PrimaryHex:   HoneyHex, // #f5c468 Honey
 		Primary:      tcell.GetColor(HoneyHex),
-		SecondaryHex: CoralHex,         // #e89078 Coral
+		SecondaryHex: CoralHex, // #e89078 Coral
 		Secondary:    tcell.GetColor(CoralHex),
-		MutedHex:     MutedHubHex,      // #4d3828
+		MutedHex:     MutedHubHex, // #4d3828
 		Muted:        tcell.GetColor(MutedHubHex),
 	}
 	// ThemeTeam is the mode theme for team navigation (Saturated Violet family).
 	ThemeTeam = ModeTheme{
 		AccentHex:    MauveSaturatedHex, // #c37ef5 Mauve Saturated
 		Accent:       tcell.GetColor(MauveSaturatedHex),
-		PrimaryHex:   Violet350Hex,      // #b197fc Violet 350
+		PrimaryHex:   Violet350Hex, // #b197fc Violet 350
 		Primary:      tcell.GetColor(Violet350Hex),
-		SecondaryHex: Violet300Hex,      // #d8b4fe Violet 300
+		SecondaryHex: Violet300Hex, // #d8b4fe Violet 300
 		Secondary:    tcell.GetColor(Violet300Hex),
-		MutedHex:     MutedTeamHex,      // #4a3060
+		MutedHex:     MutedTeamHex, // #4a3060
 		Muted:        tcell.GetColor(MutedTeamHex),
 	}
 	// ThemeProject is the mode theme for project navigation (Azure/Cobalt/Teal family).
 	ThemeProject = ModeTheme{
-		AccentHex:    AzureHex,          // #60b8f0 Azure
+		AccentHex:    AzureHex, // #60b8f0 Azure
 		Accent:       tcell.GetColor(AzureHex),
-		PrimaryHex:   CobaltHex,         // #78a8f5 Cobalt
+		PrimaryHex:   CobaltHex, // #78a8f5 Cobalt
 		Primary:      tcell.GetColor(CobaltHex),
-		SecondaryHex: TealVifHex,        // #68d8c0 Teal Vif
+		SecondaryHex: TealVifHex, // #68d8c0 Teal Vif
 		Secondary:    tcell.GetColor(TealVifHex),
-		MutedHex:     MutedProjectHex,   // #283f50
+		MutedHex:     MutedProjectHex, // #283f50
 		Muted:        tcell.GetColor(MutedProjectHex),
 	}
 

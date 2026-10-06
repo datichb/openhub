@@ -132,39 +132,39 @@ func buildHTTPSCredStep(ctx context.Context, repoURL *string, state *httpsCredSt
 // initWizardTeamState holds mutable state shared across the team wizard steps.
 // It is allocated once by buildInitWizardTeamSteps and captured by closures.
 type initWizardTeamState struct {
-	Skipped       bool   // user chose not to configure team
-	Mode          string // "init", "rejoin", or "keep" (empty = not chosen yet)
-	Repo          string // team-state repo URL
-	MemberID      string // member identifier
-	DisplayName   string // optional display name
-	Configured    bool   // true after successful teamInitCore or teamRejoinCore
-	TeamID        string // derived team ID (after init or rejoin)
+	Skipped     bool   // user chose not to configure team
+	Mode        string // "init", "rejoin", or "keep" (empty = not chosen yet)
+	Repo        string // team-state repo URL
+	MemberID    string // member identifier
+	DisplayName string // optional display name
+	Configured  bool   // true after successful teamInitCore or teamRejoinCore
+	TeamID      string // derived team ID (after init or rejoin)
 	// Existing team detection (re-init)
 	ExistingTeam *config.TeamConfig // non-nil if a team is already configured
 	TeamChoice   string             // "keep", "reconfigure", "skip" (only when ExistingTeam != nil)
 	// SoloSpace: the user chose a solo workflow space (P2-T16); the
 	// wizard's project is attached to it.
-	SoloSpace bool
-	attachProject bool   // true if user wants to attach the project to this team
+	SoloSpace     bool
+	attachProject bool            // true if user wants to attach the project to this team
 	Ctx           context.Context // propagated to OnDone closures (set by caller)
 	// Rejoin-specific state
-	Members       []teamstate.Member // fetched members for rejoin flow
-	TeamRepo      *teamstate.Repo    // repo handle (set after clone in rejoin_repo)
-	AddingNewMember bool             // true when user chose "add new member" in rejoin flow
-	NewMemberDisplayName string      // display name for new member being added
-	NewMemberGitLab      string      // gitlab username for new member being added
-	NewMemberRole        string      // role for new member being added
+	Members              []teamstate.Member // fetched members for rejoin flow
+	TeamRepo             *teamstate.Repo    // repo handle (set after clone in rejoin_repo)
+	AddingNewMember      bool               // true when user chose "add new member" in rejoin flow
+	NewMemberDisplayName string             // display name for new member being added
+	NewMemberGitLab      string             // gitlab username for new member being added
+	NewMemberRole        string             // role for new member being added
 	// HTTPS credential state (shared by init and rejoin)
 	CredUsername   string // HTTPS username (default "oauth2")
 	CredToken      string // HTTPS token/password
 	CredAuthChoice string // "provide", "skip", or "public"
 	// GitLab identity verification
-	GitLabToken      string                  // token entered in the optional GitLab token prompt
-	TokenChoice      string                  // "reuse", "new", or "skip"
-	TokenChoiceIdx   int                     // current dropdown index (0 = placeholder)
-	IdentityMismatch *identityMismatchError  // non-nil when GitLab identity mismatch detected
-	MismatchPAT      string                  // PAT entered in the mismatch recovery step
-	MismatchChoice   string                  // "verify" or "skip"
+	GitLabToken      string                 // token entered in the optional GitLab token prompt
+	TokenChoice      string                 // "reuse", "new", or "skip"
+	TokenChoiceIdx   int                    // current dropdown index (0 = placeholder)
+	IdentityMismatch *identityMismatchError // non-nil when GitLab identity mismatch detected
+	MismatchPAT      string                 // PAT entered in the mismatch recovery step
+	MismatchChoice   string                 // "verify" or "skip"
 	// Tracker setup
 	LaunchTrackerDiscovery bool   // true if user chose "Configure now" for the tracker
 	TrackerChoice          string // "keep", "reconfigure", or "later"
@@ -671,73 +671,73 @@ func buildInitWizardRejoinSteps(a **app.App, state *initWizardTeamState) []views
 
 	// ── Rejoin step 4: Member selection ──
 	steps = append(steps, views.WizardStep{
-			ID:    "rejoin_member",
-			Label: i18n.T("cmd.init.wizard_step_rejoin_member"),
-			SkipIf: func() bool {
-				return state.Skipped || state.Mode != "rejoin"
-			},
-			Required: true,
-			CustomView: func(tvApp *tview.Application, container *tview.Flex, onDone func()) {
-				// Build filterable items: "add new" action + existing members.
-				items := []widgets.FilterItem{
-					{
-						MainText:  i18n.T("cmd.init.wizard_rejoin_add_member"),
-						Reference: "__add_new__",
-					},
-				}
-				for _, m := range state.Members {
-					label := fmt.Sprintf("%s (%s)", m.DisplayName, m.ID)
-					secondary := ""
-					if m.GitLabUsername != "" {
-						secondary = i18n.Tf("cmd.init.wizard_rejoin_member_gitlab", m.GitLabUsername)
-					}
-					if m.Role != "" {
-						if secondary != "" {
-							secondary += " — "
-						}
-						secondary += m.Role
-					}
-					items = append(items, widgets.FilterItem{
-						MainText:      label,
-						SecondaryText: secondary,
-						Reference:     m.ID,
-					})
-				}
-
-				fl := widgets.NewFilterableList(items, func(item widgets.FilterItem) {
-					if item.Reference == "__add_new__" {
-						state.AddingNewMember = true
-						state.MemberID = ""
-					} else if id, ok := item.Reference.(string); ok {
-						state.MemberID = id
-						state.AddingNewMember = false
-					}
-					onDone()
-				})
-				fl.SetApp(tvApp)
-
-				container.AddItem(fl, 0, 1, true)
-				tvApp.SetFocus(fl)
-			},
-			InfoFields: func() []views.InfoField {
-				if state.MemberID == "" && !state.AddingNewMember {
-					return nil
-				}
-				if state.AddingNewMember {
-					return []views.InfoField{
-						{Label: i18n.T("cmd.init.wizard_rejoin_member_label"), Value: i18n.T("cmd.init.wizard_rejoin_add_member")},
-					}
-				}
-				for _, m := range state.Members {
-					if m.ID == state.MemberID {
-						return []views.InfoField{
-							{Label: i18n.T("cmd.init.wizard_rejoin_member_label"), Value: fmt.Sprintf("%s (%s)", m.DisplayName, m.ID)},
-						}
-					}
-				}
-				return []views.InfoField{{Label: i18n.T("cmd.init.wizard_rejoin_member_label"), Value: state.MemberID}}
-			},
+		ID:    "rejoin_member",
+		Label: i18n.T("cmd.init.wizard_step_rejoin_member"),
+		SkipIf: func() bool {
+			return state.Skipped || state.Mode != "rejoin"
 		},
+		Required: true,
+		CustomView: func(tvApp *tview.Application, container *tview.Flex, onDone func()) {
+			// Build filterable items: "add new" action + existing members.
+			items := []widgets.FilterItem{
+				{
+					MainText:  i18n.T("cmd.init.wizard_rejoin_add_member"),
+					Reference: "__add_new__",
+				},
+			}
+			for _, m := range state.Members {
+				label := fmt.Sprintf("%s (%s)", m.DisplayName, m.ID)
+				secondary := ""
+				if m.GitLabUsername != "" {
+					secondary = i18n.Tf("cmd.init.wizard_rejoin_member_gitlab", m.GitLabUsername)
+				}
+				if m.Role != "" {
+					if secondary != "" {
+						secondary += " — "
+					}
+					secondary += m.Role
+				}
+				items = append(items, widgets.FilterItem{
+					MainText:      label,
+					SecondaryText: secondary,
+					Reference:     m.ID,
+				})
+			}
+
+			fl := widgets.NewFilterableList(items, func(item widgets.FilterItem) {
+				if item.Reference == "__add_new__" {
+					state.AddingNewMember = true
+					state.MemberID = ""
+				} else if id, ok := item.Reference.(string); ok {
+					state.MemberID = id
+					state.AddingNewMember = false
+				}
+				onDone()
+			})
+			fl.SetApp(tvApp)
+
+			container.AddItem(fl, 0, 1, true)
+			tvApp.SetFocus(fl)
+		},
+		InfoFields: func() []views.InfoField {
+			if state.MemberID == "" && !state.AddingNewMember {
+				return nil
+			}
+			if state.AddingNewMember {
+				return []views.InfoField{
+					{Label: i18n.T("cmd.init.wizard_rejoin_member_label"), Value: i18n.T("cmd.init.wizard_rejoin_add_member")},
+				}
+			}
+			for _, m := range state.Members {
+				if m.ID == state.MemberID {
+					return []views.InfoField{
+						{Label: i18n.T("cmd.init.wizard_rejoin_member_label"), Value: fmt.Sprintf("%s (%s)", m.DisplayName, m.ID)},
+					}
+				}
+			}
+			return []views.InfoField{{Label: i18n.T("cmd.init.wizard_rejoin_member_label"), Value: state.MemberID}}
+		},
+	},
 	)
 
 	// ── Rejoin step 4a: New member form (conditional) ──
@@ -799,7 +799,7 @@ func buildInitWizardRejoinSteps(a **app.App, state *initWizardTeamState) []views
 			member := teamstate.Member{
 				ID:             state.MemberID,
 				DisplayName:    displayName,
-				GitLabUsername:  state.NewMemberGitLab,
+				GitLabUsername: state.NewMemberGitLab,
 				Role:           role,
 			}
 			if state.TeamRepo == nil {
@@ -913,54 +913,54 @@ func buildInitWizardRejoinSteps(a **app.App, state *initWizardTeamState) []views
 
 	// ── Rejoin step 5: Validate identity + write config ──
 	steps = append(steps, views.WizardStep{
-			ID:         "rejoin_validate",
-			Label:      i18n.T("cmd.init.wizard_step_rejoin_validate"),
-			Processing: i18n.T("cmd.init.wizard_processing_rejoin_validate"),
-			SkipIf: func() bool {
-				return state.Skipped || state.Mode != "rejoin"
-			},
-			OnDone: func() error {
-				result, err := teamRejoinCore(state.Ctx, *a, teamRejoinParams{
-					StateRepo: state.Repo,
-					MemberID:  state.MemberID,
-				})
-				if err != nil {
-					return err
-				}
-
-				// Store identity mismatch for the next conditional step.
-				state.IdentityMismatch = result.IdentityMismatch
-
-				state.Configured = true
-				state.TeamID = result.TeamID
-
-				// Retro-tag sessions synchronously (wizard shows spinner)
-				if tagged, tagErr := retroTagSessions(state.Ctx, state.MemberID); tagErr != nil {
-					slog.Warn("retro-tagging sessions failed", "err", tagErr)
-				} else if tagged > 0 {
-					slog.Info("retro-tagged sessions", "count", tagged)
-				}
-
-				// Reload app so subsequent steps see the team
-				config.Reset()
-				if newApp, reloadErr := ReloadApp(); reloadErr != nil {
-					slog.Warn("ReloadApp failed after team rejoin", "err", reloadErr)
-				} else {
-					*a = newApp
-				}
-				return nil
-			},
-			InfoFields: func() []views.InfoField {
-				if state.Configured {
-					return []views.InfoField{
-						{Label: i18n.T("cmd.init.wizard_team_status_label"), Value: i18n.T("cmd.init.wizard_rejoin_reconnected")},
-					}
-				}
-				return []views.InfoField{
-					{Label: i18n.T("cmd.init.wizard_team_status_label"), Value: i18n.T("cmd.init.wizard_team_skipped")},
-				}
-			},
+		ID:         "rejoin_validate",
+		Label:      i18n.T("cmd.init.wizard_step_rejoin_validate"),
+		Processing: i18n.T("cmd.init.wizard_processing_rejoin_validate"),
+		SkipIf: func() bool {
+			return state.Skipped || state.Mode != "rejoin"
 		},
+		OnDone: func() error {
+			result, err := teamRejoinCore(state.Ctx, *a, teamRejoinParams{
+				StateRepo: state.Repo,
+				MemberID:  state.MemberID,
+			})
+			if err != nil {
+				return err
+			}
+
+			// Store identity mismatch for the next conditional step.
+			state.IdentityMismatch = result.IdentityMismatch
+
+			state.Configured = true
+			state.TeamID = result.TeamID
+
+			// Retro-tag sessions synchronously (wizard shows spinner)
+			if tagged, tagErr := retroTagSessions(state.Ctx, state.MemberID); tagErr != nil {
+				slog.Warn("retro-tagging sessions failed", "err", tagErr)
+			} else if tagged > 0 {
+				slog.Info("retro-tagged sessions", "count", tagged)
+			}
+
+			// Reload app so subsequent steps see the team
+			config.Reset()
+			if newApp, reloadErr := ReloadApp(); reloadErr != nil {
+				slog.Warn("ReloadApp failed after team rejoin", "err", reloadErr)
+			} else {
+				*a = newApp
+			}
+			return nil
+		},
+		InfoFields: func() []views.InfoField {
+			if state.Configured {
+				return []views.InfoField{
+					{Label: i18n.T("cmd.init.wizard_team_status_label"), Value: i18n.T("cmd.init.wizard_rejoin_reconnected")},
+				}
+			}
+			return []views.InfoField{
+				{Label: i18n.T("cmd.init.wizard_team_status_label"), Value: i18n.T("cmd.init.wizard_team_skipped")},
+			}
+		},
+	},
 	)
 
 	// ── Rejoin step 5b: Identity mismatch recovery (conditional) ──

@@ -214,18 +214,18 @@ func buildTeamBoardViewConfig(a *app.App) views.TeamBoardViewConfig {
 					return poolErr
 				}
 
-			// Push assignee to tracker if push_labels is enabled.
-			safego.Go(func() {
+				// Push assignee to tracker if push_labels is enabled.
+				safego.Go(func() {
 					pushCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 					defer cancel()
 					engine := resolveTrackerEngine(pushCtx, a)
 					if engine == nil || existing.ExternalIID == 0 {
 						return
 					}
-				if err := engine.AssignIssueToMember(pushCtx, projectID, existing.ExternalIID, memberID); err != nil {
-					slog.Warn("pool-claim.push_assignee_failed", "ticket", ticketID, "error", err)
-				}
-			})
+					if err := engine.AssignIssueToMember(pushCtx, projectID, existing.ExternalIID, memberID); err != nil {
+						slog.Warn("pool-claim.push_assignee_failed", "ticket", ticketID, "error", err)
+					}
+				})
 				return nil
 			},
 			OnRelease: func(ticketID string) error {

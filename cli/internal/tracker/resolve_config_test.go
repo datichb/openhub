@@ -8,8 +8,8 @@ import (
 	"github.com/datichb/openhub/cli/internal/teamstate"
 )
 
-func boolPtr(b bool) *bool  { return &b }
-func intPtrTC(n int) *int { return &n }
+func boolPtr(b bool) *bool { return &b }
+func intPtrTC(n int) *int  { return &n }
 
 // ─── ResolveTrackerConfig (2-level: shared + local) ─────────────────────────
 

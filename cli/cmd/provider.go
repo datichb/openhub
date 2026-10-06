@@ -126,13 +126,13 @@ func setupBedrock(ctx context.Context, a *app.App, project *domain.Project) erro
 
 	// Shared state across wizard steps
 	var (
-		useExisting    bool
-		authMode       string
-		token          string
-		awsProfile     string
-		awsRegion      string
-		awsRegionIdx   int  // current index in region DropDown; -1 = no selection
-		awsCustomReg   bool // true when user selects "Custom..." in the region dropdown
+		useExisting  bool
+		authMode     string
+		token        string
+		awsProfile   string
+		awsRegion    string
+		awsRegionIdx int  // current index in region DropDown; -1 = no selection
+		awsCustomReg bool // true when user selects "Custom..." in the region dropdown
 	)
 
 	// awsRegionIdx starts at 0 (placeholder option) — the user must

@@ -330,9 +330,9 @@ func runMCPSetup(cmd *cobra.Command, args []string) error {
 			huh.NewSelect[string]().
 				Title(i18n.T("cmd.service.select")).
 				Options(
-				huh.NewOption(i18n.T("cmd.mcp.setup.option_figma"), "figma"),
-				huh.NewOption(i18n.T("cmd.mcp.setup.option_gitlab"), "gitlab"),
-				huh.NewOption(i18n.T("cmd.mcp.setup.option_gslides"), "gslides"),
+					huh.NewOption(i18n.T("cmd.mcp.setup.option_figma"), "figma"),
+					huh.NewOption(i18n.T("cmd.mcp.setup.option_gitlab"), "gitlab"),
+					huh.NewOption(i18n.T("cmd.mcp.setup.option_gslides"), "gslides"),
 				).
 				Value(&serviceName),
 		),

@@ -17,14 +17,14 @@ import (
 
 // mcpTokenStepOpts configures a reusable MCP token wizard step.
 type mcpTokenStepOpts struct {
-	ID           string            // optional step ID for RefreshLabels lookup
-	LabelI18nKey string            // e.g. "cmd.init.wizard_step_mcp_figma"
-	DisplayName  string            // e.g. "Figma", "GitLab", "Google Slides"
-	TokenKey     string            // e.g. config.DefaultFigmaTokenKey
-	HintI18nKey  string            // e.g. "cmd.init.mcp_hint_figma" (optional)
-	TokenVar     *string           // pointer to the caller's token variable
-	SkipIf       func() bool       // caller-specific skip logic
-	Secrets      domain.SecretStore // may be nil; use SecretsFunc when not available at construction
+	ID           string                    // optional step ID for RefreshLabels lookup
+	LabelI18nKey string                    // e.g. "cmd.init.wizard_step_mcp_figma"
+	DisplayName  string                    // e.g. "Figma", "GitLab", "Google Slides"
+	TokenKey     string                    // e.g. config.DefaultFigmaTokenKey
+	HintI18nKey  string                    // e.g. "cmd.init.mcp_hint_figma" (optional)
+	TokenVar     *string                   // pointer to the caller's token variable
+	SkipIf       func() bool               // caller-specific skip logic
+	Secrets      domain.SecretStore        // may be nil; use SecretsFunc when not available at construction
 	SecretsFunc  func() domain.SecretStore // lazy alternative to Secrets (for init.go where app is nil at build time)
 	// AfterStore is called after the token is stored in keychain.
 	// Use it to enable the service in config.

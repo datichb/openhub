@@ -37,12 +37,12 @@ type teamStepState struct {
 	StaleDaysStr string
 
 	// Identity step
-	MemberID          string
-	DisplayName       string
+	MemberID           string
+	DisplayName        string
 	GitLabUsername     string
 	TrackerUsername    string
 	MattermostUsername string
-	Role              string
+	Role               string
 
 	// Notifications step
 	WebhookURL string
@@ -314,9 +314,9 @@ func buildTeamPoliciesStep(s *teamStepState, opts teamStepOpts) views.WizardStep
 			policies := buildRecommendedPolicies(s.SelectedPolicies)
 			if s.HasPolicies {
 				existing, err := s.Repo.LoadPolicies("")
-			if err != nil {
-				return fmt.Errorf("loading existing policies: %w", err)
-			}
+				if err != nil {
+					return fmt.Errorf("loading existing policies: %w", err)
+				}
 				for _, ep := range existing {
 					if _, ok := policies[ep.Name]; !ok {
 						policies[ep.Name] = ep

@@ -246,9 +246,9 @@ func RunWizard(cfg WizardConfig) WizardResult {
 			color := widgets.ColorTag(theme.FgMuted)
 			if i == currentStep {
 				icon = theme.IconActive
-			color = widgets.ColorTag(theme.ActiveMode.Primary)
-		}
-		fmt.Fprintf(&b, "  %s%s %s[-]\n", color, icon, cfg.Steps[i].Label)
+				color = widgets.ColorTag(theme.ActiveMode.Primary)
+			}
+			fmt.Fprintf(&b, "  %s%s %s[-]\n", color, icon, cfg.Steps[i].Label)
 		}
 
 		shell.InfoPanel.SetText(b.String())
