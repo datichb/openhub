@@ -169,6 +169,39 @@ Initialize team features with an interactive wizard.
 oh team init
 ```
 
+#### Solo space (`--solo`)
+
+For a project without a team: creates a local team-state (git repository without remote) in `~/.oh/teams/<id>/` that holds the project workflows. The only member has the `lead` role. Team features (board, claims, notifications, `team` MCP server) stay off; the active team is never a solo space.
+
+```bash
+oh team init --solo --project web-app
+```
+
+| Flag | Description |
+|------|-------------|
+| `--solo` | Create a solo space instead of running the wizard |
+| `--id` | Space id (default: `solo`) |
+| `--name` | Display name |
+| `--member-id` | Member id (default: the one of another team, else the system user) |
+| `--project` | Project to attach (id or name; refused if it already has a team) |
+
+In `hub.toml`, the space is appended to the existing teams with `solo = true` (no `state_repo`).
+
+### oh team promote
+
+Shares a solo space: adds the remote and pushes the whole history. The id, folder, attached projects and published workflows are kept.
+
+```bash
+oh team promote --remote git@gitlab.com:acme/team-state.git
+```
+
+| Flag | Description |
+|------|-------------|
+| `--remote` | URL of an **empty** git repository (required) |
+| `--team` | Solo space to share, when you have several |
+
+On failure (missing or non-empty repository, access denied), the space stays solo. Other members then join the team with `oh team init` and enter the repository URL.
+
 ### oh team config
 
 Manage team configuration.

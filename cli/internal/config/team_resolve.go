@@ -23,6 +23,10 @@ type ResolvedTeamConfig struct {
 	StatePath string
 	// MemberID is the current user's member identifier in the team-state repo.
 	MemberID string
+	// Solo marks a solo team-state (workflows only). Enabled is then false so
+	// that team features (MCP team server, claims, board, events) stay off;
+	// TeamID, StatePath and MemberID are still filled for the workflows.
+	Solo bool
 }
 
 // ResolveTeamForProject resolves the effective team configuration for a project
@@ -41,11 +45,12 @@ func ResolveTeamForProject(cfg *Config, project *domain.Project) ResolvedTeamCon
 			return ResolvedTeamConfig{Enabled: false}
 		}
 		return ResolvedTeamConfig{
-			Enabled:   team.Enabled,
+			Enabled:   team.Enabled && !team.Solo,
 			TeamID:    team.ID,
 			StateRepo: team.StateRepo,
 			StatePath: team.StatePath,
 			MemberID:  team.MemberID,
+			Solo:      team.Solo && team.Enabled,
 		}
 	}
 

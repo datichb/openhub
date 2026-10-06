@@ -36,6 +36,8 @@ func v5DoctorChecks() []views.DoctorCheck {
 			Detail: i18n.Tf("cmd.doctor.v5.runtime_legacy", reason)})
 	}
 
+	out = append(out, workflowIntegrityChecks()...)
+
 	if !v5Available(ctx) {
 		// opencode V1: the v5 runtime checks below do not apply.
 		return out

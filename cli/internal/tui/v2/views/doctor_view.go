@@ -214,17 +214,8 @@ func (v *DoctorView) checkDatabase() DoctorCheck {
 }
 
 func (v *DoctorView) checkWorkflow() DoctorCheck {
-	base := workflow.BaseWorkflow()
-
-	// Collect hub-level overrides if config is available.
-	var overrides []workflow.WorkflowOverride
-	if v.appCtx != nil && v.appCtx.Config != nil {
-		if v.appCtx.Config.Workflow != nil && v.appCtx.Config.Workflow.Overrides != nil {
-			overrides = append(overrides, *v.appCtx.Config.Workflow.Overrides)
-		}
-	}
-
-	resolved, err := workflow.Resolve(base, overrides...)
+	// Former hub overrides were migrated to team-state workflows (v38).
+	resolved, err := workflow.Resolve(workflow.BaseWorkflow())
 	if err != nil {
 		return DoctorCheck{Name: i18n.T("tui.doctor.check_workflow"), Detail: err.Error(), OK: false}
 	}

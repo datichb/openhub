@@ -2,7 +2,7 @@
 
 # Référence CLI — Workflows
 
-Les workflows déclaratifs (`apiVersion: oh/v1`) décrivent un cas d'usage : agent d'entrée, agents, checkpoints, entrées, ressources et environnements d'exécution autorisés. Ils sont lus par couches (hub, puis équipe et projet en phase 2) ; la couche la plus spécifique étend celle du dessous.
+Les workflows déclaratifs (`apiVersion: oh/v1`) décrivent un cas d'usage : agent d'entrée, agents, checkpoints, entrées, ressources et environnements d'exécution autorisés. Ils sont lus par couches (hub, puis équipe et projet du team-state, voir [Workflows d'équipe](../guides/team-workflows.fr.md)) ; la couche la plus spécifique étend celle du dessous.
 
 ## oh run
 
@@ -23,7 +23,8 @@ Lance un workflow : résolution des couches et validation, paquet de session, pl
 - **Préconditions** : une précondition bloquante refuse le lancement ; une suggestion (ex. pas de wiki → `onboarding`) propose de lancer d'abord le workflow suggéré. Avec `resume: true`, le lancement initial est mémorisé et reproposé à la fin de cette session (« Enchaîner avec… » dans la TUI).
 - **Sans interface** (`--headless [--output <fichier>] [--timeout 30m]`) : aucune fenêtre n'est ouverte ; oh attend la fin du tour, écrit la réponse (sortie standard ou fichier, un fichier par session : `<fichier>.<ticket>`) puis arrête la session. Refusé si un checkpoint attend une validation dans le mode choisi. Une session qui demande une décision (permission, question) reste ouverte : `oh session inbox`, `oh session approve`. `oh takeover-brief enrich` passe par `oh run brief-enrich --headless`.
 - Deux lancements simultanés dans le même dossier sont refusés (« lancement en cours »).
-- `--draft` (brouillons) arrive en phase 2. Exige opencode V2.
+- **Brouillon** (`--draft`) : lance la version en cours d'édition (votre brouillon, couche équipe ou projet) au lieu de la version publiée. Refusé en exécution distante et si le brouillon **élargit** la version publiée (risque, checkpoints, environnements, Beads, budget…) : publiez-le pour appliquer ces changements. Voir [Workflows d'équipe](../guides/team-workflows.fr.md).
+- Exige opencode V2.
 
 ## oh workflow list
 
@@ -49,11 +50,74 @@ Affiche un workflow après résolution des `extends` : en-tête (chaîne, versio
 ## oh workflow validate
 
 ```
-oh workflow validate <fichier>|<id>|<couche>:<id> [--layer hub|team|project] [--json]
+oh workflow validate <fichier>|<id>|<couche>:<id> [--layer hub|team|project] [--project <projet>] [--json]
 oh workflow validate --all [--json]
 ```
 
 Valide un fichier ou un workflow du catalogue : lecture stricte, résolution des `extends`, règles de sécurité, références au catalogue des briques. Sortie non nulle en cas d'erreur.
+
+Avec `--project <projet>`, les couches équipe et projet de son team-state sont chargées (sinon l'équipe active) ; les fichiers publiés modifiés hors publication sont ignorés avec un avertissement.
+
+## Édition des workflows d'équipe et de projet
+
+Commandes du cycle brouillon → publication (voir [Workflows d'équipe](../guides/team-workflows.fr.md)). Toutes acceptent `-p, --project <projet>` : team-state et couche du projet ; par défaut, le projet du dossier courant (s'il a une équipe ou un espace solo), sinon l'équipe active (ou, sans équipe, votre unique espace solo) ; `--team <id>` choisit une équipe ou un espace solo sans projet. Un identifiant nu désigne la couche projet si elle contient le workflow, sinon la couche équipe ; `team:<id>` / `project:<id>` la fixent.
+
+### oh workflow new
+
+```
+oh workflow new <id> [--layer team|project] [--extends <ref> | --copy <ref>] [--file <fichier>|-] [--no-edit]
+```
+
+Crée votre brouillon : squelette vide (valide), patch d'un workflow (`--extends hub:ticket`) ou copie d'un document sous le nouvel identifiant (`--copy hub:review`, gabarit de prompt compris). Ouvre `$VISUAL`/`$EDITOR` (sinon `vi`), puis valide : en cas d'erreur, l'éditeur peut être rouvert, sinon le fichier modifié est conservé.
+
+### oh workflow edit
+
+```
+oh workflow edit <id> [--layer team|project] [--prompt] [--file <fichier>] [--prompt-file <fichier>]
+```
+
+Modifie votre brouillon (sans brouillon : une copie de la version publiée devient votre brouillon). `--prompt` ouvre le gabarit de prompt propre au brouillon ; `--file` / `--prompt-file` remplacent le contenu sans éditeur.
+
+### oh workflow diff
+
+```
+oh workflow diff <id> [--against published|<version>] [--json]
+```
+
+Diff du document et du gabarit de prompt entre votre brouillon et la version publiée (ou une version de l'historique), puis **résumé d'impact** (⚠ = élargissement : risque, agents qui écrivent, distant, checkpoints, Beads, budget, MCP…) et briques d'équipe nouvelles.
+
+### oh workflow publish
+
+```
+oh workflow publish <id> -m "<message>" [--yes]
+oh workflow publish --retry
+```
+
+Affiche la version suivante et l'impact, demande confirmation si le workflow est élargi (sauf `--yes` ou sans terminal), puis publie (synchronisation, revalidation, version + 1, historique, `workflows.lock`, commit + push, refait si un autre membre a publié entre-temps). Hors ligne : mise en file d'attente ; `--retry` rejoue les publications en attente. Réservé aux membres de l'équipe (`[governance] publish`).
+
+### oh workflow history
+
+```
+oh workflow history <id> [--json]
+```
+
+Versions publiées, de la plus récente à la plus ancienne : version, date, auteur, message.
+
+### oh workflow restore
+
+```
+oh workflow restore <id> <version> [--yes]
+```
+
+Republie le contenu d'une version (document et gabarit) comme **nouvelle** version, après revalidation.
+
+### oh workflow archive
+
+```
+oh workflow archive <id> [-m "<raison>"] [--yes]
+```
+
+Retire le workflow publié ; sa dernière version reste dans l'historique (restaurable).
 
 ## oh bundle build / show
 

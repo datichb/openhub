@@ -13,6 +13,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/bundle"
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/teamstate"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/workflow"
 	"github.com/datichb/openhub/cli/internal/workflow/hubcat"
@@ -34,7 +35,12 @@ func workflowValidateCmd() *cobra.Command {
 			if len(args) == 1 {
 				target = args[0]
 			}
-			report, err := runWorkflowValidate(findHubDir(), target, workflow.Layer(layer), all)
+			projectRef, _ := cmd.Flags().GetString("project")
+			layers, err := resolveWorkflowTeamLayers(cmd.Context(), TryApp(), projectRef)
+			if err != nil {
+				return err
+			}
+			report, err := runWorkflowValidate(findHubDir(), target, workflow.Layer(layer), all, layers)
 			if err != nil {
 				return err
 			}
@@ -44,6 +50,7 @@ func workflowValidateCmd() *cobra.Command {
 	cmd.Flags().String("layer", string(workflow.LayerHub), "Couche du fichier validé (hub, team, project)")
 	cmd.Flags().Bool("json", false, "Sortie JSON")
 	cmd.Flags().Bool("all", false, "Valide tous les workflows du hub")
+	cmd.Flags().String("project", "", i18n.T("teamstate.workflow.flag_project"))
 	return cmd
 }
 
@@ -69,9 +76,10 @@ func (r *workflowValidateReport) counts() (errs, warns int) {
 	return errs, warns
 }
 
-// runWorkflowValidate validates a file, a catalogue id or (all) every hub
-// workflow against the hub content in hubDir.
-func runWorkflowValidate(hubDir, target string, layer workflow.Layer, all bool) (*workflowValidateReport, error) {
+// runWorkflowValidate validates a file, a catalogue id or (all) every
+// workflow against the hub content in hubDir and, when layers is set, the
+// published team and project workflows (integrity-checked).
+func runWorkflowValidate(hubDir, target string, layer workflow.Layer, all bool, layers *workflowTeamLayers) (*workflowValidateReport, error) {
 	if !layer.IsDocumentLayer() {
 		return nil, fmt.Errorf("%s", i18n.Tf("cmd.workflow.validate.bad_layer", string(layer)))
 	}
@@ -87,6 +95,10 @@ func runWorkflowValidate(hubDir, target string, layer workflow.Layer, all bool) 
 		env = hc.Env()
 		env.Skills = bundle.NewSkillCatalog(hubDir)
 	}
+	if layers != nil {
+		loadDiags = append(loadDiags, layers.Repo.LoadWorkflowLayers(cat, layers.Project)...)
+		env.Prompts = teamstate.PromptSource{Repo: layers.Repo, Fallback: env.Prompts}
+	}
 
 	report := &workflowValidateReport{Diagnostics: workflow.Diagnostics{}}
 	var refs []workflow.Ref
@@ -100,7 +112,7 @@ func runWorkflowValidate(hubDir, target string, layer workflow.Layer, all bool) 
 			name := strings.TrimSuffix(filepath.Base(d.Source), filepath.Ext(d.Source))
 			if d.Severity == workflow.SeverityError && name != "" && !seen[name] {
 				seen[name] = true
-				report.Workflows = append(report.Workflows, workflowValidateItem{Ref: workflow.Ref{Layer: workflow.LayerHub, ID: name}.String()})
+				report.Workflows = append(report.Workflows, workflowValidateItem{Ref: workflow.Ref{Layer: sourceLayer(d.Source, layers), ID: name}.String()})
 			}
 		}
 	case isWorkflowFile(target):
@@ -137,6 +149,21 @@ func runWorkflowValidate(hubDir, target string, layer workflow.Layer, all bool) 
 	}
 	report.Diagnostics.Sort()
 	return report, nil
+}
+
+// sourceLayer guesses the layer of a file that failed to load.
+func sourceLayer(source string, layers *workflowTeamLayers) workflow.Layer {
+	if layers == nil {
+		return workflow.LayerHub
+	}
+	root := layers.Repo.Path() + string(filepath.Separator)
+	switch {
+	case strings.HasPrefix(source, filepath.Join(root, "projects")+string(filepath.Separator)):
+		return workflow.LayerProject
+	case strings.HasPrefix(source, root):
+		return workflow.LayerTeam
+	}
+	return workflow.LayerHub
 }
 
 func isWorkflowFile(target string) bool {

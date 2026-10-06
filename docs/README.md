@@ -47,6 +47,7 @@ Complete index of all openhub documentation. Guides and references are bilingual
 | Guide | Description |
 |-------|-------------|
 | [Team Setup](guides/team-setup.en.md) | Initialize and configure a team |
+| [Team Workflows](guides/team-workflows.en.md) | v5 workflows in team-state: layout, workflows.lock, locks |
 | [Team Conventions](guides/team-conventions.en.md) | Team-wide conventions and policies |
 | [Team Testing Guide](guides/team-testing-guide.en.md) | Testing team features end-to-end |
 | [Notifications](guides/notifications.en.md) | Slack, Discord, Mattermost, Teams notifications |

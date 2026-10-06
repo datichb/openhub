@@ -411,7 +411,10 @@ Après setup, le repo ressemble à :
 ```
 team-state/
 ├── members.toml          # Registre de l'équipe
-├── config.toml           # Config notifications + takeover
+├── config.toml           # Config notifications + takeover + [governance]
+├── workflows.lock        # Intégrité des workflows publiés
+├── workflows/            # Workflows v5 (voir team-workflows.fr.md)
+├── catalog/              # Briques d'équipe (agents, skills)
 ├── policies.toml         # Règles d'équipe (enforcement configurable)
 ├── projects/
 │   └── T-SRU/
@@ -422,6 +425,7 @@ team-state/
 │       ├── takeover-briefs/      # Briefs de reprise de tickets
 │       │   ├── bd-42_2026-07-13.toml
 │       │   └── bd-42_2026-07-13.md
+│       ├── workflows/            # Workflows du projet
 │       └── policies-override.toml  # Overrides par projet (optionnel)
 ├── wiki/
 │   ├── .pending/         # Propositions en attente
@@ -429,6 +433,8 @@ team-state/
 │   └── patterns.md       # Patterns récurrents
 └── reports/
 ```
+
+Le guide [Workflows d'équipe](team-workflows.fr.md) détaille `workflows/`, `workflows.lock` et la gouvernance (`[governance]` de `config.toml`).
 
 ## Comment les agents IA utilisent les données d'équipe
 

@@ -218,6 +218,7 @@ member_id = "alice.dupont"
 | `state_repo` | string | Yes | Git remote URL of the team-state repo |
 | `state_path` | string | No | Local clone path (auto-derived from `state_repo`) |
 | `member_id` | string | Yes | Your identity in this team's `members.toml` |
+| `solo` | bool | No | Solo space (`oh team init --solo`): local team-state without `state_repo`, workflows only (team features off, never the active team). Cleared by `oh team promote` |
 
 ### Project-level: `team_id`
 

@@ -38,7 +38,7 @@ func addRunFlags(c *cobra.Command) {
 	f.String("location", "", "Emplacement : base, new (nouveau worktree) ou chemin d'un worktree existant")
 	f.StringSlice("tickets", nil, "Tickets Beads (une session par ticket si le workflow le permet)")
 	f.String("attach", "", "Ouverture : auto, iterm, terminal, tmux, browser, suspend, none")
-	f.Bool("draft", false, "Utiliser mon brouillon du workflow (phase 2)")
+	f.Bool("draft", false, "Utiliser mon brouillon du workflow (local uniquement, sans assouplir la sécurité publiée)")
 	f.Bool("recap", false, "Afficher le récapitulatif et demander confirmation avant le lancement")
 	f.StringP("project", "p", "", "Projet (détecté depuis le dossier courant)")
 	f.StringP("provider", "P", "", "Fournisseur LLM")
@@ -52,9 +52,6 @@ func addRunFlags(c *cobra.Command) {
 func runWorkflowCmd(cmd *cobra.Command, args []string) error {
 	a := MustApp()
 	ctx := cmd.Context()
-	if draft, _ := cmd.Flags().GetBool("draft"); draft {
-		return errors.New(i18n.T("cmd.run.draft_unsupported"))
-	}
 	opts, err := runOptionsFromFlags(cmd, args[0])
 	if err != nil {
 		return err
@@ -126,6 +123,7 @@ func runOptionsFromFlags(cmd *cobra.Command, workflowID string) (runOptions, err
 	opts.Provider, _ = f.GetString("provider")
 	opts.ParentSessionID, _ = f.GetString("parent")
 	opts.OneSession, _ = f.GetBool("one-session")
+	opts.Draft, _ = f.GetBool("draft")
 	tickets, _ := f.GetStringSlice("tickets")
 	for _, t := range tickets {
 		if t = strings.TrimSpace(t); t != "" {

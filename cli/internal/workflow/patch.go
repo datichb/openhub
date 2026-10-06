@@ -29,9 +29,11 @@ type patcher struct {
 	diags  Diagnostics
 	// removed lists the map entries the patch removed ("agents.x").
 	removed []string
+	// blocked holds the top-level fields locked by a parent (`enforce`).
+	blocked map[string]bool
 }
 
-func (p *patcher) has(path string) bool { return p.doc.Has(path) }
+func (p *patcher) has(path string) bool { return !p.blocked[topField(path)] && p.doc.Has(path) }
 
 func (p *patcher) report(d Diagnostic) {
 	d.Source = p.doc.Source.String()
@@ -48,6 +50,7 @@ func (p *patcher) apply() {
 	d.ID = s.ID
 	d.Version = s.Version
 	d.Extends = ""
+	p.enforce()
 
 	if p.has("category") {
 		d.Category = s.Category
@@ -155,6 +158,9 @@ func (p *patcher) preconditions() {
 }
 
 func (p *patcher) inputs() {
+	if p.blocked["inputs"] {
+		return
+	}
 	for _, k := range p.doc.Spec.Inputs.Keys() {
 		v, _ := p.doc.Spec.Inputs.Get(k)
 		base := "inputs." + k
@@ -206,6 +212,9 @@ func (p *patcher) inputs() {
 }
 
 func (p *patcher) agents() {
+	if p.blocked["agents"] {
+		return
+	}
 	for _, k := range p.doc.Spec.Agents.Keys() {
 		v, _ := p.doc.Spec.Agents.Get(k)
 		base := "agents." + k
@@ -241,6 +250,9 @@ func (p *patcher) agents() {
 }
 
 func (p *patcher) checkpoints() {
+	if p.blocked["checkpoints"] {
+		return
+	}
 	for _, k := range p.doc.Spec.Checkpoints.Keys() {
 		v, _ := p.doc.Spec.Checkpoints.Get(k)
 		base := "checkpoints." + k
@@ -321,7 +333,7 @@ func (p *patcher) modes() {
 
 func (p *patcher) models() {
 	s := p.doc.Spec
-	if s.Models == nil {
+	if s.Models == nil || p.blocked["models"] {
 		return
 	}
 	if p.dst.Models == nil {

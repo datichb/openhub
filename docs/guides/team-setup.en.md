@@ -419,7 +419,10 @@ After setup, the repository looks like:
 ```
 team-state/
 ├── members.toml          # Team registry
-├── config.toml           # Notification + takeover config
+├── config.toml           # Notification + takeover config + [governance]
+├── workflows.lock        # Integrity of the published workflows
+├── workflows/            # v5 workflows (see team-workflows.en.md)
+├── catalog/              # Team bricks (agents, skills)
 ├── policies.toml         # Team rules (configurable enforcement)
 ├── projects/
 │   └── T-SRU/
@@ -430,6 +433,7 @@ team-state/
 │       ├── takeover-briefs/      # Ticket handover briefs
 │       │   ├── bd-42_2026-07-13.toml
 │       │   └── bd-42_2026-07-13.md
+│       ├── workflows/            # Project workflows
 │       └── policies-override.toml  # Per-project overrides (optional)
 ├── wiki/
 │   ├── .pending/         # Proposals awaiting review
@@ -437,6 +441,8 @@ team-state/
 │   └── patterns.md       # Recurring patterns
 └── reports/
 ```
+
+The [Team workflows](team-workflows.en.md) guide covers `workflows/`, `workflows.lock` and governance (`[governance]` in `config.toml`).
 
 ## How AI Agents Use Team Data
 

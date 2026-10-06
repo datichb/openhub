@@ -39,6 +39,9 @@ type Repo struct {
 	path          string   // local clone path (e.g. ~/.oh/team-state/)
 	remote        string   // Git remote URL
 	boardStatuses []string // custom board column IDs (set via SetBoardStatuses)
+	// beforePush runs in Transact between the commit and the push (tests:
+	// simulate a concurrent push).
+	beforePush func()
 }
 
 // NewRepo creates a Repo instance. It does NOT clone or validate the repo.
@@ -161,6 +164,9 @@ func (r *Repo) pull(ctx context.Context) error {
 	if !r.IsCloned() {
 		return ErrNotCloned
 	}
+	if r.localOnly(ctx) {
+		return nil
+	}
 	start := time.Now()
 	_, err := r.git(ctx, r.path, "pull", "--rebase", "--autostash")
 	if err != nil {
@@ -183,6 +189,9 @@ func (r *Repo) Push(ctx context.Context) error {
 func (r *Repo) push(ctx context.Context) error {
 	if !r.IsCloned() {
 		return ErrNotCloned
+	}
+	if r.localOnly(ctx) {
+		return nil
 	}
 	start := time.Now()
 	_, err := r.git(ctx, r.path, "push")
@@ -302,6 +311,22 @@ func (r *Repo) commitAndPush(ctx context.Context, msg string, files ...string) e
 	return fmt.Errorf("%w: push échoué après %d tentatives (conflit persistant)", ErrSyncConflict, maxPushRetries) //nolint:misspell // French error message
 }
 
+// localOnly reports whether the repo has no git remote (solo team-state):
+// pull and push are then no-ops and commits stay local. It reads
+// .git/config directly (no git process on the pull/push path).
+func (r *Repo) localOnly(ctx context.Context) bool {
+	if data, err := os.ReadFile(filepath.Join(r.path, ".git", "config")); err == nil {
+		for _, line := range strings.Split(string(data), "\n") {
+			if strings.HasPrefix(strings.TrimSpace(line), "[remote ") {
+				return false
+			}
+		}
+		return true
+	}
+	out, err := r.git(ctx, r.path, "remote")
+	return err == nil && strings.TrimSpace(out) == ""
+}
+
 // InitStructure creates the base directory structure in the repo if missing.
 // This is called after clone to ensure the expected layout exists.
 func (r *Repo) InitStructure(ctx context.Context) error {
@@ -310,6 +335,12 @@ func (r *Repo) InitStructure(ctx context.Context) error {
 		"wiki",
 		"wiki/.pending",
 		"reports",
+		"workflows/published",
+		"workflows/drafts",
+		"workflows/prompts",
+		"workflows/history",
+		"catalog/agents",
+		"catalog/skills",
 	}
 	for _, d := range dirs {
 		full := filepath.Join(r.path, d)

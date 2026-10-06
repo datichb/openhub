@@ -2,7 +2,7 @@
 
 # CLI Reference — Workflows
 
-Declarative workflows (`apiVersion: oh/v1`) describe a use case: entry agent, agents, checkpoints, inputs, resources and allowed execution environments. They are read by layers (hub, then team and project in phase 2); the most specific layer extends the one below.
+Declarative workflows (`apiVersion: oh/v1`) describe a use case: entry agent, agents, checkpoints, inputs, resources and allowed execution environments. They are read by layers (hub, then the team and project layers of the team-state, see [Team workflows](../guides/team-workflows.en.md)); the most specific layer extends the one below.
 
 ## oh run
 
@@ -23,7 +23,8 @@ Launches a workflow: layer resolution and validation, session bundle, session pl
 - **Preconditions**: a blocking precondition refuses the launch; a suggestion (e.g. no wiki → `onboarding`) offers to run the suggested workflow first. With `resume: true`, the initial launch is remembered and offered again when that session ends ("Chain with…" in the TUI).
 - **Without interface** (`--headless [--output <file>] [--timeout 30m]`): no window is opened; oh waits for the end of the turn, writes the answer (standard output or file, one file per session: `<file>.<ticket>`) then stops the session. Refused when a checkpoint waits for a validation in the chosen mode. A session asking for a decision (permission, question) stays open: `oh session inbox`, `oh session approve`. `oh takeover-brief enrich` goes through `oh run brief-enrich --headless`.
 - Two simultaneous launches in the same directory are refused ("launch in progress").
-- `--draft` (drafts) comes in phase 2. Requires opencode V2.
+- **Draft** (`--draft`): runs the version being edited (your draft, team or project layer) instead of the published one. Refused on a remote runtime and when the draft **widens** the published version (risk, checkpoints, runtimes, Beads, budget…): publish it to apply these changes. See [Team workflows](../guides/team-workflows.en.md).
+- Requires opencode V2.
 
 ## oh workflow list
 
@@ -49,11 +50,74 @@ Shows a workflow once its `extends` are resolved: header (chain, version, risk, 
 ## oh workflow validate
 
 ```
-oh workflow validate <file>|<id>|<layer>:<id> [--layer hub|team|project] [--json]
+oh workflow validate <file>|<id>|<layer>:<id> [--layer hub|team|project] [--project <project>] [--json]
 oh workflow validate --all [--json]
 ```
 
 Validates a file or a catalogue workflow: strict parsing, `extends` resolution, security rules, references to the brick catalogue. Non-zero exit on errors.
+
+With `--project <project>`, the team and project layers of its team-state are loaded (else the active team); published files changed outside a publication are skipped with a warning.
+
+## Editing team and project workflows
+
+Commands of the draft → publication cycle (see [Team workflows](../guides/team-workflows.en.md)). All accept `-p, --project <project>`: team-state and layer of the project; by default, the project of the current folder (when it has a team or a solo space), else the active team (or, without a team, your only solo space); `--team <id>` picks a team or solo space without a project. A bare id means the project layer when it holds the workflow, else the team layer; `team:<id>` / `project:<id>` set it.
+
+### oh workflow new
+
+```
+oh workflow new <id> [--layer team|project] [--extends <ref> | --copy <ref>] [--file <file>|-] [--no-edit]
+```
+
+Creates your draft: empty (valid) skeleton, patch of a workflow (`--extends hub:ticket`) or copy of a document under the new id (`--copy hub:review`, prompt template included). Opens `$VISUAL`/`$EDITOR` (else `vi`), then validates: on errors, the editor can be reopened, otherwise the edited file is kept.
+
+### oh workflow edit
+
+```
+oh workflow edit <id> [--layer team|project] [--prompt] [--file <file>] [--prompt-file <file>]
+```
+
+Edits your draft (without a draft: a copy of the published version becomes your draft). `--prompt` opens the draft's own prompt template; `--file` / `--prompt-file` replace the content without an editor.
+
+### oh workflow diff
+
+```
+oh workflow diff <id> [--against published|<version>] [--json]
+```
+
+Diff of the document and prompt template between your draft and the published version (or a history version), then the **impact summary** (⚠ = widening: risk, writing agents, remote, checkpoints, Beads, budget, MCP…) and new team bricks.
+
+### oh workflow publish
+
+```
+oh workflow publish <id> -m "<message>" [--yes]
+oh workflow publish --retry
+```
+
+Shows the next version and the impact, asks for confirmation when the workflow is widened (unless `--yes` or without a terminal), then publishes (sync, revalidation, version + 1, history, `workflows.lock`, commit + push, redone if another member published in the meantime). Offline: queued; `--retry` replays the pending publications. Team members only (`[governance] publish`).
+
+### oh workflow history
+
+```
+oh workflow history <id> [--json]
+```
+
+Published versions, most recent first: version, date, author, message.
+
+### oh workflow restore
+
+```
+oh workflow restore <id> <version> [--yes]
+```
+
+Publishes the content of a version (document and template) again as a **new** version, after revalidation.
+
+### oh workflow archive
+
+```
+oh workflow archive <id> [-m "<reason>"] [--yes]
+```
+
+Withdraws the published workflow; its last version stays in history (can be restored).
 
 ## oh bundle build / show
 
