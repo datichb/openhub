@@ -84,6 +84,9 @@ type Service struct {
 
 // StartRequest describes a session to start.
 type StartRequest struct {
+	// SessionID is the session id to use ("" = new). Set by the oh runner:
+	// a remote session keeps the id chosen on the machine (export/import).
+	SessionID       string
 	ProjectID       string
 	TeamID          string
 	ProjectTokenKey string // explicit project credential key (ProjectProviderConfig.TokenKey)
@@ -217,7 +220,10 @@ func (s *Service) StartSession(ctx context.Context, req StartRequest) (*StartRes
 			slog.Warn("runsvc: session environment not restored", "group", gk, "error", err)
 		}
 	}
-	sid := sessionspec.NewSessionID()
+	sid := req.SessionID
+	if sid == "" {
+		sid = sessionspec.NewSessionID()
+	}
 	env, err := s.buildSessionEnv(ctx, req.SessionEnv, SessionEnvRequest{SessionID: sid, GroupKey: gk, ProjectID: req.ProjectID, Location: req.Location,
 		Runtime: kind, WorkflowID: req.WorkflowID, BeadsAllow: req.BeadsAllow, GatewayURL: s.loadGatewayURL(gk)})
 	if err != nil {

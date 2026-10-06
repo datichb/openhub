@@ -23,6 +23,10 @@ const layerVersion = "2"
 // dockerfileCandidates are probed in order in the project directory.
 var dockerfileCandidates = []string{"Dockerfile.dev", "dev.Dockerfile", ".devcontainer/Dockerfile", "Dockerfile"}
 
+// DefaultBaseDockerfile is used when the project has no dev Dockerfile (also
+// by the remote runtime, which builds the same base on the runner).
+const DefaultBaseDockerfile = defaultBaseDockerfile
+
 // defaultBaseDockerfile is used when the project has no dev Dockerfile.
 const defaultBaseDockerfile = `FROM debian:bookworm-slim
 RUN apt-get update \

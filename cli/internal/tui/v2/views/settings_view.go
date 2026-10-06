@@ -479,6 +479,7 @@ func (v *SettingsView) buildFields() {
 			func() *bool { return v.live.Tracker.WriteEnabled },
 			func(b *bool) { v.live.Tracker.WriteEnabled = b }),
 	}...)
+	v.fields = append(v.fields, v.remoteFields()...)
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

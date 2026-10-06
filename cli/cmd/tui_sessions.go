@@ -297,7 +297,7 @@ func (t *tuiSessions) List(ctx context.Context, projectID string, all bool) ([]v
 		r.Timeline = sessionTimeline(ctx, svc, s.ID)
 		rows = append(rows, r)
 	}
-	return rows, nil
+	return t.decorateRemote(ctx, rows), nil
 }
 
 func toViewDecision(d domain.Decision) views.SessionDecision {

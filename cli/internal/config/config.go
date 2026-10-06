@@ -53,6 +53,8 @@ type Config struct {
 	// Execution holds the v5 execution settings (default runtime, container
 	// engine, image cache, pinned tool version, strict isolation).
 	Execution ExecutionConfig `mapstructure:"execution" toml:"execution,omitempty"`
+	// Remote holds the GitLab CI targets of the remote runtime (v5 phase 5).
+	Remote RemoteConfig `mapstructure:"remote" toml:"remote,omitempty"`
 }
 
 // ExecutionConfig configures where v5 sessions run.

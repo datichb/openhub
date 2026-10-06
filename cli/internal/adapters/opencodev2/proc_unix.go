@@ -10,7 +10,11 @@ import (
 // setDetached puts the server in its own session/process group so it is not
 // killed when the terminal or the oh process goes away.
 func setDetached(cmd *exec.Cmd) {
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
+	// Keep the attributes set by the runtime (credentials of the oh runner).
+	if cmd.SysProcAttr == nil {
+		cmd.SysProcAttr = &syscall.SysProcAttr{}
+	}
+	cmd.SysProcAttr.Setsid = true
 }
 
 func processAlive(pid int) bool {

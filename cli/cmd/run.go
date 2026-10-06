@@ -34,7 +34,7 @@ func addRunFlags(c *cobra.Command) {
 	f := c.Flags()
 	f.StringArrayP("input", "i", nil, "Entrée du workflow (clé=valeur, répétable)")
 	f.String("mode", "", "Mode du workflow (manuel, semi-auto, auto)")
-	f.String("runtime", "", "Environnement d'exécution (local, container)")
+	f.String("runtime", "", "Environnement d'exécution (local, container, remote)")
 	f.String("location", "", "Emplacement : base, new (nouveau worktree) ou chemin d'un worktree existant")
 	f.StringSlice("tickets", nil, "Tickets Beads (une session par ticket si le workflow le permet)")
 	f.String("attach", "", "Ouverture : auto, iterm, terminal, tmux, browser, suspend, none")
@@ -82,6 +82,9 @@ func runWorkflowHeadlessCLI(cmd *cobra.Command, opts runOptions) error {
 	a := MustApp()
 	ctx := cmd.Context()
 	errOut := cmd.ErrOrStderr()
+	if opts.Runtime == string(sessionspec.RuntimeRemote) {
+		return errors.New(i18n.T("cmd.remote.send.headless"))
+	}
 	opts.Attach = string(sessionspec.AttachNone)
 	opts.Progress = func(line string) { fmt.Fprintln(errOut, theme.Subtitle.Render("  "+line)) }
 	fmt.Fprintf(errOut, "%s %s\n", theme.SuccessStyle.Render(theme.IconArrow), i18n.Tf("cmd.run.preparing", opts.Workflow))

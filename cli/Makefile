@@ -1,4 +1,4 @@
-.PHONY: build run test test-tui test-unit test-integration test-e2e test-container lint clean install embed-sync embed-bd
+.PHONY: build build-linux run test test-tui test-unit test-integration test-e2e test-container lint clean install embed-sync embed-bd
 
 # Build variables
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
@@ -15,6 +15,12 @@ all: build
 # Build the binary
 build:
 	go build -ldflags "$(LDFLAGS)" -o bin/oh .
+
+# Linux oh binary for remote sessions (development builds):
+# oh remote setup --oh-binary bin/oh-linux-<arch>
+ARCH ?= amd64
+build-linux: embed-bd
+	CGO_ENABLED=0 GOOS=linux GOARCH=$(ARCH) go build -trimpath -ldflags "$(LDFLAGS)" -o bin/oh-linux-$(ARCH) .
 
 # Run without building a binary
 run:

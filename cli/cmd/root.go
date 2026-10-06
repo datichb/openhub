@@ -70,7 +70,7 @@ et fournit un TUI interactif pour le suivi de développement.`,
 		}
 
 		// Skip heavy init for commands that don't need it
-		if cmd.Name() == "version" || cmd.Name() == "help" || cmd.Name() == "completion" {
+		if cmd.Name() == "version" || cmd.Name() == "help" || cmd.Name() == "completion" || isRunnerInstall(cmd) {
 			return nil
 		}
 

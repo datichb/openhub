@@ -565,6 +565,13 @@ UPDATE projects SET workflow_config = ''`,
 ALTER TABLE projects DROP COLUMN workflow_config_legacy`,
 	},
 	{
+		// v5 phase 5 (P5-T08): reference of a remote session (GitLab target,
+		// pipeline, packages, status), JSON kept by the remote service.
+		version: 39,
+		up:      `ALTER TABLE sessions ADD COLUMN remote_ref TEXT NOT NULL DEFAULT ''`,
+		down:    `ALTER TABLE sessions DROP COLUMN remote_ref`,
+	},
+	{
 		// v5 phase 4 (P4-T09): execution settings of a project (dev
 		// Dockerfile, build args, cache volumes, default workflow and
 		// runtime), JSON.

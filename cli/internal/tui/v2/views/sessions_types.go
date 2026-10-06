@@ -67,6 +67,10 @@ type SessionRow struct {
 	Next string
 	// Timeline is the checkpoint timeline, rendered ("" without a workflow).
 	Timeline string
+	// Remote is the remote status ("" = not remote; RemoteStatus*) and
+	// RemoteDetail its line (pipeline, MR, journal).
+	Remote       string
+	RemoteDetail string
 }
 
 // SessionFeedLine is one line of a session live feed.

@@ -17,6 +17,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/launcher"
 	"github.com/datichb/openhub/cli/internal/provider"
 	"github.com/datichb/openhub/cli/internal/runsvc"
+	remotesvc "github.com/datichb/openhub/cli/internal/services/remote"
 	workflowsvc "github.com/datichb/openhub/cli/internal/services/workflow"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
@@ -70,6 +71,8 @@ type preparedRun struct {
 	// suggestions are the failed `suggest` preconditions (run another
 	// workflow first).
 	suggestions []preconditionSuggestion
+	// remote is set for a remote launch (sessions sent to GitLab CI).
+	remote *remotePrep
 }
 
 // errRunNeedsV2 is returned when opencode V2 is missing.
@@ -131,7 +134,12 @@ func prepareWorkflowRun(ctx context.Context, a *app.App, opts runOptions, errOut
 		return nil, err
 	}
 	kind := sessionspec.RuntimeKind(res.Runtime)
-	if av, err := svc.RuntimeAvailability(ctx, kind); err != nil || !av.OK {
+	var rp *remotePrep
+	if kind == sessionspec.RuntimeRemote {
+		if rp, err = prepareRemote(ctx, a, opts.Project, res); err != nil {
+			return nil, err
+		}
+	} else if av, err := svc.RuntimeAvailability(ctx, kind); err != nil || !av.OK {
 		reason := av.Message()
 		if err != nil {
 			reason = err.Error()
@@ -214,15 +222,27 @@ func prepareWorkflowRun(ctx context.Context, a *app.App, opts runOptions, errOut
 	for _, m := range missingMCP {
 		plan.Warnings = append(plan.Warnings, runsvc.Warning{Code: "mcp_missing", Args: []any{m}})
 	}
+	if rp != nil {
+		// Remote: the job clones the project; no local location or warning.
+		plan.Warnings = preconds
+		for i := range plan.Sessions {
+			rp.tickets = append(rp.tickets, remoteTickets(values[i], ticketInput))
+			rp.inputs = append(rp.inputs, sessions[i].Inputs)
+		}
+	}
 	for i := range plan.Sessions {
+		loc := plan.Sessions[i].Location.Path
+		if rp != nil {
+			loc = remotesvc.WorkDir(opts.Project.Name)
+		}
 		p, err := sessions[i].RenderPrompt(workflowsvc.PromptContext{Project: opts.Project.Name,
-			Location: plan.Sessions[i].Location.Path, Lang: i18n.Locale()})
+			Location: loc, Lang: i18n.Locale()})
 		if err != nil {
 			return nil, err
 		}
 		plan.Sessions[i].Prompt = p
 	}
-	return &preparedRun{opts: opts, project: opts.Project, resolution: res, bundle: b, svc: svc, plan: plan, suggestions: suggestions}, nil
+	return &preparedRun{opts: opts, project: opts.Project, resolution: res, bundle: b, svc: svc, plan: plan, suggestions: suggestions, remote: rp}, nil
 }
 
 // preconditionWarnings evaluates the workflow preconditions on the project
@@ -320,6 +340,9 @@ func warningText(w runsvc.Warning) string {
 // start runs the prepared launch and opens the sessions (attach
 // preference). Single-session browser / suspend attaches are handled here.
 func (p *preparedRun) start(ctx context.Context, a *app.App, ui launcher.LaunchUI) ([]*runsvc.StartResult, error) {
+	if p.remote != nil {
+		return p.sendRemote(ctx, a, ui)
+	}
 	results, err := p.svc.Start(ctx, p.plan)
 	if errors.Is(err, runsvc.ErrLaunchInProgress) {
 		return results, errors.New(i18n.T("cmd.run.in_progress"))

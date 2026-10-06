@@ -5,7 +5,7 @@
 // output and exit code are relayed.
 //
 // Backends: "gateway" (default) and "journal" (remote runs, P5-T12: reads
-// from a snapshot, writes to a journal; not available yet).
+// from a snapshot, writes to a journal; see journal.go).
 package main
 
 import (
@@ -126,15 +126,4 @@ func (g *gatewayBackend) Exec(req beadswire.ExecRequest) (beadswire.ExecResponse
 		out.Error = resp.Status
 	}
 	return out, nil
-}
-
-// journalBackend is the remote mode (P5-T12): reads served from the Beads
-// snapshot of the bundle, writes appended to the journal replayed on the
-// machine. Designed here, implemented in phase 5.
-type journalBackend struct {
-	snapshot, journal string
-}
-
-func (journalBackend) Exec(beadswire.ExecRequest) (beadswire.ExecResponse, error) {
-	return beadswire.ExecResponse{}, fmt.Errorf("the %s mode is not available in this version of oh", beadswire.ModeJournal)
 }

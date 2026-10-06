@@ -125,7 +125,7 @@ func launchFormConfig(ctx context.Context, a *app.App, project *domain.Project, 
 	cfg := &views.LaunchFormConfig{
 		WorkflowID: sp.ID, Origin: origin + " · " + project.Name, Spec: sp, Lang: i18n.Locale(),
 		Prefill: req.Prefill, Tickets: req.Tickets, AtOptions: req.AtOptions,
-		Runtimes: tuiRuntimes(ctx, a, sp), Locations: tuiLocations(project),
+		Runtimes: tuiRuntimes(ctx, a, sp, project), Locations: tuiLocations(project),
 		Attach: tuiAttachOptions(), DefaultAttach: attachPreference(a),
 		DefaultMode: req.Mode, DefaultRuntime: req.Runtime,
 	}
@@ -238,8 +238,8 @@ func tuiLaunchUI() launcher.LaunchUI {
 }
 
 // tuiRuntimes lists the runtimes allowed by the workflow, with their
-// availability (remote: phase 5).
-func tuiRuntimes(ctx context.Context, a *app.App, sp *workflow.Spec) []views.LaunchRuntime {
+// availability (remote: tui_launch_remote.go).
+func tuiRuntimes(ctx context.Context, a *app.App, sp *workflow.Spec, project *domain.Project) []views.LaunchRuntime {
 	var svc *runsvc.Service
 	if v5Available(ctx) {
 		svc, _ = newRunService(ctx, a)
@@ -250,6 +250,8 @@ func tuiRuntimes(ctx context.Context, a *app.App, sp *workflow.Spec) []views.Lau
 		switch {
 		case r == workflow.RuntimeLocal:
 			lr.Available = true
+		case r == workflow.RuntimeRemote:
+			lr = remoteLaunchRuntime(ctx, a, project, lr)
 		case svc == nil:
 			lr.Reason = i18n.T("cmd.run.requires_v2")
 		default:
