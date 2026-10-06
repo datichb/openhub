@@ -21,9 +21,18 @@ import (
 
 // Client talks to ohd over its Unix socket.
 type Client struct {
-	paths  Paths
-	http   *http.Client
-	stream *http.Client // no timeout (live stream)
+	paths      Paths
+	http       *http.Client
+	stream     *http.Client // no timeout (live stream)
+	capability string       // issuing capability (privileged routes)
+}
+
+// WithCapability returns a copy of c sending the issuing capability, needed
+// by the routes that hand out access (LoadCapability).
+func (c *Client) WithCapability(capability string) *Client {
+	cp := *c
+	cp.capability = capability
+	return &cp
 }
 
 // NewClient returns a client for the daemon at paths.
@@ -55,6 +64,9 @@ func (c *Client) do(ctx context.Context, method, path string, body, out any) err
 	}
 	if body != nil {
 		req.Header.Set("Content-Type", "application/json")
+	}
+	if c.capability != "" {
+		req.Header.Set(CapabilityHeader, c.capability)
 	}
 	resp, err := c.http.Do(req)
 	if err != nil {
@@ -253,6 +265,7 @@ type EnsureOptions struct {
 	Version    string        // expected daemon version ("" = any)
 	Timeout    time.Duration // default 10s
 	Env        []string      // environment of the spawned daemon (default os.Environ)
+	Capability string        // issuing capability sent by the returned client
 }
 
 // Ensure returns a client to a running daemon, spawning one if needed.
@@ -261,7 +274,7 @@ func Ensure(ctx context.Context, paths Paths, opts EnsureOptions) (*Client, Heal
 	if runtime.GOOS == "windows" {
 		return nil, Health{}, ErrUnsupported
 	}
-	c := NewClient(paths)
+	c := NewClient(paths).WithCapability(opts.Capability)
 	if h, err := c.Health(ctx); err == nil {
 		if opts.Version == "" || h.Version == opts.Version {
 			return c, h, nil

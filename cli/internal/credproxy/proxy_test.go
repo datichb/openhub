@@ -391,3 +391,19 @@ func countingUpstream(t *testing.T) (*httptest.Server, *atomic.Int32) {
 	t.Cleanup(up.Close)
 	return up, &hits
 }
+
+// M12: the stored hash of a token is not a credential.
+func TestProxyRefusesTokenHash(t *testing.T) {
+	up, hits := countingUpstream(t)
+	p := startProxy(t)
+	tok, err := p.Issue(Grant{Provider: ProviderOpenAI, Upstream: Upstream{BaseURL: up.URL, Auth: BearerAuth{Token: "real"}}})
+	require.NoError(t, err)
+	assert.True(t, p.Has(TokenHash(tok)))
+	req, _ := http.NewRequest(http.MethodPost, p.BaseURL(ProviderOpenAI)+"/chat/completions", strings.NewReader(`{"model":"m"}`))
+	req.Header.Set("Authorization", "Bearer "+TokenHash(tok))
+	resp, err := http.DefaultClient.Do(req)
+	require.NoError(t, err)
+	resp.Body.Close()
+	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
+	assert.Equal(t, int32(0), hits.Load())
+}

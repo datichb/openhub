@@ -39,7 +39,12 @@ var daemonRunCmd = &cobra.Command{
 			adOnce sync.Once
 			ad     *opencodev2.Adapter
 		)
-		err := daemon.Run(ctx, daemon.Options{
+		capability, _, err := daemonCapability(ctx)
+		if err != nil {
+			return err
+		}
+		err = daemon.Run(ctx, daemon.Options{
+			Capability:  capability,
 			Paths:       daemon.Paths{Dir: ohRunDir()},
 			Version:     buildinfo.Version,
 			Grants:      sqlite.NewGrantStore(store),
@@ -109,8 +114,12 @@ var daemonStopCmd = &cobra.Command{
 	Short: "Arrête le démon oh (refusé si des sessions tournent, sauf --force)",
 	RunE: func(cmd *cobra.Command, _ []string) error {
 		force, _ := cmd.Flags().GetBool("force")
-		c := daemon.NewClient(daemon.Paths{Dir: ohRunDir()})
-		err := c.Shutdown(cmd.Context(), force)
+		capability, _, err := daemonCapability(cmd.Context())
+		if err != nil {
+			return err
+		}
+		c := daemon.NewClient(daemon.Paths{Dir: ohRunDir()}).WithCapability(capability)
+		err = c.Shutdown(cmd.Context(), force)
 		if errors.Is(err, daemon.ErrNotRunning) {
 			fmt.Fprintln(cmd.OutOrStdout(), i18n.T("cmd.daemon.not_running"))
 			return nil

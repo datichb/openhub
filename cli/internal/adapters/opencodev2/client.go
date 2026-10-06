@@ -13,6 +13,8 @@ import (
 	"net/url"
 	"strings"
 	"time"
+
+	"github.com/datichb/openhub/cli/internal/sessionspec"
 )
 
 // BasicUser is the fixed Basic-auth user of an opencode server.
@@ -99,6 +101,9 @@ type Agent struct {
 	Mode        string `json:"mode"`
 	Hidden      bool   `json:"hidden"`
 	System      string `json:"system,omitempty"`
+	// Permissions are the agent's effective rules as the server applies
+	// them (global, user and agent configuration merged), when listed.
+	Permissions []sessionspec.PermissionRule `json:"permissions,omitempty"`
 }
 
 // Skill as listed by the server.

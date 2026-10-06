@@ -16,18 +16,18 @@ import (
 func (d *Daemon) routes() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET "+apiPrefix+"/health", d.handleHealth)
-	mux.HandleFunc("POST "+apiPrefix+"/grants", d.afterRestore(d.handleIssue))
-	mux.HandleFunc("POST "+apiPrefix+"/grants/secret", d.afterRestore(d.handleSecret))
-	mux.HandleFunc("GET "+apiPrefix+"/grants/pending", d.afterRestore(d.handlePending))
-	mux.HandleFunc("DELETE "+apiPrefix+"/owners/{owner}/grants", d.afterRestore(d.handleRevokeOwner))
+	mux.HandleFunc("POST "+apiPrefix+"/grants", d.privileged(d.afterRestore(d.handleIssue)))
+	mux.HandleFunc("POST "+apiPrefix+"/grants/secret", d.privileged(d.afterRestore(d.handleSecret)))
+	mux.HandleFunc("GET "+apiPrefix+"/grants/pending", d.privileged(d.afterRestore(d.handlePending)))
+	mux.HandleFunc("DELETE "+apiPrefix+"/owners/{owner}/grants", d.privileged(d.afterRestore(d.handleRevokeOwner)))
 	mux.HandleFunc("GET "+apiPrefix+"/usage", d.afterRestore(d.handleUsage))
 	mux.HandleFunc("POST "+apiPrefix+"/servers/{group}/touch", d.handleTouch)
-	mux.HandleFunc("POST "+apiPrefix+"/shutdown", d.handleShutdown)
+	mux.HandleFunc("POST "+apiPrefix+"/shutdown", d.privileged(d.handleShutdown))
 	mux.HandleFunc("POST "+apiPrefix+"/clients/heartbeat", d.handleHeartbeat)
 	mux.HandleFunc("DELETE "+apiPrefix+"/clients/{id}", d.handleClientGone)
 	mux.HandleFunc("POST "+apiPrefix+"/groups/{group}/policy", d.handlePolicy)
-	mux.HandleFunc("POST "+apiPrefix+"/proxy/listeners", d.handleListen)
-	mux.HandleFunc("POST "+apiPrefix+"/gateway/grants", d.handleGatewayGrant)
+	mux.HandleFunc("POST "+apiPrefix+"/proxy/listeners", d.privileged(d.handleListen))
+	mux.HandleFunc("POST "+apiPrefix+"/gateway/grants", d.privileged(d.handleGatewayGrant))
 	mux.HandleFunc("GET "+apiPrefix+"/stream", d.handleStream)
 	mux.HandleFunc("GET "+apiPrefix+"/workflow/status", d.handleWorkflowStatus)
 	mux.HandleFunc("POST "+apiPrefix+"/workflow/checkpoint", d.handleWorkflowCheckpoint)
@@ -91,8 +91,9 @@ func (d *Daemon) handleIssue(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusBadRequest, "owner and provider are required")
 		return
 	}
+	token := credproxy.NewToken()
 	g := domain.ProxyGrant{
-		Token: credproxy.NewToken(), Owner: req.Owner, Provider: req.Provider, Region: req.Region,
+		TokenHash: credproxy.TokenHash(token), Owner: req.Owner, Provider: req.Provider, Region: req.Region,
 		Source: req.Source, AllowedModels: req.AllowedModels, MaxTokens: req.MaxTokens, CreatedAt: time.Now(),
 	}
 	if err := d.register(r.Context(), g, req.Secret); err != nil {
@@ -101,7 +102,7 @@ func (d *Daemon) handleIssue(w http.ResponseWriter, r *http.Request) {
 	}
 	if d.opts.Grants != nil {
 		if err := d.opts.Grants.Insert(r.Context(), &g); err != nil {
-			d.proxy.Revoke(g.Token)
+			d.proxy.Revoke(g.TokenHash)
 			writeErr(w, http.StatusInternalServerError, err.Error())
 			return
 		}
@@ -109,7 +110,7 @@ func (d *Daemon) handleIssue(w http.ResponseWriter, r *http.Request) {
 	d.mu.Lock()
 	d.lastBusy = time.Now()
 	d.mu.Unlock()
-	writeJSON(w, http.StatusOK, GrantResponse{Token: g.Token, BaseURL: d.proxy.BaseURL(req.Provider)})
+	writeJSON(w, http.StatusOK, GrantResponse{Token: token, BaseURL: d.proxy.BaseURL(req.Provider)})
 }
 
 func (d *Daemon) handleSecret(w http.ResponseWriter, r *http.Request) {
@@ -119,7 +120,8 @@ func (d *Daemon) handleSecret(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	d.mu.Lock()
-	g, ok := d.pending[req.Token]
+	key := credproxy.RefHash(req.Token)
+	g, ok := d.pending[key]
 	d.mu.Unlock()
 	if !ok {
 		writeErr(w, http.StatusNotFound, "no pending grant for this token")
@@ -130,7 +132,7 @@ func (d *Daemon) handleSecret(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	d.mu.Lock()
-	delete(d.pending, req.Token)
+	delete(d.pending, key)
 	d.mu.Unlock()
 	w.WriteHeader(http.StatusNoContent)
 }
@@ -139,7 +141,7 @@ func (d *Daemon) handlePending(w http.ResponseWriter, _ *http.Request) {
 	d.mu.Lock()
 	out := make([]PendingGrant, 0, len(d.pending))
 	for _, g := range d.pending {
-		out = append(out, PendingGrant{Token: g.Token, Owner: g.Owner, Source: g.Source})
+		out = append(out, PendingGrant{Token: g.TokenHash, Owner: g.Owner, Source: g.Source})
 	}
 	d.mu.Unlock()
 	writeJSON(w, http.StatusOK, out)

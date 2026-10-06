@@ -20,6 +20,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/services/checkpoint"
 	sessionsvc "github.com/datichb/openhub/cli/internal/services/session"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
+	"github.com/datichb/openhub/cli/internal/storage/keychain"
 	"github.com/datichb/openhub/cli/internal/storage/sqlite"
 	"github.com/datichb/openhub/cli/internal/teamstate"
 )
@@ -31,9 +32,25 @@ func ohServersDir() string  { return filepath.Join(config.HubDir(), "servers") }
 func ohSessionsDir() string { return filepath.Join(config.HubDir(), "sessions") }
 func ohCacheDir() string    { return filepath.Join(config.HubDir(), "cache") }
 
-// ensureDaemon returns a client to ohd, starting it when needed.
+// ensureDaemon returns a client to ohd, starting it when needed. The client
+// holds the issuing capability (token routes, M12).
 func ensureDaemon(ctx context.Context) (*daemon.Client, daemon.Health, error) {
-	return daemon.Ensure(ctx, daemon.Paths{Dir: ohRunDir()}, daemon.EnsureOptions{Version: buildinfo.Version})
+	capability, _, err := daemonCapability(ctx)
+	if err != nil {
+		return nil, daemon.Health{}, err
+	}
+	return daemon.Ensure(ctx, daemon.Paths{Dir: ohRunDir()}, daemon.EnsureOptions{Version: buildinfo.Version, Capability: capability})
+}
+
+// daemonCapability returns the issuing capability shared with the daemon:
+// in the OS keychain, else in a 0600 file under ~/.oh/run. The encrypted
+// file store is not used (it would prompt for a passphrase in the daemon).
+func daemonCapability(ctx context.Context) (string, daemon.CapabilitySource, error) {
+	var store daemon.CapabilityStore
+	if keychain.Probe() == nil {
+		store = keychain.New(config.HubDir())
+	}
+	return daemon.LoadCapability(ctx, store, daemon.Paths{Dir: ohRunDir()})
 }
 
 // detectV2Adapter returns the opencode V2 adapter, or an error when the

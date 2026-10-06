@@ -30,7 +30,7 @@ type Server struct {
 	Password       string
 	DataDir        string
 	WorkDir        string
-	ProxyToken     string // credential proxy token held by the server process
+	ProxyTokenHash string // hash of the credential proxy token held by the server process (credproxy.TokenHash)
 	Status         ServerStatus
 	CreatedAt      time.Time // (re)start time of the current process
 	LastActivityAt time.Time
@@ -69,7 +69,7 @@ type CredentialSource struct {
 // ProxyGrant is a credential proxy token persisted so that the oh daemon can
 // restore it after a restart. It never contains the secret itself.
 type ProxyGrant struct {
-	Token         string
+	TokenHash     string // credproxy.TokenHash of the token (the token itself is never stored)
 	Owner         string // server group key (one token per tool server)
 	Provider      string
 	Region        string
@@ -86,4 +86,10 @@ type GrantStore interface {
 	ListActive(ctx context.Context) ([]ProxyGrant, error)
 	Revoke(ctx context.Context, token string, at time.Time) error
 	RevokeOwner(ctx context.Context, owner string, at time.Time) error
+}
+
+// LegacyTokenHasher converts the tokens stored in clear by older oh versions
+// into their hash (hash(token) for each value starting with prefix).
+type LegacyTokenHasher interface {
+	HashLegacyTokens(ctx context.Context, prefix string, hash func(string) string) (int, error)
 }

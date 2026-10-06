@@ -48,7 +48,7 @@ type UsageResponse struct {
 
 // PendingGrant describes a restored grant whose secret is not yet available.
 type PendingGrant struct {
-	Token  string                  `json:"token"`
+	Token  string                  `json:"token"` // token hash (ProvideSecret accepts it)
 	Owner  string                  `json:"owner"`
 	Source domain.CredentialSource `json:"source"`
 }

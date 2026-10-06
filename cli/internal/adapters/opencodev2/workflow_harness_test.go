@@ -16,6 +16,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/adapters"
 	"github.com/datichb/openhub/cli/internal/daemon"
+	"github.com/datichb/openhub/cli/internal/credproxy"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/services/checkpoint"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
@@ -163,7 +164,7 @@ func (e *workflowEnv) startGroup(t *testing.T, a *Adapter, b sessionspec.BundleS
 	require.NoError(t, err)
 	h, project := e.startServer(t, a, b, sessionspec.ProviderSpec{ID: "amazon-bedrock", Region: "eu-west-1", BaseURL: g.BaseURL, SessionToken: g.Token})
 	require.NoError(t, e.servers.Upsert(ctx, &domain.Server{GroupKey: "g1", Adapter: Name, ProjectID: "p1", BundleHash: b.Hash,
-		PID: h.PID, URL: h.URL, Password: h.Password, ProxyToken: g.Token, Status: domain.ServerReady, CreatedAt: time.Now()}))
+		PID: h.PID, URL: h.URL, Password: h.Password, ProxyTokenHash: credproxy.TokenHash(g.Token), Status: domain.ServerReady, CreatedAt: time.Now()}))
 	return h, project
 }
 

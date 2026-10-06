@@ -303,6 +303,50 @@ func TestContractAttestDetectsParasiteAgent(t *testing.T) {
 	assert.Equal(t, sessionspec.IsolationNone, rep.Level)
 }
 
+// A user configuration rule on one of our agent ids re-allowing a skill
+// outside the bundle: the server lists the effective rules of each agent and
+// applies ours after the user's (opencode 2.0.20), so the skill stays hidden.
+// Attest judges from those server rules (unit test: skillVisibleOnServer),
+// which would catch a change of that order.
+func TestContractAttestChecksSkillsPerAgentOnServer(t *testing.T) {
+	a := newContractAdapter(t)
+	root := t.TempDir()
+	project := filepath.Join(root, "proj")
+	require.NoError(t, os.MkdirAll(project, 0o755))
+	b := contractBundle(t, root)
+
+	cfgHome := filepath.Join(root, "config")
+	require.NoError(t, os.MkdirAll(filepath.Join(cfgHome, "opencode"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(cfgHome, "opencode", "opencode.json"),
+		[]byte(`{"agent":{"helper":{"permission":{"skill":{"report":"allow"}}}}}`), 0o644))
+
+	h, err := a.StartServer(context.Background(), adapters.ServerGroup{
+		Bundle:  b,
+		DataDir: filepath.Join(root, "data"),
+		WorkDir: project,
+		Env:     map[string]string{"XDG_CONFIG_HOME": cfgHome},
+	})
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = a.StopServer(context.Background(), h) })
+
+	agents, err := NewClient(h.URL, h.Password).Agents(context.Background(), project)
+	require.NoError(t, err)
+	var helper *Agent
+	for i := range agents {
+		if agents[i].ID == "helper" {
+			helper = &agents[i]
+		}
+	}
+	require.NotNil(t, helper)
+	require.NotEmpty(t, helper.Permissions, "the server lists the effective rules of each agent")
+	assert.Contains(t, helper.Permissions, sessionspec.PermissionRule{Action: "skill", Resource: "report", Effect: sessionspec.EffectAllow}, "user rule merged")
+	assert.Equal(t, sessionspec.EffectDeny, evaluate(helper.Permissions, sessionspec.ActionSkill, "report", sessionspec.EffectAllow), "our rules come last")
+
+	rep, err := a.Attest(context.Background(), h, b, project)
+	require.NoError(t, err)
+	assert.True(t, rep.OK(), "unexpected: %v", rep.Unexpected)
+}
+
 // shellOutput runs a shell command in a session and returns its output
 // (session.shell.ended event; no LLM involved).
 func shellOutput(t *testing.T, c *Client, sessionID, command string) string {

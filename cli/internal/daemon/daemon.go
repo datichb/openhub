@@ -70,6 +70,9 @@ type Options struct {
 	// server group, served over HTTP to runtimes outside the machine
 	// (P4-T08). Nil = MCP gateway unavailable.
 	MCPCommand func(ctx context.Context, srv domain.Server, name string) (gateway.MCPCommand, error)
+	// Capability guards the routes that hand out access or stop sessions
+	// (LoadCapability; "" = unguarded).
+	Capability string
 	// SigV4 builds an AWS signer for a profile/region (overridable in tests).
 	SigV4 func(ctx context.Context, profile, region string) (credproxy.Auth, error)
 }
@@ -163,6 +166,7 @@ func Run(ctx context.Context, opts Options) error {
 		return fmt.Errorf("listening on %s: %w", opts.Paths.Socket(), err)
 	}
 	_ = os.Chmod(opts.Paths.Socket(), 0o600)
+	l = peerListener{Listener: l}
 	d.listener = l
 	d.http = &http.Server{Handler: d.routes(), ReadHeaderTimeout: 10 * time.Second}
 	go func() {
@@ -292,6 +296,7 @@ func (d *Daemon) restoreGrants(ctx context.Context) {
 	if d.opts.Grants == nil {
 		return
 	}
+	d.hashLegacyTokens(ctx)
 	grants, err := d.opts.Grants.ListActive(ctx)
 	if err != nil {
 		slog.Warn("ohd: cannot list grants", "error", err)
@@ -299,7 +304,7 @@ func (d *Daemon) restoreGrants(ctx context.Context) {
 	}
 	for _, g := range grants {
 		if d.orphanGrant(ctx, g) {
-			_ = d.opts.Grants.Revoke(ctx, g.Token, time.Now())
+			_ = d.opts.Grants.Revoke(ctx, g.TokenHash, time.Now())
 			slog.Info("ohd: orphan grant revoked", "owner", g.Owner)
 			continue
 		}
@@ -309,9 +314,26 @@ func (d *Daemon) restoreGrants(ctx context.Context) {
 		}
 		if err := d.register(ctx, g, secret); err != nil {
 			d.mu.Lock()
-			d.pending[g.Token] = g
+			d.pending[g.TokenHash] = g
 			d.mu.Unlock()
 			slog.Info("ohd: grant pending its secret", "owner", g.Owner, "reason", err)
+		}
+	}
+}
+
+// hashLegacyTokens converts the proxy tokens stored in clear by older oh
+// versions (grants and server registry) into their hash.
+func (d *Daemon) hashLegacyTokens(ctx context.Context) {
+	for name, st := range map[string]any{"grants": d.opts.Grants, "servers": d.opts.Servers} {
+		h, ok := st.(domain.LegacyTokenHasher)
+		if !ok {
+			continue
+		}
+		n, err := h.HashLegacyTokens(ctx, credproxy.TokenPrefix, credproxy.TokenHash)
+		if err != nil {
+			slog.Warn("ohd: cannot hash stored proxy tokens", "store", name, "error", err)
+		} else if n > 0 {
+			slog.Info("ohd: stored proxy tokens replaced by their hash", "store", name, "count", n)
 		}
 	}
 }
@@ -332,7 +354,7 @@ func (d *Daemon) orphanGrant(ctx context.Context, g domain.ProxyGrant) bool {
 	if srv.Status == domain.ServerStopped || srv.Status == domain.ServerSleeping {
 		return true
 	}
-	return srv.ProxyToken != "" && srv.ProxyToken != g.Token
+	return srv.ProxyTokenHash != "" && srv.ProxyTokenHash != g.TokenHash
 }
 
 // sigV4 returns the AWS signer of a profile/region, built once (the AWS
@@ -377,7 +399,7 @@ func (d *Daemon) register(ctx context.Context, g domain.ProxyGrant, secret strin
 	if err != nil {
 		return err
 	}
-	return d.proxy.IssueWithToken(g.Token, credproxy.Grant{
+	return d.proxy.IssueWithHash(g.TokenHash, credproxy.Grant{
 		SessionID: g.Owner, Provider: g.Provider, Upstream: up,
 		AllowedModels: g.AllowedModels, MaxTokens: g.MaxTokens,
 	})

@@ -119,4 +119,4 @@ Changer le fournisseur, la région ou la clé d'un projet démarre un nouveau se
 
 - **Windows** : les sessions v5 ne sont pas encore prises en charge, faute de démon. Utilisez opencode V1 ou WSL.
 - **Port du proxy** : le démon garde le port de son proxy d'un redémarrage à l'autre. Si un autre programme l'a pris entre-temps, le démon en choisit un autre et met en veille les serveurs qui utilisent encore l'ancien (ils ne joignent plus le fournisseur) ; les sessions qui travaillaient affichent une erreur dans « À traiter ». Reprenez-les (`oh session resume <id>` ou attachement) : leur serveur redémarre avec le nouveau port.
-- **Sécurité en local** : l'agent tourne sous votre utilisateur. Il peut atteindre le socket du démon et `oh.db`, mais jamais la clé LLM. Voir [SECURITY.fr.md](../../SECURITY.fr.md).
+- **Sécurité en local** : l'agent tourne sous votre utilisateur. Il peut atteindre le socket du démon et `oh.db` (empreintes de jetons seulement), mais jamais la clé LLM ; l'émission de nouveaux jetons est réservée à la CLI oh (capacité dans le trousseau, voir `oh doctor`). Voir [SECURITY.fr.md](../../SECURITY.fr.md).

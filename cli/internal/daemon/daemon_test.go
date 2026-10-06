@@ -107,6 +107,13 @@ func TestDaemonGrantsAndRestore(t *testing.T) {
 
 	_, err = c.Usage(ctx, resp.Token)
 	require.NoError(t, err)
+	stored, err := e.grants.ListActive(ctx)
+	require.NoError(t, err)
+	for _, g := range stored {
+		assert.NotContains(t, g.TokenHash, "ohs_", "M12: only token hashes are stored")
+	}
+	_, err = c.Usage(ctx, credproxy.TokenHash(resp.Token))
+	require.NoError(t, err, "usage by token hash (server registry)")
 
 	// Restart: grants restored from the store, proxy port kept.
 	require.NoError(t, c.Shutdown(ctx, true))
@@ -135,7 +142,7 @@ func TestDaemonPendingSecret(t *testing.T) {
 	e := newEnv(t)
 	ctx := context.Background()
 	require.NoError(t, e.grants.Insert(ctx, &domain.ProxyGrant{
-		Token: credproxy.NewToken(), Owner: "g1", Provider: credproxy.ProviderAnthropic,
+		TokenHash: credproxy.NewToken(), Owner: "g1", Provider: credproxy.ProviderAnthropic,
 		Source: domain.CredentialSource{Kind: domain.CredentialAPIKey, KeychainKey: "k"},
 	}))
 	c, _ := e.start(t, nil, time.Hour) // no secret store (e.g. passphrase file store)
@@ -157,7 +164,7 @@ func TestDaemonSupervisionAndIdleExit(t *testing.T) {
 	e := newEnv(t)
 	ctx := context.Background()
 	require.NoError(t, e.servers.Upsert(ctx, &domain.Server{GroupKey: "dead", Adapter: "x", PID: 999999, Status: domain.ServerReady, CreatedAt: time.Now().Add(-time.Hour)}))
-	require.NoError(t, e.grants.Insert(ctx, &domain.ProxyGrant{Token: credproxy.NewToken(), Owner: "dead", Provider: credproxy.ProviderBedrock,
+	require.NoError(t, e.grants.Insert(ctx, &domain.ProxyGrant{TokenHash: credproxy.NewToken(), Owner: "dead", Provider: credproxy.ProviderBedrock,
 		Source: domain.CredentialSource{Kind: domain.CredentialSigV4}}))
 	// A live server keeps the daemon busy: use our own process.
 	require.NoError(t, e.servers.Upsert(ctx, &domain.Server{GroupKey: "live", Adapter: "x", PID: os.Getpid(), Status: domain.ServerReady}))

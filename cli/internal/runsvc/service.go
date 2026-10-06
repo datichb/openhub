@@ -438,7 +438,7 @@ func (s *Service) ensureServer(ctx context.Context, dc DaemonClient, req StartRe
 		prev, _ = rt.Load(ctx, g)
 	}
 	if srv, err := s.Servers.Get(ctx, gk); err == nil && srv.Status == domain.ServerReady && filelock.ProcessAlive(srv.PID) {
-		switch _, uerr := dc.Usage(ctx, srv.ProxyToken); {
+		switch _, uerr := dc.Usage(ctx, srv.ProxyTokenHash); {
 		case uerr != nil:
 			slog.Warn("runsvc: existing server lost its proxy grant, restarting", "group", gk)
 		case rt != nil && (prev == nil || !prev.Paths.Covers(req.Location)):
@@ -526,7 +526,7 @@ func (s *Service) startServer(ctx context.Context, dc DaemonClient, req StartReq
 	srv := &domain.Server{
 		GroupKey: gk, Adapter: s.Adapter.Name(), AdapterVersion: s.AdapterVer, Runtime: string(key.Runtime),
 		ProjectID: req.ProjectID, BundleHash: key.BundleHash, DataDir: dataDir, WorkDir: req.Location,
-		ProxyToken: grant.Token, Status: domain.ServerStarting, CreatedAt: time.Now(),
+		ProxyTokenHash: credproxy.TokenHash(grant.Token), Status: domain.ServerStarting, CreatedAt: time.Now(),
 	}
 	if err := s.Servers.Upsert(ctx, srv); err != nil {
 		_ = dc.RevokeOwner(ctx, gk)

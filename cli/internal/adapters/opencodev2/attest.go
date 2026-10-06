@@ -43,9 +43,12 @@ func Attest(ctx context.Context, c *Client, b sessionspec.BundleSpec, location s
 	}
 
 	// The skill registry lists every discovered skill regardless of
-	// permissions; visibility to the model is enforced by the rendered rules
+	// permissions; visibility to the model is enforced by the skill rules
 	// (deny "*" then allow bundle skills). A skill outside the bundle is only
-	// acceptable if every bundle agent denies it.
+	// acceptable if every bundle agent denies it. The rules checked are the
+	// ones the server applies to each agent (user configuration merged), not
+	// only the rendered ones: a user rule on one of our agent ids would
+	// otherwise go unnoticed.
 	skills, err := waitSkills(ctx, c, location, b.SkillIDs())
 	if err != nil {
 		return rep, err
@@ -56,9 +59,13 @@ func Attest(ctx context.Context, c *Client, b sessionspec.BundleSpec, location s
 			rep.Skills = append(rep.Skills, s.ID)
 			continue
 		}
-		if visibleTo := skillVisibleTo(b, s.ID); len(visibleTo) > 0 {
-			rep.Skills = append(rep.Skills, s.ID)
-			rep.Unexpected = append(rep.Unexpected, "skill:"+s.ID)
+		visibleTo := skillVisibleOnServer(agents, b, s.ID)
+		if len(visibleTo) == 0 {
+			continue
+		}
+		rep.Skills = append(rep.Skills, s.ID)
+		for _, a := range visibleTo {
+			rep.Unexpected = append(rep.Unexpected, "skill:"+s.ID+"@"+a)
 		}
 	}
 
@@ -132,6 +139,32 @@ func waitSkills(ctx context.Context, c *Client, location string, want []string) 
 		case <-time.After(150 * time.Millisecond):
 		}
 	}
+}
+
+// skillVisibleOnServer returns the bundle agents to which the server exposes
+// a skill, from the effective rules it lists for each agent; an agent listed
+// without rules (older servers) is judged on the rendered rules.
+func skillVisibleOnServer(agents []Agent, b sessionspec.BundleSpec, skill string) []string {
+	byID := make(map[string]Agent, len(agents))
+	for _, a := range agents {
+		byID[a.ID] = a
+	}
+	rendered := map[string]bool{}
+	for _, id := range skillVisibleTo(b, skill) {
+		rendered[id] = true
+	}
+	var out []string
+	for _, a := range b.Agents {
+		sa, ok := byID[a.ID]
+		visible := rendered[a.ID]
+		if ok && sa.Permissions != nil {
+			visible = evaluate(sa.Permissions, sessionspec.ActionSkill, skill, sessionspec.EffectAllow) != sessionspec.EffectDeny
+		}
+		if visible {
+			out = append(out, a.ID)
+		}
+	}
+	return out
 }
 
 // skillVisibleTo returns the bundle agents whose rendered rules allow the skill.

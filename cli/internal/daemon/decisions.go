@@ -122,7 +122,7 @@ func (w *watcher) raiseFailure(ctx context.Context, ev adapters.ToolEvent) {
 		return
 	}
 	kind, msg := domain.DecisionError, eventError(ev.Data)
-	if w.d.proxy != nil && w.srv.ProxyToken != "" && w.d.proxy.Exhausted(w.srv.ProxyToken) {
+	if w.d.proxy != nil && w.srv.ProxyTokenHash != "" && w.d.proxy.Exhausted(w.srv.ProxyTokenHash) {
 		kind, msg = domain.DecisionBudget, ""
 	}
 	ref := ev.ID
