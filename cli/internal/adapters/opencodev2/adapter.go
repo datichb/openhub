@@ -209,6 +209,7 @@ func (a *Adapter) start(ctx context.Context, g adapters.ServerGroup, b sessionsp
 		if b, err = innerBundle(b, g.Prepared.Paths); err != nil {
 			return adapters.ServerHandle{}, err
 		}
+		b = remoteOhMCP(b, g.Provider)
 		rt, pg := g.Runtime, g.Prepared
 		opts.Paths = pg.Paths
 		opts.Run = func(argv []string, env map[string]string, dir string, port int) (*exec.Cmd, error) {

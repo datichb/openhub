@@ -41,7 +41,7 @@ jobs:
           cp -r ../skills internal/hubcontent/hub/skills
           cp -r ../permissions internal/hubcontent/hub/permissions
           cp -r ../workflows internal/hubcontent/hub/workflows
-          for a in amd64 arm64; do CGO_ENABLED=0 GOOS=linux GOARCH=$a go build -trimpath -ldflags "-s -w" -o internal/runtime/container/assets/bd-linux-$a ./cmd/oh-bd-stub; done
+          for a in amd64 arm64; do CGO_ENABLED=0 GOOS=linux GOARCH=$a go build -trimpath -ldflags "-s -w" -o internal/runtime/container/assets/bd-linux-$a ./cmd/oh-bd; done
 
       - name: Vet
         run: go vet ./...
@@ -103,7 +103,7 @@ jobs:
           cp -r ../skills internal/hubcontent/hub/skills
           cp -r ../permissions internal/hubcontent/hub/permissions
           cp -r ../workflows internal/hubcontent/hub/workflows
-          for a in amd64 arm64; do CGO_ENABLED=0 GOOS=linux GOARCH=$a go build -trimpath -ldflags "-s -w" -o internal/runtime/container/assets/bd-linux-$a ./cmd/oh-bd-stub; done
+          for a in amd64 arm64; do CGO_ENABLED=0 GOOS=linux GOARCH=$a go build -trimpath -ldflags "-s -w" -o internal/runtime/container/assets/bd-linux-$a ./cmd/oh-bd; done
 
       - name: Integration tests (real opencode serve, no model calls)
         run: go test ./... -race -count=1 -tags integration

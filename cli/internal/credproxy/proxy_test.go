@@ -228,3 +228,20 @@ func TestModelExtraction(t *testing.T) {
 	assert.True(t, modelAllowed([]string{"eu.anthropic.*"}, "eu.anthropic.claude-haiku-4-5-20251001-v1:0"))
 	assert.False(t, modelAllowed([]string{"eu.anthropic.*"}, "us.anthropic.x"))
 }
+
+func TestProxyMountServesOtherServices(t *testing.T) {
+	p := startProxy(t)
+	p.Mount("oh-gateway", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = io.WriteString(w, "gw:"+r.URL.Path)
+	}))
+	resp, err := http.Post(p.URL()+"/oh-gateway/beads/v1/exec", "application/json", strings.NewReader("{}"))
+	require.NoError(t, err)
+	b, _ := io.ReadAll(resp.Body)
+	resp.Body.Close()
+	assert.Equal(t, "gw:/beads/v1/exec", string(b))
+
+	resp, err = http.Post(p.URL()+"/amazon-bedrock/model/m/converse", "application/json", strings.NewReader("{}"))
+	require.NoError(t, err)
+	resp.Body.Close()
+	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode, "providers still need a token")
+}

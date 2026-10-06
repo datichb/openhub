@@ -239,6 +239,7 @@ func TestStartSessionInContainer(t *testing.T) {
 	assert.Same(t, f.rt, sg.Runtime)
 	assert.Equal(t, "http://host.docker.internal:5555/amazon-bedrock", sg.Provider.BaseURL, "proxy reached through the machine address")
 	assert.Equal(t, "ohs_tok", sg.Provider.SessionToken)
+	assert.Equal(t, "http://host.docker.internal:5555/oh-gateway", f.svc.loadGatewayURL(res.GroupKey), "Beads gateway next to the proxy")
 	assert.Equal(t, []string{"/work/proj"}, f.ad.attested, "attestation in the container's view")
 	require.Len(t, f.ad.created, 1)
 	assert.Equal(t, "/work/proj", f.ad.created[0].Location)
@@ -298,6 +299,7 @@ func TestContainerProxyListenerOnLinux(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, []string{"172.17.0.1"}, f.dc.listens)
 	assert.Equal(t, "http://host.docker.internal:5556/amazon-bedrock", f.ad.started[0].Provider.BaseURL)
+	assert.Equal(t, "http://host.docker.internal:5556/oh-gateway", f.svc.loadGatewayURL(f.ad.started[0].Key.String()))
 }
 
 func TestStopSessionTearsDownContainer(t *testing.T) {

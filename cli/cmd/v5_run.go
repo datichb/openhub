@@ -145,6 +145,9 @@ func prepareWorkflowRun(ctx context.Context, a *app.App, opts runOptions, errOut
 	base := v5Request(a, opts.Project, opts.Provider)
 	base.Bundle, base.Mode, base.Runtime, base.Progress = b, res.Mode, kind, opts.Progress
 	base.Title = sessionTitle(opts.Project, res.Spec.ID)
+	if res.Spec.Beads != nil {
+		base.BeadsAllow = append([]string{}, res.Spec.Beads.Allow...) // non-nil: declared
+	}
 	if opts.Attach != "" {
 		base.Attach = sessionspec.AttachPref(opts.Attach)
 	}

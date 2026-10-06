@@ -176,6 +176,7 @@ type HookPermissionResponse struct {
 func (d *Daemon) hooksHandler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST "+credproxy.HooksPrefix+"permission", d.handleHookPermission)
+	mux.HandleFunc(credproxy.HooksPrefix+"mcp/{name}", d.handleHookMCP)
 	return mux
 }
 

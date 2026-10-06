@@ -44,6 +44,8 @@ var daemonRunCmd = &cobra.Command{
 			Version:     buildinfo.Version,
 			Grants:      sqlite.NewGrantStore(store),
 			Servers:     sqlite.NewServerStore(store),
+			GatewayView: gatewayView(sqlite.NewServerStore(store)),
+			MCPCommand:  gatewayMCPCommand(ohBundlesDir()),
 			Sessions:    a.Sessions,
 			Decisions:   sqlite.NewDecisionStore(store),
 			SessionsDir: ohSessionsDir(),

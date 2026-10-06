@@ -28,6 +28,9 @@ func (p Paths) Lock() string { return filepath.Join(p.Dir, "ohd.lock") }
 // State keeps the stable proxy port across restarts.
 func (p Paths) State() string { return filepath.Join(p.Dir, "ohd.json") }
 
+// Gateway keeps the gateway grants (token hashes only, never the tokens).
+func (p Paths) Gateway() string { return filepath.Join(p.Dir, "gateway.json") }
+
 // Log is the daemon log file.
 func (p Paths) Log() string { return filepath.Join(p.Dir, "ohd.log") }
 

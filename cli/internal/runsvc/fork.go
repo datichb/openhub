@@ -60,6 +60,12 @@ func (s *Service) ForkSession(ctx context.Context, sessionID string) (string, er
 		err = s.saveStaticEnv(id, static)
 	}
 	if err == nil {
+		var allow []string
+		if allow, err = s.loadBeadsAllow(sessionID); err == nil {
+			err = s.saveBeadsAllow(id, allow)
+		}
+	}
+	if err == nil {
 		err = s.reapplySessionEnv(ctx, srv, child)
 	}
 	if err != nil {

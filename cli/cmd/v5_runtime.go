@@ -126,6 +126,10 @@ func newRunService(ctx context.Context, a *app.App) (*runsvc.Service, error) {
 		Decisions:    sqlite.NewDecisionStore(store),
 		OnSessionEnd: sessionEndHook(a, false),
 		Runtimes:     v5Runtimes(),
+		SessionEnv: gatewaySessionEnv(func(ctx context.Context) (gatewayGranter, error) {
+			c, _, err := ensureDaemon(ctx)
+			return c, err
+		}),
 		Daemon: func(ctx context.Context) (runsvc.DaemonClient, error) {
 			c, _, err := ensureDaemon(ctx)
 			if err != nil {

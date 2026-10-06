@@ -125,6 +125,11 @@ type StartRequest struct {
 	// SessionEnv holds static, non-secret variables of the session shell
 	// (persisted for resumes). Secrets go through Service.SessionEnv.
 	SessionEnv map[string]string
+
+	// BeadsAllow is the workflow `beads.allow` list, enforced by the Beads
+	// gateway outside the local runtime (nil = no `beads:` block: read-only
+	// default; empty = no bd command). Kept for resumes.
+	BeadsAllow []string
 }
 
 // StartResult is the outcome of StartSession.
@@ -210,7 +215,8 @@ func (s *Service) StartSession(ctx context.Context, req StartRequest) (*StartRes
 		}
 	}
 	sid := sessionspec.NewSessionID()
-	env, err := s.buildSessionEnv(ctx, req.SessionEnv, SessionEnvRequest{SessionID: sid, GroupKey: gk, ProjectID: req.ProjectID, Location: req.Location})
+	env, err := s.buildSessionEnv(ctx, req.SessionEnv, SessionEnvRequest{SessionID: sid, GroupKey: gk, ProjectID: req.ProjectID, Location: req.Location,
+		Runtime: kind, WorkflowID: req.WorkflowID, BeadsAllow: req.BeadsAllow, GatewayURL: s.loadGatewayURL(gk)})
 	if err != nil {
 		return nil, err
 	}
@@ -229,6 +235,9 @@ func (s *Service) StartSession(ctx context.Context, req StartRequest) (*StartRes
 	}
 	if err := s.saveStaticEnv(sid, req.SessionEnv); err != nil {
 		return nil, fmt.Errorf("saving session environment: %w", err)
+	}
+	if err := s.saveBeadsAllow(sid, req.BeadsAllow); err != nil {
+		return nil, fmt.Errorf("saving session Beads allow-list: %w", err)
 	}
 	// The oh row is written before the tool session exists, so that the
 	// daemon tracks the session from its very first event.
@@ -479,6 +488,10 @@ func (s *Service) startServer(ctx context.Context, dc DaemonClient, req StartReq
 			_ = dc.RevokeOwner(ctx, gk)
 			return nil, adapters.VisibilityReport{}, nil, err
 		}
+	}
+	if err := s.saveGatewayURL(gk, pg, baseURL); err != nil {
+		_ = dc.RevokeOwner(ctx, gk)
+		return nil, adapters.VisibilityReport{}, nil, err
 	}
 
 	dataDir := filepath.Join(s.ServersDir, gk, "data")

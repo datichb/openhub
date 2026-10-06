@@ -18,6 +18,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/adapters"
 	"github.com/datichb/openhub/cli/internal/credproxy"
 	"github.com/datichb/openhub/cli/internal/domain"
+	"github.com/datichb/openhub/cli/internal/gateway"
 	"github.com/datichb/openhub/cli/internal/services/checkpoint"
 )
 
@@ -57,6 +58,15 @@ type Options struct {
 	Checkpoints *checkpoint.Service
 	// Adapter returns the tool adapter for a server's adapter name (nil = no watcher).
 	Adapter func(name string) adapters.ToolAdapter
+	// GatewayView returns how the runtime of a server group sees the
+	// machine (container path translation), for the Beads gateway.
+	GatewayView func(ctx context.Context, group string) (gateway.View, error)
+	// BeadsBinary is the real bd run by the gateway ("" = looked up in PATH).
+	BeadsBinary string
+	// MCPCommand returns the machine command of the oh MCP server name of a
+	// server group, served over HTTP to runtimes outside the machine
+	// (P4-T08). Nil = MCP gateway unavailable.
+	MCPCommand func(ctx context.Context, srv domain.Server, name string) (gateway.MCPCommand, error)
 	// SigV4 builds an AWS signer for a profile/region (overridable in tests).
 	SigV4 func(ctx context.Context, profile, region string) (credproxy.Auth, error)
 }
@@ -65,6 +75,8 @@ type Options struct {
 type Daemon struct {
 	opts     Options
 	proxy    *credproxy.Proxy
+	gateway  *gateway.Store
+	mcp      *gateway.MCP
 	listener net.Listener
 	http     *http.Server
 
@@ -126,6 +138,7 @@ func Run(ctx context.Context, opts Options) error {
 	}
 	defer func() { _ = d.proxy.Close(context.Background()) }()
 	d.restoreGrants(ctx)
+	d.startGateway(ctx)
 
 	_ = os.Remove(opts.Paths.Socket())
 	l, err := net.Listen("unix", opts.Paths.Socket())
@@ -171,6 +184,9 @@ func (d *Daemon) shutdown() error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	d.feed.close() // ends the live streams, so that Shutdown does not wait for them
+	if d.mcp != nil {
+		d.mcp.Close()
+	}
 	if d.http != nil {
 		_ = d.http.Shutdown(ctx)
 	}
@@ -382,6 +398,12 @@ func (d *Daemon) isOurServer(ctx context.Context, s domain.Server) bool {
 
 func (d *Daemon) revokeOwner(ctx context.Context, owner string) {
 	d.proxy.RevokeSession(owner)
+	if d.gateway != nil {
+		d.gateway.RevokeOwner(owner)
+	}
+	if d.mcp != nil {
+		d.mcp.StopGroup(owner)
+	}
 	if d.opts.Grants != nil {
 		_ = d.opts.Grants.RevokeOwner(ctx, owner, time.Now())
 	}
