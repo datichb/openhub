@@ -122,6 +122,7 @@ func buildHelpSections() []helpSection {
 						{"runtime", "", i18n.T("cmd.run.flags.runtime")},
 						{"location", "", i18n.T("cmd.run.flags.location")},
 						{"recap", "", i18n.T("cmd.run.flags.recap")},
+						{"agent", "a", i18n.T("cmd.run.flags.agent")},
 					},
 				},
 				{Name: "workflow list", Desc: i18n.T("cmd.workflow.list.short")},
@@ -151,8 +152,6 @@ func buildHelpSections() []helpSection {
 						{"refresh", "", i18n.T("help.flag.start.refresh")},
 						{"parallel", "", i18n.T("help.flag.start.parallel")},
 						{"tickets", "", i18n.T("help.flag.start.tickets")},
-						{"max-sessions", "", i18n.T("help.flag.start.max_sessions")},
-						{"priority", "", i18n.T("help.flag.start.priority")},
 					},
 				},
 				{
@@ -247,31 +246,6 @@ func buildHelpSections() []helpSection {
 			},
 		},
 		{
-			Title: i18n.T("help.section.deploy"),
-			Commands: []helpCommand{
-				{
-					Name: "deploy",
-					Desc: i18n.T("cmd.deploy.short"),
-					Flags: []helpFlag{
-						{"project", "p", i18n.T("help.flag.start.project")},
-						{"provider", "P", i18n.T("help.flag.start.provider")},
-						{"model", "m", i18n.T("help.flag.deploy.model")},
-						{"check", "", i18n.T("help.flag.deploy.check")},
-						{"diff", "", i18n.T("help.flag.deploy.diff")},
-					},
-				},
-				{
-					Name: "sync",
-					Desc: i18n.T("cmd.sync.short"),
-					Flags: []helpFlag{
-						{"project", "p", i18n.T("help.flag.start.project")},
-						{"all", "", i18n.T("help.flag.sync.all")},
-						{"dry-run", "", i18n.T("help.flag.sync.dryrun")},
-					},
-				},
-			},
-		},
-		{
 			Title: i18n.T("help.section.mcp"),
 			Commands: []helpCommand{
 				{
@@ -353,16 +327,6 @@ func buildHelpSections() []helpSection {
 						{"project", "p", i18n.T("help.flag.start.project")},
 					},
 				},
-				{Name: "plugin list", Desc: i18n.T("cmd.plugin.list.short")},
-				{Name: "plugin install", Desc: i18n.T("cmd.plugin.install.short")},
-				{
-					Name: "plugin remove",
-					Desc: i18n.T("cmd.plugin.remove.short"),
-					Flags: []helpFlag{
-						{"force", "f", i18n.T("help.flag.force")},
-					},
-				},
-				{Name: "plugin status", Desc: i18n.T("cmd.plugin.status.short")},
 			},
 		},
 		{
@@ -481,7 +445,15 @@ func buildHelpSections() []helpSection {
 						{"include-opencode", "", i18n.T("cmd.purge.flags.include_opencode")},
 					},
 				},
-				{Name: "upgrade opencode", Desc: i18n.T("cmd.upgrade.short")},
+				{Name: "upgrade oh", Desc: i18n.T("cmd.upgrade.short")},
+				{
+					Name: "migrate deploy-cleanup",
+					Desc: i18n.T("cmd.migrate.cleanup.short"),
+					Flags: []helpFlag{
+						{"dry-run", "", i18n.T("cmd.migrate.cleanup.flags.dry_run")},
+						{"yes", "y", i18n.T("cmd.migrate.cleanup.flags.yes")},
+					},
+				},
 				{Name: "version", Desc: i18n.T("cmd.version.short")},
 				{Name: "completion", Desc: i18n.T("cmd.completion.short")},
 			},

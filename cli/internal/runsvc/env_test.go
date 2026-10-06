@@ -12,6 +12,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/adapters"
 	"github.com/datichb/openhub/cli/internal/domain"
+	"github.com/datichb/openhub/cli/internal/sessionspec"
 	"github.com/datichb/openhub/cli/internal/storage/sqlite"
 )
 
@@ -121,4 +122,17 @@ func TestBeadsAllowKeptForResumes(t *testing.T) {
 
 func TestGatewayURL(t *testing.T) {
 	assert.Equal(t, "http://host.docker.internal:4242/oh-gateway", gatewayURL("http://host.docker.internal:4242/amazon-bedrock"))
+}
+
+func TestWithMachineShellEnv(t *testing.T) {
+	t.Setenv("PATH", "/opt/tools/bin:/usr/bin")
+	t.Setenv("AWS_SECRET_ACCESS_KEY", "secret")
+	env := withMachineShellEnv(sessionspec.RuntimeLocal, map[string]string{"FOO": "bar", "HOME": "/custom"})
+	assert.Equal(t, "/opt/tools/bin:/usr/bin", env["PATH"])
+	assert.Equal(t, "/custom", env["HOME"], "static variables win")
+	assert.Equal(t, "bar", env["FOO"])
+	assert.NotContains(t, env, "AWS_SECRET_ACCESS_KEY")
+
+	static := map[string]string{"FOO": "bar"}
+	assert.Equal(t, static, withMachineShellEnv(sessionspec.RuntimeContainer, static), "container: machine PATH is meaningless inside")
 }

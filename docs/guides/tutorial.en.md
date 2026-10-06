@@ -8,7 +8,7 @@ This hands-on tutorial walks you through installing OpenHub, configuring your fi
 - Install the `oh` CLI
 - Configure an LLM provider (Anthropic or Bedrock)
 - Register a project
-- Deploy agents and skills
+- Inspect the session bundle (agents and skills)
 - Launch your first AI session
 
 **Time required:** ~5 minutes.
@@ -156,35 +156,21 @@ Hub initialized at ~/.oh/
   oh.db .............. project registry
   hub/ ............... agents & skills (extracted from binary)
 
-Run 'oh deploy' in your project directory to get started.
+Run 'oh run <workflow>' in your project directory to get started.
 ```
 
 ---
 
-## Step 3 -- Deploy Agents & Skills
+## Step 3 -- Inspect the Session Bundle (optional)
 
-Navigate to your project and deploy:
+There is nothing to deploy anymore (`oh deploy` removed in v5): each session starts from a session bundle built at launch, outside the project (`~/.oh/bundles/<hash>/`), from its workflow. To see what a `feature` session will receive:
 
 ```bash
 cd ~/workspace/my-app
-oh deploy
+oh bundle show feature
 ```
 
-Expected output:
-
-```
-Deploying to my-app...
-
-  Phase 1/5  Agents .............. 19 agents deployed
-  Phase 2/5  Skills .............. 47 skills assembled
-  Phase 3/5  Configuration ....... opencode.json written
-  Phase 4/5  Agent config ........ models resolved (sonnet-4-6)
-  Phase 5/5  MCP servers ......... 2 servers configured
-
-Deployed to .opencode/ (0.3s)
-```
-
-This creates a `.opencode/` directory in your project containing the agent definitions, skill protocols, and configuration.
+The command lists the workflow's agents (Bucket A skills inlined), the on-demand skills, the permissions and the MCP servers. No file is written into your project.
 
 ---
 
@@ -238,7 +224,7 @@ You now have a working OpenHub setup. Here are your next steps:
 
 ```
 oh init                 # first-time setup wizard
-oh deploy               # deploy agents/skills to current project
+oh bundle show <workflow> # inspect the session bundle of a workflow
 oh start                # launch AI session (quick launch)
 oh start --recap        # launch AI session (with recap + confirmation)
 oh start --dev          # dev mode: pick tickets to implement

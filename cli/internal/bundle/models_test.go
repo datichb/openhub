@@ -6,16 +6,16 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/datichb/openhub/cli/internal/deploy"
+	"github.com/datichb/openhub/cli/internal/bricks"
 	"github.com/datichb/openhub/cli/internal/workflow"
 )
 
 func TestResolveModelCascade(t *testing.T) {
 	full := Request{
-		WorkflowModels:   &deploy.ModelOverrides{Default: "wf", Agents: map[string]string{"dev": "wf-agent"}},
-		ProjectOverrides: &deploy.ModelOverrides{Default: "proj", Families: map[string]string{"developer": "proj-family"}, Agents: map[string]string{"dev": "proj-agent"}},
-		HubOverrides:     &deploy.ModelOverrides{Default: "hub", Families: map[string]string{"developer": "hub-family"}, Agents: map[string]string{"dev": "hub-agent"}},
-		TeamOverrides:    &deploy.ModelOverrides{Default: "team", Families: map[string]string{"developer": "team-family"}, Agents: map[string]string{"dev": "team-agent"}},
+		WorkflowModels:   &bricks.ModelOverrides{Default: "wf", Agents: map[string]string{"dev": "wf-agent"}},
+		ProjectOverrides: &bricks.ModelOverrides{Default: "proj", Families: map[string]string{"developer": "proj-family"}, Agents: map[string]string{"dev": "proj-agent"}},
+		HubOverrides:     &bricks.ModelOverrides{Default: "hub", Families: map[string]string{"developer": "hub-family"}, Agents: map[string]string{"dev": "hub-agent"}},
+		TeamOverrides:    &bricks.ModelOverrides{Default: "team", Families: map[string]string{"developer": "team-family"}, Agents: map[string]string{"dev": "team-agent"}},
 	}
 	// Each step removes the winning level and checks the next one wins.
 	steps := []struct {
@@ -45,8 +45,8 @@ func TestResolveModelCascade(t *testing.T) {
 
 func TestResolveModelWorkflowLevelOtherAgent(t *testing.T) {
 	req := Request{
-		WorkflowModels: &deploy.ModelOverrides{Agents: map[string]string{"reviewer": "wf-agent"}},
-		HubOverrides:   &deploy.ModelOverrides{Default: "hub"},
+		WorkflowModels: &bricks.ModelOverrides{Agents: map[string]string{"reviewer": "wf-agent"}},
+		HubOverrides:   &bricks.ModelOverrides{Default: "hub"},
 	}
 	assert.Equal(t, "wf-agent", req.ResolveModel("reviewer", "", ""))
 	assert.Equal(t, "hub", req.ResolveModel("developer", "", ""), "no workflow default: lower levels apply")
@@ -79,12 +79,12 @@ func TestWorkflowModels(t *testing.T) {
 
 func TestBuildAppliesWorkflowModels(t *testing.T) {
 	b, err := Build(Request{
-		HubDir: repoHub(t), OutDir: t.TempDir(), EntryAgent: "orchestrator-dev", Provider: "bedrock",
+		HubDir: repoHub(t), OutDir: t.TempDir(), Spec: agentSpec(t, repoHub(t), "orchestrator-dev"), Provider: "bedrock",
 		WorkflowModels: WorkflowModels(&workflow.Models{
 			Default: "claude-haiku-4-5",
 			Agents:  map[string]string{"reviewer": "claude-opus-4-6"},
 		}),
-		ProjectOverrides: &deploy.ModelOverrides{Agents: map[string]string{"developer": "claude-sonnet-4-5"}},
+		ProjectOverrides: &bricks.ModelOverrides{Agents: map[string]string{"developer": "claude-sonnet-4-5"}},
 	})
 	require.NoError(t, err)
 	dev := findAgent(b.Spec.Agents, "developer")

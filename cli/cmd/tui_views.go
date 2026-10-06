@@ -4,10 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io/fs"
 	"log/slog"
 	"os/exec"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -15,7 +13,6 @@ import (
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/beads"
 	"github.com/datichb/openhub/cli/internal/config"
-	"github.com/datichb/openhub/cli/internal/deploy"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/mcpresolve"
@@ -25,7 +22,6 @@ import (
 	"github.com/datichb/openhub/cli/internal/tracker"
 	"github.com/datichb/openhub/cli/internal/tui/v2/shell"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
-	"github.com/datichb/openhub/cli/internal/workflow"
 )
 
 // domainProjectToViewItem converts a domain.Project to a views.ProjectItem.
@@ -51,7 +47,6 @@ func domainProjectToViewItem(p domain.Project) views.ProjectItem {
 		Language:     p.Language,
 		Provider:     p.Provider,
 		Model:        p.Model,
-		Agents:       p.Agents,
 		Status:       string(p.Status),
 		MCPOverrides: mcpOverrides,
 	}
@@ -84,7 +79,6 @@ func buildViews(a *app.App, notifStore *shell.NotificationStore) []views.View {
 
 	projectsView := views.NewProjectsView(views.ProjectsViewConfig{
 		Projects:         projectItems,
-		AvailableAgents:  discoverAgents(),
 		KnownMCPServices: []string{"figma", "gitlab", "gslides"},
 		RefreshFunc: func() []views.ProjectItem {
 			return loadProjectItems(a.Projects)
@@ -123,7 +117,6 @@ func buildViews(a *app.App, notifStore *shell.NotificationStore) []views.View {
 			project.Language = cfg.Language
 			project.Provider = cfg.Provider
 			project.Model = cfg.Model
-			project.Agents = cfg.Agents
 			project.UpdatedAt = time.Now()
 
 			// Persist per-project MCP overrides
@@ -211,51 +204,7 @@ func buildViews(a *app.App, notifStore *shell.NotificationStore) []views.View {
 				tuiShell.SetProjectMode(nil)
 			}
 		},
-		OnDeploy: func(_ string) {
-			actionDeploy()
-		},
-		OnViewDiff: func(_ string) {
-			actionViewDiff()
-		},
-		CheckDeployStatus: func(projectPath string) *views.DeployStatusResult {
-			state := deploy.ReadDeployState(projectPath)
-			if state == nil {
-				return &views.DeployStatusResult{Deployed: false}
-			}
-			t, _ := time.Parse(time.RFC3339, state.DeployedAt)
-			return &views.DeployStatusResult{
-				Deployed:   true,
-				DeployedAt: t,
-				HubDir:     state.HubDir,
-			}
-		},
-		ComputeDeployDiff: func(projectPath string) (*views.DeployDiffResult, error) {
-			hubDir := findHubDir()
-			if hubDir == "" {
-				return nil, errors.New(i18n.T("tui.views.hub_content_not_found"))
-			}
-			project, err := resolveActiveProject(a)
-			if err != nil {
-				return nil, err
-			}
-			report, err := deploy.ComputeDiff(context.Background(), hubDir, project.Path, project.Agents, resolveWorkflowGeneratedSkills(a, project))
-			if err != nil {
-				return nil, err
-			}
-			added, modified, removed, _ := report.Summary()
-			changeCount := added + modified + removed
-			summary := i18n.Tf("tui.views.deploy_diff_summary", added, modified, removed)
-
-			// Check for optional MCP integrations not enabled
-			mcpInfo := collectMissingMCPInfo(a, project)
-
-			return &views.DeployDiffResult{
-				HasChanges:     report.HasChanges(),
-				ChangeCount:    changeCount,
-				Summary:        summary,
-				MissingMCPInfo: mcpInfo,
-			}, nil
-		},
+		ToolLine: tuiToolLine,
 	})
 
 	allViews := []views.View{
@@ -293,12 +242,6 @@ func buildViews(a *app.App, notifStore *shell.NotificationStore) []views.View {
 				entries := make([]views.ProjectEntry, 0, len(projects))
 				for _, p := range projects {
 					entry := views.ProjectEntry{ID: p.ID, Name: p.Name, Path: p.Path}
-					// Lightweight deploy age from .deploy-state (~1ms per project)
-					if state := deploy.ReadDeployState(p.Path); state != nil {
-						if t, err := time.Parse(time.RFC3339, state.DeployedAt); err == nil {
-							entry.DeployAge = formatDeployAgeFromTime(t)
-						}
-					}
 					entries = append(entries, entry)
 				}
 				return entries
@@ -401,9 +344,7 @@ func buildViews(a *app.App, notifStore *shell.NotificationStore) []views.View {
 		views.NewTeamStatusView(makeResolveTeamFunc(a)),
 		views.NewActivityView(makeResolveTeamFunc(a)),
 		views.NewWorktreeView(a, views.WorktreeViewConfig{
-			DeployProject: func(projectPath string) error {
-				return runDeployForProject(a, &domain.Project{Path: projectPath})
-			},
+			OpenSession: func(path string) { openLaunchForm(a, tuiLaunchRequest{WorkflowID: "libre", Location: path}) },
 		}),
 		views.NewStatusView(a),
 		views.NewMetricsView(views.MetricsViewConfig{
@@ -506,7 +447,6 @@ func buildViews(a *app.App, notifStore *shell.NotificationStore) []views.View {
 				return nil
 			},
 		}),
-		views.NewPluginsView(),
 		views.NewHelpView(),
 		views.NewNotificationsView(views.NotificationsViewConfig{
 			FilePath:  shell.NotificationsFilePath(),
@@ -516,17 +456,6 @@ func buildViews(a *app.App, notifStore *shell.NotificationStore) []views.View {
 
 	// Inject team resolution into project mode view (must be after projectModeView is created).
 	projectModeView.SetResolveTeam(makeResolveTeamFunc(a))
-
-	// Wire post-deploy refresh so the project mode badge updates after a deploy/sync.
-	onDeployComplete = func() {
-		go func() {
-			if tuiShell != nil && tuiShell.App() != nil {
-				tuiShell.App().QueueUpdateDraw(func() {
-					projectModeView.RefreshDeployStatus()
-				})
-			}
-		}()
-	}
 
 	// Team views — always registered; views handle "not configured" gracefully.
 	takeoverView := views.NewTakeoverView(makeResolveTeamFunc(a))
@@ -725,19 +654,8 @@ func buildViews(a *app.App, notifStore *shell.NotificationStore) []views.View {
 			SaveProject: func(ctx context.Context, p *domain.Project) error {
 				return a.Projects.Update(ctx, p)
 			},
-			Deploy: func(ctx context.Context, p *domain.Project) error {
-				return runDeployForProject(a, p)
-			},
 			ExecHints:   projectExecHints,
 			WorkflowIDs: tuiWorkflowIDs,
-			AllAgents: func() []string {
-				return []string{
-					"auditor", "auditor-subagent", "debugger", "designer",
-					"developer", "developer-migrator", "developer-refactor",
-					"documentarian", "onboarder", "orchestrator", "orchestrator-dev",
-					"pathfinder", "planner", "reviewer",
-				}
-			},
 		}),
 		// Project sub-pages
 		views.NewProjectMCPView(views.ProjectMCPViewConfig{
@@ -806,27 +724,7 @@ func buildViews(a *app.App, notifStore *shell.NotificationStore) []views.View {
 				}
 			},
 		}),
-		views.NewProjectAgentsView(views.ProjectAgentsViewConfig{
-			GetProject: func() *domain.Project {
-				p, _ := resolveActiveProject(a)
-				if p == nil {
-					return nil
-				}
-				cp := *p
-				return &cp
-			},
-			SaveProject: func(ctx context.Context, p *domain.Project) error {
-				return a.Projects.Update(ctx, p)
-			},
-			AllAgents: func() []string {
-				return []string{
-					"auditor", "auditor-subagent", "debugger", "designer",
-					"developer", "developer-migrator", "developer-refactor",
-					"documentarian", "onboarder", "orchestrator", "orchestrator-dev",
-					"pathfinder", "planner", "reviewer",
-				}
-			},
-		}),
+		newBricksView(a),
 		views.NewProjectModelsView(views.ProjectModelsViewConfig{
 			GetProject: func() *domain.Project {
 				p, _ := resolveActiveProject(a)
@@ -838,41 +736,6 @@ func buildViews(a *app.App, notifStore *shell.NotificationStore) []views.View {
 			},
 			SaveProject: func(ctx context.Context, p *domain.Project) error {
 				return a.Projects.Update(ctx, p)
-			},
-		}),
-		// Workflow view (scope-aware: adapts to current shell mode)
-		views.NewWorkflowView(views.WorkflowViewConfig{
-			Level: func() string {
-				if tuiShell == nil {
-					return "hub"
-				}
-				switch tuiShell.Mode() {
-				case views.ModeTeam:
-					return "team"
-				case views.ModeProject:
-					return "project"
-				default:
-					return "hub"
-				}
-			},
-			// The former overrides were migrated to team-state workflows
-			// (v5 phase 2, migration v38): this view (replaced by the workflow
-			// catalogue and editor, lot 2.D) shows the base workflow, read-only.
-			GetWorkflow: func() (*workflow.WorkflowDefinition, error) {
-				def := workflow.BaseWorkflow()
-				return &def, nil
-			},
-			GetOverrides: func() (*workflow.WorkflowOverride, error) { return nil, nil },
-			SaveOverrides: func(*workflow.WorkflowOverride) error {
-				return errors.New(i18n.T("teamstate.workflow.migrate.legacy_view"))
-			},
-			IsLocked: func() bool { return true },
-			Deploy: func() error {
-				p, err := resolveActiveProject(a)
-				if err != nil || p == nil {
-					return errors.New(i18n.T("tui.views.no_active_project_deploy"))
-				}
-				return runDeployForProject(a, p)
 			},
 		}),
 		// Secrets view
@@ -953,63 +816,6 @@ func hubMCPServerConfig(cfg *config.Config, service string) config.MCPServerConf
 	}
 }
 
-// collectMissingMCPInfo builds a short human-readable summary of agent MCP
-// integrations that are not enabled. Returns "" if all integrations are satisfied.
-func collectMissingMCPInfo(a *app.App, project *domain.Project) string {
-	hubDir := findHubDir()
-	if hubDir == "" {
-		return ""
-	}
-	agentsDir := filepath.Join(hubDir, "agents")
-
-	// Resolve which MCP servers are enabled
-	mcpServers := buildMCPServersForProject(a, project.MCPConfig, resolvedTeamConfig(a, project))
-	var enabled []string
-	for _, s := range mcpServers {
-		if s.Enabled {
-			enabled = append(enabled, s.Name)
-		}
-	}
-	if len(enabled) == 0 {
-		return "" // no MCP servers at all — skip the check
-	}
-
-	// Walk agents and collect missing integrations
-	allowSet := make(map[string]bool, len(project.Agents))
-	for _, ag := range project.Agents {
-		allowSet[ag] = true
-	}
-
-	var agents []string
-	seen := make(map[string]bool)
-	_ = filepath.WalkDir(agentsDir, func(path string, d fs.DirEntry, err error) error {
-		if err != nil || d.IsDir() || filepath.Ext(path) != ".md" {
-			return err
-		}
-		name := strings.TrimSuffix(d.Name(), ".md")
-		if len(allowSet) > 0 && !allowSet[name] {
-			return nil
-		}
-		fm, err := deploy.ParseAgentFrontmatter(path)
-		if err != nil || len(fm.MCPServers) == 0 {
-			return nil //nolint:nilerr // agents with unparseable frontmatter are silently skipped
-		}
-		missing := deploy.CollectMissingMCPIntegrations(fm.ID, fm.MCPServers, enabled)
-		for _, m := range missing {
-			if !seen[m.AgentID] {
-				seen[m.AgentID] = true
-				agents = append(agents, m.AgentID)
-			}
-		}
-		return nil
-	})
-
-	if len(agents) == 0 {
-		return ""
-	}
-	return i18n.Tf("tui.views.mcp_optional", len(agents), strings.Join(agents, ", "))
-}
-
 // resolveGitBranch returns the current git branch for a project path.
 // Returns "" on any error (not a git repo, git not found, etc.).
 func resolveGitBranch(projectPath string) string {
@@ -1023,4 +829,16 @@ func resolveGitBranch(projectPath string) string {
 		return ""
 	}
 	return strings.TrimSpace(string(out))
+}
+
+// tuiToolLine is the session tool line of the project mode header (cached
+// version, detected when the TUI starts: no process on the event loop).
+func tuiToolLine() string {
+	if v, _ := v5Ver.Load().(string); v != "" {
+		return "opencode " + v + " · opencode-v2"
+	}
+	if v5Err != nil {
+		return i18n.T("cmd.v1.unsupported.doctor_name") + " ✗"
+	}
+	return ""
 }

@@ -16,61 +16,26 @@ import (
 	"github.com/datichb/openhub/cli/internal/gitlabapi"
 	"github.com/datichb/openhub/cli/internal/gitutil"
 	"github.com/datichb/openhub/cli/internal/i18n"
-	"github.com/datichb/openhub/cli/internal/launcher"
 	"github.com/datichb/openhub/cli/internal/notify"
 	"github.com/datichb/openhub/cli/internal/teamstate"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
 
-// runAgentSession is a shared helper for commands that resolve a project
-// then launch opencode with a specific agent and prompt via the unified launcher.
-func runAgentSession(agent, prompt, titleLabel string, cmd *cobra.Command) error {
-	a := MustApp()
-	ctx := cmd.Context()
-	projectID, _ := cmd.Flags().GetString("project")
-	project, err := resolveProject(ctx, a, projectID)
-	if err != nil {
-		return err
-	}
-
-	// Ensure opencode is installed
-	if err := ensureOpencode(a); err != nil {
-		return err
-	}
-
-	fmt.Fprintf(a.IO.Out, "%s %s sur %s\n",
-		theme.Title.Render("oh "+titleLabel), theme.Bold.Render(agent), project.Name)
-
-	l := launcher.New(a, launcher.NewCLIUI(a.IO.Out))
-	return l.Launch(ctx, launcher.LaunchOpts{
-		ProjectID:   project.ID,
-		ProjectPath: project.Path,
-		Agent:       agent,
-		Prompt:      prompt,
-		SkipSummary: true,
-		SkipConfirm: true,
-		SkipDeploy:  false, // let the launcher auto-deploy
-		DeployFunc: func(a *app.App, prov string) {
-			autoDeployIfNeeded(a, project, findHubDir(), prov, "", true)
-		},
-	})
-}
-
 // agentCommandAlias runs `oh audit|review|debug` as their workflow (O15):
 // flags become inputs when the workflow declares them, text goes to its
 // first free text input.
-func agentCommandAlias(cmd *cobra.Command, old, workflowID string, inputs map[string]string, text string) (bool, error) {
+func agentCommandAlias(cmd *cobra.Command, old, workflowID string, inputs map[string]string, text string) error {
 	ctx := cmd.Context()
-	if !aliasAvailable(ctx, workflowID) {
-		return false, nil
+	if err := requireV2(ctx); err != nil {
+		return err
 	}
 	a := MustApp()
 	projectID, _ := cmd.Flags().GetString("project")
 	project, err := resolveProject(ctx, a, projectID)
 	if err != nil {
-		return true, err
+		return err
 	}
-	return true, runAlias(cmd, workflowAlias{Old: old, Workflow: workflowID,
+	return runAlias(cmd, workflowAlias{Old: old, Workflow: workflowID,
 		Opts: runOptions{Project: project, LooseInputs: inputs, Text: text}})
 }
 
@@ -101,16 +66,11 @@ Types d'audit disponibles :
 			"privacy":       "vie privée (RGPD, données personnelles, consentement, rétention)",
 		}
 
-		description, ok := validTypes[auditType]
-		if !ok {
+		if _, ok := validTypes[auditType]; !ok {
 			return fmt.Errorf("%s", i18n.Tf("cmd.audit.invalid_type", auditType))
 		}
 
-		if handled, err := agentCommandAlias(cmd, "oh audit", "audit", map[string]string{"type": auditType}, ""); handled {
-			return err
-		}
-		prompt := i18n.Tf("cmd.audit.prompt", auditType, description)
-		return runAgentSession("auditor", prompt, "audit", cmd)
+		return agentCommandAlias(cmd, "oh audit", "audit", map[string]string{"type": auditType}, "")
 	},
 }
 
@@ -135,56 +95,12 @@ Sans flag --mode, un menu interactif est affiché.`,
 
 		mode, _ := cmd.Flags().GetString("mode")
 		reviewBranch, _ := cmd.Flags().GetString("branch")
-		if handled, err := agentCommandAlias(cmd, "oh review", "review", map[string]string{"review_mode": mode, "branch": reviewBranch}, ""); handled {
-			return err
-		}
-
-		// If no mode specified, the reviewer-standalone skill will handle the
-		// interactive prompt via the question tool inside the opencode session.
-		// If a mode IS specified, inject it as a tag in the prompt.
-		var prompt string
 		switch mode {
-		case "":
-			prompt = i18n.T("cmd.review.prompt")
-		case "standard":
-			prompt = "[MODE:standard] " + i18n.T("cmd.review.prompt")
-		case "adversarial":
-			prompt = "[MODE:adversarial] " + i18n.T("cmd.review.prompt")
-		case "edge-case":
-			prompt = "[MODE:edge-case] " + i18n.T("cmd.review.prompt")
-		case "standard+adversarial":
-			prompt = "[MODE:standard+adversarial] " + i18n.T("cmd.review.prompt")
-		case "all":
-			prompt = "[MODE:all] " + i18n.T("cmd.review.prompt")
+		case "", "standard", "adversarial", "edge-case", "standard+adversarial", "all":
 		default:
 			return fmt.Errorf("mode invalide %q — modes disponibles : standard, adversarial, edge-case, standard+adversarial, all", mode)
 		}
-
-		// Branch resolution: explicit flag > fallback to current feature branch
-		branch, _ := cmd.Flags().GetString("branch")
-		if branch == "" {
-			projectID, _ := cmd.Flags().GetString("project")
-			project, err := resolveProject(cmd.Context(), MustApp(), projectID)
-			if err == nil {
-				detected := getPublishBranch(project.Path)
-				if detected != "" && !isMainBranch(detected) {
-					branch = detected
-				}
-			}
-		}
-		if branch != "" {
-			projectID, _ := cmd.Flags().GetString("project")
-			project, err := resolveProject(cmd.Context(), MustApp(), projectID)
-			baseBranch := "main"
-			if err == nil {
-				if detected := getBaseBranch(project.Path, branch); detected != "" {
-					baseBranch = detected
-				}
-			}
-			prompt = fmt.Sprintf("[BRANCH:%s] [BASE:%s] %s", branch, baseBranch, prompt)
-		}
-
-		return runAgentSession("reviewer", prompt, "review", cmd)
+		return agentCommandAlias(cmd, "oh review", "review", map[string]string{"review_mode": mode, "branch": reviewBranch}, "")
 	},
 }
 
@@ -194,14 +110,7 @@ var debugCmd = &cobra.Command{
 	Long:  "Lance une session opencode avec l'agent debugger.",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		issue, _ := cmd.Flags().GetString("issue")
-		if handled, err := agentCommandAlias(cmd, "oh debug", "debug", map[string]string{"issue": issue}, issue); handled {
-			return err
-		}
-		prompt := i18n.T("cmd.debug.prompt_default")
-		if issue != "" {
-			prompt = i18n.Tf("cmd.debug.prompt", issue)
-		}
-		return runAgentSession("debugger", prompt, "debug", cmd)
+		return agentCommandAlias(cmd, "oh debug", "debug", map[string]string{"issue": issue}, issue)
 	},
 }
 
@@ -380,26 +289,6 @@ func getPublishBranch(dir string) string {
 		return ""
 	}
 	return strings.TrimSpace(string(out))
-}
-
-// getBaseBranch returns the most likely trunk branch that the feature branch was forked from.
-// It tries common trunk names in order and returns the first one that is an ancestor of HEAD.
-func getBaseBranch(dir, feature string) string {
-	for _, trunk := range []string{"main", "master", "develop", "development"} {
-		// Check if the trunk branch exists locally
-		check := exec.Command("git", "rev-parse", "--verify", trunk)
-		check.Dir = dir
-		if check.Run() != nil {
-			continue
-		}
-		// Check if merge-base can be computed (trunk is an ancestor path)
-		mb := exec.Command("git", "merge-base", trunk, feature)
-		mb.Dir = dir
-		if out, err := mb.Output(); err == nil && strings.TrimSpace(string(out)) != "" {
-			return trunk
-		}
-	}
-	return "" // caller falls back to "main"
 }
 
 // isMainBranch returns true if the branch is a trunk branch (not a feature branch).

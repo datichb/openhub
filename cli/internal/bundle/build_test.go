@@ -10,8 +10,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/datichb/openhub/cli/internal/deploy"
+	"github.com/datichb/openhub/cli/internal/bricks"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
+	"github.com/datichb/openhub/cli/internal/workflow"
+	"github.com/datichb/openhub/cli/internal/workflow/hubcat"
 )
 
 // repoHub returns the repository root, which has the hub layout (agents/, skills/, permissions/).
@@ -30,7 +32,7 @@ func TestBuildOrchestratorDevBundle(t *testing.T) {
 	project := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(project, "CONVENTIONS.md"), []byte("Always write tests.\n"), 0o644))
 
-	b, err := Build(Request{HubDir: repoHub(t), OutDir: out, ProjectPath: project, EntryAgent: "orchestrator-dev", Provider: "bedrock"})
+	b, err := Build(Request{HubDir: repoHub(t), OutDir: out, ProjectPath: project, Spec: agentSpec(t, repoHub(t), "orchestrator-dev"), Provider: "bedrock"})
 	require.NoError(t, err)
 	s := b.Spec
 
@@ -75,7 +77,7 @@ func TestBuildOrchestratorDevBundle(t *testing.T) {
 	assert.Equal(t, dev.Body, string(data))
 
 	// Idempotent: same inputs → same hash and directory.
-	again, err := Build(Request{HubDir: repoHub(t), OutDir: out, ProjectPath: project, EntryAgent: "orchestrator-dev", Provider: "bedrock"})
+	again, err := Build(Request{HubDir: repoHub(t), OutDir: out, ProjectPath: project, Spec: agentSpec(t, repoHub(t), "orchestrator-dev"), Provider: "bedrock"})
 	require.NoError(t, err)
 	assert.Equal(t, s.Hash, again.Spec.Hash)
 	entries, _ := os.ReadDir(out)
@@ -87,13 +89,13 @@ func TestBuildOrchestratorDevBundle(t *testing.T) {
 
 	// Changing the project instructions changes the bundle.
 	require.NoError(t, os.WriteFile(filepath.Join(project, "CONVENTIONS.md"), []byte("Other rule.\n"), 0o644))
-	changed, err := Build(Request{HubDir: repoHub(t), OutDir: out, ProjectPath: project, EntryAgent: "orchestrator-dev", Provider: "bedrock"})
+	changed, err := Build(Request{HubDir: repoHub(t), OutDir: out, ProjectPath: project, Spec: agentSpec(t, repoHub(t), "orchestrator-dev"), Provider: "bedrock"})
 	require.NoError(t, err)
 	assert.NotEqual(t, s.Hash, changed.Spec.Hash)
 }
 
 func TestBuildOrchestratorDepth(t *testing.T) {
-	b, err := Build(Request{HubDir: repoHub(t), OutDir: t.TempDir(), EntryAgent: "orchestrator", Provider: "bedrock"})
+	b, err := Build(Request{HubDir: repoHub(t), OutDir: t.TempDir(), Spec: agentSpec(t, repoHub(t), "orchestrator"), Provider: "bedrock"})
 	require.NoError(t, err)
 	assert.Contains(t, b.Spec.AgentIDs(), "orchestrator-dev")
 	assert.Contains(t, b.Spec.AgentIDs(), "developer")
@@ -103,15 +105,10 @@ func TestBuildOrchestratorDepth(t *testing.T) {
 func TestBuildErrors(t *testing.T) {
 	_, err := Build(Request{})
 	assert.Error(t, err)
-	_, err = Build(Request{HubDir: repoHub(t), OutDir: t.TempDir(), EntryAgent: "nope"})
-	assert.ErrorContains(t, err, "unknown entry agent")
-}
-
-func TestGraphHelpers(t *testing.T) {
-	g := map[string][]string{"a": {"b", "c"}, "b": {"d"}, "d": {"a"}, "x": {"y"}}
-	assert.Equal(t, []string{"a", "b", "c", "d"}, reachable("a", g))
-	assert.Equal(t, 2, maxDepth("a", g))
-	assert.Equal(t, 1, maxDepth("c", g))
+	_, err = Build(Request{HubDir: repoHub(t), OutDir: t.TempDir(), Spec: &workflow.Spec{ID: "t", Entry: &workflow.Entry{Agent: "nope"}}})
+	assert.Error(t, err, "unknown entry agent")
+	_, err = Build(Request{HubDir: repoHub(t), OutDir: t.TempDir(), EntryAgent: "developer"})
+	assert.ErrorContains(t, err, "workflow (Spec) is required")
 }
 
 func TestConvertPermissions(t *testing.T) {
@@ -131,8 +128,8 @@ func TestConvertPermissions(t *testing.T) {
 
 func TestBuildResolvesModels(t *testing.T) {
 	b, err := Build(Request{
-		HubDir: repoHub(t), OutDir: t.TempDir(), EntryAgent: "orchestrator-dev", Provider: "bedrock",
-		HubOverrides: &deploy.ModelOverrides{Default: "claude-sonnet-4-5", Agents: map[string]string{"reviewer": "claude-opus-4-6"}},
+		HubDir: repoHub(t), OutDir: t.TempDir(), Spec: agentSpec(t, repoHub(t), "orchestrator-dev"), Provider: "bedrock",
+		HubOverrides: &bricks.ModelOverrides{Default: "claude-sonnet-4-5", Agents: map[string]string{"reviewer": "claude-opus-4-6"}},
 	})
 	require.NoError(t, err)
 	dev := findAgent(b.Spec.Agents, "developer")
@@ -163,9 +160,22 @@ func TestConvertPermissionsMergedKeysAreRestrictive(t *testing.T) {
 
 // An entry agent without a model still gets a session model (never the tool's own default).
 func TestBuildEntryWithoutModelGetsFallback(t *testing.T) {
-	b, err := Build(Request{HubDir: repoHub(t), OutDir: t.TempDir(), EntryAgent: "developer", Provider: "bedrock"})
+	b, err := Build(Request{HubDir: repoHub(t), OutDir: t.TempDir(), Spec: agentSpec(t, repoHub(t), "developer"), Provider: "bedrock"})
 	require.NoError(t, err)
 	require.NotNil(t, b.Spec.DefaultModel)
 	assert.Equal(t, "amazon-bedrock", b.Spec.DefaultModel.Provider)
 	assert.Contains(t, b.Spec.DefaultModel.Model, "claude-sonnet-4-6")
+}
+
+// agentSpec is the workflow of a free session on entry (workflow `libre`:
+// the entry agent and the agents it may call, transitively), for the tests
+// that build a bundle from one agent.
+func agentSpec(t *testing.T, hub, entry string) *workflow.Spec {
+	t.Helper()
+	cat, err := hubcat.New(hub)
+	require.NoError(t, err)
+	r := &workflow.Resolved{Spec: &workflow.Spec{APIVersion: workflow.APIVersionV1, Kind: workflow.KindWorkflow, ID: "test-" + entry,
+		Entry: &workflow.Entry{Agent: entry, Selectable: true}}}
+	require.Empty(t, r.SelectEntry(entry, cat))
+	return r.Spec
 }

@@ -3,115 +3,29 @@ package cmd
 import (
 	"context"
 	"errors"
-	"fmt"
-	"log/slog"
 	"os"
 	"os/exec"
 	"os/signal"
 	"path/filepath"
 	"strings"
-	"sync"
 	"time"
 
-	"github.com/datichb/openhub/cli/internal/adapters/opencodev2"
+	"github.com/datichb/openhub/cli/internal/mcp/team"
+
 	"github.com/datichb/openhub/cli/internal/app"
+	"github.com/datichb/openhub/cli/internal/bricks"
 	"github.com/datichb/openhub/cli/internal/bundle"
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/daemon"
-	"github.com/datichb/openhub/cli/internal/deploy"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/hubcontent"
-	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/launcher"
 	"github.com/datichb/openhub/cli/internal/provider"
 	"github.com/datichb/openhub/cli/internal/runsvc"
 	workflowsvc "github.com/datichb/openhub/cli/internal/services/workflow"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 	"github.com/datichb/openhub/cli/internal/termlaunch"
-	"github.com/datichb/openhub/cli/internal/workflow"
 )
-
-func init() {
-	launcher.V5Launch = v5Launch
-}
-
-var (
-	v5Once    sync.Once
-	v5Adapter *opencodev2.Adapter
-	v5Err     error
-)
-
-// v5Available reports whether the v5 runtime can be used (opencode V2
-// installed). OH_V5=0 forces the legacy pipeline.
-func v5Available(ctx context.Context) bool {
-	if os.Getenv("OH_V5") == "0" {
-		return false
-	}
-	v5Once.Do(func() {
-		v5Adapter, v5Err = detectV2Adapter(ctx)
-		if v5Err == nil && v5Adapter != nil {
-			v5Ver.Store(v5Adapter.Ver)
-		}
-	})
-	if v5Err != nil {
-		slog.Debug("v5 runtime unavailable, using legacy launch", "reason", v5Err)
-	}
-	return v5Err == nil
-}
-
-// v5Launch runs a session on the v5 runtime: compile the session bundle,
-// start (or join) the tool server through the oh daemon, create the session
-// and open its client in a new terminal tab/window.
-func v5Launch(ctx context.Context, a *app.App, ui launcher.LaunchUI, opts launcher.LaunchOpts) (bool, error) {
-	if !v5Available(ctx) {
-		return false, nil
-	}
-	if opts.ProjectID == "" || a.Projects == nil {
-		return false, nil
-	}
-	project, err := a.Projects.Get(ctx, opts.ProjectID)
-	if err != nil {
-		return true, fmt.Errorf("loading project: %w", err)
-	}
-	location := opts.ProjectPath
-	if location == "" {
-		location = project.Path
-	}
-	entry := opts.Agent
-	if entry == "" {
-		entry = "orchestrator"
-	}
-
-	req := v5Request(a, project, opts.Provider)
-	ui.Notify(i18n.Tf("cmd.v5.preparing", entry), launcher.LevelInfo)
-	b, err := buildSessionBundle(a, project, config.ResolveTeamForProject(a.Config, project), entry, req.Provider)
-	if err != nil {
-		return true, fmt.Errorf("building session bundle: %w", err)
-	}
-
-	if !opts.SkipConfirm {
-		r := bundle.Show(b)
-		ok, err := ui.Confirm(i18n.Tf("cmd.v5.recap_confirm", entry, project.Name, location, len(r.Agents), len(r.Skills), r.Budget.Initial))
-		if err != nil || !ok {
-			return true, err
-		}
-	}
-	svc, err := newRunService(ctx, a)
-	if err != nil {
-		return true, err
-	}
-	req.Location, req.Bundle, req.EntryAgent = location, b, entry
-	req.Title, req.Prompt, req.WorkflowID = sessionTitle(project, entry), opts.Prompt, entry
-	res, err := svc.StartSession(ctx, req)
-	if err != nil {
-		return true, budgetError(err)
-	}
-	for _, w := range res.Report.Warnings {
-		ui.Notify(i18n.Tf("cmd.v5.isolation_warning", w), launcher.LevelWarning)
-	}
-
-	return true, afterStart(ctx, a, svc, ui, req.Attach, res, true)
-}
 
 // v5Request returns the provider, team and attach settings of a project
 // session (bundle, location and prompt are set by the caller).
@@ -211,18 +125,6 @@ func runAttachChild(ctx context.Context, a *app.App, svc *runsvc.Service, sessio
 	return c.Run()
 }
 
-// buildSessionBundle compiles the phase 0 bundle for an entry agent.
-func buildSessionBundle(a *app.App, project *domain.Project, team config.ResolvedTeamConfig, entry, prov string) (*bundle.Bundle, error) {
-	wf, err := deploy.ResolveAndPrepareWorkflow(workflow.BaseWorkflow(), collectWorkflowOverrides(a, project, team)...)
-	if err != nil {
-		slog.Warn("workflow resolution failed, using base workflow", "error", err)
-		wf, _ = deploy.ResolveAndPrepareWorkflow(workflow.BaseWorkflow())
-	}
-	req := sessionBundleRequest(a, project, team, prov)
-	req.EntryAgent, req.Workflow = entry, wf
-	return bundle.Build(req)
-}
-
 // buildWorkflowBundle compiles the bundle of a resolved oh/v1 workflow: its
 // agents and delegation graph, generated chain skills, `models:` (workflow
 // level of the cascade), `skills:`, `isolation:`, `plugins:`, `code_mode:`
@@ -301,12 +203,12 @@ func sessionBundleRequest(a *app.App, project *domain.Project, team config.Resol
 func ohBundlesDir() string { return filepath.Join(config.HubDir(), "bundles") }
 
 // modelOverridesFor returns the hub and project model cascade levels.
-func modelOverridesFor(a *app.App, project *domain.Project) (hub, proj *deploy.ModelOverrides) {
+func modelOverridesFor(a *app.App, project *domain.Project) (hub, proj *bricks.ModelOverrides) {
 	if a.Config.Models.Default != "" || len(a.Config.Models.Families) > 0 || len(a.Config.Models.Agents) > 0 {
-		hub = &deploy.ModelOverrides{Default: a.Config.Models.Default, Families: a.Config.Models.Families, Agents: a.Config.Models.Agents}
+		hub = &bricks.ModelOverrides{Default: a.Config.Models.Default, Families: a.Config.Models.Families, Agents: a.Config.Models.Agents}
 	}
 	if project != nil && (project.Model != "" || project.ModelOverrides != nil) {
-		proj = &deploy.ModelOverrides{Default: project.Model}
+		proj = &bricks.ModelOverrides{Default: project.Model}
 		if project.ModelOverrides != nil {
 			proj.Families, proj.Agents = project.ModelOverrides.Families, project.ModelOverrides.Agents
 		}
@@ -316,14 +218,14 @@ func modelOverridesFor(a *app.App, project *domain.Project) (hub, proj *deploy.M
 
 // sessionMCP converts the project MCP cascade into bundle MCP servers
 // (`oh mcp serve <name>` reads its token from the host secret store).
-func sessionMCP(a *app.App, project *domain.Project, team config.ResolvedTeamConfig) []sessionspec.MCPServerDef {
+func sessionMCP(a *app.App, project *domain.Project, teamCfg config.ResolvedTeamConfig) []sessionspec.MCPServerDef {
 	exe, err := os.Executable()
 	if err != nil {
 		exe = "oh"
 	}
 	var out []sessionspec.MCPServerDef
-	for _, s := range buildMCPServersForProject(a, project.MCPConfig, team) {
-		if !s.Enabled || !deploy.MCPServerUsable(s) {
+	for _, s := range buildMCPServersForProject(a, project.MCPConfig, teamCfg) {
+		if !s.Enabled || !bricks.MCPServerUsable(s) {
 			continue
 		}
 		cmd := []string{exe, "mcp", "serve", s.Name}
@@ -339,6 +241,11 @@ func sessionMCP(a *app.App, project *domain.Project, team config.ResolvedTeamCon
 		}
 		for k, v := range s.Environment {
 			env[k] = v
+		}
+		if s.Name == "team" {
+			// The team server reads the team of the session project from its
+			// environment (P3-T29; formerly .opencode/team.json of `oh deploy`).
+			env[team.EnvTeamID], env[team.EnvProjectID] = teamCfg.TeamID, project.ID
 		}
 		def := sessionspec.MCPServerDef{Name: s.Name, Type: "local", Command: cmd}
 		if len(env) > 0 {

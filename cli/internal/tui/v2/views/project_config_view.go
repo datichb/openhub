@@ -3,7 +3,6 @@ package views
 import (
 	"context"
 	"fmt"
-	"sort"
 	"time"
 
 	"github.com/gdamore/tcell/v2"
@@ -22,10 +21,6 @@ type ProjectConfigViewConfig struct {
 	GetProject func() *domain.Project
 	// SaveProject persists the modified project to the DB.
 	SaveProject func(ctx context.Context, p *domain.Project) error
-	// Deploy re-deploys the project (updates opencode.json).
-	Deploy func(ctx context.Context, p *domain.Project) error
-	// AllAgents returns the list of all available agent IDs.
-	AllAgents func() []string
 	// ResolveMCPSource returns the resolution source for an MCP field.
 	// Returns (effectiveValue, sourceAnnotation, isLocked).
 	// If nil, no resolution annotations are shown.
@@ -251,7 +246,7 @@ func (v *ProjectConfigView) buildFields() {
 			Set:         func(val string) { v.live.Status = domain.ProjectStatus(val) }},
 		{Key: "models", Kind: CfgFieldLink, Label: i18n.T("tui.config.link.models"), LinkTarget: "project.models",
 			Get: func() string { return "" }},
-		{Key: "agents", Kind: CfgFieldLink, Label: i18n.T("tui.config.link.agents"), LinkTarget: "project.agents",
+		{Key: "bricks", Kind: CfgFieldLink, Label: i18n.T("tui.bricks.link"), LinkTarget: "project.agents",
 			Get: func() string { return "" }},
 
 		// ── Team ────────────────────────────────────────────────────────────
@@ -345,7 +340,7 @@ func (v *ProjectConfigView) buildFields() {
 		// ── Links ───────────────────────────────────────────────────────────
 		{Key: "mcp_services", Kind: CfgFieldLink, Label: i18n.T("tui.config.link.mcp"), LinkTarget: "project.mcp",
 			Get: func() string { return "" }},
-		{Key: "workflow", Kind: CfgFieldLink, Label: i18n.T("tui.config.link.workflow"), LinkTarget: "workflow",
+		{Key: "workflow", Kind: CfgFieldLink, Label: i18n.T("tui.config.link.workflow"), LinkTarget: "workflows",
 			Get: func() string { return "" }},
 	}...)
 }
@@ -448,12 +443,6 @@ func (v *ProjectConfigView) onItemSelected(_ int, item widgets.SectionItem) {
 		return
 	}
 
-	// Agent editing is custom
-	if f.Kind == CfgFieldAgents {
-		v.editAgents()
-		return
-	}
-
 	v.pushUndo()
 	editConfigField(v.shell, f, func() {
 		v.scheduleAutoSave()
@@ -487,56 +476,6 @@ func (v *ProjectConfigView) onToggleSelected() {
 	toggleConfigField(f)
 	v.scheduleAutoSave()
 	v.renderFields()
-}
-
-func (v *ProjectConfigView) editAgents() {
-	if v.shell == nil {
-		return
-	}
-	allAgents := v.cfg.AllAgents()
-	if len(allAgents) == 0 {
-		v.shell.ShowToastMsg(i18n.T("tui.project.no_agents_available"), false)
-		return
-	}
-	sort.Strings(allAgents)
-
-	currentSet := make(map[string]bool)
-	for _, a := range v.live.Agents {
-		currentSet[a] = true
-	}
-
-	opts := make([]SelectOption, len(allAgents))
-	for i, a := range allAgents {
-		var label string
-		if currentSet[a] {
-			label = "✓ " + a
-		} else {
-			label = "  " + a
-		}
-		opts[i] = SelectOption{Label: label, Value: a}
-	}
-
-	v.shell.ShowSelectModal(i18n.T("tui.project.agents_select"), opts, "", func(chosen string) {
-		if chosen == "" {
-			return
-		}
-		v.pushUndo()
-		if currentSet[chosen] {
-			newAgents := make([]string, 0, len(v.live.Agents))
-			for _, a := range v.live.Agents {
-				if a != chosen {
-					newAgents = append(newAgents, a)
-				}
-			}
-			v.live.Agents = newAgents
-		} else {
-			v.live.Agents = append(v.live.Agents, chosen)
-			sort.Strings(v.live.Agents)
-		}
-		v.scheduleAutoSave()
-		v.renderFields()
-		v.editAgents() // Re-open for multi-toggle
-	})
 }
 
 func (v *ProjectConfigView) pushUndo() {

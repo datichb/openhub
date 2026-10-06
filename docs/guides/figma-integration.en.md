@@ -51,17 +51,13 @@ Follow conventions in [`config/figma.conventions.md`](../../config/figma.convent
 - **Tags**: `#feature-xxx`, `#ready-dev`, `#wip`
 - **Pages**: Cover, Flows, UI Design, States, Dev Notes
 
-### 4. Deploy
+### 4. Launch a session
 
 ```bash
-<<<<<<< Updated upstream
-oh deploy -p MY-PROJECT
-=======
-oc deploy opencode MY-PROJECT
->>>>>>> Stashed changes
+oh run <workflow> -p MY-PROJECT
 ```
 
-The Figma MCP Server will be deployed automatically with the agents.
+No deploy step (`oh deploy` removed in v5): the Figma MCP Server, once enabled (`oh mcp enable|setup`), is put in the session bundle automatically at launch.
 
 ---
 

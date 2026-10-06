@@ -6,37 +6,19 @@ Le serveur MCP `team` expose les données de collaboration d'équipe aux agents 
 
 ## Activation
 
-Le serveur MCP team est déployé automatiquement lorsque les fonctionnalités d'équipe sont **activées pour le projet** en cours de déploiement. L'activation est résolue en deux couches :
-
-1. **`.opencode/team.json`** (primaire) — écrit par `oh deploy` avec la configuration entièrement résolue pour ce projet. Présent quand team est activé ; absent quand désactivé.
-2. **Section `[team]` de `hub.toml`** (fallback) — utilisé pour la rétrocompatibilité sur les projets pas encore redéployés après l'introduction de la configuration team par projet.
-
-Aucun token n'est requis — le serveur lit depuis le clone local de team-state.
-
-### Cascade de résolution
-
-```
-Project mode (stored in SQLite)
-  ├── "inherit"  → use hub.toml [team] config as-is
-  ├── "custom"   → use project-specific state_repo / member_id
-  └── "disabled" → team.json not written, MCP server not injected
-```
-
-Voir [Guide de configuration Team — Configuration par projet](../guides/team-setup.en.md#4b-per-project-team-configuration) pour savoir comment configurer le mode par projet.
+Le serveur MCP team fait partie du paquet de session quand les fonctionnalités d'équipe sont **activées pour le projet** de la session (équipe du projet, sinon équipe active ; jamais pour un espace solo). oh le déclare dans le paquet avec, dans son environnement, l'équipe et le projet de la session :
 
 ```json
-// Injected into opencode.json by oh deploy (when team is enabled for the project)
-{
-  "mcpServers": {
-    "team": {
-      "command": "oh",
-      "args": ["mcp", "serve", "team"]
-    }
-  }
+"team": {
+  "type": "local",
+  "command": ["oh", "mcp", "serve", "team"],
+  "environment": { "OH_TEAM_ID": "core", "OH_PROJECT_ID": "web-1a2b" }
 }
 ```
 
-Au runtime, le processus du serveur MCP lit `.opencode/team.json` depuis le **répertoire de travail courant** (la racine du projet). Si ce fichier est absent, il se rabat sur la lecture directe de `hub.toml`.
+Au démarrage, le serveur lit l'équipe `OH_TEAM_ID` dans `hub.toml` (`[[teams]]`) ; sans cette variable (serveur lancé hors d'une session), il prend l'équipe active. Aucun token n'est requis : le serveur lit le clone local du team-state.
+
+> v5 : l'ancien fichier `.opencode/team.json` écrit par `oh deploy` n'est plus lu (`oh migrate deploy-cleanup` le supprime).
 
 ## Outils
 

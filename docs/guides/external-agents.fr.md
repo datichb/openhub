@@ -2,6 +2,8 @@
 
 # Guide — Agents externes par projet
 
+> **Supprimé en v5.** Ce guide décrit le comportement de `oh deploy` (supprimé en v5). Depuis la v5, rien n'est déployé dans le projet : chaque session démarre d'un paquet de session construit au lancement à partir de son workflow, en monde fermé — les agents d'une session sont ceux de son workflow, et les agents de `<projet>/.opencode/agents/` ne sont pas intégrés. Pour utiliser un agent personnalisé, l'installer dans le hub et le référencer dans un workflow (voir [Workflows](./workflows.fr.md)). Les anciens déploiements se nettoient avec `oh migrate deploy-cleanup`. La suite de cette page est conservée pour l'historique.
+
 Ce guide explique comment intégrer des agents existants dans un projet cible avec le hub openhub, sans les écraser ni les migrer.
 
 ---
@@ -16,7 +18,7 @@ Ce guide explique comment intégrer des agents existants dans un projet cible av
 
 ## Comment ça marche
 
-Lors d'un `oh deploy PROJECT_ID`, le hub détecte automatiquement les agents dans `.opencode/agents/` qui ne lui appartiennent pas. Il vous propose alors de choisir comment les intégrer :
+Lors d'un `oh deploy PROJECT_ID` (supprimé en v5), le hub détecte automatiquement les agents dans `.opencode/agents/` qui ne lui appartiennent pas. Il vous propose alors de choisir comment les intégrer :
 
 ```
 ── Agents existants détectés dans le projet
@@ -50,7 +52,7 @@ Votre choix est **persisté** dans `projects.md` sous le champ `External agents`
 ### Automatique au deploy
 
 ```bash
-oh deploy MON-PROJET
+oh deploy MON-PROJET   # supprimé en v5
 ```
 
 Si des agents non-hub sont trouvés dans `.opencode/agents/` et pas encore configurés → prompt interactif.
@@ -84,7 +86,7 @@ mon-app/
 ### Étape 1 — Premier deploy
 
 ```bash
-oh deploy MON-APP
+oh deploy MON-APP   # supprimé en v5
 ```
 
 Le hub détecte `planner.md` (similaire à l'agent hub `planner`) et `feature-reviewer.md` (aucun équivalent) :
@@ -134,7 +136,7 @@ mon-app/.opencode/agents/
 ### Étape 4 — Deploys suivants
 
 ```bash
-oh deploy MON-APP   # plus de prompt, les choix sont mémorisés
+oh deploy MON-APP   # supprimé en v5 — plus de prompt, les choix sont mémorisés
 ```
 
 ---

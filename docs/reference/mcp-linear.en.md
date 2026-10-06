@@ -4,10 +4,10 @@
 
 ## Activation
 
-The Linear MCP server is deployed automatically when `[linear].enabled = true` in `hub.toml`.
+The Linear MCP server is put in the session bundle automatically at launch when `[linear].enabled = true` in `hub.toml`.
 
 ```json
-// Injected into opencode.json by oh deploy
+// Declared in the session bundle at launch
 {
   "mcpServers": {
     "linear": {

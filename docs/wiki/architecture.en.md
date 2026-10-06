@@ -4,7 +4,7 @@ title: Architecture Overview
 confidence: CONFIRMED
 sources:
   - cli/cmd/root.go
-  - cli/internal/deploy/deploy.go
+  - cli/internal/bundle/build.go
   - docs/architecture/system-overview.en.md
 last_updated: 2026-10-02
 ---
@@ -23,10 +23,10 @@ openhub (`oh`) is a single Go binary that manages AI coding assistants across pr
 |  Hub Mode | Project Mode | Team Mode         |
 +---------------------------------------------+
 |              CLI Commands (Cobra)            |
-|  init | start | deploy | review | team | ... |
+|  init | run | bundle | team | ...           |
 +---------------------------------------------+
 |              Core Services                   |
-|  Config | Deploy | MCP | Platform | Storage  |
+|  Config | Bundle | MCP | Platform | Storage  |
 +---------------------------------------------+
 ```
 
@@ -36,7 +36,7 @@ openhub (`oh`) is a single Go binary that manages AI coding assistants across pr
 |---------|---------------|
 | `cmd/` | Cobra command definitions (CLI entry points) |
 | `internal/config/` | Hub configuration (`hub.toml`, TOML + Viper) |
-| `internal/deploy/` | Transactional deployment engine (agents -> opencode.json) |
+| `internal/bundle/` | Session bundle builder (workflow -> `~/.oh/bundles/<hash>/`) |
 | `internal/mcp/` | 7 built-in MCP servers (Figma, GitLab, GitHub, Jira, Linear, GSlides, Team) |
 | `internal/opencode/` | OpenCode integration (sessions, platform abstraction) |
 | `internal/parallel/` | Parallel session coordination (worktrees, recovery, merge) |
@@ -49,7 +49,7 @@ openhub (`oh`) is a single Go binary that manages AI coding assistants across pr
 
 ## Embedded Content
 
-Agents, skills, and permissions are compiled into the binary via `go:embed` (`internal/hubcontent/`). The `oh deploy` command extracts and transforms them into `opencode.json` format for the target project.
+Agents, skills, and permissions are compiled into the binary via `go:embed` (`internal/hubcontent/`). At each launch, `internal/bundle` builds from them, outside the project, the session bundle of the workflow (`~/.oh/bundles/<hash>/`: agents with inlined Bucket A skills, on-demand skills, permissions, MCP, plugin); the adapter renders the opencode config from it (`oh deploy` removed in v5).
 
 ## MCP Architecture
 

@@ -19,7 +19,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/datichb/openhub/cli/internal/deploy"
+	"github.com/datichb/openhub/cli/internal/bricks"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 	"github.com/datichb/openhub/cli/internal/workflow"
 )
@@ -31,16 +31,13 @@ type Request struct {
 	ProjectPath string // for stack skills and project instructions (may be empty)
 	EntryAgent  string
 
-	// Workflow is the resolved hub workflow (graph + generated skills). Nil = base workflow.
-	Workflow *deploy.WorkflowDeployResult
-
 	// Model resolution (cascade levels, nil = none) and hub provider name ("bedrock"…).
 	// WorkflowModels is the workflow level (O9), see WorkflowModels().
 	Provider         string
-	WorkflowModels   *deploy.ModelOverrides
-	ProjectOverrides *deploy.ModelOverrides
-	HubOverrides     *deploy.ModelOverrides
-	TeamOverrides    *deploy.ModelOverrides
+	WorkflowModels   *bricks.ModelOverrides
+	ProjectOverrides *bricks.ModelOverrides
+	HubOverrides     *bricks.ModelOverrides
+	TeamOverrides    *bricks.ModelOverrides
 
 	// ExtraSkills / DenySkills apply the workflow `skills:` block (refs or
 	// identifiers for DenySkills). Requirements of extra skills are added.
@@ -56,7 +53,7 @@ type Request struct {
 	// oh); set from Spec when it requires strict isolation.
 	StrictIsolation bool
 
-	// Spec is the resolved oh/v1 workflow. When set, it selects the agents
+	// Spec is the resolved oh/v1 workflow (required). It selects the agents
 	// and the delegation graph (P1-T06), generates the chain skills (P1-T11)
 	// and fills EntryAgent, WorkflowModels, ExtraSkills, DenySkills and
 	// Plugins when they are not set; its `code_mode` sets CodeMode (P1-T15).
@@ -78,29 +75,21 @@ const (
 // Build compiles the bundle. It is idempotent: identical inputs produce the
 // same hash and reuse the existing directory.
 func Build(req Request) (*Bundle, error) {
-	if req.Spec != nil {
-		if err := req.applySpec(); err != nil {
-			return nil, err
-		}
+	if req.Spec == nil {
+		return nil, fmt.Errorf("bundle: a workflow (Spec) is required")
+	}
+	if err := req.applySpec(); err != nil {
+		return nil, err
 	}
 	if req.HubDir == "" || req.OutDir == "" || req.EntryAgent == "" {
 		return nil, fmt.Errorf("bundle: HubDir, OutDir and EntryAgent are required")
 	}
-	wf := req.Workflow
-	if wf == nil && req.Spec == nil {
-		var err error
-		if wf, err = deploy.ResolveAndPrepareWorkflow(workflow.BaseWorkflow()); err != nil {
-			return nil, err
-		}
-	}
-	if req.Spec != nil {
-		var err error
-		if wf, err = specWorkflow(req.HubDir, req.Spec); err != nil {
-			return nil, err
-		}
+	generated, err := specSkills(req.HubDir, req.Spec)
+	if err != nil {
+		return nil, err
 	}
 
-	files, err := deploy.FindAgentFiles(req.HubDir)
+	files, err := bricks.FindAgentFiles(req.HubDir)
 	if err != nil {
 		return nil, fmt.Errorf("listing hub agents: %w", err)
 	}
@@ -108,7 +97,7 @@ func Build(req Request) (*Bundle, error) {
 		return nil, fmt.Errorf("bundle: unknown entry agent %q", req.EntryAgent)
 	}
 
-	graph, selected, err := selectAgents(req, &wf.Resolved, files)
+	graph, selected, err := selectAgents(req, files)
 	if err != nil {
 		return nil, err
 	}
@@ -145,12 +134,11 @@ func Build(req Request) (*Bundle, error) {
 	}
 
 	skillRefs := map[string]bool{}
-	loader := newSkillLoader(req.HubDir, wf.GeneratedSkills)
+	loader := newSkillLoader(req.HubDir, generated)
 	denied := denyList(req.DenySkills)
 	ids := skillIndex{}
-	slots := slotIndex(&wf.Resolved)
 	for _, id := range selected {
-		fm, err := deploy.ParseAgentFrontmatter(files[id])
+		fm, err := bricks.ParseAgentFrontmatter(files[id])
 		if err != nil {
 			return nil, err
 		}
@@ -172,11 +160,11 @@ func Build(req Request) (*Bundle, error) {
 			}
 			bodies = append(bodies, inlineAnnexRefs(d.body(), d, files))
 		}
-		a, err := deploy.AssembleAgentInline(req.HubDir, files[id], bodies)
+		a, err := bricks.AssembleAgentInline(req.HubDir, files[id], bodies)
 		if err != nil {
 			return nil, err
 		}
-		def, err := agentDef(req, a, slots[id], instructions)
+		def, err := agentDef(req, a, instructions)
 		if err != nil {
 			return nil, err
 		}
@@ -192,7 +180,7 @@ func Build(req Request) (*Bundle, error) {
 		}
 	}
 	if req.ProjectPath != "" {
-		for _, ref := range deploy.ResolveStackSkills(req.ProjectPath) {
+		for _, ref := range bricks.ResolveStackSkills(req.ProjectPath) {
 			skillRefs[ref] = true
 		}
 	}
@@ -281,7 +269,7 @@ func Load(outDir, hash string) (*Bundle, error) {
 	return &Bundle{Spec: spec, Dir: dir}, nil
 }
 
-func agentDef(req Request, a *deploy.AssembledAgent, slot *workflow.AgentSlot, instructions string) (sessionspec.AgentDef, error) {
+func agentDef(req Request, a *bricks.AssembledAgent, instructions string) (sessionspec.AgentDef, error) {
 	fm := a.Frontmatter
 	def := sessionspec.AgentDef{
 		ID:          fm.ID,
@@ -291,13 +279,6 @@ func agentDef(req Request, a *deploy.AssembledAgent, slot *workflow.AgentSlot, i
 	}
 	if def.ID == "" {
 		def.ID = strings.TrimSuffix(filepath.Base(a.Path), ".md")
-	}
-	if slot != nil {
-		if slot.Mode == workflow.ModeSubagent {
-			def.Mode = "subagent"
-		} else if slot.Mode != "" {
-			def.Mode = "primary"
-		}
 	}
 	if def.Mode == "" {
 		def.Mode = "primary"
@@ -310,7 +291,7 @@ func agentDef(req Request, a *deploy.AssembledAgent, slot *workflow.AgentSlot, i
 		def.Model = req.modelRef(m)
 	}
 
-	perms, err := deploy.ResolvePermissions(req.HubDir, fm)
+	perms, err := bricks.ResolvePermissions(req.HubDir, fm)
 	if err != nil {
 		slog.Warn("bundle: permission base resolution failed, using inline permissions", "agent", fm.ID, "error", err)
 		perms = fm.Permission
@@ -332,14 +313,6 @@ func findAgent(agents []sessionspec.AgentDef, id string) *sessionspec.AgentDef {
 	return nil
 }
 
-func slotIndex(wf *workflow.WorkflowDefinition) map[string]*workflow.AgentSlot {
-	out := map[string]*workflow.AgentSlot{}
-	for i := range wf.Agents {
-		out[wf.Agents[i].AgentID] = &wf.Agents[i]
-	}
-	return out
-}
-
 // readInstructions concatenates the project instruction files (ONBOARDING.md,
 // CONVENTIONS.md, .claude/CLAUDE.md + configured extras). opencode V2 ignores
 // the `instructions` config key, so they are embedded in every agent body.
@@ -348,7 +321,7 @@ func readInstructions(projectPath string, extra []string) (string, error) {
 		return "", nil
 	}
 	var b strings.Builder
-	for _, rel := range deploy.InstructionFiles(projectPath, extra) {
+	for _, rel := range bricks.InstructionFiles(projectPath, extra) {
 		data, err := os.ReadFile(filepath.Join(projectPath, rel))
 		if err != nil {
 			return "", fmt.Errorf("reading instruction file %s: %w", rel, err)

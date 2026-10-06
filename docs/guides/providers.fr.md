@@ -85,10 +85,10 @@ Ordre de resolution du bearer token :
 
 ### Anthropic / OpenAI / OpenRouter
 
-Definir votre cle API dans le bloc provider du `opencode.json` du projet (injecte par `oh deploy`) :
+Le bloc provider est genere dans le paquet de session au lancement (`oh deploy` supprime en v5) :
 
 ```bash
-oh deploy -p my-project --provider anthropic
+oh run <workflow> -p my-project --provider anthropic
 ```
 
 Ou configurer via des variables d'environnement lues directement par opencode.
@@ -145,9 +145,9 @@ Les tokens sont lus par les serveurs MCP au runtime via des variables d'environn
 - Derivation de cle : Argon2id (t=3, memory=64Mo, threads=4)
 - Passphrase : variable d'env `OH_PASSPHRASE` ou saisie interactive (min 8 caracteres)
 
-## Flux de deploiement
+## Flux de lancement
 
-Quand vous lancez `oh deploy`, la configuration du fournisseur est ecrite dans le `opencode.json` du projet :
+A chaque lancement (`oh run <workflow>`), la configuration du fournisseur est ecrite dans le paquet de session (`~/.oh/bundles/<hash>/`), pas dans le projet :
 
 ```json
 {
@@ -160,7 +160,7 @@ Quand vous lancez `oh deploy`, la configuration du fournisseur est ecrite dans l
 }
 ```
 
-Le moteur de deploiement lit votre fournisseur et modele configures, puis genere le bloc provider correspondant.
+La construction du paquet lit votre fournisseur et modele configures, puis genere le bloc provider correspondant.
 
 ## Changer de fournisseur
 
@@ -172,8 +172,7 @@ oh start --provider anthropic
 oh config set opencode.default_provider anthropic
 
 # Definitivement (un projet)
-oh project configure my-project --provider github-copilot
-oh deploy -p my-project   # re-deployer pour appliquer
+oh project configure my-project --provider github-copilot   # pris en compte au prochain lancement
 ```
 
 ## Verifier la configuration
@@ -198,6 +197,6 @@ oh config list             # affiche toute la config hub dont le fournisseur
 |----------|----------|
 | "Token not configured" | Lancer `oh mcp setup` |
 | Fournisseur non reconnu | Verifier l'orthographe : bedrock, anthropic, openrouter, github-copilot |
-| Mauvais modele | Utiliser `oh project configure --model <nom>` puis `oh deploy` |
+| Mauvais modele | Utiliser `oh project configure --model <nom>` ; pris en compte au prochain lancement (paquet reconstruit) |
 | Acces keychain refuse | Autoriser le terminal dans Preferences Systeme > Confidentialite |
 | Erreurs du store fallback | Verifier `OH_PASSPHRASE` ou ressaisir quand demande |

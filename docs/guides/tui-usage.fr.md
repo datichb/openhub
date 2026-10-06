@@ -26,7 +26,7 @@ L'omnibar supporte le fuzzy matching -- tapez des mots partiels, abreviations ou
 
 ```
 > secu        → lance un audit securite
-> dep         → deploie sur le projet actif
+> brick       → ouvre le catalogue des briques
 > doc         → ouvre le diagnostic doctor
 > tst         → statut equipe
 ```
@@ -72,9 +72,8 @@ Quand une session demarre, le TUI se suspend et opencode prend le relais. Quand 
 | `projects` | Liste des projets | Tous les projets enregistres avec statut |
 | `project add` | Wizard | Ajouter un nouveau projet (wizard complet 8 etapes) |
 | `board` | Kanban | Board de tickets du projet (necessite bd) |
-| `deploy` | - | Deployer agents/skills dans le projet courant |
-| `sync` | - | Synchroniser agents/skills sur tous les projets |
-| `project-config` | Config projet | Parametres par projet (provider, modele, MCP, agents) |
+| `bricks` | Catalogue des briques | Agents et skills (origine hub/équipe, coût estimé, workflows qui les utilisent), lecture seule |
+| `project-config` | Config projet | Parametres par projet (provider, modele, MCP, execution) |
 
 Dans la vue **Projets** :
 - `a` pour ajouter un nouveau projet
@@ -115,7 +114,6 @@ Dans la vue **Projets** :
 | `status` | Statut systeme | Vue d'ensemble sante du hub et du projet |
 | `doctor` | Diagnostics | Lancer les checks de sante (`r` pour relancer) |
 | `metrics` | Metriques agents | Stats d'usage, cout et duree par agent |
-| `plugins` | Gestionnaire plugins | Lister/installer/supprimer des plugins |
 | `notifications` | Notifications | Evenements de notification recents |
 | `worktrees` | Gestionnaire worktrees | Lister, ajouter, supprimer des Git worktrees |
 | `upgrade` | - | Mettre a jour oh ou opencode |
@@ -135,7 +133,7 @@ Dans la vue **Projets** :
 Le TUI propose trois modes de navigation qui filtrent les commandes omnibar et adaptent la page Home au contexte actif :
 
 - **Hub** (defaut) : vue d'ensemble de tous les projets et equipes. Auto-selectionne si plusieurs projets/equipes sont configures.
-- **Projet** (`Ctrl+T` ou selection depuis Home) : focalise sur un projet. L'omnibar est filtree aux commandes projet (sessions, board, deploy, config projet).
+- **Projet** (`Ctrl+T` ou selection depuis Home) : focalise sur un projet. L'omnibar est filtree aux commandes projet (sessions, board, config projet).
 - **Equipe** (`Ctrl+T` ou selection depuis Home) : focalise sur une equipe. L'omnibar est filtree aux commandes equipe (team board, status, policies).
 
 **Auto-detection** : si un seul projet est configure → mode Projet ; si une seule equipe → mode Equipe ; sinon → Hub.

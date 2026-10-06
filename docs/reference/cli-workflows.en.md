@@ -25,7 +25,8 @@ Launches a workflow: layer resolution and validation, session bundle, session pl
 - **Without interface** (`--headless [--output <file>] [--timeout 30m]`): no window is opened; oh waits for the end of the turn, writes the answer (standard output or file, one file per session: `<file>.<ticket>`) then stops the session. Refused when a checkpoint waits for a validation in the chosen mode. A session asking for a decision (permission, question) stays open: `oh session inbox`, `oh session approve`. `oh takeover-brief enrich` goes through `oh run brief-enrich --headless`.
 - Two simultaneous launches in the same directory are refused ("launch in progress").
 - **Draft** (`--draft`): runs the version being edited (your draft, team or project layer) instead of the published one. Refused on a remote runtime and when the draft **widens** the published version (risk, checkpoints, runtimes, Beads, budget…): publish it to apply these changes. See [Team workflows](../guides/team-workflows.en.md).
-- Requires opencode V2.
+- **Entry agent** (`--agent`, `-a`): for a workflow with a selectable entry (`libre`), the starting agent; the members are this agent and those it may call. Refused on other workflows.
+- Requires opencode V2 (minimum version in `oh doctor`).
 
 ## oh workflow list
 

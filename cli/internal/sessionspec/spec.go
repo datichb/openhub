@@ -1,6 +1,6 @@
 // Package sessionspec defines the tool-agnostic model of an agentic session:
 // what to run (bundle), where (location, runtime), with which provider and
-// session-scoped rules. Adapters translate it to a concrete tool (opencode V1/V2…).
+// session-scoped rules. Adapters translate it to a concrete tool (opencode V2 today).
 //
 // This package has no dependency on any tool implementation.
 package sessionspec

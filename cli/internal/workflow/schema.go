@@ -161,6 +161,12 @@ type Spec struct {
 type Entry struct {
 	// Agent defaults to the generic "conductor" when empty.
 	Agent string `yaml:"agent,omitempty"`
+	// Selectable lets the session choose another entry agent of the brick
+	// catalogue (SessionOptions.EntryAgent, `oh run <wf> --agent <id>`):
+	// the workflow then holds that agent and the agents it may delegate to,
+	// transitively (free session, workflow `libre`); its `agents:` are
+	// computed that way, from the default entry agent too.
+	Selectable bool `yaml:"selectable,omitempty"`
 }
 
 // Input is a launch input; its key in Spec.Inputs is the variable name used

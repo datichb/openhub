@@ -8,11 +8,11 @@ OpenHub (`oh`) is a central hub that manages AI coding assistants across your pr
 
 ```mermaid
 flowchart LR
-    U[You] -->|oh start| CLI[oh CLI]
+    U[You] -->|oh run| CLI[oh CLI]
     CLI -->|configures| OC[OpenCode Runtime]
     OC -->|calls| LLM[LLM Provider<br/>Anthropic / Bedrock / OpenRouter]
-    CLI -.->|deploys| P1[Project A<br/>.opencode/]
-    CLI -.->|deploys| P2[Project B<br/>.opencode/]
+    CLI -.->|builds at launch| B[Session bundle<br/>~/.oh/bundles/hash/]
+    B -.->|agents, skills,<br/>permissions, MCP| OC
     HUB[(~/.oh/<br/>Hub Config)] -->|agents, skills,<br/>config| CLI
     MCP[MCP Servers<br/>GitLab, Figma, Jira...] <-->|tools| OC
 ```
@@ -21,7 +21,7 @@ flowchart LR
 - **Hub** (`~/.oh/`) -- central configuration and agent/skill store
 - **Agent** -- a specialized AI role (orchestrator, developer, reviewer, etc.)
 - **Skill** -- a protocol document giving domain expertise to an agent
-- **Deploy** -- copying agents and skills from the hub to a project's `.opencode/` directory
+- **Session bundle** -- agents, skills, permissions and MCP of a session, built at launch from its workflow outside the project (`~/.oh/bundles/<hash>/`); replaces deploy (removed in v5)
 - **MCP Server** -- external tool integration (GitLab, Figma, Jira, etc.)
 
 > **New here?** Start with the [5-minute tutorial](tutorial.en.md) for a hands-on walkthrough.
@@ -103,22 +103,18 @@ Or non-interactively:
 oh project add --name my-app --path ~/workspace/my-app --language typescript --tracker github
 ```
 
-## Deploy Agents & Skills
+## Session Bundle
 
-Deploy the shared agents, skills, and configuration into a project:
+Nothing is deployed into the project anymore (`oh deploy` / `oh sync` removed in v5). Each session starts from a session bundle built at launch outside the project (`~/.oh/bundles/<hash>/`) from its workflow: agents, skills, permissions, MCP servers, provider and model. To inspect it:
 
 ```bash
-oh deploy                    # auto-detect project from cwd
-oh deploy -p my-project      # explicit project
-oh deploy --check            # verify if deploy is needed (exit code 1 if stale)
-oh deploy --diff             # show what would change
+oh bundle show <workflow>                  # auto-detect project from cwd
+oh bundle show <workflow> -p my-project    # explicit project
+oh bundle show <workflow> --budget         # include the context budget
+oh bundle build <workflow>                 # build the bundle without launching
 ```
 
-This generates:
-
-- `.opencode/agents/*.md` — agent definitions
-- `.opencode/skills/*/SKILL.md` — skill protocols
-- `opencode.json` — provider, model, MCP, permissions
+Projects deployed with an older version: clean up the leftovers (`.opencode/agents`, `.opencode/skills`, oh keys in `opencode.json`…) with `oh migrate deploy-cleanup --dry-run` then `oh migrate deploy-cleanup`.
 
 ## Start a Session
 
@@ -154,7 +150,7 @@ oh start                     # auto-detect project, launch immediately
 
 ```bash
 oh start                     # launch AI session
-oh deploy                    # deploy/sync agents to current project
+oh bundle show <workflow>    # inspect the session bundle of a workflow
 oh status                    # show hub and current project status
 oh doctor                    # system health check
 ```
@@ -172,7 +168,7 @@ oh debug --issue "crash..."  # debug session
 ### Infrastructure
 
 ```bash
-oh sync --all                # sync agents/skills to all projects
+oh migrate deploy-cleanup    # remove leftovers of former deployments (oh < v5)
 oh provider setup            # configure provider credentials
 oh mcp setup                 # configure MCP server tokens
 oh metrics                   # per-agent usage and cost stats

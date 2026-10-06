@@ -109,51 +109,6 @@ oh mcp ls --json
 
 ---
 
-## Plugin Management
+## Plugin management
 
-### oh plugin install
-
-Install a plugin by name.
-
-```bash
-oh plugin install my-plugin
-```
-
----
-
-### oh plugin remove
-
-Remove an installed plugin. Aliases: `rm`, `uninstall`
-
-| Flag | Short | Type | Description |
-|------|-------|------|-------------|
-| `--force` | `-f` | bool | Skip confirmation |
-
-```bash
-oh plugin remove my-plugin
-oh plugin rm my-plugin -f
-```
-
----
-
-### oh plugin list
-
-List installed plugins. Aliases: `ls`
-
-```bash
-oh plugin list
-oh plugin ls
-```
-
----
-
-### oh plugin status
-
-Show status of all installed plugins.
-
-```bash
-oh plugin status
-```
-
----
-
+`oh plugin` (global opencode V1 plugins, RTK included) was removed in v5: plugins are declared per workflow (`plugins:`), see [Shipped workflows](workflows.en.md#plugins-and-code-mode).

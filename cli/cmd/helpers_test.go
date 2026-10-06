@@ -9,8 +9,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/datichb/openhub/cli/internal/app"
+	"github.com/datichb/openhub/cli/internal/bricks"
 	"github.com/datichb/openhub/cli/internal/config"
-	"github.com/datichb/openhub/cli/internal/deploy"
 	"github.com/datichb/openhub/cli/internal/domain"
 )
 
@@ -63,134 +63,6 @@ func TestGenerateProjectID_LeadingTrailingSpaces(t *testing.T) {
 	id := generateProjectID("  spaced  ")
 	// Should trim and handle properly
 	assert.True(t, strings.HasPrefix(id, "spaced-"), "got: %s", id)
-}
-
-func TestBuildDeployPlan(t *testing.T) {
-	t.Setenv("HOME", t.TempDir())
-	config.Reset()
-
-	cfg, err := config.Load()
-	require.NoError(t, err)
-
-	a := &app.App{
-		Config: cfg,
-		IO:     app.DefaultIOStreams(),
-	}
-
-	plan := buildDeployPlan(a, DeployRequest{
-		ProjectPath:    "/tmp/project",
-		ProjectID:      "test-id",
-		HubDir:         "/tmp/hub",
-		Provider:       "anthropic",
-		Model:          "claude-3",
-		SelectedAgents: []string{"coder", "reviewer"},
-	})
-	require.NotNil(t, plan)
-	assert.Equal(t, "/tmp/project", plan.ProjectPath)
-	assert.Equal(t, "test-id", plan.ProjectID)
-	assert.Equal(t, "/tmp/hub", plan.HubDir)
-	assert.Equal(t, "anthropic", plan.Provider)
-	assert.Equal(t, "claude-3", plan.Model)
-	assert.Len(t, plan.Phases, 6, "deploy plan should have 6 phases (agents, skills, config, agent-config, mcp, team)")
-}
-
-func TestBuildDeployPlan_TeamDisabled(t *testing.T) {
-	t.Setenv("HOME", t.TempDir())
-	config.Reset()
-
-	// Hub has team enabled
-	cfg, err := config.Load()
-	require.NoError(t, err)
-	cfg.Team.Enabled = true
-	cfg.Team.StateRepo = "git@gitlab.com:acme/team.git"
-	cfg.Team.MemberID = "alice"
-
-	a := &app.App{Config: cfg, IO: app.DefaultIOStreams()}
-
-	// Project explicitly opts out
-	projectTeamCfg := &domain.ProjectTeamConfig{Mode: domain.ProjectTeamModeDisabled}
-	project := &domain.Project{TeamConfig: projectTeamCfg}
-	plan := buildDeployPlan(a, DeployRequest{
-		Project:     project,
-		ProjectPath: "/tmp/project",
-		ProjectID:   "test-id",
-		HubDir:      "/tmp/hub",
-	})
-	require.NotNil(t, plan)
-
-	// Team MCP server should NOT appear in EnabledMCPServers
-	for _, name := range plan.EnabledMCPServers {
-		assert.NotEqual(t, "team", name, "team MCP must not be enabled for a disabled project")
-	}
-}
-
-func TestBuildDeployPlan_TeamCustom(t *testing.T) {
-	t.Setenv("HOME", t.TempDir())
-	config.Reset()
-
-	// Hub has no team — but project has custom config
-	cfg, err := config.Load()
-	require.NoError(t, err)
-	cfg.Team.Enabled = false
-
-	a := &app.App{Config: cfg, IO: app.DefaultIOStreams()}
-
-	projectTeamCfg := &domain.ProjectTeamConfig{
-		Mode:      domain.ProjectTeamModeCustom,
-		StateRepo: "git@github.com:beta/other-team.git",
-		MemberID:  "bob",
-	}
-	project := &domain.Project{TeamConfig: projectTeamCfg}
-	plan := buildDeployPlan(a, DeployRequest{
-		Project:     project,
-		ProjectPath: "/tmp/project",
-		ProjectID:   "test-id",
-		HubDir:      "/tmp/hub",
-	})
-	require.NotNil(t, plan)
-
-	// Team MCP server SHOULD appear in EnabledMCPServers
-	found := false
-	for _, name := range plan.EnabledMCPServers {
-		if name == "team" {
-			found = true
-		}
-	}
-	assert.True(t, found, "team MCP must be enabled for a custom-mode project")
-}
-
-func TestCountDeployResults_AllSuccess(t *testing.T) {
-	results := []deploy.PhaseResult{
-		{Name: "Agents", Success: true, ItemCount: 5},
-		{Name: "Skills", Success: true, ItemCount: 12},
-		{Name: "Configuration", Success: true, ItemCount: 0},
-		{Name: "Agent Configuration", Success: true, ItemCount: 0},
-		{Name: "MCP Servers", Success: true, ItemCount: 2},
-		{Name: "Team Config", Success: true, ItemCount: 0},
-	}
-	agents, skills, mcp := countDeployResults(results)
-	assert.Equal(t, 5, agents)
-	assert.Equal(t, 12, skills)
-	assert.Equal(t, 2, mcp)
-}
-
-func TestCountDeployResults_FailedPhase(t *testing.T) {
-	results := []deploy.PhaseResult{
-		{Name: "Agents", Success: false, ItemCount: 5}, // failed — should not count
-		{Name: "Skills", Success: true, ItemCount: 3},
-		{Name: "MCP Servers", Success: true, ItemCount: 1},
-	}
-	agents, skills, mcp := countDeployResults(results)
-	assert.Equal(t, 0, agents, "failed phase should not contribute to count")
-	assert.Equal(t, 3, skills)
-	assert.Equal(t, 1, mcp)
-}
-
-func TestCountDeployResults_Empty(t *testing.T) {
-	agents, skills, mcp := countDeployResults(nil)
-	assert.Equal(t, 0, agents)
-	assert.Equal(t, 0, skills)
-	assert.Equal(t, 0, mcp)
 }
 
 func TestCmdI18nKey(t *testing.T) {
@@ -412,7 +284,7 @@ func TestBuildMCPServersForProject_TeamEnabled(t *testing.T) {
 	}
 
 	servers := buildMCPServersForProject(a, nil, resolvedTeam)
-	var teamServer *deploy.MCPServerDef
+	var teamServer *bricks.MCPServerDef
 	for i := range servers {
 		if servers[i].Name == "team" {
 			teamServer = &servers[i]

@@ -4,7 +4,7 @@
 
 ## Vue d'ensemble
 
-Le CLI Go (`oh`) résout le modèle IA pour chaque agent via une cascade à 7 niveaux. Opencode ne gère pas cette logique — c'est le CLI qui résout au moment du deploy et écrit le modèle final dans `opencode.json` sous `agent.<id>.model`.
+Le CLI Go (`oh`) résout le modèle IA pour chaque agent via une cascade à 7 niveaux. Opencode ne gère pas cette logique — c'est le CLI qui résout à la construction du paquet de session au lancement et écrit le modèle final dans les définitions d'agents du paquet (`agent.<id>.model` dans la config opencode produite).
 
 Le provider est résolu séparément et utilisé pour normaliser le format du nom de modèle (préfixage provider).
 
@@ -16,7 +16,7 @@ Le provider est résolu via une cascade à 3 niveaux (premier match gagne) :
 
 | Priorité | Source | Exemple |
 |----------|--------|---------|
-| 1 | Flag CLI `--provider` | `oh deploy --provider anthropic` |
+| 1 | Flag CLI `--provider` | `oh run feature --provider anthropic` |
 | 2 | Config hub | `hub.toml` → `[opencode] default_provider = "bedrock"` |
 | 3 | Fallback hardcodé | `bedrock` |
 
@@ -24,7 +24,7 @@ Le provider est résolu via une cascade à 3 niveaux (premier match gagne) :
 
 ## Cascade de résolution du modèle par agent
 
-La résolution s'effectue pour chaque agent déployé. Premier match gagne (priorité décroissante) :
+La résolution s'effectue pour chaque agent du paquet de session. Premier match gagne (priorité décroissante) :
 
 | Priorité | Niveau | Source | Commande |
 |----------|--------|--------|----------|
@@ -128,7 +128,7 @@ oh config model unset agent reviewer --project my-app
 
 ## Préfixage provider (normalisation)
 
-Opencode exige que les noms de modèles soient préfixés avec le provider au format `provider/model`. Le CLI applique ce préfixage **automatiquement** lors du déploiement.
+Opencode exige que les noms de modèles soient préfixés avec le provider au format `provider/model`. Le CLI applique ce préfixage **automatiquement** à la construction du paquet de session.
 
 Le modèle résolu par la cascade (quel que soit son format d'entrée) est normalisé vers le provider du projet :
 
@@ -169,9 +169,9 @@ Ce champ est le **niveau 7** de la cascade — il s'applique uniquement si aucun
 
 ---
 
-## Résultat dans opencode.json
+## Résultat dans la config de session
 
-Après un `oh deploy`, chaque agent sélectionné obtient un bloc dans `opencode.json` :
+À chaque lancement, chaque agent du paquet de session obtient un bloc dans la config opencode produite (à inspecter avec `oh bundle show <workflow>`) ; les changements de modèle (`oh config model ...`) sont pris en compte au prochain lancement, sans redéploiement :
 
 ```json
 {
@@ -197,7 +197,7 @@ Après un `oh deploy`, chaque agent sélectionné obtient un bloc dans `opencode
 }
 ```
 
-### Ce qui est écrit par le deploy
+### Ce qui est écrit dans le paquet
 
 | Champ | Condition |
 |-------|-----------|
@@ -207,14 +207,6 @@ Après un `oh deploy`, chaque agent sélectionné obtient un bloc dans `opencode
 
 ---
 
-## Phases du deploy
+## Construction du paquet de session
 
-Le deploy s'exécute en 5 phases transactionnelles (rollback automatique en cas d'erreur) :
-
-| # | Phase | Rôle |
-|---|-------|------|
-| 1 | **Agents** | Copie les `.md` des agents sélectionnés dans `.opencode/agents/` |
-| 2 | **Skills** | Copie les skills dans `.opencode/skills/` |
-| 3 | **Configuration** | Écrit provider/model global + désactive les agents natifs |
-| 4 | **Agent Configuration** | Parse le frontmatter, résout le modèle via cascade, écrit per-agent dans opencode.json |
-| 5 | **MCP** | Injecte les serveurs MCP configurés |
+Les 5 anciennes phases du deploy (`oh deploy`, supprimé en v5) sont remplacées par la construction du paquet de session : à chaque lancement, `internal/bundle` construit `~/.oh/bundles/<hash>/` à partir du workflow — agents avec leurs skills Bucket A intégrées et leur modèle résolu via la cascade, skills à la demande, permissions, serveurs MCP et plugin. L'adaptateur en produit la config opencode ; rien n'est écrit dans le projet.

@@ -481,9 +481,9 @@ func TestProjectModeView_SplitItems(t *testing.T) {
 	assert.Contains(t, leftHeaders, i18n.T("tui.start.section"))
 	assert.Contains(t, leftHeaders, "Project")
 
-	// Right: Configuration + Deploy
+	// Right: Configuration (no deploy section since v5)
 	assert.Contains(t, rightHeaders, "Configuration")
-	assert.Contains(t, rightHeaders, "Deploy")
+	assert.NotContains(t, rightHeaders, "Deploy")
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

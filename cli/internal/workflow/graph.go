@@ -19,6 +19,9 @@ type AgentInfo struct {
 	// Tasks lists the agents the agent may launch according to its own task
 	// permission, as glob patterns ("*" means any agent).
 	Tasks []string
+	// SelfTask reports an explicit permission to launch itself (reviewer →
+	// parallel reviewer sessions); never part of Tasks.
+	SelfTask bool
 	// Skills lists the skill refs the agent loads (inlined and on demand).
 	Skills []string
 }
@@ -205,4 +208,13 @@ func findCycle(nodes []string, graph map[string][]string) []string {
 		}
 	}
 	return nil
+}
+
+func containsStr(ss []string, s string) bool {
+	for _, v := range ss {
+		if v == s {
+			return true
+		}
+	}
+	return false
 }

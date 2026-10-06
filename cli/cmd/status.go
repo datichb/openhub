@@ -10,6 +10,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
@@ -61,7 +62,6 @@ func runStatus(cmd *cobra.Command, args []string) error {
 			ConfigPath     string          `json:"config_path"`
 			Language       string          `json:"language"`
 			OpencodeVer    string          `json:"opencode_version"`
-			Channel        string          `json:"channel"`
 			TotalProjects  int             `json:"total_projects"`
 			ActiveProjects int             `json:"active_projects"`
 			CurrentProject *domain.Project `json:"current_project,omitempty"`
@@ -70,8 +70,7 @@ func runStatus(cmd *cobra.Command, args []string) error {
 		out := statusJSON{
 			ConfigPath:     config.ConfigPath(),
 			Language:       a.Config.CLI.Language,
-			OpencodeVer:    a.Config.Opencode.Version,
-			Channel:        a.Config.Opencode.Channel,
+			OpencodeVer:    toolVersion(a),
 			TotalProjects:  len(projects),
 			ActiveProjects: active,
 			CurrentProject: currentProject,
@@ -88,7 +87,7 @@ func runStatus(cmd *cobra.Command, args []string) error {
 	w := tabwriter.NewWriter(a.IO.Out, 0, 0, 2, ' ', 0)
 	fmt.Fprintf(w, "  %s\t%s\n", i18n.T("cmd.status.config"), config.ConfigPath())
 	fmt.Fprintf(w, "  %s\t%s\n", i18n.T("cmd.status.language"), a.Config.CLI.Language)
-	fmt.Fprintf(w, "  %s\t%s (%s)\n", i18n.T("cmd.status.opencode"), a.Config.Opencode.Version, a.Config.Opencode.Channel)
+	fmt.Fprintf(w, "  %s\t%s\n", i18n.T("cmd.status.opencode"), toolVersion(a))
 	w.Flush()
 	fmt.Fprintln(a.IO.Out)
 
@@ -116,4 +115,14 @@ func isSubPath(child, parent string) bool {
 		return false
 	}
 	return !filepath.IsAbs(rel) && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))
+}
+
+// toolVersion is the installed opencode V2 version ("—" when unusable).
+func toolVersion(a *app.App) string {
+	if a.ToolVersion != nil {
+		if v, err := a.ToolVersion(); err == nil {
+			return v
+		}
+	}
+	return "—"
 }

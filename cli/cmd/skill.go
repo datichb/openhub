@@ -7,7 +7,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/datichb/openhub/cli/internal/deploy"
+	"github.com/datichb/openhub/cli/internal/bricks"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	workflowsvc "github.com/datichb/openhub/cli/internal/services/workflow"
 	"github.com/datichb/openhub/cli/internal/skillregistry"
@@ -100,7 +100,7 @@ func skillAddCmd() *cobra.Command {
 			fmt.Fprintf(a.IO.Out, "%s Skill %q v%s installé dans %s\n",
 				theme.SuccessStyle.Render(theme.IconSuccess),
 				skill.Manifest.Name, skill.Manifest.Version, skill.Path)
-			fmt.Fprintln(a.IO.Out, theme.Subtitle.Render("  Relancez 'oh deploy' pour déployer le skill sur vos projets."))
+			fmt.Fprintln(a.IO.Out, theme.Subtitle.Render("  Ajoutez-le à un workflow (skills.extra) pour qu'il soit livré dans les paquets de session."))
 			return nil
 		},
 	}
@@ -266,7 +266,7 @@ Exemples:
 }
 
 func runBudgetAll(agentsDir, skillsDir string, threshold int) error {
-	budgets, err := deploy.ComputeAllBudgets(agentsDir, skillsDir)
+	budgets, err := bricks.ComputeAllBudgets(agentsDir, skillsDir)
 	if err != nil {
 		return err
 	}
@@ -290,12 +290,12 @@ func runBudgetAll(agentsDir, skillsDir string, threshold int) error {
 
 func runBudgetSingle(agentsDir, skillsDir, agentName string, threshold int) error {
 	// Find agent file by ID
-	budgets, err := deploy.ComputeAllBudgets(agentsDir, skillsDir)
+	budgets, err := bricks.ComputeAllBudgets(agentsDir, skillsDir)
 	if err != nil {
 		return err
 	}
 
-	var budget *deploy.AgentBudget
+	var budget *bricks.AgentBudget
 	for _, b := range budgets {
 		if b.AgentID == agentName {
 			budget = b

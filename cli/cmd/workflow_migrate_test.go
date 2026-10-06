@@ -90,10 +90,12 @@ func TestMigrateLegacyWorkflows(t *testing.T) {
 		{ID: "web", Name: "web", Path: t.TempDir(), TeamID: &team},
 		{ID: "lonely", Name: "lonely", Path: t.TempDir()},
 	}}
-	label := "Démarrer (hub)"
-	a.Config.Workflow = &config.WorkflowHubConfig{Overrides: &workflow.WorkflowOverride{
-		CheckpointOverrides: []workflow.CheckpointOverride{{ID: "cp-1", Action: workflow.ActionModify, Label: &label}}}}
 	require.NoError(t, config.Save(a.Config))
+	appendFile(t, config.ConfigPath(), "\n[workflow.overrides]\n[[workflow.overrides.checkpoint_overrides]]\nid = \"cp-1\"\naction = \"modify\"\nlabel = \"Démarrer (hub)\"\n")
+	config.Reset() // the file changed outside Save (former section written by hand)
+	reloaded, err := config.Load()
+	require.NoError(t, err)
+	*a.Config = *reloaded
 	legacy := memLegacyStore{"web": legacyProjectWeb, "lonely": legacyProjectSolo, "gone": legacyProjectWeb}
 
 	require.True(t, legacyWorkflowPending(ctx, a, legacy))
@@ -103,9 +105,9 @@ func TestMigrateLegacyWorkflows(t *testing.T) {
 
 	// Team: archived, translated, published, removed from config.toml.
 	repo := teamstate.NewRepo(env.bare, alice)
-	cfg, err := repo.LoadConfig()
+	_, err = repo.LoadConfig()
 	require.NoError(t, err)
-	assert.Nil(t, cfg.Workflow)
+	assert.Nil(t, repoTeamWorkflow(repo), "[workflow] removed from config.toml")
 	raw, err := os.ReadFile(filepath.Join(alice, "workflows", "migrated", "team-config-workflow.toml"))
 	require.NoError(t, err)
 	assert.Contains(t, string(raw), "Démarrer (équipe)", "nothing lost")
@@ -148,15 +150,17 @@ func TestMigrateLegacyWorkflows(t *testing.T) {
 	assert.Contains(t, notices, "solo")
 
 	// Hub: files under ~/.oh/migrated, section removed from hub.toml.
-	assert.Nil(t, a.Config.Workflow)
+	assert.Nil(t, hubWorkflowConfig(a))
 	hubRaw, err := os.ReadFile(filepath.Join(config.HubDir(), "migrated", "hub-workflow-overrides.toml"))
 	require.NoError(t, err)
 	assert.Contains(t, string(hubRaw), "Démarrer (hub)")
 	assert.FileExists(t, filepath.Join(config.HubDir(), "migrated", "feature.hub.yaml"))
 	config.Reset()
-	saved, err := config.Load()
+	_, err = config.Load()
 	require.NoError(t, err)
-	assert.Nil(t, saved.Workflow)
+	hubData, err := os.ReadFile(config.ConfigPath())
+	require.NoError(t, err)
+	assert.NotContains(t, string(hubData), "[workflow")
 
 	// Legacy values cleared (unknown project included), nothing left.
 	assert.Empty(t, legacy)
@@ -221,4 +225,13 @@ func TestMigrateHubOverridesFromFile(t *testing.T) {
 	hub, _ := os.ReadFile(config.ConfigPath())
 	assert.NotContains(t, string(hub), "workflow")
 	assert.False(t, legacyWorkflowPending(t.Context(), application, nil))
+}
+
+func appendFile(t *testing.T, path, text string) {
+	t.Helper()
+	f, err := os.OpenFile(path, os.O_APPEND|os.O_WRONLY, 0o644)
+	require.NoError(t, err)
+	_, err = f.WriteString(text)
+	require.NoError(t, err)
+	require.NoError(t, f.Close())
 }

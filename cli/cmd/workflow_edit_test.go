@@ -32,7 +32,7 @@ func setupWorkflowCLI(t *testing.T, member string, others ...string) *workflowCL
 	root := repoRoot(t)
 	home := t.TempDir()
 	t.Setenv("OH_HOME", home)
-	t.Setenv("OH_V5", "0")
+	withoutV2(t, nil)
 	t.Setenv(workflowsDirEnv, filepath.Join(root, "cli", "internal", "services", "workflow", "testdata", "workflows"))
 	for k, v := range map[string]string{"GIT_AUTHOR_NAME": "T", "GIT_AUTHOR_EMAIL": "t@t", "GIT_COMMITTER_NAME": "T", "GIT_COMMITTER_EMAIL": "t@t"} {
 		t.Setenv(k, v)

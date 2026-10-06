@@ -38,7 +38,7 @@ C'est tout. Tout le reste a des valeurs par defaut sensibles. Les credentials du
 | `~/.oh/oh.db` | Registre de projets (SQLite) |
 | `~/.oh/hub/` | Agents et skills embarques |
 | `~/.oh/secrets.enc` | Secrets chiffres (fallback trousseau) |
-| `<projet>/.opencode/` | Agents, skills et config deployes |
+| `~/.oh/bundles/<hash>/` | Paquets de session (agents, skills, config) construits au lancement — plus rien n'est deploye dans `<projet>/.opencode/` |
 
 ---
 
@@ -216,26 +216,29 @@ oh project add --name my-app --path ~/workspace/my-app --language typescript
 oh project list
 ```
 
-### Deployer vers un projet
+### Paquet de session d'un projet
+
+Plus rien n'est deploye dans le projet (`oh deploy` supprime en v5) : chaque session demarre d'un paquet construit au lancement a partir de son workflow.
 
 ```bash
 cd ~/workspace/my-app
-oh deploy                    # deployer depuis le repertoire courant
-oh deploy -p my-project      # projet explicite
-oh deploy --diff             # previsualiser les changements
-oh deploy --check            # verifier si le deploy est necessaire (exit 1 si obsolete)
+oh bundle show <workflow>                  # projet detecte depuis le repertoire courant
+oh bundle show <workflow> -p my-project    # projet explicite
+oh bundle show <workflow> --budget         # budget de contexte par agent/skill
+oh bundle build <workflow>                 # construire sans lancer
 ```
 
 ```mermaid
 flowchart LR
-    H[Hub ~/.oh/hub/] -->|Phase 1| A[Agents<br/>19 definitions]
-    H -->|Phase 2| S[Skills<br/>assembles par agent]
-    H -->|Phase 3| C[Config<br/>opencode.json]
-    H -->|Phase 4| M[Modeles<br/>resolus par agent]
-    H -->|Phase 5| MCP[MCP<br/>config serveurs]
-    A --> D[.opencode/]
+    W[Workflow] --> A[Agents<br/>skills Bucket A integrees]
+    H[Hub ~/.oh/] --> A
+    H --> S[Skills a la demande]
+    H --> P[Permissions]
+    H --> M[Modeles<br/>resolus par agent]
+    H --> MCP[MCP<br/>config serveurs]
+    A --> D[~/.oh/bundles/hash/]
     S --> D
-    C --> D
+    P --> D
     M --> D
     MCP --> D
 ```
@@ -293,7 +296,7 @@ enabled = false
 
 ### Override MCP par projet
 
-Les serveurs MCP peuvent etre actives/desactives par projet pendant `oh deploy`. La configuration projet dans `opencode.json` est generee a partir des parametres hub combines aux overrides projet.
+Les serveurs MCP peuvent etre actives/desactives par projet (`oh mcp enable|setup`). A chaque lancement, les parametres hub combines aux overrides projet sont places dans le paquet de session — aucun redeploiement necessaire.
 
 ---
 
@@ -420,16 +423,16 @@ Override du comportement de workflow par defaut dans `hub.toml` :
 
 ```toml
 [workflow]
-# Les overrides de workflow sont appliques pendant le deploy
+# Les overrides de workflow sont appliques a la construction du paquet de session
 ```
 
 ### Options de deploy
 
-Desactiver des agents natifs specifiques pendant le deploy :
+`disable_native_agents` a ete supprime en v5 (les agents d'une session sont ceux de son workflow). Seuls les fichiers d'instructions supplementaires restent, integres a chaque agent des paquets de session :
 
 ```toml
 [deploy]
-disable_native_agents = ["benchmarker", "test-generator"]
+instruction_files = ["docs/ARCHITECTURE.md"]
 ```
 
 ### Configuration worktree
@@ -456,10 +459,7 @@ push_labels = true           # pousser les labels vers le tracker externe
 
 ```toml
 [opencode]
-version = "latest"           # ou fixer : "1.18.0"
-channel = "stable"           # "stable" ou "beta"
-auto_update = true           # mise a jour auto au demarrage
-install_dir = "~/.oh/bin"    # ou vit le binaire opencode
+default_provider = "bedrock"   # opencode V2 est installé avec son propre outil (v5)
 ```
 
 ### Gestion des secrets

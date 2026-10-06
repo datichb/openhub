@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/datichb/openhub/cli/internal/tui/theme"
-	"github.com/datichb/openhub/cli/internal/workflow"
 	"github.com/gdamore/tcell/v2"
 	"github.com/mattn/go-runewidth"
 	"github.com/rivo/tview"
@@ -28,21 +27,11 @@ type WorkflowGraph struct {
 	scrollX, scrollY int
 }
 
-// NewWorkflowGraph creates a new workflow graph widget.
-func NewWorkflowGraph(wf *workflow.WorkflowDefinition, readonly bool) *WorkflowGraph {
-	return NewModelGraph(ModelFromDefinition(wf), readonly)
-}
-
 // NewModelGraph creates a graph of a model (oh/v1 workflows: SpecGraphModel).
 func NewModelGraph(m GraphModel, readonly bool) *WorkflowGraph {
 	g := &WorkflowGraph{Box: tview.NewBox(), model: m, readonly: readonly}
 	g.recomputeLayout()
 	return g
-}
-
-// SetWorkflow updates the workflow and recomputes the layout.
-func (g *WorkflowGraph) SetWorkflow(wf *workflow.WorkflowDefinition) {
-	g.SetModel(ModelFromDefinition(wf))
 }
 
 // SetModel updates the model and recomputes the layout, keeping the

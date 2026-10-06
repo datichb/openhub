@@ -72,29 +72,6 @@ var configFieldMap = map[string]configField{
 		Unset: func(c *config.Config) { c.CLI.SetupDone = false },
 	},
 	// Opencode
-	"opencode.version": {
-		Set:   func(c *config.Config, v string) error { c.Opencode.Version = v; return nil },
-		Unset: func(c *config.Config) { c.Opencode.Version = "" },
-	},
-	"opencode.channel": {
-		Set:   func(c *config.Config, v string) error { c.Opencode.Channel = v; return nil },
-		Unset: func(c *config.Config) { c.Opencode.Channel = "" },
-	},
-	"opencode.auto_update": {
-		Set: func(c *config.Config, v string) error {
-			b, err := parseBoolValue(v)
-			if err != nil {
-				return err
-			}
-			c.Opencode.AutoUpdate = b
-			return nil
-		},
-		Unset: func(c *config.Config) { c.Opencode.AutoUpdate = false },
-	},
-	"opencode.install_dir": {
-		Set:   func(c *config.Config, v string) error { c.Opencode.InstallDir = v; return nil },
-		Unset: func(c *config.Config) { c.Opencode.InstallDir = "" },
-	},
 	"opencode.default_provider": {
 		Set:   func(c *config.Config, v string) error { c.Opencode.DefaultProvider = v; return nil },
 		Unset: func(c *config.Config) { c.Opencode.DefaultProvider = "" },

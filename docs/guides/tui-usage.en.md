@@ -26,7 +26,7 @@ The omnibar supports fuzzy matching -- type partial words, abbreviations, or ali
 
 ```
 > secu        → launches security audit
-> dep         → deploys to active project
+> brick       → opens the brick catalogue
 > doc         → opens doctor diagnostics
 > tst         → team status
 ```
@@ -57,7 +57,7 @@ Action results appear as toasts in the top-right corner (success/error/info). Th
 | `start` | Launch a session (shows mode picker: Standard, Dev, Onboard) |
 | `start dev` | Dev mode directly (ticket workflow) |
 | `start onboard` | Onboard mode directly (project discovery) |
-| `coder` | Launch opencode (free session) |
+| `coder` | Free session (`libre` workflow) |
 | `audit` | Audit launcher (picks audit type) |
 | `review` | Review launcher (picks review mode) |
 | `debug` | Debug session with issue description |
@@ -72,9 +72,8 @@ When a session starts, the TUI suspends and opencode takes over. When you exit o
 | `projects` | Projects list | All registered projects with status |
 | `project add` | Wizard | Add a new project (full 8-step wizard) |
 | `board` | Kanban board | Project tickets board (requires bd) |
-| `deploy` | - | Deploy agents/skills to current project |
-| `sync` | - | Sync agents/skills across all projects |
-| `project-config` | Project config | Per-project settings (provider, model, MCP, agents) |
+| `bricks` | Brick catalogue | Agents and skills (hub/team origin, estimated cost, workflows using them), read-only |
+| `project-config` | Project config | Per-project settings (provider, model, MCP, execution) |
 
 In the **Projects** view:
 - `a` to add a new project
@@ -115,7 +114,6 @@ In the **Projects** view:
 | `status` | System status | Hub and project health overview |
 | `doctor` | Diagnostics | Run health checks (press `r` to re-run) |
 | `metrics` | Agent metrics | Per-agent usage, cost, and duration stats |
-| `plugins` | Plugin manager | List/install/remove plugins |
 | `notifications` | Notifications | Recent notification events |
 | `worktrees` | Worktree manager | List, add, remove Git worktrees |
 | `upgrade` | - | Upgrade oh or opencode |
@@ -135,7 +133,7 @@ In the **Projects** view:
 The TUI provides three navigation modes that filter omnibar commands and adapt the Home page to the active context:
 
 - **Hub** (default): overview of all projects and teams. Auto-selected when multiple projects/teams are configured.
-- **Project** (`Ctrl+T` or selection from Home): focused on a single project. Omnibar filtered to project commands (sessions, board, deploy, project config).
+- **Project** (`Ctrl+T` or selection from Home): focused on a single project. Omnibar filtered to project commands (sessions, board, project config).
 - **Team** (`Ctrl+T` or selection from Home): focused on a single team. Omnibar filtered to team commands (team board, status, policies).
 
 **Auto-detection**: 1 project configured → Project mode; 1 team → Team mode; otherwise → Hub.

@@ -4,7 +4,7 @@
 
 ## Overview
 
-The skill marketplace lets the community extend `oh` with custom agent skills — without modifying the binary. Community skills are downloaded from the [oh-skills-index](https://github.com/datichb/oh-skills-index) or directly from a Git URL, then deployed automatically alongside built-in skills on `oh deploy`.
+The skill marketplace lets the community extend `oh` with custom agent skills — without modifying the binary. Community skills are downloaded from the [oh-skills-index](https://github.com/datichb/oh-skills-index) or directly from a Git URL, then shipped in the session bundle alongside built-in skills when a workflow lists them in `skills.extra` — no redeploy (`oh deploy` removed in v5).
 
 ### Why community skills?
 
@@ -30,7 +30,7 @@ This command:
 3. Validates the manifest checksum
 4. Marks the skill as active
 
-The skill is deployed to your projects on the next `oh deploy`.
+The skill is shipped at the next session launch of any workflow that lists it in `skills.extra`.
 
 ### From a Git URL
 
@@ -84,7 +84,7 @@ Returns a paginated list of matching skills with name, description, version, and
 oh skill remove golang-idioms
 ```
 
-The skill is unlinked from deployments but its files remain in `~/.oh/skills/golang-idioms/` until purged:
+The skill is no longer shipped in session bundles but its files remain in `~/.oh/skills/golang-idioms/` until purged:
 
 ```bash
 oh skill remove golang-idioms --purge
@@ -96,7 +96,7 @@ oh skill remove golang-idioms --purge
 
 1. **Download**: `oh skill add` fetches the skill package from the index or Git and stores it in `~/.oh/skills/<name>/`
 2. **Validation**: the manifest checksum is verified before activation
-3. **Deployment**: `oh deploy` reads all active skills and includes them in the generated `opencode.json` alongside built-in skills
+3. **Session bundle**: at launch, the bundle of a session includes the skills its workflow lists in `skills.extra` (or its agents reference), alongside built-in skills
 4. **Agent access**: skills appear in the agent's skill list at session start, indistinguishable from built-in skills
 
 Skills are stateless SKILL.md files — they do not modify the binary and can be safely removed at any time.

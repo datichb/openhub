@@ -101,42 +101,6 @@ type GraphModel struct {
 	StartLabel string
 }
 
-// ModelFromDefinition is the graph of a legacy workflow definition.
-func ModelFromDefinition(wf *workflow.WorkflowDefinition) GraphModel {
-	var m GraphModel
-	if wf == nil {
-		return m
-	}
-	for _, cp := range wf.Checkpoints {
-		info := "Checkpoint: " + cp.ID + " — " + cp.Label
-		if cp.Mandatory {
-			info += " [mandatory]"
-		}
-		m.Checkpoints = append(m.Checkpoints, GraphCheckpoint{ID: cp.ID, Label: cp.Label,
-			Behavior: formatBehaviorSummary(cp, wf.Modes.Default), Locked: cp.Mandatory, Info: info})
-	}
-	for _, a := range wf.WorkflowAgents() {
-		if a.Position == nil {
-			continue
-		}
-		m.Agents = append(m.Agents, GraphAgent{ID: a.AgentID, After: a.Position.AfterCheckpoint, Line2: string(a.Mode),
-			Locked: a.Mandatory, Info: agentInfo(a)})
-	}
-	for _, a := range wf.IndependentAgents() {
-		m.Agents = append(m.Agents, GraphAgent{ID: a.AgentID, Line2: invokedByLabel(a), Independent: true,
-			Locked: a.Mandatory, Info: agentInfo(a)})
-	}
-	return m
-}
-
-func agentInfo(a workflow.AgentSlot) string {
-	info := "Agent: " + a.AgentID + " — " + string(a.Role) + " / " + string(a.Mode)
-	if a.Mandatory {
-		info += " [mandatory]"
-	}
-	return info
-}
-
 // SpecGraphModel is the graph of a resolved oh/v1 workflow in mode: the
 // checkpoints in pass order, each workflow agent under the checkpoint it
 // waits for (directly, or through the agent it follows), the others in the
@@ -232,11 +196,6 @@ const (
 
 // startID is the element id of the start column.
 const startID = "▶"
-
-// ComputeLayout builds a GraphLayout from a legacy workflow definition.
-func ComputeLayout(wf *workflow.WorkflowDefinition) *GraphLayout {
-	return ComputeModelLayout(ModelFromDefinition(wf))
-}
 
 // ComputeModelLayout builds a GraphLayout from a graph model.
 //
@@ -375,31 +334,6 @@ func ComputeModelLayout(m GraphModel) *GraphLayout {
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-
-func formatBehaviorSummary(cp workflow.Checkpoint, defaultMode string) string {
-	if b, ok := cp.Behavior[defaultMode]; ok {
-		return string(b)
-	}
-	return ""
-}
-
-func invokedByLabel(a workflow.AgentSlot) string {
-	if a.TaskPermissions == nil || len(a.TaskPermissions.CanBeInvokedBy) == 0 {
-		return "—"
-	}
-	result := "← "
-	for i, id := range a.TaskPermissions.CanBeInvokedBy {
-		if i > 0 {
-			result += ", "
-		}
-		if i >= 2 {
-			result += "..."
-			break
-		}
-		result += truncate(id, 8)
-	}
-	return result
-}
 
 func truncate(s string, maxLen int) string {
 	runes := []rune(s)

@@ -85,10 +85,10 @@ Resolution order for the bearer token:
 
 ### Anthropic / OpenAI / OpenRouter
 
-Set your API key in the project's `opencode.json` provider block (injected by `oh deploy`):
+The provider block is generated in the session bundle at launch (`oh deploy` removed in v5):
 
 ```bash
-oh deploy -p my-project --provider anthropic
+oh run <workflow> -p my-project --provider anthropic
 ```
 
 Or configure via environment variables that opencode reads directly.
@@ -145,9 +145,9 @@ Tokens are read by MCP servers at runtime via environment variables:
 - Key derivation: Argon2id (t=3, memory=64MB, threads=4)
 - Passphrase: `OH_PASSPHRASE` env var or interactive prompt (min 8 chars)
 
-## Deployment Flow
+## Launch Flow
 
-When you run `oh deploy`, the provider configuration is written into the project's `opencode.json`:
+At each launch (`oh run <workflow>`), the provider configuration is written into the session bundle (`~/.oh/bundles/<hash>/`), not into the project:
 
 ```json
 {
@@ -160,7 +160,7 @@ When you run `oh deploy`, the provider configuration is written into the project
 }
 ```
 
-The deploy engine reads your configured provider and model, then generates the appropriate provider block.
+The bundle builder reads your configured provider and model, then generates the appropriate provider block.
 
 ## Switching Providers
 
@@ -172,8 +172,7 @@ oh start --provider anthropic
 oh config set opencode.default_provider anthropic
 
 # Permanently (one project)
-oh project configure my-project --provider github-copilot
-oh deploy -p my-project   # re-deploy to apply
+oh project configure my-project --provider github-copilot   # applied at next launch
 ```
 
 ## Checking Configuration
@@ -198,6 +197,6 @@ oh config list             # shows all hub config including provider
 |---------|----------|
 | "Token not configured" | Run `oh mcp setup` |
 | Provider not recognized | Check spelling: bedrock, anthropic, openrouter, github-copilot |
-| Wrong model | Use `oh project configure --model <name>` then `oh deploy` |
+| Wrong model | Use `oh project configure --model <name>`; applied at next launch (bundle rebuilt) |
 | Keychain access denied | Grant terminal access in System Preferences > Privacy |
 | Fallback store errors | Check `OH_PASSPHRASE` or re-enter when prompted |

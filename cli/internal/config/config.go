@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/datichb/openhub/cli/internal/limits"
-	"github.com/datichb/openhub/cli/internal/workflow"
 	toml "github.com/pelletier/go-toml/v2"
 	"github.com/spf13/viper"
 )
@@ -46,9 +45,6 @@ type Config struct {
 	Tracker TrackerLocalConfig `mapstructure:"tracker" toml:"tracker,omitempty"`
 	// Websearch holds web search permission settings (Exa AI).
 	Websearch WebsearchConfig `mapstructure:"websearch" toml:"websearch,omitempty"`
-	// Workflow held hub-level overrides of the former workflow. Read only by
-	// the v38 migration (moved to ~/.oh/migrated/, then removed).
-	Workflow *WorkflowHubConfig `mapstructure:"workflow" toml:"workflow,omitempty"`
 	// Session holds v5 session settings (how sessions are opened, idle sleep).
 	Session SessionConfig `mapstructure:"session" toml:"session,omitempty"`
 	// Execution holds the v5 execution settings (default runtime, container
@@ -107,11 +103,6 @@ type SessionConfig struct {
 
 // NotifyEnabled reports whether system notifications are on.
 func (s SessionConfig) NotifyEnabled() bool { return s.Notify != "off" }
-
-// WorkflowHubConfig holds workflow customization at the hub level.
-type WorkflowHubConfig struct {
-	Overrides *workflow.WorkflowOverride `mapstructure:"overrides" toml:"overrides,omitempty"`
-}
 
 // FindTeam looks up a team by ID. Returns nil if not found.
 func (c *Config) FindTeam(id string) *TeamConfig {
@@ -263,23 +254,20 @@ type CLIConfig struct {
 	SetupDone bool   `mapstructure:"setup_done" toml:"setup_done,omitempty"`
 }
 
-// DeployConfig holds deployment behavior overrides.
+// DeployConfig holds the `[deploy]` section. Only the project instruction
+// files remain since v5 (the closed world of the session bundles replaced
+// `disable_native_agents`, D13).
 type DeployConfig struct {
-	// DisableNativeAgents overrides the default list of opencode native agents to disable.
-	// If empty/nil, the built-in default list is used (build, plan, general, explore, scout).
-	// Set to an explicit list to control which native agents are disabled on deploy.
-	DisableNativeAgents []string `mapstructure:"disable_native_agents" toml:"disable_native_agents,omitempty"`
-	// InstructionFiles lists additional project files to include as opencode instructions.
+	// InstructionFiles lists additional project files embedded as
+	// instructions in every agent body of a session bundle.
 	// These are merged with the built-in defaults (ONBOARDING.md, CONVENTIONS.md, .claude/CLAUDE.md).
 	InstructionFiles []string `mapstructure:"instruction_files" toml:"instruction_files,omitempty"`
 }
 
-// OpencodeConfig holds opencode dependency settings.
+// OpencodeConfig holds the opencode settings of the hub. opencode is
+// installed and updated with its own tooling (the former managed install,
+// `version`, `channel`, `auto_update`, `install_dir`, was removed in v5).
 type OpencodeConfig struct {
-	Version         string `mapstructure:"version" toml:"version"`
-	Channel         string `mapstructure:"channel" toml:"channel"`
-	AutoUpdate      bool   `mapstructure:"auto_update" toml:"auto_update"`
-	InstallDir      string `mapstructure:"install_dir" toml:"install_dir,omitempty"`
 	DefaultProvider string `mapstructure:"default_provider" toml:"default_provider,omitempty"`
 }
 
@@ -467,9 +455,6 @@ func Load() (*Config, error) {
 	// Defaults
 	v.SetDefault("name", "OpenHub")
 	v.SetDefault("cli.language", "en")
-	v.SetDefault("opencode.channel", "stable")
-	v.SetDefault("opencode.auto_update", false)
-	v.SetDefault("opencode.install_dir", filepath.Join(HubDir(), "bin"))
 	v.SetDefault("worktree.auto_cleanup", true)
 	v.SetDefault("worktree.base_branch", "")
 	v.SetDefault("websearch.enabled", false)
@@ -609,7 +594,7 @@ func flattenMap(prefix string, src map[string]interface{}, dst map[string]interf
 		case map[string]interface{}:
 			flattenMap(key, val, dst)
 		case []interface{}:
-			// Keep arrays as-is (e.g. [[teams]], deploy.disable_native_agents)
+			// Keep arrays as-is (e.g. [[teams]], deploy.instruction_files)
 			dst[key] = val
 		default:
 			dst[key] = val

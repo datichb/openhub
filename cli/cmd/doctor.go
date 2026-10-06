@@ -12,9 +12,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/beads"
 	"github.com/datichb/openhub/cli/internal/buildinfo"
-	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/i18n"
-	"github.com/datichb/openhub/cli/internal/opencode"
 	"github.com/datichb/openhub/cli/internal/provider"
 	"github.com/datichb/openhub/cli/internal/selfupdate"
 	"github.com/datichb/openhub/cli/internal/tui/progress"
@@ -46,10 +44,8 @@ func runDoctor(cmd *cobra.Command, args []string) error {
 		{"OS / Architecture", checkOS},
 		{"Go runtime", checkGoRuntime},
 		{"git", checkBinary("git")},
-		{"opencode", checkBinary("opencode")},
 		{"bd (beads)", checkOptionalBinary("bd", "brew install datichb/tap/bd")},
 		{"fzf (fuzzy finder)", checkOptionalBinary("fzf", "brew install fzf")},
-		{"Compatibilité oh ↔ opencode", checkCompatibility(a)},
 		{"Version oh", checkOhUpdate},
 		{"Configuration hub.toml", checkConfig},
 		{"Provider credentials", checkProviderCredentials},
@@ -124,7 +120,7 @@ func checkConfig() (string, bool) {
 	if a == nil || a.Config == nil {
 		return i18n.T("cmd.doctor.config_not_loaded"), false
 	}
-	return fmt.Sprintf("langue=%s, opencode=%s", a.Config.CLI.Language, a.Config.Opencode.Version), true
+	return fmt.Sprintf("langue=%s", a.Config.CLI.Language), true
 }
 
 func checkDatabase() (string, bool) {
@@ -138,23 +134,6 @@ func checkDatabase() (string, bool) {
 		return fmt.Sprintf("erreur: %v", err), false
 	}
 	return i18n.Tf("cmd.doctor.db_ok", len(projects)), true
-}
-
-func checkCompatibility(a *app.App) func() (string, bool) {
-	return func() (string, bool) {
-		if a.Platform == nil {
-			return i18n.T("cmd.doctor.opencode_unavailable"), false
-		}
-		ocVersion, err := a.Platform.Version()
-		if err != nil {
-			return i18n.T("cmd.doctor.opencode_unavailable"), false
-		}
-		result := opencode.CheckCompatibility(buildinfo.Version, ocVersion)
-		if result.Compatible {
-			return fmt.Sprintf("oh %s ↔ opencode %s — OK", buildinfo.Version, ocVersion), true
-		}
-		return result.Warning, false
-	}
 }
 
 func indexOf(s string, c byte) int {

@@ -1,0 +1,306 @@
+package bricks
+
+import (
+	"strings"
+)
+
+// ModelOverrides holds per-agent and per-family model overrides at a single cascade level.
+// Used for hub-level (from hub.toml), project-level (from DB), and team-level (from team-state) overrides.
+type ModelOverrides struct {
+	Default  string            // global model at this level
+	Families map[string]string // family name → model
+	Agents   map[string]string // agent-id → model
+}
+
+// ResolveAgentModel resolves the effective model for a given agent using the 10-level cascade.
+//
+// Cascade priority (first match wins):
+//  1. Project-level agent override
+//  2. Project-level family override
+//  3. Project-level global model
+//  4. Hub-level agent override
+//  5. Hub-level family override
+//  6. Hub-level global model
+//  7. Team-level agent recommendation
+//  8. Team-level family recommendation
+//  9. Team-level global model recommendation
+//  10. Agent frontmatter floor
+//
+// Arguments:
+//   - agentID: the agent identifier (e.g., "reviewer")
+//   - family: the agent's family derived from directory (e.g., "quality")
+//   - projectOverrides: model overrides at the project level (nil if none)
+//   - hubOverrides: model overrides at the hub level (nil if none)
+//   - teamOverrides: model overrides at the team level (nil if none) — always recommendations
+//   - frontmatterModel: the model declared in the agent's frontmatter (may be empty)
+//   - provider: the resolved provider for this project (e.g., "bedrock", "anthropic")
+//
+// Returns the normalized model string for opencode.json, or "" if no model is defined at any level.
+func ResolveAgentModel(agentID, family string, projectOverrides, hubOverrides, teamOverrides *ModelOverrides, frontmatterModel, provider string) string {
+	// Walk the cascade: first non-empty match wins
+	resolved := ""
+
+	// Level 1: Project-level agent override
+	if projectOverrides != nil && projectOverrides.Agents != nil {
+		if m, ok := projectOverrides.Agents[agentID]; ok && m != "" {
+			resolved = m
+			goto normalize
+		}
+	}
+
+	// Level 2: Project-level family override
+	if projectOverrides != nil && projectOverrides.Families != nil && family != "" {
+		if m, ok := projectOverrides.Families[family]; ok && m != "" {
+			resolved = m
+			goto normalize
+		}
+	}
+
+	// Level 3: Project-level global model
+	if projectOverrides != nil && projectOverrides.Default != "" {
+		resolved = projectOverrides.Default
+		goto normalize
+	}
+
+	// Level 4: Hub-level agent override
+	if hubOverrides != nil && hubOverrides.Agents != nil {
+		if m, ok := hubOverrides.Agents[agentID]; ok && m != "" {
+			resolved = m
+			goto normalize
+		}
+	}
+
+	// Level 5: Hub-level family override
+	if hubOverrides != nil && hubOverrides.Families != nil && family != "" {
+		if m, ok := hubOverrides.Families[family]; ok && m != "" {
+			resolved = m
+			goto normalize
+		}
+	}
+
+	// Level 6: Hub-level global model
+	if hubOverrides != nil && hubOverrides.Default != "" {
+		resolved = hubOverrides.Default
+		goto normalize
+	}
+
+	// Level 7: Team-level agent recommendation (ADR-030)
+	if teamOverrides != nil && teamOverrides.Agents != nil {
+		if m, ok := teamOverrides.Agents[agentID]; ok && m != "" {
+			resolved = m
+			goto normalize
+		}
+	}
+
+	// Level 8: Team-level family recommendation
+	if teamOverrides != nil && teamOverrides.Families != nil && family != "" {
+		if m, ok := teamOverrides.Families[family]; ok && m != "" {
+			resolved = m
+			goto normalize
+		}
+	}
+
+	// Level 9: Team-level global model recommendation
+	if teamOverrides != nil && teamOverrides.Default != "" {
+		resolved = teamOverrides.Default
+		goto normalize
+	}
+
+	// Level 10: Agent frontmatter floor
+	if frontmatterModel != "" {
+		resolved = frontmatterModel
+		goto normalize
+	}
+
+	return ""
+
+normalize:
+	if provider == "" {
+		return resolved
+	}
+	return NormalizeModelForProvider(resolved, provider)
+}
+
+// NormalizeModelForProvider converts a model identifier to the format expected by opencode
+// for the given provider. The input model may be in any of these forms:
+//   - Short name: "claude-sonnet-4-5"
+//   - Provider-prefixed: "anthropic/claude-sonnet-4-5"
+//   - Already normalized: "amazon-bedrock/anthropic.claude-sonnet-4-5-20250929-v1:0"
+//   - Bedrock inference profile: "amazon-bedrock/eu.anthropic.claude-sonnet-4-6"
+//   - With a variant suffix: "claude-sonnet-4-6#high" (kept as-is)
+//
+// The function extracts the short model name and re-formats it for the target provider.
+// Bedrock models of other vendors (e.g. "amazon-bedrock/amazon.nova-pro-v1:0")
+// are returned without their regional prefix when the provider is bedrock.
+func NormalizeModelForProvider(model, provider string) string {
+	if model == "" || provider == "" {
+		return model
+	}
+	variant := ""
+	if i := strings.LastIndex(model, "#"); i >= 0 {
+		model, variant = model[:i], model[i:]
+	}
+	if provider == "bedrock" {
+		if rest, ok := strings.CutPrefix(model, "amazon-bedrock/"); ok {
+			if rest = stripBedrockGeo(rest); !strings.HasPrefix(rest, "anthropic.") {
+				return "amazon-bedrock/" + rest + variant
+			}
+		}
+	}
+
+	// Extract the short model name (strip any existing provider prefix)
+	shortName := extractShortModelName(model)
+	if shortName == "" {
+		return model + variant // cannot parse, return as-is
+	}
+	return normalizeShortName(shortName, provider) + variant
+}
+
+func normalizeShortName(shortName, provider string) string {
+	switch provider {
+	case "anthropic":
+		return "anthropic/" + shortName
+	case "bedrock":
+		return formatBedrockModel(shortName)
+	case "github-copilot":
+		return formatGithubCopilotModel(shortName)
+	case "openrouter":
+		return "anthropic/" + shortName // openrouter uses anthropic/ prefix
+	default:
+		// Unknown provider: use anthropic/ prefix as safe default
+		return "anthropic/" + shortName
+	}
+}
+
+// extractShortModelName strips provider prefixes and version suffixes to get the canonical short name.
+// Examples:
+//   - "anthropic/claude-sonnet-4-5" → "claude-sonnet-4-5"
+//   - "amazon-bedrock/anthropic.claude-sonnet-4-5-20250929-v1:0" → "claude-sonnet-4-5"
+//   - "claude-sonnet-4-5" → "claude-sonnet-4-5"
+//   - "github-copilot/claude-sonnet-4.5" → "claude-sonnet-4-5"
+func extractShortModelName(model string) string {
+	// Handle bedrock format: "amazon-bedrock/anthropic.claude-xxx-YYYYMMDD-vN:M"
+	if strings.HasPrefix(model, "amazon-bedrock/") {
+		after := stripBedrockGeo(strings.TrimPrefix(model, "amazon-bedrock/"))
+		// Remove "anthropic." prefix
+		after = strings.TrimPrefix(after, "anthropic.")
+		// Remove date-version suffix (-YYYYMMDD-vN:M)
+		after = stripBedrockVersionSuffix(after)
+		return after
+	}
+
+	// Handle github-copilot format: "github-copilot/claude-sonnet-4.5"
+	if strings.HasPrefix(model, "github-copilot/") {
+		after := strings.TrimPrefix(model, "github-copilot/")
+		// Normalize dots to dashes in version (4.5 → 4-5)
+		after = normalizeModelDots(after)
+		return after
+	}
+
+	// Handle anthropic/ or openrouter/ prefix
+	if idx := strings.Index(model, "/"); idx != -1 {
+		return model[idx+1:]
+	}
+
+	// Already a short name
+	return model
+}
+
+// stripBedrockGeo removes the regional inference profile prefix of a Bedrock
+// model ID ("eu.anthropic.x" → "anthropic.x"); the adapter adds the prefix
+// matching the session region.
+func stripBedrockGeo(id string) string {
+	for _, geo := range []string{"eu.", "us.", "apac.", "jp.", "au.", "global.", "us-gov."} {
+		if rest, ok := strings.CutPrefix(id, geo); ok {
+			return rest
+		}
+	}
+	return id
+}
+
+// stripBedrockVersionSuffix removes the date-version suffix from a bedrock model name.
+// "claude-sonnet-4-5-20250929-v1:0" → "claude-sonnet-4-5"
+// "claude-opus-4-6-v1" → "claude-opus-4-6"
+func stripBedrockVersionSuffix(name string) string {
+	// Pattern 1: model-YYYYMMDD-vN:M or model-YYYYMMDD-vN
+	// Strategy: find the first segment that looks like a date (8 digits)
+	parts := strings.Split(name, "-")
+	for i, part := range parts {
+		if len(part) == 8 && isAllDigits(part) {
+			// This is the date segment — everything before it is the model name
+			return strings.Join(parts[:i], "-")
+		}
+	}
+
+	// Pattern 2: model-vN or model-vN:M (no date, just version suffix)
+	// Find the last segment that starts with "v" followed by a digit
+	for i := len(parts) - 1; i > 0; i-- {
+		p := parts[i]
+		// Match "v1", "v1:0", "v2:0", etc.
+		if len(p) >= 2 && p[0] == 'v' && p[1] >= '0' && p[1] <= '9' {
+			return strings.Join(parts[:i], "-")
+		}
+	}
+
+	// No suffix found — return as-is
+	return name
+}
+
+// normalizeModelDots converts dots to dashes in model version numbers (4.5 → 4-5).
+func normalizeModelDots(name string) string {
+	return strings.ReplaceAll(name, ".", "-")
+}
+
+// isAllDigits returns true if the string is non-empty and contains only ASCII digits.
+func isAllDigits(s string) bool {
+	if s == "" {
+		return false
+	}
+	for _, c := range s {
+		if c < '0' || c > '9' {
+			return false
+		}
+	}
+	return true
+}
+
+// bedrockModelVersions maps short model names to their bedrock version identifiers.
+// Only models with irregular bedrock IDs (date suffixes, version suffixes) need explicit entries.
+// Models with clean naming (e.g., claude-opus-4-7, claude-sonnet-5) are handled by the
+// fallback in formatBedrockModel: "amazon-bedrock/anthropic.<shortname>".
+var bedrockModelVersions = map[string]string{
+	// Current generation — irregular bedrock IDs requiring explicit mapping
+	"claude-opus-4-6":   "anthropic.claude-opus-4-6-v1",
+	"claude-sonnet-4-5": "anthropic.claude-sonnet-4-5-20250929-v1:0",
+	"claude-haiku-4-5":  "anthropic.claude-haiku-4-5-20251001-v1:0",
+
+	// Legacy aliases (backward compat with existing hub.toml configs)
+	"claude-opus-4":    "anthropic.claude-opus-4-6-v1",
+	"claude-haiku-3-5": "anthropic.claude-haiku-4-5-20251001-v1:0",
+}
+
+// formatBedrockModel converts a short model name to the bedrock format.
+// Uses a lookup table for known models, falls back to a best-effort pattern.
+func formatBedrockModel(shortName string) string {
+	if bedrockID, ok := bedrockModelVersions[shortName]; ok {
+		return "amazon-bedrock/" + bedrockID
+	}
+	// Best-effort fallback: "amazon-bedrock/anthropic.<name>"
+	return "amazon-bedrock/anthropic." + shortName
+}
+
+// githubCopilotModelNames maps short model names to github-copilot formatted names.
+var githubCopilotModelNames = map[string]string{
+	"claude-opus-4-6":   "claude-opus-4.6",
+	"claude-sonnet-4-5": "claude-sonnet-4.5",
+	"claude-sonnet-4-6": "claude-sonnet-4.6",
+}
+
+// formatGithubCopilotModel converts a short model name to the github-copilot format.
+func formatGithubCopilotModel(shortName string) string {
+	if name, ok := githubCopilotModelNames[shortName]; ok {
+		return "github-copilot/" + name
+	}
+	// Fallback: use as-is
+	return "github-copilot/" + shortName
+}

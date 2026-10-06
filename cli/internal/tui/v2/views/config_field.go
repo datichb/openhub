@@ -26,7 +26,6 @@ const (
 	CfgFieldSectionHeader                  // section divider (non-selectable, rendered as ── Name ──)
 	CfgFieldSubHeader                      // sub-section divider
 	CfgFieldPlaceholder                    // placeholder item (e.g. "no entries yet")
-	CfgFieldAgents                         // multi-agent selection (Enter → MultiSelectModal)
 	CfgFieldProviderItem                   // provider entry in ProviderView
 	CfgFieldAction                         // clickable action in ProviderView
 	CfgFieldInfo                           // information display in ProviderView
@@ -209,7 +208,7 @@ func formatFieldValue(f configField, val string) string {
 	case CfgFieldPlaceholder:
 		return fmt.Sprintf("%s%s%s", muted, val, reset)
 
-	default: // CfgFieldString, CfgFieldAgents, CfgFieldInfo, CfgFieldProviderItem, CfgFieldAction
+	default: // CfgFieldString, CfgFieldInfo, CfgFieldProviderItem, CfgFieldAction
 		if val == "" {
 			return fmt.Sprintf("%s%s%s", muted, i18n.T("tui.config.not_configured"), reset)
 		}
@@ -316,10 +315,6 @@ func editConfigField(shell ShellAccess, f *configField, onDone func()) {
 
 	case CfgFieldReadonly, CfgFieldSectionHeader, CfgFieldSubHeader, CfgFieldPlaceholder, CfgFieldInfo:
 		// Non-editable — no action
-		return
-
-	case CfgFieldAgents:
-		// Agent editing is view-specific; handled by the view directly.
 		return
 
 	case CfgFieldAction, CfgFieldProviderItem:

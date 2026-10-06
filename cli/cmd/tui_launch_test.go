@@ -14,7 +14,7 @@ import (
 )
 
 // testHubEnv points the hub at the repository content and the hub layer at
-// the test workflows (no opencode V2: OH_V5=0).
+// the test workflows (no opencode V2: withoutV2).
 func testHubEnv(t *testing.T) {
 	t.Helper()
 	root := repoRoot(t)
@@ -23,7 +23,7 @@ func testHubEnv(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Setenv("OH_HOME", home)
-	t.Setenv("OH_V5", "0")
+	withoutV2(t, nil)
 	t.Setenv(workflowsDirEnv, filepath.Join(root, "cli", "internal", "services", "workflow", "testdata", "workflows"))
 }
 

@@ -2,7 +2,6 @@ package views
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -19,7 +18,6 @@ type ProjectItem struct {
 	Language     string
 	Provider     string
 	Model        string
-	Agents       []string
 	Status       string
 	MCPOverrides map[string]string // service → "inherit"|"enabled"|"disabled"
 }
@@ -29,14 +27,12 @@ type ProjectConfigUpdate struct {
 	Language     string
 	Provider     string
 	Model        string
-	Agents       []string
 	MCPOverrides map[string]string // service → "inherit"|"enabled"|"disabled"
 }
 
 // ProjectsViewConfig configures the projects list view.
 type ProjectsViewConfig struct {
 	Projects         []ProjectItem
-	AvailableAgents  []string             // agents discovered from hub/agents/*.md
 	KnownMCPServices []string             // MCP service names known by hub (e.g. figma, gitlab, gslides)
 	RefreshFunc      func() []ProjectItem // optional — if set, called on 'r' to reload project list
 }
@@ -94,11 +90,6 @@ func (v *ProjectsView) SetOnEnterProject(fn func(project *ActiveProject)) {
 // SetOnInitBeads sets the callback triggered when the user requests beads init for a project.
 func (v *ProjectsView) SetOnInitBeads(fn func(id, name, path string)) {
 	v.onInitBeads = fn
-}
-
-// SetAvailableAgents sets the list of discovered agents for configuration.
-func (v *ProjectsView) SetAvailableAgents(agents []string) {
-	v.cfg.AvailableAgents = agents
 }
 
 // ID returns the view identifier.
@@ -300,10 +291,6 @@ func (v *ProjectsView) removeProject() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Configure (language → provider → model → agents)
-// ─────────────────────────────────────────────────────────────────────────────
-
-// ─────────────────────────────────────────────────────────────────────────────
 // Rename
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -400,21 +387,7 @@ func (v *ProjectsView) showDetail(p ProjectItem) {
 		theme.ColorTag(theme.TextSecondaryHex), theme.TagColor, i18n.T("tui.projects.label_model"), model,
 	)
 
-	// Line 3: Agents
-	var agentDisplay string
-	switch {
-	case len(p.Agents) == 0:
-		agentDisplay = "-"
-	case len(p.Agents) <= 5:
-		agentDisplay = strings.Join(p.Agents, ", ")
-	default:
-		agentDisplay = fmt.Sprintf("%s (+%d)", strings.Join(p.Agents[:5], ", "), len(p.Agents)-5)
-	}
-	line3 := fmt.Sprintf("  %sAgents:%s %s (%d)",
-		theme.ColorTag(theme.TextSecondaryHex), theme.TagColor, agentDisplay, len(p.Agents),
-	)
-
-	v.detail.SetText(fmt.Sprintf("%s\n%s\n%s\n%s", sep, line1, line2, line3))
+	v.detail.SetText(fmt.Sprintf("%s\n%s\n%s", sep, line1, line2))
 }
 
 // displayOrPlaceholder returns val if non-empty, otherwise the placeholder.

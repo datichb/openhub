@@ -21,8 +21,7 @@ func TestLoad_Defaults(t *testing.T) {
 	require.NotNil(t, cfg)
 
 	assert.Equal(t, "en", cfg.CLI.Language)
-	assert.Equal(t, "stable", cfg.Opencode.Channel)
-	assert.Equal(t, false, cfg.Opencode.AutoUpdate)
+	assert.Empty(t, cfg.Opencode.DefaultProvider)
 }
 
 func TestLoad_FromFile(t *testing.T) {
@@ -50,9 +49,8 @@ auto_update = true
 	require.NotNil(t, cfg)
 
 	assert.Equal(t, "fr", cfg.CLI.Language)
-	assert.Equal(t, "1.17.2", cfg.Opencode.Version)
-	assert.Equal(t, "beta", cfg.Opencode.Channel)
-	assert.Equal(t, true, cfg.Opencode.AutoUpdate)
+	// keys of the former managed install (removed in v5) are ignored
+	assert.Empty(t, cfg.Opencode.DefaultProvider)
 }
 
 // TestSaveAndLoad_Roundtrip verifies that saving a Config and reloading it
@@ -72,10 +70,6 @@ func TestSaveAndLoad_Roundtrip(t *testing.T) {
 		Name: "test-hub",
 		CLI:  CLIConfig{Language: "fr"},
 		Opencode: OpencodeConfig{
-			Version:         "2.0.0",
-			Channel:         "beta",
-			AutoUpdate:      true,
-			InstallDir:      "/usr/local/bin",
 			DefaultProvider: "bedrock",
 		},
 		Provider: ProviderConfigs{
@@ -150,10 +144,6 @@ func TestSaveAndLoad_Roundtrip(t *testing.T) {
 
 	// Verify all fields survived the roundtrip
 	assert.Equal(t, "fr", loaded.CLI.Language)
-	assert.Equal(t, "2.0.0", loaded.Opencode.Version)
-	assert.Equal(t, "beta", loaded.Opencode.Channel)
-	assert.Equal(t, true, loaded.Opencode.AutoUpdate)
-	assert.Equal(t, "/usr/local/bin", loaded.Opencode.InstallDir)
 	assert.Equal(t, "bedrock", loaded.Opencode.DefaultProvider)
 
 	assert.Equal(t, "prod", loaded.Provider.Bedrock.AWSProfile)
@@ -388,7 +378,7 @@ func TestMCPServer_Dispatch(t *testing.T) {
 func TestToMap_AllKeys(t *testing.T) {
 	c := &Config{
 		CLI:      CLIConfig{Language: "fr"},
-		Opencode: OpencodeConfig{DefaultProvider: "bedrock", Channel: "stable"},
+		Opencode: OpencodeConfig{DefaultProvider: "bedrock"},
 		MCP: MCPConfig{
 			Gitlab: MCPServerConfig{Enabled: true, Token: "gitlab-token"},
 		},
@@ -400,7 +390,6 @@ func TestToMap_AllKeys(t *testing.T) {
 
 	assert.Equal(t, "fr", m["cli.language"])
 	assert.Equal(t, "bedrock", m["opencode.default_provider"])
-	assert.Equal(t, "stable", m["opencode.channel"])
 	assert.Equal(t, true, m["mcp.gitlab.enabled"])
 	assert.Equal(t, "gitlab-token", m["mcp.gitlab.token_key"])
 	assert.Equal(t, true, m["websearch.enabled"])

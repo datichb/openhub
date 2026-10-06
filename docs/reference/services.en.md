@@ -119,7 +119,7 @@ oh mcp status --project my-project
 
 ### `oh mcp serve <name>`
 
-Start an MCP server via stdio JSON-RPC. This is the command injected into `opencode.json` during deployment.
+Start an MCP server via stdio JSON-RPC. This is the command declared in the session bundle at launch.
 
 ```bash
 oh mcp serve figma
@@ -198,9 +198,9 @@ Hub (hub.toml)
 
 ---
 
-## Deployment — `mcp` in `opencode.json`
+## Session bundle — `mcp` block
 
-During `oh deploy`, the CLI injects an `mcp` block into the project's `opencode.json` for each **effectively enabled** service (after cascade resolution):
+At each launch (`oh run <workflow>`), the CLI puts in the session bundle an `mcp` entry for each **effectively enabled** service (after cascade resolution); the adapter renders it into the opencode config of the session (`oh deploy` removed in v5, nothing is written into the project's `opencode.json`):
 
 ```json
 {
@@ -217,7 +217,7 @@ During `oh deploy`, the CLI injects an `mcp` block into the project's `opencode.
 }
 ```
 
-Only servers with a valid token (env, keychain, or tokenless for `team`) are deployed.
+Only servers with a valid token (env, keychain, or tokenless for `team`) are put in the bundle.
 
 ---
 

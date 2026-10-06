@@ -1,0 +1,23 @@
+apiVersion: oh/v1
+kind: Workflow
+id: libre
+category: other
+label: { fr: Session libre, en: Free session }
+description:
+  fr: Session avec l'agent de ton choix et les agents qu'il peut appeler, sans checkpoint (remplace oh start --agent)
+  en: Session with the agent of your choice and the agents it may call, without checkpoints (replaces oh start --agent)
+risk: write
+entry:
+  agent: orchestrator
+  selectable: true
+inputs:
+  request:
+    type: text
+    label: { fr: Demande, en: Request }
+    help:
+      fr: "Ce qu'il faut faire (facultatif : sinon, la session attend ta demande)"
+      en: "What to do (optional: otherwise the session waits for your request)"
+    max_length: 8000
+prompt:
+  template: prompts/libre.md.tmpl
+runtime: { default: local, allowed: [local, container] }

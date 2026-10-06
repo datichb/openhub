@@ -52,6 +52,9 @@ type runOptions struct {
 	// OneSession gives every ticket to a single session (the workflow
 	// handles several tickets) instead of one session per ticket.
 	OneSession bool
+	// Agent replaces the entry agent of a workflow whose entry is selectable
+	// (`libre`, former `oh start --agent`).
+	Agent string
 	// Draft resolves the workflow with the member's drafts (local only, may
 	// not loosen the published version).
 	Draft bool
@@ -74,13 +77,10 @@ type preparedRun struct {
 	remote *remotePrep
 }
 
-// errRunNeedsV2 is returned when opencode V2 is missing.
-var errRunNeedsV2 = errors.New("opencode V2 required")
-
 // prepareWorkflowRun resolves, compiles and plans a launch.
 func prepareWorkflowRun(ctx context.Context, a *app.App, opts runOptions, errOut io.Writer) (*preparedRun, error) {
-	if !v5Available(ctx) {
-		return nil, fmt.Errorf("%w: %s", errRunNeedsV2, i18n.T("cmd.run.requires_v2"))
+	if err := requireV2(ctx); err != nil {
+		return nil, err
 	}
 	if opts.Project == nil {
 		return nil, errors.New(i18n.T("cmd.run.no_project"))
@@ -91,7 +91,8 @@ func prepareWorkflowRun(ctx context.Context, a *app.App, opts runOptions, errOut
 		resolve = wsvc.ResolveDraft
 	}
 	// Resolve once to learn the inputs (ticket input), then with the inputs.
-	probe, err := resolve(ctx, workflowsvc.Context{ProjectID: opts.Project.ID}, opts.Workflow, workflowsvc.ResolveOpts{})
+	probe, err := resolve(ctx, workflowsvc.Context{ProjectID: opts.Project.ID}, opts.Workflow, workflowsvc.ResolveOpts{
+		Session: &workflow.SessionOptions{EntryAgent: opts.Agent}})
 	if err != nil {
 		return nil, workflowError(errOut, opts.Workflow, err)
 	}
@@ -120,7 +121,7 @@ func prepareWorkflowRun(ctx context.Context, a *app.App, opts runOptions, errOut
 		}
 	}
 	res, err := resolve(ctx, workflowsvc.Context{ProjectID: opts.Project.ID}, opts.Workflow, workflowsvc.ResolveOpts{
-		Session: &workflow.SessionOptions{Mode: opts.Mode, Runtime: workflow.Runtime(opts.Runtime), Inputs: inputs}})
+		Session: &workflow.SessionOptions{Mode: opts.Mode, Runtime: workflow.Runtime(opts.Runtime), Inputs: inputs, EntryAgent: opts.Agent}})
 	if err != nil {
 		return nil, workflowError(errOut, opts.Workflow, err)
 	}

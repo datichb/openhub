@@ -1,0 +1,14 @@
+{
+  "default": {
+    "opencode_min": "2.0.0",
+    "opencode_max": "2.99.99",
+    "notes": "oh v5 : opencode V2 uniquement (V1 n'est plus pris en charge)"
+  },
+  "oh_versions": {
+    "5.0": {
+      "opencode_min": "2.0.0",
+      "opencode_max": "2.99.99",
+      "notes": "Workflows v5 ; opencode V1 n'est plus pris en charge"
+    }
+  }
+}

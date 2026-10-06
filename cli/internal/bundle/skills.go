@@ -14,7 +14,7 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/datichb/openhub/cli/internal/deploy"
+	"github.com/datichb/openhub/cli/internal/bricks"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 	"github.com/datichb/openhub/cli/internal/skillregistry"
 )
@@ -50,7 +50,7 @@ type skillDoc struct {
 }
 
 func (d *skillDoc) body() []byte {
-	_, b := deploy.SplitFrontmatter(d.Content)
+	_, b := bricks.SplitFrontmatter(d.Content)
 	return b
 }
 
@@ -87,7 +87,7 @@ func (l *skillLoader) load(ref string) (*skillDoc, error) {
 	if gen, ok := l.generated[ref]; ok {
 		content = []byte(gen)
 	} else {
-		p, err := deploy.SkillSourcePath(l.hubDir, ref)
+		p, err := bricks.SkillSourcePath(l.hubDir, ref)
 		if err != nil {
 			return nil, fmt.Errorf("%w: %s", errSkillNotFound, ref)
 		}
@@ -106,7 +106,7 @@ func (l *skillLoader) load(ref string) (*skillDoc, error) {
 
 func parseSkill(ref, src string, content []byte) (*skillDoc, error) {
 	d := &skillDoc{Ref: ref, ID: skillID(ref), Source: src, Content: content}
-	if fm, _ := deploy.SplitFrontmatter(content); fm != nil {
+	if fm, _ := bricks.SplitFrontmatter(content); fm != nil {
 		if err := yaml.Unmarshal(frontmatterYAML(fm), &d.Front); err != nil {
 			return nil, fmt.Errorf("skill %s: invalid frontmatter: %w", ref, err)
 		}
@@ -248,7 +248,7 @@ func frontmatterYAML(fm []byte) []byte {
 // stripFrontmatterKeys removes top-level keys (and their block values) from
 // the frontmatter of a markdown file.
 func stripFrontmatterKeys(content []byte, keys ...string) []byte {
-	fm, body := deploy.SplitFrontmatter(content)
+	fm, body := bricks.SplitFrontmatter(content)
 	if fm == nil {
 		return content
 	}
@@ -434,10 +434,10 @@ func CheckSkills(hubDir string) ([]SkillProblem, error) {
 
 	problems = append(problems, checkAnnexes(root, docs)...)
 
-	agents, err := deploy.FindAgentFiles(hubDir)
+	agents, err := bricks.FindAgentFiles(hubDir)
 	if err == nil {
 		for _, id := range sortedKeys(agents) {
-			fm, err := deploy.ParseAgentFrontmatter(agents[id])
+			fm, err := bricks.ParseAgentFrontmatter(agents[id])
 			if err != nil {
 				continue
 			}

@@ -188,8 +188,8 @@ oh provider setup
 # 5. Vérifier que tout fonctionne
 oh doctor
 
-# 6. Redéployer sur tous les projets
-oh sync --all
+# 6. Lancer une session (pas de redéploiement : `oh sync` supprimé en v5, le paquet est construit au lancement)
+oh run <workflow>
 ```
 
 `oh doctor` vérifie :

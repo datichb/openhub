@@ -61,8 +61,8 @@ type StartSectionConfig struct {
 	TogglePin func(scope StartScope, entry StartEntry)
 	// OpenCatalog shows the workflow catalogue.
 	OpenCatalog func(scope StartScope)
-	// FreeSession launches a session without workflow (opencode V1, or no
-	// workflow in the catalogue). Nil hides the entry.
+	// FreeSession opens the free session (workflow `libre`) when the
+	// catalogue lists nothing. Nil hides the entry.
 	FreeSession func(scope StartScope)
 }
 

@@ -4,7 +4,7 @@
 
 ## Vue d'ensemble
 
-Le marketplace de skills permet à la communauté d'étendre `oh` avec des skills d'agents personnalisées — sans modifier le binaire. Les skills communautaires sont téléchargées depuis le [oh-skills-index](https://github.com/datichb/oh-skills-index) ou directement depuis une URL Git, puis déployées automatiquement avec les skills intégrées lors de `oh deploy`.
+Le marketplace de skills permet à la communauté d'étendre `oh` avec des skills d'agents personnalisées — sans modifier le binaire. Les skills communautaires sont téléchargées depuis le [oh-skills-index](https://github.com/datichb/oh-skills-index) ou directement depuis une URL Git, puis livrées dans le paquet de session avec les skills intégrées quand un workflow les liste dans `skills.extra` — sans redéploiement (`oh deploy` supprimé en v5).
 
 ### Pourquoi des skills communautaires ?
 
@@ -30,7 +30,7 @@ Cette commande :
 3. Valide le checksum du manifest
 4. Marque la skill comme active
 
-La skill est déployée sur tes projets au prochain `oh deploy`.
+La skill est livrée au prochain lancement de session de tout workflow qui la liste dans `skills.extra`.
 
 ### Depuis une URL Git
 
@@ -84,7 +84,7 @@ Retourne une liste paginée de skills correspondantes avec nom, description, ver
 oh skill remove golang-idioms
 ```
 
-La skill est dissociée des déploiements mais ses fichiers restent dans `~/.oh/skills/golang-idioms/` jusqu'à purge :
+La skill n'est plus livrée dans les paquets de session mais ses fichiers restent dans `~/.oh/skills/golang-idioms/` jusqu'à purge :
 
 ```bash
 oh skill remove golang-idioms --purge
@@ -96,7 +96,7 @@ oh skill remove golang-idioms --purge
 
 1. **Téléchargement** : `oh skill add` récupère le package de la skill depuis l'index ou Git et le stocke dans `~/.oh/skills/<nom>/`
 2. **Validation** : le checksum du manifest est vérifié avant activation
-3. **Déploiement** : `oh deploy` lit toutes les skills actives et les inclut dans le `opencode.json` généré aux côtés des skills intégrées
+3. **Paquet de session** : au lancement, le paquet d'une session inclut les skills que son workflow liste dans `skills.extra` (ou que ses agents référencent), aux côtés des skills intégrées
 4. **Accès agent** : les skills apparaissent dans la liste de skills de l'agent au démarrage de session, indiscernables des skills intégrées
 
 Les skills sont des fichiers SKILL.md sans état — elles ne modifient pas le binaire et peuvent être supprimées en toute sécurité à tout moment.

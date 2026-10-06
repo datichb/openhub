@@ -452,7 +452,6 @@ func TestBuildFirstRunInlineWizard_E2E_MountWithPreconfig(t *testing.T) {
 				CLI: config.CLIConfig{Language: "fr"},
 				Opencode: config.OpencodeConfig{
 					DefaultProvider: "bedrock",
-					Channel:         "stable",
 				},
 				Teams: []config.TeamConfig{
 					{

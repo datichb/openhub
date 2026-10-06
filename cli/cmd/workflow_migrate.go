@@ -56,19 +56,58 @@ func (m *workflowMigration) notice(key string, args ...any) {
 	m.Notices = append(m.Notices, i18n.Tf("teamstate.workflow.migrate."+key, args...))
 }
 
-// hubWorkflowConfig returns hub.toml [workflow]. The overrides are read
-// from the file itself: the configuration loader (mapstructure) does not
-// map their snake_case keys, so a.Config.Workflow may look empty.
-func hubWorkflowConfig(a *app.App) *config.WorkflowHubConfig {
-	if data, err := os.ReadFile(config.ConfigPath()); err == nil {
-		var raw struct {
-			Workflow *config.WorkflowHubConfig `toml:"workflow"`
-		}
-		if toml.Unmarshal(data, &raw) == nil && raw.Workflow != nil {
-			return raw.Workflow
-		}
+// The former configuration sections, read only here (their types left the
+// configuration packages with the former workflow view, P2-T18): hub.toml
+// and team-state config.toml [workflow], projects.workflow_config_legacy.
+type (
+	legacyHubWorkflow struct {
+		Overrides *workflow.WorkflowOverride `toml:"overrides,omitempty"`
 	}
-	return a.Config.Workflow
+	legacyTeamWorkflow struct {
+		Overrides *workflow.WorkflowOverride `toml:"overrides,omitempty"`
+		Enforced  *bool                      `toml:"enforced,omitempty"`
+	}
+	legacyProjectWorkflow struct {
+		Overrides *workflow.WorkflowOverride `json:"overrides,omitempty"`
+	}
+)
+
+func (w *legacyTeamWorkflow) isEnforced() bool { return w != nil && w.Enforced != nil && *w.Enforced }
+
+// hubWorkflowConfig returns hub.toml [workflow], read from the file itself
+// (the configuration has no such section any more; its loader never mapped
+// the snake_case keys of the overrides anyway).
+func hubWorkflowConfig(_ *app.App) *legacyHubWorkflow {
+	data, err := os.ReadFile(config.ConfigPath())
+	if err != nil {
+		return nil
+	}
+	var raw struct {
+		Workflow *legacyHubWorkflow `toml:"workflow"`
+	}
+	if toml.Unmarshal(data, &raw) != nil {
+		return nil
+	}
+	return raw.Workflow
+}
+
+// teamWorkflowSection returns config.toml [workflow] of a team-state.
+func teamWorkflowSection(data []byte) *legacyTeamWorkflow {
+	var raw struct {
+		Workflow *legacyTeamWorkflow `toml:"workflow"`
+	}
+	if toml.Unmarshal(data, &raw) != nil {
+		return nil
+	}
+	return raw.Workflow
+}
+
+func repoTeamWorkflow(repo *teamstate.Repo) *legacyTeamWorkflow {
+	data, err := os.ReadFile(filepath.Join(repo.Path(), "config.toml"))
+	if err != nil {
+		return nil
+	}
+	return teamWorkflowSection(data)
 }
 
 // legacyWorkflowPending reports cheaply whether something is left to migrate.
@@ -82,10 +121,8 @@ func legacyWorkflowPending(ctx context.Context, a *app.App, store legacyWorkflow
 		}
 	}
 	for _, t := range a.Config.Teams {
-		if repo := teamRepoOf(t); repo != nil {
-			if cfg, err := repo.LoadConfig(); err == nil && cfg.Workflow != nil {
-				return true
-			}
+		if repo := teamRepoOf(t); repo != nil && repoTeamWorkflow(repo) != nil {
+			return true
 		}
 	}
 	return false
@@ -166,7 +203,7 @@ func migrateHubWorkflowConfig(a *app.App, m *workflowMigration, known []string) 
 	if wc.Overrides != nil && !wc.Overrides.IsEmpty() {
 		dir := filepath.Join(config.HubDir(), "migrated")
 		raw, err := toml.Marshal(struct {
-			Workflow *config.WorkflowHubConfig `toml:"workflow"`
+			Workflow *legacyHubWorkflow `toml:"workflow"`
 		}{wc})
 		if err == nil {
 			err = os.MkdirAll(dir, 0o755)
@@ -184,7 +221,7 @@ func migrateHubWorkflowConfig(a *app.App, m *workflowMigration, known []string) 
 		}
 		m.notice("hub", dir)
 	}
-	a.Config.Workflow = nil
+	// Saving the configuration drops the section (no such field any more).
 	if err := config.Save(a.Config); err != nil {
 		m.Errors = append(m.Errors, fmt.Errorf("writing hub.toml: %w", err))
 	}
@@ -197,24 +234,32 @@ func migrateTeamWorkflowConfig(ctx context.Context, svc *workflowsvc.Service, t 
 	if repo == nil || t.MemberID == "" {
 		return
 	}
-	if cfg, err := repo.LoadConfig(); err != nil || cfg.Workflow == nil {
+	if repoTeamWorkflow(repo) == nil {
 		return
 	}
 	id := workflow.LegacyWorkflowID
 	draftCreated := false
 	err := repo.Transact(ctx, func(_ context.Context, tx *teamstate.Tx) (teamstate.TxResult, error) {
 		draftCreated = false
-		cfg, err := tx.Config()
-		if err != nil || cfg.Workflow == nil { // migrated by another member meanwhile
-			return teamstate.TxResult{}, err
-		}
-		raw, err := toml.Marshal(struct {
-			Workflow *teamstate.WorkflowTeamConfig `toml:"workflow"`
-		}{cfg.Workflow})
+		data, err := tx.ReadFile("config.toml")
 		if err != nil {
 			return teamstate.TxResult{}, err
 		}
-		patch := workflow.TranslateLegacyOverride(cfg.Workflow.Overrides, id, "hub:"+id, cfg.Workflow.IsEnforced(), known)
+		section := teamWorkflowSection(data)
+		if section == nil { // migrated by another member meanwhile
+			return teamstate.TxResult{}, nil
+		}
+		cfg, err := tx.Config()
+		if err != nil {
+			return teamstate.TxResult{}, err
+		}
+		raw, err := toml.Marshal(struct {
+			Workflow *legacyTeamWorkflow `toml:"workflow"`
+		}{section})
+		if err != nil {
+			return teamstate.TxResult{}, err
+		}
+		patch := workflow.TranslateLegacyOverride(section.Overrides, id, "hub:"+id, section.isEnforced(), known)
 		dir := filepath.Join(teamstate.WorkflowsDirName, "migrated")
 		if err := tx.WriteFile(filepath.Join(dir, "team-config-workflow.toml"), raw); err != nil {
 			return teamstate.TxResult{}, err
@@ -225,7 +270,7 @@ func migrateTeamWorkflowConfig(ctx context.Context, svc *workflowsvc.Service, t 
 		if draftCreated, err = writeMigrationDraft(tx, teamstate.TeamScope(), t.MemberID, id, patch.YAML); err != nil {
 			return teamstate.TxResult{}, err
 		}
-		cfg.Workflow = nil
+		// Writing the configuration drops [workflow] (no such field any more).
 		if err := tx.WriteConfig(cfg); err != nil {
 			return teamstate.TxResult{}, err
 		}
@@ -250,7 +295,7 @@ func migrateProjectWorkflowConfigs(ctx context.Context, a *app.App, svc *workflo
 		return
 	}
 	for pid, raw := range legacy {
-		var wc domain.ProjectWorkflowConfig
+		var wc legacyProjectWorkflow
 		if err := json.Unmarshal([]byte(raw), &wc); err != nil {
 			m.Errors = append(m.Errors, fmt.Errorf("project %s: unreadable workflow_config (kept): %w", pid, err))
 			continue

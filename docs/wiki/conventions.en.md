@@ -54,7 +54,7 @@ Scope is optional but recommended: `feat(parallel)`, `fix(tui)`, `docs(adr)`.
 1. Create feature branch from `main`
 2. Implement with tests (`make test`)
 3. Lint (`make lint`)
-4. Deploy check (`oh deploy && oh deploy --check`)
+4. Session bundle check (`oh bundle build <workflow>` for the affected workflows)
 5. Open PR with documentation and changelog updates
 6. AI review available via `oh review`
 7. Human review required for merge

@@ -218,12 +218,12 @@ type agentSummary struct {
 }
 
 func TestShippedWorkflowBundles(t *testing.T) {
-	hub, cat, _ := shippedWorkflows(t)
+	hub, cat, env := shippedWorkflows(t)
 	hc, err := hubcat.New(hub)
 	require.NoError(t, err)
 	for _, ref := range cat.Refs() {
 		t.Run(ref.ID, func(t *testing.T) {
-			r, diags := workflow.ResolveSpec(cat, ref, nil)
+			r, diags := workflow.Check(cat, ref, nil, env) // as the launch: selectable entries expanded
 			require.False(t, diags.HasErrors(), "%v", diags)
 			b, err := Build(Request{HubDir: hub, OutDir: t.TempDir(), Spec: r.Spec})
 			require.NoError(t, err)

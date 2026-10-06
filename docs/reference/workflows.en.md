@@ -10,7 +10,7 @@ oh workflow validate ticket         # one workflow of the catalogue
 oh workflow validate ./my-wf.yaml   # a file
 ```
 
-Launching with `oh run <workflow>` and the TUI launch form come with the rest of phase 1; until then, `oh start` and the existing commands remain the entry points.
+A workflow is launched with `oh run <workflow>` or the TUI launch form; the former commands (`oh start`, `oh audit`…) are deprecated aliases of it.
 
 ---
 
@@ -29,6 +29,7 @@ Launching with `oh run <workflow>` and the TUI launch form come with the rest of
 | `debug` | `debugger` | `developer` (on demand) | write | local | `oh debug` (former mode D) |
 | `sweep` | `conductor` | `developer`, `developer-refactor`, `developer-migrator` | write | local | `oh start --sweep` |
 | `brief-enrich` | `brief-enricher` | — | read | local | `oh takeover-brief enrich` |
+| `libre` | your choice (`orchestrator` by default) | those the chosen agent may call | write | local, container | `oh start --agent`, TUI free session |
 
 ### Risk levels
 
@@ -203,6 +204,16 @@ Enriches a ticket takeover brief, without interaction (headless session). oh pro
 |---|---|---|---|
 | `ticket` | `beads-id` | yes | Ticket of the brief |
 | `brief` | `text` (40,000 characters max) | yes | Content of the existing brief |
+
+## `libre`
+
+Session with the agent of your choice, without checkpoints: `oh run libre --agent debugger -i request="…"` (without `--agent`: `orchestrator`). The entry of the workflow is **selectable** (`entry.selectable: true`): oh computes the members from the chosen agent and the agents it may call (`task` permission of the catalogue, transitively). The world stays closed: nothing else is visible. In the TUI, the free session (`coder` command, or « Démarrer » when the catalogue is empty) opens the launch form with the default agent.
+
+| Input | Type | Required | Role |
+|---|---|---|---|
+| `request` | `text` (8,000 characters max) | no | What to do; otherwise the session waits for the request |
+
+`entry.selectable` is an additive addition to the `oh/v1` schema: another workflow may declare it; `--agent` is refused on a workflow whose entry is not selectable.
 
 ---
 

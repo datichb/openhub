@@ -267,7 +267,7 @@ Le hub supporte deux trackers : **Jira** et **GitLab**.
 `oh beads init` ajoute automatiquement `.beads/` au fichier `.git/info/exclude` du projet cible.
 Ce fichier est local à la machine et non versionné — les credentials tracker (token GitLab, token Jira) stockés par `bd config set` ne sont jamais exposés dans le dépôt partagé.
 
-> Ce comportement est identique à l'exclusion de `opencode.json` et `.opencode/` appliquée par `oh init` / `oh deploy`.
+> Ce comportement est identique à l'exclusion de `opencode.json` et `.opencode/` appliquée autrefois par `oh init` / `oh deploy` (supprimé en v5 : plus rien n'est déployé dans le projet).
 
 #### Configuration GitLab — `gitlab.project_id`
 

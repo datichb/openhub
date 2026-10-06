@@ -166,4 +166,4 @@ The overrides of the former single workflow (TUI Workflow tab) are migrated **au
 - An invalid migrated workflow, or a scope that already has a published `feature`, stays **your draft**: `oh workflow diff feature`, `oh workflow edit feature`, then `oh workflow publish`.
 - When the team locked its workflow, the project overrides (ignored before) stay a draft: the lock refuses their publication.
 - Offline, the migration of a team is simply retried at the next start.
-- The former TUI Workflow view only shows the base workflow, read-only; `oh deploy` (opencode V1) no longer applies the former overrides.
+- The former TUI Workflow view and `oh deploy` were removed in v5: workflows are browsed in the catalogue (`workflows`) and edited in the editor.

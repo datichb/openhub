@@ -19,10 +19,10 @@ Run `oh doctor` to check your installation health. It performs 13 checks:
 | 1 | OS / Architecture | System info (always passes) | — |
 | 2 | Go runtime | Go version (always passes) | — |
 | 3 | git | `git` binary on PATH | Install git |
-| 4 | opencode | OpenCode runtime installed | `brew install opencode` or `oh upgrade` |
+| 4 | opencode | OpenCode runtime installed | `brew install anomalyco/tap/opencode` |
 | 5 | bd (beads) | Beads CLI (optional) | `brew install datichb/tap/bd` |
 | 6 | fzf | Fuzzy finder (optional) | `brew install fzf` |
-| 7 | Compatibility | oh <-> opencode version match | `oh upgrade` |
+| 7 | opencode V2 | minimum opencode V2 version (V1 refused) | see the [v5 migration guide](migration-v5.en.md) |
 | 8 | Version | Latest oh version available | `oh upgrade` |
 | 9 | Configuration | `hub.toml` loads correctly | `oh init` to reinitialize |
 | 10 | Provider credentials | LLM provider API key present | `oh secrets set` or set env var |
@@ -158,13 +158,20 @@ oh import oh-backup-2026-10-01.tar.gz
 
 ### Worktree
 
-**Project not deployed**
+**`.opencode/ directory missing` (oh < v5)**
 ```
 Error: .opencode/ directory missing
 ```
-Deploy the project configuration:
+Since v5 the project no longer needs a `.opencode/` directory (`oh deploy` removed in v5): the session bundle is built at launch. Update `oh` and relaunch, or inspect the bundle:
 ```bash
-oh deploy
+oh run <workflow>
+oh bundle show <workflow>
+```
+
+**Leftovers of former deployments** (reported by `oh doctor`)
+```bash
+oh migrate deploy-cleanup --dry-run --diff   # preview what would be removed
+oh migrate deploy-cleanup                    # remove .opencode/agents, .opencode/skills, oh keys in opencode.json…
 ```
 
 **Orphan worktrees**

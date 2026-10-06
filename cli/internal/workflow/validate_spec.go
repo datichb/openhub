@@ -78,6 +78,13 @@ func Check(cat Catalog, ref Ref, opts *SessionOptions, env Env) (*Resolved, Diag
 	if r == nil {
 		return nil, diags
 	}
+	switch {
+	case opts != nil && opts.EntryAgent != "":
+		diags = append(diags, r.SelectEntry(opts.EntryAgent, env.Agents)...)
+	case r.Spec.Entry != nil && r.Spec.Entry.Selectable && env.Agents != nil:
+		// default entry of a selectable workflow: same closure
+		diags = append(diags, r.SelectEntry(r.Spec.EntryAgent(), env.Agents)...)
+	}
 	if wc, ok := cat.(WorkflowCatalog); ok && env.Workflows == nil {
 		env.Workflows = wc
 	}

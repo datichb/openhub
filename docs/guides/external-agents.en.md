@@ -2,6 +2,8 @@
 
 # Guide — External Agents per Project
 
+> **Removed in v5.** This guide describes the behaviour of `oh deploy` (removed in v5). Since v5 nothing is deployed into the project: each session starts from a session bundle built at launch from its workflow, in a closed world — the agents of a session are those of its workflow, and agents in `<project>/.opencode/agents/` are not integrated. To use a custom agent, install it in the hub and reference it in a workflow (see [Workflows](./workflows.en.md)). Former deployments can be cleaned up with `oh migrate deploy-cleanup`. The rest of this page is kept for history.
+
 This guide explains how to integrate existing agents from a target project with the openhub, without overwriting them or forcing migration.
 
 ---
@@ -16,7 +18,7 @@ This guide explains how to integrate existing agents from a target project with 
 
 ## How It Works
 
-During `oh deploy PROJECT_ID`, the hub automatically detects agents in `.opencode/agents/` that it doesn't own. It then asks you how to integrate them:
+During `oh deploy PROJECT_ID` (removed in v5), the hub automatically detects agents in `.opencode/agents/` that it doesn't own. It then asks you how to integrate them:
 
 ```
 ── Existing agents detected in project
@@ -50,7 +52,7 @@ Your choice is **persisted** in `projects.md` under the `External agents` field.
 ### Automatically at deploy
 
 ```bash
-oh deploy MY-PROJECT
+oh deploy MY-PROJECT   # removed in v5
 ```
 
 If non-hub agents are found in `.opencode/agents/` and not yet configured → interactive prompt.
@@ -84,7 +86,7 @@ my-app/
 ### Step 1 — First deploy
 
 ```bash
-oh deploy MY-APP
+oh deploy MY-APP   # removed in v5
 ```
 
 The hub detects `planner.md` (similar to hub agent `planner`) and `feature-reviewer.md` (no equivalent):
@@ -134,7 +136,7 @@ my-app/.opencode/agents/
 ### Step 4 — Subsequent deploys
 
 ```bash
-oh deploy MY-APP   # no more prompt, choices are remembered
+oh deploy MY-APP   # removed in v5 — no more prompt, choices are remembered
 ```
 
 ---

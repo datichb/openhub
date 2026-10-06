@@ -12,16 +12,15 @@ import (
 	"github.com/datichb/openhub/cli/internal/gitlabapi"
 	"github.com/datichb/openhub/cli/internal/gitutil"
 	"github.com/datichb/openhub/cli/internal/i18n"
-	"github.com/datichb/openhub/cli/internal/launcher"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
 
 var reviewFeedbackCmd = &cobra.Command{
 	Use:   "feedback <ticket-or-branch>",
 	Short: i18n.T("cmd.review.feedback.short"),
-	Long: i18n.T("cmd.review.feedback.long"),
-	Args: cobra.ExactArgs(1),
-	RunE: runReviewFeedback,
+	Long:  i18n.T("cmd.review.feedback.long"),
+	Args:  cobra.ExactArgs(1),
+	RunE:  runReviewFeedback,
 }
 
 func init() {
@@ -92,34 +91,15 @@ func runReviewFeedback(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	// ── 7. Build prompt and launch ──
-	if err := ensureOpencode(a); err != nil {
+	// ── 7. Launch the review-feedback workflow ──
+	if err := requireV2(ctx); err != nil {
 		return err
 	}
-
 	prompt := buildFeedbackPrompt(mr, branch, discussions)
-	// v5: the review-feedback workflow receives the gathered feedback as its
-	// free text input (MR, branch and discussions are read here, on the machine).
-	if handled, err := tryWorkflowAlias(cmd, workflowAlias{Old: "oh review feedback", Workflow: "review-feedback",
-		Opts: runOptions{Project: project, Text: prompt, LooseInputs: map[string]string{"branch": branch, "mr": mr.WebURL}}}); handled {
-		return err
-	}
-	fmt.Fprintf(a.IO.Out, "\n%s %s\n",
-		theme.Title.Render("oh review feedback"), i18n.Tf("cmd.review.feedback.launching", theme.Bold.Render(project.Name)))
-
-	l := launcher.New(a, launcher.NewCLIUI(a.IO.Out))
-	return l.Launch(ctx, launcher.LaunchOpts{
-		ProjectID:   project.ID,
-		ProjectPath: project.Path,
-		Agent:       "orchestrator-dev",
-		Prompt:      prompt,
-		SkipSummary: true,
-		SkipConfirm: true,
-		SkipDeploy:  false,
-		DeployFunc: func(a *app.App, prov string) {
-			autoDeployIfNeeded(a, project, findHubDir(), prov, "", true)
-		},
-	})
+	// The workflow receives the gathered feedback as its free text input (MR,
+	// branch and discussions are read here, on the machine).
+	return runAlias(cmd, workflowAlias{Old: "oh review feedback", Workflow: "review-feedback",
+		Opts: runOptions{Project: project, Text: prompt, LooseInputs: map[string]string{"branch": branch, "mr": mr.WebURL}}})
 }
 
 // ── Helpers ─────────────────────────────────────────────────────────────────

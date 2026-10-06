@@ -170,12 +170,13 @@ Structure recommandée (voir `agents/auditor/auditor.md` comme référence pour 
 Si l'agent nécessite un protocole dédié, créer le skill correspondant
 (voir section "Ajouter un skill" ci-dessous) avant de le référencer dans le frontmatter.
 
-### 5. Déployer et tester
+### 5. Construire et tester
 
 ```bash
-oh deploy
-# Vérifier que l'agent apparaît dans le opencode.json du projet
-oh deploy --check
+# Construire le paquet de session d'un workflow qui utilise l'agent
+oh bundle build <workflow>
+# Vérifier que l'agent apparaît dans le paquet
+oh bundle show <workflow>
 ```
 
 ---
@@ -212,7 +213,7 @@ description: <Description courte — visible dans la liste de skills de l'agent>
 ---
 ```
 
-> La clé `name` est documentaire. Le déploiement lit uniquement `description`.
+> La clé `name` est documentaire. La construction du paquet lit uniquement `description`.
 > Le chemin du fichier est la référence utilisée dans le frontmatter des agents.
 
 ### 3. Contenu du skill
@@ -256,17 +257,17 @@ Ajouter également une ligne dans la section guide "## Skills disponibles" du co
 
 ---
 
-## Déploiement
+## Paquet de session
 
-Le déploiement traduit les agents du format hub vers le format opencode et génère le `opencode.json` du projet.
+Depuis la v5, rien n'est déployé dans le projet (`oh deploy` / `oh sync` supprimés en v5). Chaque session démarre d'un paquet de session construit au lancement hors du projet (`~/.oh/bundles/<hash>/`) à partir de son workflow : agents traduits du format hub vers le format opencode, skills, permissions, serveurs MCP.
 
-La logique de déploiement est implémentée en Go dans `cli/internal/deploy/`.
+La logique du paquet est implémentée en Go dans `cli/internal/bundle/`.
 
 ### Étapes rapides
 
 1. Ajouter ou modifier les agents/skills dans les répertoires `agents/` et `skills/`
-2. Lancer `oh deploy` pour générer le `opencode.json` mis à jour
-3. Lancer `oh deploy --check` pour vérifier la cohérence
+2. Lancer `oh bundle build <workflow>` pour construire le paquet d'un workflow qui les utilise
+3. Lancer `oh bundle show <workflow> --budget` pour inspecter son contenu et son budget de contexte
 
 ---
 
@@ -315,12 +316,11 @@ Format : voir [ADR-001](../architecture/adr/001-agent-skill-separation.fr.md) co
 Avant de soumettre une PR :
 
 ```bash
-# Vérifier que les agents déploient correctement
-oh deploy
-oh deploy --check
+# Vérifier que le paquet de session se construit correctement
+oh bundle build <workflow>
 
-# Vérifier le diff du opencode.json généré
-oh deploy --diff
+# Vérifier le contenu du paquet
+oh bundle show <workflow> --budget
 ```
 
 ---
@@ -340,8 +340,8 @@ oh deploy --diff
 - [ ] Le commit respecte les Conventional Commits
 - [ ] `make test` passe sans erreur (ou `make test-unit` au minimum)
 - [ ] `make lint` ne produit aucun warning
-- [ ] `oh deploy` et `oh deploy --check` passent sans erreur
-- [ ] `oh deploy --diff` ne montre aucune divergence inattendue
+- [ ] `oh bundle build <workflow>` passe sans erreur pour les workflows concernés
+- [ ] `oh bundle show <workflow>` ne montre aucune divergence inattendue
 
 ---
 

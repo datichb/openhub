@@ -71,6 +71,9 @@ type SessionOptions struct {
 	// Inputs holds the launch inputs; values may be strings as typed on the
 	// command line ("true", "3", "a,b").
 	Inputs map[string]any
+	// EntryAgent replaces the entry agent of a workflow whose entry is
+	// selectable (applied by Check, which knows the brick catalogue).
+	EntryAgent string
 }
 
 // Resolved is a workflow after `extends` resolution and session options.

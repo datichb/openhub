@@ -30,7 +30,7 @@ Verifie l'etat du systeme.
 oh doctor
 ```
 
-Pas de flags. Checks : OS, git, opencode, bd, fzf, compatibilite, config, BDD, cles API. Verifie egalement la disponibilite de mises a jour pour le binaire `oh`.
+Pas de flags. Checks : OS, git, opencode V2 (version minimale, V1 refusé), bd, fzf, config, BDD, cles API, runtime v5. Verifie egalement la disponibilite de mises a jour pour le binaire `oh`.
 
 **Exemple :**
 
@@ -61,24 +61,23 @@ oh status --json
 
 ---
 
-### oh upgrade opencode
+### oh migrate deploy-cleanup
 
-Met a jour opencode.
+Retire des projets enregistrés ce qu'avait laissé l'ancien `oh deploy` (v5) : `.opencode/agents`, `.opencode/skills`, `.opencode/.deploy-state`, `.opencode/context-manifest.json`, `.opencode/team.json` et, dans `opencode.json`, uniquement les clés écrites par oh et inchangées depuis le dernier déploiement. Récapitulatif puis confirmation.
 
 ```
-oh upgrade opencode [version]
+oh migrate deploy-cleanup [-p <projet>] [--dry-run] [--diff] [--yes] [--json]
 ```
 
-Pas de flags. Argument version optionnel (derniere version si omis).
+| Flag | Description |
+|------|-------------|
+| `--project`, `-p` | Un seul projet (défaut : tous les projets actifs) |
+| `--dry-run` | Afficher ce qui serait retiré, avec le diff, sans rien changer |
+| `--diff` | Afficher le diff d'`opencode.json` |
+| `--yes`, `-y` | Appliquer sans confirmation (obligatoire sans terminal) |
+| `--json` | Plan au format JSON (rien n'est changé) |
 
-**Exemple :**
-
-```bash
-oh upgrade opencode          # Derniere version
-oh upgrade opencode 0.3.1   # Version specifique
-```
-
-> Voir aussi : `oh upgrade oh` pour mettre a jour le binaire `oh` lui-meme.
+Voir le [guide de migration v5](../guides/migration-v5.fr.md#8-nettoyer-les-anciens-déploiements--oh-migrate-deploy-cleanup).
 
 ---
 

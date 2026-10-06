@@ -1,10 +1,9 @@
 package cmd
 
 import (
-	"context"
+	"errors"
 	"fmt"
 	"io"
-	"log/slog"
 	"sort"
 	"strings"
 
@@ -15,11 +14,11 @@ import (
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
 
-// Aliases of the former launch commands (O15): `oh start`, `--dev`,
-// `--onboard`, `--parallel`, `--sweep`, `oh audit|review|debug`, `oh review
-// feedback` run their workflow through `oh run`, with a deprecation warning.
-// While the target workflow is not in the catalogue (hub content without
-// workflows) or opencode V2 is missing, the former launch runs unchanged.
+// Aliases of the former launch commands (O15): `oh start`, `--agent`,
+// `--dev`, `--onboard`, `--parallel`, `--sweep`, `oh audit|review|debug`,
+// `oh review feedback`, `oh takeover-brief enrich` run their workflow
+// through `oh run`, with a deprecation warning. They require opencode V2 and
+// the target workflow (the former launch was removed with opencode V1).
 
 // warnDeprecatedAlias tells that an old command is an alias of a v5 one (O15).
 func warnDeprecatedAlias(w io.Writer, old, replacement string) {
@@ -34,31 +33,15 @@ type workflowAlias struct {
 	Recap    bool
 }
 
-// aliasAvailable reports whether an alias can run its workflow: opencode
-// V2 present and the workflow in the catalogue.
-func aliasAvailable(ctx context.Context, workflowID string) bool {
-	if !v5Available(ctx) {
-		return false
-	}
-	if !newWorkflowService(ctx).Has(ctx, workflowsvc.Context{}, workflowID) {
-		slog.Debug("alias target workflow not in the catalogue, former launch", "workflow", workflowID)
-		return false
-	}
-	return true
-}
-
-// tryWorkflowAlias runs the alias through `oh run` when possible. handled is
-// false when the former launch must run (no opencode V2, workflow absent).
-// al.Opts.Project must be set.
-func tryWorkflowAlias(cmd *cobra.Command, al workflowAlias) (handled bool, err error) {
-	if !aliasAvailable(cmd.Context(), al.Workflow) {
-		return false, nil
-	}
-	return true, runAlias(cmd, al)
-}
-
 // runAlias warns and runs the workflow of an alias.
+// The target workflow must be in the catalogue (the former launch is gone).
 func runAlias(cmd *cobra.Command, al workflowAlias) error {
+	if err := requireV2(cmd.Context()); err != nil {
+		return err
+	}
+	if !newWorkflowService(cmd.Context()).Has(cmd.Context(), workflowsvc.Context{}, al.Workflow) {
+		return errors.New(i18n.Tf("cmd.v1.unsupported.workflow_missing", al.Old, al.Workflow))
+	}
 	warnDeprecatedAlias(cmd.ErrOrStderr(), al.Old, aliasReplacement(al))
 	al.Opts.Workflow = al.Workflow
 	if al.Opts.Inputs == nil {
@@ -70,6 +53,9 @@ func runAlias(cmd *cobra.Command, al workflowAlias) error {
 // aliasReplacement is the `oh run` command line shown in the warning.
 func aliasReplacement(al workflowAlias) string {
 	parts := []string{"oh run", al.Workflow}
+	if al.Opts.Agent != "" {
+		parts = append(parts, "--agent", al.Opts.Agent)
+	}
 	if len(al.Opts.Tickets) > 0 {
 		parts = append(parts, "--tickets", strings.Join(al.Opts.Tickets, ","))
 	}

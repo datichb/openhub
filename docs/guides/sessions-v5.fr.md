@@ -129,7 +129,6 @@ Les budgets sont des **plafonds souples**, vérifiés sur le coût indiqué par 
 |---|---|
 | `OH_HOME` | déplace `~/.oh` (environnements de test) |
 | `OH_SESSION_ATTACH` | remplace `[session] attach` |
-| `OH_V5=0` | force l'ancien chemin de lancement. **Avec opencode V2 installé, ce chemin ne fonctionne pas** : à réserver au diagnostic. |
 
 ## Limites
 

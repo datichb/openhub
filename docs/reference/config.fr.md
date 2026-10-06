@@ -17,33 +17,7 @@
 language = "en"                    # "fr" ou "en"
 
 [opencode]
-version = "latest"                 # version fixee ou "latest"
-channel = "stable"                 # canal de release
-auto_update = false                # mise a jour automatique du binaire opencode
-install_dir = "~/.oh/bin"          # repertoire d'installation d'opencode
 default_provider = "bedrock"       # bedrock | anthropic | openai | openrouter
-```
-
-> **Migration prevue ([ADR-036](../architecture/adr/036-platform-abstraction-layer.fr.md)) :**
-> la section `[opencode]` sera restructuree en `[platforms.opencode]` dans une
-> future release pour supporter plusieurs backends de sessions IA. Le champ
-> `default_provider` sera deplace vers la section `[provider]` de niveau
-> superieur. Le format actuel reste pleinement supporte et sera auto-migre.
->
-> Structure future :
-> ```toml
-> [platforms]
-> default = "opencode"               # backend plateforme actif
->
-> [platforms.opencode]
-> version = "latest"
-> channel = "stable"
-> auto_update = false
-> install_dir = "~/.oh/bin"
->
-> # [platforms.directllm]            # futur : mode API LLM directe
-> # default_model = "claude-sonnet-4-5"
-> ```
 
 [provider.bedrock]
 aws_profile = "default"            # profil AWS (bedrock uniquement)
@@ -91,10 +65,7 @@ base_branch = ""                   # vide = detection auto (main/master)
 branch_pattern = "oh/%s"           # pattern de nommage de branche (%s = nom worktree)
 
 [deploy]
-disable_native_agents = []         # liste d'IDs d'agents a exclure du deploy
-
-[workflow]
-# overrides appliques pendant le deploy (personnalisation workflow hub)
+instruction_files = []             # fichiers du projet ajoutes aux instructions des agents (en plus d'ONBOARDING.md, CONVENTIONS.md, .claude/CLAUDE.md)
 
 [tracker]                          # overrides locaux pour la sync tracker equipe
 # enabled = false                  # decommenter pour desactiver la sync localement
@@ -108,7 +79,7 @@ disable_native_agents = []         # liste d'IDs d'agents a exclure du deploy
 | Commande | Description |
 |----------|-------------|
 | `oh config list [--json]` | Afficher toutes les valeurs de configuration |
-| `oh config get <key>` | Obtenir une valeur specifique (notation pointee : `opencode.version`) |
+| `oh config get <key>` | Obtenir une valeur specifique (notation pointee : `opencode.default_provider`) |
 | `oh config set <key> <value>` | Definir une valeur |
 | `oh config unset <key>` | Supprimer une cle |
 | `oh config path` | Afficher le chemin du fichier de configuration |
@@ -222,21 +193,14 @@ project.TeamConfig.Mode == "custom"            →  champs du projet ; member_id
 project.TeamConfig.Mode == "disabled"          →  team désactivée pour ce projet
 ```
 
-### Artefact deployé : `.opencode/team.json`
+### Paquet de session : `OH_TEAM_ID` (anciennement `.opencode/team.json`)
 
-`oh deploy` résout la config effective et écrit `.opencode/team.json` à la racine du projet :
+Au lancement, oh résout la config effective et déclare le serveur MCP `team` dans le paquet de
+session avec `OH_TEAM_ID` dans son environnement ; le serveur le lit pour trouver la team du projet
+de la session. `.opencode/team.json` n'est plus écrit (`oh deploy` supprimé en v5 ; les restes sont
+supprimés par `oh migrate deploy-cleanup`).
 
-```json
-{
-  "enabled": true,
-  "state_repo": "git@gitlab.com:acme/team-state.git",
-  "state_path": "/Users/alice/.oh/team-states/team-state",
-  "member_id": "alice"
-}
-```
-
-Quand le mode est `disabled`, le fichier est supprimé (ou jamais créé) et le serveur MCP
-`team` n'est pas injecté dans `opencode.json`.
+Quand le mode est `disabled`, le serveur MCP `team` n'est pas placé dans le paquet de session.
 
 ### Déduction automatique du state path
 
@@ -250,7 +214,7 @@ https://github.com/acme/my-team.git →  ~/.oh/team-states/my-team
 ### Définir le mode
 
 - **À la création du projet :** le wizard `oh project add` inclut une étape Team.
-- **Après création :** utiliser `team configure` dans l'omnibar TUI, puis redéployer.
+- **Après création :** utiliser `team configure` dans l'omnibar TUI ; pris en compte au prochain lancement (paquet reconstruit).
 
 ---
 
@@ -374,7 +338,7 @@ Taper l'un des termes suivants dans l'omnibar :
 
 ```
 14:32:05  ✗  Erreur setup team : git clone https://gitlab.com/...: fatal: repository not found
-14:31:58  ✓  Team configurée : custom — redéployez pour appliquer
+14:31:58  ✓  Équipe configurée : custom — appliqué au prochain lancement d'une session
 14:31:52  →  Initialisation team pour ce projet...
 ```
 
@@ -475,9 +439,9 @@ Si le trousseau n'est pas disponible, les secrets sont stockes dans `~/.oh/secre
 
 ---
 
-## Configuration projet (opencode.json)
+## Configuration de session (paquet de session)
 
-Chaque projet possede un `opencode.json` a sa racine, genere par `oh deploy`.
+Le `opencode.json` du projet n'est plus genere (`oh deploy` supprime en v5). A chaque lancement, la configuration opencode de la session est produite par l'adaptateur a partir du paquet de session (`~/.oh/bundles/<hash>/`) et transmise a opencode, par exemple :
 
 ```json
 {
@@ -494,7 +458,7 @@ Chaque projet possede un `opencode.json` a sa racine, genere par `oh deploy`.
 }
 ```
 
-> **Note :** Ce fichier est gere par `oh deploy` — ne le modifiez pas manuellement sauf si vous savez ce que vous faites.
+> **Note :** L'inspecter avec `oh bundle show <workflow>`. Dans un projet deploye par une version precedente, `oh migrate deploy-cleanup` ne retire du `opencode.json` que les cles ecrites par oh et inchangees depuis le dernier deploy (vos propres cles sont conservees).
 
 ---
 
@@ -540,9 +504,7 @@ Au demarrage d'une session, le provider LLM est resolu dans cet ordre :
 | `~/.oh/secrets.enc` | Fichier de secrets chiffre (fallback) |
 | `~/.oh/bin/` | Binaire opencode gere |
 | `~/.oh/mcp/<name>/manifest.json` | Manifeste de serveur MCP personnalise (registre dynamique) |
-| `<projet>/opencode.json` | Config opencode du projet (generee par deploy) |
-| `<projet>/.opencode/agents/` | Definitions d'agents deployees |
-| `<projet>/.opencode/skills/` | Protocoles de skills deployes |
+| `~/.oh/bundles/<hash>/` | Paquets de session (agents, skills, permissions, MCP) construits au lancement — plus rien n'est deploye dans `<projet>/.opencode/` ni `<projet>/opencode.json` |
 
 > **Integrite de la base de donnees :** Executez `oh repair --check-only` pour verifier la base SQLite. La version courante du schema est affichee par `oh repair`.
 >

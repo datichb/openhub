@@ -1,31 +1,20 @@
 package cmd
 
 import (
-	"context"
+	"errors"
 	"fmt"
-	"log/slog"
-	"strings"
 
 	"github.com/spf13/cobra"
 
-	"github.com/datichb/openhub/cli/internal/app"
-	"github.com/datichb/openhub/cli/internal/buildinfo"
-	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
-	"github.com/datichb/openhub/cli/internal/launcher"
-	"github.com/datichb/openhub/cli/internal/opencode"
-	"github.com/datichb/openhub/cli/internal/platform"
-	"github.com/datichb/openhub/cli/internal/prompt"
-	"github.com/datichb/openhub/cli/internal/provider"
-	"github.com/datichb/openhub/cli/internal/tui/theme"
-	"github.com/datichb/openhub/cli/internal/worktree"
 )
 
 var startCmd = &cobra.Command{
 	Use:   "start",
-	Short: "Lance une session opencode",
-	Long: `Prépare le contexte projet puis lance opencode.
-Détecte automatiquement le projet si vous êtes dans un répertoire enregistré.`,
+	Short: "Lance une session (alias de oh run, déprécié)",
+	Long: `Alias déprécié de oh run : oh start → oh run feature, --agent → oh run libre --agent,
+--dev → oh run ticket, --onboard → oh run onboarding, --parallel → oh run ticket --tickets,
+--sweep → oh run sweep. Demande opencode V2.`,
 	RunE: runStart,
 }
 
@@ -69,93 +58,60 @@ func addStartFlags(startCmd *cobra.Command) {
 
 	// Mark --yes as deprecated (no-op with warning)
 	_ = startCmd.Flags().MarkDeprecated("yes", "le lancement rapide est le défaut. Utilisez --recap pour forcer le récap.")
+	// Options of the former parallel and sweep launches, without equivalent
+	// in the workflows (one server group, the sweep conductor plans itself).
+	for _, name := range []string{"max-sessions", "priority", "sweep-branch-prefix"} {
+		_ = startCmd.Flags().MarkDeprecated(name, "sans effet depuis oh v5 (oh run ticket / oh run sweep).")
+	}
 }
 
 func runStart(cmd *cobra.Command, args []string) error {
 	a := MustApp()
 	ctx := cmd.Context()
-
-	// --- Ensure opencode is installed ---
-	if err := ensureOpencode(a); err != nil {
+	if err := requireV2(ctx); err != nil {
 		return err
 	}
 
-	// --- Compatibility warning ---
-	if a.Platform != nil {
-		if ocVersion, err := a.Platform.Version(); err == nil {
-			compat := opencode.CheckCompatibility(buildinfo.Version, ocVersion)
-			if !compat.Compatible {
-				fmt.Fprintf(a.IO.Out, "%s %s\n",
-					theme.WarningStyle.Render(theme.IconWarning),
-					compat.Warning)
-			}
+	// --- Resume: attach to an existing session (resumed when asleep) ---
+	if resumeID, _ := cmd.Flags().GetString("resume"); resumeID != "" {
+		warnDeprecatedAlias(cmd.ErrOrStderr(), "oh start --resume", "oh session attach "+resumeID+" --how here")
+		id, err := resolveSessionRef(ctx, resumeID)
+		if err != nil {
+			return err
 		}
-	}
-
-	// --- Resume mode: run interactively with session tracking ---
-	resumeID, _ := cmd.Flags().GetString("resume")
-	if resumeID != "" {
-		fmt.Fprintf(a.IO.Out, "%s %s\n",
-			theme.SuccessStyle.Render(theme.IconArrow), i18n.Tf("cmd.start.resume", resumeID))
-		result, err := a.Platform.RunInteractive(ctx, platform.RunOpts{
-			ResumeID: resumeID,
-		})
-		// Log enrichment data for resumed sessions
-		if result != nil && result.ExternalSessionID != "" {
-			slog.Debug("resume session completed",
-				"external_id", result.ExternalSessionID,
-				"model", result.Model,
-				"cost", result.Cost,
-				"tokens_in", result.TokensIn)
+		svc, err := newRunService(ctx, a)
+		if err != nil {
+			return err
 		}
-		return err
+		return runAttachChild(ctx, a, svc, id)
 	}
 
 	// --- Validate flag combinations ---
-	devMode, _ := cmd.Flags().GetBool("dev")
-	onboardMode, _ := cmd.Flags().GetBool("onboard")
-	parallelMode, _ := cmd.Flags().GetBool("parallel")
-	sweepMode := cmd.Flags().Changed("sweep")
-	labelFlag, _ := cmd.Flags().GetString("label")
-	assigneeFlag, _ := cmd.Flags().GetString("assignee")
-	refreshFlag, _ := cmd.Flags().GetBool("refresh")
-	recapMode, _ := cmd.Flags().GetBool("recap")
+	f := cmd.Flags()
+	devMode, _ := f.GetBool("dev")
+	onboardMode, _ := f.GetBool("onboard")
+	parallelMode, _ := f.GetBool("parallel")
+	sweepMode := f.Changed("sweep")
+	labelFlag, _ := f.GetString("label")
+	assigneeFlag, _ := f.GetString("assignee")
+	refreshFlag, _ := f.GetBool("refresh")
+	agent, _ := f.GetString("agent")
 
-	// Mutual exclusivity between major modes
 	modeCount := 0
-	if parallelMode {
-		modeCount++
-	}
-	if sweepMode {
-		modeCount++
-	}
-	if devMode {
-		modeCount++
-	}
-	if onboardMode {
-		modeCount++
+	for _, on := range []bool{parallelMode, sweepMode, devMode, onboardMode} {
+		if on {
+			modeCount++
+		}
 	}
 	if modeCount > 1 {
 		return fmt.Errorf("les modes --parallel, --sweep, --dev et --onboard sont mutuellement exclusifs")
 	}
-
-	// --- Workflow aliases (v5): oh start → oh run <workflow> ---
-	handled, aliasProject, devSel, err := startAlias(cmd, a)
-	if handled {
-		return err
+	if agent != "" && modeCount > 0 {
+		return errors.New(i18n.T("cmd.v1.unsupported.agent_with_mode"))
 	}
-
-	// --- Parallel mode (delegates entirely) ---
-	if parallelMode {
-		return runParallelMode(cmd, a, ctx)
+	if tickets, _ := f.GetStringSlice("tickets"); parallelMode && len(tickets) == 0 {
+		return errors.New(i18n.T("cmd.v1.unsupported.parallel_tickets"))
 	}
-
-	// --- Sweep mode (delegates entirely) ---
-	sweepGoal, _ := cmd.Flags().GetString("sweep")
-	if sweepGoal != "" {
-		return runSweepMode(cmd, a, ctx)
-	}
-
 	if labelFlag != "" && !devMode {
 		return fmt.Errorf("%s", i18n.Tf("cmd.start.flag_requires_dev", "label"))
 	}
@@ -168,204 +124,7 @@ func runStart(cmd *cobra.Command, args []string) error {
 	if refreshFlag && !onboardMode {
 		return fmt.Errorf("%s", i18n.T("cmd.start.refresh_requires_onboard"))
 	}
-	if devMode && onboardMode {
-		return fmt.Errorf("%s", i18n.T("cmd.start.dev_onboard_exclusive"))
-	}
 
-	// --- Resolve project ---
-	project := aliasProject
-	if project == nil {
-		projectID, _ := cmd.Flags().GetString("project")
-		if project, err = resolveProject(ctx, a, projectID); err != nil {
-			return err
-		}
-	}
-
-	// --- Worktree mode ---
-	wtBranch, _ := cmd.Flags().GetString("worktree")
-	var launchPath string
-
-	if wtBranch != "" || cmd.Flags().Changed("worktree") {
-		launchPath, err = handleWorktreeMode(a, project, wtBranch)
-		if err != nil {
-			return err
-		}
-	} else {
-		launchPath = project.Path
-	}
-
-	// --- Resolve agent + prompt (pre-launch, mode-specific) ---
-	providerFlag, _ := cmd.Flags().GetString("provider")
-	agent, _ := cmd.Flags().GetString("agent")
-	userPrompt, _ := cmd.Flags().GetString("prompt")
-
-	// --- Auto-deploy if needed (legacy runtime only: v5 sessions use a bundle) ---
-	if !onboardMode && !v5Available(ctx) {
-		autoDeployIfNeeded(a, project, findHubDir(), providerFlag, "", !recapMode)
-	}
-
-	// --- Dev mode ---
-	if devMode {
-		if devSel == nil {
-			sel, err := handleDevMode(cmd, a, project, launchPath)
-			if err != nil {
-				return err
-			}
-			devSel = &sel
-		}
-		agent = devSel.Agent
-		userPrompt = devSel.Prompt
-	}
-
-	// --- Onboard mode ---
-	if onboardMode {
-		agent = "onboarder"
-		hubDir := findHubDir()
-		userPrompt = prompt.BuildOnboardPrompt(project, hubDir, refreshFlag || prompt.WikiExists(launchPath))
-		if refreshFlag {
-			fmt.Fprintf(a.IO.Out, "%s %s\n",
-				theme.SuccessStyle.Render(theme.IconArrow), i18n.T("cmd.start.onboard_refresh"))
-		} else {
-			fmt.Fprintf(a.IO.Out, "%s %s\n",
-				theme.SuccessStyle.Render(theme.IconArrow), i18n.T("cmd.start.onboard_launching"))
-		}
-	}
-
-	// --- Default agent fallback ---
-	if agent == "" {
-		agent = "orchestrator"
-	}
-
-	// --- Delegate to launcher ---
-	l := launcher.New(a, launcher.NewCLIUI(a.IO.Out))
-
-	// Summary + confirmation only if --recap is explicitly set
-	skipSummary := !recapMode
-	skipConfirm := !recapMode
-
-	// Print summary inline if recap mode (the launcher doesn't own summary rendering)
-	if recapMode {
-		stack := prompt.DetectStack(launchPath)
-		prov := provider.ResolveProvider(providerFlag, project.Provider, a.Config.Opencode.DefaultProvider)
-		var bearerToken string
-		if a.Secrets != nil {
-			var provCfg *provider.ProviderConfig
-			if project.ProviderConfig != nil {
-				provCfg = &provider.ProviderConfig{
-					AWSProfile: project.ProviderConfig.AWSProfile,
-					AWSRegion:  project.ProviderConfig.AWSRegion,
-				}
-			}
-			hubCfg := hubProviderCfg(a, prov)
-			mergedCfg := provider.ResolveProviderConfig(provCfg, hubCfg)
-			creds := provider.ResolveCredentials(ctx, a.Secrets, provider.Name(prov), project.ID, &mergedCfg)
-			bearerToken = creds.BearerToken
-		}
-		printStartSummary(a, project, launchPath, prov, stack, agent, bearerToken)
-	}
-
-	fmt.Fprintf(a.IO.Out, "%s %s\n\n",
-		theme.SuccessStyle.Render(theme.IconArrow), i18n.T("cmd.start.launching"))
-
-	return l.Launch(ctx, launcher.LaunchOpts{
-		ProjectID:   project.ID,
-		ProjectPath: launchPath,
-		Agent:       agent,
-		Prompt:      userPrompt,
-		Provider:    providerFlag,
-		SkipSummary: skipSummary,
-		SkipConfirm: skipConfirm,
-		SkipDeploy:  true, // already handled above
-	})
-}
-
-// resolveProviderForDisplay returns the effective provider name for display purposes.
-// Deprecated: use provider.ResolveProvider() directly. Kept as a thin wrapper
-// for backward compatibility with tests in session_launch_test.go.
-func resolveProviderForDisplay(providerFlag string, project *domain.Project, a *app.App) string {
-	return provider.ResolveProvider(providerFlag, project.Provider, a.Config.Opencode.DefaultProvider)
-}
-
-// resolveCredentials extracts provider-specific credentials from secrets.
-// Deprecated: use provider.ResolveCredentials() directly. Kept as a thin wrapper
-// for backward compatibility with tests in session_launch_test.go.
-func resolveCredentials(ctx context.Context, a *app.App, project *domain.Project, prov string) (bearerToken, apiKey, awsProfile, awsRegion string) {
-	var provCfg *provider.ProviderConfig
-	if project.ProviderConfig != nil {
-		provCfg = &provider.ProviderConfig{
-			AWSProfile: project.ProviderConfig.AWSProfile,
-			AWSRegion:  project.ProviderConfig.AWSRegion,
-		}
-	}
-	hubCfg := hubProviderCfg(a, prov)
-	mergedCfg := provider.ResolveProviderConfig(provCfg, hubCfg)
-	creds := provider.ResolveCredentials(ctx, a.Secrets, provider.Name(prov), project.ID, &mergedCfg)
-	return creds.BearerToken, creds.APIKey, creds.AWSProfile, creds.AWSRegion
-}
-
-// printStartSummary prints the pre-launch info blocks to stdout.
-func printStartSummary(a *app.App, project *domain.Project, launchPath, providerName string, stack prompt.StackInfo, agent, bearerToken string) {
-	projCfg := opencode.ReadProjectConfig(launchPath)
-
-	branch := "—"
-	if b, err := worktree.CurrentBranch(launchPath); err == nil {
-		branch = b
-	}
-	model := projCfg.Model
-	if model == "" {
-		model = "—"
-	}
-	compactionStatus := i18n.T("cmd.start.compaction_disabled")
-	if projCfg.Compaction != nil && projCfg.Compaction.Auto {
-		compactionStatus = i18n.T("cmd.start.compaction_auto")
-	}
-
-	effectiveServers := buildMCPServersForProject(a, project.MCPConfig, resolvedTeamConfig(a, project))
-	var mcpNames []string
-	for _, srv := range effectiveServers {
-		if srv.Enabled && srv.Name != "team" {
-			mcpNames = append(mcpNames, srv.Name)
-		}
-	}
-	mcpDisplay := i18n.T("cmd.start.mcp_none")
-	if len(mcpNames) > 0 {
-		mcpDisplay = strings.Join(mcpNames, ", ")
-	}
-
-	pluginsDisplay := i18n.T("cmd.start.mcp_none")
-	if len(projCfg.Plugins) > 0 {
-		pluginsDisplay = strings.Join(projCfg.Plugins, ", ")
-	}
-
-	providerStatus := providerName
-	if bearerToken != "" {
-		providerStatus = theme.SuccessStyle.Render(theme.IconSuccess) + " " + providerName + " — " + i18n.T("cmd.start.token_configured")
-	}
-
-	gutter := theme.Subtitle.Render("│")
-	header := theme.Title.Render("◆")
-	footer := theme.Subtitle.Render("└")
-
-	fmt.Fprintln(a.IO.Out)
-	fmt.Fprintf(a.IO.Out, "%s  %s\n", header, theme.Bold.Render(project.Name))
-	fmt.Fprintf(a.IO.Out, "%s\n", gutter)
-	fmt.Fprintf(a.IO.Out, "%s  %s%s\n", gutter, i18n.T("cmd.start.label_path"), launchPath)
-	fmt.Fprintf(a.IO.Out, "%s  %s%s\n", gutter, i18n.T("cmd.start.label_branch"), branch)
-	fmt.Fprintf(a.IO.Out, "%s  %s%s\n", gutter, i18n.T("cmd.start.label_provider"), providerStatus)
-	fmt.Fprintf(a.IO.Out, "%s\n", gutter)
-	fmt.Fprintln(a.IO.Out)
-
-	fmt.Fprintf(a.IO.Out, "%s  %s\n", header, theme.Bold.Render(i18n.T("cmd.start.section_config")))
-	fmt.Fprintf(a.IO.Out, "%s\n", gutter)
-	fmt.Fprintf(a.IO.Out, "%s  %s%s\n", gutter, i18n.T("cmd.start.label_provider_short"), providerName)
-	fmt.Fprintf(a.IO.Out, "%s  %s%s\n", gutter, i18n.T("cmd.start.label_model"), model)
-	fmt.Fprintf(a.IO.Out, "%s  %s%s\n", gutter, i18n.T("cmd.start.label_language"), displayOrDefault(stack.Language, project.Language))
-	fmt.Fprintf(a.IO.Out, "%s  %s%s\n", gutter, i18n.T("cmd.start.label_compaction"), compactionStatus)
-	fmt.Fprintf(a.IO.Out, "%s  %s%s\n", gutter, i18n.T("cmd.start.label_mcp"), mcpDisplay)
-	fmt.Fprintf(a.IO.Out, "%s  %s%s\n", gutter, i18n.T("cmd.start.label_plugins"), pluginsDisplay)
-	if agent != "" {
-		fmt.Fprintf(a.IO.Out, "%s  %s%s\n", gutter, i18n.T("cmd.start.label_agent"), agent)
-	}
-	fmt.Fprintf(a.IO.Out, "%s  %s\n", footer, theme.Subtitle.Render(i18n.Tf("cmd.start.summary_version", buildinfo.Version)))
-	fmt.Fprintln(a.IO.Out)
+	// --- Workflow aliases (v5): oh start → oh run <workflow> ---
+	return startAlias(cmd, a)
 }

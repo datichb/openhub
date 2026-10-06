@@ -13,7 +13,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/datichb/openhub/cli/internal/deploy"
+	"github.com/datichb/openhub/cli/internal/bricks"
 	"github.com/datichb/openhub/cli/internal/workflow"
 )
 
@@ -38,7 +38,7 @@ type agentEntry struct {
 
 // New indexes the agents of hubDir.
 func New(hubDir string) (*Catalog, error) {
-	files, err := deploy.FindAgentFiles(hubDir)
+	files, err := bricks.FindAgentFiles(hubDir)
 	if err != nil {
 		return nil, fmt.Errorf("listing hub agents: %w", err)
 	}
@@ -80,13 +80,13 @@ func (c *Catalog) load(id string) (workflow.AgentInfo, bool) {
 	if !ok {
 		return workflow.AgentInfo{}, false
 	}
-	fm, err := deploy.ParseAgentFrontmatter(file)
+	fm, err := bricks.ParseAgentFrontmatter(file)
 	if err != nil {
 		// The agent exists; an unreadable frontmatter is reported elsewhere
 		// (bundle build). Assume the most permissive shape.
 		return workflow.AgentInfo{ID: id, Mode: workflow.ModePrimary, Edits: true, Shell: true}, true
 	}
-	perms, err := deploy.ResolvePermissions(c.hubDir, fm)
+	perms, err := bricks.ResolvePermissions(c.hubDir, fm)
 	if err != nil {
 		perms = fm.Permission
 	}
@@ -97,7 +97,7 @@ func (c *Catalog) load(id string) (workflow.AgentInfo, bool) {
 // and resolved permissions (V1 shape). A permission that is not written is
 // allowed by the tool, so it counts as granted, except `task`: only the
 // delegations an agent declares are taken into account.
-func AgentInfoFrom(id string, fm *deploy.AgentFrontmatter, perms map[string]any) workflow.AgentInfo {
+func AgentInfoFrom(id string, fm *bricks.AgentFrontmatter, perms map[string]any) workflow.AgentInfo {
 	info := workflow.AgentInfo{ID: id, Mode: workflow.ModePrimary}
 	if fm.Mode == string(workflow.ModeSubagent) {
 		info.Mode = workflow.ModeSubagent
@@ -121,7 +121,11 @@ func AgentInfoFrom(id string, fm *deploy.AgentFrontmatter, perms map[string]any)
 	switch v := perms["task"].(type) {
 	case map[string]any:
 		for pattern, eff := range v {
-			if pattern != id && effect(eff) != "deny" {
+			switch {
+			case effect(eff) == "deny":
+			case pattern == id:
+				info.SelfTask = true
+			default:
 				info.Tasks = append(info.Tasks, pattern)
 			}
 		}
@@ -180,7 +184,7 @@ func effect(v any) string {
 
 // HasSkill implements workflow.SkillCatalog (hub skills, then community).
 func (c *Catalog) HasSkill(ref string) bool {
-	_, err := deploy.SkillSourcePath(c.hubDir, ref)
+	_, err := bricks.SkillSourcePath(c.hubDir, ref)
 	return err == nil
 }
 

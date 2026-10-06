@@ -6,13 +6,10 @@ import (
 	"html"
 	"math"
 	"net/http"
-	"path/filepath"
 	"strconv"
 	"strings"
 
 	"github.com/datichb/openhub/cli/internal/app"
-	"github.com/datichb/openhub/cli/internal/config"
-	"github.com/datichb/openhub/cli/internal/parallel"
 	"github.com/datichb/openhub/cli/internal/platform"
 	"github.com/datichb/openhub/cli/internal/teamstate"
 )
@@ -340,38 +337,6 @@ func handlePlatformSessions(a *app.App) http.HandlerFunc {
 		})
 		w.Header().Set("Content-Type", "application/json")
 		setCORS(w)
-		_, _ = w.Write(data)
-	}
-}
-
-// handleParallelState handles GET /api/v1/parallel/state
-// Returns the current parallel run state from the shared state file,
-// or {"active": false} if no run is active.
-func handleParallelState(_ *app.App) http.HandlerFunc {
-	stateDir := filepath.Join(config.HubDir(), "parallel")
-
-	return func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		setCORS(w)
-
-		snap := parallel.LoadStateSnapshot(stateDir)
-		if snap == nil {
-			_, _ = w.Write([]byte(`{"active":false}`))
-			return
-		}
-
-		resp := struct {
-			Active bool `json:"active"`
-			parallel.StateSnapshot
-		}{
-			Active:        true,
-			StateSnapshot: *snap,
-		}
-		data, err := json.Marshal(resp)
-		if err != nil {
-			http.Error(w, `{"error":"marshal failed"}`, http.StatusInternalServerError)
-			return
-		}
 		_, _ = w.Write(data)
 	}
 }

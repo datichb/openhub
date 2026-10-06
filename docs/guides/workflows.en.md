@@ -92,8 +92,8 @@ No Beads tickets, no complex orchestration -- just a simple interaction with one
 
 **Prerequisites:**
 - `oh init` completed (see [Tutorial](tutorial.en.md))
-- `oh deploy` run in your project directory
 - Provider credentials configured
+- No deploy step: the session bundle is built at launch (`oh deploy` removed in v5)
 
 ### Simple code explanation
 
@@ -277,9 +277,10 @@ The orchestrator passes dev tickets to `orchestrator-dev` with the chosen mode.
 > it surfaces in the parent session with a context block identifying the agent and current phase —
 > e.g. `[Planner — Phase 0 | Feature: JWT authentication]`. No need to navigate to the child session.
 
-> **Missing agent:** if a required agent is not deployed in the project, the orchestrator displays
-> a structured question: deploy via `!oh deploy -p <PROJECT_ID>` directly in OpenCode / use a
-> substitute (table by domain) / skip the ticket. Never falls back silently.
+> **Missing agent:** if a required agent is not part of the session (the agents of a session are those
+> of its workflow), the orchestrator displays a structured question: use a substitute (table by domain) /
+> skip the ticket. To make the agent available, add it to the workflow and relaunch the session
+> (`oh deploy` removed in v5). Never falls back silently.
 
 #### 6. [CP-feature] Global recap
 

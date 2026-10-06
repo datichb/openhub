@@ -15,7 +15,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/datichb/openhub/cli/internal/deploy"
 )
 
 // setupHandlerTest creates a fully functional team-state repo and project dir
@@ -127,9 +126,8 @@ created_at = "2026-07-15"
 	gitCmd(t, teamState, "add", ".")
 	gitCmd(t, teamState, "commit", "-m", "initial state")
 
-	// Create project directory with .opencode/team.json
 	projectDir := t.TempDir()
-	writeTeamJSON(t, projectDir, deploy.DeployedTeamConfig{
+	useSessionTeam(t, effectiveTeam{
 		Enabled:   true,
 		StateRepo: teamState, // point to the local dir (acting as both remote and local)
 		StatePath: teamState,
@@ -398,9 +396,8 @@ created_at = "2026-07-01"
 	gitCmd(t, teamState, "commit", "-m", "initial state")
 	gitCmd(t, teamState, "push")
 
-	// Create project directory with .opencode/team.json
 	projectDir := t.TempDir()
-	writeTeamJSON(t, projectDir, deploy.DeployedTeamConfig{
+	useSessionTeam(t, effectiveTeam{
 		Enabled:   true,
 		StateRepo: bare,
 		StatePath: teamState,

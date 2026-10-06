@@ -34,6 +34,7 @@ func addRunFlags(c *cobra.Command) {
 	f := c.Flags()
 	f.StringArrayP("input", "i", nil, "Entrée du workflow (clé=valeur, répétable)")
 	f.String("mode", "", "Mode du workflow (manuel, semi-auto, auto)")
+	f.StringP("agent", "a", "", i18n.T("cmd.run.flags.agent"))
 	f.String("runtime", "", "Environnement d'exécution (local, container, remote)")
 	f.String("location", "", "Emplacement : base, new (nouveau worktree) ou chemin d'un worktree existant")
 	f.StringSlice("tickets", nil, "Tickets Beads (une session par ticket si le workflow le permet)")
@@ -136,6 +137,7 @@ func runOptionsFromFlags(cmd *cobra.Command, workflowID string) (runOptions, err
 	opts.ParentSessionID, _ = f.GetString("parent")
 	opts.OneSession, _ = f.GetBool("one-session")
 	opts.Draft, _ = f.GetBool("draft")
+	opts.Agent, _ = f.GetString("agent")
 	tickets, _ := f.GetStringSlice("tickets")
 	for _, t := range tickets {
 		if t = strings.TrimSpace(t); t != "" {

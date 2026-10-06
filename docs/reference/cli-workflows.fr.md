@@ -25,7 +25,8 @@ Lance un workflow : résolution des couches et validation, paquet de session, pl
 - **Sans interface** (`--headless [--output <fichier>] [--timeout 30m]`) : aucune fenêtre n'est ouverte ; oh attend la fin du tour, écrit la réponse (sortie standard ou fichier, un fichier par session : `<fichier>.<ticket>`) puis arrête la session. Refusé si un checkpoint attend une validation dans le mode choisi. Une session qui demande une décision (permission, question) reste ouverte : `oh session inbox`, `oh session approve`. `oh takeover-brief enrich` passe par `oh run brief-enrich --headless`.
 - Deux lancements simultanés dans le même dossier sont refusés (« lancement en cours »).
 - **Brouillon** (`--draft`) : lance la version en cours d'édition (votre brouillon, couche équipe ou projet) au lieu de la version publiée. Refusé en exécution distante et si le brouillon **élargit** la version publiée (risque, checkpoints, environnements, Beads, budget…) : publiez-le pour appliquer ces changements. Voir [Workflows d'équipe](../guides/team-workflows.fr.md).
-- Exige opencode V2.
+- **Agent d'entrée** (`--agent`, `-a`) : pour un workflow à entrée au choix (`libre`), l'agent de départ ; les membres sont cet agent et ceux qu'il peut appeler. Refusé sur les autres workflows.
+- Exige opencode V2 (version minimale dans `oh doctor`).
 
 ## oh workflow list
 

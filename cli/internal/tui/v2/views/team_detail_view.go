@@ -452,7 +452,7 @@ func (v *TeamDetailView) buildFields() {
 		Key: "models", Kind: CfgFieldLink, Label: i18n.T("tui.config.link.models"), LinkTarget: "team.models",
 		Get: func() string { return "" }})
 	v.fields = append(v.fields, configField{
-		Key: "workflow", Kind: CfgFieldLink, Label: i18n.T("tui.config.link.workflow"), LinkTarget: "workflow",
+		Key: "workflow", Kind: CfgFieldLink, Label: i18n.T("tui.config.link.workflow"), LinkTarget: "workflows",
 		Get: func() string { return "" }})
 }
 
