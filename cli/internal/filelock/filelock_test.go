@@ -1,6 +1,7 @@
 package filelock
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"testing"
@@ -47,4 +48,18 @@ func TestTryLock(t *testing.T) {
 	again, err := TryLock(path)
 	require.NoError(t, err)
 	again()
+}
+
+func TestLockContextExpires(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "lock")
+	unlock, err := Lock(path)
+	require.NoError(t, err)
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
+	_, err = LockContext(ctx, path)
+	assert.ErrorIs(t, err, context.DeadlineExceeded)
+	unlock()
+	u, err := LockContext(context.Background(), path)
+	require.NoError(t, err)
+	u()
 }

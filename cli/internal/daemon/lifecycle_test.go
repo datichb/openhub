@@ -14,6 +14,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/adapters"
 	"github.com/datichb/openhub/cli/internal/domain"
+	"github.com/datichb/openhub/cli/internal/filelock"
 	"github.com/datichb/openhub/cli/internal/storage/sqlite"
 )
 
@@ -34,6 +35,7 @@ type lcEnv struct {
 	servers  *sqlite.ServerStore
 	ad       *stopCountingAdapter
 	client   *Client
+	servDir  string
 	events   chan adapters.ToolEvent
 	endedMu  sync.Mutex
 	ended    []string // OnSessionEnd calls
@@ -54,7 +56,8 @@ func startLifecycle(t *testing.T, idleSleep time.Duration, group string, session
 	ctx := context.Background()
 	_, err = st.DB().Exec(`INSERT INTO projects (id, name, path) VALUES ('p1','p1','/p1')`)
 	require.NoError(t, err)
-	e := &lcEnv{t: t, ctx: ctx, sessions: sqlite.NewSessionStore(st), servers: sqlite.NewServerStore(st), ad: &stopCountingAdapter{fakeAdapter: newFake()}}
+	e := &lcEnv{t: t, ctx: ctx, sessions: sqlite.NewSessionStore(st), servers: sqlite.NewServerStore(st), ad: &stopCountingAdapter{fakeAdapter: newFake()},
+		servDir: filepath.Join(p.Dir, "servers")}
 	require.NoError(t, e.servers.Upsert(ctx, &domain.Server{GroupKey: group, Adapter: "fake", ProjectID: "p1", PID: os.Getpid(), Status: domain.ServerReady}))
 	for _, id := range sessionIDs {
 		require.NoError(t, e.sessions.Create(ctx, &domain.Session{ID: id, ProjectID: "p1", Status: domain.SessionStatusRunning, GroupKey: group, State: domain.RunIdle}))
@@ -63,7 +66,7 @@ func startLifecycle(t *testing.T, idleSleep time.Duration, group string, session
 	done := make(chan error, 1)
 	go func() {
 		done <- Run(dctx, Options{Paths: p, Version: "t", Servers: e.servers, Sessions: e.sessions, Grants: sqlite.NewGrantStore(st),
-			Tick: 50 * time.Millisecond, IdleAfter: time.Hour, IdleSleep: idleSleep,
+			Tick: 50 * time.Millisecond, IdleAfter: time.Hour, IdleSleep: idleSleep, ServersDir: e.servDir,
 			Adapter: func(string) adapters.ToolAdapter { return e.ad },
 			OnSessionEnd: func(_ context.Context, s domain.Session) {
 				e.endedMu.Lock()
@@ -174,4 +177,16 @@ func TestStopNowPolicy(t *testing.T) {
 	assert.Equal(t, domain.SessionStatusCompleted, s.Status)
 	assert.NotNil(t, s.EndedAt)
 	assert.Equal(t, []string{"ses_a"}, e.endedIDs(), "E14-M10: session.complete hook")
+}
+
+// A group locked by a client (starting or resuming a session) never sleeps
+// under its feet: the sleep waits for the lock.
+func TestSleepWaitsForTheGroupLock(t *testing.T) {
+	e := startLifecycle(t, 200*time.Millisecond, "g1", "ses_a")
+	unlock, err := filelock.Lock(GroupLockPath(e.servDir, "g1"))
+	require.NoError(t, err)
+	time.Sleep(700 * time.Millisecond)
+	assert.Equal(t, domain.ServerReady, e.serverStatus("g1"), "group locked by a client")
+	unlock()
+	require.Eventually(t, func() bool { return e.serverStatus("g1") == domain.ServerSleeping }, 5*time.Second, 50*time.Millisecond)
 }

@@ -49,6 +49,7 @@ var daemonRunCmd = &cobra.Command{
 			Sessions:    a.Sessions,
 			Decisions:   sqlite.NewDecisionStore(store),
 			SessionsDir: ohSessionsDir(),
+			ServersDir:  ohServersDir(),
 			Checkpoints: newCheckpointService(a),
 			Notify:      daemonNotifier(a),
 			ProjectName: func(ctx context.Context, id string) string {

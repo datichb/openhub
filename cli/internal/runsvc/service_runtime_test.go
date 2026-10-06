@@ -34,11 +34,12 @@ func (m fakeSecrets) Get(_ context.Context, k string) (string, error) {
 // rtAdapter is a tool adapter whose servers are the test process itself
 // (always alive): only the calls made by the service are checked.
 type rtAdapter struct {
-	mu       sync.Mutex
-	started  []adapters.ServerGroup
-	attested []string
-	created  []sessionspec.SessionSpec
-	stopped  int
+	mu        sync.Mutex
+	started   []adapters.ServerGroup
+	attested  []string
+	created   []sessionspec.SessionSpec
+	stopped   int
+	attestErr error
 }
 
 func (a *rtAdapter) Name() string { return "fake" }
@@ -68,8 +69,9 @@ func (a *rtAdapter) StopServer(context.Context, adapters.ServerHandle) error {
 func (a *rtAdapter) Attest(_ context.Context, _ adapters.ServerHandle, _ sessionspec.BundleSpec, loc string) (adapters.VisibilityReport, error) {
 	a.mu.Lock()
 	a.attested = append(a.attested, loc)
+	err := a.attestErr
 	a.mu.Unlock()
-	return adapters.VisibilityReport{}, nil
+	return adapters.VisibilityReport{}, err
 }
 func (a *rtAdapter) CreateSession(_ context.Context, _ adapters.ServerHandle, s sessionspec.SessionSpec) error {
 	a.mu.Lock()
@@ -157,12 +159,18 @@ func (r *fakeRuntime) Teardown(context.Context, *ohruntime.Prepared) error {
 type fakeDaemon struct {
 	mu      sync.Mutex
 	listens []string
+	revoked []string
 }
 
 func (d *fakeDaemon) IssueGrant(context.Context, daemon.GrantRequest) (daemon.GrantResponse, error) {
 	return daemon.GrantResponse{Token: "ohs_tok", BaseURL: "http://127.0.0.1:5555/amazon-bedrock"}, nil
 }
-func (d *fakeDaemon) RevokeOwner(context.Context, string) error { return nil }
+func (d *fakeDaemon) RevokeOwner(_ context.Context, owner string) error {
+	d.mu.Lock()
+	d.revoked = append(d.revoked, owner)
+	d.mu.Unlock()
+	return nil
+}
 func (d *fakeDaemon) Usage(context.Context, string) (daemon.UsageResponse, error) {
 	return daemon.UsageResponse{}, nil
 }
@@ -355,4 +363,21 @@ func TestStartSessionSetsCheckpointRules(t *testing.T) {
 	sess, err := f.svc.Sessions.Get(ctx, res.SessionID)
 	require.NoError(t, err)
 	assert.Equal(t, "manuel", sess.Mode)
+}
+
+// A server that started but whose isolation check fails is not left running:
+// process stopped, runtime torn down, grant revoked, row stopped.
+func TestStartedServerCleanedUpWhenAttestFails(t *testing.T) {
+	f := newRTFixture(t)
+	ctx := context.Background()
+	f.ad.attestErr = errors.New("tool API down")
+	_, err := f.svc.StartSession(ctx, f.request(f.project))
+	require.Error(t, err)
+	assert.Equal(t, 1, f.ad.stopped)
+	assert.Equal(t, 1, f.rt.teardowns)
+	require.NotEmpty(t, f.dc.revoked)
+	srvs, err := f.svc.Servers.List(ctx)
+	require.NoError(t, err)
+	require.Len(t, srvs, 1)
+	assert.Equal(t, domain.ServerStopped, srvs[0].Status)
 }

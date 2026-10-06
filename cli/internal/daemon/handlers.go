@@ -16,11 +16,11 @@ import (
 func (d *Daemon) routes() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET "+apiPrefix+"/health", d.handleHealth)
-	mux.HandleFunc("POST "+apiPrefix+"/grants", d.handleIssue)
-	mux.HandleFunc("POST "+apiPrefix+"/grants/secret", d.handleSecret)
-	mux.HandleFunc("GET "+apiPrefix+"/grants/pending", d.handlePending)
-	mux.HandleFunc("DELETE "+apiPrefix+"/owners/{owner}/grants", d.handleRevokeOwner)
-	mux.HandleFunc("GET "+apiPrefix+"/usage", d.handleUsage)
+	mux.HandleFunc("POST "+apiPrefix+"/grants", d.afterRestore(d.handleIssue))
+	mux.HandleFunc("POST "+apiPrefix+"/grants/secret", d.afterRestore(d.handleSecret))
+	mux.HandleFunc("GET "+apiPrefix+"/grants/pending", d.afterRestore(d.handlePending))
+	mux.HandleFunc("DELETE "+apiPrefix+"/owners/{owner}/grants", d.afterRestore(d.handleRevokeOwner))
+	mux.HandleFunc("GET "+apiPrefix+"/usage", d.afterRestore(d.handleUsage))
 	mux.HandleFunc("POST "+apiPrefix+"/servers/{group}/touch", d.handleTouch)
 	mux.HandleFunc("POST "+apiPrefix+"/shutdown", d.handleShutdown)
 	mux.HandleFunc("POST "+apiPrefix+"/clients/heartbeat", d.handleHeartbeat)
@@ -34,6 +34,19 @@ func (d *Daemon) routes() http.Handler {
 	mux.HandleFunc("POST "+apiPrefix+"/workflow/outputs", d.handleWorkflowOutputs)
 	mux.HandleFunc("POST "+apiPrefix+"/workflow/rules", d.handleWorkflowRules)
 	return mux
+}
+
+// afterRestore makes a grant route wait until the persisted grants are
+// restored (a token would look unknown, or a revocation be undone).
+func (d *Daemon) afterRestore(h http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		select {
+		case <-d.restored:
+			h(w, r)
+		case <-r.Context().Done():
+			writeErr(w, http.StatusServiceUnavailable, "grants are being restored")
+		}
+	}
 }
 
 func writeJSON(w http.ResponseWriter, status int, v any) {
@@ -56,9 +69,15 @@ func (d *Daemon) handleHealth(w http.ResponseWriter, r *http.Request) {
 			grants = len(list)
 		}
 	}
+	restoring := true
+	select {
+	case <-d.restored:
+		restoring = false
+	default:
+	}
 	writeJSON(w, http.StatusOK, Health{
 		Version: d.opts.Version, PID: os.Getpid(), ProxyURL: d.proxy.URL(),
-		Servers: d.liveServers(r.Context()), Grants: grants, PendingGrants: pending,
+		Servers: d.liveServers(r.Context()), Grants: grants, PendingGrants: pending, Restoring: restoring,
 	})
 }
 

@@ -4,10 +4,13 @@
 package filelock
 
 import (
+	"context"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"syscall"
+	"time"
 )
 
 // Lock blocks until an exclusive lock on path is held and returns its release function.
@@ -27,6 +30,26 @@ func Lock(path string) (func(), error) {
 		_ = syscall.Flock(int(f.Fd()), syscall.LOCK_UN)
 		f.Close()
 	}, nil
+}
+
+// LockContext waits for an exclusive lock on path until ctx is done (it
+// polls a non-blocking lock, so that a stuck holder never blocks the caller
+// forever). It returns ctx.Err() on expiry.
+func LockContext(ctx context.Context, path string) (func(), error) {
+	const poll = 25 * time.Millisecond
+	for {
+		unlock, err := TryLock(path)
+		if !errors.Is(err, ErrLocked) {
+			return unlock, err
+		}
+		t := time.NewTimer(poll)
+		select {
+		case <-ctx.Done():
+			t.Stop()
+			return nil, fmt.Errorf("filelock: waiting for %s: %w", path, ctx.Err())
+		case <-t.C:
+		}
+	}
 }
 
 // ErrLocked is returned by TryLock when another holder has the lock.

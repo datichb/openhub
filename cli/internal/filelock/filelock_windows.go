@@ -4,6 +4,7 @@
 package filelock
 
 import (
+	"context"
 	"errors"
 	"os"
 	"syscall"
@@ -11,6 +12,9 @@ import (
 
 // Lock is a no-op on Windows (single-process mode).
 func Lock(string) (func(), error) { return func() {}, nil }
+
+// LockContext is a no-op on Windows (single-process mode).
+func LockContext(context.Context, string) (func(), error) { return func() {}, nil }
 
 // ErrLocked is returned by TryLock when another holder has the lock.
 var ErrLocked = errors.New("filelock: already locked")

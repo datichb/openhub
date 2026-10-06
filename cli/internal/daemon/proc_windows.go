@@ -12,8 +12,7 @@ import (
 // ErrAlreadyRunning is returned by Run when another daemon holds the lock.
 var ErrAlreadyRunning = errors.New("ohd is already running")
 
-func lockFile(string) (func(), error)     { return nil, ErrUnsupported }
-func blockingLock(string) (func(), error) { return func() {}, nil }
+func lockFile(string) (func(), error) { return nil, ErrUnsupported }
 
 func setDetached(cmd *exec.Cmd) {
 	cmd.SysProcAttr = &syscall.SysProcAttr{CreationFlags: 0x00000200}

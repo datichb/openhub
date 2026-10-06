@@ -9,6 +9,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/adapters"
 	"github.com/datichb/openhub/cli/internal/domain"
+	"github.com/datichb/openhub/cli/internal/filelock"
 	"github.com/datichb/openhub/cli/internal/sessionresults"
 )
 
@@ -248,13 +249,33 @@ func (d *Daemon) applyLifecycle(ctx context.Context, ready []domain.Server) {
 		if sleep && d.toolBusy(ctx, srv) {
 			sleep = false
 		}
-		switch {
-		case stop:
-			d.putToSleep(ctx, srv, true)
-		case sleep:
-			d.putToSleep(ctx, srv, false)
+		if !sleep && !stop {
+			continue
 		}
+		d.sleepLocked(ctx, srv, stop)
 	}
+}
+
+// sleepLocked puts a group to sleep (or stops it) under the group lock, so
+// that a client starting a session on it is never cut off. A group locked by
+// a client is left for the next pass; the row is re-read under the lock.
+func (d *Daemon) sleepLocked(ctx context.Context, srv domain.Server, final bool) {
+	if d.opts.ServersDir != "" {
+		unlock, err := filelock.TryLock(GroupLockPath(d.opts.ServersDir, srv.GroupKey))
+		if err != nil {
+			slog.Debug("ohd: group busy with a client, sleep postponed", "group", srv.GroupKey, "error", err)
+			return
+		}
+		defer unlock()
+	}
+	if d.opts.Servers != nil {
+		cur, err := d.opts.Servers.Get(ctx, srv.GroupKey)
+		if err != nil || cur.PID != srv.PID || cur.Status != domain.ServerReady {
+			return // restarted or stopped meanwhile
+		}
+		srv = *cur
+	}
+	d.putToSleep(ctx, srv, final)
 }
 
 // snapshotResults saves the results (diff, cost) of the open sessions of a

@@ -192,7 +192,7 @@ func (s *Service) StartSession(ctx context.Context, req StartRequest) (*StartRes
 			return nil, fmt.Errorf("runsvc: no container group can host %s (all %d slots busy)", req.Location, maxSlots)
 		}
 		gk = key.String()
-		unlock, err := filelock.Lock(filepath.Join(s.ServersDir, gk, "lock"))
+		unlock, err := s.lockGroup(ctx, gk)
 		if err != nil {
 			return nil, err
 		}
@@ -259,6 +259,18 @@ func (s *Service) StartSession(ctx context.Context, req StartRequest) (*StartRes
 		res.AttachMethod, res.AttachErr = s.Attach(ctx, sid, req.Location, attachPref(req.Attach), req.ITermStyle, req.Title)
 	}
 	return res, nil
+}
+
+// groupLockWait bounds the wait for the lock of a server group (another
+// client starting it, possibly building a container image).
+const groupLockWait = 15 * time.Minute
+
+// lockGroup takes the lock of a server group (shared with the daemon,
+// daemon.GroupLockPath), until ctx is done or groupLockWait expires.
+func (s *Service) lockGroup(ctx context.Context, gk string) (func(), error) {
+	lctx, cancel := context.WithTimeout(ctx, groupLockWait)
+	defer cancel()
+	return filelock.LockContext(lctx, daemon.GroupLockPath(s.ServersDir, gk))
 }
 
 // maxSlots bounds the sibling container groups of one configuration.
@@ -501,6 +513,7 @@ func (s *Service) startServer(ctx context.Context, dc DaemonClient, req StartReq
 		ProxyToken: grant.Token, Status: domain.ServerStarting, CreatedAt: time.Now(),
 	}
 	if err := s.Servers.Upsert(ctx, srv); err != nil {
+		_ = dc.RevokeOwner(ctx, gk)
 		return nil, adapters.VisibilityReport{}, nil, err
 	}
 	h, err := s.Adapter.StartServer(ctx, adapters.ServerGroup{
@@ -509,10 +522,12 @@ func (s *Service) startServer(ctx context.Context, dc DaemonClient, req StartReq
 		Runtime:  rt, Prepared: pg,
 	})
 	if err != nil {
-		_ = dc.RevokeOwner(ctx, gk)
-		_ = s.Servers.SetStatus(ctx, gk, domain.ServerStopped)
+		cctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 15*time.Second)
+		defer cancel()
+		_ = dc.RevokeOwner(cctx, gk)
+		_ = s.Servers.SetStatus(cctx, gk, domain.ServerStopped)
 		if rt != nil {
-			_ = rt.Teardown(ctx, pg)
+			_ = rt.Teardown(cctx, pg)
 		}
 		return nil, adapters.VisibilityReport{}, nil, fmt.Errorf("starting tool server: %w", err)
 	}
@@ -520,13 +535,26 @@ func (s *Service) startServer(ctx context.Context, dc DaemonClient, req StartReq
 	srv.Port = portOf(h.URL)
 	srv.LastActivityAt = time.Now()
 	if err := s.Servers.Upsert(ctx, srv); err != nil {
+		s.abandonServer(ctx, dc, srv)
 		return nil, adapters.VisibilityReport{}, nil, err
 	}
 	rep, err := s.Adapter.Attest(ctx, h, req.Bundle.Spec, innerPath(pg, req.Location))
 	if err != nil {
-		return srv, rep, pg, fmt.Errorf("checking isolation: %w", err)
+		s.abandonServer(ctx, dc, srv)
+		return nil, rep, nil, fmt.Errorf("checking isolation: %w", err)
 	}
 	return srv, rep, pg, nil
+}
+
+// abandonServer stops a started server whose setup failed afterwards: its
+// process, runtime environment and proxy grant must not outlive the error.
+// The context may be cancelled (Ctrl+C): cleanup gets its own.
+func (s *Service) abandonServer(ctx context.Context, dc DaemonClient, srv *domain.Server) {
+	cctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 15*time.Second)
+	defer cancel()
+	s.stopServer(cctx, srv)
+	_ = dc.RevokeOwner(cctx, srv.GroupKey)
+	_ = s.Servers.SetStatus(cctx, srv.GroupKey, domain.ServerStopped)
 }
 
 // proxyURLFor rewrites the proxy base URL for a runtime: the host becomes
@@ -741,7 +769,7 @@ func (s *Service) ResumeSession(ctx context.Context, sessionID string, req Start
 	if key.String() != gk {
 		slog.Info("runsvc: provider settings changed since the session started", "session", sessionID)
 	}
-	unlock, err := filelock.Lock(filepath.Join(s.ServersDir, gk, "lock"))
+	unlock, err := s.lockGroup(ctx, gk)
 	if err != nil {
 		return err
 	}
