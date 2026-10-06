@@ -35,10 +35,10 @@ cd cli && go install .
 
 ```bash
 oh init                        # Premier setup : langue, opencode, projet, MCP
-oh start                       # Lance opencode (detection auto du projet)
-oh start --dev                 # Mode dev : choix epics/tickets, orchestrator-dev
-oh start --onboard             # Cree le wiki projet (docs/wiki/)
-oh deploy                      # Synchronise agents, skills, config, MCP
+oh run feature                 # Lance un workflow (detection auto du projet)
+oh run ticket --tickets bd-42  # Implemente un ticket Beads (une session par ticket)
+oh run onboarding              # Cree le wiki projet (docs/wiki/)
+oh bundle show feature         # Paquet de session d'un workflow (agents, skills, budget)
 oh serve                       # Dashboard web local sur http://127.0.0.1:8080
 ```
 
@@ -49,16 +49,15 @@ oh serve                       # Dashboard web local sur http://127.0.0.1:8080
 | Commande | Description |
 |----------|-------------|
 | `oh init` | Assistant de configuration initiale |
-| `oh start` | Lancer une session opencode |
-| `oh start --dev` | Mode dev : picker tickets + orchestrator-dev |
-| `oh start --onboard` | Onboarding : creer/enrichir le wiki projet |
-| `oh start --recap` | Lancer avec récap de configuration |
+| `oh run <workflow>` | Lancer une session d'un workflow (opencode V2) |
+| `oh workflow list` | Catalogue des workflows |
+| `oh bundle show <workflow>` | Paquet de session (agents, skills, budget) |
+| `oh start`, `oh audit`, `oh review`, `oh debug` | Alias dépréciés de `oh run` |
 | `oh session list` | Liste les sessions v5 (en cours, en attente, en veille) |
 | `oh session attach <id>` | Ouvre une session (nouvel onglet/fenêtre ; reprend une session en veille) |
 | `oh session stop <id>` | Arrête une session |
 | `oh daemon status` | État du démon oh (proxy d'identifiants, serveurs actifs) |
-| `oh deploy` | Deployer agents, skills, config, MCP |
-| `oh sync` | Synchroniser tous les projets enregistres |
+| `oh migrate deploy-cleanup` | Retirer des projets ce qu'avait laissé l'ancien `oh deploy` |
 | `oh project list` | Lister les projets enregistres |
 | `oh project add` | Enregistrer un nouveau projet |
 | `oh config` | Gerer la configuration du hub |
@@ -109,14 +108,15 @@ openhub/
 └── docs/            <- Documentation (bilingue fr/en)
 ```
 
-**Flux de deploiement :**
+**Flux d'une session (v5) :**
 
 ```
-oh deploy
-  -> .opencode/agents/*.md        (definitions d'agents)
-  -> .opencode/skills/*/SKILL.md  (protocoles)
-  -> opencode.json                (provider, model, MCP, permissions)
+oh run <workflow>
+  -> ~/.oh/bundles/<hash>/   (paquet de session : agents du workflow, skills, permissions, MCP, plugin)
+  -> opencode serve          (un serveur par groupe, monde fermé : seul le paquet est visible)
+  -> session ouverte dans un onglet (iTerm2, Terminal.app, tmux) ou suivie depuis la TUI
 ```
+Rien n'est écrit dans le projet (`oh deploy` a été supprimé en v5).
 
 ---
 
@@ -162,16 +162,16 @@ oh deploy
 
 | Scenario | Commande | Agent |
 |----------|----------|-------|
-| Feature complete | `oh start -a orchestrator` | orchestrator |
-| Tickets prets | `oh start --dev` | orchestrator-dev |
-| Audit pre-production | `oh audit --type security` | auditor |
-| Bug production | `oh debug --issue "..."` | debugger |
-| Spec UX/UI depuis Figma | `oh start -a designer` | designer |
-| Documenter une feature | `oh start -a documentarian` | documentarian |
-| Decouvrir un projet | `oh start --onboard` | onboarder |
-| Planifier sans implementer | `oh start -a planner` | planner |
-| Revue d'une branche | `oh review` | reviewer |
-| Parallele multi-tickets | `oh start --parallel` | orchestrator-dev |
+| Feature complete | `oh run feature` | orchestrator |
+| Tickets prets | `oh run ticket --tickets bd-42` | orchestrator-dev |
+| Audit pre-production | `oh run audit -i type=security` | auditor |
+| Bug production | `oh run debug -i issue="..."` | debugger |
+| Spec UX/UI depuis Figma | `oh run libre --agent designer` | designer |
+| Documenter une feature | `oh run libre --agent documentarian` | documentarian |
+| Decouvrir un projet | `oh run onboarding` | onboarder |
+| Planifier sans implementer | `oh run cadrage` | conductor |
+| Revue d'une branche | `oh run review` | reviewer |
+| Parallele multi-tickets | `oh run ticket --tickets bd-1,bd-2` | orchestrator-dev |
 
 ## Commandes
 
@@ -179,14 +179,15 @@ oh deploy
 
 | Commande | Description |
 |----------|-------------|
-| `oh start --recap` | Lancer avec récap de configuration + confirmation |
-| `oh start` | Lancer immédiatement (mode rapide par défaut) |
-| `oh start --dev` | Mode dev : choisir des tickets a implementer |
-| `oh start --onboard` | Decouvrir et documenter un codebase |
-| `oh start --parallel` | Sessions paralleles sur plusieurs tickets |
-| `oh audit --type <t>` | Audit de code (security, performance, architecture, accessibility, ecodesign, observability) |
-| `oh review` | Revue de code (standard, adversarial, edge-case, complete) |
-| `oh debug --issue "..."` | Session de debogage |
+| `oh run <workflow> --recap` | Lancer avec récap + confirmation |
+| `oh run <workflow>` | Lancer immédiatement |
+| `oh run ticket --tickets a,b` | Une session par ticket (un serveur, un worktree par session qui écrit) |
+| `oh run onboarding` | Decouvrir et documenter un codebase |
+| `oh run libre --agent <id>` | Session libre avec l'agent de votre choix |
+| `oh run audit -i type=<t>` | Audit de code (security, performance, architecture, accessibility, ecodesign, observability) |
+| `oh run review` | Revue de code (standard, adversarial, edge-case, complete) |
+| `oh run debug -i issue="..."` | Session de debogage |
+| `oh start`, `oh audit`, `oh review`, `oh debug` | Alias dépréciés de `oh run` (v5) |
 
 ### Projets et deploiement
 
@@ -196,8 +197,7 @@ oh deploy
 | `oh project list` | Lister tous les projets |
 | `oh project configure` | Configurer les parametres d'un projet |
 | `oh project remove` | Desenregistrer un projet |
-| `oh deploy` | Deployer agents/skills dans le projet |
-| `oh sync --all` | Synchroniser vers tous les projets |
+| `oh migrate deploy-cleanup` | Retirer les fichiers de l'ancien `oh deploy` (v5) |
 
 ### Configuration
 
@@ -325,7 +325,7 @@ Si vous utilisiez la CLI bash (`oc`), consultez le [Guide de migration](MIGRATIO
 
 - **[OpenCode](https://opencode.ai)** -- agent de code IA (telecharge automatiquement par `oh init`)
 - **[git](https://git-scm.com/)** -- controle de version
-- **[Beads](https://beads.sh/)** *(optionnel)* -- tracker de tickets pour `oh start --dev`, `oh board`
+- **[Beads](https://beads.sh/)** *(optionnel)* -- tracker de tickets pour `oh run ticket`, `oh board`
 
 Aucun Node.js, jq, sqlite3 ou bun requis. Le binaire Go est autonome.
 

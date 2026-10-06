@@ -1,0 +1,59 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "provider": {
+    "litellm": {
+      "options": {
+        "baseURL": "http://localhost:4000"
+      }
+    },
+    "amazon-bedrock": {}
+  },
+  "enabled_providers": [
+    "amazon-bedrock"
+  ],
+  "permission": {
+    "websearch": "allow",
+    "webfetch": "allow"
+  },
+  "agent": {
+    "mon-agent": {
+      "description": "agent personnel",
+      "mode": "primary"
+    },
+    "build": {
+      "disable": true
+    },
+    "plan": {
+      "disable": true
+    },
+    "developer": {
+      "description": "Assistant de développement",
+      "mode": "subagent"
+    }
+  },
+  "mcp": {
+    "custom": {
+      "type": "local",
+      "command": ["npx", "my-mcp"]
+    },
+    "gitlab": {
+      "type": "local",
+      "command": ["oh", "mcp", "serve", "gitlab", "--token-key", "openhub.mcp.gitlab.token"],
+      "enabled": true
+    }
+  },
+  "plugin": [
+    "my-plugin",
+    "context-mode"
+  ],
+  "compaction": {
+    "auto": true,
+    "prune": true,
+    "reserved": 10000
+  },
+  "subagent_depth": 3,
+  "instructions": [
+    "docs/extra.md",
+    "ONBOARDING.md"
+  ]
+}

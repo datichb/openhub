@@ -51,10 +51,8 @@ openhub/
 └── cli/
     └── cmd/config.go                ← Command: oh config websearch enable
 
-After deployment:
-/path/to/project/
-└── .opencode/
-    └── opencode.json              ← Inherits permissions from hub
+At launch (oh v5, nothing is deployed into the project):
+~/.oh/bundles/<hash>/              ← Session bundle, inherits permissions from hub
 ```
 
 ---
@@ -86,25 +84,18 @@ cd openhub
 
 **Expected output**:
 ```
-✓ WebSearch enabled at hub level
-→ All deployed projects will inherit this configuration
-→ Run './oh deploy all' to apply to all projects
+WebSearch enabled — agents can perform web searches
 ```
 
-### 2. Deploy agents to projects
+### 2. Launch a session
 
-```bash
-# Deploy to a specific project
-./oh deploy my-project
-
-# OR deploy to all registered projects
-./oh deploy all
-```
+No redeploy is needed (`oh deploy` removed in v5): the permissions are put in the
+session bundle at the next launch (`oh run <workflow>`).
 
 **Verification**:
 ```bash
-# The project's .opencode/opencode.json must contain:
-cat /path/to/my-project/.opencode/opencode.json
+# The session bundle must contain:
+oh bundle show <workflow> -p my-project
 ```
 
 Must include (inherited from hub or explicit):
@@ -321,9 +312,9 @@ Agent: [ERROR] WebSearch tool not available
    ```bash
    cat openhub/opencode.json | jq '.permission.websearch'
    ```
-2. Redeploy the agent
+2. Relaunch the session (the bundle is rebuilt at launch)
    ```bash
-   ./oh deploy my-project
+   oh run <workflow> -p my-project
    ```
 3. Check the OpenCode CLI version (requires v1.32+)
    ```bash
@@ -440,10 +431,7 @@ To disable WebSearch for all projects:
    }
    ```
 
-2. Redeploy all projects:
-   ```bash
-   ./oh deploy all
-   ```
+2. No redeploy needed: the change applies at the next session launch (bundle rebuilt).
 
 ### Rollback
 
@@ -451,7 +439,6 @@ In case of issues, revert to the previous state:
 ```bash
 cd openhub
 git checkout opencode.json
-./oh deploy all
 ```
 
 ---

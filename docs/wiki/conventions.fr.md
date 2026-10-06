@@ -54,7 +54,7 @@ Le scope est optionnel mais recommande : `feat(parallel)`, `fix(tui)`, `docs(adr
 1. Creer une branche feature depuis `main`
 2. Implementer avec des tests (`make test`)
 3. Lint (`make lint`)
-4. Verification deploy (`oh deploy && oh deploy --check`)
+4. Verification du paquet de session (`oh bundle build <workflow>` pour les workflows concernes)
 5. Ouvrir une PR avec documentation et mise a jour du changelog
 6. Review IA disponible via `oh review`
 7. Review humaine requise pour le merge

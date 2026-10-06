@@ -63,8 +63,8 @@ mode: primary         # primary (default) | subagent
 permission:
   question: allow     # optional — enables OpenCode's question tool (interactive primary agents only)
   skill: allow        # allow | deny — enables the native skill tool (Bucket B)
-skills: [path/to/skill, ...]          # Bucket A — assembled inline at deploy time
-native_skills: [path/to/skill, ...]   # Bucket B — deployed to .opencode/skills/, loaded on-demand
+skills: [path/to/skill, ...]          # Bucket A — assembled inline when the session bundle is built
+native_skills: [path/to/skill, ...]   # Bucket B — delivered in the session bundle skills/, loaded on-demand
 ---
 
 # <Title>
@@ -80,8 +80,8 @@ native_skills: [path/to/skill, ...]   # Bucket B — deployed to .opencode/skill
 | `mode` | `primary` (default) or `subagent` — controls visibility in OpenCode |
 | `permission.question` | `allow` — enables OpenCode's `question` tool for this agent. Reserved for interactive `primary` agents. Always paired with the `posture/tool-question` skill. |
 | `permission.skill` | `allow` — enables the native `skill` tool so the agent can load Bucket B skills on-demand. Set to `deny` for coordinators/orchestrators that never need contextual skills. |
-| `skills` | **Bucket A** — paths relative to `skills/`, injected inline at deploy time, always active from the first token. Workflow protocols, handoff formats, universal principles. |
-| `native_skills` | **Bucket B** — paths relative to `skills/`, deployed to `.opencode/skills/<name>/SKILL.md`, loaded on-demand by the LLM via the `skill` tool. Domain standards, stack skills, checklists. |
+| `skills` | **Bucket A** — paths relative to `skills/`, injected inline when the session bundle is built, always active from the first token. Workflow protocols, handoff formats, universal principles. |
+| `native_skills` | **Bucket B** — paths relative to `skills/`, delivered in the session bundle as `skills/<name>/SKILL.md`, loaded on-demand by the LLM via the `skill` tool. Domain standards, stack skills, checklists. |
 
 See [ADR-010](./adr/010-hybrid-skills-architecture.en.md) for the rationale behind the Bucket A / Bucket B split.
 
@@ -91,8 +91,8 @@ The `mode:` field controls how an agent is exposed in OpenCode:
 
 | Mode | OpenCode |
 |------|----------|
-| `primary` | Visible in the Tab picker — present in `.opencode/agents/` |
-| `subagent` | Listed in `opencode.json` with `"mode": "subagent"` — invocable by other agents, hidden in Tab picker. Present in `.opencode/agents/` with delegation-oriented description. |
+| `primary` | Visible in the Tab picker — present in the session bundle `agents/` |
+| `subagent` | Declared with `"mode": "subagent"` in the session config — invocable by other agents, hidden in Tab picker. Present in the session bundle `agents/` with delegation-oriented description. |
 
 The effective mode follows a priority: **project override** (`- Modes:` in `projects.md`) > **agent frontmatter** > **`primary`** (default).
 
@@ -219,9 +219,9 @@ Never routes directly to `developer-*` — always delegates to `orchestrator-dev
 
 **Technical permissions:** `bash`, `read`, `edit`, `write` all disabled. Acts only via `task` (delegation) and `question` (checkpoints). List of invocable agents explicitly restricted in the frontmatter.
 
-**Context injection:** project context (stack, conventions) is automatically injected into the session via the `instructions` field of `opencode.json` (valid cache `.opencode/context.json` or `ONBOARDING.md`/`CONVENTIONS.md`). The orchestrator never reads files directly — if context is absent from the session, it proposes the `onboarder`.
+**Context injection:** project context (stack, conventions) is automatically injected into the session: the project instructions (`ONBOARDING.md`, `CONVENTIONS.md`, `[deploy] instruction_files`) are embedded in the agents of the session bundle. The orchestrator never reads files directly — if context is absent from the session, it proposes the `onboarder`.
 
-**Missing agent handling:** if a required agent is not deployed in the project, the orchestrator asks a structured question with options: deploy via `!oh deploy` without leaving OpenCode / use a substitute (substitution table by domain) / skip the ticket. Never silently falls back to another agent.
+**Missing agent handling:** if a required agent is not part of the session (the agents of a session are those of its workflow), the orchestrator asks a structured question with options: use a substitute (substitution table by domain) / skip the ticket. To make the agent available, add it to the workflow and relaunch the session (`oh deploy` removed in v5). Never silently falls back to another agent.
 
 ---
 

@@ -16,11 +16,11 @@ Le systeme de suivi de tickets leger integre a OpenHub. Les tickets Beads (`bd-1
 
 ### Bucket A (Skills inline)
 
-Skills listes dans le tableau `skills:` du frontmatter d'un agent. Ils sont injectes directement dans le prompt systeme de l'agent au deploiement -- toujours presents dans le contexte de l'agent. A opposer au [Bucket B](#bucket-b-skills-natifs).
+Skills listes dans le tableau `skills:` du frontmatter d'un agent. Ils sont injectes directement dans le prompt systeme de l'agent a la construction du paquet de session -- toujours presents dans le contexte de l'agent. A opposer au [Bucket B](#bucket-b-skills-natifs).
 
 ### Bucket B (Skills natifs)
 
-Skills listes dans le tableau `native_skills:` du frontmatter d'un agent. Ils sont deployes en fichiers separes et charges a la demande via l'outil `skill` pendant une session. Ils etendent les capacites d'un agent sans consommer de contexte de base. A opposer au [Bucket A](#bucket-a-skills-inline).
+Skills listes dans le tableau `native_skills:` du frontmatter d'un agent. Ils sont livres en fichiers separes dans le paquet de session et charges a la demande via l'outil `skill` pendant une session. Ils etendent les capacites d'un agent sans consommer de contexte de base. A opposer au [Bucket A](#bucket-a-skills-inline).
 
 ### Checkpoint (CP)
 
@@ -30,9 +30,9 @@ Un point de pause predefini dans un workflow d'orchestrateur ou l'utilisateur pe
 
 En mode equipe, un claim est une assignation de ticket : un membre de l'equipe "claim" un ticket pour signaler qu'il travaille dessus. Les claims empechent le travail en double entre membres. Gere via `oh team claim` / `oh team release`. Voir [Configuration equipe](../guides/team-setup.fr.md).
 
-### Deploy (Deploiement)
+### Deploy (Deploiement, supprime en v5)
 
-Le processus de copie des agents, skills, permissions et configuration depuis le hub central (`~/.oh/`) vers le repertoire `.opencode/` d'un projet cible. Le deploiement est transactionnel (5 phases, rollback en cas d'erreur). Execute avec `oh deploy`. Voir [Demarrage rapide](../guides/getting-started.fr.md#deployer-les-agents-et-skills).
+Anciennement, le processus de copie des agents, skills, permissions et configuration depuis le hub central (`~/.oh/`) vers le repertoire `.opencode/` d'un projet cible (`oh deploy` / `oh sync`, supprimes en v5). Remplace par le paquet de session : chaque session demarre d'un paquet construit au lancement hors du projet (`~/.oh/bundles/<hash>/`) a partir de son workflow ; l'inspecter avec `oh bundle show <workflow>`. Les restes des anciens deploiements sont supprimes par `oh migrate deploy-cleanup`. Voir [Demarrage rapide](../guides/getting-started.fr.md#paquet-de-session).
 
 ### Hub
 
@@ -66,7 +66,7 @@ Mode de navigation par defaut du TUI, affichant tous les projets et equipes. Act
 
 ### Mode Projet
 
-Mode de navigation du TUI focalise sur un projet actif. L'omnibar affiche uniquement les commandes projet (sessions, board, deploy, config projet) et les commandes globales. Active automatiquement si un seul projet est configure, ou manuellement via `Ctrl+T` / selection depuis le Hub Home. Voir [Usage TUI](../guides/tui-usage.fr.md).
+Mode de navigation du TUI focalise sur un projet actif. L'omnibar affiche uniquement les commandes projet (sessions, board, config projet) et les commandes globales. Active automatiquement si un seul projet est configure, ou manuellement via `Ctrl+T` / selection depuis le Hub Home. Voir [Usage TUI](../guides/tui-usage.fr.md).
 
 ### Onboarder
 
@@ -98,11 +98,11 @@ Un document de protocole Markdown qui fournit des connaissances specifiques a un
 
 ### Stack Skills
 
-Protocoles de skills specifiques a un framework (ex. `dev-standards-react`, `dev-standards-golang`) qui sont injectes dynamiquement au deploiement en fonction de la stack technique detectee du projet cible. Situes dans `skills/developer/stacks/`.
+Protocoles de skills specifiques a un framework (ex. `dev-standards-react`, `dev-standards-golang`) qui sont ajoutes dynamiquement au paquet de session en fonction de la stack technique detectee du projet cible. Situes dans `skills/developer/stacks/`.
 
 ### Target Project (Projet cible)
 
-Un codebase enregistre avec OpenHub via `oh project add`. Le deploiement copie le contenu du hub dans le repertoire `.opencode/` du projet. Plusieurs projets peuvent etre enregistres simultanement.
+Un codebase enregistre avec OpenHub via `oh project add`. Les sessions y sont lancees avec `oh run <workflow>` ; rien n'est deploye dans le projet (les paquets de session sont dans `~/.oh/bundles/`). Plusieurs projets peuvent etre enregistres simultanement.
 
 ### Team-state Repository (Depot d'etat equipe)
 

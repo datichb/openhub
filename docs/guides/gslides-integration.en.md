@@ -48,10 +48,10 @@ enabled = true
 env = { GOOGLE_ACCESS_TOKEN = "ya29.a0..." }
 ```
 
-Then deploy:
+No redeploy needed (`oh deploy` removed in v5): the change is applied at the next session launch, when the session bundle is rebuilt:
 
 ```bash
-oh deploy
+oh run <workflow>
 ```
 
 ---

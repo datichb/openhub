@@ -4,10 +4,10 @@
 
 ## Activation
 
-The GitHub MCP server is deployed automatically when `[github].enabled = true` in `hub.toml`.
+The GitHub MCP server is put in the session bundle automatically at launch when `[github].enabled = true` in `hub.toml`.
 
 ```json
-// Injected into opencode.json by oh deploy
+// Declared in the session bundle at launch
 {
   "mcpServers": {
     "github": {

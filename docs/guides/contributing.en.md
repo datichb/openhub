@@ -170,12 +170,13 @@ Recommended structure (see `agents/auditor/auditor.md` as a reference for coordi
 If the agent requires a dedicated protocol, create the corresponding skill
 (see the "Adding a skill" section below) before referencing it in the frontmatter.
 
-### 5. Deploy and test
+### 5. Build and test
 
 ```bash
-oh deploy
-# Verify the agent appears in the project's opencode.json
-oh deploy --check
+# Build the session bundle of a workflow that uses the agent
+oh bundle build <workflow>
+# Verify the agent appears in the bundle
+oh bundle show <workflow>
 ```
 
 ---
@@ -212,7 +213,7 @@ description: <Short description — visible in the agent's skill list>
 ---
 ```
 
-> The `name` key is documentary. The deployment reads `description`.
+> The `name` key is documentary. The bundle builder reads `description`.
 > The file path is the reference used in agent frontmatter.
 
 ### 3. Skill content
@@ -256,17 +257,17 @@ Also add a row to the "## Available skills" guide section in the agent body with
 
 ---
 
-## Deployment
+## Session bundle
 
-Deployment translates agents from the hub format to the opencode format and writes the project's `opencode.json`.
+Since v5, nothing is deployed into the project (`oh deploy` / `oh sync` removed in v5). Each session starts from a session bundle built at launch outside the project (`~/.oh/bundles/<hash>/`) from its workflow: agents translated from the hub format to the opencode format, skills, permissions, MCP servers.
 
-The deployment logic is implemented in Go in `cli/internal/deploy/`.
+The bundle logic is implemented in Go in `cli/internal/bundle/`.
 
 ### Quick steps
 
 1. Add or modify agents/skills in the `agents/` and `skills/` directories
-2. Run `oh deploy` to generate the updated `opencode.json`
-3. Run `oh deploy --check` to verify consistency
+2. Run `oh bundle build <workflow>` to build the bundle of a workflow that uses them
+3. Run `oh bundle show <workflow> --budget` to inspect its content and context budget
 
 ---
 
@@ -315,12 +316,11 @@ Format: see [ADR-001](../architecture/adr/001-agent-skill-separation.en.md) as a
 Before submitting a PR:
 
 ```bash
-# Verify agents deploy correctly
-oh deploy
-oh deploy --check
+# Verify the session bundle builds correctly
+oh bundle build <workflow>
 
-# Review the generated opencode.json diff
-oh deploy --diff
+# Review the bundle content
+oh bundle show <workflow> --budget
 ```
 
 ---
@@ -340,8 +340,8 @@ oh deploy --diff
 - [ ] The commit follows Conventional Commits
 - [ ] `make test` passes without errors (or `make test-unit` at minimum)
 - [ ] `make lint` produces no warnings
-- [ ] `oh deploy` and `oh deploy --check` pass without errors
-- [ ] `oh deploy --diff` shows no unexpected divergence
+- [ ] `oh bundle build <workflow>` passes without errors for the affected workflows
+- [ ] `oh bundle show <workflow>` shows no unexpected divergence
 
 ---
 

@@ -51,10 +51,8 @@ openhub/
 └── cli/
     └── cmd/config.go                ← Commande: oh config websearch enable
 
-Après déploiement:
-/path/to/project/
-└── .opencode/
-    └── opencode.json              ← Hérite des permissions du hub
+Au lancement (oh v5, rien n'est déployé dans le projet) :
+~/.oh/bundles/<hash>/              ← Paquet de session, hérite des permissions du hub
 ```
 
 ---
@@ -86,25 +84,18 @@ cd openhub
 
 **Sortie attendue** :
 ```
-✓ WebSearch enabled at hub level
-→ All deployed projects will inherit this configuration
-→ Run './oh deploy all' to apply to all projects
+WebSearch enabled — agents can perform web searches
 ```
 
-### 2. Déployer les agents vers les projets
+### 2. Lancer une session
 
-```bash
-# Déployer vers un projet spécifique
-./oh deploy mon-projet
-
-# OU déployer vers tous les projets enregistrés
-./oh deploy all
-```
+Aucun redéploiement n'est nécessaire (`oh deploy` supprimé en v5) : les permissions sont
+placées dans le paquet de session au prochain lancement (`oh run <workflow>`).
 
 **Vérification** :
 ```bash
-# Le fichier .opencode/opencode.json du projet doit contenir :
-cat /path/to/mon-projet/.opencode/opencode.json
+# Le paquet de session doit contenir :
+oh bundle show <workflow> -p mon-projet
 ```
 
 Doit inclure (hérité du hub ou explicite) :
@@ -323,9 +314,9 @@ Agent: [ERROR] WebSearch tool not available
    ```bash
    cat openhub/opencode.json | jq '.permission.websearch'
    ```
-2. Redéployer l'agent
+2. Relancer la session (le paquet est reconstruit au lancement)
    ```bash
-   ./oh deploy mon-projet
+   oh run <workflow> -p mon-projet
    ```
 3. Vérifier la version d'OpenCode CLI (requiert v1.32+)
    ```bash
@@ -442,10 +433,7 @@ Si vous voulez désactiver WebSearch pour tous les projets :
    }
    ```
 
-2. Redéployer tous les projets :
-   ```bash
-   ./oh deploy all
-   ```
+2. Aucun redéploiement nécessaire : le changement s'applique au prochain lancement de session (paquet reconstruit).
 
 ### Rollback
 
@@ -453,7 +441,6 @@ En cas de problème, revenir à l'état antérieur :
 ```bash
 cd openhub
 git checkout opencode.json
-./oh deploy all
 ```
 
 ---

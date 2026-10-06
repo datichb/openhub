@@ -4,10 +4,10 @@
 
 ## Activation
 
-Le serveur MCP Linear est déployé automatiquement lorsque `[linear].enabled = true` dans `hub.toml`.
+Le serveur MCP Linear est placé automatiquement dans le paquet de session au lancement lorsque `[linear].enabled = true` dans `hub.toml`.
 
 ```json
-// Injecté dans opencode.json par oh deploy
+// Déclaré dans le paquet de session au lancement
 {
   "mcpServers": {
     "linear": {

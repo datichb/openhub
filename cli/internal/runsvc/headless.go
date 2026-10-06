@@ -9,7 +9,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/adapters"
 )
 
-// Headless runs (`oh run --headless`, brief-enrich, `v5Platform.RunHeadless`):
+// Headless runs (`oh run --headless`, brief-enrich of takeover briefs):
 // a session without interactive client, awaited until its turn is over.
 
 // HeadlessResult is the outcome of a headless session.

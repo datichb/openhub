@@ -73,3 +73,21 @@ The `team` MCP server reads the team of the session from its environment (`OH_TE
 ## 7. Brick catalogue
 
 The former project "Agents" view (selection of the deployed agents) becomes the read-only **Brick catalogue**: agents and skills, origin (hub or team catalogue), estimated cost, loaded skills, dependencies (`requires`) and the workflows that ship them. Access: Project config › "Bricks", or the `bricks` omnibar command. To change the agents of a session, edit (or extend) its workflow.
+
+## 8. Clean the former deployments: `oh migrate deploy-cleanup`
+
+The files written by `oh deploy` stay in the projects until they are removed. After the update, oh offers it **once**: a message when a command starts (`oh: former deployments found in N project(s)…`) or the "Cleanup of the former deployments" screen in the TUI (Clean / Show the diff / Later; `cleanup` omnibar command to open it again). `oh doctor` reports them while some remain.
+
+```bash
+oh migrate deploy-cleanup --dry-run   # what would be removed, with the diff of opencode.json
+oh migrate deploy-cleanup             # summary then confirmation
+oh migrate deploy-cleanup -p web --yes
+```
+
+For every registered project, removed: `.opencode/agents`, `.opencode/skills`, `.opencode/.deploy-state`, `.opencode/context-manifest.json`, `.opencode/team.json` (the `.opencode` folder too when empty; other files, such as `package.json`, stay).
+
+In `opencode.json`, only the keys **written by oh and unchanged since the last deployment** are removed: `agent.<id>` blocks of the hub agents and of the disabled native agents, `mcp.<name>` servers started by `oh mcp serve`, `context-mode` in `plugin`, instruction files added by oh, `compaction`, `subagent_depth`, `enabled_providers`, `model`, the block of the configured provider, `permission.websearch`/`webfetch`. The reference is the copy of `opencode.json` kept in `.deploy-state` (`config_snapshot`): a key you changed since is **kept** (and reported), your own keys are never touched, the order of the file is kept. Without `.deploy-state`, `opencode.json` is not changed (check it by hand). An `opencode.json` that only held oh keys is removed.
+
+## 9. Former workflow overrides (migration v38)
+
+The overrides of the former single workflow (`hub.toml [workflow]`, `[workflow]` of the team `config.toml`, project workflow configuration) are migrated **automatically** at startup to `feature` workflows of the team-state (team, project; a solo space is created for a project without team). Nothing is lost: the original configuration is archived next to them (`workflows/migrated/…`, `~/.oh/migrated/` for `hub.toml`). Details: [Team workflows › Migration of the former overrides](team-workflows.en.md).

@@ -93,6 +93,10 @@ et fournit un TUI interactif pour le suivi de développement.`,
 		if cmd.Name() != "init" && cmd.Name() != "purge" {
 			migrateLegacyWorkflowsAtStartup(cmd.Context(), os.Stderr)
 		}
+		// Former deployments: offered once (the TUI shows its own screen).
+		if offerCleanupFor(cmd) {
+			offerDeployCleanupAtStartup(cmd.Context(), os.Stderr, cmd.Name())
+		}
 		// Localize Cobra command descriptions after locale is loaded
 		localizeCommands(cmd.Root())
 		return nil

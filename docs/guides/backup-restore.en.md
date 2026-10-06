@@ -188,8 +188,8 @@ oh provider setup
 # 5. Verify everything is working
 oh doctor
 
-# 6. Redeploy to all projects
-oh sync --all
+# 6. Launch a session (no redeploy: `oh sync` removed in v5, the bundle is built at launch)
+oh run <workflow>
 ```
 
 `oh doctor` checks:

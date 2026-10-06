@@ -83,28 +83,13 @@ Suivre les conventions dans [`config/figma.conventions.md`](../../config/figma.c
 - **Tags** : `#feature-xxx`, `#ready-dev`, `#wip`
 - **Pages** : Cover, Flows, UI Design, States, Dev Notes
 
-### 4. Déployer
+### 4. Lancer une session
 
 ```bash
-oh deploy MY-PROJECT
+oh run <workflow> -p MY-PROJECT
 ```
 
-Le MCP Server Figma sera déployé automatiquement avec les agents (Phase 4 du déploiement).
-
-Si vous souhaitez déployer uniquement le serveur MCP dans un projet existant :
-
-```bash
-# Déployer le MCP figma dans un projet spécifique
-oh service figma deploy --project MY-PROJECT
-# ou via l'alias :
-oh figma deploy --project MY-PROJECT
-```
-
-Pour rebuilder uniquement le serveur (sans déployer dans un projet) :
-
-```bash
-oh figma deploy
-```
+Aucune étape de déploiement (`oh deploy` supprimé en v5) : le MCP Server Figma, une fois activé (`oh mcp enable|setup`), est placé automatiquement dans le paquet de session au lancement.
 
 ---
 
@@ -212,7 +197,7 @@ Au runtime, le serveur est démarré via :
 oh mcp serve figma
 ```
 
-Cette commande est injectée dans `opencode.json` lors de `oh deploy` :
+Cette commande est déclarée dans le paquet de session au lancement :
 ```json
 {
   "mcpServers": {

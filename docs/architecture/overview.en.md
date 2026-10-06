@@ -6,7 +6,7 @@
 
 ```mermaid
 flowchart LR
-    U["User"] -->|"oh start / oh deploy"| CLI["oh CLI"]
+    U["User"] -->|"oh run"| CLI["oh CLI"]
 
     subgraph Hub ["~/.oh/ (Hub)"]
         TOML["hub.toml"]
@@ -22,8 +22,8 @@ flowchart LR
     end
 
     CLI -->|"SessionPlatform interface"| Platform
-    OCA -->|"deploys to .opencode/"| P1["Project A"]
-    OCA -->|"deploys to .opencode/"| P2["Project B"]
+    CLI -->|"builds session bundle"| BUN["~/.oh/bundles/hash/"]
+    OCA -->|"renders opencode config from"| BUN
     OCA -->|launches| OC["OpenCode Runtime"]
     DLA -.->|"API calls (future)"| LLM2["LLM Provider"]
     OC -->|API calls| LLM["LLM Provider"]
@@ -77,12 +77,12 @@ See [agents.en.md](./agents.en.md) for the complete reference.
 ### Skill
 
 A **skill** is a protocol block: report format, checklist, behavior rules, examples.
-The hub uses a **hybrid architecture** with two deployment paths:
+The hub uses a **hybrid architecture** with two delivery paths:
 
 | Path | Frontmatter field | When loaded |
 |------|------------------|-------------|
-| **Bucket A — Inline** | `skills: [...]` | Always — assembled into the system prompt at deploy time |
-| **Bucket B — Native** | `native_skills: [...]` | On-demand — the LLM loads from `.opencode/skills/` via the `skill` tool |
+| **Bucket A — Inline** | `skills: [...]` | Always — assembled into the system prompt when the session bundle is built |
+| **Bucket B — Native** | `native_skills: [...]` | On-demand — the LLM loads from the session bundle `skills/` via the `skill` tool |
 
 A skill can be shared across multiple agents (e.g. `dev-standards-universal`
 is Bucket A in all developer agents and the reviewer).
@@ -106,7 +106,7 @@ Current MCP Servers:
 - **linear**: Linear API integration (issues, cycles, teams)
 - **team**: Team state MCP server (claims, wiki, events, board sync)
 
-MCP Servers are deployed into projects as `mcpServers` entries in `opencode.json`.
+MCP Servers enabled for the project/hub are put in the session bundle at launch (no redeploy needed).
 
 See [Figma Integration Guide](../guides/figma-integration.en.md) for figma usage.
 See [GitLab Integration Guide](../guides/gitlab-integration.en.md) for gitlab usage.
@@ -132,7 +132,7 @@ oh skill remove <name>             # remove a community skill
 oh skill search <query>            # search the community index
 ```
 
-Community skills are stored in `~/.oh/skills/<name>/` with a `manifest.json` describing their metadata. They are available for deployment into any project alongside hub-native skills.
+Community skills are stored in `~/.oh/skills/<name>/` with a `manifest.json` describing their metadata. They are shipped in the session bundle alongside hub-native skills when a workflow lists them in `skills.extra`.
 
 ### Observability & Telemetry
 
@@ -151,27 +151,30 @@ oh metrics             # per-agent stats (sessions, tokens, cost, avg duration)
 oh serve               # expose API + SPA dashboard on localhost
 ```
 
-### Deployment
+### Session Bundle
 
-Deployment is handled by the `cli/internal/deploy/` package (Go). It performs
-**transactional deployment**: agents, skills, config, and MCP servers are injected
-into the target project's `opencode.json`.
+Nothing is deployed into the project anymore (`oh deploy` / `oh sync` removed in v5).
+At each launch, `cli/internal/bundle/` builds a session bundle `~/.oh/bundles/<hash>/`
+from the workflow: agents with their Bucket A skills inlined, on-demand skills
+(Bucket B, stack skills, `skills.extra`), permissions, MCP servers and plugin. The
+adapter renders the opencode config from it. Closed world: the session only sees what
+the bundle contains.
 
-Commands: `oh deploy`, `oh sync`.
+Commands: `oh bundle show <workflow>`, `oh bundle build <workflow>`.
 
 ### Target Project
 
-A **target project** is an application repository onto which agents are deployed
-via `oh deploy`.
+A **target project** is an application repository on which sessions are launched
+via `oh run <workflow>`.
 
 ---
 
-## Diagram — Deployment Flow
+## Diagram — Session Bundle Flow
 
 ```mermaid
 flowchart LR
     subgraph HUB["openhub (source of truth)"]
-        A[agents/*.md] --> DEP[cli/internal/deploy]
+        A[agents/*.md] --> DEP[cli/internal/bundle]
         S[skills/**/*.md] --> DEP
         MCP[cli/internal/mcp] --> DEP
         PLG[~/.oh/plugins/] --> DEP
@@ -179,10 +182,10 @@ flowchart LR
         SKM[~/.oh/skills/] --> DEP
     end
 
-    subgraph PROJECTS["Target Projects"]
-        DEP -->|"Bucket A (inline)"| P1[".opencode/agents/*.md"]
-        DEP -->|"Bucket B (native)"| P2[".opencode/skills/**/SKILL.md"]
-        DEP -->|"mcpServers"| P3["opencode.json"]
+    subgraph BUNDLE["~/.oh/bundles/hash/ (session bundle)"]
+        DEP -->|"Bucket A (inline)"| P1["agents/*.md"]
+        DEP -->|"Bucket B (native)"| P2["skills/**/SKILL.md"]
+        DEP -->|"permissions, MCP, plugin"| P3["session spec"]
     end
 
     subgraph TELEMETRY["Telemetry"]
@@ -333,7 +336,7 @@ openhub/
 │       ├── app/         ← Application context
 │       ├── beads/       ← Beads ticket integration
 │       ├── config/      ← hub.toml configuration
-│       ├── deploy/      ← Transactional deployment engine
+│       ├── bundle/      ← Session bundle builder (~/.oh/bundles/<hash>/)
 │       ├── domain/      ← Domain types (Project, Session, Secret)
 │       ├── i18n/        ← Internationalization (fr/en)
 │       ├── llm/         ← LLM inference abstraction (Completer interface)

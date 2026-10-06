@@ -63,8 +63,8 @@ mode: primary         # primary (défaut) | subagent
 permission:
   question: allow     # optionnel — autorise l'outil question d'OpenCode (agents primary interactifs uniquement)
   skill: allow        # allow | deny — active l'outil skill natif (Bucket B)
-skills: [chemin/vers/skill, ...]          # Bucket A — assemblées inline au déploiement
-native_skills: [chemin/vers/skill, ...]   # Bucket B — déployées vers .opencode/skills/, chargées à la demande
+skills: [chemin/vers/skill, ...]          # Bucket A — assemblées inline à la construction du paquet de session
+native_skills: [chemin/vers/skill, ...]   # Bucket B — livrées dans skills/ du paquet de session, chargées à la demande
 ---
 
 # <Titre>
@@ -80,8 +80,8 @@ native_skills: [chemin/vers/skill, ...]   # Bucket B — déployées vers .openc
 | `mode` | `primary` (défaut) ou `subagent` — contrôle la visibilité dans OpenCode |
 | `permission.question` | `allow` — active l'outil `question` d'OpenCode pour cet agent. Réservé aux agents `primary` interactifs. Toujours associé à la skill `posture/tool-question`. |
 | `permission.skill` | `allow` — active l'outil `skill` natif pour que l'agent puisse charger les skills Bucket B à la demande. Mettre `deny` pour les coordinateurs/orchestrateurs qui n'ont jamais besoin de skills contextuelles. |
-| `skills` | **Bucket A** — chemins relatifs à `skills/`, injectés inline au déploiement, toujours actifs dès le premier token. Protocoles de workflow, formats de handoff, principes universels. |
-| `native_skills` | **Bucket B** — chemins relatifs à `skills/`, déployés vers `.opencode/skills/<name>/SKILL.md`, chargés à la demande par le LLM via l'outil `skill`. Standards de domaine, stack skills, checklists. |
+| `skills` | **Bucket A** — chemins relatifs à `skills/`, injectés inline à la construction du paquet de session, toujours actifs dès le premier token. Protocoles de workflow, formats de handoff, principes universels. |
+| `native_skills` | **Bucket B** — chemins relatifs à `skills/`, livrés dans le paquet de session sous `skills/<name>/SKILL.md`, chargés à la demande par le LLM via l'outil `skill`. Standards de domaine, stack skills, checklists. |
 
 Voir [ADR-010](./adr/010-hybrid-skills-architecture.fr.md) pour le raisonnement derrière la séparation Bucket A / Bucket B.
 
@@ -91,8 +91,8 @@ Le champ `mode:` contrôle comment un agent est exposé dans OpenCode :
 
 | Mode | OpenCode |
 |------|----------|
-| `primary` | Visible dans le Tab picker — présent dans `.opencode/agents/` |
-| `subagent` | Listé dans `opencode.json` avec `"mode": "subagent"` — invocable par d'autres agents, invisible dans le Tab picker. Présent dans `.opencode/agents/` avec description orientée délégation. |
+| `primary` | Visible dans le Tab picker — présent dans `agents/` du paquet de session |
+| `subagent` | Déclaré avec `"mode": "subagent"` dans la config de session — invocable par d'autres agents, invisible dans le Tab picker. Présent dans `agents/` du paquet de session avec description orientée délégation. |
 
 Le mode effectif suit une priorité : **override projet** (`- Modes :` dans `projects.md`) > **frontmatter agent** > **`primary`** (défaut).
 
@@ -236,9 +236,9 @@ Ne route jamais directement vers les `developer-*` — délègue toujours à `or
 
 **Permissions techniques :** `bash`, `read`, `edit`, `write` tous désactivés. Agit uniquement via `task` (délégation) et `question` (checkpoints). Liste des agents invocables explicitement restreinte dans le frontmatter.
 
-**Injection de contexte :** le contexte projet (stack, conventions) est injecté automatiquement dans la session via le champ `instructions` de `opencode.json` (cache valide `.opencode/context.json` ou `ONBOARDING.md`/`CONVENTIONS.md`). L'orchestrateur ne lit jamais de fichiers directement — si le contexte est absent de la session, il propose l'`onboarder`.
+**Injection de contexte :** le contexte projet (stack, conventions) est injecté automatiquement dans la session : les instructions du projet (`ONBOARDING.md`, `CONVENTIONS.md`, `[deploy] instruction_files`) sont intégrées aux agents du paquet de session. L'orchestrateur ne lit jamais de fichiers directement — si le contexte est absent de la session, il propose l'`onboarder`.
 
-**Gestion des agents manquants :** si un agent requis n'est pas déployé dans le projet, l'agent orchestrator pose une question structurée avec les options : déployer via `!oh deploy` sans quitter OpenCode / utiliser un substitut (table de substitution par domaine) / ignorer le ticket. Ne bascule jamais silencieusement vers un autre agent.
+**Gestion des agents manquants :** si un agent requis ne fait pas partie de la session (les agents d'une session sont ceux de son workflow), l'agent orchestrator pose une question structurée avec les options : utiliser un substitut (table de substitution par domaine) / ignorer le ticket. Pour rendre l'agent disponible, l'ajouter au workflow et relancer la session (`oh deploy` supprimé en v5). Ne bascule jamais silencieusement vers un autre agent.
 
 **Gate de complétion (CP-feature) :** avant de construire le CP-feature, vérifie que le rapport final d'orchestrator-dev documente les 3 checks de complétion (tests passés, comportement observable conforme, régressions documentées). Si absent → bloquant : question à l'utilisateur (redemander à orchestrator-dev / accepter / stop).
 

@@ -16,11 +16,11 @@ The integrated lightweight ticket tracking system used by OpenHub. Beads tickets
 
 ### Bucket A (Inline Skills)
 
-Skills listed in an agent's `skills:` frontmatter array. These are injected directly into the agent's system prompt at deploy time -- always present in the agent's context. Contrast with [Bucket B](#bucket-b-native-skills).
+Skills listed in an agent's `skills:` frontmatter array. These are injected directly into the agent's system prompt when the session bundle is built -- always present in the agent's context. Contrast with [Bucket B](#bucket-b-native-skills).
 
 ### Bucket B (Native Skills)
 
-Skills listed in an agent's `native_skills:` frontmatter array. These are deployed as separate files and loaded on-demand via the `skill` tool during a session. They extend an agent's capabilities without consuming baseline context. Contrast with [Bucket A](#bucket-a-inline-skills).
+Skills listed in an agent's `native_skills:` frontmatter array. These are delivered as separate files in the session bundle and loaded on-demand via the `skill` tool during a session. They extend an agent's capabilities without consuming baseline context. Contrast with [Bucket A](#bucket-a-inline-skills).
 
 ### Checkpoint (CP)
 
@@ -30,9 +30,9 @@ A predefined pause point in an orchestrator workflow where the user can validate
 
 In team mode, a claim is a ticket assignment: a team member "claims" a ticket to signal they are working on it. Claims prevent duplicate work across team members. Managed via `oh team claim` / `oh team release`. See [Team setup](../guides/team-setup.en.md).
 
-### Deploy
+### Deploy (removed in v5)
 
-The process of copying agents, skills, permissions, and configuration from the central hub (`~/.oh/`) into a target project's `.opencode/` directory. Deployment is transactional (5 phases, rollback on error). Run with `oh deploy`. See [Getting started](../guides/getting-started.en.md#deploy-agents--skills).
+Formerly, the process of copying agents, skills, permissions, and configuration from the central hub (`~/.oh/`) into a target project's `.opencode/` directory (`oh deploy` / `oh sync`, removed in v5). Replaced by the session bundle: each session starts from a bundle built at launch outside the project (`~/.oh/bundles/<hash>/`) from its workflow; inspect it with `oh bundle show <workflow>`. Leftovers of former deployments are removed by `oh migrate deploy-cleanup`. See [Getting started](../guides/getting-started.en.md#session-bundle).
 
 ### Hub
 
@@ -62,7 +62,7 @@ Default navigation mode in the TUI, displaying all projects and teams. Auto-sele
 
 ### Project Mode
 
-TUI navigation mode focused on an active project. The omnibar shows only project commands (sessions, board, deploy, project config) and global commands. Auto-selected when a single project is configured, or activated manually via `Ctrl+T` / selection from the Hub Home. See [TUI usage](../guides/tui-usage.en.md).
+TUI navigation mode focused on an active project. The omnibar shows only project commands (sessions, board, project config) and global commands. Auto-selected when a single project is configured, or activated manually via `Ctrl+T` / selection from the Hub Home. See [TUI usage](../guides/tui-usage.en.md).
 
 ### Team Mode
 
@@ -98,11 +98,11 @@ A Markdown protocol document that provides domain-specific knowledge, workflows,
 
 ### Stack Skills
 
-Framework-specific skill protocols (e.g., `dev-standards-react`, `dev-standards-golang`) that are dynamically injected at deploy time based on the detected tech stack of the target project. Located in `skills/developer/stacks/`.
+Framework-specific skill protocols (e.g., `dev-standards-react`, `dev-standards-golang`) that are dynamically added to the session bundle based on the detected tech stack of the target project. Located in `skills/developer/stacks/`.
 
 ### Target Project
 
-A codebase registered with OpenHub via `oh project add`. Deployment copies hub content into the project's `.opencode/` directory. Multiple projects can be registered simultaneously.
+A codebase registered with OpenHub via `oh project add`. Sessions are launched on it with `oh run <workflow>`; nothing is deployed into the project (session bundles live in `~/.oh/bundles/`). Multiple projects can be registered simultaneously.
 
 ### Team-state Repository
 

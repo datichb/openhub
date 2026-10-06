@@ -1,7 +1,9 @@
 # Référence des skills
 
 Les skills contiennent des protocoles détaillés, des formats de sortie, des checklists et des règles que les agents appliquent.
-Le hub utilise une **architecture hybride** avec deux chemins de déploiement — voir [ADR-010](./adr/010-hybrid-skills-architecture.fr.md).
+Le hub utilise une **architecture hybride** avec deux chemins de livraison — voir [ADR-010](./adr/010-hybrid-skills-architecture.fr.md).
+
+Depuis la v5, les skills ne sont plus déployées dans le projet (`oh deploy` supprimé en v5) : `internal/bundle` construit, à chaque lancement, un paquet de session `~/.oh/bundles/<hash>/` à partir du workflow — agents avec leurs skills Bucket A intégrées, skills à la demande (Bucket B, skills stack, `skills.extra`), permissions, MCP et plugin ; l'adaptateur en produit la config opencode. Monde fermé : seules les skills du paquet sont disponibles pour la session.
 
 > Voir le [Glossaire](../reference/glossary.fr.md) pour les definitions de Skill, Bucket A/B, Stack Skills et autres termes.
 
@@ -20,7 +22,7 @@ flowchart TD
     end
 
     subgraph P3 ["Chemin 3 : Detection de stack"]
-        C1["oh deploy detecte la stack"] --> C2["Injecte les stack skills correspondants"]
+        C1["La construction du paquet detecte la stack"] --> C2["Injecte les stack skills correspondants"]
     end
 
     subgraph P4 ["Chemin 4 : Injection par domaine"]
@@ -32,12 +34,12 @@ flowchart TD
 
 > Source du diagramme : [`docs/diagrams/skill-injection-flow.mermaid`](../diagrams/skill-injection-flow.mermaid)
 
-## Chemins de déploiement
+## Chemins de livraison
 
-| Chemin | Champ frontmatter | Déployé vers | Quand chargé |
+| Chemin | Champ frontmatter | Livré dans | Quand chargé |
 |--------|------------------|--------------|--------------|
-| **Inline (Bucket A)** | `skills: [...]` | Assemblé dans le system prompt de l'agent au déploiement | Toujours — dès le premier token |
-| **Natif (Bucket B)** | `native_skills: [...]` | `.opencode/skills/<name>/SKILL.md` | À la demande — le LLM les charge via l'outil `skill` quand la tâche le requiert |
+| **Inline (Bucket A)** | `skills: [...]` | Assemblé dans le system prompt de l'agent à la construction du paquet de session | Toujours — dès le premier token |
+| **Natif (Bucket B)** | `native_skills: [...]` | `~/.oh/bundles/<hash>/skills/<name>/SKILL.md` (paquet de session) | À la demande — le LLM les charge via l'outil `skill` quand la tâche le requiert |
 
 **Bucket A** — Protocoles de workflow, formats de handoff, principes universels, skills de posture, skills d'exécution de base (`beads-plan`, `beads-dev`, `quick-fix`). Doit être actif dès le premier token.
 
@@ -150,7 +152,7 @@ Les agents coordinateurs/orchestrateurs qui n'ont jamais besoin de skills contex
 | `developer-handoff-format` | Contrat de handoff developer (Bucket A) |
 | `quick-fix` | Protocole quick fix pour petits changements (Bucket A) |
 
-**46 skills stack** dans `developer/stacks/` (tous Bucket B, injectes au deploy selon la stack detectee).
+**46 skills stack** dans `developer/stacks/` (tous Bucket B, injectes dans le paquet de session selon la stack detectee).
 
 ### `auditor/` — 13 skills
 
@@ -249,7 +251,7 @@ Les agents coordinateurs/orchestrateurs qui n'ont jamais besoin de skills contex
 ```markdown
 ---
 name: <nom-du-skill>
-description: <Description courte — utilisée lors du déploiement et dans la documentation>
+description: <Description courte — utilisée dans le paquet de session et dans la documentation>
 ---
 
 # Skill — <Titre>
@@ -290,7 +292,7 @@ Les skills marqués **(A)** sont Bucket A — toujours inline. Les skills marqu�
 
 ### Skills spécifiques aux stacks — `developer/stacks/` (Bucket B — natif)
 
-Ces skills sont **Bucket B — natifs**. Au déploiement, `deploy_native_skills()` les déploie vers `.opencode/skills/` en fonction de la stack détectée dans le projet cible par `detect_stack()`. Le LLM charge ceux qui sont pertinents à la demande lors de l'inférence.
+Ces skills sont **Bucket B — natifs**. À la construction du paquet de session, `ResolveStackSkills()` les ajoute aux skills à la demande du paquet en fonction de la stack qu'il détecte dans le projet cible. Le LLM charge ceux qui sont pertinents à la demande lors de l'inférence.
 
 Le mapping entre les stacks détectées et les skills à injecter est déclaré dans `config/stack-skills.json`. Chaque type d'agent (`developer-frontend`, `developer-backend`, etc.) a un scope défini qui limite les catégories de stack skills qu'il reçoit.
 
@@ -395,7 +397,7 @@ Deux nouvelles stack skills étendent la couverture linguistique pour les projet
 | `developer/stacks/dev-standards-golang.md` | `go.mod` détecté à la racine du projet | Conventions modules Go, gestion idiomatique des erreurs, interfaces, goroutines/channels, testing avec testify, linting avec golangci-lint |
 | `developer/stacks/dev-standards-rust.md` | `Cargo.toml` détecté à la racine du projet | Règles ownership/borrowing, gestion des erreurs (thiserror/anyhow), traits et generics, async avec tokio, patterns de testing, lints clippy |
 
-Les deux sont **Bucket B — natifs**. Ils sont automatiquement déployés vers `.opencode/skills/` quand le fichier correspondant est détecté par `detect_stack()` lors de `oh deploy`. Le LLM les charge à la demande lors du travail sur du code Go ou Rust.
+Les deux sont **Bucket B — natifs**. Ils sont automatiquement ajoutés au paquet de session quand le fichier correspondant est détecté dans le projet au lancement. Le LLM les charge à la demande lors du travail sur du code Go ou Rust.
 
 ---
 
@@ -423,7 +425,7 @@ Les skills communautaires sont stockées dans `~/.oh/skills/<name>/` avec la str
 └── SKILL.md          ← contenu du skill
 ```
 
-Le `manifest.json` déclare quels agents la skill cible et si elle est Bucket A ou Bucket B. Les skills communautaires sont disponibles pour le déploiement aux côtés des skills natives du hub via `oh deploy`.
+Le `manifest.json` déclare quels agents la skill cible et si elle est Bucket A ou Bucket B. Les skills communautaires sont livrées dans le paquet de session aux côtés des skills natives du hub quand un workflow les liste dans `skills.extra` (ou qu'un agent les référence) — sans redéploiement.
 
 ---
 
@@ -601,9 +603,9 @@ Skills transverses partagés entre plusieurs familles d'agents. Les skills marqu
 
 > **Note :** Les skills sont répartis en deux buckets (voir [ADR-010](./adr/010-hybrid-skills-architecture.fr.md)) :
 > - **(A)** = Bucket A — inline, toujours actif (depuis le champ frontmatter `skills:`)
-> - **(B)** = Bucket B — natif, chargé à la demande (depuis le champ frontmatter `native_skills:`, déployé vers `.opencode/skills/`)
+> - **(B)** = Bucket B — natif, chargé à la demande (depuis le champ frontmatter `native_skills:`, livré dans `skills/` du paquet de session)
 >
-> Les skills spécifiques aux stacks dans `developer/stacks/` sont toujours Bucket B. L'ensemble déployé dépend de la stack du projet cible. Voir `config/stack-skills.json` pour le mapping complet.
+> Les skills spécifiques aux stacks dans `developer/stacks/` sont toujours Bucket B. L'ensemble livré dépend de la stack du projet cible. Voir `config/stack-skills.json` pour le mapping complet.
 > **Les skills de handoff** sont marqués avec `†` — injectés à la fois dans l'agent producteur et dans l'agent consommateur pour garantir le contrat partagé. Tous les skills de handoff sont Bucket A.
 
 ```

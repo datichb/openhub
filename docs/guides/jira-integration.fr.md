@@ -74,10 +74,10 @@ enabled = true
 write_enabled = false  # Mettre à true pour activer les transitions d'issues
 ```
 
-Déploie après les modifications :
+Aucun redéploiement nécessaire (`oh deploy` supprimé en v5) : le changement est pris en compte au prochain lancement de session, quand le paquet de session est reconstruit :
 
 ```bash
-oh deploy
+oh run <workflow>
 ```
 
 ---

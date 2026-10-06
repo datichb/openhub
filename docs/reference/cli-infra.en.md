@@ -39,6 +39,26 @@ oh status --json
 
 ---
 
+### oh migrate deploy-cleanup
+
+Removes from the registered projects what the former `oh deploy` left (v5): `.opencode/agents`, `.opencode/skills`, `.opencode/.deploy-state`, `.opencode/context-manifest.json`, `.opencode/team.json` and, in `opencode.json`, only the keys oh wrote that are unchanged since the last deployment. Summary then confirmation.
+
+```
+oh migrate deploy-cleanup [-p <project>] [--dry-run] [--diff] [--yes] [--json]
+```
+
+| Flag | Description |
+|------|-------------|
+| `--project`, `-p` | A single project (default: every active project) |
+| `--dry-run` | Show what would be removed, with the diff, without changing anything |
+| `--diff` | Show the diff of `opencode.json` |
+| `--yes`, `-y` | Apply without confirmation (required without a terminal) |
+| `--json` | Plan as JSON (nothing is changed) |
+
+See the [v5 migration guide](../guides/migration-v5.en.md#8-clean-the-former-deployments-oh-migrate-deploy-cleanup).
+
+---
+
 ### oh upgrade oh
 
 Update the `oh` binary in-place (atomic replacement). For non-Homebrew installs only.

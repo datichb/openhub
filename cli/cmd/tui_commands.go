@@ -44,6 +44,15 @@ func buildCommands(a *app.App) []shell.Command {
 			ViewID:      "sessions",
 		},
 		{
+			ID:          "cleanup",
+			Label:       i18n.T("tui.cleanup.cmd"),
+			Aliases:     []string{"deploy-cleanup", "nettoyage", "migrate"},
+			Description: i18n.T("tui.cleanup.cmd_desc"),
+			Category:    i18n.T("tui.category.system"),
+			Priority:    30,
+			Action:      actionCleanup,
+		},
+		{
 			ID:          "bricks",
 			Label:       i18n.T("tui.bricks.cmd"),
 			Aliases:     []string{"briques", "agents", "skills", "catalogue des briques"},

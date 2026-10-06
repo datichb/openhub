@@ -134,6 +134,7 @@ func runTUIWithProject(projectName string) error {
 	go func() {
 		time.Sleep(500 * time.Millisecond)
 		showAbsenceRecap(context.Background(), a, tuiShell) // reads off the event loop
+		offerCleanupInTUI(context.Background(), a, tuiShell)
 	}()
 
 	err := tuiShell.Run()

@@ -303,29 +303,29 @@ team-state/
 
 ### Modes disponibles
 
-| Mode | Comportement | `.opencode/team.json` | MCP team |
+| Mode | Comportement | `OH_TEAM_ID` (paquet) | MCP team |
 |------|-------------|----------------------|----------|
-| `inherit` | Utilise la team du hub | Créé avec config hub | Injecté |
-| `custom` | Repo team-state dédié | Créé avec config custom | Injecté |
-| `disabled` | Pas de team | Fichier supprimé | Non injecté |
+| `inherit` | Utilise la team du hub | Team du hub | Dans le paquet de session |
+| `custom` | Repo team-state dédié | Team custom | Dans le paquet de session |
+| `disabled` | Pas de team | — | Absent du paquet |
 
 ### Comparaison CLI / TUI
 
 | | CLI | TUI |
 |---|-----|-----|
 | **Configurer** | Proposé dans `oh project add` / `oh init` | Omnibar `team configure` → modal 3 choix |
-| **Déployer** | `oh deploy` / `oh sync --all` | Automatique au deploy |
-| **Vérifier** | Inspecter `.opencode/team.json` | Vue `team.detail` (touche `Enter`) |
+| **Appliquer** | Automatique au prochain `oh run` (paquet reconstruit ; `oh deploy` / `oh sync` supprimés en v5) | Automatique au prochain lancement |
+| **Vérifier** | `oh bundle show <workflow>` (MCP `team`, `OH_TEAM_ID`) | Vue `team.detail` (touche `Enter`) |
 
 ### Points de test
 
 | # | Scénario | Résultat attendu |
 |---|----------|------------------|
-| 1 | `oh deploy` avec team enabled | `opencode.json` contient serveur MCP `team` |
-| 2 | `oh deploy` avec team disabled | Pas de serveur MCP `team` |
+| 1 | `oh run <workflow>` avec team enabled | Le paquet de session contient le serveur MCP `team` |
+| 2 | `oh run <workflow>` avec team disabled | Pas de serveur MCP `team` |
 | 3 | Mode custom | Clone un repo différent du hub |
 | 4 | Mode inherit, member_id absent | Provient du hub |
-| 5 | Changement inherit → disabled + redeploy | MCP team retiré |
+| 5 | Changement inherit → disabled + relance | MCP team retiré |
 
 ---
 
@@ -1301,7 +1301,7 @@ Timeout HTTP: 10 secondes pour tous les clients.
 
 ```
    ┌───────────────────────────────────────────────────────────────┐
-   │  opencode.json (généré par oh deploy)                         │
+   │  paquet de session ~/.oh/bundles/<hash>/ (au lancement)       │
    │  ┌─────────────────────────────────────────────────────────┐  │
    │  │  "mcpServers": {                                        │  │
    │  │    "team": {                                            │  │
@@ -1353,7 +1353,7 @@ Timeout HTTP: 10 secondes pour tous les clients.
 
 | # | Scénario | Résultat attendu |
 |---|----------|------------------|
-| 1 | `oh deploy` avec team | MCP `team` dans `opencode.json` |
+| 1 | `oh run <workflow>` avec team | MCP `team` dans le paquet de session |
 | 2 | Agent appelle `team_members` | Liste des membres retournée |
 | 3 | Agent appelle `team_claims` | Claims actifs retournés |
 | 4 | `team_wiki_write` par non-documentarian | Refusé par permissions |
@@ -1492,7 +1492,7 @@ Timeout HTTP: 10 secondes pour tous les clients.
  2. [  ] Vérifier hub.toml ([[teams]] ajouté)
  3. [  ] Vérifier remote: members.toml contient le nouveau membre
  4. [  ] oh teams list → montre la team active
- 5. [  ] oh deploy → opencode.json contient MCP team
+ 5. [  ] oh bundle show <workflow> → le paquet de session contient MCP team
  6. [  ] oh team status → montre les membres
  7. [  ] oh claim SRU-142 → statut in_progress
  8. [  ] oh team board → ticket visible en IN PROGRESS

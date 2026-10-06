@@ -38,7 +38,7 @@ That's it. Everything else has sensible defaults. The provider credentials are s
 | `~/.oh/oh.db` | Project registry (SQLite) |
 | `~/.oh/hub/` | Embedded agents and skills |
 | `~/.oh/secrets.enc` | Encrypted secrets (keychain fallback) |
-| `<project>/.opencode/` | Deployed agents, skills, and config |
+| `~/.oh/bundles/<hash>/` | Session bundles (agents, skills, config) built at launch — nothing is deployed into `<project>/.opencode/` anymore |
 
 ---
 
@@ -216,26 +216,29 @@ oh project add --name my-app --path ~/workspace/my-app --language typescript
 oh project list
 ```
 
-### Deploying to a project
+### Session bundle of a project
+
+Nothing is deployed into the project anymore (`oh deploy` removed in v5): each session starts from a bundle built at launch from its workflow.
 
 ```bash
 cd ~/workspace/my-app
-oh deploy                    # deploy from cwd
-oh deploy -p my-project      # explicit project
-oh deploy --diff             # preview changes
-oh deploy --check            # check if deploy is needed (exit 1 if stale)
+oh bundle show <workflow>                  # project detected from cwd
+oh bundle show <workflow> -p my-project    # explicit project
+oh bundle show <workflow> --budget         # context budget per agent/skill
+oh bundle build <workflow>                 # build without launching
 ```
 
 ```mermaid
 flowchart LR
-    H[Hub ~/.oh/hub/] -->|Phase 1| A[Agents<br/>19 definitions]
-    H -->|Phase 2| S[Skills<br/>assembled per agent]
-    H -->|Phase 3| C[Config<br/>opencode.json]
-    H -->|Phase 4| M[Models<br/>resolved per agent]
-    H -->|Phase 5| MCP[MCP<br/>server config]
-    A --> D[.opencode/]
+    W[Workflow] --> A[Agents<br/>Bucket A skills inlined]
+    H[Hub ~/.oh/] --> A
+    H --> S[On-demand skills]
+    H --> P[Permissions]
+    H --> M[Models<br/>resolved per agent]
+    H --> MCP[MCP<br/>server config]
+    A --> D[~/.oh/bundles/hash/]
     S --> D
-    C --> D
+    P --> D
     M --> D
     MCP --> D
 ```
@@ -293,7 +296,7 @@ enabled = false
 
 ### Per-project MCP override
 
-MCP servers can be enabled/disabled per project during `oh deploy`. The project configuration in `opencode.json` is generated from the hub settings combined with project-level overrides.
+MCP servers can be enabled/disabled per project (`oh mcp enable|setup`). At each launch, the hub settings combined with project-level overrides are put in the session bundle — no redeploy needed.
 
 ---
 
@@ -420,16 +423,16 @@ Override default workflow behavior in `hub.toml`:
 
 ```toml
 [workflow]
-# Workflow overrides are applied during deploy
+# Workflow overrides are applied when the session bundle is built
 ```
 
 ### Deploy options
 
-Disable specific built-in agents during deploy:
+`disable_native_agents` was removed in v5 (the agents of a session are those of its workflow). Only the extra instruction files remain, embedded in every agent of the session bundles:
 
 ```toml
 [deploy]
-disable_native_agents = ["benchmarker", "test-generator"]
+instruction_files = ["docs/ARCHITECTURE.md"]
 ```
 
 ### Worktree configuration

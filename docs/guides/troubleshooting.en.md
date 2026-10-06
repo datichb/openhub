@@ -158,13 +158,20 @@ oh import oh-backup-2026-10-01.tar.gz
 
 ### Worktree
 
-**Project not deployed**
+**`.opencode/ directory missing` (oh < v5)**
 ```
 Error: .opencode/ directory missing
 ```
-Deploy the project configuration:
+Since v5 the project no longer needs a `.opencode/` directory (`oh deploy` removed in v5): the session bundle is built at launch. Update `oh` and relaunch, or inspect the bundle:
 ```bash
-oh deploy
+oh run <workflow>
+oh bundle show <workflow>
+```
+
+**Leftovers of former deployments** (reported by `oh doctor`)
+```bash
+oh migrate deploy-cleanup --dry-run --diff   # preview what would be removed
+oh migrate deploy-cleanup                    # remove .opencode/agents, .opencode/skills, oh keys in opencode.json…
 ```
 
 **Orphan worktrees**

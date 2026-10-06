@@ -6,7 +6,7 @@
 
 ```mermaid
 flowchart LR
-    U["Utilisateur"] -->|"oh start / oh deploy"| CLI["oh CLI"]
+    U["Utilisateur"] -->|"oh run"| CLI["oh CLI"]
 
     subgraph Hub ["~/.oh/ (Hub)"]
         TOML["hub.toml"]
@@ -22,8 +22,8 @@ flowchart LR
     end
 
     CLI -->|"interface SessionPlatform"| Platform
-    OCA -->|"deploie vers .opencode/"| P1["Projet A"]
-    OCA -->|"deploie vers .opencode/"| P2["Projet B"]
+    CLI -->|"construit le paquet de session"| BUN["~/.oh/bundles/hash/"]
+    OCA -->|"produit la config opencode depuis"| BUN
     OCA -->|lance| OC["Runtime OpenCode"]
     DLA -.->|"appels API (futur)"| LLM2["Fournisseur LLM"]
     OC -->|appels API| LLM["Fournisseur LLM"]
@@ -78,12 +78,12 @@ Voir [agents.fr.md](./agents.fr.md) pour la référence complète.
 
 Un **skill** est un bloc de protocole injectable : format de rapport, checklist,
 règles de comportement, exemples. Le hub utilise une **architecture hybride** avec
-deux chemins de déploiement :
+deux chemins de livraison :
 
 | Chemin | Champ frontmatter | Quand chargé |
 |--------|------------------|-------------|
-| **Bucket A — Inline** | `skills: [...]` | Toujours — assemblé dans le system prompt au déploiement |
-| **Bucket B — Natif** | `native_skills: [...]` | À la demande — le LLM charge depuis `.opencode/skills/` via l'outil `skill` |
+| **Bucket A — Inline** | `skills: [...]` | Toujours — assemblé dans le system prompt à la construction du paquet de session |
+| **Bucket B — Natif** | `native_skills: [...]` | À la demande — le LLM charge depuis `skills/` du paquet de session via l'outil `skill` |
 
 Un skill peut être partagé entre plusieurs agents (ex: `dev-standards-universal`
 est Bucket A dans tous les agents développeurs et dans le reviewer).
@@ -107,7 +107,7 @@ Serveurs MCP actuels :
 - **linear** : Intégration API Linear (issues, cycles, équipes)
 - **team** : Serveur MCP état équipe (claims, wiki, events, synchronisation board)
 
-Les serveurs MCP sont déployés dans les projets en tant qu'entrées `mcpServers` dans `opencode.json`.
+Les serveurs MCP activés pour le projet/hub sont placés dans le paquet de session au lancement (aucun redéploiement nécessaire).
 
 Voir [Guide Intégration Figma](../guides/figma-integration.fr.md) pour l'utilisation de figma.
 Voir [Guide Intégration GitLab](../guides/gitlab-integration.fr.md) pour l'utilisation de gitlab.
@@ -133,7 +133,7 @@ oh skill remove <nom>                 # supprimer une skill communautaire
 oh skill search <requête>             # rechercher dans l'index communautaire
 ```
 
-Les skills communautaires sont stockées dans `~/.oh/skills/<name>/` avec un `manifest.json` décrivant leurs métadonnées. Elles sont disponibles pour le déploiement dans n'importe quel projet aux côtés des skills natives du hub.
+Les skills communautaires sont stockées dans `~/.oh/skills/<name>/` avec un `manifest.json` décrivant leurs métadonnées. Elles sont livrées dans le paquet de session aux côtés des skills natives du hub quand un workflow les liste dans `skills.extra`.
 
 ### Observabilité & Télémétrie
 
@@ -152,27 +152,30 @@ oh metrics             # stats par agent (sessions, tokens, coût, durée moy.)
 oh serve               # expose API + SPA dashboard sur localhost
 ```
 
-### Déploiement
+### Paquet de session
 
-Le déploiement est géré par le package `cli/internal/deploy/` (Go). Il effectue un
-**déploiement transactionnel** : agents, skills, config et serveurs MCP sont injectés
-dans le `opencode.json` du projet cible.
+Plus rien n'est déployé dans le projet (`oh deploy` / `oh sync` supprimés en v5).
+À chaque lancement, `cli/internal/bundle/` construit un paquet de session
+`~/.oh/bundles/<hash>/` à partir du workflow : agents avec leurs skills Bucket A
+intégrées, skills à la demande (Bucket B, skills stack, `skills.extra`), permissions,
+serveurs MCP et plugin. L'adaptateur en produit la config opencode. Monde fermé : la
+session ne voit que ce que contient le paquet.
 
-Commandes : `oh deploy`, `oh sync`.
+Commandes : `oh bundle show <workflow>`, `oh bundle build <workflow>`.
 
 ### Projet cible
 
-Un **projet cible** est un dépôt applicatif sur lequel les agents sont déployés
-via `oh deploy`.
+Un **projet cible** est un dépôt applicatif sur lequel des sessions sont lancées
+via `oh run <workflow>`.
 
 ---
 
-## Diagramme — Flux de déploiement
+## Diagramme — Flux du paquet de session
 
 ```mermaid
 flowchart LR
     subgraph HUB["openhub (source de vérité)"]
-        A[agents/*.md] --> DEP[cli/internal/deploy]
+        A[agents/*.md] --> DEP[cli/internal/bundle]
         S[skills/**/*.md] --> DEP
         MCP[cli/internal/mcp] --> DEP
         PLG[~/.oh/plugins/] --> DEP
@@ -180,10 +183,10 @@ flowchart LR
         SKM[~/.oh/skills/] --> DEP
     end
 
-    subgraph PROJETS["Projets cibles"]
-        DEP -->|"Bucket A (inline)"| P1[".opencode/agents/*.md"]
-        DEP -->|"Bucket B (natif)"| P2[".opencode/skills/**/SKILL.md"]
-        DEP -->|"mcpServers"| P3["opencode.json"]
+    subgraph PAQUET["~/.oh/bundles/hash/ (paquet de session)"]
+        DEP -->|"Bucket A (inline)"| P1["agents/*.md"]
+        DEP -->|"Bucket B (natif)"| P2["skills/**/SKILL.md"]
+        DEP -->|"permissions, MCP, plugin"| P3["spec de session"]
     end
 
     subgraph TELEMETRIE["Télémétrie"]
@@ -334,7 +337,7 @@ openhub/
 │       ├── app/         ← Contexte applicatif
 │       ├── beads/       ← Intégration tickets Beads
 │       ├── config/      ← Configuration hub.toml
-│       ├── deploy/      ← Moteur de déploiement transactionnel
+│       ├── bundle/      ← Construction des paquets de session (~/.oh/bundles/<hash>/)
 │       ├── domain/      ← Types domaine (Project, Session, Secret)
 │       ├── i18n/        ← Internationalisation (fr/en)
 │       ├── llm/         ← Abstraction inférence LLM (interface Completer)

@@ -27,6 +27,7 @@ func v5DoctorChecks() []views.DoctorCheck {
 	out = append(out, opencodeV2Check(ctx))
 
 	out = append(out, workflowIntegrityChecks()...)
+	out = append(out, deployLeftoversCheck(ctx))
 	out = append(out, remoteDoctorChecks()...)
 
 	if !v5Available(ctx) {

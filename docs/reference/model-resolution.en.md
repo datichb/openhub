@@ -4,7 +4,7 @@
 
 ## Overview
 
-The Go CLI (`oh`) resolves the AI model for each agent via a **10-level cascade** (ADR-030). Opencode does not manage this logic — the CLI resolves at deploy time and writes the final model into `opencode.json` under `agent.<id>.model`.
+The Go CLI (`oh`) resolves the AI model for each agent via a **10-level cascade** (ADR-030). Opencode does not manage this logic — the CLI resolves when building the session bundle at launch and writes the final model into the agent definitions of the bundle (`agent.<id>.model` in the rendered opencode config).
 
 The provider is resolved separately and used to normalize the model name format (provider prefixing).
 
@@ -16,7 +16,7 @@ The provider is resolved via a 3-level cascade (first match wins):
 
 | Priority | Source | Example |
 |----------|--------|---------|
-| 1 | CLI flag `--provider` | `oh deploy --provider anthropic` |
+| 1 | CLI flag `--provider` | `oh run feature --provider anthropic` |
 | 2 | Hub config | `hub.toml` → `[opencode] default_provider = "bedrock"` |
 | 3 | Hardcoded fallback | `bedrock` |
 
@@ -24,7 +24,7 @@ The provider is resolved via a 3-level cascade (first match wins):
 
 ## Per-Agent Model Resolution Cascade
 
-Resolution is performed for each deployed agent. First match wins (decreasing priority):
+Resolution is performed for each agent of the session bundle. First match wins (decreasing priority):
 
 | Priority | Level | Source | Command |
 |----------|-------|--------|---------|
@@ -129,7 +129,7 @@ oh config model unset agent reviewer --project my-app
 
 ## Provider Prefixing (Normalization)
 
-Opencode requires model names to be prefixed with the provider in `provider/model` format. The CLI applies this prefixing **automatically** during deployment.
+Opencode requires model names to be prefixed with the provider in `provider/model` format. The CLI applies this prefixing **automatically** when building the session bundle.
 
 The model resolved by the cascade (regardless of input format) is normalized to the project's provider:
 
@@ -170,9 +170,9 @@ This field is **level 7** of the cascade — it only applies if no override is d
 
 ---
 
-## Result in opencode.json
+## Result in the session config
 
-After `oh deploy`, each selected agent gets a block in `opencode.json`:
+At each launch, each agent of the session bundle gets a block in the rendered opencode config (inspect with `oh bundle show <workflow>`); model changes (`oh config model ...`) are applied at the next launch, no redeploy:
 
 ```json
 {
@@ -198,7 +198,7 @@ After `oh deploy`, each selected agent gets a block in `opencode.json`:
 }
 ```
 
-### What the deploy writes
+### What the bundle writes
 
 | Field | Condition |
 |-------|-----------|
@@ -208,14 +208,6 @@ After `oh deploy`, each selected agent gets a block in `opencode.json`:
 
 ---
 
-## Deploy Phases
+## Session Bundle Build
 
-Deployment executes in 5 transactional phases (automatic rollback on error):
-
-| # | Phase | Role |
-|---|-------|------|
-| 1 | **Agents** | Copies selected agent `.md` files to `.opencode/agents/` |
-| 2 | **Skills** | Copies skills to `.opencode/skills/` |
-| 3 | **Configuration** | Writes global provider/model + disables native agents |
-| 4 | **Agent Configuration** | Parses frontmatter, resolves model via cascade, writes per-agent in opencode.json |
-| 5 | **MCP** | Injects configured MCP servers |
+The former 5 deploy phases (`oh deploy`, removed in v5) are replaced by the session bundle build: at each launch, `internal/bundle` builds `~/.oh/bundles/<hash>/` from the workflow — agents with their Bucket A skills inlined and their model resolved via the cascade, on-demand skills, permissions, MCP servers and plugin. The adapter renders the opencode config from it; nothing is written into the project.

@@ -166,21 +166,14 @@ git commit -m "config: activation des notifications"
 git push
 ```
 
-## 4. Déployer vers les projets
+## 4. Utiliser la team dans les sessions
 
-Après le team init, redéploie vers tes projets pour injecter le serveur MCP `team` :
-
-```bash
-oh deploy        # un seul projet
-oh sync --all    # tous les projets
-```
-
-Cela ajoute le serveur MCP `team` dans `opencode.json`, rendant les outils d'équipe accessibles aux agents IA.
+Aucun redéploiement n'est nécessaire (`oh deploy` / `oh sync` supprimés en v5) : dès le prochain lancement (`oh run <workflow>`), le serveur MCP `team` est placé dans le paquet de session, rendant les outils d'équipe accessibles aux agents IA.
 
 ## 4b. Configuration de la team par projet
 
 Par défaut, chaque projet **hérite** de la configuration team du hub (le bloc `[team]` dans
-`hub.toml`). Depuis `oh deploy` v3 (config team par projet), chaque projet peut
+`hub.toml`). Chaque projet peut
 choisir son mode team indépendamment.
 
 ### Les trois modes
@@ -189,28 +182,19 @@ choisir son mode team indépendamment.
 |------|-------------|
 | `inherit` | Utilise le team-state repo et le member ID du hub _(défaut)_ |
 | `custom` | Utilise un repo team-state différent — member ID fall back sur le hub si non défini |
-| `disabled` | Désactive explicitement la team — pas de `.opencode/team.json`, MCP team non injecté |
+| `disabled` | Désactive explicitement la team — MCP team non placé dans le paquet de session |
 
 ### Comment le mode est appliqué
 
-Au moment du deploy, `oh deploy` résout la config team effective
-(override projet → fallback hub) et écrit `.opencode/team.json` dans le projet :
+Au lancement, oh résout la config team effective
+(override projet → fallback hub) et déclare le serveur MCP `team` dans le paquet de
+session avec `OH_TEAM_ID` dans son environnement. Le serveur lit `OH_TEAM_ID` pour
+trouver la team du projet de la session (plus de `.opencode/team.json`).
 
-```json
-// .opencode/team.json — généré par oh deploy, ne pas éditer manuellement
-{
-  "enabled": true,
-  "state_repo": "git@gitlab.com:acme/team-state.git",
-  "state_path": "/Users/alice/.oh/team-states/team-state",
-  "member_id": "alice"
-}
-```
+Quand le mode est `disabled`, le serveur MCP `team` n'est pas placé dans le paquet de session.
 
-Quand le mode est `disabled`, ce fichier est **supprimé** (ou jamais créé) et le serveur
-MCP `team` n'est pas injecté dans `opencode.json`.
-
-Le serveur MCP team lit `.opencode/team.json` en priorité ; si absent, il fall back sur
-`hub.toml` pour la compatibilité ascendante avec les projets non encore redéployés.
+Hors session (pas de `OH_TEAM_ID`), le serveur MCP team fall back sur la team active
+de `hub.toml`.
 
 ### Choisir le mode à la création du projet
 
@@ -237,13 +221,8 @@ ce projet"* et offre un opt-in vers une configuration custom.
 team configure
 ```
 
-Cela ouvre un modal avec les trois choix. Après confirmation, redéploie le projet
-pour appliquer le changement :
-
-```bash
-oh deploy          # un seul projet
-oh sync --all      # tous les projets
-```
+Cela ouvre un modal avec les trois choix. Le changement est pris en compte au
+prochain lancement de session (paquet reconstruit) — aucun redéploiement nécessaire.
 
 ### Team custom : résolution du state path
 

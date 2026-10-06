@@ -8,7 +8,7 @@ Ce tutoriel pratique vous guide pas a pas pour installer OpenHub, configurer vot
 - Installer le CLI `oh`
 - Configurer un fournisseur LLM (Anthropic ou Bedrock)
 - Enregistrer un projet
-- Deployer les agents et skills
+- Inspecter le paquet de session (agents et skills)
 - Lancer votre premiere session IA
 
 **Temps necessaire :** ~5 minutes.
@@ -156,35 +156,21 @@ Hub initialise dans ~/.oh/
   oh.db .............. registre de projets
   hub/ ............... agents & skills (extraits du binaire)
 
-Lancez 'oh deploy' dans votre repertoire de projet pour commencer.
+Lancez 'oh run <workflow>' dans votre repertoire de projet pour commencer.
 ```
 
 ---
 
-## Etape 3 -- Deployer les agents et skills
+## Etape 3 -- Inspecter le paquet de session (optionnel)
 
-Naviguez vers votre projet et deployer :
+Il n'y a plus rien a deployer (`oh deploy` supprime en v5) : chaque session demarre d'un paquet de session construit au lancement, hors du projet (`~/.oh/bundles/<hash>/`), a partir de son workflow. Pour voir ce qu'une session `feature` recevra :
 
 ```bash
 cd ~/workspace/my-app
-oh deploy
+oh bundle show feature
 ```
 
-Sortie attendue :
-
-```
-Deploiement vers my-app...
-
-  Phase 1/5  Agents .............. 19 agents deployes
-  Phase 2/5  Skills .............. 47 skills assembles
-  Phase 3/5  Configuration ....... opencode.json ecrit
-  Phase 4/5  Config agents ....... modeles resolus (sonnet-4-6)
-  Phase 5/5  Serveurs MCP ........ 2 serveurs configures
-
-Deploye dans .opencode/ (0.3s)
-```
-
-Cela cree un repertoire `.opencode/` dans votre projet contenant les definitions d'agents, les protocoles de skills et la configuration.
+La commande liste les agents du workflow (skills Bucket A integrees), les skills a la demande, les permissions et les serveurs MCP. Aucun fichier n'est ecrit dans votre projet.
 
 ---
 
@@ -238,7 +224,7 @@ Vous avez maintenant un setup OpenHub fonctionnel. Voici vos prochaines etapes :
 
 ```
 oh init                 # assistant de configuration initiale
-oh deploy               # deployer agents/skills dans le projet courant
+oh bundle show <workflow> # inspecter le paquet de session d'un workflow
 oh start                # lancer une session IA (lancement rapide)
 oh start --recap        # lancer une session IA (avec récap + confirmation)
 oh start --dev          # mode dev : choisir des tickets a implementer

@@ -446,6 +446,14 @@ func buildHelpSections() []helpSection {
 					},
 				},
 				{Name: "upgrade oh", Desc: i18n.T("cmd.upgrade.short")},
+				{
+					Name: "migrate deploy-cleanup",
+					Desc: i18n.T("cmd.migrate.cleanup.short"),
+					Flags: []helpFlag{
+						{"dry-run", "", i18n.T("cmd.migrate.cleanup.flags.dry_run")},
+						{"yes", "y", i18n.T("cmd.migrate.cleanup.flags.yes")},
+					},
+				},
 				{Name: "version", Desc: i18n.T("cmd.version.short")},
 				{Name: "completion", Desc: i18n.T("cmd.completion.short")},
 			},

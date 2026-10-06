@@ -4,10 +4,10 @@
 
 ## Activation
 
-The Jira MCP server is deployed automatically when `[jira].enabled = true` in `hub.toml`.
+The Jira MCP server is put in the session bundle automatically at launch when `[jira].enabled = true` in `hub.toml`.
 
 ```json
-// Injected into opencode.json by oh deploy
+// Declared in the session bundle at launch
 {
   "mcpServers": {
     "jira": {

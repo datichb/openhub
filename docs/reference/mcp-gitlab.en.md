@@ -14,7 +14,7 @@ enabled = true
 env = { GITLAB_TOKEN = "glpat-...", GITLAB_URL = "https://gitlab.example.com" }
 ```
 
-After modifying `hub.toml`, run `oh deploy` to apply changes.
+Changes to `hub.toml` are applied at the next session launch (bundle rebuilt) — no redeploy needed.
 
 ---
 

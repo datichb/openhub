@@ -158,13 +158,20 @@ oh import oh-backup-2026-10-01.tar.gz
 
 ### Worktree
 
-**Projet non deploye**
+**`.opencode/ directory missing` (oh < v5)**
 ```
 Error: .opencode/ directory missing
 ```
-Deployez la configuration du projet :
+Depuis la v5 le projet n'a plus besoin d'un repertoire `.opencode/` (`oh deploy` supprime en v5) : le paquet de session est construit au lancement. Mettez `oh` a jour et relancez, ou inspectez le paquet :
 ```bash
-oh deploy
+oh run <workflow>
+oh bundle show <workflow>
+```
+
+**Restes d'anciens deploiements** (signales par `oh doctor`)
+```bash
+oh migrate deploy-cleanup --dry-run --diff   # previsualiser ce qui serait supprime
+oh migrate deploy-cleanup                    # supprimer .opencode/agents, .opencode/skills, cles oh dans opencode.json…
 ```
 
 **Worktrees orphelins**

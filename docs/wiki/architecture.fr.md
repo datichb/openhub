@@ -4,7 +4,7 @@ title: Vue d'ensemble de l'architecture
 confidence: CONFIRMED
 sources:
   - cli/cmd/root.go
-  - cli/internal/deploy/deploy.go
+  - cli/internal/bundle/build.go
   - docs/architecture/system-overview.fr.md
 last_updated: 2026-10-02
 ---
@@ -23,10 +23,10 @@ openhub (`oh`) est un binaire Go unique qui gere les assistants IA de codage a t
 |  Hub Mode | Project Mode | Team Mode         |
 +---------------------------------------------+
 |              Commandes CLI (Cobra)           |
-|  init | start | deploy | review | team | ... |
+|  init | run | bundle | team | ...           |
 +---------------------------------------------+
 |              Services centraux               |
-|  Config | Deploy | MCP | Platform | Storage  |
+|  Config | Bundle | MCP | Platform | Storage  |
 +---------------------------------------------+
 ```
 
@@ -36,7 +36,7 @@ openhub (`oh`) est un binaire Go unique qui gere les assistants IA de codage a t
 |---------|---------------|
 | `cmd/` | Definitions des commandes Cobra (points d'entree CLI) |
 | `internal/config/` | Configuration hub (`hub.toml`, TOML + Viper) |
-| `internal/deploy/` | Moteur de deploiement transactionnel (agents -> opencode.json) |
+| `internal/bundle/` | Construction des paquets de session (workflow -> `~/.oh/bundles/<hash>/`) |
 | `internal/mcp/` | 7 serveurs MCP integres (Figma, GitLab, GitHub, Jira, Linear, GSlides, Team) |
 | `internal/opencode/` | Integration OpenCode (sessions, abstraction plateforme) |
 | `internal/parallel/` | Coordination de sessions paralleles (worktrees, recovery, merge) |
@@ -49,7 +49,7 @@ openhub (`oh`) est un binaire Go unique qui gere les assistants IA de codage a t
 
 ## Contenu embarque
 
-Les agents, skills et permissions sont compiles dans le binaire via `go:embed` (`internal/hubcontent/`). La commande `oh deploy` les extrait et les transforme au format `opencode.json` pour le projet cible.
+Les agents, skills et permissions sont compiles dans le binaire via `go:embed` (`internal/hubcontent/`). A chaque lancement, `internal/bundle` en construit, hors du projet, le paquet de session du workflow (`~/.oh/bundles/<hash>/` : agents avec skills Bucket A integrees, skills a la demande, permissions, MCP, plugin) ; l'adaptateur en produit la config opencode (`oh deploy` supprime en v5).
 
 ## Architecture MCP
 

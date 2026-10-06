@@ -74,10 +74,10 @@ enabled = true
 write_enabled = false  # Set to true to enable issue transitions
 ```
 
-Deploy after changes:
+No redeploy needed (`oh deploy` removed in v5): the change is applied at the next session launch, when the session bundle is rebuilt:
 
 ```bash
-oh deploy
+oh run <workflow>
 ```
 
 ---
