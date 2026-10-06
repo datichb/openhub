@@ -3,6 +3,7 @@ package sqlite
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -23,7 +24,7 @@ func NewSessionStore(s *Store) *SessionStore {
 var _ domain.SessionStore = (*SessionStore)(nil)
 
 // sessionColumns is the canonical column list used by all SELECT queries.
-const sessionColumns = `id, project_id, started_at, ended_at, status, provider, model, tokens_in, tokens_out, launch_path, member_id, cost, tokens_reasoning, tokens_cache_read, platform, external_session_id, slug, pid, title, type, label, correlation_id, workflow_id, entry_agent, bundle_hash, group_key, runtime, mode, state, state_changed_at`
+const sessionColumns = `id, project_id, started_at, ended_at, status, provider, model, tokens_in, tokens_out, launch_path, member_id, cost, tokens_reasoning, tokens_cache_read, platform, external_session_id, slug, pid, title, type, label, correlation_id, workflow_id, entry_agent, bundle_hash, group_key, runtime, mode, state, state_changed_at, workflow_layer, workflow_version, workflow_risk, location, outputs, parent_session_id`
 
 // scanSession scans a row into a domain.Session. The row must match sessionColumns order.
 func scanSession(scanner interface{ Scan(...any) error }) (domain.Session, error) {
@@ -39,16 +40,21 @@ func scanSession(scanner interface{ Scan(...any) error }) (domain.Session, error
 	var correlationID sql.NullString
 	var state string
 	var stateChangedAt sql.NullTime
+	var outputs string
 	if err := scanner.Scan(&s.ID, &s.ProjectID, &s.StartedAt, &endedAt, &status,
 		&s.Provider, &s.Model, &s.TokensIn, &s.TokensOut, &s.LaunchPath, &memberID,
 		&s.Cost, &s.TokensReasoning, &s.TokensCacheRead, &s.Platform, &externalSessionID, &slug, &s.PID, &title,
 		&sessionType, &label, &correlationID,
-		&s.WorkflowID, &s.EntryAgent, &s.BundleHash, &s.GroupKey, &s.Runtime, &s.Mode, &state, &stateChangedAt); err != nil {
+		&s.WorkflowID, &s.EntryAgent, &s.BundleHash, &s.GroupKey, &s.Runtime, &s.Mode, &state, &stateChangedAt,
+		&s.WorkflowLayer, &s.WorkflowVersion, &s.WorkflowRisk, &s.Location, &outputs, &s.ParentSessionID); err != nil {
 		return s, err
 	}
 	s.Status = domain.SessionStatus(status)
 	s.Type = domain.SessionType(sessionType)
 	s.State = domain.RunState(state)
+	if outputs != "" && outputs != "{}" {
+		_ = json.Unmarshal([]byte(outputs), &s.Outputs)
+	}
 	if stateChangedAt.Valid {
 		s.StateChangedAt = &stateChangedAt.Time
 	}
@@ -126,13 +132,14 @@ func (ss *SessionStore) Create(ctx context.Context, s *domain.Session) error {
 		s.Type = domain.SessionTypeInteractive
 	}
 	_, err := ss.db.ExecContext(ctx,
-		`INSERT INTO sessions (id, project_id, started_at, ended_at, status, provider, model, tokens_in, tokens_out, launch_path, member_id, cost, tokens_reasoning, tokens_cache_read, platform, external_session_id, slug, pid, title, type, label, correlation_id, workflow_id, entry_agent, bundle_hash, group_key, runtime, mode, state, state_changed_at)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		`INSERT INTO sessions (id, project_id, started_at, ended_at, status, provider, model, tokens_in, tokens_out, launch_path, member_id, cost, tokens_reasoning, tokens_cache_read, platform, external_session_id, slug, pid, title, type, label, correlation_id, workflow_id, entry_agent, bundle_hash, group_key, runtime, mode, state, state_changed_at, workflow_layer, workflow_version, workflow_risk, location, outputs, parent_session_id)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		s.ID, s.ProjectID, s.StartedAt, s.EndedAt, string(s.Status),
 		s.Provider, s.Model, s.TokensIn, s.TokensOut, s.LaunchPath, s.MemberID,
 		s.Cost, s.TokensReasoning, s.TokensCacheRead, s.Platform, s.ExternalSessionID, s.Slug,
 		s.PID, s.Title, string(s.Type), s.Label, s.CorrelationID,
 		s.WorkflowID, s.EntryAgent, s.BundleHash, s.GroupKey, s.Runtime, s.Mode, string(s.State), s.StateChangedAt,
+		s.WorkflowLayer, s.WorkflowVersion, s.WorkflowRisk, s.Location, outputsJSON(s.Outputs), s.ParentSessionID,
 	)
 	if err != nil {
 		return fmt.Errorf("creating session: %w", err)
@@ -143,12 +150,14 @@ func (ss *SessionStore) Create(ctx context.Context, s *domain.Session) error {
 func (ss *SessionStore) Update(ctx context.Context, s *domain.Session) error {
 	result, err := ss.db.ExecContext(ctx,
 		`UPDATE sessions SET ended_at=?, status=?, provider=?, model=?, tokens_in=?, tokens_out=?, launch_path=?, member_id=?, cost=?, tokens_reasoning=?, tokens_cache_read=?, platform=?, external_session_id=?, slug=?, pid=?, title=?, type=?, label=?, correlation_id=?,
-		 workflow_id=?, entry_agent=?, bundle_hash=?, group_key=?, runtime=?, mode=?, state=?, state_changed_at=?
+		 workflow_id=?, entry_agent=?, bundle_hash=?, group_key=?, runtime=?, mode=?, state=?, state_changed_at=?,
+		 workflow_layer=?, workflow_version=?, workflow_risk=?, location=?, outputs=?, parent_session_id=?
 		 WHERE id=?`,
 		s.EndedAt, string(s.Status), s.Provider, s.Model, s.TokensIn, s.TokensOut, s.LaunchPath, s.MemberID,
 		s.Cost, s.TokensReasoning, s.TokensCacheRead, s.Platform, s.ExternalSessionID, s.Slug,
 		s.PID, s.Title, string(s.Type), s.Label, s.CorrelationID,
 		s.WorkflowID, s.EntryAgent, s.BundleHash, s.GroupKey, s.Runtime, s.Mode, string(s.State), s.StateChangedAt,
+		s.WorkflowLayer, s.WorkflowVersion, s.WorkflowRisk, s.Location, outputsJSON(s.Outputs), s.ParentSessionID,
 		s.ID,
 	)
 	if err != nil {
@@ -185,4 +194,16 @@ func (ss *SessionStore) ListRunning(ctx context.Context, projectID string) ([]do
 		sessions = append(sessions, s)
 	}
 	return sessions, rows.Err()
+}
+
+// outputsJSON serializes the session outputs (JSON object, "{}" when empty).
+func outputsJSON(o map[string]any) string {
+	if len(o) == 0 {
+		return "{}"
+	}
+	data, err := json.Marshal(o)
+	if err != nil {
+		return "{}"
+	}
+	return string(data)
 }

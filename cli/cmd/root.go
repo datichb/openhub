@@ -294,7 +294,16 @@ func init() {
 	rootCmd.PersistentFlags().Bool("no-tui", false, "Disable rich TUI (use inline prompts only)")
 	rootCmd.Flags().StringP("project", "p", "", "Démarrer directement en mode projet pour ce projet")
 	_ = rootCmd.RegisterFlagCompletionFunc("project", completeProjectIDs)
-	rootCmd.SetHelpFunc(customHelpFunc)
+	// The paged overview is the help of oh itself; subcommands keep their
+	// own help (flags, examples).
+	defaultHelp := rootCmd.HelpFunc()
+	rootCmd.SetHelpFunc(func(c *cobra.Command, args []string) {
+		if c == rootCmd {
+			customHelpFunc(c, args)
+			return
+		}
+		defaultHelp(c, args)
+	})
 	rootCmd.AddCommand(secretsCmd)
 }
 

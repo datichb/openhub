@@ -76,6 +76,10 @@ type Service struct {
 	Executable   string // oh binary used to attach (default os.Executable)
 	// Runtimes are the non-local execution environments (container…).
 	Runtimes map[sessionspec.RuntimeKind]ohruntime.Runtime
+	// LaunchLocksDir holds the launch locks (default <ServersDir>/../run/launch).
+	LaunchLocksDir string
+	// Git replaces the git operations of the launcher (tests).
+	Git Git
 }
 
 // StartRequest describes a session to start.
@@ -92,6 +96,13 @@ type StartRequest struct {
 	Mode            string
 	MemberID        *string
 
+	// Workflow launch records (oh run, launch form).
+	WorkflowLayer   string
+	WorkflowVersion int
+	WorkflowRisk    string
+	LocationKind    string // base | worktree
+	ParentSessionID string
+
 	Provider      string          // hub provider name: bedrock | anthropic | openrouter
 	ProviderCfg   provider.Config // AWS profile / region
 	AllowedModels []string
@@ -100,8 +111,7 @@ type StartRequest struct {
 	Attach     sessionspec.AttachPref
 	ITermStyle termlaunch.ITermStyle
 
-	// Runtime is where the server group runs ("" = local). Internal for now:
-	// not exposed by `oh run` nor the TUI yet (phase 4, lot 4.C).
+	// Runtime is where the server group runs ("" = local).
 	Runtime sessionspec.RuntimeKind
 	// Container settings (runtime container).
 	ProjectDir string            // project base directory (dev Dockerfile); default Location
@@ -537,6 +547,8 @@ func (s *Service) persistSession(ctx context.Context, req StartRequest, srv *dom
 		PID: srv.PID, Type: domain.SessionTypeInteractive,
 		WorkflowID: req.WorkflowID, EntryAgent: entry, BundleHash: srv.BundleHash, GroupKey: srv.GroupKey,
 		Runtime: srv.Runtime, Mode: req.Mode, State: domain.RunActive,
+		WorkflowLayer: req.WorkflowLayer, WorkflowVersion: req.WorkflowVersion, WorkflowRisk: req.WorkflowRisk,
+		Location: req.LocationKind, ParentSessionID: req.ParentSessionID,
 	}
 	if title != "" {
 		sess.Title = &title

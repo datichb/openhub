@@ -110,6 +110,27 @@ func buildHelpContent() string {
 func buildHelpSections() []helpSection {
 	return []helpSection{
 		{
+			Title: i18n.T("help.section.workflows"),
+			Commands: []helpCommand{
+				{
+					Name: "run <workflow>",
+					Desc: i18n.T("cmd.run.short"),
+					Flags: []helpFlag{
+						{"input", "i", i18n.T("cmd.run.flags.input")},
+						{"tickets", "", i18n.T("cmd.run.flags.tickets")},
+						{"mode", "", i18n.T("cmd.run.flags.mode")},
+						{"runtime", "", i18n.T("cmd.run.flags.runtime")},
+						{"location", "", i18n.T("cmd.run.flags.location")},
+						{"recap", "", i18n.T("cmd.run.flags.recap")},
+					},
+				},
+				{Name: "workflow list", Desc: i18n.T("cmd.workflow.list.short")},
+				{Name: "workflow show", Desc: i18n.T("cmd.workflow.show.short")},
+				{Name: "workflow validate", Desc: i18n.T("cmd.workflow.validate.short")},
+				{Name: "bundle show", Desc: i18n.T("cmd.bundle.show.short")},
+			},
+		},
+		{
 			Title: i18n.T("help.section.session"),
 			Commands: []helpCommand{
 				{

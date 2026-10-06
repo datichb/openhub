@@ -107,22 +107,7 @@ func v5Launch(ctx context.Context, a *app.App, ui launcher.LaunchUI, opts launch
 		ui.Notify(i18n.Tf("cmd.v5.isolation_warning", w), launcher.LevelWarning)
 	}
 
-	switch {
-	case req.Attach == sessionspec.AttachBrowser:
-		url, err := svc.PairURL(ctx, res.SessionID, pairURL)
-		if err != nil {
-			return true, err
-		}
-		ui.Notify(i18n.Tf("cmd.v5.opened_browser", url), launcher.LevelSuccess)
-		return true, openURL(url)
-	case req.Attach == sessionspec.AttachSuspend || res.AttachErr != nil:
-		if res.AttachErr != nil {
-			ui.Notify(i18n.T("cmd.session.no_terminal"), launcher.LevelWarning)
-		}
-		return true, runAttachInline(ctx, a, svc, ui, res.SessionID)
-	}
-	ui.Notify(i18n.Tf("cmd.v5.opened_in", string(res.AttachMethod), res.SessionID), launcher.LevelSuccess)
-	return true, nil
+	return true, afterStart(ctx, a, svc, ui, req.Attach, res, true)
 }
 
 // v5Request returns the provider, team and attach settings of a project

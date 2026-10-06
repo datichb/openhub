@@ -285,3 +285,24 @@ func refersToPending(src string, pending []string, self string) bool {
 	}
 	return false
 }
+
+// WithInputs returns a copy of the resolution whose session inputs are
+// replaced by inputs (one session of a multi-ticket launch). The values are
+// not re-validated: use it with values of the same types.
+func (r *Resolution) WithInputs(inputs map[string]any) *Resolution {
+	cp := *r
+	resolved := *r.Resolved
+	resolved.Inputs = inputs
+	cp.Resolved = &resolved
+	return &cp
+}
+
+// FirstInput returns the first input of a type ("" when none).
+func FirstInput(sp *wf.Spec, t wf.InputType) string {
+	for _, k := range sp.Inputs.Keys() {
+		if in, _ := sp.Inputs.Get(k); in.Type == t {
+			return k
+		}
+	}
+	return ""
+}

@@ -4,12 +4,19 @@
 package filelock
 
 import (
+	"errors"
 	"os"
 	"syscall"
 )
 
 // Lock is a no-op on Windows (single-process mode).
 func Lock(string) (func(), error) { return func() {}, nil }
+
+// ErrLocked is returned by TryLock when another holder has the lock.
+var ErrLocked = errors.New("filelock: already locked")
+
+// TryLock is a no-op on Windows (single-process mode).
+func TryLock(string) (func(), error) { return func() {}, nil }
 
 // ProcessAlive reports whether a process exists.
 func ProcessAlive(pid int) bool {

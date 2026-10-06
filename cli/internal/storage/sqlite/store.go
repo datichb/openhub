@@ -531,4 +531,18 @@ CREATE INDEX IF NOT EXISTS idx_pending_decisions_open ON pending_decisions(resol
 CREATE INDEX IF NOT EXISTS idx_pending_decisions_session ON pending_decisions(session_id)`,
 		down: `DROP TABLE IF EXISTS pending_decisions`,
 	},
+	{
+		// v5 phase 1 (P1-T16/T27): workflow launches. workflow_risk decides
+		// automatic worktrees (O10); location = base | worktree; outputs =
+		// typed session outputs (JSON object); parent_session_id = "chain
+		// with…" (O7).
+		version: 34,
+		up: `ALTER TABLE sessions ADD COLUMN workflow_layer TEXT NOT NULL DEFAULT '';
+ALTER TABLE sessions ADD COLUMN workflow_version INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE sessions ADD COLUMN workflow_risk TEXT NOT NULL DEFAULT '';
+ALTER TABLE sessions ADD COLUMN location TEXT NOT NULL DEFAULT '';
+ALTER TABLE sessions ADD COLUMN outputs TEXT NOT NULL DEFAULT '{}';
+ALTER TABLE sessions ADD COLUMN parent_session_id TEXT NOT NULL DEFAULT ''`,
+		irreversible: false,
+	},
 }

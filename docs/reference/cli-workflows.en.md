@@ -4,6 +4,23 @@
 
 Declarative workflows (`apiVersion: oh/v1`) describe a use case: entry agent, agents, checkpoints, inputs, resources and allowed execution environments. They are read by layers (hub, then team and project in phase 2); the most specific layer extends the one below.
 
+## oh run
+
+```
+oh run <workflow> [-i key=value]… [--tickets a,b] [--mode <mode>] [--runtime local|container]
+                  [--location base|new|<worktree>] [--attach <opening>] [--recap] [-p <project>] [-P <provider>]
+```
+
+Launches a workflow: layer resolution and validation, session bundle, session plan, initial prompt rendering, then start through the RunService (one server per group: bundle version, project, runtime).
+
+- **Inputs** (`-i`, repeatable): values of the workflow `inputs` (`true`, `3`, `a,b` are converted to the input type). Defaults may depend on other inputs (`branch: feat/{{ .ticket }}`). Free text is injected between `<oh:input name="…">…</oh:input>` tags and truncated (`max_length`, else 1,000 characters, 8,000 for `text`).
+- **Tickets** (`--tickets`): fill the first `beads-id` input; with `picker.multi`, **one session per ticket**, all in the same server group, each in its own worktree when the workflow writes. A `beads-ids` input receives the list in a single session.
+- **Location** (`--location`): `base` (default, project directory), `new` (a new worktree per session, branch = `branch` input or `oh/<workflow>-<ticket>`), or the path of an existing worktree. A writing session (`risk` other than `read`) **automatically gets a worktree** when another writing session is active in the same directory. Replaces `--worktree`.
+- **Runtime** (`--runtime`): `local` or `container` (must be in `runtime.allowed`; refused with the reason when the container engine is unavailable).
+- **Recap** (`--recap`): agents, first-turn budget, isolation, sessions and locations, warnings (uncommitted changes, automatic worktree, pending decisions), then confirmation.
+- Two simultaneous launches in the same directory are refused ("launch in progress").
+- `--draft` (drafts) comes in phase 2. Requires opencode V2.
+
 ## oh workflow list
 
 Lists the catalogue workflows, one per id (its most specific layer), with version, risk, execution environments and validity (`✓` valid, `!` warnings, `✗` errors).

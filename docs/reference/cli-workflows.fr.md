@@ -4,6 +4,23 @@
 
 Les workflows déclaratifs (`apiVersion: oh/v1`) décrivent un cas d'usage : agent d'entrée, agents, checkpoints, entrées, ressources et environnements d'exécution autorisés. Ils sont lus par couches (hub, puis équipe et projet en phase 2) ; la couche la plus spécifique étend celle du dessous.
 
+## oh run
+
+```
+oh run <workflow> [-i clé=valeur]… [--tickets a,b] [--mode <mode>] [--runtime local|container]
+                  [--location base|new|<worktree>] [--attach <ouverture>] [--recap] [-p <projet>] [-P <fournisseur>]
+```
+
+Lance un workflow : résolution des couches et validation, paquet de session, plan des sessions, rendu du prompt initial, puis démarrage par le RunService (un serveur par groupe : version du paquet, projet, environnement).
+
+- **Entrées** (`-i`, répétable) : valeurs des `inputs` du workflow (`true`, `3`, `a,b` sont convertis selon le type). Les valeurs par défaut peuvent dépendre d'autres entrées (`branch: feat/{{ .ticket }}`). Le texte libre est injecté entre balises `<oh:input name="…">…</oh:input>` et tronqué (`max_length`, sinon 1 000 caractères, 8 000 pour `text`).
+- **Tickets** (`--tickets`) : remplissent la première entrée `beads-id` ; avec `picker.multi`, **une session par ticket**, toutes dans le même groupe de serveur, chacune dans son worktree si le workflow écrit. Une entrée `beads-ids` reçoit la liste dans une seule session.
+- **Emplacement** (`--location`) : `base` (défaut, dossier du projet), `new` (un nouveau worktree par session, branche = entrée `branch` ou `oh/<workflow>-<ticket>`), ou le chemin d'un worktree existant. Une session qui écrit (`risk` autre que `read`) reçoit **automatiquement un worktree** si une autre session qui écrit est active dans le même dossier. Remplace `--worktree`.
+- **Exécution** (`--runtime`) : `local` ou `container` (doit figurer dans `runtime.allowed` ; refusé avec la raison si le moteur de conteneurs est indisponible).
+- **Récapitulatif** (`--recap`) : agents, budget du premier tour, isolation, sessions et emplacements, avertissements (modifications non commitées, worktree automatique, décisions en attente), puis confirmation.
+- Deux lancements simultanés dans le même dossier sont refusés (« lancement en cours »).
+- `--draft` (brouillons) arrive en phase 2. Exige opencode V2.
+
 ## oh workflow list
 
 Liste les workflows du catalogue, un par identifiant (sa couche la plus spécifique), avec version, risque, environnements d'exécution et validité (`✓` valide, `!` avertissements, `✗` erreurs).
