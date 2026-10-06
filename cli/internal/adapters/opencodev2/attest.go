@@ -19,12 +19,9 @@ import (
 func Attest(ctx context.Context, c *Client, b sessionspec.BundleSpec, location string) (adapters.VisibilityReport, error) {
 	rep := adapters.VisibilityReport{Level: sessionspec.IsolationFull}
 
-	agents, err := c.Agents(ctx, location)
+	agents, err := waitAgents(ctx, c, location)
 	if err != nil {
-		return rep, fmt.Errorf("listing agents: %w", err)
-	}
-	if len(agents) == 0 {
-		return rep, fmt.Errorf("no agent listed at %s (server not ready?)", location)
+		return rep, err
 	}
 	inBundle := set(b.AgentIDs())
 	for _, a := range agents {
@@ -105,6 +102,30 @@ func Attest(ctx context.Context, c *Client, b sessionspec.BundleSpec, location s
 		rep.Level = sessionspec.IsolationNone
 	}
 	return rep, nil
+}
+
+// waitAgents lists the agents at location. A location the server has not
+// served yet is loaded on the first request and may list nothing for a
+// moment (second worktree of a running group): retried briefly.
+func waitAgents(ctx context.Context, c *Client, location string) ([]Agent, error) {
+	deadline := time.Now().Add(10 * time.Second)
+	for {
+		agents, err := c.Agents(ctx, location)
+		if err != nil {
+			return nil, fmt.Errorf("listing agents: %w", err)
+		}
+		if len(agents) > 0 {
+			return agents, nil
+		}
+		if time.Now().After(deadline) {
+			return nil, fmt.Errorf("no agent listed at %s (server not ready?)", location)
+		}
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case <-time.After(150 * time.Millisecond):
+		}
+	}
 }
 
 // waitSkills polls the skill registry until every bundle skill is listed

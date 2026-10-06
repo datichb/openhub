@@ -111,8 +111,9 @@ func TestValuesAndPrompt(t *testing.T) {
 
 	p, err := res.RenderPrompt(PromptContext{Project: "openhub"})
 	require.NoError(t, err)
-	assert.Equal(t, "Mode de workflow : semi-auto\n\nImplémente le ticket bd-42 sur la branche feat/bd-42 (projet openhub).\n", p,
-		"mode line added when the template does not write it")
+	assert.Equal(t, "Mode de workflow : semi-auto\n\nImplémente le ticket bd-42 sur la branche feat/bd-42 (projet openhub).\n\n"+
+		GateReminderTitle+"\n- `cp-1` avant developer\n", p,
+		"mode line added when the template does not write it; reminder of the checkpoint that locks developer")
 }
 
 func TestPromptDelimitsFreeText(t *testing.T) {

@@ -139,6 +139,29 @@ func (s *Service) loadBeadsAllow(id string) ([]string, error) {
 	return allow, nil
 }
 
+// machineShellKeys are the machine variables a local session shell needs
+// (tools on the PATH such as bd, git, language toolchains): opencode 2.0.20
+// replaces the whole shell environment with the session environment, so
+// without them `bd` and the user's tools are not found. Secrets never are.
+var machineShellKeys = []string{"PATH", "HOME", "USER", "LOGNAME", "SHELL", "LANG", "LC_ALL", "LC_CTYPE",
+	"TMPDIR", "TERM", "XDG_CONFIG_HOME", "XDG_CACHE_HOME", "GOPATH", "GOROOT", "VOLTA_HOME", "NVM_DIR", "BUN_INSTALL", "CARGO_HOME", "RUSTUP_HOME", "PYENV_ROOT"}
+
+// withMachineShellEnv adds, for a local session, the machine variables of
+// machineShellKeys to the static variables (which win).
+func withMachineShellEnv(kind sessionspec.RuntimeKind, static map[string]string) map[string]string {
+	if kind != "" && kind != sessionspec.RuntimeLocal {
+		return static
+	}
+	env := map[string]string{}
+	for _, k := range machineShellKeys {
+		if v, ok := os.LookupEnv(k); ok && v != "" {
+			env[k] = v
+		}
+	}
+	maps.Copy(env, static)
+	return env
+}
+
 // buildSessionEnv merges the static variables, the hook variables and
 // OH_SESSION_ID (always last: it cannot be overridden).
 func (s *Service) buildSessionEnv(ctx context.Context, static map[string]string, r SessionEnvRequest) (map[string]string, error) {
