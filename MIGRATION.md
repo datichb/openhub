@@ -1,3 +1,9 @@
+# Migration vers oh v5
+
+oh v5 abandonne opencode V1 (opencode V2 obligatoire), lance chaque session depuis un workflow (`oh run`) et ne déploie plus rien dans les projets. Les anciennes commandes (`oh start`, `oh audit`…) restent des alias dépréciés pendant v5.x. Guide complet : [docs/guides/migration-v5.fr.md](docs/guides/migration-v5.fr.md) ([English](docs/guides/migration-v5.en.md)).
+
+---
+
 # Migration `oc` -> `oh`
 
 Guide de migration de la CLI bash (`oc`) vers la CLI Go (`oh`) v2.0.0.

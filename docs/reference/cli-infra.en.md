@@ -39,19 +39,6 @@ oh status --json
 
 ---
 
-### oh upgrade opencode
-
-Upgrade opencode to the latest (or specified) version.
-
-```bash
-oh upgrade opencode
-oh upgrade opencode 0.2.15
-```
-
-> See also: `oh upgrade oh` to update the `oh` binary itself.
-
----
-
 ### oh upgrade oh
 
 Update the `oh` binary in-place (atomic replacement). For non-Homebrew installs only.

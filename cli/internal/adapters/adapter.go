@@ -1,5 +1,5 @@
 // Package adapters defines the contract between oh and an agentic coding tool
-// (opencode V2, opencode V1, future tools). oh services depend only on these
+// (opencode V2 today, other tools later). oh services depend only on these
 // interfaces; tool-specific names (native agents, config keys, API routes)
 // live exclusively in the adapter implementations.
 package adapters

@@ -182,13 +182,10 @@ func (v *DoctorView) checkBinary(name string) DoctorCheck {
 }
 
 func (v *DoctorView) checkOpencode() DoctorCheck {
-	if v.appCtx != nil && v.appCtx.Platform != nil {
-		ver, err := v.appCtx.Platform.Version()
+	if v.appCtx != nil && v.appCtx.ToolVersion != nil {
+		ver, err := v.appCtx.ToolVersion()
 		if err != nil {
-			if !v.appCtx.Platform.Available() {
-				return DoctorCheck{Name: "opencode", Detail: i18n.T("tui.doctor.not_found"), OK: false}
-			}
-			return DoctorCheck{Name: "opencode", Detail: i18n.T("tui.doctor.installed_unknown_version"), OK: true}
+			return DoctorCheck{Name: "opencode", Detail: err.Error(), OK: false}
 		}
 		return DoctorCheck{Name: "opencode", Detail: ver, OK: true}
 	}

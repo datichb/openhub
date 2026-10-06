@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -13,11 +14,8 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/domain"
-	"github.com/datichb/openhub/cli/internal/headlesstrack"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/launcher"
-	"github.com/datichb/openhub/cli/internal/platform"
-	"github.com/datichb/openhub/cli/internal/provider"
 	"github.com/datichb/openhub/cli/internal/teamstate"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
@@ -246,81 +244,28 @@ func writeFile(path string, data []byte) error {
 	return os.WriteFile(path, data, 0o644)
 }
 
-// enrichBrief enriches a takeover brief: through the brief-enrich workflow
-// when available (`oh run brief-enrich --headless`), else with the former
-// headless run of the brief-enricher agent.
+// enrichBrief enriches a takeover brief with the brief-enrich workflow
+// (`oh run brief-enrich --headless`); the former `oh takeover-brief enrich`
+// command is its alias.
 func enrichBrief(cmd *cobra.Command, a *app.App, p *domain.Project, ticketID, content string) (string, error) {
-	ctx := cmd.Context()
-	if aliasAvailable(ctx, "brief-enrich") {
-		warnDeprecatedAlias(cmd.ErrOrStderr(), "oh takeover-brief enrich", "oh run brief-enrich --headless")
-		opts := runOptions{Workflow: "brief-enrich", Project: p, Inputs: map[string]string{"ticket": ticketID, "brief": content}}
-		run, err := prepareWorkflowRun(ctx, a, opts, cmd.ErrOrStderr())
-		if err != nil {
-			return "", err
-		}
-		results, err := runHeadless(ctx, a, run, launcher.NewCLIUI(cmd.ErrOrStderr()), 30*time.Minute)
-		if err != nil {
-			return "", err
-		}
-		if len(results) == 0 {
-			return "", errors.New("brief-enrich: no answer")
-		}
-		return results[0].Text, nil
-	}
-	return legacyEnrichBrief(ctx, a, p, content)
+	warnDeprecatedAlias(cmd.ErrOrStderr(), "oh takeover-brief enrich", "oh run brief-enrich --headless")
+	return runBriefEnrich(cmd.Context(), a, p, ticketID, content, cmd.ErrOrStderr())
 }
 
-// legacyEnrichBrief is the former headless run of the brief-enricher agent.
-func legacyEnrichBrief(ctx context.Context, a *app.App, p *domain.Project, content string) (string, error) {
-	// Resolve provider + credentials for the headless run.
-	prov := provider.ResolveProvider("", p.Provider, a.Config.Opencode.DefaultProvider)
-	var provCfg *provider.ProviderConfig
-	if p.ProviderConfig != nil {
-		provCfg = &provider.ProviderConfig{
-			AWSProfile: p.ProviderConfig.AWSProfile,
-			AWSRegion:  p.ProviderConfig.AWSRegion,
-		}
-	}
-	hubCfg := hubProviderCfg(a, prov)
-	mergedCfg := provider.ResolveProviderConfig(provCfg, hubCfg)
-	creds := provider.ResolveCredentials(ctx, a.Secrets, provider.Name(prov), p.ID, &mergedCfg)
-
-	prompt := fmt.Sprintf(`Voici un brief de reprise de ticket. Enrichis-le en :
-1. Lisant les fichiers mentionnés pour comprendre l'état du code
-2. Identifiant les questions ouvertes (TODO, FIXME, patterns incomplets)
-3. Identifiant les risques (tests manquants, edge cases non couverts)
-4. Proposant les prochaines étapes concrètes
-
-Brief existant :
----
-%s
----
-
-Produis un Markdown structuré complet avec les sections :
-## Contexte et décisions architecturales
-## Questions ouvertes
-## Risques identifiés
-## Prochaines étapes recommandées`, content)
-
-	headlessOpts := platform.HeadlessOpts{
-		ProjectPath: p.Path,
-		Agent:       "brief-enricher",
-		Prompt:      prompt,
-		Provider:    prov,
-		Credentials: creds,
-	}
-	result, err := headlesstrack.Track(ctx, headlesstrack.Opts{
-		Sessions:     a.Sessions,
-		PlatformName: string(a.Platform.Name()),
-		ProjectID:    p.ID,
-		ProjectPath:  p.Path,
-		Provider:     prov,
-		Label:        "brief-enrichment",
-	}, func(ctx context.Context) (*platform.HeadlessResult, error) {
-		return a.Platform.RunHeadless(ctx, headlessOpts)
-	})
+// runBriefEnrich runs the brief-enrich workflow without interface and
+// returns the enriched brief (CLI and TUI).
+func runBriefEnrich(ctx context.Context, a *app.App, p *domain.Project, ticketID, content string, errOut io.Writer) (string, error) {
+	opts := runOptions{Workflow: "brief-enrich", Project: p, Inputs: map[string]string{"ticket": ticketID, "brief": content}}
+	run, err := prepareWorkflowRun(ctx, a, opts, errOut)
 	if err != nil {
 		return "", err
 	}
-	return result.Content, nil
+	results, err := runHeadless(ctx, a, run, launcher.NewCLIUI(errOut), 30*time.Minute)
+	if err != nil {
+		return "", err
+	}
+	if len(results) == 0 {
+		return "", errors.New("brief-enrich: no answer")
+	}
+	return results[0].Text, nil
 }

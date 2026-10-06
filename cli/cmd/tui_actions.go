@@ -15,11 +15,9 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/beads"
-	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/deploy"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
-	"github.com/datichb/openhub/cli/internal/opencode"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
 
@@ -54,14 +52,6 @@ func runSyncAll(a *app.App) error {
 		}
 	}
 	return lastErr
-}
-
-// runUpgradeOpencode updates the opencode binary to the latest version.
-// An optional progressFn is called with (downloaded, total) bytes during the download.
-func runUpgradeOpencode(progressFn opencode.ProgressFunc) error {
-	installDir := filepath.Join(config.HubDir(), "bin")
-	_, err := opencode.Download("latest", installDir, progressFn)
-	return err
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

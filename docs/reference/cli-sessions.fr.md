@@ -2,13 +2,13 @@
 
 # Reference CLI — Sessions
 
-> **v5 — alias dépréciés.** Avec opencode V2 et les workflows du hub, ces commandes lancent leur workflow via [`oh run`](cli-workflows.fr.md#oh-run) et affichent un avertissement : `oh start` → `oh run feature` (`--prompt` = première entrée texte), `--dev [-t <id>]` → `oh run ticket --tickets <id>` (une épopée choisie dans le sélecteur : une session pour toute l'épopée ou une par ticket, au choix), `--onboard` → `oh run onboarding`, `--parallel --tickets` → `oh run ticket --tickets`, `--sweep` → `oh run sweep`, `--worktree <branche>` → `--location new`, `oh audit|review|debug` → `oh run audit|review|debug` (les options deviennent des entrées si le workflow les déclare), `oh review feedback` → `oh run review-feedback` (retours de la MR en entrée texte). `--agent` et opencode V1 gardent l'ancien lancement, de même qu'un workflow absent du catalogue.
+> **v5 — alias dépréciés.** Ces commandes lancent leur workflow via [`oh run`](cli-workflows.fr.md#oh-run) et affichent un avertissement : `oh start` → `oh run feature` (`--prompt` = première entrée texte), `--agent <id>` → `oh run libre --agent <id>`, `--dev [-t <id>]` → `oh run ticket --tickets <id>` (une épopée choisie dans le sélecteur : une session pour toute l'épopée ou une par ticket, au choix), `--onboard` → `oh run onboarding`, `--parallel --tickets` → `oh run ticket --tickets`, `--sweep` → `oh run sweep`, `--worktree <branche>` → `--location new`, `--resume <id>` → `oh session attach <id> --how here`, `oh audit|review|debug` → `oh run audit|review|debug` (les options deviennent des entrées si le workflow les déclare), `oh review feedback` → `oh run review-feedback` (retours de la MR en entrée texte). Elles demandent opencode V2 et le workflow cible ; l'ancien lancement n'existe plus (voir le [guide de migration v5](../guides/migration-v5.fr.md)).
 
 ## Sessions
 
 ### oh start
 
-Lance une session opencode.
+Alias déprécié de `oh run` (voir ci-dessus).
 
 ```
 oh start [options]
@@ -16,11 +16,11 @@ oh start [options]
 
 | Flag | Court | Description |
 |------|-------|-------------|
-| `--agent` | `-a` | Agent a utiliser |
+| `--agent` | `-a` | Agent d'entrée (`oh run libre --agent`) |
 | `--prompt` | `-m` | Prompt initial |
 | `--provider` | `-P` | Provider LLM (bedrock, anthropic, openai) |
 | `--project` | `-p` | ID du projet (detection auto sinon) |
-| `--resume` | `-r` | Reprendre une session existante (ID de session) |
+| `--resume` | `-r` | Ouvrir une session existante dans ce terminal (`oh session attach --how here`) |
 | `--worktree` | `-w` | Branche pour lancer dans un git worktree |
 | `--dev` | | Mode dev : picker epics/tickets + orchestrator-dev |
 | `--ticket` | `-t` | ID du ticket a travailler directement (skip le picker, requiert --dev) |
@@ -29,10 +29,8 @@ oh start [options]
 | `--onboard` | | Mode onboarding : cree/enrichit le wiki projet |
 | `--refresh` | | Force la re-decouverte du wiki (requiert --onboard) |
 | `--recap` | | Afficher le recap et demander confirmation |
-| `--parallel` | | Lance N sessions en parallele sur des tickets differents |
+| `--parallel` | | Une session par ticket (`oh run ticket --tickets`), exige `--tickets` |
 | `--tickets` | | Liste des tickets a traiter en parallele (separes par des virgules) |
-| `--max-sessions` | | Nombre max de sessions paralleles (0 = valeur config, defaut : 3, cap : 10) |
-| `--priority` | | Ticket prioritaire (merge en premier) |
 | `--sweep` | | Objectif sweep haut niveau (active le mode sweep) |
 | `--sweep-strategy` | | Strategie de decomposition : `manual`, `by-file`, `by-package`, `llm` |
 | `--sweep-tasks` | | Liste manuelle de taches (requiert `--sweep-strategy=manual`) |
@@ -41,7 +39,6 @@ oh start [options]
 | `--sweep-verify` | | Verification post-sweep : `none`, `tests`, `lint`, `build`, `all`, `custom` |
 | `--sweep-verify-cmd` | | Commande de verification custom (requiert `--sweep-verify=custom`) |
 | `--sweep-dry-run` | | Afficher le plan decompose sans executer |
-| `--sweep-branch-prefix` | | Prefixe des branches sweep (defaut : `sweep/`) |
 
 **Exemple :**
 
@@ -52,7 +49,6 @@ oh start --worktree feat/auth --dev -l "priority:high"
 oh start --dev -t TICKET-123
 oh start --onboard --refresh
 oh start --parallel --tickets bd-42,bd-43,bd-44
-oh start --parallel --tickets T-1,T-2,T-3 --priority T-1 --max-sessions 2
 oh start --sweep "Migrer les appels API depreces" --sweep-strategy llm --sweep-verify tests
 oh start --sweep "Corriger les warnings lint" --sweep-strategy by-package --sweep-dry-run
 ```

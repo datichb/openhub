@@ -40,6 +40,8 @@ type tuiLaunchRequest struct {
 	Mode, Runtime string
 	// Draft tests the current member's draft (catalogue `t`, local only).
 	Draft bool
+	// Location preselects a location (an existing worktree path).
+	Location string
 }
 
 // openLaunchForm resolves the workflow and the project off the event loop,
@@ -125,7 +127,7 @@ func launchFormConfig(ctx context.Context, a *app.App, project *domain.Project, 
 	cfg := &views.LaunchFormConfig{
 		WorkflowID: sp.ID, Origin: origin + " · " + project.Name, Spec: sp, Lang: i18n.Locale(),
 		Prefill: req.Prefill, Tickets: req.Tickets, AtOptions: req.AtOptions,
-		Runtimes: tuiRuntimes(ctx, a, sp, project), Locations: tuiLocations(project),
+		Runtimes: tuiRuntimes(ctx, a, sp, project), Locations: preferLocation(tuiLocations(project), req.Location),
 		Attach: tuiAttachOptions(), DefaultAttach: attachPreference(a),
 		DefaultMode: req.Mode, DefaultRuntime: req.Runtime,
 	}
@@ -191,6 +193,17 @@ func launchFormConfig(ctx context.Context, a *app.App, project *domain.Project, 
 		return nil
 	}
 	return cfg, nil
+}
+
+// preferLocation moves the option of loc first (the form default).
+func preferLocation(opts []views.SelectOption, loc string) []views.SelectOption {
+	for i, o := range opts {
+		if loc != "" && o.Value == loc && i > 0 {
+			out := append([]views.SelectOption{o}, opts[:i]...)
+			return append(out, opts[i+1:]...)
+		}
+	}
+	return opts
 }
 
 // tuiRunCache keeps the prepared launch of the recap for the launch (same

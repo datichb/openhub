@@ -11,7 +11,6 @@ import (
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
-	"github.com/datichb/openhub/cli/internal/opencode"
 	"github.com/datichb/openhub/cli/internal/provider"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
@@ -82,78 +81,6 @@ func resolveProject(ctx context.Context, a *app.App, projectID string) (*domain.
 		}
 	}
 	return nil, fmt.Errorf("%s", i18n.T("cmd.quick.not_found"))
-}
-
-// ensureOpencode checks that the opencode binary is available.
-// If not found, prompts the user to install it.
-func ensureOpencode(a *app.App) error {
-	_, err := opencode.FindBinary()
-	if err == nil {
-		return nil
-	}
-
-	fmt.Fprintf(a.IO.Out, "%s %s\n\n",
-		theme.WarningStyle.Render(theme.IconWarning), i18n.T("cmd.start.opencode_not_found"))
-
-	var choice string
-	form := theme.NewForm(
-		huh.NewGroup(
-			huh.NewSelect[string]().
-				Title(i18n.T("cmd.start.install_choice")).
-				Options(
-					huh.NewOption(i18n.T("cmd.start.install_brew"), "brew"),
-					huh.NewOption(i18n.T("cmd.start.install_download"), "download"),
-					huh.NewOption(i18n.T("cmd.start.install_cancel"), "cancel"),
-				).
-				Value(&choice),
-		),
-	)
-	if err := form.Run(); err != nil {
-		return fmt.Errorf("selection cancelled")
-	}
-
-	switch choice {
-	case "brew":
-		fmt.Fprintf(a.IO.Out, "\n  %s\n\n",
-			i18n.Tf("cmd.start.install_run_brew", theme.Bold.Render("brew install anomalyco/tap/opencode")))
-		return fmt.Errorf("%s", i18n.T("cmd.start.install_required"))
-	case "download":
-		return downloadOpencode(a)
-	default:
-		return fmt.Errorf("%s", i18n.T("cmd.start.install_required_generic"))
-	}
-}
-
-// downloadOpencode downloads and installs the opencode binary.
-func downloadOpencode(a *app.App) error {
-	installDir := a.Config.Opencode.InstallDir
-	version := a.Config.Opencode.Version
-	if version == "" {
-		version = "latest"
-	}
-
-	fmt.Fprintf(a.IO.Out, "%s %s\n",
-		theme.SuccessStyle.Render(theme.IconArrow), i18n.T("cmd.start.downloading"))
-
-	var lastPercent int
-	_, err := opencode.Download(version, installDir, func(downloaded, total int64) {
-		if total > 0 {
-			percent := int(downloaded * 100 / total)
-			if percent != lastPercent && percent%5 == 0 {
-				lastPercent = percent
-				fmt.Fprintf(a.IO.Out, "\r  %s",
-					i18n.Tf("cmd.start.download_progress", percent, downloaded/1024/1024, total/1024/1024))
-			}
-		}
-	})
-	if err != nil {
-		return fmt.Errorf("download failed: %w", err)
-	}
-
-	fmt.Fprintln(a.IO.Out)
-	fmt.Fprintf(a.IO.Out, "%s %s\n\n",
-		theme.SuccessStyle.Render(theme.IconSuccess), i18n.T("cmd.start.installed"))
-	return nil
 }
 
 func displayOrDefault(detected, fallback string) string {

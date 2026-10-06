@@ -210,3 +210,15 @@ func TestCredentialKeysUseCanonicalFormat(t *testing.T) {
 		})
 	}
 }
+
+// resolveCredentials reads the provider credentials of a project through the
+// provider cascade (former start.go wrapper, kept for these tests).
+func resolveCredentials(ctx context.Context, a *app.App, project *domain.Project, prov string) (bearerToken, apiKey, awsProfile, awsRegion string) {
+	var provCfg *provider.ProviderConfig
+	if project.ProviderConfig != nil {
+		provCfg = &provider.ProviderConfig{AWSProfile: project.ProviderConfig.AWSProfile, AWSRegion: project.ProviderConfig.AWSRegion}
+	}
+	merged := provider.ResolveProviderConfig(provCfg, hubProviderCfg(a, prov))
+	creds := provider.ResolveCredentials(ctx, a.Secrets, provider.Name(prov), project.ID, &merged)
+	return creds.BearerToken, creds.APIKey, creds.AWSProfile, creds.AWSRegion
+}

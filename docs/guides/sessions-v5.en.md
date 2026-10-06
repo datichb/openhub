@@ -129,7 +129,6 @@ Budgets are **soft caps**, checked on the cost reported by the tool: the step th
 |---|---|
 | `OH_HOME` | relocates `~/.oh` (test environments) |
 | `OH_SESSION_ATTACH` | overrides `[session] attach` |
-| `OH_V5=0` | forces the legacy pipeline. **With opencode V2 installed, this pipeline does not work**: use it only for diagnosis. |
 
 ## Limitations
 

@@ -19,10 +19,10 @@ Executez `oh doctor` pour verifier l'etat de sante de votre installation. Il eff
 | 1 | OS / Architecture | Informations systeme (toujours OK) | — |
 | 2 | Runtime Go | Version de Go (toujours OK) | — |
 | 3 | git | Binaire `git` dans le PATH | Installer git |
-| 4 | opencode | Runtime OpenCode installe | `brew install opencode` ou `oh upgrade` |
+| 4 | opencode | Runtime OpenCode installe | `brew install anomalyco/tap/opencode` |
 | 5 | bd (beads) | CLI Beads (optionnel) | `brew install datichb/tap/bd` |
 | 6 | fzf | Recherche floue (optionnel) | `brew install fzf` |
-| 7 | Compatibilite | Correspondance des versions oh <-> opencode | `oh upgrade` |
+| 7 | opencode V2 | version minimale d'opencode V2 (V1 refusé) | voir le [guide de migration v5](migration-v5.fr.md) |
 | 8 | Version | Derniere version de oh disponible | `oh upgrade` |
 | 9 | Configuration | `hub.toml` se charge correctement | `oh init` pour reinitialiser |
 | 10 | Identifiants fournisseur | Cle API du fournisseur LLM presente | `oh secrets set` ou definir la variable d'env |

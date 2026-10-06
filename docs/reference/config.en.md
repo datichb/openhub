@@ -17,33 +17,7 @@
 language = "en"                    # "fr" or "en"
 
 [opencode]
-version = "latest"                 # pinned version or "latest"
-channel = "stable"                 # release channel
-auto_update = false                # auto-update opencode binary
-install_dir = "~/.oh/bin"          # where opencode is installed
 default_provider = "bedrock"       # bedrock | anthropic | openai | openrouter
-```
-
-> **Planned migration ([ADR-036](../architecture/adr/036-platform-abstraction-layer.en.md)):**
-> the `[opencode]` section will be restructured as `[platforms.opencode]` in a
-> future release to support multiple AI session backends. The `default_provider`
-> field will move to the top-level `[provider]` section. The current format
-> remains fully supported and will be auto-migrated when the change ships.
->
-> Future structure:
-> ```toml
-> [platforms]
-> default = "opencode"               # active platform backend
->
-> [platforms.opencode]
-> version = "latest"
-> channel = "stable"
-> auto_update = false
-> install_dir = "~/.oh/bin"
->
-> # [platforms.directllm]            # future: direct LLM API mode
-> # default_model = "claude-sonnet-4-5"
-> ```
 
 [provider.bedrock]
 aws_profile = "default"            # AWS profile (bedrock only)
@@ -112,7 +86,7 @@ disable_native_agents = []         # list of agent IDs to exclude from deploy
 | Command | Description |
 |---------|-------------|
 | `oh config list [--json]` | Show all config values |
-| `oh config get <key>` | Get a specific value (dot notation: `opencode.version`) |
+| `oh config get <key>` | Get a specific value (dot notation: `opencode.default_provider`) |
 | `oh config set <key> <value>` | Set a value |
 | `oh config unset <key>` | Remove a key |
 | `oh config path` | Print config file path |

@@ -47,7 +47,7 @@ func (t *tuiStart) sectionConfig() views.StartSectionConfig {
 		},
 		TogglePin:   t.togglePin,
 		OpenCatalog: func(views.StartScope) { openWorkflowCatalog() },
-		FreeSession: func(views.StartScope) { launchSessionWithPrompt("", "") },
+		FreeSession: func(views.StartScope) { actionFreeSession() },
 	}
 }
 
@@ -91,9 +91,8 @@ func (t *tuiStart) load(scope views.StartScope) {
 
 // compute builds the entries of a scope.
 func (t *tuiStart) compute(ctx context.Context, scope views.StartScope) (views.StartEntries, error) {
-	if !v5Available(ctx) {
-		// Workflows need opencode V2: the free session stays (V1).
-		return views.StartEntries{Loaded: true}, nil
+	if err := requireV2(ctx); err != nil {
+		return views.StartEntries{}, err
 	}
 	list, err := newWorkflowService(ctx).Catalog(ctx, workflowsvc.Context{ProjectID: scope.ProjectID, TeamID: scope.TeamID})
 	if err != nil {

@@ -22,7 +22,7 @@
 | [Deployment](cli-deploy.en.md) | `cli-deploy.en.md` | `oh deploy`, `oh sync` |
 | [Configuration](cli-config.en.md) | `cli-config.en.md` | `oh config *`, `oh provider setup`, `oh config model` |
 | [Infrastructure](cli-infra.en.md) | `cli-infra.en.md` | `oh init`, `oh doctor`, `oh repair`, `oh upgrade`, `oh purge`, `oh serve` |
-| [MCP & Plugins](cli-mcp.en.md) | `cli-mcp.en.md` | `oh mcp *`, `oh plugin *` |
+| [MCP & Plugins](cli-mcp.en.md) | `cli-mcp.en.md` | `oh mcp *` |
 | [Team](cli-team.en.md) | `cli-team.en.md` | `oh team *`, `oh teams *`, `oh conventions`, `oh policies` |
 | [Tools](cli-tools.en.md) | `cli-tools.en.md` | `oh skill *`, `oh worktree *`, `oh secrets *`, `oh metrics` |
 

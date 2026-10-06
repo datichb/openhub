@@ -227,10 +227,6 @@ func (v *SettingsView) buildFields() {
 		{Label: "Français", Value: "fr"},
 		{Label: "English", Value: "en"},
 	}
-	channelOptions := []SelectOption{
-		{Label: "stable", Value: "stable"},
-		{Label: "canary", Value: "canary"},
-	}
 	providerOptions := func() []SelectOption {
 		opts := make([]SelectOption, 0)
 		for _, p := range provider.AllProviders() {
@@ -259,19 +255,6 @@ func (v *SettingsView) buildFields() {
 
 		// ── Opencode ────────────────────────────────────────────────────────
 		{Kind: CfgFieldSectionHeader, Label: i18n.T("tui.config.section.opencode")},
-		{Key: "version", Kind: CfgFieldReadonly, Label: i18n.T("tui.config.field.version.label"),
-			Description: i18n.T("tui.config.field.version.desc"),
-			Get:         func() string { return v.live.Opencode.Version }},
-		{Key: "channel", Kind: CfgFieldSelect, Label: i18n.T("tui.config.field.channel.label"),
-			Description: i18n.T("tui.config.field.channel.desc"),
-			Options:     channelOptions,
-			Validator:   &FieldValidator{AllowedValues: []string{"stable", "canary"}},
-			Get:         func() string { return v.live.Opencode.Channel },
-			Set:         func(val string) { v.live.Opencode.Channel = val }},
-		{Key: "auto_update", Kind: CfgFieldBool, Label: i18n.T("tui.config.field.auto_update.label"),
-			Description: i18n.T("tui.config.field.auto_update.desc"),
-			Get:         func() string { return boolStr(v.live.Opencode.AutoUpdate) },
-			Set:         func(val string) { v.live.Opencode.AutoUpdate = val == "true" }},
 		{Key: "default_provider", Kind: CfgFieldSelect, Label: i18n.T("tui.config.field.default_provider.label"),
 			Description: i18n.T("tui.config.field.default_provider.desc"),
 			OptionsFunc: providerOptions,

@@ -24,23 +24,13 @@ func v5DoctorChecks() []views.DoctorCheck {
 	defer cancel()
 	var out []views.DoctorCheck
 
-	if v5Available(ctx) {
-		out = append(out, views.DoctorCheck{Name: i18n.T("cmd.doctor.v5.runtime"), OK: true,
-			Detail: i18n.Tf("cmd.doctor.v5.runtime_ok", v5Adapter.Ver, v5Adapter.Name())})
-	} else {
-		reason := ""
-		if v5Err != nil {
-			reason = v5Err.Error()
-		}
-		out = append(out, views.DoctorCheck{Name: i18n.T("cmd.doctor.v5.runtime"), OK: true,
-			Detail: i18n.Tf("cmd.doctor.v5.runtime_legacy", reason)})
-	}
+	out = append(out, opencodeV2Check(ctx))
 
 	out = append(out, workflowIntegrityChecks()...)
 	out = append(out, remoteDoctorChecks()...)
 
 	if !v5Available(ctx) {
-		// opencode V1: the v5 runtime checks below do not apply.
+		// No supported opencode: the runtime checks below do not apply.
 		return out
 	}
 

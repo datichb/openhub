@@ -4,10 +4,12 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/spf13/cobra"
 
+	"github.com/datichb/openhub/cli/internal/adapters/opencodev2"
 	workflowsvc "github.com/datichb/openhub/cli/internal/services/workflow"
 )
 
@@ -48,15 +50,32 @@ func TestStartAliasFor(t *testing.T) {
 		{[]string{"-w", "feat/x", "--recap"}, "feature", func(a workflowAlias) bool {
 			return a.Recap && a.Opts.Location == "new" && a.Opts.Branch == "feat/x"
 		}},
+		{[]string{"-a", "debugger", "-m", "regarde le crash"}, "libre", func(a workflowAlias) bool {
+			return a.Opts.Agent == "debugger" && a.Opts.Text == "regarde le crash"
+		}},
 	}
 	for _, tc := range cases {
-		al, ok := startAliasFor(startFlagsCmd(t, tc.args...))
-		if !ok || al.Workflow != tc.workflow || !tc.check(al) {
-			t.Errorf("%v → %+v (ok=%v)", tc.args, al, ok)
+		al := startAliasFor(startFlagsCmd(t, tc.args...))
+		if al.Workflow != tc.workflow || !tc.check(al) {
+			t.Errorf("%v → %+v", tc.args, al)
 		}
 	}
-	if _, ok := startAliasFor(startFlagsCmd(t, "--parallel")); ok {
-		t.Error("--parallel without tickets must keep the former launch (picker)")
+	if got := aliasReplacement(startAliasFor(startFlagsCmd(t, "-a", "debugger"))); got != "oh run libre --agent debugger" {
+		t.Errorf("replacement = %s", got)
+	}
+}
+
+// Without opencode V2, `oh start` refuses (no former launch any more).
+func TestStartRefusesWithoutV2(t *testing.T) {
+	withoutV2(t, nil)
+	err := requireV2(context.Background())
+	if err == nil || !strings.Contains(err.Error(), "opencode V2") {
+		t.Fatalf("err = %v", err)
+	}
+	withoutV2(t, &opencodev2.UnsupportedError{Found: "1.18.29", Min: "2.0.0", Max: "2.99.99"})
+	err = requireV2(context.Background())
+	if err == nil || !strings.Contains(err.Error(), "1.18.29") || !strings.Contains(err.Error(), "oh doctor") {
+		t.Fatalf("err = %v", err)
 	}
 }
 

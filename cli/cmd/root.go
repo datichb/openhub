@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -17,8 +18,8 @@ import (
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/hubcontent"
 	"github.com/datichb/openhub/cli/internal/i18n"
-	"github.com/datichb/openhub/cli/internal/opencode"
 	"github.com/datichb/openhub/cli/internal/prettylog"
+	"github.com/datichb/openhub/cli/internal/sessionstats"
 	"github.com/datichb/openhub/cli/internal/storage/filecrypt"
 	"github.com/datichb/openhub/cli/internal/storage/keychain"
 	"github.com/datichb/openhub/cli/internal/storage/sqlite"
@@ -194,9 +195,14 @@ func initApp() error {
 	a.WithPreferences(prefs, prefs)
 	a.WithSecretStore(resolveSecretStore())
 
-	// Wire platform abstraction (ADR-036)
-	a.WithPlatform(wrapV5Platform(a, opencode.NewPlatform()))
-	a.WithStats(opencode.NewStatsProvider())
+	// Session tool (opencode V2 only) and statistics from the oh registry.
+	a.WithToolVersion(func() (string, error) {
+		if err := requireV2(context.Background()); err != nil {
+			return "", err
+		}
+		return v5Adapter.Ver, nil
+	})
+	a.WithStats(sessionstats.New(a.Sessions, a.Projects))
 
 	// Auto-migrate legacy ProjectTeamConfig → TeamID (ADR-029).
 	if activeTeam := a.Config.ActiveTeam(); activeTeam.ID != "" {

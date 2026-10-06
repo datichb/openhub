@@ -128,19 +128,15 @@ func (v *StatusView) buildStatusText() string {
 	fmt.Fprintf(&sb, "  %s%-18s%s %s\n",
 		theme.ColorTag(theme.TextSecondaryHex), i18n.T("tui.status.label_language"), theme.TagColor, lang)
 
-	// Opencode version (via platform abstraction)
+	// Session tool version (opencode V2)
 	ocVer := i18n.T("tui.status.not_found")
-	if v.appCtx != nil && v.appCtx.Platform != nil {
-		if ver, err := v.appCtx.Platform.Version(); err == nil {
+	if v.appCtx != nil && v.appCtx.ToolVersion != nil {
+		if ver, err := v.appCtx.ToolVersion(); err == nil {
 			ocVer = ver
 		}
 	}
-	channel := "stable"
-	if v.appCtx != nil && v.appCtx.Config != nil {
-		channel = v.appCtx.Config.Opencode.Channel
-	}
-	fmt.Fprintf(&sb, "  %s%-18s%s %s (%s)\n",
-		theme.ColorTag(theme.TextSecondaryHex), i18n.T("tui.status.label_opencode"), theme.TagColor, ocVer, channel)
+	fmt.Fprintf(&sb, "  %s%-18s%s %s\n",
+		theme.ColorTag(theme.TextSecondaryHex), i18n.T("tui.status.label_opencode"), theme.TagColor, ocVer)
 
 	// Provider
 	provider := "—"

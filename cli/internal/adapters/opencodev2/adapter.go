@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/datichb/openhub/cli/internal/adapters"
+	"github.com/datichb/openhub/cli/internal/buildinfo"
 	ohruntime "github.com/datichb/openhub/cli/internal/runtime"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 )
@@ -53,7 +54,7 @@ func (a *Adapter) Detect(ctx context.Context) (adapters.ToolInfo, error) {
 	if a.Binary == "" {
 		bin, err := exec.LookPath("opencode")
 		if err != nil {
-			return adapters.ToolInfo{}, fmt.Errorf("opencode binary not found: %w", err)
+			return adapters.ToolInfo{}, fmt.Errorf("%w: %w", ErrNotInstalled, err)
 		}
 		a.Binary = bin
 	}
@@ -61,8 +62,8 @@ func (a *Adapter) Detect(ctx context.Context) (adapters.ToolInfo, error) {
 	if err != nil {
 		return adapters.ToolInfo{}, err
 	}
-	if !strings.HasPrefix(v, "2.") {
-		return adapters.ToolInfo{}, fmt.Errorf("opencode %s is not a V2 release", v)
+	if err := CheckVersion(buildinfo.Version, v); err != nil {
+		return adapters.ToolInfo{Name: Name, Binary: a.Binary, Version: v}, err
 	}
 	a.Ver = v
 	if len(a.Natives) == 0 {

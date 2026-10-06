@@ -24,11 +24,12 @@ Complete index of all openhub documentation. Guides and references are bilingual
 | Guide | Description |
 |-------|-------------|
 | [Workflows](guides/workflows.en.md) | Full feature, audit, debug scenarios |
+| [Migrating to v5](guides/migration-v5.en.md) ([fr](guides/migration-v5.fr.md)) | opencode V2 required, former commands as aliases of `oh run`, free session `libre` |
 | [v5 Sessions](guides/sessions-v5.en.md) | opencode V2 sessions: opening, sleep, resume, LLM keys |
 | [Container runtime](guides/container.en.md) | Sessions in a container (Colima, Podman): project dev image, settings, secrets |
 | [Remote runners](guides/remote-runners.en.md) ([fr](guides/remote-runners.fr.md)) | Remote sessions on GitLab CI: runners, oh-runner project, `oh remote setup` |
-| [Parallel Mode](guides/parallel-mode.en.md) | N concurrent sessions in isolated worktrees |
-| [Sweep Mode](guides/sweep-mode.en.md) | Goal-driven task decomposition and parallel execution |
+| [Parallel Mode](guides/parallel-mode.en.md) | Replaced in v5 by `oh run ticket --tickets a,b` |
+| [Sweep Mode](guides/sweep-mode.en.md) | Replaced in v5 by the `sweep` workflow |
 | [Review & Feedback](guides/review-feedback.en.md) | AI code review, MR publication, feedback processing |
 
 ### Integrations (MCP)
@@ -69,7 +70,7 @@ Complete index of all openhub documentation. Guides and references are bilingual
 
 | Guide | Description |
 |-------|-------------|
-| [RTK Plugin](guides/rtk-plugin-installation.en.md) | RTK token optimization plugin |
+| [RTK Plugin](guides/rtk-plugin-installation.en.md) | Removed in v5 (plugins are declared per workflow) |
 | [Context Mode Plugin](guides/context-mode-plugin.en.md) | Context mode plugin setup |
 
 ### Operations

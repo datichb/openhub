@@ -401,9 +401,7 @@ func buildViews(a *app.App, notifStore *shell.NotificationStore) []views.View {
 		views.NewTeamStatusView(makeResolveTeamFunc(a)),
 		views.NewActivityView(makeResolveTeamFunc(a)),
 		views.NewWorktreeView(a, views.WorktreeViewConfig{
-			DeployProject: func(projectPath string) error {
-				return runDeployForProject(a, &domain.Project{Path: projectPath})
-			},
+			OpenSession: func(path string) { openLaunchForm(a, tuiLaunchRequest{WorkflowID: "libre", Location: path}) },
 		}),
 		views.NewStatusView(a),
 		views.NewMetricsView(views.MetricsViewConfig{
@@ -506,7 +504,6 @@ func buildViews(a *app.App, notifStore *shell.NotificationStore) []views.View {
 				return nil
 			},
 		}),
-		views.NewPluginsView(),
 		views.NewHelpView(),
 		views.NewNotificationsView(views.NotificationsViewConfig{
 			FilePath:  shell.NotificationsFilePath(),

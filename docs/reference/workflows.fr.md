@@ -10,7 +10,7 @@ oh workflow validate ticket         # un workflow du catalogue
 oh workflow validate ./mon-wf.yaml  # un fichier
 ```
 
-Le lancement par `oh run <workflow>` et la fiche de lancement de la TUI arrivent avec la suite de la phase 1 ; d'ici là, `oh start` et les commandes existantes restent les points d'entrée.
+On lance un workflow avec `oh run <workflow>` ou la fiche de lancement de la TUI ; les anciennes commandes (`oh start`, `oh audit`…) en sont des alias dépréciés.
 
 ---
 
@@ -29,6 +29,7 @@ Le lancement par `oh run <workflow>` et la fiche de lancement de la TUI arrivent
 | `debug` | `debugger` | `developer` (à la demande) | write | local | `oh debug` (ancien mode D) |
 | `sweep` | `conductor` | `developer`, `developer-refactor`, `developer-migrator` | write | local | `oh start --sweep` |
 | `brief-enrich` | `brief-enricher` | — | read | local | `oh takeover-brief enrich` |
+| `libre` | au choix (`orchestrator` par défaut) | ceux que l'agent choisi peut appeler | write | local, conteneur | `oh start --agent`, session libre de la TUI |
 
 ### Niveaux de risque
 
@@ -203,6 +204,16 @@ Enrichit un brief de reprise de ticket, sans interaction (session sans interface
 |---|---|---|---|
 | `ticket` | `beads-id` | oui | Ticket du brief |
 | `brief` | `text` (40 000 caractères max) | oui | Contenu du brief existant |
+
+## `libre`
+
+Session avec l'agent de ton choix, sans checkpoint : `oh run libre --agent debugger -i request="…"` (sans `--agent` : `orchestrator`). L'entrée du workflow est **au choix** (`entry.selectable: true`) : oh calcule les membres à partir de l'agent choisi et des agents qu'il peut appeler (permission `task` du catalogue, de proche en proche). Le monde reste fermé : rien d'autre n'est visible. Dans la TUI, la session libre (commande `coder`, ou « Démarrer » quand le catalogue est vide) ouvre la fiche avec l'agent par défaut.
+
+| Entrée | Type | Obligatoire | Rôle |
+|---|---|---|---|
+| `request` | `text` (8 000 caractères max) | non | Ce qu'il faut faire ; sinon, la session attend la demande |
+
+`entry.selectable` est un ajout additif au schéma `oh/v1` : un autre workflow peut le déclarer ; `--agent` est refusé sur un workflow dont l'entrée n'est pas au choix.
 
 ---
 

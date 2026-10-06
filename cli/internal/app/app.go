@@ -24,9 +24,11 @@ type App struct {
 	// Preferences and WorkflowUsage back the PreferenceService (prefsvc).
 	Preferences   domain.PreferenceStore
 	WorkflowUsage domain.WorkflowUsageReader
-	Platform      platform.SessionPlatform // AI session backend (ADR-036)
-	Stats         platform.StatsProvider   // Session metrics provider (ADR-036)
-	IO            *IOStreams
+	// ToolVersion returns the version of the session tool (opencode V2), or
+	// why it cannot be used (missing, unsupported release).
+	ToolVersion func() (string, error)
+	Stats       platform.StatsProvider // Session metrics provider (ADR-036)
+	IO          *IOStreams
 }
 
 // IOStreams abstracts standard I/O for testability.
@@ -102,9 +104,9 @@ func (a *App) WithIO(ioStreams *IOStreams) *App {
 	return a
 }
 
-// WithPlatform sets the AI session platform backend (ADR-036).
-func (a *App) WithPlatform(p platform.SessionPlatform) *App {
-	a.Platform = p
+// WithToolVersion sets the probe of the session tool version.
+func (a *App) WithToolVersion(f func() (string, error)) *App {
+	a.ToolVersion = f
 	return a
 }
 

@@ -274,12 +274,10 @@ type DeployConfig struct {
 	InstructionFiles []string `mapstructure:"instruction_files" toml:"instruction_files,omitempty"`
 }
 
-// OpencodeConfig holds opencode dependency settings.
+// OpencodeConfig holds the opencode settings of the hub. opencode is
+// installed and updated with its own tooling (the former managed install,
+// `version`, `channel`, `auto_update`, `install_dir`, was removed in v5).
 type OpencodeConfig struct {
-	Version         string `mapstructure:"version" toml:"version"`
-	Channel         string `mapstructure:"channel" toml:"channel"`
-	AutoUpdate      bool   `mapstructure:"auto_update" toml:"auto_update"`
-	InstallDir      string `mapstructure:"install_dir" toml:"install_dir,omitempty"`
 	DefaultProvider string `mapstructure:"default_provider" toml:"default_provider,omitempty"`
 }
 
@@ -467,9 +465,6 @@ func Load() (*Config, error) {
 	// Defaults
 	v.SetDefault("name", "OpenHub")
 	v.SetDefault("cli.language", "en")
-	v.SetDefault("opencode.channel", "stable")
-	v.SetDefault("opencode.auto_update", false)
-	v.SetDefault("opencode.install_dir", filepath.Join(HubDir(), "bin"))
 	v.SetDefault("worktree.auto_cleanup", true)
 	v.SetDefault("worktree.base_branch", "")
 	v.SetDefault("websearch.enabled", false)

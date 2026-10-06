@@ -2,21 +2,21 @@
 
 # CLI Reference — Sessions
 
-> **v5 — deprecated aliases.** With opencode V2 and the hub workflows, these commands launch their workflow through [`oh run`](cli-workflows.en.md#oh-run) and print a warning: `oh start` → `oh run feature` (`--prompt` = first text input), `--dev [-t <id>]` → `oh run ticket --tickets <id>` (an epic chosen in the picker: one session for the whole epic or one per ticket, as chosen), `--onboard` → `oh run onboarding`, `--parallel --tickets` → `oh run ticket --tickets`, `--sweep` → `oh run sweep`, `--worktree <branch>` → `--location new`, `oh audit|review|debug` → `oh run audit|review|debug` (flags become inputs when the workflow declares them), `oh review feedback` → `oh run review-feedback` (MR feedback as the text input). `--agent` and opencode V1 keep the former launch, as does a workflow missing from the catalogue.
+> **v5 — deprecated aliases.** These commands launch their workflow through [`oh run`](cli-workflows.en.md#oh-run) and print a warning: `oh start` → `oh run feature` (`--prompt` = first text input), `--agent <id>` → `oh run libre --agent <id>`, `--dev [-t <id>]` → `oh run ticket --tickets <id>` (an epic chosen in the picker: one session for the whole epic or one per ticket, as chosen), `--onboard` → `oh run onboarding`, `--parallel --tickets` → `oh run ticket --tickets`, `--sweep` → `oh run sweep`, `--worktree <branch>` → `--location new`, `--resume <id>` → `oh session attach <id> --how here`, `oh audit|review|debug` → `oh run audit|review|debug` (flags become inputs when the workflow declares them), `oh review feedback` → `oh run review-feedback` (MR feedback as the text input). They require opencode V2 and the target workflow; the former launch no longer exists (see the [v5 migration guide](../guides/migration-v5.en.md)).
 
 ## Sessions
 
 ### oh start
 
-Launch an opencode coding session.
+Deprecated alias of `oh run` (see above).
 
 | Flag | Short | Type | Description |
 |------|-------|------|-------------|
-| `--agent` | `-a` | string | Agent to use |
+| `--agent` | `-a` | string | Entry agent (`oh run libre --agent`) |
 | `--prompt` | `-m` | string | Initial prompt |
 | `--provider` | `-P` | string | LLM provider (bedrock, anthropic, openai) |
 | `--project` | `-p` | string | Project ID (auto-detected otherwise) |
-| `--resume` | `-r` | string | Resume an existing session (session ID) |
+| `--resume` | `-r` | string | Open an existing session in this terminal (`oh session attach --how here`) |
 | `--worktree` | `-w` | string | Branch to launch in a git worktree |
 | `--dev` | | bool | Dev mode: epic/ticket picker + orchestrator-dev |
 | `--ticket` | `-t` | string | Ticket ID to work on directly (skips picker, requires --dev) |
@@ -25,10 +25,8 @@ Launch an opencode coding session.
 | `--onboard` | | bool | Onboarding mode: creates/enriches project wiki |
 | `--refresh` | | bool | Force wiki re-discovery (requires --onboard) |
 | `--recap` | | bool | Show summary and ask for confirmation before launching |
-| `--parallel` | | bool | Launch N sessions in parallel on different tickets |
+| `--parallel` | | bool | One session per ticket (`oh run ticket --tickets`), requires `--tickets` |
 | `--tickets` | | []string | List of tickets to process in parallel (comma-separated) |
-| `--max-sessions` | | int | Max parallel sessions (0 = config value, default: 3, cap: 10) |
-| `--priority` | | string | Priority ticket (merged first) |
 | `--sweep` | | string | High-level sweep objective (activates sweep mode) |
 | `--sweep-strategy` | | string | Decomposition strategy: `manual`, `by-file`, `by-package`, `llm` |
 | `--sweep-tasks` | | []string | Manual task list (requires `--sweep-strategy=manual`) |
@@ -37,7 +35,6 @@ Launch an opencode coding session.
 | `--sweep-verify` | | string | Post-sweep verification: `none`, `tests`, `lint`, `build`, `all`, `custom` |
 | `--sweep-verify-cmd` | | string | Custom verification command (requires `--sweep-verify=custom`) |
 | `--sweep-dry-run` | | bool | Display decomposed plan without executing |
-| `--sweep-branch-prefix` | | string | Sweep branch prefix (default: `sweep/`) |
 
 ```bash
 oh start -p my-app -m "Fix the login bug"
@@ -48,7 +45,6 @@ oh start --dev -t TICKET-123
 oh start --onboard --refresh
 oh start -m "Refactor the auth module" --recap
 oh start --parallel --tickets bd-42,bd-43,bd-44
-oh start --parallel --tickets T-1,T-2,T-3 --priority T-1 --max-sessions 2
 oh start --sweep "Migrate deprecated API calls" --sweep-strategy llm --sweep-verify tests
 oh start --sweep "Fix lint warnings" --sweep-strategy by-package --sweep-dry-run
 ```

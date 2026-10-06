@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -19,10 +20,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/domain"
-	"github.com/datichb/openhub/cli/internal/headlesstrack"
 	"github.com/datichb/openhub/cli/internal/i18n"
-	"github.com/datichb/openhub/cli/internal/platform"
-	"github.com/datichb/openhub/cli/internal/provider"
 	"github.com/datichb/openhub/cli/internal/safego"
 	"github.com/datichb/openhub/cli/internal/teamstate"
 	"github.com/datichb/openhub/cli/internal/tracker"
@@ -172,22 +170,22 @@ func actionTeamInit() {
 
 	// ── Build shared team step state ────────────────────────────────
 	tss := &teamStepState{
-		Ctx:               ctx,
-		Repo:              repo,
-		HasConfig:         hasConfig,
-		HasPolicies:       hasPolicies,
-		ExistingCfg:       existingCfg,
-		HasMember:         hasMember,
-		StaleDaysStr:      staleDaysStr,
-		MemberID:          memberID,
-		DisplayName:       displayName,
+		Ctx:                ctx,
+		Repo:               repo,
+		HasConfig:          hasConfig,
+		HasPolicies:        hasPolicies,
+		ExistingCfg:        existingCfg,
+		HasMember:          hasMember,
+		StaleDaysStr:       staleDaysStr,
+		MemberID:           memberID,
+		DisplayName:        displayName,
 		GitLabUsername:     gitlabUsername,
 		TrackerUsername:    trackerUsername,
 		MattermostUsername: mattermostUsername,
-		Role:              role,
-		WebhookURL:        webhookURL,
-		Channel:           channel,
-		BotName:           botName,
+		Role:               role,
+		WebhookURL:         webhookURL,
+		Channel:            channel,
+		BotName:            botName,
 	}
 	stepOpts := teamStepOpts{}
 
@@ -929,15 +927,15 @@ func actionTeamRejoin() {
 	}
 
 	steps = []views.WizardStep{
-			repoStep,
-			httpsCredStep,
-			memberStep,
-			gitlabTokenStep,
-			validateStep,
-			identityMismatchStep,
-			trackerStepRejoin,
-			trackerTokenStepRejoin,
-		}
+		repoStep,
+		httpsCredStep,
+		memberStep,
+		gitlabTokenStep,
+		validateStep,
+		identityMismatchStep,
+		trackerStepRejoin,
+		trackerTokenStepRejoin,
+	}
 
 	wizard := views.NewInlineWizardView(views.InlineWizardConfig{
 		ID:    "wizard.team.rejoin",
@@ -972,52 +970,15 @@ func runTakeoverEnrich(a *app.App, project, ticketID string) error {
 		return fmt.Errorf("reading brief: %w", err)
 	}
 
-	// Resolve project for path and credentials.
+	// Enriched by the brief-enrich workflow (headless session of the project).
 	var proj *domain.Project
 	if a.Projects != nil {
 		proj, _ = a.Projects.GetByName(context.Background(), project)
 	}
-	var projectPath string
-	if proj != nil {
-		projectPath = proj.Path
+	if proj == nil {
+		return errors.New(i18n.T("cmd.run.no_project"))
 	}
-
-	// Resolve provider + credentials for the headless run.
-	var projProvider string
-	var provCfg *provider.ProviderConfig
-	var projectID string
-	if proj != nil {
-		projProvider = proj.Provider
-		projectID = proj.ID
-		if proj.ProviderConfig != nil {
-			provCfg = &provider.ProviderConfig{
-				AWSProfile: proj.ProviderConfig.AWSProfile,
-				AWSRegion:  proj.ProviderConfig.AWSRegion,
-			}
-		}
-	}
-	prov := provider.ResolveProvider("", projProvider, a.Config.Opencode.DefaultProvider)
-	hubCfg := hubProviderCfg(a, prov)
-	mergedCfg := provider.ResolveProviderConfig(provCfg, hubCfg)
-	creds := provider.ResolveCredentials(context.Background(), a.Secrets, provider.Name(prov), projectID, &mergedCfg)
-
-	headlessOpts := platform.HeadlessOpts{
-		ProjectPath: projectPath,
-		Agent:       "brief-enricher",
-		Prompt:      content,
-		Provider:    prov,
-		Credentials: creds,
-	}
-	result, err := headlesstrack.Track(context.Background(), headlesstrack.Opts{
-		Sessions:     a.Sessions,
-		PlatformName: string(a.Platform.Name()),
-		ProjectID:    projectID,
-		ProjectPath:  projectPath,
-		Provider:     prov,
-		Label:        "brief-enrichment",
-	}, func(ctx context.Context) (*platform.HeadlessResult, error) {
-		return a.Platform.RunHeadless(ctx, headlessOpts)
-	})
+	enriched, err := runBriefEnrich(tuiShell.Context(), a, proj, ticketID, content, io.Discard)
 	if err != nil {
 		return fmt.Errorf("enrichment: %w", err)
 	}
@@ -1036,7 +997,7 @@ func runTakeoverEnrich(a *app.App, project, ticketID string) error {
 		latestBase = ticketID
 	}
 
-	enrichedContent := fmt.Sprintf("# Takeover Brief (enrichi): %s\n\n%s", ticketID, result.Content)
+	enrichedContent := fmt.Sprintf("# Takeover Brief (enrichi): %s\n\n%s", ticketID, enriched)
 	enrichedFile := filepath.Join(briefsDir, latestBase+".enriched.md")
 	if err := os.WriteFile(enrichedFile, []byte(enrichedContent), 0o644); err != nil {
 		return fmt.Errorf("writing enriched brief: %w", err)

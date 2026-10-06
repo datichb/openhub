@@ -15,7 +15,6 @@ import (
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
-	"github.com/datichb/openhub/cli/internal/opencode"
 	"github.com/datichb/openhub/cli/internal/storage/keychain"
 	"github.com/datichb/openhub/cli/internal/storage/sqlite"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
@@ -561,6 +560,5 @@ func formatBytes(b int64) string {
 // Ensure unused imports are referenced for compilation.
 var (
 	_ = domain.ErrNotFound
-	_ = opencode.ResolveDBPath
 	_ = sqlite.DBPath
 )

@@ -18,7 +18,6 @@ import (
 	"github.com/datichb/openhub/cli/internal/deploy"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
-	"github.com/datichb/openhub/cli/internal/opencode"
 	providerPkg "github.com/datichb/openhub/cli/internal/provider"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
@@ -84,8 +83,8 @@ type initStepState struct {
 
 	// ── Shared refs ──
 	TeamState *initWizardTeamState
-	AppPtr    **app.App    // double pointer: team/deploy steps reload the app
-	FocusBtn  *bool        // pointer shared with InlineWizardConfig.FocusButtonAfterRender
+	AppPtr    **app.App           // double pointer: team/deploy steps reload the app
+	FocusBtn  *bool               // pointer shared with InlineWizardConfig.FocusButtonAfterRender
 	Steps     *[]views.WizardStep // pointer to the assembled steps slice (for Rerender lookup)
 
 	// ── Step index caches (resolved after assembly) ──
@@ -176,13 +175,13 @@ func buildWelcomeStep(s *initStepState) views.WizardStep {
 					accent, reset, accent, reset,
 					accent, reset,
 					secondary, reset,
-				accent, reset,
-				accent, reset,
-				accent, reset,
-			)
-		} else {
-			// Compact layout: no ASCII art, title line only
-			tvText = fmt.Sprintf(`%s`+i18n.T("cmd.init.wizard_welcome_title_compact")+`%s
+					accent, reset,
+					accent, reset,
+					accent, reset,
+				)
+			} else {
+				// Compact layout: no ASCII art, title line only
+				tvText = fmt.Sprintf(`%s`+i18n.T("cmd.init.wizard_welcome_title_compact")+`%s
 
 %s`+i18n.T("cmd.init.wizard_welcome_desc")+`%s
 
@@ -206,16 +205,16 @@ func buildWelcomeStep(s *initStepState) views.WizardStep {
 					accent, reset, accent, reset,
 					accent, reset,
 					secondary, reset,
-				accent, reset,
-				accent, reset,
-				accent, reset,
-			)
-		}
+					accent, reset,
+					accent, reset,
+					accent, reset,
+				)
+			}
 
-		// Compute the width of the longest visible line for the mode selector.
-		maxTextWidth := views.MaxVisibleWidth(tvText)
+			// Compute the width of the longest visible line for the mode selector.
+			maxTextWidth := views.MaxVisibleWidth(tvText)
 
-		// ── Setup mode selector ──
+			// ── Setup mode selector ──
 			modeOptions := []string{
 				i18n.T("cmd.init.wizard_mode_solo"),
 				i18n.T("cmd.init.wizard_mode_team"),
@@ -348,8 +347,8 @@ func buildProviderIntroStep(s *initStepState) views.WizardStep {
 		"cmd.init.wizard_intro_provider_list",
 		"cmd.init.wizard_provider_list_items",
 		"cmd.init.wizard_provider_prereq",
-		"", // no note
-		nil, // onContinue
+		"",                                  // no note
+		nil,                                 // onContinue
 		func() { s.ProviderSkipped = true }, // onSkip
 	)
 	step.SkipIf = func() bool { return s.ProviderSkipped }
@@ -635,10 +634,10 @@ func buildProviderStep(s *initStepState) views.WizardStep {
 					Value: infoWarning(i18n.T("cmd.init.wizard_no_keyring")),
 				})
 			}
-			if _, err := opencode.FindBinary(); err != nil {
+			if err := requireV2(context.Background()); err != nil {
 				fields = append(fields, views.InfoField{
 					Label: "Warning",
-					Value: infoWarning(i18n.T("cmd.init.wizard_opencode_not_found")),
+					Value: infoWarning(err.Error()),
 				})
 			}
 			return fields
@@ -1027,8 +1026,8 @@ func buildAgentSelectionIntroStep(s *initStepState) views.WizardStep {
 		"cmd.init.wizard_deploy_list_items",
 		"",                                  // no prereqs
 		"cmd.init.wizard_intro_deploy_note", // note
-		nil, // onContinue
-		func() { s.DeploySkipped = true }, // onSkip
+		nil,                                 // onContinue
+		func() { s.DeploySkipped = true },   // onSkip
 	)
 	step.SkipIf = func() bool { return s.DeploySkipped || s.ProjectSkipped || !s.ProjectCreated }
 	return step
@@ -1308,8 +1307,8 @@ func buildMCPIntroStep(s *initStepState) views.WizardStep {
 		"cmd.init.wizard_intro_mcp_list",
 		"cmd.init.wizard_mcp_list_items",
 		"cmd.init.wizard_mcp_prereq",
-		"", // no note
-		nil, // onContinue
+		"",                             // no note
+		nil,                            // onContinue
 		func() { s.MCPSkipped = true }, // onSkip
 	)
 	step.SkipIf = func() bool { return s.MCPSkipped }
@@ -1348,7 +1347,7 @@ func buildMCPConsolidatedStep(s *initStepState, a *app.App) views.WizardStep {
 			name: "GitLab", tokenVar: &s.GitlabToken,
 			tokenKey: config.DefaultGitLabTokenKey, hintKey: "cmd.init.mcp_hint_gitlab",
 			urlVar: &s.GitlabURL, urlPlaceholder: "https://gitlab.com",
-			urlHintKey: "cmd.init.mcp_url_hint_gitlab",
+			urlHintKey:  "cmd.init.mcp_url_hint_gitlab",
 			checkboxVar: &s.GitlabWrite, checkboxLabel: i18n.T("cmd.init.mcp_gitlab_write_short"),
 			checkboxDesc: "cmd.init.mcp_gitlab_write_desc",
 			afterStore: func() error {

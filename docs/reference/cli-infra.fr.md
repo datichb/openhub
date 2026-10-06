@@ -30,7 +30,7 @@ Verifie l'etat du systeme.
 oh doctor
 ```
 
-Pas de flags. Checks : OS, git, opencode, bd, fzf, compatibilite, config, BDD, cles API. Verifie egalement la disponibilite de mises a jour pour le binaire `oh`.
+Pas de flags. Checks : OS, git, opencode V2 (version minimale, V1 refusé), bd, fzf, config, BDD, cles API, runtime v5. Verifie egalement la disponibilite de mises a jour pour le binaire `oh`.
 
 **Exemple :**
 
@@ -58,27 +58,6 @@ oh status [options]
 oh status
 oh status --json
 ```
-
----
-
-### oh upgrade opencode
-
-Met a jour opencode.
-
-```
-oh upgrade opencode [version]
-```
-
-Pas de flags. Argument version optionnel (derniere version si omis).
-
-**Exemple :**
-
-```bash
-oh upgrade opencode          # Derniere version
-oh upgrade opencode 0.3.1   # Version specifique
-```
-
-> Voir aussi : `oh upgrade oh` pour mettre a jour le binaire `oh` lui-meme.
 
 ---
 

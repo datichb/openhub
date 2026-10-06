@@ -70,7 +70,7 @@ func detectV2Adapter(ctx context.Context) (*opencodev2.Adapter, error) {
 }
 
 // sessionEndHook emits the team session.complete event of a v5 session (the
-// legacy launcher emits it after the tool exits). async=false waits for the
+// session row is closed by the RunService). async=false waits for the
 // write (short-lived CLI commands).
 func sessionEndHook(a *app.App, async bool) func(context.Context, domain.Session) {
 	return func(ctx context.Context, s domain.Session) {

@@ -456,10 +456,7 @@ push_labels = true           # pousser les labels vers le tracker externe
 
 ```toml
 [opencode]
-version = "latest"           # ou fixer : "1.18.0"
-channel = "stable"           # "stable" ou "beta"
-auto_update = true           # mise a jour auto au demarrage
-install_dir = "~/.oh/bin"    # ou vit le binaire opencode
+default_provider = "bedrock"   # opencode V2 est installé avec son propre outil (v5)
 ```
 
 ### Gestion des secrets

@@ -37,12 +37,12 @@ type DayCost struct {
 
 // StatsProvider abstracts access to session statistics.
 //
-// The default implementation reads OpenCode's SQLite database. Future
+// The implementation reads the oh session registry. Future
 // implementations may aggregate stats from multiple backends, use internal
 // records for direct LLM API sessions, or call remote analytics APIs.
 //
 // Implementations:
-//   - internal/opencode: reads ~/.local/share/opencode/opencode.db
+//   - internal/sessionstats: the oh session registry (oh.db)
 type StatsProvider interface {
 	// Available reports whether stats data is accessible.
 	Available() bool
