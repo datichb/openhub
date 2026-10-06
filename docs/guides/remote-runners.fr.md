@@ -164,6 +164,30 @@ oh remote status
 
 Affiche, par cible : accès API, projet, registres, branche protégée, pipeline à jour, jeton de déclenchement, variables manquantes, runners en ligne, binaire oh pour le job. `oh doctor` (et la vue Doctor de la TUI) reprend la même vérification.
 
+## 5. Lancer une session distante
+
+```bash
+oh run ticket -t bd-42 --runtime remote
+```
+
+Avant l'envoi, oh vérifie que :
+
+- le workflow autorise `remote` (`runtime.allowed`) et qu'aucun checkpoint qui attend une validation dans le mode choisi n'est `remote: forbid` ;
+- le projet est sur une branche **poussée** : le job part de la branche distante (les modifications non commitées ne sont pas envoyées, un avertissement le rappelle) ;
+- le Dockerfile de dev, s'il existe, est commité sur cette branche ;
+- le pipeline d'`oh-runner` est celui de cette version d'oh.
+
+Puis, pour chaque session :
+
+1. **réservation** des tickets : `bd update <id> --claim` sur votre machine et claim dans le team-state (refus si un autre membre l'a déjà) ;
+2. **instantané Beads** des tickets, de leurs dépendances et de leurs enfants (`beads-snapshot.json`), avec la révision de chacun pour détecter les conflits au retour ;
+3. **envoi** dans le registre de packages d'`oh-runner` : le paquet de session par son hash (`oh-bundle/<hash>`, envoyé une seule fois) et l'enveloppe de la session (`oh-session/<hash>` : prompt, entrées, politique des checkpoints, instantané) ;
+4. **déclenchement** du pipeline ; la session apparaît dans `oh session list` (☁) et l'avancement dans le claim du ticket.
+
+Si le déclenchement échoue, les réservations faites par oh sont annulées. `--headless` ne s'applique pas au distant.
+
+Politique des checkpoints dans le job (jamais d'approbation aveugle) : `remote: auto` est validé par le répondeur de politique d'oh ; `remote: defer` arrête proprement la session quand la MR est prête, la suite se fait en local après récupération.
+
 ## Le pipeline généré
 
 Trois jobs, déclenchés **uniquement** par oh (jamais à un push) :

@@ -116,6 +116,9 @@ type Claim struct {
 	// Set by PublishReviewBatch (oh review --publish); read by oh review feedback
 	// and TUI board detail for context. Empty for claims without an MR.
 	MRURL string `toml:"mr_url,omitempty"`
+	// Remote is the remote session working on the ticket (v5 phase 5),
+	// published by the machine at sending time and by the runner as it goes.
+	Remote *ClaimRemote `toml:"remote,omitempty"`
 }
 
 // IsValidStatus reports whether s is one of the known claim statuses.

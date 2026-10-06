@@ -39,6 +39,17 @@ type Project struct {
 	Runners       []map[string]any  // id, description, status, online, tags ([]string)
 	Generic       map[string][]byte // name/version/file → content
 	Unprotected   bool              // default branch not protected
+	Pipelines     []*Pipeline
+	Images        map[string][]string // container repository name → tags
+}
+
+// Pipeline is a triggered fake pipeline.
+type Pipeline struct {
+	ID        int64
+	Ref       string
+	Token     string
+	Variables map[string]string
+	Status    string
 }
 
 // Server is the fake GitLab.
@@ -80,7 +91,7 @@ func (s *Server) AddProject(path string) *Project {
 func (s *Server) addProject(path string) *Project {
 	s.nextID++
 	p := &Project{ID: s.nextID, Path: path, DefaultBranch: "main", Packages: true, Registry: "private",
-		Files: map[string][]byte{}, Variables: map[string]Variable{}, Generic: map[string][]byte{}}
+		Files: map[string][]byte{}, Variables: map[string]Variable{}, Generic: map[string][]byte{}, Images: map[string][]string{}}
 	s.Projects[path] = p
 	return p
 }
@@ -234,6 +245,56 @@ func (s *Server) serveProject(w http.ResponseWriter, r *http.Request, p *Project
 			out = append(out, rn)
 		}
 		writeJSON(w, 200, out)
+	case len(rest) == 2 && rest[0] == "trigger" && rest[1] == "pipeline" && r.Method == http.MethodPost:
+		_ = r.ParseForm()
+		tok := r.PostForm.Get("token")
+		valid := false
+		for _, t := range p.Triggers {
+			valid = valid || t["token"] == tok
+		}
+		if !valid {
+			writeJSON(w, 404, map[string]string{"message": "404 Not Found"})
+			return
+		}
+		pl := &Pipeline{ID: int64(800 + len(p.Pipelines)), Ref: r.PostForm.Get("ref"), Token: tok, Variables: map[string]string{}, Status: "created"}
+		for k, v := range r.PostForm {
+			if strings.HasPrefix(k, "variables[") && strings.HasSuffix(k, "]") {
+				pl.Variables[k[len("variables["):len(k)-1]] = v[0]
+			}
+		}
+		p.Pipelines = append(p.Pipelines, pl)
+		writeJSON(w, 201, s.pipelineJSON(p, pl))
+	case len(rest) == 2 && rest[0] == "pipelines":
+		for _, pl := range p.Pipelines {
+			if strconv.FormatInt(pl.ID, 10) == rest[1] {
+				writeJSON(w, 200, s.pipelineJSON(p, pl))
+				return
+			}
+		}
+		notFound(w)
+	case len(rest) == 2 && rest[0] == "registry" && rest[1] == "repositories":
+		out := []map[string]any{}
+		i := 0
+		for name := range p.Images {
+			i++
+			if q := r.URL.Query().Get("search"); q == "" || strings.Contains(name, q) {
+				out = append(out, map[string]any{"id": imageID(name), "name": name, "path": p.Path + "/" + name})
+			}
+		}
+		writeJSON(w, 200, out)
+	case len(rest) == 5 && rest[0] == "registry" && rest[1] == "repositories" && rest[3] == "tags":
+		for name, tags := range p.Images {
+			if strconv.FormatInt(imageID(name), 10) != rest[2] {
+				continue
+			}
+			for _, tg := range tags {
+				if tg == rest[4] {
+					writeJSON(w, 200, map[string]any{"name": tg})
+					return
+				}
+			}
+		}
+		notFound(w)
 	case len(rest) == 2 && rest[0] == "protected_branches":
 		if p.Unprotected || rest[1] != p.DefaultBranch {
 			notFound(w)
@@ -349,4 +410,20 @@ func (s *Server) serveGeneric(w http.ResponseWriter, r *http.Request, p *Project
 	default:
 		notFound(w)
 	}
+}
+
+func imageID(name string) int64 {
+	var h int64
+	for _, c := range name {
+		h = h*31 + int64(c)
+	}
+	if h < 0 {
+		h = -h
+	}
+	return h%100000 + 1
+}
+
+func (s *Server) pipelineJSON(p *Project, pl *Pipeline) map[string]any {
+	return map[string]any{"id": pl.ID, "status": pl.Status, "ref": pl.Ref,
+		"web_url": fmt.Sprintf("%s/%s/-/pipelines/%d", s.URL, p.Path, pl.ID)}
 }

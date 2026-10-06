@@ -14,6 +14,7 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/domain"
@@ -43,6 +44,14 @@ type Service struct {
 	NewClient func(baseURL, token string) *gitlab.Client
 	// OhVersion is the version of the running oh (buildinfo.Version).
 	OhVersion string
+
+	// Sending (lot 5.A).
+	Sessions     domain.SessionStore
+	Remote       domain.RemoteStore
+	Git          Git   // default GitCLI
+	Beads        Beads // default BdCLI
+	Now          func() time.Time
+	NewSessionID func() string
 }
 
 func (s *Service) client(t config.RemoteTarget, token string) *gitlab.Client {

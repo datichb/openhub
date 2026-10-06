@@ -164,6 +164,30 @@ oh remote status
 
 Shows, per target: API access, project, registries, protected branch, pipeline up to date, trigger token, missing variables, online runners, oh binary for the job. `oh doctor` (and the Doctor view of the TUI) runs the same check.
 
+## 5. Start a remote session
+
+```bash
+oh run ticket -t bd-42 --runtime remote
+```
+
+Before sending, oh checks that:
+
+- the workflow allows `remote` (`runtime.allowed`) and no checkpoint that waits for approval in the chosen mode is `remote: forbid`;
+- the project is on a **pushed** branch: the job starts from the remote branch (uncommitted changes are not sent, a warning says so);
+- the dev Dockerfile, if any, is committed on that branch;
+- the `oh-runner` pipeline is the one of this oh version.
+
+Then, for each session:
+
+1. **reservation** of the tickets: `bd update <id> --claim` on your machine and a claim in the team-state (refused when another member holds it);
+2. **Beads snapshot** of the tickets, their dependencies and their children (`beads-snapshot.json`), with the revision of each to detect conflicts on return;
+3. **upload** to the package registry of `oh-runner`: the session bundle by its hash (`oh-bundle/<hash>`, uploaded once) and the session envelope (`oh-session/<hash>`: prompt, inputs, checkpoint policy, snapshot);
+4. **trigger** of the pipeline; the session shows in `oh session list` (☁) and progress in the ticket claim.
+
+When the trigger fails, the reservations made by oh are undone. `--headless` does not apply to remote runs.
+
+Checkpoint policy in the job (never blind approval): `remote: auto` is approved by oh's policy responder; `remote: defer` stops the session cleanly once the MR is ready, the rest happens locally after fetching.
+
 ## The generated pipeline
 
 Three jobs, triggered **only** by oh (never on push):
