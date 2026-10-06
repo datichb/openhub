@@ -16,7 +16,7 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 - **`oh session attach|list|stop`** ; ouverture des sessions dans un nouvel onglet/fenêtre (iTerm2, Terminal.app, tmux, navigateur) ; fermer la fenêtre ne coupe pas la session.
 - **Clés LLM au niveau équipe** (`openhub.team.<équipe>.provider.<p>.token`, touche `K` dans Détail équipe).
 - **Réglages `[session]`** (`attach`, `iterm_style`, `idle_sleep_minutes`) ; question à la fermeture de la TUI ; récapitulatif « pendant votre absence ».
-- `--parallel`, `--sweep` et les exécutions sans interface passent par le runtime v5 (un serveur pour toute l'exécution).
+- Les exécutions sans interface passent par le runtime v5 (`oh run --headless`).
 - `OH_HOME` relocalise `~/.oh` ; nouvelles vérifications `oh doctor` (runtime v5, démon, git, terminal).
 
 ### Added — workflows déclaratifs (phase 1, en cours)
@@ -120,9 +120,27 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 - **Dans le job (`oh runner`)** : même démon, même proxy d'identifiants et mêmes passerelles que sur la machine ; secrets du job retirés de l'environnement avant tout lancement ; serveur opencode sous un compte dédié ; **répondeur de politique** (jamais d'approbation aveugle) : `remote: auto` validé, `remote: defer` arrête proprement la session, autres demandes refusées avec un message, question ⇒ arrêt pour réponse en local ; `bd` en **mode journal** (lectures depuis l'instantané, écritures enregistrées, `beads.allow` appliqué par la passerelle) ; branche poussée et **MR en brouillon** ; avancement dans le claim du ticket ; artefacts `journal.jsonl`, `summary.json`, `session.export`.
 - **Retour** : la session ☁ passe dans **« À récupérer »** (vue Sessions, notification) quand le pipeline est terminé ; **`oh session fetch <id>`** (ou `g`) importe la session et ses sous-agents dans un serveur local, dans un worktree de la branche du job, pour la reprendre avec `oh session attach` ; **`oh session resolve <id>`** (ou fenêtre de conflit de la TUI) rejoue le journal Beads : écritures revérifiées sur la machine, conflits sur les tickets modifiés depuis l'envoi (garder local, appliquer distant, fusionner les notes), rien sans confirmation, relançable.
 
+### Added — fin du déploiement par projet et abandon d'opencode V1 (phase 3, piste 3.E)
+
+- **Workflow `libre`** : session avec l'agent de votre choix et les agents qu'il peut appeler, sans checkpoint (`oh run libre --agent <id>`, `-i request=…`) ; remplace `oh start --agent` et la session libre de la TUI (commande `coder`, vue Worktrees). Ajout additif au schéma `oh/v1` : `entry.selectable` (agent d'entrée choisi au lancement, `oh run <wf> --agent`).
+- **Catalogue des briques** (TUI, lecture seule ; Config projet › Briques, commande `bricks`) : agents et skills, origine (hub ou catalogue d'équipe), coût estimé, skills chargées, `requires`, workflows qui les livrent. Remplace la sélection d'agents par projet.
+- **`oh migrate deploy-cleanup [--dry-run] [--diff] [--yes] [-p]`** : retire des projets ce qu'avait laissé `oh deploy` (`.opencode/agents`, `.opencode/skills`, `.deploy-state`, `context-manifest.json`, `team.json`) et, dans `opencode.json`, uniquement les clés écrites par oh et inchangées depuis le dernier déploiement (vos clés et celles que vous avez modifiées sont conservées, ordre du fichier gardé) ; récapitulatif, diff, confirmation ; proposé une fois après la mise à jour (message, écran TUI, commande `cleanup`) ; contrôle Doctor « Anciens déploiements ».
+- `oh doctor` : contrôle « opencode V2 » (version minimale de `compatibility.json`, 2.0.0).
+
+### Removed — v5
+
+- **opencode V1 n'est plus pris en charge** : sans opencode V2 (≥ 2.0.0), oh refuse de lancer avec un message qui renvoie à `oh doctor` et au guide de migration. Supprimés : l'ancien lancement (interactif, sans interface, parallèle et sweep V1), le repli des alias, `oh upgrade opencode` et l'installation gérée dans `~/.oh/bin` (clés `[opencode] version|channel|auto_update|install_dir`), `oh plugin` et la vue Plugins (plugins globaux V1, RTK), `OH_V5`, la route API `/api/v1/parallel/state`.
+- **Déploiement par projet** (D14) : `oh deploy` et `oh sync` ne font plus qu'afficher un message de migration ; plus d'étapes Agents/Déploiement dans `oh init`, `oh project add|configure` ; section Déploiement du mode projet, commandes `deploy`/`sync` de l'omnibar et toast d'écart retirés ; liens `.opencode` des worktrees (et resynchronisation `s`) ; `[deploy] disable_native_agents` (`instruction_files` reste) ; sélection d'agents par projet (`projects.agents`, migrations v36 puis v37). Le paquet de session exige un workflow.
+- Ancienne vue Workflow et ancien modèle de workflow codé en dur ; les surcharges d'origine ne sont plus lues que par la migration v38.
+- `oh start --parallel` sans `--tickets` et `--agent` combiné à un mode sont refusés ; `--max-sessions`, `--priority`, `--sweep-branch-prefix` sont sans effet.
+
 ### Changed
 
-- Les anciennes surcharges du workflow unique ne s'appliquent plus (migrées vers des workflows d'équipe ou de projet) : `oh deploy` (opencode V1) et l'ancien lancement utilisent le workflow de base ; la vue Workflow de la TUI est en lecture seule (remplacée par le catalogue et l'éditeur de workflows).
+- **Anciennes commandes de lancement** : toujours des alias de `oh run`, sans repli (workflow absent : erreur) ; `oh start --resume <id>` ouvre la session dans le terminal (`oh session attach --how here`) ; `oh takeover-brief enrich` et l'enrichissement de la TUI passent par `brief-enrich`.
+- Serveur MCP `team` : équipe de la session lue dans l'environnement de sa déclaration dans le paquet (`OH_TEAM_ID`), au lieu de `.opencode/team.json`.
+- `oh metrics`, tableau de bord, API et vue Métriques : statistiques tirées du registre des sessions d'oh (`oh.db`) au lieu de la base d'opencode V1.
+- Mode projet : en-tête avec la version d'opencode à la place du badge de déploiement ; les liens « Workflow » ouvrent le catalogue des workflows.
+- Les anciennes surcharges du workflow unique ne s'appliquent plus : elles sont migrées vers des workflows d'équipe ou de projet (migration v38) ; l'ancienne vue Workflow est remplacée par le catalogue et l'éditeur de workflows.
 - **Anciennes commandes de lancement = alias dépréciés** des workflows (avertissement) : `oh start` → `feature`, `--dev`/`-t` → `ticket` (épopée : une session ou une par ticket), `--onboard` → `onboarding`, `--parallel` → `ticket --tickets`, `--sweep` → `sweep`, `--worktree` → `--location new`, `oh audit|review|debug`, `oh review feedback` → `review-feedback` ; sans opencode V2 ou sans le workflow, l'ancien lancement reste. `--agent` garde le lancement par agent (avec confirmation si `--recap`).
 - TUI : les entrées codées en dur (Quick, Dev, Audit, Review, Debug, Onboard), leurs sous-menus et le sélecteur de tickets huh pendant la TUI sont remplacés par « Démarrer » et la fiche de lancement ; le board ne crée plus de worktree lui-même (emplacement choisi dans la fiche).
 
@@ -135,6 +153,10 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ### Fixed
 
+- Lancement de plusieurs tickets : la seconde session ne redémarre plus le serveur du groupe (une location neuve ne liste aucun agent pendant un instant), ce qui faisait perdre le prompt de la première.
+- Sessions locales : le shell garde le `PATH` et les variables utiles de la machine (`bd`, chaînes d'outils) ; opencode 2.0.20 remplaçait tout son environnement par celui de la session.
+- Workflows à agents verrouillés (`after:`) : le prompt initial rappelle les checkpoints à signaler avec `workflow_checkpoint` avant de déléguer (l'agent d'entrée ne le faisait pas et restait bloqué).
+- Skill `orchestrator-recap-edge` : un agent absent de la session se règle en l'ajoutant au workflow (plus de `!oc deploy`).
 - Les surcharges de workflow de `hub.toml` n'étaient jamais chargées (clés non reconnues) et la vue Workflow de la TUI les perdait après les avoir enregistrées ; elles sont relues dans le fichier par la migration v38.
 - `oh <commande> --help` affichait la page d'aide générale au lieu de l'aide de la commande.
 
@@ -164,6 +186,7 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ### Documentation
 
+- **Guide « Migrer vers oh v5 »** — `migration-v5.{en,fr}.md` (+ `MIGRATION.md`) : opencode V2 obligatoire, alias dépréciés, workflow `libre`, plugins, métriques, fin du déploiement, catalogue des briques, `oh migrate deploy-cleanup`, migration v38 ; références (`cli-deploy`, `cli-infra`, `cli-sessions`, `cli-workflows`, `config`, `mcp-team`, `workflows`), README et guides sans `oh deploy`/`oh sync`.
 - **Guide « Exécution distante »** — `remote-runners.{en,fr}.md` : installation des runners (exécuteur Docker, Kaniko ou Docker-in-Docker), jetons, `oh remote setup|status`, envoi, ce que fait le job, suivi, récupération et rejeu du journal Beads, sécurité, dépannage ; `sessions-v5` : `oh session fetch|resolve`
 - **Guide « Exécution en conteneur »** — `container.{en,fr}.md` : prérequis, config projet et Réglages Exécution, choix du runtime, fiche de lancement, image et montages, secrets et passerelles, identité git, vérifications Doctor, dépannage ; `cli-workflows` : `oh run [workflow]`
 - **Guide « Workflows d'équipe »** — `team-workflows.{en,fr}.md` : couches, arborescence, `workflows.lock`, verrous, brouillons et publication, impact, historique, catalogue de briques, gouvernance, espace solo, migration ; références `cli-workflows`, `cli-team`, `config` mises à jour
