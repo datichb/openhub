@@ -18,6 +18,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/adapters"
 	"github.com/datichb/openhub/cli/internal/credproxy"
 	"github.com/datichb/openhub/cli/internal/domain"
+	"github.com/datichb/openhub/cli/internal/services/checkpoint"
 )
 
 // SecretGetter reads secrets from the host secret store (keychain…).
@@ -51,6 +52,9 @@ type Options struct {
 	// SessionsDir (~/.oh/sessions) receives the results snapshot of the
 	// sessions of a group before its server sleeps or stops.
 	SessionsDir string
+	// Checkpoints is the CheckpointService (workflow MCP backend, checkpoint
+	// state). Nil = workflow API unavailable.
+	Checkpoints *checkpoint.Service
 	// Adapter returns the tool adapter for a server's adapter name (nil = no watcher).
 	Adapter func(name string) adapters.ToolAdapter
 	// SigV4 builds an AWS signer for a profile/region (overridable in tests).

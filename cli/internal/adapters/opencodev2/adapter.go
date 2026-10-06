@@ -33,6 +33,9 @@ type Adapter struct {
 	PluginTrace string
 	// PluginTimeout bounds the wait for the oh plugin to become active (default 10s).
 	PluginTimeout time.Duration
+	// OhBinary runs the oh MCP servers of a bundle (`{{oh.bin}}`; empty =
+	// the running executable).
+	OhBinary string
 }
 
 var _ adapters.ToolAdapter = (*Adapter)(nil)
@@ -104,7 +107,7 @@ func (a *Adapter) Render(b sessionspec.BundleSpec, p sessionspec.ProviderSpec) (
 func (a *Adapter) StartServer(ctx context.Context, g adapters.ServerGroup) (adapters.ServerHandle, error) {
 	// Agent bodies reference the bundle as the server sees it (a mount point
 	// in a container).
-	g.Bundle = g.Bundle.WithBundleRoot(innerDir(g, g.Bundle.Root))
+	g.Bundle = g.Bundle.WithBundleRoot(innerDir(g, g.Bundle.Root)).WithOhBinary(a.OhBinary)
 	if !a.DisablePlugin {
 		dir := filepath.Join(g.DataDir, PluginDirName)
 		if err := installPlugin(dir, g.Bundle); err != nil {

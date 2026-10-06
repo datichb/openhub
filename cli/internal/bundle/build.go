@@ -136,6 +136,7 @@ func Build(req Request) (*Bundle, error) {
 
 		StrictIsolation: req.StrictIsolation,
 	}
+	applyWorkflowRuntime(&spec, req.Spec)
 	if req.WebsearchEnabled {
 		spec.Permissions = append(spec.Permissions,
 			sessionspec.PermissionRule{Action: sessionspec.ActionWebSrch, Resource: "*", Effect: sessionspec.EffectAllow},

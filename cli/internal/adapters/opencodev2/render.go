@@ -343,9 +343,18 @@ func wildcardMatch(pattern, s string) bool {
 func toRules(rules []sessionspec.PermissionRule) []Rule {
 	out := make([]Rule, 0, len(rules))
 	for _, r := range rules {
-		out = append(out, Rule{Action: r.Action, Resource: r.Resource, Effect: string(r.Effect)})
+		out = append(out, Rule{Action: ToolAction(r.Action), Resource: r.Resource, Effect: string(r.Effect)})
 	}
 	return out
+}
+
+// ToolAction translates a neutral action to opencode's name. MCP tools are
+// named `<server>_<tool>` (verified on 2.0.20: `workflow_workflow_checkpoint`).
+func ToolAction(action string) string {
+	if server, tool, ok := sessionspec.ParseMCPToolAction(action); ok {
+		return server + "_" + tool
+	}
+	return action
 }
 
 func hasPlugin(b sessionspec.BundleSpec, id string) bool {

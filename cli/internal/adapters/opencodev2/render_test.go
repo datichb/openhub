@@ -247,3 +247,19 @@ func TestRenderExpandsBundleRootAndAllowsSkillAnnexes(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "Load `/b/skills/x/templates/t.md`.", string(data))
 }
+
+func TestRenderMCPToolActions(t *testing.T) {
+	b := sampleBundle()
+	cp := sessionspec.MCPToolAction(sessionspec.WorkflowMCPServer, sessionspec.WorkflowToolCheckpoint)
+	b.Permissions = append(b.Permissions, sessionspec.PermissionRule{Action: cp, Resource: "*", Effect: sessionspec.EffectAsk})
+	b.MCP = []sessionspec.MCPServerDef{sessionspec.WorkflowMCPDef()}
+	cfg, err := BuildConfig(b, sampleProvider(), DefaultNatives)
+	require.NoError(t, err)
+	data, err := json.Marshal(cfg)
+	require.NoError(t, err)
+	assert.Contains(t, string(data), `{"action":"workflow_workflow_checkpoint","resource":"*","effect":"ask"}`)
+	assert.Contains(t, string(data), `"command":["{{oh.bin}}","mcp","serve","workflow"]`, "expanded when the server starts, not in the rendered bundle")
+
+	assert.Equal(t, "shell", ToolAction("shell"))
+	assert.Equal(t, "gitlab_issues", ToolAction(sessionspec.MCPToolAction("gitlab", "issues")))
+}
