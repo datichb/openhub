@@ -151,6 +151,8 @@ func deepCopyProject(p *domain.Project) domain.Project {
 		copy(cp.Labels, p.Labels)
 	}
 
+	cp.ExecConfig = p.ExecConfig.Clone()
+
 	// Clone TeamID pointer
 	if p.TeamID != nil {
 		s := *p.TeamID

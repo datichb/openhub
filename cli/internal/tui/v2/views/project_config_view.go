@@ -30,6 +30,11 @@ type ProjectConfigViewConfig struct {
 	// Returns (effectiveValue, sourceAnnotation, isLocked).
 	// If nil, no resolution annotations are shown.
 	ResolveMCPSource func(service, field string) (effective string, source string, locked bool)
+	// ExecHints computes the « Exécution » hints of a project (detected
+	// Dockerfile), off the event loop. Nil = no hint.
+	ExecHints func(projectPath string) ProjectExecHints
+	// WorkflowIDs lists the workflows offered as default (cached catalogue).
+	WorkflowIDs func() []string
 }
 
 // ProjectConfigView displays and edits the active project's configuration.
@@ -44,6 +49,7 @@ type ProjectConfigView struct {
 	fields    []configField
 	undoStack *widgets.UndoStack[domain.Project]
 	autoSaver *AutoSaver
+	execHints ProjectExecHints
 }
 
 var _ View = (*ProjectConfigView)(nil)
@@ -93,11 +99,17 @@ func (v *ProjectConfigView) Mount(content *tview.Flex, app *tview.Application) {
 	loading.SetText(fmt.Sprintf("\n  %s%s%s", muted, i18n.T("tui.project.loading"), theme.TagColor))
 	content.AddItem(loading, 0, 1, true)
 
+	live := v.live
 	go func() {
+		var hints ProjectExecHints
+		if live != nil && v.cfg.ExecHints != nil {
+			hints = v.cfg.ExecHints(live.Path)
+		}
 		app.QueueUpdateDraw(func() {
 			if v.app == nil || v.mountGen != gen {
 				return
 			}
+			v.execHints = hints
 
 			v.list = widgets.NewSectionedList()
 			v.list.SetApp(app)
@@ -327,11 +339,15 @@ func (v *ProjectConfigView) buildFields() {
 				b := val == "true"
 				v.live.TrackerConfig.WriteEnabled = &b
 			}},
+	}
+	v.fields = append(v.fields, v.execFields()...)
+	v.fields = append(v.fields, []configField{
+		// ── Links ───────────────────────────────────────────────────────────
 		{Key: "mcp_services", Kind: CfgFieldLink, Label: i18n.T("tui.config.link.mcp"), LinkTarget: "project.mcp",
 			Get: func() string { return "" }},
 		{Key: "workflow", Kind: CfgFieldLink, Label: i18n.T("tui.config.link.workflow"), LinkTarget: "workflow",
 			Get: func() string { return "" }},
-	}
+	}...)
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

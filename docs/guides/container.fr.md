@@ -1,0 +1,59 @@
+> [Read in English](container.en.md)
+
+# Exécuter une session dans un conteneur
+
+Avec opencode V2, un workflow qui l'autorise (`runtime.allowed` contient `container`, par exemple `ticket`) peut tourner dans un **conteneur** construit depuis le Dockerfile de développement du projet. Les commandes shell de l'agent s'exécutent alors dans le conteneur. Vos secrets, Beads et les serveurs MCP d'oh restent sur la machine.
+
+```bash
+oh run ticket -t bd-42 --runtime container
+```
+
+## Prérequis
+
+- macOS ou Linux (Windows : local uniquement).
+- Un moteur de conteneurs : **Colima** (runtime `docker`), **Podman** (machine démarrée) ou le CLI **Docker**. oh utilise le CLI du moteur, pas d'API Docker.
+- Le projet et ses worktrees doivent être dans un dossier partagé avec la VM : sous `$HOME` pour Colima. `$TMPDIR` (`/var/folders/…`) n'est pas partagé avec Colima.
+
+## Configurer le projet
+
+TUI : **Config projet › Exécution**. Les réglages sont enregistrés dans la base d'oh. oh n'écrit rien dans le dépôt.
+
+| Réglage | Rôle | Par défaut |
+|---|---|---|
+| Dockerfile de dev | Image de base du conteneur. Chemin relatif au projet ou absolu. | Détecté : `Dockerfile.dev`, `dev.Dockerfile`, `.devcontainer/Dockerfile`, `Dockerfile`. Sans fichier : image oh (`debian:bookworm-slim` + `git`, `ca-certificates`, `ripgrep`). |
+| Build args | Arguments de construction : `CLÉ=valeur, CLÉ2=valeur` | aucun |
+| Volumes de cache | Volumes persistants, séparés par des virgules. Un chemin relatif s'applique à chaque emplacement monté (`node_modules`). Un chemin absolu est un chemin du conteneur (`/root/.cache`). | aucun |
+| Workflow par défaut | Lancé par `oh run` sans argument. Apparaît en tête de « Démarrer » (◆) et des actions du board. | aucun |
+| Runtime par défaut | Runtime préféré du projet, utilisé si le workflow l'autorise | Réglages, puis défaut du workflow |
+
+Le Dockerfile est toujours cherché dans le **dossier du projet**, même quand la session tourne dans un worktree. C'est aussi vrai à la reprise d'une session en veille : la reprise relit la config du projet. Si elle a changé, l'image est reconstruite. Les données de la session sont conservées.
+
+### Choix du runtime
+
+Du plus prioritaire au moins prioritaire :
+
+1. `--runtime` ou le choix fait dans la fiche de lancement ;
+2. le runtime par défaut du projet ;
+3. le runtime par défaut des Réglages ;
+4. `runtime.default` du workflow.
+
+Un runtime que le workflow n'autorise pas (`runtime.allowed`) est ignoré.
+
+## Ce qui se passe au lancement
+
+1. **Image** : oh construit une image de base depuis le Dockerfile de dev (`oh-base/<projet>:<hash>`), puis une couche fine (`oh-dev/<projet>:<hash>`). La couche ajoute opencode à la version du client de la machine et le faux `bd`. Les tags dépendent du contenu : une image déjà construite est réutilisée.
+2. **Montages** :
+   - le projet et les worktrees sous `/work/<nom>`, en lecture-écriture ;
+   - le paquet de session sous `/opt/oh/bundle`, en lecture seule ;
+   - les données du groupe de serveur sous `/opt/oh/data` ;
+   - un `HOME` propre au projet : votre config opencode n'est jamais visible.
+3. **Réseau** : le port du serveur n'est publié que sur `127.0.0.1`. Le client opencode tourne sur la machine et s'attache au serveur du conteneur.
+4. **Secrets** : aucun secret n'entre dans le conteneur. Le conteneur reçoit un jeton `ohs_…`, que le proxy d'identifiants d'oh échange contre la vraie clé. `bd` passe par la passerelle Beads, avec la liste blanche `beads.allow` du workflow (lecture seule par défaut). Les serveurs MCP d'oh (gitlab, team, workflow…) tournent sur la machine.
+
+## Dépannage
+
+| Symptôme | Cause probable |
+|---|---|
+| « conteneur indisponible » dans la fiche | VM arrêtée (`colima start`, `podman machine start`) ou moteur absent |
+| « … is not shared with the colima VM » | Projet hors de `$HOME` (Colima) |
+| opencode ne démarre pas sur une base Alpine | `libstdc++` et `libgcc` manquants : ajoutez-les au Dockerfile |

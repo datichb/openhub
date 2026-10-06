@@ -28,6 +28,8 @@ type FieldValidator struct {
 	// AllowEmpty permits an empty string even when AllowedValues is set.
 	// Useful for optional fields that have an enum when populated.
 	AllowEmpty bool
+	// Check is a custom rule, applied first (nil = none).
+	Check func(value string) error
 }
 
 // Validate checks the value against all configured rules.
@@ -35,6 +37,11 @@ type FieldValidator struct {
 func (fv *FieldValidator) Validate(value string) error {
 	if fv == nil {
 		return nil
+	}
+	if fv.Check != nil {
+		if err := fv.Check(value); err != nil {
+			return err
+		}
 	}
 
 	// Required check

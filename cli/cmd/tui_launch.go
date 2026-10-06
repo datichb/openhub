@@ -129,6 +129,9 @@ func launchFormConfig(ctx context.Context, a *app.App, project *domain.Project, 
 		Attach: tuiAttachOptions(), DefaultAttach: attachPreference(a),
 		DefaultMode: req.Mode, DefaultRuntime: req.Runtime,
 	}
+	if cfg.DefaultRuntime == "" {
+		cfg.DefaultRuntime = string(sp.PickRuntime(runtimePrefs(a, project)...))
+	}
 	if beads.Available() == nil && beads.IsInitialized(project.Path) {
 		cfg.Beads = views.NewBeadsSource(project.Path)
 	}

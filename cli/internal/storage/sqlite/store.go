@@ -564,4 +564,12 @@ UPDATE projects SET workflow_config = ''`,
 		down: `UPDATE projects SET workflow_config = workflow_config_legacy WHERE workflow_config_legacy != '';
 ALTER TABLE projects DROP COLUMN workflow_config_legacy`,
 	},
+	{
+		// v5 phase 4 (P4-T09): execution settings of a project (dev
+		// Dockerfile, build args, cache volumes, default workflow and
+		// runtime), JSON.
+		version: 41,
+		up:      `ALTER TABLE projects ADD COLUMN exec_config TEXT NOT NULL DEFAULT ''`,
+		down:    `ALTER TABLE projects DROP COLUMN exec_config`,
+	},
 }

@@ -97,6 +97,9 @@ func prepareWorkflowRun(ctx context.Context, a *app.App, opts runOptions, errOut
 		return nil, workflowError(errOut, opts.Workflow, err)
 	}
 	inputs := launchInputs(probe.Spec, opts)
+	if opts.Runtime == "" {
+		opts.Runtime = string(probe.Spec.PickRuntime(runtimePrefs(a, opts.Project)...))
+	}
 	ticketInput, multi := workflowsvc.TicketInput(probe.Spec)
 	var perSession []string // ticket of each session (multi)
 	if len(opts.Tickets) > 0 {

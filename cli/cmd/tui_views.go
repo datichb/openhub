@@ -727,6 +727,8 @@ func buildViews(a *app.App, notifStore *shell.NotificationStore) []views.View {
 			Deploy: func(ctx context.Context, p *domain.Project) error {
 				return runDeployForProject(a, p)
 			},
+			ExecHints:   projectExecHints,
+			WorkflowIDs: tuiWorkflowIDs,
 			AllAgents: func() []string {
 				return []string{
 					"auditor", "auditor-subagent", "debugger", "designer",

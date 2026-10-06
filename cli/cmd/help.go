@@ -113,7 +113,7 @@ func buildHelpSections() []helpSection {
 			Title: i18n.T("help.section.workflows"),
 			Commands: []helpCommand{
 				{
-					Name: "run <workflow>",
+					Name: "run [workflow]",
 					Desc: i18n.T("cmd.run.short"),
 					Flags: []helpFlag{
 						{"input", "i", i18n.T("cmd.run.flags.input")},

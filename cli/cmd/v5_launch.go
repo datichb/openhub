@@ -131,6 +131,7 @@ func v5Request(a *app.App, project *domain.Project, providerFlag string) runsvc.
 		ProviderCfg: provider.ResolveProviderConfig(projProv, hubProviderCfg(a, prov)),
 		Attach:      sessionspec.AttachPref(attachPreference(a)), ITermStyle: termlaunch.ITermStyle(a.Config.Session.ITermStyle),
 	}
+	applyProjectExec(&req, project)
 	if team := config.ResolveTeamForProject(a.Config, project); team.Enabled {
 		req.TeamID = team.TeamID
 		if team.MemberID != "" {
