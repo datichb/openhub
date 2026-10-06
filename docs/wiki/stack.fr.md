@@ -6,7 +6,7 @@ sources:
   - cli/go.mod
   - cli/.goreleaser.yml
   - cli/Makefile
-last_updated: 2026-10-02
+last_updated: 2026-10-06
 ---
 
 > [Read in English](stack.en.md)
@@ -20,6 +20,7 @@ last_updated: 2026-10-02
 | Langage | Go | 1.26.4 |
 | Binaire | Binaire statique unique | `CGO_ENABLED=0` |
 | Framework TUI | [tview](https://github.com/rivo/tview) | base tcell |
+| Invites en ligne (hors TUI) | [huh](https://github.com/charmbracelet/huh) | -- |
 | Framework CLI | [Cobra](https://github.com/spf13/cobra) | v1.9+ |
 | Configuration | [Viper](https://github.com/spf13/viper) + TOML | -- |
 | Base de donnees | SQLite (via modernc.org/sqlite) | Go pur, pas de CGO |
@@ -40,7 +41,7 @@ last_updated: 2026-10-02
 
 | Composant | Technologie |
 |-----------|-----------|
-| Runtime IA | [OpenCode](https://opencode.ai/) |
+| Runtime IA | [OpenCode](https://opencode.ai/) V2 (>= 2.0.0, `opencode serve` ; V1 n'est plus pris en charge) |
 | Protocole | MCP (Model Context Protocol) -- sous-processus stdin/stdout |
 | Fournisseurs | Anthropic Claude, AWS Bedrock, OpenAI (configurable) |
 | Agents | 19 agents avec architecture de skills hybride (Bucket A/B) |
@@ -60,7 +61,7 @@ last_updated: 2026-10-02
 
 ## Decisions de conception cles
 
-- **Zero dependance au runtime** -- binaire statique unique, pas de Docker, pas de Node.js, pas de Python
+- **Zero dependance au runtime** -- binaire statique unique, pas de Node.js, pas de Python ; Docker n'est utile que pour le runtime conteneur, optionnel
 - **Contenu embarque** -- agents/skills/permissions compiles dans le binaire via `go:embed`
 - **SQLite Go pur** -- `modernc.org/sqlite` evite CGO pour des builds vraiment statiques
 - **Configuration TOML** -- lisible par l'humain, compatible git, supporte la cascade hierarchique

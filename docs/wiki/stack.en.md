@@ -6,7 +6,7 @@ sources:
   - cli/go.mod
   - cli/.goreleaser.yml
   - cli/Makefile
-last_updated: 2026-10-02
+last_updated: 2026-10-06
 ---
 
 > [Lire en francais](stack.fr.md)
@@ -20,6 +20,7 @@ last_updated: 2026-10-02
 | Language | Go | 1.26.4 |
 | Binary | Single static binary | `CGO_ENABLED=0` |
 | TUI framework | [tview](https://github.com/rivo/tview) | tcell-based |
+| Inline prompts (outside the TUI) | [huh](https://github.com/charmbracelet/huh) | -- |
 | CLI framework | [Cobra](https://github.com/spf13/cobra) | v1.9+ |
 | Configuration | [Viper](https://github.com/spf13/viper) + TOML | -- |
 | Database | SQLite (via modernc.org/sqlite) | Pure Go, no CGO |
@@ -40,7 +41,7 @@ last_updated: 2026-10-02
 
 | Component | Technology |
 |-----------|-----------|
-| AI runtime | [OpenCode](https://opencode.ai/) |
+| AI runtime | [OpenCode](https://opencode.ai/) V2 (>= 2.0.0, `opencode serve`; V1 is no longer supported) |
 | Protocol | MCP (Model Context Protocol) -- stdin/stdout subprocess |
 | Providers | Anthropic Claude, AWS Bedrock, OpenAI (configurable) |
 | Agents | 19 agents with hybrid skill architecture (Bucket A/B) |
@@ -60,7 +61,7 @@ last_updated: 2026-10-02
 
 ## Key Design Decisions
 
-- **Zero dependencies at runtime** -- single static binary, no Docker, no Node.js, no Python
+- **Zero dependencies at runtime** -- single static binary, no Node.js, no Python; Docker is only needed for the optional container runtime
 - **Embedded content** -- agents/skills/permissions compiled into binary via `go:embed`
 - **Pure Go SQLite** -- `modernc.org/sqlite` avoids CGO for true static builds
 - **TOML configuration** -- human-readable, git-friendly, supports hierarchical cascade

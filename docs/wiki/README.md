@@ -17,7 +17,7 @@ tags (`CONFIRMED`, `INFERRED`, `SPECULATIVE`), source references, and timestamps
 
 ## How it works
 
-- Pages are created by the `onboarder` agent during `oh start --onboard`
+- Pages are created by the `onboarder` agent during `oh run onboarding`
 - Pages are enriched by `developer`, `reviewer`, and `auditor` agents as they discover patterns
 - Proposals are submitted via the `team_wiki_write` MCP tool and reviewed before merging
 - See [ADR-024](../architecture/adr/024-team-state-repository.en.md) and [Living Wiki Architecture](../architecture/living-wiki.en.md) for design details

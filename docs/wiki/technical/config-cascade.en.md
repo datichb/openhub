@@ -1,8 +1,10 @@
 ---
-updated: 2026-09-10
+updated: 2026-10-06
 confidence: confirmed
 agents: [developer]
 ---
+
+> [Lire en français](config-cascade.fr.md)
 
 # Configuration Cascade — OpenHub
 
@@ -45,16 +47,15 @@ At the hub level (top level), no parenthetical is added.
 | Field | Type | Default |
 |-------|------|---------|
 | `cli.language` | string | `"en"` |
-| `opencode.version` | string | — |
-| `opencode.channel` | string | `"stable"` |
-| `opencode.auto_update` | bool | false |
 | `opencode.default_provider` | string | `""` |
-| `deploy.disable_native_agents` | []string | `[]` |
+| `deploy.instruction_files` | []string | `[]` |
 | `worktree.auto_cleanup` | bool | false |
 | `worktree.base_branch` | string | auto-detected (main/master) |
 | `worktree.branch_pattern` | string | auto-detected or `"feat/%s"` |
 
-— `CONFIRMED` · developer · 2026-09-10 · config/config.go
+Removed in v5 (ignored if they remain in `hub.toml`): `opencode.version`, `opencode.channel`, `opencode.auto_update`, `opencode.install_dir` (opencode V2 is installed with its own tool) and `deploy.disable_native_agents` (the closed world always disables opencode's native agents). The `[session]` ([Sessions v5](../../guides/sessions-v5.en.md#configuration)), `[execution]` ([container](../../guides/container.en.md)), `[remote]` ([remote runners](../../guides/remote-runners.en.md)) and `[limits]` (`oh budget`) sections are described in the guides.
+
+— `CONFIRMED` · developer · 2026-10-06 · config/config.go
 
 ### MCP Services (5 levels, enforceable)
 
@@ -100,21 +101,33 @@ Hub `*bool` semantics: `nil` = not configured, `true/false` = explicit override.
 
 ### Models (3 levels, always recommendation)
 
-**Cascade**: Project.Agent → Project.Family → Project.Default → Hub.Agent → Hub.Family → Hub.Default → Team.Agent(rec) → Team.Family(rec) → Team.Default(rec) → Frontmatter
+**Cascade**: Workflow.Agent → Workflow → Project.Agent → Project.Family → Project.Default → Hub.Agent → Hub.Family → Hub.Default → Team.Agent(rec) → Team.Family(rec) → Team.Default(rec) → Frontmatter
 
-**Never enforceable** — team recommends, member/project decides.
+**Never enforceable** — team recommends, member/project decides. The model is resolved when the session bundle is built (no more deployment).
 
-— `CONFIRMED` · developer · 2026-09-10 · deploy/model_resolve.go
+> **v5 limitation:** the Team levels exist in `bricks.ResolveAgentModel`, but the launch (`cmd/v5_launch.go`, `modelOverridesFor`) only fills the hub and project levels: the team-state `[models]` recommendations are not applied to v5 sessions.
 
-### Workflow (additive overlay, full enforcement)
+— `CONFIRMED` · developer · 2026-10-06 · bricks/model_resolve.go
 
-**Cascade**: Base ← Hub overrides ← Team overrides ← Project overrides
+### Workflows (layers, security can only be hardened)
 
-When `TeamConfig.Workflow.Enforced = true`:
-- Project overrides are **completely skipped**
-- Project workflow view is **read-only** (🔒)
+**Cascade**: Hub ← Team ← Project (← session options)
 
-— `CONFIRMED` · developer · 2026-09-10 · config/workflow_resolve.go
+- Team and project workflows live in the team-state repository (`workflows/published`, `workflows.lock`); `extends` inherits from a workflow of a lower layer.
+- A higher layer can only **harden** security (permissions, risk), never loosen it.
+- `enforce:` locks fields: the following layers can no longer change them (🔒 in the TUI editor).
+
+The former `TeamConfig.Workflow.Enforced` overlay (Workflow view, checkpoint overrides) no longer exists. See [Shipped workflows](../../reference/workflows.en.md).
+
+— `CONFIRMED` · developer · 2026-10-06 · internal/workflow
+
+### Session restrictions (I6, off by default)
+
+**Cascade**: Hub → Team (recommended / imposed) → Project → Workflow (`limits:`)
+
+Max working sessions, budget per session and per day (USD), memory cap, model list. Commands: `oh budget show|set|unset|raise`.
+
+— `CONFIRMED` · developer · 2026-10-06 · internal/limits
 
 ### Team-only (no cascade)
 
@@ -122,7 +135,7 @@ When `TeamConfig.Workflow.Enforced = true`:
 |--------|------------|
 | Notification | type, webhook_url, channel, bot_name, destinations |
 | Takeover | stale_days (default: 3) |
-| Parallel | max_sessions (default: 3), port_range_start, auto_merge_beads |
+| Parallel | max_sessions (default: 5), port_range_start, auto_merge_beads — settings of the former parallel mode, no effect on v5 sessions (to limit sessions: `oh budget`) |
 | Claim | done_retention_days (default: 7) |
 
 — `CONFIRMED` · developer · 2026-09-10 · teamstate/teamconfig.go
@@ -133,7 +146,7 @@ When `TeamConfig.Workflow.Enforced = true`:
 |-------|-------------------|------------|------------------|
 | `MCP.EnabledEnforced` | Ignores hub/project | Lock icon + editing blocked | Toggle in team MCP view |
 | `MCP.URLEnforced` | Imposes team URL | Lock icon + editing blocked | Toggle in team MCP view |
-| `Workflow.Enforced` | Ignores project overrides | Read-only view 🔒 | Toggle in team config |
+| `enforce:` (workflow YAML) | The following layers can no longer change the field | 🔒 in the workflow editor | Declared in the parent workflow |
 | `Tracker.TypeEnforced` | Blocks TUI editing | Grayed + toast | Toggle in team detail view |
 | `Tracker.PushLabelsEnforced` | Imposes team value in resolution + blocks TUI | Grayed + toast | Toggle in team detail view |
 
@@ -141,5 +154,5 @@ When `TeamConfig.Workflow.Enforced = true`:
 
 ## ADR References
 
-- [ADR-030 — Enforced/Recommended config](../architecture/adr/030-enforced-recommended-config.fr.md)
-- [ADR-033 — Configuration cascade and enforcement matrix](../architecture/adr/033-config-cascade-enforcement.en.md)
+- [ADR-030 — Enforced/Recommended config](../../architecture/adr/030-enforced-recommended-config.en.md)
+- [ADR-033 — Configuration cascade and enforcement matrix](../../architecture/adr/033-config-cascade-enforcement.en.md)
