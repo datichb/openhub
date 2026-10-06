@@ -189,8 +189,8 @@ undocumented hybrid architecture. Produces a prioritized agent map in 3 levels
 Read-only — never modifies files (except the deliverables it produces).
 Never automatically triggers another agent — it suggests invocations, the user decides.
 
-Invocable directly, from `oh start` (suggestion displayed), or from the `orchestrator`
-(Mode C — pre-phase on unknown project).
+Invocable directly or through the `onboarding` workflow, offered by the `project-context`
+precondition of `feature` and `cadrage` on a project without context.
 
 **Phase 5 — Incremental enrichment:** when `ONBOARDING.md` and `CONVENTIONS.md` already exist (enriched by other agents), proposes incremental enrichment rather than a full overwrite. Delegates incremental updates to the `documentarian` via `task` (skill `living-docs-enrichment`). Full overwrite remains available with an explicit warning about losing accumulated enrichments.
 

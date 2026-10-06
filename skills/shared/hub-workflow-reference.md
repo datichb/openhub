@@ -91,7 +91,7 @@ Ces séquences sont des références — pas des contraintes rigides.
 | **Avec audit** | `planner` → `auditor` → `orchestrator-dev` |
 | **Complète** | `planner` → `designer` (Mode: ux+ui) → `auditor` → `orchestrator-dev` |
 | **Bug isolé** | `debugger` → `orchestrator-dev` (si ticket de correction créé) |
-| **Projet inconnu** | `onboarder` → Mode A ou B |
+| **Projet inconnu** | workflow `onboarding` d'abord (proposé par la précondition `project-context` de `feature` et `cadrage`), puis retour au workflow d'origine |
 
 ---
 

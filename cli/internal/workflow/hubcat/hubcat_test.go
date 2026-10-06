@@ -1,9 +1,11 @@
 package hubcat
 
 import (
+	"io/fs"
 	"os"
 	"path/filepath"
 	"reflect"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -209,6 +211,38 @@ func TestOrchestratorHasNoHardCodedModes(t *testing.T) {
 	for _, banned := range []string{"Mode A", "Mode B", "Mode C", "Mode D", "Mode E", "CP-0", "CP-onboard", "CP-spec", "CP-audit", "CP-feature", "orchestrator-modes", "orchestrator-ticket-routing"} {
 		if strings.Contains(body, banned) {
 			t.Errorf("orchestrator.md still contains %q", banned)
+		}
+	}
+}
+
+// The former entry modes A–E are workflows now (P1-T14): no agent or skill
+// refers to them, except the legacy static skills only used by `oh deploy`.
+func TestNoLegacyEntryModes(t *testing.T) {
+	legacy := regexp.MustCompile(`\b[Mm]odes? [A-E]\b`)
+	allowed := map[string]bool{
+		filepath.Join("skills", "orchestrator", "orchestrator-modes.md"):          true,
+		filepath.Join("skills", "orchestrator", "orchestrator-ticket-routing.md"): true,
+	}
+	for _, dir := range []string{"agents", "skills"} {
+		err := filepath.WalkDir(filepath.Join(repoHub, dir), func(path string, d fs.DirEntry, err error) error {
+			if err != nil || d.IsDir() || filepath.Ext(path) != ".md" {
+				return err
+			}
+			rel, _ := filepath.Rel(repoHub, path)
+			if allowed[rel] {
+				return nil
+			}
+			data, err := os.ReadFile(path)
+			if err != nil {
+				return err
+			}
+			if m := legacy.FindString(string(data)); m != "" {
+				t.Errorf("%s still refers to %q", rel, m)
+			}
+			return nil
+		})
+		if err != nil {
+			t.Fatal(err)
 		}
 	}
 }

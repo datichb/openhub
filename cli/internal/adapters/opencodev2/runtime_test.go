@@ -16,7 +16,10 @@ func TestInnerBundleTranslatesPaths(t *testing.T) {
 	b := sessionspec.BundleSpec{
 		Root: "/h/bundle", SkillsDir: "/h/bundle/skills",
 		Skills:  []sessionspec.SkillDef{{ID: "a", Dir: "/h/bundle/skills/a"}},
-		Plugins: []sessionspec.PluginDef{{ID: OhPluginID, Dir: "/h/data/oh-plugin", Options: map[string]any{"agentsDir": "/h/data/oh-plugin/agents", "agents": []string{"x"}, "rel": "not/abs"}}},
+		Plugins: []sessionspec.PluginDef{
+			{ID: OhPluginID, Dir: "/h/data/oh-plugin", Options: map[string]any{"agentsDir": "/h/data/oh-plugin/agents", "agents": []string{"x"}, "rel": "not/abs"}},
+			{ID: "context-mode", Dir: "context-mode@latest"},
+		},
 	}
 	out, err := innerBundle(b, m)
 	require.NoError(t, err)
@@ -26,6 +29,7 @@ func TestInnerBundleTranslatesPaths(t *testing.T) {
 	assert.Equal(t, "/opt/oh/data/oh-plugin", out.Plugins[0].Dir)
 	assert.Equal(t, "/opt/oh/data/oh-plugin/agents", out.Plugins[0].Options["agentsDir"])
 	assert.Equal(t, "not/abs", out.Plugins[0].Options["rel"])
+	assert.Equal(t, "context-mode@latest", out.Plugins[1].Dir, "an npm spec is not a path")
 	assert.Equal(t, "/h/bundle/skills/a", b.Skills[0].Dir, "the original bundle is not modified")
 	assert.Equal(t, "/h/data/oh-plugin/agents", b.Plugins[0].Options["agentsDir"])
 

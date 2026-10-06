@@ -131,7 +131,7 @@ Découvre le projet et crée ou enrichit le wiki `docs/wiki/` (protocole `doc-wi
 | `refresh` | `bool` (défaut : non) | non | Re-découvrir le projet et enrichir le wiki existant, sans rien supprimer |
 | `focus` | `text` (4 000 caractères max) | non | Modules ou sujets à approfondir |
 
-L'onboarder peut écrire des fichiers : la limite à `docs/wiki/` est une consigne du prompt, pas une permission. Sortie : `wiki`.
+L'onboarder peut écrire des fichiers : la limite à `docs/wiki/` (plus le `ONBOARDING.md` minimaliste de la racine) est une consigne du prompt, pas une permission. Sortie : `wiki`.
 
 ## `review`
 
@@ -203,6 +203,22 @@ Enrichit un brief de reprise de ticket, sans interaction (session sans interface
 |---|---|---|---|
 | `ticket` | `beads-id` | oui | Ticket du brief |
 | `brief` | `text` (40 000 caractères max) | oui | Contenu du brief existant |
+
+---
+
+## Plugins et code mode
+
+```yaml
+code_mode: true                  # défaut : false
+plugins:
+  - context-mode@latest          # spécification npm (paquet, version ou tag)
+  - { id: "@acme/probe", options: { verbose: true } }
+```
+
+- `code_mode` : `false` (ou absent) refuse l'outil `execute` d'opencode à tous les agents de la session ; `true` le laisse disponible.
+- `plugins` : chaque entrée est une spécification npm, installée par opencode au démarrage du serveur (cache `~/.cache/opencode/npm`), avec ses `options`. Les plugins s'ajoutent au plugin oh ; en conteneur, la spécification est passée telle quelle (installation dans le conteneur).
+- Un plugin qui ne se charge pas n'empêche pas la session de démarrer : opencode l'ignore et le note dans son journal. Le plugin doit exporter le format V2 (`{ id, setup }`) : `context-mode`, écrit pour opencode V1, ne se charge pas sous V2.
+- Les deux champs entrent dans le hash du paquet : changer de plugin ou de code mode donne un autre paquet (et un autre serveur).
 
 ---
 

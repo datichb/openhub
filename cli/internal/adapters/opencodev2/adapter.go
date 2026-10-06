@@ -139,8 +139,9 @@ func innerDir(g adapters.ServerGroup, dir string) string {
 	return dir
 }
 
-// innerBundle rewrites the machine paths of a bundle (root, skills, plugins
-// and their path options) to the server runtime's view.
+// innerBundle rewrites the machine paths of a bundle (root, skills, plugin
+// directories and their path options) to the server runtime's view; npm
+// plugin specs are left as is.
 func innerBundle(b sessionspec.BundleSpec, m ohruntime.PathMap) (sessionspec.BundleSpec, error) {
 	tr := func(p string) (string, error) {
 		if p == "" {
@@ -170,8 +171,11 @@ func innerBundle(b sessionspec.BundleSpec, m ohruntime.PathMap) (sessionspec.Bun
 	out.Plugins = make([]sessionspec.PluginDef, len(b.Plugins))
 	for i, pl := range b.Plugins {
 		out.Plugins[i] = pl
-		if out.Plugins[i].Dir, err = tr(pl.Dir); err != nil {
-			return out, err
+		// A workflow plugin is an npm spec, installed by the tool itself.
+		if filepath.IsAbs(pl.Dir) {
+			if out.Plugins[i].Dir, err = tr(pl.Dir); err != nil {
+				return out, err
+			}
 		}
 		if len(pl.Options) > 0 {
 			opts := make(map[string]any, len(pl.Options))
