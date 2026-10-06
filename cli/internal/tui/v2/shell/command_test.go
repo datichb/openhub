@@ -1,6 +1,7 @@
 package shell
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -154,4 +155,16 @@ func TestCommandRegistry_SearchRespectsMode(t *testing.T) {
 	// Project mode: global + project-only
 	results = r.Search("", views.ModeProject)
 	assert.Equal(t, 2, len(results))
+}
+
+func TestCommandRegistryReplaceGroup(t *testing.T) {
+	r := NewCommandRegistry([]Command{{ID: "home"}, {ID: "run.old"}})
+	r.ReplaceGroup("run.", []Command{{ID: "run.ticket"}, {ID: "run.review"}})
+	var ids []string
+	for _, c := range r.All() {
+		ids = append(ids, c.ID)
+	}
+	if strings.Join(ids, ",") != "home,run.ticket,run.review" {
+		t.Fatalf("ids = %v", ids)
+	}
 }

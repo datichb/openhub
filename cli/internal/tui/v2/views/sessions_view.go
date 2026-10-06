@@ -437,6 +437,9 @@ func (v *SessionsView) renderDetail(r *SessionRow) {
 	for _, d := range r.Decisions {
 		fmt.Fprintf(&b, "%s%s%s %s\n", theme.ColorTag(theme.WarningHex), d.Icon, theme.TagColor, d.Summary)
 	}
+	if r.Next != "" {
+		fmt.Fprintf(&b, "%s↪ %s%s\n", theme.ColorTag(theme.SuccessHex), i18n.Tf("tui.launch.chain_next", r.Next), theme.TagColor)
+	}
 	b.WriteString(muted(r.ID))
 	v.detail.SetText(b.String())
 }
@@ -551,6 +554,22 @@ func (v *SessionsView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 	case 'o':
 		if r != nil {
 			v.showMR(r.ID)
+		}
+	case 'e':
+		if ch, ok := v.cfg.Backend.(SessionChainer); ok && r != nil && v.shell != nil {
+			id := r.ID
+			var opts []SelectOption
+			v.async(func(ctx context.Context) (string, error) {
+				var err error
+				opts, err = ch.ChainOptions(ctx, id)
+				return "", err
+			}, func(string) {
+				if len(opts) == 0 {
+					v.toast(i18n.T("tui.launch.chain_none"), false)
+					return
+				}
+				v.shell.ShowSelectModal(i18n.T("tui.launch.chain_title"), opts, "", func(wf string) { ch.Chain(id, wf) })
+			})
 		}
 	case 'w':
 		if r != nil && !r.Finished {

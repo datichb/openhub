@@ -92,3 +92,28 @@ func TestSessionStoreV5Fields(t *testing.T) {
 	assert.Equal(t, "orchestrator-dev", got.EntryAgent)
 	assert.Equal(t, "g", got.GroupKey)
 }
+
+func TestSessionStoreWorkflowLaunchFields(t *testing.T) {
+	s := openTemp(t)
+	ctx := context.Background()
+	_, err := s.DB().Exec(`INSERT INTO projects (id, name, path) VALUES ('p1', 'p1', '/p1')`)
+	require.NoError(t, err)
+	ss := NewSessionStore(s)
+	sess := &domain.Session{ID: "ses_1", ProjectID: "p1", Status: domain.SessionStatusRunning, WorkflowID: "ticket",
+		WorkflowLayer: "hub", WorkflowVersion: 3, WorkflowRisk: "write", Location: "worktree", ParentSessionID: "ses_0"}
+	require.NoError(t, ss.Create(ctx, sess))
+	got, err := ss.Get(ctx, "ses_1")
+	require.NoError(t, err)
+	assert.Equal(t, "hub", got.WorkflowLayer)
+	assert.Equal(t, 3, got.WorkflowVersion)
+	assert.Equal(t, "write", got.WorkflowRisk)
+	assert.Equal(t, "worktree", got.Location)
+	assert.Equal(t, "ses_0", got.ParentSessionID)
+	assert.Empty(t, got.Outputs)
+
+	got.Outputs = map[string]any{"branch": "feat/bd-1", "tickets": []any{"bd-2"}}
+	require.NoError(t, ss.Update(ctx, got))
+	again, err := ss.Get(ctx, "ses_1")
+	require.NoError(t, err)
+	assert.Equal(t, got.Outputs, again.Outputs)
+}

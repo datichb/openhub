@@ -36,3 +36,15 @@ func TestLockSerializes(t *testing.T) {
 	assert.True(t, ProcessAlive(os.Getpid()))
 	assert.False(t, ProcessAlive(0))
 }
+
+func TestTryLock(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "lock")
+	unlock, err := TryLock(path)
+	require.NoError(t, err)
+	_, err = TryLock(path)
+	assert.ErrorIs(t, err, ErrLocked)
+	unlock()
+	again, err := TryLock(path)
+	require.NoError(t, err)
+	again()
+}

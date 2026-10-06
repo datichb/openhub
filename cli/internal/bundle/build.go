@@ -52,6 +52,9 @@ type Request struct {
 	Plugins               []sessionspec.PluginDef
 	WebsearchEnabled      bool
 	CodeMode              bool
+	// StrictIsolation mirrors `isolation: strict` (no "always" grant from
+	// oh); set from Spec when it requires strict isolation.
+	StrictIsolation bool
 
 	// Spec is the resolved oh/v1 workflow. When set, it selects the agents
 	// and the delegation graph (P1-T06), generates the chain skills (P1-T11)
@@ -130,6 +133,8 @@ func Build(req Request) (*Bundle, error) {
 		Plugins:    req.Plugins,
 		CodeMode:   req.CodeMode,
 		Isolation:  sessionspec.IsolationFull,
+
+		StrictIsolation: req.StrictIsolation,
 	}
 	if req.WebsearchEnabled {
 		spec.Permissions = append(spec.Permissions,

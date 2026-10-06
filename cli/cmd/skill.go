@@ -9,6 +9,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/deploy"
 	"github.com/datichb/openhub/cli/internal/i18n"
+	workflowsvc "github.com/datichb/openhub/cli/internal/services/workflow"
 	"github.com/datichb/openhub/cli/internal/skillregistry"
 	"github.com/datichb/openhub/cli/internal/tui/progress"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
@@ -234,6 +235,16 @@ Exemples:
   oh skill budget --all               Budget de tous les agents
   oh skill budget --all --threshold 200  Flag les skills > 200 lignes`,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if len(args) == 1 && newWorkflowService(cmd.Context()).Has(cmd.Context(), workflowsvc.Context{}, args[0]) {
+				warnDeprecatedAlias(cmd.ErrOrStderr(), "oh skill budget "+args[0], "oh bundle show "+args[0]+" --budget")
+				show := bundleShowCmd()
+				show.SetContext(cmd.Context())
+				show.SetOut(cmd.OutOrStdout())
+				show.SetErr(cmd.ErrOrStderr())
+				_ = show.Flags().Set("budget", "true")
+				return show.RunE(show, args)
+			}
+			warnDeprecatedAlias(cmd.ErrOrStderr(), "oh skill budget", "oh bundle show <workflow> --budget")
 			hubDir := findHubDir()
 			if hubDir == "" {
 				return fmt.Errorf("hub directory not found")

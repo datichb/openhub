@@ -44,10 +44,12 @@ type tuiSessions struct {
 	primed   bool
 	sig      string // summary signature shown on the landings
 	watchers map[chan struct{}]struct{}
+	ends     map[string]string // session id → end signature (state, outputs), « Enchaîner avec… »
 }
 
 func newTUISessions(a *app.App) *tuiSessions {
-	t := &tuiSessions{a: a, teams: map[string]string{}, seen: map[string]bool{}, watchers: map[chan struct{}]struct{}{}}
+	t := &tuiSessions{a: a, teams: map[string]string{}, seen: map[string]bool{}, watchers: map[chan struct{}]struct{}{},
+		ends: map[string]string{}}
 	t.view = views.NewSessionsView(views.SessionsViewConfig{Backend: t})
 	return t
 }
@@ -142,6 +144,7 @@ func (t *tuiSessions) refresh(ctx context.Context) {
 			}
 		}
 	}
+	ended := t.endedSessions(list)
 	t.primed = true
 	t.cache = list
 	sig := summarySignature(list)
@@ -155,6 +158,9 @@ func (t *tuiSessions) refresh(ctx context.Context) {
 	}
 	t.mu.Unlock()
 
+	for _, s := range ended {
+		go t.sessionEnded(ctx, s)
+	}
 	sh := tuiShell
 	if sh == nil {
 		return
@@ -275,7 +281,7 @@ func (t *tuiSessions) List(ctx context.Context, projectID string, all bool) ([]v
 			ID: s.ID, ProjectID: s.ProjectID, Project: v.ProjectName, Workflow: s.WorkflowID, Agent: s.EntryAgent,
 			Mode: s.Mode, Runtime: s.Runtime, Location: s.LaunchPath, Bundle: s.BundleHash, State: string(s.State),
 			StateLabel: stateLabel(s.State), StateIcon: sessionsvc.StateIcon(s.State), Cost: s.Cost, Started: s.StartedAt,
-			Finished: !v.Open(),
+			Finished: !v.Open(), Next: chainNext(s.ID),
 		}
 		if s.Title != nil {
 			r.Title = *s.Title

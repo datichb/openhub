@@ -82,18 +82,27 @@ Accepts text input with fuzzy suggestions displayed above:
 
 ## Available Commands
 
-### Sessions
+### Workflows and sessions
 
 | Command | Aliases | Description |
 |---------|---------|-------------|
-| `start` | session, code, launch | Launch an opencode session (with mode selector) |
-| `start dev` | dev, ticket | Dev-oriented session |
-| `start onboard` | onboard | Project onboarding session |
-| `audit` | — | Launch an audit (type picker) |
-| `review` | rev, cr | Launch a code review (mode picker) |
-| `debug` | dbg | Debug session (with issue prompt) |
-| `coder` | quick, q, fast | Launch opencode (free session) |
-| `parallel` | par, multi | Parallel sessions view |
+| `run <workflow>` | workflow id; former names: `dev` → `run ticket`, `start` → `run feature`, `onboard` → `run onboarding`, `audit`, `review` (`rev`, `cr`), `debug` (`dbg`), `feedback` → `run review-feedback` | Opens the launch form of the workflow (generated from the catalogue) |
+| `run <workflow> ⟨ticket⟩` | — | On the board: workflow launched on the selected ticket |
+| `workflows` | catalogue, wf | Workflow catalogue (read only) |
+| `review.publish` | publish, mr | Create the merge request of the current branch (GitLab API, suspended terminal; when GitLab writes are enabled) |
+| `coder` | session, free | Free session (no workflow; opencode V1 or empty catalogue) |
+| `sessions` | parallel, inbox | Sessions view |
+
+### Launch form
+
+Generated from the workflow YAML, in three steps: **Inputs** (one line per input: Beads ticket with a `Pick…` picker, checkbox for `bool`, list for `enum`, text area for `text`), **Options** (mode, runtime — unavailable environments show the reason —, location: base, existing worktrees, new worktree; opening), **Recap** (agents, first-turn budget, isolation, sessions and locations, warnings). `Ctrl+S` launches from any step, `Ctrl+B` goes back, `Esc` closes. A second launch while preparing is ignored. With several tickets, a "A single session for every ticket" checkbox is offered. When a precondition suggests another workflow, the recap offers a "Run <wf> first (then come back)" button.
+
+### Start, board, catalogue
+
+- **Start** (hub, project, team landings): ★ pinned (5 max), recent (3), suggestions when empty; in project/team mode, collapsed categories (Enter = pick a workflow). `*` pins or unpins (scope: hub, project or team depending on the landing). "All workflows (N)" opens the catalogue.
+- **Board**: `a` on a ticket lists the workflows taking a Beads ticket; the form opens at the Options step, ticket prefilled.
+- **Catalogue**: workflows by layer (version, risk, ⌂ ▣ ☁, validity), detail on the right; Enter launches, `*` pins.
+- **Sessions view**: `e` "Chain with…" suggests the workflows taking an output of the session (branch, tickets), form prefilled; a launch put on hold by a precondition ("run onboarding then come back") comes first. When a workflow session ends (or declares its outputs), a toast announces the suggested follow-up and the session detail shows it ("↪ Chain with review (e)").
 
 ### Projects
 

@@ -1010,27 +1010,6 @@ func (s *Shell) showSubMultiSelect(title string, options []views.SelectOption, s
 	s.app.SetFocus(list)
 }
 
-// ShowSessionLauncher displays session options as an inline select.
-func (s *Shell) ShowSessionLauncher(cfg SessionLaunchConfig) {
-	options := make([]views.SelectOption, len(cfg.Options))
-	for i, opt := range cfg.Options {
-		options[i] = views.SelectOption{
-			Label: fmt.Sprintf("%s — %s", opt.Label, opt.Description),
-			Value: opt.Label,
-		}
-	}
-	s.showInlineSelect(cfg.Title, options, "", func(value string) {
-		for _, opt := range cfg.Options {
-			if opt.Label == value {
-				if cfg.OnLaunch != nil {
-					cfg.OnLaunch(opt)
-				}
-				return
-			}
-		}
-	})
-}
-
 // SuspendAndExec suspends the TUI, runs a function, then resumes.
 // After resume it forces a full terminal re-sync (Sync) and restores focus to
 // the main content area to avoid a permanent freeze caused by tcell's
@@ -1129,6 +1108,9 @@ func (s *Shell) updateModeBar(v views.View) {
 	info.Badge, info.BadgeAlert = s.badge, s.badgeAlert
 	s.omnibar.UpdateModeBar(s.activeMode, info)
 }
+
+// Commands returns the omnibar command registry (generated commands).
+func (s *Shell) Commands() *CommandRegistry { return s.registry }
 
 // RemountIf mounts the current view again when its ID is one of ids (e.g.
 // a landing whose cached sessions summary changed). Event loop only.

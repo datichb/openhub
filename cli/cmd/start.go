@@ -31,6 +31,12 @@ Détecte automatiquement le projet si vous êtes dans un répertoire enregistré
 
 func init() {
 	rootCmd.AddCommand(startCmd)
+	addStartFlags(startCmd)
+	_ = startCmd.RegisterFlagCompletionFunc("project", completeProjectIDs)
+}
+
+// addStartFlags registers the flags of oh start.
+func addStartFlags(startCmd *cobra.Command) {
 	startCmd.Flags().StringP("agent", "a", "", "Agent à utiliser")
 	startCmd.Flags().StringP("prompt", "m", "", "Prompt initial")
 	startCmd.Flags().StringP("provider", "P", "", "Provider LLM (bedrock, anthropic, openai)")
@@ -63,8 +69,6 @@ func init() {
 
 	// Mark --yes as deprecated (no-op with warning)
 	_ = startCmd.Flags().MarkDeprecated("yes", "le lancement rapide est le défaut. Utilisez --recap pour forcer le récap.")
-
-	_ = startCmd.RegisterFlagCompletionFunc("project", completeProjectIDs)
 }
 
 func runStart(cmd *cobra.Command, args []string) error {
@@ -135,6 +139,12 @@ func runStart(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("les modes --parallel, --sweep, --dev et --onboard sont mutuellement exclusifs")
 	}
 
+	// --- Workflow aliases (v5): oh start → oh run <workflow> ---
+	handled, aliasProject, devSel, err := startAlias(cmd, a)
+	if handled {
+		return err
+	}
+
 	// --- Parallel mode (delegates entirely) ---
 	if parallelMode {
 		return runParallelMode(cmd, a, ctx)
@@ -163,10 +173,12 @@ func runStart(cmd *cobra.Command, args []string) error {
 	}
 
 	// --- Resolve project ---
-	projectID, _ := cmd.Flags().GetString("project")
-	project, err := resolveProject(ctx, a, projectID)
-	if err != nil {
-		return err
+	project := aliasProject
+	if project == nil {
+		projectID, _ := cmd.Flags().GetString("project")
+		if project, err = resolveProject(ctx, a, projectID); err != nil {
+			return err
+		}
 	}
 
 	// --- Worktree mode ---
@@ -194,12 +206,15 @@ func runStart(cmd *cobra.Command, args []string) error {
 
 	// --- Dev mode ---
 	if devMode {
-		devAgent, devPrompt, err := handleDevMode(cmd, a, project, launchPath)
-		if err != nil {
-			return err
+		if devSel == nil {
+			sel, err := handleDevMode(cmd, a, project, launchPath)
+			if err != nil {
+				return err
+			}
+			devSel = &sel
 		}
-		agent = devAgent
-		userPrompt = devPrompt
+		agent = devSel.Agent
+		userPrompt = devSel.Prompt
 	}
 
 	// --- Onboard mode ---

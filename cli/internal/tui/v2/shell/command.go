@@ -10,24 +10,6 @@ import (
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
 
-// SessionLaunchConfig holds the options for a session launch dialog.
-type SessionLaunchConfig struct {
-	// Title is the dialog title (e.g., "Lancer une session").
-	Title string
-	// Options is the list of selectable session variants.
-	Options []SessionOption
-	// OnLaunch is called with the selected option when the user confirms.
-	OnLaunch func(selected SessionOption)
-}
-
-// SessionOption represents a single launchable session variant.
-type SessionOption struct {
-	Label       string   // Display label
-	Description string   // One-line description
-	Agent       string   // opencode --agent value
-	ExtraArgs   []string // Additional CLI arguments
-}
-
 // Command represents a user-triggerable action accessible via the omnibar.
 type Command struct {
 	// ID is the canonical identifier (e.g., "start", "audit.security", "board").
@@ -107,6 +89,21 @@ func (r *CommandRegistry) All() []Command {
 	result := make([]Command, len(r.commands))
 	copy(result, r.commands)
 	return result
+}
+
+// ReplaceGroup replaces the commands whose ID starts with prefix by cmds
+// (commands generated at run time: one per workflow).
+func (r *CommandRegistry) ReplaceGroup(prefix string, cmds []Command) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	kept := make([]Command, 0, len(r.commands)+len(cmds))
+	for _, c := range r.commands {
+		if !strings.HasPrefix(c.ID, prefix) {
+			kept = append(kept, c)
+		}
+	}
+	kept = append(kept, cmds...)
+	r.commands = kept
 }
 
 // RecordUsage records a command ID as recently used.

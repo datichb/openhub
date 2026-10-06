@@ -26,9 +26,17 @@ import (
 // 5. Resolve selected tickets
 // 6. Build prompt for orchestrator-dev
 // Returns the agent name and constructed prompt.
-func handleDevMode(cmd *cobra.Command, a *app.App, project *domain.Project, launchPath string) (agentName, devPrompt string, err error) {
+// devSelection is the outcome of the dev mode picker.
+type devSelection struct {
+	Agent   string
+	Prompt  string
+	Tickets []string // selected ticket, or the children of the selected epic
+	Epic    string   // selected epic ("" for a single ticket)
+}
+
+func handleDevMode(cmd *cobra.Command, a *app.App, project *domain.Project, launchPath string) (devSelection, error) {
 	if err := beads.Available(); err != nil {
-		return "", "", fmt.Errorf("%s", i18n.T("cmd.start.dev_no_bd"))
+		return devSelection{}, fmt.Errorf("%s", i18n.T("cmd.start.dev_no_bd"))
 	}
 
 	labelFilter, _ := cmd.Flags().GetString("label")
@@ -58,7 +66,7 @@ func handleDevMode(cmd *cobra.Command, a *app.App, project *domain.Project, laun
 		directPrompt := fmt.Sprintf("Travaille sur le ticket %s. Utilise `bd prime` pour le contexte et `bd ready` pour les tâches disponibles.", ticketFlag)
 		fmt.Fprintf(a.IO.Out, "%s %s\n",
 			theme.SuccessStyle.Render(theme.IconArrow), i18n.T("cmd.start.dev_launching"))
-		return "orchestrator-dev", directPrompt, nil
+		return devSelection{Agent: "orchestrator-dev", Prompt: directPrompt, Tickets: []string{ticketFlag}}, nil
 	}
 
 	// Query tickets — include both ready (todo) and in-progress (resumable)
@@ -69,7 +77,7 @@ func handleDevMode(cmd *cobra.Command, a *app.App, project *domain.Project, laun
 
 	withLabel, withoutLabel, err := beads.DevPickableOrphanTickets(launchPath, labelFilter)
 	if err != nil {
-		return "", "", fmt.Errorf("querying tickets: %w", err)
+		return devSelection{}, fmt.Errorf("querying tickets: %w", err)
 	}
 
 	// Apply assignee filter
@@ -77,7 +85,7 @@ func handleDevMode(cmd *cobra.Command, a *app.App, project *domain.Project, laun
 		readyOpts := beads.ReadyOpts{Assignee: assigneeFilter}
 		filtered, err := beads.ListReady(launchPath, readyOpts)
 		if err != nil {
-			return "", "", fmt.Errorf("querying tickets by assignee: %w", err)
+			return devSelection{}, fmt.Errorf("querying tickets by assignee: %w", err)
 		}
 		withLabel = nil
 		withoutLabel = nil
@@ -99,7 +107,7 @@ func handleDevMode(cmd *cobra.Command, a *app.App, project *domain.Project, laun
 		if labelFilter != "" {
 			label = labelFilter
 		}
-		return "", "", fmt.Errorf("aucun ticket disponible (todo ou en cours) avec le label %q", label)
+		return devSelection{}, fmt.Errorf("aucun ticket disponible (todo ou en cours) avec le label %q", label)
 	}
 
 	// Build picker
@@ -149,7 +157,7 @@ func handleDevMode(cmd *cobra.Command, a *app.App, project *domain.Project, laun
 		),
 	)
 	if err := form.Run(); err != nil {
-		return "", "", err
+		return devSelection{}, err
 	}
 
 	selected := items[selectedIdx]
@@ -159,7 +167,7 @@ func handleDevMode(cmd *cobra.Command, a *app.App, project *domain.Project, laun
 	if selected.isEpic {
 		children, err := beads.DevPickableChildren(launchPath, selected.epicID)
 		if err != nil {
-			return "", "", fmt.Errorf("querying epic children: %w", err)
+			return devSelection{}, fmt.Errorf("querying epic children: %w", err)
 		}
 		tickets = children
 		fmt.Fprintf(a.IO.Out, "%s %s\n",
@@ -184,8 +192,14 @@ func handleDevMode(cmd *cobra.Command, a *app.App, project *domain.Project, laun
 	fmt.Fprintf(a.IO.Out, "%s %s\n",
 		theme.SuccessStyle.Render(theme.IconArrow), i18n.T("cmd.start.dev_launching"))
 
-	devPrompt = prompt.BuildDevPrompt(tickets)
-	return "orchestrator-dev", devPrompt, nil
+	sel := devSelection{Agent: "orchestrator-dev", Prompt: prompt.BuildDevPrompt(tickets)}
+	for _, t := range tickets {
+		sel.Tickets = append(sel.Tickets, t.ID)
+	}
+	if selected.isEpic {
+		sel.Epic = selected.epicID
+	}
+	return sel, nil
 }
 
 // devStatusTag returns a visual tag for the ticket status in the dev picker.

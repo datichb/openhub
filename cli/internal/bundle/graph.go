@@ -46,6 +46,9 @@ func (req *Request) applySpec() error {
 	} else if req.EntryAgent != s.EntryAgent() {
 		return fmt.Errorf("bundle: entry agent %q differs from the workflow entry %q", req.EntryAgent, s.EntryAgent())
 	}
+	if s.Isolation == workflow.IsolationStrict {
+		req.StrictIsolation = true
+	}
 	if req.WorkflowModels == nil {
 		req.WorkflowModels = WorkflowModels(s.Models)
 	}

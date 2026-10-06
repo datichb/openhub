@@ -158,13 +158,14 @@ func Run(ctx context.Context, opts RunOpts) (*RunResult, error) {
 
 	goal := opts.Goal
 	coord, err := parallel.NewCoordinator(parallel.CoordinatorOpts{
-		ProjectPath: opts.ProjectPath,
-		ProjectID:   opts.ProjectID,
-		Tasks:       tasks,
-		Agent:       opts.Agent,
-		BranchPattern: opts.Config.BranchPrefix + "%s",
-		Config:      opts.ParallelConfig,
-		StateDir:    filepath.Join(opts.HubDir, "parallel"),
+		ProjectPath:    opts.ProjectPath,
+		ProjectID:      opts.ProjectID,
+		Tasks:          tasks,
+		Agent:          opts.Agent,
+		BranchPattern:  opts.Config.BranchPrefix + "%s",
+		Config:         opts.ParallelConfig,
+		StateDir:       filepath.Join(opts.HubDir, "parallel"),
+		SessionBundles: opts.Platform != nil && !opts.Platform.RequiresDeploy(),
 		TaskPromptFunc: func(t task.Task) string {
 			return BuildSweepPrompt(t, goal)
 		},

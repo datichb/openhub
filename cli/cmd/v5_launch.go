@@ -26,10 +26,10 @@ import (
 	"github.com/datichb/openhub/cli/internal/launcher"
 	"github.com/datichb/openhub/cli/internal/provider"
 	"github.com/datichb/openhub/cli/internal/runsvc"
+	workflowsvc "github.com/datichb/openhub/cli/internal/services/workflow"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 	"github.com/datichb/openhub/cli/internal/termlaunch"
 	"github.com/datichb/openhub/cli/internal/workflow"
-	"github.com/datichb/openhub/cli/internal/worktree"
 )
 
 func init() {
@@ -50,7 +50,6 @@ func v5Available(ctx context.Context) bool {
 	}
 	v5Once.Do(func() {
 		v5Adapter, v5Err = detectV2Adapter(ctx)
-		worktree.SessionBundles = v5Err == nil
 	})
 	if v5Err != nil {
 		slog.Debug("v5 runtime unavailable, using legacy launch", "reason", v5Err)
@@ -93,6 +92,13 @@ func v5Launch(ctx context.Context, a *app.App, ui launcher.LaunchUI, opts launch
 		return true, fmt.Errorf("building session bundle: %w", err)
 	}
 
+	if !opts.SkipConfirm {
+		r := bundle.Show(b)
+		ok, err := ui.Confirm(i18n.Tf("cmd.v5.recap_confirm", entry, project.Name, location, len(r.Agents), len(r.Skills), r.Budget.Initial))
+		if err != nil || !ok {
+			return true, err
+		}
+	}
 	svc, err := newRunService(ctx, a)
 	if err != nil {
 		return true, err
@@ -107,22 +113,7 @@ func v5Launch(ctx context.Context, a *app.App, ui launcher.LaunchUI, opts launch
 		ui.Notify(i18n.Tf("cmd.v5.isolation_warning", w), launcher.LevelWarning)
 	}
 
-	switch {
-	case req.Attach == sessionspec.AttachBrowser:
-		url, err := svc.PairURL(ctx, res.SessionID, pairURL)
-		if err != nil {
-			return true, err
-		}
-		ui.Notify(i18n.Tf("cmd.v5.opened_browser", url), launcher.LevelSuccess)
-		return true, openURL(url)
-	case req.Attach == sessionspec.AttachSuspend || res.AttachErr != nil:
-		if res.AttachErr != nil {
-			ui.Notify(i18n.T("cmd.session.no_terminal"), launcher.LevelWarning)
-		}
-		return true, runAttachInline(ctx, a, svc, ui, res.SessionID)
-	}
-	ui.Notify(i18n.Tf("cmd.v5.opened_in", string(res.AttachMethod), res.SessionID), launcher.LevelSuccess)
-	return true, nil
+	return true, afterStart(ctx, a, svc, ui, req.Attach, res, true)
 }
 
 // v5Request returns the provider, team and attach settings of a project
@@ -227,14 +218,71 @@ func buildSessionBundle(a *app.App, project *domain.Project, team config.Resolve
 		slog.Warn("workflow resolution failed, using base workflow", "error", err)
 		wf, _ = deploy.ResolveAndPrepareWorkflow(workflow.BaseWorkflow())
 	}
-	hubOv, projOv := modelOverridesFor(a, project)
-	return bundle.Build(bundle.Request{
-		HubDir: hubcontent.HubContentDir(), OutDir: ohBundlesDir(), ProjectPath: project.Path, EntryAgent: entry,
-		Workflow: wf, Provider: prov, ProjectOverrides: projOv, HubOverrides: hubOv,
+	req := sessionBundleRequest(a, project, team, prov)
+	req.EntryAgent, req.Workflow = entry, wf
+	return bundle.Build(req)
+}
+
+// buildWorkflowBundle compiles the bundle of a resolved oh/v1 workflow: its
+// agents and delegation graph, generated chain skills, `models:` (workflow
+// level of the cascade), `skills:`, `isolation:`, `plugins:`, `code_mode:`
+// (bundle.Request.Spec) and `mcp:` (selection among the project MCP
+// servers). project may be nil (hub-only bundle). missing lists the MCP
+// servers the workflow asks for but the project does not provide.
+func buildWorkflowBundle(a *app.App, project *domain.Project, res *workflowsvc.Resolution, prov string) (b *bundle.Bundle, missing []string, err error) {
+	var team config.ResolvedTeamConfig
+	if project != nil {
+		team = config.ResolveTeamForProject(a.Config, project)
+	}
+	req := sessionBundleRequest(a, project, team, prov)
+	req.Spec = res.Spec
+	if ids, set := res.MCPSelection(); set {
+		req.MCP, missing = selectMCP(req.MCP, ids)
+	}
+	b, err = bundle.Build(req)
+	return b, missing, err
+}
+
+// workflowMCPServer is the oh MCP server of the workflow runtime (piste G),
+// added to every workflow bundle: listing it is never « missing ».
+const workflowMCPServer = "workflow"
+
+// selectMCP keeps the servers listed by the workflow, in the project order,
+// and returns the listed ones the project does not provide.
+func selectMCP(available []sessionspec.MCPServerDef, ids []string) (kept []sessionspec.MCPServerDef, missing []string) {
+	want := map[string]bool{}
+	for _, id := range ids {
+		want[id] = true
+	}
+	have := map[string]bool{}
+	for _, s := range available {
+		if want[s.Name] {
+			kept = append(kept, s)
+			have[s.Name] = true
+		}
+	}
+	for _, id := range ids {
+		if !have[id] && id != workflowMCPServer {
+			missing = append(missing, id)
+		}
+	}
+	return kept, missing
+}
+
+// sessionBundleRequest is the part of a bundle request shared by every
+// launch: hub, project instructions, model cascade and MCP servers.
+func sessionBundleRequest(a *app.App, project *domain.Project, team config.ResolvedTeamConfig, prov string) bundle.Request {
+	req := bundle.Request{
+		HubDir: hubcontent.HubContentDir(), OutDir: ohBundlesDir(), Provider: prov,
 		ExtraInstructionFiles: a.Config.Deploy.InstructionFiles,
-		MCP:                   sessionMCP(a, project, team),
 		WebsearchEnabled:      a.Config.Websearch.Enabled,
-	})
+	}
+	req.HubOverrides, req.ProjectOverrides = modelOverridesFor(a, project)
+	if project != nil {
+		req.ProjectPath = project.Path
+		req.MCP = sessionMCP(a, project, team)
+	}
+	return req
 }
 
 func ohBundlesDir() string { return filepath.Join(config.HubDir(), "bundles") }
@@ -244,7 +292,7 @@ func modelOverridesFor(a *app.App, project *domain.Project) (hub, proj *deploy.M
 	if a.Config.Models.Default != "" || len(a.Config.Models.Families) > 0 || len(a.Config.Models.Agents) > 0 {
 		hub = &deploy.ModelOverrides{Default: a.Config.Models.Default, Families: a.Config.Models.Families, Agents: a.Config.Models.Agents}
 	}
-	if project.Model != "" || project.ModelOverrides != nil {
+	if project != nil && (project.Model != "" || project.ModelOverrides != nil) {
 		proj = &deploy.ModelOverrides{Default: project.Model}
 		if project.ModelOverrides != nil {
 			proj.Families, proj.Agents = project.ModelOverrides.Families, project.ModelOverrides.Agents

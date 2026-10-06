@@ -371,27 +371,11 @@ func (v *BoardView) ContextCommands() []ContextCommand {
 		return nil
 	}
 
-	makeAction := func(action QuickActionType) func() {
-		return func() {
-			tc := TicketContext{ID: ticket.ID, Title: ticket.Title}
-			switch action {
-			case QuickActionAudit:
-				showAuditSubMenu(v.shell, tc, v.cfg.QuickActions)
-			case QuickActionReview:
-				showReviewSubMenu(v.shell, tc, v.cfg.QuickActions)
-			default:
-				showLaunchEnvModal(v.shell, action, "", tc, v.cfg.QuickActions)
-			}
-		}
+	tc := TicketContext{ID: ticket.ID, Title: ticket.Title}
+	if v.cfg.ProjectPath != nil {
+		tc.ProjectPath = v.cfg.ProjectPath()
 	}
-
-	id := ticket.ID
-	return []ContextCommand{
-		{ID: "board.review." + id, Label: "Review " + id, Aliases: []string{"review", "code review"}, Description: i18n.T("tui.board.action_review"), Category: i18n.T("tui.board.category_actions"), Action: makeAction(QuickActionReview), RunsDirect: true},
-		{ID: "board.dev." + id, Label: "Dev " + id, Aliases: []string{"dev", "develop"}, Description: i18n.T("tui.board.action_dev"), Category: i18n.T("tui.board.category_actions"), Action: makeAction(QuickActionDev), RunsDirect: true},
-		{ID: "board.audit." + id, Label: "Audit " + id, Aliases: []string{"audit"}, Description: i18n.T("tui.board.action_audit"), Category: i18n.T("tui.board.category_actions"), Action: makeAction(QuickActionAudit), RunsDirect: true},
-		{ID: "board.debug." + id, Label: "Debug " + id, Aliases: []string{"debug"}, Description: i18n.T("tui.board.action_debug"), Category: i18n.T("tui.board.category_actions"), Action: makeAction(QuickActionDebug), RunsDirect: true},
-	}
+	return ticketContextCommands("board.run.", tc, v.cfg.QuickActions)
 }
 
 // linkTicketToTracker prompts for an external ref and links the selected ticket (ADR-032).

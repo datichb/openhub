@@ -56,6 +56,24 @@ func runAgentSession(agent, prompt, titleLabel string, cmd *cobra.Command) error
 	})
 }
 
+// agentCommandAlias runs `oh audit|review|debug` as their workflow (O15):
+// flags become inputs when the workflow declares them, text goes to its
+// first free text input.
+func agentCommandAlias(cmd *cobra.Command, old, workflowID string, inputs map[string]string, text string) (bool, error) {
+	ctx := cmd.Context()
+	if !aliasAvailable(ctx, workflowID) {
+		return false, nil
+	}
+	a := MustApp()
+	projectID, _ := cmd.Flags().GetString("project")
+	project, err := resolveProject(ctx, a, projectID)
+	if err != nil {
+		return true, err
+	}
+	return true, runAlias(cmd, workflowAlias{Old: old, Workflow: workflowID,
+		Opts: runOptions{Project: project, LooseInputs: inputs, Text: text}})
+}
+
 var auditCmd = &cobra.Command{
 	Use:   "audit",
 	Short: "Lance un audit de code via opencode",
@@ -88,6 +106,9 @@ Types d'audit disponibles :
 			return fmt.Errorf("%s", i18n.Tf("cmd.audit.invalid_type", auditType))
 		}
 
+		if handled, err := agentCommandAlias(cmd, "oh audit", "audit", map[string]string{"type": auditType}, ""); handled {
+			return err
+		}
 		prompt := i18n.Tf("cmd.audit.prompt", auditType, description)
 		return runAgentSession("auditor", prompt, "audit", cmd)
 	},
@@ -113,6 +134,10 @@ Sans flag --mode, un menu interactif est affiché.`,
 		}
 
 		mode, _ := cmd.Flags().GetString("mode")
+		reviewBranch, _ := cmd.Flags().GetString("branch")
+		if handled, err := agentCommandAlias(cmd, "oh review", "review", map[string]string{"review_mode": mode, "branch": reviewBranch}, ""); handled {
+			return err
+		}
 
 		// If no mode specified, the reviewer-standalone skill will handle the
 		// interactive prompt via the question tool inside the opencode session.
@@ -169,6 +194,9 @@ var debugCmd = &cobra.Command{
 	Long:  "Lance une session opencode avec l'agent debugger.",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		issue, _ := cmd.Flags().GetString("issue")
+		if handled, err := agentCommandAlias(cmd, "oh debug", "debug", map[string]string{"issue": issue}, issue); handled {
+			return err
+		}
 		prompt := i18n.T("cmd.debug.prompt_default")
 		if issue != "" {
 			prompt = i18n.Tf("cmd.debug.prompt", issue)

@@ -1,0 +1,107 @@
+package cmd
+
+import (
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+
+	"github.com/spf13/cobra"
+
+	"github.com/datichb/openhub/cli/internal/sessionspec"
+	"github.com/datichb/openhub/cli/internal/workflow"
+)
+
+func runFlagsCmd(t *testing.T, args ...string) *cobra.Command {
+	t.Helper()
+	c := &cobra.Command{Use: "x"}
+	addRunFlags(c)
+	if err := c.Flags().Parse(args); err != nil {
+		t.Fatal(err)
+	}
+	return c
+}
+
+func TestRunOptionsFromFlags(t *testing.T) {
+	c := runFlagsCmd(t, "-i", "branch=feat/x", "--input", "request=a=b", "--tickets", "bd-1, bd-2,", "--mode", "manuel",
+		"--runtime", "container", "--location", "new", "--attach", "none", "--parent", "ses_1")
+	opts, err := runOptionsFromFlags(c, "ticket")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if opts.Workflow != "ticket" || opts.Inputs["branch"] != "feat/x" || opts.Inputs["request"] != "a=b" ||
+		strings.Join(opts.Tickets, ",") != "bd-1,bd-2" || opts.Mode != "manuel" || opts.Runtime != "container" ||
+		opts.Location != "new" || opts.Attach != "none" || opts.ParentSessionID != "ses_1" {
+		t.Fatalf("opts = %+v", opts)
+	}
+	if _, err := runOptionsFromFlags(runFlagsCmd(t, "-i", "novalue"), "ticket"); err == nil {
+		t.Fatal("input without '=' accepted")
+	}
+}
+
+func TestSessionBranch(t *testing.T) {
+	doc, diags := workflow.Parse([]byte("apiVersion: oh/v1\nkind: Workflow\nid: ticket\ninputs:\n  branch: { type: branch }\n"),
+		workflow.Source{Layer: workflow.LayerHub})
+	if diags.HasErrors() {
+		t.Fatal(diags)
+	}
+	if got := sessionBranch(doc.Spec, map[string]any{"branch": "feat/bd-1"}, "bd-1", "x"); got != "feat/bd-1" {
+		t.Fatalf("branch input: %q", got)
+	}
+	if got := sessionBranch(doc.Spec, map[string]any{}, "bd-1", ""); got != "oh/ticket-bd-1" {
+		t.Fatalf("fallback: %q", got)
+	}
+	if got := sessionBranch(doc.Spec, map[string]any{}, "bd-1", "feat/w"); got != "feat/w" {
+		t.Fatalf("explicit fallback: %q", got)
+	}
+	if got := sessionBranch(doc.Spec, nil, "", ""); !strings.HasPrefix(got, "oh/ticket-2") {
+		t.Fatalf("timestamp fallback: %q", got)
+	}
+}
+
+func TestPreconditionWarnings(t *testing.T) {
+	doc, diags := workflow.Parse([]byte(`apiVersion: oh/v1
+kind: Workflow
+id: feature
+preconditions:
+  context:
+    label: Contexte projet
+    check: { path_exists: [docs/wiki] }
+    on_fail: suggest
+    suggest: { workflow: onboarding, resume: true }
+  config:
+    check: { path_exists: [oh.toml] }
+    on_fail: block
+`), workflow.Source{Layer: workflow.LayerHub})
+	if diags.HasErrors() {
+		t.Fatal(diags)
+	}
+	dir := t.TempDir()
+	if _, _, err := preconditionWarnings(doc.Spec, dir); err == nil {
+		t.Fatal("failed block precondition must refuse the launch")
+	}
+	if err := os.WriteFile(filepath.Join(dir, "oh.toml"), nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	warns, sugg, err := preconditionWarnings(doc.Spec, dir)
+	if err != nil || len(warns) != 1 || warns[0].Code != "precondition" || warns[0].Args[1] != "onboarding" {
+		t.Fatalf("warns = %+v (%v)", warns, err)
+	}
+	if len(sugg) != 1 || sugg[0].Workflow != "onboarding" || !sugg[0].Resume || sugg[0].Label != "Contexte projet" {
+		t.Fatalf("suggestions = %+v", sugg)
+	}
+}
+
+func TestSelectMCP(t *testing.T) {
+	avail := []sessionspec.MCPServerDef{{Name: "gitlab"}, {Name: "team"}, {Name: "figma"}}
+	kept, missing := selectMCP(avail, []string{"team", "gitlab", "jira", "workflow"})
+	if len(kept) != 2 || kept[0].Name != "gitlab" || kept[1].Name != "team" {
+		t.Fatalf("kept = %+v (project order)", kept)
+	}
+	if len(missing) != 1 || missing[0] != "jira" {
+		t.Fatalf("missing = %v (workflow is the oh runtime server, never missing)", missing)
+	}
+	if kept, _ := selectMCP(avail, nil); len(kept) != 0 {
+		t.Fatal("an explicit empty selection keeps nothing")
+	}
+}

@@ -434,15 +434,7 @@ func StashAndCheckout(path, branch string) error {
 // are left untouched.
 var ErrProjectNotDeployed = fmt.Errorf("project has not been deployed yet (.opencode/ missing in main project)")
 
-// SessionBundles is set when sessions run on the v5 runtime: the session
-// configuration comes from a bundle outside the project, so worktrees need no
-// linked .opencode/ configuration.
-var SessionBundles bool
-
 func EnsureWorktreeConfig(wtPath, projectPath string) error {
-	if SessionBundles {
-		return nil
-	}
 	// Compute the relative path from wtPath to projectPath.
 	// Worktrees are always siblings: ../reponame relative to wtPath.
 	relProject, err := filepath.Rel(wtPath, projectPath)

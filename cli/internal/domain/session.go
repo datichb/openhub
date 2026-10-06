@@ -44,6 +44,16 @@ type Session struct {
 	State      RunState // fine-grained lifecycle state (empty for legacy sessions)
 	// StateChangedAt is when State last changed (migration v31).
 	StateChangedAt *time.Time
+
+	// Workflow launch fields (v5 phase 1, migration v34)
+	WorkflowLayer   string // layer of the launched workflow document (hub | team | project)
+	WorkflowVersion int    // published version (0 = unversioned)
+	WorkflowRisk    string // read | write | publish ("" = unknown, legacy launch)
+	Location        string // base | worktree
+	// Outputs are the typed values declared by the session (O7), by output id.
+	Outputs map[string]any
+	// ParentSessionID is the session this one was chained from (O7).
+	ParentSessionID string
 }
 
 // RunState is the fine-grained lifecycle of a v5 session.

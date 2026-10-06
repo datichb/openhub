@@ -51,6 +51,22 @@ func homeHandleKey(
 	return event
 }
 
+// homeCurrentRef returns the reference of the selected item of the active list.
+func homeCurrentRef(list *widgets.SectionedList, dual *homeDualLayout) (int, bool) {
+	if list == nil {
+		return 0, false
+	}
+	active := list
+	if dual != nil {
+		active = dual.activeList()
+	}
+	if _, item, ok := active.CurrentItem(); ok {
+		ref, refOk := item.Reference.(int)
+		return ref, refOk
+	}
+	return 0, false
+}
+
 // homeSectionItem describes a generic home-page menu item with an icon,
 // label, description, and a structural section ID for split logic.
 type homeSectionItem struct {

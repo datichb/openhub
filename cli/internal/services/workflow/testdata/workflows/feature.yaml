@@ -1,0 +1,15 @@
+apiVersion: oh/v1
+kind: Workflow
+id: feature
+category: develop
+label: Feature
+description: Cadrer puis développer une fonctionnalité
+risk: write
+entry: { agent: orchestrator }
+inputs:
+  request: { type: text }
+prompt:
+  text: "{{ if .request }}Demande : {{ data \"request\" .request }}{{ end }}"
+agents:
+  orchestrator: { role: workflow, calls: [planner] }
+  planner: { role: workflow }

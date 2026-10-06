@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/charmbracelet/huh"
@@ -79,12 +80,15 @@ func handleWorktreeMode(a *app.App, project *domain.Project, branch string) (str
 	// Link worktree to the main project's deployed config via relative symlinks.
 	// The main project is guaranteed to be deployed by autoDeployIfNeeded()
 	// which runs before handleWorktreeMode in the start flow.
-	if err := worktree.EnsureWorktreeConfig(wtPath, project.Path); err != nil {
-		return "", fmt.Errorf("worktree config: %w", err)
+	// v5 sessions get their configuration from a session bundle.
+	if !v5Available(context.Background()) {
+		if err := worktree.EnsureWorktreeConfig(wtPath, project.Path); err != nil {
+			return "", fmt.Errorf("worktree config: %w", err)
+		}
+		fmt.Fprintf(a.IO.Out, "  %s %s\n",
+			theme.SuccessStyle.Render(theme.IconSuccess),
+			i18n.T("cmd.start.worktree_linked"))
 	}
-	fmt.Fprintf(a.IO.Out, "  %s %s\n",
-		theme.SuccessStyle.Render(theme.IconSuccess),
-		i18n.T("cmd.start.worktree_linked"))
 
 	return wtPath, nil
 }

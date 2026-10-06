@@ -951,38 +951,13 @@ func (v *TeamBoardView) ContextCommands() []ContextCommand {
 		return nil
 	}
 
-	makeAction := func(action QuickActionType) func() {
-		return func() {
-			tc := TicketContext{
-				ID:          ticket.ID,
-				Title:       ticket.Title,
-				Description: ticket.Description,
-				Project:     ticket.Project,
-			}
-			if v.cfg.QuickActions.ResolveProjectByDirID != nil && ticket.Project != "" {
-				if pid, ppath, ok := v.cfg.QuickActions.ResolveProjectByDirID(ticket.Project); ok {
-					tc.ProjectPath = ppath
-					tc.ProjectID = pid
-				}
-			}
-			switch action {
-			case QuickActionAudit:
-				showAuditSubMenu(v.shell, tc, v.cfg.QuickActions)
-			case QuickActionReview:
-				showReviewSubMenu(v.shell, tc, v.cfg.QuickActions)
-			default:
-				showLaunchEnvModal(v.shell, action, "", tc, v.cfg.QuickActions)
-			}
+	tc := TicketContext{ID: ticket.ID, Title: ticket.Title, Description: ticket.Description, Project: ticket.Project}
+	if v.cfg.QuickActions.ResolveProjectByDirID != nil && ticket.Project != "" {
+		if pid, ppath, ok := v.cfg.QuickActions.ResolveProjectByDirID(ticket.Project); ok {
+			tc.ProjectPath, tc.ProjectID = ppath, pid
 		}
 	}
-
-	id := ticket.ID
-	return []ContextCommand{
-		{ID: "team.board.review." + id, Label: "Review " + id, Aliases: []string{"review", "code review"}, Description: i18n.T("tui.teamboard.cmd.review"), Category: "Actions", Action: makeAction(QuickActionReview), RunsDirect: true},
-		{ID: "team.board.dev." + id, Label: "Dev " + id, Aliases: []string{"dev", "develop"}, Description: i18n.T("tui.teamboard.cmd.dev"), Category: "Actions", Action: makeAction(QuickActionDev), RunsDirect: true},
-		{ID: "team.board.audit." + id, Label: "Audit " + id, Aliases: []string{"audit"}, Description: i18n.T("tui.teamboard.cmd.audit"), Category: "Actions", Action: makeAction(QuickActionAudit), RunsDirect: true},
-		{ID: "team.board.debug." + id, Label: "Debug " + id, Aliases: []string{"debug"}, Description: i18n.T("tui.teamboard.cmd.debug"), Category: "Actions", Action: makeAction(QuickActionDebug), RunsDirect: true},
-	}
+	return ticketContextCommands("team.board.run.", tc, v.cfg.QuickActions)
 }
 
 func (v *TeamBoardView) claimTicket() {

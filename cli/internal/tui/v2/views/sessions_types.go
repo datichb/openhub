@@ -62,6 +62,8 @@ type SessionRow struct {
 	Changed    time.Time
 	Finished   bool
 	Decisions  []SessionDecision
+	// Next is the workflow suggested to chain with (« Enchaîner avec… »).
+	Next string
 }
 
 // SessionFeedLine is one line of a session live feed.
@@ -91,6 +93,15 @@ type SessionsBackend interface {
 	Attach(sessionID, how string)
 	OpenBrowser(ctx context.Context, sessionID string) (string, error)
 	MRDescription(ctx context.Context, sessionID string) (string, error)
+}
+
+// SessionChainer is implemented by backends able to suggest the workflows to
+// chain after a session (« Enchaîner avec… », O7, P1-T27).
+type SessionChainer interface {
+	// ChainOptions lists the workflows to chain after a session.
+	ChainOptions(ctx context.Context, sessionID string) ([]SelectOption, error)
+	// Chain opens the launch form of a suggestion.
+	Chain(sessionID, workflowID string)
 }
 
 // SessionsSummary is the cached overview shown on the home, project and team

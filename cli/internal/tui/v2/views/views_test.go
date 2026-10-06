@@ -466,7 +466,9 @@ func TestHomeView_SplitItems_DualColumn(t *testing.T) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 func TestProjectModeView_SplitItems(t *testing.T) {
-	v := NewProjectModeView(ProjectModeConfig{})
+	v := NewProjectModeView(ProjectModeConfig{
+		Start: StartSectionConfig{Entries: func(StartScope) StartEntries { return StartEntries{Loaded: true} }},
+	})
 	v.project = &ActiveProject{ID: "p1", Name: "my-app", Path: "/tmp/my-app"}
 
 	v.items = v.buildItems()
@@ -475,8 +477,8 @@ func TestProjectModeView_SplitItems(t *testing.T) {
 	leftHeaders := collectHeaders(left)
 	rightHeaders := collectHeaders(right)
 
-	// Left: Sessions + Project
-	assert.Contains(t, leftHeaders, "Sessions")
+	// Left: Démarrer + Project
+	assert.Contains(t, leftHeaders, i18n.T("tui.start.section"))
 	assert.Contains(t, leftHeaders, "Project")
 
 	// Right: Configuration + Deploy
@@ -490,7 +492,7 @@ func TestProjectModeView_SplitItems(t *testing.T) {
 
 func TestTeamModeView_SplitItems(t *testing.T) {
 	v := NewTeamModeView(TeamModeConfig{
-		OnLaunchSession: func(agent string, extraArgs ...string) {},
+		Start: StartSectionConfig{Entries: func(StartScope) StartEntries { return StartEntries{Loaded: true} }},
 	})
 	v.team = &ActiveTeam{ID: "t1", Name: "alpha"}
 
@@ -500,8 +502,8 @@ func TestTeamModeView_SplitItems(t *testing.T) {
 	leftHeaders := collectHeaders(left)
 	rightHeaders := collectHeaders(right)
 
-	// Left: Sessions + Board
-	assert.Contains(t, leftHeaders, i18n.T("tui.tm.section.sessions"))
+	// Left: Démarrer + Board
+	assert.Contains(t, leftHeaders, i18n.T("tui.start.section"))
 	assert.Contains(t, leftHeaders, i18n.T("tui.tm.section.board"))
 
 	// Right: Configuration + Navigation

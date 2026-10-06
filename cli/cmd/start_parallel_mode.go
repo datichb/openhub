@@ -148,6 +148,7 @@ func runParallelMode(cmd *cobra.Command, a *app.App, ctx context.Context) error 
 		Agent:           "orchestrator-dev",
 		Config:          cfg,
 		StateDir:        stateDir,
+		SessionBundles:  !a.Platform.RequiresDeploy(),
 		PromptFunc: func(ticketID string) string {
 			return fmt.Sprintf("Travaille sur le ticket %s. Analyse, implémente et teste.", ticketID)
 		},

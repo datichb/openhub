@@ -1,0 +1,14 @@
+apiVersion: oh/v1
+kind: Workflow
+id: review
+category: quality
+label: Revue
+risk: read
+entry: { agent: reviewer }
+inputs:
+  ticket: { type: beads-id }
+  branch: { type: branch }
+agents:
+  reviewer: { role: workflow, mode: primary }
+beads: { allow: [show, list] }
+runtime: { default: local, allowed: [local] }

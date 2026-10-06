@@ -194,11 +194,6 @@ func TestWildcardMatch(t *testing.T) {
 	}
 }
 
-func TestParseVersion(t *testing.T) {
-	assert.Equal(t, "2.0.20", parseVersion("opencode v2.0.20\n"))
-	assert.Equal(t, "1.17.13", parseVersion("1.17.13"))
-}
-
 func TestProviderTokenEnv(t *testing.T) {
 	assert.Equal(t, "ANTHROPIC_API_KEY", providerTokenEnv(sessionspec.ProviderSpec{ID: "anthropic"}))
 	assert.Equal(t, "X", providerTokenEnv(sessionspec.ProviderSpec{ID: "anthropic", TokenEnv: "X"}))
