@@ -10,7 +10,6 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -88,6 +87,9 @@ type Proxy struct {
 	extra    map[string]*http.Server // additional listeners by host (containers)
 	extraURL map[string]string
 	mounts   map[string]http.Handler // other services sharing the listeners (gateways)
+	// ready is non-nil while persisted grants are being restored (Hold):
+	// requests with an unknown token wait for it instead of failing.
+	ready chan struct{}
 	// Hooks serves HooksPrefix routes for the tools holding a valid session
 	// token (oh plugin → oh daemon); the grant owner is in the request
 	// context (HookOwner).
@@ -186,19 +188,74 @@ func (p *Proxy) Listeners() map[string]string {
 	return out
 }
 
-// Close stops the proxy.
+// Close stops the proxy: in-flight requests may finish until ctx is done,
+// then the remaining connections (long streams) are closed.
 func (p *Proxy) Close(ctx context.Context) error {
 	p.mu.Lock()
 	extra := p.extra
 	p.extra, p.extraURL = nil, nil
 	p.mu.Unlock()
 	for _, s := range extra {
-		_ = s.Shutdown(ctx)
+		if s.Shutdown(ctx) != nil {
+			_ = s.Close()
+		}
 	}
 	if p.server == nil {
 		return nil
 	}
-	return p.server.Shutdown(ctx)
+	if err := p.server.Shutdown(ctx); err != nil {
+		_ = p.server.Close()
+		return err
+	}
+	return nil
+}
+
+// RestoreWait bounds how long a request with an unknown token waits for the
+// grants being restored (Hold).
+var RestoreWait = 30 * time.Second
+
+// Hold makes requests with an unknown token wait until Release: the grants
+// persisted by a previous daemon are being restored.
+func (p *Proxy) Hold() {
+	p.mu.Lock()
+	if p.ready == nil {
+		p.ready = make(chan struct{})
+	}
+	p.mu.Unlock()
+}
+
+// Release ends Hold.
+func (p *Proxy) Release() {
+	p.mu.Lock()
+	if p.ready != nil {
+		close(p.ready)
+		p.ready = nil
+	}
+	p.mu.Unlock()
+}
+
+// lookup returns the grant of a token, waiting for a restoration in progress.
+func (p *Proxy) lookup(ctx context.Context, token string) (*grantState, bool) {
+	p.mu.RLock()
+	g, ok := p.byToken[token]
+	ready := p.ready
+	p.mu.RUnlock()
+	if ok || ready == nil || token == "" {
+		return g, ok
+	}
+	t := time.NewTimer(RestoreWait)
+	defer t.Stop()
+	select {
+	case <-ready:
+	case <-ctx.Done():
+		return nil, false
+	case <-t.C:
+		return nil, false
+	}
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+	g, ok = p.byToken[token]
+	return g, ok
 }
 
 // Issue registers a grant and returns the session token to hand to the tool.
@@ -310,8 +367,8 @@ func inboundToken(r *http.Request) string {
 }
 
 func (p *Proxy) serveHook(w http.ResponseWriter, r *http.Request) {
+	g, ok := p.lookup(r.Context(), inboundToken(r))
 	p.mu.RLock()
-	g, ok := p.byToken[inboundToken(r)]
 	hooks := p.Hooks
 	p.mu.RUnlock()
 	if !ok {
@@ -356,22 +413,42 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		mounted.ServeHTTP(w, r)
 		return
 	}
-	p.mu.RLock()
-	g, ok := p.byToken[inboundToken(r)]
-	p.mu.RUnlock()
+	g, ok := p.lookup(r.Context(), inboundToken(r))
 	if !ok || g.Provider != provider {
 		http.Error(w, "credproxy: invalid session token", http.StatusUnauthorized)
 		return
 	}
 
-	body, err := io.ReadAll(io.LimitReader(r.Body, 64<<20))
+	escapedRest, _ := strings.CutPrefix(r.URL.EscapedPath(), "/"+provider+"/")
+	pathModel, err := parsePath(provider, r.Method, escapedRest)
 	if err != nil {
+		slog.Warn("credproxy: path not relayed", "provider", provider, "method", r.Method, "path", r.URL.EscapedPath())
+		http.Error(w, "credproxy: path not relayed for this provider", http.StatusNotFound)
+		return
+	}
+
+	body, err := io.ReadAll(http.MaxBytesReader(w, r.Body, MaxRequestBytes))
+	if err != nil {
+		var tooBig *http.MaxBytesError
+		if errors.As(err, &tooBig) {
+			http.Error(w, "credproxy: request body too large", http.StatusRequestEntityTooLarge)
+			return
+		}
 		http.Error(w, "credproxy: reading request", http.StatusBadRequest)
 		return
 	}
 	_ = r.Body.Close()
 
-	if model := requestModel(rest, body); !modelAllowed(g.AllowedModels, model) {
+	model := pathModel
+	if pathModel == "" {
+		m, err := bodyModel(body)
+		if err != nil && len(g.AllowedModels) > 0 {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		model = m
+	}
+	if !modelAllowed(g.AllowedModels, model) {
 		http.Error(w, fmt.Sprintf("credproxy: model %q not allowed for this session", model), http.StatusForbidden)
 		return
 	}
@@ -387,29 +464,33 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	upstream, _ := url.Parse(g.Upstream.BaseURL)
 	rp := &httputil.ReverseProxy{
-		Transport:     p.client,
+		// Credentials are applied last, on the final request: a failure
+		// (e.g. SigV4 credentials expired) refuses the request instead of
+		// sending it unsigned.
+		Transport:     authTransport{base: p.client, auth: g.Upstream.Auth, body: body},
 		FlushInterval: -1,
 		Rewrite: func(pr *httputil.ProxyRequest) {
 			pr.SetURL(upstream)
 			// Keep the inbound escaping (e.g. Bedrock "%3A" in model ids).
-			rawRest := strings.TrimPrefix(pr.In.URL.EscapedPath(), "/"+provider)
 			pr.Out.URL.Path = strings.TrimRight(upstream.Path, "/") + "/" + rest
-			pr.Out.URL.RawPath = strings.TrimRight(upstream.EscapedPath(), "/") + rawRest
+			pr.Out.URL.RawPath = strings.TrimRight(upstream.EscapedPath(), "/") + "/" + escapedRest
 			pr.Out.Host = upstream.Host
 			for _, h := range strippedHeaders {
 				pr.Out.Header.Del(h)
 			}
 			pr.Out.Body = io.NopCloser(bytes.NewReader(body))
 			pr.Out.ContentLength = int64(len(body))
-			if err := g.Upstream.Auth.Apply(pr.Out, body); err != nil {
-				slog.Error("credproxy: applying credentials", "provider", provider, "error", err)
-			}
 		},
 		ModifyResponse: func(resp *http.Response) error {
 			resp.Body = &usageReader{rc: resp.Body, g: g}
 			return nil
 		},
 		ErrorHandler: func(w http.ResponseWriter, _ *http.Request, err error) {
+			if errors.Is(err, errAuth) {
+				slog.Error("credproxy: applying credentials", "provider", provider, "error", err)
+				http.Error(w, "credproxy: cannot apply the provider credentials", http.StatusBadGateway)
+				return
+			}
 			slog.Warn("credproxy: upstream error", "provider", provider, "error", err)
 			http.Error(w, "credproxy: upstream unavailable", http.StatusBadGateway)
 		},
@@ -420,23 +501,24 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	rp.ServeHTTP(w, r)
 }
 
-// requestModel extracts the model id: Bedrock carries it in the path
-// (/model/<id>/converse[-stream] or /invoke…), others in the JSON body.
-func requestModel(path string, body []byte) string {
-	if rest, ok := strings.CutPrefix(path, "model/"); ok {
-		id, _, _ := strings.Cut(rest, "/")
-		if dec, err := url.PathUnescape(id); err == nil {
-			return dec
-		}
-		return id
+// MaxRequestBytes bounds a relayed request body (413 beyond).
+const MaxRequestBytes = 64 << 20
+
+var errAuth = errors.New("credproxy: credentials")
+
+// authTransport applies the real credential to the outgoing request; a
+// failure aborts the request before anything reaches the provider.
+type authTransport struct {
+	base http.RoundTripper
+	auth Auth
+	body []byte
+}
+
+func (t authTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	if err := t.auth.Apply(req, t.body); err != nil {
+		return nil, fmt.Errorf("%w: %w", errAuth, err)
 	}
-	var b struct {
-		Model string `json:"model"`
-	}
-	if json.Unmarshal(body, &b) == nil {
-		return b.Model
-	}
-	return ""
+	return t.base.RoundTrip(req)
 }
 
 func modelAllowed(patterns []string, model string) bool {

@@ -3,12 +3,14 @@ package credproxy
 import (
 	"bufio"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -221,9 +223,23 @@ func TestIssueValidationAndRevokeSession(t *testing.T) {
 }
 
 func TestModelExtraction(t *testing.T) {
-	assert.Equal(t, "eu.anthropic.claude-haiku-4-5-20251001-v1:0", requestModel("model/eu.anthropic.claude-haiku-4-5-20251001-v1%3A0/converse-stream", nil))
-	assert.Equal(t, "gpt-5", requestModel("chat/completions", []byte(`{"model":"gpt-5"}`)))
-	assert.Equal(t, "", requestModel("chat/completions", []byte(`not json`)))
+	m, err := parsePath(ProviderBedrock, http.MethodPost, "model/eu.anthropic.claude-haiku-4-5-20251001-v1%3A0/converse-stream")
+	require.NoError(t, err)
+	assert.Equal(t, "eu.anthropic.claude-haiku-4-5-20251001-v1:0", m)
+	// An inference profile ARN keeps its escaped slash, decoded once.
+	m, err = parsePath(ProviderBedrock, http.MethodPost, "model/arn%3Aaws%3Abedrock%3Aeu-west-1%3A1%3Ainference-profile%2Feu.x/converse")
+	require.NoError(t, err)
+	assert.Equal(t, "arn:aws:bedrock:eu-west-1:1:inference-profile/eu.x", m)
+	m, err = bodyModel([]byte(`{"messages":[{"model":"inner"}],"model":"gpt-5"}`))
+	require.NoError(t, err)
+	assert.Equal(t, "gpt-5", m)
+	m, err = bodyModel(nil)
+	require.NoError(t, err)
+	assert.Empty(t, m)
+	for _, b := range []string{`not json`, `[]`, `{"model":"a","model":"b"}`, `{"Model":"a"}`, `{"model":"a","MODEL":"b"}`, `{"model":1}`} {
+		_, err := bodyModel([]byte(b))
+		assert.ErrorIs(t, err, errModel, b)
+	}
 	assert.True(t, modelAllowed(nil, "anything"))
 	assert.True(t, modelAllowed([]string{"eu.anthropic.*"}, "eu.anthropic.claude-haiku-4-5-20251001-v1:0"))
 	assert.False(t, modelAllowed([]string{"eu.anthropic.*"}, "us.anthropic.x"))
@@ -244,4 +260,134 @@ func TestProxyMountServesOtherServices(t *testing.T) {
 	require.NoError(t, err)
 	resp.Body.Close()
 	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode, "providers still need a token")
+}
+
+func TestPathAllowList(t *testing.T) {
+	ok := []struct{ provider, method, path string }{
+		{ProviderBedrock, http.MethodPost, "model/m/converse"},
+		{ProviderBedrock, http.MethodPost, "model/m/invoke-with-response-stream"},
+		{ProviderAnthropic, http.MethodPost, "messages"},
+		{ProviderAnthropic, http.MethodGet, "models/claude"},
+		{ProviderOpenAI, http.MethodPost, "chat/completions"},
+		{ProviderOpenAI, http.MethodPost, "responses"},
+		{ProviderOpenRouter, http.MethodGet, "models"},
+	}
+	for _, c := range ok {
+		_, err := parsePath(c.provider, c.method, c.path)
+		assert.NoError(t, err, c.path)
+	}
+	bad := []struct{ provider, method, path string }{
+		{ProviderBedrock, http.MethodGet, "model/m/converse"},         // method
+		{ProviderBedrock, http.MethodPost, "model/m/../x/converse"},   // dot segment
+		{ProviderBedrock, http.MethodPost, "model/m/%2E%2E/converse"}, // escaped dot segment
+		{ProviderBedrock, http.MethodPost, "model//converse"},         // empty segment
+		{ProviderBedrock, http.MethodPost, "model/m%252Fx/converse"},  // double escaping
+		{ProviderBedrock, http.MethodPost, "guardrail/g/version/1/apply"},
+		{ProviderAnthropic, http.MethodPost, "messages/batches"},
+		{ProviderAnthropic, http.MethodPost, "messages/"},
+		{ProviderAnthropic, http.MethodGet, "models/a%2Fb"},
+		{ProviderOpenAI, http.MethodPost, "files"},
+		{ProviderOpenAI, http.MethodPost, "chat%2Fcompletions"},
+		{ProviderOpenAI, http.MethodPost, ""},
+		{"unknown", http.MethodPost, "messages"},
+	}
+	for _, c := range bad {
+		_, err := parsePath(c.provider, c.method, c.path)
+		assert.ErrorIs(t, err, errPath, c.path)
+	}
+}
+
+func TestProxyRefusesUnlistedPathsAndAmbiguousModels(t *testing.T) {
+	up, hits := countingUpstream(t)
+	p := startProxy(t)
+	tok, err := p.Issue(Grant{Provider: ProviderOpenAI, Upstream: Upstream{BaseURL: up.URL, Auth: BearerAuth{Token: "real"}}, AllowedModels: []string{"gpt-5"}})
+	require.NoError(t, err)
+	do := func(method, path, body string) int {
+		req, _ := http.NewRequest(method, p.BaseURL(ProviderOpenAI)+path, strings.NewReader(body))
+		req.Header.Set("Authorization", "Bearer "+tok)
+		resp, err := http.DefaultClient.Do(req)
+		require.NoError(t, err)
+		resp.Body.Close()
+		return resp.StatusCode
+	}
+	assert.Equal(t, http.StatusNotFound, do(http.MethodPost, "/files", `{"model":"gpt-5"}`))
+	assert.Equal(t, http.StatusNotFound, do(http.MethodPost, "/chat/../files", `{"model":"gpt-5"}`))
+	assert.Equal(t, http.StatusBadRequest, do(http.MethodPost, "/chat/completions", `{"model":"gpt-5","model":"gpt-4o"}`))
+	assert.Equal(t, http.StatusBadRequest, do(http.MethodPost, "/chat/completions", `{"model":"gpt-5","Model":"gpt-4o"}`))
+	assert.Equal(t, http.StatusOK, do(http.MethodPost, "/chat/completions", `{"model":"gpt-5"}`))
+	assert.Equal(t, int32(1), hits.Load(), "only the allowed request reached the provider")
+}
+
+func TestProxyBodyTooLarge(t *testing.T) {
+	up, hits := countingUpstream(t)
+	p := startProxy(t)
+	tok, err := p.Issue(Grant{Provider: ProviderOpenAI, Upstream: Upstream{BaseURL: up.URL, Auth: BearerAuth{Token: "real"}}})
+	require.NoError(t, err)
+	body := `{"model":"m","x":"` + strings.Repeat("a", MaxRequestBytes) + `"}`
+	req, _ := http.NewRequest(http.MethodPost, p.BaseURL(ProviderOpenAI)+"/chat/completions", strings.NewReader(body))
+	req.Header.Set("Authorization", "Bearer "+tok)
+	resp, err := http.DefaultClient.Do(req)
+	require.NoError(t, err)
+	resp.Body.Close()
+	assert.Equal(t, http.StatusRequestEntityTooLarge, resp.StatusCode)
+	assert.Equal(t, int32(0), hits.Load())
+}
+
+type failingAuth struct{}
+
+func (failingAuth) Apply(*http.Request, []byte) error { return errors.New("credentials expired") }
+
+func TestProxyRefusesWhenCredentialsFail(t *testing.T) {
+	up, hits := countingUpstream(t)
+	p := startProxy(t)
+	tok, err := p.Issue(Grant{Provider: ProviderBedrock, Upstream: Upstream{BaseURL: up.URL, Auth: failingAuth{}}})
+	require.NoError(t, err)
+	req, _ := http.NewRequest(http.MethodPost, p.BaseURL(ProviderBedrock)+"/model/m/converse", strings.NewReader(`{}`))
+	req.Header.Set("Authorization", "Bearer "+tok)
+	resp, err := http.DefaultClient.Do(req)
+	require.NoError(t, err)
+	resp.Body.Close()
+	assert.Equal(t, http.StatusBadGateway, resp.StatusCode)
+	assert.Equal(t, int32(0), hits.Load(), "nothing sent without credentials")
+}
+
+func TestProxyHoldWaitsForRestoredGrants(t *testing.T) {
+	up, hits := countingUpstream(t)
+	p := startProxy(t)
+	p.Hold()
+	tok := NewToken()
+	done := make(chan int, 1)
+	go func() {
+		req, _ := http.NewRequest(http.MethodPost, p.BaseURL(ProviderOpenAI)+"/chat/completions", strings.NewReader(`{"model":"m"}`))
+		req.Header.Set("Authorization", "Bearer "+tok)
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			done <- 0
+			return
+		}
+		resp.Body.Close()
+		done <- resp.StatusCode
+	}()
+	time.Sleep(100 * time.Millisecond)
+	require.NoError(t, p.IssueWithToken(tok, Grant{Provider: ProviderOpenAI, Upstream: Upstream{BaseURL: up.URL, Auth: BearerAuth{Token: "real"}}}))
+	p.Release()
+	select {
+	case code := <-done:
+		assert.Equal(t, http.StatusOK, code)
+	case <-time.After(3 * time.Second):
+		t.Fatal("request not released")
+	}
+	assert.Equal(t, int32(1), hits.Load())
+}
+
+func countingUpstream(t *testing.T) (*httptest.Server, *atomic.Int32) {
+	t.Helper()
+	var hits atomic.Int32
+	up := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		hits.Add(1)
+		_, _ = io.Copy(io.Discard, r.Body)
+		_, _ = w.Write([]byte(`{}`))
+	}))
+	t.Cleanup(up.Close)
+	return up, &hits
 }

@@ -10,9 +10,10 @@ type Health struct {
 	Version       string `json:"version"`
 	PID           int    `json:"pid"`
 	ProxyURL      string `json:"proxy_url"`
-	Servers       int    `json:"servers"`        // live tool servers
-	Grants        int    `json:"grants"`         // active proxy grants
-	PendingGrants int    `json:"pending_grants"` // grants waiting for their secret
+	Servers       int    `json:"servers"`             // live tool servers
+	Grants        int    `json:"grants"`              // active proxy grants
+	PendingGrants int    `json:"pending_grants"`      // grants waiting for their secret
+	Restoring     bool   `json:"restoring,omitempty"` // persisted grants still being restored
 }
 
 // GrantRequest is the body of POST /v1/grants.

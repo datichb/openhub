@@ -53,6 +53,9 @@ type Options struct {
 	// SessionsDir (~/.oh/sessions) receives the results snapshot of the
 	// sessions of a group before its server sleeps or stops.
 	SessionsDir string
+	// ServersDir (~/.oh/servers) holds the group locks shared with the oh
+	// clients ("" = the daemon does not lock groups).
+	ServersDir string
 	// Checkpoints is the CheckpointService (workflow MCP backend, checkpoint
 	// state). Nil = workflow API unavailable.
 	Checkpoints *checkpoint.Service
@@ -93,7 +96,10 @@ type Daemon struct {
 	pending     map[string]domain.ProxyGrant
 	lastBusy    time.Time
 	stop        chan struct{}
+	restored    chan struct{} // closed once the persisted grants are restored
 	stopOnce    sync.Once
+	sigMu       sync.Mutex
+	sigCache    map[string]credproxy.Auth // SigV4 signers by profile/region
 	kick        chan struct{}
 }
 
@@ -131,13 +137,20 @@ func Run(ctx context.Context, opts Options) error {
 	}
 	defer unlock()
 
-	d := &Daemon{opts: opts, proxy: credproxy.New(), pending: map[string]domain.ProxyGrant{}, clients: map[string]client{}, verified: map[string]bool{}, verifyFails: map[string]int{}, policies: map[string]QuitPolicy{}, watchers: map[string]*watcher{}, feed: newHub(), lastBusy: time.Now(), stop: make(chan struct{}), kick: make(chan struct{}, 1)}
+	d := &Daemon{opts: opts, proxy: credproxy.New(), pending: map[string]domain.ProxyGrant{}, clients: map[string]client{}, verified: map[string]bool{}, verifyFails: map[string]int{}, policies: map[string]QuitPolicy{}, watchers: map[string]*watcher{}, feed: newHub(), lastBusy: time.Now(), stop: make(chan struct{}), restored: make(chan struct{}), sigCache: map[string]credproxy.Auth{}, kick: make(chan struct{}, 1)}
 	d.proxy.Hooks = d.hooksHandler()
 	if err := d.startProxy(); err != nil {
 		return err
 	}
-	defer func() { _ = d.proxy.Close(context.Background()) }()
-	d.restoreGrants(ctx)
+	defer func() {
+		cctx, cancel := context.WithTimeout(context.Background(), proxyCloseWait)
+		defer cancel()
+		_ = d.proxy.Close(cctx)
+	}()
+	// The grants are restored once the socket answers: loading AWS
+	// credentials (SSO, IMDS…) may be slower than the clients' spawn timeout.
+	// Until then the proxy and the grant routes wait for the restoration.
+	d.proxy.Hold()
 	d.startGateway(ctx)
 
 	_ = os.Remove(opts.Paths.Socket())
@@ -155,9 +168,20 @@ func Run(ctx context.Context, opts Options) error {
 	}()
 	slog.Info("ohd started", "pid", os.Getpid(), "proxy", d.proxy.URL(), "socket", opts.Paths.Socket())
 	defer d.stopWatchers()
+	go func() {
+		defer close(d.restored)
+		defer d.proxy.Release()
+		d.restoreGrants(ctx)
+	}()
 	if opts.Notify != nil {
 		d.notes = newNotifier(d, opts.Notify)
 		go d.notes.run(ctx)
+	}
+	// Supervision revokes grants: it must not race with their restoration.
+	select {
+	case <-d.restored:
+	case <-ctx.Done():
+		return d.shutdown()
 	}
 	d.supervise(ctx)
 
@@ -248,9 +272,17 @@ func (d *Daemon) saveState() error {
 	return os.WriteFile(d.opts.Paths.State(), data, 0o600)
 }
 
+// proxyCloseWait bounds the proxy shutdown (in-flight LLM streams).
+const proxyCloseWait = 5 * time.Second
+
+// orphanGrace keeps a recent grant whose server row is not written yet (a
+// client is starting the server).
+const orphanGrace = 2 * time.Minute
+
 // restoreGrants re-registers persisted grants. Secrets are re-read from the
 // secret store (or AWS profiles); grants whose secret is unavailable stay
-// pending until a client provides it.
+// pending until a client provides it. Orphan grants (no live server holds
+// them) are revoked instead.
 func (d *Daemon) restoreGrants(ctx context.Context) {
 	if d.opts.Grants == nil {
 		return
@@ -261,6 +293,11 @@ func (d *Daemon) restoreGrants(ctx context.Context) {
 		return
 	}
 	for _, g := range grants {
+		if d.orphanGrant(ctx, g) {
+			_ = d.opts.Grants.Revoke(ctx, g.Token, time.Now())
+			slog.Info("ohd: orphan grant revoked", "owner", g.Owner)
+			continue
+		}
 		secret := ""
 		if g.Source.KeychainKey != "" && d.opts.Secrets != nil {
 			secret, _ = d.opts.Secrets.Get(ctx, g.Source.KeychainKey)
@@ -274,12 +311,48 @@ func (d *Daemon) restoreGrants(ctx context.Context) {
 	}
 }
 
+// orphanGrant reports whether no server can hold a persisted grant: its
+// group has no server row, is stopped or asleep, or holds another token.
+func (d *Daemon) orphanGrant(ctx context.Context, g domain.ProxyGrant) bool {
+	if d.opts.Servers == nil || time.Since(g.CreatedAt) < orphanGrace {
+		return false
+	}
+	srv, err := d.opts.Servers.Get(ctx, g.Owner)
+	if errors.Is(err, domain.ErrNotFound) {
+		return true
+	}
+	if err != nil {
+		return false
+	}
+	if srv.Status == domain.ServerStopped || srv.Status == domain.ServerSleeping {
+		return true
+	}
+	return srv.ProxyToken != "" && srv.ProxyToken != g.Token
+}
+
+// sigV4 returns the AWS signer of a profile/region, built once (the AWS
+// config and credentials are loaded once for all the grants using them).
+func (d *Daemon) sigV4(ctx context.Context, profile, region string) (credproxy.Auth, error) {
+	key := profile + "\x00" + region
+	d.sigMu.Lock()
+	defer d.sigMu.Unlock()
+	if a, ok := d.sigCache[key]; ok {
+		return a, nil
+	}
+	a, err := d.opts.SigV4(ctx, profile, region)
+	if err != nil {
+		return nil, err
+	}
+	d.sigCache[key] = a
+	return a, nil
+}
+
 // register builds the upstream auth for a grant and installs it in the proxy.
 func (d *Daemon) register(ctx context.Context, g domain.ProxyGrant, secret string) error {
 	var auth credproxy.Auth
 	switch g.Source.Kind {
 	case domain.CredentialSigV4:
-		a, err := d.opts.SigV4(ctx, g.Source.Profile, g.Region)
+		a, err := d.sigV4(ctx, g.Source.Profile, g.Region)
 		if err != nil {
 			return err
 		}

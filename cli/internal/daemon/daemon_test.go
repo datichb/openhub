@@ -71,7 +71,7 @@ func (e *env) start(t *testing.T, secrets SecretGetter, idle time.Duration) (*Cl
 		}
 	})
 	c := NewClient(e.paths)
-	require.Eventually(t, func() bool { _, err := c.Health(context.Background()); return err == nil }, 5*time.Second, 20*time.Millisecond)
+	require.Eventually(t, func() bool { h, err := c.Health(context.Background()); return err == nil && !h.Restoring }, 5*time.Second, 20*time.Millisecond)
 	return c, done
 }
 

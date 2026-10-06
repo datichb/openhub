@@ -15,6 +15,8 @@ import (
 	"os/exec"
 	"runtime"
 	"time"
+
+	"github.com/datichb/openhub/cli/internal/filelock"
 )
 
 // Client talks to ohd over its Unix socket.
@@ -275,7 +277,9 @@ func Ensure(ctx context.Context, paths Paths, opts EnsureOptions) (*Client, Heal
 	if err := os.MkdirAll(paths.Dir, 0o700); err != nil {
 		return nil, Health{}, err
 	}
-	unlock, err := blockingLock(paths.SpawnLock())
+	lctx, lcancel := context.WithTimeout(ctx, spawnLockWait)
+	unlock, err := filelock.LockContext(lctx, paths.SpawnLock())
+	lcancel()
 	if err != nil {
 		return nil, Health{}, err
 	}
@@ -327,6 +331,9 @@ func Ensure(ctx context.Context, paths Paths, opts EnsureOptions) (*Client, Heal
 	}
 	return nil, Health{}, fmt.Errorf("ohd did not start within %s (see %s)", timeout, paths.Log())
 }
+
+// spawnLockWait bounds the wait for a concurrent client spawning the daemon.
+const spawnLockWait = 30 * time.Second
 
 func waitGone(ctx context.Context, c *Client, timeout time.Duration) {
 	deadline := time.Now().Add(timeout)

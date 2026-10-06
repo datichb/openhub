@@ -1,10 +1,12 @@
 package credproxy
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
 	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
@@ -79,4 +81,41 @@ func TestNewSigV4FromProfileUnknownProfile(t *testing.T) {
 	t.Setenv("AWS_SHARED_CREDENTIALS_FILE", t.TempDir()+"/none")
 	_, err := NewSigV4FromProfile(context.Background(), "does-not-exist", "eu-west-1")
 	assert.Error(t, err)
+}
+
+// The provider can verify the signature of the relayed request: it is
+// computed on the final request (path escaping, headers, body).
+func TestSigV4SignatureVerifiesUpstream(t *testing.T) {
+	creds := credentials.NewStaticCredentialsProvider("AKIDHOST", "secret", "")
+	verify := &SigV4Auth{Credentials: creds, Region: "eu-west-1", Now: fixedNow}
+	var got, want string
+	up := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, _ := io.ReadAll(r.Body)
+		got = r.Header.Get("Authorization")
+		_, signed, _ := strings.Cut(got, "SignedHeaders=")
+		signed, _, _ = strings.Cut(signed, ",")
+		re, _ := http.NewRequest(r.Method, "http://"+r.Host+r.URL.RequestURI(), bytes.NewReader(body))
+		for _, h := range strings.Split(signed, ";") {
+			if h != "host" {
+				re.Header.Set(h, r.Header.Get(h))
+			}
+		}
+		re.Header.Del("X-Amz-Date")
+		require.NoError(t, verify.Apply(re, body))
+		want = re.Header.Get("Authorization")
+		fmt.Fprint(w, "{}")
+	}))
+	t.Cleanup(up.Close)
+	p := startProxy(t)
+	tok, err := p.Issue(Grant{Provider: ProviderBedrock, Upstream: Upstream{BaseURL: up.URL, Auth: &SigV4Auth{Credentials: creds, Region: "eu-west-1", Now: fixedNow}}})
+	require.NoError(t, err)
+	req, _ := http.NewRequest(http.MethodPost, p.BaseURL(ProviderBedrock)+"/model/eu.anthropic.claude-haiku-4-5-20251001-v1%3A0/converse", strings.NewReader(`{"messages":[]}`))
+	req.Header.Set("Authorization", "Bearer "+tok)
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := http.DefaultClient.Do(req)
+	require.NoError(t, err)
+	resp.Body.Close()
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+	assert.NotEmpty(t, got)
+	assert.Equal(t, want, got)
 }

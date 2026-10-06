@@ -37,5 +37,13 @@ func (p Paths) Log() string { return filepath.Join(p.Dir, "ohd.log") }
 // SpawnLock serializes daemon spawns between concurrent oh clients.
 func (p Paths) SpawnLock() string { return filepath.Join(p.Dir, "spawn.lock") }
 
+// GroupLockPath is the lock file of a server group under the servers
+// directory (~/.oh/servers/<group>/lock). oh clients hold it while they start,
+// restart or resume the group's server; the daemon takes it before putting
+// the group to sleep.
+func GroupLockPath(serversDir, group string) string {
+	return filepath.Join(serversDir, group, "lock")
+}
+
 // ErrUnsupported: the background daemon is not supported on Windows yet (O16).
 var ErrUnsupported = errors.New("ohd is not supported on Windows")
