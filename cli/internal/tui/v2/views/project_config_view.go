@@ -246,6 +246,8 @@ func (v *ProjectConfigView) buildFields() {
 			Set:         func(val string) { v.live.Status = domain.ProjectStatus(val) }},
 		{Key: "models", Kind: CfgFieldLink, Label: i18n.T("tui.config.link.models"), LinkTarget: "project.models",
 			Get: func() string { return "" }},
+		{Key: "bricks", Kind: CfgFieldLink, Label: i18n.T("tui.bricks.link"), LinkTarget: "project.agents",
+			Get: func() string { return "" }},
 
 		// ── Team ────────────────────────────────────────────────────────────
 		{Kind: CfgFieldSectionHeader, Label: i18n.T("tui.config.section.team")},

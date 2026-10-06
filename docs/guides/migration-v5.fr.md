@@ -69,3 +69,7 @@ Dans la TUI : commande `coder`, ou ouverture d'une session depuis la vue Worktre
 - l'ancienne vue Workflow (remplacée par le catalogue et l'éditeur de workflows).
 
 Le serveur MCP `team` lit l'équipe de la session dans son environnement (`OH_TEAM_ID`) au lieu de `.opencode/team.json`.
+
+## 7. Catalogue des briques
+
+L'ancienne vue « Agents » du projet (sélection des agents déployés) devient le **Catalogue des briques**, en lecture seule : agents et skills, origine (hub ou catalogue d'équipe), coût estimé, skills chargées, dépendances (`requires`) et workflows qui les livrent. Accès : Config projet › « Briques », ou la commande `bricks` de l'omnibar. Pour changer les agents d'une session, on modifie (ou on étend) son workflow.

@@ -44,6 +44,15 @@ func buildCommands(a *app.App) []shell.Command {
 			ViewID:      "sessions",
 		},
 		{
+			ID:          "bricks",
+			Label:       i18n.T("tui.bricks.cmd"),
+			Aliases:     []string{"briques", "agents", "skills", "catalogue des briques"},
+			Description: i18n.T("tui.bricks.cmd_desc"),
+			Category:    i18n.T("tui.category.workflows"),
+			Priority:    60,
+			ViewID:      "project.agents",
+		},
+		{
 			ID:          "workflows",
 			Label:       i18n.T("tui.catalog.title"),
 			Aliases:     []string{"catalogue", "catalog", "wf", "workflow"},

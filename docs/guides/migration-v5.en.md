@@ -69,3 +69,7 @@ In the TUI: the `coder` command, or opening a session from the Worktrees view.
 - the former Workflow view (replaced by the workflow catalogue and editor).
 
 The `team` MCP server reads the team of the session from its environment (`OH_TEAM_ID`) instead of `.opencode/team.json`.
+
+## 7. Brick catalogue
+
+The former project "Agents" view (selection of the deployed agents) becomes the read-only **Brick catalogue**: agents and skills, origin (hub or team catalogue), estimated cost, loaded skills, dependencies (`requires`) and the workflows that ship them. Access: Project config › "Bricks", or the `bricks` omnibar command. To change the agents of a session, edit (or extend) its workflow.
