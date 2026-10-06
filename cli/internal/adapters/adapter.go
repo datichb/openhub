@@ -218,6 +218,7 @@ type SessionResult struct {
 	TokensReasoning  int64
 	TokensCacheRead  int64
 	TokensCacheWrite int64
+	Model            string // provider/model of the session ("" if unknown)
 	Branch           string // current VCS branch of the session location ("" if unknown)
 	Changes          []FileChange
 }
@@ -243,6 +244,13 @@ type ToolAdapter interface {
 	Reply(ctx context.Context, h ServerHandle, d DecisionReply) error
 	Control(ctx context.Context, h ServerHandle, sessionID string, op ControlOp) error
 	Results(ctx context.Context, h ServerHandle, sessionID string) (SessionResult, error)
+}
+
+// TurnWaiter is implemented by adapters able to wait for the end of a
+// session turn and to read what the assistant wrote (headless runs).
+type TurnWaiter interface {
+	WaitIdle(ctx context.Context, h ServerHandle, sessionID string) error
+	AssistantText(ctx context.Context, h ServerHandle, sessionID string) (string, error)
 }
 
 // SessionEnvSetter is implemented by adapters that can (re)apply the

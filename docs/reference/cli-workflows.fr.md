@@ -21,6 +21,7 @@ Lance un workflow : résolution des couches et validation, paquet de session, pl
 - **Une seule session** (`--one-session`) : tous les tickets dans la même session, au lieu d'une session par ticket.
 - **MCP** : sans champ `mcp:` dans le workflow, la session reçoit les serveurs MCP du projet ; avec `mcp:` (même vide), seulement ceux listés (un serveur listé mais absent du projet est signalé).
 - **Préconditions** : une précondition bloquante refuse le lancement ; une suggestion (ex. pas de wiki → `onboarding`) propose de lancer d'abord le workflow suggéré. Avec `resume: true`, le lancement initial est mémorisé et reproposé à la fin de cette session (« Enchaîner avec… » dans la TUI).
+- **Sans interface** (`--headless [--output <fichier>] [--timeout 30m]`) : aucune fenêtre n'est ouverte ; oh attend la fin du tour, écrit la réponse (sortie standard ou fichier, un fichier par session : `<fichier>.<ticket>`) puis arrête la session. Refusé si un checkpoint attend une validation dans le mode choisi. Une session qui demande une décision (permission, question) reste ouverte : `oh session inbox`, `oh session approve`. `oh takeover-brief enrich` passe par `oh run brief-enrich --headless`.
 - Deux lancements simultanés dans le même dossier sont refusés (« lancement en cours »).
 - `--draft` (brouillons) arrive en phase 2. Exige opencode V2.
 

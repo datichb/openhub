@@ -3,7 +3,9 @@ package cmd
 import (
 	"errors"
 	"fmt"
+	"os"
 	"strings"
+	"time"
 
 	"github.com/charmbracelet/huh"
 	"github.com/spf13/cobra"
@@ -11,6 +13,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/launcher"
+	"github.com/datichb/openhub/cli/internal/sessionspec"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
 
@@ -41,6 +44,9 @@ func addRunFlags(c *cobra.Command) {
 	f.StringP("provider", "P", "", "Fournisseur LLM")
 	f.String("parent", "", "Session précédente (enchaînement)")
 	f.Bool("one-session", false, "Tous les tickets dans une seule session (au lieu d'une session par ticket)")
+	f.Bool("headless", false, "Sans interface : attendre la fin du tour, afficher la réponse, arrêter la session")
+	f.String("output", "", "Avec --headless : écrire la réponse dans ce fichier (défaut : sortie standard)")
+	f.Duration("timeout", 30*time.Minute, "Avec --headless : durée maximale d'attente (0 = aucune)")
 }
 
 func runWorkflowCmd(cmd *cobra.Command, args []string) error {
@@ -58,7 +64,47 @@ func runWorkflowCmd(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	recap, _ := cmd.Flags().GetBool("recap")
+	if headless, _ := cmd.Flags().GetBool("headless"); headless {
+		return runWorkflowHeadlessCLI(cmd, opts)
+	}
 	return runWorkflowCLI(cmd, opts, recap)
+}
+
+// runWorkflowHeadlessCLI runs `oh run --headless`: the answer of each session
+// goes to stdout or to --output (one file per session: <output>.<label>).
+func runWorkflowHeadlessCLI(cmd *cobra.Command, opts runOptions) error {
+	a := MustApp()
+	ctx := cmd.Context()
+	errOut := cmd.ErrOrStderr()
+	opts.Attach = string(sessionspec.AttachNone)
+	opts.Progress = func(line string) { fmt.Fprintln(errOut, theme.Subtitle.Render("  "+line)) }
+	fmt.Fprintf(errOut, "%s %s\n", theme.SuccessStyle.Render(theme.IconArrow), i18n.Tf("cmd.run.preparing", opts.Workflow))
+	p, err := prepareWorkflowRun(ctx, a, opts, errOut)
+	if err != nil {
+		return err
+	}
+	printRunWarnings(errOut, p.plan.Warnings)
+	timeout, _ := cmd.Flags().GetDuration("timeout")
+	results, err := runHeadless(ctx, a, p, launcher.NewCLIUI(errOut), timeout)
+	output, _ := cmd.Flags().GetString("output")
+	for i, r := range results {
+		if output == "" {
+			fmt.Fprintln(cmd.OutOrStdout(), r.Text)
+			continue
+		}
+		path := output
+		if len(results) > 1 {
+			path = fmt.Sprintf("%s.%d", output, i+1)
+			if i < len(p.plan.Sessions) && p.plan.Sessions[i].Label != "" {
+				path = output + "." + p.plan.Sessions[i].Label
+			}
+		}
+		if werr := os.WriteFile(path, []byte(r.Text), 0o600); werr != nil {
+			return werr
+		}
+		fmt.Fprintf(errOut, "%s %s\n", theme.SuccessStyle.Render(theme.IconSuccess), i18n.Tf("cmd.run.headless_written", path, r.Result.Cost))
+	}
+	return err
 }
 
 // runOptionsFromFlags reads the launch flags shared by oh run and its aliases.

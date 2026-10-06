@@ -4,11 +4,13 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/domain"
+	workflowsvc "github.com/datichb/openhub/cli/internal/services/workflow"
 )
 
 // testHubEnv points the hub at the repository content and the hub layer at
@@ -47,5 +49,26 @@ func TestLaunchFormConfig(t *testing.T) {
 	}
 	if _, err := launchFormConfig(context.Background(), a, project, tuiLaunchRequest{WorkflowID: "nope"}); err == nil {
 		t.Fatal("unknown workflow accepted")
+	}
+}
+
+func TestHeadlessCheck(t *testing.T) {
+	testHubEnv(t)
+	t.Setenv(workflowsDirEnv, "") // shipped workflows
+	ctx := context.Background()
+	svc := newWorkflowService(ctx)
+	brief, err := svc.Resolve(ctx, workflowsvc.Context{}, "brief-enrich", workflowsvc.ResolveOpts{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := headlessCheck(&preparedRun{resolution: brief}); err != nil {
+		t.Fatalf("brief-enrich runs without interface: %v", err)
+	}
+	ticket, err := svc.Resolve(ctx, workflowsvc.Context{}, "ticket", workflowsvc.ResolveOpts{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := headlessCheck(&preparedRun{resolution: ticket}); err == nil || !strings.Contains(err.Error(), "cp-2") {
+		t.Fatalf("ticket waits at cp-2: %v", err)
 	}
 }

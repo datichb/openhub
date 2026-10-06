@@ -502,6 +502,9 @@ func (a *Adapter) Results(ctx context.Context, h adapters.ServerHandle, sessionI
 		TokensIn: s.Tokens.Input, TokensOut: s.Tokens.Output, TokensReasoning: s.Tokens.Reasoning,
 		TokensCacheRead: s.Tokens.Cache.Read, TokensCacheWrite: s.Tokens.Cache.Write,
 	}
+	if s.Model != nil {
+		res.Model = s.Model.ProviderID + "/" + s.Model.ID
+	}
 	if s.Location.Directory != "" {
 		if vcs, err := c.VCS(ctx, s.Location.Directory); err == nil {
 			res.Branch = vcs.Branch.Current

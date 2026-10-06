@@ -102,6 +102,8 @@ type StartRequest struct {
 	WorkflowRisk    string
 	LocationKind    string // base | worktree
 	ParentSessionID string
+	// Headless marks a session run without interactive client.
+	Headless bool
 
 	Provider      string          // hub provider name: bedrock | anthropic | openrouter
 	ProviderCfg   provider.Config // AWS profile / region
@@ -552,6 +554,9 @@ func (s *Service) persistSession(ctx context.Context, req StartRequest, srv *dom
 	}
 	if title != "" {
 		sess.Title = &title
+	}
+	if req.Headless {
+		sess.Type = domain.SessionTypeHeadless
 	}
 	if err := s.Sessions.Create(ctx, sess); err != nil {
 		slog.Warn("runsvc: session tracking failed", "session", sid, "error", err)

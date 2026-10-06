@@ -7,7 +7,6 @@ import (
 	"sync"
 
 	"github.com/datichb/openhub/cli/internal/adapters"
-	"github.com/datichb/openhub/cli/internal/adapters/opencodev2"
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/bundle"
 	"github.com/datichb/openhub/cli/internal/config"
@@ -91,28 +90,20 @@ func (p *v5Platform) RunHeadless(ctx context.Context, opts platform.HeadlessOpts
 		location = project.Path
 	}
 	req.Bundle, req.Location, req.EntryAgent, req.Prompt = b, location, entry, opts.Prompt
-	req.Title, req.WorkflowID, req.Attach = sessionTitle(project, entry)+" (headless)", entry, sessionspec.AttachNone
+	req.Title, req.WorkflowID, req.Attach, req.Headless = sessionTitle(project, entry)+" (headless)", entry, sessionspec.AttachNone, true
 	res, err := svc.StartSession(ctx, req)
 	if err != nil {
 		return nil, err
 	}
 	defer func() { _ = svc.StopSession(context.Background(), res.SessionID) }()
 
-	c := opencodev2.NewClient(res.Server.URL, res.Server.Password)
-	if err := c.Wait(ctx, res.SessionID); err != nil {
-		return nil, fmt.Errorf("waiting for the headless session: %w", err)
-	}
-	text, err := c.AssistantText(ctx, res.SessionID)
+	turn, err := svc.AwaitTurn(ctx, res.SessionID)
 	if err != nil {
 		return nil, err
 	}
-	out := &platform.HeadlessResult{Content: text, RawOutput: text}
-	if s, err := c.GetSession(ctx, res.SessionID); err == nil {
-		out.Cost, out.TokensIn, out.TokensOut, out.TokensReasoning = s.Cost, s.Tokens.Input, s.Tokens.Output, s.Tokens.Reasoning
-		if s.Model != nil {
-			out.Model = s.Model.ProviderID + "/" + s.Model.ID
-		}
-	}
+	r := turn.Result
+	out := &platform.HeadlessResult{Content: turn.Text, RawOutput: turn.Text, Model: r.Model,
+		Cost: r.Cost, TokensIn: r.TokensIn, TokensOut: r.TokensOut, TokensReasoning: r.TokensReasoning}
 	return out, nil
 }
 

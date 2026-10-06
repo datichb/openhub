@@ -21,6 +21,7 @@ Launches a workflow: layer resolution and validation, session bundle, session pl
 - **Single session** (`--one-session`): every ticket in the same session, instead of one session per ticket.
 - **MCP**: without an `mcp:` field in the workflow, the session gets the project MCP servers; with `mcp:` (even empty), only the listed ones (a listed server missing from the project is reported).
 - **Preconditions**: a blocking precondition refuses the launch; a suggestion (e.g. no wiki → `onboarding`) offers to run the suggested workflow first. With `resume: true`, the initial launch is remembered and offered again when that session ends ("Chain with…" in the TUI).
+- **Without interface** (`--headless [--output <file>] [--timeout 30m]`): no window is opened; oh waits for the end of the turn, writes the answer (standard output or file, one file per session: `<file>.<ticket>`) then stops the session. Refused when a checkpoint waits for a validation in the chosen mode. A session asking for a decision (permission, question) stays open: `oh session inbox`, `oh session approve`. `oh takeover-brief enrich` goes through `oh run brief-enrich --headless`.
 - Two simultaneous launches in the same directory are refused ("launch in progress").
 - `--draft` (drafts) comes in phase 2. Requires opencode V2.
 

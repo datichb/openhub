@@ -104,3 +104,21 @@ func (r *Resolution) MCPSelection() (ids []string, set bool) {
 	}
 	return r.Spec.MCP, set
 }
+
+// WaitingCheckpoints returns the checkpoints that may wait for the user in
+// the resolved mode (pause, conditional; skip on a mandatory checkpoint
+// counts as pause): a run without interface cannot pass them.
+func (r *Resolution) WaitingCheckpoints() []string {
+	var out []string
+	for _, id := range r.Spec.Checkpoints.Keys() {
+		cp, _ := r.Spec.Checkpoints.Get(id)
+		if cp.Disabled {
+			continue
+		}
+		switch b := cp.Behavior(r.Mode); {
+		case b == wf.BehaviorPause, b == wf.BehaviorConditional, b == wf.BehaviorSkip && cp.IsMandatory():
+			out = append(out, id)
+		}
+	}
+	return out
+}
