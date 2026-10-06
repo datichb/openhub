@@ -36,6 +36,14 @@ func workflowValidateCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			if layers == nil && projectRef == "" {
+				// No active team: the context of the editing commands (project
+				// of the current folder, --team, the only solo space).
+				layers, err = validateContextLayers(cmd)
+				if err != nil {
+					return err
+				}
+			}
 			report, err := runWorkflowValidate(findHubDir(), target, workflow.Layer(layer), all, layers)
 			if err != nil {
 				return err
@@ -47,6 +55,7 @@ func workflowValidateCmd() *cobra.Command {
 	cmd.Flags().Bool("json", false, "Sortie JSON")
 	cmd.Flags().Bool("all", false, "Valide tous les workflows du hub")
 	cmd.Flags().String("project", "", i18n.T("teamstate.workflow.flag_project"))
+	cmd.Flags().String("team", "", i18n.T("teamstate.workflow.cli.flag_team"))
 	return cmd
 }
 
@@ -119,4 +128,19 @@ func printWorkflowValidate(w io.Writer, r *workflowValidateReport, asJSON bool) 
 		return errors.New(i18n.Tf("cmd.workflow.validate.failed", errs, warns))
 	}
 	return nil
+}
+
+// validateContextLayers returns the team-state of the editing commands'
+// context (project of the current folder with its team or solo space,
+// --team, else the only solo space); nil without one.
+func validateContextLayers(cmd *cobra.Command) (*workflowTeamLayers, error) {
+	c, err := workflowCmdContext(cmd)
+	if err != nil {
+		return nil, err
+	}
+	ts, err := workflowTeamState(cmd.Context(), c)
+	if err != nil || ts == nil {
+		return nil, err
+	}
+	return &workflowTeamLayers{Repo: ts.Repo, Project: ts.Project, TeamID: ts.TeamID, Member: ts.Member}, nil
 }

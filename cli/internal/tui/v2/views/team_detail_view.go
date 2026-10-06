@@ -1017,6 +1017,14 @@ func GovernanceLabel(policy string) string {
 	return i18n.Tf("tui.team.governance.unsupported", policy)
 }
 
+// governanceValue is the policy alone (the field label says « publication »).
+func governanceValue(policy string) string {
+	if policy == "" || policy == teamstate.GovernancePublishAnyMember {
+		return i18n.T("tui.team.governance.value_any_member")
+	}
+	return i18n.Tf("tui.team.governance.value_unsupported", policy)
+}
+
 func (v *TeamDetailView) buildWorkflowFields() {
 	tc := v.cfg.ResolveTeam()
 	if !tc.hasState() {
@@ -1026,7 +1034,7 @@ func (v *TeamDetailView) buildWorkflowFields() {
 	v.fields = append(v.fields, configField{
 		Key: "governance.publish", Kind: CfgFieldReadonly, Label: i18n.T("tui.team.governance.label"),
 		Description: i18n.T("tui.team.governance.desc"), Scope: ScopeTeamShared,
-		Get: func() string { return GovernanceLabel(v.teamCfg.Governance.PublishPolicy()) },
+		Get: func() string { return governanceValue(v.teamCfg.Governance.PublishPolicy()) },
 	})
 	if !tc.Solo {
 		return

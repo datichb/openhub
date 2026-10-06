@@ -123,6 +123,9 @@ type WorkflowCatalogView struct {
 	data   CatalogData
 	err    error
 	gen    uint64
+	// selKey is the selected entry, kept across remounts (back from the
+	// editor, the publication…).
+	selKey string
 }
 
 var _ View = (*WorkflowCatalogView)(nil)
@@ -155,7 +158,12 @@ func (v *WorkflowCatalogView) Mount(content *tview.Flex, app *tview.Application)
 			v.activate(e)
 		}
 	})
-	v.list.SetItemChangedFunc(func(_ int, it widgets.SectionItem) { v.showDetail(it) })
+	v.list.SetItemChangedFunc(func(_ int, it widgets.SectionItem) {
+		if r, ok := it.Reference.(itemRef); ok && r.key != "" {
+			v.selKey = r.key
+		}
+		v.showDetail(it)
+	})
 	v.list.SetBorder(true).SetTitleAlign(tview.AlignLeft)
 	v.list.SetBorderColor(theme.ActiveMode.Primary)
 	v.detail = tview.NewTextView().SetDynamicColors(true).SetWrap(true)
@@ -519,6 +527,13 @@ func (v *WorkflowCatalogView) render() {
 	cur := -1
 	if idx, _, ok := v.list.CurrentItem(); ok {
 		cur = idx
+	}
+	if v.selKey != "" {
+		for i, it := range items {
+			if r, ok := it.Reference.(itemRef); ok && r.key == v.selKey {
+				cur = i
+			}
+		}
 	}
 	v.list.SetItems(items)
 	if cur >= 0 && cur < len(items) {

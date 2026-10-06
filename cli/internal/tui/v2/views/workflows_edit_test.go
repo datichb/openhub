@@ -251,3 +251,25 @@ func TestHistoryViewRestore(t *testing.T) {
 		t.Fatal("not restored")
 	}
 }
+
+// The selection survives a remount (back from the editor or the
+// publication screen; found in the real run).
+func TestWorkflowCatalogKeepsSelection(t *testing.T) {
+	v := NewWorkflowCatalogView(WorkflowCatalogConfig{Edit: func(CatalogEntry) {}})
+	content := tview.NewFlex()
+	app := runApp(t, content)
+	onLoop(app, func() {
+		v.Mount(content, app)
+		v.SetData(catalogData())
+		selectRef(t, v, "draft:team:release")
+	})
+	var key string
+	onLoop(app, func() {
+		v.Unmount()
+		v.Mount(content, app)
+		v.SetData(catalogData())
+		_, it, _ := v.list.CurrentItem()
+		key = it.Reference.(itemRef).key
+	})
+	assert.Equal(t, "draft:team:release", key)
+}

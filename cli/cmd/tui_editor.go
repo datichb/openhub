@@ -89,7 +89,7 @@ func editorCheck(ctx context.Context, c workflowsvc.Context, layer workflow.Laye
 		out.Prompt = p
 	}
 	if chk.Valid() {
-		out.Bundle, out.BundleErr = editorBundlePreview(ctx, c, res)
+		out.Bundle, out.BundleErr = editorBundlePreview(ctx, c, res, chk.TeamBricks)
 	}
 	return out, nil
 }
@@ -104,7 +104,7 @@ func shortSource(p string) string {
 // editorBundlePreview builds the draft's bundle in a temporary directory
 // and summarises it. Without an active project, the project MCP servers
 // and models are unknown: listed servers are « project dependent ».
-func editorBundlePreview(ctx context.Context, c workflowsvc.Context, res *workflowsvc.Resolution) (lines []string, failure string) {
+func editorBundlePreview(ctx context.Context, c workflowsvc.Context, res *workflowsvc.Resolution, teamBricks []string) (lines []string, failure string) {
 	a := TryApp()
 	if a == nil || a.Config == nil {
 		return nil, ""
@@ -159,8 +159,8 @@ func editorBundlePreview(ctx context.Context, c workflowsvc.Context, res *workfl
 	if r.DefaultModel != "" {
 		lines = append(lines, i18n.Tf("tui.editor.preview.model", r.DefaultModel))
 	}
-	if dir := res.BricksDir(); dir != "" {
-		lines = append(lines, i18n.T("tui.editor.preview.team_bricks"))
+	if len(teamBricks) > 0 {
+		lines = append(lines, i18n.Tf("tui.editor.preview.team_bricks", strings.Join(teamBricks, ", ")))
 	}
 	return lines, ""
 }

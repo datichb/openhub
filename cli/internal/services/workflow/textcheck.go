@@ -25,6 +25,8 @@ type TextCheck struct {
 	Locked []string
 	// Path is the draft file the text would be saved to.
 	Path string
+	// TeamBricks are the team catalogue bricks the workflow uses.
+	TeamBricks []string
 }
 
 // Valid reports whether the text can be saved (no error).
@@ -94,6 +96,9 @@ func (s *Service) checkDraftText(cat *catalog, layer wf.Layer, yaml, prompt []by
 	out.Diagnostics = diags
 	if r != nil {
 		out.Resolution = &Resolution{Resolved: r, Diagnostics: diags, env: env}
+		if cat.bricks != nil {
+			out.TeamBricks = teamBricksUsed(r.Spec, env.Agents, cat.bricks.Team)
+		}
 	}
 	if ext := doc.Spec.Extends; ext != "" {
 		if pref, err := wf.ParseRef(ext); err == nil {

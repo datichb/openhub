@@ -933,7 +933,7 @@ func (v *WorkflowEditorView) fieldSecondary(f *edField, doc *workflow.Document) 
 	if f.lock != "" && v.check.locked(f.lock) && (doc == nil || !doc.Has(strings.Join(f.path, "."))) {
 		parts = append(parts, "🔒 "+i18n.T("tui.editor.locked"))
 	}
-	if len(f.path) > 0 {
+	if len(f.path) > 0 && (doc == nil || !doc.Has(strings.Join(f.path, "."))) {
 		if o := v.originLabel(strings.Join(f.path, ".")); o != "" {
 			parts = append(parts, "← "+o)
 		}

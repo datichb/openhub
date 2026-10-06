@@ -43,7 +43,7 @@ func TestTeamDetailGovernanceAndPromote(t *testing.T) {
 	gov, ok := fieldByKey(v, "governance.publish")
 	require.True(t, ok)
 	assert.Equal(t, CfgFieldReadonly, gov.Kind)
-	assert.Equal(t, i18n.T("tui.team.governance.any_member"), gov.Get())
+	assert.Equal(t, i18n.T("tui.team.governance.value_any_member"), gov.Get())
 	_, ok = fieldByKey(v, "solo")
 	assert.True(t, ok)
 	act, ok := fieldByKey(v, "solo.promote")

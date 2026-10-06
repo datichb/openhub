@@ -85,3 +85,18 @@ func TestInitWizardSoloSpace(t *testing.T) {
 	require.NotNil(t, web.TeamID)
 	assert.Equal(t, "solo", *web.TeamID)
 }
+
+// `oh workflow validate` without an active team uses the only solo space
+// (found in the real run: team bricks of a solo space were unknown).
+func TestValidateContextLayersSolo(t *testing.T) {
+	a, _ := setupSoloTestApp(t)
+	_, err := initSoloTeam(t.Context(), a, soloTeamParams{MemberID: "alice"})
+	require.NoError(t, err)
+	cmd := workflowValidateCmd()
+	cmd.SetContext(t.Context())
+	layers, err := validateContextLayers(cmd)
+	require.NoError(t, err)
+	require.NotNil(t, layers)
+	assert.Equal(t, "solo", layers.TeamID)
+	assert.Equal(t, "alice", layers.Member)
+}

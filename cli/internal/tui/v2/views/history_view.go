@@ -150,11 +150,11 @@ func (v *HistoryView) render() {
 	}
 	var items []widgets.SectionItem
 	for _, h := range v.versions {
-		main := fmt.Sprintf("v%-3d %-10s %s  %s", h.Version, h.By, h.At.Local().Format("02/01 15:04"), h.Message)
+		main := tview.Escape(fmt.Sprintf("v%-3d %-10s %s  %s", h.Version, h.By, h.At.Local().Format("02/01 15:04"), h.Message))
 		if h.Current {
 			main += "  [" + theme.SuccessHex + "](" + i18n.T("tui.history.current") + ")[-]"
 		}
-		items = append(items, widgets.SectionItem{MainText: tview.Escape(main), Reference: h.Version})
+		items = append(items, widgets.SectionItem{MainText: main, Reference: h.Version})
 	}
 	if len(items) == 0 {
 		msg := i18n.T("tui.history.empty")
