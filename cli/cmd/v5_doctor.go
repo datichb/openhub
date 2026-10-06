@@ -56,6 +56,10 @@ func v5DoctorChecks() []views.DoctorCheck {
 		out = append(out, views.DoctorCheck{Name: i18n.T("cmd.doctor.v5.daemon"), OK: true, Detail: i18n.T("cmd.doctor.v5.daemon_off")})
 	}
 
+	out = append(out, securityDoctorChecks(ctx)...)
+	out = append(out, limitsDoctorChecks(ctx)...)
+	out = append(out, inProcessDoctorChecks()...)
+
 	// Informational until containers (phase 4) need --relative-paths.
 	_, gitDetail := gitRelativeWorktrees()
 	out = append(out, views.DoctorCheck{Name: i18n.T("cmd.doctor.v5.git"), OK: true, Detail: gitDetail})

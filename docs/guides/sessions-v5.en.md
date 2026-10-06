@@ -107,6 +107,22 @@ The Bedrock region comes from the oh config, then `AWS_REGION` / `AWS_DEFAULT_RE
 
 Changing the provider, region or key of a project starts a new server on the next launch. Running sessions keep their settings until their server sleeps.
 
+## Restrictions
+
+Off by default. They limit the sessions of the machine:
+
+| Restriction | Effect |
+|---|---|
+| `max_active_sessions` | number of sessions whose agent works at the same time; beyond, a new session waits in the queue (state `queued`, interactive sessions first) and starts when a slot frees up |
+| `session_budget_usd` | budget of a session, subagents included |
+| `daily_budget_usd` | budget of all the sessions of a day (of the project when set for a project); once spent, no new session |
+| `memory_mb` | memory of the session servers (estimate in `oh doctor`); beyond, new sessions wait, idle groups are put to sleep and oh warns once |
+| `models` | allowed models (patterns on the id sent to the provider, e.g. `eu.anthropic.*`); the proxy refuses the others |
+
+They are set in cascade: `hub.toml` `[limits]` (`oh budget set …`, or **Settings → Session restrictions**), the team `config.toml` (`[limits.recommended]`, `[limits.enforced]`), the project (`oh budget set … --project <p>`), then the workflow (`limits:`). The most specific value wins; a value enforced by the team is a ceiling nobody can loosen. `oh budget show [-p <project>]` shows the effective values, their origin and what was spent today.
+
+Budgets are **soft caps**, checked on the cost reported by the tool: the step that overruns a budget finishes, then a `$` decision appears in the inbox. While it is open, any new step of the session is interrupted. Answers: `oh budget raise <session> [amount]` (default: the configured budget once more), `oh session stop <session>`, or dismiss (one more step, the decision comes back after it). Spending is kept in `oh.db` (usage ledger): it survives daemon restarts and sleep/resume cycles.
+
 ## Environment variables
 
 | Variable | Effect |
@@ -117,5 +133,6 @@ Changing the provider, region or key of a project starts a new server on the nex
 
 ## Limitations
 
-- **Windows**: v5 sessions are not supported yet, because the daemon is missing. Use opencode V1 or WSL.
-- **Local security**: the agent runs as your user and can reach the daemon socket and `oh.db`, but never the LLM key. See [SECURITY.md](../../SECURITY.md).
+- **Windows** (local sessions only): there is no background daemon; the credential proxy and the session tracking run inside the oh process (TUI, or the command that opened the session in the current terminal). Sessions only run while that oh is open: when it quits, it first waits for the steps you chose to finish, then puts the sessions to sleep (resume with `oh session attach`). `oh doctor` reminds it. For sessions that outlive oh, use WSL.
+- **Proxy port**: the daemon keeps its proxy port across restarts. If that port was taken by another program meanwhile, the daemon picks another one and puts to sleep the servers that still use the old one (they can no longer reach the provider); working sessions show an error in the inbox. Resume them (`oh session resume <id>` or attach): their server restarts with the new port.
+- **Local security**: the agent runs as your user and can reach the daemon socket and `oh.db` (token hashes only), but never the LLM key; new tokens are reserved to the oh CLI (capability in the keychain, see `oh doctor`). See [SECURITY.md](../../SECURITY.md).

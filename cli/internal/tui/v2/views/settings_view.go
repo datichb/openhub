@@ -480,6 +480,7 @@ func (v *SettingsView) buildFields() {
 			func(b *bool) { v.live.Tracker.WriteEnabled = b }),
 	}...)
 	v.fields = append(v.fields, v.remoteFields()...)
+	v.fields = insertFieldsAfter(v.fields, "session_idle_sleep", v.budgetFields())
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

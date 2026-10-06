@@ -206,6 +206,21 @@ Enriches a ticket takeover brief, without interaction (headless session). oh pro
 
 ---
 
+## Limits
+
+```yaml
+limits:
+  budget_usd: 5                          # budget of each session (USD)
+  models: ["eu.anthropic.claude-*"]      # allowed models (wildcard patterns)
+```
+
+- Both are optional and add to the hub, team and project restrictions (`oh budget show`, guide [Sessions v5](../guides/sessions-v5.en.md#restrictions)). The most specific value wins; a value enforced by the team is a ceiling.
+- `budget_usd` is a soft cap on the cost the tool reports for the session and its subagents: the step that overruns it finishes, then a `$` decision asks to raise the budget or stop.
+- `models` applies to the model id sent to the provider (Bedrock: `eu.anthropic.…`); the credential proxy refuses the others.
+- With `extends`, a workflow may only tighten them: a lower budget, and models covered by the parent's patterns.
+
+---
+
 ## Plugins and code mode
 
 ```yaml

@@ -572,6 +572,46 @@ ALTER TABLE projects DROP COLUMN workflow_config_legacy`,
 		down:    `ALTER TABLE sessions DROP COLUMN remote_ref`,
 	},
 	{
+		// v5 hardening (P3-T14, I6): persistent usage ledger — cost and
+		// tokens per tool session and day (reported by the tool; root_id is
+		// the oh session a subagent session works for), proxy traffic per
+		// server group and day, budget raises.
+		version: 40,
+		up: `CREATE TABLE IF NOT EXISTS usage_sessions (
+			day        TEXT NOT NULL,
+			session_id TEXT NOT NULL,
+			root_id    TEXT NOT NULL DEFAULT '',
+			project_id TEXT NOT NULL DEFAULT '',
+			group_key  TEXT NOT NULL DEFAULT '',
+			cost_usd   REAL NOT NULL DEFAULT 0,
+			tokens_in  INTEGER NOT NULL DEFAULT 0,
+			tokens_out INTEGER NOT NULL DEFAULT 0,
+			updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			PRIMARY KEY (day, session_id)
+		);
+CREATE INDEX IF NOT EXISTS idx_usage_sessions_session ON usage_sessions(session_id);
+CREATE INDEX IF NOT EXISTS idx_usage_sessions_root ON usage_sessions(root_id);
+CREATE TABLE IF NOT EXISTS usage_proxy (
+			day        TEXT NOT NULL,
+			group_key  TEXT NOT NULL,
+			requests   INTEGER NOT NULL DEFAULT 0,
+			tokens_in  INTEGER NOT NULL DEFAULT 0,
+			tokens_out INTEGER NOT NULL DEFAULT 0,
+			PRIMARY KEY (day, group_key)
+		);
+CREATE TABLE IF NOT EXISTS budget_extra (
+			scope     TEXT NOT NULL,
+			day       TEXT NOT NULL DEFAULT '',
+			extra_usd REAL NOT NULL DEFAULT 0,
+			PRIMARY KEY (scope, day)
+		)`,
+		down: `DROP TABLE IF EXISTS budget_extra;
+DROP TABLE IF EXISTS usage_proxy;
+DROP INDEX IF EXISTS idx_usage_sessions_root;
+DROP INDEX IF EXISTS idx_usage_sessions_session;
+DROP TABLE IF EXISTS usage_sessions`,
+	},
+	{
 		// v5 phase 4 (P4-T09): execution settings of a project (dev
 		// Dockerfile, build args, cache volumes, default workflow and
 		// runtime), JSON.

@@ -38,6 +38,10 @@ func (s *Service) AwaitTurn(ctx context.Context, sessionID string) (*HeadlessRes
 	if !ok {
 		return nil, ErrHeadlessUnsupported
 	}
+	// A queued session has not started its turn yet (restrictions).
+	if err := s.waitDequeued(ctx, sessionID); err != nil {
+		return nil, fmt.Errorf("waiting for a free session slot: %w", err)
+	}
 	srv, err := s.serverForSession(ctx, sessionID)
 	if err != nil {
 		return nil, err

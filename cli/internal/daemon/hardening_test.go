@@ -43,7 +43,7 @@ func TestRestartingOldGroupKeepsItsGrant(t *testing.T) {
 	// A client restarts the group: status starting, no PID yet, new start time.
 	require.NoError(t, servers.Upsert(ctx, &domain.Server{GroupKey: "g", Adapter: "x", Status: domain.ServerStarting, CreatedAt: time.Now()}))
 	tok := credproxy.NewToken()
-	require.NoError(t, grants.Insert(ctx, &domain.ProxyGrant{Token: tok, Owner: "g", Provider: credproxy.ProviderBedrock, Source: domain.CredentialSource{Kind: domain.CredentialSigV4}}))
+	require.NoError(t, grants.Insert(ctx, &domain.ProxyGrant{TokenHash: tok, Owner: "g", Provider: credproxy.ProviderBedrock, Source: domain.CredentialSource{Kind: domain.CredentialSigV4}}))
 
 	runDaemon(t, Options{Paths: p, Servers: servers, Grants: grants, Tick: 30 * time.Millisecond, IdleAfter: time.Hour,
 		SigV4: func(context.Context, string, string) (credproxy.Auth, error) {
@@ -81,15 +81,15 @@ func TestRestoreRevokesOrphansAndCachesSigners(t *testing.T) {
 	ctx := context.Background()
 	old := time.Now().Add(-time.Hour)
 	held, stale, gone, asleep, fresh := credproxy.NewToken(), credproxy.NewToken(), credproxy.NewToken(), credproxy.NewToken(), credproxy.NewToken()
-	require.NoError(t, servers.Upsert(ctx, &domain.Server{GroupKey: "live", Adapter: "x", PID: os.Getpid(), ProxyToken: held, Status: domain.ServerReady, CreatedAt: old}))
+	require.NoError(t, servers.Upsert(ctx, &domain.Server{GroupKey: "live", Adapter: "x", PID: os.Getpid(), ProxyTokenHash: held, Status: domain.ServerReady, CreatedAt: old}))
 	require.NoError(t, servers.Upsert(ctx, &domain.Server{GroupKey: "zz", Adapter: "x", Status: domain.ServerSleeping, CreatedAt: old}))
 	sig := domain.CredentialSource{Kind: domain.CredentialSigV4, Profile: "work"}
 	for _, g := range []domain.ProxyGrant{
-		{Token: held, Owner: "live", CreatedAt: old},
-		{Token: stale, Owner: "live", CreatedAt: old},  // replaced by a newer token
-		{Token: gone, Owner: "nobody", CreatedAt: old}, // no server row
-		{Token: asleep, Owner: "zz", CreatedAt: old},   // sleeping group
-		{Token: fresh, Owner: "starting"},              // a client is starting its server
+		{TokenHash: held, Owner: "live", CreatedAt: old},
+		{TokenHash: stale, Owner: "live", CreatedAt: old},  // replaced by a newer token
+		{TokenHash: gone, Owner: "nobody", CreatedAt: old}, // no server row
+		{TokenHash: asleep, Owner: "zz", CreatedAt: old},   // sleeping group
+		{TokenHash: fresh, Owner: "starting"},              // a client is starting its server
 	} {
 		g.Provider, g.Region, g.Source = credproxy.ProviderBedrock, "eu-west-1", sig
 		require.NoError(t, grants.Insert(ctx, &g))
@@ -104,9 +104,9 @@ func TestRestoreRevokesOrphansAndCachesSigners(t *testing.T) {
 	require.NoError(t, err)
 	var toks []string
 	for _, g := range active {
-		toks = append(toks, g.Token)
+		toks = append(toks, g.TokenHash)
 	}
-	assert.ElementsMatch(t, []string{held, fresh}, toks)
+	assert.ElementsMatch(t, []string{credproxy.TokenHash(held), credproxy.TokenHash(fresh)}, toks, "kept, and stored as hashes only")
 	assert.Equal(t, int32(1), loads.Load(), "one signer for the profile/region")
 	c := NewClient(p)
 	_, err = c.Usage(ctx, held)
@@ -121,7 +121,7 @@ func TestSocketAnswersBeforeSlowRestore(t *testing.T) {
 	p, servers, grants := hardeningEnv(t)
 	ctx := context.Background()
 	tok := credproxy.NewToken()
-	require.NoError(t, grants.Insert(ctx, &domain.ProxyGrant{Token: tok, Owner: "g", Provider: credproxy.ProviderBedrock,
+	require.NoError(t, grants.Insert(ctx, &domain.ProxyGrant{TokenHash: tok, Owner: "g", Provider: credproxy.ProviderBedrock,
 		Source: domain.CredentialSource{Kind: domain.CredentialSigV4}}))
 	release := make(chan struct{})
 	dctx, cancel := context.WithCancel(ctx)

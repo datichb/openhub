@@ -57,8 +57,8 @@ func TestGrantStore(t *testing.T) {
 	gs := NewGrantStore(openTemp(t))
 	ctx := context.Background()
 	src := domain.CredentialSource{Kind: domain.CredentialBearer, KeychainKey: "openhub.provider.bedrock.token", Scope: "hub"}
-	require.NoError(t, gs.Insert(ctx, &domain.ProxyGrant{Token: "ohs_1", Owner: "g1", Provider: "amazon-bedrock", Region: "eu-west-1", Source: src, AllowedModels: []string{"eu.*"}}))
-	require.NoError(t, gs.Insert(ctx, &domain.ProxyGrant{Token: "ohs_2", Owner: "g2", Provider: "anthropic"}))
+	require.NoError(t, gs.Insert(ctx, &domain.ProxyGrant{TokenHash: "ohs_1", Owner: "g1", Provider: "amazon-bedrock", Region: "eu-west-1", Source: src, AllowedModels: []string{"eu.*"}}))
+	require.NoError(t, gs.Insert(ctx, &domain.ProxyGrant{TokenHash: "ohs_2", Owner: "g2", Provider: "anthropic"}))
 
 	active, err := gs.ListActive(ctx)
 	require.NoError(t, err)
@@ -69,7 +69,7 @@ func TestGrantStore(t *testing.T) {
 	require.NoError(t, gs.RevokeOwner(ctx, "g1", time.Now()))
 	active, _ = gs.ListActive(ctx)
 	require.Len(t, active, 1)
-	assert.Equal(t, "ohs_2", active[0].Token)
+	assert.Equal(t, "ohs_2", active[0].TokenHash)
 	require.NoError(t, gs.Revoke(ctx, "ohs_2", time.Now()))
 	active, _ = gs.ListActive(ctx)
 	assert.Empty(t, active)

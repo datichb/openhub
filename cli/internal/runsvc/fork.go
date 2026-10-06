@@ -9,6 +9,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/adapters"
 	"github.com/datichb/openhub/cli/internal/domain"
+	"github.com/datichb/openhub/cli/internal/limits"
 	"github.com/datichb/openhub/cli/internal/sessionresults"
 )
 
@@ -63,6 +64,12 @@ func (s *Service) ForkSession(ctx context.Context, sessionID string) (string, er
 		var allow []string
 		if allow, err = s.loadBeadsAllow(sessionID); err == nil {
 			err = s.saveBeadsAllow(id, allow)
+		}
+	}
+	if err == nil && s.SessionsDir != "" {
+		var l limits.Resolved
+		if l, err = limits.Load(s.SessionsDir, sessionID); err == nil {
+			err = limits.Save(s.SessionsDir, id, l)
 		}
 	}
 	if err == nil {

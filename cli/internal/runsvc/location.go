@@ -79,7 +79,7 @@ func (s *Service) busyWriters(ctx context.Context, projectID string) map[string]
 	}
 	for _, o := range list {
 		switch o.State {
-		case domain.RunPreparing, domain.RunActive, domain.RunWaiting, domain.RunIdle:
+		case domain.RunPreparing, domain.RunQueued, domain.RunActive, domain.RunWaiting, domain.RunIdle:
 		default:
 			continue
 		}

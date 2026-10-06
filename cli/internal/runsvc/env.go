@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/datichb/openhub/cli/internal/adapters"
+	"github.com/datichb/openhub/cli/internal/daemon"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/gateway/beadswire"
 	ohruntime "github.com/datichb/openhub/cli/internal/runtime"
@@ -225,6 +226,20 @@ func (s *Service) saveGatewayURL(gk string, pg *ohruntime.Prepared, proxyURL str
 		return err
 	}
 	return os.WriteFile(p, []byte(gatewayURL(proxyURL)), 0o600)
+}
+
+// saveProxyURL records the proxy URL a group's server is started with (as
+// seen by the server): the daemon puts the group to sleep when it no longer
+// listens on that port (daemon.ProxyURLPath).
+func (s *Service) saveProxyURL(gk, proxyURL string) error {
+	if s.ServersDir == "" {
+		return nil
+	}
+	p := daemon.ProxyURLPath(s.ServersDir, gk)
+	if err := os.MkdirAll(filepath.Dir(p), 0o700); err != nil {
+		return err
+	}
+	return os.WriteFile(p, []byte(proxyURL), 0o600)
 }
 
 func (s *Service) loadGatewayURL(gk string) string {

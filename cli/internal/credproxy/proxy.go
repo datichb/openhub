@@ -9,7 +9,9 @@ import (
 	"bytes"
 	"context"
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -71,7 +73,7 @@ type Usage struct {
 
 type grantState struct {
 	Grant
-	token string
+	hash  string // token hash (the token itself is never kept)
 	mu    sync.Mutex
 	usage Usage
 }
@@ -79,7 +81,7 @@ type grantState struct {
 // Proxy is a local HTTP proxy. Routes: /<provider>/... → upstream /... .
 type Proxy struct {
 	mu       sync.RWMutex
-	byToken  map[string]*grantState
+	byToken  map[string]*grantState // by token hash (TokenHash)
 	listener net.Listener
 	server   *http.Server
 	url      string
@@ -90,6 +92,9 @@ type Proxy struct {
 	// ready is non-nil while persisted grants are being restored (Hold):
 	// requests with an unknown token wait for it instead of failing.
 	ready chan struct{}
+	// OnUsage, when set, receives the usage accounted to the grants (by
+	// owner), for a persistent ledger shared across restarts and new tokens.
+	OnUsage func(owner string, delta Usage)
 	// Hooks serves HooksPrefix routes for the tools holding a valid session
 	// token (oh plugin → oh daemon); the grant owner is in the request
 	// context (HookOwner).
@@ -236,8 +241,12 @@ func (p *Proxy) Release() {
 
 // lookup returns the grant of a token, waiting for a restoration in progress.
 func (p *Proxy) lookup(ctx context.Context, token string) (*grantState, bool) {
+	if !strings.HasPrefix(token, TokenPrefix) {
+		return nil, false // a hash is not a credential
+	}
+	key := TokenHash(token)
 	p.mu.RLock()
-	g, ok := p.byToken[token]
+	g, ok := p.byToken[key]
 	ready := p.ready
 	p.mu.RUnlock()
 	if ok || ready == nil || token == "" {
@@ -254,7 +263,7 @@ func (p *Proxy) lookup(ctx context.Context, token string) (*grantState, bool) {
 	}
 	p.mu.RLock()
 	defer p.mu.RUnlock()
-	g, ok = p.byToken[token]
+	g, ok = p.byToken[key]
 	return g, ok
 }
 
@@ -270,40 +279,49 @@ func (p *Proxy) Issue(g Grant) (string, error) {
 	return tok, nil
 }
 
-// IssueWithToken registers a grant under an existing token (restoring a
-// persisted grant after a daemon restart, or replacing its credential).
+// IssueWithToken registers a grant under an existing token (replacing its
+// credential). Only the token hash is kept.
 func (p *Proxy) IssueWithToken(token string, g Grant) error {
-	if !strings.HasPrefix(token, "ohs_") {
+	if !strings.HasPrefix(token, TokenPrefix) {
 		return errors.New("credproxy: invalid token format")
+	}
+	return p.IssueWithHash(TokenHash(token), g)
+}
+
+// IssueWithHash registers a grant under a token hash (restoring a persisted
+// grant after a daemon restart: only hashes are stored).
+func (p *Proxy) IssueWithHash(hash string, g Grant) error {
+	if !isHash(hash) {
+		return errors.New("credproxy: invalid token hash")
 	}
 	if g.Provider == "" || g.Upstream.BaseURL == "" || g.Upstream.Auth == nil {
 		return errors.New("credproxy: grant needs provider, upstream URL and auth")
 	}
 	p.mu.Lock()
-	prev := p.byToken[token]
-	st := &grantState{Grant: g, token: token}
+	prev := p.byToken[hash]
+	st := &grantState{Grant: g, hash: hash}
 	if prev != nil {
 		prev.mu.Lock()
 		st.usage = prev.usage
 		prev.mu.Unlock()
 	}
-	p.byToken[token] = st
+	p.byToken[hash] = st
 	p.mu.Unlock()
 	return nil
 }
 
-// Has reports whether a token is currently active.
-func (p *Proxy) Has(token string) bool {
+// Has reports whether a token (or token hash) is currently active.
+func (p *Proxy) Has(ref string) bool {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
-	_, ok := p.byToken[token]
+	_, ok := p.byToken[RefHash(ref)]
 	return ok
 }
 
-// Revoke invalidates a session token.
-func (p *Proxy) Revoke(token string) {
+// Revoke invalidates a token (or token hash).
+func (p *Proxy) Revoke(ref string) {
 	p.mu.Lock()
-	delete(p.byToken, token)
+	delete(p.byToken, RefHash(ref))
 	p.mu.Unlock()
 }
 
@@ -318,10 +336,10 @@ func (p *Proxy) RevokeSession(sessionID string) {
 	p.mu.Unlock()
 }
 
-// Usage returns the usage accounted to a token.
-func (p *Proxy) Usage(token string) (Usage, bool) {
+// Usage returns the usage accounted to a token (or token hash).
+func (p *Proxy) Usage(ref string) (Usage, bool) {
 	p.mu.RLock()
-	g, ok := p.byToken[token]
+	g, ok := p.byToken[RefHash(ref)]
 	p.mu.RUnlock()
 	if !ok {
 		return Usage{}, false
@@ -331,10 +349,10 @@ func (p *Proxy) Usage(token string) (Usage, bool) {
 	return g.usage, true
 }
 
-// Exhausted reports whether a token has used up its token budget.
-func (p *Proxy) Exhausted(token string) bool {
+// Exhausted reports whether a token (or token hash) has used up its token budget.
+func (p *Proxy) Exhausted(ref string) bool {
 	p.mu.RLock()
-	g, ok := p.byToken[token]
+	g, ok := p.byToken[RefHash(ref)]
 	p.mu.RUnlock()
 	if !ok || g.MaxTokens <= 0 {
 		return false
@@ -344,13 +362,40 @@ func (p *Proxy) Exhausted(token string) bool {
 	return g.usage.InputTokens+g.usage.OutputTokens >= g.MaxTokens
 }
 
+// TokenPrefix starts every proxy session token.
+const TokenPrefix = "ohs_"
+
+// TokenHash is the hash under which a token is known (SHA-256, hex): the
+// proxy, the database and the server registry only keep this value.
+func TokenHash(token string) string {
+	sum := sha256.Sum256([]byte(token))
+	return hex.EncodeToString(sum[:])
+}
+
+// RefHash returns the hash of a token reference: a token is hashed, a hash
+// is returned as is.
+func RefHash(ref string) string {
+	if strings.HasPrefix(ref, TokenPrefix) {
+		return TokenHash(ref)
+	}
+	return ref
+}
+
+func isHash(s string) bool {
+	if len(s) != sha256.Size*2 {
+		return false
+	}
+	_, err := hex.DecodeString(s)
+	return err == nil
+}
+
 // NewToken returns a new random session token ("ohs_" + 64 hex chars).
 func NewToken() string {
 	b := make([]byte, 32)
 	if _, err := rand.Read(b); err != nil {
 		panic(fmt.Sprintf("credproxy: crypto/rand failed: %v", err))
 	}
-	return "ohs_" + hex.EncodeToString(b)
+	return TokenPrefix + hex.EncodeToString(b)
 }
 
 // inboundToken extracts the session token the tool sent.
@@ -462,6 +507,7 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	body = withStreamUsage(provider, escapedRest, body)
 	upstream, _ := url.Parse(g.Upstream.BaseURL)
 	rp := &httputil.ReverseProxy{
 		// Credentials are applied last, on the final request: a failure
@@ -482,7 +528,8 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			pr.Out.ContentLength = int64(len(body))
 		},
 		ModifyResponse: func(resp *http.Response) error {
-			resp.Body = &usageReader{rc: resp.Body, g: g}
+			resp.Body = &usageReader{rc: resp.Body, g: g, frames: base64Frames(provider, escapedRest),
+				onReport: func(in, out int64) { p.account(g, Usage{InputTokens: in, OutputTokens: out}) }}
 			return nil
 		},
 		ErrorHandler: func(w http.ResponseWriter, _ *http.Request, err error) {
@@ -498,7 +545,72 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	g.mu.Lock()
 	g.usage.Requests++
 	g.mu.Unlock()
+	p.account(g, Usage{Requests: 1})
 	rp.ServeHTTP(w, r)
+}
+
+func (p *Proxy) account(g *grantState, delta Usage) {
+	p.mu.RLock()
+	f := p.OnUsage
+	p.mu.RUnlock()
+	if f != nil {
+		f(g.SessionID, delta)
+	}
+}
+
+// SetUsage sets the usage of a token (or token hash): a restored or newly
+// issued grant of a group continues the group's counters.
+func (p *Proxy) SetUsage(ref string, u Usage) {
+	p.mu.RLock()
+	g, ok := p.byToken[RefHash(ref)]
+	p.mu.RUnlock()
+	if !ok {
+		return
+	}
+	g.mu.Lock()
+	g.usage = u
+	g.mu.Unlock()
+}
+
+// base64Frames reports whether a route answers AWS event-stream frames with
+// base64 model chunks (Bedrock InvokeModel with response stream).
+func base64Frames(provider, escapedRest string) bool {
+	return provider == ProviderBedrock && strings.HasSuffix(escapedRest, "/invoke-with-response-stream")
+}
+
+// withStreamUsage asks OpenAI-compatible streams to end with a usage chunk
+// (stream_options.include_usage), which they omit otherwise: without it the
+// proxy could not count streamed tokens.
+func withStreamUsage(provider, escapedRest string, body []byte) []byte {
+	if (provider != ProviderOpenAI && provider != ProviderOpenRouter) || (escapedRest != "chat/completions" && escapedRest != "completions") {
+		return body
+	}
+	var m map[string]json.RawMessage
+	if json.Unmarshal(body, &m) != nil {
+		return body
+	}
+	var stream bool
+	if json.Unmarshal(m["stream"], &stream) != nil || !stream {
+		return body
+	}
+	opts := map[string]json.RawMessage{}
+	if raw, ok := m["stream_options"]; ok && json.Unmarshal(raw, &opts) != nil {
+		return body
+	}
+	if string(opts["include_usage"]) == "true" {
+		return body
+	}
+	opts["include_usage"] = json.RawMessage("true")
+	raw, err := json.Marshal(opts)
+	if err != nil {
+		return body
+	}
+	m["stream_options"] = raw
+	out, err := json.Marshal(m)
+	if err != nil {
+		return body
+	}
+	return out
 }
 
 // MaxRequestBytes bounds a relayed request body (413 beyond).

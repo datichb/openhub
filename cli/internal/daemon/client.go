@@ -21,9 +21,18 @@ import (
 
 // Client talks to ohd over its Unix socket.
 type Client struct {
-	paths  Paths
-	http   *http.Client
-	stream *http.Client // no timeout (live stream)
+	paths      Paths
+	http       *http.Client
+	stream     *http.Client // no timeout (live stream)
+	capability string       // issuing capability (privileged routes)
+}
+
+// WithCapability returns a copy of c sending the issuing capability, needed
+// by the routes that hand out access (LoadCapability).
+func (c *Client) WithCapability(capability string) *Client {
+	cp := *c
+	cp.capability = capability
+	return &cp
 }
 
 // NewClient returns a client for the daemon at paths.
@@ -55,6 +64,9 @@ func (c *Client) do(ctx context.Context, method, path string, body, out any) err
 	}
 	if body != nil {
 		req.Header.Set("Content-Type", "application/json")
+	}
+	if c.capability != "" {
+		req.Header.Set(CapabilityHeader, c.capability)
 	}
 	resp, err := c.http.Do(req)
 	if err != nil {
@@ -253,15 +265,27 @@ type EnsureOptions struct {
 	Version    string        // expected daemon version ("" = any)
 	Timeout    time.Duration // default 10s
 	Env        []string      // environment of the spawned daemon (default os.Environ)
+	Capability string        // issuing capability sent by the returned client
+	// InProcess starts the daemon inside the calling process, used instead
+	// of a background process in InProcessMode (Windows). It must not block.
+	InProcess func() error
+}
+
+// InProcessMode reports whether the daemon runs inside the oh process
+// instead of in the background (Windows option A, or OH_DAEMON_INPROCESS=1):
+// the proxy and the session supervision live as long as that oh process,
+// and its sessions are put to sleep when it exits.
+func InProcessMode() bool {
+	return runtime.GOOS == "windows" || os.Getenv("OH_DAEMON_INPROCESS") == "1"
 }
 
 // Ensure returns a client to a running daemon, spawning one if needed.
 // A daemon of another version is replaced only when it has no live server.
 func Ensure(ctx context.Context, paths Paths, opts EnsureOptions) (*Client, Health, error) {
-	if runtime.GOOS == "windows" {
-		return nil, Health{}, ErrUnsupported
+	c := NewClient(paths).WithCapability(opts.Capability)
+	if InProcessMode() {
+		return ensureInProcess(ctx, c, opts)
 	}
-	c := NewClient(paths)
 	if h, err := c.Health(ctx); err == nil {
 		if opts.Version == "" || h.Version == opts.Version {
 			return c, h, nil
@@ -330,6 +354,36 @@ func Ensure(ctx context.Context, paths Paths, opts EnsureOptions) (*Client, Heal
 		}
 	}
 	return nil, Health{}, fmt.Errorf("ohd did not start within %s (see %s)", timeout, paths.Log())
+}
+
+// ensureInProcess returns a client to the daemon of an oh process (another
+// one may already host it), starting it inside this process otherwise.
+func ensureInProcess(ctx context.Context, c *Client, opts EnsureOptions) (*Client, Health, error) {
+	if h, err := c.Health(ctx); err == nil {
+		return c, h, nil
+	}
+	if opts.InProcess == nil {
+		return nil, Health{}, ErrUnsupported
+	}
+	if err := opts.InProcess(); err != nil {
+		return nil, Health{}, err
+	}
+	timeout := opts.Timeout
+	if timeout == 0 {
+		timeout = 10 * time.Second
+	}
+	deadline := time.Now().Add(timeout)
+	for time.Now().Before(deadline) {
+		if h, err := c.Health(ctx); err == nil {
+			return c, h, nil
+		}
+		select {
+		case <-ctx.Done():
+			return nil, Health{}, ctx.Err()
+		case <-time.After(50 * time.Millisecond):
+		}
+	}
+	return nil, Health{}, fmt.Errorf("the in-process oh daemon did not start within %s", timeout)
 }
 
 // spawnLockWait bounds the wait for a concurrent client spawning the daemon.

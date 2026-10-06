@@ -25,7 +25,7 @@ func scanServer(sc interface{ Scan(...any) error }) (domain.Server, error) {
 	var s domain.Server
 	var status string
 	err := sc.Scan(&s.GroupKey, &s.Adapter, &s.AdapterVersion, &s.Runtime, &s.ProjectID, &s.BundleHash,
-		&s.PID, &s.URL, &s.Port, &s.Password, &s.DataDir, &s.WorkDir, &s.ProxyToken, &status, &s.CreatedAt, &s.LastActivityAt)
+		&s.PID, &s.URL, &s.Port, &s.Password, &s.DataDir, &s.WorkDir, &s.ProxyTokenHash, &status, &s.CreatedAt, &s.LastActivityAt)
 	s.Status = domain.ServerStatus(status)
 	return s, err
 }
@@ -48,7 +48,7 @@ func (ss *ServerStore) Upsert(ctx context.Context, s *domain.Server) error {
 			proxy_token=excluded.proxy_token, status=excluded.status, created_at=excluded.created_at,
 			last_activity_at=excluded.last_activity_at`,
 		s.GroupKey, s.Adapter, s.AdapterVersion, s.Runtime, s.ProjectID, s.BundleHash, s.PID, s.URL, s.Port,
-		s.Password, s.DataDir, s.WorkDir, s.ProxyToken, string(s.Status), s.CreatedAt, s.LastActivityAt)
+		s.Password, s.DataDir, s.WorkDir, s.ProxyTokenHash, string(s.Status), s.CreatedAt, s.LastActivityAt)
 	if err != nil {
 		return fmt.Errorf("saving server %s: %w", s.GroupKey, err)
 	}
@@ -130,12 +130,17 @@ func (gs *GrantStore) Insert(ctx context.Context, g *domain.ProxyGrant) error {
 	src, _ := json.Marshal(g.Source)
 	models, _ := json.Marshal(g.AllowedModels)
 	_, err := gs.db.ExecContext(ctx, `INSERT INTO proxy_grants (token, owner, provider, region, source, allowed_models, max_tokens, created_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, g.Token, g.Owner, g.Provider, g.Region, string(src), string(models), g.MaxTokens, g.CreatedAt)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, g.TokenHash, g.Owner, g.Provider, g.Region, string(src), string(models), g.MaxTokens, g.CreatedAt)
 	if err != nil {
 		return fmt.Errorf("saving proxy grant: %w", err)
 	}
 	return nil
 }
+
+var (
+	_ domain.LegacyTokenHasher = (*GrantStore)(nil)
+	_ domain.LegacyTokenHasher = (*ServerStore)(nil)
+)
 
 // ListActive returns grants that are not revoked.
 func (gs *GrantStore) ListActive(ctx context.Context) ([]domain.ProxyGrant, error) {
@@ -149,7 +154,7 @@ func (gs *GrantStore) ListActive(ctx context.Context) ([]domain.ProxyGrant, erro
 	for rows.Next() {
 		var g domain.ProxyGrant
 		var src, models string
-		if err := rows.Scan(&g.Token, &g.Owner, &g.Provider, &g.Region, &src, &models, &g.MaxTokens, &g.CreatedAt); err != nil {
+		if err := rows.Scan(&g.TokenHash, &g.Owner, &g.Provider, &g.Region, &src, &models, &g.MaxTokens, &g.CreatedAt); err != nil {
 			return nil, err
 		}
 		_ = json.Unmarshal([]byte(src), &g.Source)
@@ -159,10 +164,69 @@ func (gs *GrantStore) ListActive(ctx context.Context) ([]domain.ProxyGrant, erro
 	return out, rows.Err()
 }
 
-// Revoke marks a grant revoked.
-func (gs *GrantStore) Revoke(ctx context.Context, token string, at time.Time) error {
-	_, err := gs.db.ExecContext(ctx, `UPDATE proxy_grants SET revoked_at = ? WHERE token = ? AND revoked_at IS NULL`, at, token)
+// Revoke marks a grant revoked (by token hash).
+func (gs *GrantStore) Revoke(ctx context.Context, tokenHash string, at time.Time) error {
+	_, err := gs.db.ExecContext(ctx, `UPDATE proxy_grants SET revoked_at = ? WHERE token = ? AND revoked_at IS NULL`, at, tokenHash)
 	return err
+}
+
+// HashLegacyTokens implements domain.LegacyTokenHasher (column token).
+func (gs *GrantStore) HashLegacyTokens(ctx context.Context, prefix string, hash func(string) string) (int, error) {
+	return hashLegacy(ctx, gs.db, "proxy_grants", "token", prefix, hash)
+}
+
+// HashLegacyTokens implements domain.LegacyTokenHasher (column proxy_token).
+func (ss *ServerStore) HashLegacyTokens(ctx context.Context, prefix string, hash func(string) string) (int, error) {
+	return hashLegacy(ctx, ss.db, "servers", "proxy_token", prefix, hash)
+}
+
+// CountLegacyTokens counts the values still stored in clear (Doctor).
+func (gs *GrantStore) CountLegacyTokens(ctx context.Context, prefix string) (int, error) {
+	return countLegacy(ctx, gs.db, "proxy_grants", "token", prefix)
+}
+
+// CountLegacyTokens counts the values still stored in clear (Doctor).
+func (ss *ServerStore) CountLegacyTokens(ctx context.Context, prefix string) (int, error) {
+	return countLegacy(ctx, ss.db, "servers", "proxy_token", prefix)
+}
+
+func countLegacy(ctx context.Context, db *sql.DB, table, column, prefix string) (int, error) {
+	var n int
+	err := db.QueryRowContext(ctx, `SELECT COUNT(*) FROM `+table+` WHERE substr(`+column+`, 1, ?) = ?`, len(prefix), prefix).Scan(&n)
+	return n, err
+}
+
+// hashLegacy replaces the values of column starting with prefix (tokens
+// stored in clear by older versions) by their hash, in one transaction.
+func hashLegacy(ctx context.Context, db *sql.DB, table, column, prefix string, hash func(string) string) (int, error) {
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		return 0, err
+	}
+	defer func() { _ = tx.Rollback() }()
+	rows, err := tx.QueryContext(ctx, `SELECT DISTINCT `+column+` FROM `+table+` WHERE substr(`+column+`, 1, ?) = ?`, len(prefix), prefix)
+	if err != nil {
+		return 0, fmt.Errorf("listing legacy tokens in %s: %w", table, err)
+	}
+	var vals []string
+	for rows.Next() {
+		var v string
+		if err := rows.Scan(&v); err != nil {
+			rows.Close()
+			return 0, err
+		}
+		vals = append(vals, v)
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		return 0, err
+	}
+	for _, v := range vals {
+		if _, err := tx.ExecContext(ctx, `UPDATE `+table+` SET `+column+` = ? WHERE `+column+` = ?`, hash(v), v); err != nil {
+			return 0, fmt.Errorf("hashing legacy tokens in %s: %w", table, err)
+		}
+	}
+	return len(vals), tx.Commit()
 }
 
 // RevokeOwner revokes every grant of an owner.

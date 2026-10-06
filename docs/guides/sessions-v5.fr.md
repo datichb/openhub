@@ -107,6 +107,22 @@ La région Bedrock vient de la config oh, puis de `AWS_REGION` / `AWS_DEFAULT_RE
 
 Changer le fournisseur, la région ou la clé d'un projet démarre un nouveau serveur au lancement suivant. Les sessions en cours gardent leurs réglages jusqu'à la mise en veille de leur serveur.
 
+## Restrictions
+
+Désactivées par défaut. Elles limitent les sessions de la machine :
+
+| Restriction | Effet |
+|---|---|
+| `max_active_sessions` | nombre de sessions dont l'agent travaille en même temps ; au-delà, une nouvelle session attend dans la file (état `en file`, sessions interactives d'abord) et démarre dès qu'une place se libère |
+| `session_budget_usd` | budget d'une session, sous-agents compris |
+| `daily_budget_usd` | budget de toutes les sessions d'une journée (du projet s'il est réglé pour un projet) ; une fois dépensé, pas de nouvelle session |
+| `memory_mb` | mémoire des serveurs de sessions (estimation dans `oh doctor`) ; au-delà, les nouvelles sessions attendent, les groupes inactifs sont mis en veille et oh avertit une fois |
+| `models` | modèles autorisés (motifs sur l'identifiant envoyé au fournisseur, ex. `eu.anthropic.*`) ; le proxy refuse les autres |
+
+Elles se règlent en cascade : `hub.toml` `[limits]` (`oh budget set …`, ou **Réglages → Restrictions des sessions**), le `config.toml` de l'équipe (`[limits.recommended]`, `[limits.enforced]`), le projet (`oh budget set … --project <p>`), puis le workflow (`limits:`). La valeur la plus précise l'emporte ; une valeur imposée par l'équipe est un plafond que personne ne peut relâcher. `oh budget show [-p <projet>]` affiche les valeurs effectives, leur origine et les dépenses du jour.
+
+Les budgets sont des **plafonds souples**, vérifiés sur le coût indiqué par l'outil : l'étape qui dépasse un budget se termine, puis une décision `$` apparaît dans « À traiter ». Tant qu'elle est ouverte, toute nouvelle étape de la session est interrompue. Réponses : `oh budget raise <session> [montant]` (par défaut : le budget configuré une fois de plus), `oh session stop <session>`, ou classer (une étape de plus, la décision revient après). Les dépenses sont gardées dans `oh.db` (registre d'usage) : elles survivent aux redémarrages du démon et aux cycles veille/reprise.
+
 ## Variables d'environnement
 
 | Variable | Effet |
@@ -117,5 +133,6 @@ Changer le fournisseur, la région ou la clé d'un projet démarre un nouveau se
 
 ## Limites
 
-- **Windows** : les sessions v5 ne sont pas encore prises en charge, faute de démon. Utilisez opencode V1 ou WSL.
-- **Sécurité en local** : l'agent tourne sous votre utilisateur. Il peut atteindre le socket du démon et `oh.db`, mais jamais la clé LLM. Voir [SECURITY.fr.md](../../SECURITY.fr.md).
+- **Windows** (sessions locales seulement) : pas de démon en arrière-plan ; le proxy d'identifiants et le suivi des sessions tournent dans le processus oh (la TUI, ou la commande qui a ouvert la session dans le terminal courant). Les sessions ne tournent que tant que cet oh est ouvert : en le quittant, il attend la fin des étapes choisies, puis met les sessions en veille (reprise avec `oh session attach`). `oh doctor` le rappelle. Pour des sessions qui survivent à oh, utilisez WSL.
+- **Port du proxy** : le démon garde le port de son proxy d'un redémarrage à l'autre. Si un autre programme l'a pris entre-temps, le démon en choisit un autre et met en veille les serveurs qui utilisent encore l'ancien (ils ne joignent plus le fournisseur) ; les sessions qui travaillaient affichent une erreur dans « À traiter ». Reprenez-les (`oh session resume <id>` ou attachement) : leur serveur redémarre avec le nouveau port.
+- **Sécurité en local** : l'agent tourne sous votre utilisateur. Il peut atteindre le socket du démon et `oh.db` (empreintes de jetons seulement), mais jamais la clé LLM ; l'émission de nouveaux jetons est réservée à la CLI oh (capacité dans le trousseau, voir `oh doctor`). Voir [SECURITY.fr.md](../../SECURITY.fr.md).

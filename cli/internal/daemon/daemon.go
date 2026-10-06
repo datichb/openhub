@@ -70,6 +70,18 @@ type Options struct {
 	// server group, served over HTTP to runtimes outside the machine
 	// (P4-T08). Nil = MCP gateway unavailable.
 	MCPCommand func(ctx context.Context, srv domain.Server, name string) (gateway.MCPCommand, error)
+	// Usage is the usage ledger (I6 budgets, proxy traffic). Nil = no
+	// accounting, no budget enforcement.
+	Usage domain.UsageStore
+	// Memory measures the tool servers (default: ps process trees).
+	Memory MemoryFunc
+	// StopServersOnExit puts the live server groups to sleep when the
+	// daemon stops (in-process daemon: the proxy ends with the oh process,
+	// the servers could not reach their provider any more).
+	StopServersOnExit bool
+	// Capability guards the routes that hand out access or stop sessions
+	// (LoadCapability; "" = unguarded).
+	Capability string
 	// SigV4 builds an AWS signer for a profile/region (overridable in tests).
 	SigV4 func(ctx context.Context, profile, region string) (credproxy.Auth, error)
 }
@@ -98,9 +110,18 @@ type Daemon struct {
 	stop        chan struct{}
 	restored    chan struct{} // closed once the persisted grants are restored
 	stopOnce    sync.Once
-	sigMu       sync.Mutex
-	sigCache    map[string]credproxy.Auth // SigV4 signers by profile/region
-	kick        chan struct{}
+	started     time.Time
+	// prevProxyPort is the proxy port of the previous daemon when it could
+	// not be bound again (0 = unchanged).
+	prevProxyPort int
+	ledger        ledger
+	memoryMB      int                          // memory used by the ready servers (last measure)
+	memoryOver    bool                         // above the cap at the last pass (warned)
+	queuedGroups  map[string]bool              // groups holding queued sessions (never sleep)
+	proxyUsage    map[string]domain.ProxyUsage // proxy traffic not flushed yet, by group
+	sigMu         sync.Mutex
+	sigCache      map[string]credproxy.Auth // SigV4 signers by profile/region
+	kick          chan struct{}
 }
 
 type stateFile struct {
@@ -137,8 +158,9 @@ func Run(ctx context.Context, opts Options) error {
 	}
 	defer unlock()
 
-	d := &Daemon{opts: opts, proxy: credproxy.New(), pending: map[string]domain.ProxyGrant{}, clients: map[string]client{}, verified: map[string]bool{}, verifyFails: map[string]int{}, policies: map[string]QuitPolicy{}, watchers: map[string]*watcher{}, feed: newHub(), lastBusy: time.Now(), stop: make(chan struct{}), restored: make(chan struct{}), sigCache: map[string]credproxy.Auth{}, kick: make(chan struct{}, 1)}
+	d := &Daemon{opts: opts, proxy: credproxy.New(), pending: map[string]domain.ProxyGrant{}, clients: map[string]client{}, verified: map[string]bool{}, verifyFails: map[string]int{}, policies: map[string]QuitPolicy{}, watchers: map[string]*watcher{}, feed: newHub(), lastBusy: time.Now(), started: time.Now(), stop: make(chan struct{}), restored: make(chan struct{}), sigCache: map[string]credproxy.Auth{}, ledger: ledger{last: map[string]adapters.SessionResult{}}, kick: make(chan struct{}, 1)}
 	d.proxy.Hooks = d.hooksHandler()
+	d.proxy.OnUsage = d.onProxyUsage
 	if err := d.startProxy(); err != nil {
 		return err
 	}
@@ -159,6 +181,7 @@ func Run(ctx context.Context, opts Options) error {
 		return fmt.Errorf("listening on %s: %w", opts.Paths.Socket(), err)
 	}
 	_ = os.Chmod(opts.Paths.Socket(), 0o600)
+	l = peerListener{Listener: l}
 	d.listener = l
 	d.http = &http.Server{Handler: d.routes(), ReadHeaderTimeout: 10 * time.Second}
 	go func() {
@@ -205,8 +228,12 @@ func Run(ctx context.Context, opts Options) error {
 }
 
 func (d *Daemon) shutdown() error {
+	if d.opts.StopServersOnExit {
+		d.sleepAll()
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
+	d.flushProxyUsage(ctx)
 	d.feed.close() // ends the live streams, so that Shutdown does not wait for them
 	if d.mcp != nil {
 		d.mcp.Close()
@@ -216,6 +243,24 @@ func (d *Daemon) shutdown() error {
 	}
 	_ = os.Remove(d.opts.Paths.Socket())
 	return nil
+}
+
+// sleepAll puts every ready server group to sleep (resumable sessions).
+func (d *Daemon) sleepAll() {
+	if d.opts.Servers == nil {
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	servers, err := d.opts.Servers.List(ctx)
+	if err != nil {
+		return
+	}
+	for _, s := range servers {
+		if s.Status == domain.ServerReady && s.PID > 0 && processAlive(s.PID) {
+			d.putToSleep(ctx, s, false)
+		}
+	}
 }
 
 func (d *Daemon) requestStop() { d.stopOnce.Do(func() { close(d.stop) }) }
@@ -237,10 +282,11 @@ func (d *Daemon) startProxy() error {
 	}
 	restored := false
 	if st.ProxyPort > 0 {
-		if err := d.proxy.Start(fmt.Sprintf("127.0.0.1:%d", st.ProxyPort)); err == nil {
+		if d.bindPreviousPort(st.ProxyPort) {
 			restored = true
 		} else {
-			slog.Warn("ohd: previous proxy port unavailable, picking a new one", "port", st.ProxyPort)
+			d.prevProxyPort = st.ProxyPort
+			slog.Warn("ohd: previous proxy port unavailable, picking a new one; servers using it are put to sleep", "port", st.ProxyPort)
 		}
 	}
 	if !restored {
@@ -287,6 +333,7 @@ func (d *Daemon) restoreGrants(ctx context.Context) {
 	if d.opts.Grants == nil {
 		return
 	}
+	d.hashLegacyTokens(ctx)
 	grants, err := d.opts.Grants.ListActive(ctx)
 	if err != nil {
 		slog.Warn("ohd: cannot list grants", "error", err)
@@ -294,7 +341,7 @@ func (d *Daemon) restoreGrants(ctx context.Context) {
 	}
 	for _, g := range grants {
 		if d.orphanGrant(ctx, g) {
-			_ = d.opts.Grants.Revoke(ctx, g.Token, time.Now())
+			_ = d.opts.Grants.Revoke(ctx, g.TokenHash, time.Now())
 			slog.Info("ohd: orphan grant revoked", "owner", g.Owner)
 			continue
 		}
@@ -304,9 +351,26 @@ func (d *Daemon) restoreGrants(ctx context.Context) {
 		}
 		if err := d.register(ctx, g, secret); err != nil {
 			d.mu.Lock()
-			d.pending[g.Token] = g
+			d.pending[g.TokenHash] = g
 			d.mu.Unlock()
 			slog.Info("ohd: grant pending its secret", "owner", g.Owner, "reason", err)
+		}
+	}
+}
+
+// hashLegacyTokens converts the proxy tokens stored in clear by older oh
+// versions (grants and server registry) into their hash.
+func (d *Daemon) hashLegacyTokens(ctx context.Context) {
+	for name, st := range map[string]any{"grants": d.opts.Grants, "servers": d.opts.Servers} {
+		h, ok := st.(domain.LegacyTokenHasher)
+		if !ok {
+			continue
+		}
+		n, err := h.HashLegacyTokens(ctx, credproxy.TokenPrefix, credproxy.TokenHash)
+		if err != nil {
+			slog.Warn("ohd: cannot hash stored proxy tokens", "store", name, "error", err)
+		} else if n > 0 {
+			slog.Info("ohd: stored proxy tokens replaced by their hash", "store", name, "count", n)
 		}
 	}
 }
@@ -327,7 +391,7 @@ func (d *Daemon) orphanGrant(ctx context.Context, g domain.ProxyGrant) bool {
 	if srv.Status == domain.ServerStopped || srv.Status == domain.ServerSleeping {
 		return true
 	}
-	return srv.ProxyToken != "" && srv.ProxyToken != g.Token
+	return srv.ProxyTokenHash != "" && srv.ProxyTokenHash != g.TokenHash
 }
 
 // sigV4 returns the AWS signer of a profile/region, built once (the AWS
@@ -372,10 +436,14 @@ func (d *Daemon) register(ctx context.Context, g domain.ProxyGrant, secret strin
 	if err != nil {
 		return err
 	}
-	return d.proxy.IssueWithToken(g.Token, credproxy.Grant{
+	if err := d.proxy.IssueWithHash(g.TokenHash, credproxy.Grant{
 		SessionID: g.Owner, Provider: g.Provider, Upstream: up,
 		AllowedModels: g.AllowedModels, MaxTokens: g.MaxTokens,
-	})
+	}); err != nil {
+		return err
+	}
+	d.continueProxyUsage(ctx, g.Owner, g.TokenHash)
+	return nil
 }
 
 func upstreamFor(provider, region string, auth credproxy.Auth) (credproxy.Upstream, error) {
@@ -423,8 +491,16 @@ func (d *Daemon) supervise(ctx context.Context) bool {
 			}
 		}
 	}
+	ready = d.sleepStaleGroups(ctx, ready)
 	d.syncWatchers(ctx, ready)
+	d.measureMemory(ctx, ready)
+	held := d.dequeue(ctx, ready)
+	d.mu.Lock()
+	d.queuedGroups = held
+	d.mu.Unlock()
 	d.applyLifecycle(ctx, ready)
+	d.enforceMemory(ctx, ready, held)
+	d.flushProxyUsage(ctx)
 	d.notes.requestScan() // decisions raised by other processes (CLI, TUI)
 	d.mu.Lock()
 	defer d.mu.Unlock()

@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"runtime"
 	"strings"
 	"time"
 
@@ -80,9 +79,6 @@ var errRunNeedsV2 = errors.New("opencode V2 required")
 
 // prepareWorkflowRun resolves, compiles and plans a launch.
 func prepareWorkflowRun(ctx context.Context, a *app.App, opts runOptions, errOut io.Writer) (*preparedRun, error) {
-	if runtime.GOOS == "windows" {
-		return nil, errors.New(i18n.T("cmd.v5.windows_unsupported"))
-	}
 	if !v5Available(ctx) {
 		return nil, fmt.Errorf("%w: %s", errRunNeedsV2, i18n.T("cmd.run.requires_v2"))
 	}
@@ -156,6 +152,7 @@ func prepareWorkflowRun(ctx context.Context, a *app.App, opts runOptions, errOut
 	base := v5Request(a, opts.Project, opts.Provider)
 	base.Bundle, base.Mode, base.Runtime, base.Progress = b, res.Mode, kind, opts.Progress
 	base.Title = sessionTitle(opts.Project, res.Spec.ID)
+	base.Limits = sessionLimits(ctx, a, opts.Project, res.Spec)
 	if res.Spec.Beads != nil {
 		base.BeadsAllow = append([]string{}, res.Spec.Beads.Allow...) // non-nil: declared
 	}
@@ -353,7 +350,7 @@ func (p *preparedRun) start(ctx context.Context, a *app.App, ui launcher.LaunchU
 		}
 	}
 	if err != nil {
-		return results, err
+		return results, budgetError(err)
 	}
 	attach := p.plan.Request.Base.Attach
 	for i, res := range results {
@@ -368,6 +365,14 @@ func (p *preparedRun) start(ctx context.Context, a *app.App, ui launcher.LaunchU
 // not (browser, suspension, no terminal). Only the first session of a run
 // may take over the current terminal.
 func afterStart(ctx context.Context, a *app.App, svc *runsvc.Service, ui launcher.LaunchUI, attach sessionspec.AttachPref, res *runsvc.StartResult, first bool) error {
+	if res.Queued {
+		ui.Notify(i18n.Tf("cmd.budget.queued", res.SessionID, res.Ahead), launcher.LevelInfo)
+	}
+	if first && inProcessDaemonRunning() {
+		// Windows: the proxy lives in this process; leaving oh puts the
+		// session to sleep.
+		ui.Notify(i18n.T("cmd.daemon.inprocess_notice"), launcher.LevelWarning)
+	}
 	switch {
 	case attach == sessionspec.AttachNone:
 		ui.Notify(i18n.Tf("cmd.run.started", res.SessionID), launcher.LevelSuccess)

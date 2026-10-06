@@ -20,6 +20,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/services/checkpoint"
 	sessionsvc "github.com/datichb/openhub/cli/internal/services/session"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
+	"github.com/datichb/openhub/cli/internal/storage/keychain"
 	"github.com/datichb/openhub/cli/internal/storage/sqlite"
 	"github.com/datichb/openhub/cli/internal/teamstate"
 )
@@ -31,9 +32,31 @@ func ohServersDir() string  { return filepath.Join(config.HubDir(), "servers") }
 func ohSessionsDir() string { return filepath.Join(config.HubDir(), "sessions") }
 func ohCacheDir() string    { return filepath.Join(config.HubDir(), "cache") }
 
-// ensureDaemon returns a client to ohd, starting it when needed.
+// ensureDaemon returns a client to ohd, starting it when needed. The client
+// holds the issuing capability (token routes, M12).
 func ensureDaemon(ctx context.Context) (*daemon.Client, daemon.Health, error) {
-	return daemon.Ensure(ctx, daemon.Paths{Dir: ohRunDir()}, daemon.EnsureOptions{Version: buildinfo.Version})
+	capability, _, err := daemonCapability(ctx)
+	if err != nil {
+		return nil, daemon.Health{}, err
+	}
+	return daemon.Ensure(ctx, daemon.Paths{Dir: ohRunDir()}, daemon.EnsureOptions{Version: buildinfo.Version, Capability: capability,
+		InProcess: startInProcessDaemon})
+}
+
+// daemonCapability returns the issuing capability shared with the daemon:
+// in the OS keychain, else in a 0600 file under ~/.oh/run. The encrypted
+// file store is not used (it would prompt for a passphrase in the daemon).
+func daemonCapability(ctx context.Context) (string, daemon.CapabilitySource, error) {
+	return daemon.LoadCapability(ctx, capabilityStore(), daemon.Paths{Dir: ohRunDir()})
+}
+
+// capabilityStore is the OS keychain when items can be stored there
+// without a system dialog (nil otherwise: 0600 file).
+func capabilityStore() daemon.CapabilityStore {
+	if keychain.Probe() != nil || !keychain.HasDefault() {
+		return nil
+	}
+	return keychain.New(config.HubDir())
 }
 
 // detectV2Adapter returns the opencode V2 adapter, or an error when the
@@ -142,6 +165,7 @@ func newRunService(ctx context.Context, a *app.App) (*runsvc.Service, error) {
 		BundlesDir:   ohBundlesDir(),
 		SessionsDir:  ohSessionsDir(),
 		Decisions:    sqlite.NewDecisionStore(store),
+		Usage:        sqlite.NewUsageStore(store),
 		OnSessionEnd: sessionEndHook(a, false),
 		Runtimes:     v5Runtimes(a),
 		SessionEnv: gatewaySessionEnv(func(ctx context.Context) (gatewayGranter, error) {
@@ -181,6 +205,13 @@ func newSessionService(ctx context.Context, a *app.App) (*sessionsvc.Service, er
 		ensureDaemonForLiveServers(ctx, svc.Servers)
 	}
 	svc.UseCheckpoints(newCheckpointService(a), dc.WorkflowRefresh)
+	svc.Resolvers[domain.DecisionBudget] = sessionsvc.BudgetResolver(sqlite.NewUsageStore(store), func(ctx context.Context, id string) error {
+		rs, err := newRunService(ctx, a)
+		if err != nil {
+			return err
+		}
+		return rs.StopSession(ctx, id)
+	})
 	return svc, nil
 }
 

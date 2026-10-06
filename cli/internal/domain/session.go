@@ -61,6 +61,9 @@ type RunState string
 
 const (
 	RunPreparing RunState = "preparing"
+	// RunQueued: the session exists but its first prompt waits for a free
+	// slot (I6 restrictions: working sessions, memory).
+	RunQueued    RunState = "queued"
 	RunActive    RunState = "active"
 	RunWaiting   RunState = "waiting"
 	RunIdle      RunState = "idle"

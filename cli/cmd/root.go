@@ -112,6 +112,9 @@ func Execute() error {
 			store.Close()
 		}
 	}()
+	// Before the store closes: the in-process daemon (Windows) puts its
+	// sessions to sleep.
+	defer stopInProcessDaemon()
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, err)

@@ -127,7 +127,8 @@ func TestStartSessionAndReuseServer(t *testing.T) {
 	assert.True(t, r1.Report.OK())
 	assert.True(t, strings.HasPrefix(r1.SessionID, "ses_"))
 	assert.Equal(t, domain.ServerReady, r1.Server.Status)
-	assert.Contains(t, r1.Server.ProxyToken, "ohs_")
+	assert.Len(t, r1.Server.ProxyTokenHash, 64, "only the token hash is registered")
+	assert.NotContains(t, r1.Server.ProxyTokenHash, "ohs_")
 
 	sess, err := f.svc.Sessions.Get(ctx, r1.SessionID)
 	require.NoError(t, err)
@@ -151,7 +152,7 @@ func TestStartSessionAndReuseServer(t *testing.T) {
 	ps, err := exec.Command("ps", "eww", "-p", strconv.Itoa(r1.Server.PID)).Output()
 	require.NoError(t, err)
 	assert.NotContains(t, string(ps), "fake-key")
-	assert.Contains(t, string(ps), r1.Server.ProxyToken)
+	assert.Contains(t, string(ps), "=ohs_", "the server holds the proxy token")
 }
 
 func TestStartSessionWithoutCredential(t *testing.T) {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -63,4 +64,38 @@ func TestQuitPlanAndApply(t *testing.T) {
 	assert.Equal(t, domain.RunStopped, s.State)
 	s, _ = sessions.Get(ctx, "ses_work3")
 	assert.Equal(t, domain.RunActive, s.State)
+}
+
+// In-process daemon (Windows): quitting waits for the groups whose step
+// must finish to be asleep.
+func TestWaitFinished(t *testing.T) {
+	st, err := sqlite.Open(filepath.Join(t.TempDir(), "oh.db"))
+	require.NoError(t, err)
+	t.Cleanup(func() { st.Close() })
+	ctx := context.Background()
+	servers := sqlite.NewServerStore(st)
+	for _, g := range []string{"g1", "g2"} {
+		require.NoError(t, servers.Upsert(ctx, &domain.Server{GroupKey: g, Adapter: "x", Status: domain.ServerReady}))
+	}
+	svc := &Service{Servers: servers}
+	plan := QuitPlan{Working: []domain.Session{{ID: "a", GroupKey: "g1"}, {ID: "b", GroupKey: "g2"}}}
+	choices := map[string]QuitChoice{"b": QuitStop}
+	done := make(chan error, 1)
+	go func() { done <- svc.WaitFinished(ctx, plan, choices) }()
+	select {
+	case <-done:
+		t.Fatal("returned while g1 still works")
+	case <-time.After(300 * time.Millisecond):
+	}
+	require.NoError(t, servers.SetStatus(ctx, "g1", domain.ServerSleeping))
+	select {
+	case err := <-done:
+		assert.NoError(t, err, "g2 was stopped, not waited for")
+	case <-time.After(3 * time.Second):
+		t.Fatal("did not return")
+	}
+	short, cancel := context.WithTimeout(ctx, 50*time.Millisecond)
+	defer cancel()
+	require.NoError(t, servers.SetStatus(ctx, "g1", domain.ServerReady))
+	assert.Error(t, svc.WaitFinished(short, plan, nil), "bounded")
 }

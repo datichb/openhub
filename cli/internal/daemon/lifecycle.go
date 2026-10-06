@@ -133,9 +133,13 @@ func (d *Daemon) clientState(group string) (attached, presence bool) {
 func (d *Daemon) sleepDecision(srv domain.Server, w *watcher) (sleep, stop bool) {
 	d.mu.Lock()
 	policy := d.policies[srv.GroupKey]
+	queued := d.queuedGroups[srv.GroupKey]
 	d.mu.Unlock()
 	if policy == PolicyStopNow {
 		return false, true
+	}
+	if queued {
+		return false, false // a queued first prompt needs the server
 	}
 	attached, presence := d.clientState(srv.GroupKey)
 	if attached || w == nil || !w.isSynced() {

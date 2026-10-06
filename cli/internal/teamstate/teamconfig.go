@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/datichb/openhub/cli/internal/limits"
 	"github.com/datichb/openhub/cli/internal/workflow"
 	toml "github.com/pelletier/go-toml/v2"
 )
@@ -256,6 +257,9 @@ type TeamConfig struct {
 	Workflow *WorkflowTeamConfig `toml:"workflow,omitempty"`
 	// Governance holds who may publish the team workflows (v5 phase 2).
 	Governance GovernanceConfig `toml:"governance,omitempty"`
+	// Limits holds the team session restrictions (I6): recommended values
+	// and enforced ceilings ([limits.recommended], [limits.enforced]).
+	Limits *limits.TeamLimits `toml:"limits,omitempty"`
 }
 
 // WorkflowTeamConfig holds team-level workflow customization.

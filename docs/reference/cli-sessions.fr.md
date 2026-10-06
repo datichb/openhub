@@ -174,6 +174,20 @@ oh debug --issue "Memory leak dans le worker pool"
 
 ---
 
+### oh budget
+
+Restrictions des sessions (désactivées par défaut) : sessions actives max, budget par session et journalier, plafond mémoire, modèles autorisés. Voir [Sessions v5 › Restrictions](../guides/sessions-v5.fr.md#restrictions).
+
+```bash
+oh budget show [-p <projet>] [--json]           # valeurs effectives, origine, dépenses du jour
+oh budget set session_budget_usd 5              # hub.toml [limits]
+oh budget set max_active_sessions 2 -p mon-app  # niveau projet
+oh budget unset daily_budget_usd
+oh budget raise <session> [montant]             # répondre à une décision $
+```
+
+---
+
 ### oh beads
 
 Proxy vers `bd` (Beads CLI). Tous les arguments sont passes directement a `bd`.
