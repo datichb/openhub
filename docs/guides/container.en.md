@@ -49,6 +49,10 @@ The **▣ container** option shows whether the engine is available. When the VM 
 
 The estimated time comes from the latest builds of the project. Before the first build, the line says « several minutes ». While launching, the last build lines are shown in the form.
 
+### Git identity
+
+The container `HOME` is a volume of the project's own: your `~/.gitconfig` is not there. So that the agent can commit, oh passes your git identity, read from the project, to the shell of the session (and of the subagents): `GIT_AUTHOR_NAME`, `GIT_AUTHOR_EMAIL`, `GIT_COMMITTER_NAME`, `GIT_COMMITTER_EMAIL`. No other git configuration is copied.
+
 ## Settings
 
 TUI: **Settings › Execution**, or the `[execution]` section of `~/.oh/hub.toml`:

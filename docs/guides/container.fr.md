@@ -49,6 +49,10 @@ L'option **▣ conteneur** indique la disponibilité du moteur. Si la VM est arr
 
 Le temps estimé vient des dernières constructions du projet. Avant la première construction, la ligne indique « plusieurs minutes ». Pendant le lancement, les dernières lignes de la construction s'affichent dans la fiche.
 
+### Identité git
+
+Le `HOME` du conteneur est un volume propre au projet : votre `~/.gitconfig` n'y est pas. Pour que l'agent puisse committer, oh passe au shell de la session (et des sous-agents) votre identité git, lue dans le projet : `GIT_AUTHOR_NAME`, `GIT_AUTHOR_EMAIL`, `GIT_COMMITTER_NAME`, `GIT_COMMITTER_EMAIL`. Aucune autre configuration git n'est copiée.
+
 ## Réglages
 
 TUI : **Réglages › Exécution**, ou la section `[execution]` de `~/.oh/hub.toml` :

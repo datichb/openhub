@@ -3538,7 +3538,7 @@
   "tui.doctor.container.keep_id_ok": "files created in the container belong to you",
   "tui.doctor.container.keep_id_bad": "--userns=keep-id does not give your uid: created files will belong to another user",
   "tui.doctor.container.shared": "Container: folders shared with the VM",
-  "tui.doctor.container.shared_ok": "%d project and worktree folders shared",
+  "tui.doctor.container.shared_ok": "project and worktree folders shared: %d",
   "tui.doctor.container.not_shared": "not shared with the VM (they would look empty): %s; shared: %s",
   "tui.doctor.container.images": "Container: project images",
   "tui.doctor.container.no_image": "no image built yet (built at the first container launch)",
