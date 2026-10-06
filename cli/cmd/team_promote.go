@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -34,7 +35,7 @@ func runTeamPromote(cmd *cobra.Command, _ []string) error {
 	a := MustApp()
 	remote, _ := cmd.Flags().GetString("remote")
 	teamID, _ := cmd.Flags().GetString("team")
-	team, err := promoteSoloTeam(cmd, a, teamID, remote)
+	team, err := promoteSoloTeam(cmd.Context(), a, teamID, remote)
 	if err != nil {
 		return err
 	}
@@ -48,7 +49,7 @@ func runTeamPromote(cmd *cobra.Command, _ []string) error {
 
 // promoteSoloTeam pushes the solo team-state to remote and turns its hub.toml
 // entry into a regular team.
-func promoteSoloTeam(cmd *cobra.Command, a *app.App, teamID, remote string) (*config.TeamConfig, error) {
+func promoteSoloTeam(ctx context.Context, a *app.App, teamID, remote string) (*config.TeamConfig, error) {
 	remote = strings.TrimSpace(remote)
 	if remote == "" {
 		return nil, fmt.Errorf("%s", i18n.T("cmd.team.promote.remote_required"))
@@ -61,7 +62,7 @@ func promoteSoloTeam(cmd *cobra.Command, a *app.App, teamID, remote string) (*co
 		return nil, fmt.Errorf("%s", i18n.Tf("cmd.team.promote.remote_used", remote, other.ID))
 	}
 	repo := teamstate.NewRepo("", team.StatePath)
-	if err := repo.Promote(cmd.Context(), remote); err != nil {
+	if err := repo.Promote(ctx, remote); err != nil {
 		return nil, fmt.Errorf("%s: %w", i18n.Tf("cmd.team.promote.failed", remote), err)
 	}
 	team.Solo = false

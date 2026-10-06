@@ -89,6 +89,7 @@ func runProjectAddInteractive(ctx context.Context, a *app.App) error {
 		agents        []string
 		mcpServices   []string
 		projectTeamID *string
+		projectSolo   bool
 		doDeploy      bool
 	)
 
@@ -354,7 +355,7 @@ func runProjectAddInteractive(ctx context.Context, a *app.App) error {
 			},
 		},
 		// ── Step 7: Team ──
-		buildProjectTeamStep(a, &projectTeamID),
+		buildProjectTeamStep(a, &projectTeamID, &projectSolo),
 		// ── Step 8: Deploy ──
 		{
 			Label: "Deploy",
@@ -419,6 +420,13 @@ func runProjectAddInteractive(ctx context.Context, a *app.App) error {
 	fmt.Fprintf(a.IO.Out, "\n%s %s\n",
 		theme.SuccessStyle.Render(theme.IconSuccess),
 		i18n.Tf("cmd.project.registered", theme.Bold.Render(name), absPath))
+	if projectSolo {
+		if sp, err := attachProjectSolo(ctx, a, result); err != nil {
+			fmt.Fprintf(a.IO.Out, "%s %s\n", theme.WarningStyle.Render(theme.IconWarning), i18n.Tf("tui.solo.project.failed", err.Error()))
+		} else {
+			fmt.Fprintf(a.IO.Out, "%s %s\n", theme.SuccessStyle.Render(theme.IconSuccess), i18n.Tf("tui.solo.project.done", name, sp.Team.ID))
+		}
+	}
 
 	// ── Execute deploy if requested ──
 	if doDeploy {

@@ -59,7 +59,7 @@ func loadPublishPreview(ctx context.Context, c workflowsvc.Context, ref string) 
 	}
 	out.Diff = textDiff(p.Published, p.Draft, out.Ref+" ("+i18n.T("tui.publish.diff_published")+")", out.Ref+" ("+i18n.T("tui.publish.diff_draft")+")")
 	if policy, err := svc.Governance(ctx, c); err == nil {
-		out.Governance = governanceLabel(policy)
+		out.Governance = views.GovernanceLabel(policy)
 	}
 	if ops, err := svc.QueuedOps(ctx, c); err == nil {
 		out.Queued = slices.ContainsFunc(ops, func(op teamstate.QueuedOp) bool {
@@ -80,14 +80,6 @@ func textDiff(from, to *workflowsvc.Text, fromLabel, toLabel string) string {
 		diff += workflowsvc.UnifiedDiff(pa, pb, "prompt · "+fromLabel, "prompt · "+toLabel)
 	}
 	return diff
-}
-
-// governanceLabel describes a publication policy (P2-T17).
-func governanceLabel(policy string) string {
-	if policy == teamstate.GovernancePublishAnyMember {
-		return i18n.T("tui.team.governance.any_member")
-	}
-	return i18n.Tf("tui.team.governance.unsupported", policy)
 }
 
 // openHistoryView pushes the history screen of ref.

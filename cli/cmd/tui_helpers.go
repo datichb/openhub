@@ -46,7 +46,8 @@ func makeResolveTeamFunc(a *app.App) views.ResolveTeamFunc {
 		// Team mode: the team chosen in the TUI wins (B5).
 		if tuiShell != nil && tuiShell.ActiveTeam() != nil {
 			if t := a.Config.FindTeam(tuiShell.ActiveTeam().ID); t != nil {
-				return views.TeamResolution{Enabled: t.Enabled, StateRepo: t.StateRepo, StatePath: t.StatePath, MemberID: t.MemberID}
+				return views.TeamResolution{Enabled: t.Enabled && !t.Solo, StateRepo: t.StateRepo, StatePath: t.StatePath, MemberID: t.MemberID,
+					Solo: t.Solo, TeamID: t.ID}
 			}
 		}
 		project, _ := resolveActiveProject(a)
@@ -56,6 +57,8 @@ func makeResolveTeamFunc(a *app.App) views.ResolveTeamFunc {
 			StateRepo: tc.StateRepo,
 			StatePath: tc.StatePath,
 			MemberID:  tc.MemberID,
+			Solo:      tc.Solo,
+			TeamID:    tc.TeamID,
 		}
 	}
 }

@@ -324,30 +324,16 @@ func projectTeamStateForMigration(ctx context.Context, a *app.App, project *doma
 		}
 		return repo, tc.MemberID, nil
 	}
-	for _, t := range a.Config.Teams {
-		if !t.Solo || !t.Enabled {
-			continue
-		}
-		repo := teamstate.NewRepo("", t.StatePath)
-		if !repo.IsCloned() {
-			continue
-		}
-		if err := attachProjectToSolo(ctx, a, repo, project, t.ID); err != nil {
-			return nil, "", err
-		}
-		m.notice("solo_attached", project.Name, t.ID)
-		return repo, t.MemberID, nil
-	}
-	id := "solo"
-	for i := 2; a.Config.FindTeam(id) != nil; i++ {
-		id = fmt.Sprintf("solo-%d", i)
-	}
-	res, err := initSoloTeam(ctx, a, soloTeamParams{ID: id, ProjectRef: project.ID})
+	sp, err := attachProjectSolo(ctx, a, project)
 	if err != nil {
 		return nil, "", err
 	}
-	m.notice("solo_created", res.Team.ID, project.Name)
-	return res.Repo, res.Team.MemberID, nil
+	if sp.Created {
+		m.notice("solo_created", sp.Team.ID, project.Name)
+	} else {
+		m.notice("solo_attached", project.Name, sp.Team.ID)
+	}
+	return sp.Repo, sp.Team.MemberID, nil
 }
 
 // writeMigrationDraft writes the translated document as the member's draft

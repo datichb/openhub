@@ -943,6 +943,7 @@ func buildProjectStep(s *initStepState) views.WizardStep {
 				s.ProjectName = existing.Name
 				s.ProjectPath = existing.Path
 				s.ProjectCreated = true
+				initWizardSoloSpace(ctx, s, existing)
 				return nil
 			}
 
@@ -964,6 +965,7 @@ func buildProjectStep(s *initStepState) views.WizardStep {
 			}
 			s.ProjectID = result.ID
 			s.ProjectCreated = true
+			initWizardSoloSpace(ctx, s, result)
 			return nil
 		},
 		InfoFields: func() []views.InfoField {

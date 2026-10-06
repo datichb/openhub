@@ -281,9 +281,9 @@ func TestBuildTeamModeIntroStep_Layout(t *testing.T) {
 	buttonForm := findButtonForm(container)
 	require.NotNil(t, buttonForm, "container should contain a button *tview.Form")
 
-	// Must have 3 buttons: Create, Rejoin, Skip
-	require.Equal(t, 3, buttonForm.GetButtonCount(),
-		"button form should have Create + Rejoin + Skip buttons")
+	// Must have 4 buttons: Create, Rejoin, Solo space (P2-T16), Skip
+	require.Equal(t, 4, buttonForm.GetButtonCount(),
+		"button form should have Create + Rejoin + Solo + Skip buttons")
 
 	// onDone should not have been called yet (no button pressed)
 	assert.False(t, doneCalled, "onDone should not fire without user interaction")
@@ -380,8 +380,9 @@ func TestBuildTeamModeIntroStep_SkipCallback(t *testing.T) {
 	require.NotNil(t, handler)
 	setFocus := func(p tview.Primitive) {}
 
-	// Tab twice: Create → Rejoin → Skip
+	// Tab three times: Create → Rejoin → Solo → Skip
 	tabEvent := tcell.NewEventKey(tcell.KeyTab, 0, tcell.ModNone)
+	handler(tabEvent, setFocus)
 	handler(tabEvent, setFocus)
 	handler(tabEvent, setFocus)
 
@@ -544,4 +545,26 @@ func TestBuildFirstRunInlineWizard_E2E_HandleKey(t *testing.T) {
 	}, "Enter on welcome step should not panic")
 
 	wiz.Unmount()
+}
+
+// P2-T16: the « solo space » choice of the first-run wizard.
+func TestBuildTeamModeIntroStep_SoloSpace(t *testing.T) {
+	state := &initWizardTeamState{}
+	step := buildTeamModeIntroStep(state)
+	tvApp := tview.NewApplication()
+	container := tview.NewFlex().SetDirection(tview.FlexRow)
+	doneCalled := false
+	step.CustomView(tvApp, container, func() { doneCalled = true })
+	buttonForm := findButtonForm(container)
+	require.NotNil(t, buttonForm)
+	tvApp.SetFocus(buttonForm)
+	handler := buttonForm.InputHandler()
+	setFocus := func(p tview.Primitive) {}
+	tab := tcell.NewEventKey(tcell.KeyTab, 0, tcell.ModNone)
+	handler(tab, setFocus)
+	handler(tab, setFocus)
+	handler(tcell.NewEventKey(tcell.KeyEnter, 0, tcell.ModNone), setFocus)
+	assert.True(t, doneCalled)
+	assert.True(t, state.SoloSpace)
+	assert.True(t, state.Skipped, "no team configured")
 }

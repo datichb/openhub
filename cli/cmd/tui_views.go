@@ -546,6 +546,7 @@ func buildViews(a *app.App, notifStore *shell.NotificationStore) []views.View {
 				return a.Config.Tracker
 			},
 			ResolveTeam: makeResolveTeamFunc(a),
+			PromoteSolo: tuiPromoteSolo,
 			SaveTeamConfig: func(ctx context.Context, cfg *teamstate.TeamConfig) error {
 				project, _ := resolveActiveProject(a)
 				tc := resolvedTeamConfig(a, project)

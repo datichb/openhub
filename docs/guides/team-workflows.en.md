@@ -145,6 +145,13 @@ oh team promote --remote <empty-url>      # later: share it with a team
 
 Publications there are local commits. `oh team promote` pushes the whole history to the remote, without loss (see [team CLI](../reference/cli-team.en.md#oh-team-promote)).
 
+In the TUI:
+
+- **first run**: "Solo space (local workflows)" button at the Team step (the "solo" mode of the welcome step selects it); the wizard's project is attached to it;
+- **adding a project**: "Create a solo space" / "Solo space <id>" choice at the Team step (the existing space is reused);
+- **workflow catalogue**: `n` without a team-state offers to create the solo space (id, member, attachment of the active project);
+- **team detail** of a solo space: "Space" line and **"Switch to a team"** action (URL of an empty remote repository, confirmation, then the URL to send to the members, who run `oh team init`). The team detail also shows the workflow **governance**, read only ("Publication: any member").
+
 ## Migration of the former workflow overrides (v5)
 
 The overrides of the former single workflow (TUI Workflow tab) are migrated **automatically** at the first start of oh v5 (migration v38), to workflows extending `hub:feature` (same checkpoint and agent ids):

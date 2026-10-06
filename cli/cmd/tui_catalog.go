@@ -38,6 +38,8 @@ func newWorkflowCatalogView(start *tuiStart) *views.WorkflowCatalogView {
 		History: func(e views.CatalogEntry) { openHistoryView(e.Ref) },
 		Archive: tuiArchiveWorkflow,
 		Discard: tuiDiscardDraft,
+		// Without a team-state: offer a solo space (P2-T16).
+		NoTeamState: func() { tuiCreateSoloSpace(refreshCatalog) },
 	})
 }
 

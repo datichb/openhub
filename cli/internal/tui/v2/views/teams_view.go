@@ -195,7 +195,7 @@ func (v *TeamsView) rebuild() {
 
 			items = append(items, widgets.SectionItem{
 				MainText:      fmt.Sprintf("%s  %s", t.ID, t.DisplayName()),
-				SecondaryText: i18n.Tf("tui.teams.member_info", t.MemberID, truncateString(t.StateRepo, 40), status),
+				SecondaryText: i18n.Tf("tui.teams.member_info", t.MemberID, teamRepoLabel(t), status),
 				Reference:     t.ID,
 			})
 		}
@@ -365,4 +365,13 @@ func truncateString(s string, maxLen int) string {
 		return s
 	}
 	return s[:maxLen-3] + "..."
+}
+
+// teamRepoLabel is the team-state of a team: its remote, or « solo space »
+// (local, no remote; P2-T16).
+func teamRepoLabel(t config.TeamConfig) string {
+	if t.Solo {
+		return i18n.T("tui.solo.teams_label")
+	}
+	return truncateString(t.StateRepo, 40)
 }

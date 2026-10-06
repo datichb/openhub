@@ -145,6 +145,13 @@ oh team promote --remote <url-vide>       # plus tard : le partager avec une éq
 
 Les publications y sont des commits locaux. `oh team promote` pousse tout l'historique vers le remote, sans rien perdre (voir [CLI équipe](../reference/cli-team.fr.md#oh-team-promote)).
 
+Dans la TUI :
+
+- **premier lancement** : bouton « Espace solo (workflows locaux) » à l'étape Équipe (le mode « solo » de l'accueil l'active d'office) ; le projet de l'assistant y est rattaché ;
+- **ajout d'un projet** : choix « Créer un espace solo » / « Espace solo <id> » à l'étape Équipe (l'espace existant est réutilisé) ;
+- **catalogue des workflows** : `n` sans team-state propose de créer l'espace solo (identifiant, membre, rattachement du projet actif) ;
+- **détail d'équipe** d'un espace solo : ligne « Espace » et action **« Passer en équipe »** (URL d'un dépôt distant vide, confirmation, puis l'URL à transmettre aux membres, qui lancent `oh team init`). Le détail d'équipe affiche aussi la **gouvernance** des workflows en lecture (« Publication : tout membre »).
+
 ## Migration des anciennes surcharges de workflow (v5)
 
 Les surcharges de l'ancien workflow unique (onglet Workflow de la TUI) sont migrées **automatiquement** au premier lancement d'oh v5 (migration v38), vers des workflows qui étendent `hub:feature` (mêmes identifiants de checkpoints et d'agents) :
