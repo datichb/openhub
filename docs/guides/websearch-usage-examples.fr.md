@@ -18,7 +18,7 @@ Ce guide présente 5 exemples concrets d'utilisation de WebSearch dans différen
 - Les tokens économisés vs. copier-coller manuel
 - Les bonnes pratiques et contre-exemples
 
-**Prérequis** : WebSearch activé au niveau hub ou projet (`./oh config websearch enable`)
+**Prérequis** : WebSearch activé au niveau hub (`oh config websearch enable`), opencode V2
 
 ---
 
@@ -450,25 +450,14 @@ Exemples :
 
 ## Métriques WebSearch
 
-Les métriques WebSearch sont trackées automatiquement :
+oh ne suit pas les recherches WebSearch à part (l'ancien suivi `.opencode/metrics.jsonl` n'existe plus en v5). Pour les voir :
 
 ```bash
-# Voir métriques globales
-./oh metrics
+# Flux en direct d'une session : appels d'outils, dont websearch et webfetch
+oh session follow <id>
 
-# Output exemple :
-# 🔍 WebSearch Usage
-#   • Total queries           12
-#   
-#   Top query types:
-#     • CVE lookup             5
-#     • library comparison     4
-#     • design patterns        3
-```
-
-**Format JSONL** (`.opencode/metrics.jsonl`) :
-```json
-{"timestamp":"2026-05-29T10:35:00Z","event":"websearch","ticket_id":"bd-42","tool":"websearch","query_type":"CVE lookup"}
+# Métriques globales : sessions, tokens, coûts
+oh metrics --period 30d
 ```
 
 ---
@@ -477,8 +466,7 @@ Les métriques WebSearch sont trackées automatiquement :
 
 - **Guide intégration** : `docs/guides/websearch-integration.fr.md`
 - **Skill agents** : `skills/shared/websearch-usage.md`
-- **Configuration** : `./oh config websearch --help`
-- **RTK métriques** : `RTK.md` (section WebSearch & Token Optimization)
+- **Configuration** : `oh config websearch --help`
 
 ---
 

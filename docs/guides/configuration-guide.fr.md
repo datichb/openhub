@@ -11,7 +11,7 @@ Ce guide vous accompagne pas a pas dans la configuration d'OpenHub, depuis le se
 3. [Enregistrement de projets](#3-enregistrement-de-projets) -- Enregistrer et configurer des projets
 4. [Serveurs MCP](#4-serveurs-mcp) -- Connecter des outils externes
 5. [Configuration equipe](#5-configuration-equipe) -- Collaboration multi-utilisateurs
-6. [Configuration avancee](#6-configuration-avancee) -- Overrides de workflow, options de deploy, worktrees
+6. [Configuration avancee](#6-configuration-avancee) -- Personnaliser les workflows, fichiers d'instructions, worktrees
 
 ---
 
@@ -181,9 +181,10 @@ planning = "claude-opus-4-6"
 reviewer = "claude-opus-4-6"
 ```
 
-La resolution de modele suit une **cascade a 10 niveaux** (premier match gagne) :
+La resolution de modele suit une **cascade a 10 niveaux** (premier match gagne), precedee du bloc `models:` du workflow de la session :
 
 ```
+Workflow agent > Workflow defaut >
 Projet agent > Projet famille > Projet defaut >
 Hub agent > Hub famille > Hub defaut >
 Team agent > Team famille > Team defaut >
@@ -399,8 +400,10 @@ Lors de la reprise du travail de quelqu'un d'autre :
 ```bash
 oh takeover-brief show <ticket-id>   # voir le contexte de reprise
 oh takeover-brief list               # lister les briefs disponibles
-oh takeover-brief enrich <ticket-id> # enrichir avec l'analyse du code
+oh run brief-enrich --headless -i ticket=<ticket-id>   # enrichir avec l'analyse du code
 ```
+
+`oh takeover-brief enrich <ticket-id>` reste un alias deprecie de `oh run brief-enrich --headless`.
 
 ### Bibliotheque de patterns
 
@@ -417,16 +420,19 @@ oh patterns validate         # valider les patterns
 
 ## 6. Configuration Avancee
 
-### Overrides de workflow
+### Personnaliser les workflows
 
-Override du comportement de workflow par defaut dans `hub.toml` :
+Le bloc `[workflow]` de `hub.toml` n'existe plus en v5 : il est migre automatiquement vers un workflow `feature` du team-state (voir [Workflows d'equipe › Migration des anciennes surcharges](team-workflows.fr.md#migration-des-anciennes-surcharges-de-workflow-v5)). Pour adapter un workflow (checkpoints, mode, modeles, limites), creez une couche d'equipe ou de projet :
 
-```toml
-[workflow]
-# Les overrides de workflow sont appliques a la construction du paquet de session
+```bash
+oh workflow list              # workflows disponibles (toutes les couches)
+oh workflow show feature      # workflow resolu, avec l'origine des valeurs
+oh workflow edit feature      # brouillon, puis oh workflow publish
 ```
 
-### Options de deploy
+Voir [Workflows d'equipe](team-workflows.fr.md) et la [Reference des workflows](../reference/workflows.fr.md).
+
+### Fichiers d'instructions
 
 `disable_native_agents` a ete supprime en v5 (les agents d'une session sont ceux de son workflow). Seuls les fichiers d'instructions supplementaires restent, integres a chaque agent des paquets de session :
 
@@ -465,20 +471,15 @@ default_provider = "bedrock"   # opencode V2 est installé avec son propre outil
 ### Gestion des secrets
 
 ```bash
-oh secrets set <key> <value>   # stocker un secret dans le trousseau
+oh secrets set <key>           # stocker un secret dans le trousseau (valeur demandee)
 oh secrets get <key>           # recuperer un secret
 oh secrets list                # lister les cles de secrets stockes
 oh secrets delete <key>        # supprimer un secret
 ```
 
-### Gestion des plugins
+### Plugins
 
-```bash
-oh plugin list               # lister les plugins installes
-oh plugin install <name>     # installer un plugin
-oh plugin remove <name>      # supprimer un plugin
-oh plugin status             # afficher le statut des plugins
-```
+`oh plugin` (plugins globaux d'opencode V1, dont RTK) est supprime en v5. Les plugins se declarent par workflow (`plugins:`) ; voir [Workflows livres › Plugins et code mode](../reference/workflows.fr.md#plugins-et-code-mode).
 
 ---
 

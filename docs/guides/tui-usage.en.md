@@ -25,7 +25,7 @@ The omnibar is the primary navigation tool. Activate it by:
 The omnibar supports fuzzy matching -- type partial words, abbreviations, or aliases:
 
 ```
-> secu        → launches security audit
+> secu        → opens the launch form of the audit workflow
 > brick       → opens the brick catalogue
 > doc         → opens doctor diagnostics
 > tst         → team status
@@ -54,23 +54,20 @@ Action results appear as toasts in the top-right corner (success/error/info). Th
 
 | Command | Description |
 |---------|-------------|
-| `start` | Launch a session (shows mode picker: Standard, Dev, Onboard) |
-| `start dev` | Dev mode directly (ticket workflow) |
-| `start onboard` | Onboard mode directly (project discovery) |
-| `coder` | Free session (`libre` workflow) |
-| `audit` | Audit launcher (picks audit type) |
-| `review` | Review launcher (picks review mode) |
-| `debug` | Debug session with issue description |
-| `parallel` | Parallel sessions view (multi-ticket) |
+| `run <workflow>` | Opens the launch form of a catalogue workflow (Inputs → Options → Recap, `Ctrl+S` launches). Former names accepted as aliases: `start` → `run feature`, `dev` → `run ticket`, `onboard` → `run onboarding`, `audit`, `review`, `debug` |
+| `coder` | Free session (form of the `libre` workflow) |
+| `sessions` | **Sessions** view: to handle, running, sleeping, finished (aliases `parallel`, `inbox`) |
+| `workflows` | Workflow catalogue (editor, publication, history) |
+| `cleanup` | Cleanup screen for former deployments |
 
-When a session starts, the TUI suspends and opencode takes over. When you exit opencode, the TUI resumes.
+A session opens with the method chosen in Settings (new tab or window, tmux, browser, or current terminal with the TUI suspended). Closing opencode does not stop the session: the TUI stays the control tower (Sessions view). See [Sessions v5](sessions-v5.en.md).
 
 ### Project Management
 
 | Command | View | Description |
 |---------|------|-------------|
 | `projects` | Projects list | All registered projects with status |
-| `project add` | Wizard | Add a new project (full 8-step wizard) |
+| `project add` | Wizard | Add a new project |
 | `board` | Kanban board | Project tickets board (requires bd) |
 | `bricks` | Brick catalogue | Agents and skills (hub/team origin, estimated cost, workflows using them), read-only |
 | `project-config` | Project config | Per-project settings (provider, model, MCP, execution) |
@@ -88,7 +85,7 @@ In the **Projects** view:
 | `models` | Model config | Default and per-agent model configuration |
 | `provider` | Provider setup | LLM provider settings |
 | `mcp` | MCP servers | MCP server enable/disable/status |
-| `settings` | General settings | Language, opencode version, auto-update |
+| `settings` | General settings | Language, default provider, session opening and sleep, MCP, worktrees, tracker; Execution, Remote, Restrictions |
 | `secrets` | Secrets & Tokens | Manage stored credentials |
 | `teams` | Teams list | Multi-team management |
 | `init` | Wizard | Reconfigure the hub (provider, credentials) |
@@ -116,7 +113,6 @@ In the **Projects** view:
 | `metrics` | Agent metrics | Per-agent usage, cost, and duration stats |
 | `notifications` | Notifications | Recent notification events |
 | `worktrees` | Worktree manager | List, add, remove Git worktrees |
-| `upgrade` | - | Upgrade oh or opencode |
 | `help` | Help | Keybindings and command reference |
 
 ### Navigation
@@ -149,7 +145,7 @@ Each mode has its own Home page with context-appropriate shortcuts.
 
 ## Session Types Reference
 
-### Audit types (6)
+### Audit types (7)
 
 | Type | Focus area |
 |------|-----------|
@@ -159,21 +155,23 @@ Each mode has its own Home page with context-appropriate shortcuts.
 | Accessibility | WCAG, ARIA, keyboard nav |
 | Eco-design | Carbon footprint, resource usage |
 | Observability | Logs, metrics, traces, alerts |
+| Privacy | GDPR, personal data, consent, retention |
 
-### Review modes (4)
+### Review modes (5)
 
 | Mode | Approach |
 |------|---------|
 | Standard | Balanced review across all dimensions |
 | Adversarial | Actively tries to break the code |
 | Edge cases | Focuses on boundary conditions and error paths |
-| Complete | Runs all modes in parallel, merges results |
+| Standard + Adversarial | Two reviews in parallel, unified report |
+| All | Runs all modes in parallel, merges results |
 
 ---
 
 ## Tips
 
-- **Fuzzy matching** — type any part of a command name. `sec` matches `audit security`, `rev` matches `review`.
+- **Fuzzy matching** — type any part of a command name. `sec` matches `run audit`, `rev` matches `run review`.
 - **Mode switching** — the TUI adapts available commands to your current mode. Project-specific commands only appear in project mode.
 - **Config editing** — in config views, navigate with `j`/`k`, press `Enter` to edit a value. Changes auto-save.
 - **Contextual shortcuts** — each view shows available shortcuts in the omnibar hint text at the bottom.

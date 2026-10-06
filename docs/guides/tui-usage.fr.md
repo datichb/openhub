@@ -25,7 +25,7 @@ L'omnibar est l'outil de navigation principal. Activez-le avec :
 L'omnibar supporte le fuzzy matching -- tapez des mots partiels, abreviations ou alias :
 
 ```
-> secu        → lance un audit securite
+> secu        → ouvre la fiche de lancement du workflow audit
 > brick       → ouvre le catalogue des briques
 > doc         → ouvre le diagnostic doctor
 > tst         → statut equipe
@@ -54,23 +54,20 @@ Les resultats d'actions apparaissent en toasts dans le coin haut-droit (succes/e
 
 | Commande | Description |
 |----------|-------------|
-| `start` | Lancer une session (affiche le selecteur : Standard, Dev, Onboard) |
-| `start dev` | Mode dev directement (workflow tickets) |
-| `start onboard` | Mode onboard directement (decouverte projet) |
-| `coder` | Coder (session libre) |
-| `audit` | Lanceur d'audit (choisir le type) |
-| `review` | Lanceur de review (choisir le mode) |
-| `debug` | Session debug avec description du probleme |
-| `parallel` | Vue sessions paralleles (multi-tickets) |
+| `run <workflow>` | Ouvre la fiche de lancement d'un workflow du catalogue (Entrees → Options → Recap, `Ctrl+S` lance). Anciens noms acceptes comme alias : `start` → `run feature`, `dev` → `run ticket`, `onboard` → `run onboarding`, `audit`, `review`, `debug` |
+| `coder` | Session libre (fiche du workflow `libre`) |
+| `sessions` | Vue **Sessions** : a traiter, en cours, en veille, terminees (alias `parallel`, `inbox`) |
+| `workflows` | Catalogue des workflows (editeur, publication, historique) |
+| `cleanup` | Ecran de nettoyage des anciens deploiements |
 
-Quand une session demarre, le TUI se suspend et opencode prend le relais. Quand vous quittez opencode, le TUI reprend.
+Une session s'ouvre selon la methode choisie dans les Reglages (nouvel onglet ou fenetre, tmux, navigateur, ou terminal courant avec le TUI suspendu). Fermer opencode n'arrete pas la session : le TUI reste la tour de controle (vue Sessions). Voir [Sessions v5](sessions-v5.fr.md).
 
 ### Gestion de projets
 
 | Commande | Vue | Description |
 |----------|-----|-------------|
 | `projects` | Liste des projets | Tous les projets enregistres avec statut |
-| `project add` | Wizard | Ajouter un nouveau projet (wizard complet 8 etapes) |
+| `project add` | Wizard | Ajouter un nouveau projet |
 | `board` | Kanban | Board de tickets du projet (necessite bd) |
 | `bricks` | Catalogue des briques | Agents et skills (origine hub/équipe, coût estimé, workflows qui les utilisent), lecture seule |
 | `project-config` | Config projet | Parametres par projet (provider, modele, MCP, execution) |
@@ -88,7 +85,7 @@ Dans la vue **Projets** :
 | `models` | Config modeles | Configuration modeles par defaut et par agent |
 | `provider` | Config provider | Parametres du fournisseur LLM |
 | `mcp` | Serveurs MCP | Activer/desactiver/statut des serveurs MCP |
-| `settings` | Parametres generaux | Langue, version opencode, auto-update |
+| `settings` | Parametres generaux | Langue, fournisseur par defaut, ouverture et veille des sessions, MCP, worktrees, tracker ; Execution, Distant, Restrictions |
 | `secrets` | Secrets et tokens | Gerer les credentials stockes |
 | `teams` | Liste des equipes | Gestion multi-equipes |
 | `init` | Wizard | Reconfigurer le hub (provider, credentials) |
@@ -116,7 +113,6 @@ Dans la vue **Projets** :
 | `metrics` | Metriques agents | Stats d'usage, cout et duree par agent |
 | `notifications` | Notifications | Evenements de notification recents |
 | `worktrees` | Gestionnaire worktrees | Lister, ajouter, supprimer des Git worktrees |
-| `upgrade` | - | Mettre a jour oh ou opencode |
 | `help` | Aide | Raccourcis clavier et reference des commandes |
 
 ### Navigation
@@ -149,7 +145,7 @@ Chaque mode a sa propre page Home avec des raccourcis adaptes au contexte.
 
 ## Reference des types de sessions
 
-### Types d'audit (6)
+### Types d'audit (7)
 
 | Type | Domaine |
 |------|---------|
@@ -159,21 +155,23 @@ Chaque mode a sa propre page Home avec des raccourcis adaptes au contexte.
 | Accessibility | WCAG, ARIA, navigation clavier |
 | Eco-design | Empreinte carbone, usage des ressources |
 | Observability | Logs, metriques, traces, alertes |
+| Privacy | RGPD, donnees personnelles, consentement, retention |
 
-### Modes de review (4)
+### Modes de review (5)
 
 | Mode | Approche |
 |------|----------|
 | Standard | Revue equilibree sur toutes les dimensions |
 | Adversarial | Tente activement de casser le code |
 | Edge cases | Focus sur les conditions limites et les chemins d'erreur |
-| Complete | Tous les modes en parallele, resultats fusionnes |
+| Standard + Adversarial | Deux revues en parallele, rapport unifie |
+| All | Tous les modes en parallele, resultats fusionnes |
 
 ---
 
 ## Astuces
 
-- **Fuzzy matching** -- tapez n'importe quelle partie d'un nom de commande. `sec` correspond a `audit security`, `rev` a `review`.
+- **Fuzzy matching** -- tapez n'importe quelle partie d'un nom de commande. `sec` correspond a `run audit`, `rev` a `run review`.
 - **Changement de mode** -- le TUI adapte les commandes disponibles a votre mode courant. Les commandes specifiques a un projet n'apparaissent qu'en mode projet.
 - **Edition de config** -- dans les vues de config, naviguez avec `j`/`k`, appuyez sur `Enter` pour modifier une valeur. Les changements sont sauvegardes automatiquement.
 - **Raccourcis contextuels** -- chaque vue affiche les raccourcis disponibles dans le texte passif de l'omnibar en bas.

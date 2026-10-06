@@ -35,8 +35,8 @@ Ce guide est la reference complete des commandes. Pour les details de configurat
 | Outil | Usage | Requis |
 |-------|-------|--------|
 | **git** | Controle de version | Oui |
-| **opencode** | Agent IA de code | Auto-telecharge par `oh init` / `oh start` |
-| **bd** | Gestionnaire de tickets Beads | Non (pour le mode `--dev` et `oh board`) |
+| **opencode V2** (2.0.0 ou plus) | Agent IA de code | Oui — a installer avec son propre outil (`brew install anomalyco/tap/opencode`, ou https://opencode.ai) ; verifie par `oh init` et `oh doctor` |
+| **bd** | Gestionnaire de tickets Beads | Non (pour le workflow `ticket` et `oh board`) |
 
 Aucun besoin de Node.js, jq, sqlite3, bun ou Python. Le binaire Go est autonome.
 
@@ -73,7 +73,7 @@ Cet assistant interactif en 3 etapes va :
 **[1/3] Configuration du hub :**
 - Afficher un preambule avec les prerequis (provider, tokens MCP)
 - Demander votre langue preferee (fr/en)
-- Demander la version d'opencode (par defaut : latest)
+- Verifier qu'opencode V2 est installe (oh n'installe plus opencode)
 - Choisir le provider LLM par defaut (Bedrock, Anthropic, OpenRouter, GitHub Copilot)
 - Detecter automatiquement les credentials existantes et proposer de les utiliser ou d'en configurer de nouvelles
 
@@ -84,7 +84,7 @@ Cet assistant interactif en 3 etapes va :
 
 **[3/3] Premier projet (optionnel) :**
 - Proposer d'enregistrer un premier projet
-- Si oui : lance l'assistant de projet (nom, chemin, langage, agents, MCP)
+- Si oui : lance l'assistant de projet (nom, chemin, langage, MCP)
 - Si non : l'initialisation est terminee (`oh project add` disponible plus tard)
 
 Le hub content (agents et skills) est extrait automatiquement dans `~/.oh/hub/` depuis le binaire.
@@ -100,7 +100,7 @@ oh project add
 Ou de maniere non-interactive :
 
 ```bash
-oh project add --name my-app --path ~/workspace/my-app --language typescript --tracker github
+oh project add --name my-app --path ~/workspace/my-app --language typescript
 ```
 
 ## Paquet de session
@@ -118,30 +118,33 @@ Projets deployes avec une version precedente : nettoyer les restes (`.opencode/a
 
 ## Lancer une session
 
+Chaque session lance un **workflow** (voir [Workflows livres](../reference/workflows.fr.md)) :
+
 ```bash
-oh start                     # detection auto du projet, affiche le recap, confirme puis lance
-oh start -p my-project       # projet explicite
-oh start -a orchestrator     # utiliser un agent specifique
-oh start -m "explique..."    # avec un prompt initial
-oh start --dev               # mode dev : choisir epics/tickets
-oh start --onboard           # creer le wiki du projet
-oh start --recap              # afficher le récap + confirmation
-oh start -r <session-id>     # reprendre une session precedente
+oh run                       # workflow par defaut du projet, detection auto du projet
+oh run feature -p my-project # workflow et projet explicites
+oh run feature -i request="explique..."   # avec une demande initiale
+oh run libre --agent orchestrator         # session libre avec l'agent de votre choix
+oh run ticket --tickets <id> # implementer un ticket Beads
+oh run onboarding            # creer le wiki du projet
+oh run feature --recap       # afficher le récap + confirmation
+oh session attach <session-id>   # rouvrir une session existante
 ```
+
+`oh start` reste disponible comme alias deprecie (`oh start` → `oh run feature`) ; voir [Migrer vers oh v5](migration-v5.fr.md).
 
 Le flux de demarrage :
 
 1. Resout le projet (depuis le repertoire courant ou le flag `--project`)
-2. Resout le fournisseur et le token d'authentification
-3. Detecte la stack du projet (langage/framework)
-4. Affiche un recap de configuration detaille
-5. Lance directement (utilisez `--recap` pour afficher le récap + confirmation)
-6. Lance opencode
+2. Resout le workflow, le fournisseur et le token d'authentification
+3. Construit le paquet de session (hors du projet)
+4. Lance directement (utilisez `--recap` pour afficher le récap + confirmation)
+5. Demarre la session sur un serveur opencode et ouvre son interface
 
 ## Démarrage rapide
 
 ```bash
-oh start                     # détection auto du projet, lancement immédiat
+oh run                       # détection auto du projet, workflow par defaut, lancement immédiat
 ```
 
 ## Commandes quotidiennes
@@ -149,7 +152,8 @@ oh start                     # détection auto du projet, lancement immédiat
 ### Essentielles
 
 ```bash
-oh start                     # lancer une session IA
+oh run <workflow>            # lancer une session IA
+oh session list              # sessions en cours, en attente, en veille
 oh bundle show <workflow>    # inspecter le paquet de session d'un workflow
 oh status                    # afficher le statut du hub et du projet courant
 oh doctor                    # verification de sante du systeme
@@ -158,11 +162,11 @@ oh doctor                    # verification de sante du systeme
 ### Developpement
 
 ```bash
-oh start --dev               # choisir epic/ticket, lance orchestrator-dev
-oh start --dev --label bug   # filtrer les tickets par label
-oh audit --type security     # audit de code
-oh review                    # revue de code
-oh debug --issue "crash..."  # session de debogage
+oh run ticket                # choisir un ticket, lance orchestrator-dev
+oh run ticket --tickets a,b  # une session par ticket
+oh run audit -i type=security    # audit de code
+oh run review                # revue de code
+oh run debug -i issue="crash..." # session de debogage
 ```
 
 ### Infrastructure
@@ -192,17 +196,19 @@ oh team sync-tracker         # synchroniser les claims vers le tracker externe
 ## Workflow de developpement
 
 ```bash
-oh start --dev               # choisir epic/ticket, lance orchestrator-dev
-oh start --dev --label bug   # filtrer les tickets par label
-oh audit --type security     # audit de code
-oh review                    # revue de code
-oh debug --issue "crash on login"  # session de debogage
+oh run ticket                # choisir un ticket, lance orchestrator-dev
+oh run ticket --tickets a,b  # une session par ticket (un worktree par session)
+oh run audit -i type=security    # audit de code
+oh run review                # revue de code
+oh run debug -i issue="crash on login"  # session de debogage
 ```
+
+Les anciennes commandes `oh start --dev`, `oh audit`, `oh review` et `oh debug` sont des alias deprecies de ces commandes.
 
 ## Gestion des worktrees
 
 ```bash
-oh start -w feature/login    # cree un worktree et lance dedans
+oh run feature --location new   # cree un worktree et lance dedans
 oh worktree list             # lister les worktrees actifs
 oh worktree cleanup          # supprimer les worktrees merges
 ```
@@ -234,9 +240,9 @@ Voir [skills.fr.md](../architecture/skills.fr.md#marketplace-de-skills-communaut
 ```bash
 brew upgrade openhub          # mettre a jour oh lui-meme (Homebrew)
 oh upgrade oh                 # mettre a jour oh lui-meme (hors Homebrew)
-oh upgrade opencode          # mettre a jour le binaire opencode
-oh upgrade opencode 1.18.0   # fixer une version specifique
 ```
+
+opencode se met a jour avec son propre outil (`oh upgrade opencode` est supprime en v5).
 
 ## Desinstallation
 
@@ -255,14 +261,14 @@ oh doctor
 
 `oh doctor` verifie :
 - Version de `oh` (derniere disponible vs installee)
-- Presence et version du binaire `opencode`
+- Presence et version du binaire `opencode` (opencode V2 requis)
 - Credentials provider
 - Connectivite des serveurs MCP
 - Integrite du registre de projets
 
 Problemes courants :
 
-- **opencode introuvable** — lancer `oh init` ou `oh upgrade opencode`
+- **opencode introuvable ou en V1** — installer opencode V2 avec son propre outil (voir [Migrer vers oh v5](migration-v5.fr.md)), puis relancer `oh doctor`
 - **Credentials provider manquantes** — lancer `oh provider setup`
 - **Erreurs de serveur MCP** — verifier les tokens avec `oh mcp setup`
 - **Projet non detecte** — s'assurer d'etre dans un repertoire de projet enregistre (`oh project list`)

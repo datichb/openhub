@@ -1,6 +1,6 @@
-# Web Dashboard - Guide
+> [Lire en français](dashboard.fr.md)
 
-> 🇫🇷 [Lire en français](dashboard.fr.md)
+# Web Dashboard - Guide
 
 ## Overview
 
@@ -135,11 +135,7 @@ curl http://127.0.0.1:8080/api/v1/metrics/agents
 
 ## Agent Telemetry
 
-Telemetry data is auto-recorded whenever a session is started with `oh start`. No extra configuration is required. Each session records:
-- Agent name and version
-- Start time and duration
-- Completion status (completed / failed)
-- Number of tool calls made
+The per-agent table reads the `agent_events` table of `~/.oh/oh.db`. **In v5, sessions no longer feed this table**: it only holds the history of previous versions (agent, start time and duration, status, tool calls). The cost, tokens and duration of v5 sessions come from the session registry (`oh metrics`, Sessions view, `oh session results`).
 
 Telemetry is stored locally in `~/.oh/oh.db` and is never sent to external services.
 
@@ -153,9 +149,9 @@ The dashboard UI auto-refreshes every **30 seconds**. To force an immediate refr
 
 ## Use Cases
 
-### Monitoring parallel sessions
+### Monitoring several sessions
 
-When running `oh start --parallel`, open the dashboard in a browser tab to monitor all sessions without switching TUI windows. The sessions table updates in real time.
+When running `oh run ticket --tickets BD-42,BD-43` (one session per ticket), open the dashboard in a browser tab to keep an eye on the sessions. To follow the sessions and answer their decisions, use the TUI **Sessions** view or `oh session list` (see [v5 sessions](sessions-v5.en.md)).
 
 ### Reviewing agent performance
 
@@ -177,4 +173,4 @@ curl "http://127.0.0.1:8080/api/v1/sessions?limit=1000" | \
 ## Resources
 
 - [Backup & Restore guide](./backup-restore.en.md) — how to back up `oh.db`
-- [`oh serve` CLI Reference](../reference/serve.en.md)
+- [`oh serve` CLI Reference](../reference/cli-infra.en.md#oh-serve)

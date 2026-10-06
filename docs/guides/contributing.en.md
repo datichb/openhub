@@ -66,16 +66,21 @@ The CLI is a single Go binary (`cli/main.go` -> `cli/cmd/root.go`). Internal arc
 | Package | Responsibility |
 |---------|---------------|
 | `cmd/` | Cobra commands (CLI entry point) |
-| `internal/deploy/` | Transactional deployment engine (agents -> opencode.json) |
 | `internal/config/` | Hub configuration (`hub.toml`, TOML + Viper) |
-| `internal/mcp/` | 7 built-in MCP servers (Figma, GitLab, GitHub, Jira, Linear, GSlides, Team) |
-| `internal/teamstate/` | Team state management (claims, wiki, policies, patterns) |
-| `internal/opencode/` | OpenCode integration (sessions, platform, parallel runner) |
-| `internal/tui/` | TUI interface (BubbleTea + tview, shell, views, widgets) |
-| `internal/workflow/` | Workflow definitions, permissions, validation |
+| `internal/mcp/` | Built-in MCP servers (Figma, GitLab, GitHub, Jira, Linear, GSlides, Team, Workflow) |
+| `internal/teamstate/` | Team state management (claims, wiki, policies, patterns, team workflows) |
+| `internal/workflow/` | Declarative `oh/v1` workflows (schema, layers, validation) |
+| `internal/bundle/` | Session bundle (agents, skills, permissions, compiled outside the project under `~/.oh/bundles/`) |
+| `internal/sessionspec/` | Tool-agnostic session model (bundle, location, runtime, provider) |
+| `internal/adapters/` | oh ↔ agentic tool contract; opencode V2 adapter (`opencodev2/`) |
+| `internal/runsvc/` | v5 session launcher (server groups, proxy, closed world, checkpoints) |
+| `internal/daemon/` | `ohd` daemon (session supervision, decisions, notifications) |
+| `internal/credproxy/` | LLM credential proxy (per-group tokens) |
+| `internal/runtime/`, `internal/remote/` | Execution environments (container, GitLab CI remote) |
+| `internal/limits/` | Session restrictions (active sessions, budgets, memory, models) |
+| `internal/deploycleanup/` | Cleanup of former deployments (`oh migrate deploy-cleanup`) |
+| `internal/tui/` | TUI interface (tview; huh for a few inline prompts outside the TUI; shell, views, widgets) |
 | `internal/storage/` | SQLite (projects, sessions), keychain, file encryption |
-| `internal/parallel/` | Parallel session coordination |
-| `internal/sweep/` | Sweep mode (split, collect, verify) |
 | `internal/tracker/` | External tracker sync (GitLab, Jira) |
 | `internal/i18n/` | Internationalization (FR + EN, JSON) |
 
@@ -362,7 +367,7 @@ Before releasing, write the release content under `## [Unreleased]` in `CHANGELO
 Items ready for the next release include:
 - Team kanban board (5 columns, wired c/x/t/s actions, visual labels `[AI]`)
 - Claim lifecycle (5 statuses: `planned`, `in_progress`, `review`, `blocked`, `done`)
-- `oh claim --planned` and automatic `planned → in_progress` transition via `oh start --dev`
+- `oh team claim --planned` and automatic `planned → in_progress` transition via `oh start --dev` (now a deprecated alias of `oh run ticket`)
 - External tracker sync (`oh team sync-tracker`, `cli/internal/tracker/` package, GitLab + Jira)
 - `agent-reviewed` label auto-applied on `review.ready`
 - Async pull on all team views

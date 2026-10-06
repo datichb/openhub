@@ -2,7 +2,7 @@
 
 # Configuration des fournisseurs
 
-Ce guide couvre la resolution des fournisseurs LLM par OpenCode Hub, la gestion des tokens API et le deploiement des parametres de fournisseur dans les projets.
+Ce guide couvre la resolution des fournisseurs LLM par OpenCode Hub, la gestion des tokens API et la transmission des parametres de fournisseur aux sessions.
 
 ## Fournisseurs supportes
 
@@ -15,9 +15,9 @@ Ce guide couvre la resolution des fournisseurs LLM par OpenCode Hub, la gestion 
 
 ## Ordre de resolution du fournisseur
 
-Quand `oh start` lance opencode, le fournisseur est resolu dans cet ordre :
+Quand `oh run` lance une session, le fournisseur est resolu dans cet ordre :
 
-1. Flag `--provider` / `-P` sur `oh start` (priorite la plus haute)
+1. Flag `--provider` / `-P` sur `oh run` (priorite la plus haute)
 2. Override au niveau projet (`project.Provider` dans la base de donnees)
 3. `opencode.default_provider` dans `~/.oh/hub.toml`
 4. `"bedrock"` (valeur par defaut en dur)
@@ -63,12 +63,12 @@ oh project configure my-project --provider anthropic --model claude-sonnet-4-5
 Les tokens sont stockes dans le keychain du systeme. Configuration via :
 
 ```bash
-oh mcp setup
-# Selectionner le fournisseur -> entrer votre bearer token
+oh provider setup bedrock
+# Selectionner le mode bearer -> entrer votre bearer token
 # Stocke sous la cle : bedrock-token-default (ou bedrock-token-<project-id>)
 ```
 
-Au lancement, `oh start` recupere le token depuis le keychain et le passe comme variable d'environnement `AWS_BEARER_TOKEN_BEDROCK` a opencode.
+Le token ne quitte jamais la machine et n'est jamais transmis a opencode : le proxy d'identifiants du demon oh le detient et signe les appels ; la session ne recoit qu'un jeton `ohs_…` propre a son groupe (voir [Sessions v5 › Cles LLM](sessions-v5.fr.md#clés-llm)).
 
 Configuration via la commande dediee :
 
@@ -85,13 +85,11 @@ Ordre de resolution du bearer token :
 
 ### Anthropic / OpenAI / OpenRouter
 
-Le bloc provider est genere dans le paquet de session au lancement (`oh deploy` supprime en v5) :
+Le bloc provider est genere dans le paquet de session au lancement (`oh deploy` supprime en v5) ; la cle reste dans le keychain, cote proxy du demon oh :
 
 ```bash
 oh run <workflow> -p my-project --provider anthropic
 ```
-
-Ou configurer via des variables d'environnement lues directement par opencode.
 
 ## Tokens des services MCP
 
@@ -149,24 +147,13 @@ Les tokens sont lus par les serveurs MCP au runtime via des variables d'environn
 
 A chaque lancement (`oh run <workflow>`), la configuration du fournisseur est ecrite dans le paquet de session (`~/.oh/bundles/<hash>/`), pas dans le projet :
 
-```json
-{
-  "model": "claude-sonnet-4-5",
-  "provider": {
-    "anthropic": {
-      "options": { "apiKey": "..." }
-    }
-  }
-}
-```
-
-La construction du paquet lit votre fournisseur et modele configures, puis genere le bloc provider correspondant.
+La construction du paquet lit votre fournisseur et modele configures, puis genere le bloc provider correspondant. Ce bloc pointe vers le proxy d'identifiants du demon oh : il ne contient jamais la vraie cle (la session s'authentifie aupres du proxy avec un jeton `ohs_…`). Pour voir le paquet : `oh bundle show <workflow>`.
 
 ## Changer de fournisseur
 
 ```bash
 # Temporairement (une session)
-oh start --provider anthropic
+oh run <workflow> --provider anthropic
 
 # Definitivement (defaut hub)
 oh config set opencode.default_provider anthropic
@@ -186,16 +173,16 @@ oh config list             # affiche toute la config hub dont le fournisseur
 ## Bonnes pratiques de securite
 
 - Ne jamais stocker les cles API en clair dans des fichiers
-- Utiliser `oh mcp setup` qui stocke dans le keychain du systeme
+- Utiliser `oh provider setup` et `oh mcp setup`, qui stockent dans le keychain du systeme
 - Pour la CI/headless : utiliser la variable d'env `OH_PASSPHRASE` pour le fallback chiffre
-- Les tokens Bedrock sont injectes par session, jamais ecrits sur disque
-- `opencode.json` peut contenir des options provider mais doit etre gitignore
+- Les cles du fournisseur restent dans le keychain : opencode ne recoit qu'un jeton de proxy `ohs_…` par groupe de sessions
+- oh n'ecrit plus de `opencode.json` dans le projet ; si vous en gardez un avec des options provider, il doit etre gitignore
 
 ## Depannage
 
 | Probleme | Solution |
 |----------|----------|
-| "Token not configured" | Lancer `oh mcp setup` |
+| "Token not configured" | Lancer `oh provider setup` (fournisseur) ou `oh mcp setup` (service MCP) |
 | Fournisseur non reconnu | Verifier l'orthographe : bedrock, anthropic, openrouter, github-copilot |
 | Mauvais modele | Utiliser `oh project configure --model <nom>` ; pris en compte au prochain lancement (paquet reconstruit) |
 | Acces keychain refuse | Autoriser le terminal dans Preferences Systeme > Confidentialite |

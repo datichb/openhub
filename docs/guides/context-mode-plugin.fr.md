@@ -2,7 +2,7 @@
 
 # Guide d'installation du Plugin context-mode
 
-> **v5 :** `oh plugin` a été supprimé (plugins globaux opencode V1). Les plugins se déclarent par workflow (`plugins:`, voir [Workflows livrés](../reference/workflows.fr.md#plugins-et-code-mode)). `context-mode`, écrit pour opencode V1, ne se charge pas sous opencode V2 tant qu'il n'exporte pas le format `{ id, setup }`. La suite de ce guide décrit l'ancien fonctionnement.
+> **Historique (v5).** Ce guide décrit l'installation par `oh plugin` (plugins globaux opencode V1), supprimée en v5 avec opencode V1, comme RTK (voir [Plugin RTK — retiré en v5](rtk-plugin-installation.fr.md)). En v5, les plugins se déclarent par workflow (`plugins:`, format V2 `{ id, setup }`) et sont livrés dans le paquet de session : voir [Workflows livrés › Plugins et code mode](../reference/workflows.fr.md#plugins-et-code-mode). `context-mode`, écrit pour opencode V1, ne se charge pas sous opencode V2 tant qu'il n'exporte pas ce format. Voir le [guide de migration v5](migration-v5.fr.md). La suite de cette page est conservée pour l'historique.
 
 Ce guide explique comment installer le plugin context-mode pour OpenCode depuis openhub.
 

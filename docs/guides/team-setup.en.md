@@ -1,3 +1,5 @@
+> [Lire en français](team-setup.fr.md)
+
 # Team Setup Guide
 
 ## Prerequisites
@@ -302,7 +304,7 @@ the omnibar).
 Claims follow a 5-status lifecycle:
 
 ```
-oh team claim --planned → planned → (oh start --dev) → in_progress → review → done
+oh team claim --planned → planned → (ticket started) → in_progress → review → done
                                                               ↘ blocked
 ```
 
@@ -331,7 +333,7 @@ oh team release SRU-142
 oh team claim transfer SRU-142 --to alice
 ```
 
-> **Note:** Starting a session on a ticket already claimed as `planned` (`oh start --dev`) automatically transitions it to `in_progress`.
+> **Note:** Starting a session on a ticket already claimed as `planned` with `oh start --dev` (deprecated alias of `oh run ticket`) automatically transitions it to `in_progress`. Otherwise, change the status from the team board.
 
 ### Team status
 
@@ -500,7 +502,7 @@ oh takeover-brief list
 oh takeover-brief enrich SRU-142
 ```
 
-Enrichment uses an AI agent (`brief-enricher`) in headless mode to:
+`oh takeover-brief enrich` reads the brief, runs the `brief-enrich` workflow without interface (deprecated alias of `oh run brief-enrich --headless`, which needs the `ticket` and `brief` inputs), then saves the enriched brief in team-state. The `brief-enricher` agent is used to:
 - Read the files mentioned in the brief
 - Identify architectural decisions
 - Spot open questions (TODO, FIXME)
@@ -561,51 +563,33 @@ team-state/
 
 ## 8. Parallel Sessions
 
-Parallel mode allows launching multiple agents simultaneously on different
-tickets. Each agent works in an isolated Git worktree.
+`oh run ticket --tickets` launches **one session per ticket**, in a single server group; each session that writes works in its own Git worktree. The former parallel mode (`oh start --parallel`, full-screen monitor, merge view) was removed in v5: see [Parallel mode — replaced in v5](parallel-mode.en.md).
 
 ### Launch
 
 ```bash
-# Launch 3 tickets in parallel
-oh start --parallel --tickets bd-42,bd-43,bd-44
+# Launch 3 tickets, one session per ticket
+oh run ticket --tickets bd-42,bd-43,bd-44
 
-# With a priority ticket (merged first)
-oh start --parallel --tickets bd-42,bd-43,bd-44 --priority bd-42
-
-# Limit session count
-oh start --parallel --tickets bd-42,bd-43,bd-44 --max-sessions 2
+# All tickets in a single session
+oh run ticket --tickets bd-42,bd-43,bd-44 --one-session
 ```
 
-### Monitoring interface
+`oh start --parallel --tickets …` remains a deprecated alias of `oh run ticket --tickets …` (refused without `--tickets`). `--priority` and `--max-sessions` no longer have any effect; to limit the sessions working at the same time, use the `max_active_sessions` restriction (`oh budget set`, see [v5 sessions › Restrictions](sessions-v5.en.md#restrictions)).
 
-A full-screen TUI displays each session's state:
-- Real-time status (pending / running / completed / failed)
-- Files modified by each session
-- Detected potential conflicts
+### Monitoring
 
-Navigation:
-- `j/k`: navigate between sessions
-- `Enter`: attach to a session (full opencode TUI)
-- `r`: refresh
-- `q`: quit
+Sessions show up in the TUI **Sessions** view (omnibar `sessions`) and in `oh session list`: state, waiting decisions, live feed, results (`oh session results <id> --mr`). See [v5 sessions](sessions-v5.en.md).
 
 ### Merge
 
-After sessions complete, the hub proposes a sequential merge:
-- **Beads tickets** (local, `bd-` prefix): merge proposed with human validation
-- **External tickets** (GitLab/Jira): no automatic merge, branches stay ready for MR/PR
+oh no longer proposes a merge: each session leaves its branch, ready for an MR/PR.
 
 ### Configuration
 
 In `config.toml` of the team-state repo:
 
 ```toml
-[parallel]
-max_sessions = 3           # Max concurrent sessions
-port_range_start = 4100    # Starting port for opencode servers
-auto_merge_beads = true    # Propose merge for Beads tickets
-
 [claim]
 done_retention_days = 7    # Days before done claims are cleaned up
 

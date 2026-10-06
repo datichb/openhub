@@ -167,7 +167,7 @@ Affiche, par cible : accès API, projet, registres, branche protégée, pipeline
 ## 5. Lancer une session distante
 
 ```bash
-oh run ticket -t bd-42 --runtime remote
+oh run ticket --tickets bd-42 --runtime remote
 ```
 
 Avant l'envoi, oh vérifie que :

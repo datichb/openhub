@@ -1,3 +1,5 @@
+> [Lire en français](team-workflows.fr.md)
+
 # Team workflows (team-state)
 
 > v5, phase 2. The declarative workflows (`apiVersion: oh/v1`) of a team and its projects live in the team-state repository. This guide covers where they are stored, the integrity check and locks.

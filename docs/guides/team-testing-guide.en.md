@@ -334,14 +334,14 @@ team-state/
 ### State machine
 
 ```
-                 oh claim --planned
+                 oh team claim --planned
                         │
                         ▼
               ┌─────────────────┐
               │     PLANNED     │ ◄─── tracker auto_plan
               │     (TODO)      │
               └────────┬────────┘
-                       │ oh claim / board 'c'
+                       │ oh team claim / board 'c'
                        ▼
               ┌─────────────────┐
          ┌───►│  IN_PROGRESS    │◄──────────────────┐
@@ -368,7 +368,7 @@ team-state/
 
 | From | To | Trigger |
 |------|----|---------|
-| `planned` | `in_progress` | `oh claim` / board `c` / board `s` |
+| `planned` | `in_progress` | `oh team claim` / board `c` / board `s` |
 | `in_progress` | `review` | board `s` / agent review.ready |
 | `in_progress` | `blocked` | board `s` |
 | `review` | `done` | board `s` / tracker issue closed |
@@ -403,11 +403,11 @@ team-state/projects/T-SRU/claims/SRU-142.toml
 
 | Action | CLI | Board (CLI `oh team board` / TUI `team.board`) |
 |--------|-----|------------------------------------------------|
-| Claim | `oh claim SRU-142` | Key `c` on the ticket |
-| Plan | `oh claim SRU-142 --planned` | — |
-| With branch | `oh claim SRU-142 --worktree feat/...` | — |
-| Release | `oh release SRU-142` | Key `x` |
-| Transfer | `oh claim transfer SRU-142 --to alice` | Key `t` → member modal |
+| Claim | `oh team claim SRU-142` | Key `c` on the ticket |
+| Plan | `oh team claim SRU-142 --planned` | — |
+| With branch | `oh team claim SRU-142 --worktree feat/...` | — |
+| Release | `oh team release SRU-142` | Key `x` |
+| Transfer | `oh team claim transfer SRU-142 --to alice` | Key `t` → member modal |
 | Change status | — | Key `s` → 5-choice modal |
 
 ### Generated events
@@ -727,10 +727,10 @@ Legend:
    │                                                              │
    │  CLI (hard enforcement)              Agent (soft)            │
    │  ─────────────────────               ─────────────           │
-   │  oh claim → max_wip                  Before branch:          │
-   │  oh start → branch_naming              branch_naming         │
-   │  oh release → review_required        Before commit:          │
-   │             → tests_required           commit_format         │
+   │  oh team claim → max_wip             Before branch:          │
+   │  oh policies check → every             branch_naming         │
+   │    active policy                     Before commit:          │
+   │                                        commit_format         │
    │                                                              │
    │  Action: BLOCKS if refuse            Action: INFORMS         │
    │          WARN if warn                 (does not block)       │
@@ -969,7 +969,7 @@ Legend:
 ### Generation flow
 
 ```
-   oh claim transfer SRU-142 --to alice
+   oh team claim transfer SRU-142 --to alice
           │
           ├── 1. TransferClaim() → claim.ClaimedBy = "alice"
           ├── 2. AppendEvent(claim.transferred)
@@ -1166,21 +1166,24 @@ team-state/projects/T-SRU/takeover-briefs/SRU-142_2026-07-16.toml
 
 ## 15. Parallel Sessions
 
+> The former parallel mode (`oh start --parallel`, full-screen TUI, `[parallel]` in `config.toml`, proposed merge) was removed in v5: see [Parallel mode — replaced in v5](parallel-mode.en.md).
+
 ### Command
 
 ```bash
-oh start --parallel --tickets bd-42,bd-43,bd-44 [--priority] [--max-sessions]
+oh run ticket --tickets bd-42,bd-43,bd-44 [--one-session]
 ```
+
+`oh start --parallel --tickets …` remains a deprecated alias; `--priority` and `--max-sessions` no longer have any effect.
 
 ### Architecture
 
 ```
-   oh start --parallel --tickets bd-42,bd-43,bd-44
+   oh run ticket --tickets bd-42,bd-43,bd-44
           │
-          ├── Claim bd-42 (worktree: feat/bd-42)
-          ├── Claim bd-43 (worktree: feat/bd-43)
-          └── Claim bd-44 (worktree: feat/bd-44)
-                    │
+          ▼
+   One opencode serve server per group (bundle, project, runtime)
+                   │
           ┌────────┼────────┐
           ▼        ▼        ▼
      ┌────────┐┌────────┐┌────────┐
@@ -1191,30 +1194,27 @@ oh start --parallel --tickets bd-42,bd-43,bd-44 [--priority] [--max-sessions]
      └────┬───┘└────┬───┘└────┬───┘
           │         │         │
           ▼         ▼         ▼
-     TUI full screen: real-time status
-     ├── Modified files per session
-     ├── Potential conflicts detected
-     └── Navigation: j/k, Enter, r, q
+     Sessions view (TUI) / oh session list
+     ├── State and waiting decisions
+     ├── Live feed (t)
+     └── Results (o, oh session results)
 ```
 
-### Configuration (config.toml)
+### Limiting simultaneous sessions
 
-```toml
-[parallel]
-max_sessions = 3
-port_range_start = 4100
-auto_merge_beads = true
+```bash
+oh budget set max_active_sessions 2
 ```
 
 ### Test points
 
 | # | Scenario | Expected result |
 |---|----------|-----------------|
-| 1 | Parallel launch | Each ticket in an isolated worktree |
-| 2 | Real-time TUI | Status, modified files visible |
-| 3 | `max_sessions` respected | No more than N simultaneous sessions |
-| 4 | Conflicts detected | Warning if same files touched |
-| 5 | Navigation | `j/k` (sessions), `Enter` (attach), `q` (quit) |
+| 1 | Launch with `--tickets` | One session per ticket, each in an isolated worktree |
+| 2 | Sessions view | State, waiting decisions and feed visible |
+| 3 | `max_active_sessions` respected | Beyond N, sessions wait in the queue (`queued`) |
+| 4 | `--one-session` | All tickets in a single session |
+| 5 | Navigation | `Enter` (card), `a` (attach), `t` (feed), `o` (results) |
 
 ---
 
@@ -1494,12 +1494,12 @@ HTTP timeout: 10 seconds for all clients.
  4. [  ] oh teams list → shows the active team
  5. [  ] oh bundle show <workflow> → session bundle contains MCP team
  6. [  ] oh team status → shows members
- 7. [  ] oh claim SRU-142 → status in_progress
+ 7. [  ] oh team claim SRU-142 → status in_progress
  8. [  ] oh team board → ticket visible in IN PROGRESS
  9. [  ] Board: key 's' → move to review
 10. [  ] oh team activity --today → claim.taken event visible
 11. [  ] oh team sync-tracker → claims synchronized
-12. [  ] oh claim transfer SRU-142 --to alice → brief generated
+12. [  ] oh team claim transfer SRU-142 --to alice → brief generated
 13. [  ] oh takeover-brief show SRU-142 → readable brief
 14. [  ] oh policies check --branch "feat/SRU-142-auth"
 15. [  ] TUI: teams view → key 'a' (add 2nd team)
@@ -1513,11 +1513,11 @@ HTTP timeout: 10 seconds for all clients.
 ### Scenario B: Conflict and resolution
 
 ```
- 1. [  ] Member A: oh claim TICKET-1
- 2. [  ] Member B: oh claim TICKET-1 → ErrClaimExists
+ 1. [  ] Member A: oh team claim TICKET-1
+ 2. [  ] Member B: oh team claim TICKET-1 → ErrClaimExists
  3. [  ] Check claim.conflict event in JSONL
  4. [  ] Board: ticket shows assigned = Member A
- 5. [  ] Member A: oh claim transfer TICKET-1 --to B
+ 5. [  ] Member A: oh team claim transfer TICKET-1 --to B
  6. [  ] Takeover brief auto-generated
  7. [  ] Member B: MCP team_takeover_brief → brief accessible
 ```
@@ -1526,12 +1526,12 @@ HTTP timeout: 10 seconds for all clients.
 
 ```
  1. [  ] Configure branch_naming policy (enforce=refuse)
- 2. [  ] oh start with invalid branch → REFUSED
- 3. [  ] oh start with valid branch → OK
+ 2. [  ] oh policies check --branch <invalid-branch> → violation reported
+ 3. [  ] oh policies check --branch <valid-branch> → OK
  4. [  ] Configure policy max_wip=1
- 5. [  ] oh claim with 1 ticket already active → REFUSED
- 6. [  ] oh release → claim released
- 7. [  ] oh claim → OK (under the limit)
+ 5. [  ] oh team claim with 1 ticket already active → REFUSED
+ 6. [  ] oh team release → claim released
+ 7. [  ] oh team claim → OK (under the limit)
 ```
 
 ### Scenario D: Complete tracker workflow
@@ -1565,14 +1565,12 @@ HTTP timeout: 10 seconds for all clients.
 ### Scenario F: Parallel sessions
 
 ```
- 1. [  ] oh start --parallel --tickets bd-42,bd-43
+ 1. [  ] oh run ticket --tickets bd-42,bd-43
  2. [  ] Check 2 isolated Git worktrees created
- 3. [  ] Check claims created for both tickets
- 4. [  ] TUI: see status of both sessions in real time
- 5. [  ] Modify the same file in both sessions
- 6. [  ] Check potential conflict detection
- 7. [  ] Complete the sessions
- 8. [  ] Check proposed merge (Beads) or branches (external)
+ 3. [  ] Sessions view: see the state of both sessions and their decisions
+ 4. [  ] oh session list → both sessions listed
+ 5. [  ] Complete the sessions
+ 6. [  ] oh session results <id> --mr → branch and MR description
 ```
 
 ---

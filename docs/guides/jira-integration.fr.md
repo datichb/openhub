@@ -1,6 +1,6 @@
-# Intégration Jira - Guide de démarrage
+> [Read in English](jira-integration.en.md)
 
-> 🇬🇧 [Read in English](jira-integration.en.md)
+# Intégration Jira - Guide de démarrage
 
 ## Vue d'ensemble
 

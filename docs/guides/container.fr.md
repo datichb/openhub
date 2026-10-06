@@ -5,7 +5,7 @@
 Avec opencode V2, un workflow qui l'autorise (`runtime.allowed` contient `container`, par exemple `ticket`) peut tourner dans un **conteneur** construit depuis le Dockerfile de développement du projet. Les commandes shell de l'agent s'exécutent alors dans le conteneur. Vos secrets, Beads et les serveurs MCP d'oh restent sur la machine.
 
 ```bash
-oh run ticket -t bd-42 --runtime container
+oh run ticket --tickets bd-42 --runtime container
 ```
 
 ## Prérequis

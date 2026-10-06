@@ -1,6 +1,6 @@
-# Marketplace de Skills - Guide
-
 > 🇬🇧 [Read in English](skill-marketplace.en.md)
+
+# Marketplace de Skills - Guide
 
 ## Vue d'ensemble
 
@@ -40,13 +40,6 @@ oh skill add https://github.com/monorg/ma-oh-skill
 
 Supporte tout dépôt Git public ou privé (SSH). Le dépôt doit contenir un `manifest.json` valide à sa racine.
 
-### Épingler une version
-
-```bash
-oh skill add golang-idioms@1.2.0
-oh skill add golang-idioms@latest  # par défaut
-```
-
 ---
 
 ## Lister les Skills Installées
@@ -70,8 +63,6 @@ fintech-compliance     2.0.0    index    inactive
 
 ```bash
 oh skill search go
-oh skill search --tags backend,testing
-oh skill search --author monorg
 ```
 
 Retourne une liste paginée de skills correspondantes avec nom, description, version et auteur.
@@ -84,11 +75,7 @@ Retourne une liste paginée de skills correspondantes avec nom, description, ver
 oh skill remove golang-idioms
 ```
 
-La skill n'est plus livrée dans les paquets de session mais ses fichiers restent dans `~/.oh/skills/golang-idioms/` jusqu'à purge :
-
-```bash
-oh skill remove golang-idioms --purge
-```
+Le répertoire `~/.oh/skills/golang-idioms/` est supprimé : la skill n'est plus livrée dans les paquets de session.
 
 ---
 
@@ -125,7 +112,7 @@ Suis les mêmes conventions que les skills intégrées. Le fichier doit contenir
 - `## Instructions` — guide étape par étape
 - `## Exemples` optionnel avec des paires entrée/sortie concrètes
 
-Voir [authoring-skills.md](./authoring-skills.md) pour le guide complet d'authoring.
+Voir [authoring-skills.md](authoring-skills.fr.md) pour le guide complet d'authoring.
 
 ### Versioning
 
@@ -181,19 +168,19 @@ Le template de PR inclut une checklist : manifest valide, SKILL.md présent, ver
 
 ## Bonnes Pratiques d'Authoring
 
-Voir le guide complet d'authoring : [authoring-skills.md](./authoring-skills.md)
+Voir le guide complet d'authoring : [authoring-skills.md](authoring-skills.fr.md)
 
 Principes clés :
 - **Sois spécifique** : les skills qui s'activent dans des conditions larges diluent la concentration de l'agent
 - **Fournis des exemples** : les paires entrée/sortie concrètes réduisent les hallucinations de l'agent
 - **Responsabilité unique** : une skill = un domaine ; compose via plusieurs skills plutôt qu'un fichier monolithique
-- **Versionne avec soin** : les changements cassants nécessitent un bump de version majeur pour éviter de casser les déploiements existants
-- **Teste avant de publier** : utilise `oh skill test <nom-skill>` pour exécuter la skill sur des sessions d'exemple
+- **Versionne avec soin** : les changements cassants nécessitent un bump de version majeur pour éviter de casser les installations existantes
+- **Teste avant de publier** : vérifie le catalogue avec `oh skill check` (frontmatter, `requires:`, doublons), puis essaie la skill dans une session (workflow qui la liste dans `skills.extra`)
 
 ---
 
 ## Ressources
 
 - [Dépôt oh-skills-index](https://github.com/datichb/oh-skills-index)
-- [authoring-skills.md](./authoring-skills.md) — guide complet d'authoring de skills
+- [authoring-skills.md](authoring-skills.fr.md) — guide complet d'authoring de skills
 - [Protocole MCP](https://modelcontextprotocol.io/)

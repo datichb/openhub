@@ -87,23 +87,11 @@ Agents using native skills must have `permission: skill: allow`. Coordinators se
 
 ### Stack-specific skills (Bucket B — native)
 
-Stack skills are **always Bucket B**. At deploy time, `deploy_native_skills()` deploys them to `.opencode/skills/` based on the detected project stack. The LLM loads the relevant ones on-demand at inference time.
+Stack skills are **always Bucket B**. When the session bundle is built (at launch, `oh deploy` removed in v5), oh detects the project stack (`DetectStack()` in `cli/internal/prompt/`) and adds the matching stack skills to the bundle's on-demand skills. The LLM loads the relevant ones on-demand at inference time. Nothing is written to the project's `.opencode/skills/`.
 
-**You do not need to declare stack-specific skills in agent frontmatters.** They are deployed automatically for the relevant agent types (those whose `native_skills` scope covers that stack category, per `config/stack-skills.json`).
+**You do not need to declare stack-specific skills in agent frontmatters.** The stack → skills mapping is the `stackSkillMapping` table in `cli/internal/bricks/stack_skills.go` (language, framework, test runner, Docker, CI).
 
-The scope of native deployment per agent type:
-
-| Agent | Dynamic categories injected |
-|---|---|
-| `developer-frontend` | language, frontend, test, api-spec |
-| `developer-backend` | language, backend, orm, test, api-spec |
-| `developer-fullstack` | language, frontend, backend, orm, test, api-spec |
-| `developer-mobile` | mobile, test |
-| `developer-data` | language, data, test |
-| `developer-devops` | infra |
-| `developer-platform` | infra |
-
-**Adding a new stack:** Add the detection signature in `detect_stack()` and the mapping entry in `config/stack-skills.json`. Create the skill file in `skills/developer/stacks/`. No agent frontmatter changes needed — the skill will be automatically deployed as a native skill for the relevant agents.
+**Adding a new stack:** add the detection in `DetectStack()` and the entry in `stackSkillMapping`. Create the skill file in `skills/developer/stacks/`. No agent frontmatter changes needed — the skill will be automatically shipped in the bundle of the relevant projects (`oh bundle show <workflow>` to check).
 
 ---
 

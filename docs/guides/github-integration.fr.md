@@ -1,6 +1,6 @@
-# Intégration GitHub - Guide de démarrage
-
 > 🇬🇧 [Read in English](github-integration.en.md)
+
+# Intégration GitHub - Guide de démarrage
 
 ## Vue d'ensemble
 
@@ -213,7 +213,6 @@ Le chemin du dépôt est incorrect ou le token n'a pas accès. Vérifie :
 Tu as épuisé ton quota horaire. Solutions :
 - Attendre la réinitialisation (indiquée dans le header `X-RateLimit-Reset`)
 - Utiliser un token authentifié (5 000 req/h au lieu de 60)
-- Mettre en cache les requêtes lourdes avec `oh mcp cache enable github`
 
 ### Serveur MCP ne démarre pas
 
@@ -234,7 +233,7 @@ oh mcp serve github
 
 - [Documentation API REST GitHub](https://docs.github.com/fr/rest)
 - [Gérer les Personal Access Tokens](https://docs.github.com/fr/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens)
-- [Référence CLI `oh mcp`](../reference/mcp.fr.md)
+- [Référence CLI `oh mcp`](../reference/cli-mcp.fr.md)
 - [Protocole MCP](https://modelcontextprotocol.io/)
 
 ---

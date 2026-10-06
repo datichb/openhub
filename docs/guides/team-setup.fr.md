@@ -1,3 +1,5 @@
+> [Read in English](team-setup.en.md)
+
 # Guide de Setup Équipe
 
 ## Prérequis
@@ -294,7 +296,7 @@ clone a été tenté. L'erreur apparaîtra dans la vue Notifications au prochain
 Les claims suivent un cycle de vie en 5 statuts :
 
 ```
-oh team claim --planned → planned → (oh start --dev) → in_progress → review → done
+oh team claim --planned → planned → (démarrage du ticket) → in_progress → review → done
                                                               ↘ blocked
 ```
 
@@ -323,7 +325,7 @@ oh team release SRU-142
 oh team claim transfer SRU-142 --to alice
 ```
 
-> **Note :** Démarrer une session sur un ticket déjà claimé en `planned` (`oh start --dev`) le fait passer automatiquement en `in_progress`.
+> **Note :** Démarrer une session sur un ticket déjà claimé en `planned` avec `oh start --dev` (alias déprécié de `oh run ticket`) le fait passer automatiquement en `in_progress`. Sinon, change le statut depuis le board d'équipe.
 
 ### Statut d'équipe
 
@@ -492,7 +494,7 @@ oh takeover-brief list
 oh takeover-brief enrich SRU-142
 ```
 
-L'enrichissement utilise un agent IA (`brief-enricher`) en mode headless pour :
+`oh takeover-brief enrich` lit le brief, lance le workflow `brief-enrich` sans interface (alias déprécié de `oh run brief-enrich --headless`, qui demande les entrées `ticket` et `brief`), puis enregistre le brief enrichi dans team-state. L'agent `brief-enricher` sert à :
 - Lire les fichiers mentionnés dans le brief
 - Identifier les décisions architecturales
 - Repérer les questions ouvertes (TODO, FIXME)
@@ -553,51 +555,33 @@ team-state/
 
 ## 8. Sessions parallèles
 
-Le mode parallèle permet de lancer plusieurs agents simultanément sur des
-tickets différents. Chaque agent travaille dans un worktree Git isolé.
+`oh run ticket --tickets` lance **une session par ticket**, dans un seul serveur de groupe ; chaque session qui écrit travaille dans son propre worktree Git. L'ancien mode parallèle (`oh start --parallel`, moniteur plein écran, vue de fusion) a été retiré en v5 : voir [Mode parallèle — remplacé en v5](parallel-mode.fr.md).
 
 ### Lancement
 
 ```bash
-# Lancer 3 tickets en parallèle
-oh start --parallel --tickets bd-42,bd-43,bd-44
+# Lancer 3 tickets, une session par ticket
+oh run ticket --tickets bd-42,bd-43,bd-44
 
-# Avec un ticket prioritaire (merge en premier)
-oh start --parallel --tickets bd-42,bd-43,bd-44 --priority bd-42
-
-# Limiter le nombre de sessions
-oh start --parallel --tickets bd-42,bd-43,bd-44 --max-sessions 2
+# Tous les tickets dans une seule session
+oh run ticket --tickets bd-42,bd-43,bd-44 --one-session
 ```
 
-### Interface de suivi
+`oh start --parallel --tickets …` reste un alias déprécié de `oh run ticket --tickets …` (refusé sans `--tickets`). `--priority` et `--max-sessions` n'ont plus d'effet ; pour limiter les sessions qui travaillent en même temps, utilise la restriction `max_active_sessions` (`oh budget set`, voir [Sessions v5 › Restrictions](sessions-v5.fr.md#restrictions)).
 
-Un TUI plein écran affiche l'état de chaque session :
-- Status en temps réel (pending / running / completed / failed)
-- Fichiers modifiés par chaque session
-- Conflits potentiels détectés
+### Suivi
 
-Navigation :
-- `j/k` : naviguer entre les sessions
-- `Enter` : s'attacher à une session (TUI opencode complet)
-- `r` : rafraîchir
-- `q` : quitter
+Les sessions apparaissent dans la vue **Sessions** de la TUI (omnibar `sessions`) et dans `oh session list` : état, décisions en attente, flux en direct, résultats (`oh session results <id> --mr`). Voir [Sessions v5](sessions-v5.fr.md).
 
-### Merge
+### Fusion
 
-À la fin des sessions, le hub propose un merge séquentiel :
-- **Tickets Beads** (locaux, préfixe `bd-`) : merge proposé avec validation humaine
-- **Tickets externes** (GitLab/Jira) : pas de merge automatique, les branches restent prêtes pour MR/PR
+Il n'y a plus de fusion proposée par oh : chaque session laisse sa branche, prête pour une MR/PR.
 
 ### Configuration
 
 Dans `config.toml` du repo team-state :
 
 ```toml
-[parallel]
-max_sessions = 3           # Max sessions simultanées
-port_range_start = 4100    # Port de départ pour les serveurs opencode
-auto_merge_beads = true    # Proposer le merge pour les tickets Beads
-
 [claim]
 done_retention_days = 7    # Jours avant que les claims done soient nettoyés
 

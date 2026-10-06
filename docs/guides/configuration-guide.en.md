@@ -11,7 +11,7 @@ This guide walks you through configuring OpenHub step by step, from the minimum 
 3. [Project registration](#3-project-registration) -- Register and configure projects
 4. [MCP servers](#4-mcp-servers) -- Connect external tools
 5. [Team configuration](#5-team-configuration) -- Multi-user collaboration
-6. [Advanced configuration](#6-advanced-configuration) -- Workflow overrides, deploy options, worktrees
+6. [Advanced configuration](#6-advanced-configuration) -- Customising workflows, instruction files, worktrees
 
 ---
 
@@ -181,9 +181,10 @@ planning = "claude-opus-4-6"
 reviewer = "claude-opus-4-6"
 ```
 
-The model resolution follows a **10-level cascade** (first match wins):
+The model resolution follows a **10-level cascade** (first match wins), preceded by the `models:` block of the session's workflow:
 
 ```
+Workflow agent > Workflow default >
 Project agent > Project family > Project default >
 Hub agent > Hub family > Hub default >
 Team agent > Team family > Team default >
@@ -399,8 +400,10 @@ When taking over someone else's work:
 ```bash
 oh takeover-brief show <ticket-id>   # view takeover context
 oh takeover-brief list               # list available briefs
-oh takeover-brief enrich <ticket-id> # enrich with code analysis
+oh run brief-enrich --headless -i ticket=<ticket-id>   # enrich with code analysis
 ```
+
+`oh takeover-brief enrich <ticket-id>` remains a deprecated alias of `oh run brief-enrich --headless`.
 
 ### Patterns library
 
@@ -417,16 +420,19 @@ oh patterns validate         # validate patterns
 
 ## 6. Advanced Configuration
 
-### Workflow overrides
+### Customising workflows
 
-Override default workflow behavior in `hub.toml`:
+The `[workflow]` block of `hub.toml` no longer exists in v5: it is migrated automatically to a `feature` workflow in the team-state (see [Team workflows › Migration of the former workflow overrides](team-workflows.en.md#migration-of-the-former-workflow-overrides-v5)). To adapt a workflow (checkpoints, mode, models, limits), create a team or project layer:
 
-```toml
-[workflow]
-# Workflow overrides are applied when the session bundle is built
+```bash
+oh workflow list              # available workflows (every layer)
+oh workflow show feature      # resolved workflow, with the origin of its values
+oh workflow edit feature      # draft, then oh workflow publish
 ```
 
-### Deploy options
+See [Team workflows](team-workflows.en.md) and the [Workflows reference](../reference/workflows.en.md).
+
+### Instruction files
 
 `disable_native_agents` was removed in v5 (the agents of a session are those of its workflow). Only the extra instruction files remain, embedded in every agent of the session bundles:
 
@@ -465,20 +471,15 @@ default_provider = "bedrock"   # opencode V2 is installed with its own tooling (
 ### Secrets management
 
 ```bash
-oh secrets set <key> <value>   # store a secret in keychain
+oh secrets set <key>           # store a secret in keychain (value prompted)
 oh secrets get <key>           # retrieve a secret
 oh secrets list                # list stored secret keys
 oh secrets delete <key>        # remove a secret
 ```
 
-### Plugin management
+### Plugins
 
-```bash
-oh plugin list               # list installed plugins
-oh plugin install <name>     # install a plugin
-oh plugin remove <name>      # remove a plugin
-oh plugin status             # show plugin status
-```
+`oh plugin` (global opencode V1 plugins, including RTK) is removed in v5. Plugins are declared per workflow (`plugins:`); see [Built-in workflows › Plugins and code mode](../reference/workflows.en.md#plugins-and-code-mode).
 
 ---
 

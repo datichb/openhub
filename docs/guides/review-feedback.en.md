@@ -10,32 +10,37 @@ openhub provides an AI-powered code review pipeline with three stages: automated
 
 ## Review Modes
 
-Launch an AI code review with `oh review`:
+Launch an AI code review with the `review` workflow:
 
 ```bash
-oh review                          # Interactive mode selection
-oh review --mode standard          # Standard review
-oh review --mode adversarial       # Adversarial review (edge cases, security)
-oh review --mode edge-case         # Edge-case focused review
-oh review --mode standard+adversarial  # Combined modes
-oh review --mode all               # All review modes
+oh run review                                   # The reviewer offers the mode choice at start
+oh run review -i review_mode=standard           # Standard review
+oh run review -i review_mode=adversarial        # Adversarial review (edge cases, security)
+oh run review -i review_mode=edge-case          # Edge-case focused review
+oh run review -i review_mode=standard+adversarial  # Combined modes
+oh run review -i review_mode=all                # All review modes
 ```
+
+`oh review [--mode …] [--branch …]` remains a deprecated alias of `oh run review`.
 
 **Automatic branch detection:** When on a feature branch, the reviewer agent automatically detects the base branch and injects `[BRANCH:feature/xyz] [BASE:main]` context into the review prompt.
 
-### Flags
+### Inputs and flags
 
-| Flag | Short | Description |
-|------|-------|-------------|
-| `--mode` | `-m` | Review mode: `standard`, `adversarial`, `edge-case`, `standard+adversarial`, `all` |
-| `--branch` | `-b` | Target branch to review (defaults to current branch) |
-| `--project` | `-p` | Project ID |
+| Input / flag | Description |
+|------|-------------|
+| `-i review_mode=…` | Review mode: `standard`, `adversarial`, `edge-case`, `standard+adversarial`, `all` (empty: choice at start) |
+| `-i branch=…` | Branch to review (empty: recent changes) |
+| `-i base=…` | Base branch (default: `main`) |
+| `-p`, `--project` | Project ID |
+
+See [Shipped workflows › review](../reference/workflows.en.md#review).
 
 ---
 
 ## Publishing a Merge Request
 
-After the review completes, publish the results as a GitLab merge request:
+After the review completes, publish the results as a GitLab merge request. Publishing is not a workflow: it remains an oh command.
 
 ```bash
 oh review --publish                          # Create MR for current branch
@@ -62,20 +67,21 @@ This command:
 
 ## Processing Feedback
 
-When a human reviewer leaves comments on the MR, use `oh review feedback` to automatically address them:
+When a human reviewer leaves comments on the MR, the `review-feedback` workflow addresses them. `oh review feedback <ticket-or-branch>` reads the discussions on GitLab then launches this workflow (deprecated alias of `oh run review-feedback`: oh shows a warning):
 
 ```bash
 oh review feedback BD-42             # By ticket reference
 oh review feedback feat/auth-flow    # By branch name
-oh review feedback                   # Uses current branch
 ```
+
+The ticket or branch is required. With `oh run review-feedback`, you provide the `mr`, `branch` and `feedback` (discussions) inputs yourself (`-i key=value`): see [Shipped workflows › review-feedback](../reference/workflows.en.md#review-feedback).
 
 ### How it works
 
 1. **Fetches unresolved MR discussions** from GitLab
 2. **Displays a preview**: MR info, unresolved discussion count, authors, affected files
 3. **Asks for confirmation** before launching
-4. **Launches an AI session** with a structured prompt containing all discussions
+4. **Launches the `review-feedback` workflow** with a structured prompt containing all discussions
 5. The agent reads each comment, applies corrections, runs tests, makes a grouped commit
 6. Optionally replies on each resolved thread via `gitlab_reply_to_mr_discussion`
 
@@ -89,20 +95,20 @@ oh review feedback                   # Uses current branch
 | Flag | Short | Description |
 |------|-------|-------------|
 | `--project` | `-p` | Project ID |
-| `--yes` | `-y` | Skip confirmation prompt |
+| `--yes` | | Skip confirmation prompt |
 
 ---
 
 ## End-to-End Workflow
 
 ```
-1. oh start --dev              # Implement the feature
-2. oh review --mode standard   # AI reviews the code
-3. oh review --publish         # Create MR on GitLab
-4. [Human reviews on GitLab]   # Reviewer leaves comments
-5. oh review feedback BD-42    # AI addresses feedback
-6. [Human approves MR]         # Final approval
-7. [Developer merges]          # Manual merge
+1. oh run ticket                          # Implement the feature
+2. oh run review -i review_mode=standard  # AI reviews the code
+3. oh review --publish                    # Create MR on GitLab
+4. [Human reviews on GitLab]              # Reviewer leaves comments
+5. oh review feedback BD-42               # AI addresses feedback (review-feedback workflow)
+6. [Human approves MR]                    # Final approval
+7. [Developer merges]                     # Manual merge
 ```
 
 ---

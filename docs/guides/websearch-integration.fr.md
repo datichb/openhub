@@ -1,8 +1,10 @@
+> [Read in English](websearch-integration.en.md)
+
 # Guide d'intégration WebSearch — openhub
 
 **Version**: 1.0.0  
 **Date**: 2026-05-29  
-**Public**: Utilisateurs openhub déployant des agents avec capacités de recherche web
+**Public**: Utilisateurs openhub dont les agents ont besoin de recherche web
 
 ---
 
@@ -17,8 +19,8 @@ WebSearch permet aux agents openhub de **rechercher sur le web** via Exa AI (hé
 
 ### Prérequis
 
-- openhub v1.0+ installé et configuré
-- OpenCode CLI v1.32+ (avec support WebSearch)
+- oh v5 installé et configuré
+- opencode V2 (≥ 2.0.0) : opencode V1 n'est plus pris en charge (voir le [guide de migration v5](migration-v5.fr.md))
 
 ---
 
@@ -26,7 +28,6 @@ WebSearch permet aux agents openhub de **rechercher sur le web** via Exa AI (hé
 
 ```
 openhub/
-├── opencode.json                   ← Configuration hub (permissions)
 ├── agents/
 │   ├── auditor/
 │   │   └── auditor-subagent.md    ← Permission websearch activée
@@ -51,8 +52,10 @@ openhub/
 └── cli/
     └── cmd/config.go                ← Commande: oh config websearch enable
 
+~/.oh/hub.toml                       ← [websearch] enabled = true|false
+
 Au lancement (oh v5, rien n'est déployé dans le projet) :
-~/.oh/bundles/<hash>/              ← Paquet de session, hérite des permissions du hub
+~/.oh/bundles/<hash>/              ← Paquet de session : reçoit les permissions websearch/webfetch si activé
 ```
 
 ---
@@ -61,31 +64,17 @@ Au lancement (oh v5, rien n'est déployé dans le projet) :
 
 ### 1. Activer WebSearch au niveau hub
 
-#### Option A: Configuration manuelle
-
-Éditer `openhub/opencode.json` :
-
-```json
-{
-  "$schema": "https://opencode.ai/config.json",
-  "permission": {
-    "websearch": "allow",
-    "webfetch": "allow"
-  }
-}
-```
-
-#### Option B: Script automatisé (recommandé)
-
 ```bash
-cd openhub
-./oh config websearch enable
+oh config websearch enable
 ```
 
 **Sortie attendue** :
 ```
-WebSearch enabled — agents can perform web searches
+WebSearch activé — les agents peuvent effectuer des recherches web
+  Pris en compte au prochain lancement d'une session (paquet reconstruit)
 ```
+
+La commande écrit `[websearch] enabled = true` dans `~/.oh/hub.toml` (équivalent : `oh config set websearch.enabled true`). Le réglage vaut pour tous les projets du hub.
 
 ### 2. Lancer une session
 
@@ -94,19 +83,11 @@ placées dans le paquet de session au prochain lancement (`oh run <workflow>`).
 
 **Vérification** :
 ```bash
-# Le paquet de session doit contenir :
+# Inspecter le paquet de session d'un workflow
 oh bundle show <workflow> -p mon-projet
 ```
 
-Doit inclure (hérité du hub ou explicite) :
-```json
-{
-  "permission": {
-    "websearch": "allow",
-    "webfetch": "allow"
-  }
-}
-```
+Quand WebSearch est activé, le paquet autorise les outils `websearch` et `webfetch`.
 
 ---
 
@@ -118,13 +99,13 @@ Doit inclure (hérité du hub ou explicite) :
 cd /path/to/mon-projet
 
 # Audit de sécurité avec recherche CVE
-oh start auditor security
+oh run audit -i type=security
 
-# Planning avec recherche de stack
-oh start pathfinder
+# Cadrage avec recherche de stack (pathfinder, planner, designer)
+oh run cadrage -i request="Ajouter l'export PDF"
 
-# Design avec recherche de patterns
-oh start designer
+# Session avec l'agent de ton choix
+oh run libre --agent designer
 ```
 
 **Exemple de conversation (auditor security)** :
@@ -142,24 +123,12 @@ Agent:
 ### Vérifier le statut WebSearch
 
 ```bash
-# Statut hub
-./oh config websearch status
-
-# Statut projet spécifique
-./oh config websearch status mon-projet
+oh config websearch status
 ```
 
 **Sortie attendue** :
 ```
-WebSearch Status
-
-  Hub (openhub):
-    permission.websearch: allow
-    Status: ✓ Enabled
-
-  Project (mon-projet):
-    No project-specific opencode.json
-    → inherits from hub config
+WebSearch : activé
 ```
 
 ---
@@ -195,55 +164,15 @@ WebSearch Status
 
 ## Configuration avancée
 
-### Activer WebSearch pour un projet spécifique (override hub)
+### Pas de réglage par projet
 
-Si vous voulez activer WebSearch pour un seul projet sans l'activer au niveau hub :
+En v5, `oh config websearch` ne prend pas de projet : le réglage est global au hub. Le `.opencode/opencode.json` d'un projet n'est plus lu par les sessions (monde fermé : seules les permissions du paquet comptent). Les permissions par agent se règlent dans le frontmatter des agents du hub (`permission:`), qui sont compilées dans le paquet.
 
-```bash
-./oh config websearch enable mon-projet
-```
-
-Crée/modifie `/path/to/mon-projet/.opencode/opencode.json` :
-```json
-{
-  "$schema": "https://opencode.ai/config.json",
-  "permission": {
-    "websearch": "allow",
-    "webfetch": "allow"
-  }
-}
-```
-
-### Désactiver WebSearch pour un projet spécifique
+### Désactiver WebSearch
 
 ```bash
-./oh config websearch disable mon-projet
+oh config websearch disable
 ```
-
-Modifie `/path/to/mon-projet/.opencode/opencode.json` :
-```json
-{
-  "permission": {
-    "websearch": "deny"
-  }
-}
-```
-
-(La variable d'environnement est supprimée)
-
-### Mode `ask` (confirmation avant chaque recherche)
-
-Dans `opencode.json` du projet :
-```json
-{
-  "permission": {
-    "websearch": "ask",
-    "webfetch": "ask"
-  }
-}
-```
-
-L'agent demandera confirmation avant chaque WebSearch/WebFetch.
 
 ---
 
@@ -310,17 +239,17 @@ Agent: [ERROR] WebSearch tool not available
 ```
 
 **Solutions** :
-1. Vérifier que la permission `websearch` est `allow`
+1. Vérifier que WebSearch est activé
    ```bash
-   cat openhub/opencode.json | jq '.permission.websearch'
+   oh config websearch status
    ```
 2. Relancer la session (le paquet est reconstruit au lancement)
    ```bash
    oh run <workflow> -p mon-projet
    ```
-3. Vérifier la version d'OpenCode CLI (requiert v1.32+)
+3. Vérifier la version d'opencode (V2 requise) et l'état du runtime
    ```bash
-   oh --version
+   oh doctor
    ```
 
 ### Problème : Rate limit exceeded
@@ -400,21 +329,9 @@ Les logs OpenCode incluent les requêtes WebSearch :
 [WARN] WebSearch rate limited, retrying in 60s
 ```
 
-### Statistiques (RTK plugin)
+### Statistiques
 
-Si RTK est installé, les stats incluent les WebSearch calls :
-```bash
-rtk report
-```
-
-Sortie :
-```
-WebSearch Stats (30 days):
-  Total queries: 47
-  Avg queries/audit: 3.2
-  Most common: CVE lookup (35%), library comparison (28%)
-  Rate limits: 2 occurrences
-```
+Le plugin global RTK (`oh plugin`) a été retiré en v5 (voir [Plugin RTK — retiré en v5](rtk-plugin-installation.fr.md)) : oh ne fournit plus de statistiques WebSearch dédiées. Le flux d'une session (`oh session follow <id>`, ou `t` dans la vue Sessions) montre les appels d'outils, dont `websearch` et `webfetch`.
 
 ---
 
@@ -424,24 +341,12 @@ WebSearch Stats (30 days):
 
 Si vous voulez désactiver WebSearch pour tous les projets :
 
-1. Éditer `openhub/opencode.json` :
-   ```json
-   {
-     "permission": {
-       "websearch": "deny"
-     }
-   }
+1. Lancer :
+   ```bash
+   oh config websearch disable
    ```
 
-2. Aucun redéploiement nécessaire : le changement s'applique au prochain lancement de session (paquet reconstruit).
-
-### Rollback
-
-En cas de problème, revenir à l'état antérieur :
-```bash
-cd openhub
-git checkout opencode.json
-```
+2. Aucun redéploiement nécessaire : le changement s'applique au prochain lancement de session (paquet reconstruit). Les sessions déjà lancées gardent leur paquet.
 
 ---
 

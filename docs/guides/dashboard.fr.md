@@ -1,6 +1,6 @@
-# Tableau de Bord Web - Guide
+> [Read in English](dashboard.en.md)
 
-> 🇬🇧 [Read in English](dashboard.en.md)
+# Tableau de Bord Web - Guide
 
 ## Vue d'ensemble
 
@@ -135,11 +135,7 @@ curl http://127.0.0.1:8080/api/v1/metrics/agents
 
 ## Télémétrie des Agents
 
-Les données de télémétrie sont enregistrées automatiquement à chaque démarrage de session avec `oh start`. Aucune configuration supplémentaire n'est requise. Chaque session enregistre :
-- Nom et version de l'agent
-- Heure de démarrage et durée
-- Statut de complétion (completed / failed)
-- Nombre d'appels d'outils effectués
+Le tableau par agent lit la table `agent_events` de `~/.oh/oh.db`. **En v5, les sessions n'alimentent plus cette table** : elle ne contient que l'historique des versions précédentes (agent, heure de démarrage et durée, statut, appels d'outils). Le coût, les tokens et la durée des sessions v5 viennent du registre des sessions (`oh metrics`, vue Sessions, `oh session results`).
 
 La télémétrie est stockée localement dans `~/.oh/oh.db` et n'est jamais envoyée à des services externes.
 
@@ -153,9 +149,9 @@ L'interface du tableau de bord se rafraîchit automatiquement toutes les **30 se
 
 ## Cas d'Usage
 
-### Surveillance des sessions parallèles
+### Surveillance de plusieurs sessions
 
-Lors de l'exécution de `oh start --parallel`, ouvre le tableau de bord dans un onglet de navigateur pour surveiller toutes les sessions sans changer de fenêtre TUI. Le tableau des sessions se met à jour en temps réel.
+Lors de l'exécution de `oh run ticket --tickets BD-42,BD-43` (une session par ticket), ouvre le tableau de bord dans un onglet de navigateur pour garder un œil sur les sessions. Pour suivre les sessions et répondre à leurs décisions, utilise la vue **Sessions** de la TUI ou `oh session list` (voir [Sessions v5](sessions-v5.fr.md)).
 
 ### Revue des performances des agents
 
@@ -177,4 +173,4 @@ curl "http://127.0.0.1:8080/api/v1/sessions?limit=1000" | \
 ## Ressources
 
 - [Guide Sauvegarde & Restauration](./backup-restore.fr.md) — comment sauvegarder `oh.db`
-- [Référence CLI `oh serve`](../reference/serve.fr.md)
+- [Référence CLI `oh serve`](../reference/cli-infra.fr.md#oh-serve)

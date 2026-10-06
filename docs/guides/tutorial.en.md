@@ -13,7 +13,7 @@ This hands-on tutorial walks you through installing OpenHub, configuring your fi
 
 **Time required:** ~5 minutes.
 
-> **Prerequisite:** You need `git` installed and an API key for at least one LLM provider. See the [provider decision guide](#which-provider-should-i-choose) below.
+> **Prerequisite:** You need `git`, opencode V2 (2.0.0 or later, installed with its own tool: `brew install anomalyco/tap/opencode` or https://opencode.ai) and an API key for at least one LLM provider. See the [provider decision guide](#which-provider-should-i-choose) below.
 
 ---
 
@@ -70,7 +70,7 @@ oh version
 Expected output:
 
 ```
-oh v4.0.1 (go1.26.4, darwin/arm64)
+oh v5.0.0 (go1.26.4, darwin/arm64)
 ```
 
 ---
@@ -97,7 +97,7 @@ You will need:
   > English
     Francais
 
-? OpenCode version to install: (latest)
+  opencode V2 detected.
 
 ? Default LLM provider:
     Amazon Bedrock
@@ -177,7 +177,7 @@ The command lists the workflow's agents (Bucket A skills inlined), the on-demand
 ## Step 4 -- Launch Your First Session
 
 ```bash
-oh start
+oh run feature --recap
 ```
 
 Expected output:
@@ -185,16 +185,15 @@ Expected output:
 ```
   Project      my-app
   Path         ~/workspace/my-app
+  Workflow     feature
   Provider     anthropic
   Model        claude-sonnet-4-6
-  Agent        orchestrator
-  Stack        typescript, react, next.js
   MCP          gitlab
 
 Press Enter to start (or Ctrl+C to cancel)...
 ```
 
-Press Enter. OpenCode launches with the configured agent and you can start working:
+Press Enter. The session starts with the entry agent of the workflow and you can start working (without `--recap`, the session starts directly; `oh start` remains a deprecated alias of `oh run feature`):
 
 ```
 > Explain the architecture of this project and suggest improvements.
@@ -212,8 +211,8 @@ You now have a working OpenHub setup. Here are your next steps:
 |---------------------|---------|-------|
 | Understand all agents and how they work | - | [Architecture overview](../architecture/overview.en.md) |
 | Configure advanced settings | `oh config list` | [Configuration guide](configuration-guide.en.md) |
-| Run a full feature workflow | `oh start -a orchestrator` | [Workflows](workflows.en.md) |
-| Audit your code for security/perf | `oh audit --type security` | [Workflows](workflows.en.md#scenario-2) |
+| Run a full feature workflow | `oh run feature` | [Workflows](workflows.en.md) |
+| Audit your code for security/perf | `oh run audit -i type=security` | [Workflows](workflows.en.md#scenario-2--multi-domain-audit) |
 | Set up team collaboration | `oh team init` | [Team setup](team-setup.en.md) |
 | Explore the TUI dashboard | `oh` (no arguments) | [TUI usage](tui-usage.en.md) |
 | Look up a term you don't know | - | [Glossary](../reference/glossary.en.md) |
@@ -225,10 +224,11 @@ You now have a working OpenHub setup. Here are your next steps:
 ```
 oh init                 # first-time setup wizard
 oh bundle show <workflow> # inspect the session bundle of a workflow
-oh start                # launch AI session (quick launch)
-oh start --recap        # launch AI session (with recap + confirmation)
-oh start --dev          # dev mode: pick tickets to implement
-oh start --onboard      # discover and document a codebase
+oh run                  # launch the project default workflow (quick launch)
+oh run feature --recap  # launch AI session (with recap + confirmation)
+oh run ticket           # pick tickets to implement
+oh run onboarding       # discover and document a codebase
+oh session list         # follow your sessions
 oh doctor               # diagnose issues
 oh status               # show hub and project status
 ```

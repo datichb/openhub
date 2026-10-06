@@ -1,6 +1,6 @@
-# Jira Integration - Getting Started Guide
+> [Lire en français](jira-integration.fr.md)
 
-> 🇫🇷 [Lire en français](jira-integration.fr.md)
+# Jira Integration - Getting Started Guide
 
 ## Overview
 

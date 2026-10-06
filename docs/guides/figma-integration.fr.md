@@ -1,83 +1,51 @@
-# Intégration Figma - Guide de démarrage
-
 > 🇬🇧 [Read in English](figma-integration.en.md)
+
+# Intégration Figma - Guide de démarrage
 
 ## Vue d'ensemble
 
-L'intégration Figma enrichit les workflows de planification (Pathfinder et Planner) avec le contexte design en interrogeant automatiquement l'API Figma pour détecter les maquettes, composants et signaux UX/UI.
+L'intégration Figma donne à l'agent `designer` (seul agent avec l'accès MCP Figma) un accès en **lecture seule** à vos fichiers Figma : structure d'un fichier, nœuds, styles. Les autres agents (pathfinder, planner, onboarder…) lui délèguent la reconnaissance Figma (`Mode: recon`) pour relier une feature à ses maquettes, repérer les composants et signaux UX/UI, et ajuster leurs estimations.
 
-### Fonctionnalités
-
-- **Recherche automatique** de fichiers Figma par nom de feature
-- **Détection de signaux UX/UI** : flows multi-étapes, composants visuels, états
-- **Ajustement d'estimation** basé sur le nombre de composants détectés
-- **Enrichissement automatique** des rapports Pathfinder et plans Planner
+Le serveur MCP Figma est **intégré au binaire `oh`** (`oh mcp serve figma`) : rien à installer ni à compiler.
 
 ---
 
-## Configuration rapide
+## Configuration
 
-### 1. Configurer via `oh service`
-
-La méthode recommandée est d'utiliser la commande `oh mcp setup` qui vous guide interactivement :
-
-```bash
-oh mcp setup figma
-# ou via l'alias :
-oh figma setup
-```
-
-Cette commande va :
-1. Vous demander votre **Personal Access Token** Figma
-2. Vous demander votre **Team ID**
-3. Valider la connexion à l'API Figma (token + accessibilité du Team ID — bloquant si le Team ID est invalide)
-4. Sauvegarder la configuration dans `~/.config/opencode/config.json`
-5. Builder automatiquement le serveur MCP si nécessaire
-
-Vérifier l'état à tout moment :
-```bash
-oh service status figma
-# ou :
-oh figma status
-```
-
-La commande status affiche :
-- Chaque credential (token masqué, Team ID en clair)
-- Validité du token (via `GET /v1/me`)
-- Accessibilité du Team ID (via `GET /v1/teams/{id}/projects`)
-- État du build du serveur MCP
-
-### 2. Configuration manuelle (alternative)
-
-Si vous préférez configurer manuellement, créez `~/.config/opencode/config.json` :
-
-### 1. Obtenir vos tokens Figma
+### 1. Obtenir un token Figma
 
 **Personal Access Token :**
 1. Aller sur https://www.figma.com/developers/api#authentication
 2. Section "Personal access tokens"
 3. Créer un token avec les scopes : `current_user:read`, `file_content:read`, `file_metadata:read`, `projects:read`, `library_assets:read`
 
-**Team ID :**
-1. Ouvrir votre team Figma
-2. L'ID est dans l'URL : `https://www.figma.com/files/team/123456/...`
-3. Copier `123456`
+### 2. Configurer via `oh mcp setup`
 
-Créer `~/.config/opencode/config.json` :
+```bash
+oh mcp setup                 # choisir Figma, puis saisir le token
+oh mcp setup -p mon-projet   # token propre à un projet
+```
 
-```json
-{
-  "$schema": "https://opencode.ai/config.json",
-  "env": {
-    "FIGMA_PERSONAL_ACCESS_TOKEN": "figd_xxx",
-    "FIGMA_TEAM_ID": "123456"
-  }
-}
+L'assistant :
+1. Demande votre **Personal Access Token** Figma (saisie masquée)
+2. Le stocke dans le trousseau système (clé `figma-token`, ou `figma-token-<id-projet>` pour un projet)
+3. Active le service : bloc `[mcp.figma]` de `hub.toml`, ou surcharge du projet
+
+Sans token saisi, le serveur lit la variable d'environnement `FIGMA_TOKEN`.
+
+Vérifier et gérer le service :
+
+```bash
+oh mcp status                       # état des services MCP (avec -p : surcharges du projet)
+oh mcp enable figma                 # activer (hub, ou -p pour un projet)
+oh mcp disable figma -p mon-projet  # désactiver pour un projet
+oh mcp reset figma -p mon-projet    # revenir à la configuration du hub
+oh doctor                           # ligne « Clés API »
 ```
 
 ### 3. Organiser vos fichiers Figma
 
-Suivre les conventions dans [`config/figma.conventions.md`](../../config/figma.conventions.md) :
+Conventions recommandées :
 
 - **Nommage** : `[Projet] - [Feature] - [Type]`
 - **Tags** : `#feature-xxx`, `#ready-dev`, `#wip`
@@ -86,10 +54,10 @@ Suivre les conventions dans [`config/figma.conventions.md`](../../config/figma.c
 ### 4. Lancer une session
 
 ```bash
-oh run <workflow> -p MY-PROJECT
+oh run <workflow> -p MON-PROJET
 ```
 
-Aucune étape de déploiement (`oh deploy` supprimé en v5) : le MCP Server Figma, une fois activé (`oh mcp enable|setup`), est placé automatiquement dans le paquet de session au lancement.
+Aucune étape de déploiement (`oh deploy` supprimé en v5) : une fois activé, le serveur Figma est déclaré dans le paquet de session au lancement. Un workflow sans champ `mcp:` reçoit les serveurs MCP du projet ; avec `mcp:`, seulement ceux listés (voir [Workflows : CLI](../reference/cli-workflows.fr.md)). Pour vérifier : `oh bundle show <workflow>`.
 
 ---
 
@@ -103,9 +71,8 @@ Aucune étape de déploiement (`oh deploy` supprimé en v5) : le MCP Server Figm
 
 Le Pathfinder va :
 1. Explorer la codebase (workflow normal)
-2. Chercher dans Figma : `search_figma_files("tableau de bord")`
-3. Analyser les fichiers trouvés : `detect_ui_signals(fileId)`
-4. Inclure les données Figma dans son rapport
+2. Déléguer au `designer` (`Mode: recon`) la recherche et l'analyse des maquettes liées (composants, signaux UX/UI)
+3. Inclure les données Figma dans son rapport
 
 **Rapport enrichi :**
 ```markdown
@@ -124,87 +91,37 @@ Le Pathfinder va :
 
 Le Planner va :
 1. **Phase 1.2** : Explorer la codebase
-2. **Phase 1.3** : Explorer Figma (nouveau)
+2. **Phase 1.3** : Explorer Figma (délégation au `designer`, `Mode: recon`)
    - Chercher les maquettes liées
-   - Détecter signaux UX/UI automatiquement
-3. **Phase 1.5** : Proposer délégation designers si signaux détectés
-4. **Phase 5** : Pré-remplir `--design` des tickets avec données Figma
+   - Détecter les signaux UX/UI
+3. **Phase 1.5** : Proposer la délégation au designer si des signaux sont détectés
+4. **Phase 5** : Pré-remplir `--design` des tickets avec les données Figma
 
 ---
 
 ## Tools MCP disponibles
 
-### `search_figma_files`
+| Tool | Rôle | Entrée |
+|------|------|--------|
+| `figma_get_file` | Récupère un fichier Figma (structure, frames, composants) | `file_key` |
+| `figma_get_node` | Récupère un nœud précis d'un fichier | `file_key`, `node_id` |
+| `figma_get_styles` | Récupère les styles d'un fichier | `file_key` |
 
-Recherche des fichiers Figma par nom.
-
-```typescript
-Input: { query: "dashboard" }
-Output: [
-  { id: "abc123", name: "MonApp - Dashboard - UI", url: "...", lastModified: "..." }
-]
-```
-
-### `get_file_structure`
-
-Récupère la structure d'un fichier (frames, composants).
-
-```typescript
-Input: { fileId: "abc123" }
-Output: {
-  frames: [...],
-  componentsCount: 7
-}
-```
-
-### `detect_ui_signals`
-
-Détecte automatiquement les signaux UX/UI et estime la complexité.
-
-```typescript
-Input: { fileId: "abc123" }
-Output: {
-  hasUXSignal: true,
-  hasUISignal: true,
-  componentsCount: 7,
-  complexity: "M",
-  reasoning: [...],
-  recommendations: [...]
-}
-```
+La clé de fichier (`file_key`) se lit dans l'URL Figma : `https://www.figma.com/file/<file_key>/...`.
 
 ---
 
 ## Architecture
 
-Le serveur MCP Figma est **intégré au binaire `oh`** — il n'y a pas de répertoire source séparé. L'implémentation se trouve dans `cli/internal/mcp/figma/`.
+L'implémentation se trouve dans `cli/internal/mcp/figma/` (serveur MCP stdio JSON-RPC, client de l'API Figma). Les protocoles des agents sont dans `skills/designer/figma-recon-protocol.md` et `skills/designer/figma-deep-protocol.md`.
 
-```
-cli/internal/mcp/
-└── figma/              ← Implémentation Go du serveur MCP Figma
-    ├── server.go       ← Entrée MCP (stdio JSON-RPC)
-    ├── client.go       ← Wrapper API Figma
-    ├── tools.go        ← Enregistrement des 3 tools MCP
-    └── config.go       ← Configuration tokens
+Au runtime, le serveur est démarré par opencode avec la commande déclarée dans le paquet de session :
 
-skills/adapters/
-├── figma-pathfinder-protocol.md
-└── figma-planner-protocol.md
-```
-
-Au runtime, le serveur est démarré via :
 ```bash
-oh mcp serve figma
+oh mcp serve figma --token-key figma-token
 ```
 
-Cette commande est déclarée dans le paquet de session au lancement :
-```json
-{
-  "mcpServers": {
-    "figma": {"command": "oh", "args": ["mcp", "serve", "figma"]}
-  }
-}
-```
+Le token est lu dans le trousseau par `oh mcp serve` : il n'est jamais écrit dans le paquet ni dans le projet.
 
 ---
 
@@ -241,105 +158,66 @@ Cette commande est déclarée dans le paquet de session au lancement :
 
 ### Aucun fichier Figma trouvé
 
-**Erreur :** `Aucun fichier Figma trouvé pour la recherche : "xxx"`
-
-L'onboarder effectue une recherche progressive automatique avant de conclure à l'absence de résultats :
+L'onboarder effectue une recherche progressive avant de conclure à l'absence de résultats :
 1. Nom du dossier racine ou `package.json "name"`
 2. ID du projet (ex. `t-sru`)
 3. Champ `Nom` dans `projects.md` (ex. `SRU`)
 
-Si les 3 tentatives échouent, l'onboarder te demande de préciser le nom du fichier Figma.
+Si les 3 tentatives échouent, l'onboarder te demande de préciser le nom ou l'URL du fichier Figma.
 
 **Si la recherche reste infructueuse :**
-- Vérifier que le Team ID est correct
-- Renommer fichiers Figma selon conventions (`[Projet] - [Feature] - [Type]`)
-- Vérifier scopes du token : `current_user:read`, `file_content:read`, `file_metadata:read`, `projects:read`, `library_assets:read`
-
-### Team ID invalide ou inaccessible
-
-**Erreur :** `Team ID invalide ou inaccessible` lors de `oh figma setup` ou `oh figma status`
-
-**Causes possibles :**
-1. Team ID copié depuis la mauvaise URL (projet vs team)
-2. Le token n'a pas le scope `projects:read`
-3. Le compte n'est pas membre de la team
-
-**Comment trouver le bon Team ID :**
-- Ouvrir Figma et naviguer vers la page de la team
-- L'URL doit ressembler à : `https://www.figma.com/files/team/<TEAM_ID>/...`
-- Copier la valeur numérique entre `/team/` et le slash suivant
-
-**Solution :**
-```bash
-oh mcp setup figma
-# Resaisir le FIGMA_TEAM_ID avec la valeur correcte
-```
+- Donner directement l'URL du fichier Figma à l'agent
+- Renommer les fichiers Figma selon les conventions (`[Projet] - [Feature] - [Type]`)
+- Vérifier les scopes du token : `current_user:read`, `file_content:read`, `file_metadata:read`, `projects:read`, `library_assets:read`
 
 ### Token non reconnu
 
-**Erreur :** `FIGMA_PERSONAL_ACCESS_TOKEN environment variable is required`
+**Erreur :** `FIGMA_TOKEN environment variable not set`
 
 **Solutions :**
-- Vérifier que `~/.config/opencode/config.json` existe
-- Vérifier syntaxe JSON (virgules, guillemets)
-- Redémarrer OpenCode après modification
+- Relancer `oh mcp setup` (Figma) pour stocker le token dans le trousseau
+- Vérifier que le service est actif : `oh mcp status`
+- Relancer la session : le paquet est reconstruit au lancement
 
 ### Problèmes serveur MCP
 
 Le serveur MCP Figma étant intégré au binaire `oh`, il n'y a pas d'étape de build séparée. Si le serveur ne démarre pas :
 
 ```bash
-# Vérifier que le serveur fonctionne
-oh mcp serve figma
-# Vérifier la configuration du service
-oh mcp setup figma
+oh mcp status                 # vérifier la configuration du service
+oh bundle show <workflow>     # vérifier que figma est dans le paquet
+oh mcp serve figma            # tester le serveur à la main (stdio)
 ```
 
 ### Timeout API Figma
 
-**Symptôme :** L'agent mentionne `⚠️ Figma indisponible (timeout)` dans son rapport.
+**Symptôme :** l'agent mentionne `⚠️ Figma indisponible (timeout)` dans son rapport.
 
-**Causes possibles :** connexion lente, gros fichier Figma, API Figma surchargée.
-
-Le client effectue automatiquement **2 retries** avec backoff (1s, puis 2s) avant d'abandonner.
-
-Pour augmenter le timeout (défaut : 30s) :
-
-```bash
-# Via oh mcp setup
-oh figma setup
-# → saisir une valeur pour "Timeout des requêtes (ms)", ex : 60000
-
-# Ou directement dans ~/.config/opencode/services-env.json
-# (ou dans opencode.json du projet sous mcp["figma-mcp"].environment)
-FIGMA_TIMEOUT=60000
-```
+**Causes possibles :** connexion lente, gros fichier Figma, API Figma surchargée. Les requêtes expirent après 30 s.
 
 ---
 
-## Limitations actuelles (v1)
+## Limitations actuelles
 
 - ❌ Pas de webhooks (notifications temps réel)
 - ❌ Pas de création de commentaires Figma (lecture seule)
 - ❌ Pas de liens tickets → Figma (Dev Resources)
-- ❌ Pas d'extraction design tokens (Variables Figma)
+- ❌ Pas d'extraction des design tokens (Variables Figma)
 - ❌ Pas de cache (chaque appel = requête API)
-
-Ces fonctionnalités pourront être ajoutées en v2+ selon les besoins.
 
 ---
 
 ## Évolutions futures
 
-**v2 : Traçabilité bidirectionnelle**
+**Traçabilité bidirectionnelle**
 - `create_figma_comment(fileId, message)`
 - `link_ticket_to_figma(fileId, ticketId)`
 
-**v3 : Design tokens**
+**Design tokens**
 - `get_design_tokens(fileId)`
 - `get_component_specs(componentId)`
 
-**v4 : Webhooks**
+**Webhooks**
 - Notifications temps réel sur changements Figma
 - Synchronisation automatique
 
@@ -348,9 +226,8 @@ Ces fonctionnalités pourront être ajoutées en v2+ selon les besoins.
 ## Ressources
 
 - **API Figma** : https://www.figma.com/developers/api
-- **Conventions Figma** : [`config/figma.conventions.md`](../../config/figma.conventions.md)
 - **MCP Protocol** : https://modelcontextprotocol.io/
-- **Référence CLI service** : [`oh service`](../reference/services.fr.md)
+- **Référence des services MCP** : [Services](../reference/services.fr.md)
 
 ---
 
@@ -358,8 +235,6 @@ Ces fonctionnalités pourront être ajoutées en v2+ selon les besoins.
 
 En cas de problème :
 1. Consulter ce guide de dépannage
-2. Vérifier les logs OpenCode
+2. Lancer `oh doctor`
 3. Tester le MCP manuellement : `oh mcp serve figma`
-4. Vérifier configuration tokens Figma : `oh mcp setup figma`
-
-**L'intégration Figma est prête à enrichir vos workflows de planification !**
+4. Vérifier la configuration : `oh mcp status`

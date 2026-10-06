@@ -1,3 +1,5 @@
+> 🇬🇧 [Read in English](authoring.en.md)
+
 # Guide — Créer un bon agent ou skill
 
 Ce guide couvre les décisions de design pour concevoir des agents et skills
@@ -85,23 +87,11 @@ Les agents utilisant des skills natives doivent avoir `permission: skill: allow`
 
 ### Stack skills (Bucket B — natif)
 
-Les stack skills sont **toujours Bucket B**. Au déploiement, `deploy_native_skills()` les déploie vers `.opencode/skills/` en fonction de la stack détectée dans le projet cible. Le LLM charge ceux qui sont pertinents à la demande lors de l'inférence.
+Les stack skills sont **toujours Bucket B**. À la construction du paquet de session (au lancement, `oh deploy` supprimé en v5), oh détecte la stack du projet (`DetectStack()` dans `cli/internal/prompt/`) et ajoute les stack skills correspondantes aux skills à la demande du paquet. Le LLM charge celles qui sont pertinentes à la demande lors de l'inférence. Rien n'est écrit dans `.opencode/skills/` du projet.
 
-**Il n'est pas nécessaire de déclarer les skills spécifiques aux stacks dans les frontmatters des agents.** Ils sont déployés automatiquement pour les types d'agents concernés (ceux dont le scope `native_skills` couvre cette catégorie de stack, selon `config/stack-skills.json`).
+**Il n'est pas nécessaire de déclarer les skills spécifiques aux stacks dans les frontmatters des agents.** La correspondance stack → skills est la table `stackSkillMapping` de `cli/internal/bricks/stack_skills.go` (langage, framework, outil de test, Docker, CI).
 
-Le périmètre d'injection dynamique par type d'agent :
-
-| Agent | Catégories injectées dynamiquement |
-|---|---|
-| `developer-frontend` | language, frontend, test, api-spec |
-| `developer-backend` | language, backend, orm, test, api-spec |
-| `developer-fullstack` | language, frontend, backend, orm, test, api-spec |
-| `developer-mobile` | mobile, test |
-| `developer-data` | language, data, test |
-| `developer-devops` | infra |
-| `developer-platform` | infra |
-
-**Ajouter une nouvelle stack :** ajouter la signature de détection dans `detect_stack()` et l'entrée de mapping dans `config/stack-skills.json`. Créer le fichier skill dans `skills/developer/stacks/`. Aucun changement de frontmatter d'agent nécessaire — le skill sera automatiquement déployé comme skill natif pour les agents concernés.
+**Ajouter une nouvelle stack :** ajouter la détection dans `DetectStack()` et l'entrée dans `stackSkillMapping`. Créer le fichier skill dans `skills/developer/stacks/`. Aucun changement de frontmatter d'agent nécessaire — le skill sera automatiquement livré dans le paquet des projets concernés (`oh bundle show <workflow>` pour vérifier).
 
 ---
 
@@ -210,7 +200,7 @@ Ce skill définit... Il complète <autre-skill> si applicable.
 - [ ] **Skills Bucket B** : les agents qui en ont besoin l'ont dans leur frontmatter `native_skills:` ; la section guide du corps de l'agent liste le skill avec une description du déclencheur de chargement
 - [ ] **Skills spécifiques aux stacks** (`developer/stacks/`) : détection ajoutée dans `detect_stack()`, mapping ajouté dans `config/stack-skills.json` — aucun changement de frontmatter d'agent nécessaire
 
-> **Pour aller plus loin :** voir [authoring-skills.md](authoring-skills.md) pour la méthodologie qualitative complète — TDD RED/GREEN/REFACTOR, SDO, rationalization table, anti-patterns.
+> **Pour aller plus loin :** voir [authoring-skills.md](authoring-skills.fr.md) pour la méthodologie qualitative complète — TDD RED/GREEN/REFACTOR, SDO, rationalization table, anti-patterns.
 
 ---
 

@@ -1,3 +1,5 @@
+> 🇬🇧 [Read in English](onboarding.en.md)
+
 # Guide — Onboarding sur un projet existant
 
 Ce guide couvre l'utilisation de l'agent `onboarder` pour découvrir rapidement
@@ -26,6 +28,16 @@ La réécriture complète reste disponible avec un avertissement explicite sur l
 ---
 
 ## Invoquer l'onboarder
+
+Lance le workflow `onboarding` (alias déprécié : `oh start --onboard`) :
+
+```bash
+oh run onboarding                         # découverte du projet, création du wiki
+oh run onboarding -i refresh=true         # re-découverte, enrichit le wiki existant
+oh run onboarding -i focus="module paiement"  # approfondir un sujet
+```
+
+Dans une session déjà ouverte (par exemple `oh run libre --agent onboarder`), une demande en langage naturel suffit :
 
 ```
 "Onboarde-toi sur ce projet"

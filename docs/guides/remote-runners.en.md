@@ -167,7 +167,7 @@ Shows, per target: API access, project, registries, protected branch, pipeline u
 ## 5. Start a remote session
 
 ```bash
-oh run ticket -t bd-42 --runtime remote
+oh run ticket --tickets bd-42 --runtime remote
 ```
 
 Before sending, oh checks that:
