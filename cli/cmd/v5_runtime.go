@@ -98,17 +98,29 @@ func sessionEndHook(a *app.App, async bool) func(context.Context, domain.Session
 // Settings › Exécution (`[execution]` of hub.toml): engine, image cache,
 // pinned tool version.
 func v5Runtimes(a *app.App) map[sessionspec.RuntimeKind]ohruntime.Runtime {
-	var ex config.ExecutionConfig
-	if a != nil && a.Config != nil {
-		ex = a.Config.Execution
-	}
-	engine, _ := container.ParseEngine(ex.Engine)
-	var rt ohruntime.Runtime = container.New(container.Options{Engine: engine, KeepImages: ex.Images(),
-		CacheDir: filepath.Join(ohCacheDir(), "container")})
+	ex := executionConfig(a)
+	var rt ohruntime.Runtime = v5ContainerRuntime(a)
 	if v5Adapter != nil {
 		rt = pinRuntime(rt, ex.OpencodeVersion, v5Adapter.Ver)
 	}
 	return map[sessionspec.RuntimeKind]ohruntime.Runtime{sessionspec.RuntimeContainer: rt}
+}
+
+// executionConfig returns the Settings › Exécution of the app.
+func executionConfig(a *app.App) config.ExecutionConfig {
+	if a != nil && a.Config != nil {
+		return a.Config.Execution
+	}
+	return config.ExecutionConfig{}
+}
+
+// v5ContainerRuntime is the container runtime configured by the Settings
+// (engine, image cache), without the pinned version check (Doctor).
+func v5ContainerRuntime(a *app.App) *container.Runtime {
+	ex := executionConfig(a)
+	engine, _ := container.ParseEngine(ex.Engine)
+	return container.New(container.Options{Engine: engine, KeepImages: ex.Images(),
+		CacheDir: filepath.Join(ohCacheDir(), "container")})
 }
 
 // newRunService wires the RunService for the current app.

@@ -77,6 +77,25 @@ strict_isolation = true      # also hides your opencode config from local server
 3. **Network**: the server port is published on `127.0.0.1` only. The opencode client runs on the machine and attaches to the server in the container.
 4. **Secrets**: no secret enters the container. The container gets an `ohs_…` token, which the oh credential proxy swaps for the real key. `bd` goes through the Beads gateway, with the workflow `beads.allow` list (read-only by default). The oh MCP servers (gitlab, team, workflow…) run on the machine.
 
+## Checking with Doctor
+
+`oh doctor` (or the TUI Doctor view) checks the container runtime and the gateways:
+
+| Check | What is checked |
+|---|---|
+| Container: engine | Engine detected, version and details (`mount=virtiofs`, `rootless=true`). Without an installed engine, the check stays green: the container runtime is optional. |
+| Container: pinned version | Pinned version different from the machine client |
+| Container: file sharing | Colima: `virtiofs` mount advised (`sshfs` and `9p` are slow) |
+| Container: user (keep-id) | Podman rootless: files created in the container belong to you |
+| Container: folders shared with the VM | Projects and worktrees outside the shared folders: they would look empty |
+| Container: image of `<project>` | `opencode --version` in the 3 latest images. On a musl base, reports missing `libstdc++` and `libgcc`. |
+| Container: Linux listener | Linux: machine address seen from containers (second listener of the proxy and the gateways) |
+| Beads gateway: bd on the machine | `bd` installed on the machine (otherwise the agent `bd` commands fail) |
+| Gateways: oh daemon | Daemon recent enough to serve the gateways |
+| Beads and MCP gateways: from a container | Request without token from a container to `/oh-gateway/…` and `/oh/v1/hooks/mcp/…`: a 401 proves the route is served on the address containers use |
+
+The probes run a few short containers. They use the `busybox` image (downloaded the first time) or the latest project image when it has `curl` or `wget`.
+
 ## Troubleshooting
 
 | Symptom | Likely cause |

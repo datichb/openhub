@@ -77,6 +77,25 @@ strict_isolation = true      # masque aussi votre config opencode aux serveurs l
 3. **Réseau** : le port du serveur n'est publié que sur `127.0.0.1`. Le client opencode tourne sur la machine et s'attache au serveur du conteneur.
 4. **Secrets** : aucun secret n'entre dans le conteneur. Le conteneur reçoit un jeton `ohs_…`, que le proxy d'identifiants d'oh échange contre la vraie clé. `bd` passe par la passerelle Beads, avec la liste blanche `beads.allow` du workflow (lecture seule par défaut). Les serveurs MCP d'oh (gitlab, team, workflow…) tournent sur la machine.
 
+## Vérifier avec Doctor
+
+`oh doctor` (ou la vue Doctor de la TUI) vérifie le conteneur et les passerelles :
+
+| Vérification | Ce qui est contrôlé |
+|---|---|
+| Conteneur : moteur | Moteur détecté, version et détails (`mount=virtiofs`, `rootless=true`). Sans moteur installé, la vérification reste verte : le conteneur est optionnel. |
+| Conteneur : version figée | Version figée différente du client de la machine |
+| Conteneur : partage de fichiers | Colima : montage `virtiofs` conseillé (`sshfs` et `9p` sont lents) |
+| Conteneur : utilisateur (keep-id) | Podman rootless : les fichiers créés dans le conteneur vous appartiennent |
+| Conteneur : dossiers partagés avec la VM | Projets et worktrees hors des dossiers partagés : ils apparaîtraient vides |
+| Conteneur : image de `<projet>` | `opencode --version` dans les 3 dernières images. Sur une base musl, signale `libstdc++` et `libgcc` manquants. |
+| Conteneur : écoute Linux | Linux : adresse de la machine vue des conteneurs (2e écoute du proxy et des passerelles) |
+| Passerelle Beads : bd sur la machine | `bd` installé sur la machine (sinon les commandes `bd` de l'agent échouent) |
+| Passerelles : démon oh | Démon assez récent pour servir les passerelles |
+| Passerelles Beads et MCP : depuis un conteneur | Requête sans jeton depuis un conteneur vers `/oh-gateway/…` et `/oh/v1/hooks/mcp/…` : un 401 prouve que la route est servie à l'adresse utilisée par les conteneurs |
+
+Les sondes lancent quelques conteneurs courts. Elles utilisent l'image `busybox` (téléchargée la première fois) ou la dernière image du projet si elle contient `curl` ou `wget`.
+
 ## Dépannage
 
 | Symptôme | Cause probable |

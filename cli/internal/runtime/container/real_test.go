@@ -222,3 +222,46 @@ func TestRealMountsAndNetwork(t *testing.T) {
 		})
 	}
 }
+
+// TestRealDoctorProbes runs the Doctor probes against real engines: HTTP
+// from a container to a machine service, keep-id (Podman rootless).
+func TestRealDoctorProbes(t *testing.T) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	srv := &http.Server{Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+		w.WriteHeader(http.StatusUnauthorized)
+	})}
+	go func() { _ = srv.Serve(ln) }()
+	t.Cleanup(func() { _ = srv.Close() })
+	machineURL := "http://" + ln.Addr().String() + "/oh-gateway/beads/v1/exec"
+
+	for _, k := range []EngineKind{EngineColima, EnginePodman} {
+		t.Run(string(k), func(t *testing.T) {
+			rt := New(Options{Engine: k, CacheDir: t.TempDir()})
+			e, av := rt.Engine(context.Background())
+			if !av.OK {
+				t.Skipf("%s unavailable: %s", k, av.Message())
+			}
+			u := URLHost(machineURL, e.Host)
+			codes, img, err := rt.ProbeHTTP(context.Background(), e, []string{ProbeImage}, []string{u})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if codes[u] != http.StatusUnauthorized {
+				t.Fatalf("status from %s = %d, want 401", img, codes[u])
+			}
+			if e.Kind == EnginePodman && e.Rootless {
+				ok, err := rt.KeepID(context.Background(), e, ProbeImage)
+				if err != nil || !ok {
+					t.Fatalf("keep-id: %v %v", ok, err)
+				}
+			}
+		})
+	}
+}
