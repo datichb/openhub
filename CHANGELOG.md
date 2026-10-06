@@ -90,6 +90,7 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 - **Agents verrouillés** (`after:` du workflow) refusés tant que leur checkpoint n'est pas passé, y compris dans les délégations imbriquées ; **coupe-circuit** (`circuit_breaker`) : délégations suspendues après N appels d'affilée sans intervention, alerte ✗ à classer.
 - **Fiche de décision checkpoint** dans « À traiter » : résumé de l'agent, changements et diff complet, derniers messages, frise ; *Valider*, *Corriger d'abord* ou *Autre consigne* avec un message transmis à l'agent ; frise des checkpoints dans le détail de session (`✔ cp-1 → developer (3) → ⏸ cp-2`). `oh session approve <id> --decision once|fix|other|reject [-m …]`, `oh session dismiss` classe le coupe-circuit.
 - Sorties déclarées par les agents (`workflow_outputs`) enregistrées avec la session et reprises par « Enchaîner avec… ».
+- **Restrictions des sessions** (désactivées par défaut ; `oh budget show|set|unset|raise`, Réglages › Restrictions des sessions) : sessions actives max (les suivantes attendent dans une file, interactives d'abord), budget par session et journalier en USD sur le coût indiqué par opencode (sous-agents compris ; plafond souple : l'étape se termine, puis une décision `$` propose de relever le budget ou d'arrêter, et les étapes suivantes sont interrompues en attendant), plafond mémoire des serveurs de sessions (file, mise en veille des groupes inactifs, estimation dans `oh doctor`), liste de modèles autorisés appliquée par le proxy. Réglages en cascade : `hub.toml` `[limits]`, `config.toml` d'équipe (`[limits.recommended]`, `[limits.enforced]` imposé comme plafond), projet, workflow (`limits.budget_usd`, nouveau `limits.models`). Dépenses gardées dans `oh.db` (migration **v40**), y compris le trafic compté par le proxy (flux OpenAI et Bedrock `invoke-with-response-stream` désormais comptés).
 
 ### Added — exécution en conteneur (phase 4)
 
@@ -109,6 +110,7 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 - **Fiche de lancement, option ▣ conteneur** : état du moteur, image du projet en cache ou à construire avec un temps estimé d'après les dernières constructions ; pendant le lancement, dernières lignes de la construction de l'image.
 - **`oh doctor` conteneur et passerelles** : moteur, montage virtiofs (Colima), keep-id (Podman rootless), projets et worktrees hors des dossiers partagés avec la VM, opencode dans les images des projets (version, `libstdc++`/`libgcc` sur base musl), adresse de la machine vue des conteneurs (Linux), `bd` sur la machine, démon assez récent, passerelles Beads et MCP joignables depuis un conteneur.
 - En conteneur, l'identité git de la machine (`user.name`, `user.email` du projet) est transmise au shell des sessions et des sous-agents : les agents peuvent committer.
+- **Windows** : sessions v5 locales, avec le démon dans le processus oh (pas d'arrière-plan) : les sessions tournent tant qu'oh est ouvert, puis sont mises en veille à sa fermeture, après la fin des étapes choisies ; rappel dans `oh doctor`.
 
 ### Added — exécution distante sur GitLab CI (phase 5)
 
@@ -138,6 +140,9 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 - Démon `ohd` : les jetons du proxy sont restaurés après l'ouverture du socket (un lancement n'attend plus le chargement des identifiants AWS) ; jetons orphelins révoqués au redémarrage ; un serveur démarré dont la vérification échoue est arrêté avec son jeton ; un groupe n'est plus mis en veille pendant qu'un client le démarre ou le reprend ; attente des verrous bornée.
 - Proxy d'identifiants : corps de plus de 64 Mio refusé (413) au lieu d'être tronqué ; requête refusée (502) quand les identifiants ne peuvent pas être appliqués (SigV4 expiré) au lieu de partir sans signature ; seuls les chemins d'inférence de chaque fournisseur sont relayés ; clé `model` en double ou de casse différente refusée quand une liste de modèles s'applique.
+- Port du proxy pris par un autre programme au redémarrage du démon : les serveurs qui utilisaient l'ancien (proxy, passerelle Beads, MCP distants) sont mis en veille tout de suite au lieu de rester injoignables, avec une erreur pour les sessions qui travaillaient ; la reprise les relance avec le nouveau port.
+- Ouverture dans tmux < 3.0 (commande d'attachement passée en un seul argument) ; `OH_HOME` transmis à la fenêtre ouverte sans `/usr/bin/env`.
+- La question de fermeture de la TUI ne reste plus bloquée par un démon qui ne répond pas.
 - Les questions des agents n'étaient suivies qu'à la reconnexion suivante du démon (session de l'événement `form.created` mal lue).
 - Un toast affiché pendant un formulaire de la TUI lui prenait le focus (flèches sans effet) ; l'accueil reprenait aussi le focus en se reconstruisant.
 - La commande `quit` de l'omnibar contournait la question de fermeture, et Échap sur cette question laissait la fermeture en suspens.
@@ -150,6 +155,10 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 - Skills d'orchestration et `docs/worktree.md` : les worktrees sont des dossiers frères du dépôt (`../<projet>-<branche>`), pas `.worktrees/<slug>`.
 - Test `TestDeployAgentConfigE2E` en échec dans un clone neuf (fixture ignorée par `.gitignore`).
 - Review parallèle (`oh review --mode standard+adversarial` / `all`) impossible sous opencode V2 : le reviewer ne pouvait pas lancer ses propres sessions (auto-délégation retirée du paquet). Une auto-délégation explicite (`task: { reviewer: allow }`, `calls: [reviewer]`) est désormais conservée.
+
+### Security
+
+- Mode local : la base ne garde plus que l'empreinte des jetons du proxy (les jetons en clair laissés par une version précédente sont convertis au démarrage du démon) ; l'émission de jetons et l'arrêt du démon sont réservés à la CLI oh par une capacité gardée dans le trousseau (sinon un fichier 0600), jamais transmise aux serveurs des sessions ; le socket du démon refuse les processus d'un autre utilisateur ; la vérification d'isolation porte sur les règles que l'outil applique réellement à chaque agent. Vérifications « Sécurité » dans `oh doctor`. Voir SECURITY.md.
 
 ### Documentation
 
