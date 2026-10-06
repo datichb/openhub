@@ -459,6 +459,7 @@ func (w *watcher) adoptChild(ctx context.Context, child, parent string) {
 	w.mu.Unlock()
 	if !had {
 		w.applyRulesTo(ctx, root, child) // locks hold in nested delegations too
+		go w.applyChildEnv(child, root)
 	}
 }
 

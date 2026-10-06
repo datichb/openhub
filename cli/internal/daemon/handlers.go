@@ -27,6 +27,7 @@ func (d *Daemon) routes() http.Handler {
 	mux.HandleFunc("DELETE "+apiPrefix+"/clients/{id}", d.handleClientGone)
 	mux.HandleFunc("POST "+apiPrefix+"/groups/{group}/policy", d.handlePolicy)
 	mux.HandleFunc("POST "+apiPrefix+"/proxy/listeners", d.handleListen)
+	mux.HandleFunc("POST "+apiPrefix+"/gateway/grants", d.handleGatewayGrant)
 	mux.HandleFunc("GET "+apiPrefix+"/stream", d.handleStream)
 	mux.HandleFunc("GET "+apiPrefix+"/workflow/status", d.handleWorkflowStatus)
 	mux.HandleFunc("POST "+apiPrefix+"/workflow/checkpoint", d.handleWorkflowCheckpoint)

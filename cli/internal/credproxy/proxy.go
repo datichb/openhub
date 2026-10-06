@@ -87,6 +87,7 @@ type Proxy struct {
 	client   *http.Transport
 	extra    map[string]*http.Server // additional listeners by host (containers)
 	extraURL map[string]string
+	mounts   map[string]http.Handler // other services sharing the listeners (gateways)
 	// Hooks serves HooksPrefix routes for the tools holding a valid session
 	// token (oh plugin → oh daemon); the grant owner is in the request
 	// context (HookOwner).
@@ -330,12 +331,31 @@ func (p *Proxy) serveHook(w http.ResponseWriter, r *http.Request) {
 // itself and hands back a decoded body (usage accounting reads it).
 var strippedHeaders = []string{"Authorization", "X-Api-Key", "Proxy-Authorization", "X-Amz-Security-Token", "X-Amz-Date", "X-Amz-Content-Sha256", "Accept-Encoding"}
 
+// Mount serves h under /<prefix>/ on every listener (prefix stripped), for
+// services that containers reach like the proxy (oh gateways). h does its
+// own authentication. prefix must not be a provider name.
+func (p *Proxy) Mount(prefix string, h http.Handler) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if p.mounts == nil {
+		p.mounts = map[string]http.Handler{}
+	}
+	p.mounts[prefix] = http.StripPrefix("/"+prefix, h)
+}
+
 func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if strings.HasPrefix(r.URL.Path, HooksPrefix) {
 		p.serveHook(w, r)
 		return
 	}
 	provider, rest, _ := strings.Cut(strings.TrimPrefix(r.URL.Path, "/"), "/")
+	p.mu.RLock()
+	mounted := p.mounts[provider]
+	p.mu.RUnlock()
+	if mounted != nil {
+		mounted.ServeHTTP(w, r)
+		return
+	}
 	p.mu.RLock()
 	g, ok := p.byToken[inboundToken(r)]
 	p.mu.RUnlock()

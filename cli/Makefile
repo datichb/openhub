@@ -91,4 +91,4 @@ embed-sync:
 
 # Cross-compile the fake bd embedded in container images (linux/amd64, linux/arm64).
 embed-bd:
-	for a in amd64 arm64; do CGO_ENABLED=0 GOOS=linux GOARCH=$$a go build -trimpath -ldflags "-s -w" -o internal/runtime/container/assets/bd-linux-$$a ./cmd/oh-bd-stub || exit 1; done
+	for a in amd64 arm64; do CGO_ENABLED=0 GOOS=linux GOARCH=$$a go build -trimpath -ldflags "-s -w" -o internal/runtime/container/assets/bd-linux-$$a ./cmd/oh-bd || exit 1; done

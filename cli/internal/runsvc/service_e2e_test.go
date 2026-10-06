@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -16,6 +17,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/adapters/opencodev2"
 	"github.com/datichb/openhub/cli/internal/domain"
+	"github.com/datichb/openhub/cli/internal/sessionspec"
 )
 
 func bedrockKey(t *testing.T) string {
@@ -82,4 +84,35 @@ func TestE2EStartSessionThroughDaemonProxy(t *testing.T) {
 		sess, err := f.svc.Sessions.Get(ctx, r.SessionID)
 		return err == nil && sess.State == domain.RunIdle && sess.TokensOut > 0 && sess.Cost > 0
 	}, 20*time.Second, 200*time.Millisecond)
+}
+
+// The daemon applies the session environment to the sub-sessions of the
+// subagents (opencode does not pass it on), in time for their first shell.
+func TestE2ESubagentGetsSessionEnvironment(t *testing.T) {
+	key := bedrockKey(t)
+	f := newFixture(t, mapSecrets{"openhub.team.core.provider.bedrock.token": key})
+	b := *f.bundle
+	b.Spec.Agents = []sessionspec.AgentDef{
+		{ID: "lead", Description: "lead", Mode: "primary", Body: "You are LEAD. Delegate every request to the `helper` subagent, then reply DONE.",
+			Permissions: []sessionspec.PermissionRule{{Action: sessionspec.ActionSubagent, Resource: "helper", Effect: sessionspec.EffectAllow}}},
+		{ID: "helper", Description: "helper", Mode: "subagent", Body: "You are HELPER. Run exactly the shell command you are given with the shell tool, then reply with its output.",
+			Permissions: []sessionspec.PermissionRule{{Action: sessionspec.ActionShell, Resource: "*", Effect: sessionspec.EffectAllow}}},
+	}
+	b.Spec.SubagentGraph = map[string][]string{"lead": {"helper"}}
+	b.Spec.Hash = "testbundlesubenv01"
+	out := filepath.Join(f.project, "sub-env.txt")
+	req := f.request("Ask the helper subagent to run this shell command: echo \"VAL=${OH_E2E_VAR:-missing} SID=${OH_SESSION_ID:-missing}\" > " + out)
+	req.Bundle = &b
+	req.TeamID = "core"
+	req.ProviderCfg.AWSRegion = "eu-west-1"
+	req.SessionEnv = map[string]string{"OH_E2E_VAR": "inherited"}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
+	defer cancel()
+	r, err := f.svc.StartSession(ctx, req)
+	require.NoError(t, err)
+	require.NoError(t, opencodev2.NewClient(r.Server.URL, r.Server.Password).Wait(ctx, r.SessionID))
+	data, err := os.ReadFile(out)
+	require.NoError(t, err, "the helper did not run the command")
+	assert.Equal(t, "VAL=inherited SID="+r.SessionID, strings.TrimSpace(string(data)))
 }

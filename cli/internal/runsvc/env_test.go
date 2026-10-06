@@ -79,3 +79,46 @@ func TestSessionEnvBuildPersistReapply(t *testing.T) {
 	_, err = svc.buildSessionEnv(ctx, nil, SessionEnvRequest{SessionID: "ses_x"})
 	assert.ErrorContains(t, err, "no gateway")
 }
+
+func TestBeadsAllowKeptForResumes(t *testing.T) {
+	ctx := context.Background()
+	st, err := sqlite.Open(filepath.Join(t.TempDir(), "oh.db"))
+	require.NoError(t, err)
+	t.Cleanup(func() { st.Close() })
+	_, err = st.DB().Exec(`INSERT INTO projects (id, name, path) VALUES ('p1','p1','/p1')`)
+	require.NoError(t, err)
+	sessions := sqlite.NewSessionStore(st)
+	var calls []SessionEnvRequest
+	svc := &Service{Adapter: &envAdapter{}, Sessions: sessions, SessionsDir: t.TempDir(),
+		SessionEnv: func(_ context.Context, r SessionEnvRequest) (map[string]string, error) {
+			calls = append(calls, r)
+			return nil, nil
+		}}
+	require.NoError(t, svc.saveBeadsAllow("ses_a", []string{"show", "update"}))
+	require.NoError(t, svc.saveBeadsAllow("ses_b", []string{}))
+	require.NoError(t, svc.saveBeadsAllow("ses_c", nil))
+	for _, id := range []string{"ses_a", "ses_b", "ses_c"} {
+		require.NoError(t, sessions.Create(ctx, &domain.Session{ID: id, ProjectID: "p1", GroupKey: "g1", Runtime: "container",
+			WorkflowID: "ticket", LaunchPath: "/p1", State: domain.RunIdle, Status: domain.SessionStatusRunning}))
+	}
+	require.NoError(t, svc.reapplyGroupEnv(ctx, &domain.Server{GroupKey: "g1", ProjectID: "p1"}, ""))
+	got := map[string]SessionEnvRequest{}
+	for _, c := range calls {
+		got[c.SessionID] = c
+	}
+	assert.Equal(t, []string{"show", "update"}, got["ses_a"].BeadsAllow)
+	assert.NotNil(t, got["ses_b"].BeadsAllow, "explicit empty list")
+	assert.Empty(t, got["ses_b"].BeadsAllow)
+	assert.Nil(t, got["ses_c"].BeadsAllow, "not declared")
+	assert.Equal(t, "container", string(got["ses_a"].Runtime))
+	assert.Equal(t, "ticket", got["ses_a"].WorkflowID)
+
+	svc.removeStaticEnv("ses_a")
+	allow, err := svc.loadBeadsAllow("ses_a")
+	require.NoError(t, err)
+	assert.Nil(t, allow)
+}
+
+func TestGatewayURL(t *testing.T) {
+	assert.Equal(t, "http://host.docker.internal:4242/oh-gateway", gatewayURL("http://host.docker.internal:4242/amazon-bedrock"))
+}

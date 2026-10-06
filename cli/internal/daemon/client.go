@@ -136,6 +136,13 @@ func (c *Client) ProxyListen(ctx context.Context, host string) (string, error) {
 	return out.URL, err
 }
 
+// IssueGatewayGrant returns a gateway token for a session (Beads gateway).
+func (c *Client) IssueGatewayGrant(ctx context.Context, req GatewayGrantRequest) (GatewayGrantResponse, error) {
+	var out GatewayGrantResponse
+	err := c.do(ctx, http.MethodPost, "/gateway/grants", req, &out)
+	return out, err
+}
+
 // Touch records activity of a server group.
 func (c *Client) Touch(ctx context.Context, group string) error {
 	return c.do(ctx, http.MethodPost, "/servers/"+url.PathEscape(group)+"/touch", nil, nil)

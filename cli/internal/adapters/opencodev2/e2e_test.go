@@ -364,3 +364,29 @@ func TestE2EHeadlessDecisions(t *testing.T) {
 		assert.True(t, asked(s, adapters.EventDecisionReplied), "decision replied event for %s", s)
 	}
 }
+
+// The session environment (S7) is not passed to the sub-sessions started by
+// the task tool (opencode 2.0.20): the oh daemon applies it to each
+// sub-session it sees (P4-T07, Beads gateway token). If this test fails
+// because the variable is inherited, that workaround can go.
+func TestE2ESubagentSessionEnvironment(t *testing.T) {
+	b := e2eBundle(t)
+	b.Agents[0].Body = "You are LEAD. When asked, delegate the task to the `helper` subagent and then reply DONE."
+	b.Agents[0].Permissions = []sessionspec.PermissionRule{{Action: sessionspec.ActionSubagent, Resource: "helper", Effect: sessionspec.EffectAllow}}
+	b.Agents[1].Body = "You are HELPER. Run exactly the shell command you are given with the shell tool, then reply with its output."
+	b.Agents[1].Permissions = []sessionspec.PermissionRule{{Action: sessionspec.ActionShell, Resource: "*", Effect: sessionspec.EffectAllow}}
+
+	r := startE2E(t, b, false)
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
+	defer cancel()
+	id := sessionspec.NewSessionID()
+	require.NoError(t, r.adapter.CreateSession(ctx, r.handle, sessionspec.SessionSpec{SessionID: id, Title: "e2e", EntryAgent: "lead", Location: r.project,
+		SessionEnv: map[string]string{"OH_E2E_VAR": "inherited"}}))
+	out := filepath.Join(r.project, "sub-env.txt")
+	require.NoError(t, r.adapter.SendPrompt(ctx, r.handle, id, "Ask the helper subagent to run this shell command: echo \"VAL=${OH_E2E_VAR:-missing}\" > "+out))
+	require.NoError(t, NewClient(r.handle.URL, r.handle.Password).Wait(ctx, id))
+	data, err := os.ReadFile(out)
+	require.NoError(t, err, "the helper did not run the command: %s", r.replyText(context.Background(), t, id))
+	t.Logf("sub-session shell: %s", strings.TrimSpace(string(data)))
+	assert.Equal(t, "VAL=missing", strings.TrimSpace(string(data)), "opencode now passes the session environment to sub-sessions")
+}

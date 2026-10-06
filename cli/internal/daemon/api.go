@@ -62,3 +62,22 @@ type ListenRequest struct {
 type ListenResponse struct {
 	URL string `json:"url"`
 }
+
+// GatewayGrantRequest asks a gateway token for a session running in another
+// runtime (POST /v1/gateway/grants). BeadsAllow nil = the default read-only
+// list, empty = no bd command.
+type GatewayGrantRequest struct {
+	SessionID  string   `json:"session_id"`
+	GroupKey   string   `json:"group_key"`
+	ProjectID  string   `json:"project_id,omitempty"`
+	WorkflowID string   `json:"workflow_id,omitempty"`
+	Location   string   `json:"location"`
+	BeadsAllow []string `json:"beads_allow"`
+	// GatewayURL (seen from the runtime) is handed to sub-sessions.
+	GatewayURL string `json:"gateway_url,omitempty"`
+}
+
+// GatewayGrantResponse holds the session gateway token.
+type GatewayGrantResponse struct {
+	Token string `json:"token"`
+}
