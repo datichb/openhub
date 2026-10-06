@@ -44,7 +44,7 @@ Les règles d'utilisation de l'outil sont définies dans le skill `skills/postur
 ### Comportement selon le contexte d'invocation
 
 > Le parcours d'exécution (standalone vs sous-agent) est entièrement défini dans les skills dédiés :
-> - **`orchestrator/orchestrator-dev-standalone`** — CP-0 demande le mode, tous les CPs via outil `question`, todo list visible
+> - **`orchestrator/orchestrator-dev-standalone`** — CP-0 récapitule les tickets (mode lu dans le premier message), tous les CPs via outil `question`, todo list visible
 > - **`orchestrator/orchestrator-dev-subagent`** — CPs à enjeu fort produisent des blocs `## Question pour l'orchestrator`, todo list isolée
 >
 > Ces skills sont chargés automatiquement au démarrage selon le contexte (voir section "Chargement du parcours d'exécution" dans `orchestrator-dev.md`). **Ne pas dupliquer** les règles de parcours dans ce skill.
@@ -164,7 +164,7 @@ Ticket :
 
 ### Invoqué standalone
 
-Afficher les tickets à traiter et demander le mode.
+Afficher les tickets à traiter. Le mode est donné par la ligne `Mode de workflow : <mode>` du premier message.
 
 Pour chaque ticket, lire ses labels via `bd show <ID>` et noter la présence du label `tdd`.
 
@@ -182,9 +182,7 @@ Afficher le tableau récapitulatif :
 <NB_TICKETS> tickets identifiés. <NB_TDD> en TDD (tests écrits avant l'implémentation).
 ```
 
-⏸️ **Demander le mode de workflow via les blocs question définis dans le skill `orchestrator-workflow-modes`.**
-
-> Les descriptions exactes de chaque mode, les règles associées et les blocs question canoniques sont la source de vérité du skill `orchestrator-workflow-modes` — ne pas les redéfinir ici.
+Ne redemande pas le mode : il est fixé au lancement. **Seulement si le premier message ne contient aucune ligne `Mode de workflow`** (session sans workflow), le demander via les blocs question du skill `orchestrator-workflow-modes`.
 
 Enregistrer le mode pour toute la session.
 

@@ -15,7 +15,7 @@ an existing project: stack, architecture, risks, and agents to prioritise.
 | You are resuming a project after a long absence | Invoke the onboarder to refresh context |
 | You are about to start an important mission (feature, refactoring) | Invoke before handing anything to the orchestrator |
 | You want to know which hub agents are relevant for this project | The onboarder produces the recommended agent map |
-| The orchestrator detects an unknown project (Mode C) | The orchestrator offers to invoke the onboarder — you can accept or skip |
+| You launch `feature` or `cadrage` on a project without context | oh offers to run the `onboarding` workflow first — you can accept or go on |
 
 The onboarder is **read-only**. It writes no code, modifies no project
 files (except `docs/wiki/`, minimal `ONBOARDING.md` and `projects.md` — only after explicit confirmation).
@@ -285,34 +285,27 @@ agents according to their current task — never all at once.
 
 ---
 
-## Integration in an orchestrator workflow
+## Integration with the other workflows
 
-The orchestrator can offer to invoke the onboarder automatically in **Mode C**
-when it detects an unknown project. This mode is always optional.
+Onboarding is a workflow of its own (`onboarding`, see `docs/reference/workflows.en.md`). The `feature` and `cadrage` workflows declare a `project-context` **precondition**: when the project has no `docs/wiki/index.md`, no `ONBOARDING.md` and no `CONVENTIONS.md`, oh offers to run `onboarding` first. This offer is always optional.
 
-### Full workflow with Mode C
-
-```
-1. You ask the orchestrator: "Implement the JWT authentication feature"
-2. The orchestrator detects the project has not been explored in this session
-3. The orchestrator proposes:
-   "Unknown project. Invoke the onboarder first? (yes / no — skip if you already know the project)"
-4. You answer "yes"
-5. The onboarder explores the project and produces the report
-6. [CP-onboard] The orchestrator presents the report summary and asks:
-   "Sufficient context to start the feature? (yes / no — questions?)"
-7. You validate → the orchestrator continues in Mode A (planner → routing)
-```
-
-### Skipping Mode C
-
-If you already know the project or don't need the report:
+### Chaining
 
 ```
-> "No, skip — I know the project"
+1. You launch feature: "Implement the JWT authentication feature"
+2. oh checks the precondition: no project context found
+3. oh offers:
+   "No project context found"
+   → Run "onboarding" first (then come back to feature)
+   → Go on anyway
+4. You choose onboarding: the onboarder explores the project and creates the wiki
+5. At the end, oh offers to relaunch feature with the same request
+6. The orchestrator has the context and moves on to planning
 ```
 
-The orchestrator proceeds directly to Mode A or B.
+### Going on without onboarding
+
+If you already know the project, choose "Go on anyway": the `feature` session starts directly (planning by the `pathfinder` or the `planner`).
 
 ---
 

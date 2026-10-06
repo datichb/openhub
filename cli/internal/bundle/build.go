@@ -55,8 +55,8 @@ type Request struct {
 
 	// Spec is the resolved oh/v1 workflow. When set, it selects the agents
 	// and the delegation graph (P1-T06), generates the chain skills (P1-T11)
-	// and fills EntryAgent, WorkflowModels, ExtraSkills and DenySkills when
-	// they are not set.
+	// and fills EntryAgent, WorkflowModels, ExtraSkills, DenySkills and
+	// Plugins when they are not set; its `code_mode` sets CodeMode (P1-T15).
 	Spec *workflow.Spec
 }
 

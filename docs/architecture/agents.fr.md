@@ -203,8 +203,8 @@ architecture hybride non documentée. Produit une carte des agents recommandés 
 Lecture seule — ne modifie jamais de fichiers (sauf les livrables produits).
 Ne déclenche jamais automatiquement un autre agent — il suggère des invocations, l'utilisateur décide.
 
-Invocable directement, depuis `oh start` (suggestion affichée), ou depuis l'`orchestrator`
-(Mode C — pré-phase sur projet inconnu).
+Invocable directement ou par le workflow `onboarding`, proposé par la précondition
+`project-context` de `feature` et `cadrage` sur un projet sans contexte.
 
 **Phase 5 — Enrichissement incrémental :** quand `ONBOARDING.md` et `CONVENTIONS.md` existent déjà (enrichis par d'autres agents), propose un enrichissement incrémental plutôt qu'une réécriture complète. Délègue les mises à jour incrémentielles au `documentarian` via `task` (skill `living-docs-enrichment`). La réécriture complète reste disponible avec un avertissement explicite sur la perte des enrichissements accumulés.
 

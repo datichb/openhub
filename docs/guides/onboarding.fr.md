@@ -13,7 +13,7 @@ un projet existant : stack, architecture, risques, et agents à prioriser.
 | Tu reprends un projet après une longue absence | Invoquer l'onboarder pour remettre à jour le contexte |
 | Tu vas démarrer une mission importante (feature, refactoring) | Invoquer avant de confier quoi que ce soit à l'orchestrator |
 | Tu veux savoir quels agents du hub sont pertinents pour ce projet | L'onboarder produit la carte des agents recommandés |
-| L'orchestrator détecte un projet inconnu (Mode C) | L'orchestrator te propose d'invoquer l'onboarder — tu peux accepter ou skipper |
+| Tu lances `feature` ou `cadrage` sur un projet sans contexte | oh te propose de lancer d'abord le workflow `onboarding` — tu peux accepter ou continuer |
 
 L'onboarder est en **lecture seule**. Il n'écrit aucun code, ne modifie aucun
 fichier du projet (sauf `docs/wiki/`, `ONBOARDING.md` minimaliste et `projects.md` — uniquement après confirmation explicite).
@@ -283,34 +283,27 @@ les agents selon leur tâche courante — jamais toutes en même temps.
 
 ---
 
-## Intégration dans un workflow orchestrator
+## Intégration avec les autres workflows
 
-L'orchestrator peut proposer d'invoquer l'onboarder automatiquement en **Mode C**
-quand il détecte un projet inconnu. Ce mode est toujours optionnel.
+L'onboarding est un workflow à part entière (`onboarding`, voir `docs/reference/workflows.fr.md`). Les workflows `feature` et `cadrage` déclarent une **précondition** `project-context` : si le projet n'a ni `docs/wiki/index.md`, ni `ONBOARDING.md`, ni `CONVENTIONS.md`, oh propose de lancer `onboarding` d'abord. Cette proposition est toujours optionnelle.
 
-### Workflow complet avec Mode C
-
-```
-1. Tu demandes à l'orchestrator : "Implémente la feature d'authentification JWT"
-2. L'orchestrator détecte que le projet n'a pas été exploré dans cette session
-3. L'orchestrator propose :
-   "Projet inconnu. Invoquer l'onboarder en premier ? (oui / non — skip si tu connais déjà le projet)"
-4. Tu réponds "oui"
-5. L'onboarder explore le projet et produit le rapport
-6. [CP-onboard] L'orchestrator présente le résumé du rapport et demande :
-   "Contexte suffisant pour démarrer la feature ? (oui / non — questions ?)"
-7. Tu valides → l'orchestrator continue en Mode A (planner → routing)
-```
-
-### Skipper le Mode C
-
-Si tu connais déjà le projet ou que tu n'as pas besoin du rapport :
+### Enchaînement
 
 ```
-> "Non, skip — je connais le projet"
+1. Tu lances feature : "Implémente la feature d'authentification JWT"
+2. oh vérifie la précondition : aucun contexte projet trouvé
+3. oh propose :
+   "Aucun contexte projet trouvé"
+   → Lancer « onboarding » d'abord (puis revenir à feature)
+   → Continuer quand même
+4. Tu choisis onboarding : l'onboarder explore le projet et crée le wiki
+5. À la fin, oh propose de relancer feature avec la même demande
+6. L'orchestrator dispose du contexte et passe à la planification
 ```
 
-L'orchestrator passe directement au Mode A ou B.
+### Continuer sans onboarding
+
+Si tu connais déjà le projet, choisis « Continuer quand même » : la session `feature` démarre directement (planification par le `pathfinder` ou le `planner`).
 
 ---
 

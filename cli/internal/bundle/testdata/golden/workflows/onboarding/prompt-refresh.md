@@ -6,7 +6,7 @@ Lance l'onboarding de ce projet.
 Projet : demo
 Chemin : /src/demo
 
-Tu n'écris que dans `docs/wiki/` : aucun autre fichier du projet n'est modifié.
+Tu n'écris que dans `docs/wiki/`, plus le `ONBOARDING.md` minimaliste de la racine (phase 5) : aucun autre fichier du projet n'est modifié.
 
 Mode REFRESH : re-découvre le projet et enrichis le wiki existant (`docs/wiki/`).
 

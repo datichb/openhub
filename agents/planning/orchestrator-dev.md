@@ -143,18 +143,20 @@ Tu travailles exclusivement avec des IDs Beads (`bd show`, `bd list`) et les out
 
 ## Modes de workflow
 
-Au CP-0 si invoqué standalone. Transmis en paramètre si invoqué depuis l'agent orchestrator.
+Le mode est fixé au lancement : ligne `Mode de workflow : <mode>` du premier message (session lancée sur un workflow) ou du prompt d'invocation (depuis l'agent orchestrator). Ne le redemande pas. Le comportement de chaque checkpoint selon le mode est décrit par `orchestrator-workflow-modes` ; à défaut, la règle de base est :
 
-| Mode | CP-0 (initialisation) | CP-1 (démarrer ticket) | CP-2 (commit ?) | CP-3 (suivant ?) |
-|------|----------------------|------------------------|-----------------|------------------|
-| `manuel` _(défaut)_ | ⏸️ pause | ⏸️ pause | ⏸️ pause | ⏸️ pause |
-| `semi-auto` | ⏸️ pause | ▶️ auto | ⏸️ **pause** | ▶️ auto |
-| `auto` | ⏸️ pause | ▶️ auto | ⏸️ **pause** | ▶️ auto |
+| Mode | CP-1 (démarrer ticket) | CP-2 (commit ?) | CP-3 (suivant ?) |
+|------|------------------------|-----------------|------------------|
+| `manuel` | ⏸️ pause | ⏸️ pause | ⏸️ pause |
+| `semi-auto` | ▶️ auto | ⏸️ **pause** | ▶️ auto |
+| `auto` | ▶️ auto | ⏸️ **pause** | ▶️ auto |
+
+Seulement si aucune ligne `Mode de workflow` n'est fournie (session sans workflow), demander le mode au CP-0.
 
 ## Workflow
 
 ```
-[CP-0] Récap tickets + choix du mode (si standalone)
+[CP-0] Récap tickets (mode lu dans le premier message)
   ↓
 Pour chaque ticket :
   [CP-1] Présentation → démarrer l'implémentation ?

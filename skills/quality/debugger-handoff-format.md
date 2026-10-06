@@ -1,6 +1,6 @@
 ---
 name: debugger-handoff-format
-description: Source de vérité pour le format de retour du debugger vers l'orchestrator. Définit le bloc structuré unique à produire quand le debugger termine son diagnostic et est invoqué depuis l'orchestrator (Mode D). Le rapport de diagnostic complet est intégré dans le bloc. Injecté dans le debugger et dans l'orchestrator pour garantir que producteur et consommateur partagent le même contrat.
+description: Source de vérité pour le format de retour du debugger vers l'orchestrator. Définit le bloc structuré unique à produire quand le debugger termine son diagnostic et est invoqué par un agent coordinateur (l'orchestrator, dans un workflow qui délègue au debugger). Le rapport de diagnostic complet est intégré dans le bloc. Injecté dans le debugger et dans l'orchestrator pour garantir que producteur et consommateur partagent le même contrat.
 annexes: [templates/debugger-handoff-block.md]
 ---
 
@@ -50,6 +50,6 @@ Il est injecté dans le `debugger` et dans l'`orchestrator` — producteur et co
 - **Champs obligatoires** : `Cause racine`, `Impact et régressions potentielles`, `Tickets de correction créés`, `Rapport de diagnostic complet`, `Questions bloquantes`, `Statut`. Si l'un est absent → demander au debugger de compléter avant de continuer.
 - **Priorité absolue** : présenter `### Actions d'urgence si bug en prod` en premier si renseignées — elles priment sur toute autre décision.
 - **Retranscription** : afficher les champs du bloc de manière formatée dans la discussion (voir skill `retranscription-coordinateur`). Le `### Rapport de diagnostic complet` est affiché intégralement.
-- **Suite** : si des tickets ont été créés → proposer à l'utilisateur de les intégrer dans le workflow (Mode A ou B). Si aucun ticket (cause non déterminée) → informer et proposer les options.
+- **Suite** : si des tickets ont été créés → proposer à l'utilisateur de les implémenter (étape suivante du workflow de la session, ou workflow `ticket` sur ces tickets). Si aucun ticket (cause non déterminée) → informer et proposer les options.
 - **Statut** : `diagnostiqué` → cause établie · `partiellement-diagnostiqué` → signaler l'incertitude · `non-reproductible` → ne pas créer de ticket sans plus d'information.
 - **Transmission** : ne jamais passer les tickets créés directement à `orchestrator-dev` sans les présenter à l'utilisateur d'abord.

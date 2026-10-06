@@ -1,6 +1,6 @@
 ---
 name: orchestrator-dev-standalone
-description: Parcours d'exécution de l'agent orchestrator dev en mode standalone (invoqué directement par l'utilisateur) — CP-0 demande le mode, tous les CPs posent les questions via l'outil question, todo list visible par l'utilisateur.
+description: Parcours d'exécution de l'agent orchestrator dev en mode standalone (invoqué directement par l'utilisateur) — CP-0 récapitule les tickets (mode fixé au lancement), tous les CPs posent les questions via l'outil question, todo list visible par l'utilisateur.
 ---
 
 # Skill — Parcours Orchestrator-dev Standalone
@@ -15,7 +15,7 @@ En mode standalone, tous les checkpoints posent les questions **directement via 
 
 ## CP-0 — Initialisation standalone
 
-Afficher les tickets à traiter, demander le mode de workflow via les blocs question du skill `orchestrator-workflow-modes`.
+Afficher les tickets à traiter. Le mode est donné par la ligne `Mode de workflow : <mode>` du premier message : ne le redemande pas. Seulement si cette ligne est absente (session sans workflow), le demander via les blocs question du skill `orchestrator-workflow-modes`.
 
 **Initialiser todowrite** avec 1 tâche par ticket (toutes en `pending`) avec les labels de phase :
 

@@ -37,7 +37,8 @@ func selectAgents(req Request, wf *workflow.WorkflowDefinition, files map[string
 	return graph, members, nil
 }
 
-// applySpec fills the request from the workflow where the caller left it empty.
+// applySpec fills the request from the workflow where the caller left it
+// empty; `code_mode`, when written, always comes from the workflow.
 func (req *Request) applySpec() error {
 	s := req.Spec
 	if req.EntryAgent == "" {
@@ -47,6 +48,12 @@ func (req *Request) applySpec() error {
 	}
 	if req.WorkflowModels == nil {
 		req.WorkflowModels = WorkflowModels(s.Models)
+	}
+	if req.Plugins == nil && len(s.Plugins) > 0 {
+		req.Plugins = WorkflowPlugins(s.Plugins)
+	}
+	if s.CodeMode != nil {
+		req.CodeMode = *s.CodeMode
 	}
 	if s.Skills != nil {
 		if req.ExtraSkills == nil {

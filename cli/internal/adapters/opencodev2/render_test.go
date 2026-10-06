@@ -87,6 +87,20 @@ func TestRenderGoldenWithPluginAndCodeMode(t *testing.T) {
 	goldenCompare(t, "bundle-plugin.json", rc.Files[ConfigFileName])
 }
 
+// P1-T15: plugins declared by the workflow (npm specs, with or without
+// options) are rendered next to the oh plugin.
+func TestRenderGoldenWorkflowPlugins(t *testing.T) {
+	b := sampleBundle()
+	b.Plugins = []sessionspec.PluginDef{
+		{ID: "context-mode", Dir: "context-mode@latest"},
+		{ID: "@acme/probe", Dir: "@acme/probe", Options: map[string]any{"verbose": true}},
+		{ID: OhPluginID, Dir: "/b/plugin"},
+	}
+	rc, err := Render(b, sampleProvider(), DefaultNatives)
+	require.NoError(t, err)
+	goldenCompare(t, "bundle-workflow-plugins.json", rc.Files[ConfigFileName])
+}
+
 func TestRenderSemantics(t *testing.T) {
 	cfg, err := BuildConfig(sampleBundle(), sampleProvider(), DefaultNatives)
 	require.NoError(t, err)

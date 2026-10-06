@@ -131,7 +131,7 @@ Discovers the project and creates or enriches the `docs/wiki/` wiki (`doc-wiki-p
 | `refresh` | `bool` (default: no) | no | Rediscover the project and enrich the existing wiki, without deleting anything |
 | `focus` | `text` (4,000 characters max) | no | Modules or topics to dig into |
 
-The onboarder can write files: the `docs/wiki/` limit is a prompt instruction, not a permission. Output: `wiki`.
+The onboarder can write files: the `docs/wiki/` limit (plus the minimal root `ONBOARDING.md`) is a prompt instruction, not a permission. Output: `wiki`.
 
 ## `review`
 
@@ -203,6 +203,22 @@ Enriches a ticket takeover brief, without interaction (headless session). oh pro
 |---|---|---|---|
 | `ticket` | `beads-id` | yes | Ticket of the brief |
 | `brief` | `text` (40,000 characters max) | yes | Content of the existing brief |
+
+---
+
+## Plugins and code mode
+
+```yaml
+code_mode: true                  # default: false
+plugins:
+  - context-mode@latest          # npm spec (package, version or tag)
+  - { id: "@acme/probe", options: { verbose: true } }
+```
+
+- `code_mode`: `false` (or absent) denies opencode's `execute` tool to every agent of the session; `true` leaves it available.
+- `plugins`: each entry is an npm spec, installed by opencode when the server starts (cache `~/.cache/opencode/npm`), with its `options`. Plugins are added next to the oh plugin; in a container, the spec is passed as is (installed inside the container).
+- A plugin that fails to load does not prevent the session from starting: opencode skips it and logs it. The plugin must export the V2 format (`{ id, setup }`): `context-mode`, written for opencode V1, does not load under V2.
+- Both fields are part of the bundle hash: changing a plugin or the code mode gives another bundle (and another server).
 
 ---
 
