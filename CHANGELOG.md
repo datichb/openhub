@@ -40,6 +40,7 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
   - **Rendu des prompts** : entrées libres placées dans des balises de données (`<oh:data>`), traitées comme des données et jamais comme des consignes, tronquées à `max_length` ; identifiants Beads et branches vérifiés.
   - **`risk: plan`** : workflow qui ne modifie aucun fichier mais crée des tickets Beads, limité à `beads.allow` (utilisé par `cadrage`).
   - **`preconditions:`** : contrôles avant lancement (`path_exists`), avec proposition d'un autre workflow puis retour (`feature` et `cadrage` proposent `onboarding` sans contexte projet), ou refus du lancement (`on_fail: block`).
+  - **`plugins:` et `code_mode:`** appliqués au paquet de session : plugins déclarés par spécification npm (avec `options`), installés par opencode, y compris en conteneur ; sans `code_mode: true`, l'outil `execute` reste refusé. `context-mode` (plugin opencode V1) ne se charge pas sous opencode V2.
 
 ### Added — pilotage des sessions (phase 3, en cours)
 
@@ -62,6 +63,7 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ### Changed
 
+- Les anciens modes d'entrée A–E de l'orchestrator ont disparu des skills et des guides : chaque cas est un workflow (`feature`, `cadrage`, `onboarding`, `debug`, `ticket`) ; `orchestrator-dev` lit le mode de la session au lieu de le redemander (il ne le demande plus que hors workflow).
 - Les migrations SQLite v28–v31 s'appliquent à la base locale (`servers`, `proxy_grants`, colonnes de suivi des sessions) ; `~/.oh` passe en 0700 et `oh.db` (avec ses fichiers WAL) en 0600.
 - Au-delà de v31, une migration absente est appliquée même si une version plus récente l'est déjà (versions réservées par branches parallèles, fusionnées dans le désordre).
 - Les fichiers du paquet de session (`~/.oh/bundles/<hash>`) sont en lecture seule.
