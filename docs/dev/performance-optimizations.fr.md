@@ -1,5 +1,7 @@
 # Optimisations de performance
 
+> **Historique (v5).** Optimisations de `oh deploy` du temps des scripts Bash ; `oh deploy` est supprimé en v5 (le paquet de session est construit au lancement). Pour l'architecture actuelle, voir [Vue d'ensemble de l'architecture](../architecture/overview.fr.md) et les ADR 038 à 048 (`docs/architecture/adr/`). La suite de cette page est conservée pour l'historique.
+
 > Documentation des optimisations de performance implémentées dans openhub
 
 ## Vue d'ensemble

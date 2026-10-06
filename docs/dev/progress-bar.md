@@ -1,5 +1,7 @@
 # Progress Bar System
 
+> **Historical (v5).** Progress bar of the Bash scripts (`oh deploy`); removed with the Go migration and the removal of deployment in v5. For the current architecture, see [Architecture overview](../architecture/overview.en.md) and ADRs 038 to 048 (`docs/architecture/adr/`). The rest of this page is kept for history.
+
 > Comprehensive documentation of the visual feedback system for long-running operations
 
 ## Introduction

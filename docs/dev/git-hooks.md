@@ -1,5 +1,7 @@
 # Git Hooks — OpenCode Hub
 
+> **Historique (v5).** Décrit des hooks des scripts Bash du hub, retirés avec la migration vers Go ; la validation passe par la CI et les tests Go. Pour l'architecture actuelle, voir [Vue d'ensemble de l'architecture](../architecture/overview.fr.md) et les ADR 038 à 048 (`docs/architecture/adr/`). La suite de cette page est conservée pour l'historique.
+
 **Version** : 1.0.0  
 **Date** : 2026-05-29
 

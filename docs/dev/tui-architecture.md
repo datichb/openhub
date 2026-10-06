@@ -28,8 +28,8 @@ cli/internal/tui/
 │   │   ├── home.go    ← Hub Home (async teams/projects loading)
 │   │   ├── home_common.go ← Shared helpers (homeHandleKey, splitBySectionID, toSectionItem)
 │   │   ├── home_layout.go ← Adaptive layout (narrow/wide/dual columns)
-│   │   ├── project_mode_view.go ← Project Home (deploy badge, sessions)
-│   │   ├── team_mode_view.go    ← Team Home (async stats, sessions)
+│   │   ├── project_mode_view.go ← Project Home (Start, project sessions, opencode version header)
+│   │   ├── team_mode_view.go    ← Team Home (Start, team sessions, async stats)
 │   │   ├── banner.go  ← Figlet banner rendering
 │   │   ├── board.go   ← Kanban
 │   │   └── ...
@@ -76,7 +76,7 @@ Mode switching: `Ctrl+T`, or selecting a team/project from the Hub Home.
 
 All 3 home views share common behavior extracted into `home_common.go`:
 
-- **`homeHandleKey()`** — Common key handling: dual-column nav (h/l/Tab), Enter selection. ProjectModeView extends it with `'r'` for deploy refresh.
+- **`homeHandleKey()`** — Common key handling: dual-column nav (h/l/Tab), Enter selection. (v5: the former `r` deploy refresh of ProjectModeView was removed with deployment.)
 - **`splitBySectionID()`** — Column distribution using structural `SectionID` field (immune to i18n label changes).
 - **`toSectionItem()`** — Converts generic `homeSectionItem` to `widgets.SectionItem`.
 

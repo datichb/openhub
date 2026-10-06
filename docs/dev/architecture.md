@@ -1,5 +1,7 @@
 # Architecture du CLI oh — Guide pour contributeurs
 
+> **Historique (v5).** Ce guide décrit le CLI tel qu'il était après la phase 7 (juillet 2026), avant la v5 : déploiement par projet, plateforme `SessionPlatform`, lancement opencode V1, modes parallèle et sweep — tout cela a été remplacé (workflows `oh/v1`, paquet de session, adaptateur opencode V2, services partagés, démon `ohd`). Pour l'architecture actuelle, voir [Vue d'ensemble de l'architecture](../architecture/overview.fr.md) et les ADR 038 à 048 (`docs/architecture/adr/`). La suite de cette page est conservée pour l'historique.
+
 > Ce document décrit l'architecture logicielle du CLI `oh`, ses principes
 > directeurs, et les conventions à respecter lors de l'ajout de fonctionnalités.
 >

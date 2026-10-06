@@ -1,5 +1,7 @@
 # Verrouillage de fichiers — Architecture et utilisation
 
+> **Historique (v5).** Décrit le verrouillage des scripts Bash (`scripts/lib/filelock.sh`), retirés avec la migration vers Go ; le verrouillage actuel est le paquet Go `cli/internal/filelock` (verrous de groupe et de lancement, avec délai). Pour l'architecture actuelle, voir [Vue d'ensemble de l'architecture](../architecture/overview.fr.md) et les ADR 038 à 048 (`docs/architecture/adr/`). La suite de cette page est conservée pour l'historique.
+
 > Documentation technique du mécanisme de file locking introduit pour protéger les écritures concurrentes dans les fichiers partagés du hub.
 
 ---

@@ -1,5 +1,7 @@
 # Plan d'Action — Audit Technique OpenHub
 
+> **Historique (v5).** Plan d'action de l'audit technique de juillet 2026 (avant la v5). Pour l'architecture actuelle, voir [Vue d'ensemble de l'architecture](../architecture/overview.fr.md) et les ADR 038 à 048 (`docs/architecture/adr/`). La suite de cette page est conservée pour l'historique.
+
 > **Date** : 2026-07-22
 > **Source** : Audit complet (architecture, sécurité, qualité de code, DevOps, écosystème agent/skill)
 > **Périmètre** : 31 tâches couvrant sécurité, CI/CD, robustesse, extensibilité et croissance marché
@@ -1030,7 +1032,7 @@ Les équipes enterprise utilisent majoritairement Jira pour le ticketing. Les é
 
 La sync bidirectionnelle permet de lire et d'écrire dans les deux sens entre l'état local Beads et le tracker externe.
 
-Voir [ADR-028](./adr/028-tracker-sync-engine.md) pour les décisions d'architecture.
+Voir [ADR-028](../architecture/adr/028-tracker-sync-bidirectional.fr.md) pour les décisions d'architecture.
 
 #### Acceptance Criteria
 

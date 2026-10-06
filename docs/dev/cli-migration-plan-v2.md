@@ -1,5 +1,7 @@
 # Plan de migration CLI v2 — oh (Go + Charm)
 
+> **Historique (v5).** Plan de la migration Bash → Go (v2), terminée ; la TUI est en tview, le déploiement par projet et opencode V1 ont été retirés en v5. Pour l'architecture actuelle, voir [Vue d'ensemble de l'architecture](../architecture/overview.fr.md) et les ADR 038 à 048 (`docs/architecture/adr/`). La suite de cette page est conservée pour l'historique.
+
 > Révision de l'analyse initiale (`cli-migration-analysis.md`) intégrant les
 > nouvelles contraintes : TUI avancé (niveau lazygit/k9s), distribution Homebrew,
 > binaire monolithique embarquant CLI + MCP servers + plugins.

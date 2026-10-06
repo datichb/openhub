@@ -170,7 +170,7 @@ func TestProjectModeView_SplitItems(t *testing.T) {
     v.project = &ActiveProject{ID: "p1", Name: "my-app", Path: "/tmp"}
     v.items = v.buildItems()
     left, right := v.splitItems()
-    // Assert: Sessions + Projet → left; Configuration + Deploy → right
+    // Assert: Start + Sessions + Projet → left; Configuration + Team + Hub → right (v5: no Deploy section)
 }
 ```
 
