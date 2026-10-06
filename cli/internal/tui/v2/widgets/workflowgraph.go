@@ -6,6 +6,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/workflow"
 	"github.com/gdamore/tcell/v2"
+	"github.com/mattn/go-runewidth"
 	"github.com/rivo/tview"
 )
 
@@ -14,7 +15,7 @@ import (
 type WorkflowGraph struct {
 	*tview.Box
 
-	workflow *workflow.WorkflowDefinition
+	model    GraphModel
 	layout   *GraphLayout
 	selected int  // index into layout.Elements
 	readonly bool // if true, no edits allowed
@@ -29,22 +30,47 @@ type WorkflowGraph struct {
 
 // NewWorkflowGraph creates a new workflow graph widget.
 func NewWorkflowGraph(wf *workflow.WorkflowDefinition, readonly bool) *WorkflowGraph {
-	g := &WorkflowGraph{
-		Box:      tview.NewBox(),
-		workflow: wf,
-		readonly: readonly,
-	}
+	return NewModelGraph(ModelFromDefinition(wf), readonly)
+}
+
+// NewModelGraph creates a graph of a model (oh/v1 workflows: SpecGraphModel).
+func NewModelGraph(m GraphModel, readonly bool) *WorkflowGraph {
+	g := &WorkflowGraph{Box: tview.NewBox(), model: m, readonly: readonly}
 	g.recomputeLayout()
 	return g
 }
 
 // SetWorkflow updates the workflow and recomputes the layout.
 func (g *WorkflowGraph) SetWorkflow(wf *workflow.WorkflowDefinition) {
-	g.workflow = wf
-	g.recomputeLayout()
-	if g.selected >= len(g.layout.Elements) {
-		g.selected = 0
+	g.SetModel(ModelFromDefinition(wf))
+}
+
+// SetModel updates the model and recomputes the layout, keeping the
+// selected element when it still exists.
+func (g *WorkflowGraph) SetModel(m GraphModel) {
+	var prev string
+	if sel := g.SelectedElement(); sel != nil {
+		prev = sel.ID
 	}
+	g.model = m
+	g.recomputeLayout()
+	g.selected = 0
+	for i, e := range g.layout.Elements {
+		if e.ID == prev {
+			g.selected = i
+		}
+	}
+}
+
+// Select selects the element id (false when absent).
+func (g *WorkflowGraph) Select(id string) bool {
+	for i, e := range g.layout.Elements {
+		if e.ID == id {
+			g.selected = i
+			return true
+		}
+	}
+	return false
 }
 
 // SetOnSelect sets the callback fired when an element is activated (Enter).
@@ -71,11 +97,7 @@ func (g *WorkflowGraph) SelectedElement() *GraphElement {
 
 // recomputeLayout rebuilds the graph layout from the current workflow.
 func (g *WorkflowGraph) recomputeLayout() {
-	if g.workflow == nil {
-		g.layout = &GraphLayout{}
-		return
-	}
-	g.layout = ComputeLayout(g.workflow)
+	g.layout = ComputeModelLayout(g.model)
 }
 
 // Draw renders the workflow graph.
@@ -202,10 +224,10 @@ func (g *WorkflowGraph) drawNode(screen tcell.Screen, ox, oy, ow, oh int, node *
 	}
 
 	drawTextClipped(screen, nx+1, ny+1, node.W-2, prefix+node.Label, labelStyle, ox, oy, ow, oh)
-	if node.Line2 != "" {
+	if node.Line2 != "" && node.H > 3 {
 		drawTextClipped(screen, nx+1, ny+2, node.W-2, node.Line2, textStyle, ox, oy, ow, oh)
 	}
-	if node.Line3 != "" && node.H > 3 {
+	if node.Line3 != "" && node.H > 4 {
 		drawTextClipped(screen, nx+1, ny+3, node.W-2, node.Line3, textStyle, ox, oy, ow, oh)
 	}
 }
@@ -370,21 +392,23 @@ func setCell(screen tcell.Screen, x, y int, ch rune, style tcell.Style, ox, oy, 
 }
 
 func drawTextAt(screen tcell.Screen, x, y int, text string, style tcell.Style) {
-	for i, ch := range text {
-		screen.SetContent(x+i, y, ch, nil, style)
+	for _, ch := range text {
+		screen.SetContent(x, y, ch, nil, style)
+		x += max(1, runewidth.RuneWidth(ch))
 	}
 }
 
 func drawTextClipped(screen tcell.Screen, x, y, maxW int, text string, style tcell.Style, ox, oy, ow, oh int) {
-	runes := []rune(text)
-	if len(runes) > maxW {
-		runes = runes[:maxW]
-	}
-	for i, ch := range runes {
-		px := x + i
+	px := x
+	for _, ch := range text {
+		cw := max(1, runewidth.RuneWidth(ch))
+		if px+cw > x+maxW {
+			break
+		}
 		if px >= ox && px < ox+ow && y >= oy && y < oy+oh {
 			screen.SetContent(px, y, ch, nil, style)
 		}
+		px += cw
 	}
 }
 
@@ -413,28 +437,19 @@ func (g *WorkflowGraph) GetElementInfo() string {
 	}
 	switch sel.Type {
 	case ElementCheckpoint:
-		cp := g.workflow.FindCheckpoint(sel.ID)
-		if cp == nil {
-			return sel.ID
+		for _, cp := range g.model.Checkpoints {
+			if cp.ID == sel.ID && cp.Info != "" {
+				return cp.Info
+			}
 		}
-		info := fmt.Sprintf("Checkpoint: %s — %s", cp.ID, cp.Label)
-		if cp.Mandatory {
-			info += " [mandatory]"
-		}
-		return info
 	case ElementAgent, ElementIndependentAgent:
-		a := g.workflow.FindAgent(sel.ID)
-		if a == nil {
-			return sel.ID
+		for _, a := range g.model.Agents {
+			if a.ID == sel.ID && a.Info != "" {
+				return a.Info
+			}
 		}
-		info := fmt.Sprintf("Agent: %s — %s / %s", a.AgentID, a.Role, a.Mode)
-		if a.Mandatory {
-			info += " [mandatory]"
-		}
-		return info
 	case ElementEdge:
 		return fmt.Sprintf("Edge: %s (press 'a' to add checkpoint)", sel.ID)
-	default:
-		return sel.ID
 	}
+	return sel.ID
 }

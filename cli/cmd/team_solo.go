@@ -127,6 +127,46 @@ func initSoloTeam(ctx context.Context, a *app.App, p soloTeamParams) (*soloTeamR
 	return &soloTeamResult{Team: team, Repo: repo, Project: project}, nil
 }
 
+// soloSpace is the solo space a project was attached to.
+type soloSpace struct {
+	Team    config.TeamConfig
+	Repo    *teamstate.Repo
+	Created bool
+}
+
+// attachProjectSolo attaches project to a solo space: the existing one (the
+// first cloned), else a new one (solo, solo-2…). Used by the migration and
+// the « solo space » choice of the project wizards (P2-T16).
+func attachProjectSolo(ctx context.Context, a *app.App, project *domain.Project) (*soloSpace, error) {
+	for _, t := range a.Config.Teams {
+		if !t.Solo || !t.Enabled {
+			continue
+		}
+		repo := teamstate.NewRepo("", t.StatePath)
+		if !repo.IsCloned() {
+			continue
+		}
+		if err := attachProjectToSolo(ctx, a, repo, project, t.ID); err != nil {
+			return nil, err
+		}
+		return &soloSpace{Team: t, Repo: repo}, nil
+	}
+	res, err := initSoloTeam(ctx, a, soloTeamParams{ID: nextSoloID(a.Config), ProjectRef: project.ID})
+	if err != nil {
+		return nil, err
+	}
+	return &soloSpace{Team: res.Team, Repo: res.Repo, Created: true}, nil
+}
+
+// nextSoloID is the first free solo space id (solo, solo-2…).
+func nextSoloID(cfg *config.Config) string {
+	id := "solo"
+	for i := 2; cfg.FindTeam(id) != nil; i++ {
+		id = fmt.Sprintf("solo-%d", i)
+	}
+	return id
+}
+
 // attachProjectToSolo sets the project's team and creates its workflow
 // folders in the team-state.
 func attachProjectToSolo(ctx context.Context, a *app.App, repo *teamstate.Repo, project *domain.Project, teamID string) error {

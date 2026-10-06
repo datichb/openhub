@@ -38,6 +38,16 @@ type Summary struct {
 	Warnings     int            `json:"warnings"`
 	// Diagnostics are the findings of the validation (load errors included).
 	Diagnostics wf.Diagnostics `json:"diagnostics,omitempty"`
+	// Draft: the entry is a draft of the current member (Workspace).
+	Draft bool `json:"draft,omitempty"`
+	// Queued: a publication, restore or archive waits for the network.
+	Queued bool `json:"queued,omitempty"`
+	// TeamBricks are the team catalogue bricks the workflow uses
+	// ("agent:<id>", "skill:<ref>").
+	TeamBricks []string `json:"team_bricks,omitempty"`
+	// NewBricks are the team bricks a draft uses that its published version
+	// does not (O12 « nouvelle brique » badge).
+	NewBricks []string `json:"new_bricks,omitempty"`
 }
 
 // InputSummary is a launch input of a workflow.
@@ -55,6 +65,11 @@ func (s *Service) Catalog(ctx context.Context, c Context) ([]Summary, error) {
 	if err != nil {
 		return nil, err
 	}
+	return s.catalogOf(cat), nil
+}
+
+// catalogOf lists the published workflows of cat (Catalog).
+func (s *Service) catalogOf(cat *catalog) []Summary {
 	top := map[string]wf.Ref{}
 	for _, ref := range cat.docs.Refs() { // by layer rank: the last one wins
 		top[ref.ID] = ref
@@ -71,8 +86,9 @@ func (s *Service) Catalog(ctx context.Context, c Context) ([]Summary, error) {
 		if _, ok := top[id]; ok || id == "" {
 			continue
 		}
-		top[id] = wf.Ref{Layer: wf.LayerHub, ID: id}
-		sum := Summary{ID: id, Ref: top[id].String(), Layer: wf.LayerHub, Label: id, Source: d.Source, ReadOnly: true}
+		layer := cat.sourceLayer(d.Source)
+		top[id] = wf.Ref{Layer: layer, ID: id}
+		sum := Summary{ID: id, Ref: top[id].String(), Layer: layer, Label: id, Source: d.Source, ReadOnly: layer == wf.LayerHub}
 		for _, dd := range cat.diags {
 			if dd.Source == d.Source {
 				sum.Diagnostics = append(sum.Diagnostics, dd)
@@ -88,7 +104,7 @@ func (s *Service) Catalog(ctx context.Context, c Context) ([]Summary, error) {
 		}
 		return out[i].ID < out[j].ID
 	})
-	return out, nil
+	return out
 }
 
 // IDs returns the identifiers of the catalogue (preferences, omnibar).
@@ -132,6 +148,9 @@ func (s *Service) summarize(cat *catalog, ref wf.Ref) Summary {
 		for _, k := range sp.Inputs.Keys() {
 			in, _ := sp.Inputs.Get(k)
 			sum.Inputs = append(sum.Inputs, InputSummary{ID: k, Type: in.Type, Required: in.Required && in.Default == nil})
+		}
+		if cat.bricks != nil {
+			sum.TeamBricks = teamBricksUsed(sp, cat.env.Agents, cat.bricks.Team)
 		}
 	}
 	sum.count()

@@ -230,11 +230,21 @@ func buildSessionBundle(a *app.App, project *domain.Project, team config.Resolve
 // servers). project may be nil (hub-only bundle). missing lists the MCP
 // servers the workflow asks for but the project does not provide.
 func buildWorkflowBundle(a *app.App, project *domain.Project, res *workflowsvc.Resolution, prov string) (b *bundle.Bundle, missing []string, err error) {
+	return buildWorkflowBundleIn(a, project, res, prov, "")
+}
+
+// buildWorkflowBundleIn is buildWorkflowBundle with another bundles
+// directory ("" = ~/.oh/bundles; the editor preview builds in a temporary
+// one).
+func buildWorkflowBundleIn(a *app.App, project *domain.Project, res *workflowsvc.Resolution, prov, outDir string) (b *bundle.Bundle, missing []string, err error) {
 	var team config.ResolvedTeamConfig
 	if project != nil {
 		team = config.ResolveTeamForProject(a.Config, project)
 	}
 	req := sessionBundleRequest(a, project, team, prov)
+	if outDir != "" {
+		req.OutDir = outDir
+	}
 	req.Spec = res.Spec
 	if dir := res.BricksDir(); dir != "" {
 		req.HubDir = dir // team catalogue bricks (v5 phase 2)

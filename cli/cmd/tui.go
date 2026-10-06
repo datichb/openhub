@@ -84,6 +84,7 @@ func runTUIWithProject(projectName string) error {
 	}
 
 	tuiShell = shell.New(cfg)
+	views.SetTeamSyncHook(tuiReplayWorkflowQueue)
 
 	// ── Install TUI-aware slog handler ──────────────────────────────────
 	// Redirect slog output to the TUI toast/notification system instead of

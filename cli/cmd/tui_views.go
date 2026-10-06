@@ -425,6 +425,9 @@ func buildViews(a *app.App, notifStore *shell.NotificationStore) []views.View {
 				go func() {
 					ctx := tuiShell.Context()
 					err := repo.Pull(ctx)
+					if err == nil || teamstate.IsPullWarning(err) {
+						views.AfterTeamSync(ctx, repo.Path())
+					}
 					select {
 					case <-ctx.Done():
 						return
@@ -543,6 +546,7 @@ func buildViews(a *app.App, notifStore *shell.NotificationStore) []views.View {
 				return a.Config.Tracker
 			},
 			ResolveTeam: makeResolveTeamFunc(a),
+			PromoteSolo: tuiPromoteSolo,
 			SaveTeamConfig: func(ctx context.Context, cfg *teamstate.TeamConfig) error {
 				project, _ := resolveActiveProject(a)
 				tc := resolvedTeamConfig(a, project)

@@ -1,22 +1,18 @@
 package cmd
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
-	"os"
-	"path/filepath"
-	"strings"
 
 	"github.com/spf13/cobra"
 
-	"github.com/datichb/openhub/cli/internal/bundle"
 	"github.com/datichb/openhub/cli/internal/i18n"
-	"github.com/datichb/openhub/cli/internal/teamstate"
+	workflowsvc "github.com/datichb/openhub/cli/internal/services/workflow"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/workflow"
-	"github.com/datichb/openhub/cli/internal/workflow/hubcat"
 )
 
 func workflowValidateCmd() *cobra.Command {
@@ -40,6 +36,14 @@ func workflowValidateCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			if layers == nil && projectRef == "" {
+				// No active team: the context of the editing commands (project
+				// of the current folder, --team, the only solo space).
+				layers, err = validateContextLayers(cmd)
+				if err != nil {
+					return err
+				}
+			}
 			report, err := runWorkflowValidate(findHubDir(), target, workflow.Layer(layer), all, layers)
 			if err != nil {
 				return err
@@ -51,131 +55,36 @@ func workflowValidateCmd() *cobra.Command {
 	cmd.Flags().Bool("json", false, "Sortie JSON")
 	cmd.Flags().Bool("all", false, "Valide tous les workflows du hub")
 	cmd.Flags().String("project", "", i18n.T("teamstate.workflow.flag_project"))
+	cmd.Flags().String("team", "", i18n.T("teamstate.workflow.cli.flag_team"))
 	return cmd
 }
 
 // workflowValidateReport is the result of `oh workflow validate`.
-type workflowValidateReport struct {
-	Workflows   []workflowValidateItem `json:"workflows"`
-	Diagnostics workflow.Diagnostics   `json:"diagnostics"`
-}
-
-type workflowValidateItem struct {
-	Ref   string `json:"ref"`
-	Valid bool   `json:"valid"`
-}
-
-func (r *workflowValidateReport) counts() (errs, warns int) {
-	for _, d := range r.Diagnostics {
-		if d.Severity == workflow.SeverityError {
-			errs++
-		} else {
-			warns++
-		}
-	}
-	return errs, warns
-}
+type workflowValidateReport = workflowsvc.ValidateReport
 
 // runWorkflowValidate validates a file, a catalogue id or (all) every
 // workflow against the hub content in hubDir and, when layers is set, the
-// published team and project workflows (integrity-checked).
+// published team and project workflows (integrity-checked) and the brick
+// catalogue merged with the team bricks.
 func runWorkflowValidate(hubDir, target string, layer workflow.Layer, all bool, layers *workflowTeamLayers) (*workflowValidateReport, error) {
-	if !layer.IsDocumentLayer() {
-		return nil, fmt.Errorf("%s", i18n.Tf("cmd.workflow.validate.bad_layer", string(layer)))
-	}
-	cat := workflow.NewMemCatalog()
-	var loadDiags workflow.Diagnostics
-	env := workflow.Env{}
-	if hubDir != "" {
-		cat, loadDiags = hubcat.LoadWorkflows(hubDir)
-		hc, err := hubcat.New(hubDir)
-		if err != nil {
-			return nil, err
-		}
-		env = hc.Env()
-		env.Skills = bundle.NewSkillCatalog(hubDir)
-	}
+	svc := &workflowsvc.Service{HubDir: hubDir}
 	if layers != nil {
-		loadDiags = append(loadDiags, layers.Repo.LoadWorkflowLayers(cat, layers.Project)...)
-		env.Prompts = teamstate.PromptSource{Repo: layers.Repo, Fallback: env.Prompts}
+		ts := &workflowsvc.TeamState{Repo: layers.Repo, TeamID: layers.TeamID, Member: layers.Member, Project: layers.Project}
+		svc.TeamState = func(context.Context, workflowsvc.Context) (*workflowsvc.TeamState, error) { return ts, nil }
 	}
-
-	report := &workflowValidateReport{Diagnostics: workflow.Diagnostics{}}
-	var refs []workflow.Ref
+	in := workflowsvc.ValidateInput{Layer: layer, All: all}
 	switch {
 	case all:
-		report.Diagnostics = append(report.Diagnostics, loadDiags...)
-		refs = cat.Refs()
-		// Files that could not be loaded are listed as invalid.
-		seen := map[string]bool{}
-		for _, d := range loadDiags {
-			name := strings.TrimSuffix(filepath.Base(d.Source), filepath.Ext(d.Source))
-			if d.Severity == workflow.SeverityError && name != "" && !seen[name] {
-				seen[name] = true
-				report.Workflows = append(report.Workflows, workflowValidateItem{Ref: workflow.Ref{Layer: sourceLayer(d.Source, layers), ID: name}.String()})
-			}
-		}
-	case isWorkflowFile(target):
-		doc, diags := workflow.ParseFile(target, layer)
-		report.Diagnostics = append(report.Diagnostics, diags...)
-		if doc == nil || diags.HasErrors() {
-			name := strings.TrimSuffix(filepath.Base(target), filepath.Ext(target))
-			report.Workflows = append(report.Workflows, workflowValidateItem{Ref: string(layer) + ":" + name})
-			return report, nil
-		}
-		cat.Put(doc)
-		refs = []workflow.Ref{doc.Ref()}
+	case workflowsvc.IsWorkflowFile(target):
+		in.File = target
 	default:
-		ref, err := workflow.ParseRef(target)
-		if err != nil {
-			ref = workflow.Ref{Layer: workflow.LayerHub, ID: target}
-		}
-		// Load errors of the requested file explain an unknown workflow.
-		for _, d := range loadDiags {
-			if base := filepath.Base(d.Source); base == ref.ID+".yaml" || base == ref.ID+".yml" {
-				report.Diagnostics = append(report.Diagnostics, d)
-			}
-		}
-		refs = []workflow.Ref{ref}
+		in.Target = target
 	}
-
-	for _, ref := range refs {
-		_, diags := workflow.Check(cat, ref, nil, env)
-		report.Diagnostics = append(report.Diagnostics, diags...)
-		report.Workflows = append(report.Workflows, workflowValidateItem{Ref: ref.String(), Valid: !diags.HasErrors()})
-	}
-	if !all && report.Diagnostics.HasErrors() {
-		report.Workflows[0].Valid = false
-	}
-	report.Diagnostics.Sort()
-	return report, nil
-}
-
-// sourceLayer guesses the layer of a file that failed to load.
-func sourceLayer(source string, layers *workflowTeamLayers) workflow.Layer {
-	if layers == nil {
-		return workflow.LayerHub
-	}
-	root := layers.Repo.Path() + string(filepath.Separator)
-	switch {
-	case strings.HasPrefix(source, filepath.Join(root, "projects")+string(filepath.Separator)):
-		return workflow.LayerProject
-	case strings.HasPrefix(source, root):
-		return workflow.LayerTeam
-	}
-	return workflow.LayerHub
-}
-
-func isWorkflowFile(target string) bool {
-	if ext := filepath.Ext(target); ext == ".yaml" || ext == ".yml" {
-		return true
-	}
-	st, err := os.Stat(target)
-	return err == nil && !st.IsDir()
+	return svc.Validate(context.Background(), workflowsvc.Context{}, in)
 }
 
 func printWorkflowValidate(w io.Writer, r *workflowValidateReport, asJSON bool) error {
-	errs, warns := r.counts()
+	errs, warns := r.Counts()
 	if asJSON {
 		enc := json.NewEncoder(w)
 		enc.SetIndent("", "  ")
@@ -219,4 +128,19 @@ func printWorkflowValidate(w io.Writer, r *workflowValidateReport, asJSON bool) 
 		return errors.New(i18n.Tf("cmd.workflow.validate.failed", errs, warns))
 	}
 	return nil
+}
+
+// validateContextLayers returns the team-state of the editing commands'
+// context (project of the current folder with its team or solo space,
+// --team, else the only solo space); nil without one.
+func validateContextLayers(cmd *cobra.Command) (*workflowTeamLayers, error) {
+	c, err := workflowCmdContext(cmd)
+	if err != nil {
+		return nil, err
+	}
+	ts, err := workflowTeamState(cmd.Context(), c)
+	if err != nil || ts == nil {
+		return nil, err
+	}
+	return &workflowTeamLayers{Repo: ts.Repo, Project: ts.Project, TeamID: ts.TeamID, Member: ts.Member}, nil
 }

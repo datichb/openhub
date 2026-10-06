@@ -119,7 +119,15 @@ func (s *Service) FlushQueue(ctx context.Context, c Context) ([]*Publication, []
 		if op.Member != ts.Member {
 			continue
 		}
-		p, err := s.apply(ctx, ts, op)
+		opTS := ts
+		if scope, err := teamstate.ParseScope(op.Scope); err == nil && scope.IsProject() && ts.Project != scope.Project {
+			// Replayed from another context (TUI synchronization): load the
+			// project layer of the operation.
+			cp := *ts
+			cp.Project = scope.Project
+			opTS = &cp
+		}
+		p, err := s.apply(ctx, opTS, op)
 		if errors.Is(err, teamstate.ErrOffline) {
 			break
 		}

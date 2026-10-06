@@ -54,7 +54,7 @@ When loading, oh **skips with a warning**:
 - a lock entry whose file is gone;
 - every team workflow when `workflows.lock` cannot be read.
 
-These warnings show up in `oh workflow validate` and in `oh doctor` ("Team workflows"). To fix: publish the workflow again from oh, or restore the file (`git checkout`).
+These warnings show up in `oh workflow list`, `oh workflow validate`, the TUI catalogue and `oh doctor` ("Team workflows"). A published file that cannot be read (syntax error) is listed as invalid **in its own layer** (team or project). To fix: publish the workflow again from oh, or restore the file (`git checkout`).
 
 ## Checking team workflows
 
@@ -62,7 +62,12 @@ These warnings show up in `oh workflow validate` and in `oh doctor` ("Team workf
 oh workflow validate team:ticket-hotfix            # active team
 oh workflow validate project:ticket --project web  # project layer + its team
 oh workflow validate --all --project web           # hub, team and project
+oh workflow validate ./hotfix.yaml --layer team    # file, with the team bricks
 ```
+
+Validation uses the **merged brick catalogue** (hub + the team `catalog/`), like `oh run` and publication: a workflow using a team agent is valid.
+
+`oh workflow list [-p <project>|--team <id>]` also shows **your drafts** (✎, error count, "new brick"), the files skipped by the integrity check and the publications waiting for the network (⏳). In JSON, drafts are entries of the same array with `"draft": true`.
 
 ## Locks (`enforce`)
 
@@ -88,7 +93,7 @@ The life cycle of a team or project workflow goes through the WorkflowService (C
 1. **Draft**: `workflows/drafts/<member>/<id>.yaml` (and its own template `<id>.prompt.md.tmpl` when it has one). It is **validated when saved** (refused with its errors), pushed with the team-state, but never loaded for other members.
 2. **Test**: `oh run <id> --draft` runs the draft, locally only, and refuses it when it widens the published version (a draft cannot loosen security).
 3. **Publication**: team-state pull → **revalidation** of the draft against the up-to-date state → version + 1 → previous version copied to `history/<id>/` (document, template and lock entry) → published file and `workflows.lock` → commit + push. If another member published in the meantime, everything is **redone** on top of their publication (new revalidation, next version). The draft is consumed; a `workflow.published` event is added.
-4. **Offline**: the publication is **queued** (in the clone, not versioned) and replayed later with the same cycle; the draft is kept.
+4. **Offline**: the publication is **queued** (in the clone, not versioned) and replayed later with the same cycle; the draft is kept. The replay is **automatic at each team-state synchronization in the TUI** (the result is notified); from the CLI: `oh workflow publish --retry` (no replay when the CLI starts).
 
 ### Impact summary
 
@@ -139,6 +144,13 @@ oh team promote --remote <empty-url>      # later: share it with a team
 ```
 
 Publications there are local commits. `oh team promote` pushes the whole history to the remote, without loss (see [team CLI](../reference/cli-team.en.md#oh-team-promote)).
+
+In the TUI:
+
+- **first run**: "Solo space (local workflows)" button at the Team step (the "solo" mode of the welcome step selects it); the wizard's project is attached to it;
+- **adding a project**: "Create a solo space" / "Solo space <id>" choice at the Team step (the existing space is reused);
+- **workflow catalogue**: `n` without a team-state offers to create the solo space (id, member, attachment of the active project);
+- **team detail** of a solo space: "Space" line and **"Switch to a team"** action (URL of an empty remote repository, confirmation, then the URL to send to the members, who run `oh team init`). The team detail also shows the workflow **governance**, read only ("Publication: any member").
 
 ## Migration of the former workflow overrides (v5)
 

@@ -88,7 +88,7 @@ Accepts text input with fuzzy suggestions displayed above:
 |---------|---------|-------------|
 | `run <workflow>` | workflow id; former names: `dev` → `run ticket`, `start` → `run feature`, `onboard` → `run onboarding`, `audit`, `review` (`rev`, `cr`), `debug` (`dbg`), `feedback` → `run review-feedback` | Opens the launch form of the workflow (generated from the catalogue) |
 | `run <workflow> ⟨ticket⟩` | — | On the board: workflow launched on the selected ticket |
-| `workflows` | catalogue, wf | Workflow catalogue (read only) |
+| `workflows` | catalogue, wf | Workflow catalogue (drafts, publication, history) |
 | `review.publish` | publish, mr | Create the merge request of the current branch (GitLab API, suspended terminal; when GitLab writes are enabled) |
 | `coder` | session, free | Free session (no workflow; opencode V1 or empty catalogue) |
 | `sessions` | parallel, inbox | Sessions view |
@@ -101,7 +101,14 @@ Generated from the workflow YAML, in three steps: **Inputs** (one line per input
 
 - **Start** (hub, project, team landings): ★ pinned (5 max), recent (3), suggestions when empty; in project/team mode, collapsed categories (Enter = pick a workflow). `*` pins or unpins (scope: hub, project or team depending on the landing). "All workflows (N)" opens the catalogue.
 - **Board**: `a` on a ticket lists the workflows taking a Beads ticket; the form opens at the Options step, ticket prefilled.
-- **Catalogue**: workflows by layer (version, risk, ⌂ ▣ ☁, validity), detail on the right; Enter launches, `*` pins.
+- **Catalogue**: workflows by layer (version, risk, ⌂ ▣ ☁, validity), detail on the right; Enter launches, `*` pins. With a team-state (team or solo space), the catalogue is **editable**:
+  - sections Hub (read only), Team, Project, **My drafts** (`✎`, error count, "+ new brick" badge for a team brick used for the first time) and **Integrity** (skipped published files, refused bricks); `✎` on a published workflow = you have a draft of it, `⏳` = publication waiting for the network;
+  - `n` new (empty, extend or duplicate the selected workflow; team or project layer; id), `e` edit (on a hub workflow: extend it), `v` validate, `t` test the draft (launch form "✎ draft", local), `p` publish, `D` diff of the draft with the impact, `h` history, `x` archive (optional reason; on a draft: discard it), `r` reload; Enter on a draft = test it;
+  - **Publish**: current → next version, validation, impact (widenings marked ⚠), new bricks, diff of the document and the template, governance ("Publication: any member"); mandatory message, `Ctrl+S` publishes once; offline, the publication is queued and replayed at the next team-state synchronization;
+  - **History**: versions (author, date, message, current); Enter = diff with the current version, `r` = restore (published again as a new version).
+  - **Editor** (`e`, `n`): five sections (`Tab` / `Shift+Tab`) — **General** (identity, security, run: each field shows the resolved value, `✎` when written in the draft, `← hub:ticket` its origin, 🔒 when locked by the parent workflow; Enter edits, `x` goes back to the inherited value), **Graph** (resolved workflow, inherited elements included: start column, checkpoints in order with their behavior in the shown mode — `m` to change it —, agents under the checkpoint they wait for, independent agents apart; Enter edits the agent or checkpoint, `a` adds a catalogue agent, `c` a checkpoint, `x` removes — an inherited element is disabled), **Inputs & prompt** (inputs, `a` to add, template, `P` to write it in `$EDITOR`, prompt preview with example values), **Resources** (extra/denied skills, MCP, Beads, plugins, outputs), **Bundle preview** (agents, skills, first-turn budget, depth, isolation, MCP; without an active project, project MCP servers are "project dependent"; findings: Enter goes to the field, or to the YAML at the right line);
+  - `u` / `U` undo / redo, `y` raw YAML in `$EDITOR`, `w` (or `Ctrl+S`) saves the draft (refused while errors remain), `Esc`: with unsaved changes, choose "Save and leave" (valid draft), "Drop the changes" or "Keep editing". YAML comments and layout are kept; only the changed fields are written (a patch stays a patch).
+- **Team detail**: "Workflows" section with the publication governance, read only (`[governance] publish`); for a solo space, "Space" line and "Switch to a team" action (empty remote repository).
 - **Sessions view**: `e` "Chain with…" suggests the workflows taking an output of the session (branch, tickets), form prefilled; a launch put on hold by a precondition ("run onboarding then come back") comes first. When a workflow session ends (or declares its outputs), a toast announces the suggested follow-up and the session detail shows it ("↪ Chain with review (e)").
 
 ### Projects

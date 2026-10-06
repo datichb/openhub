@@ -142,6 +142,9 @@ type initWizardTeamState struct {
 	// Existing team detection (re-init)
 	ExistingTeam *config.TeamConfig // non-nil if a team is already configured
 	TeamChoice   string             // "keep", "reconfigure", "skip" (only when ExistingTeam != nil)
+	// SoloSpace: the user chose a solo workflow space (P2-T16); the
+	// wizard's project is attached to it.
+	SoloSpace bool
 	attachProject bool   // true if user wants to attach the project to this team
 	Ctx           context.Context // propagated to OnDone closures (set by caller)
 	// Rejoin-specific state
@@ -1234,12 +1237,21 @@ func buildTeamModeIntroStep(state *initWizardTeamState) views.WizardStep {
 				buttonForm.AddButton("  "+i18n.T("cmd.init.wizard_team_mode_init")+"  ", func() {
 					state.Mode = "init"
 					state.Skipped = false
+					state.SoloSpace = false
 					onDone()
 				})
 
 				buttonForm.AddButton("  "+i18n.T("cmd.init.wizard_team_mode_rejoin")+"  ", func() {
 					state.Mode = "rejoin"
 					state.Skipped = false
+					state.SoloSpace = false
+					onDone()
+				})
+
+				buttonForm.AddButton("  "+i18n.T("tui.solo.wizard.choice")+"  ", func() {
+					state.Mode = ""
+					state.Skipped = true
+					state.SoloSpace = true
 					onDone()
 				})
 
@@ -1247,7 +1259,7 @@ func buildTeamModeIntroStep(state *initWizardTeamState) views.WizardStep {
 				buttonForm.AddButton("  "+i18n.T("wizard.intro.skip")+"  ", func() {
 					if !skipConfirmed {
 						skipConfirmed = true
-						if btn := buttonForm.GetButton(2); btn != nil {
+						if btn := buttonForm.GetButton(3); btn != nil {
 							btn.SetLabel("  " + i18n.T("wizard.intro.skip_confirm") + "  ")
 						}
 						return
@@ -1292,53 +1304,86 @@ func buildTeamModeIntroStep(state *initWizardTeamState) views.WizardStep {
 // The step sets out to:
 //   - &activeTeamID → attach the project to the hub's active team
 //   - nil           → no team for this project
-func buildProjectTeamStep(a *app.App, out **string) views.WizardStep {
+func buildProjectTeamStep(a *app.App, out **string, solo *bool) views.WizardStep {
 	hubTeam := a.Config.ActiveTeam()
+	hasTeam := hubTeam.Enabled && hubTeam.ID != ""
 
-	// Local state for the step
-	var attachToTeam bool
-
-	// If hub has a team, default to attaching
-	if hubTeam.Enabled && hubTeam.ID != "" {
-		attachToTeam = true
+	// Choices: hub team (default when there is one), solo space (P2-T16),
+	// no team.
+	const (
+		choiceTeam = "team"
+		choiceSolo = "solo"
+		choiceNone = "none"
+	)
+	var choices []string
+	if hasTeam {
+		choices = append(choices, choiceTeam)
+	}
+	choices = append(choices, choiceSolo, choiceNone)
+	choice := choices[0]
+	if !hasTeam {
+		choice = choiceNone
+	}
+	soloLabel := i18n.T("tui.solo.project.new")
+	for _, t := range a.Config.Teams {
+		if t.Solo && t.Enabled {
+			soloLabel = i18n.Tf("tui.solo.project.existing", t.ID)
+			break
+		}
 	}
 
 	return views.WizardStep{
 		Label: i18n.T("form.project.team_label"),
 		Form: func(_ *tview.Application, onDone func()) *tview.Form {
 			form := tview.NewForm()
-
-			if hubTeam.Enabled && hubTeam.ID != "" {
+			if hasTeam {
 				hubSummary := i18n.Tf("form.project.team_hub_summary", hubTeam.StateRepo, hubTeam.MemberID)
 				form.AddTextView(i18n.T("form.project.team_hub_label"), hubSummary, 0, 1, false, false)
-				modeOptions := []string{
-					i18n.Tf("form.project.team_use_hub", hubTeam.MemberID),
-					i18n.T("form.project.team_no_team"),
-				}
-				form.AddDropDown(i18n.T("form.project.team_dropdown"), modeOptions, 0, func(_ string, idx int) {
-					attachToTeam = idx == 0
-				})
 			} else {
 				form.AddTextView(i18n.T("form.project.team_hub_label"), i18n.T("form.project.team_none_configured"), 0, 1, false, false)
 			}
-
+			var labels []string
+			initial := 0
+			for i, c := range choices {
+				switch c {
+				case choiceTeam:
+					labels = append(labels, i18n.Tf("form.project.team_use_hub", hubTeam.MemberID))
+				case choiceSolo:
+					labels = append(labels, soloLabel)
+				default:
+					labels = append(labels, i18n.T("form.project.team_no_team"))
+				}
+				if c == choice {
+					initial = i
+				}
+			}
+			form.AddDropDown(i18n.T("form.project.team_dropdown"), labels, initial, func(_ string, idx int) {
+				choice = choices[idx]
+			})
+			form.AddTextView("", i18n.T("tui.solo.project.hint"), 0, 2, false, false)
 			form.AddButton(i18n.T("wizard.hint.submit"), func() { onDone() })
 			return form
 		},
 		OnDone: func() error {
-			if attachToTeam && hubTeam.ID != "" {
+			*out = nil
+			if solo != nil {
+				*solo = choice == choiceSolo
+			}
+			if choice == choiceTeam {
 				id := hubTeam.ID
 				*out = &id
-			} else {
-				*out = nil
 			}
 			return nil
 		},
 		InfoFields: func() []views.InfoField {
-			if attachToTeam && hubTeam.ID != "" {
-				return []views.InfoField{{Label: i18n.T("form.project.team_label"), Value: hubTeam.ID}}
+			value := i18n.T("form.project.team_value_none")
+			switch choice {
+			case choiceTeam:
+				value = hubTeam.ID
+			case choiceSolo:
+				value = soloLabel
 			}
-			return []views.InfoField{{Label: i18n.T("form.project.team_label"), Value: i18n.T("form.project.team_value_none")}}
+			return []views.InfoField{{Label: i18n.T("form.project.team_label"), Value: value}}
 		},
 	}
 }

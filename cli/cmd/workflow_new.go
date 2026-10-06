@@ -2,14 +2,11 @@ package cmd
 
 import (
 	"errors"
-	"fmt"
-	"regexp"
 
 	"github.com/spf13/cobra"
 
 	"github.com/datichb/openhub/cli/internal/i18n"
 	workflowsvc "github.com/datichb/openhub/cli/internal/services/workflow"
-	"github.com/datichb/openhub/cli/internal/teamstate"
 	"github.com/datichb/openhub/cli/internal/workflow"
 )
 
@@ -37,9 +34,6 @@ func workflowNewCmd() *cobra.Command {
 
 func runWorkflowNew(cmd *cobra.Command, args []string) error {
 	id := args[0]
-	if err := teamstate.ValidWorkflowID(id); err != nil {
-		return errors.New(i18n.Tf("cmd.workflow.new.bad_id", id))
-	}
 	layer, err := layerFlag(cmd)
 	if err != nil {
 		return err
@@ -58,35 +52,20 @@ func runWorkflowNew(cmd *cobra.Command, args []string) error {
 	svc := newWorkflowService(ctxOf(cmd))
 	errOut := cmd.ErrOrStderr()
 
-	if t, err := svc.EditText(ctxOf(cmd), c, layer, id); err == nil {
-		return errors.New(i18n.Tf("cmd.workflow.new.exists", t.Ref.String()))
-	} else if !errors.Is(err, workflowsvc.ErrNotFound) {
+	n := workflowsvc.NewDraft{ID: id, Layer: layer, Extends: extends, Copy: copyFrom}
+	if file != "" {
+		n.Extends, n.Copy = "", ""
+	}
+	t, err := svc.NewDraftText(ctxOf(cmd), c, n)
+	if err != nil {
 		return workflowEditError(errOut, err)
 	}
-
-	e := draftEdit{Layer: layer, Name: id + ".yaml", EditYAML: !noEdit && file == ""}
-	switch {
-	case file != "":
+	e := draftEdit{Layer: layer, Name: id + ".yaml", EditYAML: !noEdit && file == "", YAML: t.YAML, Prompt: t.Prompt}
+	if file != "" {
 		if e.YAML, err = readWorkflowFile(file); err != nil {
 			return err
 		}
-	case copyFrom != "":
-		src, err := svc.DocumentText(ctxOf(cmd), c, copyFrom)
-		if err != nil {
-			return workflowEditError(errOut, err)
-		}
-		e.YAML = copyDocument(src.YAML, id)
-		e.Prompt = src.Prompt
-	case extends != "":
-		if _, err := workflow.ParseRef(extends); err != nil {
-			return errors.New(i18n.Tf("cmd.workflow.new.bad_extends", extends))
-		}
-		if !svc.Has(ctxOf(cmd), c, extends) {
-			return errors.New(i18n.Tf("cmd.workflow.show.unknown", extends))
-		}
-		e.YAML = []byte(fmt.Sprintf(i18n.T("cmd.workflow.new.template_extends"), id, extends))
-	default:
-		e.YAML = []byte(fmt.Sprintf(i18n.T("cmd.workflow.new.template_empty"), id))
+		e.Prompt = nil
 	}
 	d, err := saveDraftEdit(cmd, svc, c, e)
 	if err != nil {
@@ -94,15 +73,4 @@ func runWorkflowNew(cmd *cobra.Command, args []string) error {
 	}
 	printDraftSaved(cmd.OutOrStdout(), d)
 	return nil
-}
-
-var (
-	reTopID      = regexp.MustCompile(`(?m)^id:[^\n]*$`)
-	reTopVersion = regexp.MustCompile(`(?m)^version:[^\n]*\n?`)
-)
-
-// copyDocument renames a copied document and drops its published version.
-func copyDocument(data []byte, id string) []byte {
-	out := reTopID.ReplaceAll(data, []byte("id: "+id))
-	return reTopVersion.ReplaceAll(out, nil)
 }

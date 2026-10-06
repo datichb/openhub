@@ -92,6 +92,7 @@ func buildProjectAddInlineWizard(a *app.App) *views.InlineWizardView {
 		agents        []string
 		mcpServices   []string
 		projectTeamID *string
+		projectSolo   bool
 		doDeploy      bool
 	)
 
@@ -336,7 +337,7 @@ func buildProjectAddInlineWizard(a *app.App) *views.InlineWizardView {
 		},
 
 		// ── Step 7: Team ──
-		buildProjectTeamStep(a, &projectTeamID),
+		buildProjectTeamStep(a, &projectTeamID, &projectSolo),
 
 		// ── Step 8: Deploy ──
 		{
@@ -389,6 +390,9 @@ func buildProjectAddInlineWizard(a *app.App) *views.InlineWizardView {
 			if upsertErr != nil {
 				slog.Warn("failed to create/update project", "error", upsertErr)
 				return
+			}
+			if projectSolo {
+				tuiAttachProjectSolo(result)
 			}
 
 			if doDeploy {

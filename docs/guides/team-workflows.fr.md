@@ -54,7 +54,7 @@ Au chargement, oh **ignore avec un avertissement** :
 - une entrée du lock dont le fichier a disparu ;
 - tous les workflows de l'équipe si `workflows.lock` est illisible.
 
-Ces avertissements apparaissent dans `oh workflow validate` et dans `oh doctor` (« Workflows d'équipe »). Pour corriger : republier le workflow depuis oh ou restaurer le fichier (`git checkout`).
+Ces avertissements apparaissent dans `oh workflow list`, `oh workflow validate`, le catalogue de la TUI et `oh doctor` (« Workflows d'équipe »). Un fichier publié qui ne se lit pas (erreur de syntaxe) est listé comme invalide **dans sa couche** (équipe ou projet). Pour corriger : republier le workflow depuis oh ou restaurer le fichier (`git checkout`).
 
 ## Vérifier les workflows d'équipe
 
@@ -62,7 +62,12 @@ Ces avertissements apparaissent dans `oh workflow validate` et dans `oh doctor` 
 oh workflow validate team:ticket-hotfix            # équipe active
 oh workflow validate project:ticket --project web  # couche du projet + son équipe
 oh workflow validate --all --project web           # hub, équipe et projet
+oh workflow validate ./hotfix.yaml --layer team    # fichier, avec les briques d'équipe
 ```
+
+La validation utilise le **catalogue de briques fusionné** (hub + `catalog/` de l'équipe), comme `oh run` et la publication : un workflow qui utilise un agent d'équipe est valide.
+
+`oh workflow list [-p <projet>|--team <id>]` affiche aussi **vos brouillons** (✎, nombre d'erreurs, « nouvelle brique »), les fichiers ignorés par le contrôle d'intégrité et les publications en attente du réseau (⏳). En JSON, les brouillons sont des entrées du même tableau avec `"draft": true`.
 
 ## Verrous (`enforce`)
 
@@ -88,7 +93,7 @@ Le cycle de vie d'un workflow d'équipe ou de projet passe par le WorkflowServic
 1. **Brouillon** : `workflows/drafts/<membre>/<id>.yaml` (et son propre gabarit `<id>.prompt.md.tmpl` s'il en a un). Il est **validé à l'enregistrement** (refusé avec ses erreurs), poussé avec le team-state, mais n'est jamais chargé pour les autres membres.
 2. **Test** : `oh run <id> --draft` lance le brouillon, en local seulement, et le refuse s'il élargit la version publiée (un brouillon ne peut pas assouplir la sécurité).
 3. **Publication** : pull du team-state → **revalidation** du brouillon contre l'état à jour → version + 1 → version précédente copiée dans `history/<id>/` (document, gabarit et entrée du lock) → fichier publié et `workflows.lock` → commit + push. Si un autre membre a publié entre-temps, tout est **refait** au-dessus de sa publication (nouvelle revalidation, version suivante). Le brouillon est consommé ; un événement `workflow.published` est ajouté.
-4. **Hors ligne** : la publication est mise en **file d'attente** (dans le clone, non versionnée) et rejouée plus tard avec le même cycle ; le brouillon est conservé.
+4. **Hors ligne** : la publication est mise en **file d'attente** (dans le clone, non versionnée) et rejouée plus tard avec le même cycle ; le brouillon est conservé. Le rejeu est **automatique à chaque synchronisation du team-state dans la TUI** (notification du résultat) ; en CLI : `oh workflow publish --retry` (pas de rejeu au démarrage de la CLI).
 
 ### Résumé d'impact
 
@@ -139,6 +144,13 @@ oh team promote --remote <url-vide>       # plus tard : le partager avec une éq
 ```
 
 Les publications y sont des commits locaux. `oh team promote` pousse tout l'historique vers le remote, sans rien perdre (voir [CLI équipe](../reference/cli-team.fr.md#oh-team-promote)).
+
+Dans la TUI :
+
+- **premier lancement** : bouton « Espace solo (workflows locaux) » à l'étape Équipe (le mode « solo » de l'accueil l'active d'office) ; le projet de l'assistant y est rattaché ;
+- **ajout d'un projet** : choix « Créer un espace solo » / « Espace solo <id> » à l'étape Équipe (l'espace existant est réutilisé) ;
+- **catalogue des workflows** : `n` sans team-state propose de créer l'espace solo (identifiant, membre, rattachement du projet actif) ;
+- **détail d'équipe** d'un espace solo : ligne « Espace » et action **« Passer en équipe »** (URL d'un dépôt distant vide, confirmation, puis l'URL à transmettre aux membres, qui lancent `oh team init`). Le détail d'équipe affiche aussi la **gouvernance** des workflows en lecture (« Publication : tout membre »).
 
 ## Migration des anciennes surcharges de workflow (v5)
 

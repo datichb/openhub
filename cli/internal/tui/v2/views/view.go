@@ -25,7 +25,14 @@ type TeamResolution struct {
 	StatePath string
 	// MemberID is the current user's member identifier in the team-state.
 	MemberID string
+	// Solo: a solo space (local team-state, team features off; P2-T16).
+	Solo bool
+	// TeamID identifies the team (or solo space).
+	TeamID string
 }
+
+// hasState reports whether a team-state can be read (team or solo space).
+func (r TeamResolution) hasState() bool { return r.Enabled || r.Solo }
 
 // ResolveTeamFunc is a callback that views call to obtain the effective team
 // configuration for the currently active project. The implementation lives in

@@ -43,6 +43,9 @@ type TeamDetailViewConfig struct {
 	// OnDiscoverTracker launches the tracker discovery wizard.
 	// Called when the user presses 'y' in the team detail view.
 	OnDiscoverTracker func()
+	// PromoteSolo turns the solo space teamID into a team pushed to remote
+	// (« Passer en équipe », P2-T16).
+	PromoteSolo func(teamID, remote string)
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -112,7 +115,7 @@ func (v *TeamDetailView) Mount(content *tview.Flex, app *tview.Application) {
 
 	// Async pull team-state then load
 	tc := v.cfg.ResolveTeam()
-	if tc.Enabled {
+	if tc.hasState() {
 		repo := teamstate.NewRepo(tc.StateRepo, tc.StatePath)
 		syncAsync(v.app, repo, v.shell, func(_ error) {
 			v.loadData()
@@ -204,7 +207,7 @@ func (v *TeamDetailView) loadData() {
 	v.localTrk = v.cfg.GetTrackerLocalConfig()
 
 	tc := v.cfg.ResolveTeam()
-	if tc.Enabled {
+	if tc.hasState() {
 		repo := teamstate.NewRepo(tc.StateRepo, tc.StatePath)
 		if repo.IsCloned() {
 			teamCfg, err := repo.LoadConfig()
@@ -237,6 +240,7 @@ func (v *TeamDetailView) loadData() {
 
 func (v *TeamDetailView) buildFields() {
 	v.fields = nil
+	v.buildWorkflowFields()
 
 	// ── Tracker ──────────────────────────────────────────────────────────
 	v.fields = append(v.fields, configField{Kind: CfgFieldSectionHeader, Label: i18n.T("tui.config.section.tracker")})
@@ -524,6 +528,12 @@ func (v *TeamDetailView) editSelected() {
 		return
 	}
 	if !isEditable(f.Kind) {
+		return
+	}
+	if f.Kind == CfgFieldAction {
+		if f.Set != nil {
+			f.Set("")
+		}
 		return
 	}
 
@@ -991,6 +1001,73 @@ func (v *TeamDetailView) setTeamProviderKey() {
 				return
 			}
 			v.shell.ShowToastMsg(i18n.Tf("tui.team.llm_key.saved", prov), true)
+		})
+	})
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Workflows: governance (P2-T17) and solo space (P2-T16)
+// ─────────────────────────────────────────────────────────────────────────────
+
+// GovernanceLabel describes a workflow publication policy.
+func GovernanceLabel(policy string) string {
+	if policy == "" || policy == teamstate.GovernancePublishAnyMember {
+		return i18n.T("tui.team.governance.any_member")
+	}
+	return i18n.Tf("tui.team.governance.unsupported", policy)
+}
+
+// governanceValue is the policy alone (the field label says « publication »).
+func governanceValue(policy string) string {
+	if policy == "" || policy == teamstate.GovernancePublishAnyMember {
+		return i18n.T("tui.team.governance.value_any_member")
+	}
+	return i18n.Tf("tui.team.governance.value_unsupported", policy)
+}
+
+func (v *TeamDetailView) buildWorkflowFields() {
+	tc := v.cfg.ResolveTeam()
+	if !tc.hasState() {
+		return
+	}
+	v.fields = append(v.fields, configField{Kind: CfgFieldSectionHeader, Label: i18n.T("tui.team.governance.section")})
+	v.fields = append(v.fields, configField{
+		Key: "governance.publish", Kind: CfgFieldReadonly, Label: i18n.T("tui.team.governance.label"),
+		Description: i18n.T("tui.team.governance.desc"), Scope: ScopeTeamShared,
+		Get: func() string { return governanceValue(v.teamCfg.Governance.PublishPolicy()) },
+	})
+	if !tc.Solo {
+		return
+	}
+	v.fields = append(v.fields, configField{
+		Key: "solo", Kind: CfgFieldReadonly, Label: i18n.T("tui.solo.detail.label"),
+		Description: i18n.T("tui.solo.detail.desc"), Scope: ScopeTeamShared,
+		Get: func() string { return i18n.Tf("tui.solo.detail.value", tc.StatePath) },
+	})
+	if v.cfg.PromoteSolo == nil {
+		return
+	}
+	v.fields = append(v.fields, configField{
+		Key: "solo.promote", Kind: CfgFieldAction, Label: i18n.T("tui.solo.promote.label"),
+		Description: i18n.T("tui.solo.promote.desc"),
+		Get:         func() string { return "→" },
+		Set:         func(string) { v.askPromote(tc.TeamID) },
+	})
+}
+
+// askPromote asks for the remote of the new team, then confirms.
+func (v *TeamDetailView) askPromote(teamID string) {
+	if v.shell == nil {
+		return
+	}
+	v.shell.ShowInputModal(i18n.T("tui.solo.promote.remote"), "", func(remote string) {
+		remote = strings.TrimSpace(remote)
+		if remote == "" {
+			return
+		}
+		v.shell.ShowScrollableModal(i18n.T("tui.solo.promote.label"), i18n.Tf("tui.solo.promote.confirm", teamID, remote), []ModalAction{
+			{Label: i18n.T("tui.solo.promote.do"), Callback: func() { v.cfg.PromoteSolo(teamID, remote) }},
+			{Label: i18n.T("tui.catalog.edit.cancel"), Callback: func() {}, Separator: true},
 		})
 	})
 }

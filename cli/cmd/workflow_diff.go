@@ -8,7 +8,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/pmezard/go-difflib/difflib"
 	"github.com/spf13/cobra"
 
 	"github.com/datichb/openhub/cli/internal/i18n"
@@ -73,8 +72,8 @@ func runWorkflowDiff(cmd *cobra.Command, args []string) error {
 		base = preview.Published
 	}
 
-	yamlDiff := unifiedDiff(textOf(base, false), string(draft.YAML), ref+"@"+label, ref+"@draft")
-	promptDiff := unifiedDiff(textOf(base, true), string(draft.Prompt), "prompt@"+label, "prompt@draft")
+	yamlDiff := workflowsvc.UnifiedDiff(workflowsvc.TextString(base, false), string(draft.YAML), ref+"@"+label, ref+"@draft")
+	promptDiff := workflowsvc.UnifiedDiff(workflowsvc.TextString(base, true), string(draft.Prompt), "prompt@"+label, "prompt@draft")
 	if asJSON, _ := cmd.Flags().GetBool("json"); asJSON {
 		res := map[string]any{"ref": ref, "against": label, "diff": yamlDiff, "prompt_diff": promptDiff}
 		if preview != nil {
@@ -98,25 +97,6 @@ func runWorkflowDiff(cmd *cobra.Command, args []string) error {
 	fmt.Fprintln(out)
 	printImpact(out, preview.Impact)
 	return nil
-}
-
-func textOf(t *workflowsvc.Text, prompt bool) string {
-	if t == nil {
-		return ""
-	}
-	if prompt {
-		return string(t.Prompt)
-	}
-	return string(t.YAML)
-}
-
-func unifiedDiff(a, b, from, to string) string {
-	if a == b {
-		return ""
-	}
-	s, _ := difflib.GetUnifiedDiffString(difflib.UnifiedDiff{
-		A: difflib.SplitLines(a), B: difflib.SplitLines(b), FromFile: from, ToFile: to, Context: 3})
-	return s
 }
 
 func printDiff(w io.Writer, diff string) {

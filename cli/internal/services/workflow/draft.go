@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"path/filepath"
 	"slices"
 	"strings"
 
@@ -74,51 +73,25 @@ func (s *Service) SaveDraft(ctx context.Context, c Context, in DraftInput) (*Dra
 	if err != nil {
 		return nil, err
 	}
+	chk, err := s.checkDraftText(cat, in.Layer, in.YAML, in.Prompt)
+	if err != nil {
+		return nil, err
+	}
+	if !chk.Valid() {
+		ref := string(in.Layer)
+		if chk.Ref.ID != "" {
+			ref = chk.Ref.String()
+		}
+		return nil, &InvalidError{Ref: ref, Diagnostics: chk.Diagnostics}
+	}
 	ts := cat.team
-	if ts == nil {
-		return nil, ErrNoTeamState
-	}
-	scope, err := ts.scopeOf(in.Layer)
-	if err != nil {
-		return nil, err
-	}
-	probe, diags := wf.Parse(in.YAML, wf.Source{Layer: in.Layer})
-	if probe == nil || diags.HasErrors() {
-		return nil, &InvalidError{Ref: string(in.Layer), Diagnostics: diags}
-	}
-	id := probe.Spec.ID
-	if err := teamstate.ValidWorkflowID(id); err != nil {
-		return nil, err
-	}
-	rel, err := teamstate.DraftRel(scope, ts.Member, id)
-	if err != nil {
-		return nil, err
-	}
-	path := filepath.Join(ts.Repo.Path(), rel)
-	doc, diags := wf.Parse(in.YAML, wf.Source{Layer: in.Layer, Path: path, Draft: true})
-	if doc == nil || diags.HasErrors() {
-		return nil, &InvalidError{Ref: string(in.Layer) + ":" + id, Diagnostics: diags}
-	}
-
-	_, ds := ts.Repo.LoadDrafts(cat.docs, ts.Member, ts.scopes()...)
-	cat.diags = append(cat.diags, ds...)
-	cat.docs.Put(doc)
-	env := cat.env
-	if in.Prompt != nil {
-		env.Prompts = promptOverride{path: path, data: in.Prompt, next: env.Prompts}
-	}
-	_, vdiags := wf.Check(cat.docs, doc.Ref(), nil, env)
-	diags = append(diags, vdiags...)
-	diags.Sort()
-	if diags.HasErrors() {
-		return nil, &InvalidError{Ref: doc.Ref().String(), Diagnostics: diags}
-	}
-
+	scope, _ := ts.scopeOf(in.Layer)
+	id, path, diags := chk.Ref.ID, chk.Path, chk.Diagnostics
 	files, err := ts.Repo.WriteDraftLocal(scope, ts.Member, id, in.YAML, in.Prompt)
 	if err != nil {
 		return nil, err
 	}
-	d := &Draft{Ref: doc.Ref(), Member: ts.Member, Path: path, Diagnostics: diags, Pushed: true}
+	d := &Draft{Ref: chk.Ref, Member: ts.Member, Path: path, Diagnostics: diags, Pushed: true}
 	if err := ts.Repo.CommitAndPush(ctx, fmt.Sprintf("workflow: draft %s:%s by %s", scope, id, ts.Member), files...); err != nil {
 		d.Pushed, d.PushError = false, err.Error()
 	}

@@ -199,3 +199,16 @@ func (r *Repo) workflowsDirOf(file string) (string, bool) {
 	}
 	return "", false
 }
+
+// SourceLayer returns the layer of a workflow file of the repository (team
+// or project); false for a file outside the workflows/ dirs of the scopes.
+func (r *Repo) SourceLayer(file string) (workflow.Layer, bool) {
+	dir, ok := r.workflowsDirOf(file)
+	if !ok {
+		return "", false
+	}
+	if filepath.Dir(dir) == filepath.Clean(r.path) {
+		return workflow.LayerTeam, true
+	}
+	return workflow.LayerProject, true
+}

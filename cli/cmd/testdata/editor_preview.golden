@@ -1,0 +1,8 @@
+⚠ No active project: bundle built without the project MCP servers and models
+Agents (N)  ▶ orchestrator-dev (primary) · developer (subagent) · reviewer (primary)
+On-demand skills  N · ~N tokens
+First turn  ~N tokens (entry agent N · skill catalogue N)
+Delegation depth  N · N permission rule(s)
+Isolation  full · strict off · Code Mode off
+MCP  workflow
+Default model  /claude-sonnet-N-N
