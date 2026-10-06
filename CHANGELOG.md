@@ -55,7 +55,7 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
   - **Catalogue des workflows** (lecture seule) : couches, version, risque, exécutions, validité, détail.
   - **« Enchaîner avec… »** (`e` dans la vue Sessions) : workflows qui prennent une sortie de la session (branche, tickets), fiche préremplie ; annonce en fin de session.
 
-### Added — workflows d'équipe (phase 2, hors TUI)
+### Added — workflows d'équipe (phase 2)
 
 - **Workflows dans le team-state** : `workflows/{published,drafts/<membre>,prompts,history/<id>}` pour l'équipe et `projects/<projet>/workflows/…` pour chaque projet, chargés comme couches `team` et `project` par `oh workflow list|show|validate`, `oh run` et la TUI.
 - **`workflows.lock`** : version et empreinte (document et gabarit de prompt) de chaque workflow publié. Un fichier publié modifié à la main, jamais publié ou dont le gabarit a changé est **ignoré avec un avertissement** (`oh workflow validate`, `oh doctor` « Workflows d'équipe »).
@@ -68,6 +68,14 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 - **Catalogue de briques d'équipe** (`catalog/agents`, `catalog/skills`) : agents et skills de l'équipe utilisés par ses workflows ; un identifiant du hub n'est remplacé qu'avec `extends: hub:<id>` explicite ; badge « nouvelle brique » dans l'impact.
 - **`oh workflow new|edit|diff|publish|history|restore|archive`** : brouillon dans `$EDITOR` avec revalidation, diff et impact, confirmation si le workflow est élargi, `publish --retry` pour la file hors ligne ; `--project`, `--team`.
 - **Migration des anciennes surcharges de workflow** (migration v38, automatique) : `[workflow]` du `config.toml` d'équipe, configuration de workflow des projets et `[workflow.overrides]` de `hub.toml` deviennent des workflows qui étendent `hub:feature` (brouillon puis publication ; espace solo créé pour un projet sans équipe) ; originaux archivés, éléments sans équivalent listés.
+- **`oh workflow list`** affiche aussi vos **brouillons** (✎, erreurs, « nouvelle brique »), les fichiers ignorés par le contrôle d'intégrité et les publications en attente du réseau ; `-p/--project`, `--team` ; en JSON, les brouillons sont des entrées `"draft": true` du même tableau. Un fichier d'équipe illisible est listé invalide dans sa couche (plus comme un workflow du hub).
+- **`oh workflow validate`** vérifie les briques contre le catalogue fusionné avec les briques d'équipe, et utilise l'unique espace solo quand il n'y a pas d'équipe active (`--team` ajouté).
+- **File de publication hors ligne rejouée automatiquement** à chaque synchronisation du team-state dans la TUI (notification du résultat) ; en CLI, `oh workflow publish --retry`.
+- **TUI** :
+  - **Catalogue des workflows modifiable** : sections Hub (lecture seule), Équipe, Projet, **Mes brouillons** et **Intégrité** ; `n` nouveau (vide, étendre, dupliquer ; couche équipe ou projet), `e` éditer (étendre un workflow du hub), `v` valider, `t` tester le brouillon (fiche « ✎ brouillon », local), `p` publier, `D` diff et impact, `h` historique, `x` archiver ou abandonner un brouillon.
+  - **Éditeur de workflow** en cinq sections — Général (valeur résolue, origine, verrous `enforce`), Graphe (workflow résolu avec les éléments hérités ; agents, checkpoints, ajout et retrait), Entrées & prompt (aperçu du prompt avec des valeurs d'exemple, gabarit dans `$EDITOR`), Ressources, Aperçu du paquet (agents, skills, budget, isolation, MCP ; diagnostics qui mènent au champ) ; annuler/rétablir (`u`/`U`), YAML brut dans `$EDITOR` (`y`), garde « modifications non enregistrées ». Commentaires et mise en forme du YAML conservés.
+  - Écrans **Publication** (version suivante, validation, impact, nouvelles briques, diff, message obligatoire, publication en attente visible) et **Historique** (diff avec la version actuelle, restauration).
+  - **Espace solo** : choix « Espace solo » au premier lancement et à l'ajout d'un projet (`oh project add` aussi), création depuis le catalogue sans team-state ; **« Passer en équipe »** dans le détail d'équipe d'un espace solo ; **gouvernance** des workflows affichée dans le détail d'équipe.
 
 ### Added — pilotage des sessions (phase 3, en cours)
 
