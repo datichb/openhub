@@ -58,7 +58,7 @@ type PromptSource interface {
 const ReservedInputID = "oh"
 
 // OhVariables are the fields available under .oh in prompt templates.
-var OhVariables = []string{"project", "location", "mode", "runtime", "lang", "workflow"}
+var OhVariables = []string{"project", "location", "branch", "mode", "runtime", "lang", "workflow"}
 
 // BeadsWriteCommands are the `bd` subcommands that modify tickets.
 var BeadsWriteCommands = []string{"create", "update", "close", "reopen", "delete", "edit", "comment", "comments", "label", "dep", "duplicate", "supersede"}

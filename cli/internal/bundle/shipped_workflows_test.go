@@ -276,3 +276,26 @@ func assertGolden(t *testing.T, name, content string) {
 	require.NoError(t, err, "missing golden file (go test ./internal/bundle -run ShippedWorkflow -update)")
 	assert.Equal(t, string(want), content, name)
 }
+
+// A session that already has its branch says so: the agent does not offer to
+// create one (v5 finalisation, Q3-2).
+func TestShippedWorkflowPromptsWorkBranch(t *testing.T) {
+	hub, cat, _ := shippedWorkflows(t)
+	hc, err := hubcat.New(hub)
+	require.NoError(t, err)
+	for _, id := range []string{"ticket", "feature"} {
+		ref := workflow.Ref{Layer: workflow.LayerHub, ID: id}
+		doc, ok := cat.Lookup(ref)
+		require.True(t, ok, id)
+		r, diags := workflow.ResolveSpec(cat, ref, &workflow.SessionOptions{Inputs: sampleInputs(doc.Spec, false)})
+		require.False(t, diags.HasErrors(), "%v", diags)
+		pc := workflow.PromptContext{Project: "demo", Location: "/src/demo-wt", Mode: r.Spec.DefaultMode(), Lang: "fr", Workflow: id}
+		out, err := workflow.RenderPrompt(r, hc, pc)
+		require.NoError(t, err)
+		assert.NotContains(t, out, "Branche de travail", id)
+		pc.Branch = "oh/ticket-bd-1"
+		out, err = workflow.RenderPrompt(r, hc, pc)
+		require.NoError(t, err)
+		assert.Contains(t, out, "Branche de travail : oh/ticket-bd-1", id)
+	}
+}

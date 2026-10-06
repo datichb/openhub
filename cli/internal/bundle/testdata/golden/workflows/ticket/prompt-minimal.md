@@ -7,7 +7,7 @@ Le mode est fixé au lancement : ne le redemande pas. Les checkpoints et leur co
 
 Pour chaque ticket :
 1. `bd show <ID>` : lire le détail complet et l'état actuel avant tout.
-2. Si le ticket est déjà en cours, reprendre là où il en est (pas de nouvelle réservation) ; sinon le développeur le réserve (`bd update <ID> --claim`).
+2. Si le ticket est déjà en cours, reprendre là où il en est (pas de nouvelle réservation) ; sinon c'est l'agent développeur qui le réserve (`bd update <ID> --claim`) : demande-le-lui dans son prompt d'invocation, ne lance jamais cette commande toi-même (tu n'as accès qu'à `bd show` et `bd list`).
 3. Router vers l'agent développeur adapté, puis faire la pre-review et la review.
 4. Après validation : `bd update <ID> -s review`, puis `bd close <ID> --suggest-next`.
 

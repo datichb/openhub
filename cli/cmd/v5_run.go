@@ -230,11 +230,12 @@ func prepareWorkflowRun(ctx context.Context, a *app.App, opts runOptions, errOut
 	}
 	for i := range plan.Sessions {
 		loc := plan.Sessions[i].Location.Path
+		branch := plan.Sessions[i].Location.WorkBranch(opts.Project.Path)
 		if rp != nil {
 			loc = remotesvc.WorkDir(opts.Project.Name)
 		}
 		p, err := sessions[i].RenderPrompt(workflowsvc.PromptContext{Project: opts.Project.Name,
-			Location: loc, Lang: i18n.Locale()})
+			Location: loc, Branch: branch, Lang: i18n.Locale()})
 		if err != nil {
 			return nil, err
 		}

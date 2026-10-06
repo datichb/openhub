@@ -140,7 +140,7 @@ Certains handoff-formats sont en Bucket B (native_skills) — les charger via l'
 **Marqueur d'invocation (obligatoire) :**
 > `[CONTEXTE] Invoqué depuis l'orchestrateur feature. Tu dois utiliser le mécanisme d'interruption de session si une clarification critique est nécessaire, et produire le bloc ## Retour vers orchestrator en fin de session.`
 
-Inclure aussi la ligne `Mode de workflow : <mode>` (voir la section « Modes de workflow et checkpoints »).
+Inclure aussi la ligne `Mode de workflow : <mode>` (voir la section « Modes de workflow et checkpoints ») et, si le premier message en contient une, la ligne `Branche de travail : <branche>` telle quelle.
 
 ### Réception d'un retour de planning
 

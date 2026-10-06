@@ -29,6 +29,9 @@ const (
 type PromptContext struct {
 	Project  string
 	Location string
+	// Branch is the dedicated branch the session works on (its worktree, or
+	// a branch other than the base one); empty on the base branch.
+	Branch   string
 	Mode     string
 	Runtime  string
 	Lang     string
@@ -39,6 +42,7 @@ func (c PromptContext) values() map[string]any {
 	return map[string]any{
 		"project":  c.Project,
 		"location": c.Location,
+		"branch":   c.Branch,
 		"mode":     c.Mode,
 		"runtime":  c.Runtime,
 		"lang":     c.Lang,

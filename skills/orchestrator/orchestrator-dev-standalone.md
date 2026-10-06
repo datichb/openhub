@@ -50,7 +50,7 @@ question({
 ```
 
 ### Branche dédiée
-Poser la question via l'outil `question` :
+Sauf si le premier message contient une ligne `Branche de travail : <branche>` (session déjà sur sa branche : ne rien demander), poser la question via l'outil `question` :
 ```
 question({
   questions: [{

@@ -1,5 +1,8 @@
 Mode de workflow : {{ .oh.mode }}
 Langue de réponse : {{ .oh.lang }}
+{{- if .oh.branch }}
+Branche de travail : {{ .oh.branch }} (déjà prête pour cette session : transmets cette ligne telle quelle à `orchestrator-dev`, qui ne proposera pas de créer une branche).
+{{- end }}
 
 Le mode est fixé au lancement : ne le redemande pas. Les agents de la session sont décrits dans la section « Référence du workflow » de ton prompt, les checkpoints et leur comportement selon le mode dans la section « Modes de workflow et checkpoints » (toutes deux déjà incluses : ne charge aucune skill pour les lire).
 {{- if .request }}
