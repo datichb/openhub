@@ -46,6 +46,7 @@ type Risk string
 
 const (
 	RiskRead    Risk = "read"    // no file edits, no Beads writes
+	RiskPlan    Risk = "plan"    // no file edits, Beads writes limited to beads.allow
 	RiskWrite   Risk = "write"   // edits files and Beads
 	RiskPublish Risk = "publish" // may push branches or open merge requests
 )
@@ -148,6 +149,8 @@ type Spec struct {
 	Runtime *RuntimeSpec `yaml:"runtime,omitempty"`
 	Outputs []Output     `yaml:"outputs,omitempty"`
 	Limits  *Limits      `yaml:"limits,omitempty"`
+	// Preconditions are checked before launch, in declaration order.
+	Preconditions OrderedMap[Precondition] `yaml:"preconditions,omitempty"`
 }
 
 // Entry selects the agent the session starts on.
@@ -288,6 +291,43 @@ type Output struct {
 	Label LocalizedText `yaml:"label,omitempty"`
 }
 
+// Precondition is a check made before launch (in the session location).
+// When it fails, oh shows Label and suggests another workflow, or refuses
+// the launch (OnFail: block).
+type Precondition struct {
+	Label  LocalizedText      `yaml:"label,omitempty"`
+	Check  PreconditionCheck  `yaml:"check"`
+	OnFail PreconditionOnFail `yaml:"on_fail,omitempty"`
+	// Suggest is the workflow offered instead (optional).
+	Suggest *PreconditionSuggest `yaml:"suggest,omitempty"`
+	// Disabled removes an inherited precondition (patch only).
+	Disabled bool `yaml:"disabled,omitempty"`
+}
+
+// PreconditionCheck holds exactly one test.
+type PreconditionCheck struct {
+	// PathExists is satisfied when one of the paths (relative to the
+	// session location) exists.
+	PathExists []string `yaml:"path_exists,omitempty"`
+}
+
+// PreconditionOnFail is what a failed precondition does.
+type PreconditionOnFail string
+
+// Failed precondition behaviors.
+const (
+	OnFailSuggest PreconditionOnFail = "suggest" // message + suggested workflow; the user may go on
+	OnFailBlock   PreconditionOnFail = "block"   // the launch is refused
+)
+
+// PreconditionSuggest is the workflow offered when a precondition fails.
+type PreconditionSuggest struct {
+	Workflow string `yaml:"workflow"`
+	// Resume offers to relaunch this workflow, with the same inputs, once
+	// the suggested one has finished (O7).
+	Resume bool `yaml:"resume,omitempty"`
+}
+
 // Limits are optional per-session caps (I6).
 type Limits struct {
 	BudgetUSD *float64 `yaml:"budget_usd,omitempty"`
@@ -309,21 +349,24 @@ func (c Category) Valid() bool {
 // Valid reports whether r is a known risk level.
 func (r Risk) Valid() bool {
 	switch r {
-	case RiskRead, RiskWrite, RiskPublish:
+	case RiskRead, RiskPlan, RiskWrite, RiskPublish:
 		return true
 	}
 	return false
 }
 
-// Rank orders risk levels (read < write < publish); 0 for unknown values.
+// Rank orders risk levels (read < plan < write < publish); 0 for unknown
+// values.
 func (r Risk) Rank() int {
 	switch r {
 	case RiskRead:
 		return 1
-	case RiskWrite:
+	case RiskPlan:
 		return 2
-	case RiskPublish:
+	case RiskWrite:
 		return 3
+	case RiskPublish:
+		return 4
 	}
 	return 0
 }
@@ -340,6 +383,11 @@ func (p RemotePolicy) Valid() bool {
 		return true
 	}
 	return false
+}
+
+// Valid reports whether o is a known failed precondition behavior.
+func (o PreconditionOnFail) Valid() bool {
+	return o == OnFailSuggest || o == OnFailBlock
 }
 
 // Valid reports whether t is a known input type.

@@ -1,0 +1,32 @@
+apiVersion: oh/v1
+kind: Workflow
+id: audit
+category: quality
+label: { fr: Audit, en: Audit }
+description:
+  fr: Audit du projet (sécurité, performance, architecture, accessibilité…), sans rien modifier
+  en: Project audit (security, performance, architecture, accessibility…), without modifying anything
+risk: read
+entry:
+  agent: auditor
+inputs:
+  type:
+    type: enum
+    required: true
+    values: [security, performance, architecture, accessibility, ecodesign, observability, privacy]
+    default: security
+    label: { fr: Type d'audit, en: Audit type }
+  focus:
+    type: text
+    label: { fr: Périmètre, en: Scope }
+    help:
+      fr: Modules, fichiers ou questions à cibler (facultatif)
+      en: Modules, files or questions to target (optional)
+    max_length: 4000
+prompt:
+  template: prompts/audit.md.tmpl
+agents:
+  auditor: { role: workflow }
+  auditor-subagent: { role: workflow }
+beads: { allow: [show, list] }
+runtime: { default: local, allowed: [local, remote] }

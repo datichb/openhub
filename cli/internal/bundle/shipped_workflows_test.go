@@ -74,6 +74,17 @@ func sampleInputs(s *workflow.Spec, all bool) map[string]any {
 	return out
 }
 
+// extraSamples are additional prompt renderings for branches of a template
+// that the full and minimal samples do not reach.
+var extraSamples = map[string]map[string]map[string]any{
+	"sweep": {
+		"manual-custom": {"goal": "Migrer les appels dépréciés", "strategy": "manual", "tasks": "tâche 1\ntâche 2", "verify": "custom", "verify_cmd": "make check"},
+		"tests":         {"goal": "Migrer les appels dépréciés", "verify": "tests"},
+	},
+	"review":     {"mode-only": {"review_mode": "adversarial"}},
+	"onboarding": {"refresh": {"refresh": "true"}},
+}
+
 func TestShippedWorkflowPrompts(t *testing.T) {
 	hub, cat, _ := shippedWorkflows(t)
 	hc, err := hubcat.New(hub)
@@ -81,8 +92,15 @@ func TestShippedWorkflowPrompts(t *testing.T) {
 	for _, ref := range cat.Refs() {
 		t.Run(ref.ID, func(t *testing.T) {
 			doc, _ := cat.Lookup(ref)
-			for _, variant := range []string{"full", "minimal"} {
-				r, diags := workflow.ResolveSpec(cat, ref, &workflow.SessionOptions{Inputs: sampleInputs(doc.Spec, variant == "full")})
+			variants := map[string]map[string]any{
+				"full":    sampleInputs(doc.Spec, true),
+				"minimal": sampleInputs(doc.Spec, false),
+			}
+			for name, inputs := range extraSamples[ref.ID] {
+				variants[name] = inputs
+			}
+			for _, variant := range sortedKeys(variants) {
+				r, diags := workflow.ResolveSpec(cat, ref, &workflow.SessionOptions{Inputs: variants[variant]})
 				require.False(t, diags.HasErrors(), "%v", diags)
 				mode := r.Mode
 				if mode == "" {

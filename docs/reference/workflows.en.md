@@ -21,8 +21,45 @@ Launching with `oh run <workflow>` and the TUI launch form come with the rest of
 | `ticket` | `orchestrator-dev` | `developer`, `developer-refactor`, `developer-migrator`, `reviewer`, `documentarian` (on demand) | write | local, container, remote | `oh start --dev`, `-t` |
 | `feature` | `orchestrator` | `pathfinder`, `planner`, `designer`, `orchestrator-dev`, `developer*`, `reviewer`, `documentarian` (on demand) | write | local | `oh start` (former modes A, B and E) |
 | `quick` | `developer` | — | write | local | quick session |
+| `cadrage` | `conductor` | `pathfinder`, `planner`, `designer` | plan | local | former mode A without implementation |
+| `onboarding` | `onboarder` | — | write (`docs/wiki/`) | local, remote | `oh start --onboard` (former mode C) |
+| `review` | `reviewer` | — | read | local, remote | `oh review` |
+| `review-feedback` | `orchestrator-dev` | `developer` | write | local | `oh review feedback` |
+| `audit` | `auditor` | `auditor-subagent` | read | local, remote | `oh audit` |
+| `debug` | `debugger` | `developer` (on demand) | write | local | `oh debug` (former mode D) |
+| `sweep` | `conductor` | `developer`, `developer-refactor`, `developer-migrator` | write | local | `oh start --sweep` |
+| `brief-enrich` | `brief-enricher` | — | read | local | `oh takeover-brief enrich` |
 
-The other workflows (`cadrage`, `onboarding`, `review`, `review-feedback`, `audit`, `debug`, `sweep`, `brief-enrich`) follow.
+### Risk levels
+
+| `risk` | Files | Beads |
+|---|---|---|
+| `read` | no change, restricted shell | read only; `beads.allow` required, without write commands |
+| `plan` | no change, restricted shell | `beads.allow` required; writes allowed except `delete` |
+| `write` | modified | unrestricted when `beads` is absent |
+| `publish` | modified, branches pushed, MRs opened | same |
+
+A higher layer (team, project) can only harden the risk: `read < plan < write < publish`.
+
+### Preconditions
+
+A workflow may declare checks made before launch, in the session location:
+
+```yaml
+preconditions:
+  project-context:
+    label: { fr: Aucun contexte projet trouvé, en: No project context found }
+    check: { path_exists: [docs/wiki/index.md, ONBOARDING.md, CONVENTIONS.md] }  # one path is enough
+    on_fail: suggest          # suggest (default) | block
+    suggest: { workflow: onboarding, resume: true }
+```
+
+- `on_fail: suggest`: oh shows the message and offers the `suggest.workflow` workflow; the user may also go on. With `resume: true`, oh offers to relaunch the original workflow (same inputs) once the suggested one has finished.
+- `on_fail: block`: the launch is refused.
+- Remote or headless: a `suggest` failure becomes a warning, a `block` failure stops the session.
+- Relative paths, without `..`. A patch (`extends`) changes a precondition by its id or removes it (`disabled: true`).
+
+`feature` and `cadrage` suggest `onboarding` when the project has no wiki, no `ONBOARDING.md` and no `CONVENTIONS.md`.
 
 ---
 
@@ -65,7 +102,7 @@ Without a request or tickets, the session starts by asking which feature to deli
 
 `orchestrator-dev` only starts after `cp-0`. Default mode: `semi-auto`. Outputs: `tickets`, `branch`.
 
-The former onboarding pre-phase (mode C) is no longer part of `feature`: the `onboarding` workflow replaces it.
+The former onboarding pre-phase (mode C) is no longer part of `feature`: the `project-context` precondition suggests the `onboarding` workflow, then coming back to `feature`.
 
 ## `quick`
 
@@ -74,6 +111,96 @@ Direct development session with the `developer` agent, without planning or check
 | Input | Type | Required | Purpose |
 |---|---|---|---|
 | `request` | `text` (8,000 characters max) | no | What to do; otherwise the session waits for the request |
+
+## `cadrage`
+
+Explores, plans and specifies a feature without implementing it: only Beads tickets are created (`risk: plan`). The `conductor` chains `pathfinder` (exploration), `planner` (breakdown and ticket creation) and `designer` (UX/UI spec when needed).
+
+| Input | Type | Required | Purpose |
+|---|---|---|---|
+| `request` | `text` (8,000 characters max) | yes | The feature to scope |
+
+Checkpoints: `cp-scope` (scope, before planning), `cp-tickets` (mandatory: breakdown approved before tickets are created), `cp-recap`. Output: `tickets`. To implement afterwards: `ticket` or `feature` on the created tickets.
+
+## `onboarding`
+
+Discovers the project and creates or enriches the `docs/wiki/` wiki (`doc-wiki-protocol`).
+
+| Input | Type | Required | Purpose |
+|---|---|---|---|
+| `refresh` | `bool` (default: no) | no | Rediscover the project and enrich the existing wiki, without deleting anything |
+| `focus` | `text` (4,000 characters max) | no | Modules or topics to dig into |
+
+The onboarder can write files: the `docs/wiki/` limit is a prompt instruction, not a permission. Output: `wiki`.
+
+## `review`
+
+Read-only review of a branch or of recent changes.
+
+| Input | Type | Required | Purpose |
+|---|---|---|---|
+| `review_mode` | `enum`: `standard`, `adversarial`, `edge-case`, `standard+adversarial`, `all` | no | Empty: the reviewer offers the choice at startup |
+| `branch` | `branch` | no | Branch to review (empty: recent changes) |
+| `base` | `branch` (default: `main`) | no | Base branch |
+
+Publishing a merge request (`oh review --publish`) is not a workflow: it remains an oh command.
+
+## `review-feedback`
+
+Applies the unresolved comments of a merge request. oh fetches the discussions from GitLab at launch and passes them in the `feedback` input.
+
+| Input | Type | Required | Purpose |
+|---|---|---|---|
+| `mr` | `string` | yes | URL or reference of the MR |
+| `branch` | `branch` | yes | Branch of the MR |
+| `base` | `branch` (default: `main`) | no | Target branch |
+| `feedback` | `text` (70,000 characters max) | yes | Unresolved discussions |
+
+Checkpoints: `cp-fix` (fixes to apply), `cp-2` (mandatory: commit or fix). Output: `branch`.
+
+## `audit`
+
+Read-only audit: the `auditor` coordinates `auditor-subagent`s.
+
+| Input | Type | Required | Purpose |
+|---|---|---|---|
+| `type` | `enum`: `security`, `performance`, `architecture`, `accessibility`, `ecodesign`, `observability`, `privacy` (default: `security`) | yes | Audit type |
+| `focus` | `text` (4,000 characters max) | no | Modules, files or questions to target |
+
+## `debug`
+
+Diagnosis of a bug or isolated problem by the `debugger`: diagnostic report (urgent actions first) and fix ticket. The `developer` is available on demand in the session.
+
+| Input | Type | Required | Purpose |
+|---|---|---|---|
+| `issue` | `text` (8,000 characters max) | no | The observed problem; empty: the session asks for it |
+
+Output: `tickets`.
+
+## `sweep`
+
+Reaches a cross-cutting goal by splitting it into independent subtasks, launched in parallel by the `conductor` to the developer agents, then verifies the result.
+
+| Input | Type | Required | Purpose |
+|---|---|---|---|
+| `goal` | `text` | yes | High-level goal |
+| `strategy` | `enum`: `llm` (default), `manual`, `by-file`, `by-package` | no | Decomposition |
+| `tasks` | `text` | no | Tasks, one per line (`manual`) |
+| `include`, `exclude` | `string` | no | Glob patterns, comma-separated |
+| `verify` | `enum`: `none` (default), `tests`, `lint`, `build`, `all`, `custom` | no | Final verification |
+| `verify_cmd` | `string` | no | Verification command (`custom`) |
+| `dry_run` | `bool` | no | Show the decomposition without running anything |
+
+Checkpoints: `cp-plan` (decomposition, before any execution), `cp-recap`. Difference with the former `--sweep`: subtasks run in the same session and location (no worktree per task); `--sweep-branch-prefix` and `--max-sessions` have no equivalent.
+
+## `brief-enrich`
+
+Enriches a ticket takeover brief, without interaction (headless session). oh provides the brief and saves the result.
+
+| Input | Type | Required | Purpose |
+|---|---|---|---|
+| `ticket` | `beads-id` | yes | Ticket of the brief |
+| `brief` | `text` (40,000 characters max) | yes | Content of the existing brief |
 
 ---
 

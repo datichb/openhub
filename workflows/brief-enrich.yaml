@@ -1,0 +1,30 @@
+apiVersion: oh/v1
+kind: Workflow
+id: brief-enrich
+category: knowledge
+label: { fr: Enrichir un brief de reprise, en: Enrich a takeover brief }
+description:
+  fr: Enrichir un brief de reprise de ticket (contexte, questions ouvertes, risques, prochaines étapes), sans interaction
+  en: Enrich a ticket takeover brief (context, open questions, risks, next steps), without interaction
+risk: read
+entry:
+  agent: brief-enricher
+inputs:
+  ticket:
+    type: beads-id
+    required: true
+    label: { fr: Ticket, en: Ticket }
+  brief:
+    type: text
+    required: true
+    label: { fr: Brief existant, en: Existing brief }
+    help:
+      fr: Contenu du brief de reprise (fourni par oh)
+      en: Content of the takeover brief (provided by oh)
+    max_length: 40000
+prompt:
+  template: prompts/brief-enrich.md.tmpl
+agents:
+  brief-enricher: { role: workflow, mode: primary }
+beads: { allow: [] }
+runtime: { default: local, allowed: [local] }

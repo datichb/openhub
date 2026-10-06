@@ -12,8 +12,9 @@ import (
 //
 // Patch rules (see schema.go): a field written in the patch replaces the
 // parent value, lists are replaced as a whole, inputs / agents / checkpoints
-// (and a few nested maps) are merged by key; `role: disabled` removes an
-// agent, `disabled: true` removes a checkpoint unless it is mandatory.
+// and preconditions (and a few nested maps) are merged by key; `role:
+// disabled` removes an agent, `disabled: true` removes a checkpoint unless it
+// is mandatory, or a precondition.
 func ApplyPatch(parent *Spec, patch *Document, parentRef string) (*Spec, Diagnostics) {
 	out := parent.Clone()
 	p := &patcher{dst: out, doc: patch, parent: parentRef}
@@ -114,6 +115,43 @@ func (p *patcher) apply() {
 		d.Outputs = s.Outputs
 	}
 	p.limits()
+	p.preconditions()
+}
+
+// preconditions are merged by id; `disabled: true` removes one.
+func (p *patcher) preconditions() {
+	for _, k := range p.doc.Spec.Preconditions.Keys() {
+		v, _ := p.doc.Spec.Preconditions.Get(k)
+		base := "preconditions." + k
+		old, exists := p.dst.Preconditions.Get(k)
+		if v.Disabled {
+			if !exists {
+				p.report(warnDiag("patch_unknown_precondition", base, k, p.parent))
+			} else {
+				p.dst.Preconditions.Delete(k)
+				p.removed = append(p.removed, base)
+			}
+			continue
+		}
+		if !exists {
+			p.dst.Preconditions.Set(k, v)
+			continue
+		}
+		h := func(f string) bool { return p.has(base + "." + f) }
+		if h("label") {
+			old.Label = v.Label
+		}
+		if h("check") {
+			old.Check = v.Check
+		}
+		if h("on_fail") {
+			old.OnFail = v.OnFail
+		}
+		if h("suggest") {
+			old.Suggest = v.Suggest
+		}
+		p.dst.Preconditions.Set(k, old)
+	}
 }
 
 func (p *patcher) inputs() {

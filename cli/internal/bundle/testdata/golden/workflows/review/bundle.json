@@ -1,0 +1,55 @@
+{
+  "entry_agent": "reviewer",
+  "agents": [
+    {
+      "id": "reviewer",
+      "mode": "primary",
+      "model": "/claude-opus-4-6",
+      "permissions": [
+        "shell * deny",
+        "shell git log* allow",
+        "shell bd show * allow",
+        "shell git diff* allow",
+        "shell git show* allow",
+        "shell git fetch* allow",
+        "shell git status allow",
+        "ctx_batch_execute * allow",
+        "ctx_execute * allow",
+        "ctx_execute_file * allow",
+        "ctx_search * allow",
+        "edit * deny",
+        "glob * allow",
+        "grep * allow",
+        "question * allow",
+        "read * allow",
+        "skill * allow",
+        "subagent * deny",
+        "subagent reviewer allow",
+        "subagent documentarian allow"
+      ]
+    }
+  ],
+  "skills": [
+    "dev-standards-api",
+    "dev-standards-backend",
+    "dev-standards-devops",
+    "dev-standards-frontend",
+    "dev-standards-frontend-a11y",
+    "dev-standards-frontend-data",
+    "dev-standards-git",
+    "dev-standards-security",
+    "dev-standards-testing",
+    "living-docs-enrichment",
+    "review-merge",
+    "reviewer-adversarial",
+    "reviewer-edge-case",
+    "reviewer-standalone",
+    "reviewer-subagent",
+    "rtk-usage",
+    "team-awareness",
+    "team-policies-enforcement"
+  ],
+  "subagent_graph": {},
+  "max_depth": 1,
+  "code_mode": false
+}

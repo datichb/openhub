@@ -53,6 +53,9 @@ func TestSpec_DecodeFullExample(t *testing.T) {
 		t.Fatalf("description en = %q", got)
 	}
 
+	if pc, ok := s.Preconditions.Get("context"); !ok || pc.OnFail != OnFailSuggest || len(pc.Check.PathExists) != 2 {
+		t.Fatalf("preconditions = %+v", s.Preconditions)
+	}
 	if got := s.Inputs.Keys(); !reflect.DeepEqual(got, []string{"ticket", "branch", "publish", "type"}) {
 		t.Fatalf("input order = %v", got)
 	}

@@ -1,0 +1,6 @@
+{{ if .review_mode }}[MODE:{{ .review_mode }}] {{ end }}{{ if .branch }}[BRANCH:{{ .branch }}] [BASE:{{ .base }}] {{ end }}{{ if .branch }}Review la branche `{{ .branch }}` par rapport à `{{ .base }}`.{{ else }}Review le code modifié récemment.{{ end }}
+
+Mode de workflow : {{ .oh.mode }}
+Langue de réponse : {{ .oh.lang }}
+
+Review en lecture seule : tu ne modifies aucun fichier et ne crées aucun ticket.

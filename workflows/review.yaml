@@ -1,0 +1,35 @@
+apiVersion: oh/v1
+kind: Workflow
+id: review
+category: quality
+label: { fr: Review, en: Review }
+description:
+  fr: Review de code d'une branche ou des modifications récentes, sans rien modifier
+  en: Code review of a branch or of recent changes, without modifying anything
+risk: read
+entry:
+  agent: reviewer
+inputs:
+  review_mode:
+    type: enum
+    values: [standard, adversarial, edge-case, standard+adversarial, all]
+    label: { fr: Type de review, en: Review type }
+    help:
+      fr: "Vide : le reviewer propose le choix au démarrage"
+      en: "Empty: the reviewer offers the choice at startup"
+  branch:
+    type: branch
+    label: { fr: Branche, en: Branch }
+    help:
+      fr: Branche à reviewer (vide = modifications récentes de la branche courante)
+      en: Branch to review (empty = recent changes on the current branch)
+  base:
+    type: branch
+    default: main
+    label: { fr: Branche de base, en: Base branch }
+prompt:
+  template: prompts/review.md.tmpl
+agents:
+  reviewer: { role: workflow }
+beads: { allow: [show] }
+runtime: { default: local, allowed: [local, remote] }

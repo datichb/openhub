@@ -171,6 +171,22 @@ func TestValidate_Rules(t *testing.T) {
 		{"read beads write", "risk: read\nentry: { agent: auditor }\nbeads: { allow: [show, create] }\n", "read_beads_write", "beads.allow[1]", SeverityError},
 		{"remote forbid mandatory", "risk: write\nruntime: { allowed: [local, remote] }\ncheckpoints:\n  cp-1: { mandatory: true, remote: forbid, mode: { manuel: auto, semi-auto: auto, auto: auto } }\n", "remote_forbidden_checkpoint", "checkpoints.cp-1.remote", SeverityError},
 		{"remote forbid pause", "risk: write\nruntime: { allowed: [local, remote] }\ncheckpoints:\n  cp-1: { remote: forbid, mode: { manuel: pause, semi-auto: auto, auto: auto } }\n", "remote_forbidden_checkpoint", "checkpoints.cp-1.remote", SeverityError},
+		// risk: plan
+		{"plan edits", "risk: plan\nbeads: { allow: [show, create] }\nentry: { agent: orchestrator-dev }\nagents:\n  orchestrator-dev: { role: workflow, calls: [developer] }\n  developer: { role: workflow }\n", "plan_agent_writes", "agents.developer", SeverityError},
+		{"plan shell", "risk: plan\nbeads: { allow: [show, create] }\nagents:\n  shell-user: { role: independent }\n", "plan_agent_writes", "agents.shell-user", SeverityError},
+		{"plan beads unrestricted", "risk: plan\nentry: { agent: auditor }\n", "plan_beads_unrestricted", "risk", SeverityError},
+		{"plan beads delete", "risk: plan\nentry: { agent: auditor }\nbeads: { allow: [show, create, delete] }\n", "plan_beads_delete", "beads.allow[2]", SeverityError},
+		{"plan without writes", "risk: plan\nentry: { agent: auditor }\nbeads: { allow: [show, list] }\n", "plan_without_beads_write", "risk", SeverityWarning},
+		{"read comments", "risk: read\nentry: { agent: auditor }\nbeads: { allow: [show, comments] }\n", "read_beads_write", "beads.allow[1]", SeverityError},
+		// preconditions
+		{"precondition id", "risk: write\npreconditions:\n  Wiki: { check: { path_exists: [a] } }\n", "precondition_id_invalid", "preconditions.Wiki", SeverityError},
+		{"precondition check", "risk: write\npreconditions:\n  wiki: { check: {} }\n", "precondition_check_invalid", "preconditions.wiki.check", SeverityError},
+		{"precondition path", "risk: write\npreconditions:\n  wiki: { check: { path_exists: [ok, ../up] } }\n", "precondition_path_invalid", "preconditions.wiki.check.path_exists[1]", SeverityError},
+		{"precondition abs path", "risk: write\npreconditions:\n  wiki: { check: { path_exists: [/etc/passwd] } }\n", "precondition_path_invalid", "preconditions.wiki.check.path_exists[0]", SeverityError},
+		{"precondition on_fail", "risk: write\npreconditions:\n  wiki: { check: { path_exists: [a] }, on_fail: warn }\n", "enum_invalid", "preconditions.wiki.on_fail", SeverityError},
+		{"precondition suggest required", "risk: write\npreconditions:\n  wiki: { check: { path_exists: [a] }, suggest: { resume: true } }\n", "field_required", "preconditions.wiki.suggest.workflow", SeverityError},
+		{"precondition self", "risk: write\npreconditions:\n  wiki: { check: { path_exists: [a] }, suggest: { workflow: x } }\n", "precondition_self", "preconditions.wiki.suggest.workflow", SeverityError},
+		{"precondition unknown workflow", "risk: write\npreconditions:\n  wiki: { check: { path_exists: [a] }, suggest: { workflow: nope } }\n", "precondition_unknown_workflow", "preconditions.wiki.suggest.workflow", SeverityError},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {

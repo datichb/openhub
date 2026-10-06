@@ -1,0 +1,90 @@
+apiVersion: oh/v1
+kind: Workflow
+id: sweep
+category: develop
+label: { fr: Sweep, en: Sweep }
+description:
+  fr: Atteindre un objectif transverse en le découpant en sous-tâches indépendantes, puis vérifier le résultat
+  en: Reach a cross-cutting goal by splitting it into independent subtasks, then verify the result
+risk: write
+inputs:
+  goal:
+    type: text
+    required: true
+    label: { fr: Objectif, en: Goal }
+    help:
+      fr: "Objectif de haut niveau (ex. : migrer les appels d'API dépréciés vers la v2)"
+      en: "High-level goal (e.g. migrate deprecated API calls to v2)"
+    max_length: 4000
+  strategy:
+    type: enum
+    values: [llm, manual, by-file, by-package]
+    default: llm
+    label: { fr: Découpage, en: Decomposition }
+    help:
+      fr: "llm : analyse de l'objectif ; manual : tâches fournies ; by-file : fichiers des motifs ; by-package : un package par tâche"
+      en: "llm: goal analysis; manual: given tasks; by-file: files matching the patterns; by-package: one package per task"
+  tasks:
+    type: text
+    label: { fr: Tâches, en: Tasks }
+    help:
+      fr: Une tâche par ligne (découpage manual)
+      en: One task per line (manual decomposition)
+    max_length: 8000
+  include:
+    type: string
+    label: { fr: Inclure, en: Include }
+    help:
+      fr: Motifs glob à inclure, séparés par des virgules
+      en: Glob patterns to include, comma-separated
+    max_length: 1000
+  exclude:
+    type: string
+    label: { fr: Exclure, en: Exclude }
+    help:
+      fr: Motifs glob à exclure, séparés par des virgules
+      en: Glob patterns to exclude, comma-separated
+    max_length: 1000
+  verify:
+    type: enum
+    values: [none, tests, lint, build, all, custom]
+    default: none
+    label: { fr: Vérification, en: Verification }
+  verify_cmd:
+    type: string
+    label: { fr: Commande de vérification, en: Verification command }
+    help:
+      fr: Commande lancée après les tâches (vérification custom)
+      en: Command run after the tasks (custom verification)
+    max_length: 500
+  dry_run:
+    type: bool
+    default: false
+    label: { fr: Plan seulement, en: Plan only }
+    help:
+      fr: Afficher le découpage sans rien exécuter
+      en: Show the decomposition without running anything
+prompt:
+  template: prompts/sweep.md.tmpl
+agents:
+  developer: { role: workflow, after: cp-plan }
+  developer-refactor: { role: workflow, after: cp-plan }
+  developer-migrator: { role: workflow, after: cp-plan }
+checkpoints:
+  cp-plan:
+    label: { fr: Valider le découpage, en: Approve the decomposition }
+    description:
+      fr: Présenter la liste des sous-tâches (description, périmètre de fichiers) avant toute exécution.
+      en: Present the subtask list (description, file scope) before any execution.
+    mode: { manuel: pause, semi-auto: pause, auto: auto }
+  cp-recap:
+    label: { fr: Récap du sweep, en: Sweep recap }
+    description:
+      fr: Résultat par sous-tâche et résultat de la vérification.
+      en: Result per subtask and verification result.
+    mode: { manuel: pause, semi-auto: pause, auto: auto }
+modes: { default: semi-auto, allowed: [manuel, semi-auto, auto] }
+circuit_breaker: { max_consecutive_subagents: 20 }
+runtime: { default: local, allowed: [local] }
+outputs:
+  - { id: branch, type: branch, label: { fr: Branche de travail, en: Working branch } }

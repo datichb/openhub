@@ -1,0 +1,57 @@
+apiVersion: oh/v1
+kind: Workflow
+id: review-feedback
+category: develop
+label: { fr: Feedback de review, en: Review feedback }
+description:
+  fr: Appliquer les commentaires de review non résolus d'une merge request
+  en: Apply the unresolved review comments of a merge request
+risk: write
+entry:
+  agent: orchestrator-dev
+inputs:
+  mr:
+    type: string
+    required: true
+    label: { fr: Merge request, en: Merge request }
+    help:
+      fr: URL ou référence de la merge request
+      en: URL or reference of the merge request
+    max_length: 500
+  branch:
+    type: branch
+    required: true
+    label: { fr: Branche, en: Branch }
+  base:
+    type: branch
+    default: main
+    label: { fr: Branche cible, en: Target branch }
+  feedback:
+    type: text
+    required: true
+    label: { fr: Commentaires de review, en: Review comments }
+    help:
+      fr: Discussions non résolues de la MR (récupérées par oh au lancement)
+      en: Unresolved discussions of the merge request (fetched by oh at launch)
+    max_length: 70000
+prompt:
+  template: prompts/review-feedback.md.tmpl
+agents:
+  orchestrator-dev: { role: workflow, calls: [developer] }
+  developer: { role: workflow, after: cp-fix }
+checkpoints:
+  cp-fix:
+    label: { fr: Corrections à appliquer, en: Fixes to apply }
+    description:
+      fr: Présenter les corrections classées (critiques, majeures, suggestions) et confirmer lesquelles appliquer.
+      en: Present the classified fixes (critical, major, suggestions) and confirm which ones to apply.
+    mode: { manuel: pause, semi-auto: pause, auto: auto }
+  cp-2:
+    label: { fr: Commit ou correction, en: Commit or fix }
+    mandatory: true
+    mode: { manuel: pause, semi-auto: pause, auto: pause }
+modes: { default: semi-auto, allowed: [manuel, semi-auto, auto] }
+circuit_breaker: { max_consecutive_subagents: 12 }
+runtime: { default: local, allowed: [local] }
+outputs:
+  - { id: branch, type: branch, label: { fr: Branche corrigée, en: Fixed branch } }
