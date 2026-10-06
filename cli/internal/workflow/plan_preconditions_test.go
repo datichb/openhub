@@ -101,3 +101,30 @@ func TestEvaluatePreconditions(t *testing.T) {
 		t.Fatalf("label = %q", got[0].Label.Text("en"))
 	}
 }
+
+func TestExplicitSelfDelegation(t *testing.T) {
+	doc := vHeader + "risk: read\nbeads: { allow: [show] }\nentry: { agent: reviewer }\nagents:\n  reviewer: { role: workflow, mode: primary, calls: [reviewer, documentarian] }\n  documentarian: { role: independent }\n"
+	diags := checkYAML(t, doc, Env{Agents: fakeAgents{"reviewer": {Mode: ModePrimary}, "documentarian": {Mode: ModeSubagent}}})
+	if len(diags) != 0 {
+		t.Fatalf("self-delegation is not a cycle: %v", diags)
+	}
+	cat := catalogOf(t, map[string]string{"hub:x": doc})
+	r, _ := ResolveSpec(cat, Ref{LayerHub, "x"}, nil)
+	_, graph := SubagentGraph(r.Spec, nil)
+	if !reflect.DeepEqual(graph["reviewer"], []string{"documentarian", "reviewer"}) {
+		t.Fatalf("graph = %v", graph)
+	}
+	if d := MaxDepth("reviewer", graph); d != 2 {
+		t.Fatalf("depth = %d, want 2 (reviewer → reviewer → documentarian)", d)
+	}
+	if d := MaxDepth("a", map[string][]string{"a": {"a"}}); d != 1 {
+		t.Fatalf("self only depth = %d", d)
+	}
+	// Derived delegations never include the agent itself.
+	derived := vHeader + "risk: write\nentry: { agent: pinger }\nagents:\n  pinger: { role: workflow, mode: primary }\n"
+	cat = catalogOf(t, map[string]string{"hub:x": derived})
+	r, _ = ResolveSpec(cat, Ref{LayerHub, "x"}, nil)
+	if _, g := SubagentGraph(r.Spec, fakeAgents{"pinger": {Mode: ModePrimary, Tasks: []string{"*", "pinger"}}}); len(g) != 0 {
+		t.Fatalf("derived graph = %v", g)
+	}
+}

@@ -49,7 +49,11 @@
     "team-awareness",
     "team-policies-enforcement"
   ],
-  "subagent_graph": {},
+  "subagent_graph": {
+    "reviewer": [
+      "reviewer"
+    ]
+  },
   "max_depth": 1,
   "code_mode": false
 }

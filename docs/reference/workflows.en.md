@@ -143,6 +143,8 @@ Read-only review of a branch or of recent changes.
 | `branch` | `branch` | no | Branch to review (empty: recent changes) |
 | `base` | `branch` (default: `main`) | no | Base branch |
 
+The combined modes (`standard+adversarial`, `all`) launch parallel `reviewer` sessions: the workflow declares the self-delegation `reviewer: { calls: [reviewer] }`. A self-delegation is only kept when written in `calls` (never derived from permissions); it counts as one depth level.
+
 Publishing a merge request (`oh review --publish`) is not a workflow: it remains an oh command.
 
 ## `review-feedback`

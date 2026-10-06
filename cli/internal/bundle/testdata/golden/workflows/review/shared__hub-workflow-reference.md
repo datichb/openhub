@@ -11,7 +11,7 @@ Agent d'entrée : `reviewer`. Seuls les agents ci-dessous existent dans cette se
 
 | Agent | Rôle | Mode | Après | Peut déléguer à |
 |---|---|---|---|---|
-| `reviewer` | workflow (entrée) | primary | — | — |
+| `reviewer` | workflow (entrée) | primary | — | `reviewer` |
 
 Règles de délégation :
 - Tu ne lances (outil `task`) que les agents de la colonne « Peut déléguer à » de ta ligne. Tout autre appel est refusé par l'outil.

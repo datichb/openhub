@@ -30,6 +30,6 @@ inputs:
 prompt:
   template: prompts/review.md.tmpl
 agents:
-  reviewer: { role: workflow }
+  reviewer: { role: workflow, calls: [reviewer] }
 beads: { allow: [show] }
 runtime: { default: local, allowed: [local, remote] }

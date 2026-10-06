@@ -1560,7 +1560,7 @@
   "workflow.diag.agent_unreachable": "L'agent %s n'est atteignable depuis %s par aucune délégation",
   "workflow.diag.agent_unreachable.hint": "Ajoutez-le aux calls d'un agent du workflow, ou passez-le en role: independent.",
   "workflow.diag.api_version": "apiVersion %q non pris en charge (attendu : %s)",
-  "workflow.diag.calls_unknown": "Délégation vers %q impossible : agent absent du workflow (ou lui-même)",
+  "workflow.diag.calls_unknown": "Délégation vers %q impossible : agent absent du workflow",
   "workflow.diag.checkpoint_agent_clash": "L'identifiant %s désigne à la fois un checkpoint et un agent",
   "workflow.diag.checkpoint_condition_missing": "Le checkpoint %s est conditionnel en mode %s mais n'a pas de condition",
   "workflow.diag.checkpoint_id_invalid": "Identifiant de checkpoint invalide : %q (kebab-case attendu)",

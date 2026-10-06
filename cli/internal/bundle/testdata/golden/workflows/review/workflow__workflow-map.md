@@ -17,7 +17,7 @@ Cette carte est la seule référence sur l'enchaînement : n'invente ni agent, n
 
 | Agent | Rôle | Mode | Après | Peut déléguer à |
 |---|---|---|---|---|
-| `reviewer` | workflow (entrée) | primary | — | — |
+| `reviewer` | workflow (entrée) | primary | — | `reviewer` |
 
 Règles de délégation :
 - Tu ne lances (outil `task`) que les agents de la colonne « Peut déléguer à » de ta ligne. Tout autre appel est refusé par l'outil.

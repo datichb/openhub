@@ -1560,7 +1560,7 @@
   "workflow.diag.agent_unreachable": "Agent %s cannot be reached from %s by any delegation",
   "workflow.diag.agent_unreachable.hint": "Add it to the calls of a workflow agent, or make it role: independent.",
   "workflow.diag.api_version": "Unsupported apiVersion %q (expected %s)",
-  "workflow.diag.calls_unknown": "Cannot delegate to %q: not an agent of the workflow (or itself)",
+  "workflow.diag.calls_unknown": "Cannot delegate to %q: not an agent of the workflow",
   "workflow.diag.checkpoint_agent_clash": "Id %s names both a checkpoint and an agent",
   "workflow.diag.checkpoint_condition_missing": "Checkpoint %s is conditional in mode %s but has no condition",
   "workflow.diag.checkpoint_id_invalid": "Invalid checkpoint id %q (kebab-case expected)",

@@ -42,7 +42,9 @@ func (s *Spec) Members() []string {
 // DelegationGraph returns, for every member of the workflow, the members it
 // may launch: `calls` when written, otherwise the agent's own task
 // permission restricted to the workflow. agents may be nil (only explicit
-// calls are then known). Self-delegations are dropped.
+// calls are then known). A self-delegation is kept only when `calls` names
+// the agent itself (e.g. a reviewer launching parallel reviewer sessions);
+// derived delegations never include it.
 func DelegationGraph(s *Spec, agents AgentCatalog) map[string][]string {
 	members := s.Members()
 	isMember := make(map[string]bool, len(members))
@@ -54,7 +56,7 @@ func DelegationGraph(s *Spec, agents AgentCatalog) map[string][]string {
 		var targets []string
 		if ref, ok := s.Agents.Get(m); ok && ref.Calls != nil {
 			for _, c := range ref.Calls {
-				if c != m && isMember[c] && !containsStr(targets, c) {
+				if isMember[c] && !containsStr(targets, c) {
 					targets = append(targets, c)
 				}
 			}
@@ -111,13 +113,19 @@ func SubagentGraph(s *Spec, agents AgentCatalog) (members []string, graph map[st
 
 // MaxDepth is the length of the longest delegation chain from entry without
 // revisiting an agent (1 = the entry launches subagents that do not delegate
-// further). It is at least 1: the tool needs a positive subagent depth.
+// further). A self-delegation adds one level (the agent launches itself
+// once, then goes on). It is at least 1: the tool needs a positive subagent
+// depth.
 func MaxDepth(entry string, graph map[string][]string) int {
 	var walk func(node string, onPath map[string]bool) int
 	walk = func(node string, onPath map[string]bool) int {
-		best := 0
+		best, self := 0, false
 		onPath[node] = true
 		for _, next := range graph[node] {
+			if next == node {
+				self = true
+				continue
+			}
 			if onPath[next] {
 				continue
 			}
@@ -126,6 +134,9 @@ func MaxDepth(entry string, graph map[string][]string) int {
 			}
 		}
 		delete(onPath, node)
+		if self {
+			best++
+		}
 		return best
 	}
 	if d := walk(entry, map[string]bool{}); d > 1 {
@@ -152,7 +163,7 @@ func Reachable(entry string, graph map[string][]string) map[string]bool {
 }
 
 // findCycle returns one cycle of graph (first node repeated at the end), in
-// the order of nodes, or nil.
+// the order of nodes, or nil. Explicit self-delegations are not cycles.
 func findCycle(nodes []string, graph map[string][]string) []string {
 	const (
 		white = iota
@@ -167,6 +178,9 @@ func findCycle(nodes []string, graph map[string][]string) []string {
 		color[n] = grey
 		stack = append(stack, n)
 		for _, next := range graph[n] {
+			if next == n {
+				continue
+			}
 			switch color[next] {
 			case grey:
 				for i, s := range stack {

@@ -143,6 +143,8 @@ Review en lecture seule d'une branche ou des modifications récentes.
 | `branch` | `branch` | non | Branche à reviewer (vide : modifications récentes) |
 | `base` | `branch` (défaut : `main`) | non | Branche de base |
 
+Les modes combinés (`standard+adversarial`, `all`) lancent des sessions `reviewer` en parallèle : le workflow déclare l'auto-délégation `reviewer: { calls: [reviewer] }`. Une auto-délégation n'est retenue que si elle est écrite dans `calls` (jamais déduite des permissions) ; elle compte pour un niveau de profondeur.
+
 La publication d'une MR (`oh review --publish`) n'est pas un workflow : elle reste une commande d'oh.
 
 ## `review-feedback`

@@ -411,7 +411,7 @@ func (v *validator) agents() {
 			}
 		}
 		for i, c := range a.Calls {
-			if c == k || !containsStr(members, c) {
+			if !containsStr(members, c) {
 				v.err("calls_unknown", fmt.Sprintf("%s.calls[%d]", base, i), c)
 			}
 		}

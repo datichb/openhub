@@ -52,3 +52,13 @@ func TestBuildFromWorkflowSpec_Errors(t *testing.T) {
 	_, err = Build(Request{HubDir: repoHub(t), OutDir: t.TempDir(), Spec: parseSpec(t, ticketSpec+"  ghost: { role: independent }\n")})
 	assert.ErrorContains(t, err, `unknown agent "ghost"`)
 }
+
+// The reviewer launches parallel reviewer sessions (standard+adversarial,
+// all): its explicit `task: { reviewer: allow }` is kept, in the phase 0
+// bundle as in the oh/v1 one (calls: [reviewer]).
+func TestReviewerSelfDelegation(t *testing.T) {
+	b, err := Build(Request{HubDir: repoHub(t), OutDir: t.TempDir(), EntryAgent: "reviewer"})
+	require.NoError(t, err)
+	assert.Contains(t, b.Spec.SubagentGraph["reviewer"], "reviewer")
+	assert.GreaterOrEqual(t, b.Spec.MaxDepth, 2)
+}
