@@ -113,6 +113,8 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 - Les surcharges de workflow de `hub.toml` n'étaient jamais chargées (clés non reconnues) et la vue Workflow de la TUI les perdait après les avoir enregistrées ; elles sont relues dans le fichier par la migration v38.
 - `oh <commande> --help` affichait la page d'aide générale au lieu de l'aide de la commande.
 
+- Démon `ohd` : les jetons du proxy sont restaurés après l'ouverture du socket (un lancement n'attend plus le chargement des identifiants AWS) ; jetons orphelins révoqués au redémarrage ; un serveur démarré dont la vérification échoue est arrêté avec son jeton ; un groupe n'est plus mis en veille pendant qu'un client le démarre ou le reprend ; attente des verrous bornée.
+- Proxy d'identifiants : corps de plus de 64 Mio refusé (413) au lieu d'être tronqué ; requête refusée (502) quand les identifiants ne peuvent pas être appliqués (SigV4 expiré) au lieu de partir sans signature ; seuls les chemins d'inférence de chaque fournisseur sont relayés ; clé `model` en double ou de casse différente refusée quand une liste de modèles s'applique.
 - Les questions des agents n'étaient suivies qu'à la reconnexion suivante du démon (session de l'événement `form.created` mal lue).
 - Un toast affiché pendant un formulaire de la TUI lui prenait le focus (flèches sans effet) ; l'accueil reprenait aussi le focus en se reconstruisant.
 - La commande `quit` de l'omnibar contournait la question de fermeture, et Échap sur cette question laissait la fermeture en suspens.
