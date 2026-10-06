@@ -77,6 +77,8 @@ func loadProjectItems(store domain.ProjectStore) []views.ProjectItem {
 // buildViews constructs all registered views for the shell.
 func buildViews(a *app.App, notifStore *shell.NotificationStore) []views.View {
 	projectItems := loadProjectItems(a.Projects)
+	tuiSess = newTUISessions(a)
+	sessionsSection := tuiSess.sectionConfig()
 
 	projectsView := views.NewProjectsView(views.ProjectsViewConfig{
 		Projects:         projectItems,
@@ -195,6 +197,7 @@ func buildViews(a *app.App, notifStore *shell.NotificationStore) []views.View {
 
 	// ── Project mode view ────────────────────────────────────────────────────
 	projectModeView := views.NewProjectModeView(views.ProjectModeConfig{
+		Sessions: sessionsSection,
 		OnLaunchSession: func(p *views.ActiveProject, agent string, extraArgs ...string) {
 			if tuiShell == nil {
 				return
@@ -271,6 +274,7 @@ func buildViews(a *app.App, notifStore *shell.NotificationStore) []views.View {
 
 	allViews := []views.View{
 		views.NewHomeView(views.HomeViewConfig{
+			Sessions: sessionsSection,
 			HasProject: func() bool {
 				projects, _ := a.Projects.List(context.Background(), domain.ProjectStatusActive)
 				return len(projects) > 0
@@ -372,6 +376,7 @@ func buildViews(a *app.App, notifStore *shell.NotificationStore) []views.View {
 		}),
 		views.NewTeamBoardView(buildTeamBoardViewConfig(a)),
 		views.NewTeamModeView(views.TeamModeConfig{
+			Sessions: sessionsSection,
 			OnNavigate: func(viewID string) {
 				if tuiShell != nil {
 					tuiShell.NavigateTo(viewID)
@@ -423,7 +428,7 @@ func buildViews(a *app.App, notifStore *shell.NotificationStore) []views.View {
 			OnReviewPicker: actionReviewLauncher,
 			OnDebugPicker:  actionDebugLauncher,
 		}),
-		views.NewParallelView(views.ParallelViewConfig{}),
+		tuiSess.view,
 		projectsView,
 		projectModeView,
 		views.NewTeamStatusView(makeResolveTeamFunc(a)),

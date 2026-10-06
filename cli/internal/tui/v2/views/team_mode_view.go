@@ -35,6 +35,9 @@ type TeamModeConfig struct {
 	OnReviewPicker func()
 	// OnDebugPicker opens the debug issue input.
 	OnDebugPicker func()
+
+	// Sessions shows the "Sessions de l'équipe" section (P3-T19).
+	Sessions SessionsSectionConfig
 }
 
 // TeamModeStats holds the summary stats displayed in the team landing header.
@@ -324,9 +327,15 @@ func (v *TeamModeView) buildItems() []teamModeItem {
 			teamModeItem{Icon: "🔍", Label: i18n.T("tui.tm.item.audit"), Desc: i18n.T("tui.tm.item.audit_desc"), Action: auditAction},
 			teamModeItem{Icon: "👀", Label: i18n.T("tui.tm.item.review"), Desc: i18n.T("tui.tm.item.review_desc"), Action: reviewAction},
 			teamModeItem{Icon: "🐛", Label: i18n.T("tui.tm.item.debug"), Desc: i18n.T("tui.tm.item.debug_desc"), Action: debugAction},
-			teamModeItem{Icon: "🔀", Label: i18n.T("tui.pm.item.parallel"), Desc: i18n.T("tui.pm.item.parallel_desc"), Action: navigate("parallel")},
 			teamModeItem{Icon: "🎓", Label: i18n.T("tui.pm.item.onboard"), Desc: i18n.T("tui.pm.item.onboard_desc"), Action: func() { launch("onboarder") }},
 		)
+	}
+
+	if header, sitems, ok := sessionsSection(v.cfg.Sessions, SessionsScope{TeamID: v.team.ID}, "tui.sessions.team_section"); ok {
+		items = append(items, teamModeItem{Icon: "─", Label: header, SectionID: "running"})
+		for _, it := range sitems {
+			items = append(items, teamModeItem{Icon: it.Icon, Label: it.Label, Desc: it.Desc, Action: it.Action})
+		}
 	}
 
 	// ── Board section ──

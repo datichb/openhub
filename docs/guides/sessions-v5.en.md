@@ -69,6 +69,14 @@ idle_sleep_minutes = 5     # an idle server goes to sleep after N minutes
 
 In these commands, `<id>` may be the beginning of an ID (`oh session follow dRcJ`); `approve`, `answer` and `dismiss` also accept a decision ID (shown by `inbox`) when a session has several. **First answer wins**: when the decision was already made in the opencode UI or the browser, oh says so and sends nothing.
 
+## Sessions view (TUI)
+
+Open it from the omnibar (`sessions`) or from the "Sessions" sections of the home, project and team landings. The bottom bar shows `● N ⏸ M` on every screen (live sessions, waiting decisions).
+
+- **To handle**: decisions of every session. `Enter` opens the card (permission: once / always / reject + message; question: generated form; alert: dismiss or attach), `y`/`n` approve or reject a permission, `x` dismisses an alert.
+- **Running, Sleeping, Finished (7 days)**; detail of the selected session at the bottom.
+- `t` (or `Enter` on a session): live feed on the right (agent, tools, messages, cost). `a` attach, `m` instruction, `i` interrupt, `M` model, `s` stop, `c` resume, `o` results and merge request description, `w` browser, `f` active project / every project, `r` refresh.
+
 ## Notifications
 
 The oh daemon shows a system notification when a decision waits for you and when a session finishes its step while nobody is attached. Close notifications are grouped and never contain session content. With [`terminal-notifier`](https://github.com/julienXX/terminal-notifier) installed, a click brings oh's terminal back; otherwise oh uses `osascript` (or `notify-send` on Linux). To turn them off: `[session] notify = "off"` in `hub.toml` (applied when the daemon next starts).

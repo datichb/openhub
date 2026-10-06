@@ -94,6 +94,8 @@ type shellAware interface {
 // Layout: content (fills screen) + suggestions (dynamic) + omnibar (3 rows at bottom).
 type Shell struct {
 	quitPending      bool
+	badge            string // sessions badge of the mode bar
+	badgeAlert       bool
 	app              *tview.Application
 	pages            *tview.Pages
 	root             *tview.Flex // main vertical layout (content + suggestions + omnibar)
@@ -1088,7 +1090,9 @@ func (s *Shell) SetOmnibarVisible(visible bool) {
 func (s *Shell) updateModeBar(v views.View) {
 	// If the view supplies its own mode info, use it.
 	if mp, ok := v.(views.ModeInfoProvider); ok {
-		s.omnibar.UpdateModeBar(s.activeMode, mp.ModeInfo())
+		info := mp.ModeInfo()
+		info.Badge, info.BadgeAlert = s.badge, s.badgeAlert
+		s.omnibar.UpdateModeBar(s.activeMode, info)
 		return
 	}
 
@@ -1110,7 +1114,32 @@ func (s *Shell) updateModeBar(v views.View) {
 		}
 		info = views.ModeBarInfo{Icon: "💻", Label: label}
 	}
+	info.Badge, info.BadgeAlert = s.badge, s.badgeAlert
 	s.omnibar.UpdateModeBar(s.activeMode, info)
+}
+
+// RemountIf mounts the current view again when its ID is one of ids (e.g.
+// a landing whose cached sessions summary changed). Event loop only.
+func (s *Shell) RemountIf(ids ...string) {
+	cur := s.router.Current()
+	if cur == nil || s.pages.HasPage("inline-overlay") || s.omnibar.IsActive() {
+		return
+	}
+	for _, id := range ids {
+		if cur.ID() == id {
+			s.router.Remount()
+			return
+		}
+	}
+}
+
+// SetSessionsBadge sets the sessions badge of the mode bar ("● 2 ⏸ 1", ""
+// to hide it). Must be called on the event loop.
+func (s *Shell) SetSessionsBadge(badge string, alert bool) {
+	s.badge, s.badgeAlert = badge, alert
+	if cur := s.router.Current(); cur != nil {
+		s.updateModeBar(cur)
+	}
 }
 
 // SetProjectMode activates or deactivates project mode.

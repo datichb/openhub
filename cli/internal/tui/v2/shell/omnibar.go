@@ -247,6 +247,13 @@ func (o *Omnibar) UpdateModeBar(mode views.Mode, info views.ModeBarInfo) {
 	// Build mode bar text: icon + label in mode color, context info muted.
 	left := fmt.Sprintf("%s%s %s%s",
 		theme.ColorTag(mt.PrimaryHex), info.Icon, info.Label, theme.TagColor)
+	if info.Badge != "" {
+		color := theme.TextMutedHex
+		if info.BadgeAlert {
+			color = theme.WarningHex
+		}
+		left += fmt.Sprintf("  %s%s%s", theme.ColorTag(color), info.Badge, theme.TagColor)
+	}
 
 	if info.Right != "" {
 		right := fmt.Sprintf("  %s%s%s", theme.ColorTag(theme.TextMutedHex), info.Right, theme.TagColor)

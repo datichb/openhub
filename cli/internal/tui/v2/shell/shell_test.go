@@ -107,3 +107,13 @@ func TestOmnibar_ActivateDeactivate(t *testing.T) {
 	s.omnibar.Deactivate()
 	assert.False(t, s.omnibar.IsActive())
 }
+
+func TestShell_SessionsBadge(t *testing.T) {
+	homeView := &testView{id: "home", title: "Home"}
+	s := New(Config{ProjectName: "test", Views: []views.View{homeView}, HomeViewID: "home"})
+	s.NavigateHome("home", views.ModeHub)
+	s.SetSessionsBadge("● 2  ⏸ 1", true)
+	assert.Contains(t, s.omnibar.modeBar.GetText(true), "● 2  ⏸ 1")
+	s.SetSessionsBadge("", false)
+	assert.NotContains(t, s.omnibar.modeBar.GetText(true), "●")
+}

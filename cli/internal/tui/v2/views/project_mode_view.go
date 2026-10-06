@@ -45,6 +45,9 @@ type ProjectModeConfig struct {
 	// ComputeDeployDiff computes the full diff between hub and project.
 	// Expensive (~60-70 file reads) — must only be called from a goroutine.
 	ComputeDeployDiff func(projectPath string) (*DeployDiffResult, error)
+
+	// Sessions shows the "Sessions du projet" section (P3-T19).
+	Sessions SessionsSectionConfig
 }
 
 // projectModeItem represents a navigable item in the project mode view.
@@ -496,8 +499,15 @@ func (v *ProjectModeView) buildItems() []projectModeItem {
 		{Icon: "🔍", Label: i18n.T("tui.pm.item.audit"), Desc: i18n.T("tui.pm.item.audit_desc"), Action: v.auditAction(launch)},
 		{Icon: "👀", Label: i18n.T("tui.pm.item.review"), Desc: i18n.T("tui.pm.item.review_desc"), Action: v.reviewAction(launch)},
 		{Icon: "🐛", Label: i18n.T("tui.pm.item.debug"), Desc: i18n.T("tui.pm.item.debug_desc"), Action: v.debugAction(launch)},
-		{Icon: "🔀", Label: i18n.T("tui.pm.item.parallel"), Desc: i18n.T("tui.pm.item.parallel_desc"), Action: navigate("parallel")},
 		{Icon: "🎓", Label: i18n.T("tui.pm.item.onboard"), Desc: i18n.T("tui.pm.item.onboard_desc"), Action: launch("onboarder")},
+	}
+	if header, sitems, ok := sessionsSection(v.cfg.Sessions, SessionsScope{ProjectID: p.ID}, "tui.sessions.project_section"); ok {
+		items = append(items, projectModeItem{Icon: "─", Label: header, SectionID: "running"})
+		for _, it := range sitems {
+			items = append(items, projectModeItem{Icon: it.Icon, Label: it.Label, Desc: it.Desc, Action: it.Action})
+		}
+	}
+	items = append(items, []projectModeItem{
 		// ── Projet section ──
 		{Icon: "─", Label: i18n.T("tui.pm.section.project"), SectionID: "project"},
 		{Icon: "📋", Label: i18n.T("tui.pm.item.board"), Desc: i18n.T("tui.pm.item.board_desc"), Action: navigate("board")},
@@ -520,7 +530,7 @@ func (v *ProjectModeView) buildItems() []projectModeItem {
 				v.cfg.OnViewDiff(p.Path)
 			}
 		}},
-	}
+	}...)
 
 	// ── Team items (conditional) ────────────────────────────────────────
 	if v.resolveTeam != nil {

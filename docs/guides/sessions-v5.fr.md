@@ -69,6 +69,14 @@ idle_sleep_minutes = 5     # un serveur inactif se met en veille après N minute
 
 Dans ces commandes, `<id>` peut être un début d'identifiant (`oh session follow dRcJ`) ; `approve`, `answer` et `dismiss` acceptent aussi l'identifiant d'une décision (affiché par `inbox`) quand une session en a plusieurs. **Première réponse gagne** : si la décision a déjà été prise dans l'interface opencode ou le navigateur, oh le dit et n'envoie rien.
 
+## Vue Sessions (TUI)
+
+Ouvrez-la depuis l'omnibar (`sessions`) ou les sections « Sessions » des pages d'accueil, de projet et d'équipe. La barre du bas affiche partout `● N ⏸ M` (sessions vivantes, décisions en attente).
+
+- **À traiter** : décisions de toutes les sessions. `Entrée` ouvre la fiche (permission : une fois / toujours / refuser + message ; question : formulaire généré ; alerte : classer ou attacher), `y`/`n` valident ou refusent une permission, `x` classe une alerte.
+- **En cours, En veille, Terminées (7 j)** ; détail de la session sélectionnée en bas.
+- `t` (ou `Entrée` sur une session) : flux en direct à droite (agent, outils, messages, coût). `a` attacher, `m` consigne, `i` interrompre, `M` modèle, `s` arrêter, `c` reprendre, `o` résultats et description de MR, `w` navigateur, `f` projet actif / tous les projets, `r` rafraîchir.
+
 ## Notifications
 
 Le démon oh affiche une notification système quand une décision vous attend et quand une session finit son étape sans que personne n'y soit attaché. Les notifications proches sont regroupées et ne contiennent jamais le contenu de la session. Avec [`terminal-notifier`](https://github.com/julienXX/terminal-notifier) installé, un clic ramène le terminal d'oh ; sinon oh utilise `osascript` (ou `notify-send` sous Linux). Pour les couper : `[session] notify = "off"` dans `hub.toml` (pris en compte au prochain démarrage du démon).

@@ -92,6 +92,16 @@ func (r *Router) Replace(v views.View) {
 	r.mountLocked(v)
 }
 
+// Remount unmounts and mounts the current view again (fresh data).
+func (r *Router) Remount() {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if cur := r.currentLocked(); cur != nil {
+		cur.Unmount()
+		r.mountLocked(cur)
+	}
+}
+
 // NavigateTo looks up a view by ID in the registry and navigates to it.
 // If the view is already in the stack, pops to it instead of pushing a duplicate.
 // Returns false if the view ID is not registered.
