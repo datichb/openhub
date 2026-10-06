@@ -11,6 +11,7 @@ func (s *Spec) Clone() *Spec {
 	c := *s
 	c.Label = s.Label.clone()
 	c.Description = s.Description.clone()
+	c.Enforce = cloneSlice(s.Enforce)
 	c.CodeMode = clonePtr(s.CodeMode)
 	c.Entry = clonePtr(s.Entry)
 	c.Inputs = s.Inputs.cloneWith(func(in Input) Input {

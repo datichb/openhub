@@ -1793,6 +1793,9 @@
   "workflow.diag.duplicate_key": "Duplicate key %q (already defined at line %s)",
   "workflow.diag.duplicate_workflow": "Workflow %s already defined in %s",
   "workflow.diag.empty_document": "Empty document",
+  "workflow.diag.enforced_field": "Field %s is locked by %s (enforce): a more specific layer cannot change it",
+  "workflow.diag.enforced_field.hint": "Remove this field from the file, or ask the author of the parent workflow to lift the lock.",
+  "workflow.diag.enforce_unknown_field": "enforce: unknown field %q (possible fields: %s, or \"*\")",
   "workflow.diag.entry_disabled": "The entry agent %s cannot be disabled",
   "workflow.diag.entry_not_primary": "The entry agent %s is a subagent; it must be primary",
   "workflow.diag.entry_role": "The entry agent %s must have the workflow role (current role: %s)",
@@ -3133,5 +3136,16 @@
   "cmd.doctor.v5.git": "git (relative worktrees)",
   "cmd.doctor.v5.git_old": "git %s: 2.48 or newer required for containers (phase 4)",
   "cmd.doctor.v5.terminal": "Opening sessions",
-  "cmd.doctor.v5.terminal_none": "no scriptable terminal: sessions will open in the current terminal"
+  "cmd.doctor.v5.terminal_none": "no scriptable terminal: sessions will open in the current terminal",
+  "teamstate.workflow.workflow_unlocked": "%s is not in workflows.lock: file skipped",
+  "teamstate.workflow.workflow_hash_mismatch": "%s was changed outside a publication (v%d expected): file skipped",
+  "teamstate.workflow.workflow_prompt_mismatch": "%s: prompt template %v does not match the published version: workflow skipped",
+  "teamstate.workflow.workflow_lock_orphan": "%s is in workflows.lock but its published file is missing",
+  "teamstate.workflow.workflow_lock_invalid": "workflows.lock is unreadable (%v): no team workflow loaded",
+  "teamstate.workflow.workflow_read_failed": "Cannot read: %v",
+  "teamstate.workflow.integrity_hint": "Only workflows published from oh are loaded. Publish the workflow again (oh workflow publish) or restore the file (git checkout).",
+  "teamstate.workflow.flag_project": "Project (id or name) whose layer is loaded with its team layer",
+  "teamstate.workflow.doctor.name": "Team workflows (%s)",
+  "teamstate.workflow.doctor.ok": "%d published workflow(s), integrity checked",
+  "teamstate.workflow.doctor.issues": "%d workflow(s) loaded, %d skipped: %s"
 }

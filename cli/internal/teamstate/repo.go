@@ -310,6 +310,12 @@ func (r *Repo) InitStructure(ctx context.Context) error {
 		"wiki",
 		"wiki/.pending",
 		"reports",
+		"workflows/published",
+		"workflows/drafts",
+		"workflows/prompts",
+		"workflows/history",
+		"catalog/agents",
+		"catalog/skills",
 	}
 	for _, d := range dirs {
 		full := filepath.Join(r.path, d)

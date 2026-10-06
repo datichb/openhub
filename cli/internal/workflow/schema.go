@@ -126,6 +126,10 @@ type Spec struct {
 	// Extends references the parent workflow: "hub:<id>", "team:<id>" or
 	// "project:<id>". Empty for a full definition.
 	Extends string `yaml:"extends,omitempty"`
+	// Enforce locks top-level fields ("checkpoints", "modes"…, "*" for the
+	// whole document) for the more specific layers: a document extending
+	// this one may not write them. Locks accumulate along the chain.
+	Enforce []string `yaml:"enforce,omitempty"`
 
 	Risk      Risk      `yaml:"risk,omitempty"`
 	Isolation Isolation `yaml:"isolation,omitempty"`

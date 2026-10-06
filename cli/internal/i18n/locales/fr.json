@@ -1793,6 +1793,9 @@
   "workflow.diag.duplicate_key": "Clé %q en double (déjà définie ligne %s)",
   "workflow.diag.duplicate_workflow": "Workflow %s déjà défini dans %s",
   "workflow.diag.empty_document": "Document vide",
+  "workflow.diag.enforced_field": "Le champ %s est verrouillé par %s (enforce) : une couche plus spécifique ne peut pas le modifier",
+  "workflow.diag.enforced_field.hint": "Retire ce champ du fichier, ou demande à l'auteur du workflow parent de lever le verrou.",
+  "workflow.diag.enforce_unknown_field": "enforce : champ %q inconnu (champs possibles : %s, ou \"*\")",
   "workflow.diag.entry_disabled": "L'agent d'entrée %s ne peut pas être désactivé",
   "workflow.diag.entry_not_primary": "L'agent d'entrée %s est un sous-agent ; il doit être primaire",
   "workflow.diag.entry_role": "L'agent d'entrée %s doit avoir le rôle workflow (rôle actuel : %s)",
@@ -3133,5 +3136,16 @@
   "cmd.doctor.v5.git": "git (worktrees relatifs)",
   "cmd.doctor.v5.git_old": "git %s : 2.48 ou plus requis pour les conteneurs (phase 4)",
   "cmd.doctor.v5.terminal": "Ouverture des sessions",
-  "cmd.doctor.v5.terminal_none": "aucun terminal pilotable : les sessions s'ouvriront dans le terminal courant"
+  "cmd.doctor.v5.terminal_none": "aucun terminal pilotable : les sessions s'ouvriront dans le terminal courant",
+  "teamstate.workflow.workflow_unlocked": "%s n'est pas dans workflows.lock : fichier ignoré",
+  "teamstate.workflow.workflow_hash_mismatch": "%s a été modifié hors publication (v%d attendue) : fichier ignoré",
+  "teamstate.workflow.workflow_prompt_mismatch": "%s : le gabarit de prompt %v ne correspond pas à la version publiée : workflow ignoré",
+  "teamstate.workflow.workflow_lock_orphan": "%s est dans workflows.lock mais son fichier publié est absent",
+  "teamstate.workflow.workflow_lock_invalid": "workflows.lock illisible (%v) : aucun workflow d'équipe chargé",
+  "teamstate.workflow.workflow_read_failed": "Lecture impossible : %v",
+  "teamstate.workflow.integrity_hint": "Seuls les workflows publiés depuis oh sont chargés. Republiez le workflow (oh workflow publish) ou restaurez le fichier (git checkout).",
+  "teamstate.workflow.flag_project": "Projet (id ou nom) dont la couche est chargée avec celle de son équipe",
+  "teamstate.workflow.doctor.name": "Workflows d'équipe (%s)",
+  "teamstate.workflow.doctor.ok": "%d workflow(s) publié(s), intégrité vérifiée",
+  "teamstate.workflow.doctor.issues": "%d workflow(s) chargé(s), %d ignoré(s) : %s"
 }

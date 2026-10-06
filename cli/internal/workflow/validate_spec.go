@@ -132,6 +132,11 @@ func (v *validator) header() {
 	if s.Category != "" {
 		v.enum("category", string(s.Category), s.Category.Valid(), "develop", "frame", "quality", "knowledge", "other")
 	}
+	for i, f := range s.Enforce {
+		if !IsEnforceable(f) {
+			v.err("enforce_unknown_field", fmt.Sprintf("enforce[%d]", i), f, strings.Join(EnforceableFields(), ", "))
+		}
+	}
 	if s.Risk == "" {
 		v.err("field_required", "risk", "risk")
 	} else {
