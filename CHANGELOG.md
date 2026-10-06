@@ -91,9 +91,9 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 - **Fiche de décision checkpoint** dans « À traiter » : résumé de l'agent, changements et diff complet, derniers messages, frise ; *Valider*, *Corriger d'abord* ou *Autre consigne* avec un message transmis à l'agent ; frise des checkpoints dans le détail de session (`✔ cp-1 → developer (3) → ⏸ cp-2`). `oh session approve <id> --decision once|fix|other|reject [-m …]`, `oh session dismiss` classe le coupe-circuit.
 - Sorties déclarées par les agents (`workflow_outputs`) enregistrées avec la session et reprises par « Enchaîner avec… ».
 
-### Added — exécution en conteneur (phase 4, en cours)
+### Added — exécution en conteneur (phase 4)
 
-- **Runtime conteneur** (`oh run --runtime container`, option « Exécution » de la fiche de lancement) : le serveur opencode d'un groupe de sessions tourne dans un conteneur, piloté par la ligne de commande de Colima, Podman ou Docker (choix automatique ; `OH_CONTAINER_ENGINE` pour forcer un moteur). macOS et Linux.
+- **Runtime conteneur** (`oh run --runtime container`, option « Exécution » de la fiche de lancement) : le serveur opencode d'un groupe de sessions tourne dans un conteneur, piloté par la ligne de commande de Colima, Podman ou Docker (choix automatique, ou moteur choisi dans Réglages › Exécution). macOS et Linux.
   - Image par projet : Dockerfile de développement du projet (`Dockerfile.dev`, `dev.Dockerfile`, `.devcontainer/Dockerfile`, `Dockerfile`, sinon une base Debian minimale) plus une couche oh avec opencode à la même version que sur la machine (téléchargé depuis npm, empreinte vérifiée) et un faux `bd`. Images mises en cache et étiquetées par empreinte ; les deux plus récentes sont gardées par projet.
   - Le paquet de session est monté en lecture seule ; le projet et ses worktrees en lecture-écriture, avec l'utilisateur de la machine (fichiers créés à son nom) ; la configuration opencode de l'utilisateur n'est pas visible.
   - Port du serveur publié sur `127.0.0.1` seulement ; l'interface opencode de la machine s'y attache comme en local.
@@ -102,6 +102,13 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
   - Jeton propre à chaque session, donné aussi aux sous-agents ; le démon n'en garde que l'empreinte. Il survit à un redémarrage du démon et devient inutilisable quand la session s'arrête ou se met en veille.
 - **Passerelle MCP** : dans un conteneur, les serveurs MCP oh du paquet (gitlab, figma, jira, gslides, linear, github, team, workflow) tournent sur la machine, lancés par le démon, et sont joints en HTTP. Leurs jetons restent dans le trousseau : le conteneur ne voit que le jeton de session.
 - `make test-container` : tests réels avec Colima et/ou Podman.
+- **Config projet › Exécution** (migration v41 `projects.exec_config`) : Dockerfile de dev (détecté et affiché, chemin configurable), build args, volumes de cache, workflow et runtime par défaut. Le Dockerfile est toujours cherché dans le dossier du projet, au lancement comme à la reprise d'une session en veille (même dans un worktree).
+  - `oh run` sans argument lance le workflow par défaut du projet ; il apparaît aussi en tête de « Démarrer » (◆) et des actions du board.
+  - Sans `--runtime` : runtime par défaut du projet, puis des Réglages, puis du workflow, s'il est autorisé par `runtime.allowed`.
+- **Réglages › Exécution** (`[execution]` de `hub.toml`) : runtime par défaut, moteur (`auto`, `colima`, `podman`, `docker`), cache des images (`keep_images`, 2 par défaut), version d'opencode figée (lancements en conteneur refusés si le client de la machine a une autre version), isolation stricte (les serveurs locaux ne voient plus la configuration opencode globale de l'utilisateur ; git, gh… gardent la leur).
+- **Fiche de lancement, option ▣ conteneur** : état du moteur, image du projet en cache ou à construire avec un temps estimé d'après les dernières constructions ; pendant le lancement, dernières lignes de la construction de l'image.
+- **`oh doctor` conteneur et passerelles** : moteur, montage virtiofs (Colima), keep-id (Podman rootless), projets et worktrees hors des dossiers partagés avec la VM, opencode dans les images des projets (version, `libstdc++`/`libgcc` sur base musl), adresse de la machine vue des conteneurs (Linux), `bd` sur la machine, démon assez récent, passerelles Beads et MCP joignables depuis un conteneur.
+- En conteneur, l'identité git de la machine (`user.name`, `user.email` du projet) est transmise au shell des sessions et des sous-agents : les agents peuvent committer.
 
 ### Changed
 
@@ -138,6 +145,7 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ### Documentation
 
+- **Guide « Exécution en conteneur »** — `container.{en,fr}.md` : prérequis, config projet et Réglages Exécution, choix du runtime, fiche de lancement, image et montages, secrets et passerelles, identité git, vérifications Doctor, dépannage ; `cli-workflows` : `oh run [workflow]`
 - **Guide « Workflows d'équipe »** — `team-workflows.{en,fr}.md` : couches, arborescence, `workflows.lock`, verrous, brouillons et publication, impact, historique, catalogue de briques, gouvernance, espace solo, migration ; références `cli-workflows`, `cli-team`, `config` mises à jour
 - **Cascade des modèles** — `model-resolution.{en,fr}.md` : niveau workflow ; niveaux équipe ajoutés à la version française
 - **Rédaction des skills** — `authoring-skills.{en,fr}.md` : `requires:`, `annexes:`, `oh skill check`
