@@ -88,7 +88,7 @@ Accepte la saisie avec suggestions fuzzy au-dessus :
 |----------|-------|-------------|
 | `run <workflow>` | id du workflow ; anciens noms : `dev` → `run ticket`, `start` → `run feature`, `onboard` → `run onboarding`, `audit`, `review` (`rev`, `cr`), `debug` (`dbg`), `feedback` → `run review-feedback` | Ouvre la fiche de lancement du workflow (générée depuis le catalogue) |
 | `run <workflow> ⟨ticket⟩` | — | Sur le board : workflow lancé sur le ticket sélectionné |
-| `workflows` | catalogue, wf | Catalogue des workflows (lecture seule) |
+| `workflows` | catalogue, wf | Catalogue des workflows (brouillons, publication, historique) |
 | `review.publish` | publish, mr | Créer la MR de la branche courante (API GitLab, terminal suspendu ; si l'écriture GitLab est activée) |
 | `coder` | session, free, libre | Session libre (sans workflow ; opencode V1 ou catalogue vide) |
 | `sessions` | parallel, inbox | Vue Sessions |
@@ -101,7 +101,11 @@ Générée depuis le YAML du workflow, en trois étapes : **Entrées** (une lign
 
 - **Démarrer** (accueil, projet, équipe) : ★ épinglés (5 max), récents (3), suggestions si vide ; en mode projet/équipe, catégories repliées (Entrée = choix du workflow). `*` épingle ou désépingle (portée : hub, projet ou équipe selon l'accueil). « Tous les workflows (N) » ouvre le catalogue.
 - **Board** : `a` sur un ticket liste les workflows qui prennent un ticket Beads ; la fiche s'ouvre à l'étape Options, ticket prérempli.
-- **Catalogue** : workflows par couche (version, risque, ⌂ ▣ ☁, validité), détail à droite ; Entrée lance, `*` épingle.
+- **Catalogue** : workflows par couche (version, risque, ⌂ ▣ ☁, validité), détail à droite ; Entrée lance, `*` épingle. Avec un team-state (équipe ou espace solo), le catalogue est **modifiable** :
+  - sections Hub (lecture seule), Équipe, Projet, **Mes brouillons** (`✎`, nombre d'erreurs, badge « + nouvelle brique » pour une brique d'équipe utilisée pour la première fois) et **Intégrité** (fichiers publiés ignorés, briques refusées) ; `✎` sur un workflow publié = vous en avez un brouillon, `⏳` = publication en attente du réseau ;
+  - `n` nouveau (vide, étendre ou dupliquer le workflow sélectionné ; couche équipe ou projet ; identifiant), `e` éditer (sur un workflow du hub : l'étendre), `v` valider, `t` tester le brouillon (fiche de lancement « ✎ brouillon », en local), `p` publier, `D` diff du brouillon avec l'impact, `h` historique, `x` archiver (raison facultative ; sur un brouillon : l'abandonner), `r` recharger ; Entrée sur un brouillon = le tester ;
+  - **Publier** : version actuelle → suivante, validation, impact (les élargissements sont marqués ⚠), nouvelles briques, diff du document et du gabarit, gouvernance (« Publication : tout membre ») ; message obligatoire, `Ctrl+S` publie une seule fois ; hors ligne, la publication est mise en attente et rejouée à la synchronisation suivante du team-state ;
+  - **Historique** : versions (auteur, date, message, actuelle) ; Entrée = diff avec la version actuelle, `r` = restaurer (republiée comme nouvelle version).
 - **Vue Sessions** : `e` « Enchaîner avec… » propose les workflows qui prennent une sortie de la session (branche, tickets), fiche préremplie ; un lancement mis en attente par une précondition (« lancer onboarding puis revenir ») est proposé en premier. Quand une session de workflow se termine (ou déclare ses sorties), un toast annonce la suite proposée et le détail de la session l'affiche (« ↪ Enchaîner avec review (e) »).
 
 ### Projets

@@ -38,6 +38,8 @@ type tuiLaunchRequest struct {
 	Parent     string // chained session (O7)
 	// Mode and Runtime preselect the options ("" = workflow defaults).
 	Mode, Runtime string
+	// Draft tests the current member's draft (catalogue `t`, local only).
+	Draft bool
 }
 
 // openLaunchForm resolves the workflow and the project off the event loop,
@@ -96,11 +98,19 @@ func withTUIProject(a *app.App, projectID string, fn func(*domain.Project)) {
 
 // launchFormConfig builds the form of a workflow for a project.
 func launchFormConfig(ctx context.Context, a *app.App, project *domain.Project, req tuiLaunchRequest) (*views.LaunchFormConfig, error) {
-	res, err := newWorkflowService(ctx).Resolve(ctx, workflowsvc.Context{ProjectID: project.ID}, req.WorkflowID, workflowsvc.ResolveOpts{})
+	wsvc := newWorkflowService(ctx)
+	resolve := wsvc.Resolve
+	if req.Draft {
+		resolve = wsvc.ResolveDraft
+	}
+	res, err := resolve(ctx, workflowsvc.Context{ProjectID: project.ID}, req.WorkflowID, workflowsvc.ResolveOpts{})
 	if err != nil {
 		var invalid *workflowsvc.InvalidError
 		if errors.As(err, &invalid) {
 			return nil, errors.New(i18n.Tf("cmd.workflow.show.invalid", len(invalid.Diagnostics.Errors())))
+		}
+		if req.Draft {
+			return nil, workflowEditError(io.Discard, err)
 		}
 		return nil, err
 	}
@@ -108,6 +118,9 @@ func launchFormConfig(ctx context.Context, a *app.App, project *domain.Project, 
 	origin := string(res.Ref.Layer)
 	if sp.Version > 0 {
 		origin += " v" + strconv.Itoa(sp.Version)
+	}
+	if req.Draft {
+		origin = "✎ " + i18n.T("tui.catalog.edit.draft") + " · " + origin
 	}
 	cfg := &views.LaunchFormConfig{
 		WorkflowID: sp.ID, Origin: origin + " · " + project.Name, Spec: sp, Lang: i18n.Locale(),
@@ -122,7 +135,7 @@ func launchFormConfig(ctx context.Context, a *app.App, project *domain.Project, 
 	runs := &tuiRunCache{}
 	opts := func(c views.LaunchChoices) runOptions {
 		return runOptions{Workflow: sp.ID, Project: project, Inputs: c.Inputs, Tickets: c.Tickets, Mode: c.Mode,
-			Runtime: c.Runtime, Location: c.Location, Attach: c.Attach, ParentSessionID: req.Parent, OneSession: c.OneSession}
+			Runtime: c.Runtime, Location: c.Location, Attach: c.Attach, ParentSessionID: req.Parent, OneSession: c.OneSession, Draft: req.Draft}
 	}
 	cfg.Recap = func(ctx context.Context, c views.LaunchChoices) (*views.LaunchRecap, error) {
 		p, err := runs.get(ctx, a, opts(c))
