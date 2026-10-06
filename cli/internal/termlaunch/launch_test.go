@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -26,9 +27,38 @@ func TestAppleScriptEscaping(t *testing.T) {
 }
 
 func TestChainExplicitPrefs(t *testing.T) {
-	assert.Equal(t, []Method{MethodITerm}, Chain(PrefITerm))
-	assert.Equal(t, []Method{MethodTerminal}, Chain(PrefTerminal))
-	assert.Equal(t, []Method{MethodTmux}, Chain(PrefTmux))
+	t.Setenv("TMUX", "")
+	installed := iTermInstalled
+	t.Cleanup(func() { iTermInstalled = installed })
+	iTermInstalled = func() bool { return true }
+	assert.Equal(t, MethodITerm, Chain(PrefITerm)[0])
+	assert.Equal(t, MethodTerminal, Chain(PrefTerminal)[0])
+	assert.Equal(t, MethodTmux, Chain(PrefTmux)[0])
+	for _, p := range []Pref{PrefITerm, PrefTerminal, PrefTmux} {
+		seen := map[Method]bool{}
+		for _, m := range Chain(p) {
+			assert.False(t, seen[m], "%s: %s twice", p, m)
+			seen[m] = true
+		}
+	}
+}
+
+// attach = "iterm" without iTerm2 passes to the next method (I2) instead of
+// failing: oh run then ran the client in its own process (v5 finalisation,
+// Q3-3).
+func TestChainITermNotInstalled(t *testing.T) {
+	if runtime.GOOS != "darwin" {
+		t.Skip("macOS terminals")
+	}
+	t.Setenv("TMUX", "")
+	t.Setenv("TERM_PROGRAM", "")
+	installed := iTermInstalled
+	t.Cleanup(func() { iTermInstalled = installed })
+	iTermInstalled = func() bool { return false }
+	assert.Equal(t, []Method{MethodTerminal}, Chain(PrefITerm))
+	t.Setenv("TMUX", "/tmp/tmux-1/default,1,0")
+	assert.Equal(t, []Method{MethodTerminal, MethodTmux}, Chain(PrefITerm))
+	assert.Equal(t, []Method{MethodTmux, MethodTerminal}, Chain(PrefTmux))
 }
 
 func TestChainAutoOrder(t *testing.T) {
@@ -48,8 +78,10 @@ func TestLaunchExhaustedChain(t *testing.T) {
 	t.Setenv("PATH", "") // no tmux, no osascript
 	_, attempts, err := Launch(context.Background(), Options{Pref: PrefTmux, Argv: []string{"true"}})
 	assert.ErrorIs(t, err, ErrNoTerminal)
-	assert.Len(t, attempts, 1)
-	assert.Error(t, attempts[0].Err)
+	assert.Equal(t, Chain(PrefTmux), methodsOf(attempts), "every method of the chain tried")
+	for _, a := range attempts {
+		assert.Error(t, a.Err)
+	}
 }
 
 func TestTmuxArgs(t *testing.T) {
@@ -77,4 +109,12 @@ func TestTmuxGetsOneShellCommand(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, []string{"new-window", "-c", "/p q", "-n", "oh", "cd '/p q' && OH_HOME=/h exec /bin/oh session attach ses_1 --exec"},
 		strings.Split(strings.TrimSpace(string(data)), "\n"))
+}
+
+func methodsOf(attempts []Attempt) []Method {
+	out := make([]Method, len(attempts))
+	for i, a := range attempts {
+		out[i] = a.Method
+	}
+	return out
 }

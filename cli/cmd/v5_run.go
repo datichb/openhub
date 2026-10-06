@@ -389,7 +389,9 @@ func afterStart(ctx context.Context, a *app.App, svc *runsvc.Service, ui launche
 		if res.AttachErr != nil {
 			ui.Notify(i18n.T("cmd.session.no_terminal"), launcher.LevelWarning)
 		}
-		if !first {
+		if !first || (ui.SuspendAndExec() == nil && !stdinIsTerminal()) {
+			// No terminal to take over (oh run from a script, an IDE…): the
+			// client would block this process.
 			ui.Notify(i18n.Tf("cmd.run.attach_later", res.SessionID), launcher.LevelInfo)
 			return nil
 		}

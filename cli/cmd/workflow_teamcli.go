@@ -116,6 +116,9 @@ func splitRef(s string) (layer workflow.Layer, id string) {
 // interactive reports whether the command may ask questions.
 func interactive() bool { return term.IsTerminal(int(os.Stdin.Fd())) }
 
+// stdinIsTerminal is a variable for the tests.
+var stdinIsTerminal = interactive
+
 // confirm asks a yes/no question (true without a terminal or with --yes).
 func confirm(cmd *cobra.Command, question string) (bool, error) {
 	if yes, _ := cmd.Flags().GetBool("yes"); yes || !interactive() {
