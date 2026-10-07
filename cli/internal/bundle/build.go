@@ -304,7 +304,7 @@ func agentDef(req Request, a *bricks.AssembledAgent, instructions string) (sessi
 		slog.Warn("bundle: permission base resolution failed, using inline permissions", "agent", fm.ID, "error", err)
 		perms = fm.Permission
 	}
-	def.Permissions = ConvertPermissions(perms)
+	def.Permissions = append(ConvertPermissions(perms), BeadsShellGuard()...)
 	return def, nil
 }
 

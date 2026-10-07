@@ -23,7 +23,7 @@ oh workflow show ticket --origin         # resolved values and source document
 - **Translatable texts** (`label`, `description`, `help`): a plain text, or a table per language `{ fr: …, en: … }`. Without the requested language, oh takes the plain text, then `en`, then `fr`.
 - **Ordered maps**: `inputs`, `agents`, `checkpoints` and `preconditions` keep the file order (order of the launch form, of the checkpoints and of the checks).
 - **Patch** (`extends`): the **presence** of a field in the file replaces it, not its value. Maps are merged by key; lists and texts are replaced as a whole.
-- **Security**: `risk`, `isolation`, `runtime.allowed`, `beads.allow`, mandatory checkpoints, `remote` and `limits` may only **be hardened**. A loosening is an error (`loosening`) and the parent value is kept.
+- **Security**: `risk`, `isolation`, `runtime.allowed`, `modes.allowed`, `code_mode`, `beads.allow`, mandatory checkpoints, `remote` and `limits` may only **be hardened**. A loosening is an error (`loosening`) and the parent value is kept.
 - **Lock**: a top-level field listed in the `enforce` of a parent document can no longer be written by a document that extends it (`enforced_field`).
 
 In the tables below, the **Patch** column reads:
@@ -75,7 +75,7 @@ enforce: [checkpoints, modes]   # or ["*"] for the whole document
 |---|---|---|---|---|
 | `risk` | text | `read` < `plan` < `write` < `publish` | **required** (`field_required`) | hardens (equal or lower rank) |
 | `isolation` | text | `strict`, `standard` | `standard` | hardens (`strict` does not go back to `standard`) |
-| `code_mode` | boolean | `true`, `false` | `false` | replaces |
+| `code_mode` | boolean | `true`, `false` | `false` | hardens (`false` does not go back to `true`) |
 | `beads.allow` | list | `bd` subcommands | see below | hardens (subset of the parent) |
 | `runtime.default` | text | `local`, `container`, `remote` | `local` | replaces |
 | `runtime.allowed` | list | `local`, `container`, `remote` | `[runtime.default]` | hardens (subset of the parent) |
@@ -103,7 +103,7 @@ A writing session (`risk` other than `read`) gets a worktree when another writin
 
 ### `code_mode`
 
-`false` or absent: the opencode `execute` tool is denied to every agent. `true`: it stays available. The field is part of the bundle hash. It is not a security field for patches: a layer may enable it (the publication impact summary reports it).
+`false` or absent: the opencode `execute` tool is denied to every agent. `true`: it stays available. The field is part of the bundle hash. It is a security field: a layer that extends a workflow may disable it, not enable it (`loosening`); the publication impact summary reports enabling it.
 
 ### `beads`
 
@@ -111,9 +111,9 @@ A writing session (`risk` other than `read`) gets a worktree when another writin
 beads: { allow: [show, list, update, close] }
 ```
 
-- Absent: no declared restriction. In a container, the Beads gateway then applies a read-only list (`show`, `list`, `ready`, `search`, `children`, `comments`, `count`, `status`, `graph`, `history`).
+- Absent: no declared restriction. The Beads gateway then applies a read-only list (`show`, `list`, `ready`, `search`, `children`, `comments`, `count`, `status`, `graph`, `history`). Every shipped workflow declares its list.
 - `allow: []`: no command allowed.
-- The list is applied by the daemon's Beads gateway (container) and when the journal is replayed (remote). See [ADR-046](../architecture/adr/046-beads-gateways.en.md).
+- The list is applied by the daemon's Beads gateway in every runtime (locally, oh's fake `bd` comes first on the session `PATH`; a `bd` called by a path is refused) and when the journal is replayed (remote). See [ADR-046](../architecture/adr/046-beads-gateways.en.md).
 - Patch: on a parent without `beads`, any list hardens. On a parent with a list, the new list must be a subset of it; `beads: null` is a loosening.
 
 ### `runtime`
@@ -149,7 +149,7 @@ limits:
 | `entry.agent` | text | agent id of the catalogue, primary | `conductor` | replaces the `entry` block |
 | `entry.selectable` | boolean | `true`, `false` | `false` | to be written with `entry.agent` |
 | `modes.default` | text | a mode of `modes.allowed` | first allowed mode | replaces |
-| `modes.allowed` | list | `manuel`, `semi-auto`, `auto`, or custom modes | `[manuel, semi-auto, auto]` | replaces |
+| `modes.allowed` | list | `manuel`, `semi-auto`, `auto`, or custom modes | `[manuel, semi-auto, auto]` | hardens (subset of the parent; an empty list means every mode) |
 | `circuit_breaker.max_consecutive_subagents` | integer ≥ 0 | N delegations in a row without interaction | `0` (breaker disabled) | replaces |
 
 ### `entry`
@@ -162,6 +162,7 @@ limits:
 ### `modes`
 
 - The mode is set at launch (`--mode`, launch form) and is no longer asked by the agent. The prompt always contains `Mode de workflow : <mode>`.
+- Patch: `modes.allowed` may only be narrowed (`loosening` for a mode missing from the parent); the impact summary reports any added mode as a loosening.
 - A duplicate mode: `duplicate_entry`; a default missing from the list: `mode_default_not_allowed`; a `--mode` that is not allowed: `session_mode_not_allowed`.
 
 ### `circuit_breaker`

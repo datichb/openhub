@@ -155,19 +155,24 @@ func newRunService(ctx context.Context, a *app.App) (*runsvc.Service, error) {
 		return nil, fmt.Errorf("opencode V2 is required for v5 sessions: %v", v5Err)
 	}
 	ad := v5Adapter
+	shellPath, err := localShellPath()
+	if err != nil {
+		return nil, err
+	}
 	return &runsvc.Service{
-		Adapter:      ad,
-		AdapterVer:   ad.Ver,
-		Servers:      sqlite.NewServerStore(store),
-		Sessions:     a.Sessions,
-		Secrets:      a.Secrets,
-		ServersDir:   ohServersDir(),
-		BundlesDir:   ohBundlesDir(),
-		SessionsDir:  ohSessionsDir(),
-		Decisions:    sqlite.NewDecisionStore(store),
-		Usage:        sqlite.NewUsageStore(store),
-		OnSessionEnd: sessionEndHook(a, false),
-		Runtimes:     v5Runtimes(a),
+		Adapter:        ad,
+		AdapterVer:     ad.Ver,
+		Servers:        sqlite.NewServerStore(store),
+		Sessions:       a.Sessions,
+		Secrets:        a.Secrets,
+		ServersDir:     ohServersDir(),
+		BundlesDir:     ohBundlesDir(),
+		SessionsDir:    ohSessionsDir(),
+		Decisions:      sqlite.NewDecisionStore(store),
+		Usage:          sqlite.NewUsageStore(store),
+		OnSessionEnd:   sessionEndHook(a, false),
+		Runtimes:       v5Runtimes(a),
+		LocalShellPath: shellPath,
 		SessionEnv: gatewaySessionEnv(func(ctx context.Context) (gatewayGranter, error) {
 			c, _, err := ensureDaemon(ctx)
 			return c, err

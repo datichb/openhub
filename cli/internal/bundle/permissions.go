@@ -16,6 +16,18 @@ var v1ToNeutral = map[string]string{
 	"patch": sessionspec.ActionEdit,
 }
 
+// BeadsShellGuard returns the shell rules, last of every agent, that refuse
+// to run a bd named by a path ("/opt/homebrew/bin/bd close …"): sessions
+// call `bd`, found first on their PATH as the fake bd that goes through the
+// Beads gateway and the workflow beads.allow (QB1). In a container, the
+// only bd is the fake one anyway.
+func BeadsShellGuard() []sessionspec.PermissionRule {
+	return []sessionspec.PermissionRule{
+		{Action: sessionspec.ActionShell, Resource: "*/bd", Effect: sessionspec.EffectDeny},
+		{Action: sessionspec.ActionShell, Resource: "*/bd *", Effect: sessionspec.EffectDeny},
+	}
+}
+
 // ConvertPermissions converts a hub permission map (frontmatter + base file,
 // V1 shape: key → "allow"|"deny"|"ask"|bool or key → {pattern: effect}) into
 // ordered neutral rules (last match wins).

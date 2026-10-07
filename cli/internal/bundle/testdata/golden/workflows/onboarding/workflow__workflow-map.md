@@ -9,6 +9,7 @@ Découvrir le projet et créer ou enrichir son wiki documentaire vivant (docs/wi
 
 - Agent d'entrée : `onboarder`
 - Risque : `write`
+- Commandes Beads autorisées : `show`, `list`, `ready`, `search`, `children`, `comments`, `count`, `status`, `graph`, `history`, `create`, `update`, `dep`, `label`
 
 Cette carte est la seule référence sur l'enchaînement : n'invente ni agent, ni étape, ni checkpoint qui n'y figure pas.
 

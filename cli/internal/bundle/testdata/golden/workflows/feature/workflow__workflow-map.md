@@ -9,6 +9,7 @@ Réaliser une feature de bout en bout (exploration ou planification, design, imp
 
 - Agent d'entrée : `orchestrator`
 - Risque : `write`
+- Commandes Beads autorisées : `show`, `list`, `ready`, `search`, `children`, `comments`, `count`, `status`, `graph`, `history`, `create`, `update`, `close`, `dep`, `label`, `duplicate`, `supersede`
 
 Cette carte est la seule référence sur l'enchaînement : n'invente ni agent, ni étape, ni checkpoint qui n'y figure pas.
 

@@ -121,6 +121,7 @@ func daemonOptions(ctx context.Context, a *app.App, capability string) daemon.Op
 		Grants:      sqlite.NewGrantStore(store),
 		Servers:     sqlite.NewServerStore(store),
 		GatewayView: gatewayView(sqlite.NewServerStore(store)),
+		BeadsBinary: realBeadsBinary(),
 		MCPCommand:  gatewayMCPCommand(ohBundlesDir()),
 		Sessions:    a.Sessions,
 		Decisions:   sqlite.NewDecisionStore(store),

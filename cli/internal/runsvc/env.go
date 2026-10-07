@@ -15,7 +15,6 @@ import (
 	"github.com/datichb/openhub/cli/internal/daemon"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/gateway/beadswire"
-	ohruntime "github.com/datichb/openhub/cli/internal/runtime"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 )
 
@@ -147,8 +146,9 @@ var machineShellKeys = []string{"PATH", "HOME", "USER", "LOGNAME", "SHELL", "LAN
 	"TMPDIR", "TERM", "XDG_CONFIG_HOME", "XDG_CACHE_HOME", "GOPATH", "GOROOT", "VOLTA_HOME", "NVM_DIR", "BUN_INSTALL", "CARGO_HOME", "RUSTUP_HOME", "PYENV_ROOT"}
 
 // withMachineShellEnv adds, for a local session, the machine variables of
-// machineShellKeys to the static variables (which win).
-func withMachineShellEnv(kind sessionspec.RuntimeKind, static map[string]string) map[string]string {
+// machineShellKeys to the static variables (which win), and puts the
+// directories of first at the head of the PATH.
+func withMachineShellEnv(kind sessionspec.RuntimeKind, static map[string]string, first []string) map[string]string {
 	if kind != "" && kind != sessionspec.RuntimeLocal {
 		return static
 	}
@@ -159,6 +159,13 @@ func withMachineShellEnv(kind sessionspec.RuntimeKind, static map[string]string)
 		}
 	}
 	maps.Copy(env, static)
+	if len(first) > 0 {
+		path := strings.Join(first, string(os.PathListSeparator))
+		if env["PATH"] != "" {
+			path += string(os.PathListSeparator) + env["PATH"]
+		}
+		env["PATH"] = path
+	}
 	return env
 }
 
@@ -234,17 +241,13 @@ func (s *Service) reapplySessionEnv(ctx context.Context, srv *domain.Server, ses
 // is kept next to the group data and handed to the SessionEnv hook.
 const gatewayURLFile = "gateway_url"
 
-// saveGatewayURL records the gateway URL of a group started in a runtime
-// (next to the proxy, as seen from inside); locally, the file is removed.
-func (s *Service) saveGatewayURL(gk string, pg *ohruntime.Prepared, proxyURL string) error {
+// saveGatewayURL records the gateway URL of a group (next to the proxy, as
+// seen by its server: from inside the runtime, or on the machine).
+func (s *Service) saveGatewayURL(gk, proxyURL string) error {
 	if s.ServersDir == "" {
 		return nil
 	}
 	p := filepath.Join(s.ServersDir, gk, gatewayURLFile)
-	if pg == nil {
-		_ = os.Remove(p)
-		return nil
-	}
 	if err := os.MkdirAll(filepath.Dir(p), 0o700); err != nil {
 		return err
 	}

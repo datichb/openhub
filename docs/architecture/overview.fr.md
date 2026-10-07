@@ -68,7 +68,7 @@ Le démon (`oh daemon status|stop`, lancé à la demande) tourne sur la machine 
 
 - le **proxy d'identifiants LLM** : opencode ne reçoit qu'un jeton de groupe (`ohs_…`) ; la vraie clé reste dans le trousseau ; liste blanche des chemins d'inférence et des modèles, signature SigV4 pour les profils AWS, comptage de l'usage ;
 - la **supervision** des sessions : flux d'événements SSE, décisions en attente, état, notifications système, mise en veille, réapplication de l'environnement de session aux sous-sessions ;
-- les **passerelles** pour les environnements hors machine : passerelle Beads (faux `bd`) et passerelle MCP HTTP pour les serveurs MCP d'oh du paquet ;
+- les **passerelles** : passerelle Beads (faux `bd`, dans tous les environnements) et, hors machine, passerelle MCP HTTP pour les serveurs MCP d'oh du paquet ;
 - les **restrictions** optionnelles (désactivées par défaut) : sessions actives max, budget par session et journalier, plafond mémoire, liste de modèles (`oh budget`).
 
 Sous Windows, le démon tourne dans le processus `oh`. Décisions : [ADR-044](./adr/044-credential-proxy-session-limits.fr.md), [ADR-047](./adr/047-session-interaction-daemon.fr.md).

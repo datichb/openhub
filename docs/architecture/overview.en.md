@@ -68,7 +68,7 @@ The daemon (`oh daemon status|stop`, started on demand) runs on the machine and 
 
 - the **LLM credential proxy**: opencode only receives a group token (`ohs_…`); the real key stays in the keychain; allow-list of inference paths and models, SigV4 signing for AWS profiles, usage counting;
 - session **supervision**: SSE event stream, pending decisions, state, system notifications, sleep, re-applying the session environment to sub-sessions;
-- the **gateways** for off-machine runtimes: Beads gateway (fake `bd`) and HTTP MCP gateway for the oh MCP servers of the bundle;
+- the **gateways**: Beads gateway (fake `bd`, in every runtime) and, off the machine, HTTP MCP gateway for the oh MCP servers of the bundle;
 - the optional **restrictions** (off by default): max active sessions, per-session and daily budget, memory cap, model list (`oh budget`).
 
 On Windows, the daemon runs inside the `oh` process. Decisions: [ADR-044](./adr/044-credential-proxy-session-limits.en.md), [ADR-047](./adr/047-session-interaction-daemon.en.md).

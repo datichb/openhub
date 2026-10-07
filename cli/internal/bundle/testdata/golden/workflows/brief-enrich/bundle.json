@@ -14,7 +14,9 @@
         "skill * allow",
         "subagent * deny",
         "todowrite * deny",
-        "webfetch * deny"
+        "webfetch * deny",
+        "shell */bd deny",
+        "shell */bd * deny"
       ]
     }
   ],

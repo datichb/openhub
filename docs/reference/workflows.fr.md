@@ -41,7 +41,7 @@ On lance un workflow avec `oh run <workflow>` ou la fiche de lancement de la TUI
 |---|---|---|
 | `read` | aucune modification, shell restreint | lecture seule ; `beads.allow` obligatoire, sans commande d'écriture |
 | `plan` | aucune modification, shell restreint | `beads.allow` obligatoire ; écritures permises sauf `delete` |
-| `write` | modifiés | sans restriction si `beads` est absent |
+| `write` | modifiés | `beads.allow` du workflow ; lecture seule si `beads` est absent |
 | `publish` | modifiés, branches poussées, MR ouvertes | idem |
 
 Une couche supérieure (équipe, projet) peut seulement durcir le risque : `read < plan < write < publish`.
@@ -105,13 +105,13 @@ Sans demande ni ticket, la session commence par demander quelle feature réalise
 | `cp-3` Ticket suivant | pause | auto | auto |
 | `cp-feature` Récap de la feature | pause | pause | auto |
 
-`orchestrator-dev` ne démarre qu'après `cp-0`. Mode par défaut : `semi-auto`. Sorties : `tickets`, `branch`.
+`orchestrator-dev` ne démarre qu'après `cp-0`. Mode par défaut : `semi-auto`. Sorties : `tickets`, `branch`. Commandes Beads autorisées : `show`, `list`, `ready`, `search`, `children`, `comments`, `count`, `status`, `graph`, `history`, `create`, `update`, `close`, `dep`, `label`, `duplicate`, `supersede`.
 
 L'ancienne pré-phase d'onboarding (mode C) n'est plus dans `feature` : la précondition `project-context` propose le workflow `onboarding`, puis le retour à `feature`.
 
 ## `quick`
 
-Session de développement directe avec l'agent `developer`, sans planification ni checkpoint. Le développeur déduit le domaine de la demande et charge les standards correspondants. Il propose `feature` si la demande s'avère importante.
+Session de développement directe avec l'agent `developer`, sans planification ni checkpoint. Le développeur déduit le domaine de la demande et charge les standards correspondants. Il propose `feature` si la demande s'avère importante. Commandes Beads autorisées : `show`, `list`, `ready`, `search`, `children`, `comments`, `count`, `status`, `graph`, `history`, `create`, `update`, `close`, `dep`, `label`.
 
 | Entrée | Type | Obligatoire | Rôle |
 |---|---|---|---|
@@ -142,7 +142,7 @@ Découvre le projet et crée ou enrichit le wiki `docs/wiki/` (protocole `doc-wi
 | `refresh` | `bool` (défaut : non) | non | Re-découvrir le projet et enrichir le wiki existant, sans rien supprimer |
 | `focus` | `text` (4 000 caractères max) | non | Modules ou sujets à approfondir |
 
-L'onboarder peut écrire des fichiers : la limite à `docs/wiki/` (plus le `ONBOARDING.md` minimaliste de la racine) est une consigne du prompt, pas une permission. Sortie : `wiki`.
+L'onboarder peut écrire des fichiers : la limite à `docs/wiki/` (plus le `ONBOARDING.md` minimaliste de la racine) est une consigne du prompt, pas une permission. Sortie : `wiki`. Commandes Beads autorisées : `show`, `list`, `ready`, `search`, `children`, `comments`, `count`, `status`, `graph`, `history`, `create`, `update`, `dep`, `label`.
 
 ## `review`
 
@@ -174,7 +174,7 @@ Applique les commentaires non résolus d'une merge request. `oh review feedback 
 | `cp-fix` Corrections à appliquer | pause | pause | auto |
 | `cp-2` Commit ou correction (obligatoire) | pause | pause | pause |
 
-`developer` ne démarre qu'après `cp-fix`. Mode par défaut : `semi-auto`. Sortie : `branch`.
+`developer` ne démarre qu'après `cp-fix`. Mode par défaut : `semi-auto`. Sortie : `branch`. Commandes Beads autorisées : `show`, `list`, `ready`, `search`, `children`, `comments`, `count`, `status`, `graph`, `history`, `create`, `update`, `close`, `dep`, `label`.
 
 ## `audit`
 
@@ -193,7 +193,7 @@ Diagnostic d'un bug ou d'un problème isolé par le `debugger` : rapport de diag
 |---|---|---|---|
 | `issue` | `text` (8 000 caractères max) | non | Le problème observé ; vide : la session le demande |
 
-Sortie : `tickets`.
+Sortie : `tickets`. Commandes Beads autorisées : `show`, `list`, `ready`, `search`, `children`, `comments`, `count`, `status`, `graph`, `history`, `create`, `update`, `close`, `dep`, `label`.
 
 ## `sweep`
 
@@ -214,7 +214,7 @@ Atteint un objectif transverse en le découpant en sous-tâches indépendantes, 
 | `cp-plan` Valider le découpage (avant toute exécution) | pause | pause | auto |
 | `cp-recap` Récap du sweep | pause | pause | auto |
 
-Les agents développeurs ne démarrent qu'après `cp-plan`. Mode par défaut : `semi-auto` ; coupe-circuit à 20 délégations consécutives (12 pour les autres workflows à checkpoints). Sortie : `branch`. Différence avec l'ancien `--sweep` : les sous-tâches s'exécutent dans la même session et le même emplacement (pas un worktree par tâche) ; `--sweep-branch-prefix` et `--max-sessions` n'ont pas d'équivalent.
+Les agents développeurs ne démarrent qu'après `cp-plan`. Mode par défaut : `semi-auto` ; coupe-circuit à 20 délégations consécutives (12 pour les autres workflows à checkpoints). Commandes Beads autorisées : `show`, `list`, `ready`, `search`, `children`, `comments`, `count`, `status`, `graph`, `history`, `create`, `update`, `close`, `dep`, `label`. Sortie : `branch`. Différence avec l'ancien `--sweep` : les sous-tâches s'exécutent dans la même session et le même emplacement (pas un worktree par tâche) ; `--sweep-branch-prefix` et `--max-sessions` n'ont pas d'équivalent.
 
 ## `brief-enrich`
 
@@ -227,7 +227,7 @@ Enrichit un brief de reprise de ticket, sans interaction (session sans interface
 
 ## `libre`
 
-Session avec l'agent de ton choix, sans checkpoint : `oh run libre --agent debugger -i request="…"` (sans `--agent` : `orchestrator`). L'entrée du workflow est **au choix** (`entry.selectable: true`) : oh calcule les membres à partir de l'agent choisi et des agents qu'il peut appeler (permission `task` du catalogue, de proche en proche). Le monde reste fermé : rien d'autre n'est visible. Dans la TUI, la session libre (commande `coder`, ou « Démarrer » quand le catalogue est vide) ouvre la fiche avec l'agent par défaut.
+Session avec l'agent de ton choix, sans checkpoint : `oh run libre --agent debugger -i request="…"` (sans `--agent` : `orchestrator`). L'entrée du workflow est **au choix** (`entry.selectable: true`) : oh calcule les membres à partir de l'agent choisi et des agents qu'il peut appeler (permission `task` du catalogue, de proche en proche). Le monde reste fermé : rien d'autre n'est visible. Dans la TUI, la session libre (commande `coder`, ou « Démarrer » quand le catalogue est vide) ouvre la fiche avec l'agent par défaut. Commandes Beads autorisées : `show`, `list`, `ready`, `search`, `children`, `comments`, `count`, `status`, `graph`, `history`, `create`, `update`, `close`, `reopen`, `edit`, `comment`, `dep`, `label`, `duplicate`, `supersede` (tout sauf `delete`).
 
 | Entrée | Type | Obligatoire | Rôle |
 |---|---|---|---|

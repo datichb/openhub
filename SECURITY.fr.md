@@ -96,7 +96,7 @@ Le monde fermé porte sur ce que le modèle voit, pas sur ce que le shell peut f
 
 ### Passerelles
 
-**Passerelle Beads** (conteneur et job distant). Le faux `bd` envoie la commande au démon (`/oh-gateway/beads/v1/exec`), qui lance le vrai `bd` sur la machine :
+**Passerelle Beads** (local, conteneur et job distant). Le faux `bd` envoie la commande au démon (`/oh-gateway/beads/v1/exec`), qui lance le vrai `bd` sur la machine. En local, le faux `bd` (`~/.oh/run/bin/bd`) passe en tête du `PATH` de la session et de ses sous-agents ; la règle shell de chaque agent refuse un `bd` appelé par un chemin (`/opt/homebrew/bin/bd …`, `./bd`), qui contournerait la passerelle :
 
 - **Jetons `ohg_…`**, un par session et par sous-session, transmis par l'environnement de session. Le démon n'en garde que l'empreinte (`~/.oh/run/gateway.json`, 0600). Ils sont valides tant que la session est ouverte et éveillée, et révoqués avec le groupe.
 - **Liste blanche** = `beads.allow` du workflow. Sans bloc `beads:`, lecture seule ; une liste vide refuse tout.

@@ -16,7 +16,9 @@
         "read * allow",
         "skill * allow",
         "subagent * allow",
-        "todowrite * allow"
+        "todowrite * allow",
+        "shell */bd deny",
+        "shell */bd * deny"
       ]
     },
     {
@@ -52,7 +54,9 @@
         "subagent designer allow",
         "subagent documentarian allow",
         "webfetch * allow",
-        "websearch * allow"
+        "websearch * allow",
+        "shell */bd deny",
+        "shell */bd * deny"
       ]
     },
     {
@@ -91,7 +95,9 @@
         "subagent designer allow",
         "subagent documentarian allow",
         "webfetch * allow",
-        "websearch * allow"
+        "websearch * allow",
+        "shell */bd deny",
+        "shell */bd * deny"
       ]
     },
     {
@@ -111,7 +117,9 @@
         "read * allow",
         "skill * allow",
         "webfetch * allow",
-        "websearch * allow"
+        "websearch * allow",
+        "shell */bd deny",
+        "shell */bd * deny"
       ]
     }
   ],

@@ -9,6 +9,7 @@ Session de développement directe, sans planification ni checkpoint (petites mod
 
 - Agent d'entrée : `developer`
 - Risque : `write`
+- Commandes Beads autorisées : `show`, `list`, `ready`, `search`, `children`, `comments`, `count`, `status`, `graph`, `history`, `create`, `update`, `close`, `dep`, `label`
 
 Cette carte est la seule référence sur l'enchaînement : n'invente ni agent, ni étape, ni checkpoint qui n'y figure pas.
 

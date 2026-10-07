@@ -23,7 +23,7 @@ oh workflow show ticket --origin         # valeurs résolues et document d'origi
 - **Textes traduisibles** (`label`, `description`, `help`) : un texte simple, ou une table par langue `{ fr: …, en: … }`. Sans la langue demandée, oh prend le texte simple, puis `en`, puis `fr`.
 - **Cartes ordonnées** : `inputs`, `agents`, `checkpoints` et `preconditions` gardent l'ordre du fichier (ordre de la fiche de lancement, des checkpoints et des tests).
 - **Patch** (`extends`) : c'est la **présence** d'un champ dans le fichier qui le remplace, pas sa valeur. Les cartes sont fusionnées par clé ; les listes et les textes sont remplacés en bloc.
-- **Sécurité** : `risk`, `isolation`, `runtime.allowed`, `beads.allow`, checkpoints obligatoires, `remote` et `limits` ne peuvent que **se durcir**. Un assouplissement est une erreur (`loosening`) et la valeur du parent est gardée.
+- **Sécurité** : `risk`, `isolation`, `runtime.allowed`, `modes.allowed`, `code_mode`, `beads.allow`, checkpoints obligatoires, `remote` et `limits` ne peuvent que **se durcir**. Un assouplissement est une erreur (`loosening`) et la valeur du parent est gardée.
 - **Verrou** : un champ de premier niveau cité dans `enforce` d'un document parent ne peut plus être écrit par un document qui l'étend (`enforced_field`).
 
 Dans les tableaux ci-dessous, la colonne **Patch** vaut :
@@ -75,7 +75,7 @@ enforce: [checkpoints, modes]   # ou ["*"] pour tout le document
 |---|---|---|---|---|
 | `risk` | texte | `read` < `plan` < `write` < `publish` | **obligatoire** (`field_required`) | durcit (rang égal ou inférieur) |
 | `isolation` | texte | `strict`, `standard` | `standard` | durcit (`strict` ne redevient pas `standard`) |
-| `code_mode` | booléen | `true`, `false` | `false` | remplace |
+| `code_mode` | booléen | `true`, `false` | `false` | durcit (`false` ne repasse pas à `true`) |
 | `beads.allow` | liste | sous-commandes `bd` | voir ci-dessous | durcit (sous-ensemble du parent) |
 | `runtime.default` | texte | `local`, `container`, `remote` | `local` | remplace |
 | `runtime.allowed` | liste | `local`, `container`, `remote` | `[runtime.default]` | durcit (sous-ensemble du parent) |
@@ -103,7 +103,7 @@ Une session qui écrit (`risk` autre que `read`) reçoit un worktree si une autr
 
 ### `code_mode`
 
-`false` ou absent : l'outil `execute` d'opencode est refusé à tous les agents. `true` : il reste disponible. Le champ entre dans le hash du paquet. Ce n'est pas un champ de sécurité au sens du patch : une couche peut l'activer (le résumé d'impact de la publication le signale).
+`false` ou absent : l'outil `execute` d'opencode est refusé à tous les agents. `true` : il reste disponible. Le champ entre dans le hash du paquet. C'est un champ de sécurité : une couche qui étend un workflow peut le désactiver, pas l'activer (`loosening`) ; le résumé d'impact de la publication signale son activation.
 
 ### `beads`
 
@@ -111,9 +111,9 @@ Une session qui écrit (`risk` autre que `read`) reçoit un worktree si une autr
 beads: { allow: [show, list, update, close] }
 ```
 
-- Absent : pas de restriction déclarée. En conteneur, la passerelle Beads applique alors une liste en lecture seule (`show`, `list`, `ready`, `search`, `children`, `comments`, `count`, `status`, `graph`, `history`).
+- Absent : pas de restriction déclarée. La passerelle Beads applique alors une liste en lecture seule (`show`, `list`, `ready`, `search`, `children`, `comments`, `count`, `status`, `graph`, `history`). Les workflows livrés déclarent tous leur liste.
 - `allow: []` : aucune commande permise.
-- La liste est appliquée par la passerelle Beads du démon (conteneur) et au rejeu du journal (distant). Voir [ADR-046](../architecture/adr/046-beads-gateways.fr.md).
+- La liste est appliquée par la passerelle Beads du démon dans tous les environnements (en local, le faux `bd` d'oh passe en tête du `PATH` de la session ; un `bd` appelé par un chemin est refusé) et au rejeu du journal (distant). Voir [ADR-046](../architecture/adr/046-beads-gateways.fr.md).
 - Patch : sur un parent sans `beads`, toute liste durcit. Sur un parent avec liste, la nouvelle liste doit en être un sous-ensemble ; `beads: null` est un assouplissement.
 
 ### `runtime`
@@ -149,7 +149,7 @@ limits:
 | `entry.agent` | texte | id d'agent du catalogue, primaire | `conductor` | remplace le bloc `entry` |
 | `entry.selectable` | booléen | `true`, `false` | `false` | à écrire avec `entry.agent` |
 | `modes.default` | texte | un mode de `modes.allowed` | premier mode autorisé | remplace |
-| `modes.allowed` | liste | `manuel`, `semi-auto`, `auto`, ou modes propres | `[manuel, semi-auto, auto]` | remplace |
+| `modes.allowed` | liste | `manuel`, `semi-auto`, `auto`, ou modes propres | `[manuel, semi-auto, auto]` | durcit (sous-ensemble du parent ; une liste vide vaut tous les modes) |
 | `circuit_breaker.max_consecutive_subagents` | entier ≥ 0 | N délégations de suite sans interaction | `0` (coupe-circuit désactivé) | remplace |
 
 ### `entry`
@@ -162,6 +162,7 @@ limits:
 ### `modes`
 
 - Le mode est fixé au lancement (`--mode`, fiche de lancement) et n'est plus demandé par l'agent. Le prompt contient toujours `Mode de workflow : <mode>`.
+- Patch : `modes.allowed` ne peut que se restreindre (`loosening` pour un mode absent du parent) ; le résumé d'impact signale tout mode ajouté comme un assouplissement.
 - Un mode en double : `duplicate_entry` ; un défaut absent de la liste : `mode_default_not_allowed` ; `--mode` non autorisé : `session_mode_not_allowed`.
 
 ### `circuit_breaker`

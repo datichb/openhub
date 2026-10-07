@@ -28,6 +28,8 @@ prompt:
   template: prompts/onboarding.md.tmpl
 agents:
   onboarder: { role: workflow }
+beads:
+  allow: [show, list, ready, search, children, comments, count, status, graph, history, create, update, dep, label]
 runtime: { default: local, allowed: [local, remote] }
 outputs:
   - { id: wiki, type: path, label: { fr: Wiki du projet, en: Project wiki } }

@@ -72,6 +72,10 @@ type Service struct {
 	// SessionEnv returns dynamic per-session variables (S7), e.g. a gateway
 	// token minted for the session. Optional.
 	SessionEnv SessionEnvFunc
+	// LocalShellPath lists directories put first on the PATH of local
+	// session shells: the fake bd, so that Beads goes through the gateway
+	// and its beads.allow in every runtime (QB1).
+	LocalShellPath []string
 	// Decisions, when set, closes the pending decisions of stopped sessions.
 	Decisions domain.DecisionStore
 	// Usage is the usage ledger: a new session is refused when the daily
@@ -140,8 +144,8 @@ type StartRequest struct {
 	SessionEnv map[string]string
 
 	// BeadsAllow is the workflow `beads.allow` list, enforced by the Beads
-	// gateway outside the local runtime (nil = no `beads:` block: read-only
-	// default; empty = no bd command). Kept for resumes.
+	// gateway in every runtime (nil = no `beads:` block: read-only default;
+	// empty = no bd command). Kept for resumes.
 	BeadsAllow []string
 
 	// Limits are the resolved restrictions of the session (I6; zero = none).
@@ -244,7 +248,7 @@ func (s *Service) StartSession(ctx context.Context, req StartRequest) (*StartRes
 	if sid == "" {
 		sid = sessionspec.NewSessionID()
 	}
-	static := withMachineShellEnv(kind, req.SessionEnv)
+	static := withMachineShellEnv(kind, req.SessionEnv, s.LocalShellPath)
 	env, err := s.buildSessionEnv(ctx, static, SessionEnvRequest{SessionID: sid, GroupKey: gk, ProjectID: req.ProjectID, Location: req.Location,
 		Runtime: kind, WorkflowID: req.WorkflowID, BeadsAllow: req.BeadsAllow, GatewayURL: s.loadGatewayURL(gk)})
 	if err != nil {
@@ -568,7 +572,7 @@ func (s *Service) startServer(ctx context.Context, dc DaemonClient, req StartReq
 			return nil, adapters.VisibilityReport{}, nil, err
 		}
 	}
-	if err := s.saveGatewayURL(gk, pg, baseURL); err != nil {
+	if err := s.saveGatewayURL(gk, baseURL); err != nil {
 		_ = dc.RevokeOwner(ctx, gk)
 		return nil, adapters.VisibilityReport{}, nil, err
 	}

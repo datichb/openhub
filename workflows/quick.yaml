@@ -21,4 +21,6 @@ prompt:
   template: prompts/quick.md.tmpl
 agents:
   developer: { role: workflow, mode: primary }
+beads:
+  allow: [show, list, ready, search, children, comments, count, status, graph, history, create, update, close, dep, label]
 runtime: { default: local, allowed: [local] }

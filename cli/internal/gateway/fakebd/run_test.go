@@ -1,4 +1,4 @@
-package main
+package fakebd
 
 import (
 	"bytes"
@@ -28,7 +28,7 @@ func TestRunRelaysGatewayAnswer(t *testing.T) {
 	defer srv.Close()
 
 	var stdout, stderr bytes.Buffer
-	code := run([]string{"show", "bd-1", "--json"}, "/work/p", envOf(map[string]string{
+	code := Run([]string{"show", "bd-1", "--json"}, "/work/p", envOf(map[string]string{
 		beadswire.EnvURL: srv.URL + "/", beadswire.EnvToken: "ohg_x",
 	}), strings.NewReader("never read"), &stdout, &stderr)
 
@@ -51,7 +51,7 @@ func TestRunForwardsStdinAndRefusal(t *testing.T) {
 	defer srv.Close()
 
 	var stdout, stderr bytes.Buffer
-	code := run([]string{"create", "t", "--body-file", "-"}, "/work/p", envOf(map[string]string{
+	code := Run([]string{"create", "t", "--body-file", "-"}, "/work/p", envOf(map[string]string{
 		beadswire.EnvURL: srv.URL, beadswire.EnvToken: "ohg_x",
 	}), strings.NewReader("body"), &stdout, &stderr)
 	assert.Equal(t, 1, code)
@@ -62,15 +62,15 @@ func TestRunForwardsStdinAndRefusal(t *testing.T) {
 
 func TestRunWithoutGatewayOrJournal(t *testing.T) {
 	var stderr bytes.Buffer
-	assert.Equal(t, 1, run([]string{"show"}, "/", envOf(nil), nil, &bytes.Buffer{}, &stderr))
+	assert.Equal(t, 1, Run([]string{"show"}, "/", envOf(nil), nil, &bytes.Buffer{}, &stderr))
 	assert.Contains(t, stderr.String(), beadswire.EnvToken)
 
 	stderr.Reset()
-	assert.Equal(t, 1, run([]string{"show"}, "/", envOf(map[string]string{beadswire.EnvMode: beadswire.ModeJournal}), nil, &bytes.Buffer{}, &stderr))
+	assert.Equal(t, 1, Run([]string{"show"}, "/", envOf(map[string]string{beadswire.EnvMode: beadswire.ModeJournal}), nil, &bytes.Buffer{}, &stderr))
 	assert.Contains(t, stderr.String(), "journal")
 
 	stderr.Reset()
-	assert.Equal(t, 1, run(nil, "/", envOf(map[string]string{beadswire.EnvURL: "http://127.0.0.1:1", beadswire.EnvToken: "t"}), nil, &bytes.Buffer{}, &stderr))
+	assert.Equal(t, 1, Run(nil, "/", envOf(map[string]string{beadswire.EnvURL: "http://127.0.0.1:1", beadswire.EnvToken: "t"}), nil, &bytes.Buffer{}, &stderr))
 	assert.Contains(t, stderr.String(), "not reachable")
 }
 

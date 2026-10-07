@@ -179,9 +179,13 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 - Skills d'orchestration et `docs/worktree.md` : les worktrees sont des dossiers frères du dépôt (`../<projet>-<branche>`), pas `.worktrees/<slug>`.
 - Test `TestDeployAgentConfigE2E` en échec dans un clone neuf (fixture ignorée par `.gitignore`).
 - Review parallèle (`oh review --mode standard+adversarial` / `all`) impossible sous opencode V2 : le reviewer ne pouvait pas lancer ses propres sessions (auto-délégation retirée du paquet). Une auto-délégation explicite (`task: { reviewer: allow }`, `calls: [reviewer]`) est désormais conservée.
+- `code_mode` et `modes.allowed` sont des champs de sécurité : une couche qui étend un workflow ne peut plus activer le code mode ni ajouter un mode (`loosening`) ; le résumé d'impact compte tout mode ajouté comme un assouplissement.
+- Serveurs MCP en écriture : chaque serveur reçoit sa propre variable (`GITLAB_`, `GITHUB_`, `JIRA_`, `LINEAR_WRITE_ENABLED`) au lieu de `GITLAB_WRITE_ENABLED` pour tous ; les serveurs sans outil d'écriture n'en reçoivent pas.
+- `oh doctor` sort avec le code 1 quand une vérification échoue (les avertissements ne comptent pas) ; `oh beads` transmet le code de sortie de `bd`.
 
 ### Security
 
+- **`beads.allow` appliqué aussi en local** : le faux `bd` d'oh (`~/.oh/run/bin/bd`) passe en tête du `PATH` des sessions locales et de leurs sous-agents ; comme en conteneur, chaque commande passe par la passerelle Beads du démon, qui applique la liste du workflow (lecture seule sans bloc `beads:`). La règle shell de chaque agent refuse un `bd` appelé par un chemin (`/opt/homebrew/bin/bd …`), qui contournerait la passerelle. Les workflows livrés `feature`, `sweep`, `debug`, `quick`, `review-feedback`, `libre` et `onboarding` déclarent désormais leurs commandes Beads ; une couche qui les étend ne peut que restreindre ces listes.
 - Mode local : la base ne garde plus que l'empreinte des jetons du proxy (les jetons en clair laissés par une version précédente sont convertis au démarrage du démon) ; l'émission de jetons et l'arrêt du démon sont réservés à la CLI oh par une capacité gardée dans le trousseau (sinon un fichier 0600), jamais transmise aux serveurs des sessions ; le socket du démon refuse les processus d'un autre utilisateur ; la vérification d'isolation porte sur les règles que l'outil applique réellement à chaque agent. Vérifications « Sécurité » dans `oh doctor`. Voir SECURITY.md.
 
 ### Documentation

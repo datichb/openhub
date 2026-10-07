@@ -20,4 +20,6 @@ inputs:
     max_length: 8000
 prompt:
   template: prompts/libre.md.tmpl
+beads:
+  allow: [show, list, ready, search, children, comments, count, status, graph, history, create, update, close, reopen, edit, comment, dep, label, duplicate, supersede]
 runtime: { default: local, allowed: [local, container] }
