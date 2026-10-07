@@ -64,4 +64,3 @@ type TaskPermOverride struct {
 	// CanBeInvokedBy lists agent IDs that can call this agent via task.
 	CanBeInvokedBy []string `json:"can_be_invoked_by,omitempty" toml:"can_be_invoked_by,omitempty"`
 }
-

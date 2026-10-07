@@ -334,22 +334,22 @@ func runTeamInit(cmd *cobra.Command, args []string) error {
 
 	// ── Build shared team step state ──
 	tss := &teamStepState{
-		Ctx:               ctx,
-		Repo:              repo,
-		HasConfig:         hasConfig,
-		HasPolicies:       hasPolicies,
-		ExistingCfg:       existingCfg,
-		HasMember:         hasMember,
-		StaleDaysStr:      staleDaysStr,
-		MemberID:          memberID,
-		DisplayName:       displayName,
+		Ctx:                ctx,
+		Repo:               repo,
+		HasConfig:          hasConfig,
+		HasPolicies:        hasPolicies,
+		ExistingCfg:        existingCfg,
+		HasMember:          hasMember,
+		StaleDaysStr:       staleDaysStr,
+		MemberID:           memberID,
+		DisplayName:        displayName,
 		GitLabUsername:     gitlabUsername,
 		TrackerUsername:    trackerUsername,
 		MattermostUsername: mattermostUsername,
-		Role:              role,
-		WebhookURL:        webhookURL,
-		Channel:           channel,
-		BotName:           botName,
+		Role:               role,
+		WebhookURL:         webhookURL,
+		Channel:            channel,
+		BotName:            botName,
 	}
 	stepOpts := teamStepOpts{} // CLI wizard has no extra SkipIf
 	configStep := buildTeamConfigStep(tss, stepOpts)
@@ -1055,7 +1055,7 @@ func runTeamRejoin(cmd *cobra.Command, _ []string) error {
 			fmt.Fprintf(a.IO.Out, "  [3] %s\n", i18n.T("cmd.init.wizard_rejoin_token_skip"))
 			fmt.Fprintf(a.IO.Out, "  Choice [1]: ")
 			var choiceStr string
-			fmt.Fscanln(a.IO.In, &choiceStr)
+			_, _ = fmt.Fscanln(a.IO.In, &choiceStr)
 			switch choiceStr {
 			case "2":
 				// Enter new token
@@ -1084,7 +1084,7 @@ func runTeamRejoin(cmd *cobra.Command, _ []string) error {
 			fmt.Fprintf(a.IO.Out, "  [2] %s\n", i18n.T("cmd.init.wizard_rejoin_token_skip"))
 			fmt.Fprintf(a.IO.Out, "  Choice [1]: ")
 			var choiceStr string
-			fmt.Fscanln(a.IO.In, &choiceStr)
+			_, _ = fmt.Fscanln(a.IO.In, &choiceStr)
 			if choiceStr != "2" {
 				fmt.Fprintf(a.IO.Out, "  %s: ", i18n.T("cmd.init.wizard_rejoin_gitlab_token_label"))
 				if term.IsTerminal(int(os.Stdin.Fd())) {
@@ -1131,7 +1131,7 @@ func runTeamRejoin(cmd *cobra.Command, _ []string) error {
 		fmt.Fprintf(a.IO.Out, "  [2] %s\n", i18n.T("cmd.init.wizard_identity_skip"))
 		fmt.Fprintf(a.IO.Out, "  Choice [2]: ")
 		var choiceStr string
-		fmt.Fscanln(a.IO.In, &choiceStr)
+		_, _ = fmt.Fscanln(a.IO.In, &choiceStr)
 		if choiceStr == "1" {
 			fmt.Fprintf(a.IO.Out, "  %s: ", i18n.T("cmd.init.wizard_rejoin_gitlab_token_label"))
 			if term.IsTerminal(int(os.Stdin.Fd())) {

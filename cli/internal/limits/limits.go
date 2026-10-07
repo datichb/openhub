@@ -359,3 +359,43 @@ func floatStr(v float64) string {
 	}
 	return strconv.FormatFloat(v, 'f', -1, 64)
 }
+
+// BaselineFile is the usage a tool session reported when oh created it
+// without spending anything (a fork copies the history and its cost):
+// the ledger counts what is spent above it (v5 finalisation, Q3-6).
+const BaselineFile = "usage-baseline.json"
+
+// UsageBaseline is that reported usage.
+type UsageBaseline struct {
+	CostUSD   float64 `json:"cost_usd"`
+	TokensIn  int64   `json:"tokens_in"`
+	TokensOut int64   `json:"tokens_out"`
+}
+
+// SaveBaseline writes the usage baseline of a session (nothing when zero).
+func SaveBaseline(sessionsDir, sessionID string, b UsageBaseline) error {
+	if b == (UsageBaseline{}) {
+		return nil
+	}
+	p := filepath.Join(sessionsDir, sessionID, BaselineFile)
+	if err := os.MkdirAll(filepath.Dir(p), 0o700); err != nil {
+		return err
+	}
+	data, err := json.Marshal(b)
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(p, data, 0o600)
+}
+
+// LoadBaseline reads the usage baseline of a session (zero when none).
+func LoadBaseline(sessionsDir, sessionID string) UsageBaseline {
+	var b UsageBaseline
+	if sessionsDir == "" {
+		return b
+	}
+	if data, err := os.ReadFile(filepath.Join(sessionsDir, sessionID, BaselineFile)); err == nil {
+		_ = json.Unmarshal(data, &b)
+	}
+	return b
+}

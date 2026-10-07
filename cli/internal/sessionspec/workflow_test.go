@@ -8,11 +8,11 @@ import (
 
 func TestMCPToolAction(t *testing.T) {
 	a := MCPToolAction(WorkflowMCPServer, WorkflowToolCheckpoint)
-	assert.Equal(t, "mcp:workflow/workflow_checkpoint", a)
+	assert.Equal(t, "mcp:workflow/checkpoint", a)
 	s, tool, ok := ParseMCPToolAction(a)
 	assert.True(t, ok)
 	assert.Equal(t, "workflow", s)
-	assert.Equal(t, "workflow_checkpoint", tool)
+	assert.Equal(t, "checkpoint", tool)
 	for _, bad := range []string{"shell", "mcp:", "mcp:x", "mcp:/t", "mcp:s/"} {
 		_, _, ok := ParseMCPToolAction(bad)
 		assert.False(t, ok, bad)

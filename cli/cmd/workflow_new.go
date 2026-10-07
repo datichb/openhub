@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/spf13/cobra"
 
@@ -27,6 +28,7 @@ func workflowNewCmd() *cobra.Command {
 	f.String("extends", "", i18n.T("cmd.workflow.new.flags.extends"))
 	f.String("copy", "", i18n.T("cmd.workflow.new.flags.copy"))
 	f.String("file", "", i18n.T("cmd.workflow.new.flags.file"))
+	f.String("prompt-file", "", i18n.T("cmd.workflow.new.flags.prompt_file"))
 	f.Bool("no-edit", false, i18n.T("cmd.workflow.new.flags.no_edit"))
 	addWorkflowContextFlags(cmd)
 	return cmd
@@ -41,6 +43,7 @@ func runWorkflowNew(cmd *cobra.Command, args []string) error {
 	extends, _ := cmd.Flags().GetString("extends")
 	copyFrom, _ := cmd.Flags().GetString("copy")
 	file, _ := cmd.Flags().GetString("file")
+	promptFile, _ := cmd.Flags().GetString("prompt-file")
 	noEdit, _ := cmd.Flags().GetBool("no-edit")
 	if extends != "" && copyFrom != "" {
 		return errors.New(i18n.T("cmd.workflow.new.extends_and_copy"))
@@ -65,7 +68,17 @@ func runWorkflowNew(cmd *cobra.Command, args []string) error {
 		if e.YAML, err = readWorkflowFile(file); err != nil {
 			return err
 		}
-		e.Prompt = nil
+		// A document naming its own template: the given one, else a starter
+		// (before: refused, the template did not exist yet).
+		e.Prompt = workflowsvc.StarterPrompt(e.YAML)
+		if e.Prompt != nil && promptFile == "" {
+			fmt.Fprintln(errOut, i18n.T("cmd.workflow.new.starter_prompt"))
+		}
+	}
+	if promptFile != "" {
+		if e.Prompt, err = readWorkflowFile(promptFile); err != nil {
+			return err
+		}
 	}
 	d, err := saveDraftEdit(cmd, svc, c, e)
 	if err != nil {

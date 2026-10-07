@@ -349,7 +349,7 @@ func toRules(rules []sessionspec.PermissionRule) []Rule {
 }
 
 // ToolAction translates a neutral action to opencode's name. MCP tools are
-// named `<server>_<tool>` (verified on 2.0.20: `workflow_workflow_checkpoint`).
+// named `<server>_<tool>` (verified on 2.0.20: `workflow_checkpoint`).
 func ToolAction(action string) string {
 	if server, tool, ok := sessionspec.ParseMCPToolAction(action); ok {
 		return server + "_" + tool

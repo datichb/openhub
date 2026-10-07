@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"os"
 	"path/filepath"
 
 	"github.com/datichb/openhub/cli/internal/domain"
@@ -31,6 +32,10 @@ const (
 	WarnSharedLocation = "shared_location" // writers share a directory (no git: no worktree)
 	WarnDirty          = "dirty"           // uncommitted changes where a writer starts
 	WarnPending        = "pending"         // decisions already waiting in other sessions
+	// WarnVolumeMountPoint: a relative cache volume of the container is
+	// absent from a location; the engine creates it there, empty, as the
+	// mount point (its content stays in the container volume).
+	WarnVolumeMountPoint = "volume_mount_point"
 )
 
 // WorkflowRef identifies the launched workflow in the session records.
@@ -119,6 +124,7 @@ func (s *Service) Plan(ctx context.Context, req RunRequest) (*RunPlan, error) {
 	for i, in := range inputs {
 		plan.Sessions = append(plan.Sessions, PlannedSession{PlannedInput: in, Location: locs[i]})
 	}
+	plan.Warnings = append(plan.Warnings, volumeMountPoints(req.Base, locs)...)
 	if s.Decisions != nil {
 		if open, err := s.Decisions.ListOpen(ctx, domain.DecisionFilter{}); err == nil && len(open) > 0 {
 			plan.Warnings = append(plan.Warnings, Warning{Code: WarnPending, Args: []any{len(open)}})
@@ -205,4 +211,30 @@ func (s *Service) RuntimeAvailability(ctx context.Context, kind sessionspec.Runt
 		return ohruntime.Availability{}, fmt.Errorf("runsvc: runtime %q is not available", kind)
 	}
 	return rt.Available(ctx)
+}
+
+// volumeMountPoints warns about the relative cache volumes of a container
+// run that are absent from a location (v5 finalisation, Q3-4).
+func volumeMountPoints(base StartRequest, locs []Location) []Warning {
+	if base.Runtime != sessionspec.RuntimeContainer {
+		return nil
+	}
+	var out []Warning
+	seen := map[string]bool{}
+	for _, l := range locs {
+		for _, v := range base.Volumes {
+			if v == "" || filepath.IsAbs(v) {
+				continue
+			}
+			p := filepath.Join(l.Path, v)
+			if seen[p] {
+				continue
+			}
+			seen[p] = true
+			if _, err := os.Stat(p); errors.Is(err, os.ErrNotExist) {
+				out = append(out, Warning{Code: WarnVolumeMountPoint, Args: []any{v, p}})
+			}
+		}
+	}
+	return out
 }

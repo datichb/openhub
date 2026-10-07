@@ -507,6 +507,10 @@ func (v *SessionsView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 		if d != nil && (d.Kind == DecisionKindError || d.Kind == DecisionKindBudget || d.Kind == DecisionKindCircuit) {
 			v.decide(d, "dismiss", "", nil)
 		}
+	case '$':
+		if d != nil && d.Kind == DecisionKindBudget {
+			v.raiseBudget(d)
+		}
 	case 'a':
 		if r != nil {
 			v.cfg.Backend.Attach(r.ID, "")
@@ -651,6 +655,19 @@ func (v *SessionsView) decide(d *SessionDecision, choice, message string, answer
 	}, i18n.T("tui.inbox.answered"))
 }
 
+// raiseBudget raises the allowance of a budget decision ($): an amount in
+// USD, or empty for the default (what was spent over the allowance plus the
+// configured budget once more), as `oh budget raise`.
+func (v *SessionsView) raiseBudget(d *SessionDecision) {
+	if v.shell == nil {
+		return
+	}
+	dec := *d
+	v.shell.ShowInputModal(i18n.T("tui.sessions.raise_title"), "", func(amount string) {
+		v.decide(&dec, "raise", strings.TrimSpace(amount), nil)
+	})
+}
+
 func (v *SessionsView) showMR(id string) {
 	v.async(func(ctx context.Context) (string, error) { return v.cfg.Backend.MRDescription(ctx, id) }, func(md string) {
 		if v.shell != nil {
@@ -709,14 +726,18 @@ func (v *SessionsView) openDecision(r *SessionRow, d *SessionDecision) {
 		if r != nil {
 			id = r.ID
 		}
-		v.shell.ShowScrollableModal(d.Icon+" "+who, tview.Escape(text), []ModalAction{
+		actions := []ModalAction{
 			{Label: i18n.T("tui.inbox.dismiss"), Callback: func() { v.decide(&dec, "dismiss", "", nil) }},
 			{Label: i18n.T("tui.sessions.attach"), Callback: func() {
 				if id != "" {
 					v.cfg.Backend.Attach(id, "")
 				}
 			}},
-		})
+		}
+		if d.Kind == DecisionKindBudget {
+			actions = append([]ModalAction{{Label: i18n.T("tui.inbox.raise"), Callback: func() { v.raiseBudget(&dec) }}}, actions...)
+		}
+		v.shell.ShowScrollableModal(d.Icon+" "+who, tview.Escape(text), actions)
 	default:
 		id := ""
 		if r != nil {

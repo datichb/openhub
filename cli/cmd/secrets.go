@@ -327,7 +327,7 @@ func runSecretsCleanup(dryRun bool) error {
 	accounts, err := ks.ListKeychainAccounts()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "  %s %s\n", theme.WarningStyle.Render(theme.IconDot), i18n.T("cmd.secrets.cleanup_not_supported"))
-		return nil
+		return nil //nolint:nilerr // listing unsupported on this platform: warn and stop
 	}
 
 	fmt.Fprintf(os.Stdout, "  %s\n", i18n.Tf("cmd.secrets.cleanup_scanning", "openhub-oh"))

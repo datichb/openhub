@@ -75,6 +75,7 @@ func newFixture(t *testing.T, secrets mapSecrets) *fixture {
 	go func() {
 		done <- daemon.Run(ctx, daemon.Options{Paths: paths, Version: "test", Grants: sqlite.NewGrantStore(st), Servers: sqlite.NewServerStore(st), Secrets: secrets, Tick: time.Second,
 			Sessions: sqlite.NewSessionStore(st), SessionsDir: filepath.Join(root, "sessions"),
+			Usage: sqlite.NewUsageStore(st), Decisions: sqlite.NewDecisionStore(st),
 			Adapter: func(string) adapters.ToolAdapter { return a }})
 	}()
 	t.Cleanup(func() { cancel(); <-done })

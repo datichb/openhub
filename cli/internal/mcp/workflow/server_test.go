@@ -72,13 +72,13 @@ func TestToolsList(t *testing.T) {
 	for _, tl := range out.Result.Tools {
 		names = append(names, tl.Name)
 	}
-	assert.ElementsMatch(t, []string{"workflow_status", "workflow_checkpoint", "workflow_outputs"}, names)
+	assert.ElementsMatch(t, []string{"status", "checkpoint", "outputs"}, names)
 }
 
 func TestCheckpointCall(t *testing.T) {
 	i18n.SetLocale("fr")
 	b := &fakeBackend{}
-	out := call(t, b, "tools/call", `{"name":"workflow_checkpoint","arguments":{"id":" cp-1 ","summary":"prêt"},`+meta+`}`)
+	out := call(t, b, "tools/call", `{"name":"checkpoint","arguments":{"id":" cp-1 ","summary":"prêt"},`+meta+`}`)
 	require.False(t, out.Result.IsError, out.Result.Content)
 	assert.Equal(t, []string{"ses_child"}, b.sessions, "session read from _meta")
 	assert.Equal(t, []checkpoint.Call{{ID: "cp-1", Summary: "prêt"}}, b.calls)
@@ -89,39 +89,39 @@ func TestCheckpointCall(t *testing.T) {
 }
 
 func TestCheckpointWithoutDaemonStillLetsTheAgentGoOn(t *testing.T) {
-	out := call(t, &fakeBackend{err: daemon.ErrNotRunning}, "tools/call", `{"name":"workflow_checkpoint","arguments":{"id":"cp-1","summary":"x"},`+meta+`}`)
+	out := call(t, &fakeBackend{err: daemon.ErrNotRunning}, "tools/call", `{"name":"checkpoint","arguments":{"id":"cp-1","summary":"x"},`+meta+`}`)
 	assert.False(t, out.Result.IsError)
 }
 
 func TestErrors(t *testing.T) {
-	out := call(t, &fakeBackend{}, "tools/call", `{"name":"workflow_status","arguments":{}}`)
+	out := call(t, &fakeBackend{}, "tools/call", `{"name":"status","arguments":{}}`)
 	assert.True(t, out.Result.IsError, "no session in _meta")
 
-	out = call(t, &fakeBackend{}, "tools/call", `{"name":"workflow_checkpoint","arguments":{"summary":"x"},`+meta+`}`)
+	out = call(t, &fakeBackend{}, "tools/call", `{"name":"checkpoint","arguments":{"summary":"x"},`+meta+`}`)
 	assert.True(t, out.Result.IsError, "id required")
 
 	api := &daemon.APIError{Status: 422, Message: `unknown checkpoint "cp-9" (cp-1, cp-2)`}
-	out = call(t, &fakeBackend{err: api}, "tools/call", `{"name":"workflow_checkpoint","arguments":{"id":"cp-9","summary":"x"},`+meta+`}`)
+	out = call(t, &fakeBackend{err: api}, "tools/call", `{"name":"checkpoint","arguments":{"id":"cp-9","summary":"x"},`+meta+`}`)
 	assert.True(t, out.Result.IsError)
 	assert.Equal(t, api.Message, out.Result.Content[0].Text, "daemon message shown as is")
 
-	out = call(t, &fakeBackend{err: daemon.ErrNotRunning}, "tools/call", `{"name":"workflow_status","arguments":{},`+meta+`}`)
+	out = call(t, &fakeBackend{err: daemon.ErrNotRunning}, "tools/call", `{"name":"status","arguments":{},`+meta+`}`)
 	assert.True(t, out.Result.IsError)
 }
 
 func TestStatusAndOutputs(t *testing.T) {
 	b := &fakeBackend{}
-	out := call(t, b, "tools/call", `{"name":"workflow_status","arguments":{},`+meta+`}`)
+	out := call(t, b, "tools/call", `{"name":"status","arguments":{},`+meta+`}`)
 	require.False(t, out.Result.IsError)
 	var st checkpoint.Status
 	require.NoError(t, json.Unmarshal([]byte(out.Result.Content[0].Text), &st))
 	assert.Equal(t, "cp-1", st.Next)
 
-	out = call(t, b, "tools/call", `{"name":"workflow_outputs","arguments":{"type":"branch","value":"feat/x"},`+meta+`}`)
+	out = call(t, b, "tools/call", `{"name":"outputs","arguments":{"type":"branch","value":"feat/x"},`+meta+`}`)
 	require.False(t, out.Result.IsError)
 	assert.Equal(t, "feat/x", b.outputs[0].Value)
 
-	out = call(t, b, "tools/call", `{"name":"workflow_outputs","arguments":{"type":"branch"},`+meta+`}`)
+	out = call(t, b, "tools/call", `{"name":"outputs","arguments":{"type":"branch"},`+meta+`}`)
 	assert.True(t, out.Result.IsError, "value required")
 }
 

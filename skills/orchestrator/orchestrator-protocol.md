@@ -136,7 +136,7 @@ Le premier message donne la demande et les entrées du workflow (voir la carte d
 
 | Entrée | Action |
 |--------|--------|
-| Demande en langage naturel | Choisir l'agent de planning (`pathfinder` ou `planner`, heuristique de `shared/hub-workflow-reference`) |
+| Demande en langage naturel | Choisir l'agent de planning : `pathfinder` pour une feature simple, exploratoire ou un prototype ; `planner` pour une feature complexe (multi-composants, refonte, migration, UX, sécurité, performance, RGPD, accessibilité) ou à découper en tickets ; en cas de doute, poser la question avec l'outil `question` |
 | Tickets Beads existants | Déléguer au `planner` en mode classification |
 | Bug ou anomalie | `debugger` s'il fait partie du workflow, sinon proposer le workflow `debug` |
 | Projet sans contexte | Proposer le workflow `onboarding` (oh le propose aussi avant le lancement) |
@@ -184,7 +184,7 @@ X tickets identifiés — Y phases au total. Z en TDD (tests écrits avant impl�
 
 ## Routing
 
-Le routing est entièrement délégué au planner. Catalogue agents et heuristique pathfinder/planner : skill `shared/hub-workflow-reference`.
+Le routing est entièrement délégué au planner. Agents de la session : section « Référence du workflow » de ce prompt ; choix pathfinder/planner : tableau des entrées ci-dessus.
 
 ---
 

@@ -29,6 +29,9 @@ const (
 type PromptContext struct {
 	Project  string
 	Location string
+	// Branch is the dedicated branch the session works on (its worktree, or
+	// a branch other than the base one); empty on the base branch.
+	Branch   string
 	Mode     string
 	Runtime  string
 	Lang     string
@@ -39,6 +42,7 @@ func (c PromptContext) values() map[string]any {
 	return map[string]any{
 		"project":  c.Project,
 		"location": c.Location,
+		"branch":   c.Branch,
 		"mode":     c.Mode,
 		"runtime":  c.Runtime,
 		"lang":     c.Lang,
@@ -59,7 +63,7 @@ func promptFuncs(s *Spec) template.FuncMap {
 			if _, ok := s.Inputs.Get(name); !ok {
 				return "", fmt.Errorf("data %q: unknown input", name)
 			}
-			return DelimitData(name, fmt.Sprint(textOf(v))), nil
+			return DelimitData(name, textOf(v)), nil
 		},
 		"join": func(v any, sep string) string {
 			return strings.Join(listOf(v), sep)
@@ -245,11 +249,11 @@ func typedInput(name string, in Input, v any) (any, error) {
 	if (in.Type == InputPath || in.Type == InputBranch) && strings.ContainsAny(str, "\r\n") {
 		return nil, fmt.Errorf("input %q: a %s value is a single line", name, in.Type)
 	}
-	max := in.MaxLength
-	if max <= 0 {
-		max = DefaultInputMaxLength
+	limit := in.MaxLength
+	if limit <= 0 {
+		limit = DefaultInputMaxLength
 	}
-	return truncate(str, max), nil
+	return truncate(str, limit), nil
 }
 
 func textOf(v any) string {
@@ -289,12 +293,12 @@ func listOf(v any) []string {
 	return out
 }
 
-// truncate cuts s to max runes and says so (O11).
-func truncate(s string, max int) string {
+// truncate cuts s to limit runes and says so (O11).
+func truncate(s string, limit int) string {
 	n := utf8.RuneCountInString(s)
-	if n <= max {
+	if n <= limit {
 		return s
 	}
 	runes := []rune(s)
-	return string(runes[:max]) + fmt.Sprintf("\n[… tronqué : %d caractères sur %d]", max, n)
+	return string(runes[:limit]) + fmt.Sprintf("\n[… tronqué : %d caractères sur %d]", limit, n)
 }

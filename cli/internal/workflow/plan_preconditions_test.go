@@ -25,7 +25,7 @@ func TestRiskPlan(t *testing.T) {
 	if len(diags) != 0 {
 		t.Fatalf("plan workflow: %v", diags)
 	}
-	if !(RiskRead.Rank() < RiskPlan.Rank() && RiskPlan.Rank() < RiskWrite.Rank()) {
+	if RiskRead.Rank() >= RiskPlan.Rank() || RiskPlan.Rank() >= RiskWrite.Rank() {
 		t.Fatal("plan must rank between read and write")
 	}
 	for _, c := range []struct {

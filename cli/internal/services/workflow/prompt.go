@@ -19,11 +19,12 @@ const ModeLinePrefix = "Mode de workflow : "
 type PromptContext struct {
 	Project  string
 	Location string
+	Branch   string // dedicated work branch, "" on the base branch
 	Lang     string
 }
 
 func (r *Resolution) promptContext(pc PromptContext) wf.PromptContext {
-	return wf.PromptContext{Project: pc.Project, Location: pc.Location, Mode: r.Mode,
+	return wf.PromptContext{Project: pc.Project, Location: pc.Location, Branch: pc.Branch, Mode: r.Mode,
 		Runtime: string(r.Runtime), Lang: pc.Lang, Workflow: r.Spec.ID}
 }
 

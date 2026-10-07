@@ -14,12 +14,23 @@ import (
 // bundle built from a workflow (`oh mcp serve workflow`).
 const WorkflowMCPServer = "workflow"
 
-// Tools of the workflow MCP server.
+// Tools of the workflow MCP server. Tools reach the model as
+// <server>_<tool> (opencode), i.e. workflow_checkpoint: the name the agents
+// and the generated skills use.
 const (
-	WorkflowToolStatus     = "workflow_status"
-	WorkflowToolCheckpoint = "workflow_checkpoint"
-	WorkflowToolOutputs    = "workflow_outputs"
+	WorkflowToolStatus     = "status"
+	WorkflowToolCheckpoint = "checkpoint"
+	WorkflowToolOutputs    = "outputs"
 )
+
+// LegacyWorkflowTools maps the tool names served before v5 finalisation
+// (Q3-2: the model saw workflow_workflow_checkpoint) to the current ones, so
+// that the events of a session started before the rename are still read.
+var LegacyWorkflowTools = map[string]string{
+	"workflow_status":     WorkflowToolStatus,
+	"workflow_checkpoint": WorkflowToolCheckpoint,
+	"workflow_outputs":    WorkflowToolOutputs,
+}
 
 // OhBinVar stands for the oh executable in MCP server commands. Adapters
 // expand it when they start a server (WithOhBinary); the bundle hash covers

@@ -257,7 +257,7 @@ func TestRenderMCPToolActions(t *testing.T) {
 	require.NoError(t, err)
 	data, err := json.Marshal(cfg)
 	require.NoError(t, err)
-	assert.Contains(t, string(data), `{"action":"workflow_workflow_checkpoint","resource":"*","effect":"ask"}`)
+	assert.Contains(t, string(data), `{"action":"workflow_checkpoint","resource":"*","effect":"ask"}`)
 	assert.Contains(t, string(data), `"command":["{{oh.bin}}","mcp","serve","workflow"]`, "expanded when the server starts, not in the rendered bundle")
 
 	assert.Equal(t, "shell", ToolAction("shell"))

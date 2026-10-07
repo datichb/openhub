@@ -149,12 +149,12 @@ var errNoHTTPClient = errors.New("no HTTP client in the image")
 // container and returns the HTTP status received (0 = not reachable): the
 // gateway routes only serve POST, a 401 proves the route and the address. The first image with curl or wget
 // is used (images are tried in order); the image used is returned.
-func (r *Runtime) ProbeHTTP(ctx context.Context, e Engine, images []string, urls []string) (map[string]int, string, error) {
+func (r *Runtime) ProbeHTTP(ctx context.Context, e Engine, images, urls []string) (status map[string]int, image string, err error) {
 	script := `for u in "$@"; do ` +
 		`if command -v curl >/dev/null 2>&1; then c=$(curl -s -o /dev/null -m 5 -X POST -d '{}' -w '%{http_code}' "$u"); ` +
 		`elif command -v wget >/dev/null 2>&1; then c=$(wget -S -q -T 5 --post-data '{}' -O /dev/null "$u" 2>&1 | grep -o 'HTTP/[0-9.]* [0-9]*' | tail -1 | cut -d' ' -f2); ` +
 		`else exit 127; fi; echo "$u ${c:-0}"; done`
-	var lastErr error = errNoHTTPClient
+	lastErr := errNoHTTPClient
 	for _, img := range images {
 		if img == "" {
 			continue

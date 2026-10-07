@@ -15,7 +15,7 @@ func TestInnerBundleTranslatesPaths(t *testing.T) {
 	m := ohruntime.PathMap{{Host: "/h/bundle", Inner: "/opt/oh/bundle"}, {Host: "/h/data", Inner: "/opt/oh/data"}}
 	b := sessionspec.BundleSpec{
 		Root: "/h/bundle", SkillsDir: "/h/bundle/skills",
-		Skills:  []sessionspec.SkillDef{{ID: "a", Dir: "/h/bundle/skills/a"}},
+		Skills: []sessionspec.SkillDef{{ID: "a", Dir: "/h/bundle/skills/a"}},
 		Plugins: []sessionspec.PluginDef{
 			{ID: OhPluginID, Dir: "/h/data/oh-plugin", Options: map[string]any{"agentsDir": "/h/data/oh-plugin/agents", "agents": []string{"x"}, "rel": "not/abs"}},
 			{ID: "context-mode", Dir: "context-mode@latest"},

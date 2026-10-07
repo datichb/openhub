@@ -191,6 +191,9 @@ var workflowTools = func() map[string]string {
 		a := sessionspec.MCPToolAction(sessionspec.WorkflowMCPServer, t)
 		out[ToolAction(a)] = a
 	}
+	for legacy, t := range sessionspec.LegacyWorkflowTools {
+		out[ToolAction(sessionspec.MCPToolAction(sessionspec.WorkflowMCPServer, legacy))] = sessionspec.MCPToolAction(sessionspec.WorkflowMCPServer, t)
+	}
 	return out
 }()
 

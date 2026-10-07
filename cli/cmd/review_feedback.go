@@ -84,7 +84,7 @@ func runReviewFeedback(cmd *cobra.Command, args []string) error {
 	if !noConfirm {
 		fmt.Fprintf(a.IO.Out, "\n  %s", i18n.T("cmd.review.feedback.confirm"))
 		var resp string
-		fmt.Scanln(&resp)
+		_, _ = fmt.Scanln(&resp)
 		resp = strings.TrimSpace(strings.ToLower(resp))
 		if resp == "n" || resp == "no" || resp == "non" {
 			return nil

@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"bytes"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -14,7 +15,10 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/config"
+	"github.com/datichb/openhub/cli/internal/domain"
+	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/teamstate"
+	"github.com/datichb/openhub/cli/internal/workflow"
 )
 
 // workflowCLIEnv is an oh home with the repository hub, the test workflows
@@ -220,4 +224,49 @@ func TestWorkflowEditingSoloDefault(t *testing.T) {
 	require.Error(t, err)
 	_, err = runWorkflowSub(t, workflowNewCmd, "x", "--team", "solo", "--project", "p", "--no-edit")
 	require.Error(t, err)
+}
+
+// oh workflow new --file with a document naming a template that does not
+// exist yet: a starter template is created, or the --prompt-file one (v5
+// finalisation, Q3-7: refused before).
+func TestWorkflowNewFileWithOwnTemplate(t *testing.T) {
+	setupWorkflowCLI(t, "alice")
+	doc := "apiVersion: oh/v1\nkind: Workflow\nid: %s\nrisk: write\nentry:\n  agent: developer\n" +
+		"inputs:\n  request:\n    type: text\n    max_length: 4000\n  ticket:\n    type: beads-id\n" +
+		"prompt:\n  template: prompts/%[1]s.md.tmpl\nagents:\n  developer: { role: workflow, mode: primary }\n"
+
+	out, err := runWorkflowSub(t, workflowNewCmd, "hotfix", "--file", writeTemp(t, fmt.Sprintf(doc, "hotfix")), "--no-edit")
+	require.NoError(t, err, out)
+	assert.Contains(t, out, i18n.T("cmd.workflow.new.starter_prompt"))
+	svc := newWorkflowService(t.Context())
+	c, err := workflowCmdContext(workflowNewCmd())
+	require.NoError(t, err)
+	txt, err := svc.EditText(t.Context(), c, workflow.LayerTeam, "hotfix")
+	require.NoError(t, err)
+	assert.Contains(t, string(txt.Prompt), `{{ data "request" .request }}`, "free text delimited (O11)")
+	assert.Contains(t, string(txt.Prompt), "{{ .ticket }}")
+
+	prompt := filepath.Join(t.TempDir(), "p.md.tmpl")
+	require.NoError(t, os.WriteFile(prompt, []byte("Mode de workflow : {{ .oh.mode }}\nFais : {{ data \"request\" .request }}\n"), 0o644))
+	out, err = runWorkflowSub(t, workflowNewCmd, "hotfix2", "--file", writeTemp(t, fmt.Sprintf(doc, "hotfix2")), "--prompt-file", prompt, "--no-edit")
+	require.NoError(t, err, out)
+	assert.NotContains(t, out, i18n.T("cmd.workflow.new.starter_prompt"))
+	txt, err = svc.EditText(t.Context(), c, workflow.LayerTeam, "hotfix2")
+	require.NoError(t, err)
+	assert.Contains(t, string(txt.Prompt), "Fais : ")
+}
+
+// oh run on a workflow with a required input given by --tickets: the
+// first resolution (to learn the ticket input) must not check the inputs
+// (v5 finalisation, Q4 recette: « Missing required input: ticket » for
+// every such workflow since 3.E).
+func TestPrepareRunRequiredTicketInput(t *testing.T) {
+	setupWorkflowCLI(t, "alice")
+	var errOut bytes.Buffer
+	opts := runOptions{Workflow: "ticket", Tickets: []string{"bd-1", "bd-2"}, Project: &domain.Project{ID: "p1", Name: "p", Path: t.TempDir()}}
+	res, input, perSession, err := resolveLaunch(t.Context(), application, &opts, &errOut)
+	require.NoError(t, err, errOut.String())
+	assert.Equal(t, "ticket", input)
+	assert.Equal(t, []string{"bd-1", "bd-2"}, perSession)
+	assert.Equal(t, "bd-1", res.Inputs["ticket"])
 }

@@ -136,6 +136,7 @@ func Build(req Request) (*Bundle, error) {
 	skillRefs := map[string]bool{}
 	loader := newSkillLoader(req.HubDir, generated)
 	denied := denyList(req.DenySkills)
+	mentionIndex := hubSkillIndex(req.HubDir, generated)
 	ids := skillIndex{}
 	for _, id := range selected {
 		fm, err := bricks.ParseAgentFrontmatter(files[id])
@@ -146,6 +147,7 @@ func Build(req Request) (*Bundle, error) {
 		if err != nil {
 			return nil, fmt.Errorf("agent %s: %w", id, err)
 		}
+		inlined := map[string]bool{}
 		bodies := make([][]byte, 0, len(inline))
 		for _, d := range inline {
 			if err := ids.add(d); err != nil {
@@ -158,11 +160,17 @@ func Build(req Request) (*Bundle, error) {
 			if err := writeAnnexes(filepath.Join(tmp, skillsDir), d, files); err != nil {
 				return nil, err
 			}
-			bodies = append(bodies, inlineAnnexRefs(d.body(), d, files))
+			inlined[d.ID] = true
+			bodies = append(bodies, append([]byte(inlinedSkillHeading(d.ID)), inlineAnnexRefs(d.body(), d, files)...))
 		}
 		a, err := bricks.AssembleAgentInline(req.HubDir, files[id], bodies)
 		if err != nil {
 			return nil, err
+		}
+		for _, ref := range mentionedSkills(a.Body, mentionIndex) {
+			if d, err := loader.load(ref); err == nil && !inlined[d.ID] && deliverable(loader, ref, denied) {
+				skillRefs[ref] = true
+			}
 		}
 		def, err := agentDef(req, a, instructions)
 		if err != nil {

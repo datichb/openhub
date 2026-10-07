@@ -114,8 +114,10 @@ todowrite({
 
 ### Étape 1b — Branche dédiée ⏸️ PAUSE
 
-> ⚠️ Cette étape ne peut pas être sautée, quel que soit le mode (manuel, semi-auto ou auto).
-> Elle s'exécute TOUJOURS après CP-1, avant toute délégation à un `developer-*`.
+> Si le premier message contient une ligne `Branche de travail : <branche>`, la session a déjà sa branche (worktree ou branche dédiée choisie au lancement) : **sauter cette étape**, sans question ni création de branche, et indiquer cette branche à l'agent développeur.
+>
+> Sinon, cette étape ne peut pas être sautée, quel que soit le mode (manuel, semi-auto ou auto).
+> Elle s'exécute après CP-1, avant toute délégation à un `developer-*`.
 
 Calculer le nom de branche selon la convention `<type>/<ticket-id>-<description-courte>` à partir du type et du titre du ticket, puis :
 

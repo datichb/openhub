@@ -39,6 +39,8 @@
     "dev-standards-git",
     "dev-standards-security",
     "dev-standards-testing",
+    "expert-posture",
+    "handoff-bloc-unique-rule",
     "living-docs-enrichment",
     "review-merge",
     "reviewer-adversarial",
@@ -46,6 +48,7 @@
     "reviewer-standalone",
     "reviewer-subagent",
     "rtk-usage",
+    "subagent-concision-posture",
     "team-awareness",
     "team-policies-enforcement"
   ],

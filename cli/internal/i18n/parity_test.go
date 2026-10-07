@@ -1,6 +1,7 @@
 package i18n
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"regexp"
@@ -116,6 +117,46 @@ func filterEscapedPercent(verbs []string) []string {
 		}
 	}
 	return filtered
+}
+
+// TestNoDuplicateKeys decodes each locale token by token: json.Unmarshal keeps
+// the last value of a repeated key silently, which hides the first one.
+func TestNoDuplicateKeys(t *testing.T) {
+	for _, locale := range []string{"fr", "en"} {
+		data, err := localeFS.ReadFile("locales/" + locale + ".json")
+		require.NoError(t, err)
+		for _, key := range duplicateKeys(t, data) {
+			t.Errorf("[%s] key %q is defined more than once", locale, key)
+		}
+	}
+}
+
+func duplicateKeys(t *testing.T, data []byte) []string {
+	t.Helper()
+	dec := json.NewDecoder(bytes.NewReader(data))
+	tok, err := dec.Token()
+	require.NoError(t, err)
+	require.Equal(t, json.Delim('{'), tok, "locale must be a JSON object")
+	seen := map[string]bool{}
+	var dups []string
+	for dec.More() {
+		tok, err := dec.Token()
+		require.NoError(t, err)
+		key, ok := tok.(string)
+		require.True(t, ok, "expected a key, got %v", tok)
+		var value string
+		require.NoError(t, dec.Decode(&value), "value of %q", key)
+		if seen[key] {
+			dups = append(dups, key)
+		}
+		seen[key] = true
+	}
+	return dups
+}
+
+func TestDuplicateKeysDetected(t *testing.T) {
+	got := duplicateKeys(t, []byte(`{"a": "1", "b": "2", "a": "3"}`))
+	assert.Equal(t, []string{"a"}, got)
 }
 
 // TestJSONValidity verifies both locale files are valid JSON.

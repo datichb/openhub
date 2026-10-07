@@ -123,7 +123,7 @@ func TestWatcherCheckpoints(t *testing.T) {
 		return &adapters.ToolCall{ID: "call_" + id, Action: bundle.CheckpointAction(), Status: adapters.CallCalled, Input: map[string]any{"id": id, "summary": "s " + id}}
 	}
 	fake.set(func() {
-		fake.decisions["ses_a"] = []adapters.PendingDecision{{ID: "per_1", SessionID: "ses_a", Kind: adapters.DecisionPermission, Action: "workflow_workflow_checkpoint", Call: cpCall("cp-1")}}
+		fake.decisions["ses_a"] = []adapters.PendingDecision{{ID: "per_1", SessionID: "ses_a", Kind: adapters.DecisionPermission, Action: "workflow_checkpoint", Call: cpCall("cp-1")}}
 	})
 	ch <- adapters.ToolEvent{Kind: adapters.EventDecisionAsked, SessionID: "ses_a"}
 	require.Eventually(t, func() bool { return fake.replyCount() == 1 }, 3*time.Second, 20*time.Millisecond)
@@ -141,7 +141,7 @@ func TestWatcherCheckpoints(t *testing.T) {
 
 	// cp-2 pauses: ⏸ decision in the inbox.
 	fake.set(func() {
-		fake.decisions["ses_a"] = []adapters.PendingDecision{{ID: "per_2", SessionID: "ses_a", Kind: adapters.DecisionPermission, Action: "workflow_workflow_checkpoint", Call: cpCall("cp-2")}}
+		fake.decisions["ses_a"] = []adapters.PendingDecision{{ID: "per_2", SessionID: "ses_a", Kind: adapters.DecisionPermission, Action: "workflow_checkpoint", Call: cpCall("cp-2")}}
 	})
 	ch <- adapters.ToolEvent{Kind: adapters.EventDecisionAsked, SessionID: "ses_a"}
 	require.Eventually(t, func() bool { l := open(); return len(l) == 1 && l[0].Kind == domain.DecisionCheckpoint }, 3*time.Second, 20*time.Millisecond)

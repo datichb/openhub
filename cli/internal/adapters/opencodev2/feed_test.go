@@ -66,10 +66,10 @@ func TestFeedToolCalls(t *testing.T) {
 		f.decode(e)
 		return c
 	}
-	assert.Nil(t, step(ev("session.tool.input.started", `{"sessionID":"s","id":"c1","name":"workflow_workflow_checkpoint"}`)))
+	assert.Nil(t, step(ev("session.tool.input.started", `{"sessionID":"s","id":"c1","name":"workflow_checkpoint"}`)))
 	c := step(ev("session.tool.called", `{"sessionID":"s","id":"c1","input":{"id":"cp-1","summary":"ok"}}`))
 	require.NotNil(t, c)
-	assert.Equal(t, sessionspec.MCPToolAction("workflow", "workflow_checkpoint"), c.Action)
+	assert.Equal(t, sessionspec.MCPToolAction("workflow", "checkpoint"), c.Action)
 	assert.Equal(t, adapters.CallCalled, c.Status)
 	assert.Equal(t, "cp-1", c.Input["id"])
 	c = step(ev("session.tool.success", `{"sessionID":"s","id":"c1"}`))
@@ -85,4 +85,8 @@ func TestFeedToolCalls(t *testing.T) {
 
 	assert.Nil(t, step(ev("session.tool.success", `{"sessionID":"s","id":"unknown"}`)), "call started before the stream")
 	assert.Equal(t, "shell", NeutralAction("shell"))
+	assert.Equal(t, "workflow_checkpoint", ToolAction(sessionspec.MCPToolAction("workflow", sessionspec.WorkflowToolCheckpoint)),
+		"the model sees the name used by the agents (Q3-2)")
+	assert.Equal(t, sessionspec.MCPToolAction("workflow", "checkpoint"), NeutralAction("workflow_workflow_checkpoint"),
+		"a session started before the rename is still read")
 }

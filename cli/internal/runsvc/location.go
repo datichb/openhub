@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/worktree"
@@ -58,6 +59,24 @@ type Location struct {
 // RiskWrites reports whether a workflow risk may modify files: read and plan
 // (Beads only) do not; an unknown risk (legacy launch) counts as writing.
 func RiskWrites(risk string) bool { return risk != "read" && risk != "plan" }
+
+// WorkBranch is the dedicated branch a session works on: the branch of its
+// worktree, or the current branch of the project when it is not the base
+// one. "" on the base branch, a detached HEAD or outside git: the agent may
+// then offer to create a branch.
+func (l Location) WorkBranch(projectPath string) string {
+	if l.Kind == LocationWorktree {
+		return l.Branch
+	}
+	cur, err := worktree.CurrentBranch(l.Path)
+	if err != nil || cur == "" || strings.HasPrefix(cur, "(detached)") {
+		return ""
+	}
+	if cur == worktree.DetectBaseBranch(projectPath) {
+		return ""
+	}
+	return cur
+}
 
 // ErrNotGitRepo is returned when a worktree is needed outside a git repository.
 var ErrNotGitRepo = errors.New("the project is not a git repository: worktrees are unavailable")

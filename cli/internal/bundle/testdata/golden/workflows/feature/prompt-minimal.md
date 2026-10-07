@@ -1,10 +1,10 @@
 Mode de workflow : semi-auto
 Langue de réponse : fr
 
-Le mode est fixé au lancement : ne le redemande pas. Les agents de la session sont décrits par `hub-workflow-reference`, les checkpoints et leur comportement selon le mode par `orchestrator-workflow-modes`.
+Le mode est fixé au lancement : ne le redemande pas. Les agents de la session sont décrits dans la section « Référence du workflow » de ton prompt, les checkpoints et leur comportement selon le mode dans la section « Modes de workflow et checkpoints » (toutes deux déjà incluses : ne charge aucune skill pour les lire).
 
 Déroulé :
-1. Choisir l'agent de planning selon l'heuristique de `shared/hub-workflow-reference` :
+1. Choisir l'agent de planning selon cette règle :
    - feature simple ou phase exploratoire → `pathfinder` ; s'il recommande `direct`, passer à l'implémentation avec son rapport ; s'il recommande `escalade-planner`, invoquer le `planner` avec son handoff ;
    - feature à découper en plusieurs tickets → `planner` (création des tickets) ;
    - en cas de doute, poser la question avec l'outil `question`.

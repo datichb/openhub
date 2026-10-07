@@ -54,7 +54,7 @@ func TestE2EWorkflowCheckpointAsked(t *testing.T) {
 
 	r := &e2eRun{adapter: a, handle: h, project: project}
 	p := r.pendingOf(t, ctx, id, adapters.DecisionPermission)
-	assert.Equal(t, "workflow_workflow_checkpoint", p.Action, "opencode names MCP tools <server>_<tool>")
+	assert.Equal(t, "workflow_checkpoint", p.Action, "opencode names MCP tools <server>_<tool>")
 	require.NoError(t, a.Reply(ctx, h, adapters.DecisionReply{SessionID: id, ID: p.ID, Kind: adapters.DecisionPermission, Decision: "once"}))
 	require.NoError(t, c.Wait(ctx, id))
 	reply := r.text(t, ctx, id)

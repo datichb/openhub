@@ -109,13 +109,13 @@ func StepText(s Step) string {
 }
 
 // TimelineText renders a timeline on one line (the last steps when long).
-func TimelineText(steps []Step, max int) string {
+func TimelineText(steps []Step, limit int) string {
 	parts := make([]string, 0, len(steps))
 	for _, s := range steps {
 		parts = append(parts, StepText(s))
 	}
-	if max > 0 && len(parts) > max {
-		parts = append([]string{"…"}, parts[len(parts)-max:]...)
+	if limit > 0 && len(parts) > limit {
+		parts = append([]string{"…"}, parts[len(parts)-limit:]...)
 	}
 	return strings.Join(parts, " → ")
 }

@@ -31,7 +31,7 @@ type AggregateStats struct {
 
 // DayCost represents aggregated cost for a single calendar day.
 type DayCost struct {
-	Day  string  // "2026-08-20" (local time, ISO 8601 date)
+	Day  string // "2026-08-20" (local time, ISO 8601 date)
 	Cost float64
 }
 

@@ -16,8 +16,8 @@ import (
 
 // MetricsViewConfig holds dependencies for the metrics view.
 type MetricsViewConfig struct {
-	AgentEvents domain.AgentEventStore  // optional — if nil, agent table is hidden
-	Stats       platform.StatsProvider  // platform stats provider (ADR-036)
+	AgentEvents domain.AgentEventStore // optional — if nil, agent table is hidden
+	Stats       platform.StatsProvider // platform stats provider (ADR-036)
 }
 
 // MetricsView displays real usage metrics from opencode's database.

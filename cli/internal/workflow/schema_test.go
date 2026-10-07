@@ -190,7 +190,7 @@ func TestOrderedMap_SetDelete(t *testing.T) {
 }
 
 func TestEnums_Rank(t *testing.T) {
-	if !(RiskRead.Rank() < RiskWrite.Rank() && RiskWrite.Rank() < RiskPublish.Rank()) {
+	if RiskRead.Rank() >= RiskWrite.Rank() || RiskWrite.Rank() >= RiskPublish.Rank() {
 		t.Fatal("risk ranks must be ordered")
 	}
 	if Risk("nope").Valid() || InputType("file").Valid() || RemotePolicy("x").Valid() {

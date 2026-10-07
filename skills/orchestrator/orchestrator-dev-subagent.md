@@ -83,6 +83,8 @@ Suivi du bloc `## Retour vers orchestrator` avec `**Type de récap :** partiel`.
 
 ### Bloc Branche dédiée
 
+À ne pas produire si le prompt d'invocation contient une ligne `Branche de travail : <branche>` (la session a déjà sa branche).
+
 ```markdown
 ## Question pour l'orchestrator
 

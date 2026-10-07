@@ -267,3 +267,32 @@ func TestProxyUsageLedger(t *testing.T) {
 	require.True(t, ok)
 	assert.Equal(t, credproxy.Usage{Requests: 2, InputTokens: 105, OutputTokens: 20}, u, "stored + not yet flushed")
 }
+
+// A fork reports the copied history from its first turn: only what it spends
+// above that baseline is added to the ledger (v5 finalisation, Q3-6).
+func TestForkBaselineNotCountedTwice(t *testing.T) {
+	e := newLimitEnv(t, "ses_a")
+	e.turn("ses_a", 0.5)
+	require.Eventually(t, func() bool {
+		tot, _ := e.usage.SessionTotal(e.ctx, "ses_a")
+		return tot.CostUSD == 0.5
+	}, 3*time.Second, 20*time.Millisecond)
+
+	// ses_f forked from ses_a: it reports 0.5 copied, then spends 0.2.
+	// As runsvc.ForkSession: the baseline is saved before the oh session.
+	e.ad.set(func() { e.ad.usage["ses_f"] = adapters.SessionResult{Cost: 0.5, TokensIn: 500} })
+	require.NoError(t, limits.SaveBaseline(e.dir, "ses_f", limits.UsageBaseline{CostUSD: 0.5, TokensIn: 500}))
+	require.NoError(t, e.sessions.Create(e.ctx, &domain.Session{ID: "ses_f", ProjectID: "p1", Status: domain.SessionStatusRunning, GroupKey: "g1", State: domain.RunIdle}))
+	e.turn("ses_f", 0.7)
+	require.Eventually(t, func() bool {
+		tot, _ := e.usage.SessionTotal(e.ctx, "ses_f")
+		return tot.CostUSD > 0
+	}, 3*time.Second, 20*time.Millisecond)
+	tot, err := e.usage.SessionTotal(e.ctx, "ses_f")
+	require.NoError(t, err)
+	assert.InDelta(t, 0.2, tot.CostUSD, 1e-9)
+	assert.Equal(t, int64(200), tot.TokensIn)
+	day, err := e.usage.DayCost(e.ctx, domain.UsageDay(time.Now()), "")
+	require.NoError(t, err)
+	assert.InDelta(t, 0.7, day, 1e-9, "0.5 + 0.2, the copied history once")
+}

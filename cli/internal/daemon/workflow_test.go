@@ -86,7 +86,7 @@ func TestWorkflowAPI(t *testing.T) {
 		data, _ := io.ReadAll(resp.Body)
 		return resp.StatusCode, string(data)
 	}
-	cpReq := `{"sessionID":"ses_a","action":"mcp:workflow/workflow_checkpoint","input":{"id":"cp-1"}}`
+	cpReq := `{"sessionID":"ses_a","action":"mcp:workflow/checkpoint","input":{"id":"cp-1"}}`
 	code, out := hook(g.Token, cpReq)
 	assert.Equal(t, 200, code)
 	assert.JSONEq(t, `{}`, out, "cp-1 pauses in manuel: decision kept")
@@ -94,7 +94,7 @@ func TestWorkflowAPI(t *testing.T) {
 	assert.Equal(t, 403, code, "another group cannot ask about this session")
 	code, _ = hook("nope", cpReq)
 	assert.Equal(t, 401, code)
-	code, out = hook(g.Token, `{"sessionID":"ses_a","action":"mcp:workflow/workflow_checkpoint","input":{"id":"cp-9"}}`)
+	code, out = hook(g.Token, `{"sessionID":"ses_a","action":"mcp:workflow/checkpoint","input":{"id":"cp-9"}}`)
 	assert.Equal(t, 200, code)
 	assert.JSONEq(t, `{"effect":"allow"}`, out, "unknown checkpoint let through (the call lists the checkpoints)")
 }

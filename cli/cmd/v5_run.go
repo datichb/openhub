@@ -85,45 +85,9 @@ func prepareWorkflowRun(ctx context.Context, a *app.App, opts runOptions, errOut
 	if opts.Project == nil {
 		return nil, errors.New(i18n.T("cmd.run.no_project"))
 	}
-	wsvc := newWorkflowService(ctx)
-	resolve := wsvc.Resolve
-	if opts.Draft {
-		resolve = wsvc.ResolveDraft
-	}
-	// Resolve once to learn the inputs (ticket input), then with the inputs.
-	probe, err := resolve(ctx, workflowsvc.Context{ProjectID: opts.Project.ID}, opts.Workflow, workflowsvc.ResolveOpts{
-		Session: &workflow.SessionOptions{EntryAgent: opts.Agent}})
+	res, ticketInput, perSession, err := resolveLaunch(ctx, a, &opts, errOut)
 	if err != nil {
-		return nil, workflowError(errOut, opts.Workflow, err)
-	}
-	inputs := launchInputs(probe.Spec, opts)
-	if opts.Runtime == "" {
-		opts.Runtime = string(probe.Spec.PickRuntime(runtimePrefs(a, opts.Project)...))
-	}
-	ticketInput, multi := workflowsvc.TicketInput(probe.Spec)
-	var perSession []string // ticket of each session (multi)
-	if len(opts.Tickets) > 0 {
-		in, _ := probe.Spec.Inputs.Get(ticketInput)
-		switch {
-		case ticketInput == "":
-			return nil, errors.New(i18n.Tf("cmd.run.no_ticket_input", opts.Workflow))
-		case multi && opts.OneSession:
-			inputs[ticketInput] = strings.Join(opts.Tickets, ",")
-		case multi:
-			perSession = opts.Tickets
-			inputs[ticketInput] = opts.Tickets[0]
-		case in.Type == workflow.InputBeadsIDs:
-			inputs[ticketInput] = strings.Join(opts.Tickets, ",")
-		case len(opts.Tickets) > 1:
-			return nil, errors.New(i18n.Tf("cmd.run.single_ticket", opts.Workflow))
-		default:
-			inputs[ticketInput] = opts.Tickets[0]
-		}
-	}
-	res, err := resolve(ctx, workflowsvc.Context{ProjectID: opts.Project.ID}, opts.Workflow, workflowsvc.ResolveOpts{
-		Session: &workflow.SessionOptions{Mode: opts.Mode, Runtime: workflow.Runtime(opts.Runtime), Inputs: inputs, EntryAgent: opts.Agent}})
-	if err != nil {
-		return nil, workflowError(errOut, opts.Workflow, err)
+		return nil, err
 	}
 
 	svc, err := newRunService(ctx, a)
@@ -230,17 +194,65 @@ func prepareWorkflowRun(ctx context.Context, a *app.App, opts runOptions, errOut
 	}
 	for i := range plan.Sessions {
 		loc := plan.Sessions[i].Location.Path
+		branch := plan.Sessions[i].Location.WorkBranch(opts.Project.Path)
 		if rp != nil {
 			loc = remotesvc.WorkDir(opts.Project.Name)
 		}
 		p, err := sessions[i].RenderPrompt(workflowsvc.PromptContext{Project: opts.Project.Name,
-			Location: loc, Lang: i18n.Locale()})
+			Location: loc, Branch: branch, Lang: i18n.Locale()})
 		if err != nil {
 			return nil, err
 		}
 		plan.Sessions[i].Prompt = p
 	}
 	return &preparedRun{opts: opts, project: opts.Project, resolution: res, bundle: b, svc: svc, plan: plan, suggestions: suggestions, remote: rp}, nil
+}
+
+// resolveLaunch resolves the workflow of a launch with its inputs: the
+// ticket input and the ticket of each session (multi-tickets).
+func resolveLaunch(ctx context.Context, a *app.App, opts *runOptions, errOut io.Writer) (res *workflowsvc.Resolution, ticketInput string, perSession []string, err error) {
+	wsvc := newWorkflowService(ctx)
+	resolve := wsvc.Resolve
+	if opts.Draft {
+		resolve = wsvc.ResolveDraft
+	}
+	// Resolve once to learn the inputs (ticket input), then with the inputs.
+	// No session options here: they would check the required inputs, not
+	// known yet (every workflow with a required input was refused).
+	probe, err := resolve(ctx, workflowsvc.Context{ProjectID: opts.Project.ID}, opts.Workflow, workflowsvc.ResolveOpts{})
+	if err != nil {
+		return nil, "", nil, workflowError(errOut, opts.Workflow, err)
+	}
+	inputs := launchInputs(probe.Spec, *opts)
+	if opts.Runtime == "" {
+		opts.Runtime = string(probe.Spec.PickRuntime(runtimePrefs(a, opts.Project)...))
+	}
+	ticketInput, multi := workflowsvc.TicketInput(probe.Spec)
+	if len(opts.Tickets) > 0 {
+		in, _ := probe.Spec.Inputs.Get(ticketInput)
+		switch {
+		case ticketInput == "":
+			return nil, "", nil, errors.New(i18n.Tf("cmd.run.no_ticket_input", opts.Workflow))
+		case multi && opts.OneSession:
+			inputs[ticketInput] = strings.Join(opts.Tickets, ",")
+		case multi:
+			perSession = opts.Tickets
+			inputs[ticketInput] = opts.Tickets[0]
+		case in.Type == workflow.InputBeadsIDs:
+			inputs[ticketInput] = strings.Join(opts.Tickets, ",")
+		case len(opts.Tickets) > 1:
+			return nil, "", nil, errors.New(i18n.Tf("cmd.run.single_ticket", opts.Workflow))
+		default:
+			inputs[ticketInput] = opts.Tickets[0]
+		}
+	}
+	res, err = resolve(ctx, workflowsvc.Context{ProjectID: opts.Project.ID}, opts.Workflow, workflowsvc.ResolveOpts{
+		Session: &workflow.SessionOptions{Mode: opts.Mode, Runtime: workflow.Runtime(opts.Runtime), Inputs: inputs, EntryAgent: opts.Agent}})
+	if err != nil {
+		return nil, "", nil, workflowError(errOut, opts.Workflow, err)
+	}
+
+	return res, ticketInput, perSession, nil
 }
 
 // preconditionWarnings evaluates the workflow preconditions on the project
@@ -388,7 +400,9 @@ func afterStart(ctx context.Context, a *app.App, svc *runsvc.Service, ui launche
 		if res.AttachErr != nil {
 			ui.Notify(i18n.T("cmd.session.no_terminal"), launcher.LevelWarning)
 		}
-		if !first {
+		if !first || (ui.SuspendAndExec() == nil && !stdinIsTerminal()) {
+			// No terminal to take over (oh run from a script, an IDE…): the
+			// client would block this process.
 			ui.Notify(i18n.Tf("cmd.run.attach_later", res.SessionID), launcher.LevelInfo)
 			return nil
 		}

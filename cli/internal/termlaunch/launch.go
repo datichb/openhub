@@ -59,17 +59,38 @@ const (
 // Chain returns the methods tried for a preference, in order.
 //
 // auto: the terminal oh runs in first (iTerm2 or Terminal.app), then the other
-// macOS terminal if installed, then tmux when inside a tmux session.
+// macOS terminal if installed, then tmux when inside a tmux session. An
+// explicit preference comes first, then the rest of the auto chain (I2: an
+// unavailable method passes to the next one); iTerm2 is left out when it is
+// not installed (AppleScript would ask where the application is).
 func Chain(p Pref) []Method {
-	inTmux := os.Getenv("TMUX") != ""
+	var first Method
 	switch p {
 	case PrefITerm:
-		return []Method{MethodITerm}
+		if iTermInstalled() {
+			first = MethodITerm
+		}
 	case PrefTerminal:
-		return []Method{MethodTerminal}
+		first = MethodTerminal
 	case PrefTmux:
-		return []Method{MethodTmux}
+		first = MethodTmux
+	default:
+		return autoChain()
 	}
+	out := []Method{}
+	if first != "" {
+		out = append(out, first)
+	}
+	for _, m := range autoChain() {
+		if m != first {
+			out = append(out, m)
+		}
+	}
+	return out
+}
+
+func autoChain() []Method {
+	inTmux := os.Getenv("TMUX") != ""
 	var out []Method
 	if runtime.GOOS == "darwin" {
 		if os.Getenv("TERM_PROGRAM") == "Apple_Terminal" {
@@ -90,7 +111,8 @@ func Chain(p Pref) []Method {
 	return out
 }
 
-func iTermInstalled() bool {
+// iTermInstalled is a variable for the tests.
+var iTermInstalled = func() bool {
 	for _, p := range []string{"/Applications/iTerm.app", os.ExpandEnv("$HOME/Applications/iTerm.app")} {
 		if _, err := os.Stat(p); err == nil {
 			return true
