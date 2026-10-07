@@ -6,66 +6,74 @@
 
 ## Vue d'ensemble
 
-Le CLI Go (`oh`) résout le modèle IA pour chaque agent via une cascade à 7 niveaux. Opencode ne gère pas cette logique — c'est le CLI qui résout à la construction du paquet de session au lancement et écrit le modèle final dans les définitions d'agents du paquet (`agent.<id>.model` dans la config opencode produite).
+Le CLI Go (`oh`) résout le modèle IA de chaque agent du paquet de session par une **cascade à 9 niveaux** (2 niveaux workflow, 3 niveaux projet, 3 niveaux hub, puis le frontmatter de l'agent). Opencode ne gère pas cette logique : oh résout à la construction du paquet de session, au lancement, et écrit le modèle final dans les définitions d'agents du paquet (`agent.<id>.model` dans la config opencode produite).
 
-Le provider est résolu séparément et utilisé pour normaliser le format du nom de modèle (préfixage provider).
+Le provider est résolu séparément et sert à normaliser le nom du modèle (préfixe provider). Les restrictions I6 peuvent en plus limiter les modèles utilisables (voir [liste blanche](#liste-blanche-des-modèles-limitsmodels)).
 
 ---
 
 ## Résolution du provider
 
-Le provider est résolu via une cascade à 3 niveaux (premier match gagne) :
+Le provider est résolu par une cascade à 4 niveaux (premier trouvé gagne) :
 
 | Priorité | Source | Exemple |
 |----------|--------|---------|
-| 1 | Flag CLI `--provider` | `oh run feature --provider anthropic` |
-| 2 | Config hub | `hub.toml` → `[opencode] default_provider = "bedrock"` |
-| 3 | Fallback hardcodé | `bedrock` |
+| 1 | Option CLI `--provider` / `-P` | `oh run feature --provider anthropic` |
+| 2 | Provider du projet | base `oh.db` (`oh project configure`) |
+| 3 | Config hub | `hub.toml` → `[opencode] default_provider = "bedrock"` |
+| 4 | Repli en dur | `bedrock` |
 
 ---
 
 ## Cascade de résolution du modèle par agent
 
-La résolution s'effectue pour chaque agent du paquet de session. Premier match gagne (priorité décroissante) :
+La résolution se fait pour chaque agent du paquet de session. Premier trouvé gagne (priorité décroissante) :
 
 | Priorité | Niveau | Source | Commande |
 |----------|--------|--------|----------|
-| 1 | Project agent | Override modèle pour un agent spécifique dans un projet | `oh config model agent <id> <model> --project <p>` |
-| 2 | Project family | Override modèle pour une famille d'agents dans un projet | `oh config model family <name> <model> --project <p>` |
-| 3 | Project global | Modèle global du projet | `oh config model default <model> --project <p>` |
-| 4 | Hub agent | Override modèle pour un agent spécifique au hub | `oh config model agent <id> <model>` |
-| 5 | Hub family | Override modèle pour une famille d'agents au hub | `oh config model family <name> <model>` |
-| 6 | Hub global | Modèle global du hub | `oh config model default <model>` |
-| 7 | **Team agent** | Recommandation de modèle pour un agent, depuis team-state | `config.toml` d'équipe `[models.agents]` |
-| 8 | **Team family** | Recommandation de modèle pour une famille, depuis team-state | `config.toml` d'équipe `[models.families]` |
-| 9 | **Team global** | Recommandation de modèle global de l'équipe | `config.toml` d'équipe `[models] default` |
-| 10 | Frontmatter floor | Champ `model:` dans le `.md` de l'agent | Édition directe du fichier agent |
+| 1 | Workflow · agent | `models.agents.<id>` du workflow | YAML du workflow ([schéma](workflow-schema.fr.md#ressources)) |
+| 2 | Workflow | `models.default` du workflow | YAML du workflow |
+| 3 | Projet · agent | Modèle d'un agent dans un projet | `oh config model agent <id> <model> --project <p>` |
+| 4 | Projet · famille | Modèle d'une famille d'agents dans un projet | `oh config model family <name> <model> --project <p>` |
+| 5 | Projet | Modèle global du projet | `oh config model default <model> --project <p>` |
+| 6 | Hub · agent | Modèle d'un agent au niveau hub | `oh config model agent <id> <model>` |
+| 7 | Hub · famille | Modèle d'une famille d'agents au niveau hub | `oh config model family <name> <model>` |
+| 8 | Hub | Modèle global du hub | `oh config model default <model>` |
+| 9 | Frontmatter | Champ `model:` dans le `.md` de l'agent | Édition du fichier agent |
 
-> **Les modèles d'équipe (7-9) sont toujours des recommandations** : les overrides du hub et du projet passent avant.
+### Niveau workflow (décision O9)
 
-### Niveau workflow (paquets de session v5)
+- Le bloc `models:` d'un workflow `oh/v1` passe **avant** toute configuration du projet et du hub. Il n'a pas de familles.
+- Les identifiants complets (`amazon-bedrock/eu.anthropic.claude-sonnet-4-6`, suffixe `#variante`) sont acceptés : le préfixe régional Bedrock est retiré puis remis par l'adaptateur selon la région de la session, la variante est conservée.
+- Un patch (`extends`) remplace `models.default` et fusionne `models.agents` par agent.
 
-Pour les sessions lancées depuis un workflow (`oh/v1`), le bloc `models:` du workflow s'ajoute **au-dessus** de la cascade (décision O9) :
+### Modèles d'équipe : non appliqués
 
-| Priorité | Niveau | Source |
-|----------|--------|--------|
-| 0a | Workflow agent | `models.agents.<id>` du workflow |
-| 0b | Workflow global | `models.default` du workflow |
-
-Puis les niveaux 1 à 10 ci-dessus. Le niveau workflow n'a pas de familles. Les identifiants complets (`amazon-bedrock/eu.anthropic.claude-sonnet-4-6`, suffixe `#variante`) sont acceptés : le préfixe régional Bedrock est retiré puis remis par l'adaptateur selon la région de la session, la variante est conservée.
+Le `config.toml` du team-state peut contenir des recommandations `[models]` (`default`, `families`, `agents`, éditées dans la TUI, Équipe › Modèles). La fonction de cascade (`bricks.ResolveAgentModel`) sait les placer après le hub (équipe · agent > équipe · famille > équipe), mais **le lancement ne les renseigne pas** en v5 (`cmd/v5_launch.go`, `modelOverridesFor` ne fournit que le hub et le projet) : elles n'ont aucun effet sur les sessions.
 
 ### Familles
 
-La famille d'un agent est déduite de son répertoire parent dans `agents/` :
+La famille d'un agent est déduite de son dossier dans `agents/` :
 
-| Répertoire | Famille | Agents |
+| Dossier | Famille | Agents |
 |------------|---------|--------|
-| `agents/planning/` | `planning` | orchestrator, orchestrator-dev, planner, pathfinder, onboarder |
-| `agents/developer/` | `developer` | developer, developer-refactor, developer-migrator |
-| `agents/quality/` | `quality` | reviewer, debugger |
+| `agents/planning/` | `planning` | conductor, orchestrator, orchestrator-dev, planner, pathfinder, onboarder |
+| `agents/developer/` | `developer` | developer, developer-refactor, developer-migrator, database, infra |
+| `agents/quality/` | `quality` | reviewer, debugger, benchmarker, test-generator |
 | `agents/auditor/` | `auditor` | auditor, auditor-subagent |
 | `agents/design/` | `design` | designer |
 | `agents/documentation/` | `documentation` | documentarian |
+| `agents/utility/` | `utility` | brief-enricher |
+
+### Liste blanche des modèles (`limits.models`)
+
+Les restrictions I6 peuvent limiter les modèles d'une session (motifs avec `*`, ex. `eu.anthropic.claude-*`) :
+
+- niveaux : hub (`[limits] models`, `oh budget set models …`), équipe (`[limits.recommended]` ou `[limits.enforced]`), projet (`oh budget set models … -p <projet>`), workflow (`limits.models`) ;
+- la liste la plus précise l'emporte (workflow > projet > hub > recommandation d'équipe) ; une liste **imposée** par l'équipe est un plafond : seuls les motifs qu'elle couvre sont gardés ;
+- la liste ne change pas le modèle choisi par la cascade : elle est appliquée par le **proxy d'identifiants**, qui refuse les appels vers un autre modèle (identifiant envoyé au fournisseur, ex. `eu.anthropic.claude-sonnet-4-6`).
+
+Choisissez donc des modèles de cascade compatibles avec la liste. Voir `oh budget show` et [ADR-044](../architecture/adr/044-credential-proxy-session-limits.fr.md).
 
 ---
 
@@ -91,8 +99,8 @@ reviewer = "claude-opus-4"
 ### Project-level (SQLite DB)
 
 Les overrides projet sont stockés dans la base de données du hub (`~/.oh/oh.db`) :
-- `projects.model` → modèle global du projet (niveau 3)
-- `projects.model_overrides` → JSON sérialisé pour per-agent et per-family (niveaux 1 et 2)
+- `projects.model` → modèle global du projet (niveau 5)
+- `projects.model_overrides` → JSON sérialisé pour per-agent et per-family (niveaux 3 et 4)
 
 ```json
 {
@@ -134,7 +142,7 @@ Opencode exige que les noms de modèles soient préfixés avec le provider au fo
 
 Le modèle résolu par la cascade (quel que soit son format d'entrée) est normalisé vers le provider du projet :
 
-| Provider | Entrée (cascade) | Résultat dans opencode.json |
+| Provider | Entrée (cascade) | Résultat dans la config de session |
 |----------|-------------------|----------------------------|
 | `anthropic` | `claude-sonnet-4-5` | `anthropic/claude-sonnet-4-5` |
 | `bedrock` | `claude-sonnet-4-5` | `amazon-bedrock/anthropic.claude-sonnet-4-5-20250929-v1:0` |
@@ -148,26 +156,27 @@ La normalisation extrait le "short name" (ex: `claude-opus-4`) depuis n'importe 
 
 ## Plancher de modèle agent (frontmatter)
 
-Les agents peuvent déclarer un modèle minimum via le champ `model:` dans leur frontmatter :
+Les agents peuvent déclarer un modèle via le champ `model:` de leur frontmatter :
 
 ```yaml
 ---
 id: orchestrator
-model: anthropic/claude-sonnet-4-6
+model: claude-sonnet-4-6
 ---
 ```
 
-Ce champ est le **niveau 7** de la cascade — il s'applique uniquement si aucun override n'est défini aux niveaux supérieurs.
+Ce champ est le **niveau 9** de la cascade : il ne s'applique que si aucun niveau au-dessus ne définit de modèle.
 
 ### Agents avec plancher déclaré
 
 | Agent | Plancher |
 |-------|----------|
-| `orchestrator` | `anthropic/claude-sonnet-4-6` |
-| `orchestrator-dev` | `anthropic/claude-sonnet-4-6` |
-| `planner` | `anthropic/claude-sonnet-4-6` |
-| `pathfinder` | `anthropic/claude-sonnet-4-6` |
-| `reviewer` | `anthropic/claude-opus-4` |
+| `conductor`, `orchestrator`, `orchestrator-dev`, `planner`, `pathfinder`, `onboarder` | `claude-sonnet-4-6` |
+| `auditor`, `auditor-subagent`, `designer`, `debugger`, `documentarian` | `claude-sonnet-4-6` |
+| `reviewer`, `benchmarker`, `test-generator`, `database`, `infra` | `claude-opus-4-6` |
+| `brief-enricher` | `anthropic/claude-sonnet-4-5` |
+
+Les agents `developer*` n'en déclarent pas : sans configuration, opencode utilise son modèle par défaut.
 
 ---
 

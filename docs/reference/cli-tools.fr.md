@@ -4,11 +4,11 @@
 
 ## Marketplace de Skills
 
-## Marketplace de Skills
+`oh skill` installe, liste et supprime des skills communautaires (index communautaire ou depot git). Les skills disponibles pour une session sont ceux de son paquet de session (voir [`oh bundle show`](cli-workflows.fr.md#oh-bundle-build--show)).
 
 ### oh skill add
 
-Installe un skill depuis une source (chemin local, URL git ou nom dans le registre).
+Installe un skill depuis l'index communautaire (par son nom) ou depuis une URL git.
 
 ```
 oh skill add <source>
@@ -17,16 +17,15 @@ oh skill add <source>
 **Exemple :**
 
 ```bash
-oh skill add rtk
-oh skill add https://github.com/org/mon-skill
-oh skill add ./skill-local
+oh skill add golang-idioms
+oh skill add https://github.com/u/oh-skill-example
 ```
 
 ---
 
 ### oh skill list
 
-Liste les skills installes.
+Liste les skills communautaires installes.
 
 **Alias :** `oh skill ls`
 
@@ -38,7 +37,7 @@ oh skill list
 
 ### oh skill remove
 
-Supprime un skill installe.
+Desinstalle un skill communautaire.
 
 **Alias :** `oh skill rm`
 
@@ -51,7 +50,7 @@ oh skill rm <nom>
 
 ### oh skill search
 
-Recherche dans le registre de skills.
+Recherche dans l'index communautaire (sans requete : tout l'index).
 
 ```
 oh skill search [requete]
@@ -61,25 +60,42 @@ oh skill search [requete]
 
 ```bash
 oh skill search
-oh skill search react
+oh skill search go
 oh skill search "code review"
 ```
 
 ---
 
+### oh skill check
+
+Verifie les skills du hub et les skills communautaires installes : identifiants en double, dependances `requires:` manquantes ou cycliques, frontmatter invalide (`name:` different du nom du fichier, description manquante), champ `bucket:` obsolete, skills references par des agents mais absents. Sort avec le code 1 en cas d'erreur.
+
+```
+oh skill check [--json]
+```
+
+| Flag | Type | Description |
+|------|------|-------------|
+| `--json` | bool | Problemes au format JSON |
+
+---
 
 ### oh skill budget
 
-Affiche le budget context window par agent (cout du system prompt toujours charge en lignes et tokens). Alias deprecie en v5 : le budget d'une session se lit avec `oh bundle show <workflow> --budget` (`oh skill budget <workflow>` y renvoie ; avec un agent ou `--all`, l'ancien calcul reste disponible avec un avertissement).
+Alias deprecie en v5 : le budget d'une session se lit avec `oh bundle show <workflow> --budget`. `oh skill budget <workflow>` y renvoie (avertissement) ; avec un nom d'agent ou `--all`, l'ancien calcul par agent (cout en lignes et tokens du prompt systeme toujours charge, skills les plus couteux) reste disponible avec un avertissement.
+
+```
+oh skill budget [workflow|agent] [options]
+```
 
 | Flag | Court | Type | Description |
 |------|-------|------|-------------|
 | `--all` | `-a` | bool | Afficher le budget de tous les agents |
-| `--threshold` | `-t` | int | Seuil en lignes pour flaguer un skill (defaut : 150) |
+| `--threshold` | `-t` | int | Seuil en lignes pour signaler un skill (defaut : 150) |
 
 ```bash
+oh skill budget ticket                  # = oh bundle show ticket --budget
 oh skill budget orchestrator-dev
-oh skill budget --all
 oh skill budget --all --threshold 200
 ```
 
@@ -87,7 +103,7 @@ oh skill budget --all --threshold 200
 
 ## Git Worktree
 
-## Git Worktree
+`oh worktree` gere les git worktrees du projet. **Alias :** `oh wt`. `oh run --location new` cree aussi un worktree par session (voir [`oh run`](cli-workflows.fr.md#oh-run)).
 
 ### oh worktree list
 
@@ -99,9 +115,9 @@ Liste les worktrees du projet.
 oh worktree list [options]
 ```
 
-| Flag | Description |
-|------|-------------|
-| `--json` | Sortie au format JSON |
+| Flag | Type | Description |
+|------|------|-------------|
+| `--json` | bool | Sortie au format JSON |
 
 **Exemple :**
 
@@ -114,13 +130,11 @@ oh worktree ls --json
 
 ### oh worktree add
 
-Cree un worktree.
+Cree un worktree pour une branche. Interactif si la branche est omise.
 
 ```
 oh worktree add [branch]
 ```
-
-Interactif si branche omise.
 
 **Exemple :**
 
@@ -141,9 +155,9 @@ Supprime un worktree.
 oh worktree remove [path]
 ```
 
-| Flag | Court | Description |
-|------|-------|-------------|
-| `--force` | `-f` | Forcer la suppression |
+| Flag | Court | Type | Description |
+|------|-------|------|-------------|
+| `--force` | `-f` | bool | Forcer la suppression |
 
 **Exemple :**
 
@@ -156,16 +170,16 @@ oh worktree rm -f ../project-fix-old
 
 ### oh worktree cleanup
 
-Nettoie les worktrees dont la branche a ete mergee.
+Supprime les worktrees dont la branche est entierement mergee dans la branche de base (detection par `git branch --merged`).
 
 ```
 oh worktree cleanup [options]
 ```
 
-| Flag | Court | Description |
-|------|-------|-------------|
-| `--base` | `-b` | Branche de base (defaut : auto-detect) |
-| `--force` | `-f` | Supprimer sans confirmation |
+| Flag | Court | Type | Description |
+|------|-------|------|-------------|
+| `--base` | `-b` | string | Branche de base (defaut : detection automatique) |
+| `--force` | `-f` | bool | Supprimer sans confirmation |
 
 **Exemple :**
 
@@ -176,24 +190,19 @@ oh worktree cleanup -b develop --force
 
 ---
 
-
----
-
 ## Metriques & Dashboard
-
-## Analytique
 
 ### oh metrics
 
-Affiche les metriques d'utilisation, les statistiques de sessions et la telemetrie des agents.
+Metriques d'utilisation : sessions, tokens, couts et economies.
 
 ```
 oh metrics [options]
 ```
 
-| Flag | Court | Description |
-|------|-------|-------------|
-| `--period` | `-d` | Periode d'analyse (7d, 30d, all). Defaut : all |
+| Flag | Court | Type | Description |
+|------|-------|------|-------------|
+| `--period` | `-d` | string | Periode d'analyse : `7d`, `30d` ou `all` (defaut : `all`) |
 
 **Exemple :**
 
@@ -207,17 +216,9 @@ oh metrics -d 7d
 
 ### oh dashboard
 
-Tableau de bord interactif (TUI).
+Tableau de bord interactif (TUI) : projets, sessions, tokens. Sans flag.
 
 ```
-oh dashboard
-```
-
-Pas de flags. Lance une interface terminale interactive avec vue d'ensemble des projets, sessions et metriques.
-
-**Exemple :**
-
-```bash
 oh dashboard
 ```
 
@@ -225,15 +226,15 @@ oh dashboard
 
 ### oh board
 
-Tableau kanban des tickets.
+Tableau kanban des tickets en plein ecran.
 
 ```
 oh board [options]
 ```
 
-| Flag | Description |
-|------|-------------|
-| `--watch` | Rafraichissement auto toutes les 5s |
+| Flag | Type | Description |
+|------|------|-------------|
+| `--watch` | bool | Rafraichissement automatique toutes les 5 s |
 
 **Exemple :**
 
@@ -242,45 +243,34 @@ oh board
 oh board --watch
 ```
 
+`oh optimize` (analyse d'usage et suggestions) et `oh yield` (rapport sessions ↔ commits) existent encore mais sont masques de l'aide, sans flag.
+
 ---
-
-
----
-
-## Gestion des secrets
 
 ## Gestion des secrets
 
 ### oh secrets
 
-Gerer les secrets stockes dans le trousseau OS ou le stockage chiffre.
+Secrets stockes dans le trousseau du systeme (ou, a defaut, dans un fichier chiffre `~/.oh/secrets.enc`, phrase de passe demandee ou `OH_PASSPHRASE`). Ils sont references par nom dans `hub.toml` (`token_key`) et resolus a l'execution, en portee projet ou globale. Ordre de resolution : secret du projet (dans un dossier de projet), puis secret global, puis variable d'environnement correspondante.
+
+| Commande | Flags | Description |
+|----------|-------|-------------|
+| `oh secrets set <cle>` | `--global`, `--project <id>` | Stocke un secret ; la valeur est saisie au terminal (masquee). Portee : projet si le dossier courant est un projet enregistre, sinon globale ; `--global` force la portee globale, `--project` cible un projet |
+| `oh secrets get <cle>` | `--global`, `--project <id>`, `--reveal` | Affiche un secret, masque sauf avec `--reveal` ; `--global` : portee globale uniquement |
+| `oh secrets list` | | Liste les secrets connus |
+| `oh secrets delete <cle>` | `--global`, `--project <id>` | Supprime un secret du trousseau |
+| `oh secrets cleanup` | `--dry-run` | Supprime les entrees orphelines du trousseau (absentes de l'index des secrets) ; `--dry-run` : les afficher sans supprimer |
 
 ```bash
-oh secrets set <cle> <valeur>    # stocker un secret
-oh secrets get <cle>             # recuperer un secret
-oh secrets list                  # lister toutes les cles
-oh secrets delete <cle>          # supprimer un secret
-```
-
----
-
-
-### oh secrets cleanup
-
-Scanner le trousseau systeme pour les entrees orphelines et optionnellement les supprimer.
-
-| Flag | Type | Description |
-|------|------|-------------|
-| `--dry-run` | bool | Afficher les entrees orphelines sans les supprimer |
-
-```bash
-oh secrets cleanup
+oh secrets set openhub.mcp.gitlab.token
+oh secrets set openhub.mcp.gitlab.token --project t-sru-b267fbf1
+oh secrets get openhub.mcp.gitlab.token --reveal
+oh secrets list
+oh secrets delete openhub.mcp.gitlab.token --global
 oh secrets cleanup --dry-run
 ```
 
 ---
-
-## Utilitaires
 
 ## Utilitaires
 
@@ -292,13 +282,6 @@ Affiche la version du binaire `oh`.
 oh version
 ```
 
-**Exemple :**
-
-```bash
-oh version
-# oh v1.2.0 (go1.22, darwin/arm64)
-```
-
 ---
 
 ### oh completion
@@ -306,17 +289,15 @@ oh version
 Genere le script d'autocompletion pour le shell indique.
 
 ```
-oh completion [bash|zsh|fish|powershell]
+oh completion bash|zsh|fish|powershell
 ```
 
 **Exemple :**
 
 ```bash
+source <(oh completion zsh)
 oh completion zsh > "${fpath[1]}/_oh"
 oh completion bash > /etc/bash_completion.d/oh
 oh completion fish > ~/.config/fish/completions/oh.fish
 oh completion powershell | Out-String | Invoke-Expression
 ```
-
----
-

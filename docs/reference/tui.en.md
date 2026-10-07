@@ -22,7 +22,7 @@ The TUI follows an **omnibar-first** design inspired by fuzzy launchers (fzf, Te
 - **Single interaction point**: the omnibar handles all commands
 - **Content-first**: maximum screen space dedicated to content
 - **Contextual**: the interface adapts to the current view
-- **Minimal shortcuts**: only 4 global keybindings to memorize
+- **Minimal shortcuts**: a few global keys, the rest in the omnibar or the view hint line
 
 ## Layout
 
@@ -42,11 +42,18 @@ The TUI follows an **omnibar-first** design inspired by fuzzy launchers (fzf, Te
 | Key | Action |
 |-----|--------|
 | `Ctrl+P` | Activate the omnibar |
-| `Esc` | Go back (previous view) |
-| `Ctrl+Q` | Quit the TUI |
-| Any letter | Activate omnibar with that character (if not consumed by the view) |
+| `Esc` | Back (previous view); at the root of Project or Team mode: back to Hub mode |
+| `Ctrl+T` | Team mode (selector when several teams); from Team mode: back to Hub |
+| `Ctrl+Q` / `Ctrl+C` | Quit the TUI (when sessions are working: finish the step then sleep, background, or stop now) |
+| `?` / `F1` | Help and shortcuts |
+| `j` / `k`, `g` / `G` | Down / up, first / last item (in any list) |
+| `d` | Dismiss the oldest visible toast |
+| `Enter` | Activates the omnibar when the view does not use it |
+| Any other letter | Activates the omnibar with that character (when the view does not use it) |
 
-That's it. Four shortcuts. Everything else goes through the omnibar.
+Everything else goes through the omnibar or the view keys (shown in the hint line).
+
+The mode bar shows the sessions badge **`● N ⏸ M`** (N working sessions, M pending decisions); it turns to alert when a decision is waiting.
 
 ## The Omnibar
 
@@ -54,7 +61,7 @@ The omnibar is always visible at the bottom of the screen. It has two modes:
 
 ### Passive Mode (default)
 
-Displays contextual hints for the active view:
+Shows contextual hints for the active view:
 
 ```
 │  Ctrl+P command · j/k nav · Enter open · h/l columns            │
@@ -62,12 +69,12 @@ Displays contextual hints for the active view:
 
 ### Active Mode (input)
 
-Accepts text input with fuzzy suggestions displayed above:
+Accepts input with fuzzy suggestions above:
 
 ```
-│  ● Audit Sécurité      Audit de sécurité (OWASP, injections)    │
-│  ○ Audit Performance   Audit performance (N+1, mémoire, CPU)    │
-│  ○ Audit Architecture  Audit d'architecture (couplage, patterns) │
+│  ● run audit           Project audit (security, performance…)     │
+│  ○ run review          Code review of a branch…                   │
+│  ○ run debug           Diagnose a bug or an isolated problem      │
 ├───────────────────────────────────────────────────────────────────┤
 │  > audit_                                                         │
 ```
@@ -76,98 +83,157 @@ Accepts text input with fuzzy suggestions displayed above:
 
 | Key | Action |
 |-----|--------|
-| Type | Filter commands fuzzy |
-| `Down` / `Tab` | Move selection down |
-| `Up` / `Shift+Tab` | Move selection up |
-| `Enter` | Execute selected command |
-| `Esc` | Dismiss and return to content |
+| Typing | Filter commands (fuzzy, on the label and aliases) |
+| `↓` / `Tab` | Move down in suggestions |
+| `↑` / `Shift+Tab` | Move up in suggestions |
+| `Enter` | Run the selected command |
+| `Esc` | Close and return to content |
 
 ## Available Commands
 
+The Command column gives the displayed label; an alias can be typed too. "Project": Project mode only; "Team": Team mode only; "Project/Team": both; otherwise everywhere.
+
 ### Workflows and sessions
 
-| Command | Aliases | Description |
-|---------|---------|-------------|
-| `run <workflow>` | workflow id; former names: `dev` → `run ticket`, `start` → `run feature`, `onboard` → `run onboarding`, `audit`, `review` (`rev`, `cr`), `debug` (`dbg`), `feedback` → `run review-feedback` | Opens the launch form of the workflow (generated from the catalogue) |
-| `run <workflow> ⟨ticket⟩` | — | On the board: workflow launched on the selected ticket |
-| `workflows` | catalogue, wf, workflow | Workflow catalogue (drafts, publication, history; replaces the former Workflow view) |
-| `review.publish` | publish, mr | Create the merge request of the current branch (GitLab API, suspended terminal; when GitLab writes are enabled) |
-| `coder` | session, code, free, libre | Launch form of the `libre` workflow (entry agent of your choice, `orchestrator` by default) |
-| `sessions` | parallel, inbox | Sessions view |
-| `bricks` | briques, agents, skills | Bricks catalogue (agents and skills: origin, cost, workflows) |
+| Command | Aliases | Mode | Description |
+|---------|---------|------|-------------|
+| `run <workflow>` | the workflow id; former names: `dev`, `start.dev` → `ticket` · `start`, `orchestrator` → `feature` · `q`, `fast` → `quick` · `secu`, `security`, `perf`, `archi`, `a11y` → `audit` · `rev`, `cr` → `review` · `dbg`, `debugger`, `diag` → `debug` · `onboard`, `start.onboard` → `onboarding` · `feedback`, `rf`, `retours` → `review-feedback` | — | Launch form of the workflow (one command per workflow of the catalogue) |
+| Free session | `coder`, session, code, free, libre | Project/Team | Launch form of the `libre` workflow (entry agent of your choice, `orchestrator` by default) |
+| Sessions | `sessions`, parallel, par, multi, inbox, à traiter, decisions | — | Sessions view |
+| Workflows | `workflows`, catalogue, catalog, wf, workflow | — | Workflow catalogue (drafts, publication, history) |
+| Bricks | `bricks`, briques, agents, skills, catalogue des briques | — | Brick catalogue (agents and skills: origin, cost, workflows) |
+| Review Publish | `review.publish`, publish, mr | Project/Team | Create the MR of the current branch (`oh review --publish`, terminal suspended); only present when GitLab write is enabled |
 
 ### Launch form
 
-Generated from the workflow YAML, in three steps: **Inputs** (one line per input: Beads ticket with a `Pick…` picker, checkbox for `bool`, list for `enum`, text area for `text`), **Options** (mode, runtime — unavailable environments show the reason —, location: base, existing worktrees, new worktree; opening), **Recap** (agents, first-turn budget, isolation, sessions and locations, warnings). `Ctrl+S` launches from any step, `Ctrl+B` goes back, `Esc` closes. A second launch while preparing is ignored. With several tickets, a "A single session for every ticket" checkbox is offered. When a precondition suggests another workflow, the recap offers a "Run <wf> first (then come back)" button.
+Generated from the workflow YAML (title "Launch · <workflow>"), in three steps:
+
+1. **Inputs**: one line per input (Beads ticket with a `Pick…` picker, checkbox for `bool`, list for `enum`, text area for `text`); "This workflow has no input" otherwise.
+2. **Options**: **Mode**; **Runtime** (`⌂ local`, `▣ container`, `☁ remote`; an unavailable environment shows the reason; in a container: engine, cached image or image to build with the estimated duration); **Location** (`base`, existing worktrees, `+ new worktree`); **Opening** (auto, iTerm2, Terminal.app, tmux, browser, this terminal, do not open).
+3. **Recap**: agents, first-turn budget, isolation, sessions and locations ("N sessions · 1 server · one worktree per writing session"), warnings.
+
+`Tab` next field, `Ctrl+S` launches from any step, `Ctrl+B` goes back, `Esc` closes. A second launch while preparing is ignored. With several tickets, a "A single session for every ticket" checkbox is offered. When a precondition suggests another workflow, the recap offers "Launch <wf> first (then come back)".
 
 ### Start, board, catalogue
 
-- **Start** (hub, project, team landings): ★ pinned (5 max), recent (3), suggestions when empty; in project/team mode, collapsed categories (Enter = pick a workflow). `*` pins or unpins (scope: hub, project or team depending on the landing). "All workflows (N)" opens the catalogue.
-- **Board**: `a` on a ticket lists the workflows taking a Beads ticket; the form opens at the Options step, ticket prefilled.
-- **Catalogue**: workflows by layer (version, risk, ⌂ ▣ ☁, validity), detail on the right; Enter launches, `*` pins. With a team-state (team or solo space), the catalogue is **editable**:
-  - sections Hub (read only), Team, Project, **My drafts** (`✎`, error count, "+ new brick" badge for a team brick used for the first time) and **Integrity** (skipped published files, refused bricks); `✎` on a published workflow = you have a draft of it, `⏳` = publication waiting for the network;
-  - `n` new (empty, extend or duplicate the selected workflow; team or project layer; id), `e` edit (on a hub workflow: extend it), `v` validate, `t` test the draft (launch form "✎ draft", local), `p` publish, `D` diff of the draft with the impact, `h` history, `x` archive (optional reason; on a draft: discard it), `r` reload; Enter on a draft = test it;
-  - **Publish**: current → next version, validation, impact (widenings marked ⚠), new bricks, diff of the document and the template, governance ("Publication: any member"); mandatory message, `Ctrl+S` publishes once; offline, the publication is queued and replayed at the next team-state synchronization;
-  - **History**: versions (author, date, message, current); Enter = diff with the current version, `r` = restore (published again as a new version).
-  - **Editor** (`e`, `n`): five sections (`Tab` / `Shift+Tab`) — **General** (identity, security, run: each field shows the resolved value, `✎` when written in the draft, `← hub:ticket` its origin, 🔒 when locked by the parent workflow; Enter edits, `x` goes back to the inherited value), **Graph** (resolved workflow, inherited elements included: start column, checkpoints in order with their behavior in the shown mode — `m` to change it —, agents under the checkpoint they wait for, independent agents apart; Enter edits the agent or checkpoint, `a` adds a catalogue agent, `c` a checkpoint, `x` removes — an inherited element is disabled), **Inputs & prompt** (inputs, `a` to add, template, `P` to write it in `$EDITOR`, prompt preview with example values), **Resources** (extra/denied skills, MCP, Beads, plugins, outputs), **Bundle preview** (agents, skills, first-turn budget, depth, isolation, MCP; without an active project, project MCP servers are "project dependent"; findings: Enter goes to the field, or to the YAML at the right line);
-  - `u` / `U` undo / redo, `y` raw YAML in `$EDITOR`, `w` (or `Ctrl+S`) saves the draft (refused while errors remain), `Esc`: with unsaved changes, choose "Save and leave" (valid draft), "Drop the changes" or "Keep editing". YAML comments and layout are kept; only the changed fields are written (a patch stays a patch).
-- **Team detail**: "Workflows" section with the publication governance, read only (`[governance] publish`); for a solo space, "Space" line and "Switch to a team" action (empty remote repository).
-- **Sessions view**: `e` "Chain with…" suggests the workflows taking an output of the session (branch, tickets), form prefilled; a launch put on hold by a precondition ("run onboarding then come back") comes first. When a workflow session ends (or declares its outputs), a toast announces the suggested follow-up and the session detail shows it ("↪ Chain with review (e)").
+- **Start** (home, project, team): ★ pinned (5 max per scope), **Recent** (3), suggestions when nothing is pinned nor recent (`ticket`, `feature`, `review`); the project default workflow comes first ("default" badge); in Project/Team mode, folded categories (Develop, Frame, Quality, Knowledge, Other; Enter = pick the workflow). `*` pins or unpins (scope: hub, project or team depending on the home). "All workflows (N)" opens the catalogue; "Free session" opens the `libre` form.
+- **Board**: `a` on a ticket opens "Launch on <ticket>" with the workflows that take a Beads ticket; the form opens at the Options step, ticket prefilled.
+- **Catalogue** (`workflows`): workflows by layer (Hub · built in, Team, Project; version, risk, ⌂ ▣ ☁, validity), detail on the right (entry, chain, inputs, runtimes). Enter launches, `*` pins. With a team-state (team or solo space), the catalogue is **editable**:
+  - sections Hub (read only: `e` extend, `n` duplicate), Team, Project, **My drafts** (`✎`, error count, "new brick" badge for a team brick used for the first time) and **⚠ Integrity** (skipped published files, refused bricks); `✎` on a published workflow = you have a draft of it, `⏳` = publication waiting for the network;
+  - `n` new (Empty, Extend a workflow (patch), Duplicate a workflow (copy); team or project layer; id; without a team-state, offers to create a solo space), `e` edit (on a hub workflow: extend it), `v` validate, `t` test the draft ("✎ draft" form, local), `p` publish, `D` draft diff with impact, `h` history, `x` archive (optional reason; on a draft: discard it), `r` reload; Enter on a draft = test it;
+  - **Publish**: current version → next, validation, impact (widenings marked ⚠), new bricks, diff of the document and the template, governance ("Publication: any member"); message required, `Ctrl+S` publishes once; offline, the publication is queued and replayed at the next team-state sync (toast "N pending publication(s) replayed");
+  - **History**: versions (author, date, message, current); Enter = diff with the current version, `r` = restore (republished as a new version).
+  - **Editor** (`e`, `n`): five sections (`Tab` / `Shift+Tab`) — **General** (identity, security, runtime: each field shows the resolved value, `✎` when written in the draft, `← hub:ticket` its origin, 🔒 when locked by the parent workflow; Enter edits, `x` reverts to the inherited value), **Graph** (start column, checkpoints in order with their behavior in the displayed mode — `m` to change it —, agents under the checkpoint they wait for, independent agents apart; Enter edits, `a` adds an agent from the catalogue, `c` a checkpoint, `x` removes — an inherited element is disabled), **Inputs & prompt** (inputs, `a` add, template, `P` to write it in `$EDITOR`, prompt preview), **Resources** (added/denied skills, MCP, Beads, plugins, outputs), **Bundle preview** (agents, skills, first-turn budget, depth, isolation, MCP; diagnostics: Enter goes to the field, or to the YAML at the right line);
+  - `u` / `U` undo / redo, `y` raw YAML in `$EDITOR`, `w` (or `Ctrl+S`) save the draft (refused while errors remain), `Esc`: with unsaved changes, "Save and quit", "Drop the changes" or "Keep editing". YAML comments and layout are kept; only changed fields are written.
+- **Brick catalogue** (`bricks`): Agents and Skills sections (origin hub or team, ~tokens, number of workflows using them), detail on the right (kind, family, mode, skills, requires, loaded by, estimated cost, workflows); `/` search (id, name, description), `f` filter (all, agents, skills).
+- **Team detail**: "Workflows" section with the publication governance, read only; for a solo space, "Space" line ("solo (local)") and "Switch to a team" action (URL of an empty remote repository).
+
+### Sessions view
+
+Sections: **To handle** (pending decisions), **Running**, **Sleeping**, **Finished, 7 days**, **To fetch** (finished remote sessions). The detail on the right shows the session (workflow, runtime ⌂ ▣ ☁, location, cost, decisions, outputs, suggested next step "↪ Chain with … (e)").
+
+| Key | Action |
+|-----|--------|
+| `Enter` | Open the selected decision (checkpoint form, question, permission); on a session without decision: show / hide the feed |
+| `y` / `n` | Permission: allow once / reject; checkpoint: validate / fix first |
+| `x` | Dismiss an error, a budget overrun or a circuit breaker |
+| `a` | Attach (open opencode on the session) |
+| `A` | Pick the opening method (automatic, iTerm2, Terminal.app, tmux, browser, here) |
+| `w` | Open in the browser |
+| `t` | Show / hide the session feed |
+| `m` | Send an instruction (taken at the next step) |
+| `i` | Interrupt the current turn |
+| `M` | Switch the model of the next steps (`provider/model`) |
+| `s` | Stop the session (confirmation) |
+| `c` | Resume a sleeping session |
+| `o` | Results (merge request description) |
+| `e` | Chain with… (workflows that take an output of the session) |
+| `g` | Fetch a remote session (artifacts, Beads journal replay, conflicts) |
+| `f` | Filter: active project / every project |
+| `r` | Refresh |
+
+**Checkpoint form** (`⏸ <checkpoint>`): session changes (`+N −M · K file(s)`, "Full diff"), last messages, timeline; then **Decide**: Validate, Fix first or Other instruction, with a message to the agent (required for the last two). A circuit breaker shows "Circuit breaker: N delegations in a row without the user".
+
+**Remote fetch** (`g`): the session is imported, then "Replay the journal (N op.)"; a Beads conflict offers Keep local, Apply remote, Merge the notes or Later.
 
 ### Projects
 
-| Command | Aliases | Description |
-|---------|---------|-------------|
-| `board` | kanban, tasks | Project kanban board |
-| `projects` | proj, list | Projects list |
+| Command | Aliases | Mode | Description |
+|---------|---------|------|-------------|
+| Project Board | `board`, kanban, tasks, project board | Project | Kanban of the active project |
+| Init Board | `board.init`, beads init, init board, init tickets | — | Initialize Beads in the project |
+| Projects | `projects`, proj, list | — | Project list |
+| Add project | `project.add`, project add, add project, nouveau projet | — | Project creation wizard |
 
-`deploy` and `sync` no longer exist (v5: nothing is deployed into projects anymore); leftovers of former deployments are removed with `cleanup`.
+`deploy` and `sync` no longer exist (v5: nothing is deployed into projects); leftovers of former deployments are removed with `cleanup`.
 
 ### Configuration
 
-| Command | Aliases | Description |
-|---------|---------|-------------|
-| `config` | cfg, settings, hub | Hub configuration |
-| `models` | mod, model, llm | Model configuration |
-| `provider` | prov, api | LLM provider settings |
-| `mcp` | servers | MCP servers |
+| Command | Aliases | Mode | Description |
+|---------|---------|------|-------------|
+| Settings | `settings`, config, cfg, hub, hub config | — | Hub settings |
+| Project Config | `project-config`, config projet, project config | Project | Project configuration (including Execution) |
+| Models | `models`, mod, model, llm | — | Models |
+| Provider | `provider`, prov, api | — | LLM provider |
+| MCP | `mcp`, servers | — | MCP servers |
+| Secrets & Tokens | `secrets`, tokens, credentials, keychain | — | Keychain secrets |
+| Teams | `teams`, team, equipe, equipes | — | Team list |
+| Team Configuration | `team-detail`, tracker, sync, team config, team detail | Team | Team detail and configuration |
+| Discover Tracker | `team.discover`, tracker discovery, discover, configurer tracker | Team | Configure the board columns from the tracker |
+| Configure hub | `init`, setup, reconfigure, configurer | — | Setup wizard (first run) |
+
+**Settings** (`settings`), in order: General, CLI, Opencode, Sessions (opening, iTerm2 style, sleep), **Session restrictions** (off when empty: max working sessions, budget per session, daily budget, memory cap, allowed models), **Execution** (default runtime, container engine, image cache, pinned opencode version, strict isolation), Workflows (link to the catalogue), MCP GitLab / Jira / Figma / Google Slides, Worktree, Tracker (local overrides), **Remote (GitLab CI)** (per target: instance · group, oh-runner project, runner tag, image builder Kaniko or Docker-in-Docker, architecture, maximum job duration, GitLab token; "Check or complete" runs `oh remote setup`). Keys: `Enter` / `e` edit, `Space` toggle, `u` undo, `r` reload.
+
+**Project Config › Execution**: dev Dockerfile (empty = detected; none = oh default image Debian + git), build args (`KEY=value`, comma separated), cache volumes, default workflow, default runtime (empty = settings / workflow).
 
 ### System
 
 | Command | Aliases | Description |
 |---------|---------|-------------|
-| `status` | stat, info | System status |
-| `doctor` | health, check | Health diagnostics |
-| `metrics` | met, stats, tokens | Usage statistics |
-| `cleanup` | deploy-cleanup, nettoyage, migrate | Cleanup screen for former deployments (`oh migrate deploy-cleanup`) |
-| `help` | ?, aide, shortcuts | Help and shortcuts |
+| Status | `status`, stat, info | System status |
+| Doctor | `doctor`, doc, health, check | Health check |
+| Metrics | `metrics`, met, stats, tokens | Usage statistics |
+| Notifications | `notifications`, notif, logs, messages, toasts, erreurs | Notification history |
+| Clean the former deployments | `cleanup`, deploy-cleanup, nettoyage, migrate | Cleanup screen (`oh migrate deploy-cleanup`) |
+| History Export / History Import | `history.export`, `history.import` (export history, import history…) | Export / import of the session history |
+| Help | `help`, ?, aide, shortcuts | Help and shortcuts |
 
-`plugins` and `upgrade` were removed in v5 (plugins are declared per workflow; opencode V2 is installed with its own tool).
+**Cleanup screen** ("Cleanup of the former deployments"): list of projects with `oh deploy` leftovers; "Show the diff" (`opencode.json` diff), "Clean", "Later". It is also offered once at startup when leftovers are found.
+
+`plugins` and `upgrade` were removed in v5 (plugins declared per workflow; opencode V2 is installed with its own tool).
 
 ### Navigation
 
 | Command | Aliases | Description | Availability |
 |---------|---------|-------------|--------------|
-| `home` | accueil, welcome | Return to splash screen | Global |
-| `project.mode` | project mode | Project Mode | `Ctrl+T` (Hub, Team modes) |
-| `hub.mode` | hub mode | Hub Mode | `Ctrl+T` (Team, Project modes) |
-| `quit` | exit, q | Quit the TUI | Global |
+| Home | `home`, accueil, welcome | Back to home | Everywhere |
+| Project Mode | `project.mode`, projet, project, focus | Switch to Project mode | Hub and Team modes |
+| Hub Mode | `hub.mode`, hub, complet, retour | Back to Hub mode | Team and Project modes |
+| Quit | `quit`, exit, q | Quit the TUI | Everywhere |
 
-### Team (when enabled)
+Team mode is entered with `Ctrl+T` (or by picking a team on the home screen).
 
-| Command | Aliases | Description |
-|---------|---------|-------------|
-| `team board` | team kanban | Team kanban board |
-| `team status` | team stat | Team status |
-| `team activity` | activite, feed | Team activity feed |
-| `takeover briefs` | takeover | Takeover context briefs |
-| `worktrees` | wt | Git worktree management |
-| `patterns` | pat | Team patterns |
-| `policies` | pol, rules | Team policies |
+### Team
+
+| Command | Aliases | Mode | Description |
+|---------|---------|------|-------------|
+| Team Board | `team.board`, team board, team kanban, equipe board | Team | Team kanban |
+| Status | `team.status`, team stat, status team | Team | Team status |
+| Activity | `team.activity`, activite, feed, activity | Team | Recent activity |
+| Team History | `history.team`, team history, team sessions | Team | Session history of the team (Activity view) |
+| Takeover Briefs | `team.briefs`, takeover, briefs, reprises | Team | Context takeover briefs |
+| Patterns | `team.patterns`, pat, patterns | Team | Team patterns |
+| Policies | `team.policies`, pol, rules, policies | Team | Team policies |
+| Wiki | `team.wiki`, wiki, proposals, pending | Team | Wiki proposals |
+| Sync Tracker | `team.sync`, sync tracker, synchroniser tracker | Team | Sync the tracker |
+| Project team mode | `team.configure`, team projet, configurer equipe | Team | Team attached to the project |
+| Initialize team | `team.init`, team init, initialiser | — | `team init` wizard |
+| Rejoin a team | `team.rejoin`, team rejoin, rejoindre, rejoin | — | Rejoin an existing team |
+| Worktrees | `worktrees`, wt, git worktree | — | Git worktree management |
 
 ## View-Specific Shortcuts
 
-When a view is active, it may have additional shortcuts that work without activating the omnibar. These are displayed in the omnibar's passive hint text.
+When a view is active, these keys work without activating the omnibar. They are recalled in the hint line. `j` / `k` (down / up) and `g` / `G` (first / last) work everywhere.
 
 ### Board View (project)
 
@@ -175,49 +241,69 @@ When a view is active, it may have additional shortcuts that work without activa
 |-----|--------|
 | `h` / `←` | Previous column |
 | `l` / `→` | Next column |
-| `j` / `↑` | Previous item |
-| `k` / `↓` | Next item |
+| `Enter` | Ticket detail |
+| `a` | Actions: launch a workflow on the ticket |
+| `L` | Link the ticket to the tracker |
 | `r` | Refresh |
-| `g` | Go to first item |
-| `G` | Go to last item |
-| `Enter` | Open item detail |
+| `i` | Initialize Beads (project without Beads) |
 
 ### Team Board View
 
-The team board displays **5 columns**: TODO (`planned`), IN PROGRESS (`in_progress`), REVIEW (`review`), BLOCKED (`blocked`), DONE (`done`). Only active tickets appear — members with no current claims are not listed.
-
-Tickets display compact label tags: `[AI]` (green) for `agent-reviewed`, `[!]` (yellow) for `needs-human-review`.
+Columns of the team-state `[board]`; by default **6 columns**: TODO, IN PROGRESS, REVIEW, VALIDATION, DONE, BLOCKED. Tickets show compact labels: `[AI]` (green) for `agent-reviewed`, `[!]` (yellow) for `needs-human-review`.
 
 | Key | Action |
 |-----|--------|
-| `h` / `←` | Previous column |
-| `l` / `→` | Next column |
-| `j` / `↑` | Previous item |
-| `k` / `↓` | Next item |
-| `c` | Claim the selected ticket (assign to yourself) |
-| `x` | Release the selected ticket |
-| `t` | Transfer the selected ticket to another team member |
-| `s` | Change the status of the selected ticket |
-| `r` | Refresh (pulls latest from git + tracker if configured) |
-| `g` | Go to first item |
-| `G` | Go to last item |
-| `q` / `Esc` | Back to hub |
+| `h` / `←`, `l` / `→` | Previous / next column |
+| `[` / `]` | Previous / next project tab |
+| `c` | Claim the ticket (assign yourself) |
+| `x` | Release the ticket |
+| `t` | Transfer to another member |
+| `s` | Change the status |
+| `a` | Quick actions (including launching a workflow) |
+| `/` | Search |
+| `f` | Filter |
+| `r` | Refresh (tracker sync when configured, then git pull) |
 
 ### Projects View
 
 | Key | Action |
 |-----|--------|
-| `a` | Add project |
-| `d` | Delete project |
-| `r` | Rename project |
-| `Enter` | Configure project |
+| `Enter` | Configure the project |
+| `a` | Add a project |
+| `d` | Remove |
+| `n` | Rename |
+| `m` | Move (new path) |
+| `p` | Switch to Project mode |
+| `b` | Initialize Beads |
+| `r` | Refresh |
 
-### Config View
+### Config View (Settings)
 
 | Key | Action |
 |-----|--------|
-| `j` / `k` | Navigate keys |
-| `Enter` | Edit selected value |
+| `Enter` / `e` | Edit the value |
+| `Space` | Toggle a boolean |
+| `u` | Undo the last change |
+| `r` | Reload |
+
+### Teams View
+
+| Key | Action |
+|-----|--------|
+| `a` | Add a team |
+| `d` | Remove |
+| `s` | Sync |
+| `u` | Undo |
+| `r` | Refresh |
+
+### Team Status, Activity, Takeover Briefs, Worktrees views
+
+| View | Keys |
+|------|------|
+| Team status | `r` refresh |
+| Activity | `t` today, `w` week, `0` all, `r` refresh |
+| Takeover briefs | `Enter` see the brief, `e` enrich (AI, `brief-enrich` workflow), `r` refresh |
+| Worktrees | `a` add, `d` remove, `o` open in a terminal, `p` prune, `x` remove merged worktrees, `r` refresh |
 
 ## Inline Wizards
 

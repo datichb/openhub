@@ -11,10 +11,10 @@ Gestion des services MCP (Model Context Protocol) intégrés au binaire `oh`.
 Les serveurs MCP sont **intégrés au binaire Go** — pas de répertoire `servers/` séparé ni d'étape de build Node.js. Chaque serveur est implémenté nativement dans `cli/internal/mcp/` et servi via stdio JSON-RPC.
 
 Serveurs disponibles :
-- **figma** — Intégration API Figma (fichiers, composants, signaux UI)
-- **gitlab** — Intégration API GitLab (issues, MRs, labels, milestones)
+- **figma** — Intégration API Figma (fichiers, nœuds, styles)
+- **gitlab** — Intégration API GitLab (issues, MR, discussions, labels, reviewers)
 - **gslides** — Intégration Google Slides
-- **team** — Données équipe (membres, wiki, événements, claims) — sans token ; expose le cycle de vie des claims (5 statuts : `planned`, `in_progress`, `review`, `blocked`, `done`), les labels de claim (`agent-reviewed`, `needs-human-review`), le champ `ExternalIID` pour le lien avec les trackers externes, et les événements émis lors des opérations claim/release/transfer
+- **team** — Données équipe (membres, wiki, événements, claims, politiques, patterns, briefs de reprise) — sans token ; expose le cycle de vie des claims (5 statuts : `planned`, `in_progress`, `review`, `blocked`, `done`), les labels de claim (`agent-reviewed`, `needs-human-review`), le champ `ExternalIID` pour le lien avec les trackers externes, et les événements émis lors des opérations claim/release/transfer
 - **github** — Intégration API GitHub (dépôts, issues, PRs, workflows)
 - **jira** — Intégration Jira (Cloud et Server/Data Center)
 - **linear** — Intégration Linear (issues, projets)
@@ -160,6 +160,11 @@ enabled = true
 token_key = "openhub.mcp.gitlab.token"
 write_enabled = true
 
+[mcp.jira]
+enabled = false
+token_key = "openhub.mcp.jira.token"
+url = "https://masociete.atlassian.net"   # facultatif (GitLab, Jira) ; vide = URL du team-state ou défaut
+
 [mcp.gslides]
 enabled = false
 token_key = "openhub.mcp.gslides.token"
@@ -177,6 +182,7 @@ Champs par service :
 | `enabled` | *bool | `nil` = hériter du hub, `true` = forcer l'activation, `false` = forcer la désactivation |
 | `token_key` | string | Clé keychain override (vide = hériter du hub) |
 | `write_enabled` | *bool | Mode écriture GitLab (nil = hériter du hub) |
+| `url` | string | URL de l'instance (vide = hériter du hub ou de l'équipe) |
 
 ### Cascade et héritage
 
@@ -200,42 +206,78 @@ Hub (hub.toml)
 
 ## Paquet de session — bloc `mcp`
 
-À chaque lancement (`oh run <workflow>`), le CLI place dans le paquet de session une entrée `mcp` pour chaque service **effectivement activé** (après résolution de la cascade) ; l'adaptateur la reporte dans la config opencode de la session (`oh deploy` supprimé en v5, rien n'est écrit dans le `opencode.json` du projet) :
+À chaque lancement (`oh run <workflow>`), oh place dans le paquet de session une entrée pour chaque service **effectivement activé** (après résolution de la cascade) et dont le token est disponible (variable d'environnement, trousseau, ou sans token pour `team`). L'adaptateur la reporte dans la configuration opencode de la session ; rien n'est écrit dans le `opencode.json` du projet (`oh deploy` supprimé en v5) :
 
 ```json
 {
-  "mcp": {
-    "figma": {
-      "command": "oh",
-      "args": ["mcp", "serve", "figma"]
-    },
-    "gitlab": {
-      "command": "oh",
-      "args": ["mcp", "serve", "gitlab"]
-    }
-  }
+  "mcp": [
+    { "name": "gitlab", "type": "local",
+      "command": ["oh", "mcp", "serve", "gitlab", "--token-key", "openhub.mcp.gitlab.token"],
+      "environment": { "GITLAB_WRITE_ENABLED": "true", "GITLAB_URL": "https://gitlab.example.com" } },
+    { "name": "team", "type": "local",
+      "command": ["oh", "mcp", "serve", "team"],
+      "environment": { "OH_TEAM_ID": "acme", "OH_PROJECT_ID": "web-app" } }
+  ]
 }
 ```
 
-Seuls les serveurs avec un token valide (env, keychain, ou sans token pour `team`) sont placés dans le paquet.
+- **Sélection par le workflow** : si le workflow déclare `mcp:` ([schéma](workflow-schema.fr.md#ressources)), seuls les serveurs de la liste sont gardés ; absent, la session garde les serveurs du projet. Le serveur `workflow` (checkpoints, sorties) est toujours ajouté.
+- **Serveur `team`** : il lit l'équipe et le projet de la session dans `OH_TEAM_ID` et `OH_PROJECT_ID` (`.opencode/team.json` n'est plus lu).
+- **Conteneur et distant** : les serveurs MCP d'oh ne tournent pas hors de la machine. Le démon `ohd` les sert par la **passerelle MCP** (HTTP) ; les tokens restent dans le trousseau de la machine ([ADR-046](../architecture/adr/046-beads-gateways.fr.md)).
+- Inspecter : `oh bundle show <workflow>`.
 
 ---
 
 ## Variables d'environnement au runtime
 
+Lues par `oh mcp serve <nom>` ; oh les renseigne dans le paquet à partir de la configuration (les tokens viennent du trousseau, `--token-key`).
+
 | Service | Variable | Description |
 |---------|----------|-------------|
 | figma | `FIGMA_TOKEN` | Token d'accès Figma |
 | gitlab | `GITLAB_TOKEN` | Token d'accès GitLab |
-| gitlab | `GITLAB_URL` | URL de l'instance GitLab |
+| gitlab | `GITLAB_URL` | URL de l'instance GitLab (défaut : `https://gitlab.com`) |
+| gitlab | `GITLAB_WRITE_ENABLED` | `true` pour activer les outils d'écriture (posée par oh quand `write_enabled = true`) |
 | gslides | `GOOGLE_ACCESS_TOKEN` | Token OAuth Google |
 | github | `GITHUB_TOKEN` | Token d'accès GitHub (alias : `GH_TOKEN`) |
-| github | `GITHUB_WRITE_ENABLED` | Mettre a `true` pour activer les outils d'ecriture |
+| github | `GITHUB_WRITE_ENABLED` | `true` pour activer les outils d'écriture |
 | jira | `JIRA_URL` | URL de l'instance Jira (ex. `https://masociete.atlassian.net`) |
 | jira | `JIRA_TOKEN` | Token API Jira (ou `JIRA_USER` + `JIRA_API_TOKEN`) |
-| jira | `JIRA_WRITE_ENABLED` | Mettre a `true` pour activer les outils d'ecriture |
-| linear | `LINEAR_API_KEY` | Cle API Linear |
-| linear | `LINEAR_WRITE_ENABLED` | Mettre a `true` pour activer les outils d'ecriture |
+| jira | `JIRA_WRITE_ENABLED` | `true` pour activer les outils d'écriture |
+| linear | `LINEAR_API_KEY` | Clé API Linear |
+| linear | `LINEAR_WRITE_ENABLED` | `true` pour activer les outils d'écriture |
+| team | `OH_TEAM_ID`, `OH_PROJECT_ID` | Équipe et projet de la session (posées par oh) |
+
+---
+
+## Serveur GitLab
+
+**Requis :** `GITLAB_TOKEN` (Personal Access Token avec le scope `api`)
+
+**Optionnel :** `GITLAB_URL` pour une instance auto-hébergée (défaut : `https://gitlab.com`)
+
+**Mode écriture :** `write_enabled = true` dans `hub.toml` (ou pour le projet) ; oh pose alors `GITLAB_WRITE_ENABLED=true`.
+
+**Outils de lecture :**
+
+| Outil | Description |
+|-------|-------------|
+| `gitlab_get_project` | Métadonnées d'un projet |
+| `gitlab_list_issues` | Lister les issues avec filtres |
+| `gitlab_list_mrs` | Lister les merge requests |
+| `gitlab_list_mr_discussions` | Lister les discussions d'une MR |
+| `gitlab_get_mr_approvals` | Approbations d'une MR |
+
+**Outils d'écriture** (mode écriture) :
+
+| Outil | Description |
+|-------|-------------|
+| `gitlab_create_mr` | Créer une merge request |
+| `gitlab_add_mr_note` | Ajouter une note à une MR |
+| `gitlab_update_issue` | Mettre à jour une issue (labels, assignee, statut) |
+| `gitlab_assign_reviewer` | Assigner un reviewer à une MR |
+| `gitlab_add_label` | Ajouter un label à une issue ou une MR |
+| `gitlab_reply_to_mr_discussion` | Répondre à une discussion de MR |
 
 ---
 
@@ -245,19 +287,20 @@ Seuls les serveurs avec un token valide (env, keychain, ou sans token pour `team
 
 **Limites de taux :** 60 req/h sans authentification, 5 000 req/h authentifié.
 
-**Mode ecriture :** Definir `GITHUB_WRITE_ENABLED=true` pour activer `github_create_issue`.
+**Mode écriture :** `GITHUB_WRITE_ENABLED=true` active `github_create_issue`.
 
 **Outils disponibles :**
 
 | Outil | Description |
 |-------|-------------|
-| `github_get_repo` | Obtenir les metadonnees d'un depot |
+| `github_get_repo` | Métadonnées d'un dépôt |
 | `github_list_issues` | Lister les issues avec filtres |
-| `github_get_issue` | Obtenir une issue specifique |
+| `github_get_issue` | Obtenir une issue |
 | `github_list_prs` | Lister les pull requests |
-| `github_get_pr` | Obtenir une pull request specifique |
+| `github_get_pr` | Obtenir une pull request |
 | `github_list_workflows` | Lister les workflows GitHub Actions |
-| `github_get_workflow_run` | Obtenir une execution de workflow specifique |
+| `github_get_workflow_run` | Exécutions d'un workflow (par nom de fichier ou ID) |
+| `github_create_issue` | Créer une issue *(mode écriture uniquement)* |
 
 ---
 
@@ -267,16 +310,18 @@ Seuls les serveurs avec un token valide (env, keychain, ou sans token pour `team
 
 **Compatible :** Jira Cloud (API v3) et Jira Server/Data Center.
 
-**Mode ecriture :** Definir `JIRA_WRITE_ENABLED=true` pour activer `jira_transition_issue`.
+**Mode écriture :** `JIRA_WRITE_ENABLED=true` active les outils d'écriture.
 
 **Outils disponibles :**
 
 | Outil | Description |
 |-------|-------------|
-| `jira_list_issues` | Lister les issues avec filtre JQL |
-| `jira_get_issue` | Obtenir une issue specifique |
-| `jira_get_project` | Obtenir les metadonnees d'un projet |
-| `jira_transition_issue` | Changer le statut d'une issue *(mode ecriture uniquement)* |
+| `jira_list_issues` | Lister les issues avec un filtre JQL |
+| `jira_get_issue` | Obtenir une issue |
+| `jira_get_project` | Métadonnées d'un projet |
+| `jira_list_comments` | Commentaires d'une issue |
+| `jira_transition_issue` | Changer le statut d'une issue *(mode écriture uniquement)* |
+| `jira_create_issue` | Créer une issue *(mode écriture uniquement)* |
 
 ---
 
@@ -286,22 +331,22 @@ Seuls les serveurs avec un token valide (env, keychain, ou sans token pour `team
 
 **API :** GraphQL.
 
-**Mode ecriture :** Definir `LINEAR_WRITE_ENABLED=true` pour activer les outils de creation/mise a jour.
+**Mode écriture :** `LINEAR_WRITE_ENABLED=true` active les outils de création et de mise à jour.
 
 **Outils disponibles :**
 
 | Outil | Description |
 |-------|-------------|
 | `linear_list_issues` | Lister les issues avec filtres |
-| `linear_get_issue` | Obtenir une issue specifique |
-| `linear_create_issue` | Creer une issue *(mode ecriture uniquement)* |
-| `linear_update_issue` | Mettre a jour une issue *(mode ecriture uniquement)* |
+| `linear_get_issue` | Obtenir une issue |
+| `linear_create_issue` | Créer une issue *(mode écriture uniquement)* |
+| `linear_update_issue` | Mettre à jour une issue *(mode écriture uniquement)* |
 
 ---
 
 ## Migration depuis `oh service`
 
-Les commandes `oh service` sont **dépréciées**. Utilisez les équivalents `oh mcp` :
+Les commandes `oh service` sont **dépréciées** (masquées de l'aide). Utilisez les équivalents `oh mcp` :
 
 | Ancienne commande | Nouvelle commande |
 |---|---|
@@ -318,4 +363,5 @@ Les commandes `oh service` restent fonctionnelles mais affichent un message de d
 
 - [Guide d'intégration Figma](../guides/figma-integration.fr.md)
 - [Guide d'intégration GitLab](../guides/gitlab-integration.fr.md)
+- [Schéma des workflows](workflow-schema.fr.md) (champ `mcp`)
 - [Référence CLI complète](cli.fr.md)
