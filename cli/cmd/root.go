@@ -122,10 +122,31 @@ func Execute() error {
 	defer stopInProcessDaemon()
 
 	if err := rootCmd.Execute(); err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		var exit *ExitError
+		if !errors.As(err, &exit) {
+			fmt.Fprintln(os.Stderr, err)
+		}
 		return err
 	}
 	return nil
+}
+
+// ExitError ends oh with Code without printing anything more (the command
+// already reported the failure, or a proxied command printed its own).
+type ExitError struct{ Code int }
+
+func (e *ExitError) Error() string { return fmt.Sprintf("exit status %d", e.Code) }
+
+// ExitCode returns the process exit code for an error returned by Execute.
+func ExitCode(err error) int {
+	var exit *ExitError
+	if errors.As(err, &exit) && exit.Code > 0 {
+		return exit.Code
+	}
+	if err != nil {
+		return 1
+	}
+	return 0
 }
 
 // MustApp returns the initialized application instance.

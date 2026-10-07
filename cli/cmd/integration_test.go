@@ -100,7 +100,13 @@ func TestCompletionZsh(t *testing.T) {
 
 func TestDoctorRuns(t *testing.T) {
 	stdout, _, exitCode := runOh(t, "doctor")
-	assert.Equal(t, 0, exitCode)
+	// Exit code 1 when a check fails (QB1), e.g. no container engine on the
+	// test machine; 0 otherwise.
+	if strings.Contains(stdout, "✗") {
+		assert.Equal(t, 1, exitCode)
+	} else {
+		assert.Equal(t, 0, exitCode)
+	}
 	assert.Contains(t, stdout, "OS / Architecture")
 	assert.Contains(t, stdout, "Go runtime")
 	assert.Contains(t, stdout, "git")

@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -38,8 +39,17 @@ var beadsCmd = &cobra.Command{
 		bdCmd.Stdin = os.Stdin
 		bdCmd.Stdout = os.Stdout
 		bdCmd.Stderr = os.Stderr
-		return bdCmd.Run()
+		return bdExit(bdCmd.Run())
 	},
+}
+
+// bdExit passes the exit code of bd through (bd printed its own error).
+func bdExit(err error) error {
+	var exit *exec.ExitError
+	if errors.As(err, &exit) {
+		return &ExitError{Code: exit.ExitCode()}
+	}
+	return err
 }
 
 var serviceCmd = &cobra.Command{

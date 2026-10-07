@@ -39,6 +39,7 @@ Internal commands (hidden from the help, not documented in detail): `oh daemon r
 
 | Code | Meaning |
 |------|---------|
-| `0` | Success. Also for `oh deploy` / `oh sync` (migration message) and for `oh doctor`, even when checks fail (the result is printed) |
-| `1` | Error: the message is written to standard error. For example: `oh workflow validate` or `oh skill check` finding errors, `oh run --headless` with a session waiting for a decision or exceeding `--timeout`, `oh beads` when `bd` fails (the `bd` exit code is not passed on) |
+| `0` | Success. Also for `oh deploy` / `oh sync` (migration message), and for `oh doctor` when no check fails (warnings do not count) |
+| `1` | Error: the message is written to standard error. For example: `oh workflow validate` or `oh skill check` finding errors, `oh run --headless` with a session waiting for a decision or exceeding `--timeout`, `oh doctor` when a check fails (✗) |
+| `bd` code | `oh beads` passes the exit code of `bd` through |
 | `2` | Internal error (panic): oh prints a message asking to report the bug |
