@@ -3,7 +3,7 @@
 # ADR-012 — Git Worktrees pour l'isolation du travail en parallèle
 
 **Date :** 2026-06-04
-**Statut :** Accepté *(mis à jour 2026-07-22)*
+**Statut :** Accepté *(mis à jour 2026-07-22)* — **Évolué par [ADR-043](./043-session-bundle-deploy-removal.fr.md)** et **[ADR-047](./047-session-interaction-daemon.fr.md)**
 **Auteurs :** openhub
 
 ---

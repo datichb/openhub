@@ -80,4 +80,4 @@ légère) et `figma-deep-protocol` (analyse approfondie des structures de compos
 ## Migration
 
 Voir le guide de migration complet :
-[docs/guides/migration-designer-fusion.md](../../guides/migration-designer-fusion.md)
+[docs/guides/migration-designer-fusion.fr.md](../../guides/migration-designer-fusion.fr.md)

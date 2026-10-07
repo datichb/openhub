@@ -2,7 +2,7 @@
 
 ## Statut
 
-Accepté (Phases 0-4 implémentées, corrections Lot 1 appliquées, préparation structurelle Lot 2 faite)
+Accepté — **Remplacé en partie par [ADR-038](./038-sessionspec-tool-adapters.fr.md)** (`platform` garde `Credentials` et `StatsProvider`)
 
 ## Date
 

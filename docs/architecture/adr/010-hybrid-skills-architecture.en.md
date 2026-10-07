@@ -4,7 +4,7 @@
 
 ## Status
 
-Accepted — **Evolved by [ADR-043](./043-session-bundle-deploy-removal.en.md)**
+Accepted — **Evolved by [ADR-016](./016-execution-path-skills.en.md)** and **[ADR-043](./043-session-bundle-deploy-removal.en.md)**
 
 ## Context
 

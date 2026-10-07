@@ -4,7 +4,7 @@
 
 ## Status
 
-Accepted — **Evolved by [ADR-041](./041-closed-world-isolation.en.md)** and **[ADR-044](./044-credential-proxy-session-limits.en.md)**
+Accepted — **Evolved by [ADR-041](./041-closed-world-isolation.en.md)**, **[ADR-042](./042-checkpoints-headless-decisions.en.md)** (circuit breaker) and **[ADR-044](./044-credential-proxy-session-limits.en.md)**
 
 ## Date
 

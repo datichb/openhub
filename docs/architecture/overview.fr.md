@@ -219,8 +219,8 @@ Implémenter et diagnostiquer sont confiés à des agents différents (developer
 | [039](./adr/039-declarative-workflows-oh-v1.fr.md) | Workflows déclaratifs `oh/v1` | remplace 006, 018 |
 | [040](./adr/040-workflows-team-state-governance.fr.md) | Workflows dans le team-state, gouvernance, espace solo | fait évoluer 024, 029, 033 |
 | [041](./adr/041-closed-world-isolation.fr.md) | Monde fermé et vérification d'isolation | fait évoluer 019 |
-| [042](./adr/042-checkpoints-headless-decisions.fr.md) | Checkpoints à trois niveaux et décisions sans interface | remplace 003 |
-| [043](./adr/043-session-bundle-deploy-removal.fr.md) | Paquet de session et suppression du déploiement par projet | remplace 011 ; fait évoluer 008, 010 |
+| [042](./adr/042-checkpoints-headless-decisions.fr.md) | Checkpoints à trois niveaux et décisions sans interface | remplace 003 ; fait évoluer 019 (coupe-circuit) |
+| [043](./adr/043-session-bundle-deploy-removal.fr.md) | Paquet de session et suppression du déploiement par projet | remplace 011 ; fait évoluer 008, 010, 012 |
 | [044](./adr/044-credential-proxy-session-limits.fr.md) | Proxy d'identifiants LLM et restrictions des sessions | fait évoluer 019, 021, 033 |
 | [045](./adr/045-execution-environments.fr.md) | Environnements d'exécution : local, conteneur, distant | — |
 | [046](./adr/046-beads-gateways.fr.md) | Beads sur la machine et passerelles | — |

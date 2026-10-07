@@ -219,8 +219,8 @@ Implementing and diagnosing are given to different agents (developer, debugger);
 | [039](./adr/039-declarative-workflows-oh-v1.en.md) | Declarative `oh/v1` workflows | replaces 006, 018 |
 | [040](./adr/040-workflows-team-state-governance.en.md) | Workflows in the team-state, governance, solo space | evolves 024, 029, 033 |
 | [041](./adr/041-closed-world-isolation.en.md) | Closed world and isolation check | evolves 019 |
-| [042](./adr/042-checkpoints-headless-decisions.en.md) | Three-level checkpoints and headless decisions | replaces 003 |
-| [043](./adr/043-session-bundle-deploy-removal.en.md) | Session bundle and removal of per-project deployment | replaces 011; evolves 008, 010 |
+| [042](./adr/042-checkpoints-headless-decisions.en.md) | Three-level checkpoints and headless decisions | replaces 003; evolves 019 (circuit breaker) |
+| [043](./adr/043-session-bundle-deploy-removal.en.md) | Session bundle and removal of per-project deployment | replaces 011; evolves 008, 010, 012 |
 | [044](./adr/044-credential-proxy-session-limits.en.md) | LLM credential proxy and session restrictions | evolves 019, 021, 033 |
 | [045](./adr/045-execution-environments.en.md) | Execution environments: local, container, remote | — |
 | [046](./adr/046-beads-gateways.en.md) | Beads on the machine and gateways | — |
