@@ -99,3 +99,25 @@ func loadLocale(locale string) map[string]string {
 	messages[locale] = m
 	return m
 }
+
+// KeyOf returns the key of a message of the en or fr locale ("" when s is
+// not a message; the smallest key when several share it). Texts translated
+// before the locale is known (cobra commands built at init) are translated
+// again with it.
+func KeyOf(s string) string {
+	if s == "" {
+		return ""
+	}
+	for _, locale := range []string{"en", "fr"} {
+		best := ""
+		for k, v := range loadLocale(locale) {
+			if v == s && (best == "" || k < best) {
+				best = k
+			}
+		}
+		if best != "" {
+			return best
+		}
+	}
+	return ""
+}

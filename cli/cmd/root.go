@@ -336,6 +336,7 @@ func init() {
 	// own help (flags, examples).
 	defaultHelp := rootCmd.HelpFunc()
 	rootCmd.SetHelpFunc(func(c *cobra.Command, args []string) {
+		localizeHelp(c.Root())
 		if c == rootCmd {
 			customHelpFunc(c, args)
 			return
@@ -345,31 +346,50 @@ func init() {
 	rootCmd.AddCommand(secretsCmd)
 }
 
-// localizeCommands recursively traverses the command tree and replaces
-// Short/Long descriptions and flag usages with i18n translations if available.
-// The key convention is: "cmd.<command-path>.short" and "cmd.<command-path>.long"
-// For flags: "cmd.<command-path>.flags.<flag-name>"
-// For example: "cmd.start.short", "cmd.project.list.short", "cmd.start.flags.project"
+// localizeCommands translates the help of the command tree into the
+// current locale: Short, Long and flag usages. A text comes from its
+// conventional key ("cmd.<command-path>.short", ".long",
+// ".flags.<flag-name>", e.g. "cmd.project.list.short"), else from the key of
+// the message it holds (texts built with i18n.T before the locale was
+// known). Every help has one or the other (TestEveryHelpIsTranslated).
 func localizeCommands(cmd *cobra.Command) {
 	key := cmdI18nKey(cmd)
-	if key != "" {
-		if t := i18n.T(key + ".short"); t != key+".short" {
-			cmd.Short = t
+	cmd.Short = localizedHelp(key+".short", cmd.Short)
+	cmd.Long = localizedHelp(key+".long", cmd.Long)
+	localize := func(f *pflag.Flag) {
+		if f.Name != "help" {
+			f.Usage = localizedHelp(key+".flags."+f.Name, f.Usage)
 		}
-		if t := i18n.T(key + ".long"); t != key+".long" {
-			cmd.Long = t
-		}
-		// Localize flag descriptions
-		cmd.Flags().VisitAll(func(f *pflag.Flag) {
-			flagKey := key + ".flags." + f.Name
-			if t := i18n.T(flagKey); t != flagKey {
-				f.Usage = t
-			}
-		})
 	}
+	cmd.Flags().VisitAll(localize)
+	cmd.PersistentFlags().VisitAll(localize) // merged into Flags() only once parsed
+	localizeHelpFlag(cmd)
 	for _, sub := range cmd.Commands() {
 		localizeCommands(sub)
 	}
+}
+
+// localizedHelp returns the translation of key, else of the message text
+// holds, else text.
+func localizedHelp(key, text string) string {
+	if t := i18n.T(key); t != key {
+		return t
+	}
+	if k := i18n.KeyOf(text); k != "" {
+		return i18n.T(k)
+	}
+	return text
+}
+
+// localizeHelp sets the locale of the hub configuration (help is shown
+// without initializing the app) and translates the command tree.
+func localizeHelp(root *cobra.Command) {
+	if application == nil {
+		if c, err := config.Load(); err == nil && c != nil && c.CLI.Language != "" {
+			i18n.SetLocale(c.CLI.Language)
+		}
+	}
+	localizeCommands(root)
 }
 
 // cmdI18nKey builds the i18n key prefix for a cobra command.

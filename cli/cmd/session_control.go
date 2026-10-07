@@ -122,7 +122,7 @@ var sessionApproveCmd = &cobra.Command{
 }
 
 var sessionAnswerCmd = &cobra.Command{
-	Use:   "answer <session-id|decision-id> --field clé=valeur…",
+	Use:   "answer <session-id|decision-id> --field key=value…",
 	Short: "Répond à une question de l'agent (formulaire), sans attacher la session",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {

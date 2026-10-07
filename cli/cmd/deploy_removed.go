@@ -19,6 +19,7 @@ func init() {
 		rootCmd.AddCommand(&cobra.Command{
 			Use:                name,
 			Short:              i18n.T("cmd.deploy.removed.short"),
+			Hidden:             true, // removed: not in the help, still explains the migration
 			DisableFlagParsing: true, // former flags (--check, --diff, --all…) accepted
 			RunE: func(cmd *cobra.Command, _ []string) error {
 				deployRemoved(cmd, "oh "+name)

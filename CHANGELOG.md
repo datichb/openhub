@@ -195,6 +195,8 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 - Contenu des agents et skills : plus aucune référence à une skill inexistante (`[SKILL:planning/planner-subagent]`, `auditor/auditor-standalone`, `designer/ux-subagent`… → skills `*-execution-modes`, `designer-subagent` ; le marqueur `[REVIEW:single]` du reviewer n'est plus présenté comme une skill) ; une skill nommée par un marqueur `[SKILL:…]` est livrée à la demande ; `review-feedback` livre `orchestrator-dev-feedback-mode`.
 - Détection de la stack : Django, FastAPI, Flask (`pyproject.toml`, `requirements.txt`, `Pipfile`, `setup.py`) et Rails (`Gemfile`) ; les skills de stack Django, FastAPI et Rails sont ajoutées au paquet.
 - TUI « Démarrer » : la session libre ne mentionne plus opencode V1.
+- Aide de la CLI : `oh --help` est construite à partir des commandes elles-mêmes (toutes les commandes visibles, par section, avec leurs options : `session`, `budget`, `daemon`, `remote`, `bundle build`, `team claim`… ; plus de `claim` ni `release` de premier niveau, qui n'existent pas) ; toute l'aide (descriptions, options, titres, « défaut ») suit la langue de l'interface, au lieu d'un mélange de français et d'anglais. Contenus corrigés : fournisseurs (`-P` : bedrock, anthropic, openrouter, github-copilot ; plus d'`openai`), `oh init`, cascade des modèles et `config websearch` (plus de déploiement), `--sweep-strategy` facultatif, `oh session attach --how here`.
+- `oh config model … -p <projet>` : la forme courte de `--project` est `-p`, comme partout (c'était `-j`).
 
 ### Security
 
