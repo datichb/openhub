@@ -158,7 +158,7 @@ A Markdown protocol document that provides domain-specific knowledge, workflows,
 
 ### Stack Skills
 
-Framework-specific skill protocols (e.g., `dev-standards-react`, `dev-standards-golang`) that are dynamically added to the session bundle based on the detected tech stack of the target project. Located in `skills/developer/stacks/`.
+Framework-specific skill protocols (e.g., `dev-standards-react`, `dev-standards-golang`) that are dynamically added to the session bundle based on the detected tech stack of the target project (languages Go, TypeScript, Python, Rust, Java, Ruby; frameworks Next.js, Nuxt, React, Vue, Express, Django, FastAPI, Rails; Vitest, Jest, Docker, CI). Located in `skills/developer/stacks/`.
 
 ### Target Project
 

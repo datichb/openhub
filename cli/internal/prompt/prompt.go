@@ -47,8 +47,9 @@ func DetectStack(projectPath string) StackInfo {
 		}
 		info.TestRunner = detectJSTestRunner(projectPath)
 		info.Framework = detectJSFramework(projectPath)
-	case fileExists(projectPath, "pyproject.toml") || fileExists(projectPath, "setup.py"):
+	case fileExists(projectPath, "pyproject.toml") || fileExists(projectPath, "setup.py") || fileExists(projectPath, "requirements.txt"):
 		info.Language = "python"
+		info.Framework = detectPythonFramework(projectPath)
 		switch {
 		case fileExists(projectPath, "poetry.lock"):
 			info.PackageManager = "poetry"
@@ -58,6 +59,18 @@ func DetectStack(projectPath string) StackInfo {
 			info.PackageManager = "pip"
 		}
 		info.TestRunner = "pytest"
+	case fileExists(projectPath, "Gemfile"):
+		info.Language = "ruby"
+		info.PackageManager = "bundler"
+		gemfile := readFile(filepath.Join(projectPath, "Gemfile"))
+		if strings.Contains(gemfile, "\"rails\"") || strings.Contains(gemfile, "'rails'") || fileExists(projectPath, "config/application.rb") {
+			info.Framework = "rails"
+		}
+		if strings.Contains(gemfile, "rspec") {
+			info.TestRunner = "rspec"
+		} else if info.Framework == "rails" {
+			info.TestRunner = "bin/rails test"
+		}
 	case fileExists(projectPath, "Cargo.toml"):
 		info.Language = "rust"
 		info.PackageManager = "cargo"
@@ -112,6 +125,26 @@ func BuildContext(info StackInfo) string {
 		return ""
 	}
 	return strings.Join(parts, "\n")
+}
+
+// detectPythonFramework reads the dependencies of a Python project
+// (pyproject.toml, requirements.txt, Pipfile, setup.py).
+func detectPythonFramework(path string) string {
+	var deps strings.Builder
+	for _, f := range []string{"pyproject.toml", "requirements.txt", "Pipfile", "setup.py"} {
+		deps.WriteString(strings.ToLower(readFile(filepath.Join(path, f))))
+		deps.WriteString("\n")
+	}
+	d := deps.String()
+	switch {
+	case strings.Contains(d, "django") || fileExists(path, "manage.py"):
+		return "django"
+	case strings.Contains(d, "fastapi"):
+		return "fastapi"
+	case strings.Contains(d, "flask"):
+		return "flask"
+	}
+	return ""
 }
 
 func detectJSTestRunner(path string) string {

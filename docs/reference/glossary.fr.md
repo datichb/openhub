@@ -158,7 +158,7 @@ Un document de protocole Markdown qui fournit des connaissances specifiques a un
 
 ### Stack Skills
 
-Protocoles de skills specifiques a un framework (ex. `dev-standards-react`, `dev-standards-golang`) qui sont ajoutes dynamiquement au paquet de session en fonction de la stack technique detectee du projet cible. Situes dans `skills/developer/stacks/`.
+Protocoles de skills specifiques a un framework (ex. `dev-standards-react`, `dev-standards-golang`) qui sont ajoutes dynamiquement au paquet de session en fonction de la stack technique detectee du projet cible (langages Go, TypeScript, Python, Rust, Java, Ruby ; frameworks Next.js, Nuxt, React, Vue, Express, Django, FastAPI, Rails ; Vitest, Jest, Docker, CI). Situes dans `skills/developer/stacks/`.
 
 ### Target Project (Projet cible)
 

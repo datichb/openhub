@@ -107,3 +107,24 @@ func TestDetectStack_NextJS(t *testing.T) {
 	assert.Equal(t, "Next.js", info.Framework)
 	assert.Equal(t, "jest", info.TestRunner)
 }
+
+// QB3: Python frameworks and Rails are detected.
+func TestDetectStack_PythonFrameworksAndRails(t *testing.T) {
+	for file, cases := range map[string]map[string]string{
+		"requirements.txt": {"Django>=4.2\n": "django", "fastapi\n": "fastapi", "Flask==3\n": "flask", "requests\n": ""},
+	} {
+		for content, want := range cases {
+			dir := t.TempDir()
+			require.NoError(t, os.WriteFile(filepath.Join(dir, file), []byte(content), 0o644))
+			info := DetectStack(dir)
+			assert.Equal(t, "python", info.Language, content)
+			assert.Equal(t, want, info.Framework, content)
+		}
+	}
+	dir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "Gemfile"), []byte("gem \"rails\"\ngem \"rspec-rails\"\n"), 0o644))
+	info := DetectStack(dir)
+	assert.Equal(t, "ruby", info.Language)
+	assert.Equal(t, "rails", info.Framework)
+	assert.Equal(t, "rspec", info.TestRunner)
+}

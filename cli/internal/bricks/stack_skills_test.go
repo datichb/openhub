@@ -51,9 +51,21 @@ django = "^4.2"
 
 	assert.Contains(t, skills, "developer/stacks/dev-standards-python")
 	assert.Contains(t, skills, "developer/stacks/dev-standards-docker")
-	// django detection depends on prompt.DetectStack reading pyproject.toml content
-	// If the prompt doesn't detect django from the content, this will be absent —
-	// but the language + docker should always work.
+	assert.Contains(t, skills, "developer/stacks/dev-standards-django", "QB3: django detected from pyproject.toml")
+}
+
+// QB3: FastAPI (requirements.txt) and Rails (Gemfile) projects get their
+// stack skills.
+func TestResolveStackSkills_FastAPIAndRails(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "requirements.txt"), []byte("fastapi==0.110\nuvicorn\n"), 0o644))
+	skills := ResolveStackSkills(dir)
+	assert.Contains(t, skills, "developer/stacks/dev-standards-python")
+	assert.Contains(t, skills, "developer/stacks/dev-standards-fastapi")
+
+	dir = t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "Gemfile"), []byte("source 'https://rubygems.org'\ngem 'rails', '~> 7.1'\n"), 0o644))
+	assert.Equal(t, []string{"developer/stacks/dev-standards-rails"}, ResolveStackSkills(dir))
 }
 
 func TestResolveStackSkills_EmptyProject(t *testing.T) {
