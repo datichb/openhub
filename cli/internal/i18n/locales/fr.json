@@ -1864,7 +1864,7 @@
   "workflow.diag.isolation_unsupported": "isolation: strict exige une isolation complète ; l'adaptateur courant annonce %q (le lancement sera refusé)",
   "workflow.diag.kind": "kind %q invalide (attendu : %s)",
   "workflow.diag.loosening": "La valeur %s assouplit celle du parent (%s, %s)",
-  "workflow.diag.loosening.hint": "Les champs de sécurité (risk, isolation, runtime.allowed, beads.allow, checkpoints obligatoires, remote, limits) ne peuvent que se durcir.",
+  "workflow.diag.loosening.hint": "Les champs de sécurité (risk, isolation, runtime.allowed, modes.allowed, code_mode, beads.allow, checkpoints obligatoires, remote, limits) ne peuvent que se durcir.",
   "workflow.diag.mandatory_checkpoint_removed": "Le checkpoint obligatoire %s ne peut pas être retiré",
   "workflow.diag.mode_default_not_allowed": "Le mode par défaut %q n'est pas autorisé (autorisés : %s)",
   "workflow.diag.model_agent_unknown": "Modèle défini pour %s, qui n'est pas un agent du workflow",

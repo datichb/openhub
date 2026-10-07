@@ -18,8 +18,9 @@ import (
 //     appended; an agent is removed with `role: disabled`, a checkpoint with
 //     `disabled: true` (refused if the parent marks it mandatory); inputs
 //     cannot be removed;
-//   - security fields (risk, isolation, runtime.allowed, mandatory
-//     checkpoints, beads.allow, remote policies) may only be hardened.
+//   - security fields (risk, isolation, runtime.allowed, modes.allowed,
+//     code_mode, mandatory checkpoints, beads.allow, remote policies,
+//     limits) may only be hardened.
 //
 // The legacy WorkflowDefinition (types.go) stays readable during the
 // migration; it is not an oh/v1 document.

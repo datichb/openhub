@@ -1864,7 +1864,7 @@
   "workflow.diag.isolation_unsupported": "isolation: strict requires full isolation; the current adapter reports %q (the launch will be refused)",
   "workflow.diag.kind": "Invalid kind %q (expected %s)",
   "workflow.diag.loosening": "Value %s loosens the parent value (%s, %s)",
-  "workflow.diag.loosening.hint": "Security fields (risk, isolation, runtime.allowed, beads.allow, mandatory checkpoints, remote, limits) may only be hardened.",
+  "workflow.diag.loosening.hint": "Security fields (risk, isolation, runtime.allowed, modes.allowed, code_mode, beads.allow, mandatory checkpoints, remote, limits) may only be hardened.",
   "workflow.diag.mandatory_checkpoint_removed": "The mandatory checkpoint %s cannot be removed",
   "workflow.diag.mode_default_not_allowed": "Default mode %q is not allowed (allowed: %s)",
   "workflow.diag.model_agent_unknown": "Model set for %s, which is not an agent of the workflow",

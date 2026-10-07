@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -444,3 +445,40 @@ func TestSubagentGraphAndMaxDepth(t *testing.T) {
 		t.Fatalf("members = %v graph = %v", members, graph)
 	}
 }
+
+// QB1: code_mode and modes.allowed are security fields (hardening only).
+func TestResolve_CodeModeAndModesHardeningOnly(t *testing.T) {
+	const hubQuick = "apiVersion: oh/v1\nkind: Workflow\nid: quick\nmodes: { default: manuel, allowed: [manuel, semi-auto] }\n"
+	refused := []struct{ name, hub, patch, path string }{
+		{"code mode enabled", hubQuick, "code_mode: true\n", "code_mode"},
+		{"code mode enabled from unset", "apiVersion: oh/v1\nkind: Workflow\nid: quick\n", "code_mode: true\n", "code_mode"},
+		{"mode added", hubQuick, "modes: { allowed: [manuel, semi-auto, auto] }\n", "modes.allowed"},
+		{"modes reset to all", hubQuick, "modes: { allowed: [] }\n", "modes.allowed"},
+	}
+	for _, c := range refused {
+		t.Run(c.name, func(t *testing.T) {
+			cat := catalogOf(t, map[string]string{
+				"hub:quick":  c.hub,
+				"team:quick": "apiVersion: oh/v1\nkind: Workflow\nid: quick\nextends: hub:quick\n" + c.patch,
+			})
+			r, diags := ResolveSpec(cat, Ref{LayerTeam, "quick"}, nil)
+			if len(diags) != 1 || diags[0].Code != "loosening" || diags[0].Path != c.path {
+				t.Fatalf("diags = %v", diags)
+			}
+			if r != nil && r.Spec != nil && (codeMode(r.Spec) || (c.hub == hubQuick && slices.Contains(r.Spec.AllowedModes(), ModeAuto))) {
+				t.Fatalf("parent value not kept: %+v", r.Spec)
+			}
+		})
+	}
+
+	cat := catalogOf(t, map[string]string{
+		"hub:quick":  "apiVersion: oh/v1\nkind: Workflow\nid: quick\ncode_mode: true\n",
+		"team:quick": "apiVersion: oh/v1\nkind: Workflow\nid: quick\nextends: hub:quick\ncode_mode: false\nmodes: { default: manuel, allowed: [manuel] }\n",
+	})
+	r := resolveOK(t, cat, "team:quick")
+	if codeMode(r.Spec) || !reflect.DeepEqual(r.Spec.AllowedModes(), []string{ModeManual}) {
+		t.Fatalf("hardening refused: %+v", r.Spec)
+	}
+}
+
+func codeMode(s *Spec) bool { return s.CodeMode != nil && *s.CodeMode }

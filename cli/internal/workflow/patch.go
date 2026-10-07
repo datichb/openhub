@@ -79,7 +79,11 @@ func (p *patcher) apply() {
 		}
 	}
 	if p.has("code_mode") {
-		d.CodeMode = s.CodeMode
+		if s.CodeMode != nil && *s.CodeMode && (d.CodeMode == nil || !*d.CodeMode) {
+			p.loosening("code_mode", "on", "off")
+		} else {
+			d.CodeMode = s.CodeMode
+		}
 	}
 	if p.has("entry.agent") || (p.has("entry") && s.Entry == nil) {
 		d.Entry = s.Entry
@@ -330,7 +334,17 @@ func (p *patcher) modes() {
 		p.dst.Modes.Default = s.Modes.Default
 	}
 	if p.has("modes.allowed") {
-		p.dst.Modes.Allowed = s.Modes.Allowed
+		// An empty list means every mode (DefaultModes): it can widen too.
+		child := s.Modes.Allowed
+		if len(child) == 0 {
+			child = DefaultModes
+		}
+		parent := p.dst.AllowedModes()
+		if extra := missingFrom(child, parent); len(extra) > 0 {
+			p.loosening("modes.allowed", strings.Join(extra, ","), strings.Join(parent, ","))
+		} else {
+			p.dst.Modes.Allowed = s.Modes.Allowed
+		}
 	}
 }
 
