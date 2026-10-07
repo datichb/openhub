@@ -539,7 +539,7 @@ Clés : `max_active_sessions`, `session_budget_usd`, `daily_budget_usd`, `memory
 | Champ | Défaut | Description |
 |---|---|---|
 | `takeover.stale_days` | `3` | Jours d'inactivité avant qu'un claim soit considéré comme abandonné (briefs de reprise) |
-| `parallel.max_sessions` | `5` | Hérité de l'ancien mode parallèle (supprimé en v5) ; encore affiché dans le détail d'équipe, sans effet sur `oh run --tickets` |
+| `parallel.max_sessions` | `5` | Hérité de l'ancien mode parallèle (supprimé en v5) ; lu mais sans effet, plus modifiable dans le détail d'équipe (limiter les sessions : `[limits]`, `oh budget`) |
 
 ---
 

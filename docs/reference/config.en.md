@@ -539,7 +539,7 @@ Keys: `max_active_sessions`, `session_budget_usd`, `daily_budget_usd`, `memory_m
 | Field | Default | Description |
 |---|---|---|
 | `takeover.stale_days` | `3` | Days of inactivity before a claim is considered stale (takeover briefs) |
-| `parallel.max_sessions` | `5` | Left over from the former parallel mode (removed in v5); still shown in the team detail, no effect on `oh run --tickets` |
+| `parallel.max_sessions` | `5` | Left over from the former parallel mode (removed in v5); read but without effect, no longer editable in the team detail (to limit sessions: `[limits]`, `oh budget`) |
 
 ---
 
