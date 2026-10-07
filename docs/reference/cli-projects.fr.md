@@ -124,7 +124,7 @@ oh project configure [project-id] [options]
 
 | Flag | Court | Type | Description |
 |------|-------|------|-------------|
-| `--provider` | `-P` | string | Provider LLM : `bedrock`, `anthropic`, `openrouter`, `github-copilot` (valeur non verifiee ; l'aide cite `openai`) |
+| `--provider` | `-P` | string | Provider LLM : `bedrock`, `anthropic`, `openrouter`, `github-copilot` (valeur non verifiee) |
 | `--model` | `-m` | string | Modele LLM |
 | `--language` | `-l` | string | Langage principal |
 

@@ -12,7 +12,7 @@ Initializes oh for the first time. Interactive wizard, no flags.
 oh init
 ```
 
-Configures: interface language and the opencode V2 check, project (name, path, language, tracker), MCP servers to enable (Figma, GitLab, Google Slides), ticket tracker (`bd`) when available, and the workflow space (team or solo space).
+Configures: interface language, AI provider and credentials, first project (optional), team to join or create (optional) and MCP integrations (Figma, GitLab, Google Slides, optional). Without a team, the project workflows live in a solo space. The opencode version is checked by `oh doctor`.
 
 **Example:**
 

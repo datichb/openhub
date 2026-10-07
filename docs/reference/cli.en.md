@@ -2,7 +2,7 @@
 
 # CLI Reference
 
-`oh` without a command opens the TUI (in an interactive terminal; otherwise the help). `oh -p <project>` opens the TUI directly on that project. `oh help` (or `oh --help`) shows the command overview; `oh <command> --help` details a command (flags, examples).
+`oh` without a command opens the TUI (in an interactive terminal; otherwise the help). `oh -p <project>` opens the TUI directly on that project. `oh help` (or `oh --help`) shows the command overview (every visible command, by section, with its flags; built from the commands themselves); `oh <command> --help` details a command (flags, examples). The whole help follows the interface language (`oh config language`).
 
 ## Global Flags
 

@@ -12,7 +12,7 @@ Initialise oh pour la première fois. Assistant interactif, sans flag.
 oh init
 ```
 
-Configure : langue de l'interface et vérification d'opencode V2, projet (nom, chemin, langage, tracker), serveurs MCP à activer (Figma, GitLab, Google Slides), tracker de tickets (`bd`) s'il est disponible et espace des workflows (équipe ou espace solo).
+Configure : langue de l'interface, fournisseur IA et identifiants, premier projet (facultatif), équipe à rejoindre ou à créer (facultatif) et intégrations MCP (Figma, GitLab, Google Slides, facultatif). Sans équipe, les workflows du projet vivent dans un espace solo. La version d'opencode se vérifie avec `oh doctor`.
 
 **Exemple :**
 

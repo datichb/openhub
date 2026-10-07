@@ -71,6 +71,7 @@ Opens the opencode interface on the session (new tab or window, tmux, browser or
 |------|------|---------|-------------|
 | `--how` | string | `auto` | `auto` (current terminal first: iTerm2 or Terminal.app, then the other one, then tmux when oh runs inside tmux), `iterm`, `terminal`, `tmux`, `browser`, `suspend` (in the current terminal; `here` is accepted as a synonym) |
 | `--iterm-style` | string | `tab` | With iTerm2: `tab`, `split` or `window` |
+| `--exec` | bool | `false` | Internal, hidden from the help: runs the interface in the current process (command of the windows opened by oh) |
 
 ```bash
 oh session attach 7f3a
@@ -346,7 +347,7 @@ oh start [options]
 | `--parallel` | | One session per ticket, requires `--tickets` (refused otherwise) | `oh run ticket --tickets a,b` |
 | `--project` | `-p` | Project ID (auto-detected otherwise) | `-p` |
 | `--prompt` | `-m` | Initial prompt | First text input (`-i request=…` for `feature`) |
-| `--provider` | `-P` | LLM provider (bedrock, anthropic, openai) | `-P` |
+| `--provider` | `-P` | LLM provider (bedrock, anthropic, openrouter, github-copilot) | `-P` |
 | `--recap` | | Show summary and ask for confirmation | `--recap` |
 | `--refresh` | | Re-discover the wiki (requires `--onboard`) | `oh run onboarding -i refresh=true` |
 | `--resume` | `-r` | Open an existing session in this terminal | `oh session attach <id> --how here` |

@@ -174,16 +174,16 @@ oh provider setup bedrock -p mon-app
 Modeles par agent, par famille ou globaux, au niveau hub (`hub.toml [models]`) ou projet (base de donnees du hub). Le modele resolu est normalise vers le provider du projet a la construction du paquet de session.
 
 ```
-oh config model default <model> [-j <projet>]
-oh config model family <famille> <model> [-j <projet>]
-oh config model agent <agent-id> <model> [-j <projet>]
-oh config model show [-j <projet>] [--json]
-oh config model unset default|family <famille>|agent <agent-id> [-j <projet>]
+oh config model default <model> [-p <projet>]
+oh config model family <famille> <model> [-p <projet>]
+oh config model agent <agent-id> <model> [-p <projet>]
+oh config model show [-p <projet>] [--json]
+oh config model unset default|family <famille>|agent <agent-id> [-p <projet>]
 ```
 
 | Flag | Court | Type | Description |
 |------|-------|------|-------------|
-| `--project` | `-j` | string | Projet (sans : niveau hub). Attention : la forme courte est `-j`, pas `-p` |
+| `--project` | `-p` | string | Projet (sans : niveau hub) |
 | `--json` | | bool | `show` seulement : sortie JSON |
 
 Familles : `planning`, `developer`, `quality`, `auditor`, `design`, `documentation`.
@@ -193,7 +193,7 @@ Ordre de resolution (priorite decroissante) : workflow·agent > workflow (`model
 ```bash
 oh config model default anthropic/claude-sonnet-4-5
 oh config model family quality anthropic/claude-haiku-4-5
-oh config model agent reviewer anthropic/claude-opus-4-1 -j mon-app
-oh config model show -j mon-app --json
+oh config model agent reviewer anthropic/claude-opus-4-1 -p mon-app
+oh config model show -p mon-app --json
 oh config model unset family quality
 ```
