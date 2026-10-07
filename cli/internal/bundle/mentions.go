@@ -15,8 +15,9 @@ import (
 // either inlined in the agent body (the model must not load it: it gets a
 // heading naming it) or shipped on demand when the agent names it.
 
-// skillMentionRe matches a code span that may hold a skill reference.
-var skillMentionRe = regexp.MustCompile("`([a-z0-9][a-z0-9/_-]*)`")
+// skillMentionRe matches a code span that may hold a skill reference, or a
+// skill tag of a delegation prompt ([SKILL:cat/name], QB3).
+var skillMentionRe = regexp.MustCompile("`([a-z0-9][a-z0-9/_-]*)`|\\[SKILL:([a-z0-9][a-z0-9/_-]*)\\]")
 
 // hubSkillIndex maps the reference forms of the hub and generated skills
 // ("cat/name" and "name") to their reference. A name shared by two skills is
@@ -68,7 +69,11 @@ func mentionedSkills(body string, index map[string]string) []string {
 	seen := map[string]bool{}
 	var out []string
 	for _, m := range skillMentionRe.FindAllStringSubmatch(body, -1) {
-		if ref, ok := index[m[1]]; ok && !seen[ref] {
+		name := m[1]
+		if name == "" {
+			name = m[2]
+		}
+		if ref, ok := index[name]; ok && !seen[ref] {
 			seen[ref] = true
 			out = append(out, ref)
 		}

@@ -180,7 +180,7 @@ Produire uniquement le récapitulatif de planification complet (voir section Pha
 
 ## Mode subagent
 
-> Ce skill est chargé quand le planner est invoqué via `task` depuis l'agent orchestrator feature. L'orchestrateur injecte `[SKILL:planning/planner-subagent]` dans le prompt.
+> Ce skill est chargé quand le planner est invoqué via `task` depuis l'agent orchestrator feature. L'orchestrateur injecte `[SKILL:planning/planner-execution-modes]` dans le prompt.
 
 > **Protocole sub-agent :** voir skill `shared/subagent-execution-protocol` pour le mécanisme d'interruption, la checklist, et les erreurs fréquentes.
 

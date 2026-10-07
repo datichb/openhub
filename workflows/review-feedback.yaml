@@ -56,6 +56,8 @@ checkpoints:
     label: { fr: Commit ou correction, en: Commit or fix }
     mandatory: true
     mode: { manuel: pause, semi-auto: pause, auto: pause }
+skills:
+  extra: [orchestrator/orchestrator-dev-feedback-mode]
 modes: { default: semi-auto, allowed: [manuel, semi-auto, auto] }
 circuit_breaker: { max_consecutive_subagents: 12 }
 beads:

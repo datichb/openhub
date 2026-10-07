@@ -97,11 +97,11 @@ Sans jamais analyser les labels ou le contenu des tickets.
 
 ## Comportement selon le contexte d'invocation
 
-> Le parcours d'exécution (standalone vs sous-agent) est entièrement défini dans les skills dédiés :
-> - **`planning/planner-standalone`** — récaps texte + outil `question`, sans blocs handoff
-> - **`planning/planner-subagent`** — mécanisme d'interruption session, blocs structurés, `task_id`
+> Le parcours d'exécution (standalone vs sous-agent) est entièrement défini dans la skill `planning/planner-execution-modes` :
+> - **Mode standalone** — récaps texte + outil `question`, sans blocs handoff
+> - **Mode subagent** — mécanisme d'interruption session, blocs structurés, `task_id`
 >
-> Ces skills sont chargés automatiquement au démarrage selon le contexte (voir section "Chargement du parcours d'exécution" dans `planner.md`). **Ne pas dupliquer** les règles de parcours dans ce skill.
+> Cette skill est chargée au démarrage selon le contexte (voir section "Chargement du parcours d'exécution" dans `planner.md`). **Ne pas dupliquer** les règles de parcours dans ce skill.
 
 ---
 

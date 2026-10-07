@@ -74,10 +74,10 @@ Pour garantir l'isolation contextuelle, orchestrer des sessions parallèles **av
 3. **Lancer les sessions en parallèle** via l'outil `task` :
    ```
    // Session 1 — Adversarial (contexte wiki injecté)
-   task(subagent_type: "reviewer", prompt: "[MODE:adversarial] [SKILL:reviewer/reviewer-standalone-single] [WIKI-CONTEXT:<synthèse>] [DIFF-SCOPE:<liste fichiers>] [STANDARDS:<liste>] Revue adversariale de la feature <branche>. git diff <base>..<branche>")
+   task(subagent_type: "reviewer", prompt: "[MODE:adversarial] [REVIEW:single] [WIKI-CONTEXT:<synthèse>] [DIFF-SCOPE:<liste fichiers>] [STANDARDS:<liste>] Revue adversariale de la feature <branche>. git diff <base>..<branche>")
 
    // Session 2 — Edge-case (contexte wiki injecté)
-   task(subagent_type: "reviewer", prompt: "[MODE:edge-case] [SKILL:reviewer/reviewer-standalone-single] [WIKI-CONTEXT:<synthèse>] [DIFF-SCOPE:<liste fichiers>] [STANDARDS:<liste>] Analyse edge-case de la feature <branche>. git diff <base>..<branche>")
+   task(subagent_type: "reviewer", prompt: "[MODE:edge-case] [REVIEW:single] [WIKI-CONTEXT:<synthèse>] [DIFF-SCOPE:<liste fichiers>] [STANDARDS:<liste>] Analyse edge-case de la feature <branche>. git diff <base>..<branche>")
    ```
 4. **Récupérer les rapports bruts** de chaque session
 5. **Fusionner** en chargeant le skill `review-merge` et en lui fournissant les rapports

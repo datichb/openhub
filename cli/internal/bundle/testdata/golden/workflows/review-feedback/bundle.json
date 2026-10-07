@@ -156,6 +156,7 @@
     "handoff-bloc-unique-rule",
     "living-docs-enrichment",
     "orchestrator-dev-edge-cases",
+    "orchestrator-dev-feedback-mode",
     "orchestrator-dev-parallel",
     "orchestrator-dev-recap",
     "orchestrator-dev-standalone",

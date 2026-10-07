@@ -74,22 +74,22 @@ Orchestrer des **sessions parallèles indépendantes** avec injection du context
    Pour "Standard + Adversarial" :
    ```
    // Session 1 — Standard (contexte wiki injecté)
-   task(subagent_type: "reviewer", prompt: "[MODE:standard] [SKILL:reviewer/reviewer-standalone-single] [WIKI-CONTEXT:<synthèse>] [DIFF-SCOPE:<liste fichiers>] [STANDARDS:<liste>] Review de la branche <branche>. git diff <base>..<branche>")
+   task(subagent_type: "reviewer", prompt: "[MODE:standard] [REVIEW:single] [WIKI-CONTEXT:<synthèse>] [DIFF-SCOPE:<liste fichiers>] [STANDARDS:<liste>] Review de la branche <branche>. git diff <base>..<branche>")
 
    // Session 2 — Adversarial (contexte wiki injecté)
-   task(subagent_type: "reviewer", prompt: "[MODE:adversarial] [SKILL:reviewer/reviewer-standalone-single] [WIKI-CONTEXT:<synthèse>] [DIFF-SCOPE:<liste fichiers>] [STANDARDS:<liste>] Review adversariale de la branche <branche>. git diff <base>..<branche>")
+   task(subagent_type: "reviewer", prompt: "[MODE:adversarial] [REVIEW:single] [WIKI-CONTEXT:<synthèse>] [DIFF-SCOPE:<liste fichiers>] [STANDARDS:<liste>] Review adversariale de la branche <branche>. git diff <base>..<branche>")
    ```
 
    Pour "Standard + Adversarial + Edge-case" :
    ```
    // Session 1 — Standard
-   task(subagent_type: "reviewer", prompt: "[MODE:standard] [SKILL:reviewer/reviewer-standalone-single] [WIKI-CONTEXT:<synthèse>] [DIFF-SCOPE:<liste fichiers>] [STANDARDS:<liste>] ...")
+   task(subagent_type: "reviewer", prompt: "[MODE:standard] [REVIEW:single] [WIKI-CONTEXT:<synthèse>] [DIFF-SCOPE:<liste fichiers>] [STANDARDS:<liste>] ...")
 
    // Session 2 — Adversarial
-   task(subagent_type: "reviewer", prompt: "[MODE:adversarial] [SKILL:reviewer/reviewer-standalone-single] [WIKI-CONTEXT:<synthèse>] [DIFF-SCOPE:<liste fichiers>] [STANDARDS:<liste>] ...")
+   task(subagent_type: "reviewer", prompt: "[MODE:adversarial] [REVIEW:single] [WIKI-CONTEXT:<synthèse>] [DIFF-SCOPE:<liste fichiers>] [STANDARDS:<liste>] ...")
 
    // Session 3 — Edge-case
-   task(subagent_type: "reviewer", prompt: "[MODE:edge-case] [SKILL:reviewer/reviewer-standalone-single] [WIKI-CONTEXT:<synthèse>] [DIFF-SCOPE:<liste fichiers>] [STANDARDS:<liste>] ...")
+   task(subagent_type: "reviewer", prompt: "[MODE:edge-case] [REVIEW:single] [WIKI-CONTEXT:<synthèse>] [DIFF-SCOPE:<liste fichiers>] [STANDARDS:<liste>] ...")
    ```
 
 3. **Récupérer les rapports bruts** de chaque session
@@ -123,9 +123,9 @@ L'utilisateur consulte le rapport et décide lui-même de l'action à prendre (c
 
 ---
 
-## Skill auxiliaire : reviewer-standalone-single
+## Sous-session mono-mode (`[REVIEW:single]`)
 
-Quand une sous-session est lancée avec `[SKILL:reviewer/reviewer-standalone-single]` :
+Quand une sous-session est lancée avec `[REVIEW:single]` :
 
 - Si `[WIKI-CONTEXT:...]` est présent → l'utiliser comme contexte conventions/architecture (ne PAS relire le wiki depuis le disque — le contexte a été préparé par la session parente)
 - Si `[DIFF-SCOPE:...]` est présent → l'utiliser comme périmètre de fichiers modifiés pour le scope enforcement
@@ -139,4 +139,4 @@ Quand une sous-session est lancée avec `[SKILL:reviewer/reviewer-standalone-sin
 - **Ne pas** poser de question de sélection de mode (le mode est explicite)
 - Retourner le rapport brut comme résultat de la session `task`
 
-> Note : `reviewer-standalone-single` est un comportement implicite déclenché par la présence du tag `[SKILL:reviewer/reviewer-standalone-single]` — il ne nécessite pas un fichier skill séparé. Le reviewer détecte ce tag et applique ce comportement simplifié.
+> Note : `[REVIEW:single]` est un marqueur de mode, pas une skill (ne pas la charger avec l'outil `skill`). Le reviewer détecte ce marqueur et applique ce comportement simplifié.

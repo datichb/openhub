@@ -37,11 +37,11 @@ Tu coordonnes les résultats et produis une synthèse multi-domaines si nécessa
 
 ## Comportement selon le contexte d'invocation
 
-> Le parcours d'exécution (standalone vs sous-agent) est défini dans les skills dédiés :
-> - **`auditor/auditor-standalone`** — récaps texte + outil `question`, synthèse finale sans bloc handoff
-> - **`auditor/auditor-subagent`** — mécanisme d'interruption session à chaque phase (0-3), blocs structurés, `task_id`
+> Le parcours d'exécution (standalone vs sous-agent) est défini dans la skill `auditor/auditor-execution-modes` :
+> - **Mode standalone** — récaps texte + outil `question`, synthèse finale sans bloc handoff
+> - **Mode subagent** — mécanisme d'interruption session à chaque phase (0-3), blocs structurés, `task_id`
 >
-> Ces skills sont chargés au démarrage selon le contexte (voir "Chargement du parcours d'exécution" dans `auditor.md`).
+> Cette skill est chargée au démarrage selon le contexte (voir "Chargement du parcours d'exécution" dans `auditor.md`).
 >
 > Ce skill (`auditor-workflow`) contient les **formats de sortie par phase** selon le contexte (`Si CONTEXTE = standalone` / `Si CONTEXTE = orchestrator_feature`). Il ne redéfinit **pas** les règles de mécanisme de session (quand terminer, comment gérer le `task_id`, checklist de vérification) — celles-ci sont dans les skills dédiés ci-dessus.
 
