@@ -961,7 +961,7 @@
   "tui.start.category.quality": "Quality",
   "tui.start.category_desc": "Choose a workflow of this category",
   "tui.start.free": "Free session",
-  "tui.start.free_desc": "Without workflow (no workflow available or opencode V1)",
+  "tui.start.free_desc": "Free workflow: the agent of your choice, no checkpoint",
   "tui.start.loading": "Loading workflows…",
   "tui.start.origin_hub": "hub",
   "tui.start.origin_project": "project",

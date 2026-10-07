@@ -190,6 +190,11 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 - Détail d'équipe : « Sessions parallèles max » (`[parallel]`, sans effet en v5) n'est plus modifiable ; les restrictions des sessions sont `[limits]` (`oh budget`).
 - `oh mcp setup <service>` configure le service nommé (l'argument était ignoré ; `jira` ajouté, mode écriture proposé à chaque service qui en a un) ; `oh mcp list` liste tous les serveurs MCP d'oh (figma, github, gitlab, gslides, jira, linear, team, serveurs personnalisés).
 - Omnibar : chaque alias n'a plus qu'un sens (`q` = quitter, `hub` = mode Hub, `tokens` = secrets, `team config` = configurer l'équipe, `libre` = `run libre`).
+- Serveurs MCP d'oh : les outils sont exposés sans le nom du serveur (`get_project`) ; la session les voit sous `gitlab_get_project`, `figma_get_file`…, les noms qu'emploient les agents, les skills et les règles de permission (ils apparaissaient en `gitlab_gitlab_get_project` : une règle de refus d'un outil GitLab ne s'appliquait pas). L'ancien nom reste accepté.
+- Skills figma : elles n'appellent plus d'outils inexistants (`search_figma_files`, `get_figma_file_nodes`, `detect_ui_signals`…) ; les fichiers Figma sont trouvés par leur URL, puis lus avec `figma_get_file`, `figma_get_node`, `figma_get_styles`.
+- Contenu des agents et skills : plus aucune référence à une skill inexistante (`[SKILL:planning/planner-subagent]`, `auditor/auditor-standalone`, `designer/ux-subagent`… → skills `*-execution-modes`, `designer-subagent` ; le marqueur `[REVIEW:single]` du reviewer n'est plus présenté comme une skill) ; une skill nommée par un marqueur `[SKILL:…]` est livrée à la demande ; `review-feedback` livre `orchestrator-dev-feedback-mode`.
+- Détection de la stack : Django, FastAPI, Flask (`pyproject.toml`, `requirements.txt`, `Pipfile`, `setup.py`) et Rails (`Gemfile`) ; les skills de stack Django, FastAPI et Rails sont ajoutées au paquet.
+- TUI « Démarrer » : la session libre ne mentionne plus opencode V1.
 
 ### Security
 

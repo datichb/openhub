@@ -170,3 +170,21 @@ func TestJSONValidity(t *testing.T) {
 		require.NoError(t, err, fmt.Sprintf("%s.json is not valid JSON", locale))
 	}
 }
+
+// QB3: opencode V1 is no longer supported (D3): no message offers it
+// (tui.start.free_desc did). The messages explaining that V1 is refused
+// (cmd.v1.unsupported.*) are the exception.
+func TestNoMessageOffersOpencodeV1(t *testing.T) {
+	v1 := regexp.MustCompile(`\bV1\b`) // not the oh/v1 schema
+	for _, lang := range []string{"fr", "en"} {
+		data, err := localeFS.ReadFile("locales/" + lang + ".json")
+		require.NoError(t, err)
+		var msgs map[string]string
+		require.NoError(t, json.Unmarshal(data, &msgs))
+		for k, v := range msgs {
+			if v1.MatchString(v) && !regexp.MustCompile(`^cmd\.v1\.`).MatchString(k) {
+				t.Errorf("%s %s mentions V1: %q", lang, k, v)
+			}
+		}
+	}
+}
