@@ -428,7 +428,7 @@ func TestBuildFirstRunInlineWizard_E2E_MountWithPreconfig(t *testing.T) {
 		{
 			name: "provider_already_set",
 			config: &config.Config{
-				Opencode: config.OpencodeConfig{
+				LLM: config.LLMConfig{
 					DefaultProvider: "anthropic",
 				},
 			},
@@ -450,7 +450,7 @@ func TestBuildFirstRunInlineWizard_E2E_MountWithPreconfig(t *testing.T) {
 			name: "full_config",
 			config: &config.Config{
 				CLI: config.CLIConfig{Language: "fr"},
-				Opencode: config.OpencodeConfig{
+				LLM: config.LLMConfig{
 					DefaultProvider: "bedrock",
 				},
 				Teams: []config.TeamConfig{

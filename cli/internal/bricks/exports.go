@@ -88,10 +88,5 @@ func InstructionFiles(projectPath string, extra []string) []string {
 	return out
 }
 
-// OpencodeProviderID maps a hub provider name to the opencode provider ID.
-func OpencodeProviderID(provider string) string {
-	return providerOpencodeName(provider)
-}
-
 // MCPServerUsable reports whether an MCP server has a usable token source.
 func MCPServerUsable(s MCPServerDef) bool { return checkMCPToken(s) }

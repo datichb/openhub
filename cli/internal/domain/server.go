@@ -15,11 +15,11 @@ const (
 	ServerStopped  ServerStatus = "stopped"
 )
 
-// Server is a tool server (e.g. `opencode serve`) shared by the sessions of a
+// Server is a tool server shared by the sessions of a
 // group (bundle hash, project, runtime).
 type Server struct {
 	GroupKey       string
-	Adapter        string // e.g. "opencode-v2"
+	Adapter        string // adapter name (adapters.Registry)
 	AdapterVersion string
 	Runtime        string // local | container | remote
 	ProjectID      string

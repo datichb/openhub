@@ -45,7 +45,7 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 	// the config. Pre-populate the state so the user sees their previous
 	// choices and can confirm or adjust them.
 	if a.Config.CLI.SetupDone {
-		if p := a.Config.Opencode.DefaultProvider; p != "" {
+		if p := a.Config.LLM.DefaultProvider; p != "" {
 			s.SelectedProvider = p
 			for idx, opt := range s.ProviderOptions {
 				if opt == p {
@@ -54,7 +54,7 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 				}
 			}
 		}
-		if a.Config.Opencode.DefaultProvider == "bedrock" {
+		if a.Config.LLM.DefaultProvider == "bedrock" {
 			if am := a.Config.Provider.Bedrock.AuthMode; am != "" {
 				s.AuthMode = am
 				switch am {

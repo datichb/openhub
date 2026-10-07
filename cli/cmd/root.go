@@ -36,11 +36,9 @@ var (
 )
 
 var rootCmd = &cobra.Command{
-	Use:   "oh",
-	Short: "OpenHub CLI — orchestrateur pour opencode",
-	Long: `oh est le CLI monolithique d'OpenHub.
-Il orchestre les sessions opencode, gère les projets, déploie les agents/skills/MCP,
-et fournit un TUI interactif pour le suivi de développement.`,
+	Use:           "oh",
+	Short:         i18n.T("cmd.root.short"),
+	Long:          i18n.T("cmd.root.long"),
 	SilenceUsage:  true,
 	SilenceErrors: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -220,12 +218,12 @@ func initApp() error {
 	a.WithPreferences(prefs, prefs)
 	a.WithSecretStore(resolveSecretStore())
 
-	// Session tool (opencode V2 only) and statistics from the oh registry.
+	// Session tool (supported release only) and statistics from the oh registry.
 	a.WithToolVersion(func() (string, error) {
 		if err := requireV2(context.Background()); err != nil {
 			return "", err
 		}
-		return v5Adapter.Ver, nil
+		return v5Tool.Version, nil
 	})
 	a.WithStats(sessionstats.New(a.Sessions, a.Projects))
 

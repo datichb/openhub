@@ -58,7 +58,7 @@ type Upstream struct {
 // Grant authorizes one session to use one provider through the proxy.
 type Grant struct {
 	SessionID     string
-	Provider      string // opencode provider id: amazon-bedrock | anthropic | openrouter | openai
+	Provider      string // provider id of the tool (adapters.ProviderMapper)
 	Upstream      Upstream
 	AllowedModels []string // wildcard patterns on the model id; empty = any
 	MaxTokens     int64    // input+output token budget; 0 = unlimited

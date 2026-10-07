@@ -57,7 +57,7 @@ type ContentBlock struct {
 type metaKey struct{}
 
 // Meta returns the `_meta` object of the tool call being handled (nil when
-// the client sent none). Clients pass request context there (opencode:
+// the client sent none). Clients pass request context there (e.g.
 // the calling session).
 func Meta(ctx context.Context) map[string]any {
 	m, _ := ctx.Value(metaKey{}).(map[string]any)

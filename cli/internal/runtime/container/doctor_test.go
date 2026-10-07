@@ -17,32 +17,32 @@ var dockerEngine = Engine{Kind: EngineDocker, CLI: "/usr/bin/docker", Host: host
 func TestProjectImagesLatestPerProject(t *testing.T) {
 	r := newFakeRunner("docker").
 		on("docker images", "oh-dev/a:1\noh-dev/a:2\noh-dev/b:1\noh-dev/a:2\nx:<none>", nil)
-	labels := map[string]string{"oh-dev/a:1": "a|opencode@2.0.19|100", "oh-dev/a:2": "a|opencode@2.0.20|200", "oh-dev/b:1": "b|opencode@2.0.20|150"}
+	labels := map[string]string{"oh-dev/a:1": "a|faketool@2.0.19|100", "oh-dev/a:2": "a|faketool@2.0.20|200", "oh-dev/b:1": "b|faketool@2.0.20|150"}
 	r.onFunc("docker image inspect --format", func(line string) (string, error) { return labels[lastField(line)], nil })
 	rt := New(Options{Runner: r, GOOS: "darwin", CacheDir: t.TempDir()})
 	list, err := rt.ProjectImages(context.Background(), dockerEngine)
 	require.NoError(t, err)
 	require.Len(t, list, 2)
-	assert.Equal(t, ProjectImage{ProjectID: "a", Ref: "oh-dev/a:2", Tool: "opencode@2.0.20", Built: 200}, list[0])
+	assert.Equal(t, ProjectImage{ProjectID: "a", Ref: "oh-dev/a:2", Tool: "faketool@2.0.20", Built: 200}, list[0])
 	assert.Equal(t, "b", list[1].ProjectID)
 }
 
 func TestCheckTool(t *testing.T) {
 	r := newFakeRunner("docker").
-		on("docker run --rm --entrypoint opencode", "", errors.New("Error loading shared library libstdc++.so.6")).
+		on("docker run --rm --entrypoint faketool", "", errors.New("Error loading shared library libstdc++.so.6")).
 		on("docker run --rm --entrypoint sh", "musl\nmissing:libstdc++\nmissing:libgcc\n", nil)
 	rt := New(Options{Runner: r, GOOS: "darwin", CacheDir: t.TempDir()})
-	c := rt.CheckTool(context.Background(), dockerEngine, "img", "opencode")
+	c := rt.CheckTool(context.Background(), dockerEngine, "img", "faketool")
 	assert.True(t, c.Musl)
 	assert.Equal(t, []string{"libstdc++", "libgcc"}, c.MissingLibs)
 	assert.Empty(t, c.Version)
 	assert.Error(t, c.Err)
 
 	r = newFakeRunner("docker").
-		on("docker run --rm --entrypoint opencode", "opencode 2.0.20\n", nil).
+		on("docker run --rm --entrypoint faketool", "faketool 2.0.20\n", nil).
 		on("docker run --rm --entrypoint sh", "", nil)
 	rt = New(Options{Runner: r, GOOS: "darwin", CacheDir: t.TempDir()})
-	c = rt.CheckTool(context.Background(), dockerEngine, "img", "opencode")
+	c = rt.CheckTool(context.Background(), dockerEngine, "img", "faketool")
 	assert.Equal(t, "2.0.20", c.Version)
 	assert.False(t, c.Musl)
 	assert.Empty(t, c.MissingLibs)

@@ -126,7 +126,7 @@ func (ss *SessionStore) Create(ctx context.Context, s *domain.Session) error {
 		s.StartedAt = time.Now()
 	}
 	if s.Platform == "" {
-		s.Platform = "opencode"
+		s.Platform = "unknown" // set by the RunService to the adapter name
 	}
 	if s.Type == "" {
 		s.Type = domain.SessionTypeInteractive

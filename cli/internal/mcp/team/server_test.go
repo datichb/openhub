@@ -75,16 +75,3 @@ func TestLoadEffectiveTeamConfig_NoSessionTeam_FallsBackToHub(t *testing.T) {
 	require.NoError(t, err)
 	assert.False(t, got.Enabled, "hub has no team → Enabled=false")
 }
-
-// A leftover .opencode/team.json of a former deploy is ignored.
-func TestLoadEffectiveTeamConfig_IgnoresDeployedTeamJSON(t *testing.T) {
-	projectDir := t.TempDir()
-	require.NoError(t, os.MkdirAll(filepath.Join(projectDir, ".opencode"), 0o755))
-	require.NoError(t, os.WriteFile(filepath.Join(projectDir, ".opencode", "team.json"), []byte(`{"enabled":true,"state_repo":"old"}`), 0o600))
-	chdir(t, projectDir)
-	useHub(t, "")
-	t.Setenv(EnvTeamID, "")
-	got, err := loadEffectiveTeamConfig()
-	require.NoError(t, err)
-	assert.False(t, got.Enabled)
-}

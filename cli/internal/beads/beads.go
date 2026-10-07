@@ -121,7 +121,7 @@ func EnsureInitFlags(args []string) []string {
 
 // Init initializes beads in the given project directory.
 // prefix is used for ticket ID prefixes (e.g. project ID or short name).
-// It also registers the default labels used by opencode agents.
+// It also registers the default labels used by the hub agents.
 func Init(projectPath, prefix string) error {
 	if err := Available(); err != nil {
 		return err
@@ -146,7 +146,7 @@ func Init(projectPath, prefix string) error {
 	// Belt & suspenders: sanitize in case flags were ignored or bd evolved.
 	_ = SanitizeBeadsInit(projectPath)
 
-	// Register default labels used by opencode agents
+	// Register default labels used by the hub agents
 	for _, label := range []string{"ai-delegated", "feature", "fix"} {
 		lctx, lcancel := context.WithTimeout(context.Background(), 10*time.Second)
 		BdCommand(lctx, "-C", projectPath, "label", "create", label).Run() //nolint:errcheck // best-effort label creation, failure is non-fatal

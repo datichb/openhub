@@ -50,7 +50,7 @@ func (s *Service) AdoptSession(ctx context.Context, sessionID string, transcript
 	}
 	req.Runtime = sessionspec.RuntimeLocal
 	key := sessionspec.GroupKey{BundleHash: req.Bundle.Spec.Hash, ProjectID: req.ProjectID, Runtime: sessionspec.RuntimeLocal,
-		Config: configFingerprint(req, cred, region)}
+		Config: configFingerprint(req, ToolProviderID(s.Adapter, req.Provider), cred, region)}
 	gk := key.String()
 	unlock, err := s.lockGroup(ctx, gk)
 	if err != nil {

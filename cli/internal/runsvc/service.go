@@ -21,7 +21,6 @@ import (
 	"time"
 
 	"github.com/datichb/openhub/cli/internal/adapters"
-	"github.com/datichb/openhub/cli/internal/bricks"
 	"github.com/datichb/openhub/cli/internal/bundle"
 	"github.com/datichb/openhub/cli/internal/credproxy"
 	"github.com/datichb/openhub/cli/internal/daemon"
@@ -214,7 +213,7 @@ func (s *Service) StartSession(ctx context.Context, req StartRequest) (*StartRes
 		return nil, err
 	}
 	key := sessionspec.GroupKey{BundleHash: spec.Hash, ProjectID: req.ProjectID, Runtime: kind,
-		Config: configFingerprint(req, cred, region)}
+		Config: configFingerprint(req, ToolProviderID(s.Adapter, req.Provider), cred, region)}
 	var (
 		gk     string
 		srv    *domain.Server
@@ -441,7 +440,7 @@ func (s *Service) resolveProvider(ctx context.Context, req *StartRequest) (provi
 		return cred, "", err
 	}
 	region := req.ProviderCfg.AWSRegion
-	if region == "" && bricks.OpencodeProviderID(req.Provider) == "amazon-bedrock" {
+	if region == "" && provider.Name(req.Provider) == provider.Bedrock {
 		region = credproxy.AWSRegion(ctx, req.ProviderCfg.AWSProfile)
 		if region == "" {
 			region = "us-east-1"
@@ -451,12 +450,21 @@ func (s *Service) resolveProvider(ctx context.Context, req *StartRequest) (provi
 	return cred, region, nil
 }
 
+// ToolProviderID is the provider id of the tool for a hub provider (the
+// adapter's, or the hub name itself).
+func ToolProviderID(ad adapters.ToolAdapter, hubProvider string) string {
+	if m, ok := ad.(adapters.ProviderMapper); ok {
+		return m.ProviderID(hubProvider)
+	}
+	return hubProvider
+}
+
 // configFingerprint identifies the provider settings a server is bound to.
 // The secret only contributes through its hash.
-func configFingerprint(req StartRequest, cred provider.ResolvedCredential, region string) string {
+func configFingerprint(req StartRequest, toolProvider string, cred provider.ResolvedCredential, region string) string {
 	h := sha256.New()
 	secret := sha256.Sum256([]byte(cred.Secret))
-	parts := []string{req.ProjectID, bricks.OpencodeProviderID(req.Provider), region,
+	parts := []string{req.ProjectID, toolProvider, region,
 		string(cred.Source.Kind), cred.Source.KeychainKey, cred.Source.Profile, hex.EncodeToString(secret[:])}
 	if len(req.AllowedModels) > 0 {
 		// The allow-list is enforced on the group's proxy grant: another
@@ -564,7 +572,7 @@ func (s *Service) startServer(ctx context.Context, dc DaemonClient, req StartReq
 			dc = fresh
 		}
 	}
-	ocProvider := bricks.OpencodeProviderID(req.Provider)
+	ocProvider := ToolProviderID(s.Adapter, req.Provider)
 	grant, err := dc.IssueGrant(ctx, daemon.GrantRequest{
 		Owner: gk, Provider: ocProvider, Region: region, Source: cred.Source, Secret: cred.Secret,
 		AllowedModels: req.AllowedModels, MaxTokens: req.MaxTokens,
@@ -853,7 +861,7 @@ func (s *Service) ResumeSession(ctx context.Context, sessionID string, req Start
 	}
 	req.Runtime = kind
 	key := sessionspec.GroupKey{BundleHash: sess.BundleHash, ProjectID: sess.ProjectID, Runtime: kind,
-		Config: configFingerprint(req, cred, region)}
+		Config: configFingerprint(req, ToolProviderID(s.Adapter, req.Provider), cred, region)}
 	// The session data lives in its original group: keep it even when the
 	// provider settings changed. A sleeping server restarts with the new
 	// settings; a running one keeps its own until it sleeps.

@@ -24,7 +24,7 @@ const ProbeImage = "docker.io/library/busybox:1.36"
 type ProjectImage struct {
 	ProjectID string
 	Ref       string
-	Tool      string // e.g. opencode@2.0.20 (oh.tool label)
+	Tool      string // <tool>@<version> (oh.tool label)
 	Built     int64  // unix time (oh.built label)
 }
 

@@ -360,7 +360,7 @@ func TestBuildProviderStep_OnDone_BedrockBearer(t *testing.T) {
 	config.Reset()
 	cfg, err := config.Load()
 	require.NoError(t, err)
-	assert.Equal(t, "bedrock", cfg.Opencode.DefaultProvider)
+	assert.Equal(t, "bedrock", cfg.LLM.DefaultProvider)
 	assert.Equal(t, "bearer", cfg.Provider.Bedrock.AuthMode)
 	assert.Equal(t, "eu-west-1", cfg.Provider.Bedrock.AWSRegion)
 }
@@ -391,7 +391,7 @@ func TestBuildProviderStep_OnDone_Anthropic(t *testing.T) {
 	config.Reset()
 	cfg, err := config.Load()
 	require.NoError(t, err)
-	assert.Equal(t, "anthropic", cfg.Opencode.DefaultProvider)
+	assert.Equal(t, "anthropic", cfg.LLM.DefaultProvider)
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -93,7 +93,7 @@ type fakeTool struct {
 	calls []string
 }
 
-func (f *fakeTool) Name() string    { return "opencode" }
+func (f *fakeTool) Name() string    { return "faketool" }
 func (f *fakeTool) Version() string { return f.ver }
 func (f *fakeTool) LinuxBinary(_ context.Context, arch, libc string) (string, error) {
 	f.calls = append(f.calls, arch+"/"+libc)
@@ -114,7 +114,7 @@ func testGroup(t *testing.T, tool *fakeTool) ohruntime.Group {
 func TestEnsureImageBuildsThenCaches(t *testing.T) {
 	st := &fakeStore{images: map[string]string{}, libc: "musl"}
 	r := newImageEngine(t, st)
-	bin := filepath.Join(t.TempDir(), "opencode")
+	bin := filepath.Join(t.TempDir(), "faketool")
 	require.NoError(t, os.WriteFile(bin, []byte("ELF"), 0o755))
 	tool := &fakeTool{ver: "2.0.20", bin: bin}
 	g := testGroup(t, tool)
@@ -140,9 +140,9 @@ func TestEnsureImageBuildsThenCaches(t *testing.T) {
 	assert.Contains(t, builds[0], "--build-arg NODE=22")
 	assert.Contains(t, builds[0], "--label oh.role=base")
 	assert.True(t, strings.HasSuffix(builds[0], " "+g.ProjectDir))
-	assert.Contains(t, builds[1], "--label oh.tool=opencode@2.0.20")
+	assert.Contains(t, builds[1], "--label oh.tool=faketool@2.0.20")
 	assert.Contains(t, st.layer, "FROM "+img.BaseRef+"\n")
-	assert.Contains(t, st.layer, "COPY oh-tool /usr/local/bin/opencode")
+	assert.Contains(t, st.layer, "COPY oh-tool /usr/local/bin/faketool")
 	assert.Contains(t, st.layer, "COPY oh-bd /usr/local/bin/bd")
 
 	again, err := rt.EnsureImage(context.Background(), g)
@@ -235,7 +235,7 @@ func TestImageName(t *testing.T) {
 }
 
 func writeBin(t *testing.T) string {
-	p := filepath.Join(t.TempDir(), "opencode")
+	p := filepath.Join(t.TempDir(), "faketool")
 	require.NoError(t, os.WriteFile(p, []byte("ELF"), 0o755))
 	return p
 }

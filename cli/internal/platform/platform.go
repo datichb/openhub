@@ -2,7 +2,7 @@
 // abstraction (ADR-036): provider credentials and the statistics read by
 // metrics and dashboards (StatsProvider). Sessions themselves run through
 // the tool adapters (internal/adapters) and the RunService (internal/runsvc):
-// opencode V1 and its launch path were removed in oh v5 (D3, P3-T30).
+// The former tool launch path was removed in oh v5 (D3, P3-T30).
 package platform
 
 // Credentials holds resolved provider credentials.

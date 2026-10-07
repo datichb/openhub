@@ -12,7 +12,7 @@ import (
 const workflowsDirEnv = "OH_WORKFLOWS_DIR"
 
 // newWorkflowService wires the WorkflowService on the hub content. The
-// isolation level of the tool adapter is filled when opencode V2 is present.
+// isolation level of the tool adapter is filled when a supported tool is present.
 func newWorkflowService(ctx context.Context) *workflowsvc.Service {
 	svc := &workflowsvc.Service{HubDir: findHubDir(), HubWorkflowsDir: os.Getenv(workflowsDirEnv), TeamState: workflowTeamState}
 	if ctx != nil && v5Available(ctx) {

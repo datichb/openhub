@@ -24,7 +24,7 @@ type App struct {
 	// Preferences and WorkflowUsage back the PreferenceService (prefsvc).
 	Preferences   domain.PreferenceStore
 	WorkflowUsage domain.WorkflowUsageReader
-	// ToolVersion returns the version of the session tool (opencode V2), or
+	// ToolVersion returns the version of the session tool, or
 	// why it cannot be used (missing, unsupported release).
 	ToolVersion func() (string, error)
 	Stats       platform.StatsProvider // Session metrics provider (ADR-036)

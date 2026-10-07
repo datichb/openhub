@@ -36,7 +36,7 @@ import (
 // v5Request returns the provider, team and attach settings of a project
 // session (bundle, location and prompt are set by the caller).
 func v5Request(a *app.App, project *domain.Project, providerFlag string) runsvc.StartRequest {
-	prov := provider.ResolveProvider(providerFlag, project.Provider, a.Config.Opencode.DefaultProvider)
+	prov := provider.ResolveProvider(providerFlag, project.Provider, a.Config.LLM.DefaultProvider)
 	var projProv *provider.ProviderConfig
 	tokenKey := ""
 	if project.ProviderConfig != nil {
@@ -194,7 +194,7 @@ func selectMCP(available []sessionspec.MCPServerDef, ids []string) (kept []sessi
 // launch: hub, project instructions, model cascade and MCP servers.
 func sessionBundleRequest(a *app.App, project *domain.Project, tc config.ResolvedTeamConfig, prov string) bundle.Request {
 	req := bundle.Request{
-		HubDir: hubcontent.HubContentDir(), OutDir: ohBundlesDir(), Provider: prov,
+		HubDir: hubcontent.HubContentDir(), OutDir: ohBundlesDir(), Provider: prov, ToolProvider: toolProviderID(prov),
 		ExtraInstructionFiles: a.Config.Deploy.InstructionFiles,
 		WebsearchEnabled:      a.Config.Websearch.Enabled,
 	}
@@ -289,7 +289,7 @@ func sessionMCP(a *app.App, project *domain.Project, teamCfg config.ResolvedTeam
 		env := sessionMCPEnv(s)
 		if s.Name == "team" {
 			// The team server reads the team of the session project from its
-			// environment (P3-T29; formerly .opencode/team.json of `oh deploy`).
+			// environment (P3-T29; formerly a file written by `oh deploy`).
 			env[team.EnvTeamID], env[team.EnvProjectID] = teamCfg.TeamID, project.ID
 		}
 		def := sessionspec.MCPServerDef{Name: s.Name, Type: "local", Command: cmd}

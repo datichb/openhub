@@ -3,8 +3,7 @@ package opencodev2
 import (
 	_ "embed"
 	"encoding/json"
-	"errors"
-	"fmt"
+	"github.com/datichb/openhub/cli/internal/adapters"
 
 	"github.com/datichb/openhub/cli/internal/semver"
 )
@@ -29,17 +28,17 @@ type compatMatrix struct {
 }
 
 // ErrNotInstalled is returned when no opencode binary is found.
-var ErrNotInstalled = errors.New("opencode binary not found")
+var ErrNotInstalled = adapters.ErrToolNotInstalled
 
 // UnsupportedError is returned for an opencode release outside the range
 // supported by this oh version (opencode V1 in particular).
-type UnsupportedError struct {
-	Found, Min, Max string
-}
+type UnsupportedError = adapters.UnsupportedVersionError
 
-func (e *UnsupportedError) Error() string {
-	return fmt.Sprintf("opencode %s is not supported (requires %s to %s)", e.Found, e.Min, e.Max)
-}
+// DisplayName is the tool name shown to users; Command its binary.
+const (
+	DisplayName = "opencode"
+	Command     = "opencode"
+)
 
 // SupportedRange returns the opencode range supported by ohVersion
 // ("dev" or an unknown version: the default range).
@@ -60,7 +59,7 @@ func CheckVersion(ohVersion, version string) error {
 	r := SupportedRange(ohVersion)
 	v := semver.Parse(version)
 	if version == "" || v.LessThan(semver.Parse(r.OpencodeMin)) || semver.Parse(r.OpencodeMax).LessThan(v) {
-		return &UnsupportedError{Found: version, Min: r.OpencodeMin, Max: r.OpencodeMax}
+		return &UnsupportedError{Tool: DisplayName, Found: version, Min: r.OpencodeMin, Max: r.OpencodeMax}
 	}
 	return nil
 }

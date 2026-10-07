@@ -1,5 +1,5 @@
 // Package adapters defines the contract between oh and an agentic coding tool
-// (opencode V2 today, other tools later). oh services depend only on these
+// (one adapter per tool, internal/adapters/<tool>). oh services depend only on these
 // interfaces; tool-specific names (native agents, config keys, API routes)
 // live exclusively in the adapter implementations.
 package adapters
@@ -16,9 +16,13 @@ import (
 
 // ToolInfo describes the detected tool binary.
 type ToolInfo struct {
-	Name    string // adapter name, e.g. "opencode-v2"
-	Binary  string // absolute path
-	Version string
+	Name        string // adapter name (recorded for each server group)
+	DisplayName string // tool name shown to users
+	Command     string // name of the tool binary
+	Binary      string // absolute path
+	Version     string
+	// MinVersion and MaxVersion bound the releases this oh version supports.
+	MinVersion, MaxVersion string
 }
 
 // Capabilities advertises what an adapter can guarantee or do.
@@ -299,7 +303,7 @@ type TurnWaiter interface {
 
 // SessionEnvSetter is implemented by adapters that can (re)apply the
 // session environment (S7) of an existing session. Tools may keep it in
-// memory only (opencode V2): it must be applied again after a server restart.
+// memory only: it must be applied again after a server restart.
 type SessionEnvSetter interface {
 	SetSessionEnv(ctx context.Context, h ServerHandle, sessionID string, env map[string]string) error
 }

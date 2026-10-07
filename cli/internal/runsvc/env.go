@@ -24,7 +24,7 @@ import (
 // in ~/.oh/sessions/<id>/env.json for resumes; dynamic ones (gateway tokens…)
 // come from the Service.SessionEnv hook, called again at each resume and
 // never persisted. The tool may hold the environment in memory only
-// (opencode V2), so it is applied again whenever the server restarts.
+// (constat on opencode 2.0.20), so it is applied again whenever the server restarts.
 
 // EnvSessionID is always set to the oh session ID.
 const EnvSessionID = "OH_SESSION_ID"

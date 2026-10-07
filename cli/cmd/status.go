@@ -61,7 +61,8 @@ func runStatus(cmd *cobra.Command, args []string) error {
 		type statusJSON struct {
 			ConfigPath     string          `json:"config_path"`
 			Language       string          `json:"language"`
-			OpencodeVer    string          `json:"opencode_version"`
+			Tool           string          `json:"tool"`
+			ToolVersion    string          `json:"tool_version"`
 			TotalProjects  int             `json:"total_projects"`
 			ActiveProjects int             `json:"active_projects"`
 			CurrentProject *domain.Project `json:"current_project,omitempty"`
@@ -70,7 +71,8 @@ func runStatus(cmd *cobra.Command, args []string) error {
 		out := statusJSON{
 			ConfigPath:     config.ConfigPath(),
 			Language:       a.Config.CLI.Language,
-			OpencodeVer:    toolVersion(a),
+			Tool:           toolName(),
+			ToolVersion:    toolVersion(a),
 			TotalProjects:  len(projects),
 			ActiveProjects: active,
 			CurrentProject: currentProject,
@@ -87,7 +89,7 @@ func runStatus(cmd *cobra.Command, args []string) error {
 	w := tabwriter.NewWriter(a.IO.Out, 0, 0, 2, ' ', 0)
 	fmt.Fprintf(w, "  %s\t%s\n", i18n.T("cmd.status.config"), config.ConfigPath())
 	fmt.Fprintf(w, "  %s\t%s\n", i18n.T("cmd.status.language"), a.Config.CLI.Language)
-	fmt.Fprintf(w, "  %s\t%s\n", i18n.T("cmd.status.opencode"), toolVersion(a))
+	fmt.Fprintf(w, "  %s\t%s\n", i18n.Tf("cmd.status.tool", toolName()), toolVersion(a))
 	w.Flush()
 	fmt.Fprintln(a.IO.Out)
 
@@ -117,7 +119,7 @@ func isSubPath(child, parent string) bool {
 	return !filepath.IsAbs(rel) && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))
 }
 
-// toolVersion is the installed opencode V2 version ("—" when unusable).
+// toolVersion is the installed tool version ("—" when unusable).
 func toolVersion(a *app.App) string {
 	if a.ToolVersion != nil {
 		if v, err := a.ToolVersion(); err == nil {

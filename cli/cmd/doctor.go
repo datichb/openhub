@@ -241,7 +241,7 @@ func checkProviderCredentials() (string, bool) {
 		return "app non disponible", false
 	}
 
-	providerName := a.Config.Opencode.DefaultProvider
+	providerName := a.Config.LLM.DefaultProvider
 	if providerName == "" {
 		return i18n.T("cmd.doctor.no_provider"), false
 	}

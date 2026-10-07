@@ -27,7 +27,7 @@ type Config struct {
 	Name     string          `mapstructure:"name" toml:"name,omitempty"` // Project/hub display name (shown in TUI title)
 	CLI      CLIConfig       `mapstructure:"cli" toml:"cli"`
 	Deploy   DeployConfig    `mapstructure:"deploy" toml:"deploy,omitempty"`
-	Opencode OpencodeConfig  `mapstructure:"opencode" toml:"opencode"`
+	LLM      LLMConfig       `mapstructure:"llm" toml:"llm"`
 	Provider ProviderConfigs `mapstructure:"provider" toml:"provider"`
 	MCP      MCPConfig       `mapstructure:"mcp" toml:"mcp"`
 	Worktree WorktreeConfig  `mapstructure:"worktree" toml:"worktree"`
@@ -67,10 +67,10 @@ type ExecutionConfig struct {
 	// KeepImages is the number of container images kept per project and
 	// role (base, dev) — default 2.
 	KeepImages int `mapstructure:"keep_images" toml:"keep_images,omitempty"`
-	// OpencodeVersion pins the tool version of the container images: when
-	// set and different from the machine client, container launches are
-	// refused ("" = the machine client version).
-	OpencodeVersion string `mapstructure:"opencode_version" toml:"opencode_version,omitempty"`
+	// ToolVersion pins the tool version of the container images: when set
+	// and different from the machine client, container launches are refused
+	// ("" = the machine client version).
+	ToolVersion string `mapstructure:"tool_version" toml:"tool_version,omitempty"`
 	// StrictIsolation hides the user tool configuration (XDG_CONFIG_HOME) of
 	// local servers too (containers never see it).
 	StrictIsolation bool `mapstructure:"strict_isolation" toml:"strict_isolation,omitempty"`
@@ -264,10 +264,9 @@ type DeployConfig struct {
 	InstructionFiles []string `mapstructure:"instruction_files" toml:"instruction_files,omitempty"`
 }
 
-// OpencodeConfig holds the opencode settings of the hub. opencode is
-// installed and updated with its own tooling (the former managed install,
-// `version`, `channel`, `auto_update`, `install_dir`, was removed in v5).
-type OpencodeConfig struct {
+// LLMConfig holds the LLM settings of the hub ([llm]; read from its former
+// section too, legacy_keys.go).
+type LLMConfig struct {
 	DefaultProvider string `mapstructure:"default_provider" toml:"default_provider,omitempty"`
 }
 
@@ -470,6 +469,9 @@ func Load() (*Config, error) {
 
 	cfg = &Config{}
 	cfgErr = v.Unmarshal(cfg)
+	if cfgErr == nil {
+		applyLegacyKeys(v, cfg)
+	}
 	// Post-load cleanup: if Teams is populated (either from [[teams]] in file
 	// or from RunMigrationIfNeeded), clear the legacy Team field to ensure
 	// omitempty suppresses it on next Save. Viper may have populated Team

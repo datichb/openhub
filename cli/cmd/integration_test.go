@@ -83,7 +83,7 @@ func TestHelpOutput(t *testing.T) {
 	stdout, _, exitCode := runOh(t, "--help")
 	assert.Equal(t, 0, exitCode)
 	assert.Contains(t, stdout, "oh")
-	assert.Contains(t, stdout, "opencode")
+	assert.Contains(t, stdout, "run [workflow]")
 }
 
 func TestCompletionBash(t *testing.T) {

@@ -209,7 +209,7 @@ var sessionDismissCmd = &cobra.Command{
 }
 
 var sessionSendCmd = &cobra.Command{
-	Use:   "send <session-id> \"consigne…\"",
+	Use:   "send <session-id> \"instruction…\"",
 	Short: "Envoie une consigne courte à une session (prise en compte à la prochaine étape)",
 	Args:  cobra.MinimumNArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -268,7 +268,7 @@ var (
 		func(ctx context.Context, svc *sessionsvc.Service, id string, _ []string) error {
 			return svc.Compact(ctx, id)
 		})
-	sessionModelCmd = sessionOp("model <session-id> <fournisseur/modèle>", "Change le modèle des prochaines étapes d'une session", "cmd.session.model_switched", 2,
+	sessionModelCmd = sessionOp("model <session-id> <provider/model>", "Change le modèle des prochaines étapes d'une session", "cmd.session.model_switched", 2,
 		func(ctx context.Context, svc *sessionsvc.Service, id string, args []string) error {
 			return svc.SwitchModel(ctx, id, args[0])
 		})

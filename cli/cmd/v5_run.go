@@ -109,7 +109,7 @@ func prepareWorkflowRun(ctx context.Context, a *app.App, opts runOptions, errOut
 		return nil, errors.New(i18n.Tf("cmd.run.runtime_unavailable", string(kind), reason))
 	}
 
-	prov := provider.ResolveProvider(opts.Provider, opts.Project.Provider, a.Config.Opencode.DefaultProvider)
+	prov := provider.ResolveProvider(opts.Provider, opts.Project.Provider, a.Config.LLM.DefaultProvider)
 	b, missingMCP, err := buildWorkflowBundle(a, opts.Project, res, prov)
 	if err != nil {
 		return nil, fmt.Errorf("building session bundle: %w", err)

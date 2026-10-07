@@ -255,8 +255,8 @@ func TestToolCallMeta(t *testing.T) {
 		got = Meta(ctx)
 		return &ToolResult{}, nil
 	})
-	s.handleRequest(context.Background(), &Request{ID: 1, Method: "tools/call", Params: json.RawMessage(`{"name":"m","arguments":{},"_meta":{"ai.opencode/sessionID":"ses_x"}}`)})
-	assert.Equal(t, map[string]any{"ai.opencode/sessionID": "ses_x"}, got)
+	s.handleRequest(context.Background(), &Request{ID: 1, Method: "tools/call", Params: json.RawMessage(`{"name":"m","arguments":{},"_meta":{"ai.tool/sessionID":"ses_x"}}`)})
+	assert.Equal(t, map[string]any{"ai.tool/sessionID": "ses_x"}, got)
 
 	s.handleRequest(context.Background(), &Request{ID: 2, Method: "tools/call", Params: json.RawMessage(`{"name":"m","arguments":{}}`)})
 	assert.Nil(t, got)

@@ -423,7 +423,7 @@ var schemaMigrations = []migration{
 		up: `ALTER TABLE sessions ADD COLUMN cost REAL NOT NULL DEFAULT 0;
 ALTER TABLE sessions ADD COLUMN tokens_reasoning INTEGER NOT NULL DEFAULT 0;
 ALTER TABLE sessions ADD COLUMN tokens_cache_read INTEGER NOT NULL DEFAULT 0;
-ALTER TABLE sessions ADD COLUMN platform TEXT NOT NULL DEFAULT 'opencode';
+ALTER TABLE sessions ADD COLUMN platform TEXT NOT NULL DEFAULT 'unknown';
 ALTER TABLE sessions ADD COLUMN external_session_id TEXT DEFAULT NULL;
 ALTER TABLE sessions ADD COLUMN slug TEXT DEFAULT NULL`,
 		irreversible: false,

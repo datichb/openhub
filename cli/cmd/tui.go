@@ -84,6 +84,7 @@ func runTUIWithProject(projectName string) error {
 		},
 	}
 
+	views.ToolName = toolName
 	tuiShell = shell.New(cfg)
 	views.SetTeamSyncHook(tuiReplayWorkflowQueue)
 

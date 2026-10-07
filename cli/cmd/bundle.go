@@ -105,9 +105,9 @@ func buildBundleFor(cmd *cobra.Command, id string) (*bundle.Bundle, error) {
 	provFlag, _ := cmd.Flags().GetString("provider")
 	prov := provFlag
 	if project != nil {
-		prov = provider.ResolveProvider(provFlag, project.Provider, a.Config.Opencode.DefaultProvider)
+		prov = provider.ResolveProvider(provFlag, project.Provider, a.Config.LLM.DefaultProvider)
 	} else if prov == "" {
-		prov = a.Config.Opencode.DefaultProvider
+		prov = a.Config.LLM.DefaultProvider
 	}
 	b, missing, err := buildWorkflowBundle(a, project, res, prov)
 	if err != nil {

@@ -40,6 +40,15 @@ type configField struct {
 	Unset func(c *config.Config)
 }
 
+// configKey returns the current name of a configuration key (a former key
+// is still accepted).
+func configKey(key string) string {
+	if k, ok := config.LegacyKeyAliases[key]; ok {
+		return k
+	}
+	return key
+}
+
 // parseBool accepts "true"/"false"/"1"/"0".
 func parseBoolValue(s string) (bool, error) {
 	switch strings.ToLower(s) {
@@ -71,10 +80,10 @@ var configFieldMap = map[string]configField{
 		},
 		Unset: func(c *config.Config) { c.CLI.SetupDone = false },
 	},
-	// Opencode
-	"opencode.default_provider": {
-		Set:   func(c *config.Config, v string) error { c.Opencode.DefaultProvider = v; return nil },
-		Unset: func(c *config.Config) { c.Opencode.DefaultProvider = "" },
+	// LLM (former key: config.LegacyKeyAliases)
+	"llm.default_provider": {
+		Set:   func(c *config.Config, v string) error { c.LLM.DefaultProvider = v; return nil },
+		Unset: func(c *config.Config) { c.LLM.DefaultProvider = "" },
 	},
 	// Provider — Bedrock
 	"provider.bedrock.aws_profile": {
@@ -331,7 +340,7 @@ func configGetCmd() *cobra.Command {
 			return keys, cobra.ShellCompDirectiveNoFileComp
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			key := args[0]
+			key := configKey(args[0])
 
 			cfg, err := config.Load()
 			if err != nil {
@@ -362,7 +371,7 @@ func configSetCmd() *cobra.Command {
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			key, value := args[0], args[1]
+			key, value := configKey(args[0]), args[1]
 
 			field, ok := configFieldMap[key]
 			if !ok {
@@ -447,7 +456,7 @@ func configUnsetCmd() *cobra.Command {
 			return configFieldKeys(), cobra.ShellCompDirectiveNoFileComp
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			key := args[0]
+			key := configKey(args[0])
 
 			field, ok := configFieldMap[key]
 			if !ok {
@@ -512,11 +521,9 @@ func configLanguageCmd() *cobra.Command {
 
 func configWebsearchCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:   "websearch [enable|disable|status]",
-		Short: "Gère les permissions WebSearch/WebFetch (Exa AI)",
-		Long: `Active ou désactive les permissions websearch et webfetch pour les agents.
-Lorsqu'activé, les agents peuvent effectuer des recherches web via Exa AI.
-La permission est injectée globalement dans opencode.json au deploy.`,
+		Use:       "websearch [enable|disable|status]",
+		Short:     "Gère les permissions WebSearch/WebFetch (Exa AI)",
+		Long:      i18n.T("cmd.config.websearch.long"),
 		Args:      cobra.ExactArgs(1),
 		ValidArgs: []string{"enable", "disable", "status"},
 		RunE: func(cmd *cobra.Command, args []string) error {

@@ -41,17 +41,8 @@ func agentCommandAlias(cmd *cobra.Command, old, workflowID string, inputs map[st
 
 var auditCmd = &cobra.Command{
 	Use:   "audit",
-	Short: "Lance un audit de code via opencode",
-	Long: `Lance une session opencode avec l'agent auditor pour réaliser un audit.
-
-Types d'audit disponibles :
-  security       Vulnérabilités, injections, gestion des secrets, dépendances
-  performance    Fuites mémoire, N+1, rendering, bundle size, lazy loading
-  architecture   Couplage, cohésion, patterns, couches, dette technique
-  accessibility  WCAG, ARIA, contraste, navigation clavier, screen readers
-  ecodesign      Empreinte carbone, poids ressources, requêtes inutiles, green patterns
-  observability  Logs, traces, métriques, alerting, corrélation, SLI/SLO
-  privacy        RGPD, données personnelles, consentement, rétention, minimisation`,
+	Short: i18n.T("cmd.audit.short"),
+	Long:  i18n.T("cmd.audit.long"),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		auditType, _ := cmd.Flags().GetString("type")
 
@@ -76,17 +67,8 @@ Types d'audit disponibles :
 
 var reviewCmd = &cobra.Command{
 	Use:   "review",
-	Short: "Lance une review de code via opencode",
-	Long: `Lance une session opencode avec l'agent reviewer.
-
-Modes de review disponibles :
-  standard                Review classique (checklist 6 catégories)
-  adversarial             Critique approfondie (scepticisme maximal, min. 10 findings)
-  edge-case               Chasse aux chemins d'exécution non gérés
-  standard+adversarial    Sessions parallèles + rapport unifié
-  all                     Standard + Adversarial + Edge-case (couverture maximale)
-
-Sans flag --mode, un menu interactif est affiché.`,
+	Short: i18n.T("cmd.review.short"),
+	Long:  i18n.T("cmd.review.long"),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		publish, _ := cmd.Flags().GetBool("publish")
 		if publish {
@@ -106,8 +88,8 @@ Sans flag --mode, un menu interactif est affiché.`,
 
 var debugCmd = &cobra.Command{
 	Use:   "debug",
-	Short: "Lance une session de debug via opencode",
-	Long:  "Lance une session opencode avec l'agent debugger.",
+	Short: i18n.T("cmd.debug.short"),
+	Long:  i18n.T("cmd.debug.long"),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		issue, _ := cmd.Flags().GetString("issue")
 		return agentCommandAlias(cmd, "oh debug", "debug", map[string]string{"issue": issue}, issue)

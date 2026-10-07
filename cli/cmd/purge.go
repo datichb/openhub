@@ -11,6 +11,7 @@ import (
 	"github.com/charmbracelet/huh"
 	"github.com/spf13/cobra"
 
+	"github.com/datichb/openhub/cli/internal/adapters"
 	"github.com/datichb/openhub/cli/internal/beads"
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/domain"
@@ -31,7 +32,7 @@ func init() {
 	purgeCmd.Flags().Bool("dry-run", false, i18n.T("cmd.purge.flags.dry_run"))
 	purgeCmd.Flags().Bool("force", false, i18n.T("cmd.purge.flags.force"))
 	purgeCmd.Flags().Bool("keep-binary", false, i18n.T("cmd.purge.flags.keep_binary"))
-	purgeCmd.Flags().Bool("include-opencode", false, i18n.T("cmd.purge.flags.include_opencode"))
+	purgeCmd.Flags().Bool("include-tool-data", false, i18n.T("cmd.purge.flags.include-tool-data"))
 }
 
 // purgeInventory collects all items that would be deleted.
@@ -45,36 +46,40 @@ type purgeInventory struct {
 	// Hub directory path
 	hubDir string
 
-	// OpenCode data paths (only if --include-opencode)
-	opencodeDataDir   string // ~/.local/share/opencode/
-	opencodeConfigDir string // ~/.config/opencode/
+	// Data directories of the tool (only with --include-tool-data)
+	toolDataDirs []string
 
 	// Binary info
-	binaryPath string
-	isHomebrew bool
-	keepBinary bool
-	includeOC  bool
+	binaryPath      string
+	isHomebrew      bool
+	keepBinary      bool
+	includeToolData bool
 }
 
 type purgeProject struct {
 	name         string
 	path         string
-	hasOpencode  bool // .opencode/ exists
-	hasOCJson    bool // opencode.json exists
-	hasBeadsDolt bool // .beads/dolt/ exists
+	toolFiles    []string // files of a former deployment (relative, existing)
+	hasBeadsDolt bool     // .beads/dolt/ exists
+}
+
+// toolDataLocator is where the tool keeps data outside oh (nil: none known).
+func toolDataLocator() adapters.DataLocator {
+	l, _ := preferredAdapter().(adapters.DataLocator)
+	return l
 }
 
 func runPurge(cmd *cobra.Command, args []string) error {
 	dryRun, _ := cmd.Flags().GetBool("dry-run")
 	force, _ := cmd.Flags().GetBool("force")
 	keepBinary, _ := cmd.Flags().GetBool("keep-binary")
-	includeOC, _ := cmd.Flags().GetBool("include-opencode")
+	includeToolData, _ := cmd.Flags().GetBool("include-tool-data")
 
 	out := os.Stdout
 	ctx := cmd.Context()
 
 	// ── Step 1: Build inventory ──
-	inv := buildPurgeInventory(ctx, keepBinary, includeOC)
+	inv := buildPurgeInventory(ctx, keepBinary, includeToolData)
 
 	// ── Step 2: Display inventory ──
 	printPurgeInventory(out, inv, dryRun)
@@ -143,11 +148,11 @@ func runPurge(cmd *cobra.Command, args []string) error {
 		cleanPurgeProjects(out, inv.projects)
 	}
 
-	// ── Step 7: OpenCode global data ──
-	if inv.includeOC {
+	// ── Step 7: global data of the tool ──
+	if inv.includeToolData {
 		step++
-		printStep(out, step, totalSteps, i18n.T("cmd.purge.section.opencode"))
-		cleanOpenCodeData(out, inv.opencodeDataDir, inv.opencodeConfigDir)
+		printStep(out, step, totalSteps, i18n.Tf("cmd.purge.section.tool_data", toolName()))
+		cleanToolData(out, inv.toolDataDirs)
 	}
 
 	// ── Step 8: Remove hub directory ──
@@ -174,11 +179,11 @@ func runPurge(cmd *cobra.Command, args []string) error {
 // Inventory
 // ─────────────────────────────────────────────────────────────────────────────
 
-func buildPurgeInventory(ctx context.Context, keepBinary, includeOC bool) purgeInventory {
+func buildPurgeInventory(ctx context.Context, keepBinary, includeToolData bool) purgeInventory {
 	inv := purgeInventory{
-		hubDir:     config.HubDir(),
-		keepBinary: keepBinary,
-		includeOC:  includeOC,
+		hubDir:          config.HubDir(),
+		keepBinary:      keepBinary,
+		includeToolData: includeToolData,
 	}
 
 	// Keychain secrets
@@ -200,10 +205,13 @@ func buildPurgeInventory(ctx context.Context, keepBinary, includeOC bool) purgeI
 					path: p.Path,
 				}
 				if p.Path != "" {
-					_, err := os.Stat(filepath.Join(p.Path, ".opencode"))
-					pp.hasOpencode = err == nil
-					_, err = os.Stat(filepath.Join(p.Path, "opencode.json"))
-					pp.hasOCJson = err == nil
+					if l := toolDataLocator(); l != nil {
+						for _, rel := range l.ProjectFiles() {
+							if _, err := os.Stat(filepath.Join(p.Path, rel)); err == nil {
+								pp.toolFiles = append(pp.toolFiles, rel)
+							}
+						}
+					}
 					pp.hasBeadsDolt = beads.IsInitialized(p.Path) && dirExists(filepath.Join(p.Path, ".beads", "dolt"))
 				}
 				inv.projects = append(inv.projects, pp)
@@ -211,11 +219,11 @@ func buildPurgeInventory(ctx context.Context, keepBinary, includeOC bool) purgeI
 		}
 	}
 
-	// OpenCode paths
-	if includeOC {
-		home, _ := os.UserHomeDir()
-		inv.opencodeDataDir = filepath.Join(home, ".local", "share", "opencode")
-		inv.opencodeConfigDir = filepath.Join(home, ".config", "opencode")
+	// Data directories of the tool
+	if includeToolData {
+		if l := toolDataLocator(); l != nil {
+			inv.toolDataDirs = l.UserDataDirs()
+		}
 	}
 
 	// Binary detection
@@ -290,19 +298,15 @@ func printPurgeInventory(out *os.File, inv purgeInventory, dryRun bool) {
 		fmt.Fprintf(out, "      %s\n", theme.Subtitle.Render(i18n.T("cmd.purge.none_detected")))
 	} else {
 		for _, p := range inv.projects {
-			if p.hasOpencode {
-				fmt.Fprintf(out, "      %s %s/.opencode/\n",
-					theme.ErrorStyle.Render(theme.IconError), p.path)
-			}
-			if p.hasOCJson {
-				fmt.Fprintf(out, "      %s %s/opencode.json\n",
-					theme.ErrorStyle.Render(theme.IconError), p.path)
+			for _, rel := range p.toolFiles {
+				fmt.Fprintf(out, "      %s %s\n",
+					theme.ErrorStyle.Render(theme.IconError), filepath.Join(p.path, rel))
 			}
 			if p.hasBeadsDolt {
 				fmt.Fprintf(out, "      %s %s/.beads/dolt/\n",
 					theme.ErrorStyle.Render(theme.IconError), p.path)
 			}
-			if !p.hasOpencode && !p.hasOCJson && !p.hasBeadsDolt {
+			if len(p.toolFiles) == 0 && !p.hasBeadsDolt {
 				fmt.Fprintf(out, "      %s %s (%s)\n",
 					theme.Subtitle.Render(theme.IconPending), p.name,
 					i18n.T("cmd.purge.nothing_to_clean"))
@@ -320,20 +324,16 @@ func printPurgeInventory(out *os.File, inv purgeInventory, dryRun bool) {
 		fmt.Fprintf(out, "      %s\n", theme.Subtitle.Render(i18n.T("cmd.purge.none_detected")))
 	}
 
-	// Section: OpenCode (conditional)
-	if inv.includeOC {
-		fmt.Fprintf(out, "\n  %s\n", theme.Bold.Render(i18n.T("cmd.purge.section.opencode")))
+	// Section: global data of the tool (conditional)
+	if inv.includeToolData {
+		fmt.Fprintf(out, "\n  %s\n", theme.Bold.Render(i18n.Tf("cmd.purge.section.tool_data", toolName())))
 		printed := false
-		if dirExists(inv.opencodeDataDir) {
-			size := dirSizeHuman(inv.opencodeDataDir)
-			fmt.Fprintf(out, "      %s %s/ (%s)\n",
-				theme.ErrorStyle.Render(theme.IconError), inv.opencodeDataDir, size)
-			printed = true
-		}
-		if dirExists(inv.opencodeConfigDir) {
-			fmt.Fprintf(out, "      %s %s/\n",
-				theme.ErrorStyle.Render(theme.IconError), inv.opencodeConfigDir)
-			printed = true
+		for _, d := range inv.toolDataDirs {
+			if dirExists(d) {
+				fmt.Fprintf(out, "      %s %s/ (%s)\n",
+					theme.ErrorStyle.Render(theme.IconError), d, dirSizeHuman(d))
+				printed = true
+			}
 		}
 		if !printed {
 			fmt.Fprintf(out, "      %s\n", theme.Subtitle.Render(i18n.T("cmd.purge.none_detected")))
@@ -423,11 +423,8 @@ func cleanPurgeProjects(out *os.File, projects []purgeProject) {
 		if p.path == "" {
 			continue
 		}
-		if p.hasOpencode {
-			_ = os.RemoveAll(filepath.Join(p.path, ".opencode"))
-		}
-		if p.hasOCJson {
-			_ = os.Remove(filepath.Join(p.path, "opencode.json"))
+		for _, rel := range p.toolFiles {
+			_ = os.RemoveAll(filepath.Join(p.path, rel))
 		}
 		if p.hasBeadsDolt {
 			// Remove dolt database and runtime files, keep git-tracked files
@@ -447,12 +444,11 @@ func cleanPurgeProjects(out *os.File, projects []purgeProject) {
 	printStepDone(out, i18n.Tf("cmd.purge.projects_cleaned", cleaned))
 }
 
-func cleanOpenCodeData(out *os.File, dataDir, configDir string) {
-	if dirExists(dataDir) {
-		_ = os.RemoveAll(dataDir)
-	}
-	if dirExists(configDir) {
-		_ = os.RemoveAll(configDir)
+func cleanToolData(out *os.File, dirs []string) {
+	for _, d := range dirs {
+		if dirExists(d) {
+			_ = os.RemoveAll(d)
+		}
 	}
 	printStepDone(out, "")
 }
@@ -510,7 +506,7 @@ func countPurgeSteps(inv purgeInventory) int {
 	if len(inv.projects) > 0 {
 		n++
 	}
-	if inv.includeOC {
+	if inv.includeToolData {
 		n++
 	}
 	n++ // hub dir (always)

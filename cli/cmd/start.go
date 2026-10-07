@@ -12,10 +12,8 @@ import (
 var startCmd = &cobra.Command{
 	Use:   "start",
 	Short: "Lance une session (alias de oh run, déprécié)",
-	Long: `Alias déprécié de oh run : oh start → oh run feature, --agent → oh run libre --agent,
---dev → oh run ticket, --onboard → oh run onboarding, --parallel → oh run ticket --tickets,
---sweep → oh run sweep. Demande opencode V2.`,
-	RunE: runStart,
+	Long:  i18n.T("cmd.start.long"),
+	RunE:  runStart,
 }
 
 func init() {

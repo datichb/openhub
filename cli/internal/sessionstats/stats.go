@@ -1,7 +1,7 @@
 // Package sessionstats computes the session statistics shown by `oh metrics`,
 // the dashboard, the API and the Metrics view from the oh session registry
 // (oh.db `sessions`: cost and tokens kept up to date by the daemon). It
-// replaces the reading of the opencode V1 database (v5, P3-T30): sessions
+// replaces the reading of the former tool database (v5, P3-T30): sessions
 // run before v5 outside oh are no longer counted.
 package sessionstats
 

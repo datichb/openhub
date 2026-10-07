@@ -35,7 +35,7 @@ func (a Availability) Message() string {
 // Tool provides the tool binary installed in container images. It is
 // implemented by the tool adapter (download source, version pinning).
 type Tool interface {
-	Name() string    // command name inside the image, e.g. "opencode"
+	Name() string    // command name inside the image
 	Version() string // pinned version (= adapter version)
 	// LinuxBinary returns a local path to the Linux binary for arch
 	// (amd64|arm64) and libc (glibc|musl).

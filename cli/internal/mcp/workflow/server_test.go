@@ -64,7 +64,7 @@ func call(t *testing.T, b Backend, method, params string) rpcResult {
 	return out
 }
 
-const meta = `"_meta":{"ai.opencode/sessionID":"ses_child","progressToken":2}`
+const meta = `"_meta":{"ai.tool/sessionID":"ses_child","progressToken":2}`
 
 func TestToolsList(t *testing.T) {
 	out := call(t, &fakeBackend{}, "tools/list", `{}`)

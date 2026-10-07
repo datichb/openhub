@@ -102,9 +102,9 @@ func TestMCPRelaysJSONRPCOverHTTP(t *testing.T) {
 	_, resp = f.post(t, "g1", "echo", `{"jsonrpc":"2.0","id":7,"method":"tools/list"}`)
 	assert.Contains(t, string(resp["result"]), `"echo"`)
 
-	_, resp = f.post(t, "g1", "echo", `{"jsonrpc":"2.0","id":8,"method":"tools/call","params":{"name":"echo","arguments":{"text":"hi"},"_meta":{"ai.opencode/sessionID":"ses_x"}}}`)
+	_, resp = f.post(t, "g1", "echo", `{"jsonrpc":"2.0","id":8,"method":"tools/call","params":{"name":"echo","arguments":{"text":"hi"},"_meta":{"ai.tool/sessionID":"ses_x"}}}`)
 	assert.Equal(t, `8`, string(resp["id"]))
-	assert.Equal(t, `hi|machine-secret|{"ai.opencode/sessionID":"ses_x"}`, toolText(t, resp), "secrets read on the machine, _meta relayed")
+	assert.Equal(t, `hi|machine-secret|{"ai.tool/sessionID":"ses_x"}`, toolText(t, resp), "secrets read on the machine, _meta relayed")
 	assert.Equal(t, []string{"g1/echo"}, f.resolved, "one process per group and server")
 	assert.Equal(t, []string{"echo"}, f.m.Running("g1"))
 

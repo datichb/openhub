@@ -22,7 +22,7 @@ type ProjectModeConfig struct {
 	OnExitProjectMode func()
 
 	// ToolLine returns the session tool line of the header (adaptateur and
-	// version, e.g. « opencode 2.0.20 · opencode-v2 »). Must be cheap.
+	// version, e.g. « <tool> <version> · <adapter> »). Must be cheap.
 	ToolLine func() string
 
 	// Sessions shows the "Sessions du projet" section (P3-T19).

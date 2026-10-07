@@ -35,7 +35,7 @@ type ModelOverrides struct {
 //   - frontmatterModel: the model declared in the agent's frontmatter (may be empty)
 //   - provider: the resolved provider for this project (e.g., "bedrock", "anthropic")
 //
-// Returns the normalized model string for opencode.json, or "" if no model is defined at any level.
+// Returns the normalized model string, or "" if no model is defined at any level.
 func ResolveAgentModel(agentID, family string, projectOverrides, hubOverrides, teamOverrides *ModelOverrides, frontmatterModel, provider string) string {
 	// Walk the cascade: first non-empty match wins
 	resolved := ""
@@ -121,7 +121,7 @@ normalize:
 	return NormalizeModelForProvider(resolved, provider)
 }
 
-// NormalizeModelForProvider converts a model identifier to the format expected by opencode
+// NormalizeModelForProvider converts a model identifier to the format expected by the tool
 // for the given provider. The input model may be in any of these forms:
 //   - Short name: "claude-sonnet-4-5"
 //   - Provider-prefixed: "anthropic/claude-sonnet-4-5"

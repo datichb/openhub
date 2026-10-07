@@ -29,7 +29,7 @@ const (
 	RoleDisabled    AgentRole = "disabled"    // not available at all
 )
 
-// AgentMode maps to the opencode agent mode.
+// AgentMode maps to the agent mode of the tool.
 type AgentMode string
 
 const (

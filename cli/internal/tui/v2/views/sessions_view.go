@@ -766,7 +766,7 @@ func questionForm(fields []SessionDecisionField) (out []FormField, answers func(
 		label := clipText(firstText(f.Description, f.Title, f.Key), 60)
 		switch {
 		case f.Type == "external":
-			out = append(out, FormField{Key: f.Key, Label: label + " — " + i18n.T("tui.inbox.external"), Type: FieldText})
+			out = append(out, FormField{Key: f.Key, Label: label + " — " + i18n.Tf("tui.inbox.external", ToolName()), Type: FieldText})
 		case f.Type == "boolean":
 			out = append(out, FormField{Key: f.Key, Label: label, Type: FieldBool, Default: "false"})
 		case f.Type == "multiselect":

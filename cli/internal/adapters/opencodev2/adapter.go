@@ -52,9 +52,9 @@ func (a *Adapter) Name() string { return Name }
 // Detect resolves the binary and version, and loads the native agent list.
 func (a *Adapter) Detect(ctx context.Context) (adapters.ToolInfo, error) {
 	if a.Binary == "" {
-		bin, err := exec.LookPath("opencode")
+		bin, err := exec.LookPath(Command)
 		if err != nil {
-			return adapters.ToolInfo{}, fmt.Errorf("%w: %w", ErrNotInstalled, err)
+			return adapters.ToolInfo{Name: Name, DisplayName: DisplayName, Command: Command}, fmt.Errorf("%w: %w", ErrNotInstalled, err)
 		}
 		a.Binary = bin
 	}
@@ -62,14 +62,24 @@ func (a *Adapter) Detect(ctx context.Context) (adapters.ToolInfo, error) {
 	if err != nil {
 		return adapters.ToolInfo{}, err
 	}
+	r := SupportedRange(buildinfo.Version)
+	info := adapters.ToolInfo{Name: Name, DisplayName: DisplayName, Command: Command, Binary: a.Binary, Version: v,
+		MinVersion: r.OpencodeMin, MaxVersion: r.OpencodeMax}
 	if err := CheckVersion(buildinfo.Version, v); err != nil {
-		return adapters.ToolInfo{Name: Name, Binary: a.Binary, Version: v}, err
+		return info, err
 	}
 	a.Ver = v
 	if len(a.Natives) == 0 {
 		a.Natives = LoadNatives(ctx, a.Binary, v, a.CacheDir, false)
 	}
-	return adapters.ToolInfo{Name: Name, Binary: a.Binary, Version: v}, nil
+	return info, nil
+}
+
+// Info returns what the last Detect found (zero before Detect).
+func (a *Adapter) Info() adapters.ToolInfo {
+	r := SupportedRange(buildinfo.Version)
+	return adapters.ToolInfo{Name: Name, DisplayName: DisplayName, Command: Command, Binary: a.Binary, Version: a.Ver,
+		MinVersion: r.OpencodeMin, MaxVersion: r.OpencodeMax}
 }
 
 // RefreshNatives re-discovers native agents (after an Attest failure).

@@ -128,7 +128,7 @@ func TestCommandHelpTemplateIsLocalized(t *testing.T) {
 // QB4: the command lines (Use) hold no French placeholder, and `oh config
 // model` takes -p for --project like every other command (it was -j).
 func TestHelpUseLinesAndProjectShorthand(t *testing.T) {
-	french := []string{"valeur", "montant", "fichier", "clé"}
+	french := []string{"valeur", "montant", "fichier", "clé", "fournisseur", "modèle", "consigne"}
 	var walk func(c *cobra.Command)
 	walk = func(c *cobra.Command) {
 		for _, w := range french {

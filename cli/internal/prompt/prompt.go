@@ -1,5 +1,5 @@
 // Package prompt provides project context detection and prompt building
-// for opencode sessions.
+// for agentic sessions.
 package prompt
 
 import (

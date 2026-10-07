@@ -13,19 +13,17 @@ import (
 func TestConfigFingerprintSeparatesGroups(t *testing.T) {
 	base := StartRequest{ProjectID: "a.b", Provider: "bedrock"}
 	cred := provider.ResolvedCredential{Source: domain.CredentialSource{Kind: domain.CredentialBearer, KeychainKey: "k"}, Secret: "s1"}
-	fp := configFingerprint(base, cred, "eu-west-1")
-	assert.Equal(t, fp, configFingerprint(base, cred, "eu-west-1"), "deterministic")
+	fp := configFingerprint(base, "tool-provider", cred, "eu-west-1")
+	assert.Equal(t, fp, configFingerprint(base, "tool-provider", cred, "eu-west-1"), "deterministic")
 
 	other := base
 	other.ProjectID = "a_b"
-	assert.NotEqual(t, fp, configFingerprint(other, cred, "eu-west-1"))
-	assert.NotEqual(t, fp, configFingerprint(base, cred, "us-east-1"))
-	other = base
-	other.Provider = "anthropic"
-	assert.NotEqual(t, fp, configFingerprint(other, cred, "eu-west-1"))
+	assert.NotEqual(t, fp, configFingerprint(other, "tool-provider", cred, "eu-west-1"))
+	assert.NotEqual(t, fp, configFingerprint(base, "tool-provider", cred, "us-east-1"))
+	assert.NotEqual(t, fp, configFingerprint(base, "other-provider", cred, "eu-west-1"))
 	rotated := cred
 	rotated.Secret = "s2"
-	assert.NotEqual(t, fp, configFingerprint(base, rotated, "eu-west-1"), "a rotated key restarts the server")
+	assert.NotEqual(t, fp, configFingerprint(base, "tool-provider", rotated, "eu-west-1"), "a rotated key restarts the server")
 	assert.NotContains(t, fp, "s1")
 }
 

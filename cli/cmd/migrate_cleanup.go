@@ -12,9 +12,9 @@ import (
 	"github.com/charmbracelet/huh"
 	"github.com/spf13/cobra"
 
+	"github.com/datichb/openhub/cli/internal/adapters"
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/bricks"
-	"github.com/datichb/openhub/cli/internal/deploycleanup"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/prefsvc"
@@ -23,7 +23,7 @@ import (
 
 // oh migrate deploy-cleanup (P3-T28): removes what the former per-project
 // deployment left in the registered projects (internal/deploycleanup),
-// after showing it (diff of opencode.json) and asking for confirmation.
+// after showing it (diff of the tool configuration) and asking for confirmation.
 
 var migrateCleanupCmd = &cobra.Command{
 	Use:   "deploy-cleanup",
@@ -45,14 +45,14 @@ func init() {
 
 // projectCleanup is the cleanup plan of a registered project.
 type projectCleanup struct {
-	Project domain.Project      `json:"-"`
-	Name    string              `json:"project"`
-	Plan    *deploycleanup.Plan `json:"plan"`
+	Project domain.Project       `json:"-"`
+	Name    string               `json:"project"`
+	Plan    *adapters.LegacyPlan `json:"plan"`
 }
 
 // cleanupOptions are the hub agents and instruction files oh deployed.
-func cleanupOptions(a *app.App) deploycleanup.Options {
-	opts := deploycleanup.Options{InstructionFiles: a.Config.Deploy.InstructionFiles}
+func cleanupOptions(a *app.App) adapters.LegacyOptions {
+	opts := adapters.LegacyOptions{InstructionFiles: a.Config.Deploy.InstructionFiles}
 	if hub := findHubDir(); hub != "" {
 		if files, err := bricks.FindAgentFiles(hub); err == nil {
 			for id := range files {
@@ -80,6 +80,10 @@ func scanDeployLeftovers(ctx context.Context, a *app.App, projectID string) ([]p
 		}
 		projects = list
 	}
+	cleaner, ok := preferredAdapter().(adapters.LegacyCleaner)
+	if !ok {
+		return nil, nil // no former deployment format known
+	}
 	opts := cleanupOptions(a)
 	var out []projectCleanup
 	for _, p := range projects {
@@ -89,7 +93,7 @@ func scanDeployLeftovers(ctx context.Context, a *app.App, projectID string) ([]p
 		if _, err := os.Stat(p.Path); err != nil {
 			continue
 		}
-		plan, err := deploycleanup.Scan(p.Path, opts)
+		plan, err := cleaner.ScanLegacy(p.Path, opts)
 		if err != nil {
 			return nil, fmt.Errorf("%s: %w", p.Name, err)
 		}
@@ -166,7 +170,7 @@ func applyCleanups(out io.Writer, list []projectCleanup) error {
 }
 
 // cleanupLines describes a plan (shared by the CLI and the TUI screen).
-func cleanupLines(p *deploycleanup.Plan) []string {
+func cleanupLines(p *adapters.LegacyPlan) []string {
 	var lines []string
 	for _, it := range p.Items {
 		l := "− " + it.Rel
@@ -176,16 +180,16 @@ func cleanupLines(p *deploycleanup.Plan) []string {
 		lines = append(lines, l)
 	}
 	if len(p.Removed) > 0 {
-		lines = append(lines, i18n.Tf("cmd.migrate.cleanup.config_removed", strings.Join(p.Removed, ", ")))
+		lines = append(lines, i18n.Tf("cmd.migrate.cleanup.config_removed", p.ConfigFile, strings.Join(p.Removed, ", ")))
 	}
 	if p.DeleteConfig {
-		lines = append(lines, i18n.T("cmd.migrate.cleanup.config_deleted"))
+		lines = append(lines, i18n.Tf("cmd.migrate.cleanup.config_deleted", p.ConfigFile))
 	}
 	if len(p.Kept) > 0 {
 		lines = append(lines, i18n.Tf("cmd.migrate.cleanup.config_kept", strings.Join(p.Kept, ", ")))
 	}
 	if p.ConfigUntouched != "" {
-		lines = append(lines, i18n.T("cmd.migrate.cleanup.untouched."+p.ConfigUntouched))
+		lines = append(lines, i18n.Tf("cmd.migrate.cleanup.untouched."+p.ConfigUntouched, p.ConfigFile))
 	}
 	return lines
 }

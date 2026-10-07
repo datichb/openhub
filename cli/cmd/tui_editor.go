@@ -110,9 +110,9 @@ func editorBundlePreview(ctx context.Context, c workflowsvc.Context, res *workfl
 		return nil, ""
 	}
 	project, _ := projectByID(ctx, c.ProjectID)
-	prov := a.Config.Opencode.DefaultProvider
+	prov := a.Config.LLM.DefaultProvider
 	if project != nil {
-		prov = provider.ResolveProvider("", project.Provider, a.Config.Opencode.DefaultProvider)
+		prov = provider.ResolveProvider("", project.Provider, a.Config.LLM.DefaultProvider)
 	}
 	dir, err := os.MkdirTemp("", "oh-editor-bundle-")
 	if err != nil {

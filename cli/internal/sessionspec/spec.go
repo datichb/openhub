@@ -1,6 +1,6 @@
 // Package sessionspec defines the tool-agnostic model of an agentic session:
 // what to run (bundle), where (location, runtime), with which provider and
-// session-scoped rules. Adapters translate it to a concrete tool (opencode V2 today).
+// session-scoped rules. Adapters translate it to a concrete tool.
 //
 // This package has no dependency on any tool implementation.
 package sessionspec
@@ -306,7 +306,7 @@ type SessionSpec struct {
 	Budget       *BudgetLimit      `json:"budget,omitempty"`
 }
 
-// sessionIDAlphabet matches the characters opencode uses in its own IDs.
+// sessionIDAlphabet matches the characters the tool accepts in its IDs.
 const sessionIDAlphabet = "0123456789ABCDEFGHJKMNPQRSTVWXYZabcdefghjkmnpqrstvwxyz"
 
 // NewSessionID returns a tool-compatible session ID ("ses_" + 26 chars).

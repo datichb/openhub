@@ -33,7 +33,10 @@ type Request struct {
 
 	// Model resolution (cascade levels, nil = none) and hub provider name ("bedrock"…).
 	// WorkflowModels is the workflow level (O9), see WorkflowModels().
-	Provider         string
+	Provider string
+	// ToolProvider is the provider id of the tool for Provider (adapter,
+	// adapters.ProviderMapper; "" = Provider).
+	ToolProvider     string
 	WorkflowModels   *bricks.ModelOverrides
 	ProjectOverrides *bricks.ModelOverrides
 	HubOverrides     *bricks.ModelOverrides
@@ -228,7 +231,7 @@ func Build(req Request) (*Bundle, error) {
 		spec.DefaultModel = &m
 	} else if m := req.ResolveModel(req.EntryAgent, "", fallbackModel); m != "" && req.Provider != "" {
 		// Without a session model the tool picks its own default for the
-		// provider (opencode V2 + Bedrock: a non-Anthropic model).
+		// provider (e.g. Bedrock: a non-Anthropic model).
 		spec.DefaultModel = req.modelRef(m)
 	}
 
@@ -322,7 +325,7 @@ func findAgent(agents []sessionspec.AgentDef, id string) *sessionspec.AgentDef {
 }
 
 // readInstructions concatenates the project instruction files (ONBOARDING.md,
-// CONVENTIONS.md, .claude/CLAUDE.md + configured extras). opencode V2 ignores
+// CONVENTIONS.md, .claude/CLAUDE.md + configured extras). the tool ignores
 // the `instructions` config key, so they are embedded in every agent body.
 func readInstructions(projectPath string, extra []string) (string, error) {
 	if projectPath == "" {

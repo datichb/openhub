@@ -109,8 +109,8 @@ func TestRunArgsKeepsValuesOffTheCommandLine(t *testing.T) {
 		AddHosts: []string{"host.docker.internal:host-gateway"},
 		Mounts:   []Mount{{Source: "/b", Target: InnerBundle, ReadOnly: true}, {Source: "vol", Target: InnerHome, Volume: true}},
 		Env:      map[string]string{"HOME": InnerHome}}
-	args, env, err := runArgs(s, ohruntime.Proc{Argv: []string{"opencode", "serve"}, Dir: "/work/p", Ports: []int{4096},
-		Env: map[string]string{"OPENCODE_SERVER_PASSWORD": "secret-pw"}}, "/g/container.env")
+	args, env, err := runArgs(s, ohruntime.Proc{Argv: []string{"faketool", "serve"}, Dir: "/work/p", Ports: []int{4096},
+		Env: map[string]string{"TOOL_SERVER_PASSWORD": "secret-pw"}}, "/g/container.env")
 	require.NoError(t, err)
 	line := strings.Join(args, " ")
 	assert.NotContains(t, line, "secret-pw")
@@ -120,8 +120,8 @@ func TestRunArgsKeepsValuesOffTheCommandLine(t *testing.T) {
 	assert.Contains(t, line, "-p 127.0.0.1:4096:4096")
 	assert.Contains(t, line, "--add-host host.docker.internal:host-gateway")
 	assert.Contains(t, line, "--env-file /g/container.env")
-	assert.True(t, strings.HasSuffix(line, "-w /work/p oh-dev/p:1 opencode serve"))
-	assert.Equal(t, "HOME=/opt/oh/home\nOPENCODE_SERVER_PASSWORD=secret-pw\n", env)
+	assert.True(t, strings.HasSuffix(line, "-w /work/p oh-dev/p:1 faketool serve"))
+	assert.Equal(t, "HOME=/opt/oh/home\nTOOL_SERVER_PASSWORD=secret-pw\n", env)
 
 	_, _, err = runArgs(s, ohruntime.Proc{Env: map[string]string{"X": "a\nb"}}, "/f")
 	assert.Error(t, err)
@@ -150,7 +150,7 @@ func TestPrepareAndCommand(t *testing.T) {
 	assert.Equal(t, pg.Spec.(*Spec).Name, saved.Name)
 
 	t.Setenv("AWS_SECRET_ACCESS_KEY", "leak")
-	cmd, err := rt.Command(context.Background(), pg, ohruntime.Proc{Argv: []string{"opencode", "serve"}, Env: map[string]string{"K": "v"}})
+	cmd, err := rt.Command(context.Background(), pg, ohruntime.Proc{Argv: []string{"faketool", "serve"}, Env: map[string]string{"K": "v"}})
 	require.NoError(t, err)
 	assert.Equal(t, "/usr/bin/docker", cmd.Path)
 	for _, kv := range cmd.Env {

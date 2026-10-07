@@ -1013,7 +1013,7 @@ func (s *Shell) showSubMultiSelect(title string, options []views.SelectOption, s
 // SuspendAndExec suspends the TUI, runs a function, then resumes.
 // After resume it forces a full terminal re-sync (Sync) and restores focus to
 // the main content area to avoid a permanent freeze caused by tcell's
-// screen.Resume() silently failing on macOS after a subprocess (e.g., opencode)
+// screen.Resume() silently failing on macOS after a subprocess (e.g. the tool client)
 // that manipulates the tty.
 func (s *Shell) SuspendAndExec(fn func() error) error {
 	var execErr error

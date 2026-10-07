@@ -8,7 +8,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 )
 
-// v1ToNeutral maps hub (opencode V1 style) permission keys to neutral actions.
+// v1ToNeutral maps hub (former agent format) permission keys to neutral actions.
 var v1ToNeutral = map[string]string{
 	"bash":  sessionspec.ActionShell,
 	"task":  sessionspec.ActionSubagent,
@@ -155,7 +155,7 @@ func restrictiveness(e sessionspec.Effect) int {
 }
 
 // wildcardMatch matches s against a pattern where '*' matches any sequence and
-// '?' any single character (opencode wildcard semantics).
+// '?' any single character (wildcard semantics of the permission rules).
 func wildcardMatch(pattern, s string) bool {
 	if pattern == "*" || pattern == s {
 		return true

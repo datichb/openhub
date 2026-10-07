@@ -76,7 +76,7 @@ type AgentOverride struct {
 	// Role changes the agent's workflow role (nil = keep existing).
 	Role *AgentRole `json:"role,omitempty" toml:"role,omitempty"`
 
-	// Mode changes the agent's opencode mode (nil = keep existing).
+	// Mode changes the agent mode of the tool (nil = keep existing).
 	Mode *AgentMode `json:"mode,omitempty" toml:"mode,omitempty"`
 
 	// Disabled removes the agent from the workflow entirely.

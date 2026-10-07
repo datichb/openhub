@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/datichb/openhub/cli/internal/adapters/opencodev2"
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/buildinfo"
 	"github.com/datichb/openhub/cli/internal/config"
@@ -57,16 +56,6 @@ func capabilityStore() daemon.CapabilityStore {
 		return nil
 	}
 	return keychain.New(config.HubDir())
-}
-
-// detectV2Adapter returns the opencode V2 adapter, or an error when the
-// installed opencode is not a V2 release.
-func detectV2Adapter(ctx context.Context) (*opencodev2.Adapter, error) {
-	a := opencodev2.New("", ohCacheDir())
-	if _, err := a.Detect(ctx); err != nil {
-		return nil, err
-	}
-	return a, nil
 }
 
 // sessionEndHook emits the team session.complete event of a v5 session (the
@@ -124,7 +113,7 @@ func v5Runtimes(a *app.App) map[sessionspec.RuntimeKind]ohruntime.Runtime {
 	ex := executionConfig(a)
 	var rt ohruntime.Runtime = v5ContainerRuntime(a)
 	if v5Adapter != nil {
-		rt = pinRuntime(rt, ex.OpencodeVersion, v5Adapter.Ver)
+		rt = pinRuntime(rt, ex.ToolVersion, v5Tool.Version)
 	}
 	return map[sessionspec.RuntimeKind]ohruntime.Runtime{sessionspec.RuntimeContainer: rt}
 }
@@ -152,7 +141,7 @@ func newRunService(ctx context.Context, a *app.App) (*runsvc.Service, error) {
 		return nil, fmt.Errorf("database not initialized")
 	}
 	if !v5Available(ctx) {
-		return nil, fmt.Errorf("opencode V2 is required for v5 sessions: %v", v5Err)
+		return nil, v2Unsupported(v5Err)
 	}
 	ad := v5Adapter
 	shellPath, err := localShellPath()
@@ -161,7 +150,7 @@ func newRunService(ctx context.Context, a *app.App) (*runsvc.Service, error) {
 	}
 	return &runsvc.Service{
 		Adapter:        ad,
-		AdapterVer:     ad.Ver,
+		AdapterVer:     v5Tool.Version,
 		Servers:        sqlite.NewServerStore(store),
 		Sessions:       a.Sessions,
 		Secrets:        a.Secrets,
@@ -188,7 +177,7 @@ func newRunService(ctx context.Context, a *app.App) (*runsvc.Service, error) {
 }
 
 // newSessionService wires the SessionService (inbox, decisions, instructions,
-// results, live follow-up). Without opencode V2, only the stored state is
+// results, live follow-up). Without a supported tool, only the stored state is
 // available.
 func newSessionService(ctx context.Context, a *app.App) (*sessionsvc.Service, error) {
 	if store == nil {

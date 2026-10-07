@@ -602,7 +602,7 @@ func buildProviderStep(s *initStepState) views.WizardStep {
 			}
 
 			return config.Update(func(c *config.Config) error {
-				c.Opencode.DefaultProvider = s.SelectedProvider
+				c.LLM.DefaultProvider = s.SelectedProvider
 				if s.SelectedProvider == "bedrock" {
 					c.Provider.Bedrock.AuthMode = s.AuthMode
 					if s.Region != "" {
