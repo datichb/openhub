@@ -72,10 +72,10 @@ oh mcp reset figma --project mon-projet
 
 ### oh mcp setup
 
-Configure un service MCP (assistant interactif : token, options). Avec `--project`, le token est stocke dans le trousseau sous une cle propre au projet.
+Configure un service MCP (assistant interactif : token, options). Services : `figma`, `gitlab`, `gslides`, `jira` ; sans argument, le service est choisi dans une liste. Le mode ecriture est propose pour les services qui ont des outils d'ecriture (`gitlab`, `jira`). Avec `--project`, le token est stocke dans le trousseau sous une cle propre au projet.
 
 ```
-oh mcp setup [options]
+oh mcp setup [service] [options]
 ```
 
 | Flag | Court | Type | Description |
@@ -86,7 +86,7 @@ oh mcp setup [options]
 
 ```bash
 oh mcp setup
-oh mcp setup --project mon-projet
+oh mcp setup jira --project mon-projet
 ```
 
 ---
@@ -137,7 +137,7 @@ oh mcp serve figma --token-key openhub.mcp.figma.token
 
 ### oh mcp list
 
-Liste les serveurs MCP disponibles et leur commande.
+Liste tous les serveurs MCP d'oh (`figma`, `github`, `gitlab`, `gslides`, `jira`, `linear`, `team`, puis les serveurs personnalises de `~/.oh/mcp/`) et leur commande.
 
 **Alias :** `oh mcp ls`
 
@@ -155,8 +155,6 @@ oh mcp list [options]
 oh mcp list
 oh mcp ls --json
 ```
-
-> **Note :** `oh mcp list` n'affiche aujourd'hui que `figma`, `gitlab` et `gslides` ; `oh mcp status` montre tous les services.
 
 ---
 
