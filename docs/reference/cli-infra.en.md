@@ -180,7 +180,7 @@ oh repair --auto
 Complete removal of the hub and its data. Inventories the artifacts (keychain secrets, leftovers of former deployments in the projects (`.opencode/`), hub directory, OpenCode data, binary) then deletes them after confirmation.
 
 ```
-oh purge [--dry-run] [--force] [--keep-binary] [--include-opencode]
+oh purge [--dry-run] [--force] [--keep-binary] [--include-tool-data]
 ```
 
 | Flag | Type | Description |
@@ -188,13 +188,13 @@ oh purge [--dry-run] [--force] [--keep-binary] [--include-opencode]
 | `--dry-run` | bool | Show what would be deleted without deleting anything |
 | `--force` | bool | Delete without confirmation |
 | `--keep-binary` | bool | Keep the `oh` binary |
-| `--include-opencode` | bool | Also delete the global OpenCode data (`~/.local/share/opencode/`, `~/.config/opencode/`) |
+| `--include-tool-data` | bool | Also delete the global data of the session tool (for opencode: `~/.local/share/opencode/`, `~/.config/opencode/`). Former name: `--include-opencode` |
 
 ```bash
 oh purge --dry-run
 oh purge --force
 oh purge --keep-binary
-oh purge --include-opencode --force
+oh purge --include-tool-data --force
 ```
 
 ---

@@ -58,7 +58,7 @@ Au niveau hub (plus haut niveau), pas de parenthèse.
 | Champ | Type | Défaut |
 |-------|------|--------|
 | `cli.language` | string | `"en"` |
-| `opencode.default_provider` | string | `""` |
+| `llm.default_provider` | string | `""` |
 | `deploy.instruction_files` | []string | `[]` |
 | `worktree.auto_cleanup` | bool | false |
 | `worktree.base_branch` | string | auto-détecté (main/master) |
@@ -146,7 +146,7 @@ Sessions actives max, budget par session et journalier (USD), plafond mémoire, 
 
 **Ordre** : `--runtime` (ou la fiche de lancement) → config Exécution du projet → Réglages (`[execution] runtime`) → `runtime.default` du workflow
 
-Un runtime que le workflow n'autorise pas (`runtime.allowed`) est ignoré. `[execution]` de `hub.toml` porte aussi `engine`, `keep_images`, `opencode_version` et `strict_isolation` (hub seulement) ; la config Exécution du projet porte le Dockerfile de dev, les build args, les volumes, le workflow et le runtime par défaut. Voir [Conteneur](../../guides/container.fr.md).
+Un runtime que le workflow n'autorise pas (`runtime.allowed`) est ignoré. `[execution]` de `hub.toml` porte aussi `engine`, `keep_images`, `tool_version` et `strict_isolation` (hub seulement) ; la config Exécution du projet porte le Dockerfile de dev, les build args, les volumes, le workflow et le runtime par défaut. Voir [Conteneur](../../guides/container.fr.md).
 
 — `CONFIRMÉ` · developer · 2026-10-06 · config/config.go
 

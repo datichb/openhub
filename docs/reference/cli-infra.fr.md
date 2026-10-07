@@ -180,7 +180,7 @@ oh repair --auto
 Suppression totale du hub et de ses données. Inventorie les artefacts (secrets du trousseau, restes des anciens déploiements dans les projets (`.opencode/`), dossier du hub, données OpenCode, binaire) puis les supprime après confirmation.
 
 ```
-oh purge [--dry-run] [--force] [--keep-binary] [--include-opencode]
+oh purge [--dry-run] [--force] [--keep-binary] [--include-tool-data]
 ```
 
 | Flag | Type | Description |
@@ -188,13 +188,13 @@ oh purge [--dry-run] [--force] [--keep-binary] [--include-opencode]
 | `--dry-run` | bool | Afficher ce qui serait supprimé sans rien supprimer |
 | `--force` | bool | Supprimer sans confirmation |
 | `--keep-binary` | bool | Conserver le binaire `oh` |
-| `--include-opencode` | bool | Supprimer aussi les données globales d'OpenCode (`~/.local/share/opencode/`, `~/.config/opencode/`) |
+| `--include-tool-data` | bool | Supprimer aussi les données globales de l'outil des sessions (pour opencode : `~/.local/share/opencode/`, `~/.config/opencode/`). Ancien nom : `--include-opencode` |
 
 ```bash
 oh purge --dry-run
 oh purge --force
 oh purge --keep-binary
-oh purge --include-opencode --force
+oh purge --include-tool-data --force
 ```
 
 ---

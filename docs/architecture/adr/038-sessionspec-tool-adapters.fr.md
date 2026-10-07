@@ -4,7 +4,7 @@
 
 ## Statut
 
-Accepté
+Accepté — **Évolué par [ADR-049](049-tool-independence-architecture-guard.fr.md)**
 
 ## Date
 

@@ -198,6 +198,11 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 - Aide de la CLI : `oh --help` est construite à partir des commandes elles-mêmes (toutes les commandes visibles, par section, avec leurs options : `session`, `budget`, `daemon`, `remote`, `bundle build`, `team claim`… ; plus de `claim` ni `release` de premier niveau, qui n'existent pas) ; toute l'aide (descriptions, options, titres, « défaut ») suit la langue de l'interface, au lieu d'un mélange de français et d'anglais. Contenus corrigés : fournisseurs (`-P` : bedrock, anthropic, openrouter, github-copilot ; plus d'`openai`), `oh init`, cascade des modèles et `config websearch` (plus de déploiement), `--sweep-strategy` facultatif, `oh session attach --how here`.
 - `oh config model … -p <projet>` : la forme courte de `--project` est `-p`, comme partout (c'était `-j`).
 - Qualité du code : `golangci-lint` sans aucun signalement sur tout le dépôt, avec les tags de test et sous macOS, Linux et Windows (`make lint`, CI avec les tags) ; tous les signalements sont désormais affichés (plus de plafond par linter).
+- **Indépendance vis-à-vis de l'outil** (D19, ADR-049) : plus rien de propre à l'outil des sessions hors de son adaptateur. Registre d'adaptateurs et racine de composition unique, capacités neutres (fournisseur, installation Linux, données, nettoyage des anciens déploiements, navigateur), nom affiché fourni par l'adaptateur, test d'architecture qui le vérifie. Changements visibles :
+  - clés renommées dans `hub.toml` : `[llm] default_provider` et `[execution] tool_version` (les anciennes clés `[opencode] default_provider` et `opencode_version` sont encore lues, et `oh config set` les accepte) ;
+  - `oh purge --include-tool-data` remplace `--include-opencode` ;
+  - `oh status --json` donne `tool` et `tool_version` au lieu de `opencode_version` ;
+  - les runners distants lisent `OH_TOOL_VERSION` (schéma du pipeline 2 : relancer `oh remote setup`).
 
 ### Security
 

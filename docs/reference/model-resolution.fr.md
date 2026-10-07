@@ -20,7 +20,7 @@ Le provider est résolu par une cascade à 4 niveaux (premier trouvé gagne) :
 |----------|--------|---------|
 | 1 | Option CLI `--provider` / `-P` | `oh run feature --provider anthropic` |
 | 2 | Provider du projet | base `oh.db` (`oh project configure`) |
-| 3 | Config hub | `hub.toml` → `[opencode] default_provider = "bedrock"` |
+| 3 | Config hub | `hub.toml` → `[llm] default_provider = "bedrock"` |
 | 4 | Repli en dur | `bedrock` |
 
 ---
@@ -85,7 +85,7 @@ Choisissez donc des modèles de cascade compatibles avec la liste. Voir `oh budg
 ### Hub-level (`~/.oh/hub.toml`)
 
 ```toml
-[opencode]
+[llm]
 default_provider = "bedrock"
 
 [models]

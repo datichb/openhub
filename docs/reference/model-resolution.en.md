@@ -20,7 +20,7 @@ The provider is resolved through a 4-level cascade (first match wins):
 |----------|--------|---------|
 | 1 | CLI flag `--provider` / `-P` | `oh run feature --provider anthropic` |
 | 2 | Project provider | `oh.db` database (`oh project configure`) |
-| 3 | Hub config | `hub.toml` → `[opencode] default_provider = "bedrock"` |
+| 3 | Hub config | `hub.toml` → `[llm] default_provider = "bedrock"` |
 | 4 | Hardcoded fallback | `bedrock` |
 
 ---
@@ -85,7 +85,7 @@ So pick cascade models that match the list. See `oh budget show` and [ADR-044](.
 ### Hub-level (`~/.oh/hub.toml`)
 
 ```toml
-[opencode]
+[llm]
 default_provider = "bedrock"
 
 [models]

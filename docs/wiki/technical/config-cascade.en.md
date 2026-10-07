@@ -58,7 +58,7 @@ At the hub level (top level), no parenthetical is added.
 | Field | Type | Default |
 |-------|------|---------|
 | `cli.language` | string | `"en"` |
-| `opencode.default_provider` | string | `""` |
+| `llm.default_provider` | string | `""` |
 | `deploy.instruction_files` | []string | `[]` |
 | `worktree.auto_cleanup` | bool | false |
 | `worktree.base_branch` | string | auto-detected (main/master) |
@@ -146,7 +146,7 @@ Max working sessions, budget per session and per day (USD), memory cap, model li
 
 **Order**: `--runtime` (or the launch form) → project Execution config → Settings (`[execution] runtime`) → workflow `runtime.default`
 
-A runtime not allowed by the workflow (`runtime.allowed`) is skipped. `[execution]` of `hub.toml` also holds `engine`, `keep_images`, `opencode_version` and `strict_isolation` (hub only); the project Execution config holds the dev Dockerfile, build args, volumes, default workflow and default runtime. See [Container runtime](../../guides/container.en.md).
+A runtime not allowed by the workflow (`runtime.allowed`) is skipped. `[execution]` of `hub.toml` also holds `engine`, `keep_images`, `tool_version` and `strict_isolation` (hub only); the project Execution config holds the dev Dockerfile, build args, volumes, default workflow and default runtime. See [Container runtime](../../guides/container.en.md).
 
 — `CONFIRMED` · developer · 2026-10-06 · config/config.go
 

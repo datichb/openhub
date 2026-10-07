@@ -62,7 +62,7 @@ TUI : **Réglages › Exécution**, ou la section `[execution]` de `~/.oh/hub.to
 runtime = "container"        # runtime préféré si le workflow l'autorise et que le projet n'en choisit pas
 engine = "colima"            # auto (défaut : Colima, puis Podman, puis Docker) | colima | podman | docker
 keep_images = 2              # images gardées par projet et par rôle (base, oh) ; les plus anciennes sont supprimées
-opencode_version = "2.0.20"  # vide = version du client de la machine
+tool_version = "2.0.20"  # vide = version du client de la machine
 strict_isolation = true      # masque aussi votre config opencode aux serveurs locaux
 ```
 

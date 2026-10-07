@@ -24,7 +24,7 @@ After running `oh init`, your hub configuration lives in `~/.oh/hub.toml`. The m
 [cli]
 language = "en"              # "en" or "fr"
 
-[opencode]
+[llm]
 default_provider = "anthropic"   # your LLM provider
 ```
 
@@ -74,7 +74,7 @@ oh doctor
 Hub.toml setting:
 
 ```toml
-[opencode]
+[llm]
 default_provider = "anthropic"
 ```
 
@@ -92,7 +92,7 @@ oh provider setup
 ```
 
 ```toml
-[opencode]
+[llm]
 default_provider = "bedrock"
 
 [provider.bedrock]
@@ -109,7 +109,7 @@ oh provider setup
 ```
 
 ```toml
-[opencode]
+[llm]
 default_provider = "bedrock"
 
 [provider.bedrock]
@@ -127,7 +127,7 @@ oh provider setup
 ```
 
 ```toml
-[opencode]
+[llm]
 default_provider = "openrouter"
 ```
 
@@ -140,7 +140,7 @@ oh provider setup
 ```
 
 ```toml
-[opencode]
+[llm]
 default_provider = "github-copilot"
 ```
 
@@ -464,7 +464,7 @@ push_labels = true           # push labels to external tracker
 ### OpenCode settings
 
 ```toml
-[opencode]
+[llm]
 default_provider = "bedrock"   # opencode V2 is installed with its own tooling (v5)
 ```
 

@@ -60,7 +60,7 @@ A **group** = (bundle version, project, runtime). Each group has its own `openco
 
 ### Tool Adapter
 
-The logic stays in `oh`; one **adapter** per tool translates a neutral model (`SessionSpec`, `BundleSpec`) into the tool's format and drives its server: `Render`, server start, session creation through the API, `Attest`, events, decisions, control (interrupt, switch model, compact, fork), results, export/import. Only the **opencode V2** adapter exists (`internal/adapters/opencodev2`); opencode V1 is no longer supported. No native agent name of a tool appears outside its adapter. Decisions: [ADR-038](./adr/038-sessionspec-tool-adapters.en.md) (partly replaces [ADR-036](./adr/036-platform-abstraction-layer.en.md)), [ADR-048](./adr/048-opencode-v1-abandonment.en.md).
+The logic stays in `oh`; one **adapter** per tool translates a neutral model (`SessionSpec`, `BundleSpec`) into the tool's format and drives its server: `Render`, server start, session creation through the API, `Attest`, events, decisions, control (interrupt, switch model, compact, fork), results, export/import. Only the **opencode V2** adapter exists (`internal/adapters/opencodev2`); opencode V1 is no longer supported. Nothing specific to a tool (name, provider ids, variables, API, paths, native agents) appears outside its adapter: the rest of oh goes through the interface and neutral capabilities, a single composition root (`cmd/v5_adapters.go`) picks the adapter, and an architecture test (`internal/archtest`) enforces it (D19). Decisions: [ADR-038](./adr/038-sessionspec-tool-adapters.en.md) (partly replaces [ADR-036](./adr/036-platform-abstraction-layer.en.md)), [ADR-048](./adr/048-opencode-v1-abandonment.en.md), [ADR-049](./adr/049-tool-independence-architecture-guard.en.md).
 
 ### `ohd` Daemon
 
@@ -226,6 +226,7 @@ Implementing and diagnosing are given to different agents (developer, debugger);
 | [046](./adr/046-beads-gateways.en.md) | Beads on the machine and gateways | — |
 | [047](./adr/047-session-interaction-daemon.en.md) | Session interaction, multi-session, `ohd` daemon | evolves 012 (automatic worktree) |
 | [048](./adr/048-opencode-v1-abandonment.en.md) | Dropping opencode V1 | deprecates 014 |
+| [049](./adr/049-tool-independence-architecture-guard.en.md) | Tool independence and architecture guard | evolves 038 |
 
 All ADRs: [`docs/architecture/adr/`](./adr/).
 

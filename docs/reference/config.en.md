@@ -20,7 +20,7 @@ name = "OpenHub"                   # name shown in the TUI title
 [cli]
 language = "en"                    # "fr" or "en" (default: "en")
 
-[opencode]
+[llm]
 default_provider = "bedrock"       # bedrock | anthropic | openrouter | github-copilot
 
 [provider.bedrock]
@@ -92,7 +92,7 @@ notify = "on"                      # system notifications: on | off
 runtime = ""                       # local | container; empty = workflow default
 engine = "auto"                    # auto | colima | podman | docker
 keep_images = 2                    # images kept per project and role
-opencode_version = ""              # opencode version of the images; empty = the machine's
+tool_version = ""                  # tool (opencode) version of the images; empty = the machine's
 strict_isolation = false           # also hide the personal opencode config locally
 
 [remote]
@@ -113,7 +113,7 @@ group = "acme"
 # models = ["eu.anthropic.claude-*"]
 ```
 
-Removed in v5 (ignored if still in the file): `[opencode] version`, `channel`, `auto_update`, `install_dir` (opencode V2 is installed separately, see [v5 migration](../guides/migration-v5.en.md)), `[deploy] disable_native_agents` (the closed world always disables native agents), `[workflow.overrides]` (migrated to `~/.oh/migrated/`, see [team workflows](../guides/team-workflows.en.md#migration-of-the-former-workflow-overrides-v5)). The former `[team]` section is migrated to `[[teams]]` on load.
+Removed in v5 (ignored if still in the file): `[opencode] version`, `channel`, `auto_update`, `install_dir` (opencode V2 is installed separately, see [v5 migration](../guides/migration-v5.en.md)), `[deploy] disable_native_agents` (the closed world always disables native agents), `[workflow.overrides]` (migrated to `~/.oh/migrated/`, see [team workflows](../guides/team-workflows.en.md#migration-of-the-former-workflow-overrides-v5)). The former `[team]` section is migrated to `[[teams]]` on load. Renamed in v5 (former names still read, written under the new name at the next save): `[opencode] default_provider` → `[llm] default_provider` (`oh config set llm.default_provider`; the former key is accepted), `[execution] opencode_version` → `[execution] tool_version`.
 
 ### v5 sections
 
@@ -126,7 +126,7 @@ Removed in v5 (ignored if still in the file): `[opencode] version`, `channel`, `
 | `[execution]` | `runtime` | empty | Preferred environment (Settings › Execution), used when the workflow allows it |
 | | `engine` | `auto` | Container engine |
 | | `keep_images` | `2` | Images kept per project and role (base, dev) |
-| | `opencode_version` | empty | opencode version of the images; when it differs from the machine client, container launches are refused |
+| | `tool_version` | empty | opencode version of the images; when it differs from the machine client, container launches are refused |
 | | `strict_isolation` | `false` | Also hides the personal opencode configuration (`XDG_CONFIG_HOME`) from local servers |
 | `[remote]` | `targets[]` | — | `oh-runner` targets (`oh remote setup`): `name`, `url`, `group`, `runner_project`, `token_key`, `trigger_key`, `tag`, `builder` (`kaniko`\|`dind`), `arch` (`amd64`\|`arm64`), `timeout` |
 | | `projects` | — | oh project → target name |
@@ -143,7 +143,7 @@ See [container](../guides/container.en.md), [remote runners](../guides/remote-ru
 | Command | Description |
 |---------|-------------|
 | `oh config list [--json]` | Show all values |
-| `oh config get <key>` | Get a value (dot notation: `opencode.default_provider`) |
+| `oh config get <key>` | Get a value (dot notation: `llm.default_provider`) |
 | `oh config set <key> <value>` | Set a value |
 | `oh config unset <key>` | Remove a key |
 | `oh config path` | Print the file path |
@@ -698,7 +698,7 @@ When a session starts, the LLM provider is resolved in this order:
 
 1. `--provider` / `-P` flag
 2. `project.Provider` in the database
-3. `opencode.default_provider` in `hub.toml`
+3. `llm.default_provider` in `hub.toml`
 4. `"bedrock"` (hardcoded fallback)
 
 ---

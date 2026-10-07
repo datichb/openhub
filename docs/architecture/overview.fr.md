@@ -60,7 +60,7 @@ Un **groupe** = (version du paquet, projet, environnement d'exécution). Chaque 
 
 ### Adaptateur d'outil
 
-La logique reste dans `oh` ; un **adaptateur** par outil traduit un modèle neutre (`SessionSpec`, `BundleSpec`) dans le format de l'outil et pilote son serveur : `Render`, démarrage du serveur, création de session par l'API, `Attest`, événements, décisions, contrôle (interrompre, changer de modèle, compacter, fork), résultats, export/import. Seul l'adaptateur **opencode V2** existe (`internal/adapters/opencodev2`) ; opencode V1 n'est plus pris en charge. Aucun nom d'agent natif d'un outil n'apparaît hors de son adaptateur. Décisions : [ADR-038](./adr/038-sessionspec-tool-adapters.fr.md) (remplace en partie l'[ADR-036](./adr/036-platform-abstraction-layer.fr.md)), [ADR-048](./adr/048-opencode-v1-abandonment.fr.md).
+La logique reste dans `oh` ; un **adaptateur** par outil traduit un modèle neutre (`SessionSpec`, `BundleSpec`) dans le format de l'outil et pilote son serveur : `Render`, démarrage du serveur, création de session par l'API, `Attest`, événements, décisions, contrôle (interrompre, changer de modèle, compacter, fork), résultats, export/import. Seul l'adaptateur **opencode V2** existe (`internal/adapters/opencodev2`) ; opencode V1 n'est plus pris en charge. Rien de propre à un outil (nom, identifiants de fournisseur, variables, API, chemins, agents natifs) n'apparaît hors de son adaptateur : le reste d'oh passe par l'interface et des capacités neutres, une seule racine de composition (`cmd/v5_adapters.go`) choisit l'adaptateur, et un test d'architecture (`internal/archtest`) l'impose (D19). Décisions : [ADR-038](./adr/038-sessionspec-tool-adapters.fr.md) (remplace en partie l'[ADR-036](./adr/036-platform-abstraction-layer.fr.md)), [ADR-048](./adr/048-opencode-v1-abandonment.fr.md), [ADR-049](./adr/049-tool-independence-architecture-guard.fr.md).
 
 ### Démon `ohd`
 
@@ -226,6 +226,7 @@ Implémenter et diagnostiquer sont confiés à des agents différents (developer
 | [046](./adr/046-beads-gateways.fr.md) | Beads sur la machine et passerelles | — |
 | [047](./adr/047-session-interaction-daemon.fr.md) | Interaction avec les sessions, multi-session, démon `ohd` | fait évoluer 012 (worktree automatique) |
 | [048](./adr/048-opencode-v1-abandonment.fr.md) | Abandon d'opencode V1 | déprécie 014 |
+| [049](./adr/049-tool-independence-architecture-guard.fr.md) | Indépendance vis-à-vis de l'outil et garde-fou d'architecture | fait évoluer 038 |
 
 Tous les ADR : [`docs/architecture/adr/`](./adr/).
 
