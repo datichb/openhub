@@ -4,6 +4,8 @@
 
 > v5, phase 2. The declarative workflows (`apiVersion: oh/v1`) of a team and its projects live in the team-state repository. This guide covers where they are stored, the integrity check and locks.
 
+See also: [`oh/v1` schema](../reference/workflow-schema.en.md) (reference of every field, patch rules and diagnostics).
+
 ## Layers
 
 A workflow is resolved from the most general layer to the most specific one:

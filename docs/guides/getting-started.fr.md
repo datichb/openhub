@@ -4,53 +4,56 @@
 
 ## Qu'est-ce qu'OpenHub ?
 
-OpenHub (`oh`) est un hub central qui gere les assistants IA de code a travers vos projets. Il fournit **19 agents IA specialises** organises en 7 familles (planning, developpement, audit, qualite, design, documentation, utilitaire) qui collaborent pour tout gerer, de la planification de fonctionnalites a la revue de code.
+OpenHub (`oh`) lance et pilote des sessions d'agents IA de code sur vos projets. Chaque session suit un **workflow** (par exemple `ticket` : implementer un ticket, `review` : relire une branche) et tourne dans opencode V2. oh est la **tour de controle** : il prepare la session, la suit, vous presente les decisions a prendre et recupere les resultats. opencode est la **cabine** : la fenetre ou l'agent travaille. Fermer opencode n'arrete pas la session.
 
 ```mermaid
 flowchart LR
-    U[Vous] -->|oh run| CLI[oh CLI]
-    CLI -->|configure| OC[Runtime OpenCode]
-    OC -->|appelle| LLM[Fournisseur LLM<br/>Anthropic / Bedrock / OpenRouter]
-    CLI -.->|construit au lancement| B[Paquet de session<br/>~/.oh/bundles/hash/]
-    B -.->|agents, skills,<br/>permissions, MCP| OC
-    HUB[(~/.oh/<br/>Config Hub)] -->|agents, skills,<br/>config| CLI
+    U[Vous] -->|oh run / TUI| CLI[oh]
+    CLI -->|construit au lancement| B[Paquet de session<br/>~/.oh/bundles/hash/]
+    B -->|agents, skills,<br/>permissions, MCP| OC[opencode V2<br/>serveur de session]
+    CLI <-->|suivi, decisions,<br/>resultats| D[Demon ohd]
+    D <--> OC
+    D -->|proxy d'identifiants| LLM[Fournisseur LLM<br/>Anthropic / Bedrock / OpenRouter]
     MCP[Serveurs MCP<br/>GitLab, Figma, Jira...] <-->|outils| OC
 ```
 
 **Concepts cles** (voir le [Glossaire](../reference/glossary.fr.md) complet) :
-- **Hub** (`~/.oh/`) -- configuration centrale et stockage agents/skills
-- **Agent** -- un role IA specialise (orchestrateur, developpeur, reviewer, etc.)
-- **Skill** -- un document de protocole donnant une expertise domaine a un agent
-- **Paquet de session** -- agents, skills, permissions et MCP d'une session, construits au lancement a partir de son workflow hors du projet (`~/.oh/bundles/<hash>/`) ; remplace le deploy (supprime en v5)
-- **MCP Server** -- integration d'outils externes (GitLab, Figma, Jira, etc.)
+- **Workflow** -- ce que fait une session : agent d'entree, agents autorises, entrees, checkpoints, modes (`manuel`, `semi-auto`, `auto`). 12 workflows sont livres (voir [Workflows livres](../reference/workflows.fr.md)).
+- **Session** -- une execution d'un workflow sur un projet. Elle tourne sur un serveur `opencode serve` gere par oh.
+- **Paquet de session** -- agents, skills, permissions et MCP d'une session, construits au lancement hors du projet (`~/.oh/bundles/<hash>/`). Rien n'est copie dans le projet. Seuls les agents du paquet sont visibles (« monde ferme »).
+- **Decision** -- ce que la session attend de vous : `⏸` checkpoint, `?` question, `!` permission, `$` budget, `✗` erreur.
+- **Demon `ohd`** -- tourne en arriere-plan : il garde vos cles LLM sur la machine, suit les sessions et envoie les notifications.
 
-> **Nouveau ici ?** Commencez par le [tutoriel en 5 minutes](tutorial.fr.md) pour une prise en main pratique.
+> **Nouveau ici ?** Le [tutoriel](tutorial.fr.md) va de l'installation a un ticket implemente puis relu.
 
-Ce guide est la reference complete des commandes. Pour les details de configuration, voir le [Guide de configuration](configuration-guide.fr.md).
+Vous venez d'une version precedente d'oh ? Lisez d'abord [Migrer vers oh v5](migration-v5.fr.md).
 
 ---
 
-## Prerequisites
+## Prerequis
 
 | Outil | Usage | Requis |
 |-------|-------|--------|
-| **git** | Controle de version | Oui |
-| **opencode V2** (2.0.0 ou plus) | Agent IA de code | Oui — a installer avec son propre outil (`brew install anomalyco/tap/opencode`, ou https://opencode.ai) ; verifie par `oh init` et `oh doctor` |
-| **bd** | Gestionnaire de tickets Beads | Non (pour le workflow `ticket` et `oh board`) |
+| **git** | Controle de version, worktrees | Oui |
+| **opencode V2** (2.0.0 ou plus) | Execute les sessions | Oui — a installer avec son propre outil ; oh ne l'installe pas |
+| **bd** | Tickets Beads (workflow `ticket`, board) | Non |
+| **Colima, Podman ou Docker** | Sessions en conteneur | Non |
 
-Aucun besoin de Node.js, jq, sqlite3, bun ou Python. Le binaire Go est autonome.
+Le binaire `oh` est autonome (pas de Node.js, Python ni base externe).
 
 ## Installation
 
-**Plateformes supportees :** macOS (darwin) et Linux — amd64 et arm64.
+**Plateformes supportees :** macOS et Linux (amd64 et arm64). Sous Windows, seules les sessions locales sont prises en charge.
 
-**Homebrew (recommande — macOS/Linux) :**
+### 1. Installer oh
+
+**Homebrew (recommande) :**
 
 ```bash
 brew install datichb/tap/openhub
 ```
 
-**Script curl (macOS/Linux) :**
+**Script curl :**
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/datichb/openhub/main/install.sh | bash
@@ -62,184 +65,221 @@ curl -fsSL https://raw.githubusercontent.com/datichb/openhub/main/install.sh | b
 cd cli && go install .
 ```
 
-## Configuration initiale
+### 2. Installer opencode V2
+
+```bash
+brew install anomalyco/tap/opencode    # ou voir https://opencode.ai
+opencode --version                     # doit afficher 2.x
+```
+
+opencode V1 n'est plus pris en charge : oh refuse de lancer une session avec un message clair. Voir [Migrer vers oh v5](migration-v5.fr.md).
+
+## Configuration initiale : `oh init`
 
 ```bash
 oh init
 ```
 
-Cet assistant interactif en 3 etapes va :
+L'assistant s'ouvre dans le terminal. La premiere page (« Bienvenue ») propose trois parcours :
 
-**[1/3] Configuration du hub :**
-- Afficher un preambule avec les prerequis (provider, tokens MCP)
-- Demander votre langue preferee (fr/en)
-- Verifier qu'opencode V2 est installe (oh n'installe plus opencode)
-- Choisir le provider LLM par defaut (Bedrock, Anthropic, OpenRouter, GitHub Copilot)
-- Detecter automatiquement les credentials existantes et proposer de les utiliser ou d'en configurer de nouvelles
+| Parcours | Ce qui est demande |
+|----------|--------------------|
+| **Développeur solo** | fournisseur IA, premier projet, integrations MCP ; les fonctions d'equipe sont ignorees et un espace de workflows **solo** est cree pour le projet |
+| **Membre d'équipe** | creer ou rejoindre une equipe ; le fournisseur IA vient de la configuration de l'equipe |
+| **Configuration complète** | toutes les etapes une par une |
 
-**[2/3] Serveurs MCP (optionnel) :**
-- Proposer de configurer des services MCP (Figma, GitLab, Google Slides)
-- Pour chaque service selectionne : demander le token et le stocker dans le keychain
-- Les services sans token sont ignores (configurables plus tard via `oh mcp setup`)
+Les etapes, dans l'ordre :
 
-**[3/3] Premier projet (optionnel) :**
-- Proposer d'enregistrer un premier projet
-- Si oui : lance l'assistant de projet (nom, chemin, langage, MCP)
-- Si non : l'initialisation est terminee (`oh project add` disponible plus tard)
+1. **Langue** -- langue de l'interface (francais ou anglais). Seule etape obligatoire.
+2. **Fournisseur IA** -- Bedrock, Anthropic, OpenRouter ou GitHub Copilot, puis la cle (rangee dans le trousseau systeme).
+3. **Équipe** -- l'espace qui porte vos workflows : « Créer une nouvelle équipe », « Rejoindre une équipe existante » (depot team-state) ou « Espace solo (workflows locaux) ». Si l'equipe a un tracker, l'assistant propose de le configurer.
+4. **Premier projet** -- nom et chemin (le dossier courant est propose), rattachement a l'equipe.
+5. **Intégrations MCP** -- GitLab, Figma, Google Slides… avec leur jeton. Tout est facultatif : `oh mcp setup` plus tard.
 
-Le hub content (agents et skills) est extrait automatiquement dans `~/.oh/hub/` depuis le binaire.
-
-## Enregistrer un projet
-
-Pour ajouter d'autres projets apres l'initialisation :
+Le contenu du hub (agents, skills, workflows) est extrait dans `~/.oh/hub/`. A la fin, verifiez l'installation :
 
 ```bash
-oh project add
+oh doctor
 ```
 
-Ou de maniere non-interactive :
+`oh doctor` controle opencode V2, le demon, git, le terminal, le moteur de conteneurs et les restes d'anciens deploiements.
+
+Pour Beads : dans le projet, `bd init` (ou la commande `board init` de la TUI) prepare les tickets.
+
+## Enregistrer d'autres projets
 
 ```bash
+oh project add                                   # assistant
 oh project add --name my-app --path ~/workspace/my-app --language typescript
 ```
 
-## Paquet de session
+## Premier lancement
 
-Plus rien n'est deploye dans le projet (`oh deploy` / `oh sync` supprimes en v5). Chaque session demarre d'un paquet de session construit au lancement hors du projet (`~/.oh/bundles/<hash>/`) a partir de son workflow : agents, skills, permissions, serveurs MCP, fournisseur et modele. Pour l'inspecter :
+### En ligne de commande
+
+Depuis le dossier du projet :
 
 ```bash
-oh bundle show <workflow>                  # detection automatique du projet depuis le repertoire courant
+oh run quick -i request="Ajoute un test pour parseDate"   # petite modification, sans checkpoint
+oh run feature                                             # une fonctionnalite complete (plan, dev, review)
+oh run                                                     # workflow par defaut du projet
+oh run feature --recap                                     # afficher le recapitulatif, puis confirmer
+```
+
+oh resout le workflow (couches hub, equipe, projet), construit le paquet de session, choisit l'emplacement (un worktree automatique si une autre session ecrit deja dans le dossier), demarre le serveur opencode et ouvre la fenetre de session : nouvel onglet iTerm2 ou Terminal.app, tmux, ou navigateur selon vos Reglages.
+
+```
+▸ Préparation du workflow quick…
+✔ Session ouverte (iterm) : ses_2f9c1a7b
+```
+
+### Depuis la TUI
+
+```bash
+oh
+```
+
+Sur l'accueil, la section **Démarrer** liste vos workflows epingles (★), les recents et « Tous les workflows ». `Entree` ouvre la **fiche de lancement** : Entrées → Options → Récap ; `Ctrl+S` lance. Voir [Utiliser le TUI](tui-usage.fr.md).
+
+## Paquet de session
+
+Plus rien n'est deploye dans le projet (`oh deploy` / `oh sync` supprimes en v5). Pour voir ce qu'une session recevra :
+
+```bash
+oh bundle show <workflow>                  # projet detecte depuis le dossier courant
 oh bundle show <workflow> -p my-project    # projet explicite
-oh bundle show <workflow> --budget         # inclure le budget de contexte
+oh bundle show <workflow> --budget         # budget de contexte estime
 oh bundle build <workflow>                 # construire le paquet sans lancer
 ```
 
-Projets deployes avec une version precedente : nettoyer les restes (`.opencode/agents`, `.opencode/skills`, cles oh dans `opencode.json`…) avec `oh migrate deploy-cleanup --dry-run` puis `oh migrate deploy-cleanup`.
+Projets deployes avec une version precedente : retirez les restes (`.opencode/agents`, `.opencode/skills`, cles d'oh dans `opencode.json`…) avec `oh migrate deploy-cleanup --dry-run` puis `oh migrate deploy-cleanup`, ou l'ecran de nettoyage de la TUI (`cleanup`).
 
-## Lancer une session
+## Suivre la session
 
-Chaque session lance un **workflow** (voir [Workflows livres](../reference/workflows.fr.md)) :
+La fenetre opencode s'ouvre a cote : vous y discutez avec l'agent comme d'habitude. Pendant ce temps, oh suit la session :
 
-```bash
-oh run                       # workflow par defaut du projet, detection auto du projet
-oh run feature -p my-project # workflow et projet explicites
-oh run feature -i request="explique..."   # avec une demande initiale
-oh run libre --agent orchestrator         # session libre avec l'agent de votre choix
-oh run ticket --tickets <id> # implementer un ticket Beads
-oh run onboarding            # creer le wiki du projet
-oh run feature --recap       # afficher le récap + confirmation
-oh session attach <session-id>   # rouvrir une session existante
-```
-
-`oh start` reste disponible comme alias deprecie (`oh start` → `oh run feature`) ; voir [Migrer vers oh v5](migration-v5.fr.md).
-
-Le flux de demarrage :
-
-1. Resout le projet (depuis le repertoire courant ou le flag `--project`)
-2. Resout le workflow, le fournisseur et le token d'authentification
-3. Construit le paquet de session (hors du projet)
-4. Lance directement (utilisez `--recap` pour afficher le récap + confirmation)
-5. Demarre la session sur un serveur opencode et ouvre son interface
-
-## Démarrage rapide
+- **TUI, vue Sessions** (`sessions` dans l'omnibar) : sessions À traiter, En cours, En veille, Terminées. `t` affiche le flux en direct (agent courant, outils, cout). La barre du bas affiche partout `● N ⏸ M` : sessions vivantes, decisions en attente.
+- **CLI** :
 
 ```bash
-oh run                       # détection auto du projet, workflow par defaut, lancement immédiat
+oh session list                  # sessions en cours, en attente, en veille
+oh session follow <id>           # flux en direct, lecture seule (Ctrl+C)
+oh session attach <id>           # rouvrir la fenetre opencode (reprend une session en veille)
 ```
+
+Un identifiant peut etre abrege (`oh session attach 2f9c`). Une session sans activite ni decision en attente se met en veille apres 5 minutes ; `oh session attach` la reprend sur le meme paquet. Voir [Sessions v5](sessions-v5.fr.md).
+
+## Decider
+
+Quand l'agent a besoin de vous, une decision apparait : notification systeme, ligne dans « À traiter », badge `⏸`.
+
+| Decision | Exemple | TUI (vue Sessions) | CLI |
+|----------|---------|--------------------|-----|
+| `⏸` checkpoint | `cp-2 « Commit ou correction »` | `Entree` → fiche → **Décider** : Valider / Corriger d'abord / Autre consigne ; `y` valide | `oh session approve <id>` (`--decision once\|fix\|other\|reject`, `-m "…"`) |
+| `?` question | « Périmètre MVP ? » | `Entree` → formulaire | `oh session answer <id> --field cle=valeur` |
+| `!` permission | `shell npm run e2e` | `y` une fois, `n` refuser, `Entree` pour la fiche | `oh session approve <id> --decision once\|always\|reject` |
+| `$` budget, `✗` erreur | budget de session atteint | `x` classer | `oh session dismiss <id>` |
+
+```bash
+oh session inbox                 # toutes les decisions en attente
+```
+
+Vous pouvez aussi repondre dans la fenetre opencode ou le navigateur : **la premiere reponse gagne**, oh le signale si la decision est deja prise.
+
+## Finir
+
+```bash
+oh session results <id>          # fichiers modifies, branche, cout
+oh session results <id> --mr     # description de merge request (Markdown)
+oh session results <id> --patch  # diff complet
+oh session stop <id>             # arreter la session
+```
+
+Dans la vue Sessions, `o` affiche les resultats et la description de MR, et `e` (**Enchaîner avec…**) propose les workflows qui reprennent les sorties de la session (par exemple `review` sur la branche de travail) ; la fiche de lancement s'ouvre preremplie.
+
+En quittant la TUI pendant qu'une session travaille, oh demande pour chacune : finir l'etape puis veille, arriere-plan, ou arreter.
+
+## Aller plus loin
+
+### Plusieurs tickets
+
+```bash
+oh run ticket --tickets bd-41,bd-42,bd-43    # une session par ticket, un worktree par session, un seul serveur
+oh run ticket --tickets bd-41,bd-42 --one-session
+```
+
+### Conteneur
+
+```bash
+oh run ticket --tickets bd-42 --runtime container
+```
+
+Les commandes de l'agent tournent dans une image construite depuis le Dockerfile de dev du projet ; Beads et les cles restent sur la machine. Voir [Sessions en conteneur](container.fr.md).
+
+### Distant (GitLab CI)
+
+```bash
+oh remote setup
+oh run ticket --tickets bd-42 --runtime remote
+oh session fetch <id>      # recuperer le resultat
+oh session resolve <id>    # rejouer le journal Beads
+```
+
+Voir [Execution distante](remote-runners.fr.md).
+
+### Workflows d'equipe
+
+Les workflows de l'equipe (ou de votre espace solo) vivent dans le depot team-state : `oh workflow new|edit|publish`, ou le catalogue `workflows` de la TUI. Voir [Workflows d'equipe](team-workflows.fr.md) et la [reference des commandes](../reference/cli-workflows.fr.md).
+
+### Restrictions
+
+Desactivees par defaut : sessions actives max, budget par session et journalier, plafond memoire, modeles autorises.
+
+```bash
+oh budget show
+oh budget set session_budget_usd 5
+```
+
+Ou **Réglages → Restrictions des sessions** dans la TUI. Voir [Sessions v5 › Restrictions](sessions-v5.fr.md#restrictions).
 
 ## Commandes quotidiennes
 
-### Essentielles
-
 ```bash
-oh run <workflow>            # lancer une session IA
-oh session list              # sessions en cours, en attente, en veille
-oh bundle show <workflow>    # inspecter le paquet de session d'un workflow
-oh status                    # afficher le statut du hub et du projet courant
-oh doctor                    # verification de sante du systeme
+oh                           # TUI (tour de controle)
+oh run <workflow>            # lancer une session
+oh session list              # suivre ses sessions
+oh session inbox             # decisions en attente
+oh bundle show <workflow>    # inspecter le paquet d'un workflow
+oh workflow list             # workflows disponibles pour le projet
+oh status                    # etat du hub et du projet courant
+oh doctor                    # diagnostic
 ```
 
-### Developpement
-
 ```bash
-oh run ticket                # choisir un ticket, lance orchestrator-dev
-oh run ticket --tickets a,b  # une session par ticket
-oh run audit -i type=security    # audit de code
-oh run review                # revue de code
-oh run debug -i issue="crash..." # session de debogage
+oh run ticket                # choisir un ticket Beads
+oh run audit -i type=security
+oh run review -i branch=feat/export
+oh run debug -i issue="crash au login"
+oh run onboarding            # creer le wiki du projet
+oh run libre --agent orchestrator
 ```
 
-### Infrastructure
+Les anciennes commandes `oh start`, `oh audit`, `oh review` et `oh debug` sont des alias deprecies de `oh run feature|audit|review|debug`.
 
 ```bash
-oh migrate deploy-cleanup    # supprimer les restes des anciens deploiements (oh < v5)
-oh provider setup            # configurer les credentials provider
-oh mcp setup                 # configurer les tokens des serveurs MCP
-oh metrics                   # stats d'utilisation par agent
-oh serve                     # demarrer le dashboard web sur localhost:8080
-oh                           # tableau de bord TUI interactif (sans arguments)
-oh board                     # kanban (necessite bd)
-oh export                    # exporter toutes les donnees du hub
-oh repair                    # reparer la base de donnees ou l'etat corrompus
+oh provider setup            # identifiants du fournisseur
+oh mcp setup                 # jetons des serveurs MCP
+oh config language fr        # langue
+oh worktree list             # worktrees actifs
+oh team status               # etat de l'equipe
+oh daemon status             # etat du demon
 ```
-
-### Equipe (optionnel)
-
-```bash
-oh team init                 # configurer la collaboration d'equipe
-oh team claim <ticket-id>    # revendiquer un ticket
-oh team release <ticket-id>  # liberer un ticket revendique
-oh team status               # afficher l'etat de l'equipe
-oh team sync-tracker         # synchroniser les claims vers le tracker externe
-```
-
-## Workflow de developpement
-
-```bash
-oh run ticket                # choisir un ticket, lance orchestrator-dev
-oh run ticket --tickets a,b  # une session par ticket (un worktree par session)
-oh run audit -i type=security    # audit de code
-oh run review                # revue de code
-oh run debug -i issue="crash on login"  # session de debogage
-```
-
-Les anciennes commandes `oh start --dev`, `oh audit`, `oh review` et `oh debug` sont des alias deprecies de ces commandes.
-
-## Gestion des worktrees
-
-```bash
-oh run feature --location new   # cree un worktree et lance dedans
-oh worktree list             # lister les worktrees actifs
-oh worktree cleanup          # supprimer les worktrees merges
-```
-
-## Configuration
-
-```bash
-oh config list               # afficher toute la configuration
-oh config set opencode.default_provider anthropic
-oh config language fr        # passer en francais
-oh config websearch enable   # activer la recherche web pour les agents
-```
-
-## Skills communautaires
-
-Installer des skills depuis l'index ou une URL Git :
-
-```bash
-oh skill add <nom-index>              # installer depuis l'index communautaire
-oh skill add https://github.com/...  # installer depuis une URL Git
-oh skill list                         # lister les skills communautaires installees
-oh skill search <requete>             # rechercher dans l'index communautaire
-```
-
-Voir [skills.fr.md](../architecture/skills.fr.md#marketplace-de-skills-communautaires) pour les details.
 
 ## Mise a jour
 
 ```bash
-brew upgrade openhub          # mettre a jour oh lui-meme (Homebrew)
-oh upgrade oh                 # mettre a jour oh lui-meme (hors Homebrew)
+brew upgrade openhub          # Homebrew
+oh upgrade oh                 # hors Homebrew
 ```
 
 opencode se met a jour avec son propre outil (`oh upgrade opencode` est supprime en v5).
@@ -247,29 +287,22 @@ opencode se met a jour avec son propre outil (`oh upgrade opencode` est supprime
 ## Desinstallation
 
 ```bash
+oh daemon stop
 brew uninstall openhub
-rm -rf ~/.oh                 # supprimer la configuration et la base de donnees
+rm -rf ~/.oh                 # configuration, base et paquets de session
 ```
 
 ## Depannage
-
-Lancer les diagnostics :
 
 ```bash
 oh doctor
 ```
 
-`oh doctor` verifie :
-- Version de `oh` (derniere disponible vs installee)
-- Presence et version du binaire `opencode` (opencode V2 requis)
-- Credentials provider
-- Connectivite des serveurs MCP
-- Integrite du registre de projets
+- **opencode introuvable ou en V1** -- installer opencode V2 (voir [Migrer vers oh v5](migration-v5.fr.md)), puis `oh doctor`.
+- **Identifiants du fournisseur manquants** -- `oh provider setup`.
+- **Erreurs MCP** -- verifier les jetons avec `oh mcp setup`.
+- **Projet non detecte** -- lancer depuis un projet enregistre (`oh project list`) ou ajouter `-p <projet>`.
+- **La session ne demarre pas (isolation)** -- un agent hors paquet est visible : `oh doctor`, puis `oh migrate deploy-cleanup` si des restes d'anciens deploiements sont signales.
+- **Etat corrompu** -- `oh repair`.
 
-Problemes courants :
-
-- **opencode introuvable ou en V1** — installer opencode V2 avec son propre outil (voir [Migrer vers oh v5](migration-v5.fr.md)), puis relancer `oh doctor`
-- **Credentials provider manquantes** — lancer `oh provider setup`
-- **Erreurs de serveur MCP** — verifier les tokens avec `oh mcp setup`
-- **Projet non detecte** — s'assurer d'etre dans un repertoire de projet enregistre (`oh project list`)
-- **Etat corrompu** — lancer `oh repair` pour tenter une recuperation automatique
+Voir aussi [Depannage](troubleshooting.fr.md).
