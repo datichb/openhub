@@ -124,6 +124,8 @@ oh mcp serve <name> [--token-key <key>]
 |------|------|-------------|
 | `--token-key` | string | Keychain key to read the service token from (sets `FIGMA_TOKEN`, `GITLAB_TOKEN` or `GOOGLE_ACCESS_TOKEN` when not already set) |
 
+Tools are exposed without the server name (`get_project`): the tool (opencode) prefixes it, the session sees `gitlab_get_project` (the name used by agents, skills and permission rules). A call under the former prefixed name (`gitlab_get_project` on the server side) is still accepted.
+
 `oh mcp serve workflow` is internal: the `workflow` MCP server (`workflow_status`, `workflow_checkpoint`, `workflow_outputs`) injected into every session bundle, absent from `list`, `setup` and `enable`.
 
 **Example:**

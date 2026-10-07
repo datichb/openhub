@@ -270,3 +270,22 @@ func TestServeIOAnswersTheLastRequestBeforeEOF(t *testing.T) {
 		require.Contains(t, out.String(), `"tools"`)
 	}
 }
+
+// QB3: tools are named without their server prefix (the tool client adds
+// it); a call under the former prefixed name still works.
+func TestAcceptLegacyNames(t *testing.T) {
+	s := NewServer("gitlab-mcp", "1")
+	s.AcceptLegacyNames("gitlab_")
+	s.RegisterTool(Tool{Name: "get_project", InputSchema: map[string]interface{}{"type": "object"}},
+		func(context.Context, json.RawMessage) (*ToolResult, error) {
+			return &ToolResult{Content: []ContentBlock{{Type: "text", Text: "ok"}}}, nil
+		})
+	for _, name := range []string{"get_project", "gitlab_get_project"} {
+		resp := s.handleRequest(context.Background(), &Request{JSONRPC: "2.0", ID: float64(1), Method: "tools/call",
+			Params: json.RawMessage(`{"name":"` + name + `","arguments":{}}`)})
+		require.Nil(t, resp.Error, name)
+	}
+	resp := s.handleRequest(context.Background(), &Request{JSONRPC: "2.0", ID: float64(1), Method: "tools/call",
+		Params: json.RawMessage(`{"name":"jira_get_project","arguments":{}}`)})
+	assert.NotNil(t, resp.Error)
+}

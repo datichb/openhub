@@ -10,6 +10,7 @@ import (
 	"io"
 	"os"
 	"os/signal"
+	"strings"
 )
 
 // Request represents a JSON-RPC request.
@@ -72,6 +73,9 @@ type Server struct {
 	version  string
 	tools    map[string]Tool
 	handlers map[string]Handler
+	// legacyPrefix is accepted in front of a tool name in calls (tools
+	// served with their server prefix before v5 finalisation, QB3).
+	legacyPrefix string
 }
 
 // NewServer creates a new MCP server.
@@ -83,6 +87,13 @@ func NewServer(name, version string) *Server {
 		handlers: make(map[string]Handler),
 	}
 }
+
+// AcceptLegacyNames accepts calls of a tool under its former name, prefix
+// + name. The tool clients prefix MCP tools with the server name (the model
+// sees `gitlab_get_project` for the tool `get_project` of the server
+// `gitlab`): tools are named without it, a session started before keeps
+// working.
+func (s *Server) AcceptLegacyNames(prefix string) { s.legacyPrefix = prefix }
 
 // RegisterTool adds a tool to the server.
 func (s *Server) RegisterTool(tool Tool, handler Handler) {
@@ -191,6 +202,9 @@ func (s *Server) handleRequest(ctx context.Context, req *Request) *Response {
 		}
 
 		handler, ok := s.handlers[params.Name]
+		if !ok && s.legacyPrefix != "" {
+			handler, ok = s.handlers[strings.TrimPrefix(params.Name, s.legacyPrefix)]
+		}
 		if !ok {
 			return s.errorResponse(req.ID, -32601, fmt.Sprintf("Tool not found: %s", params.Name))
 		}

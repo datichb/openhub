@@ -18,9 +18,10 @@ import (
 // Serve starts the Google Slides MCP server.
 func Serve() error {
 	server := protocol.NewServer("gslides-mcp", "2.0.0")
+	server.AcceptLegacyNames("gslides_")
 
 	server.RegisterTool(protocol.Tool{
-		Name:        "gslides_get_presentation",
+		Name:        "get_presentation",
 		Description: "Get a Google Slides presentation",
 		InputSchema: map[string]interface{}{
 			"type": "object",
@@ -32,7 +33,7 @@ func Serve() error {
 	}, handleGetPresentation)
 
 	server.RegisterTool(protocol.Tool{
-		Name:        "gslides_get_slide",
+		Name:        "get_slide",
 		Description: "Get a specific slide from a presentation",
 		InputSchema: map[string]interface{}{
 			"type": "object",

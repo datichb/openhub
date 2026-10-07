@@ -22,9 +22,10 @@ import (
 // Serve starts the Team MCP server on stdio.
 func Serve() error {
 	server := protocol.NewServer("team-mcp", "1.0.0")
+	server.AcceptLegacyNames("team_")
 
 	server.RegisterTool(protocol.Tool{
-		Name:        "team_members",
+		Name:        "members",
 		Description: "List all team members with their roles and usernames",
 		InputSchema: map[string]interface{}{
 			"type":       "object",
@@ -33,7 +34,7 @@ func Serve() error {
 	}, handleTeamMembers)
 
 	server.RegisterTool(protocol.Tool{
-		Name:        "team_claims",
+		Name:        "claims",
 		Description: "List active ticket claims (who is working on what)",
 		InputSchema: map[string]interface{}{
 			"type": "object",
@@ -47,7 +48,7 @@ func Serve() error {
 	}, handleTeamClaims)
 
 	server.RegisterTool(protocol.Tool{
-		Name:        "team_wiki_list",
+		Name:        "wiki_list",
 		Description: "List available pages in the team wiki (cross-project knowledge base)",
 		InputSchema: map[string]interface{}{
 			"type":       "object",
@@ -56,7 +57,7 @@ func Serve() error {
 	}, handleTeamWikiList)
 
 	server.RegisterTool(protocol.Tool{
-		Name:        "team_wiki_read",
+		Name:        "wiki_read",
 		Description: "Read a page from the team wiki",
 		InputSchema: map[string]interface{}{
 			"type": "object",
@@ -71,7 +72,7 @@ func Serve() error {
 	}, handleTeamWikiRead)
 
 	server.RegisterTool(protocol.Tool{
-		Name:        "team_wiki_write",
+		Name:        "wiki_write",
 		Description: "Propose a new entry to the team wiki (creates a pending proposal for human review)",
 		InputSchema: map[string]interface{}{
 			"type": "object",
@@ -99,7 +100,7 @@ func Serve() error {
 	}, handleTeamWikiWrite)
 
 	server.RegisterTool(protocol.Tool{
-		Name:        "team_events",
+		Name:        "events",
 		Description: "List recent team activity events",
 		InputSchema: map[string]interface{}{
 			"type": "object",
@@ -117,7 +118,7 @@ func Serve() error {
 	}, handleTeamEvents)
 
 	server.RegisterTool(protocol.Tool{
-		Name:        "team_notify",
+		Name:        "notify",
 		Description: "Send a notification to the team channel (supports Mattermost, Slack, Discord, Teams)",
 		InputSchema: map[string]interface{}{
 			"type": "object",
@@ -132,7 +133,7 @@ func Serve() error {
 	}, handleTeamNotify)
 
 	server.RegisterTool(protocol.Tool{
-		Name:        "team_policies",
+		Name:        "policies",
 		Description: "Get active team policies (merged global + project overrides). Returns all rules the agent must respect.",
 		InputSchema: map[string]interface{}{
 			"type": "object",
@@ -146,7 +147,7 @@ func Serve() error {
 	}, handleTeamPolicies)
 
 	server.RegisterTool(protocol.Tool{
-		Name:        "team_takeover_brief",
+		Name:        "takeover_brief",
 		Description: "Read the takeover brief for a ticket (context from previous owner). Returns enriched version if available, otherwise template.",
 		InputSchema: map[string]interface{}{
 			"type": "object",
@@ -165,7 +166,7 @@ func Serve() error {
 	}, handleTeamTakeoverBrief)
 
 	server.RegisterTool(protocol.Tool{
-		Name:        "team_patterns_list",
+		Name:        "patterns_list",
 		Description: "List available decomposition patterns from the team patterns library. Use tags to filter relevant patterns.",
 		InputSchema: map[string]interface{}{
 			"type": "object",
@@ -180,7 +181,7 @@ func Serve() error {
 	}, handleTeamPatternsList)
 
 	server.RegisterTool(protocol.Tool{
-		Name:        "team_patterns_read",
+		Name:        "patterns_read",
 		Description: "Read the full content of a decomposition pattern (Markdown with structure, dependencies, variants).",
 		InputSchema: map[string]interface{}{
 			"type": "object",
@@ -195,7 +196,7 @@ func Serve() error {
 	}, handleTeamPatternsRead)
 
 	server.RegisterTool(protocol.Tool{
-		Name:        "team_patterns_propose",
+		Name:        "patterns_propose",
 		Description: "Propose a new pattern to the patterns library (created as validated=false, awaiting human validation).",
 		InputSchema: map[string]interface{}{
 			"type": "object",
@@ -228,7 +229,7 @@ func Serve() error {
 	}, handleTeamPatternsPropose)
 
 	server.RegisterTool(protocol.Tool{
-		Name:        "team_claim_flag_human_review",
+		Name:        "claim_flag_human_review",
 		Description: "Flag a claim as needing human review (adds the 'needs-human-review' label). Use when the review cycle limit is reached or when an agent detects it cannot resolve an issue autonomously.",
 		InputSchema: map[string]interface{}{
 			"type": "object",
@@ -247,7 +248,7 @@ func Serve() error {
 	}, handleTeamClaimFlagHumanReview)
 
 	server.RegisterTool(protocol.Tool{
-		Name:        "team_review_verdict",
+		Name:        "review_verdict",
 		Description: "Record the review verdict for a ticket. Emits review.approved or review.rejected event, transitions claim status (approved→done, rejected→in_progress), adds agent-reviewed label on approval, and sends team notification. Call after CP-2 decision in the review workflow.",
 		InputSchema: map[string]interface{}{
 			"type": "object",
@@ -284,7 +285,7 @@ func Serve() error {
 	}, handleTeamReviewVerdict)
 
 	server.RegisterTool(protocol.Tool{
-		Name:        "team_wiki_pending",
+		Name:        "wiki_pending",
 		Description: "List pending wiki proposals awaiting human review",
 		InputSchema: map[string]interface{}{
 			"type":       "object",

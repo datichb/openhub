@@ -23,10 +23,11 @@ const EnvWriteEnabled = "GITLAB_WRITE_ENABLED"
 // Serve starts the GitLab MCP server.
 func Serve() error {
 	server := protocol.NewServer("gitlab-mcp", "2.0.0")
+	server.AcceptLegacyNames("gitlab_")
 
 	// Read-only tools (always registered)
 	server.RegisterTool(protocol.Tool{
-		Name:        "gitlab_get_project",
+		Name:        "get_project",
 		Description: "Get a GitLab project by ID or path",
 		InputSchema: map[string]interface{}{
 			"type": "object",
@@ -38,7 +39,7 @@ func Serve() error {
 	}, handleGetProject)
 
 	server.RegisterTool(protocol.Tool{
-		Name:        "gitlab_list_issues",
+		Name:        "list_issues",
 		Description: "List issues for a project",
 		InputSchema: map[string]interface{}{
 			"type": "object",
@@ -51,7 +52,7 @@ func Serve() error {
 	}, handleListIssues)
 
 	server.RegisterTool(protocol.Tool{
-		Name:        "gitlab_list_mrs",
+		Name:        "list_mrs",
 		Description: "List merge requests for a project",
 		InputSchema: map[string]interface{}{
 			"type": "object",
@@ -64,7 +65,7 @@ func Serve() error {
 	}, handleListMRs)
 
 	server.RegisterTool(protocol.Tool{
-		Name:        "gitlab_list_mr_discussions",
+		Name:        "list_mr_discussions",
 		Description: "List discussion threads on a merge request. Returns inline code comments and general discussions with author, body, resolved status, and file position. System notes are excluded.",
 		InputSchema: map[string]interface{}{
 			"type": "object",
@@ -78,7 +79,7 @@ func Serve() error {
 	}, handleListMRDiscussions)
 
 	server.RegisterTool(protocol.Tool{
-		Name:        "gitlab_get_mr_approvals",
+		Name:        "get_mr_approvals",
 		Description: "Get approval status for a merge request. Returns who approved, how many approvals are required, and how many remain. Note: requires GitLab Premium or Ultimate — returns an explicit message on GitLab Free.",
 		InputSchema: map[string]interface{}{
 			"type": "object",

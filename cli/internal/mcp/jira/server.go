@@ -27,9 +27,10 @@ var httpClient = httplog.Wrap(&http.Client{Timeout: 30 * time.Second}, "mcp.jira
 // Serve starts the Jira MCP server.
 func Serve() error {
 	server := protocol.NewServer("jira-mcp", "1.0.0")
+	server.AcceptLegacyNames("jira_")
 
 	server.RegisterTool(protocol.Tool{
-		Name:        "jira_list_issues",
+		Name:        "list_issues",
 		Description: "List Jira issues using JQL",
 		InputSchema: map[string]interface{}{
 			"type": "object",
@@ -42,7 +43,7 @@ func Serve() error {
 	}, handleListIssues)
 
 	server.RegisterTool(protocol.Tool{
-		Name:        "jira_get_issue",
+		Name:        "get_issue",
 		Description: "Get a specific Jira issue by key",
 		InputSchema: map[string]interface{}{
 			"type": "object",
@@ -54,7 +55,7 @@ func Serve() error {
 	}, handleGetIssue)
 
 	server.RegisterTool(protocol.Tool{
-		Name:        "jira_get_project",
+		Name:        "get_project",
 		Description: "Get a Jira project by key",
 		InputSchema: map[string]interface{}{
 			"type": "object",
@@ -66,7 +67,7 @@ func Serve() error {
 	}, handleGetProject)
 
 	server.RegisterTool(protocol.Tool{
-		Name:        "jira_list_comments",
+		Name:        "list_comments",
 		Description: "List comments on a Jira issue. Returns comment body (ADF format), author, and creation date. Useful for reading review feedback posted as issue comments.",
 		InputSchema: map[string]interface{}{
 			"type": "object",
@@ -79,7 +80,7 @@ func Serve() error {
 
 	if os.Getenv(EnvWriteEnabled) == "true" {
 		server.RegisterTool(protocol.Tool{
-			Name:        "jira_transition_issue",
+			Name:        "transition_issue",
 			Description: "Transition a Jira issue to a new status",
 			InputSchema: map[string]interface{}{
 				"type": "object",
@@ -92,7 +93,7 @@ func Serve() error {
 		}, handleTransitionIssue)
 
 		server.RegisterTool(protocol.Tool{
-			Name:        "jira_create_issue",
+			Name:        "create_issue",
 			Description: "Create a new Jira issue",
 			InputSchema: map[string]interface{}{
 				"type": "object",

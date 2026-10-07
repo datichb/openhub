@@ -34,9 +34,10 @@ func Serve() error {
 		slog.Warn("github-mcp: no GITHUB_TOKEN or GH_TOKEN set — requests will use unauthenticated rate limit (60/hr)")
 	}
 	server := protocol.NewServer("github-mcp", "1.0.0")
+	server.AcceptLegacyNames("github_")
 
 	server.RegisterTool(protocol.Tool{
-		Name:        "github_get_repo",
+		Name:        "get_repo",
 		Description: "Get a GitHub repository by owner/repo",
 		InputSchema: map[string]interface{}{
 			"type": "object",
@@ -48,7 +49,7 @@ func Serve() error {
 	}, handleGetRepo)
 
 	server.RegisterTool(protocol.Tool{
-		Name:        "github_list_issues",
+		Name:        "list_issues",
 		Description: "List issues for a repository",
 		InputSchema: map[string]interface{}{
 			"type": "object",
@@ -63,7 +64,7 @@ func Serve() error {
 	}, handleListIssues)
 
 	server.RegisterTool(protocol.Tool{
-		Name:        "github_get_issue",
+		Name:        "get_issue",
 		Description: "Get a specific issue by number",
 		InputSchema: map[string]interface{}{
 			"type": "object",
@@ -76,7 +77,7 @@ func Serve() error {
 	}, handleGetIssue)
 
 	server.RegisterTool(protocol.Tool{
-		Name:        "github_list_prs",
+		Name:        "list_prs",
 		Description: "List pull requests for a repository",
 		InputSchema: map[string]interface{}{
 			"type": "object",
@@ -90,7 +91,7 @@ func Serve() error {
 	}, handleListPRs)
 
 	server.RegisterTool(protocol.Tool{
-		Name:        "github_get_pr",
+		Name:        "get_pr",
 		Description: "Get a specific pull request with diff and review status",
 		InputSchema: map[string]interface{}{
 			"type": "object",
@@ -103,7 +104,7 @@ func Serve() error {
 	}, handleGetPR)
 
 	server.RegisterTool(protocol.Tool{
-		Name:        "github_list_workflows",
+		Name:        "list_workflows",
 		Description: "List GitHub Actions workflows for a repository",
 		InputSchema: map[string]interface{}{
 			"type": "object",
@@ -115,7 +116,7 @@ func Serve() error {
 	}, handleListWorkflows)
 
 	server.RegisterTool(protocol.Tool{
-		Name:        "github_get_workflow_run",
+		Name:        "get_workflow_run",
 		Description: "Get the latest run of a specific workflow",
 		InputSchema: map[string]interface{}{
 			"type": "object",
@@ -130,7 +131,7 @@ func Serve() error {
 	// Write tools (opt-in)
 	if os.Getenv(EnvWriteEnabled) == "true" {
 		server.RegisterTool(protocol.Tool{
-			Name:        "github_create_issue",
+			Name:        "create_issue",
 			Description: "Create a new issue",
 			InputSchema: map[string]interface{}{
 				"type": "object",
