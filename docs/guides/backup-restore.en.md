@@ -1,6 +1,6 @@
-# Backup & Restore - Guide
-
 > 🇫🇷 [Lire en français](backup-restore.fr.md)
+
+# Backup & Restore - Guide
 
 ## Overview
 
@@ -173,8 +173,9 @@ oh import my-backup.tar.gz --overwrite
 Complete step-by-step recovery on a new machine:
 
 ```bash
-# 1. Install oh on the new machine
-curl -sSf https://install.oh.dev | sh
+# 1. Install oh and opencode V2 on the new machine
+brew install datichb/tap/openhub      # or: curl -fsSL https://raw.githubusercontent.com/datichb/openhub/main/install.sh | bash
+brew install anomalyco/tap/opencode   # opencode V2 (2.0.0 or later)
 
 # 2. Copy your backup archive to the new machine
 scp old-machine:~/oh-backup-latest.tar.gz .
@@ -220,7 +221,7 @@ crontab -e
 ```bash
 # Verify the backup immediately after creation
 0 2 * * * oh export --output /tmp/oh-daily.tar.gz && \
-  oh import /tmp/oh-daily.tar.gz --verify-only && \
+  tar -tzf /tmp/oh-daily.tar.gz manifest.json > /dev/null && \
   mv /tmp/oh-daily.tar.gz /mnt/backups/oh-$(date +\%Y\%m\%d).tar.gz
 ```
 
@@ -238,5 +239,5 @@ crontab -e
 ## Resources
 
 - [Web Dashboard guide](./dashboard.en.md) — monitoring sessions and metrics
-- [`oh export` / `oh import` CLI Reference](../reference/backup.en.md)
+- [`oh export` / `oh import` CLI Reference](../reference/cli-infra.en.md#oh-export)
 - [SQLite integrity checks](https://www.sqlite.org/pragma.html#pragma_integrity_check)

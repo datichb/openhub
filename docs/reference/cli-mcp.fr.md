@@ -4,17 +4,21 @@
 
 ## Gestion MCP
 
+Serveurs MCP integres a oh : `figma`, `github`, `gitlab`, `gslides`, `jira`, `linear`, `team`, plus les serveurs personnalises declares dans `~/.oh/mcp/<nom>/manifest.json`. Une session recoit les serveurs MCP du projet (ou seulement ceux listes par le champ `mcp:` du workflow) dans son paquet de session. Pages par serveur : [Figma](mcp-figma.fr.md), [GitHub](mcp-github.fr.md), [GitLab](mcp-gitlab.fr.md), [Google Slides](mcp-gslides.fr.md), [Jira](mcp-jira.fr.md), [Linear](mcp-linear.fr.md), [Team](mcp-team.fr.md).
+
+Toutes les commandes ci-dessous (sauf `list` et `serve`) acceptent `-p, --project <nom ou ID>`.
+
 ### oh mcp enable
 
-Active un service MCP au niveau hub ou pour un projet.
+Active un service MCP au niveau hub ou pour un projet. Avec `--project` et sans token, propose d'heriter le token du hub ou d'en configurer un nouveau.
 
 ```
 oh mcp enable <service> [options]
 ```
 
-| Flag | Court | Description |
-|------|-------|-------------|
-| `--project` | `-p` | Nom ou ID du projet |
+| Flag | Court | Type | Description |
+|------|-------|------|-------------|
+| `--project` | `-p` | string | Nom ou ID du projet |
 
 **Exemple :**
 
@@ -27,15 +31,15 @@ oh mcp enable gitlab --project mon-projet
 
 ### oh mcp disable
 
-Desactive un service MCP au niveau hub ou pour un projet.
+Desactive un service MCP au niveau hub ou pour un projet. Avec `--project`, le service est desactive pour ce projet quelle que soit la config du hub.
 
 ```
 oh mcp disable <service> [options]
 ```
 
-| Flag | Court | Description |
-|------|-------|-------------|
-| `--project` | `-p` | Nom ou ID du projet |
+| Flag | Court | Type | Description |
+|------|-------|------|-------------|
+| `--project` | `-p` | string | Nom ou ID du projet |
 
 **Exemple :**
 
@@ -48,15 +52,15 @@ oh mcp disable gitlab --project mon-projet
 
 ### oh mcp reset
 
-Supprime l'override projet pour un service (retour a la config hub).
+Supprime l'override projet d'un service (retour a la config du hub). Exige `--project`.
 
 ```
 oh mcp reset <service> --project <name>
 ```
 
-| Flag | Court | Description |
-|------|-------|-------------|
-| `--project` | `-p` | **(requis)** Nom ou ID du projet |
+| Flag | Court | Type | Description |
+|------|-------|------|-------------|
+| `--project` | `-p` | string | **(requis)** Nom ou ID du projet |
 
 **Exemple :**
 
@@ -68,15 +72,15 @@ oh mcp reset figma --project mon-projet
 
 ### oh mcp setup
 
-Configure un service MCP (wizard interactif : token, options).
+Configure un service MCP (assistant interactif : token, options). Avec `--project`, le token est stocke dans le trousseau sous une cle propre au projet.
 
 ```
 oh mcp setup [options]
 ```
 
-| Flag | Court | Description |
-|------|-------|-------------|
-| `--project` | `-p` | Nom ou ID du projet |
+| Flag | Court | Type | Description |
+|------|-------|------|-------------|
+| `--project` | `-p` | string | Nom ou ID du projet |
 
 **Exemple :**
 
@@ -89,15 +93,15 @@ oh mcp setup --project mon-projet
 
 ### oh mcp status
 
-Affiche le statut de tous les services MCP.
+Affiche le statut de tous les services MCP. Avec `--project`, affiche la config effective (overrides du projet compris).
 
 ```
 oh mcp status [options]
 ```
 
-| Flag | Court | Description |
-|------|-------|-------------|
-| `--project` | `-p` | Nom ou ID du projet (affiche la config effective) |
+| Flag | Court | Type | Description |
+|------|-------|------|-------------|
+| `--project` | `-p` | string | Nom ou ID du projet |
 
 **Exemple :**
 
@@ -110,30 +114,30 @@ oh mcp status --project mon-projet
 
 ### oh mcp serve
 
-Lance un serveur MCP integre via stdio.
+Lance un serveur MCP integre sur stdin/stdout (JSON-RPC). Utilise par opencode, via la declaration du serveur dans le paquet de session ; rarement lance a la main.
 
 ```
-oh mcp serve <name>
+oh mcp serve <name> [--token-key <cle>]
 ```
 
-Sert un serveur MCP natif (figma, gitlab, gslides, team, github, jira, linear).
+| Flag | Type | Description |
+|------|------|-------------|
+| `--token-key` | string | Cle du trousseau d'ou lire le token du service (pose `FIGMA_TOKEN`, `GITLAB_TOKEN` ou `GOOGLE_ACCESS_TOKEN` s'ils ne sont pas deja definis) |
+
+`oh mcp serve workflow` est interne : serveur MCP `workflow` (`workflow_status`, `workflow_checkpoint`, `workflow_outputs`) injecte dans chaque paquet de session, absent de `list`, `setup` et `enable`.
 
 **Exemple :**
 
 ```bash
 oh mcp serve gitlab
-oh mcp serve figma
-oh mcp serve gslides
-oh mcp serve github
-oh mcp serve jira
-oh mcp serve linear
+oh mcp serve figma --token-key openhub.mcp.figma.token
 ```
 
 ---
 
 ### oh mcp list
 
-Liste les serveurs MCP disponibles.
+Liste les serveurs MCP disponibles et leur commande.
 
 **Alias :** `oh mcp ls`
 
@@ -141,9 +145,9 @@ Liste les serveurs MCP disponibles.
 oh mcp list [options]
 ```
 
-| Flag | Description |
-|------|-------------|
-| `--json` | Sortie au format JSON |
+| Flag | Type | Description |
+|------|------|-------------|
+| `--json` | bool | Sortie au format JSON |
 
 **Exemple :**
 
@@ -152,8 +156,15 @@ oh mcp list
 oh mcp ls --json
 ```
 
+> **Note :** `oh mcp list` n'affiche aujourd'hui que `figma`, `gitlab` et `gslides` ; `oh mcp status` montre tous les services.
+
 ---
 
+### oh service (deprecie)
+
+`oh service`, `oh service setup` et `oh service remove` existent encore mais sont deprecies et masques de l'aide : utilisez `oh mcp status`, `oh mcp setup` et `oh mcp disable`.
+
+---
 
 ## Gestion des plugins
 

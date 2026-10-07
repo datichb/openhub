@@ -1,5 +1,7 @@
 # Shell gotchas — pièges courants dans les scripts du hub
 
+> **Historique (v5).** Pièges des scripts Bash du hub, retirés avec la migration vers Go. Pour l'architecture actuelle, voir [Vue d'ensemble de l'architecture](../architecture/overview.fr.md) et les ADR 038 à 048 (`docs/architecture/adr/`). La suite de cette page est conservée pour l'historique.
+
 Ce document recense les pièges rencontrés lors du développement des scripts bash du hub,
 avec le pattern correct à utiliser dans chaque cas.
 

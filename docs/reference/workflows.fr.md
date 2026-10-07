@@ -1,6 +1,10 @@
+> [Read in English](workflows.en.md)
+
 # Workflows livrés par le hub
 
-> v5 : chaque cas d'usage est un workflow déclaratif (`apiVersion: oh/v1`) livré par le hub. Les fichiers sont dans `workflows/` à la racine du dépôt, embarqués dans le binaire et extraits dans `~/.oh/hub/workflows/`. Une équipe ou un projet peut les étendre (`extends`) à partir de la phase 2.
+> v5 : chaque cas d'usage est un workflow déclaratif (`apiVersion: oh/v1`) livré par le hub. Les fichiers sont dans `workflows/` à la racine du dépôt, embarqués dans le binaire et extraits dans `~/.oh/hub/workflows/`. Une équipe ou un projet peut les étendre (`extends`) dans le team-state.
+
+Voir aussi : [schéma `oh/v1`](workflow-schema.fr.md) (référence de chaque champ) · [workflows d'équipe](../guides/team-workflows.fr.md).
 
 Vérifier les workflows du hub :
 
@@ -121,7 +125,13 @@ Explore, planifie et spécifie une feature sans l'implémenter : seuls des ticke
 |---|---|---|---|
 | `request` | `text` (8 000 caractères max) | oui | La feature à cadrer |
 
-Checkpoints : `cp-scope` (périmètre, avant la planification), `cp-tickets` (obligatoire : découpage validé avant la création des tickets), `cp-recap`. Sortie : `tickets`. Pour implémenter ensuite : `ticket` ou `feature` sur les tickets créés.
+| Checkpoint | manuel | semi-auto | auto |
+|---|---|---|---|
+| `cp-scope` Valider le périmètre (avant la planification) | pause | pause | auto |
+| `cp-tickets` Valider le découpage (obligatoire, avant la création des tickets) | pause | pause | pause |
+| `cp-recap` Récap du cadrage | pause | pause | auto |
+
+`planner` ne démarre qu'après `cp-scope`. Mode par défaut : `semi-auto`. Commandes Beads autorisées : `show`, `list`, `ready`, `children`, `search`, `count`, `label`, `dep`, `create`, `update`, `comments`, `duplicate`, `supersede`. Sortie : `tickets`. Pour implémenter ensuite : `ticket` ou `feature` sur les tickets créés.
 
 ## `onboarding`
 
@@ -136,7 +146,7 @@ L'onboarder peut écrire des fichiers : la limite à `docs/wiki/` (plus le `ONBO
 
 ## `review`
 
-Review en lecture seule d'une branche ou des modifications récentes.
+Review en lecture seule d'une branche ou des modifications récentes. Commande Beads autorisée : `show`. Pas de checkpoint.
 
 | Entrée | Type | Obligatoire | Rôle |
 |---|---|---|---|
@@ -150,20 +160,25 @@ La publication d'une MR (`oh review --publish`) n'est pas un workflow : elle res
 
 ## `review-feedback`
 
-Applique les commentaires non résolus d'une merge request. oh récupère les discussions sur GitLab au lancement et les passe dans l'entrée `feedback`.
+Applique les commentaires non résolus d'une merge request. `oh review feedback <ticket|branche>` récupère les discussions sur GitLab puis lance ce workflow en les passant dans l'entrée `feedback` ; avec `oh run review-feedback`, fournissez l'entrée vous-même (`-i feedback=…`).
 
 | Entrée | Type | Obligatoire | Rôle |
 |---|---|---|---|
-| `mr` | `string` | oui | URL ou référence de la MR |
+| `mr` | `string` (500 caractères max) | oui | URL ou référence de la MR |
 | `branch` | `branch` | oui | Branche de la MR |
 | `base` | `branch` (défaut : `main`) | non | Branche cible |
 | `feedback` | `text` (70 000 caractères max) | oui | Discussions non résolues |
 
-Checkpoints : `cp-fix` (corrections à appliquer), `cp-2` (obligatoire : commit ou correction). Sortie : `branch`.
+| Checkpoint | manuel | semi-auto | auto |
+|---|---|---|---|
+| `cp-fix` Corrections à appliquer | pause | pause | auto |
+| `cp-2` Commit ou correction (obligatoire) | pause | pause | pause |
+
+`developer` ne démarre qu'après `cp-fix`. Mode par défaut : `semi-auto`. Sortie : `branch`.
 
 ## `audit`
 
-Audit en lecture seule : l'`auditor` coordonne des `auditor-subagent`.
+Audit en lecture seule : l'`auditor` coordonne des `auditor-subagent`. Commandes Beads autorisées : `show`, `list`. Pas de checkpoint.
 
 | Entrée | Type | Obligatoire | Rôle |
 |---|---|---|---|
@@ -186,19 +201,24 @@ Atteint un objectif transverse en le découpant en sous-tâches indépendantes, 
 
 | Entrée | Type | Obligatoire | Rôle |
 |---|---|---|---|
-| `goal` | `text` | oui | Objectif de haut niveau |
+| `goal` | `text` (4 000 caractères max) | oui | Objectif de haut niveau |
 | `strategy` | `enum` : `llm` (défaut), `manual`, `by-file`, `by-package` | non | Découpage |
-| `tasks` | `text` | non | Tâches, une par ligne (`manual`) |
-| `include`, `exclude` | `string` | non | Motifs glob, séparés par des virgules |
+| `tasks` | `text` (8 000 caractères max) | non | Tâches, une par ligne (`manual`) |
+| `include`, `exclude` | `string` (1 000 caractères max) | non | Motifs glob, séparés par des virgules |
 | `verify` | `enum` : `none` (défaut), `tests`, `lint`, `build`, `all`, `custom` | non | Vérification finale |
-| `verify_cmd` | `string` | non | Commande de vérification (`custom`) |
-| `dry_run` | `bool` | non | Afficher le découpage sans rien exécuter |
+| `verify_cmd` | `string` (500 caractères max) | non | Commande de vérification (`custom`) |
+| `dry_run` | `bool` (défaut : non) | non | Afficher le découpage sans rien exécuter |
 
-Checkpoints : `cp-plan` (découpage, avant toute exécution), `cp-recap`. Différence avec l'ancien `--sweep` : les sous-tâches s'exécutent dans la même session et le même emplacement (pas un worktree par tâche) ; `--sweep-branch-prefix` et `--max-sessions` n'ont pas d'équivalent.
+| Checkpoint | manuel | semi-auto | auto |
+|---|---|---|---|
+| `cp-plan` Valider le découpage (avant toute exécution) | pause | pause | auto |
+| `cp-recap` Récap du sweep | pause | pause | auto |
+
+Les agents développeurs ne démarrent qu'après `cp-plan`. Mode par défaut : `semi-auto` ; coupe-circuit à 20 délégations consécutives (12 pour les autres workflows à checkpoints). Sortie : `branch`. Différence avec l'ancien `--sweep` : les sous-tâches s'exécutent dans la même session et le même emplacement (pas un worktree par tâche) ; `--sweep-branch-prefix` et `--max-sessions` n'ont pas d'équivalent.
 
 ## `brief-enrich`
 
-Enrichit un brief de reprise de ticket, sans interaction (session sans interface). oh fournit le brief et enregistre le résultat.
+Enrichit un brief de reprise de ticket, sans interaction (session sans interface : `oh run brief-enrich --headless`). oh fournit le brief et enregistre le résultat. Aucune commande Beads (`beads.allow: []`).
 
 | Entrée | Type | Obligatoire | Rôle |
 |---|---|---|---|

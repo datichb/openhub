@@ -2,7 +2,7 @@
 
 # Provider Configuration
 
-This guide covers how OpenCode Hub resolves LLM providers, manages API tokens, and deploys provider settings to projects.
+This guide covers how OpenCode Hub resolves LLM providers, manages API tokens, and passes provider settings to sessions.
 
 ## Supported Providers
 
@@ -15,9 +15,9 @@ This guide covers how OpenCode Hub resolves LLM providers, manages API tokens, a
 
 ## Provider Resolution Order
 
-When `oh start` launches opencode, the provider is resolved in this order:
+When `oh run` launches a session, the provider is resolved in this order:
 
-1. `--provider` / `-P` flag on `oh start` (highest priority)
+1. `--provider` / `-P` flag on `oh run` (highest priority)
 2. Project-level override (`project.Provider` in the database)
 3. `opencode.default_provider` in `~/.oh/hub.toml`
 4. `"bedrock"` (hardcoded fallback)
@@ -63,12 +63,12 @@ oh project configure my-project --provider anthropic --model claude-sonnet-4-5
 Tokens are stored in the OS keychain. Configure via:
 
 ```bash
-oh mcp setup
-# Select the provider -> enter your bearer token
+oh provider setup bedrock
+# Select the bearer mode -> enter your bearer token
 # Stored under key: bedrock-token-default (or bedrock-token-<project-id>)
 ```
 
-At launch, `oh start` retrieves the token from keychain and passes it as the `AWS_BEARER_TOKEN_BEDROCK` environment variable to opencode.
+The token never leaves the machine and is never passed to opencode: the credential proxy of the oh daemon holds it and signs the calls; the session only receives an `ohs_…` token specific to its group (see [Sessions v5 › LLM keys](sessions-v5.en.md#llm-keys)).
 
 Configure via the dedicated command:
 
@@ -85,13 +85,11 @@ Resolution order for the bearer token:
 
 ### Anthropic / OpenAI / OpenRouter
 
-The provider block is generated in the session bundle at launch (`oh deploy` removed in v5):
+The provider block is generated in the session bundle at launch (`oh deploy` removed in v5); the key stays in the keychain, on the oh daemon proxy side:
 
 ```bash
 oh run <workflow> -p my-project --provider anthropic
 ```
-
-Or configure via environment variables that opencode reads directly.
 
 ## MCP Service Tokens
 
@@ -149,24 +147,13 @@ Tokens are read by MCP servers at runtime via environment variables:
 
 At each launch (`oh run <workflow>`), the provider configuration is written into the session bundle (`~/.oh/bundles/<hash>/`), not into the project:
 
-```json
-{
-  "model": "claude-sonnet-4-5",
-  "provider": {
-    "anthropic": {
-      "options": { "apiKey": "..." }
-    }
-  }
-}
-```
-
-The bundle builder reads your configured provider and model, then generates the appropriate provider block.
+The bundle builder reads your configured provider and model, then generates the appropriate provider block. This block points to the credential proxy of the oh daemon: it never contains the real key (the session authenticates to the proxy with an `ohs_…` token). To see the bundle: `oh bundle show <workflow>`.
 
 ## Switching Providers
 
 ```bash
 # Temporarily (one session)
-oh start --provider anthropic
+oh run <workflow> --provider anthropic
 
 # Permanently (hub default)
 oh config set opencode.default_provider anthropic
@@ -186,16 +173,16 @@ oh config list             # shows all hub config including provider
 ## Security Best Practices
 
 - Never store API keys in plain text files
-- Use `oh mcp setup` which stores in OS keychain
+- Use `oh provider setup` and `oh mcp setup`, which store in the OS keychain
 - For CI/headless: use `OH_PASSPHRASE` env var for the encrypted fallback
-- Bedrock tokens are injected per-session, never written to disk
-- `opencode.json` may contain provider options but should be gitignored
+- Provider keys stay in the keychain: opencode only receives an `ohs_…` proxy token per session group
+- oh no longer writes an `opencode.json` into the project; if you keep one with provider options, it should be gitignored
 
 ## Troubleshooting
 
 | Problem | Solution |
 |---------|----------|
-| "Token not configured" | Run `oh mcp setup` |
+| "Token not configured" | Run `oh provider setup` (provider) or `oh mcp setup` (MCP service) |
 | Provider not recognized | Check spelling: bedrock, anthropic, openrouter, github-copilot |
 | Wrong model | Use `oh project configure --model <name>`; applied at next launch (bundle rebuilt) |
 | Keychain access denied | Grant terminal access in System Preferences > Privacy |

@@ -1,0 +1,43 @@
+%% OpenHub -- Session lifecycle (v5)
+%% States of an oh session (11-session-interaction §6, ADR-047).
+%% Closing the opencode window never stops a session: only "stop" does.
+
+stateDiagram-v2
+    [*] --> preparing: oh run / launch form
+    preparing --> queued: I6 limit reached<br/>(max active sessions, memory)
+    queued --> active: a slot frees up
+    preparing --> active: bundle built, server ready,<br/>closed world checked
+
+    state active {
+        [*] --> attached
+        attached --> detached: last client closed
+        detached --> attached: oh session attach
+    }
+
+    active --> waiting: decision needed (⏸ ? ! $ ✗)
+    waiting --> active: decision taken (first answer wins)
+    active --> idle: step finished,<br/>waits for an instruction
+    idle --> active: oh session send / prompt
+    idle --> sleeping: 5 min, nothing pending<br/>(server stopped)
+    sleeping --> active: resume / attach<br/>(same bundle and id)
+
+    active --> completed
+    active --> failed
+    active --> stopped: oh session stop
+    idle --> stopped: oh session stop
+    sleeping --> stopped: oh session stop
+    completed --> [*]
+    failed --> [*]
+    stopped --> [*]
+
+    note left of waiting
+        ⏸ checkpoint · ? question · ! permission
+        $ budget · ✗ error or circuit breaker.
+        Answer from oh, opencode, browser or CLI.
+    end note
+
+    note right of sleeping
+        Quitting oh: idle / waiting sessions sleep now;
+        working ones: finish the step then sleep (default),
+        keep running in the background, or stop now.
+    end note

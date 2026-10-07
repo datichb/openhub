@@ -1,6 +1,6 @@
-# GitHub Integration - Getting Started Guide
-
 > 🇫🇷 [Lire en français](github-integration.fr.md)
+
+# GitHub Integration - Getting Started Guide
 
 ## Overview
 
@@ -213,7 +213,6 @@ The repository path is wrong or the token lacks access. Check:
 You have exhausted your hourly quota. Solutions:
 - Wait for the reset (shown in the `X-RateLimit-Reset` header)
 - Use an authenticated token (5,000 req/h instead of 60)
-- Cache heavy queries with `oh mcp cache enable github`
 
 ### MCP server not starting
 
@@ -234,7 +233,7 @@ oh mcp serve github
 
 - [GitHub REST API Documentation](https://docs.github.com/en/rest)
 - [Managing Personal Access Tokens](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens)
-- [`oh mcp` CLI Reference](../reference/mcp.en.md)
+- [`oh mcp` CLI Reference](../reference/cli-mcp.en.md)
 - [MCP Protocol](https://modelcontextprotocol.io/)
 
 ---

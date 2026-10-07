@@ -1,6 +1,6 @@
-# Linear Integration - Getting Started Guide
+> [Lire en français](linear-integration.fr.md)
 
-> 🇫🇷 [Lire en français](linear-integration.fr.md)
+# Linear Integration - Getting Started Guide
 
 ## Overview
 
@@ -198,7 +198,7 @@ Linear's GraphQL API returns detailed error messages. Common causes:
 
 - [Linear API documentation](https://developers.linear.app/docs/graphql/working-with-the-graphql-api)
 - [Linear Personal API Keys](https://linear.app/settings/api)
-- [`oh mcp` CLI Reference](../reference/mcp.en.md)
+- [`oh mcp` CLI Reference](../reference/cli-mcp.en.md)
 
 ---
 

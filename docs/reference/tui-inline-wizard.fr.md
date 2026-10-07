@@ -1,3 +1,5 @@
+> [Read in English](tui-inline-wizard.en.md)
+
 # Référence — InlineWizardView
 
 > Composant TUI réutilisable pour les wizards multi-step dans le shell OpenHub.
@@ -22,14 +24,39 @@ des définitions de steps entre le CLI standalone et le TUI inline.
 
 ```go
 type InlineWizardConfig struct {
-    ID                 string                           // identifiant unique (ex: "wizard.team.init")
-    Title              string                           // titre pour le breadcrumb shell
-    Steps              []WizardStep                     // étapes du wizard
-    OnComplete         func(completed bool, err error)  // callback de fin
-    SummaryTargetView  string                           // vue cible après le résumé (ex: "team.detail")
-    SummaryTargetLabel string                           // label du lien (ex: "Voir la config équipe")
+    ID                     string                          // identifiant unique (ex: "wizard.team.init")
+    Title                  string                          // titre pour le breadcrumb shell
+    Steps                  []WizardStep                    // étapes du wizard
+    OnComplete             func(completed bool, err error) // callback de fin
+    SummaryTargetView      string                          // vue cible après le résumé (ex: "team.detail")
+    SummaryTargetLabel     string                          // label du lien (ex: "Voir la config équipe")
+    SummaryTargetViewFunc  func() string                   // variante calculée au rendu du résumé (prioritaire)
+    SummaryTargetLabelFunc func() string                   // idem pour le label
+    Groups                 []StepGroup                     // non vide : disposition « groupée » (voir ci-dessous)
 }
 ```
+
+### `WizardStep`
+
+Type partagé avec `RunWizard` (`wizard.go`) :
+
+| Champ | Rôle |
+|-------|------|
+| `ID` | Identifiant facultatif (mise à jour des libellés par nom) |
+| `Label` | Libellé dans la barre d'étapes et le panneau d'infos |
+| `Form` | Construit un `*tview.Form` ; doit appeler `onDone()` à la validation |
+| `CustomView` | Contenu libre dans le conteneur fourni (prioritaire sur `Form`) |
+| `Validate` | Appelé avant `OnDone` ; un texte non vide bloque avec ce message |
+| `OnDone` | Effets de bord (écritures, appels), exécuté avec le spinner |
+| `Processing` | Message du spinner pendant `OnDone` |
+| `InfoFields` | Paires clé/valeur ajoutées au panneau d'infos après succès |
+| `Skip` / `SkipIf` | Étape déjà satisfaite / condition évaluée juste avant le rendu |
+| `Required` | Interdit de passer l'étape avec `Esc` (il reste `Ctrl+C` pour quitter) |
+| `SidebarHidden` | Exclut l'étape de la barre latérale en mode groupé (pages d'intro) |
+
+### Mode groupé (`Groups`)
+
+Avec `Groups` (`StepGroup{Label, StartIdx}`), le contenu est centré, le panneau d'infos passe à droite et la barre d'étapes affiche les groupes au lieu des étapes. Utilisé par l'assistant du premier lancement (`oh init` : Langue, Provider, Équipe).
 
 ### Constructeur
 
@@ -193,7 +220,7 @@ il voit les valeurs mises à jour.
 Un step peut devenir skipable en fonction d'un choix fait dans un step précédent.
 
 **Processing-only** : un step sans `Form` ni `CustomView` lance directement le spinner
-+ `OnDone`. Utile pour les étapes de traitement pur (extraction, déploiement).
++ `OnDone`. Utile pour les étapes de traitement pur (extraction, construction d'un paquet).
 
 ### Intégration omnibar
 
@@ -254,11 +281,11 @@ et lance `OnDone` en goroutine. Utile pour les opérations longues sans input ut
 
 ```go
 {
-    Label:      "Déploiement",
-    Processing: "Déploiement en cours...",
-    OnDone:     func() error { return deploy.Execute(plan) },
+    Label:      "Extraction",
+    Processing: "Extraction du contenu du hub...",
+    OnDone:     func() error { return hubcontent.Extract(hubcontent.HubContentDir()) },
     InfoFields: func() []views.InfoField {
-        return []views.InfoField{{Label: "Deploy", Value: "done"}}
+        return []views.InfoField{{Label: "Hub", Value: "extrait"}}
     },
 }
 ```
@@ -293,5 +320,6 @@ l'utilisateur ne choisisse sa navigation, ce qui permet de persister les changem
 | Pré-requis | Aucun | Shell TUI actif |
 
 **Quand utiliser lequel :**
-- `RunWizard` : commande CLI one-shot (`oh init`, `oh team init`, `oh project add`)
-- `InlineWizardView` : action TUI (omnibar, first-run, intégration vue)
+- `RunWizard` : commandes CLI one-shot (`oh team init`, `oh project add`, `oh project configure`, `oh project remove`, `oh provider`)
+- `InlineWizardView` : action TUI (omnibar, premier lancement, intégration vue)
+- `RunInlineWizardStandalone` : monte un `InlineWizardView` dans sa propre `tview.Application`, pour réutiliser en CLI le même assistant que la TUI (`oh init` = assistant du premier lancement)

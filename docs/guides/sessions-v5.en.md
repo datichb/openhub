@@ -2,17 +2,18 @@
 
 # Sessions on the v5 runtime (opencode V2)
 
-When opencode V2 is installed, `oh start`, the TUI launches, `--parallel`, `--sweep` and headless runs use the v5 runtime. With opencode V1, nothing changes.
+Every session uses the v5 runtime: `oh run <workflow>` (including `--tickets` and `--headless`), the TUI launches and the deprecated aliases (`oh start`…). It requires opencode V2 (≥ 2.0.0): opencode V1 is no longer supported (see the [v5 migration guide](migration-v5.en.md)).
 
-## What changes
+## How it works
 
-| | opencode V1 | opencode V2 (v5 runtime) |
-|---|---|---|
-| Agents and skills | deployed into the project's `.opencode/` | compiled into a session bundle outside the project (`~/.oh/bundles/<hash>`) |
-| Visible agents and skills | everything opencode finds | only those of the bundle ("closed world", checked at every start) |
-| LLM key | passed to opencode | never passed to opencode: the oh daemon's proxy holds it |
-| Session window | oh is suspended | new terminal tab or window; oh stays usable |
-| Closing the window | ends the session | the session keeps running; reopen it with `oh session attach` |
+| | v5 runtime |
+|---|---|
+| Agents and skills | compiled into a session bundle outside the project (`~/.oh/bundles/<hash>`), from the workflow; nothing is deployed into the project |
+| Visible agents and skills | only those of the bundle ("closed world", checked at every start; on failure, the session does not start) |
+| LLM key | never passed to opencode: the oh daemon's proxy holds it |
+| Server | one `opencode serve` per group (bundle version, project, runtime), shared by the sessions of the group |
+| Session window | new terminal tab or window; oh stays usable |
+| Closing the window | the session keeps running; reopen it with `oh session attach` |
 
 ## Opening a session
 
@@ -27,7 +28,7 @@ Suspending oh is a last resort only (`attach = "suspend"`).
 
 ## Configuration
 
-`~/.oh/config.toml`:
+`~/.oh/hub.toml`:
 
 ```toml
 [session]
@@ -51,7 +52,7 @@ idle_sleep_minutes = 5     # an idle server goes to sleep after N minutes
 |---|---|
 | `oh session list [--all] [--json]` | sessions, their state (active, waiting, idle, sleeping, stopped) and their waiting decisions |
 | `oh session inbox [--json]` | decisions waiting in every session: `⏸` checkpoint, `?` question, `!` permission, `$` budget, `✗` error |
-| `oh session approve <id> [--decision once\|always\|reject] [-m "…"]` | answer a permission without opening the session (`always` refused under strict isolation) |
+| `oh session approve <id> [--decision once\|always\|reject] [-m "…"]` | answer a permission without opening the session (`always` refused under strict isolation); for a checkpoint: `once`, `fix`, `other` (with `-m`) or `reject` |
 | `oh session answer <id> --field key=value…` | answer an agent question; without `--field`, shows the expected fields |
 | `oh session dismiss <id>` | dismiss an alert (error, budget) |
 | `oh session send <id> "…" [--queue] [--synthetic]` | send a short instruction (taken at the next step, or after the step with `--queue`) |
@@ -77,8 +78,8 @@ In these commands, `<id>` may be the beginning of an ID (`oh session follow dRcJ
 Open it from the omnibar (`sessions`) or from the "Sessions" sections of the home, project and team landings. The bottom bar shows `● N ⏸ M` on every screen (live sessions, waiting decisions).
 
 - **To handle**: decisions of every session. `Enter` opens the card (permission: once / always / reject + message; question: generated form; alert: dismiss or attach), `y`/`n` approve or reject a permission, `x` dismisses an alert.
-- **Running, Sleeping, Finished (7 days)**; detail of the selected session at the bottom.
-- `t` (or `Enter` on a session): live feed on the right (agent, tools, messages, cost). `a` attach, `A` choose how to open (iTerm2, Terminal.app, tmux, browser, here), `m` instruction, `i` interrupt, `M` model, `s` stop, `c` resume, `o` results and merge request description, `w` browser, `f` active project / every project, `r` refresh.
+- **Running, Sleeping, Finished (7 days), To fetch** (finished remote sessions); detail of the selected session at the bottom.
+- `t` (or `Enter` on a session): live feed on the right (agent, tools, messages, cost). `a` attach, `A` choose how to open (iTerm2, Terminal.app, tmux, browser, here), `m` instruction, `i` interrupt, `M` model, `s` stop, `c` resume, `o` results and merge request description, `w` browser, `e` chain another workflow, `g` fetch a remote session, `f` active project / every project, `r` refresh.
 
 With tmux, the session opens in a new window; with `[session] iterm_style = "split"`, in a pane next to it.
 
@@ -135,3 +136,8 @@ Budgets are **soft caps**, checked on the cost reported by the tool: the step th
 - **Windows** (local sessions only): there is no background daemon; the credential proxy and the session tracking run inside the oh process (TUI, or the command that opened the session in the current terminal). Sessions only run while that oh is open: when it quits, it first waits for the steps you chose to finish, then puts the sessions to sleep (resume with `oh session attach`). `oh doctor` reminds it. For sessions that outlive oh, use WSL.
 - **Proxy port**: the daemon keeps its proxy port across restarts. If that port was taken by another program meanwhile, the daemon picks another one and puts to sleep the servers that still use the old one (they can no longer reach the provider); working sessions show an error in the inbox. Resume them (`oh session resume <id>` or attach): their server restarts with the new port.
 - **Local security**: the agent runs as your user and can reach the daemon socket and `oh.db` (token hashes only), but never the LLM key; new tokens are reserved to the oh CLI (capability in the keychain, see `oh doctor`). See [SECURITY.md](../../SECURITY.md).
+- **opencode 2.0.20**: a session shell does not receive the server environment (oh sets `PATH`, `HOME`… again in local mode); sub-agents do not receive the session environment (the daemon re-applies it to them); when a permission is refused, the agent does not see the refusal message (oh sends it the instruction separately).
+- **Soft restrictions**: the maximum number of active sessions can be exceeded by two simultaneous launches; a budget is checked at the end of a step (the current step finishes); the memory cap does not measure containers. A session created by `oh session fork` may count the cost of the copied history a second time.
+- **Raising a budget**: the Sessions view can only dismiss a `$` decision (`x`); to raise the budget, use `oh budget raise <session|decision> [amount]`.
+- **`attach = "iterm"` without iTerm2 installed**: `oh run` may open the client in the current terminal instead of falling back to Terminal.app; prefer `attach = "auto"` (or `oh session attach`, which falls back correctly).
+- **Bundles**: `~/.oh/bundles/` is not purged automatically (unused bundles stay on disk).

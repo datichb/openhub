@@ -29,6 +29,16 @@ Full overwrite remains available with an explicit warning about losing accumulat
 
 ## Invoking the onboarder
 
+Launch the `onboarding` workflow (deprecated alias: `oh start --onboard`):
+
+```bash
+oh run onboarding                         # discover the project, create the wiki
+oh run onboarding -i refresh=true         # rediscover, enrich the existing wiki
+oh run onboarding -i focus="payment module"  # dig into a topic
+```
+
+In a session that is already open (for instance `oh run libre --agent onboarder`), a natural-language request is enough:
+
 ```
 "Onboard yourself onto this project"
 "Discover this project and give me an overview"

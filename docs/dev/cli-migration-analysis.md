@@ -1,5 +1,7 @@
 # Analyse de migration CLI — Bash → Langage typé
 
+> **Historique (v5).** Analyse de la migration Bash → Go (juin 2026), terminée depuis la v2. Pour l'architecture actuelle, voir [Vue d'ensemble de l'architecture](../architecture/overview.fr.md) et les ADR 038 à 048 (`docs/architecture/adr/`). La suite de cette page est conservée pour l'historique.
+
 > Document d'historisation produit après l'analyse complète du système CLI (`oc`) réalisée en juin 2026.
 > Référence les problèmes identifiés dans la base de code actuelle, leur résolution attendue par une migration, et la recommandation de langage cible.
 

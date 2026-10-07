@@ -1,30 +1,42 @@
-%% D7: Config Resolution Decision Tree
-%% Decision tree showing the priority order for resolving a configuration value.
-%% Team ENFORCED policies take top priority, then project overrides, hub values,
-%% team RECOMMENDED defaults, and finally the system default.
+%% OpenHub -- Configuration and workflow resolution (v5)
+%% Left: how a setting is resolved (ADR-030, ADR-033).
+%% Right: how a workflow is resolved from its layers (ADR-039, ADR-040).
 
 flowchart TD
-    Start([Resolve config value]) --> Q1{Team ENFORCED\npolicy exists?}
+    subgraph CFG ["Setting (hub.toml, project, team config.toml)"]
+        direction TB
+        S0([Resolve a setting]) --> Q1{Team ENFORCED<br/>value?}
+        Q1 -- Yes --> R1([Team enforced value])
+        Q1 -- No --> Q2{Project<br/>override?}
+        Q2 -- Yes --> R2([Project value])
+        Q2 -- No --> Q3{Hub<br/>value?}
+        Q3 -- Yes --> R3([Hub value])
+        Q3 -- No --> Q4{Team RECOMMENDED<br/>value?}
+        Q4 -- Yes --> R4([Team recommended value])
+        Q4 -- No --> R5([System default])
+    end
 
-    Q1 -- Yes --> R1([Use team ENFORCED value])
-    Q1 -- No --> Q2{Project override\nexists?}
+    subgraph WF ["Workflow (apiVersion: oh/v1)"]
+        direction TB
+        W0([oh run &lt;id&gt;]) --> H["hub<br/>~/.oh/hub/workflows/&lt;id&gt;.yaml"]
+        H -->|"extends / patch"| T["team<br/>team-state workflows/published/"]
+        T -->|"extends / patch"| P["project<br/>team-state projects/&lt;p&gt;/workflows/published/"]
+        P -.->|"--draft (local, explicit)"| DR["my draft<br/>workflows/drafts/&lt;member&gt;/"]
+        P --> SO["session options (never saved)<br/>--mode · --runtime · -i · --agent"]
+        DR --> SO
+        SO --> V{"Checks"}
+        V -->|"file hash not in workflows.lock"| IGN([Layer ignored + warning])
+        V -->|"field locked by enforce: of a lower layer"| ERR1([Error: enforced_field])
+        V -->|"security loosened<br/>(risk, isolation, runtime.allowed,<br/>mandatory checkpoints, beads.allow, limits)"| ERR2([Error: loosening])
+        V -->|"valid"| OKW([Resolved workflow<br/>each value keeps its origin])
+    end
 
-    Q2 -- Yes --> R2([Use project value])
-    Q2 -- No --> Q3{Hub value\nexists?}
-
-    Q3 -- Yes --> R3([Use hub value])
-    Q3 -- No --> Q4{Team RECOMMENDED\ndefault exists?}
-
-    Q4 -- Yes --> R4([Use team RECOMMENDED default])
-    Q4 -- No --> R5([Use system default])
-
-    style Start fill:#4a90d9,color:#fff
     style R1 fill:#e74c3c,color:#fff
     style R2 fill:#2ecc71,color:#fff
     style R3 fill:#27ae60,color:#fff
     style R4 fill:#f39c12,color:#fff
     style R5 fill:#95a5a6,color:#fff
-    style Q1 fill:#fce4ec
-    style Q2 fill:#e8f5e9
-    style Q3 fill:#e8f5e9
-    style Q4 fill:#fff3e0
+    style OKW fill:#2ecc71,color:#fff
+    style ERR1 fill:#e74c3c,color:#fff
+    style ERR2 fill:#e74c3c,color:#fff
+    style IGN fill:#f39c12,color:#fff

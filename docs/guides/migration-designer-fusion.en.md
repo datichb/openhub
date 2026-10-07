@@ -2,6 +2,8 @@
 
 # Migration: ux-designer + ui-designer fusion → designer
 
+> **Historical (v5).** This migration concerns versions before v5. Since v5, oh no longer writes an `opencode.json` into projects (`oh deploy` removed): agents and their permissions come from the session bundle built at launch from the workflow (see [Built-in workflows](../reference/workflows.en.md)), which already uses the `designer` agent. Leftovers of former deployments are removed with `oh migrate deploy-cleanup` (see [Migrating to oh v5](migration-v5.en.md)). The rest of this page is kept for history.
+
 ## Summary of the change
 
 The `ux-designer` and `ui-designer` agents have been merged into a single `designer` agent

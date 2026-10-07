@@ -5,7 +5,7 @@ confidence: CONFIRMED
 sources:
   - docs/guides/contributing.fr.md
   - skills/shared/team-policies-enforcement.md
-last_updated: 2026-10-02
+last_updated: 2026-10-06
 ---
 
 > [Read in English](conventions.en.md)
@@ -32,7 +32,7 @@ Format Conventional Commits obligatoire :
 | `ci` | Changements CI/CD |
 | `security` | Correctif de securite |
 
-Le scope est optionnel mais recommande : `feat(parallel)`, `fix(tui)`, `docs(adr)`.
+Le scope est optionnel mais recommande : `feat(workflow)`, `fix(tui)`, `docs(adr)`.
 
 ## Nommage des branches
 
@@ -40,30 +40,32 @@ Le scope est optionnel mais recommande : `feat(parallel)`, `fix(tui)`, `docs(adr
 |---------|-------|---------|
 | `feat/<ticket-ou-slug>` | Branches feature | `feat/BD-42-auth-flow` |
 | `fix/<ticket-ou-slug>` | Branches de correction | `fix/BD-55-nil-pointer` |
-| `docs/<slug>` | Branches documentation | `docs/parallel-mode-guide` |
-| `sweep/<slug>` | Branches mode sweep | `sweep/migrate-slog` |
+| `docs/<slug>` | Branches documentation | `docs/migration-v5-guide` |
+
+L'ancien prefixe `sweep/<slug>` (une branche par sous-tache du mode sweep) n'est plus utilise : le workflow `sweep` travaille dans la meme session et le meme emplacement.
 
 ## Style de code
 
 - **Go** : formatage `gofmt -s` obligatoire, `golangci-lint` v2.1+ avec `bodyclose`, `gocritic`, `misspell`, `nilerr`
-- **Markdown** : bilingue FR/EN pour les docs utilisateur (`docs/guides/`, `docs/reference/`, `docs/architecture/adr/`) ; les docs dev-internes (`docs/dev/`) sont monolingues
-- **TOML** : utilise pour toute configuration (`hub.toml`, team-state `config.toml`)
+- **Markdown** : bilingue FR/EN pour les docs utilisateur (`README`, `SECURITY`, `docs/guides/`, `docs/reference/`, `docs/architecture/` et ses ADR, `docs/wiki/`), avec les memes sections dans les deux langues et un lien de langue en ligne 1 (juste apres le frontmatter pour les pages du wiki) ; les docs dev-internes (`docs/dev/`) sont monolingues
+- **TOML** : utilise pour toute configuration (`hub.toml`, team-state `config.toml`) ; les workflows sont en YAML (`apiVersion: oh/v1`)
 
 ## Processus de review
 
 1. Creer une branche feature depuis `main`
 2. Implementer avec des tests (`make test`)
 3. Lint (`make lint`)
-4. Verification du paquet de session (`oh bundle build <workflow>` pour les workflows concernes)
+4. Verification des workflows et du paquet de session (`oh workflow validate --all`, `oh bundle build <workflow>` pour les workflows concernes)
 5. Ouvrir une PR avec documentation et mise a jour du changelog
-6. Review IA disponible via `oh review`
+6. Review IA disponible via `oh run review`
 7. Review humaine requise pour le merge
 
 ## Nommage des fichiers
 
 | Type | Convention | Exemple |
 |------|-----------|---------|
-| Agent | `<domaine>[-<specialite>].md` | `developer-frontend.md` |
-| Skill | `<domaine>-<sujet>.md` | `audit-security.md` |
-| Guide | `<slug>.{en,fr}.md` | `parallel-mode.en.md` |
-| ADR | `<NNN>-<kebab-case>.{en,fr}.md` | `037-documentation-policy.en.md` |
+| Agent | `agents/<famille>/<id>.md` (`<role>[-<specialite>]`) | `agents/developer/developer-refactor.md` |
+| Skill | `skills/<dossier>/<domaine>-<sujet>.md` | `skills/auditor/audit-security.md` |
+| Workflow | `workflows/<id>.yaml` + `workflows/prompts/<id>.md.tmpl` | `workflows/ticket.yaml` |
+| Guide | `<slug>.{en,fr}.md` | `sessions-v5.en.md` |
+| ADR | `<NNN>-<kebab-case>.{en,fr}.md` | `045-execution-environments.en.md` |

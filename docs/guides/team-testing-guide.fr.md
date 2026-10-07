@@ -334,14 +334,14 @@ team-state/
 ### Machine à états
 
 ```
-                 oh claim --planned
+                 oh team claim --planned
                         │
                         ▼
               ┌─────────────────┐
               │     PLANNED     │ ◄─── tracker auto_plan
               │     (TODO)      │
               └────────┬────────┘
-                       │ oh claim / board 'c'
+                       │ oh team claim / board 'c'
                        ▼
               ┌─────────────────┐
          ┌───►│  IN_PROGRESS    │◄──────────────────┐
@@ -368,7 +368,7 @@ team-state/
 
 | De | Vers | Déclencheur |
 |----|------|-------------|
-| `planned` | `in_progress` | `oh claim` / board `c` / board `s` |
+| `planned` | `in_progress` | `oh team claim` / board `c` / board `s` |
 | `in_progress` | `review` | board `s` / agent review.ready |
 | `in_progress` | `blocked` | board `s` |
 | `review` | `done` | board `s` / tracker issue fermée |
@@ -403,11 +403,11 @@ team-state/projects/T-SRU/claims/SRU-142.toml
 
 | Action | CLI | Board (CLI `oh team board` / TUI `team.board`) |
 |--------|-----|------------------------------------------------|
-| Réclamer | `oh claim SRU-142` | Touche `c` sur le ticket |
-| Planifier | `oh claim SRU-142 --planned` | — |
-| Avec branche | `oh claim SRU-142 --worktree feat/...` | — |
-| Libérer | `oh release SRU-142` | Touche `x` |
-| Transférer | `oh claim transfer SRU-142 --to alice` | Touche `t` → modal membre |
+| Réclamer | `oh team claim SRU-142` | Touche `c` sur le ticket |
+| Planifier | `oh team claim SRU-142 --planned` | — |
+| Avec branche | `oh team claim SRU-142 --worktree feat/...` | — |
+| Libérer | `oh team release SRU-142` | Touche `x` |
+| Transférer | `oh team claim transfer SRU-142 --to alice` | Touche `t` → modal membre |
 | Changer statut | — | Touche `s` → modal 5 choix |
 
 ### Événements générés
@@ -727,10 +727,10 @@ Légende:
    │                                                              │
    │  CLI (hard enforcement)              Agent (soft)            │
    │  ─────────────────────               ─────────────           │
-   │  oh claim → max_wip                  Avant branch:           │
-   │  oh start → branch_naming              branch_naming         │
-   │  oh release → review_required        Avant commit:           │
-   │             → tests_required           commit_format         │
+   │  oh team claim → max_wip             Avant branch:           │
+   │  oh policies check → toutes            branch_naming         │
+   │    les policies actives              Avant commit:           │
+   │                                        commit_format         │
    │                                                              │
    │  Action: BLOQUE si refuse            Action: INFORME         │
    │          WARN si warn                 (ne bloque pas)        │
@@ -969,7 +969,7 @@ Légende:
 ### Flux de génération
 
 ```
-   oh claim transfer SRU-142 --to alice
+   oh team claim transfer SRU-142 --to alice
           │
           ├── 1. TransferClaim() → claim.ClaimedBy = "alice"
           ├── 2. AppendEvent(claim.transferred)
@@ -1166,21 +1166,24 @@ team-state/projects/T-SRU/takeover-briefs/SRU-142_2026-07-16.toml
 
 ## 15. Sessions parallèles
 
+> L'ancien mode parallèle (`oh start --parallel`, TUI plein écran, `[parallel]` de `config.toml`, fusion proposée) a été retiré en v5 : voir [Mode parallèle — remplacé en v5](parallel-mode.fr.md).
+
 ### Commande
 
 ```bash
-oh start --parallel --tickets bd-42,bd-43,bd-44 [--priority] [--max-sessions]
+oh run ticket --tickets bd-42,bd-43,bd-44 [--one-session]
 ```
+
+`oh start --parallel --tickets …` reste un alias déprécié ; `--priority` et `--max-sessions` n'ont plus d'effet.
 
 ### Architecture
 
 ```
-   oh start --parallel --tickets bd-42,bd-43,bd-44
+   oh run ticket --tickets bd-42,bd-43,bd-44
           │
-          ├── Claim bd-42 (worktree: feat/bd-42)
-          ├── Claim bd-43 (worktree: feat/bd-43)
-          └── Claim bd-44 (worktree: feat/bd-44)
-                    │
+          ▼
+   Un serveur opencode serve par groupe (paquet, projet, runtime)
+                   │
           ┌────────┼────────┐
           ▼        ▼        ▼
      ┌────────┐┌────────┐┌────────┐
@@ -1191,30 +1194,27 @@ oh start --parallel --tickets bd-42,bd-43,bd-44 [--priority] [--max-sessions]
      └────┬───┘└────┬───┘└────┬───┘
           │         │         │
           ▼         ▼         ▼
-     TUI plein écran: statut temps réel
-     ├── Fichiers modifiés par session
-     ├── Conflits potentiels détectés
-     └── Navigation: j/k, Enter, r, q
+     Vue Sessions (TUI) / oh session list
+     ├── État et décisions en attente
+     ├── Flux en direct (t)
+     └── Résultats (o, oh session results)
 ```
 
-### Configuration (config.toml)
+### Limiter les sessions simultanées
 
-```toml
-[parallel]
-max_sessions = 3
-port_range_start = 4100
-auto_merge_beads = true
+```bash
+oh budget set max_active_sessions 2
 ```
 
 ### Points de test
 
 | # | Scénario | Résultat attendu |
 |---|----------|------------------|
-| 1 | Lancement parallèle | Chaque ticket dans un worktree isolé |
-| 2 | TUI temps réel | Statut, fichiers modifiés visibles |
-| 3 | `max_sessions` respecté | Pas plus de N sessions simultanées |
-| 4 | Conflits détectés | Avertissement si mêmes fichiers touchés |
-| 5 | Navigation | `j/k` (sessions), `Enter` (attacher), `q` (quitter) |
+| 1 | Lancement avec `--tickets` | Une session par ticket, chacune dans un worktree isolé |
+| 2 | Vue Sessions | État, décisions en attente et flux visibles |
+| 3 | `max_active_sessions` respecté | Au-delà de N, les sessions attendent dans la file (`en file`) |
+| 4 | `--one-session` | Tous les tickets dans une seule session |
+| 5 | Navigation | `Entrée` (fiche), `a` (attacher), `t` (flux), `o` (résultats) |
 
 ---
 
@@ -1494,12 +1494,12 @@ Timeout HTTP: 10 secondes pour tous les clients.
  4. [  ] oh teams list → montre la team active
  5. [  ] oh bundle show <workflow> → le paquet de session contient MCP team
  6. [  ] oh team status → montre les membres
- 7. [  ] oh claim SRU-142 → statut in_progress
+ 7. [  ] oh team claim SRU-142 → statut in_progress
  8. [  ] oh team board → ticket visible en IN PROGRESS
  9. [  ] Board: touche 's' → passer en review
 10. [  ] oh team activity --today → event claim.taken visible
 11. [  ] oh team sync-tracker → claims synchronisés
-12. [  ] oh claim transfer SRU-142 --to alice → brief généré
+12. [  ] oh team claim transfer SRU-142 --to alice → brief généré
 13. [  ] oh takeover-brief show SRU-142 → brief lisible
 14. [  ] oh policies check --branch "feat/SRU-142-auth"
 15. [  ] TUI: teams view → touche 'a' (ajouter 2e team)
@@ -1513,11 +1513,11 @@ Timeout HTTP: 10 secondes pour tous les clients.
 ### Scénario B : Conflit et résolution
 
 ```
- 1. [  ] Membre A: oh claim TICKET-1
- 2. [  ] Membre B: oh claim TICKET-1 → ErrClaimExists
+ 1. [  ] Membre A: oh team claim TICKET-1
+ 2. [  ] Membre B: oh team claim TICKET-1 → ErrClaimExists
  3. [  ] Vérifier event claim.conflict dans JSONL
  4. [  ] Board: ticket montre assigné = Membre A
- 5. [  ] Membre A: oh claim transfer TICKET-1 --to B
+ 5. [  ] Membre A: oh team claim transfer TICKET-1 --to B
  6. [  ] Takeover brief auto-généré
  7. [  ] Membre B: MCP team_takeover_brief → brief accessible
 ```
@@ -1526,12 +1526,12 @@ Timeout HTTP: 10 secondes pour tous les clients.
 
 ```
  1. [  ] Configurer policy branch_naming (enforce=refuse)
- 2. [  ] oh start avec branche invalide → REFUSÉ
- 3. [  ] oh start avec branche valide → OK
+ 2. [  ] oh policies check --branch <branche-invalide> → violation signalée
+ 3. [  ] oh policies check --branch <branche-valide> → OK
  4. [  ] Configurer policy max_wip=1
- 5. [  ] oh claim avec 1 ticket déjà actif → REFUSÉ
- 6. [  ] oh release → claim libéré
- 7. [  ] oh claim → OK (sous la limite)
+ 5. [  ] oh team claim avec 1 ticket déjà actif → REFUSÉ
+ 6. [  ] oh team release → claim libéré
+ 7. [  ] oh team claim → OK (sous la limite)
 ```
 
 ### Scénario D : Workflow tracker complet
@@ -1565,14 +1565,12 @@ Timeout HTTP: 10 secondes pour tous les clients.
 ### Scénario F : Sessions parallèles
 
 ```
- 1. [  ] oh start --parallel --tickets bd-42,bd-43
+ 1. [  ] oh run ticket --tickets bd-42,bd-43
  2. [  ] Vérifier 2 worktrees Git isolés créés
- 3. [  ] Vérifier claims créés pour les 2 tickets
- 4. [  ] TUI: voir statut des 2 sessions en temps réel
- 5. [  ] Modifier un même fichier dans les 2 sessions
- 6. [  ] Vérifier détection de conflit potentiel
- 7. [  ] Terminer les sessions
- 8. [  ] Vérifier merge proposé (Beads) ou branches (externe)
+ 3. [  ] Vue Sessions : voir l'état des 2 sessions et leurs décisions
+ 4. [  ] oh session list → les 2 sessions listées
+ 5. [  ] Terminer les sessions
+ 6. [  ] oh session results <id> --mr → branche et description de MR
 ```
 
 ---

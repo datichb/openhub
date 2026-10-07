@@ -1,6 +1,10 @@
+> [Lire en français](workflows.fr.md)
+
 # Workflows shipped by the hub
 
-> v5: each use case is a declarative workflow (`apiVersion: oh/v1`) shipped by the hub. The files live in `workflows/` at the repository root, are embedded in the binary and extracted to `~/.oh/hub/workflows/`. A team or a project can extend them (`extends`) from phase 2.
+> v5: each use case is a declarative workflow (`apiVersion: oh/v1`) shipped by the hub. The files live in `workflows/` at the repository root, are embedded in the binary and extracted to `~/.oh/hub/workflows/`. A team or a project can extend them (`extends`) in the team-state.
+
+See also: [`oh/v1` schema](workflow-schema.en.md) (reference of every field) · [team workflows](../guides/team-workflows.en.md).
 
 Check the hub workflows:
 
@@ -121,7 +125,13 @@ Explores, plans and specifies a feature without implementing it: only Beads tick
 |---|---|---|---|
 | `request` | `text` (8,000 characters max) | yes | The feature to scope |
 
-Checkpoints: `cp-scope` (scope, before planning), `cp-tickets` (mandatory: breakdown approved before tickets are created), `cp-recap`. Output: `tickets`. To implement afterwards: `ticket` or `feature` on the created tickets.
+| Checkpoint | manuel | semi-auto | auto |
+|---|---|---|---|
+| `cp-scope` Approve the scope (before planning) | pause | pause | auto |
+| `cp-tickets` Approve the breakdown (mandatory, before tickets are created) | pause | pause | pause |
+| `cp-recap` Scoping recap | pause | pause | auto |
+
+`planner` only starts after `cp-scope`. Default mode: `semi-auto`. Allowed Beads commands: `show`, `list`, `ready`, `children`, `search`, `count`, `label`, `dep`, `create`, `update`, `comments`, `duplicate`, `supersede`. Output: `tickets`. To implement afterwards: `ticket` or `feature` on the created tickets.
 
 ## `onboarding`
 
@@ -136,7 +146,7 @@ The onboarder can write files: the `docs/wiki/` limit (plus the minimal root `ON
 
 ## `review`
 
-Read-only review of a branch or of recent changes.
+Read-only review of a branch or of recent changes. Allowed Beads command: `show`. No checkpoint.
 
 | Input | Type | Required | Purpose |
 |---|---|---|---|
@@ -150,20 +160,25 @@ Publishing a merge request (`oh review --publish`) is not a workflow: it remains
 
 ## `review-feedback`
 
-Applies the unresolved comments of a merge request. oh fetches the discussions from GitLab at launch and passes them in the `feedback` input.
+Applies the unresolved comments of a merge request. `oh review feedback <ticket|branch>` fetches the discussions from GitLab, then launches this workflow with them in the `feedback` input; with `oh run review-feedback`, provide the input yourself (`-i feedback=…`).
 
 | Input | Type | Required | Purpose |
 |---|---|---|---|
-| `mr` | `string` | yes | URL or reference of the MR |
+| `mr` | `string` (500 characters max) | yes | URL or reference of the MR |
 | `branch` | `branch` | yes | Branch of the MR |
 | `base` | `branch` (default: `main`) | no | Target branch |
 | `feedback` | `text` (70,000 characters max) | yes | Unresolved discussions |
 
-Checkpoints: `cp-fix` (fixes to apply), `cp-2` (mandatory: commit or fix). Output: `branch`.
+| Checkpoint | manuel | semi-auto | auto |
+|---|---|---|---|
+| `cp-fix` Fixes to apply | pause | pause | auto |
+| `cp-2` Commit or fix (mandatory) | pause | pause | pause |
+
+`developer` only starts after `cp-fix`. Default mode: `semi-auto`. Output: `branch`.
 
 ## `audit`
 
-Read-only audit: the `auditor` coordinates `auditor-subagent`s.
+Read-only audit: the `auditor` coordinates `auditor-subagent`s. Allowed Beads commands: `show`, `list`. No checkpoint.
 
 | Input | Type | Required | Purpose |
 |---|---|---|---|
@@ -186,19 +201,24 @@ Reaches a cross-cutting goal by splitting it into independent subtasks, launched
 
 | Input | Type | Required | Purpose |
 |---|---|---|---|
-| `goal` | `text` | yes | High-level goal |
+| `goal` | `text` (4,000 characters max) | yes | High-level goal |
 | `strategy` | `enum`: `llm` (default), `manual`, `by-file`, `by-package` | no | Decomposition |
-| `tasks` | `text` | no | Tasks, one per line (`manual`) |
-| `include`, `exclude` | `string` | no | Glob patterns, comma-separated |
+| `tasks` | `text` (8,000 characters max) | no | Tasks, one per line (`manual`) |
+| `include`, `exclude` | `string` (1,000 characters max) | no | Glob patterns, comma-separated |
 | `verify` | `enum`: `none` (default), `tests`, `lint`, `build`, `all`, `custom` | no | Final verification |
-| `verify_cmd` | `string` | no | Verification command (`custom`) |
-| `dry_run` | `bool` | no | Show the decomposition without running anything |
+| `verify_cmd` | `string` (500 characters max) | no | Verification command (`custom`) |
+| `dry_run` | `bool` (default: no) | no | Show the decomposition without running anything |
 
-Checkpoints: `cp-plan` (decomposition, before any execution), `cp-recap`. Difference with the former `--sweep`: subtasks run in the same session and location (no worktree per task); `--sweep-branch-prefix` and `--max-sessions` have no equivalent.
+| Checkpoint | manuel | semi-auto | auto |
+|---|---|---|---|
+| `cp-plan` Approve the decomposition (before any execution) | pause | pause | auto |
+| `cp-recap` Sweep recap | pause | pause | auto |
+
+The developer agents only start after `cp-plan`. Default mode: `semi-auto`; circuit breaker at 20 consecutive delegations (12 for the other workflows with checkpoints). Output: `branch`. Difference with the former `--sweep`: subtasks run in the same session and location (no worktree per task); `--sweep-branch-prefix` and `--max-sessions` have no equivalent.
 
 ## `brief-enrich`
 
-Enriches a ticket takeover brief, without interaction (headless session). oh provides the brief and saves the result.
+Enriches a ticket takeover brief, without interaction (headless session: `oh run brief-enrich --headless`). oh provides the brief and saves the result. No Beads command (`beads.allow: []`).
 
 | Input | Type | Required | Purpose |
 |---|---|---|---|

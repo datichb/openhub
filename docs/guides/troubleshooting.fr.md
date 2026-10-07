@@ -12,23 +12,30 @@ Ce guide couvre les problemes courants avec openhub, comment les diagnostiquer a
 
 ### `oh doctor`
 
-Executez `oh doctor` pour verifier l'etat de sante de votre installation. Il effectue 13 verifications :
+Executez `oh doctor` pour verifier l'etat de sante de votre installation. Il effectue une vingtaine de verifications :
 
 | # | Verification | Ce qui est verifie | Correction courante |
 |---|--------------|--------------------|--------------------|
 | 1 | OS / Architecture | Informations systeme (toujours OK) | — |
 | 2 | Runtime Go | Version de Go (toujours OK) | — |
 | 3 | git | Binaire `git` dans le PATH | Installer git |
-| 4 | opencode | Runtime OpenCode installe | `brew install anomalyco/tap/opencode` |
-| 5 | bd (beads) | CLI Beads (optionnel) | `brew install datichb/tap/bd` |
-| 6 | fzf | Recherche floue (optionnel) | `brew install fzf` |
-| 7 | opencode V2 | version minimale d'opencode V2 (V1 refusé) | voir le [guide de migration v5](migration-v5.fr.md) |
-| 8 | Version | Derniere version de oh disponible | `oh upgrade` |
-| 9 | Configuration | `hub.toml` se charge correctement | `oh init` pour reinitialiser |
-| 10 | Identifiants fournisseur | Cle API du fournisseur LLM presente | `oh secrets set` ou definir la variable d'env |
-| 11 | Base de donnees | Base SQLite accessible | `oh repair` |
-| 12 | Cles API | Tokens des services MCP (Figma, GitLab, etc.) | `oh mcp setup <service>` |
-| 13 | Beads zero-impact | Aucun effet de bord de Beads | `oh repair` |
+| 4 | bd (beads) | CLI Beads (optionnel) | `brew install datichb/tap/bd` |
+| 5 | fzf | Recherche floue (optionnel) | `brew install fzf` |
+| 6 | Version oh | Derniere version de oh disponible | `oh upgrade oh` (ou `brew upgrade openhub`) |
+| 7 | Configuration | `hub.toml` se charge correctement | `oh init` pour reinitialiser |
+| 8 | Identifiants fournisseur | Cle API du fournisseur LLM presente | `oh provider setup`, `oh secrets set` ou variable d'env |
+| 9 | Base de donnees | Base SQLite accessible | `oh repair` |
+| 10 | Cles API | Tokens des services MCP (Figma, GitLab, etc.) | `oh mcp setup <service>` |
+| 11 | Beads zero-impact | Aucun effet de bord de Beads (hooks, gitignore) | `oh repair` |
+| 12 | opencode V2 | opencode installe, version minimale 2.0.0 (V1 refuse) | `brew install anomalyco/tap/opencode` ; voir le [guide de migration v5](migration-v5.fr.md) |
+| 13 | Anciens deploiements | Restes de `oh deploy` dans les projets | `oh migrate deploy-cleanup` |
+| 14 | Demon oh | Etat du demon `ohd` (demarre au premier lancement) | `oh daemon status` |
+| 15 | Securite | Capacite d'emission du demon dans le trousseau, jetons du proxy stockes hashes | — |
+| 16 | Restrictions des sessions | Restrictions du hub (desactivees par defaut) | `oh budget show` |
+| 17 | git (worktrees relatifs) | Version de git suffisante pour les worktrees | Mettre git a jour |
+| 18 | Ouverture des sessions | Methode d'ouverture des sessions (terminal, iTerm, tmux…) | — |
+| 19 | Conteneur | Moteur, partage de fichiers, images des projets | voir [Conteneur](container.fr.md) |
+| 20 | Passerelles | `bd` sur la machine (passerelle Beads), passerelles du demon | Installer `bd` ; `oh daemon status` |
 
 ### `oh repair`
 
@@ -187,7 +194,7 @@ oh worktree list           # Lister tous les worktrees actifs
 
 Si `oh` ne fonctionne pas :
 
-1. Executez `oh doctor` — verifiez les 13 points de sante
+1. Executez `oh doctor` — verifiez les points de sante
 2. Si la base de donnees echoue → `oh repair`
 3. Si les identifiants echouent → `oh secrets set` ou `oh mcp setup`
 4. Si la configuration echoue → `oh init` pour regenerer

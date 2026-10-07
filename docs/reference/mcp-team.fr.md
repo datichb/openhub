@@ -1,3 +1,5 @@
+> [Read in English](mcp-team.en.md)
+
 # Serveur MCP : team
 
 ## Vue d'ensemble

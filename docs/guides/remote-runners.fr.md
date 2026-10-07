@@ -4,6 +4,8 @@
 
 Une session oh peut tourner sur un **runner GitLab CI** au lieu de votre machine. Ce guide couvre la mise en place : le runner, le projet central `oh-runner` d'un groupe GitLab, et `oh remote setup`. L'exécution distante est disponible sur macOS et Linux ; sous Windows, oh reste en local.
 
+> **v5.0 :** l'exécution distante est couverte par les tests (répondeur, contrat machine ↔ job, rejeu du journal, essai local complet de `oh runner run`), mais n'a pas encore été validée sur un vrai runner. Les serveurs MCP qui lisent un jeton dans le trousseau de la machine (gitlab, jira, figma…) ne sont pas disponibles dans le job (`workflow` l'est), et les build args de la config Exécution ne sont pas transmis à l'image distante.
+
 ## Principe
 
 ```
@@ -167,7 +169,7 @@ Affiche, par cible : accès API, projet, registres, branche protégée, pipeline
 ## 5. Lancer une session distante
 
 ```bash
-oh run ticket -t bd-42 --runtime remote
+oh run ticket --tickets bd-42 --runtime remote
 ```
 
 Avant l'envoi, oh vérifie que :

@@ -1,30 +1,51 @@
-%% OpenHub -- System Overview
-%% Shows the high-level architecture: User -> oh CLI -> OpenCode -> LLM Provider
-%% with Hub, Projects, and MCP Servers as supporting components.
+%% OpenHub -- System Overview (v5)
+%% oh is the control tower: it resolves a workflow, builds a session bundle,
+%% starts one opencode server per group and supervises the sessions through
+%% its daemon (credential proxy, gateways, decisions). See ADR-038 to ADR-048.
 
 flowchart LR
-    U["fa:fa-user User"] -->|"oh start<br/>oh deploy<br/>oh audit"| CLI["fa:fa-terminal oh CLI"]
+    U["fa:fa-user User"] -->|"oh run &lt;workflow&gt;<br/>TUI · oh session …"| CLI["fa:fa-terminal oh<br/>CLI + TUI"]
 
-    subgraph Hub ["~/.oh/ (Hub)"]
-        TOML["hub.toml<br/>Configuration"]
-        DB["oh.db<br/>Projects & Sessions"]
-        HC["hub/<br/>Agents & Skills"]
+    subgraph Hub ["~/.oh/ (hub)"]
+        TOML["hub.toml"]
+        DB["oh.db<br/>projects · sessions · decisions · usage"]
+        HC["hub/<br/>agents · skills · workflows"]
     end
 
-    CLI -->|reads config| Hub
-    CLI -->|"deploys to .opencode/"| P1["fa:fa-folder Project A"]
-    CLI -->|"deploys to .opencode/"| P2["fa:fa-folder Project B"]
-    CLI -->|configures & launches| OC["fa:fa-robot OpenCode<br/>AI Runtime"]
-    OC -->|API calls| LLM["fa:fa-cloud LLM Provider<br/>Anthropic / Bedrock<br/>OpenRouter / Copilot"]
+    TS[("team-state (git)<br/>team / project workflows<br/>catalog · claims")]
 
-    subgraph MCP ["MCP Servers (stdio)"]
-        GL["GitLab"]
-        GH["GitHub"]
-        FIG["Figma"]
-        JI["Jira"]
-        LN["Linear"]
-        GS["Google Slides"]
-        TM["Team"]
+    CLI -->|reads| Hub
+    CLI -->|"resolves workflow<br/>(hub &lt; team &lt; project)"| TS
+    CLI -->|builds| BUN["~/.oh/bundles/&lt;hash&gt;/<br/>session bundle (immutable)"]
+    CLI -->|"Render · Launch · Attest<br/>(opencode V2 adapter)"| OC
+
+    subgraph RT ["Execution environment: local · container · remote"]
+        OC["fa:fa-robot opencode serve<br/>one server per group<br/>closed world"]
+        S1["session 1"]
+        S2["session 2"]
+        OC --- S1
+        OC --- S2
+    end
+
+    BUN -->|"config + agents + skills + plugin"| OC
+
+    subgraph D ["ohd daemon (on the machine)"]
+        PX["credential proxy<br/>ohs_ tokens · allow-lists"]
+        GW["gateways<br/>Beads · MCP"]
+        SUP["supervision<br/>events · decisions · sleep"]
+    end
+
+    CLI <-->|socket| D
+    OC -->|"LLM calls (session token)"| PX
+    PX -->|"real key (keychain)"| LLM["fa:fa-cloud LLM provider<br/>Bedrock · Anthropic · OpenRouter"]
+    OC <-->|"SSE events · permissions"| SUP
+    OC <-->|"bd · oh MCP servers"| GW
+    GW --> BD[("Beads (bd)<br/>on the machine")]
+
+    subgraph MCP ["oh MCP servers"]
+        WF["workflow<br/>checkpoints · outputs"]
+        INT["gitlab · github · figma<br/>jira · linear · gslides · team"]
     end
 
     OC <-->|"tool calls"| MCP
+    CLIENT["opencode client<br/>iTerm2 · Terminal.app · tmux · browser"] -->|"--server · -s &lt;id&gt;"| OC

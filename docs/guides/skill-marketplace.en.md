@@ -1,6 +1,6 @@
-# Skill Marketplace - Guide
-
 > 🇫🇷 [Lire en français](skill-marketplace.fr.md)
+
+# Skill Marketplace - Guide
 
 ## Overview
 
@@ -40,13 +40,6 @@ oh skill add https://github.com/myorg/my-oh-skill
 
 Supports any public or private (SSH) Git repository. The repository must contain a valid `manifest.json` at its root.
 
-### Pinning a version
-
-```bash
-oh skill add golang-idioms@1.2.0
-oh skill add golang-idioms@latest  # default
-```
-
 ---
 
 ## Listing Installed Skills
@@ -70,8 +63,6 @@ fintech-compliance     2.0.0    index    inactive
 
 ```bash
 oh skill search go
-oh skill search --tags backend,testing
-oh skill search --author myorg
 ```
 
 Returns a paginated list of matching skills with name, description, version, and author.
@@ -84,11 +75,7 @@ Returns a paginated list of matching skills with name, description, version, and
 oh skill remove golang-idioms
 ```
 
-The skill is no longer shipped in session bundles but its files remain in `~/.oh/skills/golang-idioms/` until purged:
-
-```bash
-oh skill remove golang-idioms --purge
-```
+The `~/.oh/skills/golang-idioms/` directory is removed: the skill is no longer shipped in session bundles.
 
 ---
 
@@ -125,7 +112,7 @@ Follow the same conventions as built-in skills. The file must contain:
 - `## Instructions` — step-by-step guidance
 - Optional `## Examples` with concrete input/output pairs
 
-See [authoring-skills.md](./authoring-skills.md) for the full authoring guide.
+See [authoring-skills.md](authoring-skills.en.md) for the full authoring guide.
 
 ### Versioning
 
@@ -181,19 +168,19 @@ The PR template includes a checklist: valid manifest, SKILL.md present, version 
 
 ## Authoring Best Practices
 
-See the full authoring guide: [authoring-skills.md](./authoring-skills.md)
+See the full authoring guide: [authoring-skills.md](authoring-skills.en.md)
 
 Key principles:
 - **Be specific**: skills that activate in broad conditions dilute agent focus
 - **Provide examples**: concrete input/output pairs reduce agent hallucination
 - **Single responsibility**: one skill = one domain; compose via multiple skills rather than a monolithic file
-- **Version carefully**: breaking changes require a major version bump to avoid breaking existing deployments
-- **Test before publishing**: use `oh skill test <skill-name>` to run the skill against sample sessions
+- **Version carefully**: breaking changes require a major version bump to avoid breaking existing installations
+- **Test before publishing**: check the catalogue with `oh skill check` (frontmatter, `requires:`, duplicates), then try the skill in a session (workflow that lists it in `skills.extra`)
 
 ---
 
 ## Resources
 
 - [oh-skills-index repository](https://github.com/datichb/oh-skills-index)
-- [authoring-skills.md](./authoring-skills.md) — full skill authoring guide
+- [authoring-skills.md](authoring-skills.en.md) — full skill authoring guide
 - [MCP Protocol](https://modelcontextprotocol.io/)

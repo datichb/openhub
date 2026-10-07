@@ -1,3 +1,5 @@
+> [Read in English](team-conventions.en.md)
+
 # Guide des Conventions d'Équipe
 
 ## Principe
@@ -192,16 +194,17 @@ L'enforcement fonctionne à deux niveaux :
 
 | Niveau | Qui | Quand | Comportement |
 |--------|-----|-------|--------------|
-| **CLI (hard)** | Le binaire `oh` | `oh claim`, `oh start`, `oh release` | Bloque ou warn selon la policy |
+| **CLI (hard)** | Le binaire `oh` | `oh team claim`, `oh policies check` | Bloque ou warn selon la policy |
 | **Agent (soft)** | Les agents IA via le skill | Pendant la session | Vérifie avant chaque action pertinente |
 
 #### Checks CLI automatiques
 
 | Commande | Policies vérifiées |
 |----------|-------------------|
-| `oh claim <ticket>` | `max_ticket_wip` |
-| `oh start` (création branche) | `branch_naming` |
-| `oh release <ticket>` | `review_required`, `tests_required` |
+| `oh team claim <ticket>` | `max_ticket_wip` |
+| `oh policies check [--branch <b>] [--commit <msg>]` | toutes les policies actives (dont `branch_naming` avec `--branch`) |
+
+> Les autres policies (`review_required`, `tests_required`…) sont vérifiées par les agents pendant la session, pas par `oh team release`.
 
 > **Label `agent-reviewed` :** appliqué automatiquement à un claim lorsque l'agent émet `review.ready` ; visible sur le board d'équipe sous la forme `[AI]`.
 

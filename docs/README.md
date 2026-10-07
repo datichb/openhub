@@ -1,36 +1,39 @@
 # Documentation Index
 
-Complete index of all openhub documentation. Guides and references are bilingual (EN/FR).
+Complete index of all openhub documentation (oh v5). Guides and references are bilingual (EN/FR): each `x.en.md` page has its `x.fr.md` counterpart.
 
 **Project governance:** [CONTRIBUTING.md](../CONTRIBUTING.md) | [SECURITY.md](../SECURITY.md) | [CHANGELOG.md](../CHANGELOG.md)
 
+**New to v5?** Start with [Migrating to oh v5](guides/migration-v5.en.md), then [v5 Sessions](guides/sessions-v5.en.md) and the [architecture overview](architecture/overview.en.md).
+
 ---
 
-## Guides (35 guides)
+## Guides (40 guides)
 
 ### Getting Started
 
 | Guide | Description |
 |-------|-------------|
-| [Getting Started](guides/getting-started.en.md) | Installation, first deployment |
+| [Getting Started](guides/getting-started.en.md) | Installation (oh + opencode V2), first session |
 | [Tutorial](guides/tutorial.en.md) | Step-by-step tutorial |
+| [Migrating to v5](guides/migration-v5.en.md) | opencode V2 required, no more deployment in projects, former commands as aliases of `oh run`, free session `libre` |
 | [Configuration Guide](guides/configuration-guide.en.md) | Detailed configuration options |
 | [LLM Providers](guides/providers.en.md) | Anthropic, Bedrock, OpenRouter, Ollama |
-| [Onboarding](guides/onboarding.en.md) | Using the onboarder agent |
+| [Onboarding](guides/onboarding.en.md) | Using the onboarder agent (`oh run onboarding`) |
 | [TUI Usage](guides/tui-usage.en.md) | TUI shell navigation and commands |
 
-### Workflows and Execution Modes
+### Workflows and Sessions
 
 | Guide | Description |
 |-------|-------------|
-| [Workflows](guides/workflows.en.md) | Full feature, audit, debug scenarios |
-| [Migrating to v5](guides/migration-v5.en.md) ([fr](guides/migration-v5.fr.md)) | opencode V2 required, former commands as aliases of `oh run`, free session `libre` |
-| [v5 Sessions](guides/sessions-v5.en.md) | opencode V2 sessions: opening, sleep, resume, LLM keys |
-| [Container runtime](guides/container.en.md) | Sessions in a container (Colima, Podman): project dev image, settings, secrets |
-| [Remote runners](guides/remote-runners.en.md) ([fr](guides/remote-runners.fr.md)) | Remote sessions on GitLab CI: runners, oh-runner project, `oh remote setup` |
-| [Parallel Mode](guides/parallel-mode.en.md) | Replaced in v5 by `oh run ticket --tickets a,b` |
-| [Sweep Mode](guides/sweep-mode.en.md) | Replaced in v5 by the `sweep` workflow |
+| [Workflows](guides/workflows.en.md) | Usage scenarios: feature, ticket, audit, debug, review… |
+| [v5 Sessions](guides/sessions-v5.en.md) | Sessions driven from oh: opening, decisions, sleep, resume, results, LLM keys |
+| [Team Workflows](guides/team-workflows.en.md) | Team and project workflows in team-state: drafts, publication, history, locks, solo space |
+| [Container runtime](guides/container.en.md) | Sessions in a container (Colima, Podman, Docker CLI): project dev image, settings, secrets |
+| [Remote runners](guides/remote-runners.en.md) | Remote sessions on GitLab CI: runners, `oh-runner` project, `oh remote setup`, fetch and resolve |
 | [Review & Feedback](guides/review-feedback.en.md) | AI code review, MR publication, feedback processing |
+| [Parallel Mode](guides/parallel-mode.en.md) | **Replaced in v5** by `oh run ticket --tickets a,b` |
+| [Sweep Mode](guides/sweep-mode.en.md) | **Replaced in v5** by the `sweep` workflow |
 
 ### Integrations (MCP)
 
@@ -49,8 +52,7 @@ Complete index of all openhub documentation. Guides and references are bilingual
 
 | Guide | Description |
 |-------|-------------|
-| [Team Setup](guides/team-setup.en.md) | Initialize and configure a team |
-| [Team Workflows](guides/team-workflows.en.md) | v5 workflows in team-state: layout, workflows.lock, locks |
+| [Team Setup](guides/team-setup.en.md) | Initialize and configure a team (or a solo space) |
 | [Team Conventions](guides/team-conventions.en.md) | Team-wide conventions and policies |
 | [Team Testing Guide](guides/team-testing-guide.en.md) | Testing team features end-to-end |
 | [Notifications](guides/notifications.en.md) | Slack, Discord, Mattermost, Teams notifications |
@@ -61,17 +63,19 @@ Complete index of all openhub documentation. Guides and references are bilingual
 |-------|-------------|
 | [Authoring Agents](guides/authoring.en.md) | Create custom agents |
 | [Authoring Skills](guides/authoring-skills.en.md) | Create custom skills |
-| [External Agents](guides/external-agents.en.md) | Per-project agent customization |
-| [Skill Marketplace](guides/skill-marketplace.en.md) | Install community skills |
+| [Skill Marketplace](guides/skill-marketplace.en.md) | Install community skills (delivered through `skills.extra` of a workflow) |
 | [Pathfinder Agent](guides/agent-pathfinder.en.md) | Using the pathfinder agent |
 | [Inter-Agent Interruption](guides/inter-agent-interruption.en.md) | Agent interruption protocol |
+| [External Agents](guides/external-agents.en.md) | **Historical (removed in v5)**: per-project agents of `oh deploy`; agents now come from the workflow |
 
 ### Plugins
 
+In v5, plugins are declared per workflow (`plugins:`) and delivered in the session bundle: see [Shipped Workflows](reference/workflows.en.md).
+
 | Guide | Description |
 |-------|-------------|
-| [RTK Plugin](guides/rtk-plugin-installation.en.md) | Removed in v5 (plugins are declared per workflow) |
-| [Context Mode Plugin](guides/context-mode-plugin.en.md) | Context mode plugin setup |
+| [RTK Plugin](guides/rtk-plugin-installation.en.md) | **Replaced in v5**: `oh plugin` (global V1 plugins) removed |
+| [Context Mode Plugin](guides/context-mode-plugin.en.md) | **Historical (v5)**: installed through `oh plugin`; does not load under opencode V2 |
 
 ### Operations
 
@@ -86,28 +90,32 @@ Complete index of all openhub documentation. Guides and references are bilingual
 
 | Guide | Description |
 |-------|-------------|
-| [Designer Fusion Migration](guides/migration-designer-fusion.en.md) | Migrating from ux-designer/ui-designer to designer |
+| [Migrating to v5](guides/migration-v5.en.md) | From oh v4 (opencode V1, `oh deploy`) to oh v5 |
+| [Designer Fusion Migration](guides/migration-designer-fusion.en.md) | **Historical (v5)**: ux-designer/ui-designer merged into designer (before v5) |
+| [Migration from `oc`](../MIGRATION.md) | From the former bash CLI |
 
 ---
 
-## Reference (15 docs)
+## Reference (27 docs)
 
 | Document | Description |
 |----------|-------------|
 | [CLI Reference (Index)](reference/cli.en.md) | Table of contents, global flags, exit codes |
-| [CLI — Sessions](reference/cli-sessions.en.md) | `oh start`, `oh review`, `oh audit`, `oh debug` |
+| [CLI — Workflows](reference/cli-workflows.en.md) | `oh run`, `oh workflow *`, `oh bundle *` |
+| [CLI — Sessions](reference/cli-sessions.en.md) | `oh session *`, `oh budget`, `oh history`, `oh beads`, deprecated aliases (`oh start`, `oh audit`, `oh review`, `oh debug`) |
 | [CLI — Projects](reference/cli-projects.en.md) | `oh project list\|add\|remove\|rename\|move\|configure` |
-| [CLI — Deployment](reference/cli-deploy.en.md) | `oh deploy`, `oh sync` (removed in v5) |
+| [CLI — Deployment](reference/cli-deploy.en.md) | `oh deploy`, `oh sync` (removed in v5), `oh migrate deploy-cleanup` |
 | [CLI — Configuration](reference/cli-config.en.md) | `oh config *`, `oh provider setup`, `oh config model` |
-| [CLI — Infrastructure](reference/cli-infra.en.md) | `oh init`, `oh doctor`, `oh repair`, `oh upgrade`, `oh purge`, `oh serve` |
-| [CLI — MCP & Plugins](reference/cli-mcp.en.md) | `oh mcp *`, `oh plugin *` |
-| [CLI — Team](reference/cli-team.en.md) | `oh team *`, `oh teams *`, `oh conventions`, `oh policies` |
+| [CLI — Infrastructure](reference/cli-infra.en.md) | `oh init`, `oh doctor`, `oh status`, `oh migrate deploy-cleanup`, `oh upgrade oh`, `oh export`/`import`, `oh repair`, `oh purge`, `oh daemon`, `oh remote`, `oh serve` |
+| [CLI — MCP](reference/cli-mcp.en.md) | `oh mcp *` (`oh plugin` removed in v5) |
+| [CLI — Team](reference/cli-team.en.md) | `oh team *` (incl. `init --solo`, `promote`), `oh teams *`, `oh conventions`, `oh patterns`, `oh policies`, `oh takeover-brief` |
 | [CLI — Tools](reference/cli-tools.en.md) | `oh skill *`, `oh worktree *`, `oh secrets *`, `oh metrics` |
+| [Shipped Workflows](reference/workflows.en.md) | The 12 `oh/v1` workflows shipped by the hub: entry agents, inputs, checkpoints, prompt templates |
+| [Workflow Schema](reference/workflow-schema.en.md) | `apiVersion: oh/v1` schema: fields, validation, layers, `extends`, `enforce` |
 | [Configuration](reference/config.en.md) | hub.toml, project settings, team config |
 | [Beads Model](reference/beads-model.en.md) | Ticket system data model |
 | [Glossary](reference/glossary.en.md) | Terms and definitions |
 | [Model Resolution](reference/model-resolution.en.md) | LLM model selection cascade |
-| [Shipped Workflows](reference/workflows.en.md) | `oh/v1` workflows shipped by the hub, inputs, checkpoints, prompt templates |
 | [Services](reference/services.en.md) | Internal services reference |
 | [TUI Reference](reference/tui.en.md) | TUI keybindings and views |
 | [TUI Inline Wizard](reference/tui-inline-wizard.en.md) | Wizard engine reference |
@@ -125,19 +133,56 @@ Complete index of all openhub documentation. Guides and references are bilingual
 | [MCP Google Slides](reference/mcp-gslides.en.md) | Google Slides MCP tools |
 | [MCP Team](reference/mcp-team.en.md) | Team state MCP tools |
 
+The `workflow` MCP server (`workflow_status`, `workflow_checkpoint`, `workflow_outputs`) is added to every session bundle: see [Shipped Workflows](reference/workflows.en.md) and [ADR-042](architecture/adr/042-checkpoints-headless-decisions.en.md).
+
 ---
 
-## Architecture (6 docs + 36 ADRs)
+## Architecture (6 docs + 48 ADRs)
 
 | Document | Description |
 |----------|-------------|
-| [Overview](architecture/overview.en.md) | Concepts, flow diagrams |
-| [Agents](architecture/agents.en.md) | All 19 agents reference |
-| [Skills](architecture/skills.en.md) | Hybrid skill system (Bucket A/B) |
-| [Task Delegation](architecture/task-delegation.en.md) | Inter-agent delegation model |
+| [Overview](architecture/overview.en.md) | v5 concepts: workflow → session bundle → group server → session, daemon, credential proxy, gateways, closed world |
+| [Agents](architecture/agents.en.md) | The 20 agents (7 families, including `conductor`) |
+| [Skills](architecture/skills.en.md) | Hybrid skill system (Bucket A/B), delivery through the session bundle |
+| [Task Delegation](architecture/task-delegation.en.md) | Inter-agent delegation model (`calls:`, `after:`) |
 | [Living Wiki](architecture/living-wiki.en.md) | Living documentation wiki architecture |
 | [TodoWrite Isolation](architecture/todowrite-session-isolation.en.md) | Session isolation design |
-| [ADRs](architecture/adr/) | 36 Architecture Decision Records |
+| [ADRs](architecture/adr/) | 48 Architecture Decision Records (v5: 038 to 048) |
+
+### v5 decisions
+
+| ADR | Decision |
+|-----|----------|
+| [038](architecture/adr/038-sessionspec-tool-adapters.en.md) | `SessionSpec` neutral model and tool adapters |
+| [039](architecture/adr/039-declarative-workflows-oh-v1.en.md) | Declarative `oh/v1` workflows |
+| [040](architecture/adr/040-workflows-team-state-governance.en.md) | Workflows in team-state, governance, solo space |
+| [041](architecture/adr/041-closed-world-isolation.en.md) | Closed world and isolation check (`Attest`) |
+| [042](architecture/adr/042-checkpoints-headless-decisions.en.md) | Three-level checkpoints and headless decisions |
+| [043](architecture/adr/043-session-bundle-deploy-removal.en.md) | Session bundle and removal of per-project deployment |
+| [044](architecture/adr/044-credential-proxy-session-limits.en.md) | LLM credential proxy and session limits (I6) |
+| [045](architecture/adr/045-execution-environments.en.md) | Execution environments: local, container, remote |
+| [046](architecture/adr/046-beads-gateways.en.md) | Beads on the machine and gateways |
+| [047](architecture/adr/047-session-interaction-daemon.en.md) | Session interaction, multi-session, `ohd` daemon |
+| [048](architecture/adr/048-opencode-v1-abandonment.en.md) | opencode V1 abandonment |
+
+---
+
+## Diagrams
+
+Sources (`.mermaid`) and rendered SVG files live in [`diagrams/`](diagrams/).
+
+| Diagram | Description |
+|---------|-------------|
+| [System overview](diagrams/system-overview.svg) | oh (control tower), daemon, group servers, opencode (cockpit) |
+| [Session lifecycle](diagrams/session-lifecycle.svg) | Launch, bundle, `Attest`, work, decisions, sleep, resume, stop |
+| [Execution topology](diagrams/execution-topology.svg) | Local, container and remote: what runs where, what stays on the machine |
+| [Workflow scenarios map](diagrams/workflow-scenarios-map.svg) | Which workflow for which situation |
+| [Workflow layers](diagrams/config-resolution.svg) | Hub < team < project < session options |
+| [Model resolution cascade](diagrams/model-resolution-cascade.svg) | From workflow·agent down to frontmatter |
+| [Skill delivery](diagrams/skill-injection-flow.svg) | Bucket A / Bucket B through the session bundle |
+| [CLI command tree](diagrams/cli-command-tree.svg) | Main `oh` commands |
+| [TUI navigation](diagrams/tui-navigation-modes.svg) | TUI views and omnibar |
+| [Agent hierarchy](diagrams/agent-hierarchy.svg) | Agents and delegations |
 
 ---
 
@@ -154,16 +199,17 @@ Complete index of all openhub documentation. Guides and references are bilingual
 
 | Page | Description |
 |------|-------------|
-| [Config Cascade](wiki/technical/config-cascade.en.md) | Configuration resolution across levels |
-| [Conventions](wiki/conventions.en.md) | Code style, commit format, review process |
+| [Wiki index](wiki/README.md) | Entry point of the project wiki |
 | [Architecture](wiki/architecture.en.md) | System architecture overview |
 | [Stack](wiki/stack.en.md) | Technology stack and dependencies |
+| [Conventions](wiki/conventions.en.md) | Code style, commit format, review process |
+| [Config Cascade](wiki/technical/config-cascade.en.md) | Configuration resolution across levels |
 
 ---
 
 ## Developer Internal (15 docs)
 
-Internal development notes (monolingual, not translated).
+Internal development notes (mostly monolingual, not translated). Some describe the state before v5.
 
 | Document | Description |
 |----------|-------------|

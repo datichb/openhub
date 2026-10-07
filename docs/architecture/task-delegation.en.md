@@ -5,9 +5,71 @@
 This document details the agent delegation mechanism in OpenCode,
 the invocation hierarchy, and inter-agent communication protocols.
 
-> See also: [ADR-003](./adr/003-orchestrator-checkpoints.fr.md) (checkpoints),
-> [ADR-006](./adr/006-orchestrator-configurable-mode.fr.md) (workflow modes),
-> [ADR-009](./adr/009-inter-agent-handoff-contracts.fr.md) (handoff contracts).
+> See also: [ADR-039](./adr/039-declarative-workflows-oh-v1.en.md) (workflows, graph and depth),
+> [ADR-041](./adr/041-closed-world-isolation.en.md) (closed world),
+> [ADR-042](./adr/042-checkpoints-headless-decisions.en.md) (checkpoints, locks, circuit breaker),
+> [ADR-047](./adr/047-session-interaction-daemon.en.md) (sessions, `ohd` daemon),
+> [ADR-009](./adr/009-inter-agent-handoff-contracts.en.md) (handoff contracts).
+> [ADR-003](./adr/003-orchestrator-checkpoints.en.md) (checkpoints) and [ADR-006](./adr/006-orchestrator-configurable-mode.en.md)
+> (modes) are superseded by ADR-039 and ADR-042.
+
+---
+
+## Delegation in v5 — the workflow graph
+
+In v5, who may launch whom is no longer decided by the agents' prompts or by an `opencode.json` deployed in the
+project: the session **workflow** sets it, and oh enforces it.
+
+### Delegation graph
+
+When the session bundle is built, oh computes the delegation graph (`SubagentGraph`):
+
+- if the agent has a `calls:` field in the workflow, its targets are exactly that list;
+- otherwise, its targets come from the `task` permission of its frontmatter, **restricted to the workflow members**
+  (`conductor` has `task: "*": allow`: it can only launch the members of its workflow);
+- **self-delegation** only exists when explicit: `calls: [reviewer]` in the `review` workflow (parallel `reviewer`
+  sessions). A `task` permission to itself in the frontmatter is not enough.
+
+```yaml
+agents:
+  orchestrator-dev: { role: workflow, calls: [developer] }   # review-feedback: developer only
+  reviewer: { role: workflow, calls: [reviewer] }            # review: explicit self-delegation
+```
+
+### Depth
+
+The maximum depth of the graph, from the entry agent, is written to the session config
+(`experimental.subagent_depth`, at least 1). Otherwise opencode V2 limits delegation to a single level.
+Examples: `feature` gives 3 (orchestrator → orchestrator-dev → developer → documentarian), `ticket` 2, `audit` 1.
+
+### Refusal outside the graph
+
+In the session config, for each agent, delegation (`subagent` in opencode V2 rules) is denied on `*`, then allowed
+only toward the graph targets. An agent outside the bundle does not exist: opencode's native agents are disabled,
+and `Attest` checks at startup that nothing else is visible ([ADR-041](./adr/041-closed-world-isolation.en.md)).
+
+### `after:` locks and circuit breaker
+
+- **Locks**: an agent declared with `after: <checkpoint>` (or `after: <agent>`) is locked. Until the checkpoint is
+  passed, oh sets a `subagent <agent>` `deny` rule on the session through the opencode API, and lifts it when the
+  checkpoint is passed. Example: in `feature`, `developer` is denied before `cp-1`.
+- **Circuit breaker**: beyond `circuit_breaker.max_consecutive_subagents` consecutive delegations without user
+  intervention, oh denies `subagent *` and raises a ✗ decision in "To handle". Dismissing the decision lifts the denial.
+
+See [ADR-042](./adr/042-checkpoints-headless-decisions.en.md).
+
+### Subagents and child sessions
+
+Each `task` call creates a **child session** in the group's opencode server. The `ohd` daemon attaches it to the
+root session: its activity, permissions, and questions show up in the "To handle" section of the Sessions view and
+in `oh session inbox`, under the root session. Session rules (locks, circuit breaker) are also applied to
+sub-sessions ([ADR-047](./adr/047-session-interaction-daemon.en.md)).
+
+### Known limits (opencode 2.0.20)
+
+- Sub-sessions do not get the session environment: the daemon applies it again.
+- The message of a permission refusal is not passed to the agent, which only sees "Unable to execute".
+  oh sends the instruction of a refusal as a separate message.
 
 ---
 
@@ -36,6 +98,8 @@ task({
   at the end of its session.
 - **Context via prompt**: any information needed by the sub-agent must be
   explicitly passed in the `prompt`.
+- **Child session**: the sub-agent runs in a child session, attached by oh to the root session
+  (see [Subagents and child sessions](#subagents-and-child-sessions)).
 
 ### Difference from other tools
 
@@ -49,41 +113,39 @@ task({
 
 ### Permissions — per-agent whitelist
 
-The `task` tool is subject to an explicit whitelist in `opencode.json`.
-Each agent declares which sub-agents it may invoke:
+Each agent declares in its frontmatter (`agents/<family>/<id>.md`) which sub-agents it may invoke.
+There is no longer an `opencode.json` deployed in the project: oh compiles these declarations into the session
+bundle config, restricted to the workflow graph (see [Delegation graph](#delegation-graph)).
 
-```json
-{
-  "agent": {
-    "orchestrator": {
-      "permission": {
-        "task": {
-          "*": "deny",
-          "planner": "allow",
-          "onboarder": "allow",
-          "designer": "allow",
-          "auditor-subagent": "allow",
-          "orchestrator-dev": "allow",
-          "debugger": "allow"
-        }
-      }
-    },
-    "orchestrator-dev": {
-      "permission": {
-        "task": {
-          "*": "deny",
-          "developer-*": "allow",
-          "reviewer": "allow",
-          "documentarian": "allow"
-        }
-      }
-    }
-  }
-}
+```yaml
+# agents/planning/orchestrator.md
+permission:
+  task:
+    "*": deny
+    "pathfinder": allow
+    "planner": allow
+    "onboarder": allow
+    "designer": allow
+    "orchestrator-dev": allow
+    "debugger": allow
+    "documentarian": allow
+```
+
+```yaml
+# agents/planning/orchestrator-dev.md
+permission:
+  task:
+    "*": deny
+    "developer": allow
+    "developer-refactor": allow
+    "developer-migrator": allow
+    "reviewer": allow
+    "documentarian": allow
 ```
 
 The `"*": "deny"` pattern with explicit exceptions ensures that an agent
-cannot arbitrarily invoke any other agent.
+cannot arbitrarily invoke any other agent. In a session, the list is further
+limited to the workflow members.
 
 ---
 
@@ -91,47 +153,58 @@ cannot arbitrarily invoke any other agent.
 
 ### The 4 invocation levels
 
+The diagram shows the delegations allowed by the frontmatter files. A session only keeps the part linking the
+members of its workflow; the entry agent is set by the workflow (`entry.agent`, or `conductor`).
+
 ```mermaid
 flowchart TB
-    subgraph L1["Level 1 — User"]
+    subgraph L1["Level 1 — User (oh run)"]
         U[User]
     end
 
-    subgraph L2["Level 2 — Primary coordinators"]
+    subgraph L2["Level 2 — Primary entry agents"]
+        C[conductor]
         O[orchestrator]
         A[auditor]
-        PL[planner]
         ON[onboarder]
         DB[debugger]
-        DS[designer<br/>4 modes: recon/ux/ui/ux+ui]
-        DOC[documentarian]
         R[reviewer]
     end
 
-    subgraph L3["Level 3 — Tech lead"]
+    subgraph L3["Level 3 — Coordination and planning"]
         OD[orchestrator-dev]
+        PA[pathfinder]
+        PL[planner]
+        DS[designer<br/>4 modes: recon/ux/ui/ux+ui]
     end
 
     subgraph L4["Level 4 — Subagent implementers"]
-        DEV["developer-*<br/>(9 agents)"]
+        DEV["developer<br/>developer-refactor<br/>developer-migrator"]
         AUD["auditor-subagent"]
+        DOC[documentarian]
     end
 
+    U --> C
     U --> O
     U --> A
-    U --> PL
     U --> ON
     U --> DB
-    U --> DS
-    U --> DOC
     U --> R
+    U --> OD
 
+    C -.->|workflow members| PA
+    C -.->|workflow members| PL
+    C -.->|workflow members| DS
+
+    O -->|task| PA
     O -->|task| PL
     O -->|task| ON
     O -->|task| DS
-    O -->|task| AUD
     O -->|task| OD
     O -->|task| DB
+
+    PA -->|task| DS
+    PL -->|task| DS
 
     A -->|task| AUD
     A -->|task| DOC
@@ -139,17 +212,27 @@ flowchart TB
     OD -->|task| DEV
     OD -->|task| R
     OD -->|task| DOC
+    DEV -->|task| DOC
 ```
 
 ### Invocation rights matrix
 
+Taken from the frontmatter `task` permissions (including the `developer-rw` base). In a session, each row is
+restricted to the workflow members, or replaced by `calls:`.
+
 | Calling agent | Can invoke via `task` |
 |---------------|-----------------------|
-| `orchestrator` | `planner`, `onboarder`, `designer`, `auditor-subagent`, `orchestrator-dev`, `debugger` |
-| `orchestrator-dev` | `developer-*`, `reviewer`, `documentarian` |
+| `conductor` | `*` — in practice the members of its workflow |
+| `orchestrator` | `pathfinder`, `planner`, `onboarder`, `designer`, `orchestrator-dev`, `debugger`, `documentarian` |
+| `orchestrator-dev` | `developer`, `developer-refactor`, `developer-migrator`, `reviewer`, `documentarian` |
 | `auditor` | `auditor-subagent`, `documentarian` |
-| `planner` | `documentarian` |
-| `debugger` | `documentarian` |
+| `planner` | `designer`, `documentarian` |
+| `pathfinder` | `designer`, `documentarian` |
+| `reviewer` | `documentarian`; `reviewer` (itself) only with `calls: [reviewer]` |
+| `test-generator` | `reviewer`, `documentarian` |
+| `debugger`, `benchmarker` | `documentarian` |
+| `developer`, `developer-refactor`, `developer-migrator`, `database`, `infra` | `documentarian` |
+| `auditor-subagent`, `designer`, `documentarian`, `onboarder`, `brief-enricher` | *(none)* |
 
 ### `primary` vs `subagent` modes
 
@@ -158,8 +241,9 @@ flowchart TB
 | `primary` | Visible in the Tab picker | Directly by the user or via `task` |
 | `subagent` | Hidden from the Tab picker | Only via `task` by an authorized parent |
 
-The `developer-*` and `auditor-subagent` agents are in `subagent` mode —
-they do not appear in the user interface and can only be invoked by their designated parent.
+In the frontmatter files, `developer`, `developer-refactor`, `developer-migrator`, `auditor-subagent`, and
+`brief-enricher` are in `subagent` mode. The workflow can change the mode of a member (`agents.<id>.mode`):
+in `feature`, `planner` and `reviewer` become `subagent`; in `quick`, `developer` becomes `primary`.
 
 ### Absolute rule — level isolation
 
@@ -203,7 +287,7 @@ between the child agent and its parent coordinator.
 
 ## Return to orchestrator-dev
 
-**Agent:** developer-backend
+**Agent:** developer (backend domain)
 **Ticket:** #bd-42 — Fix null guard
 
 ### Implementation
@@ -234,11 +318,11 @@ The `## Question for the orchestrator` block contains:
 
 | Skill | Producer | Consumer | Key fields |
 |-------|----------|----------|------------|
-| `developer/developer-handoff-format` | `developer-*` | `orchestrator-dev` | Modified files, checked criteria, attention points, status |
+| `developer/developer-handoff-format` | `developer`, `developer-refactor`, `developer-migrator` | `orchestrator-dev` | Modified files, checked criteria, attention points, status |
 | `reviewer/reviewer-handoff-format` | `reviewer` | `orchestrator-dev` | Verdict, verbatim corrections, recommended routing |
 | `documentarian/documentarian-handoff-format` | `documentarian` | `orchestrator-dev` | Type, modified files, summary |
 | `orchestrator/orchestrator-handoff-format` | `orchestrator-dev` | `orchestrator` | Processed tickets, per-ticket detail, attention points, global status |
-| `auditor/audit-handoff-format` | `auditor-*` | `orchestrator` | Vulnerabilities, recommendations, residual risk |
+| `auditor/audit-handoff-format` | `auditor-subagent` | `auditor` | Vulnerabilities, recommendations, residual risk |
 | `design/design-handoff-format` | `designer` | `orchestrator` | Full spec, constraints, open points |
 | `planning/planner-handoff-format` | `planner` | `orchestrator` | Ticket table, planned agents, dependencies |
 | `planning/onboarder-handoff-format` | `onboarder` | `orchestrator` | Stack, conventions, debt, uncertainties |
@@ -262,7 +346,7 @@ A summary loses information and can lead to incorrect decisions.
 Duplication between narrative and structured block produces redundant feedback
 visible to the user.
 
-→ [ADR-009](./adr/009-inter-agent-handoff-contracts.fr.md)
+→ [ADR-009](./adr/009-inter-agent-handoff-contracts.en.md)
 
 ---
 
@@ -331,7 +415,7 @@ The `task_id` is not a proprietary LLM identifier — it is a **standard OpenCod
 | Behavior if `task_id` is invalid | `session.get()` throws an error — behavior of the `task` tool unspecified |
 | `task` absent from the `/docs/tools` docs | The tool exists (listed in the permissions schema) but is not documented in the built-ins list — gap or intentional |
 
-**Residual risk — OpenCode restart:** if OpenCode restarts between the moment `orchestrator-dev` produces the upstream question and the moment the orchestrator agent re-invokes with the `task_id`, the child session may have disappeared. This case is not handled in the skills — see `### task_id — session not found` in the Attention Points section.
+**Residual risk — server restart:** if the opencode server restarts between the moment `orchestrator-dev` produces the upstream question and the moment the orchestrator agent re-invokes with the `task_id`, the child session may no longer be reachable. In v5, the server is started and supervised by oh (one server per group); a session put to sleep resumes with the same bundle (`oh session resume`). This case is not handled in the skills — see `### task_id — session not found` in the Attention Points section.
 
 ---
 
@@ -352,14 +436,17 @@ The `[SKILL:<name>]` marker tells the agent which path skill to load at startup:
 
 This mechanism replaces detection of the `[CONTEXT]` marker directly within agents — the branching logic is now entirely within dedicated skills.
 
-> **Available path skills:**
+> **Available path skills:** some agents have two separate skills, others a single `*-execution-modes` skill
+> covering both paths.
 >
 > | Agent | Standalone | Sub-agent |
 > |-------|-----------|-----------|
-> | planner | `planning/planner-standalone` | `planning/planner-subagent` |
-> | pathfinder | `planning/pathfinder-standalone` | `planning/pathfinder-subagent` |
-> | onboarder | `planning/onboarder-standalone` | `planning/onboarder-subagent` |
-> | auditor | `auditor/auditor-standalone` | `auditor/auditor-subagent` |
+> | planner | `planning/planner-execution-modes` | `planning/planner-execution-modes` |
+> | pathfinder | `planning/pathfinder-execution-modes` | `planning/pathfinder-execution-modes` |
+> | onboarder | `planning/onboarder-execution-modes` | `planning/onboarder-execution-modes` |
+> | auditor | `auditor/auditor-execution-modes` | `auditor/auditor-execution-modes` |
+> | debugger | `quality/debugger-execution-modes` | `quality/debugger-execution-modes` |
+> | designer | `designer/designer-standalone` | `designer/designer-subagent` |
 > | orchestrator-dev | `orchestrator/orchestrator-dev-standalone` | `orchestrator/orchestrator-dev-subagent` |
 > | reviewer | `reviewer/reviewer-standalone` | `reviewer/reviewer-subagent` |
 
@@ -368,7 +455,7 @@ This mechanism replaces detection of the `[CONTEXT]` marker directly within agen
 | Aspect | Standalone | From orchestrator |
 |--------|-----------|-------------------|
 | Path skill | `-standalone` (implicit default) | `-subagent` (injected via `[SKILL:...]`) |
-| Workflow mode | Requested at CP-0 | Passed as parameter |
+| Workflow mode | Set at launch (`oh run … --mode`), `Mode de workflow : <mode>` line of the initial prompt | Passed in the delegation prompt |
 | CP questions | Asked via `question` | `## Question for the orchestrator` block |
 | Global recap | Displayed to the user | Transmitted to the orchestrator |
 | Handoff block | Not produced | **Required** |
@@ -405,6 +492,13 @@ Without this marker, the reloaded agent starts in standalone mode — degraded b
 
 ## Checkpoints and decision points
 
+> **v5.** Checkpoints are declared in the workflow YAML (`checkpoints:`), with their behavior per mode.
+> `feature` example: `cp-0`, `cp-spec`, `cp-1`, `cp-2`, `cp-3`, `cp-feature`. The agent signals them with the
+> `workflow_checkpoint` MCP tool (not with `question`); oh keeps the state machine, answers automatic checkpoints
+> itself, and raises a ⏸ decision in "To handle" for those that wait for the user. Agents locked by `after:` stay
+> denied until their checkpoint is passed ([ADR-042](./adr/042-checkpoints-headless-decisions.en.md)). The table
+> below describes the skills protocol; when they differ, the workflow YAML wins (`oh workflow show <id>`).
+
 ### Full checkpoint table
 
 | CP | Agent | Moment | Pause modes | **Mechanism in orchestrator_feature mode** |
@@ -422,13 +516,14 @@ Without this marker, the reloaded agent starts in standalone mode — degraded b
 
 > **CP-2 (commit or fix?) is a pause in ALL modes, without exception.**
 
-This rule cannot be overridden, even in `auto` mode. Justification:
+This rule cannot be overridden, even in `auto` mode. In the shipped workflows, `cp-2` is `mandatory: true`
+and `pause` in all three modes: a team or project layer cannot relax it. Justification:
 
 - "No technical errors" ≠ "meets functional expectations"
 - The decision to merge engages the user's responsibility
 - An AI confidence score on a review report would be false precision
 
-→ [ADR-006](./adr/006-orchestrator-configurable-mode.fr.md)
+→ [ADR-042](./adr/042-checkpoints-headless-decisions.en.md) (supersedes [ADR-006](./adr/006-orchestrator-configurable-mode.en.md))
 
 ### Note: Two variants of the upstream question block
 
@@ -443,7 +538,9 @@ Both trigger the same behavior on the orchestrator side: display the intermediat
 
 ### Anti-loop counters
 
-To prevent infinite loops, limits are enforced:
+To prevent infinite loops, limits are enforced by the skills. In addition, oh applies a circuit breaker
+on consecutive delegations (`circuit_breaker.max_consecutive_subagents`, see
+[`after:` locks and circuit breaker](#after-locks-and-circuit-breaker)):
 
 | Counter | Limit | Action when exceeded |
 |---------|-------|----------------------|
@@ -564,7 +661,7 @@ A batch of tickets is eligible for parallel processing if and only if **all** th
 | # | Criterion | Verification |
 |---|---|---|
 | 1 | **No formal dependency between tickets in the batch** | `bd dep list <ID>` for each ticket — the intersection with the batch IDs is empty |
-| 2 | **Different agents, disjoint domains** | Tickets routed to distinct `developer-*` — no `developer-fullstack` in the batch |
+| 2 | **Disjoint domains** | Tickets given to `developer` with distinct domains (or to `developer-refactor` / `developer-migrator`) — no `fullstack` domain in the batch |
 | 3 | **No foreseeable cross-cutting files** | No ticket mentions shared types, database migrations, or global configuration files |
 | 4 | **`auto` mode active** | `manual` and `semi-auto` modes remain sequential |
 
@@ -572,11 +669,15 @@ If a single criterion is not met → **forced sequential**.
 
 #### Behavior in conditional parallel mode
 
-- **Launch**: N `developer-*` sessions started simultaneously (max 3 in parallel)
+- **Launch**: N `developer*` sub-agents started simultaneously (max 3 in parallel), each in its child session
 - **CP-2**: processed **sequentially** even in parallel — one question at a time in the order results arrive
-- **Late conflict detection**: if a `developer-*` modifies a file already modified by another parallel session (`git status`), the orchestrator triggers an early CP-2 before continuing
+- **Late conflict detection**: if a sub-agent modifies a file already modified by another parallel session (`git status`), the orchestrator triggers an early CP-2 before continuing
 - **Global recap**: produced only when **all** parallel sessions have returned a `final` recap
 - **Limit**: maximum 3 simultaneous parallel sessions
+
+This parallelism stays inside one oh session, in the same folder. To handle tickets in separate oh sessions
+(one session and one worktree per ticket), use `oh run ticket --tickets a,b`
+(see [v5 sessions](../guides/sessions-v5.en.md)).
 
 #### What parallelism does not solve
 
@@ -587,15 +688,20 @@ Parallelism does not eliminate CP-2 pauses — it groups them in time. For a bat
 The workflow mode (`manual`, `semi-auto`, `auto`) is transmitted in the
 `prompt` text, not as a structured parameter of the `task` tool.
 
+In v5, the mode is set at launch (`oh run <workflow> --mode …`, otherwise the workflow `modes.default`) and is no
+longer asked by the agent. The initial session prompt always contains the `Mode de workflow : <mode>` line, and
+oh applies the behavior of each checkpoint in that mode. The rules below cover passing the mode from an agent
+to its sub-agents.
+
 #### Canonical values
 
 Three exact values are accepted (case-insensitive):
 
-| Value | Mode applied |
+| Value | Mode applied (`feature` and `ticket` workflows) |
 |-------|--------------|
-| `manuel` | All pauses active — default mode |
-| `semi-auto` | CP-1 and CP-3 automatic, CP-2 manual |
-| `auto` | Fully automatic except CP-2 (absolute pause) |
+| `manuel` | All pauses active |
+| `semi-auto` | CP-1 and CP-3 automatic, CP-2 manual — default of the shipped workflows |
+| `auto` | Fully automatic except CP-2 (absolute pause) and, in `feature`, `cp-0` and `cp-spec` |
 
 Never transmit the raw interface option label (`"Manuel (Recommandé)"`, `"Semi-auto"`) — normalize to lowercase before transmission.
 
@@ -641,5 +747,11 @@ To mitigate these risks, the following changes have been applied:
 ### Non-inherited permissions
 
 A sub-agent does not inherit its parent's permissions. Each agent has its
-own permissions declared in `opencode.json`. A `developer-backend`
-can write code even if its parent `orchestrator-dev` cannot.
+own permissions, declared in its frontmatter (`permission:` and `permission_base`) and compiled into the session
+bundle config. The project config (`opencode.json`, `.opencode/`) is not read
+(`OPENCODE_DISABLE_PROJECT_CONFIG=1`). A `developer` can write code even if its parent `orchestrator-dev`
+cannot.
+
+The **session** rules set by oh (`after:` locks, circuit breaker, checkpoints), on the other hand, apply to the
+root session and its sub-sessions. Permission requests from a sub-agent show up in "To handle" under the root
+session; if they are refused, the agent does not receive the refusal message (opencode 2.0.20 limit).

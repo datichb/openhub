@@ -1,5 +1,7 @@
 # Travail restant — CLI oh v2.0.0
 
+> **Historique (v5).** Backlog de la release v2.0.0 (juillet 2026), clos. Pour l'architecture actuelle, voir [Vue d'ensemble de l'architecture](../architecture/overview.fr.md) et les ADR 038 à 048 (`docs/architecture/adr/`). La suite de cette page est conservée pour l'historique.
+
 > Backlog structuré pour atteindre une release production-ready.
 > Mis à jour le 6 juillet 2026 — **Migration 100% terminée.** Tous les blocs (P0, P1, P2 Blocs 1-5, Audit v2, Phases A-F) sont DONE.
 >

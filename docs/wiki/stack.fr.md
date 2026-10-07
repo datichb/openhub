@@ -6,7 +6,8 @@ sources:
   - cli/go.mod
   - cli/.goreleaser.yml
   - cli/Makefile
-last_updated: 2026-10-02
+  - docs/architecture/overview.fr.md
+last_updated: 2026-10-06
 ---
 
 > [Read in English](stack.en.md)
@@ -20,10 +21,14 @@ last_updated: 2026-10-02
 | Langage | Go | 1.26.4 |
 | Binaire | Binaire statique unique | `CGO_ENABLED=0` |
 | Framework TUI | [tview](https://github.com/rivo/tview) | base tcell |
-| Framework CLI | [Cobra](https://github.com/spf13/cobra) | v1.9+ |
+| Invites en ligne (hors TUI) | [huh](https://github.com/charmbracelet/huh) | -- |
+| Framework CLI | [Cobra](https://github.com/spf13/cobra) | v1.10+ |
 | Configuration | [Viper](https://github.com/spf13/viper) + TOML | -- |
 | Base de donnees | SQLite (via modernc.org/sqlite) | Go pur, pas de CGO |
 | Secrets | Trousseau systeme ([go-keyring](https://github.com/zalando/go-keyring)) + fallback AES-256-GCM | -- |
+| Appels systeme | [golang.org/x/sys](https://pkg.go.dev/golang.org/x/sys) | UID du pair sur le socket du demon, verrous de fichiers (Windows) |
+| Moteur de conteneurs (optionnel) | Colima, Podman ou Docker CLI (CLI OCI, pas d'API Docker) | Runtime conteneur uniquement |
+| Execution distante (optionnelle) | GitLab CI (projet `oh-runner`, Kaniko ou Docker-in-Docker) | Runtime distant uniquement |
 
 ## Build et release
 
@@ -40,11 +45,14 @@ last_updated: 2026-10-02
 
 | Composant | Technologie |
 |-----------|-----------|
-| Runtime IA | [OpenCode](https://opencode.ai/) |
-| Protocole | MCP (Model Context Protocol) -- sous-processus stdin/stdout |
-| Fournisseurs | Anthropic Claude, AWS Bedrock, OpenAI (configurable) |
-| Agents | 19 agents avec architecture de skills hybride (Bucket A/B) |
-| Skills | 197 skills de protocole (embarques via go:embed) |
+| Runtime IA | [OpenCode](https://opencode.ai/) V2 (>= 2.0.0, `opencode serve` ; V1 n'est plus pris en charge) |
+| Protocole | MCP (Model Context Protocol) -- sous-processus stdin/stdout ; HTTP « streamable » via la passerelle du demon hors machine |
+| Identifiants | Proxy d'identifiants de `ohd` (jeton `ohs_` par groupe ; les vraies cles restent dans le trousseau ; SigV4 pour les profils AWS) |
+| Fournisseurs | Anthropic Claude, AWS Bedrock, OpenAI, OpenRouter (configurable) |
+| Workflows | 12 workflows declaratifs `oh/v1` (YAML, embarques via go:embed) |
+| Agents | 20 agents avec architecture de skills hybride (Bucket A/B), dont l'agent d'entree generique `conductor` |
+| Skills | 184 skills de protocole + 14 annexes (embarques via go:embed, livres par le paquet de session) |
+| Plugin | Plugin oh pour opencode (TypeScript, embarque ; monde ferme et checkpoints) |
 
 ## Integrations externes (serveurs MCP)
 
@@ -57,11 +65,12 @@ last_updated: 2026-10-02
 | Linear | GraphQL | Issues, etats, assignees |
 | Google Slides | REST API | Presentations, slides (lecture seule) |
 | Team | Local (git-backed) | Claims, wiki, evenements, notifications |
+| Workflow | Local (servi par oh) | Etat du workflow, checkpoints, sorties typees |
 
 ## Decisions de conception cles
 
-- **Zero dependance au runtime** -- binaire statique unique, pas de Docker, pas de Node.js, pas de Python
-- **Contenu embarque** -- agents/skills/permissions compiles dans le binaire via `go:embed`
+- **Zero dependance au runtime** -- binaire statique unique, pas de Node.js, pas de Python ; opencode V2 s'installe avec son propre outil ; un moteur de conteneurs n'est utile que pour le runtime conteneur, optionnel
+- **Contenu embarque** -- agents/skills/permissions/workflows compiles dans le binaire via `go:embed`, assembles au lancement en un paquet de session immuable (`~/.oh/bundles/<hash>/`)
 - **SQLite Go pur** -- `modernc.org/sqlite` evite CGO pour des builds vraiment statiques
 - **Configuration TOML** -- lisible par l'humain, compatible git, supporte la cascade hierarchique
 - **Trousseau systeme en priorite** -- secrets stockes dans le stockage securise natif, fichier chiffre en fallback uniquement

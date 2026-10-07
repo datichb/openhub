@@ -2,17 +2,18 @@
 
 # Sessions sur le runtime v5 (opencode V2)
 
-Quand opencode V2 est installé, `oh start`, les lancements depuis la TUI, `--parallel`, `--sweep` et les exécutions sans interface passent par le runtime v5. Avec opencode V1, rien ne change.
+Toutes les sessions passent par le runtime v5 : `oh run <workflow>` (y compris `--tickets` et `--headless`), les lancements depuis la TUI et les alias dépréciés (`oh start`…). Il demande opencode V2 (≥ 2.0.0) : opencode V1 n'est plus pris en charge (voir le [guide de migration v5](migration-v5.fr.md)).
 
-## Ce qui change
+## Fonctionnement
 
-| | opencode V1 | opencode V2 (runtime v5) |
-|---|---|---|
-| Agents et skills | déployés dans le `.opencode/` du projet | compilés dans un paquet de session hors du projet (`~/.oh/bundles/<hash>`) |
-| Agents et skills visibles | tout ce qu'opencode trouve | seulement ceux du paquet (« monde fermé », vérifié à chaque démarrage) |
-| Clé LLM | transmise à opencode | jamais transmise à opencode : c'est le proxy du démon oh qui la détient |
-| Fenêtre de session | oh est suspendu | nouvel onglet ou nouvelle fenêtre de terminal ; oh reste utilisable |
-| Fermeture de la fenêtre | termine la session | la session continue ; on la rouvre avec `oh session attach` |
+| | Runtime v5 |
+|---|---|
+| Agents et skills | compilés dans un paquet de session hors du projet (`~/.oh/bundles/<hash>`), à partir du workflow ; rien n'est déployé dans le projet |
+| Agents et skills visibles | seulement ceux du paquet (« monde fermé », vérifié à chaque démarrage ; en cas d'échec, la session ne démarre pas) |
+| Clé LLM | jamais transmise à opencode : c'est le proxy du démon oh qui la détient |
+| Serveur | un `opencode serve` par groupe (version du paquet, projet, runtime), partagé par les sessions du groupe |
+| Fenêtre de session | nouvel onglet ou nouvelle fenêtre de terminal ; oh reste utilisable |
+| Fermeture de la fenêtre | la session continue ; on la rouvre avec `oh session attach` |
 
 ## Ouverture d'une session
 
@@ -27,7 +28,7 @@ La suspension de oh n'est qu'un dernier recours (`attach = "suspend"`).
 
 ## Configuration
 
-`~/.oh/config.toml` :
+`~/.oh/hub.toml` :
 
 ```toml
 [session]
@@ -51,7 +52,7 @@ idle_sleep_minutes = 5     # un serveur inactif se met en veille après N minute
 |---|---|
 | `oh session list [--all] [--json]` | sessions, leur état (active, en attente, inactive, en veille, arrêtée) et leurs décisions en attente |
 | `oh session inbox [--json]` | décisions en attente de toutes les sessions : `⏸` checkpoint, `?` question, `!` permission, `$` budget, `✗` erreur |
-| `oh session approve <id> [--decision once\|always\|reject] [-m "…"]` | répondre à une permission sans ouvrir la session (`always` refusé en isolation stricte) |
+| `oh session approve <id> [--decision once\|always\|reject] [-m "…"]` | répondre à une permission sans ouvrir la session (`always` refusé en isolation stricte) ; pour un checkpoint : `once`, `fix`, `other` (avec `-m`) ou `reject` |
 | `oh session answer <id> --field clé=valeur…` | répondre à une question de l'agent ; sans `--field`, affiche les champs attendus |
 | `oh session dismiss <id>` | classer une alerte (erreur, budget) |
 | `oh session send <id> "…" [--queue] [--synthetic]` | envoyer une consigne courte (prise en compte à la prochaine étape, ou après l'étape avec `--queue`) |
@@ -77,8 +78,8 @@ Dans ces commandes, `<id>` peut être un début d'identifiant (`oh session follo
 Ouvrez-la depuis l'omnibar (`sessions`) ou les sections « Sessions » des pages d'accueil, de projet et d'équipe. La barre du bas affiche partout `● N ⏸ M` (sessions vivantes, décisions en attente).
 
 - **À traiter** : décisions de toutes les sessions. `Entrée` ouvre la fiche (permission : une fois / toujours / refuser + message ; question : formulaire généré ; alerte : classer ou attacher), `y`/`n` valident ou refusent une permission, `x` classe une alerte.
-- **En cours, En veille, Terminées (7 j)** ; détail de la session sélectionnée en bas.
-- `t` (ou `Entrée` sur une session) : flux en direct à droite (agent, outils, messages, coût). `a` attacher, `A` choisir comment ouvrir (iTerm2, Terminal.app, tmux, navigateur, ici), `m` consigne, `i` interrompre, `M` modèle, `s` arrêter, `c` reprendre, `o` résultats et description de MR, `w` navigateur, `f` projet actif / tous les projets, `r` rafraîchir.
+- **En cours, En veille, Terminées (7 j), À récupérer** (sessions distantes terminées) ; détail de la session sélectionnée en bas.
+- `t` (ou `Entrée` sur une session) : flux en direct à droite (agent, outils, messages, coût). `a` attacher, `A` choisir comment ouvrir (iTerm2, Terminal.app, tmux, navigateur, ici), `m` consigne, `i` interrompre, `M` modèle, `s` arrêter, `c` reprendre, `o` résultats et description de MR, `w` navigateur, `e` enchaîner un autre workflow, `g` récupérer une session distante, `f` projet actif / tous les projets, `r` rafraîchir.
 
 Avec tmux, la session s'ouvre dans une nouvelle fenêtre ; avec `[session] iterm_style = "split"`, dans un volet à côté.
 
@@ -135,3 +136,8 @@ Les budgets sont des **plafonds souples**, vérifiés sur le coût indiqué par 
 - **Windows** (sessions locales seulement) : pas de démon en arrière-plan ; le proxy d'identifiants et le suivi des sessions tournent dans le processus oh (la TUI, ou la commande qui a ouvert la session dans le terminal courant). Les sessions ne tournent que tant que cet oh est ouvert : en le quittant, il attend la fin des étapes choisies, puis met les sessions en veille (reprise avec `oh session attach`). `oh doctor` le rappelle. Pour des sessions qui survivent à oh, utilisez WSL.
 - **Port du proxy** : le démon garde le port de son proxy d'un redémarrage à l'autre. Si un autre programme l'a pris entre-temps, le démon en choisit un autre et met en veille les serveurs qui utilisent encore l'ancien (ils ne joignent plus le fournisseur) ; les sessions qui travaillaient affichent une erreur dans « À traiter ». Reprenez-les (`oh session resume <id>` ou attachement) : leur serveur redémarre avec le nouveau port.
 - **Sécurité en local** : l'agent tourne sous votre utilisateur. Il peut atteindre le socket du démon et `oh.db` (empreintes de jetons seulement), mais jamais la clé LLM ; l'émission de nouveaux jetons est réservée à la CLI oh (capacité dans le trousseau, voir `oh doctor`). Voir [SECURITY.fr.md](../../SECURITY.fr.md).
+- **opencode 2.0.20** : le shell d'une session ne reçoit pas l'environnement du serveur (oh y repose `PATH`, `HOME`… en local) ; les sous-agents ne reçoivent pas l'environnement de session (le démon le leur réapplique) ; quand une permission est refusée, l'agent ne voit pas le message du refus (oh lui envoie la consigne à part).
+- **Restrictions souples** : le nombre maximum de sessions actives peut être dépassé par deux lancements simultanés ; un budget est contrôlé à la fin d'une étape (l'étape en cours se termine) ; le plafond mémoire ne mesure pas les conteneurs. Une session créée par `oh session fork` peut compter une seconde fois le coût de l'historique copié.
+- **Relever un budget** : la vue Sessions ne permet que de classer une décision `$` (`x`) ; pour relever le budget, utilisez `oh budget raise <session|décision> [montant]`.
+- **`attach = "iterm"` sans iTerm2 installé** : `oh run` peut ouvrir le client dans le terminal courant au lieu de passer à Terminal.app ; préférez `attach = "auto"` (ou `oh session attach`, qui bascule correctement).
+- **Paquets** : `~/.oh/bundles/` n'est pas purgé automatiquement (les paquets non utilisés restent sur le disque).

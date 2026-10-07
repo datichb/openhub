@@ -1,3 +1,5 @@
+> [Lire en français](team-conventions.fr.md)
+
 # Team Conventions Guide
 
 ## Principle
@@ -191,16 +193,17 @@ Enforcement works at two levels:
 
 | Level | Who | When | Behavior |
 |-------|-----|------|----------|
-| **CLI (hard)** | The `oh` binary | `oh claim`, `oh start`, `oh release` | Blocks or warns per policy |
+| **CLI (hard)** | The `oh` binary | `oh team claim`, `oh policies check` | Blocks or warns per policy |
 | **Agent (soft)** | AI agents via skill | During session | Checks before each relevant action |
 
 #### Automatic CLI checks
 
 | Command | Policies checked |
 |---------|-----------------|
-| `oh claim <ticket>` | `max_ticket_wip` |
-| `oh start` (branch creation) | `branch_naming` |
-| `oh release <ticket>` | `review_required`, `tests_required` |
+| `oh team claim <ticket>` | `max_ticket_wip` |
+| `oh policies check [--branch <b>] [--commit <msg>]` | every active policy (including `branch_naming` with `--branch`) |
+
+> The other policies (`review_required`, `tests_required`…) are checked by the agents during the session, not by `oh team release`.
 
 > **`agent-reviewed` label:** automatically applied to a claim when the agent emits `review.ready`; visible on the team board as `[AI]`.
 

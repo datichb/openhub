@@ -1,3 +1,5 @@
+> [Read in English](beads-model.en.md)
+
 # Référence du data model Beads
 
 Document canonique décrivant le modèle de données utilisé par `bd` (Beads CLI)

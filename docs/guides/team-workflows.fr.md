@@ -1,6 +1,10 @@
+> [Read in English](team-workflows.en.md)
+
 # Workflows d'équipe (team-state)
 
 > v5, phase 2. Les workflows déclaratifs (`apiVersion: oh/v1`) d'une équipe et de ses projets sont rangés dans le dépôt team-state. Ce guide décrit leur emplacement, le contrôle d'intégrité et les verrous.
+
+Voir aussi : [schéma `oh/v1`](../reference/workflow-schema.fr.md) (référence de chaque champ, règles de patch et diagnostics).
 
 ## Couches
 

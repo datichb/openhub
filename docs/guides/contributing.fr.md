@@ -1,6 +1,6 @@
-# Guide de contribution
-
 > [Read in English](contributing.en.md)
+
+# Guide de contribution
 
 Ce guide explique comment contribuer au hub : développement du CLI Go,
 ajout d'agents et de skills, et processus de PR.
@@ -66,16 +66,21 @@ Le CLI est un binaire Go unique (`cli/main.go` -> `cli/cmd/root.go`). L'architec
 | Package | Responsabilite |
 |---------|---------------|
 | `cmd/` | Commandes Cobra (point d'entree CLI) |
-| `internal/deploy/` | Moteur de deploiement transactionnel (agents -> opencode.json) |
 | `internal/config/` | Configuration hub (`hub.toml`, TOML + Viper) |
-| `internal/mcp/` | 7 serveurs MCP built-in (Figma, GitLab, GitHub, Jira, Linear, GSlides, Team) |
-| `internal/teamstate/` | Gestion de l'etat equipe (claims, wiki, policies, patterns) |
-| `internal/opencode/` | Integration OpenCode (sessions, platform, parallel runner) |
-| `internal/tui/` | Interface TUI (BubbleTea + tview, shell, vues, widgets) |
-| `internal/workflow/` | Definitions de workflows, permissions, validation |
+| `internal/mcp/` | Serveurs MCP built-in (Figma, GitLab, GitHub, Jira, Linear, GSlides, Team, Workflow) |
+| `internal/teamstate/` | Gestion de l'etat equipe (claims, wiki, policies, patterns, workflows d'equipe) |
+| `internal/workflow/` | Workflows declaratifs `oh/v1` (schema, couches, validation) |
+| `internal/bundle/` | Paquet de session (agents, skills, permissions, compile hors du projet sous `~/.oh/bundles/`) |
+| `internal/sessionspec/` | Modele de session independant de l'outil (paquet, emplacement, runtime, fournisseur) |
+| `internal/adapters/` | Contrat oh ↔ outil agentique ; adaptateur opencode V2 (`opencodev2/`) |
+| `internal/runsvc/` | Lancement des sessions v5 (groupes de serveurs, proxy, monde ferme, checkpoints) |
+| `internal/daemon/` | Demon `ohd` (supervision des sessions, decisions, notifications) |
+| `internal/credproxy/` | Proxy d'identifiants LLM (jetons par groupe) |
+| `internal/runtime/`, `internal/remote/` | Environnements d'execution (conteneur, distant GitLab CI) |
+| `internal/limits/` | Restrictions des sessions (sessions actives, budgets, memoire, modeles) |
+| `internal/deploycleanup/` | Nettoyage des anciens deploiements (`oh migrate deploy-cleanup`) |
+| `internal/tui/` | Interface TUI (tview ; huh pour quelques invites en ligne hors TUI ; shell, vues, widgets) |
 | `internal/storage/` | SQLite (projets, sessions), keychain, chiffrement fichier |
-| `internal/parallel/` | Coordination de sessions paralleles |
-| `internal/sweep/` | Mode sweep (split, collect, verify) |
 | `internal/tracker/` | Sync trackers externes (GitLab, Jira) |
 | `internal/i18n/` | Internationalisation (FR + EN, JSON) |
 
@@ -362,7 +367,7 @@ Avant de lancer la release, rédiger le contenu sous `## [Unreleased]` dans `CHA
 Les entrées à inclure pour la prochaine release couvrent notamment :
 - Board team kanban (5 colonnes, actions c/x/t/s wirées, labels visuels `[AI]`)
 - Cycle de vie des claims (5 statuses : `planned`, `in_progress`, `review`, `blocked`, `done`)
-- `oh claim --planned` et transition automatique `planned → in_progress` via `oh start --dev`
+- `oh team claim --planned` et transition automatique `planned → in_progress` via `oh start --dev` (aujourd'hui alias déprécié de `oh run ticket`)
 - Sync tracker externe (`oh team sync-tracker`, package `cli/internal/tracker/`, GitLab + Jira)
 - Label `agent-reviewed` auto-appliqué sur `review.ready`
 - Pull async sur toutes les vues team

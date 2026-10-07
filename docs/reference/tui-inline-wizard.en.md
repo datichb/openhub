@@ -1,3 +1,5 @@
+> [Lire en français](tui-inline-wizard.fr.md)
+
 # Reference — InlineWizardView
 
 > Reusable TUI component for multi-step wizards in the OpenHub shell.
@@ -21,14 +23,39 @@ definitions between the CLI standalone and TUI inline paths.
 
 ```go
 type InlineWizardConfig struct {
-    ID                 string                           // unique identifier (e.g. "wizard.team.init")
-    Title              string                           // title for the shell breadcrumb
-    Steps              []WizardStep                     // wizard steps
-    OnComplete         func(completed bool, err error)  // completion callback
-    SummaryTargetView  string                           // target view after summary (e.g. "team.detail")
-    SummaryTargetLabel string                           // link label (e.g. "View team config")
+    ID                     string                          // unique ID (e.g. "wizard.team.init")
+    Title                  string                          // title for the shell breadcrumb
+    Steps                  []WizardStep                    // wizard steps
+    OnComplete             func(completed bool, err error) // completion callback
+    SummaryTargetView      string                          // target view after the summary (e.g. "team.detail")
+    SummaryTargetLabel     string                          // link label (e.g. "View team config")
+    SummaryTargetViewFunc  func() string                   // variant computed when the summary renders (takes precedence)
+    SummaryTargetLabelFunc func() string                   // same for the label
+    Groups                 []StepGroup                     // non-empty: "grouped" layout (see below)
 }
 ```
+
+### `WizardStep`
+
+Type shared with `RunWizard` (`wizard.go`):
+
+| Field | Role |
+|-------|------|
+| `ID` | Optional identifier (label updates by name) |
+| `Label` | Label in the step bar and the info panel |
+| `Form` | Builds a `*tview.Form`; must call `onDone()` on confirmation |
+| `CustomView` | Free content in the given container (takes precedence over `Form`) |
+| `Validate` | Called before `OnDone`; a non-empty text blocks with that message |
+| `OnDone` | Side effects (writes, calls), run with the spinner |
+| `Processing` | Spinner message while `OnDone` runs |
+| `InfoFields` | Key/value pairs added to the info panel after success |
+| `Skip` / `SkipIf` | Step already satisfied / condition evaluated just before rendering |
+| `Required` | Forbids skipping the step with `Esc` (`Ctrl+C` still quits) |
+| `SidebarHidden` | Excludes the step from the sidebar in grouped mode (intro pages) |
+
+### Grouped mode (`Groups`)
+
+With `Groups` (`StepGroup{Label, StartIdx}`), content is centered, the info panel moves to the right and the step bar shows the groups instead of the steps. Used by the first-run wizard (`oh init`: Language, Provider, Team).
 
 ### Constructor
 
@@ -191,7 +218,7 @@ The `Form` callback is called at render time (not at init), so it sees updated v
 A step can become skippable based on choices made in previous steps.
 
 **Processing-only**: a step with neither `Form` nor `CustomView` directly shows the
-spinner + runs `OnDone`. Useful for pure processing steps (extraction, deployment).
+spinner + runs `OnDone`. Useful for pure processing steps (extraction, bundle build).
 
 ### Omnibar Integration
 
@@ -217,16 +244,49 @@ The `Form` callback receives `*tview.Application` and `onDone func()`. It builds
 standard `*tview.Form`. The wizard automatically applies theming, wires `Ctrl+S`/`Ctrl+B`/`Esc`,
 and manages focus.
 
+```go
+Form: func(_ *tview.Application, onDone func()) *tview.Form {
+    form := tview.NewForm()
+    form.AddInputField("Field", defaultValue, 0, nil, func(t string) { val = t })
+    form.AddButton("Next", func() { onDone() })
+    return form
+}
+```
+
 ### CustomView (arbitrary content)
 
 For non-form UIs (welcome screen, Yes/No selection, preview). The callback receives
 `*tview.Application`, the `*tview.Flex` container, and `onDone`. It must add widgets
 to the container and manage focus.
 
+```go
+CustomView: func(app *tview.Application, container *tview.Flex, onDone func()) {
+    tv := tview.NewTextView().SetDynamicColors(true)
+    tv.SetText("Custom content")
+    tv.SetInputCapture(func(e *tcell.EventKey) *tcell.EventKey {
+        if e.Key() == tcell.KeyEnter { onDone(); return nil }
+        return e
+    })
+    container.AddItem(tv, 0, 1, true)
+    app.SetFocus(tv)
+}
+```
+
 ### Processing-only (no UI)
 
 Neither `Form` nor `CustomView`. The wizard shows the spinner with the `Processing`
 message and runs `OnDone` in a goroutine. Useful for long operations without user input.
+
+```go
+{
+    Label:      "Extraction",
+    Processing: "Extracting hub content...",
+    OnDone:     func() error { return hubcontent.Extract(hubcontent.HubContentDir()) },
+    InfoFields: func() []views.InfoField {
+        return []views.InfoField{{Label: "Hub", Value: "extracted"}}
+    },
+}
+```
 
 ---
 
@@ -258,5 +318,6 @@ the summary is displayed.
 | Prerequisite | None | Active TUI shell |
 
 **When to use which:**
-- `RunWizard`: CLI one-shot commands (`oh init`, `oh team init`, `oh project add`)
-- `InlineWizardView`: TUI actions (omnibar, first-run, view integration)
+- `RunWizard`: CLI one-shot commands (`oh team init`, `oh project add`, `oh project configure`, `oh project remove`, `oh provider`)
+- `InlineWizardView`: TUI actions (omnibar, first run, view integration)
+- `RunInlineWizardStandalone`: mounts an `InlineWizardView` in its own `tview.Application`, to reuse in the CLI the same wizard as the TUI (`oh init` = first-run wizard)

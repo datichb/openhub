@@ -1,3 +1,5 @@
+> 🇬🇧 [Read in English](workflows.en.md)
+
 # Workflows
 
 Ce guide illustre les scénarios principaux d'utilisation du hub,
@@ -7,19 +9,21 @@ de bout en bout, avec les prompts réels et les sorties attendues.
 
 ## Choisir son point d'entrée
 
-Avant d'invoquer un agent, identifiez votre situation :
+Avant de lancer une session, identifiez votre situation.
 
-| Situation | Point d'entrée recommandé | Prompt type |
-|-----------|--------------------------|-------------|
-| Feature à concevoir + implémenter de zéro | `orchestrator` | `"Implémente [feature]"` |
-| Tickets Beads déjà planifiés, prêts à coder | `orchestrator-dev` | `"Implémente les tickets bd-X à bd-Y"` |
-| Spécifications UX/UI uniquement, sans implémenter | `designer` | `"Spec UX pour [feature]"` (Mode : ux, ui ou ux+ui) |
-| Audit avant mise en production | `auditor` | `"Audite le projet"` |
-| Bug en production avec stacktrace ou logs | `debugger` | `"Ce bug : [stacktrace]"` |
-| Review d'une PR développée manuellement | `reviewer` | `"Review de ma PR — branche : [nom]"` |
-| Planifier une feature sans l'implémenter | `planner` | `"Décompose [feature] en tickets"` |
-| Planifier + déléguer les specs UX/UI au planner | `planner` | `"Planifie [feature]"` puis `"invoquer UX"` / `"invoquer UI"` |
-| Documenter une feature livrée ou une décision | `documentarian` | `"Documente [sujet]"` |
+Chaque session lance un **workflow** (voir [Workflows livrés](../reference/workflows.fr.md)) ; l'agent d'entrée en découle.
+
+| Situation | Commande v5 | Agent d'entrée | Prompt type |
+|-----------|-------------|----------------|-------------|
+| Feature à concevoir + implémenter de zéro | `oh run feature` | `orchestrator` | `"Implémente [feature]"` |
+| Tickets Beads déjà planifiés, prêts à coder | `oh run ticket --tickets bd-X,bd-Y` | `orchestrator-dev` | `"Implémente les tickets bd-X à bd-Y"` |
+| Spécifications UX/UI uniquement, sans implémenter | `oh run libre --agent designer` | `designer` | `"Spec UX pour [feature]"` (Mode : ux, ui ou ux+ui) |
+| Audit avant mise en production | `oh run audit` | `auditor` | `"Audite le projet"` |
+| Bug en production avec stacktrace ou logs | `oh run debug` | `debugger` | `"Ce bug : [stacktrace]"` |
+| Review d'une PR développée manuellement | `oh run review` | `reviewer` | `"Review de ma PR — branche : [nom]"` |
+| Planifier une feature sans l'implémenter | `oh run cadrage` | `conductor` → `planner` | `"Décompose [feature] en tickets"` |
+| Planifier + déléguer les specs UX/UI au planner | `oh run libre --agent planner` | `planner` | `"Planifie [feature]"` puis `"invoquer UX"` / `"invoquer UI"` |
+| Documenter une feature livrée ou une décision | `oh run libre --agent documentarian` | `documentarian` | `"Documente [sujet]"` |
 
 **Règle de décision rapide :**
 - Tu as une idée → `orchestrator` (il orchestre tout, de la spec au merge)
@@ -30,56 +34,15 @@ Avant d'invoquer un agent, identifiez votre situation :
 
 ## Reprendre une session existante
 
-Chaque session opencode reçoit automatiquement un **titre généré** à partir des mots clés du prompt initial (stop-words FR+EN filtrés, références tickets détectées). Ce titre est visible dans `oh dashboard` et sert de point de repère pour retrouver le contexte d'une session.
-
-### Nommage automatique
-
-Le titre est construit selon la priorité suivante :
-
-| Situation | Titre généré |
-|-----------|-------------|
-| Prompt libre | Mots clés extraits, 50 chars max |
-| Prompt avec référence ticket | `CP-3 — fix crash login` |
-| Mode `--dev` | `dev: CP-3 — auth bug` |
-| Mode `--onboard` | `onboard: MON-APP` |
-| Mode `--dev` (branche ticket) | `dev: feat/ma-branche` |
-| Sans prompt | `MON-APP — 2026-06-30` |
-
-### Reprendre avec `--resume`
+Chaque session porte un titre `<projet> · <workflow>` (suivi de ` · <ticket>` pour une session par ticket). Fermer opencode n'arrête pas la session : elle continue, puis passe en veille après 5 minutes d'inactivité sans décision en attente.
 
 ```bash
-oh start -r <session-id>
+oh session list                # sessions en cours, en attente, en veille (--all : aussi les terminées)
+oh session attach <session-id> # rouvrir l'interface d'une session (reprend une session en veille)
+oh session resume <session-id> # reprendre une session en veille sans ouvrir d'interface
 ```
 
-Reprend une session spécifique par son ID. Pour trouver un ID de session, utilisez `oh dashboard`.
-
-Pour lister les sessions récentes d'un projet :
-
-```bash
-oh dashboard -p MON-APP
-```
-
-Affiche les 10 dernières sessions du projet (30 jours), avec titre, agent, coût et date :
-
-```
-Choisir une session à reprendre [MON-APP] :
-
-  1)  nommage sessions                        onboarder           $0.12  30 juin
-  2)  CP-3 — fix crash login                  explore             $0.04  28 juin
-  3)  MON-APP — 2026-06-25                    general             $0.08  25 juin
-```
-
-Saisir le numéro de la session à reprendre. opencode est relancé avec `-s <session_id>`, restaurant l'historique complet de la conversation.
-
-> **Note :** `--resume` / `-r` requiert un ID de session en argument (ex. `oh start -r <session-id>`). Il est incompatible avec `--dev` et `--onboard`.
-
-### Voir les sessions récentes
-
-```bash
-oh dashboard
-```
-
-Les sessions récentes affichent maintenant leur `slug` en suffix (grisé), utilisable comme identifiant pour `oh start -r <session-id>` si besoin.
+Dans la TUI, la vue **Sessions** (omnibar `sessions`) regroupe les mêmes informations. `oh start -r <session-id>` reste un alias déprécié de `oh session attach <session-id>`. Détails : [Sessions v5](sessions-v5.fr.md).
 
 ---
 
@@ -96,7 +59,7 @@ Pas de tickets Beads, pas d'orchestration complexe -- juste une interaction simp
 ### Explication de code simple
 
 ```bash
-oh start -m "Explique l'architecture de ce projet"
+oh run libre -i request="Explique l'architecture de ce projet"
 ```
 
 L'orchestrateur analyse la structure du codebase et fournit une explication de haut niveau.
@@ -105,7 +68,7 @@ Pas de delegation, pas de tickets -- un seul agent qui repond a votre question.
 ### Revue de code simple
 
 ```bash
-oh review
+oh run review
 ```
 
 L'agent reviewer analyse le diff de votre branche courante et produit un rapport de revue structure avec des constats categorises par severite.
@@ -113,7 +76,7 @@ L'agent reviewer analyse le diff de votre branche courante et produit un rapport
 ### Audit simple
 
 ```bash
-oh audit --type security
+oh run audit -i type=security
 ```
 
 L'agent auditor delegue a un sous-agent specialise securite qui scanne votre codebase et produit un rapport structure.
@@ -160,8 +123,8 @@ sequenceDiagram
     O->>PL: Délègue la planification
     PL->>PL: Clarification → découpage → bd create
     PL-->>O: 6 tickets créés (bd-1 à bd-6)
-    O->>U: [CP-0] Plan + mode de workflow ? (manuel/semi-auto/auto)
-    U->>O: "semi-auto"
+    O->>U: [CP-0] Valider le plan ? (mode semi-auto fixé au lancement)
+    U->>O: "valider"
 
     O->>UX: Ticket spec-ux (bd-1)
     UX-->>O: Spec UX — flow login/register
@@ -194,7 +157,11 @@ sequenceDiagram
 
 ### Étapes détaillées
 
-#### 1. Lancer l'agent orchestrator
+#### 1. Lancer le workflow `feature` (agent d'entrée : orchestrator)
+
+```bash
+oh run feature --mode semi-auto   # mode du workflow : manuel, semi-auto (défaut) ou auto
+```
 
 ```
 Prompt : "Implémente la feature d'authentification JWT pour notre API REST"
@@ -223,10 +190,10 @@ de clarification, puis propose un plan :
 - [ ] Endpoints login / logout / refresh
 ```
 
-#### 3. [CP-0] Validation du plan + choix du mode
+#### 3. [CP-0] Validation du plan
 
 L'orchestrateur affiche le tableau des tickets **dans la discussion** (pas dans la question),
-puis pose une question courte pour le mode de workflow :
+puis demande de valider le plan :
 
 ```
 ## Tickets planifiés — Authentification JWT
@@ -243,7 +210,7 @@ puis pose une question courte pour le mode de workflow :
 ℹ️ Ordre automatique appliqué : specs → audits → dev.
 ```
 
-Puis une question structurée (courte) : **"Quel mode de workflow ?"** — Manuel / Semi-auto / Auto.
+Le mode de workflow n'est pas redemandé : il est fixé au lancement (`--mode`, ou champ Mode de la fiche de lancement) et transmis à `orchestrator-dev`.
 
 #### 4. Phases conception et audit
 
@@ -532,7 +499,7 @@ implémente la correction ciblée, et le reviewer vérifie la PR.
 
 **Contexte :** un développeur vient de clore le ticket bd-15 (implémentation filtrage utilisateurs).
 
-> **`oh start --dev`** sélectionne un epic/ticket et fait passer automatiquement le statut du claim de `planned` → `in_progress`.
+> **`oh run ticket`** (alias déprécié : `oh start --dev`) sélectionne un epic/ticket et fait passer automatiquement le statut du claim de `planned` → `in_progress`.
 > Après configuration de l'équipe, lancez `oh team sync-tracker` pour renvoyer les liens `ExternalIID` des claims vers le tracker externe (Jira, Linear, GitLab Issues).
 
 #### Enrichissement des documents vivants (post-ticket)
@@ -562,7 +529,7 @@ Si l'utilisateur accepte, le developer invoque le `documentarian` via `task`
 
 #### Sélection du mode (standalone)
 
-Quand invoqué directement (via `oh review` ou comme agent primaire), le reviewer propose le choix du mode :
+Quand invoqué directement (via `oh run review` ou comme agent primaire), le reviewer propose le choix du mode :
 
 ```
 ? Mode de review :
@@ -616,9 +583,9 @@ systématique, et produit un rapport structuré.
 **Raccourci CLI avec sélection de mode :**
 
 ```bash
-oh review -m adversarial       # review adversariale directement
-oh review -m all               # les 3 modes en parallèle
-oh review                      # prompt interactif de choix de mode
+oh run review -i review_mode=adversarial   # review adversariale directement
+oh run review -i review_mode=all           # les 3 modes en parallèle
+oh run review                              # le reviewer propose le choix du mode
 ```
 
 ---

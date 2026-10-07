@@ -1,5 +1,7 @@
 # Système de barre de progression
 
+> **Historique (v5).** Barre de progression des scripts Bash (`oh deploy`) ; retirée avec la migration vers Go et la suppression du déploiement en v5. Pour l'architecture actuelle, voir [Vue d'ensemble de l'architecture](../architecture/overview.fr.md) et les ADR 038 à 048 (`docs/architecture/adr/`). La suite de cette page est conservée pour l'historique.
+
 > Documentation complète du système de feedback visuel pour les opérations longues
 
 ## Introduction

@@ -1,0 +1,49 @@
+%% OpenHub -- Execution topology: local, container, remote (v5)
+%% Where opencode runs, and what always stays on the machine (ADR-045, ADR-046):
+%% secrets (keychain, credential proxy) and Beads.
+
+flowchart TB
+    subgraph M ["Machine"]
+        OH["oh CLI / TUI"]
+        D["ohd daemon<br/>credential proxy · gateways · supervision"]
+        KC[("keychain<br/>LLM keys · tokens")]
+        BD[("Beads (bd)")]
+        BUN["~/.oh/bundles/&lt;hash&gt;/"]
+        OH <--> D
+        KC --> D
+        D --> BD
+
+        subgraph L ["⌂ local"]
+            OCL["opencode serve<br/>(one per group)"]
+            BDL["bd direct in the session shell"]
+        end
+    end
+
+    subgraph C ["▣ container (Colima · Podman · Docker CLI)"]
+        OCC["opencode serve<br/>image = project dev Dockerfile + oh layer<br/>one container per group"]
+        FBD["fake bd"]
+        RO["bundle mounted read-only<br/>/opt/oh/bundle · project in /work/&lt;project&gt;"]
+    end
+
+    subgraph R ["☁ remote (GitLab CI, oh-runner project)"]
+        JOB["oh runner run<br/>job daemon + opencode serve (user oh)"]
+        JBD["fake bd (journal mode)<br/>reads the Beads snapshot,<br/>writes journal.jsonl"]
+        ART["artifacts: summary.json ·<br/>journal.jsonl · session.export<br/>draft MR pushed"]
+    end
+
+    BUN --> OCL
+    BUN --> RO
+    OCL -->|"LLM (session token)"| D
+    BDL --> BD
+
+    OCC -->|"LLM via host.docker.internal<br/>(session token)"| D
+    FBD -->|"Beads gateway<br/>(beads.allow)"| D
+    OCC -->|"oh MCP servers via<br/>MCP gateway (HTTP)"| D
+
+    OH -->|"oh run --runtime remote:<br/>bundle + session envelope<br/>(inputs, manifest, Beads snapshot)"| JOB
+    JOB --> JBD
+    JOB --> ART
+    ART -->|"oh session fetch · oh session resolve<br/>(journal replayed, conflicts)"| OH
+
+    D -->|"LLM (real key)"| LLM["LLM provider"]
+    JOB -->|"LLM (CI key, masked variable)"| LLM

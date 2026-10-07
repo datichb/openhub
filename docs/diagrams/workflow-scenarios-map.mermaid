@@ -1,43 +1,68 @@
-%% D12: Workflow Scenarios Map
-%% Decision tree showing the 10 scenarios from the workflows guide.
-%% The user picks what they need and is routed to the right scenario.
+%% OpenHub -- Workflow scenarios map (v5)
+%% "What do you need?" -> one of the 12 workflows shipped by the hub
+%% (workflows/*.yaml), grouped by category, with their entry agent, risk and
+%% allowed runtimes (⌂ local, ▣ container, ☁ remote).
+%% Solid arrows: "Chain with…" suggestions at the end of a session (a typed output
+%% feeds an input of the next workflow: branch → branch, beads-ids → beads-id(s)).
+%% Dotted arrows: preconditions (missing project context → run onboarding first, then resume).
 
-flowchart TD
-    Start([What do you need?]) --> Q1{First time\nusing OpenHub?}
+flowchart LR
+    Start(["What do you need?"])
+    Start -->|"frame a need, create tickets"| CAD
+    Start -->|"new feature, end to end"| FEAT
+    Start -->|"implement ready tickets"| TICK
+    Start -->|"small change"| QUICK
+    Start -->|"repetitive change on many files"| SWEEP
+    Start -->|"apply MR comments"| RF
+    Start -->|"review a branch"| REV
+    Start -->|"audit the code"| AUD
+    Start -->|"fix a bug"| DBG
+    Start -->|"document the project"| ONB
+    Start -->|"one agent, no workflow"| LIB
 
-    Q1 -- Yes --> S0([Scenario 0\nFirst-time setup])
-    Q1 -- No --> Q2{What is the goal?}
+    subgraph FRAME ["Frame"]
+        CAD["<b>cadrage</b><br/>conductor · plan · ⌂"]
+    end
 
-    Q2 --> B1[New feature]
-    Q2 --> B2[Ready tickets]
-    Q2 --> B3[Audit]
-    Q2 --> B4[Bug fix]
-    Q2 --> B5[Code review]
-    Q2 --> B6[Design only]
-    Q2 --> B7[Documentation]
-    Q2 --> B8[Plan + design]
+    subgraph DEVELOP ["Develop"]
+        FEAT["<b>feature</b><br/>orchestrator · write · ⌂"]
+        TICK["<b>ticket</b><br/>orchestrator-dev · write · ⌂ ▣ ☁<br/>one session per ticket"]
+        QUICK["<b>quick</b><br/>developer · write · ⌂"]
+        SWEEP["<b>sweep</b><br/>conductor · write · ⌂"]
+        RF["<b>review-feedback</b><br/>orchestrator-dev · write · ⌂"]
+    end
 
-    B1 --> S1([Scenario 1\nNew feature\nend-to-end])
-    B2 --> S2([Scenario 2\nProcess ready\ntickets])
-    B3 --> S3([Scenario 3\nAudit codebase])
-    B4 --> S4([Scenario 4\nBug fix])
+    subgraph QUALITY ["Quality"]
+        REV["<b>review</b><br/>reviewer · read · ⌂ ☁"]
+        AUD["<b>audit</b><br/>auditor · read · ⌂ ☁"]
+        DBG["<b>debug</b><br/>debugger · write · ⌂"]
+    end
 
-    B5 --> Q3{Review type?}
-    Q3 -- PR review --> S5([Scenario 5\nPR review])
-    Q3 -- Deep review --> S6([Scenario 6\nDeep code review])
+    subgraph KNOWLEDGE ["Knowledge"]
+        ONB["<b>onboarding</b><br/>onboarder · write · ⌂ ☁"]
+        BRF["<b>brief-enrich</b><br/>brief-enricher · read · ⌂<br/>headless"]
+    end
 
-    B6 --> S7([Scenario 7\nDesign only])
-    B7 --> S8([Scenario 8\nDocumentation])
-    B8 --> S9([Scenario 9\nPlan + design])
+    subgraph OTHER ["Other"]
+        LIB["<b>libre</b><br/>entry agent of your choice · write · ⌂ ▣"]
+    end
 
-    style Start fill:#4a90d9,color:#fff
-    style S0 fill:#95a5a6,color:#fff
-    style S1 fill:#2ecc71,color:#fff
-    style S2 fill:#2ecc71,color:#fff
-    style S3 fill:#e67e22,color:#fff
-    style S4 fill:#e74c3c,color:#fff
-    style S5 fill:#9b59b6,color:#fff
-    style S6 fill:#9b59b6,color:#fff
-    style S7 fill:#3498db,color:#fff
-    style S8 fill:#1abc9c,color:#fff
-    style S9 fill:#3498db,color:#fff
+    CAD -->|"tickets"| TICK
+    CAD -->|"tickets"| FEAT
+    CAD -->|"tickets"| BRF
+    FEAT -->|"branch"| REV
+    FEAT -->|"tickets"| TICK
+    TICK -->|"branch"| REV
+    TICK -->|"branch"| RF
+    SWEEP -->|"branch"| REV
+    RF -->|"branch"| REV
+    DBG -->|"tickets"| TICK
+
+    FEAT -.->|"no project context"| ONB
+    CAD -.->|"no project context"| ONB
+
+    style FRAME fill:#9b59b610,stroke:#9b59b6
+    style DEVELOP fill:#2ecc7110,stroke:#2ecc71
+    style QUALITY fill:#f39c1210,stroke:#f39c12
+    style KNOWLEDGE fill:#3498db10,stroke:#3498db
+    style OTHER fill:#95a5a610,stroke:#95a5a6

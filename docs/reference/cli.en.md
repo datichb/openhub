@@ -2,13 +2,18 @@
 
 # CLI Reference
 
+`oh` without a command opens the TUI (in an interactive terminal; otherwise the help). `oh -p <project>` opens the TUI directly on that project. `oh help` (or `oh --help`) shows the command overview; `oh <command> --help` details a command (flags, examples).
+
 ## Global Flags
 
-| Flag | Short | Description |
-|------|-------|-------------|
-| `--verbose` | `-v` | Enable verbose output (debug logging) |
-| `--log-format` | | Log output format: `pretty` (default) or `json` |
-| `--no-tui` | | Disable rich TUI (use inline prompts only) |
+Accepted by every command.
+
+| Flag | Short | Default | Description |
+|------|-------|---------|-------------|
+| `--verbose` | `-v` | `false` | Verbose output (debug-level logs; otherwise: warnings only) |
+| `--log-format` | | `pretty` | Format of the logs on standard error: `pretty` or `json` |
+| `--no-tui` | | `false` | Disable the rich TUI (inline prompts only) |
+| `--help` | `-h` | | Help of the command |
 
 ---
 
@@ -16,15 +21,17 @@
 
 | Section | File | Key Commands |
 |---------|------|--------------|
-| [Sessions](cli-sessions.en.md) | `cli-sessions.en.md` | `oh start`, `oh review`, `oh audit`, `oh debug` |
-| [Workflows](cli-workflows.en.md) | `cli-workflows.en.md` | `oh run`, `oh workflow list\|show\|validate`, `oh bundle build\|show` |
+| [Sessions](cli-sessions.en.md) | `cli-sessions.en.md` | [Session management (v5)](cli-sessions.en.md#session-management-v5): `oh session list\|inbox\|attach\|follow\|approve\|answer\|dismiss\|send\|interrupt\|compact\|model\|fork\|results\|resume\|stop\|open\|fetch\|resolve`; `oh budget show\|set\|unset\|raise`; `oh history`; `oh beads`; deprecated aliases `oh start`, `oh audit`, `oh review`, `oh debug` |
+| [Workflows](cli-workflows.en.md) | `cli-workflows.en.md` | `oh run`; `oh workflow list\|show\|validate\|new\|edit\|diff\|publish\|history\|restore\|archive`; `oh bundle build\|show` |
 | [Projects](cli-projects.en.md) | `cli-projects.en.md` | `oh project list\|add\|remove\|rename\|move\|configure` |
-| [Deployment](cli-deploy.en.md) | `cli-deploy.en.md` | `oh deploy`, `oh sync` (removed in v5) |
-| [Configuration](cli-config.en.md) | `cli-config.en.md` | `oh config *`, `oh provider setup`, `oh config model` |
-| [Infrastructure](cli-infra.en.md) | `cli-infra.en.md` | `oh init`, `oh doctor`, `oh repair`, `oh upgrade`, `oh migrate`, `oh purge`, `oh serve` |
-| [MCP & Plugins](cli-mcp.en.md) | `cli-mcp.en.md` | `oh mcp *` |
-| [Team](cli-team.en.md) | `cli-team.en.md` | `oh team *`, `oh teams *`, `oh conventions`, `oh policies` |
-| [Tools](cli-tools.en.md) | `cli-tools.en.md` | `oh skill *`, `oh worktree *`, `oh secrets *`, `oh metrics` |
+| [Deployment (migration aliases)](cli-deploy.en.md) | `cli-deploy.en.md` | `oh deploy`, `oh sync` (removed in v5: migration message) |
+| [Configuration](cli-config.en.md) | `cli-config.en.md` | `oh config list\|get\|set\|unset\|path\|language\|websearch`, `oh config model *`, `oh provider setup` |
+| [Infrastructure](cli-infra.en.md) | `cli-infra.en.md` | `oh init`, `oh doctor`, `oh status`, `oh repair`, `oh export`, `oh import`, `oh purge`, `oh upgrade oh`, `oh migrate deploy-cleanup`, `oh daemon status\|stop`, `oh remote setup\|status`, `oh serve` |
+| [MCP](cli-mcp.en.md) | `cli-mcp.en.md` | `oh mcp list\|status\|enable\|disable\|reset\|setup\|serve` |
+| [Team](cli-team.en.md) | `cli-team.en.md` | `oh team *`, `oh teams *`, `oh conventions check`, `oh patterns *`, `oh policies *`, `oh takeover-brief *` |
+| [Tools](cli-tools.en.md) | `cli-tools.en.md` | `oh skill add\|list\|remove\|search\|check\|budget`, `oh worktree *`, `oh secrets *`, `oh metrics`, `oh dashboard`, `oh board`, `oh version`, `oh completion` |
+
+Internal commands (hidden from the help, not documented in detail): `oh daemon run` (the `ohd` daemon, started automatically by oh), `oh runner install|run` (CI side of remote execution, used by the `oh-runner` pipeline), `oh mcp serve workflow` (the `workflow` MCP server injected into every session bundle).
 
 ---
 
@@ -32,6 +39,6 @@
 
 | Code | Meaning |
 |------|---------|
-| `0` | Success |
-| `1` | Error |
-| `2` | Warning |
+| `0` | Success. Also for `oh deploy` / `oh sync` (migration message) and for `oh doctor`, even when checks fail (the result is printed) |
+| `1` | Error: the message is written to standard error. For example: `oh workflow validate` or `oh skill check` finding errors, `oh run --headless` with a session waiting for a decision or exceeding `--timeout`, `oh beads` when `bd` fails (the `bd` exit code is not passed on) |
+| `2` | Internal error (panic): oh prints a message asking to report the bug |

@@ -1,44 +1,54 @@
-%% OpenHub -- Skill Injection Flow
-%% Shows the 4 paths by which skills reach an agent at runtime
+%% OpenHub -- Skill delivery (v5)
+%% How skills reach the agents of a session: everything is decided when the
+%% session bundle is built from the workflow (ADR-043); the session only sees
+%% what the bundle contains (closed world, ADR-041).
 
 flowchart TD
-    START(["Agent invoked"]) --> P1
+    WF(["Workflow resolved<br/>oh/v1 · hub &lt; team &lt; project"]) --> BUILD["internal/bundle<br/>builds ~/.oh/bundles/&lt;hash&gt;/"]
 
-    subgraph P1 ["Path 1: Bucket A (Inline)"]
+    subgraph P1 ["1. Bucket A (inline)"]
         direction LR
-        A1["Agent frontmatter<br/><code>skills: [...]</code>"] --> A2["Injected into<br/>system prompt<br/>at deploy time"]
+        A1["Agent frontmatter<br/><code>skills: [...]</code>"] --> A2["Assembled into the agent body<br/>agents/&lt;id&gt;.md of the bundle"]
     end
 
-    START --> P2
-
-    subgraph P2 ["Path 2: Bucket B (Native)"]
+    subgraph P2 ["2. Bucket B (on demand)"]
         direction LR
-        B1["Agent frontmatter<br/><code>native_skills: [...]</code>"] --> B2["Deployed as<br/>.opencode/skills/*/SKILL.md"] --> B3["Loaded on-demand<br/>via <code>skill</code> tool"]
+        B1["Agent frontmatter<br/><code>native_skills: [...]</code><br/>+ <code>requires:</code> closure"] --> B2["skills/&lt;id&gt;/SKILL.md<br/>in the bundle"] --> B3["Loaded on demand<br/>via the <code>skill</code> tool"]
     end
 
-    START --> P3
-
-    subgraph P3 ["Path 3: Stack Detection (Deploy-time)"]
+    subgraph P3 ["3. Stack skills"]
         direction LR
-        C1["<code>oh deploy</code> scans<br/>project files"] --> C2{"Detects stack<br/>package.json? go.mod?<br/>Cargo.toml?"}
-        C2 --> C3["Injects matching<br/>stack skills<br/>dev-standards-react<br/>dev-standards-golang<br/>etc."]
+        C1["Project files scanned<br/>at launch"] --> C2{"package.json? go.mod?<br/>Cargo.toml? …"}
+        C2 --> C3["Matching stack skills<br/>dev-standards-react,<br/>dev-standards-golang…"]
     end
 
-    START --> P4
-
-    subgraph P4 ["Path 4: Domain Injection (Invocation-time)"]
+    subgraph P4 ["4. Workflow"]
         direction LR
-        D1["orchestrator-dev<br/>picks a ticket"] --> D2{"Routes to domain<br/>frontend? backend?<br/>api? devops?"}
-        D2 --> D3["Injects domain<br/>native_skills into<br/>developer agent prompt"]
+        D1["<code>skills.extra</code><br/>(hub, team catalog,<br/>community)"] --> D3["Added"]
+        D2["<code>skills.deny</code>"] --> D4["Removed"]
     end
 
-    P1 --> AGENT["fa:fa-robot Agent Runtime<br/>All skills available"]
+    subgraph P5 ["5. Generated from the YAML"]
+        direction LR
+        E1["workflow/workflow-map<br/>(inlined in conductor)"]
+        E2["orchestrator-workflow-modes ·<br/>hub-workflow-reference<br/>(generated versions)"]
+    end
+
+    BUILD --> P1
+    BUILD --> P2
+    BUILD --> P3
+    BUILD --> P4
+    BUILD --> P5
+
+    P1 --> AGENT["fa:fa-robot Session agents<br/>see only the bundle skills<br/>(opencode built-in skills denied,<br/>checked by Attest at start)"]
     P2 --> AGENT
     P3 --> AGENT
     P4 --> AGENT
+    P5 --> AGENT
 
     style P1 fill:#3498db10,stroke:#3498db
     style P2 fill:#2ecc7110,stroke:#2ecc71
     style P3 fill:#e67e2210,stroke:#e67e22
     style P4 fill:#9b59b610,stroke:#9b59b6
+    style P5 fill:#f1c40f10,stroke:#f1c40f
     style AGENT fill:#2c3e50,color:white

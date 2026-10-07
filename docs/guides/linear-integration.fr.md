@@ -1,6 +1,6 @@
-# Intégration Linear - Guide de démarrage
+> [Read in English](linear-integration.en.md)
 
-> 🇬🇧 [Read in English](linear-integration.en.md)
+# Intégration Linear - Guide de démarrage
 
 ## Vue d'ensemble
 
@@ -198,7 +198,7 @@ L'API GraphQL de Linear retourne des messages d'erreur détaillés. Causes fréq
 
 - [Documentation API Linear](https://developers.linear.app/docs/graphql/working-with-the-graphql-api)
 - [Clés API Personal Linear](https://linear.app/settings/api)
-- [Référence CLI `oh mcp`](../reference/mcp.fr.md)
+- [Référence CLI `oh mcp`](../reference/cli-mcp.fr.md)
 
 ---
 

@@ -10,32 +10,37 @@ openhub fournit un pipeline de revue de code assiste par IA en trois etapes : re
 
 ## Modes de revue
 
-Lancez une revue de code IA avec `oh review` :
+Lancez une revue de code IA avec le workflow `review` :
 
 ```bash
-oh review                          # Selection interactive du mode
-oh review --mode standard          # Revue standard
-oh review --mode adversarial       # Revue adversariale (cas limites, securite)
-oh review --mode edge-case         # Revue axee sur les cas limites
-oh review --mode standard+adversarial  # Modes combines
-oh review --mode all               # Tous les modes de revue
+oh run review                                   # Le reviewer propose le choix du mode au demarrage
+oh run review -i review_mode=standard           # Revue standard
+oh run review -i review_mode=adversarial        # Revue adversariale (cas limites, securite)
+oh run review -i review_mode=edge-case          # Revue axee sur les cas limites
+oh run review -i review_mode=standard+adversarial  # Modes combines
+oh run review -i review_mode=all                # Tous les modes de revue
 ```
+
+`oh review [--mode …] [--branch …]` reste un alias deprecie de `oh run review`.
 
 **Detection automatique de branche :** Lorsque vous etes sur une branche de fonctionnalite, l'agent de revue detecte automatiquement la branche de base et injecte le contexte `[BRANCH:feature/xyz] [BASE:main]` dans le prompt de revue.
 
-### Options
+### Entrees et options
 
-| Option | Court | Description |
-|--------|-------|-------------|
-| `--mode` | `-m` | Mode de revue : `standard`, `adversarial`, `edge-case`, `standard+adversarial`, `all` |
-| `--branch` | `-b` | Branche cible a examiner (branche courante par defaut) |
-| `--project` | `-p` | ID du projet |
+| Entree / option | Description |
+|--------|-------------|
+| `-i review_mode=…` | Mode de revue : `standard`, `adversarial`, `edge-case`, `standard+adversarial`, `all` (vide : choix au demarrage) |
+| `-i branch=…` | Branche a examiner (vide : modifications recentes) |
+| `-i base=…` | Branche de base (defaut : `main`) |
+| `-p`, `--project` | ID du projet |
+
+Voir [Workflows livres › review](../reference/workflows.fr.md#review).
 
 ---
 
 ## Publication d'une Merge Request
 
-Une fois la revue terminee, publiez les resultats sous forme de merge request GitLab :
+Une fois la revue terminee, publiez les resultats sous forme de merge request GitLab. La publication n'est pas un workflow : elle reste une commande d'oh.
 
 ```bash
 oh review --publish                          # Creer une MR pour la branche courante
@@ -62,20 +67,21 @@ Cette commande :
 
 ## Traitement du feedback
 
-Lorsqu'un relecteur humain laisse des commentaires sur la MR, utilisez `oh review feedback` pour les traiter automatiquement :
+Lorsqu'un relecteur humain laisse des commentaires sur la MR, le workflow `review-feedback` les traite. `oh review feedback <ticket-ou-branche>` lit les discussions sur GitLab puis lance ce workflow (alias deprecie de `oh run review-feedback` : oh affiche un avertissement) :
 
 ```bash
 oh review feedback BD-42             # Par reference de ticket
 oh review feedback feat/auth-flow    # Par nom de branche
-oh review feedback                   # Utilise la branche courante
 ```
+
+Le ticket ou la branche est obligatoire. Avec `oh run review-feedback`, les entrees `mr`, `branch` et `feedback` (discussions) sont a fournir vous-meme (`-i cle=valeur`) : voir [Workflows livres › review-feedback](../reference/workflows.fr.md#review-feedback).
 
 ### Fonctionnement
 
 1. **Recupere les discussions non resolues de la MR** depuis GitLab
 2. **Affiche un apercu** : informations de la MR, nombre de discussions non resolues, auteurs, fichiers concernes
 3. **Demande confirmation** avant de lancer le traitement
-4. **Lance une session IA** avec un prompt structure contenant toutes les discussions
+4. **Lance le workflow `review-feedback`** avec un prompt structure contenant toutes les discussions
 5. L'agent lit chaque commentaire, applique les corrections, execute les tests, effectue un commit groupe
 6. Repond optionnellement sur chaque fil resolu via `gitlab_reply_to_mr_discussion`
 
@@ -89,20 +95,20 @@ oh review feedback                   # Utilise la branche courante
 | Option | Court | Description |
 |--------|-------|-------------|
 | `--project` | `-p` | ID du projet |
-| `--yes` | `-y` | Passer l'invite de confirmation |
+| `--yes` | | Passer l'invite de confirmation |
 
 ---
 
 ## Workflow de bout en bout
 
 ```
-1. oh start --dev              # Implementer la fonctionnalite
-2. oh review --mode standard   # L'IA examine le code
-3. oh review --publish         # Creer la MR sur GitLab
-4. [Revue humaine sur GitLab]  # Le relecteur laisse des commentaires
-5. oh review feedback BD-42    # L'IA traite le feedback
-6. [Approbation humaine]       # Approbation finale
-7. [Fusion par le developpeur] # Fusion manuelle
+1. oh run ticket                          # Implementer la fonctionnalite
+2. oh run review -i review_mode=standard  # L'IA examine le code
+3. oh review --publish                    # Creer la MR sur GitLab
+4. [Revue humaine sur GitLab]             # Le relecteur laisse des commentaires
+5. oh review feedback BD-42               # L'IA traite le feedback (workflow review-feedback)
+6. [Approbation humaine]                  # Approbation finale
+7. [Fusion par le developpeur]            # Fusion manuelle
 ```
 
 ---
