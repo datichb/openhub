@@ -15,6 +15,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/config"
+	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/teamstate"
 	"github.com/datichb/openhub/cli/internal/workflow"
@@ -253,4 +254,19 @@ func TestWorkflowNewFileWithOwnTemplate(t *testing.T) {
 	txt, err = svc.EditText(t.Context(), c, workflow.LayerTeam, "hotfix2")
 	require.NoError(t, err)
 	assert.Contains(t, string(txt.Prompt), "Fais : ")
+}
+
+// oh run on a workflow with a required input given by --tickets: the
+// first resolution (to learn the ticket input) must not check the inputs
+// (v5 finalisation, Q4 recette: « Missing required input: ticket » for
+// every such workflow since 3.E).
+func TestPrepareRunRequiredTicketInput(t *testing.T) {
+	setupWorkflowCLI(t, "alice")
+	var errOut bytes.Buffer
+	opts := runOptions{Workflow: "ticket", Tickets: []string{"bd-1", "bd-2"}, Project: &domain.Project{ID: "p1", Name: "p", Path: t.TempDir()}}
+	res, input, perSession, err := resolveLaunch(t.Context(), application, &opts, &errOut)
+	require.NoError(t, err, errOut.String())
+	assert.Equal(t, "ticket", input)
+	assert.Equal(t, []string{"bd-1", "bd-2"}, perSession)
+	assert.Equal(t, "bd-1", res.Inputs["ticket"])
 }
