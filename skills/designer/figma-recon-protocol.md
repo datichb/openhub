@@ -19,22 +19,18 @@ Ce mode **ne produit pas de spec** — il produit un rapport de contexte.
 
 ## Workflow de reconnaissance
 
-### Étape 1 — Recherche des fichiers
+### Étape 1 — Identification des fichiers
 
-Stratégie progressive — s'arrêter à la première tentative qui retourne des résultats :
+**Identifier le fichier :** le serveur MCP Figma n'a pas d'outil de recherche. Chercher une URL Figma (`figma.com/file/<file_key>/…` ou `figma.com/design/<file_key>/…`) dans le prompt d'invocation, le ticket (`bd show`), le wiki (`docs/wiki/`), le README et les documents de design du projet ; la clé du fichier (`file_key`) est le segment qui suit `/file/` ou `/design/`.
 
-**Tentative 1 :** `search_figma_files(<nom du projet>)`
-
-**Tentative 2 (si aucun résultat) :** `search_figma_files(<terme alternatif — feature, composant, ou nom d'équipe>)`
-
-**Si aucun résultat :**
+**Si aucune URL trouvée :**
 ```
 question({
   questions: [{
     header: "Fichiers Figma",
-    question: "[Designer | Mode recon]\nAucun fichier Figma trouvé pour les termes : [terme1], [terme2].\nComment procéder ?",
+    question: "[Designer | Mode recon]\nAucune URL de fichier Figma trouvée (prompt, ticket, wiki, README).\nComment procéder ?",
     options: [
-      { label: "Fournir l'URL ou le nom exact", description: "Préciser le fichier Figma à analyser" },
+      { label: "Fournir l'URL", description: "Coller l'URL du fichier Figma à analyser" },
       { label: "Pas de fichiers Figma disponibles", description: "Conclure la recon sans données Figma" }
     ]
   }]
@@ -45,7 +41,7 @@ question({
 
 Pour chaque fichier trouvé (max 3) :
 
-1. `get_figma_file(<file_key>)` — obtenir la structure du fichier
+1. `figma_get_file(file_key)` — obtenir la structure du fichier
 2. Identifier : nombre de pages, noms des pages, présence de pages "Components", "Tokens", "Design System"
 3. Estimer la complexité : nombre de frames par page, profondeur des composants
 
@@ -69,7 +65,7 @@ Pour chaque fichier trouvé (max 3) :
 Si le prompt mentionne "tokens", "couleurs", "design system" :
 
 1. Identifier la page Tokens/Foundations
-2. `get_figma_file_nodes(<file_key>, <node_ids page tokens>)`
+2. `figma_get_styles(file_key)` — styles publiés du fichier (couleurs, textes, effets) ; `figma_get_node(file_key, node_id)` pour un nœud précis de la page Tokens
 3. Extraire : couleurs principales, typographie de base, valeurs de spacing si présentes
 
 ---

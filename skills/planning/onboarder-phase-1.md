@@ -208,18 +208,12 @@ Lancer uniquement si :
 
 #### Recherche des fichiers Figma
 
-Stratégie de recherche progressive — s'arrêter à la première tentative qui retourne des résultats :
+Le serveur MCP Figma n'a pas d'outil de recherche : chercher des URL Figma (`figma.com/file/<file_key>/…` ou `figma.com/design/<file_key>/…`) dans le README, `docs/`, le wiki et les tickets Beads (`bd search figma.com`). Pour chaque fichier trouvé : `figma_get_file(file_key)`.
 
-**Tentative 1 :** `search_figma_files(<nom depuis package.json "name"> ou <nom du dossier racine>)`
-
-**Tentative 2 (si aucun résultat) :** `search_figma_files(<ID du projet — disponible dans le bootstrap prompt>)`
-
-**Tentative 3 (si aucun résultat) :** `search_figma_files(<champ "Nom" du projet — disponible dans le bootstrap prompt>)`
-
-**Si toujours aucun résultat après les 3 tentatives :**
+**Si aucune URL trouvée :**
 
 Afficher :
-> "J'ai recherché les fichiers Figma avec les termes [terme1], [terme2], [terme3] — aucun résultat."
+> "Je n'ai trouvé aucune URL de fichier Figma dans le README, la documentation, le wiki ni les tickets."
 
 Puis appeler `question` :
 
@@ -227,9 +221,9 @@ Puis appeler `question` :
 question({
   questions: [{
     header: "Fichiers Figma",
-    question: "[Onboarder — Phase 1.5 | Projet : <nom>]\nJe n'ai trouvé aucun fichier Figma pour les termes suivants :\n- [terme1]\n- [terme2]\n- [terme3]\n\nComment procéder ?",
+    question: "[Onboarder — Phase 1.5 | Projet : <nom>]\nJe n'ai trouvé aucune URL de fichier Figma (README, documentation, wiki, tickets).\n\nComment procéder ?",
     options: [
-      { label: "Fournir le nom du fichier", description: "Préciser le nom exact ou l'URL du fichier Figma à analyser" },
+      { label: "Fournir l'URL du fichier", description: "Coller l'URL du fichier Figma à analyser" },
       { label: "Pas de maquettes Figma", description: "Ce projet n'a pas de maquettes Figma — passer à Phase 1.6" },
       { label: "Ignorer pour l'instant", description: "Continuer l'onboarding sans les maquettes" }
     ]
@@ -237,7 +231,7 @@ question({
 })
 ```
 
-**Si fichier(s) trouvé(s) (quelle que soit la tentative) :**
+**Si fichier(s) trouvé(s) :**
 → Continuer vers analyse
 
 #### Analyse des fichiers Figma (max 3 fichiers pertinents)
@@ -245,14 +239,15 @@ question({
 Pour chaque fichier :
 
 ```
-get_file_structure(fileId)
-→ Obtenir : nom, pages, nombre de composants, date de modification
+figma_get_file(file_key)
+→ Obtenir : nom, pages, frames, composants, date de modification ;
+  en déduire la complexité et les signaux UX/UI
 
-detect_ui_signals(fileId)
-→ Obtenir : complexité, signaux UX/UI
+figma_get_styles(file_key)
+→ Obtenir : styles publiés (couleur, typo, effets) = tokens du design system
 
-extract_design_tokens(fileId)
-→ Obtenir : tokens couleur, typo, spacing, effects
+figma_get_node(file_key, node_id)
+→ Détail d'une page ou d'un composant (ex. page Tokens) si besoin
 ```
 
 #### Identification du design system

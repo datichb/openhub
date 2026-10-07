@@ -23,20 +23,18 @@ Charger ce skill (via l'outil `skill`) dès qu'une des conditions suivantes est 
 
 ## Étape commune — Recherche et accès au fichier
 
-### Recherche progressive
+### Identification du fichier
 
-**Tentative 1 :** `search_figma_files(<nom du projet ou de la feature>)`
+**Identifier le fichier :** le serveur MCP Figma n'a pas d'outil de recherche. Chercher une URL Figma (`figma.com/file/<file_key>/…` ou `figma.com/design/<file_key>/…`) dans le prompt d'invocation, le ticket (`bd show`), le retour de la recon, le wiki (`docs/wiki/`) et le README ; la clé du fichier (`file_key`) est le segment qui suit `/file/` ou `/design/`.
 
-**Tentative 2 (si aucun résultat) :** `search_figma_files(<terme alternatif — nom du ticket, composant, ou feature>)`
-
-**Si aucun résultat :**
+**Si aucune URL trouvée :**
 ```
 question({
   questions: [{
     header: "Fichiers Figma",
-    question: "[Designer | Feature : <nom>]\nAucun fichier Figma trouvé pour les termes : [terme1], [terme2].\nComment procéder ?",
+    question: "[Designer | Feature : <nom>]\nAucune URL de fichier Figma trouvée (prompt, ticket, wiki, README).\nComment procéder ?",
     options: [
-      { label: "Fournir l'URL ou le nom exact", description: "Préciser le fichier Figma à analyser" },
+      { label: "Fournir l'URL", description: "Coller l'URL du fichier Figma à analyser" },
       { label: "Pas de maquettes Figma", description: "Continuer sans données Figma" }
     ]
   }]
@@ -45,7 +43,7 @@ question({
 
 ### Exploration de la structure
 
-1. `get_figma_file(<file_key>)` — obtenir la structure complète du fichier
+1. `figma_get_file(file_key)` — obtenir la structure complète du fichier
 2. Identifier les pages pertinentes selon le mode actif (voir sections ci-dessous)
 
 ---
@@ -60,7 +58,7 @@ Identifier et prioriser :
 
 ### Extraction UX
 
-Pour chaque page pertinente : `get_figma_file_nodes(<file_key>, <node_ids>)`
+Pour chaque page ou frame pertinente : `figma_get_node(file_key, node_id)`
 
 | Information | Comment l'extraire |
 |-------------|-------------------|
@@ -99,7 +97,9 @@ Identifier et prioriser :
 
 ### Extraction UI
 
-Pour chaque page pertinente : `get_figma_file_nodes(<file_key>, <node_ids>)`
+Pour chaque page ou frame pertinente : `figma_get_node(file_key, node_id)`
+
+Pour les tokens : `figma_get_styles(file_key)` (styles publiés), puis `figma_get_node` sur la page Tokens / Foundations si besoin.
 
 #### Tokens à extraire
 

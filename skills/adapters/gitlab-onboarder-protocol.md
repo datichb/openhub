@@ -37,7 +37,7 @@ Arguments : project_id, state: "opened"
 → En déduire : taxonomie des labels (types, priorités, domaines)
 ```
 
-> **Note :** L'outil `list_gitlab_labels` n'est plus disponible dans le MCP GitLab v2.
+> **Note :** le MCP GitLab n'a pas d'outil pour lister les labels du projet.
 > Extraire les labels depuis les issues retournées par `gitlab_list_issues`.
 
 **Analyser et regrouper les labels par catégorie :**
@@ -61,7 +61,7 @@ Arguments : project_id, state: "opened"
 → En déduire : cadence de release (si milestones renseignés dans les issues)
 ```
 
-> **Note :** L'outil `list_gitlab_milestones` n'est plus disponible dans le MCP GitLab v2.
+> **Note :** le MCP GitLab n'a pas d'outil pour lister les milestones du projet.
 > Déduire les informations de sprint depuis les données milestone des issues.
 
 **Exploiter pour :**

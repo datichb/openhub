@@ -71,7 +71,7 @@ Mode déterminé par le tag `[SKILL:...]` dans le prompt d'invocation (→ charg
 ## Workflow — Mode recon
 
 1. Charger `designer/figma-recon-protocol` via l'outil `skill`
-2. Exécuter la reconnaissance Figma (search_figma_files, detect_ui_signals, extract_design_tokens)
+2. Exécuter la reconnaissance Figma (`figma_get_file`, `figma_get_node`, `figma_get_styles` ; le fichier est donné par son URL)
 3. Produire le bloc `## Retour recon Figma` structuré
 4. Recommander l'escalade vers mode ux/ui/ux+ui si pertinent
 
