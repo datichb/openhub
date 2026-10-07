@@ -112,7 +112,7 @@ func TestCheckpointCard(t *testing.T) {
 	form.OnSubmit(map[string]string{"decision": checkpointFix, "message": " "}, nil)
 	form.OnSubmit(map[string]string{"decision": checkpointFix, "message": "nommage"}, nil)
 	require.Eventually(t, func() bool { return len(be.decisions()) == 1 }, 3*time.Second, 20*time.Millisecond)
-	assert.Equal(t, "checkpoint:ses_a:per_2=fix", be.decisions()[0])
+	assert.Equal(t, "checkpoint:ses_a:per_2=fix:nommage", be.decisions()[0])
 
 	// y validates the selected checkpoint directly.
 	onLoop(func() {
