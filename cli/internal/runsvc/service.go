@@ -72,6 +72,11 @@ type Service struct {
 	// SessionEnv returns dynamic per-session variables (S7), e.g. a gateway
 	// token minted for the session. Optional.
 	SessionEnv SessionEnvFunc
+	// OnTicketsStarted is called when a session of a run started on Beads
+	// tickets (any workflow with a ticket input): the team claims are taken
+	// or move to their work status (planned → in progress, QB2). It returns
+	// notes for the user (StartResult.Notes). Nil = nothing.
+	OnTicketsStarted func(ctx context.Context, projectID string, tickets []string) []string
 	// LocalShellPath lists directories put first on the PATH of local
 	// session shells: the fake bd, so that Beads goes through the gateway
 	// and its beads.allow in every runtime (QB1).
@@ -163,6 +168,8 @@ type StartResult struct {
 	Report       adapters.VisibilityReport
 	AttachMethod termlaunch.Method
 	AttachErr    error // non-nil when no terminal could be opened (caller: browser/suspend)
+	// Notes are messages for the user about the launch (team claims).
+	Notes []string
 	// Queued: the first prompt waits for a free slot (restrictions); Ahead
 	// is the number of sessions queued before it.
 	Queued bool

@@ -178,3 +178,33 @@ func TestRunClaimTransfer_Success(t *testing.T) {
 	entries, _ := os.ReadDir(briefsDir)
 	_ = fmt.Sprintf("briefs: %d", len(entries)) // brief generation is best-effort
 }
+
+// QB2: a session started on tickets (any workflow, not only the --dev alias)
+// claims each ticket for the member, or moves its planned claim to the work
+// status; a ticket claimed by someone else is reported.
+func TestStartTicketClaim(t *testing.T) {
+	_, repo, _ := setupClaimTestApp(t)
+	ctx := context.Background()
+
+	note := startTicketClaim(ctx, repo, "myproject", "testuser", "NEW-1")
+	assert.Contains(t, note, "NEW-1")
+	c, err := repo.GetClaim("myproject", "NEW-1")
+	require.NoError(t, err)
+	assert.Equal(t, teamstate.ClaimStatusInProgress, c.Status)
+
+	_, err = repo.CreateClaim(ctx, teamstate.Claim{TicketID: "PLAN-2", Project: "myproject", ClaimedBy: "testuser", Status: teamstate.ClaimStatusPlanned})
+	require.NoError(t, err)
+	note = startTicketClaim(ctx, repo, "myproject", "testuser", "PLAN-2")
+	assert.Contains(t, note, "→")
+	c, err = repo.GetClaim("myproject", "PLAN-2")
+	require.NoError(t, err)
+	assert.Equal(t, teamstate.ClaimStatusInProgress, c.Status, "planned → in progress")
+
+	assert.Empty(t, startTicketClaim(ctx, repo, "myproject", "testuser", "PLAN-2"), "already in progress: nothing to do")
+
+	_, err = repo.CreateClaim(ctx, teamstate.Claim{TicketID: "ALICE-3", Project: "myproject", ClaimedBy: "alice", Status: teamstate.ClaimStatusPlanned})
+	require.NoError(t, err)
+	assert.Contains(t, startTicketClaim(ctx, repo, "myproject", "testuser", "ALICE-3"), "alice")
+	c, _ = repo.GetClaim("myproject", "ALICE-3")
+	assert.Equal(t, teamstate.ClaimStatusPlanned, c.Status, "someone else's claim is left as is")
+}

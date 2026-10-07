@@ -94,6 +94,7 @@ func prepareWorkflowRun(ctx context.Context, a *app.App, opts runOptions, errOut
 	if err != nil {
 		return nil, err
 	}
+	svc.OnTicketsStarted = startTicketClaims(a, opts.Project)
 	kind := sessionspec.RuntimeKind(res.Runtime)
 	var rp *remotePrep
 	if kind == sessionspec.RuntimeRemote {
@@ -170,7 +171,8 @@ func prepareWorkflowRun(ctx context.Context, a *app.App, opts runOptions, errOut
 		if label != "" {
 			title += " · " + label
 		}
-		req.Sessions = append(req.Sessions, runsvc.PlannedInput{Label: label, Title: title, Branch: sessionBranch(res.Spec, v, label, opts.Branch)})
+		req.Sessions = append(req.Sessions, runsvc.PlannedInput{Label: label, Title: title, Branch: sessionBranch(res.Spec, v, label, opts.Branch),
+			Tickets: remoteTickets(v, ticketInput)})
 	}
 	preconds, suggestions, err := preconditionWarnings(res.Spec, opts.Project.Path)
 	if err != nil {
@@ -384,6 +386,9 @@ func (p *preparedRun) start(ctx context.Context, a *app.App, ui launcher.LaunchU
 // not (browser, suspension, no terminal). Only the first session of a run
 // may take over the current terminal.
 func afterStart(ctx context.Context, a *app.App, svc *runsvc.Service, ui launcher.LaunchUI, attach sessionspec.AttachPref, res *runsvc.StartResult, first bool) error {
+	for _, n := range res.Notes {
+		ui.Notify(n, launcher.LevelInfo)
+	}
 	if res.Queued {
 		ui.Notify(i18n.Tf("cmd.budget.queued", res.SessionID, res.Ahead), launcher.LevelInfo)
 	}
