@@ -151,6 +151,9 @@ func (w *watcher) raiseBudget(ctx context.Context, root string) {
 	}
 	slog.Info("ohd: session over budget", "session", root, "limit", dec.Payload.Data[limits.DataBudgetLimit])
 	w.refreshAlerts(ctx, root)
+	if dec.Payload.Data[limits.DataBudgetLimit] == limits.BudgetSession {
+		w.syncBudget(ctx, root, true)
+	}
 }
 
 // openLimitDecision reports whether a session has an open budget decision

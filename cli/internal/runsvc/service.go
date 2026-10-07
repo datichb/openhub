@@ -26,9 +26,11 @@ import (
 	"github.com/datichb/openhub/cli/internal/daemon"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/filelock"
+	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/limits"
 	"github.com/datichb/openhub/cli/internal/provider"
 	ohruntime "github.com/datichb/openhub/cli/internal/runtime"
+	"github.com/datichb/openhub/cli/internal/sessionctx"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 	"github.com/datichb/openhub/cli/internal/termlaunch"
 )
@@ -892,7 +894,22 @@ func (s *Service) ResumeSession(ctx context.Context, sessionID string, req Start
 		slog.Warn("runsvc: session update failed", "session", sessionID, "error", err)
 	}
 	_ = dc.Touch(ctx, gk)
+	if !reused {
+		s.setResumeContext(ctx, srv, sess.ID)
+	}
 	return nil
+}
+
+// setResumeContext tells the entry agent that its server restarted (S8,
+// QB8): a session context entry, cleared by the daemon after the next step;
+// a synthetic message without the capability.
+func (s *Service) setResumeContext(ctx context.Context, srv *domain.Server, sessionID string) {
+	w := &sessionctx.Writer{Adapter: s.Adapter, Dir: s.SessionsDir}
+	text := i18n.T("cmd.session.resume.context")
+	if _, err := w.Set(ctx, handle(srv), sessionID, sessionctx.Entry{Key: sessionctx.KeyResume,
+		Value: map[string]any{"text": text}, Fallback: text}); err != nil {
+		slog.Warn("runsvc: resume instruction not set", "session", sessionID, "error", err)
+	}
 }
 
 // StopSession stops a session: its agent loop is interrupted and, when no

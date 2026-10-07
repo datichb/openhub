@@ -2,7 +2,10 @@ package opencodev2
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -115,4 +118,40 @@ func (a *Adapter) ScanLegacy(dir string, o adapters.LegacyOptions) (*adapters.Le
 		out.Items = append(out.Items, adapters.LegacyItem{Rel: it.Rel, Dir: it.Dir, Count: it.Count, Link: it.Link})
 	}
 	return out, nil
+}
+
+var _ adapters.SessionContextSetter = (*Adapter)(nil)
+
+// maxContextValue is the largest instruction entry opencode accepts (2.0.20).
+const maxContextValue = 256 << 10
+
+// SetSessionContext implements adapters.SessionContextSetter (instruction
+// entries, S8). A route missing on this server (404/405) is ErrUnsupported.
+func (a *Adapter) SetSessionContext(ctx context.Context, h adapters.ServerHandle, sessionID, key string, value any) error {
+	data, err := json.Marshal(value)
+	if err != nil {
+		return err
+	}
+	if len(data) > maxContextValue {
+		return fmt.Errorf("session context %s: %d bytes, more than %d", key, len(data), maxContextValue)
+	}
+	return contextError(NewClient(h.URL, h.Password).PutInstructionEntry(ctx, sessionID, key, json.RawMessage(data)))
+}
+
+// ClearSessionContext implements adapters.SessionContextSetter.
+func (a *Adapter) ClearSessionContext(ctx context.Context, h adapters.ServerHandle, sessionID, key string) error {
+	err := NewClient(h.URL, h.Password).DeleteInstructionEntry(ctx, sessionID, key)
+	var ae *APIError
+	if errors.As(err, &ae) && ae.Status == http.StatusNotFound && ae.Tag != "" {
+		return nil // already absent
+	}
+	return contextError(err)
+}
+
+func contextError(err error) error {
+	var ae *APIError
+	if errors.As(err, &ae) && (ae.Status == http.StatusMethodNotAllowed || (ae.Status == http.StatusNotFound && ae.Tag == "")) {
+		return fmt.Errorf("%w: %v", adapters.ErrUnsupported, err)
+	}
+	return err
 }

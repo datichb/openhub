@@ -219,3 +219,16 @@ func (p *LegacyPlan) Apply() error {
 	}
 	return p.ApplyFunc()
 }
+
+// ErrUnsupported is returned by an optional capability the tool cannot
+// provide (any more): the caller falls back.
+var ErrUnsupported = errors.New("not supported by the tool")
+
+// SessionContextSetter sets the evolving state of a session (S8): named
+// entries the entry agent knows from its next step (checkpoints passed,
+// remaining budget, resume instruction). Keys match ^[a-z0-9][a-z0-9._-]*$;
+// values are JSON values. ErrUnsupported when the tool cannot (any more).
+type SessionContextSetter interface {
+	SetSessionContext(ctx context.Context, h ServerHandle, sessionID, key string, value any) error
+	ClearSessionContext(ctx context.Context, h ServerHandle, sessionID, key string) error
+}

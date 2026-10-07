@@ -33,6 +33,10 @@ type Capabilities struct {
 	MultiLocation     bool // one server can host sessions in several directories
 	PluginHooks       bool // tool plugin hooks (prompt injection, evaluate…)
 	Attach            bool // an interactive client can attach to a running session
+	// SessionContext: entries of an evolving session state, known to the
+	// entry agent of the session (SessionContextSetter; not passed to
+	// subagents).
+	SessionContext bool
 }
 
 // RenderedConfig is the tool-specific output of Render.

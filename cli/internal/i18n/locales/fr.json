@@ -3914,5 +3914,6 @@
   "help.usage.help_for": "Aide de %s",
   "cmd.root.flags.log-format": "Format des journaux : pretty (défaut) ou json",
   "cmd.root.flags.no-tui": "Désactiver l'interface riche (questions en ligne seulement)",
-  "cmd.session.open.unsupported": "%s ne permet pas d'ouvrir une session dans le navigateur"
+  "cmd.session.open.unsupported": "%s ne permet pas d'ouvrir une session dans le navigateur",
+  "cmd.session.resume.context": "La session a été reprise après une mise en veille (son serveur a redémarré) : reprends l'étape en cours là où tu t'étais arrêté."
 }

@@ -97,6 +97,7 @@ func (a *Adapter) Capabilities() adapters.Capabilities {
 		MultiLocation:     true,
 		PluginHooks:       true,
 		Attach:            true,
+		SessionContext:    true,
 	}
 }
 

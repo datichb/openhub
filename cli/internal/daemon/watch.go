@@ -8,6 +8,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/adapters"
 	"github.com/datichb/openhub/cli/internal/domain"
+	"github.com/datichb/openhub/cli/internal/sessionctx"
 )
 
 // Session tracking (E10): one watcher per live tool server subscribes to the
@@ -53,6 +54,7 @@ type watcher struct {
 	childAgent map[string]string    // subagent session id → its agent
 	callAgent  map[string]string    // subagent tool call id → delegated agent (checkpoints)
 	runs       map[string]*agentRun // tool session id → agent telemetry (agent_events)
+	ctxw       *sessionctx.Writer   // evolving session state (S8)
 	synced     bool                 // a resync succeeded since the last (re)connection
 	lastTouch  time.Time
 	lastEvent  time.Time // last session activity seen (idle-sleep timer)
@@ -230,6 +232,7 @@ func (w *watcher) onEvent(ctx context.Context, ev adapters.ToolEvent) {
 	case ev.Kind == adapters.EventExecStarted:
 		if !w.holdOverBudget(ctx, ev.SessionID, ev.SessionID) {
 			w.clearAlerts(ctx, ev.SessionID)
+			w.syncBudget(ctx, ev.SessionID, false) // after a raise
 		}
 	case ev.Kind == adapters.EventExecEnded && ev.Outcome == "failed":
 		w.raiseFailure(ctx, ev)
@@ -242,7 +245,8 @@ func (w *watcher) onEvent(ctx context.Context, ev adapters.ToolEvent) {
 	w.persist(ctx, ev.SessionID, refreshUsage)
 	if ev.Kind == adapters.EventExecEnded {
 		w.raiseBudget(ctx, ev.SessionID) // the step is over: budgets apply now
-		w.d.wake()                       // a pending "sleep when idle" policy may apply now
+		w.clearResume(ctx, ev.SessionID)
+		w.d.wake() // a pending "sleep when idle" policy may apply now
 		if ev.Outcome == "succeeded" {
 			if attached, _ := w.d.clientState(w.srv.GroupKey); !attached {
 				w.d.notes.turnDone(ev.SessionID)

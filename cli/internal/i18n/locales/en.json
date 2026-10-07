@@ -3914,5 +3914,6 @@
   "help.usage.help_for": "help for %s",
   "cmd.root.flags.log-format": "Log output format: pretty (default) or json",
   "cmd.root.flags.no-tui": "Disable rich TUI (use inline prompts only)",
-  "cmd.session.open.unsupported": "%s cannot open a session in the browser"
+  "cmd.session.open.unsupported": "%s cannot open a session in the browser",
+  "cmd.session.resume.context": "The session was resumed after a sleep (its server restarted): continue the current step where you stopped."
 }
