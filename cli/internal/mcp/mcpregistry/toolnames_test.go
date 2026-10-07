@@ -10,7 +10,7 @@ import (
 )
 
 // QB3: the built-in MCP servers name their tools without their server
-// prefix: opencode shows `<server>_<tool>` to the model, so `gitlab_get_project`
+// prefix: the tool shows `<server>_<tool>` to the model, so `gitlab_get_project`
 // (the name the agents and skills use) is the tool `get_project` of the
 // server `gitlab` (it was `gitlab_gitlab_get_project`, and the permission
 // rules naming a GitLab tool never matched).

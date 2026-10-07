@@ -171,10 +171,10 @@ func TestJSONValidity(t *testing.T) {
 	}
 }
 
-// QB3: opencode V1 is no longer supported (D3): no message offers it
-// (tui.start.free_desc did). The messages explaining that V1 is refused
+// QB3: the V1 of the tool is no longer supported (D3): no message offers
+// it (tui.start.free_desc did). The messages explaining that V1 is refused
 // (cmd.v1.unsupported.*) are the exception.
-func TestNoMessageOffersOpencodeV1(t *testing.T) {
+func TestNoMessageOffersV1(t *testing.T) {
 	v1 := regexp.MustCompile(`\bV1\b`) // not the oh/v1 schema
 	for _, lang := range []string{"fr", "en"} {
 		data, err := localeFS.ReadFile("locales/" + lang + ".json")
