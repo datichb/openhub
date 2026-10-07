@@ -176,6 +176,14 @@ func (f *feedDecoder) callOf(e Event) *adapters.ToolCall {
 	case "session.tool.called":
 		c.Status = adapters.CallCalled
 		_ = json.Unmarshal(d.Input, &c.Input)
+		if c.Action == sessionspec.ActionSkill {
+			for _, k := range []string{"name", "skill", "id"} {
+				if v, _ := c.Input[k].(string); v != "" {
+					c.Skill = v
+					break
+				}
+			}
+		}
 	case "session.tool.success":
 		c.Status = adapters.CallOK
 	default:

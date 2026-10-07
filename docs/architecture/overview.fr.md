@@ -118,7 +118,7 @@ Les skills communautaires s'installent depuis le [oh-skills-index](https://githu
 
 ### Observabilité
 
-Le registre des sessions (`oh.db` : sessions, décisions, usage par session et par jour) alimente `oh metrics`, `oh serve`, la vue Sessions et `oh session results` (coût, tokens, modèle, fichiers modifiés, branche, description de MR). La table historique `agent_events` n'est plus alimentée par les sessions v5.
+Le registre des sessions (`oh.db` : sessions, décisions, usage par session et par jour) alimente `oh metrics`, `oh serve`, la vue Sessions et `oh session results` (coût, tokens, modèle, fichiers modifiés, branche, description de MR). La table `agent_events` (une ligne par agent d'une session : agent d'entrée et chaque sous-agent, avec statut, durée, tokens, coût et skills chargées) est alimentée par le démon et donne le tableau par agent de `oh metrics`, `oh serve` et de la vue Métriques.
 
 ---
 

@@ -126,6 +126,7 @@ func daemonOptions(ctx context.Context, a *app.App, capability string) daemon.Op
 		Sessions:    a.Sessions,
 		Decisions:   sqlite.NewDecisionStore(store),
 		Usage:       sqlite.NewUsageStore(store),
+		AgentEvents: sqlite.NewAgentEventStore(store),
 		SessionsDir: ohSessionsDir(),
 		ServersDir:  ohServersDir(),
 		Checkpoints: newCheckpointService(a),

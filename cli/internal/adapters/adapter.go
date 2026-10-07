@@ -122,6 +122,8 @@ type ToolCall struct {
 	// Status: called (input known, may still wait for a permission) | ok | failed.
 	Status string
 	Error  string
+	// Skill is the skill a skill call loads (set by the adapter).
+	Skill string
 }
 
 // Tool call statuses.

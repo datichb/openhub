@@ -118,7 +118,7 @@ Community skills are installed from the [oh-skills-index](https://github.com/dat
 
 ### Observability
 
-The session registry (`oh.db`: sessions, decisions, usage per session and per day) feeds `oh metrics`, `oh serve`, the Sessions view and `oh session results` (cost, tokens, model, changed files, branch, MR description). The legacy `agent_events` table is no longer fed by v5 sessions.
+The session registry (`oh.db`: sessions, decisions, usage per session and per day) feeds `oh metrics`, `oh serve`, the Sessions view and `oh session results` (cost, tokens, model, changed files, branch, MR description). The `agent_events` table (one row per agent of a session: the entry agent and each subagent, with status, duration, tokens, cost and skills loaded) is fed by the daemon and gives the per-agent table of `oh metrics`, `oh serve` and the Metrics view.
 
 ---
 

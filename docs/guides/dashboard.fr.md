@@ -135,7 +135,7 @@ curl http://127.0.0.1:8080/api/v1/metrics/agents
 
 ## Télémétrie des Agents
 
-Le tableau par agent lit la table `agent_events` de `~/.oh/oh.db`. **En v5, les sessions n'alimentent plus cette table** : elle ne contient que l'historique des versions précédentes (agent, heure de démarrage et durée, statut, appels d'outils). Le coût, les tokens et la durée des sessions v5 viennent du registre des sessions (`oh metrics`, vue Sessions, `oh session results`).
+Le tableau par agent lit la table `agent_events` de `~/.oh/oh.db`, alimentée par le démon : une ligne par agent d'une session (agent d'entrée et chaque sous-agent), avec statut de la dernière étape, durée, tokens, coût et skills chargées. Le coût total des sessions vient du registre des sessions (`oh metrics`, vue Sessions, `oh session results`).
 
 La télémétrie est stockée localement dans `~/.oh/oh.db` et n'est jamais envoyée à des services externes.
 

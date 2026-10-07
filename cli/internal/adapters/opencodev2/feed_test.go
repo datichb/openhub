@@ -83,6 +83,10 @@ func TestFeedToolCalls(t *testing.T) {
 	assert.Equal(t, adapters.CallFailed, c.Status)
 	assert.Equal(t, "Permission denied: subagent", c.Error)
 
+	step(ev("session.tool.input.started", `{"sessionID":"s","id":"c3","name":"skill"}`))
+	c = step(ev("session.tool.called", `{"sessionID":"s","id":"c3","input":{"name":"dev-standards-go"}}`))
+	assert.Equal(t, "dev-standards-go", c.Skill, "QB2: skill loaded, for agent_events")
+
 	assert.Nil(t, step(ev("session.tool.success", `{"sessionID":"s","id":"unknown"}`)), "call started before the stream")
 	assert.Equal(t, "shell", NeutralAction("shell"))
 	assert.Equal(t, "workflow_checkpoint", ToolAction(sessionspec.MCPToolAction("workflow", sessionspec.WorkflowToolCheckpoint)),
