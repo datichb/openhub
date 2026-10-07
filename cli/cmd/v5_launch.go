@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -28,6 +29,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/runsvc"
 	workflowsvc "github.com/datichb/openhub/cli/internal/services/workflow"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
+	"github.com/datichb/openhub/cli/internal/teamstate"
 	"github.com/datichb/openhub/cli/internal/termlaunch"
 )
 
@@ -197,6 +199,7 @@ func sessionBundleRequest(a *app.App, project *domain.Project, tc config.Resolve
 		WebsearchEnabled:      a.Config.Websearch.Enabled,
 	}
 	req.HubOverrides, req.ProjectOverrides = modelOverridesFor(a, project)
+	req.TeamOverrides = teamModelOverrides(tc)
 	if project != nil {
 		req.ProjectPath = project.Path
 		req.MCP = sessionMCP(a, project, tc)
@@ -218,6 +221,28 @@ func modelOverridesFor(a *app.App, project *domain.Project) (hub, proj *bricks.M
 		}
 	}
 	return hub, proj
+}
+
+// teamModelOverrides returns the team recommendations of the model cascade
+// (`[models]` of the team-state config.toml, ADR-030; below hub and project).
+func teamModelOverrides(tc config.ResolvedTeamConfig) *bricks.ModelOverrides {
+	if !tc.Enabled || tc.StatePath == "" {
+		return nil
+	}
+	repo := teamstate.NewRepo(tc.StateRepo, tc.StatePath)
+	if !repo.IsCloned() {
+		return nil
+	}
+	cfg, err := repo.LoadConfig()
+	if err != nil {
+		slog.Warn("team model recommendations not loaded", "team", tc.TeamID, "error", err)
+		return nil
+	}
+	m := cfg.Models
+	if m.Default == "" && len(m.Families) == 0 && len(m.Agents) == 0 {
+		return nil
+	}
+	return &bricks.ModelOverrides{Default: m.Default, Families: m.Families, Agents: m.Agents}
 }
 
 // mcpWriteEnv is the variable that enables the write tools of each oh MCP
