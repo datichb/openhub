@@ -1,7 +1,18 @@
 ---
-updated: 2026-10-06
-confidence: confirmed
+page: config-cascade
+title: Cascade de configuration
+confidence: CONFIRMED
 agents: [developer]
+sources:
+  - cli/internal/config/resolution.go
+  - cli/internal/config/config.go
+  - cli/internal/mcpresolve/resolve.go
+  - cli/internal/tracker/resolve_config.go
+  - cli/internal/bricks/model_resolve.go
+  - cli/internal/limits/limits.go
+  - cli/internal/workflow/layers.go
+  - docs/architecture/adr/033-config-cascade-enforcement.fr.md
+last_updated: 2026-10-06
 ---
 
 > [Read in English](config-cascade.en.md)
@@ -38,7 +49,7 @@ Au niveau projet, une parenthèse précise la source d'héritage :
 `"non configuré (hérite du hub)"` ou `"non configuré (hérite de l'équipe)"`.
 Au niveau hub (plus haut niveau), pas de parenthèse.
 
-— `CONFIRMÉ` · developer · 2026-09-10 · views/config_field.go
+— `CONFIRMÉ` · developer · 2026-09-10 · tui/v2/views/config_field.go
 
 ## Matrice de cascade par domaine
 
@@ -68,7 +79,9 @@ Supprimées en v5 (ignorées si elles restent dans `hub.toml`) : `opencode.versi
 | token_key | `string` | — | `string` override | Non (personnel) | `""` |
 | write_enabled | `bool` | — (WriteRecommended info) | `*bool` override | Non (personnel) | false |
 
-— `CONFIRMÉ` · developer · 2026-09-10 · tracker/resolve_mcp.go
+En v5, les serveurs activés à l'issue de cette cascade sont placés dans le paquet de session au lancement (`oh mcp serve <nom> --token-key <clé>` : seul le nom de la clé, le jeton reste dans le trousseau) ; le champ `mcp:` du workflow ne peut que les filtrer.
+
+— `CONFIRMÉ` · developer · 2026-10-06 · mcpresolve/resolve.go
 
 ### Tracker local (2 niveaux, pointeur nil-inherit)
 
@@ -128,6 +141,14 @@ L'ancien overlay `TeamConfig.Workflow.Enforced` (vue Workflow, surcharges des ch
 Sessions actives max, budget par session et journalier (USD), plafond mémoire, liste de modèles. Commandes : `oh budget show|set|unset|raise`.
 
 — `CONFIRMÉ` · developer · 2026-10-06 · internal/limits
+
+### Environnement d'exécution (runtime)
+
+**Ordre** : `--runtime` (ou la fiche de lancement) → config Exécution du projet → Réglages (`[execution] runtime`) → `runtime.default` du workflow
+
+Un runtime que le workflow n'autorise pas (`runtime.allowed`) est ignoré. `[execution]` de `hub.toml` porte aussi `engine`, `keep_images`, `opencode_version` et `strict_isolation` (hub seulement) ; la config Exécution du projet porte le Dockerfile de dev, les build args, les volumes, le workflow et le runtime par défaut. Voir [Conteneur](../../guides/container.fr.md).
+
+— `CONFIRMÉ` · developer · 2026-10-06 · config/config.go
 
 ### Team-only (pas de cascade)
 
