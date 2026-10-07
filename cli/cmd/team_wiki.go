@@ -209,8 +209,8 @@ func runTeamWikiReview(cmd *cobra.Command, args []string) error {
 	_, _ = fmt.Scanln(&response)
 	response = strings.TrimSpace(strings.ToLower(response))
 
-	switch {
-	case response == "a" || response == "accept":
+	switch response {
+	case "a", "accept":
 		if err := repo.WikiAcceptProposal(ctx, id); err != nil {
 			return fmt.Errorf("accepting proposal: %w", err)
 		}
@@ -234,7 +234,7 @@ func runTeamWikiReview(cmd *cobra.Command, args []string) error {
 			theme.SuccessStyle.Render(theme.IconSuccess),
 			i18n.Tf("cmd.team.wiki.accepted", id, proposal.Page))
 
-	case response == "r" || response == "reject":
+	case "r", "reject":
 		if err := repo.WikiRejectProposal(ctx, id); err != nil {
 			return fmt.Errorf("rejecting proposal: %w", err)
 		}

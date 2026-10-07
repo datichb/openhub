@@ -1112,19 +1112,17 @@ func buildTeamModeIntroStep(state *initWizardTeamState) views.WizardStep {
 						state.ExistingTeam.ID,
 						state.ExistingTeam.StateRepo,
 						state.ExistingTeam.MemberID), reset)
-			} else {
+			} else if prereqs != "" {
 				// ── Prerequisites (only when no existing team) ──
-				if prereqs != "" {
-					fmt.Fprintf(&b, "%s┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄%s\n\n", muted, reset)
-					for _, line := range strings.Split(prereqs, "\n") {
-						if strings.HasPrefix(line, "• ") {
-							fmt.Fprintf(&b, "%s•%s %s%s%s\n", warning, reset, secondary, line[len("• "):], reset)
-						} else {
-							fmt.Fprintf(&b, "%s%s %s%s\n", warning, theme.IconWarning, line, reset)
-						}
+				fmt.Fprintf(&b, "%s┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄%s\n\n", muted, reset)
+				for _, line := range strings.Split(prereqs, "\n") {
+					if strings.HasPrefix(line, "• ") {
+						fmt.Fprintf(&b, "%s•%s %s%s%s\n", warning, reset, secondary, line[len("• "):], reset)
+					} else {
+						fmt.Fprintf(&b, "%s%s %s%s\n", warning, theme.IconWarning, line, reset)
 					}
-					b.WriteString("\n")
 				}
+				b.WriteString("\n")
 			}
 
 			// Note
@@ -1147,11 +1145,12 @@ func buildTeamModeIntroStep(state *initWizardTeamState) views.WizardStep {
 					i18n.T("wizard.intro.skip"),
 				}
 				defaultIdx := 0
-				if state.TeamChoice == "keep" {
+				switch state.TeamChoice {
+				case "keep":
 					defaultIdx = 1
-				} else if state.TeamChoice == "reconfigure" {
+				case "reconfigure":
 					defaultIdx = 2
-				} else if state.TeamChoice == "skip" {
+				case "skip":
 					defaultIdx = 3
 				}
 

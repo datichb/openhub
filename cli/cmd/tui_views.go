@@ -383,9 +383,7 @@ func buildViews(a *app.App, notifStore *shell.NotificationStore) []views.View {
 					})
 				}()
 			},
-			OnSave: func(cfg *config.Config) error {
-				return config.Save(cfg)
-			},
+			OnSave: config.Save,
 			OnNavigate: func(viewID string) {
 				if tuiShell != nil {
 					tuiShell.NavigateTo(viewID)

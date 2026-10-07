@@ -216,11 +216,12 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 		},
 		SummaryOnAction: func(shell views.ShellAccess) {
 			if s.ProjectCreated {
-				shell.SetProjectMode(&views.ActiveProject{
+				shell.SetActiveProject(&views.ActiveProject{
 					ID:   s.ProjectID,
 					Name: s.ProjectName,
 					Path: s.ProjectPath,
 				})
+				shell.SetMode(views.ModeProject)
 			} else {
 				shell.NavigateTo("home")
 			}

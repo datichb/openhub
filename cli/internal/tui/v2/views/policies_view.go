@@ -157,8 +157,8 @@ func (v *PoliciesView) StatusHints() string {
 }
 
 // Mount builds the policies view with a descriptive header and SectionedList.
-func (v *PoliciesView) Mount(content *tview.Flex, app *tview.Application) {
-	v.app = app
+func (v *PoliciesView) Mount(content *tview.Flex, tvApp *tview.Application) {
+	v.app = tvApp
 
 	v.header = tview.NewTextView().
 		SetDynamicColors(true).
@@ -167,7 +167,7 @@ func (v *PoliciesView) Mount(content *tview.Flex, app *tview.Application) {
 	v.header.SetBackgroundColor(theme.BgPanel)
 	v.header.SetBorderPadding(1, 0, 2, 2)
 
-	v.slist = widgets.NewSectionedList().SetApp(app)
+	v.slist = widgets.NewSectionedList().SetApp(tvApp)
 	v.slist.SetBorderPadding(0, 0, 2, 2)
 
 	v.contentFlex = tview.NewFlex().SetDirection(tview.FlexRow).

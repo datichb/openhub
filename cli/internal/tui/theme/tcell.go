@@ -102,10 +102,10 @@ var (
 //
 // Usage:
 //
-//	theme.ActiveMode.AccentHex   // bannières ASCII, bordures modals, boutons primaires
-//	theme.ActiveMode.PrimaryHex  // titres sections, badges, key highlights, mode label
-//	theme.ActiveMode.SecondaryHex // boutons activés, CTA, cursors, arrows
-//	theme.ActiveMode.MutedHex    // séparateur omnibar, indicateurs discrets
+//	theme.ActiveMode.AccentHex   // ASCII banners, modal borders, primary buttons
+//	theme.ActiveMode.PrimaryHex  // section titles, badges, key highlights, mode label
+//	theme.ActiveMode.SecondaryHex // enabled buttons, CTA, cursors, arrows
+//	theme.ActiveMode.MutedHex    // omnibar separator, discreet indicators
 type ModeTheme struct {
 	// AccentHex is the most vivid color, used sparingly for high-impact elements:
 	// ASCII banners, modal borders/titles/corners, primary button backgrounds.

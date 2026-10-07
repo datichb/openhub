@@ -846,10 +846,7 @@ func TestExpressMode_FullShowsAll(t *testing.T) {
 	assert.False(t, providerStep.SkipIf(), "provider should not be skipped in full mode")
 
 	teamSkipIf := func() bool {
-		if s.SetupMode == "solo" {
-			return true
-		}
-		return false
+		return s.SetupMode == "solo"
 	}
 	assert.False(t, teamSkipIf(), "team should not be skipped in full mode")
 }

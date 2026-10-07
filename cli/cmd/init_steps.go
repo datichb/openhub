@@ -215,9 +215,10 @@ func buildWelcomeStep(s *initStepState) views.WizardStep {
 			}
 			modeKeys := []string{"solo", "team", "full"}
 			defaultMode := 2 // "full" by default — all steps visible
-			if s.SetupMode == "solo" {
+			switch s.SetupMode {
+			case "solo":
 				defaultMode = 0
-			} else if s.SetupMode == "team" {
+			case "team":
 				defaultMode = 1
 			}
 			if s.SetupMode == "" {
@@ -385,22 +386,24 @@ func buildProviderStep(s *initStepState) views.WizardStep {
 				// Run provider detection to find available credentials.
 				detections := providerPkg.DetectAll()
 				for _, d := range detections {
-					if d.Available {
-						name := string(d.Provider)
-						for idx, opt := range s.ProviderOptions {
-							if opt == name {
-								s.SelectedProvider = name
-								s.ProviderIdx = idx
-								detectedSource = d.Source
-								if d.Details != "" {
-									detectedSource += " (" + d.Details + ")"
-								}
-								break
-							}
+					if !d.Available {
+						continue
+					}
+					name := string(d.Provider)
+					for idx, opt := range s.ProviderOptions {
+						if opt != name {
+							continue
 						}
-						if s.SelectedProvider != "" {
-							break
+						s.SelectedProvider = name
+						s.ProviderIdx = idx
+						detectedSource = d.Source
+						if d.Details != "" {
+							detectedSource += " (" + d.Details + ")"
 						}
+						break
+					}
+					if s.SelectedProvider != "" {
+						break
 					}
 				}
 			}
@@ -810,9 +813,10 @@ func buildProjectStep(s *initStepState) views.WizardStep {
 						i18n.T("cmd.init.wizard_project_choice_reconfigure"),
 					}
 					defaultIdx := 0
-					if s.ProjectChoice == "keep" {
+					switch s.ProjectChoice {
+					case "keep":
 						defaultIdx = 1
-					} else if s.ProjectChoice == "reconfigure" {
+					case "reconfigure":
 						defaultIdx = 2
 					}
 					choiceMounted := false
@@ -831,10 +835,11 @@ func buildProjectStep(s *initStepState) views.WizardStep {
 					})
 					choiceMounted = true
 
-					if s.ProjectChoice == "keep" {
+					switch s.ProjectChoice {
+					case "keep":
 						// Keep mode: only show team attachment option.
 						addTeamAttachment()
-					} else if s.ProjectChoice == "reconfigure" {
+					case "reconfigure":
 						// Reconfigure mode: show editable fields (pre-filled).
 						form.AddInputField(i18n.T("cmd.init.wizard_project_name"), s.ProjectName, 0, nil, func(t string) { s.ProjectName = t })
 						form.AddInputField(i18n.T("cmd.init.wizard_project_path"), s.ProjectPath, 0, nil, func(t string) { s.ProjectPath = t })
@@ -1229,12 +1234,13 @@ func buildMCPConsolidatedStep(s *initStepState, a *app.App) views.WizardStep {
 		InfoFields: func() []views.InfoField {
 			var fields []views.InfoField
 			for _, entry := range entries {
-				if *entry.tokenVar == "" {
+				switch {
+				case *entry.tokenVar == "":
 					fields = append(fields, views.InfoField{Label: entry.name, Value: infoMuted(i18n.T("cmd.init.wizard_mcp_skipped"))})
-				} else if entry.urlRequired && entry.urlVar != nil && *entry.urlVar == "" {
+				case entry.urlRequired && entry.urlVar != nil && *entry.urlVar == "":
 					// Token saved but URL required to activate (option D for Jira).
 					fields = append(fields, views.InfoField{Label: entry.name, Value: infoWarning(i18n.T("cmd.init.wizard_mcp_token_saved_url_required"))})
-				} else {
+				default:
 					fields = append(fields, views.InfoField{Label: entry.name, Value: infoSuccess(i18n.T("cmd.init.wizard_mcp_configured"))})
 				}
 			}

@@ -7,7 +7,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/config"
 )
 
@@ -109,18 +108,4 @@ func TestBuildInitWizardTeamSteps_FormRendering(t *testing.T) {
 	require.NotNil(t, form)
 	assert.Equal(t, 3, form.GetFormItemCount(), "form should have 3 fields: Repo, MemberID, DisplayName")
 	assert.Equal(t, 1, form.GetButtonCount(), "form should have 1 submit button")
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// newMockApp helper (if not already available from session_launch_test.go)
-// ─────────────────────────────────────────────────────────────────────────────
-
-// mockApp creates a minimal *app.App for testing wizard step structures.
-// Note: newMockApp should be defined in session_launch_test.go or similar.
-// If it's not accessible, this helper provides a minimal version.
-func mockAppForTeamTests() *app.App {
-	return &app.App{
-		Config:  &config.Config{},
-		Secrets: &mockSecretStore{secrets: map[string]string{}},
-	}
 }

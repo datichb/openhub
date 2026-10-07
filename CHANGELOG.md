@@ -197,6 +197,7 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 - TUI « Démarrer » : la session libre ne mentionne plus opencode V1.
 - Aide de la CLI : `oh --help` est construite à partir des commandes elles-mêmes (toutes les commandes visibles, par section, avec leurs options : `session`, `budget`, `daemon`, `remote`, `bundle build`, `team claim`… ; plus de `claim` ni `release` de premier niveau, qui n'existent pas) ; toute l'aide (descriptions, options, titres, « défaut ») suit la langue de l'interface, au lieu d'un mélange de français et d'anglais. Contenus corrigés : fournisseurs (`-P` : bedrock, anthropic, openrouter, github-copilot ; plus d'`openai`), `oh init`, cascade des modèles et `config websearch` (plus de déploiement), `--sweep-strategy` facultatif, `oh session attach --how here`.
 - `oh config model … -p <projet>` : la forme courte de `--project` est `-p`, comme partout (c'était `-j`).
+- Qualité du code : `golangci-lint` sans aucun signalement sur tout le dépôt, avec les tags de test et sous macOS, Linux et Windows (`make lint`, CI avec les tags) ; tous les signalements sont désormais affichés (plus de plafond par linter).
 
 ### Security
 

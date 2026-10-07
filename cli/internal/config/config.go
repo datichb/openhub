@@ -584,7 +584,7 @@ func (c *Config) ToMap() map[string]interface{} {
 }
 
 // flattenMap recursively flattens a nested map into dotted keys.
-func flattenMap(prefix string, src map[string]interface{}, dst map[string]interface{}) {
+func flattenMap(prefix string, src, dst map[string]interface{}) {
 	for k, v := range src {
 		key := k
 		if prefix != "" {
