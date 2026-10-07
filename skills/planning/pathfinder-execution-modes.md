@@ -57,7 +57,7 @@ question({
 
 ## Mode subagent
 
-> Ce skill est chargé quand le pathfinder est invoqué via `task` depuis l'agent orchestrator feature. L'orchestrateur injecte `[SKILL:planning/pathfinder-subagent]` dans le prompt.
+> Ce skill est chargé quand le pathfinder est invoqué via `task` depuis l'agent orchestrator feature. L'orchestrateur injecte `[SKILL:planning/pathfinder-execution-modes]` dans le prompt.
 
 > **Protocole sub-agent :** voir skill `shared/subagent-execution-protocol` pour le mécanisme d'interruption, la checklist, et les erreurs fréquentes.
 

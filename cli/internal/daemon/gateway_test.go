@@ -135,7 +135,7 @@ func (e *envFake) envOf(id string) map[string]string {
 	return e.env[id]
 }
 
-// Sub-sessions do not inherit the session environment in opencode: the
+// Sub-sessions do not inherit the session environment (opencode 2.0.20): the
 // daemon applies the root one, with a gateway token of their own.
 func TestDaemonSubagentSessionEnvironment(t *testing.T) {
 	p := shortPaths(t)
@@ -254,12 +254,12 @@ func TestDaemonMCPGateway(t *testing.T) {
 	code, body := post(grant.Token, `{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}`)
 	require.Equal(t, http.StatusOK, code, body)
 	assert.Contains(t, body, `"serverInfo"`)
-	code, body = post(grant.Token, `{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"whoami","_meta":{"ai.opencode/sessionID":"ses_unknown"}}}`)
+	code, body = post(grant.Token, `{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"whoami","_meta":{"ai.tool/sessionID":"ses_unknown"}}}`)
 	require.Equal(t, http.StatusOK, code, body)
 	assert.Contains(t, body, "from-keychain-g1@"+work, "secret read by the server on the machine, in the group directory")
 
 	// A session of another group is refused.
-	code, _ = post(grant.Token, `{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"whoami","_meta":{"ai.opencode/sessionID":"ses_g2"}}}`)
+	code, _ = post(grant.Token, `{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"whoami","_meta":{"ai.tool/sessionID":"ses_g2"}}}`)
 	assert.Equal(t, http.StatusForbidden, code)
 
 	// Revoking the group stops its MCP servers and the token.

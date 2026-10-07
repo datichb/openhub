@@ -133,14 +133,15 @@ func addBedrockRegionDropDown(form *tview.Form, region *string, regionIdx *int, 
 				return // no change — avoid spurious rerender
 			}
 			wasCustom := *custom
-			if idx == 0 {
+			switch {
+			case idx == 0:
 				// Placeholder selected — clear region.
 				*custom = false
 				*region = ""
-			} else if idx == customIdx {
+			case idx == customIdx:
 				*custom = true
 				*region = ""
-			} else if idx > 0 {
+			case idx > 0:
 				*custom = false
 				*region = providerPkg.BedrockRegions[idx-1].Code // -1 for placeholder offset
 			}

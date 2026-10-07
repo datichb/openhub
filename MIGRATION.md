@@ -170,7 +170,7 @@ Fallback : si le keychain OS n'est pas disponible, `oh` utilise un fichier chiff
 Les templates de providers sont remplaces par une simple cle :
 
 ```bash
-oh config set opencode.default_provider bedrock
+oh config set llm.default_provider bedrock
 ```
 
 Le provider peut aussi etre specifie par commande :
@@ -203,7 +203,7 @@ oh start --provider anthropic
 | `oc agent create/edit` | Gestion manuelle des fichiers .md |
 | `oc agent select/mode/validate/discover` | Report post-release |
 | `oc skills install/remove/update/search/info/add/sync` | Gestion manuelle des fichiers skill |
-| `oc config init-providers` | Remplace par `oh config set opencode.default_provider` |
+| `oc config init-providers` | Remplace par `oh config set llm.default_provider` |
 | `ocp` (binary separee) | Integre dans `oh start --provider` |
 
 ### Flags renommes

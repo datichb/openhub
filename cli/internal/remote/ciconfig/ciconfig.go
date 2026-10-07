@@ -84,11 +84,11 @@ func (o Options) Validate() error {
 }
 
 // layerDockerfile is the thin oh layer added on top of the project base image:
-// the oh binary installs opencode, the fake bd and the oh directories itself
+// the oh binary installs the tool, the fake bd and the oh directories itself
 // (oh runner install), in the image's libc.
 const layerDockerfile = `ARG OH_IMAGE_BASE
 FROM ${OH_IMAGE_BASE}
-ARG OH_OPENCODE_VERSION
+ARG ` + remote.VarToolVersion + `
 USER root
 COPY oh /usr/local/bin/oh
 COPY ca-certificates.crt /opt/oh/ca-certificates.crt

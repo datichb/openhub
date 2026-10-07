@@ -60,7 +60,7 @@ Un **groupe** = (version du paquet, projet, environnement d'exécution). Chaque 
 
 ### Adaptateur d'outil
 
-La logique reste dans `oh` ; un **adaptateur** par outil traduit un modèle neutre (`SessionSpec`, `BundleSpec`) dans le format de l'outil et pilote son serveur : `Render`, démarrage du serveur, création de session par l'API, `Attest`, événements, décisions, contrôle (interrompre, changer de modèle, compacter, fork), résultats, export/import. Seul l'adaptateur **opencode V2** existe (`internal/adapters/opencodev2`) ; opencode V1 n'est plus pris en charge. Aucun nom d'agent natif d'un outil n'apparaît hors de son adaptateur. Décisions : [ADR-038](./adr/038-sessionspec-tool-adapters.fr.md) (remplace en partie l'[ADR-036](./adr/036-platform-abstraction-layer.fr.md)), [ADR-048](./adr/048-opencode-v1-abandonment.fr.md).
+La logique reste dans `oh` ; un **adaptateur** par outil traduit un modèle neutre (`SessionSpec`, `BundleSpec`) dans le format de l'outil et pilote son serveur : `Render`, démarrage du serveur, création de session par l'API, `Attest`, événements, décisions, contrôle (interrompre, changer de modèle, compacter, fork), résultats, export/import. Seul l'adaptateur **opencode V2** existe (`internal/adapters/opencodev2`) ; opencode V1 n'est plus pris en charge. Rien de propre à un outil (nom, identifiants de fournisseur, variables, API, chemins, agents natifs) n'apparaît hors de son adaptateur : le reste d'oh passe par l'interface et des capacités neutres, une seule racine de composition (`cmd/v5_adapters.go`) choisit l'adaptateur, et un test d'architecture (`internal/archtest`) l'impose (D19). Décisions : [ADR-038](./adr/038-sessionspec-tool-adapters.fr.md) (remplace en partie l'[ADR-036](./adr/036-platform-abstraction-layer.fr.md)), [ADR-048](./adr/048-opencode-v1-abandonment.fr.md), [ADR-049](./adr/049-tool-independence-architecture-guard.fr.md).
 
 ### Démon `ohd`
 
@@ -68,7 +68,7 @@ Le démon (`oh daemon status|stop`, lancé à la demande) tourne sur la machine 
 
 - le **proxy d'identifiants LLM** : opencode ne reçoit qu'un jeton de groupe (`ohs_…`) ; la vraie clé reste dans le trousseau ; liste blanche des chemins d'inférence et des modèles, signature SigV4 pour les profils AWS, comptage de l'usage ;
 - la **supervision** des sessions : flux d'événements SSE, décisions en attente, état, notifications système, mise en veille, réapplication de l'environnement de session aux sous-sessions ;
-- les **passerelles** pour les environnements hors machine : passerelle Beads (faux `bd`) et passerelle MCP HTTP pour les serveurs MCP d'oh du paquet ;
+- les **passerelles** : passerelle Beads (faux `bd`, dans tous les environnements) et, hors machine, passerelle MCP HTTP pour les serveurs MCP d'oh du paquet ;
 - les **restrictions** optionnelles (désactivées par défaut) : sessions actives max, budget par session et journalier, plafond mémoire, liste de modèles (`oh budget`).
 
 Sous Windows, le démon tourne dans le processus `oh`. Décisions : [ADR-044](./adr/044-credential-proxy-session-limits.fr.md), [ADR-047](./adr/047-session-interaction-daemon.fr.md).
@@ -118,7 +118,7 @@ Les skills communautaires s'installent depuis le [oh-skills-index](https://githu
 
 ### Observabilité
 
-Le registre des sessions (`oh.db` : sessions, décisions, usage par session et par jour) alimente `oh metrics`, `oh serve`, la vue Sessions et `oh session results` (coût, tokens, modèle, fichiers modifiés, branche, description de MR). La table historique `agent_events` n'est plus alimentée par les sessions v5.
+Le registre des sessions (`oh.db` : sessions, décisions, usage par session et par jour) alimente `oh metrics`, `oh serve`, la vue Sessions et `oh session results` (coût, tokens, modèle, fichiers modifiés, branche, description de MR). La table `agent_events` (une ligne par agent d'une session : agent d'entrée et chaque sous-agent, avec statut, durée, tokens, coût et skills chargées) est alimentée par le démon et donne le tableau par agent de `oh metrics`, `oh serve` et de la vue Métriques.
 
 ---
 
@@ -219,13 +219,15 @@ Implémenter et diagnostiquer sont confiés à des agents différents (developer
 | [039](./adr/039-declarative-workflows-oh-v1.fr.md) | Workflows déclaratifs `oh/v1` | remplace 006, 018 |
 | [040](./adr/040-workflows-team-state-governance.fr.md) | Workflows dans le team-state, gouvernance, espace solo | fait évoluer 024, 029, 033 |
 | [041](./adr/041-closed-world-isolation.fr.md) | Monde fermé et vérification d'isolation | fait évoluer 019 |
-| [042](./adr/042-checkpoints-headless-decisions.fr.md) | Checkpoints à trois niveaux et décisions sans interface | remplace 003 |
-| [043](./adr/043-session-bundle-deploy-removal.fr.md) | Paquet de session et suppression du déploiement par projet | remplace 011 ; fait évoluer 008, 010 |
+| [042](./adr/042-checkpoints-headless-decisions.fr.md) | Checkpoints à trois niveaux et décisions sans interface | remplace 003 ; fait évoluer 019 (coupe-circuit) |
+| [043](./adr/043-session-bundle-deploy-removal.fr.md) | Paquet de session et suppression du déploiement par projet | remplace 011 ; fait évoluer 008, 010, 012 |
 | [044](./adr/044-credential-proxy-session-limits.fr.md) | Proxy d'identifiants LLM et restrictions des sessions | fait évoluer 019, 021, 033 |
 | [045](./adr/045-execution-environments.fr.md) | Environnements d'exécution : local, conteneur, distant | — |
 | [046](./adr/046-beads-gateways.fr.md) | Beads sur la machine et passerelles | — |
 | [047](./adr/047-session-interaction-daemon.fr.md) | Interaction avec les sessions, multi-session, démon `ohd` | fait évoluer 012 (worktree automatique) |
 | [048](./adr/048-opencode-v1-abandonment.fr.md) | Abandon d'opencode V1 | déprécie 014 |
+| [049](./adr/049-tool-independence-architecture-guard.fr.md) | Indépendance vis-à-vis de l'outil et garde-fou d'architecture | fait évoluer 038 |
+| [050](./adr/050-session-context-capability.fr.md) | État de session évolutif par capacité de l'adaptateur | fait évoluer 047 |
 
 Tous les ADR : [`docs/architecture/adr/`](./adr/).
 

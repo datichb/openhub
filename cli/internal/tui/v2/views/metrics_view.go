@@ -20,7 +20,7 @@ type MetricsViewConfig struct {
 	Stats       platform.StatsProvider // platform stats provider (ADR-036)
 }
 
-// MetricsView displays real usage metrics from opencode's database.
+// MetricsView displays the usage metrics of the session registry.
 type MetricsView struct {
 	app    *tview.Application
 	tv     *tview.TextView

@@ -353,7 +353,8 @@ func BuildSectionHeader(introText, title string, minWidth int) *tview.TextView {
 
 	titleLen := utf8.RuneCountInString(title)
 	leftDashes := 3
-	rightDashes := maxTextWidth - titleLen - leftDashes - 5 // 5 = "╶" + "─"*left + " " + " " + "╴"
+	// The frame takes 5 cells besides the dashes: ╶, two spaces around the title, ╴.
+	rightDashes := maxTextWidth - titleLen - leftDashes - 5
 	if rightDashes < 3 {
 		rightDashes = 3
 	}

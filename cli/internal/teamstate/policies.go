@@ -434,13 +434,14 @@ func checkForbiddenPattern(p Policy, ctx PolicyContext, result PolicyResult) Pol
 	case "diff_only":
 		linesToCheck = ctx.DiffLines
 	case "modified_files":
-		if len(ctx.ModifiedFileLines) > 0 {
+		switch {
+		case len(ctx.ModifiedFileLines) > 0:
 			linesToCheck = ctx.ModifiedFileLines
-		} else if len(ctx.ModifiedFiles) == 0 {
+		case len(ctx.ModifiedFiles) == 0:
 			result.NotEvaluable = true
 			result.Details = "no modified files context available"
 			return result
-		} else {
+		default:
 			// Fallback: use DiffLines when full file content is not available.
 			linesToCheck = ctx.DiffLines
 		}

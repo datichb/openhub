@@ -136,6 +136,8 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ### Changed
 
+- **État de session pour l'agent d'entrée** (étude S8, ADR-050) : checkpoints passés et en cours (à chaque transition), budget restant (à la décision `$` et après un relèvement) et consigne de reprise (après `oh session resume`), tenus à jour par une capacité de l'adaptateur ; une entrée n'est réécrite qu'à son changement. Sans la capacité : consigne de reprise en message d'oh, le reste lisible avec `workflow_status`. Les sous-agents ne reçoivent pas cet état.
+
 - **Anciennes commandes de lancement** : toujours des alias de `oh run`, sans repli (workflow absent : erreur) ; `oh start --resume <id>` ouvre la session dans le terminal (`oh session attach --how here`) ; `oh takeover-brief enrich` et l'enrichissement de la TUI passent par `brief-enrich`.
 - Serveur MCP `team` : équipe de la session lue dans l'environnement de sa déclaration dans le paquet (`OH_TEAM_ID`), au lieu de `.opencode/team.json`.
 - `oh metrics`, tableau de bord, API et vue Métriques : statistiques tirées du registre des sessions d'oh (`oh.db`) au lieu de la base d'opencode V1.
@@ -179,9 +181,34 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 - Skills d'orchestration et `docs/worktree.md` : les worktrees sont des dossiers frères du dépôt (`../<projet>-<branche>`), pas `.worktrees/<slug>`.
 - Test `TestDeployAgentConfigE2E` en échec dans un clone neuf (fixture ignorée par `.gitignore`).
 - Review parallèle (`oh review --mode standard+adversarial` / `all`) impossible sous opencode V2 : le reviewer ne pouvait pas lancer ses propres sessions (auto-délégation retirée du paquet). Une auto-délégation explicite (`task: { reviewer: allow }`, `calls: [reviewer]`) est désormais conservée.
+- `code_mode` et `modes.allowed` sont des champs de sécurité : une couche qui étend un workflow ne peut plus activer le code mode ni ajouter un mode (`loosening`) ; le résumé d'impact compte tout mode ajouté comme un assouplissement.
+- Serveurs MCP en écriture : chaque serveur reçoit sa propre variable (`GITLAB_`, `GITHUB_`, `JIRA_`, `LINEAR_WRITE_ENABLED`) au lieu de `GITLAB_WRITE_ENABLED` pour tous ; les serveurs sans outil d'écriture n'en reçoivent pas.
+- `oh doctor` sort avec le code 1 quand une vérification échoue (les avertissements ne comptent pas) ; `oh beads` transmet le code de sortie de `bd`.
+- Modèles recommandés par l'équipe (`[models]` du `config.toml` du team-state) : appliqués au lancement, après le hub (ils n'avaient aucun effet).
+- Tableau par agent de `oh metrics`, `oh serve` et de la vue Métriques : de nouveau alimenté, par le démon (une ligne par agent d'une session, agent d'entrée et sous-agents : statut, durée, tokens, coût, skills chargées).
+- `oh run review-feedback -i mr=<url|!iid|branche>` lit lui-même la MR sur GitLab (branche, branche cible, discussions non résolues), comme `oh review feedback` : nouvelles entrées calculées `from: <source>(<entrée>)` du schéma `oh/v1` (ajout additif), aux sources neutres et fermées `mr.discussions`, `mr.source_branch`, `mr.target_branch` et `ticket.brief`, utilisables par tous les workflows. `oh run brief-enrich --headless -i ticket=<id>` lit lui-même le brief de reprise dans l'espace d'équipe.
+- Tickets d'équipe : tout lancement d'un workflow sur des tickets réserve chaque ticket ou le fait passer de « planifié » au statut de travail (seul `oh start --dev` le faisait).
+- Patch `entry.selectable` écrit seul : il change le choix de l'agent en gardant l'agent d'entrée du parent (il était sans effet).
+- Détail d'équipe : « Sessions parallèles max » (`[parallel]`, sans effet en v5) n'est plus modifiable ; les restrictions des sessions sont `[limits]` (`oh budget`).
+- `oh mcp setup <service>` configure le service nommé (l'argument était ignoré ; `jira` ajouté, mode écriture proposé à chaque service qui en a un) ; `oh mcp list` liste tous les serveurs MCP d'oh (figma, github, gitlab, gslides, jira, linear, team, serveurs personnalisés).
+- Omnibar : chaque alias n'a plus qu'un sens (`q` = quitter, `hub` = mode Hub, `tokens` = secrets, `team config` = configurer l'équipe, `libre` = `run libre`).
+- Serveurs MCP d'oh : les outils sont exposés sans le nom du serveur (`get_project`) ; la session les voit sous `gitlab_get_project`, `figma_get_file`…, les noms qu'emploient les agents, les skills et les règles de permission (ils apparaissaient en `gitlab_gitlab_get_project` : une règle de refus d'un outil GitLab ne s'appliquait pas). L'ancien nom reste accepté.
+- Skills figma : elles n'appellent plus d'outils inexistants (`search_figma_files`, `get_figma_file_nodes`, `detect_ui_signals`…) ; les fichiers Figma sont trouvés par leur URL, puis lus avec `figma_get_file`, `figma_get_node`, `figma_get_styles`.
+- Contenu des agents et skills : plus aucune référence à une skill inexistante (`[SKILL:planning/planner-subagent]`, `auditor/auditor-standalone`, `designer/ux-subagent`… → skills `*-execution-modes`, `designer-subagent` ; le marqueur `[REVIEW:single]` du reviewer n'est plus présenté comme une skill) ; une skill nommée par un marqueur `[SKILL:…]` est livrée à la demande ; `review-feedback` livre `orchestrator-dev-feedback-mode`.
+- Détection de la stack : Django, FastAPI, Flask (`pyproject.toml`, `requirements.txt`, `Pipfile`, `setup.py`) et Rails (`Gemfile`) ; les skills de stack Django, FastAPI et Rails sont ajoutées au paquet.
+- TUI « Démarrer » : la session libre ne mentionne plus opencode V1.
+- Aide de la CLI : `oh --help` est construite à partir des commandes elles-mêmes (toutes les commandes visibles, par section, avec leurs options : `session`, `budget`, `daemon`, `remote`, `bundle build`, `team claim`… ; plus de `claim` ni `release` de premier niveau, qui n'existent pas) ; toute l'aide (descriptions, options, titres, « défaut ») suit la langue de l'interface, au lieu d'un mélange de français et d'anglais. Contenus corrigés : fournisseurs (`-P` : bedrock, anthropic, openrouter, github-copilot ; plus d'`openai`), `oh init`, cascade des modèles et `config websearch` (plus de déploiement), `--sweep-strategy` facultatif, `oh session attach --how here`.
+- `oh config model … -p <projet>` : la forme courte de `--project` est `-p`, comme partout (c'était `-j`).
+- Qualité du code : `golangci-lint` sans aucun signalement sur tout le dépôt, avec les tags de test et sous macOS, Linux et Windows (`make lint`, CI avec les tags) ; tous les signalements sont désormais affichés (plus de plafond par linter).
+- **Indépendance vis-à-vis de l'outil** (D19, ADR-049) : plus rien de propre à l'outil des sessions hors de son adaptateur. Registre d'adaptateurs et racine de composition unique, capacités neutres (fournisseur, installation Linux, données, nettoyage des anciens déploiements, navigateur), nom affiché fourni par l'adaptateur, test d'architecture qui le vérifie. Changements visibles :
+  - clés renommées dans `hub.toml` : `[llm] default_provider` et `[execution] tool_version` (les anciennes clés `[opencode] default_provider` et `opencode_version` sont encore lues, et `oh config set` les accepte) ;
+  - `oh purge --include-tool-data` remplace `--include-opencode` ;
+  - `oh status --json` donne `tool` et `tool_version` au lieu de `opencode_version` ;
+  - les runners distants lisent `OH_TOOL_VERSION` (schéma du pipeline 2 : relancer `oh remote setup`).
 
 ### Security
 
+- **`beads.allow` appliqué aussi en local** : le faux `bd` d'oh (`~/.oh/run/bin/bd`) passe en tête du `PATH` des sessions locales et de leurs sous-agents ; comme en conteneur, chaque commande passe par la passerelle Beads du démon, qui applique la liste du workflow (lecture seule sans bloc `beads:`). La règle shell de chaque agent refuse un `bd` appelé par un chemin (`/opt/homebrew/bin/bd …`), qui contournerait la passerelle. Les workflows livrés `feature`, `sweep`, `debug`, `quick`, `review-feedback`, `libre` et `onboarding` déclarent désormais leurs commandes Beads ; une couche qui les étend ne peut que restreindre ces listes.
 - Mode local : la base ne garde plus que l'empreinte des jetons du proxy (les jetons en clair laissés par une version précédente sont convertis au démarrage du démon) ; l'émission de jetons et l'arrêt du démon sont réservés à la CLI oh par une capacité gardée dans le trousseau (sinon un fichier 0600), jamais transmise aux serveurs des sessions ; le socket du démon refuse les processus d'un autre utilisateur ; la vérification d'isolation porte sur les règles que l'outil applique réellement à chaque agent. Vérifications « Sécurité » dans `oh doctor`. Voir SECURITY.md.
 
 ### Documentation

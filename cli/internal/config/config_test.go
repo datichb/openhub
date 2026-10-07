@@ -21,36 +21,7 @@ func TestLoad_Defaults(t *testing.T) {
 	require.NotNil(t, cfg)
 
 	assert.Equal(t, "en", cfg.CLI.Language)
-	assert.Empty(t, cfg.Opencode.DefaultProvider)
-}
-
-func TestLoad_FromFile(t *testing.T) {
-	Reset()
-
-	tmpDir := t.TempDir()
-	t.Setenv("HOME", tmpDir)
-
-	ohDir := filepath.Join(tmpDir, ".oh")
-	require.NoError(t, os.MkdirAll(ohDir, 0o755))
-
-	tomlContent := `
-[cli]
-language = "fr"
-
-[opencode]
-version = "1.17.2"
-channel = "beta"
-auto_update = true
-`
-	require.NoError(t, os.WriteFile(filepath.Join(ohDir, "hub.toml"), []byte(tomlContent), 0o644))
-
-	cfg, err := Load()
-	require.NoError(t, err)
-	require.NotNil(t, cfg)
-
-	assert.Equal(t, "fr", cfg.CLI.Language)
-	// keys of the former managed install (removed in v5) are ignored
-	assert.Empty(t, cfg.Opencode.DefaultProvider)
+	assert.Empty(t, cfg.LLM.DefaultProvider)
 }
 
 // TestSaveAndLoad_Roundtrip verifies that saving a Config and reloading it
@@ -69,7 +40,7 @@ func TestSaveAndLoad_Roundtrip(t *testing.T) {
 	original := &Config{
 		Name: "test-hub",
 		CLI:  CLIConfig{Language: "fr"},
-		Opencode: OpencodeConfig{
+		LLM: LLMConfig{
 			DefaultProvider: "bedrock",
 		},
 		Provider: ProviderConfigs{
@@ -144,7 +115,7 @@ func TestSaveAndLoad_Roundtrip(t *testing.T) {
 
 	// Verify all fields survived the roundtrip
 	assert.Equal(t, "fr", loaded.CLI.Language)
-	assert.Equal(t, "bedrock", loaded.Opencode.DefaultProvider)
+	assert.Equal(t, "bedrock", loaded.LLM.DefaultProvider)
 
 	assert.Equal(t, "prod", loaded.Provider.Bedrock.AWSProfile)
 	assert.Equal(t, "eu-west-1", loaded.Provider.Bedrock.AWSRegion)
@@ -327,7 +298,7 @@ language = "en"
 	require.NoError(t, err)
 
 	err = Update(func(c *Config) error {
-		c.Opencode.DefaultProvider = "bedrock"
+		c.LLM.DefaultProvider = "bedrock"
 		return nil
 	})
 	require.NoError(t, err)
@@ -349,7 +320,7 @@ language = "en"
 	cfg, err := Load()
 	require.NoError(t, err)
 	assert.Equal(t, "fr", cfg.CLI.Language)
-	assert.Equal(t, "bedrock", cfg.Opencode.DefaultProvider)
+	assert.Equal(t, "bedrock", cfg.LLM.DefaultProvider)
 	assert.Equal(t, true, cfg.MCP.Figma.Enabled)
 	assert.Equal(t, true, cfg.Websearch.Enabled)
 }
@@ -377,8 +348,8 @@ func TestMCPServer_Dispatch(t *testing.T) {
 
 func TestToMap_AllKeys(t *testing.T) {
 	c := &Config{
-		CLI:      CLIConfig{Language: "fr"},
-		Opencode: OpencodeConfig{DefaultProvider: "bedrock"},
+		CLI: CLIConfig{Language: "fr"},
+		LLM: LLMConfig{DefaultProvider: "bedrock"},
 		MCP: MCPConfig{
 			Gitlab: MCPServerConfig{Enabled: true, Token: "gitlab-token"},
 		},
@@ -389,7 +360,7 @@ func TestToMap_AllKeys(t *testing.T) {
 	require.NotNil(t, m)
 
 	assert.Equal(t, "fr", m["cli.language"])
-	assert.Equal(t, "bedrock", m["opencode.default_provider"])
+	assert.Equal(t, "bedrock", m["llm.default_provider"])
 	assert.Equal(t, true, m["mcp.gitlab.enabled"])
 	assert.Equal(t, "gitlab-token", m["mcp.gitlab.token_key"])
 	assert.Equal(t, true, m["websearch.enabled"])

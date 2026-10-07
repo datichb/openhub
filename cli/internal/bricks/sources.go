@@ -31,16 +31,6 @@ func checkMCPToken(s MCPServerDef) bool {
 	return s.TokenKey != ""
 }
 
-// providerOpencodeName maps hub provider names to opencode provider identifiers.
-func providerOpencodeName(provider string) string {
-	switch provider {
-	case "bedrock":
-		return "amazon-bedrock"
-	default:
-		return provider
-	}
-}
-
 // discoverInstructionFiles returns the project documentation files embedded
 // as instructions in every agent body (built-in defaults plus the extra
 // files of `[deploy] instruction_files`), as relative paths.

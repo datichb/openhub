@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -38,7 +39,7 @@ func baseVars() map[string]string {
 		remote.VarSessionURL:  "https://g/api/v4/projects/1/packages/generic/oh-session/def/session.tar.gz",
 		remote.VarLLMProvider: "bedrock", remote.VarLLMRegion: "eu-west-1", remote.VarLLMKey: "llm-secret-key",
 		"OH_PROJECT_TOKEN_42": "project-secret", "CI_JOB_TOKEN": "job-secret", "CI_SERVER_URL": "https://g/",
-		remote.VarPipelineSchema: "1", "CI_PIPELINE_ID": "812",
+		remote.VarPipelineSchema: strconv.Itoa(remote.PipelineSchema), "CI_PIPELINE_ID": "812",
 	}
 }
 
@@ -465,16 +466,42 @@ func TestInstallUserAndLibc(t *testing.T) {
 	require.NoError(t, os.MkdirAll(filepath.Join(root, "lib"), 0o755))
 	require.NoError(t, os.WriteFile(filepath.Join(root, "lib", "ld-musl-x86_64.so.1"), nil, 0o644))
 	assert.Equal(t, "musl", Libc(root))
-	assert.ErrorContains(t, Install(context.Background(), InstallOptions{Root: root}), "OH_OPENCODE_VERSION")
+	assert.ErrorContains(t, Install(context.Background(), InstallOptions{Root: root}), "no tool adapter")
+}
+
+type fakeInstaller struct{ got adapters.LinuxInstall }
+
+func (f *fakeInstaller) InstallLinux(_ context.Context, o adapters.LinuxInstall) (adapters.LinuxInstalled, error) {
+	f.got = o
+	p := filepath.Join(o.BinDir, "faketool")
+	return adapters.LinuxInstalled{Version: o.Version, Binary: p}, os.WriteFile(p, []byte("#!/bin/sh\n"), 0o755)
+}
+
+// QB7 (D19): the tool is installed by its adapter (neutral installer), with
+// the version of remote.VarToolVersion.
+func TestInstallUsesTheAdapter(t *testing.T) {
+	root := t.TempDir()
+	require.NoError(t, os.MkdirAll(filepath.Join(root, "etc"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "etc", "passwd"), []byte("root:x:0:0:root:/root:/bin/sh"), 0o644))
+	f := &fakeInstaller{}
+	var out bytes.Buffer
+	err := Install(context.Background(), InstallOptions{Root: root, ToolVersion: "1.2.3", Tool: f, Arch: "arm64", Out: &out})
+	if err != nil && !strings.Contains(err.Error(), "fake bd") && !strings.Contains(err.Error(), "bd-linux") {
+		require.NoError(t, err)
+	}
+	assert.Equal(t, "1.2.3", f.got.Version)
+	assert.Equal(t, "arm64", f.got.Arch)
+	assert.Equal(t, filepath.Join(root, "usr", "local", "bin"), f.got.BinDir)
+	assert.Contains(t, out.String(), "faketool 1.2.3")
 }
 
 func TestJobRuntimeCommand(t *testing.T) {
 	rt := &JobRuntime{Home: t.TempDir()}
-	cmd, err := rt.Command(context.Background(), nil, ohProc([]string{"sh", "serve", "--hostname", "0.0.0.0"}, map[string]string{"OPENCODE_SERVER_PASSWORD": "pw"}, t.TempDir()))
+	cmd, err := rt.Command(context.Background(), nil, ohProc([]string{"sh", "serve", "--hostname", "0.0.0.0"}, map[string]string{"TOOL_SERVER_PASSWORD": "pw"}, t.TempDir()))
 	require.NoError(t, err)
 	assert.Equal(t, []string{"serve", "--hostname", "127.0.0.1"}, cmd.Args[1:], "loopback only")
 	env := strings.Join(cmd.Env, "\n")
-	assert.Contains(t, env, "OPENCODE_SERVER_PASSWORD=pw")
+	assert.Contains(t, env, "TOOL_SERVER_PASSWORD=pw")
 	assert.Contains(t, env, "HOME="+rt.Home)
 	assert.NotContains(t, env, "CI_JOB_TOKEN")
 }

@@ -24,14 +24,14 @@ func v5DoctorChecks() []views.DoctorCheck {
 	defer cancel()
 	var out []views.DoctorCheck
 
-	out = append(out, opencodeV2Check(ctx))
+	out = append(out, toolCheck(ctx))
 
 	out = append(out, workflowIntegrityChecks()...)
 	out = append(out, deployLeftoversCheck(ctx))
 	out = append(out, remoteDoctorChecks()...)
 
 	if !v5Available(ctx) {
-		// No supported opencode: the runtime checks below do not apply.
+		// No supported tool: the runtime checks below do not apply.
 		return out
 	}
 
@@ -77,7 +77,7 @@ func v5DoctorChecks() []views.DoctorCheck {
 }
 
 // doctorChecks are the v5 checks registered by their own file (one check per
-// file: container, gateways…), run after the checks above with opencode V2.
+// file: container, gateways…), run after the checks above with a supported tool.
 var doctorChecks []func(ctx context.Context) []views.DoctorCheck
 
 // doctorCheckTimeout bounds each registered check (short containers, first

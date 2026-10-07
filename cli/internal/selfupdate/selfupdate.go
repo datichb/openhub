@@ -73,9 +73,9 @@ func ReleaseByVersion(version string) (*Release, error) {
 	return fetchRelease(fmt.Sprintf(ohReleaseTagAPI, strings.TrimPrefix(version, "v")))
 }
 
-func fetchRelease(url string) (*Release, error) {
+func fetchRelease(apiURL string) (*Release, error) {
 	client := httplog.Wrap(&http.Client{Timeout: ohAPITimeout}, "selfupdate")
-	req, err := http.NewRequest("GET", url, http.NoBody)
+	req, err := http.NewRequest("GET", apiURL, http.NoBody)
 	if err != nil {
 		return nil, fmt.Errorf("creating request: %w", err)
 	}
@@ -332,7 +332,7 @@ func downloadAsset(asset *Asset, dest *os.File, progress ProgressFunc) error {
 			return false, fmt.Errorf("download failed: HTTP %d", resp.StatusCode)
 		}
 
-		var reader io.Reader = io.LimitReader(resp.Body, maxDownloadSize)
+		reader := io.LimitReader(resp.Body, maxDownloadSize)
 		if progress != nil {
 			reader = &progressReader{
 				reader:   reader,

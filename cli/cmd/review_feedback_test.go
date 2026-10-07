@@ -8,14 +8,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/gitlabapi"
 )
 
-func TestBuildFeedbackPrompt_Basic(t *testing.T) {
-	mr := &gitlabapi.MRInfo{
-		IID:          42,
-		WebURL:       "https://gitlab.com/org/repo/-/merge_requests/42",
-		Title:        "feat: add auth",
-		TargetBranch: "main",
-	}
-
+func TestFormatFeedbackDiscussions_Basic(t *testing.T) {
 	discussions := []gitlabapi.Discussion{
 		{
 			ID: "d1",
@@ -46,12 +39,9 @@ func TestBuildFeedbackPrompt_Basic(t *testing.T) {
 		},
 	}
 
-	out := buildFeedbackPrompt(mr, "feat/SRU-142", discussions)
-
-	// Mode/branch/base tags.
-	assert.Contains(t, out, "[MODE:feedback]")
-	assert.Contains(t, out, "[BRANCH:feat/SRU-142]")
-	assert.Contains(t, out, "[BASE:main]")
+	out := formatFeedbackDiscussions(discussions)
+	// Branch, MR and steps come from the workflow template (QB2).
+	assert.NotContains(t, out, "[MODE:feedback]")
 
 	// Inline position rendered.
 	assert.Contains(t, out, "auth.go:42")
@@ -65,13 +55,7 @@ func TestBuildFeedbackPrompt_Basic(t *testing.T) {
 	assert.Contains(t, out, "Discussion 2")
 }
 
-func TestBuildFeedbackPrompt_WithReplies(t *testing.T) {
-	mr := &gitlabapi.MRInfo{
-		TargetBranch: "main",
-		WebURL:       "https://gitlab.com/mr/1",
-		Title:        "fix: stuff",
-	}
-
+func TestFormatFeedbackDiscussions_WithReplies(t *testing.T) {
 	discussions := []gitlabapi.Discussion{{
 		ID: "d1",
 		Notes: []gitlabapi.Note{
@@ -93,27 +77,36 @@ func TestBuildFeedbackPrompt_WithReplies(t *testing.T) {
 		},
 	}}
 
-	out := buildFeedbackPrompt(mr, "fix/branch", discussions)
+	out := formatFeedbackDiscussions(discussions)
 
 	// Replies are prefixed with ↳.
 	assert.Contains(t, out, "↳ @bob: Agreed, will fix")
 	assert.Contains(t, out, "↳ @alice: Thanks!")
 }
 
-func TestBuildFeedbackPrompt_EmptyDiscussions(t *testing.T) {
-	mr := &gitlabapi.MRInfo{
-		TargetBranch: "develop",
-		WebURL:       "https://gitlab.com/mr/99",
-		Title:        "chore: cleanup",
-	}
-
-	out := buildFeedbackPrompt(mr, "chore/cleanup", nil)
+func TestFormatFeedbackDiscussions_EmptyDiscussions(t *testing.T) {
+	out := formatFeedbackDiscussions(nil)
 
 	// Count line should show (0).
 	assert.Contains(t, out, "(0)")
 
 	// No discussion blocks.
 	assert.NotContains(t, out, "--- Discussion")
+}
+
+// QB2: the `mr` input of review-feedback may be a URL, !iid or iid.
+func TestMRIID(t *testing.T) {
+	for ref, want := range map[string]int{
+		"https://gitlab.com/org/repo/-/merge_requests/42": 42, "https://gitlab.com/org/repo/-/merge_requests/42/": 42, "!7": 7, "15": 15,
+	} {
+		got, ok := mrIID(ref)
+		assert.True(t, ok, ref)
+		assert.Equal(t, want, got, ref)
+	}
+	for _, ref := range []string{"feat/SRU-142", "SRU-142", ""} {
+		_, ok := mrIID(ref)
+		assert.False(t, ok, ref)
+	}
 }
 
 func TestFindBranchForTicket_NoProject(t *testing.T) {

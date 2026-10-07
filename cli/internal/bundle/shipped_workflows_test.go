@@ -44,6 +44,18 @@ func TestShippedWorkflowsAreValid(t *testing.T) {
 	}
 }
 
+// QB1: Beads goes through the gateway in every runtime, where a workflow
+// without `beads:` gets the read-only default list: every shipped workflow
+// declares the commands its agents need.
+func TestShippedWorkflowsDeclareBeads(t *testing.T) {
+	_, cat, _ := shippedWorkflows(t)
+	for _, ref := range cat.Refs() {
+		r, diags := workflow.ResolveSpec(cat, ref, nil)
+		require.Empty(t, diags.Errors(), ref.ID)
+		assert.NotNil(t, r.Spec.Beads, "%s: no beads.allow (read-only by default)", ref.ID)
+	}
+}
+
 // sampleInputs gives a value to every input (all) or to the required ones.
 func sampleInputs(s *workflow.Spec, all bool) map[string]any {
 	out := map[string]any{}

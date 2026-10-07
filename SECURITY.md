@@ -96,7 +96,7 @@ The closed world is about what the model sees, not what the shell can do.
 
 ### Gateways
 
-**Beads gateway** (container and remote job). The fake `bd` sends the command to the daemon (`/oh-gateway/beads/v1/exec`), which runs the real `bd` on the machine:
+**Beads gateway** (local, container and remote job). The fake `bd` sends the command to the daemon (`/oh-gateway/beads/v1/exec`), which runs the real `bd` on the machine. Locally, the fake `bd` (`~/.oh/run/bin/bd`) comes first on the `PATH` of the session and its subagents; the shell rules of every agent refuse a `bd` called by a path (`/opt/homebrew/bin/bd …`, `./bd`), which would bypass the gateway:
 
 - **`ohg_…` tokens**, one per session and sub-session, passed through the session environment. The daemon keeps only their hash (`~/.oh/run/gateway.json`, 0600). They are valid while the session is open and awake, and revoked with the group.
 - **Allow-list** = `beads.allow` of the workflow. Without a `beads:` block, read only; an empty list refuses everything.

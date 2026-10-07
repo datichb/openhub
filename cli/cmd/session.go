@@ -13,7 +13,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/datichb/openhub/cli/internal/adapters/opencodev2"
+	"github.com/datichb/openhub/cli/internal/adapters"
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
@@ -238,12 +238,14 @@ func stateLabel(s domain.RunState) string {
 }
 
 func pairURL(ctx context.Context, url, password string) (string, error) {
-	c := opencodev2.NewClient(url, password)
-	code, err := c.Pair(ctx)
-	if err != nil {
+	if err := requireV2(ctx); err != nil {
 		return "", err
 	}
-	return c.PairURL(code.Code), nil
+	p, ok := v5Adapter.(adapters.Pairer)
+	if !ok {
+		return "", errors.New(i18n.Tf("cmd.session.open.unsupported", toolName()))
+	}
+	return p.PairURL(ctx, adapters.ServerHandle{URL: url, Password: password})
 }
 
 func openURL(url string) error {

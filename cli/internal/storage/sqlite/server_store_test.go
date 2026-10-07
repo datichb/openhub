@@ -28,7 +28,7 @@ func openTemp(t *testing.T) *Store {
 func TestServerStoreCRUD(t *testing.T) {
 	st := NewServerStore(openTemp(t))
 	ctx := context.Background()
-	srv := &domain.Server{GroupKey: "p-abc-local", Adapter: "opencode-v2", Runtime: "local", PID: 42, URL: "http://127.0.0.1:1", Password: "pw", Status: domain.ServerReady}
+	srv := &domain.Server{GroupKey: "p-abc-local", Adapter: "tool-v2", Runtime: "local", PID: 42, URL: "http://127.0.0.1:1", Password: "pw", Status: domain.ServerReady}
 	require.NoError(t, st.Upsert(ctx, srv))
 	srv.PID = 43
 	require.NoError(t, st.Upsert(ctx, srv))

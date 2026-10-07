@@ -53,6 +53,8 @@ type PlannedInput struct {
 	Branch string
 	// Label identifies the session in the plan (ticket id…).
 	Label string
+	// Tickets are the Beads tickets the session works on (ticket input).
+	Tickets []string
 }
 
 // RunRequest describes a workflow launch.
@@ -184,6 +186,9 @@ func (s *Service) Start(ctx context.Context, plan *RunPlan) ([]*StartResult, err
 		}
 		if err != nil {
 			return out, err
+		}
+		if s.OnTicketsStarted != nil && len(ps.Tickets) > 0 && res != nil {
+			res.Notes = append(res.Notes, s.OnTicketsStarted(ctx, req.Base.ProjectID, ps.Tickets)...)
 		}
 	}
 	return out, nil

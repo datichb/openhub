@@ -21,18 +21,24 @@ inputs:
   branch:
     type: branch
     required: true
+    from: mr.source_branch(mr)
     label: { fr: Branche, en: Branch }
+    help:
+      fr: Branche source de la MR (lue par oh au lancement si vide)
+      en: Source branch of the merge request (read by oh at launch when empty)
   base:
     type: branch
     default: main
+    from: mr.target_branch(mr)
     label: { fr: Branche cible, en: Target branch }
   feedback:
     type: text
     required: true
+    from: mr.discussions(mr)
     label: { fr: Commentaires de review, en: Review comments }
     help:
-      fr: Discussions non résolues de la MR (récupérées par oh au lancement)
-      en: Unresolved discussions of the merge request (fetched by oh at launch)
+      fr: Discussions non résolues de la MR (récupérées par oh au lancement si vide)
+      en: Unresolved discussions of the merge request (fetched by oh at launch when empty)
     max_length: 70000
 prompt:
   template: prompts/review-feedback.md.tmpl
@@ -50,8 +56,12 @@ checkpoints:
     label: { fr: Commit ou correction, en: Commit or fix }
     mandatory: true
     mode: { manuel: pause, semi-auto: pause, auto: pause }
+skills:
+  extra: [orchestrator/orchestrator-dev-feedback-mode]
 modes: { default: semi-auto, allowed: [manuel, semi-auto, auto] }
 circuit_breaker: { max_consecutive_subagents: 12 }
+beads:
+  allow: [show, list, ready, search, children, comments, count, status, graph, history, create, update, close, dep, label]
 runtime: { default: local, allowed: [local] }
 outputs:
   - { id: branch, type: branch, label: { fr: Branche corrigée, en: Fixed branch } }

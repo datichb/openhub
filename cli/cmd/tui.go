@@ -84,6 +84,7 @@ func runTUIWithProject(projectName string) error {
 		},
 	}
 
+	views.ToolName = toolName
 	tuiShell = shell.New(cfg)
 	views.SetTeamSyncHook(tuiReplayWorkflowQueue)
 
@@ -103,9 +104,10 @@ func runTUIWithProject(projectName string) error {
 
 	// Determine the navigation mode for the home view
 	homeMode := views.ModeHub
-	if cfg.HomeViewID == "project.mode" {
+	switch cfg.HomeViewID {
+	case "project.mode":
 		homeMode = views.ModeProject
-	} else if cfg.HomeViewID == "team.mode" {
+	case "team.mode":
 		homeMode = views.ModeTeam
 	}
 	tuiShell.NavigateHome(cfg.HomeViewID, homeMode)

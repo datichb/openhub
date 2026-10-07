@@ -15,13 +15,8 @@ import (
 var metricsCmd = &cobra.Command{
 	Use:   "metrics",
 	Short: "Affiche les métriques d'utilisation",
-	Long: `Affiche les métriques d'utilisation d'opencode : sessions, tokens, coûts, et économies AI.
-
-Utilisez --period pour filtrer par période :
-  --period 7d   : 7 derniers jours
-  --period 30d  : 30 derniers jours
-  --period all  : toutes les données (défaut)`,
-	RunE: runMetrics,
+	Long:  i18n.T("cmd.metrics.long"),
+	RunE:  runMetrics,
 }
 
 func init() {

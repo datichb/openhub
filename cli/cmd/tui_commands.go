@@ -26,7 +26,7 @@ func buildCommands(a *app.App) []shell.Command {
 		{
 			ID:          "coder",
 			Label:       i18n.T("tui.start.free"),
-			Aliases:     []string{"session", "code", "free", "libre"},
+			Aliases:     []string{"session", "code", "free"},
 			Description: i18n.T("tui.start.free_desc"),
 			Category:    "Sessions",
 			Priority:    80,
@@ -125,7 +125,7 @@ func buildCommands(a *app.App) []shell.Command {
 		{
 			ID:          "settings",
 			Label:       i18n.T("tui.cmd.settings"),
-			Aliases:     []string{"config", "cfg", "settings", "hub", "hub config"},
+			Aliases:     []string{"config", "cfg", "settings", "hub config"},
 			Description: i18n.T("tui.cmd.settings.desc"),
 			Category:    i18n.T("tui.category.configuration"),
 			Priority:    90,
@@ -162,7 +162,7 @@ func buildCommands(a *app.App) []shell.Command {
 		{
 			ID:          "metrics",
 			Label:       i18n.T("tui.cmd.metrics"),
-			Aliases:     []string{"met", "stats", "tokens"},
+			Aliases:     []string{"met", "stats", "usage"},
 			Description: i18n.T("tui.cmd.metrics.desc"),
 			Category:    i18n.T("tui.category.system"),
 			Priority:    90,
@@ -313,7 +313,7 @@ func buildCommands(a *app.App) []shell.Command {
 			shell.Command{
 				ID:          "team-detail",
 				Label:       i18n.T("tui.team.detail"),
-				Aliases:     []string{"tracker", "sync", "team config", "team detail"},
+				Aliases:     []string{"tracker", "sync", "team detail"},
 				Description: i18n.T("tui.team.detail.desc"),
 				Category:    i18n.T("tui.category.configuration"),
 				Priority:    48,
@@ -525,7 +525,7 @@ const workflowCommandPrefix = "run."
 var workflowCommandAliases = map[string][]string{
 	"ticket":          {"dev", "start.dev"},
 	"feature":         {"start", "orchestrator"},
-	"quick":           {"q", "fast"},
+	"quick":           {"fast"},
 	"audit":           {"secu", "security", "perf", "archi", "a11y"},
 	"review":          {"rev", "cr"},
 	"debug":           {"dbg", "debugger", "diag"},

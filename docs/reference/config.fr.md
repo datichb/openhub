@@ -20,7 +20,7 @@ name = "OpenHub"                   # nom affiché dans le titre de la TUI
 [cli]
 language = "fr"                    # "fr" ou "en" (défaut : "en")
 
-[opencode]
+[llm]
 default_provider = "bedrock"       # bedrock | anthropic | openrouter | github-copilot
 
 [provider.bedrock]
@@ -92,7 +92,7 @@ notify = "on"                      # notifications système : on | off
 runtime = ""                       # local | container ; vide = défaut du workflow
 engine = "auto"                    # auto | colima | podman | docker
 keep_images = 2                    # images conservées par projet et par rôle
-opencode_version = ""              # version d'opencode des images ; vide = celle de la machine
+tool_version = ""                  # version de l'outil (opencode) des images ; vide = celle de la machine
 strict_isolation = false           # masquer aussi la config personnelle d'opencode en local
 
 [remote]
@@ -113,7 +113,7 @@ group = "acme"
 # models = ["eu.anthropic.claude-*"]
 ```
 
-Supprimés en v5 (ignorés s'ils restent dans le fichier) : `[opencode] version`, `channel`, `auto_update`, `install_dir` (opencode V2 s'installe à part, voir [migration v5](../guides/migration-v5.fr.md)), `[deploy] disable_native_agents` (le monde fermé désactive toujours les agents natifs), `[workflow.overrides]` (migré dans `~/.oh/migrated/`, voir [workflows d'équipe](../guides/team-workflows.fr.md#migration-des-anciennes-surcharges-de-workflow-v5)). L'ancienne section `[team]` est migrée en `[[teams]]` au chargement.
+Supprimés en v5 (ignorés s'ils restent dans le fichier) : `[opencode] version`, `channel`, `auto_update`, `install_dir` (opencode V2 s'installe à part, voir [migration v5](../guides/migration-v5.fr.md)), `[deploy] disable_native_agents` (le monde fermé désactive toujours les agents natifs), `[workflow.overrides]` (migré dans `~/.oh/migrated/`, voir [workflows d'équipe](../guides/team-workflows.fr.md#migration-des-anciennes-surcharges-de-workflow-v5)). L'ancienne section `[team]` est migrée en `[[teams]]` au chargement. Renommées en v5 (anciens noms encore lus, réécrits sous le nouveau nom au prochain enregistrement) : `[opencode] default_provider` → `[llm] default_provider` (`oh config set llm.default_provider` ; l'ancienne clé est acceptée), `[execution] opencode_version` → `[execution] tool_version`.
 
 ### Sections v5
 
@@ -126,7 +126,7 @@ Supprimés en v5 (ignorés s'ils restent dans le fichier) : `[opencode] version`
 | `[execution]` | `runtime` | vide | Environnement préféré (Réglages › Exécution), utilisé si le workflow l'autorise |
 | | `engine` | `auto` | Moteur de conteneurs |
 | | `keep_images` | `2` | Images conservées par projet et par rôle (base, dev) |
-| | `opencode_version` | vide | Version d'opencode des images ; si elle diffère du client de la machine, le lancement en conteneur est refusé |
+| | `tool_version` | vide | Version d'opencode des images ; si elle diffère du client de la machine, le lancement en conteneur est refusé |
 | | `strict_isolation` | `false` | Masque aussi la configuration personnelle d'opencode (`XDG_CONFIG_HOME`) des serveurs locaux |
 | `[remote]` | `targets[]` | — | Cibles `oh-runner` (`oh remote setup`) : `name`, `url`, `group`, `runner_project`, `token_key`, `trigger_key`, `tag`, `builder` (`kaniko`\|`dind`), `arch` (`amd64`\|`arm64`), `timeout` |
 | | `projects` | — | Projet oh → nom de cible |
@@ -143,7 +143,7 @@ Voir [conteneur](../guides/container.fr.md), [exécution distante](../guides/rem
 | Commande | Description |
 |----------|-------------|
 | `oh config list [--json]` | Afficher toutes les valeurs |
-| `oh config get <clé>` | Obtenir une valeur (notation pointée : `opencode.default_provider`) |
+| `oh config get <clé>` | Obtenir une valeur (notation pointée : `llm.default_provider`) |
 | `oh config set <clé> <valeur>` | Définir une valeur |
 | `oh config unset <clé>` | Supprimer une clé |
 | `oh config path` | Afficher le chemin du fichier |
@@ -539,7 +539,7 @@ Clés : `max_active_sessions`, `session_budget_usd`, `daily_budget_usd`, `memory
 | Champ | Défaut | Description |
 |---|---|---|
 | `takeover.stale_days` | `3` | Jours d'inactivité avant qu'un claim soit considéré comme abandonné (briefs de reprise) |
-| `parallel.max_sessions` | `5` | Hérité de l'ancien mode parallèle (supprimé en v5) ; encore affiché dans le détail d'équipe, sans effet sur `oh run --tickets` |
+| `parallel.max_sessions` | `5` | Hérité de l'ancien mode parallèle (supprimé en v5) ; lu mais sans effet, plus modifiable dans le détail d'équipe (limiter les sessions : `[limits]`, `oh budget`) |
 
 ---
 
@@ -698,7 +698,7 @@ Au démarrage d'une session, le fournisseur LLM est résolu dans cet ordre :
 
 1. Option `--provider` / `-P`
 2. `project.Provider` dans la base
-3. `opencode.default_provider` dans `hub.toml`
+3. `llm.default_provider` dans `hub.toml`
 4. `"bedrock"` (repli en dur)
 
 ---

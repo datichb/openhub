@@ -8,12 +8,24 @@ import (
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 )
 
-// v1ToNeutral maps hub (opencode V1 style) permission keys to neutral actions.
+// v1ToNeutral maps hub (former agent format) permission keys to neutral actions.
 var v1ToNeutral = map[string]string{
 	"bash":  sessionspec.ActionShell,
 	"task":  sessionspec.ActionSubagent,
 	"write": sessionspec.ActionEdit,
 	"patch": sessionspec.ActionEdit,
+}
+
+// BeadsShellGuard returns the shell rules, last of every agent, that refuse
+// to run a bd named by a path ("/opt/homebrew/bin/bd close …"): sessions
+// call `bd`, found first on their PATH as the fake bd that goes through the
+// Beads gateway and the workflow beads.allow (QB1). In a container, the
+// only bd is the fake one anyway.
+func BeadsShellGuard() []sessionspec.PermissionRule {
+	return []sessionspec.PermissionRule{
+		{Action: sessionspec.ActionShell, Resource: "*/bd", Effect: sessionspec.EffectDeny},
+		{Action: sessionspec.ActionShell, Resource: "*/bd *", Effect: sessionspec.EffectDeny},
+	}
 }
 
 // ConvertPermissions converts a hub permission map (frontmatter + base file,
@@ -143,7 +155,7 @@ func restrictiveness(e sessionspec.Effect) int {
 }
 
 // wildcardMatch matches s against a pattern where '*' matches any sequence and
-// '?' any single character (opencode wildcard semantics).
+// '?' any single character (wildcard semantics of the permission rules).
 func wildcardMatch(pattern, s string) bool {
 	if pattern == "*" || pattern == s {
 		return true

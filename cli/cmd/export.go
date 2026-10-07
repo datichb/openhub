@@ -35,7 +35,7 @@ var exportCmd = &cobra.Command{
 }
 
 var importCmd = &cobra.Command{
-	Use:   "import [fichier]",
+	Use:   "import [file]",
 	Short: "Restaurer depuis une archive de backup",
 	Args:  cobra.ExactArgs(1),
 	RunE:  runImport,

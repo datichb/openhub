@@ -51,7 +51,7 @@ Produire uniquement :
 
 ## Mode subagent
 
-> Ce skill est chargé quand le debugger est invoqué via `task` depuis l'agent orchestrator feature. L'orchestrateur injecte `[SKILL:quality/debugger-subagent]` dans le prompt.
+> Ce skill est chargé quand le debugger est invoqué via `task` depuis l'agent orchestrator feature. L'orchestrateur injecte `[SKILL:quality/debugger-execution-modes]` dans le prompt.
 
 > **Protocole sub-agent :** voir skill `shared/subagent-execution-protocol` pour le mécanisme d'interruption, la checklist, et les erreurs fréquentes.
 

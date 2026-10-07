@@ -37,8 +37,8 @@ Arguments : project_id, state: "opened"
 → En déduire : taxonomie des labels (types, priorités, domaines)
 ```
 
-> **Note :** Les outils `list_gitlab_labels` et `list_gitlab_milestones` ne sont plus disponibles
-> dans le MCP GitLab v2. Extraire les labels depuis les issues retournées par `gitlab_list_issues`.
+> **Note :** le MCP GitLab n'a pas d'outil pour lister les labels ni les milestones du projet.
+> Extraire les labels depuis les issues retournées par `gitlab_list_issues`.
 
 **Exploiter pour :**
 - Comprendre la nomenclature de priorité du projet (`priority::high`, `P0`, etc.)

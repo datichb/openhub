@@ -35,9 +35,9 @@ func TestTeardownOnSleepAndDeadServer(t *testing.T) {
 			mu.Unlock()
 		}})
 	get := func(g string) int { mu.Lock(); defer mu.Unlock(); return torn[g] }
-	require.Eventually(t, func() bool { return get("dead") == 1 }, 3*time.Second, 20*time.Millisecond)
+	require.Eventually(t, func() bool { return get("dead") == 1 }, 10*time.Second, 20*time.Millisecond) // generous: the -race suite runs packages in parallel
 	require.NoError(t, c.SetPolicy(ctx, "live", PolicyStopNow))
-	require.Eventually(t, func() bool { return get("live") == 1 }, 3*time.Second, 20*time.Millisecond)
+	require.Eventually(t, func() bool { return get("live") == 1 }, 10*time.Second, 20*time.Millisecond) // generous: the -race suite runs packages in parallel
 	assert.Equal(t, 0, get("local"), "nothing to remove for a local server")
 }
 

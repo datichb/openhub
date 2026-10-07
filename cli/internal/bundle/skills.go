@@ -23,7 +23,7 @@ import (
 // by a bare community skill name (~/.oh/skills/<name>/). Their identifier in
 // a bundle is the last path component, which becomes the folder name
 // skills/<id>/SKILL.md: it must be unique in the bundle and equal to the
-// frontmatter `name:` (opencode identifies skills by name).
+// frontmatter `name:` (the tool identifies skills by name).
 //
 // Hub-only frontmatter fields (stripped from the delivered SKILL.md):
 //

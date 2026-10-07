@@ -197,3 +197,23 @@ func TestRuntimeAvailability(t *testing.T) {
 	_, err = f.svc.RuntimeAvailability(ctx, sessionspec.RuntimeRemote)
 	assert.Error(t, err)
 }
+
+// QB2: every session started on tickets calls the claims hook (planned →
+// in progress for any workflow, formerly the --dev alias only).
+func TestStartCallsTheTicketsHook(t *testing.T) {
+	f, _ := runFixture(t)
+	ctx := context.Background()
+	var got [][]string
+	f.svc.OnTicketsStarted = func(_ context.Context, projectID string, tickets []string) []string {
+		got = append(got, tickets)
+		return []string{"claimed " + tickets[0]}
+	}
+	plan, err := f.svc.Plan(ctx, f.run("write", LocationChoice{Kind: LocationBase},
+		PlannedInput{Label: "bd-1", Branch: "feat/bd-1", Tickets: []string{"bd-1"}},
+		PlannedInput{Label: "bd-2", Branch: "feat/bd-2", Tickets: []string{"bd-2"}}))
+	require.NoError(t, err)
+	res, err := f.svc.Start(ctx, plan)
+	require.NoError(t, err)
+	assert.Equal(t, [][]string{{"bd-1"}, {"bd-2"}}, got)
+	assert.Equal(t, []string{"claimed bd-2"}, res[1].Notes)
+}

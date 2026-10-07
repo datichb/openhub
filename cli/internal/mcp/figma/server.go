@@ -18,9 +18,10 @@ import (
 // Serve starts the Figma MCP server.
 func Serve() error {
 	server := protocol.NewServer("figma-mcp", "2.0.0")
+	server.AcceptLegacyNames("figma_")
 
 	server.RegisterTool(protocol.Tool{
-		Name:        "figma_get_file",
+		Name:        "get_file",
 		Description: "Get a Figma file by key",
 		InputSchema: map[string]interface{}{
 			"type": "object",
@@ -32,7 +33,7 @@ func Serve() error {
 	}, handleGetFile)
 
 	server.RegisterTool(protocol.Tool{
-		Name:        "figma_get_node",
+		Name:        "get_node",
 		Description: "Get a specific node from a Figma file",
 		InputSchema: map[string]interface{}{
 			"type": "object",
@@ -45,7 +46,7 @@ func Serve() error {
 	}, handleGetNode)
 
 	server.RegisterTool(protocol.Tool{
-		Name:        "figma_get_styles",
+		Name:        "get_styles",
 		Description: "Get styles from a Figma file",
 		InputSchema: map[string]interface{}{
 			"type": "object",

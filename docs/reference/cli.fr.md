@@ -2,7 +2,7 @@
 
 # Reference CLI
 
-`oh` sans commande ouvre la TUI (dans un terminal interactif ; sinon l'aide). `oh -p <projet>` ouvre la TUI directement sur ce projet. `oh help` (ou `oh --help`) affiche la vue d'ensemble des commandes ; `oh <commande> --help` detaille une commande (flags, exemples).
+`oh` sans commande ouvre la TUI (dans un terminal interactif ; sinon l'aide). `oh -p <projet>` ouvre la TUI directement sur ce projet. `oh help` (ou `oh --help`) affiche la vue d'ensemble des commandes (toutes les commandes visibles, par section, avec leurs options ; construite à partir des commandes elles-mêmes) ; `oh <commande> --help` detaille une commande (flags, exemples). Toute l'aide suit la langue de l'interface (`oh config language`).
 
 ## Flags globaux
 
@@ -39,6 +39,7 @@ Commandes internes (masquees de l'aide, non documentees en detail) : `oh daemon 
 
 | Code | Signification |
 |------|--------------|
-| `0` | Succes. Aussi pour `oh deploy` / `oh sync` (message de migration) et pour `oh doctor`, meme quand des controles echouent (le resultat est affiche) |
-| `1` | Erreur : le message est ecrit sur la sortie d'erreur. Par exemple : `oh workflow validate` ou `oh skill check` qui trouvent des erreurs, `oh run --headless` dont une session attend une decision ou depasse `--timeout`, `oh beads` quand `bd` echoue (le code de `bd` n'est pas transmis) |
+| `0` | Succes. Aussi pour `oh deploy` / `oh sync` (message de migration), et pour `oh doctor` quand aucun controle n'echoue (les avertissements ne comptent pas) |
+| `1` | Erreur : le message est ecrit sur la sortie d'erreur. Par exemple : `oh workflow validate` ou `oh skill check` qui trouvent des erreurs, `oh run --headless` dont une session attend une decision ou depasse `--timeout`, `oh doctor` quand un controle echoue (✗) |
+| code de `bd` | `oh beads` transmet le code de sortie de `bd` |
 | `2` | Erreur interne (panic) : oh affiche un message invitant a signaler le bogue |

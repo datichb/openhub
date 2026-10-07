@@ -43,7 +43,7 @@ func TestSettingsExecSection(t *testing.T) {
 	keep.Set("3")
 	assert.Equal(t, 3, cfg.Execution.Images())
 
-	oc := settingsField(t, v, "exec_opencode_version")
+	oc := settingsField(t, v, "exec_tool_version")
 	assert.Contains(t, oc.Source(), "2.0.20")
 	require.Error(t, oc.Validator.Validate("latest"))
 	require.NoError(t, oc.Validator.Validate("v2.0.20"))

@@ -72,10 +72,10 @@ oh mcp reset figma --project my-project
 
 ### oh mcp setup
 
-Configures an MCP service (interactive wizard: token, options). With `--project`, the token is stored in the keychain under a project-scoped key.
+Configures an MCP service (interactive wizard: token, options). Services: `figma`, `gitlab`, `gslides`, `jira`; without argument, the service is chosen from a list. The write mode is offered for the services that have write tools (`gitlab`, `jira`). With `--project`, the token is stored in the keychain under a project-scoped key.
 
 ```
-oh mcp setup [options]
+oh mcp setup [service] [options]
 ```
 
 | Flag | Short | Type | Description |
@@ -86,7 +86,7 @@ oh mcp setup [options]
 
 ```bash
 oh mcp setup
-oh mcp setup --project my-project
+oh mcp setup jira --project my-project
 ```
 
 ---
@@ -124,6 +124,8 @@ oh mcp serve <name> [--token-key <key>]
 |------|------|-------------|
 | `--token-key` | string | Keychain key to read the service token from (sets `FIGMA_TOKEN`, `GITLAB_TOKEN` or `GOOGLE_ACCESS_TOKEN` when not already set) |
 
+Tools are exposed without the server name (`get_project`): the tool (opencode) prefixes it, the session sees `gitlab_get_project` (the name used by agents, skills and permission rules). A call under the former prefixed name (`gitlab_get_project` on the server side) is still accepted.
+
 `oh mcp serve workflow` is internal: the `workflow` MCP server (`workflow_status`, `workflow_checkpoint`, `workflow_outputs`) injected into every session bundle, absent from `list`, `setup` and `enable`.
 
 **Example:**
@@ -137,7 +139,7 @@ oh mcp serve figma --token-key openhub.mcp.figma.token
 
 ### oh mcp list
 
-Lists the available MCP servers and their command.
+Lists every oh MCP server (`figma`, `github`, `gitlab`, `gslides`, `jira`, `linear`, `team`, then the custom servers of `~/.oh/mcp/`) and their command.
 
 **Alias:** `oh mcp ls`
 
@@ -155,8 +157,6 @@ oh mcp list [options]
 oh mcp list
 oh mcp ls --json
 ```
-
-> **Note:** `oh mcp list` currently shows only `figma`, `gitlab` and `gslides`; `oh mcp status` shows every service.
 
 ---
 

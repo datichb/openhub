@@ -10,21 +10,35 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/datichb/openhub/cli/internal/adapters"
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/domain"
 )
 
-func TestMigrateCleanupScanAndApply(t *testing.T) {
-	deployed := t.TempDir()
-	for _, f := range []string{".opencode/agents/developer.md", ".opencode/team.json"} {
-		require.NoError(t, os.MkdirAll(filepath.Dir(filepath.Join(deployed, f)), 0o755))
-		require.NoError(t, os.WriteFile(filepath.Join(deployed, f), []byte("x"), 0o644))
+// fakeCleaner is a tool adapter that knows a former deployment: a
+// « legacy » folder and a « tool.json » file with an « old » key.
+type fakeCleaner struct{ adapters.ToolAdapter }
+
+func (fakeCleaner) ScanLegacy(dir string, _ adapters.LegacyOptions) (*adapters.LegacyPlan, error) {
+	p := &adapters.LegacyPlan{Dir: dir, ConfigFile: "tool.json"}
+	if _, err := os.Stat(filepath.Join(dir, "legacy")); err == nil {
+		p.Items = []adapters.LegacyItem{{Rel: "legacy", Dir: true, Count: 1}}
+		p.Removed = []string{"old"}
+		p.DiffFunc = func() string { return "-  \"old\": 3" }
+		p.ApplyFunc = func() error { return os.RemoveAll(filepath.Join(dir, "legacy")) }
 	}
-	cfg := "{\n  \"provider\": {\n    \"litellm\": {}\n  },\n  \"subagent_depth\": 3\n}\n"
-	require.NoError(t, os.WriteFile(filepath.Join(deployed, "opencode.json"), []byte(cfg), 0o644))
-	require.NoError(t, os.WriteFile(filepath.Join(deployed, ".opencode", ".deploy-state"),
-		[]byte(`{"provider": "bedrock", "config_snapshot": `+cfg+`}`), 0o644))
+	return p, nil
+}
+
+// The cleanup of former deployments goes through the adapter (D19): the
+// file formats are tested in its own package.
+func TestMigrateCleanupScanAndApply(t *testing.T) {
+	prev := v5Adapter
+	v5Adapter = fakeCleaner{}
+	t.Cleanup(func() { v5Adapter = prev })
+	deployed := t.TempDir()
+	require.NoError(t, os.MkdirAll(filepath.Join(deployed, "legacy"), 0o755))
 	clean := t.TempDir()
 
 	a := &app.App{Config: &config.Config{}, Projects: &mockProjectStore{projects: []domain.Project{
@@ -36,20 +50,15 @@ func TestMigrateCleanupScanAndApply(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, list, 1, "only the project with leftovers")
 	assert.Equal(t, "old", list[0].Name)
-	assert.Equal(t, []string{"subagent_depth"}, list[0].Plan.Removed, "provider.litellm is not the deployed provider")
 
 	var out bytes.Buffer
 	printCleanupPlan(&out, list[0], true)
-	assert.Contains(t, out.String(), ".opencode/agents")
-	assert.Contains(t, out.String(), `-  "subagent_depth": 3`)
+	assert.Contains(t, out.String(), "legacy")
+	assert.Contains(t, out.String(), "tool.json")
+	assert.Contains(t, out.String(), `-  "old": 3`)
 
 	require.NoError(t, applyCleanups(&out, list))
-	assert.NoDirExists(t, filepath.Join(deployed, ".opencode"))
-	data, err := os.ReadFile(filepath.Join(deployed, "opencode.json"))
-	require.NoError(t, err)
-	assert.Contains(t, string(data), "litellm", "user key kept")
-	assert.NotContains(t, string(data), "subagent_depth")
-
+	assert.NoDirExists(t, filepath.Join(deployed, "legacy"))
 	list, err = scanDeployLeftovers(context.Background(), a, "")
 	require.NoError(t, err)
 	assert.Empty(t, list)

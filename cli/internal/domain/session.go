@@ -23,7 +23,7 @@ type Session struct {
 	Cost              float64 // session cost in USD from the backend
 	TokensReasoning   int64   // reasoning/thinking tokens
 	TokensCacheRead   int64   // tokens served from cache
-	Platform          string  // backend name ("opencode", "directllm", ...)
+	Platform          string  // adapter name of the session
 	ExternalSessionID *string // session ID in the backend's own system
 	Slug              *string // human-readable session identifier
 	PID               int     // OS process ID that owns this session (0 = unknown/legacy)

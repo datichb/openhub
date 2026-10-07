@@ -470,6 +470,17 @@ func (c *Client) ReplyForm(ctx context.Context, sessionID, formID string, answer
 	return c.do(ctx, http.MethodPost, sessionPath(sessionID, "form/"+url.PathEscape(formID)+"/reply"), nil, map[string]any{"answer": answer}, nil)
 }
 
+// PutInstructionEntry sets an instruction entry of a session (experimental
+// API, S8): announced to the session at its next step boundary.
+func (c *Client) PutInstructionEntry(ctx context.Context, sessionID, key string, value any) error {
+	return c.do(ctx, http.MethodPut, "/api/experimental/session/"+url.PathEscape(sessionID)+"/instructions/entries/"+url.PathEscape(key), nil, map[string]any{"value": value}, nil)
+}
+
+// DeleteInstructionEntry removes an instruction entry of a session.
+func (c *Client) DeleteInstructionEntry(ctx context.Context, sessionID, key string) error {
+	return c.do(ctx, http.MethodDelete, "/api/experimental/session/"+url.PathEscape(sessionID)+"/instructions/entries/"+url.PathEscape(key), nil, nil, nil)
+}
+
 // Wait blocks until the session agent loop becomes idle (experimental API).
 func (c *Client) Wait(ctx context.Context, sessionID string) error {
 	return c.doWith(ctx, c.stream, http.MethodPost, "/api/experimental/session/"+url.PathEscape(sessionID)+"/wait", nil, map[string]any{}, nil)

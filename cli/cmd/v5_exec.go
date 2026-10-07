@@ -68,7 +68,7 @@ type pinnedRuntime struct {
 }
 
 func (r pinnedRuntime) unavailable() ohruntime.Availability {
-	return ohruntime.Availability{Reason: "tui.settings.exec.opencode.mismatch", Args: []any{r.pinned, r.client}}
+	return ohruntime.Availability{Reason: "tui.settings.exec.tool.mismatch", Args: []any{toolName(), r.pinned, r.client}}
 }
 
 // Available reports the version mismatch (the engine state comes first).
@@ -117,7 +117,7 @@ func tuiWorkflowIDs() []string {
 	return tuiStartWiring.workflowIDs()
 }
 
-// v5Ver is the opencode V2 client version, once detected.
+// v5Ver is the tool client version, once detected.
 var v5Ver atomic.Value
 
 // v5ToolVersion returns the detected client version without detecting it

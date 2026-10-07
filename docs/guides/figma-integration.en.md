@@ -158,16 +158,11 @@ The token is read from the keychain by `oh mcp serve`: it is never written to th
 
 ### No Figma files found
 
-The onboarder runs a progressive search before concluding there are no results:
-1. Root folder name or `package.json "name"`
-2. Project ID (e.g. `t-sru`)
-3. `Name` field in `projects.md` (e.g. `SRU`)
+The Figma MCP server has no search tool (tools: `figma_get_file`, `figma_get_node`, `figma_get_styles`). Agents find files by their **URL** (`figma.com/file/<key>/…` or `figma.com/design/<key>/…`): in the ticket, the brief, the wiki, the README or the project docs. Without a URL, the agent asks you for it.
 
-If the 3 attempts fail, the onboarder asks you for the name or URL of the Figma file.
-
-**If the search still fails:**
-- Give the Figma file URL to the agent directly
-- Rename Figma files following the conventions (`[Project] - [Feature] - [Type]`)
+**So that mockups are found:**
+- Put the Figma file URL in the ticket or in `docs/wiki/`
+- Give the URL to the agent directly
 - Check the token scopes: `current_user:read`, `file_content:read`, `file_metadata:read`, `projects:read`, `library_assets:read`
 
 ### Token not recognized

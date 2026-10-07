@@ -448,7 +448,7 @@ func TestIsolateUserConfigReachesTheAdapter(t *testing.T) {
 	plain := f.request(f.project)
 	plain.Runtime = ""
 	cred := provider.ResolvedCredential{Secret: "s"}
-	assert.NotEqual(t, configFingerprint(plain, cred, "r"), configFingerprint(req, cred, "r"), "a strict group is not shared")
+	assert.NotEqual(t, configFingerprint(plain, "tool-provider", cred, "r"), configFingerprint(req, "tool-provider", cred, "r"), "a strict group is not shared")
 	assert.NotEmpty(t, r.GroupKey)
 }
 

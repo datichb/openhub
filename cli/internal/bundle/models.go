@@ -45,7 +45,10 @@ func (req Request) ResolveModel(agentID, family, frontmatter string) string {
 func (req Request) modelRef(m string) *sessionspec.ModelRef {
 	ref := sessionspec.ParseModelRef(m)
 	if ref.Provider == "" {
-		ref.Provider = bricks.OpencodeProviderID(req.Provider)
+		ref.Provider = req.ToolProvider
+		if ref.Provider == "" {
+			ref.Provider = req.Provider
+		}
 	}
 	return &ref
 }

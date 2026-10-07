@@ -156,15 +156,6 @@ func runTakeoverBriefEnrich(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	// Read the existing brief
-	content, err := repo.ReadBrief(project, ticketID)
-	if err != nil {
-		if err == teamstate.ErrBriefNotFound {
-			return fmt.Errorf("aucun brief trouvé pour %s/%s. Effectue d'abord un transfert", project, ticketID)
-		}
-		return err
-	}
-
 	// Find the project path for the headless run
 	p, err := a.Projects.GetByName(ctx, project)
 	if err != nil {
@@ -174,7 +165,7 @@ func runTakeoverBriefEnrich(cmd *cobra.Command, args []string) error {
 	fmt.Fprintf(a.IO.Out, "\n%s Enrichissement du brief via IA...\n",
 		theme.Subtitle.Render(theme.IconArrow))
 
-	enriched, err := enrichBrief(cmd, a, p, ticketID, content)
+	enriched, err := enrichBrief(cmd, a, p, ticketID)
 	if err != nil {
 		return fmt.Errorf("enrichment failed: %w", err)
 	}
@@ -247,15 +238,16 @@ func writeFile(path string, data []byte) error {
 // enrichBrief enriches a takeover brief with the brief-enrich workflow
 // (`oh run brief-enrich --headless`); the former `oh takeover-brief enrich`
 // command is its alias.
-func enrichBrief(cmd *cobra.Command, a *app.App, p *domain.Project, ticketID, content string) (string, error) {
+func enrichBrief(cmd *cobra.Command, a *app.App, p *domain.Project, ticketID string) (string, error) {
 	warnDeprecatedAlias(cmd.ErrOrStderr(), "oh takeover-brief enrich", "oh run brief-enrich --headless")
-	return runBriefEnrich(cmd.Context(), a, p, ticketID, content, cmd.ErrOrStderr())
+	return runBriefEnrich(cmd.Context(), a, p, ticketID, cmd.ErrOrStderr())
 }
 
 // runBriefEnrich runs the brief-enrich workflow without interface and
-// returns the enriched brief (CLI and TUI).
-func runBriefEnrich(ctx context.Context, a *app.App, p *domain.Project, ticketID, content string, errOut io.Writer) (string, error) {
-	opts := runOptions{Workflow: "brief-enrich", Project: p, Inputs: map[string]string{"ticket": ticketID, "brief": content}}
+// returns the enriched brief (CLI and TUI); the workflow reads the brief
+// itself (input `brief`, from: ticket.brief).
+func runBriefEnrich(ctx context.Context, a *app.App, p *domain.Project, ticketID string, errOut io.Writer) (string, error) {
+	opts := runOptions{Workflow: "brief-enrich", Project: p, Inputs: map[string]string{"ticket": ticketID}}
 	run, err := prepareWorkflowRun(ctx, a, opts, errOut)
 	if err != nil {
 		return "", err

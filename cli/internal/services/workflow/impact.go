@@ -138,11 +138,8 @@ func impactOf(f, t *wf.Spec, agents wf.AgentCatalog) ImpactReport {
 		if slices.Contains(f.AllowedModes(), m) {
 			continue
 		}
-		level := ImpactInfo
-		if m == wf.ModeAuto {
-			level = ImpactWiden
-		}
-		r.add(level, "mode_added", "modes.allowed", m)
+		// modes.allowed is a security field: any new mode loosens it.
+		r.add(ImpactWiden, "mode_added", "modes.allowed", m)
 	}
 
 	impactCheckpoints(&r, f, t)

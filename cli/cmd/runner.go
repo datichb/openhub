@@ -16,7 +16,6 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/datichb/openhub/cli/internal/adapters"
-	"github.com/datichb/openhub/cli/internal/adapters/opencodev2"
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/buildinfo"
 	"github.com/datichb/openhub/cli/internal/config"
@@ -50,7 +49,8 @@ func init() {
 		Short: i18n.T("cmd.runner.install.short"),
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			return runner.Install(cmd.Context(), runner.InstallOptions{ToolVersion: os.Getenv(remote.VarToolVersion), Out: cmd.OutOrStdout()})
+			inst, _ := preferredAdapter().(adapters.LinuxInstaller)
+			return runner.Install(cmd.Context(), runner.InstallOptions{ToolVersion: os.Getenv(remote.VarToolVersion), Tool: inst, Out: cmd.OutOrStdout()})
 		},
 	}
 	run := &cobra.Command{
@@ -126,9 +126,9 @@ func runRunnerJob(cmd *cobra.Command, _ []string) error {
 		return errors.New(i18n.T("cmd.runner.run.no_bd"))
 	}
 
-	ad, err := detectV2Adapter(ctx)
+	ad, info, err := detectTool(ctx)
 	if err != nil {
-		return fmt.Errorf("opencode: %w", err)
+		return fmt.Errorf("%s: %w", info.DisplayName, err)
 	}
 	secrets := runner.CISecrets{LLMKey: job.Secrets.LLMKey}
 	paths := daemon.Paths{Dir: ohRunDir()}
@@ -147,7 +147,7 @@ func runRunnerJob(cmd *cobra.Command, _ []string) error {
 			Checkpoints: newCheckpointService(a), Secrets: secrets,
 			IdleAfter: 24 * time.Hour, IdleSleep: 24 * time.Hour,
 			Adapter: func(name string) adapters.ToolAdapter {
-				if name == opencodev2.Name {
+				if name == ad.Name() {
 					return ad
 				}
 				return nil
@@ -175,7 +175,7 @@ func runRunnerJob(cmd *cobra.Command, _ []string) error {
 		serverHome = user.Home
 	}
 	rs := &runsvc.Service{
-		Adapter: ad, AdapterVer: ad.Ver, Servers: sqlite.NewServerStore(store), Sessions: a.Sessions, Secrets: secrets,
+		Adapter: ad, AdapterVer: info.Version, Servers: sqlite.NewServerStore(store), Sessions: a.Sessions, Secrets: secrets,
 		ServersDir: ohServersDir(), BundlesDir: ohBundlesDir(), SessionsDir: ohSessionsDir(),
 		Decisions: sqlite.NewDecisionStore(store),
 		Runtimes: map[sessionspec.RuntimeKind]ohruntime.Runtime{
@@ -262,7 +262,7 @@ type jobSession struct {
 	a      *app.App
 	rs     *runsvc.Service
 	ss     *sessionsvc.Service
-	ad     *opencodev2.Adapter
+	ad     adapters.ToolAdapter
 	region string
 }
 
@@ -311,13 +311,19 @@ func (j *jobSession) Export(ctx context.Context, sid string) ([]json.RawMessage,
 	if err != nil {
 		return nil, nil, err
 	}
+	porter, ok := j.ad.(adapters.SessionPorter)
+	if !ok {
+		return nil, nil, fmt.Errorf("adapter %s cannot export sessions", j.ad.Name())
+	}
 	ids := []string{sid}
-	if children, err := j.ad.Children(ctx, h); err == nil {
-		ids = append(ids, descendants(sid, children)...)
+	if cl, ok := j.ad.(adapters.ChildLister); ok {
+		if children, err := cl.Children(ctx, h); err == nil {
+			ids = append(ids, descendants(sid, children)...)
+		}
 	}
 	var out []json.RawMessage
 	for _, id := range ids {
-		data, err := j.ad.ExportSession(ctx, h, id)
+		data, err := porter.ExportSession(ctx, h, id)
 		if err != nil {
 			return nil, nil, fmt.Errorf("exporting %s: %w", id, err)
 		}
@@ -350,8 +356,12 @@ func (j *jobSession) Failed(ctx context.Context, sid string) bool {
 	if err != nil {
 		return false
 	}
-	s, err := opencodev2.NewClient(h.URL, h.Password).GetSession(ctx, sid)
-	return err == nil && s.Outcome == "failed"
+	or, ok := j.ad.(adapters.OutcomeReader)
+	if !ok {
+		return false
+	}
+	outcome, err := or.Outcome(ctx, h, sid)
+	return err == nil && outcome == "failed"
 }
 
 func (j *jobSession) Outputs(ctx context.Context, sid string) map[string]any {

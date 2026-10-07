@@ -266,7 +266,7 @@ func tuiRuntimes(ctx context.Context, a *app.App, sp *workflow.Spec, project *do
 		case r == workflow.RuntimeRemote:
 			lr = remoteLaunchRuntime(ctx, a, project, lr)
 		case svc == nil:
-			lr.Reason = i18n.T("cmd.run.requires_v2")
+			lr.Reason = i18n.Tf("cmd.run.requires_v2", toolName())
 		default:
 			av, err := svc.RuntimeAvailability(ctx, sessionspec.RuntimeKind(r))
 			lr.Available = err == nil && av.OK

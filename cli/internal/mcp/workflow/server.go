@@ -80,7 +80,7 @@ func New(b Backend) *protocol.Server {
 type handlers struct{ b Backend }
 
 // ToolSession returns the tool session of the call, read from the request
-// `_meta` (opencode: "ai.opencode/sessionID"; any key ending with
+// `_meta` (the tool names it "<vendor>/sessionID": any key ending with
 // "sessionid" is accepted).
 func ToolSession(ctx context.Context) string {
 	for k, v := range protocol.Meta(ctx) {

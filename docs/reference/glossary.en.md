@@ -20,7 +20,7 @@ A brick is an agent or a skill that workflows may use. The brick catalogue gathe
 
 ### Beads / MCP gateway
 
-Services of the [ohd daemon](#ohd-daemon) for sessions outside the machine. The **Beads gateway** runs the `bd` commands of a container session on the machine (fake `bd` in the container, `beads.allow` allow-list); remotely, a snapshot leaves with the session and the journal is replayed on return (`oh session resolve`). The **MCP gateway** serves the oh MCP servers of the bundle over HTTP, tokens staying on the machine. See [ADR-046](../architecture/adr/046-beads-gateways.en.md).
+Services of the [ohd daemon](#ohd-daemon). The **Beads gateway** runs the `bd` commands of a session, local or in a container, on the machine (fake `bd` first on the session `PATH` or in the container, `beads.allow` allow-list); remotely, a snapshot leaves with the session and the journal is replayed on return (`oh session resolve`). The **MCP gateway** serves the oh MCP servers of the bundle over HTTP, tokens staying on the machine. See [ADR-046](../architecture/adr/046-beads-gateways.en.md).
 
 ### Beads
 
@@ -158,7 +158,7 @@ A Markdown protocol document that provides domain-specific knowledge, workflows,
 
 ### Stack Skills
 
-Framework-specific skill protocols (e.g., `dev-standards-react`, `dev-standards-golang`) that are dynamically added to the session bundle based on the detected tech stack of the target project. Located in `skills/developer/stacks/`.
+Framework-specific skill protocols (e.g., `dev-standards-react`, `dev-standards-golang`) that are dynamically added to the session bundle based on the detected tech stack of the target project (languages Go, TypeScript, Python, Rust, Java, Ruby; frameworks Next.js, Nuxt, React, Vue, Express, Django, FastAPI, Rails; Vitest, Jest, Docker, CI). Located in `skills/developer/stacks/`.
 
 ### Target Project
 

@@ -15,7 +15,7 @@ import (
 const WorkflowMCPServer = "workflow"
 
 // Tools of the workflow MCP server. Tools reach the model as
-// <server>_<tool> (opencode), i.e. workflow_checkpoint: the name the agents
+// <server>_<tool> (the tool prefixes MCP tools), i.e. workflow_checkpoint: the name the agents
 // and the generated skills use.
 const (
 	WorkflowToolStatus     = "status"
@@ -41,7 +41,7 @@ const OhBinVar = "{{oh.bin}}"
 const mcpActionPrefix = "mcp:"
 
 // MCPToolAction is the neutral permission action of an MCP tool. Adapters
-// translate it to the tool's own name (opencode V2: `<server>_<tool>`).
+// translate it to the tool's own name (e.g. `<server>_<tool>`).
 func MCPToolAction(server, tool string) string {
 	return mcpActionPrefix + server + "/" + tool
 }

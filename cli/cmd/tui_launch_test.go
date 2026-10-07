@@ -14,7 +14,7 @@ import (
 )
 
 // testHubEnv points the hub at the repository content and the hub layer at
-// the test workflows (no opencode V2: withoutV2).
+// the test workflows (no supported tool: withoutV2).
 func testHubEnv(t *testing.T) {
 	t.Helper()
 	root := repoRoot(t)

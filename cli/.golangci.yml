@@ -49,6 +49,11 @@ linters:
       - third_party$
       - builtin$
       - examples$
+issues:
+  # Every finding is shown (the defaults hide all but 50 per linter and 3
+  # identical ones: the count of the remaining findings looked smaller).
+  max-issues-per-linter: 0
+  max-same-issues: 0
 formatters:
   enable:
     - gofmt

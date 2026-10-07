@@ -88,7 +88,7 @@ func runProjectAddInteractive(ctx context.Context, a *app.App) error {
 		projectSolo   bool
 	)
 
-	hubProvider := a.Config.Opencode.DefaultProvider
+	hubProvider := a.Config.LLM.DefaultProvider
 	if hubProvider == "" {
 		hubProvider = "bedrock"
 	}

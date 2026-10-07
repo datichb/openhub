@@ -25,6 +25,26 @@ The orchestrator enforces **explicit checkpoints** (noted `[CP-X]`) at each crit
 
 The orchestrator never advances to the next step without an explicit response.
 
+## Evolutions
+
+### May 2026 — Conditional activation of CP-QA
+
+> **⚠️ REMOVED (July 2026)** — The `[CP-QA]` checkpoint and the `qa-engineer` agent were removed. Writing tests is now the responsibility of the `developer` agent (TDD or after implementation). The `reviewer` checks the test coverage. The pre-review workflow runs the tests automatically. See ADR-023.
+
+~~The `[CP-QA]` checkpoint was improved with a **conditional activation based on the risk level** detected automatically in the diff:~~
+
+~~**Behavior by risk:**~~
+
+- ~~**🔴 High risk** (API, services, critical code, >200 lines) → QA mandatory, no checkpoint~~
+- ~~**🟡 Medium risk** (utils, business logic in components) → QA recommended by default~~
+- ~~**⚪ Low risk** (pure UI, docs, config) → QA optional~~
+
+~~**TDD tickets:** instead of skipping QA automatically, a quick coverage audit checks that TDD was applied correctly (coverage >= 80%, every criterion covered). If TDD is incomplete, the qa-engineer writes the missing tests.~~
+
+~~**Added value of the qa-engineer:** the qa-engineer now writes a `### Points to watch for the review` section in its handoff, passed to the reviewer to focus the review on the critical areas (untestable code, uncovered edge cases, assumptions made).~~
+
+~~This approach maximizes quality on critical code without slowing down simple tickets.~~
+
 ## Consequences
 
 ### Positive

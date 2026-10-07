@@ -130,7 +130,7 @@ Le dossier immuable et hache (`~/.oh/bundles/<hash>/`) construit au lancement de
 
 ### Passerelle Beads / MCP
 
-Services du [demon ohd](#demon-ohd) pour les sessions hors de la machine. La **passerelle Beads** execute les commandes `bd` d'une session en conteneur sur la machine (faux `bd` dans le conteneur, liste blanche `beads.allow`) ; en distant, un instantane part avec la session et le journal est rejoue au retour (`oh session resolve`). La **passerelle MCP** sert en HTTP les serveurs MCP d'oh du paquet, les tokens restant sur la machine. Voir [ADR-046](../architecture/adr/046-beads-gateways.fr.md).
+Services du [demon ohd](#demon-ohd). La **passerelle Beads** execute sur la machine les commandes `bd` d'une session, locale ou en conteneur (faux `bd` en tete du `PATH` de la session ou dans le conteneur, liste blanche `beads.allow`) ; en distant, un instantane part avec la session et le journal est rejoue au retour (`oh session resolve`). La **passerelle MCP** sert en HTTP les serveurs MCP d'oh du paquet, les tokens restant sur la machine. Voir [ADR-046](../architecture/adr/046-beads-gateways.fr.md).
 
 ### Permission Profile (Profil de permissions)
 
@@ -158,7 +158,7 @@ Un document de protocole Markdown qui fournit des connaissances specifiques a un
 
 ### Stack Skills
 
-Protocoles de skills specifiques a un framework (ex. `dev-standards-react`, `dev-standards-golang`) qui sont ajoutes dynamiquement au paquet de session en fonction de la stack technique detectee du projet cible. Situes dans `skills/developer/stacks/`.
+Protocoles de skills specifiques a un framework (ex. `dev-standards-react`, `dev-standards-golang`) qui sont ajoutes dynamiquement au paquet de session en fonction de la stack technique detectee du projet cible (langages Go, TypeScript, Python, Rust, Java, Ruby ; frameworks Next.js, Nuxt, React, Vue, Express, Django, FastAPI, Rails ; Vitest, Jest, Docker, CI). Situes dans `skills/developer/stacks/`.
 
 ### Target Project (Projet cible)
 

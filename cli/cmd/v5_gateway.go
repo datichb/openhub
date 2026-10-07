@@ -22,13 +22,20 @@ type gatewayGranter interface {
 	IssueGatewayGrant(ctx context.Context, req daemon.GatewayGrantRequest) (daemon.GatewayGrantResponse, error)
 }
 
-// gatewaySessionEnv gives the sessions that run outside the machine
-// (container) their Beads gateway token (P4-T07). Locally, bd is run
-// directly (D9). The token is minted at each start and resume, never
-// written by oh (the daemon keeps only its hash).
+// gatewaySessionEnv gives the local and container sessions their Beads
+// gateway token (P4-T07; local since QB1: the fake bd comes first on their
+// PATH, so beads.allow applies in every runtime). The token is minted at
+// each start and resume, never written by oh (the daemon keeps only its
+// hash).
 func gatewaySessionEnv(dc func(ctx context.Context) (gatewayGranter, error)) runsvc.SessionEnvFunc {
 	return func(ctx context.Context, r runsvc.SessionEnvRequest) (map[string]string, error) {
-		if r.Runtime != sessionspec.RuntimeContainer {
+		local := r.Runtime == "" || r.Runtime == sessionspec.RuntimeLocal
+		if !local && r.Runtime != sessionspec.RuntimeContainer {
+			return nil, nil
+		}
+		if local && r.GatewayURL == "" {
+			// Group started by an older oh (no gateway address saved): its
+			// sessions run the real bd until the server restarts.
 			return nil, nil
 		}
 		if r.GatewayURL == "" {

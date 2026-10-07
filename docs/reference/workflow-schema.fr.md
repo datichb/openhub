@@ -23,7 +23,7 @@ oh workflow show ticket --origin         # valeurs résolues et document d'origi
 - **Textes traduisibles** (`label`, `description`, `help`) : un texte simple, ou une table par langue `{ fr: …, en: … }`. Sans la langue demandée, oh prend le texte simple, puis `en`, puis `fr`.
 - **Cartes ordonnées** : `inputs`, `agents`, `checkpoints` et `preconditions` gardent l'ordre du fichier (ordre de la fiche de lancement, des checkpoints et des tests).
 - **Patch** (`extends`) : c'est la **présence** d'un champ dans le fichier qui le remplace, pas sa valeur. Les cartes sont fusionnées par clé ; les listes et les textes sont remplacés en bloc.
-- **Sécurité** : `risk`, `isolation`, `runtime.allowed`, `beads.allow`, checkpoints obligatoires, `remote` et `limits` ne peuvent que **se durcir**. Un assouplissement est une erreur (`loosening`) et la valeur du parent est gardée.
+- **Sécurité** : `risk`, `isolation`, `runtime.allowed`, `modes.allowed`, `code_mode`, `beads.allow`, checkpoints obligatoires, `remote` et `limits` ne peuvent que **se durcir**. Un assouplissement est une erreur (`loosening`) et la valeur du parent est gardée.
 - **Verrou** : un champ de premier niveau cité dans `enforce` d'un document parent ne peut plus être écrit par un document qui l'étend (`enforced_field`).
 
 Dans les tableaux ci-dessous, la colonne **Patch** vaut :
@@ -75,7 +75,7 @@ enforce: [checkpoints, modes]   # ou ["*"] pour tout le document
 |---|---|---|---|---|
 | `risk` | texte | `read` < `plan` < `write` < `publish` | **obligatoire** (`field_required`) | durcit (rang égal ou inférieur) |
 | `isolation` | texte | `strict`, `standard` | `standard` | durcit (`strict` ne redevient pas `standard`) |
-| `code_mode` | booléen | `true`, `false` | `false` | remplace |
+| `code_mode` | booléen | `true`, `false` | `false` | durcit (`false` ne repasse pas à `true`) |
 | `beads.allow` | liste | sous-commandes `bd` | voir ci-dessous | durcit (sous-ensemble du parent) |
 | `runtime.default` | texte | `local`, `container`, `remote` | `local` | remplace |
 | `runtime.allowed` | liste | `local`, `container`, `remote` | `[runtime.default]` | durcit (sous-ensemble du parent) |
@@ -103,7 +103,7 @@ Une session qui écrit (`risk` autre que `read`) reçoit un worktree si une autr
 
 ### `code_mode`
 
-`false` ou absent : l'outil `execute` d'opencode est refusé à tous les agents. `true` : il reste disponible. Le champ entre dans le hash du paquet. Ce n'est pas un champ de sécurité au sens du patch : une couche peut l'activer (le résumé d'impact de la publication le signale).
+`false` ou absent : l'outil `execute` d'opencode est refusé à tous les agents. `true` : il reste disponible. Le champ entre dans le hash du paquet. C'est un champ de sécurité : une couche qui étend un workflow peut le désactiver, pas l'activer (`loosening`) ; le résumé d'impact de la publication signale son activation.
 
 ### `beads`
 
@@ -111,9 +111,9 @@ Une session qui écrit (`risk` autre que `read`) reçoit un worktree si une autr
 beads: { allow: [show, list, update, close] }
 ```
 
-- Absent : pas de restriction déclarée. En conteneur, la passerelle Beads applique alors une liste en lecture seule (`show`, `list`, `ready`, `search`, `children`, `comments`, `count`, `status`, `graph`, `history`).
+- Absent : pas de restriction déclarée. La passerelle Beads applique alors une liste en lecture seule (`show`, `list`, `ready`, `search`, `children`, `comments`, `count`, `status`, `graph`, `history`). Les workflows livrés déclarent tous leur liste.
 - `allow: []` : aucune commande permise.
-- La liste est appliquée par la passerelle Beads du démon (conteneur) et au rejeu du journal (distant). Voir [ADR-046](../architecture/adr/046-beads-gateways.fr.md).
+- La liste est appliquée par la passerelle Beads du démon dans tous les environnements (en local, le faux `bd` d'oh passe en tête du `PATH` de la session ; un `bd` appelé par un chemin est refusé) et au rejeu du journal (distant). Voir [ADR-046](../architecture/adr/046-beads-gateways.fr.md).
 - Patch : sur un parent sans `beads`, toute liste durcit. Sur un parent avec liste, la nouvelle liste doit en être un sous-ensemble ; `beads: null` est un assouplissement.
 
 ### `runtime`
@@ -149,7 +149,7 @@ limits:
 | `entry.agent` | texte | id d'agent du catalogue, primaire | `conductor` | remplace le bloc `entry` |
 | `entry.selectable` | booléen | `true`, `false` | `false` | à écrire avec `entry.agent` |
 | `modes.default` | texte | un mode de `modes.allowed` | premier mode autorisé | remplace |
-| `modes.allowed` | liste | `manuel`, `semi-auto`, `auto`, ou modes propres | `[manuel, semi-auto, auto]` | remplace |
+| `modes.allowed` | liste | `manuel`, `semi-auto`, `auto`, ou modes propres | `[manuel, semi-auto, auto]` | durcit (sous-ensemble du parent ; une liste vide vaut tous les modes) |
 | `circuit_breaker.max_consecutive_subagents` | entier ≥ 0 | N délégations de suite sans interaction | `0` (coupe-circuit désactivé) | remplace |
 
 ### `entry`
@@ -157,11 +157,12 @@ limits:
 - L'agent d'entrée doit être **primaire** (`entry_not_primary`) et, s'il est listé dans `agents`, avoir le rôle `workflow` (`entry_role`). Il ne peut pas être retiré par patch (`entry_disabled`).
 - `conductor` : agent générique sans écriture ni shell, qui suit la carte du workflow générée et délègue.
 - `selectable: true` : l'agent d'entrée se choisit au lancement (`oh run libre --agent debugger`). Les membres sont alors calculés : l'agent choisi et ceux qu'il peut appeler (permission `task` du catalogue, de proche en proche) ; `agents:` est recalculé de la même façon pour l'agent par défaut. Sur un workflow sans `selectable`, `--agent` est refusé (`session_entry_not_selectable`).
-- Patch : le bloc `entry` est remplacé quand `entry.agent` est écrit (ou `entry: null`) ; écrire `entry.selectable` seul n'a pas d'effet.
+- Patch : le bloc `entry` est remplacé quand `entry.agent` est écrit (ou `entry: null`) ; `entry.selectable` écrit seul change le choix de l'agent et garde l'agent d'entrée du parent.
 
 ### `modes`
 
 - Le mode est fixé au lancement (`--mode`, fiche de lancement) et n'est plus demandé par l'agent. Le prompt contient toujours `Mode de workflow : <mode>`.
+- Patch : `modes.allowed` ne peut que se restreindre (`loosening` pour un mode absent du parent) ; le résumé d'impact signale tout mode ajouté comme un assouplissement.
 - Un mode en double : `duplicate_entry` ; un défaut absent de la liste : `mode_default_not_allowed` ; `--mode` non autorisé : `session_mode_not_allowed`.
 
 ### `circuit_breaker`
@@ -194,6 +195,7 @@ L'id d'une entrée suit `^[a-z][a-z0-9_]*$` (`input_id_invalid`) ; `oh` est rés
 | `values` | liste | — | choix d'un `enum` (obligatoire pour `enum`, ignoré sinon) |
 | `picker` | table | — | sélecteur de tickets (`beads-id`, `beads-ids` seulement) |
 | `max_length` | entier ≥ 0 | `0` = 20 000 caractères | troncature de la valeur injectée |
+| `from` | `source(entrée)` | — | valeur calculée par oh au lancement quand elle n'est pas donnée (voir ci-dessous) |
 
 | Type | Valeur | Dans le prompt |
 |---|---|---|
@@ -210,7 +212,31 @@ L'id d'une entrée suit `^[a-z][a-z0-9_]*$` (`input_id_invalid`) ; `oh` est rés
 - **`picker`** : `filter` (ex. `ai-delegated`), `epic` (restreindre à une epic), `multi` (plusieurs tickets). Une entrée `beads-id` avec `multi: true` donne **une session par ticket** (`--tickets a,b`) ; une entrée `beads-ids` reçoit toute la liste dans une seule session.
 - **Contrôles** : un id Beads invalide, ou un `path` / `branch` sur plusieurs lignes, est refusé au rendu. Une valeur ne correspondant pas au type : `session_input_invalid` ; une entrée inconnue : `session_input_unknown` ; un défaut invalide : `input_default_invalid`.
 - **Troncature** (O11) : les valeurs `string`, `text`, `path`, `branch` sont coupées à `max_length` caractères, avec la mention `[… tronqué : N caractères sur M]`.
+- **Entrées calculées** (`from`) : voir [ci-dessous](#entrées-calculées-from).
 - **Patch** : fusion par id, champ par champ (`picker` aussi). Une entrée ne peut pas être retirée.
+
+### Entrées calculées (`from`)
+
+`from: <source>(<entrée>)` demande à oh de calculer l'entrée au lancement, à partir de la valeur d'une autre entrée du même workflow :
+
+```yaml
+inputs:
+  mr: { type: string, required: true }
+  feedback: { type: text, required: true, from: mr.discussions(mr) }
+```
+
+| Source | Calcule | Argument |
+|---|---|---|
+| `mr.discussions(mr)` | les discussions non résolues de la merge request | une merge request : URL, `!iid`, numéro, branche ou ticket |
+| `mr.source_branch(mr)` | sa branche | idem |
+| `mr.target_branch(mr)` | sa branche cible | idem |
+| `ticket.brief(ticket)` | le brief de reprise du ticket (la version enrichie d'abord) | un id de ticket |
+
+- **Noms neutres** : oh résout une source avec la forge du projet (aujourd'hui GitLab : jeton `oh service setup`, projet `tracker_project`) ou son espace d'équipe ; un workflow n'a pas à changer selon la forge. La liste est fermée, et ouverte à tous les workflows (livrés, d'équipe, de projet).
+- **Priorité** : une valeur donnée au lancement l'emporte, puis la valeur calculée, puis le défaut.
+- **Échec** : si le calcul échoue, le lancement est refusé pour une entrée sans défaut ; sinon le défaut s'applique. La source est lue une seule fois par lancement.
+- La fiche de lancement ne demande pas ces entrées (elles restent modifiables).
+- Contrôles : `input_from_invalid` (syntaxe), `input_from_unknown_source`, `input_from_unknown_input` (argument absent, ou l'entrée elle-même).
 
 ---
 

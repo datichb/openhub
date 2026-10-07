@@ -14,7 +14,7 @@ import (
 // These are only registered when GITLAB_WRITE_ENABLED=true.
 func registerWriteTools(server *protocol.Server) {
 	server.RegisterTool(protocol.Tool{
-		Name:        "gitlab_create_mr",
+		Name:        "create_mr",
 		Description: "Create a merge request. First checks if one already exists for the source branch.",
 		InputSchema: map[string]interface{}{
 			"type": "object",
@@ -30,7 +30,7 @@ func registerWriteTools(server *protocol.Server) {
 	}, handleCreateMR)
 
 	server.RegisterTool(protocol.Tool{
-		Name:        "gitlab_add_mr_note",
+		Name:        "add_mr_note",
 		Description: "Add a comment/note to a merge request",
 		InputSchema: map[string]interface{}{
 			"type": "object",
@@ -44,7 +44,7 @@ func registerWriteTools(server *protocol.Server) {
 	}, handleAddMRNote)
 
 	server.RegisterTool(protocol.Tool{
-		Name:        "gitlab_update_issue",
+		Name:        "update_issue",
 		Description: "Update an issue (labels, assignees, state)",
 		InputSchema: map[string]interface{}{
 			"type": "object",
@@ -64,7 +64,7 @@ func registerWriteTools(server *protocol.Server) {
 	}, handleUpdateIssue)
 
 	server.RegisterTool(protocol.Tool{
-		Name:        "gitlab_assign_reviewer",
+		Name:        "assign_reviewer",
 		Description: "Assign reviewer(s) to a merge request",
 		InputSchema: map[string]interface{}{
 			"type": "object",
@@ -82,7 +82,7 @@ func registerWriteTools(server *protocol.Server) {
 	}, handleAssignReviewer)
 
 	server.RegisterTool(protocol.Tool{
-		Name:        "gitlab_add_label",
+		Name:        "add_label",
 		Description: "Add labels to an issue",
 		InputSchema: map[string]interface{}{
 			"type": "object",
@@ -96,7 +96,7 @@ func registerWriteTools(server *protocol.Server) {
 	}, handleAddLabel)
 
 	server.RegisterTool(protocol.Tool{
-		Name:        "gitlab_reply_to_mr_discussion",
+		Name:        "reply_to_mr_discussion",
 		Description: "Reply to a specific discussion thread on a merge request. Use this to respond to reviewer comments after applying corrections.",
 		InputSchema: map[string]interface{}{
 			"type": "object",

@@ -25,7 +25,7 @@ func TestFilterableList_New(t *testing.T) {
 
 func TestFilterableList_Filter(t *testing.T) {
 	items := []FilterItem{
-		{MainText: "Start session", SecondaryText: "launch opencode"},
+		{MainText: "Start session", SecondaryText: "launch session"},
 		{MainText: "Board view", SecondaryText: "kanban"},
 		{MainText: "Status check", SecondaryText: "system health"},
 	}
@@ -48,12 +48,12 @@ func TestFilterableList_Filter(t *testing.T) {
 
 func TestFilterableList_CaseInsensitive(t *testing.T) {
 	items := []FilterItem{
-		{MainText: "OpenCode Start"},
+		{MainText: "Session Start"},
 		{MainText: "Config Edit"},
 	}
 
 	fl := NewFilterableList(items, nil)
-	fl.filter("OPENCODE")
+	fl.filter("SESSION")
 	assert.Equal(t, 1, len(fl.visible))
-	assert.Equal(t, "OpenCode Start", fl.visible[0].MainText)
+	assert.Equal(t, "Session Start", fl.visible[0].MainText)
 }

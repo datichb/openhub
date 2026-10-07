@@ -17,8 +17,8 @@ import (
 // Aliases of the former launch commands (O15): `oh start`, `--agent`,
 // `--dev`, `--onboard`, `--parallel`, `--sweep`, `oh audit|review|debug`,
 // `oh review feedback`, `oh takeover-brief enrich` run their workflow
-// through `oh run`, with a deprecation warning. They require opencode V2 and
-// the target workflow (the former launch was removed with opencode V1).
+// through `oh run`, with a deprecation warning. They require a supported
+// tool and the target workflow (the former launch was removed in v5).
 
 // warnDeprecatedAlias tells that an old command is an alias of a v5 one (O15).
 func warnDeprecatedAlias(w io.Writer, old, replacement string) {

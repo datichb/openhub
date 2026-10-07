@@ -8,6 +8,7 @@ import (
 
 	"github.com/charmbracelet/lipgloss"
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 
 	"github.com/datichb/openhub/cli/internal/buildinfo"
 	"github.com/datichb/openhub/cli/internal/i18n"
@@ -21,6 +22,11 @@ var (
 	helpFlagStyle    = lipgloss.NewStyle().Foreground(theme.Subtle)
 	helpDescStyle    = lipgloss.NewStyle()
 )
+
+// The overview of `oh --help` is built from the command tree (QB4: a
+// hand-written list named commands that no longer exist and missed new
+// ones): every visible command, in the section of its top-level command,
+// with its own flags.
 
 // helpFlag describes a flag for the help display.
 type helpFlag struct {
@@ -42,9 +48,26 @@ type helpSection struct {
 	Commands []helpCommand
 }
 
+// helpSectionOrder lists the sections of the overview and, for each, its
+// top-level commands in display order. A visible top-level command missing
+// here is shown under « other » (TestHelpSectionsCoverEveryCommand).
+var helpSectionOrder = []struct {
+	key      string
+	commands []string
+}{
+	{"help.section.workflows", []string{"run", "workflow", "bundle", "skill"}},
+	{"help.section.session", []string{"session", "budget", "start", "audit", "review", "debug", "takeover-brief"}},
+	{"help.section.project", []string{"project", "worktree", "board"}},
+	{"help.section.mcp", []string{"mcp"}},
+	{"help.section.config", []string{"config", "provider", "secrets"}},
+	{"help.section.analytics", []string{"status", "metrics", "dashboard", "serve", "history"}},
+	{"help.section.team", []string{"team", "teams", "conventions", "beads", "policies", "patterns"}},
+	{"help.section.infra", []string{"init", "doctor", "repair", "export", "import", "purge", "upgrade", "migrate", "daemon", "remote", "version", "completion"}},
+}
+
 // customHelpFunc replaces Cobra's default help with a paged, colored, i18n-aware display.
 func customHelpFunc(cmd *cobra.Command, args []string) {
-	content := buildHelpContent()
+	content := buildHelpContent(cmd.Root())
 
 	// Try pager if stdout is a terminal
 	if isTerminal() {
@@ -57,408 +80,116 @@ func customHelpFunc(cmd *cobra.Command, args []string) {
 }
 
 // buildHelpContent constructs the full help text with colors.
-func buildHelpContent() string {
+func buildHelpContent(root *cobra.Command) string {
 	var sb strings.Builder
 
-	// Header
 	header := fmt.Sprintf("oh — OpenHub CLI %s", buildinfo.Version)
 	sb.WriteString(theme.Bold.Render(header))
 	sb.WriteString("\n\n")
 
-	// Build sections
-	sections := buildHelpSections()
-
-	for _, section := range sections {
+	for _, section := range buildHelpSections(root) {
 		sb.WriteString(helpSectionStyle.Render(section.Title))
 		sb.WriteString("\n\n")
-
 		for _, cmd := range section.Commands {
-			// Command line: "  start             Description"
-			cmdName := helpCmdStyle.Render(fmt.Sprintf("  %-18s", cmd.Name))
-			fmt.Fprintf(&sb, "%s%s\n", cmdName, cmd.Desc)
-
-			// Flags
+			if len(cmd.Name) < 24 {
+				fmt.Fprintf(&sb, "%s%s\n", helpCmdStyle.Render(fmt.Sprintf("  %-24s", cmd.Name)), cmd.Desc)
+			} else {
+				fmt.Fprintf(&sb, "%s\n%s%s\n", helpCmdStyle.Render("  "+cmd.Name), strings.Repeat(" ", 26), cmd.Desc)
+			}
 			for _, f := range cmd.Flags {
-				flagStr := ""
+				flagStr := "--" + f.Long
 				if f.Short != "" {
-					flagStr = fmt.Sprintf("--%s, -%s", f.Long, f.Short)
-				} else {
-					flagStr = fmt.Sprintf("--%s", f.Long)
+					flagStr += ", -" + f.Short
 				}
-				flagRendered := helpFlagStyle.Render(fmt.Sprintf("      %-16s", flagStr))
+				flagRendered := helpFlagStyle.Render(fmt.Sprintf("      %-22s", flagStr))
 				fmt.Fprintf(&sb, "%s%s\n", flagRendered, f.Desc)
 			}
 		}
 		sb.WriteString("\n")
 	}
 
-	// Global flags
 	sb.WriteString(helpSectionStyle.Render(i18n.T("help.global_flags")))
 	sb.WriteString("\n\n")
-	fmt.Fprintf(&sb, "  %s  %s\n", helpFlagStyle.Render("-v, --verbose"), i18n.T("help.flag.verbose"))
-	fmt.Fprintf(&sb, "  %s  %s\n", helpFlagStyle.Render("-h, --help   "), i18n.T("help.flag.help"))
+	root.PersistentFlags().VisitAll(func(f *pflag.Flag) {
+		if f.Hidden {
+			return
+		}
+		name := "--" + f.Name
+		if f.Shorthand != "" {
+			name = "-" + f.Shorthand + ", " + name
+		}
+		fmt.Fprintf(&sb, "  %s  %s\n", helpFlagStyle.Render(fmt.Sprintf("%-16s", name)), f.Usage)
+	})
+	fmt.Fprintf(&sb, "  %s  %s\n", helpFlagStyle.Render(fmt.Sprintf("%-16s", "-h, --help")), i18n.T("help.flag.help"))
 	sb.WriteString("\n")
 
-	// Footer
 	sb.WriteString(helpDescStyle.Render(i18n.T("help.footer")))
 	sb.WriteString("\n")
-
 	return sb.String()
 }
 
-// buildHelpSections returns the structured help content using i18n keys.
-func buildHelpSections() []helpSection {
-	return []helpSection{
-		{
-			Title: i18n.T("help.section.workflows"),
-			Commands: []helpCommand{
-				{
-					Name: "run [workflow]",
-					Desc: i18n.T("cmd.run.short"),
-					Flags: []helpFlag{
-						{"input", "i", i18n.T("cmd.run.flags.input")},
-						{"tickets", "", i18n.T("cmd.run.flags.tickets")},
-						{"mode", "", i18n.T("cmd.run.flags.mode")},
-						{"runtime", "", i18n.T("cmd.run.flags.runtime")},
-						{"location", "", i18n.T("cmd.run.flags.location")},
-						{"recap", "", i18n.T("cmd.run.flags.recap")},
-						{"agent", "a", i18n.T("cmd.run.flags.agent")},
-					},
-				},
-				{Name: "workflow list", Desc: i18n.T("cmd.workflow.list.short")},
-				{Name: "workflow show", Desc: i18n.T("cmd.workflow.show.short")},
-				{Name: "workflow validate", Desc: i18n.T("cmd.workflow.validate.short")},
-				{Name: "bundle show", Desc: i18n.T("cmd.bundle.show.short")},
-			},
-		},
-		{
-			Title: i18n.T("help.section.session"),
-			Commands: []helpCommand{
-				{
-					Name: "start",
-					Desc: i18n.T("cmd.start.short"),
-					Flags: []helpFlag{
-						{"agent", "a", i18n.T("help.flag.start.agent")},
-						{"prompt", "m", i18n.T("help.flag.start.prompt")},
-						{"provider", "P", i18n.T("help.flag.start.provider")},
-						{"project", "p", i18n.T("help.flag.start.project")},
-						{"resume", "r", i18n.T("help.flag.start.resume")},
-						{"worktree", "w", i18n.T("help.flag.start.worktree")},
-						{"recap", "", i18n.T("help.flag.start.recap")},
-						{"dev", "", i18n.T("help.flag.start.dev")},
-						{"label", "l", i18n.T("help.flag.start.label")},
-						{"assignee", "A", i18n.T("help.flag.start.assignee")},
-						{"onboard", "", i18n.T("help.flag.start.onboard")},
-						{"refresh", "", i18n.T("help.flag.start.refresh")},
-						{"parallel", "", i18n.T("help.flag.start.parallel")},
-						{"tickets", "", i18n.T("help.flag.start.tickets")},
-					},
-				},
-				{
-					Name: "audit",
-					Desc: i18n.T("cmd.audit.short"),
-					Flags: []helpFlag{
-						{"type", "t", i18n.T("help.flag.audit.type")},
-						{"project", "p", i18n.T("help.flag.start.project")},
-					},
-				},
-				{
-					Name: "review",
-					Desc: i18n.T("cmd.review.short"),
-					Flags: []helpFlag{
-						{"mode", "m", i18n.T("help.flag.review.mode")},
-						{"branch", "b", i18n.T("help.flag.review.branch")},
-						{"publish", "", i18n.T("help.flag.review.publish")},
-						{"project", "p", i18n.T("help.flag.start.project")},
-					},
-				},
-				{
-					Name: "debug",
-					Desc: i18n.T("cmd.debug.short"),
-					Flags: []helpFlag{
-						{"issue", "i", i18n.T("help.flag.debug.issue")},
-						{"project", "p", i18n.T("help.flag.start.project")},
-					},
-				},
-			},
-		},
-		{
-			Title: i18n.T("help.section.project"),
-			Commands: []helpCommand{
-				{
-					Name: "project list",
-					Desc: i18n.T("cmd.project.list.short"),
-					Flags: []helpFlag{
-						{"status", "s", i18n.T("help.flag.project.status")},
-						{"json", "", i18n.T("help.flag.json")},
-					},
-				},
-				{
-					Name: "project add",
-					Desc: i18n.T("cmd.project.add.short"),
-					Flags: []helpFlag{
-						{"name", "n", i18n.T("help.flag.project.name")},
-						{"path", "d", i18n.T("help.flag.project.path")},
-						{"language", "l", i18n.T("help.flag.project.language")},
-					},
-				},
-				{
-					Name: "project remove",
-					Desc: i18n.T("cmd.project.remove.short"),
-					Flags: []helpFlag{
-						{"force", "f", i18n.T("help.flag.force")},
-					},
-				},
-				{Name: "project rename", Desc: i18n.T("cmd.project.rename.short")},
-				{Name: "project move", Desc: i18n.T("cmd.project.move.short")},
-				{
-					Name: "project configure",
-					Desc: i18n.T("cmd.project.configure.short"),
-					Flags: []helpFlag{
-						{"provider", "P", i18n.T("help.flag.start.provider")},
-						{"model", "m", i18n.T("help.flag.deploy.model")},
-						{"language", "l", i18n.T("help.flag.project.language")},
-					},
-				},
-				{
-					Name: "worktree list",
-					Desc: i18n.T("cmd.worktree.list.short"),
-					Flags: []helpFlag{
-						{"json", "", i18n.T("help.flag.json")},
-					},
-				},
-				{Name: "worktree add", Desc: i18n.T("cmd.worktree.add.short")},
-				{
-					Name: "worktree remove",
-					Desc: i18n.T("cmd.worktree.remove.short"),
-					Flags: []helpFlag{
-						{"force", "f", i18n.T("help.flag.force")},
-					},
-				},
-				{
-					Name: "worktree cleanup",
-					Desc: i18n.T("cmd.worktree.cleanup.short"),
-					Flags: []helpFlag{
-						{"base", "b", i18n.T("help.flag.worktree.base")},
-						{"force", "f", i18n.T("help.flag.force")},
-					},
-				},
-			},
-		},
-		{
-			Title: i18n.T("help.section.mcp"),
-			Commands: []helpCommand{
-				{
-					Name: "mcp status",
-					Desc: i18n.T("cmd.mcp.status.short"),
-					Flags: []helpFlag{
-						{"project", "p", i18n.T("help.flag.start.project")},
-					},
-				},
-				{
-					Name: "mcp enable",
-					Desc: i18n.T("cmd.mcp.enable.short"),
-					Flags: []helpFlag{
-						{"project", "p", i18n.T("help.flag.start.project")},
-					},
-				},
-				{
-					Name: "mcp disable",
-					Desc: i18n.T("cmd.mcp.disable.short"),
-					Flags: []helpFlag{
-						{"project", "p", i18n.T("help.flag.start.project")},
-					},
-				},
-				{
-					Name: "mcp setup",
-					Desc: i18n.T("cmd.mcp.setup.short"),
-					Flags: []helpFlag{
-						{"project", "p", i18n.T("help.flag.start.project")},
-					},
-				},
-				{
-					Name: "mcp reset",
-					Desc: i18n.T("cmd.mcp.reset.short"),
-					Flags: []helpFlag{
-						{"project", "p", i18n.T("help.flag.start.project")},
-					},
-				},
-				{Name: "mcp serve", Desc: i18n.T("cmd.mcp.serve.short")},
-				{
-					Name: "mcp list",
-					Desc: i18n.T("cmd.mcp.list.short"),
-					Flags: []helpFlag{
-						{"json", "", i18n.T("help.flag.json")},
-					},
-				},
-			},
-		},
-		{
-			Title: i18n.T("help.section.config"),
-			Commands: []helpCommand{
-				{
-					Name: "config list",
-					Desc: i18n.T("cmd.config.list.short"),
-					Flags: []helpFlag{
-						{"json", "", i18n.T("help.flag.json")},
-					},
-				},
-				{Name: "config get", Desc: i18n.T("cmd.config.get.short")},
-				{Name: "config set", Desc: i18n.T("cmd.config.set.short")},
-				{Name: "config unset", Desc: i18n.T("cmd.config.unset.short")},
-				{Name: "config path", Desc: i18n.T("cmd.config.path.short")},
-				{Name: "config language", Desc: i18n.T("cmd.config.language.short")},
-				{Name: "config websearch", Desc: i18n.T("cmd.config.websearch.short")},
-				{Name: "config model default", Desc: i18n.T("cmd.config.model.default.short")},
-				{Name: "config model family", Desc: i18n.T("cmd.config.model.family.short")},
-				{Name: "config model agent", Desc: i18n.T("cmd.config.model.agent.short")},
-				{
-					Name: "config model show",
-					Desc: i18n.T("cmd.config.model.show.short"),
-					Flags: []helpFlag{
-						{"json", "", i18n.T("help.flag.json")},
-					},
-				},
-				{Name: "config model unset", Desc: i18n.T("cmd.config.model.unset.short")},
-				{
-					Name: "provider setup",
-					Desc: i18n.T("cmd.provider.setup.short"),
-					Flags: []helpFlag{
-						{"project", "p", i18n.T("help.flag.start.project")},
-					},
-				},
-			},
-		},
-		{
-			Title: i18n.T("help.section.analytics"),
-			Commands: []helpCommand{
-				{
-					Name: "status",
-					Desc: i18n.T("cmd.status.short"),
-					Flags: []helpFlag{
-						{"json", "", i18n.T("help.flag.json")},
-					},
-				},
-				{
-					Name: "metrics",
-					Desc: i18n.T("cmd.metrics.short"),
-					Flags: []helpFlag{
-						{"period", "d", i18n.T("help.flag.metrics.period")},
-					},
-				},
-				{Name: "dashboard", Desc: i18n.T("cmd.dashboard.short")},
-				{
-					Name: "board",
-					Desc: i18n.T("cmd.board.short"),
-					Flags: []helpFlag{
-						{"watch", "", i18n.T("help.flag.board.watch")},
-					},
-				},
-				{Name: "optimize", Desc: i18n.T("cmd.optimize.short")},
-				{Name: "yield", Desc: i18n.T("cmd.yield.short")},
-			},
-		},
-		{
-			Title: i18n.T("help.section.team"),
-			Commands: []helpCommand{
-				{Name: "team init", Desc: i18n.T("help.cmd.team.init")},
-				{
-					Name: "team status",
-					Desc: i18n.T("help.cmd.team.status"),
-					Flags: []helpFlag{
-						{"detail", "", i18n.T("help.flag.team.detail")},
-					},
-				},
-				{Name: "team activity", Desc: i18n.T("help.cmd.team.activity")},
-				{Name: "team board", Desc: i18n.T("help.cmd.team.board")},
-				{
-					Name: "team notify test",
-					Desc: "Envoie une notification de test",
-					Flags: []helpFlag{
-						{"message", "m", "Message personnalisé"},
-					},
-				},
-				{
-					Name: "claim",
-					Desc: i18n.T("help.cmd.claim"),
-					Flags: []helpFlag{
-						{"project", "p", i18n.T("help.flag.start.project")},
-					},
-				},
-				{
-					Name: "claim transfer",
-					Desc: i18n.T("help.cmd.claim.transfer"),
-					Flags: []helpFlag{
-						{"to", "", i18n.T("help.flag.claim.to")},
-						{"project", "p", i18n.T("help.flag.start.project")},
-					},
-				},
-				{
-					Name: "release",
-					Desc: i18n.T("help.cmd.release"),
-					Flags: []helpFlag{
-						{"project", "p", i18n.T("help.flag.start.project")},
-					},
-				},
-				{Name: "conventions check", Desc: i18n.T("cmd.conventions.short")},
-				{Name: "beads", Desc: i18n.T("cmd.beads.short")},
-				{
-					Name: "policies list",
-					Desc: i18n.T("help.cmd.policies.list"),
-					Flags: []helpFlag{
-						{"project", "p", i18n.T("help.flag.start.project")},
-					},
-				},
-				{Name: "policies check", Desc: i18n.T("help.cmd.policies.check")},
-				{Name: "policies add", Desc: i18n.T("help.cmd.policies.add")},
-				{Name: "takeover-brief show", Desc: i18n.T("help.cmd.takeover.show")},
-				{Name: "takeover-brief list", Desc: i18n.T("help.cmd.takeover.list")},
-				{Name: "takeover-brief enrich", Desc: i18n.T("help.cmd.takeover.enrich")},
-				{
-					Name: "patterns list",
-					Desc: i18n.T("help.cmd.patterns.list"),
-					Flags: []helpFlag{
-						{"tags", "", i18n.T("help.flag.patterns.tags")},
-					},
-				},
-				{Name: "patterns show", Desc: i18n.T("help.cmd.patterns.show")},
-				{Name: "patterns add", Desc: i18n.T("help.cmd.patterns.add")},
-				{Name: "patterns validate", Desc: i18n.T("help.cmd.patterns.validate")},
-				{Name: "patterns remove", Desc: i18n.T("help.cmd.patterns.remove")},
-			},
-		},
-		{
-			Title: i18n.T("help.section.infra"),
-			Commands: []helpCommand{
-				{Name: "init", Desc: i18n.T("cmd.init.short")},
-				{Name: "doctor", Desc: i18n.T("cmd.doctor.short")},
-				{Name: "repair", Desc: i18n.T("cmd.repair.short")},
-				{Name: "export", Desc: i18n.T("cmd.export.short")},
-				{Name: "import", Desc: i18n.T("cmd.import.short")},
-				{
-					Name: "purge",
-					Desc: i18n.T("cmd.purge.short"),
-					Flags: []helpFlag{
-						{"dry-run", "", i18n.T("cmd.purge.flags.dry_run")},
-						{"force", "", i18n.T("cmd.purge.flags.force")},
-						{"keep-binary", "", i18n.T("cmd.purge.flags.keep_binary")},
-						{"include-opencode", "", i18n.T("cmd.purge.flags.include_opencode")},
-					},
-				},
-				{Name: "upgrade oh", Desc: i18n.T("cmd.upgrade.short")},
-				{
-					Name: "migrate deploy-cleanup",
-					Desc: i18n.T("cmd.migrate.cleanup.short"),
-					Flags: []helpFlag{
-						{"dry-run", "", i18n.T("cmd.migrate.cleanup.flags.dry_run")},
-						{"yes", "y", i18n.T("cmd.migrate.cleanup.flags.yes")},
-					},
-				},
-				{Name: "version", Desc: i18n.T("cmd.version.short")},
-				{Name: "completion", Desc: i18n.T("cmd.completion.short")},
-			},
-		},
+// helpVisible reports whether a command is listed in the help.
+func helpVisible(c *cobra.Command) bool {
+	return !c.Hidden && c.Deprecated == "" && c.Name() != "help"
+}
+
+// buildHelpSections lists the visible commands of root by section.
+func buildHelpSections(root *cobra.Command) []helpSection {
+	byName := map[string]*cobra.Command{}
+	for _, c := range root.Commands() {
+		if helpVisible(c) {
+			byName[c.Name()] = c
+		}
 	}
+	var out []helpSection
+	placed := map[string]bool{}
+	for _, sec := range helpSectionOrder {
+		hs := helpSection{Title: i18n.T(sec.key)}
+		for _, name := range sec.commands {
+			if c := byName[name]; c != nil {
+				hs.Commands = append(hs.Commands, helpCommands(c, "")...)
+				placed[name] = true
+			}
+		}
+		if len(hs.Commands) > 0 {
+			out = append(out, hs)
+		}
+	}
+	other := helpSection{Title: i18n.T("help.section.other")}
+	for _, c := range root.Commands() {
+		if helpVisible(c) && !placed[c.Name()] {
+			other.Commands = append(other.Commands, helpCommands(c, "")...)
+		}
+	}
+	if len(other.Commands) > 0 {
+		out = append(out, other)
+	}
+	return out
+}
+
+// helpCommands lists c (when it runs) and its visible subcommands.
+func helpCommands(c *cobra.Command, prefix string) []helpCommand {
+	name := strings.TrimSpace(prefix + " " + c.Name())
+	var out []helpCommand
+	if c.Runnable() {
+		use := name
+		if _, args, ok := strings.Cut(c.Use, " "); ok {
+			use += " " + args
+		}
+		hc := helpCommand{Name: use, Desc: c.Short}
+		c.LocalNonPersistentFlags().VisitAll(func(f *pflag.Flag) {
+			if !f.Hidden && f.Deprecated == "" && f.Name != "help" {
+				hc.Flags = append(hc.Flags, helpFlag{Long: f.Name, Short: f.Shorthand, Desc: f.Usage})
+			}
+		})
+		out = append(out, hc)
+	}
+	for _, sub := range c.Commands() {
+		if helpVisible(sub) {
+			out = append(out, helpCommands(sub, name)...)
+		}
+	}
+	return out
 }
 
 // isTerminal checks if stdout is connected to a terminal.

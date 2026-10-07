@@ -194,7 +194,7 @@ func (v *ProviderView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 
 func (v *ProviderView) buildLines() {
 	cfg := v.vcfg.GetConfig()
-	defaultProv := cfg.Opencode.DefaultProvider
+	defaultProv := cfg.LLM.DefaultProvider
 
 	v.lines = []providerConfigLine{
 		{kind: "section-header", key: i18n.T("tui.provider.section_providers")},
@@ -385,7 +385,7 @@ func (v *ProviderView) renderList() {
 	defer func() { v.rendering = false }()
 
 	cfg := v.vcfg.GetConfig()
-	defaultProv := cfg.Opencode.DefaultProvider
+	defaultProv := cfg.LLM.DefaultProvider
 
 	savedIdx := v.list.GetCurrentItem()
 	items := make([]widgets.SectionItem, 0, len(v.lines))
@@ -609,7 +609,7 @@ func (v *ProviderView) setAsDefault() {
 	}
 
 	cfg := v.vcfg.GetConfig()
-	cfg.Opencode.DefaultProvider = line.provider
+	cfg.LLM.DefaultProvider = line.provider
 	v.renderList()
 	v.shell.ShowToastMsg(i18n.Tf("tui.provider.set_default", line.provider), true)
 }
@@ -658,8 +658,8 @@ func (v *ProviderView) resetCurrentProvider() {
 				}
 			}
 			// Clear default if this was the default
-			if cfg.Opencode.DefaultProvider == name {
-				cfg.Opencode.DefaultProvider = ""
+			if cfg.LLM.DefaultProvider == name {
+				cfg.LLM.DefaultProvider = ""
 			}
 			v.buildLines()
 			v.renderList()
@@ -733,7 +733,7 @@ func (v *ProviderView) setupBedrock() {
 
 		// saveBedrock persists the bedrock config and refreshes the view.
 		saveBedrock := func(cfg *config.Config, toastKey string) {
-			cfg.Opencode.DefaultProvider = "bedrock"
+			cfg.LLM.DefaultProvider = "bedrock"
 			if err := v.vcfg.SaveConfig(cfg); err != nil {
 				v.shell.ShowToastMsg("Error: "+err.Error(), false)
 			}
@@ -839,7 +839,7 @@ func (v *ProviderView) setupBedrock() {
 				},
 			})
 		case "env":
-			cfg.Opencode.DefaultProvider = "bedrock"
+			cfg.LLM.DefaultProvider = "bedrock"
 			if err := v.vcfg.SaveConfig(cfg); err != nil {
 				v.shell.ShowToastMsg("Error: "+err.Error(), false)
 			}
@@ -862,7 +862,7 @@ func (v *ProviderView) setupAPIKey(name provider.Name, title string) {
 			}
 		}
 		cfg := v.vcfg.GetConfig()
-		cfg.Opencode.DefaultProvider = string(name)
+		cfg.LLM.DefaultProvider = string(name)
 		if err := v.vcfg.SaveConfig(cfg); err != nil {
 			v.shell.ShowToastMsg("Error: "+err.Error(), false)
 		}

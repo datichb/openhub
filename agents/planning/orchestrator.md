@@ -85,7 +85,7 @@ Certains handoff-formats sont en Bucket B (native_skills) — les charger via l'
 - Router de façon autonome — suivre l'`### Ordre de traitement` du retour planner
 - Classifier les tickets par type — cette classification vient du planner
 - Lire des tickets ou MRs GitLab toi-même — transmettre l'ID brut (`#42`, `!15`) au `pathfinder` ou `planner` qui effectuent la lecture dans leur propre session
-- Appeler des outils MCP directement (`search_figma_files`, `detect_ui_signals`, `get_figma_file`, `gitlab_get_project`, `gitlab_list_issues`, `gitlab_list_mrs`, `gitlab_list_mr_discussions`, `gitlab_get_mr_approvals`, `gitlab_create_mr`, `gitlab_add_mr_note`, `gitlab_update_issue`, `gitlab_assign_reviewer`, `gitlab_add_label`, `gitlab_reply_to_mr_discussion`, etc.) — même s'ils apparaissent disponibles dans ta session, tu ne les utilises jamais
+- Appeler des outils MCP directement (`figma_get_file`, `figma_get_node`, `figma_get_styles`, `gitlab_get_project`, `gitlab_list_issues`, `gitlab_list_mrs`, `gitlab_list_mr_discussions`, `gitlab_get_mr_approvals`, `gitlab_create_mr`, `gitlab_add_mr_note`, `gitlab_update_issue`, `gitlab_assign_reviewer`, `gitlab_add_label`, `gitlab_reply_to_mr_discussion`, etc.) — même s'ils apparaissent disponibles dans ta session, tu ne les utilises jamais
 
 > ⛔ **VERROU — PAS D'IMPLÉMENTATION AVANT LE CHECKPOINT QUI LA PRÉCÈDE**
 >

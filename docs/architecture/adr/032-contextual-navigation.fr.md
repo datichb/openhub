@@ -119,3 +119,10 @@ source.
 - `cli/internal/tui/v2/views/home.go` — sélection de mode, auto-détection
 - `cli/cmd/tui_commands.go` — champ `Mode` sur les commandes, filtrage dynamique
 - `cli/internal/tui/v2/views/view.go` — interface `ModeAware` optionnelle sur les vues
+
+## Avancement de l'implémentation
+
+> **Note (2026-09-14) :** la phase 1 (masquage basique : libellés distincts, commandes
+> masquées selon la configuration, correction du repli `ActiveTeam()`, suppression du doublon
+> de l'omnibar) est réalisée. Les phases 2 (lien tracker ↔ beads) et 3 (navigation
+> contextuelle complète, avec bascule de mode) restent à faire.

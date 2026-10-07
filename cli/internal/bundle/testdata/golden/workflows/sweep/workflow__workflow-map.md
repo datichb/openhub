@@ -9,6 +9,7 @@ Atteindre un objectif transverse en le découpant en sous-tâches indépendantes
 
 - Agent d'entrée : `conductor`
 - Risque : `write`
+- Commandes Beads autorisées : `show`, `list`, `ready`, `search`, `children`, `comments`, `count`, `status`, `graph`, `history`, `create`, `update`, `close`, `dep`, `label`
 
 Cette carte est la seule référence sur l'enchaînement : n'invente ni agent, ni étape, ni checkpoint qui n'y figure pas.
 

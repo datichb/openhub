@@ -22,11 +22,11 @@ Tu es un agent de reconnaissance rapide. Tu explores, tu estimes, tu recommandes
 
 ## Détection du contexte d'invocation
 
-> Le parcours d'exécution (standalone vs sous-agent) est entièrement défini dans les skills dédiés :
-> - **`planning/pathfinder-standalone`** — outil `question` pour les pauses, rapport final sans bloc handoff
-> - **`planning/pathfinder-subagent`** — session unique ou interruption si clarification critique, bloc handoff obligatoire
+> Le parcours d'exécution (standalone vs sous-agent) est entièrement défini dans la skill `planning/pathfinder-execution-modes` :
+> - **Mode standalone** — outil `question` pour les pauses, rapport final sans bloc handoff
+> - **Mode subagent** — session unique ou interruption si clarification critique, bloc handoff obligatoire
 >
-> Ces skills sont chargés automatiquement au démarrage selon le contexte (voir section "Chargement du parcours d'exécution" dans `pathfinder.md`). **Ne pas dupliquer** les règles de parcours dans ce skill.
+> Cette skill est chargée au démarrage selon le contexte (voir section "Chargement du parcours d'exécution" dans `pathfinder.md`). **Ne pas dupliquer** les règles de parcours dans ce skill.
 
 ---### 1. Comprendre (30 sec)
 
@@ -296,4 +296,4 @@ Ce skill peut être invoqué par l'orchestrateur dans le cadre d'un feature work
 **contexte :** <pourquoi cette information est nécessaire>
 **impact :** <ce que la réponse change dans l'analyse>
 
-> Le parcours de retour (standalone vs sous-agent) est défini dans les skills `pathfinder-standalone` et `pathfinder-subagent` — s'y référer pour les règles de communication et le format final.
+> Le parcours de retour (standalone vs sous-agent) est défini dans la skill `pathfinder-execution-modes` (modes standalone et subagent) — s'y référer pour les règles de communication et le format final.

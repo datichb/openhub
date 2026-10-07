@@ -13,7 +13,7 @@ import (
 )
 
 // Doctor › container (P4-T12): engine, virtiofs, keep-id, folders shared
-// with the VM, opencode in the project images (version, C++ libraries on
+// with the VM, the tool in the project images (version, C++ libraries on
 // musl), Linux second listener.
 
 func init() { registerDoctorCheck(containerDoctorChecks) }
@@ -40,8 +40,8 @@ func containerDoctorChecks(ctx context.Context) []views.DoctorCheck {
 	out := []views.DoctorCheck{check("engine", true, engine)}
 
 	client := v5ToolVersion()
-	if pinned := executionConfig(a).OpencodeVersion; client != "" && !pinnedVersionOK(pinned, client) {
-		out = append(out, check("pinned", false, i18n.Tf("tui.settings.exec.opencode.mismatch", pinned, client)))
+	if pinned := executionConfig(a).ToolVersion; client != "" && !pinnedVersionOK(pinned, client) {
+		out = append(out, check("pinned", false, i18n.Tf("tui.settings.exec.tool.mismatch", toolName(), pinned, client)))
 	}
 
 	if mount := engineDetail(e, "mount"); e.Kind == container.EngineColima && mount != "" {
@@ -85,7 +85,7 @@ func containerDoctorChecks(ctx context.Context) []views.DoctorCheck {
 	return out
 }
 
-// imageDoctorChecks runs opencode in the latest project images.
+// imageDoctorChecks runs the tool in the latest project images.
 func imageDoctorChecks(ctx context.Context, rt *container.Runtime, e container.Engine, client string, check func(string, bool, string) views.DoctorCheck) []views.DoctorCheck {
 	images, err := rt.ProjectImages(ctx, e)
 	if err != nil {
@@ -99,7 +99,7 @@ func imageDoctorChecks(ctx context.Context, rt *container.Runtime, e container.E
 		if i == doctorProjectImages {
 			break
 		}
-		tc := rt.CheckTool(ctx, e, img.Ref, "opencode")
+		tc := rt.CheckTool(ctx, e, img.Ref, v5Tool.Command)
 		name := i18n.Tf("tui.doctor.container.image", img.ProjectID)
 		switch {
 		case len(tc.MissingLibs) > 0:
@@ -109,11 +109,11 @@ func imageDoctorChecks(ctx context.Context, rt *container.Runtime, e container.E
 			if tc.Err != nil {
 				detail += " : " + tc.Err.Error()
 			}
-			out = append(out, views.DoctorCheck{Name: name, Detail: i18n.Tf("tui.doctor.container.tool_failed", detail)})
+			out = append(out, views.DoctorCheck{Name: name, Detail: i18n.Tf("tui.doctor.container.tool_failed", toolName(), detail)})
 		case client != "" && tc.Version != strings.TrimPrefix(client, "v"):
-			out = append(out, views.DoctorCheck{Name: name, OK: true, Detail: i18n.Tf("tui.doctor.container.tool_outdated", tc.Version, client)})
+			out = append(out, views.DoctorCheck{Name: name, OK: true, Detail: i18n.Tf("tui.doctor.container.tool_outdated", toolName(), tc.Version, client)})
 		default:
-			out = append(out, views.DoctorCheck{Name: name, OK: true, Detail: i18n.Tf("tui.doctor.container.tool_ok", tc.Version, img.Ref)})
+			out = append(out, views.DoctorCheck{Name: name, OK: true, Detail: i18n.Tf("tui.doctor.container.tool_ok", toolName(), tc.Version, img.Ref)})
 		}
 	}
 	return out

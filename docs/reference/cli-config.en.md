@@ -40,7 +40,7 @@ oh config get <key>
 **Example:**
 
 ```bash
-oh config get opencode.default_provider
+oh config get llm.default_provider
 oh config get cli.language
 ```
 
@@ -57,7 +57,7 @@ oh config set <key> <value>
 | Group | Settable keys |
 |-------|---------------|
 | CLI | `cli.language`, `cli.setup_done` |
-| Provider | `opencode.default_provider`, `provider.bedrock.aws_profile`, `provider.bedrock.aws_region`, `provider.bedrock.auth_mode`, `provider.anthropic.auth_mode`, `provider.openrouter.auth_mode` |
+| Provider | `llm.default_provider`, `provider.bedrock.aws_profile`, `provider.bedrock.aws_region`, `provider.bedrock.auth_mode`, `provider.anthropic.auth_mode`, `provider.openrouter.auth_mode` |
 | MCP | `mcp.figma.enabled`, `mcp.figma.token_key`, `mcp.gitlab.enabled`, `mcp.gitlab.token_key`, `mcp.gitlab.write_enabled`, `mcp.gitlab.url`, `mcp.jira.enabled`, `mcp.jira.token_key`, `mcp.jira.url`, `mcp.gslides.enabled`, `mcp.gslides.token_key` |
 | Worktrees | `worktree.auto_cleanup`, `worktree.base_branch`, `worktree.branch_pattern` |
 | Models | `models.default` |
@@ -69,7 +69,7 @@ The other sections (`[execution]`, `[limits]`, `[[teams]]`…) are set in the TU
 **Example:**
 
 ```bash
-oh config set opencode.default_provider anthropic
+oh config set llm.default_provider anthropic
 oh config set mcp.gitlab.url https://gitlab.example.com
 oh config set worktree.auto_cleanup true
 ```
@@ -174,16 +174,16 @@ oh provider setup bedrock -p my-app
 Models per agent, per family or global, at hub level (`hub.toml [models]`) or project level (hub database). The resolved model is normalized to the project provider when the session bundle is built.
 
 ```
-oh config model default <model> [-j <project>]
-oh config model family <family> <model> [-j <project>]
-oh config model agent <agent-id> <model> [-j <project>]
-oh config model show [-j <project>] [--json]
-oh config model unset default|family <family>|agent <agent-id> [-j <project>]
+oh config model default <model> [-p <project>]
+oh config model family <family> <model> [-p <project>]
+oh config model agent <agent-id> <model> [-p <project>]
+oh config model show [-p <project>] [--json]
+oh config model unset default|family <family>|agent <agent-id> [-p <project>]
 ```
 
 | Flag | Short | Type | Description |
 |------|-------|------|-------------|
-| `--project` | `-j` | string | Project (without: hub level). Note: the short form is `-j`, not `-p` |
+| `--project` | `-p` | string | Project (without: hub level) |
 | `--json` | | bool | `show` only: JSON output |
 
 Families: `planning`, `developer`, `quality`, `auditor`, `design`, `documentation`.
@@ -193,7 +193,7 @@ Resolution order (highest first): workflow·agent > workflow (workflow `models`)
 ```bash
 oh config model default anthropic/claude-sonnet-4-5
 oh config model family quality anthropic/claude-haiku-4-5
-oh config model agent reviewer anthropic/claude-opus-4-1 -j my-app
-oh config model show -j my-app --json
+oh config model agent reviewer anthropic/claude-opus-4-1 -p my-app
+oh config model show -p my-app --json
 oh config model unset family quality
 ```

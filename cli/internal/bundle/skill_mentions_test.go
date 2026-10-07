@@ -107,3 +107,87 @@ func TestHubSkillIndexAmbiguousName(t *testing.T) {
 	assert.NotContains(t, ix, "annex")
 	assert.Equal(t, "workflow/workflow-map", ix["workflow-map"])
 }
+
+var (
+	skillTagRe    = regexp.MustCompile(`\[SKILL:([a-z0-9][a-z0-9/_-]*)\]`)
+	skillPhraseRe = regexp.MustCompile("\\b[Ss]kills?\\s+((?:\\*\\*)?`[a-z0-9][a-z0-9/_-]*`(?:\\*\\*)?(?:\\s*(?:,|et|and|ou|or|\\+)\\s*(?:\\*\\*)?`[a-z0-9][a-z0-9/_-]*`(?:\\*\\*)?)*)")
+	codeSpanRe    = regexp.MustCompile("`([a-z0-9][a-z0-9/_-]*)`")
+)
+
+// QB3: every skill reference of the hub content (agents/, skills/,
+// workflows/prompts/) names an existing skill: a [SKILL:…] tag, a
+// `category/name` code span, or « skill `name` » (orchestrator-dev cited
+// dev-standards-security-hardening, the orchestrator injected
+// [SKILL:planning/planner-subagent]… for skills merged long ago).
+func TestHubSkillReferencesExist(t *testing.T) {
+	hub := repoHub(t)
+	generated := map[string]string{"workflow/workflow-map": "", "shared/hub-workflow-reference": ""}
+	index := hubSkillIndex(hub, generated)
+	cats := map[string]bool{}
+	entries, err := os.ReadDir(filepath.Join(hub, "skills"))
+	require.NoError(t, err)
+	for _, e := range entries {
+		if e.IsDir() && e.Name() != "templates" {
+			cats[e.Name()] = true
+		}
+	}
+	var files []string
+	for _, dir := range []string{"agents", "skills", "workflows/prompts"} {
+		_ = filepath.WalkDir(filepath.Join(hub, dir), func(p string, d os.DirEntry, err error) error {
+			if err == nil && !d.IsDir() && (strings.HasSuffix(p, ".md") || strings.HasSuffix(p, ".tmpl")) {
+				files = append(files, p)
+			}
+			return nil
+		})
+	}
+	require.NotEmpty(t, files)
+	for _, f := range files {
+		data, err := os.ReadFile(f)
+		require.NoError(t, err)
+		text := string(data)
+		var refs []string
+		for _, m := range skillTagRe.FindAllStringSubmatch(text, -1) {
+			refs = append(refs, m[1])
+		}
+		for _, m := range codeSpanRe.FindAllStringSubmatch(text, -1) {
+			if cat, name, ok := strings.Cut(m[1], "/"); ok && cats[cat] && strings.Trim(name, "/") != "" {
+				refs = append(refs, m[1])
+			}
+		}
+		for _, m := range skillPhraseRe.FindAllStringSubmatch(text, -1) {
+			for _, c := range codeSpanRe.FindAllStringSubmatch(m[1], -1) {
+				refs = append(refs, c[1])
+			}
+		}
+		rel, _ := filepath.Rel(hub, f)
+		for _, ref := range refs {
+			if _, ok := index[ref]; !ok {
+				t.Errorf("%s: skill %q does not exist", rel, ref)
+			}
+		}
+	}
+}
+
+// QB3: the audit bundle ships every domain checklist of the hub
+// (auditor/audit-<domain>, loaded by auditor-subagent).
+func TestAuditBundleShipsDomainChecklists(t *testing.T) {
+	hub, cat, env := shippedWorkflows(t)
+	r, diags := workflow.Check(cat, workflow.Ref{Layer: workflow.LayerHub, ID: "audit"}, nil, env)
+	require.False(t, diags.HasErrors(), "%v", diags)
+	b, err := Build(Request{HubDir: hub, OutDir: t.TempDir(), Spec: r.Spec})
+	require.NoError(t, err)
+	shipped := map[string]bool{}
+	for _, s := range b.Spec.Skills {
+		shipped[s.ID] = true
+	}
+	files, err := filepath.Glob(filepath.Join(hub, "skills", "auditor", "audit-*.md"))
+	require.NoError(t, err)
+	require.NotEmpty(t, files)
+	for _, f := range files {
+		id := strings.TrimSuffix(filepath.Base(f), ".md")
+		if id == "audit-handoff-format" || id == "audit-protocol-light" {
+			continue // formats and light protocol, not domain checklists
+		}
+		assert.True(t, shipped[id], "audit bundle does not ship %s", id)
+	}
+}

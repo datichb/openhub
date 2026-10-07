@@ -14,6 +14,7 @@ var stackSkillMapping = map[string][]string{
 	"java":       {"developer/stacks/dev-standards-kotlin"}, // Kotlin standards apply to JVM
 	"rust":       {"developer/stacks/dev-standards-rust"},
 	"go":         {"developer/stacks/dev-standards-golang"},
+	"ruby":       {}, // no Ruby language skill: Rails has its own
 
 	// JS/TS Frameworks
 	"Next.js":   {"developer/stacks/dev-standards-nextjs", "developer/stacks/dev-standards-react"},
@@ -24,7 +25,8 @@ var stackSkillMapping = map[string][]string{
 	"Express":   {"developer/stacks/dev-standards-express"},
 	"Fastify":   {},
 
-	// Python frameworks (detected via pyproject.toml/requirements.txt content)
+	// Python frameworks (pyproject.toml, requirements.txt, Pipfile, setup.py)
+	// and Rails (Gemfile)
 	"django":  {"developer/stacks/dev-standards-django"},
 	"fastapi": {"developer/stacks/dev-standards-fastapi"},
 	"flask":   {},

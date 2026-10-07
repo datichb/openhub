@@ -2,7 +2,7 @@
 
 ## Status
 
-accepted (Phases 0-4 implemented, Lot 1 fixes applied, Lot 2 structural prep done)
+Accepted — **Partly superseded by [ADR-038](./038-sessionspec-tool-adapters.en.md)** (`platform` keeps `Credentials` and `StatsProvider`)
 
 ## Date
 

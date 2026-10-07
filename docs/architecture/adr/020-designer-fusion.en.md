@@ -80,4 +80,4 @@ are created in `designer/`: `figma-recon-protocol` (lightweight exploration) and
 ## Migration
 
 See the complete migration guide:
-[docs/guides/migration-designer-fusion.md](../../guides/migration-designer-fusion.md)
+[docs/guides/migration-designer-fusion.en.md](../../guides/migration-designer-fusion.en.md)

@@ -6,7 +6,7 @@
 
 ## Vue d'ensemble
 
-Le CLI Go (`oh`) résout le modèle IA de chaque agent du paquet de session par une **cascade à 9 niveaux** (2 niveaux workflow, 3 niveaux projet, 3 niveaux hub, puis le frontmatter de l'agent). Opencode ne gère pas cette logique : oh résout à la construction du paquet de session, au lancement, et écrit le modèle final dans les définitions d'agents du paquet (`agent.<id>.model` dans la config opencode produite).
+Le CLI Go (`oh`) résout le modèle IA de chaque agent du paquet de session par une **cascade à 12 niveaux** (2 niveaux workflow, 3 niveaux projet, 3 niveaux hub, 3 niveaux de recommandation d'équipe, puis le frontmatter de l'agent). Opencode ne gère pas cette logique : oh résout à la construction du paquet de session, au lancement, et écrit le modèle final dans les définitions d'agents du paquet (`agent.<id>.model` dans la config opencode produite).
 
 Le provider est résolu séparément et sert à normaliser le nom du modèle (préfixe provider). Les restrictions I6 peuvent en plus limiter les modèles utilisables (voir [liste blanche](#liste-blanche-des-modèles-limitsmodels)).
 
@@ -20,7 +20,7 @@ Le provider est résolu par une cascade à 4 niveaux (premier trouvé gagne) :
 |----------|--------|---------|
 | 1 | Option CLI `--provider` / `-P` | `oh run feature --provider anthropic` |
 | 2 | Provider du projet | base `oh.db` (`oh project configure`) |
-| 3 | Config hub | `hub.toml` → `[opencode] default_provider = "bedrock"` |
+| 3 | Config hub | `hub.toml` → `[llm] default_provider = "bedrock"` |
 | 4 | Repli en dur | `bedrock` |
 
 ---
@@ -39,7 +39,10 @@ La résolution se fait pour chaque agent du paquet de session. Premier trouvé g
 | 6 | Hub · agent | Modèle d'un agent au niveau hub | `oh config model agent <id> <model>` |
 | 7 | Hub · famille | Modèle d'une famille d'agents au niveau hub | `oh config model family <name> <model>` |
 | 8 | Hub | Modèle global du hub | `oh config model default <model>` |
-| 9 | Frontmatter | Champ `model:` dans le `.md` de l'agent | Édition du fichier agent |
+| 9 | Équipe · agent | Recommandation d'équipe pour un agent | `[models.agents]` du `config.toml` du team-state (TUI : Équipe › Modèles) |
+| 10 | Équipe · famille | Recommandation d'équipe pour une famille | `[models.families]` |
+| 11 | Équipe | Modèle recommandé par l'équipe | `[models] default` |
+| 12 | Frontmatter | Champ `model:` dans le `.md` de l'agent | Édition du fichier agent |
 
 ### Niveau workflow (décision O9)
 
@@ -47,9 +50,9 @@ La résolution se fait pour chaque agent du paquet de session. Premier trouvé g
 - Les identifiants complets (`amazon-bedrock/eu.anthropic.claude-sonnet-4-6`, suffixe `#variante`) sont acceptés : le préfixe régional Bedrock est retiré puis remis par l'adaptateur selon la région de la session, la variante est conservée.
 - Un patch (`extends`) remplace `models.default` et fusionne `models.agents` par agent.
 
-### Modèles d'équipe : non appliqués
+### Modèles d'équipe
 
-Le `config.toml` du team-state peut contenir des recommandations `[models]` (`default`, `families`, `agents`, éditées dans la TUI, Équipe › Modèles). La fonction de cascade (`bricks.ResolveAgentModel`) sait les placer après le hub (équipe · agent > équipe · famille > équipe), mais **le lancement ne les renseigne pas** en v5 (`cmd/v5_launch.go`, `modelOverridesFor` ne fournit que le hub et le projet) : elles n'ont aucun effet sur les sessions.
+Le `config.toml` du team-state peut contenir des recommandations `[models]` (`default`, `families`, `agents`, éditées dans la TUI, Équipe › Modèles). Elles s'appliquent au lancement des sessions des projets de l'équipe, après le hub (équipe · agent > équipe · famille > équipe) : ce sont des recommandations, que le workflow, le projet et le hub remplacent.
 
 ### Familles
 
@@ -82,7 +85,7 @@ Choisissez donc des modèles de cascade compatibles avec la liste. Voir `oh budg
 ### Hub-level (`~/.oh/hub.toml`)
 
 ```toml
-[opencode]
+[llm]
 default_provider = "bedrock"
 
 [models]

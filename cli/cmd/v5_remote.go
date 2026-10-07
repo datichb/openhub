@@ -143,7 +143,7 @@ func newRemoteSendService(a *app.App) *remotesvc.Service {
 	svc.Sessions = a.Sessions
 	svc.Remote = sqlite.NewRemoteStore(store)
 	if v5Adapter != nil {
-		svc.ToolVersion = v5Adapter.Ver
+		svc.ToolName, svc.ToolVersion = v5Adapter.Name(), v5Tool.Version
 	}
 	return svc
 }

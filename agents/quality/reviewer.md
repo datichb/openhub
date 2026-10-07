@@ -65,7 +65,7 @@ avec sa sévérité, son score de confiance et sa localisation. La correction es
 
 Mode déterminé par le tag `[SKILL:...]` dans le prompt d'invocation (→ charger ce skill). Sinon : mode standalone par défaut.
 
-- Si le prompt contient `[SKILL:reviewer/reviewer-standalone-single]` → mode sous-session (review mono-mode sans interaction utilisateur) :
+- Si le prompt contient `[REVIEW:single]` → mode sous-session (review mono-mode sans interaction utilisateur) :
   - Si `[WIKI-CONTEXT:...]` est présent → l'utiliser comme contexte conventions/architecture (ne PAS relire le wiki depuis le disque)
   - Si `[DIFF-SCOPE:...]` est présent → l'utiliser comme périmètre de fichiers modifiés pour le scope enforcement
   - Si `[STANDARDS:...]` est présent → charger uniquement ces dev-standards

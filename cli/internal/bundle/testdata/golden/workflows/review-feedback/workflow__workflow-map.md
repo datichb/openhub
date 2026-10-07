@@ -9,6 +9,7 @@ Appliquer les commentaires de review non résolus d'une merge request
 
 - Agent d'entrée : `orchestrator-dev`
 - Risque : `write`
+- Commandes Beads autorisées : `show`, `list`, `ready`, `search`, `children`, `comments`, `count`, `status`, `graph`, `history`, `create`, `update`, `close`, `dep`, `label`
 
 Cette carte est la seule référence sur l'enchaînement : n'invente ni agent, ni étape, ni checkpoint qui n'y figure pas.
 

@@ -235,6 +235,17 @@ func (v *validator) inputs() {
 		if in.MaxLength < 0 {
 			v.err("negative_value", base+".max_length", in.MaxLength)
 		}
+		if in.From != "" {
+			src, arg, ok := ParseFrom(in.From)
+			switch {
+			case !ok:
+				v.err("input_from_invalid", base+".from", in.From)
+			case !containsStr(InputSources, src):
+				v.err("input_from_unknown_source", base+".from", src, strings.Join(InputSources, ", "))
+			case arg == k || !names[arg]:
+				v.err("input_from_unknown_input", base+".from", arg)
+			}
+		}
 		if in.Default == nil || !in.Type.Valid() {
 			continue
 		}

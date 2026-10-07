@@ -253,8 +253,8 @@ func (v *SettingsView) buildFields() {
 			Get:         func() string { return v.live.CLI.Language },
 			Set:         func(val string) { v.live.CLI.Language = val }},
 
-		// ── Opencode ────────────────────────────────────────────────────────
-		{Kind: CfgFieldSectionHeader, Label: i18n.T("tui.config.section.opencode")},
+		// ── LLM ─────────────────────────────────────────────────────────────
+		{Kind: CfgFieldSectionHeader, Label: i18n.T("tui.config.section.llm")},
 		{Key: "default_provider", Kind: CfgFieldSelect, Label: i18n.T("tui.config.field.default_provider.label"),
 			Description: i18n.T("tui.config.field.default_provider.desc"),
 			OptionsFunc: providerOptions,
@@ -266,8 +266,8 @@ func (v *SettingsView) buildFields() {
 				}
 				return s
 			}, AllowEmpty: true},
-			Get: func() string { return v.live.Opencode.DefaultProvider },
-			Set: func(val string) { v.live.Opencode.DefaultProvider = val }},
+			Get: func() string { return v.live.LLM.DefaultProvider },
+			Set: func(val string) { v.live.LLM.DefaultProvider = val }},
 		{Key: "provider", Kind: CfgFieldLink, Label: i18n.T("tui.config.link.provider"), LinkTarget: "provider",
 			Get: func() string { return "" }},
 		{Key: "models", Kind: CfgFieldLink, Label: i18n.T("tui.config.link.models"), LinkTarget: "models",

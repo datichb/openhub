@@ -383,19 +383,6 @@ func (v *TeamDetailView) buildFields() {
 	// ── Collaboration ────────────────────────────────────────────────────
 	v.fields = append(v.fields, configField{Kind: CfgFieldSectionHeader, Label: i18n.T("tui.config.section.collaboration")})
 	v.fields = append(v.fields, configField{
-		Key: "max_sessions", Kind: CfgFieldInt, Label: i18n.T("tui.config.field.max_sessions.label"),
-		Description: i18n.T("tui.config.field.max_sessions.desc"), Scope: ScopeTeamShared,
-		Placeholder: i18n.T("tui.config.field.max_sessions.placeholder"),
-		Validator:   &FieldValidator{Numeric: true, MinInt: intPtr(1), MaxInt: intPtr(20)},
-		Get:         func() string { return strconv.Itoa(v.teamCfg.Parallel.MaxSessions) },
-		Set: func(val string) {
-			if n, err := strconv.Atoi(val); err == nil {
-				v.teamCfg.Parallel.MaxSessions = n
-				v.dirtyTeam = true
-			}
-		},
-	})
-	v.fields = append(v.fields, configField{
 		Key: "stale_days", Kind: CfgFieldInt, Label: i18n.T("tui.config.field.stale_days.label"),
 		Description: i18n.T("tui.config.field.stale_days.desc"), Scope: ScopeTeamShared,
 		Placeholder: i18n.T("tui.config.field.stale_days.placeholder"),

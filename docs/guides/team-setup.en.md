@@ -502,7 +502,7 @@ oh takeover-brief list
 oh takeover-brief enrich SRU-142
 ```
 
-`oh takeover-brief enrich` reads the brief, runs the `brief-enrich` workflow without interface (deprecated alias of `oh run brief-enrich --headless`, which needs the `ticket` and `brief` inputs), then saves the enriched brief in team-state. The `brief-enricher` agent is used to:
+`oh takeover-brief enrich` runs the `brief-enrich` workflow without interface (deprecated alias of `oh run brief-enrich --headless -i ticket=<id>`; the workflow reads the brief from the team space itself), then saves the enriched brief in team-state. The `brief-enricher` agent is used to:
 - Read the files mentioned in the brief
 - Identify architectural decisions
 - Spot open questions (TODO, FIXME)

@@ -79,10 +79,23 @@ func (p *patcher) apply() {
 		}
 	}
 	if p.has("code_mode") {
-		d.CodeMode = s.CodeMode
+		if s.CodeMode != nil && *s.CodeMode && (d.CodeMode == nil || !*d.CodeMode) {
+			p.loosening("code_mode", "on", "off")
+		} else {
+			d.CodeMode = s.CodeMode
+		}
 	}
-	if p.has("entry.agent") || (p.has("entry") && s.Entry == nil) {
+	switch {
+	case p.has("entry.agent") || (p.has("entry") && s.Entry == nil):
 		d.Entry = s.Entry
+	case p.has("entry.selectable"):
+		// selectable alone keeps the parent's entry agent.
+		e := Entry{}
+		if d.Entry != nil {
+			e = *d.Entry
+		}
+		e.Selectable = s.Entry.Selectable
+		d.Entry = &e
 	}
 	p.inputs()
 	if p.has("prompt") {
@@ -193,6 +206,9 @@ func (p *patcher) inputs() {
 		}
 		if h("max_length") {
 			old.MaxLength = v.MaxLength
+		}
+		if h("from") {
+			old.From = v.From
 		}
 		if h("picker") {
 			switch {
@@ -330,7 +346,17 @@ func (p *patcher) modes() {
 		p.dst.Modes.Default = s.Modes.Default
 	}
 	if p.has("modes.allowed") {
-		p.dst.Modes.Allowed = s.Modes.Allowed
+		// An empty list means every mode (DefaultModes): it can widen too.
+		child := s.Modes.Allowed
+		if len(child) == 0 {
+			child = DefaultModes
+		}
+		parent := p.dst.AllowedModes()
+		if extra := missingFrom(child, parent); len(extra) > 0 {
+			p.loosening("modes.allowed", strings.Join(extra, ","), strings.Join(parent, ","))
+		} else {
+			p.dst.Modes.Allowed = s.Modes.Allowed
+		}
 	}
 }
 

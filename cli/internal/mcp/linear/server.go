@@ -17,6 +17,9 @@ import (
 	"github.com/datichb/openhub/cli/internal/mcp/protocol"
 )
 
+// EnvWriteEnabled enables the write tools of the server when set to "true".
+const EnvWriteEnabled = "LINEAR_WRITE_ENABLED"
+
 const (
 	linearAPIURL    = "https://api.linear.app/graphql"
 	maxResponseSize = 2 * 1024 * 1024 // 2 MB
@@ -27,9 +30,10 @@ var httpClient = httplog.Wrap(&http.Client{Timeout: 30 * time.Second}, "mcp.line
 // Serve starts the Linear MCP server.
 func Serve() error {
 	server := protocol.NewServer("linear-mcp", "1.0.0")
+	server.AcceptLegacyNames("linear_")
 
 	server.RegisterTool(protocol.Tool{
-		Name:        "linear_list_issues",
+		Name:        "list_issues",
 		Description: "List Linear issues with optional filters",
 		InputSchema: map[string]interface{}{
 			"type": "object",
@@ -43,7 +47,7 @@ func Serve() error {
 	}, handleListIssues)
 
 	server.RegisterTool(protocol.Tool{
-		Name:        "linear_get_issue",
+		Name:        "get_issue",
 		Description: "Get a Linear issue by identifier",
 		InputSchema: map[string]interface{}{
 			"type": "object",
@@ -54,9 +58,9 @@ func Serve() error {
 		},
 	}, handleGetIssue)
 
-	if os.Getenv("LINEAR_WRITE_ENABLED") == "true" {
+	if os.Getenv(EnvWriteEnabled) == "true" {
 		server.RegisterTool(protocol.Tool{
-			Name:        "linear_create_issue",
+			Name:        "create_issue",
 			Description: "Create a new Linear issue",
 			InputSchema: map[string]interface{}{
 				"type": "object",
@@ -71,7 +75,7 @@ func Serve() error {
 		}, handleCreateIssue)
 
 		server.RegisterTool(protocol.Tool{
-			Name:        "linear_update_issue",
+			Name:        "update_issue",
 			Description: "Update a Linear issue state or assignee",
 			InputSchema: map[string]interface{}{
 				"type": "object",

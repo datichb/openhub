@@ -51,6 +51,7 @@ jobs:
         with:
           version: v2.14
           working-directory: cli
+          args: --build-tags=integration,e2e,container
 
       - name: Vulnerability scan
         run: |

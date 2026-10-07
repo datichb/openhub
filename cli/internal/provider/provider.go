@@ -70,7 +70,7 @@ type Config struct {
 	AuthMode   string `mapstructure:"auth_mode" json:"auth_mode,omitempty"`     // "bearer" | "profile" | "env" (bedrock)
 }
 
-// EnvVar returns the environment variable name that opencode expects for a given provider.
+// EnvVar returns the environment variable name of the key of a provider.
 func EnvVar(name Name) string {
 	switch name {
 	case Bedrock:

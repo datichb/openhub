@@ -12,7 +12,7 @@ import (
 // PipelineSchema is the version of the generated .gitlab-ci.yml contract
 // (variables, stages, artifacts). Bump it on any incompatible change: the
 // machine refuses to send to an oh-runner project with another schema.
-const PipelineSchema = 1
+const PipelineSchema = 2 // 2: neutral OH_TOOL_VERSION (QB7)
 
 // CI variables of the oh-runner project (set by oh remote setup). Secret ones
 // are masked and protected; they never leave GitLab except into the job.
@@ -45,23 +45,23 @@ func ProjectTokenID(name string) (int64, bool) {
 // Pipeline (trigger) variables, set per session by the machine. None of them
 // is secret: they are visible in the pipeline page.
 const (
-	VarSessionID      = "OH_SESSION_ID"       // oh session id (ses_…)
-	VarProjectID      = "OH_PROJECT_ID"       // GitLab ID of the target project
-	VarProjectPath    = "OH_PROJECT_PATH"     // full path of the target project
-	VarRef            = "OH_REF"              // branch of the target project to start from
-	VarCommit         = "OH_COMMIT"           // commit expected at OH_REF (optional)
-	VarWorkflow       = "OH_WORKFLOW"         // workflow id (display)
-	VarBundleURL      = "OH_BUNDLE_URL"       // generic package file: the session bundle (by hash)
-	VarSessionURL     = "OH_SESSION_URL"      // generic package file: the session envelope (by hash)
-	VarImage          = "OH_IMAGE"            // project image of the job (registry, tag = hash)
-	VarImageBase      = "OH_IMAGE_BASE"       // project base image (dev Dockerfile)
-	VarImageBuild     = "OH_IMAGE_BUILD"      // "true" when OH_IMAGE is missing from the registry
-	VarDockerfile     = "OH_DOCKERFILE"       // dev Dockerfile path in the project ("" = oh default base)
-	VarCLIVersion     = "OH_CLI_VERSION"      // oh version (release download when OH_CLI_URL is empty)
-	VarCLIURL         = "OH_CLI_URL"          // generic package file of a development oh binary
-	VarCLISHA256      = "OH_CLI_SHA256"       // expected SHA-256 of the oh binary or release archive
-	VarToolVersion    = "OH_OPENCODE_VERSION" // opencode version installed in the image (adapter of the machine)
-	VarPipelineSchema = "OH_PIPELINE_SCHEMA"  // set by the generated file itself
+	VarSessionID      = "OH_SESSION_ID"      // oh session id (ses_…)
+	VarProjectID      = "OH_PROJECT_ID"      // GitLab ID of the target project
+	VarProjectPath    = "OH_PROJECT_PATH"    // full path of the target project
+	VarRef            = "OH_REF"             // branch of the target project to start from
+	VarCommit         = "OH_COMMIT"          // commit expected at OH_REF (optional)
+	VarWorkflow       = "OH_WORKFLOW"        // workflow id (display)
+	VarBundleURL      = "OH_BUNDLE_URL"      // generic package file: the session bundle (by hash)
+	VarSessionURL     = "OH_SESSION_URL"     // generic package file: the session envelope (by hash)
+	VarImage          = "OH_IMAGE"           // project image of the job (registry, tag = hash)
+	VarImageBase      = "OH_IMAGE_BASE"      // project base image (dev Dockerfile)
+	VarImageBuild     = "OH_IMAGE_BUILD"     // "true" when OH_IMAGE is missing from the registry
+	VarDockerfile     = "OH_DOCKERFILE"      // dev Dockerfile path in the project ("" = oh default base)
+	VarCLIVersion     = "OH_CLI_VERSION"     // oh version (release download when OH_CLI_URL is empty)
+	VarCLIURL         = "OH_CLI_URL"         // generic package file of a development oh binary
+	VarCLISHA256      = "OH_CLI_SHA256"      // expected SHA-256 of the oh binary or release archive
+	VarToolVersion    = "OH_TOOL_VERSION"    // version of the tool installed in the image (adapter of the machine)
+	VarPipelineSchema = "OH_PIPELINE_SCHEMA" // set by the generated file itself
 )
 
 // Generic packages of the oh-runner project.

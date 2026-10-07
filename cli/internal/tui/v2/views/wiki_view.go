@@ -194,11 +194,12 @@ func (v *WikiView) renderContent(repo teamstate.TeamStateWriter) {
 	v.pages = pages
 
 	// Update header text
-	if len(proposals) == 0 && len(pages) == 0 {
+	switch {
+	case len(proposals) == 0 && len(pages) == 0:
 		v.setHeaderText(i18n.T("tui.wiki.empty_state"))
-	} else if len(proposals) > 0 {
+	case len(proposals) > 0:
 		v.setHeaderText(i18n.Tf("tui.wiki.pending_header_hint", len(proposals)))
-	} else {
+	default:
 		v.setHeaderText(i18n.T("tui.wiki.pages_header_hint"))
 	}
 

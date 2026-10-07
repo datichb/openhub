@@ -47,7 +47,7 @@ description: Workflow par type de ticket de l'orchestrator — routing détaill�
    - **Le marqueur de contexte d'invocation (obligatoire) :**
      > `[CONTEXTE] Invoqué depuis l'orchestrateur feature. Tu dois utiliser le mécanisme d'interruption de session si une clarification critique est nécessaire, et produire le bloc ## Retour vers orchestrator en fin de session.`
    - **Le skill de parcours (obligatoire) :**
-     > `[SKILL:designer/ux-subagent]` ou `[SKILL:designer/ui-subagent]` selon l'agent invoqué
+     > `[SKILL:designer/designer-subagent]`
 
 4. À la réception du résultat, **détecter le type de retour** :
 
@@ -150,7 +150,7 @@ description: Workflow par type de ticket de l'orchestrator — routing détaill�
    - **Le marqueur de contexte d'invocation (obligatoire) :**
      > `[CONTEXTE] Invoqué depuis l'orchestrateur feature. Tu dois utiliser le mécanisme d'interruption de session à chaque fin de phase et produire le bloc ## Retour vers orchestrator en fin de session.`
    - **Le skill de parcours (obligatoire) :**
-     > `[SKILL:auditor/auditor-subagent]`
+     > `[SKILL:auditor/auditor-execution-modes]`
 
 4. À la réception du résultat, **détecter le type de retour** :
 

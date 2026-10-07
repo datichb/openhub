@@ -63,7 +63,7 @@ func TestMajorMinor(t *testing.T) {
 }
 
 func TestFromOutput(t *testing.T) {
-	for in, want := range map[string]string{"1.17.13\n": "1.17.13", "opencode v2.0.20\n": "2.0.20", "weird": "weird"} {
+	for in, want := range map[string]string{"1.17.13\n": "1.17.13", "tool v2.0.20\n": "2.0.20", "weird": "weird"} {
 		assert.Equal(t, want, FromOutput(in), "input=%q", in)
 	}
 }

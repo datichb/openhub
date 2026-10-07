@@ -1,6 +1,8 @@
 package workflow
 
 import (
+	"regexp"
+
 	"gopkg.in/yaml.v3"
 )
 
@@ -18,8 +20,9 @@ import (
 //     appended; an agent is removed with `role: disabled`, a checkpoint with
 //     `disabled: true` (refused if the parent marks it mandatory); inputs
 //     cannot be removed;
-//   - security fields (risk, isolation, runtime.allowed, mandatory
-//     checkpoints, beads.allow, remote policies) may only be hardened.
+//   - security fields (risk, isolation, runtime.allowed, modes.allowed,
+//     code_mode, mandatory checkpoints, beads.allow, remote policies,
+//     limits) may only be hardened.
 //
 // The legacy WorkflowDefinition (types.go) stays readable during the
 // migration; it is not an oh/v1 document.
@@ -183,6 +186,31 @@ type Input struct {
 	Picker *Picker `yaml:"picker,omitempty"`
 	// MaxLength truncates the injected value (O11). 0 = adapter default.
 	MaxLength int `yaml:"max_length,omitempty"`
+	// From computes the value at launch when it is not given:
+	// "<source>(<input>)", e.g. "mr.discussions(mr)" (additive, QB2;
+	// sources: InputSources).
+	From string `yaml:"from,omitempty"`
+}
+
+// InputSources are the sources of computed inputs (`from:`), computed by
+// oh at launch from another input. The names are neutral: oh resolves them
+// with the forge or the team space of the project (a closed list, public
+// contract of the workflows; docs/reference/workflow-schema.*).
+//
+//   - mr.discussions(mr), mr.source_branch(mr), mr.target_branch(mr): a
+//     merge request (URL, !iid, number, branch or ticket);
+//   - ticket.brief(ticket): the takeover brief of a ticket (team space).
+var InputSources = []string{"mr.discussions", "mr.source_branch", "mr.target_branch", "ticket.brief"}
+
+var reInputFrom = regexp.MustCompile(`^([a-z][a-z0-9_.]*)\(([A-Za-z0-9_-]+)\)$`)
+
+// ParseFrom splits a `from:` value into its source and argument input.
+func ParseFrom(from string) (source, input string, ok bool) {
+	m := reInputFrom.FindStringSubmatch(from)
+	if m == nil {
+		return "", "", false
+	}
+	return m[1], m[2], true
 }
 
 // Picker configures ticket selection.

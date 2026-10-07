@@ -29,10 +29,18 @@ func TestGatewaySessionEnv(t *testing.T) {
 	fg := &fakeGranter{}
 	hook := gatewaySessionEnv(func(context.Context) (gatewayGranter, error) { return fg, nil })
 
+	// QB1: local sessions go through the gateway too (fake bd first on their
+	// PATH); a group started by an older oh has no gateway address.
 	env, err := hook(ctx, runsvc.SessionEnvRequest{SessionID: "ses_a", Runtime: sessionspec.RuntimeLocal})
 	require.NoError(t, err)
-	assert.Nil(t, env, "local sessions run bd directly")
+	assert.Nil(t, env, "group without gateway address: real bd until the server restarts")
 	assert.Empty(t, fg.got)
+	env, err = hook(ctx, runsvc.SessionEnvRequest{SessionID: "ses_l", Runtime: sessionspec.RuntimeLocal, BeadsAllow: []string{"show"},
+		GatewayURL: "http://127.0.0.1:1/oh-gateway"})
+	require.NoError(t, err)
+	assert.Equal(t, map[string]string{"OH_GATEWAY_URL": "http://127.0.0.1:1/oh-gateway", "OH_GATEWAY_TOKEN": "ohg_t"}, env)
+	assert.Equal(t, []string{"show"}, fg.got[0].BeadsAllow)
+	fg.got = nil
 
 	env, err = hook(ctx, runsvc.SessionEnvRequest{SessionID: "ses_a", GroupKey: "g", ProjectID: "p", Location: "/p",
 		WorkflowID: "ticket", Runtime: sessionspec.RuntimeContainer, BeadsAllow: []string{"show"}, GatewayURL: "http://h:1/oh-gateway"})

@@ -127,12 +127,20 @@ func TestGatewayURL(t *testing.T) {
 func TestWithMachineShellEnv(t *testing.T) {
 	t.Setenv("PATH", "/opt/tools/bin:/usr/bin")
 	t.Setenv("AWS_SECRET_ACCESS_KEY", "secret")
-	env := withMachineShellEnv(sessionspec.RuntimeLocal, map[string]string{"FOO": "bar", "HOME": "/custom"})
+	env := withMachineShellEnv(sessionspec.RuntimeLocal, map[string]string{"FOO": "bar", "HOME": "/custom"}, nil)
 	assert.Equal(t, "/opt/tools/bin:/usr/bin", env["PATH"])
 	assert.Equal(t, "/custom", env["HOME"], "static variables win")
 	assert.Equal(t, "bar", env["FOO"])
 	assert.NotContains(t, env, "AWS_SECRET_ACCESS_KEY")
 
 	static := map[string]string{"FOO": "bar"}
-	assert.Equal(t, static, withMachineShellEnv(sessionspec.RuntimeContainer, static), "container: machine PATH is meaningless inside")
+	assert.Equal(t, static, withMachineShellEnv(sessionspec.RuntimeContainer, static, []string{"/shims"}), "container: machine PATH is meaningless inside")
+}
+
+// QB1: the fake bd comes first on the PATH of local sessions (kept in the
+// static environment: resumes and subagents get it too).
+func TestWithMachineShellEnvPathFirst(t *testing.T) {
+	t.Setenv("PATH", "/usr/bin")
+	env := withMachineShellEnv(sessionspec.RuntimeLocal, nil, []string{"/oh/run/bin"})
+	assert.Equal(t, "/oh/run/bin"+string(os.PathListSeparator)+"/usr/bin", env["PATH"])
 }

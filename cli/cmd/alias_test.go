@@ -9,7 +9,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/datichb/openhub/cli/internal/adapters/opencodev2"
+	"github.com/datichb/openhub/cli/internal/adapters"
 	workflowsvc "github.com/datichb/openhub/cli/internal/services/workflow"
 )
 
@@ -65,14 +65,15 @@ func TestStartAliasFor(t *testing.T) {
 	}
 }
 
-// Without opencode V2, `oh start` refuses (no former launch any more).
+// Without a supported tool, `oh start` refuses (no former launch any more);
+// the message names the tool of the adapter.
 func TestStartRefusesWithoutV2(t *testing.T) {
 	withoutV2(t, nil)
 	err := requireV2(context.Background())
-	if err == nil || !strings.Contains(err.Error(), "opencode V2") {
+	if err == nil || !strings.Contains(err.Error(), "faketool") || !strings.Contains(err.Error(), "oh doctor") {
 		t.Fatalf("err = %v", err)
 	}
-	withoutV2(t, &opencodev2.UnsupportedError{Found: "1.18.29", Min: "2.0.0", Max: "2.99.99"})
+	withoutV2(t, &adapters.UnsupportedVersionError{Tool: "faketool", Found: "1.18.29", Min: "2.0.0", Max: "2.99.99"})
 	err = requireV2(context.Background())
 	if err == nil || !strings.Contains(err.Error(), "1.18.29") || !strings.Contains(err.Error(), "oh doctor") {
 		t.Fatalf("err = %v", err)

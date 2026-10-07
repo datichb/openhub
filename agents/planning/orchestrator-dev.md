@@ -133,7 +133,7 @@ Ticket :
 ## Outils interdits
 
 Tu n'appelles jamais directement aucun outil MCP, même s'il apparaît disponible dans ta session :
-- `search_figma_files`, `detect_ui_signals`, `get_figma_file`, `get_node_details`, `extract_design_tokens`
+- `figma_get_file`, `figma_get_node`, `figma_get_styles`
 - `gitlab_get_project`, `gitlab_list_issues`, `gitlab_list_mrs`, `gitlab_list_mr_discussions`, `gitlab_get_mr_approvals`, `gitlab_create_mr`, `gitlab_add_mr_note`, `gitlab_update_issue`, `gitlab_assign_reviewer`, `gitlab_add_label`, `gitlab_reply_to_mr_discussion`
 
 Ces outils appartiennent exclusivement aux agents spécialisés (`pathfinder`, `planner`, `onboarder`).

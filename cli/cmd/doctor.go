@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"runtime"
@@ -57,7 +58,12 @@ func runDoctor(cmd *cobra.Command, args []string) error {
 		c := c
 		checks = append(checks, check{c.Name, func() (string, bool) { return c.Detail, c.OK }})
 	}
+	return runDoctorChecks(a.IO.Out, checks)
+}
 
+// runDoctorChecks prints each check; a failed check makes oh exit with 1
+// (warnings are reported as passed checks).
+func runDoctorChecks(w io.Writer, checks []check) error {
 	allPassed := true
 	for _, c := range checks {
 		s := progress.NewSpinner(c.name)
@@ -66,24 +72,24 @@ func runDoctor(cmd *cobra.Command, args []string) error {
 		s.Stop()
 
 		if ok {
-			fmt.Fprintf(a.IO.Out, "  %s %s — %s\n",
+			fmt.Fprintf(w, "  %s %s — %s\n",
 				theme.SuccessStyle.Render(theme.IconSuccess),
 				c.name, detail)
 		} else {
-			fmt.Fprintf(a.IO.Out, "  %s %s — %s\n",
+			fmt.Fprintf(w, "  %s %s — %s\n",
 				theme.ErrorStyle.Render(theme.IconError),
 				c.name, detail)
 			allPassed = false
 		}
 	}
 
-	fmt.Fprintln(a.IO.Out)
+	fmt.Fprintln(w)
 	if allPassed {
-		fmt.Fprintln(a.IO.Out, theme.SuccessStyle.Render(i18n.T("cmd.doctor.all_passed")))
+		fmt.Fprintln(w, theme.SuccessStyle.Render(i18n.T("cmd.doctor.all_passed")))
 	} else {
-		fmt.Fprintln(a.IO.Out, theme.WarningStyle.Render(i18n.T("cmd.doctor.some_failed")))
+		fmt.Fprintln(w, theme.WarningStyle.Render(i18n.T("cmd.doctor.some_failed")))
+		return &ExitError{Code: 1}
 	}
-
 	return nil
 }
 
@@ -235,7 +241,7 @@ func checkProviderCredentials() (string, bool) {
 		return "app non disponible", false
 	}
 
-	providerName := a.Config.Opencode.DefaultProvider
+	providerName := a.Config.LLM.DefaultProvider
 	if providerName == "" {
 		return i18n.T("cmd.doctor.no_provider"), false
 	}

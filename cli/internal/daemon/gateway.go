@@ -85,7 +85,7 @@ func (d *Daemon) handleGatewayGrant(w http.ResponseWriter, r *http.Request) {
 // envSessionID mirrors runsvc.EnvSessionID (runsvc depends on this package).
 const envSessionID = "OH_SESSION_ID"
 
-// childEnv is the environment of a subagent sub-session: opencode does not
+// childEnv is the environment of a subagent sub-session: the tool does not
 // pass the session environment to the sub-sessions started by the task
 // tool, so the daemon applies the one of the root session (static
 // variables, OH_SESSION_ID) with a gateway token of its own.

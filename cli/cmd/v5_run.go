@@ -94,6 +94,7 @@ func prepareWorkflowRun(ctx context.Context, a *app.App, opts runOptions, errOut
 	if err != nil {
 		return nil, err
 	}
+	svc.OnTicketsStarted = startTicketClaims(a, opts.Project)
 	kind := sessionspec.RuntimeKind(res.Runtime)
 	var rp *remotePrep
 	if kind == sessionspec.RuntimeRemote {
@@ -108,7 +109,7 @@ func prepareWorkflowRun(ctx context.Context, a *app.App, opts runOptions, errOut
 		return nil, errors.New(i18n.Tf("cmd.run.runtime_unavailable", string(kind), reason))
 	}
 
-	prov := provider.ResolveProvider(opts.Provider, opts.Project.Provider, a.Config.Opencode.DefaultProvider)
+	prov := provider.ResolveProvider(opts.Provider, opts.Project.Provider, a.Config.LLM.DefaultProvider)
 	b, missingMCP, err := buildWorkflowBundle(a, opts.Project, res, prov)
 	if err != nil {
 		return nil, fmt.Errorf("building session bundle: %w", err)
@@ -170,7 +171,8 @@ func prepareWorkflowRun(ctx context.Context, a *app.App, opts runOptions, errOut
 		if label != "" {
 			title += " · " + label
 		}
-		req.Sessions = append(req.Sessions, runsvc.PlannedInput{Label: label, Title: title, Branch: sessionBranch(res.Spec, v, label, opts.Branch)})
+		req.Sessions = append(req.Sessions, runsvc.PlannedInput{Label: label, Title: title, Branch: sessionBranch(res.Spec, v, label, opts.Branch),
+			Tickets: remoteTickets(v, ticketInput)})
 	}
 	preconds, suggestions, err := preconditionWarnings(res.Spec, opts.Project.Path)
 	if err != nil {
@@ -245,6 +247,12 @@ func resolveLaunch(ctx context.Context, a *app.App, opts *runOptions, errOut io.
 		default:
 			inputs[ticketInput] = opts.Tickets[0]
 		}
+	}
+	// Inputs computed by oh (`from:`, e.g. the discussions of a merge
+	// request) when they are not given.
+	wsvc.InputSources = inputSources(a)
+	if err := wsvc.ComputeInputs(ctx, workflowsvc.Context{ProjectID: opts.Project.ID}, probe.Spec, inputs); err != nil {
+		return nil, "", nil, err
 	}
 	res, err = resolve(ctx, workflowsvc.Context{ProjectID: opts.Project.ID}, opts.Workflow, workflowsvc.ResolveOpts{
 		Session: &workflow.SessionOptions{Mode: opts.Mode, Runtime: workflow.Runtime(opts.Runtime), Inputs: inputs, EntryAgent: opts.Agent}})
@@ -378,6 +386,9 @@ func (p *preparedRun) start(ctx context.Context, a *app.App, ui launcher.LaunchU
 // not (browser, suspension, no terminal). Only the first session of a run
 // may take over the current terminal.
 func afterStart(ctx context.Context, a *app.App, svc *runsvc.Service, ui launcher.LaunchUI, attach sessionspec.AttachPref, res *runsvc.StartResult, first bool) error {
+	for _, n := range res.Notes {
+		ui.Notify(n, launcher.LevelInfo)
+	}
 	if res.Queued {
 		ui.Notify(i18n.Tf("cmd.budget.queued", res.SessionID, res.Ahead), launcher.LevelInfo)
 	}

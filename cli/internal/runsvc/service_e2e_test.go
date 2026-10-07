@@ -20,6 +20,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/limits"
 	sessionsvc "github.com/datichb/openhub/cli/internal/services/session"
+	"github.com/datichb/openhub/cli/internal/sessionctx"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 	"github.com/datichb/openhub/cli/internal/storage/sqlite"
 )
@@ -183,4 +184,53 @@ func TestE2ESessionBudget(t *testing.T) {
 		after, err := usage.SessionTotal(ctx, r.SessionID)
 		return err == nil && after.TokensOut > held.TokensOut
 	}, 30*time.Second, 200*time.Millisecond, "answered after the raise")
+}
+
+// QB8 (S8): a checkpoint state written in the session context is known to
+// the entry agent at its next turn; a subagent does not receive it (tool
+// limit, documented).
+func TestE2ESessionContextReachesTheEntryAgent(t *testing.T) {
+	key := bedrockKey(t)
+	f := newFixture(t, mapSecrets{"openhub.team.core.provider.bedrock.token": key})
+	b := *f.bundle
+	b.Spec.Agents = []sessionspec.AgentDef{
+		{ID: "lead", Description: "lead", Mode: "primary", Body: "You are LEAD. Answer briefly from what you know; when asked to, delegate to the `helper` subagent and repeat its answer.",
+			Permissions: []sessionspec.PermissionRule{{Action: sessionspec.ActionSubagent, Resource: "helper", Effect: sessionspec.EffectAllow}}},
+		{ID: "helper", Description: "helper", Mode: "subagent", Body: "You are HELPER. Answer the question only from what you know in this conversation; if you do not know, answer UNKNOWN."},
+	}
+	b.Spec.SubagentGraph = map[string][]string{"lead": {"helper"}}
+	b.Spec.Hash = "testbundlectx0001"
+	req := f.request("")
+	req.Bundle = &b
+	req.TeamID = "core"
+	req.ProviderCfg.AWSRegion = "eu-west-1"
+
+	ctx, cancel := context.WithTimeout(context.Background(), 4*time.Minute)
+	defer cancel()
+	r, err := f.svc.StartSession(ctx, req)
+	require.NoError(t, err)
+	h := adapters.ServerHandle{URL: r.Server.URL, Password: r.Server.Password}
+	w := &sessionctx.Writer{Adapter: f.adapter, Dir: f.svc.SessionsDir}
+	wrote, err := w.Set(ctx, h, r.SessionID, sessionctx.Entry{Key: sessionctx.KeyCheckpoints,
+		Value: map[string]any{"workflow": "e2e", "passed": []map[string]string{{"id": "cp-zebra", "label": "Zebra"}}, "next": "cp-lion"}})
+	require.NoError(t, err)
+	require.True(t, wrote)
+
+	c := opencodev2.NewClient(r.Server.URL, r.Server.Password)
+	ask := func(q string) string {
+		t.Helper()
+		require.NoError(t, f.adapter.SendPrompt(ctx, h, r.SessionID, q))
+		require.NoError(t, c.Wait(ctx, r.SessionID))
+		text, err := f.adapter.AssistantText(ctx, h, r.SessionID)
+		require.NoError(t, err)
+		return text
+	}
+	got := ask("According to your session context, which workflow checkpoint was passed and which one is next? Answer with the two ids only.")
+	assert.Contains(t, got, "cp-zebra")
+	assert.Contains(t, got, "cp-lion")
+
+	// AssistantText holds every answer of the session: the subagent answer
+	// is the new part.
+	all := ask("Delegate to the helper subagent this exact question: « Which workflow checkpoint was passed? Answer with its id, or UNKNOWN. » Then repeat its answer.")
+	assert.Contains(t, strings.ToLower(strings.Replace(all, got, "", 1)), "unknown", "the subagent does not receive the session context")
 }

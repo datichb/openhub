@@ -6,14 +6,11 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
-	"sync"
 	"syscall"
 	"time"
 
 	"github.com/spf13/cobra"
 
-	"github.com/datichb/openhub/cli/internal/adapters"
-	"github.com/datichb/openhub/cli/internal/adapters/opencodev2"
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/buildinfo"
 	"github.com/datichb/openhub/cli/internal/daemon"
@@ -110,10 +107,6 @@ func init() {
 // daemon run`, or inside the oh process when the daemon cannot run in the
 // background: Windows).
 func daemonOptions(ctx context.Context, a *app.App, capability string) daemon.Options {
-	var (
-		adOnce sync.Once
-		ad     *opencodev2.Adapter
-	)
 	return daemon.Options{
 		Capability:  capability,
 		Paths:       daemon.Paths{Dir: ohRunDir()},
@@ -121,10 +114,12 @@ func daemonOptions(ctx context.Context, a *app.App, capability string) daemon.Op
 		Grants:      sqlite.NewGrantStore(store),
 		Servers:     sqlite.NewServerStore(store),
 		GatewayView: gatewayView(sqlite.NewServerStore(store)),
+		BeadsBinary: realBeadsBinary(),
 		MCPCommand:  gatewayMCPCommand(ohBundlesDir()),
 		Sessions:    a.Sessions,
 		Decisions:   sqlite.NewDecisionStore(store),
 		Usage:       sqlite.NewUsageStore(store),
+		AgentEvents: sqlite.NewAgentEventStore(store),
 		SessionsDir: ohSessionsDir(),
 		ServersDir:  ohServersDir(),
 		Checkpoints: newCheckpointService(a),
@@ -142,19 +137,6 @@ func daemonOptions(ctx context.Context, a *app.App, capability string) daemon.Op
 		// Async: a git push must not stall supervision (the daemon
 		// outlives the last server by IdleAfter).
 		OnSessionEnd: sessionEndHook(a, true),
-		Adapter: func(name string) adapters.ToolAdapter {
-			if name != opencodev2.Name {
-				return nil
-			}
-			adOnce.Do(func() {
-				if detected, err := detectV2Adapter(ctx); err == nil {
-					ad = detected
-				}
-			})
-			if ad == nil {
-				return nil
-			}
-			return ad
-		},
+		Adapter:      detectedAdapters(ctx),
 	}
 }

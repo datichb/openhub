@@ -64,7 +64,7 @@ func (r *Resolution) RenderPrompt(pc PromptContext) (string, error) {
 
 // gateReminder tells the entry agent which checkpoints it must report with
 // `workflow_checkpoint` before calling a locked agent: oh refuses the
-// delegation until then, and opencode does not pass the refusal reason to
+// delegation until then, and the tool does not pass the refusal reason to
 // the agent (lot 0 of track 3.E: orchestrator-dev never called cp-1 and
 // stayed locked). Checkpoints skipped in the mode release their lock.
 func (r *Resolution) gateReminder() string {

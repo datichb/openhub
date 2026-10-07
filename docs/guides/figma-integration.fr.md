@@ -158,16 +158,11 @@ Le token est lu dans le trousseau par `oh mcp serve` : il n'est jamais écrit da
 
 ### Aucun fichier Figma trouvé
 
-L'onboarder effectue une recherche progressive avant de conclure à l'absence de résultats :
-1. Nom du dossier racine ou `package.json "name"`
-2. ID du projet (ex. `t-sru`)
-3. Champ `Nom` dans `projects.md` (ex. `SRU`)
+Le serveur MCP Figma n'a pas d'outil de recherche (outils : `figma_get_file`, `figma_get_node`, `figma_get_styles`). Les agents trouvent les fichiers par leur **URL** (`figma.com/file/<clé>/…` ou `figma.com/design/<clé>/…`) : dans le ticket, le brief, le wiki, le README ou la documentation du projet. Sans URL, l'agent te la demande.
 
-Si les 3 tentatives échouent, l'onboarder te demande de préciser le nom ou l'URL du fichier Figma.
-
-**Si la recherche reste infructueuse :**
-- Donner directement l'URL du fichier Figma à l'agent
-- Renommer les fichiers Figma selon les conventions (`[Projet] - [Feature] - [Type]`)
+**Pour que les maquettes soient trouvées :**
+- Mettre l'URL du fichier Figma dans le ticket ou dans `docs/wiki/`
+- Donner directement l'URL à l'agent
 - Vérifier les scopes du token : `current_user:read`, `file_content:read`, `file_metadata:read`, `projects:read`, `library_assets:read`
 
 ### Token non reconnu

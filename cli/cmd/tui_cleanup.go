@@ -67,7 +67,7 @@ func showCleanupScreen(a *app.App, sh *shell.Shell, list []projectCleanup) {
 		}
 		b.WriteString("\n")
 	}
-	b.WriteString(theme.ColorTag(theme.TextMutedHex) + i18n.T("tui.cleanup.kept_note") + theme.TagColor)
+	b.WriteString(theme.ColorTag(theme.TextMutedHex) + i18n.Tf("tui.cleanup.kept_note", cleanupConfigFile(list)) + theme.TagColor)
 	sh.ShowScrollableModal(i18n.T("tui.cleanup.title"), b.String(), cleanupActions(a, sh, list, true))
 }
 
@@ -85,7 +85,7 @@ func showCleanupDiff(a *app.App, sh *shell.Shell, list []projectCleanup) {
 		b.WriteString("[::b]" + tview.Escape(pc.Name) + "[::-]\n")
 		d := pc.Plan.Diff()
 		if d == "" {
-			d = i18n.T("tui.cleanup.no_diff") + "\n"
+			d = i18n.Tf("tui.cleanup.no_diff", pc.Plan.ConfigFile) + "\n"
 		}
 		for _, line := range strings.SplitAfter(d, "\n") {
 			color := ""
@@ -103,7 +103,17 @@ func showCleanupDiff(a *app.App, sh *shell.Shell, list []projectCleanup) {
 		}
 		b.WriteString("\n")
 	}
-	sh.ShowScrollableModal(i18n.T("tui.cleanup.diff_title"), b.String(), cleanupActions(a, sh, list, false))
+	sh.ShowScrollableModal(i18n.Tf("tui.cleanup.diff_title", cleanupConfigFile(list)), b.String(), cleanupActions(a, sh, list, false))
+}
+
+// cleanupConfigFile is the tool configuration file the plans clean.
+func cleanupConfigFile(list []projectCleanup) string {
+	for _, pc := range list {
+		if pc.Plan != nil && pc.Plan.ConfigFile != "" {
+			return pc.Plan.ConfigFile
+		}
+	}
+	return ""
 }
 
 func applyCleanupInTUI(sh *shell.Shell, list []projectCleanup) {

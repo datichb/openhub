@@ -42,7 +42,7 @@ func init() {
 	show.Flags().StringP("project", "p", "", "Projet (ID ou nom ; défaut : projet du dossier courant)")
 	show.Flags().Bool("json", false, "Sortie JSON")
 	set := &cobra.Command{
-		Use:   "set <restriction> <valeur>",
+		Use:   "set <restriction> <value>",
 		Short: "Règle une restriction du hub (hub.toml) ou d'un projet (--project) : " + strings.Join(limits.Fields, ", "),
 		Args:  cobra.ExactArgs(2),
 		RunE:  func(cmd *cobra.Command, args []string) error { return runBudgetSet(cmd, args[0], args[1]) },
@@ -56,7 +56,7 @@ func init() {
 	}
 	unset.Flags().StringP("project", "p", "", "Projet (ID ou nom) ; sans : le hub")
 	raise := &cobra.Command{
-		Use:   "raise <session-id|decision-id> [montant USD]",
+		Use:   "raise <session-id|decision-id> [amount-usd]",
 		Short: "Relève le budget d'une session arrêtée par une décision $ (défaut : le budget configuré une fois de plus)",
 		Args:  cobra.RangeArgs(1, 2),
 		RunE:  runBudgetRaise,

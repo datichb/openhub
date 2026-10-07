@@ -21,15 +21,16 @@ import (
 	"time"
 
 	"github.com/datichb/openhub/cli/internal/adapters"
-	"github.com/datichb/openhub/cli/internal/bricks"
 	"github.com/datichb/openhub/cli/internal/bundle"
 	"github.com/datichb/openhub/cli/internal/credproxy"
 	"github.com/datichb/openhub/cli/internal/daemon"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/filelock"
+	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/limits"
 	"github.com/datichb/openhub/cli/internal/provider"
 	ohruntime "github.com/datichb/openhub/cli/internal/runtime"
+	"github.com/datichb/openhub/cli/internal/sessionctx"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 	"github.com/datichb/openhub/cli/internal/termlaunch"
 )
@@ -72,6 +73,15 @@ type Service struct {
 	// SessionEnv returns dynamic per-session variables (S7), e.g. a gateway
 	// token minted for the session. Optional.
 	SessionEnv SessionEnvFunc
+	// OnTicketsStarted is called when a session of a run started on Beads
+	// tickets (any workflow with a ticket input): the team claims are taken
+	// or move to their work status (planned → in progress, QB2). It returns
+	// notes for the user (StartResult.Notes). Nil = nothing.
+	OnTicketsStarted func(ctx context.Context, projectID string, tickets []string) []string
+	// LocalShellPath lists directories put first on the PATH of local
+	// session shells: the fake bd, so that Beads goes through the gateway
+	// and its beads.allow in every runtime (QB1).
+	LocalShellPath []string
 	// Decisions, when set, closes the pending decisions of stopped sessions.
 	Decisions domain.DecisionStore
 	// Usage is the usage ledger: a new session is refused when the daily
@@ -140,8 +150,8 @@ type StartRequest struct {
 	SessionEnv map[string]string
 
 	// BeadsAllow is the workflow `beads.allow` list, enforced by the Beads
-	// gateway outside the local runtime (nil = no `beads:` block: read-only
-	// default; empty = no bd command). Kept for resumes.
+	// gateway in every runtime (nil = no `beads:` block: read-only default;
+	// empty = no bd command). Kept for resumes.
 	BeadsAllow []string
 
 	// Limits are the resolved restrictions of the session (I6; zero = none).
@@ -159,6 +169,8 @@ type StartResult struct {
 	Report       adapters.VisibilityReport
 	AttachMethod termlaunch.Method
 	AttachErr    error // non-nil when no terminal could be opened (caller: browser/suspend)
+	// Notes are messages for the user about the launch (team claims).
+	Notes []string
 	// Queued: the first prompt waits for a free slot (restrictions); Ahead
 	// is the number of sessions queued before it.
 	Queued bool
@@ -203,7 +215,7 @@ func (s *Service) StartSession(ctx context.Context, req StartRequest) (*StartRes
 		return nil, err
 	}
 	key := sessionspec.GroupKey{BundleHash: spec.Hash, ProjectID: req.ProjectID, Runtime: kind,
-		Config: configFingerprint(req, cred, region)}
+		Config: configFingerprint(req, ToolProviderID(s.Adapter, req.Provider), cred, region)}
 	var (
 		gk     string
 		srv    *domain.Server
@@ -244,7 +256,7 @@ func (s *Service) StartSession(ctx context.Context, req StartRequest) (*StartRes
 	if sid == "" {
 		sid = sessionspec.NewSessionID()
 	}
-	static := withMachineShellEnv(kind, req.SessionEnv)
+	static := withMachineShellEnv(kind, req.SessionEnv, s.LocalShellPath)
 	env, err := s.buildSessionEnv(ctx, static, SessionEnvRequest{SessionID: sid, GroupKey: gk, ProjectID: req.ProjectID, Location: req.Location,
 		Runtime: kind, WorkflowID: req.WorkflowID, BeadsAllow: req.BeadsAllow, GatewayURL: s.loadGatewayURL(gk)})
 	if err != nil {
@@ -430,7 +442,7 @@ func (s *Service) resolveProvider(ctx context.Context, req *StartRequest) (provi
 		return cred, "", err
 	}
 	region := req.ProviderCfg.AWSRegion
-	if region == "" && bricks.OpencodeProviderID(req.Provider) == "amazon-bedrock" {
+	if region == "" && provider.Name(req.Provider) == provider.Bedrock {
 		region = credproxy.AWSRegion(ctx, req.ProviderCfg.AWSProfile)
 		if region == "" {
 			region = "us-east-1"
@@ -440,12 +452,21 @@ func (s *Service) resolveProvider(ctx context.Context, req *StartRequest) (provi
 	return cred, region, nil
 }
 
+// ToolProviderID is the provider id of the tool for a hub provider (the
+// adapter's, or the hub name itself).
+func ToolProviderID(ad adapters.ToolAdapter, hubProvider string) string {
+	if m, ok := ad.(adapters.ProviderMapper); ok {
+		return m.ProviderID(hubProvider)
+	}
+	return hubProvider
+}
+
 // configFingerprint identifies the provider settings a server is bound to.
 // The secret only contributes through its hash.
-func configFingerprint(req StartRequest, cred provider.ResolvedCredential, region string) string {
+func configFingerprint(req StartRequest, toolProvider string, cred provider.ResolvedCredential, region string) string {
 	h := sha256.New()
 	secret := sha256.Sum256([]byte(cred.Secret))
-	parts := []string{req.ProjectID, bricks.OpencodeProviderID(req.Provider), region,
+	parts := []string{req.ProjectID, toolProvider, region,
 		string(cred.Source.Kind), cred.Source.KeychainKey, cred.Source.Profile, hex.EncodeToString(secret[:])}
 	if len(req.AllowedModels) > 0 {
 		// The allow-list is enforced on the group's proxy grant: another
@@ -553,7 +574,7 @@ func (s *Service) startServer(ctx context.Context, dc DaemonClient, req StartReq
 			dc = fresh
 		}
 	}
-	ocProvider := bricks.OpencodeProviderID(req.Provider)
+	ocProvider := ToolProviderID(s.Adapter, req.Provider)
 	grant, err := dc.IssueGrant(ctx, daemon.GrantRequest{
 		Owner: gk, Provider: ocProvider, Region: region, Source: cred.Source, Secret: cred.Secret,
 		AllowedModels: req.AllowedModels, MaxTokens: req.MaxTokens,
@@ -568,7 +589,7 @@ func (s *Service) startServer(ctx context.Context, dc DaemonClient, req StartReq
 			return nil, adapters.VisibilityReport{}, nil, err
 		}
 	}
-	if err := s.saveGatewayURL(gk, pg, baseURL); err != nil {
+	if err := s.saveGatewayURL(gk, baseURL); err != nil {
 		_ = dc.RevokeOwner(ctx, gk)
 		return nil, adapters.VisibilityReport{}, nil, err
 	}
@@ -842,7 +863,7 @@ func (s *Service) ResumeSession(ctx context.Context, sessionID string, req Start
 	}
 	req.Runtime = kind
 	key := sessionspec.GroupKey{BundleHash: sess.BundleHash, ProjectID: sess.ProjectID, Runtime: kind,
-		Config: configFingerprint(req, cred, region)}
+		Config: configFingerprint(req, ToolProviderID(s.Adapter, req.Provider), cred, region)}
 	// The session data lives in its original group: keep it even when the
 	// provider settings changed. A sleeping server restarts with the new
 	// settings; a running one keeps its own until it sleeps.
@@ -873,7 +894,22 @@ func (s *Service) ResumeSession(ctx context.Context, sessionID string, req Start
 		slog.Warn("runsvc: session update failed", "session", sessionID, "error", err)
 	}
 	_ = dc.Touch(ctx, gk)
+	if !reused {
+		s.setResumeContext(ctx, srv, sess.ID)
+	}
 	return nil
+}
+
+// setResumeContext tells the entry agent that its server restarted (S8,
+// QB8): a session context entry, cleared by the daemon after the next step;
+// a synthetic message without the capability.
+func (s *Service) setResumeContext(ctx context.Context, srv *domain.Server, sessionID string) {
+	w := &sessionctx.Writer{Adapter: s.Adapter, Dir: s.SessionsDir}
+	text := i18n.T("cmd.session.resume.context")
+	if _, err := w.Set(ctx, handle(srv), sessionID, sessionctx.Entry{Key: sessionctx.KeyResume,
+		Value: map[string]any{"text": text}, Fallback: text}); err != nil {
+		slog.Warn("runsvc: resume instruction not set", "session", sessionID, "error", err)
+	}
 }
 
 // StopSession stops a session: its agent loop is interrupted and, when no

@@ -383,9 +383,7 @@ func buildViews(a *app.App, notifStore *shell.NotificationStore) []views.View {
 					})
 				}()
 			},
-			OnSave: func(cfg *config.Config) error {
-				return config.Save(cfg)
-			},
+			OnSave: config.Save,
 			OnNavigate: func(viewID string) {
 				if tuiShell != nil {
 					tuiShell.NavigateTo(viewID)
@@ -835,10 +833,10 @@ func resolveGitBranch(projectPath string) string {
 // version, detected when the TUI starts: no process on the event loop).
 func tuiToolLine() string {
 	if v, _ := v5Ver.Load().(string); v != "" {
-		return "opencode " + v + " · opencode-v2"
+		return v5Tool.DisplayName + " " + v + " · " + v5Tool.Name
 	}
 	if v5Err != nil {
-		return i18n.T("cmd.v1.unsupported.doctor_name") + " ✗"
+		return i18n.Tf("cmd.v1.unsupported.doctor_name", toolName()) + " ✗"
 	}
 	return ""
 }

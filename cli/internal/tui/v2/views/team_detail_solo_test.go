@@ -70,3 +70,15 @@ func TestTeamDetailGovernanceAndPromote(t *testing.T) {
 
 	assert.Contains(t, GovernanceLabel("maintainers"), "maintainers")
 }
+
+// QB2: the team [parallel] settings have no effect in v5 (the session
+// restrictions are the [limits] of I6): they are no longer editable.
+func TestTeamDetailHasNoParallelSetting(t *testing.T) {
+	v := teamDetailFor(TeamResolution{Enabled: true, TeamID: "core", StatePath: t.TempDir()}, nil)
+	v.SetShell(&formShell{})
+	v.Mount(tview.NewFlex(), nil)
+	_, ok := fieldByKey(v, "stale_days")
+	require.True(t, ok, "collaboration section built")
+	_, ok = fieldByKey(v, "max_sessions")
+	assert.False(t, ok)
+}

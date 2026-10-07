@@ -2,7 +2,7 @@ package credproxy
 
 import "fmt"
 
-// Provider upstreams (opencode provider IDs).
+// Provider upstreams (provider IDs of the tool).
 const (
 	ProviderBedrock    = "amazon-bedrock"
 	ProviderAnthropic  = "anthropic"

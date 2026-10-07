@@ -67,6 +67,7 @@ func (w *watcher) applyRules(ctx context.Context, root string) {
 	}
 	w.mu.Unlock()
 	w.applyRulesTo(ctx, root, targets...)
+	w.syncCheckpoints(ctx, root)
 }
 
 // applyRulesTo sets the rules of root on targets (nothing for a session

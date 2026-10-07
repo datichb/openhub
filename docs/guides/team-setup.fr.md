@@ -494,7 +494,7 @@ oh takeover-brief list
 oh takeover-brief enrich SRU-142
 ```
 
-`oh takeover-brief enrich` lit le brief, lance le workflow `brief-enrich` sans interface (alias déprécié de `oh run brief-enrich --headless`, qui demande les entrées `ticket` et `brief`), puis enregistre le brief enrichi dans team-state. L'agent `brief-enricher` sert à :
+`oh takeover-brief enrich` lance le workflow `brief-enrich` sans interface (alias déprécié de `oh run brief-enrich --headless -i ticket=<id>` ; le workflow lit lui-même le brief dans l'espace d'équipe), puis enregistre le brief enrichi dans team-state. L'agent `brief-enricher` sert à :
 - Lire les fichiers mentionnés dans le brief
 - Identifier les décisions architecturales
 - Repérer les questions ouvertes (TODO, FIXME)

@@ -49,7 +49,7 @@ func buildProjectAddInlineWizard(a *app.App) *views.InlineWizardView {
 		projectSolo   bool
 	)
 
-	hubProvider := a.Config.Opencode.DefaultProvider
+	hubProvider := a.Config.LLM.DefaultProvider
 	if hubProvider == "" {
 		hubProvider = "bedrock"
 	}

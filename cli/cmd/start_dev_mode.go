@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 
@@ -59,9 +60,6 @@ func handleDevMode(cmd *cobra.Command, a *app.App, project *domain.Project, laun
 
 	// Direct ticket mode (skip picker)
 	if ticketFlag != "" {
-		if teamRepo != nil && teamRepo.IsCloned() {
-			autoClaimTicket(cmd.Context(), a, teamRepo, project, ticketFlag)
-		}
 		_ = beads.RememberGitLabContext(launchPath, ticketFlag, ticketFlag, "")
 		directPrompt := fmt.Sprintf("Travaille sur le ticket %s. Utilise `bd prime` pour le contexte et `bd ready` pour les tâches disponibles.", ticketFlag)
 		fmt.Fprintf(a.IO.Out, "%s %s\n",
@@ -180,15 +178,7 @@ func handleDevMode(cmd *cobra.Command, a *app.App, project *domain.Project, laun
 			i18n.Tf("cmd.start.dev_selected_ticket", selected.ticket.ID, selected.ticket.Title))
 	}
 
-	// Auto-claim selected ticket
-	if teamRepo != nil && teamRepo.IsCloned() && a.Config.ActiveTeam().MemberID != "" {
-		claimID := selected.ticket.ID
-		if selected.isEpic {
-			claimID = selected.epicID
-		}
-		autoClaimTicket(cmd.Context(), a, teamRepo, project, claimID)
-	}
-
+	// The team claim is taken when the session starts (startTicketClaims).
 	fmt.Fprintf(a.IO.Out, "%s %s\n",
 		theme.SuccessStyle.Render(theme.IconArrow), i18n.T("cmd.start.dev_launching"))
 
@@ -211,41 +201,59 @@ func devStatusTag(status string) string {
 	return ""
 }
 
-// autoClaimTicket attempts to claim a ticket in team-state, printing status.
-// If the ticket is already claimed by this member in the initial status, it
-// automatically transitions it to the work status (the session is starting).
-func autoClaimTicket(ctx context.Context, a *app.App, repo *teamstate.Repo, project *domain.Project, ticketID string) {
-	// Load board config for dynamic status resolution.
+// startTicketClaims returns the hook run when a session starts on Beads
+// tickets (any workflow, QB2; formerly the --dev alias only): each ticket is
+// claimed in the team-state for the active member, or its claim moves from
+// the initial / planned status to the work status. Nil without a team.
+func startTicketClaims(a *app.App, project *domain.Project) func(ctx context.Context, projectID string, tickets []string) []string {
+	if project == nil || !teamEnabledForProject(a, project) || a.Config.ActiveTeam().MemberID == "" {
+		return nil
+	}
+	tc := resolvedTeamConfig(a, project)
+	statePath := tc.StatePath
+	if statePath == "" {
+		statePath = defaultTeamStatePath(a)
+	}
+	repo := teamstate.NewRepo(tc.StateRepo, statePath)
+	member := a.Config.ActiveTeam().MemberID
+	return func(ctx context.Context, projectID string, tickets []string) []string {
+		if !repo.IsCloned() {
+			return nil
+		}
+		var notes []string
+		for _, t := range tickets {
+			if n := startTicketClaim(ctx, repo, projectID, member, t); n != "" {
+				notes = append(notes, n)
+			}
+		}
+		return notes
+	}
+}
+
+// startTicketClaim claims a ticket for member, or moves its claim from the
+// initial / planned status to the work status; it returns a note ("" when
+// nothing changed).
+func startTicketClaim(ctx context.Context, repo *teamstate.Repo, projectID, member, ticketID string) string {
 	var boardCfg teamstate.BoardConfig
 	if cfg, err := repo.LoadConfig(); err == nil && cfg != nil {
 		boardCfg = cfg.Board
 	}
 	workStatus := boardCfg.DefaultWorkStatus()
-	initialStatus := boardCfg.InitialStatus()
-
-	existing, claimErr := repo.CreateClaim(ctx, teamstate.Claim{
-		TicketID:  ticketID,
-		Project:   project.ID,
-		ClaimedBy: a.Config.ActiveTeam().MemberID,
-		Status:    workStatus,
-	})
-	if claimErr == teamstate.ErrClaimExists && existing != nil {
-		if existing.ClaimedBy != a.Config.ActiveTeam().MemberID {
-			fmt.Fprintf(a.IO.Out, "  %s %s déjà pris par %s\n",
-				theme.WarningStyle.Render(theme.IconWarning), ticketID, existing.ClaimedBy)
-			return
+	existing, err := repo.CreateClaim(ctx, teamstate.Claim{TicketID: ticketID, Project: projectID, ClaimedBy: member, Status: workStatus})
+	switch {
+	case err == nil:
+		return i18n.Tf("cmd.run.claim.taken", projectID, ticketID)
+	case errors.Is(err, teamstate.ErrClaimExists) && existing != nil:
+		if existing.ClaimedBy != member {
+			return i18n.Tf("cmd.run.claim.other", ticketID, existing.ClaimedBy)
 		}
-		// The ticket belongs to this member. If it was in initial status, start it now.
-		if existing.Status == initialStatus || existing.Status == teamstate.ClaimStatusPlanned {
-			if err := repo.UpdateClaimStatus(ctx, project.ID, ticketID, workStatus); err == nil {
-				fmt.Fprintf(a.IO.Out, "  %s %s/%s: %s → %s\n",
-					theme.SuccessStyle.Render(theme.IconSuccess), project.ID, ticketID, existing.Status, workStatus)
+		if existing.Status == boardCfg.InitialStatus() || existing.Status == teamstate.ClaimStatusPlanned {
+			if err := repo.UpdateClaimStatus(ctx, projectID, ticketID, workStatus); err == nil {
+				return i18n.Tf("cmd.run.claim.started", projectID, ticketID, existing.Status, workStatus)
 			}
 		}
-	} else if claimErr == nil {
-		fmt.Fprintf(a.IO.Out, "  %s Claim %s/%s\n",
-			theme.SuccessStyle.Render(theme.IconSuccess), project.ID, ticketID)
 	}
+	return ""
 }
 
 // defaultTeamStatePath returns the team state path from config or default.

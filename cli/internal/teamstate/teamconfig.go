@@ -336,12 +336,14 @@ type TakeoverConfig struct {
 	StaleDays int `toml:"stale_days"` // Days of inactivity before a claim is considered stale (default: 3)
 }
 
-// ParallelConfig holds settings for parallel session execution.
+// ParallelConfig holds the settings of the former parallel mode. Kept to
+// read existing config.toml files; not applied in v5 (the session
+// restrictions are [limits], I6) and no longer editable (QB2).
 type ParallelConfig struct {
 	MaxSessions            int  `toml:"max_sessions"`              // Max concurrent sessions (default: 5)
 	MaxBudgetMinutes       int  `toml:"max_budget_minutes"`        // Max total estimated minutes (default: 180, 0 = disabled)
 	DefaultTicketWeightMin int  `toml:"default_ticket_weight_min"` // Fallback weight when no estimate (default: 60)
-	PortRangeStart         int  `toml:"port_range_start"`          // Starting port for opencode serve (default: 4100)
+	PortRangeStart         int  `toml:"port_range_start"`          // Starting port of the tool servers (default: 4100)
 	AutoMergeBeads         bool `toml:"auto_merge_beads"`          // Propose auto merge for Beads tickets (default: true)
 	MaxRetries             int  `toml:"max_retries"`               // Max recovery attempts per failed session (default: 2)
 	RetryDelaySeconds      int  `toml:"retry_delay_seconds"`       // Seconds to wait before retry (default: 5)

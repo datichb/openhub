@@ -17,7 +17,9 @@
         "skill * allow",
         "subagent * deny",
         "subagent documentarian allow",
-        "subagent auditor-subagent allow"
+        "subagent auditor-subagent allow",
+        "shell */bd deny",
+        "shell */bd * deny"
       ]
     },
     {
@@ -34,7 +36,9 @@
         "read * allow",
         "skill * allow",
         "webfetch * allow",
-        "websearch * allow"
+        "websearch * allow",
+        "shell */bd deny",
+        "shell */bd * deny"
       ]
     }
   ],

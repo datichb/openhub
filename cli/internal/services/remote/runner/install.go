@@ -13,7 +13,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/datichb/openhub/cli/internal/adapters/opencodev2"
+	"github.com/datichb/openhub/cli/internal/adapters"
 	"github.com/datichb/openhub/cli/internal/runtime/container"
 )
 
@@ -26,10 +26,12 @@ const serverUID = 10001
 // InstallOptions configure `oh runner install` (thin layer of the job image).
 type InstallOptions struct {
 	Root        string // filesystem root ("" = /), tests
-	ToolVersion string // opencode version (OH_OPENCODE_VERSION)
-	CacheDir    string // download cache
-	Arch        string // default runtime.GOARCH
-	Out         io.Writer
+	ToolVersion string // version of the tool (remote.VarToolVersion; "" = the adapter's former variable)
+	// Tool installs the tool of the machine adapter.
+	Tool     adapters.LinuxInstaller
+	CacheDir string // download cache
+	Arch     string // default runtime.GOARCH
+	Out      io.Writer
 }
 
 func (o InstallOptions) path(p string) string { return filepath.Join(o.Root, p) }
@@ -42,11 +44,11 @@ func Libc(root string) string {
 	return "glibc"
 }
 
-// Install installs opencode (pinned to the machine's adapter version), the
+// Install installs the tool (pinned to the machine's adapter version), the
 // fake bd and the tool server account in the job image.
 func Install(ctx context.Context, o InstallOptions) error {
-	if o.ToolVersion == "" {
-		return errors.New("OH_OPENCODE_VERSION is not set (build argument of the oh layer)")
+	if o.Tool == nil {
+		return errors.New("no tool adapter can install itself for Linux")
 	}
 	arch := o.Arch
 	if arch == "" {
@@ -68,15 +70,11 @@ func Install(ctx context.Context, o InstallOptions) error {
 	if cache == "" {
 		cache = filepath.Join(os.TempDir(), "oh-install")
 	}
-	tool := &opencodev2.LinuxTool{Ver: strings.TrimPrefix(o.ToolVersion, "v"), CacheDir: cache}
-	src, err := tool.LinuxBinary(ctx, arch, libc)
+	got, err := o.Tool.InstallLinux(ctx, adapters.LinuxInstall{Version: o.ToolVersion, Arch: arch, Libc: libc, BinDir: bin, CacheDir: cache})
 	if err != nil {
-		return fmt.Errorf("opencode %s for linux/%s (%s): %w", tool.Ver, arch, libc, err)
-	}
-	if err := copyFile(src, filepath.Join(bin, "opencode"), 0o755); err != nil {
 		return err
 	}
-	fmt.Fprintf(out, "oh runner install: opencode %s (%s, %s)\n", tool.Ver, arch, libc)
+	fmt.Fprintf(out, "oh runner install: %s %s (%s, %s)\n", filepath.Base(got.Binary), got.Version, arch, libc)
 	bd, err := container.FakeBD(arch)
 	if err != nil {
 		return err
@@ -141,27 +139,6 @@ func appendLine(path, line string) error {
 		werr = cerr
 	}
 	return werr
-}
-
-func copyFile(src, dst string, mode os.FileMode) error {
-	in, err := os.Open(src)
-	if err != nil {
-		return err
-	}
-	defer in.Close()
-	tmp := dst + ".tmp"
-	out, err := os.OpenFile(tmp, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, mode)
-	if err != nil {
-		return err
-	}
-	if _, err := io.Copy(out, in); err != nil {
-		out.Close()
-		return err
-	}
-	if err := out.Close(); err != nil {
-		return err
-	}
-	return os.Rename(tmp, dst)
 }
 
 // LookupServerUser returns the tool server account when the runner runs as

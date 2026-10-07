@@ -68,7 +68,7 @@ func TestPinRuntime(t *testing.T) {
 	require.NoError(t, err)
 	assert.False(t, av.OK)
 	assert.Equal(t, "colima", av.Engine)
-	assert.Equal(t, "tui.settings.exec.opencode.mismatch", av.Reason)
+	assert.Equal(t, "tui.settings.exec.tool.mismatch", av.Reason)
 	_, err = rt.Prepare(context.Background(), ohruntime.Group{})
 	assert.Error(t, err, "no image built for another client version")
 

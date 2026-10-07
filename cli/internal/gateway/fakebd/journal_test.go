@@ -1,4 +1,4 @@
-package main
+package fakebd
 
 import (
 	"bufio"
@@ -36,7 +36,7 @@ func journalEnv(t *testing.T) (map[string]string, string) {
 func bd(t *testing.T, e map[string]string, stdin string, args ...string) (int, string, string) {
 	t.Helper()
 	var out, errOut bytes.Buffer
-	code := run(args, "/tmp/oh-work/api", envOf(e), strings.NewReader(stdin), &out, &errOut)
+	code := Run(args, "/tmp/oh-work/api", envOf(e), strings.NewReader(stdin), &out, &errOut)
 	return code, out.String(), errOut.String()
 }
 

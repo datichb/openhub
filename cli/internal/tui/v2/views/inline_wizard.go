@@ -1500,11 +1500,13 @@ func (w *InlineWizardView) renderSummaryScreen() {
 	summaryForm := NewStyledButtonForm()
 
 	summaryForm.AddButton(buttonLabel, func() {
-		if w.cfg.SummaryOnAction != nil && w.shell != nil {
+		switch {
+		case w.shell == nil:
+		case w.cfg.SummaryOnAction != nil:
 			w.cfg.SummaryOnAction(w.shell)
-		} else if targetView != "" && w.shell != nil {
+		case targetView != "":
 			w.shell.NavigateTo(targetView)
-		} else if w.shell != nil {
+		default:
 			w.shell.PopView()
 		}
 	})

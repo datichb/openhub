@@ -56,6 +56,7 @@ type MRInfo struct {
 	WebURL       string `json:"web_url"`
 	Title        string `json:"title"`
 	State        string `json:"state"`
+	SourceBranch string `json:"source_branch"`
 	TargetBranch string `json:"target_branch"`
 }
 
@@ -233,6 +234,19 @@ func (c *Client) FindMRByBranch(ctx context.Context, projectID, branch string) (
 		return nil, nil
 	}
 	return &mrs[0], nil
+}
+
+// GetMR returns the merge request of a project by its IID.
+func (c *Client) GetMR(ctx context.Context, projectID string, iid int) (*MRInfo, error) {
+	data, err := c.get(ctx, fmt.Sprintf("/api/v4/projects/%s/merge_requests/%d", url.PathEscape(projectID), iid))
+	if err != nil {
+		return nil, fmt.Errorf("reading MR !%d: %w", iid, err)
+	}
+	var mr MRInfo
+	if err := json.Unmarshal(data, &mr); err != nil {
+		return nil, fmt.Errorf("parsing MR: %w", err)
+	}
+	return &mr, nil
 }
 
 // ListMRDiscussions returns all discussion threads for a merge request.

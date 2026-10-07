@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -10,6 +11,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/datichb/openhub/cli/internal/mcp/github"
+	"github.com/datichb/openhub/cli/internal/mcp/gitlab"
+	"github.com/datichb/openhub/cli/internal/mcp/jira"
+	"github.com/datichb/openhub/cli/internal/mcp/linear"
 	"github.com/datichb/openhub/cli/internal/mcp/team"
 
 	"github.com/datichb/openhub/cli/internal/app"
@@ -24,13 +29,14 @@ import (
 	"github.com/datichb/openhub/cli/internal/runsvc"
 	workflowsvc "github.com/datichb/openhub/cli/internal/services/workflow"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
+	"github.com/datichb/openhub/cli/internal/teamstate"
 	"github.com/datichb/openhub/cli/internal/termlaunch"
 )
 
 // v5Request returns the provider, team and attach settings of a project
 // session (bundle, location and prompt are set by the caller).
 func v5Request(a *app.App, project *domain.Project, providerFlag string) runsvc.StartRequest {
-	prov := provider.ResolveProvider(providerFlag, project.Provider, a.Config.Opencode.DefaultProvider)
+	prov := provider.ResolveProvider(providerFlag, project.Provider, a.Config.LLM.DefaultProvider)
 	var projProv *provider.ProviderConfig
 	tokenKey := ""
 	if project.ProviderConfig != nil {
@@ -188,11 +194,12 @@ func selectMCP(available []sessionspec.MCPServerDef, ids []string) (kept []sessi
 // launch: hub, project instructions, model cascade and MCP servers.
 func sessionBundleRequest(a *app.App, project *domain.Project, tc config.ResolvedTeamConfig, prov string) bundle.Request {
 	req := bundle.Request{
-		HubDir: hubcontent.HubContentDir(), OutDir: ohBundlesDir(), Provider: prov,
+		HubDir: hubcontent.HubContentDir(), OutDir: ohBundlesDir(), Provider: prov, ToolProvider: toolProviderID(prov),
 		ExtraInstructionFiles: a.Config.Deploy.InstructionFiles,
 		WebsearchEnabled:      a.Config.Websearch.Enabled,
 	}
 	req.HubOverrides, req.ProjectOverrides = modelOverridesFor(a, project)
+	req.TeamOverrides = teamModelOverrides(tc)
 	if project != nil {
 		req.ProjectPath = project.Path
 		req.MCP = sessionMCP(a, project, tc)
@@ -216,6 +223,53 @@ func modelOverridesFor(a *app.App, project *domain.Project) (hub, proj *bricks.M
 	return hub, proj
 }
 
+// teamModelOverrides returns the team recommendations of the model cascade
+// (`[models]` of the team-state config.toml, ADR-030; below hub and project).
+func teamModelOverrides(tc config.ResolvedTeamConfig) *bricks.ModelOverrides {
+	if !tc.Enabled || tc.StatePath == "" {
+		return nil
+	}
+	repo := teamstate.NewRepo(tc.StateRepo, tc.StatePath)
+	if !repo.IsCloned() {
+		return nil
+	}
+	cfg, err := repo.LoadConfig()
+	if err != nil {
+		slog.Warn("team model recommendations not loaded", "team", tc.TeamID, "error", err)
+		return nil
+	}
+	m := cfg.Models
+	if m.Default == "" && len(m.Families) == 0 && len(m.Agents) == 0 {
+		return nil
+	}
+	return &bricks.ModelOverrides{Default: m.Default, Families: m.Families, Agents: m.Agents}
+}
+
+// mcpWriteEnv is the variable that enables the write tools of each oh MCP
+// server (servers without write tools have none).
+var mcpWriteEnv = map[string]string{
+	"gitlab": gitlab.EnvWriteEnabled,
+	"github": github.EnvWriteEnabled,
+	"jira":   jira.EnvWriteEnabled,
+	"linear": linear.EnvWriteEnabled,
+}
+
+// sessionMCPEnv returns the environment of an oh MCP server: its write
+// switch (only for a server that has one), its URL and its own variables.
+func sessionMCPEnv(s bricks.MCPServerDef) map[string]string {
+	env := map[string]string{}
+	if v := mcpWriteEnv[s.Name]; v != "" && s.WriteEnabled {
+		env[v] = "true"
+	}
+	if s.URL != "" {
+		env[strings.ToUpper(s.Name)+"_URL"] = s.URL
+	}
+	for k, v := range s.Environment {
+		env[k] = v
+	}
+	return env
+}
+
 // sessionMCP converts the project MCP cascade into bundle MCP servers
 // (`oh mcp serve <name>` reads its token from the host secret store).
 func sessionMCP(a *app.App, project *domain.Project, teamCfg config.ResolvedTeamConfig) []sessionspec.MCPServerDef {
@@ -232,19 +286,10 @@ func sessionMCP(a *app.App, project *domain.Project, teamCfg config.ResolvedTeam
 		if s.TokenKey != "" {
 			cmd = append(cmd, "--token-key", s.TokenKey)
 		}
-		env := map[string]string{}
-		if s.WriteEnabled {
-			env["GITLAB_WRITE_ENABLED"] = "true"
-		}
-		if s.URL != "" {
-			env[strings.ToUpper(s.Name)+"_URL"] = s.URL
-		}
-		for k, v := range s.Environment {
-			env[k] = v
-		}
+		env := sessionMCPEnv(s)
 		if s.Name == "team" {
 			// The team server reads the team of the session project from its
-			// environment (P3-T29; formerly .opencode/team.json of `oh deploy`).
+			// environment (P3-T29; formerly a file written by `oh deploy`).
 			env[team.EnvTeamID], env[team.EnvProjectID] = teamCfg.TeamID, project.ID
 		}
 		def := sessionspec.MCPServerDef{Name: s.Name, Type: "local", Command: cmd}

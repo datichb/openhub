@@ -75,6 +75,8 @@ preconditions:
       en: No project context found (docs/wiki/index.md, ONBOARDING.md or CONVENTIONS.md)
     check: { path_exists: [docs/wiki/index.md, ONBOARDING.md, CONVENTIONS.md] }
     suggest: { workflow: onboarding, resume: true }
+beads:
+  allow: [show, list, ready, search, children, comments, count, status, graph, history, create, update, close, dep, label, duplicate, supersede]
 runtime: { default: local, allowed: [local] }
 outputs:
   - { id: tickets, type: beads-ids, label: { fr: Tickets de la feature, en: Feature tickets } }

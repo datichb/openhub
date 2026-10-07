@@ -68,7 +68,7 @@ func IsAtLeast(version, minimum string) bool {
 }
 
 // FromOutput extracts the version number from a `--version` output
-// ("1.17.13", "opencode v2.0.20"): the first field starting with a digit
+// ("1.17.13", "tool v2.0.20"): the first field starting with a digit
 // once a "v" prefix is removed, else the trimmed output.
 func FromOutput(out string) string {
 	for _, f := range strings.Fields(out) {

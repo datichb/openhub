@@ -1,7 +1,7 @@
 // Package launcher holds the UI abstraction used while a session starts
 // (CLI or TUI): confirmations, notifications, terminal suspension. Sessions
 // start through the RunService (`oh run`, cmd/v5_run.go); the former launch
-// pipeline was removed with opencode V1 (v5, P3-T30).
+// pipeline was removed in v5 (P3-T30).
 package launcher
 
 // Level represents a notification severity level.

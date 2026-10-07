@@ -6,6 +6,8 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/datichb/openhub/cli/internal/i18n"
+
 	"github.com/datichb/openhub/cli/internal/buildinfo"
 	"github.com/datichb/openhub/cli/internal/selfupdate"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
@@ -14,11 +16,7 @@ import (
 var upgradeCmd = &cobra.Command{
 	Use:   "upgrade [component]",
 	Short: "Met à jour oh",
-	Long: `Met à jour oh vers la dernière version (opencode s'installe et se met à jour avec son propre outil).
-
-Exemples:
-  oh upgrade oh                Met à jour le binaire oh lui-même
-  oh upgrade oh --check        Vérifie si une mise à jour est disponible`,
+	Long:  i18n.T("cmd.upgrade.long"),
 }
 
 func init() {

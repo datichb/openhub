@@ -135,7 +135,7 @@ curl http://127.0.0.1:8080/api/v1/metrics/agents
 
 ## Agent Telemetry
 
-The per-agent table reads the `agent_events` table of `~/.oh/oh.db`. **In v5, sessions no longer feed this table**: it only holds the history of previous versions (agent, start time and duration, status, tool calls). The cost, tokens and duration of v5 sessions come from the session registry (`oh metrics`, Sessions view, `oh session results`).
+The per-agent table reads the `agent_events` table of `~/.oh/oh.db`, fed by the daemon: one row per agent of a session (the entry agent and each subagent), with the status of its last step, duration, tokens, cost and skills loaded. The total cost of sessions comes from the session registry (`oh metrics`, Sessions view, `oh session results`).
 
 Telemetry is stored locally in `~/.oh/oh.db` and is never sent to external services.
 

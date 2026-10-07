@@ -22,6 +22,8 @@ prompt:
 agents:
   debugger: { role: workflow }
   developer: { role: independent, mode: primary }
+beads:
+  allow: [show, list, ready, search, children, comments, count, status, graph, history, create, update, close, dep, label]
 runtime: { default: local, allowed: [local] }
 outputs:
   - { id: tickets, type: beads-ids, label: { fr: Tickets de correction, en: Fix tickets } }

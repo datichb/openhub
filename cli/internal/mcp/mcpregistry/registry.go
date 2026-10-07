@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 
 	"github.com/datichb/openhub/cli/internal/config"
 )
@@ -56,7 +57,7 @@ func (r *Registry) Get(name string) MCPServer {
 
 // All returns all registered servers in a stable order (built-in first, then custom).
 func (r *Registry) All() []MCPServer {
-	builtinOrder := []string{"figma", "gitlab", "gslides", "team"}
+	builtinOrder := []string{"figma", "github", "gitlab", "gslides", "jira", "linear", "team"}
 	seen := make(map[string]bool)
 	var result []MCPServer
 
@@ -66,10 +67,15 @@ func (r *Registry) All() []MCPServer {
 			seen[name] = true
 		}
 	}
-	for name, s := range r.servers {
+	var custom []string
+	for name := range r.servers {
 		if !seen[name] {
-			result = append(result, s)
+			custom = append(custom, name)
 		}
+	}
+	sort.Strings(custom)
+	for _, name := range custom {
+		result = append(result, r.servers[name])
 	}
 	return result
 }

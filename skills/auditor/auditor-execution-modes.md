@@ -105,7 +105,7 @@ Produire uniquement la synthèse exécutive multi-domaines, **sans** le bloc `##
 
 ## Mode subagent
 
-> Ce skill est chargé quand l'auditor est invoqué via `task` depuis l'agent orchestrator feature. L'orchestrateur injecte `[SKILL:auditor/auditor-subagent]` dans le prompt.
+> Ce skill est chargé quand l'auditor est invoqué via `task` depuis l'agent orchestrator feature. L'orchestrateur injecte `[SKILL:auditor/auditor-execution-modes]` dans le prompt.
 
 > **Protocole sub-agent :** voir skill `shared/subagent-execution-protocol` pour le mécanisme d'interruption, la checklist, et les erreurs fréquentes.
 

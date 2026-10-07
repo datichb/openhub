@@ -4,7 +4,7 @@
 
 ## Statut
 
-Accepté — **Évolué par [ADR-041](./041-closed-world-isolation.fr.md)** et **[ADR-044](./044-credential-proxy-session-limits.fr.md)**
+Accepté — **Évolué par [ADR-041](./041-closed-world-isolation.fr.md)**, **[ADR-042](./042-checkpoints-headless-decisions.fr.md)** (coupe-circuit) et **[ADR-044](./044-credential-proxy-session-limits.fr.md)**
 
 ## Date
 

@@ -15,7 +15,7 @@ opencode 1.18.29 n'est plus pris en charge : oh v5 demande opencode V2 (2.0.0 ou
 1. Installez opencode V2 avec son propre outil (`brew install anomalyco/tap/opencode`, ou https://opencode.ai).
 2. Vérifiez avec `oh doctor` : la ligne **opencode V2** doit être verte.
 
-`oh upgrade opencode`, l'installation gérée dans `~/.oh/bin` et les clés `[opencode] version`, `channel`, `auto_update`, `install_dir` de `hub.toml` sont supprimées (ignorées si elles restent). `[opencode] default_provider` reste.
+`oh upgrade opencode`, l'installation gérée dans `~/.oh/bin` et les clés `[opencode] version`, `channel`, `auto_update`, `install_dir` de `hub.toml` sont supprimées (ignorées si elles restent). `[llm] default_provider` reste.
 
 ## 2. Anciennes commandes : alias de `oh run`
 

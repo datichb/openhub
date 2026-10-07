@@ -26,7 +26,7 @@ func checkVersion(s string) error {
 		}
 	}
 	if !ok {
-		return errors.New(i18n.Tf("tui.settings.exec.opencode.invalid", s))
+		return errors.New(i18n.Tf("tui.settings.exec.tool.invalid", s))
 	}
 	return nil
 }
@@ -78,24 +78,24 @@ func (v *SettingsView) execSettingsFields() []configField {
 				return strconv.Itoa(ex().KeepImages)
 			},
 			Set: func(val string) { ex().KeepImages, _ = strconv.Atoi(val) }},
-		{Key: "exec_opencode_version", Kind: CfgFieldString, Label: i18n.T("tui.settings.exec.opencode.label"),
-			Description: i18n.T("tui.settings.exec.opencode.desc"),
+		{Key: "exec_tool_version", Kind: CfgFieldString, Label: i18n.T("tui.settings.exec.tool.label"),
+			Description: i18n.T("tui.settings.exec.tool.desc"),
 			Validator:   &FieldValidator{Check: checkVersion},
-			Get:         func() string { return ex().OpencodeVersion },
-			Set:         func(val string) { ex().OpencodeVersion = strings.TrimSpace(val) },
+			Get:         func() string { return ex().ToolVersion },
+			Set:         func(val string) { ex().ToolVersion = strings.TrimSpace(val) },
 			Source: func() string {
 				client := ""
 				if v.cfg.ToolVersion != nil {
 					client = v.cfg.ToolVersion()
 				}
-				pinned := strings.TrimPrefix(ex().OpencodeVersion, "v")
+				pinned := strings.TrimPrefix(ex().ToolVersion, "v")
 				switch {
 				case client == "":
 					return ""
 				case pinned == "":
-					return i18n.Tf("tui.settings.exec.opencode.auto", client)
+					return i18n.Tf("tui.settings.exec.tool.auto", client)
 				case pinned != strings.TrimPrefix(client, "v"):
-					return i18n.Tf("tui.settings.exec.opencode.mismatch", pinned, client)
+					return i18n.Tf("tui.settings.exec.tool.mismatch", ToolName(), pinned, client)
 				}
 				return ""
 			}},

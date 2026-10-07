@@ -70,6 +70,9 @@ type Options struct {
 	// server group, served over HTTP to runtimes outside the machine
 	// (P4-T08). Nil = MCP gateway unavailable.
 	MCPCommand func(ctx context.Context, srv domain.Server, name string) (gateway.MCPCommand, error)
+	// AgentEvents receives the agent telemetry of the tracked sessions
+	// (entry agent and subagents; nil = not recorded).
+	AgentEvents domain.AgentEventStore
 	// Usage is the usage ledger (I6 budgets, proxy traffic). Nil = no
 	// accounting, no budget enforcement.
 	Usage domain.UsageStore

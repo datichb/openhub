@@ -268,3 +268,4 @@ Les variables du déclenchement (identifiant de session, projet, branche, adress
 | Job `oh-image` : `OH_PROJECT_TOKEN_<id> is missing` | `oh remote setup --project <chemin du projet>`. |
 | Job `oh-cli` : échec du téléchargement | Le runner n'atteint pas `github.com` : envoyez le binaire avec `--oh-binary`. |
 | `Pipeline généré — échec` (fichier non généré par oh) | `.gitlab-ci.yml` écrit à la main : `oh remote setup --force` le remplace. |
+| Envoi refusé : schéma du pipeline différent | Le pipeline a été généré par une autre version d'oh (le schéma 2 passe la version de l'outil dans `OH_TOOL_VERSION`) : relancez `oh remote setup`. |

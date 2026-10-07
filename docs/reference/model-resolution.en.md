@@ -6,7 +6,7 @@
 
 ## Overview
 
-The Go CLI (`oh`) resolves the AI model of each agent of the session bundle through a **9-level cascade** (2 workflow levels, 3 project levels, 3 hub levels, then the agent frontmatter). Opencode does not manage this logic: oh resolves when building the session bundle, at launch, and writes the final model into the agent definitions of the bundle (`agent.<id>.model` in the rendered opencode config).
+The Go CLI (`oh`) resolves the AI model of each agent of the session bundle through a **12-level cascade** (2 workflow levels, 3 project levels, 3 hub levels, 3 team recommendation levels, then the agent frontmatter). Opencode does not manage this logic: oh resolves when building the session bundle, at launch, and writes the final model into the agent definitions of the bundle (`agent.<id>.model` in the rendered opencode config).
 
 The provider is resolved separately and used to normalize the model name (provider prefix). I6 restrictions may also limit the usable models (see [allow-list](#model-allow-list-limitsmodels)).
 
@@ -20,7 +20,7 @@ The provider is resolved through a 4-level cascade (first match wins):
 |----------|--------|---------|
 | 1 | CLI flag `--provider` / `-P` | `oh run feature --provider anthropic` |
 | 2 | Project provider | `oh.db` database (`oh project configure`) |
-| 3 | Hub config | `hub.toml` → `[opencode] default_provider = "bedrock"` |
+| 3 | Hub config | `hub.toml` → `[llm] default_provider = "bedrock"` |
 | 4 | Hardcoded fallback | `bedrock` |
 
 ---
@@ -39,7 +39,10 @@ Resolution is performed for each agent of the session bundle. First match wins (
 | 6 | Hub · agent | Model of an agent at hub level | `oh config model agent <id> <model>` |
 | 7 | Hub · family | Model of an agent family at hub level | `oh config model family <name> <model>` |
 | 8 | Hub | Global hub model | `oh config model default <model>` |
-| 9 | Frontmatter | `model:` field in the agent's `.md` file | Agent file edit |
+| 9 | Team · agent | Team recommendation for an agent | `[models.agents]` of the team-state `config.toml` (TUI: Team › Models) |
+| 10 | Team · family | Team recommendation for a family | `[models.families]` |
+| 11 | Team | Team recommended model | `[models] default` |
+| 12 | Frontmatter | `model:` field in the agent's `.md` file | Agent file edit |
 
 ### Workflow level (decision O9)
 
@@ -47,9 +50,9 @@ Resolution is performed for each agent of the session bundle. First match wins (
 - Full identifiers (`amazon-bedrock/eu.anthropic.claude-sonnet-4-6`, `#variant` suffix) are accepted: the Bedrock regional prefix is removed, then added back by the adapter for the session region; the variant is kept.
 - A patch (`extends`) replaces `models.default` and merges `models.agents` per agent.
 
-### Team models: not applied
+### Team models
 
-The team-state `config.toml` may hold `[models]` recommendations (`default`, `families`, `agents`, edited in the TUI, Team › Models). The cascade function (`bricks.ResolveAgentModel`) can place them after the hub (team · agent > team · family > team), but **the launch does not fill them in** v5 (`cmd/v5_launch.go`, `modelOverridesFor` only provides the hub and the project): they have no effect on sessions.
+The team-state `config.toml` may hold `[models]` recommendations (`default`, `families`, `agents`, edited in the TUI, Team › Models). They apply when the sessions of the team's projects are launched, after the hub (team · agent > team · family > team): they are recommendations, which the workflow, the project and the hub override.
 
 ### Families
 
@@ -82,7 +85,7 @@ So pick cascade models that match the list. See `oh budget show` and [ADR-044](.
 ### Hub-level (`~/.oh/hub.toml`)
 
 ```toml
-[opencode]
+[llm]
 default_provider = "bedrock"
 
 [models]

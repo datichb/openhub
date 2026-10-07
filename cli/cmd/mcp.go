@@ -3,8 +3,11 @@ package cmd
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
+	"slices"
+	"strings"
 	"text/tabwriter"
 
 	"github.com/charmbracelet/huh"
@@ -292,14 +295,33 @@ func runMCPReset(cmd *cobra.Command, args []string) error {
 
 func mcpSetupCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "setup",
-		Short: i18n.T("cmd.mcp.setup.short"),
-		Long:  i18n.T("cmd.mcp.setup.long"),
-		RunE:  runMCPSetup,
+		Use:       "setup [service]",
+		Short:     i18n.T("cmd.mcp.setup.short"),
+		Long:      i18n.T("cmd.mcp.setup.long"),
+		Args:      cobra.MaximumNArgs(1),
+		ValidArgs: mcpSetupServices,
+		RunE:      runMCPSetup,
 	}
 	cmd.Flags().StringP("project", "p", "", i18n.T("cmd.mcp.flags.project"))
 	_ = cmd.RegisterFlagCompletionFunc("project", completeProjectIDs)
 	return cmd
+}
+
+// mcpSetupServices are the services oh mcp setup configures (token in the
+// keychain, hub or project settings).
+var mcpSetupServices = []string{"figma", "gitlab", "gslides", "jira"}
+
+// mcpSetupService returns the service named on the command line ("" =
+// ask; it was ignored before QB2).
+func mcpSetupService(args []string) (string, error) {
+	if len(args) == 0 {
+		return "", nil
+	}
+	name := strings.ToLower(strings.TrimSpace(args[0]))
+	if !slices.Contains(mcpSetupServices, name) {
+		return "", errors.New(i18n.Tf("cmd.mcp.setup.unknown_service", args[0], strings.Join(mcpSetupServices, ", ")))
+	}
+	return name, nil
 }
 
 func runMCPSetup(cmd *cobra.Command, args []string) error {
@@ -323,24 +345,21 @@ func runMCPSetup(cmd *cobra.Command, args []string) error {
 			i18n.T("cmd.mcp.setup.short"))
 	}
 
-	// Select service
-	var serviceName string
-	form := theme.NewForm(
-		huh.NewGroup(
-			huh.NewSelect[string]().
-				Title(i18n.T("cmd.service.select")).
-				Options(
-					huh.NewOption(i18n.T("cmd.mcp.setup.option_figma"), "figma"),
-					huh.NewOption(i18n.T("cmd.mcp.setup.option_gitlab"), "gitlab"),
-					huh.NewOption(i18n.T("cmd.mcp.setup.option_gslides"), "gslides"),
-				).
-				Value(&serviceName),
-		),
-	)
-	if err := form.Run(); err != nil {
+	serviceName, err := mcpSetupService(args)
+	if err != nil {
 		return err
 	}
-
+	if serviceName == "" {
+		opts := make([]huh.Option[string], 0, len(mcpSetupServices))
+		for _, name := range mcpSetupServices {
+			opts = append(opts, huh.NewOption(i18n.T("cmd.mcp.setup.option_"+name), name))
+		}
+		form := theme.NewForm(huh.NewGroup(huh.NewSelect[string]().
+			Title(i18n.T("cmd.service.select")).Options(opts...).Value(&serviceName)))
+		if err := form.Run(); err != nil {
+			return err
+		}
+	}
 	return runMCPSetupForService(cmd, serviceName, project)
 }
 
@@ -354,15 +373,7 @@ func runMCPSetupForService(cmd *cobra.Command, serviceName string, project *doma
 	var token string
 	var writeEnabled bool
 
-	envHint := ""
-	switch serviceName {
-	case "figma":
-		envHint = "FIGMA_TOKEN"
-	case "gitlab":
-		envHint = "GITLAB_TOKEN"
-	case "gslides":
-		envHint = "GOOGLE_ACCESS_TOKEN"
-	}
+	envHint := mcpServiceEnvVar[serviceName]
 
 	steps := []views.WizardStep{
 		{
@@ -407,11 +418,11 @@ func runMCPSetupForService(cmd *cobra.Command, serviceName string, project *doma
 			SkipIf: func() bool { return envHint == "" },
 		},
 		{
-			Label: i18n.T("cmd.mcp.setup.gitlab_write_label"),
+			Label: i18n.Tf("cmd.mcp.setup.write_label", serviceName),
 			Form: func(_ *tview.Application, onDone func()) *tview.Form {
 				form := tview.NewForm()
 				form.AddCheckbox(
-					i18n.T("cmd.mcp.setup.gitlab_write_checkbox"),
+					i18n.Tf("cmd.mcp.setup.write_checkbox", serviceName),
 					false,
 					func(checked bool) { writeEnabled = checked },
 				)
@@ -430,7 +441,7 @@ func runMCPSetupForService(cmd *cobra.Command, serviceName string, project *doma
 					{Label: "Mode", Value: mode},
 				}
 			},
-			SkipIf: func() bool { return serviceName != "gitlab" },
+			SkipIf: func() bool { return mcpWriteEnv[serviceName] == "" },
 		},
 		{
 			Label:      i18n.T("cmd.mcp.setup.persist_label"),
@@ -446,7 +457,7 @@ func runMCPSetupForService(cmd *cobra.Command, serviceName string, project *doma
 						Enabled:  boolPtr(true),
 						TokenKey: tokenKey,
 					}
-					if serviceName == "gitlab" {
+					if mcpWriteEnv[serviceName] != "" {
 						svc.WriteEnabled = &writeEnabled
 					}
 					upsertProjectMCPService(project, svc)
@@ -459,7 +470,7 @@ func runMCPSetupForService(cmd *cobra.Command, serviceName string, project *doma
 						if s := c.MCPServer(serviceName); s != nil {
 							s.Enabled = true
 							s.Token = serviceName + "-token"
-							if serviceName == "gitlab" {
+							if mcpWriteEnv[serviceName] != "" {
 								s.WriteEnabled = writeEnabled
 							}
 						}
@@ -662,6 +673,9 @@ var mcpServiceEnvVar = map[string]string{
 	"figma":   "FIGMA_TOKEN",
 	"gitlab":  "GITLAB_TOKEN",
 	"gslides": "GOOGLE_ACCESS_TOKEN",
+	"jira":    "JIRA_TOKEN",
+	"github":  "GITHUB_TOKEN",
+	"linear":  "LINEAR_API_KEY",
 }
 
 // injectTokenFromKeychain reads a token from the keychain and sets the corresponding
@@ -701,36 +715,43 @@ func mcpListCmd() *cobra.Command {
 		Aliases: []string{"ls"},
 		Short:   i18n.T("cmd.mcp.list.short"),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			jsonOut, _ := cmd.Flags().GetBool("json")
-			if jsonOut {
-				type mcpServer struct {
-					Name        string `json:"name"`
-					Description string `json:"description"`
-					Command     string `json:"command"`
-				}
-				servers := []mcpServer{
-					{Name: "figma", Description: i18n.T("cmd.mcp.list.figma_desc"), Command: "oh mcp serve figma"},
-					{Name: "gitlab", Description: i18n.T("cmd.mcp.list.gitlab_desc"), Command: "oh mcp serve gitlab"},
-					{Name: "gslides", Description: i18n.T("cmd.mcp.list.gslides_desc"), Command: "oh mcp serve gslides"},
-				}
-				return json.NewEncoder(os.Stdout).Encode(servers)
+			servers := mcpServerList()
+			if jsonOut, _ := cmd.Flags().GetBool("json"); jsonOut {
+				return json.NewEncoder(cmd.OutOrStdout()).Encode(servers)
 			}
-
 			w := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 0, 2, ' ', 0)
 			fmt.Fprintln(w, i18n.T("cmd.mcp.list.header"))
-			fmt.Fprintf(w, "%s\t%s\t%s\n",
-				"figma", i18n.T("cmd.mcp.list.figma_desc"), theme.Subtitle.Render("oh mcp serve figma"))
-			fmt.Fprintf(w, "%s\t%s\t%s\n",
-				"gitlab", i18n.T("cmd.mcp.list.gitlab_desc"), theme.Subtitle.Render("oh mcp serve gitlab"))
-			fmt.Fprintf(w, "%s\t%s\t%s\n",
-				"gslides", i18n.T("cmd.mcp.list.gslides_desc"), theme.Subtitle.Render("oh mcp serve gslides"))
-			w.Flush()
-			return nil
+			for _, s := range servers {
+				fmt.Fprintf(w, "%s\t%s\t%s\n", s.Name, s.Description, theme.Subtitle.Render(s.Command))
+			}
+			return w.Flush()
 		},
 	}
 
 	cmd.Flags().Bool("json", false, i18n.T("cmd.mcp.list.flags.json"))
 	return cmd
+}
+
+// mcpServer is a line of oh mcp list.
+type mcpServer struct {
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	Command     string `json:"command"`
+}
+
+// mcpServerList lists every oh MCP server (built-in and custom, QB2;
+// formerly figma, gitlab and gslides only), with a localized description
+// for the built-in ones.
+func mcpServerList() []mcpServer {
+	var out []mcpServer
+	for _, s := range mcpregistry.NewDefaultRegistry().All() {
+		desc := s.Description()
+		if key := "cmd.mcp.list." + s.Name() + "_desc"; i18n.T(key) != key {
+			desc = i18n.T(key)
+		}
+		out = append(out, mcpServer{Name: s.Name(), Description: desc, Command: "oh mcp serve " + s.Name()})
+	}
+	return out
 }
 
 // --- Token helpers ---

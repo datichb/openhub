@@ -16,7 +16,9 @@
         "read * allow",
         "skill * allow",
         "subagent * allow",
-        "todowrite * allow"
+        "todowrite * allow",
+        "shell */bd deny",
+        "shell */bd * deny"
       ]
     },
     {
@@ -108,7 +110,9 @@
         "read * allow",
         "skill * allow",
         "subagent * deny",
-        "subagent documentarian allow"
+        "subagent documentarian allow",
+        "shell */bd deny",
+        "shell */bd * deny"
       ]
     },
     {
@@ -200,7 +204,9 @@
         "read * allow",
         "skill * allow",
         "subagent * deny",
-        "subagent documentarian allow"
+        "subagent documentarian allow",
+        "shell */bd deny",
+        "shell */bd * deny"
       ]
     },
     {
@@ -301,7 +307,9 @@
         "read * allow",
         "skill * allow",
         "subagent * deny",
-        "subagent documentarian allow"
+        "subagent documentarian allow",
+        "shell */bd deny",
+        "shell */bd * deny"
       ]
     }
   ],

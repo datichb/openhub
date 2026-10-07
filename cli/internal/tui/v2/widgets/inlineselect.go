@@ -411,7 +411,7 @@ func (s *InlineSelect) MouseHandler() func(action tview.MouseAction, event *tcel
 			}
 
 			// Map pixel row to option index.
-			optIdx := -1
+			var optIdx int
 			if s.hasDescriptions() {
 				// With descriptions: each option occupies 3 rows (opt+desc+blank),
 				// except the last which occupies 2 (opt+desc).

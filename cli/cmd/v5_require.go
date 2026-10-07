@@ -7,49 +7,64 @@ import (
 	"log/slog"
 	"sync"
 
-	"github.com/datichb/openhub/cli/internal/adapters/opencodev2"
+	"github.com/datichb/openhub/cli/internal/adapters"
 	"github.com/datichb/openhub/cli/internal/i18n"
 )
 
-// opencode V2 is required (D3, revised on 06/10/2026: opencode V1 is no
-// longer supported in oh v5). Every launch checks it first and refuses with
-// a message that points to Doctor and the migration guide.
+// A supported release of the tool is required (D3, revised on 06/10/2026:
+// the V1 of the tool is no longer supported in oh v5). Every launch checks it
+// first and refuses with a message that points to Doctor and the migration
+// guide.
 
 var (
 	v5Once    sync.Once
-	v5Adapter *opencodev2.Adapter
+	v5Adapter adapters.ToolAdapter
+	v5Tool    adapters.ToolInfo
 	v5Err     error
-	// detectV2 finds the opencode V2 adapter (replaced by tests).
-	detectV2 = detectV2Adapter
+	// detectV2 finds the adapter of the installed tool (replaced by tests).
+	detectV2 = detectTool
 )
 
-// requireV2 returns nil when a supported opencode V2 is installed, else an
-// error to show as is (cmd.v1.unsupported.*).
+// requireV2 returns nil when a supported tool is installed, else an error
+// to show as is (cmd.v1.unsupported.*).
 func requireV2(ctx context.Context) error {
 	v5Once.Do(func() {
-		v5Adapter, v5Err = detectV2(ctx)
+		v5Adapter, v5Tool, v5Err = detectV2(ctx)
 		if v5Err == nil && v5Adapter != nil {
-			v5Ver.Store(v5Adapter.Ver)
+			v5Ver.Store(v5Tool.Version)
 		}
 	})
 	if v5Err == nil {
 		return nil
 	}
-	slog.Debug("opencode V2 unavailable", "reason", v5Err)
+	slog.Debug("tool unavailable", "reason", v5Err)
 	return v2Unsupported(v5Err)
 }
 
-// v5Available reports whether a supported opencode V2 is installed.
+// v5Available reports whether a supported tool is installed.
 func v5Available(ctx context.Context) bool { return requireV2(ctx) == nil }
+
+// toolName is the displayed name of the tool (of the preferred adapter
+// when none is installed).
+func toolName() string {
+	if v5Tool.DisplayName == "" {
+		_ = requireV2(context.Background())
+	}
+	if v5Tool.DisplayName != "" {
+		return v5Tool.DisplayName
+	}
+	return "tool"
+}
 
 // v2Unsupported turns a detection error into the user message.
 func v2Unsupported(err error) error {
-	var ue *opencodev2.UnsupportedError
+	var ue *adapters.UnsupportedVersionError
+	name := toolName()
 	switch {
 	case errors.As(err, &ue):
-		return fmt.Errorf("%s\n%s", i18n.Tf("cmd.v1.unsupported.version", ue.Found, ue.Min), i18n.T("cmd.v1.unsupported.hint"))
-	case errors.Is(err, opencodev2.ErrNotInstalled):
-		return fmt.Errorf("%s\n%s", i18n.T("cmd.v1.unsupported.missing"), i18n.T("cmd.v1.unsupported.hint"))
+		return fmt.Errorf("%s\n%s", i18n.Tf("cmd.v1.unsupported.version", name, ue.Found, ue.Min), i18n.Tf("cmd.v1.unsupported.hint", name))
+	case errors.Is(err, adapters.ErrToolNotInstalled):
+		return fmt.Errorf("%s\n%s", i18n.Tf("cmd.v1.unsupported.missing", name), i18n.Tf("cmd.v1.unsupported.hint", name))
 	}
-	return fmt.Errorf("%s (%v)\n%s", i18n.T("cmd.v1.unsupported.unknown"), err, i18n.T("cmd.v1.unsupported.hint"))
+	return fmt.Errorf("%s (%v)\n%s", i18n.Tf("cmd.v1.unsupported.unknown", name), err, i18n.Tf("cmd.v1.unsupported.hint", name))
 }

@@ -163,8 +163,8 @@ Les entrées **"ticket séparé nécessaire"** alimentent directement la Phase 3
 > Déléguer à l'agent `designer` avec `Mode: recon` (Phase 1.3 — Exploration Figma).
 
 Ce skill prescrit exactement :
-1. `search_figma_files` — rechercher des maquettes liées à la feature
-2. `get_file_structure` + `detect_ui_signals` — analyser chaque fichier trouvé (max 3)
+1. Identifier les fichiers Figma de la feature (URL dans le ticket, le brief ou le wiki : le serveur Figma n'a pas de recherche)
+2. `figma_get_file` — analyser la structure de chaque fichier trouvé (max 3) et en déduire les signaux UX/UI
 3. Enrichir le récap Phase 1 avec les données Figma (URLs, frames, composants, signaux UX/UI)
 
 **Si aucun signal UI / aucun critère activé :** passer directement au récap Phase 1 en notant "Aucune exploration Figma — feature sans composants UI détectés".

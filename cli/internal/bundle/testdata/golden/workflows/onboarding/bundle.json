@@ -17,7 +17,9 @@
         "read * allow",
         "skill * allow",
         "webfetch * allow",
-        "websearch * allow"
+        "websearch * allow",
+        "shell */bd deny",
+        "shell */bd * deny"
       ]
     }
   ],

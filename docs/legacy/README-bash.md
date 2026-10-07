@@ -2,7 +2,7 @@
 
 ---
 
-> 🇫🇷 [Lire en français](README.fr.md)
+> 🇫🇷 [Lire en français](../../README.fr.md)
 
 # openhub (legacy bash CLI)
 
@@ -138,7 +138,7 @@ oc deploy opencode MY-APP
 oc start MY-APP
 ```
 
-> Full guide: [docs/guides/getting-started.en.md](docs/guides/getting-started.en.md)
+> Full guide: [docs/guides/getting-started.en.md](../../docs/guides/getting-started.en.md)
 
 ---
 
@@ -173,7 +173,7 @@ oc start MY-APP
 | `developer-migrator` | `orchestrator-dev` | Incremental migrations — framework upgrades, major versions, EOL dependencies |
 | `auditor-subagent` | `auditor` | All audit domains: security (OWASP Top 10, CVE, RGS), performance (Core Web Vitals, N+1, cache), accessibility (WCAG 2.1 AA, RGAA 4.1), ecodesign (RGESN, GreenIT, Écoindex), architecture (SOLID, Clean Architecture), privacy (GDPR, EDPB, CNIL), observability (RED method, SLOs, OpenTelemetry) |
 
-> Full reference: [docs/architecture/agents.en.md](docs/architecture/agents.en.md)
+> Full reference: [docs/architecture/agents.en.md](../../docs/architecture/agents.en.md)
 
 ---
 
@@ -194,7 +194,7 @@ oc start MY-APP
 | Check conventions | `reviewer` | `"oc conventions"` |
 | Review a branch | `reviewer` | `"oc review"` |
 
-> Detailed scenarios with diagrams and real prompts: [docs/guides/workflows.en.md](docs/guides/workflows.en.md)
+> Detailed scenarios with diagrams and real prompts: [docs/guides/workflows.en.md](../../docs/guides/workflows.en.md)
 
 ---
 
@@ -242,7 +242,7 @@ The Pathfinder, Planner, and Onboarder agents automatically query Figma when ana
 # → Extracts design tokens, detects design system, lists components
 ```
 
-📖 **Full documentation**: [Figma Integration Guide](docs/guides/figma-integration.en.md)
+📖 **Full documentation**: [Figma Integration Guide](../../docs/guides/figma-integration.en.md)
 
 ---
 
@@ -252,42 +252,42 @@ The Pathfinder, Planner, and Onboarder agents automatically query Figma when ana
 
 | Document | Description |
 |----------|-------------|
-| [Getting started](docs/guides/getting-started.en.md) | Full installation, first deployment |
-| [Figma Integration](docs/guides/figma-integration.en.md) | Figma MCP setup, configuration, and testing |
-| [LLM Providers](docs/guides/providers.en.md) | Anthropic, MammouthAI, GitHub Models, Bedrock, Ollama |
-| [Workflows](docs/guides/workflows.en.md) | Full feature, audit, debug — illustrated scenarios |
-| [Contributing](docs/guides/contributing.en.md) | Adding an agent, an adapter |
-| [Onboarding](docs/guides/onboarding.en.md) | Onboarding agent guide (using the onboarder to discover a project) |
-| [Authoring](docs/guides/authoring.en.md) | Authoring guide (designing agents) |
+| [Getting started](../../docs/guides/getting-started.en.md) | Full installation, first deployment |
+| [Figma Integration](../../docs/guides/figma-integration.en.md) | Figma MCP setup, configuration, and testing |
+| [LLM Providers](../../docs/guides/providers.en.md) | Anthropic, MammouthAI, GitHub Models, Bedrock, Ollama |
+| [Workflows](../../docs/guides/workflows.en.md) | Full feature, audit, debug — illustrated scenarios |
+| [Contributing](../../docs/guides/contributing.en.md) | Adding an agent, an adapter |
+| [Onboarding](../../docs/guides/onboarding.en.md) | Onboarding agent guide (using the onboarder to discover a project) |
+| [Authoring](../../docs/guides/authoring.en.md) | Authoring guide (designing agents) |
 
 ### Architecture
 
 | Document | Description |
 |----------|-------------|
-| [Overview](docs/architecture/overview.en.md) | Concepts, flow diagrams, design principles |
-| [Agents](docs/architecture/agents.en.md) | Exhaustive reference for all 18 agents |
-| [MCP Servers](servers/README.md) | MCP servers architecture and development |
-| [ADR](docs/architecture/adr/) | Architectural decision records (9 ADRs) |
-| [Adapters](docs/architecture/adapters.en.md) | Adapters architecture |
+| [Overview](../../docs/architecture/overview.en.md) | Concepts, flow diagrams, design principles |
+| [Agents](../../docs/architecture/agents.en.md) | Exhaustive reference for all 18 agents |
+| MCP Servers *(supprimé)* | MCP servers architecture and development |
+| [ADR](../../docs/architecture/adr/) | Architectural decision records (9 ADRs) |
+| Adapters *(supprimé)* | Adapters architecture |
 
 ### Reference
 
 | Document | Description |
 |----------|-------------|
-| [CLI](docs/reference/cli.en.md) | All `oc` commands with options and examples |
-| [Configuration](docs/reference/config.en.md) | hub.json, projects.md, paths.local.md |
-| [Figma Conventions](config/figma.conventions.md) | Figma file organization conventions |
-| [Beads data model](docs/reference/beads-model.en.md) | Beads data model reference |
-| [Audit tools](docs/reference/audit-tools.en.md) | Audit tools reference by domain |
-| [Model resolution](docs/reference/model-resolution.en.md) | Model resolution by agent |
+| [CLI](../../docs/reference/cli.en.md) | All `oc` commands with options and examples |
+| [Configuration](../../docs/reference/config.en.md) | hub.json, projects.md, paths.local.md |
+| Figma Conventions *(supprimé)* | Figma file organization conventions |
+| [Beads data model](../../docs/reference/beads-model.en.md) | Beads data model reference |
+| [Audit tools](../../docs/reference/audit-tools.en.md) | Audit tools reference by domain |
+| [Model resolution](../../docs/reference/model-resolution.en.md) | Model resolution by agent |
 
 ### Development
 
 | Document | Description |
 |----------|-------------|
-| [Performance optimizations](docs/dev/performance-optimizations.md) | Performance improvements in `oc deploy` |
-| [Progress bar system](docs/dev/progress-bar.md) | Visual feedback system for long operations |
-| [Shell gotchas](docs/dev/shell-gotchas.md) | Common pitfalls in bash scripting |
+| [Performance optimizations](../../docs/dev/performance-optimizations.md) | Performance improvements in `oc deploy` |
+| [Progress bar system](../../docs/dev/progress-bar.md) | Visual feedback system for long operations |
+| [Shell gotchas](../../docs/dev/shell-gotchas.md) | Common pitfalls in bash scripting |
 
 ---
 

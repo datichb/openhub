@@ -19,7 +19,7 @@ Quand `oh run` lance une session, le fournisseur est resolu dans cet ordre :
 
 1. Flag `--provider` / `-P` sur `oh run` (priorite la plus haute)
 2. Override au niveau projet (`project.Provider` dans la base de donnees)
-3. `opencode.default_provider` dans `~/.oh/hub.toml`
+3. `llm.default_provider` dans `~/.oh/hub.toml`
 4. `"bedrock"` (valeur par defaut en dur)
 
 ## Configuration au niveau Hub
@@ -27,13 +27,13 @@ Quand `oh run` lance une session, le fournisseur est resolu dans cet ordre :
 Definir le fournisseur par defaut pour tous les projets :
 
 ```bash
-oh config set opencode.default_provider bedrock
+oh config set llm.default_provider bedrock
 ```
 
 Dans `~/.oh/hub.toml` :
 
 ```toml
-[opencode]
+[llm]
 default_provider = "bedrock"
 ```
 
@@ -156,7 +156,7 @@ La construction du paquet lit votre fournisseur et modele configures, puis gener
 oh run <workflow> --provider anthropic
 
 # Definitivement (defaut hub)
-oh config set opencode.default_provider anthropic
+oh config set llm.default_provider anthropic
 
 # Definitivement (un projet)
 oh project configure my-project --provider github-copilot   # pris en compte au prochain lancement

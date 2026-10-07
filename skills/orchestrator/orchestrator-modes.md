@@ -41,7 +41,7 @@ Invoquer le `debugger` en lui transmettant :
 - **Le marqueur de contexte d'invocation (obligatoire) :**
   > `[CONTEXTE] Invoqué depuis l'orchestrateur feature. Tu dois utiliser le mécanisme d'interruption de session à chaque checkpoint et produire le bloc ## Retour vers orchestrator en fin de session.`
 - **Le skill de parcours (obligatoire) :**
-  > `[SKILL:quality/debugger-subagent]`
+  > `[SKILL:quality/debugger-execution-modes]`
 
 À la réception du résultat, **détecter le type de retour** :
 
@@ -157,7 +157,7 @@ question({
 
   Invoquer avec le marqueur de contexte (obligatoire) :
   > `[CONTEXTE] Invoqué depuis l'orchestrateur feature. Tu dois utiliser le mécanisme d'interruption de session à chaque fin de phase et produire le bloc ## Retour vers orchestrator en fin de session.`
-  > `[SKILL:planning/onboarder-subagent]`
+  > `[SKILL:planning/onboarder-execution-modes]`
 
   À la réception du résultat, **détecter le type de retour** :
 
@@ -266,7 +266,7 @@ L'utilisateur décrit une feature, un besoin ou un chantier.
    - **Le marqueur de contexte d'invocation (obligatoire) :**
      > `[CONTEXTE] Invoqué depuis l'orchestrateur feature. Tu dois utiliser le mécanisme d'interruption de session (blocs ## Retour intermédiaire vers orchestrator + ## Question pour l'orchestrator) à chaque fin de phase et chaque pause, et produire le bloc ## Retour vers orchestrator en fin de planification — sans exception.`
    - **Le skill de parcours (obligatoire) :**
-     > `[SKILL:planning/planner-subagent]`
+     > `[SKILL:planning/planner-execution-modes]`
 
 2. À la réception du résultat du `planner`, **détecter le type de retour** :
 
@@ -342,7 +342,7 @@ Le résultat contient `## Question pour l'orchestrator` (mais PAS `## Question b
 
    > **Toujours reprendre le marqueur `[CONTEXTE]` et le skill :** si l'instruction de reprise ne les contient pas déjà, ajouter :
    > `[CONTEXTE] Invoqué depuis l'orchestrateur feature. Mécanisme d'interruption actif.`
-   > `[SKILL:planning/planner-subagent]`
+   > `[SKILL:planning/planner-execution-modes]`
 
 5. **Attendre le nouveau résultat** et recommencer la détection (Cas A, B ou C).
 
@@ -404,7 +404,7 @@ Le résultat contient `## Question batch pour l'orchestrator`. Ce bloc est produ
    task(
      subagent_type: "planner",
      task_id: "<task_id du bloc>",
-     prompt: "<Instruction de reprise du bloc>. Réponses Phase 2 : [Q1 (<header>): <réponse>, Q2 (<header>): <réponse>, ...]. [CONTEXTE] Invoqué depuis l'orchestrateur feature. Mécanisme d'interruption actif. [SKILL:planning/planner-subagent]"
+     prompt: "<Instruction de reprise du bloc>. Réponses Phase 2 : [Q1 (<header>): <réponse>, Q2 (<header>): <réponse>, ...]. [CONTEXTE] Invoqué depuis l'orchestrateur feature. Mécanisme d'interruption actif. [SKILL:planning/planner-execution-modes]"
    )
    ```
 
@@ -445,7 +445,7 @@ Le résultat contient `## Question pour l'orchestrator` avec `**Phase :** 2.5-sp
      ```
      task(
        subagent_type: "planner",
-       prompt: "[CONTEXTE] Invoqué depuis l'orchestrateur feature. Split Enterprise — session fraîche.\n\n[DECISION MAP]\n<decision map complet copié du retour intermédiaire>\n[/DECISION MAP]\n\nReprendre depuis Phase 3 avec le decision map ci-dessus comme source de vérité. [SKILL:planning/planner-subagent]"
+       prompt: "[CONTEXTE] Invoqué depuis l'orchestrateur feature. Split Enterprise — session fraîche.\n\n[DECISION MAP]\n<decision map complet copié du retour intermédiaire>\n[/DECISION MAP]\n\nReprendre depuis Phase 3 avec le decision map ci-dessus comme source de vérité. [SKILL:planning/planner-execution-modes]"
      )
      ```
    
@@ -454,7 +454,7 @@ Le résultat contient `## Question pour l'orchestrator` avec `**Phase :** 2.5-sp
      task(
        subagent_type: "planner",
        task_id: "<task_id du bloc>",
-       prompt: "Réponse split : continuer-ici. Reprendre depuis Phase 3 dans la session courante. [CONTEXTE] Invoqué depuis l'orchestrateur feature. [SKILL:planning/planner-subagent]"
+       prompt: "Réponse split : continuer-ici. Reprendre depuis Phase 3 dans la session courante. [CONTEXTE] Invoqué depuis l'orchestrateur feature. [SKILL:planning/planner-execution-modes]"
      )
      ```
    

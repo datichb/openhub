@@ -40,15 +40,38 @@ func TestFollowFiltersTheSession(t *testing.T) {
 	assert.Equal(t, "hi", got[0].Text)
 }
 
+// listSignal reports the end of each poll (ListOpen is read last).
+type listSignal struct {
+	domain.DecisionStore
+	polled chan struct{}
+}
+
+func (l listSignal) ListOpen(ctx context.Context, f domain.DecisionFilter) ([]domain.Decision, error) {
+	out, err := l.DecisionStore.ListOpen(ctx, f)
+	select {
+	case l.polled <- struct{}{}:
+	default:
+	}
+	return out, err
+}
+
 func TestSubscribePollsWithoutDaemon(t *testing.T) {
 	svc, ctx := newTestService(t)
 	svc.PollEvery = 30 * time.Millisecond
 	require.NoError(t, svc.Sessions.Create(ctx, &domain.Session{ID: "ses_a", ProjectID: "p1", Status: domain.SessionStatusRunning, GroupKey: "g1", State: domain.RunActive}))
 
+	// The changes come after the first poll (the baseline), however late it
+	// runs under load.
+	polled := make(chan struct{}, 1)
+	svc.Decisions = listSignal{DecisionStore: svc.Decisions, polled: polled}
 	cctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	changes := svc.Subscribe(cctx)
-	time.Sleep(60 * time.Millisecond) // first poll = baseline
+	select {
+	case <-polled:
+	case <-time.After(5 * time.Second):
+		t.Fatal("no first poll")
+	}
 	s, _ := svc.Sessions.Get(ctx, "ses_a")
 	s.State = domain.RunWaiting
 	require.NoError(t, svc.Sessions.Update(ctx, s))
