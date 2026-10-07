@@ -96,6 +96,20 @@ Le détail de la session affiche la frise : `✔ cp-1 10:03 → developer (3) �
 
 En ligne de commande : `oh session approve <id>` valide (`--decision once`), `--decision fix -m "…"` ou `--decision other -m "…"` refuse avec une consigne, `--decision reject` refuse sans consigne.
 
+## État de session
+
+oh tient à jour, pour l'agent d'entrée de la session, un **état de session** (étude S8, [ADR-050](../architecture/adr/050-session-context-capability.fr.md)) :
+
+| Entrée | Contenu | Mise à jour |
+|---|---|---|
+| `oh.checkpoints` | workflow, mode, checkpoints passés, checkpoint en cours et suivant, coupe-circuit | à chaque transition |
+| `oh.budget` | budget de la session (relèvements compris), dépensé, restant | à la décision `$` et après un relèvement |
+| `oh.resume` | consigne de reprise | après `oh session resume` quand le serveur a redémarré ; retirée après l'étape suivante |
+
+- Une entrée n'est réécrite que si sa valeur change : l'outil annonce chaque changement à l'étape suivante, par un message dans l'historique de la session.
+- Les **sous-agents** ne reçoivent pas cet état (limite de l'outil) ; ils lisent l'état du workflow avec l'outil `workflow_status`.
+- Si l'outil ne sait pas tenir cet état (capacité absente, API expérimentale retirée), la consigne de reprise est envoyée en message d'oh, et les autres entrées restent lisibles avec `workflow_status`.
+
 ## Notifications
 
 Le démon oh affiche une notification système quand une décision vous attend et quand une session finit son étape sans que personne n'y soit attaché. Les notifications proches sont regroupées et ne contiennent jamais le contenu de la session. Avec [`terminal-notifier`](https://github.com/julienXX/terminal-notifier) installé, un clic ramène le terminal d'oh ; sinon oh utilise `osascript` (ou `notify-send` sous Linux). Pour les couper : `[session] notify = "off"` dans `hub.toml` (pris en compte au prochain démarrage du démon).
@@ -137,7 +151,5 @@ Les budgets sont des **plafonds souples**, vérifiés sur le coût indiqué par 
 - **Port du proxy** : le démon garde le port de son proxy d'un redémarrage à l'autre. Si un autre programme l'a pris entre-temps, le démon en choisit un autre et met en veille les serveurs qui utilisent encore l'ancien (ils ne joignent plus le fournisseur) ; les sessions qui travaillaient affichent une erreur dans « À traiter ». Reprenez-les (`oh session resume <id>` ou attachement) : leur serveur redémarre avec le nouveau port.
 - **Sécurité en local** : l'agent tourne sous votre utilisateur. Il peut atteindre le socket du démon et `oh.db` (empreintes de jetons seulement), mais jamais la clé LLM ; l'émission de nouveaux jetons est réservée à la CLI oh (capacité dans le trousseau, voir `oh doctor`). Voir [SECURITY.fr.md](../../SECURITY.fr.md).
 - **opencode 2.0.20** : le shell d'une session ne reçoit pas l'environnement du serveur (oh y repose `PATH`, `HOME`… en local) ; les sous-agents ne reçoivent pas l'environnement de session (le démon le leur réapplique) ; quand une permission est refusée, l'agent ne voit pas le message du refus (oh lui envoie la consigne à part).
-- **Restrictions souples** : le nombre maximum de sessions actives peut être dépassé par deux lancements simultanés ; un budget est contrôlé à la fin d'une étape (l'étape en cours se termine) ; le plafond mémoire ne mesure pas les conteneurs. Une session créée par `oh session fork` peut compter une seconde fois le coût de l'historique copié.
-- **Relever un budget** : la vue Sessions ne permet que de classer une décision `$` (`x`) ; pour relever le budget, utilisez `oh budget raise <session|décision> [montant]`.
-- **`attach = "iterm"` sans iTerm2 installé** : `oh run` peut ouvrir le client dans le terminal courant au lieu de passer à Terminal.app ; préférez `attach = "auto"` (ou `oh session attach`, qui bascule correctement).
+- **Restrictions souples** : le nombre maximum de sessions actives peut être dépassé par deux lancements simultanés ; un budget est contrôlé à la fin d'une étape (l'étape en cours se termine) ; le plafond mémoire ne mesure pas les conteneurs.
 - **Paquets** : `~/.oh/bundles/` n'est pas purgé automatiquement (les paquets non utilisés restent sur le disque).

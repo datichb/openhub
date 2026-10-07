@@ -4,7 +4,7 @@
 
 ## Status
 
-Accepted
+Accepted — **Evolved by [ADR-050](050-session-context-capability.en.md)**
 
 ## Date
 

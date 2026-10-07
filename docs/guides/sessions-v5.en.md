@@ -96,6 +96,20 @@ The session detail shows the timeline: `✔ cp-1 10:03 → developer (3) → ⏸
 
 From the command line: `oh session approve <id>` validates (`--decision once`), `--decision fix -m "…"` or `--decision other -m "…"` refuses with an instruction, `--decision reject` refuses without one.
 
+## Session state
+
+oh keeps, for the entry agent of the session, a **session state** up to date (S8 study, [ADR-050](../architecture/adr/050-session-context-capability.en.md)):
+
+| Entry | Content | Update |
+|---|---|---|
+| `oh.checkpoints` | workflow, mode, checkpoints passed, current and next checkpoint, circuit breaker | at each transition |
+| `oh.budget` | session budget (raises included), spent, remaining | at the `$` decision and after a raise |
+| `oh.resume` | resume instruction | after `oh session resume` when the server restarted; removed after the next step |
+
+- An entry is written again only when its value changes: the tool announces each change at the next step, with a message in the session history.
+- **Subagents** do not receive this state (tool limit); they read the workflow state with the `workflow_status` tool.
+- When the tool cannot keep this state (capability missing, experimental API removed), the resume instruction is sent as an oh message, and the other entries stay readable with `workflow_status`.
+
 ## Notifications
 
 The oh daemon shows a system notification when a decision waits for you and when a session finishes its step while nobody is attached. Close notifications are grouped and never contain session content. With [`terminal-notifier`](https://github.com/julienXX/terminal-notifier) installed, a click brings oh's terminal back; otherwise oh uses `osascript` (or `notify-send` on Linux). To turn them off: `[session] notify = "off"` in `hub.toml` (applied when the daemon next starts).
@@ -137,7 +151,5 @@ Budgets are **soft caps**, checked on the cost reported by the tool: the step th
 - **Proxy port**: the daemon keeps its proxy port across restarts. If that port was taken by another program meanwhile, the daemon picks another one and puts to sleep the servers that still use the old one (they can no longer reach the provider); working sessions show an error in the inbox. Resume them (`oh session resume <id>` or attach): their server restarts with the new port.
 - **Local security**: the agent runs as your user and can reach the daemon socket and `oh.db` (token hashes only), but never the LLM key; new tokens are reserved to the oh CLI (capability in the keychain, see `oh doctor`). See [SECURITY.md](../../SECURITY.md).
 - **opencode 2.0.20**: a session shell does not receive the server environment (oh sets `PATH`, `HOME`… again in local mode); sub-agents do not receive the session environment (the daemon re-applies it to them); when a permission is refused, the agent does not see the refusal message (oh sends it the instruction separately).
-- **Soft restrictions**: the maximum number of active sessions can be exceeded by two simultaneous launches; a budget is checked at the end of a step (the current step finishes); the memory cap does not measure containers. A session created by `oh session fork` may count the cost of the copied history a second time.
-- **Raising a budget**: the Sessions view can only dismiss a `$` decision (`x`); to raise the budget, use `oh budget raise <session|decision> [amount]`.
-- **`attach = "iterm"` without iTerm2 installed**: `oh run` may open the client in the current terminal instead of falling back to Terminal.app; prefer `attach = "auto"` (or `oh session attach`, which falls back correctly).
+- **Soft restrictions**: the maximum number of active sessions can be exceeded by two simultaneous launches; a budget is checked at the end of a step (the current step finishes); the memory cap does not measure containers.
 - **Bundles**: `~/.oh/bundles/` is not purged automatically (unused bundles stay on disk).

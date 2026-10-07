@@ -227,6 +227,7 @@ Implementing and diagnosing are given to different agents (developer, debugger);
 | [047](./adr/047-session-interaction-daemon.en.md) | Session interaction, multi-session, `ohd` daemon | evolves 012 (automatic worktree) |
 | [048](./adr/048-opencode-v1-abandonment.en.md) | Dropping opencode V1 | deprecates 014 |
 | [049](./adr/049-tool-independence-architecture-guard.en.md) | Tool independence and architecture guard | evolves 038 |
+| [050](./adr/050-session-context-capability.en.md) | Evolving session state through an adapter capability | evolves 047 |
 
 All ADRs: [`docs/architecture/adr/`](./adr/).
 

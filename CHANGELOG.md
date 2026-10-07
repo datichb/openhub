@@ -136,6 +136,8 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ### Changed
 
+- **État de session pour l'agent d'entrée** (étude S8, ADR-050) : checkpoints passés et en cours (à chaque transition), budget restant (à la décision `$` et après un relèvement) et consigne de reprise (après `oh session resume`), tenus à jour par une capacité de l'adaptateur ; une entrée n'est réécrite qu'à son changement. Sans la capacité : consigne de reprise en message d'oh, le reste lisible avec `workflow_status`. Les sous-agents ne reçoivent pas cet état.
+
 - **Anciennes commandes de lancement** : toujours des alias de `oh run`, sans repli (workflow absent : erreur) ; `oh start --resume <id>` ouvre la session dans le terminal (`oh session attach --how here`) ; `oh takeover-brief enrich` et l'enrichissement de la TUI passent par `brief-enrich`.
 - Serveur MCP `team` : équipe de la session lue dans l'environnement de sa déclaration dans le paquet (`OH_TEAM_ID`), au lieu de `.opencode/team.json`.
 - `oh metrics`, tableau de bord, API et vue Métriques : statistiques tirées du registre des sessions d'oh (`oh.db`) au lieu de la base d'opencode V1.

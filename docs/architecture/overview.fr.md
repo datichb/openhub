@@ -227,6 +227,7 @@ Implémenter et diagnostiquer sont confiés à des agents différents (developer
 | [047](./adr/047-session-interaction-daemon.fr.md) | Interaction avec les sessions, multi-session, démon `ohd` | fait évoluer 012 (worktree automatique) |
 | [048](./adr/048-opencode-v1-abandonment.fr.md) | Abandon d'opencode V1 | déprécie 014 |
 | [049](./adr/049-tool-independence-architecture-guard.fr.md) | Indépendance vis-à-vis de l'outil et garde-fou d'architecture | fait évoluer 038 |
+| [050](./adr/050-session-context-capability.fr.md) | État de session évolutif par capacité de l'adaptateur | fait évoluer 047 |
 
 Tous les ADR : [`docs/architecture/adr/`](./adr/).
 

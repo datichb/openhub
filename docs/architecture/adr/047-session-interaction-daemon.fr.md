@@ -4,7 +4,7 @@
 
 ## Statut
 
-Accepté
+Accepté — **Évolué par [ADR-050](050-session-context-capability.fr.md)**
 
 ## Date
 
