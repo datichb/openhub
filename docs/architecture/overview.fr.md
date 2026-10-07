@@ -60,7 +60,7 @@ Un **groupe** = (version du paquet, projet, environnement d'exécution). Chaque 
 
 ### Adaptateur d'outil
 
-La logique reste dans `oh` ; un **adaptateur** par outil traduit un modèle neutre (`SessionSpec`, `BundleSpec`) dans le format de l'outil et pilote son serveur : `Render`, démarrage du serveur, création de session par l'API, `Attest`, événements, décisions, contrôle (interrompre, changer de modèle, compacter, fork), résultats, export/import. Seul l'adaptateur **opencode V2** existe (`internal/adapters/opencodev2`) ; opencode V1 n'est plus pris en charge. Aucun nom d'agent natif d'un outil n'apparaît hors de son adaptateur. Décisions : [ADR-038](./adr/038-sessionspec-tool-adapters.fr.md) (remplace l'[ADR-036](./adr/036-platform-abstraction-layer.fr.md)), [ADR-048](./adr/048-opencode-v1-abandonment.fr.md).
+La logique reste dans `oh` ; un **adaptateur** par outil traduit un modèle neutre (`SessionSpec`, `BundleSpec`) dans le format de l'outil et pilote son serveur : `Render`, démarrage du serveur, création de session par l'API, `Attest`, événements, décisions, contrôle (interrompre, changer de modèle, compacter, fork), résultats, export/import. Seul l'adaptateur **opencode V2** existe (`internal/adapters/opencodev2`) ; opencode V1 n'est plus pris en charge. Aucun nom d'agent natif d'un outil n'apparaît hors de son adaptateur. Décisions : [ADR-038](./adr/038-sessionspec-tool-adapters.fr.md) (remplace en partie l'[ADR-036](./adr/036-platform-abstraction-layer.fr.md)), [ADR-048](./adr/048-opencode-v1-abandonment.fr.md).
 
 ### Démon `ohd`
 
@@ -215,16 +215,16 @@ Implémenter et diagnostiquer sont confiés à des agents différents (developer
 
 | ADR | Décision | Remplace / fait évoluer |
 |---|---|---|
-| [038](./adr/038-sessionspec-tool-adapters.fr.md) | Modèle neutre `SessionSpec` et adaptateurs d'outil | remplace 036 |
+| [038](./adr/038-sessionspec-tool-adapters.fr.md) | Modèle neutre `SessionSpec` et adaptateurs d'outil | remplace en partie 036 (`platform` garde `Credentials` et `StatsProvider`) |
 | [039](./adr/039-declarative-workflows-oh-v1.fr.md) | Workflows déclaratifs `oh/v1` | remplace 006, 018 |
 | [040](./adr/040-workflows-team-state-governance.fr.md) | Workflows dans le team-state, gouvernance, espace solo | fait évoluer 024, 029, 033 |
 | [041](./adr/041-closed-world-isolation.fr.md) | Monde fermé et vérification d'isolation | fait évoluer 019 |
 | [042](./adr/042-checkpoints-headless-decisions.fr.md) | Checkpoints à trois niveaux et décisions sans interface | remplace 003 |
-| [043](./adr/043-session-bundle-deploy-removal.fr.md) | Paquet de session et suppression du déploiement par projet | remplace 011 ; fait évoluer 008, 010, 012, 016 |
-| [044](./adr/044-credential-proxy-session-limits.fr.md) | Proxy d'identifiants LLM et restrictions des sessions | fait évoluer 019, 021 |
+| [043](./adr/043-session-bundle-deploy-removal.fr.md) | Paquet de session et suppression du déploiement par projet | remplace 011 ; fait évoluer 008, 010 |
+| [044](./adr/044-credential-proxy-session-limits.fr.md) | Proxy d'identifiants LLM et restrictions des sessions | fait évoluer 019, 021, 033 |
 | [045](./adr/045-execution-environments.fr.md) | Environnements d'exécution : local, conteneur, distant | — |
 | [046](./adr/046-beads-gateways.fr.md) | Beads sur la machine et passerelles | — |
-| [047](./adr/047-session-interaction-daemon.fr.md) | Interaction avec les sessions, multi-session, démon `ohd` | — |
+| [047](./adr/047-session-interaction-daemon.fr.md) | Interaction avec les sessions, multi-session, démon `ohd` | fait évoluer 012 (worktree automatique) |
 | [048](./adr/048-opencode-v1-abandonment.fr.md) | Abandon d'opencode V1 | déprécie 014 |
 
 Tous les ADR : [`docs/architecture/adr/`](./adr/).

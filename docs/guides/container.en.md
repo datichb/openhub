@@ -22,7 +22,7 @@ TUI: **Project config › Execution**. The settings are stored in the oh databas
 |---|---|---|
 | Dev Dockerfile | Base image of the container. Path relative to the project or absolute. | Detected: `Dockerfile.dev`, `dev.Dockerfile`, `.devcontainer/Dockerfile`, `Dockerfile`. Without a file: oh image (`debian:bookworm-slim` + `git`, `ca-certificates`, `ripgrep`). |
 | Build args | Build arguments: `KEY=value, KEY2=value` | none |
-| Cache volumes | Persistent volumes, comma separated. A relative path applies to each mounted location (`node_modules`). An absolute path is a container path (`/root/.cache`). | none |
+| Cache volumes | Persistent volumes, comma separated. A relative path applies to each mounted location (`node_modules`); if it does not exist in the project, the engine creates an empty folder there on the machine (mount point). An absolute path is a container path (`/root/.cache`). | none |
 | Default workflow | Launched by `oh run` without argument. Shown first in « Start » (◆) and in the board actions. | none |
 | Default runtime | Preferred runtime of the project, used when the workflow allows it | Settings, then the workflow default |
 

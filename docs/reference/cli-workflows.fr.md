@@ -116,6 +116,8 @@ oh workflow new <id> [--layer team|project] [--extends <ref> | --copy <ref>] [--
 
 Crée votre brouillon : squelette vide (valide), patch d'un workflow (`--extends hub:ticket`) ou copie d'un document sous le nouvel identifiant (`--copy hub:review`, gabarit de prompt compris). Ouvre `$VISUAL`/`$EDITOR` (sinon `vi`), puis valide : en cas d'erreur, l'éditeur peut être rouvert, sinon le fichier modifié est conservé.
 
+> Limite : `--file` refuse un document dont `prompt.template` désigne un gabarit qui n'existe pas encore. Créez le brouillon sans `prompt:`, puis `oh workflow edit <id> --file <doc> --prompt-file <gabarit>` (ou l'éditeur de la TUI, touche `P`).
+
 | Flag | Type | Défaut | Description |
 |------|------|--------|-------------|
 | `--layer` | string | `team` | Couche du brouillon : `team` ou `project` |

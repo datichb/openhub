@@ -22,7 +22,7 @@ TUI : **Config projet › Exécution**. Les réglages sont enregistrés dans la 
 |---|---|---|
 | Dockerfile de dev | Image de base du conteneur. Chemin relatif au projet ou absolu. | Détecté : `Dockerfile.dev`, `dev.Dockerfile`, `.devcontainer/Dockerfile`, `Dockerfile`. Sans fichier : image oh (`debian:bookworm-slim` + `git`, `ca-certificates`, `ripgrep`). |
 | Build args | Arguments de construction : `CLÉ=valeur, CLÉ2=valeur` | aucun |
-| Volumes de cache | Volumes persistants, séparés par des virgules. Un chemin relatif s'applique à chaque emplacement monté (`node_modules`). Un chemin absolu est un chemin du conteneur (`/root/.cache`). | aucun |
+| Volumes de cache | Volumes persistants, séparés par des virgules. Un chemin relatif s'applique à chaque emplacement monté (`node_modules`) ; s'il n'existe pas dans le projet, le moteur crée un dossier vide à cet endroit sur la machine (point de montage). Un chemin absolu est un chemin du conteneur (`/root/.cache`). | aucun |
 | Workflow par défaut | Lancé par `oh run` sans argument. Apparaît en tête de « Démarrer » (◆) et des actions du board. | aucun |
 | Runtime par défaut | Runtime préféré du projet, utilisé si le workflow l'autorise | Réglages, puis défaut du workflow |
 

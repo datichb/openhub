@@ -60,7 +60,7 @@ A **group** = (bundle version, project, runtime). Each group has its own `openco
 
 ### Tool Adapter
 
-The logic stays in `oh`; one **adapter** per tool translates a neutral model (`SessionSpec`, `BundleSpec`) into the tool's format and drives its server: `Render`, server start, session creation through the API, `Attest`, events, decisions, control (interrupt, switch model, compact, fork), results, export/import. Only the **opencode V2** adapter exists (`internal/adapters/opencodev2`); opencode V1 is no longer supported. No native agent name of a tool appears outside its adapter. Decisions: [ADR-038](./adr/038-sessionspec-tool-adapters.en.md) (replaces [ADR-036](./adr/036-platform-abstraction-layer.en.md)), [ADR-048](./adr/048-opencode-v1-abandonment.en.md).
+The logic stays in `oh`; one **adapter** per tool translates a neutral model (`SessionSpec`, `BundleSpec`) into the tool's format and drives its server: `Render`, server start, session creation through the API, `Attest`, events, decisions, control (interrupt, switch model, compact, fork), results, export/import. Only the **opencode V2** adapter exists (`internal/adapters/opencodev2`); opencode V1 is no longer supported. No native agent name of a tool appears outside its adapter. Decisions: [ADR-038](./adr/038-sessionspec-tool-adapters.en.md) (partly replaces [ADR-036](./adr/036-platform-abstraction-layer.en.md)), [ADR-048](./adr/048-opencode-v1-abandonment.en.md).
 
 ### `ohd` Daemon
 
@@ -215,16 +215,16 @@ Implementing and diagnosing are given to different agents (developer, debugger);
 
 | ADR | Decision | Replaces / evolves |
 |---|---|---|
-| [038](./adr/038-sessionspec-tool-adapters.en.md) | Neutral `SessionSpec` model and tool adapters | replaces 036 |
+| [038](./adr/038-sessionspec-tool-adapters.en.md) | Neutral `SessionSpec` model and tool adapters | partly replaces 036 (`platform` keeps `Credentials` and `StatsProvider`) |
 | [039](./adr/039-declarative-workflows-oh-v1.en.md) | Declarative `oh/v1` workflows | replaces 006, 018 |
 | [040](./adr/040-workflows-team-state-governance.en.md) | Workflows in the team-state, governance, solo space | evolves 024, 029, 033 |
 | [041](./adr/041-closed-world-isolation.en.md) | Closed world and isolation check | evolves 019 |
 | [042](./adr/042-checkpoints-headless-decisions.en.md) | Three-level checkpoints and headless decisions | replaces 003 |
-| [043](./adr/043-session-bundle-deploy-removal.en.md) | Session bundle and removal of per-project deployment | replaces 011; evolves 008, 010, 012, 016 |
-| [044](./adr/044-credential-proxy-session-limits.en.md) | LLM credential proxy and session restrictions | evolves 019, 021 |
+| [043](./adr/043-session-bundle-deploy-removal.en.md) | Session bundle and removal of per-project deployment | replaces 011; evolves 008, 010 |
+| [044](./adr/044-credential-proxy-session-limits.en.md) | LLM credential proxy and session restrictions | evolves 019, 021, 033 |
 | [045](./adr/045-execution-environments.en.md) | Execution environments: local, container, remote | — |
 | [046](./adr/046-beads-gateways.en.md) | Beads on the machine and gateways | — |
-| [047](./adr/047-session-interaction-daemon.en.md) | Session interaction, multi-session, `ohd` daemon | — |
+| [047](./adr/047-session-interaction-daemon.en.md) | Session interaction, multi-session, `ohd` daemon | evolves 012 (automatic worktree) |
 | [048](./adr/048-opencode-v1-abandonment.en.md) | Dropping opencode V1 | deprecates 014 |
 
 All ADRs: [`docs/architecture/adr/`](./adr/).

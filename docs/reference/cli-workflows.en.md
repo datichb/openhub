@@ -116,6 +116,8 @@ oh workflow new <id> [--layer team|project] [--extends <ref> | --copy <ref>] [--
 
 Creates your draft: empty (valid) skeleton, patch of a workflow (`--extends hub:ticket`) or copy of a document under the new id (`--copy hub:review`, prompt template included). Opens `$VISUAL`/`$EDITOR` (else `vi`), then validates: on errors, the editor can be reopened, otherwise the edited file is kept.
 
+> Limitation: `--file` refuses a document whose `prompt.template` points to a template that does not exist yet. Create the draft without `prompt:`, then `oh workflow edit <id> --file <doc> --prompt-file <template>` (or the TUI editor, key `P`).
+
 | Flag | Type | Default | Description |
 |------|------|---------|-------------|
 | `--layer` | string | `team` | Draft layer: `team` or `project` |

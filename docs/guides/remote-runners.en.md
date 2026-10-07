@@ -4,6 +4,8 @@
 
 An oh session can run on a **GitLab CI runner** instead of your machine. This guide covers the setup: the runner, the central `oh-runner` project of a GitLab group, and `oh remote setup`. Remote execution is available on macOS and Linux; on Windows, oh stays local.
 
+> **v5.0:** remote execution is covered by tests (responder, machine ↔ job contract, journal replay, full local run of `oh runner run`), but has not yet been validated on a real runner. MCP servers that read a token from the machine keychain (gitlab, jira, figma…) are not available in the job (`workflow` is), and the build args of the Execution config are not passed to the remote image.
+
 ## How it works
 
 ```
