@@ -215,13 +215,16 @@ func TestQueuedSessionsStartWhenASlotFrees(t *testing.T) {
 	// The working session ends its turn: the interactive one goes first.
 	e.ad.set(func() { e.ad.active["ses_busy"] = false })
 	e.events <- adapters.ToolEvent{Kind: adapters.EventExecEnded, SessionID: "ses_busy", Outcome: "succeeded"}
-	require.Eventually(t, func() bool { p, ok := e.ad.prompt("ses_inter"); return ok && p == "go ses_inter" }, 3*time.Second, 20*time.Millisecond)
+	require.Eventually(t, func() bool { p, ok := e.ad.prompt("ses_inter"); return ok && p == "go ses_inter" }, 10*time.Second, 20*time.Millisecond)
+	// The prompt is sent before the queue entry is removed and the state
+	// updated (kept queued when sending fails): wait for both.
+	require.Eventually(t, func() bool {
+		_, queued, _ := limits.LoadQueued(e.dir, "ses_inter")
+		s, _ := e.sessions.Get(ctx, "ses_inter")
+		return !queued && s.State == domain.RunActive
+	}, 10*time.Second, 20*time.Millisecond)
 	_, sent = e.ad.prompt("ses_head")
 	assert.False(t, sent, "one slot only")
-	_, ok, _ := limits.LoadQueued(e.dir, "ses_inter")
-	assert.False(t, ok)
-	s, _ = e.sessions.Get(ctx, "ses_inter")
-	assert.Equal(t, domain.RunActive, s.State)
 }
 
 // Above the memory cap: queued sessions wait, an idle group sleeps.

@@ -14,6 +14,15 @@ import (
 // testBinary is the path to the compiled oh binary for integration tests.
 var testBinary string
 
+// gitTestConfig turns off the automatic maintenance of git in the tests.
+var gitTestConfig = map[string]string{
+	"GIT_CONFIG_COUNT":   "2",
+	"GIT_CONFIG_KEY_0":   "maintenance.auto",
+	"GIT_CONFIG_VALUE_0": "false",
+	"GIT_CONFIG_KEY_1":   "gc.auto",
+	"GIT_CONFIG_VALUE_1": "0",
+}
+
 func TestMain(m *testing.M) {
 	// Build the binary into a temp directory
 	tmpDir, err := os.MkdirTemp("", "oh-integration-*")
@@ -36,6 +45,12 @@ func TestMain(m *testing.M) {
 	}
 	defer os.RemoveAll(testHome)
 	os.Setenv("HOME", testHome)
+	// No background git maintenance (git pull/fetch start a detached
+	// `git maintenance run --auto` that keeps writing to .git/objects while
+	// t.TempDir is removed: flaky TestMigrateLegacyWorkflows).
+	for k, v := range gitTestConfig {
+		os.Setenv(k, v)
+	}
 
 	// Create minimal hub content structure so the init gate passes
 	hubDir := filepath.Join(testHome, ".oh", "hub")
@@ -77,6 +92,14 @@ func TestVersionOutput(t *testing.T) {
 	assert.Contains(t, stdout, "commit:")
 	assert.Contains(t, stdout, "go:")
 	assert.Contains(t, stdout, "os/arch:")
+}
+
+// QB6: git runs no background maintenance in the tests (temp dir cleanup).
+func TestGitMaintenanceIsOffInTests(t *testing.T) {
+	out, err := exec.Command("git", "config", "--get", "maintenance.auto").Output()
+	if err != nil || strings.TrimSpace(string(out)) != "false" {
+		t.Fatalf("maintenance.auto = %q (%v)", out, err)
+	}
 }
 
 func TestHelpOutput(t *testing.T) {
