@@ -19,8 +19,9 @@ inputs:
     required: true
     label: { fr: Brief existant, en: Existing brief }
     help:
-      fr: Contenu du brief de reprise (fourni par oh)
-      en: Content of the takeover brief (provided by oh)
+      fr: "Vide : le brief de reprise du ticket, lu dans l'espace d'équipe du projet"
+      en: "Empty: the takeover brief of the ticket, read from the team space of the project"
+    from: ticket.brief(ticket)
     max_length: 40000
 prompt:
   template: prompts/brief-enrich.md.tmpl

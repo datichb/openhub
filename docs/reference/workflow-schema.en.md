@@ -212,8 +212,31 @@ An input id follows `^[a-z][a-z0-9_]*$` (`input_id_invalid`); `oh` is reserved f
 - **`picker`**: `filter` (e.g. `ai-delegated`), `epic` (restrict to an epic), `multi` (several tickets). A `beads-id` input with `multi: true` gives **one session per ticket** (`--tickets a,b`); a `beads-ids` input receives the whole list in a single session.
 - **Checks**: an invalid Beads id, or a multi-line `path` / `branch`, is refused at render time. A value that does not match the type: `session_input_invalid`; an unknown input: `session_input_unknown`; an invalid default: `input_default_invalid`.
 - **Truncation** (O11): `string`, `text`, `path`, `branch` values are cut to `max_length` characters, with the note `[… tronqué : N caractères sur M]`.
-- **Computed inputs** (`from`, additive): `from: gitlab.mr_discussions(mr)` computes the input from the value of the `mr` input (sources: `gitlab.mr_discussions` (unresolved discussions), `gitlab.mr_source_branch`, `gitlab.mr_target_branch`; the MR is a URL, `!iid`, a number, a branch or a ticket). A value given at launch wins, then the computed value, then the default. When the computation fails, the launch is refused for an input without default; otherwise the default applies. The launch form does not ask for these inputs. Checks: `input_from_invalid`, `input_from_unknown_source`, `input_from_unknown_input`.
+- **Computed inputs** (`from`): see [below](#computed-inputs-from).
 - **Patch**: merged by id, field by field (`picker` too). An input cannot be removed.
+
+### Computed inputs (`from`)
+
+`from: <source>(<input>)` asks oh to compute the input at launch, from the value of another input of the same workflow:
+
+```yaml
+inputs:
+  mr: { type: string, required: true }
+  feedback: { type: text, required: true, from: mr.discussions(mr) }
+```
+
+| Source | Computes | Argument |
+|---|---|---|
+| `mr.discussions(mr)` | the unresolved discussions of the merge request | a merge request: URL, `!iid`, number, branch or ticket |
+| `mr.source_branch(mr)` | its branch | same |
+| `mr.target_branch(mr)` | its target branch | same |
+| `ticket.brief(ticket)` | the takeover brief of the ticket (the enriched version first) | a ticket id |
+
+- **Neutral names**: oh resolves a source with the forge of the project (GitLab today: `oh service setup` token, `tracker_project` project) or its team space; a workflow does not change with the forge. The list is closed, and open to every workflow (shipped, team, project).
+- **Priority**: a value given at launch wins, then the computed value, then the default.
+- **Failure**: when the computation fails, the launch is refused for an input without default; otherwise the default applies. The source is read once per launch.
+- The launch form does not ask for these inputs (they stay editable).
+- Checks: `input_from_invalid` (syntax), `input_from_unknown_source`, `input_from_unknown_input` (missing argument, or the input itself).
 
 ---
 

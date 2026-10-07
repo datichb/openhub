@@ -218,7 +218,7 @@ The developer agents only start after `cp-plan`. Default mode: `semi-auto`; circ
 
 ## `brief-enrich`
 
-Enriches a ticket takeover brief, without interaction (headless session: `oh run brief-enrich --headless`). oh provides the brief and saves the result. No Beads command (`beads.allow: []`).
+Enriches a ticket takeover brief, without interaction (headless session: `oh run brief-enrich --headless`). The `brief` input is read from the team space of the project (`from: ticket.brief(ticket)`): `oh run brief-enrich --headless -i ticket=<id>` is enough. `oh takeover-brief enrich` also saves the result. No Beads command (`beads.allow: []`).
 
 | Input | Type | Required | Purpose |
 |---|---|---|---|

@@ -21,7 +21,7 @@ inputs:
   branch:
     type: branch
     required: true
-    from: gitlab.mr_source_branch(mr)
+    from: mr.source_branch(mr)
     label: { fr: Branche, en: Branch }
     help:
       fr: Branche source de la MR (lue par oh au lancement si vide)
@@ -29,12 +29,12 @@ inputs:
   base:
     type: branch
     default: main
-    from: gitlab.mr_target_branch(mr)
+    from: mr.target_branch(mr)
     label: { fr: Branche cible, en: Target branch }
   feedback:
     type: text
     required: true
-    from: gitlab.mr_discussions(mr)
+    from: mr.discussions(mr)
     label: { fr: Commentaires de review, en: Review comments }
     help:
       fr: Discussions non résolues de la MR (récupérées par oh au lancement si vide)

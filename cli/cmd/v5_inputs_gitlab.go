@@ -22,9 +22,9 @@ type mrFeedback struct {
 	discussions []gitlabapi.Discussion
 }
 
-// gitlabInputSources are the GitLab sources of computed inputs (`from:`,
-// QB2): the merge request named by an input (URL, !iid, iid, branch or
-// ticket), read once per launch.
+// gitlabInputSources are the merge request sources of computed inputs
+// (`from:` mr.*) for a GitLab project: the merge request named by an input
+// (URL, !iid, iid, branch or ticket), read once per launch.
 func gitlabInputSources(a *app.App) map[string]workflowsvc.InputSource {
 	var (
 		mu    sync.Mutex
@@ -44,7 +44,7 @@ func gitlabInputSources(a *app.App) map[string]workflowsvc.InputSource {
 		return f, nil
 	}
 	return map[string]workflowsvc.InputSource{
-		"gitlab.mr_discussions": func(ctx context.Context, c workflowsvc.Context, ref string) (string, error) {
+		"mr.discussions": func(ctx context.Context, c workflowsvc.Context, ref string) (string, error) {
 			f, err := load(ctx, c, ref)
 			if err != nil {
 				return "", err
@@ -54,14 +54,14 @@ func gitlabInputSources(a *app.App) map[string]workflowsvc.InputSource {
 			}
 			return formatFeedbackDiscussions(f.discussions), nil
 		},
-		"gitlab.mr_source_branch": func(ctx context.Context, c workflowsvc.Context, ref string) (string, error) {
+		"mr.source_branch": func(ctx context.Context, c workflowsvc.Context, ref string) (string, error) {
 			f, err := load(ctx, c, ref)
 			if err != nil {
 				return "", err
 			}
 			return f.branch, nil
 		},
-		"gitlab.mr_target_branch": func(ctx context.Context, c workflowsvc.Context, ref string) (string, error) {
+		"mr.target_branch": func(ctx context.Context, c workflowsvc.Context, ref string) (string, error) {
 			f, err := load(ctx, c, ref)
 			if err != nil {
 				return "", err

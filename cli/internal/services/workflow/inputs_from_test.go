@@ -19,9 +19,9 @@ id: x
 risk: write
 inputs:
   mr: { type: string, required: true }
-  branch: { type: branch, required: true, from: "gitlab.mr_source_branch(mr)" }
-  base: { type: branch, default: main, from: "gitlab.mr_target_branch(mr)" }
-  feedback: { type: text, required: true, from: "gitlab.mr_discussions(mr)" }
+  branch: { type: branch, required: true, from: "mr.source_branch(mr)" }
+  base: { type: branch, default: main, from: "mr.target_branch(mr)" }
+  feedback: { type: text, required: true, from: "mr.discussions(mr)" }
 `)
 	var calls []string
 	src := func(name, out string, err error) InputSource {
@@ -31,9 +31,9 @@ inputs:
 		}
 	}
 	svc := &Service{InputSources: map[string]InputSource{
-		"gitlab.mr_source_branch": src("source", "feat/x", nil),
-		"gitlab.mr_target_branch": src("target", "develop", nil),
-		"gitlab.mr_discussions":   src("discussions", "--- Discussion 1 ---", nil),
+		"mr.source_branch": src("source", "feat/x", nil),
+		"mr.target_branch": src("target", "develop", nil),
+		"mr.discussions":   src("discussions", "--- Discussion 1 ---", nil),
 	}}
 	values := map[string]any{"mr": "!12", "branch": "given"}
 	require.NoError(t, svc.ComputeInputs(context.Background(), Context{ProjectID: "p"}, sp, values))
@@ -46,11 +46,11 @@ inputs:
 	assert.Empty(t, values)
 
 	// A failing source: error without default, default kept otherwise.
-	svc.InputSources["gitlab.mr_discussions"] = src("discussions", "", errors.New("no unresolved discussion"))
+	svc.InputSources["mr.discussions"] = src("discussions", "", errors.New("no unresolved discussion"))
 	err := svc.ComputeInputs(context.Background(), Context{}, sp, map[string]any{"mr": "!12"})
 	assert.ErrorContains(t, err, "no unresolved discussion")
-	svc.InputSources["gitlab.mr_discussions"] = src("discussions", "x", nil)
-	svc.InputSources["gitlab.mr_target_branch"] = src("target", "", errors.New("down"))
+	svc.InputSources["mr.discussions"] = src("discussions", "x", nil)
+	svc.InputSources["mr.target_branch"] = src("target", "", errors.New("down"))
 	values = map[string]any{"mr": "!12"}
 	require.NoError(t, svc.ComputeInputs(context.Background(), Context{}, sp, values))
 	assert.NotContains(t, values, "base", "the default applies")

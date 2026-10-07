@@ -965,11 +965,6 @@ func actionTeamRejoin() {
 func runTakeoverEnrich(a *app.App, project, ticketID string) error {
 	repo := teamstate.NewRepo(a.Config.ActiveTeam().StateRepo, a.Config.ActiveTeam().StatePath)
 
-	content, err := repo.ReadBrief(project, ticketID)
-	if err != nil {
-		return fmt.Errorf("reading brief: %w", err)
-	}
-
 	// Enriched by the brief-enrich workflow (headless session of the project).
 	var proj *domain.Project
 	if a.Projects != nil {
@@ -978,7 +973,7 @@ func runTakeoverEnrich(a *app.App, project, ticketID string) error {
 	if proj == nil {
 		return errors.New(i18n.T("cmd.run.no_project"))
 	}
-	enriched, err := runBriefEnrich(tuiShell.Context(), a, proj, ticketID, content, io.Discard)
+	enriched, err := runBriefEnrich(tuiShell.Context(), a, proj, ticketID, io.Discard)
 	if err != nil {
 		return fmt.Errorf("enrichment: %w", err)
 	}

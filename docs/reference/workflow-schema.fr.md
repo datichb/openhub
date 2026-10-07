@@ -212,8 +212,31 @@ L'id d'une entrée suit `^[a-z][a-z0-9_]*$` (`input_id_invalid`) ; `oh` est rés
 - **`picker`** : `filter` (ex. `ai-delegated`), `epic` (restreindre à une epic), `multi` (plusieurs tickets). Une entrée `beads-id` avec `multi: true` donne **une session par ticket** (`--tickets a,b`) ; une entrée `beads-ids` reçoit toute la liste dans une seule session.
 - **Contrôles** : un id Beads invalide, ou un `path` / `branch` sur plusieurs lignes, est refusé au rendu. Une valeur ne correspondant pas au type : `session_input_invalid` ; une entrée inconnue : `session_input_unknown` ; un défaut invalide : `input_default_invalid`.
 - **Troncature** (O11) : les valeurs `string`, `text`, `path`, `branch` sont coupées à `max_length` caractères, avec la mention `[… tronqué : N caractères sur M]`.
-- **Entrées calculées** (`from`, ajout additif) : `from: gitlab.mr_discussions(mr)` calcule l'entrée à partir de la valeur de l'entrée `mr` (sources : `gitlab.mr_discussions` (discussions non résolues), `gitlab.mr_source_branch`, `gitlab.mr_target_branch` ; la MR est une URL, `!iid`, un numéro, une branche ou un ticket). Une valeur donnée au lancement l'emporte, puis la valeur calculée, puis le défaut. Si le calcul échoue, le lancement est refusé pour une entrée sans défaut ; sinon le défaut s'applique. La fiche de lancement ne demande pas ces entrées. Contrôles : `input_from_invalid`, `input_from_unknown_source`, `input_from_unknown_input`.
+- **Entrées calculées** (`from`) : voir [ci-dessous](#entrées-calculées-from).
 - **Patch** : fusion par id, champ par champ (`picker` aussi). Une entrée ne peut pas être retirée.
+
+### Entrées calculées (`from`)
+
+`from: <source>(<entrée>)` demande à oh de calculer l'entrée au lancement, à partir de la valeur d'une autre entrée du même workflow :
+
+```yaml
+inputs:
+  mr: { type: string, required: true }
+  feedback: { type: text, required: true, from: mr.discussions(mr) }
+```
+
+| Source | Calcule | Argument |
+|---|---|---|
+| `mr.discussions(mr)` | les discussions non résolues de la merge request | une merge request : URL, `!iid`, numéro, branche ou ticket |
+| `mr.source_branch(mr)` | sa branche | idem |
+| `mr.target_branch(mr)` | sa branche cible | idem |
+| `ticket.brief(ticket)` | le brief de reprise du ticket (la version enrichie d'abord) | un id de ticket |
+
+- **Noms neutres** : oh résout une source avec la forge du projet (aujourd'hui GitLab : jeton `oh service setup`, projet `tracker_project`) ou son espace d'équipe ; un workflow n'a pas à changer selon la forge. La liste est fermée, et ouverte à tous les workflows (livrés, d'équipe, de projet).
+- **Priorité** : une valeur donnée au lancement l'emporte, puis la valeur calculée, puis le défaut.
+- **Échec** : si le calcul échoue, le lancement est refusé pour une entrée sans défaut ; sinon le défaut s'applique. La source est lue une seule fois par lancement.
+- La fiche de lancement ne demande pas ces entrées (elles restent modifiables).
+- Contrôles : `input_from_invalid` (syntaxe), `input_from_unknown_source`, `input_from_unknown_input` (argument absent, ou l'entrée elle-même).
 
 ---
 

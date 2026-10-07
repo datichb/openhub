@@ -187,14 +187,20 @@ type Input struct {
 	// MaxLength truncates the injected value (O11). 0 = adapter default.
 	MaxLength int `yaml:"max_length,omitempty"`
 	// From computes the value at launch when it is not given:
-	// "<source>(<input>)", e.g. "gitlab.mr_discussions(mr)" (additive, QB2;
+	// "<source>(<input>)", e.g. "mr.discussions(mr)" (additive, QB2;
 	// sources: InputSources).
 	From string `yaml:"from,omitempty"`
 }
 
 // InputSources are the sources of computed inputs (`from:`), computed by
-// oh at launch from another input.
-var InputSources = []string{"gitlab.mr_discussions", "gitlab.mr_source_branch", "gitlab.mr_target_branch"}
+// oh at launch from another input. The names are neutral: oh resolves them
+// with the forge or the team space of the project (a closed list, public
+// contract of the workflows; docs/reference/workflow-schema.*).
+//
+//   - mr.discussions(mr), mr.source_branch(mr), mr.target_branch(mr): a
+//     merge request (URL, !iid, number, branch or ticket);
+//   - ticket.brief(ticket): the takeover brief of a ticket (team space).
+var InputSources = []string{"mr.discussions", "mr.source_branch", "mr.target_branch", "ticket.brief"}
 
 var reInputFrom = regexp.MustCompile(`^([a-z][a-z0-9_.]*)\(([A-Za-z0-9_-]+)\)$`)
 

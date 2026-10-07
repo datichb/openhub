@@ -218,7 +218,7 @@ Les agents développeurs ne démarrent qu'après `cp-plan`. Mode par défaut : `
 
 ## `brief-enrich`
 
-Enrichit un brief de reprise de ticket, sans interaction (session sans interface : `oh run brief-enrich --headless`). oh fournit le brief et enregistre le résultat. Aucune commande Beads (`beads.allow: []`).
+Enrichit un brief de reprise de ticket, sans interaction (session sans interface : `oh run brief-enrich --headless`). L'entrée `brief` est lue dans l'espace d'équipe du projet (`from: ticket.brief(ticket)`) : `oh run brief-enrich --headless -i ticket=<id>` suffit. `oh takeover-brief enrich` enregistre en plus le résultat. Aucune commande Beads (`beads.allow: []`).
 
 | Entrée | Type | Obligatoire | Rôle |
 |---|---|---|---|

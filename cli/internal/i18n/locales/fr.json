@@ -3915,5 +3915,7 @@
   "cmd.root.flags.log-format": "Format des journaux : pretty (défaut) ou json",
   "cmd.root.flags.no-tui": "Désactiver l'interface riche (questions en ligne seulement)",
   "cmd.session.open.unsupported": "%s ne permet pas d'ouvrir une session dans le navigateur",
-  "cmd.session.resume.context": "La session a été reprise après une mise en veille (son serveur a redémarré) : reprends l'étape en cours là où tu t'étais arrêté."
+  "cmd.session.resume.context": "La session a été reprise après une mise en veille (son serveur a redémarré) : reprends l'étape en cours là où tu t'étais arrêté.",
+  "cmd.workflow.input.no_team_space": "Pas d'espace d'équipe pour ce projet : le brief de reprise ne peut pas être lu",
+  "cmd.workflow.input.no_brief": "Aucun brief de reprise pour %s/%s : effectuez d'abord un transfert"
 }

@@ -250,7 +250,7 @@ func resolveLaunch(ctx context.Context, a *app.App, opts *runOptions, errOut io.
 	}
 	// Inputs computed by oh (`from:`, e.g. the discussions of a merge
 	// request) when they are not given.
-	wsvc.InputSources = gitlabInputSources(a)
+	wsvc.InputSources = inputSources(a)
 	if err := wsvc.ComputeInputs(ctx, workflowsvc.Context{ProjectID: opts.Project.ID}, probe.Spec, inputs); err != nil {
 		return nil, "", nil, err
 	}
