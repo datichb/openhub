@@ -3058,7 +3058,7 @@
   "tui.notify.mixed": "%d decisions waiting · %d turns finished",
   "tui.sessions.title": "Sessions",
   "tui.sessions.desc": "v5 sessions: to handle, running, sleeping, finished",
-  "tui.sessions.hints": "Enter decide/follow · y approve · n reject · a attach · A open with… · t follow · m instruction · i interrupt · M model · s stop · c resume · e chain · o MR · w browser · g fetch · x dismiss · f filter · r refresh",
+  "tui.sessions.hints": "Enter decide/follow · y approve · n reject · a attach · A open with… · t follow · m instruction · i interrupt · M model · s stop · c resume · e chain · o MR · w browser · g fetch · $ raise the budget · x dismiss · f filter · r refresh",
   "tui.sessions.loading": "Loading sessions…",
   "tui.sessions.section.inbox": "To handle (%d)",
   "tui.sessions.section.running": "Running (%d)",
@@ -3808,5 +3808,7 @@
   "tui.worktree.no_merged": "No merged worktree to remove",
   "tui.worktree.cleanup_partial": "%d worktree(s) removed, %d skipped (uncommitted changes)",
   "tui.worktree.cleanup_done": "%d merged worktree(s) removed",
-  "cmd.run.warn.volume_mount_point": "Container volume “%s”: %s does not exist, the engine creates it empty in the project as the mount point (its content stays in the volume)"
+  "cmd.run.warn.volume_mount_point": "Container volume “%s”: %s does not exist, the engine creates it empty in the project as the mount point (its content stays in the volume)",
+  "tui.inbox.raise": "Raise the budget",
+  "tui.sessions.raise_title": "Raise the budget: amount in USD (empty = overrun + configured budget)"
 }

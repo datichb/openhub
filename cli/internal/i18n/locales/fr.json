@@ -3058,7 +3058,7 @@
   "tui.notify.mixed": "%d décisions en attente · %d étapes terminées",
   "tui.sessions.title": "Sessions",
   "tui.sessions.desc": "Sessions v5 : à traiter, en cours, en veille, terminées",
-  "tui.sessions.hints": "Enter décider/suivre · y valider · n refuser · a attacher · A ouvrir avec… · t suivre · m consigne · i interr. · M modèle · s arrêter · c reprendre · e enchaîner · o MR · w navigateur · g récupérer · x classer · f filtre · r rafraîchir",
+  "tui.sessions.hints": "Enter décider/suivre · y valider · n refuser · a attacher · A ouvrir avec… · t suivre · m consigne · i interr. · M modèle · s arrêter · c reprendre · e enchaîner · o MR · w navigateur · g récupérer · $ relever le budget · x classer · f filtre · r rafraîchir",
   "tui.sessions.loading": "Chargement des sessions…",
   "tui.sessions.section.inbox": "À traiter (%d)",
   "tui.sessions.section.running": "En cours (%d)",
@@ -3808,5 +3808,7 @@
   "tui.worktree.no_merged": "Aucun worktree fusionné à supprimer",
   "tui.worktree.cleanup_partial": "%d worktree(s) supprimé(s), %d ignoré(s) (modifications non commitées)",
   "tui.worktree.cleanup_done": "%d worktree(s) fusionné(s) supprimé(s)",
-  "cmd.run.warn.volume_mount_point": "Volume du conteneur « %s » : %s n'existe pas, le moteur le crée vide dans le projet comme point de montage (son contenu reste dans le volume)"
+  "cmd.run.warn.volume_mount_point": "Volume du conteneur « %s » : %s n'existe pas, le moteur le crée vide dans le projet comme point de montage (son contenu reste dans le volume)",
+  "tui.inbox.raise": "Relever le budget",
+  "tui.sessions.raise_title": "Relever le budget : montant en USD (vide = dépassement + budget configuré)"
 }

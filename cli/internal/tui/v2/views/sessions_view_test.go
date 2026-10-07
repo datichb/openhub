@@ -11,6 +11,8 @@ import (
 	"github.com/rivo/tview"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/datichb/openhub/cli/internal/i18n"
 )
 
 type fakeSessions struct {
@@ -29,9 +31,13 @@ func (f *fakeSessions) Changes(ctx context.Context) <-chan struct{} { return mak
 func (f *fakeSessions) Follow(context.Context, string) (<-chan SessionFeedLine, error) {
 	return f.follow, nil
 }
-func (f *fakeSessions) Decide(_ context.Context, id, choice, _ string, _ map[string]string) error {
+func (f *fakeSessions) Decide(_ context.Context, id, choice, message string, _ map[string]string) error {
 	f.mu.Lock()
-	f.decided = append(f.decided, id+"="+choice)
+	entry := id + "=" + choice
+	if message != "" {
+		entry += ":" + message
+	}
+	f.decided = append(f.decided, entry)
 	f.mu.Unlock()
 	return nil
 }
@@ -241,4 +247,37 @@ func TestLandingsShowSessions(t *testing.T) {
 	}
 	assert.True(t, found)
 	assert.Equal(t, []SessionsScope{{ProjectID: "p1"}, {TeamID: "core"}}, scopes)
+}
+
+// A budget decision is raised from the view ($ or the card button), as
+// `oh budget raise` (v5 finalisation, Q3-5).
+func TestSessionsViewRaiseBudget(t *testing.T) {
+	now := time.Now()
+	rows := []SessionRow{{ID: "ses_a", Agent: "developer", State: "waiting", Started: now,
+		Decisions: []SessionDecision{{ID: "budget:ses_a:1", SessionID: "ses_a", Kind: DecisionKindBudget, Icon: "$", Summary: "budget dépassé", Created: now}}}}
+	be := &fakeSessions{rows: rows}
+	v := NewSessionsView(SessionsViewConfig{Backend: be})
+	sh := &formShell{}
+	v.SetShell(sh)
+	v.Mount(tview.NewFlex(), tview.NewApplication())
+	v.rows = rows
+	v.render()
+
+	_, d := v.selected()
+	require.NotNil(t, d)
+	assert.Nil(t, v.HandleKey(tcell.NewEventKey(tcell.KeyRune, '$', 0)))
+	require.NotNil(t, sh.input, "amount asked")
+	sh.input(" 5 ")
+	require.Eventually(t, func() bool { return len(be.decisions()) == 1 }, time.Second, 10*time.Millisecond)
+	assert.Equal(t, "budget:ses_a:1=raise:5", be.decisions()[0])
+
+	sh.input = nil
+	v.openDecision(v.row("ses_a"), d)
+	require.NotEmpty(t, sh.modal)
+	assert.Equal(t, i18n.T("tui.inbox.raise"), sh.modal[0].Label)
+	sh.modal[0].Callback()
+	require.NotNil(t, sh.input)
+	sh.input("")
+	require.Eventually(t, func() bool { return len(be.decisions()) == 2 }, time.Second, 10*time.Millisecond)
+	assert.Equal(t, "budget:ses_a:1=raise", be.decisions()[1], "empty amount: default raise")
 }
