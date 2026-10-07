@@ -17,6 +17,9 @@ import (
 	"github.com/datichb/openhub/cli/internal/mcp/protocol"
 )
 
+// EnvWriteEnabled enables the write tools of the server when set to "true".
+const EnvWriteEnabled = "GITLAB_WRITE_ENABLED"
+
 // Serve starts the GitLab MCP server.
 func Serve() error {
 	server := protocol.NewServer("gitlab-mcp", "2.0.0")
@@ -97,7 +100,7 @@ func Serve() error {
 
 // isWriteEnabled checks if write operations are enabled via environment variable.
 func isWriteEnabled() bool {
-	return os.Getenv("GITLAB_WRITE_ENABLED") == "true"
+	return os.Getenv(EnvWriteEnabled) == "true"
 }
 
 func handleGetProject(_ context.Context, params json.RawMessage) (*protocol.ToolResult, error) {

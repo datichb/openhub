@@ -18,6 +18,9 @@ import (
 	"github.com/datichb/openhub/cli/internal/mcp/protocol"
 )
 
+// EnvWriteEnabled enables the write tools of the server when set to "true".
+const EnvWriteEnabled = "GITHUB_WRITE_ENABLED"
+
 const (
 	githubAPIBase   = "https://api.github.com"
 	maxResponseSize = 2 * 1024 * 1024 // 2 MB
@@ -125,7 +128,7 @@ func Serve() error {
 	}, handleGetWorkflowRun)
 
 	// Write tools (opt-in)
-	if os.Getenv("GITHUB_WRITE_ENABLED") == "true" {
+	if os.Getenv(EnvWriteEnabled) == "true" {
 		server.RegisterTool(protocol.Tool{
 			Name:        "github_create_issue",
 			Description: "Create a new issue",

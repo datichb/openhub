@@ -10,6 +10,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/datichb/openhub/cli/internal/mcp/github"
+	"github.com/datichb/openhub/cli/internal/mcp/gitlab"
+	"github.com/datichb/openhub/cli/internal/mcp/jira"
+	"github.com/datichb/openhub/cli/internal/mcp/linear"
 	"github.com/datichb/openhub/cli/internal/mcp/team"
 
 	"github.com/datichb/openhub/cli/internal/app"
@@ -216,6 +220,31 @@ func modelOverridesFor(a *app.App, project *domain.Project) (hub, proj *bricks.M
 	return hub, proj
 }
 
+// mcpWriteEnv is the variable that enables the write tools of each oh MCP
+// server (servers without write tools have none).
+var mcpWriteEnv = map[string]string{
+	"gitlab": gitlab.EnvWriteEnabled,
+	"github": github.EnvWriteEnabled,
+	"jira":   jira.EnvWriteEnabled,
+	"linear": linear.EnvWriteEnabled,
+}
+
+// sessionMCPEnv returns the environment of an oh MCP server: its write
+// switch (only for a server that has one), its URL and its own variables.
+func sessionMCPEnv(s bricks.MCPServerDef) map[string]string {
+	env := map[string]string{}
+	if v := mcpWriteEnv[s.Name]; v != "" && s.WriteEnabled {
+		env[v] = "true"
+	}
+	if s.URL != "" {
+		env[strings.ToUpper(s.Name)+"_URL"] = s.URL
+	}
+	for k, v := range s.Environment {
+		env[k] = v
+	}
+	return env
+}
+
 // sessionMCP converts the project MCP cascade into bundle MCP servers
 // (`oh mcp serve <name>` reads its token from the host secret store).
 func sessionMCP(a *app.App, project *domain.Project, teamCfg config.ResolvedTeamConfig) []sessionspec.MCPServerDef {
@@ -232,16 +261,7 @@ func sessionMCP(a *app.App, project *domain.Project, teamCfg config.ResolvedTeam
 		if s.TokenKey != "" {
 			cmd = append(cmd, "--token-key", s.TokenKey)
 		}
-		env := map[string]string{}
-		if s.WriteEnabled {
-			env["GITLAB_WRITE_ENABLED"] = "true"
-		}
-		if s.URL != "" {
-			env[strings.ToUpper(s.Name)+"_URL"] = s.URL
-		}
-		for k, v := range s.Environment {
-			env[k] = v
-		}
+		env := sessionMCPEnv(s)
 		if s.Name == "team" {
 			// The team server reads the team of the session project from its
 			// environment (P3-T29; formerly .opencode/team.json of `oh deploy`).

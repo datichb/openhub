@@ -17,6 +17,9 @@ import (
 	"github.com/datichb/openhub/cli/internal/mcp/protocol"
 )
 
+// EnvWriteEnabled enables the write tools of the server when set to "true".
+const EnvWriteEnabled = "JIRA_WRITE_ENABLED"
+
 const maxResponseSize = 2 * 1024 * 1024 // 2 MB
 
 var httpClient = httplog.Wrap(&http.Client{Timeout: 30 * time.Second}, "mcp.jira")
@@ -74,7 +77,7 @@ func Serve() error {
 		},
 	}, handleListComments)
 
-	if os.Getenv("JIRA_WRITE_ENABLED") == "true" {
+	if os.Getenv(EnvWriteEnabled) == "true" {
 		server.RegisterTool(protocol.Tool{
 			Name:        "jira_transition_issue",
 			Description: "Transition a Jira issue to a new status",

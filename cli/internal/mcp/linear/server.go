@@ -17,6 +17,9 @@ import (
 	"github.com/datichb/openhub/cli/internal/mcp/protocol"
 )
 
+// EnvWriteEnabled enables the write tools of the server when set to "true".
+const EnvWriteEnabled = "LINEAR_WRITE_ENABLED"
+
 const (
 	linearAPIURL    = "https://api.linear.app/graphql"
 	maxResponseSize = 2 * 1024 * 1024 // 2 MB
@@ -54,7 +57,7 @@ func Serve() error {
 		},
 	}, handleGetIssue)
 
-	if os.Getenv("LINEAR_WRITE_ENABLED") == "true" {
+	if os.Getenv(EnvWriteEnabled) == "true" {
 		server.RegisterTool(protocol.Tool{
 			Name:        "linear_create_issue",
 			Description: "Create a new Linear issue",
