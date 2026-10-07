@@ -286,7 +286,7 @@ Fuzzy matching on names and aliases:
 
 | Command | Description |
 |---------|-------------|
-| `run <workflow>` | launch form of a catalogue workflow. Aliases: `dev` → `run ticket`, `start` → `run feature`, `onboard` → `run onboarding`, `feedback` → `run review-feedback`, `secu`/`perf`/`archi` → `run audit`, `rev` → `run review`, `dbg` → `run debug`, `q` → `run quick` |
+| `run <workflow>` | launch form of a catalogue workflow. Aliases: `dev` → `run ticket`, `start` → `run feature`, `onboard` → `run onboarding`, `feedback` → `run review-feedback`, `secu`/`perf`/`archi` → `run audit`, `rev` → `run review`, `dbg` → `run debug`, `fast` → `run quick` |
 | `run <workflow> ⟨bd-42⟩` | from a board: workflow on the selected ticket |
 | `coder` | Free session (`libre` workflow, agent of your choice) — Project and Team modes |
 | `sessions` | Sessions view (aliases `parallel`, `inbox`) |

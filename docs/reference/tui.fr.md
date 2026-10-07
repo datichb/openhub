@@ -91,14 +91,14 @@ Accepte la saisie avec suggestions fuzzy au-dessus :
 
 ## Commandes disponibles
 
-La colonne Commande donne le libellé affiché ; on peut aussi taper un alias. « Projet » : seulement en mode Projet ; « Équipe » : seulement en mode Équipe ; « Projet/Équipe » : dans les deux ; sinon partout.
+La colonne Commande donne le libellé affiché ; on peut aussi taper un alias. Chaque alias n'a qu'un sens (`q` : quitter, `hub` : mode Hub, `tokens` : secrets, `team config` : configurer l'équipe du projet, `libre` : `run libre`). « Projet » : seulement en mode Projet ; « Équipe » : seulement en mode Équipe ; « Projet/Équipe » : dans les deux ; sinon partout.
 
 ### Workflows et sessions
 
 | Commande | Alias | Mode | Description |
 |----------|-------|------|-------------|
-| `run <workflow>` | l'id du workflow ; anciens noms : `dev`, `start.dev` → `ticket` · `start`, `orchestrator` → `feature` · `q`, `fast` → `quick` · `secu`, `security`, `perf`, `archi`, `a11y` → `audit` · `rev`, `cr` → `review` · `dbg`, `debugger`, `diag` → `debug` · `onboard`, `start.onboard` → `onboarding` · `feedback`, `rf`, `retours` → `review-feedback` | — | Fiche de lancement du workflow (une commande par workflow du catalogue) |
-| Session libre | `coder`, session, code, free, libre | Projet/Équipe | Fiche de lancement du workflow `libre` (agent d'entrée au choix, par défaut `orchestrator`) |
+| `run <workflow>` | l'id du workflow ; anciens noms : `dev`, `start.dev` → `ticket` · `start`, `orchestrator` → `feature` · `fast` → `quick` · `secu`, `security`, `perf`, `archi`, `a11y` → `audit` · `rev`, `cr` → `review` · `dbg`, `debugger`, `diag` → `debug` · `onboard`, `start.onboard` → `onboarding` · `feedback`, `rf`, `retours` → `review-feedback` | — | Fiche de lancement du workflow (une commande par workflow du catalogue) |
+| Session libre | `coder`, session, code, free | Projet/Équipe | Fiche de lancement du workflow `libre` (agent d'entrée au choix, par défaut `orchestrator`) |
 | Sessions | `sessions`, parallel, par, multi, inbox, à traiter, decisions | — | Vue Sessions |
 | Workflows | `workflows`, catalogue, catalog, wf, workflow | — | Catalogue des workflows (brouillons, publication, historique) |
 | Briques | `bricks`, briques, agents, skills, catalogue des briques | — | Catalogue des briques (agents et skills : origine, coût, workflows) |
@@ -171,14 +171,14 @@ Sections : **À traiter** (décisions en attente), **En cours**, **En veille**, 
 
 | Commande | Alias | Mode | Description |
 |----------|-------|------|-------------|
-| Settings | `settings`, config, cfg, hub, hub config | — | Réglages du hub |
+| Settings | `settings`, config, cfg, hub config | — | Réglages du hub |
 | Config Projet | `project-config`, config projet, project config | Projet | Configuration du projet (dont Exécution) |
 | Models | `models`, mod, model, llm | — | Modèles |
 | Provider | `provider`, prov, api | — | Fournisseur LLM |
 | MCP | `mcp`, servers | — | Serveurs MCP |
 | Secrets & Tokens | `secrets`, tokens, credentials, keychain | — | Secrets du trousseau |
 | Équipes | `teams`, team, equipe, equipes | — | Liste des équipes |
-| Configuration équipe | `team-detail`, tracker, sync, team config, team detail | Équipe | Détail et configuration de l'équipe |
+| Configuration équipe | `team-detail`, tracker, sync, team detail | Équipe | Détail et configuration de l'équipe |
 | Discover Tracker | `team.discover`, tracker discovery, discover, configurer tracker | Équipe | Configurer les colonnes du board depuis le tracker |
 | Configurer le hub | `init`, setup, reconfigure, configurer | — | Assistant de configuration (premier lancement) |
 
@@ -192,7 +192,7 @@ Sections : **À traiter** (décisions en attente), **En cours**, **En veille**, 
 |----------|-------|-------------|
 | Statut | `status`, stat, info | État du système |
 | Doctor | `doctor`, doc, health, check | Diagnostic de santé |
-| Métriques | `metrics`, met, stats, tokens | Statistiques d'usage |
+| Métriques | `metrics`, met, stats, usage | Statistiques d'usage |
 | Notifications | `notifications`, notif, logs, messages, toasts, erreurs | Historique des notifications |
 | Nettoyer les anciens déploiements | `cleanup`, deploy-cleanup, nettoyage, migrate | Écran de nettoyage (`oh migrate deploy-cleanup`) |
 | Export historique / Import historique | `history.export`, `history.import` (export history, import history…) | Export / import de l'historique des sessions |

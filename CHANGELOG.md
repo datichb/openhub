@@ -182,6 +182,14 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 - `code_mode` et `modes.allowed` sont des champs de sécurité : une couche qui étend un workflow ne peut plus activer le code mode ni ajouter un mode (`loosening`) ; le résumé d'impact compte tout mode ajouté comme un assouplissement.
 - Serveurs MCP en écriture : chaque serveur reçoit sa propre variable (`GITLAB_`, `GITHUB_`, `JIRA_`, `LINEAR_WRITE_ENABLED`) au lieu de `GITLAB_WRITE_ENABLED` pour tous ; les serveurs sans outil d'écriture n'en reçoivent pas.
 - `oh doctor` sort avec le code 1 quand une vérification échoue (les avertissements ne comptent pas) ; `oh beads` transmet le code de sortie de `bd`.
+- Modèles recommandés par l'équipe (`[models]` du `config.toml` du team-state) : appliqués au lancement, après le hub (ils n'avaient aucun effet).
+- Tableau par agent de `oh metrics`, `oh serve` et de la vue Métriques : de nouveau alimenté, par le démon (une ligne par agent d'une session, agent d'entrée et sous-agents : statut, durée, tokens, coût, skills chargées).
+- `oh run review-feedback -i mr=<url|!iid|branche>` lit lui-même la MR sur GitLab (branche, branche cible, discussions non résolues), comme `oh review feedback` : nouvelles entrées calculées `from:` du schéma `oh/v1` (ajout additif).
+- Tickets d'équipe : tout lancement d'un workflow sur des tickets réserve chaque ticket ou le fait passer de « planifié » au statut de travail (seul `oh start --dev` le faisait).
+- Patch `entry.selectable` écrit seul : il change le choix de l'agent en gardant l'agent d'entrée du parent (il était sans effet).
+- Détail d'équipe : « Sessions parallèles max » (`[parallel]`, sans effet en v5) n'est plus modifiable ; les restrictions des sessions sont `[limits]` (`oh budget`).
+- `oh mcp setup <service>` configure le service nommé (l'argument était ignoré ; `jira` ajouté, mode écriture proposé à chaque service qui en a un) ; `oh mcp list` liste tous les serveurs MCP d'oh (figma, github, gitlab, gslides, jira, linear, team, serveurs personnalisés).
+- Omnibar : chaque alias n'a plus qu'un sens (`q` = quitter, `hub` = mode Hub, `tokens` = secrets, `team config` = configurer l'équipe, `libre` = `run libre`).
 
 ### Security
 

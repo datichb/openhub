@@ -91,14 +91,14 @@ Accepts input with fuzzy suggestions above:
 
 ## Available Commands
 
-The Command column gives the displayed label; an alias can be typed too. "Project": Project mode only; "Team": Team mode only; "Project/Team": both; otherwise everywhere.
+The Command column gives the displayed label; an alias can be typed too. Each alias has a single meaning (`q`: quit, `hub`: Hub mode, `tokens`: secrets, `team config`: configure the project's team, `libre`: `run libre`). "Project": Project mode only; "Team": Team mode only; "Project/Team": both; otherwise everywhere.
 
 ### Workflows and sessions
 
 | Command | Aliases | Mode | Description |
 |---------|---------|------|-------------|
-| `run <workflow>` | the workflow id; former names: `dev`, `start.dev` → `ticket` · `start`, `orchestrator` → `feature` · `q`, `fast` → `quick` · `secu`, `security`, `perf`, `archi`, `a11y` → `audit` · `rev`, `cr` → `review` · `dbg`, `debugger`, `diag` → `debug` · `onboard`, `start.onboard` → `onboarding` · `feedback`, `rf`, `retours` → `review-feedback` | — | Launch form of the workflow (one command per workflow of the catalogue) |
-| Free session | `coder`, session, code, free, libre | Project/Team | Launch form of the `libre` workflow (entry agent of your choice, `orchestrator` by default) |
+| `run <workflow>` | the workflow id; former names: `dev`, `start.dev` → `ticket` · `start`, `orchestrator` → `feature` · `fast` → `quick` · `secu`, `security`, `perf`, `archi`, `a11y` → `audit` · `rev`, `cr` → `review` · `dbg`, `debugger`, `diag` → `debug` · `onboard`, `start.onboard` → `onboarding` · `feedback`, `rf`, `retours` → `review-feedback` | — | Launch form of the workflow (one command per workflow of the catalogue) |
+| Free session | `coder`, session, code, free | Project/Team | Launch form of the `libre` workflow (entry agent of your choice, `orchestrator` by default) |
 | Sessions | `sessions`, parallel, par, multi, inbox, à traiter, decisions | — | Sessions view |
 | Workflows | `workflows`, catalogue, catalog, wf, workflow | — | Workflow catalogue (drafts, publication, history) |
 | Bricks | `bricks`, briques, agents, skills, catalogue des briques | — | Brick catalogue (agents and skills: origin, cost, workflows) |
@@ -171,14 +171,14 @@ Sections: **To handle** (pending decisions), **Running**, **Sleeping**, **Finish
 
 | Command | Aliases | Mode | Description |
 |---------|---------|------|-------------|
-| Settings | `settings`, config, cfg, hub, hub config | — | Hub settings |
+| Settings | `settings`, config, cfg, hub config | — | Hub settings |
 | Project Config | `project-config`, config projet, project config | Project | Project configuration (including Execution) |
 | Models | `models`, mod, model, llm | — | Models |
 | Provider | `provider`, prov, api | — | LLM provider |
 | MCP | `mcp`, servers | — | MCP servers |
 | Secrets & Tokens | `secrets`, tokens, credentials, keychain | — | Keychain secrets |
 | Teams | `teams`, team, equipe, equipes | — | Team list |
-| Team Configuration | `team-detail`, tracker, sync, team config, team detail | Team | Team detail and configuration |
+| Team Configuration | `team-detail`, tracker, sync, team detail | Team | Team detail and configuration |
 | Discover Tracker | `team.discover`, tracker discovery, discover, configurer tracker | Team | Configure the board columns from the tracker |
 | Configure hub | `init`, setup, reconfigure, configurer | — | Setup wizard (first run) |
 
@@ -192,7 +192,7 @@ Sections: **To handle** (pending decisions), **Running**, **Sleeping**, **Finish
 |---------|---------|-------------|
 | Status | `status`, stat, info | System status |
 | Doctor | `doctor`, doc, health, check | Health check |
-| Metrics | `metrics`, met, stats, tokens | Usage statistics |
+| Metrics | `metrics`, met, stats, usage | Usage statistics |
 | Notifications | `notifications`, notif, logs, messages, toasts, erreurs | Notification history |
 | Clean the former deployments | `cleanup`, deploy-cleanup, nettoyage, migrate | Cleanup screen (`oh migrate deploy-cleanup`) |
 | History Export / History Import | `history.export`, `history.import` (export history, import history…) | Export / import of the session history |
