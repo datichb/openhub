@@ -3810,5 +3810,7 @@
   "tui.worktree.cleanup_done": "%d merged worktree(s) removed",
   "cmd.run.warn.volume_mount_point": "Container volume “%s”: %s does not exist, the engine creates it empty in the project as the mount point (its content stays in the volume)",
   "tui.inbox.raise": "Raise the budget",
-  "tui.sessions.raise_title": "Raise the budget: amount in USD (empty = overrun + configured budget)"
+  "tui.sessions.raise_title": "Raise the budget: amount in USD (empty = overrun + configured budget)",
+  "cmd.workflow.new.flags.prompt_file": "Prompt template of the draft (with --file: otherwise a starter template is created)",
+  "cmd.workflow.new.starter_prompt": "Starter template created (mode, language, one line per input): oh workflow edit <id> --prompt to complete it"
 }

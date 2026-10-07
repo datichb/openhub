@@ -3810,5 +3810,7 @@
   "tui.worktree.cleanup_done": "%d worktree(s) fusionné(s) supprimé(s)",
   "cmd.run.warn.volume_mount_point": "Volume du conteneur « %s » : %s n'existe pas, le moteur le crée vide dans le projet comme point de montage (son contenu reste dans le volume)",
   "tui.inbox.raise": "Relever le budget",
-  "tui.sessions.raise_title": "Relever le budget : montant en USD (vide = dépassement + budget configuré)"
+  "tui.sessions.raise_title": "Relever le budget : montant en USD (vide = dépassement + budget configuré)",
+  "cmd.workflow.new.flags.prompt_file": "Gabarit du prompt du brouillon (avec --file : à défaut, un gabarit de départ est créé)",
+  "cmd.workflow.new.starter_prompt": "Gabarit de départ créé (mode, langue, une ligne par entrée) : oh workflow edit <id> --prompt pour le compléter"
 }
