@@ -51,6 +51,12 @@ func (s *Service) ForkSession(ctx context.Context, sessionID string) (string, er
 	}
 	now := time.Now()
 	child.StateChangedAt = &now
+	// Before the oh session exists: the daemon does not account it earlier.
+	if s.SessionsDir != "" {
+		if err := s.saveForkBaseline(ctx, srv, id); err != nil {
+			slog.Warn("runsvc: usage baseline of the forked session not saved", "session", id, "error", err)
+		}
+	}
 	if s.Sessions != nil {
 		if err := s.Sessions.Create(ctx, child); err != nil {
 			return id, fmt.Errorf("tracking the forked session: %w", err)
@@ -94,4 +100,28 @@ func (s *Service) snapshotResults(ctx context.Context, srv *domain.Server, sessi
 		return
 	}
 	_ = sessionresults.Save(s.SessionsDir, res, time.Now())
+}
+
+// usageReader reads the usage of a tool session without its results (git…).
+type usageReader interface {
+	Usage(ctx context.Context, h adapters.ServerHandle, sessionID string) (adapters.SessionResult, error)
+}
+
+// saveForkBaseline records what the forked session reports before it does
+// anything: the copied history and its cost, already in the ledger under
+// the parent (v5 finalisation, Q3-6).
+func (s *Service) saveForkBaseline(ctx context.Context, srv *domain.Server, id string) error {
+	var (
+		res adapters.SessionResult
+		err error
+	)
+	if u, ok := s.Adapter.(usageReader); ok {
+		res, err = u.Usage(ctx, handle(srv), id)
+	} else {
+		res, err = s.Adapter.Results(ctx, handle(srv), id)
+	}
+	if err != nil {
+		return err
+	}
+	return limits.SaveBaseline(s.SessionsDir, id, limits.UsageBaseline{CostUSD: res.Cost, TokensIn: res.TokensIn, TokensOut: res.TokensOut})
 }

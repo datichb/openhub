@@ -50,20 +50,26 @@ func (w *watcher) account(ctx context.Context, root, toolSession string, res ada
 		if err != nil {
 			return
 		}
-		prev = adapters.SessionResult{Cost: tot.CostUSD, TokensIn: tot.TokensIn, TokensOut: tot.TokensOut}
+		// A fork reports the copied history from the start: only what it
+		// spends above that baseline is its own.
+		base := limits.LoadBaseline(w.d.opts.SessionsDir, toolSession)
+		prev = adapters.SessionResult{Cost: tot.CostUSD + base.CostUSD, TokensIn: tot.TokensIn + base.TokensIn, TokensOut: tot.TokensOut + base.TokensOut}
 	}
 	d := domain.SessionUsage{Day: domain.UsageDay(time.Now()), SessionID: toolSession, RootID: root,
 		ProjectID: w.srv.ProjectID, GroupKey: w.srv.GroupKey,
 		CostUSD: math.Max(0, res.Cost-prev.Cost), TokensIn: max(0, res.TokensIn-prev.TokensIn), TokensOut: max(0, res.TokensOut-prev.TokensOut)}
+	// What is accounted never goes below the baseline: a fork read before
+	// its copied history shows keeps it.
+	seen := adapters.SessionResult{Cost: math.Max(res.Cost, prev.Cost), TokensIn: max(res.TokensIn, prev.TokensIn), TokensOut: max(res.TokensOut, prev.TokensOut)}
 	if d.CostUSD == 0 && d.TokensIn == 0 && d.TokensOut == 0 {
-		l.last[toolSession] = res
+		l.last[toolSession] = seen
 		return
 	}
 	if err := store.AddSession(ctx, d); err != nil {
 		slog.Debug("ohd: usage not recorded", "session", toolSession, "error", err)
 		return
 	}
-	l.last[toolSession] = res
+	l.last[toolSession] = seen
 }
 
 // accountChild reads and records the usage of a subagent session.
