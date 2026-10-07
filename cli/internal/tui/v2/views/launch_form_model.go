@@ -124,7 +124,7 @@ func (m *launchModel) inputLabel(k string) string {
 	if l == "" {
 		l = k
 	}
-	if in.Required && in.Default == nil {
+	if in.Required && in.Default == nil && in.From == "" {
 		l += " *"
 	}
 	return l
@@ -135,8 +135,8 @@ func (m *launchModel) validate() []string {
 	var out []string
 	for _, k := range m.spec.Inputs.Keys() {
 		in, _ := m.spec.Inputs.Get(k)
-		if !in.Required || in.Default != nil {
-			continue
+		if !in.Required || in.Default != nil || in.From != "" {
+			continue // optional, defaulted, or computed by oh at launch
 		}
 		if k == m.ticketInput {
 			if len(m.tickets) == 0 {

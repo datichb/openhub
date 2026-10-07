@@ -482,3 +482,20 @@ func TestResolve_CodeModeAndModesHardeningOnly(t *testing.T) {
 }
 
 func codeMode(s *Spec) bool { return s.CodeMode != nil && *s.CodeMode }
+
+// QB2: a patch writing only entry.selectable keeps the parent's entry agent
+// and changes the flag (it had no effect).
+func TestResolve_EntrySelectableAlone(t *testing.T) {
+	cat := catalogOf(t, map[string]string{
+		"hub:ticket":  hubTicket,
+		"team:ticket": "apiVersion: oh/v1\nkind: Workflow\nid: ticket\nextends: hub:ticket\nentry: { selectable: true }\n",
+	})
+	r := resolveOK(t, cat, "team:ticket")
+	if r.Spec.Entry == nil || r.Spec.Entry.Agent != "orchestrator-dev" || !r.Spec.Entry.Selectable {
+		t.Fatalf("entry = %+v", r.Spec.Entry)
+	}
+	hub := resolveOK(t, cat, "hub:ticket")
+	if hub.Spec.Entry.Selectable {
+		t.Fatal("the parent spec must not be modified")
+	}
+}

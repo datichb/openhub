@@ -160,14 +160,14 @@ Publishing a merge request (`oh review --publish`) is not a workflow: it remains
 
 ## `review-feedback`
 
-Applies the unresolved comments of a merge request. `oh review feedback <ticket|branch>` fetches the discussions from GitLab, then launches this workflow with them in the `feedback` input; with `oh run review-feedback`, provide the input yourself (`-i feedback=…`).
+Applies the unresolved comments of a merge request. `oh run review-feedback -i mr=<url|!iid|branch>` is enough: oh reads the MR on GitLab at launch and computes the inputs left empty (`branch`, `base`, `feedback`: `from:` inputs, see the [schema](workflow-schema.en.md#inputs-inputs)). `oh review feedback <ticket|branch>` first shows a preview of the discussions and asks for confirmation. Without unresolved discussions, the launch is refused.
 
 | Input | Type | Required | Purpose |
 |---|---|---|---|
 | `mr` | `string` (500 characters max) | yes | URL or reference of the MR |
-| `branch` | `branch` | yes | Branch of the MR |
-| `base` | `branch` (default: `main`) | no | Target branch |
-| `feedback` | `text` (70,000 characters max) | yes | Unresolved discussions |
+| `branch` | `branch` | yes (computed) | Branch of the MR; empty: source branch of the MR |
+| `base` | `branch` (default: `main`) | no | Target branch; empty: target branch of the MR |
+| `feedback` | `text` (70,000 characters max) | yes (computed) | Unresolved discussions; empty: read on GitLab |
 
 | Checkpoint | manuel | semi-auto | auto |
 |---|---|---|---|

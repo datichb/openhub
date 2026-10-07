@@ -157,7 +157,7 @@ limits:
 - L'agent d'entrée doit être **primaire** (`entry_not_primary`) et, s'il est listé dans `agents`, avoir le rôle `workflow` (`entry_role`). Il ne peut pas être retiré par patch (`entry_disabled`).
 - `conductor` : agent générique sans écriture ni shell, qui suit la carte du workflow générée et délègue.
 - `selectable: true` : l'agent d'entrée se choisit au lancement (`oh run libre --agent debugger`). Les membres sont alors calculés : l'agent choisi et ceux qu'il peut appeler (permission `task` du catalogue, de proche en proche) ; `agents:` est recalculé de la même façon pour l'agent par défaut. Sur un workflow sans `selectable`, `--agent` est refusé (`session_entry_not_selectable`).
-- Patch : le bloc `entry` est remplacé quand `entry.agent` est écrit (ou `entry: null`) ; écrire `entry.selectable` seul n'a pas d'effet.
+- Patch : le bloc `entry` est remplacé quand `entry.agent` est écrit (ou `entry: null`) ; `entry.selectable` écrit seul change le choix de l'agent et garde l'agent d'entrée du parent.
 
 ### `modes`
 
@@ -195,6 +195,7 @@ L'id d'une entrée suit `^[a-z][a-z0-9_]*$` (`input_id_invalid`) ; `oh` est rés
 | `values` | liste | — | choix d'un `enum` (obligatoire pour `enum`, ignoré sinon) |
 | `picker` | table | — | sélecteur de tickets (`beads-id`, `beads-ids` seulement) |
 | `max_length` | entier ≥ 0 | `0` = 20 000 caractères | troncature de la valeur injectée |
+| `from` | `source(entrée)` | — | valeur calculée par oh au lancement quand elle n'est pas donnée (voir ci-dessous) |
 
 | Type | Valeur | Dans le prompt |
 |---|---|---|
@@ -211,6 +212,7 @@ L'id d'une entrée suit `^[a-z][a-z0-9_]*$` (`input_id_invalid`) ; `oh` est rés
 - **`picker`** : `filter` (ex. `ai-delegated`), `epic` (restreindre à une epic), `multi` (plusieurs tickets). Une entrée `beads-id` avec `multi: true` donne **une session par ticket** (`--tickets a,b`) ; une entrée `beads-ids` reçoit toute la liste dans une seule session.
 - **Contrôles** : un id Beads invalide, ou un `path` / `branch` sur plusieurs lignes, est refusé au rendu. Une valeur ne correspondant pas au type : `session_input_invalid` ; une entrée inconnue : `session_input_unknown` ; un défaut invalide : `input_default_invalid`.
 - **Troncature** (O11) : les valeurs `string`, `text`, `path`, `branch` sont coupées à `max_length` caractères, avec la mention `[… tronqué : N caractères sur M]`.
+- **Entrées calculées** (`from`, ajout additif) : `from: gitlab.mr_discussions(mr)` calcule l'entrée à partir de la valeur de l'entrée `mr` (sources : `gitlab.mr_discussions` (discussions non résolues), `gitlab.mr_source_branch`, `gitlab.mr_target_branch` ; la MR est une URL, `!iid`, un numéro, une branche ou un ticket). Une valeur donnée au lancement l'emporte, puis la valeur calculée, puis le défaut. Si le calcul échoue, le lancement est refusé pour une entrée sans défaut ; sinon le défaut s'applique. La fiche de lancement ne demande pas ces entrées. Contrôles : `input_from_invalid`, `input_from_unknown_source`, `input_from_unknown_input`.
 - **Patch** : fusion par id, champ par champ (`picker` aussi). Une entrée ne peut pas être retirée.
 
 ---

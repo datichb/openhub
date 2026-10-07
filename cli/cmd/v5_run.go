@@ -246,6 +246,12 @@ func resolveLaunch(ctx context.Context, a *app.App, opts *runOptions, errOut io.
 			inputs[ticketInput] = opts.Tickets[0]
 		}
 	}
+	// Inputs computed by oh (`from:`, e.g. the discussions of a merge
+	// request) when they are not given.
+	wsvc.InputSources = gitlabInputSources(a)
+	if err := wsvc.ComputeInputs(ctx, workflowsvc.Context{ProjectID: opts.Project.ID}, probe.Spec, inputs); err != nil {
+		return nil, "", nil, err
+	}
 	res, err = resolve(ctx, workflowsvc.Context{ProjectID: opts.Project.ID}, opts.Workflow, workflowsvc.ResolveOpts{
 		Session: &workflow.SessionOptions{Mode: opts.Mode, Runtime: workflow.Runtime(opts.Runtime), Inputs: inputs, EntryAgent: opts.Agent}})
 	if err != nil {

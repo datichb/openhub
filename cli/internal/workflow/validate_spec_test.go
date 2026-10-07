@@ -118,6 +118,11 @@ func TestValidate_Rules(t *testing.T) {
 		{"bool default", "risk: write\ninputs:\n  a: { type: bool, default: maybe }\n", "input_default_invalid", "inputs.a.default", SeverityError},
 		{"default self ref", "risk: write\ninputs:\n  a: { type: string, default: \"{{ .a }}\" }\n", "prompt_unknown_variable", "inputs.a.default", SeverityError},
 		{"negative max length", "risk: write\ninputs:\n  a: { type: text, max_length: -1 }\n", "negative_value", "inputs.a.max_length", SeverityError},
+		// computed inputs (QB2)
+		{"from form", "risk: write\ninputs:\n  a: { type: text, from: gitlab.mr_discussions }\n", "input_from_invalid", "inputs.a.from", SeverityError},
+		{"from source", "risk: write\ninputs:\n  mr: { type: string }\n  a: { type: text, from: \"jira.issue(mr)\" }\n", "input_from_unknown_source", "inputs.a.from", SeverityError},
+		{"from input", "risk: write\ninputs:\n  a: { type: text, from: \"gitlab.mr_discussions(mr)\" }\n", "input_from_unknown_input", "inputs.a.from", SeverityError},
+		{"from self", "risk: write\ninputs:\n  a: { type: text, from: \"gitlab.mr_discussions(a)\" }\n", "input_from_unknown_input", "inputs.a.from", SeverityError},
 		// prompt
 		{"prompt both", "risk: write\nprompt: { text: a, template: b.tmpl }\n", "prompt_both", "prompt", SeverityError},
 		{"prompt empty", "risk: write\nprompt: {}\n", "prompt_empty", "prompt", SeverityError},

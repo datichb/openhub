@@ -160,14 +160,14 @@ La publication d'une MR (`oh review --publish`) n'est pas un workflow : elle res
 
 ## `review-feedback`
 
-Applique les commentaires non résolus d'une merge request. `oh review feedback <ticket|branche>` récupère les discussions sur GitLab puis lance ce workflow en les passant dans l'entrée `feedback` ; avec `oh run review-feedback`, fournissez l'entrée vous-même (`-i feedback=…`).
+Applique les commentaires non résolus d'une merge request. `oh run review-feedback -i mr=<url|!iid|branche>` suffit : oh lit la MR sur GitLab au lancement et calcule les entrées laissées vides (`branch`, `base`, `feedback` : entrées `from:`, voir le [schéma](workflow-schema.fr.md#entrées-inputs)). `oh review feedback <ticket|branche>` affiche d'abord un aperçu des discussions et demande confirmation. Sans discussion non résolue, le lancement est refusé.
 
 | Entrée | Type | Obligatoire | Rôle |
 |---|---|---|---|
 | `mr` | `string` (500 caractères max) | oui | URL ou référence de la MR |
-| `branch` | `branch` | oui | Branche de la MR |
-| `base` | `branch` (défaut : `main`) | non | Branche cible |
-| `feedback` | `text` (70 000 caractères max) | oui | Discussions non résolues |
+| `branch` | `branch` | oui (calculée) | Branche de la MR ; vide : branche source de la MR |
+| `base` | `branch` (défaut : `main`) | non | Branche cible ; vide : branche cible de la MR |
+| `feedback` | `text` (70 000 caractères max) | oui (calculée) | Discussions non résolues ; vide : lues sur GitLab |
 
 | Checkpoint | manuel | semi-auto | auto |
 |---|---|---|---|

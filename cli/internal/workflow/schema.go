@@ -1,6 +1,8 @@
 package workflow
 
 import (
+	"regexp"
+
 	"gopkg.in/yaml.v3"
 )
 
@@ -184,6 +186,25 @@ type Input struct {
 	Picker *Picker `yaml:"picker,omitempty"`
 	// MaxLength truncates the injected value (O11). 0 = adapter default.
 	MaxLength int `yaml:"max_length,omitempty"`
+	// From computes the value at launch when it is not given:
+	// "<source>(<input>)", e.g. "gitlab.mr_discussions(mr)" (additive, QB2;
+	// sources: InputSources).
+	From string `yaml:"from,omitempty"`
+}
+
+// InputSources are the sources of computed inputs (`from:`), computed by
+// oh at launch from another input.
+var InputSources = []string{"gitlab.mr_discussions", "gitlab.mr_source_branch", "gitlab.mr_target_branch"}
+
+var reInputFrom = regexp.MustCompile(`^([a-z][a-z0-9_.]*)\(([A-Za-z0-9_-]+)\)$`)
+
+// ParseFrom splits a `from:` value into its source and argument input.
+func ParseFrom(from string) (source, input string, ok bool) {
+	m := reInputFrom.FindStringSubmatch(from)
+	if m == nil {
+		return "", "", false
+	}
+	return m[1], m[2], true
 }
 
 // Picker configures ticket selection.

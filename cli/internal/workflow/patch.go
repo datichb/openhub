@@ -85,8 +85,17 @@ func (p *patcher) apply() {
 			d.CodeMode = s.CodeMode
 		}
 	}
-	if p.has("entry.agent") || (p.has("entry") && s.Entry == nil) {
+	switch {
+	case p.has("entry.agent") || (p.has("entry") && s.Entry == nil):
 		d.Entry = s.Entry
+	case p.has("entry.selectable"):
+		// selectable alone keeps the parent's entry agent.
+		e := Entry{}
+		if d.Entry != nil {
+			e = *d.Entry
+		}
+		e.Selectable = s.Entry.Selectable
+		d.Entry = &e
 	}
 	p.inputs()
 	if p.has("prompt") {
@@ -197,6 +206,9 @@ func (p *patcher) inputs() {
 		}
 		if h("max_length") {
 			old.MaxLength = v.MaxLength
+		}
+		if h("from") {
+			old.From = v.From
 		}
 		if h("picker") {
 			switch {

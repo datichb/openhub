@@ -37,6 +37,9 @@ type Service struct {
 	// BricksCacheDir holds the hub merged with team catalogues (bricks.go);
 	// empty: <HubDir>/../cache/bricks.
 	BricksCacheDir string
+	// InputSources compute the inputs declared with `from:` at launch, by
+	// source name (wf.InputSources); a missing source is not computed.
+	InputSources map[string]InputSource
 }
 
 // Context is the scope a workflow is listed or resolved in. The project and

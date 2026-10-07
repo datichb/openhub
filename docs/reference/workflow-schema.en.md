@@ -157,7 +157,7 @@ limits:
 - The entry agent must be **primary** (`entry_not_primary`) and, when listed in `agents`, have the `workflow` role (`entry_role`). It cannot be removed by a patch (`entry_disabled`).
 - `conductor`: generic agent without write or shell, which follows the generated workflow map and delegates.
 - `selectable: true`: the entry agent is chosen at launch (`oh run libre --agent debugger`). Members are then computed: the chosen agent and those it may call (`task` permission of the catalogue, step by step); `agents:` is computed the same way for the default agent. On a workflow without `selectable`, `--agent` is refused (`session_entry_not_selectable`).
-- Patch: the `entry` block is replaced when `entry.agent` is written (or `entry: null`); writing `entry.selectable` alone has no effect.
+- Patch: the `entry` block is replaced when `entry.agent` is written (or `entry: null`); `entry.selectable` written alone changes the agent choice and keeps the parent's entry agent.
 
 ### `modes`
 
@@ -195,6 +195,7 @@ An input id follows `^[a-z][a-z0-9_]*$` (`input_id_invalid`); `oh` is reserved f
 | `values` | list | — | choices of an `enum` (required for `enum`, ignored otherwise) |
 | `picker` | table | — | ticket picker (`beads-id`, `beads-ids` only) |
 | `max_length` | integer ≥ 0 | `0` = 20,000 characters | truncation of the injected value |
+| `from` | `source(input)` | — | value computed by oh at launch when it is not given (see below) |
 
 | Type | Value | In the prompt |
 |---|---|---|
@@ -211,6 +212,7 @@ An input id follows `^[a-z][a-z0-9_]*$` (`input_id_invalid`); `oh` is reserved f
 - **`picker`**: `filter` (e.g. `ai-delegated`), `epic` (restrict to an epic), `multi` (several tickets). A `beads-id` input with `multi: true` gives **one session per ticket** (`--tickets a,b`); a `beads-ids` input receives the whole list in a single session.
 - **Checks**: an invalid Beads id, or a multi-line `path` / `branch`, is refused at render time. A value that does not match the type: `session_input_invalid`; an unknown input: `session_input_unknown`; an invalid default: `input_default_invalid`.
 - **Truncation** (O11): `string`, `text`, `path`, `branch` values are cut to `max_length` characters, with the note `[… tronqué : N caractères sur M]`.
+- **Computed inputs** (`from`, additive): `from: gitlab.mr_discussions(mr)` computes the input from the value of the `mr` input (sources: `gitlab.mr_discussions` (unresolved discussions), `gitlab.mr_source_branch`, `gitlab.mr_target_branch`; the MR is a URL, `!iid`, a number, a branch or a ticket). A value given at launch wins, then the computed value, then the default. When the computation fails, the launch is refused for an input without default; otherwise the default applies. The launch form does not ask for these inputs. Checks: `input_from_invalid`, `input_from_unknown_source`, `input_from_unknown_input`.
 - **Patch**: merged by id, field by field (`picker` too). An input cannot be removed.
 
 ---

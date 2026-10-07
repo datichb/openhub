@@ -10,7 +10,6 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/gitlabapi"
-	"github.com/datichb/openhub/cli/internal/gitutil"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
@@ -95,11 +94,10 @@ func runReviewFeedback(cmd *cobra.Command, args []string) error {
 	if err := requireV2(ctx); err != nil {
 		return err
 	}
-	prompt := buildFeedbackPrompt(mr, branch, discussions)
-	// The workflow receives the gathered feedback as its free text input (MR,
-	// branch and discussions are read here, on the machine).
+	// The workflow computes its branch, target branch and feedback from the
+	// merge request (`from:`), as for `oh run review-feedback -i mr=<url>`.
 	return runAlias(cmd, workflowAlias{Old: "oh review feedback", Workflow: "review-feedback",
-		Opts: runOptions{Project: project, Text: prompt, LooseInputs: map[string]string{"branch": branch, "mr": mr.WebURL}}})
+		Opts: runOptions{Project: project, LooseInputs: map[string]string{"mr": mr.WebURL}}})
 }
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
@@ -207,31 +205,14 @@ const (
 	maxNoteBodyChars       = 2000
 )
 
-// buildFeedbackPrompt constructs the prompt for the feedback correction session.
-func buildFeedbackPrompt(mr *gitlabapi.MRInfo, branch string, discussions []gitlabapi.Discussion) string {
-	baseBranch := mr.TargetBranch
-	if baseBranch == "" {
-		baseBranch = gitutil.DetectBaseBranch(".", "")
-	}
-
+// formatFeedbackDiscussions renders the unresolved discussions of a merge
+// request: the `feedback` input of the review-feedback workflow (its prompt
+// template gives the branch, the MR and the steps).
+func formatFeedbackDiscussions(discussions []gitlabapi.Discussion) string {
 	var sb strings.Builder
-	sb.WriteString("[MODE:feedback] ")
-	sb.WriteString("[SKILL:orchestrator/orchestrator-dev-feedback-mode] ")
-	sb.WriteString(fmt.Sprintf("[BRANCH:%s] [BASE:%s] ", branch, baseBranch))
-	sb.WriteString("\n\n")
-
-	sb.WriteString("Tu dois traiter le feedback de review reçu sur cette MR.\n\n")
-	sb.WriteString(fmt.Sprintf("MR: %s\n", mr.WebURL))
-	sb.WriteString(fmt.Sprintf("Titre: %s\n", mr.Title))
-	sb.WriteString(fmt.Sprintf("Branche: %s → %s\n\n", branch, baseBranch))
-
 	total := len(discussions)
-	shown := total
-	if shown > maxFeedbackDiscussions {
-		shown = maxFeedbackDiscussions
-	}
-	sb.WriteString(fmt.Sprintf("Commentaires de review non résolus (%d):\n\n", total))
-
+	shown := min(total, maxFeedbackDiscussions)
+	fmt.Fprintf(&sb, "Commentaires de review non résolus (%d):\n\n", total)
 	for i, d := range discussions[:shown] {
 		if len(d.Notes) == 0 {
 			continue
@@ -242,35 +223,21 @@ func buildFeedbackPrompt(mr *gitlabapi.MRInfo, branch string, discussions []gitl
 		if n.Position != nil && n.Position.NewPath != "" {
 			fmt.Fprintf(&sb, "Fichier: %s:%d\n", n.Position.NewPath, n.Position.NewLine)
 		}
-		body := n.Body
-		if len(body) > maxNoteBodyChars {
-			body = body[:maxNoteBodyChars] + "... [truncated]"
-		}
-		fmt.Fprintf(&sb, "Commentaire:\n%s\n", body)
-
-		// Include replies for context.
-		if len(d.Notes) > 1 {
-			for _, reply := range d.Notes[1:] {
-				replyBody := reply.Body
-				if len(replyBody) > maxNoteBodyChars {
-					replyBody = replyBody[:maxNoteBodyChars] + "... [truncated]"
-				}
-				fmt.Fprintf(&sb, "  ↳ @%s: %s\n", reply.Author.Username, replyBody)
-			}
+		fmt.Fprintf(&sb, "Commentaire:\n%s\n", clipNote(n.Body))
+		for _, reply := range d.Notes[1:] { // replies, for context
+			fmt.Fprintf(&sb, "  ↳ @%s: %s\n", reply.Author.Username, clipNote(reply.Body))
 		}
 		sb.WriteString("\n")
 	}
-
 	if total > shown {
-		fmt.Fprintf(&sb, "... et %d discussions supplémentaires non affichées.\n\n", total-shown)
+		fmt.Fprintf(&sb, "... et %d discussions supplémentaires non affichées.\n", total-shown)
 	}
-
-	sb.WriteString("Workflow:\n")
-	sb.WriteString("1. Lis chaque commentaire de review\n")
-	sb.WriteString("2. Pour chaque commentaire, applique la correction demandée\n")
-	sb.WriteString("3. Vérifie que les tests passent après les corrections\n")
-	sb.WriteString("4. Fais un commit groupé (message: fix(review): address reviewer feedback)\n")
-	sb.WriteString("5. Si l'outil gitlab_reply_to_mr_discussion est disponible, poste une réponse sur chaque thread résolu\n")
-
 	return sb.String()
+}
+
+func clipNote(body string) string {
+	if len(body) > maxNoteBodyChars {
+		return body[:maxNoteBodyChars] + "... [truncated]"
+	}
+	return body
 }
