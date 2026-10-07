@@ -15,9 +15,13 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/datichb/openhub/cli/internal/adapters"
 	"github.com/datichb/openhub/cli/internal/adapters/opencodev2"
 	"github.com/datichb/openhub/cli/internal/domain"
+	"github.com/datichb/openhub/cli/internal/limits"
+	sessionsvc "github.com/datichb/openhub/cli/internal/services/session"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
+	"github.com/datichb/openhub/cli/internal/storage/sqlite"
 )
 
 func bedrockKey(t *testing.T) string {
@@ -115,4 +119,68 @@ func TestE2ESubagentGetsSessionEnvironment(t *testing.T) {
 	data, err := os.ReadFile(out)
 	require.NoError(t, err, "the helper did not run the command")
 	assert.Equal(t, "VAL=inherited SID="+r.SessionID, strings.TrimSpace(string(data)))
+}
+
+// I6 session budget with a real model (v5 finalisation, Q4: the e2e R4 did
+// not run): the turn that spends the budget ends, a $ decision is raised
+// with the spent amount; a turn started while it is open is interrupted;
+// once raised, the session answers again.
+func TestE2ESessionBudget(t *testing.T) {
+	key := bedrockKey(t)
+	f := newFixture(t, mapSecrets{"openhub.team.core.provider.bedrock.token": key})
+	req := f.request("Say hello in three words.")
+	req.TeamID = "core"
+	req.ProviderCfg.AWSRegion = "eu-west-1"
+	req.Limits = limits.Resolve(limits.Input{Workflow: limits.Limits{SessionBudgetUSD: 0.000001}, ProjectID: "p1"})
+
+	ctx, cancel := context.WithTimeout(context.Background(), 4*time.Minute)
+	defer cancel()
+	r, err := f.svc.StartSession(ctx, req)
+	require.NoError(t, err)
+	c := opencodev2.NewClient(r.Server.URL, r.Server.Password)
+	require.NoError(t, c.Wait(ctx, r.SessionID))
+
+	decisions := sqlite.NewDecisionStore(f.store)
+	usage := sqlite.NewUsageStore(f.store)
+	var dec domain.Decision
+	require.Eventually(t, func() bool {
+		open, err := decisions.ListOpen(ctx, domain.DecisionFilter{SessionID: r.SessionID})
+		if err != nil {
+			return false
+		}
+		for _, d := range open {
+			if d.Kind == domain.DecisionBudget {
+				dec = d
+				return true
+			}
+		}
+		return false
+	}, 30*time.Second, 200*time.Millisecond, "budget decision raised after the turn")
+	spent, _ := dec.Payload.Data[limits.DataBudgetSpent].(float64)
+	assert.Greater(t, spent, 0.0, "spent amount in the decision")
+	tot, err := usage.SessionTotal(ctx, r.SessionID)
+	require.NoError(t, err)
+	assert.InDelta(t, spent, tot.CostUSD, 1e-9, "ledger = what the decision reports")
+
+	// While the decision is open, a new turn is interrupted.
+	before := tot.TokensOut
+	require.NoError(t, f.adapter.SendPrompt(ctx, adapters.ServerHandle{URL: r.Server.URL, Password: r.Server.Password, PID: r.Server.PID}, r.SessionID, "Write a 300-word story about a lighthouse."))
+	require.NoError(t, c.Wait(ctx, r.SessionID))
+	time.Sleep(2 * time.Second)
+	held, err := usage.SessionTotal(ctx, r.SessionID)
+	require.NoError(t, err)
+	assert.Less(t, held.TokensOut-before, int64(300), "the story was cut short (interrupted)")
+
+	// Raise by $1, as `oh budget raise`: the next turn is answered.
+	resolve := sessionsvc.BudgetResolver(usage, func(context.Context, string) error { return nil })
+	require.NoError(t, resolve(ctx, dec, sessionsvc.Reply{DecisionID: dec.ID, Decision: "raise", Message: "1"}))
+	ok, err := decisions.Resolve(ctx, dec.ID, domain.ResolvedByOh, &domain.DecisionResolution{Decision: "raise"}, time.Now())
+	require.NoError(t, err)
+	require.True(t, ok)
+	require.NoError(t, f.adapter.SendPrompt(ctx, adapters.ServerHandle{URL: r.Server.URL, Password: r.Server.Password, PID: r.Server.PID}, r.SessionID, "Say goodbye in three words."))
+	require.NoError(t, c.Wait(ctx, r.SessionID))
+	require.Eventually(t, func() bool {
+		after, err := usage.SessionTotal(ctx, r.SessionID)
+		return err == nil && after.TokensOut > held.TokensOut
+	}, 30*time.Second, 200*time.Millisecond, "answered after the raise")
 }
