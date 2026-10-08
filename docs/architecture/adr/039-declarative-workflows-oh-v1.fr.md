@@ -90,6 +90,7 @@ En plus du schéma, la validation vérifie notamment :
 
 - Gabarits Go `text/template` (`workflows/prompts/<id>.md.tmpl`), entrées au premier niveau, contexte de session sous `.oh`.
 - Les entrées texte passent par `data` : balises `<oh:data name="…">`, balises internes neutralisées, troncature à `max_length` (20 000 caractères par défaut, O11).
+  - *Révision du 08/10/2026 (O11, anomalie A27)* : seules les entrées calculées depuis une source externe (`from:`) restent dans des balises ; une entrée saisie par l'utilisateur est sa demande et est écrite telle quelle (tronquée, balises neutralisées). Dans des balises, une demande courte et impérative (« Dis seulement X ») était prise pour une injection.
 - Le prompt contient toujours la ligne `Mode de workflow : <mode>`. Il se termine par la liste des checkpoints à signaler avant chaque agent verrouillé.
 
 ### 8. Modes et checkpoints

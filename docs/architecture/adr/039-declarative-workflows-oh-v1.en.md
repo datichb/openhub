@@ -90,6 +90,7 @@ Besides the schema, validation checks in particular:
 
 - Go `text/template` templates (`workflows/prompts/<id>.md.tmpl`), inputs at the top level, session context under `.oh`.
 - Text inputs go through `data`: `<oh:data name="…">` tags, inner tags neutralized, truncation at `max_length` (20,000 characters by default, O11).
+  - *Revision of 2026-10-08 (O11, anomaly A27)*: only the inputs computed from an outside source (`from:`) stay inside tags; an input typed by the user is their request and is written as it is (truncated, tags neutralized). Inside tags, a short imperative request ("Say only X") was taken for an injection.
 - The prompt always contains the line `Mode de workflow : <mode>`. It ends with the list of checkpoints to report before each locked agent.
 
 ### 8. Modes and checkpoints
