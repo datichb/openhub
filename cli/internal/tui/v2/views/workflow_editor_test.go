@@ -205,8 +205,8 @@ func TestWorkflowEditorGeneralUndoSave(t *testing.T) {
 	require.Eventually(t, func() bool { env.mu.Lock(); defer env.mu.Unlock(); return len(env.saved) == 1 }, 2*time.Second, 20*time.Millisecond)
 	assert.Contains(t, string(env.saved[0]), "risk: read")
 	var dirty bool
-	onLoop(env.app, func() { dirty = env.v.Dirty() })
-	assert.False(t, dirty)
+	require.Eventually(t, func() bool { onLoop(env.app, func() { dirty = env.v.Dirty() }); return !dirty }, 2*time.Second, 20*time.Millisecond,
+		"clean once the save is applied")
 	env.key(tcell.KeyEscape, 0)
 	assert.Equal(t, 1, env.sh.popped, "no guard once saved")
 
@@ -214,6 +214,38 @@ func TestWorkflowEditorGeneralUndoSave(t *testing.T) {
 	env.selectField(t, "Risk")
 	env.key(tcell.KeyRune, 'x')
 	assert.NotContains(t, env.text(), "risk:")
+}
+
+// A39: Code Mode is offered as on/off, and the written value is shown even
+// when the resolution refuses it (loosening: the parent value is kept).
+func TestWorkflowEditorCodeModeShowsWrittenValue(t *testing.T) {
+	env := newEditorEnv(t, WorkflowEditorConfig{})
+	env.selectField(t, "Code Mode")
+	onLoop(env.app, func() { env.v.activate(env.v.selectedRef()) })
+	require.NotNil(t, env.sh.selectFn)
+	var labels []string
+	for _, o := range env.sh.selectOpt[1:] {
+		labels = append(labels, o.Label+"="+o.Value)
+	}
+	assert.Equal(t, []string{"on=true", "off=false"}, labels)
+	onLoop(env.app, func() { env.sh.selectFn("true") })
+	assert.Contains(t, env.text(), "code_mode: true")
+	env.waitCheck(t)
+	var line string
+	var loosening bool
+	onLoop(env.app, func() {
+		for _, it := range env.v.list.GetItems() {
+			if f, ok := it.Reference.(*edField); ok && f.label == "Code Mode" {
+				line = it.MainText
+			}
+		}
+		for _, d := range env.v.check.Diagnostics {
+			loosening = loosening || (d.Error && strings.Contains(d.Path, "code_mode"))
+		}
+	})
+	assert.True(t, loosening, "the loosening is reported")
+	assert.Contains(t, line, "✎")
+	assert.True(t, strings.HasSuffix(strings.TrimSpace(line), " on"), line)
 }
 
 func TestWorkflowEditorInvalidAndJump(t *testing.T) {

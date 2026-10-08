@@ -82,3 +82,35 @@ func TestTeamDetailHasNoParallelSetting(t *testing.T) {
 	_, ok = fieldByKey(v, "max_sessions")
 	assert.False(t, ok)
 }
+
+// A42: the detail of a solo space hides what does not apply to it (tracker,
+// notifications, collaboration, tracker overrides); a team keeps them.
+func TestTeamDetailSoloHidesTeamFeatures(t *testing.T) {
+	hidden := []string{"tracker_url", "webhook_url", "channel", "stale_days", "tracker_enabled", "auto_sync"}
+	v := teamDetailFor(TeamResolution{Solo: true, TeamID: "solo", StatePath: t.TempDir()}, func(string, string) {})
+	v.SetShell(&formShell{})
+	v.Mount(tview.NewFlex(), nil)
+	for _, k := range hidden {
+		_, ok := fieldByKey(v, k)
+		assert.False(t, ok, k)
+	}
+	for _, k := range []string{"governance.publish", "solo.promote", "mcp", "workflow"} {
+		_, ok := fieldByKey(v, k)
+		assert.True(t, ok, k)
+	}
+	for _, f := range v.fields {
+		if f.Kind == CfgFieldSectionHeader {
+			assert.NotEqual(t, i18n.T("tui.config.section.tracker"), f.Label)
+			assert.NotEqual(t, i18n.T("tui.config.section.notifications"), f.Label)
+		}
+	}
+	assert.NotContains(t, v.StatusHints(), "discovery")
+
+	v = teamDetailFor(TeamResolution{Enabled: true, TeamID: "core", StatePath: t.TempDir()}, nil)
+	v.SetShell(&formShell{})
+	v.Mount(tview.NewFlex(), nil)
+	for _, k := range hidden {
+		_, ok := fieldByKey(v, k)
+		assert.True(t, ok, k)
+	}
+}

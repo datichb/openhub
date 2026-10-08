@@ -210,7 +210,7 @@ func (v *TeamModeView) Mount(content *tview.Flex, app *tview.Application) {
 		muted,
 		accent, reset, i18n.T("tui.home.shortcut.commands"),
 		accent, reset, i18n.T("tui.home.shortcut.help"),
-		accent, reset, i18n.T("tui.home.shortcut.team_mode"),
+		accent, reset, i18n.T("tui.home.shortcut.hub_mode"), // Ctrl+T goes back to the hub (A33)
 		accent, reset, i18n.T("tui.home.shortcut.quit"),
 	))
 

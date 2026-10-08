@@ -779,6 +779,17 @@ func (v *WorkflowEditorView) showGraphDetail() {
 	v.detail.SetText(b.String())
 }
 
+// onOff shows a boolean as on/off.
+func onOff(s string) string {
+	switch s {
+	case "true":
+		return "on"
+	case "false":
+		return "off"
+	}
+	return s
+}
+
 func boolText(b *bool) string {
 	if b == nil {
 		return ""
@@ -915,11 +926,22 @@ func (v *WorkflowEditorView) fieldMain(f *edField, doc *workflow.Document) strin
 	if f.value != nil {
 		val = f.value(v.spec())
 	}
+	written := f.action == nil && len(f.path) > 0 && doc != nil && doc.Has(strings.Join(f.path, "."))
+	if written {
+		// The value written here, even when the resolution refuses it (a
+		// loosening keeps the parent's value, A39): the error says why.
+		if w := v.current(f.path...); w != "" {
+			val = w
+		}
+	}
+	if f.boolean {
+		val = onOff(val)
+	}
 	if val == "" {
 		val = "—"
 	}
 	mark := "  "
-	if f.action == nil && len(f.path) > 0 && doc != nil && doc.Has(strings.Join(f.path, ".")) {
+	if written {
 		mark = "[" + theme.WarningHex + "]✎[-] "
 	}
 	return fmt.Sprintf("%s%-24s %s", mark, tview.Escape(f.label), tview.Escape(val))

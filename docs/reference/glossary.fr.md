@@ -106,7 +106,7 @@ Mode de navigation par defaut du TUI, affichant tous les projets et equipes. Act
 
 ### Mode Projet
 
-Mode de navigation du TUI focalise sur un projet actif. L'omnibar affiche uniquement les commandes projet (sessions, board, config projet) et les commandes globales. Active automatiquement si un seul projet est configure, ou manuellement via `Ctrl+T` / selection depuis le Hub Home. Voir [Usage TUI](../guides/tui-usage.fr.md).
+Mode de navigation du TUI focalise sur un projet actif. L'omnibar affiche uniquement les commandes projet (sessions, board, config projet) et les commandes globales. Active automatiquement si un seul projet est configure, ou en choisissant le projet depuis le Hub Home (`Esc` revient au Hub, `Ctrl+T` passe en mode equipe). Voir [Usage TUI](../guides/tui-usage.fr.md).
 
 ### Onboarder
 

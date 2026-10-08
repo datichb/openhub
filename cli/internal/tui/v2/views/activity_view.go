@@ -2,6 +2,7 @@ package views
 
 import (
 	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/gdamore/tcell/v2"
@@ -198,11 +199,17 @@ func eventIcon(eventType string) string {
 		return "[green]✓[-]"
 	case teamstate.EventWikiRejected:
 		return "[red]✗[-]"
+	case teamstate.EventWorkflowPublished, teamstate.EventWorkflowRestored:
+		return "[blue]◆[-]"
+	case teamstate.EventWorkflowArchived:
+		return "[yellow]○[-]"
 	default:
 		return "[white]·[-]"
 	}
 }
 
+// formatEventDescription is the phrase of an event after its actor (Activity
+// and Team Status views).
 func formatEventDescription(e teamstate.Event) string {
 	switch e.Type {
 	case teamstate.EventClaimTaken:
@@ -210,46 +217,54 @@ func formatEventDescription(e teamstate.Event) string {
 	case teamstate.EventClaimReleased:
 		return i18n.Tf("tui.activity.event_claim_released", e.Ticket)
 	case teamstate.EventClaimTransferred:
-		to := ""
-		if e.Data != nil {
-			if t, ok := e.Data["to"].(string); ok {
-				to = t
-			}
-		}
-		return i18n.Tf("tui.activity.event_claim_transferred", e.Ticket, to)
+		return i18n.Tf("tui.activity.event_claim_transferred", e.Ticket, eventData(e, "to"))
 	case teamstate.EventReviewReady:
-		return i18n.Tf("tui.activity.event_review_ready", e.Project)
+		return i18n.Tf("tui.activity.event_review_ready", eventSubject(e))
 	case teamstate.EventSessionComplete:
-		return i18n.Tf("tui.activity.event_session_complete", e.Project)
+		if subject := eventSubject(e); subject != "" {
+			return i18n.Tf("tui.activity.event_session_complete", subject)
+		}
+		return i18n.T("tui.activity.event_session_complete_bare")
 	case teamstate.EventAuditFinding:
-		return i18n.Tf("tui.activity.event_audit_finding", e.Project)
+		return i18n.Tf("tui.activity.event_audit_finding", eventSubject(e))
 	case teamstate.EventClaimConflict:
 		return i18n.Tf("tui.activity.event_claim_conflict", e.Ticket)
 	case teamstate.EventWikiProposal:
-		page := ""
-		if e.Data != nil {
-			if p, ok := e.Data["page"].(string); ok {
-				page = p
-			}
-		}
-		return i18n.Tf("tui.activity.event_wiki_proposal", page)
+		return i18n.Tf("tui.activity.event_wiki_proposal", eventData(e, "page"))
 	case teamstate.EventWikiAccepted:
-		page := ""
-		if e.Data != nil {
-			if p, ok := e.Data["page"].(string); ok {
-				page = p
-			}
-		}
-		return i18n.Tf("tui.activity.event_wiki_accepted", page)
+		return i18n.Tf("tui.activity.event_wiki_accepted", eventData(e, "page"))
 	case teamstate.EventWikiRejected:
-		page := ""
-		if e.Data != nil {
-			if p, ok := e.Data["page"].(string); ok {
-				page = p
-			}
-		}
-		return i18n.Tf("tui.activity.event_wiki_rejected", page)
+		return i18n.Tf("tui.activity.event_wiki_rejected", eventData(e, "page"))
+	case teamstate.EventWorkflowPublished:
+		return i18n.Tf("tui.activity.event_workflow_published", eventData(e, "workflow"), eventData(e, "version"))
+	case teamstate.EventWorkflowRestored:
+		return i18n.Tf("tui.activity.event_workflow_restored", eventData(e, "workflow"), eventData(e, "restored_from"), eventData(e, "version"))
+	case teamstate.EventWorkflowArchived:
+		return i18n.Tf("tui.activity.event_workflow_archived", eventData(e, "workflow"))
 	default:
 		return e.Type
 	}
+}
+
+// eventSubject is what an event is about: project, and ticket when known.
+func eventSubject(e teamstate.Event) string {
+	switch {
+	case e.Project != "" && e.Ticket != "":
+		return e.Project + "/" + e.Ticket
+	case e.Project != "":
+		return e.Project
+	}
+	return e.Ticket
+}
+
+// eventData is a value of the event data as text ("" when absent).
+func eventData(e teamstate.Event, key string) string {
+	v, ok := e.Data[key]
+	if !ok || v == nil {
+		return ""
+	}
+	if f, ok := v.(float64); ok && f == float64(int64(f)) {
+		return strconv.FormatInt(int64(f), 10)
+	}
+	return fmt.Sprint(v)
 }

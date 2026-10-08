@@ -109,8 +109,9 @@ type WorkflowCatalogConfig struct {
 	History   func(e CatalogEntry)
 	Archive   func(e CatalogEntry, message string)
 	Discard   func(e CatalogEntry)
-	// NoTeamState is called by `n` without a team-state (solo space).
-	NoTeamState func()
+	// NoTeamState is called by `n` without a team-state (solo space); done
+	// is called once the space is created.
+	NoTeamState func(done func())
 }
 
 // WorkflowCatalogView lists the workflows.
@@ -368,7 +369,14 @@ func (v *WorkflowCatalogView) toast(msg string, success bool) {
 func (v *WorkflowCatalogView) askNew(e CatalogEntry, hasEntry bool, kind string) {
 	if !v.data.Editable {
 		if v.cfg.NoTeamState != nil {
-			v.cfg.NoTeamState()
+			// Once the solo space exists, go on with the new workflow (A42).
+			v.cfg.NoTeamState(func() {
+				v.reload(func() {
+					if v.data.Editable {
+						v.askNew(e, hasEntry, kind)
+					}
+				})
+			})
 		} else {
 			v.toast(i18n.T("tui.catalog.edit.no_team_state"), false)
 		}

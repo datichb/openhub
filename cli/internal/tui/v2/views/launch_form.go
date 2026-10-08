@@ -174,7 +174,7 @@ func (v *LaunchFormView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 	case tcell.KeyEscape:
 		if v.form != nil {
 			if idx, _ := v.form.GetFocusedItemIndex(); idx >= 0 {
-				if _, isDD := v.form.GetFormItem(idx).(*tview.DropDown); isDD {
+				if dd, isDD := v.form.GetFormItem(idx).(*tview.DropDown); isDD && dd.IsOpen() {
 					return event // closes the drop-down list
 				}
 			}

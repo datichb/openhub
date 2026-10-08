@@ -102,7 +102,7 @@ Default navigation mode in the TUI, displaying all projects and teams. Auto-sele
 
 ### Project Mode
 
-TUI navigation mode focused on an active project. The omnibar shows only project commands (sessions, board, project config) and global commands. Auto-selected when a single project is configured, or activated manually via `Ctrl+T` / selection from the Hub Home. See [TUI usage](../guides/tui-usage.en.md).
+TUI navigation mode focused on an active project. The omnibar shows only project commands (sessions, board, project config) and global commands. Auto-selected when a single project is configured, or activated by selecting the project from the Hub Home (`Esc` goes back to the Hub, `Ctrl+T` enters the team mode). See [TUI usage](../guides/tui-usage.en.md).
 
 ### Team Mode
 

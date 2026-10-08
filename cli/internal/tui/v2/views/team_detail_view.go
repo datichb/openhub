@@ -91,6 +91,10 @@ func (v *TeamDetailView) ID() string             { return "team.detail" }
 func (v *TeamDetailView) Title() string          { return i18n.T("tui.team.detail") }
 
 func (v *TeamDetailView) StatusHints() string {
+	if v.solo() {
+		return fmt.Sprintf("j/k %s · Enter edit · w %s · u %s",
+			i18n.T("tui.hints.nav"), i18n.T("tui.hints.save"), i18n.T("tui.hints.undo"))
+	}
 	return fmt.Sprintf("j/k %s · Space %s · Enter edit · w %s · s %s · t %s · a %s · d %s · u %s · r %s · y discovery · K %s",
 		i18n.T("tui.hints.nav"), i18n.T("tui.hints.toggle"), i18n.T("tui.hints.save"),
 		i18n.T("tui.hints.sync"), i18n.T("tui.hints.test"), i18n.T("tui.hints.add"),
@@ -159,10 +163,14 @@ func (v *TeamDetailView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 		v.save()
 		return nil
 	case 's':
-		v.syncTracker()
+		if !v.solo() {
+			v.syncTracker()
+		}
 		return nil
 	case 't':
-		v.testConnection()
+		if !v.solo() {
+			v.testConnection()
+		}
 		return nil
 	case 'a':
 		v.addDynamic()
@@ -190,7 +198,7 @@ func (v *TeamDetailView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 		}
 		return nil
 	case 'y':
-		if v.cfg.OnDiscoverTracker != nil {
+		if v.cfg.OnDiscoverTracker != nil && !v.solo() {
 			v.cfg.OnDiscoverTracker()
 		}
 		return nil
@@ -241,6 +249,12 @@ func (v *TeamDetailView) loadData() {
 func (v *TeamDetailView) buildFields() {
 	v.fields = nil
 	v.buildWorkflowFields()
+	if v.solo() {
+		// Team features are off in a solo space (tracker, notifications,
+		// collaboration): only what applies to it is shown (A42).
+		v.appendLinks()
+		return
+	}
 
 	// ── Tracker ──────────────────────────────────────────────────────────
 	v.fields = append(v.fields, configField{Kind: CfgFieldSectionHeader, Label: i18n.T("tui.config.section.tracker")})
@@ -431,7 +445,16 @@ func (v *TeamDetailView) buildFields() {
 		Set:    func(val string) { v.localTrk.PushLabels = triStateToPtrBool(val); v.dirtyLocal = true },
 	})
 
-	// Links at the bottom
+	v.appendLinks()
+}
+
+// solo reports whether the detail is the one of a solo space.
+func (v *TeamDetailView) solo() bool {
+	return v.cfg.ResolveTeam != nil && v.cfg.ResolveTeam().Solo
+}
+
+// appendLinks adds the links at the bottom.
+func (v *TeamDetailView) appendLinks() {
 	v.fields = append(v.fields, configField{
 		Key: "mcp", Kind: CfgFieldLink, Label: i18n.T("tui.config.link.mcp"), LinkTarget: "team.mcp",
 		Get: func() string { return "" }})

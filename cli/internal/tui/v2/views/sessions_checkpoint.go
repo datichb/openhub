@@ -88,6 +88,7 @@ func (v *SessionsView) showCheckpoint(r *SessionRow, d *SessionDecision, c Check
 		patch := c.Patch
 		actions = append(actions, ModalAction{Label: i18n.T("tui.checkpoint.diff_full"), Callback: func() {
 			v.shell.ShowScrollableModal(i18n.T("tui.checkpoint.diff_title"), tview.Escape(patch), nil)
+			v.trackDecision(dec.ID)
 		}})
 	}
 	actions = append(actions, ModalAction{Label: i18n.T("tui.sessions.attach"), Callback: func() {
@@ -96,6 +97,7 @@ func (v *SessionsView) showCheckpoint(r *SessionRow, d *SessionDecision, c Check
 		}
 	}})
 	v.shell.ShowScrollableModal(checkpointTitle(r, d, c), checkpointBody(c), actions)
+	v.trackDecision(dec.ID)
 }
 
 func checkpointTitle(r *SessionRow, d *SessionDecision, c CheckpointCardView) string {
@@ -178,4 +180,5 @@ func (v *SessionsView) checkpointForm(r *SessionRow, d *SessionDecision, choice 
 			v.decide(&dec, ch, msg, nil)
 		},
 	})
+	v.trackDecision(dec.ID)
 }
