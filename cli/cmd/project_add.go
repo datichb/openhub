@@ -342,6 +342,7 @@ func runProjectAddInteractive(ctx context.Context, a *app.App) error {
 	fmt.Fprintf(a.IO.Out, "\n%s %s\n",
 		theme.SuccessStyle.Render(theme.IconSuccess),
 		i18n.Tf("cmd.project.registered", theme.Bold.Render(name), absPath))
+	printBeadsClean(a.IO.Out, absPath)
 	if projectSolo {
 		if sp, err := attachProjectSolo(ctx, a, result); err != nil {
 			fmt.Fprintf(a.IO.Out, "%s %s\n", theme.WarningStyle.Render(theme.IconWarning), i18n.Tf("tui.solo.project.failed", err.Error()))
@@ -405,6 +406,7 @@ func doCreateProjectMinimal(ctx context.Context, a *app.App, name, absPath, lang
 	fmt.Fprintf(a.IO.Out, "%s %s\n",
 		theme.SuccessStyle.Render(theme.IconSuccess),
 		i18n.Tf("cmd.project.registered", theme.Bold.Render(name), absPath))
+	printBeadsClean(a.IO.Out, absPath)
 	return nil
 }
 

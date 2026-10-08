@@ -5,6 +5,7 @@ import (
 	"io/fs"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 )
 
@@ -79,6 +80,17 @@ func mentionedSkills(body string, index map[string]string) []string {
 		}
 	}
 	return out
+}
+
+// absentSkillsNote tells the agent which skills it names are not in this
+// session bundle (plugin not loaded, frontend skills in a project without
+// frontend, A8): it does not try to load them ("" when none).
+func absentSkillsNote(ids []string) string {
+	if len(ids) == 0 {
+		return ""
+	}
+	sort.Strings(ids)
+	return fmt.Sprintf("\n\n> Skills absentes de ce paquet de session (elles ne s'appliquent pas à ce projet ou à ce workflow) : `%s`. Ne les charge pas avec l'outil `skill`.\n", strings.Join(ids, "`, `"))
 }
 
 // inlinedSkillHeading opens an inlined skill in an agent body.

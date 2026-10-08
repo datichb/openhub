@@ -272,6 +272,7 @@ func buildProjectAddInlineWizard(a *app.App) *views.InlineWizardView {
 				slog.Warn("failed to create/update project", "error", upsertErr)
 				return
 			}
+			autoCleanBeads(result.Path)
 			if projectSolo {
 				tuiAttachProjectSolo(result)
 			}

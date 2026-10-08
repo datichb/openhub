@@ -192,19 +192,9 @@ bd close <ID> --reason-file /tmp/close-reason.txt
 
 ---
 
-## Exécution de commandes shell — règle obligatoire
+## Exécution de commandes shell
 
-Avant de lancer une commande via les outils context-mode :
-
-```
-La commande se termine toute seule (tsc, jest, git, curl...) ?
-├── OUI → ctx_batch_execute  — timeout OBLIGATOIRE, ne jamais omettre
-└── NON → ctx_execute avec background: true
-          (yarn dev, npm run dev, vite, nodemon, tsc --watch, tail -f...)
-```
-
-**Ne jamais passer une commande non-terminante dans `ctx_batch_execute`** — cela bloque
-le batch indéfiniment. Voir le skill `shared/context-mode-usage` pour les détails et valeurs de timeout.
+Les commandes passent par le shell de la session. Si les outils context-mode (`ctx_*`) sont disponibles — le workflow charge alors le plugin `context-mode` —, suis la skill `context-mode-usage` (timeout obligatoire, commandes non terminantes en arrière-plan) ; sinon, ne cherche pas ces outils.
 
 ---
 
