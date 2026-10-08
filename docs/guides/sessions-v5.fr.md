@@ -102,11 +102,11 @@ oh tient à jour, pour l'agent d'entrée de la session, un **état de session** 
 
 | Entrée | Contenu | Mise à jour |
 |---|---|---|
-| `oh.checkpoints` | workflow, mode, checkpoints passés, checkpoint en cours et suivant, coupe-circuit | à chaque transition |
-| `oh.budget` | budget de la session (relèvements compris), dépensé, restant | à la décision `$` et après un relèvement |
+| `oh.checkpoints` | workflow, mode, checkpoints passés, checkpoint en cours et suivant, coupe-circuit | à la création de la session (avant le premier prompt), puis à chaque transition ; aucune pour un workflow sans checkpoint |
+| `oh.budget` | budget de la session (relèvements compris), dépensé, restant | à la décision `$` et dès la réponse à un relèvement |
 | `oh.resume` | consigne de reprise | après `oh session resume` quand le serveur a redémarré ; retirée après l'étape suivante |
 
-- Une entrée n'est réécrite que si sa valeur change : l'outil annonce chaque changement à l'étape suivante, par un message dans l'historique de la session.
+- Une entrée n'est réécrite que si sa valeur change : l'outil annonce chaque changement à l'étape suivante, par un message dans l'historique de la session. Un changement survenu pendant que l'agent travaille est écrit à la fin de son étape (annoncé au tour suivant) : écrit pendant l'étape, il ferait faire à l'agent une étape de plus qui remplacerait sa réponse.
 - Les **sous-agents** ne reçoivent pas cet état (limite de l'outil) ; ils lisent l'état du workflow avec l'outil `workflow_status`.
 - Si l'outil ne sait pas tenir cet état (capacité absente, API expérimentale retirée), la consigne de reprise est envoyée en message d'oh, et les autres entrées restent lisibles avec `workflow_status`.
 

@@ -308,6 +308,7 @@ func (s *Service) StartSession(ctx context.Context, req StartRequest) (*StartRes
 		return nil, fmt.Errorf("creating session: %w", err)
 	}
 	res.SessionID = sid
+	s.setInitialContext(ctx, h, sid, spec.Workflow, req.Mode)
 
 	switch {
 	case queued != nil:
@@ -905,6 +906,21 @@ func (s *Service) ResumeSession(ctx context.Context, sessionID string, req Start
 		s.setResumeContext(ctx, srv, sess.ID)
 	}
 	return nil
+}
+
+// setInitialContext writes the session state before the first prompt (A29):
+// an entry set before the first turn is part of it, while one written during
+// the turn is announced at its next step and makes the agent run one more.
+// A workflow without checkpoint has no oh.checkpoints entry.
+func (s *Service) setInitialContext(ctx context.Context, h adapters.ServerHandle, sessionID string, wf *sessionspec.WorkflowRuntime, mode string) {
+	c, ok := sessionctx.InitialCheckpoints(wf, mode, i18n.Locale())
+	if !ok {
+		return
+	}
+	w := &sessionctx.Writer{Adapter: s.Adapter, Dir: s.SessionsDir}
+	if _, err := w.Set(ctx, h, sessionID, sessionctx.Entry{Key: sessionctx.KeyCheckpoints, Value: c.Value()}); err != nil {
+		slog.Warn("runsvc: session state not set", "session", sessionID, "error", err)
+	}
 }
 
 // setResumeContext tells the entry agent that its server restarted (S8,

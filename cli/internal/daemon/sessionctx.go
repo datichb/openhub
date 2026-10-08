@@ -26,31 +26,16 @@ func (w *watcher) contextWriter() *sessionctx.Writer {
 
 // checkpointsContext is the oh.checkpoints entry of a workflow status.
 func checkpointsContext(st checkpoint.Status) map[string]any {
-	type cpRef struct {
-		ID    string `json:"id"`
-		Label string `json:"label,omitempty"`
-	}
-	passed := []cpRef{}
-	current := ""
-	for _, c := range st.Checkpoints {
-		switch c.State {
+	c := sessionctx.Checkpoints{Workflow: st.Workflow, Mode: st.Mode, Next: st.Next, Breaker: st.Breaker}
+	for _, cp := range st.Checkpoints {
+		switch cp.State {
 		case checkpoint.StatePassed, checkpoint.StateSkipped:
-			passed = append(passed, cpRef{ID: c.ID, Label: c.Label})
+			c.Passed = append(c.Passed, sessionctx.CheckpointRef{ID: cp.ID, Label: cp.Label})
 		case checkpoint.StateWaiting:
-			current = c.ID
+			c.Current = cp.ID
 		}
 	}
-	v := map[string]any{"workflow": st.Workflow, "mode": st.Mode, "passed": passed}
-	if current != "" {
-		v["current"] = current
-	}
-	if st.Next != "" {
-		v["next"] = st.Next
-	}
-	if st.Breaker {
-		v["circuit_breaker"] = true
-	}
-	return v
+	return c.Value()
 }
 
 // syncCheckpoints writes the checkpoint state of root when it changed.
@@ -60,11 +45,44 @@ func (w *watcher) syncCheckpoints(ctx context.Context, root string) {
 		return
 	}
 	st, err := cp.Status(ctx, root)
-	if err != nil {
-		return // not a workflow session
+	if err != nil || len(st.Checkpoints) == 0 {
+		return // not a workflow session, or a workflow without checkpoint (A29)
+	}
+	if w.deferWhileExecuting(root, func(ctx context.Context) { w.syncCheckpoints(ctx, root) }) {
+		return
 	}
 	if _, err := w.contextWriter().Set(ctx, w.handle(), root, sessionctx.Entry{Key: sessionctx.KeyCheckpoints, Value: checkpointsContext(st)}); err != nil {
 		slog.Debug("ohd: checkpoint context not written", "session", root, "error", err)
+	}
+}
+
+// deferWhileExecuting keeps a state write for the end of the running step
+// of root (A29): the tool announces a change at the next step boundary, and
+// a change written during the last step of a loop makes the agent run one
+// more step (« context updated… ») that replaces its real answer. Written
+// once the loop ended, the change is announced at the next turn. It reports
+// whether the write was deferred (the last one for a key wins).
+func (w *watcher) deferWhileExecuting(root string, write func(ctx context.Context)) bool {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	t, ok := w.tracks[root]
+	if !ok || !t.executing {
+		return false
+	}
+	t.deferred = append(t.deferred, write)
+	return true
+}
+
+// flushDeferred runs the state writes kept during the step of root.
+func (w *watcher) flushDeferred(ctx context.Context, root string) {
+	w.mu.Lock()
+	var writes []func(ctx context.Context)
+	if t, ok := w.tracks[root]; ok {
+		writes, t.deferred = t.deferred, nil
+	}
+	w.mu.Unlock()
+	for _, write := range writes {
+		write(ctx)
 	}
 }
 
@@ -94,6 +112,9 @@ func (d *Daemon) sessionBudget(ctx context.Context, root string) (allowance, spe
 func (w *watcher) syncBudget(ctx context.Context, root string, exhausted bool) {
 	allowance, spent, ok := w.d.sessionBudget(ctx, root)
 	if !ok {
+		return
+	}
+	if w.deferWhileExecuting(root, func(ctx context.Context) { w.syncBudget(ctx, root, exhausted) }) {
 		return
 	}
 	wr := w.contextWriter()

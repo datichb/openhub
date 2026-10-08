@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/teamstate"
 )
 
@@ -207,4 +208,67 @@ func TestStartTicketClaim(t *testing.T) {
 	assert.Contains(t, startTicketClaim(ctx, repo, "myproject", "testuser", "ALICE-3"), "alice")
 	c, _ = repo.GetClaim("myproject", "ALICE-3")
 	assert.Equal(t, teamstate.ClaimStatusPlanned, c.Status, "someone else's claim is left as is")
+}
+
+// A31: at the end of a session, the claim of a closed ticket is completed
+// (terminal status) and the claim of a ticket still open is released; the
+// claims of other members and unknown tickets are left as they are.
+func TestEndTicketClaims(t *testing.T) {
+	_, repo, _ := setupClaimTestApp(t)
+	ctx := context.Background()
+	for _, c := range []teamstate.Claim{
+		{TicketID: "pt-cb8", Project: "myproject", ClaimedBy: "testuser", Status: teamstate.ClaimStatusInProgress},
+		{TicketID: "pt-vau", Project: "myproject", ClaimedBy: "testuser", Status: teamstate.ClaimStatusInProgress},
+		{TicketID: "pt-bob", Project: "myproject", ClaimedBy: "bob", Status: teamstate.ClaimStatusInProgress},
+		{TicketID: "pt-gone", Project: "myproject", ClaimedBy: "testuser", Status: teamstate.ClaimStatusInProgress},
+	} {
+		_, err := repo.CreateClaim(ctx, c)
+		require.NoError(t, err)
+	}
+	closed := func(id string) (bool, error) {
+		switch id {
+		case "pt-cb8", "pt-bob":
+			return true, nil
+		case "pt-gone":
+			return false, fmt.Errorf("unknown ticket")
+		}
+		return false, nil
+	}
+	got := endTicketClaims(ctx, repo, "myproject", "testuser", []string{"pt-cb8", "pt-vau", "pt-bob", "pt-gone"}, closed)
+	assert.Equal(t, map[string]claimEnd{"pt-cb8": claimDone, "pt-vau": claimReleased}, got)
+	c, err := repo.GetClaim("myproject", "pt-cb8")
+	require.NoError(t, err)
+	assert.Equal(t, teamstate.ClaimStatusDone, c.Status)
+	_, err = repo.GetClaim("myproject", "pt-vau")
+	assert.ErrorIs(t, err, teamstate.ErrClaimNotFound)
+	c, _ = repo.GetClaim("myproject", "pt-bob")
+	assert.Equal(t, teamstate.ClaimStatusInProgress, c.Status, "someone else's claim")
+	c, _ = repo.GetClaim("myproject", "pt-gone")
+	assert.Equal(t, teamstate.ClaimStatusInProgress, c.Status, "unknown ticket: left for the Doctor")
+}
+
+// A31: the Doctor reports the claims of the member left behind (ticket
+// closed, or every session on it ended), not the manual claims nor the
+// claims of a running session.
+func TestOrphanClaims(t *testing.T) {
+	claims := []teamstate.Claim{
+		{TicketID: "pt-cb8", ClaimedBy: "me", Status: teamstate.ClaimStatusInProgress},
+		{TicketID: "pt-ended", ClaimedBy: "me", Status: teamstate.ClaimStatusInProgress},
+		{TicketID: "pt-live", ClaimedBy: "me", Status: teamstate.ClaimStatusInProgress},
+		{TicketID: "pt-manual", ClaimedBy: "me", Status: teamstate.ClaimStatusInProgress},
+		{TicketID: "pt-done", ClaimedBy: "me", Status: teamstate.ClaimStatusDone},
+		{TicketID: "pt-bob", ClaimedBy: "bob", Status: teamstate.ClaimStatusInProgress},
+	}
+	sessions := []domain.Session{
+		{ID: "s1", Tickets: []string{"pt-ended"}, State: domain.RunStopped},
+		{ID: "s2", Tickets: []string{"pt-live"}, State: domain.RunStopped},
+		{ID: "s3", Tickets: []string{"pt-live"}, State: domain.RunSleeping},
+	}
+	closed := func(id string) (bool, error) { return id == "pt-cb8" || id == "pt-done" || id == "pt-bob", nil }
+	got := orphanClaims("p", "me", claims, []string{teamstate.ClaimStatusDone}, sessions, closed)
+	assert.Equal(t, []orphanClaim{{Project: "p", Ticket: "pt-cb8", Reason: "closed"}, {Project: "p", Ticket: "pt-ended", Reason: "ended"}}, got)
+	chk := claimsCheck(got)
+	assert.False(t, chk.OK)
+	assert.Contains(t, chk.Detail, "oh team release pt-cb8 -p p")
+	assert.True(t, claimsCheck(nil).OK)
 }

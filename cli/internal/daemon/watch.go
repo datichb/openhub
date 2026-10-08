@@ -29,7 +29,9 @@ type sessionTrack struct {
 	alerts       int            // decisions raised by oh (error, budget)
 	// held: a step was interrupted while a budget decision was open; it is
 	// resumed once the decision is answered (A22).
-	held      bool
+	held bool
+	// deferred are the session state writes kept for the end of the step.
+	deferred  []func(ctx context.Context)
 	lastUsage time.Time
 	agent     string // current agent shown in the live feed
 }
@@ -255,6 +257,7 @@ func (w *watcher) onEvent(ctx context.Context, ev adapters.ToolEvent) {
 	}
 	w.persist(ctx, ev.SessionID, refreshUsage)
 	if ev.Kind == adapters.EventExecEnded {
+		w.flushDeferred(ctx, ev.SessionID)
 		w.raiseBudget(ctx, ev.SessionID) // the step is over: budgets apply now
 		w.clearResume(ctx, ev.SessionID)
 		w.d.wake() // a pending "sleep when idle" policy may apply now
