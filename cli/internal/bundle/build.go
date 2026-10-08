@@ -26,6 +26,9 @@ import (
 
 // Request describes what to compile.
 type Request struct {
+	// pluginTools are the permissions provided by plugins (set by Build).
+	pluginTools map[string]bricks.PluginTools
+
 	HubDir      string // ~/.oh/hub (agents/, skills/, permissions/)
 	OutDir      string // ~/.oh/bundles
 	ProjectPath string // for stack skills and project instructions (may be empty)
@@ -63,6 +66,15 @@ type Request struct {
 	Spec *workflow.Spec
 }
 
+// loadedPlugins returns the ids of the plugins of the session.
+func (req Request) loadedPlugins() map[string]bool {
+	out := map[string]bool{}
+	for _, p := range req.Plugins {
+		out[p.ID] = true
+	}
+	return out
+}
+
 // Bundle is a compiled bundle on disk.
 type Bundle struct {
 	Spec sessionspec.BundleSpec
@@ -90,6 +102,9 @@ func Build(req Request) (*Bundle, error) {
 	generated, err := specSkills(req.HubDir, req.Spec)
 	if err != nil {
 		return nil, err
+	}
+	if req.pluginTools, err = bricks.LoadPluginTools(req.HubDir); err != nil {
+		return nil, fmt.Errorf("reading permissions/%s: %w", bricks.PluginToolsFile, err)
 	}
 
 	files, err := bricks.FindAgentFiles(req.HubDir)
@@ -171,11 +186,21 @@ func Build(req Request) (*Bundle, error) {
 		if err != nil {
 			return nil, err
 		}
+		var absent []string
 		for _, ref := range mentionedSkills(a.Body, mentionIndex) {
-			if d, err := loader.load(ref); err == nil && !inlined[d.ID] && keep(ref) && deliverable(loader, ref, denied) {
+			d, err := loader.load(ref)
+			if err != nil || inlined[d.ID] {
+				continue
+			}
+			if !keep(ref) {
+				absent = append(absent, d.ID)
+				continue
+			}
+			if deliverable(loader, ref, denied) {
 				skillRefs[ref] = true
 			}
 		}
+		a.Body += absentSkillsNote(absent)
 		def, err := agentDef(req, a, instructions)
 		if err != nil {
 			return nil, err
@@ -308,6 +333,7 @@ func agentDef(req Request, a *bricks.AssembledAgent, instructions string) (sessi
 		slog.Warn("bundle: permission base resolution failed, using inline permissions", "agent", fm.ID, "error", err)
 		perms = fm.Permission
 	}
+	perms = bricks.DropPluginPermissions(perms, req.pluginTools, req.loadedPlugins())
 	own := ConvertPermissions(perms)
 	def.Permissions = append(append(append(own, GitShellGuard(own)...), BeadsShellGuard()...), HookGuard()...)
 	return def, nil

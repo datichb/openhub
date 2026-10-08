@@ -20,6 +20,7 @@ oh config list [options]
 |------|------|-------------|
 | `--json` | bool | Sortie au format JSON |
 | `--keys` | bool | Lister les clés modifiables par `oh config set`/`unset` (au lieu des valeurs) |
+| `--all` | bool | Toutes les clés modifiables avec leur valeur, celle par défaut sinon, et leur origine (`hub.toml` ou `défaut`) ; `--json` : liste `key`, `value`, `origin` |
 
 **Exemple :**
 
@@ -27,6 +28,7 @@ oh config list [options]
 oh config list
 oh config ls --json
 oh config list --keys
+oh config list --all
 ```
 
 ---

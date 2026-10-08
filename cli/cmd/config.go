@@ -409,6 +409,25 @@ func configListCmd() *cobra.Command {
 				return fmt.Errorf("%s: %w", i18n.T("cmd.config.load_failed"), err)
 			}
 			jsonOut, _ := cmd.Flags().GetBool("json")
+			if all, _ := cmd.Flags().GetBool("all"); all {
+				rows := configListAll(cfg)
+				if jsonOut {
+					return json.NewEncoder(os.Stdout).Encode(rows)
+				}
+				w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+				fmt.Fprintln(w, i18n.T("cmd.config.list.header_all"))
+				for _, r := range rows {
+					v := r.Value
+					if v == "" {
+						v = "—"
+					}
+					fmt.Fprintf(w, "%s\t%s\t%s\n", r.Key, v, i18n.T("cmd.config.list.origin_"+map[string]string{"hub.toml": "file", "default": "default"}[r.Origin]))
+				}
+				for _, k := range configKeyPatterns {
+					fmt.Fprintf(w, "%s\t—\t%s\n", k, i18n.T("cmd.config.list.origin_remote"))
+				}
+				return w.Flush()
+			}
 			if onlyKeys, _ := cmd.Flags().GetBool("keys"); onlyKeys {
 				keys := append(configFieldKeys(), configKeyPatterns...)
 				if jsonOut {
@@ -447,6 +466,7 @@ func configListCmd() *cobra.Command {
 
 	cmd.Flags().Bool("json", false, "Output in JSON format")
 	cmd.Flags().Bool("keys", false, "Liste les clés modifiables par oh config set|unset")
+	cmd.Flags().Bool("all", false, "Toutes les clés modifiables, avec leur valeur ou celle par défaut et leur origine")
 	return cmd
 }
 

@@ -20,6 +20,7 @@ oh config list [options]
 |------|------|-------------|
 | `--json` | bool | Output in JSON format |
 | `--keys` | bool | List the keys settable with `oh config set`/`unset` (instead of the values) |
+| `--all` | bool | Every settable key with its value, else its default, and its origin (`hub.toml` or `default`); `--json`: list of `key`, `value`, `origin` |
 
 **Example:**
 
@@ -27,6 +28,7 @@ oh config list [options]
 oh config list
 oh config ls --json
 oh config list --keys
+oh config list --all
 ```
 
 ---

@@ -33,6 +33,8 @@ var doctorCmd = &cobra.Command{
 
 func init() {
 	rootCmd.AddCommand(doctorCmd)
+	doctorCmd.Flags().Bool("fix", false, "Répare ce qui peut l'être (Beads zéro impact) après un résumé et une confirmation")
+	doctorCmd.Flags().BoolP("yes", "y", false, "Avec --fix : appliquer sans confirmation (obligatoire sans terminal)")
 }
 
 // check is one entry of the doctor registry: the label shown while it runs
@@ -99,6 +101,11 @@ func runDoctor(cmd *cobra.Command, args []string) error {
 	fmt.Fprintln(a.IO.Out, theme.Title.Render("  oh doctor  "))
 	fmt.Fprintln(a.IO.Out)
 
+	if fix, _ := cmd.Flags().GetBool("fix"); fix {
+		if err := runDoctorFix(cmd, a); err != nil {
+			return err
+		}
+	}
 	return runDoctorChecks(a.IO.Out, doctorRegistry())
 }
 
@@ -426,5 +433,5 @@ func checkBeadsSanity() (string, bool) {
 	} else {
 		summary += ": " + strings.Join(details[:3], "; ") + " " + i18n.Tf("cmd.doctor.beads.more", len(details)-3)
 	}
-	return summary, false
+	return summary + " — " + i18n.T("cmd.doctor.beads.fix_hint"), false
 }

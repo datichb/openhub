@@ -7,8 +7,6 @@
       "model": "/claude-sonnet-4-6",
       "permissions": [
         "shell * deny",
-        "ctx_batch_execute * allow",
-        "ctx_search * allow",
         "edit * deny",
         "glob * allow",
         "grep * allow",
@@ -81,8 +79,6 @@
       "model": "/claude-sonnet-4-6",
       "permissions": [
         "shell * deny",
-        "ctx_batch_execute * allow",
-        "ctx_search * allow",
         "edit * deny",
         "glob * allow",
         "grep * allow",

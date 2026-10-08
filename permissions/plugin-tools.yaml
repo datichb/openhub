@@ -1,0 +1,8 @@
+# Permissions that only make sense with a plugin: removed from the agents of
+# a session bundle whose workflow does not load the plugin (`plugins:`).
+# Not a permission base. Keys: plugin id → tools (permission keys, globs)
+# and shell commands (keys of `bash`, globs).
+context-mode:
+  tools: ["ctx_*"]
+rtk:
+  shell: ["rtk *"]

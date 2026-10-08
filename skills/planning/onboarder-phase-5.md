@@ -115,7 +115,7 @@ Les sections à générer correspondent au format canonique du skill `doc-wiki-p
 Lire dans l'ordre :
 1. Config linting : `.eslintrc*`, `eslint.config.*`, `.prettierrc*`, `biome.json`, `ruff.toml`
 2. Config TypeScript/langage : `tsconfig.json`, `pyproject.toml`
-3. Dépendances : `package.json` (optimisation RTK : `rtk json package.json --keys-only` puis lecture ciblée)
+3. Dépendances : `package.json` (lecture ciblée des dépendances ; avec le plugin RTK : `rtk json package.json --keys-only`)
 4. Git : `.commitlintrc`, `.husky/`, `CONTRIBUTING.md`, `git log --oneline -20`
 5. Nommage : 5-10 fichiers représentatifs dans `src/components/`, `src/services/`, `src/stores/`
 6. Architecture : structure `src/`

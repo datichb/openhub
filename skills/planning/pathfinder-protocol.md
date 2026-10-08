@@ -43,22 +43,14 @@ Tu es un agent de reconnaissance rapide. Tu explores, tu estimes, tu recommandes
 bd search "[mot-clé]"
 bd list --label [label-pertinent]
 
-# Structure projet (si pertinent)
-rtk ls src/                     # Liste compacte optimisée
-rtk ls app/
-
-# Inspecter config JSON (RTK 0.42.0+)
-rtk json package.json --keys-only     # Structure uniquement
-rtk json tsconfig.json --depth 2      # Profondeur limitée
+# Structure projet (si pertinent) : outils glob / read, ou
+ls src/ app/
 
 # Historique récent (si pertinent)
-rtk git log --oneline -20 --grep="[mot-clé]"
+git log --oneline -20 --grep="[mot-clé]"
 ```
 
-**Optimisation RTK :**
-- Les commandes `rtk ls`, `rtk git log`, `rtk json` économisent 60-75% de tokens
-- `rtk json --keys-only` te permet de voir la structure d'un JSON sans lire toutes les valeurs
-- Le plugin OpenCode réécrit automatiquement les commandes, mais connaître ces optimisations aide
+Lis les fichiers de configuration (`package.json`, `tsconfig.json`…) de façon ciblée plutôt qu'en entier. Si le workflow charge le plugin RTK, la skill `rtk-usage` donne des formes plus compactes de ces commandes.
 
 **Ce que tu cherches :**
 - Fichiers/modules clés à modifier

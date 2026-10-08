@@ -24,11 +24,16 @@ oh init
 
 ### oh doctor
 
-Checks the system health and dependencies. No flags. Exits with code 1 when a check fails (✗); warnings (⚠) do not count. The TUI Doctor view runs exactly the same checks.
+Checks the system health and dependencies. Exits with code 1 when a check fails (✗); warnings (⚠) do not count. The TUI Doctor view runs exactly the same checks.
 
 ```
-oh doctor
+oh doctor [--fix [--yes]]
 ```
+
+| Flag | Short | Type | Description |
+|------|-------|------|-------------|
+| `--fix` | | bool | First repairs what can be repaired: **Beads zero impact** (content written by `bd init` in the registered projects, committed content included), after a summary and a confirmation |
+| `--yes` | `-y` | bool | With `--fix`: apply without confirmation (required without a terminal) |
 
 Checks: OS and architecture, git, `bd` (optional), oh version (update available: warning; a pre-release such as `5.0.0-rc.1` or a `git describe` development build newer than the latest published release is up to date), `hub.toml`, provider credentials (cascade of a launch from the current directory: project key, team key, hub key, then AWS profile for Bedrock), database, API keys (keychain), Beads "zero impact" (hooks, `.gitignore`), then the v5 checks: opencode V2 (minimum version; V1 refused with the [migration guide](../guides/migration-v5.en.md)), `ohd` daemon, git, terminal opening, container engine and image, gateways, restrictions and memory, security (socket, capability, tokens), leftovers of former deployments, integrity of the team-state workflows, remote targets, orphan team claims (ticket closed, or every session on the ticket ended; with the `oh team release` command to run).
 

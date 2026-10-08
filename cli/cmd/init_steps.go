@@ -963,6 +963,7 @@ func buildProjectStep(s *initStepState) views.WizardStep {
 			}
 			s.ProjectID = result.ID
 			s.ProjectCreated = true
+			autoCleanBeads(result.Path)
 			initWizardSoloSpace(ctx, s, result)
 			return nil
 		},

@@ -24,11 +24,16 @@ oh init
 
 ### oh doctor
 
-Vérifie l'état du système et les dépendances. Sans flag. Sort avec le code 1 si un contrôle échoue (✗) ; les avertissements (⚠) ne comptent pas. La vue Doctor de la TUI exécute exactement les mêmes contrôles.
+Vérifie l'état du système et les dépendances. Sort avec le code 1 si un contrôle échoue (✗) ; les avertissements (⚠) ne comptent pas. La vue Doctor de la TUI exécute exactement les mêmes contrôles.
 
 ```
-oh doctor
+oh doctor [--fix [--yes]]
 ```
+
+| Flag | Court | Type | Description |
+|------|-------|------|-------------|
+| `--fix` | | bool | Répare d'abord ce qui peut l'être : **Beads zéro impact** (contenu écrit par `bd init` dans les projets enregistrés, commité compris), après un résumé et une confirmation |
+| `--yes` | `-y` | bool | Avec `--fix` : appliquer sans confirmation (obligatoire sans terminal) |
 
 Contrôles : OS et architecture, git, `bd` (optionnel), version d'oh (mise à jour disponible : avertissement ; une pré-version comme `5.0.0-rc.1` ou un build de développement `git describe` plus récent que la dernière version publiée est à jour), `hub.toml`, identifiants du provider (cascade d'un lancement depuis le dossier courant : clé du projet, de l'équipe, du hub, puis profil AWS pour Bedrock), base de données, clés API (trousseau), Beads « zéro impact » (hooks, `.gitignore`), puis les contrôles v5 : opencode V2 (version minimale ; V1 refusé avec le [guide de migration](../guides/migration-v5.fr.md)), démon `ohd`, git, ouverture des terminaux, moteur de conteneurs et image, passerelles, restrictions et mémoire, sécurité (socket, capacité, jetons), restes des anciens déploiements, intégrité des workflows du team-state, cibles distantes, réservations d'équipe orphelines (ticket fermé, ou toutes les sessions du ticket terminées ; avec la commande `oh team release` à lancer).
 
