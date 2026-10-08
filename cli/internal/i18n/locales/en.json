@@ -3067,6 +3067,7 @@
   "cmd.daemon.stopping": "oh daemon shutdown requested.",
   "cmd.daemon.stop_busy": "Sessions are running: the daemon is not stopped (oh daemon stop --force stops it anyway).",
   "cmd.session.no_terminal": "No terminal could be opened: attaching in the current terminal.",
+  "cmd.session.focused": "Session window brought to the front (already open).",
   "cmd.session.opened_in": "Session opened (%s).",
   "cmd.v5.isolation_warning": "Isolation: %s",
   "cmd.v5.opened_browser": "Session opened in the browser: %s",

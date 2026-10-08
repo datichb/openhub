@@ -81,7 +81,7 @@ var sessionAttachCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		fmt.Fprintln(cmd.OutOrStdout(), i18n.Tf("cmd.session.opened_in", string(m)))
+		fmt.Fprintln(cmd.OutOrStdout(), attachedMessage(m))
 		return nil
 	},
 }

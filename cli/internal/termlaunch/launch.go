@@ -54,6 +54,9 @@ const (
 	MethodITerm    Method = "iterm"
 	MethodTerminal Method = "terminal"
 	MethodTmux     Method = "tmux"
+	// MethodFocused: the window of a client already attached was brought
+	// back to the front, nothing was opened (A43).
+	MethodFocused Method = "focused"
 )
 
 // Chain returns the methods tried for a preference, in order.

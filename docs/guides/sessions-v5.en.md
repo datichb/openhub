@@ -26,6 +26,8 @@ The session client opens in the first method that works, in this order:
 
 Suspending oh is a last resort only (`attach = "suspend"`).
 
+One session = one window: when a client is already open on the session (iTerm2, Terminal.app or tmux), oh brings its window to the front instead of opening another one. The clients opened by oh have no session tabs (opencode remembers tabs per directory, whatever the server: opening another session of the same project added a tab to the window already open).
+
 ## Configuration
 
 `~/.oh/hub.toml`:

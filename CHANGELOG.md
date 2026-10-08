@@ -155,6 +155,7 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ### Fixed
 
+- Fenêtres des sessions (A43) : ouvrir une autre session du même projet n'ajoute plus d'onglet dans la fenêtre opencode déjà ouverte (les clients ouverts par oh n'ont plus d'onglets de sessions) ; ouvrir une session qui a déjà un client ramène sa fenêtre au premier plan (iTerm2, Terminal.app, tmux) au lieu d'en ouvrir une autre.
 - Lancement de plusieurs tickets : la seconde session ne redémarre plus le serveur du groupe (une location neuve ne liste aucun agent pendant un instant), ce qui faisait perdre le prompt de la première.
 - Sessions locales : le shell garde le `PATH` et les variables utiles de la machine (`bd`, chaînes d'outils) ; opencode 2.0.20 remplaçait tout son environnement par celui de la session.
 - Workflows à agents verrouillés (`after:`) : le prompt initial rappelle les checkpoints à signaler avec `workflow_checkpoint` avant de déléguer (l'agent d'entrée ne le faisait pas et restait bloqué).

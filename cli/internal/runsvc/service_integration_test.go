@@ -146,7 +146,8 @@ func TestStartSessionAndReuseServer(t *testing.T) {
 	argv, env, err := f.svc.AttachCommand(ctx, r1.SessionID)
 	require.NoError(t, err)
 	assert.Equal(t, []string{"--server", r1.Server.URL, "-s", r1.SessionID}, argv[1:])
-	assert.Equal(t, []string{"OPENCODE_SERVER_PASSWORD=" + r1.Server.Password}, env)
+	assert.Contains(t, env, "OPENCODE_SERVER_PASSWORD="+r1.Server.Password)
+	assert.Contains(t, env, `OPENCODE_CLI_CONFIG_CONTENT={"tabs":{"mode":"off"}}`, "one session per client window (A43)")
 	assert.NotContains(t, strings.Join(argv, " "), r1.Server.Password)
 
 	// The server process holds only the proxy token, never the real key.

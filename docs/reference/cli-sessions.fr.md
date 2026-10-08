@@ -65,7 +65,7 @@ Décisions en attente de toutes les sessions : type (⏸ ? ! $ ✗), identifiant
 oh session attach <session> [--how <ouverture>] [--iterm-style tab|split|window]
 ```
 
-Ouvre l'interface d'opencode sur la session (nouvel onglet ou fenêtre, tmux, navigateur ou terminal courant). Une session en veille est d'abord reprise (son serveur redémarre). Si aucun terminal ne peut être ouvert, l'interface s'ouvre dans le terminal courant.
+Ouvre l'interface d'opencode sur la session (nouvel onglet ou fenêtre, tmux, navigateur ou terminal courant). Une session en veille est d'abord reprise (son serveur redémarre). Si aucun terminal ne peut être ouvert, l'interface s'ouvre dans le terminal courant. Si un client est déjà ouvert sur la session, sa fenêtre est ramenée au premier plan (rien n'est ouvert).
 
 | Flag | Type | Défaut | Description |
 |------|------|--------|-------------|
