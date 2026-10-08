@@ -72,17 +72,16 @@ bd children <EPIC_ID>
 |--------|----------|
 | `open` | État par défaut à la création |
 | `in_progress` | `bd update <ID> --claim` (atomique : assigne + `in_progress`) |
-| `review` | `bd update <ID> -s review` |
+| review (label) | `bd update <ID> --add-label ready-for-review` (le statut reste `in_progress` ; bd 1.3 n'a pas de statut `review` sans configuration) |
 | `blocked` | `bd update <ID> -s blocked` |
-| `cancelled` | `bd update <ID> -s cancelled` (terminal — pas `bd close`) |
+| annulé | `bd update <ID> --add-label cancelled` puis `bd close <ID> --reason "Annulé : <raison>"` (bd 1.3 n'a pas de statut `cancelled`) |
 | `closed` | `bd close <ID>` (terminal) |
 
 **Transitions courantes :**
-- `open → in_progress → review → closed`
-- `review → in_progress` (rejet — reviewer formule ses retours via `bd comments add`, puis repasse en `in_progress`)
-- `in_progress → review` (après correction suite à rejet)
+- `open → in_progress (+ ready-for-review) → closed`
+- rejet de la review : retours via `bd comments add`, label `ready-for-review` retiré (le ticket reste `in_progress`)
 - `in_progress → blocked → in_progress` (blocage/déblocage)
-- `open → cancelled` (abandon avant prise en charge)
+- abandon : label `cancelled` puis `bd close <ID> --reason "Annulé : …"`
 
 ---
 
@@ -262,6 +261,6 @@ Les commandes suivantes **n'existent pas dans Beads** et ne doivent jamais être
 | Commande | Raison |
 |----------|--------|
 | `bd edit` | Non supportée — utiliser `bd update` avec les flags appropriés |
-| `bd delete` | Non supportée — utiliser `bd update -s cancelled` pour annuler un ticket |
+| `bd delete` | Non supportée — pour annuler un ticket : label `cancelled` puis `bd close <ID> --reason "Annulé : …"` |
 
-En cas de besoin d'annulation : `bd update <ID> -s cancelled` (statut terminal).
+En cas de besoin d'annulation : `bd update <ID> --add-label cancelled` puis `bd close <ID> --reason "Annulé : <raison>"`.

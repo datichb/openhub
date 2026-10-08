@@ -8,45 +8,45 @@ to this model.
 
 ---
 
-## Statuses (6)
+## Statuses
 
-A ticket passes through a subset of these statuses during its lifecycle.
+A ticket passes through a subset of these statuses during its lifecycle. Beads 1.3 only knows its built-in statuses (`open`, `in_progress`, `blocked`, `deferred`, `closed`, `pinned`, `hooked`; `bd statuses`); without a project configuration (`bd config set status.custom …`), **review** and **cancelled** are labels, not statuses.
 
 | Status | Terminal | Description | `bd` command |
 |--------|----------|-------------|--------------|
 | `open` | no | Created, not yet taken up | Default state at creation |
 | `in_progress` | no | Being implemented | `bd update <ID> --claim` (atomic: assigns + sets `in_progress`) |
-| `review` | no | Implementation complete, awaiting human reviewer validation. The reviewer either closes the ticket or sends it back to `in_progress` with feedback. | `bd update <ID> -s review` |
+| review (label `ready-for-review`, status `in_progress`) | no | Implementation complete, awaiting validation. The reviewer either closes the ticket or removes the label with feedback. | `bd update <ID> --add-label ready-for-review` |
 | `blocked` | no | Blocked by a dependency or external factor | `bd update <ID> -s blocked` |
-| `cancelled` | **yes** | Abandoned — will not be implemented | `bd update <ID> -s cancelled` |
+| cancelled (label `cancelled`, status `closed`) | **yes** | Abandoned — will not be implemented | `bd update <ID> --add-label cancelled`, then `bd close <ID> --reason "Cancelled: …"` |
 | `closed` | **yes** | Completed and validated | `bd close <ID>` |
 
 ### Allowed transitions
 
 ```
-open ──────────→ in_progress ──→ review ──→ closed
+open ──────────→ in_progress ──→ + ready-for-review ──→ closed
   │                  │              │
   │                  ↓              ↓
-  │               blocked      in_progress  (rejection → back to dev)
+  │               blocked      label removed  (rejection → back to dev)
   │                  │
   │                  ↓
   │              in_progress  (unblocking)
   │
   ↓
-cancelled
+closed + label cancelled
 ```
 
 **Rules:**
 
-- **No reopening.** A `closed` or `cancelled` ticket is never reopened.
+- **No reopening.** A closed ticket (cancelled or not) is never reopened.
   If additional work is needed, create a new ticket.
-- **`cancelled` does not use `bd close`** — use `bd update <ID> -s cancelled`.
-- **`review`** is a custom status natively accepted by `bd`.
-  A ticket enters `review` when the developer considers their implementation complete.
+- **Cancelling** = label `cancelled` then `bd close <ID> --reason "Cancelled: …"` (Beads 1.3 has no `cancelled` status).
+- **Review** is the label `ready-for-review` on an `in_progress` ticket (Beads 1.3 has no `review` status: `bd update -s review` is refused).
+  The developer adds it when they consider their implementation complete.
   The **human reviewer** (or reviewer agent) then either:
   - **Accepts** → `bd close <ID> --reason "..."` — ticket moves to `closed`
   - **Rejects** → leaves feedback via `bd comments add <ID> "Feedback: ..."`, then
-    `bd update <ID> -s in_progress` — ticket returns to the developer for a correction cycle
+    `bd update <ID> --remove-label ready-for-review` — ticket returns to the developer for a correction cycle
 - **`blocked`** can only occur from `in_progress`.
   Unblocking moves back to `in_progress`.
 
@@ -218,7 +218,7 @@ the ticket's description or notes.
  │  5. bd show $ID                                             │
  │  6. bd update $ID --claim                  → in_progress    │
  │  7. [implement, test, commit]                               │
- │  8. bd update $ID -s review                → review         │
+ │  8. bd update $ID --add-label ready-for-review  → review    │
  └──────────────────────────┬──────────────────────────────────┘
                             ↓
  ┌─────────────────────────────────────────────────────────────┐
@@ -226,7 +226,7 @@ the ticket's description or notes.
   │                                                             │
   │  9a. Accepted  → bd close $ID --reason "..." → closed       │
   │  9b. Rejected  → bd comments add $ID "Feedback: ..."        │
-  │                  bd update $ID -s in_progress               │
+  │                  bd update $ID --remove-label ready-for-review │
   │                  → back to step 7 (correction cycle)        │
  └──────────────────────────┬──────────────────────────────────┘
                             ↓
@@ -243,7 +243,8 @@ the ticket's description or notes.
  ┌─────────────────────────────────────────────────────────────┐
  │  CANCELLATION (human only)                                  │
  │                                                             │
- │  bd update $ID -s cancelled                                 │
+ │  bd update $ID --add-label cancelled                        │
+ │  bd close $ID --reason "Cancelled: ..."                     │
  │  bd comments add $ID "Reason: ..."                          │
  └─────────────────────────────────────────────────────────────┘
 ```

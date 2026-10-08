@@ -276,7 +276,7 @@ Quand le ticket porte le label `tdd`, respecter impérativement cet ordre :
 3. [RED]    Écrire les tests qui couvrent les critères d'acceptance → vérifier qu'ils échouent
 4. [GREEN]  Implémenter le minimum de code pour faire passer les tests
 5. [REFACTOR] Nettoyer le code sans casser les tests
-6. bd update <ID> -s review       → passer en review
+6. bd update <ID> --add-label ready-for-review       → passer en review
 ```
 
 ❌ Ne jamais écrire l'implémentation avant que les tests rouges existent

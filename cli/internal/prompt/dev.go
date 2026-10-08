@@ -43,7 +43,7 @@ func BuildDevPrompt(tickets []beads.Ticket) string {
 		sb.WriteString("Ce ticket est déjà en cours. Workflow de reprise :\n")
 		sb.WriteString("1. bd show <ID>                  — lire le détail complet et l'état actuel\n")
 		sb.WriteString("2. Continuer l'implémentation + tester\n")
-		sb.WriteString("3. bd update <ID> -s review      — passer en review\n")
+		sb.WriteString("3. bd update <ID> --add-label ready-for-review — prêt pour la review\n")
 		sb.WriteString("4. bd close <ID> --suggest-next  — clore après validation et passer au suivant\n")
 		sb.WriteString("\n")
 		sb.WriteString("Commence par lire l'état actuel du ticket avec bd show.\n")
@@ -52,7 +52,7 @@ func BuildDevPrompt(tickets []beads.Ticket) string {
 		sb.WriteString("1. bd show <ID>                  — lire le détail complet avant tout\n")
 		sb.WriteString("2. bd update <ID> --claim        — clamer le ticket (atomique) (sauf si déjà en cours)\n")
 		sb.WriteString("3. Implémenter + tester\n")
-		sb.WriteString("4. bd update <ID> -s review      — passer en review\n")
+		sb.WriteString("4. bd update <ID> --add-label ready-for-review — prêt pour la review\n")
 		sb.WriteString("5. bd close <ID> --suggest-next  — clore après validation et passer au suivant\n")
 		sb.WriteString("\n")
 
