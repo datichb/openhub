@@ -19,6 +19,8 @@ const (
 	// EnvSnapshot and EnvJournal locate the files of the journal mode.
 	EnvSnapshot = "OH_BD_SNAPSHOT"
 	EnvJournal  = "OH_BD_JOURNAL"
+	// EnvGitHook is set to 1 by the git hooks of Beads around `bd hooks run`.
+	EnvGitHook = "BD_GIT_HOOK"
 )
 
 // Modes of the fake bd.
@@ -44,6 +46,9 @@ type ExecRequest struct {
 	Argv  []string `json:"argv"`            // arguments after "bd"
 	Cwd   string   `json:"cwd"`             // working directory in the runtime
 	Stdin []byte   `json:"stdin,omitempty"` // forwarded only for --stdin or "-"
+	// GitHook tells that git runs the command from a Beads hook
+	// (`bd hooks run <hook>`, EnvGitHook set by the hook).
+	GitHook bool `json:"git_hook,omitempty"`
 }
 
 // ExecResponse relays the outcome of the real bd. A refused command has a

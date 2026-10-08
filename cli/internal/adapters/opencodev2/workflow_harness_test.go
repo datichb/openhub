@@ -69,6 +69,8 @@ type workflowEnv struct {
 	decisions domain.DecisionStore
 	cp        *checkpoint.Service
 	client    *daemon.Client
+	// env is added to the environment of the servers (shell of the sessions).
+	env map[string]string
 }
 
 // newWorkflowEnv starts an oh daemon on an isolated OH_HOME, watching the
@@ -144,9 +146,12 @@ func (e *workflowEnv) startServer(t *testing.T, a *Adapter, b sessionspec.Bundle
 	project := filepath.Join(root, "proj")
 	require.NoError(t, os.MkdirAll(project, 0o755))
 	require.NoError(t, exec.Command("git", "init", "-q", project).Run())
+	env := map[string]string{"OH_HOME": e.home}
+	for k, v := range e.env {
+		env[k] = v
+	}
 	h, err := a.StartServer(context.Background(), adapters.ServerGroup{
-		Bundle: b, Provider: prov, DataDir: filepath.Join(root, "data"), WorkDir: project,
-		Env: map[string]string{"OH_HOME": e.home},
+		Bundle: b, Provider: prov, DataDir: filepath.Join(root, "data"), WorkDir: project, Env: env,
 	})
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = a.StopServer(context.Background(), h) })

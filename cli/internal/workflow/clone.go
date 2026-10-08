@@ -40,6 +40,7 @@ func (s *Spec) Clone() *Spec {
 		cp.Description = cp.Description.clone()
 		cp.Mode = cloneMap(cp.Mode)
 		cp.Mandatory = clonePtr(cp.Mandatory)
+		cp.Unlocks = cloneSlice(cp.Unlocks)
 		return cp
 	})
 	if s.Modes != nil {

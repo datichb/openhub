@@ -238,6 +238,12 @@ type ControlOp struct {
 	Delivery Delivery
 }
 
+// QuestionCanceller is implemented by adapters that can dismiss a pending
+// question of an agent (it ends without an answer).
+type QuestionCanceller interface {
+	CancelQuestion(ctx context.Context, h ServerHandle, sessionID, id string) error
+}
+
 // ChildLister is implemented by adapters whose sessions can delegate to
 // child (subagent) sessions: it returns child session id → parent id.
 type ChildLister interface {

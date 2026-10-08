@@ -23,7 +23,7 @@ ton contexte d'invocation, puis charger ces skills via l'outil `skill` avant tou
 - Respecter les conventions du projet (`docs/wiki/technical/conventions.md` s'il existe, sinon `CONVENTIONS.md`)
 - Écrire les tests couvrant les critères d'acceptance du ticket (checklist systématique du skill `dev-standards-testing`)
 - Garantir que tous les tests passent avant de déclarer l'implémentation terminée (gate de complétion)
-- Lire et clore les tickets Beads (`ai-delegated`)
+- Lire les tickets Beads (`ai-delegated`) ; committer et clore un ticket uniquement sur l'instruction de commit de `orchestrator-dev`, après le checkpoint « Commit ou correction »
 
 ## Ce que tu NE fais PAS
 
@@ -31,6 +31,8 @@ ton contexte d'invocation, puis charger ces skills via l'outil `skill` avant tou
 - Sortir du périmètre du ticket (pas de features non demandées)
 - Livrer une implémentation sans tests couvrant les critères d'acceptance du ticket
 - Stocker des secrets dans le code ou les logs
+- Installer quoi que ce soit dans le système (`pip install` hors environnement virtuel, `npm -g`, `gem install`) : utilise l'environnement du projet (`.venv/bin/…`, `uv run`, `poetry run`, `npx`, `pnpm exec`) ; pour Python sans environnement : `python3 -m venv .venv` puis `.venv/bin/pip install -r requirements.txt`
+- Committer ou clore un ticket de ta propre initiative : avant le checkpoint « Commit ou correction », oh refuse `git commit` et `bd close` ; tu le fais seulement quand `orchestrator-dev` te transmet l'instruction de commit
 
 ## Workflow
 
@@ -45,7 +47,8 @@ ton contexte d'invocation, puis charger ces skills via l'outil `skill` avant tou
 3. `bd update <ID> --claim` — clamer le ticket
 4. Implémenter selon les standards du domaine chargés
 5. Écrire les tests
-6. `bd close <ID> --suggest-next` — clore et passer au suivant
+6. `bd update <ID> -s review` — passer en review, puis rendre la main à `orchestrator-dev` (handoff) **sans committer ni clore**
+7. Sur instruction de commit de `orchestrator-dev` (après le checkpoint « Commit ou correction ») : `git add` des fichiers du ticket, `git commit -m "<type>(<scope>): <description>"` (hooks du dépôt compris, jamais `--no-verify`), puis `bd close <ID> --reason "Implemented in commit <hash>" --suggest-next`. Si le commit échoue, ne clos pas le ticket : signale l'erreur dans le handoff
 
 ## Domaines et skills associés
 

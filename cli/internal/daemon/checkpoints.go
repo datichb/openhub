@@ -2,10 +2,13 @@ package daemon
 
 import (
 	"context"
+	"errors"
 	"log/slog"
+	"time"
 
 	"github.com/datichb/openhub/cli/internal/adapters"
 	"github.com/datichb/openhub/cli/internal/domain"
+	"github.com/datichb/openhub/cli/internal/i18n"
 )
 
 // Checkpoints in the watcher (P3-T03, P3-T04, P3-T06): tool calls feed the
@@ -114,4 +117,105 @@ func (w *watcher) applyAllRules(ctx context.Context, sessions []domain.Session) 
 			w.applyRules(ctx, s.ID)
 		}
 	}
+}
+
+// closeImitation answers a question of a workflow session that imitates a
+// checkpoint (A36): it validates nothing, so oh ends it at once and tells
+// the agent to call workflow_checkpoint. The answer carries the instruction
+// when every field takes free text; otherwise the question is dismissed and
+// the instruction sent to the agent.
+func (w *watcher) closeImitation(ctx context.Context, root, toolSession string, p adapters.PendingDecision) bool {
+	cp := w.d.opts.Checkpoints
+	if cp == nil || p.Kind != adapters.DecisionQuestion {
+		return false
+	}
+	c, ok := cp.Imitation(ctx, root, p)
+	if !ok {
+		return false
+	}
+	text := i18n.Tf("tui.checkpoint.imitation_steer", c.ID, c.LabelFor(i18n.Locale()))
+	answer, free := map[string]any{}, len(p.Fields) > 0
+	for _, f := range p.Fields {
+		if !f.Custom || (f.Type != "" && f.Type != "string") {
+			free = false
+			break
+		}
+		answer[f.Key] = text
+	}
+	if free {
+		err := w.ad.Reply(ctx, w.handle(), adapters.DecisionReply{SessionID: toolSession, ID: p.ID, Kind: adapters.DecisionQuestion, Answer: answer})
+		if err == nil || errors.Is(err, adapters.ErrRequestGone) {
+			return true
+		}
+		slog.Debug("ohd: imitated checkpoint not answered", "session", root, "error", err)
+	}
+	canceller, ok := w.ad.(adapters.QuestionCanceller)
+	if !ok {
+		return false // left to the user, as any question
+	}
+	if err := canceller.CancelQuestion(ctx, w.handle(), toolSession, p.ID); err != nil && !errors.Is(err, adapters.ErrRequestGone) {
+		slog.Warn("ohd: imitated checkpoint not dismissed", "session", root, "error", err)
+		return false
+	}
+	if err := w.ad.Control(ctx, w.handle(), toolSession, adapters.ControlOp{Kind: adapters.ControlPrompt, Text: text, Delivery: adapters.DeliverySteer}); err != nil {
+		slog.Warn("ohd: instruction after an imitated checkpoint not sent", "session", root, "error", err)
+	}
+	return true
+}
+
+// finishWorkflow runs when the step of root ended: when its workflow reached
+// its end and nothing waits, oh declares the outputs the agent did not and
+// the session is completed (A38), which offers « Chain with… ».
+func (w *watcher) finishWorkflow(ctx context.Context, root string) {
+	cp := w.d.opts.Checkpoints
+	if cp == nil {
+		return
+	}
+	w.mu.Lock()
+	t := w.track(root)
+	idle := !t.executing && t.waiting() == 0 && t.alerts == 0
+	w.mu.Unlock()
+	if !idle {
+		return
+	}
+	branch := func() string {
+		if res, err := w.ad.Results(ctx, w.handle(), root); err == nil {
+			return res.Branch
+		}
+		return ""
+	}
+	done, err := cp.Finish(ctx, root, branch)
+	if err != nil || !done {
+		return
+	}
+	sess, err := w.d.opts.Sessions.Get(ctx, root)
+	if err != nil || isTerminal(sess.State) {
+		return
+	}
+	now := time.Now()
+	sess.State, sess.StateChangedAt, sess.Status, sess.EndedAt = domain.RunCompleted, &now, domain.SessionStatusCompleted, &now
+	if err := w.d.opts.Sessions.Update(ctx, sess); err != nil {
+		slog.Debug("ohd: session completion not saved", "session", root, "error", err)
+		return
+	}
+	w.d.feed.publishChange(domain.SessionChange{SessionID: root, GroupKey: w.srv.GroupKey, State: sess.State})
+}
+
+// reopenCompleted puts back in play a session completed by the end of its
+// workflow when it works again (the user went on in the tool).
+func (w *watcher) reopenCompleted(ctx context.Context, root string) {
+	sess, err := w.d.opts.Sessions.Get(ctx, root)
+	if err != nil || sess.State != domain.RunCompleted {
+		return
+	}
+	if cp := w.d.opts.Checkpoints; cp != nil {
+		cp.Reopen(ctx, root)
+	}
+	now := time.Now()
+	sess.State, sess.StateChangedAt, sess.Status, sess.EndedAt = domain.RunActive, &now, domain.SessionStatusRunning, nil
+	if err := w.d.opts.Sessions.Update(ctx, sess); err != nil {
+		slog.Debug("ohd: session not reopened", "session", root, "error", err)
+		return
+	}
+	w.d.feed.publishChange(domain.SessionChange{SessionID: root, GroupKey: w.srv.GroupKey, State: sess.State})
 }

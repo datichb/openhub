@@ -94,6 +94,8 @@ func (j journalBackend) Exec(req beadswire.ExecRequest) (beadswire.ExecResponse,
 			"(show, list, ready, children, search, count); other commands are recorded and applied when the session is fetched.\n"), nil
 	case has(req.Argv, "--version", "-V") || p.cmd == "version":
 		return text("bd (oh journal mode)\n"), nil
+	case req.GitHook && p.cmd == "hooks":
+		return beadswire.ExecResponse{}, nil // Beads git hooks: nothing to sync in a remote run
 	}
 	unlock, err := lockFile(j.journal + ".lock")
 	if err != nil {

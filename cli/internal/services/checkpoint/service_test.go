@@ -122,7 +122,7 @@ func (f *fakeTool) Refresh(context.Context, string) error { f.refresh++; return 
 
 func cpDecision(t *testing.T, svc *Service, ctx context.Context, id string) *domain.Decision {
 	t.Helper()
-	d, auto, err := svc.Asked(ctx, "ses_a", "ses_a", adapters.PendingDecision{ID: "per_" + id, Call: &adapters.ToolCall{Input: map[string]any{"id": id, "summary": "done"}}})
+	d, auto, _, err := svc.Asked(ctx, "ses_a", "ses_a", adapters.PendingDecision{ID: "per_" + id, Call: &adapters.ToolCall{Input: map[string]any{"id": id, "summary": "done"}}})
 	require.NoError(t, err)
 	require.False(t, auto)
 	return d
@@ -133,10 +133,10 @@ func TestCheckpointLifecycle(t *testing.T) {
 	tool := &fakeTool{}
 
 	// semi-auto: cp-1 automatic (let through), cp-2 paused.
-	_, auto, err := svc.Asked(ctx, "ses_a", "ses_a", adapters.PendingDecision{ID: "per_1", Call: &adapters.ToolCall{Input: map[string]any{"id": "cp-1"}}})
+	_, auto, _, err := svc.Asked(ctx, "ses_a", "ses_a", adapters.PendingDecision{ID: "per_1", Call: &adapters.ToolCall{Input: map[string]any{"id": "cp-1"}}})
 	require.NoError(t, err)
 	assert.True(t, auto)
-	_, auto, _ = svc.Asked(ctx, "ses_a", "ses_a", adapters.PendingDecision{ID: "per_x", Call: &adapters.ToolCall{Input: map[string]any{"id": "cp-9"}}})
+	_, auto, _, _ = svc.Asked(ctx, "ses_a", "ses_a", adapters.PendingDecision{ID: "per_x", Call: &adapters.ToolCall{Input: map[string]any{"id": "cp-9"}}})
 	assert.True(t, auto, "unknown checkpoint: the call fails with the list")
 
 	rules, err := svc.Rules(ctx, "ses_a")

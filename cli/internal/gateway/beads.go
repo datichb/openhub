@@ -14,6 +14,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"os"
 	"os/exec"
 	"strings"
 	"time"
@@ -34,6 +35,11 @@ type Beads struct {
 	Binary    string
 	Timeout   time.Duration // default 2 minutes
 	MaxOutput int           // bytes per stream, default 8 MiB
+	// Guard refuses a ticket operation for the workflow state of the
+	// session (nil = none); its error message is shown to the agent.
+	Guard func(ctx context.Context, g Grant, op BeadsOp) error
+	// Done is told the ticket operations that ran successfully (nil = none).
+	Done func(ctx context.Context, g Grant, op BeadsOp)
 }
 
 const (
@@ -80,7 +86,12 @@ func writeResp(w http.ResponseWriter, status int, resp beadswire.ExecResponse) {
 // Exec checks and runs one command for a grant. The HTTP status is 200 when
 // bd ran (whatever its exit code), 403 when the command is refused.
 func (b *Beads) Exec(ctx context.Context, g Grant, req beadswire.ExecRequest) (resp beadswire.ExecResponse, status int) {
-	c, err := checkBeads(req.Argv, g.BeadsAllow)
+	allow := g.BeadsAllow
+	hook := req.GitHook && isGitHook(req.Argv)
+	if hook {
+		allow = gitHookAllow // run by git, whatever the workflow allows (A19)
+	}
+	c, err := checkBeads(req.Argv, allow)
 	if err != nil {
 		return refusalResp(err.Error()), http.StatusForbidden
 	}
@@ -102,6 +113,19 @@ func (b *Beads) Exec(ctx context.Context, g Grant, req beadswire.ExecRequest) (r
 	if !exists(dir) {
 		return refusalResp(i18n.Tf("cmd.gateway.beads.path_outside", dir)), http.StatusForbidden
 	}
+	if hook && len(view.Paths) > 0 {
+		// Another runtime: the hooks bd chains (the project's own hooks)
+		// would run on the machine, out of the container. Skipped.
+		slog.Debug("gateway: Beads git hook skipped (not a local session)", "session", g.SessionID, "hook", req.Argv)
+		return beadswire.ExecResponse{}, http.StatusOK
+	}
+	op, isOp := ticketOp(req.Argv, c)
+	if isOp && b.Guard != nil {
+		if err := b.Guard(ctx, g, op); err != nil {
+			slog.Debug("gateway: bd refused by the workflow", "session", g.SessionID, "command", c.Name, "error", err)
+			return refusalResp(err.Error()), http.StatusForbidden
+		}
+	}
 	bin := b.Binary
 	if bin == "" {
 		if bin, err = exec.LookPath("bd"); err != nil {
@@ -120,6 +144,9 @@ func (b *Beads) Exec(ctx context.Context, g Grant, req beadswire.ExecRequest) (r
 	defer cancel()
 	cmd := exec.CommandContext(cctx, bin, argv...)
 	cmd.Dir = dir
+	if hook {
+		cmd.Env = append(os.Environ(), beadswire.EnvGitHook+"=1")
+	}
 	cmd.Stdin = bytes.NewReader(req.Stdin)
 	stdout, stderr := &capped{max: limit}, &capped{max: limit}
 	cmd.Stdout, cmd.Stderr = stdout, stderr
@@ -139,6 +166,9 @@ func (b *Beads) Exec(ctx context.Context, g Grant, req beadswire.ExecRequest) (r
 		resp.Stderr = append(resp.Stderr, []byte(fmt.Sprintf("bd: %s\n", i18n.Tf("cmd.gateway.beads.output_truncated", limit)))...)
 	}
 	slog.Debug("gateway: bd", "session", g.SessionID, "command", c.Name, "exit", resp.ExitCode)
+	if isOp && b.Done != nil && resp.ExitCode == 0 && resp.Error == "" {
+		b.Done(ctx, g, op)
+	}
 	return resp, http.StatusOK
 }
 

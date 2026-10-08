@@ -470,6 +470,11 @@ func (c *Client) ReplyForm(ctx context.Context, sessionID, formID string, answer
 	return c.do(ctx, http.MethodPost, sessionPath(sessionID, "form/"+url.PathEscape(formID)+"/reply"), nil, map[string]any{"answer": answer}, nil)
 }
 
+// CancelForm dismisses a pending form (the agent's question ends without an answer).
+func (c *Client) CancelForm(ctx context.Context, sessionID, formID string) error {
+	return c.do(ctx, http.MethodDelete, sessionPath(sessionID, "form/"+url.PathEscape(formID)), nil, nil, nil)
+}
+
 // PutInstructionEntry sets an instruction entry of a session (experimental
 // API, S8): announced to the session at its next step boundary.
 func (c *Client) PutInstructionEntry(ctx context.Context, sessionID, key string, value any) error {

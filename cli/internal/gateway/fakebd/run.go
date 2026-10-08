@@ -43,7 +43,7 @@ func Run(args []string, cwd string, getenv env, stdin io.Reader, stdout, stderr 
 		fmt.Fprintln(stderr, "bd: "+err.Error())
 		return 1
 	}
-	req := beadswire.ExecRequest{Argv: args, Cwd: cwd}
+	req := beadswire.ExecRequest{Argv: args, Cwd: cwd, GitHook: getenv(beadswire.EnvGitHook) == "1"}
 	if wantsStdin(args) && stdin != nil {
 		data, err := io.ReadAll(io.LimitReader(stdin, beadswire.MaxStdin+1))
 		if err != nil {

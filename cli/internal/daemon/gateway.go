@@ -17,6 +17,8 @@ import (
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/gateway"
 	"github.com/datichb/openhub/cli/internal/gateway/beadswire"
+	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/services/checkpoint"
 )
 
 // startGateway restores the gateway grants (hashes only) and serves the
@@ -46,7 +48,46 @@ func (d *Daemon) startGateway(ctx context.Context) {
 		View:   d.opts.GatewayView,
 		Alive:  d.sessionAlive,
 		Binary: d.opts.BeadsBinary,
+		Guard:  d.guardTickets,
+		Done:   d.ticketsDone,
 	})
+}
+
+// guardTickets refuses to close a ticket before the checkpoint that
+// unlocks it, or before the work is committed (A17).
+func (d *Daemon) guardTickets(ctx context.Context, g gateway.Grant, op gateway.BeadsOp) error {
+	cp := d.opts.Checkpoints
+	if cp == nil || op.Kind != gateway.OpClose {
+		return nil
+	}
+	err := cp.GuardClose(ctx, g.SessionID, g.Location)
+	var lock *checkpoint.LockError
+	if err != nil && !errors.As(err, &lock) {
+		slog.Debug("ohd: ticket guard", "session", g.SessionID, "error", err)
+		return nil // no workflow state: the allow-list still applies
+	}
+	return err
+}
+
+// ticketsDone records the tickets a session claimed or closed; a ticket
+// closed locks the operations of its checkpoint again.
+func (d *Daemon) ticketsDone(ctx context.Context, g gateway.Grant, op gateway.BeadsOp) {
+	cp := d.opts.Checkpoints
+	if cp == nil {
+		return
+	}
+	kind := checkpoint.BeadsClaim
+	if op.Kind == gateway.OpClose {
+		kind = checkpoint.BeadsClose
+	}
+	changed, err := cp.BeadsDone(ctx, g.SessionID, kind, op.IDs)
+	if err != nil {
+		slog.Debug("ohd: tickets of a session", "session", g.SessionID, "error", err)
+		return
+	}
+	if changed {
+		d.applyRules(ctx, g.SessionID)
+	}
 }
 
 // sessionAlive: Beads is reachable while the session is open and awake.
@@ -178,4 +219,70 @@ func (d *Daemon) checkMCP(ctx context.Context, group string, msg map[string]json
 		}
 	}
 	return nil
+}
+
+// Shell of local sessions (A16): oh's start-up files keep the fake bd first
+// on the PATH; the daemon checks it once per session and raises an alert
+// (✗, not cleared by the agent loop) when another bd comes first.
+
+// dataOhAlert marks the alerts oh raises about a session that only the user
+// dismisses.
+const dataOhAlert = "oh_alert"
+
+// alertShellBD is the alert of a session whose shell finds another bd first.
+const alertShellBD = "shell_bd"
+
+func isOhAlert(d domain.Decision) bool {
+	_, ok := d.Payload.Data[dataOhAlert]
+	return ok
+}
+
+// checkShellOnce checks the shell of a local session, once per daemon.
+func (w *watcher) checkShellOnce(ctx context.Context, root string) {
+	w.mu.Lock()
+	if w.shellChecked == nil {
+		w.shellChecked = map[string]bool{}
+	}
+	done := w.shellChecked[root]
+	w.shellChecked[root] = true
+	w.mu.Unlock()
+	if done || w.d.opts.SessionsDir == "" || w.d.opts.Decisions == nil {
+		return
+	}
+	sess, err := w.d.opts.Sessions.Get(ctx, root)
+	if err != nil || (sess.Runtime != "" && sess.Runtime != "local") || isTerminal(sess.State) {
+		return
+	}
+	data, err := os.ReadFile(filepath.Join(w.d.opts.SessionsDir, root, "env.json"))
+	if err != nil {
+		return
+	}
+	env := map[string]string{}
+	if json.Unmarshal(data, &env) != nil || env[gateway.EnvPathFirst] == "" {
+		return // started without oh's shell start-up (older oh)
+	}
+	first := strings.Split(env[gateway.EnvPathFirst], string(os.PathListSeparator))[0]
+	cctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+	got, err := gateway.CheckShellBD(cctx, env, filepath.Join(first, "bd"))
+	if !errors.Is(err, gateway.ErrShellBD) {
+		return
+	}
+	if got == "" {
+		got = "—"
+	}
+	d := domain.Decision{SessionID: root, GroupKey: sess.GroupKey, Kind: domain.DecisionError, ToolRef: alertShellBD,
+		Payload: domain.DecisionPayload{Title: i18n.T("cmd.gateway.beads.shell_bd_title"),
+			Message: i18n.Tf("cmd.gateway.beads.shell_bd_detail", got, first),
+			Data:    map[string]any{dataOhAlert: alertShellBD}}}
+	d.ID = domain.DecisionID(d.Kind, root, d.ToolRef)
+	if prev, err := w.d.opts.Decisions.Get(ctx, d.ID); err == nil && prev != nil {
+		return // already raised (and maybe dismissed)
+	}
+	if err := w.d.opts.Decisions.Upsert(ctx, &d); err != nil {
+		slog.Warn("ohd: shell alert not recorded", "session", root, "error", err)
+		return
+	}
+	slog.Warn("ohd: the shell of a local session finds another bd first", "session", root, "bd", got)
+	w.refreshAlerts(ctx, root)
 }

@@ -46,6 +46,7 @@ Règles de délégation :
 
 - **cp-0** : Afficher le tableau des tickets (ordre de traitement, agent prévu) et attendre la confirmation avant toute implémentation.
 - **cp-spec** (conditional) : le designer a produit une spécification UX ou UI pour la feature
+- **cp-2** déverrouille `commit`, `push`, `close` : avant son passage, oh refuse ces opérations à tous les agents de la session (`git commit`, `git push`, fermeture d'un ticket), quel que soit le mode. Une fois passé, fais-les aussitôt, dans l'ordre : commit, puis fermeture du ticket (oh refuse la fermeture tant que le travail n'est pas commité). Le ticket fermé, elles sont de nouveau verrouillées jusqu'au prochain passage de **cp-2**.
 - **cp-feature** : Récap global en fin de feature (tickets traités, commits, points ouverts).
 
 Passage d'un checkpoint : appelle l'outil `workflow_checkpoint` avec `id` (identifiant du tableau) et `summary` (ce qui est fait, ce qui va suivre, points d'attention), **avant** de lancer l'étape suivante. C'est oh qui applique le comportement du mode :
@@ -54,7 +55,7 @@ Passage d'un checkpoint : appelle l'outil `workflow_checkpoint` avec `id` (ident
 - `skip` : le checkpoint est ignoré dans ce mode, ne l'appelle pas.
 - La réponse de l'outil peut contenir une consigne de l'utilisateur : applique-la.
 - Un checkpoint obligatoire n'est jamais sauté, quel que soit le mode.
-- N'utilise pas l'outil `question` pour valider un checkpoint ; `workflow_status` donne l'état courant (checkpoints passés, prochain checkpoint, agents encore verrouillés).
+- Les checkpoints passent **uniquement** par `workflow_checkpoint` : n'utilise jamais l'outil `question` ni un message texte pour poser ou valider un checkpoint (« CP-2 : commit ou corriger ? »). oh ferme une telle question sans effet et le checkpoint reste à passer. `workflow_status` donne l'état courant (checkpoints passés, prochain checkpoint, agents et opérations encore verrouillés).
 
 ## Mode de workflow
 

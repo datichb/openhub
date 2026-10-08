@@ -49,6 +49,7 @@ checkpoints:
       en: After the review, present the result and ask whether to commit or fix.
     mandatory: true
     mode: { manuel: pause, semi-auto: pause, auto: pause }
+    unlocks: [commit, push, close]
     remote: defer
   cp-3:
     label: { fr: Ticket suivant, en: Next ticket }

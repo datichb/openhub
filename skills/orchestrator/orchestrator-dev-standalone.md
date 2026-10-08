@@ -11,6 +11,8 @@ description: Parcours d'exécution de l'agent orchestrator dev en mode standalon
 
 En mode standalone, tous les checkpoints posent les questions **directement via l'outil `question`**. La todo list est visible par l'utilisateur en temps réel.
 
+> **Session lancée sur un workflow oh** (premier message avec `Mode de workflow : <mode>`) : chaque checkpoint de la carte du workflow (CP-1, CP-2, CP-3…) passe **uniquement** par l'outil `workflow_checkpoint` (`id` + `summary`), jamais par l'outil `question` ni par un texte. Les exemples `question` de ce skill ne valent que **hors workflow**. Validation reçue = suite prévue (CP-2 validé = commit) ; refus = suivre la consigne reçue, puis rappeler `workflow_checkpoint`. oh ferme sans effet une question qui imite un checkpoint, et refuse `git commit` et la fermeture du ticket tant que CP-2 n'est pas validé.
+
 ---
 
 ## CP-0 — Initialisation standalone

@@ -255,7 +255,7 @@ prompt:
 - Exactly one of the two (`prompt_both`, `prompt_empty`). Absent: no first message (the session waits for the user).
 - **Variables**: inputs at the top level (`{{ .ticket }}`); the session context under `.oh`: `.oh.project`, `.oh.location`, `.oh.mode`, `.oh.runtime`, `.oh.lang`, `.oh.workflow`. Any other variable: `prompt_unknown_variable`.
 - **Functions**:
-  - `{{ data "request" .request }}` puts the value between `<oh:data name="request">` and `</oh:data>`: the agent treats it as data, never as instructions. A tag inside the value is neutralised. Every `string` or `text` input must go through `data`.
+  - `{{ data "request" .request }}` writes the value, truncated. A computed input (`from:`) goes between `<oh:data name="…">` and `</oh:data>`: the agent treats it as data, never as instructions (a tag inside the value is neutralised). An input typed by the user is written as it is: it is their request. Every `string` or `text` input must go through `data`.
   - `{{ join .tickets ", " }}` joins a list.
 - An absent input takes its default, otherwise the empty value of its type: `{{ if .request }}…{{ end }}` works.
 - oh ends the prompt with the list of checkpoints to report before each gated agent.
@@ -296,6 +296,7 @@ checkpoints:
     description: After the review, ask whether to commit or fix.
     mandatory: true
     mode: { manuel: pause, semi-auto: pause, auto: pause }
+    unlocks: [commit, push, close]
     remote: defer
 ```
 
@@ -308,11 +309,13 @@ The id is in kebab-case (`checkpoint_id_invalid`) and must not be an agent id (`
 | `condition` | text | sentence read by the agent | — (required with `conditional`) | replaces |
 | `mandatory` | boolean | `true`, `false` | `false` | hardens (`true` does not go back to `false`) |
 | `remote` | text | `auto` < `defer` < `forbid` | `defer` | hardens |
+| `unlocks` | list | `commit`, `push`, `close` | — (nothing locked) | added to the inherited list (never removed) |
 | `disabled` | boolean | `true` | — | removes the inherited checkpoint (patch only) |
 
 - **Behaviors**: `pause` always asks the user; `auto` goes on alone; `skip` skips the checkpoint; `conditional` asks depending on `condition`. oh does not evaluate the condition: a `conditional` checkpoint always asks the user when it is reported.
 - **Strictness order**: `skip` < `auto` < `conditional` < `pause`. On a `mandatory` checkpoint, a patch cannot choose a less strict behavior, nor remove it (`mandatory_checkpoint_removed`); `skip` on a mandatory checkpoint counts as a pause.
 - **`remote`** (remote session): `auto` approved automatically; `defer` the session stops cleanly and waits for the user on the machine; `forbid` the workflow cannot run remotely.
+- **`unlocks`**: until the checkpoint is passed, oh refuses these operations to **every agent** of the session, whatever the model: `commit` (`git commit`, including `env git commit`, `git -c … commit`), `push` (`git push`), `close` (closing a Beads ticket, also refused by the Beads gateway). Once the checkpoint is passed, closing a ticket is accepted only if the work was committed since (or if there is nothing to commit, outside `.beads/`). The window closes again when a ticket is closed or the checkpoint is asked again (next ticket, another fix). An operation is unlocked by one checkpoint only (`unlock_duplicate`); a checkpoint that unlocks cannot be removed (`unlocking_checkpoint_removed`). A checkpoint skipped in the mode locks nothing.
 - A mode that is neither allowed nor one of the three shipped modes: `checkpoint_mode_unknown`; `conditional` without `condition`: `checkpoint_condition_missing`.
 - Checkpoint execution (3 levels: prompt, MCP tool `workflow_checkpoint`, oh plugin): [ADR-042](../architecture/adr/042-checkpoints-headless-decisions.en.md).
 
@@ -419,7 +422,7 @@ A diagnostic has a severity (error or warning), a code, the field path, the sour
 | `enforced_field`, `enforce_unknown_field` | field locked by a parent; unknown `enforce` value |
 | `entry_not_primary`, `entry_role`, `entry_disabled`, `agent_unknown`, `agent_unreachable` | invalid entry agent or member |
 | `after_unknown`, `after_cycle`, `calls_unknown`, `graph_cycle` | `after` gates and delegations |
-| `checkpoint_agent_clash`, `checkpoint_mode_unknown`, `checkpoint_mode_missing`, `checkpoint_condition_missing`, `mandatory_checkpoint_removed`, `patch_unknown_checkpoint` | checkpoints |
+| `checkpoint_agent_clash`, `checkpoint_mode_unknown`, `checkpoint_mode_missing`, `checkpoint_condition_missing`, `mandatory_checkpoint_removed`, `unlocking_checkpoint_removed`, `unlock_duplicate`, `patch_unknown_checkpoint` | checkpoints |
 | `precondition_check_invalid`, `precondition_path_invalid`, `precondition_self`, `precondition_unknown_workflow`, `patch_unknown_precondition` | preconditions |
 | `prompt_both`, `prompt_empty`, `prompt_template_path`, `prompt_template_missing`, `prompt_parse`, `prompt_unknown_variable` | prompt |
 | `read_agent_writes`, `read_beads_unrestricted`, `read_beads_write` | `risk: read` rules |

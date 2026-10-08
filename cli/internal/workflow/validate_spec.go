@@ -478,6 +478,7 @@ func (v *validator) callsPath(agent string) string {
 func (v *validator) checkpoints() {
 	s := v.s
 	allowed := s.AllowedModes()
+	unlockedBy := map[UnlockOp]string{}
 	for _, k := range s.Checkpoints.Keys() {
 		cp, _ := s.Checkpoints.Get(k)
 		base := "checkpoints." + k
@@ -506,6 +507,15 @@ func (v *validator) checkpoints() {
 		}
 		if cp.Remote != "" {
 			v.enum(base+".remote", string(cp.Remote), cp.Remote.Valid(), "auto", "defer", "forbid")
+		}
+		for i, op := range cp.Unlocks {
+			at := fmt.Sprintf("%s.unlocks[%d]", base, i)
+			v.enum(at, string(op), op.Valid(), "commit", "push", "close")
+			if prev, dup := unlockedBy[op]; dup {
+				v.err("unlock_duplicate", at, string(op), prev, k)
+			} else if op.Valid() {
+				unlockedBy[op] = k
+			}
 		}
 	}
 }

@@ -5,8 +5,10 @@ import (
 	"errors"
 	"net/http"
 	"os/exec"
+	"runtime"
 
 	"github.com/datichb/openhub/cli/internal/daemon"
+	"github.com/datichb/openhub/cli/internal/gateway"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/runtime/container"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
@@ -33,6 +35,16 @@ func gatewayDoctorChecks(ctx context.Context) []views.DoctorCheck {
 		out = append(out, check("bd", true, p))
 	} else {
 		out = append(out, check("bd", false, i18n.T("cmd.doctor.gateway.bd_missing")))
+	}
+	if runtime.GOOS != "windows" {
+		switch got, err := checkLocalShellBD(ctx); {
+		case err == nil:
+			out = append(out, check("shell_bd", true, got))
+		case errors.Is(err, gateway.ErrShellBD):
+			out = append(out, check("shell_bd", false, i18n.Tf("cmd.doctor.gateway.shell_bd_other", orNone(got))))
+		default:
+			out = append(out, check("shell_bd", false, err.Error()))
+		}
 	}
 
 	dc := daemon.NewClient(daemon.Paths{Dir: ohRunDir()})
@@ -82,4 +94,11 @@ func gatewayReachCheck(check func(string, bool, string) views.DoctorCheck, key, 
 		return check(key, false, i18n.Tf("cmd.doctor.gateway.route_missing", url))
 	}
 	return check(key, true, i18n.Tf("cmd.doctor.gateway.reachable", url, code, image))
+}
+
+func orNone(s string) string {
+	if s == "" {
+		return "—"
+	}
+	return s
 }

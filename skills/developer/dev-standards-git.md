@@ -100,6 +100,8 @@ Depuis `develop` à jour : `git checkout -b <type>/<ticket>-<desc>`.
 
 Vérifier avec `git diff --staged` avant chaque commit. Commit atomique avec message Conventional Commits. Ne jamais `git add .` si les changements sont hétérogènes.
 
+Les hooks du dépôt font partie du commit : ne jamais les contourner (`--no-verify`, `-c core.hooksPath=…`, `git config core.hooksPath`, `GIT_CONFIG_*`, modification de `.git/`). Si un hook échoue, corriger la cause ou signaler l'erreur ; dans une session oh, ces contournements sont refusés. Pour changer de branche : `git switch` (ou `git checkout -b` pour en créer une) ; ne jamais annuler une modification qu'on n'a pas faite.
+
 ### Ouvrir une Pull Request / Merge Request
 
 Titre de la PR : identique au(x) commit(s) principal(aux).

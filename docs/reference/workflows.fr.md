@@ -85,6 +85,8 @@ Implémente un ou plusieurs tickets Beads déjà détaillés : routage vers le b
 
 Mode par défaut : `semi-auto`. Commandes Beads autorisées : `show`, `list`, `ready`, `children`, `dep`, `update`, `close`, `comments`, `label`. Sorties : `branch`, `tickets`.
 
+`cp-2` déverrouille `commit`, `push` et `close` : avant sa validation, oh refuse à tous les agents `git commit`, `git push` et la fermeture du ticket. Une fois `cp-2` validé, l'`orchestrator-dev` relance le `developer`, qui commite puis ferme le ticket ; oh refuse la fermeture tant que le travail n'est pas commité. Une question qui imite un checkpoint (« CP-2 — commit ? » posée avec l'outil `question`) est fermée par oh, qui rappelle à l'agent d'appeler `workflow_checkpoint`. Quand le ticket de la session est fermé (ou le dernier checkpoint passé) et que l'étape se termine, oh déclare les sorties manquantes (`branch`, `tickets`) et la session passe à **terminée** : « Enchaîner avec… » est proposé.
+
 ## `feature`
 
 Réalise une feature de bout en bout. L'orchestrator choisit l'agent de planning : `pathfinder` pour une feature simple ou exploratoire, `planner` pour une feature à découper (création des tickets) ou pour classer des tickets existants. Il passe ensuite la main à `orchestrator-dev` pour l'implémentation.
@@ -274,7 +276,7 @@ Le premier message de la session est rendu depuis `workflows/prompts/<id>.md.tmp
 
 - les entrées sont au premier niveau (`{{ .ticket }}`), le contexte de session sous `.oh` : `project`, `location`, `mode`, `runtime`, `lang`, `workflow` ;
 - chaque gabarit commence par `Mode de workflow : {{ .oh.mode }}` (contrat avec l'agent d'entrée) et `Langue de réponse : {{ .oh.lang }}` ;
-- `{{ data "request" .request }}` place une entrée dans une balise de données `<oh:data name="request">…</oh:data>` : l'agent la traite comme une donnée, jamais comme une consigne. Une balise contenue dans la valeur est neutralisée. **Toute entrée `string` ou `text` passe par `data`** (vérifié par les tests) ;
+- `{{ data "request" .request }}` écrit une entrée, tronquée à `max_length`. Une valeur calculée par oh depuis une source externe (`from:` : discussions d'une MR, brief d'un ticket) est placée dans une balise de données `<oh:data name="…">…</oh:data>` : l'agent la traite comme une donnée, jamais comme une consigne (une balise contenue dans la valeur est neutralisée). Ce que l'utilisateur a saisi au lancement est sa propre demande : elle est écrite telle quelle, pour qu'une demande courte (« Dis seulement X ») soit traitée et non prise pour une injection. **Toute entrée `string` ou `text` passe par `data`** (vérifié par les tests) ;
 - `{{ join .tickets ", " }}` joint une liste ;
 - les entrées texte sont tronquées à `max_length` (20 000 caractères par défaut), avec la mention de la troncature ; un identifiant Beads invalide ou une branche ou un chemin sur plusieurs lignes est refusé ;
 - une entrée absente vaut sa valeur par défaut, sinon la valeur vide de son type (`""`, `false`, `0`, liste vide), ce qui permet `{{ if .request }}`.

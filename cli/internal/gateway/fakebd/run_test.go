@@ -80,3 +80,19 @@ func TestWantsStdin(t *testing.T) {
 	assert.True(t, wantsStdin([]string{"import", "-"}))
 	assert.False(t, wantsStdin([]string{"create", "a - b"}))
 }
+
+// A19: a command run by a Beads git hook says so to the gateway.
+func TestRunTellsGitHook(t *testing.T) {
+	var got beadswire.ExecRequest
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		require.NoError(t, json.NewDecoder(r.Body).Decode(&got))
+		_ = json.NewEncoder(w).Encode(beadswire.ExecResponse{})
+	}))
+	defer srv.Close()
+	vars := map[string]string{beadswire.EnvURL: srv.URL, beadswire.EnvToken: "ohg_x"}
+	assert.Equal(t, 0, Run([]string{"hooks", "run", "pre-commit"}, "/w", envOf(vars), nil, &bytes.Buffer{}, &bytes.Buffer{}))
+	assert.False(t, got.GitHook)
+	vars[beadswire.EnvGitHook] = "1"
+	assert.Equal(t, 0, Run([]string{"hooks", "run", "pre-commit"}, "/w", envOf(vars), nil, &bytes.Buffer{}, &bytes.Buffer{}))
+	assert.True(t, got.GitHook)
+}

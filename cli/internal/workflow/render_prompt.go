@@ -52,16 +52,25 @@ func (c PromptContext) values() map[string]any {
 
 // PromptFuncs are the functions available in prompt templates:
 //
-//	{{ data "request" .request }}  the value inside data tags (O11)
+//	{{ data "request" .request }}  an input: inside data tags when oh computed it
+//	                                from an outside source (`from:`, O11), as
+//	                                typed otherwise (the user's own request)
 //	{{ join .tickets ", " }}       a list joined with a separator
 //
-// data must wrap every free-text input (string, text): a value cannot
-// close its tag, and is truncated to the input max_length.
+// data must wrap every free-text input (string, text): it is truncated to
+// the input max_length, and an outside value cannot close its tag.
 func promptFuncs(s *Spec) template.FuncMap {
 	return template.FuncMap{
 		"data": func(name string, v any) (string, error) {
-			if _, ok := s.Inputs.Get(name); !ok {
+			in, ok := s.Inputs.Get(name)
+			if !ok {
 				return "", fmt.Errorf("data %q: unknown input", name)
+			}
+			if in.From == "" {
+				// Typed by the user at launch: their request, written as
+				// it is (A27: a short imperative request inside data tags
+				// was taken for an injection). Still truncated.
+				return strings.TrimRight(neutralise(textOf(v)), "\n"), nil
 			}
 			return DelimitData(name, textOf(v)), nil
 		},

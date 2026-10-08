@@ -59,7 +59,20 @@
         "shell git rm * deny",
         "shell git -C * rm * deny",
         "shell */bd deny",
-        "shell */bd * deny"
+        "shell */bd * deny",
+        "shell *git*--no-verify* deny",
+        "shell *git*commit* -n* deny",
+        "shell *git*commit* -an* deny",
+        "shell *.?ooks?ath* deny",
+        "shell *GIT_CONFIG* deny",
+        "shell *git*config*include* deny",
+        "shell *.git/config* deny",
+        "shell *.git/hooks* deny",
+        "shell *.beads/hooks/* deny",
+        "edit .git/* deny",
+        "edit */.git/* deny",
+        "edit .beads/hooks/* deny",
+        "edit */.beads/hooks/* deny"
       ]
     }
   ],

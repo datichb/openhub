@@ -255,7 +255,7 @@ prompt:
 - Exactement un des deux (`prompt_both`, `prompt_empty`). Absent : pas de premier message (la session attend l'utilisateur).
 - **Variables** : les entrées au premier niveau (`{{ .ticket }}`) ; le contexte de session sous `.oh` : `.oh.project`, `.oh.location`, `.oh.mode`, `.oh.runtime`, `.oh.lang`, `.oh.workflow`. Toute autre variable : `prompt_unknown_variable`.
 - **Fonctions** :
-  - `{{ data "request" .request }}` place la valeur entre `<oh:data name="request">` et `</oh:data>` : l'agent la traite comme une donnée, jamais comme une consigne. Une balise contenue dans la valeur est neutralisée. Toute entrée `string` ou `text` doit passer par `data`.
+  - `{{ data "request" .request }}` écrit la valeur, tronquée. Une entrée calculée (`from:`) est placée entre `<oh:data name="…">` et `</oh:data>` : l'agent la traite comme une donnée, jamais comme une consigne (une balise contenue dans la valeur est neutralisée). Une entrée saisie par l'utilisateur est écrite telle quelle : c'est sa demande. Toute entrée `string` ou `text` doit passer par `data`.
   - `{{ join .tickets ", " }}` joint une liste.
 - Une entrée absente vaut son défaut, sinon la valeur vide de son type : `{{ if .request }}…{{ end }}` fonctionne.
 - oh termine le prompt par la liste des checkpoints à signaler avant chaque agent verrouillé.
@@ -296,6 +296,7 @@ checkpoints:
     description: Après la review, demander s'il faut committer ou corriger.
     mandatory: true
     mode: { manuel: pause, semi-auto: pause, auto: pause }
+    unlocks: [commit, push, close]
     remote: defer
 ```
 
@@ -308,11 +309,13 @@ L'id est en kebab-case (`checkpoint_id_invalid`) et ne doit pas être celui d'un
 | `condition` | texte | phrase lue par l'agent | — (obligatoire avec `conditional`) | remplace |
 | `mandatory` | booléen | `true`, `false` | `false` | durcit (`true` ne redevient pas `false`) |
 | `remote` | texte | `auto` < `defer` < `forbid` | `defer` | durcit |
+| `unlocks` | liste | `commit`, `push`, `close` | — (rien de verrouillé) | s'ajoute à la liste héritée (jamais retirée) |
 | `disabled` | booléen | `true` | — | retire le checkpoint hérité (patch seulement) |
 
 - **Comportements** : `pause` demande toujours l'utilisateur ; `auto` continue seul ; `skip` saute le checkpoint ; `conditional` demande selon `condition`. oh n'évalue pas la condition : un checkpoint `conditional` demande toujours l'utilisateur quand il est signalé.
 - **Ordre de rigueur** : `skip` < `auto` < `conditional` < `pause`. Sur un checkpoint `mandatory`, un patch ne peut pas choisir un comportement moins strict, ni le retirer (`mandatory_checkpoint_removed`) ; `skip` sur un checkpoint obligatoire compte comme une pause.
 - **`remote`** (session distante) : `auto` validé automatiquement ; `defer` la session s'arrête proprement et attend l'utilisateur sur la machine ; `forbid` le workflow ne peut pas s'exécuter à distance.
+- **`unlocks`** : tant que le checkpoint n'est pas passé, oh refuse ces opérations à **tous les agents** de la session, quel que soit le modèle : `commit` (`git commit`, y compris `env git commit`, `git -c … commit`), `push` (`git push`), `close` (fermeture d'un ticket Beads, refusée aussi par la passerelle Beads). Une fois le checkpoint passé, la fermeture d'un ticket n'est acceptée que si le travail est commité depuis (ou s'il n'y a rien à committer, hors `.beads/`). La fenêtre se referme quand un ticket est fermé ou que le checkpoint est demandé de nouveau (ticket suivant, nouvelle correction). Une opération n'est déverrouillée que par un seul checkpoint (`unlock_duplicate`) ; un checkpoint qui déverrouille ne peut pas être retiré (`unlocking_checkpoint_removed`). Un checkpoint sauté dans le mode ne verrouille rien.
 - Un mode qui n'est ni autorisé ni un des trois modes livrés : `checkpoint_mode_unknown` ; `conditional` sans `condition` : `checkpoint_condition_missing`.
 - Exécution des checkpoints (3 niveaux : prompt, outil MCP `workflow_checkpoint`, plugin oh) : [ADR-042](../architecture/adr/042-checkpoints-headless-decisions.fr.md).
 
@@ -419,7 +422,7 @@ Un diagnostic a une gravité (erreur ou avertissement), un code, le chemin du ch
 | `enforced_field`, `enforce_unknown_field` | champ verrouillé par un parent ; valeur d'`enforce` inconnue |
 | `entry_not_primary`, `entry_role`, `entry_disabled`, `agent_unknown`, `agent_unreachable` | agent d'entrée ou membre invalide |
 | `after_unknown`, `after_cycle`, `calls_unknown`, `graph_cycle` | verrous `after` et délégations |
-| `checkpoint_agent_clash`, `checkpoint_mode_unknown`, `checkpoint_mode_missing`, `checkpoint_condition_missing`, `mandatory_checkpoint_removed`, `patch_unknown_checkpoint` | checkpoints |
+| `checkpoint_agent_clash`, `checkpoint_mode_unknown`, `checkpoint_mode_missing`, `checkpoint_condition_missing`, `mandatory_checkpoint_removed`, `unlocking_checkpoint_removed`, `unlock_duplicate`, `patch_unknown_checkpoint` | checkpoints |
 | `precondition_check_invalid`, `precondition_path_invalid`, `precondition_self`, `precondition_unknown_workflow`, `patch_unknown_precondition` | préconditions |
 | `prompt_both`, `prompt_empty`, `prompt_template_path`, `prompt_template_missing`, `prompt_parse`, `prompt_unknown_variable` | prompt |
 | `read_agent_writes`, `read_beads_unrestricted`, `read_beads_write` | règles de `risk: read` |

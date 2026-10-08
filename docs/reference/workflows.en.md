@@ -85,6 +85,8 @@ Implements one or more detailed Beads tickets: routing to the right developer, p
 
 Default mode: `semi-auto`. Allowed Beads commands: `show`, `list`, `ready`, `children`, `dep`, `update`, `close`, `comments`, `label`. Outputs: `branch`, `tickets`.
 
+`cp-2` unlocks `commit`, `push` and `close`: until it is approved, oh refuses `git commit`, `git push` and closing the ticket to every agent. Once `cp-2` is approved, `orchestrator-dev` hands back to the `developer`, who commits and then closes the ticket; oh refuses closing while the work is not committed. A question imitating a checkpoint ("CP-2 — commit?" asked with the `question` tool) is closed by oh, which reminds the agent to call `workflow_checkpoint`. When the ticket of the session is closed (or the last checkpoint passed) and the step ends, oh declares the missing outputs (`branch`, `tickets`) and the session becomes **completed**: "Chain with…" is offered.
+
 ## `feature`
 
 Delivers a feature end to end. The orchestrator picks the planning agent: `pathfinder` for a simple or exploratory feature, `planner` for a feature to split (ticket creation) or to classify existing tickets. It then hands over to `orchestrator-dev` for the implementation.
@@ -274,7 +276,7 @@ The first message of the session is rendered from `workflows/prompts/<id>.md.tmp
 
 - inputs are top-level fields (`{{ .ticket }}`), the session context is under `.oh`: `project`, `location`, `mode`, `runtime`, `lang`, `workflow`;
 - every template starts with `Mode de workflow : {{ .oh.mode }}` (contract with the entry agent) and `Langue de réponse : {{ .oh.lang }}`;
-- `{{ data "request" .request }}` puts an input inside a data tag `<oh:data name="request">…</oh:data>`: the agent treats it as data, never as instructions. A tag inside the value is neutralised. **Every `string` or `text` input goes through `data`** (checked by the tests);
+- `{{ data "request" .request }}` writes an input, truncated to `max_length`. A value oh computes from an outside source (`from:`: merge request discussions, ticket brief) goes inside a data tag `<oh:data name="…">…</oh:data>`: the agent treats it as data, never as instructions (a tag inside the value is neutralised). What the user typed at launch is their own request: it is written as it is, so that a short request ("Say only X") is carried out and not taken for an injection. **Every `string` or `text` input goes through `data`** (checked by the tests);
 - `{{ join .tickets ", " }}` joins a list;
 - text inputs are truncated to `max_length` (20,000 characters by default), with a truncation notice; an invalid Beads id, or a multi-line branch or path, is refused;
 - a missing input takes its default value, otherwise the empty value of its type (`""`, `false`, `0`, empty list), which allows `{{ if .request }}`.

@@ -90,7 +90,16 @@ type CheckpointDef struct {
 	Behaviors map[string]string `json:"behaviors"`       // mode → pause | auto | skip | conditional
 	Condition string            `json:"condition,omitempty"`
 	Mandatory bool              `json:"mandatory,omitempty"`
+	// Unlocks lists the operations locked until this checkpoint is passed.
+	Unlocks []string `json:"unlocks,omitempty"`
 }
+
+// Operations a checkpoint unlocks (copied from the oh/v1 schema).
+const (
+	UnlockCommit = "commit"
+	UnlockPush   = "push"
+	UnlockClose  = "close"
+)
 
 // Behavior returns the behavior of the checkpoint in mode (unset = pause; a
 // mandatory checkpoint is never skipped).

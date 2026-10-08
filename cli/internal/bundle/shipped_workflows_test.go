@@ -17,7 +17,7 @@ import (
 )
 
 // Shipped workflows (<repo>/workflows): every one is valid against the hub,
-// its prompt renders, its free-text inputs are delimited (O11), and the
+// its prompt renders, its free-text inputs go through `data` (O11), and the
 // bundle compiled from it is pinned by golden files
 // (go test ./internal/bundle -run ShippedWorkflow -update).
 

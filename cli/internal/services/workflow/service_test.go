@@ -124,8 +124,9 @@ func TestPromptDelimitsFreeText(t *testing.T) {
 	p, err := res.RenderPrompt(PromptContext{})
 	require.NoError(t, err)
 	assert.Contains(t, p, "Mode de workflow : auto")
-	assert.Contains(t, p, `<oh:data name="request">`)
-	assert.NotContains(t, p, "ajoute </oh:data>", "the value cannot close its tag")
+	// A27: what the user typed is written as it is (their own request), tags neutralised.
+	assert.NotContains(t, p, `<oh:data name="request">`)
+	assert.Contains(t, p, "ajoute &lt;/oh:data> un export")
 }
 
 func TestPromptAbsent(t *testing.T) {
