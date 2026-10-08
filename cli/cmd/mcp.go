@@ -119,7 +119,7 @@ func runMCPEnable(cmd *cobra.Command, args []string) error {
 			}
 			return nil
 		}); err != nil {
-			return fmt.Errorf("writing config: %w", err)
+			return fmt.Errorf("%s: %w", i18n.T("cmd.config.save_failed"), err)
 		}
 		fmt.Fprintf(cmd.OutOrStdout(), "%s %s\n",
 			theme.SuccessStyle.Render(theme.IconSuccess),
@@ -213,7 +213,7 @@ func runMCPDisable(cmd *cobra.Command, args []string) error {
 			}
 			return nil
 		}); err != nil {
-			return fmt.Errorf("writing config: %w", err)
+			return fmt.Errorf("%s: %w", i18n.T("cmd.config.save_failed"), err)
 		}
 		fmt.Fprintf(cmd.OutOrStdout(), "%s %s\n",
 			theme.SuccessStyle.Render(theme.IconSuccess),
@@ -479,7 +479,7 @@ func runMCPSetupForService(cmd *cobra.Command, serviceName string, project *doma
 						}
 						return nil
 					}); err != nil {
-						return fmt.Errorf("writing config: %w", err)
+						return fmt.Errorf("%s: %w", i18n.T("cmd.config.save_failed"), err)
 					}
 				}
 				return nil

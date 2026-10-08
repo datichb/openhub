@@ -685,6 +685,57 @@ var beadsAgentFiles = []string{"AGENTS.md"}
 // beadsAgentDirs are directories that bd may generate in the project root.
 var beadsAgentDirs = []string{".claude", ".codex", ".agents"}
 
+// beadsDiagAgentFiles and beadsDiagAgentDirs are what DiagnoseBeadsImpact
+// reports: the files of a `bd init` without --skip-agents (bd 1.3). They are
+// wider than the lists SanitizeBeadsInit removes on its own (a CLAUDE.md or a
+// .cursor/ folder of the user is never deleted, only reported).
+var (
+	beadsDiagAgentFiles = []string{"AGENTS.md", "CLAUDE.md"}
+	beadsDiagAgentDirs  = []string{".claude", ".codex", ".agents", ".cursor"}
+)
+
+// beadsManagedBlock opens the block bd writes in AGENTS.md / CLAUDE.md.
+const beadsManagedBlock = "<!-- BEGIN BEADS INTEGRATION"
+
+// beadsDirMarkers are written by bd in the agent tool folders (hooks,
+// rules, skills).
+var beadsDirMarkers = []string{"bd prime", "bd cursor-hook", "bd codex-hook", beadsManagedBlock}
+
+// hasBeadsGeneratedFile reports a file written by bd in an agent tool folder
+// (searched two levels deep).
+func hasBeadsGeneratedFile(dir string) bool {
+	found := false
+	_ = filepath.WalkDir(dir, func(path string, d os.DirEntry, err error) error {
+		if err != nil || found {
+			return nil //nolint:nilerr // unreadable entry: skipped
+		}
+		rel, _ := filepath.Rel(dir, path)
+		if d.IsDir() {
+			if strings.Count(rel, string(filepath.Separator)) >= 3 {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		content, err := os.ReadFile(path)
+		if err != nil {
+			return nil //nolint:nilerr // unreadable file: skipped
+		}
+		text := string(content)
+		if isBeadsAgentContent(text) {
+			found = true
+			return filepath.SkipAll
+		}
+		for _, m := range beadsDirMarkers {
+			if strings.Contains(text, m) {
+				found = true
+				return filepath.SkipAll
+			}
+		}
+		return nil
+	})
+	return found
+}
+
 // SanitizeReport describes the actions taken by SanitizeBeadsInit.
 type SanitizeReport struct {
 	HooksCleaned   []string // hook file names that were cleaned or removed
@@ -1016,14 +1067,22 @@ func DiagnoseBeadsImpact(projectPath string) []DiagIssue {
 		}
 	}
 
-	// Check .gitignore for beads entries
+	// Check .gitignore for beads entries (and the block bd 1.3 adds under
+	// its own comment line)
 	gitignorePath := filepath.Join(projectPath, ".gitignore")
 	if content, err := os.ReadFile(gitignorePath); err == nil {
 		for _, line := range strings.Split(string(content), "\n") {
-			if isBeadsGitignoreLine(strings.TrimSpace(line)) {
+			trimmed := strings.TrimSpace(line)
+			switch {
+			case isBeadsGitignoreLine(trimmed):
 				issues = append(issues, DiagIssue{
 					Kind:   "gitignore",
-					Detail: fmt.Sprintf(".gitignore contains beads entry: %s", strings.TrimSpace(line)),
+					Detail: fmt.Sprintf(".gitignore contains beads entry: %s", trimmed),
+				})
+			case strings.Contains(strings.ToLower(trimmed), "added by bd init") && isBeadsCommentLine(trimmed):
+				issues = append(issues, DiagIssue{
+					Kind:   "gitignore",
+					Detail: fmt.Sprintf(".gitignore contains a block added by bd init: %s", trimmed),
 				})
 			}
 		}
@@ -1038,19 +1097,19 @@ func DiagnoseBeadsImpact(projectPath string) []DiagIssue {
 		})
 	}
 
-	// Check for agent files
-	for _, name := range beadsAgentFiles {
+	// Check for agent files (bd 1.3 also writes CLAUDE.md and .cursor/)
+	for _, name := range beadsDiagAgentFiles {
 		p := filepath.Join(projectPath, name)
-		if content, err := os.ReadFile(p); err == nil && isBeadsAgentContent(string(content)) {
+		if content, err := os.ReadFile(p); err == nil && (isBeadsAgentContent(string(content)) || strings.Contains(string(content), beadsManagedBlock)) {
 			issues = append(issues, DiagIssue{
 				Kind:   "agent_file",
 				Detail: fmt.Sprintf("bd-generated agent file present: %s", name),
 			})
 		}
 	}
-	for _, name := range beadsAgentDirs {
+	for _, name := range beadsDiagAgentDirs {
 		p := filepath.Join(projectPath, name)
-		if info, err := os.Stat(p); err == nil && info.IsDir() && isBeadsAgentDir(p) {
+		if info, err := os.Stat(p); err == nil && info.IsDir() && hasBeadsGeneratedFile(p) {
 			issues = append(issues, DiagIssue{
 				Kind:   "agent_file",
 				Detail: fmt.Sprintf("bd-generated agent directory present: %s/", name),

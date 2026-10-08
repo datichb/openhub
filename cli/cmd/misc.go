@@ -323,7 +323,7 @@ func runServiceSetup(cmd *cobra.Command, args []string) error {
 			}
 			return nil
 		}); err != nil {
-			return fmt.Errorf("writing config: %w", err)
+			return fmt.Errorf("%s: %w", i18n.T("cmd.config.save_failed"), err)
 		}
 
 		fmt.Fprintf(a.IO.Out, "%s %s\n",
@@ -391,7 +391,7 @@ func runServiceRemove(cmd *cobra.Command, args []string) error {
 		}
 		return nil
 	}); err != nil {
-		return fmt.Errorf("writing config: %w", err)
+		return fmt.Errorf("%s: %w", i18n.T("cmd.config.save_failed"), err)
 	}
 
 	fmt.Fprintf(a.IO.Out, "%s %s\n",

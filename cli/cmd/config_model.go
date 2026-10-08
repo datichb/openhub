@@ -259,7 +259,7 @@ func configModelUnsetCmd() *cobra.Command {
 				return unsetHubModel("models.default")
 			case "family":
 				if len(args) < 2 {
-					return fmt.Errorf("usage: oh config model unset family <name>")
+					return errors.New(i18n.T("cmd.config.model.unset.usage_family"))
 				}
 				key := "models.families." + args[1]
 				if projectID != "" {
@@ -268,7 +268,7 @@ func configModelUnsetCmd() *cobra.Command {
 				return unsetHubModel(key)
 			case "agent":
 				if len(args) < 2 {
-					return fmt.Errorf("usage: oh config model unset agent <id>")
+					return errors.New(i18n.T("cmd.config.model.unset.usage_agent"))
 				}
 				key := "models.agents." + args[1]
 				if projectID != "" {
@@ -276,7 +276,7 @@ func configModelUnsetCmd() *cobra.Command {
 				}
 				return unsetHubModel(key)
 			default:
-				return fmt.Errorf("unknown scope %q — expected: default, family, agent", scope)
+				return errors.New(i18n.Tf("cmd.config.model.unset.bad_scope", scope))
 			}
 		},
 	}
@@ -360,7 +360,7 @@ func setProjectModel(ctx context.Context, projectID, model string) error {
 	a := MustApp()
 	project, err := a.Projects.Get(ctx, projectID)
 	if err != nil {
-		return fmt.Errorf("project %s: %w", projectID, err)
+		return projectLoadError(projectID, err)
 	}
 
 	project.Model = model
@@ -378,7 +378,7 @@ func setProjectModelFamily(ctx context.Context, projectID, family, model string)
 	a := MustApp()
 	project, err := a.Projects.Get(ctx, projectID)
 	if err != nil {
-		return fmt.Errorf("project %s: %w", projectID, err)
+		return projectLoadError(projectID, err)
 	}
 
 	if project.ModelOverrides == nil {
@@ -403,7 +403,7 @@ func setProjectModelAgent(ctx context.Context, projectID, agentID, model string)
 	a := MustApp()
 	project, err := a.Projects.Get(ctx, projectID)
 	if err != nil {
-		return fmt.Errorf("project %s: %w", projectID, err)
+		return projectLoadError(projectID, err)
 	}
 
 	if project.ModelOverrides == nil {
@@ -428,7 +428,7 @@ func unsetProjectModelDefault(ctx context.Context, projectID string) error {
 	a := MustApp()
 	project, err := a.Projects.Get(ctx, projectID)
 	if err != nil {
-		return fmt.Errorf("project %s: %w", projectID, err)
+		return projectLoadError(projectID, err)
 	}
 
 	project.Model = ""
@@ -446,7 +446,7 @@ func unsetProjectModelFamily(ctx context.Context, projectID, family string) erro
 	a := MustApp()
 	project, err := a.Projects.Get(ctx, projectID)
 	if err != nil {
-		return fmt.Errorf("project %s: %w", projectID, err)
+		return projectLoadError(projectID, err)
 	}
 
 	if project.ModelOverrides != nil && project.ModelOverrides.Families != nil {
@@ -466,7 +466,7 @@ func unsetProjectModelAgent(ctx context.Context, projectID, agentID string) erro
 	a := MustApp()
 	project, err := a.Projects.Get(ctx, projectID)
 	if err != nil {
-		return fmt.Errorf("project %s: %w", projectID, err)
+		return projectLoadError(projectID, err)
 	}
 
 	if project.ModelOverrides != nil && project.ModelOverrides.Agents != nil {
@@ -480,4 +480,13 @@ func unsetProjectModelAgent(ctx context.Context, projectID, agentID string) erro
 		theme.SuccessStyle.Render(theme.IconSuccess),
 		theme.Bold.Render(project.Name), agentID)
 	return nil
+}
+
+// projectLoadError explains a project that cannot be read (unknown: the
+// message of oh project list).
+func projectLoadError(projectID string, err error) error {
+	if errors.Is(err, domain.ErrNotFound) {
+		return errors.New(i18n.Tf("cmd.config.model.unknown_project", projectID))
+	}
+	return fmt.Errorf("%s: %w", i18n.Tf("cmd.config.model.project_failed", projectID), err)
 }

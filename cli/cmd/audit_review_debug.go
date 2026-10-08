@@ -81,7 +81,7 @@ var reviewCmd = &cobra.Command{
 		switch mode {
 		case "", "standard", "adversarial", "edge-case", "standard+adversarial", "all":
 		default:
-			return fmt.Errorf("mode invalide %q — modes disponibles : standard, adversarial, edge-case, standard+adversarial, all", mode)
+			return errors.New(i18n.Tf("cmd.review.invalid_mode", mode))
 		}
 		return agentCommandAlias(cmd, "oh review", "review", map[string]string{"review_mode": mode, "branch": reviewBranch}, "")
 	},
@@ -115,7 +115,7 @@ func runReviewPublish(cmd *cobra.Command) error {
 	// Get current branch.
 	branch := getPublishBranch(project.Path)
 	if branch == "" || isMainBranch(branch) {
-		return fmt.Errorf("branche courante (%s) n'est pas une feature branch", branch)
+		return errors.New(i18n.Tf("cmd.review.publish.not_feature_branch", branch))
 	}
 
 	// Detect base/target branch.
@@ -128,8 +128,8 @@ func runReviewPublish(cmd *cobra.Command) error {
 		title = fmt.Sprintf("%s: %s", ticketRef, strings.TrimPrefix(branch, fmt.Sprintf("feat/%s-", ticketRef)))
 	}
 
-	fmt.Fprintf(a.IO.Out, "%s Création MR pour %s → %s...\n",
-		theme.Subtitle.Render(theme.IconArrow), theme.Bold.Render(branch), targetBranch)
+	fmt.Fprintf(a.IO.Out, "%s %s\n", theme.Subtitle.Render(theme.IconArrow),
+		i18n.Tf("cmd.review.publish.creating", theme.Bold.Render(branch), targetBranch))
 
 	// Resolve GitLab credentials (MCP cascade).
 	glToken := resolveGitLabToken(ctx, a)
@@ -141,8 +141,7 @@ func runReviewPublish(cmd *cobra.Command) error {
 	// Resolve GitLab project path (tracker config).
 	glProject := resolveGitLabProject(a, project)
 	if glProject == "" {
-		return fmt.Errorf("projet GitLab non configuré. Ajoute %s dans la config tracker",
-			theme.Bold.Render("tracker_project"))
+		return errors.New(i18n.Tf("cmd.review.publish.no_project", theme.Bold.Render("tracker_project")))
 	}
 
 	// Create GitLab API client.
@@ -151,22 +150,22 @@ func runReviewPublish(cmd *cobra.Command) error {
 	// Create or find existing MR.
 	mr, err := gl.CreateMR(ctx, glProject, branch, targetBranch, title, "")
 	if err != nil {
-		return fmt.Errorf("création MR échouée: %w", err)
+		return fmt.Errorf("%s: %w", i18n.T("cmd.review.publish.create_failed"), err)
 	}
 
-	fmt.Fprintf(a.IO.Out, "%s MR créée : %s\n",
-		theme.SuccessStyle.Render(theme.IconSuccess), theme.Bold.Render(mr.WebURL))
-	fmt.Fprintf(a.IO.Out, "  Titre : %s\n", mr.Title)
+	fmt.Fprintf(a.IO.Out, "%s %s\n",
+		theme.SuccessStyle.Render(theme.IconSuccess), i18n.Tf("cmd.review.publish.created", theme.Bold.Render(mr.WebURL)))
+	fmt.Fprintf(a.IO.Out, "  %s\n", i18n.Tf("cmd.review.publish.title", mr.Title))
 
 	// Assign reviewer if requested.
 	reviewerFlag, _ := cmd.Flags().GetString("reviewer")
 	if reviewerFlag != "" {
 		if err := assignReviewer(ctx, a, gl, glProject, mr.IID, reviewerFlag); err != nil {
-			fmt.Fprintf(a.IO.Out, "%s Assignation reviewer échouée: %s\n",
-				theme.WarningStyle.Render(theme.IconWarning), err)
+			fmt.Fprintf(a.IO.Out, "%s %s\n",
+				theme.WarningStyle.Render(theme.IconWarning), i18n.Tf("cmd.review.publish.assign_failed", err))
 		} else {
-			fmt.Fprintf(a.IO.Out, "%s Reviewer assigné : %s\n",
-				theme.SuccessStyle.Render(theme.IconSuccess), theme.Bold.Render(reviewerFlag))
+			fmt.Fprintf(a.IO.Out, "%s %s\n",
+				theme.SuccessStyle.Render(theme.IconSuccess), i18n.Tf("cmd.review.publish.assigned", theme.Bold.Render(reviewerFlag)))
 		}
 	}
 
@@ -176,8 +175,8 @@ func runReviewPublish(cmd *cobra.Command) error {
 	}
 
 	fmt.Fprintln(a.IO.Out)
-	fmt.Fprintf(a.IO.Out, "  %s Le merge reste TOUJOURS une action manuelle du développeur.\n",
-		theme.WarningStyle.Render(theme.IconWarning))
+	fmt.Fprintf(a.IO.Out, "  %s %s\n",
+		theme.WarningStyle.Render(theme.IconWarning), i18n.T("cmd.review.publish.manual_merge"))
 
 	return nil
 }
@@ -241,15 +240,15 @@ func assignReviewer(ctx context.Context, a *app.App, gl *gitlabapi.Client, glPro
 	}
 	repo := teamstate.NewRepo(teamCfg.StateRepo, statePath)
 	if !repo.IsCloned() {
-		return fmt.Errorf("team state non cloné — impossible de résoudre le reviewer")
+		return errors.New(i18n.T("cmd.review.publish.no_team_state"))
 	}
 
 	member, err := repo.GetMember(memberID)
 	if err != nil {
-		return fmt.Errorf("membre %q non trouvé dans l'équipe", memberID)
+		return errors.New(i18n.Tf("cmd.review.publish.unknown_member", memberID))
 	}
 	if member.GitLabUsername == "" {
-		return fmt.Errorf("le membre %q n'a pas de gitlab_username configuré", memberID)
+		return errors.New(i18n.Tf("cmd.review.publish.no_gitlab_username", memberID))
 	}
 
 	// Resolve GitLab user ID.
