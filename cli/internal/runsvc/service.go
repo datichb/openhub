@@ -966,13 +966,14 @@ func (s *Service) StopSession(ctx context.Context, sessionID string) error {
 		}
 	}
 	now := time.Now()
+	ended := sess.State == domain.RunCompleted // its end already ran (workflow finished, daemon)
 	sess.State, sess.StateChangedAt, sess.Status, sess.EndedAt = domain.RunStopped, &now, domain.SessionStatusCompleted, &now
 	if err := s.Sessions.Update(ctx, sess); err != nil {
 		return err
 	}
 	s.removeStaticEnv(sessionID)
 	s.closeDecisions(ctx, sessionID)
-	if s.OnSessionEnd != nil {
+	if s.OnSessionEnd != nil && !ended {
 		s.OnSessionEnd(ctx, *sess)
 	}
 	return nil

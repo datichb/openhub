@@ -199,6 +199,11 @@ func (w *watcher) finishWorkflow(ctx context.Context, root string) {
 		return
 	}
 	w.d.feed.publishChange(domain.SessionChange{SessionID: root, GroupKey: w.srv.GroupKey, State: sess.State})
+	if w.d.opts.OnSessionEnd != nil {
+		// The session is over: its team claims end (closed tickets) or are
+		// released, as when it is stopped.
+		w.d.opts.OnSessionEnd(ctx, *sess)
+	}
 }
 
 // reopenCompleted puts back in play a session completed by the end of its

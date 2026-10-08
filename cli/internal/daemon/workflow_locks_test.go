@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sync"
 	"testing"
 	"time"
 
@@ -81,11 +82,14 @@ func TestWorkflowLocksAndEnd(t *testing.T) {
 	fake := &rulesAdapter{fakeAdapter: newFake(), rules: map[string][]sessionspec.PermissionRule{}}
 	fake.usage["ses_a"] = adapters.SessionResult{Branch: "feat/pt-1"}
 	cp := &checkpoint.Service{Sessions: sessions, States: states, SessionOutputs: states, BundlesDir: bundles, SessionsDir: t.TempDir()}
+	var endMu sync.Mutex
+	var ended []domain.Session
 	dctx, cancel := context.WithCancel(ctx)
 	done := make(chan error, 1)
 	go func() {
 		done <- Run(dctx, Options{Paths: p, Version: "t", Servers: servers, Sessions: sessions, Decisions: decisions, Checkpoints: cp,
 			Tick: time.Hour, IdleAfter: time.Hour, BeadsBinary: bd,
+			OnSessionEnd: func(_ context.Context, s domain.Session) { endMu.Lock(); ended = append(ended, s); endMu.Unlock() },
 			Adapter: func(name string) adapters.ToolAdapter {
 				if name == "fake" {
 					return fake
@@ -176,6 +180,10 @@ func TestWorkflowLocksAndEnd(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "feat/pt-1", s.Outputs["branch"])
 	assert.Equal(t, []any{"pt-1"}, s.Outputs["tickets"])
+	endMu.Lock()
+	require.Len(t, ended, 1, "the end of the session runs (team claims), as when it is stopped")
+	assert.Equal(t, domain.RunCompleted, ended[0].State)
+	endMu.Unlock()
 
 	// The user goes on: the session is back in play.
 	ch <- adapters.ToolEvent{Kind: adapters.EventExecStarted, SessionID: "ses_a"}

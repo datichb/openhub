@@ -37,7 +37,8 @@ type Options struct {
 	IdleAfter time.Duration // stop after this long without live servers (default 10m)
 	IdleSleep time.Duration // put an idle server group to sleep after this long (default 5m)
 	Tick      time.Duration // supervision period (default 15s)
-	// OnSessionEnd is called when the daemon stops a session for good (team
+	// OnSessionEnd is called when the daemon stops a session for good, or
+	// when its workflow is finished (completed) (team
 	// session.complete event).
 	OnSessionEnd func(ctx context.Context, s domain.Session)
 	// Sessions is updated by the session watchers (run state, cost, tokens).

@@ -96,7 +96,7 @@ A session started from a workflow passes its checkpoints through the `workflow_c
 
 The session detail shows the timeline: `✔ cp-1 10:03 → developer (3) → ⏸ cp-2 → ○ cp-3`.
 
-**End of the workflow**: when the last checkpoint is passed, or every ticket the session took is closed (mandatory checkpoints passed), oh waits for the end of the step, declares the outputs the agent did not (branch, closed tickets) and the session becomes **completed**; "Chain with…" is then offered. If you go on with the conversation in the tool, the session is in progress again.
+**End of the workflow**: when the last checkpoint is passed, or every ticket the session took is closed (mandatory checkpoints passed), oh waits for the end of the step, declares the outputs the agent did not (branch, closed tickets) and the session becomes **completed**, which also ends its team claims (closed ticket) or releases them (ticket still open), as a stop does; "Chain with…" is then offered. If you go on with the conversation in the tool, the session is in progress again.
 
 From the command line: `oh session approve <id>` validates (`--decision once`), `--decision fix -m "…"` or `--decision other -m "…"` refuses with an instruction, `--decision reject` refuses without one.
 

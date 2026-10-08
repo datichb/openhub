@@ -96,7 +96,7 @@ Une session lancée depuis un workflow passe ses checkpoints par l'outil `workfl
 
 Le détail de la session affiche la frise : `✔ cp-1 10:03 → developer (3) → ⏸ cp-2 → ○ cp-3`.
 
-**Fin du workflow** : quand le dernier checkpoint est passé, ou que tous les tickets pris par la session sont fermés (checkpoints obligatoires passés), oh attend la fin de l'étape, déclare les sorties que l'agent n'a pas déclarées (branche, tickets fermés) et passe la session à **terminée** ; « Enchaîner avec… » est alors proposé. Si vous reprenez la conversation dans l'outil, la session repasse en cours.
+**Fin du workflow** : quand le dernier checkpoint est passé, ou que tous les tickets pris par la session sont fermés (checkpoints obligatoires passés), oh attend la fin de l'étape, déclare les sorties que l'agent n'a pas déclarées (branche, tickets fermés) et passe la session à **terminée**, ce qui termine aussi ses réservations d'équipe (ticket fermé) ou les libère (ticket encore ouvert), comme un arrêt ; « Enchaîner avec… » est alors proposé. Si vous reprenez la conversation dans l'outil, la session repasse en cours.
 
 En ligne de commande : `oh session approve <id>` valide (`--decision once`), `--decision fix -m "…"` ou `--decision other -m "…"` refuse avec une consigne, `--decision reject` refuse sans consigne.
 
