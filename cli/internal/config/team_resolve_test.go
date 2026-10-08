@@ -1,6 +1,8 @@
 package config_test
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -355,5 +357,24 @@ func TestResolveTeamForProject_LegacyCustom(t *testing.T) {
 	}
 	if got.StateRepo != "git@gitlab.com:other/custom-ts.git" {
 		t.Fatalf("expected custom StateRepo, got %s", got.StateRepo)
+	}
+}
+
+// A3: team-state clones follow OH_HOME (isolated environments) and still
+// find a former clone without the host level.
+func TestTeamStatePath_UnderOHHome(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("OH_HOME", home)
+	got := config.TeamStatePath("git@gitlab.com:acme/team-state.git")
+	want := filepath.Join(home, "team-states", "gitlab.com", "team-state")
+	if got != want {
+		t.Fatalf("TeamStatePath = %q, want %q", got, want)
+	}
+	legacy := filepath.Join(home, "team-states", "team-state")
+	if err := os.MkdirAll(legacy, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if got := config.TeamStatePath("git@gitlab.com:acme/team-state.git"); got != legacy {
+		t.Fatalf("TeamStatePath = %q, want the former clone %q", got, legacy)
 	}
 }

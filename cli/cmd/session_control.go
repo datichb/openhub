@@ -49,6 +49,10 @@ func decisionError(err error) error {
 		return errors.New(i18n.T("cmd.session.always_forbidden"))
 	case errors.Is(err, sessionsvc.ErrServerNotRunning):
 		return errors.New(i18n.T("cmd.session.server_not_running"))
+	case errors.Is(err, sessionsvc.ErrAmbiguous):
+		return errors.New(i18n.T("cmd.session.ref_ambiguous"))
+	case errors.Is(err, domain.ErrNotFound):
+		return errors.New(i18n.T("cmd.session.ref_not_found"))
 	}
 	return err
 }
@@ -219,7 +223,7 @@ var sessionSendCmd = &cobra.Command{
 		}
 		sess, err := svc.Resolve(cmd.Context(), args[0])
 		if err != nil {
-			return err
+			return sessionRefError(args[0], err)
 		}
 		synthetic, _ := cmd.Flags().GetBool("synthetic")
 		queue, _ := cmd.Flags().GetBool("queue")
@@ -248,7 +252,7 @@ func sessionOp(use, short, done string, nargs int, op func(ctx context.Context, 
 			}
 			sess, err := svc.Resolve(cmd.Context(), args[0])
 			if err != nil {
-				return err
+				return sessionRefError(args[0], err)
 			}
 			if err := op(cmd.Context(), svc, sess.ID, args[1:]); err != nil {
 				return decisionError(err)
@@ -358,7 +362,7 @@ var sessionFollowCmd = &cobra.Command{
 		}
 		sess, err := svc.Resolve(cmd.Context(), args[0])
 		if err != nil {
-			return err
+			return sessionRefError(args[0], err)
 		}
 		ctx, stop := signal.NotifyContext(cmd.Context(), os.Interrupt)
 		defer stop()
@@ -402,7 +406,7 @@ var sessionResultsCmd = &cobra.Command{
 		}
 		sess, err := svc.Resolve(cmd.Context(), args[0])
 		if err != nil {
-			return err
+			return sessionRefError(args[0], err)
 		}
 		r, err := svc.Results(cmd.Context(), sess.ID)
 		if err != nil {

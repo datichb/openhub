@@ -19,12 +19,14 @@ oh config list [options]
 | Flag | Type | Description |
 |------|------|-------------|
 | `--json` | bool | Sortie au format JSON |
+| `--keys` | bool | Lister les clés modifiables par `oh config set`/`unset` (au lieu des valeurs) |
 
 **Exemple :**
 
 ```bash
 oh config list
 oh config ls --json
+oh config list --keys
 ```
 
 ---
@@ -48,7 +50,7 @@ oh config get cli.language
 
 ### oh config set
 
-Modifie une valeur. Seules les cles connues sont acceptees (sinon : erreur « unknown config key ») ; les booleens acceptent `true`/`false`, `1`/`0`, `yes`/`no`.
+Modifie une valeur. Seules les cles connues sont acceptees (sinon : erreur « clé de configuration inconnue », `oh config list --keys` les liste) ; chaque valeur est verifiee comme dans les Reglages de la TUI (valeur refusee : message avec les valeurs attendues). Les booleens acceptent `true`/`false`, `1`/`0`, `yes`/`no`.
 
 ```
 oh config set <key> <value>
@@ -63,8 +65,12 @@ oh config set <key> <value>
 | Modeles | `models.default` |
 | Recherche web | `websearch.enabled` |
 | Tracker | `tracker.enabled`, `tracker.auto_sync`, `tracker.push_labels`, `tracker.auto_plan_assigned`, `tracker.max_auto_plan_per_member`, `tracker.tracker_url`, `tracker.tracker_token_key`, `tracker.write_enabled` |
+| Sessions | `session.attach` (`auto`, `iterm`, `terminal`, `tmux`, `browser`, `suspend`), `session.iterm_style` (`tab`, `split`, `window`), `session.idle_sleep_minutes` (1 à 1440), `session.notify` (`on`, `off`) |
+| Execution | `execution.runtime` (`local`, `container`), `execution.engine` (`auto`, `colima`, `podman`, `docker`), `execution.keep_images` (1 à 20), `execution.tool_version` (ex. `2.0.20`), `execution.strict_isolation` |
+| Restrictions | `limits.max_active_sessions`, `limits.session_budget_usd`, `limits.daily_budget_usd`, `limits.memory_mb`, `limits.models` (motifs separes par des virgules) ; `0` ou `off` retire la restriction (comme `oh budget set`) |
+| Distant | `remote.projects.<id-projet>` (nom d'une cible existante), `remote.targets.<cible>.tag`, `.builder` (`kaniko`, `dind`), `.arch` (`amd64`, `arm64`), `.timeout` (duree GitLab : `3h`, `1h 30m`) ; les cibles se creent avec `oh remote setup` |
 
-Les autres sections (`[execution]`, `[limits]`, `[[teams]]`…) se reglent dans la TUI (Reglages) ou avec leur commande (`oh budget set`, `oh team …`).
+Les valeurs par defaut (`auto`, `on`) sont enregistrees vides. `[[teams]]` se regle avec `oh team …`.
 
 **Exemple :**
 
@@ -72,6 +78,10 @@ Les autres sections (`[execution]`, `[limits]`, `[[teams]]`…) se reglent dans 
 oh config set llm.default_provider anthropic
 oh config set mcp.gitlab.url https://gitlab.example.com
 oh config set worktree.auto_cleanup true
+oh config set session.idle_sleep_minutes 10
+oh config set execution.engine podman
+oh config set limits.daily_budget_usd 20
+oh config set remote.projects.t-sru-b267fbf1 acme
 ```
 
 ---
@@ -177,14 +187,17 @@ Modeles par agent, par famille ou globaux, au niveau hub (`hub.toml [models]`) o
 oh config model default <model> [-p <projet>]
 oh config model family <famille> <model> [-p <projet>]
 oh config model agent <agent-id> <model> [-p <projet>]
-oh config model show [-p <projet>] [--json]
+oh config model show [-p <projet>] [-w <workflow>] [--json]
 oh config model unset default|family <famille>|agent <agent-id> [-p <projet>]
 ```
 
 | Flag | Court | Type | Description |
 |------|-------|------|-------------|
-| `--project` | `-p` | string | Projet (sans : niveau hub) |
-| `--json` | | bool | `show` seulement : sortie JSON |
+| `--project` | `-p` | string | Projet (sans : niveau hub ; `show` : projet du dossier courant par defaut) |
+| `--workflow` | `-w` | string | `show` seulement : ajoute le niveau d'un workflow (`ticket`, `project:feature`…) |
+| `--json` | | bool | `show` seulement : sortie JSON (`workflow`, `project`, `hub`, `team`) |
+
+`show` affiche toute la cascade, dans l'ordre de priorite : workflow (avec `-w`), projet, hub, equipe du projet (recommandations), puis le frontmatter des agents.
 
 Familles : `planning`, `developer`, `quality`, `auditor`, `design`, `documentation`.
 

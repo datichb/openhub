@@ -78,3 +78,23 @@ func TestFormat(t *testing.T) {
 	assert.Equal(t, "", FeedLine(domain.FeedItem{Kind: domain.FeedUsage, Cost: 1}))
 	assert.Equal(t, "· cancelled", FeedLine(domain.FeedItem{Kind: domain.FeedState, Status: "cancelled"}))
 }
+
+// A30: a permission settled in the tool interface is reported as such, not
+// as "no decision of this kind".
+func TestPickReportsDecisionResolvedInTool(t *testing.T) {
+	svc, ctx := newTestService(t)
+	require.NoError(t, svc.Sessions.Create(ctx, &domain.Session{ID: "ses_X1", ProjectID: "p1", Status: domain.SessionStatusRunning, GroupKey: "g1", State: domain.RunActive}))
+	d := &domain.Decision{SessionID: "ses_X1", Kind: domain.DecisionPermission, ToolRef: "per_1"}
+	require.NoError(t, svc.Raise(ctx, d))
+	ok, err := svc.Decisions.Resolve(ctx, d.ID, domain.ResolvedByTool, nil, time.Now())
+	require.NoError(t, err)
+	require.True(t, ok)
+
+	_, err = svc.Pick(ctx, "X1", domain.DecisionPermission, domain.DecisionCheckpoint)
+	var re *ResolvedError
+	require.ErrorAs(t, err, &re)
+	assert.Equal(t, domain.ResolvedByTool, re.By)
+
+	_, err = svc.Pick(ctx, "X1", domain.DecisionQuestion)
+	assert.ErrorIs(t, err, ErrNoDecision, "other kinds are not concerned")
+}

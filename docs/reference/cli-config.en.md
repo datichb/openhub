@@ -19,12 +19,14 @@ oh config list [options]
 | Flag | Type | Description |
 |------|------|-------------|
 | `--json` | bool | Output in JSON format |
+| `--keys` | bool | List the keys settable with `oh config set`/`unset` (instead of the values) |
 
 **Example:**
 
 ```bash
 oh config list
 oh config ls --json
+oh config list --keys
 ```
 
 ---
@@ -48,7 +50,7 @@ oh config get cli.language
 
 ### oh config set
 
-Changes a value. Only known keys are accepted (otherwise: "unknown config key" error); booleans accept `true`/`false`, `1`/`0`, `yes`/`no`.
+Changes a value. Only known keys are accepted (otherwise: "unknown config key" error, `oh config list --keys` lists them); each value is checked as in the TUI Settings (refused value: message with the expected values). Booleans accept `true`/`false`, `1`/`0`, `yes`/`no`.
 
 ```
 oh config set <key> <value>
@@ -63,8 +65,12 @@ oh config set <key> <value>
 | Models | `models.default` |
 | Web search | `websearch.enabled` |
 | Tracker | `tracker.enabled`, `tracker.auto_sync`, `tracker.push_labels`, `tracker.auto_plan_assigned`, `tracker.max_auto_plan_per_member`, `tracker.tracker_url`, `tracker.tracker_token_key`, `tracker.write_enabled` |
+| Sessions | `session.attach` (`auto`, `iterm`, `terminal`, `tmux`, `browser`, `suspend`), `session.iterm_style` (`tab`, `split`, `window`), `session.idle_sleep_minutes` (1 to 1440), `session.notify` (`on`, `off`) |
+| Execution | `execution.runtime` (`local`, `container`), `execution.engine` (`auto`, `colima`, `podman`, `docker`), `execution.keep_images` (1 to 20), `execution.tool_version` (e.g. `2.0.20`), `execution.strict_isolation` |
+| Restrictions | `limits.max_active_sessions`, `limits.session_budget_usd`, `limits.daily_budget_usd`, `limits.memory_mb`, `limits.models` (comma-separated patterns); `0` or `off` removes the restriction (like `oh budget set`) |
+| Remote | `remote.projects.<project-id>` (name of an existing target), `remote.targets.<target>.tag`, `.builder` (`kaniko`, `dind`), `.arch` (`amd64`, `arm64`), `.timeout` (GitLab duration: `3h`, `1h 30m`); targets are created with `oh remote setup` |
 
-The other sections (`[execution]`, `[limits]`, `[[teams]]`…) are set in the TUI (Settings) or with their own command (`oh budget set`, `oh team …`).
+Default values (`auto`, `on`) are stored empty. `[[teams]]` is set with `oh team …`.
 
 **Example:**
 
@@ -72,6 +78,10 @@ The other sections (`[execution]`, `[limits]`, `[[teams]]`…) are set in the TU
 oh config set llm.default_provider anthropic
 oh config set mcp.gitlab.url https://gitlab.example.com
 oh config set worktree.auto_cleanup true
+oh config set session.idle_sleep_minutes 10
+oh config set execution.engine podman
+oh config set limits.daily_budget_usd 20
+oh config set remote.projects.t-sru-b267fbf1 acme
 ```
 
 ---
@@ -177,14 +187,17 @@ Models per agent, per family or global, at hub level (`hub.toml [models]`) or pr
 oh config model default <model> [-p <project>]
 oh config model family <family> <model> [-p <project>]
 oh config model agent <agent-id> <model> [-p <project>]
-oh config model show [-p <project>] [--json]
+oh config model show [-p <project>] [-w <workflow>] [--json]
 oh config model unset default|family <family>|agent <agent-id> [-p <project>]
 ```
 
 | Flag | Short | Type | Description |
 |------|-------|------|-------------|
-| `--project` | `-p` | string | Project (without: hub level) |
-| `--json` | | bool | `show` only: JSON output |
+| `--project` | `-p` | string | Project (without: hub level; `show`: project of the current folder by default) |
+| `--workflow` | `-w` | string | `show` only: adds the level of a workflow (`ticket`, `project:feature`…) |
+| `--json` | | bool | `show` only: JSON output (`workflow`, `project`, `hub`, `team`) |
+
+`show` prints the whole cascade, in priority order: workflow (with `-w`), project, hub, team of the project (recommendations), then the agent frontmatter.
 
 Families: `planning`, `developer`, `quality`, `auditor`, `design`, `documentation`.
 

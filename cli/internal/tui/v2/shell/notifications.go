@@ -102,6 +102,9 @@ type persistedNotif struct {
 // NotificationsFilePath returns the default path for the persistent JSONL file.
 // The file lives alongside hub.toml in ~/.oh/.
 func NotificationsFilePath() string {
+	if dir := os.Getenv("OH_HOME"); dir != "" { // relocated hub (see config.HubDir)
+		return filepath.Join(dir, "notifications.jsonl")
+	}
 	home, _ := os.UserHomeDir()
 	return filepath.Join(home, ".oh", "notifications.jsonl")
 }

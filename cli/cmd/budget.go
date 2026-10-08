@@ -179,7 +179,7 @@ func runBudgetSet(cmd *cobra.Command, field, value string) error {
 		if err := config.Save(a.Config); err != nil {
 			return err
 		}
-		fmt.Fprintln(cmd.OutOrStdout(), i18n.Tf("cmd.budget.saved_hub", i18n.T("cmd.budget.field."+field)))
+		fmt.Fprintln(cmd.OutOrStdout(), budgetSavedMessage(l, field, ""))
 		return nil
 	}
 	project, err := resolveProject(ctx, a, flag)
@@ -196,8 +196,24 @@ func runBudgetSet(cmd *cobra.Command, field, value string) error {
 	if err := saveProjectLimits(ctx, a, project.ID, l); err != nil {
 		return err
 	}
-	fmt.Fprintln(cmd.OutOrStdout(), i18n.Tf("cmd.budget.saved_project", i18n.T("cmd.budget.field."+field), project.Name))
+	fmt.Fprintln(cmd.OutOrStdout(), budgetSavedMessage(l, field, project.Name))
 	return nil
+}
+
+// budgetSavedMessage confirms a change: "removed" when the restriction is
+// off after it (unset, 0, off), "saved" otherwise (A28).
+func budgetSavedMessage(l limits.Limits, field, projectName string) string {
+	name := i18n.T("cmd.budget.field." + field)
+	removed := l.Value(field) == ""
+	switch {
+	case projectName == "" && removed:
+		return i18n.Tf("cmd.budget.removed_hub", name)
+	case projectName == "":
+		return i18n.Tf("cmd.budget.saved_hub", name)
+	case removed:
+		return i18n.Tf("cmd.budget.removed_project", name, projectName)
+	}
+	return i18n.Tf("cmd.budget.saved_project", name, projectName)
 }
 
 func runBudgetRaise(cmd *cobra.Command, args []string) error {

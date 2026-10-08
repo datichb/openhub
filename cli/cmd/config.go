@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"sort"
@@ -57,7 +58,7 @@ func parseBoolValue(s string) (bool, error) {
 	case "false", "0", "no":
 		return false, nil
 	default:
-		return false, fmt.Errorf("invalid boolean value %q", s)
+		return false, errors.New(i18n.Tf("cmd.config.invalid_bool", s))
 	}
 }
 
@@ -277,7 +278,7 @@ var configFieldMap = map[string]configField{
 		Set: func(c *config.Config, v string) error {
 			n, err := strconv.Atoi(v)
 			if err != nil {
-				return fmt.Errorf("invalid integer value %q", v)
+				return errors.New(i18n.Tf("cmd.config.invalid_int", v))
 			}
 			c.Tracker.MaxAutoPlanPerMember = &n
 			return nil
@@ -373,14 +374,19 @@ func configSetCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			key, value := configKey(args[0]), args[1]
 
-			field, ok := configFieldMap[key]
+			field, ok := lookupConfigField(key)
 			if !ok {
-				return fmt.Errorf("unknown config key %q; run \"oh config list\" to see available keys", key)
+				return errors.New(i18n.Tf("cmd.config.unknown_key", key))
 			}
 
+			var setErr error
 			if err := config.Update(func(c *config.Config) error {
-				return field.Set(c, value)
+				setErr = field.Set(c, value)
+				return setErr
 			}); err != nil {
+				if setErr != nil {
+					return setErr
+				}
 				return fmt.Errorf("writing config: %w", err)
 			}
 
@@ -402,6 +408,17 @@ func configListCmd() *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("loading config: %w", err)
 			}
+			jsonOut, _ := cmd.Flags().GetBool("json")
+			if onlyKeys, _ := cmd.Flags().GetBool("keys"); onlyKeys {
+				keys := append(configFieldKeys(), configKeyPatterns...)
+				if jsonOut {
+					return json.NewEncoder(os.Stdout).Encode(keys)
+				}
+				for _, k := range keys {
+					fmt.Fprintln(os.Stdout, k)
+				}
+				return nil
+			}
 			m := cfg.ToMap()
 			keys := make([]string, 0, len(m))
 			for k := range m {
@@ -409,7 +426,6 @@ func configListCmd() *cobra.Command {
 			}
 			sort.Strings(keys)
 
-			jsonOut, _ := cmd.Flags().GetBool("json")
 			if jsonOut {
 				return json.NewEncoder(os.Stdout).Encode(m)
 			}
@@ -430,6 +446,7 @@ func configListCmd() *cobra.Command {
 	}
 
 	cmd.Flags().Bool("json", false, "Output in JSON format")
+	cmd.Flags().Bool("keys", false, "Liste les clés modifiables par oh config set|unset")
 	return cmd
 }
 
@@ -458,9 +475,9 @@ func configUnsetCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			key := configKey(args[0])
 
-			field, ok := configFieldMap[key]
+			field, ok := lookupConfigField(key)
 			if !ok {
-				return fmt.Errorf("unknown config key %q; run \"oh config list\" to see available keys", key)
+				return errors.New(i18n.Tf("cmd.config.unknown_key", key))
 			}
 
 			if err := config.Update(func(c *config.Config) error {

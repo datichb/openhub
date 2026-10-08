@@ -383,7 +383,7 @@ git@gitlab.com:acme/other-team.git  →  ~/.oh/team-states/gitlab.com/other-team
 https://github.com/acme/my-team.git →  ~/.oh/team-states/github.com/my-team
 ```
 
-Un ancien clone `~/.oh/team-states/<dépôt>` (sans hôte) est réutilisé s'il existe.
+Un ancien clone `~/.oh/team-states/<dépôt>` (sans hôte) est réutilisé s'il existe. Avec `OH_HOME`, les clones sont sous `$OH_HOME/team-states/`.
 
 ### Définir l'équipe d'un projet
 

@@ -25,7 +25,7 @@ Run `oh doctor` to check your installation health. It performs about twenty chec
 | 7 | Provider credentials | Credentials found through the cascade of a launch from the current directory: project key, team key, hub key, then AWS profile (Bedrock); the source is shown | `oh provider setup`, `oh secrets set` or env var |
 | 8 | Database | SQLite database accessible | `oh repair` |
 | 9 | API keys | MCP service tokens (Figma, GitLab, etc.) | `oh mcp setup <service>` |
-| 10 | Beads zero-impact | No side effects from Beads (hooks, gitignore) | `oh repair` |
+| 10 | Beads zero-impact | No side effects from Beads (hooks, gitignore, agent files such as `AGENTS.md`, `.beads/` in `.git/info/exclude`) | see [Getting started](getting-started.en.md#initial-setup-oh-init): initialize with oh, or remove by hand what `bd init` added |
 | 11 | opencode V2 | opencode installed, minimum version 2.0.0 (V1 refused) | `brew install anomalyco/tap/opencode`; see the [v5 migration guide](migration-v5.en.md) |
 | 12 | Former deployments | Leftovers of `oh deploy` in the projects | `oh migrate deploy-cleanup` |
 | 13 | oh daemon | State of the `ohd` daemon (started on the first launch) | `oh daemon status` |

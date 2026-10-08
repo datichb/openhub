@@ -122,7 +122,8 @@ func Execute() error {
 	if err := rootCmd.Execute(); err != nil {
 		var exit *ExitError
 		if !errors.As(err, &exit) {
-			fmt.Fprintln(os.Stderr, err)
+			ensureLocale()
+			fmt.Fprintln(os.Stderr, localizeError(err))
 		}
 		return err
 	}

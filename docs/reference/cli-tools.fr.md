@@ -255,7 +255,7 @@ Secrets stockes dans le trousseau du systeme (ou, a defaut, dans un fichier chif
 
 | Commande | Flags | Description |
 |----------|-------|-------------|
-| `oh secrets set <cle>` | `--global`, `--project <id>` | Stocke un secret ; la valeur est saisie au terminal (masquee). Portee : projet si le dossier courant est un projet enregistre, sinon globale ; `--global` force la portee globale, `--project` cible un projet |
+| `oh secrets set <cle>` | `--global`, `--project <id>` | Stocke un secret ; la valeur est saisie au terminal (masquee), ou lue sur l'entree standard sans terminal (`printf %s "$TOKEN" \| oh secrets set <cle>`). Portee : projet si le dossier courant est un projet enregistre, sinon globale ; `--global` force la portee globale, `--project` cible un projet |
 | `oh secrets get <cle>` | `--global`, `--project <id>`, `--reveal` | Affiche un secret, masque sauf avec `--reveal` ; `--global` : portee globale uniquement |
 | `oh secrets list` | | Liste les secrets connus |
 | `oh secrets delete <cle>` | `--global`, `--project <id>` | Supprime un secret du trousseau |

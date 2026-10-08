@@ -35,7 +35,7 @@ func resolveSessionRef(ctx context.Context, ref string) (string, error) {
 	}
 	sess, err := svc.Resolve(ctx, ref)
 	if err != nil {
-		return "", err
+		return "", sessionRefError(ref, err)
 	}
 	return sess.ID, nil
 }

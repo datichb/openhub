@@ -120,16 +120,13 @@ func ResolveTeamConfig(hub TeamConfig, project *domain.ProjectTeamConfig) Resolv
 func TeamStatePath(remoteURL string) string {
 	name := repoNameFromRemote(remoteURL)
 	host := hostFromRemote(remoteURL)
-	home, err := os.UserHomeDir()
-	if err != nil {
-		home = "."
-	}
-
-	newPath := filepath.Join(home, ".oh", "team-states", host, name)
+	// Under the hub directory: OH_HOME relocates the team-states too (A3).
+	base := filepath.Join(HubDir(), "team-states")
+	newPath := filepath.Join(base, host, name)
 
 	// Backward compat: if the old (no-host) path exists and the new one doesn't,
 	// use the old path. This prevents breaking existing installations.
-	legacyPath := filepath.Join(home, ".oh", "team-states", name)
+	legacyPath := filepath.Join(base, name)
 	if _, legacyErr := os.Stat(legacyPath); legacyErr == nil {
 		if _, newErr := os.Stat(newPath); os.IsNotExist(newErr) {
 			return legacyPath
