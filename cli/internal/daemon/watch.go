@@ -27,8 +27,13 @@ type sessionTrack struct {
 	pending      int            // tool requests waiting (permissions, questions)
 	childPending map[string]int // requests of its subagent sessions
 	alerts       int            // decisions raised by oh (error, budget)
-	lastUsage    time.Time
-	agent        string // current agent shown in the live feed
+	// held: a step was interrupted while a budget decision was open; it is
+	// resumed once the decision is answered (A22).
+	held bool
+	// deferred are the session state writes kept for the end of the step.
+	deferred  []func(ctx context.Context)
+	lastUsage time.Time
+	agent     string // current agent shown in the live feed
 }
 
 // waiting is the number of tool requests of the session and its subagents.
@@ -233,9 +238,17 @@ func (w *watcher) onEvent(ctx context.Context, ev adapters.ToolEvent) {
 		if !w.holdOverBudget(ctx, ev.SessionID, ev.SessionID) {
 			w.clearAlerts(ctx, ev.SessionID)
 			w.syncBudget(ctx, ev.SessionID, false) // after a raise
+			w.mu.Lock()
+			w.track(ev.SessionID).held = false // going on: nothing to resume
+			w.mu.Unlock()
 		}
 	case ev.Kind == adapters.EventExecEnded && ev.Outcome == "failed":
-		w.raiseFailure(ctx, ev)
+		w.mu.Lock()
+		held := w.track(ev.SessionID).held
+		w.mu.Unlock()
+		if !held { // a step interrupted by oh for its budget is no error
+			w.raiseFailure(ctx, ev)
+		}
 	}
 	if refreshPending {
 		w.refreshPending(ctx, ev.SessionID)
@@ -244,6 +257,7 @@ func (w *watcher) onEvent(ctx context.Context, ev adapters.ToolEvent) {
 	}
 	w.persist(ctx, ev.SessionID, refreshUsage)
 	if ev.Kind == adapters.EventExecEnded {
+		w.flushDeferred(ctx, ev.SessionID)
 		w.raiseBudget(ctx, ev.SessionID) // the step is over: budgets apply now
 		w.clearResume(ctx, ev.SessionID)
 		w.d.wake() // a pending "sleep when idle" policy may apply now
@@ -425,12 +439,13 @@ func (w *watcher) persist(ctx context.Context, id string, withUsage bool) {
 	sess.State = state
 	if withUsage {
 		if res, err := w.usage(ctx, id); err == nil {
+			w.account(ctx, id, id, res)
+			res = w.sessionTotal(ctx, id, res)
 			if res.Cost != sess.Cost || res.TokensIn != sess.TokensIn || res.TokensOut != sess.TokensOut {
 				changed = true
 			}
 			sess.Cost, sess.TokensIn, sess.TokensOut = res.Cost, res.TokensIn, res.TokensOut
 			sess.TokensReasoning, sess.TokensCacheRead = res.TokensReasoning, res.TokensCacheRead
-			w.account(ctx, id, id, res)
 		}
 	}
 	if changed {

@@ -33,6 +33,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/sessionctx"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 	"github.com/datichb/openhub/cli/internal/termlaunch"
+	"github.com/datichb/openhub/cli/internal/worktree"
 )
 
 // DaemonClient is the subset of the ohd client used by the service.
@@ -122,6 +123,8 @@ type StartRequest struct {
 	WorkflowRisk    string
 	LocationKind    string // base | worktree
 	ParentSessionID string
+	// Tickets are the tickets the session works on (kept on the session).
+	Tickets []string
 	// Headless marks a session run without interactive client.
 	Headless bool
 
@@ -171,6 +174,9 @@ type StartResult struct {
 	AttachErr    error // non-nil when no terminal could be opened (caller: browser/suspend)
 	// Notes are messages for the user about the launch (team claims).
 	Notes []string
+	// Stashed is the stash commit holding the changes of the directory put
+	// aside before the session started (DirtyStash).
+	Stashed string
 	// Queued: the first prompt waits for a free slot (restrictions); Ahead
 	// is the number of sessions queued before it.
 	Queued bool
@@ -302,6 +308,7 @@ func (s *Service) StartSession(ctx context.Context, req StartRequest) (*StartRes
 		return nil, fmt.Errorf("creating session: %w", err)
 	}
 	res.SessionID = sid
+	s.setInitialContext(ctx, h, sid, spec.Workflow, req.Mode)
 
 	switch {
 	case queued != nil:
@@ -690,6 +697,7 @@ func (s *Service) persistSession(ctx context.Context, req StartRequest, srv *dom
 		Runtime: srv.Runtime, Mode: req.Mode, State: state,
 		WorkflowLayer: req.WorkflowLayer, WorkflowVersion: req.WorkflowVersion, WorkflowRisk: req.WorkflowRisk,
 		Location: req.LocationKind, ParentSessionID: req.ParentSessionID,
+		StartRef: worktree.StartRef(req.Location), Tickets: req.Tickets,
 	}
 	if title != "" {
 		sess.Title = &title
@@ -898,6 +906,21 @@ func (s *Service) ResumeSession(ctx context.Context, sessionID string, req Start
 		s.setResumeContext(ctx, srv, sess.ID)
 	}
 	return nil
+}
+
+// setInitialContext writes the session state before the first prompt (A29):
+// an entry set before the first turn is part of it, while one written during
+// the turn is announced at its next step and makes the agent run one more.
+// A workflow without checkpoint has no oh.checkpoints entry.
+func (s *Service) setInitialContext(ctx context.Context, h adapters.ServerHandle, sessionID string, wf *sessionspec.WorkflowRuntime, mode string) {
+	c, ok := sessionctx.InitialCheckpoints(wf, mode, i18n.Locale())
+	if !ok {
+		return
+	}
+	w := &sessionctx.Writer{Adapter: s.Adapter, Dir: s.SessionsDir}
+	if _, err := w.Set(ctx, h, sessionID, sessionctx.Entry{Key: sessionctx.KeyCheckpoints, Value: c.Value()}); err != nil {
+		slog.Warn("runsvc: session state not set", "session", sessionID, "error", err)
+	}
 }
 
 // setResumeContext tells the entry agent that its server restarted (S8,

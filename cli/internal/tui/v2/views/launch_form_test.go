@@ -170,6 +170,59 @@ func TestLaunchFormFlow(t *testing.T) {
 	assert.Equal(t, "semi-auto", launched[0].Mode)
 }
 
+// A35/A18: a directory with uncommitted changes offers [w] worktree (the
+// default) · [s] stash · [b] launch anyway on the recap; the choice is
+// recomputed and launched.
+func TestLaunchFormDirtyChoices(t *testing.T) {
+	cfg := launchCfg(t)
+	cfg.Tickets = []string{"bd-1"}
+	var mu sync.Mutex
+	var recaps, launched []LaunchChoices
+	cfg.Recap = func(_ context.Context, c LaunchChoices) (*LaunchRecap, error) {
+		mu.Lock()
+		recaps = append(recaps, c)
+		mu.Unlock()
+		return &LaunchRecap{Rows: []InfoField{{Label: "Checkpoints", Value: "cp-2 ⏸ pause (obligatoire)"}}, Dirty: true}, nil
+	}
+	cfg.Launch = func(_ context.Context, c LaunchChoices) error {
+		mu.Lock()
+		launched = append(launched, c)
+		mu.Unlock()
+		return nil
+	}
+	v := NewLaunchFormView(cfg)
+	v.SetShell(&recordingShell{})
+	content := tview.NewFlex()
+	app := runApp(t, content)
+	onLoop(app, func() { v.Mount(content, app); v.next(); v.next() })
+	recapText := func() string {
+		var txt string
+		onLoop(app, func() { txt = v.recapTV.GetText(true) })
+		return txt
+	}
+	require.Eventually(t, func() bool {
+		return strings.Contains(recapText(), "[w] (●) "+i18n.T("tui.launch.dirty.worktree"))
+	}, 2*time.Second, 10*time.Millisecond)
+	assert.Contains(t, recapText(), "cp-2 ⏸ pause (obligatoire)")
+	assert.Contains(t, recapText(), "[s] ( ) "+i18n.T("tui.launch.dirty.stash"))
+
+	onLoop(app, func() { v.HandleKey(tcell.NewEventKey(tcell.KeyRune, 's', tcell.ModNone)) })
+	require.Eventually(t, func() bool {
+		return strings.Contains(recapText(), "[s] (●) "+i18n.T("tui.launch.dirty.stash"))
+	}, 2*time.Second, 10*time.Millisecond)
+	onLoop(app, func() { v.HandleKey(tcell.NewEventKey(tcell.KeyCtrlS, 0, tcell.ModNone)) })
+	require.Eventually(t, func() bool {
+		mu.Lock()
+		defer mu.Unlock()
+		return len(launched) == 1
+	}, 2*time.Second, 10*time.Millisecond)
+	mu.Lock()
+	defer mu.Unlock()
+	assert.Equal(t, LaunchDirtyWorktree, recaps[0].Dirty)
+	assert.Equal(t, LaunchDirtyStash, recaps[len(recaps)-1].Dirty, "recap recomputed with the choice")
+	assert.Equal(t, LaunchDirtyStash, launched[0].Dirty)
+}
+
 func TestLaunchFormBlocksMissingInputs(t *testing.T) {
 	v := NewLaunchFormView(launchCfg(t))
 	sh := &recordingShell{}

@@ -79,7 +79,43 @@ func (w *watcher) accountChild(ctx context.Context, root, child string) {
 	}
 	if res, err := w.usage(ctx, child); err == nil {
 		w.account(ctx, root, child, res)
+		w.storeTotal(ctx, root)
 	}
+}
+
+// sessionTotal returns the usage of an oh session to show (v5 corrections,
+// A21): the ledger total of the root and its subagent sessions, as the
+// budget counts it, in place of what the root tool session alone reports
+// (res, kept when the ledger has nothing yet).
+func (w *watcher) sessionTotal(ctx context.Context, root string, res adapters.SessionResult) adapters.SessionResult {
+	if w.d.opts.Usage == nil {
+		return res
+	}
+	tot, err := w.d.opts.Usage.SessionTotal(ctx, root)
+	if err != nil || (tot.CostUSD == 0 && tot.TokensIn == 0 && tot.TokensOut == 0) {
+		return res
+	}
+	res.Cost, res.TokensIn, res.TokensOut = tot.CostUSD, tot.TokensIn, tot.TokensOut
+	return res
+}
+
+// storeTotal writes the usage total of an oh session after one of its
+// subagent sessions spent (the root itself may stay idle meanwhile).
+func (w *watcher) storeTotal(ctx context.Context, root string) {
+	sess, err := w.d.opts.Sessions.Get(ctx, root)
+	if err != nil || isTerminal(sess.State) {
+		return
+	}
+	res := w.sessionTotal(ctx, root, adapters.SessionResult{Cost: sess.Cost, TokensIn: sess.TokensIn, TokensOut: sess.TokensOut})
+	if res.Cost == sess.Cost && res.TokensIn == sess.TokensIn && res.TokensOut == sess.TokensOut {
+		return
+	}
+	sess.Cost, sess.TokensIn, sess.TokensOut = res.Cost, res.TokensIn, res.TokensOut
+	if err := w.d.opts.Sessions.Update(ctx, sess); err != nil {
+		slog.Debug("ohd: session usage update failed", "session", root, "error", err)
+		return
+	}
+	w.d.feed.publishChange(domain.SessionChange{SessionID: root, GroupKey: w.srv.GroupKey, State: sess.State})
 }
 
 // overBudget returns the budget decision a session must get now, if any.
@@ -187,5 +223,55 @@ func (w *watcher) holdOverBudget(ctx context.Context, root, toolSession string) 
 		return false
 	}
 	slog.Info("ohd: step interrupted, budget decision pending", "session", toolSession)
+	w.mu.Lock()
+	w.track(root).held = true
+	w.mu.Unlock()
+	return true
+}
+
+// afterOhDecision brings a session up to date once one of the decisions
+// raised by oh (budget, error) was answered in another process (v5
+// corrections, A22): its state no longer shows « waiting », the raised
+// budget is written to its state at once, and a step interrupted while the
+// decision was open is resumed by a short instruction.
+func (w *watcher) afterOhDecision(ctx context.Context, root string) {
+	w.refreshAlerts(ctx, root)
+	w.persist(ctx, root, false)
+	if w.d.openLimitDecision(ctx, root) {
+		return
+	}
+	w.syncBudget(ctx, root, false)
+	w.mu.Lock()
+	t := w.track(root)
+	held := t.held
+	t.held = false
+	w.mu.Unlock()
+	if !held {
+		return
+	}
+	op := adapters.ControlOp{Kind: adapters.ControlPrompt, Text: i18n.T("cmd.budget.resume"), Delivery: adapters.DeliveryQueue}
+	if err := w.ad.Control(ctx, w.handle(), root, op); err != nil {
+		slog.Warn("ohd: interrupted step not resumed", "session", root, "error", err)
+		return
+	}
+	slog.Info("ohd: interrupted step resumed after the budget decision", "session", root)
+}
+
+// sessionDecided runs afterOhDecision in the watcher of the session.
+func (d *Daemon) sessionDecided(ctx context.Context, id string) bool {
+	if d.opts.Sessions == nil {
+		return false
+	}
+	s, err := d.opts.Sessions.Get(ctx, id)
+	if err != nil {
+		return false
+	}
+	d.wmu.Lock()
+	w := d.watchers[s.GroupKey]
+	d.wmu.Unlock()
+	if w == nil {
+		return false
+	}
+	w.afterOhDecision(ctx, id)
 	return true
 }

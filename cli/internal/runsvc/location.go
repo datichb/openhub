@@ -52,8 +52,36 @@ type Location struct {
 	// Create means the worktree is created when the session starts.
 	Create bool `json:"create,omitempty"`
 	// Auto means a worktree was chosen because the requested directory is
-	// used by another session that writes (O10).
+	// used by another session that writes (O10) or has uncommitted changes.
 	Auto bool `json:"auto,omitempty"`
+	// Stash means the uncommitted changes of the directory are stashed when
+	// the session starts (DirtyStash).
+	Stash bool `json:"stash,omitempty"`
+}
+
+// DirtyPolicy is what a writing session does when its directory has
+// uncommitted changes (v5 corrections, A18).
+type DirtyPolicy string
+
+const (
+	// DirtyWorktree (default): the session works in a new worktree; the
+	// changes stay untouched in the directory.
+	DirtyWorktree DirtyPolicy = ""
+	// DirtyAllow: the session works in the directory anyway (--allow-dirty).
+	DirtyAllow DirtyPolicy = "allow"
+	// DirtyStash: the changes are stashed before the session starts.
+	DirtyStash DirtyPolicy = "stash"
+)
+
+// ParseDirtyPolicy reads a dirty policy ("", worktree, allow, stash).
+func ParseDirtyPolicy(v string) (DirtyPolicy, error) {
+	switch v {
+	case "", "worktree":
+		return DirtyWorktree, nil
+	case string(DirtyAllow), string(DirtyStash):
+		return DirtyPolicy(v), nil
+	}
+	return "", fmt.Errorf("runsvc: unknown dirty policy %q", v)
 }
 
 // RiskWrites reports whether a workflow risk may modify files: read and plan
@@ -86,7 +114,8 @@ var ErrNoBranch = errors.New("a branch name is required for a new worktree")
 
 // busyWriters returns the directories used by open sessions of a project
 // that may write (risk other than read; unknown risk counts as writing).
-// Sleeping sessions do not hold their directory.
+// Sleeping sessions hold their directory too: they resume there, on their
+// branch (v5 corrections, A18).
 func (s *Service) busyWriters(ctx context.Context, projectID string) map[string]string {
 	out := map[string]string{}
 	if s.Sessions == nil || projectID == "" {
@@ -98,7 +127,7 @@ func (s *Service) busyWriters(ctx context.Context, projectID string) map[string]
 	}
 	for _, o := range list {
 		switch o.State {
-		case domain.RunPreparing, domain.RunQueued, domain.RunActive, domain.RunWaiting, domain.RunIdle:
+		case domain.RunPreparing, domain.RunQueued, domain.RunActive, domain.RunWaiting, domain.RunIdle, domain.RunSleeping:
 		default:
 			continue
 		}
@@ -112,8 +141,9 @@ func (s *Service) busyWriters(ctx context.Context, projectID string) map[string]
 
 // planLocations resolves the location of each session of a run. writes
 // tells whether the workflow may modify files (O10 applies to writers);
-// branches gives the branch of each session's worktree, if one is needed.
-func (s *Service) planLocations(ctx context.Context, projectID, projectPath string, choice LocationChoice, writes bool, branches []string) ([]Location, []Warning, error) {
+// branches gives the branch of each session's worktree, if one is needed;
+// dirty tells what a writer does in a directory with uncommitted changes.
+func (s *Service) planLocations(ctx context.Context, projectID, projectPath string, choice LocationChoice, writes bool, branches []string, dirty DirtyPolicy) ([]Location, []Warning, error) {
 	projectPath = filepath.Clean(projectPath)
 	busy := map[string]string{}
 	if writes {
@@ -187,7 +217,22 @@ func (s *Service) planLocations(ctx context.Context, projectID, projectPath stri
 			}
 		}
 		if writes && !loc.Create && s.isDirty(loc.Path) {
-			warns = append(warns, Warning{Code: WarnDirty, Args: []any{loc.Path}})
+			switch {
+			case dirty == DirtyStash:
+				loc.Stash = true
+				warns = append(warns, Warning{Code: WarnDirtyStash, Args: []any{loc.Path}})
+			case dirty == DirtyWorktree && loc.Kind == LocationBase && isGit:
+				// The user's changes stay where they are: the session works
+				// in a worktree of its branch.
+				from := loc.Path
+				if loc, err = newWorktree(i, true); err != nil {
+					return nil, nil, err
+				}
+				warns = append(warns, Warning{Code: WarnDirtyWorktree, Args: []any{from, loc.Path}})
+			default:
+				// --allow-dirty, or an existing worktree chosen explicitly.
+				warns = append(warns, Warning{Code: WarnDirty, Args: []any{loc.Path}})
+			}
 		}
 		taken[loc.Path] = true
 		out = append(out, loc)
@@ -216,9 +261,19 @@ func (s *Service) createWorktree(projectPath, branch string) (string, error) {
 	return worktree.ResolveOrCreate(projectPath, branch)
 }
 
+func (s *Service) stash(path, message string) (string, error) {
+	if s.Git != nil {
+		return s.Git.Stash(path, message)
+	}
+	return worktree.Stash(path, message)
+}
+
 // Git abstracts the git operations of the launcher (tests).
 type Git interface {
 	IsRepo(path string) bool
 	IsDirty(path string) bool
 	CreateWorktree(projectPath, branch string) (string, error)
+	// Stash puts the uncommitted changes (untracked files included) aside
+	// and returns the commit of the stash entry.
+	Stash(path, message string) (string, error)
 }

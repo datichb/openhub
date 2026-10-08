@@ -30,7 +30,7 @@ Vérifie l'état du système et les dépendances. Sans flag. Sort avec le code 0
 oh doctor
 ```
 
-Contrôles : OS et architecture, git, `bd` et `fzf` (optionnels), version d'oh (mise à jour disponible), `hub.toml`, identifiants du provider, base de données, clés API (trousseau), Beads « zéro impact » (hooks, `.gitignore`), puis les contrôles v5 : opencode V2 (version minimale ; V1 refusé avec le [guide de migration](../guides/migration-v5.fr.md)), démon `ohd`, git, ouverture des terminaux, moteur de conteneurs et image, passerelles, restrictions et mémoire, sécurité (socket, capacité, jetons), restes des anciens déploiements, intégrité des workflows du team-state, cibles distantes.
+Contrôles : OS et architecture, git, `bd` et `fzf` (optionnels), version d'oh (mise à jour disponible), `hub.toml`, identifiants du provider, base de données, clés API (trousseau), Beads « zéro impact » (hooks, `.gitignore`), puis les contrôles v5 : opencode V2 (version minimale ; V1 refusé avec le [guide de migration](../guides/migration-v5.fr.md)), démon `ohd`, git, ouverture des terminaux, moteur de conteneurs et image, passerelles, restrictions et mémoire, sécurité (socket, capacité, jetons), restes des anciens déploiements, intégrité des workflows du team-state, cibles distantes, réservations d'équipe orphelines (ticket fermé, ou toutes les sessions du ticket terminées ; avec la commande `oh team release` à lancer).
 
 **Exemple :**
 

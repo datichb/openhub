@@ -2,6 +2,7 @@ package runsvc
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"os"
 	"os/exec"
@@ -542,4 +543,51 @@ func TestLongPreparationKeepsTheDaemonBusy(t *testing.T) {
 	f.dc.mu.Unlock()
 	assert.GreaterOrEqual(t, touches, 3, "activity signalled during the build")
 	assert.GreaterOrEqual(t, calls, 2, "fresh daemon client after the build")
+}
+
+// ctxAdapter records the session state writes and the prompts, in order.
+type ctxAdapter struct {
+	*rtAdapter
+	calls []string
+}
+
+func (a *ctxAdapter) Capabilities() adapters.Capabilities {
+	return adapters.Capabilities{SessionContext: true}
+}
+func (a *ctxAdapter) SetSessionContext(_ context.Context, _ adapters.ServerHandle, _, key string, value any) error {
+	data, _ := json.Marshal(value)
+	a.calls = append(a.calls, "set "+key+"="+string(data))
+	return nil
+}
+func (a *ctxAdapter) ClearSessionContext(context.Context, adapters.ServerHandle, string, string) error {
+	return nil
+}
+func (a *ctxAdapter) SendPrompt(context.Context, adapters.ServerHandle, string, string) error {
+	a.calls = append(a.calls, "prompt")
+	return nil
+}
+
+// A29: the session state is set before the first prompt (part of the first
+// turn, no extra step), and not at all without checkpoint.
+func TestStartSessionSetsTheStateBeforeThePrompt(t *testing.T) {
+	f := newRTFixture(t)
+	ad := &ctxAdapter{rtAdapter: f.ad}
+	f.svc.Adapter = ad
+	f.svc.SessionsDir = filepath.Join(f.root, "sessions")
+	f.b.Spec.Workflow = &sessionspec.WorkflowRuntime{ID: "ticket", Checkpoints: []sessionspec.CheckpointDef{
+		{ID: "cp-1", Behaviors: map[string]string{"semi-auto": "skip"}},
+		{ID: "cp-2", Label: map[string]string{"": "Commit"}, Behaviors: map[string]string{"semi-auto": "pause"}, Mandatory: true},
+	}}
+	ctx := context.Background()
+	req := f.request(f.project)
+	req.Runtime, req.Mode, req.Prompt = "", "semi-auto", "go"
+	_, err := f.svc.StartSession(ctx, req)
+	require.NoError(t, err)
+	require.Equal(t, []string{`set oh.checkpoints={"mode":"semi-auto","next":"cp-2","passed":[{"id":"cp-1","label":"cp-1"}],"workflow":"ticket"}`, "prompt"}, ad.calls)
+
+	ad.calls = nil
+	f.b.Spec.Workflow = &sessionspec.WorkflowRuntime{ID: "libre"}
+	_, err = f.svc.StartSession(ctx, req)
+	require.NoError(t, err)
+	assert.Equal(t, []string{"prompt"}, ad.calls, "no checkpoint: no entry")
 }

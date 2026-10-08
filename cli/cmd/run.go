@@ -13,6 +13,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/launcher"
+	"github.com/datichb/openhub/cli/internal/runsvc"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
@@ -37,6 +38,8 @@ func addRunFlags(c *cobra.Command) {
 	f.StringP("agent", "a", "", i18n.T("cmd.run.flags.agent"))
 	f.String("runtime", "", "Environnement d'exécution (local, container, remote)")
 	f.String("location", "", "Emplacement : base, new (nouveau worktree) ou chemin d'un worktree existant")
+	f.Bool("allow-dirty", false, "Lancer quand même dans un dossier modifié (sans worktree ni stash)")
+	f.Bool("stash", false, "Mettre de côté (git stash) les modifications du dossier avant le lancement")
 	f.StringSlice("tickets", nil, "Tickets Beads (une session par ticket si le workflow le permet)")
 	f.String("attach", "", "Ouverture : auto, iterm, terminal, tmux, browser, suspend, none")
 	f.Bool("draft", false, "Utiliser mon brouillon du workflow (local uniquement, sans assouplir la sécurité publiée)")
@@ -138,6 +141,16 @@ func runOptionsFromFlags(cmd *cobra.Command, workflowID string) (runOptions, err
 	opts.OneSession, _ = f.GetBool("one-session")
 	opts.Draft, _ = f.GetBool("draft")
 	opts.Agent, _ = f.GetString("agent")
+	allowDirty, _ := f.GetBool("allow-dirty")
+	stash, _ := f.GetBool("stash")
+	switch {
+	case allowDirty && stash:
+		return opts, errors.New(i18n.T("cmd.run.dirty_conflict"))
+	case allowDirty:
+		opts.Dirty = runsvc.DirtyAllow
+	case stash:
+		opts.Dirty = runsvc.DirtyStash
+	}
 	tickets, _ := f.GetStringSlice("tickets")
 	for _, t := range tickets {
 		if t = strings.TrimSpace(t); t != "" {

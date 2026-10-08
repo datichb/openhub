@@ -483,6 +483,15 @@ func IsInProgressStatus(status string) bool {
 	}
 }
 
+// IsClosedStatus reports whether a ticket status means the work is over.
+func IsClosedStatus(status string) bool {
+	switch strings.ToLower(status) {
+	case "closed", "done", "resolved":
+		return true
+	}
+	return false
+}
+
 // isDevPickableStatus returns true if the status indicates a ticket that can be
 // selected in the dev picker — either ready to start (todo) or resumable (in_progress).
 func isDevPickableStatus(status string) bool {

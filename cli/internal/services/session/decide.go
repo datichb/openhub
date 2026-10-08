@@ -146,6 +146,11 @@ func (s *Service) Decide(ctx context.Context, r Reply) error {
 		}
 		return err
 	}
+	if (d.Kind == domain.DecisionBudget || d.Kind == domain.DecisionError) && s.OhDecided != nil {
+		// Best effort: without the daemon, the next event of the session
+		// brings it up to date.
+		_ = s.OhDecided(ctx, d.SessionID)
+	}
 	return nil
 }
 

@@ -102,11 +102,11 @@ oh keeps, for the entry agent of the session, a **session state** up to date (S8
 
 | Entry | Content | Update |
 |---|---|---|
-| `oh.checkpoints` | workflow, mode, checkpoints passed, current and next checkpoint, circuit breaker | at each transition |
-| `oh.budget` | session budget (raises included), spent, remaining | at the `$` decision and after a raise |
+| `oh.checkpoints` | workflow, mode, checkpoints passed, current and next checkpoint, circuit breaker | at the creation of the session (before the first prompt), then at each transition; none for a workflow without checkpoint |
+| `oh.budget` | session budget (raises included), spent, remaining | at the `$` decision and as soon as a raise is answered |
 | `oh.resume` | resume instruction | after `oh session resume` when the server restarted; removed after the next step |
 
-- An entry is written again only when its value changes: the tool announces each change at the next step, with a message in the session history.
+- An entry is written again only when its value changes: the tool announces each change at the next step, with a message in the session history. A change that happens while the agent works is written once its step ended (announced at the next turn): written during the step, it would make the agent run one more step that replaces its answer.
 - **Subagents** do not receive this state (tool limit); they read the workflow state with the `workflow_status` tool.
 - When the tool cannot keep this state (capability missing, experimental API removed), the resume instruction is sent as an oh message, and the other entries stay readable with `workflow_status`.
 
@@ -136,7 +136,7 @@ Off by default. They limit the sessions of the machine:
 
 They are set in cascade: `hub.toml` `[limits]` (`oh budget set …`, or **Settings → Session restrictions**), the team `config.toml` (`[limits.recommended]`, `[limits.enforced]`), the project (`oh budget set … --project <p>`), then the workflow (`limits:`). The most specific value wins; a value enforced by the team is a ceiling nobody can loosen. `oh budget show [-p <project>]` shows the effective values, their origin and what was spent today.
 
-Budgets are **soft caps**, checked on the cost reported by the tool: the step that overruns a budget finishes, then a `$` decision appears in the inbox. While it is open, any new step of the session is interrupted. Answers: `oh budget raise <session> [amount]` (default: the configured budget once more), `oh session stop <session>`, or dismiss (one more step, the decision comes back after it). Spending is kept in `oh.db` (usage ledger): it survives daemon restarts and sleep/resume cycles.
+Budgets are **soft caps**, checked on the cost reported by the tool: the step that overruns a budget finishes, then a `$` decision appears in the inbox. While it is open, any new step of the session is interrupted. Answers: `oh budget raise <session> [amount]` (default: the configured budget once more), `oh session stop <session>`, or dismiss (one more step, the decision comes back after it). Once answered, the session goes back to « idle » or « active » at once, the new budget is written to its state, and the step interrupted during the decision resumes (oh sends a short instruction, « [oh] The session budget was raised: resume the interrupted step… »). Spending is kept in `oh.db` (usage ledger): it survives daemon restarts and sleep/resume cycles.
 
 ## Environment variables
 

@@ -40,7 +40,7 @@ Cette page couvre la **gestion des sessions v5** (`oh session …`), les **restr
 oh session list [--all] [--json]
 ```
 
-Liste les sessions v5 : identifiant, projet, agent d'entrée, état, décisions en attente (badges), coût, début.
+Liste les sessions v5 : identifiant, projet, agent d'entrée, état, décisions en attente (badges), coût, début. Le coût est celui de **toute la session** (agent d'entrée et sous-agents), celui que compte le budget ; de même dans la vue Sessions, le flux en direct, les résultats et le récapitulatif « pendant votre absence ».
 
 | Flag | Type | Défaut | Description |
 |------|------|--------|-------------|
@@ -181,11 +181,11 @@ Crée une variante de la session : copie de son historique, sur le même serveur
 oh session results <session> [--mr | --patch | --json]
 ```
 
-Résultats : récapitulatif, branche, fichiers modifiés (`+ajouts −suppressions`), coût. Si le serveur ne tourne plus, oh affiche le dernier instantané.
+Résultats de **toute la session**, sous la forme d'une description de MR prête à coller : titre, récapitulatif, fichiers modifiés (`+ajouts −suppressions`), coût total (sous-agents compris), branche. Les changements sont lus avec git dans le dossier de la session : commits et modifications depuis son départ (le commit de départ est enregistré au lancement ; pour une session plus ancienne, le dernier commit antérieur à son départ), sur sa branche même si le dossier est passé sur une autre, fichiers non suivis compris, quel que soit l'agent qui les a faits. Si le dossier n'existe plus, oh affiche le dernier instantané.
 
 | Flag | Type | Description |
 |------|------|-------------|
-| `--mr` | bool | Description de MR (Markdown) |
+| `--mr` | bool | Description de MR seule (sans la note d'instantané) |
 | `--patch` | bool | Diff complet |
 | `--json` | bool | Sortie JSON (`results`, `live`) |
 
@@ -261,7 +261,7 @@ Restrictions des sessions, **désactivées par défaut** : sessions actives max,
 | `show` | `oh budget show [-p <projet>] [--json]` | Restrictions effectives avec leur origine, et dépenses du jour. `-p` : projet (défaut : celui du dossier courant) |
 | `set` | `oh budget set <restriction> <valeur> [-p <projet>]` | Règle une restriction du hub (`hub.toml [limits]`) ou, avec `-p`, d'un projet |
 | `unset` | `oh budget unset <restriction> [-p <projet>]` | Retire une restriction du hub ou d'un projet |
-| `raise` | `oh budget raise <session\|décision> [montant]` | Répond à une décision $ : ajoute le montant donné en USD au budget atteint, de la session ou du jour (défaut : le budget configuré une fois de plus) ; la session reprend dès que le budget couvre sa dépense |
+| `raise` | `oh budget raise <session\|décision> [montant]` | Répond à une décision $ : ajoute le montant donné en USD au budget atteint, de la session ou du jour (défaut : le budget configuré une fois de plus) ; la session reprend dès que le budget couvre sa dépense : son état n'est plus « en attente » et une étape interrompue pendant la décision est relancée par une consigne de reprise d'oh |
 
 | Restriction | Valeur | Note |
 |-------------|--------|------|

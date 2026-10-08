@@ -5,9 +5,12 @@ import (
 	"encoding/json"
 	"errors"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -221,4 +224,81 @@ func TestResultsLiveThenSnapshot(t *testing.T) {
 	require.NoError(t, err)
 	assert.InDelta(t, 0.5, r.Cost, 1e-9)
 	assert.Empty(t, r.Files)
+}
+
+// A23 (and A21): the results of a session are those of the whole session:
+// every commit and change in its directory since it started (subagents'
+// work included, not only the last turn the tool shows) and its total cost.
+func TestResultsCoverTheWholeSession(t *testing.T) {
+	f := newFixture(t, false)
+	dir := t.TempDir()
+	date := "2026-10-07T10:00:00+02:00" // commits before the session start, then after
+	git := func(args ...string) string {
+		cmd := exec.Command("git", append([]string{"-C", dir}, args...)...)
+		cmd.Env = append(os.Environ(), "GIT_AUTHOR_NAME=t", "GIT_AUTHOR_EMAIL=t@t", "GIT_COMMITTER_NAME=t", "GIT_COMMITTER_EMAIL=t@t",
+			"GIT_AUTHOR_DATE="+date, "GIT_COMMITTER_DATE="+date)
+		out, err := cmd.CombinedOutput()
+		require.NoError(t, err, string(out))
+		return strings.TrimSpace(string(out))
+	}
+	git("init", "-b", "main")
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "main.py"), []byte("a\n"), 0o644))
+	git("add", ".")
+	git("commit", "-m", "init")
+	start := git("rev-parse", "HEAD")
+	date = "2026-10-07T11:00:00+02:00"
+	git("switch", "-c", "feat/pt-1")
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "main.py"), []byte("a\nb\n"), 0o644))
+	git("commit", "-am", "developer")
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "test_main.py"), []byte("t1\nt2\nt3\n"), 0o644))
+	git("add", ".")
+	git("commit", "-m", "tests")
+
+	sess, err := f.svc.Sessions.Get(f.ctx, "ses_a")
+	require.NoError(t, err)
+	sess.LaunchPath, sess.StartRef, sess.Cost = dir, start, 3.41
+	require.NoError(t, f.svc.Sessions.Update(f.ctx, sess))
+	// The tool sees the last turn of the root session only.
+	f.tool.result = adapters.SessionResult{SessionID: "ses_a", Cost: 0.88, Changes: []adapters.FileChange{{File: "test_main.py", Additions: 3}}}
+
+	r, err := f.svc.Results(f.ctx, "ses_a")
+	require.NoError(t, err)
+	assert.Len(t, r.Files, 2)
+	assert.Equal(t, 4, r.Additions)
+	assert.InDelta(t, 3.41, r.Cost, 1e-9, "root and subagents")
+	assert.Equal(t, "feat/pt-1", r.Branch)
+	assert.Contains(t, r.Patch, "+t3")
+	md := MRDescription(r)
+	assert.Contains(t, md, "`main.py` (+1 −0)")
+	assert.Contains(t, md, "`test_main.py` (+3 −0)")
+
+	// Recorded before v42 (no starting point): from the last commit before
+	// the session started.
+	require.NoError(t, f.svc.Sessions.Create(f.ctx, &domain.Session{ID: "ses_old", ProjectID: "p1", Status: domain.SessionStatusRunning,
+		GroupKey: "g1", LaunchPath: dir, StartedAt: time.Date(2026, 10, 7, 8, 30, 0, 0, time.UTC)}))
+	r, err = f.svc.Results(f.ctx, "ses_old")
+	require.NoError(t, err)
+	assert.Equal(t, 4, r.Additions)
+	// The directory went back to main (base directory reused): the session
+	// commits are read on its branch (A23: session recorded before v42).
+	git("switch", "main")
+	f.tool.result.Branch = "feat/pt-1"
+	r, err = f.svc.Results(f.ctx, "ses_old")
+	require.NoError(t, err)
+	assert.Equal(t, 4, r.Additions)
+	assert.Len(t, r.Files, 2)
+}
+
+// A22: answering a decision raised by oh tells the daemon at once (state,
+// budget, resume of the interrupted step).
+func TestDecideTellsTheDaemon(t *testing.T) {
+	f := newFixture(t, false)
+	var told []string
+	f.svc.OhDecided = func(_ context.Context, id string) error { told = append(told, id); return nil }
+	id := f.raise(t, domain.Decision{SessionID: "ses_a", Kind: domain.DecisionBudget})
+	require.NoError(t, f.svc.Decide(f.ctx, Reply{DecisionID: id, Decision: "dismiss"}))
+	assert.Equal(t, []string{"ses_a"}, told)
+	id = f.raise(t, domain.Decision{SessionID: "ses_a", Kind: domain.DecisionPermission, ToolRef: "per_1"})
+	require.NoError(t, f.svc.Decide(f.ctx, Reply{DecisionID: id, Decision: "once"}))
+	assert.Len(t, told, 1, "tool decisions: the tool event does it")
 }

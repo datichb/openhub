@@ -58,6 +58,12 @@ Le corps des agents et la carte du workflow restent injectés par le plugin (O2)
 - Une écriture faite pendant une étape n'est annoncée qu'à l'étape suivante.
 - La dernière valeur écrite est gardée dans un fichier partagé par la CLI et le démon ; deux écritures simultanées de la même clé peuvent se recouvrir, et la suivante corrige.
 
+## Évolution (corrections v5, A29, 08/10/2026)
+
+- `oh.checkpoints` est posée par le RunService **à la création** de la session, avant le premier prompt (prise en compte dans le premier tour) ; elle n'existe pas pour un workflow sans checkpoint. Valeur identique à celle que calcule le démon (`sessionctx.Checkpoints`) : la resynchronisation qui suit ne la réécrit pas.
+- Le démon **n'écrit plus pendant une étape** de l'agent d'entrée : l'écriture est gardée et faite à la fin de l'étape. Constat de la recette : une entrée posée pendant le dernier pas d'une boucle est annoncée au pas suivant et fait faire à l'agent un pas de plus (« Contexte mis à jour… ») qui remplace sa réponse.
+- `oh.budget` est réécrite dès la réponse à une décision `$` (route du démon `POST /v1/sessions/{id}/decided`), et non plus au début de l'étape suivante.
+
 ## Alternatives considérées
 
 | Alternative | Rejetée car |

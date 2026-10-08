@@ -58,8 +58,9 @@ func capabilityStore() daemon.CapabilityStore {
 	return keychain.New(config.HubDir())
 }
 
-// sessionEndHook emits the team session.complete event of a v5 session (the
-// session row is closed by the RunService). async=false waits for the
+// sessionEndHook emits the team session.complete event of a v5 session and
+// ends the team claims of its tickets (the session row is closed by the
+// RunService). async=false waits for the
 // write (short-lived CLI commands).
 func sessionEndHook(a *app.App, async bool) func(context.Context, domain.Session) {
 	return func(ctx context.Context, s domain.Session) {
@@ -70,6 +71,7 @@ func sessionEndHook(a *app.App, async bool) func(context.Context, domain.Session
 		if err != nil {
 			return
 		}
+		sessionClaimsEnd(ctx, a, proj, s, async)
 		resolved := config.ResolveTeamForProject(a.Config, proj)
 		if !resolved.Enabled || resolved.MemberID == "" || resolved.StateRepo == "" {
 			return
@@ -199,6 +201,7 @@ func newSessionService(ctx context.Context, a *app.App) (*sessionsvc.Service, er
 		ensureDaemonForLiveServers(ctx, svc.Servers)
 	}
 	svc.UseCheckpoints(newCheckpointService(a), dc.WorkflowRefresh)
+	svc.OhDecided = dc.SessionDecided
 	svc.Resolvers[domain.DecisionBudget] = sessionsvc.BudgetResolver(sqlite.NewUsageStore(store), func(ctx context.Context, id string) error {
 		rs, err := newRunService(ctx, a)
 		if err != nil {

@@ -58,6 +58,12 @@ The agent bodies and the workflow map stay injected by the plugin (O2): their sc
 - A write made during a step is only announced at the next step.
 - The last value written is kept in a file shared by the CLI and the daemon; two simultaneous writes of the same key may overlap, and the next one corrects it.
 
+## Evolution (v5 corrections, A29, 2026-10-08)
+
+- `oh.checkpoints` is set by the RunService **when the session is created**, before the first prompt (part of the first turn); it does not exist for a workflow without checkpoint. Same value as the one the daemon computes (`sessionctx.Checkpoints`): the following resync does not write it again.
+- The daemon **no longer writes during a step** of the entry agent: the write is kept and made when the step ends. Seen during the acceptance tests: an entry set during the last step of a loop is announced at the next step and makes the agent run one more step (« Context updated… ») that replaces its answer.
+- `oh.budget` is written again as soon as a `$` decision is answered (daemon route `POST /v1/sessions/{id}/decided`), no longer at the start of the next step.
+
 ## Alternatives Considered
 
 | Alternative | Rejected because |

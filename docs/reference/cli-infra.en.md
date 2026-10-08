@@ -30,7 +30,7 @@ Checks the system health and dependencies. No flags. Exits with code 0 even when
 oh doctor
 ```
 
-Checks: OS and architecture, git, `bd` and `fzf` (optional), oh version (update available), `hub.toml`, provider credentials, database, API keys (keychain), Beads "zero impact" (hooks, `.gitignore`), then the v5 checks: opencode V2 (minimum version; V1 refused with the [migration guide](../guides/migration-v5.en.md)), `ohd` daemon, git, terminal opening, container engine and image, gateways, restrictions and memory, security (socket, capability, tokens), leftovers of former deployments, integrity of the team-state workflows, remote targets.
+Checks: OS and architecture, git, `bd` and `fzf` (optional), oh version (update available), `hub.toml`, provider credentials, database, API keys (keychain), Beads "zero impact" (hooks, `.gitignore`), then the v5 checks: opencode V2 (minimum version; V1 refused with the [migration guide](../guides/migration-v5.en.md)), `ohd` daemon, git, terminal opening, container engine and image, gateways, restrictions and memory, security (socket, capability, tokens), leftovers of former deployments, integrity of the team-state workflows, remote targets, orphan team claims (ticket closed, or every session on the ticket ended; with the `oh team release` command to run).
 
 **Example:**
 

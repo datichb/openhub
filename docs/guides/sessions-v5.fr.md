@@ -102,11 +102,11 @@ oh tient à jour, pour l'agent d'entrée de la session, un **état de session** 
 
 | Entrée | Contenu | Mise à jour |
 |---|---|---|
-| `oh.checkpoints` | workflow, mode, checkpoints passés, checkpoint en cours et suivant, coupe-circuit | à chaque transition |
-| `oh.budget` | budget de la session (relèvements compris), dépensé, restant | à la décision `$` et après un relèvement |
+| `oh.checkpoints` | workflow, mode, checkpoints passés, checkpoint en cours et suivant, coupe-circuit | à la création de la session (avant le premier prompt), puis à chaque transition ; aucune pour un workflow sans checkpoint |
+| `oh.budget` | budget de la session (relèvements compris), dépensé, restant | à la décision `$` et dès la réponse à un relèvement |
 | `oh.resume` | consigne de reprise | après `oh session resume` quand le serveur a redémarré ; retirée après l'étape suivante |
 
-- Une entrée n'est réécrite que si sa valeur change : l'outil annonce chaque changement à l'étape suivante, par un message dans l'historique de la session.
+- Une entrée n'est réécrite que si sa valeur change : l'outil annonce chaque changement à l'étape suivante, par un message dans l'historique de la session. Un changement survenu pendant que l'agent travaille est écrit à la fin de son étape (annoncé au tour suivant) : écrit pendant l'étape, il ferait faire à l'agent une étape de plus qui remplacerait sa réponse.
 - Les **sous-agents** ne reçoivent pas cet état (limite de l'outil) ; ils lisent l'état du workflow avec l'outil `workflow_status`.
 - Si l'outil ne sait pas tenir cet état (capacité absente, API expérimentale retirée), la consigne de reprise est envoyée en message d'oh, et les autres entrées restent lisibles avec `workflow_status`.
 
@@ -136,7 +136,7 @@ Désactivées par défaut. Elles limitent les sessions de la machine :
 
 Elles se règlent en cascade : `hub.toml` `[limits]` (`oh budget set …`, ou **Réglages → Restrictions des sessions**), le `config.toml` de l'équipe (`[limits.recommended]`, `[limits.enforced]`), le projet (`oh budget set … --project <p>`), puis le workflow (`limits:`). La valeur la plus précise l'emporte ; une valeur imposée par l'équipe est un plafond que personne ne peut relâcher. `oh budget show [-p <projet>]` affiche les valeurs effectives, leur origine et les dépenses du jour.
 
-Les budgets sont des **plafonds souples**, vérifiés sur le coût indiqué par l'outil : l'étape qui dépasse un budget se termine, puis une décision `$` apparaît dans « À traiter ». Tant qu'elle est ouverte, toute nouvelle étape de la session est interrompue. Réponses : `oh budget raise <session> [montant]` (par défaut : le budget configuré une fois de plus), `oh session stop <session>`, ou classer (une étape de plus, la décision revient après). Les dépenses sont gardées dans `oh.db` (registre d'usage) : elles survivent aux redémarrages du démon et aux cycles veille/reprise.
+Les budgets sont des **plafonds souples**, vérifiés sur le coût indiqué par l'outil : l'étape qui dépasse un budget se termine, puis une décision `$` apparaît dans « À traiter ». Tant qu'elle est ouverte, toute nouvelle étape de la session est interrompue. Réponses : `oh budget raise <session> [montant]` (par défaut : le budget configuré une fois de plus), `oh session stop <session>`, ou classer (une étape de plus, la décision revient après). Après la réponse, la session repasse aussitôt « inactive » ou « active », le nouveau budget est écrit dans son état, et l'étape interrompue pendant la décision reprend (oh envoie une consigne courte, « [oh] Le budget de la session a été relevé : reprends l'étape interrompue… »). Les dépenses sont gardées dans `oh.db` (registre d'usage) : elles survivent aux redémarrages du démon et aux cycles veille/reprise.
 
 ## Variables d'environnement
 

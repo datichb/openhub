@@ -633,4 +633,21 @@ DROP TABLE IF EXISTS usage_sessions`,
 		up:      `ALTER TABLE projects ADD COLUMN exec_config TEXT NOT NULL DEFAULT ''`,
 		down:    `ALTER TABLE projects DROP COLUMN exec_config`,
 	},
+	{
+		// v5 corrections (A23, A31): git starting point of a session (its
+		// results cover the whole session) and the tickets it works on
+		// (team claims released when it ends), JSON. A21: the cost of a
+		// session is its total with its subagents (usage ledger), also for
+		// the sessions recorded before.
+		version: 42,
+		up: `ALTER TABLE sessions ADD COLUMN start_ref TEXT NOT NULL DEFAULT '';
+ALTER TABLE sessions ADD COLUMN tickets TEXT NOT NULL DEFAULT '';
+UPDATE sessions SET
+	cost = (SELECT SUM(u.cost_usd) FROM usage_sessions u WHERE u.root_id = sessions.id),
+	tokens_in = MAX(tokens_in, (SELECT SUM(u.tokens_in) FROM usage_sessions u WHERE u.root_id = sessions.id)),
+	tokens_out = MAX(tokens_out, (SELECT SUM(u.tokens_out) FROM usage_sessions u WHERE u.root_id = sessions.id))
+WHERE (SELECT SUM(u.cost_usd) FROM usage_sessions u WHERE u.root_id = sessions.id) > cost`,
+		down: `ALTER TABLE sessions DROP COLUMN tickets;
+ALTER TABLE sessions DROP COLUMN start_ref`,
+	},
 }
