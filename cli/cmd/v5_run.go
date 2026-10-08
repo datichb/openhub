@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/datichb/openhub/cli/internal/app"
+	"github.com/datichb/openhub/cli/internal/beads"
 	"github.com/datichb/openhub/cli/internal/bundle"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
@@ -61,6 +62,9 @@ type runOptions struct {
 	// Dirty is what a writing session does in a directory with uncommitted
 	// changes: a new worktree (default), --allow-dirty or --stash.
 	Dirty runsvc.DirtyPolicy
+	// epics are the epics of Tickets replaced by their open children (set
+	// by the launch).
+	epics []workflowsvc.EpicExpansion
 	// Progress receives preparation output (container image build).
 	Progress func(line string)
 }
@@ -235,24 +239,9 @@ func resolveLaunch(ctx context.Context, a *app.App, opts *runOptions, errOut io.
 	if opts.Runtime == "" {
 		opts.Runtime = string(probe.Spec.PickRuntime(runtimePrefs(a, opts.Project)...))
 	}
-	ticketInput, multi := workflowsvc.TicketInput(probe.Spec)
-	if len(opts.Tickets) > 0 {
-		in, _ := probe.Spec.Inputs.Get(ticketInput)
-		switch {
-		case ticketInput == "":
-			return nil, "", nil, errors.New(i18n.Tf("cmd.run.no_ticket_input", opts.Workflow))
-		case multi && opts.OneSession:
-			inputs[ticketInput] = strings.Join(opts.Tickets, ",")
-		case multi:
-			perSession = opts.Tickets
-			inputs[ticketInput] = opts.Tickets[0]
-		case in.Type == workflow.InputBeadsIDs:
-			inputs[ticketInput] = strings.Join(opts.Tickets, ",")
-		case len(opts.Tickets) > 1:
-			return nil, "", nil, errors.New(i18n.Tf("cmd.run.single_ticket", opts.Workflow))
-		default:
-			inputs[ticketInput] = opts.Tickets[0]
-		}
+	ticketInput, perSession, err = launchTickets(probe.Spec, opts, inputs, beadsTicketSource(opts.Project))
+	if err != nil {
+		return nil, "", nil, err
 	}
 	// Inputs computed by oh (`from:`, e.g. the discussions of a merge
 	// request) when they are not given.
@@ -267,6 +256,43 @@ func resolveLaunch(ctx context.Context, a *app.App, opts *runOptions, errOut io.
 	}
 
 	return res, ticketInput, perSession, nil
+}
+
+// launchTickets puts the tickets of a launch in the ticket input: one
+// session per ticket (perSession) when the input allows several sessions
+// (an epic then stands for its open children, A24), else a list or a single
+// ticket. opts.Tickets and opts.epics receive the expanded tickets.
+func launchTickets(sp *workflow.Spec, opts *runOptions, inputs map[string]any, src workflowsvc.TicketSource) (ticketInput string, perSession []string, err error) {
+	ticketInput, multi := workflowsvc.TicketInput(sp)
+	if len(opts.Tickets) == 0 {
+		return ticketInput, nil, nil
+	}
+	if multi {
+		if opts.Tickets, opts.epics, err = workflowsvc.ExpandEpics(src, opts.Tickets); err != nil {
+			var empty *workflowsvc.EmptyEpicError
+			if errors.As(err, &empty) {
+				return "", nil, errors.New(i18n.Tf("cmd.run.empty_epic", empty.Epic))
+			}
+			return "", nil, err
+		}
+	}
+	in, _ := sp.Inputs.Get(ticketInput)
+	switch {
+	case ticketInput == "":
+		return "", nil, errors.New(i18n.Tf("cmd.run.no_ticket_input", opts.Workflow))
+	case multi && opts.OneSession:
+		inputs[ticketInput] = strings.Join(opts.Tickets, ",")
+	case multi:
+		perSession = opts.Tickets
+		inputs[ticketInput] = opts.Tickets[0]
+	case in.Type == workflow.InputBeadsIDs:
+		inputs[ticketInput] = strings.Join(opts.Tickets, ",")
+	case len(opts.Tickets) > 1:
+		return "", nil, errors.New(i18n.Tf("cmd.run.single_ticket", opts.Workflow))
+	default:
+		inputs[ticketInput] = opts.Tickets[0]
+	}
+	return ticketInput, perSession, nil
 }
 
 // preconditionWarnings evaluates the workflow preconditions on the project
@@ -354,6 +380,37 @@ func runPlanError(err error) error {
 		return errors.New(i18n.T("cmd.run.no_branch"))
 	}
 	return err
+}
+
+// beadsTicketSource reads the tickets of a project from Beads (nil when the
+// project has no Beads database).
+func beadsTicketSource(project *domain.Project) workflowsvc.TicketSource {
+	if project == nil || beads.Available() != nil || !beads.IsInitialized(project.Path) {
+		return nil
+	}
+	return beadsTickets(project.Path)
+}
+
+type beadsTickets string
+
+func (b beadsTickets) IsEpic(id string) (bool, error) {
+	d, err := beads.Show(string(b), id)
+	if err != nil {
+		return false, err
+	}
+	return d.Type == "epic", nil
+}
+
+func (b beadsTickets) OpenChildren(epic string) ([]string, error) {
+	children, err := beads.DevPickableChildren(string(b), epic)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]string, len(children))
+	for i, c := range children {
+		out[i] = c.ID
+	}
+	return out, nil
 }
 
 // planDirty reports whether a writing session of the plan starts in a
@@ -474,6 +531,9 @@ func runRecap(p *preparedRun) (rows [][2]string, warnings []string) {
 		isolation += " · strict"
 	}
 	add(i18n.T("cmd.bundle.show.isolation"), isolation)
+	for _, e := range p.opts.epics {
+		add(i18n.T("cmd.run.recap.epic"), e.Epic+" → "+strings.Join(e.Children, " · "))
+	}
 	add(i18n.T("cmd.run.recap.sessions"), i18n.Tf("cmd.run.recap.sessions_value", len(p.plan.Sessions), p.plan.Worktrees()))
 	for _, s := range p.plan.Sessions {
 		loc := s.Location.Path

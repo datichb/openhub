@@ -116,3 +116,43 @@ func repoRoot(t *testing.T) string {
 	}
 	return root
 }
+
+type epicSource map[string][]string
+
+func (e epicSource) IsEpic(id string) (bool, error) { _, ok := e[id]; return ok, nil }
+func (e epicSource) OpenChildren(id string) ([]string, error) {
+	return e[id], nil
+}
+
+// A24: `oh run ticket --tickets <epic>` starts one session per open child
+// of the epic (one session with every child with --one-session); the recap
+// names the epic.
+func TestLaunchTicketsExpandsEpics(t *testing.T) {
+	svc := &workflowsvc.Service{HubDir: repoRoot(t), HubWorkflowsDir: filepath.Join("..", "internal", "services", "workflow", "testdata", "workflows")}
+	ticket, err := svc.Resolve(context.Background(), workflowsvc.Context{}, "ticket", workflowsvc.ResolveOpts{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	src := epicSource{"pt-c3b": {"pt-c3b.1", "pt-c3b.2"}, "pt-empty": nil}
+
+	opts := runOptions{Workflow: "ticket", Tickets: []string{"pt-c3b"}}
+	in := map[string]any{}
+	input, per, err := launchTickets(ticket.Spec, &opts, in, src)
+	if err != nil || input != "ticket" || strings.Join(per, ",") != "pt-c3b.1,pt-c3b.2" || in["ticket"] != "pt-c3b.1" {
+		t.Fatalf("per session: %q %v %v %v", input, per, in, err)
+	}
+	if len(opts.epics) != 1 || opts.epics[0].Epic != "pt-c3b" {
+		t.Fatalf("epics = %+v", opts.epics)
+	}
+
+	opts = runOptions{Workflow: "ticket", Tickets: []string{"pt-c3b"}, OneSession: true}
+	in = map[string]any{}
+	if _, per, err = launchTickets(ticket.Spec, &opts, in, src); err != nil || per != nil || in["ticket"] != "pt-c3b.1,pt-c3b.2" {
+		t.Fatalf("one session: %v %v %v", per, in, err)
+	}
+
+	opts = runOptions{Workflow: "ticket", Tickets: []string{"pt-empty"}}
+	if _, _, err = launchTickets(ticket.Spec, &opts, map[string]any{}, src); err == nil || !strings.Contains(err.Error(), "pt-empty") {
+		t.Fatalf("empty epic: %v", err)
+	}
+}

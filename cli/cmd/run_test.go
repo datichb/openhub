@@ -137,6 +137,7 @@ func TestRunRecapRows(t *testing.T) {
 		{ID: "cp-2", Behaviors: map[string]string{"semi-auto": "skip"}, Mandatory: true},
 	}
 	p := &preparedRun{
+		opts:       runOptions{epics: []workflowsvc.EpicExpansion{{Epic: "pt-c3b", Children: []string{"pt-c3b.1", "pt-c3b.2"}}}},
 		project:    &domain.Project{Name: "p"},
 		resolution: &workflowsvc.Resolution{Resolved: &workflow.Resolved{Spec: &workflow.Spec{ID: "ticket"}, Mode: "semi-auto"}},
 		bundle:     &bundle.Bundle{Spec: sessionspec.BundleSpec{CodeMode: true, Workflow: &sessionspec.WorkflowRuntime{ID: "ticket", Checkpoints: cps}}},
@@ -152,6 +153,7 @@ func TestRunRecapRows(t *testing.T) {
 	want := map[string]string{
 		i18n.T("cmd.run.recap.code_mode"):   "on",
 		i18n.T("cmd.run.recap.beads"):       "show · close",
+		i18n.T("cmd.run.recap.epic"):        "pt-c3b → pt-c3b.1 · pt-c3b.2",
 		i18n.T("cmd.run.recap.checkpoints"): "cp-1 " + i18n.T("cmd.run.recap.cp.auto") + " · cp-2 " + i18n.T("cmd.run.recap.cp.pause") + " (" + i18n.T("cmd.run.recap.cp.mandatory") + ")",
 	}
 	for k, v := range want {

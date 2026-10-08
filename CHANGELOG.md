@@ -206,6 +206,7 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
   - `oh status --json` donne `tool` et `tool_version` au lieu de `opencode_version` ;
   - les runners distants lisent `OH_TOOL_VERSION` (schéma du pipeline 2 : relancer `oh remote setup`).
 - **Lancement dans un dossier modifié** (corrections v5, A18, A35) : une session qui écrit ne démarre plus dans un dossier de base contenant des modifications non commitées. Par défaut, elle travaille dans un nouveau worktree de sa branche et les modifications restent intactes ; `oh run --stash` les met de côté avant le lancement (le commit du stash est affiché), `--allow-dirty` lance quand même. Le Récap de la fiche de lancement propose `[w]` worktree · `[s]` stash · `[b]` lancer quand même. Une session en veille garde aussi son dossier : une nouvelle session qui écrit reçoit un worktree. Le récapitulatif (`oh run --recap`, fiche de lancement) montre en plus le Code Mode, les commandes Beads autorisées et les checkpoints dans le mode choisi (obligatoires signalés).
+- `oh run <workflow> --tickets <épopée>` (corrections v5, A24) : une session par ticket enfant ouvert ou en cours de l'épopée, comme dans la fiche de lancement (une seule session pour tous avec `--one-session`) ; le récapitulatif affiche l'épopée et ses enfants ; une épopée sans enfant à traiter est refusée avec un message clair.
 
 ### Security
 
