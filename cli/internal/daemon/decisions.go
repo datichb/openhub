@@ -158,7 +158,7 @@ func (w *watcher) clearAlerts(ctx context.Context, id string) {
 	}
 	now := time.Now()
 	for _, d := range open {
-		if isLimitDecision(d) {
+		if isLimitDecision(d) || isOhAlert(d) {
 			continue // answered in oh only (raise, stop, dismiss)
 		}
 		if d.Kind == domain.DecisionError || d.Kind == domain.DecisionBudget {

@@ -14,13 +14,17 @@ bash:
   "git branch*": allow
   "git show*": allow
   "git rev-parse*": allow
-  # Git — écriture sûre (push/merge/rebase absents intentionnellement)
+  # Git — écriture sûre (push/merge/rebase absents intentionnellement ;
+  # restauration et nettoyage refusés : garde-fou git d'oh). Commit : après
+  # le checkpoint qui le déverrouille ; hooks jamais contournés (oh refuse
+  # --no-verify, core.hooksPath, GIT_CONFIG_*, écriture dans .git).
   "git add*": allow
   "git commit*": allow
-  "git checkout*": allow
+  "git checkout -b *": allow
   "git switch*": allow
   "git pull*": allow
-  "git stash*": allow
+  "git stash list*": allow
+  "git stash show*": allow
   "git worktree*": allow
   "git revert*": allow
   # Package managers
@@ -87,7 +91,6 @@ bash:
   "echo *": allow
   "make*": allow
   "which *": allow
-  "env *": allow
   "printenv*": allow
 read: allow
 glob: allow

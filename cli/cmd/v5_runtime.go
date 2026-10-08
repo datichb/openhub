@@ -150,6 +150,10 @@ func newRunService(ctx context.Context, a *app.App) (*runsvc.Service, error) {
 	if err != nil {
 		return nil, err
 	}
+	shellEnv, err := localShellStartup(shellPath)
+	if err != nil {
+		return nil, err
+	}
 	return &runsvc.Service{
 		Adapter:        ad,
 		AdapterVer:     v5Tool.Version,
@@ -164,6 +168,7 @@ func newRunService(ctx context.Context, a *app.App) (*runsvc.Service, error) {
 		OnSessionEnd:   sessionEndHook(a, false),
 		Runtimes:       v5Runtimes(a),
 		LocalShellPath: shellPath,
+		LocalShellEnv:  shellEnv,
 		SessionEnv: gatewaySessionEnv(func(ctx context.Context) (gatewayGranter, error) {
 			c, _, err := ensureDaemon(ctx)
 			return c, err

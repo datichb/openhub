@@ -56,7 +56,7 @@ Une correction quick fix peut être appliquée **uniquement si** :
 1. **Pas de changement de logique métier** — le comportement observable reste identique
 2. **Correction déterministe** — une seule façon correcte de corriger (pas de choix)
 3. **Changement local** — impact limité au fichier concerné, pas d'effet de bord
-4. **Réversible trivialement** — un `git checkout` suffit à annuler
+4. **Réversible trivialement** — l'annuler ne demande que de défaire ta propre modification (jamais celles de l'utilisateur)
 5. **Conforme aux conventions du projet** — respecte le linter, le formatter configuré
 
 ---

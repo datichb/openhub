@@ -83,6 +83,10 @@ type Service struct {
 	// session shells: the fake bd, so that Beads goes through the gateway
 	// and its beads.allow in every runtime (QB1).
 	LocalShellPath []string
+	// LocalShellEnv is added to the environment of local session shells:
+	// oh's shell start-up files, which keep LocalShellPath first after the
+	// user's own start-up files (A16).
+	LocalShellEnv map[string]string
 	// Decisions, when set, closes the pending decisions of stopped sessions.
 	Decisions domain.DecisionStore
 	// Usage is the usage ledger: a new session is refused when the daily
@@ -262,7 +266,7 @@ func (s *Service) StartSession(ctx context.Context, req StartRequest) (*StartRes
 	if sid == "" {
 		sid = sessionspec.NewSessionID()
 	}
-	static := withMachineShellEnv(kind, req.SessionEnv, s.LocalShellPath)
+	static := withMachineShellEnv(kind, withShellStartup(kind, req.SessionEnv, s.LocalShellEnv), s.LocalShellPath)
 	env, err := s.buildSessionEnv(ctx, static, SessionEnvRequest{SessionID: sid, GroupKey: gk, ProjectID: req.ProjectID, Location: req.Location,
 		Runtime: kind, WorkflowID: req.WorkflowID, BeadsAllow: req.BeadsAllow, GatewayURL: s.loadGatewayURL(gk)})
 	if err != nil {

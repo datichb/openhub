@@ -169,6 +169,23 @@ func withMachineShellEnv(kind sessionspec.RuntimeKind, static map[string]string,
 	return env
 }
 
+// withShellStartup adds the shell start-up variables to the static
+// variables of a local session (the static ones win).
+func withShellStartup(kind sessionspec.RuntimeKind, static, startup map[string]string) map[string]string {
+	if (kind != "" && kind != sessionspec.RuntimeLocal) || len(startup) == 0 {
+		return static
+	}
+	env := maps.Clone(startup)
+	maps.Copy(env, static)
+	return env
+}
+
+// LocalSessionEnv is the shell environment a local session gets with static
+// variables, start-up variables and first on the PATH (oh doctor).
+func LocalSessionEnv(static, startup map[string]string, first []string) map[string]string {
+	return withMachineShellEnv(sessionspec.RuntimeLocal, withShellStartup(sessionspec.RuntimeLocal, static, startup), first)
+}
+
 // buildSessionEnv merges the static variables, the hook variables and
 // OH_SESSION_ID (always last: it cannot be overridden).
 func (s *Service) buildSessionEnv(ctx context.Context, static map[string]string, r SessionEnvRequest) (map[string]string, error) {

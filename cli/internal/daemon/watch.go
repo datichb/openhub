@@ -58,13 +58,15 @@ type watcher struct {
 	children   map[string]string    // subagent session id → oh session that delegated it
 	childAgent map[string]string    // subagent session id → its agent
 	callAgent  map[string]string    // subagent tool call id → delegated agent (checkpoints)
-	runs       map[string]*agentRun // tool session id → agent telemetry (agent_events)
-	ctxw       *sessionctx.Writer   // evolving session state (S8)
-	synced     bool                 // a resync succeeded since the last (re)connection
-	lastTouch  time.Time
-	lastEvent  time.Time // last session activity seen (idle-sleep timer)
-	started    time.Time
-	done       chan struct{} // closed when run returns
+	// shellChecked lists the sessions whose shell was checked (A16).
+	shellChecked map[string]bool
+	runs         map[string]*agentRun // tool session id → agent telemetry (agent_events)
+	ctxw         *sessionctx.Writer   // evolving session state (S8)
+	synced       bool                 // a resync succeeded since the last (re)connection
+	lastTouch    time.Time
+	lastEvent    time.Time // last session activity seen (idle-sleep timer)
+	started      time.Time
+	done         chan struct{} // closed when run returns
 }
 
 // stop cancels the watcher and waits for its goroutine (no write after return).
@@ -196,6 +198,12 @@ func (w *watcher) onEvent(ctx context.Context, ev adapters.ToolEvent) {
 	}
 	if !w.isKnown(ctx, ev.SessionID) {
 		return
+	}
+	w.mu.Lock()
+	checked := w.shellChecked[ev.SessionID]
+	w.mu.Unlock()
+	if !checked {
+		go w.checkShellOnce(context.WithoutCancel(ctx), ev.SessionID)
 	}
 	w.publish(ev.SessionID, ev.Feed)
 	if ev.Call != nil {

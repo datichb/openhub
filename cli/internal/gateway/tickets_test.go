@@ -65,3 +65,30 @@ func TestBeadsWorkflowGuard(t *testing.T) {
 	assert.Equal(t, http.StatusOK, code)
 	assert.Equal(t, []BeadsOp{{Kind: OpClaim, IDs: []string{"pt-1"}}}, done, "only ticket operations that succeeded")
 }
+
+// A19: the Beads git hooks run whatever beads.allow says, only when git
+// runs them; in another runtime they are not run on the machine.
+func TestBeadsGitHooks(t *testing.T) {
+	f := newFixture(t, []string{"show"})
+	hook := func(gitHook bool, argv ...string) (int, beadswire.ExecResponse) {
+		return f.call(t, f.token, beadswire.ExecRequest{Argv: argv, Cwd: "/work/proj", GitHook: gitHook})
+	}
+	code, resp := hook(true, "hooks", "run", "pre-commit")
+	assert.Equal(t, http.StatusOK, code, resp.Error)
+	assert.Empty(t, resp.Stdout, "container view: skipped, not run on the machine")
+
+	f.b.View = nil // local session: same paths
+	code, resp = hook(true, "hooks", "run", "prepare-commit-msg", ".git/COMMIT_EDITMSG", "message")
+	require.Equal(t, http.StatusOK, code, resp.Error)
+	assert.Contains(t, string(resp.Stdout), "argv:hooks run prepare-commit-msg .git/COMMIT_EDITMSG message")
+	code, _ = hook(false, "hooks", "run", "pre-commit")
+	assert.Equal(t, http.StatusForbidden, code, "not run by git: beads.allow applies")
+	code, _ = hook(true, "hooks", "install")
+	assert.Equal(t, http.StatusForbidden, code, "only hooks run")
+	code, _ = hook(true, "hooks", "run", "post-rewrite")
+	assert.Equal(t, http.StatusForbidden, code, "unknown hook")
+	code, _ = hook(true, "close", "pt-1")
+	assert.Equal(t, http.StatusForbidden, code, "the hook flag does not open other commands")
+	code, _ = hook(true, "--db", "/x", "hooks", "run", "pre-commit")
+	assert.Equal(t, http.StatusForbidden, code, "global flags still checked")
+}

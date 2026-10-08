@@ -68,7 +68,7 @@ Modifier le ticket pour refléter la réalité du codebase.
 #### Option B — Revert + nouvelle approche
 
 Annuler les changements en cours et repartir d'une approche différente.
-- `git checkout -- .` ou revert des fichiers modifiés
+- Revenir sur les seules modifications faites pour ce ticket (édition inverse ; `git checkout -- …`, `git restore` et `git stash` sont refusés par oh pour protéger le travail de l'utilisateur), avec l'accord de l'utilisateur
 - Définir une nouvelle approche avant de redeliver au developer
 
 **Quand privilégier :** l'approche actuelle est fondamentalement incorrecte, le revert est propre.

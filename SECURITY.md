@@ -103,6 +103,10 @@ The closed world is about what the model sees, not what the shell can do.
 - **Refused options**: global options that change the database or the folder (`--db`, `-C`, `--global`…), anywhere in the command.
 - **Paths** are translated to the machine and limited to the session locations (links resolved); the bundle and the group data are excluded.
 - The real `bd` runs without a shell, in the session folder (2 min timeout, 8 MiB per stream).
+- **Shell start-up**: the shell of a local session reads oh's start-up files (`ZDOTDIR` for zsh, `BASH_ENV` for bash, `~/.oh/run/shell/`): they load the user's own files (`~/.zshenv`…), then put the fake `bd` back first, so that a real `bd` installed by npm, volta or in `~/.local/bin` cannot come first. The daemon checks it once per session (alert ✗ in "To handle" otherwise) and so does `oh doctor`.
+- **Git hooks of Beads** (`bd hooks run <hook>`, run by git with `BD_GIT_HOOK=1`): they go through the gateway whatever `beads.allow` says, so that a commit is never blocked by the allow-list; only `hooks run` and the hooks of bd are accepted. Outside the machine (container), they are not run on the machine (the hooks bd chains would run outside the container).
+- **Git hooks are never bypassed**: every agent is refused `--no-verify` (`-n` for a commit), `-c core.hooksPath=…`, `git config core.hooksPath`, `GIT_CONFIG_*`, config includes, and writing to `.git/` or `.beads/hooks/` (shell and edit tool).
+- **Commit and closing locked by a checkpoint** (`unlocks:`, e.g. `cp-2` of `ticket`): until it is approved, `git commit`, `git push` and closing a ticket are refused to every agent; then the gateway closes a ticket only once the work is committed.
 
 **MCP gateway** (outside the machine). oh MCP servers of the bundle run on the machine, started by the daemon from the immutable bundle; they read their own tokens from the keychain. The container reaches them over HTTP with the group token (`{env:…}`, never written in the configuration). A call whose `_meta` designates a session of another group is refused (403).
 

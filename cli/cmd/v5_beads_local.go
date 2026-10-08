@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/exec"
@@ -8,6 +9,8 @@ import (
 	"runtime"
 
 	"github.com/datichb/openhub/cli/internal/config"
+	"github.com/datichb/openhub/cli/internal/gateway"
+	"github.com/datichb/openhub/cli/internal/runsvc"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 )
 
@@ -60,6 +63,36 @@ func localShellPath() ([]string, error) {
 		return nil, fmt.Errorf("preparing the bd of local sessions: %w", err)
 	}
 	return []string{dir}, nil
+}
+
+// localShellStartup writes oh's shell start-up files of local sessions and
+// returns their variables: the user's start-up files cannot put another bd
+// before the fake bd (A16).
+func localShellStartup(first []string) (map[string]string, error) {
+	return gateway.ShellStartup(filepath.Join(config.HubDir(), "run", "shell"), first, os.Getenv)
+}
+
+// localBeadsShim is the fake bd local sessions must find first.
+func localBeadsShim() string {
+	name := "bd"
+	if runtime.GOOS == "windows" {
+		name = "bd.cmd"
+	}
+	return filepath.Join(ohShimsDir(), name)
+}
+
+// checkLocalShellBD tells what `bd` the shell of a local session runs
+// (gateway.ErrShellBD when it is not the fake bd of oh).
+func checkLocalShellBD(ctx context.Context) (string, error) {
+	first, err := localShellPath()
+	if err != nil {
+		return "", err
+	}
+	startup, err := localShellStartup(first)
+	if err != nil {
+		return "", err
+	}
+	return gateway.CheckShellBD(ctx, runsvc.LocalSessionEnv(nil, startup, first), localBeadsShim())
 }
 
 // realBeadsBinary is the bd run by the gateway: the first one on the PATH

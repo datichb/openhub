@@ -308,7 +308,7 @@ func agentDef(req Request, a *bricks.AssembledAgent, instructions string) (sessi
 		perms = fm.Permission
 	}
 	own := ConvertPermissions(perms)
-	def.Permissions = append(append(own, GitShellGuard(own)...), BeadsShellGuard()...)
+	def.Permissions = append(append(append(own, GitShellGuard(own)...), BeadsShellGuard()...), HookGuard()...)
 	return def, nil
 }
 

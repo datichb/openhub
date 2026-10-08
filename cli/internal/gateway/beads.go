@@ -14,6 +14,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"os"
 	"os/exec"
 	"strings"
 	"time"
@@ -85,7 +86,12 @@ func writeResp(w http.ResponseWriter, status int, resp beadswire.ExecResponse) {
 // Exec checks and runs one command for a grant. The HTTP status is 200 when
 // bd ran (whatever its exit code), 403 when the command is refused.
 func (b *Beads) Exec(ctx context.Context, g Grant, req beadswire.ExecRequest) (resp beadswire.ExecResponse, status int) {
-	c, err := checkBeads(req.Argv, g.BeadsAllow)
+	allow := g.BeadsAllow
+	hook := req.GitHook && isGitHook(req.Argv)
+	if hook {
+		allow = gitHookAllow // run by git, whatever the workflow allows (A19)
+	}
+	c, err := checkBeads(req.Argv, allow)
 	if err != nil {
 		return refusalResp(err.Error()), http.StatusForbidden
 	}
@@ -106,6 +112,12 @@ func (b *Beads) Exec(ctx context.Context, g Grant, req beadswire.ExecRequest) (r
 	}
 	if !exists(dir) {
 		return refusalResp(i18n.Tf("cmd.gateway.beads.path_outside", dir)), http.StatusForbidden
+	}
+	if hook && len(view.Paths) > 0 {
+		// Another runtime: the hooks bd chains (the project's own hooks)
+		// would run on the machine, out of the container. Skipped.
+		slog.Debug("gateway: Beads git hook skipped (not a local session)", "session", g.SessionID, "hook", req.Argv)
+		return beadswire.ExecResponse{}, http.StatusOK
 	}
 	op, isOp := ticketOp(req.Argv, c)
 	if isOp && b.Guard != nil {
@@ -132,6 +144,9 @@ func (b *Beads) Exec(ctx context.Context, g Grant, req beadswire.ExecRequest) (r
 	defer cancel()
 	cmd := exec.CommandContext(cctx, bin, argv...)
 	cmd.Dir = dir
+	if hook {
+		cmd.Env = append(os.Environ(), beadswire.EnvGitHook+"=1")
+	}
 	cmd.Stdin = bytes.NewReader(req.Stdin)
 	stdout, stderr := &capped{max: limit}, &capped{max: limit}
 	cmd.Stdout, cmd.Stderr = stdout, stderr
