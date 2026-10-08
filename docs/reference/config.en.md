@@ -383,7 +383,7 @@ git@gitlab.com:acme/other-team.git  →  ~/.oh/team-states/gitlab.com/other-team
 https://github.com/acme/my-team.git →  ~/.oh/team-states/github.com/my-team
 ```
 
-A former `~/.oh/team-states/<repo>` clone (without host) is reused when it exists.
+A former `~/.oh/team-states/<repo>` clone (without host) is reused when it exists. With `OH_HOME`, the clones live under `$OH_HOME/team-states/`.
 
 ### Setting the team of a project
 

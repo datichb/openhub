@@ -33,19 +33,25 @@ import (
 	"github.com/datichb/openhub/cli/internal/termlaunch"
 )
 
-// v5Request returns the provider, team and attach settings of a project
-// session (bundle, location and prompt are set by the caller).
-func v5Request(a *app.App, project *domain.Project, providerFlag string) runsvc.StartRequest {
-	prov := provider.ResolveProvider(providerFlag, project.Provider, a.Config.LLM.DefaultProvider)
+// projectProvider returns the provider, explicit credential key and provider
+// config (AWS profile / region) of a project session.
+func projectProvider(a *app.App, project *domain.Project, providerFlag string) (prov, tokenKey string, cfg provider.Config) {
+	prov = provider.ResolveProvider(providerFlag, project.Provider, a.Config.LLM.DefaultProvider)
 	var projProv *provider.ProviderConfig
-	tokenKey := ""
 	if project.ProviderConfig != nil {
 		projProv = &provider.ProviderConfig{AWSProfile: project.ProviderConfig.AWSProfile, AWSRegion: project.ProviderConfig.AWSRegion}
 		tokenKey = project.ProviderConfig.TokenKey
 	}
+	return prov, tokenKey, provider.ResolveProviderConfig(projProv, hubProviderCfg(a, prov))
+}
+
+// v5Request returns the provider, team and attach settings of a project
+// session (bundle, location and prompt are set by the caller).
+func v5Request(a *app.App, project *domain.Project, providerFlag string) runsvc.StartRequest {
+	prov, tokenKey, provCfg := projectProvider(a, project, providerFlag)
 	req := runsvc.StartRequest{
 		ProjectID: project.ID, ProjectTokenKey: tokenKey, Provider: prov,
-		ProviderCfg: provider.ResolveProviderConfig(projProv, hubProviderCfg(a, prov)),
+		ProviderCfg: provCfg,
 		Attach:      sessionspec.AttachPref(attachPreference(a)), ITermStyle: termlaunch.ITermStyle(a.Config.Session.ITermStyle),
 	}
 	applyProjectExec(&req, project)

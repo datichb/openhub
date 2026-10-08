@@ -2,7 +2,9 @@ package cmd
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 
@@ -67,36 +69,51 @@ func runSecretsSet(cmd *cobra.Command, args []string) error {
 
 	scope, scopeLabel := resolveSecretScope(ctx, a, secretsSetGlobal, secretsSetProject)
 
-	// Read value from stdin (masked)
-	fmt.Fprintf(a.IO.Out, "Valeur pour %q (%s): ", key, scopeLabel)
-	valueBytes, err := term.ReadPassword(int(os.Stdin.Fd()))
-	fmt.Fprintln(a.IO.Out) // newline after masked input
+	value, err := readSecretValue(a.IO.In, a.IO.Out, stdinIsTerminal(), key, scopeLabel)
 	if err != nil {
-		return fmt.Errorf("lecture du secret: %w", err)
-	}
-	value := strings.TrimSpace(string(valueBytes))
-	if value == "" {
-		return fmt.Errorf("valeur vide — opération annulée")
+		return err
 	}
 
 	if a.Secrets == nil {
-		return fmt.Errorf("secret store non disponible (keychain inaccessible et OH_PASSPHRASE non défini)")
+		return errors.New(i18n.T("cmd.secrets.set.no_store"))
 	}
 
 	// Use scoped set if keychain supports it
 	if ks, ok := a.Secrets.(*keychain.Store); ok {
 		if err := ks.SetScoped(ctx, key, value, scope); err != nil {
-			return fmt.Errorf("stockage du secret: %w", err)
+			return fmt.Errorf("%s: %w", i18n.T("cmd.secrets.set.store_failed"), err)
 		}
 	} else {
 		if err := a.Secrets.Set(ctx, key, value); err != nil {
-			return fmt.Errorf("stockage du secret: %w", err)
+			return fmt.Errorf("%s: %w", i18n.T("cmd.secrets.set.store_failed"), err)
 		}
 	}
 
-	fmt.Fprintf(a.IO.Out, "%s Secret %q stocké (%s)\n",
-		theme.SuccessStyle.Render(theme.IconSuccess), key, scopeLabel)
+	fmt.Fprintf(a.IO.Out, "%s %s\n",
+		theme.SuccessStyle.Render(theme.IconSuccess), i18n.Tf("cmd.secrets.set.stored", key, scopeLabel))
 	return nil
+}
+
+// readSecretValue reads the secret: masked input on a terminal, else the
+// standard input (scripts, CI: `printf %s "$TOKEN" | oh secrets set <key>`).
+func readSecretValue(in io.Reader, out io.Writer, tty bool, key, scopeLabel string) (string, error) {
+	var raw []byte
+	var err error
+	if tty {
+		fmt.Fprint(out, i18n.Tf("cmd.secrets.set.prompt", key, scopeLabel))
+		raw, err = term.ReadPassword(int(os.Stdin.Fd()))
+		fmt.Fprintln(out) // newline after masked input
+	} else {
+		raw, err = io.ReadAll(io.LimitReader(in, 1<<20))
+	}
+	if err != nil {
+		return "", fmt.Errorf("%s: %w", i18n.T("cmd.secrets.set.read_failed"), err)
+	}
+	value := strings.TrimSpace(string(raw))
+	if value == "" {
+		return "", errors.New(i18n.T("cmd.secrets.set.empty"))
+	}
+	return value, nil
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -405,7 +422,7 @@ func init() {
 //  4. Fallback: "global"
 func resolveSecretScope(ctx context.Context, a *app.App, forceGlobal bool, forceProject string) (scope, label string) {
 	if forceProject != "" {
-		return forceProject, fmt.Sprintf("projet %s", forceProject)
+		return forceProject, i18n.Tf("cmd.secrets.scope_project", forceProject)
 	}
 	if forceGlobal {
 		return "global", "global"
@@ -414,9 +431,9 @@ func resolveSecretScope(ctx context.Context, a *app.App, forceGlobal bool, force
 	projectID := detectCurrentProject(ctx, a)
 	if projectID != "" {
 		if p, err := a.Projects.Get(ctx, projectID); err == nil {
-			return projectID, fmt.Sprintf("projet %s", p.Name)
+			return projectID, i18n.Tf("cmd.secrets.scope_project", p.Name)
 		}
-		return projectID, fmt.Sprintf("projet %s", projectID)
+		return projectID, i18n.Tf("cmd.secrets.scope_project", projectID)
 	}
 	return "global", "global"
 }

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/datichb/openhub/cli/internal/i18n"
@@ -33,6 +34,8 @@ type ValidateReport struct {
 type ValidateItem struct {
 	Ref   string `json:"ref"`
 	Valid bool   `json:"valid"`
+	// Draft: the member's unpublished draft was validated.
+	Draft bool `json:"draft,omitempty"`
 }
 
 // Counts returns the number of errors and warnings.
@@ -63,6 +66,7 @@ func (s *Service) Validate(ctx context.Context, c Context, in ValidateInput) (*V
 	}
 	report := &ValidateReport{Diagnostics: wf.Diagnostics{}}
 	var refs []wf.Ref
+	draft := false
 	switch {
 	case in.All:
 		report.Diagnostics = append(report.Diagnostics, cat.diags...)
@@ -87,9 +91,21 @@ func (s *Service) Validate(ctx context.Context, c Context, in ValidateInput) (*V
 		cat.docs.Put(doc)
 		refs = []wf.Ref{doc.Ref()}
 	default:
-		ref, err := wf.ParseRef(in.Target)
-		if err != nil {
+		ref, found := s.lookup(cat, in.Target, "")
+		if ref.ID == "" {
 			ref = wf.Ref{Layer: wf.LayerHub, ID: in.Target}
+		}
+		if !found && cat.team != nil {
+			// Not published: the member's draft of that workflow (A9).
+			drafts, ds := cat.team.Repo.LoadDrafts(cat.docs, cat.team.Member, cat.team.scopes()...)
+			if r, ok := s.lookup(cat, in.Target, ""); ok && slices.Contains(drafts, r) {
+				ref, draft = r, true
+				for _, d := range ds {
+					if base := filepath.Base(d.Source); base == r.ID+".yaml" || base == r.ID+".yml" {
+						report.Diagnostics = append(report.Diagnostics, d)
+					}
+				}
+			}
 		}
 		// Load errors of the requested file explain an unknown workflow.
 		for _, d := range cat.diags {
@@ -103,7 +119,7 @@ func (s *Service) Validate(ctx context.Context, c Context, in ValidateInput) (*V
 	for _, ref := range refs {
 		_, diags := wf.Check(cat.docs, ref, nil, cat.env)
 		report.Diagnostics = append(report.Diagnostics, diags...)
-		report.Workflows = append(report.Workflows, ValidateItem{Ref: ref.String(), Valid: !diags.HasErrors()})
+		report.Workflows = append(report.Workflows, ValidateItem{Ref: ref.String(), Valid: !diags.HasErrors(), Draft: draft})
 	}
 	if !in.All && report.Diagnostics.HasErrors() {
 		report.Workflows[0].Valid = false

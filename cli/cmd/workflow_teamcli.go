@@ -63,6 +63,35 @@ func workflowCmdContext(cmd *cobra.Command) (workflowsvc.Context, error) {
 	return workflowsvc.Context{ProjectID: p.ID}, nil
 }
 
+// workflowReadContext is the WorkflowService context of the read-only
+// commands (show, validate, bundle): the one of a launch — --team, else the
+// project of --project or of the current directory (its team-state, solo
+// included), else the active team (A6).
+func workflowReadContext(cmd *cobra.Command) (workflowsvc.Context, error) {
+	a := TryApp()
+	if a == nil {
+		return workflowsvc.Context{}, nil
+	}
+	ref, _ := cmd.Flags().GetString("project")
+	if team, _ := cmd.Flags().GetString("team"); team != "" {
+		return workflowCmdContext(cmd)
+	}
+	p, err := bundleProject(ctxOf(cmd), a, ref)
+	if err != nil || p == nil {
+		return workflowsvc.Context{}, err
+	}
+	return workflowsvc.Context{ProjectID: p.ID}, nil
+}
+
+// unknownWorkflowError explains an unknown workflow; a project reference
+// without project context says how to give one.
+func unknownWorkflowError(id string, c workflowsvc.Context) error {
+	if l, _ := splitRef(id); l == workflow.LayerProject && c.ProjectID == "" {
+		return errors.New(i18n.Tf("cmd.workflow.show.unknown_no_project", id))
+	}
+	return errors.New(i18n.Tf("cmd.workflow.show.unknown", id))
+}
+
 // workflowEditError explains the errors of the editing service.
 func workflowEditError(w io.Writer, err error) error {
 	var invalid *workflowsvc.InvalidError

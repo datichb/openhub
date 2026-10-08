@@ -11,6 +11,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/launcher"
 	"github.com/datichb/openhub/cli/internal/runsvc"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
+	"github.com/datichb/openhub/cli/internal/workflow"
 )
 
 // Headless launches (`oh run --headless`, takeover-brief enrich): the
@@ -21,10 +22,27 @@ import (
 // errHeadlessCheckpoints refuses a headless launch whose workflow may wait
 // for the user.
 func headlessCheck(p *preparedRun) error {
-	if ids := p.resolution.WaitingCheckpoints(); len(ids) > 0 {
-		return errors.New(i18n.Tf("cmd.run.headless_checkpoints", p.resolution.Spec.ID, p.resolution.Mode, strings.Join(ids, ", ")))
+	return headlessCheckpointsError(p.resolution.Spec, p.resolution.Mode)
+}
+
+// headlessCheckpointsError explains why a workflow cannot run headless in a
+// mode, and whether another allowed mode can (A25: a mandatory checkpoint
+// that pauses in every mode cannot be passed without interface).
+func headlessCheckpointsError(spec *workflow.Spec, mode string) error {
+	ids := spec.WaitingCheckpoints(mode)
+	if len(ids) == 0 {
+		return nil
 	}
-	return nil
+	var modes []string
+	for _, m := range spec.AllowedModes() {
+		if m != mode && len(spec.WaitingCheckpoints(m)) == 0 {
+			modes = append(modes, m)
+		}
+	}
+	if len(modes) == 0 {
+		return errors.New(i18n.Tf("cmd.run.headless_checkpoints_always", spec.ID, strings.Join(ids, ", ")))
+	}
+	return errors.New(i18n.Tf("cmd.run.headless_checkpoints", spec.ID, mode, strings.Join(ids, ", "), strings.Join(modes, ", ")))
 }
 
 // runHeadless starts a prepared launch without client and awaits every

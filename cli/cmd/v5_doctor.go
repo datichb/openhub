@@ -15,7 +15,7 @@ import (
 )
 
 func init() {
-	views.ExtraDoctorChecks = v5DoctorChecks
+	views.DoctorChecks = collectDoctorChecks
 }
 
 // v5DoctorChecks reports the v5 runtime health (shared by `oh doctor` and the TUI).

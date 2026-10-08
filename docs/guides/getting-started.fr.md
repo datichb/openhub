@@ -104,7 +104,9 @@ oh doctor
 
 `oh doctor` controle opencode V2, le demon, git, le terminal, le moteur de conteneurs et les restes d'anciens deploiements.
 
-Pour Beads : dans le projet, `bd init` (ou la commande `board init` de la TUI) prepare les tickets.
+Pour Beads : initialisez les tickets du projet avec oh (`oh project add`, ou la commande `board init` de la TUI), qui lance `bd init --skip-hooks --skip-agents --setup-exclude` : rien n'est ajoute au depot du projet (« zero impact »).
+
+> **`bd init` lance a la main** cree aussi des fichiers d'agents a la racine du projet (`AGENTS.md`, `CLAUDE.md`, parfois `.claude/`), des hooks git et des lignes dans `.gitignore`, sans ajouter `.beads/` a `.git/info/exclude`. `oh doctor` le signale (« Beads zero impact »). Pour revenir a zero impact : supprimez les fichiers d'agents generes par bd (s'ils ne sont pas a vous), retirez les lignes Beads du `.gitignore` et ajoutez `.beads/` a `.git/info/exclude`. Les sessions d'oh n'en ont pas besoin : les consignes Beads sont dans le paquet de session.
 
 ## Enregistrer d'autres projets
 

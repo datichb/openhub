@@ -24,13 +24,13 @@ oh init
 
 ### oh doctor
 
-Vérifie l'état du système et les dépendances. Sans flag. Sort avec le code 0 même si des contrôles échouent (le résultat est affiché).
+Vérifie l'état du système et les dépendances. Sans flag. Sort avec le code 1 si un contrôle échoue (✗) ; les avertissements (⚠) ne comptent pas. La vue Doctor de la TUI exécute exactement les mêmes contrôles.
 
 ```
 oh doctor
 ```
 
-Contrôles : OS et architecture, git, `bd` et `fzf` (optionnels), version d'oh (mise à jour disponible), `hub.toml`, identifiants du provider, base de données, clés API (trousseau), Beads « zéro impact » (hooks, `.gitignore`), puis les contrôles v5 : opencode V2 (version minimale ; V1 refusé avec le [guide de migration](../guides/migration-v5.fr.md)), démon `ohd`, git, ouverture des terminaux, moteur de conteneurs et image, passerelles, restrictions et mémoire, sécurité (socket, capacité, jetons), restes des anciens déploiements, intégrité des workflows du team-state, cibles distantes, réservations d'équipe orphelines (ticket fermé, ou toutes les sessions du ticket terminées ; avec la commande `oh team release` à lancer).
+Contrôles : OS et architecture, git, `bd` (optionnel), version d'oh (mise à jour disponible : avertissement ; une pré-version comme `5.0.0-rc.1` ou un build de développement `git describe` plus récent que la dernière version publiée est à jour), `hub.toml`, identifiants du provider (cascade d'un lancement depuis le dossier courant : clé du projet, de l'équipe, du hub, puis profil AWS pour Bedrock), base de données, clés API (trousseau), Beads « zéro impact » (hooks, `.gitignore`), puis les contrôles v5 : opencode V2 (version minimale ; V1 refusé avec le [guide de migration](../guides/migration-v5.fr.md)), démon `ohd`, git, ouverture des terminaux, moteur de conteneurs et image, passerelles, restrictions et mémoire, sécurité (socket, capacité, jetons), restes des anciens déploiements, intégrité des workflows du team-state, cibles distantes, réservations d'équipe orphelines (ticket fermé, ou toutes les sessions du ticket terminées ; avec la commande `oh team release` à lancer).
 
 **Exemple :**
 
@@ -91,7 +91,7 @@ oh upgrade oh [version] [--check]
 
 | Argument / flag | Type | Description |
 |-----------------|------|-------------|
-| `version` | argument | Version cible (défaut : la dernière) |
+| `version` | argument | Version cible (défaut : la dernière publiée). Sans version, oh n'installe jamais une version plus ancienne que la sienne ; une version plus ancienne demandée explicitement est installée avec un avertissement de rétrogradation |
 | `--check` | bool | Vérifier seulement si une mise à jour est disponible |
 
 **Exemple :**

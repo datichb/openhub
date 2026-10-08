@@ -29,12 +29,16 @@ func workflowShowCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			asJSON, _ := cmd.Flags().GetBool("json")
 			origin, _ := cmd.Flags().GetBool("origin")
-			res, err := newWorkflowService(cmd.Context()).Resolve(cmd.Context(), workflowsvc.Context{}, args[0], workflowsvc.ResolveOpts{})
+			c, err := workflowReadContext(cmd)
+			if err != nil {
+				return err
+			}
+			res, err := newWorkflowService(cmd.Context()).Resolve(cmd.Context(), c, args[0], workflowsvc.ResolveOpts{})
 			var invalid *workflowsvc.InvalidError
 			_ = errors.As(err, &invalid)
 			if res == nil {
 				if errors.Is(err, workflowsvc.ErrUnknownWorkflow) {
-					return errors.New(i18n.Tf("cmd.workflow.show.unknown", args[0]))
+					return unknownWorkflowError(args[0], c)
 				}
 				if invalid != nil {
 					printDiagnostics(cmd.OutOrStdout(), invalid.Diagnostics)
@@ -57,6 +61,7 @@ func workflowShowCmd() *cobra.Command {
 	}
 	cmd.Flags().Bool("origin", false, "Affiche la couche qui a posé chaque valeur")
 	cmd.Flags().Bool("json", false, "Sortie JSON")
+	addWorkflowContextFlags(cmd)
 	return cmd
 }
 

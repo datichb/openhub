@@ -67,3 +67,44 @@ func TestFromOutput(t *testing.T) {
 		assert.Equal(t, want, FromOutput(in), "input=%q", in)
 	}
 }
+
+// A1: pre-releases and `git describe` builds are ordered, so oh never offers
+// to "update" to an older version (5.0.0-test → 4.2.0).
+func TestCompare(t *testing.T) {
+	tests := []struct {
+		a, b string
+		want int
+	}{
+		{"5.0.0-test", "4.2.0", 1},
+		{"5.0.0", "4.2.0", 1},
+		{"v5.0.0", "5.0.0", 0},
+		{"5.0.0-test", "5.0.0", -1},
+		{"5.0.0-rc.1", "5.0.0-rc.2", -1},
+		{"5.0.0-rc.2", "5.0.0-rc.10", -1},
+		{"5.0.0-alpha", "5.0.0-alpha.1", -1},
+		{"5.0.0-1", "5.0.0-alpha", -1},
+		{"5.0.0-beta", "5.0.0-alpha", 1},
+		{"v4.2.0-195-gfe9ed932", "4.2.0", 1},
+		{"v4.2.0-195-gfe9ed932-dirty", "4.2.0", 1},
+		{"v4.2.0-dirty", "4.2.0", 1},
+		{"v4.2.0-195-gfe9ed932", "5.0.0", -1},
+		{"v4.2.0-195-gfe9ed932", "v4.2.0-200-gabcdef1", -1},
+		{"5.0.0-rc.1-3-gabc1234", "5.0.0-rc.1", 1},
+		{"5.0.0-rc.1-3-gabc1234", "5.0.0", -1},
+		{"5.0.0+build.7", "5.0.0", 0},
+	}
+	for _, tt := range tests {
+		got, ok := Compare(tt.a, tt.b)
+		assert.True(t, ok, "%s vs %s", tt.a, tt.b)
+		assert.Equal(t, tt.want, got, "%s vs %s", tt.a, tt.b)
+		back, _ := Compare(tt.b, tt.a)
+		assert.Equal(t, -tt.want, back, "%s vs %s", tt.b, tt.a)
+	}
+}
+
+func TestCompareInvalid(t *testing.T) {
+	for _, s := range []string{"dev", "fe9ed93", "", "5.0", "5.0.x", "5.0.0-"} {
+		_, ok := Compare(s, "4.2.0")
+		assert.False(t, ok, s)
+	}
+}

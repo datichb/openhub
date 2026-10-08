@@ -3,14 +3,21 @@ package cmd
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"os"
+	"sort"
 
 	"github.com/spf13/cobra"
 
+	"github.com/datichb/openhub/cli/internal/app"
+	"github.com/datichb/openhub/cli/internal/bricks"
+	"github.com/datichb/openhub/cli/internal/bundle"
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
+	workflowsvc "github.com/datichb/openhub/cli/internal/services/workflow"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
 
@@ -111,114 +118,128 @@ func configModelShowCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "show",
 		Short: "Affiche la configuration des modèles",
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			projectID, _ := cmd.Flags().GetString("project")
+			projectFlag, _ := cmd.Flags().GetString("project")
+			workflowID, _ := cmd.Flags().GetString("workflow")
 			jsonOut, _ := cmd.Flags().GetBool("json")
+			ctx, a := cmd.Context(), MustApp()
 
-			cfg, err := config.Load()
+			project, err := budgetProject(ctx, a, projectFlag)
 			if err != nil {
-				return fmt.Errorf("loading config: %w", err)
+				return err
 			}
-			a := MustApp()
-
-			hubDefault := cfg.Models.Default
-			hubFamilies := cfg.Models.Families
-			hubAgents := cfg.Models.Agents
-
-			// JSON mode: output structured data and exit early
+			levels, err := modelCascadeLevels(ctx, a, project, workflowID)
+			if err != nil {
+				return err
+			}
 			if jsonOut {
-				output := map[string]interface{}{
-					"hub": map[string]interface{}{
-						"default":  hubDefault,
-						"families": hubFamilies,
-						"agents":   hubAgents,
-					},
+				out := map[string]any{}
+				for _, l := range levels {
+					out[l.ID] = l.JSON()
 				}
-				if projectID != "" {
-					ctx := cmd.Context()
-					project, err := a.Projects.Get(ctx, projectID)
-					if err != nil {
-						return fmt.Errorf("project %s: %w", projectID, err)
-					}
-					projectOut := map[string]interface{}{
-						"default": project.Model,
-					}
-					if project.ModelOverrides != nil {
-						projectOut["families"] = project.ModelOverrides.Families
-						projectOut["agents"] = project.ModelOverrides.Agents
-					}
-					output["project"] = projectOut
-				}
-				return json.NewEncoder(a.IO.Out).Encode(output)
+				return json.NewEncoder(a.IO.Out).Encode(out)
 			}
-
-			// Human-readable output
-			fmt.Fprintln(a.IO.Out)
-			fmt.Fprintf(a.IO.Out, "%s\n", theme.Title.Render("  Model Configuration  "))
-			fmt.Fprintln(a.IO.Out)
-
-			// Hub-level
-			fmt.Fprintf(a.IO.Out, "%s\n", theme.Bold.Render("Hub-level (hub.toml):"))
-			if hubDefault != "" {
-				fmt.Fprintf(a.IO.Out, "  default: %s\n", hubDefault)
-			} else {
-				fmt.Fprintf(a.IO.Out, "  default: %s\n", theme.Subtitle.Render("(not set)"))
-			}
-
-			if len(hubFamilies) > 0 {
-				fmt.Fprintf(a.IO.Out, "  families:\n")
-				for f, m := range hubFamilies {
-					fmt.Fprintf(a.IO.Out, "    %s: %s\n", f, m)
-				}
-			}
-
-			if len(hubAgents) > 0 {
-				fmt.Fprintf(a.IO.Out, "  agents:\n")
-				for id, m := range hubAgents {
-					fmt.Fprintf(a.IO.Out, "    %s: %s\n", id, m)
-				}
-			}
-
-			// Project-level (if requested)
-			if projectID != "" {
-				ctx := cmd.Context()
-				project, err := a.Projects.Get(ctx, projectID)
-				if err != nil {
-					return fmt.Errorf("project %s: %w", projectID, err)
-				}
-
-				fmt.Fprintln(a.IO.Out)
-				fmt.Fprintf(a.IO.Out, "%s\n", theme.Bold.Render(fmt.Sprintf("Project-level (%s):", project.Name)))
-				if project.Model != "" {
-					fmt.Fprintf(a.IO.Out, "  default: %s\n", project.Model)
-				} else {
-					fmt.Fprintf(a.IO.Out, "  default: %s\n", theme.Subtitle.Render("(not set)"))
-				}
-
-				if project.ModelOverrides != nil {
-					if len(project.ModelOverrides.Families) > 0 {
-						fmt.Fprintf(a.IO.Out, "  families:\n")
-						for f, m := range project.ModelOverrides.Families {
-							fmt.Fprintf(a.IO.Out, "    %s: %s\n", f, m)
-						}
-					}
-					if len(project.ModelOverrides.Agents) > 0 {
-						fmt.Fprintf(a.IO.Out, "  agents:\n")
-						for id, m := range project.ModelOverrides.Agents {
-							fmt.Fprintf(a.IO.Out, "    %s: %s\n", id, m)
-						}
-					}
-				}
-			}
-
-			fmt.Fprintln(a.IO.Out)
+			printModelCascade(a.IO.Out, levels)
 			return nil
 		},
 	}
-	cmd.Flags().StringP("project", "p", "", "Inclure la configuration projet")
+	cmd.Flags().StringP("project", "p", "", "Projet (ID ou nom ; défaut : projet du dossier courant)")
+	cmd.Flags().StringP("workflow", "w", "", "Inclure le niveau d'un workflow (id ou <couche>:<id>)")
 	cmd.Flags().Bool("json", false, "Sortie JSON")
 	_ = cmd.RegisterFlagCompletionFunc("project", completeProjectIDs)
 	return cmd
+}
+
+// modelLevel is one level of the model cascade shown by `oh config model show`.
+type modelLevel struct {
+	ID     string // workflow | project | hub | team
+	Title  string
+	Models *bricks.ModelOverrides // nil: nothing set at this level
+}
+
+func (l modelLevel) JSON() map[string]any {
+	out := map[string]any{"default": "", "families": map[string]string{}, "agents": map[string]string{}}
+	if l.Models != nil {
+		out["default"] = l.Models.Default
+		if l.Models.Families != nil {
+			out["families"] = l.Models.Families
+		}
+		if l.Models.Agents != nil {
+			out["agents"] = l.Models.Agents
+		}
+	}
+	return out
+}
+
+// modelCascadeLevels returns the levels of the model cascade in priority
+// order (O9): workflow > project > hub > team (A11). The frontmatter of the
+// agents is the last level.
+func modelCascadeLevels(ctx context.Context, a *app.App, project *domain.Project, workflowID string) ([]modelLevel, error) {
+	var levels []modelLevel
+	if workflowID != "" {
+		c := workflowsvc.Context{}
+		if project != nil {
+			c.ProjectID = project.ID
+		}
+		res, err := newWorkflowService(ctx).Resolve(ctx, c, workflowID, workflowsvc.ResolveOpts{})
+		if res == nil {
+			if errors.Is(err, workflowsvc.ErrUnknownWorkflow) {
+				return nil, errors.New(i18n.Tf("cmd.workflow.show.unknown", workflowID))
+			}
+			return nil, err
+		}
+		levels = append(levels, modelLevel{ID: "workflow", Title: i18n.Tf("cmd.config.model.show.level_workflow", res.Spec.ID),
+			Models: bundle.WorkflowModels(res.Spec.Models)})
+	}
+	hub, proj := modelOverridesFor(a, project)
+	if project != nil {
+		levels = append(levels, modelLevel{ID: "project", Title: i18n.Tf("cmd.config.model.show.level_project", project.Name), Models: proj})
+	}
+	levels = append(levels, modelLevel{ID: "hub", Title: i18n.T("cmd.config.model.show.level_hub"), Models: hub})
+	if project != nil {
+		if tc := config.ResolveTeamForProject(a.Config, project); tc.Enabled {
+			levels = append(levels, modelLevel{ID: "team", Title: i18n.Tf("cmd.config.model.show.level_team", tc.TeamID),
+				Models: teamModelOverrides(tc)})
+		}
+	}
+	return levels, nil
+}
+
+func printModelCascade(w io.Writer, levels []modelLevel) {
+	fmt.Fprintln(w)
+	fmt.Fprintf(w, "%s\n", theme.Title.Render("  "+i18n.T("cmd.config.model.show.title")+"  "))
+	fmt.Fprintln(w)
+	notSet := theme.Subtitle.Render(i18n.T("cmd.config.model.show.not_set"))
+	printMap := func(label string, m map[string]string) {
+		if len(m) == 0 {
+			return
+		}
+		fmt.Fprintf(w, "  %s\n", label)
+		keys := make([]string, 0, len(m))
+		for k := range m {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		for _, k := range keys {
+			fmt.Fprintf(w, "    %s: %s\n", k, m[k])
+		}
+	}
+	for i, l := range levels {
+		fmt.Fprintf(w, "%s\n", theme.Bold.Render(fmt.Sprintf("%d. %s", i+1, l.Title)))
+		def := notSet
+		if l.Models != nil && l.Models.Default != "" {
+			def = l.Models.Default
+		}
+		fmt.Fprintf(w, "  %s %s\n", i18n.T("cmd.config.model.show.default"), def)
+		if l.Models != nil {
+			printMap(i18n.T("cmd.config.model.show.families"), l.Models.Families)
+			printMap(i18n.T("cmd.config.model.show.agents"), l.Models.Agents)
+		}
+		fmt.Fprintln(w)
+	}
+	fmt.Fprintf(w, "%s\n", theme.Bold.Render(fmt.Sprintf("%d. %s", len(levels)+1, i18n.T("cmd.config.model.show.level_frontmatter"))))
+	fmt.Fprintf(w, "  %s\n\n", theme.Subtitle.Render(i18n.T("cmd.config.model.show.order")))
 }
 
 func configModelUnsetCmd() *cobra.Command {

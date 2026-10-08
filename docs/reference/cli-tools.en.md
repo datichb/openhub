@@ -255,7 +255,7 @@ Secrets stored in the system keychain (or, as a fallback, in an encrypted file `
 
 | Command | Flags | Description |
 |---------|-------|-------------|
-| `oh secrets set <key>` | `--global`, `--project <id>` | Stores a secret; the value is typed in the terminal (hidden). Scope: project when the current folder is a registered project, otherwise global; `--global` forces the global scope, `--project` targets a project |
+| `oh secrets set <key>` | `--global`, `--project <id>` | Stores a secret; the value is typed in the terminal (hidden), or read from the standard input without a terminal (`printf %s "$TOKEN" \| oh secrets set <key>`). Scope: project when the current folder is a registered project, otherwise global; `--global` forces the global scope, `--project` targets a project |
 | `oh secrets get <key>` | `--global`, `--project <id>`, `--reveal` | Shows a secret, masked unless `--reveal`; `--global`: global scope only |
 | `oh secrets list` | | Lists the known secrets |
 | `oh secrets delete <key>` | `--global`, `--project <id>` | Deletes a secret from the keychain |

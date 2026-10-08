@@ -115,3 +115,20 @@ func (r AgentRole) Valid() bool {
 
 // Valid reports whether m is a known agent mode.
 func (m AgentMode) Valid() bool { return m == ModePrimary || m == ModeSubagent }
+
+// WaitingCheckpoints lists the checkpoints that wait for the user in a mode
+// (pause, conditional, or a mandatory one set to skip), in declaration order.
+func (s *Spec) WaitingCheckpoints(mode string) []string {
+	var out []string
+	for _, id := range s.Checkpoints.Keys() {
+		cp, _ := s.Checkpoints.Get(id)
+		if cp.Disabled {
+			continue
+		}
+		switch b := cp.Behavior(mode); {
+		case b == BehaviorPause, b == BehaviorConditional, b == BehaviorSkip && cp.IsMandatory():
+			out = append(out, id)
+		}
+	}
+	return out
+}

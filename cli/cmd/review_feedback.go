@@ -44,7 +44,7 @@ func runReviewFeedback(cmd *cobra.Command, args []string) error {
 	// ── 2. Resolve GitLab credentials ──
 	glToken := resolveGitLabToken(ctx, a)
 	if glToken == "" {
-		return fmt.Errorf("%s", i18n.Tf("cmd.review.feedback.no_token", theme.Bold.Render("oh service setup")))
+		return fmt.Errorf("%s", i18n.Tf("cmd.review.feedback.no_token", theme.Bold.Render("oh mcp setup gitlab")))
 	}
 	glURL := resolveGitLabURL(a)
 	glProject := resolveGitLabProject(a, project)

@@ -132,7 +132,7 @@ func runServiceStatus(cmd *cobra.Command, args []string) error {
 	}
 
 	fmt.Fprintln(a.IO.Out)
-	fmt.Fprintf(a.IO.Out, "  %s\n", i18n.Tf("cmd.service.setup_hint", theme.Bold.Render("oh service setup")))
+	fmt.Fprintf(a.IO.Out, "  %s\n", i18n.Tf("cmd.service.setup_hint", theme.Bold.Render("oh mcp setup")))
 	return nil
 }
 

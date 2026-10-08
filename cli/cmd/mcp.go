@@ -327,6 +327,9 @@ func mcpSetupService(args []string) (string, error) {
 func runMCPSetup(cmd *cobra.Command, args []string) error {
 	a := MustApp()
 	ctx := cmd.Context()
+	if !stdinIsTerminal() {
+		return errors.New(i18n.T("cmd.errors.no_terminal"))
+	}
 
 	projectID, _ := cmd.Flags().GetString("project")
 	var project *domain.Project

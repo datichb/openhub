@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
@@ -102,8 +103,7 @@ func runReviewPublish(cmd *cobra.Command) error {
 	ctx := cmd.Context()
 
 	if !a.Config.MCP.Gitlab.WriteEnabled {
-		return fmt.Errorf("GitLab write non activé. Lance %s et active le mode écriture",
-			theme.Bold.Render("oh service setup"))
+		return errors.New(i18n.Tf("cmd.review.publish.write_disabled", theme.Bold.Render("oh mcp setup gitlab")))
 	}
 
 	projectID, _ := cmd.Flags().GetString("project")
@@ -134,8 +134,7 @@ func runReviewPublish(cmd *cobra.Command) error {
 	// Resolve GitLab credentials (MCP cascade).
 	glToken := resolveGitLabToken(ctx, a)
 	if glToken == "" {
-		return fmt.Errorf("aucun token GitLab trouvé. Configure via %s ou la variable GITLAB_TOKEN",
-			theme.Bold.Render("oh service setup"))
+		return errors.New(i18n.Tf("cmd.review.feedback.no_token", theme.Bold.Render("oh mcp setup gitlab")))
 	}
 	glURL := resolveGitLabURL(a)
 

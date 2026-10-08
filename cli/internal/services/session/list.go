@@ -4,8 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/datichb/openhub/cli/internal/domain"
 )
@@ -175,9 +177,40 @@ func (s *Service) Pick(ctx context.Context, ref string, kinds ...domain.Decision
 	}
 	switch len(match) {
 	case 0:
+		if d := s.recentlyResolved(ctx, sess.ID, kinds); d != nil {
+			return nil, &ResolvedError{By: d.ResolvedBy}
+		}
 		return nil, ErrNoDecision
 	case 1:
 		return &match[0], nil
 	}
 	return nil, &ErrSeveralDecisions{Decisions: match}
+}
+
+// recentResolution is how long a resolved decision explains that a session
+// has none open ("already decided in the tool", A30).
+const recentResolution = time.Hour
+
+// recentlyResolved returns the last decision of the kinds of a session
+// resolved in the last hour (nil when none).
+func (s *Service) recentlyResolved(ctx context.Context, sessionID string, kinds []domain.DecisionKind) *domain.Decision {
+	now := time.Now
+	if s.Now != nil {
+		now = s.Now
+	}
+	list, err := s.Decisions.ListSince(ctx, now().Add(-recentResolution))
+	if err != nil {
+		return nil
+	}
+	var last *domain.Decision
+	for i := range list {
+		d := &list[i]
+		if d.SessionID != sessionID || d.ResolvedAt == nil || !slices.Contains(kinds, d.Kind) {
+			continue
+		}
+		if last == nil || d.ResolvedAt.After(*last.ResolvedAt) {
+			last = d
+		}
+	}
+	return last
 }

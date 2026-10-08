@@ -139,6 +139,7 @@ func Build(req Request) (*Bundle, error) {
 	skillRefs := map[string]bool{}
 	loader := newSkillLoader(req.HubDir, generated)
 	denied := denyList(req.DenySkills)
+	keep := rootFilter(loader, req.Plugins, req.ProjectPath)
 	mentionIndex := hubSkillIndex(req.HubDir, generated)
 	ids := skillIndex{}
 	for _, id := range selected {
@@ -146,7 +147,7 @@ func Build(req Request) (*Bundle, error) {
 		if err != nil {
 			return nil, err
 		}
-		inline, err := loader.closure(fm.Skills, denied)
+		inline, err := loader.closure(keepRoots(fm.Skills, keep), denied)
 		if err != nil {
 			return nil, fmt.Errorf("agent %s: %w", id, err)
 		}
@@ -171,7 +172,7 @@ func Build(req Request) (*Bundle, error) {
 			return nil, err
 		}
 		for _, ref := range mentionedSkills(a.Body, mentionIndex) {
-			if d, err := loader.load(ref); err == nil && !inlined[d.ID] && deliverable(loader, ref, denied) {
+			if d, err := loader.load(ref); err == nil && !inlined[d.ID] && keep(ref) && deliverable(loader, ref, denied) {
 				skillRefs[ref] = true
 			}
 		}
@@ -180,7 +181,7 @@ func Build(req Request) (*Bundle, error) {
 			return nil, err
 		}
 		spec.Agents = append(spec.Agents, def)
-		for _, ref := range a.Frontmatter.NativeSkills {
+		for _, ref := range keepRoots(a.Frontmatter.NativeSkills, keep) {
 			skillRefs[ref] = true
 		}
 		if err := os.MkdirAll(filepath.Join(tmp, agentsDir), 0o755); err != nil {
@@ -191,7 +192,7 @@ func Build(req Request) (*Bundle, error) {
 		}
 	}
 	if req.ProjectPath != "" {
-		for _, ref := range bricks.ResolveStackSkills(req.ProjectPath) {
+		for _, ref := range keepRoots(bricks.ResolveStackSkills(req.ProjectPath), keep) {
 			skillRefs[ref] = true
 		}
 	}

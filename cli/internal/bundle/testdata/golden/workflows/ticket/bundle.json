@@ -832,7 +832,6 @@
   "skills": [
     "beads-plan",
     "concision-posture",
-    "context-mode-usage",
     "dev-drift-detection",
     "dev-standards-api",
     "dev-standards-backend",
@@ -870,7 +869,6 @@
     "reviewer-reception",
     "reviewer-standalone",
     "reviewer-subagent",
-    "rtk-usage",
     "session-state-protocol",
     "skill-authoring-protocol",
     "subagent-concision-posture",

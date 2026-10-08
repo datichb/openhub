@@ -19,6 +19,10 @@ import (
 	"os"
 	"sync"
 	"time"
+
+	"github.com/mattn/go-isatty"
+
+	"github.com/datichb/openhub/cli/internal/tui/common"
 )
 
 // frames is the braille spinner animation sequence (matches the TUI widget).
@@ -50,7 +54,7 @@ func (s *Spinner) SetMessage(msg string) {
 // It is a no-op if the terminal is not interactive (e.g. piped output).
 func (s *Spinner) Start() {
 	s.mu.Lock()
-	if s.running {
+	if s.running || !Animated() {
 		s.mu.Unlock()
 		return
 	}
@@ -75,6 +79,20 @@ func (s *Spinner) Start() {
 			}
 		}
 	}()
+}
+
+// Animated reports whether spinners are drawn: never with --no-tui, in CI,
+// with TERM=dumb, or when stdout or stderr is not a terminal (A14).
+var Animated = func() bool {
+	if !common.UseRichTUI() {
+		return false
+	}
+	for _, f := range []*os.File{os.Stdout, os.Stderr} {
+		if !isatty.IsTerminal(f.Fd()) && !isatty.IsCygwinTerminal(f.Fd()) {
+			return false
+		}
+	}
+	return true
 }
 
 // Stop halts the spinner and clears the line. Safe to call multiple times.

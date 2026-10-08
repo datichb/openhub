@@ -44,44 +44,44 @@ Les utilisateurs Homebrew peuvent utiliser: brew upgrade openhub`,
 			current := buildinfo.Version
 
 			// Always check latest first for comparison
-			fmt.Fprintf(a.IO.Out, "%s Vérification des mises à jour...\n",
-				theme.SuccessStyle.Render(theme.IconArrow))
+			fmt.Fprintf(a.IO.Out, "%s %s\n", theme.SuccessStyle.Render(theme.IconArrow), i18n.T("cmd.upgrade.oh.checking"))
 
 			release, err := selfupdate.LatestRelease()
 			if err != nil {
-				return fmt.Errorf("impossible de vérifier les mises à jour: %w", err)
+				return fmt.Errorf("%s: %w", i18n.T("cmd.upgrade.oh.check_failed"), err)
 			}
 			latest := release.Version()
 
-			fmt.Fprintf(a.IO.Out, "  Version actuelle : %s\n", current)
-			fmt.Fprintf(a.IO.Out, "  Dernière version : %s\n", latest)
+			fmt.Fprintf(a.IO.Out, "  %s\n", i18n.Tf("cmd.upgrade.oh.current", current))
+			fmt.Fprintf(a.IO.Out, "  %s\n", i18n.Tf("cmd.upgrade.oh.latest", latest))
 
-			resolvedVersion := targetVersion
-			if resolvedVersion == "" {
-				resolvedVersion = latest
-			}
-
-			// Already up to date
-			if current == resolvedVersion && targetVersion == "" {
-				fmt.Fprintf(a.IO.Out, "%s oh est déjà à jour (%s)\n",
-					theme.SuccessStyle.Render(theme.IconSuccess), current)
+			plan := planUpgrade(current, latest, targetVersion)
+			if plan.version == "" {
+				msg := i18n.Tf("cmd.upgrade.oh.up_to_date", current)
+				if plan.status == versionAhead {
+					msg = i18n.Tf("cmd.upgrade.oh.ahead", current, latest)
+				}
+				fmt.Fprintf(a.IO.Out, "%s %s\n", theme.SuccessStyle.Render(theme.IconSuccess), msg)
 				return nil
+			}
+			if plan.downgrade {
+				fmt.Fprintf(a.IO.Out, "%s %s\n", theme.WarningStyle.Render(theme.IconWarning),
+					i18n.Tf("cmd.upgrade.oh.downgrade", current, plan.version))
 			}
 
 			if checkOnly {
-				if current != resolvedVersion {
-					fmt.Fprintf(a.IO.Out, "%s Mise à jour disponible : %s → %s\n",
-						theme.WarningStyle.Render(theme.IconWarning), current, resolvedVersion)
-					fmt.Fprintf(a.IO.Out, "  Lancez 'oh upgrade oh' pour mettre à jour.\n")
+				if !plan.downgrade {
+					fmt.Fprintf(a.IO.Out, "%s %s\n", theme.WarningStyle.Render(theme.IconWarning),
+						i18n.Tf("cmd.upgrade.oh.available", current, plan.version))
+					fmt.Fprintf(a.IO.Out, "  %s\n", i18n.T("cmd.upgrade.oh.run_hint"))
 				}
 				return nil
 			}
 
-			fmt.Fprintf(a.IO.Out, "%s Téléchargement de oh v%s...\n",
-				theme.SuccessStyle.Render(theme.IconArrow), resolvedVersion)
+			fmt.Fprintf(a.IO.Out, "%s %s\n", theme.SuccessStyle.Render(theme.IconArrow), i18n.Tf("cmd.upgrade.oh.downloading", plan.version))
 
 			var lastPercent int
-			binPath, err := selfupdate.Update(resolvedVersion, func(downloaded, total int64) {
+			binPath, err := selfupdate.Update(plan.version, func(downloaded, total int64) {
 				if total > 0 {
 					percent := int(downloaded * 100 / total)
 					if percent != lastPercent && percent%5 == 0 {
@@ -92,13 +92,12 @@ Les utilisateurs Homebrew peuvent utiliser: brew upgrade openhub`,
 				}
 			})
 			if err != nil {
-				return fmt.Errorf("mise à jour échouée: %w", err)
+				return fmt.Errorf("%s: %w", i18n.T("cmd.upgrade.oh.failed"), err)
 			}
 
 			fmt.Fprintln(a.IO.Out)
-			fmt.Fprintf(a.IO.Out, "%s oh v%s installé avec succès → %s\n",
-				theme.SuccessStyle.Render(theme.IconSuccess), resolvedVersion, binPath)
-			fmt.Fprintf(a.IO.Out, "  Redémarrez le terminal pour prendre en compte la nouvelle version.\n")
+			fmt.Fprintf(a.IO.Out, "%s %s\n", theme.SuccessStyle.Render(theme.IconSuccess), i18n.Tf("cmd.upgrade.oh.installed", plan.version, binPath))
+			fmt.Fprintf(a.IO.Out, "  %s\n", i18n.T("cmd.upgrade.oh.restart"))
 
 			return nil
 		},
