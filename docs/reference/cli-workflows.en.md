@@ -79,15 +79,17 @@ Lists the catalogue workflows, one per id (its most specific layer), with versio
 ## oh workflow show
 
 ```
-oh workflow show <id>|<layer>:<id> [--origin] [--json]
+oh workflow show <id>|<layer>:<id> [-p <project>] [--team <id>] [--origin] [--json]
 ```
 
-Shows a workflow once its `extends` are resolved: header (chain, version, risk, isolation, entry agent, modes, runtimes, Code Mode), inputs, agents, checkpoints (behavior per mode), resources (skills, MCP, Beads, plugins, outputs, models) and diagnostics. The command fails when the workflow is invalid.
+Shows a workflow once its `extends` are resolved, in the same context as a launch: team and project layers of the project of `-p` or of the current folder (else the active team; `--team` picks a team or solo space). `project:<id>` is accepted (outside a project, the message asks for `-p`). It shows: header (chain, version, risk, isolation, entry agent, modes, runtimes, Code Mode), inputs, agents, checkpoints (behavior per mode), resources (skills, MCP, Beads, plugins, outputs, models) and diagnostics. The command fails when the workflow is invalid.
 
 | Flag | Type | Description |
 |------|------|-------------|
 | `--origin` | bool | Shows the layer that set each value (`default` when no document writes it) |
 | `--json` | bool | JSON output (resolved `spec`, `origins` by field path, `diagnostics`) |
+| `-p`, `--project` | string | Project (id or name); default: the one of the current folder |
+| `--team` | string | Team or solo space, without a project |
 
 ## oh workflow validate
 
@@ -106,7 +108,7 @@ Validates a file or a catalogue workflow: strict parsing, `extends` resolution, 
 | `--team` | string | | Team or solo space, without a project |
 | `--json` | bool | `false` | JSON output |
 
-With `--project <project>`, the team and project layers of its team-state are loaded (else the active team); published files changed outside a publication are skipped with a warning. Brick references are checked against the catalogue **merged** with the team bricks (`catalog/`), as at launch.
+The team and project layers loaded are those of the project of `--project` or of the current folder (else the active team, or the only solo space); a bare id means the most specific layer holding it. An unpublished workflow (`team:<id>`, `project:<id>`) is looked up in **your draft**, flagged "(your draft, not published)". A team or project workflow without prompt (nor `extends`) gives a warning: the session would start without any initial instruction; published files changed outside a publication are skipped with a warning. Brick references are checked against the catalogue **merged** with the team bricks (`catalog/`), as at launch.
 
 ## Editing team and project workflows
 
@@ -120,7 +122,7 @@ oh workflow new <id> [--layer team|project] [--extends <ref> | --copy <ref>] [--
 
 Creates your draft: empty (valid) skeleton, patch of a workflow (`--extends hub:ticket`) or copy of a document under the new id (`--copy hub:review`, prompt template included). Opens `$VISUAL`/`$EDITOR` (else `vi`), then validates: on errors, the editor can be reopened, otherwise the edited file is kept.
 
-> Limitation: `--file` refuses a document whose `prompt.template` points to a template that does not exist yet. Create the draft without `prompt:`, then `oh workflow edit <id> --file <doc> --prompt-file <template>` (or the TUI editor, key `P`).
+> With `--file`, a document whose `prompt.template` points to a missing template gets a starter template (mode, language, one line per input), or the `--prompt-file` one. A document **without prompt** (nor `extends`) gets `prompt.template: prompts/<id>.md.tmpl` and the same starter template, with a message: complete it with `oh workflow edit <id> --prompt` (or the TUI editor, key `P`).
 
 | Flag | Type | Default | Description |
 |------|------|---------|-------------|
@@ -218,7 +220,7 @@ oh bundle build <workflow> [-p <project>] [-P <provider>] [--json]
 oh bundle show <workflow>|<hash> [-p <project>] [-P <provider>] [--budget] [--json]
 ```
 
-Compiles (idempotently, by hash) the session bundle of a workflow into `~/.oh/bundles/<hash>/` and shows it: agents (entry agent first), delegations, on-demand skills, MCP, plugins, default model, delegation depth, isolation (`strict` when the workflow requires it), global permissions and the estimated cost of the first turn (entry agent + skill catalogue). Without `-p`, the project is the one of the current directory (otherwise a hub-only bundle, without project instructions or MCP).
+Compiles (idempotently, by hash) the session bundle of a workflow into `~/.oh/bundles/<hash>/` and shows it: agents (entry agent first), delegations, on-demand skills, MCP, plugins, default model, delegation depth, isolation (`strict` when the workflow requires it), global permissions and the estimated cost of the first turn (entry agent + skill catalogue). Without `-p`, the project is the one of the current directory (otherwise a hub-only bundle, without project instructions or MCP); the workflow is resolved with the team and project layers of that project. Stack skills follow the detected stack; the frontend domain skills (`dev-standards-frontend*`) are shipped only when the project has a frontend (`package.json` of a web framework, `.tsx`/`.jsx`/`.vue`/`.svelte` sources, `index.html`, HTML templates), and a skill tied to a plugin (`plugin:`) only when the workflow loads that plugin (`plugins:`).
 
 | Flag | Short | Type | Description |
 |------|-------|------|-------------|

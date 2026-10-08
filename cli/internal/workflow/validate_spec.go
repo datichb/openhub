@@ -277,6 +277,11 @@ func (v *validator) inputNames() map[string]bool {
 func (v *validator) prompt() {
 	p := v.s.Prompt
 	if p == nil {
+		// Allowed, but the session starts without any instruction (A10);
+		// reported on the workflows of the teams and projects.
+		if v.r.Ref.Layer != LayerHub {
+			v.warn("prompt_none", "prompt")
+		}
 		return
 	}
 	switch {

@@ -68,6 +68,11 @@ func runWorkflowNew(cmd *cobra.Command, args []string) error {
 		if e.YAML, err = readWorkflowFile(file); err != nil {
 			return err
 		}
+		// A document without prompt (nor extends) gets its own template (A10).
+		if y, added := workflowsvc.EnsurePromptTemplate(e.YAML, id); added {
+			e.YAML = y
+			fmt.Fprintln(errOut, i18n.Tf("cmd.workflow.new.prompt_added", "prompts/"+id+".md.tmpl"))
+		}
 		// A document naming its own template: the given one, else a starter
 		// (before: refused, the template did not exist yet).
 		e.Prompt = workflowsvc.StarterPrompt(e.YAML)

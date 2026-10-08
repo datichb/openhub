@@ -44,8 +44,12 @@ func TestShippedWorkflowSkillMentionsResolve(t *testing.T) {
 					headed[a.ID][m[1]] = true
 				}
 			}
+			keep := rootFilter(newSkillLoader(hub, generated), b.Spec.Plugins, "")
 			check := func(where, agent, text string) {
 				for _, ref := range mentionedSkills(text, index) {
+					if !keep(ref) {
+						continue // skill of a plugin the workflow does not load (A8)
+					}
 					id := skillID(ref)
 					if !loadable[id] && !headed[agent][id] {
 						t.Errorf("%s names skill %q, neither inlined in %s nor shipped on demand", where, id, agent)
@@ -72,7 +76,7 @@ func TestShippedWorkflowSkillMentionsResolve(t *testing.T) {
 			for _, a := range b.Spec.Agents {
 				fm, err := bricks.ParseAgentFrontmatter(files[a.ID])
 				require.NoError(t, err)
-				docs, err := loader.closure(fm.Skills, denyList(deny))
+				docs, err := loader.closure(keepRoots(fm.Skills, keep), denyList(deny))
 				require.NoError(t, err)
 				for _, d := range docs {
 					assert.True(t, headed[a.ID][d.ID], "agent %s: inlined skill %s has no heading", a.ID, d.ID)

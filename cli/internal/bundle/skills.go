@@ -29,15 +29,17 @@ import (
 //
 //	requires: [<ref>, …]   skills that must be present with this one
 //	annexes:  [<path>, …]  files shipped next to the skill (see annexes.go)
+//	plugin:   <id>         shipped only when the workflow loads this plugin
 
 // hubSkillKeys are frontmatter keys consumed by oh, never delivered to the tool.
-var hubSkillKeys = []string{"requires", "annexes"}
+var hubSkillKeys = []string{"requires", "annexes", "plugin"}
 
 type skillFront struct {
 	Name        string   `yaml:"name"`
 	Description string   `yaml:"description"`
 	Requires    []string `yaml:"requires"`
 	Annexes     []string `yaml:"annexes"`
+	Plugin      string   `yaml:"plugin"`
 	Bucket      string   `yaml:"bucket"` // legacy (B17), reported by CheckSkills
 }
 
@@ -112,6 +114,48 @@ func parseSkill(ref, src string, content []byte) (*skillDoc, error) {
 		}
 	}
 	return d, nil
+}
+
+// rootFilter tells whether an optional skill (agent skills, native skills,
+// mentions, stack) applies to the session (A8): a skill of a plugin the
+// workflow does not load, or a frontend domain skill in a project without
+// frontend, is left out. A requirement of a kept skill is never filtered.
+func rootFilter(l *skillLoader, plugins []sessionspec.PluginDef, projectPath string) func(ref string) bool {
+	loaded := map[string]bool{}
+	for _, p := range plugins {
+		loaded[p.ID] = true
+	}
+	frontend := map[string]bool{}
+	for _, ref := range bricks.FrontendSkills {
+		frontend[ref] = true
+	}
+	var hasFrontend *bool
+	return func(ref string) bool {
+		if frontend[ref] {
+			if hasFrontend == nil {
+				v := bricks.HasFrontend(projectPath)
+				hasFrontend = &v
+			}
+			if !*hasFrontend {
+				return false
+			}
+		}
+		if d, err := l.load(ref); err == nil && d.Front.Plugin != "" && !loaded[d.Front.Plugin] {
+			return false
+		}
+		return true
+	}
+}
+
+// keepRoots returns the refs kept by keep, in order.
+func keepRoots(refs []string, keep func(string) bool) []string {
+	out := make([]string, 0, len(refs))
+	for _, r := range refs {
+		if keep(r) {
+			out = append(out, r)
+		}
+	}
+	return out
 }
 
 // skillDenied reports whether a skill is excluded (deny list of refs or ids).

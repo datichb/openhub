@@ -272,7 +272,7 @@ func TestValidate_IsolationWarning(t *testing.T) {
 
 func TestValidate_DiagnosticPointsToPatchLayer(t *testing.T) {
 	cat := catalogOf(t, map[string]string{
-		"hub:x":  vHeader + "risk: write\n",
+		"hub:x":  vHeader + "risk: write\nprompt: { text: go }\n",
 		"team:x": vHeader + "extends: hub:x\nagents:\n  ghost: { role: independent }\n",
 	})
 	_, diags := Check(cat, Ref{LayerTeam, "x"}, nil, testEnv())
@@ -291,4 +291,20 @@ func TestTemplateVariables(t *testing.T) {
 	if want := []string{"b", "c", "d"}; !reflect.DeepEqual(got, want) {
 		t.Fatalf("unknown = %v, want %v", got, want)
 	}
+}
+
+// A10: a team or project workflow without prompt is reported (the session
+// would start without any instruction); a patch inherits the prompt.
+func TestValidate_PromptNone(t *testing.T) {
+	cat := catalogOf(t, map[string]string{
+		"hub:x":     vHeader + "risk: write\nprompt: { text: go }\n",
+		"team:x":    vHeader + "extends: hub:x\n",
+		"team:bare": "apiVersion: oh/v1\nkind: Workflow\nid: bare\nrisk: write\n",
+	})
+	_, diags := Check(cat, Ref{LayerTeam, "x"}, nil, testEnv())
+	if len(diags) != 0 {
+		t.Fatalf("patch inherits the prompt: %v", diags.Codes())
+	}
+	_, diags = Check(cat, Ref{LayerTeam, "bare"}, nil, testEnv())
+	assertDiag(t, diags, "prompt_none", "prompt", SeverityWarning)
 }

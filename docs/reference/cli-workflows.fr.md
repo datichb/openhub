@@ -79,15 +79,17 @@ Liste les workflows du catalogue, un par identifiant (sa couche la plus spécifi
 ## oh workflow show
 
 ```
-oh workflow show <id>|<couche>:<id> [--origin] [--json]
+oh workflow show <id>|<couche>:<id> [-p <projet>] [--team <id>] [--origin] [--json]
 ```
 
-Affiche un workflow après résolution des `extends` : en-tête (chaîne, version, risque, isolation, agent d'entrée, modes, exécution, Code Mode), entrées, agents, checkpoints (comportement par mode), ressources (skills, MCP, Beads, plugins, sorties, modèles) et diagnostics. La commande échoue si le workflow est invalide.
+Affiche un workflow après résolution des `extends`, dans le même contexte qu'un lancement : couches équipe et projet du projet de `-p` ou du dossier courant (sinon l'équipe active ; `--team` choisit une équipe ou un espace solo). `project:<id>` est accepté (hors d'un projet, le message demande `-p`). Il affiche : en-tête (chaîne, version, risque, isolation, agent d'entrée, modes, exécution, Code Mode), entrées, agents, checkpoints (comportement par mode), ressources (skills, MCP, Beads, plugins, sorties, modèles) et diagnostics. La commande échoue si le workflow est invalide.
 
 | Flag | Type | Description |
 |------|------|-------------|
 | `--origin` | bool | Affiche la couche qui a posé chaque valeur (`défaut` quand la valeur n'est écrite nulle part) |
 | `--json` | bool | Sortie JSON (`spec` résolue, `origins` par chemin de champ, `diagnostics`) |
+| `-p`, `--project` | string | Projet (id ou nom) ; défaut : celui du dossier courant |
+| `--team` | string | Équipe ou espace solo, sans projet |
 
 ## oh workflow validate
 
@@ -106,7 +108,7 @@ Valide un fichier ou un workflow du catalogue : lecture stricte, résolution des
 | `--team` | string | | Équipe ou espace solo, sans projet |
 | `--json` | bool | `false` | Sortie JSON |
 
-Avec `--project <projet>`, les couches équipe et projet de son team-state sont chargées (sinon l'équipe active) ; les fichiers publiés modifiés hors publication sont ignorés avec un avertissement. Les références aux briques sont vérifiées contre le catalogue **fusionné** avec les briques d'équipe (`catalog/`), comme au lancement.
+Les couches équipe et projet chargées sont celles du projet de `--project` ou du dossier courant (sinon l'équipe active, ou l'unique espace solo) ; un identifiant nu désigne la couche la plus spécifique qui le contient. Un workflow non publié (`team:<id>`, `project:<id>`) est cherché dans **votre brouillon**, signalé « (votre brouillon, non publié) ». Un workflow d'équipe ou de projet sans prompt (ni `extends`) donne un avertissement : la session démarrerait sans consigne initiale ; les fichiers publiés modifiés hors publication sont ignorés avec un avertissement. Les références aux briques sont vérifiées contre le catalogue **fusionné** avec les briques d'équipe (`catalog/`), comme au lancement.
 
 ## Édition des workflows d'équipe et de projet
 
@@ -120,7 +122,7 @@ oh workflow new <id> [--layer team|project] [--extends <ref> | --copy <ref>] [--
 
 Crée votre brouillon : squelette vide (valide), patch d'un workflow (`--extends hub:ticket`) ou copie d'un document sous le nouvel identifiant (`--copy hub:review`, gabarit de prompt compris). Ouvre `$VISUAL`/`$EDITOR` (sinon `vi`), puis valide : en cas d'erreur, l'éditeur peut être rouvert, sinon le fichier modifié est conservé.
 
-> Limite : `--file` refuse un document dont `prompt.template` désigne un gabarit qui n'existe pas encore. Créez le brouillon sans `prompt:`, puis `oh workflow edit <id> --file <doc> --prompt-file <gabarit>` (ou l'éditeur de la TUI, touche `P`).
+> Avec `--file`, un document dont `prompt.template` désigne un gabarit absent reçoit un gabarit de départ (mode, langue, une ligne par entrée), ou celui de `--prompt-file`. Un document **sans prompt** (ni `extends`) reçoit `prompt.template: prompts/<id>.md.tmpl` et le même gabarit de départ, avec un message : complétez-le avec `oh workflow edit <id> --prompt` (ou l'éditeur de la TUI, touche `P`).
 
 | Flag | Type | Défaut | Description |
 |------|------|--------|-------------|
@@ -218,7 +220,7 @@ oh bundle build <workflow> [-p <projet>] [-P <fournisseur>] [--json]
 oh bundle show <workflow>|<hash> [-p <projet>] [-P <fournisseur>] [--budget] [--json]
 ```
 
-Compile (de façon idempotente, par hash) le paquet de session d'un workflow dans `~/.oh/bundles/<hash>/` et l'affiche : agents (l'agent d'entrée en premier), délégations, skills à la demande, MCP, plugins, modèle par défaut, profondeur de délégation, isolation (`strict` si le workflow l'exige), permissions globales et coût estimé du premier tour (agent d'entrée + catalogue des skills). Sans `-p`, le projet est celui du dossier courant (sinon paquet du hub seul, sans instructions ni MCP de projet).
+Compile (de façon idempotente, par hash) le paquet de session d'un workflow dans `~/.oh/bundles/<hash>/` et l'affiche : agents (l'agent d'entrée en premier), délégations, skills à la demande, MCP, plugins, modèle par défaut, profondeur de délégation, isolation (`strict` si le workflow l'exige), permissions globales et coût estimé du premier tour (agent d'entrée + catalogue des skills). Sans `-p`, le projet est celui du dossier courant (sinon paquet du hub seul, sans instructions ni MCP de projet) ; le workflow est résolu avec les couches équipe et projet de ce projet. Les skills de stack suivent la pile détectée ; les skills du domaine frontend (`dev-standards-frontend*`) ne sont livrées que si le projet a un frontend (`package.json` d'un framework web, sources `.tsx`/`.jsx`/`.vue`/`.svelte`, `index.html`, gabarits HTML), et une skill liée à un plugin (`plugin:`) seulement si le workflow charge ce plugin (`plugins:`).
 
 | Flag | Court | Type | Description |
 |------|-------|------|-------------|

@@ -296,8 +296,19 @@ func migrateProjectWorkflowConfigs(ctx context.Context, a *app.App, svc *workflo
 	}
 	for pid, raw := range legacy {
 		var wc legacyProjectWorkflow
-		if err := json.Unmarshal([]byte(raw), &wc); err != nil {
-			m.Errors = append(m.Errors, fmt.Errorf("project %s: unreadable workflow_config (kept): %w", pid, err))
+		var keys map[string]json.RawMessage
+		jerr := json.Unmarshal([]byte(raw), &wc)
+		if jerr == nil {
+			jerr = json.Unmarshal([]byte(raw), &keys)
+		}
+		if jerr != nil || (wc.Overrides == nil || wc.Overrides.IsEmpty()) && len(keys) > 0 && !onlyEmptyOverrides(keys) {
+			// Unreadable or unknown format (A7): archived, never dropped silently.
+			if path, err := archiveLegacyProjectConfig(pid, raw); err != nil {
+				m.Errors = append(m.Errors, fmt.Errorf("project %s: unknown workflow_config format (kept): %w", pid, err))
+			} else {
+				m.notice("project_unknown", projectLabel(ctx, a, pid), path)
+				_ = store.ClearLegacyWorkflowConfig(ctx, pid)
+			}
 			continue
 		}
 		if wc.Overrides == nil || wc.Overrides.IsEmpty() {
@@ -352,6 +363,37 @@ func migrateProjectWorkflowConfigs(ctx context.Context, a *app.App, svc *workflo
 			publishMigration(ctx, svc, workflowsvc.Context{ProjectID: project.ID}, repo, scope, id, m)
 		}
 	}
+}
+
+// onlyEmptyOverrides reports a configuration whose only key is an empty
+// "overrides" (nothing to migrate, nothing to keep).
+func onlyEmptyOverrides(keys map[string]json.RawMessage) bool {
+	if len(keys) != 1 {
+		return false
+	}
+	_, ok := keys["overrides"]
+	return ok
+}
+
+// archiveLegacyProjectConfig keeps a project configuration oh cannot
+// translate under ~/.oh/migrated/ and returns its path.
+func archiveLegacyProjectConfig(projectID, raw string) (string, error) {
+	dir := filepath.Join(config.HubDir(), "migrated")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return "", err
+	}
+	path := filepath.Join(dir, "project-"+projectID+"-workflow-config.json")
+	return path, os.WriteFile(path, []byte(raw), 0o600)
+}
+
+// projectLabel is the name of a project for a notice (its ID when unknown).
+func projectLabel(ctx context.Context, a *app.App, id string) string {
+	if a.Projects != nil {
+		if p, err := a.Projects.Get(ctx, id); err == nil && p.Name != "" {
+			return p.Name
+		}
+	}
+	return id
 }
 
 // projectTeamStateForMigration returns the team-state of project, creating

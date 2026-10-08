@@ -421,7 +421,7 @@ Common skills for the three `developer*` agents: `dev-standards-universal`, `dev
 | `go` | `dev-standards-golang` + detected stacks |
 | `rust` | `dev-standards-rust` + detected stacks |
 
-Stack skills detected in the project are added to the session bundle when it is built.
+Stack skills detected in the project are added to the session bundle when it is built. The frontend domain skills (`dev-standards-frontend`, `-a11y`, `-data`), offered by `orchestrator-dev`, `developer` and `reviewer`, are shipped only when the project has a frontend; without a project path, nothing is filtered.
 
 **`database` agent — modes:**
 

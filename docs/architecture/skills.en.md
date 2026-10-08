@@ -380,6 +380,7 @@ name: <skill-name>            # = file name, identifier in the bundle
 description: <Short description — shown in the session skill catalog>
 requires: [<ref>, …]          # optional — skills shipped together with this one
 annexes: [templates/<f>.md]   # optional — files copied next to the SKILL.md
+plugin: <id>                  # optional — shipped only when the workflow loads this plugin
 ---
 
 # Skill — <Title>
@@ -387,7 +388,7 @@ annexes: [templates/<f>.md]   # optional — files copied next to the SKILL.md
 <Skill body>
 ```
 
-> `name:` must equal the file name: opencode identifies skills by name. `requires:` and `annexes:` are read by oh and stripped from the delivered `SKILL.md`. The `bucket:` field is obsolete: the bucket is decided in the agent frontmatter.
+> `name:` must equal the file name: opencode identifies skills by name. `requires:`, `annexes:` and `plugin:` are read by oh and stripped from the delivered `SKILL.md`. A `plugin: context-mode` skill (instructions for tools provided by a plugin) enters the bundle only when the workflow declares that plugin (`plugins:`). The `bucket:` field is obsolete: the bucket is decided in the agent frontmatter.
 > The reference used in agent frontmatter is the path relative to `skills/`, without `.md` (`developer/beads-plan`).
 > `oh skill check` checks the catalog: duplicate identifiers, missing or cyclic `requires:`, `name:` different from the file name, missing description, skills referenced by an agent but not found.
 

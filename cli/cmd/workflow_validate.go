@@ -31,18 +31,9 @@ func workflowValidateCmd() *cobra.Command {
 			if len(args) == 1 {
 				target = args[0]
 			}
-			projectRef, _ := cmd.Flags().GetString("project")
-			layers, err := resolveWorkflowTeamLayers(cmd.Context(), TryApp(), projectRef)
+			layers, err := validateContextLayers(cmd)
 			if err != nil {
 				return err
-			}
-			if layers == nil && projectRef == "" {
-				// No active team: the context of the editing commands (project
-				// of the current folder, --team, the only solo space).
-				layers, err = validateContextLayers(cmd)
-				if err != nil {
-					return err
-				}
 			}
 			report, err := runWorkflowValidate(findHubDir(), target, workflow.Layer(layer), all, layers)
 			if err != nil {
@@ -111,10 +102,14 @@ func printWorkflowValidate(w io.Writer, r *workflowValidateReport, asJSON bool) 
 			}
 		}
 		for _, wf := range r.Workflows {
+			ref := wf.Ref
+			if wf.Draft {
+				ref = i18n.Tf("cmd.workflow.validate.draft_ref", wf.Ref)
+			}
 			if wf.Valid {
-				fmt.Fprintf(w, "%s %s\n", theme.SuccessStyle.Render(theme.IconSuccess), i18n.Tf("cmd.workflow.validate.valid", wf.Ref))
+				fmt.Fprintf(w, "%s %s\n", theme.SuccessStyle.Render(theme.IconSuccess), i18n.Tf("cmd.workflow.validate.valid", ref))
 			} else {
-				fmt.Fprintf(w, "%s %s\n", theme.ErrorStyle.Render(theme.IconError), i18n.Tf("cmd.workflow.validate.invalid", wf.Ref))
+				fmt.Fprintf(w, "%s %s\n", theme.ErrorStyle.Render(theme.IconError), i18n.Tf("cmd.workflow.validate.invalid", ref))
 			}
 		}
 		if len(r.Workflows) == 0 {
@@ -130,11 +125,12 @@ func printWorkflowValidate(w io.Writer, r *workflowValidateReport, asJSON bool) 
 	return nil
 }
 
-// validateContextLayers returns the team-state of the editing commands'
-// context (project of the current folder with its team or solo space,
-// --team, else the only solo space); nil without one.
+// validateContextLayers returns the team-state of the read-only context
+// (project of --project or of the current folder with its team or solo
+// space, --team, else the active team or the only solo space); nil without
+// one.
 func validateContextLayers(cmd *cobra.Command) (*workflowTeamLayers, error) {
-	c, err := workflowCmdContext(cmd)
+	c, err := workflowReadContext(cmd)
 	if err != nil {
 		return nil, err
 	}

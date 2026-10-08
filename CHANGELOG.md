@@ -233,6 +233,11 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 - Assistant interactif lancé sans terminal (`oh mcp setup … </dev/null`…) : message clair et code de sortie 1, au lieu de « open /dev/tty » (A13). Plus d'animation quand la sortie n'est pas un terminal ou avec `--no-tui` (A14).
 - Messages exacts : `oh run --headless` dit quand un checkpoint obligatoire attend une validation dans tous les modes, sinon nomme le mode qui le permet (A25) ; jeton GitLab manquant : `oh mcp setup gitlab`, message traduit (A26) ; `oh budget unset` : « retiré de hub.toml » (A28) ; `oh session approve|answer` sur une décision déjà réglée dans l'interface de l'outil : « Décision déjà prise dans l'interface » (A30).
 - Guide de prise en main : `bd init` lancé à la main crée des fichiers d'agents (`AGENTS.md`, `CLAUDE.md`), des hooks et des lignes `.gitignore` ; initialiser Beads avec oh pour rester « zéro impact » (A5).
+- **`oh workflow show` résout la chaîne complète jusqu'à la couche projet** (corrections v5, A6) : même contexte qu'un lancement (projet de `-p` ou du dossier courant, `--team`), `project:<id>` accepté (hors projet, le message demande `-p`) ; `oh workflow validate` et `oh bundle build|show` chargent aussi les couches du projet ; un projet atteint par un lien symbolique est reconnu depuis son dossier.
+- Migration v38 : une configuration de workflow de projet illisible ou au format inconnu est archivée dans `~/.oh/migrated/project-<id>-workflow-config.json` avec un message, jamais vidée en silence (A7).
+- `oh workflow validate <couche>:<id>` valide votre brouillon quand le workflow n'est pas publié, signalé « (votre brouillon, non publié) » ; un identifiant nu désigne la couche la plus spécifique (A9).
+- `oh workflow new --file` avec un document sans prompt (ni `extends`) : `prompt.template: prompts/<id>.md.tmpl` est ajouté et un gabarit de départ créé, avec un message ; `oh workflow validate` avertit d'un workflow d'équipe ou de projet sans prompt (A10).
+- Paquet de session (A8) : une skill liée à un plugin (nouvelle clé de frontmatter `plugin:`, `context-mode-usage`, `rtk-usage`) n'est livrée que si le workflow charge ce plugin ; les skills du domaine frontend (`dev-standards-frontend*`) seulement si le projet a un frontend détecté.
 
 ### Security
 

@@ -98,7 +98,11 @@ func buildBundleFor(cmd *cobra.Command, id string) (*bundle.Bundle, error) {
 	if err != nil {
 		return nil, err
 	}
-	res, err := newWorkflowService(ctx).Resolve(ctx, workflowsvc.Context{}, id, workflowsvc.ResolveOpts{})
+	c := workflowsvc.Context{}
+	if project != nil {
+		c.ProjectID = project.ID // the workflow of the project's layers (A6)
+	}
+	res, err := newWorkflowService(ctx).Resolve(ctx, c, id, workflowsvc.ResolveOpts{})
 	if err != nil {
 		return nil, workflowError(cmd.ErrOrStderr(), id, err)
 	}
@@ -142,12 +146,18 @@ func bundleProject(ctx context.Context, a *app.App, projectID string) (*domain.P
 		return nil, nil
 	}
 	cwd, _ := os.Getwd()
+	if resolved, err := filepath.EvalSymlinks(cwd); err == nil {
+		cwd = resolved
+	}
 	projects, err := a.Projects.List(ctx, domain.ProjectStatusActive)
 	if err != nil {
 		return nil, err
 	}
 	for i, p := range projects {
 		abs, _ := filepath.Abs(p.Path)
+		if resolved, err := filepath.EvalSymlinks(abs); err == nil {
+			abs = resolved // symbolic links (/var → /private/var on macOS)
+		}
 		if abs == cwd || isSubPath(cwd, abs) {
 			return &projects[i], nil
 		}

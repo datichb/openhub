@@ -421,7 +421,7 @@ Skills communs aux trois agents `developer*` : `dev-standards-universal`, `dev-s
 | `go` | `dev-standards-golang` + stacks détectées |
 | `rust` | `dev-standards-rust` + stacks détectées |
 
-Les skills de stack détectées dans le projet sont ajoutées au paquet de session à sa construction.
+Les skills de stack détectées dans le projet sont ajoutées au paquet de session à sa construction. Les skills du domaine frontend (`dev-standards-frontend`, `-a11y`, `-data`), proposées par `orchestrator-dev`, `developer` et `reviewer`, ne sont livrées que si le projet a un frontend ; sans chemin de projet, rien n'est filtré.
 
 **Agent `database` — modes :**
 

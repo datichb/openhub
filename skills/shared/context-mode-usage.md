@@ -1,6 +1,7 @@
 ---
 name: context-mode-usage
 description: Règles d'usage des outils context-mode — choix du bon outil selon la nature de la commande, timeout obligatoire, gestion des processus non-terminants (serveurs dev, watchers).
+plugin: context-mode
 ---
 
 ## Règle fondamentale — deux catégories de commandes

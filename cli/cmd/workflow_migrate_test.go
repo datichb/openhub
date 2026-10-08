@@ -235,3 +235,30 @@ func appendFile(t *testing.T, path, text string) {
 	require.NoError(t, err)
 	require.NoError(t, f.Close())
 }
+
+// A7: a project configuration in an unknown format (or unreadable) is
+// archived with a notice, never cleared silently.
+func TestMigrateUnknownProjectConfigArchived(t *testing.T) {
+	useLocale(t, "en")
+	home := t.TempDir()
+	t.Setenv("OH_HOME", home)
+	a := newMockApp(nil, nil)
+	a.Projects = &mockProjectStore{projects: []domain.Project{{ID: "p1", Name: "web"}}}
+	store := memLegacyStore{
+		"p1": `{"mode_overrides":{"default":"manuel"}}`,
+		"p2": `not json`,
+		"p3": `{"overrides":{}}`,
+	}
+	m := &workflowMigration{}
+	migrateProjectWorkflowConfigs(t.Context(), a, nil, store, m, nil)
+	require.Empty(t, m.Errors)
+	assert.Empty(t, store, "archived or empty configurations are cleared")
+	require.Len(t, m.Notices, 2)
+	assert.Contains(t, m.Notices[0]+m.Notices[1], "web")
+	for id, raw := range map[string]string{"p1": `{"mode_overrides":{"default":"manuel"}}`, "p2": `not json`} {
+		data, err := os.ReadFile(filepath.Join(home, "migrated", "project-"+id+"-workflow-config.json"))
+		require.NoError(t, err, id)
+		assert.Equal(t, raw, string(data))
+	}
+	assert.NoFileExists(t, filepath.Join(home, "migrated", "project-p3-workflow-config.json"))
+}

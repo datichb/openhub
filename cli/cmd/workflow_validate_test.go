@@ -32,7 +32,7 @@ func testWorkflowHub(t *testing.T) string {
 	writeTestFile(t, filepath.Join(hub, "agents", "core", "helper.md"),
 		"---\nid: helper\nmode: subagent\npermission:\n  edit: allow\n  bash: deny\n---\nHelper\n")
 	writeTestFile(t, filepath.Join(hub, "workflows", "pair.yaml"),
-		"apiVersion: oh/v1\nkind: Workflow\nid: pair\nrisk: write\nentry: { agent: lead }\nagents:\n  lead: { role: workflow }\n  helper: { role: workflow }\n")
+		"apiVersion: oh/v1\nkind: Workflow\nid: pair\nrisk: write\nentry: { agent: lead }\nprompt: { text: go }\nagents:\n  lead: { role: workflow }\n  helper: { role: workflow }\n")
 	return hub
 }
 
