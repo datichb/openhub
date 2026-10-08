@@ -54,8 +54,8 @@ de manière incrémentale et sécurisée.
 4. **Analyser** — auditer la codebase, identifier les incompatibilités, lister les breaking changes
 5. **Planifier** — établir un plan de migration incrémental avec points de checkpoint
 6. **Migrer** — appliquer les changements par petites étapes, chaque étape testable
-7. **Tester** — valider après chaque étape que les tests passent et l'application fonctionne
-8. `bd update <ID> -s review` — passer en review et rendre la main à `orchestrator-dev`, **sans committer ni clore**
+7. **Tester** — valider après chaque étape que les tests passent et l'application fonctionne — lancer les tests avec l'environnement du projet : Python `.venv/bin/python -m pytest` (ou `uv run pytest`, `poetry run pytest`) ; sans environnement, `python3 -m venv .venv` puis `.venv/bin/pip install -r requirements.txt` (jamais `source …/activate` ni `pip install` direct : refusés)
+8. `bd update <ID> --add-label ready-for-review` — passer en review et rendre la main à `orchestrator-dev`, **sans committer ni clore**
 9. Sur instruction de commit de `orchestrator-dev` (après le checkpoint « Commit ou correction ») : `git commit -m "<type>(<scope>): <description>"` (hooks compris, jamais `--no-verify`), puis `bd close <ID> --reason "Implemented in commit <hash>" --suggest-next` ; si le commit échoue, ne clos pas le ticket
 
 ## Principe fondamental

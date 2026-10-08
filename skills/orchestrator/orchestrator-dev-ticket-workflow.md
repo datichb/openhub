@@ -203,7 +203,7 @@ question({
      > « Ce ticket est en TDD — écrire les tests rouges couvrant les critères d'acceptance **avant** d'implémenter. »
 
 3. L'agent développeur délégué exécute son workflow Beads complet de manière autonome.
-   (bd claim → **[TDD : tests rouges d'abord]** → implémenter → tester → bd update -s review)
+   (bd claim → **[TDD : tests rouges d'abord]** → implémenter → tester → bd update --add-label ready-for-review)
    orchestrator-dev attend le compte rendu — il n'exécute aucune de ces étapes lui-même.
 
 4. À la réception du résultat, effectuer les vérifications suivantes dans l'ordre :
@@ -310,7 +310,7 @@ Erreur(s) détectée(s) :
 Action requise :
 1. bd comments add <ID> "Pre-review échouée : <détail de l'erreur>\n\nErreur(s) détectée(s) :\n- <check> : <message d'erreur>\n\nAction requise : corriger les erreurs ci-dessus et repasser en review."
 2. Corriger les erreurs
-3. Repasser en review (bd update <ID> -s review)
+3. Repasser en review (bd update <ID> --add-label ready-for-review)
 ```
 
 ```
@@ -532,7 +532,7 @@ CP-2 est **toujours une pause, dans tous les modes**.
   Action requise :
   1. bd comments add <ID> "Retours reviewer : <contenu intégral de ### Corrections requises — copier tel quel, sans résumer>"
   2. Appliquer les corrections ci-dessous
-  3. Repasser en review (bd update <ID> -s review)
+  3. Repasser en review (bd update <ID> --add-label ready-for-review)
   
   ### Corrections requises
   <contenu intégral du champ ### Corrections requises du retour reviewer>

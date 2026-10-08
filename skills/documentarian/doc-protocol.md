@@ -182,7 +182,7 @@ passer en revue cette checklist :
 5. Adapter ou proposer un standard               → voir tableau d'adaptation
 6. [Attendre confirmation si standard proposé]
 7. Rédiger la documentation
-8. bd update <ID> -s review                      → passer en review
+8. bd update <ID> --add-label ready-for-review                      → passer en review
 9. bd close <ID> --suggest-next                  → clore et voir le ticket suivant
 ```
 

@@ -40,8 +40,8 @@ Tu améliores la structure et la lisibilité du code existant sans modifier son 
 4. **Analyser** — comprendre le code, identifier les dépendances, vérifier la couverture de tests
 5. **Tester avant** — lancer les tests existants, s'assurer qu'ils passent (baseline)
 6. **Refactorer** — appliquer les transformations par petites étapes testables
-7. **Re-tester** — vérifier que tous les tests passent après chaque étape
-8. `bd update <ID> -s review` — passer en review et rendre la main à `orchestrator-dev`, **sans committer ni clore**
+7. **Re-tester** — vérifier que tous les tests passent après chaque étape — lancer les tests avec l'environnement du projet : Python `.venv/bin/python -m pytest` (ou `uv run pytest`, `poetry run pytest`) ; sans environnement, `python3 -m venv .venv` puis `.venv/bin/pip install -r requirements.txt` (jamais `source …/activate` ni `pip install` direct : refusés)
+8. `bd update <ID> --add-label ready-for-review` — passer en review et rendre la main à `orchestrator-dev`, **sans committer ni clore**
 9. Sur instruction de commit de `orchestrator-dev` (après le checkpoint « Commit ou correction ») : `git commit -m "<type>(<scope>): <description>"` (hooks compris, jamais `--no-verify`), puis `bd close <ID> --reason "Implemented in commit <hash>" --suggest-next` ; si le commit échoue, ne clos pas le ticket
 
 ## Principe fondamental

@@ -10,7 +10,7 @@ description: Workflow exécuteur Beads (bd) — clamer, implémenter, passer en 
 2. bd show <ID>                          → lire le détail (description, acceptance, notes, commentaires)
 3. bd update <ID> --claim                → clamer avant de commencer
 4. [implémenter + tester]
-5. bd update <ID> -s review              → passer en review, rendre la main (ni commit, ni clôture)
+5. bd update <ID> --add-label ready-for-review → prêt pour la review (le statut reste in_progress), rendre la main (ni commit, ni clôture)
 6. [review, puis checkpoint « Commit ou correction » validé par l'utilisateur]
    → commit  : instruction de commit de orchestrator-dev → git commit -m "..." puis bd close <ID> --reason "..." --suggest-next
    → corriger : bd comments add <ID> "Retours reviewer : ..." + bd update <ID> -s in_progress + corriger + retour étape 5
@@ -37,10 +37,10 @@ Cette commande met le statut à `in_progress` et t'assigne le ticket en une seul
 Après implémentation et tests, signaler que le travail est prêt pour relecture :
 
 ```bash
-bd update <ID> -s review
+bd update <ID> --add-label ready-for-review
 ```
 
-Le ticket est maintenant en attente de validation par le **reviewer humain**.
+Le statut reste `in_progress` : Beads (bd 1.3) n'a pas de statut `review` sans configuration du projet, c'est le label `ready-for-review` qui le signale. Le ticket est maintenant en attente de validation par le **reviewer humain**.
 Le reviewer consulte l'implémentation et décide :
 
 ### Si la review accepte (via instruction commit de l'orchestrator-dev) :
@@ -74,12 +74,12 @@ tu es responsable de :
    ```bash
    bd comments add <ID> "Retours reviewer : <contenu intégral des corrections requises>"
    ```
-2. Reprendre le ticket en `in_progress` :
+2. Retirer le label de review (le ticket est déjà `in_progress`) :
    ```bash
-   bd update <ID> -s in_progress
+   bd update <ID> --remove-label ready-for-review
    ```
 3. Appliquer les corrections
-4. Repasser en review : `bd update <ID> -s review`
+4. Repasser en review : `bd update <ID> --add-label ready-for-review`
 
 > **Règle :** Ne jamais résumer ni reformuler les retours dans le commentaire — les copier tels quels depuis le prompt reçu.
 
@@ -99,7 +99,7 @@ Quand orchestrator-dev te retourne un ticket suite à un échec de pre-review, t
    Action requise : corriger les erreurs ci-dessus et repasser en review."
    ```
 2. Corriger les erreurs signalées
-3. Repasser en review : `bd update <ID> -s review`
+3. Repasser en review : `bd update <ID> --add-label ready-for-review`
 
 ---
 
