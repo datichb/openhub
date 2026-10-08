@@ -24,6 +24,8 @@ type edField struct {
 	header bool
 	// value renders the resolved value.
 	value func(sp *workflow.Spec) string
+	// boolean: true/false shown on/off (as `oh workflow show`).
+	boolean bool
 	// edit asks for a new value (Enter).
 	edit func()
 	// remove overrides the default removal (x).
@@ -97,9 +99,9 @@ func (v *WorkflowEditorView) selectField(label, help, lock string, opts func() [
 
 // boolField edits a boolean (on / off / inherited).
 func (v *WorkflowEditorView) boolField(label, help, lock string, value func(*workflow.Spec) string, path ...string) *edField {
-	f := &edField{label: label, help: help, path: path, lock: lock, value: value}
+	f := &edField{label: label, help: help, path: path, lock: lock, value: value, boolean: true}
 	f.edit = func() {
-		choices := []SelectOption{v.unsetOption(), {Label: "true", Value: "true"}, {Label: "false", Value: "false"}}
+		choices := []SelectOption{v.unsetOption(), {Label: "on", Value: "true"}, {Label: "off", Value: "false"}}
 		cur := v.current(path...)
 		if cur == "" {
 			cur = unsetValue

@@ -87,15 +87,17 @@ func (v *ProjectModeView) Title() string {
 // StatusHints returns keybinding hints for the omnibar (passive mode).
 func (v *ProjectModeView) StatusHints() string {
 	if v.project == nil {
-		return fmt.Sprintf("%s · Ctrl+T %s", i18n.T("tui.pm.no_project"), i18n.T("tui.hints.hub_mode"))
+		return fmt.Sprintf("%s · Esc %s · Ctrl+T %s", i18n.T("tui.pm.no_project"), i18n.T("tui.hints.hub_mode"), i18n.T("tui.hints.team_mode"))
 	}
+	// Ctrl+T enters the team mode; Esc goes back to the hub (A33).
 	return fmt.Sprintf(
-		"%s · j/k %s · Enter %s · Ctrl+P %s · Ctrl+T %s",
+		"%s · j/k %s · Enter %s · Ctrl+P %s · Esc %s · Ctrl+T %s",
 		v.project.Name,
 		i18n.T("tui.hints.navigate"),
 		i18n.T("tui.hints.open"),
 		i18n.T("tui.hints.commands"),
 		i18n.T("tui.hints.hub_mode"),
+		i18n.T("tui.hints.team_mode"),
 	)
 }
 

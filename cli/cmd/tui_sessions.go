@@ -456,6 +456,10 @@ func (t *tuiSessions) Attach(sessionID, how string) {
 			}
 			return
 		case "suspend":
+			if rs.FocusAttached(ctx, sessionID) {
+				toast(attachedMessage(termlaunch.MethodFocused), true)
+				return
+			}
 			if err := runAttachInline(ctx, t.a, rs, ui, sessionID); err != nil {
 				toast(err.Error(), false)
 			}
@@ -469,12 +473,21 @@ func (t *tuiSessions) Attach(sessionID, how string) {
 		if errors.Is(err, termlaunch.ErrNoTerminal) {
 			err = runAttachInline(ctx, t.a, rs, ui, sessionID)
 		} else if err == nil {
-			toast(i18n.Tf("cmd.session.opened_in", string(m)), true)
+			toast(attachedMessage(m), true)
 		}
 		if err != nil {
 			toast(err.Error(), false)
 		}
 	}()
+}
+
+// attachedMessage tells where a session was opened, or that the window of
+// its client was brought back to the front.
+func attachedMessage(m termlaunch.Method) string {
+	if m == termlaunch.MethodFocused {
+		return i18n.T("cmd.session.focused")
+	}
+	return i18n.Tf("cmd.session.opened_in", string(m))
 }
 
 func (t *tuiSessions) OpenBrowser(ctx context.Context, sessionID string) (string, error) {

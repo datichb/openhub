@@ -4,13 +4,13 @@
 stateDiagram-v2
     [*] --> Hub : Default
 
-    Hub --> Project : Select project / Ctrl+T (single project)
-    Hub --> Team : Select team / Ctrl+T (single team)
+    Hub --> Project : Select project
+    Hub --> Team : Select team / Ctrl+T
 
-    Project --> Hub : "Mode Hub" / Ctrl+T
+    Project --> Hub : "Mode Hub" / Esc
     Project --> Team : Ctrl+T (team configured)
 
-    Team --> Hub : "Mode Hub" / Ctrl+T
+    Team --> Hub : "Mode Hub" / Ctrl+T / Esc
     Team --> Project : Select project
 
     state Hub {

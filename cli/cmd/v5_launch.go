@@ -124,6 +124,7 @@ func runAttachChild(ctx context.Context, a *app.App, svc *runsvc.Service, sessio
 	if dc, _, derr := ensureDaemon(ctx); derr == nil && sess != nil {
 		go dc.KeepAlive(hbCtx, daemon.HeartbeatRequest{
 			ClientID: "attach-" + sessionspec.NewSessionID(), Kind: daemon.ClientAttach, Group: sess.GroupKey, SessionID: sessionID,
+			Where: clientLocation(),
 		}, 30*time.Second)
 	}
 	c := exec.CommandContext(ctx, argv[0], argv[1:]...)
@@ -135,6 +136,15 @@ func runAttachChild(ctx context.Context, a *app.App, svc *runsvc.Service, sessio
 	signal.Notify(sigs, os.Interrupt)
 	defer signal.Stop(sigs)
 	return c.Run()
+}
+
+// clientLocation is where this client runs (nil when unknown): oh brings
+// its window back to the front instead of opening another client (A43).
+func clientLocation() *termlaunch.Location {
+	if l := termlaunch.Here(); !l.Empty() {
+		return &l
+	}
+	return nil
 }
 
 // buildWorkflowBundle compiles the bundle of a resolved oh/v1 workflow: its

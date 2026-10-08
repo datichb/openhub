@@ -245,6 +245,41 @@ func TestLaunchFormOpensAtOptions(t *testing.T) {
 	assert.Equal(t, launchStepOptions, v.step)
 }
 
+// A39: on the options step (form opened from the board quick actions) the
+// focus is on a closed drop-down: Esc closes the form; with its list open,
+// Esc closes the list only.
+func TestLaunchFormEscOnOptionsCloses(t *testing.T) {
+	cfg := launchCfg(t)
+	cfg.AtOptions, cfg.Tickets = true, []string{"bd-4"}
+	v := NewLaunchFormView(cfg)
+	sh := &recordingShell{}
+	v.SetShell(sh)
+	content := tview.NewFlex()
+	app := runApp(t, content)
+	onLoop(app, func() { v.Mount(content, app) })
+	var dd *tview.DropDown
+	onLoop(app, func() {
+		idx, _ := v.form.GetFocusedItemIndex()
+		require.GreaterOrEqual(t, idx, 0)
+		var ok bool
+		dd, ok = v.form.GetFormItem(idx).(*tview.DropDown)
+		require.True(t, ok, "first option is a drop-down")
+	})
+	onLoop(app, func() { v.HandleKey(tcell.NewEventKey(tcell.KeyEscape, 0, tcell.ModNone)) })
+	sh.mu.Lock()
+	assert.Equal(t, 1, sh.popped, "Esc closes the form")
+	sh.mu.Unlock()
+
+	onLoop(app, func() {
+		dd.InputHandler()(tcell.NewEventKey(tcell.KeyEnter, 0, tcell.ModNone), func(p tview.Primitive) { app.SetFocus(p) })
+		require.True(t, dd.IsOpen())
+		assert.NotNil(t, v.HandleKey(tcell.NewEventKey(tcell.KeyEscape, 0, tcell.ModNone)), "passed to the open list")
+	})
+	sh.mu.Lock()
+	assert.Equal(t, 1, sh.popped)
+	sh.mu.Unlock()
+}
+
 func TestStartSection(t *testing.T) {
 	var launched, pinned string
 	cfg := StartSectionConfig{

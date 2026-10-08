@@ -213,9 +213,9 @@ func (v *TeamStatusView) render(tc TeamResolution, repo teamstate.TeamStateWrite
 	} else {
 		for _, e := range events {
 			ago := formatTimeAgo(e.Timestamp)
-			fmt.Fprintf(&sb, "  %s%-12s%s %s %s %s\n",
+			fmt.Fprintf(&sb, "  %s%-12s%s %s %s\n",
 				theme.ColorTag(theme.TextSecondaryHex), ago, theme.TagColor,
-				e.Actor, formatEventType(e.Type), e.Ticket)
+				e.Actor, formatEventDescription(e))
 		}
 	}
 
@@ -240,31 +240,5 @@ func formatTimeAgo(t time.Time) string {
 		return i18n.Tf("tui.teamstatus.time_days_ago", days)
 	default:
 		return t.Format("02 Jan")
-	}
-}
-
-// formatEventType returns a verb for the event type.
-func formatEventType(eventType string) string {
-	switch eventType {
-	case teamstate.EventClaimTaken:
-		return i18n.T("tui.teamstatus.event_claim_taken")
-	case teamstate.EventClaimReleased:
-		return i18n.T("tui.teamstatus.event_claim_released")
-	case teamstate.EventClaimTransferred:
-		return i18n.T("tui.teamstatus.event_claim_transferred")
-	case teamstate.EventSessionComplete:
-		return i18n.T("tui.teamstatus.event_session_complete")
-	case teamstate.EventReviewReady:
-		return i18n.T("tui.teamstatus.event_review_ready")
-	case teamstate.EventAuditFinding:
-		return i18n.T("tui.teamstatus.event_audit_finding")
-	case teamstate.EventWikiProposal:
-		return i18n.T("tui.teamstatus.event_wiki_proposal")
-	case teamstate.EventWikiAccepted:
-		return i18n.T("tui.teamstatus.event_wiki_accepted")
-	case teamstate.EventWikiRejected:
-		return i18n.T("tui.teamstatus.event_wiki_rejected")
-	default:
-		return eventType
 	}
 }

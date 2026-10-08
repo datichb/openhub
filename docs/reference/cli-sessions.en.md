@@ -65,7 +65,7 @@ Pending decisions of every session: kind (⏸ ? ! $ ✗), decision id, agent, su
 oh session attach <session> [--how <opening>] [--iterm-style tab|split|window]
 ```
 
-Opens the opencode interface on the session (new tab or window, tmux, browser or current terminal). A sleeping session is resumed first (its server restarts). When no terminal can be opened, the interface opens in the current terminal.
+Opens the opencode interface on the session (new tab or window, tmux, browser or current terminal). A sleeping session is resumed first (its server restarts). When no terminal can be opened, the interface opens in the current terminal. When a client is already open on the session, its window is brought to the front (nothing is opened).
 
 | Flag | Type | Default | Description |
 |------|------|---------|-------------|

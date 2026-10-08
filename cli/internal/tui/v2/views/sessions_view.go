@@ -66,6 +66,8 @@ type SessionsView struct {
 	feedCancel context.CancelFunc
 	feedLines  []string
 	feedCost   float64
+
+	decOverlay decisionOverlay // card or form of a decision (A37)
 }
 
 var _ View = (*SessionsView)(nil)
@@ -169,6 +171,7 @@ func (v *SessionsView) reload() {
 			}
 			v.rows = rows
 			v.render()
+			v.closeSettledDecision()
 		})
 	}()
 }
@@ -650,6 +653,7 @@ func (v *SessionsView) async(fn func(ctx context.Context) (string, error), done 
 
 func (v *SessionsView) decide(d *SessionDecision, choice, message string, answers map[string]string) {
 	id := d.ID
+	v.untrackDecision()
 	v.run(func(ctx context.Context) error {
 		return v.cfg.Backend.Decide(ctx, id, choice, message, answers)
 	}, i18n.T("tui.inbox.answered"))
@@ -666,6 +670,7 @@ func (v *SessionsView) raiseBudget(d *SessionDecision) {
 	v.shell.ShowInputModal(i18n.T("tui.sessions.raise_title"), "", func(amount string) {
 		v.decide(&dec, "raise", strings.TrimSpace(amount), nil)
 	})
+	v.trackDecision(dec.ID)
 }
 
 func (v *SessionsView) showMR(id string) {
@@ -706,6 +711,7 @@ func (v *SessionsView) openDecision(r *SessionRow, d *SessionDecision) {
 				v.decide(&dec, values["decision"], values["message"], nil)
 			},
 		})
+		v.trackDecision(dec.ID)
 	case DecisionKindQuestion:
 		fields, toAnswers := questionForm(d.Fields)
 		v.shell.ShowInlineForm(InlineFormConfig{
@@ -715,6 +721,7 @@ func (v *SessionsView) openDecision(r *SessionRow, d *SessionDecision) {
 				v.decide(&dec, "", "", toAnswers(values, multi))
 			},
 		})
+		v.trackDecision(dec.ID)
 	case DecisionKindCheckpoint:
 		v.openCheckpoint(r, d)
 	case DecisionKindError, DecisionKindBudget, DecisionKindCircuit:
@@ -738,6 +745,7 @@ func (v *SessionsView) openDecision(r *SessionRow, d *SessionDecision) {
 			actions = append([]ModalAction{{Label: i18n.T("tui.inbox.raise"), Callback: func() { v.raiseBudget(&dec) }}}, actions...)
 		}
 		v.shell.ShowScrollableModal(d.Icon+" "+who, tview.Escape(text), actions)
+		v.trackDecision(dec.ID)
 	default:
 		id := ""
 		if r != nil {
@@ -751,6 +759,7 @@ func (v *SessionsView) openDecision(r *SessionRow, d *SessionDecision) {
 				}
 			}},
 		})
+		v.trackDecision(dec.ID)
 	}
 }
 

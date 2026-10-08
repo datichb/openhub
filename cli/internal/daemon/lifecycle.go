@@ -11,6 +11,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/filelock"
 	"github.com/datichb/openhub/cli/internal/sessionresults"
+	"github.com/datichb/openhub/cli/internal/termlaunch"
 )
 
 // Session lifecycle (E11):
@@ -37,6 +38,9 @@ type HeartbeatRequest struct {
 	Group     string     `json:"group,omitempty"`
 	SessionID string     `json:"session_id,omitempty"`
 	TTL       int        `json:"ttl_seconds,omitempty"` // default 90
+	// Where locates an attached client (its window is brought back to the
+	// front instead of opening another one, A43).
+	Where *termlaunch.Location `json:"where,omitempty"`
 }
 
 // QuitPolicy is applied to a server group when oh quits.
@@ -56,6 +60,8 @@ type PolicyRequest struct {
 type client struct {
 	kind    ClientKind
 	group   string
+	session string
+	where   *termlaunch.Location
 	expires time.Time
 }
 
@@ -70,7 +76,7 @@ func (d *Daemon) handleHeartbeat(w http.ResponseWriter, r *http.Request) {
 		ttl = 90 * time.Second
 	}
 	d.mu.Lock()
-	d.clients[req.ClientID] = client{kind: req.Kind, group: req.Group, expires: time.Now().Add(ttl)}
+	d.clients[req.ClientID] = client{kind: req.Kind, group: req.Group, session: req.SessionID, where: req.Where, expires: time.Now().Add(ttl)}
 	d.lastBusy = time.Now()
 	if req.Kind == ClientAttach && req.Group != "" {
 		delete(d.policies, req.Group) // a user is back on the session

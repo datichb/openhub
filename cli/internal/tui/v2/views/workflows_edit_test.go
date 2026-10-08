@@ -144,6 +144,51 @@ func TestWorkflowCatalogEditing(t *testing.T) {
 	assert.NotEmpty(t, sh.toasts)
 }
 
+// A42: n without a team-state creates the solo space, then goes on with the
+// « new workflow » form once the catalogue is editable.
+func TestWorkflowCatalogNewAfterSoloSpace(t *testing.T) {
+	var mu sync.Mutex
+	editable := false
+	created := 0
+	v := NewWorkflowCatalogView(WorkflowCatalogConfig{
+		Load: func(context.Context) (CatalogData, error) {
+			mu.Lock()
+			defer mu.Unlock()
+			d := catalogData()
+			d.Editable = editable
+			return d, nil
+		},
+		New: func(CatalogNew) {},
+		NoTeamState: func(done func()) {
+			mu.Lock()
+			created++
+			editable = true
+			mu.Unlock()
+			done()
+		},
+	})
+	sh := &formShell{}
+	v.SetShell(sh)
+	content := tview.NewFlex()
+	app := runApp(t, content)
+	onLoop(app, func() { v.Mount(content, app) })
+	require.Eventually(t, func() bool {
+		var n int
+		onLoop(app, func() { n = len(v.data.Entries) })
+		return n > 0
+	}, 2*time.Second, 10*time.Millisecond)
+	onLoop(app, func() { v.HandleKey(key('n')) })
+	require.Eventually(t, func() bool {
+		var ok bool
+		onLoop(app, func() { ok = sh.form != nil })
+		return ok
+	}, 2*time.Second, 10*time.Millisecond, "new workflow form opened after the solo space")
+	assert.Equal(t, i18n.T("tui.catalog.edit.new_title"), sh.form.Title)
+	mu.Lock()
+	assert.Equal(t, 1, created)
+	mu.Unlock()
+}
+
 func TestPublishViewPublishesOnce(t *testing.T) {
 	var n atomic.Int32
 	release := make(chan struct{})

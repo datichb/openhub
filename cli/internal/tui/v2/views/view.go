@@ -169,6 +169,15 @@ type ShellAccess interface {
 	SetOmnibarVisible(visible bool)
 }
 
+// OverlayCloser is implemented by shells able to close an overlay they
+// showed once what it asks is no longer relevant (a decision settled
+// elsewhere, A37). CurrentOverlay is read right after showing it; nil =
+// none.
+type OverlayCloser interface {
+	CurrentOverlay() any
+	CloseOverlay(token any) bool
+}
+
 // ActiveProject holds the minimal project context for the TUI project mode.
 type ActiveProject struct {
 	ID     string
