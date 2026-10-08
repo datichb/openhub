@@ -238,6 +238,8 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 - `oh workflow validate <couche>:<id>` valide votre brouillon quand le workflow n'est pas publié, signalé « (votre brouillon, non publié) » ; un identifiant nu désigne la couche la plus spécifique (A9).
 - `oh workflow new --file` avec un document sans prompt (ni `extends`) : `prompt.template: prompts/<id>.md.tmpl` est ajouté et un gabarit de départ créé, avec un message ; `oh workflow validate` avertit d'un workflow d'équipe ou de projet sans prompt (A10).
 - Paquet de session (A8) : une skill liée à un plugin (nouvelle clé de frontmatter `plugin:`, `context-mode-usage`, `rtk-usage`) n'est livrée que si le workflow charge ce plugin ; les skills du domaine frontend (`dev-standards-frontend*`) seulement si le projet a un frontend détecté.
+- Messages d'`oh config` (lecture et écriture de `hub.toml`, `websearch`), d'`oh config model unset` (portée, projet inconnu) et d'`oh review --publish` (branche, projet GitLab, MR créée, reviewer) traduits (suite de A12).
+- `oh doctor`, « Beads zéro impact » : signale aussi `CLAUDE.md` (bloc géré par bd), les dossiers `.cursor/`, `.claude/`, `.codex/`, `.agents/` écrits par bd 1.3, et le bloc `.gitignore` « added by bd init » ; un dossier d'outil sans contenu de bd n'est pas signalé, et rien n'est supprimé automatiquement (suite de A5).
 
 ### Security
 

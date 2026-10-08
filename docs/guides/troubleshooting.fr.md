@@ -25,7 +25,7 @@ Executez `oh doctor` pour verifier l'etat de sante de votre installation. Il eff
 | 7 | Identifiants fournisseur | Identifiants trouves selon la cascade d'un lancement depuis le dossier courant : cle du projet, de l'equipe, du hub, puis profil AWS (Bedrock) ; la source est affichee | `oh provider setup`, `oh secrets set` ou variable d'env |
 | 8 | Base de donnees | Base SQLite accessible | `oh repair` |
 | 9 | Cles API | Tokens des services MCP (Figma, GitLab, etc.) | `oh mcp setup <service>` |
-| 10 | Beads zero-impact | Aucun effet de bord de Beads (hooks, gitignore, fichiers d'agents comme `AGENTS.md`, `.beads/` dans `.git/info/exclude`) | voir [Premiers pas](getting-started.fr.md#configuration-initiale--oh-init) : initialiser avec oh, ou retirer a la main ce qu'a ajoute `bd init` |
+| 10 | Beads zero-impact | Aucun effet de bord de Beads (hooks, gitignore, fichiers d'agents écrits par `bd init` : `AGENTS.md`, `CLAUDE.md`, `.claude/`, `.codex/`, `.cursor/`, `.agents/` ; `.beads/` dans `.git/info/exclude`) | voir [Premiers pas](getting-started.fr.md#configuration-initiale--oh-init) : initialiser avec oh, ou retirer a la main ce qu'a ajoute `bd init` |
 | 11 | opencode V2 | opencode installe, version minimale 2.0.0 (V1 refuse) | `brew install anomalyco/tap/opencode` ; voir le [guide de migration v5](migration-v5.fr.md) |
 | 12 | Anciens deploiements | Restes de `oh deploy` dans les projets | `oh migrate deploy-cleanup` |
 | 13 | Demon oh | Etat du demon `ohd` (demarre au premier lancement) | `oh daemon status` |

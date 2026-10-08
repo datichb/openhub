@@ -509,7 +509,7 @@ func persistProviderConfig(ctx context.Context, a *app.App, project *domain.Proj
 					c.Provider.Bedrock.AuthMode = parts[2]
 					return nil
 				}); err != nil {
-					return fmt.Errorf("writing config: %w", err)
+					return fmt.Errorf("%s: %w", i18n.T("cmd.config.save_failed"), err)
 				}
 			}
 		}
