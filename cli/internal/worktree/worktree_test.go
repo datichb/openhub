@@ -177,3 +177,26 @@ func runGit(t *testing.T, dir string, args ...string) {
 	out, err := cmd.CombinedOutput()
 	require.NoError(t, err, "git %v: %s", args, string(out))
 }
+
+// A18: Stash keeps every change (tracked and untracked) recoverable.
+func TestStash(t *testing.T) {
+	repoDir := t.TempDir()
+	runGit(t, repoDir, "init", "-b", "main")
+	require.NoError(t, os.WriteFile(filepath.Join(repoDir, "a.txt"), []byte("v1\n"), 0o644))
+	runGit(t, repoDir, "add", "a.txt")
+	runGit(t, repoDir, "commit", "-m", "initial")
+	require.NoError(t, os.WriteFile(filepath.Join(repoDir, "a.txt"), []byte("v2\n"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(repoDir, "new.txt"), []byte("n\n"), 0o644))
+	require.True(t, IsDirty(repoDir))
+
+	ref, err := Stash(repoDir, "oh: ticket")
+	require.NoError(t, err)
+	assert.NotEmpty(t, ref)
+	assert.False(t, IsDirty(repoDir), "untracked files are stashed too")
+
+	runGit(t, repoDir, "stash", "apply", ref)
+	got, err := os.ReadFile(filepath.Join(repoDir, "a.txt"))
+	require.NoError(t, err)
+	assert.Equal(t, "v2\n", string(got))
+	assert.FileExists(t, filepath.Join(repoDir, "new.txt"))
+}

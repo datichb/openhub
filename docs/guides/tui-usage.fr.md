@@ -80,7 +80,7 @@ Ouverte depuis « Démarrer », le catalogue, l'omnibar (`run <workflow>`) ou le
 |-------|---------|
 | **Entrées** | les entrees du workflow : ticket (champ + bouton « Choisir… »), texte, liste (`enum`), case (`bool`), branche… Les champs obligatoires sont marques |
 | **Options** | Mode (modes autorises), Exécution (`⌂ local`, `▣ conteneur`, `☁ distant`, avec la raison si indisponible), Emplacement (base, worktree existant, « + nouveau worktree »), Ouverture, et « Une seule session pour tous les tickets » si plusieurs tickets |
-| **Récap** | agents, skills et budget, MCP, isolation, sessions (« N sessions · 1 serveur · un worktree par session qui écrit »), avertissements (modifications non commitees, decisions deja en attente, preconditions) |
+| **Récap** | agents, skills et budget, MCP, Code Mode, commandes Beads autorisées, checkpoints dans le mode choisi (obligatoires signalés), isolation, sessions (« N sessions · 1 serveur · un worktree par session qui écrit »), avertissements (décisions déjà en attente, préconditions). Quand une session qui écrit démarrerait dans un dossier modifié : `[w]` nouveau worktree (défaut, vos modifications restent intactes) · `[s]` mettre de côté (stash) · `[b]` lancer quand même |
 
 | Touche | Action |
 |--------|--------|

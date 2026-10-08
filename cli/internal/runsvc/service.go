@@ -171,6 +171,9 @@ type StartResult struct {
 	AttachErr    error // non-nil when no terminal could be opened (caller: browser/suspend)
 	// Notes are messages for the user about the launch (team claims).
 	Notes []string
+	// Stashed is the stash commit holding the changes of the directory put
+	// aside before the session started (DirtyStash).
+	Stashed string
 	// Queued: the first prompt waits for a free slot (restrictions); Ahead
 	// is the number of sessions queued before it.
 	Queued bool

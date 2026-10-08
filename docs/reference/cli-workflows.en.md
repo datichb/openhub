@@ -8,7 +8,7 @@ Declarative workflows (`apiVersion: oh/v1`) describe a use case: entry agent, ag
 
 ```
 oh run [workflow] [-i key=value]… [--tickets a,b] [--one-session] [--mode <mode>] [--runtime local|container|remote]
-                  [--location base|new|<worktree>] [--attach <opening>] [--recap] [--draft] [-a <agent>]
+                  [--location base|new|<worktree>] [--allow-dirty | --stash] [--attach <opening>] [--recap] [--draft] [-a <agent>]
                   [--headless [--output <file>] [--timeout <duration>]] [--parent <session>] [-p <project>] [-P <provider>]
 ```
 
@@ -20,6 +20,8 @@ oh run [workflow] [-i key=value]… [--tickets a,b] [--one-session] [--mode <mod
 | `--mode` | | string | workflow default mode | `manuel`, `semi-auto` or `auto` |
 | `--runtime` | | string | see below | `local`, `container` or `remote` |
 | `--location` | | string | `base` | `base`, `new` (new worktree) or the path of an existing worktree |
+| `--allow-dirty` | | bool | `false` | Launch a writing session in a directory with uncommitted changes anyway |
+| `--stash` | | bool | `false` | Stash (`git stash`) the uncommitted changes of the directory before the launch |
 | `--attach` | | string | Settings preference | Opening: `auto`, `iterm`, `terminal`, `tmux`, `browser`, `suspend`, `none` |
 | `--recap` | | bool | `false` | Recap and confirmation before the launch |
 | `--draft` | | bool | `false` | Run your draft of the workflow (local only) |
@@ -36,10 +38,11 @@ Launches a workflow: layer resolution and validation, session bundle, session pl
 - **Inputs** (`-i`, repeatable): values of the workflow `inputs` (`true`, `3`, `a,b` are converted to the input type). Defaults may depend on other inputs (`branch: feat/{{ .ticket }}`). In the prompt template, text inputs are wrapped with the `data` function in `<oh:data name="…">…</oh:data>` tags and truncated (`max_length`, else 20,000 characters); see [Workflow schema](workflow-schema.en.md).
 - **Tickets** (`--tickets`): fill the first `beads-id` input; with `picker.multi`, **one session per ticket**, all in the same server group, each in its own worktree when the workflow writes. A `beads-ids` input receives the list in a single session. In a team project, each ticket is claimed for the active member when its session starts, or moves from « planned » to the work status (for any workflow, not only `oh start --dev`); a ticket claimed by another member is reported.
 - **Computed inputs** (`from:`): an empty input that declares `from:` is computed by oh at launch (e.g. `review-feedback`: branch, target branch and discussions read on the MR of the `mr` input; `brief-enrich`: the takeover brief of the ticket). Sources: [workflow schema](workflow-schema.en.md#computed-inputs-from).
-- **Location** (`--location`): `base` (default, project directory), `new` (a new worktree per session, branch = `branch` input or `oh/<workflow>-<ticket>`), or the path of an existing worktree. A writing session (`risk` other than `read`) **automatically gets a worktree** when another writing session is active in the same directory. Replaces `--worktree`.
+- **Location** (`--location`): `base` (default, project directory), `new` (a new worktree per session, branch = `branch` input or `oh/<workflow>-<ticket>`), or the path of an existing worktree. A writing session (`risk` other than `read`) **automatically gets a worktree** when another writing session (running or asleep) uses the same directory. Replaces `--worktree`.
+- **Uncommitted changes**: a writing session never starts in a base directory with uncommitted changes (untracked files included) without a choice. By default it works in a **new worktree** of its branch and your changes stay untouched; `--stash` puts them aside first (`git stash apply <commit>` brings them back, the commit is printed), `--allow-dirty` launches there anyway. An existing worktree chosen with `--location <path>` is only reported. Whatever the choice, no agent may run the git commands that throw away work (`git checkout <…>` except `-b`, `git restore`, `git reset --hard|--merge|--keep`, `git clean`, `git stash` except `list`/`show`, `git switch -f|--discard-changes`, `git worktree remove`, `git branch -D`, `git rm` except `--cached`, also as `git -C <dir> …`): branch changes go through `git switch`.
 - **Default workflow**: without argument, `oh run` launches the project default workflow (Project config › Execution).
 - **Runtime** (`--runtime`): `local`, `container` or `remote` (must be in `runtime.allowed`; refused with the reason when the container engine is unavailable or the remote target is not set up); without `--runtime`, the project default runtime, then the Settings one, then the workflow one, when allowed. See [Container](../guides/container.en.md) and [Remote execution](../guides/remote-runners.en.md) (`oh remote setup`, then `oh session fetch` / `oh session resolve` on return).
-- **Recap** (`--recap`): agents, first-turn budget, isolation, sessions and locations, warnings (uncommitted changes, automatic worktree, pending decisions), then confirmation.
+- **Recap** (`--recap`): agents, first-turn budget, MCP, Code Mode, allowed Beads commands, checkpoints in the session mode (pause, auto, skipped, conditional; mandatory ones marked), isolation, sessions and locations, warnings (uncommitted changes, automatic worktree, pending decisions), then confirmation.
 - **Single session** (`--one-session`): every ticket in the same session, instead of one session per ticket.
 - **MCP**: without an `mcp:` field in the workflow, the session gets the project MCP servers; with `mcp:` (even empty), only the listed ones (a listed server missing from the project is reported).
 - **Preconditions**: a blocking precondition refuses the launch; a suggestion (e.g. no wiki → `onboarding`) offers to run the suggested workflow first. With `resume: true`, the initial launch is remembered and offered again when that session ends ("Chain with…" in the TUI).

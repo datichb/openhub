@@ -141,7 +141,8 @@ func launchFormConfig(ctx context.Context, a *app.App, project *domain.Project, 
 	runs := &tuiRunCache{}
 	opts := func(c views.LaunchChoices) runOptions {
 		return runOptions{Workflow: sp.ID, Project: project, Inputs: c.Inputs, Tickets: c.Tickets, Mode: c.Mode,
-			Runtime: c.Runtime, Location: c.Location, Attach: c.Attach, ParentSessionID: req.Parent, OneSession: c.OneSession, Draft: req.Draft}
+			Runtime: c.Runtime, Location: c.Location, Attach: c.Attach, ParentSessionID: req.Parent, OneSession: c.OneSession, Draft: req.Draft,
+			Dirty: runsvc.DirtyPolicy(c.Dirty)}
 	}
 	cfg.Recap = func(ctx context.Context, c views.LaunchChoices) (*views.LaunchRecap, error) {
 		p, err := runs.get(ctx, a, opts(c))
@@ -149,7 +150,7 @@ func launchFormConfig(ctx context.Context, a *app.App, project *domain.Project, 
 			return nil, err
 		}
 		rows, warns := runRecap(p)
-		out := &views.LaunchRecap{Warnings: warns}
+		out := &views.LaunchRecap{Warnings: warns, Dirty: planDirty(p.plan)}
 		for _, s := range p.suggestions {
 			label := i18n.Tf("cmd.run.precondition_first", s.Workflow)
 			if s.Resume {

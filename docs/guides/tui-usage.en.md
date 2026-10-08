@@ -80,7 +80,7 @@ Opened from "Start", the catalogue, the omnibar (`run <workflow>`) or the board 
 |------|---------|
 | **Inputs** | the workflow inputs: ticket (field + "Pick…" button), text, list (`enum`), checkbox (`bool`), branch… Required fields are marked |
 | **Options** | Mode (allowed modes), Runtime (`⌂ local`, `▣ container`, `☁ remote`, with the reason when unavailable), Location (base, existing worktree, "+ new worktree"), Opening, and "A single session for every ticket" with several tickets |
-| **Recap** | agents, skills and budget, MCP, isolation, sessions ("N sessions · 1 server · one worktree per writing session"), warnings (uncommitted changes, decisions already waiting, preconditions) |
+| **Recap** | agents, skills and budget, MCP, Code Mode, allowed Beads commands, checkpoints in the chosen mode (mandatory ones marked), isolation, sessions ("N sessions · 1 server · one worktree per writing session"), warnings (decisions already waiting, preconditions). When a writing session would start in a directory with uncommitted changes: `[w]` new worktree (default, your changes stay untouched) · `[s]` stash · `[b]` launch anyway |
 
 | Key | Action |
 |-----|--------|

@@ -380,6 +380,21 @@ func Checkout(path, branch string) error {
 	return fmt.Errorf("git checkout %s: %s", branch, strings.TrimSpace(string(out)))
 }
 
+// Stash puts the uncommitted changes of the working tree at path aside
+// (untracked files included) with the given message and returns the commit
+// of the new stash entry, for `git stash apply <commit>`.
+func Stash(path, message string) (string, error) {
+	out, err := exec.Command("git", "-C", path, "stash", "push", "--include-untracked", "-m", message).CombinedOutput()
+	if err != nil {
+		return "", fmt.Errorf("git stash: %s", strings.TrimSpace(string(out)))
+	}
+	ref, err := exec.Command("git", "-C", path, "rev-parse", "--short", "stash@{0}").Output()
+	if err != nil {
+		return "", fmt.Errorf("git stash: %w", err)
+	}
+	return strings.TrimSpace(string(ref)), nil
+}
+
 // StashAndCheckout stashes uncommitted changes with a tagged message, then
 // switches to the specified branch. The stash is NOT popped automatically —
 // the user must recover it manually with `git stash pop`.

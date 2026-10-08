@@ -167,6 +167,10 @@ func (v *LaunchFormView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 	case tcell.KeyCtrlB:
 		v.back()
 		return nil
+	case tcell.KeyRune:
+		if v.dirtyKey(event.Rune()) {
+			return nil
+		}
 	case tcell.KeyEscape:
 		if v.form != nil {
 			if idx, _ := v.form.GetFocusedItemIndex(); idx >= 0 {
@@ -405,8 +409,55 @@ func (v *LaunchFormView) recapText() string {
 		for _, w := range v.recap.Warnings {
 			b.WriteString("[" + theme.WarningHex + "]⚠ " + tview.Escape(w) + "[-]\n")
 		}
+		if v.recap.Dirty {
+			b.WriteString(v.dirtyChoicesText() + "\n")
+		}
 	}
 	return b.String()
+}
+
+// launchDirtyChoices are the keys of the dirty directory choices.
+var launchDirtyChoices = []struct {
+	key   rune
+	value string
+	label string
+}{
+	{'w', LaunchDirtyWorktree, "tui.launch.dirty.worktree"},
+	{'s', LaunchDirtyStash, "tui.launch.dirty.stash"},
+	{'b', LaunchDirtyAllow, "tui.launch.dirty.allow"},
+}
+
+// dirtyChoicesText renders the choices for a directory with uncommitted
+// changes, the current one selected (10-tui §4.4).
+func (v *LaunchFormView) dirtyChoicesText() string {
+	parts := make([]string, len(launchDirtyChoices))
+	for i, c := range launchDirtyChoices {
+		mark := "( )"
+		if v.m.dirty == c.value {
+			mark = "(●)"
+		}
+		parts[i] = fmt.Sprintf("[%c] %s %s", c.key, mark, i18n.T(c.label))
+	}
+	return "[" + theme.WarningHex + "]⚠ " + i18n.T("tui.launch.dirty.title") + "[-]  " + tview.Escape(strings.Join(parts, "   "))
+}
+
+// dirtyKey applies a dirty directory choice on the recap step; it reports
+// whether the key was used.
+func (v *LaunchFormView) dirtyKey(r rune) bool {
+	if v.step != launchStepRecap || v.launching || v.recap == nil || !v.recap.Dirty {
+		return false
+	}
+	for _, c := range launchDirtyChoices {
+		if c.key == r {
+			if v.m.dirty != c.value {
+				v.m.dirty = c.value
+				v.loadRecap()
+				v.render()
+			}
+			return true
+		}
+	}
+	return false
 }
 
 // loadRecap computes the recap off the event loop.

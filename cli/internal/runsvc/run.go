@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/filelock"
@@ -30,7 +31,9 @@ type Warning struct {
 const (
 	WarnAutoWorktree   = "auto_worktree"   // O10: another writing session uses the directory
 	WarnSharedLocation = "shared_location" // writers share a directory (no git: no worktree)
-	WarnDirty          = "dirty"           // uncommitted changes where a writer starts
+	WarnDirty          = "dirty"           // uncommitted changes where a writer starts (allowed)
+	WarnDirtyWorktree  = "dirty_worktree"  // uncommitted changes: the writer works in a worktree
+	WarnDirtyStash     = "dirty_stash"     // uncommitted changes: stashed when the session starts
 	WarnPending        = "pending"         // decisions already waiting in other sessions
 	// WarnVolumeMountPoint: a relative cache volume of the container is
 	// absent from a location; the engine creates it there, empty, as the
@@ -66,6 +69,8 @@ type RunRequest struct {
 	ProjectPath string
 	Location    LocationChoice
 	Sessions    []PlannedInput // empty: one session
+	// Dirty is what a writer does in a directory with uncommitted changes.
+	Dirty DirtyPolicy
 	// ParentSessionID chains the sessions to a previous one (O7).
 	ParentSessionID string
 }
@@ -118,7 +123,7 @@ func (s *Service) Plan(ctx context.Context, req RunRequest) (*RunPlan, error) {
 		branches[i] = in.Branch
 	}
 	writes := RiskWrites(req.Workflow.Risk)
-	locs, warns, err := s.planLocations(ctx, req.Base.ProjectID, req.ProjectPath, req.Location, writes, branches)
+	locs, warns, err := s.planLocations(ctx, req.Base.ProjectID, req.ProjectPath, req.Location, writes, branches, req.Dirty)
 	if err != nil {
 		return nil, err
 	}
@@ -168,6 +173,14 @@ func (s *Service) Start(ctx context.Context, plan *RunPlan) ([]*StartResult, err
 			}
 			ps.Location.Path, ps.Location.Create = p, false
 		}
+		var stashed string
+		if ps.Location.Stash {
+			ref, err := s.stash(ps.Location.Path, "oh: "+req.Workflow.ID+" "+time.Now().Format("2006-01-02 15:04"))
+			if err != nil {
+				return out, err
+			}
+			stashed, ps.Location.Stash = ref, false
+		}
 		sr := req.Base
 		sr.Location, sr.Prompt = ps.Location.Path, ps.Prompt
 		if ps.Title != "" {
@@ -182,6 +195,7 @@ func (s *Service) Start(ctx context.Context, plan *RunPlan) ([]*StartResult, err
 		sr.ParentSessionID = req.ParentSessionID
 		res, err := s.StartSession(ctx, sr)
 		if res != nil && res.SessionID != "" {
+			res.Stashed = stashed
 			out = append(out, res)
 		}
 		if err != nil {

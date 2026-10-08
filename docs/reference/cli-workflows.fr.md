@@ -8,7 +8,7 @@ Les workflows déclaratifs (`apiVersion: oh/v1`) décrivent un cas d'usage : age
 
 ```
 oh run [workflow] [-i clé=valeur]… [--tickets a,b] [--one-session] [--mode <mode>] [--runtime local|container|remote]
-                  [--location base|new|<worktree>] [--attach <ouverture>] [--recap] [--draft] [-a <agent>]
+                  [--location base|new|<worktree>] [--allow-dirty | --stash] [--attach <ouverture>] [--recap] [--draft] [-a <agent>]
                   [--headless [--output <fichier>] [--timeout <durée>]] [--parent <session>] [-p <projet>] [-P <fournisseur>]
 ```
 
@@ -20,6 +20,8 @@ oh run [workflow] [-i clé=valeur]… [--tickets a,b] [--one-session] [--mode <m
 | `--mode` | | string | mode par défaut du workflow | `manuel`, `semi-auto` ou `auto` |
 | `--runtime` | | string | voir ci-dessous | `local`, `container` ou `remote` |
 | `--location` | | string | `base` | `base`, `new` (nouveau worktree) ou chemin d'un worktree existant |
+| `--allow-dirty` | | bool | `false` | Lancer quand même une session qui écrit dans un dossier modifié |
+| `--stash` | | bool | `false` | Mettre de côté (`git stash`) les modifications du dossier avant le lancement |
 | `--attach` | | string | préférence des Réglages | Ouverture : `auto`, `iterm`, `terminal`, `tmux`, `browser`, `suspend`, `none` |
 | `--recap` | | bool | `false` | Récapitulatif et confirmation avant le lancement |
 | `--draft` | | bool | `false` | Lancer votre brouillon du workflow (local uniquement) |
@@ -36,10 +38,11 @@ Lance un workflow : résolution des couches et validation, paquet de session, pl
 - **Entrées** (`-i`, répétable) : valeurs des `inputs` du workflow (`true`, `3`, `a,b` sont convertis selon le type). Les valeurs par défaut peuvent dépendre d'autres entrées (`branch: feat/{{ .ticket }}`). Dans le gabarit de prompt, les entrées texte sont encadrées par la fonction `data` (balises `<oh:data name="…">…</oh:data>`) et tronquées (`max_length`, sinon 20 000 caractères) ; voir [Schéma des workflows](workflow-schema.fr.md).
 - **Tickets** (`--tickets`) : remplissent la première entrée `beads-id` ; avec `picker.multi`, **une session par ticket**, toutes dans le même groupe de serveur, chacune dans son worktree si le workflow écrit. Une entrée `beads-ids` reçoit la liste dans une seule session. Dans un projet d'équipe, chaque ticket est réservé au démarrage de sa session pour le membre actif, ou passe de « planifié » au statut de travail (pour tout workflow, plus seulement `oh start --dev`) ; un ticket réservé par un autre membre est signalé.
 - **Entrées calculées** (`from:`) : une entrée vide qui déclare `from:` est calculée par oh au lancement (ex. `review-feedback` : branche, branche cible et discussions lues sur la MR de l'entrée `mr` ; `brief-enrich` : le brief de reprise du ticket). Sources : [schéma des workflows](workflow-schema.fr.md#entrées-calculées-from).
-- **Emplacement** (`--location`) : `base` (défaut, dossier du projet), `new` (un nouveau worktree par session, branche = entrée `branch` ou `oh/<workflow>-<ticket>`), ou le chemin d'un worktree existant. Une session qui écrit (`risk` autre que `read`) reçoit **automatiquement un worktree** si une autre session qui écrit est active dans le même dossier. Remplace `--worktree`.
+- **Emplacement** (`--location`) : `base` (défaut, dossier du projet), `new` (un nouveau worktree par session, branche = entrée `branch` ou `oh/<workflow>-<ticket>`), ou le chemin d'un worktree existant. Une session qui écrit (`risk` autre que `read`) reçoit **automatiquement un worktree** si une autre session qui écrit (en cours ou en veille) utilise le même dossier. Remplace `--worktree`.
+- **Modifications non commitées** : une session qui écrit ne démarre jamais sans choix dans un dossier de base modifié (fichiers non suivis compris). Par défaut, elle travaille dans un **nouveau worktree** de sa branche et vos modifications restent intactes ; `--stash` les met d'abord de côté (`git stash apply <commit>` les récupère, le commit est affiché), `--allow-dirty` lance quand même dans le dossier. Un worktree existant choisi avec `--location <chemin>` est seulement signalé. Quel que soit le choix, aucun agent ne peut lancer les commandes git qui jettent du travail (`git checkout <…>` sauf `-b`, `git restore`, `git reset --hard|--merge|--keep`, `git clean`, `git stash` sauf `list`/`show`, `git switch -f|--discard-changes`, `git worktree remove`, `git branch -D`, `git rm` sauf `--cached`, y compris sous la forme `git -C <dossier> …`) : les changements de branche passent par `git switch`.
 - **Workflow par défaut** : sans argument, `oh run` lance le workflow par défaut du projet (Config projet › Exécution).
 - **Exécution** (`--runtime`) : `local`, `container` ou `remote` (doit figurer dans `runtime.allowed` ; refusé avec la raison si le moteur de conteneurs est indisponible ou si la cible distante n'est pas configurée) ; sans `--runtime`, runtime par défaut du projet, puis des Réglages, puis du workflow, s'il est autorisé. Voir [Conteneur](../guides/container.fr.md) et [Exécution distante](../guides/remote-runners.fr.md) (`oh remote setup`, puis `oh session fetch` / `oh session resolve` au retour).
-- **Récapitulatif** (`--recap`) : agents, budget du premier tour, isolation, sessions et emplacements, avertissements (modifications non commitées, worktree automatique, décisions en attente), puis confirmation.
+- **Récapitulatif** (`--recap`) : agents, budget du premier tour, MCP, Code Mode, commandes Beads autorisées, checkpoints dans le mode de la session (pause, auto, ignoré, conditionnel ; obligatoires signalés), isolation, sessions et emplacements, avertissements (modifications non commitées, worktree automatique, décisions en attente), puis confirmation.
 - **Une seule session** (`--one-session`) : tous les tickets dans la même session, au lieu d'une session par ticket.
 - **MCP** : sans champ `mcp:` dans le workflow, la session reçoit les serveurs MCP du projet ; avec `mcp:` (même vide), seulement ceux listés (un serveur listé mais absent du projet est signalé).
 - **Préconditions** : une précondition bloquante refuse le lancement ; une suggestion (ex. pas de wiki → `onboarding`) propose de lancer d'abord le workflow suggéré. Avec `resume: true`, le lancement initial est mémorisé et reproposé à la fin de cette session (« Enchaîner avec… » dans la TUI).

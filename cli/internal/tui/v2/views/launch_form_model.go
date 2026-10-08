@@ -29,12 +29,27 @@ type LaunchChoices struct {
 	Attach   string
 	// OneSession gives every ticket to a single session.
 	OneSession bool
+	// Dirty is what a writing session does in a directory with uncommitted
+	// changes: LaunchDirtyWorktree (default), LaunchDirtyStash or
+	// LaunchDirtyAllow.
+	Dirty string
 }
+
+// Choices offered when the directory of a writing session has uncommitted
+// changes (Récap: [w] worktree · [s] stash · [b] launch anyway).
+const (
+	LaunchDirtyWorktree = ""
+	LaunchDirtyStash    = "stash"
+	LaunchDirtyAllow    = "allow"
+)
 
 // LaunchRecap is the recap step content (computed by the wiring layer).
 type LaunchRecap struct {
 	Rows     []InfoField
 	Warnings []string
+	// Dirty: a writing session starts in a directory with uncommitted
+	// changes; the recap offers the choices (LaunchChoices.Dirty).
+	Dirty bool
 	// Suggestions are workflows to run first (failed preconditions).
 	Suggestions []LaunchSuggestion
 }
@@ -60,6 +75,7 @@ type launchModel struct {
 	attach      string
 	runtimes    []LaunchRuntime
 	oneSession  bool
+	dirty       string
 }
 
 func newLaunchModel(cfg LaunchFormConfig) *launchModel {
@@ -162,7 +178,7 @@ func (m *launchModel) validate() []string {
 // choices returns the launch choices.
 func (m *launchModel) choices() LaunchChoices {
 	c := LaunchChoices{Inputs: map[string]string{}, Mode: m.mode, Runtime: m.runtime, Location: m.location, Attach: m.attach,
-		OneSession: m.oneSession && m.perSession}
+		OneSession: m.oneSession && m.perSession, Dirty: m.dirty}
 	keys := make([]string, 0, len(m.values))
 	for k := range m.values {
 		keys = append(keys, k)
