@@ -101,11 +101,13 @@ func (s *Service) Rules(ctx context.Context, sessionID string) ([]sessionspec.Pe
 // Asked handles a workflow_checkpoint permission request of root (asked by
 // toolSession). auto = let it through now (automatic in the mode, or an
 // unknown checkpoint: the call then fails with the list of checkpoints);
-// otherwise d is the ⏸ decision to record.
-func (s *Service) Asked(ctx context.Context, root, toolSession string, p adapters.PendingDecision) (d *domain.Decision, auto bool, err error) {
+// otherwise d is the ⏸ decision to record. relocked reports that the
+// operations the checkpoint unlocked are locked again (a new round): the
+// session rules changed.
+func (s *Service) Asked(ctx context.Context, root, toolSession string, p adapters.PendingDecision) (d *domain.Decision, auto, relocked bool, err error) {
 	sess, wf, err := s.session(ctx, root)
 	if err != nil {
-		return nil, false, err
+		return nil, false, false, err
 	}
 	var id, summary string
 	if p.Call != nil {
@@ -115,7 +117,7 @@ func (s *Service) Asked(ctx context.Context, root, toolSession string, p adapter
 	c, known := wf.Checkpoint(id)
 	behavior := c.Behavior(sess.Mode)
 	if !known || !bundle.NeedsDecision(behavior) {
-		return nil, true, nil
+		return nil, true, false, nil
 	}
 	id = c.ID
 	label := c.LabelFor(i18n.Locale())
@@ -127,13 +129,22 @@ func (s *Service) Asked(ctx context.Context, root, toolSession string, p adapter
 	}
 	d.ID = domain.DecisionID(d.Kind, root, p.ID)
 	_, err = s.update(ctx, root, func(st *domain.CheckpointState) error {
+		relocked = relock(st, id) // asked again: a new round
+		changed := relocked
 		if st.Waiting != id {
 			st.Waiting = id
 			s.record(st, domain.CheckpointWaiting, id, "", summary)
+			changed = true
+		}
+		if !changed {
+			return errUnchanged
 		}
 		return nil
 	})
-	return d, false, err
+	if errors.Is(err, errUnchanged) {
+		err = nil
+	}
+	return d, false, relocked, err
 }
 
 // Settled is called when the request of a checkpoint decision was answered
@@ -148,8 +159,14 @@ func (s *Service) Settled(ctx context.Context, d domain.Decision) {
 	})
 }
 
-// pass records a checkpoint passed (the workflow_checkpoint call ran).
-func (s *Service) pass(ctx context.Context, sessionID, id string) (domain.CheckpointApproval, error) {
+// pass records a checkpoint passed (the workflow_checkpoint call ran) and
+// opens the window of the operations it unlocks.
+func (s *Service) pass(ctx context.Context, sess *domain.Session, c sessionspec.CheckpointDef) (domain.CheckpointApproval, error) {
+	sessionID, id := sess.ID, c.ID
+	head := ""
+	if len(c.Unlocks) > 0 {
+		head, _ = s.head(ctx, sess.LaunchPath)
+	}
 	var ap domain.CheckpointApproval
 	_, err := s.update(ctx, sessionID, func(st *domain.CheckpointState) error {
 		ap = st.Approved[id]
@@ -170,10 +187,28 @@ func (s *Service) pass(ctx context.Context, sessionID, id string) (domain.Checkp
 		if ap.By != "mode" {
 			st.Consecutive = 0 // a validation is a user intervention
 		}
+		for _, op := range c.Unlocks {
+			if st.Unlocks == nil {
+				st.Unlocks = map[string]domain.CheckpointUnlock{}
+			}
+			st.Unlocks[op] = domain.CheckpointUnlock{Checkpoint: id, At: s.now(), Head: head}
+		}
 		s.record(st, domain.CheckpointPassed, id, ap.By, ap.Message)
 		return nil
 	})
 	return ap, err
+}
+
+// relock closes the window of the operations unlocked by checkpoint id.
+func relock(st *domain.CheckpointState, id string) bool {
+	changed := false
+	for op, u := range st.Unlocks {
+		if strings.EqualFold(u.Checkpoint, id) {
+			delete(st.Unlocks, op)
+			changed = true
+		}
+	}
+	return changed
 }
 
 // OnCall follows the tool calls of root (and of its subagent sessions):

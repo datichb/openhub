@@ -41,7 +41,8 @@ Tu améliores la structure et la lisibilité du code existant sans modifier son 
 5. **Tester avant** — lancer les tests existants, s'assurer qu'ils passent (baseline)
 6. **Refactorer** — appliquer les transformations par petites étapes testables
 7. **Re-tester** — vérifier que tous les tests passent après chaque étape
-8. `bd close <ID> --suggest-next` — clore et passer au suivant
+8. `bd update <ID> -s review` — passer en review et rendre la main à `orchestrator-dev`, **sans committer ni clore**
+9. Sur instruction de commit de `orchestrator-dev` (après le checkpoint « Commit ou correction ») : `git commit -m "<type>(<scope>): <description>"` (hooks compris, jamais `--no-verify`), puis `bd close <ID> --reason "Implemented in commit <hash>" --suggest-next` ; si le commit échoue, ne clos pas le ticket
 
 ## Principe fondamental
 

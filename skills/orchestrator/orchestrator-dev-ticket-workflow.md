@@ -5,6 +5,8 @@ description: Workflow ticket par ticket de l'orchestrator-dev — étapes 1a à 
 
 ## Workflow ticket par ticket
 
+> **Session lancée sur un workflow oh** (premier message avec `Mode de workflow : <mode>`) : chaque checkpoint de la carte du workflow (CP-1, CP-2, CP-3…) passe **uniquement** par l'outil `workflow_checkpoint` (`id` + `summary`), jamais par l'outil `question` ni par un texte. Les exemples `question` de ce skill ne valent que **hors workflow**. Validation reçue = suite prévue (CP-2 validé = commit) ; refus = suivre la consigne reçue, puis rappeler `workflow_checkpoint`. oh ferme sans effet une question qui imite un checkpoint, et refuse `git commit` et la fermeture du ticket tant que CP-2 n'est pas validé.
+
 ### Étape 1a — Présentation du ticket + CP-1
 
 Afficher le ticket :
@@ -392,7 +394,9 @@ Le format attendu, les définitions des verdicts et du routing sont définis dan
 
 Afficher le rapport de review intégralement dans le texte de la discussion (ne pas inclure dans l'outil `question`).
 
-**En mode standalone** → utiliser l'outil `question` pour CP-2.
+**Session sur un workflow oh** → appeler `workflow_checkpoint` avec `id: "cp-2"` et un `summary` (verdict du reviewer, option recommandée : commit ou corriger). Validé → **commit** ci-dessous, aussitôt ; refusé avec une consigne → **corriger** avec cette consigne.
+
+**En mode standalone hors workflow** → utiliser l'outil `question` pour CP-2.
 
 **Mise à jour todowrite avant de poser la question — standalone uniquement :**
 
@@ -510,7 +514,7 @@ CP-2 est **toujours une pause, dans tous les modes**.
 - **commit** →
   1. Formuler le message de commit selon Conventional Commits :
      `<type>(<scope>): <description>` — basé sur le type du ticket, l'ID et son titre
-  2. Transmettre l'instruction au developer dans le prompt de re-délégation :
+  2. Relancer **aussitôt** le developer (même `task_id`) avec l'instruction — c'est lui qui commite et clôt, jamais avant cette instruction :
      > « Crée le commit final et clos le ticket :
      > 1. `git commit -m "<type>(<scope>): <description>"`
      > 2. `bd close <ID> --reason "Implemented in commit <hash>" --suggest-next` »
@@ -546,7 +550,7 @@ CP-2 est **toujours une pause, dans tous les modes**.
 
   ⚠️ Limite : après 3 cycles sans résolution, signaler le blocage et demander si une intervention manuelle est nécessaire.
 
-⏸️ **Attendre la réponse explicite via l'outil `question`.**
+⏸️ **Attendre la décision explicite** (réponse de `workflow_checkpoint` en session de workflow, outil `question` sinon).
 
 ---
 

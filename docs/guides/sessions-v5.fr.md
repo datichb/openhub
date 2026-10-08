@@ -90,9 +90,13 @@ Une session lancée depuis un workflow passe ses checkpoints par l'outil `workfl
 - checkpoint **automatique** dans le mode : il passe sans demande ;
 - checkpoint **en pause** : il apparaît dans « À traiter » (⏸) et l'agent attend. `Entrée` ouvre la fiche : résumé de l'agent, changements (`Diff complet`), derniers messages, frise ; puis **Décider** : *Valider*, *Corriger d'abord* ou *Autre consigne*, avec un message à l'agent (obligatoire pour les deux derniers). `y` valide directement, `n` ouvre la fiche sur « Corriger d'abord ». La validation reste possible dans l'interface opencode : la première réponse gagne ;
 - un agent verrouillé par `after:` dans le workflow est refusé tant que son checkpoint n'est pas passé ;
+- les opérations déverrouillées par un checkpoint (`unlocks:`, ex. `cp-2` du workflow `ticket` : commit, push, fermeture du ticket) sont refusées à tous les agents tant qu'il n'est pas passé ; ensuite, oh ne laisse fermer un ticket que si le travail est commité, puis reverrouille jusqu'au prochain passage ;
+- une **question qui imite un checkpoint** (outil `question` qui annonce « CP-2 » ou le libellé d'un checkpoint) ne valide rien : oh la ferme aussitôt et rappelle à l'agent d'appeler `workflow_checkpoint` (frise : `⚠ cp-2`) ;
 - **coupe-circuit** (`circuit_breaker`) : après N délégations d'affilée sans intervention, les délégations sont suspendues et une alerte ✗ apparaît ; `x` (ou `oh session dismiss`) la classe et les débloque.
 
 Le détail de la session affiche la frise : `✔ cp-1 10:03 → developer (3) → ⏸ cp-2 → ○ cp-3`.
+
+**Fin du workflow** : quand le dernier checkpoint est passé, ou que tous les tickets pris par la session sont fermés (checkpoints obligatoires passés), oh attend la fin de l'étape, déclare les sorties que l'agent n'a pas déclarées (branche, tickets fermés) et passe la session à **terminée** ; « Enchaîner avec… » est alors proposé. Si vous reprenez la conversation dans l'outil, la session repasse en cours.
 
 En ligne de commande : `oh session approve <id>` valide (`--decision once`), `--decision fix -m "…"` ou `--decision other -m "…"` refuse avec une consigne, `--decision reject` refuse sans consigne.
 

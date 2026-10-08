@@ -16,6 +16,7 @@ const (
 	CheckpointWaiting  = "waiting"  // waiting for a decision
 	CheckpointDelegate = "delegate" // an agent of the workflow ran
 	CheckpointBreaker  = "breaker"  // circuit breaker tripped
+	CheckpointImitated = "imitated" // a question imitated a checkpoint (closed by oh)
 )
 
 // CheckpointState is the workflow state of a session (sessions.checkpoint_state,
@@ -35,8 +36,26 @@ type CheckpointState struct {
 	Consecutive int `json:"consecutive,omitempty"`
 	// Breaker is set while the circuit breaker holds delegation.
 	Breaker bool `json:"breaker,omitempty"`
+	// Unlocks are the operations unlocked by a checkpoint passed (`unlocks:`),
+	// by operation; removed when the window closes again.
+	Unlocks map[string]CheckpointUnlock `json:"unlocks,omitempty"`
+	// Claimed and Closed are the Beads tickets the session took and closed
+	// through the oh gateway.
+	Claimed []string `json:"claimed,omitempty"`
+	Closed  []string `json:"closed,omitempty"`
+	// Finished is when oh saw the end of the workflow.
+	Finished *time.Time `json:"finished,omitempty"`
 	// Timeline is the history shown in the session detail (oldest first, capped).
 	Timeline []CheckpointEvent `json:"timeline,omitempty"`
+}
+
+// CheckpointUnlock is an operation unlocked by a checkpoint.
+type CheckpointUnlock struct {
+	Checkpoint string    `json:"checkpoint"`
+	At         time.Time `json:"at"`
+	// Head is the commit of the session location when the checkpoint was
+	// passed ("" = unknown): a ticket is closed only once it moved.
+	Head string `json:"head,omitempty"`
 }
 
 // CheckpointApproval is a validation waiting for the agent's call to run.

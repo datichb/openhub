@@ -253,8 +253,34 @@ type CheckpointSpec struct {
 	Condition string       `yaml:"condition,omitempty"`
 	Remote    RemotePolicy `yaml:"remote,omitempty"`
 	Mandatory *bool        `yaml:"mandatory,omitempty"`
+	// Unlocks lists the operations refused to every agent of the session
+	// until this checkpoint is passed (commit, push, close). The window
+	// closes again when a ticket is closed or the checkpoint is asked again.
+	Unlocks []UnlockOp `yaml:"unlocks,omitempty"`
 	// Disabled removes an inherited checkpoint (patch only).
 	Disabled bool `yaml:"disabled,omitempty"`
+}
+
+// UnlockOp is an operation a checkpoint unlocks.
+type UnlockOp string
+
+const (
+	UnlockCommit UnlockOp = "commit" // git commit
+	UnlockPush   UnlockOp = "push"   // git push
+	UnlockClose  UnlockOp = "close"  // closing a Beads ticket
+)
+
+// UnlockOps lists the valid operations.
+var UnlockOps = []UnlockOp{UnlockCommit, UnlockPush, UnlockClose}
+
+// Valid reports whether the operation is known.
+func (o UnlockOp) Valid() bool {
+	for _, v := range UnlockOps {
+		if o == v {
+			return true
+		}
+	}
+	return false
 }
 
 // Modes lists the allowed workflow modes.

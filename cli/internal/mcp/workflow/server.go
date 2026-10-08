@@ -144,6 +144,10 @@ func (h handlers) checkpoint(ctx context.Context, params json.RawMessage) (*prot
 		b.WriteString("\n")
 		b.WriteString(i18n.Tf("cmd.mcp.workflow.checkpoint_message", res.Message))
 	}
+	if len(res.Unlocked) > 0 {
+		b.WriteString("\n")
+		b.WriteString(i18n.Tf("cmd.mcp.workflow.checkpoint_unlocked", strings.Join(res.Unlocked, ", ")))
+	}
 	if res.Next != "" {
 		b.WriteString("\n")
 		b.WriteString(i18n.Tf("cmd.mcp.workflow.checkpoint_next", res.Next))

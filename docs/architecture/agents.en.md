@@ -320,7 +320,7 @@ Beads tickets, routes to the `developer` agent with the appropriate domain speci
 invocation prompt (or to `developer-refactor` / `developer-migrator`), supervises the review.
 Three modes: `manuel`, `semi-auto`, `auto`, set at launch (`oh run … --mode`) within the workflow `modes.allowed` list.
 
-CP-2 (commit or fix?) is `mandatory` and pauses in all modes of the shipped workflows.
+CP-2 (commit or fix?) is `mandatory` and pauses in all modes of the shipped workflows. It unlocks `commit`, `push` and `close` (`unlocks:`): until it is approved, oh refuses these operations to every agent; then the `developer`, handed back by `orchestrator-dev`, commits and closes the ticket.
 
 `bd close`, `bd comments add`, and `bd update` are always executed by the `developer` agent in delegation prompts — never directly by `orchestrator-dev`. The orchestrator-dev only reads Beads tickets (`bd show`, `bd list`).
 

@@ -320,7 +320,7 @@ liste de tickets Beads prêts à implémenter, route vers l'agent `developer` av
 (ou vers `developer-refactor` / `developer-migrator`), supervise la review. Trois modes : `manuel`, `semi-auto`,
 `auto`, fixés au lancement (`oh run … --mode`) dans la liste `modes.allowed` du workflow.
 
-CP-2 (commit ou corriger ?) est `mandatory` et en pause dans tous les modes des workflows livrés.
+CP-2 (commit ou corriger ?) est `mandatory` et en pause dans tous les modes des workflows livrés. Il déverrouille `commit`, `push` et `close` (`unlocks:`) : avant sa validation, oh refuse ces opérations à tous les agents ; ensuite le `developer`, relancé par l'`orchestrator-dev`, commite puis ferme le ticket.
 
 `bd close`, `bd comments add` et `bd update` sont toujours exécutés par l'agent `developer` dans les prompts de délégation — jamais directement par `orchestrator-dev`. L'orchestrateur-dev se limite à la lecture des tickets Beads (`bd show`, `bd list`).
 

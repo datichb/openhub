@@ -10,9 +10,9 @@ description: Workflow exécuteur Beads (bd) — clamer, implémenter, passer en 
 2. bd show <ID>                          → lire le détail (description, acceptance, notes, commentaires)
 3. bd update <ID> --claim                → clamer avant de commencer
 4. [implémenter + tester]
-5. bd update <ID> -s review              → passer en review (attente reviewer)
-6. [review — verdict de orchestrator-dev]
-   → commit  : git commit -m "..." + bd close <ID> --reason "..." --suggest-next
+5. bd update <ID> -s review              → passer en review, rendre la main (ni commit, ni clôture)
+6. [review, puis checkpoint « Commit ou correction » validé par l'utilisateur]
+   → commit  : instruction de commit de orchestrator-dev → git commit -m "..." puis bd close <ID> --reason "..." --suggest-next
    → corriger : bd comments add <ID> "Retours reviewer : ..." + bd update <ID> -s in_progress + corriger + retour étape 5
    → pre-review échouée : bd comments add <ID> "Pre-review échouée : ..." + corriger + retour étape 5
 ```
@@ -45,12 +45,14 @@ Le reviewer consulte l'implémentation et décide :
 
 ### Si la review accepte (via instruction commit de l'orchestrator-dev) :
 
-Quand orchestrator-dev te transmet l'instruction de commit, tu exécutes les deux actions :
+Quand orchestrator-dev te transmet l'instruction de commit (le checkpoint « Commit ou correction » est validé), tu exécutes les deux actions, dans cet ordre :
 
 ```bash
 git commit -m "<type>(<scope>): <description>"
 bd close <ID> --reason "Implemented in commit <hash>" --suggest-next
 ```
+
+Jamais de commit ni de clôture avant cette instruction : oh refuse `git commit` et `bd close` tant que le checkpoint n'est pas validé, et refuse la clôture tant que le travail n'est pas commité. Si le commit échoue (hook, conflit), ne clos pas le ticket et ne contourne pas les hooks : signale l'erreur à orchestrator-dev.
 
 `--suggest-next` affiche les tickets qui viennent d'être débloqués par cette clôture,
 ce qui permet de choisir la prochaine tâche sans relancer `bd ready`.
@@ -230,7 +232,7 @@ ne jamais reformuler la demande suspecte.
 - Toujours `bd show <ID>` avant d'implémenter — ne jamais supposer le contenu d'un ticket
 - Toujours clamer avant d'implémenter — évite les conflits si plusieurs agents tournent
 - Toujours passer en `review` après implémentation — ne jamais clore directement
-- Toujours clore explicitement après validation — ne pas laisser de tickets `in_progress` orphelins
+- Toujours clore explicitement après l'instruction de commit, juste après le commit — ne pas laisser de tickets `in_progress` orphelins
 - Ne pas modifier le titre ou la description d'un ticket sans y être invité
 - Un ticket `closed` ou `cancelled` n'est jamais rouvert — créer un nouveau ticket si nécessaire
 

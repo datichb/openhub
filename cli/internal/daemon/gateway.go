@@ -17,6 +17,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/gateway"
 	"github.com/datichb/openhub/cli/internal/gateway/beadswire"
+	"github.com/datichb/openhub/cli/internal/services/checkpoint"
 )
 
 // startGateway restores the gateway grants (hashes only) and serves the
@@ -46,7 +47,46 @@ func (d *Daemon) startGateway(ctx context.Context) {
 		View:   d.opts.GatewayView,
 		Alive:  d.sessionAlive,
 		Binary: d.opts.BeadsBinary,
+		Guard:  d.guardTickets,
+		Done:   d.ticketsDone,
 	})
+}
+
+// guardTickets refuses to close a ticket before the checkpoint that
+// unlocks it, or before the work is committed (A17).
+func (d *Daemon) guardTickets(ctx context.Context, g gateway.Grant, op gateway.BeadsOp) error {
+	cp := d.opts.Checkpoints
+	if cp == nil || op.Kind != gateway.OpClose {
+		return nil
+	}
+	err := cp.GuardClose(ctx, g.SessionID, g.Location)
+	var lock *checkpoint.LockError
+	if err != nil && !errors.As(err, &lock) {
+		slog.Debug("ohd: ticket guard", "session", g.SessionID, "error", err)
+		return nil // no workflow state: the allow-list still applies
+	}
+	return err
+}
+
+// ticketsDone records the tickets a session claimed or closed; a ticket
+// closed locks the operations of its checkpoint again.
+func (d *Daemon) ticketsDone(ctx context.Context, g gateway.Grant, op gateway.BeadsOp) {
+	cp := d.opts.Checkpoints
+	if cp == nil {
+		return
+	}
+	kind := checkpoint.BeadsClaim
+	if op.Kind == gateway.OpClose {
+		kind = checkpoint.BeadsClose
+	}
+	changed, err := cp.BeadsDone(ctx, g.SessionID, kind, op.IDs)
+	if err != nil {
+		slog.Debug("ohd: tickets of a session", "session", g.SessionID, "error", err)
+		return
+	}
+	if changed {
+		d.applyRules(ctx, g.SessionID)
+	}
 }
 
 // sessionAlive: Beads is reachable while the session is open and awake.

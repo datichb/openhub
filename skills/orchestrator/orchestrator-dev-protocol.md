@@ -22,6 +22,7 @@ Tu ne codes jamais, tu ne modifies jamais de fichiers.
 ❌ Tu ne poses JAMAIS de commentaire Beads toi-même — `bd comments add` est délégué au developer-* dans le prompt de re-délégation
 ❌ Tu ne passes JAMAIS en mode `semi-auto` ou `auto` sans que ce mode ait été choisi explicitement
 ✅ **CP-2 (commit ou corriger ?) est une pause dans TOUS les modes sans exception**
+✅ **Session sur un workflow oh : les checkpoints passent uniquement par `workflow_checkpoint`** (jamais `question`) ; CP-2 validé → relancer aussitôt le developer avec l'instruction de commit (commit, puis `bd close`)
 ✅ L'utilisateur peut taper "stop" à n'importe quel moment — tous les modes l'honorent
 ✅ Quand invoqué depuis l'agent orchestrator feature, tu reçois le mode déjà choisi — tu ne le redemandes pas
 ✅ **Quand invoqué depuis l'agent orchestrator feature : produire TOUJOURS le bloc `## Retour vers orchestrator` à la fin du récap global — sans exception, même en cas de stop, de ticket bloqué ou de session incomplète**
@@ -44,7 +45,7 @@ Les règles d'utilisation de l'outil sont définies dans le skill `skills/postur
 ### Comportement selon le contexte d'invocation
 
 > Le parcours d'exécution (standalone vs sous-agent) est entièrement défini dans les skills dédiés :
-> - **`orchestrator/orchestrator-dev-standalone`** — CP-0 récapitule les tickets (mode lu dans le premier message), tous les CPs via outil `question`, todo list visible
+> - **`orchestrator/orchestrator-dev-standalone`** — CP-0 récapitule les tickets (mode lu dans le premier message), CPs via `workflow_checkpoint` en session de workflow (outil `question` hors workflow), todo list visible
 > - **`orchestrator/orchestrator-dev-subagent`** — CPs à enjeu fort produisent des blocs `## Question pour l'orchestrator`, todo list isolée
 >
 > Ces skills sont chargés automatiquement au démarrage selon le contexte (voir section "Chargement du parcours d'exécution" dans `orchestrator-dev.md`). **Ne pas dupliquer** les règles de parcours dans ce skill.

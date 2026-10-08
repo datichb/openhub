@@ -46,7 +46,9 @@ func NeedsDecision(behavior string) bool {
 //   - workflow_checkpoint asks when a checkpoint of the mode waits for the
 //     user, is allowed otherwise;
 //   - each gated agent (`after:`) is denied until its lock is released;
-//   - every delegation is denied while the circuit breaker holds.
+//   - every delegation is denied while the circuit breaker holds;
+//   - the shell commands of the operations a checkpoint unlocks (commit,
+//     push, close) are denied until it is passed.
 func SessionRules(wf *sessionspec.WorkflowRuntime, mode string, st *domain.CheckpointState) []sessionspec.PermissionRule {
 	if wf == nil {
 		return nil
@@ -63,14 +65,78 @@ func SessionRules(wf *sessionspec.WorkflowRuntime, mode string, st *domain.Check
 	}
 	rules := []sessionspec.PermissionRule{{Action: actionCheckpoint, Resource: "*", Effect: effect}}
 	if st != nil && st.Breaker {
-		return append(rules, sessionspec.PermissionRule{Action: sessionspec.ActionSubagent, Resource: "*", Effect: sessionspec.EffectDeny})
+		rules = append(rules, sessionspec.PermissionRule{Action: sessionspec.ActionSubagent, Resource: "*", Effect: sessionspec.EffectDeny})
+	} else {
+		locked := LockedAgents(wf, mode, st)
+		sort.Strings(locked)
+		for _, a := range locked {
+			rules = append(rules, sessionspec.PermissionRule{Action: sessionspec.ActionSubagent, Resource: a, Effect: sessionspec.EffectDeny})
+		}
 	}
-	locked := LockedAgents(wf, mode, st)
-	sort.Strings(locked)
-	for _, a := range locked {
-		rules = append(rules, sessionspec.PermissionRule{Action: sessionspec.ActionSubagent, Resource: a, Effect: sessionspec.EffectDeny})
+	for _, op := range LockedOps(wf, mode, st) {
+		for _, p := range lockPatterns[op] {
+			rules = append(rules, sessionspec.PermissionRule{Action: sessionspec.ActionShell, Resource: p, Effect: sessionspec.EffectDeny})
+		}
 	}
 	return rules
+}
+
+// lockPatterns are the shell commands refused while an operation is locked.
+// The tool matches each command of a compound line on its own (`a && b`,
+// pipes, subshells, `VAR=x cmd`; verified on opencode 2.0.20), so a leading
+// `*` also catches `env git commit`, `git -c k=v commit`, `sh -c '…'`.
+// Closing a ticket is also refused by the Beads gateway, whatever the shell.
+var lockPatterns = map[string][]string{
+	sessionspec.UnlockCommit: {"*git*commit*"},
+	sessionspec.UnlockPush:   {"*git*push*"},
+	sessionspec.UnlockClose:  {"*bd*close*", "*bd*update*closed*"},
+}
+
+// LockedOps returns the operations (`unlocks:`) still locked: their
+// checkpoint is not passed in the current window (a checkpoint skipped in the
+// mode never locks), in declaration order.
+func LockedOps(wf *sessionspec.WorkflowRuntime, mode string, st *domain.CheckpointState) []string {
+	if wf == nil {
+		return nil
+	}
+	if mode == "" {
+		mode = wf.DefaultMode
+	}
+	var out []string
+	for _, c := range wf.Checkpoints {
+		if c.Behavior(mode) == sessionspec.CheckpointSkip {
+			continue
+		}
+		for _, op := range c.Unlocks {
+			if _, open := unlocked(st, op); !open {
+				out = append(out, op)
+			}
+		}
+	}
+	return out
+}
+
+// UnlockingCheckpoint returns the checkpoint that unlocks op ("" = none).
+func UnlockingCheckpoint(wf *sessionspec.WorkflowRuntime, op string) (sessionspec.CheckpointDef, bool) {
+	if wf == nil {
+		return sessionspec.CheckpointDef{}, false
+	}
+	for _, c := range wf.Checkpoints {
+		for _, o := range c.Unlocks {
+			if o == op {
+				return c, true
+			}
+		}
+	}
+	return sessionspec.CheckpointDef{}, false
+}
+
+func unlocked(st *domain.CheckpointState, op string) (domain.CheckpointUnlock, bool) {
+	if st == nil {
+		return domain.CheckpointUnlock{}, false
+	}
+	u, ok := st.Unlocks[op]
+	return u, ok
 }
 
 // LockedAgents returns the agents whose `after:` lock is not released: the

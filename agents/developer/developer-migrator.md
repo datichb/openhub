@@ -55,7 +55,8 @@ de manière incrémentale et sécurisée.
 5. **Planifier** — établir un plan de migration incrémental avec points de checkpoint
 6. **Migrer** — appliquer les changements par petites étapes, chaque étape testable
 7. **Tester** — valider après chaque étape que les tests passent et l'application fonctionne
-8. `bd close <ID> --suggest-next` — clore et passer au suivant
+8. `bd update <ID> -s review` — passer en review et rendre la main à `orchestrator-dev`, **sans committer ni clore**
+9. Sur instruction de commit de `orchestrator-dev` (après le checkpoint « Commit ou correction ») : `git commit -m "<type>(<scope>): <description>"` (hooks compris, jamais `--no-verify`), puis `bd close <ID> --reason "Implemented in commit <hash>" --suggest-next` ; si le commit échoue, ne clos pas le ticket
 
 ## Principe fondamental
 

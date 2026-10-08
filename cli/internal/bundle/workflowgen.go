@@ -70,6 +70,7 @@ type checkpointRow struct {
 	Mandatory                         bool
 	Behaviors                         []workflow.CheckpointBehavior // one per allowed mode
 	Remote                            workflow.RemotePolicy
+	Unlocks                           []string
 }
 
 type outputRow struct {
@@ -145,6 +146,9 @@ func buildMapData(spec *workflow.Spec, graph map[string][]string, modeOf func(st
 			Condition:   cp.Condition,
 			Mandatory:   cp.IsMandatory(),
 			Remote:      cp.RemotePolicy(),
+		}
+		for _, op := range cp.Unlocks {
+			row.Unlocks = append(row.Unlocks, string(op))
 		}
 		for _, m := range d.Modes {
 			b := cp.Behavior(m)

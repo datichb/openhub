@@ -30,7 +30,10 @@ type Service struct {
 	// SessionOutputs records the outputs declared by workflow_outputs
 	// (sessions.outputs).
 	SessionOutputs domain.SessionOutputStore
-	Now            func() time.Time
+	// Head returns the commit of a directory and whether it has changes not
+	// committed outside the Beads data (nil = git).
+	Head func(ctx context.Context, dir string) (head string, dirty bool, err error)
+	Now  func() time.Time
 }
 
 // Errors.
@@ -61,6 +64,9 @@ type Status struct {
 	Outputs         []Output                `json:"outputs,omitempty"`
 	// Breaker: delegation is held by the circuit breaker until the user steps in.
 	Breaker bool `json:"circuit_breaker,omitempty"`
+	// LockedOps lists the operations refused until their checkpoint is
+	// passed (commit, push, close).
+	LockedOps []string `json:"locked_operations,omitempty"`
 }
 
 // CheckpointStatus is a checkpoint of the workflow in the session mode.
@@ -87,6 +93,9 @@ type Result struct {
 	// Message is the instruction given with the validation (may be empty).
 	Message string `json:"message,omitempty"`
 	Next    string `json:"next,omitempty"`
+	// Unlocked lists the operations the checkpoint unlocked (commit, push,
+	// close), until a ticket is closed or the checkpoint is asked again.
+	Unlocked []string `json:"unlocked,omitempty"`
 }
 
 // Output is a typed value declared by workflow_outputs (O7).
@@ -157,6 +166,7 @@ func (s *Service) Status(ctx context.Context, sessionID string) (Status, error) 
 		}
 	}
 	st.Breaker = cs.Breaker
+	st.LockedOps = bundle.LockedOps(wf, sess.Mode, &cs)
 	st.Outputs, _ = s.Outputs(ctx, sessionID)
 	return st, nil
 }
@@ -175,11 +185,12 @@ func (s *Service) Reached(ctx context.Context, sessionID string, call Call) (Res
 	}
 	res := Result{ID: c.ID, Label: c.LabelFor(i18n.Locale()), Behavior: c.Behavior(sess.Mode)}
 	if s.States != nil {
-		ap, err := s.pass(ctx, sessionID, c.ID)
+		ap, err := s.pass(ctx, sess, c)
 		if err != nil {
 			return res, err
 		}
 		res.Message = ap.Message
+		res.Unlocked = c.Unlocks
 	}
 	for i, cp := range wf.Checkpoints {
 		if cp.ID == c.ID && i+1 < len(wf.Checkpoints) {

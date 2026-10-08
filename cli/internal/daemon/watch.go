@@ -235,6 +235,7 @@ func (w *watcher) onEvent(ctx context.Context, ev adapters.ToolEvent) {
 
 	switch {
 	case ev.Kind == adapters.EventExecStarted:
+		w.reopenCompleted(ctx, ev.SessionID)
 		if !w.holdOverBudget(ctx, ev.SessionID, ev.SessionID) {
 			w.clearAlerts(ctx, ev.SessionID)
 			w.syncBudget(ctx, ev.SessionID, false) // after a raise
@@ -256,6 +257,9 @@ func (w *watcher) onEvent(ctx context.Context, ev adapters.ToolEvent) {
 		w.refreshAlerts(ctx, ev.SessionID)
 	}
 	w.persist(ctx, ev.SessionID, refreshUsage)
+	if ev.Kind == adapters.EventExecEnded && ev.Outcome != "failed" {
+		w.finishWorkflow(ctx, ev.SessionID)
+	}
 	if ev.Kind == adapters.EventExecEnded {
 		w.flushDeferred(ctx, ev.SessionID)
 		w.raiseBudget(ctx, ev.SessionID) // the step is over: budgets apply now

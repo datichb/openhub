@@ -438,6 +438,15 @@ func (a *Adapter) Reply(ctx context.Context, h adapters.ServerHandle, d adapters
 	return err
 }
 
+// CancelQuestion implements adapters.QuestionCanceller.
+func (a *Adapter) CancelQuestion(ctx context.Context, h adapters.ServerHandle, sessionID, id string) error {
+	err := client(h).CancelForm(ctx, sessionID, id)
+	if err != nil && IsSettled(err) {
+		return fmt.Errorf("%w: %v", adapters.ErrRequestGone, err)
+	}
+	return err
+}
+
 // Control implements adapters.ToolAdapter.
 func (a *Adapter) Control(ctx context.Context, h adapters.ServerHandle, sessionID string, op adapters.ControlOp) error {
 	c := client(h)
@@ -486,6 +495,8 @@ func (a *Adapter) SetSessionRules(ctx context.Context, h adapters.ServerHandle, 
 var _ adapters.Forker = (*Adapter)(nil)
 
 var _ adapters.ChildLister = (*Adapter)(nil)
+
+var _ adapters.QuestionCanceller = (*Adapter)(nil)
 
 // Children implements adapters.ChildLister.
 func (a *Adapter) Children(ctx context.Context, h adapters.ServerHandle) (map[string]string, error) {

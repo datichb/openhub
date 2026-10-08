@@ -282,6 +282,8 @@ func (p *patcher) checkpoints() {
 				p.report(warnDiag("patch_unknown_checkpoint", base, k, p.parent))
 			case old.IsMandatory():
 				p.report(errDiag("mandatory_checkpoint_removed", base+".disabled", k))
+			case len(old.Unlocks) > 0:
+				p.report(errDiag("unlocking_checkpoint_removed", base+".disabled", k))
 			default:
 				p.dst.Checkpoints.Delete(k)
 				p.removed = append(p.removed, base)
@@ -328,6 +330,14 @@ func (p *patcher) checkpoints() {
 				p.loosening(base+".mandatory", false, true)
 			} else {
 				old.Mandatory = v.Mandatory
+			}
+		}
+		if h("unlocks") {
+			// Locks only add up: an inherited lock cannot be dropped.
+			for _, op := range v.Unlocks {
+				if !containsOp(old.Unlocks, op) {
+					old.Unlocks = append(old.Unlocks, op)
+				}
 			}
 		}
 		p.dst.Checkpoints.Set(k, old)
@@ -537,4 +547,13 @@ func joinRuntimes(rs []Runtime) string {
 		s[i] = string(r)
 	}
 	return strings.Join(s, ",")
+}
+
+func containsOp(ops []UnlockOp, op UnlockOp) bool {
+	for _, o := range ops {
+		if o == op {
+			return true
+		}
+	}
+	return false
 }

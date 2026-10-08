@@ -28,6 +28,9 @@ func (w *watcher) syncToolDecisions(ctx context.Context, root, toolSession strin
 	}
 	listed := map[string]bool{}
 	for _, p := range pending {
+		if w.closeImitation(ctx, root, toolSession, p) {
+			continue
+		}
 		var d domain.Decision
 		cd, handled := w.checkpointDecision(ctx, root, toolSession, p)
 		switch {
@@ -75,10 +78,13 @@ func (w *watcher) checkpointDecision(ctx context.Context, root, toolSession stri
 	if cp == nil || p.Call == nil || p.Call.Action != bundle.CheckpointAction() {
 		return nil, false
 	}
-	d, auto, err := cp.Asked(ctx, root, toolSession, p)
+	d, auto, relocked, err := cp.Asked(ctx, root, toolSession, p)
 	if err != nil {
 		slog.Debug("ohd: checkpoint request", "session", root, "error", err)
 		return nil, false
+	}
+	if relocked {
+		w.applyRules(ctx, root)
 	}
 	if auto {
 		err := w.ad.Reply(ctx, w.handle(), adapters.DecisionReply{SessionID: toolSession, ID: p.ID, Kind: adapters.DecisionPermission, Decision: "once"})

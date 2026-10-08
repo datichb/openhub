@@ -85,6 +85,8 @@ Implémente un ou plusieurs tickets Beads déjà détaillés : routage vers le b
 
 Mode par défaut : `semi-auto`. Commandes Beads autorisées : `show`, `list`, `ready`, `children`, `dep`, `update`, `close`, `comments`, `label`. Sorties : `branch`, `tickets`.
 
+`cp-2` déverrouille `commit`, `push` et `close` : avant sa validation, oh refuse à tous les agents `git commit`, `git push` et la fermeture du ticket. Une fois `cp-2` validé, l'`orchestrator-dev` relance le `developer`, qui commite puis ferme le ticket ; oh refuse la fermeture tant que le travail n'est pas commité. Une question qui imite un checkpoint (« CP-2 — commit ? » posée avec l'outil `question`) est fermée par oh, qui rappelle à l'agent d'appeler `workflow_checkpoint`. Quand le ticket de la session est fermé (ou le dernier checkpoint passé) et que l'étape se termine, oh déclare les sorties manquantes (`branch`, `tickets`) et la session passe à **terminée** : « Enchaîner avec… » est proposé.
+
 ## `feature`
 
 Réalise une feature de bout en bout. L'orchestrator choisit l'agent de planning : `pathfinder` pour une feature simple ou exploratoire, `planner` pour une feature à découper (création des tickets) ou pour classer des tickets existants. Il passe ensuite la main à `orchestrator-dev` pour l'implémentation.

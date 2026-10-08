@@ -20,6 +20,7 @@ const (
 	StepRefused  = domain.CheckpointRefused
 	StepDelegate = domain.CheckpointDelegate
 	StepBreaker  = domain.CheckpointBreaker
+	StepImitated = domain.CheckpointImitated
 	StepTodo     = "todo"
 )
 
@@ -68,6 +69,8 @@ func Timeline(wf *sessionspec.WorkflowRuntime, mode, lang string, st domain.Chec
 			out = append(out, Step{Kind: e.Kind, ID: e.ID, Label: label(e.ID), At: e.At})
 		case domain.CheckpointBreaker:
 			out = append(out, Step{Kind: StepBreaker, At: e.At})
+		case domain.CheckpointImitated:
+			out = append(out, Step{Kind: StepImitated, ID: e.ID, Label: label(e.ID), At: e.At})
 		}
 	}
 	// A waiting step is current only if it is still the one waited for.
@@ -104,6 +107,8 @@ func StepText(s Step) string {
 		return s.ID
 	case StepBreaker:
 		return "✗"
+	case StepImitated:
+		return "⚠ " + s.ID
 	}
 	return "○ " + s.ID
 }

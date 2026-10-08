@@ -90,9 +90,13 @@ A session started from a workflow passes its checkpoints through the `workflow_c
 - a checkpoint that is **automatic** in the mode goes through without asking;
 - a **paused** checkpoint shows up in "To handle" (⏸) and the agent waits. `Enter` opens the card: the agent's summary, the changes (`Full diff`), the last messages, the timeline; then **Decide**: *Validate*, *Fix first* or *Other instruction*, with a message to the agent (required for the last two). `y` validates directly, `n` opens the card on "Fix first". You can still validate in the opencode UI: the first answer wins;
 - an agent locked by `after:` in the workflow is refused until its checkpoint is passed;
+- the operations a checkpoint unlocks (`unlocks:`, e.g. `cp-2` of the `ticket` workflow: commit, push, closing the ticket) are refused to every agent until it is passed; then oh lets a ticket be closed only once the work is committed, and locks again until the next pass;
+- a **question imitating a checkpoint** (`question` tool announcing "CP-2" or a checkpoint label) approves nothing: oh closes it at once and reminds the agent to call `workflow_checkpoint` (timeline: `⚠ cp-2`);
 - **circuit breaker** (`circuit_breaker`): after N delegations in a row without you, delegations are held and a ✗ alert shows up; `x` (or `oh session dismiss`) dismisses it and releases them.
 
 The session detail shows the timeline: `✔ cp-1 10:03 → developer (3) → ⏸ cp-2 → ○ cp-3`.
+
+**End of the workflow**: when the last checkpoint is passed, or every ticket the session took is closed (mandatory checkpoints passed), oh waits for the end of the step, declares the outputs the agent did not (branch, closed tickets) and the session becomes **completed**; "Chain with…" is then offered. If you go on with the conversation in the tool, the session is in progress again.
 
 From the command line: `oh session approve <id>` validates (`--decision once`), `--decision fix -m "…"` or `--decision other -m "…"` refuses with an instruction, `--decision reject` refuses without one.
 

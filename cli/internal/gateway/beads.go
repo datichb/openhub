@@ -34,6 +34,11 @@ type Beads struct {
 	Binary    string
 	Timeout   time.Duration // default 2 minutes
 	MaxOutput int           // bytes per stream, default 8 MiB
+	// Guard refuses a ticket operation for the workflow state of the
+	// session (nil = none); its error message is shown to the agent.
+	Guard func(ctx context.Context, g Grant, op BeadsOp) error
+	// Done is told the ticket operations that ran successfully (nil = none).
+	Done func(ctx context.Context, g Grant, op BeadsOp)
 }
 
 const (
@@ -102,6 +107,13 @@ func (b *Beads) Exec(ctx context.Context, g Grant, req beadswire.ExecRequest) (r
 	if !exists(dir) {
 		return refusalResp(i18n.Tf("cmd.gateway.beads.path_outside", dir)), http.StatusForbidden
 	}
+	op, isOp := ticketOp(req.Argv, c)
+	if isOp && b.Guard != nil {
+		if err := b.Guard(ctx, g, op); err != nil {
+			slog.Debug("gateway: bd refused by the workflow", "session", g.SessionID, "command", c.Name, "error", err)
+			return refusalResp(err.Error()), http.StatusForbidden
+		}
+	}
 	bin := b.Binary
 	if bin == "" {
 		if bin, err = exec.LookPath("bd"); err != nil {
@@ -139,6 +151,9 @@ func (b *Beads) Exec(ctx context.Context, g Grant, req beadswire.ExecRequest) (r
 		resp.Stderr = append(resp.Stderr, []byte(fmt.Sprintf("bd: %s\n", i18n.Tf("cmd.gateway.beads.output_truncated", limit)))...)
 	}
 	slog.Debug("gateway: bd", "session", g.SessionID, "command", c.Name, "exit", resp.ExitCode)
+	if isOp && b.Done != nil && resp.ExitCode == 0 && resp.Error == "" {
+		b.Done(ctx, g, op)
+	}
 	return resp, http.StatusOK
 }
 

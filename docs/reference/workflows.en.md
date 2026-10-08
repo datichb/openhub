@@ -85,6 +85,8 @@ Implements one or more detailed Beads tickets: routing to the right developer, p
 
 Default mode: `semi-auto`. Allowed Beads commands: `show`, `list`, `ready`, `children`, `dep`, `update`, `close`, `comments`, `label`. Outputs: `branch`, `tickets`.
 
+`cp-2` unlocks `commit`, `push` and `close`: until it is approved, oh refuses `git commit`, `git push` and closing the ticket to every agent. Once `cp-2` is approved, `orchestrator-dev` hands back to the `developer`, who commits and then closes the ticket; oh refuses closing while the work is not committed. A question imitating a checkpoint ("CP-2 — commit?" asked with the `question` tool) is closed by oh, which reminds the agent to call `workflow_checkpoint`. When the ticket of the session is closed (or the last checkpoint passed) and the step ends, oh declares the missing outputs (`branch`, `tickets`) and the session becomes **completed**: "Chain with…" is offered.
+
 ## `feature`
 
 Delivers a feature end to end. The orchestrator picks the planning agent: `pathfinder` for a simple or exploratory feature, `planner` for a feature to split (ticket creation) or to classify existing tickets. It then hands over to `orchestrator-dev` for the implementation.
