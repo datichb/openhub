@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -11,13 +12,17 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/beads"
 	"github.com/datichb/openhub/cli/internal/buildinfo"
+	"github.com/datichb/openhub/cli/internal/config"
+	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/provider"
 	"github.com/datichb/openhub/cli/internal/selfupdate"
 	"github.com/datichb/openhub/cli/internal/tui/progress"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
+	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
 
 var doctorCmd = &cobra.Command{
@@ -30,9 +35,62 @@ func init() {
 	rootCmd.AddCommand(doctorCmd)
 }
 
+// check is one entry of the doctor registry: the label shown while it runs
+// and the function that returns its result(s). A result without a name takes
+// the label of its check.
 type check struct {
 	name string
-	test func() (string, bool)
+	run  func() []views.DoctorCheck
+}
+
+// single adapts a check that returns a detail and a pass/fail flag.
+func single(fn func() (string, bool)) func() []views.DoctorCheck {
+	return func() []views.DoctorCheck {
+		detail, ok := fn()
+		return []views.DoctorCheck{{Detail: detail, OK: ok}}
+	}
+}
+
+// one adapts a check that returns a full result (warnings).
+func one(fn func() views.DoctorCheck) func() []views.DoctorCheck {
+	return func() []views.DoctorCheck { return []views.DoctorCheck{fn()} }
+}
+
+// doctorRegistry lists every check of oh doctor, in display order. It is the
+// single source of `oh doctor` and of the TUI Doctor view (A40).
+func doctorRegistry() []check {
+	return []check{
+		{i18n.T("cmd.doctor.check.os"), single(checkOS)},
+		{i18n.T("cmd.doctor.check.go"), single(checkGoRuntime)},
+		{"git", single(checkBinary("git"))},
+		{"bd (beads)", single(checkOptionalBinary("bd", "brew install datichb/tap/bd"))},
+		{i18n.T("cmd.doctor.check.version"), one(checkOhUpdate)},
+		{i18n.T("cmd.doctor.check.config"), single(checkConfig)},
+		{i18n.T("cmd.doctor.check.credentials"), single(checkProviderCredentials)},
+		{i18n.T("cmd.doctor.check.database"), single(checkDatabase)},
+		{i18n.T("cmd.doctor.check.api_keys"), single(checkAPIKeys)},
+		{i18n.T("cmd.doctor.check.beads"), single(checkBeadsSanity)},
+		{i18n.T("cmd.doctor.check.runtime"), v5DoctorChecks},
+	}
+}
+
+// collectDoctorChecks runs the whole registry (TUI Doctor view).
+func collectDoctorChecks() []views.DoctorCheck {
+	var out []views.DoctorCheck
+	for _, c := range doctorRegistry() {
+		out = append(out, c.results()...)
+	}
+	return out
+}
+
+func (c check) results() []views.DoctorCheck {
+	res := c.run()
+	for i := range res {
+		if res[i].Name == "" {
+			res[i].Name = c.name
+		}
+	}
+	return res
 }
 
 func runDoctor(cmd *cobra.Command, args []string) error {
@@ -41,24 +99,7 @@ func runDoctor(cmd *cobra.Command, args []string) error {
 	fmt.Fprintln(a.IO.Out, theme.Title.Render("  oh doctor  "))
 	fmt.Fprintln(a.IO.Out)
 
-	checks := []check{
-		{"OS / Architecture", checkOS},
-		{"Go runtime", checkGoRuntime},
-		{"git", checkBinary("git")},
-		{"bd (beads)", checkOptionalBinary("bd", "brew install datichb/tap/bd")},
-		{"fzf (fuzzy finder)", checkOptionalBinary("fzf", "brew install fzf")},
-		{"Version oh", checkOhUpdate},
-		{"Configuration hub.toml", checkConfig},
-		{"Provider credentials", checkProviderCredentials},
-		{"Base de données", checkDatabase},
-		{"Clés API (keychain)", checkAPIKeys},
-		{"Beads zero-impact (hooks & gitignore)", checkBeadsSanity},
-	}
-	for _, c := range v5DoctorChecks() {
-		c := c
-		checks = append(checks, check{c.Name, func() (string, bool) { return c.Detail, c.OK }})
-	}
-	return runDoctorChecks(a.IO.Out, checks)
+	return runDoctorChecks(a.IO.Out, doctorRegistry())
 }
 
 // runDoctorChecks prints each check; a failed check makes oh exit with 1
@@ -68,18 +109,19 @@ func runDoctorChecks(w io.Writer, checks []check) error {
 	for _, c := range checks {
 		s := progress.NewSpinner(c.name)
 		s.Start()
-		detail, ok := c.test()
+		res := c.results()
 		s.Stop()
 
-		if ok {
-			fmt.Fprintf(w, "  %s %s — %s\n",
-				theme.SuccessStyle.Render(theme.IconSuccess),
-				c.name, detail)
-		} else {
-			fmt.Fprintf(w, "  %s %s — %s\n",
-				theme.ErrorStyle.Render(theme.IconError),
-				c.name, detail)
-			allPassed = false
+		for _, r := range res {
+			icon := theme.SuccessStyle.Render(theme.IconSuccess)
+			switch {
+			case !r.OK:
+				icon = theme.ErrorStyle.Render(theme.IconError)
+				allPassed = false
+			case r.Warn:
+				icon = theme.WarningStyle.Render(theme.IconWarning)
+			}
+			fmt.Fprintf(w, "  %s %s — %s\n", icon, r.Name, r.Detail)
 		}
 	}
 
@@ -126,7 +168,7 @@ func checkConfig() (string, bool) {
 	if a == nil || a.Config == nil {
 		return i18n.T("cmd.doctor.config_not_loaded"), false
 	}
-	return fmt.Sprintf("langue=%s", a.Config.CLI.Language), true
+	return i18n.Tf("cmd.doctor.config_ok", a.Config.CLI.Language), true
 }
 
 func checkDatabase() (string, bool) {
@@ -137,7 +179,7 @@ func checkDatabase() (string, bool) {
 	ctx := context.Background()
 	projects, err := a.Projects.List(ctx, "")
 	if err != nil {
-		return fmt.Sprintf("erreur: %v", err), false
+		return i18n.Tf("cmd.doctor.error", err), false
 	}
 	return i18n.Tf("cmd.doctor.db_ok", len(projects)), true
 }
@@ -177,7 +219,7 @@ func checkOptionalBinary(name, installHint string) func() (string, bool) {
 func checkAPIKeys() (string, bool) {
 	a := TryApp()
 	if a == nil {
-		return "app non disponible", false
+		return i18n.T("cmd.doctor.app_unavailable"), false
 	}
 
 	type keyCheck struct {
@@ -234,58 +276,101 @@ func checkAPIKeys() (string, bool) {
 	return i18n.Tf("cmd.doctor.tokens_ok", found, configured, strings.Join(foundDetails, ", ")), true
 }
 
-// checkProviderCredentials validates that the configured default provider has accessible credentials.
+// checkProviderCredentials follows the credential cascade of a session
+// started from the current directory: project (explicit key, project key) →
+// team → hub → AWS profile or default chain for Bedrock (A2).
 func checkProviderCredentials() (string, bool) {
 	a := TryApp()
-	if a == nil {
-		return "app non disponible", false
+	if a == nil || a.Config == nil {
+		return i18n.T("cmd.doctor.app_unavailable"), false
 	}
-
-	providerName := a.Config.LLM.DefaultProvider
-	if providerName == "" {
-		return i18n.T("cmd.doctor.no_provider"), false
-	}
-
-	det := provider.Detect(provider.Name(providerName))
-	if det.Available {
-		return fmt.Sprintf("%s — %s (%s)", providerName, det.Source, det.Details), true
-	}
-
-	// Check keychain as fallback
 	ctx := context.Background()
-	if a.Secrets != nil {
-		keyName := provider.KeychainKey(provider.Name(providerName), "")
-		if keyName != "" {
-			if val, _ := a.Secrets.Get(ctx, keyName); val != "" {
-				return fmt.Sprintf("%s — keychain (%s)", providerName, keyName), true
-			}
-		}
+	var project *domain.Project
+	if a.Projects != nil {
+		project, _ = budgetProject(ctx, a, "")
 	}
-
-	return fmt.Sprintf("%s — credentials non trouvées (oh provider setup)", providerName), false
+	return providerCredentialStatus(ctx, a, project)
 }
 
-func checkOhUpdate() (string, bool) {
-	current := buildinfo.Version
-	if current == "dev" {
-		return "dev build — vérification ignorée", true
+func providerCredentialStatus(ctx context.Context, a *app.App, project *domain.Project) (string, bool) {
+	prov := a.Config.LLM.DefaultProvider
+	cfg := hubProviderCfg(a, prov)
+	var projectID, tokenKey, teamID string
+	if project != nil {
+		prov, tokenKey, cfg = projectProvider(a, project, "")
+		projectID = project.ID
+		if tc := config.ResolveTeamForProject(a.Config, project); tc.Enabled {
+			teamID = tc.TeamID
+		}
+	}
+	if prov == "" {
+		return i18n.T("cmd.doctor.no_provider"), false
+	}
+	scope := i18n.T("cmd.doctor.credentials.scope_hub")
+	if project != nil {
+		scope = i18n.Tf("cmd.doctor.credentials.scope_project", project.Name)
 	}
 
+	name := provider.Name(prov)
+	if provider.KeychainKey(name, "") == "" {
+		// Provider without a secret (gh auth…): detected on the host.
+		if det := provider.Detect(name); det.Available {
+			return fmt.Sprintf("%s — %s (%s)", prov, det.Source, det.Details), true
+		}
+		return i18n.Tf("cmd.doctor.credentials.missing", prov, scope), false
+	}
+
+	var secrets provider.SecretStore
+	if a.Secrets != nil {
+		secrets = a.Secrets
+	}
+	cred, err := provider.ResolveCredentialSource(ctx, secrets, name, projectID, teamID, tokenKey, &cfg)
+	if errors.Is(err, provider.ErrNoCredential) {
+		return i18n.Tf("cmd.doctor.credentials.missing", prov, scope), false
+	}
+	if err != nil {
+		return i18n.Tf("cmd.doctor.credentials.error", prov, err), false
+	}
+	switch cred.Source.Scope {
+	case "project", "team", "hub":
+		return i18n.Tf("cmd.doctor.credentials.found_"+cred.Source.Scope, prov, cred.Source.KeychainKey), true
+	}
+	// Bedrock SigV4: the AWS SDK resolves the credentials at launch.
+	if cfg.AWSProfile != "" {
+		return i18n.Tf("cmd.doctor.credentials.found_aws_profile", prov, cfg.AWSProfile), true
+	}
+	if det := provider.Detect(name); det.Available {
+		return i18n.Tf("cmd.doctor.credentials.found_aws", prov, det.Source, det.Details), true
+	}
+	return i18n.Tf("cmd.doctor.credentials.missing", prov, scope), false
+}
+
+// checkOhUpdate compares the running oh with the latest published release:
+// a newer release is a warning (the check passes), never an older one (A1).
+func checkOhUpdate() views.DoctorCheck {
+	current := buildinfo.Version
+	if compareOhVersion(current, "0.0.0") == versionUnknown {
+		return views.DoctorCheck{OK: true, Detail: i18n.Tf("cmd.doctor.version.dev", current)}
+	}
 	release, err := selfupdate.LatestRelease()
 	if err != nil {
 		// Network failure is non-fatal — don't block doctor
-		return fmt.Sprintf("%s (impossible de vérifier: %v)", current, err), true
+		return views.DoctorCheck{OK: true, Warn: true, Detail: i18n.Tf("cmd.doctor.version.unreachable", current, err)}
 	}
+	return ohUpdateResult(current, release.Version())
+}
 
-	latest := release.Version()
-	if current == latest {
-		return fmt.Sprintf("%s — à jour", current), true
+func ohUpdateResult(current, latest string) views.DoctorCheck {
+	switch compareOhVersion(current, latest) {
+	case versionSame:
+		return views.DoctorCheck{OK: true, Detail: i18n.Tf("cmd.doctor.version.up_to_date", current)}
+	case versionAhead:
+		return views.DoctorCheck{OK: true, Detail: i18n.Tf("cmd.doctor.version.ahead", current, latest)}
+	case versionAvailable:
+		return views.DoctorCheck{OK: true, Warn: true, Detail: i18n.Tf("cmd.doctor.version.available", current, latest)}
+	default:
+		return views.DoctorCheck{OK: true, Detail: i18n.Tf("cmd.doctor.version.dev", current)}
 	}
-
-	return fmt.Sprintf(
-		"%s → %s disponible (oh upgrade oh)",
-		current, latest,
-	), false
 }
 
 // checkBeadsSanity verifies that beads-initialized projects have no side effects
@@ -294,13 +379,13 @@ func checkOhUpdate() (string, bool) {
 func checkBeadsSanity() (string, bool) {
 	a := TryApp()
 	if a == nil || a.Projects == nil {
-		return "aucun projet à vérifier", true
+		return i18n.T("cmd.doctor.beads.no_project"), true
 	}
 
 	ctx := context.Background()
 	projects, err := a.Projects.List(ctx, "")
 	if err != nil {
-		return "impossible de lister les projets", true
+		return i18n.T("cmd.doctor.beads.list_failed"), true
 	}
 
 	var totalIssues int
@@ -330,16 +415,16 @@ func checkBeadsSanity() (string, bool) {
 			}
 		}
 		if checkedCount == 0 {
-			return "aucun projet avec beads initialisé", true
+			return i18n.T("cmd.doctor.beads.none"), true
 		}
-		return fmt.Sprintf("%d projet(s) vérifié(s) — aucun effet de bord", checkedCount), true
+		return i18n.Tf("cmd.doctor.beads.ok", checkedCount), true
 	}
 
-	summary := fmt.Sprintf("%d problème(s) détecté(s)", totalIssues)
+	summary := i18n.Tf("cmd.doctor.beads.issues", totalIssues)
 	if len(details) <= 3 {
 		summary += ": " + strings.Join(details, "; ")
 	} else {
-		summary += ": " + strings.Join(details[:3], "; ") + fmt.Sprintf(" (+%d autres)", len(details)-3)
+		summary += ": " + strings.Join(details[:3], "; ") + " " + i18n.Tf("cmd.doctor.beads.more", len(details)-3)
 	}
 	return summary, false
 }

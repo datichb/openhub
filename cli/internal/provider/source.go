@@ -17,6 +17,9 @@ func TeamKeychainKey(name Name, teamID string) string {
 	return "openhub.team." + teamID + ".provider." + string(name) + ".token"
 }
 
+// ErrNoCredential reports that no key of the cascade holds a credential.
+var ErrNoCredential = errors.New("no credential found")
+
 // ResolvedCredential is a provider credential found on the host.
 type ResolvedCredential struct {
 	Source  domain.CredentialSource
@@ -80,5 +83,5 @@ func ResolveCredentialSource(ctx context.Context, secrets SecretStore, prov Name
 		out.Source = domain.CredentialSource{Kind: domain.CredentialSigV4, Profile: out.Profile, Scope: "aws"}
 		return out, nil
 	}
-	return out, fmt.Errorf("no credential found for provider %s (project %q, team %q)", prov, projectID, teamID)
+	return out, fmt.Errorf("%w for provider %s (project %q, team %q)", ErrNoCredential, prov, projectID, teamID)
 }

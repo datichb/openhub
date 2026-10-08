@@ -12,7 +12,7 @@ This guide covers common issues with openhub, how to diagnose them with `oh doct
 
 ### `oh doctor`
 
-Run `oh doctor` to check your installation health. It performs about twenty checks:
+Run `oh doctor` to check your installation health. It performs about twenty checks (the TUI Doctor view runs exactly the same):
 
 | # | Check | What it verifies | Common fix |
 |---|-------|-----------------|------------|
@@ -20,22 +20,21 @@ Run `oh doctor` to check your installation health. It performs about twenty chec
 | 2 | Go runtime | Go version (always passes) | — |
 | 3 | git | `git` binary on PATH | Install git |
 | 4 | bd (beads) | Beads CLI (optional) | `brew install datichb/tap/bd` |
-| 5 | fzf | Fuzzy finder (optional) | `brew install fzf` |
-| 6 | oh version | Latest oh version available | `oh upgrade oh` (or `brew upgrade openhub`) |
-| 7 | Configuration | `hub.toml` loads correctly | `oh init` to reinitialize |
-| 8 | Provider credentials | LLM provider API key present | `oh provider setup`, `oh secrets set` or env var |
-| 9 | Database | SQLite database accessible | `oh repair` |
-| 10 | API keys | MCP service tokens (Figma, GitLab, etc.) | `oh mcp setup <service>` |
-| 11 | Beads zero-impact | No side effects from Beads (hooks, gitignore) | `oh repair` |
-| 12 | opencode V2 | opencode installed, minimum version 2.0.0 (V1 refused) | `brew install anomalyco/tap/opencode`; see the [v5 migration guide](migration-v5.en.md) |
-| 13 | Former deployments | Leftovers of `oh deploy` in the projects | `oh migrate deploy-cleanup` |
-| 14 | oh daemon | State of the `ohd` daemon (started on the first launch) | `oh daemon status` |
-| 15 | Security | Daemon issuing capability in the keychain, proxy tokens stored as hashes | — |
-| 16 | Session restrictions | Hub restrictions (off by default) | `oh budget show` |
-| 17 | git (relative worktrees) | git version recent enough for worktrees | Upgrade git |
-| 18 | Opening sessions | How sessions are opened (terminal, iTerm, tmux…) | — |
-| 19 | Container | Engine, file sharing, project images | see [Container](container.en.md) |
-| 20 | Gateways | `bd` on the machine (Beads gateway), daemon gateways | Install `bd`; `oh daemon status` |
+| 5 | oh version | Latest published oh release: a newer release is a warning (⚠, not a failure); a pre-release or a development build newer than the latest published release is "up to date" | `oh upgrade oh` (or `brew upgrade openhub`) |
+| 6 | Configuration | `hub.toml` loads correctly | `oh init` to reinitialize |
+| 7 | Provider credentials | Credentials found through the cascade of a launch from the current directory: project key, team key, hub key, then AWS profile (Bedrock); the source is shown | `oh provider setup`, `oh secrets set` or env var |
+| 8 | Database | SQLite database accessible | `oh repair` |
+| 9 | API keys | MCP service tokens (Figma, GitLab, etc.) | `oh mcp setup <service>` |
+| 10 | Beads zero-impact | No side effects from Beads (hooks, gitignore) | `oh repair` |
+| 11 | opencode V2 | opencode installed, minimum version 2.0.0 (V1 refused) | `brew install anomalyco/tap/opencode`; see the [v5 migration guide](migration-v5.en.md) |
+| 12 | Former deployments | Leftovers of `oh deploy` in the projects | `oh migrate deploy-cleanup` |
+| 13 | oh daemon | State of the `ohd` daemon (started on the first launch) | `oh daemon status` |
+| 14 | Security | Daemon issuing capability in the keychain, proxy tokens stored as hashes | — |
+| 15 | Session restrictions | Hub restrictions (off by default) | `oh budget show` |
+| 16 | git (relative worktrees) | git version recent enough for worktrees | Upgrade git |
+| 17 | Opening sessions | How sessions are opened (terminal, iTerm, tmux…) | — |
+| 18 | Container | Engine, file sharing, project images | see [Container](container.en.md) |
+| 19 | Gateways | `bd` on the machine (Beads gateway), daemon gateways | Install `bd`; `oh daemon status` |
 
 ### `oh repair`
 

@@ -24,13 +24,13 @@ oh init
 
 ### oh doctor
 
-Checks the system health and dependencies. No flags. Exits with code 0 even when checks fail (the result is printed).
+Checks the system health and dependencies. No flags. Exits with code 1 when a check fails (✗); warnings (⚠) do not count. The TUI Doctor view runs exactly the same checks.
 
 ```
 oh doctor
 ```
 
-Checks: OS and architecture, git, `bd` and `fzf` (optional), oh version (update available), `hub.toml`, provider credentials, database, API keys (keychain), Beads "zero impact" (hooks, `.gitignore`), then the v5 checks: opencode V2 (minimum version; V1 refused with the [migration guide](../guides/migration-v5.en.md)), `ohd` daemon, git, terminal opening, container engine and image, gateways, restrictions and memory, security (socket, capability, tokens), leftovers of former deployments, integrity of the team-state workflows, remote targets, orphan team claims (ticket closed, or every session on the ticket ended; with the `oh team release` command to run).
+Checks: OS and architecture, git, `bd` (optional), oh version (update available: warning; a pre-release such as `5.0.0-rc.1` or a `git describe` development build newer than the latest published release is up to date), `hub.toml`, provider credentials (cascade of a launch from the current directory: project key, team key, hub key, then AWS profile for Bedrock), database, API keys (keychain), Beads "zero impact" (hooks, `.gitignore`), then the v5 checks: opencode V2 (minimum version; V1 refused with the [migration guide](../guides/migration-v5.en.md)), `ohd` daemon, git, terminal opening, container engine and image, gateways, restrictions and memory, security (socket, capability, tokens), leftovers of former deployments, integrity of the team-state workflows, remote targets, orphan team claims (ticket closed, or every session on the ticket ended; with the `oh team release` command to run).
 
 **Example:**
 
@@ -91,7 +91,7 @@ oh upgrade oh [version] [--check]
 
 | Argument / flag | Type | Description |
 |-----------------|------|-------------|
-| `version` | argument | Target version (default: the latest) |
+| `version` | argument | Target version (default: the latest published). Without a version, oh never installs a version older than its own; an older version requested explicitly is installed with a downgrade warning |
 | `--check` | bool | Only check whether an update is available |
 
 **Example:**

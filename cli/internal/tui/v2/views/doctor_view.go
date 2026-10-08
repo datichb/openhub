@@ -1,10 +1,7 @@
 package views
 
 import (
-	"context"
 	"fmt"
-	"os/exec"
-	"runtime"
 	"strings"
 
 	"github.com/gdamore/tcell/v2"
@@ -15,11 +12,13 @@ import (
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
 
-// DoctorCheck represents a single health check result.
+// DoctorCheck represents a single health check result. Warn marks a passed
+// check that deserves attention (newer oh release…).
 type DoctorCheck struct {
 	Name   string
 	Detail string
 	OK     bool
+	Warn   bool
 }
 
 // DoctorView displays system health checks with real execution.
@@ -28,13 +27,14 @@ type DoctorView struct {
 	appCtx *app.App
 	tv     *tview.TextView
 	checks []DoctorCheck
+	run    func() []DoctorCheck
 }
 
 var _ View = (*DoctorView)(nil)
 
 // NewDoctorView creates a new doctor view.
 func NewDoctorView(a *app.App) *DoctorView {
-	return &DoctorView{appCtx: a}
+	return &DoctorView{appCtx: a, run: DoctorChecks}
 }
 
 // ID returns the view identifier.
@@ -105,21 +105,15 @@ func (v *DoctorView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 // collectChecks runs all health checks and returns the results.
 // Safe to call from any goroutine.
 func (v *DoctorView) collectChecks() []DoctorCheck {
-	checks := []DoctorCheck{
-		v.checkOS(),
-		v.checkBinary("git"),
-		v.checkConfig(),
-		v.checkDatabase(),
+	if v.run == nil {
+		return nil
 	}
-	if ExtraDoctorChecks != nil {
-		checks = append(checks, ExtraDoctorChecks()...)
-	}
-	return checks
+	return v.run()
 }
 
-// ExtraDoctorChecks lets the command layer add runtime checks (v5 runtime,
-// oh daemon, terminal integration) without the view depending on them.
-var ExtraDoctorChecks func() []DoctorCheck
+// DoctorChecks runs the checks of `oh doctor` (set by the command layer): the
+// view shows exactly the same checks as the CLI.
+var DoctorChecks func() []DoctorCheck
 
 func (v *DoctorView) render() {
 	if v.tv == nil {
@@ -132,9 +126,13 @@ func (v *DoctorView) render() {
 	passed := 0
 	for _, c := range v.checks {
 		icon := theme.ColorTag(theme.SuccessHex) + theme.IconSuccess + theme.TagColor
-		if !c.OK {
+		switch {
+		case !c.OK:
 			icon = theme.ColorTag(theme.ErrorHex) + theme.IconError + theme.TagColor
-		} else {
+		case c.Warn:
+			icon = theme.ColorTag(theme.WarningHex) + theme.IconWarning + theme.TagColor
+			passed++
+		default:
 			passed++
 		}
 		fmt.Fprintf(&sb, "  %s  %-28s %s%s%s\n",
@@ -151,47 +149,4 @@ func (v *DoctorView) render() {
 	}
 
 	v.tv.SetText(sb.String())
-}
-
-func (v *DoctorView) checkOS() DoctorCheck {
-	return DoctorCheck{
-		Name:   "OS / Architecture",
-		Detail: fmt.Sprintf("%s/%s", runtime.GOOS, runtime.GOARCH),
-		OK:     true,
-	}
-}
-
-func (v *DoctorView) checkBinary(name string) DoctorCheck {
-	path, err := exec.LookPath(name)
-	if err != nil {
-		return DoctorCheck{Name: name, Detail: i18n.T("tui.doctor.not_found_in_path"), OK: false}
-	}
-	// Try to get version
-	out, err := exec.Command(path, "--version").Output()
-	if err != nil {
-		return DoctorCheck{Name: name, Detail: path, OK: true}
-	}
-	version := strings.TrimSpace(strings.Split(string(out), "\n")[0])
-	if len(version) > 40 {
-		version = version[:40]
-	}
-	return DoctorCheck{Name: name, Detail: version, OK: true}
-}
-
-func (v *DoctorView) checkConfig() DoctorCheck {
-	if v.appCtx == nil || v.appCtx.Config == nil {
-		return DoctorCheck{Name: i18n.T("tui.doctor.check_config"), Detail: i18n.T("tui.doctor.not_loaded"), OK: false}
-	}
-	return DoctorCheck{Name: i18n.T("tui.doctor.check_config"), Detail: "hub.toml OK", OK: true}
-}
-
-func (v *DoctorView) checkDatabase() DoctorCheck {
-	if v.appCtx == nil || v.appCtx.Projects == nil {
-		return DoctorCheck{Name: i18n.T("tui.doctor.check_database"), Detail: i18n.T("tui.doctor.not_connected"), OK: false}
-	}
-	projects, err := v.appCtx.Projects.List(context.Background(), "")
-	if err != nil {
-		return DoctorCheck{Name: i18n.T("tui.doctor.check_database"), Detail: err.Error(), OK: false}
-	}
-	return DoctorCheck{Name: i18n.T("tui.doctor.check_database"), Detail: i18n.Tf("tui.doctor.db_ok_projects", len(projects)), OK: true}
 }

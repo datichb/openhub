@@ -306,6 +306,26 @@ func TestDoctorView_ImplementsView(t *testing.T) {
 	v.Unmount()
 }
 
+// A40: the view shows exactly the checks of `oh doctor` (warnings counted as
+// passed), not a subset of its own.
+func TestDoctorView_ShowsDoctorRegistry(t *testing.T) {
+	v := NewDoctorView(nil)
+	v.run = func() []DoctorCheck {
+		return []DoctorCheck{
+			{Name: "oh version", OK: true, Warn: true, Detail: "5.0.1 available"},
+			{Name: "Provider credentials", OK: false, Detail: "missing"},
+		}
+	}
+	v.tv = tview.NewTextView()
+	v.checks = v.collectChecks()
+	v.render()
+	text := v.tv.GetText(true)
+	assert.Contains(t, text, "oh version")
+	assert.Contains(t, text, "5.0.1 available")
+	assert.Contains(t, text, "Provider credentials")
+	assert.Contains(t, text, i18n.Tf("tui.doctor.summary", 1, 2))
+}
+
 func TestMCPView_ImplementsView(t *testing.T) {
 	var _ View = (*MCPView)(nil)
 

@@ -9,8 +9,8 @@ import (
 
 // QB1: oh doctor exits non-zero when a check fails (it always exited 0).
 func TestDoctorExitCode(t *testing.T) {
-	ok := check{"ok", func() (string, bool) { return "fine", true }}
-	bad := check{"bad", func() (string, bool) { return "broken", false }}
+	ok := check{"ok", single(func() (string, bool) { return "fine", true })}
+	bad := check{"bad", single(func() (string, bool) { return "broken", false })}
 	var out bytes.Buffer
 	if err := runDoctorChecks(&out, []check{ok, ok}); err != nil || ExitCode(err) != 0 {
 		t.Fatalf("all passed: err = %v", err)
