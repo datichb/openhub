@@ -395,6 +395,36 @@ func Stash(path, message string) (string, error) {
 	return strings.TrimSpace(string(ref)), nil
 }
 
+// BranchExists reports whether a local branch exists in the repository at
+// path.
+func BranchExists(path, branch string) bool {
+	if branch == "" {
+		return false
+	}
+	return exec.Command("git", "-C", path, "rev-parse", "--verify", "-q", "refs/heads/"+branch).Run() == nil
+}
+
+// StartRef returns the commit a session starting at path starts from: a
+// commit of the uncommitted changes (`git stash create`, nothing stored)
+// when the tree is modified, else HEAD; "" outside git or without commit.
+// The results of the session are the difference from it (v5 corrections,
+// A23).
+func StartRef(path string) string {
+	if path == "" {
+		return ""
+	}
+	if out, err := exec.Command("git", "-C", path, "stash", "create").Output(); err == nil {
+		if ref := strings.TrimSpace(string(out)); ref != "" {
+			return ref
+		}
+	}
+	out, err := exec.Command("git", "-C", path, "rev-parse", "--verify", "-q", "HEAD").Output()
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(out))
+}
+
 // StashAndCheckout stashes uncommitted changes with a tagged message, then
 // switches to the specified branch. The stash is NOT popped automatically —
 // the user must recover it manually with `git stash pop`.

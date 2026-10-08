@@ -504,7 +504,7 @@ func (t *tuiSessions) MRDescription(ctx context.Context, sessionID string) (stri
 		return "", err
 	}
 	md := sessionsvc.MRDescription(r)
-	if !r.Live {
+	if !r.Live && !r.Current {
 		md += "\n" + i18n.T("cmd.session.results_snapshot")
 	}
 	return strings.TrimRight(md, "\n"), nil

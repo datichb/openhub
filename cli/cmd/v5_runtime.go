@@ -199,6 +199,7 @@ func newSessionService(ctx context.Context, a *app.App) (*sessionsvc.Service, er
 		ensureDaemonForLiveServers(ctx, svc.Servers)
 	}
 	svc.UseCheckpoints(newCheckpointService(a), dc.WorkflowRefresh)
+	svc.OhDecided = dc.SessionDecided
 	svc.Resolvers[domain.DecisionBudget] = sessionsvc.BudgetResolver(sqlite.NewUsageStore(store), func(ctx context.Context, id string) error {
 		rs, err := newRunService(ctx, a)
 		if err != nil {

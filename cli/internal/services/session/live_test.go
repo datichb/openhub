@@ -40,6 +40,21 @@ func TestFollowFiltersTheSession(t *testing.T) {
 	assert.Equal(t, "hi", got[0].Text)
 }
 
+// A21: the live feed shows the oh session total (root + subagents), not the
+// root tool session alone.
+func TestFollowShowsTheSessionTotal(t *testing.T) {
+	svc, ctx := newTestService(t)
+	require.NoError(t, svc.Sessions.Create(ctx, &domain.Session{ID: "ses_a", ProjectID: "p1", Status: domain.SessionStatusRunning, GroupKey: "g1", Cost: 3.41}))
+	src := make(chan daemon.StreamEvent, 2)
+	src <- daemon.StreamEvent{Feed: &domain.FeedItem{SessionID: "ses_a", Kind: domain.FeedUsage, Cost: 0.88}}
+	close(src)
+	svc.Live = func(context.Context, string) (<-chan daemon.StreamEvent, error) { return src, nil }
+	feed, err := svc.Follow(ctx, "ses_a")
+	require.NoError(t, err)
+	it := <-feed
+	assert.InDelta(t, 3.41, it.Cost, 1e-9)
+}
+
 // listSignal reports the end of each poll (ListOpen is read last).
 type listSignal struct {
 	domain.DecisionStore

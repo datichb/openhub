@@ -34,6 +34,10 @@ type Service struct {
 	Live LiveStream
 	// PollEvery is the refresh period of Subscribe without the daemon (default 2s).
 	PollEvery time.Duration
+	// OhDecided tells the oh daemon that a decision it raised (budget,
+	// error) was answered here (nil = none): it updates the session state
+	// and resumes a step interrupted by the budget (A22).
+	OhDecided func(ctx context.Context, sessionID string) error
 	// Alive reports whether a server PID is alive (nil = trust the store).
 	Alive func(pid int) bool
 	Now   func() time.Time

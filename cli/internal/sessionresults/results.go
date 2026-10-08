@@ -63,18 +63,26 @@ func Save(sessionsDir string, r adapters.SessionResult, at time.Time) error {
 	if sessionsDir == "" || r.SessionID == "" {
 		return errors.New("sessionresults: sessions dir and session id are required")
 	}
-	d := dir(sessionsDir, r.SessionID)
+	return SaveSummary(sessionsDir, FromResult(r, at), Patch(r.Changes))
+}
+
+// SaveSummary writes a summary and its patch (owner-only).
+func SaveSummary(sessionsDir string, sum Summary, patch string) error {
+	if sessionsDir == "" || sum.SessionID == "" {
+		return errors.New("sessionresults: sessions dir and session id are required")
+	}
+	d := dir(sessionsDir, sum.SessionID)
 	if err := os.MkdirAll(d, 0o700); err != nil {
 		return err
 	}
-	data, err := json.MarshalIndent(FromResult(r, at), "", "  ")
+	data, err := json.MarshalIndent(sum, "", "  ")
 	if err != nil {
 		return err
 	}
 	if err := os.WriteFile(filepath.Join(d, "summary.json"), data, 0o600); err != nil {
 		return err
 	}
-	return os.WriteFile(filepath.Join(d, "diff.patch"), []byte(Patch(r.Changes)), 0o600)
+	return os.WriteFile(filepath.Join(d, "diff.patch"), []byte(patch), 0o600)
 }
 
 // Patch concatenates the patches of the changed files.

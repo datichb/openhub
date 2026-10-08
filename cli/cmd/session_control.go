@@ -393,7 +393,7 @@ var sessionFollowCmd = &cobra.Command{
 
 var sessionResultsCmd = &cobra.Command{
 	Use:   "results <session-id>",
-	Short: "Résultats d'une session : fichiers modifiés, branche, coût ; --mr pour une description de MR, --patch pour le diff",
+	Short: "Résultats de toute la session : fichiers modifiés depuis son départ, branche, coût total et description de MR ; --mr pour la description seule, --patch pour le diff",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		svc, err := sessionService(cmd)
@@ -420,14 +420,10 @@ var sessionResultsCmd = &cobra.Command{
 			fmt.Fprint(out, r.Patch)
 			return nil
 		}
-		fmt.Fprintln(out, sessionsvc.Recap(r))
-		if r.Branch != "" {
-			fmt.Fprintln(out, i18n.Tf("cmd.session.results_branch", r.Branch))
-		}
-		for _, f := range r.Files {
-			fmt.Fprintf(out, "  %s  +%d −%d\n", f.File, f.Additions, f.Deletions)
-		}
-		if !r.Live {
+		// The whole session (A23): recap, files, branch, and the merge
+		// request description ready to paste.
+		fmt.Fprint(out, sessionsvc.MRDescription(r))
+		if !r.Live && !r.Current {
 			fmt.Fprintln(out, i18n.T("cmd.session.results_snapshot"))
 		}
 		return nil
@@ -443,7 +439,7 @@ func init() {
 	sessionSendCmd.Flags().Bool("queue", false, "Après l'étape en cours (au lieu de la prochaine étape)")
 	sessionOpenCmd.Flags().Bool("browser", true, "Ouvrir dans le navigateur (seul mode disponible)")
 	sessionOpenCmd.Flags().Bool("print", false, "Afficher l'URL sans ouvrir le navigateur")
-	sessionResultsCmd.Flags().Bool("mr", false, "Description de MR (Markdown)")
+	sessionResultsCmd.Flags().Bool("mr", false, "Description de MR seule (Markdown)")
 	sessionResultsCmd.Flags().Bool("patch", false, "Diff complet")
 	sessionResultsCmd.Flags().Bool("json", false, "Sortie JSON")
 	sessionCmd.AddCommand(sessionInboxCmd, sessionApproveCmd, sessionAnswerCmd, sessionDismissCmd, sessionSendCmd,

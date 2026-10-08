@@ -54,6 +54,12 @@ type Session struct {
 	Outputs map[string]any
 	// ParentSessionID is the session this one was chained from (O7).
 	ParentSessionID string
+
+	// StartRef is the git commit the session started from (its uncommitted
+	// changes included), for results covering the whole session (v42).
+	StartRef string
+	// Tickets are the tickets the session works on (v42).
+	Tickets []string
 }
 
 // RunState is the fine-grained lifecycle of a v5 session.

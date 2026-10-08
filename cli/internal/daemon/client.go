@@ -398,3 +398,10 @@ func waitGone(ctx context.Context, c *Client, timeout time.Duration) {
 		time.Sleep(100 * time.Millisecond)
 	}
 }
+
+// SessionDecided tells the daemon that a decision it raised for a session
+// (budget, error) was answered: the session state, its budget and an
+// interrupted step are brought up to date.
+func (c *Client) SessionDecided(ctx context.Context, sessionID string) error {
+	return c.do(ctx, http.MethodPost, "/sessions/"+url.PathEscape(sessionID)+"/decided", nil, nil)
+}

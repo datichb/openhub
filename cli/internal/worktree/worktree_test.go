@@ -4,6 +4,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -199,4 +200,30 @@ func TestStash(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "v2\n", string(got))
 	assert.FileExists(t, filepath.Join(repoDir, "new.txt"))
+}
+
+// A23: a session starts from HEAD, or from a commit of the uncommitted
+// changes found there (nothing stored, the tree untouched).
+func TestStartRef(t *testing.T) {
+	repoDir := t.TempDir()
+	assert.Empty(t, StartRef(repoDir), "outside git")
+	runGit(t, repoDir, "init", "-b", "main")
+	assert.Empty(t, StartRef(repoDir), "no commit")
+	require.NoError(t, os.WriteFile(filepath.Join(repoDir, "a.txt"), []byte("v1\n"), 0o644))
+	runGit(t, repoDir, "add", "a.txt")
+	runGit(t, repoDir, "commit", "-m", "initial")
+	head, err := exec.Command("git", "-C", repoDir, "rev-parse", "HEAD").Output()
+	require.NoError(t, err)
+	assert.Equal(t, strings.TrimSpace(string(head)), StartRef(repoDir))
+
+	require.NoError(t, os.WriteFile(filepath.Join(repoDir, "a.txt"), []byte("v2\n"), 0o644))
+	ref := StartRef(repoDir)
+	assert.NotEqual(t, strings.TrimSpace(string(head)), ref)
+	show, err := exec.Command("git", "-C", repoDir, "show", ref+":a.txt").Output()
+	require.NoError(t, err)
+	assert.Equal(t, "v2\n", string(show))
+	assert.True(t, IsDirty(repoDir), "the change stays in the tree")
+	out, err := exec.Command("git", "-C", repoDir, "stash", "list").Output()
+	require.NoError(t, err)
+	assert.Empty(t, strings.TrimSpace(string(out)), "nothing stashed")
 }

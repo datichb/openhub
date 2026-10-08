@@ -33,6 +33,7 @@ func (d *Daemon) routes() http.Handler {
 	mux.HandleFunc("POST "+apiPrefix+"/workflow/checkpoint", d.handleWorkflowCheckpoint)
 	mux.HandleFunc("POST "+apiPrefix+"/workflow/outputs", d.handleWorkflowOutputs)
 	mux.HandleFunc("POST "+apiPrefix+"/workflow/rules", d.handleWorkflowRules)
+	mux.HandleFunc("POST "+apiPrefix+"/sessions/{id}/decided", d.handleSessionDecided)
 	return mux
 }
 
@@ -170,6 +171,16 @@ func (d *Daemon) handleTouch(w http.ResponseWriter, r *http.Request) {
 	d.lastBusy = time.Now()
 	d.mu.Unlock()
 	d.wake()
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// handleSessionDecided: a decision raised by oh for a session (budget,
+// error) was answered by a CLI or the TUI.
+func (d *Daemon) handleSessionDecided(w http.ResponseWriter, r *http.Request) {
+	if !d.sessionDecided(r.Context(), r.PathValue("id")) {
+		writeErr(w, http.StatusNotFound, "session not watched")
+		return
+	}
 	w.WriteHeader(http.StatusNoContent)
 }
 

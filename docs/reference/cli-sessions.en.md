@@ -40,7 +40,7 @@ This page covers **v5 session management** (`oh session …`), **restrictions** 
 oh session list [--all] [--json]
 ```
 
-Lists the v5 sessions: id, project, entry agent, state, pending decisions (badges), cost, start.
+Lists the v5 sessions: id, project, entry agent, state, pending decisions (badges), cost, start. The cost is the one of the **whole session** (entry agent and subagents), the one the budget counts; the same in the Sessions view, the live feed, the results and the « while you were away » recap.
 
 | Flag | Type | Default | Description |
 |------|------|---------|-------------|
@@ -181,11 +181,11 @@ Creates a variant of the session: copy of its history, on the same server. Print
 oh session results <session> [--mr | --patch | --json]
 ```
 
-Results: recap, branch, changed files (`+additions −deletions`), cost. When the server no longer runs, oh shows the last snapshot.
+Results of the **whole session**, as a merge request description ready to paste: title, recap, changed files (`+additions −deletions`), total cost (subagents included), branch. The changes are read with git in the session directory: commits and changes since it started (the starting commit is recorded at launch; for an older session, the last commit before it started), on its branch even when the directory moved to another one, untracked files included, whatever agent made them. When the directory no longer exists, oh shows the last snapshot.
 
 | Flag | Type | Description |
 |------|------|-------------|
-| `--mr` | bool | MR description (Markdown) |
+| `--mr` | bool | MR description alone (without the snapshot note) |
 | `--patch` | bool | Full diff |
 | `--json` | bool | JSON output (`results`, `live`) |
 
@@ -261,7 +261,7 @@ Session restrictions, **off by default**: maximum active sessions, per-session a
 | `show` | `oh budget show [-p <project>] [--json]` | Effective restrictions with their origin, and today's spending. `-p`: project (default: the one of the current folder) |
 | `set` | `oh budget set <restriction> <value> [-p <project>]` | Sets a restriction of the hub (`hub.toml [limits]`) or, with `-p`, of a project |
 | `unset` | `oh budget unset <restriction> [-p <project>]` | Removes a restriction of the hub or of a project |
-| `raise` | `oh budget raise <session\|decision> [amount]` | Answers a $ decision: adds the given amount in USD to the reached budget, of the session or of the day (default: the configured budget once more); the session goes on as soon as the budget covers its spending |
+| `raise` | `oh budget raise <session\|decision> [amount]` | Answers a $ decision: adds the given amount in USD to the reached budget, of the session or of the day (default: the configured budget once more); the session goes on as soon as the budget covers its spending: its state is no longer « waiting » and a step interrupted during the decision is resumed by an oh instruction |
 
 | Restriction | Value | Note |
 |-------------|-------|------|

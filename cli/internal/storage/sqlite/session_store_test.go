@@ -147,3 +147,57 @@ func TestSessionStore_MemberID(t *testing.T) {
 	require.NotNil(t, got4.MemberID)
 	assert.Equal(t, "charlie", *got4.MemberID)
 }
+
+// v42: the starting point and the tickets of a session are kept (A23, A31).
+func TestSessionStore_StartRefAndTickets(t *testing.T) {
+	s := openTestStore(t)
+	ctx := context.Background()
+	now := time.Now().Truncate(time.Second)
+	require.NoError(t, NewProjectStore(s).Create(ctx, &domain.Project{ID: "p", Name: "P", Path: "/p", Status: domain.ProjectStatusActive, CreatedAt: now, UpdatedAt: now}))
+	ss := NewSessionStore(s)
+	require.NoError(t, ss.Create(ctx, &domain.Session{ID: "s1", ProjectID: "p", StartedAt: now, Status: domain.SessionStatusRunning,
+		StartRef: "abc123", Tickets: []string{"pt-1", "pt-2"}}))
+	got, err := ss.Get(ctx, "s1")
+	require.NoError(t, err)
+	assert.Equal(t, "abc123", got.StartRef)
+	assert.Equal(t, []string{"pt-1", "pt-2"}, got.Tickets)
+	got.Tickets = nil
+	require.NoError(t, ss.Update(ctx, got))
+	got, err = ss.Get(ctx, "s1")
+	require.NoError(t, err)
+	assert.Empty(t, got.Tickets)
+	assert.Equal(t, "abc123", got.StartRef)
+}
+
+// v42 (A21): the sessions recorded before show their total cost with their
+// subagent sessions (usage ledger), as the budget counted it.
+func TestMigrationV42SessionTotals(t *testing.T) {
+	s := openTestStore(t)
+	ctx := context.Background()
+	now := time.Now().Truncate(time.Second)
+	require.NoError(t, NewProjectStore(s).Create(ctx, &domain.Project{ID: "p", Name: "P", Path: "/p", Status: domain.ProjectStatusActive, CreatedAt: now, UpdatedAt: now}))
+	ss := NewSessionStore(s)
+	for _, id := range []string{"ticket", "alone"} {
+		require.NoError(t, ss.Create(ctx, &domain.Session{ID: id, ProjectID: "p", StartedAt: now, Status: domain.SessionStatusCompleted, Cost: 0.88, TokensIn: 10}))
+	}
+	us := NewUsageStore(s)
+	for _, u := range []domain.SessionUsage{
+		{Day: "2026-10-07", SessionID: "ticket", RootID: "ticket", CostUSD: 0.88, TokensIn: 10},
+		{Day: "2026-10-07", SessionID: "ses_dev", RootID: "ticket", CostUSD: 1.94, TokensIn: 20},
+		{Day: "2026-10-07", SessionID: "ses_rev", RootID: "ticket", CostUSD: 0.59, TokensIn: 5},
+		{Day: "2026-10-07", SessionID: "alone", RootID: "alone", CostUSD: 0.88, TokensIn: 10},
+	} {
+		require.NoError(t, us.AddSession(ctx, u))
+	}
+	_, err := s.DB().Exec(`DELETE FROM schema_migrations WHERE version = 42;
+		ALTER TABLE sessions DROP COLUMN tickets; ALTER TABLE sessions DROP COLUMN start_ref`)
+	require.NoError(t, err)
+	require.NoError(t, s.migrate())
+	got, err := ss.Get(ctx, "ticket")
+	require.NoError(t, err)
+	assert.InDelta(t, 3.41, got.Cost, 1e-9)
+	assert.Equal(t, int64(35), got.TokensIn)
+	got, err = ss.Get(ctx, "alone")
+	require.NoError(t, err)
+	assert.InDelta(t, 0.88, got.Cost, 1e-9)
+}

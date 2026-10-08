@@ -33,6 +33,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/sessionctx"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 	"github.com/datichb/openhub/cli/internal/termlaunch"
+	"github.com/datichb/openhub/cli/internal/worktree"
 )
 
 // DaemonClient is the subset of the ohd client used by the service.
@@ -122,6 +123,8 @@ type StartRequest struct {
 	WorkflowRisk    string
 	LocationKind    string // base | worktree
 	ParentSessionID string
+	// Tickets are the tickets the session works on (kept on the session).
+	Tickets []string
 	// Headless marks a session run without interactive client.
 	Headless bool
 
@@ -693,6 +696,7 @@ func (s *Service) persistSession(ctx context.Context, req StartRequest, srv *dom
 		Runtime: srv.Runtime, Mode: req.Mode, State: state,
 		WorkflowLayer: req.WorkflowLayer, WorkflowVersion: req.WorkflowVersion, WorkflowRisk: req.WorkflowRisk,
 		Location: req.LocationKind, ParentSessionID: req.ParentSessionID,
+		StartRef: worktree.StartRef(req.Location), Tickets: req.Tickets,
 	}
 	if title != "" {
 		sess.Title = &title

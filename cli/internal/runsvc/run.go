@@ -193,6 +193,7 @@ func (s *Service) Start(ctx context.Context, plan *RunPlan) ([]*StartResult, err
 		sr.WorkflowLayer, sr.WorkflowVersion, sr.WorkflowRisk = req.Workflow.Layer, req.Workflow.Version, req.Workflow.Risk
 		sr.LocationKind = string(ps.Location.Kind)
 		sr.ParentSessionID = req.ParentSessionID
+		sr.Tickets = ps.Tickets
 		res, err := s.StartSession(ctx, sr)
 		if res != nil && res.SessionID != "" {
 			res.Stashed = stashed

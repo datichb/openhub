@@ -42,14 +42,31 @@ func (s *Service) Follow(ctx context.Context, sessionID string) (<-chan domain.F
 			if ev.Feed == nil || ev.Feed.SessionID != sessionID {
 				continue
 			}
+			it := *ev.Feed
+			if it.Kind == domain.FeedUsage {
+				it.Cost = s.totalCost(ctx, sessionID, it.Cost)
+			}
 			select {
-			case out <- *ev.Feed:
+			case out <- it:
 			case <-ctx.Done():
 				return
 			}
 		}
 	}()
 	return out, nil
+}
+
+// totalCost is the cost of an oh session for the live feed: the tool
+// reports its root session, the session row holds the total with the
+// subagent sessions (A21).
+func (s *Service) totalCost(ctx context.Context, sessionID string, root float64) float64 {
+	if s.Sessions == nil {
+		return root
+	}
+	if sess, err := s.Sessions.Get(ctx, sessionID); err == nil && sess.Cost > root {
+		return sess.Cost
+	}
+	return root
 }
 
 // Subscribe returns the changes of every session (badge, Sessions view,

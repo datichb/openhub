@@ -30,8 +30,11 @@ type limitAdapter struct {
 func (a *limitAdapter) Control(_ context.Context, _ adapters.ServerHandle, id string, op adapters.ControlOp) error {
 	a.cmu.Lock()
 	defer a.cmu.Unlock()
-	if op.Kind == adapters.ControlInterrupt {
+	switch op.Kind {
+	case adapters.ControlInterrupt:
 		a.interrupts = append(a.interrupts, id)
+	case adapters.ControlPrompt:
+		a.prompts[id] = op.Text
 	}
 	return nil
 }
@@ -67,6 +70,7 @@ type limitEnv struct {
 	dir       string // sessions dir
 	events    chan adapters.ToolEvent
 	memoryMB  atomic.Int64
+	paths     Paths
 }
 
 func newLimitEnv(t *testing.T, sessionIDs ...string) *limitEnv {
@@ -80,7 +84,7 @@ func newLimitEnv(t *testing.T, sessionIDs ...string) *limitEnv {
 	require.NoError(t, err)
 	e := &limitEnv{t: t, ctx: ctx, sessions: sqlite.NewSessionStore(st), servers: sqlite.NewServerStore(st),
 		decisions: sqlite.NewDecisionStore(st), usage: sqlite.NewUsageStore(st),
-		ad: &limitAdapter{fakeAdapter: newFake(), prompts: map[string]string{}}, dir: filepath.Join(p.Dir, "sessions")}
+		ad: &limitAdapter{fakeAdapter: newFake(), prompts: map[string]string{}}, dir: filepath.Join(p.Dir, "sessions"), paths: p}
 	require.NoError(t, e.servers.Upsert(ctx, &domain.Server{GroupKey: "g1", Adapter: "fake", ProjectID: "p1", PID: os.Getpid(), Status: domain.ServerReady}))
 	for _, id := range sessionIDs {
 		require.NoError(t, e.sessions.Create(ctx, &domain.Session{ID: id, ProjectID: "p1", Status: domain.SessionStatusRunning, GroupKey: "g1", State: domain.RunIdle}))
@@ -170,6 +174,77 @@ func TestSessionBudgetDecisionAndHold(t *testing.T) {
 	require.Eventually(t, func() bool { return len(e.openBudget("ses_a")) == 1 }, 3*time.Second, 20*time.Millisecond)
 	tot, _ = e.usage.SessionTotal(e.ctx, "ses_a")
 	assert.InDelta(t, 2.1, tot.CostUSD, 1e-9)
+}
+
+// A21: the session row holds the oh session total (root + subagents), as
+// the budget counts it: what oh session list and the views show.
+func TestSessionRowHoldsTheTotalCost(t *testing.T) {
+	e := newLimitEnv(t, "ses_a")
+	e.turn("ses_a", 0.88)
+	require.Eventually(t, func() bool {
+		s, err := e.sessions.Get(e.ctx, "ses_a")
+		return err == nil && s.Cost > 0.87
+	}, 3*time.Second, 20*time.Millisecond)
+
+	e.events <- adapters.ToolEvent{Kind: adapters.EventSessionCreated, SessionID: "ses_dev", ParentID: "ses_a"}
+	e.ad.set(func() { e.ad.usage["ses_dev"] = adapters.SessionResult{Cost: 1.94, TokensIn: 100} })
+	e.events <- adapters.ToolEvent{Kind: adapters.EventExecStarted, SessionID: "ses_dev"}
+	e.events <- adapters.ToolEvent{Kind: adapters.EventExecEnded, SessionID: "ses_dev", Outcome: "succeeded"}
+	require.Eventually(t, func() bool {
+		s, err := e.sessions.Get(e.ctx, "ses_a")
+		return err == nil && s.Cost > 2.81 && s.Cost < 2.83
+	}, 3*time.Second, 20*time.Millisecond, "the subagent cost counts at once")
+
+	e.turn("ses_a", 1.0) // the root spends again: the total stays the total
+	require.Eventually(t, func() bool {
+		s, err := e.sessions.Get(e.ctx, "ses_a")
+		return err == nil && s.Cost > 2.93 && s.Cost < 2.95
+	}, 3*time.Second, 20*time.Millisecond)
+}
+
+// A22: after a raise answered in oh, the session is no longer « waiting »
+// and the step interrupted while the decision was open is resumed.
+func TestRaiseResumesTheInterruptedStep(t *testing.T) {
+	e := newLimitEnv(t, "ses_a")
+	require.NoError(t, limits.Save(e.dir, "ses_a", limits.Resolve(limits.Input{Workflow: limits.Limits{SessionBudgetUSD: 1}, ProjectID: "p1"})))
+	e.turn("ses_a", 1.2)
+	require.Eventually(t, func() bool { return len(e.openBudget("ses_a")) == 1 }, 3*time.Second, 20*time.Millisecond)
+	dec := e.openBudget("ses_a")[0]
+	c := NewClient(e.paths)
+
+	// No interrupted step yet: a raise only updates the state.
+	require.NoError(t, e.usage.AddBudgetExtra(e.ctx, limits.SessionScope("ses_a"), "", 1))
+	_, err := e.decisions.Resolve(e.ctx, dec.ID, domain.ResolvedByOh, &domain.DecisionResolution{Decision: "raise"}, time.Now())
+	require.NoError(t, err)
+	require.NoError(t, c.SessionDecided(e.ctx, "ses_a"))
+	s, err := e.sessions.Get(e.ctx, "ses_a")
+	require.NoError(t, err)
+	assert.Equal(t, domain.RunIdle, s.State, "not waiting without an open decision")
+	_, prompted := e.ad.prompt("ses_a")
+	assert.False(t, prompted)
+
+	// Over the raised budget, the cp-2 correction step starts: interrupted.
+	e.turn("ses_a", 2.3)
+	require.Eventually(t, func() bool { return len(e.openBudget("ses_a")) == 1 }, 3*time.Second, 20*time.Millisecond)
+	dec = e.openBudget("ses_a")[0]
+	e.events <- adapters.ToolEvent{Kind: adapters.EventExecStarted, SessionID: "ses_a"}
+	require.Eventually(t, func() bool { return len(e.ad.interrupted()) == 1 }, 3*time.Second, 20*time.Millisecond)
+	e.events <- adapters.ToolEvent{Kind: adapters.EventExecEnded, SessionID: "ses_a", Outcome: "failed"}
+	require.Eventually(t, func() bool {
+		s, err := e.sessions.Get(e.ctx, "ses_a")
+		return err == nil && s.State == domain.RunWaiting
+	}, 3*time.Second, 20*time.Millisecond)
+
+	require.NoError(t, e.usage.AddBudgetExtra(e.ctx, limits.SessionScope("ses_a"), "", 3))
+	_, err = e.decisions.Resolve(e.ctx, dec.ID, domain.ResolvedByOh, &domain.DecisionResolution{Decision: "raise"}, time.Now())
+	require.NoError(t, err)
+	require.NoError(t, c.SessionDecided(e.ctx, "ses_a"))
+	p, ok := e.ad.prompt("ses_a")
+	require.True(t, ok, "the interrupted step is resumed")
+	assert.Contains(t, p, "[oh]")
+	s, err = e.sessions.Get(e.ctx, "ses_a")
+	require.NoError(t, err)
+	assert.NotEqual(t, domain.RunWaiting, s.State)
 }
 
 // The daily budget counts every session of its scope.
