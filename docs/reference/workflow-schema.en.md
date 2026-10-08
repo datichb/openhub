@@ -255,7 +255,7 @@ prompt:
 - Exactly one of the two (`prompt_both`, `prompt_empty`). Absent: no first message (the session waits for the user).
 - **Variables**: inputs at the top level (`{{ .ticket }}`); the session context under `.oh`: `.oh.project`, `.oh.location`, `.oh.mode`, `.oh.runtime`, `.oh.lang`, `.oh.workflow`. Any other variable: `prompt_unknown_variable`.
 - **Functions**:
-  - `{{ data "request" .request }}` puts the value between `<oh:data name="request">` and `</oh:data>`: the agent treats it as data, never as instructions. A tag inside the value is neutralised. Every `string` or `text` input must go through `data`.
+  - `{{ data "request" .request }}` writes the value, truncated. A computed input (`from:`) goes between `<oh:data name="…">` and `</oh:data>`: the agent treats it as data, never as instructions (a tag inside the value is neutralised). An input typed by the user is written as it is: it is their request. Every `string` or `text` input must go through `data`.
   - `{{ join .tickets ", " }}` joins a list.
 - An absent input takes its default, otherwise the empty value of its type: `{{ if .request }}…{{ end }}` works.
 - oh ends the prompt with the list of checkpoints to report before each gated agent.

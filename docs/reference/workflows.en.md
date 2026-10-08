@@ -276,7 +276,7 @@ The first message of the session is rendered from `workflows/prompts/<id>.md.tmp
 
 - inputs are top-level fields (`{{ .ticket }}`), the session context is under `.oh`: `project`, `location`, `mode`, `runtime`, `lang`, `workflow`;
 - every template starts with `Mode de workflow : {{ .oh.mode }}` (contract with the entry agent) and `Langue de réponse : {{ .oh.lang }}`;
-- `{{ data "request" .request }}` puts an input inside a data tag `<oh:data name="request">…</oh:data>`: the agent treats it as data, never as instructions. A tag inside the value is neutralised. **Every `string` or `text` input goes through `data`** (checked by the tests);
+- `{{ data "request" .request }}` writes an input, truncated to `max_length`. A value oh computes from an outside source (`from:`: merge request discussions, ticket brief) goes inside a data tag `<oh:data name="…">…</oh:data>`: the agent treats it as data, never as instructions (a tag inside the value is neutralised). What the user typed at launch is their own request: it is written as it is, so that a short request ("Say only X") is carried out and not taken for an injection. **Every `string` or `text` input goes through `data`** (checked by the tests);
 - `{{ join .tickets ", " }}` joins a list;
 - text inputs are truncated to `max_length` (20,000 characters by default), with a truncation notice; an invalid Beads id, or a multi-line branch or path, is refused;
 - a missing input takes its default value, otherwise the empty value of its type (`""`, `false`, `0`, empty list), which allows `{{ if .request }}`.

@@ -143,6 +143,7 @@ Optionnelles et désactivées par défaut (`oh budget show|set|unset|raise`) : s
 - La clé LLM n'est jamais dans l'environnement de l'agent ni dans la configuration d'opencode, mais votre trousseau est lisible par votre utilisateur.
 - Le mot de passe des serveurs opencode reste en clair dans `oh.db` (nécessaire pour attacher une session).
 - Sans isolation stricte, votre configuration opencode d'utilisateur est chargée ; `Attest` refuse ce qui ajoute des agents, des skills ou des serveurs MCP visibles, pas les autres réglages.
+- Les agents de développement livrés (base `developer-rw`) n'installent des dépendances que dans le projet : `pip` seulement dans l'environnement virtuel du projet (`.venv/bin/…`, `uv`, `poetry`), pas de `npm -g`, `yarn global`, `pnpm add -g`, `gem install` ni `--break-system-packages`. Leur liste blanche est un garde-fou, pas un bac à sable : lanceurs de tests et outils de build exécutent le code du projet.
 
 Considérez que l'agent agit avec les droits de votre utilisateur. La vraie isolation vient des sessions en conteneur.
 

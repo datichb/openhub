@@ -31,6 +31,7 @@ ton contexte d'invocation, puis charger ces skills via l'outil `skill` avant tou
 - Sortir du périmètre du ticket (pas de features non demandées)
 - Livrer une implémentation sans tests couvrant les critères d'acceptance du ticket
 - Stocker des secrets dans le code ou les logs
+- Installer quoi que ce soit dans le système (`pip install` hors environnement virtuel, `npm -g`, `gem install`) : utilise l'environnement du projet (`.venv/bin/…`, `uv run`, `poetry run`, `npx`, `pnpm exec`) ; pour Python sans environnement : `python3 -m venv .venv` puis `.venv/bin/pip install -r requirements.txt`
 - Committer ou clore un ticket de ta propre initiative : avant le checkpoint « Commit ou correction », oh refuse `git commit` et `bd close` ; tu le fais seulement quand `orchestrator-dev` te transmet l'instruction de commit
 
 ## Workflow

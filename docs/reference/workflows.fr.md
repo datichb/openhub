@@ -276,7 +276,7 @@ Le premier message de la session est rendu depuis `workflows/prompts/<id>.md.tmp
 
 - les entrées sont au premier niveau (`{{ .ticket }}`), le contexte de session sous `.oh` : `project`, `location`, `mode`, `runtime`, `lang`, `workflow` ;
 - chaque gabarit commence par `Mode de workflow : {{ .oh.mode }}` (contrat avec l'agent d'entrée) et `Langue de réponse : {{ .oh.lang }}` ;
-- `{{ data "request" .request }}` place une entrée dans une balise de données `<oh:data name="request">…</oh:data>` : l'agent la traite comme une donnée, jamais comme une consigne. Une balise contenue dans la valeur est neutralisée. **Toute entrée `string` ou `text` passe par `data`** (vérifié par les tests) ;
+- `{{ data "request" .request }}` écrit une entrée, tronquée à `max_length`. Une valeur calculée par oh depuis une source externe (`from:` : discussions d'une MR, brief d'un ticket) est placée dans une balise de données `<oh:data name="…">…</oh:data>` : l'agent la traite comme une donnée, jamais comme une consigne (une balise contenue dans la valeur est neutralisée). Ce que l'utilisateur a saisi au lancement est sa propre demande : elle est écrite telle quelle, pour qu'une demande courte (« Dis seulement X ») soit traitée et non prise pour une injection. **Toute entrée `string` ou `text` passe par `data`** (vérifié par les tests) ;
 - `{{ join .tickets ", " }}` joint une liste ;
 - les entrées texte sont tronquées à `max_length` (20 000 caractères par défaut), avec la mention de la troncature ; un identifiant Beads invalide ou une branche ou un chemin sur plusieurs lignes est refusé ;
 - une entrée absente vaut sa valeur par défaut, sinon la valeur vide de son type (`""`, `false`, `0`, liste vide), ce qui permet `{{ if .request }}`.

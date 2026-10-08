@@ -255,7 +255,7 @@ prompt:
 - Exactement un des deux (`prompt_both`, `prompt_empty`). Absent : pas de premier message (la session attend l'utilisateur).
 - **Variables** : les entrées au premier niveau (`{{ .ticket }}`) ; le contexte de session sous `.oh` : `.oh.project`, `.oh.location`, `.oh.mode`, `.oh.runtime`, `.oh.lang`, `.oh.workflow`. Toute autre variable : `prompt_unknown_variable`.
 - **Fonctions** :
-  - `{{ data "request" .request }}` place la valeur entre `<oh:data name="request">` et `</oh:data>` : l'agent la traite comme une donnée, jamais comme une consigne. Une balise contenue dans la valeur est neutralisée. Toute entrée `string` ou `text` doit passer par `data`.
+  - `{{ data "request" .request }}` écrit la valeur, tronquée. Une entrée calculée (`from:`) est placée entre `<oh:data name="…">` et `</oh:data>` : l'agent la traite comme une donnée, jamais comme une consigne (une balise contenue dans la valeur est neutralisée). Une entrée saisie par l'utilisateur est écrite telle quelle : c'est sa demande. Toute entrée `string` ou `text` doit passer par `data`.
   - `{{ join .tickets ", " }}` joint une liste.
 - Une entrée absente vaut son défaut, sinon la valeur vide de son type : `{{ if .request }}…{{ end }}` fonctionne.
 - oh termine le prompt par la liste des checkpoints à signaler avant chaque agent verrouillé.

@@ -143,6 +143,7 @@ Optional and disabled by default (`oh budget show|set|unset|raise`): maximum act
 - The LLM key is never in the agent's environment or in the opencode configuration, but your keychain is readable by your user.
 - The password of the opencode servers stays in clear in `oh.db` (needed to attach to a session).
 - Without strict isolation, your opencode user configuration is loaded; `Attest` refuses what adds visible agents, skills or MCP servers, not other settings.
+- The shipped development agents (`developer-rw` base) install dependencies only in the project: `pip` only inside the project's virtual environment (`.venv/bin/…`, `uv`, `poetry`), no `npm -g`, `yarn global`, `pnpm add -g`, `gem install` nor `--break-system-packages`. Their allow-list is a guard rail, not a sandbox: test runners and build tools run the project's code.
 
 Treat the local mode as "the agent acts with your user rights". Real isolation comes with container sessions.
 

@@ -27,24 +27,61 @@ bash:
   "git stash show*": allow
   "git worktree*": allow
   "git revert*": allow
-  # Package managers
+  # Package managers — dépendances du projet seulement : rien dans les
+  # installations du système (pip hors environnement virtuel, npm -g, gem install)
   "npm *": allow
+  "npm install -g*": deny
+  "npm install --global*": deny
+  "npm i -g*": deny
+  "npm i --global*": deny
+  "npm link*": deny
   "npx *": allow
   "yarn *": allow
+  "yarn global *": deny
   "pnpm *": allow
+  "pnpm add -g*": deny
+  "pnpm add --global*": deny
+  "pnpm exec *": allow
   "bun *": allow
-  "pip *": allow
-  "pip3 *": allow
+  "bun add -g*": deny
+  "bun install -g*": deny
   "poetry *": allow
+  "uv run *": allow
+  "uv sync*": allow
+  "uv venv*": allow
+  "uv add *": allow
+  "uv pip *": allow
+  "uv pip * --system*": deny
   "cargo *": allow
   "go *": allow
   "bundle *": allow
-  "gem *": allow
+  "gem *": deny
+  "gem list*": allow
+  "gem --version": allow
   "composer *": allow
+  # Python — environnement virtuel du projet (.venv, venv) ; pip seulement à
+  # l'intérieur ; pip du système en lecture seule
+  "python3 -m venv .venv*": allow
+  "python3 -m venv venv*": allow
+  "python -m venv .venv*": allow
+  "python -m venv venv*": allow
+  ".venv/bin/*": allow
+  "venv/bin/*": allow
+  "*--break-system-packages*": deny
+  "pip --version": allow
+  "pip3 --version": allow
+  "pip list*": allow
+  "pip3 list*": allow
+  "pip show *": allow
+  "pip3 show *": allow
+  "python3 --version": allow
+  "python --version": allow
   # Test runners directs
   "pytest*": allow
   "python -m pytest*": allow
+  "python3 -m pytest*": allow
   "python manage.py test*": allow
+  "python3 manage.py test*": allow
   "rspec*": allow
   "rake*": allow
   "playwright*": allow
