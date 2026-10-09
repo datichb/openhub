@@ -35,6 +35,7 @@ Run `oh doctor` to check your installation health. It performs about twenty chec
 | 17 | Opening sessions | How sessions are opened (terminal, iTerm, tmux…) | — |
 | 18 | Container | Engine, file sharing, project images | see [Container](container.en.md) |
 | 19 | Gateways | `bd` on the machine (Beads gateway), daemon gateways | Install `bd`; `oh daemon status` |
+| 20 | Orphan opencode servers | Servers started by oh that nobody owns any more: interrupted test or native agents discovery, server this hub no longer runs, server of a deleted oh directory (servers of another `OH_HOME` are left alone) | `oh doctor --fix` |
 
 ### `oh repair`
 

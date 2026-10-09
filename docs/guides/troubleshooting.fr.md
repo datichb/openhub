@@ -35,6 +35,7 @@ Executez `oh doctor` pour verifier l'etat de sante de votre installation. Il eff
 | 17 | Ouverture des sessions | Methode d'ouverture des sessions (terminal, iTerm, tmux…) | — |
 | 18 | Conteneur | Moteur, partage de fichiers, images des projets | voir [Conteneur](container.fr.md) |
 | 19 | Passerelles | `bd` sur la machine (passerelle Beads), passerelles du demon | Installer `bd` ; `oh daemon status` |
+| 20 | Serveurs opencode orphelins | Serveurs lances par oh que plus personne ne possede : test ou decouverte des agents natifs interrompus, serveur que ce hub ne fait plus tourner, serveur d'un dossier oh supprime (les serveurs d'un autre `OH_HOME` sont laisses) | `oh doctor --fix` |
 
 ### `oh repair`
 
