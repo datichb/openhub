@@ -20,6 +20,7 @@ permission:
     "onboarder": allow
     "designer": allow
     "orchestrator-dev": allow
+    "reviewer": allow
     "debugger": allow
     "documentarian": allow
   ctx_search: allow

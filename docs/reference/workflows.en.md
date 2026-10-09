@@ -100,6 +100,7 @@ Without a request or tickets, the session starts by asking which feature to deli
 
 | Checkpoint | manuel | semi-auto | auto |
 |---|---|---|---|
+| `cp-tickets` Approve the tickets to create (mandatory, unlocks `create`) | pause | pause | pause |
 | `cp-0` Approve the plan (mandatory) | pause | pause | pause |
 | `cp-spec` Approve the UX/UI spec | if a spec was produced | same | same |
 | `cp-1` Start the ticket | pause | auto | auto |
@@ -107,7 +108,7 @@ Without a request or tickets, the session starts by asking which feature to deli
 | `cp-3` Next ticket | pause | auto | auto |
 | `cp-feature` Feature recap | pause | pause | auto |
 
-`orchestrator-dev` only starts after `cp-0`. Default mode: `semi-auto`. Outputs: `tickets`, `branch`. Allowed Beads commands: `show`, `list`, `ready`, `search`, `children`, `comments`, `count`, `status`, `graph`, `history`, `create`, `update`, `close`, `dep`, `label`, `duplicate`, `supersede`.
+No ticket is created before `cp-tickets` (with existing tickets only, `cp-tickets` confirms the list). `orchestrator-dev` only starts after `cp-0`; it passes `cp-1`, `cp-2` and `cp-3` itself, with **one `cp-2` per ticket** (each ticket is committed then closed before the next one; no grouped approval). At the end of the feature, the `orchestrator` has the whole feature reviewed by the `reviewer` (adversarial review on the working branch), before `cp-feature`. Default mode: `semi-auto`. Outputs: `tickets`, `branch`. Allowed Beads commands: `show`, `list`, `ready`, `search`, `children`, `comments`, `count`, `status`, `graph`, `history`, `create`, `update`, `close`, `dep`, `label`, `duplicate`, `supersede`.
 
 The former onboarding pre-phase (mode C) is no longer part of `feature`: the `project-context` precondition suggests the `onboarding` workflow, then coming back to `feature`.
 
@@ -130,10 +131,10 @@ Explores, plans and specifies a feature without implementing it: only Beads tick
 | Checkpoint | manuel | semi-auto | auto |
 |---|---|---|---|
 | `cp-scope` Approve the scope (before planning) | pause | pause | auto |
-| `cp-tickets` Approve the breakdown (mandatory, before tickets are created) | pause | pause | pause |
+| `cp-tickets` Approve the breakdown (mandatory, unlocks `create`) | pause | pause | pause |
 | `cp-recap` Scoping recap | pause | pause | auto |
 
-`planner` only starts after `cp-scope`. Default mode: `semi-auto`. Allowed Beads commands: `show`, `list`, `ready`, `children`, `search`, `count`, `label`, `dep`, `create`, `update`, `comments`, `duplicate`, `supersede`. Output: `tickets`. To implement afterwards: `ticket` or `feature` on the created tickets.
+`planner` only starts after `cp-scope`. Before `cp-tickets`, oh refuses every ticket creation (shell rules and Beads gateway): the planner proposes the breakdown, the `conductor` passes `cp-tickets`, then relaunches the planner, which creates the tickets. Default mode: `semi-auto`. Allowed Beads commands: `show`, `list`, `ready`, `children`, `search`, `count`, `label`, `dep`, `create`, `update`, `comments`, `duplicate`, `supersede`. Output: `tickets`. To implement afterwards: `ticket` or `feature` on the created tickets.
 
 ## `onboarding`
 

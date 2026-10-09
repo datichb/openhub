@@ -90,7 +90,7 @@ var lockPatterns = map[string][]string{
 	sessionspec.UnlockCommit: {"*git*commit*"},
 	sessionspec.UnlockPush:   {"*git*push*"},
 	sessionspec.UnlockClose:  {"*bd*close*", "*bd*update*closed*"},
-	sessionspec.UnlockCreate: {"*bd*create*"},
+	sessionspec.UnlockCreate: {"*bd*create*", "*bd q *", "*bd*duplicate*", "*bd*supersede*"},
 	sessionspec.UnlockApply:  ApplyLockPatterns,
 }
 

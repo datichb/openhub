@@ -1372,6 +1372,7 @@
   "cmd.gateway.beads.timeout": "bd did not answer within %s",
   "cmd.gateway.beads.output_truncated": "output truncated to %d bytes",
   "cmd.gateway.beads.daemon_outdated": "The oh daemon does not know the Beads gateway: stop the sessions, then restart it (oh daemon stop)",
+  "cmd.gateway.beads.locked_create": "ticket creation refused by oh: checkpoint %s \"%s\" is not approved. Call the workflow_checkpoint tool with this id and wait for the user's decision; the tickets are created afterwards.",
   "cmd.gateway.beads.locked_checkpoint": "closing refused by oh: checkpoint %s \"%s\" is not approved. Call the workflow_checkpoint tool with this id and wait for the user's decision; the commit, then closing the ticket, come after.",
   "cmd.gateway.beads.locked_commit": "closing refused by oh: nothing was committed since checkpoint %s \"%s\" was approved while changes remain uncommitted. Commit first (git commit, hooks included), then close the ticket.",
   "cmd.gateway.mcp.unavailable": "oh MCP server %s unavailable on the machine: %v",

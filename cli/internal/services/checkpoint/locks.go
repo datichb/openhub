@@ -130,7 +130,7 @@ func (s *Service) BeadsDone(ctx context.Context, root, op string, ids []string) 
 				s.record(st, timelineClosed, id, "", "")
 			}
 			if c, ok := bundle.UnlockingCheckpoint(wf, sessionspec.UnlockClose); ok {
-				changed = relock(st, c.ID)
+				changed = relockOnClose(st, c.ID)
 			}
 		default:
 			return errUnchanged

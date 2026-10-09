@@ -17,6 +17,7 @@
         "subagent planner allow",
         "subagent debugger allow",
         "subagent designer allow",
+        "subagent reviewer allow",
         "subagent onboarder allow",
         "subagent pathfinder allow",
         "subagent documentarian allow",
@@ -1221,7 +1222,8 @@
       "documentarian",
       "orchestrator-dev",
       "pathfinder",
-      "planner"
+      "planner",
+      "reviewer"
     ],
     "orchestrator-dev": [
       "developer",

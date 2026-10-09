@@ -11,7 +11,7 @@ Agent d'entrée : `orchestrator`. Seuls les agents ci-dessous existent dans cett
 
 | Agent | Rôle | Mode | Après | Peut déléguer à |
 |---|---|---|---|---|
-| `orchestrator` | workflow (entrée) | primary | — | `debugger`, `designer`, `documentarian`, `onboarder`, `orchestrator-dev`, `pathfinder`, `planner` |
+| `orchestrator` | workflow (entrée) | primary | — | `debugger`, `designer`, `documentarian`, `onboarder`, `orchestrator-dev`, `pathfinder`, `planner`, `reviewer` |
 | `debugger` | workflow | primary | — | `documentarian` |
 | `designer` | workflow | primary | — | — |
 | `documentarian` | workflow | primary | — | — |
@@ -19,10 +19,10 @@ Agent d'entrée : `orchestrator`. Seuls les agents ci-dessous existent dans cett
 | `orchestrator-dev` | workflow | primary | — | `developer`, `developer-migrator`, `developer-refactor`, `documentarian`, `reviewer` |
 | `pathfinder` | workflow | primary | — | `designer`, `documentarian` |
 | `planner` | workflow | primary | — | `designer`, `documentarian` |
+| `reviewer` | workflow | primary | — | `documentarian`, `reviewer` |
 | `developer` | workflow | subagent | — | `documentarian` |
 | `developer-migrator` | workflow | subagent | — | `documentarian` |
 | `developer-refactor` | workflow | subagent | — | `documentarian` |
-| `reviewer` | workflow | primary | — | `documentarian`, `reviewer` |
 
 Règles de délégation :
 - Tu ne lances (outil `task`) que les agents de la colonne « Peut déléguer à » de ta ligne. Tout autre appel est refusé par l'outil.

@@ -120,6 +120,9 @@ func (b *Beads) Exec(ctx context.Context, g Grant, req beadswire.ExecRequest) (r
 		return beadswire.ExecResponse{}, http.StatusOK
 	}
 	op, isOp := ticketOp(req.Argv, c)
+	if !isOp {
+		op, isOp = createOp(c)
+	}
 	if isOp && b.Guard != nil {
 		if err := b.Guard(ctx, g, op); err != nil {
 			slog.Debug("gateway: bd refused by the workflow", "session", g.SessionID, "command", c.Name, "error", err)

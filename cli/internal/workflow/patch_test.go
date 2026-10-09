@@ -147,3 +147,20 @@ func TestValidate_ReadWorkflowRefusesExecPlugin(t *testing.T) {
 		t.Fatal("context-mode must be listed")
 	}
 }
+
+// A disabled agent leaves the explicit delegations of the others (the
+// feature orchestrator lists documentarian; a team may disable it).
+func TestPatch_DisabledAgentLeavesCalls(t *testing.T) {
+	r, diags := layeredDiags(t, "agents:\n  reviewer: { role: disabled }\n")
+	if len(diags) != 0 {
+		t.Fatalf("diags = %v", diagList(diags))
+	}
+	od, _ := r.Spec.Agents.Get("orchestrator-dev")
+	if !reflect.DeepEqual(od.Calls, []string{"developer"}) {
+		t.Fatalf("calls = %v", od.Calls)
+	}
+	hub, _ := catalogOf(t, map[string]string{"hub:layered": hubLayered}).Lookup(Ref{LayerHub, "layered"})
+	if a, _ := hub.Spec.Agents.Get("orchestrator-dev"); len(a.Calls) != 2 {
+		t.Fatal("parent mutated")
+	}
+}

@@ -1372,6 +1372,7 @@
   "cmd.gateway.beads.timeout": "bd n'a pas répondu en %s",
   "cmd.gateway.beads.output_truncated": "sortie tronquée à %d octets",
   "cmd.gateway.beads.daemon_outdated": "Le démon oh ne connaît pas la passerelle Beads : arrêtez les sessions puis relancez-le (oh daemon stop)",
+  "cmd.gateway.beads.locked_create": "création de ticket refusée par oh : le checkpoint %s « %s » n'est pas validé. Appelle l'outil workflow_checkpoint avec cet identifiant et attends la décision de l'utilisateur ; les tickets se créent ensuite.",
   "cmd.gateway.beads.locked_checkpoint": "fermeture refusée par oh : le checkpoint %s « %s » n'est pas validé. Appelle l'outil workflow_checkpoint avec cet identifiant et attends la décision de l'utilisateur ; le commit puis la fermeture du ticket viennent ensuite.",
   "cmd.gateway.beads.locked_commit": "fermeture refusée par oh : rien n'a été commité depuis la validation du checkpoint %s « %s » alors que des changements restent à committer. Committe d'abord (git commit, hooks compris), puis ferme le ticket.",
   "cmd.gateway.mcp.unavailable": "Serveur MCP oh %s indisponible sur la machine : %v",

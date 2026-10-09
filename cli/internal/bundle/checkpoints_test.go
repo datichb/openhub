@@ -114,3 +114,16 @@ func TestSessionRulesLockCreateAndApply(t *testing.T) {
 		assert.NotEqual(t, shell, r.Action, "unknown operation: %v", r)
 	}
 }
+
+// N9: creating tickets (create, quick capture, duplicate, supersede) is
+// refused on the shell until the checkpoint that unlocks `create`.
+func TestSessionRulesLockCreate(t *testing.T) {
+	wf := testRuntime()
+	wf.Checkpoints[0].Unlocks = []string{sessionspec.UnlockCreate}
+	rules := SessionRules(wf, "manuel", nil)
+	for _, p := range []string{"*bd*create*", "*bd q *", "*bd*duplicate*", "*bd*supersede*"} {
+		assert.Contains(t, rules, rule(sessionspec.ActionShell, p, sessionspec.EffectDeny), p)
+	}
+	open := &domain.CheckpointState{Unlocks: map[string]domain.CheckpointUnlock{"create": {Checkpoint: wf.Checkpoints[0].ID}}}
+	assert.Empty(t, LockedOps(wf, "manuel", open))
+}

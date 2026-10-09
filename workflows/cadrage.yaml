@@ -36,6 +36,7 @@ checkpoints:
       en: Tickets are only created once the user has approved the breakdown.
     mandatory: true
     mode: { manuel: pause, semi-auto: pause, auto: pause }
+    unlocks: [create]
   cp-recap:
     label: { fr: Récap du cadrage, en: Scoping recap }
     mode: { manuel: pause, semi-auto: pause, auto: auto }

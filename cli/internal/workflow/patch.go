@@ -240,6 +240,7 @@ func (p *patcher) agents() {
 			}
 			p.dst.Agents.Delete(k)
 			p.removed = append(p.removed, base)
+			p.dropCalls(k)
 			continue
 		}
 		if !exists {
@@ -413,6 +414,19 @@ func (p *patcher) beads() {
 		return
 	}
 	p.dst.Beads = &BeadsAccess{Allow: s.Beads.Allow}
+}
+
+// dropCalls removes a disabled agent from the explicit delegations of the
+// others (it is no longer a member; narrowing calls only hardens).
+func (p *patcher) dropCalls(agent string) {
+	for _, k := range p.dst.Agents.Keys() {
+		a, _ := p.dst.Agents.Get(k)
+		if a.Calls == nil || !slices.Contains(a.Calls, agent) {
+			continue
+		}
+		a.Calls = slices.DeleteFunc(slices.Clone(a.Calls), func(c string) bool { return c == agent })
+		p.dst.Agents.Set(k, a)
+	}
 }
 
 // after keeps a gate: it cannot be removed, nor moved to an earlier

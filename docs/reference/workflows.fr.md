@@ -100,6 +100,7 @@ Sans demande ni ticket, la session commence par demander quelle feature réalise
 
 | Checkpoint | manuel | semi-auto | auto |
 |---|---|---|---|
+| `cp-tickets` Valider les tickets à créer (obligatoire, déverrouille `create`) | pause | pause | pause |
 | `cp-0` Valider le plan (obligatoire) | pause | pause | pause |
 | `cp-spec` Valider la spec UX/UI | si une spec a été produite | idem | idem |
 | `cp-1` Démarrer le ticket | pause | auto | auto |
@@ -107,7 +108,7 @@ Sans demande ni ticket, la session commence par demander quelle feature réalise
 | `cp-3` Ticket suivant | pause | auto | auto |
 | `cp-feature` Récap de la feature | pause | pause | auto |
 
-`orchestrator-dev` ne démarre qu'après `cp-0`. Mode par défaut : `semi-auto`. Sorties : `tickets`, `branch`. Commandes Beads autorisées : `show`, `list`, `ready`, `search`, `children`, `comments`, `count`, `status`, `graph`, `history`, `create`, `update`, `close`, `dep`, `label`, `duplicate`, `supersede`.
+Aucun ticket n'est créé avant `cp-tickets` (avec des tickets existants seulement, `cp-tickets` confirme la liste). `orchestrator-dev` ne démarre qu'après `cp-0` ; il passe lui-même `cp-1`, `cp-2` et `cp-3`, avec **un `cp-2` par ticket** (chaque ticket est commité puis fermé avant le suivant ; pas de validation groupée). En fin de feature, l'`orchestrator` fait relire l'ensemble par le `reviewer` (review adversariale sur la branche de travail), avant `cp-feature`. Mode par défaut : `semi-auto`. Sorties : `tickets`, `branch`. Commandes Beads autorisées : `show`, `list`, `ready`, `search`, `children`, `comments`, `count`, `status`, `graph`, `history`, `create`, `update`, `close`, `dep`, `label`, `duplicate`, `supersede`.
 
 L'ancienne pré-phase d'onboarding (mode C) n'est plus dans `feature` : la précondition `project-context` propose le workflow `onboarding`, puis le retour à `feature`.
 
@@ -130,10 +131,10 @@ Explore, planifie et spécifie une feature sans l'implémenter : seuls des ticke
 | Checkpoint | manuel | semi-auto | auto |
 |---|---|---|---|
 | `cp-scope` Valider le périmètre (avant la planification) | pause | pause | auto |
-| `cp-tickets` Valider le découpage (obligatoire, avant la création des tickets) | pause | pause | pause |
+| `cp-tickets` Valider le découpage (obligatoire, déverrouille `create`) | pause | pause | pause |
 | `cp-recap` Récap du cadrage | pause | pause | auto |
 
-`planner` ne démarre qu'après `cp-scope`. Mode par défaut : `semi-auto`. Commandes Beads autorisées : `show`, `list`, `ready`, `children`, `search`, `count`, `label`, `dep`, `create`, `update`, `comments`, `duplicate`, `supersede`. Sortie : `tickets`. Pour implémenter ensuite : `ticket` ou `feature` sur les tickets créés.
+`planner` ne démarre qu'après `cp-scope`. Avant `cp-tickets`, oh refuse toute création de ticket (règles shell et passerelle Beads) : le planner propose le découpage, le `conductor` passe `cp-tickets`, puis relance le planner qui crée les tickets. Mode par défaut : `semi-auto`. Commandes Beads autorisées : `show`, `list`, `ready`, `children`, `search`, `count`, `label`, `dep`, `create`, `update`, `comments`, `duplicate`, `supersede`. Sortie : `tickets`. Pour implémenter ensuite : `ticket` ou `feature` sur les tickets créés.
 
 ## `onboarding`
 
