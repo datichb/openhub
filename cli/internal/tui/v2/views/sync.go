@@ -2,6 +2,7 @@ package views
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"github.com/rivo/tview"
@@ -37,7 +38,11 @@ func syncAsync(
 		ctx = context.Background()
 	}
 	pullFn := func() error {
-		err := repo.Pull(ctx)
+		// Background: skipped when the clone is busy (N15).
+		err := repo.Pull(teamstate.WithTryLock(ctx))
+		if errors.Is(err, teamstate.ErrBusy) {
+			return nil
+		}
 		if err == nil || teamstate.IsPullWarning(err) {
 			AfterTeamSync(ctx, repo.Path())
 		}

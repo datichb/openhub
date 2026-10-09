@@ -26,16 +26,18 @@ oh init
 
 Checks the system health and dependencies. Exits with code 1 when a check fails (✗); warnings (⚠) do not count. The TUI Doctor view runs exactly the same checks.
 
+`oh doctor` works even when `hub.toml` does not load or the database does not open (degraded startup): the failing check says so (TOML error with line and column, unreadable database) and the other checks run. The database is opened **without being migrated**: schema version and the version this oh knows, pending migrations (⚠), last failed migration, schema newer than this oh, quick integrity check, WAL size.
+
 ```
 oh doctor [--fix [--yes]]
 ```
 
 | Flag | Short | Type | Description |
 |------|-------|------|-------------|
-| `--fix` | | bool | First repairs what can be repaired: **Beads zero impact** (content written by `bd init` in the registered projects, committed content included), after a summary and a confirmation |
+| `--fix` | | bool | First repairs what can be repaired, after a summary and a confirmation: a **`hub.toml` that no longer loads** (replaced by the latest valid backup `hub.toml.bak-<date>`, the broken file kept as `hub.toml.broken-<date>`), **Beads zero impact** (content written by `bd init` in the registered projects, committed content included; the commit of `bd init` itself is only undone with `--yes`, after a `git fetch`, when it is neither pushed nor the first of the repository) |
 | `--yes` | `-y` | bool | With `--fix`: apply without confirmation (required without a terminal) |
 
-Checks: OS and architecture, git, `bd` (optional), oh version (update available: warning; a pre-release such as `5.0.0-rc.1` or a `git describe` development build newer than the latest published release is up to date), `hub.toml`, provider credentials (cascade of a launch from the current directory: project key, team key, hub key, then AWS profile for Bedrock), database, API keys (keychain), Beads "zero impact" (hooks, `.gitignore`), then the v5 checks: opencode V2 (minimum version; V1 refused with the [migration guide](../guides/migration-v5.en.md)), `ohd` daemon, git, terminal opening, container engine and image, gateways, restrictions and memory, security (socket, capability, tokens), leftovers of former deployments, integrity of the team-state workflows, remote targets, orphan team claims (ticket closed, or every session on the ticket ended; with the `oh team release` command to run).
+Checks: OS and architecture, git, `bd` (optional), oh version (update available: warning; a pre-release such as `5.0.0-rc.1` or a `git describe` development build newer than the latest published release is up to date), `hub.toml`, provider credentials (cascade of a launch from the current directory: project key, team key, hub key, then AWS profile for Bedrock), database, API keys (keychain), Beads "zero impact" (hooks, `.gitignore`), then the v5 checks: opencode V2 (minimum version; V1 refused with the [migration guide](../guides/migration-v5.en.md)), `ohd` daemon, git, terminal opening, container engine and image, gateways, restrictions and memory, security (socket, capability, tokens), leftovers of former deployments, integrity of the team-state workflows, remote targets, orphan team claims (ticket closed, or every session on the ticket ended; with the `oh team release` command to run), orphan opencode servers (started by oh or its tests, owned by nobody any more; `--fix` stops them after a confirmation).
 
 **Example:**
 
@@ -157,25 +159,56 @@ oh import ~/backups/oh-backup.tar.gz --merge
 
 ---
 
-### oh repair
+### oh gc
 
-Checks the integrity of the SQLite database (`PRAGMA integrity_check` on `~/.oh/oh.db`). On corruption, attempts a recovery and offers: restore a backup, reset the database, or register the projects again. Also prints the schema version.
+Cleans up what oh leaves behind, after a summary (sizes per category) and a confirmation: session bundles no session uses any more, data of the stopped server groups (group lock held, server stopped; its proxy tokens revoked), folders of the **stopped** sessions (`results/` kept until `history_days`), worktrees **oh created** at launch (clean, untracked files included, unlocked, with no commit missing from every other branch, unused; their branch deleted only when merged), temporary `.build-*`/`.fetch-*` folders older than an hour, orphan servers, old history of the database (by batches, then `PRAGMA optimize`). Completed or failed sessions, which can still be resumed, are never cleaned up; neither are the worktrees of sessions recorded before v5.0. Retentions: [`[gc]`](config.en.md).
 
 ```
-oh repair [--check-only] [--auto]
+oh gc [--dry-run] [--yes] [--json] [--only <categories>] [--older-than <duration>]
+```
+
+| Flag | Short | Type | Description |
+|------|-------|------|-------------|
+| `--dry-run` | | bool | Show what would be removed, remove nothing |
+| `--yes` | `-y` | bool | Remove without confirmation (required without a terminal) |
+| `--json` | | bool | Plan (or result) as JSON |
+| `--only` | | list | `bundles`, `servers`, `sessions`, `worktrees`, `temp`, `orphans`, `history` |
+| `--older-than` | | duration | Replaces `session_days` this once (`30d`, `12h`) |
+
+The daemon runs the same clean-up every `[gc] every_hours` (24 h) without staying awake for it. Its **first pass is a simulation**: `oh doctor` then shows "N reclaimable: run oh gc"; after a first `oh gc`, the daemon cleans up on its own. One clean-up at a time (`~/.oh/run/gc.lock`).
+
+**Example:**
+
+```bash
+oh gc --dry-run
+oh gc --only bundles,servers --yes
+oh gc --older-than 7d
+```
+
+---
+
+### oh repair
+
+Checks the SQLite database `~/.oh/oh.db` **without migrating it** and without needing a working configuration or database: integrity (`PRAGMA integrity_check`), schema version and the version this oh knows, pending migrations, last failed migration, backups taken before the migrations (`~/.oh/backups/`). On corruption, the database files (with `-wal` and `-shm`) are copied to `oh.db.corrupt-<date>`, then the options are listed: restore a backup taken before a migration, restore an export, and only as a last resort start from an empty database.
+
+```
+oh repair [--check-only] [--auto] [--migrate] [--restore <file>]
 ```
 
 | Flag | Type | Description |
 |------|------|-------------|
 | `--check-only` | bool | Check only, without repairing |
-| `--auto` | bool | Non-interactive mode (scripts) |
+| `--auto` | bool | Non-interactive mode (scripts); confirms `--restore` without a terminal |
+| `--migrate` | bool | Apply the pending migrations; a backup (`VACUUM INTO`, WAL included) is taken first; a failed migration is detailed with the backup to restore |
+| `--restore` | string | Put a backup (`.bak` file) back; the daemon must be stopped (`oh daemon stop`); the replaced database is kept as `oh.db.replaced-<date>` |
 
 **Example:**
 
 ```bash
 oh repair
 oh repair --check-only
-oh repair --auto
+oh repair --migrate
+oh repair --restore ~/.oh/backups/oh.db.v41-20261009T101500.000000000Z.bak
 ```
 
 ---

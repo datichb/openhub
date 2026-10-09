@@ -129,6 +129,10 @@ type StartRequest struct {
 	ParentSessionID string
 	// Tickets are the tickets the session works on (kept on the session).
 	Tickets []string
+	// WorktreeAuto: oh created the worktree of Location for this launch,
+	// on WorktreeBranch (oh gc may remove it later, v43).
+	WorktreeAuto   bool
+	WorktreeBranch string
 	// Headless marks a session run without interactive client.
 	Headless bool
 
@@ -712,6 +716,7 @@ func (s *Service) persistSession(ctx context.Context, req StartRequest, srv *dom
 		WorkflowLayer: req.WorkflowLayer, WorkflowVersion: req.WorkflowVersion, WorkflowRisk: req.WorkflowRisk,
 		Location: req.LocationKind, ParentSessionID: req.ParentSessionID,
 		StartRef: worktree.StartRef(req.Location), Tickets: req.Tickets,
+		WorktreeAuto: req.WorktreeAuto, WorktreeBranch: req.WorktreeBranch,
 	}
 	if title != "" {
 		sess.Title = &title

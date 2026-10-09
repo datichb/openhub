@@ -28,7 +28,7 @@ func init() {
 	configCmd.AddCommand(configSetCmd())
 	configCmd.AddCommand(configUnsetCmd())
 	configCmd.AddCommand(configListCmd())
-	configCmd.AddCommand(configPathCmd())
+	configCmd.AddCommand(withInitLevel(configPathCmd(), levelDegraded))
 	configCmd.AddCommand(configLanguageCmd())
 	configCmd.AddCommand(configWebsearchCmd())
 }

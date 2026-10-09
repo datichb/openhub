@@ -22,7 +22,7 @@ import (
 func resolveActiveProject(a *app.App) (*domain.Project, error) {
 	ctx := context.Background()
 	if tuiShell == nil {
-		return resolveProject(ctx, a, "")
+		return resolveProject(ctx, a, "", projectRead)
 	}
 	if ap := tuiShell.ActiveProject(); ap != nil && ap.ID != "" {
 		return a.Projects.Get(ctx, ap.ID)
@@ -87,7 +87,7 @@ func initBeadsForActiveProject(a *app.App) {
 
 // initBeadsForProject shows a confirmation modal then initialises beads for the
 // given project (path, id/name as prefix).
-func initBeadsForProject(_ *app.App, id, name, path string) {
+func initBeadsForProject(a *app.App, id, name, path string) {
 	if tuiShell == nil {
 		return
 	}
@@ -121,6 +121,7 @@ func initBeadsForProject(_ *app.App, id, name, path string) {
 				return
 			}
 			tuiShell.ShowToastMsg(i18n.Tf("tui.helpers.board_initialized", label), true)
+			offerBeadsClean(a, path)
 			tuiShell.NavigateTo("board")
 		},
 	)

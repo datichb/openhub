@@ -193,11 +193,11 @@ func (r *Repo) RemovePattern(ctx context.Context, name string) error {
 		}
 
 		// Remove .md file (best-effort)
-		mdPath := filepath.Join(r.path, "patterns", name+".md")
-		_ = os.Remove(mdPath)
+		mdRel := filepath.Join("patterns", name+".md")
+		_ = os.Remove(filepath.Join(r.path, mdRel))
 
 		msg := fmt.Sprintf("pattern: remove %s", name)
-		return r.commitAndPush(ctx, msg, ".")
+		return r.commitAndPush(ctx, msg, filepath.Join("patterns", "index.toml"), mdRel)
 	})
 }
 

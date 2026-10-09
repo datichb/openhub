@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/datichb/openhub/cli/internal/filelock"
+	"github.com/datichb/openhub/cli/internal/logrotate"
 )
 
 // Client talks to ohd over its Unix socket.
@@ -281,6 +282,10 @@ type EnsureOptions struct {
 	// InProcess starts the daemon inside the calling process, used instead
 	// of a background process in InProcessMode (Windows). It must not block.
 	InProcess func() error
+	// LogMaxBytes and LogKeep bound ohd.log, rotated before a daemon is
+	// spawned (default logrotate.DefaultMaxBytes, DefaultKeep).
+	LogMaxBytes int64
+	LogKeep     int
 }
 
 // InProcessMode reports whether the daemon runs inside the oh process
@@ -333,6 +338,17 @@ func Ensure(ctx context.Context, paths Paths, opts EnsureOptions) (*Client, Heal
 	args := opts.Args
 	if len(args) == 0 {
 		args = []string{"daemon", "run"}
+	}
+	// Nobody writes the log any more (no daemon answers, spawn lock held).
+	maxBytes, keep := opts.LogMaxBytes, opts.LogKeep
+	if maxBytes <= 0 {
+		maxBytes = logrotate.DefaultMaxBytes
+	}
+	if keep <= 0 {
+		keep = logrotate.DefaultKeep
+	}
+	if _, err := logrotate.Rotate(paths.Log(), maxBytes, keep); err != nil {
+		slog.Warn("rotating ohd.log", "error", err)
 	}
 	logf, err := os.OpenFile(paths.Log(), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o600)
 	if err != nil {

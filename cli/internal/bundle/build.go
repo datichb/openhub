@@ -19,6 +19,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/datichb/openhub/cli/internal/bricks"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
@@ -284,6 +285,7 @@ func Build(req Request) (*Bundle, error) {
 		// Already compiled: reused only if its content still matches its
 		// hash (an agent may have written to it), rebuilt otherwise.
 		if verr := Verify(final, hash); verr == nil {
+			touchBundle(final) // oh gc keeps a recently used bundle (N16)
 			return &Bundle{Spec: spec, Dir: final}, req.seal(final)
 		} else if errors.Is(verr, ErrTampered) {
 			slog.Warn("bundle: modified after it was built, rebuilt", "bundle", hash)
@@ -301,7 +303,8 @@ func Build(req Request) (*Bundle, error) {
 	}
 	if err := os.Rename(tmp, final); err != nil {
 		if _, statErr := os.Stat(filepath.Join(final, specFile)); statErr == nil {
-			return &Bundle{Spec: spec, Dir: final}, nil // concurrent build won
+			touchBundle(final) // concurrent build won
+			return &Bundle{Spec: spec, Dir: final}, nil
 		}
 		return nil, fmt.Errorf("finalizing bundle: %w", err)
 	}
@@ -316,6 +319,14 @@ func (req Request) seal(dir string) error {
 		return fmt.Errorf("making the bundle read-only: %w", err)
 	}
 	return nil
+}
+
+// touchBundle marks a reused bundle as recently used: oh gc keeps a bundle
+// during a grace period after its last use (N16). The directory may be
+// read-only (sealed): only its times change.
+func touchBundle(dir string) {
+	now := time.Now()
+	_ = os.Chtimes(dir, now, now)
 }
 
 // Load reads a compiled bundle by hash. Its content is checked against its

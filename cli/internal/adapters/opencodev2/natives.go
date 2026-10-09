@@ -6,9 +6,12 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"os/signal"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/datichb/openhub/cli/internal/semver"
@@ -39,6 +42,9 @@ func DiscoverNatives(ctx context.Context, binary string) ([]string, error) {
 		return nil, fmt.Errorf("starting discovery server: %w", err)
 	}
 	defer func() { _ = srv.Stop(context.Background(), 3*time.Second) }()
+	// The server has its own process group: a Ctrl+C or a kill of oh would
+	// leave it running (N18). It is stopped first, then the signal goes on.
+	defer stopOnSignal(srv)()
 
 	agents, err := srv.Client.Agents(ctx, work)
 	if err != nil {
@@ -114,4 +120,31 @@ func Version(ctx context.Context, binary string) (string, error) {
 		return "", fmt.Errorf("running %s --version: %w", binary, err)
 	}
 	return semver.FromOutput(string(out)), nil
+}
+
+// stopOnSignal stops srv when the process receives an interrupt or a
+// termination signal, then delivers the signal again with its default
+// behaviour. The returned function ends the watch.
+func stopOnSignal(srv *Server) func() {
+	if runtime.GOOS == "windows" {
+		return func() {} // a signal cannot be delivered again there
+	}
+	ch := make(chan os.Signal, 1)
+	signal.Notify(ch, os.Interrupt, syscall.SIGTERM)
+	done := make(chan struct{})
+	go func() {
+		select {
+		case sig := <-ch:
+			_ = srv.Stop(context.Background(), 2*time.Second)
+			signal.Stop(ch)
+			if p, err := os.FindProcess(os.Getpid()); err == nil {
+				_ = p.Signal(sig)
+			}
+		case <-done:
+		}
+	}()
+	return func() {
+		signal.Stop(ch)
+		close(done)
+	}
 }

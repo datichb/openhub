@@ -29,7 +29,7 @@ var purgeCmd = &cobra.Command{
 }
 
 func init() {
-	rootCmd.AddCommand(purgeCmd)
+	rootCmd.AddCommand(withInitLevel(purgeCmd, levelDegraded))
 	purgeCmd.Flags().Bool("dry-run", false, i18n.T("cmd.purge.flags.dry_run"))
 	purgeCmd.Flags().Bool("force", false, i18n.T("cmd.purge.flags.force"))
 	purgeCmd.Flags().Bool("keep-binary", false, i18n.T("cmd.purge.flags.keep_binary"))

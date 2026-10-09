@@ -103,21 +103,37 @@ func loadLocale(locale string) map[string]string {
 // KeyOf returns the key of a message of the en or fr locale ("" when s is
 // not a message; the smallest key when several share it). Texts translated
 // before the locale is known (cobra commands built at init) are translated
-// again with it.
+// again with it. The reverse index of a locale is built once.
 func KeyOf(s string) string {
 	if s == "" {
 		return ""
 	}
 	for _, locale := range []string{"en", "fr"} {
-		best := ""
-		for k, v := range loadLocale(locale) {
-			if v == s && (best == "" || k < best) {
-				best = k
-			}
-		}
-		if best != "" {
-			return best
+		if k := reverseIndex(locale)[s]; k != "" {
+			return k
 		}
 	}
 	return ""
+}
+
+var (
+	reverseMu sync.Mutex
+	reverse   = map[string]map[string]string{} // locale -> message -> smallest key
+)
+
+func reverseIndex(locale string) map[string]string {
+	reverseMu.Lock()
+	defer reverseMu.Unlock()
+	if idx, ok := reverse[locale]; ok {
+		return idx
+	}
+	m := loadLocale(locale)
+	idx := make(map[string]string, len(m))
+	for k, v := range m {
+		if best, ok := idx[v]; !ok || k < best {
+			idx[v] = k
+		}
+	}
+	reverse[locale] = idx
+	return idx
 }

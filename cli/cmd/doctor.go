@@ -32,7 +32,7 @@ var doctorCmd = &cobra.Command{
 }
 
 func init() {
-	rootCmd.AddCommand(doctorCmd)
+	rootCmd.AddCommand(withInitLevel(doctorCmd, levelDegraded))
 	doctorCmd.Flags().Bool("fix", false, "Répare ce qui peut l'être (Beads zéro impact) après un résumé et une confirmation")
 	doctorCmd.Flags().BoolP("yes", "y", false, "Avec --fix : appliquer sans confirmation (obligatoire sans terminal)")
 }
@@ -69,7 +69,7 @@ func doctorRegistry() []check {
 		{i18n.T("cmd.doctor.check.version"), one(checkOhUpdate)},
 		{i18n.T("cmd.doctor.check.config"), single(checkConfig)},
 		{i18n.T("cmd.doctor.check.credentials"), single(checkProviderCredentials)},
-		{i18n.T("cmd.doctor.check.database"), single(checkDatabase)},
+		{i18n.T("cmd.doctor.check.database"), one(checkDatabase)},
 		{i18n.T("cmd.doctor.check.api_keys"), single(checkAPIKeys)},
 		{i18n.T("cmd.doctor.check.beads"), single(checkBeadsSanity)},
 		{i18n.T("cmd.doctor.check.runtime"), v5DoctorChecks},
@@ -100,9 +100,16 @@ func runDoctor(cmd *cobra.Command, args []string) error {
 
 	fmt.Fprintln(a.IO.Out, theme.Title.Render("  oh doctor  "))
 	fmt.Fprintln(a.IO.Out)
+	printStartupHints(a.IO.Out)
 
 	if fix, _ := cmd.Flags().GetBool("fix"); fix {
+		if err := fixConfig(cmd); err != nil {
+			return err
+		}
 		if err := runDoctorFix(cmd, a); err != nil {
+			return err
+		}
+		if err := fixOrphanServers(cmd); err != nil {
 			return err
 		}
 	}
@@ -168,27 +175,6 @@ func checkBinary(name string) func() (string, bool) {
 		}
 		return version, true
 	}
-}
-
-func checkConfig() (string, bool) {
-	a := TryApp()
-	if a == nil || a.Config == nil {
-		return i18n.T("cmd.doctor.config_not_loaded"), false
-	}
-	return i18n.Tf("cmd.doctor.config_ok", a.Config.CLI.Language), true
-}
-
-func checkDatabase() (string, bool) {
-	a := TryApp()
-	if a == nil || a.Projects == nil {
-		return i18n.T("cmd.doctor.db_not_connected"), false
-	}
-	ctx := context.Background()
-	projects, err := a.Projects.List(ctx, "")
-	if err != nil {
-		return i18n.Tf("cmd.doctor.error", err), false
-	}
-	return i18n.Tf("cmd.doctor.db_ok", len(projects)), true
 }
 
 func indexOf(s string, c byte) int {
@@ -300,11 +286,18 @@ func checkProviderCredentials() (string, bool) {
 }
 
 func providerCredentialStatus(ctx context.Context, a *app.App, project *domain.Project) (string, bool) {
-	prov := a.Config.LLM.DefaultProvider
+	return credentialStatus(ctx, a, project, "")
+}
+
+// credentialStatus follows the credential cascade of a launch of project
+// with the provider override (-P), as the launch does (N12: checked before
+// any launch).
+func credentialStatus(ctx context.Context, a *app.App, project *domain.Project, providerFlag string) (string, bool) {
+	prov := provider.ResolveProvider(providerFlag, "", a.Config.LLM.DefaultProvider)
 	cfg := hubProviderCfg(a, prov)
 	var projectID, tokenKey, teamID string
 	if project != nil {
-		prov, tokenKey, cfg = projectProvider(a, project, "")
+		prov, tokenKey, cfg = projectProvider(a, project, providerFlag)
 		projectID = project.ID
 		if tc := config.ResolveTeamForProject(a.Config, project); tc.Enabled {
 			teamID = tc.TeamID

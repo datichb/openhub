@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/datichb/openhub/cli/internal/gitutil"
 )
@@ -30,6 +31,14 @@ type CleanOptions struct {
 	// Tracked also cleans files whose committed version has bd's content
 	// (the change then shows in git status).
 	Tracked bool
+	// UndoCommit undoes the commit of `bd init` (HEAD, absent from every
+	// remote branch once the remotes are fetched). Only with an explicit
+	// --yes (N17): otherwise the commit is reported (CleanCommitKept).
+	UndoCommit bool
+	// KeepUntracked leaves the untracked settings files of other tools
+	// (.claude/settings.json…) untouched, reported as CleanAsk: they may be
+	// the user's own (automatic clean-up, nobody was asked).
+	KeepUntracked bool
 }
 
 // CleanAction is one change of CleanImpact.
@@ -46,9 +55,18 @@ type CleanReport struct {
 // Changed reports whether something was (or would be) changed.
 func (r CleanReport) Changed() bool {
 	for _, a := range r.Actions {
-		if a.Kind != CleanSkipped {
+		if !a.Kept() {
 			return true
 		}
+	}
+	return false
+}
+
+// Kept reports an action that leaves the project unchanged (a report).
+func (a CleanAction) Kept() bool {
+	switch a.Kind {
+	case CleanSkipped, CleanCommitKept, CleanCommitUnverified, CleanCommitFirst, CleanAsk:
+		return true
 	}
 	return false
 }
@@ -73,6 +91,17 @@ const (
 	// CleanUncommit: the commit of `bd init`, not pushed, was undone (the
 	// files stay in the working tree); Path is "commit <hash>".
 	CleanUncommit = "uncommit"
+	// CleanCommitKept: the commit of `bd init` could be undone with --yes.
+	CleanCommitKept = "commit_kept"
+	// CleanCommitUnverified: a remote could not be fetched, the commit may
+	// be pushed: never undone.
+	CleanCommitUnverified = "commit_unverified"
+	// CleanCommitFirst: the commit of `bd init` is the first of the
+	// repository: never undone.
+	CleanCommitFirst = "commit_first"
+	// CleanAsk: an untracked settings file with bd's hooks, left untouched
+	// by an automatic clean-up (KeepUntracked).
+	CleanAsk = "ask"
 )
 
 // bdInitCommitSubject is the subject of the commit `bd init` makes.
@@ -130,6 +159,10 @@ type cleaner struct {
 	report  CleanReport
 	tracked map[string]bool // relative paths tracked by git
 	git     bool
+	// shared: .beads/ is tracked by git (the team shares its tickets
+	// through the repository): it is not excluded, nor are bd's
+	// .gitignore entries moved.
+	shared bool
 }
 
 // CleanImpact removes from a project what `bd init` wrote outside .beads/
@@ -167,7 +200,9 @@ func (c *cleaner) gitOut(args ...string) (string, error) {
 
 // undoInitCommit undoes the commit `bd init` makes (HEAD, not pushed): a
 // mixed reset keeps every file in the working tree. A pushed commit, or one
-// followed by other commits, is never touched (reported as skipped).
+// followed by other commits, is never touched (reported as skipped). The
+// remote branches are fetched first (stale refs would hide a push); a remote
+// that cannot be fetched, or a first commit, keeps the commit (F-01).
 func (c *cleaner) undoInitCommit() {
 	subject, err := c.gitOut("log", "-1", "--format=%s")
 	if err != nil {
@@ -182,22 +217,56 @@ func (c *cleaner) undoInitCommit() {
 		}
 		return
 	}
-	if remote, _ := c.gitOut("branch", "-r", "--contains", "HEAD"); remote != "" {
-		c.report.Actions = append(c.report.Actions, CleanAction{Path: "commit " + hash, Kind: CleanSkipped})
+	commit := "commit " + hash
+	if _, err := c.gitOut("rev-parse", "--verify", "-q", "HEAD~1"); err != nil {
+		// First commit of the repository: never back to an unborn branch.
+		c.report.Actions = append(c.report.Actions, CleanAction{Path: commit, Kind: CleanCommitFirst})
 		return
 	}
-	c.report.Actions = append(c.report.Actions, CleanAction{Path: "commit " + hash, Kind: CleanUncommit})
+	if !c.opts.UndoCommit {
+		if remote, _ := c.gitOut("branch", "-r", "--contains", "HEAD"); remote != "" {
+			c.report.Actions = append(c.report.Actions, CleanAction{Path: commit, Kind: CleanSkipped})
+			return
+		}
+		c.report.Actions = append(c.report.Actions, CleanAction{Path: commit, Kind: CleanCommitKept})
+		return
+	}
+	if !c.opts.DryRun && !c.fetchRemotes() {
+		c.report.Actions = append(c.report.Actions, CleanAction{Path: commit, Kind: CleanCommitUnverified})
+		return
+	}
+	if remote, _ := c.gitOut("branch", "-r", "--contains", "HEAD"); remote != "" {
+		c.report.Actions = append(c.report.Actions, CleanAction{Path: commit, Kind: CleanSkipped})
+		return
+	}
+	c.report.Actions = append(c.report.Actions, CleanAction{Path: commit, Kind: CleanUncommit})
 	if c.opts.DryRun {
 		return
 	}
-	if _, err := c.gitOut("rev-parse", "--verify", "-q", "HEAD~1"); err == nil {
-		_, _ = c.gitOut("reset", "-q", "HEAD~1")
-		return
+	_, _ = c.gitOut("reset", "-q", "HEAD~1")
+}
+
+// fetchTimeout bounds the fetch of each remote before a commit is undone.
+var fetchTimeout = 20 * time.Second
+
+// fetchRemotes updates the remote branches; false when a remote cannot be
+// reached (no prompt: no terminal question in the middle of oh).
+func (c *cleaner) fetchRemotes() bool {
+	out, err := c.gitOut("remote")
+	if err != nil {
+		return false
 	}
-	// First commit of the repository: back to an unborn branch.
-	if _, err := c.gitOut("update-ref", "-d", "HEAD"); err == nil {
-		_, _ = c.gitOut("rm", "-r", "-q", "--cached", ".")
+	for _, r := range strings.Fields(out) {
+		ctx, cancel := context.WithTimeout(context.Background(), fetchTimeout)
+		cmd := gitutil.Command(ctx, c.root, "fetch", "--quiet", "--no-tags", r)
+		cmd.Env = append(cmd.Env, "GIT_SSH_COMMAND=ssh -o BatchMode=yes -o ConnectTimeout=10")
+		err := cmd.Run()
+		cancel()
+		if err != nil {
+			return false
+		}
 	}
+	return true
 }
 
 func (c *cleaner) loadTracked() {
@@ -212,6 +281,9 @@ func (c *cleaner) loadTracked() {
 	for _, p := range strings.Split(string(out), "\x00") {
 		if p != "" {
 			c.tracked[filepath.FromSlash(p)] = true
+			if strings.HasPrefix(p, ".beads/") {
+				c.shared = true
+			}
 		}
 	}
 }
@@ -354,6 +426,10 @@ func (c *cleaner) hooksJSON(rel string) {
 	if !changed || !c.allowed(rel, `"bd `) {
 		return
 	}
+	if c.opts.KeepUntracked && !c.tracked[rel] {
+		c.report.Actions = append(c.report.Actions, CleanAction{Path: rel, Kind: CleanAsk})
+		return
+	}
 	if m, ok := out.(map[string]any); ok {
 		if _, onlyVersion := m["version"]; onlyVersion && len(m) == 1 {
 			empty = true
@@ -414,8 +490,8 @@ func (c *cleaner) agentsSkill() {
 func (c *cleaner) gitignore() error {
 	rel := ".gitignore"
 	data, err := os.ReadFile(filepath.Join(c.root, rel))
-	if err != nil || !c.git {
-		return nil //nolint:nilerr // no .gitignore, or no repository to exclude the entries in
+	if err != nil || !c.git || c.shared {
+		return nil //nolint:nilerr // no .gitignore, no repository to exclude the entries in, or a shared .beads/
 	}
 	newContent, moved := cleanGitignoreContent(string(data))
 	if len(moved) == 0 {
@@ -448,7 +524,7 @@ func (c *cleaner) gitignore() error {
 
 // exclude makes sure .beads/ is ignored locally (.git/info/exclude).
 func (c *cleaner) exclude() {
-	if !c.git {
+	if !c.git || c.shared {
 		return
 	}
 	p := filepath.Join(c.root, ".git", "info", "exclude")
@@ -480,8 +556,9 @@ func removeIfEmpty(dir string) {
 
 // FixImpact is the clean-up of `oh doctor --fix`: BEADS INTEGRATION sections
 // of .git/hooks, then CleanImpact with committed content (Tracked). dryRun
-// lists the actions only (hooks included).
-func FixImpact(projectPath string, dryRun bool) (CleanReport, error) {
+// lists the actions only (hooks included); undoCommit: see
+// CleanOptions.UndoCommit.
+func FixImpact(projectPath string, dryRun, undoCommit bool) (CleanReport, error) {
 	var hooks []CleanAction
 	for _, name := range beadsHookNames {
 		content, err := os.ReadFile(filepath.Join(projectPath, ".git", "hooks", name))
@@ -492,7 +569,7 @@ func FixImpact(projectPath string, dryRun bool) (CleanReport, error) {
 	if !dryRun {
 		sanitizeHooks(projectPath)
 	}
-	r, err := CleanImpact(projectPath, CleanOptions{DryRun: dryRun, Tracked: true})
+	r, err := CleanImpact(projectPath, CleanOptions{DryRun: dryRun, Tracked: true, UndoCommit: undoCommit})
 	r.Actions = append(hooks, r.Actions...)
 	return r, err
 }

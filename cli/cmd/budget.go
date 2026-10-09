@@ -68,7 +68,7 @@ func init() {
 // directory (nil when none).
 func budgetProject(ctx context.Context, a *app.App, flag string) (*domain.Project, error) {
 	if flag != "" {
-		return resolveProject(ctx, a, flag)
+		return resolveProject(ctx, a, flag, projectRead)
 	}
 	cwd, _ := os.Getwd()
 	projects, err := a.Projects.List(ctx, domain.ProjectStatusActive)
@@ -182,7 +182,7 @@ func runBudgetSet(cmd *cobra.Command, field, value string) error {
 		fmt.Fprintln(cmd.OutOrStdout(), budgetSavedMessage(l, field, ""))
 		return nil
 	}
-	project, err := resolveProject(ctx, a, flag)
+	project, err := resolveProject(ctx, a, flag, projectWrite)
 	if err != nil {
 		return err
 	}

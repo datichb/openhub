@@ -40,7 +40,7 @@ func projectRenameCmd() *cobra.Command {
 			if len(args) > 0 {
 				projectID = args[0]
 			}
-			project, err := resolveProject(ctx, a, projectID)
+			project, err := resolveProject(ctx, a, projectID, projectWrite)
 			if err != nil {
 				return err
 			}
@@ -100,7 +100,7 @@ Ne déplace PAS physiquement le dossier.`,
 			if len(args) > 0 {
 				projectID = args[0]
 			}
-			project, err := resolveProject(ctx, a, projectID)
+			project, err := resolveProject(ctx, a, projectID, projectWrite)
 			if err != nil {
 				return err
 			}
@@ -179,7 +179,7 @@ Sans flags, lance un wizard interactif.`,
 			if len(args) > 0 {
 				projectID = args[0]
 			}
-			project, err := resolveProject(ctx, a, projectID)
+			project, err := resolveProject(ctx, a, projectID, projectWrite)
 			if err != nil {
 				return err
 			}

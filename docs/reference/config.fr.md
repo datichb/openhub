@@ -69,7 +69,7 @@ enabled = false
 token_key = "openhub.mcp.gslides.token"
 
 [worktree]
-auto_cleanup = true                # supprimer les worktrees mergés au démarrage
+auto_cleanup = true                # oh gc supprime périodiquement les worktrees créés par oh (propres, poussés, inutilisés)
 base_branch = ""                   # vide = détection auto (main/master)
 branch_pattern = "oh/%s"           # nommage des branches (%s = nom du worktree)
 
@@ -107,6 +107,14 @@ group = "acme"
 [remote.projects]                  # projet oh → cible (sinon choix automatique)
 # web-app = "acme"
 
+[beads]
+# zero_impact = "ask"              # ask | auto | off (fichiers écrits par bd init)
+
+[gc]                               # nettoyage (oh gc, et le démon toutes les every_hours)
+enabled = true
+# every_hours = 24  session_days = 30  history_days = 180  usage_days = 400
+# bundle_grace_hours = 24  log_max_mb = 20  log_keep = 3
+
 [limits]                           # restrictions I6 du hub (désactivées par défaut)
 # max_active_sessions = 4
 # session_budget_usd = 5
@@ -136,6 +144,14 @@ Supprimés en v5 (ignorés s'ils restent dans le fichier) : `[opencode] version`
 | `[limits]` | `max_active_sessions`, `session_budget_usd`, `daily_budget_usd`, `memory_mb`, `models` | non définies | Restrictions I6 du hub (`oh budget set`) |
 | `[deploy]` | `instruction_files` | `[]` | Fichiers du projet ajoutés aux instructions des agents du paquet |
 | `[websearch]` | `enabled` | `false` | Permissions WebSearch / WebFetch |
+| `[beads]` | `zero_impact` | `ask` | Fichiers écrits par `bd init` hors de `.beads/` à l'enregistrement d'un projet ou à l'initialisation de Beads : `ask` (liste puis confirmation ; sans terminal, rien), `auto` (sans question ; fichiers de réglages non suivis laissés), `off` (rien). Le commit de `bd init` n'est annulé qu'avec `--yes` ([Premiers pas](../guides/getting-started.fr.md)) |
+| `[gc]` | `enabled` | `true` | Nettoyage périodique par le démon (`oh gc` fonctionne toujours) |
+| | `every_hours` | `24` | Intervalle du nettoyage du démon (son premier passage est une simulation ; il nettoie après un premier `oh gc`) |
+| | `session_days` | `30` | Fichiers d'une session **arrêtée** gardés (paquet, données du serveur, dossier, worktree automatique) ; les sessions terminées ou en échec restent reprenables |
+| | `history_days` | `180` | Historique gardé (sessions arrêtées, événements d'agents, décisions réglées, résultats des sessions) |
+| | `usage_days` | `400` | Registre d'usage (coûts, relèvements de budget) gardé |
+| | `bundle_grace_hours` | `24` | Un paquet utilisé il y a moins longtemps est gardé |
+| | `log_max_mb`, `log_keep` | `20`, `3` | Taille au-delà de laquelle un journal est décalé, copies gardées |
 
 Voir [conteneur](../guides/container.fr.md), [exécution distante](../guides/remote-runners.fr.md) et [sessions v5](../guides/sessions-v5.fr.md#restrictions).
 

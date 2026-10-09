@@ -4,8 +4,8 @@
 package worktree
 
 import (
-	"bufio"
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -171,27 +171,49 @@ func ResolveOrCreate(projectPath, branch string) (string, error) {
 	return wtPath, nil
 }
 
-// IsMerged checks whether a branch is fully merged into baseBranch.
-// Uses `git branch --merged <baseBranch>` and checks if the target branch
-// appears in the output.
+// IsMerged reports whether a branch is fully merged into baseBranch: its tip
+// is reachable from baseBranch (`git merge-base --is-ancestor`). A branch that
+// never received a commit of its own since it was created (a fresh branch,
+// see IsFresh) is not merged: it has nothing to merge.
 func IsMerged(projectPath, branch, baseBranch string) (bool, error) {
-	cmd := exec.Command("git", "branch", "--merged", baseBranch)
+	cmd := exec.Command("git", "merge-base", "--is-ancestor", "refs/heads/"+branch, baseBranch)
+	cmd.Dir = projectPath
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		var exitErr *exec.ExitError
+		if errors.As(err, &exitErr) && exitErr.ExitCode() == 1 {
+			return false, nil
+		}
+		return false, fmt.Errorf("git merge-base --is-ancestor %s %s: %s", branch, baseBranch, strings.TrimSpace(string(out)))
+	}
+	return !IsFresh(projectPath, branch), nil
+}
+
+// IsFresh reports whether a branch still points where it was created: every
+// entry of its reflog holds the current tip. Without a reflog (reflogs
+// disabled, branch fetched) the branch is not considered fresh.
+func IsFresh(projectPath, branch string) bool {
+	cmd := exec.Command("git", "reflog", "show", "--format=%H", "refs/heads/"+branch, "--")
 	cmd.Dir = projectPath
 	out, err := cmd.Output()
 	if err != nil {
-		return false, fmt.Errorf("git branch --merged %s: %w", baseBranch, err)
+		return false
 	}
-
-	scanner := bufio.NewScanner(strings.NewReader(string(out)))
-	for scanner.Scan() {
-		line := strings.TrimSpace(scanner.Text())
-		// Lines look like "  branch-name" or "* current-branch"
-		line = strings.TrimPrefix(line, "* ")
-		if line == branch {
-			return true, nil
+	tip, err := exec.Command("git", "-C", projectPath, "rev-parse", "--verify", "refs/heads/"+branch).Output()
+	if err != nil {
+		return false
+	}
+	head := strings.TrimSpace(string(tip))
+	lines := strings.Fields(string(out))
+	if len(lines) == 0 {
+		return false
+	}
+	for _, l := range lines {
+		if l != head {
+			return false
 		}
 	}
-	return false, nil
+	return true
 }
 
 // CleanupMerged removes all worktrees whose branches are merged into baseBranch.

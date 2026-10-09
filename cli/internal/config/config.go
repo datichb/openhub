@@ -55,6 +55,10 @@ type Config struct {
 	// Limits holds the optional session restrictions of the hub level (I6,
 	// off by default; cascade in internal/limits).
 	Limits limits.Limits `mapstructure:"limits" toml:"limits,omitempty"`
+	// Beads holds the Beads settings of the hub (zero impact clean-up).
+	Beads BeadsConfig `mapstructure:"beads" toml:"beads,omitempty"`
+	// GC holds the clean-up settings (oh gc and the daemon, N16).
+	GC GCConfig `mapstructure:"gc" toml:"gc,omitempty"`
 }
 
 // ExecutionConfig configures where v5 sessions run.
@@ -458,6 +462,7 @@ func Load() (*Config, error) {
 	v.SetDefault("name", "OpenHub")
 	v.SetDefault("cli.language", "en")
 	v.SetDefault("worktree.auto_cleanup", true)
+	v.SetDefault("gc.enabled", true)
 	v.SetDefault("worktree.base_branch", "")
 	v.SetDefault("websearch.enabled", false)
 
@@ -535,6 +540,7 @@ func Save(c *Config) error {
 
 	// Atomic write: write to a temp file in the same directory, then rename.
 	// This prevents a half-written hub.toml on crash or power loss.
+	backupConfig(path, data)
 	tmpFile := path + ".tmp"
 	if err := os.WriteFile(tmpFile, data, 0o600); err != nil {
 		return fmt.Errorf("writing hub.toml tmp: %w", err)

@@ -19,6 +19,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/credproxy"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/gateway"
+	"github.com/datichb/openhub/cli/internal/safego"
 	"github.com/datichb/openhub/cli/internal/services/checkpoint"
 )
 
@@ -97,6 +98,23 @@ type Options struct {
 	Capability string
 	// SigV4 builds an AWS signer for a profile/region (overridable in tests).
 	SigV4 func(ctx context.Context, profile, region string) (credproxy.Auth, error)
+	// LogMaxBytes and LogKeep bound the logs the live processes keep open
+	// (ohd.log, logs of the server groups), copied then truncated every
+	// LogRotateEvery (default 10 min); defaults of logrotate.
+	LogMaxBytes    int64
+	LogKeep        int
+	LogRotateEvery time.Duration
+	// Tasks run in the background every Task.Every once the grants are
+	// restored (clean-up: oh gc). Unlike Periodic, they never keep the
+	// daemon awake.
+	Tasks []Task
+}
+
+// Task is a periodic background job of the daemon.
+type Task struct {
+	Name  string
+	Every time.Duration // default 1 h
+	Run   func(ctx context.Context)
 }
 
 // Daemon is the running ohd process.
@@ -219,6 +237,11 @@ func Run(ctx context.Context, opts Options) error {
 	}
 	if opts.Periodic != nil {
 		go d.runPeriodic(ctx)
+	}
+	// A panic of these background jobs must not take the daemon down (A-02).
+	safego.Go(func() { d.runLogRotation(ctx) })
+	for _, t := range opts.Tasks {
+		safego.Go(func() { d.runTask(ctx, t) })
 	}
 	// Supervision revokes grants: it must not race with their restoration.
 	select {

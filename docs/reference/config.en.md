@@ -69,7 +69,7 @@ enabled = false
 token_key = "openhub.mcp.gslides.token"
 
 [worktree]
-auto_cleanup = true                # remove merged worktrees on start
+auto_cleanup = true                # oh gc periodically removes the worktrees oh created (clean, pushed, unused)
 base_branch = ""                   # empty = auto-detect (main/master)
 branch_pattern = "oh/%s"           # branch naming (%s = worktree name)
 
@@ -107,6 +107,14 @@ group = "acme"
 [remote.projects]                  # oh project → target (otherwise automatic choice)
 # web-app = "acme"
 
+[beads]
+# zero_impact = "ask"              # ask | auto | off (files written by bd init)
+
+[gc]                               # clean-up (oh gc, and the daemon every every_hours)
+enabled = true
+# every_hours = 24  session_days = 30  history_days = 180  usage_days = 400
+# bundle_grace_hours = 24  log_max_mb = 20  log_keep = 3
+
 [limits]                           # hub I6 restrictions (off by default)
 # max_active_sessions = 4
 # session_budget_usd = 5
@@ -136,6 +144,14 @@ Removed in v5 (ignored if still in the file): `[opencode] version`, `channel`, `
 | `[limits]` | `max_active_sessions`, `session_budget_usd`, `daily_budget_usd`, `memory_mb`, `models` | not set | Hub I6 restrictions (`oh budget set`) |
 | `[deploy]` | `instruction_files` | `[]` | Project files added to the instructions of the bundle agents |
 | `[websearch]` | `enabled` | `false` | WebSearch / WebFetch permissions |
+| `[beads]` | `zero_impact` | `ask` | Files written by `bd init` outside `.beads/` when a project is registered or Beads initialized: `ask` (listed, then a confirmation; without a terminal, nothing), `auto` (no question; untracked settings files left alone), `off` (nothing). The commit of `bd init` is only undone with `--yes` ([Getting started](../guides/getting-started.en.md)) |
+| `[gc]` | `enabled` | `true` | Periodic clean-up by the daemon (`oh gc` always works) |
+| | `every_hours` | `24` | Interval of the daemon clean-up (its first pass is a simulation; it cleans up after a first `oh gc`) |
+| | `session_days` | `30` | Files of a **stopped** session kept (bundle, server data, folder, automatic worktree); completed or failed sessions can still be resumed |
+| | `history_days` | `180` | History kept (stopped sessions, agent events, settled decisions, session results) |
+| | `usage_days` | `400` | Usage ledger (costs, budget raises) kept |
+| | `bundle_grace_hours` | `24` | A bundle used less than that ago is kept |
+| | `log_max_mb`, `log_keep` | `20`, `3` | Size above which a log is shifted, copies kept |
 
 See [container](../guides/container.en.md), [remote runners](../guides/remote-runners.en.md) and [v5 sessions](../guides/sessions-v5.en.md#restrictions).
 

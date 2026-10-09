@@ -64,8 +64,12 @@ func runWorkflowCmd(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
+	// The tool first: no project question for a launch that cannot start.
+	if err := requireV2(ctx); err != nil {
+		return err
+	}
 	projectID, _ := cmd.Flags().GetString("project")
-	if opts.Project, err = resolveProject(ctx, a, projectID); err != nil {
+	if opts.Project, err = resolveProject(ctx, a, projectID, projectWrite); err != nil {
 		return err
 	}
 	if opts.Workflow == "" {

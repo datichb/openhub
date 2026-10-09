@@ -60,13 +60,8 @@ func init() {
 		RunE:  runRunnerJob,
 	}
 	run.Flags().String("out", remote.OutDir, i18n.T("cmd.runner.run.flags.out"))
-	runnerCmd.AddCommand(install, run)
+	runnerCmd.AddCommand(withInitLevel(install, levelNone), withInitDB(run))
 	rootCmd.AddCommand(runnerCmd)
-}
-
-// isRunnerInstall reports `oh runner install` (image build: no oh home).
-func isRunnerInstall(cmd *cobra.Command) bool {
-	return cmd.Name() == "install" && cmd.Parent() != nil && cmd.Parent().Name() == "runner"
 }
 
 func runRunnerJob(cmd *cobra.Command, _ []string) error {

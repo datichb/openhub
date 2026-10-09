@@ -97,8 +97,8 @@ func buildViews(a *app.App, notifStore *shell.NotificationStore) []views.View {
 				if tuiShell != nil {
 					tuiShell.ShowToastMsg("Project save failed: "+err.Error(), false)
 				}
-			} else if r := autoCleanBeads(p.Path); r.Changed() && tuiShell != nil {
-				tuiShell.ShowToastMsg(i18n.T("cmd.beads.clean.auto_done"), true)
+			} else {
+				offerBeadsClean(a, p.Path)
 			}
 		})
 		projectsView.SetOnRemove(func(id string) {

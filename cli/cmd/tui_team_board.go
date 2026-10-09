@@ -113,13 +113,17 @@ func buildTeamBoardViewConfig(a *app.App) views.TeamBoardViewConfig {
 		},
 		SyncFunc: func() error {
 			// Git pull only — fetches colleagues' changes from the shared state repo.
-			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			// Periodic: skipped when the clone is busy (N15).
+			ctx, cancel := context.WithTimeout(teamstate.WithTryLock(context.Background()), 15*time.Second)
 			defer cancel()
 			repo := resolveRepo()
 			if repo == nil {
 				return nil
 			}
 			err := repo.Pull(ctx)
+			if errors.Is(err, teamstate.ErrBusy) {
+				return nil
+			}
 			if (err == nil || teamstate.IsPullWarning(err)) && tuiShell != nil {
 				views.AfterTeamSync(tuiShell.Context(), repo.Path())
 			}

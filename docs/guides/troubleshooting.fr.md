@@ -35,21 +35,28 @@ Executez `oh doctor` pour verifier l'etat de sante de votre installation. Il eff
 | 17 | Ouverture des sessions | Methode d'ouverture des sessions (terminal, iTerm, tmux…) | — |
 | 18 | Conteneur | Moteur, partage de fichiers, images des projets | voir [Conteneur](container.fr.md) |
 | 19 | Passerelles | `bd` sur la machine (passerelle Beads), passerelles du demon | Installer `bd` ; `oh daemon status` |
+| 20 | Serveurs opencode orphelins | Serveurs lances par oh que plus personne ne possede : test ou decouverte des agents natifs interrompus, serveur que ce hub ne fait plus tourner, serveur d'un dossier oh supprime (les serveurs d'un autre `OH_HOME` sont laisses) | `oh doctor --fix` |
 
 ### `oh repair`
 
 Diagnostique et repare la base de donnees SQLite :
 
 ```bash
-oh repair                 # Diagnostic et reparation interactifs
+oh repair                 # Diagnostic (sans migrer la base)
 oh repair --check-only    # Verification sans modification
+oh repair --migrate       # Appliquer les migrations en attente, apres une sauvegarde
+oh repair --restore <fichier.bak> # Remettre une sauvegarde en place (demon arrete)
 oh repair --auto          # Non-interactif (pour les scripts)
 ```
 
+`oh repair` et `oh doctor` demarrent meme si `hub.toml` ne se charge pas ou si la base ne s'ouvre pas : ils ne migrent jamais la base d'eux-memes.
+
 Si la base de donnees est corrompue, `oh repair` va :
-1. Sauvegarder le fichier corrompu dans `<db>.corrupt-backup`
-2. Rechercher les sauvegardes d'export existantes (`oh-backup-*.tar.gz`)
-3. Proposer des options de recuperation : restaurer depuis une sauvegarde, reinitialiser, ou re-enregistrement manuel
+1. Copier les fichiers de la base (avec `-wal` et `-shm`) dans `<db>.corrupt-<date>`
+2. Lister les sauvegardes faites avant les migrations (`~/.oh/backups/`) et les exports (`oh-backup-*.tar.gz`)
+3. Proposer, dans l'ordre : restaurer une sauvegarde, restaurer un export, et seulement en dernier recours repartir d'une base vide
+
+**`hub.toml` illisible** : `oh doctor` affiche l'erreur avec sa ligne et sa colonne. `oh` garde une copie de `hub.toml` avant chaque enregistrement (`hub.toml.bak-<date>`, trois gardees) ; `oh doctor --fix` restaure la plus recente valide apres confirmation (`--yes` sans terminal), le fichier casse est garde en `hub.toml.broken-<date>`.
 
 ---
 
@@ -66,6 +73,18 @@ Definissez votre cle API :
 oh secrets set ANTHROPIC_API_KEY    # Via le trousseau (recommande)
 export ANTHROPIC_API_KEY="sk-..."   # Via variable d'environnement
 ```
+
+**Lancement refuse faute d'identifiants**
+```
+lancement impossible, identifiants du fournisseur introuvables (projet, équipe, hub ; profil AWS pour Bedrock) : …
+```
+`oh run` (et la fiche de lancement de la TUI, a l'etape Recap) verifie les identifiants du fournisseur avant de construire le paquet ou de demander quoi que ce soit au demon, selon la meme cascade qu'`oh doctor` : cle du projet, de l'equipe, du hub, puis profil AWS pour Bedrock. Configurez-les avec `oh provider setup` (ou `-P` pour un autre fournisseur). Un refus du demon (« le démon oh n'a pas pu préparer les identifiants… ») se diagnostique avec `oh doctor`.
+
+**Commande lancee hors du dossier d'un projet**
+```
+vous n'êtes dans le dossier d'aucun projet : lancez la commande depuis le dossier du projet ou utilisez -p <projet>
+```
+Hors du dossier d'un projet, `oh` ne prend plus en silence le seul projet enregistre. Une commande qui ecrit (`oh run` et ses alias, `oh review feedback`, `oh mcp setup|enable|disable|reset`, `oh project rename|move|configure`, `oh budget set`…) demande confirmation dans un terminal et refuse sans terminal ; une commande qui lit (`oh bundle show`, `oh mcp status`…) annonce sur la sortie d'erreur le projet utilise. Avec plusieurs projets, une liste permet de choisir. Utilisez `-p <projet>` (`oh project list`).
 
 **Token invalide (services MCP)**
 ```
@@ -160,6 +179,33 @@ Si la reparation echoue, restaurez depuis une sauvegarde :
 oh import oh-backup-2026-10-01.tar.gz
 ```
 
+**Mise a jour de la base (migrations)**
+
+Au premier lancement apres une mise a jour d'`oh`, la base `~/.oh/oh.db` est migree. Plusieurs processus peuvent l'ouvrir en meme temps (TUI, demon, serveurs MCP) : un seul migre, les autres attendent (verrou `oh.db.migrate.lock`, 30 s au plus) puis trouvent la base a jour. Avant de migrer une base existante, `oh` en fait une copie dans `~/.oh/backups/oh.db.v<version>-<date>.bak` (les trois dernieres sont gardees). Si la copie echoue, la migration est refusee (`OH_SKIP_DB_BACKUP=1` pour passer outre).
+
+Si une migration echoue, le message donne la sauvegarde a restaurer :
+```
+La migration v42 de la base de données a échoué : …
+Une sauvegarde a été faite avant la migration : ~/.oh/backups/oh.db.v41-….bak
+Pour la restaurer : oh repair --restore ~/.oh/backups/oh.db.v41-….bak
+```
+
+**Base mise a jour par une version plus recente d'`oh`**
+```
+La base de données ~/.oh/oh.db a été mise à jour par une version plus récente d'oh (migrations v44 ; …)
+```
+Une version plus ancienne d'`oh` refuse de travailler sur une base dont elle ne connait pas le schema : mettez `oh` a jour. `oh doctor` et `oh repair` restent utilisables. Pour passer outre a vos risques : `OH_ALLOW_NEWER_SCHEMA=1` (aucune migration n'est alors appliquee).
+
+---
+
+### team-state
+
+**team-state occupe**
+```
+Le team-state ~/.oh/teams/<equipe> est occupé par pid 4242 (oh tui) depuis 10:02:03 : réessayez dans un instant.
+```
+Toutes les ecritures git d'`oh` dans un clone du team-state (CLI, TUI, demon, serveurs MCP) passent par un verrou : `.git/oh.lock` entre processus, et un verrou par chemin dans un meme processus. Une commande attend jusqu'a 30 s, le demon et la synchronisation du suivi 2 min ; les synchronisations periodiques de la TUI sautent un tour. Un `.git/index.lock` de plus de 2 minutes (git interrompu) est supprime avec un avertissement ; un plus recent signale un git lance a la main dans le clone : attendez qu'il se termine. Les transferts reseau bloques abandonnent apres 30 s sans debit. Un push refuse n'efface plus que les fichiers de la publication en cours (plus de `reset --hard`). Chaque ecriture est une transaction (pull, ecriture, commit, push, refaite sur l'etat distant si un autre membre a pousse entre-temps) qui ne commite **que ses propres fichiers** : un fichier que vous avez modifie a la main dans le clone n'est jamais embarque ; une synchronisation du suivi (GitLab, Jira) fait un seul commit.
+
 ---
 
 ### Worktree
@@ -186,6 +232,21 @@ oh worktree cleanup        # Supprimer les worktrees fusionnes (mode sans risque
 oh worktree cleanup -f     # Forcer la suppression de tous les worktrees fusionnes
 oh worktree list           # Lister tous les worktrees actifs
 ```
+
+---
+
+### Espace disque
+
+`oh gc --dry-run` montre ce qu'oh peut libérer (paquets de session, données des serveurs, dossiers des sessions arrêtées, worktrees créés par oh, dossiers temporaires, serveurs orphelins, historique ancien) ; `oh gc` le supprime après confirmation. Le démon le fait toutes les 24 h une fois qu'un premier `oh gc` a été lancé (`oh doctor` › « Nettoyage » le rappelle). Voir [`oh gc`](../reference/cli-infra.fr.md#oh-gc).
+
+### Journaux
+
+| Journal | Emplacement |
+|---|---|
+| Demon `ohd` | `~/.oh/run/ohd.log` |
+| Serveur d'un groupe de sessions | `~/.oh/servers/<groupe>/data/oh-server.log` |
+
+Les journaux sont bornes : au-dela de 20 Mo, un journal est decale en `<fichier>.1` (les copies plus anciennes en `.2`, `.3` ; trois gardees). `ohd.log` l'est au demarrage du demon, le journal d'un serveur a son demarrage ; pendant qu'ils tournent, le demon copie puis vide les journaux trop gros toutes les 10 minutes.
 
 ---
 

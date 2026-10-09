@@ -3,6 +3,7 @@ package cmd
 import (
 	"errors"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/datichb/openhub/cli/internal/config"
@@ -10,6 +11,8 @@ import (
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	sessionsvc "github.com/datichb/openhub/cli/internal/services/session"
+	"github.com/datichb/openhub/cli/internal/storage/sqlite"
+	"github.com/datichb/openhub/cli/internal/teamstate"
 )
 
 // Errors of cobra and of shared layers, translated before they are printed
@@ -46,11 +49,29 @@ func ensureLocale() {
 // localizeError returns the message printed for an error of a command.
 func localizeError(err error) string {
 	var api *daemon.APIError
+	var newer *sqlite.SchemaNewerError
+	var mig *sqlite.MigrationError
+	var startup *startupError
+	var busy *teamstate.BusyError
 	switch {
 	case errors.As(err, &api) && api.Path == "/shutdown" && api.Status == 409:
 		return i18n.T("cmd.daemon.stop_busy")
+	case errors.As(err, &api) && api.Path == "/grants" && api.Status == 422:
+		return i18n.Tf("cmd.run.provider.grant_refused", api.Message)
 	case isNoTerminalError(err):
 		return i18n.T("cmd.errors.no_terminal")
+	case errors.As(err, &newer):
+		return i18n.Tf("cmd.init.level.schema_newer", sqlite.DBPath(), joinInts(newer.Unknown), newer.Known)
+	case errors.As(err, &mig) && mig.Backup != "":
+		return i18n.Tf("cmd.init.level.migration_failed_backup", mig.Version, mig.Err, mig.Backup, mig.Backup)
+	case errors.As(err, &mig):
+		return i18n.Tf("cmd.init.level.migration_failed", mig.Version, mig.Err)
+	case errors.As(err, &busy) && busy.Holder != "":
+		return i18n.Tf("teamstate.lock.busy_by", busy.Path, busy.Holder)
+	case errors.As(err, &busy):
+		return i18n.Tf("teamstate.lock.busy", busy.Path)
+	case errors.As(err, &startup):
+		return i18n.Tf("cmd.init.level.failed", localizeError(startup.err))
 	}
 	msg := err.Error()
 	for _, ce := range cobraErrors {
@@ -84,6 +105,14 @@ func localizeError(err error) string {
 func isNoTerminalError(err error) bool {
 	msg := err.Error()
 	return strings.Contains(msg, "/dev/tty") || strings.Contains(msg, "inappropriate ioctl for device")
+}
+
+func joinInts(vs []int) string {
+	parts := make([]string, len(vs))
+	for i, v := range vs {
+		parts[i] = "v" + strconv.Itoa(v)
+	}
+	return strings.Join(parts, ", ")
 }
 
 // sessionRefError translates the errors of a session reference (A12).

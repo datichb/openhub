@@ -26,16 +26,18 @@ oh init
 
 Vérifie l'état du système et les dépendances. Sort avec le code 1 si un contrôle échoue (✗) ; les avertissements (⚠) ne comptent pas. La vue Doctor de la TUI exécute exactement les mêmes contrôles.
 
+`oh doctor` fonctionne même quand `hub.toml` ne se charge pas ou que la base ne s'ouvre pas (démarrage dégradé) : le contrôle en échec le dit (erreur TOML avec ligne et colonne, base illisible), les autres contrôles s'exécutent. La base est ouverte **sans être migrée** : version du schéma et version connue d'oh, migrations en attente (⚠), dernière migration en échec, schéma plus récent que cette version d'oh, contrôle rapide d'intégrité, taille du WAL.
+
 ```
 oh doctor [--fix [--yes]]
 ```
 
 | Flag | Court | Type | Description |
 |------|-------|------|-------------|
-| `--fix` | | bool | Répare d'abord ce qui peut l'être : **Beads zéro impact** (contenu écrit par `bd init` dans les projets enregistrés, commité compris), après un résumé et une confirmation |
+| `--fix` | | bool | Répare d'abord ce qui peut l'être, après un résumé et une confirmation : un **`hub.toml` qui ne se charge plus** (remplacé par la dernière sauvegarde valide `hub.toml.bak-<date>`, le fichier cassé gardé en `hub.toml.broken-<date>`), **Beads zéro impact** (contenu écrit par `bd init` dans les projets enregistrés, commité compris ; le commit de `bd init` lui-même n'est annulé qu'avec `--yes`, après un `git fetch`, s'il n'est pas poussé ni le premier du dépôt) |
 | `--yes` | `-y` | bool | Avec `--fix` : appliquer sans confirmation (obligatoire sans terminal) |
 
-Contrôles : OS et architecture, git, `bd` (optionnel), version d'oh (mise à jour disponible : avertissement ; une pré-version comme `5.0.0-rc.1` ou un build de développement `git describe` plus récent que la dernière version publiée est à jour), `hub.toml`, identifiants du provider (cascade d'un lancement depuis le dossier courant : clé du projet, de l'équipe, du hub, puis profil AWS pour Bedrock), base de données, clés API (trousseau), Beads « zéro impact » (hooks, `.gitignore`), puis les contrôles v5 : opencode V2 (version minimale ; V1 refusé avec le [guide de migration](../guides/migration-v5.fr.md)), démon `ohd`, git, ouverture des terminaux, moteur de conteneurs et image, passerelles, restrictions et mémoire, sécurité (socket, capacité, jetons), restes des anciens déploiements, intégrité des workflows du team-state, cibles distantes, réservations d'équipe orphelines (ticket fermé, ou toutes les sessions du ticket terminées ; avec la commande `oh team release` à lancer).
+Contrôles : OS et architecture, git, `bd` (optionnel), version d'oh (mise à jour disponible : avertissement ; une pré-version comme `5.0.0-rc.1` ou un build de développement `git describe` plus récent que la dernière version publiée est à jour), `hub.toml`, identifiants du provider (cascade d'un lancement depuis le dossier courant : clé du projet, de l'équipe, du hub, puis profil AWS pour Bedrock), base de données, clés API (trousseau), Beads « zéro impact » (hooks, `.gitignore`), puis les contrôles v5 : opencode V2 (version minimale ; V1 refusé avec le [guide de migration](../guides/migration-v5.fr.md)), démon `ohd`, git, ouverture des terminaux, moteur de conteneurs et image, passerelles, restrictions et mémoire, sécurité (socket, capacité, jetons), restes des anciens déploiements, intégrité des workflows du team-state, cibles distantes, réservations d'équipe orphelines (ticket fermé, ou toutes les sessions du ticket terminées ; avec la commande `oh team release` à lancer), serveurs opencode orphelins (lancés par oh ou ses tests, que plus personne ne possède ; `--fix` les arrête après confirmation).
 
 **Exemple :**
 
@@ -157,25 +159,56 @@ oh import ~/sauvegardes/oh-backup.tar.gz --merge
 
 ---
 
-### oh repair
+### oh gc
 
-Vérifie l'intégrité de la base SQLite (`PRAGMA integrity_check` sur `~/.oh/oh.db`). En cas de corruption, tente une récupération et propose : restaurer une sauvegarde, réinitialiser la base, ou réenregistrer les projets. Affiche aussi la version du schéma.
+Nettoie ce qu'oh laisse derrière lui, après un résumé (tailles par catégorie) et une confirmation : paquets de session qu'aucune session ne sert plus, données des groupes de serveurs arrêtés (verrou du groupe pris, serveur arrêté ; ses jetons du proxy révoqués), dossiers des sessions **arrêtées** (`results/` gardé jusqu'à `history_days`), worktrees **créés par oh** au lancement (propres, fichiers non suivis compris, non verrouillés, sans commit absent de toute autre branche, inutilisés ; leur branche supprimée seulement si elle est fusionnée), dossiers temporaires `.build-*`/`.fetch-*` de plus d'une heure, serveurs orphelins, historique ancien de la base (par lots, puis `PRAGMA optimize`). Les sessions terminées ou en échec, qui restent reprenables, ne sont jamais nettoyées ; les worktrees des sessions antérieures à la v5.0 non plus. Retentions : [`[gc]`](config.fr.md).
 
 ```
-oh repair [--check-only] [--auto]
+oh gc [--dry-run] [--yes] [--json] [--only <catégories>] [--older-than <durée>]
+```
+
+| Flag | Court | Type | Description |
+|------|-------|------|-------------|
+| `--dry-run` | | bool | Afficher ce qui serait supprimé, sans rien supprimer |
+| `--yes` | `-y` | bool | Supprimer sans confirmation (obligatoire sans terminal) |
+| `--json` | | bool | Plan (ou résultat) au format JSON |
+| `--only` | | liste | `bundles`, `servers`, `sessions`, `worktrees`, `temp`, `orphans`, `history` |
+| `--older-than` | | durée | Remplace `session_days` pour cette fois (`30d`, `12h`) |
+
+Le démon fait le même nettoyage toutes les `[gc] every_hours` (24 h) sans se garder éveillé pour autant. Son **premier passage est une simulation** : `oh doctor` affiche alors « N récupérables : lancez oh gc » ; après un premier `oh gc`, le démon nettoie tout seul. Un seul nettoyage à la fois (`~/.oh/run/gc.lock`).
+
+**Exemple :**
+
+```bash
+oh gc --dry-run
+oh gc --only bundles,servers --yes
+oh gc --older-than 7d
+```
+
+---
+
+### oh repair
+
+Vérifie la base SQLite `~/.oh/oh.db` **sans la migrer** et sans avoir besoin d'une configuration ou d'une base qui fonctionnent : intégrité (`PRAGMA integrity_check`), version du schéma et version connue d'oh, migrations en attente, dernière migration en échec, sauvegardes faites avant les migrations (`~/.oh/backups/`). En cas de corruption, les fichiers de la base (avec `-wal` et `-shm`) sont copiés en `oh.db.corrupt-<date>`, puis les options sont proposées : restaurer une sauvegarde d'avant migration, restaurer un export, et seulement en dernier recours repartir d'une base vide.
+
+```
+oh repair [--check-only] [--auto] [--migrate] [--restore <fichier>]
 ```
 
 | Flag | Type | Description |
 |------|------|-------------|
 | `--check-only` | bool | Vérifier uniquement, sans réparer |
-| `--auto` | bool | Mode non interactif (scripts) |
+| `--auto` | bool | Mode non interactif (scripts) ; confirme `--restore` sans terminal |
+| `--migrate` | bool | Appliquer les migrations en attente ; une sauvegarde (`VACUUM INTO`, WAL compris) est faite avant ; l'erreur d'une migration est détaillée avec la sauvegarde à restaurer |
+| `--restore` | string | Remettre en place une sauvegarde (fichier `.bak`) ; le démon doit être arrêté (`oh daemon stop`) ; la base remplacée est gardée en `oh.db.replaced-<date>` |
 
 **Exemple :**
 
 ```bash
 oh repair
 oh repair --check-only
-oh repair --auto
+oh repair --migrate
+oh repair --restore ~/.oh/backups/oh.db.v41-20261009T101500.000000000Z.bak
 ```
 
 ---

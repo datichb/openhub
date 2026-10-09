@@ -35,8 +35,11 @@ func runReviewFeedback(cmd *cobra.Command, args []string) error {
 	ref := args[0]
 
 	// ── 1. Resolve project ──
+	if err := requireV2(ctx); err != nil {
+		return err
+	}
 	projectID, _ := cmd.Flags().GetString("project")
-	project, err := resolveProject(ctx, a, projectID)
+	project, err := resolveProject(ctx, a, projectID, projectWrite)
 	if err != nil {
 		return err
 	}

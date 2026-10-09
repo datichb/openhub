@@ -1,6 +1,7 @@
 package teamstate
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -167,6 +168,26 @@ func (r *Repo) EnsureWorkflowLayout(scope WorkflowScope) error {
 		}
 	}
 	return nil
+}
+
+// CommitWorkflowLayout creates the workflow folders of scope and commits
+// their .gitkeep files (one transaction).
+func (r *Repo) CommitWorkflowLayout(ctx context.Context, scope WorkflowScope, msg string) error {
+	return r.Transact(ctx, func(_ context.Context, tx *Tx) (TxResult, error) {
+		if err := r.EnsureWorkflowLayout(scope); err != nil {
+			return TxResult{}, err
+		}
+		dir, err := r.WorkflowsDir(scope)
+		if err != nil {
+			return TxResult{}, err
+		}
+		for _, d := range []string{PublishedDirName, DraftsDirName, PromptsDirName, HistoryDirName} {
+			if rel, err := filepath.Rel(r.path, filepath.Join(dir, d, ".gitkeep")); err == nil {
+				tx.Touch(rel)
+			}
+		}
+		return TxResult{Message: msg}, nil
+	})
 }
 
 // WorkflowProjects lists the projects that have a workflows/ folder.

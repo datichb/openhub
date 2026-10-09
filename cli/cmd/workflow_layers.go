@@ -29,7 +29,7 @@ func resolveWorkflowTeamLayers(ctx context.Context, a *app.App, projectRef strin
 	var tc config.ResolvedTeamConfig
 	projectID := ""
 	if projectRef != "" {
-		p, err := resolveProject(ctx, a, projectRef)
+		p, err := resolveProject(ctx, a, projectRef, projectRead)
 		if err != nil {
 			return nil, err
 		}

@@ -733,6 +733,8 @@ func (r *Repo) CleanupDoneClaims(ctx context.Context, retentionDays int, termina
 	}
 	var released []Claim
 	err := r.withWriteLock(ctx, func(ctx context.Context) error {
+		released = nil // the transaction may run again
+		var removed []string
 		// List all claims without acquiring RLock (we already hold the write lock).
 		claims, err := r.listAllClaims()
 		if err != nil {
@@ -754,6 +756,9 @@ func (r *Repo) CleanupDoneClaims(ctx context.Context, retentionDays int, termina
 				if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
 					continue // best-effort, skip errors
 				}
+				if rel, err := filepath.Rel(r.path, path); err == nil {
+					removed = append(removed, rel)
+				}
 				released = append(released, c)
 			}
 		}
@@ -764,7 +769,7 @@ func (r *Repo) CleanupDoneClaims(ctx context.Context, retentionDays int, termina
 
 		// Batch commit all releases.
 		msg := fmt.Sprintf("cleanup: released %d done claims (retention %d days)", len(released), retentionDays)
-		return r.commitAndPush(ctx, msg, ".")
+		return r.commitAndPush(ctx, msg, removed...)
 	})
 	if err != nil {
 		return nil, err

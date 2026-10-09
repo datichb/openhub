@@ -27,13 +27,9 @@ const (
 // never overlap with a rebase/checkout that could leave files in a
 // transitional state.
 //
-// NOTE: This mutex only protects against concurrent goroutines within a single
-// process. Multiple oh processes (e.g., CLI and TUI running simultaneously, or
-// parallel sessions via oh parallel) that share the same local clone path may
-// produce corrupted git state. Callers performing one-shot mutations (team
-// rejoin, team init) should avoid running them while a TUI session is active
-// on the same team-state clone. A future improvement could use a filesystem
-// lock (flock) to serialize cross-process access.
+// The git operations also hold the write lock of the clone (lock.go): an
+// in-process lock shared by every Repo of the same path, and the file lock
+// .git/oh.lock shared with the other oh processes (N15).
 type Repo struct {
 	mu            sync.RWMutex
 	path          string   // local clone path (e.g. ~/.oh/team-state/)
@@ -119,6 +115,14 @@ func IsPullWarning(err error) bool {
 // Clone performs the initial clone of the remote repository.
 // Acquires the write lock for the duration of the git operation.
 func (r *Repo) Clone(ctx context.Context) error {
+	if r.activeTx(ctx) != nil {
+		return nil // within a transaction the clone exists
+	}
+	release, err := r.lockGit(ctx)
+	if err != nil {
+		return err
+	}
+	defer release()
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	return r.clone(ctx)
@@ -153,6 +157,14 @@ func (r *Repo) clone(ctx context.Context) error {
 // Acquires the write lock so that in-flight file reads are not interrupted
 // by a rebase that rewrites working-tree files.
 func (r *Repo) Pull(ctx context.Context) error {
+	if r.activeTx(ctx) != nil {
+		return nil // the transaction pulled when it started
+	}
+	release, err := r.lockGit(ctx)
+	if err != nil {
+		return err
+	}
+	defer release()
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	return r.pull(ctx)
@@ -180,6 +192,14 @@ func (r *Repo) pull(ctx context.Context) error {
 // Push pushes local commits to the remote.
 // Acquires the write lock.
 func (r *Repo) Push(ctx context.Context) error {
+	if r.activeTx(ctx) != nil {
+		return nil // the transaction pushes when it ends
+	}
+	release, err := r.lockGit(ctx)
+	if err != nil {
+		return err
+	}
+	defer release()
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	return r.push(ctx)
@@ -203,112 +223,89 @@ func (r *Repo) push(ctx context.Context) error {
 	return nil
 }
 
-// CommitAndPush stages the given files, commits with the message, and pushes.
-// If push fails due to conflict, it retries with pull --rebase up to maxPushRetries.
-// After a successful push it performs a best-effort pull to pick up any commits
-// pushed concurrently by teammates.
-//
-// Pass "." as a file to stage all changes (new files, modifications, deletions).
-//
-// Acquires the write lock for the entire operation.
+// CommitAndPush commits files the caller already wrote, and pushes. It is a
+// transaction (Transact): pull, commit, push; a rejected push is retried
+// on top of the remote (the files are kept, rebased by the pull). "." is
+// refused (ErrStageAll): the caller lists its files, never another
+// writer's. Inside a transaction (ctx of Transact or WithWriteLock), the
+// files join it.
 func (r *Repo) CommitAndPush(ctx context.Context, msg string, files ...string) error {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	return r.commitAndPush(ctx, msg, files...)
+	if err := checkFiles(files); err != nil {
+		return err
+	}
+	if tx := r.activeTx(ctx); tx != nil {
+		tx.Touch(files...)
+		tx.addMessage(msg)
+		return nil
+	}
+	return r.transact(ctx, true, func(_ context.Context, tx *Tx) (TxResult, error) {
+		tx.Touch(files...)
+		return TxResult{Message: msg}, nil
+	})
 }
 
-// WithWriteLock executes fn while holding the write lock for the entire
-// pull → mutate → commitAndPush cycle. This eliminates the race window that
-// exists when Pull() and CommitAndPush() are called as separate locked operations.
-//
-// fn receives the context and may call internal unlocked helpers such as
-// CreateClaimLocal and commitAndPush. It MUST NOT call the public
-// locked methods (Pull, CommitAndPush, CreateClaim) as that would deadlock.
-//
-// A best-effort pull is performed before fn to ensure the working tree is fresh.
-// ErrNotCloned from pull is silently ignored (repo may be used locally without remote).
+// WithWriteLock runs fn as a transaction (Transact): on top of the latest
+// remote state, its files committed and pushed together, fn run again when
+// another member pushed first (fn recomputes from disk). fn writes files
+// with the internal helpers and declares them with commitAndPush, which only
+// records them. Within fn, ctx carries the transaction: the public methods
+// of the repo join it (no second lock, no second pull).
 func (r *Repo) WithWriteLock(ctx context.Context, fn func(ctx context.Context) error) error {
 	return r.withWriteLock(ctx, fn)
 }
 
 // withWriteLock is the internal implementation.
 func (r *Repo) withWriteLock(ctx context.Context, fn func(ctx context.Context) error) error {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	// Best-effort pull to ensure fresh working tree.
-	if err := r.pull(ctx); err != nil && !errors.Is(err, ErrNotCloned) {
-		return err
+	if r.activeTx(ctx) != nil {
+		return fn(ctx)
 	}
-
-	return fn(ctx)
+	if !r.IsCloned() {
+		// Not a repository: fn runs (its validation errors first), its
+		// commit gives ErrNotCloned.
+		release, err := r.lockGit(ctx)
+		if err != nil {
+			return err
+		}
+		defer release()
+		return fn(ctx)
+	}
+	return r.transact(ctx, false, func(ctx context.Context, tx *Tx) (TxResult, error) {
+		return TxResult{}, fn(ctx)
+	})
 }
 
-// commitAndPush is the internal (unlocked) implementation of CommitAndPush.
+// commitAndPush declares the files of a transaction (called from
+// WithWriteLock callbacks).
 func (r *Repo) commitAndPush(ctx context.Context, msg string, files ...string) error {
-	if !r.IsCloned() {
-		return ErrNotCloned
+	if err := checkFiles(files); err != nil {
+		return err
 	}
-
-	// Stage files
-	args := append([]string{"add"}, files...)
-	if _, err := r.git(ctx, r.path, args...); err != nil {
-		return fmt.Errorf("staging files: %w", err)
-	}
-
-	// Check if the index has anything staged.
-	// git diff --cached --quiet exits 0 if nothing is staged, 1 if there are staged changes.
-	// We use this instead of "git status --porcelain" because status includes untracked
-	// files which are NOT staged — causing a false "there is something to commit" result.
-	_, err := r.git(ctx, r.path, "diff", "--cached", "--quiet")
-	if err == nil {
-		// Exit code 0 → index is clean, nothing staged → nothing to commit
-		return nil
-	}
-	// Any error from diff --cached means there are staged changes → proceed to commit
-
-	// Commit
-	if _, err := r.git(ctx, r.path, "commit", "-m", msg); err != nil {
-		return fmt.Errorf("committing: %w", err)
-	}
-
-	// Push with retry on conflict
-	for attempt := range maxPushRetries {
-		pushErr := r.push(ctx)
-		if pushErr == nil {
-			// Best-effort pull to pick up concurrent commits from teammates.
-			// Errors are intentionally ignored: the local state is already consistent
-			// after our successful push, and a failed pull is non-critical here.
-			_ = r.pull(ctx)
-			slog.Debug("teamstate.commitAndPush", "msg", msg, "path", r.path)
-			return nil
+	tx := r.activeTx(ctx)
+	if tx == nil {
+		if !r.IsCloned() {
+			return ErrNotCloned
 		}
-
-		// Auth / permission errors are permanent — retrying won't help.
-		if isAuthError(pushErr) {
-			return fmt.Errorf("push échoué — %s", authErrorMessage(r.remote))
-		}
-
-		// Last attempt — return the real push error, not a generic message.
-		if attempt == maxPushRetries-1 {
-			slog.Warn("teamstate.push.exhausted", "attempts", maxPushRetries, "path", r.path, "error", pushErr)
-			return fmt.Errorf("push échoué après %d tentatives : %w", maxPushRetries, pushErr)
-		}
-
-		slog.Warn("teamstate.push.retry", "attempt", attempt+1, "path", r.path, "error", pushErr)
-
-		// Non-fast-forward conflict — pull --rebase and retry.
-		if pullErr := r.pull(ctx); pullErr != nil {
-			if isAuthError(pullErr) {
-				return fmt.Errorf("pull échoué — %s", authErrorMessage(r.remote))
-			}
-			return fmt.Errorf("rebasing before retry: %w", pullErr)
-		}
-
-		time.Sleep(retryDelay * time.Duration(1<<uint(attempt)))
+		return errNoTransaction
 	}
+	tx.Touch(files...)
+	tx.addMessage(msg)
+	return nil
+}
 
-	return fmt.Errorf("%w: push échoué après %d tentatives (conflit persistant)", ErrSyncConflict, maxPushRetries) //nolint:misspell // French error message
+// ErrStageAll: "." (or an empty list) was given as the files of a commit;
+// the caller must list its own files (another writer's files would be
+// committed with them, N15).
+var ErrStageAll = errors.New("team-state: commit every change (\".\") is refused, list the files")
+
+var errNoTransaction = errors.New("team-state: commit outside a transaction")
+
+func checkFiles(files []string) error {
+	for _, f := range files {
+		if c := filepath.Clean(f); c == "." || c == "" || c == "/" || c == "*" {
+			return ErrStageAll
+		}
+	}
+	return nil
 }
 
 // localOnly reports whether the repo has no git remote (solo team-state):
@@ -399,7 +396,10 @@ func (r *Repo) git(ctx context.Context, dir string, args ...string) (string, err
 	cmd.Dir = dir
 	cmd.Env = append(os.Environ(),
 		"GIT_TERMINAL_PROMPT=0",
-		"GIT_SSH_COMMAND=ssh -o BatchMode=yes -o StrictHostKeyChecking=accept-new",
+		"GIT_SSH_COMMAND=ssh -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=15 -o ServerAliveInterval=15 -o ServerAliveCountMax=2",
+		// A stalled HTTP transfer gives up instead of holding the lock.
+		"GIT_HTTP_LOW_SPEED_LIMIT=1000",
+		"GIT_HTTP_LOW_SPEED_TIME=30",
 	)
 	out, err := cmd.CombinedOutput()
 	if err != nil {

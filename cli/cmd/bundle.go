@@ -140,7 +140,7 @@ func workflowError(w io.Writer, id string, err error) error {
 // directory, else nil (hub-only bundle). It never prompts.
 func bundleProject(ctx context.Context, a *app.App, projectID string) (*domain.Project, error) {
 	if projectID != "" {
-		return resolveProject(ctx, a, projectID)
+		return resolveProject(ctx, a, projectID, projectRead)
 	}
 	if a.Projects == nil {
 		return nil, nil

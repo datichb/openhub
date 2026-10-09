@@ -60,6 +60,9 @@ type TeamStateWriter interface {
 	// Sync
 	Pull(ctx context.Context) error
 	CommitAndPush(ctx context.Context, msg string, files ...string) error
+	// Transact runs build as one transaction (pull, build, commit, push):
+	// the methods called with its ctx join it.
+	Transact(ctx context.Context, build func(ctx context.Context, tx *Tx) (TxResult, error)) error
 
 	// Claims
 	CreateClaim(ctx context.Context, c Claim) (*Claim, error)
