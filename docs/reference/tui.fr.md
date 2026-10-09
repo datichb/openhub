@@ -45,7 +45,7 @@ Le TUI suit un design **omnibar-first** inspiré des lanceurs fuzzy (fzf, Telesc
 |--------|--------|
 | `Ctrl+P` | Activer l'omnibar |
 | `/` | Activer l'omnibar, si la vue n'utilise pas `/` (recherche) |
-| `Esc` | Ferme d'abord les toasts affichés ; sinon retour (vue précédente) ; à la racine d'un mode Projet ou Équipe : retour au mode Hub |
+| `Esc` | Ferme d'abord les toasts affichés ; sinon retour (vue précédente) ; à la racine d'un mode Projet ou Équipe : retour au mode Hub. Dans les vues qui capturent la saisie (fiche de lancement, assistants, éditeur de workflow, publication), `Esc` va à la vue (fermer la fiche, « Quitter l'assistant ? ») et ne ferme pas les toasts, qui disparaissent seuls |
 | `Ctrl+T` | Mode Équipe (sélecteur si plusieurs équipes) ; depuis le mode Équipe : retour au Hub |
 | `Ctrl+Q` / `Ctrl+C` | Quitter la TUI (si des sessions travaillent : finir l'étape puis veille, arrière-plan, ou arrêter maintenant) |
 | `?` / `F1` | Aide et raccourcis |
@@ -115,7 +115,7 @@ Générée depuis le YAML du workflow (titre « Lancer · <workflow> »), en tro
 2. **Options** : **Mode** ; **Exécution** (`⌂ local`, `▣ conteneur`, `☁ distant` ; un environnement indisponible affiche la raison ; en conteneur : moteur, image en cache ou à construire avec la durée estimée) ; **Emplacement** (`base`, worktrees existants, `+ nouveau worktree`) ; **Ouverture** (auto, iTerm2, Terminal.app, tmux, navigateur, ce terminal, ne pas ouvrir).
 3. **Récap** : agents, budget du 1er tour, isolation, sessions et emplacements (« N sessions · 1 serveur · un worktree par session qui écrit »), avertissements.
 
-`Tab` champ suivant ; `Ctrl+S` va au récap depuis n'importe quelle étape, puis lance depuis le récap une fois chargé ; `Alt+←`, `PgUp` ou `Ctrl+B` reviennent à l'étape précédente, `Alt+→` ou `PgDn` passent à la suivante ; `Esc` ferme. Un second lancement pendant la préparation est ignoré. Avec plusieurs tickets, une case « Une seule session pour tous les tickets » est proposée. Quand une précondition suggère un autre workflow, le récap propose « Lancer <wf> d'abord (puis revenir) ».
+`Tab` champ suivant ; `Ctrl+S` va au récap depuis n'importe quelle étape, puis lance depuis le récap une fois chargé ; `Alt+←`, `PgUp` ou `Ctrl+B` reviennent à l'étape précédente, `Alt+→` ou `PgDn` passent à la suivante ; `Esc` ferme. Un second lancement pendant la préparation est ignoré. Avec plusieurs tickets, une case « Une seule session pour tous les tickets » est proposée. Quand une précondition suggère un autre workflow, le récap propose « Lancer <wf> d'abord (puis revenir) ». Quand le fournisseur n'a pas d'identifiants, le récap affiche le message et un bouton **Configurer le fournisseur** (sélectionné) : il ouvre la vue Fournisseur ; au retour sur la fiche (`Esc`), le récap vérifie à nouveau.
 
 ### Démarrer, board, catalogue
 
@@ -177,7 +177,7 @@ Sections : **À traiter** (décisions en attente), **En cours**, **En veille**, 
 | Settings | `settings`, config, cfg, hub config | — | Réglages du hub |
 | Config Projet | `project-config`, config projet, project config | Projet | Configuration du projet (dont Exécution) |
 | Models | `models`, mod, model, llm | — | Modèles |
-| Provider | `provider`, prov, api | — | Fournisseur LLM |
+| Provider | `provider`, prov, api | — | Fournisseur LLM (la région Bedrock est vérifiée dès la saisie : message sous le champ, valeur invalide refusée) |
 | MCP | `mcp`, servers | — | Serveurs MCP |
 | Secrets & Tokens | `secrets`, tokens, credentials, keychain | — | Secrets du trousseau |
 | Équipes | `teams`, team, equipe, equipes | — | Liste des équipes |

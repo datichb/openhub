@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"strings"
 	"testing"
@@ -16,6 +17,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/daemon"
 	"github.com/datichb/openhub/cli/internal/domain"
+	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
 
 // implicitProjectApp has one project, the current directory outside of it.
@@ -165,4 +167,10 @@ func TestTUILaunchErrorIsTranslated(t *testing.T) {
 	plain := errors.New("plain")
 	assert.Equal(t, plain, tuiLaunchError(plain))
 	assert.NoError(t, tuiLaunchError(nil))
+	assert.ErrorIs(t, err, views.ErrProviderCredentials, "daemon refusal: « Configure the provider »")
+	assert.NotErrorIs(t, plain, views.ErrProviderCredentials)
+
+	missing := tuiLaunchError(fmt.Errorf("prepare: %w", &ProviderCredentialError{Detail: "anthropic"}))
+	assert.ErrorIs(t, missing, views.ErrProviderCredentials)
+	assert.Contains(t, missing.Error(), "oh provider setup")
 }

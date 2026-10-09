@@ -373,8 +373,8 @@ func buildProviderStep(s *initStepState) views.WizardStep {
 				if s.AuthMode == "bearer" && s.Token == "" && !s.HasKeychainToken {
 					return i18n.T("cmd.init.wizard_token_required")
 				}
-				if s.Region == "" {
-					return i18n.T("cmd.init.wizard_region_required")
+				if msg := bedrockRegionStepProblem(s.Region); msg != "" {
+					return msg
 				}
 			}
 			return ""

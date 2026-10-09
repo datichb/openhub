@@ -24,7 +24,7 @@ On the first start without configuration, the `oh init` wizard opens in the TUI 
 |-----|--------|
 | `Ctrl+P` or `/` | Open the omnibar (`/`: when the view does not use it to search) |
 | `?` or `F1` | Help (global shortcuts, form and wizards, keys of the current view) |
-| `Esc` | Close the toasts shown; otherwise back to the previous view; at the root of a project or team mode, back to Hub mode |
+| `Esc` | Close the toasts shown; otherwise back to the previous view; at the root of a project or team mode, back to Hub mode. In the launch form and the wizards, `Esc` keeps its meaning (close the form, « Quit the wizard? ») and does not close the toasts |
 | `Ctrl+T` | Enter team mode (choice when there are several teams); from team mode, back to the Hub |
 | `Ctrl+Q` (or `Ctrl+C`) | Quit (see [Quitting oh](#quitting-oh)) |
 | `j` / `k`, `g` / `G` | Down / up, top / bottom of a list (in the Sessions view, `g` fetches a remote session) |
@@ -32,7 +32,7 @@ On the first start without configuration, the `oh init` wizard opens in the TUI 
 | `Tab` | Switch column or field (`h` / `l` on two-column landings) |
 | `Enter` | action of the selected list, button or field (the omnibar opens only when nothing uses it) |
 
-Action results show up as toasts (success, error, info) that disappear by themselves (`Esc` closes them). Each view shows its shortcuts at the bottom.
+Action results show up as toasts (success, error, info) that disappear by themselves (`Esc` closes them, except in the launch form and the wizards). Each view shows its shortcuts at the bottom.
 
 **Changed in v5.0**: typing a letter « anywhere » no longer opens the omnibar (use `Ctrl+P` or `/`); `Enter` and letters always go to the selected list or field; `d` no longer dismisses toasts (`Esc`). `Esc`, `Ctrl+P`, `Ctrl+T`, `?`, `F1` and `Ctrl+Q` mean the same in every view. Every destructive action (removing a worktree, cleaning up, releasing a ticket, rejecting a wiki proposal…) asks for a confirmation.
 
@@ -103,7 +103,7 @@ Opened from "Start", the catalogue, the omnibar (`run <workflow>`) or the board 
 | `Alt+→` or `PgDn` | next step |
 | `Esc` | close the form |
 
-A launch always starts from the recap: a first `Ctrl+S` shows it, a second one launches once the recap is computed. The "Next", "Back" and "Launch" buttons do the same. While launching, the form shows "Launching…" (a second `Ctrl+S` is ignored); in a container, the image build progress shows below.
+A launch always starts from the recap: a first `Ctrl+S` shows it, a second one launches once the recap is computed. The "Next", "Back" and "Launch" buttons do the same. While launching, the form shows "Launching…" (a second `Ctrl+S` is ignored); in a container, the image build progress shows below. If the provider has no credentials, the recap says so with a "Configure the provider" button: it opens the Provider view, and back here (`Esc`) the recap checks again.
 
 ### Beads ticket picker
 
@@ -318,7 +318,7 @@ Fuzzy matching on names and aliases:
 | `board`, `board init` | project Beads board, initialization |
 | `project-config` | project configuration (including Execution) |
 | `worktrees` | git worktrees of the project (`a` add, `d` remove, `o` open a session, `p` prune the references, `x` remove the merged worktrees, never one used by a session; `d`, `p` and `x` ask for a confirmation) |
-| `settings`, `models`, `provider`, `mcp`, `secrets` | settings, models, provider, MCP servers, secrets |
+| `settings`, `models`, `provider`, `mcp`, `secrets` | settings, models, provider (Bedrock region checked as it is typed, message under the field), MCP servers, secrets |
 | `teams`, `team-detail` | teams, team detail (`K` provider key for the team; solo space: "Switch to a team") |
 | `init` | run the setup wizard again |
 

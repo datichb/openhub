@@ -2,6 +2,7 @@ package shell
 
 import (
 	"context"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -11,8 +12,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 	"github.com/datichb/openhub/cli/internal/tui/v2/widgets"
+	"github.com/datichb/openhub/cli/internal/workflow"
 )
 
 // keyView is a view with a SectionedList (focusable or not) that records
@@ -167,6 +170,87 @@ func TestKeysEscClosesTheToastsFirst(t *testing.T) {
 	assert.Equal(t, 1, depth, "second Esc goes back")
 }
 
+// showToastAndWait shows a toast that stays (error) and waits until it is up.
+func showToastAndWait(t *testing.T, s *simShell) {
+	t.Helper()
+	s.ShowToast("hello", ToastError)
+	require.Eventually(t, func() bool { return s.toastCount() == 1 }, 2*time.Second, 5*time.Millisecond)
+}
+
+func (s *simShell) toastCount() (n int) {
+	s.loop(func() { n = len(s.activeToastIDs) })
+	return n
+}
+
+const keysLaunchSpec = `apiVersion: oh/v1
+kind: Workflow
+id: ticket
+description: { fr: Implémenter un ticket, en: Implement a ticket }
+risk: write
+inputs:
+  ticket: { type: beads-id, required: true }
+modes: { default: semi-auto, allowed: [manuel, semi-auto] }
+runtime: { default: local, allowed: [local] }
+`
+
+// In the launch form (input capturing), Esc closes the form at once: it
+// does not close the toasts, which go away on their own.
+func TestKeysEscInLaunchFormKeepsTheToasts(t *testing.T) {
+	doc, diags := workflow.Parse([]byte(keysLaunchSpec), workflow.Source{Layer: workflow.LayerHub})
+	require.False(t, diags.HasErrors(), "%v", diags)
+	form := views.NewLaunchFormView(views.LaunchFormConfig{WorkflowID: "ticket", Spec: doc.Spec, Lang: "fr",
+		Runtimes:  []views.LaunchRuntime{{Kind: "local", Label: "local", Available: true}},
+		Locations: []views.SelectOption{{Label: "base", Value: "base"}}})
+	home := &keyView{id: "home", focusList: true}
+	s := newKeyShell(t, home)
+	s.loop(func() { s.PushView(form) })
+	showToastAndWait(t, s)
+
+	s.key(tcell.KeyEscape, 0, tcell.ModNone)
+	depth := 0
+	s.loop(func() { depth = s.router.StackDepth() })
+	assert.Equal(t, 1, depth, "Esc closes the form")
+	assert.Equal(t, 1, s.toastCount(), "the toast stays")
+}
+
+// In a wizard (input capturing), Esc asks « Quit the wizard? » at once and
+// keeps the toasts; outside, Esc closes them again.
+func TestKeysEscInWizardKeepsTheToasts(t *testing.T) {
+	wiz := views.NewInlineWizardView(views.InlineWizardConfig{ID: "w", Steps: []views.WizardStep{{Label: "a", Required: true,
+		Form: func(_ *tview.Application, onDone func()) *tview.Form {
+			f := tview.NewForm()
+			f.AddInputField("Name", "", 0, nil, nil)
+			f.AddButton("Next", onDone)
+			return f
+		}}}})
+	home := &keyView{id: "home", focusList: true}
+	s := newKeyShell(t, home)
+	s.loop(func() { s.PushView(wiz) })
+	showToastAndWait(t, s)
+
+	s.key(tcell.KeyEscape, 0, tcell.ModNone)
+	focused := func() (label string) {
+		s.loop(func() {
+			if b, ok := s.app.GetFocus().(*tview.Button); ok {
+				label = b.GetLabel()
+			}
+		})
+		return label
+	}
+	require.Eventually(t, func() bool { return focused() == i18n.T("tui.wizard.quit.continue") }, time.Second, 5*time.Millisecond, "question asked")
+	assert.Equal(t, 1, s.toastCount(), "the toast stays")
+
+	s.key(tcell.KeyLeft, 0, tcell.ModNone) // « Quitter »
+	s.key(tcell.KeyEnter, 0, tcell.ModNone)
+	require.Eventually(t, func() bool {
+		depth := 0
+		s.loop(func() { depth = s.router.StackDepth() })
+		return depth == 1
+	}, time.Second, 5*time.Millisecond, "wizard quit")
+	s.key(tcell.KeyEscape, 0, tcell.ModNone)
+	assert.Equal(t, 0, s.toastCount(), "outside the wizard, Esc closes the toasts")
+}
+
 // `d` handled by a view goes to the view only: it no longer closes a toast.
 func TestKeysViewLetterBeforeToast(t *testing.T) {
 	v := &keyView{id: "home", focusList: true, consume: "d"}
@@ -250,4 +334,125 @@ func TestConfirm(t *testing.T) {
 	s.loop(func() { focus = s.app.GetFocus() })
 	_, onList := focus.(*widgets.SectionedList)
 	assert.True(t, onList, "focus back on the list")
+}
+
+// Recap without provider credentials: Enter on « Configure the provider »
+// opens the provider view, Esc comes back to the form and the recap checks
+// again (now configured).
+func TestKeysLaunchFormConfigureProvider(t *testing.T) {
+	doc, diags := workflow.Parse([]byte(keysLaunchSpec), workflow.Source{Layer: workflow.LayerHub})
+	require.False(t, diags.HasErrors(), "%v", diags)
+	var mu sync.Mutex
+	configured, calls := false, 0
+	home := &keyView{id: "home", focusList: true}
+	providerView := &keyView{id: "provider", focusList: true}
+	s := newKeyShell(t, home, providerView)
+	form := views.NewLaunchFormView(views.LaunchFormConfig{WorkflowID: "ticket", Spec: doc.Spec, Lang: "fr", Tickets: []string{"bd-1"},
+		Runtimes:  []views.LaunchRuntime{{Kind: "local", Label: "local", Available: true}},
+		Locations: []views.SelectOption{{Label: "base", Value: "base"}},
+		Recap: func(context.Context, views.LaunchChoices) (*views.LaunchRecap, error) {
+			mu.Lock()
+			defer mu.Unlock()
+			calls++
+			if !configured {
+				return nil, views.ProviderCredentialsError("no credentials")
+			}
+			return &views.LaunchRecap{}, nil
+		},
+		ConfigureProvider: func() { s.NavigateTo("provider") }})
+	s.loop(func() { s.PushView(form) })
+	s.key(tcell.KeyCtrlS, 0, tcell.ModNone)
+	label := i18n.T("tui.launch.configure_provider")
+	focused := func() (l string) {
+		s.loop(func() {
+			if b, ok := s.app.GetFocus().(*tview.Button); ok {
+				l = b.GetLabel()
+			}
+		})
+		return l
+	}
+	require.Eventually(t, func() bool { return focused() == label }, 2*time.Second, 5*time.Millisecond)
+
+	s.key(tcell.KeyEnter, 0, tcell.ModNone)
+	current := func() (id string) {
+		s.loop(func() { id = s.router.Current().ID() })
+		return id
+	}
+	require.Equal(t, "provider", current())
+	mu.Lock()
+	configured = true
+	mu.Unlock()
+	s.key(tcell.KeyEscape, 0, tcell.ModNone)
+	require.Equal(t, form.ID(), current(), "back on the form")
+	require.Eventually(t, func() bool {
+		mu.Lock()
+		defer mu.Unlock()
+		return calls == 2
+	}, 2*time.Second, 5*time.Millisecond, "recap checked again")
+	assert.Eventually(t, func() bool { return focused() != label }, 2*time.Second, 5*time.Millisecond, "button gone")
+}
+
+// A text field with a check shows its message under the field as it is
+// typed; an invalid value is not submitted (Bedrock region).
+func TestInlineFormValidateAsTyped(t *testing.T) {
+	home := &keyView{id: "home", focusList: true}
+	s := newKeyShell(t, home)
+	submitted := make(chan string, 1)
+	s.loop(func() {
+		s.ShowInlineForm(views.InlineFormConfig{Title: "Region",
+			Fields: []views.FormField{{Key: "region", Label: "Region", Type: views.FieldText,
+				Validate: func(v string) (string, bool) {
+					if v == "bad" {
+						return "invalid region", true
+					}
+					return "", false
+				}}},
+			OnSubmit: func(vals map[string]string, _ map[string][]string) { submitted <- vals["region"] }})
+	})
+	for _, r := range "bad" {
+		s.key(tcell.KeyRune, r, tcell.ModNone)
+	}
+	screen := func() string {
+		cells, w, h := s.sim.GetContents()
+		var b strings.Builder
+		for y := 0; y < h; y++ {
+			for x := 0; x < w; x++ {
+				if rs := cells[y*w+x].Runes; len(rs) > 0 {
+					b.WriteRune(rs[0])
+				}
+			}
+			b.WriteByte('\n')
+		}
+		return b.String()
+	}
+	require.Eventually(t, func() bool { s.loop(func() {}); return strings.Contains(screen(), "✗ invalid region") }, time.Second, 5*time.Millisecond, "message under the field")
+
+	s.key(tcell.KeyTab, 0, tcell.ModNone)   // to « Confirm »
+	s.key(tcell.KeyEnter, 0, tcell.ModNone) // refused
+	select {
+	case v := <-submitted:
+		t.Fatalf("invalid value submitted: %q", v)
+	case <-time.After(30 * time.Millisecond):
+	}
+	shown := false
+	s.loop(func() { shown = s.pages.HasPage("inline-overlay") })
+	assert.True(t, shown, "the form stays")
+
+	s.key(tcell.KeyBacktab, 0, tcell.ModNone) // back to the field
+	for range 3 {
+		s.key(tcell.KeyBackspace2, 0, tcell.ModNone)
+	}
+	for _, r := range "good" {
+		s.key(tcell.KeyRune, r, tcell.ModNone)
+	}
+	s.loop(func() {})
+	assert.NotContains(t, screen(), "✗ invalid region", "message cleared")
+	s.key(tcell.KeyTab, 0, tcell.ModNone)
+	s.key(tcell.KeyEnter, 0, tcell.ModNone)
+	select {
+	case v := <-submitted:
+		assert.Equal(t, "good", v)
+	case <-time.After(time.Second):
+		t.Fatal("valid value not submitted")
+	}
 }

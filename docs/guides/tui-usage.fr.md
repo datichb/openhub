@@ -24,7 +24,7 @@ Au premier demarrage sans configuration, l'assistant `oh init` se lance dans la 
 |--------|--------|
 | `Ctrl+P` ou `/` | Ouvrir l'omnibar (`/` : si la vue ne l'utilise pas pour chercher) |
 | `?` ou `F1` | Aide (raccourcis globaux, fiche et assistants, touches de la vue active) |
-| `Esc` | Fermer les toasts affiches ; sinon retour a la vue precedente ; a la racine d'un mode projet ou equipe, retour au mode Hub |
+| `Esc` | Fermer les toasts affiches ; sinon retour a la vue precedente ; a la racine d'un mode projet ou equipe, retour au mode Hub. Dans la fiche de lancement et les assistants, `Esc` garde son sens (fermer la fiche, « Quitter l'assistant ? ») et ne ferme pas les toasts |
 | `Ctrl+T` | Entrer en mode equipe (choix si plusieurs equipes) ; depuis le mode equipe, revenir au Hub |
 | `Ctrl+Q` (ou `Ctrl+C`) | Quitter (voir [Fermer oh](#fermer-oh)) |
 | `j` / `k`, `g` / `G` | Bas / haut, debut / fin de liste (dans la vue Sessions, `g` recupere une session distante) |
@@ -32,7 +32,7 @@ Au premier demarrage sans configuration, l'assistant `oh init` se lance dans la 
 | `Tab` | Changer de colonne ou de champ (`h` / `l` sur les accueils a deux colonnes) |
 | `Entree` | action de la liste, du bouton ou du champ selectionne (l'omnibar s'ouvre seulement si rien ne l'utilise) |
 
-Les resultats des actions s'affichent en toasts (succes, erreur, info) qui disparaissent seuls (`Esc` les ferme). Chaque vue affiche ses raccourcis en bas.
+Les resultats des actions s'affichent en toasts (succes, erreur, info) qui disparaissent seuls (`Esc` les ferme, sauf dans la fiche de lancement et les assistants). Chaque vue affiche ses raccourcis en bas.
 
 **Changement en v5.0** : taper une lettre « n'importe ou » n'ouvre plus l'omnibar (utilisez `Ctrl+P` ou `/`) ; `Entree` et les lettres vont toujours a la liste ou au champ selectionne ; `d` ne ferme plus les toasts (`Esc`). Les touches `Esc`, `Ctrl+P`, `Ctrl+T`, `?`, `F1` et `Ctrl+Q` ont le meme sens dans toutes les vues. Toute action destructrice (supprimer un worktree, nettoyer, liberer un ticket, rejeter une proposition du wiki…) demande une confirmation.
 
@@ -103,7 +103,7 @@ Ouverte depuis « Démarrer », le catalogue, l'omnibar (`run <workflow>`) ou le
 | `Alt+→` ou `PgDn` | etape suivante |
 | `Esc` | fermer la fiche |
 
-On lance toujours depuis le recap : un premier `Ctrl+S` l'affiche, un second lance une fois le recap calcule. Les boutons « Suivant », « Retour » et « Lancer » font la meme chose. Pendant le lancement, la fiche affiche « Lancement en cours… » (un second `Ctrl+S` est ignore) ; en conteneur, la progression de la construction de l'image s'affiche dessous.
+On lance toujours depuis le recap : un premier `Ctrl+S` l'affiche, un second lance une fois le recap calcule. Les boutons « Suivant », « Retour » et « Lancer » font la meme chose. Pendant le lancement, la fiche affiche « Lancement en cours… » (un second `Ctrl+S` est ignore) ; en conteneur, la progression de la construction de l'image s'affiche dessous. Si le fournisseur n'a pas d'identifiants, le recap l'indique avec un bouton « Configurer le fournisseur » : il ouvre la vue Fournisseur, et au retour (`Esc`) le recap verifie a nouveau.
 
 ### Selecteur de tickets Beads
 
@@ -318,7 +318,7 @@ Fuzzy matching sur les noms et les alias :
 | `project add` | assistant d'ajout de projet |
 | `board`, `board init` | board Beads du projet, initialisation |
 | `project-config` | configuration du projet (dont Exécution) |
-| `settings`, `models`, `provider`, `mcp`, `secrets` | reglages, modeles, fournisseur, serveurs MCP, secrets |
+| `settings`, `models`, `provider`, `mcp`, `secrets` | reglages, modeles, fournisseur (region Bedrock verifiee des la saisie, message sous le champ), serveurs MCP, secrets |
 | `teams`, `team-detail` | equipes, detail de l'equipe (`K` cle du fournisseur pour l'equipe ; espace solo : « Passer en équipe ») |
 | `init` | relancer l'assistant de configuration |
 

@@ -48,6 +48,8 @@ auth_mode = "bearer"              # "bearer" | "profile"
 
 Cette section est facultative — si absente, `oh` utilise les credentials de l'environnement.
 
+La region doit etre un nom de region AWS (`eu-west-1`) : elle designe l'hote qui recoit l'identifiant. Elle est verifiee des la saisie — vue Fournisseur de la TUI, assistants `oh init` et `oh provider setup` (« Personnalisé... ») : le message s'affiche sous le champ, une valeur invalide est refusee, une region ou Bedrock n'est pas connu donne un simple avertissement — puis par `oh config set provider.bedrock.aws_region`, au lancement et par le proxy d'identifiants.
+
 ## Override au niveau projet
 
 Surcharger le fournisseur pour un projet specifique :
@@ -148,6 +150,8 @@ Les tokens sont lus par les serveurs MCP au runtime via des variables d'environn
 A chaque lancement (`oh run <workflow>`), la configuration du fournisseur est ecrite dans le paquet de session (`~/.oh/bundles/<hash>/`), pas dans le projet :
 
 La construction du paquet lit votre fournisseur et modele configures, puis genere le bloc provider correspondant. Ce bloc pointe vers le proxy d'identifiants du demon oh : il ne contient jamais la vraie cle (la session s'authentifie aupres du proxy avec un jeton `ohs_…`). Pour voir le paquet : `oh bundle show <workflow>`.
+
+Avant de construire quoi que ce soit, oh verifie que le fournisseur a des identifiants (projet, equipe, hub ; profil AWS pour Bedrock) ; sinon le lancement est refuse avec « oh provider setup ». Dans la TUI, le recap de la fiche de lancement affiche ce message et un bouton **Configurer le fournisseur** : il ouvre la vue Fournisseur ; au retour (`Esc`), le recap verifie a nouveau les identifiants.
 
 ## Changer de fournisseur
 

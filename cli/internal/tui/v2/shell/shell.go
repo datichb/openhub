@@ -548,10 +548,21 @@ func (s *Shell) ShowInlineForm(cfg views.InlineFormConfig) {
 
 		case views.FieldText:
 			values[field.Key] = field.Default
+			var check *tview.TextView
 			form.AddInputField(field.Label, field.Default, 40, nil,
-				func(text string) { values[field.Key] = text })
+				func(text string) {
+					values[field.Key] = text
+					if check != nil {
+						check.SetText(views.ValidationText(field.Validate(text)))
+					}
+				})
 			itemToMeta[form.GetFormItemCount()-1] = len(metas)
 			metas = append(metas, fieldMeta{field: field})
+			if field.Validate != nil {
+				// The message of the check, under the field, as it is typed.
+				form.AddTextView("", views.ValidationText(field.Validate(field.Default)), 0, 2, true, false)
+				check, _ = form.GetFormItem(form.GetFormItemCount() - 1).(*tview.TextView)
+			}
 			if field.Hint != "" {
 				form.AddTextView("", "  "+field.Hint, 0, hintLines(field.Hint), true, false)
 			}
@@ -720,6 +731,12 @@ func (s *Shell) ShowInlineForm(cfg views.InlineFormConfig) {
 					}
 				}
 			}
+			if f.Validate != nil && (f.Conditional == nil || f.Conditional(values)) {
+				if msg, invalid := f.Validate(values[f.Key]); invalid {
+					s.ShowToast(msg, ToastWarning)
+					return
+				}
+			}
 		}
 		dismiss()
 		if cfg.OnSubmit != nil {
@@ -776,13 +793,15 @@ func (s *Shell) ShowInlineForm(cfg views.InlineFormConfig) {
 	// Separator (centered 60% rule)
 	outerFlex.AddItem(newSeparator(), 1, 0, false)
 
-	// Button bar (unified buildButtonBar — primary/secondary differentiated)
+	// Button bar (unified buildButtonBar — primary/secondary differentiated).
+	// The callbacks dismiss the form themselves: a refused submission
+	// (required field, invalid value) keeps it open.
 	buttonBar, buttonFocusables := buildButtonBar(
 		[]views.ModalAction{
 			{Label: i18n.T("tui.modal.btn.confirm"), Callback: submitForm},
 			{Label: i18n.T("tui.modal.btn.cancel"), Callback: cancelForm},
 		},
-		dismiss,
+		func() {},
 	)
 	outerFlex.AddItem(buttonBar, 1, 0, false)
 
@@ -841,6 +860,9 @@ func (s *Shell) ShowInlineForm(cfg views.InlineFormConfig) {
 	for _, f := range cfg.Fields {
 		if f.Conditional == nil || f.Conditional(values) {
 			visibleFields++
+			if f.Validate != nil {
+				visibleFields++ // room for the message under the field
+			}
 		}
 	}
 	size := s.computeModalSize(modalSizeHint{FieldCount: visibleFields, FixedWidth: theme.ModalMaxWidth})
@@ -1270,7 +1292,8 @@ func (s *Shell) isInteractiveZone(x, y int) bool {
 // Layers, in order:
 //  1. urgency: Ctrl+Q / Ctrl+C (quit), Esc clearing a text selection;
 //  2. the palette, the overlays (modals, forms) and the views that capture
-//     input (forms, wizards) receive every other key;
+//     input (forms, wizards) receive every other key, Esc included (it
+//     does not close the toasts there);
 //  3. reserved keys, never redefined by a view: Esc (closes the toasts
 //     shown, then goes back), Ctrl+P, Ctrl+T, ? and F1;
 //  4. the active view (HandleKey);
@@ -1308,16 +1331,13 @@ func (s *Shell) globalKeyHandler(event *tcell.EventKey) *tcell.EventKey {
 		return event
 	}
 
-	// Esc closes the toasts shown before anything else (N19).
-	if event.Key() == tcell.KeyEscape && s.DismissToasts() {
-		return nil
-	}
-
 	// ── InputCapturing views (e.g. inline wizards with forms) ────────
 	// When the current view captures input, only Ctrl+Q/C (handled above)
 	// and selection-clear remain global. Everything else is delegated to
 	// HandleKey first; if the view doesn't consume the event, it falls
 	// through to tview's normal focus-based widget delivery (forms, etc.).
+	// Esc keeps its meaning there (close the form, « Quit the wizard? »):
+	// it does not close the toasts, which go away on their own.
 	if cur := s.router.Current(); cur != nil {
 		if ic, ok := cur.(views.InputCapturing); ok && ic.CapturesInput() {
 			result := cur.HandleKey(event)
@@ -1327,6 +1347,11 @@ func (s *Shell) globalKeyHandler(event *tcell.EventKey) *tcell.EventKey {
 			// View didn't consume → let tview deliver to the focused widget
 			return event
 		}
+	}
+
+	// Esc closes the toasts shown before going back (N19).
+	if event.Key() == tcell.KeyEscape && s.DismissToasts() {
+		return nil
 	}
 
 	// ── Reserved keys ────────────────────────────────────────────────

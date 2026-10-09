@@ -48,6 +48,8 @@ auth_mode = "bearer"              # "bearer" | "profile"
 
 This section is optional — if absent, `oh` uses environment credentials.
 
+The region must be an AWS region name (`eu-west-1`): it names the host that receives the credential. It is checked as it is typed — Provider view of the TUI, `oh init` and `oh provider setup` wizards ("Custom..."): the message shows under the field, an invalid value is refused, a region where Bedrock is not known only warns — then by `oh config set provider.bedrock.aws_region`, at launch and by the credential proxy.
+
 ## Project-Level Override
 
 Override the provider for a specific project:
@@ -148,6 +150,8 @@ Tokens are read by MCP servers at runtime via environment variables:
 At each launch (`oh run <workflow>`), the provider configuration is written into the session bundle (`~/.oh/bundles/<hash>/`), not into the project:
 
 The bundle builder reads your configured provider and model, then generates the appropriate provider block. This block points to the credential proxy of the oh daemon: it never contains the real key (the session authenticates to the proxy with an `ohs_…` token). To see the bundle: `oh bundle show <workflow>`.
+
+Before building anything, oh checks that the provider has credentials (project, team, hub; AWS profile for Bedrock); otherwise the launch is refused with « oh provider setup ». In the TUI, the recap of the launch form shows this message and a **Configure the provider** button: it opens the Provider view; back on the form (`Esc`), the recap checks the credentials again.
 
 ## Switching Providers
 

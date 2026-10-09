@@ -38,6 +38,9 @@ type providerConfigLine struct {
 	visible  func() bool
 	get      func(c *config.Config) string
 	set      func(c *config.Config, val string)
+	// validate checks a "string" value as it is typed (message under the
+	// field; an invalid value is refused).
+	validate func(value string) (msg string, invalid bool)
 }
 
 // ProviderView displays provider configuration and allows credential setup.
@@ -229,9 +232,10 @@ func (v *ProviderView) buildLines() {
 		},
 		providerConfigLine{
 			provider: "bedrock", key: "aws_region", kind: "string",
-			visible: func() bool { return v.selectedProvider == "bedrock" },
-			get:     func(c *config.Config) string { return c.Provider.Bedrock.AWSRegion },
-			set:     func(c *config.Config, val string) { c.Provider.Bedrock.AWSRegion = val },
+			visible:  func() bool { return v.selectedProvider == "bedrock" },
+			get:      func(c *config.Config) string { return c.Provider.Bedrock.AWSRegion },
+			set:      func(c *config.Config, val string) { c.Provider.Bedrock.AWSRegion = val },
+			validate: provider.RegionProblem,
 		},
 		providerConfigLine{
 			provider: "bedrock", key: "aws_profile", kind: "string",
@@ -551,12 +555,23 @@ func (v *ProviderView) editCurrent() {
 		if line.get != nil {
 			cur = line.get(cfg)
 		}
-		v.shell.ShowInputModal(line.key, cur, func(newVal string) {
+		apply := func(newVal string) {
 			if line.set != nil {
 				line.set(cfg, newVal)
 				v.renderList()
 			}
-		})
+		}
+		if line.validate != nil {
+			v.shell.ShowInlineForm(InlineFormConfig{
+				Title:  line.key,
+				Fields: []FormField{{Label: line.key, Key: "value", Type: FieldText, Default: cur, Validate: line.validate}},
+				OnSubmit: func(vals map[string]string, _ map[string][]string) {
+					apply(vals["value"])
+				},
+			})
+			return
+		}
+		v.shell.ShowInputModal(line.key, cur, apply)
 
 	case "password":
 		v.shell.ShowPasswordModal(line.key, func(val string) {
@@ -791,7 +806,7 @@ func (v *ProviderView) setupBedrock() {
 						v.shell.ShowInlineForm(InlineFormConfig{
 							Title: i18n.T("cmd.init.wizard_custom_region_input"),
 							Fields: []FormField{
-								{Label: "Region", Key: "region", Type: FieldText, Required: true},
+								{Label: "Region", Key: "region", Type: FieldText, Required: true, Validate: provider.RegionProblem},
 							},
 							OnSubmit: func(vals map[string]string, _ map[string][]string) {
 								cfg.Provider.Bedrock.AWSRegion = vals["region"]
@@ -823,7 +838,7 @@ func (v *ProviderView) setupBedrock() {
 						v.shell.ShowInlineForm(InlineFormConfig{
 							Title: i18n.T("cmd.init.wizard_custom_region_input"),
 							Fields: []FormField{
-								{Label: "Region", Key: "region", Type: FieldText, Required: true},
+								{Label: "Region", Key: "region", Type: FieldText, Required: true, Validate: provider.RegionProblem},
 							},
 							OnSubmit: func(vals map[string]string, _ map[string][]string) {
 								cfg.Provider.Bedrock.AWSRegion = vals["region"]

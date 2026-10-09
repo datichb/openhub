@@ -210,12 +210,7 @@ func setupBedrock(ctx context.Context, a *app.App, project *domain.Project) erro
 			SkipIf: func() bool {
 				return useExisting || authMode != "bearer"
 			},
-			Validate: func() string {
-				if awsRegion == "" {
-					return i18n.T("cmd.init.wizard_region_required")
-				}
-				return ""
-			},
+			Validate: func() string { return bedrockRegionStepProblem(awsRegion) },
 			Form: func(app *tview.Application, onDone func()) *tview.Form {
 				stepIdx := bedrockStepIndex(&steps, "bedrock-bearer")
 				rerenderSafe := func() {
@@ -255,12 +250,7 @@ func setupBedrock(ctx context.Context, a *app.App, project *domain.Project) erro
 			SkipIf: func() bool {
 				return useExisting || authMode != "profile"
 			},
-			Validate: func() string {
-				if awsRegion == "" {
-					return i18n.T("cmd.init.wizard_region_required")
-				}
-				return ""
-			},
+			Validate: func() string { return bedrockRegionStepProblem(awsRegion) },
 			Form: func(app *tview.Application, onDone func()) *tview.Form {
 				stepIdx := bedrockStepIndex(&steps, "bedrock-profile")
 				rerenderSafe := func() {
