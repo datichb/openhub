@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
+	"time"
 
 	"github.com/datichb/openhub/cli/internal/config"
 	_ "modernc.org/sqlite"
@@ -84,11 +86,24 @@ func open(path string, create bool) (*Store, error) {
 	if err != nil {
 		return nil, fmt.Errorf("opening database: %w", err)
 	}
-	if err := db.Ping(); err != nil {
+	// Switching a new database to WAL takes an exclusive lock that the busy
+	// timeout does not always wait for (several processes opening it at the
+	// first start): retried for a while.
+	err = db.Ping()
+	for wait := 20 * time.Millisecond; err != nil && isBusy(err) && wait < 5*time.Second; wait *= 2 {
+		time.Sleep(wait)
+		err = db.Ping()
+	}
+	if err != nil {
 		db.Close()
 		return nil, fmt.Errorf("opening database: %w", err)
 	}
 	return &Store{db: db, path: path}, nil
+}
+
+func isBusy(err error) bool {
+	msg := err.Error()
+	return strings.Contains(msg, "SQLITE_BUSY") || strings.Contains(msg, "database is locked")
 }
 
 // OpenDefault opens the database at the default path.
