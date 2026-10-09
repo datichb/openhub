@@ -36,6 +36,18 @@ Les resultats des actions s'affichent en toasts (succes, erreur, info) qui dispa
 
 **Changement en v5.0** : taper une lettre « n'importe ou » n'ouvre plus l'omnibar (utilisez `Ctrl+P` ou `/`) ; `Entree` et les lettres vont toujours a la liste ou au champ selectionne ; `d` ne ferme plus les toasts (`Esc`). Les touches `Esc`, `Ctrl+P`, `Ctrl+T`, `?`, `F1` et `Ctrl+Q` ont le meme sens dans toutes les vues. Toute action destructrice (supprimer un worktree, nettoyer, liberer un ticket, rejeter une proposition du wiki…) demande une confirmation.
 
+### Petits terminaux
+
+La mise en page suit la taille du terminal :
+
+| Taille | Mise en page |
+|--------|--------------|
+| 32 lignes et plus | complete : bandeau en grand, pied de page, barre du bas sur 8 lignes |
+| 16 a 31 lignes | **compacte** : bandeau sur une ligne, pas de pied de page ni d'espaces, barre du bas sur 3 lignes (≈ 19 lignes de liste en 80×24) |
+| moins de 60 colonnes ou 16 lignes | message « Terminal trop petit (L×H) — 60×16 minimum » ; seul `Ctrl+Q` fonctionne |
+
+Le passage d'une mise en page a l'autre garde l'element selectionne. Reglage `[cli] compact = auto | always | never` (Reglages › CLI › Mode compact, ou `oh config set cli.compact always`) : `auto` (defaut) suit la hauteur, `always` force la mise en page compacte, `never` la mise en page complete (le message « trop petit » reste).
+
 ### Badge des sessions
 
 La barre du bas affiche partout `● N ⏸ M` : `N` sessions vivantes (ni en veille ni terminees), `M` decisions en attente. Le badge passe en couleur d'alerte quand `M > 0`, et un toast annonce chaque nouvelle decision. Les notifications systeme viennent du demon oh, meme TUI fermee.

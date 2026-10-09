@@ -21,6 +21,12 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 - **Assistants** : `Esc` ouvre « Quitter l'assistant ? » (**Quitter**, **Passer l'étape** si elle est facultative, **Continuer**) ; plus de double `Esc` qui passait l'étape sans prévenir. Retour : `Ctrl+B`, `Alt+←` ou `PgUp`. Sur l'écran de résumé, `Esc` revient à la vue précédente.
 - Aide (`?`) : fiche et assistants, touches de la vue active ; guides `tui-usage` et référence TUI mis à jour.
 
+### Added — petits terminaux (points critiques des audits v5, N20)
+
+- **Mode compact de la TUI** sous 32 lignes : bandeau sur une ligne, pas de pied de page ni d'espaces, barre du bas sur 3 lignes au lieu de 8 (en 80×24 : ≈ 19 lignes de liste au lieu de 0 sur l'accueil). Largeur étroite limitée à la largeur du terminal (`min(72, largeur)`). Le changement de mise en page garde l'élément sélectionné.
+- Sous **60×16** : message « Terminal trop petit (L×H) — 60×16 minimum », seul `Ctrl+Q` fonctionne.
+- Réglage **`[cli] compact = auto | always | never`** (Réglages › CLI › Mode compact, `oh config set cli.compact …`).
+
 ### Added — runtime v5 (phase 0, opencode V2)
 
 - **Sessions sur le runtime v5** dès qu'opencode V2 est installé (l'ancien chemin de lancement ne fonctionne pas avec V2 ; pas encore pris en charge sous Windows) : paquet de session compilé hors du projet (`~/.oh/bundles/<hash>`), serveur `opencode serve` dédié par groupe (paquet, projet), « monde fermé » vérifié (seuls les agents/skills du paquet sont visibles), plugin oh embarqué (prompt d'agent ajouté au prompt de base d'opencode).

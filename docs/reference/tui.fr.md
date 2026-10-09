@@ -37,6 +37,8 @@ Le TUI suit un design **omnibar-first** inspiré des lanceurs fuzzy (fzf, Telesc
 └───────────────────────────────────────────────────────────────────┘
 ```
 
+**Petits terminaux** (v5.0) : sous 32 lignes, mise en page compacte (bandeau sur une ligne, omnibar et barre de mode sur 3 lignes, sans pied de page ni espaces) ; sous 60×16, message « Terminal trop petit » et seul `Ctrl+Q` fonctionne. Seuils centralisés dans `views.LevelFor` ; réglage `[cli] compact = auto | always | never`. Le changement de mise en page garde l'élément sélectionné.
+
 ## Raccourcis globaux
 
 | Touche | Action |

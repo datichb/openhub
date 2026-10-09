@@ -37,6 +37,8 @@ type Omnibar struct {
 	modeSep     *tview.Box      // horizontal separator line colored per mode
 	modeBar     *tview.TextView // mode label + contextual info
 	wrapper     *tview.Flex     // outermost primitive with BgPanel margins
+	rightPane   *tview.Flex     // container + separator + mode bar
+	compact     bool            // 3-row layout (N20)
 	active      bool
 	suggestions *tview.List
 	visible     []Command
@@ -181,6 +183,7 @@ func NewOmnibar(s *Shell, registry *CommandRegistry) *Omnibar {
 	o.wrapper.SetBackgroundColor(theme.BgPanel)
 	o.wrapper.SetBorderPadding(1, 1, 2, 2)
 	o.wrapper.AddItem(rightPane, 0, 1, true)
+	o.rightPane = rightPane
 
 	// Click-to-activate: a left click on the passive hint bar activates the omnibar.
 	// Return MouseConsumed so tview marks the event as consumed and triggers a
@@ -195,6 +198,42 @@ func NewOmnibar(s *Shell, registry *CommandRegistry) *Omnibar {
 	})
 
 	return o
+}
+
+// Omnibar heights (rows): full = wrapper padding (2) + hints/input (3) +
+// separator (1) + mode bar (2); compact = hints/input, separator and mode
+// bar on one row each (N20).
+const (
+	omnibarFullHeight    = 8
+	omnibarCompactHeight = 3
+)
+
+// Height is the number of rows of the omnibar in its current layout.
+func (o *Omnibar) Height() int {
+	if o.compact {
+		return omnibarCompactHeight
+	}
+	return omnibarFullHeight
+}
+
+// SetCompact switches between the full (8 rows) and the compact (3 rows)
+// layouts.
+func (o *Omnibar) SetCompact(compact bool) {
+	if o.compact == compact {
+		return
+	}
+	o.compact = compact
+	top, modeBarRows := 1, 2
+	wrapV, wrapH := 1, 2
+	if compact {
+		top, modeBarRows = 0, 1
+		wrapV, wrapH = 0, 1
+	}
+	o.hints.SetBorderPadding(top, 0, 2, 2)
+	o.input.SetBorderPadding(top, 0, 2, 2)
+	o.modeBar.SetBorderPadding(0, modeBarRows-1, 2, 2)
+	o.rightPane.ResizeItem(o.modeBar, modeBarRows, 0)
+	o.wrapper.SetBorderPadding(wrapV, wrapV, wrapH, wrapH)
 }
 
 // Primitive returns the outermost omnibar primitive (wrapper) for layout integration.

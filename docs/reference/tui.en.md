@@ -37,6 +37,8 @@ The TUI follows an **omnibar-first** design inspired by fuzzy launchers (fzf, Te
 └───────────────────────────────────────────────────────────────────┘
 ```
 
+**Small terminals** (v5.0): under 32 rows, compact layout (one-line banner, omnibar and mode bar on 3 rows, no footer nor spacing); under 60×16, « Terminal too small » message and only `Ctrl+Q` works. Thresholds in `views.LevelFor`; setting `[cli] compact = auto | always | never`. Changing layout keeps the selected item.
+
 ## Global Shortcuts
 
 | Key | Action |

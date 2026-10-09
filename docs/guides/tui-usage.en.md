@@ -36,6 +36,18 @@ Action results show up as toasts (success, error, info) that disappear by themse
 
 **Changed in v5.0**: typing a letter « anywhere » no longer opens the omnibar (use `Ctrl+P` or `/`); `Enter` and letters always go to the selected list or field; `d` no longer dismisses toasts (`Esc`). `Esc`, `Ctrl+P`, `Ctrl+T`, `?`, `F1` and `Ctrl+Q` mean the same in every view. Every destructive action (removing a worktree, cleaning up, releasing a ticket, rejecting a wiki proposal…) asks for a confirmation.
 
+### Small terminals
+
+The layout follows the terminal size:
+
+| Size | Layout |
+|------|--------|
+| 32 rows and more | full: large banner, footer, 8-row bottom bar |
+| 16 to 31 rows | **compact**: one-line banner, no footer nor spacing, 3-row bottom bar (≈ 19 list rows in 80×24) |
+| under 60 columns or 16 rows | « Terminal too small (W×H) — 60×16 minimum » message; only `Ctrl+Q` works |
+
+Switching between layouts keeps the selected item. Setting `[cli] compact = auto | always | never` (Settings › CLI › Compact mode, or `oh config set cli.compact always`): `auto` (default) follows the height, `always` forces the compact layout, `never` the full one (the « too small » message remains).
+
 ### Sessions badge
 
 The bottom bar shows `● N ⏸ M` everywhere: `N` live sessions (neither sleeping nor finished), `M` waiting decisions. The badge turns to the alert color when `M > 0`, and a toast announces each new decision. System notifications come from the oh daemon, even with the TUI closed.

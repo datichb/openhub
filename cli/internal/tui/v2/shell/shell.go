@@ -82,6 +82,9 @@ type Config struct {
 	// right away (e.g. to ask what to do with running sessions). It must call
 	// quit to stop the TUI. A second Ctrl+Q while it is pending forces the quit.
 	BeforeQuit func(quit func())
+	// Compact returns the `[cli] compact` setting (auto | always | never;
+	// nil or "" = auto), read at every draw (N20).
+	Compact func() string
 }
 
 // shellAware is an optional interface that views can implement to receive
@@ -136,6 +139,14 @@ type Shell struct {
 	// ctx is cancelled when the shell exits (SIGINT, q, or tview Stop).
 	ctx    context.Context
 	cancel context.CancelFunc
+
+	// Layout level (N20): wantLevel is the level of the last drawn terminal
+	// size, applied on the event loop (applyLevel) into level; tooSmall
+	// blocks the keys behind the « terminal too small » message.
+	wantLevel     atomic.Int32
+	level         views.LayoutLevel
+	tooSmall      atomic.Bool
+	omnibarHidden bool
 }
 
 // New creates a configured Shell ready to run.
@@ -265,7 +276,7 @@ func (s *Shell) repositionSuggestions() {
 	}
 
 	height := s.omnibar.SuggestionsHeight()
-	const omnibarHeight = 8 // wrapper padding (2) + hints/input (3) + separator (1) + mode bar (2)
+	omnibarHeight := s.omnibar.Height()
 
 	y := screenH - omnibarHeight - height
 	if y < 0 {
@@ -288,6 +299,7 @@ func (s *Shell) Run() error {
 	}()
 	// Apply selection highlight after every draw cycle, before screen.Show().
 	// Also cache the screen reference so mouse handlers can read cell content.
+	s.app.SetBeforeDrawFunc(s.beforeDraw)
 	s.app.SetAfterDrawFunc(func(screen tcell.Screen) {
 		s.screen = screen
 		s.selection.ApplyHighlight(screen)
@@ -1068,8 +1080,9 @@ func (s *Shell) SetOmnibarVisible(visible bool) {
 	if !visible {
 		s.omnibar.Deactivate()
 	}
+	s.omnibarHidden = !visible
 	if visible {
-		s.root.ResizeItem(s.omnibar.Primitive(), 8, 0)
+		s.root.ResizeItem(s.omnibar.Primitive(), s.omnibar.Height(), 0)
 	} else {
 		s.root.ResizeItem(s.omnibar.Primitive(), 0, 0)
 	}
@@ -1269,6 +1282,10 @@ func (s *Shell) globalKeyHandler(event *tcell.EventKey) *tcell.EventKey {
 	// Ctrl+Q / Ctrl+C: quit (always available)
 	if event.Key() == tcell.KeyCtrlQ || event.Key() == tcell.KeyCtrlC {
 		s.RequestQuit()
+		return nil
+	}
+	// « Terminal too small »: only quitting (and the quit window) work.
+	if s.tooSmall.Load() && !s.hasOverlay() {
 		return nil
 	}
 

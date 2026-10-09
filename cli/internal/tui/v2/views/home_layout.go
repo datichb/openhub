@@ -33,6 +33,16 @@ func layoutModeForWidth(width int) homeLayoutMode {
 	}
 }
 
+// contentWidthFor is the width of the landing content for mode, never wider
+// than the available width (narrow: min(72, width), N20).
+func contentWidthFor(mode homeLayoutMode, width int) int {
+	w := contentWidthForMode(mode)
+	if width > 0 && w > width {
+		return width
+	}
+	return w
+}
+
 func contentWidthForMode(mode homeLayoutMode) int {
 	switch mode {
 	case layoutDual:
@@ -150,6 +160,8 @@ type homeFlexConfig struct {
 	RightItems []widgets.SectionItem
 	// OnSelect is called when Enter is pressed on a non-header item.
 	OnSelect func(index int, item widgets.SectionItem)
+	// Compact drops the footer and the vertical spacers (N20).
+	Compact bool
 }
 
 // homeFlexResult holds the constructed layout and optional dual state.
@@ -167,7 +179,7 @@ type homeFlexResult struct {
 // buildHomeLayout constructs a responsive home layout for the given width.
 func buildHomeLayout(width int, cfg homeFlexConfig) homeFlexResult {
 	mode := layoutModeForWidth(width)
-	contentWidth := contentWidthForMode(mode)
+	contentWidth := contentWidthFor(mode, width)
 
 	var centerContent tview.Primitive
 	var result homeFlexResult
@@ -198,7 +210,7 @@ func buildHomeLayout(width int, cfg homeFlexConfig) homeFlexResult {
 	// ── Vertical centering (adaptive ratio based on content density) ──
 	totalItems := len(cfg.LeftItems) + len(cfg.RightItems)
 	topWeight, contentWeight, bottomWeight := 1, 5, 1
-	if totalItems > 25 {
+	if cfg.Compact || totalItems > 25 {
 		// Very dense: no vertical centering, use full height
 		topWeight, contentWeight, bottomWeight = 0, 1, 0
 	} else if totalItems > 15 {
@@ -216,7 +228,7 @@ func buildHomeLayout(width int, cfg homeFlexConfig) homeFlexResult {
 	}
 	// Footer anchored at the bottom, outside vertical centering,
 	// so it stays close to the omnibar regardless of content density.
-	if cfg.Footer != nil {
+	if cfg.Footer != nil && !cfg.Compact {
 		root.AddItem(cfg.Footer, cfg.FooterHeight, 0, false)
 	}
 
@@ -292,17 +304,15 @@ func buildDualFlex(d *homeDualLayout) *tview.Flex {
 // ─────────────────────────────────────────────────────────────────────────────
 
 // adaptiveHomeMount installs a responsive layout into content that reacts to
-// terminal resize. It calls buildFn(width) to construct the layout, and
-// reinstalls it whenever the terminal width crosses a breakpoint.
-//
-// buildFn receives the current terminal width and must return a homeFlexResult.
-// The returned result's Root is installed into content.
+// terminal resize. It calls buildFn(width, compact) to construct the layout,
+// and reinstalls it whenever the terminal width crosses a breakpoint or the
+// layout level changes (N20), keeping the selected item and column.
 //
 // Returns the initial homeFlexResult.
 func adaptiveHomeMount(
 	app *tview.Application,
 	content *tview.Flex,
-	buildFn func(width int) homeFlexResult,
+	buildFn func(width int, compact bool) homeFlexResult,
 ) homeFlexResult {
 	// Initial build with a fallback width
 	_, _, initWidth, _ := content.GetInnerRect()
@@ -310,38 +320,50 @@ func adaptiveHomeMount(
 		initWidth = 80 // fallback before first draw
 	}
 
-	result := buildFn(initWidth)
+	initCompact := compactLayout()
+	result := buildFn(initWidth, initCompact)
 	content.AddItem(result.Root, 0, 1, true)
 
-	// Track the current layout mode to detect breakpoint crossings (atomic for -race safety)
-	var currentMode atomic.Int32
-	currentMode.Store(int32(result.Mode))
+	// Track the current layout (mode, content width, level) to detect
+	// changes (atomic for -race safety)
+	var currentKey atomic.Int64
+	layoutKey := func(width int, compact bool) int64 {
+		mode := layoutModeForWidth(width)
+		k := (int64(contentWidthFor(mode, width))*4 + int64(mode)) * 2
+		if compact {
+			k++
+		}
+		return k
+	}
+	currentKey.Store(layoutKey(initWidth, initCompact))
 
 	content.SetDrawFunc(func(screen tcell.Screen, x, y, width, height int) (int, int, int, int) {
-		newMode := layoutModeForWidth(width)
-		if int32(newMode) != currentMode.Load() {
-			currentMode.Store(int32(newMode))
+		compact := compactLayout()
+		newKey := layoutKey(width, compact)
+		if newKey != currentKey.Load() {
+			currentKey.Store(newKey)
 			// Rebuild on the next event loop tick to avoid mutating during draw
 			go func() {
 				if app != nil {
 					app.QueueUpdateDraw(func() {
 						// A modal (quit dialog, form) keeps the focus.
 						owned := homeOwnsFocus(app, result.SingleList, result.Dual)
+						lst, col := result.SingleList, 0
+						if result.Dual != nil {
+							lst, col = result.Dual.left, result.Dual.activeCol
+						}
+						ref, hasRef := homeCurrentRef(lst, result.Dual)
 						// Clear and rebuild
 						content.RemoveItem(result.Root)
-						result = buildFn(width)
+						result = buildFn(width, compact)
 						content.Clear()
 						content.AddItem(result.Root, 0, 1, true)
 
-						// Focus the appropriate widget
+						// Focus the appropriate widget, on the same item
 						if !owned {
 							return
 						}
-						if result.Dual != nil {
-							result.Dual.focusLeft()
-						} else if result.SingleList != nil {
-							app.SetFocus(result.SingleList)
-						}
+						homeRestore(app, result, ref, hasRef, col)
 					})
 				}
 			}()
@@ -350,4 +372,46 @@ func adaptiveHomeMount(
 	})
 
 	return result
+}
+
+// homeRestore focuses a rebuilt landing on the item ref (Reference of its
+// SectionItem) when it is still there, else on the column col.
+func homeRestore(app *tview.Application, r homeFlexResult, ref int, hasRef bool, col int) {
+	if r.Dual != nil {
+		if hasRef && selectItemRef(r.Dual.right, ref) {
+			r.Dual.focusRight()
+			return
+		}
+		if hasRef && selectItemRef(r.Dual.left, ref) {
+			r.Dual.focusLeft()
+			return
+		}
+		if col == 1 {
+			r.Dual.focusRight()
+		} else {
+			r.Dual.focusLeft()
+		}
+		return
+	}
+	if r.SingleList != nil {
+		if hasRef {
+			selectItemRef(r.SingleList, ref)
+		}
+		app.SetFocus(r.SingleList)
+	}
+}
+
+// selectItemRef selects the item whose Reference is ref; it reports whether
+// the list has it.
+func selectItemRef(list *widgets.SectionedList, ref int) bool {
+	if list == nil {
+		return false
+	}
+	for i, it := range list.GetItems() {
+		if r, ok := it.Reference.(int); ok && r == ref && !it.IsHeader {
+			list.SelectIndex(i)
+			return true
+		}
+	}
+	return false
 }

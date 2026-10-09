@@ -12,6 +12,7 @@ import (
 // hub.toml ("" = no value: the feature is off or the workflow decides).
 var configDefaults = map[string]string{
 	"cli.language":               "en",
+	"cli.compact":                "auto",
 	"worktree.auto_cleanup":      "true",
 	"websearch.enabled":          "false",
 	"session.attach":             "auto",

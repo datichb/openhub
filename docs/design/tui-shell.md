@@ -213,7 +213,18 @@ layout.
 | Dual | `≥ 140` cols | Two columns as shown above (65 chars each + 4 gap) |
 
 In single-column mode, sections are stacked vertically in reading order
-(left column first, then right column).
+(left column first, then right column). Narrow width is `min(72, width)`.
+
+Height levels (v5.0, N20, `views.LevelFor`, `[cli] compact = auto|always|never`):
+
+| Level | Condition | Behavior |
+|-------|-----------|----------|
+| Full | `≥ 32` rows | Figlet banner, footer, vertical spacers, 8-row omnibar, content top padding 1 |
+| Compact | `16–31` rows | One-line banner, no footer nor spacers, 3-row omnibar (hints, separator, mode bar), top padding 0 |
+| Too small | `< 60` cols or `< 16` rows | Centered « terminal too small » message, only Ctrl+Q |
+
+The level is computed at every draw and applied on the event loop; landings
+rebuild on a level change and keep the selected item.
 
 ## Toast Notifications
 

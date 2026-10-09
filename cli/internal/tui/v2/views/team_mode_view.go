@@ -60,6 +60,7 @@ type TeamModeView struct {
 	dual     *homeDualLayout
 	header   *tview.TextView // header with badge + stats (updated async)
 	bannerTV *tview.TextView // centered ASCII art banner
+	stats    string          // stats line of the header ("" = loading)
 	items    []teamModeItem
 	mountGen uint64 // guards stale goroutines (standard pattern)
 }
@@ -170,16 +171,29 @@ func (v *TeamModeView) Mount(content *tview.Flex, app *tview.Application) {
 
 	bannerName := strings.ToUpper(v.team.Name)
 	banner, bh := renderBanner(bannerName, 100, theme.ActiveMode.AccentHex)
-	headerHeight := bh + 4
+	compactNow := false
 
-	// Set banner (centered)
-	v.bannerTV.SetText("\n" + banner)
-
-	// Show header immediately with a "loading" placeholder for stats
-	v.header.SetText(fmt.Sprintf("  %s%s%s\n  %s%s%s",
-		secondary, i18n.T("tui.tm.header_badge"), reset,
-		muted, i18n.T("tui.tm.loading"), reset,
-	))
+	// renderHeader shows the banner and the header; compact (N20): banner
+	// and badge on one line, stats on the next.
+	v.stats = ""
+	renderHeader := func(compact bool) {
+		compactNow = compact
+		stats := v.stats
+		if stats == "" {
+			stats = i18n.T("tui.tm.loading")
+		}
+		v.header.SetWrap(!compact)
+		if compact {
+			v.bannerTV.SetText(compactBanner(bannerName, theme.ActiveMode.AccentHex, i18n.T("tui.tm.header_badge")))
+			v.header.SetText(fmt.Sprintf("  %s%s%s", muted, stats, reset))
+			return
+		}
+		v.bannerTV.SetText("\n" + banner)
+		v.header.SetText(fmt.Sprintf("  %s%s%s\n  %s%s%s",
+			secondary, i18n.T("tui.tm.header_badge"), reset,
+			muted, stats, reset,
+		))
+	}
 
 	// Load stats asynchronously to avoid blocking the event loop
 	if v.cfg.TeamStats != nil {
@@ -190,10 +204,8 @@ func (v *TeamModeView) Mount(content *tview.Flex, app *tview.Application) {
 					if v.app == nil || v.mountGen != gen {
 						return // view was unmounted or re-mounted, discard stale result
 					}
-					v.header.SetText(fmt.Sprintf("  %s%s%s\n  %s%s%s",
-						secondary, i18n.T("tui.tm.header_badge"), reset,
-						muted, i18n.Tf("tui.tm.stats", stats.MemberCount, stats.ActiveCount), reset,
-					))
+					v.stats = i18n.Tf("tui.tm.stats", stats.MemberCount, stats.ActiveCount)
+					renderHeader(compactNow)
 				})
 			}
 		}()
@@ -230,11 +242,20 @@ func (v *TeamModeView) Mount(content *tview.Flex, app *tview.Application) {
 	combinedHeader.AddItem(v.bannerTV, bh+1, 0, false) // banner + leading \n
 	combinedHeader.AddItem(v.header, 0, 1, false)      // badge/stats fills rest
 
-	buildFn := func(width int) homeFlexResult {
+	buildFn := func(width int, compact bool) homeFlexResult {
+		headerHeight := bh + 4
+		if compact {
+			headerHeight = 2
+			combinedHeader.ResizeItem(v.bannerTV, 1, 0)
+		} else {
+			combinedHeader.ResizeItem(v.bannerTV, bh+1, 0)
+		}
+		renderHeader(compact)
 		r := buildHomeLayout(width, homeFlexConfig{
 			App:          app,
 			Header:       combinedHeader,
 			HeaderHeight: headerHeight,
+			Compact:      compact,
 			Footer:       footer,
 			FooterHeight: 4,
 			LeftItems:    leftItems,
