@@ -28,7 +28,7 @@ A workflow is launched with `oh run <workflow>` or the TUI launch form; the form
 | `cadrage` | `conductor` | `pathfinder`, `planner`, `designer` | plan | local | former mode A without implementation |
 | `onboarding` | `onboarder` | — | write (`docs/wiki/`) | local, remote | `oh start --onboard` (former mode C) |
 | `review` | `reviewer` | — | read | local, remote | `oh review` |
-| `review-feedback` | `orchestrator-dev` | `developer` | write | local | `oh review feedback` |
+| `review-feedback` | `orchestrator-dev` | `developer`, `reviewer` | write | local | `oh review feedback` |
 | `audit` | `auditor` | `auditor-subagent` | read | local, remote | `oh audit` |
 | `debug` | `debugger` | `developer` (on demand) | write | local | `oh debug` (former mode D) |
 | `sweep` | `conductor` | `pathfinder`, `developer`, `developer-refactor`, `developer-migrator`, `reviewer` | write | local | `oh start --sweep` |
@@ -176,7 +176,7 @@ Applies the unresolved comments of a merge request. `oh run review-feedback -i m
 | `cp-fix` Fixes to apply | pause | pause | auto |
 | `cp-2` Commit or fix (mandatory) | pause | pause | pause |
 
-`developer` only starts after `cp-fix`. Default mode: `semi-auto`. Output: `branch`. Allowed Beads commands: `show`, `list`, `ready`, `search`, `children`, `comments`, `count`, `status`, `graph`, `history`, `create`, `update`, `close`, `dep`, `label`.
+Flow: classification of the comments → `cp-fix` → fixes by the `developer`, **without committing**, project tests included → new review of the fixes by the `reviewer` → `cp-2` (unlocks `commit`) → commit `fix(review): address reviewer feedback` → recap. Pushing the branch and answering the MR threads **are left to the user** (no agent pushes nor replies on GitLab). `developer` and `reviewer` only start after `cp-fix`. Default mode: `semi-auto`. Output: `branch`. Allowed Beads commands: `show`, `list`, `ready`, `search`, `children`, `comments`, `count`, `status`, `graph`, `history`, `create`, `update`, `close`, `dep`, `label`.
 
 ## `audit`
 

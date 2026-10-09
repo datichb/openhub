@@ -28,7 +28,7 @@ On lance un workflow avec `oh run <workflow>` ou la fiche de lancement de la TUI
 | `cadrage` | `conductor` | `pathfinder`, `planner`, `designer` | plan | local | ancien mode A sans implémentation |
 | `onboarding` | `onboarder` | — | write (`docs/wiki/`) | local, distant | `oh start --onboard` (ancien mode C) |
 | `review` | `reviewer` | — | read | local, distant | `oh review` |
-| `review-feedback` | `orchestrator-dev` | `developer` | write | local | `oh review feedback` |
+| `review-feedback` | `orchestrator-dev` | `developer`, `reviewer` | write | local | `oh review feedback` |
 | `audit` | `auditor` | `auditor-subagent` | read | local, distant | `oh audit` |
 | `debug` | `debugger` | `developer` (à la demande) | write | local | `oh debug` (ancien mode D) |
 | `sweep` | `conductor` | `pathfinder`, `developer`, `developer-refactor`, `developer-migrator`, `reviewer` | write | local | `oh start --sweep` |
@@ -176,7 +176,7 @@ Applique les commentaires non résolus d'une merge request. `oh run review-feedb
 | `cp-fix` Corrections à appliquer | pause | pause | auto |
 | `cp-2` Commit ou correction (obligatoire) | pause | pause | pause |
 
-`developer` ne démarre qu'après `cp-fix`. Mode par défaut : `semi-auto`. Sortie : `branch`. Commandes Beads autorisées : `show`, `list`, `ready`, `search`, `children`, `comments`, `count`, `status`, `graph`, `history`, `create`, `update`, `close`, `dep`, `label`.
+Déroulé : classement des retours → `cp-fix` → correction par le `developer`, **sans commit**, tests du projet compris → nouvelle review des corrections par le `reviewer` → `cp-2` (déverrouille `commit`) → commit `fix(review): address reviewer feedback` → récap. Le push de la branche et les réponses aux fils de la MR **reviennent à l'utilisateur** (aucun agent ne pousse ni ne répond sur GitLab). `developer` et `reviewer` ne démarrent qu'après `cp-fix`. Mode par défaut : `semi-auto`. Sortie : `branch`. Commandes Beads autorisées : `show`, `list`, `ready`, `search`, `children`, `comments`, `count`, `status`, `graph`, `history`, `create`, `update`, `close`, `dep`, `label`.
 
 ## `audit`
 

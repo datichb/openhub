@@ -22,8 +22,9 @@ Le mode est déterminé par les tags présents dans le prompt :
 | Tag présent | Mode | Contexte |
 |-------------|------|----------|
 | `[MODE:standard]` ou aucun tag MODE | Standard | Review de ticket (orchestrator-dev, Étape 4) |
-| `[MODE:adversarial]` | Adversarial | CP-feature (orchestrator) |
-| `[MODE:adversarial+edge-case]` | Adversarial + Edge-case combiné | CP-feature avec option edge-case |
+| `[MODE:adversarial]` | Adversarial | Review de fin de feature (orchestrator) |
+| `[MODE:adversarial+edge-case]` | Adversarial + Edge-case combiné | Review de fin de feature avec option edge-case |
+| `[MODE:feedback]` | Standard, centrée sur les retours | Corrections d'un feedback de MR (workflow `review-feedback`) : pour chaque retour de `### Retours à vérifier`, dire s'il est traité ; le diff inclut les modifications non commitées (`git diff`, `git status`) |
 
 ---
 
