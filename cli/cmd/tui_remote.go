@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"sync"
@@ -147,7 +148,7 @@ func (t *tuiSessions) PlanReplay(ctx context.Context, id string) (*views.ReplayV
 	}
 	p, err := newRemoteReturnService(ctx, t.a).PlanReplay(ctx, id)
 	if err != nil {
-		return nil, err
+		return nil, replayError(err)
 	}
 	return toReplayView(p), nil
 }
@@ -163,7 +164,15 @@ func (t *tuiSessions) ApplyReplay(ctx context.Context, id string, res map[string
 	}
 	p, err := newRemoteReturnService(ctx, t.a).ApplyReplay(ctx, id, r)
 	if err != nil {
-		return nil, err
+		return nil, replayError(err)
 	}
 	return toReplayView(p), nil
+}
+
+// replayError translates the refusal of an unauthenticated journal.
+func replayError(err error) error {
+	if errors.Is(err, remotesvc.ErrJournalUnauthenticated) {
+		return fmt.Errorf("%s (%w)", i18n.T("cmd.session.resolve.unauthenticated"), err)
+	}
+	return err
 }

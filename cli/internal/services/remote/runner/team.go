@@ -25,11 +25,11 @@ func OpenTeamState(ctx context.Context, team *remote.ManifestTeam, token, dir st
 	if token == "" {
 		return nil, fmt.Errorf("CI variable %s is missing: the claims are not updated", remote.VarTeamStateToken)
 	}
-	g := Git{Token: token, Secrets: secrets}
+	g := Git{Token: token, Secrets: secrets, Scratch: filepath.Dir(dir)}
 	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return nil, err
 	}
-	if _, err := g.run(ctx, dir, "clone", "--quiet", team.Repo, "."); err != nil {
+	if _, err := g.authed(ctx, dir, "clone", "--quiet", team.Repo, "."); err != nil {
 		return nil, err
 	}
 	cfg := filepath.Join(dir, ".git", "config")

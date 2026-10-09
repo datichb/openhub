@@ -5,9 +5,24 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/rivo/tview"
+
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/termtext"
 	"github.com/datichb/openhub/cli/internal/tui/v2/widgets"
 )
+
+// safeText neutralizes text that comes from the job (journal, summary):
+// control characters made visible (S-05), color tags escaped.
+func safeText(s string) string { return tview.Escape(termtext.Clean(s)) }
+
+func safeLines(lines []string) string {
+	out := make([]string, len(lines))
+	for i, l := range lines {
+		out[i] = safeText(l)
+	}
+	return strings.Join(out, "\n")
+}
 
 // Remote sessions in the Sessions view (P5-T18, 10 §7.4): « À récupérer »
 // section, fetch (`g`), replay of the Beads journal with the conflict window.
@@ -127,7 +142,7 @@ func (v *SessionsView) fetchSelected(r *SessionRow) {
 		actions = append(actions,
 			ModalAction{Label: i18n.T("tui.remote.attach"), Callback: func() { v.cfg.Backend.Attach(id, "") }},
 			ModalAction{Label: i18n.T("tui.remote.close"), Callback: func() {}, Separator: true})
-		v.shell.ShowScrollableModal(i18n.Tf("tui.remote.fetch_title", label), strings.Join(rep.Lines, "\n"), actions)
+		v.shell.ShowScrollableModal(i18n.Tf("tui.remote.fetch_title", label), safeLines(rep.Lines), actions)
 	})
 }
 
@@ -159,10 +174,10 @@ func (v *SessionsView) resolveConflicts(rb SessionRemote, id, label string, plan
 	c := plan.Conflicts[i]
 	var b strings.Builder
 	for _, f := range c.Fields {
-		fmt.Fprintf(&b, "%-10s %s  |  %s\n", f.Field, i18n.Tf("tui.remote.conflict.local", f.Local), i18n.Tf("tui.remote.conflict.remote", f.Remote))
+		fmt.Fprintf(&b, "%-10s %s  |  %s\n", safeText(f.Field), i18n.Tf("tui.remote.conflict.local", safeText(f.Local)), i18n.Tf("tui.remote.conflict.remote", safeText(f.Remote)))
 	}
 	for _, n := range c.Notes {
-		fmt.Fprintf(&b, "%s %s\n", i18n.T("tui.remote.conflict.note"), n)
+		fmt.Fprintf(&b, "%s %s\n", i18n.T("tui.remote.conflict.note"), safeText(n))
 	}
 	choose := func(r string) func() {
 		return func() {
@@ -171,7 +186,7 @@ func (v *SessionsView) resolveConflicts(rb SessionRemote, id, label string, plan
 			v.resolveConflicts(rb, id, label, plan, i+1, res)
 		}
 	}
-	v.shell.ShowScrollableModal(i18n.Tf("tui.remote.conflict.title", c.Ticket, c.Title), b.String(), []ModalAction{
+	v.shell.ShowScrollableModal(i18n.Tf("tui.remote.conflict.title", safeText(c.Ticket), safeText(c.Title)), b.String(), []ModalAction{
 		{Label: i18n.T("tui.remote.conflict.keep_local"), Callback: choose(ResolutionKeepLocal)},
 		{Label: i18n.T("tui.remote.conflict.apply_remote"), Callback: choose(ResolutionApplyRemote)},
 		{Label: i18n.T("tui.remote.conflict.merge_notes"), Callback: choose(ResolutionMergeNotes)},
@@ -180,7 +195,7 @@ func (v *SessionsView) resolveConflicts(rb SessionRemote, id, label string, plan
 }
 
 func (v *SessionsView) confirmReplay(rb SessionRemote, id, label string, plan *ReplayView, res map[string]string) {
-	v.shell.ShowScrollableModal(i18n.Tf("tui.remote.replay_title", label, plan.Pending), strings.Join(plan.Lines, "\n"), []ModalAction{
+	v.shell.ShowScrollableModal(i18n.Tf("tui.remote.replay_title", label, plan.Pending), safeLines(plan.Lines), []ModalAction{
 		{Label: i18n.Tf("tui.remote.replay_apply", plan.Pending), Callback: func() { v.applyReplay(rb, id, label, res) }},
 		{Label: i18n.T("tui.remote.conflict.later"), Callback: func() {}, Separator: true},
 	})
@@ -195,7 +210,7 @@ func (v *SessionsView) applyReplay(rb SessionRemote, id, label string, res map[s
 	}, func(string) {
 		v.reload()
 		if out.Failed > 0 {
-			v.shell.ShowScrollableModal(i18n.Tf("tui.remote.replay_failed", out.Failed), strings.Join(out.Lines, "\n"),
+			v.shell.ShowScrollableModal(i18n.Tf("tui.remote.replay_failed", out.Failed), safeLines(out.Lines),
 				[]ModalAction{{Label: i18n.T("tui.remote.close"), Callback: func() {}}})
 			return
 		}

@@ -216,6 +216,13 @@ func (s *Service) Send(ctx context.Context, req SendRequest) (*SendResult, error
 	if !have {
 		vars[remote.VarImageBuild] = "true"
 		res.Warnings = append(res.Warnings, WarnImageBuild)
+		if img.Dockerfile != "" {
+			u, sum, err := s.uploadContext(ctx, c, g, rid, req.ProjectDir, commit, img.Context)
+			if err != nil {
+				return nil, err
+			}
+			vars[remote.VarContextURL], vars[remote.VarContextSHA256] = u, sum
+		}
 	}
 
 	// Reservation (P5-T05), then the snapshot, which records the claimed
@@ -247,6 +254,23 @@ func (s *Service) Send(ctx context.Context, req SendRequest) (*SendResult, error
 		Provider: req.Provider, AllowedModels: req.AllowedModels, MaxTokens: req.MaxTokens,
 		BeadsAllow: req.BeadsAllow, Tickets: req.Tickets, Checkpoints: req.Checkpoints, Team: req.TeamInfo,
 	}
+	// Journal key of the session (S-04): in the envelope sent to the job and
+	// in the keychain of the machine, never in the local copy.
+	if s.Secrets == nil {
+		return nil, errors.New("remote: no secret store for the journal key")
+	}
+	if man.JournalKey, err = remote.NewJournalKey(); err != nil {
+		return nil, err
+	}
+	keyName := remote.JournalKeySecret(sid)
+	if err := s.Secrets.Set(ctx, keyName, man.JournalKey); err != nil {
+		return nil, fmt.Errorf("keeping the journal key: %w", err)
+	}
+	defer func() {
+		if !ok {
+			_ = s.Secrets.Delete(context.WithoutCancel(ctx), keyName)
+		}
+	}()
 	bundleURL, err := s.uploadBundle(ctx, c, rid, req.Bundle)
 	if err != nil {
 		return nil, err
@@ -393,6 +417,33 @@ func (s *Service) uploadBundle(ctx context.Context, c *gitlab.Client, rid string
 	return u, nil
 }
 
+// uploadContext sends the build context of the dev Dockerfile (paths at
+// commit) to the generic packages of oh-runner, by its SHA-256: the image
+// jobs read it with their job token and never access the target project
+// (S-02).
+func (s *Service) uploadContext(ctx context.Context, c *gitlab.Client, g Git, rid, dir, commit string, paths []string) (pkgURL, sum string, err error) {
+	const file = "context.tar.gz"
+	data, err := g.Archive(ctx, dir, commit, paths)
+	if err != nil {
+		return "", "", fmt.Errorf("build context of the dev Dockerfile: %w", err)
+	}
+	sum = remote.SHA256(data)
+	u, err := c.GenericPackageURL(rid, remote.PackageContext, sum, file)
+	if err != nil {
+		return "", "", err
+	}
+	exists, err := c.GenericPackageExists(ctx, rid, remote.PackageContext, sum, file)
+	if err != nil {
+		return "", "", err
+	}
+	if !exists {
+		if _, err := c.UploadGenericPackage(ctx, rid, remote.PackageContext, sum, file, bytes.NewReader(data), int64(len(data))); err != nil {
+			return "", "", fmt.Errorf("uploading the build context: %w", err)
+		}
+	}
+	return u, sum, nil
+}
+
 func (s *Service) uploadEnvelope(ctx context.Context, c *gitlab.Client, rid string, man remote.Manifest, snap *remote.Snapshot) (string, error) {
 	const file = "session.tar.gz"
 	mdata, err := json.MarshalIndent(man, "", "  ")
@@ -440,7 +491,9 @@ func (s *Service) RemoteDir(sessionID string) string {
 	return filepath.Join(s.SessionsDir, sessionID, "remote")
 }
 
-// saveEnvelope keeps the manifest and the snapshot sent (replay, P5-T17).
+// saveEnvelope keeps the manifest (without the journal key) and the
+// snapshot sent (replay, P5-T17), sealed with the journal key: the replay
+// trusts their allow-list and tickets only if the seal holds (S-04).
 func (s *Service) saveEnvelope(sid string, man remote.Manifest, snap *remote.Snapshot) error {
 	if s.SessionsDir == "" {
 		return nil
@@ -449,17 +502,30 @@ func (s *Service) saveEnvelope(sid string, man remote.Manifest, snap *remote.Sna
 	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return err
 	}
-	for name, v := range map[string]any{remote.ManifestFile: man, remote.SnapshotFile: snap} {
-		data, err := json.MarshalIndent(v, "", "  ")
-		if err != nil {
-			return err
-		}
+	key := man.JournalKey
+	man.JournalKey = ""
+	mdata, err := json.MarshalIndent(man, "", "  ")
+	if err != nil {
+		return err
+	}
+	sdata, err := json.MarshalIndent(snap, "", "  ")
+	if err != nil {
+		return err
+	}
+	mac, err := remote.Seal(key, "envelope", sid, mdata, sdata)
+	if err != nil {
+		return err
+	}
+	for name, data := range map[string][]byte{remote.ManifestFile: mdata, remote.SnapshotFile: sdata, envelopeSealFile: []byte(mac)} {
 		if err := os.WriteFile(filepath.Join(dir, name), data, 0o600); err != nil {
 			return err
 		}
 	}
 	return nil
 }
+
+// envelopeSealFile is the seal of the local copy of the envelope.
+const envelopeSealFile = "envelope.mac"
 
 func (s *Service) git() Git {
 	if s.Git != nil {

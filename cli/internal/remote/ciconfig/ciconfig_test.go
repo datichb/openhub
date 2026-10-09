@@ -88,3 +88,26 @@ func TestValidate(t *testing.T) {
 	assert.Error(t, Options{KanikoImage: "img\"x"}.Validate())
 	assert.NoError(t, Options{Tag: "oh-runner", KanikoImage: "registry:5000/kaniko:1"}.Validate())
 }
+
+// S-02: the image jobs run the RUN steps of a project Dockerfile: they use
+// nothing but CI_JOB_TOKEN (no oh secret, no target project token, never a
+// token in a URL); the secrets are scoped to the environment of the run job
+// of the project.
+func TestImageJobsHoldNoSecret(t *testing.T) {
+	for _, opts := range []Options{{}, {Builder: BuilderDinD}} {
+		out, err := Generate(opts)
+		require.NoError(t, err)
+		var doc map[string]any
+		require.NoError(t, yaml.Unmarshal(out, &doc))
+		for _, job := range []string{"oh-cli", "oh-image"} {
+			j, _ := yaml.Marshal(doc[job])
+			for _, secret := range []string{"OH_LLM_KEY", "OH_TEAMSTATE_TOKEN", "OH_PROJECT_TOKEN", "GIT_PASSWORD", "oauth2", "environment"} {
+				assert.NotContains(t, string(j), secret, "%s uses %s", job, secret)
+			}
+			assert.NotRegexp(t, `://[^/ "]*@`, string(j), "%s: credentials in a URL", job)
+		}
+		env := doc["oh-run"].(map[string]any)["environment"].(map[string]any)
+		assert.Equal(t, "oh-run/$OH_PROJECT_ID", env["name"])
+		assert.Equal(t, "prepare", env["action"], "no deployment recorded")
+	}
+}

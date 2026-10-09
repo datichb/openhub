@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 
 	"github.com/datichb/openhub/cli/internal/runtime/container"
@@ -45,6 +46,9 @@ type jobImage struct {
 	BaseRepo   string // container repository names (relative to oh-runner)
 	ImageRepo  string
 	Tag        string
+	// Context is the build context of the dev Dockerfile, sent by the
+	// machine (paths at the commit; nil with a Dockerfile = the whole tree).
+	Context []string
 }
 
 // ErrDockerfileNotCommitted is returned when the dev Dockerfile is not in
@@ -71,7 +75,16 @@ func planImage(ctx context.Context, g Git, projectDir, configured, commit, regis
 			return nil, fmt.Errorf("%w (%s)", ErrDockerfileNotCommitted, img.Dockerfile)
 		}
 	}
-	base := hashParts("base", img.Dockerfile, string(content))
+	parts := []string{"base", img.Dockerfile, string(content)}
+	if img.Dockerfile != "" {
+		ctxParts, paths, err := contextIdentity(ctx, g, projectDir, commit, img.Dockerfile, content)
+		if err != nil {
+			return nil, err
+		}
+		parts = append(parts, ctxParts...)
+		img.Context = paths
+	}
+	base := hashParts(parts...)
 	full := hashParts("job", base, imageLayerVersion, ohIdentity, arch)
 	slug := imageSlug(projectPath)
 	prefix := strings.TrimRight(registryPrefix, "/")
@@ -80,4 +93,31 @@ func planImage(ctx context.Context, g Git, projectDir, configured, commit, regis
 	img.Base = prefix + "/" + img.BaseRepo + ":" + base[:tagLen]
 	img.Image = prefix + "/" + img.ImageRepo + ":" + img.Tag
 	return img, nil
+}
+
+// contextIdentity hashes the build context of a dev Dockerfile by the git
+// objects of what it reads at commit (S-02: the tag changes with the
+// context, not only with the Dockerfile), and returns the paths to send
+// (nil = the whole tree).
+func contextIdentity(ctx context.Context, g Git, dir, commit, dockerfile string, content []byte) (parts, paths []string, err error) {
+	srcs, whole := contextSources(content)
+	if whole {
+		oid, err := g.ObjectID(ctx, dir, commit, "")
+		if err != nil {
+			return nil, nil, err
+		}
+		return []string{"context", ".", oid}, nil, nil
+	}
+	parts = []string{"context"}
+	for _, p := range append([]string{dockerfile, ".dockerignore"}, srcs...) {
+		oid, err := g.ObjectID(ctx, dir, commit, p)
+		if err != nil {
+			return nil, nil, err
+		}
+		parts = append(parts, p, oid)
+		if oid != "" && !slices.Contains(paths, p) {
+			paths = append(paths, p)
+		}
+	}
+	return parts, paths, nil
 }

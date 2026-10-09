@@ -15,6 +15,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/adapters"
 	"github.com/datichb/openhub/cli/internal/runtime/container"
+	"github.com/datichb/openhub/cli/internal/semver"
 )
 
 // ServerUser is the account of the tool server in job images.
@@ -58,8 +59,13 @@ func Install(ctx context.Context, o InstallOptions) error {
 	if out == nil {
 		out = io.Discard
 	}
-	if _, err := exec.LookPath("git"); err != nil && o.Root == "" {
-		return errors.New("git is missing from the project image: add it to the dev Dockerfile")
+	if o.Root == "" {
+		if _, err := exec.LookPath("git"); err != nil {
+			return errors.New("git is missing from the project image: add it to the dev Dockerfile")
+		}
+		if out, err := exec.Command("git", "--version").Output(); err != nil || !gitVersionOK(string(out)) {
+			return fmt.Errorf("git %s or newer is required in the project image (found %q)", minGitVersion, strings.TrimSpace(string(out)))
+		}
 	}
 	bin := o.path("/usr/local/bin")
 	if err := os.MkdirAll(bin, 0o755); err != nil {
@@ -157,4 +163,23 @@ func LookupServerUser() *User {
 		return nil
 	}
 	return &User{UID: uint32(uid), GID: uint32(gid), Home: u.HomeDir}
+}
+
+// minGitVersion is the oldest git of the job: GIT_CONFIG_GLOBAL (2.32) and
+// --pathspec-from-file (2.26) isolate the final git steps (S-01).
+const minGitVersion = "2.32.0"
+
+// gitVersionOK reads `git --version` ("git version 2.39.5", "git version
+// 2.39.3 (Apple Git-146)").
+func gitVersionOK(out string) bool {
+	f := strings.Fields(out)
+	if len(f) < 3 {
+		return false
+	}
+	parts := strings.SplitN(f[2], ".", 4)
+	if len(parts) < 3 {
+		parts = append(parts, "0", "0")[:3]
+	}
+	c, ok := semver.Compare(strings.Join(parts[:3], "."), minGitVersion)
+	return ok && c >= 0
 }

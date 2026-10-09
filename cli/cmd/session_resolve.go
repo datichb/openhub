@@ -11,6 +11,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/i18n"
 	remotesvc "github.com/datichb/openhub/cli/internal/services/remote"
+	"github.com/datichb/openhub/cli/internal/termtext"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
 
@@ -44,22 +45,24 @@ func printReplayPlan(w io.Writer, p *remotesvc.ReplayPlan) {
 		case remotesvc.ItemSkipped:
 			icon = theme.IconSkipped
 		}
-		line := fmt.Sprintf("  %s #%d bd %s — %s", icon, it.Seq, strings.Join(it.Argv, " "), i18n.T("cmd.session.resolve.state."+it.State))
+		// Everything below comes from the job: control characters are
+		// made visible (S-05).
+		line := fmt.Sprintf("  %s #%d bd %s — %s", icon, it.Seq, strings.Join(termtext.CleanAll(it.Argv), " "), i18n.T("cmd.session.resolve.state."+it.State))
 		if it.Reason != "" {
-			line += " (" + it.Reason + ")"
+			line += " (" + termtext.Clean(it.Reason) + ")"
 		}
 		if it.Created != "" {
-			line += " → " + it.Created
+			line += " → " + termtext.Clean(it.Created)
 		}
 		fmt.Fprintln(w, line)
 	}
 	for _, c := range p.Conflicts {
-		fmt.Fprintf(w, "%s %s\n", theme.WarningStyle.Render(theme.IconWarning), i18n.Tf("cmd.session.resolve.conflict", c.Ticket, c.Title))
+		fmt.Fprintf(w, "%s %s\n", theme.WarningStyle.Render(theme.IconWarning), i18n.Tf("cmd.session.resolve.conflict", termtext.Clean(c.Ticket), termtext.Clean(c.Title)))
 		for _, f := range c.Fields {
-			fmt.Fprintf(w, "    %s : %s\n", f.Field, i18n.Tf("cmd.session.resolve.field", f.Local, f.Remote, f.Snapshot))
+			fmt.Fprintf(w, "    %s : %s\n", termtext.Clean(f.Field), i18n.Tf("cmd.session.resolve.field", termtext.Clean(f.Local), termtext.Clean(f.Remote), termtext.Clean(f.Snapshot)))
 		}
 		for _, n := range c.Notes {
-			fmt.Fprintf(w, "    %s %s\n", i18n.T("cmd.session.resolve.note"), n)
+			fmt.Fprintf(w, "    %s %s\n", i18n.T("cmd.session.resolve.note"), termtext.Clean(n))
 		}
 		if c.Resolution != "" {
 			fmt.Fprintf(w, "    → %s\n", i18n.T("cmd.session.resolve.choice."+string(c.Resolution)))
@@ -82,6 +85,9 @@ func runSessionResolve(cmd *cobra.Command, args []string) error {
 	plan, err := svc.PlanReplay(ctx, id)
 	if errors.Is(err, remotesvc.ErrNotRemote) {
 		return errors.New(i18n.T("cmd.session.fetch.not_remote"))
+	}
+	if errors.Is(err, remotesvc.ErrJournalUnauthenticated) {
+		return fmt.Errorf("%s (%w)", i18n.T("cmd.session.resolve.unauthenticated"), err)
 	}
 	if err != nil {
 		return err
@@ -128,7 +134,7 @@ func runSessionResolve(cmd *cobra.Command, args []string) error {
 			return errors.New(i18n.Tf("cmd.session.resolve.unresolved", strings.Join(plan.Unresolved(), ", ")))
 		}
 		choice := string(remotesvc.KeepLocal)
-		form := theme.NewForm(huh.NewGroup(huh.NewSelect[string]().Title(i18n.Tf("cmd.session.resolve.ask", c.Ticket)).
+		form := theme.NewForm(huh.NewGroup(huh.NewSelect[string]().Title(i18n.Tf("cmd.session.resolve.ask", termtext.Clean(c.Ticket))).
 			Options(huh.NewOption(i18n.T("cmd.session.resolve.choice.keep_local"), string(remotesvc.KeepLocal)),
 				huh.NewOption(i18n.T("cmd.session.resolve.choice.apply_remote"), string(remotesvc.ApplyRemote)),
 				huh.NewOption(i18n.T("cmd.session.resolve.choice.merge_notes"), string(remotesvc.MergeNotes))).Value(&choice)))

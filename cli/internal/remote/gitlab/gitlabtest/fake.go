@@ -23,6 +23,16 @@ type Variable struct {
 	Masked    bool
 	Protected bool
 	Raw       bool
+	Scope     string // environment scope ("" = "*")
+}
+
+// VarKey is the key of a variable of scope in Project.Variables: the
+// variable key, followed by "@<scope>" when the scope is not "*".
+func VarKey(key, scope string) string {
+	if scope == "" || scope == "*" {
+		return key
+	}
+	return key + "@" + scope
 }
 
 // Project is a fake project.
@@ -368,8 +378,13 @@ func (s *Server) serveFile(w http.ResponseWriter, r *http.Request, p *Project, n
 
 func (s *Server) serveVariables(w http.ResponseWriter, r *http.Request, p *Project, rest []string) {
 	asJSON := func(v Variable) map[string]any {
-		return map[string]any{"key": v.Key, "value": v.Value, "masked": v.Masked, "protected": v.Protected, "raw": v.Raw}
+		scope := v.Scope
+		if scope == "" {
+			scope = "*"
+		}
+		return map[string]any{"key": v.Key, "value": v.Value, "masked": v.Masked, "protected": v.Protected, "raw": v.Raw, "environment_scope": scope}
 	}
+	filter := r.URL.Query().Get("filter[environment_scope]")
 	decode := func() Variable {
 		var body map[string]any
 		_ = json.NewDecoder(r.Body).Decode(&body)
@@ -379,6 +394,10 @@ func (s *Server) serveVariables(w http.ResponseWriter, r *http.Request, p *Proje
 		v.Masked, _ = body["masked"].(bool)
 		v.Protected, _ = body["protected"].(bool)
 		v.Raw, _ = body["raw"].(bool)
+		v.Scope, _ = body["environment_scope"].(string)
+		if v.Scope == "*" {
+			v.Scope = ""
+		}
 		return v
 	}
 	switch {
@@ -390,7 +409,7 @@ func (s *Server) serveVariables(w http.ResponseWriter, r *http.Request, p *Proje
 		writeJSON(w, 200, out)
 	case len(rest) == 0 && r.Method == http.MethodPost:
 		v := decode()
-		if _, ok := p.Variables[v.Key]; ok {
+		if _, ok := p.Variables[VarKey(v.Key, v.Scope)]; ok {
 			writeJSON(w, 400, map[string]any{"message": map[string][]string{"key": {"has already been taken"}}})
 			return
 		}
@@ -398,17 +417,24 @@ func (s *Server) serveVariables(w http.ResponseWriter, r *http.Request, p *Proje
 			writeJSON(w, 400, map[string]any{"message": map[string][]string{"value": {"is invalid"}}})
 			return
 		}
-		p.Variables[v.Key] = v
+		p.Variables[VarKey(v.Key, v.Scope)] = v
 		writeJSON(w, 201, asJSON(v))
 	case len(rest) == 1 && r.Method == http.MethodPut:
-		if _, ok := p.Variables[rest[0]]; !ok {
+		if _, ok := p.Variables[VarKey(rest[0], filter)]; !ok {
 			notFound(w)
 			return
 		}
 		v := decode()
 		v.Key = rest[0]
-		p.Variables[v.Key] = v
+		p.Variables[VarKey(v.Key, v.Scope)] = v
 		writeJSON(w, 200, asJSON(v))
+	case len(rest) == 1 && r.Method == http.MethodDelete:
+		if _, ok := p.Variables[VarKey(rest[0], filter)]; !ok {
+			notFound(w)
+			return
+		}
+		delete(p.Variables, VarKey(rest[0], filter))
+		w.WriteHeader(http.StatusNoContent)
 	default:
 		notFound(w)
 	}

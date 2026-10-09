@@ -13,6 +13,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/i18n"
 	remotesvc "github.com/datichb/openhub/cli/internal/services/remote"
 	"github.com/datichb/openhub/cli/internal/sysnotify"
+	"github.com/datichb/openhub/cli/internal/termtext"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/worktree"
 )
@@ -105,20 +106,20 @@ func runSessionFetch(cmd *cobra.Command, args []string) error {
 	ok := theme.SuccessStyle.Render(theme.IconSuccess)
 	fmt.Fprintf(out, "%s %s\n", ok, i18n.Tf("cmd.session.fetch.summary", i18n.T("cmd.session.fetch.outcome."+s.Outcome), s.Cost, len(res.Journal)))
 	if s.Error != "" {
-		fmt.Fprintf(out, "%s %s\n", theme.WarningStyle.Render(theme.IconWarning), s.Error)
+		fmt.Fprintf(out, "%s %s\n", theme.WarningStyle.Render(theme.IconWarning), termtext.Clean(s.Error))
 	}
 	if s.MRURL != "" {
-		fmt.Fprintf(out, "  %s %s\n", theme.IconArrow, i18n.Tf("cmd.session.fetch.mr", s.MRURL))
+		fmt.Fprintf(out, "  %s %s\n", theme.IconArrow, i18n.Tf("cmd.session.fetch.mr", termtext.Clean(s.MRURL)))
 	}
 	if s.Deferred != nil {
-		fmt.Fprintf(out, "  %s %s\n", theme.IconArrow, i18n.Tf("cmd.session.fetch.deferred", s.Deferred.ID, firstNonEmpty(s.Deferred.Label, s.Deferred.ID)))
+		fmt.Fprintf(out, "  %s %s\n", theme.IconArrow, i18n.Tf("cmd.session.fetch.deferred", termtext.Clean(s.Deferred.ID), termtext.Clean(firstNonEmpty(s.Deferred.Label, s.Deferred.ID))))
 	}
 	if s.Question != nil {
-		fmt.Fprintf(out, "  %s %s\n", theme.IconArrow, i18n.Tf("cmd.session.fetch.question", s.Question.Label))
+		fmt.Fprintf(out, "  %s %s\n", theme.IconArrow, i18n.Tf("cmd.session.fetch.question", termtext.Clean(s.Question.Label)))
 	}
 	for _, d := range s.Decisions {
 		if d.Answer == "rejected" {
-			fmt.Fprintf(out, "  %s %s\n", theme.IconDot, i18n.Tf("cmd.session.fetch.rejected", d.Label, fmt.Sprint(d.Resources)))
+			fmt.Fprintf(out, "  %s %s\n", theme.IconDot, i18n.Tf("cmd.session.fetch.rejected", termtext.Clean(d.Label), termtext.Clean(fmt.Sprint(d.Resources))))
 		}
 	}
 	if res.Imported {
