@@ -7,7 +7,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
@@ -40,7 +39,7 @@ func DetectBaseBranch(dir, configuredBase string) string {
 	defer cancel()
 
 	// Try symbolic-ref of origin/HEAD.
-	cmd := exec.CommandContext(ctx, "git", "symbolic-ref", "refs/remotes/origin/HEAD")
+	cmd := Command(ctx, "", "symbolic-ref", "refs/remotes/origin/HEAD")
 	cmd.Dir = dir
 	if out, err := cmd.Output(); err == nil {
 		ref := strings.TrimSpace(string(out))
@@ -51,14 +50,14 @@ func DetectBaseBranch(dir, configuredBase string) string {
 	}
 
 	// Fallback: check if "main" exists.
-	cmd = exec.CommandContext(ctx, "git", "rev-parse", "--verify", "refs/heads/main")
+	cmd = Command(ctx, "", "rev-parse", "--verify", "refs/heads/main")
 	cmd.Dir = dir
 	if err := cmd.Run(); err == nil {
 		return "main"
 	}
 
 	// Fallback: check if "master" exists.
-	cmd = exec.CommandContext(ctx, "git", "rev-parse", "--verify", "refs/heads/master")
+	cmd = Command(ctx, "", "rev-parse", "--verify", "refs/heads/master")
 	cmd.Dir = dir
 	if err := cmd.Run(); err == nil {
 		return "master"
@@ -75,7 +74,7 @@ func DiffAddedLines(dir, baseBranch string) ([]string, error) {
 	defer cancel()
 
 	// Find merge-base.
-	mb := exec.CommandContext(ctx, "git", "merge-base", baseBranch, "HEAD")
+	mb := Command(ctx, "", "merge-base", baseBranch, "HEAD")
 	mb.Dir = dir
 	mergeBase, err := mb.Output()
 	if err != nil {
@@ -84,7 +83,7 @@ func DiffAddedLines(dir, baseBranch string) ([]string, error) {
 	base := strings.TrimSpace(string(mergeBase))
 
 	// Get unified diff (added lines only via parsing).
-	diff := exec.CommandContext(ctx, "git", "diff", "--unified=0", "--no-color", base+"..HEAD")
+	diff := Command(ctx, "", "diff", "--unified=0", "--no-color", base+"..HEAD")
 	diff.Dir = dir
 	out, err := diff.Output()
 	if err != nil {
@@ -114,7 +113,7 @@ func ModifiedFiles(dir, baseBranch string) ([]string, error) {
 	defer cancel()
 
 	// Find merge-base.
-	mb := exec.CommandContext(ctx, "git", "merge-base", baseBranch, "HEAD")
+	mb := Command(ctx, "", "merge-base", baseBranch, "HEAD")
 	mb.Dir = dir
 	mergeBase, err := mb.Output()
 	if err != nil {
@@ -123,7 +122,7 @@ func ModifiedFiles(dir, baseBranch string) ([]string, error) {
 	base := strings.TrimSpace(string(mergeBase))
 
 	// List modified files, excluding deletions.
-	cmd := exec.CommandContext(ctx, "git", "diff", "--name-only", "--diff-filter=d", base+"..HEAD")
+	cmd := Command(ctx, "", "diff", "--name-only", "--diff-filter=d", base+"..HEAD")
 	cmd.Dir = dir
 	out, err := cmd.Output()
 	if err != nil {
@@ -145,7 +144,7 @@ func TrackedFiles(dir string) ([]string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), gitTimeout)
 	defer cancel()
 
-	cmd := exec.CommandContext(ctx, "git", "ls-files")
+	cmd := Command(ctx, "", "ls-files")
 	cmd.Dir = dir
 	out, err := cmd.Output()
 	if err != nil {

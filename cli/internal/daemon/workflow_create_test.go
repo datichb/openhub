@@ -102,6 +102,19 @@ func TestWorkflowCreateGuard(t *testing.T) {
 	code, _ = bdExec("list")
 	assert.Equal(t, http.StatusOK, code, "reading is not locked")
 
+	// cp-tickets asked by the tool, validated in the tool UI (answer
+	// observed, N1): creation unlocked.
+	fake.set(func() {
+		fake.decisions["ses_c"] = []adapters.PendingDecision{{ID: "per_cpt", SessionID: "ses_c", Kind: adapters.DecisionPermission,
+			Call: &adapters.ToolCall{ID: "call_1", Action: "mcp:workflow/checkpoint", Input: map[string]any{"id": "cp-tickets", "summary": "split"}}}}
+	})
+	ch <- adapters.ToolEvent{Kind: adapters.EventDecisionAsked, SessionID: "ses_c"}
+	require.Eventually(t, func() bool {
+		st, err := states.GetCheckpointState(ctx, "ses_c")
+		return err == nil && st.Waiting == "cp-tickets"
+	}, 3*time.Second, 20*time.Millisecond)
+	fake.set(func() { fake.decisions["ses_c"] = nil })
+	ch <- adapters.ToolEvent{Kind: adapters.EventDecisionReplied, SessionID: "ses_c", Answer: &adapters.DecisionAnswer{ID: "per_cpt", Approved: true}}
 	_, err = c.WorkflowCheckpoint(ctx, "ses_c", checkpoint.Call{ID: "cp-tickets"})
 	require.NoError(t, err)
 	assert.False(t, deniesShell(fake.rulesOf("ses_c"), "bd create*"))

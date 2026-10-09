@@ -25,8 +25,58 @@
           "effect": "allow"
         },
         {
+          "action": "edit",
+          "resource": "/b/skills/*",
+          "effect": "deny"
+        },
+        {
           "action": "subagent",
           "resource": "*",
+          "effect": "deny"
+        },
+        {
+          "action": "shell",
+          "resource": "*OPENCODE_SERVER_PASSWORD*",
+          "effect": "deny"
+        },
+        {
+          "action": "shell",
+          "resource": "*OPENCODE_CONFIG_CONTENT*",
+          "effect": "deny"
+        },
+        {
+          "action": "shell",
+          "resource": "*/api/session/*/permission*",
+          "effect": "deny"
+        },
+        {
+          "action": "shell",
+          "resource": "*/api/permission*",
+          "effect": "deny"
+        },
+        {
+          "action": "shell",
+          "resource": "*/api/session/*/form*",
+          "effect": "deny"
+        },
+        {
+          "action": "shell",
+          "resource": "*/api/form*",
+          "effect": "deny"
+        },
+        {
+          "action": "shell",
+          "resource": "*/api/session/*/environment*",
+          "effect": "deny"
+        },
+        {
+          "action": "shell",
+          "resource": "*-u opencode:*",
+          "effect": "deny"
+        },
+        {
+          "action": "shell",
+          "resource": "*--user opencode:*",
           "effect": "deny"
         }
       ],
@@ -73,6 +123,11 @@
           "effect": "allow"
         },
         {
+          "action": "edit",
+          "resource": "/b/skills/*",
+          "effect": "deny"
+        },
+        {
           "action": "subagent",
           "resource": "*",
           "effect": "deny"
@@ -86,6 +141,51 @@
           "action": "subagent",
           "resource": "reviewer",
           "effect": "allow"
+        },
+        {
+          "action": "shell",
+          "resource": "*OPENCODE_SERVER_PASSWORD*",
+          "effect": "deny"
+        },
+        {
+          "action": "shell",
+          "resource": "*OPENCODE_CONFIG_CONTENT*",
+          "effect": "deny"
+        },
+        {
+          "action": "shell",
+          "resource": "*/api/session/*/permission*",
+          "effect": "deny"
+        },
+        {
+          "action": "shell",
+          "resource": "*/api/permission*",
+          "effect": "deny"
+        },
+        {
+          "action": "shell",
+          "resource": "*/api/session/*/form*",
+          "effect": "deny"
+        },
+        {
+          "action": "shell",
+          "resource": "*/api/form*",
+          "effect": "deny"
+        },
+        {
+          "action": "shell",
+          "resource": "*/api/session/*/environment*",
+          "effect": "deny"
+        },
+        {
+          "action": "shell",
+          "resource": "*-u opencode:*",
+          "effect": "deny"
+        },
+        {
+          "action": "shell",
+          "resource": "*--user opencode:*",
+          "effect": "deny"
         }
       ],
       "system": "You are orchestrator-dev."
@@ -108,8 +208,58 @@
           "effect": "allow"
         },
         {
+          "action": "edit",
+          "resource": "/b/skills/*",
+          "effect": "deny"
+        },
+        {
           "action": "subagent",
           "resource": "*",
+          "effect": "deny"
+        },
+        {
+          "action": "shell",
+          "resource": "*OPENCODE_SERVER_PASSWORD*",
+          "effect": "deny"
+        },
+        {
+          "action": "shell",
+          "resource": "*OPENCODE_CONFIG_CONTENT*",
+          "effect": "deny"
+        },
+        {
+          "action": "shell",
+          "resource": "*/api/session/*/permission*",
+          "effect": "deny"
+        },
+        {
+          "action": "shell",
+          "resource": "*/api/permission*",
+          "effect": "deny"
+        },
+        {
+          "action": "shell",
+          "resource": "*/api/session/*/form*",
+          "effect": "deny"
+        },
+        {
+          "action": "shell",
+          "resource": "*/api/form*",
+          "effect": "deny"
+        },
+        {
+          "action": "shell",
+          "resource": "*/api/session/*/environment*",
+          "effect": "deny"
+        },
+        {
+          "action": "shell",
+          "resource": "*-u opencode:*",
+          "effect": "deny"
+        },
+        {
+          "action": "shell",
+          "resource": "*--user opencode:*",
           "effect": "deny"
         }
       ],

@@ -14,6 +14,7 @@ import (
 	"path/filepath"
 	"sort"
 
+	"github.com/datichb/openhub/cli/internal/bundle"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/gateway/beadswire"
 	"github.com/datichb/openhub/cli/internal/remote"
@@ -207,6 +208,11 @@ func (s *Service) ensureBundle(ctx context.Context, ref domain.RemoteRef, hash s
 	if err := remote.UnpackDir(rc, tmp); err != nil {
 		os.RemoveAll(tmp)
 		return err
+	}
+	// The downloaded bundle must be the one of the session (audit S-03).
+	if err := bundle.Verify(tmp, hash); err != nil {
+		os.RemoveAll(tmp)
+		return fmt.Errorf("downloaded session bundle refused: %w", err)
 	}
 	return os.Rename(tmp, dir)
 }

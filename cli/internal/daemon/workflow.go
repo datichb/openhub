@@ -6,10 +6,13 @@ import (
 	"errors"
 	"net/http"
 	"net/url"
+	"strings"
 
 	"github.com/datichb/openhub/cli/internal/adapters"
 	"github.com/datichb/openhub/cli/internal/credproxy"
 	"github.com/datichb/openhub/cli/internal/domain"
+	"github.com/datichb/openhub/cli/internal/gitutil"
+	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/services/checkpoint"
 )
 
@@ -43,8 +46,72 @@ func (d *Daemon) rootSession(id string) string {
 	return id
 }
 
+// Workflow routes are authenticated by the token of the server group (N1):
+// the workflow MCP server of the tool server sends it (EnvGroupToken), and
+// the session must belong to that group. Without a capability configured
+// (embedded uses, tests, a runner job), they are not guarded.
+
+// wfTokenPrefix marks the tokens the daemon hands to its own workflow MCP
+// servers.
+const wfTokenPrefix = "ohw_"
+
+// workflowToken returns a token of group for a workflow MCP server run by
+// the daemon (valid while the daemon lives).
+func (d *Daemon) workflowToken(group string) string {
+	tok := wfTokenPrefix + strings.TrimPrefix(credproxy.NewToken(), credproxy.TokenPrefix)
+	d.mu.Lock()
+	if d.wfTokens == nil {
+		d.wfTokens = map[string]string{}
+	}
+	d.wfTokens[credproxy.TokenHash(tok)] = group
+	d.mu.Unlock()
+	return tok
+}
+
+// workflowOwner returns the server group of the token of a request.
+func (d *Daemon) workflowOwner(r *http.Request) (string, bool) {
+	tok, ok := strings.CutPrefix(r.Header.Get("Authorization"), "Bearer ")
+	tok = strings.TrimSpace(tok)
+	if !ok || tok == "" {
+		return "", false
+	}
+	if strings.HasPrefix(tok, wfTokenPrefix) {
+		d.mu.Lock()
+		g, ok := d.wfTokens[credproxy.TokenHash(tok)]
+		d.mu.Unlock()
+		return g, ok
+	}
+	if d.proxy == nil {
+		return "", false
+	}
+	return d.proxy.Owner(r.Context(), tok)
+}
+
+// authorizeWorkflow returns the oh session of a tool session when the
+// request may act on it (written error otherwise).
+func (d *Daemon) authorizeWorkflow(w http.ResponseWriter, r *http.Request, toolSession string) (string, bool) {
+	root := d.rootSession(toolSession)
+	if d.opts.Capability == "" && r.Header.Get("Authorization") == "" {
+		return root, true
+	}
+	group, ok := d.workflowOwner(r)
+	if !ok {
+		writeErr(w, http.StatusUnauthorized, i18n.T("cmd.daemon.workflow.unauthorized"))
+		return "", false
+	}
+	if d.opts.Sessions != nil {
+		if s, err := d.opts.Sessions.Get(r.Context(), root); err == nil && s.GroupKey != group {
+			writeErr(w, http.StatusForbidden, i18n.T("cmd.daemon.workflow.forbidden"))
+			return "", false
+		}
+	}
+	return root, true
+}
+
 func (d *Daemon) workflowErr(w http.ResponseWriter, err error) {
 	switch {
+	case errors.Is(err, checkpoint.ErrNotApproved):
+		writeErr(w, http.StatusConflict, err.Error())
 	case errors.Is(err, domain.ErrNotFound), errors.Is(err, checkpoint.ErrNoWorkflow):
 		writeErr(w, http.StatusNotFound, err.Error())
 	case errors.Is(err, checkpoint.ErrUnknownCP):
@@ -64,7 +131,11 @@ func (d *Daemon) handleWorkflowStatus(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusBadRequest, "tool_session is required")
 		return
 	}
-	st, err := d.opts.Checkpoints.Status(r.Context(), d.rootSession(id))
+	root, ok := d.authorizeWorkflow(w, r, id)
+	if !ok {
+		return
+	}
+	st, err := d.opts.Checkpoints.Status(r.Context(), root)
 	if err != nil {
 		d.workflowErr(w, err)
 		return
@@ -82,8 +153,19 @@ func (d *Daemon) handleWorkflowCheckpoint(w http.ResponseWriter, r *http.Request
 		writeErr(w, http.StatusBadRequest, "tool_session and id are required")
 		return
 	}
-	root := d.rootSession(req.ToolSession)
+	root, ok := d.authorizeWorkflow(w, r, req.ToolSession)
+	if !ok {
+		return
+	}
 	res, err := d.opts.Checkpoints.Reached(r.Context(), root, req.Call)
+	if errors.Is(err, checkpoint.ErrNotApproved) {
+		writeErr(w, http.StatusConflict, i18n.Tf("cmd.daemon.workflow.not_approved", req.ID))
+		return
+	}
+	if errors.Is(err, gitutil.ErrConfigChanged) {
+		writeErr(w, http.StatusConflict, i18n.Tf("cmd.daemon.workflow.git_changed", req.ID))
+		return
+	}
 	if err != nil {
 		d.workflowErr(w, err)
 		return
@@ -124,7 +206,11 @@ func (d *Daemon) handleWorkflowOutputs(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusBadRequest, "tool_session is required")
 		return
 	}
-	if err := d.opts.Checkpoints.Declare(r.Context(), d.rootSession(req.ToolSession), req.Output); err != nil {
+	root, ok := d.authorizeWorkflow(w, r, req.ToolSession)
+	if !ok {
+		return
+	}
+	if err := d.opts.Checkpoints.Declare(r.Context(), root, req.Output); err != nil {
 		if errors.Is(err, domain.ErrNotFound) || errors.Is(err, checkpoint.ErrNoWorkflow) {
 			d.workflowErr(w, err)
 			return

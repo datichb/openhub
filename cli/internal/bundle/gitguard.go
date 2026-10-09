@@ -37,7 +37,9 @@ var gitGuardKeep = [][2]string{
 
 // GitShellGuard returns the shell rules appended to an agent's rules (own
 // rules: what the agent may already run) that refuse the destructive git
-// commands, also in their `git -C <dir> …` form.
+// commands anywhere in a command: `git -C <dir> …`, `git -c k=v …`, after
+// `env`, an environment prefix or in `sh -c '…'` (v5 critical N3: the tool
+// matches the raw text of each command, probe U1).
 func GitShellGuard(own []sessionspec.PermissionRule) []sessionspec.PermissionRule {
 	var shell []sessionspec.PermissionRule
 	for _, r := range own {
@@ -47,9 +49,7 @@ func GitShellGuard(own []sessionspec.PermissionRule) []sessionspec.PermissionRul
 	}
 	var out []sessionspec.PermissionRule
 	add := func(cmd string, eff sessionspec.Effect) {
-		for _, prefix := range []string{"git ", "git -C * "} {
-			out = append(out, sessionspec.PermissionRule{Action: sessionspec.ActionShell, Resource: prefix + cmd, Effect: eff})
-		}
+		out = append(out, sessionspec.PermissionRule{Action: sessionspec.ActionShell, Resource: "*git* " + cmd, Effect: eff})
 	}
 	for _, c := range gitGuardDeny {
 		add(c, sessionspec.EffectDeny)

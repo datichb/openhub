@@ -6,11 +6,13 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/datichb/openhub/cli/internal/adapters"
+	"github.com/datichb/openhub/cli/internal/bundle"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 	"github.com/datichb/openhub/cli/internal/storage/sqlite"
@@ -44,7 +46,7 @@ func newTestService(t *testing.T) (*Service, context.Context) {
 	_, err = st.DB().Exec(`INSERT INTO projects (id, name, path) VALUES ('p1','p1','/p1')`)
 	require.NoError(t, err)
 	cs := sqlite.NewCheckpointStore(st)
-	svc := &Service{Sessions: sqlite.NewSessionStore(st), States: cs, SessionOutputs: cs, BundlesDir: t.TempDir(), SessionsDir: t.TempDir()}
+	svc := &Service{Sessions: sqlite.NewSessionStore(st), States: cs, SessionOutputs: cs, BundlesDir: t.TempDir(), SessionsDir: t.TempDir(), ApprovalWait: 20 * time.Millisecond}
 	writeBundle(t, svc.BundlesDir, "h_wf", &TestWorkflow)
 	writeBundle(t, svc.BundlesDir, "h_plain", nil)
 	ctx := context.Background()
@@ -215,4 +217,73 @@ func TestCircuitBreaker(t *testing.T) {
 	assert.False(t, changed, "developer locks nothing here")
 	cs, _ := svc.State(ctx, "ses_cb")
 	assert.Equal(t, []string{"developer"}, cs.Ran)
+}
+
+// N1 (v5 critical): a checkpoint that waits for the user passes only with a
+// validation observed by oh, whatever calls the daemon.
+func TestPausedCheckpointNeedsAValidation(t *testing.T) {
+	svc, ctx := newTestService(t)
+	svc.ApprovalWait = 30 * time.Millisecond
+	tool := &fakeTool{}
+
+	// Called without any request (socket, forged MCP call): refused.
+	_, err := svc.Reached(ctx, "ses_a", Call{ID: "cp-2"})
+	require.ErrorIs(t, err, ErrNotApproved)
+	cs, _ := svc.State(ctx, "ses_a")
+	assert.False(t, cs.HasPassed("cp-2"))
+	assert.Empty(t, cs.Unlocks)
+
+	// Asked, still waiting (no answer): refused after the wait.
+	d := cpDecision(t, svc, ctx, "cp-2")
+	_, err = svc.Reached(ctx, "ses_a", Call{ID: "cp-2"})
+	require.ErrorIs(t, err, ErrNotApproved)
+
+	// Refused in the tool: still refused.
+	svc.ToolReplied(ctx, *d, false)
+	_, err = svc.Reached(ctx, "ses_a", Call{ID: "cp-2"})
+	require.ErrorIs(t, err, ErrNotApproved)
+
+	// Validated in the tool (answer observed): passes, once.
+	svc.ToolReplied(ctx, *d, true)
+	res, err := svc.Reached(ctx, "ses_a", Call{ID: "cp-2"})
+	require.NoError(t, err)
+	assert.Equal(t, "cp-2", res.ID)
+	cs, _ = svc.State(ctx, "ses_a")
+	assert.Equal(t, "tool", cs.Timeline[len(cs.Timeline)-1].By)
+	_, err = svc.Reached(ctx, "ses_a", Call{ID: "cp-2"})
+	require.ErrorIs(t, err, ErrNotApproved, "a validation is used once")
+
+	// Validated in oh: passes with its message, the tool answer that
+	// follows does not replace it.
+	d = cpDecision(t, svc, ctx, "cp-2")
+	require.NoError(t, svc.Resolve(ctx, tool, *d, ChoiceApprove, "go"))
+	svc.ToolReplied(ctx, *d, true)
+	res, err = svc.Reached(ctx, "ses_a", Call{ID: "cp-2"})
+	require.NoError(t, err)
+	assert.Equal(t, "go", res.Message)
+
+	// The answer arrives just after the call: the call waits for it.
+	svc.ApprovalWait = 2 * time.Second
+	d = cpDecision(t, svc, ctx, "cp-2")
+	go func() {
+		time.Sleep(100 * time.Millisecond)
+		svc.ToolReplied(ctx, *d, true)
+	}()
+	_, err = svc.Reached(ctx, "ses_a", Call{ID: "cp-2"})
+	require.NoError(t, err)
+
+	// Automatic in the mode: passes without a validation.
+	_, err = svc.Reached(ctx, "ses_a", Call{ID: "cp-1"})
+	require.NoError(t, err)
+}
+
+func TestEvaluateAsksForAPausedCheckpoint(t *testing.T) {
+	svc, ctx := newTestService(t)
+	eff, err := svc.Evaluate(ctx, "ses_a", bundle.CheckpointAction(), map[string]any{"id": "cp-2"})
+	require.NoError(t, err)
+	assert.Equal(t, "ask", eff, "even when the tool saved an always answer")
+	eff, _ = svc.Evaluate(ctx, "ses_a", bundle.CheckpointAction(), map[string]any{"id": "cp-1"})
+	assert.Equal(t, "allow", eff)
+	eff, _ = svc.Evaluate(ctx, "ses_a", "shell", nil)
+	assert.Empty(t, eff)
 }

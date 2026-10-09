@@ -2,12 +2,14 @@ package beads
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strings"
+
+	"github.com/datichb/openhub/cli/internal/gitutil"
 )
 
 // Zero impact (A5): what `bd init` writes in a project besides .beads/ —
@@ -159,7 +161,7 @@ func CleanImpact(projectPath string, opts CleanOptions) (CleanReport, error) {
 }
 
 func (c *cleaner) gitOut(args ...string) (string, error) {
-	out, err := exec.Command("git", append([]string{"-C", c.root}, args...)...).Output()
+	out, err := gitutil.Command(context.Background(), c.root, args...).Output()
 	return strings.TrimSpace(string(out)), err
 }
 
@@ -203,7 +205,7 @@ func (c *cleaner) loadTracked() {
 		c.git = true
 	}
 	c.tracked = map[string]bool{}
-	out, err := exec.Command("git", "-C", c.root, "ls-files", "-z").Output()
+	out, err := gitutil.Command(context.Background(), c.root, "ls-files", "-z").Output()
 	if err != nil {
 		return
 	}
@@ -221,7 +223,7 @@ func (c *cleaner) committed(rel, marker string) bool {
 	if !c.tracked[rel] {
 		return false
 	}
-	out, err := exec.Command("git", "-C", c.root, "show", "HEAD:"+filepath.ToSlash(rel)).Output()
+	out, err := gitutil.Command(context.Background(), c.root, "show", "HEAD:"+filepath.ToSlash(rel)).Output()
 	if err != nil {
 		return false
 	}
@@ -421,7 +423,7 @@ func (c *cleaner) gitignore() error {
 	}
 	committed := false
 	if c.tracked[rel] {
-		out, err := exec.Command("git", "-C", c.root, "show", "HEAD:.gitignore").Output()
+		out, err := gitutil.Command(context.Background(), c.root, "show", "HEAD:.gitignore").Output()
 		if err == nil {
 			_, committedMoved := cleanGitignoreContent(string(out))
 			committed = len(committedMoved) > 0

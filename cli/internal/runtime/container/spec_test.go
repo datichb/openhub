@@ -28,6 +28,7 @@ func layout(t *testing.T) (root, project, worktree, bundle, data string) {
 	}
 	require.NoError(t, os.WriteFile(filepath.Join(worktree, ".git"), []byte("gitdir: "+gitdir+"\n"), 0o644))
 	require.NoError(t, os.WriteFile(filepath.Join(gitdir, "commondir"), []byte("../..\n"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(project, ".git", "config"), []byte("[core]\n"), 0o644))
 	return root, project, worktree, bundle, data
 }
 
@@ -62,8 +63,16 @@ func TestBuildSpecLayout(t *testing.T) {
 			volumes = append(volumes, m.Target)
 		}
 	}
-	assert.Equal(t, []string{InnerBundle}, ro)
+	// N5: what makes the git of the machine run programs is read-only, in
+	// every view (project mount, git common directory at its machine path).
+	assert.ElementsMatch(t, []string{InnerBundle,
+		"/work/app/.git/config", common + "/config", "/work/app/.git/hooks", common + "/hooks",
+		"/work/app-feat/.git", "/work/app/.git/worktrees/app-feat/commondir", common + "/worktrees/app-feat/commondir",
+	}, ro)
+	assert.DirExists(t, filepath.Join(common, "hooks"), "created empty to be mounted read-only")
 	assert.ElementsMatch(t, []string{InnerHome, "/opt/cache", "/work/app/node_modules", "/work/app-feat/node_modules"}, volumes)
+	assert.Equal(t, "branch.autoSetupMerge", s.Env["GIT_CONFIG_KEY_2"])
+	assert.Equal(t, "false", s.Env["GIT_CONFIG_VALUE_2"])
 
 	assert.Equal(t, InnerHome, s.Env["HOME"])
 	assert.Equal(t, "safe.directory", s.Env["GIT_CONFIG_KEY_0"])
@@ -114,6 +123,9 @@ func TestRunArgsKeepsValuesOffTheCommandLine(t *testing.T) {
 	require.NoError(t, err)
 	line := strings.Join(args, " ")
 	assert.NotContains(t, line, "secret-pw")
+	for _, opt := range []string{"--cap-drop=ALL", "--security-opt=no-new-privileges", "--pids-limit=4096"} {
+		assert.Contains(t, args, opt, "N5: hardened container")
+	}
 	assert.Contains(t, line, "run --rm --init --name oh-g")
 	assert.Contains(t, line, "--mount type=bind,source=/b,target=/opt/oh/bundle,readonly")
 	assert.Contains(t, line, "--mount type=volume,source=vol,target=/opt/oh/home")
@@ -163,4 +175,30 @@ func TestPrepareAndCommand(t *testing.T) {
 	assert.Equal(t, os.FileMode(0o600), fi.Mode().Perm())
 	assert.NotEmpty(t, r.called("docker rm -f oh-"), "stale container removed")
 	require.NoError(t, rt.Teardown(context.Background(), pg))
+}
+
+// N5 (audit S-33): cache volumes cannot inject mount options or hide oh's
+// directories; HOME is a volume of the group.
+func TestBuildSpecRefusesUnsafeVolumes(t *testing.T) {
+	_, project, _, bundle, data := layout(t)
+	e := Engine{Kind: EngineColima, Host: hostDocker, VM: true}
+	for _, v := range []string{"node_modules,readonly=false", "/opt/oh/bundle", "/opt/oh", "../../etc", "x\ny", `a"b`, "/"} {
+		g := ohruntime.Group{ProjectID: "App", ProjectDir: project, BundleDir: bundle, DataDir: data, Volumes: []string{v}}
+		_, err := buildSpec(e, specInput{GOOS: "darwin", UID: 501, GID: 20}, g, "img", "g1")
+		assert.Error(t, err, v)
+	}
+	g := ohruntime.Group{ProjectID: "App", ProjectDir: project, BundleDir: bundle, DataDir: data}
+	a, err := buildSpec(e, specInput{GOOS: "darwin", UID: 501, GID: 20}, g, "img", "g1")
+	require.NoError(t, err)
+	b, err := buildSpec(e, specInput{GOOS: "darwin", UID: 501, GID: 20}, g, "img", "g2")
+	require.NoError(t, err)
+	home := func(s Spec) string {
+		for _, m := range s.Mounts {
+			if m.Target == InnerHome {
+				return m.Source
+			}
+		}
+		return ""
+	}
+	assert.NotEqual(t, home(a), home(b), "HOME is not shared by the groups of a project")
 }

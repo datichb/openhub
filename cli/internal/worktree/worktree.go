@@ -5,11 +5,14 @@ package worktree
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+
+	"github.com/datichb/openhub/cli/internal/gitutil"
 )
 
 // Entry represents a git worktree.
@@ -52,7 +55,7 @@ func SiblingPath(projectPath, branch string) string {
 // if "main" or "master" exist.
 func DetectBaseBranch(projectPath string) string {
 	// Try symbolic-ref
-	cmd := exec.Command("git", "symbolic-ref", "refs/remotes/origin/HEAD")
+	cmd := gitutil.Command(context.Background(), "", "symbolic-ref", "refs/remotes/origin/HEAD")
 	cmd.Dir = projectPath
 	if out, err := cmd.Output(); err == nil {
 		ref := strings.TrimSpace(string(out))
@@ -64,14 +67,14 @@ func DetectBaseBranch(projectPath string) string {
 	}
 
 	// Fallback: check if "main" branch exists
-	cmd = exec.Command("git", "rev-parse", "--verify", "refs/heads/main")
+	cmd = gitutil.Command(context.Background(), "", "rev-parse", "--verify", "refs/heads/main")
 	cmd.Dir = projectPath
 	if err := cmd.Run(); err == nil {
 		return "main"
 	}
 
 	// Fallback: check if "master" branch exists
-	cmd = exec.Command("git", "rev-parse", "--verify", "refs/heads/master")
+	cmd = gitutil.Command(context.Background(), "", "rev-parse", "--verify", "refs/heads/master")
 	cmd.Dir = projectPath
 	if err := cmd.Run(); err == nil {
 		return "master"
@@ -83,7 +86,7 @@ func DetectBaseBranch(projectPath string) string {
 // ExistsOnRemote checks whether a branch exists on the remote (origin).
 // Returns true if git ls-remote reports the branch ref.
 func ExistsOnRemote(projectPath, branch string) bool {
-	cmd := exec.Command("git", "ls-remote", "--heads", "origin", branch)
+	cmd := gitutil.Command(context.Background(), "", "ls-remote", "--heads", "origin", branch)
 	cmd.Dir = projectPath
 	out, err := cmd.Output()
 	if err != nil {
@@ -137,11 +140,11 @@ func ResolveOrCreate(projectPath, branch string) (string, error) {
 	// Check if the branch exists on remote — if so, fetch it first so the
 	// local worktree tracks the remote work instead of creating a diverging branch.
 	if ExistsOnRemote(projectPath, branch) {
-		fetchCmd := exec.Command("git", "fetch", "origin", branch+":"+branch)
+		fetchCmd := gitutil.Command(context.Background(), "", "fetch", "origin", branch+":"+branch)
 		fetchCmd.Dir = projectPath
 		_ = fetchCmd.Run() // best-effort; if fetch fails we fall through to local creation
 
-		cmd := exec.Command("git", "worktree", "add", wtPath, branch)
+		cmd := gitutil.Command(context.Background(), "", "worktree", "add", wtPath, branch)
 		cmd.Dir = projectPath
 		if out, err := cmd.CombinedOutput(); err == nil {
 			return wtPath, nil
@@ -151,14 +154,14 @@ func ResolveOrCreate(projectPath, branch string) (string, error) {
 	}
 
 	// Create worktree — try new branch first
-	cmd := exec.Command("git", "worktree", "add", "-b", branch, wtPath)
+	cmd := gitutil.Command(context.Background(), "", "worktree", "add", "-b", branch, wtPath)
 	cmd.Dir = projectPath
 	if _, err := cmd.CombinedOutput(); err == nil {
 		return wtPath, nil
 	}
 
 	// Fallback: branch already exists locally, just create worktree for it
-	cmd = exec.Command("git", "worktree", "add", wtPath, branch)
+	cmd = gitutil.Command(context.Background(), "", "worktree", "add", wtPath, branch)
 	cmd.Dir = projectPath
 	out, err := cmd.CombinedOutput()
 	if err != nil {
@@ -247,7 +250,7 @@ func CleanupMerged(projectPath, baseBranch string, force bool) (CleanupResult, e
 
 // Prune removes stale worktree administrative metadata (git worktree prune).
 func Prune(projectPath string) error {
-	cmd := exec.Command("git", "worktree", "prune")
+	cmd := gitutil.Command(context.Background(), "", "worktree", "prune")
 	cmd.Dir = projectPath
 	out, err := cmd.CombinedOutput()
 	if err != nil {
@@ -258,7 +261,7 @@ func Prune(projectPath string) error {
 
 // List returns all worktrees for the given project.
 func List(projectPath string) ([]Entry, error) {
-	cmd := exec.Command("git", "worktree", "list", "--porcelain")
+	cmd := gitutil.Command(context.Background(), "", "worktree", "list", "--porcelain")
 	cmd.Dir = projectPath
 	out, err := cmd.Output()
 	if err != nil {
@@ -296,7 +299,7 @@ func List(projectPath string) ([]Entry, error) {
 // If HEAD is detached, it returns "(detached) <short-sha>".
 // Returns an empty string and error if not a git repo or git fails.
 func CurrentBranch(dir string) (string, error) {
-	cmd := exec.Command("git", "symbolic-ref", "--short", "HEAD")
+	cmd := gitutil.Command(context.Background(), "", "symbolic-ref", "--short", "HEAD")
 	cmd.Dir = dir
 	out, err := cmd.Output()
 	if err == nil {
@@ -304,7 +307,7 @@ func CurrentBranch(dir string) (string, error) {
 	}
 
 	// Detached HEAD — return short SHA
-	cmd = exec.Command("git", "rev-parse", "--short", "HEAD")
+	cmd = gitutil.Command(context.Background(), "", "rev-parse", "--short", "HEAD")
 	cmd.Dir = dir
 	out, err = cmd.Output()
 	if err != nil {
@@ -315,7 +318,7 @@ func CurrentBranch(dir string) (string, error) {
 
 // IsGitRepo checks if the given path is inside a git repository.
 func IsGitRepo(path string) bool {
-	cmd := exec.Command("git", "rev-parse", "--git-dir")
+	cmd := gitutil.Command(context.Background(), "", "rev-parse", "--git-dir")
 	cmd.Dir = path
 	return cmd.Run() == nil
 }
@@ -327,7 +330,7 @@ func Remove(projectPath, wtPath string, force bool) error {
 		args = append(args, "--force")
 	}
 	args = append(args, "--", wtPath)
-	cmd := exec.Command("git", args...)
+	cmd := gitutil.Command(context.Background(), "", args...)
 	cmd.Dir = projectPath
 	out, err := cmd.CombinedOutput()
 	if err != nil {
@@ -348,7 +351,7 @@ func BranchName(pattern, ticketID string) string {
 // IsDirty reports whether the working tree at the given path has uncommitted changes
 // (staged or unstaged). Returns false for clean trees and on errors (fail-open).
 func IsDirty(path string) bool {
-	cmd := exec.Command("git", "-C", path, "status", "--porcelain")
+	cmd := gitutil.Command(context.Background(), path, "status", "--porcelain")
 	out, err := cmd.Output()
 	if err != nil {
 		return false // fail-open: assume clean if git fails
@@ -362,7 +365,7 @@ func IsDirty(path string) bool {
 // branch not found locally or remotely).
 func Checkout(path, branch string) error {
 	// Try a simple checkout first (branch exists locally).
-	cmd := exec.Command("git", "-C", path, "checkout", branch)
+	cmd := gitutil.Command(context.Background(), path, "checkout", branch)
 	out, err := cmd.CombinedOutput()
 	if err == nil {
 		return nil
@@ -370,7 +373,7 @@ func Checkout(path, branch string) error {
 
 	// Branch may exist on remote only — try creating a tracking branch.
 	if ExistsOnRemote(path, branch) {
-		cmd = exec.Command("git", "-C", path, "checkout", "-b", branch, "origin/"+branch)
+		cmd = gitutil.Command(context.Background(), path, "checkout", "-b", branch, "origin/"+branch)
 		out, err = cmd.CombinedOutput()
 		if err == nil {
 			return nil
@@ -384,11 +387,11 @@ func Checkout(path, branch string) error {
 // (untracked files included) with the given message and returns the commit
 // of the new stash entry, for `git stash apply <commit>`.
 func Stash(path, message string) (string, error) {
-	out, err := exec.Command("git", "-C", path, "stash", "push", "--include-untracked", "-m", message).CombinedOutput()
+	out, err := gitutil.Command(context.Background(), path, "stash", "push", "--include-untracked", "-m", message).CombinedOutput()
 	if err != nil {
 		return "", fmt.Errorf("git stash: %s", strings.TrimSpace(string(out)))
 	}
-	ref, err := exec.Command("git", "-C", path, "rev-parse", "--short", "stash@{0}").Output()
+	ref, err := gitutil.Command(context.Background(), path, "rev-parse", "--short", "stash@{0}").Output()
 	if err != nil {
 		return "", fmt.Errorf("git stash: %w", err)
 	}
@@ -401,7 +404,7 @@ func BranchExists(path, branch string) bool {
 	if branch == "" {
 		return false
 	}
-	return exec.Command("git", "-C", path, "rev-parse", "--verify", "-q", "refs/heads/"+branch).Run() == nil
+	return gitutil.Command(context.Background(), path, "rev-parse", "--verify", "-q", "refs/heads/"+branch).Run() == nil
 }
 
 // StartRef returns the commit a session starting at path starts from: a
@@ -413,12 +416,12 @@ func StartRef(path string) string {
 	if path == "" {
 		return ""
 	}
-	if out, err := exec.Command("git", "-C", path, "stash", "create").Output(); err == nil {
+	if out, err := gitutil.Command(context.Background(), path, "stash", "create").Output(); err == nil {
 		if ref := strings.TrimSpace(string(out)); ref != "" {
 			return ref
 		}
 	}
-	out, err := exec.Command("git", "-C", path, "rev-parse", "--verify", "-q", "HEAD").Output()
+	out, err := gitutil.Command(context.Background(), path, "rev-parse", "--verify", "-q", "HEAD").Output()
 	if err != nil {
 		return ""
 	}
@@ -431,7 +434,7 @@ func StartRef(path string) string {
 // Returns an error if either the stash or the checkout fails.
 func StashAndCheckout(path, branch string) error {
 	msg := fmt.Sprintf("oh: auto-stash before checkout %s", branch)
-	stashCmd := exec.Command("git", "-C", path, "stash", "push", "-m", msg)
+	stashCmd := gitutil.Command(context.Background(), path, "stash", "push", "-m", msg)
 	stashOut, err := stashCmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("git stash: %s", strings.TrimSpace(string(stashOut)))
@@ -439,7 +442,7 @@ func StashAndCheckout(path, branch string) error {
 
 	if err := Checkout(path, branch); err != nil {
 		// Checkout failed after stash — pop the stash to restore state.
-		popCmd := exec.Command("git", "-C", path, "stash", "pop")
+		popCmd := gitutil.Command(context.Background(), path, "stash", "pop")
 		_ = popCmd.Run() // best-effort restore
 		return err
 	}

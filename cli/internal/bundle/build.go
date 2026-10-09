@@ -12,6 +12,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
@@ -29,8 +30,13 @@ type Request struct {
 	// pluginTools are the permissions provided by plugins (set by Build).
 	pluginTools map[string]bricks.PluginTools
 
-	HubDir      string // ~/.oh/hub (agents/, skills/, permissions/)
-	OutDir      string // ~/.oh/bundles
+	HubDir string // ~/.oh/hub (agents/, skills/, permissions/)
+	OutDir string // ~/.oh/bundles
+	// OhHome is the oh home (~/.oh), refused to the shell of the agents by
+	// its path when it is elsewhere (global guard).
+	OhHome string
+	// Seal makes the files of the bundle read-only once built (Seal).
+	Seal        bool
 	ProjectPath string // for stack skills and project instructions (may be empty)
 	EntryAgent  string
 
@@ -144,6 +150,7 @@ func Build(req Request) (*Bundle, error) {
 		StrictIsolation: req.StrictIsolation,
 	}
 	applyWorkflowRuntime(&spec, req.Spec)
+	spec.AgentGuard = append(GlobalShellGuard(req.OhHome), GlobalEditGuard()...)
 	if req.WebsearchEnabled {
 		spec.Permissions = append(spec.Permissions,
 			sessionspec.PermissionRule{Action: sessionspec.ActionWebSrch, Resource: "*", Effect: sessionspec.EffectAllow},
@@ -274,7 +281,16 @@ func Build(req Request) (*Bundle, error) {
 	}
 
 	if _, err := os.Stat(filepath.Join(final, specFile)); err == nil {
-		return &Bundle{Spec: spec, Dir: final}, nil // already compiled
+		// Already compiled: reused only if its content still matches its
+		// hash (an agent may have written to it), rebuilt otherwise.
+		if verr := Verify(final, hash); verr == nil {
+			return &Bundle{Spec: spec, Dir: final}, req.seal(final)
+		} else if errors.Is(verr, ErrTampered) {
+			slog.Warn("bundle: modified after it was built, rebuilt", "bundle", hash)
+		}
+		if err := RemoveBundle(final); err != nil {
+			return nil, fmt.Errorf("removing the modified bundle %s: %w", hash, err)
+		}
 	}
 	data, err := json.MarshalIndent(spec, "", "  ")
 	if err != nil {
@@ -289,21 +305,41 @@ func Build(req Request) (*Bundle, error) {
 		}
 		return nil, fmt.Errorf("finalizing bundle: %w", err)
 	}
-	return &Bundle{Spec: spec, Dir: final}, nil
+	return &Bundle{Spec: spec, Dir: final}, req.seal(final)
 }
 
-// Load reads a compiled bundle by hash.
+func (req Request) seal(dir string) error {
+	if !req.Seal {
+		return nil
+	}
+	if err := Seal(dir); err != nil {
+		return fmt.Errorf("making the bundle read-only: %w", err)
+	}
+	return nil
+}
+
+// Load reads a compiled bundle by hash. Its content is checked against its
+// hash (ErrTampered): a bundle changed after it was built is never used.
 func Load(outDir, hash string) (*Bundle, error) {
 	dir := filepath.Join(outDir, hash)
-	data, err := os.ReadFile(filepath.Join(dir, specFile))
+	spec, err := readSpec(dir)
 	if err != nil {
 		return nil, err
 	}
-	var spec sessionspec.BundleSpec
-	if err := json.Unmarshal(data, &spec); err != nil {
+	if err := verify(dir, spec, hash); err != nil {
 		return nil, err
 	}
 	return &Bundle{Spec: spec, Dir: dir}, nil
+}
+
+func readSpec(dir string) (sessionspec.BundleSpec, error) {
+	var spec sessionspec.BundleSpec
+	data, err := os.ReadFile(filepath.Join(dir, specFile))
+	if err != nil {
+		return spec, err
+	}
+	err = json.Unmarshal(data, &spec)
+	return spec, err
 }
 
 func agentDef(req Request, a *bricks.AssembledAgent, instructions string) (sessionspec.AgentDef, error) {
@@ -335,7 +371,7 @@ func agentDef(req Request, a *bricks.AssembledAgent, instructions string) (sessi
 	}
 	perms = bricks.DropPluginPermissions(perms, req.pluginTools, req.loadedPlugins())
 	own := ConvertPermissions(perms)
-	def.Permissions = append(append(append(append(own, GitShellGuard(own)...), BeadsShellGuard()...), HookGuard()...), BeadsDirGuard()...)
+	def.Permissions = append(append(append(append(append(own, InfraGuard(own)...), GitShellGuard(own)...), BeadsShellGuard()...), HookGuard()...), BeadsDirGuard()...)
 	return def, nil
 }
 

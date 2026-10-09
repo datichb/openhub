@@ -136,6 +136,9 @@ type Daemon struct {
 	sigMu         sync.Mutex
 	sigCache      map[string]credproxy.Auth // SigV4 signers by profile/region
 	kick          chan struct{}
+	// wfTokens are the tokens handed to the workflow MCP servers the
+	// daemon runs itself (gateway, container): hash → server group.
+	wfTokens map[string]string
 }
 
 type stateFile struct {
@@ -397,6 +400,7 @@ func (d *Daemon) restoreGrants(ctx context.Context) {
 		return
 	}
 	d.hashLegacyTokens(ctx)
+	d.movePasswords(ctx)
 	grants, err := d.opts.Grants.ListActive(ctx)
 	if err != nil {
 		slog.Warn("ohd: cannot list grants", "error", err)
@@ -435,6 +439,22 @@ func (d *Daemon) hashLegacyTokens(ctx context.Context) {
 		} else if n > 0 {
 			slog.Info("ohd: stored proxy tokens replaced by their hash", "store", name, "count", n)
 		}
+	}
+}
+
+// movePasswords moves the server passwords left in clear in oh.db by an
+// older oh to their owner-only files (v5 critical N26).
+func (d *Daemon) movePasswords(ctx context.Context) {
+	m, ok := d.opts.Servers.(interface {
+		MovePasswords(ctx context.Context) (int, error)
+	})
+	if !ok {
+		return
+	}
+	if n, err := m.MovePasswords(ctx); err != nil {
+		slog.Warn("ohd: cannot move the server passwords out of the database", "error", err)
+	} else if n > 0 {
+		slog.Info("ohd: server passwords moved out of the database", "count", n)
 	}
 }
 

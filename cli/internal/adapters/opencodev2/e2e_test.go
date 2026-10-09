@@ -199,7 +199,8 @@ func TestE2EThroughCredentialProxy(t *testing.T) {
 
 	reply := r.ask(t, "lead", "go")
 	assert.NotContains(t, reply, real, "the real key must never reach the agent")
-	assert.Contains(t, reply, "ohs_", "the agent only sees the session token: %q", reply)
+	// N2 (v5 critical): the session token of the server is not in the shell either.
+	assert.NotContains(t, reply, "ohs_", "the agent does not see the session token: %q", reply)
 
 	u, ok := p.Usage(tok)
 	require.True(t, ok)

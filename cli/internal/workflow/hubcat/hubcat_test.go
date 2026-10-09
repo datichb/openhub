@@ -31,7 +31,7 @@ func TestAgentInfo_FromRepositoryAgents(t *testing.T) {
 		{"orchestrator-dev", workflow.ModePrimary, false, false, "developer"},
 		{"auditor-subagent", workflow.ModeSubagent, false, false, ""},
 		{"reviewer", workflow.ModePrimary, false, false, "documentarian"},
-		{"debugger", workflow.ModePrimary, false, true, "documentarian"},
+		{"debugger", workflow.ModePrimary, false, false, "documentarian"}, // N4: no free shell
 	}
 	for _, tc := range cases {
 		a, ok := c.Agent(tc.id)

@@ -267,6 +267,15 @@ func (p *Proxy) lookup(ctx context.Context, token string) (*grantState, bool) {
 	return g, ok
 }
 
+// Owner returns the owner (server group) of a valid session token.
+func (p *Proxy) Owner(ctx context.Context, token string) (string, bool) {
+	g, ok := p.lookup(ctx, token)
+	if !ok || g == nil {
+		return "", false
+	}
+	return g.SessionID, true
+}
+
 // Issue registers a grant and returns the session token to hand to the tool.
 func (p *Proxy) Issue(g Grant) (string, error) {
 	if _, err := url.Parse(g.Upstream.BaseURL); err != nil {

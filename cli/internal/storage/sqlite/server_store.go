@@ -2,25 +2,160 @@ package sqlite
 
 import (
 	"context"
+	"crypto/sha256"
 	"database/sql"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
+	"os"
+	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/datichb/openhub/cli/internal/domain"
 )
 
 // ServerStore implements domain.ServerStore.
-type ServerStore struct{ db *sql.DB }
+//
+// The password of a tool server is not kept in oh.db (v5 critical N26): an
+// agent able to read the database (any interpreter) would drive the servers
+// of every project. It is written to a 0600 file per group under
+// <hub>/run/server-passwords/ (refused to the shell of the agents by the
+// global guard); the password column keeps only its hash.
+type ServerStore struct {
+	db  *sql.DB
+	dir string // password files ("" = next to nothing: kept in memory only)
+}
 
 // NewServerStore creates a ServerStore from a shared Store.
-func NewServerStore(s *Store) *ServerStore { return &ServerStore{db: s.DB()} }
+func NewServerStore(s *Store) *ServerStore {
+	ss := &ServerStore{db: s.DB()}
+	if s.path != "" {
+		ss.dir = filepath.Join(filepath.Dir(s.path), "run", "server-passwords")
+	}
+	return ss
+}
+
+// passwordHashPrefix marks a password column holding a hash.
+const passwordHashPrefix = "sha256:"
+
+func passwordHash(pw string) string {
+	sum := sha256.Sum256([]byte(pw))
+	return passwordHashPrefix + hex.EncodeToString(sum[:])
+}
+
+func (ss *ServerStore) passwordFile(group string) string {
+	sum := sha256.Sum256([]byte(group))
+	return filepath.Join(ss.dir, hex.EncodeToString(sum[:16])+".pw")
+}
+
+// storePassword writes the password of a group to its file and returns the
+// value of the password column.
+func (ss *ServerStore) storePassword(group, pw string) (string, error) {
+	if ss.dir == "" {
+		return "", errors.New("no directory for the server passwords")
+	}
+	if pw == "" {
+		_ = os.Remove(ss.passwordFile(group))
+		return "", nil
+	}
+	if err := os.MkdirAll(ss.dir, 0o700); err != nil {
+		return "", err
+	}
+	_ = os.Chmod(ss.dir, 0o700)
+	tmp, err := os.CreateTemp(ss.dir, ".pw-*")
+	if err != nil {
+		return "", err
+	}
+	defer os.Remove(tmp.Name())
+	if _, err := tmp.WriteString(pw); err != nil {
+		tmp.Close()
+		return "", err
+	}
+	if err := tmp.Close(); err != nil {
+		return "", err
+	}
+	if err := os.Rename(tmp.Name(), ss.passwordFile(group)); err != nil {
+		return "", err
+	}
+	return passwordHash(pw), nil
+}
+
+// loadPassword returns the password of a group from the column value: read
+// from its file when the column holds a hash ("" when the file is missing
+// or does not match), the column itself for a value left in clear by an
+// older oh (moved by MovePasswords).
+func (ss *ServerStore) loadPassword(group, column string) string {
+	if !strings.HasPrefix(column, passwordHashPrefix) {
+		return column
+	}
+	data, err := os.ReadFile(ss.passwordFile(group))
+	if err != nil || passwordHash(string(data)) != column {
+		return ""
+	}
+	return string(data)
+}
+
+// MovePasswords moves the server passwords stored in clear in oh.db by an
+// older oh to their files (daemon start-up).
+func (ss *ServerStore) MovePasswords(ctx context.Context) (int, error) {
+	rows, err := ss.db.QueryContext(ctx, `SELECT group_key, password FROM servers WHERE password <> '' AND substr(password, 1, ?) <> ?`,
+		len(passwordHashPrefix), passwordHashPrefix)
+	if err != nil {
+		return 0, err
+	}
+	type row struct{ group, pw string }
+	var list []row
+	for rows.Next() {
+		var r row
+		if err := rows.Scan(&r.group, &r.pw); err != nil {
+			rows.Close()
+			return 0, err
+		}
+		list = append(list, r)
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		return 0, err
+	}
+	for _, r := range list {
+		col, err := ss.storePassword(r.group, r.pw)
+		if err != nil {
+			return 0, fmt.Errorf("moving the password of server %s: %w", r.group, err)
+		}
+		if _, err := ss.db.ExecContext(ctx, `UPDATE servers SET password = ? WHERE group_key = ? AND password = ?`, col, r.group, r.pw); err != nil {
+			return 0, err
+		}
+	}
+	if len(list) > 0 {
+		// The old values may stay in free pages and the WAL.
+		_, _ = ss.db.ExecContext(ctx, `PRAGMA wal_checkpoint(TRUNCATE)`)
+		_, _ = ss.db.ExecContext(ctx, `VACUUM`)
+	}
+	return len(list), nil
+}
+
+// CountClearPasswords counts the server passwords still in clear (Doctor).
+func (ss *ServerStore) CountClearPasswords(ctx context.Context) (int, error) {
+	var n int
+	err := ss.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM servers WHERE password <> '' AND substr(password, 1, ?) <> ?`,
+		len(passwordHashPrefix), passwordHashPrefix).Scan(&n)
+	return n, err
+}
 
 var _ domain.ServerStore = (*ServerStore)(nil)
 
 const serverColumns = `group_key, adapter, adapter_version, runtime, project_id, bundle_hash, pid, url, port, password, data_dir, work_dir, proxy_token, status, created_at, last_activity_at`
+
+func (ss *ServerStore) scanServer(sc interface{ Scan(...any) error }) (domain.Server, error) {
+	s, err := scanServer(sc)
+	if err == nil {
+		s.Password = ss.loadPassword(s.GroupKey, s.Password)
+	}
+	return s, err
+}
 
 func scanServer(sc interface{ Scan(...any) error }) (domain.Server, error) {
 	var s domain.Server
@@ -40,7 +175,11 @@ func (ss *ServerStore) Upsert(ctx context.Context, s *domain.Server) error {
 	if s.LastActivityAt.IsZero() {
 		s.LastActivityAt = now
 	}
-	_, err := ss.db.ExecContext(ctx, `INSERT INTO servers (`+serverColumns+`)
+	password, err := ss.storePassword(s.GroupKey, s.Password)
+	if err != nil {
+		return fmt.Errorf("saving server %s: %w", s.GroupKey, err)
+	}
+	_, err = ss.db.ExecContext(ctx, `INSERT INTO servers (`+serverColumns+`)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(group_key) DO UPDATE SET
 			adapter=excluded.adapter, adapter_version=excluded.adapter_version, runtime=excluded.runtime,
@@ -49,7 +188,7 @@ func (ss *ServerStore) Upsert(ctx context.Context, s *domain.Server) error {
 			proxy_token=excluded.proxy_token, status=excluded.status, created_at=excluded.created_at,
 			last_activity_at=excluded.last_activity_at`,
 		s.GroupKey, s.Adapter, s.AdapterVersion, s.Runtime, s.ProjectID, s.BundleHash, s.PID, s.URL, s.Port,
-		s.Password, s.DataDir, s.WorkDir, s.ProxyTokenHash, string(s.Status), s.CreatedAt, s.LastActivityAt)
+		password, s.DataDir, s.WorkDir, s.ProxyTokenHash, string(s.Status), s.CreatedAt, s.LastActivityAt)
 	if err != nil {
 		return fmt.Errorf("saving server %s: %w", s.GroupKey, err)
 	}
@@ -58,7 +197,7 @@ func (ss *ServerStore) Upsert(ctx context.Context, s *domain.Server) error {
 
 // Get returns a server by group key.
 func (ss *ServerStore) Get(ctx context.Context, groupKey string) (*domain.Server, error) {
-	s, err := scanServer(ss.db.QueryRowContext(ctx, `SELECT `+serverColumns+` FROM servers WHERE group_key = ?`, groupKey))
+	s, err := ss.scanServer(ss.db.QueryRowContext(ctx, `SELECT `+serverColumns+` FROM servers WHERE group_key = ?`, groupKey))
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, domain.ErrNotFound
 	}
@@ -77,7 +216,7 @@ func (ss *ServerStore) List(ctx context.Context) ([]domain.Server, error) {
 	defer rows.Close()
 	var out []domain.Server
 	for rows.Next() {
-		s, err := scanServer(rows)
+		s, err := ss.scanServer(rows)
 		if err != nil {
 			return nil, err
 		}
@@ -109,9 +248,12 @@ func (ss *ServerStore) Touch(ctx context.Context, groupKey string, at time.Time)
 	return err
 }
 
-// Delete removes a server.
+// Delete removes a server (and its password file).
 func (ss *ServerStore) Delete(ctx context.Context, groupKey string) error {
 	_, err := ss.db.ExecContext(ctx, `DELETE FROM servers WHERE group_key = ?`, groupKey)
+	if err == nil && ss.dir != "" {
+		_ = os.Remove(ss.passwordFile(groupKey))
+	}
 	return err
 }
 

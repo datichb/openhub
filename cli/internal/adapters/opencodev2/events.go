@@ -147,6 +147,21 @@ func parseSSE(ctx context.Context, r io.Reader, out chan<- Event) error {
 	return io.ErrUnexpectedEOF
 }
 
+// permissionAnswer decodes the answer of a permission request from a
+// permission.replied event (2.0.20: {sessionID, requestID, reply}, reply in
+// once | always | reject).
+func permissionAnswer(typ string, data map[string]any) *adapters.DecisionAnswer {
+	if typ != "permission.replied" {
+		return nil
+	}
+	id, _ := data["requestID"].(string)
+	reply, _ := data["reply"].(string)
+	if id == "" || reply == "" {
+		return nil
+	}
+	return &adapters.DecisionAnswer{ID: id, Approved: reply == "once" || reply == "always"}
+}
+
 func decodeEvent(raw string, ev *Event) bool {
 	return json.Unmarshal([]byte(raw), ev) == nil
 }

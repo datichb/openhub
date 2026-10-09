@@ -30,31 +30,36 @@ func rule(action, res string, e sessionspec.Effect) sessionspec.PermissionRule {
 func TestSessionRules(t *testing.T) {
 	wf := testRuntime()
 	sub := sessionspec.ActionSubagent
-	assert.Equal(t, []sessionspec.PermissionRule{
+	// Without a checkpoint unlocking `apply`, infrastructure changes stay
+	// refused (N4): those rules come last.
+	locked := func(rules ...sessionspec.PermissionRule) []sessionspec.PermissionRule {
+		return append(rules, ApplyLockedByDefault(wf)...)
+	}
+	assert.Equal(t, locked(
 		rule(CheckpointAction(), "*", sessionspec.EffectAsk),
 		rule(sub, "developer", sessionspec.EffectDeny),
 		rule(sub, "reviewer", sessionspec.EffectDeny),
-	}, SessionRules(wf, "", nil), "default mode: cp-2 pauses, both agents locked")
+	), SessionRules(wf, "", nil), "default mode: cp-2 pauses, both agents locked")
 
 	st := &domain.CheckpointState{Passed: map[string]time.Time{"cp-1": time.Now()}}
-	assert.Equal(t, []sessionspec.PermissionRule{
+	assert.Equal(t, locked(
 		rule(CheckpointAction(), "*", sessionspec.EffectAsk),
 		rule(sub, "reviewer", sessionspec.EffectDeny),
-	}, SessionRules(wf, "manuel", st), "cp-1 passed releases developer")
+	), SessionRules(wf, "manuel", st), "cp-1 passed releases developer")
 
 	st.Ran = []string{"developer"}
-	assert.Equal(t, []sessionspec.PermissionRule{rule(CheckpointAction(), "*", sessionspec.EffectAsk)}, SessionRules(wf, "manuel", st))
+	assert.Equal(t, locked(rule(CheckpointAction(), "*", sessionspec.EffectAsk)), SessionRules(wf, "manuel", st))
 
-	assert.Equal(t, []sessionspec.PermissionRule{
+	assert.Equal(t, locked(
 		rule(CheckpointAction(), "*", sessionspec.EffectAllow),
 		rule(sub, "reviewer", sessionspec.EffectDeny),
-	}, SessionRules(wf, "auto", nil), "nothing pauses in auto; cp-1 skipped releases developer")
+	), SessionRules(wf, "auto", nil), "nothing pauses in auto; cp-1 skipped releases developer")
 
 	st.Breaker = true
-	assert.Equal(t, []sessionspec.PermissionRule{
+	assert.Equal(t, locked(
 		rule(CheckpointAction(), "*", sessionspec.EffectAsk),
 		rule(sub, "*", sessionspec.EffectDeny),
-	}, SessionRules(wf, "manuel", st), "breaker holds every delegation")
+	), SessionRules(wf, "manuel", st), "breaker holds every delegation")
 
 	assert.Nil(t, SessionRules(nil, "manuel", nil))
 }
@@ -86,7 +91,9 @@ func TestSessionRulesLockedOperations(t *testing.T) {
 	open := &domain.CheckpointState{Passed: map[string]time.Time{"cp-2": time.Now()},
 		Unlocks: map[string]domain.CheckpointUnlock{"commit": {Checkpoint: "cp-2"}, "close": {Checkpoint: "cp-2"}}}
 	for _, r := range SessionRules(wf, "manuel", open) {
-		assert.NotEqual(t, shell, r.Action, "window open: %v", r)
+		if !contains(ApplyLockPatterns, r.Resource) {
+			assert.NotEqual(t, shell, r.Action, "window open: %v", r)
+		}
 	}
 	passedOnly := &domain.CheckpointState{Passed: map[string]time.Time{"cp-2": time.Now()}}
 	assert.Equal(t, []string{"commit", "close"}, LockedOps(wf, "manuel", passedOnly), "a closed window locks again")
@@ -113,7 +120,9 @@ func TestSessionRulesLockCreateAndApply(t *testing.T) {
 	// An operation unknown to this version locks nothing (DC9).
 	wf.Checkpoints[1].Unlocks = []string{"merge"}
 	for _, r := range SessionRules(wf, "manuel", nil) {
-		assert.NotEqual(t, shell, r.Action, "unknown operation: %v", r)
+		if !contains(ApplyLockPatterns, r.Resource) { // apply stays refused: nothing unlocks it (N4)
+			assert.NotEqual(t, shell, r.Action, "unknown operation: %v", r)
+		}
 	}
 }
 
@@ -175,4 +184,13 @@ func TestLockPatternsWithoutFalsePositives(t *testing.T) {
 	} {
 		assert.False(t, lockedLine(rules, line), "must stay allowed: %s", line)
 	}
+}
+
+func contains(list []string, s string) bool {
+	for _, x := range list {
+		if x == s {
+			return true
+		}
+	}
+	return false
 }

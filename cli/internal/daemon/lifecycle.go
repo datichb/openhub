@@ -65,6 +65,9 @@ type client struct {
 	expires time.Time
 }
 
+// maxClientTTL bounds the life of a heartbeat.
+const maxClientTTL = 300 * time.Second
+
 func (d *Daemon) handleHeartbeat(w http.ResponseWriter, r *http.Request) {
 	var req HeartbeatRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.ClientID == "" {
@@ -75,6 +78,7 @@ func (d *Daemon) handleHeartbeat(w http.ResponseWriter, r *http.Request) {
 	if ttl <= 0 {
 		ttl = 90 * time.Second
 	}
+	ttl = min(ttl, maxClientTTL) // a heartbeat never keeps a group awake for long
 	d.mu.Lock()
 	d.clients[req.ClientID] = client{kind: req.Kind, group: req.Group, session: req.SessionID, where: req.Where, expires: time.Now().Add(ttl)}
 	d.lastBusy = time.Now()

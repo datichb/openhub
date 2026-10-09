@@ -30,11 +30,11 @@ func TestGuardCreate(t *testing.T) {
 	require.NoError(t, err)
 	assert.Contains(t, rules, sessionspec.PermissionRule{Action: sessionspec.ActionShell, Resource: "bd create*", Effect: sessionspec.EffectDeny})
 
-	_, err = svc.Reached(ctx, "ses_c", Call{ID: "cp-tickets"})
+	_, err = reachValidated(t, svc, ctx, "ses_c", "cp-tickets")
 	require.NoError(t, err)
 	assert.NoError(t, svc.GuardCreate(ctx, "ses_c"))
 
-	_, err = svc.Reached(ctx, "ses_c", Call{ID: "cp-2"})
+	_, err = reachValidated(t, svc, ctx, "ses_c", "cp-2")
 	require.NoError(t, err)
 	_, err = svc.BeadsDone(ctx, "ses_c", BeadsClose, []string{"pt-1"})
 	require.NoError(t, err)

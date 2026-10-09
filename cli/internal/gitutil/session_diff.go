@@ -150,10 +150,9 @@ func statusName(code string) string {
 }
 
 func gitOut(ctx context.Context, dir string, env []string, args ...string) (string, error) {
-	cmd := exec.CommandContext(ctx, "git", args...)
-	cmd.Dir = filepath.Clean(dir)
+	cmd := Command(ctx, filepath.Clean(dir), args...)
 	if len(env) > 0 {
-		cmd.Env = append(os.Environ(), env...)
+		cmd.Env = append(cmd.Env, env...)
 	}
 	out, err := cmd.Output()
 	if err != nil {

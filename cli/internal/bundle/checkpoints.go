@@ -78,7 +78,7 @@ func SessionRules(wf *sessionspec.WorkflowRuntime, mode string, st *domain.Check
 			rules = append(rules, sessionspec.PermissionRule{Action: sessionspec.ActionShell, Resource: p, Effect: sessionspec.EffectDeny})
 		}
 	}
-	return rules
+	return append(rules, ApplyLockedByDefault(wf)...)
 }
 
 // lockPatterns are the shell commands refused while an operation is locked.
@@ -93,7 +93,7 @@ func SessionRules(wf *sessionspec.WorkflowRuntime, mode string, st *domain.Check
 // cherry-pick, merge, pull, am) are locked with commit. Closing and creating
 // tickets are also refused by the Beads gateway, whatever the shell.
 var lockPatterns = map[string][]string{
-	sessionspec.UnlockCommit: subcommandPatterns("git", "commit", "revert", "cherry-pick", "merge", "pull", "am"),
+	sessionspec.UnlockCommit: subcommandPatterns("git", "commit", "revert", "cherry-pick", "merge", "pull", "am", "rebase", "stash pop"),
 	sessionspec.UnlockPush:   subcommandPatterns("git", "push"),
 	sessionspec.UnlockClose:  append(subcommandPatterns("bd", "close", "done"), "bd update *closed*", "* bd update *closed*", "*/bd update *closed*"),
 	sessionspec.UnlockCreate: append(subcommandPatterns("bd", "create", "duplicate", "supersede"), "bd q *", "* bd q *", "*/bd q *"),
@@ -133,25 +133,6 @@ func subcommandPatterns(tool string, subs ...string) []string {
 		out = append(out, "git -*alias*", "* git -*alias*", "*/git -*alias*")
 	}
 	return out
-}
-
-// ApplyLockPatterns are the infrastructure changes refused while `apply` is
-// locked (leading `*`: global flags such as --context, --profile, -chdir may
-// come first). The infra guard of the agents refuses them outside a workflow.
-var ApplyLockPatterns = []string{
-	"*terraform* apply*", "*terraform* destroy*", "*terraform* import*", "*terraform* refresh*",
-	"*terraform* taint*", "*terraform* untaint*", "*terraform* state rm*", "*terraform* state mv*",
-	"*terraform* state push*", "*terraform* force-unlock*",
-	"*tofu* apply*", "*tofu* destroy*", "*tofu* import*", "*tofu* state rm*", "*tofu* state mv*",
-	"*kubectl* apply*", "*kubectl* create*", "*kubectl* delete*", "*kubectl* replace*", "*kubectl* patch*",
-	"*kubectl* edit*", "*kubectl* scale*", "*kubectl* rollout *", "*kubectl* drain*", "*kubectl* cordon*",
-	"*kubectl* taint*", "*kubectl* label*", "*kubectl* annotate*", "*kubectl* set *",
-	"*helm* install*", "*helm* upgrade*", "*helm* uninstall*", "*helm* delete*", "*helm* rollback*",
-	"*pulumi* up*", "*pulumi* destroy*", "*pulumi* refresh*", "*pulumi* import*",
-	"*aws* create-*", "*aws* delete-*", "*aws* put-*", "*aws* update-*", "*aws* modify-*", "*aws* terminate-*",
-	"*aws* s3 cp*", "*aws* s3 mv*", "*aws* s3 rm*", "*aws* s3 sync*",
-	"*gcloud* create*", "*gcloud* delete*", "*gcloud* update*", "*gcloud* deploy*",
-	"*az* create*", "*az* delete*", "*az* update*", "*az* deploy*",
 }
 
 // LockedOps returns the operations (`unlocks:`) still locked: their

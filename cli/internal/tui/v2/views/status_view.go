@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -14,6 +13,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/config"
+	"github.com/datichb/openhub/cli/internal/gitutil"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
@@ -238,7 +238,7 @@ func (v *StatusView) checkConventions() {
 
 // Git helpers for conventions check.
 func gitCurrentBranch(dir string) string {
-	cmd := exec.Command("git", "-C", dir, "rev-parse", "--abbrev-ref", "HEAD")
+	cmd := gitutil.Command(context.Background(), dir, "rev-parse", "--abbrev-ref", "HEAD")
 	out, err := cmd.Output()
 	if err != nil {
 		return ""
@@ -247,7 +247,7 @@ func gitCurrentBranch(dir string) string {
 }
 
 func gitLastCommits(dir string, n int) []string {
-	cmd := exec.Command("git", "-C", dir, "log", fmt.Sprintf("-%d", n), "--pretty=format:%s")
+	cmd := gitutil.Command(context.Background(), dir, "log", fmt.Sprintf("-%d", n), "--pretty=format:%s")
 	out, err := cmd.Output()
 	if err != nil {
 		return nil

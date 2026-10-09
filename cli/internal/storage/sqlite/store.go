@@ -13,7 +13,8 @@ import (
 
 // Store wraps the SQLite connection shared across all store implementations.
 type Store struct {
-	db *sql.DB
+	db   *sql.DB
+	path string
 }
 
 // DBPath returns the default path to the SQLite database.
@@ -28,8 +29,8 @@ func Open(path string) (*Store, error) {
 		return nil, fmt.Errorf("creating db directory: %w", err)
 	}
 
-	// The database holds server passwords and proxy tokens: owner-only
-	// access. SQLite creates the -wal/-shm files with the mode of the main
+	// The database holds the registry of servers and proxy token hashes:
+	// owner-only access. SQLite creates the -wal/-shm files with the mode of the main
 	// file, so it is created (or fixed) before the first connection.
 	_ = os.Chmod(filepath.Dir(path), 0o700)
 	if f, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0o600); err == nil {
@@ -51,7 +52,7 @@ func Open(path string) (*Store, error) {
 		return nil, fmt.Errorf("opening database: %w", err)
 	}
 
-	s := &Store{db: db}
+	s := &Store{db: db, path: path}
 	if err := s.migrate(); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("running migrations: %w", err)

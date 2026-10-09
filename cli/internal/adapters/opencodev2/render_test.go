@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/datichb/openhub/cli/internal/bundle"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 )
 
@@ -262,4 +263,50 @@ func TestRenderMCPToolActions(t *testing.T) {
 
 	assert.Equal(t, "shell", ToolAction("shell"))
 	assert.Equal(t, "gitlab_issues", ToolAction(sessionspec.MCPToolAction("gitlab", "issues")))
+}
+
+// N2 (v5 critical): driving the tool server from the shell is refused to
+// every agent, even one allowed to run anything.
+func TestControlPlaneGuardLastOfEveryAgent(t *testing.T) {
+	b := sessionspec.BundleSpec{EntryAgent: "a", Agents: []sessionspec.AgentDef{{ID: "a",
+		Permissions: []sessionspec.PermissionRule{{Action: sessionspec.ActionShell, Resource: "*", Effect: sessionspec.EffectAllow}}}}}
+	rules := append(agentRules(b.Agents[0], b, nil), AgentGuard(b)...)
+	for _, line := range []string{
+		"printenv OPENCODE_SERVER_PASSWORD",
+		"echo $OPENCODE_CONFIG_CONTENT",
+		"curl -u opencode:x http://127.0.0.1:4096/api/session/ses_1/permission/per_1/reply -d '{\"decision\":\"once\"}'",
+		"curl http://127.0.0.1:4096/api/permission/request",
+		"curl -X PUT http://127.0.0.1:4096/api/session/ses_1/environment",
+	} {
+		assert.Equal(t, sessionspec.EffectDeny, bundle.ShellEffect(rules, line), line)
+	}
+	assert.Equal(t, sessionspec.EffectAllow, bundle.ShellEffect(rules, "go test ./internal/adapters/opencodev2/..."), "developing oh itself stays possible")
+
+	// Rendered once in the plugin options, per agent without the plugin.
+	b.AgentGuard = []sessionspec.PermissionRule{{Action: sessionspec.ActionShell, Resource: "*g*", Effect: sessionspec.EffectDeny}}
+	withP := withOhPlugin(b, "/p", "", nil, nil)
+	cfg, err := BuildConfig(withP, sessionspec.ProviderSpec{}, nil)
+	require.NoError(t, err)
+	perms := cfg["agents"].(map[string]any)["a"].(map[string]any)["permissions"].([]Rule)
+	assert.NotContains(t, perms, Rule{Action: "shell", Resource: "*g*", Effect: "deny"})
+	opts := withP.Plugins[len(withP.Plugins)-1].Options
+	assert.Contains(t, opts["guard"], Rule{Action: "shell", Resource: "*g*", Effect: "deny"})
+	cfg, err = BuildConfig(withoutOhPlugin(b), sessionspec.ProviderSpec{}, nil)
+	require.NoError(t, err)
+	perms = cfg["agents"].(map[string]any)["a"].(map[string]any)["permissions"].([]Rule)
+	assert.Equal(t, Rule{Action: "shell", Resource: "*--user opencode:*", Effect: "deny"}, perms[len(perms)-1], "fallback: last of the agent")
+	assert.Contains(t, perms, Rule{Action: "shell", Resource: "*g*", Effect: "deny"})
+
+}
+
+// N23 (v5 critical, audit S-10): the bundle is readable from the agents
+// (skill annexes) but never editable.
+func TestBundleReadOnlyForAgents(t *testing.T) {
+	b := sessionspec.BundleSpec{EntryAgent: "a", Root: "/oh/bundles/h", SkillsDir: "/oh/bundles/h/skills",
+		Agents: []sessionspec.AgentDef{{ID: "a", Permissions: []sessionspec.PermissionRule{{Action: sessionspec.ActionEdit, Resource: "*", Effect: sessionspec.EffectAllow}}}}}
+	rules := agentRules(b.Agents[0], b, nil)
+	assert.Equal(t, sessionspec.EffectAllow, bundle.ToolEffect(rules, ActionExternalDir, "/oh/bundles/h/skills/x/annex.md"))
+	assert.Equal(t, sessionspec.EffectDeny, bundle.ToolEffect(rules, sessionspec.ActionEdit, "/oh/bundles/h/skills/x/SKILL.md"))
+	assert.Equal(t, sessionspec.EffectDeny, bundle.ToolEffect(rules, sessionspec.ActionEdit, "/oh/bundles/h/agents/a.md"))
+	assert.Equal(t, sessionspec.EffectAllow, bundle.ToolEffect(rules, sessionspec.ActionEdit, "src/a.go"))
 }

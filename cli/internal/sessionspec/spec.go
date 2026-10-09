@@ -153,15 +153,19 @@ type PluginDef struct {
 
 // BundleSpec is the compiled, tool-agnostic content of a session.
 type BundleSpec struct {
-	Hash          string              `json:"hash"`
-	Root          string              `json:"root"`
-	EntryAgent    string              `json:"entry_agent"`
-	Agents        []AgentDef          `json:"agents"`
-	Skills        []SkillDef          `json:"skills"`
-	SkillsDir     string              `json:"skills_dir,omitempty"`
-	MCP           []MCPServerDef      `json:"mcp,omitempty"`
-	Plugins       []PluginDef         `json:"plugins,omitempty"`
-	Permissions   []PermissionRule    `json:"permissions,omitempty"` // global rules
+	Hash        string           `json:"hash"`
+	Root        string           `json:"root"`
+	EntryAgent  string           `json:"entry_agent"`
+	Agents      []AgentDef       `json:"agents"`
+	Skills      []SkillDef       `json:"skills"`
+	SkillsDir   string           `json:"skills_dir,omitempty"`
+	MCP         []MCPServerDef   `json:"mcp,omitempty"`
+	Plugins     []PluginDef      `json:"plugins,omitempty"`
+	Permissions []PermissionRule `json:"permissions,omitempty"` // global rules
+	// AgentGuard are rules appended last to the rules of every agent (global
+	// guard of oh): the adapter applies them once for all agents when it can,
+	// per agent otherwise.
+	AgentGuard    []PermissionRule    `json:"agent_guard,omitempty"`
 	SubagentGraph map[string][]string `json:"subagent_graph,omitempty"`
 	MaxDepth      int                 `json:"max_depth"`
 	CodeMode      bool                `json:"code_mode"`

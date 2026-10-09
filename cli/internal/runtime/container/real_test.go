@@ -183,7 +183,11 @@ func TestRealMountsAndNetwork(t *testing.T) {
 			t.Cleanup(func() {
 				e, _ := rt.Engine(context.Background())
 				_, _ = ExecRunner{}.Run(context.Background(), e.CLI, e.Command("rmi", spec.Image)[1:]...)
-				_, _ = ExecRunner{}.Run(context.Background(), e.CLI, e.Command("volume", "rm", "-f", "oh-oh-real-mounts-home")[1:]...)
+				for _, m := range spec.Mounts {
+					if m.Volume {
+						_, _ = ExecRunner{}.Run(context.Background(), e.CLI, e.Command("volume", "rm", "-f", m.Source)[1:]...)
+					}
+				}
 			})
 			inWT, _ := pg.Paths.ToInner(worktree)
 			script := strings.Join([]string{
@@ -193,6 +197,15 @@ func TestRealMountsAndNetwork(t *testing.T) {
 				"if touch " + InnerBundle + "/w 2>/dev/null; then echo BUNDLE-WRITABLE; fi",
 				"env | grep -E 'AWS_|SECRET|TOKEN' || echo no-secret",
 				"exec 3<>/dev/tcp/" + pg.HostAddress + "/" + strconv.Itoa(port) + "; printf 'GET / HTTP/1.0\\r\\n\\r\\n' >&3; tail -1 <&3; echo",
+				// N5: the git files that make the machine run programs are read-only.
+				"if git config oh.probe 1 2>/dev/null; then echo CONFIG-WRITABLE; fi",
+				"if echo 'gitdir: /tmp' > .git 2>/dev/null; then echo POINTER-WRITABLE; fi",
+				"common=$(git rev-parse --path-format=absolute --git-common-dir)",
+				"if echo x > $common/hooks/post-checkout 2>/dev/null; then echo HOOKS-WRITABLE; fi",
+				"if echo x >> $common/config 2>/dev/null; then echo COMMON-CONFIG-WRITABLE; fi",
+				"git -c user.email=t@t -c user.name=t commit -q --allow-empty -m from-container && echo COMMIT-OK",
+				"git switch -q -c feat2 && echo SWITCH-OK",
+				"if touch $HOME/probe 2>/dev/null; then echo HOME-OK; fi",
 			}, "\n")
 			t.Setenv("AWS_SECRET_ACCESS_KEY", "must-not-leak")
 			cmd, err := rt.Command(context.Background(), pg, ohruntime.Proc{Argv: []string{"bash", "-c", script}, Dir: inWT})
@@ -204,7 +217,12 @@ func TestRealMountsAndNetwork(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			for _, want := range []string{"## feat", "no-secret", "oh-host"} {
+			for _, bad := range []string{"CONFIG-WRITABLE", "POINTER-WRITABLE", "HOOKS-WRITABLE", "COMMON-CONFIG-WRITABLE"} {
+				if strings.Contains(string(out), bad) {
+					t.Errorf("N5: %s", bad)
+				}
+			}
+			for _, want := range []string{"## feat", "no-secret", "oh-host", "COMMIT-OK", "SWITCH-OK", "HOME-OK"} {
 				if !strings.Contains(string(out), want) {
 					t.Errorf("missing %q", want)
 				}

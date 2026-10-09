@@ -205,7 +205,13 @@ func newSessionService(ctx context.Context, a *app.App) (*sessionsvc.Service, er
 		svc.Adapter = v5Adapter
 		ensureDaemonForLiveServers(ctx, svc.Servers)
 	}
-	svc.UseCheckpoints(newCheckpointService(a), dc.WorkflowRefresh)
+	svc.UseCheckpoints(newCheckpointService(a), func(ctx context.Context, id string) error {
+		capability, _, err := daemonCapability(ctx) // privileged route (N1)
+		if err != nil {
+			return err
+		}
+		return dc.WithCapability(capability).WorkflowRefresh(ctx, id)
+	})
 	svc.OhDecided = dc.SessionDecided
 	svc.Resolvers[domain.DecisionBudget] = sessionsvc.BudgetResolver(sqlite.NewUsageStore(store), func(ctx context.Context, id string) error {
 		rs, err := newRunService(ctx, a)

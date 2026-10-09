@@ -13,6 +13,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/adapters"
 	"github.com/datichb/openhub/cli/internal/beads"
+	"github.com/datichb/openhub/cli/internal/bundle"
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
@@ -461,6 +462,7 @@ func removeHubDir(out *os.File, hubDir string) {
 	}
 
 	if dirExists(hubDir) {
+		_ = bundle.Unseal(ohBundlesDir()) // session bundles are read-only
 		if err := os.RemoveAll(hubDir); err != nil {
 			fmt.Fprintf(out, "%s %v\n", theme.ErrorStyle.Render(theme.IconError), err)
 			return

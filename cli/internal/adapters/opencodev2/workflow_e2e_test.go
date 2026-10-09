@@ -40,7 +40,7 @@ func TestE2EWorkflowCheckpointAsked(t *testing.T) {
 	m := sessionspec.ParseModelRef(e2eModel)
 	b.DefaultModel = &m
 	e.saveBundle(t, b)
-	h, project := e.startServer(t, a, b, sessionspec.ProviderSpec{ID: "amazon-bedrock", Region: "eu-west-1", SessionToken: tok})
+	h, project := e.startGroup(t, a, b, tok)
 	c := NewClient(h.URL, h.Password)
 	waitMCPConnected(t, c, project, sessionspec.WorkflowMCPServer)
 

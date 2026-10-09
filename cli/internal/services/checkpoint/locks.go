@@ -12,6 +12,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/adapters"
 	"github.com/datichb/openhub/cli/internal/bundle"
 	"github.com/datichb/openhub/cli/internal/domain"
+	"github.com/datichb/openhub/cli/internal/gitutil"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 )
@@ -42,31 +43,33 @@ type LockError struct{ Msg string }
 
 func (e *LockError) Error() string { return e.Msg }
 
-func (s *Service) head(ctx context.Context, dir string) (string, bool) {
+func (s *Service) headErr(ctx context.Context, dir string) (head string, dirty bool, err error) {
 	if dir == "" {
-		return "", false
+		return "", false, nil
 	}
 	h := s.Head
 	if h == nil {
 		h = GitHead
 	}
-	head, dirty, err := h(ctx, dir)
-	if err != nil {
-		return "", false
+	if head, dirty, err = h(ctx, dir); err != nil {
+		return "", false, err
 	}
-	return head, dirty
+	return head, dirty, nil
 }
 
 // GitHead returns the commit of dir ("" before the first commit) and whether
 // it has uncommitted changes outside .beads (Beads writes its own files).
 func GitHead(ctx context.Context, dir string) (head string, dirty bool, err error) {
-	if _, err = exec.CommandContext(ctx, "git", "-C", dir, "rev-parse", "--git-dir").Output(); err != nil {
+	if err := gitutil.Check(ctx, dir); err != nil {
 		return "", false, err
 	}
-	if out, herr := exec.CommandContext(ctx, "git", "-C", dir, "rev-parse", "--verify", "-q", "HEAD").Output(); herr == nil {
+	if _, err = gitutil.Command(ctx, dir, "rev-parse", "--git-dir").Output(); err != nil {
+		return "", false, err
+	}
+	if out, herr := gitutil.Command(ctx, dir, "rev-parse", "--verify", "-q", "HEAD").Output(); herr == nil {
 		head = strings.TrimSpace(string(out))
 	}
-	out, err := exec.CommandContext(ctx, "git", "-C", dir, "status", "--porcelain", "--", ".", ":(exclude).beads").Output()
+	out, err := gitutil.Command(ctx, dir, "status", "--porcelain", "--", ".", ":(exclude).beads").Output()
 	if err != nil {
 		return head, false, err
 	}

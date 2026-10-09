@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -14,7 +15,9 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/datichb/openhub/cli/internal/adapters"
+	"github.com/datichb/openhub/cli/internal/bundle"
 	"github.com/datichb/openhub/cli/internal/domain"
+	"github.com/datichb/openhub/cli/internal/gitutil"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 )
 
@@ -66,6 +69,14 @@ func (f *fakeHead) get(_ context.Context, dir string) (string, bool, error) {
 	return f.head, f.dirty, nil
 }
 
+// reachValidated runs a workflow_checkpoint call validated by the user.
+func reachValidated(t *testing.T, svc *Service, ctx context.Context, session, id string) (Result, error) {
+	t.Helper()
+	svc.ToolReplied(ctx, domain.Decision{Kind: domain.DecisionCheckpoint, SessionID: session,
+		Payload: domain.DecisionPayload{Data: map[string]any{DataCheckpoint: id}}}, true)
+	return svc.Reached(ctx, session, Call{ID: id})
+}
+
 func askCP(t *testing.T, svc *Service, ctx context.Context, id string) bool {
 	t.Helper()
 	_, _, relocked, err := svc.Asked(ctx, "ses_l", "ses_l", adapters.PendingDecision{ID: "per_" + id, Call: &adapters.ToolCall{Input: map[string]any{"id": id}}})
@@ -85,14 +96,16 @@ func TestGuardCloseAndWindow(t *testing.T) {
 	require.NoError(t, err)
 	assert.Contains(t, rules, sessionspec.PermissionRule{Action: sessionspec.ActionShell, Resource: "git commit*", Effect: sessionspec.EffectDeny})
 
-	res, err := svc.Reached(ctx, "ses_l", Call{ID: "cp-2"})
+	res, err := reachValidated(t, svc, ctx, "ses_l", "cp-2")
 	require.NoError(t, err)
 	assert.Equal(t, []string{"commit", "close"}, res.Unlocked)
 	st, _ := svc.State(ctx, "ses_l")
 	assert.Equal(t, "c1", st.Unlocks["close"].Head)
 	rules, _ = svc.Rules(ctx, "ses_l")
 	for _, r := range rules {
-		assert.NotEqual(t, sessionspec.ActionShell, r.Action)
+		if !slices.Contains(bundle.ApplyLockPatterns, r.Resource) { // apply: nothing unlocks it here (N4)
+			assert.NotEqual(t, sessionspec.ActionShell, r.Action)
+		}
 	}
 	status, err := svc.Status(ctx, "ses_l")
 	require.NoError(t, err)
@@ -118,7 +131,7 @@ func TestGuardCloseAndWindow(t *testing.T) {
 	assert.True(t, changed, "a closed ticket locks again")
 	require.ErrorAs(t, svc.GuardClose(ctx, "ses_l", "/work"), &lock)
 
-	_, err = svc.Reached(ctx, "ses_l", Call{ID: "cp-2"})
+	_, err = reachValidated(t, svc, ctx, "ses_l", "cp-2")
 	require.NoError(t, err)
 	assert.True(t, askCP(t, svc, ctx, "cp-2"), "cp-2 asked again: a new round")
 	h.committed = false
@@ -177,7 +190,7 @@ func TestFinishDeclaresOutputs(t *testing.T) {
 	require.NoError(t, err)
 	assert.False(t, done)
 
-	_, err = svc.Reached(ctx, "ses_l", Call{ID: "cp-2"})
+	_, err = reachValidated(t, svc, ctx, "ses_l", "cp-2")
 	require.NoError(t, err)
 	_, err = svc.BeadsDone(ctx, "ses_l", BeadsClaim, []string{"pt-1"})
 	require.NoError(t, err)
@@ -314,4 +327,34 @@ func TestGitHead(t *testing.T) {
 	assert.False(t, dirty)
 	_, _, err = GitHead(context.Background(), t.TempDir())
 	assert.Error(t, err, "not a repository")
+}
+
+// N5 (v5 critical): a checkpoint that unlocks operations is refused when the
+// git configuration of the session location changed since the session
+// started (a program would run on the machine at the next git of oh).
+func TestGuardRefusesTamperedConfig(t *testing.T) {
+	gitutil.SetTrustDir(t.TempDir())
+	t.Cleanup(func() { gitutil.SetTrustDir("") })
+	svc, ctx, _ := newLockService(t)
+	svc.Head = nil // real git
+	repo := t.TempDir()
+	out, err := exec.Command("git", "init", "-q", repo).CombinedOutput()
+	require.NoError(t, err, string(out))
+	_, err = svc.Sessions.Get(ctx, "ses_l")
+	require.NoError(t, err)
+	require.NoError(t, svc.Sessions.Create(ctx, &domain.Session{ID: "ses_g", ProjectID: "p1", Status: domain.SessionStatusRunning, GroupKey: "g1",
+		BundleHash: "h_lock", Mode: "manuel", State: domain.RunActive, LaunchPath: repo}))
+	require.NoError(t, gitutil.Trust(ctx, repo))
+
+	out, err = exec.Command("git", "-C", repo, "config", "core.fsmonitor", "touch /tmp/oh-pwned").CombinedOutput()
+	require.NoError(t, err, string(out))
+	_, err = reachValidated(t, svc, ctx, "ses_g", "cp-2")
+	require.ErrorIs(t, err, gitutil.ErrConfigChanged)
+	st, _ := svc.State(ctx, "ses_g")
+	assert.False(t, st.HasPassed("cp-2"))
+	assert.Empty(t, st.Unlocks)
+
+	require.NoError(t, gitutil.Trust(ctx, repo)) // a new session trusts it again
+	_, err = reachValidated(t, svc, ctx, "ses_g", "cp-2")
+	require.NoError(t, err)
 }

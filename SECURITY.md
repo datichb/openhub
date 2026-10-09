@@ -50,6 +50,7 @@ If declined, we will provide a clear explanation.
 - **Closed world.** A session only sees the agents and skills of its session bundle, and this is checked at each server start.
 - **Beads stays on the machine.** Outside the machine, `bd` goes through a gateway restricted by the workflow's allow-list.
 - **Local mode is not a sandbox.** In local mode the agent's shell runs as your user (see [Known limitations of the local mode](#known-limitations-of-the-local-mode)). Use container sessions for real isolation.
+- **Guard rails, not barriers.** oh's shell rules (patterns) stop the mistakes of a model and cheap workarounds; they do not confine an agent that tries to get out (see [What the shell rules do not protect](#what-the-shell-rules-do-not-protect)). The locks that do not depend on patterns are: the checkpoint validation seen by oh, the gateways (Beads, MCP), the credential proxy and the container.
 
 Design decisions: [ADR-041](docs/architecture/adr/041-closed-world-isolation.en.md) (closed world), [ADR-044](docs/architecture/adr/044-credential-proxy-session-limits.en.md) (credential proxy, limits), [ADR-045](docs/architecture/adr/045-execution-environments.en.md) (execution environments), [ADR-046](docs/architecture/adr/046-beads-gateways.en.md) (gateways).
 
@@ -61,6 +62,8 @@ openhub stores API tokens and secrets using two mechanisms:
 - **Encrypted file fallback** — when the OS keychain is unavailable, secrets are encrypted at rest using **AES-256-GCM** with **Argon2id** key derivation (OWASP minimum parameters: t=3, memory=64MB, threads=4). The passphrase is read from the `OH_PASSPHRASE` environment variable or prompted interactively.
 
 Secrets are never stored in plaintext on disk. `~/.oh` is 0700; `oh.db` and its WAL files are 0600.
+
+The passwords of the opencode servers (needed to attach to a session and for the daemon to drive the server) are not in `oh.db`: one 0600 file per group under `~/.oh/run/server-passwords/` (0700 folder), `oh.db` keeps only their hash. A database of an older version is converted when the daemon starts (then compacted); `oh doctor` reports a password left in clear. These files stay readable by your user: the shell of the agents only reaches them by mistake (shell refusal of `~/.oh/run`), not through a barrier.
 
 ### LLM credential proxy
 
@@ -80,6 +83,8 @@ The oh daemon (`ohd`) runs a credential proxy on `127.0.0.1` (one listener per m
 - **Socket.** `~/.oh/run/ohd.sock`, mode 0600. The peer identity is checked by the kernel on each connection (UID, `LOCAL_PEERCRED` on macOS, `SO_PEERCRED` on Linux): only processes of your user are accepted. On other systems, the 0600 mode alone applies.
 - **Issuing capability.** The routes that hand out access (proxy and gateway tokens, credentials, extra proxy listeners) or stop the daemon also require the `X-Oh-Capability` header. It is a random secret kept in the OS keychain (`openhub.daemon.capability`), or, without a usable keychain, in `~/.oh/run/capability` (0600, reported by `oh doctor`). It is read by the oh CLI and the daemon only, compared in constant time, and never put in any environment.
 - **Hooks.** The oh plugin and gateway routes (`/oh/v1/hooks/*`) are authenticated by the group token.
+- **Workflow routes.** `/v1/workflow/status`, `/checkpoint` and `/outputs` (backend of the `workflow` MCP server) require the token of the session's server group, which the MCP server reads from the tool server environment (never from the shell of a session); the session must belong to that group (401/403 otherwise). The routes only oh calls (`/v1/workflow/rules`, quit policies `/groups/{g}/policy`, attached clients `/v1/clients`) require the capability. A heartbeat keeps a client alive for 5 minutes at most.
+- **Checkpoints bound to the user's validation.** A checkpoint that pauses in the session mode passes only with a validation seen by oh: given in oh (TUI, CLI), or given in the tool interface (oh reads the answer to the permission request in the event stream). Any other call (socket, forged MCP request) is refused and unlocks nothing; the agent is told to wait for the validation. An "always" answer saved by the tool does not let later checkpoints through: oh asks again.
 - **Checks.** `oh doctor` reports the capability storage, the mode and owner of the socket, and tokens left in clear in `oh.db`.
 - **Windows.** The daemon runs inside the oh process (no background daemon).
 
@@ -92,6 +97,8 @@ A session sees only the agents and skills of its bundle. This is mandatory and n
 - The oh plugin removes any agent or skill outside the bundle (a second barrier).
 - **`Attest`** runs after each server start and for each new folder: it compares the agents, the skills visible to each agent (on the effective rules reported by the tool) and the MCP servers with the bundle. Anything unexpected makes the launch fail; the server is stopped and its token revoked.
 - `[execution] strict_isolation` also hides your opencode user configuration in local mode. In a container or a remote job, it is never visible.
+
+- **Session bundle integrity**: a bundle is shared by every session of the same hash. Its files are read-only once built (0444, folders 0555); the agents' edit tool refuses it; its hash is recomputed when it is reused (a modified bundle is rebuilt) and when oh loads it (a modified bundle is never used). A bundle downloaded from a remote job is refused when it does not match its hash.
 
 The closed world is about what the model sees, not what the shell can do.
 
@@ -109,9 +116,10 @@ The closed world is about what the model sees, not what the shell can do.
 - The real `bd` runs without a shell, in the session folder (2 min timeout, 8 MiB per stream).
 - **Shell start-up**: the shell of a local session reads oh's start-up files (`ZDOTDIR` for zsh, `BASH_ENV` for bash, `~/.oh/run/shell/`): they load the user's own files (`~/.zshenv`…), then put the fake `bd` back first, so that a real `bd` installed by npm, volta or in `~/.local/bin` cannot come first. The daemon checks it once per session (alert ✗ in "To handle" otherwise) and so does `oh doctor`.
 - **Git hooks of Beads** (`bd hooks run <hook>`, run by git with `BD_GIT_HOOK=1`): they go through the gateway whatever `beads.allow` says, so that a commit is never blocked by the allow-list. `BD_GIT_HOOK` alone opens nothing: the fake `bd` of a local session asks the daemon, on its socket, for a **one-time hook token** (30 s, bound to the session and the hook); the daemon gives it only when the calling process is run by git from the hook of the session location (process tree read on the machine, macOS and Linux; elsewhere only the shape of the command is checked). Only `hooks run <bd hook>` with the arguments git passes to that hook (number and form) are accepted. Outside the machine (container, remote job), they are not run on the machine (the hooks bd chains would run outside the container).
-- **Git hooks are never bypassed**: every agent is refused `--no-verify` (`-n` for a commit), `-c core.hooksPath=…`, `git config core.hooksPath`, `GIT_CONFIG_*`, config includes, and writing to `.git/` or `.beads/hooks/` (shell and edit tool).
-- **Commit and closing locked by a checkpoint** (`unlocks:`, e.g. `cp-2` of `ticket`): until it is approved, `git commit`, `git push` and closing a ticket are refused to every agent; then the gateway closes a ticket only once the work is committed: HEAD moved from the commit of the checkpoint (on top of it), at least one commit changes tracked files outside `.beads/` (an empty commit does not count) and nothing is left to commit. A git or lock error refuses the closing.
+- **Git hooks** (guard rail): every agent is refused `--no-verify` and its abbreviations, `-n` alone or combined with the short options of a commit (`-an`, `-qn`, `-aqn`…), `-c core.hooksPath=…` and any `git -c` option, `git config core.hooksPath`, `GIT_CONFIG_*`, config includes, writing to `.git/`, `.beads/hooks/`, `.husky/`, `.githooks/` (shell), editing `.git/`, the `.git` file of a worktree and `.beads/hooks/`; editing the hook files of the project (`.husky/*`, `.githooks/*`, `lefthook*.yml`, `.pre-commit-config.yaml`) asks.
+- **Commit and closing locked by a checkpoint** (`unlocks:`, e.g. `cp-2` of `ticket`): until it is approved, `git commit` (and the commands that create a commit: `git revert`, `pull`, `merge`, `cherry-pick`, `am`, `rebase`, `stash pop`), `git push` and closing a ticket are refused to every agent; then the gateway closes a ticket only once the work is committed: HEAD moved from the commit of the checkpoint (on top of it), at least one commit changes tracked files outside `.beads/` (an empty commit does not count) and nothing is left to commit. A git or lock error refuses the closing.
 - **Environment of `bd`**: the real `bd` gets a minimal environment (`PATH`, `HOME`, user, locale, temporary folder, XDG folders, `BEADS_*`), never the other variables of the daemon. The token of a subagent is revoked when its run ends and given again when it resumes. The grants kept in `~/.oh/run/gateway.json` are signed by the daemon (key derived from its capability): a file that was changed, is malformed or is readable by others is ignored at restart.
+- **Global guard** (last of every agent, whatever its permission base, also without a locking workflow; applied by the oh plugin, rendered in every agent without it): git commands that throw work away anywhere in the line (after `env`, `X=y`, `sh -c`, `git -C`); git options and variables that run a program or write a file (`--output`, `--upload-pack`, `--receive-pack`, `--ext-diff`, `--textconv`, `fsmonitor`, `GIT_DIR`, `GIT_SSH*`, `GIT_EXTERNAL_DIFF`, `GIT_PAGER`…); the oh socket and data (`ohd.sock`, `--unix-socket`, `~/.oh/run`, `~/.oh/bundles`, `oh.db`, `oh mcp serve`); the secrets and API of the opencode server; `find -exec|-delete|-ok…`; shell start-up files, `~/.ssh`, `~/.aws`, `~/.kube`, `~/.gitconfig`, `~/.netrc`, `~/.npmrc`, `crontab`, `LaunchAgents`; system installations (`npm -g` in any order, `--location=global`, `yarn global`, `pnpm -g`, `uv --system`, `--break-system-packages`, `sudo`); docker/podman options that get out of the container (`--privileged`, machine mounts, `--network host`, docker socket…). The context-mode tools that run code (`ctx_execute`…) never get more than the agent's shell.
 
 **MCP gateway** (outside the machine). oh MCP servers of the bundle run on the machine, started by the daemon from the immutable bundle; they read their own tokens from the keychain. The container reaches them over HTTP with the group token (`{env:…}`, never written in the configuration). A call whose `_meta` designates a session of another group is refused (403).
 
@@ -126,7 +134,9 @@ MCP server tokens (GitLab, Figma, Jira, Linear, GitHub, Google) are:
 ### Container sessions
 
 - **No secret in the container's environment.** The environment is passed with `--env-file` (0600) and is minimal, with no variable from the machine. The only credentials the shell sees are the `ohs_…` token and an `ohg_…` token (with `OH_GATEWAY_URL`).
-- **Read-only bundle** on `/opt/oh/bundle`. `HOME` is a volume of the project: your configuration is never visible. `~/.oh` is not mounted: neither the daemon socket nor `oh.db` are reachable.
+- **Read-only bundle** on `/opt/oh/bundle`. `HOME` is a volume of the server group, emptied at each container start: your configuration is never visible and nothing an agent leaves there (`.zshenv`…) reaches another session. `~/.oh` is not mounted: neither the daemon socket nor `oh.db` are reachable.
+- **Git files that run programs are read-only**: `.git/config`, `.git/hooks`, `info/attributes`, and for a worktree its `.git` file and the `commondir`/`gitdir` links, in every view of the repository inside the container. The git of the machine (oh, then you after the session) runs nothing an agent planted there. Consequence: `git push -u` and `git branch --set-upstream-to` (which write the configuration) fail inside the container; branches are created without tracking configuration (`branch.autoSetupMerge=false`).
+- **Hardened container**: `--cap-drop=ALL`, `--security-opt=no-new-privileges`, `--pids-limit=4096`; cache volumes refuse commas, quotes, `=`, `..` and targets under `/opt/oh`. The environment file (session tokens) is removed shortly after the container starts and when it stops.
 - The opencode port is published on `127.0.0.1` only. A mount outside the folders shared with the VM is refused.
 - The container is removed when the session stops or sleeps (`run --rm --init`).
 
@@ -148,14 +158,30 @@ Optional and disabled by default (`oh budget show|set|unset|raise`): maximum act
 
 ### Known limitations of the local mode
 
-- The agent's shell runs as your user. It may see its server's own proxy token, and it can still reach the daemon socket and `oh.db`.
+- The agent's shell runs as your user. It can still reach the daemon socket and `oh.db`, but the socket no longer passes a checkpoint (see above).
+- **Environment of other processes**: a process of your user can read the environment of another one (`ps eww` on macOS, `/proc/<pid>/environ` on Linux), including the opencode server (password, tokens); these commands are refused to agents as a guard rail, not a barrier.
+- **oh's git on the machine**: oh runs git in your repositories (state before a checkpoint, worktrees, diffs, Beads clean-up) with what the repository configuration could run neutralized (`core.fsmonitor`, hooks, `diff.external`, textconv, `core.sshCommand`, `uploadpack`/`receivepack`, credential helpers, `ext::` URLs), and refuses to pass a checkpoint that unlocks an operation when the git configuration or hooks changed since the session started.
 - Without the capability it cannot obtain new tokens, but a process of your user can read the keychain item or the capability file, or run `oh` itself. These protections raise the bar; they do not isolate the agent.
 - The LLM key is never in the agent's environment or in the opencode configuration, but your keychain is readable by your user.
-- The password of the opencode servers stays in clear in `oh.db` (needed to attach to a session).
+- The shell of a session never gets the opencode server password, its inline configuration, the group token nor the provider token: the oh plugin removes them from every shell, also without a session environment (a subagent not yet adopted, a session opened in the tool interface). Without an active oh plugin (fallback mode, reported in the log), a shell without a session environment still inherits them. Commands aiming at these variables or at the server API (permission and question answers, session environment) are refused to every agent, as a guard rail.
 - Without strict isolation, your opencode user configuration is loaded; `Attest` refuses what adds visible agents, skills or MCP servers, not other settings.
 - The shipped development agents (`developer-rw` base) install dependencies only in the project: `pip` only inside the project's virtual environment (`.venv/bin/…`, `uv`, `poetry`), no `npm -g`, `yarn global`, `pnpm add -g`, `gem install` nor `--break-system-packages`. Their allow-list is a guard rail, not a sandbox: test runners and build tools run the project's code.
 
+- **Infrastructure**: the `infra` agent reads freely (`terraform plan`, `kubectl get|describe|diff`, `helm template`, `aws … describe-*|list-*`…), asks before reading secrets (`terraform output`, `kubectl get secret`, `vault kv get`, `aws … get-*`) and tunnels; any change (`terraform apply`, `kubectl apply|delete|exec…`, `helm install|upgrade`, `aws … create-*|delete-*|put-*…`, `pulumi up`, `vault write`…) is refused until a checkpoint `unlocks: [apply]` is passed (always refused in a workflow that declares none), then asked one by one. Credential extraction (`get-secret-value`, `--with-decryption`, `get-login-password`, `assume-role`, `print-access-token`, `--show-secrets`, `kubectl config view --raw`…) is refused to every agent. Limit: `terraform plan` and `pulumi preview` run code of the repository (providers, programs); the real protection is a read-only credential (`ReadOnlyAccess` role, `view` kubeconfig) or a container session without `~/.aws` and `~/.kube`.
+- **Debugger and benchmarker**: the `debugger` no longer has a free shell (reads, read-only git, Beads, test runners on confirmation); the `benchmarker` no longer reads the environment (`env`, `printenv`) and asks before the tools that run an arbitrary command (`hyperfine`, `perf`, `wrk`, `py-spy`).
+
 Treat the local mode as "the agent acts with your user rights". Real isolation comes with container sessions.
+
+### What the shell rules do not protect
+
+opencode compares the shell rules with the raw text of each command of a line (verified on opencode 2.0.20):
+
+- **Quotes and spaces** are not normalized: `git pu''sh` or `git  push` (two spaces) do not match `git push*`.
+- **Declarations**: `export X=…`, `declare`, `local`… are not checked; a pattern on a variable name (`*GIT_DIR*`) is bypassed with `export GIT_DIR=… && git …`.
+- **Interpreters and project tools**: any agent that can edit a file and run a build tool, a test runner or an interpreter runs whatever it wants (`npm run`, `make`, `pytest` with a `conftest.py`, `.venv/bin/python`, `go run`…).
+- **Outside the project**: opencode's "external directory" permission covers the working directory and `cd` only; a redirection (`> ~/file`) or an argument writes outside the project without asking. Only the patterns of the guard cover sensitive files.
+
+What does not depend on patterns: a paused checkpoint passes only with your validation seen by oh; Beads and the oh MCP servers go through gateways that apply the workflow list; the proxy keeps the keys; the container isolates the file system. For work that writes, prefer the container, and give infrastructure tools read-only credentials.
 
 ### Known limitations of the remote mode
 

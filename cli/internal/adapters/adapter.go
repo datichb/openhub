@@ -118,6 +118,16 @@ type ToolEvent struct {
 	Feed      *domain.FeedItem // live feed entry, when the event is shown to users
 	// Call is set on tool call events (called, then succeeded or failed).
 	Call *ToolCall
+	// Answer is set on EventDecisionReplied when the tool says how a
+	// permission request was answered (a checkpoint validated in the tool).
+	Answer *DecisionAnswer
+}
+
+// DecisionAnswer is the answer given in the tool to a pending permission
+// request (PendingDecision.ID).
+type DecisionAnswer struct {
+	ID       string
+	Approved bool
 }
 
 // ToolCall is a tool call of the agent, in neutral terms.

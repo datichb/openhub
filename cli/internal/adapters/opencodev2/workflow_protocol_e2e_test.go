@@ -254,6 +254,10 @@ func TestE2EQuickCommitGate(t *testing.T) {
 	for i := range b.Agents {
 		b.Agents[i].Model = &m
 	}
+	// The bundle is changed after the build (test model): saved under a
+	// test name, not under its content hash (bundles named by their hash are
+	// verified at load, N23).
+	b.Hash = "h_quick_e2e"
 	e.saveBundle(t, b)
 	h, project := e.startGroup(t, a, b, tok)
 	gitInit := exec.Command("git", "-C", project, "commit", "--allow-empty", "-qm", "init")

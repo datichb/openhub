@@ -23,7 +23,7 @@ func TestInstallPluginAndOptions(t *testing.T) {
 	body, _ := os.ReadFile(filepath.Join(dir, "agents", "developer.md"))
 	assert.Equal(t, "You are developer.", string(body))
 
-	withP := withOhPlugin(b, dir, "/tmp/trace", nil)
+	withP := withOhPlugin(b, dir, "/tmp/trace", nil, nil)
 	require.Len(t, withP.Plugins, 1)
 	opts := withP.Plugins[0].Options
 	assert.Equal(t, filepath.Join(dir, "agents"), opts["agentsDir"])
@@ -40,7 +40,7 @@ func TestInstallPluginAndOptions(t *testing.T) {
 
 func TestFallbackBundle(t *testing.T) {
 	b := sampleBundle()
-	b.Plugins = append(b.Plugins, withOhPlugin(b, "/x", "", nil).Plugins...)
+	b.Plugins = append(b.Plugins, withOhPlugin(b, "/x", "", nil, nil).Plugins...)
 	fb := withoutOhPlugin(b)
 	assert.Empty(t, fb.Plugins)
 	assert.True(t, strings.HasPrefix(fb.Agents[0].Body, "You are working inside an oh session"))
@@ -56,10 +56,13 @@ func TestFallbackBundle(t *testing.T) {
 func TestHookOptions(t *testing.T) {
 	assert.Nil(t, hookOptions(sessionspec.ProviderSpec{ID: "amazon-bedrock"}), "no proxy, no hooks")
 	got := hookOptions(sessionspec.ProviderSpec{ID: "amazon-bedrock", BaseURL: "http://host.docker.internal:5555/amazon-bedrock", SessionToken: "ohs_x"})
-	assert.Equal(t, map[string]any{"hookURL": "http://host.docker.internal:5555/oh/v1/hooks", "tokenEnv": "AWS_BEARER_TOKEN_BEDROCK"}, got)
+	assert.Equal(t, map[string]any{"hookURL": "http://host.docker.internal:5555/oh/v1/hooks", "tokenEnv": "AWS_BEARER_TOKEN_BEDROCK",
+		"gated": []string{"workflow_checkpoint"}}, got)
 
-	b := withOhPlugin(sessionspec.BundleSpec{}, "/p", "", got)
+	b := withOhPlugin(sessionspec.BundleSpec{}, "/p", "", got, serverSecretEnv(sessionspec.ProviderSpec{ID: "amazon-bedrock"}))
 	opts := b.Plugins[len(b.Plugins)-1].Options
 	assert.Equal(t, "http://host.docker.internal:5555/oh/v1/hooks", opts["hookURL"])
 	assert.NotContains(t, opts, "token", "the token stays in the server environment")
+	assert.Equal(t, []string{"OPENCODE_SERVER_PASSWORD", "OPENCODE_CONFIG_CONTENT", "OPENCODE_CONFIG", "OPENCODE_CONFIG_DIR", "OH_GROUP_TOKEN", "AWS_BEARER_TOKEN_BEDROCK"},
+		opts["scrubEnv"], "N2: the shell never gets the server secrets")
 }

@@ -73,11 +73,24 @@ func hookOptions(p sessionspec.ProviderSpec) map[string]any {
 		return nil
 	}
 	u.Path, u.RawQuery = strings.TrimSuffix(credproxy.HooksPrefix, "/"), ""
-	return map[string]any{"hookURL": u.String(), "tokenEnv": env}
+	gated := []string{ToolAction(sessionspec.MCPToolAction(sessionspec.WorkflowMCPServer, sessionspec.WorkflowToolCheckpoint))}
+	return map[string]any{"hookURL": u.String(), "tokenEnv": env, "gated": gated}
+}
+
+// serverSecretEnv are the variables of the server process that a shell
+// never gets (v5 critical N2): with the password an agent could answer its
+// own permission requests through the API, with the inline config read or
+// replace its rules; the group token opens the oh workflow routes.
+func serverSecretEnv(p sessionspec.ProviderSpec) []string {
+	out := []string{"OPENCODE_SERVER_PASSWORD", "OPENCODE_CONFIG_CONTENT", "OPENCODE_CONFIG", "OPENCODE_CONFIG_DIR", sessionspec.EnvGroupToken}
+	if env := providerTokenEnv(p); env != "" {
+		out = append(out, env)
+	}
+	return out
 }
 
 // withOhPlugin returns a copy of b that ships the oh plugin installed in dir.
-func withOhPlugin(b sessionspec.BundleSpec, dir, traceFile string, hooks map[string]any) sessionspec.BundleSpec {
+func withOhPlugin(b sessionspec.BundleSpec, dir, traceFile string, hooks map[string]any, scrubEnv []string) sessionspec.BundleSpec {
 	// agent bodies are written next to the plugin by installPlugin
 	out := b
 	out.Plugins = append([]sessionspec.PluginDef(nil), b.Plugins...)
@@ -92,6 +105,8 @@ func withOhPlugin(b sessionspec.BundleSpec, dir, traceFile string, hooks map[str
 		"agents":       agents,
 		"skills":       skills,
 		"systemAgents": systemAgents,
+		"scrubEnv":     append([]string{}, scrubEnv...),
+		"guard":        toRules(AgentGuard(b)),
 	}
 	if traceFile != "" {
 		opts["traceFile"] = traceFile

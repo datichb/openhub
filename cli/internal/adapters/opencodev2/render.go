@@ -52,6 +52,8 @@ func Render(b sessionspec.BundleSpec, p sessionspec.ProviderSpec, natives []stri
 		if tokenEnv := providerTokenEnv(p); tokenEnv != "" {
 			env[tokenEnv] = p.SessionToken
 		}
+		// The workflow MCP server authenticates to the oh daemon with it.
+		env[sessionspec.EnvGroupToken] = p.SessionToken
 	}
 	return adapters.RenderedConfig{
 		Env:   env,
@@ -147,6 +149,10 @@ func renderAgent(a sessionspec.AgentDef, b sessionspec.BundleSpec, bundleSkills 
 	}
 
 	rules := agentRules(a, b, bundleSkills)
+	if !usePlugin {
+		// Without the oh plugin, the guard is rendered in every agent.
+		rules = append(rules, AgentGuard(b)...)
+	}
 	out["permissions"] = toRules(rules)
 	return out
 }
@@ -174,6 +180,13 @@ func agentRules(a sessionspec.AgentDef, b sessionspec.BundleSpec, bundleSkills [
 	if b.SkillsDir != "" {
 		rules = append(rules, sessionspec.PermissionRule{Action: ActionExternalDir, Resource: path.Join(b.SkillsDir, "*"), Effect: sessionspec.EffectAllow})
 	}
+	// Read only: the bundle is shared by every session of its hash (v5
+	// critical N23); its files are also read-only on disk.
+	for _, dir := range []string{b.Root, b.SkillsDir} {
+		if dir != "" {
+			rules = append(rules, sessionspec.PermissionRule{Action: sessionspec.ActionEdit, Resource: path.Join(dir, "*"), Effect: sessionspec.EffectDeny})
+		}
+	}
 	// Subagents: only the graph targets.
 	rules = append(rules, sessionspec.PermissionRule{Action: sessionspec.ActionSubagent, Resource: "*", Effect: sessionspec.EffectDeny})
 	targets := append([]string(nil), b.SubagentGraph[a.ID]...)
@@ -184,6 +197,36 @@ func agentRules(a sessionspec.AgentDef, b sessionspec.BundleSpec, bundleSkills [
 		}
 	}
 	return rules
+}
+
+// AgentGuard returns the rules in force last for every agent: the guard of
+// the bundle and the control plane of the tool. With the oh plugin they are
+// given once to the plugin (option guard), which applies them to every
+// evaluated permission: rendered in every agent they would make the inline
+// configuration too large (one environment variable, 128 KiB at most on
+// Linux). Without the plugin they are rendered last of every agent.
+func AgentGuard(b sessionspec.BundleSpec) []sessionspec.PermissionRule {
+	return append(append([]sessionspec.PermissionRule(nil), b.AgentGuard...), controlPlaneGuard()...)
+}
+
+// controlPlaneShell are the shell commands refused to every agent, last of
+// its rules, that would drive the tool server itself (v5 critical N2): its
+// secrets and the API answering permissions and questions. The server
+// password never reaches the shell (plugin, scrubEnv); these rules guard
+// against mistakes and cheap tries, they are not a barrier (a pattern is
+// escaped by quotes, probe U2).
+var controlPlaneShell = []string{
+	"*OPENCODE_SERVER_PASSWORD*", "*OPENCODE_CONFIG_CONTENT*",
+	"*/api/session/*/permission*", "*/api/permission*", "*/api/session/*/form*", "*/api/form*",
+	"*/api/session/*/environment*", "*-u opencode:*", "*--user opencode:*",
+}
+
+func controlPlaneGuard() []sessionspec.PermissionRule {
+	out := make([]sessionspec.PermissionRule, 0, len(controlPlaneShell))
+	for _, p := range controlPlaneShell {
+		out = append(out, sessionspec.PermissionRule{Action: sessionspec.ActionShell, Resource: p, Effect: sessionspec.EffectDeny})
+	}
+	return out
 }
 
 func globalRules(b sessionspec.BundleSpec, skills []string) []sessionspec.PermissionRule {

@@ -160,7 +160,27 @@ func TestWorkflowLocksAndEnd(t *testing.T) {
 	assert.False(t, st0.HasPassed("cp-2"))
 	fake.set(func() { fake.decisions["ses_a"] = nil })
 
-	// cp-2 passed: commit allowed; closing waits for the commit.
+	// N1: the agent reaches the daemon itself (socket, forged MCP call)
+	// before any validation: refused, nothing unlocked.
+	_, err = c.WorkflowCheckpoint(ctx, "ses_a", checkpoint.Call{ID: "cp-2"})
+	var api *APIError
+	require.ErrorAs(t, err, &api)
+	assert.Equal(t, http.StatusConflict, api.Status)
+	assert.Contains(t, api.Message, "cp-2")
+	assert.True(t, deniesShell(fake.rulesOf("ses_a"), "git commit*"))
+	st1 := state()
+	assert.False(t, st1.HasPassed("cp-2"))
+
+	// cp-2 asked by the tool, validated in the tool UI (answer observed):
+	// commit allowed; closing waits for the commit.
+	fake.set(func() {
+		fake.decisions["ses_a"] = []adapters.PendingDecision{{ID: "per_cp2", SessionID: "ses_a", Kind: adapters.DecisionPermission,
+			Call: &adapters.ToolCall{ID: "call_1", Action: "mcp:workflow/checkpoint", Input: map[string]any{"id": "cp-2", "summary": "done"}}}}
+	})
+	ch <- adapters.ToolEvent{Kind: adapters.EventDecisionAsked, SessionID: "ses_a"}
+	require.Eventually(t, func() bool { return state().Waiting == "cp-2" }, 3*time.Second, 20*time.Millisecond)
+	fake.set(func() { fake.decisions["ses_a"] = nil })
+	ch <- adapters.ToolEvent{Kind: adapters.EventDecisionReplied, SessionID: "ses_a", Answer: &adapters.DecisionAnswer{ID: "per_cp2", Approved: true}}
 	_, err = c.WorkflowCheckpoint(ctx, "ses_a", checkpoint.Call{ID: "cp-2"})
 	require.NoError(t, err)
 	assert.False(t, deniesShell(fake.rulesOf("ses_a"), "git commit*"))
