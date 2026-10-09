@@ -40,3 +40,44 @@ func TestTf_Format(t *testing.T) {
 	result := Tf("error.project_not_found", "my-app")
 	assert.Equal(t, "Project not found: my-app", result)
 }
+
+// keyOfScan is the former KeyOf: a scan of every message.
+func keyOfScan(s string) string {
+	for _, locale := range []string{"en", "fr"} {
+		best := ""
+		for k, v := range loadLocale(locale) {
+			if v == s && (best == "" || k < best) {
+				best = k
+			}
+		}
+		if best != "" {
+			return best
+		}
+	}
+	return ""
+}
+
+// N13: the reverse index gives the same key as the scan.
+func TestKeyOfMatchesTheScan(t *testing.T) {
+	n := 0
+	for _, locale := range []string{"en", "fr"} {
+		for _, v := range loadLocale(locale) {
+			if n++; n%7 != 0 {
+				continue
+			}
+			if got, want := KeyOf(v), keyOfScan(v); got != want {
+				t.Fatalf("KeyOf(%q) = %q, want %q", v, got, want)
+			}
+		}
+	}
+	if KeyOf("not a message of oh") != "" || KeyOf("") != "" {
+		t.Fatal("unknown text has no key")
+	}
+}
+
+func BenchmarkKeyOf(b *testing.B) {
+	msg := T("cmd.repair.long")
+	for b.Loop() {
+		KeyOf(msg)
+	}
+}

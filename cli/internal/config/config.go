@@ -532,6 +532,7 @@ func Save(c *Config) error {
 
 	// Atomic write: write to a temp file in the same directory, then rename.
 	// This prevents a half-written hub.toml on crash or power loss.
+	backupConfig(path, data)
 	tmpFile := path + ".tmp"
 	if err := os.WriteFile(tmpFile, data, 0o600); err != nil {
 		return fmt.Errorf("writing hub.toml tmp: %w", err)

@@ -41,15 +41,21 @@ Executez `oh doctor` pour verifier l'etat de sante de votre installation. Il eff
 Diagnostique et repare la base de donnees SQLite :
 
 ```bash
-oh repair                 # Diagnostic et reparation interactifs
+oh repair                 # Diagnostic (sans migrer la base)
 oh repair --check-only    # Verification sans modification
+oh repair --migrate       # Appliquer les migrations en attente, apres une sauvegarde
+oh repair --restore <fichier.bak> # Remettre une sauvegarde en place (demon arrete)
 oh repair --auto          # Non-interactif (pour les scripts)
 ```
 
+`oh repair` et `oh doctor` demarrent meme si `hub.toml` ne se charge pas ou si la base ne s'ouvre pas : ils ne migrent jamais la base d'eux-memes.
+
 Si la base de donnees est corrompue, `oh repair` va :
-1. Sauvegarder le fichier corrompu dans `<db>.corrupt-backup`
-2. Rechercher les sauvegardes d'export existantes (`oh-backup-*.tar.gz`)
-3. Proposer des options de recuperation : restaurer depuis une sauvegarde, reinitialiser, ou re-enregistrement manuel
+1. Copier les fichiers de la base (avec `-wal` et `-shm`) dans `<db>.corrupt-<date>`
+2. Lister les sauvegardes faites avant les migrations (`~/.oh/backups/`) et les exports (`oh-backup-*.tar.gz`)
+3. Proposer, dans l'ordre : restaurer une sauvegarde, restaurer un export, et seulement en dernier recours repartir d'une base vide
+
+**`hub.toml` illisible** : `oh doctor` affiche l'erreur avec sa ligne et sa colonne. `oh` garde une copie de `hub.toml` avant chaque enregistrement (`hub.toml.bak-<date>`, trois gardees) ; `oh doctor --fix` restaure la plus recente valide apres confirmation (`--yes` sans terminal), le fichier casse est garde en `hub.toml.broken-<date>`.
 
 ---
 

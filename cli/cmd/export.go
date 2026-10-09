@@ -42,7 +42,7 @@ var importCmd = &cobra.Command{
 }
 
 func init() {
-	rootCmd.AddCommand(exportCmd)
+	rootCmd.AddCommand(withInitLevel(exportCmd, levelDegraded))
 	rootCmd.AddCommand(importCmd)
 
 	exportCmd.Flags().StringP("output", "o", "", "Chemin de sortie (défaut: ./oh-backup-<date>.tar.gz)")

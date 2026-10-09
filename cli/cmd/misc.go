@@ -401,7 +401,7 @@ func runServiceRemove(cmd *cobra.Command, args []string) error {
 }
 
 func init() {
-	rootCmd.AddCommand(beadsCmd)
+	rootCmd.AddCommand(withInitLevel(beadsCmd, levelNone))
 
 	rootCmd.AddCommand(serviceCmd)
 	serviceCmd.Flags().StringP("project", "p", "", "Nom du projet")

@@ -316,3 +316,22 @@ func TestOpenRawNeedsAnExistingFile(t *testing.T) {
 func TestSplitStatements(t *testing.T) {
 	assert.Equal(t, []string{"A", "B 'x;y'", "C"}, splitStatements("A;\n B 'x;y' ;\nC;"))
 }
+
+// N13: the last failed migration is kept for oh doctor, cleared on success.
+func TestLastMigrationError(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "oh.db")
+	s, err := Open(path)
+	require.NoError(t, err)
+	s.Close()
+	assert.Empty(t, LastMigrationError(path))
+	withMigration(t, migration{version: 9003, up: `INSERT INTO nosuch VALUES (1)`})
+	_, err = Open(path)
+	require.Error(t, err)
+	assert.Contains(t, LastMigrationError(path), "migration v9003")
+	schemaMigrations = schemaMigrations[:len(schemaMigrations)-1]
+	withMigration(t, migration{version: 9003, up: `CREATE TABLE t9003 (x TEXT)`})
+	s, err = Open(path)
+	require.NoError(t, err)
+	s.Close()
+	assert.Empty(t, LastMigrationError(path))
+}

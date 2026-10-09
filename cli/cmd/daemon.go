@@ -99,7 +99,7 @@ func daemonNotifier(a *app.App) daemon.NotifyFunc {
 
 func init() {
 	daemonStopCmd.Flags().Bool("force", false, "Arrêter même si des sessions tournent")
-	daemonCmd.AddCommand(daemonRunCmd, daemonStatusCmd, daemonStopCmd)
+	daemonCmd.AddCommand(withInitDB(daemonRunCmd), daemonStatusCmd, daemonStopCmd)
 	rootCmd.AddCommand(daemonCmd)
 }
 

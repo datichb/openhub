@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -16,10 +15,8 @@ import (
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/domain"
-	"github.com/datichb/openhub/cli/internal/hubcontent"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/prettylog"
-	"github.com/datichb/openhub/cli/internal/sessionstats"
 	"github.com/datichb/openhub/cli/internal/storage/filecrypt"
 	"github.com/datichb/openhub/cli/internal/storage/keychain"
 	"github.com/datichb/openhub/cli/internal/storage/sqlite"
@@ -68,36 +65,10 @@ var rootCmd = &cobra.Command{
 			common.SetNoTUI(true)
 		}
 
-		// Skip heavy init for commands that don't need it
-		if cmd.Name() == "version" || cmd.Name() == "help" || cmd.Name() == "completion" || isRunnerInstall(cmd) {
-			return nil
-		}
-
-		// Auto-bootstrap hub content if needed (extract embedded agents/skills/permissions).
-		// This replaces the former hard gate that required `oh init` before any command.
-		// The TUI's inline first-run wizard handles the rest (provider, credentials, project).
-		if cmd.Name() != "init" && cmd.Name() != "doctor" && cmd.Name() != "purge" {
-			if hubcontent.NeedsExtract() {
-				if err := hubcontent.Extract(hubcontent.HubContentDir()); err != nil {
-					slog.Warn("failed to extract hub content", "error", err)
-				}
-			}
-		}
-
-		if err := initApp(); err != nil {
-			return err
-		}
-		// Former workflow configurations → team-state (v5 phase 2, v38).
-		if cmd.Name() != "init" && cmd.Name() != "purge" {
-			migrateLegacyWorkflowsAtStartup(cmd.Context(), os.Stderr)
-		}
-		// Former deployments: offered once (the TUI shows its own screen).
-		if offerCleanupFor(cmd) {
-			offerDeployCleanupAtStartup(cmd.Context(), os.Stderr, cmd.Name())
-		}
-		// Localize Cobra command descriptions after locale is loaded
-		localizeCommands(cmd.Root())
-		return nil
+		// Startup of the command's level (N13): background processes and
+		// the diagnostic commands do not run the full startup. The help is
+		// translated when it is shown (help function), not here.
+		return startupFor(cmd, args)
 	},
 }
 
@@ -153,8 +124,8 @@ func ExitCode(err error) int {
 // error (command registered without PersistentPreRunE running first).
 func MustApp() *app.App {
 	if application == nil {
-		fmt.Fprintln(os.Stderr, "oh: erreur interne — application non initialisée.")
-		fmt.Fprintln(os.Stderr, "Vérifiez que la configuration (~/.oh/hub.toml) est accessible.")
+		ensureLocale()
+		fmt.Fprintln(os.Stderr, i18n.T("cmd.init.level.not_initialized"))
 		os.Exit(1)
 	}
 	return application
@@ -212,21 +183,8 @@ func initApp() error {
 	store = s
 
 	// Wire stores
-	a.WithProjectStore(sqlite.NewProjectStore(s))
-	a.WithSessionStore(sqlite.NewSessionStore(s))
-	a.WithAgentEventStore(sqlite.NewAgentEventStore(s))
-	prefs := sqlite.NewPreferenceStore(s)
-	a.WithPreferences(prefs, prefs)
+	wireStores(a, s)
 	a.WithSecretStore(resolveSecretStore())
-
-	// Session tool (supported release only) and statistics from the oh registry.
-	a.WithToolVersion(func() (string, error) {
-		if err := requireV2(context.Background()); err != nil {
-			return "", err
-		}
-		return v5Tool.Version, nil
-	})
-	a.WithStats(sessionstats.New(a.Sessions, a.Projects))
 
 	// Auto-migrate legacy ProjectTeamConfig → TeamID (ADR-029).
 	if activeTeam := a.Config.ActiveTeam(); activeTeam.ID != "" {
@@ -238,7 +196,7 @@ func initApp() error {
 	}
 
 	// Auto-migrate legacy keychain entries (gitlab-token → openhub.mcp.gitlab.token, etc.)
-	if n := config.MigrateKeychainKeys(a.Secrets); n > 0 {
+	if n := migrateKeychainKeysOnce(a.Secrets); n > 0 {
 		slog.Info("migrated keychain keys to unified convention", "count", n)
 	}
 

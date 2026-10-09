@@ -38,7 +38,7 @@ var mcpCmd = &cobra.Command{
 
 func init() {
 	rootCmd.AddCommand(mcpCmd)
-	mcpCmd.AddCommand(mcpServeCmd())
+	mcpCmd.AddCommand(withInitLevel(mcpServeCmd(), levelLight))
 	mcpCmd.AddCommand(mcpListCmd())
 	mcpCmd.AddCommand(mcpEnableCmd())
 	mcpCmd.AddCommand(mcpDisableCmd())

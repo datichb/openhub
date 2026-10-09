@@ -26,13 +26,15 @@ oh init
 
 Vérifie l'état du système et les dépendances. Sort avec le code 1 si un contrôle échoue (✗) ; les avertissements (⚠) ne comptent pas. La vue Doctor de la TUI exécute exactement les mêmes contrôles.
 
+`oh doctor` fonctionne même quand `hub.toml` ne se charge pas ou que la base ne s'ouvre pas (démarrage dégradé) : le contrôle en échec le dit (erreur TOML avec ligne et colonne, base illisible), les autres contrôles s'exécutent. La base est ouverte **sans être migrée** : version du schéma et version connue d'oh, migrations en attente (⚠), dernière migration en échec, schéma plus récent que cette version d'oh, contrôle rapide d'intégrité, taille du WAL.
+
 ```
 oh doctor [--fix [--yes]]
 ```
 
 | Flag | Court | Type | Description |
 |------|-------|------|-------------|
-| `--fix` | | bool | Répare d'abord ce qui peut l'être : **Beads zéro impact** (contenu écrit par `bd init` dans les projets enregistrés, commité compris), après un résumé et une confirmation |
+| `--fix` | | bool | Répare d'abord ce qui peut l'être, après un résumé et une confirmation : un **`hub.toml` qui ne se charge plus** (remplacé par la dernière sauvegarde valide `hub.toml.bak-<date>`, le fichier cassé gardé en `hub.toml.broken-<date>`), **Beads zéro impact** (contenu écrit par `bd init` dans les projets enregistrés, commité compris) |
 | `--yes` | `-y` | bool | Avec `--fix` : appliquer sans confirmation (obligatoire sans terminal) |
 
 Contrôles : OS et architecture, git, `bd` (optionnel), version d'oh (mise à jour disponible : avertissement ; une pré-version comme `5.0.0-rc.1` ou un build de développement `git describe` plus récent que la dernière version publiée est à jour), `hub.toml`, identifiants du provider (cascade d'un lancement depuis le dossier courant : clé du projet, de l'équipe, du hub, puis profil AWS pour Bedrock), base de données, clés API (trousseau), Beads « zéro impact » (hooks, `.gitignore`), puis les contrôles v5 : opencode V2 (version minimale ; V1 refusé avec le [guide de migration](../guides/migration-v5.fr.md)), démon `ohd`, git, ouverture des terminaux, moteur de conteneurs et image, passerelles, restrictions et mémoire, sécurité (socket, capacité, jetons), restes des anciens déploiements, intégrité des workflows du team-state, cibles distantes, réservations d'équipe orphelines (ticket fermé, ou toutes les sessions du ticket terminées ; avec la commande `oh team release` à lancer).
@@ -159,23 +161,26 @@ oh import ~/sauvegardes/oh-backup.tar.gz --merge
 
 ### oh repair
 
-Vérifie l'intégrité de la base SQLite (`PRAGMA integrity_check` sur `~/.oh/oh.db`). En cas de corruption, tente une récupération et propose : restaurer une sauvegarde, réinitialiser la base, ou réenregistrer les projets. Affiche aussi la version du schéma.
+Vérifie la base SQLite `~/.oh/oh.db` **sans la migrer** et sans avoir besoin d'une configuration ou d'une base qui fonctionnent : intégrité (`PRAGMA integrity_check`), version du schéma et version connue d'oh, migrations en attente, dernière migration en échec, sauvegardes faites avant les migrations (`~/.oh/backups/`). En cas de corruption, les fichiers de la base (avec `-wal` et `-shm`) sont copiés en `oh.db.corrupt-<date>`, puis les options sont proposées : restaurer une sauvegarde d'avant migration, restaurer un export, et seulement en dernier recours repartir d'une base vide.
 
 ```
-oh repair [--check-only] [--auto]
+oh repair [--check-only] [--auto] [--migrate] [--restore <fichier>]
 ```
 
 | Flag | Type | Description |
 |------|------|-------------|
 | `--check-only` | bool | Vérifier uniquement, sans réparer |
-| `--auto` | bool | Mode non interactif (scripts) |
+| `--auto` | bool | Mode non interactif (scripts) ; confirme `--restore` sans terminal |
+| `--migrate` | bool | Appliquer les migrations en attente ; une sauvegarde (`VACUUM INTO`, WAL compris) est faite avant ; l'erreur d'une migration est détaillée avec la sauvegarde à restaurer |
+| `--restore` | string | Remettre en place une sauvegarde (fichier `.bak`) ; le démon doit être arrêté (`oh daemon stop`) ; la base remplacée est gardée en `oh.db.replaced-<date>` |
 
 **Exemple :**
 
 ```bash
 oh repair
 oh repair --check-only
-oh repair --auto
+oh repair --migrate
+oh repair --restore ~/.oh/backups/oh.db.v41-20261009T101500.000000000Z.bak
 ```
 
 ---

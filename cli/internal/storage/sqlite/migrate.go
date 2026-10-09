@@ -222,10 +222,27 @@ func (s *Store) migrateWith(allowNewer bool) error {
 	}
 	for _, m := range st.pending {
 		if err := runMigration(ctx, conn, m); err != nil {
-			return &MigrationError{Version: m.version, Backup: backup, Err: err}
+			me := &MigrationError{Version: m.version, Backup: backup, Err: err}
+			_ = os.WriteFile(s.path+lastErrorSuffix, []byte(me.Error()+"\n"), 0o600)
+			return me
 		}
 	}
+	_ = os.Remove(s.path + lastErrorSuffix)
 	return nil
+}
+
+// lastErrorSuffix names the file that keeps the last failed migration of a
+// database (shown by oh doctor), removed by the next successful run.
+const lastErrorSuffix = ".migrate.err"
+
+// LastMigrationError is the last failed migration of the database at path
+// ("" if the last run succeeded).
+func LastMigrationError(path string) string {
+	data, err := os.ReadFile(path + lastErrorSuffix)
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(data))
 }
 
 // runMigration applies one migration in a BEGIN IMMEDIATE transaction (the

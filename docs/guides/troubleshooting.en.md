@@ -41,15 +41,21 @@ Run `oh doctor` to check your installation health. It performs about twenty chec
 Diagnoses and repairs the SQLite database:
 
 ```bash
-oh repair                 # Interactive diagnosis and repair
+oh repair                 # Diagnosis (without migrating the database)
 oh repair --check-only    # Verify without modifying
+oh repair --migrate       # Apply the pending migrations, after a backup
+oh repair --restore <file.bak> # Put a backup back (daemon stopped)
 oh repair --auto          # Non-interactive (for scripts)
 ```
 
+`oh repair` and `oh doctor` start even when `hub.toml` does not load or the database does not open: they never migrate the database on their own.
+
 If the database is corrupt, `oh repair` will:
-1. Back up the corrupt file to `<db>.corrupt-backup`
-2. Search for existing export backups (`oh-backup-*.tar.gz`)
-3. Offer recovery options: restore from backup, reinitialize, or manual re-registration
+1. Copy the database files (with `-wal` and `-shm`) to `<db>.corrupt-<date>`
+2. List the backups taken before the migrations (`~/.oh/backups/`) and the exports (`oh-backup-*.tar.gz`)
+3. Offer, in this order: restore a backup, restore an export, and only as a last resort start from an empty database
+
+**Unreadable `hub.toml`**: `oh doctor` shows the error with its line and column. `oh` keeps a copy of `hub.toml` before each save (`hub.toml.bak-<date>`, three kept); `oh doctor --fix` restores the most recent valid one after confirmation (`--yes` without a terminal), the broken file is kept as `hub.toml.broken-<date>`.
 
 ---
 
