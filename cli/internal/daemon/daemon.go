@@ -197,7 +197,7 @@ func Run(ctx context.Context, opts Options) error {
 	_ = os.Chmod(opts.Paths.Socket(), 0o600)
 	l = peerListener{Listener: l}
 	d.listener = l
-	d.http = &http.Server{Handler: d.routes(), ReadHeaderTimeout: 10 * time.Second}
+	d.http = &http.Server{Handler: d.routes(), ReadHeaderTimeout: 10 * time.Second, ConnContext: withConn}
 	go func() {
 		if err := d.http.Serve(l); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			slog.Error("ohd api stopped", "error", err)

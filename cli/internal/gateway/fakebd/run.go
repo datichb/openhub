@@ -11,9 +11,11 @@ package fakebd
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"os"
 	"strings"
@@ -44,6 +46,15 @@ func Run(args []string, cwd string, getenv env, stdin io.Reader, stdout, stderr 
 		return 1
 	}
 	req := beadswire.ExecRequest{Argv: args, Cwd: cwd, GitHook: getenv(beadswire.EnvGitHook) == "1"}
+	if req.GitHook && len(args) >= 3 && args[0] == "hooks" && args[1] == "run" {
+		// Run by a git hook: the daemon checks that git runs this process
+		// from the session hook and gives a one-time hook token (S-06).
+		tok, err := hookToken(getenv, args)
+		if err != nil {
+			fmt.Fprintln(stderr, "bd: no hook token from the oh daemon: "+err.Error())
+		}
+		req.HookToken = tok
+	}
 	if wantsStdin(args) && stdin != nil {
 		data, err := io.ReadAll(io.LimitReader(stdin, beadswire.MaxStdin+1))
 		if err != nil {
@@ -97,6 +108,40 @@ func wantsStdin(args []string) bool {
 		}
 	}
 	return false
+}
+
+// hookToken asks the oh daemon, on its socket (set by the bd of local
+// sessions), for the one-time token of a git hook ("" without a socket: the
+// session is not local, the gateway skips the hook).
+func hookToken(getenv env, args []string) (string, error) {
+	sock := getenv(beadswire.EnvDaemonSocket)
+	if sock == "" || getenv(beadswire.EnvMode) == beadswire.ModeJournal {
+		return "", nil
+	}
+	body, err := json.Marshal(beadswire.HookTokenRequest{Token: getenv(beadswire.EnvToken), Argv: args})
+	if err != nil {
+		return "", err
+	}
+	client := &http.Client{Timeout: 30 * time.Second, Transport: &http.Transport{
+		DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
+			var d net.Dialer
+			return d.DialContext(ctx, "unix", sock)
+		},
+	}}
+	resp, err := client.Post("http://ohd"+beadswire.HookTokenPath, "application/json", bytes.NewReader(body))
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	data, _ := io.ReadAll(io.LimitReader(resp.Body, 64<<10))
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("%s: %s", resp.Status, strings.TrimSpace(string(data)))
+	}
+	var out beadswire.HookTokenResponse
+	if err := json.Unmarshal(data, &out); err != nil {
+		return "", err
+	}
+	return out.HookToken, nil
 }
 
 // gatewayBackend sends the command to the oh daemon.

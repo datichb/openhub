@@ -21,7 +21,26 @@ const (
 	EnvJournal  = "OH_BD_JOURNAL"
 	// EnvGitHook is set to 1 by the git hooks of Beads around `bd hooks run`.
 	EnvGitHook = "BD_GIT_HOOK"
+	// EnvDaemonSocket is the socket of the oh daemon, set by the bd of local
+	// sessions (~/.oh/run/bin/bd): a git hook asks it for a hook token.
+	EnvDaemonSocket = "OH_BD_DAEMON_SOCKET"
 )
+
+// HookTokenPath is the daemon route (on its socket) that issues the
+// one-time token of a Beads git hook (audit v5, S-06).
+const HookTokenPath = "/v1/gateway/hook-token"
+
+// HookTokenRequest asks for the token of a git hook: the session gateway
+// token and the command the hook runs.
+type HookTokenRequest struct {
+	Token string   `json:"token"`
+	Argv  []string `json:"argv"`
+}
+
+// HookTokenResponse carries the one-time hook token.
+type HookTokenResponse struct {
+	HookToken string `json:"hook_token"`
+}
 
 // Modes of the fake bd.
 const (
@@ -49,6 +68,9 @@ type ExecRequest struct {
 	// GitHook tells that git runs the command from a Beads hook
 	// (`bd hooks run <hook>`, EnvGitHook set by the hook).
 	GitHook bool `json:"git_hook,omitempty"`
+	// HookToken is the one-time token the daemon issued for this hook run
+	// (HookTokenPath); without it, the command is checked as any other.
+	HookToken string `json:"hook_token,omitempty"`
 }
 
 // ExecResponse relays the outcome of the real bd. A refused command has a

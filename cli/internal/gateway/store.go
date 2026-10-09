@@ -2,6 +2,7 @@ package gateway
 
 import (
 	"context"
+	"crypto/hmac"
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
@@ -10,6 +11,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
+	"runtime"
 	"sort"
 	"sync"
 	"time"
@@ -44,8 +47,10 @@ type Store struct {
 	ResolveBase func(ctx context.Context, location string) *Base
 
 	path   string // "" = memory only
+	key    []byte // signs the saved grants (nil = not signed)
 	mu     sync.Mutex
 	byHash map[string]Grant
+	hooks  map[string]hookTicket // one-time hook tokens (memory only)
 }
 
 type storedGrant struct {
@@ -55,19 +60,39 @@ type storedGrant struct {
 
 type storeFile struct {
 	Grants []storedGrant `json:"grants"`
+	// MAC authenticates the grants with the key of the daemon (HMAC-SHA256
+	// of their JSON): a file written by someone else is not trusted.
+	MAC string `json:"mac,omitempty"`
 }
+
+// maxStoreFile bounds the grant file read at startup.
+const maxStoreFile = 16 << 20
 
 // OpenStore loads the grants saved at path ("" = memory only). A missing
 // or unreadable file starts empty.
-func OpenStore(path string) (*Store, error) {
-	s := &Store{path: path, byHash: map[string]Grant{}}
+func OpenStore(path string) (*Store, error) { return OpenSignedStore(path, nil) }
+
+// OpenSignedStore is OpenStore with the grants authenticated by key (the
+// issuing capability of the daemon; nil = not signed). At startup (audit
+// v5, S-14) the file must be a regular file of mode 0600 at most, its MAC
+// must match, and each grant must be well formed; otherwise the grants are
+// dropped (their sessions get new tokens when resumed).
+func OpenSignedStore(path string, key []byte) (*Store, error) {
+	s := &Store{path: path, key: key, byHash: map[string]Grant{}}
 	if path == "" {
 		return s, nil
 	}
-	data, err := os.ReadFile(path)
+	fi, err := os.Lstat(path)
 	if errors.Is(err, os.ErrNotExist) {
 		return s, nil
 	}
+	if err != nil {
+		return s, err
+	}
+	if !fi.Mode().IsRegular() || (runtime.GOOS != "windows" && fi.Mode().Perm()&0o077 != 0) || fi.Size() > maxStoreFile {
+		return s, fmt.Errorf("gateway grants not trusted: %s is not a private regular file (%s)", path, fi.Mode())
+	}
+	data, err := os.ReadFile(path)
 	if err != nil {
 		return s, err
 	}
@@ -75,12 +100,37 @@ func OpenStore(path string) (*Store, error) {
 	if err := json.Unmarshal(data, &f); err != nil {
 		return s, fmt.Errorf("reading gateway grants: %w", err)
 	}
+	if len(key) > 0 {
+		want, err := grantsMAC(key, f.Grants)
+		if err != nil || !hmac.Equal([]byte(want), []byte(f.MAC)) {
+			return s, errors.New("gateway grants not trusted: their signature does not match")
+		}
+	}
 	for _, g := range f.Grants {
-		if g.Hash != "" {
+		if validGrant(g) {
 			s.byHash[g.Hash] = g.Grant
 		}
 	}
 	return s, nil
+}
+
+var tokenHash = regexp.MustCompile(`^[0-9a-f]{64}$`)
+
+func validGrant(g storedGrant) bool {
+	if !tokenHash.MatchString(g.Hash) || g.SessionID == "" || g.GroupKey == "" || !filepath.IsAbs(g.Location) {
+		return false
+	}
+	return g.Base == nil || g.Base.Dir == "" || g.Base.Dir == journalBase || filepath.IsAbs(g.Base.Dir)
+}
+
+func grantsMAC(key []byte, grants []storedGrant) (string, error) {
+	data, err := json.Marshal(grants)
+	if err != nil {
+		return "", err
+	}
+	m := hmac.New(sha256.New, key)
+	m.Write(data)
+	return hex.EncodeToString(m.Sum(nil)), nil
 }
 
 func hashToken(token string) string {
@@ -158,6 +208,21 @@ func (s *Store) RevokeSession(id string) {
 	s.revoke(func(g Grant) bool { return g.SessionID == id })
 }
 
+// RevokeHolder revokes the grant of one sub-session of a session (true
+// when there was one).
+func (s *Store) RevokeHolder(session, holder string) bool {
+	if holder == "" {
+		return false
+	}
+	found := false
+	s.revoke(func(g Grant) bool {
+		m := g.SessionID == session && g.Holder == holder
+		found = found || m
+		return m
+	})
+	return found
+}
+
 // Retain keeps only the grants for which keep returns true.
 func (s *Store) Retain(keep func(Grant) bool) {
 	s.revoke(func(g Grant) bool { return !keep(g) })
@@ -193,6 +258,13 @@ func (s *Store) saveLocked() error {
 		f.Grants = append(f.Grants, storedGrant{Hash: h, Grant: g})
 	}
 	sort.Slice(f.Grants, func(i, j int) bool { return f.Grants[i].Hash < f.Grants[j].Hash })
+	if len(s.key) > 0 {
+		mac, err := grantsMAC(s.key, f.Grants)
+		if err != nil {
+			return err
+		}
+		f.MAC = mac
+	}
 	data, err := json.Marshal(f)
 	if err != nil {
 		return err

@@ -9,7 +9,9 @@ import (
 	"runtime"
 
 	"github.com/datichb/openhub/cli/internal/config"
+	"github.com/datichb/openhub/cli/internal/daemon"
 	"github.com/datichb/openhub/cli/internal/gateway"
+	"github.com/datichb/openhub/cli/internal/gateway/beadswire"
 	"github.com/datichb/openhub/cli/internal/runsvc"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 )
@@ -24,11 +26,14 @@ const BeadsShimArg = "__bd"
 func ohShimsDir() string { return filepath.Join(config.HubDir(), "run", "bin") }
 
 // ensureBeadsShim writes the `bd` of local sessions in dir, calling exe.
-// It is rewritten when the oh executable moved.
+// It is rewritten when the oh executable moved. It tells the fake bd the
+// daemon socket, where a git hook asks for its hook token (S-06).
 func ensureBeadsShim(dir, exe string) error {
-	name, content := "bd", "#!/bin/sh\n# oh: Beads goes through the oh gateway (beads.allow of the workflow).\nexec "+shellQuote(exe)+" "+BeadsShimArg+" \"$@\"\n"
+	sock := daemon.DefaultPaths().Socket()
+	name, content := "bd", "#!/bin/sh\n# oh: Beads goes through the oh gateway (beads.allow of the workflow).\n"+
+		beadswire.EnvDaemonSocket+"="+shellQuote(sock)+" exec "+shellQuote(exe)+" "+BeadsShimArg+" \"$@\"\n"
 	if runtime.GOOS == "windows" {
-		name, content = "bd.cmd", "@echo off\r\n\""+exe+"\" "+BeadsShimArg+" %*\r\n"
+		name, content = "bd.cmd", "@echo off\r\nset \""+beadswire.EnvDaemonSocket+"="+sock+"\"\r\n\""+exe+"\" "+BeadsShimArg+" %*\r\n"
 	}
 	p := filepath.Join(dir, name)
 	if cur, err := os.ReadFile(p); err == nil && string(cur) == content {

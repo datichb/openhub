@@ -16,6 +16,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"runtime"
 	"strings"
 	"time"
 
@@ -86,16 +87,8 @@ func writeResp(w http.ResponseWriter, status int, resp beadswire.ExecResponse) {
 // Exec checks and runs one command for a grant. The HTTP status is 200 when
 // bd ran (whatever its exit code), 403 when the command is refused.
 func (b *Beads) Exec(ctx context.Context, g Grant, req beadswire.ExecRequest) (resp beadswire.ExecResponse, status int) {
-	allow := g.BeadsAllow
-	hook := req.GitHook && isGitHook(req.Argv)
-	if hook {
-		allow = gitHookAllow // run by git, whatever the workflow allows (A19)
-	}
-	c, err := checkBeads(req.Argv, allow)
-	if err != nil {
-		return refusalResp(err.Error()), http.StatusForbidden
-	}
 	view := View{}
+	var err error
 	if b.View != nil {
 		if view, err = b.View(ctx, g.GroupKey); err != nil {
 			slog.Warn("gateway: runtime view unavailable", "group", g.GroupKey, "error", err)
@@ -105,6 +98,30 @@ func (b *Beads) Exec(ctx context.Context, g Grant, req beadswire.ExecRequest) (r
 	if len(view.Locations) == 0 {
 		view.Locations = []string{g.Location}
 	}
+	hookName := ""
+	if req.GitHook {
+		hookName = GitHookName(req.Argv)
+	}
+	if hookName != "" && (len(view.Paths) > 0 || journalMode()) {
+		// Another runtime: the hooks bd chains (the project's own hooks)
+		// would run on the machine, out of the container; a remote job
+		// replays its journal later. Skipped: nothing runs.
+		slog.Debug("gateway: Beads git hook skipped (not a local session)", "session", g.SessionID, "hook", hookName)
+		return beadswire.ExecResponse{}, http.StatusOK
+	}
+	allow := g.BeadsAllow
+	hook := false
+	if hookName != "" {
+		if b.Store == nil || !b.Store.consumeHookToken(req.HookToken, g, hookName) {
+			slog.Warn("gateway: Beads git hook without a valid hook token", "session", g.SessionID, "hook", hookName)
+			return refusalResp(i18n.T("cmd.gateway.beads.hook_unverified")), http.StatusForbidden
+		}
+		hook, allow = true, gitHookAllow // run by git, whatever the workflow allows (A19)
+	}
+	c, err := checkBeads(req.Argv, allow)
+	if err != nil {
+		return refusalResp(err.Error()), http.StatusForbidden
+	}
 	dir := view.hostDir(req.Cwd, g.Location)
 	argv, err := view.translateArgs(c, dir)
 	if err != nil {
@@ -112,12 +129,6 @@ func (b *Beads) Exec(ctx context.Context, g Grant, req beadswire.ExecRequest) (r
 	}
 	if !exists(dir) {
 		return refusalResp(i18n.Tf("cmd.gateway.beads.path_outside", dir)), http.StatusForbidden
-	}
-	if hook && len(view.Paths) > 0 {
-		// Another runtime: the hooks bd chains (the project's own hooks)
-		// would run on the machine, out of the container. Skipped.
-		slog.Debug("gateway: Beads git hook skipped (not a local session)", "session", g.SessionID, "hook", req.Argv)
-		return beadswire.ExecResponse{}, http.StatusOK
 	}
 	beadsDir := ""
 	if c.Name() != "" && !c.Help() {
@@ -242,17 +253,19 @@ func (c *capped) Write(p []byte) (int, error) {
 
 func (c *capped) Bytes() []byte { return c.buf.Bytes() }
 
-// beadsEnv is the environment of the real bd: the one of the daemon, with
-// the workspace fixed by oh (BEADS_DIR) and the git hook marker set only
-// when git runs the command.
+// beadsEnv is the environment of the real bd (audit v5, S-14): only what
+// bd needs from the daemon's (PATH, HOME, user, locale, temporary
+// directory, XDG directories, the Beads settings BEADS_*, the journal mode
+// of a remote job), with the workspace fixed by oh (BEADS_DIR) and the git
+// hook marker set only when git runs the command. The daemon's secrets and
+// other variables are not passed.
 func beadsEnv(base []string, beadsDir string, hook bool) []string {
-	env := make([]string, 0, len(base)+2)
+	env := make([]string, 0, 16)
 	for _, kv := range base {
 		k, _, _ := strings.Cut(kv, "=")
-		if k == "BEADS_DIR" || k == beadswire.EnvGitHook {
-			continue
+		if keepBeadsVar(k) {
+			env = append(env, kv)
 		}
-		env = append(env, kv)
 	}
 	if beadsDir != "" {
 		env = append(env, "BEADS_DIR="+beadsDir)
@@ -261,4 +274,28 @@ func beadsEnv(base []string, beadsDir string, hook bool) []string {
 		env = append(env, beadswire.EnvGitHook+"=1")
 	}
 	return env
+}
+
+// beadsVars are the variables of the daemon passed to bd.
+var beadsVars = map[string]bool{
+	"PATH": true, "HOME": true, "USER": true, "LOGNAME": true, "SHELL": true, "LANG": true, "TZ": true,
+	"TMPDIR": true, "TEMP": true, "TMP": true, "NO_COLOR": true,
+	"XDG_CONFIG_HOME": true, "XDG_DATA_HOME": true, "XDG_CACHE_HOME": true, "XDG_STATE_HOME": true, "XDG_RUNTIME_DIR": true,
+	// Windows
+	"SYSTEMROOT": true, "SYSTEMDRIVE": true, "WINDIR": true, "COMSPEC": true, "PATHEXT": true, "USERPROFILE": true,
+	"APPDATA": true, "LOCALAPPDATA": true, "PROGRAMDATA": true, "HOMEDRIVE": true, "HOMEPATH": true, "USERNAME": true,
+	// journal mode of a remote job (cmd/runner.go)
+	beadswire.EnvMode: true, beadswire.EnvSnapshot: true, beadswire.EnvJournal: true,
+}
+
+func keepBeadsVar(k string) bool {
+	switch {
+	case k == "BEADS_DIR" || k == beadswire.EnvGitHook:
+		return false
+	case beadsVars[k], beadsVars[strings.ToUpper(k)] && runtime.GOOS == "windows":
+		return true
+	case strings.HasPrefix(k, "LC_"), strings.HasPrefix(k, "BEADS_"):
+		return true
+	}
+	return false
 }

@@ -57,6 +57,8 @@ In a session started by oh, `bd` goes through the Beads gateway of the daemon ([
 - **Closing a ticket** goes through the workflow lock (checkpoint `unlocks: [close]`), whatever the form: `bd close` / `bd done`, `bd update --status closed` (including `-sclosed`, `-s=closed`), a status of category `done` in the project configuration (`bd config set status.custom "shipped:done"`), `bd duplicate`, `bd supersede`, `bd import`, `bd batch`, `bd sql`, `bd todo done`.
 - **Refused forms**: a flag unknown to `bd` 1.3.1 (oh's flag table), `--db`, `--database`, `-C`/`--directory`, `--global`, `--repo`, a file (`-f`, `-o`, `--body-file`…) outside the session folders.
 - **Fixed database**: the database is the one of the session start; when `.beads/redirect`, `.beads/metadata.json` or `.beads/config.yaml` change during the session, `bd` is refused until the file is restored or the session restarted. Agents cannot write to `.beads/`.
+- **Git hooks of Beads**: run by git (commit, merge, checkout, push), they go through whatever `beads.allow` says; `BD_GIT_HOOK=1 bd hooks run …` run outside git is refused.
+- **Closing after the commit**: after the checkpoint, a ticket is closed only when a non-empty commit (tracked files outside `.beads/`) was made since, and nothing is left to commit.
 
 ---
 

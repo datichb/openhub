@@ -84,7 +84,11 @@ func TestBeadsWorkflowGuard(t *testing.T) {
 func TestBeadsGitHooks(t *testing.T) {
 	f := newFixture(t, []string{"show"})
 	hook := func(gitHook bool, argv ...string) (int, beadswire.ExecResponse) {
-		return f.call(t, f.token, beadswire.ExecRequest{Argv: argv, Cwd: "/work/proj", GitHook: gitHook})
+		tok := ""
+		if name := GitHookName(argv); name != "" {
+			tok = f.b.Store.IssueHookToken(f.grant, name) // given by the daemon to a hook run by git
+		}
+		return f.call(t, f.token, beadswire.ExecRequest{Argv: argv, Cwd: "/work/proj", GitHook: gitHook, HookToken: tok})
 	}
 	code, resp := hook(true, "hooks", "run", "pre-commit")
 	assert.Equal(t, http.StatusOK, code, resp.Error)

@@ -29,6 +29,7 @@ func (d *Daemon) routes() http.Handler {
 	mux.HandleFunc("POST "+apiPrefix+"/groups/{group}/policy", d.handlePolicy)
 	mux.HandleFunc("POST "+apiPrefix+"/proxy/listeners", d.privileged(d.handleListen))
 	mux.HandleFunc("POST "+apiPrefix+"/gateway/grants", d.privileged(d.handleGatewayGrant))
+	mux.HandleFunc("POST "+hookTokenRoute, d.handleHookToken) // S-06: checked on the caller process tree
 	mux.HandleFunc("GET "+apiPrefix+"/stream", d.handleStream)
 	mux.HandleFunc("GET "+apiPrefix+"/workflow/status", d.handleWorkflowStatus)
 	mux.HandleFunc("POST "+apiPrefix+"/workflow/checkpoint", d.handleWorkflowCheckpoint)
