@@ -40,12 +40,13 @@ type Secrets struct {
 	ProjectToken   string
 	TeamStateToken string
 	JobToken       string // CI_JOB_TOKEN: packages of oh-runner
+	JournalKey     string // private key of oh-runner that opens the journal key of the session
 }
 
 // Values returns the secret values (for scrubbing logs and artifacts).
 func (s Secrets) Values() []string {
 	var out []string
-	for _, v := range []string{s.LLMKey, s.ProjectToken, s.TeamStateToken, s.JobToken} {
+	for _, v := range []string{s.LLMKey, s.ProjectToken, s.TeamStateToken, s.JobToken, s.JournalKey} {
 		if v != "" {
 			out = append(out, v)
 		}
@@ -81,6 +82,7 @@ func ReadJob(getenv func(string) string) (*Job, error) {
 	}
 	j.Secrets = Secrets{
 		LLMKey: getenv(remote.VarLLMKey), TeamStateToken: getenv(remote.VarTeamStateToken), JobToken: getenv("CI_JOB_TOKEN"),
+		JournalKey: getenv(remote.VarJournalKey),
 	}
 	if id > 0 {
 		j.Secrets.ProjectToken = getenv(remote.ProjectTokenVar(id))
@@ -93,6 +95,9 @@ func ReadJob(getenv func(string) string) (*Job, error) {
 	}
 	if j.Secrets.JobToken == "" {
 		missing = append(missing, "CI_JOB_TOKEN")
+	}
+	if j.Secrets.JournalKey == "" {
+		missing = append(missing, remote.VarJournalKey)
 	}
 	if len(missing) > 0 {
 		sort.Strings(missing)

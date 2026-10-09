@@ -266,3 +266,50 @@ func TestSetupScopesLegacySecrets(t *testing.T) {
 	assert.False(t, unscoped, "LLM key still visible to every job")
 	assert.Equal(t, "glpat-new-token", runner.Variables[gitlabtest.VarKey(legacy, remote.RunEnvironment(api.ID))].Value)
 }
+
+// N21: setup creates the journal key pair of oh-runner (private key masked,
+// protected, scoped to the run job; public key in the repository), keeps it
+// when it is whole (another member's setup must not break the sessions sent
+// with it), and replaces it when a half is missing.
+func TestSetupJournalKeyPair(t *testing.T) {
+	ctx := context.Background()
+	svc, srv, _, _ := newSvc(t)
+	req := SetupRequest{Target: target(srv), Token: "glpat-member", Create: true,
+		LLM: &LLMSecret{Provider: "anthropic", Key: "sk-ant-123456"}}
+	rep, err := svc.Setup(ctx, req)
+	require.NoError(t, err)
+	assert.Equal(t, []StepStatus{StepCreated}, status(rep, StepJournal))
+	runner := srv.Project("acme/dev/oh-runner")
+	priv := runner.Variables[gitlabtest.VarKey(remote.VarJournalKey, remote.RunEnvironmentScope)]
+	assert.True(t, priv.Masked && priv.Protected && priv.Raw)
+	pub, err := remote.ParseJournalPublicKey(string(runner.Files[remote.JournalPublicKeyFile]))
+	require.NoError(t, err)
+	derived, err := remote.JournalPublicKey(priv.Value)
+	require.NoError(t, err)
+	assert.Equal(t, pub, derived, "the file is the public key of the variable")
+	assert.NotContains(t, string(runner.Files[remote.JournalPublicKeyFile]), priv.Value)
+
+	rep, err = svc.Setup(ctx, SetupRequest{Target: target(srv)})
+	require.NoError(t, err)
+	assert.Equal(t, []StepStatus{StepOK}, status(rep, StepJournal))
+	assert.Equal(t, priv.Value, runner.Variables[gitlabtest.VarKey(remote.VarJournalKey, remote.RunEnvironmentScope)].Value, "kept")
+	assert.Equal(t, []StepStatus{StepOK}, status(svc.Check(ctx, rep.Target), StepJournal))
+
+	// Pair broken (variable replaced by hand): Check fails, setup replaces it.
+	v := runner.Variables[gitlabtest.VarKey(remote.VarJournalKey, remote.RunEnvironmentScope)]
+	_, other, _ := remote.NewJournalKeyPair()
+	v.Value, v.Description = other, ""
+	runner.Variables[gitlabtest.VarKey(remote.VarJournalKey, remote.RunEnvironmentScope)] = v
+	assert.Equal(t, []StepStatus{StepFailed}, status(svc.Check(ctx, rep.Target), StepJournal))
+	rep, err = svc.Setup(ctx, SetupRequest{Target: target(srv)})
+	require.NoError(t, err)
+	assert.Equal(t, []StepStatus{StepCreated}, status(rep, StepJournal))
+	newPriv := runner.Variables[gitlabtest.VarKey(remote.VarJournalKey, remote.RunEnvironmentScope)].Value
+	derived, _ = remote.JournalPublicKey(newPriv)
+	pub, _ = remote.ParseJournalPublicKey(string(runner.Files[remote.JournalPublicKeyFile]))
+	assert.Equal(t, pub, derived)
+
+	// Public key file removed (oh-runner of an older oh): Check fails.
+	delete(runner.Files, remote.JournalPublicKeyFile)
+	assert.Equal(t, []StepStatus{StepFailed}, status(svc.Check(ctx, rep.Target), StepJournal))
+}

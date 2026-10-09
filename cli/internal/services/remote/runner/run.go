@@ -90,11 +90,11 @@ func Run(ctx context.Context, in Input) (*remote.Summary, error) {
 			sum.Error = in.Job.Secrets.Redact(err.Error())
 		}
 		sum.JournalEntries = countLines(JournalPath(in.OutDir))
-		if m.JournalKey != "" {
+		if key := in.Fetched.JournalKey; key != "" {
 			// Seal of the journal (S-04), checked by the machine before replay.
 			data, rerr := os.ReadFile(JournalPath(in.OutDir))
 			if rerr == nil || errors.Is(rerr, os.ErrNotExist) {
-				sum.JournalMAC, _ = remote.Seal(m.JournalKey, "journal", m.SessionID, data)
+				sum.JournalMAC, _ = remote.Seal(key, "journal", m.SessionID, data)
 			}
 		}
 		if werr := writeJSON(filepath.Join(in.OutDir, remote.SummaryFile), sum); werr != nil && err == nil {

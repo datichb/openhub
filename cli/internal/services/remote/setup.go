@@ -103,6 +103,7 @@ const (
 	StepVariable  = "variable"
 	StepRunners   = "runners"
 	StepBinary    = "binary"
+	StepJournal   = "journal_key"
 )
 
 // Step is one line of a report. Args are the values of the message
@@ -265,6 +266,9 @@ func (s *Service) Setup(ctx context.Context, req SetupRequest) (*Report, error) 
 	if err := s.variables(ctx, c, rep, pid, req); err != nil {
 		return rep, err
 	}
+	if err := s.journalKeyPair(ctx, c, rep, pid, branch); err != nil {
+		return rep, err
+	}
 	s.runners(ctx, c, rep, pid, t)
 	if req.OhBinary != "" {
 		pkg, err := s.uploadBinary(ctx, c, pid, req.OhBinary, archOf(t))
@@ -350,9 +354,92 @@ func (s *Service) Check(ctx context.Context, t config.RemoteTarget) *Report {
 		rep.add(StepTrigger, StepOK, nil, t.TriggerKeyOrDefault())
 	}
 	s.reportVariables(ctx, c, rep, pid)
+	if _, err := journalKeyState(ctx, c, pid, branch); err != nil {
+		rep.add(StepJournal, StepFailed, err, remote.VarJournalKey)
+	} else {
+		rep.add(StepJournal, StepOK, nil, remote.VarJournalKey)
+	}
 	s.runners(ctx, c, rep, pid, t)
 	s.binary(rep, t)
 	return rep
+}
+
+// journalKeyDescription is the description of the journal private key
+// variable: its public key, so that the pair can be checked without
+// reading the secret.
+func journalKeyDescription(pub string) string {
+	return "oh: journal key of the remote sessions, public key " + pub
+}
+
+// ErrNoJournalKey is returned when oh-runner has no journal key pair (set
+// up by an older oh, or incomplete): oh remote setup creates it.
+var ErrNoJournalKey = errors.New("oh-runner has no journal key pair")
+
+// journalKeyState returns the public key of the journal key pair of
+// oh-runner: the file of the repository, matching the description of the
+// private key variable (scoped to the run job).
+func journalKeyState(ctx context.Context, c *gitlab.Client, pid, branch string) (string, error) {
+	data, err := c.File(ctx, pid, remote.JournalPublicKeyFile, branch)
+	if gitlab.IsNotFound(err) {
+		return "", fmt.Errorf("%w (%s missing)", ErrNoJournalKey, remote.JournalPublicKeyFile)
+	}
+	if err != nil {
+		return "", err
+	}
+	pub, err := remote.ParseJournalPublicKey(string(data))
+	if err != nil {
+		return "", fmt.Errorf("%w (%s: %v)", ErrNoJournalKey, remote.JournalPublicKeyFile, err)
+	}
+	vs, err := c.Variables(ctx, pid)
+	if err != nil {
+		return "", err
+	}
+	for _, v := range vs {
+		if v.Key == remote.VarJournalKey && v.Scope() == remote.RunEnvironmentScope && v.Masked && v.Protected {
+			if v.Description != journalKeyDescription(pub) {
+				return "", fmt.Errorf("%w (%s does not match %s)", ErrNoJournalKey, remote.VarJournalKey, remote.JournalPublicKeyFile)
+			}
+			return pub, nil
+		}
+	}
+	return "", fmt.Errorf("%w (%s missing)", ErrNoJournalKey, remote.VarJournalKey)
+}
+
+// journalKeyPair keeps the journal key pair of oh-runner, or creates it:
+// the private key as a masked, protected variable of the run job only, the
+// public key as a file of the repository (read by every member's machine
+// when it sends a session). A new pair makes the sessions sent with the
+// old one unreadable by their job: only when the pair is missing or broken.
+func (s *Service) journalKeyPair(ctx context.Context, c *gitlab.Client, rep *Report, pid, branch string) error {
+	if _, err := journalKeyState(ctx, c, pid, branch); err == nil {
+		rep.add(StepJournal, StepOK, nil, remote.VarJournalKey)
+		return nil
+	} else if !errors.Is(err, ErrNoJournalKey) {
+		rep.add(StepJournal, StepFailed, err, remote.VarJournalKey)
+		return err
+	}
+	pub, priv, err := remote.NewJournalKeyPair()
+	if err != nil {
+		return err
+	}
+	v := gitlab.Variable{Key: remote.VarJournalKey, Value: priv, Masked: true, Protected: true, Raw: true,
+		EnvironmentScope: remote.RunEnvironmentScope, Description: journalKeyDescription(pub)}
+	if err := c.SetVariable(ctx, pid, v); err != nil {
+		rep.add(StepJournal, StepFailed, err, remote.VarJournalKey)
+		return err
+	}
+	if err := c.DeleteVariable(ctx, pid, v.Key, "*"); err != nil {
+		rep.add(StepJournal, StepFailed, err, remote.VarJournalKey)
+		return err
+	}
+	_, ferr := c.File(ctx, pid, remote.JournalPublicKeyFile, branch)
+	if err := c.CommitFile(ctx, pid, branch, remote.JournalPublicKeyFile, []byte(pub+"\n"),
+		"oh: public key of the journal keys of remote sessions", gitlab.IsNotFound(ferr)); err != nil {
+		rep.add(StepJournal, StepFailed, err, remote.JournalPublicKeyFile)
+		return err
+	}
+	rep.add(StepJournal, StepCreated, nil, remote.VarJournalKey, remote.JournalPublicKeyFile)
+	return nil
 }
 
 func (s *Service) access(ctx context.Context, c *gitlab.Client, rep *Report) (*gitlab.User, error) {
@@ -641,7 +728,7 @@ func secretScopeOK(v gitlab.Variable) bool {
 		return v.Scope() == remote.RunEnvironment(id)
 	}
 	switch v.Key {
-	case remote.VarLLMKey, remote.VarTeamStateToken:
+	case remote.VarLLMKey, remote.VarTeamStateToken, remote.VarJournalKey:
 		return v.Scope() == remote.RunEnvironmentScope
 	}
 	return true

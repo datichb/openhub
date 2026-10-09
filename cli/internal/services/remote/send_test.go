@@ -319,15 +319,104 @@ func TestSend(t *testing.T) {
 		}
 	}
 
-	// Same bundle again: not uploaded twice; image now in the registry.
-	runner.Images["acme-dev-api"] = []string{strings.SplitN(v[remote.VarImage], ":", 2)[1]}
+	// Journal key (N21): encrypted for the run job, never in clear in the
+	// registry; the private key of oh-runner opens it.
+	assert.Empty(t, man.LegacyJournalKey)
+	require.NotEmpty(t, man.JournalKeySealed)
+	key, _ := e.svc.Secrets.Get(ctx, remote.JournalKeySecret("ses_remote1"))
+	require.NotEmpty(t, key)
+	for k, data := range runner.Generic {
+		for name, f := range unpack(t, data) {
+			assert.NotContains(t, string(f), key, k+"/"+name)
+		}
+	}
+	priv := runner.Variables[gitlabtest.VarKey(remote.VarJournalKey, remote.RunEnvironmentScope)].Value
+	opened, err := remote.OpenJournalKey(priv, "ses_remote1", man.JournalKeySealed)
+	require.NoError(t, err)
+	assert.Equal(t, key, opened)
+
+	// The run job never takes its image by tag (N21): built in this
+	// pipeline, it gets the digest from the image job.
+	assert.Empty(t, v[remote.VarRunImage], "digest of the image job (dotenv)")
+	assert.True(t, ref.ImageBuilt)
+
+	// Same bundle again: not uploaded twice; the tag of the image is in the
+	// registry but this machine has not recorded its digest: built again.
+	tag := strings.SplitN(v[remote.VarImage], ":", 2)[1]
+	runner.Images["acme-dev-api"] = []string{tag}
 	e.svc.NewSessionID = func() string { return "ses_remote2" }
 	before := countPuts(e.srv, "/packages/generic/oh-bundle/")
 	res, err = e.svc.Send(ctx, e.req)
 	require.NoError(t, err)
-	assert.NotContains(t, res.Warnings, WarnImageBuild)
+	assert.Contains(t, res.Warnings, WarnImageBuild, "tag never recorded: not trusted")
 	assert.Equal(t, before, countPuts(e.srv, "/packages/generic/oh-bundle/"))
-	assert.Empty(t, runner.Pipelines[1].Variables[remote.VarImageBuild])
+
+	// The image job of the first pipeline succeeded: its digest is recorded
+	// when the pipeline is tracked.
+	digest := runner.ImageDigest("acme-dev-api", tag)
+	pinned := strings.SplitN(v[remote.VarImage], ":", 2)[0] + "@" + digest
+	runner.Pipelines[0].Status = "success"
+	runner.Pipelines[0].Jobs = []map[string]any{{"id": 11, "name": "oh-image", "status": "success"}, {"id": 12, "name": "oh-run", "status": "success"}}
+	runner.Pipelines[0].Artifacts = map[int64][]byte{11: artifactsZip(t, map[string][]byte{remote.ImageEnvFile: []byte(remote.VarRunImage + "=" + pinned + "\n")})}
+	e.svc.Target = func(string) (*config.RemoteTarget, bool) { return &e.target, true }
+	_, err = e.svc.TrackSession(ctx, "ses_remote1")
+	require.NoError(t, err)
+	ref, _ = sqlite.NewRemoteStore(e.store).GetRemoteRef(ctx, "ses_remote1")
+	assert.Equal(t, digest, ref.ImageDigest)
+
+	// Next session: the image is reused by its recorded digest.
+	e.svc.NewSessionID = func() string { return "ses_remote3" }
+	res, err = e.svc.Send(ctx, e.req)
+	require.NoError(t, err)
+	assert.NotContains(t, res.Warnings, WarnImageBuild)
+	last := runner.Pipelines[len(runner.Pipelines)-1].Variables
+	assert.Empty(t, last[remote.VarImageBuild])
+	assert.Equal(t, pinned, last[remote.VarRunImage])
+
+	// The tag was replaced in the registry (image job of another project):
+	// not used, built again.
+	runner.Digests = map[string]string{"acme-dev-api:" + tag: "sha256:" + strings.Repeat("e", 64)}
+	e.svc.NewSessionID = func() string { return "ses_remote4" }
+	res, err = e.svc.Send(ctx, e.req)
+	require.NoError(t, err)
+	assert.Contains(t, res.Warnings, WarnImageReplaced)
+	last = runner.Pipelines[len(runner.Pipelines)-1].Variables
+	assert.Equal(t, "true", last[remote.VarImageBuild])
+	assert.Empty(t, last[remote.VarRunImage])
+}
+
+// The digest recorded from an image job must pin the repository of the
+// image of the session, as a sha256 digest.
+func TestImageDigestOf(t *testing.T) {
+	image := "registry.example.com:5050/acme/oh-runner/api:0123abcd"
+	d := "sha256:" + strings.Repeat("a", 64)
+	zipOf := func(line string) []byte {
+		return artifactsZip(t, map[string][]byte{remote.ImageEnvFile: []byte(line + "\n")})
+	}
+	got, err := imageDigestOf(zipOf("OH_RUN_IMAGE=registry.example.com:5050/acme/oh-runner/api@"+d), image)
+	require.NoError(t, err)
+	assert.Equal(t, d, got)
+	for _, bad := range []string{
+		"OH_RUN_IMAGE=registry.example.com:5050/acme/oh-runner/other@" + d,
+		"OH_RUN_IMAGE=registry.example.com:5050/acme/oh-runner/api:0123abcd",
+		"OH_RUN_IMAGE=registry.example.com:5050/acme/oh-runner/api@sha256:xyz",
+		"OTHER=1",
+	} {
+		_, err := imageDigestOf(zipOf(bad), image)
+		assert.Error(t, err, bad)
+	}
+	assert.Equal(t, "r:5050/a/b@"+d, pinnedImage("r:5050/a/b:t", d))
+	assert.Equal(t, "r:5050/a/b@"+d, pinnedImage("r:5050/a/b", d))
+}
+
+// An oh-runner set up by an older oh has no journal key pair: refused with
+// the hint to run oh remote setup.
+func TestSendNeedsJournalKeyPair(t *testing.T) {
+	e := newSendEnv(t)
+	delete(e.srv.Project("acme/dev/oh-runner").Files, remote.JournalPublicKeyFile)
+	_, err := e.svc.Send(context.Background(), e.req)
+	assert.ErrorIs(t, err, ErrNoJournalKey)
+	assert.Empty(t, e.beads.claimed, "nothing reserved")
 }
 
 func TestSendRefusals(t *testing.T) {

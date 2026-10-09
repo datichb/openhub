@@ -221,6 +221,7 @@ func remoteSendError(err error) error {
 		{remotesvc.ErrNoBinary, "cmd.remote.send.err.no_binary"},
 		{remotesvc.ErrTicketTaken, "cmd.remote.send.err.ticket_taken"},
 		{remotesvc.ErrDockerfileNotCommitted, "cmd.remote.send.err.dockerfile"},
+		{remotesvc.ErrNoJournalKey, "cmd.remote.send.err.no_journal_key"},
 	} {
 		if errors.Is(err, e.err) {
 			return fmt.Errorf("%s (%w)", i18n.T(e.key), err)

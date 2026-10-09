@@ -69,6 +69,11 @@ func (s *Service) Fetch(ctx context.Context, sid string, opts FetchOptions) (*Fe
 	if err != nil {
 		return nil, err
 	}
+	if s.recordImage(ctx, c, &ref, jobs) {
+		if err := s.Remote.SetRemoteRef(ctx, sid, ref); err != nil {
+			return nil, err
+		}
+	}
 	var job int64
 	for _, j := range jobs {
 		if j.Name == "oh-run" && j.ID > job {

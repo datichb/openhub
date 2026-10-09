@@ -53,7 +53,7 @@ func TestRemoteStepKeys(t *testing.T) {
 		i18n.SetLocale(loc)
 		for _, id := range []string{remotesvc.StepAccess, remotesvc.StepGroup, remotesvc.StepProject, remotesvc.StepFeatures,
 			remotesvc.StepProtected, remotesvc.StepPipeline, remotesvc.StepTrigger, remotesvc.StepVariable,
-			remotesvc.StepRunners, remotesvc.StepBinary} {
+			remotesvc.StepRunners, remotesvc.StepBinary, remotesvc.StepJournal} {
 			for _, k := range []string{"cmd.remote.step." + id, "cmd.remote.hint." + id} {
 				if i18n.T(k) == k {
 					t.Errorf("%s: missing %s", loc, k)

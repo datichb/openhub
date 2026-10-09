@@ -3,7 +3,9 @@
 package gitlabtest
 
 import (
+	"crypto/sha256"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -24,6 +26,8 @@ type Variable struct {
 	Protected bool
 	Raw       bool
 	Scope     string // environment scope ("" = "*")
+	// Description of the variable.
+	Description string
 }
 
 // VarKey is the key of a variable of scope in Project.Variables: the
@@ -51,6 +55,9 @@ type Project struct {
 	Unprotected   bool              // default branch not protected
 	Pipelines     []*Pipeline
 	Images        map[string][]string // container repository name → tags
+	// Digests are the manifest digests of "name:tag" (default: derived
+	// from name and tag, see ImageDigest).
+	Digests map[string]string
 }
 
 // Pipeline is a triggered fake pipeline.
@@ -323,7 +330,7 @@ func (s *Server) serveProject(w http.ResponseWriter, r *http.Request, p *Project
 			}
 			for _, tg := range tags {
 				if tg == rest[4] {
-					writeJSON(w, 200, map[string]any{"name": tg})
+					writeJSON(w, 200, map[string]any{"name": tg, "digest": p.ImageDigest(name, tg)})
 					return
 				}
 			}
@@ -382,7 +389,7 @@ func (s *Server) serveVariables(w http.ResponseWriter, r *http.Request, p *Proje
 		if scope == "" {
 			scope = "*"
 		}
-		return map[string]any{"key": v.Key, "value": v.Value, "masked": v.Masked, "protected": v.Protected, "raw": v.Raw, "environment_scope": scope}
+		return map[string]any{"key": v.Key, "value": v.Value, "masked": v.Masked, "protected": v.Protected, "raw": v.Raw, "environment_scope": scope, "description": v.Description}
 	}
 	filter := r.URL.Query().Get("filter[environment_scope]")
 	decode := func() Variable {
@@ -394,6 +401,7 @@ func (s *Server) serveVariables(w http.ResponseWriter, r *http.Request, p *Proje
 		v.Masked, _ = body["masked"].(bool)
 		v.Protected, _ = body["protected"].(bool)
 		v.Raw, _ = body["raw"].(bool)
+		v.Description, _ = body["description"].(string)
 		v.Scope, _ = body["environment_scope"].(string)
 		if v.Scope == "*" {
 			v.Scope = ""
@@ -476,4 +484,13 @@ func imageID(name string) int64 {
 func (s *Server) pipelineJSON(p *Project, pl *Pipeline) map[string]any {
 	return map[string]any{"id": pl.ID, "status": pl.Status, "ref": pl.Ref,
 		"web_url": fmt.Sprintf("%s/%s/-/pipelines/%d", s.URL, p.Path, pl.ID)}
+}
+
+// ImageDigest is the manifest digest the tag of repository name points to.
+func (p *Project) ImageDigest(name, tag string) string {
+	if d, ok := p.Digests[name+":"+tag]; ok {
+		return d
+	}
+	sum := sha256.Sum256([]byte(name + ":" + tag))
+	return "sha256:" + hex.EncodeToString(sum[:])
 }

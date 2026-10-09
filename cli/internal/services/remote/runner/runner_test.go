@@ -40,6 +40,7 @@ func baseVars() map[string]string {
 		remote.VarLLMProvider: "bedrock", remote.VarLLMRegion: "eu-west-1", remote.VarLLMKey: "llm-secret-key",
 		"OH_PROJECT_TOKEN_42": "project-secret", "CI_JOB_TOKEN": "job-secret", "CI_SERVER_URL": "https://g/",
 		remote.VarPipelineSchema: strconv.Itoa(remote.PipelineSchema), "CI_PIPELINE_ID": "812",
+		remote.VarJournalKey: "journal-private-key",
 	}
 }
 
@@ -52,12 +53,15 @@ func TestReadJob(t *testing.T) {
 	assert.Equal(t, int64(812), j.PipelineID)
 	assert.Equal(t, "token [masked] and [masked]", j.Secrets.Redact("token project-secret and llm-secret-key"))
 
+	assert.Equal(t, "[masked]", j.Secrets.Redact("journal-private-key"))
+
 	v := baseVars()
 	delete(v, "OH_PROJECT_TOKEN_42")
 	delete(v, remote.VarLLMKey)
+	delete(v, remote.VarJournalKey)
 	_, err = ReadJob(jobEnv(v))
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "OH_LLM_KEY, OH_PROJECT_TOKEN_42")
+	assert.Contains(t, err.Error(), "OH_JOURNAL_KEY, OH_LLM_KEY, OH_PROJECT_TOKEN_42")
 
 	v = baseVars()
 	v[remote.VarPipelineSchema] = "9"
@@ -91,7 +95,11 @@ func TestCISecrets(t *testing.T) {
 }
 
 func TestFetch(t *testing.T) {
-	man := remote.Manifest{Schema: remote.ManifestSchema, SessionID: "ses_1", BundleHash: "abc123"}
+	pub, priv, err := remote.NewJournalKeyPair()
+	require.NoError(t, err)
+	sealed, err := remote.SealJournalKey(pub, "ses_1", "the-journal-key")
+	require.NoError(t, err)
+	man := remote.Manifest{Schema: remote.ManifestSchema, SessionID: "ses_1", BundleHash: "abc123", JournalKeySealed: sealed}
 	md, _ := json.Marshal(man)
 	sd, _ := json.Marshal(remote.Snapshot{Schema: 1, Issues: map[string]json.RawMessage{"bd-1": json.RawMessage(`{"id":"bd-1"}`)}})
 	env, err := remote.PackFiles(map[string][]byte{remote.ManifestFile: md, remote.SnapshotFile: sd})
@@ -113,16 +121,26 @@ func TestFetch(t *testing.T) {
 		}
 	}))
 	defer srv.Close()
-	j := &Job{SessionID: "ses_1", Secrets: Secrets{JobToken: "job-secret"},
+	j := &Job{SessionID: "ses_1", Secrets: Secrets{JobToken: "job-secret", JournalKey: priv},
 		SessionURL: srv.URL + "/api/v4/projects/1/packages/generic/oh-session/" + envSum + "/session.tar.gz",
 		BundleURL:  srv.URL + "/api/v4/projects/1/packages/generic/oh-bundle/abc123/bundle.tar.gz"}
 	dir := t.TempDir()
 	f, err := Fetch(context.Background(), j, dir)
 	require.NoError(t, err)
 	assert.Equal(t, []string{"job-secret", "job-secret"}, tokens)
+	tokens = nil
 	assert.Contains(t, f.Snapshot.Issues, "bd-1")
 	assert.Equal(t, filepath.Join(dir, "abc123"), f.Bundle.Spec.Root, "relocated")
 	assert.Equal(t, filepath.Join(dir, "abc123", "skills", "s1"), f.Bundle.Spec.Skills[0].Dir)
+	assert.Equal(t, "the-journal-key", f.JournalKey, "opened in memory")
+
+	// Another key pair (oh remote setup run again since): refused.
+	_, other, _ := remote.NewJournalKeyPair()
+	j.Secrets.JournalKey = other
+	_, err = Fetch(context.Background(), j, dir)
+	assert.ErrorIs(t, err, remote.ErrJournalKeySealed)
+	assert.ErrorContains(t, err, "oh remote setup")
+	j.Secrets.JournalKey = priv
 
 	j.SessionURL = strings.Replace(j.SessionURL, envSum, strings.Repeat("0", 64), 1)
 	_, err = Fetch(context.Background(), j, dir)
@@ -516,9 +534,9 @@ func TestRunSealsJournal(t *testing.T) {
 	key, err := remote.NewJournalKey()
 	require.NoError(t, err)
 	m := manifest()
-	m.JournalKey = key
 	sess := &fakeSession{fd: &fakeDecisions{}}
 	in, out := runInput(t, sess, &fakeRepo{}, m)
+	in.Fetched.JournalKey = key
 	journal := []byte(`{"seq":1,"argv":["note","bd-42","x"]}` + "\n")
 	require.NoError(t, os.WriteFile(JournalPath(out), journal, 0o644))
 	_, err = Run(context.Background(), in)

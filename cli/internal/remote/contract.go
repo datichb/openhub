@@ -12,7 +12,7 @@ import (
 // PipelineSchema is the version of the generated .gitlab-ci.yml contract
 // (variables, stages, artifacts). Bump it on any incompatible change: the
 // machine refuses to send to an oh-runner project with another schema.
-const PipelineSchema = 3 // 2: neutral OH_TOOL_VERSION (QB7); 3: secrets scoped to the run job, image context uploaded by the machine (S-02)
+const PipelineSchema = 4 // 2: neutral OH_TOOL_VERSION (QB7); 3: secrets scoped to the run job, image context uploaded by the machine (S-02); 4: run image pinned by digest, journal key pair (N21)
 
 // CI variables of the oh-runner project (set by oh remote setup). Secret ones
 // are masked and protected; they never leave GitLab except into the job.
@@ -21,6 +21,7 @@ const (
 	VarLLMRegion       = "OH_LLM_REGION"      // provider region (Bedrock)
 	VarLLMKey          = "OH_LLM_KEY"         // secret: provider API key, read by the job's proxy only
 	VarTeamStateToken  = "OH_TEAMSTATE_TOKEN" // secret: write_repository on the team-state repository
+	VarJournalKey      = "OH_JOURNAL_KEY"     // secret: X25519 private key that opens the journal key of the sessions
 	projectTokenPrefix = "OH_PROJECT_TOKEN_"  // secret, + project ID: write_repository (+ read_api) on that project
 )
 
@@ -30,7 +31,7 @@ const (
 // project only receives the token of that project (S-02).
 const (
 	RunEnvironmentPrefix = "oh-run/"
-	RunEnvironmentScope  = RunEnvironmentPrefix + "*" // LLM key, team-state token
+	RunEnvironmentScope  = RunEnvironmentPrefix + "*" // LLM key, team-state token, journal private key
 )
 
 // RunEnvironment is the environment of the run job of a target project:
@@ -68,7 +69,8 @@ const (
 	VarWorkflow       = "OH_WORKFLOW"        // workflow id (display)
 	VarBundleURL      = "OH_BUNDLE_URL"      // generic package file: the session bundle (by hash)
 	VarSessionURL     = "OH_SESSION_URL"     // generic package file: the session envelope (by hash)
-	VarImage          = "OH_IMAGE"           // project image of the job (registry, tag = hash)
+	VarImage          = "OH_IMAGE"           // project image of the job (registry, tag = hash): built and pushed by the image job
+	VarRunImage       = "OH_RUN_IMAGE"       // image of the run job, pinned by digest (<repository>@sha256:…): set by the machine when it reuses an image it recorded, else by the image job (dotenv)
 	VarImageBase      = "OH_IMAGE_BASE"      // project base image (dev Dockerfile)
 	VarImageBuild     = "OH_IMAGE_BUILD"     // "true" when OH_IMAGE is missing from the registry
 	VarDockerfile     = "OH_DOCKERFILE"      // dev Dockerfile path in the project ("" = oh default base)
@@ -91,6 +93,10 @@ const (
 
 // CLIFile is the file name of a development oh binary for arch.
 func CLIFile(arch string) string { return "oh-linux-" + arch }
+
+// ImageEnvFile is the dotenv artifact of the image job: VarRunImage, the
+// image it pushed pinned by the digest the builder reported.
+const ImageEnvFile = "oh-image.env"
 
 // OutDir is the artifacts directory of the run job, relative to
 // $CI_PROJECT_DIR (journal.jsonl, summary.json, session.export).

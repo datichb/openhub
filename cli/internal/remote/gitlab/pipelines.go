@@ -77,22 +77,36 @@ type RegistryRepository struct {
 // RegistryTagExists reports whether the container repository name (relative
 // to the project) has tag.
 func (c *Client) RegistryTagExists(ctx context.Context, project, name, tag string) (bool, error) {
+	_, ok, err := c.RegistryTagDigest(ctx, project, name, tag)
+	return ok, err
+}
+
+// RegistryTagDigest returns the manifest digest (sha256:…) tag points to in
+// the container repository name (relative to the project); ok is false when
+// the tag is missing.
+func (c *Client) RegistryTagDigest(ctx context.Context, project, name, tag string) (digest string, ok bool, err error) {
 	var repos []RegistryRepository
 	q := url.Values{"search": {name}, "per_page": {"100"}}
 	if err := c.do(ctx, http.MethodGet, projectRef(project)+"/registry/repositories?"+q.Encode(), nil, &repos); err != nil {
-		return false, err
+		return "", false, err
 	}
 	for _, r := range repos {
 		if r.Name != name {
 			continue
 		}
-		err := c.do(ctx, http.MethodGet, fmt.Sprintf("%s/registry/repositories/%d/tags/%s", projectRef(project), r.ID, url.PathEscape(tag)), nil, nil)
-		if IsNotFound(err) {
-			return false, nil
+		var t struct {
+			Digest string `json:"digest"`
 		}
-		return err == nil, err
+		err := c.do(ctx, http.MethodGet, fmt.Sprintf("%s/registry/repositories/%d/tags/%s", projectRef(project), r.ID, url.PathEscape(tag)), nil, &t)
+		if IsNotFound(err) {
+			return "", false, nil
+		}
+		if err != nil {
+			return "", false, err
+		}
+		return t.Digest, true, nil
 	}
-	return false, nil
+	return "", false, nil
 }
 
 // Job is a CI job of a pipeline.

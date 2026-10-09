@@ -87,7 +87,10 @@ type SendResult struct {
 const (
 	WarnDirty      = "dirty"       // uncommitted changes are not sent
 	WarnImageBuild = "image_build" // the project image is built first
-	WarnClaimLost  = "claim_progress"
+	// WarnImageReplaced: the tag of the image recorded by this machine
+	// points to another digest (replaced in the registry): rebuilt.
+	WarnImageReplaced = "image_replaced"
+	WarnClaimLost     = "claim_progress"
 )
 
 // WorkDir is the job location of a project (prompt rendering).
@@ -143,6 +146,10 @@ func (s *Service) Send(ctx context.Context, req SendRequest) (*SendResult, error
 		return nil, ErrPipelineOutdated
 	}
 	rid := fmt.Sprint(runner.ID)
+	journalPub, err := journalPublicKey(ctx, c, rid, branch)
+	if err != nil {
+		return nil, err
+	}
 
 	// Target project and the commit the job starts from.
 	g := s.git()
@@ -209,11 +216,23 @@ func (s *Service) Send(ctx context.Context, req SendRequest) (*SendResult, error
 	if err != nil {
 		return nil, err
 	}
-	have, err := c.RegistryTagExists(ctx, rid, img.ImageRepo, img.Tag)
+	// The run job takes its image by digest only: the one this machine
+	// recorded for this image when its tag still points to it, else the
+	// one the image job of the pipeline reports. A tag alone can be
+	// replaced by the image job of another project of the target.
+	recorded := s.recordedDigest(ctx, t.Name, img.Image)
+	current, have, err := c.RegistryTagDigest(ctx, rid, img.ImageRepo, img.Tag)
 	if err != nil {
 		return nil, fmt.Errorf("container registry of oh-runner: %w", err)
 	}
-	if !have {
+	reuse := recorded != "" && have && current == recorded
+	if reuse {
+		vars[remote.VarRunImage] = pinnedImage(img.Image, recorded)
+	} else {
+		if recorded != "" && have {
+			slog.Warn("remote: the image tag points to another digest than the one recorded: rebuilt", "image", img.Image, "recorded", recorded, "registry", current)
+			res.Warnings = append(res.Warnings, WarnImageReplaced)
+		}
 		vars[remote.VarImageBuild] = "true"
 		res.Warnings = append(res.Warnings, WarnImageBuild)
 		if img.Dockerfile != "" {
@@ -254,16 +273,18 @@ func (s *Service) Send(ctx context.Context, req SendRequest) (*SendResult, error
 		Provider: req.Provider, AllowedModels: req.AllowedModels, MaxTokens: req.MaxTokens,
 		BeadsAllow: req.BeadsAllow, Tickets: req.Tickets, Checkpoints: req.Checkpoints, Team: req.TeamInfo,
 	}
-	// Journal key of the session (S-04): in the envelope sent to the job and
-	// in the keychain of the machine, never in the local copy.
-	if s.Secrets == nil {
-		return nil, errors.New("remote: no secret store for the journal key")
+	// Journal key of the session (S-04): in the keychain of the machine,
+	// and in the envelope encrypted for the run job (public key of
+	// oh-runner), never in clear in the registry nor in the local copy.
+	journalKey, err := remote.NewJournalKey()
+	if err != nil {
+		return nil, err
 	}
-	if man.JournalKey, err = remote.NewJournalKey(); err != nil {
+	if man.JournalKeySealed, err = remote.SealJournalKey(journalPub, sid, journalKey); err != nil {
 		return nil, err
 	}
 	keyName := remote.JournalKeySecret(sid)
-	if err := s.Secrets.Set(ctx, keyName, man.JournalKey); err != nil {
+	if err := s.Secrets.Set(ctx, keyName, journalKey); err != nil {
 		return nil, fmt.Errorf("keeping the journal key: %w", err)
 	}
 	defer func() {
@@ -279,7 +300,7 @@ func (s *Service) Send(ctx context.Context, req SendRequest) (*SendResult, error
 	if err != nil {
 		return nil, err
 	}
-	if err := s.saveEnvelope(sid, man, snap); err != nil {
+	if err := s.saveEnvelope(sid, journalKey, man, snap); err != nil {
 		return nil, err
 	}
 
@@ -304,8 +325,11 @@ func (s *Service) Send(ctx context.Context, req SendRequest) (*SendResult, error
 	rref := domain.RemoteRef{
 		Target: t.Name, URL: t.URL, RunnerID: runner.ID, ProjectPath: proj.PathWithNamespace, ProjectID: proj.ID, ProjectDir: req.ProjectDir,
 		Ref: ref, Commit: commit, Branch: req.Branch, Pipeline: pl.ID, PipelineURL: pl.WebURL,
-		BundleURL: bundleURL, SessionURL: sessionURL, Image: img.Image, Tickets: req.Tickets,
+		BundleURL: bundleURL, SessionURL: sessionURL, Image: img.Image, ImageBuilt: !reuse, Tickets: req.Tickets,
 		Status: domain.RemoteSent, SentAt: now, UpdatedAt: now,
+	}
+	if reuse {
+		rref.ImageDigest = recorded
 	}
 	if req.TeamInfo != nil {
 		rref.TeamID = req.TeamInfo.ID
@@ -491,10 +515,57 @@ func (s *Service) RemoteDir(sessionID string) string {
 	return filepath.Join(s.SessionsDir, sessionID, "remote")
 }
 
+// journalPublicKey reads the public key of the journal key pair of
+// oh-runner (a file of its repository, written by oh remote setup).
+func journalPublicKey(ctx context.Context, c *gitlab.Client, rid, branch string) (string, error) {
+	data, err := c.File(ctx, rid, remote.JournalPublicKeyFile, branch)
+	if gitlab.IsNotFound(err) {
+		return "", ErrNoJournalKey
+	}
+	if err != nil {
+		return "", fmt.Errorf("journal public key of oh-runner: %w", err)
+	}
+	pub, err := remote.ParseJournalPublicKey(string(data))
+	if err != nil {
+		return "", fmt.Errorf("%w: %v", ErrNoJournalKey, err)
+	}
+	return pub, nil
+}
+
+// pinnedImage is the reference of image (repository:tag) by digest.
+func pinnedImage(image, digest string) string {
+	repo := image
+	if i := strings.LastIndexByte(image, ':'); i > strings.LastIndexByte(image, '/') {
+		repo = image[:i]
+	}
+	return repo + "@" + digest
+}
+
+var digestRe = regexp.MustCompile(`^sha256:[0-9a-f]{64}$`)
+
+// recordedDigest is the digest this machine recorded for image on target
+// (the latest remote session that built or used it).
+func (s *Service) recordedDigest(ctx context.Context, target, image string) string {
+	if s.Remote == nil {
+		return ""
+	}
+	refs, err := s.Remote.ListRemote(ctx)
+	if err != nil {
+		return ""
+	}
+	var best domain.RemoteRef
+	for _, r := range refs {
+		if r.Target == target && r.Image == image && digestRe.MatchString(r.ImageDigest) && r.SentAt.After(best.SentAt) {
+			best = r
+		}
+	}
+	return best.ImageDigest
+}
+
 // saveEnvelope keeps the manifest (without the journal key) and the
 // snapshot sent (replay, P5-T17), sealed with the journal key: the replay
 // trusts their allow-list and tickets only if the seal holds (S-04).
-func (s *Service) saveEnvelope(sid string, man remote.Manifest, snap *remote.Snapshot) error {
+func (s *Service) saveEnvelope(sid, key string, man remote.Manifest, snap *remote.Snapshot) error {
 	if s.SessionsDir == "" {
 		return nil
 	}
@@ -502,8 +573,7 @@ func (s *Service) saveEnvelope(sid string, man remote.Manifest, snap *remote.Sna
 	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return err
 	}
-	key := man.JournalKey
-	man.JournalKey = ""
+	man.JournalKeySealed = ""
 	mdata, err := json.MarshalIndent(man, "", "  ")
 	if err != nil {
 		return err

@@ -110,7 +110,8 @@ func Generate(o Options) ([]byte, error) {
 	w("# triggered by oh with a session (never on push). Secrets are masked CI\n")
 	w("# variables of this project: %s, %s, %s<project id>, scoped to the\n", remote.VarLLMKey, remote.VarTeamStateToken, strings.TrimSuffix(remote.ProjectTokenVar(0), "0"))
 	w("# environment of the run job (%s<project id>): the image jobs, which run\n", remote.RunEnvironmentPrefix)
-	w("# the RUN steps of a project Dockerfile, only hold CI_JOB_TOKEN.\n")
+	w("# the RUN steps of a project Dockerfile, only hold CI_JOB_TOKEN. The run job\n")
+	w("# uses its image by digest only (%s), never by tag.\n", remote.VarRunImage)
 	w("\nworkflow:\n  rules:\n")
 	w("    - if: '$CI_PIPELINE_SOURCE == \"trigger\" && $%s'\n", remote.VarSessionID)
 	w("    - when: never\n")
@@ -133,16 +134,21 @@ func Generate(o Options) ([]byte, error) {
 		w("  image:\n    name: %s\n    entrypoint: [\"\"]\n", o.KanikoImage)
 		w("  script:\n    - |\n")
 		script(&b, 6, kanikoScript())
+		imageArtifacts(&b)
 	case BuilderDinD:
 		w("  image: %s\n  services: [%s]\n", o.DockerImage, o.DinDImage)
 		w("  variables:\n    DOCKER_TLS_CERTDIR: /certs\n")
 		w("  script:\n    - |\n")
 		script(&b, 6, dindScript())
+		imageArtifacts(&b)
 	}
 
 	// run: oh runner in the project image.
 	w("\noh-run:\n  stage: run\n")
-	w("  image:\n    name: $%s\n    entrypoint: [\"\"]\n", remote.VarImage)
+	// By digest: set by the machine when it reuses an image it recorded,
+	// else the dotenv of the image job of this pipeline. A tag of the
+	// registry can be replaced by the image job of another project.
+	w("  image:\n    name: $%s\n    entrypoint: [\"\"]\n", remote.VarRunImage)
 	w("  needs:\n    - job: oh-image\n      optional: true\n")
 	w("  timeout: %s\n", o.Timeout)
 	w("  environment:\n    name: %s$%s\n    action: prepare\n", remote.RunEnvironmentPrefix, remote.VarProjectID)
@@ -150,6 +156,24 @@ func Generate(o Options) ([]byte, error) {
 	w("  script:\n    - oh runner run --out \"$CI_PROJECT_DIR/%s\"\n", remote.OutDir)
 	w("  artifacts:\n    when: always\n    expire_in: 7 days\n    paths: [%s/]\n", remote.OutDir)
 	return b.Bytes(), nil
+}
+
+// imageArtifacts publishes the dotenv of the image job (the run image
+// pinned by digest), read by the run job and by the machine.
+func imageArtifacts(b *bytes.Buffer) {
+	fmt.Fprintf(b, "  artifacts:\n    expire_in: 7 days\n    paths: [%s]\n    reports:\n      dotenv: %s\n", remote.ImageEnvFile, remote.ImageEnvFile)
+}
+
+// checkDigest fails the job unless the variable holds a sha256 digest.
+func checkDigest(name string) string {
+	return `echo "$` + name + `" | grep -Eq '^sha256:[0-9a-f]{64}$' || { echo "oh: no image digest reported" >&2; exit 1; }
+`
+}
+
+// writeRunImage writes the dotenv of the image job.
+func writeRunImage(digestVar string) string {
+	return `echo "` + remote.VarRunImage + `=${` + remote.VarImage + `%:*}@$` + digestVar + `" > "$CI_PROJECT_DIR/` + remote.ImageEnvFile + `"
+`
 }
 
 // script writes lines indented by n spaces.
@@ -199,32 +223,49 @@ echo "$` + remote.VarContextSHA256 + `  ` + path + `" | sha256sum -c -
 `
 }
 
+// The base is pushed, then the oh layer is built FROM the base by the
+// digest just reported (not by its tag), and the run job gets the layer by
+// its digest (dotenv).
 func kanikoScript() string {
 	return `set -eu
 mkdir -p /kaniko/.docker
 auth=$(printf '%s:%s' "$CI_REGISTRY_USER" "$CI_REGISTRY_PASSWORD" | base64 | tr -d '\n')
 printf '{"auths":{"%s":{"auth":"%s"}}}' "$CI_REGISTRY" "$auth" > /kaniko/.docker/config.json
 if [ -n "${` + remote.VarDockerfile + `:-}" ]; then
-` + indent(fetchContext("/kaniko/oh-context.tar.gz"), "  ") + `  /kaniko/executor --context "tar:///kaniko/oh-context.tar.gz" --dockerfile "$` + remote.VarDockerfile + `" --destination "$` + remote.VarImageBase + `"
+` + indent(fetchContext("/kaniko/oh-context.tar.gz"), "  ") + `  /kaniko/executor --context "tar:///kaniko/oh-context.tar.gz" --dockerfile "$` + remote.VarDockerfile + `" --destination "$` + remote.VarImageBase + `" --digest-file /kaniko/oh-base.digest
 else
-  /kaniko/executor --context "dir://$CI_PROJECT_DIR/oh-layer" --dockerfile "$CI_PROJECT_DIR/oh-layer/Dockerfile.base" --destination "$` + remote.VarImageBase + `"
+  /kaniko/executor --context "dir://$CI_PROJECT_DIR/oh-layer" --dockerfile "$CI_PROJECT_DIR/oh-layer/Dockerfile.base" --destination "$` + remote.VarImageBase + `" --digest-file /kaniko/oh-base.digest
 fi
-/kaniko/executor --context "dir://$CI_PROJECT_DIR/oh-layer" --dockerfile "$CI_PROJECT_DIR/oh-layer/Dockerfile" --build-arg "OH_IMAGE_BASE=$` + remote.VarImageBase + `" --build-arg "` + remote.VarToolVersion + `=$` + remote.VarToolVersion + `" --destination "$` + remote.VarImage + `"
-`
+base_digest=$(cat /kaniko/oh-base.digest)
+` + checkDigest("base_digest") + `/kaniko/executor --context "dir://$CI_PROJECT_DIR/oh-layer" --dockerfile "$CI_PROJECT_DIR/oh-layer/Dockerfile" --build-arg "OH_IMAGE_BASE=${` + remote.VarImageBase + `%:*}@$base_digest" --build-arg "` + remote.VarToolVersion + `=$` + remote.VarToolVersion + `" --destination "$` + remote.VarImage + `" --digest-file /kaniko/oh-image.digest
+image_digest=$(cat /kaniko/oh-image.digest)
+` + checkDigest("image_digest") + writeRunImage("image_digest")
 }
 
+// dindScript: the digest of a pushed image is read from `docker push`
+// (« <tag>: digest: sha256:… size: … »), else from its RepoDigests for its
+// own repository.
 func dindScript() string {
 	return `set -eu
+oh_push() {
+  out=$(docker push "$1")
+  echo "$out" >&2
+  d=$(echo "$out" | sed -n 's/.*digest: \(sha256:[0-9a-f]\{64\}\).*/\1/p' | tail -n 1)
+  if [ -z "$d" ]; then
+    d=$(docker inspect --format '{{range .RepoDigests}}{{println .}}{{end}}' "$1" | grep "^${1%:*}@sha256:" | head -n 1 | sed 's/^.*@//')
+  fi
+  echo "$d"
+}
 echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
 if [ -n "${` + remote.VarDockerfile + `:-}" ]; then
 ` + indent(fetchContext("/tmp/oh-context.tar.gz"), "  ") + `  docker build -f "$` + remote.VarDockerfile + `" -t "$` + remote.VarImageBase + `" - < /tmp/oh-context.tar.gz
 else
   docker build -f oh-layer/Dockerfile.base -t "$` + remote.VarImageBase + `" oh-layer
 fi
-docker push "$` + remote.VarImageBase + `"
-docker build --build-arg "OH_IMAGE_BASE=$` + remote.VarImageBase + `" --build-arg "` + remote.VarToolVersion + `=$` + remote.VarToolVersion + `" -t "$` + remote.VarImage + `" oh-layer
-docker push "$` + remote.VarImage + `"
-`
+base_digest=$(oh_push "$` + remote.VarImageBase + `")
+` + checkDigest("base_digest") + `docker build --build-arg "OH_IMAGE_BASE=${` + remote.VarImageBase + `%:*}@$base_digest" --build-arg "` + remote.VarToolVersion + `=$` + remote.VarToolVersion + `" -t "$` + remote.VarImage + `" oh-layer
+image_digest=$(oh_push "$` + remote.VarImage + `")
+` + checkDigest("image_digest") + writeRunImage("image_digest")
 }
 
 // indent prefixes every line of s.

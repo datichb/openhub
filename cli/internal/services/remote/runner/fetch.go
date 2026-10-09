@@ -23,6 +23,10 @@ type Fetched struct {
 	Manifest remote.Manifest
 	Snapshot remote.Snapshot
 	Bundle   *bundle.Bundle
+	// JournalKey is the journal key of the session, opened with the private
+	// key of oh-runner (memory only: never written, never given to the
+	// agent account).
+	JournalKey string
 }
 
 // download reads a generic package file of oh-runner with the job token.
@@ -82,11 +86,14 @@ func Fetch(ctx context.Context, j *Job, bundlesDir string) (*Fetched, error) {
 	if err := json.Unmarshal(files[remote.ManifestFile], &f.Manifest); err != nil {
 		return nil, fmt.Errorf("session manifest: %w", err)
 	}
-	if f.Manifest.Schema != remote.ManifestSchema {
-		return nil, fmt.Errorf("session manifest schema %d, this oh reads %d", f.Manifest.Schema, remote.ManifestSchema)
+	if f.Manifest.Schema != remote.ManifestSchema || f.Manifest.LegacyJournalKey != "" {
+		return nil, fmt.Errorf("session manifest schema %d, this oh reads %d: update oh on the machine and run oh remote setup", f.Manifest.Schema, remote.ManifestSchema)
 	}
 	if f.Manifest.SessionID != j.SessionID {
 		return nil, fmt.Errorf("session manifest of %s, pipeline of %s", f.Manifest.SessionID, j.SessionID)
+	}
+	if f.JournalKey, err = remote.OpenJournalKey(j.Secrets.JournalKey, f.Manifest.SessionID, f.Manifest.JournalKeySealed); err != nil {
+		return nil, fmt.Errorf("%w (%s): run oh remote setup", err, remote.VarJournalKey)
 	}
 	if data, ok := files[remote.SnapshotFile]; ok {
 		if err := json.Unmarshal(data, &f.Snapshot); err != nil {
