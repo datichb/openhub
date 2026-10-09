@@ -97,6 +97,12 @@ type Options struct {
 	Capability string
 	// SigV4 builds an AWS signer for a profile/region (overridable in tests).
 	SigV4 func(ctx context.Context, profile, region string) (credproxy.Auth, error)
+	// LogMaxBytes and LogKeep bound the logs the live processes keep open
+	// (ohd.log, logs of the server groups), copied then truncated every
+	// LogRotateEvery (default 10 min); defaults of logrotate.
+	LogMaxBytes    int64
+	LogKeep        int
+	LogRotateEvery time.Duration
 }
 
 // Daemon is the running ohd process.
@@ -217,6 +223,7 @@ func Run(ctx context.Context, opts Options) error {
 	if opts.Periodic != nil {
 		go d.runPeriodic(ctx)
 	}
+	go d.runLogRotation(ctx)
 	// Supervision revokes grants: it must not race with their restoration.
 	select {
 	case <-d.restored:

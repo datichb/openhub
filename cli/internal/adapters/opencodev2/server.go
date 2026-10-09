@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net"
 	"os"
 	"os/exec"
@@ -16,6 +17,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/datichb/openhub/cli/internal/logrotate"
 	ohruntime "github.com/datichb/openhub/cli/internal/runtime"
 )
 
@@ -30,6 +32,8 @@ type ServerOptions struct {
 	Port          int               // 0 = pick a free port
 	Password      string            // "" = random
 	LogPath       string            // default: <DataDir>/oh-server.log
+	LogMaxBytes   int64             // log rotated above it (default logrotate.DefaultMaxBytes)
+	LogKeep       int               // rotated copies kept (default logrotate.DefaultKeep)
 	ReadyDir      string            // location probed for readiness (default: WorkDir)
 	ReadyAgent    string            // agent that must be listed before the server is considered ready
 	ReadyTimeout  time.Duration     // default: 30s (60s with Run)
@@ -198,6 +202,11 @@ func StartServer(ctx context.Context, opts ServerOptions) (*Server, error) {
 	logPath := opts.LogPath
 	if logPath == "" {
 		logPath = filepath.Join(opts.DataDir, "oh-server.log")
+	}
+	// The previous server of this data directory is gone: its log is
+	// rotated before the new one opens it.
+	if _, err := logrotate.Rotate(logPath, logMaxBytes(opts.LogMaxBytes), logKeep(opts.LogKeep)); err != nil {
+		slog.Warn("rotating the server log", "path", logPath, "error", err)
 	}
 	logFile, err := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o600)
 	if err != nil {
@@ -372,4 +381,18 @@ func logTail(path string) string {
 		data = data[len(data)-maxTail:]
 	}
 	return "\n--- opencode serve log ---\n" + string(bytes.TrimSpace(data))
+}
+
+func logMaxBytes(n int64) int64 {
+	if n > 0 {
+		return n
+	}
+	return logrotate.DefaultMaxBytes
+}
+
+func logKeep(n int) int {
+	if n > 0 {
+		return n
+	}
+	return logrotate.DefaultKeep
 }

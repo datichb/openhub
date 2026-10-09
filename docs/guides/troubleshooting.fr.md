@@ -234,6 +234,17 @@ oh worktree list           # Lister tous les worktrees actifs
 
 ---
 
+### Journaux
+
+| Journal | Emplacement |
+|---|---|
+| Demon `ohd` | `~/.oh/run/ohd.log` |
+| Serveur d'un groupe de sessions | `~/.oh/servers/<groupe>/data/oh-server.log` |
+
+Les journaux sont bornes : au-dela de 20 Mo, un journal est decale en `<fichier>.1` (les copies plus anciennes en `.2`, `.3` ; trois gardees). `ohd.log` l'est au demarrage du demon, le journal d'un serveur a son demarrage ; pendant qu'ils tournent, le demon copie puis vide les journaux trop gros toutes les 10 minutes.
+
+---
+
 ## Arbre de decision diagnostique
 
 Si `oh` ne fonctionne pas :

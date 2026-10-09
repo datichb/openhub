@@ -234,6 +234,17 @@ oh worktree list           # List all active worktrees
 
 ---
 
+### Logs
+
+| Log | Location |
+|---|---|
+| `ohd` daemon | `~/.oh/run/ohd.log` |
+| Server of a session group | `~/.oh/servers/<group>/data/oh-server.log` |
+
+Logs are bounded: above 20 MB a log is shifted to `<file>.1` (older copies to `.2`, `.3`; three kept). `ohd.log` is rotated when the daemon starts, a server log when its server starts; while they run, the daemon copies then empties the logs that grew too large every 10 minutes.
+
+---
+
 ## Diagnostic Flowchart
 
 If `oh` is not working:
