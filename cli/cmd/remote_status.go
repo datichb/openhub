@@ -18,6 +18,10 @@ func init() {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			a := MustApp()
 			out := cmd.OutOrStdout()
+			printRemoteExperimentalWarning(out)
+			if !remoteExperimental(a) {
+				fmt.Fprintf(out, "  %s\n", errRemoteDisabled())
+			}
 			targets := a.Config.Remote.Targets
 			if len(args) == 1 {
 				t := a.Config.Remote.Target(args[0])

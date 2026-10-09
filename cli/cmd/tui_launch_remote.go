@@ -14,6 +14,10 @@ import (
 // The workflow checks (checkpoints forbidden remotely in the chosen mode,
 // pushed branch) are made when launching.
 func remoteLaunchRuntime(ctx context.Context, a *app.App, project *domain.Project, lr views.LaunchRuntime) views.LaunchRuntime {
+	if !remoteExperimental(a) {
+		lr.Reason = i18n.T("cmd.remote.experimental.disabled")
+		return lr
+	}
 	if project == nil {
 		lr.Reason = i18n.T("tui.remote.launch.no_target")
 		return lr

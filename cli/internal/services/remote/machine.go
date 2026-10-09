@@ -223,6 +223,11 @@ type Git interface {
 	ShowFile(ctx context.Context, dir, commit, path string) ([]byte, error)
 	// FetchBranch fetches branch from origin into the local branch.
 	FetchBranch(ctx context.Context, dir, branch string) error
+	// ObjectID returns the object of path at commit ("" = the commit's
+	// tree); "" without error when path is not in the commit.
+	ObjectID(ctx context.Context, dir, commit, path string) (string, error)
+	// Archive returns a tar.gz of paths at commit (all = the whole tree).
+	Archive(ctx context.Context, dir, commit string, paths []string) ([]byte, error)
 }
 
 // GitCLI runs git.
@@ -287,6 +292,34 @@ func (g GitCLI) IsAncestor(ctx context.Context, dir, ancestor, commit string) (b
 func (g GitCLI) Dirty(ctx context.Context, dir string) (bool, error) {
 	out, err := g.git(ctx, dir, "status", "--porcelain", "--untracked-files=no")
 	return out != "", err
+}
+
+// ObjectID implements Git.
+func (g GitCLI) ObjectID(ctx context.Context, dir, commit, path string) (string, error) {
+	spec := commit + "^{tree}"
+	if path != "" {
+		spec = commit + ":" + path
+	}
+	cmd := exec.CommandContext(ctx, "git", "-C", dir, "rev-parse", "--verify", "--quiet", spec)
+	out, err := cmd.Output()
+	var ee *exec.ExitError
+	if errors.As(err, &ee) && ee.ExitCode() == 1 {
+		return "", nil
+	}
+	return strings.TrimSpace(string(out)), err
+}
+
+// Archive implements Git.
+func (g GitCLI) Archive(ctx context.Context, dir, commit string, paths []string) ([]byte, error) {
+	args := append([]string{"-C", dir, "archive", "--format=tar.gz", commit, "--"}, paths...)
+	cmd := exec.CommandContext(ctx, "git", args...)
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	out, err := cmd.Output()
+	if err != nil {
+		return nil, fmt.Errorf("git archive: %s", strings.TrimSpace(stderr.String()+" "+err.Error()))
+	}
+	return out, nil
 }
 
 // ShowFile implements Git.

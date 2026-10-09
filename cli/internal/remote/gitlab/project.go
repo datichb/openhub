@@ -154,6 +154,22 @@ type Variable struct {
 	Protected   bool   `json:"protected"`
 	Raw         bool   `json:"raw"`
 	Description string `json:"description,omitempty"`
+	// EnvironmentScope limits the variable to the jobs of matching
+	// environments ("" or "*": every job).
+	EnvironmentScope string `json:"environment_scope,omitempty"`
+}
+
+// Scope returns the environment scope ("*" when unset).
+func (v Variable) Scope() string {
+	if v.EnvironmentScope == "" {
+		return "*"
+	}
+	return v.EnvironmentScope
+}
+
+// variablePath is the path of a variable of a scope.
+func variablePath(project, key, scope string) string {
+	return projectRef(project) + "/variables/" + url.PathEscape(key) + "?filter%5Benvironment_scope%5D=" + url.QueryEscape(scope)
 }
 
 // Variables lists the project variables (keys and flags; values are dropped).
@@ -178,20 +194,34 @@ func (c *Client) Variables(ctx context.Context, project string) ([]Variable, err
 // SetVariable creates or replaces a project variable.
 func (c *Client) SetVariable(ctx context.Context, project string, v Variable) error {
 	body := map[string]any{
-		"value":     v.Value,
-		"masked":    v.Masked,
-		"protected": v.Protected,
-		"raw":       v.Raw,
+		"value":             v.Value,
+		"masked":            v.Masked,
+		"protected":         v.Protected,
+		"raw":               v.Raw,
+		"environment_scope": v.Scope(),
 	}
 	if v.Description != "" {
 		body["description"] = v.Description
 	}
-	err := c.do(ctx, http.MethodPut, projectRef(project)+"/variables/"+url.PathEscape(v.Key), body, nil)
+	err := c.do(ctx, http.MethodPut, variablePath(project, v.Key, v.Scope()), body, nil)
 	if !IsNotFound(err) {
 		return err
 	}
 	body["key"] = v.Key
 	return c.do(ctx, http.MethodPost, projectRef(project)+"/variables", body, nil)
+}
+
+// DeleteVariable removes the variable key of scope ("*" for every job);
+// absent is not an error.
+func (c *Client) DeleteVariable(ctx context.Context, project, key, scope string) error {
+	if scope == "" {
+		scope = "*"
+	}
+	err := c.do(ctx, http.MethodDelete, variablePath(project, key, scope), nil, nil)
+	if IsNotFound(err) {
+		return nil
+	}
+	return err
 }
 
 // Trigger is a pipeline trigger token.

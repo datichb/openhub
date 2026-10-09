@@ -5,8 +5,10 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -30,6 +32,7 @@ type fakeGit struct {
 	ancestor, dirty               bool
 	files                         map[string]string
 	fetchedBranches               []string
+	archived                      []string
 }
 
 func (g *fakeGit) RemoteURL(context.Context, string) (string, error)     { return g.remote, nil }
@@ -45,6 +48,25 @@ func (g *fakeGit) Dirty(context.Context, string) (bool, error) { return g.dirty,
 func (g *fakeGit) FetchBranch(_ context.Context, _, b string) error {
 	g.fetchedBranches = append(g.fetchedBranches, b)
 	return nil
+}
+func (g *fakeGit) ObjectID(_ context.Context, _, _, p string) (string, error) {
+	if p == "" {
+		return "tree-" + remote.SHA256([]byte(fmt.Sprint(g.files)))[:12], nil
+	}
+	if c, ok := g.files[p]; ok {
+		return "blob-" + remote.SHA256([]byte(c))[:12], nil
+	}
+	return "", nil
+}
+func (g *fakeGit) Archive(_ context.Context, _, _ string, paths []string) ([]byte, error) {
+	g.archived = append(g.archived, strings.Join(paths, ","))
+	files := map[string][]byte{}
+	for p, c := range g.files {
+		if paths == nil || slices.Contains(paths, p) {
+			files[p] = []byte(c)
+		}
+	}
+	return remote.PackFiles(files)
 }
 func (g *fakeGit) ShowFile(_ context.Context, _, _, p string) ([]byte, error) {
 	if c, ok := g.files[p]; ok {
@@ -394,4 +416,62 @@ func countPuts(s *gitlabtest.Server, part string) int {
 		}
 	}
 	return n
+}
+
+// S-02: the build context of the dev Dockerfile is sent by the machine
+// (the image jobs never clone the target project), and the base image tag
+// changes with what the Dockerfile reads, not only with the Dockerfile.
+func TestSendUploadsBuildContext(t *testing.T) {
+	ctx := context.Background()
+	e := newSendEnv(t)
+	df := "FROM debian\nCOPY --chown=dev package.json \\\n  package-lock.json ./\nRUN npm ci\n"
+	require.NoError(t, os.WriteFile(filepath.Join(e.req.ProjectDir, "Dockerfile.dev"), []byte(df), 0o644))
+	e.git.files["Dockerfile.dev"] = df
+	e.git.files["package.json"] = `{"name":"api"}`
+	e.git.files["package-lock.json"] = "{}"
+	e.git.files["src/main.go"] = "package main"
+	_, err := e.svc.Send(ctx, e.req)
+	require.NoError(t, err)
+	v := e.srv.Project("acme/dev/oh-runner").Pipelines[0].Variables
+	assert.Equal(t, []string{"Dockerfile.dev,package-lock.json,package.json"}, e.git.archived, "only what the Dockerfile reads")
+	require.NotEmpty(t, v[remote.VarContextURL])
+	assert.Contains(t, v[remote.VarContextURL], "/packages/generic/"+remote.PackageContext+"/"+v[remote.VarContextSHA256]+"/")
+	for k, val := range v {
+		assert.NotContains(t, val, "glpat", "%s carries a token", k)
+	}
+	base1 := v[remote.VarImageBase]
+
+	// A file outside the context: same base image.
+	e.git.files["src/main.go"] = "package main // changed"
+	e.svc.NewSessionID = func() string { return "ses_remote2" }
+	_, err = e.svc.Send(ctx, e.req)
+	require.NoError(t, err)
+	assert.Equal(t, base1, e.srv.Project("acme/dev/oh-runner").Pipelines[1].Variables[remote.VarImageBase])
+
+	// A file of the context: new base image.
+	e.git.files["package.json"] = `{"name":"api","version":"2"}`
+	e.svc.NewSessionID = func() string { return "ses_remote3" }
+	_, err = e.svc.Send(ctx, e.req)
+	require.NoError(t, err)
+	assert.NotEqual(t, base1, e.srv.Project("acme/dev/oh-runner").Pipelines[2].Variables[remote.VarImageBase])
+}
+
+func TestContextSources(t *testing.T) {
+	for _, tc := range []struct {
+		df    string
+		paths []string
+		whole bool
+	}{
+		{"FROM x\nCOPY go.mod go.sum ./\nADD https://x/y.tgz /opt/\n", []string{"go.mod", "go.sum"}, false},
+		{"FROM x\nCOPY --from=build /out /out\nCOPY [\"tools/a b\", \"/t\"]\n", []string{"tools/a b"}, false},
+		{"FROM x\nCOPY . /src\n", nil, true},
+		{"FROM x\nCOPY package*.json ./\n", nil, true},
+		{"FROM x\nRUN --mount=type=bind,source=scripts,target=/s sh /s/i.sh\n", []string{"scripts"}, false},
+		{"FROM x\nCOPY <<EOF /a\nhi\nEOF\n", nil, true},
+		{"FROM x\n# COPY secret.txt /\nRUN echo\n", nil, false},
+	} {
+		paths, whole := contextSources([]byte(tc.df))
+		assert.Equal(t, tc.paths, paths, tc.df)
+		assert.Equal(t, tc.whole, whole, tc.df)
+	}
 }

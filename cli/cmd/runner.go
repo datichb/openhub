@@ -191,7 +191,8 @@ func runRunnerJob(cmd *cobra.Command, _ []string) error {
 
 	in := runner.Input{
 		Job: job, Fetched: f, OutDir: outDir,
-		Git:       runner.Git{Token: job.Secrets.ProjectToken, Secrets: job.Secrets},
+		Git:       runner.Git{Token: job.Secrets.ProjectToken, Secrets: job.Secrets, Scratch: filepath.Join(private, "git"), Agent: user},
+		Quiesce:   func(context.Context) error { return runner.KillUser(user) },
 		Session:   &jobSession{a: a, rs: rs, ss: ss, ad: ad, region: job.Region},
 		Responder: runner.NewResponder(sqlite.NewDecisionStore(store), ss.Decide, m),
 	}

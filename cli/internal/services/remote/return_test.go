@@ -75,6 +75,10 @@ func newReturnEnv(t *testing.T, summary remote.Summary, journal []byte) *returnE
 	require.NoError(t, err)
 	e.sessionID = res.SessionID
 	e.pipeline = e.srv.Project("acme/dev/oh-runner").Pipelines[0]
+	// The runner seals the journal with the key of the envelope.
+	key, _ := e.svc.Secrets.Get(context.Background(), remote.JournalKeySecret(e.sessionID))
+	require.NotEmpty(t, key, "journal key kept on the machine")
+	summary.JournalMAC, _ = remote.Seal(key, "journal", e.sessionID, journal)
 	sdata, _ := json.Marshal(summary)
 	ex, _ := json.Marshal(remote.Export{Schema: 1, Sessions: []json.RawMessage{json.RawMessage(`{"info":{"id":"ses_remote1"}}`), json.RawMessage(`{"info":{"id":"ses_child"}}`)}})
 	e.pipeline.Jobs = []map[string]any{{"id": 4, "name": "oh-image"}, {"id": 5, "name": "oh-run"}}

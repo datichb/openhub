@@ -240,16 +240,20 @@ func extractArtifacts(data []byte, dir string) error {
 
 // ReadJournal reads a Beads journal (missing file: empty), in seq order.
 func ReadJournal(p string) ([]beadswire.JournalEntry, error) {
-	f, err := os.Open(p)
+	data, err := os.ReadFile(p)
 	if os.IsNotExist(err) {
 		return nil, nil
 	}
 	if err != nil {
 		return nil, err
 	}
-	defer f.Close()
+	return parseJournal(data)
+}
+
+// parseJournal reads journal.jsonl content, in seq order.
+func parseJournal(data []byte) ([]beadswire.JournalEntry, error) {
 	var out []beadswire.JournalEntry
-	sc := bufio.NewScanner(f)
+	sc := bufio.NewScanner(bytes.NewReader(data))
 	sc.Buffer(make([]byte, 0, 64<<10), 8<<20)
 	for sc.Scan() {
 		if len(bytes.TrimSpace(sc.Bytes())) == 0 {

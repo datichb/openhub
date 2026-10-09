@@ -14,13 +14,13 @@ import (
 // trigger, variables, runners). Nothing when no target is configured.
 func remoteDoctorChecks() []views.DoctorCheck {
 	a := TryApp()
+	out := remoteExperimentalDoctorCheck(a)
 	if a == nil || len(a.Config.Remote.Targets) == 0 {
-		return nil
+		return out
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 	svc := newRemoteService(a)
-	var out []views.DoctorCheck
 	for _, t := range a.Config.Remote.Targets {
 		rep := svc.Check(ctx, t)
 		var problems []string

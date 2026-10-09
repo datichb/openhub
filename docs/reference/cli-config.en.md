@@ -70,7 +70,7 @@ oh config set <key> <value>
 | Sessions | `session.attach` (`auto`, `iterm`, `terminal`, `tmux`, `browser`, `suspend`), `session.iterm_style` (`tab`, `split`, `window`), `session.idle_sleep_minutes` (1 to 1440), `session.notify` (`on`, `off`) |
 | Execution | `execution.runtime` (`local`, `container`), `execution.engine` (`auto`, `colima`, `podman`, `docker`), `execution.keep_images` (1 to 20), `execution.tool_version` (e.g. `2.0.20`), `execution.strict_isolation` |
 | Restrictions | `limits.max_active_sessions`, `limits.session_budget_usd`, `limits.daily_budget_usd`, `limits.memory_mb`, `limits.models` (comma-separated patterns); `0` or `off` removes the restriction (like `oh budget set`) |
-| Remote | `remote.projects.<project-id>` (name of an existing target), `remote.targets.<target>.tag`, `.builder` (`kaniko`, `dind`), `.arch` (`amd64`, `arm64`), `.timeout` (GitLab duration: `3h`, `1h 30m`); targets are created with `oh remote setup` |
+| Remote | `remote.experimental` (experimental remote mode, `false` by default), `remote.projects.<project-id>` (name of an existing target), `remote.targets.<target>.tag`, `.builder` (`kaniko`, `dind`), `.arch` (`amd64`, `arm64`), `.timeout` (GitLab duration: `3h`, `1h 30m`); targets are created with `oh remote setup` |
 
 Default values (`auto`, `on`) are stored empty. `[[teams]]` is set with `oh team …`.
 

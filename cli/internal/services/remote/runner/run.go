@@ -37,7 +37,9 @@ type Session interface {
 // Repo is the work tree of the job (Git).
 type Repo interface {
 	Clone(ctx context.Context, cloneURL, ref, commit, branch, dir string) (string, error)
-	Finish(ctx context.Context, dir, base, ref, branch, title, description string) (*PushResult, error)
+	// Finish runs as root after the agent processes are stopped; it must
+	// not run anything the agent controls (S-01).
+	Finish(ctx context.Context, cloneURL, dir, base, ref, branch, title, description string) (*PushResult, error)
 }
 
 // Progress publishes the progress of the session (team-state claims).
@@ -54,7 +56,11 @@ type Input struct {
 	Session   Session
 	Responder *Responder
 	Progress  Progress // nil: no team-state
-	Now       func() time.Time
+	// Quiesce stops every process of the agent account before the final
+	// git steps (KillUser); nil: nothing to stop. When it fails nothing is
+	// pushed.
+	Quiesce func(ctx context.Context) error
+	Now     func() time.Time
 	// TurnPoll is how often the turn is awaited again after a decision.
 	TurnPoll time.Duration
 }
@@ -84,6 +90,13 @@ func Run(ctx context.Context, in Input) (*remote.Summary, error) {
 			sum.Error = in.Job.Secrets.Redact(err.Error())
 		}
 		sum.JournalEntries = countLines(JournalPath(in.OutDir))
+		if m.JournalKey != "" {
+			// Seal of the journal (S-04), checked by the machine before replay.
+			data, rerr := os.ReadFile(JournalPath(in.OutDir))
+			if rerr == nil || errors.Is(rerr, os.ErrNotExist) {
+				sum.JournalMAC, _ = remote.Seal(m.JournalKey, "journal", m.SessionID, data)
+			}
+		}
 		if werr := writeJSON(filepath.Join(in.OutDir, remote.SummaryFile), sum); werr != nil && err == nil {
 			err = werr
 		}
@@ -212,9 +225,16 @@ func Run(ctx context.Context, in Input) (*remote.Summary, error) {
 		slog.Warn("runner: stopping the session", "err", err)
 	}
 
-	// T13: branch and draft merge request.
+	// T13: branch and draft merge request, once no code of the agent can
+	// run any more.
+	if in.Quiesce != nil {
+		if err := in.Quiesce(ctx); err != nil {
+			sum.Outcome = remote.OutcomeFailed
+			return finish(fmt.Errorf("stopping the agent processes before pushing: %w", err))
+		}
+	}
 	title := "oh: " + m.Title
-	pr, err := in.Git.Finish(ctx, m.WorkDir, base, m.Ref, m.Branch, title, mrDescription(m, sum))
+	pr, err := in.Git.Finish(ctx, m.Project.CloneURL, m.WorkDir, base, m.Ref, m.Branch, title, mrDescription(m, sum))
 	if err != nil {
 		if sum.Outcome != remote.OutcomeFailed {
 			sum.Outcome = remote.OutcomeFailed

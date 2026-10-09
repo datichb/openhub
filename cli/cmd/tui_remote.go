@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"sync"
@@ -87,6 +88,9 @@ func remoteDetail(ref domain.RemoteRef) string {
 
 // FetchRemote implements views.SessionRemote.
 func (t *tuiSessions) FetchRemote(ctx context.Context, id string) (views.RemoteFetchReport, error) {
+	if err := requireRemoteExperimental(t.a); err != nil {
+		return views.RemoteFetchReport{}, err
+	}
 	res, err := newRemoteReturnService(ctx, t.a).Fetch(ctx, id, remotesvc.FetchOptions{})
 	if err != nil {
 		return views.RemoteFetchReport{}, err
@@ -139,22 +143,36 @@ func toReplayView(p *remotesvc.ReplayPlan) *views.ReplayView {
 
 // PlanReplay implements views.SessionRemote.
 func (t *tuiSessions) PlanReplay(ctx context.Context, id string) (*views.ReplayView, error) {
+	if err := requireRemoteExperimental(t.a); err != nil {
+		return nil, err
+	}
 	p, err := newRemoteReturnService(ctx, t.a).PlanReplay(ctx, id)
 	if err != nil {
-		return nil, err
+		return nil, replayError(err)
 	}
 	return toReplayView(p), nil
 }
 
 // ApplyReplay implements views.SessionRemote.
 func (t *tuiSessions) ApplyReplay(ctx context.Context, id string, res map[string]string) (*views.ReplayView, error) {
+	if err := requireRemoteExperimental(t.a); err != nil {
+		return nil, err
+	}
 	r := map[string]remotesvc.Resolution{}
 	for k, v := range res {
 		r[k] = remotesvc.Resolution(v)
 	}
 	p, err := newRemoteReturnService(ctx, t.a).ApplyReplay(ctx, id, r)
 	if err != nil {
-		return nil, err
+		return nil, replayError(err)
 	}
 	return toReplayView(p), nil
+}
+
+// replayError translates the refusal of an unauthenticated journal.
+func replayError(err error) error {
+	if errors.Is(err, remotesvc.ErrJournalUnauthenticated) {
+		return fmt.Errorf("%s (%w)", i18n.T("cmd.session.resolve.unauthenticated"), err)
+	}
+	return err
 }

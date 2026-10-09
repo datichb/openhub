@@ -81,14 +81,20 @@ func TestSetupCreatesEverything(t *testing.T) {
 	assert.Equal(t, string(want), string(runner.Files[CIFile]))
 
 	// Secrets: masked + protected in GitLab, stored on the machine, never in hub.toml.
-	key := runner.Variables[remote.VarLLMKey]
+	// Secrets scoped to the run job (S-02): never visible to the image build.
+	key := runner.Variables[gitlabtest.VarKey(remote.VarLLMKey, remote.RunEnvironmentScope)]
 	assert.True(t, key.Masked && key.Protected && key.Raw)
 	assert.Equal(t, "bedrock-api-key-123", key.Value)
 	assert.False(t, runner.Variables[remote.VarLLMProvider].Masked)
-	pt := runner.Variables[remote.ProjectTokenVar(api.ID)]
+	pt := runner.Variables[gitlabtest.VarKey(remote.ProjectTokenVar(api.ID), remote.RunEnvironment(api.ID))]
 	assert.True(t, pt.Masked)
 	assert.Equal(t, "glpat-project-api", pt.Value)
-	assert.True(t, runner.Variables[remote.VarTeamStateToken].Masked)
+	assert.True(t, runner.Variables[gitlabtest.VarKey(remote.VarTeamStateToken, remote.RunEnvironmentScope)].Masked)
+	for k, v := range runner.Variables {
+		if v.Masked {
+			assert.NotEmpty(t, v.Scope, "%s visible to every job", k)
+		}
+	}
 
 	assert.Equal(t, "glpat-member", sec.m["openhub.remote.acme.token"])
 	assert.Equal(t, runner.Triggers[0]["token"], sec.m["openhub.remote.acme.trigger"])
@@ -186,6 +192,11 @@ func TestCheck(t *testing.T) {
 	runner.Variables[remote.VarLLMProvider] = gitlabtest.Variable{Key: remote.VarLLMProvider, Value: "anthropic"}
 	runner.Variables[remote.VarLLMKey] = gitlabtest.Variable{Key: remote.VarLLMKey, Value: "sk-ant-xxxxxx", Masked: true}
 	rep = svc.Check(ctx, tg)
+	assert.False(t, rep.OK(), "LLM key visible to the image build jobs")
+	delete(runner.Variables, remote.VarLLMKey)
+	runner.Variables[gitlabtest.VarKey(remote.VarLLMKey, remote.RunEnvironmentScope)] = gitlabtest.Variable{Key: remote.VarLLMKey,
+		Value: "sk-ant-xxxxxx", Masked: true, Scope: remote.RunEnvironmentScope}
+	rep = svc.Check(ctx, tg)
 	assert.True(t, rep.OK(), "%+v", rep.Steps)
 
 	runner.Unprotected = true
@@ -229,4 +240,29 @@ func TestIsRelease(t *testing.T) {
 	assert.False(t, IsRelease("dev"))
 	assert.False(t, IsRelease("v5.0.0-rc.1"))
 	assert.False(t, IsRelease("v4.2.0-37-gb890679a-dirty"))
+}
+
+// S-02: a secret left visible to every job by an older oh is replaced by
+// its copy scoped to the run job.
+func TestSetupScopesLegacySecrets(t *testing.T) {
+	ctx := context.Background()
+	svc, srv, _, _ := newSvc(t)
+	api := srv.AddProject("acme/dev/api")
+	_, err := svc.Setup(ctx, SetupRequest{Target: target(srv), Token: "glpat-member", Create: true})
+	require.NoError(t, err)
+	runner := srv.Project("acme/dev/oh-runner")
+	legacy := remote.ProjectTokenVar(api.ID)
+	runner.Variables[legacy] = gitlabtest.Variable{Key: legacy, Value: "glpat-old-token", Masked: true, Protected: true}
+	runner.Variables[remote.VarLLMKey] = gitlabtest.Variable{Key: remote.VarLLMKey, Value: "old-llm-key", Masked: true, Protected: true}
+
+	rep, err := svc.Setup(ctx, SetupRequest{Target: target(srv), Token: "glpat-member",
+		LLM:      &LLMSecret{Provider: "anthropic", Key: "sk-ant-new-key"},
+		Projects: []ProjectToken{{Path: "acme/dev/api", Token: "glpat-new-token"}}})
+	require.NoError(t, err)
+	assert.True(t, rep.OK(), "%+v", rep.Steps)
+	_, unscoped := runner.Variables[legacy]
+	assert.False(t, unscoped, "project token still visible to every job")
+	_, unscoped = runner.Variables[remote.VarLLMKey]
+	assert.False(t, unscoped, "LLM key still visible to every job")
+	assert.Equal(t, "glpat-new-token", runner.Variables[gitlabtest.VarKey(legacy, remote.RunEnvironment(api.ID))].Value)
 }

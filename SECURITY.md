@@ -127,9 +127,14 @@ MCP server tokens (GitLab, Figma, Jira, Linear, GitHub, Google) are:
 
 ### Remote sessions (GitLab CI)
 
+> **Experimental, disabled by default in 5.0.** The remote mode has never been validated on a real runner (its protections, described below, are tested off-runner). oh refuses it until `[remote] experimental = true` is set (`oh config set remote.experimental true`); only enable it for trials, with test projects and tokens.
+
 - **Masked and protected CI variables.** The job only receives the CI variables of the `oh-runner` project: LLM key of the jobs, an access token per target project, a team-state write token. They are masked (absent from logs) and protected (default branch of `oh-runner`, which must be protected). `oh remote setup` reads secrets from hidden input or an environment variable, never from arguments; `[[remote.targets]]` in `hub.toml` holds no secret. The machine keeps only your GitLab API token and the trigger token, in the keychain.
+- **Image build without secrets.** Secret variables are limited to the environment of the `oh-run` job (`oh-run/*`, and `oh-run/<project id>` for a project token): the jobs that run the `RUN` steps of a project Dockerfile only have their `CI_JOB_TOKEN`, and read the build context sent by the machine (never a token in a URL). Limit: this token can write to the container registry of `oh-runner`; only group projects of the same trust in a target.
 - **No secret in pipeline variables or artifacts.** Inputs and prompt travel in the session envelope (package registry), not in pipeline variables. Artifacts (`journal.jsonl`, `summary.json`, `session.export`) and error messages are scrubbed of secret values.
-- **Inside the job.** `ScrubEnv` removes every variable whose name contains `TOKEN`, `PASSWORD`, `SECRET`, `_KEY`, `PASSPHRASE`, `CREDENTIAL`, `JWT` or `AUTH` before the daemon starts. The LLM key is held by the proxy of the job only. opencode runs under the `oh` account (uid 10001), which cannot read the job's processes, `oh.db` or the secrets. The project token is given to git through `GIT_CONFIG_*` in the git process environment, never in an argument, URL or file.
+- **Inside the job.** `ScrubEnv` removes every variable whose name contains `TOKEN`, `PASSWORD`, `SECRET`, `_KEY`, `PASSPHRASE`, `CREDENTIAL`, `JWT` or `AUTH` before the daemon starts. The LLM key is held by the proxy of the job only. opencode runs under the `oh` account (uid 10001), which cannot read the job's processes, `oh.db` or the secrets. The project token is only handed to git by a one-shot `GIT_ASKPASS` script (0600 file of root, removed after the call), never in an argument, a URL, an environment variable or the git configuration.
+- **Final git steps without anything of the agent.** Before the final commit and push, oh kills every process of the `oh` account. It never runs git in the agent's repository: it copies the objects, the refs and `HEAD` into a fresh repository of its own (no configuration, hooks, index or `alternates` of the agent), and reads the work tree through it, with `core.hooksPath=/dev/null`, `core.fsmonitor=false`, `GIT_CONFIG_GLOBAL=/dev/null` and `GIT_CONFIG_NOSYSTEM=1`. Nested repositories and files not owned by the `oh` account (hard links to files of root) are not committed. The branch is pushed to the project URL chosen by the machine, never to a remote of the agent.
+- **Authenticated and bounded Beads replay.** The job journal is sealed (HMAC) with a key of the session, kept in the machine keychain; before any replay, oh checks this seal and the one of its local copy of the envelope (`beads.allow` list, snapshot). Every write is checked again: known options only, tickets of the session only (including in `--parent` and `--deps`), a close by status handled as `close`. Control characters of the journal are neutralized on display.
 - **No blind approval.** A policy responder answers decisions, never `--auto`: `auto` checkpoints are approved, any other permission is refused, a deferred checkpoint or a question stops the work.
 
 ### Session limits (I6)
@@ -153,7 +158,7 @@ Treat the local mode as "the agent acts with your user rights". Real isolation c
 - API key only (no AWS profile), and no I6 limits in the job.
 - The parent GitLab shell keeps its own environment; only the `oh` account (server, agents) is protected from it.
 - Maintainers of `oh-runner` can read its CI variables: restrict them.
-- The remote mode has not yet been validated on a real runner.
+- The remote mode has not yet been validated on a real runner: it is **experimental and disabled by default** (`[remote] experimental = true` to try it).
 
 ### Self-update
 

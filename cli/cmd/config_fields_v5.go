@@ -99,6 +99,7 @@ func v5ConfigFields() map[string]configField {
 			"auto", "auto", "colima", "podman", "docker"),
 		"execution.keep_images":      intField("execution.keep_images", func(c *config.Config) *int { return &c.Execution.KeepImages }, 1, 20),
 		"execution.strict_isolation": boolField("execution.strict_isolation", func(c *config.Config) *bool { return &c.Execution.StrictIsolation }),
+		"remote.experimental":        boolField("remote.experimental", func(c *config.Config) *bool { return &c.Remote.Experimental }),
 		"execution.tool_version": {
 			Set: func(c *config.Config, v string) error {
 				v = strings.TrimSpace(v)

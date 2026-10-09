@@ -108,7 +108,9 @@ func Generate(o Options) ([]byte, error) {
 	w("%s — pipeline schema %d.\n", Marker, remote.PipelineSchema)
 	w("# Do not edit: the file is rewritten by `oh remote setup`. Runs only when\n")
 	w("# triggered by oh with a session (never on push). Secrets are masked CI\n")
-	w("# variables of this project: %s, %s, %s<project id>.\n", remote.VarLLMKey, remote.VarTeamStateToken, strings.TrimSuffix(remote.ProjectTokenVar(0), "0"))
+	w("# variables of this project: %s, %s, %s<project id>, scoped to the\n", remote.VarLLMKey, remote.VarTeamStateToken, strings.TrimSuffix(remote.ProjectTokenVar(0), "0"))
+	w("# environment of the run job (%s<project id>): the image jobs, which run\n", remote.RunEnvironmentPrefix)
+	w("# the RUN steps of a project Dockerfile, only hold CI_JOB_TOKEN.\n")
 	w("\nworkflow:\n  rules:\n")
 	w("    - if: '$CI_PIPELINE_SOURCE == \"trigger\" && $%s'\n", remote.VarSessionID)
 	w("    - when: never\n")
@@ -143,6 +145,7 @@ func Generate(o Options) ([]byte, error) {
 	w("  image:\n    name: $%s\n    entrypoint: [\"\"]\n", remote.VarImage)
 	w("  needs:\n    - job: oh-image\n      optional: true\n")
 	w("  timeout: %s\n", o.Timeout)
+	w("  environment:\n    name: %s$%s\n    action: prepare\n", remote.RunEnvironmentPrefix, remote.VarProjectID)
 	w("  variables:\n    OH_HOME: /tmp/oh\n")
 	w("  script:\n    - oh runner run --out \"$CI_PROJECT_DIR/%s\"\n", remote.OutDir)
 	w("  artifacts:\n    when: always\n    expire_in: 7 days\n    paths: [%s/]\n", remote.OutDir)
@@ -186,25 +189,23 @@ cp /etc/ssl/certs/ca-certificates.crt oh-layer/ca-certificates.crt
 ` + heredoc("oh-layer/Dockerfile", layerDockerfile) + heredoc("oh-layer/Dockerfile.base", container.DefaultBaseDockerfile)
 }
 
-// projectToken exports GIT_PASSWORD from OH_PROJECT_TOKEN_<OH_PROJECT_ID>.
-func projectToken() string {
-	return `token_var="` + strings.TrimSuffix(remote.ProjectTokenVar(0), "0") + `${` + remote.VarProjectID + `}"
-eval "GIT_PASSWORD=\"\${$token_var:-}\""
-if [ -z "$GIT_PASSWORD" ]; then echo "oh: CI variable $token_var is missing (oh remote setup --project)"; exit 1; fi
-export GIT_USERNAME=oauth2 GIT_PASSWORD
-host="${CI_SERVER_FQDN:-$CI_SERVER_HOST}"
+// fetchContext downloads the build context of the dev Dockerfile, sent by
+// the machine to the generic packages of oh-runner (CI_JOB_TOKEN of this
+// project only: no access to the target project, no token in a URL), and
+// checks its SHA-256.
+func fetchContext(path string) string {
+	return `wget -q --header "JOB-TOKEN: $CI_JOB_TOKEN" -O ` + path + ` "$` + remote.VarContextURL + `"
+echo "$` + remote.VarContextSHA256 + `  ` + path + `" | sha256sum -c -
 `
 }
 
 func kanikoScript() string {
 	return `set -eu
-` + projectToken() + `mkdir -p /kaniko/.docker
+mkdir -p /kaniko/.docker
 auth=$(printf '%s:%s' "$CI_REGISTRY_USER" "$CI_REGISTRY_PASSWORD" | base64 | tr -d '\n')
 printf '{"auths":{"%s":{"auth":"%s"}}}' "$CI_REGISTRY" "$auth" > /kaniko/.docker/config.json
 if [ -n "${` + remote.VarDockerfile + `:-}" ]; then
-  ctx="git://$host/$` + remote.VarProjectPath + `.git#refs/heads/$` + remote.VarRef + `"
-  if [ -n "${` + remote.VarCommit + `:-}" ]; then ctx="$ctx#$` + remote.VarCommit + `"; fi
-  /kaniko/executor --context "$ctx" --dockerfile "$` + remote.VarDockerfile + `" --destination "$` + remote.VarImageBase + `"
+` + indent(fetchContext("/kaniko/oh-context.tar.gz"), "  ") + `  /kaniko/executor --context "tar:///kaniko/oh-context.tar.gz" --dockerfile "$` + remote.VarDockerfile + `" --destination "$` + remote.VarImageBase + `"
 else
   /kaniko/executor --context "dir://$CI_PROJECT_DIR/oh-layer" --dockerfile "$CI_PROJECT_DIR/oh-layer/Dockerfile.base" --destination "$` + remote.VarImageBase + `"
 fi
@@ -214,12 +215,9 @@ fi
 
 func dindScript() string {
 	return `set -eu
-` + projectToken() + `echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
+echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
 if [ -n "${` + remote.VarDockerfile + `:-}" ]; then
-  apk add --no-cache git >/dev/null
-  git clone --quiet --depth 50 --branch "$` + remote.VarRef + `" "https://oauth2:$GIT_PASSWORD@$host/$` + remote.VarProjectPath + `.git" /tmp/project
-  if [ -n "${` + remote.VarCommit + `:-}" ]; then git -C /tmp/project checkout --quiet "$` + remote.VarCommit + `"; fi
-  docker build -f "/tmp/project/$` + remote.VarDockerfile + `" -t "$` + remote.VarImageBase + `" /tmp/project
+` + indent(fetchContext("/tmp/oh-context.tar.gz"), "  ") + `  docker build -f "$` + remote.VarDockerfile + `" -t "$` + remote.VarImageBase + `" - < /tmp/oh-context.tar.gz
 else
   docker build -f oh-layer/Dockerfile.base -t "$` + remote.VarImageBase + `" oh-layer
 fi
@@ -227,4 +225,13 @@ docker push "$` + remote.VarImageBase + `"
 docker build --build-arg "OH_IMAGE_BASE=$` + remote.VarImageBase + `" --build-arg "` + remote.VarToolVersion + `=$` + remote.VarToolVersion + `" -t "$` + remote.VarImage + `" oh-layer
 docker push "$` + remote.VarImage + `"
 `
+}
+
+// indent prefixes every line of s.
+func indent(s, pad string) string {
+	lines := strings.Split(strings.TrimRight(s, "\n"), "\n")
+	for i, l := range lines {
+		lines[i] = pad + l
+	}
+	return strings.Join(lines, "\n") + "\n"
 }

@@ -12,7 +12,7 @@ import (
 // PipelineSchema is the version of the generated .gitlab-ci.yml contract
 // (variables, stages, artifacts). Bump it on any incompatible change: the
 // machine refuses to send to an oh-runner project with another schema.
-const PipelineSchema = 2 // 2: neutral OH_TOOL_VERSION (QB7)
+const PipelineSchema = 3 // 2: neutral OH_TOOL_VERSION (QB7); 3: secrets scoped to the run job, image context uploaded by the machine (S-02)
 
 // CI variables of the oh-runner project (set by oh remote setup). Secret ones
 // are masked and protected; they never leave GitLab except into the job.
@@ -23,6 +23,21 @@ const (
 	VarTeamStateToken  = "OH_TEAMSTATE_TOKEN" // secret: write_repository on the team-state repository
 	projectTokenPrefix = "OH_PROJECT_TOKEN_"  // secret, + project ID: write_repository (+ read_api) on that project
 )
+
+// Environments of the run job: the secret variables are scoped to them
+// (environment_scope), so that the image build jobs, which run the RUN
+// steps of a project Dockerfile, never receive them, and the run job of a
+// project only receives the token of that project (S-02).
+const (
+	RunEnvironmentPrefix = "oh-run/"
+	RunEnvironmentScope  = RunEnvironmentPrefix + "*" // LLM key, team-state token
+)
+
+// RunEnvironment is the environment of the run job of a target project:
+// the scope of its access token.
+func RunEnvironment(projectID int64) string {
+	return RunEnvironmentPrefix + strconv.FormatInt(projectID, 10)
+}
 
 // ProjectTokenVar returns the CI variable holding the access token of the
 // target project id.
@@ -57,6 +72,8 @@ const (
 	VarImageBase      = "OH_IMAGE_BASE"      // project base image (dev Dockerfile)
 	VarImageBuild     = "OH_IMAGE_BUILD"     // "true" when OH_IMAGE is missing from the registry
 	VarDockerfile     = "OH_DOCKERFILE"      // dev Dockerfile path in the project ("" = oh default base)
+	VarContextURL     = "OH_CONTEXT_URL"     // generic package file: build context of the dev Dockerfile (sent by the machine)
+	VarContextSHA256  = "OH_CONTEXT_SHA256"  // expected SHA-256 of the build context
 	VarCLIVersion     = "OH_CLI_VERSION"     // oh version (release download when OH_CLI_URL is empty)
 	VarCLIURL         = "OH_CLI_URL"         // generic package file of a development oh binary
 	VarCLISHA256      = "OH_CLI_SHA256"      // expected SHA-256 of the oh binary or release archive
@@ -69,6 +86,7 @@ const (
 	PackageCLI     = "oh-cli"     // development oh binaries: version = SHA-256 prefix, file oh-linux-<arch>
 	PackageBundle  = "oh-bundle"  // session bundles: version = bundle hash, file bundle.tar.gz
 	PackageSession = "oh-session" // session envelopes: version = envelope hash, file session.tar.gz
+	PackageContext = "oh-context" // build contexts of dev Dockerfiles: version = SHA-256, file context.tar.gz
 )
 
 // CLIFile is the file name of a development oh binary for arch.

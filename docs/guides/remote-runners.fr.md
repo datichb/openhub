@@ -4,6 +4,14 @@
 
 Une session oh peut tourner sur un **runner GitLab CI** au lieu de votre machine. Ce guide couvre la mise en place : le runner, le projet central `oh-runner` d'un groupe GitLab, et `oh remote setup`. L'exécution distante est disponible sur macOS et Linux ; sous Windows, oh reste en local.
 
+> **Expérimental, désactivé par défaut (v5.0).** L'exécution distante n'a jamais été validée sur un vrai runner. Elle reste désactivée tant que vous ne l'activez pas explicitement sur votre machine :
+>
+> ```bash
+> oh config set remote.experimental true
+> ```
+>
+> Sans ce réglage, `oh remote setup`, `oh run --runtime remote`, l'option ☁ de la fiche de lancement, `oh session fetch` et `oh session resolve` refusent avec le message « mode distant expérimental, non validé : oh config set remote.experimental true ». Une fois activée, un avertissement reste affiché dans le récapitulatif du lancement, dans `oh remote status` et dans `oh doctor`. Réservez-la aux essais, avec des projets et des jetons de test : les protections du job (étapes git finales, construction de l'image, rejeu du journal Beads) sont en place et testées, mais le drapeau ne sera levé qu'après une recette sur un vrai runner.
+
 > **v5.0 :** l'exécution distante est couverte par les tests (répondeur, contrat machine ↔ job, rejeu du journal, essai local complet de `oh runner run`), mais n'a pas encore été validée sur un vrai runner. Les serveurs MCP qui lisent un jeton dans le trousseau de la machine (gitlab, jira, figma…) ne sont pas disponibles dans le job (`workflow` l'est), et les build args de la config Exécution ne sont pas transmis à l'image distante.
 
 ## Principe
@@ -21,7 +29,7 @@ oh session fetch ◀──artefacts── journal Beads, résumé, export de ses
 - **Un projet `oh-runner` par groupe GitLab.** Son `.gitlab-ci.yml` est **généré par oh** (`oh remote setup` le réécrit). La CI des projets n'est jamais modifiée.
 - **Les secrets de votre machine ne partent pas.** Le job ne reçoit que des **variables CI masquées et protégées** du projet `oh-runner` : la clé LLM des jobs, un jeton d'accès par projet cible, un jeton d'écriture du team-state. Votre trousseau garde seulement le jeton API GitLab (le vôtre) et le jeton de déclenchement.
 - **Beads reste sur votre machine.** Le job reçoit un instantané des tickets concernés et renvoie un journal de ses écritures, que vous rejouez à la récupération (avec résolution des conflits).
-- **L'image du job** est l'image de développement du projet (son Dockerfile de dev, ou une base Debian par défaut) plus une couche fine (oh, opencode, faux `bd`). Elle est construite sur le runner et gardée dans le registre de conteneurs d'`oh-runner`, avec un tag égal à son hash.
+- **L'image du job** est l'image de développement du projet (son Dockerfile de dev, ou une base Debian par défaut) plus une couche fine (oh, opencode, faux `bd`) ; elle doit contenir git 2.32 ou plus récent. Elle est construite sur le runner et gardée dans le registre de conteneurs d'`oh-runner`, avec un tag égal à son hash.
 
 ## Ce qu'il faut
 
@@ -112,9 +120,10 @@ Ne les collez jamais dans une commande : `oh remote setup` les demande en saisie
 
 ## 3. Configurer oh : `oh remote setup`
 
-Depuis un projet du groupe (l'instance et le groupe sont proposés à partir de son remote `origin`) :
+Depuis un projet du groupe (l'instance et le groupe sont proposés à partir de son remote `origin`), après avoir activé le mode expérimental :
 
 ```bash
+oh config set remote.experimental true
 oh remote setup --llm --teamstate --project acme/dev/api
 ```
 
@@ -196,7 +205,7 @@ Le job `oh-run` exécute `oh runner run` dans l'image du projet :
 
 1. **Récupération** du paquet et de l'enveloppe de session avec le jeton du job (`CI_JOB_TOKEN`), vérifiés par leur hash.
 2. **Nettoyage** de l'environnement : toutes les variables secrètes (clé LLM, jetons, `CI_JOB_TOKEN`, mots de passe du registre) sont retirées du processus avant de lancer quoi que ce soit.
-3. **Clone** du projet avec son jeton (`OH_PROJECT_TOKEN_<id>`, passé par l'environnement de git, jamais dans une URL ni un fichier) et création de la branche de la session.
+3. **Clone** du projet avec son jeton (`OH_PROJECT_TOKEN_<id>`, remis à git par un script `GIT_ASKPASS` éphémère, jamais dans une URL, une variable ni la configuration git) et création de la branche de la session.
 4. **Session** : même code que sur votre machine — démon oh, proxy d'identifiants (seul détenteur de la clé LLM), serveur opencode et paquet en « monde fermé ». Le serveur opencode tourne sous le compte `oh` (créé dans l'image), qui ne peut lire ni les processus du job, ni la base oh, ni les secrets.
 5. **Répondeur de politique** (jamais d'approbation aveugle) :
 
@@ -209,7 +218,7 @@ Le job `oh-run` exécute `oh runner run` dans l'image du projet :
    | erreur, budget, coupe-circuit | la session s'arrête (échec) |
 
 6. **Beads** : `bd` est le faux bd d'oh ; il passe par la passerelle Beads du démon du job, qui applique `beads.allow`. Les lectures viennent de l'instantané ; les écritures sont enregistrées dans `journal.jsonl` (et visibles par les lectures suivantes), puis rejouées sur votre machine à la récupération.
-7. **Branche et MR** : ce qui n'est pas commité l'est, la branche est poussée et une **MR en brouillon** est ouverte par les options de `git push`. L'avancement est publié dans le claim du ticket (`OH_TEAMSTATE_TOKEN`).
+7. **Branche et MR** : tous les processus du compte `oh` sont d'abord tués ; oh ne lance jamais git dans le dépôt de l'agent (ses hooks, son `core.fsmonitor`, ses filtres et ses remotes ne servent pas) : il copie les objets et les références dans un dépôt neuf à lui. Ce qui n'est pas commité l'est (sans les dépôts imbriqués ni les fichiers qui n'appartiennent pas au compte `oh`), la branche est poussée et une **MR en brouillon** est ouverte par les options de `git push`. L'avancement est publié dans le claim du ticket (`OH_TEAMSTATE_TOKEN`).
 8. **Artefacts** (`oh-out/`, 7 jours) : `journal.jsonl` (écritures Beads), `summary.json` (issue, coût, décisions, MR, sorties), `session.export` (transcription de la session et de ses sous-agents, pour la reprendre en local).
 
 Limites : les serveurs MCP qui ont besoin d'un jeton de votre machine (gitlab, jira, figma…) ne sont pas disponibles dans le job ; le serveur `workflow` d'oh l'est. Si le job est annulé ou dépasse sa durée, la session est exportée et le travail poussé avant l'arrêt quand c'est possible.
@@ -228,7 +237,9 @@ Limites : les serveurs MCP qui ont besoin d'un jeton de votre machine (gitlab, j
 
 **Rejeu du journal Beads** — `oh session resolve <id>` ou la fenêtre de la TUI :
 
-- chaque écriture est **revérifiée** sur la machine (`beads.allow` du workflow, options refusées, fichiers du job, tickets de la session) ; les autres sont refusées ;
+- le journal est **authentifié** : le job le scelle (HMAC) avec une clé propre à la session, que votre machine garde dans son trousseau et qui ne figure ni dans les artefacts ni dans la copie locale de l'enveloppe ; un journal, un instantané ou une liste `beads.allow` modifiés, ou une clé absente, et rien n'est rejoué ;
+- chaque écriture est **revérifiée** sur la machine : `beads.allow` du workflow (une fermeture par `update --status closed` demande `close`), options connues seulement (options courtes combinées, `--id`, `--db`, fichiers du job refusés), et **chaque ticket nommé** — en argument comme dans `--parent` ou `--deps` — doit être un ticket de la session (ou créé par elle) ; les autres écritures sont refusées ;
+- l'affichage neutralise les caractères de contrôle venus du job (séquences ANSI/OSC, retours chariot) : ils sont montrés, jamais interprétés ;
 - un ticket **modifié sur la machine depuis l'envoi** (sa révision a changé) est un **conflit** : pour chacun, *Garder local* (rien n'est appliqué sur ce ticket), *Appliquer distant* (toutes ses écritures), *Fusionner les notes* (seulement les notes et commentaires) ;
 - **rien n'est appliqué sans confirmation** ; les tickets créés dans le job reçoivent leur vrai identifiant et les écritures suivantes l'utilisent ;
 - relançable : une écriture en échec est retentée, les autres ne sont pas rejouées.
@@ -245,14 +256,16 @@ Trois jobs, déclenchés **uniquement** par oh (jamais à un push) :
 | Job | Quand | Rôle |
 |---|---|---|
 | `oh-cli` | image absente du registre | récupère oh (release vérifiée par `checksums.txt`, ou binaire de développement vérifié par son SHA-256) et prépare la couche oh |
-| `oh-image` | image absente du registre | construit l'image de base (Dockerfile de dev du projet, cloné avec le jeton du projet ; sinon Debian + git + ripgrep) puis la couche oh, et les pousse |
-| `oh-run` | toujours | `oh runner run` dans l'image du projet ; artefacts dans `oh-out/` (7 jours) |
+| `oh-image` | image absente du registre | construit l'image de base (Dockerfile de dev du projet, avec le contexte de build envoyé par votre machine dans le registre de packages ; sinon Debian + git + ripgrep) puis la couche oh, et les pousse. Ce job exécute les `RUN` du Dockerfile : il n'a que le jeton du job (`CI_JOB_TOKEN`), aucun secret d'oh ni jeton de projet |
+| `oh-run` | toujours | `oh runner run` dans l'image du projet, dans l'environnement `oh-run/<id du projet>` ; artefacts dans `oh-out/` (7 jours) |
 
 Les variables du déclenchement (identifiant de session, projet, branche, adresses du paquet et de l'image) ne sont pas secrètes : elles sont visibles dans la page du pipeline.
 
 ## Sécurité
 
-- Les variables secrètes sont **masquées** (absentes des journaux) et **protégées** (branche par défaut d'`oh-runner` seulement). Restreignez les Maintainers d'`oh-runner` : ils peuvent lire ces variables.
+- Les variables secrètes sont **masquées** (absentes des journaux), **protégées** (branche par défaut d'`oh-runner` seulement) et **limitées à l'environnement du job `oh-run`** : la clé LLM et le jeton team-state à `oh-run/*`, le jeton d'un projet à `oh-run/<id du projet>`. Les jobs de construction d'image ne les reçoivent pas, et le job d'un projet ne reçoit pas le jeton des autres. `oh remote setup` remplace les variables visibles de tous les jobs laissées par une version précédente ; `oh remote status` les signale.
+- L'étiquette de l'image de base est l'empreinte du Dockerfile **et** des fichiers qu'il lit (sources des `COPY`/`ADD`, montages `RUN --mount=type=bind` ; tout l'arbre si elles ne peuvent pas être isolées). Seuls ces fichiers, au commit de départ, sont envoyés comme contexte de build.
+- Limite : le jeton du job de construction (`CI_JOB_TOKEN`) peut écrire dans le registre de conteneurs d'`oh-runner`. Un Dockerfile malveillant d'un projet cible pourrait y remplacer l'image d'un autre projet de la même cible : ne regroupez dans une cible que des projets de même confiance. Restreignez les Maintainers d'`oh-runner` : ils peuvent lire ces variables.
 - La clé LLM n'est lue que par le proxy d'identifiants d'oh dans le job ; opencode ne reçoit qu'un jeton de session.
 - Les jetons de projet ont la portée minimale : dépôt (lecture/écriture) et lecture de l'API ; la MR est ouverte par les options de `git push`.
 - Kaniko n'a pas besoin de mode privilégié ; Docker-in-Docker si, à réserver à une machine dédiée.

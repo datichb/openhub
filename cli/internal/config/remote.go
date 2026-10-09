@@ -9,6 +9,9 @@ import (
 
 // RemoteConfig configures the remote runtime (GitLab CI runners, v5 phase 5).
 type RemoteConfig struct {
+	// Experimental enables the remote runtime on this machine (off by
+	// default in 5.0: never validated on a real runner).
+	Experimental bool `mapstructure:"experimental" toml:"experimental,omitempty"`
 	// Targets are the oh-runner projects, one per GitLab instance and group.
 	Targets []RemoteTarget `mapstructure:"targets" toml:"targets,omitempty"`
 	// Projects maps an oh project ID to a target name, overriding the

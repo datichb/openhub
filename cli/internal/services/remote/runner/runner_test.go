@@ -272,7 +272,7 @@ func (r *fakeRepo) Clone(context.Context, string, string, string, string, string
 	r.cloned = true
 	return "base1", nil
 }
-func (r *fakeRepo) Finish(context.Context, string, string, string, string, string, string) (*PushResult, error) {
+func (r *fakeRepo) Finish(context.Context, string, string, string, string, string, string, string) (*PushResult, error) {
 	r.finished = true
 	if r.pushErr != nil {
 		return nil, r.pushErr
@@ -425,12 +425,12 @@ func TestGitCloneAndFinish(t *testing.T) {
 	cfg, _ := os.ReadFile(filepath.Join(work, ".git", "config"))
 	assert.NotContains(t, string(cfg), "Authorization", "token never written in the clone")
 
-	res, err := g.Finish(ctx, work, base, "main", "feat/bd-42", "oh: nothing", "")
+	res, err := g.Finish(ctx, origin, work, base, "main", "feat/bd-42", "oh: nothing", "")
 	require.NoError(t, err)
 	assert.Empty(t, res.Commit, "nothing to push")
 
 	require.NoError(t, os.WriteFile(filepath.Join(work, "csv.go"), []byte("package x"), 0o644))
-	res, err = g.Finish(ctx, work, base, "main", "feat/bd-42", "oh: ticket bd-42", "Remote oh session")
+	res, err = g.Finish(ctx, origin, work, base, "main", "feat/bd-42", "oh: ticket bd-42", "Remote oh session")
 	require.NoError(t, err)
 	assert.Len(t, res.Commit, 40)
 	assert.Equal(t, res.Commit, gitc(origin, "rev-parse", "feat/bd-42"), "branch pushed")
@@ -508,4 +508,24 @@ func TestJobRuntimeCommand(t *testing.T) {
 
 func ohProc(argv []string, env map[string]string, dir string) ohruntime.Proc {
 	return ohruntime.Proc{Argv: argv, Env: env, Dir: dir}
+}
+
+// S-04: the runner seals the journal with the key of the envelope; the
+// summary never carries the key.
+func TestRunSealsJournal(t *testing.T) {
+	key, err := remote.NewJournalKey()
+	require.NoError(t, err)
+	m := manifest()
+	m.JournalKey = key
+	sess := &fakeSession{fd: &fakeDecisions{}}
+	in, out := runInput(t, sess, &fakeRepo{}, m)
+	journal := []byte(`{"seq":1,"argv":["note","bd-42","x"]}` + "\n")
+	require.NoError(t, os.WriteFile(JournalPath(out), journal, 0o644))
+	_, err = Run(context.Background(), in)
+	require.NoError(t, err)
+	s := readSummary(t, out)
+	assert.True(t, remote.CheckSeal(key, "journal", m.SessionID, s.JournalMAC, journal))
+	assert.False(t, remote.CheckSeal(key, "journal", m.SessionID, s.JournalMAC, append(journal, '\n')))
+	data, _ := os.ReadFile(filepath.Join(out, remote.SummaryFile))
+	assert.NotContains(t, string(data), key)
 }

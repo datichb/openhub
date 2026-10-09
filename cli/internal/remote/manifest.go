@@ -6,7 +6,7 @@ import (
 )
 
 // ManifestSchema is the version of the session envelope format.
-const ManifestSchema = 1
+const ManifestSchema = 2 // 2: journal key (S-04)
 
 // Files of the session envelope (oh-session package).
 const (
@@ -64,6 +64,12 @@ type Manifest struct {
 	Checkpoints []ManifestCheckpoint `json:"checkpoints,omitempty"`
 	// Team is where the runner publishes the progress of the claims.
 	Team *ManifestTeam `json:"team,omitempty"`
+	// JournalKey (base64) authenticates the Beads journal of the session:
+	// the runner seals the journal with it (Summary.JournalMAC) and the
+	// machine, which keeps it in its keychain, checks the seal before any
+	// replay (S-04). Never written to the local copy of the manifest nor to
+	// the artifacts, never readable by the agent account in the job.
+	JournalKey string `json:"journal_key,omitempty"`
 }
 
 // ManifestWorkflow identifies the workflow.
@@ -156,6 +162,9 @@ type Summary struct {
 
 	Outputs        map[string]any `json:"outputs,omitempty"`
 	JournalEntries int            `json:"journal_entries"`
+	// JournalMAC seals journal.jsonl (JournalSeal with the session's
+	// journal key).
+	JournalMAC string `json:"journal_mac,omitempty"`
 	// Sessions are the exported tool sessions, parents first.
 	Sessions []string `json:"sessions,omitempty"`
 	Text     string   `json:"text,omitempty"` // last text of the assistant

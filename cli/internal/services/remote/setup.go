@@ -461,8 +461,20 @@ func (s *Service) variables(ctx context.Context, c *gitlab.Client, rep *Report, 
 		rep.add(StepVariable, StepUpdated, nil, v.Key)
 		return nil
 	}
-	secret := func(key, value string) gitlab.Variable {
-		return gitlab.Variable{Key: key, Value: value, Masked: true, Protected: true, Raw: true}
+	// Secrets are scoped to the run job (S-02); a copy visible to every job
+	// (left by an older oh) is removed.
+	secret := func(key, value, scope string) gitlab.Variable {
+		return gitlab.Variable{Key: key, Value: value, Masked: true, Protected: true, Raw: true, EnvironmentScope: scope}
+	}
+	setSecret := func(v gitlab.Variable) error {
+		if err := set(v); err != nil {
+			return err
+		}
+		if err := c.DeleteVariable(ctx, pid, v.Key, "*"); err != nil {
+			rep.add(StepVariable, StepFailed, err, v.Key)
+			return err
+		}
+		return nil
 	}
 	if req.LLM != nil {
 		if err := set(gitlab.Variable{Key: remote.VarLLMProvider, Value: req.LLM.Provider, Protected: true, Raw: true}); err != nil {
@@ -473,7 +485,7 @@ func (s *Service) variables(ctx context.Context, c *gitlab.Client, rep *Report, 
 				return err
 			}
 		}
-		if err := set(secret(remote.VarLLMKey, req.LLM.Key)); err != nil {
+		if err := setSecret(secret(remote.VarLLMKey, req.LLM.Key, remote.RunEnvironmentScope)); err != nil {
 			return err
 		}
 	}
@@ -483,12 +495,12 @@ func (s *Service) variables(ctx context.Context, c *gitlab.Client, rep *Report, 
 			rep.add(StepVariable, StepFailed, err, pt.Path)
 			return err
 		}
-		if err := set(secret(remote.ProjectTokenVar(p.ID), pt.Token)); err != nil {
+		if err := setSecret(secret(remote.ProjectTokenVar(p.ID), pt.Token, remote.RunEnvironment(p.ID))); err != nil {
 			return err
 		}
 	}
 	if req.TeamStateToken != "" {
-		if err := set(secret(remote.VarTeamStateToken, req.TeamStateToken)); err != nil {
+		if err := setSecret(secret(remote.VarTeamStateToken, req.TeamStateToken, remote.RunEnvironmentScope)); err != nil {
 			return err
 		}
 	}
@@ -506,6 +518,11 @@ func (s *Service) reportVariables(ctx context.Context, c *gitlab.Client, rep *Re
 	have := map[string]gitlab.Variable{}
 	projects := 0
 	for _, v := range vs {
+		if !secretScopeOK(v) {
+			// Visible to the image build jobs (S-02): set it again.
+			rep.add(StepVariable, StepFailed, fmt.Errorf("visible to every job (environment scope %s)", v.Scope()), v.Key)
+			continue
+		}
 		have[v.Key] = v
 		if _, ok := remote.ProjectTokenID(v.Key); ok {
 			projects++
@@ -614,4 +631,18 @@ func (s *Service) uploadBinary(ctx context.Context, c *gitlab.Client, pid, path,
 		return "", err
 	}
 	return version, nil
+}
+
+// secretScopeOK reports whether a variable of oh-runner is visible only
+// where it must be: the secrets to the run job (a project token to the run
+// job of its project), the other variables anywhere.
+func secretScopeOK(v gitlab.Variable) bool {
+	if id, ok := remote.ProjectTokenID(v.Key); ok {
+		return v.Scope() == remote.RunEnvironment(id)
+	}
+	switch v.Key {
+	case remote.VarLLMKey, remote.VarTeamStateToken:
+		return v.Scope() == remote.RunEnvironmentScope
+	}
+	return true
 }

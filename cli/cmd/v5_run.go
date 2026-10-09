@@ -237,7 +237,7 @@ func resolveLaunch(ctx context.Context, a *app.App, opts *runOptions, errOut io.
 	}
 	inputs := launchInputs(probe.Spec, *opts)
 	if opts.Runtime == "" {
-		opts.Runtime = string(probe.Spec.PickRuntime(runtimePrefs(a, opts.Project)...))
+		opts.Runtime = string(pickLaunchRuntime(a, probe.Spec, opts.Project))
 	}
 	ticketInput, perSession, err = launchTickets(probe.Spec, opts, inputs, beadsTicketSource(opts.Project))
 	if err != nil {
@@ -549,6 +549,7 @@ func runRecap(p *preparedRun) (rows [][2]string, warnings []string) {
 		}
 		add("  "+label, loc)
 	}
+	warnings = append(warnings, remoteRecapWarnings(p)...)
 	for _, w := range p.plan.Warnings {
 		warnings = append(warnings, warningText(w))
 	}

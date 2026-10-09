@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"regexp"
 	"sort"
 	"strings"
 
@@ -130,10 +129,17 @@ var valueFlags = map[string]bool{
 	"--type": true, "-t": true, "--label": true, "-l": true, "--parent": true, "--description": true, "-d": true,
 	"--notes": true, "--note": true, "--reason": true, "-r": true, "--actor": true, "--design": true,
 	"--acceptance": true, "--external-ref": true, "--estimate": true, "--deps": true, "--id": true,
+	"--labels": true, "--add-label": true, "--remove-label": true, "--append-notes": true,
 	"--body-file": true, "--design-file": true, "--file": true, "-f": true, "--output": true, "-o": true, "--input": true, "-i": true,
 }
 
-var idLikeRe = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9_]*-[A-Za-z0-9.]+$`)
+// boolFlags take no value. With valueFlags, they are the options a replayed
+// entry may carry: any other option is refused (S-04).
+var boolFlags = map[string]bool{"--json": true, "--claim": true, "--quiet": true, "-q": true, "--force": true,
+	"--all": true, "--verbose": true, "-v": true, "--stdin": true, "--no-daemon": true}
+
+// idFlags hold ticket ids (comma separated, "type:id" for --deps).
+var idFlags = map[string]bool{"--parent": true, "--deps": true}
 
 type bdArgs struct {
 	cmd   string
@@ -145,6 +151,13 @@ func parseBd(argv []string) bdArgs {
 	a := bdArgs{flags: map[string]string{}}
 	for i := 0; i < len(argv); i++ {
 		v := argv[i]
+		if v == "--" {
+			a.pos = append(a.pos, argv[i+1:]...)
+			if a.cmd == "" && len(a.pos) > 0 {
+				a.cmd, a.pos = a.pos[0], a.pos[1:]
+			}
+			break
+		}
 		if strings.HasPrefix(v, "-") && v != "-" {
 			name, val, has := strings.Cut(v, "=")
 			if !has && valueFlags[name] && i+1 < len(argv) {
@@ -180,20 +193,66 @@ func allowed(a bdArgs, allow []string) bool {
 	return false
 }
 
-func (s *Service) loadEnvelope(sid string) (*remote.Manifest, *remote.Snapshot, error) {
+// ErrJournalUnauthenticated is returned when the envelope kept on the
+// machine or the journal fetched from the job does not carry a valid seal
+// of the session's journal key (S-04): nothing is replayed.
+var ErrJournalUnauthenticated = errors.New("the Beads journal of the session is not authenticated")
+
+// loadSealed reads the envelope kept on the machine and the fetched
+// journal, and checks their seals with the journal key of the session
+// (keychain of the machine).
+func (s *Service) loadSealed(ctx context.Context, sid string) (*remote.Manifest, *remote.Snapshot, []beadswire.JournalEntry, error) {
 	dir := s.RemoteDir(sid)
-	var m remote.Manifest
-	var snap remote.Snapshot
-	for name, v := range map[string]any{remote.ManifestFile: &m, remote.SnapshotFile: &snap} {
+	read := func(name string) ([]byte, error) {
 		data, err := os.ReadFile(filepath.Join(dir, name))
 		if err != nil {
-			return nil, nil, fmt.Errorf("envelope of the session (%s): %w", name, err)
+			return nil, fmt.Errorf("envelope of the session (%s): %w", name, err)
 		}
-		if err := json.Unmarshal(data, v); err != nil {
-			return nil, nil, fmt.Errorf("%s: %w", name, err)
-		}
+		return data, nil
 	}
-	return &m, &snap, nil
+	mdata, err := read(remote.ManifestFile)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	sdata, err := read(remote.SnapshotFile)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	key := ""
+	if s.Secrets != nil {
+		key, _ = s.Secrets.Get(ctx, remote.JournalKeySecret(sid))
+	}
+	if key == "" {
+		return nil, nil, nil, fmt.Errorf("%w: no journal key on this machine", ErrJournalUnauthenticated)
+	}
+	emac, _ := os.ReadFile(filepath.Join(dir, envelopeSealFile))
+	if !remote.CheckSeal(key, "envelope", sid, strings.TrimSpace(string(emac)), mdata, sdata) {
+		return nil, nil, nil, fmt.Errorf("%w: the envelope kept on the machine was modified", ErrJournalUnauthenticated)
+	}
+	var m remote.Manifest
+	var snap remote.Snapshot
+	if err := json.Unmarshal(mdata, &m); err != nil {
+		return nil, nil, nil, fmt.Errorf("%s: %w", remote.ManifestFile, err)
+	}
+	if err := json.Unmarshal(sdata, &snap); err != nil {
+		return nil, nil, nil, fmt.Errorf("%s: %w", remote.SnapshotFile, err)
+	}
+	jdata, err := os.ReadFile(filepath.Join(dir, remote.JournalFile))
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
+		return nil, nil, nil, err
+	}
+	var sum remote.Summary
+	if data, err := os.ReadFile(filepath.Join(dir, remote.SummaryFile)); err == nil {
+		_ = json.Unmarshal(data, &sum)
+	}
+	if !remote.CheckSeal(key, "journal", sid, sum.JournalMAC, jdata) {
+		return nil, nil, nil, fmt.Errorf("%w: journal.jsonl does not match the seal of the job", ErrJournalUnauthenticated)
+	}
+	journal, err := parseJournal(jdata)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	return &m, &snap, journal, nil
 }
 
 func (s *Service) loadReplayState(sid string) replayState {
@@ -224,20 +283,37 @@ func (s *Service) saveReplayState(sid string, st replayState) error {
 // PlanReplay computes the replay of the journal of a fetched session: what
 // will be applied, refused, and the conflicts to resolve.
 func (s *Service) PlanReplay(ctx context.Context, sid string) (*ReplayPlan, error) {
+	plan, _, err := s.planReplay(ctx, sid)
+	return plan, err
+}
+
+func (s *Service) planReplay(ctx context.Context, sid string) (*ReplayPlan, []beadswire.JournalEntry, error) {
 	ref, err := s.Remote.GetRemoteRef(ctx, sid)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	if ref == nil {
-		return nil, ErrNotRemote
+		return nil, nil, ErrNotRemote
 	}
-	man, snap, err := s.loadEnvelope(sid)
-	if err != nil {
-		return nil, err
+	if ref.Status == domain.RemoteResolved {
+		// Replayed already (the journal key is gone): the outcome only.
+		st := s.loadReplayState(sid)
+		plan := &ReplayPlan{SessionID: sid}
+		seqs := make([]int, 0, len(st.Items))
+		for seq := range st.Items {
+			seqs = append(seqs, seq)
+		}
+		sort.Ints(seqs)
+		for _, seq := range seqs {
+			if it := st.Items[seq]; it.State != ItemPending && it.State != ItemFailed {
+				plan.Items = append(plan.Items, it)
+			}
+		}
+		return plan, nil, nil
 	}
-	journal, err := ReadJournal(filepath.Join(s.RemoteDir(sid), remote.JournalFile))
+	man, snap, journal, err := s.loadSealed(ctx, sid)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	st := s.loadReplayState(sid)
 	plan := &ReplayPlan{SessionID: sid}
@@ -263,7 +339,7 @@ func (s *Service) PlanReplay(ctx context.Context, sid string) (*ReplayPlan, erro
 		plan.Items = append(plan.Items, it)
 	}
 	if len(touched) == 0 {
-		return plan, nil
+		return plan, journal, nil
 	}
 	ids := make([]string, 0, len(touched))
 	for t := range touched {
@@ -272,7 +348,7 @@ func (s *Service) PlanReplay(ctx context.Context, sid string) (*ReplayPlan, erro
 	sort.Strings(ids)
 	recs, err := s.beads().Show(ctx, ref.ProjectDir, ids...)
 	if err != nil {
-		return nil, fmt.Errorf("reading the tickets on the machine: %w", err)
+		return nil, nil, fmt.Errorf("reading the tickets on the machine: %w", err)
 	}
 	current := map[string]json.RawMessage{}
 	for _, r := range recs {
@@ -293,7 +369,7 @@ func (s *Service) PlanReplay(ctx context.Context, sid string) (*ReplayPlan, erro
 		c.Resolution = st.Resolutions[t]
 		plan.Conflicts = append(plan.Conflicts, c)
 	}
-	return plan, nil
+	return plan, journal, nil
 }
 
 // classify checks an entry again on the machine.
@@ -311,22 +387,111 @@ func classify(e beadswire.JournalEntry, allow []string, snap *remote.Snapshot, p
 		return refuse("not allowed by the workflow (beads.allow)")
 	}
 	for f, v := range a.flags {
-		if refusedFlags[f] || strings.HasPrefix(f, "-C") && len(f) > 2 {
+		lf := strings.ToLower(f)
+		switch {
+		case refusedFlags[lf] || strings.HasPrefix(f, "-C") && len(f) > 2:
 			return refuse("option " + f + " refused")
-		}
-		if fileFlags[f] && v != "-" {
+		case !strings.HasPrefix(f, "--") && len(f) > 2:
+			return refuse("combined short options " + f + " refused")
+		case fileFlags[f] && v != "-":
 			return refuse("option " + f + " names a file of the job")
+		case f == "--id":
+			return refuse("option --id refused (the machine chooses the id)")
+		case !valueFlags[f] && !boolFlags[f]:
+			return refuse("unknown option " + f)
 		}
 	}
-	for _, p := range a.pos {
-		switch _, inSnap := snap.Issues[p]; {
-		case inSnap, placeholders[p]:
-			it.Tickets = append(it.Tickets, p)
-		case idLikeRe.MatchString(p) && a.cmd != "create" && a.cmd != "q":
-			return refuse("ticket " + p + " is not a ticket of the session")
+	if closes(a) && !allowed(bdArgs{cmd: "close"}, allow) {
+		return refuse("closing a ticket is not allowed by the workflow (beads.allow)")
+	}
+	ids, ok := ticketArgs(a)
+	if !ok {
+		return refuse("unexpected arguments")
+	}
+	session := func(id string) bool {
+		_, inSnap := snap.Issues[id]
+		return inSnap || placeholders[id]
+	}
+	seen := map[string]bool{}
+	for _, id := range ids {
+		if !session(id) {
+			return refuse("ticket " + id + " is not a ticket of the session")
+		}
+		if !seen[id] {
+			seen[id] = true
+			it.Tickets = append(it.Tickets, id)
 		}
 	}
 	return it
+}
+
+// closes reports an entry that closes a ticket, by `close` or by a status.
+func closes(a bdArgs) bool {
+	if a.cmd == "close" {
+		return true
+	}
+	for _, f := range []string{"--status", "-s"} {
+		if v, ok := a.flags[f]; ok && strings.EqualFold(strings.TrimSpace(v), "closed") {
+			return true
+		}
+	}
+	return false
+}
+
+// ticketArgs returns every ticket id an entry names, by position (per
+// command) and in the options that hold ids; ok is false when the
+// arguments do not have the shape of the command.
+func ticketArgs(a bdArgs) (ids []string, ok bool) {
+	pos := a.pos
+	switch a.cmd {
+	case "create", "q":
+		if len(pos) > 1 {
+			return nil, false // the title is one argument
+		}
+	case "note", "comment":
+		if len(pos) == 0 {
+			return nil, false
+		}
+		ids = append(ids, pos[0])
+	case "comments":
+		switch {
+		case len(pos) >= 2 && pos[0] == "add":
+			ids = append(ids, pos[1])
+		case len(pos) == 1:
+			ids = append(ids, pos[0])
+		default:
+			return nil, false
+		}
+	case "dep":
+		if len(pos) < 3 || (pos[0] != "add" && pos[0] != "remove" && pos[0] != "rm") {
+			return nil, false
+		}
+		ids = append(ids, pos[1:]...)
+	case "label":
+		if len(pos) < 2 || (pos[0] != "add" && pos[0] != "remove") {
+			return nil, false
+		}
+		ids = append(ids, pos[1])
+	default:
+		ids = append(ids, pos...)
+	}
+	for f := range idFlags {
+		v, has := a.flags[f]
+		if !has {
+			continue
+		}
+		for _, x := range strings.Split(v, ",") {
+			x = strings.TrimSpace(x)
+			if _, id, typed := strings.Cut(x, ":"); typed {
+				x = strings.TrimSpace(id)
+			}
+			if x == "" {
+				return nil, false
+			}
+			ids = append(ids, x)
+		}
+	}
+	return ids, true
 }
 
 func fieldOf(raw json.RawMessage, k string) string {
@@ -418,9 +583,13 @@ func notesOnly(argv []string) []string {
 // saved ones). Entries are applied in their order; created issues replace
 // their placeholder in the following entries.
 func (s *Service) ApplyReplay(ctx context.Context, sid string, res map[string]Resolution) (*ReplayPlan, error) {
-	plan, err := s.PlanReplay(ctx, sid)
+	plan, journal, err := s.planReplay(ctx, sid)
 	if err != nil {
 		return nil, err
+	}
+	stdinOf := map[int][]byte{}
+	for _, e := range journal {
+		stdinOf[e.Seq] = e.Stdin
 	}
 	st := s.loadReplayState(sid)
 	for t, r := range res {
@@ -438,7 +607,7 @@ func (s *Service) ApplyReplay(ctx context.Context, sid string, res map[string]Re
 		return plan, fmt.Errorf("%w: %s", ErrUnresolved, strings.Join(u, ", "))
 	}
 	ref, err := s.Remote.GetRemoteRef(ctx, sid)
-	if err != nil || ref == nil {
+	if err != nil || ref == nil || ref.Status == domain.RemoteResolved {
 		return plan, err
 	}
 	b := s.beads()
@@ -467,11 +636,7 @@ func (s *Service) ApplyReplay(ctx context.Context, sid string, res map[string]Re
 		if it.Placeholder != "" && !contains(argv, "--json") {
 			argv = append(argv, "--json")
 		}
-		var stdin []byte
-		if e := journalEntry(s.RemoteDir(sid), it.Seq); e != nil {
-			stdin = e.Stdin
-		}
-		out, err := b.Exec(ctx, ref.ProjectDir, argv, stdin)
+		out, err := b.Exec(ctx, ref.ProjectDir, argv, stdinOf[it.Seq])
 		if err != nil {
 			it.State, it.Reason = ItemFailed, err.Error()
 		} else {
@@ -500,6 +665,9 @@ func (s *Service) ApplyReplay(ctx context.Context, sid string, res map[string]Re
 		ref.Status, ref.UpdatedAt = domain.RemoteResolved, s.now().UTC()
 		if err := s.Remote.SetRemoteRef(ctx, sid, *ref); err != nil {
 			return plan, err
+		}
+		if s.Secrets != nil {
+			_ = s.Secrets.Delete(ctx, remote.JournalKeySecret(sid))
 		}
 	}
 	return plan, nil
@@ -540,17 +708,4 @@ func createdID(out []byte) string {
 		return many[0].ID
 	}
 	return ""
-}
-
-func journalEntry(dir string, seq int) *beadswire.JournalEntry {
-	j, err := ReadJournal(filepath.Join(dir, remote.JournalFile))
-	if err != nil {
-		return nil
-	}
-	for i := range j {
-		if j[i].Seq == seq {
-			return &j[i]
-		}
-	}
-	return nil
 }
