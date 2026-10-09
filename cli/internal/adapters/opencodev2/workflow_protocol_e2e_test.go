@@ -170,3 +170,54 @@ func TestE2ELibreQuestionIsNotClosed(t *testing.T) {
 		assert.NotEqual(t, domain.CheckpointImitated, ev.Kind, "not an imitation in a workflow without checkpoints")
 	}
 }
+
+// N10: with the commit lock on, the commands that merely mention commit or
+// push run (anchored patterns), the detours stay refused.
+func TestE2ELockPatternsWithoutFalsePositives(t *testing.T) {
+	tok := bedrockToken(t)
+	a := newContractAdapter(t)
+	e := newWorkflowEnv(t, a)
+	e.env = map[string]string{"GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@t", "GIT_COMMITTER_NAME": "t", "GIT_COMMITTER_EMAIL": "t@t"}
+	wf := sessionspec.WorkflowRuntime{ID: "ticket", DefaultMode: "manuel",
+		Checkpoints: []sessionspec.CheckpointDef{{ID: "cp-2", Label: map[string]string{"": "Commit ou correction"}, Behaviors: map[string]string{"manuel": "pause"},
+			Mandatory: true, Unlocks: []string{sessionspec.UnlockCommit, sessionspec.UnlockPush}}}}
+	b := workflowBundle(t, wf)
+	b.Agents[0].Body = "You are LEAD. You never run shell commands yourself: you delegate them to the subagent helper, verbatim, then report what helper said."
+	b.Agents[1].Body = "You are HELPER. Run the shell commands you are given, exactly as written, one per tool call. If one is refused, do not retry it nor work around it: go on with the next one. Then report the full output of each command."
+	shell := func(p string, eff sessionspec.Effect) sessionspec.PermissionRule {
+		return sessionspec.PermissionRule{Action: sessionspec.ActionShell, Resource: p, Effect: eff}
+	}
+	b.Agents[1].Permissions = []sessionspec.PermissionRule{shell("*", sessionspec.EffectDeny), shell("git *", sessionspec.EffectAllow), shell("echo *", sessionspec.EffectAllow), shell("sh *", sessionspec.EffectAllow)}
+	b.Permissions = append(b.Permissions, bundle.BaseCheckpointRules()...)
+	m := sessionspec.ParseModelRef(e2eModel)
+	b.DefaultModel = &m
+	b.Hash = "h_n10_patterns"
+	e.saveBundle(t, b)
+	h, project := e.startGroup(t, a, b, tok)
+	gitInit := exec.Command("git", "-C", project, "commit", "--allow-empty", "-qm", "init commit")
+	gitInit.Env = append(os.Environ(), "GIT_AUTHOR_NAME=t", "GIT_AUTHOR_EMAIL=t@t", "GIT_COMMITTER_NAME=t", "GIT_COMMITTER_EMAIL=t@t")
+	require.NoError(t, gitInit.Run())
+	c := NewClient(h.URL, h.Password)
+	waitMCPConnected(t, c, project, sessionspec.WorkflowMCPServer)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 8*time.Minute)
+	defer cancel()
+	id := sessionspec.NewSessionID()
+	require.NoError(t, e.sessions.Create(ctx, &domain.Session{ID: id, ProjectID: "p1", Status: domain.SessionStatusRunning, GroupKey: "g1",
+		BundleHash: b.Hash, Mode: "manuel", State: domain.RunActive, LaunchPath: project}))
+	require.NoError(t, a.CreateSession(ctx, h, sessionspec.SessionSpec{SessionID: id, Title: "e2e n10", EntryAgent: "lead", Location: project,
+		SessionRules: bundle.SessionRules(b.Workflow, "manuel", nil)}))
+	cmds := "git log --grep commit --format=MARKONE%s\n" +
+		"git show -s --format=MARKTWO%s HEAD -- src/pushNotifications.ts\n" +
+		"git merge-base --is-ancestor HEAD HEAD && echo MARKTHREE\n" +
+		"git --no-pager commit --allow-empty -m 'feat: a'\n" +
+		"sh -c 'git commit --allow-empty -m feat-b'\n" +
+		"git -C . commit --allow-empty -m 'feat: c'"
+	require.NoError(t, a.SendPrompt(ctx, h, id, "Delegate to the subagent helper these commands:\n"+cmds+"\nThen report what helper said, including the outputs verbatim."))
+	require.NoError(t, c.Wait(ctx, id))
+	reply := r2text(t, ctx, c, id)
+	for _, mark := range []string{"MARKONE", "MARKTWO", "MARKTHREE"} {
+		assert.Contains(t, reply, mark, "allowed command ran: %q", reply)
+	}
+	assert.Equal(t, "init commit\n", gitLog(t, project), "the detours are refused")
+}

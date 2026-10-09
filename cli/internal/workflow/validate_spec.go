@@ -548,6 +548,11 @@ func (v *validator) checkpoints() {
 				v.warn("unlock_unknown", at, string(op), UnlockOpNames())
 				continue
 			}
+			if op == UnlockPush && s.Risk != RiskPublish {
+				// No agent may push outside a publishing workflow (DC7): the
+				// lock opens nothing.
+				v.warn("unlock_push_without_publish", at, k)
+			}
 			if prev, dup := unlockedBy[op]; dup {
 				v.err("unlock_duplicate", at, string(op), prev, k)
 			} else {

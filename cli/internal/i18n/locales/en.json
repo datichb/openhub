@@ -2013,6 +2013,8 @@
   "workflow.diag.verify_cmd_missing.hint": "Give the command to run, or pick another value.",
   "workflow.diag.unlocking_checkpoint_removed": "Checkpoint %s unlocks operations (unlocks): it cannot be removed",
   "workflow.diag.unlock_duplicate": "Operation %s is already unlocked by checkpoint %s (duplicate in %s)",
+  "workflow.diag.unlock_push_without_publish": "Checkpoint %s unlocks push, but the workflow is not risk: publish: no agent may push",
+  "workflow.diag.unlock_push_without_publish.hint": "Remove push from unlocks: pushing is left to the user.",
   "workflow.diag.unlock_skip": "Checkpoint %s unlocks operations (unlocks): skip is treated as pause in mode %s",
   "workflow.diag.unlock_skip.hint": "A checkpoint with unlocks is never skipped (the lock would disappear); write pause or auto.",
   "workflow.diag.unlock_unknown": "Operation %s is unknown to this version of oh (ignored: it locks nothing here; known operations: %s). Update oh.",

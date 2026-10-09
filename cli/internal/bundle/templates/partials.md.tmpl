@@ -28,8 +28,9 @@ Règles de délégation :
 {{- if .Condition }}
 - **{{ .ID }}** (conditional) : {{ .Condition }}
 {{- end }}
-{{- if .Unlocks }}
-- **{{ .ID }}** déverrouille {{ codes .Unlocks }} : avant son passage, oh refuse ces opérations à tous les agents de la session (`git commit`, `git push`, fermeture d'un ticket), quel que soit le mode. Une fois passé, fais-les aussitôt, dans l'ordre : commit, puis fermeture du ticket (oh refuse la fermeture tant que le travail n'est pas commité). Le ticket fermé, elles sont de nouveau verrouillées jusqu'au prochain passage de **{{ .ID }}**.
+{{- $rule := unlockText .ID .Unlocks }}
+{{- if $rule }}
+- **{{ .ID }}** déverrouille {{ codes .Unlocks }} : {{ $rule }}
 {{- end }}
 {{- end }}
 

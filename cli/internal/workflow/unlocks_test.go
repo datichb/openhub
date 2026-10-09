@@ -81,3 +81,14 @@ func TestResolve_UnlockMovedIsDuplicate(t *testing.T) {
 	}
 	t.Fatalf("unlocking commit earlier must be refused: %v", diagList(diags))
 }
+
+// N10 (DC7): push in unlocks opens nothing outside a publishing workflow.
+func TestValidate_UnlockPushWithoutPublish(t *testing.T) {
+	body := "checkpoints:\n  cp-1: { unlocks: [commit, push], mode: { manuel: pause, semi-auto: pause, auto: pause } }\n"
+	assertDiag(t, checkYAML(t, vHeader+"risk: write\n"+body, testEnv()), "unlock_push_without_publish", "checkpoints.cp-1.unlocks[1]", SeverityWarning)
+	for _, d := range checkYAML(t, vHeader+"risk: publish\n"+body, testEnv()) {
+		if d.Code == "unlock_push_without_publish" {
+			t.Fatalf("publish workflow: %v", d)
+		}
+	}
+}

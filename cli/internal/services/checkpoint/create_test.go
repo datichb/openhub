@@ -28,7 +28,7 @@ func TestGuardCreate(t *testing.T) {
 	assert.Contains(t, lock.Msg, "cp-tickets")
 	rules, err := svc.Rules(ctx, "ses_c")
 	require.NoError(t, err)
-	assert.Contains(t, rules, sessionspec.PermissionRule{Action: sessionspec.ActionShell, Resource: "*bd*create*", Effect: sessionspec.EffectDeny})
+	assert.Contains(t, rules, sessionspec.PermissionRule{Action: sessionspec.ActionShell, Resource: "bd create*", Effect: sessionspec.EffectDeny})
 
 	_, err = svc.Reached(ctx, "ses_c", Call{ID: "cp-tickets"})
 	require.NoError(t, err)

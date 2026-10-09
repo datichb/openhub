@@ -69,7 +69,7 @@ func TestGuardCloseAndWindow(t *testing.T) {
 	assert.Contains(t, lock.Msg, "cp-2")
 	rules, err := svc.Rules(ctx, "ses_l")
 	require.NoError(t, err)
-	assert.Contains(t, rules, sessionspec.PermissionRule{Action: sessionspec.ActionShell, Resource: "*git*commit*", Effect: sessionspec.EffectDeny})
+	assert.Contains(t, rules, sessionspec.PermissionRule{Action: sessionspec.ActionShell, Resource: "git commit*", Effect: sessionspec.EffectDeny})
 
 	res, err := svc.Reached(ctx, "ses_l", Call{ID: "cp-2"})
 	require.NoError(t, err)

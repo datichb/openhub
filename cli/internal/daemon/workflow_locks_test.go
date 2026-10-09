@@ -128,9 +128,9 @@ func TestWorkflowLocksAndEnd(t *testing.T) {
 
 	// Before cp-2: commit, push and closing are refused to every agent.
 	ch <- adapters.ToolEvent{Kind: adapters.EventConnected}
-	require.Eventually(t, func() bool { return deniesShell(fake.rulesOf("ses_a"), "*git*commit*") }, 3*time.Second, 20*time.Millisecond)
-	assert.True(t, deniesShell(fake.rulesOf("ses_a"), "*git*push*"))
-	assert.True(t, deniesShell(fake.rulesOf("ses_a"), "*bd*close*"))
+	require.Eventually(t, func() bool { return deniesShell(fake.rulesOf("ses_a"), "git commit*") }, 3*time.Second, 20*time.Millisecond)
+	assert.True(t, deniesShell(fake.rulesOf("ses_a"), "git push*"))
+	assert.True(t, deniesShell(fake.rulesOf("ses_a"), "bd close*"))
 	code, _ := bdExec("update", "pt-1", "--claim")
 	require.Equal(t, http.StatusOK, code)
 	assert.Equal(t, []string{"pt-1"}, state().Claimed)
@@ -162,7 +162,7 @@ func TestWorkflowLocksAndEnd(t *testing.T) {
 	// cp-2 passed: commit allowed; closing waits for the commit.
 	_, err = c.WorkflowCheckpoint(ctx, "ses_a", checkpoint.Call{ID: "cp-2"})
 	require.NoError(t, err)
-	assert.False(t, deniesShell(fake.rulesOf("ses_a"), "*git*commit*"))
+	assert.False(t, deniesShell(fake.rulesOf("ses_a"), "git commit*"))
 	require.NoError(t, os.WriteFile(filepath.Join(project, "a.txt"), []byte("b"), 0o644))
 	code, out = bdExec("close", "pt-1")
 	assert.Equal(t, http.StatusForbidden, code)
@@ -171,7 +171,7 @@ func TestWorkflowLocksAndEnd(t *testing.T) {
 	code, out = bdExec("close", "pt-1", "--reason", "Implemented in commit x")
 	require.Equal(t, http.StatusOK, code, out.Error)
 	assert.Equal(t, []string{"pt-1"}, state().Closed)
-	assert.True(t, deniesShell(fake.rulesOf("ses_a"), "*git*commit*"), "locked again once the ticket is closed")
+	assert.True(t, deniesShell(fake.rulesOf("ses_a"), "git commit*"), "locked again once the ticket is closed")
 
 	// The step ends with every ticket closed: completed, outputs declared (A38).
 	ch <- adapters.ToolEvent{Kind: adapters.EventExecEnded, SessionID: "ses_a", Outcome: "succeeded"}

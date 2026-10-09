@@ -135,3 +135,20 @@ checkpoints:
 	assert.Contains(t, c.Body, "| **cp-scope** — Périmètre | pause | pause | auto |")
 	assert.NotContains(t, c.Body, "Aucune carte de workflow n'a été générée", "not the static fallback")
 }
+
+// N10: the generated rule of a checkpoint names only the operations it
+// unlocks, and leaves the push to the user unless push is declared.
+func TestUnlockTextNamesDeclaredOperations(t *testing.T) {
+	commit := unlockText("cp-commit", []string{"commit"})
+	assert.Contains(t, commit, "`git commit`")
+	assert.NotContains(t, commit, "fermeture")
+	assert.NotContains(t, commit, "`git push`")
+	assert.Contains(t, commit, "Le push revient à l'utilisateur")
+	create := unlockText("cp-tickets", []string{"create"})
+	assert.Contains(t, create, "création de tickets")
+	assert.NotContains(t, create, "git")
+	push := unlockText("cp-x", []string{"commit", "push"})
+	assert.Contains(t, push, "`git push`")
+	assert.NotContains(t, push, "Le push revient")
+	assert.Empty(t, unlockText("cp-y", []string{"merge"}), "an operation of a newer oh is not described")
+}

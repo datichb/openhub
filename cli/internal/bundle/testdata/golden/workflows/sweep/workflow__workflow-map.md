@@ -39,7 +39,7 @@ Règles de délégation :
 
 - **cp-plan** : Présenter la liste des sous-tâches (description, périmètre de fichiers disjoint, agent, parallélisable ou non) avant toute exécution.
 - **cp-commit** : Présenter le diff, la vérification et la review avant le commit (un commit, ou un par sous-tâche à la suite).
-- **cp-commit** déverrouille `commit` : avant son passage, oh refuse ces opérations à tous les agents de la session (`git commit`, `git push`, fermeture d'un ticket), quel que soit le mode. Une fois passé, fais-les aussitôt, dans l'ordre : commit, puis fermeture du ticket (oh refuse la fermeture tant que le travail n'est pas commité). Le ticket fermé, elles sont de nouveau verrouillées jusqu'au prochain passage de **cp-commit**.
+- **cp-commit** déverrouille `commit` : avant son passage, oh refuse à tous les agents de la session `git commit` (et les commandes qui commitent : revert, cherry-pick, merge, pull), quel que soit le mode. Une fois passé, commite aussitôt ; la fenêtre se referme quand **cp-commit** est demandé de nouveau. Le push revient à l'utilisateur : ne pousse pas.
 - **cp-recap** : Résultat par sous-tâche, vérification, review et commits.
 
 Passage d'un checkpoint : appelle l'outil `workflow_checkpoint` avec `id` (identifiant du tableau) et `summary` (ce qui est fait, ce qui va suivre, points d'attention), **avant** de lancer l'étape suivante. C'est oh qui applique le comportement du mode :

@@ -2013,6 +2013,8 @@
   "workflow.diag.verify_cmd_missing.hint": "Donnez la commande à lancer, ou choisissez une autre valeur.",
   "workflow.diag.unlocking_checkpoint_removed": "Le checkpoint %s déverrouille des opérations (unlocks) : il ne peut pas être retiré",
   "workflow.diag.unlock_duplicate": "L'opération %s est déjà déverrouillée par le checkpoint %s (doublon dans %s)",
+  "workflow.diag.unlock_push_without_publish": "Le checkpoint %s déverrouille push, mais le workflow n'est pas risk: publish : aucun agent ne peut pousser",
+  "workflow.diag.unlock_push_without_publish.hint": "Retirez push de unlocks : le push revient à l'utilisateur.",
   "workflow.diag.unlock_skip": "Le checkpoint %s déverrouille des opérations (unlocks) : skip est traité comme pause dans le mode %s",
   "workflow.diag.unlock_skip.hint": "Un checkpoint qui porte unlocks n'est jamais sauté (sinon le verrou disparaîtrait) ; écrivez pause ou auto.",
   "workflow.diag.unlock_unknown": "Opération %s inconnue de cette version d'oh (ignorée : elle ne verrouille rien ici ; opérations connues : %s). Mettez oh à jour.",

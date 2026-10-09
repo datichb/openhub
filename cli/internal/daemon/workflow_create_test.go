@@ -92,7 +92,7 @@ func TestWorkflowCreateGuard(t *testing.T) {
 	}
 
 	ch <- adapters.ToolEvent{Kind: adapters.EventConnected}
-	require.Eventually(t, func() bool { return deniesShell(fake.rulesOf("ses_c"), "*bd*create*") }, 3*time.Second, 20*time.Millisecond)
+	require.Eventually(t, func() bool { return deniesShell(fake.rulesOf("ses_c"), "bd create*") }, 3*time.Second, 20*time.Millisecond)
 	code, out := bdExec("create", "Un ticket", "-t", "task")
 	assert.Equal(t, http.StatusForbidden, code)
 	assert.Contains(t, out.Error, "cp-tickets")
@@ -103,7 +103,7 @@ func TestWorkflowCreateGuard(t *testing.T) {
 
 	_, err = c.WorkflowCheckpoint(ctx, "ses_c", checkpoint.Call{ID: "cp-tickets"})
 	require.NoError(t, err)
-	assert.False(t, deniesShell(fake.rulesOf("ses_c"), "*bd*create*"))
+	assert.False(t, deniesShell(fake.rulesOf("ses_c"), "bd create*"))
 	code, out = bdExec("create", "Un ticket", "-t", "task")
 	require.Equal(t, http.StatusOK, code, out.Error)
 	code, _ = bdExec("create", "Un autre", "-t", "task")
