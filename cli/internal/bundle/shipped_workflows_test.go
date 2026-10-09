@@ -239,6 +239,7 @@ func TestShippedWorkflowBundles(t *testing.T) {
 			require.False(t, diags.HasErrors(), "%v", diags)
 			b, err := Build(Request{HubDir: hub, OutDir: t.TempDir(), Spec: r.Spec})
 			require.NoError(t, err)
+			require.NoError(t, Verify(b.Dir, b.Spec.Hash), "N23: a built bundle verifies")
 
 			s := b.Spec
 			sum := bundleSummary{EntryAgent: s.EntryAgent, SubagentGraph: s.SubagentGraph, MaxDepth: s.MaxDepth, CodeMode: s.CodeMode}

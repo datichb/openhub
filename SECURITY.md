@@ -97,6 +97,8 @@ A session sees only the agents and skills of its bundle. This is mandatory and n
 - **`Attest`** runs after each server start and for each new folder: it compares the agents, the skills visible to each agent (on the effective rules reported by the tool) and the MCP servers with the bundle. Anything unexpected makes the launch fail; the server is stopped and its token revoked.
 - `[execution] strict_isolation` also hides your opencode user configuration in local mode. In a container or a remote job, it is never visible.
 
+- **Session bundle integrity**: a bundle is shared by every session of the same hash. Its files are read-only once built (0444, folders 0555); the agents' edit tool refuses it; its hash is recomputed when it is reused (a modified bundle is rebuilt) and when oh loads it (a modified bundle is never used). A bundle downloaded from a remote job is refused when it does not match its hash.
+
 The closed world is about what the model sees, not what the shell can do.
 
 ### Gateways

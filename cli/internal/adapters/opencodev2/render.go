@@ -180,6 +180,13 @@ func agentRules(a sessionspec.AgentDef, b sessionspec.BundleSpec, bundleSkills [
 	if b.SkillsDir != "" {
 		rules = append(rules, sessionspec.PermissionRule{Action: ActionExternalDir, Resource: path.Join(b.SkillsDir, "*"), Effect: sessionspec.EffectAllow})
 	}
+	// Read only: the bundle is shared by every session of its hash (v5
+	// critical N23); its files are also read-only on disk.
+	for _, dir := range []string{b.Root, b.SkillsDir} {
+		if dir != "" {
+			rules = append(rules, sessionspec.PermissionRule{Action: sessionspec.ActionEdit, Resource: path.Join(dir, "*"), Effect: sessionspec.EffectDeny})
+		}
+	}
 	// Subagents: only the graph targets.
 	rules = append(rules, sessionspec.PermissionRule{Action: sessionspec.ActionSubagent, Resource: "*", Effect: sessionspec.EffectDeny})
 	targets := append([]string(nil), b.SubagentGraph[a.ID]...)

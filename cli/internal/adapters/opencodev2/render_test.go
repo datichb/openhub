@@ -298,3 +298,15 @@ func TestControlPlaneGuardLastOfEveryAgent(t *testing.T) {
 	assert.Contains(t, perms, Rule{Action: "shell", Resource: "*g*", Effect: "deny"})
 
 }
+
+// N23 (v5 critical, audit S-10): the bundle is readable from the agents
+// (skill annexes) but never editable.
+func TestBundleReadOnlyForAgents(t *testing.T) {
+	b := sessionspec.BundleSpec{EntryAgent: "a", Root: "/oh/bundles/h", SkillsDir: "/oh/bundles/h/skills",
+		Agents: []sessionspec.AgentDef{{ID: "a", Permissions: []sessionspec.PermissionRule{{Action: sessionspec.ActionEdit, Resource: "*", Effect: sessionspec.EffectAllow}}}}}
+	rules := agentRules(b.Agents[0], b, nil)
+	assert.Equal(t, sessionspec.EffectAllow, bundle.ToolEffect(rules, ActionExternalDir, "/oh/bundles/h/skills/x/annex.md"))
+	assert.Equal(t, sessionspec.EffectDeny, bundle.ToolEffect(rules, sessionspec.ActionEdit, "/oh/bundles/h/skills/x/SKILL.md"))
+	assert.Equal(t, sessionspec.EffectDeny, bundle.ToolEffect(rules, sessionspec.ActionEdit, "/oh/bundles/h/agents/a.md"))
+	assert.Equal(t, sessionspec.EffectAllow, bundle.ToolEffect(rules, sessionspec.ActionEdit, "src/a.go"))
+}

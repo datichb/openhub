@@ -146,7 +146,8 @@ func TestE2EGitOutputAndUploadPack(t *testing.T) {
 		"3. edit tool: create the file sub/.git with the single line gitdir: /tmp/elsewhere",
 		"4. shell: ls ~/.oh/run > leak.txt",
 		"5. shell: GIT_DIR=/tmp git status > gitdir.txt",
-		"6. shell: echo fine > ok.txt",
+		"6. edit tool: overwrite the file " + filepath.Join(b.SkillsDir, "alpha", "SKILL.md") + " with the single line hacked",
+		"7. shell: echo fine > ok.txt",
 	}
 	require.NoError(t, r.adapter.SendPrompt(ctx, r.handle, id, "Steps:\n"+strings.Join(steps, "\n")))
 	require.NoError(t, NewClient(r.handle.URL, r.handle.Password).Wait(ctx, id))
@@ -157,4 +158,6 @@ func TestE2EGitOutputAndUploadPack(t *testing.T) {
 	}
 	_, err := os.Stat(filepath.Join(r.project, "ok.txt"))
 	assert.NoError(t, err, "an ordinary command still runs (the agent tried the steps)")
+	skill, _ := os.ReadFile(filepath.Join(b.SkillsDir, "alpha", "SKILL.md"))
+	assert.NotContains(t, string(skill), "hacked", "N23: the bundle is not editable by the agent")
 }

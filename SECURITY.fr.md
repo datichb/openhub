@@ -97,6 +97,8 @@ Une session ne voit que les agents et les skills de son paquet. C'est obligatoir
 - **`Attest`** s'exécute après chaque démarrage de serveur et pour chaque nouveau dossier : il compare au paquet les agents, les skills visibles pour chaque agent (sur les règles effectives que renvoie l'outil) et les serveurs MCP. Tout élément inattendu fait échouer le lancement ; le serveur est arrêté et son jeton révoqué.
 - `[execution] strict_isolation` masque en plus votre configuration opencode d'utilisateur en local. En conteneur et à distance, elle n'est jamais visible.
 
+- **Intégrité du paquet de session** : un paquet est partagé par toutes les sessions de même empreinte. Ses fichiers sont en lecture seule une fois construit (0444, dossiers 0555) ; l'outil d'édition des agents le refuse ; son empreinte est recalculée quand il est réutilisé (un paquet modifié est reconstruit) et quand oh le charge (un paquet modifié n'est jamais utilisé). Un paquet téléchargé depuis un job distant est refusé s'il ne correspond pas à son empreinte.
+
 Le monde fermé porte sur ce que le modèle voit, pas sur ce que le shell peut faire.
 
 ### Passerelles
