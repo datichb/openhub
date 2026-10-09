@@ -60,7 +60,7 @@ oh bundle show <workflow> -p <projet>       # avec les skills de stack du projet
 oh bundle build <workflow> --json           # construit le paquet et décrit son contenu
 ```
 
-`oh skill budget <wf>` est un alias déprécié de `oh bundle show <wf> --budget`. Le budget est une estimation (≈ 4 caractères par token). Dans la TUI, le **Catalogue des briques** (`bricks`) montre les skills, leur origine, leur coût estimé et les workflows qui les livrent.
+L'ancien alias `oh skill budget` est supprimé ([ADR-051](./adr/051-community-skills-disconnection.fr.md)). Le budget est une estimation (≈ 4 caractères par token). Dans la TUI, le **Catalogue des briques** (`bricks`) montre les skills, leur origine, leur coût estimé et les workflows qui les livrent.
 
 ADR liés : [ADR-043](./adr/043-session-bundle-deploy-removal.fr.md) (paquet de session), [ADR-041](./adr/041-closed-world-isolation.fr.md) (monde fermé), [ADR-039](./adr/039-declarative-workflows-oh-v1.fr.md) (workflows `oh/v1`), [ADR-010](./adr/010-hybrid-skills-architecture.fr.md) (Bucket A/B, évolué par 043), [ADR-008](./adr/008-stack-skills-dynamic-injection.fr.md) (skills de stack, évolué par 043).
 
@@ -468,31 +468,11 @@ Les autres skills de stack ne sont pas détectées : pour les livrer, un workflo
 
 ---
 
-## Marketplace de skills communautaires
+## Ajouter des skills
 
-Les skills communautaires étendent le hub avec des protocoles tiers. Elles sont publiées dans le [oh-skills-index](https://github.com/datichb/oh-skills-index) ou distribuées par URL Git.
+Une skill qui n'est pas dans le hub s'ajoute au **catalogue d'équipe** (`catalog/skills/` du team-state, ou d'un espace solo) : elle est versionnée, partagée et utilisée par la validation et les paquets comme une skill du hub. Voir [Catalogue de briques d'équipe](../guides/team-workflows.fr.md#catalogue-de-briques-déquipe).
 
-### Installer des skills communautaires
-
-```bash
-oh skill add <nom-index>              # installer par nom d'index
-oh skill add https://github.com/...  # installer depuis une URL Git
-oh skill list                         # lister les skills communautaires installées
-oh skill remove <nom>                 # supprimer une skill communautaire
-oh skill search <requête>             # rechercher dans l'index communautaire
-```
-
-### Stockage
-
-```
-~/.oh/skills/<name>/
-├── manifest.json     ← name, description, version, author, skill_file, tags
-└── SKILL.md          ← contenu de la skill
-```
-
-### Livraison
-
-Une skill communautaire installée n'arrive dans une session que si le workflow la liste dans `skills.extra`, par son nom seul (sans dossier). Elle est alors livrée **à la demande** dans `skills/<nom>/SKILL.md` du paquet. Son nom ne doit pas entrer en conflit avec une skill du hub (identifiants uniques dans un paquet). Voir [Workflows livrés](../reference/workflows.fr.md) et [Workflows d'équipe](../guides/team-workflows.fr.md).
+> **Déconnecté en v5** ([ADR-051](./adr/051-community-skills-disconnection.fr.md)) : l'ancien registre de skills communautaires (`oh skill add|list|remove|search`, `~/.oh/skills/<nom>/`) n'est plus branché. `~/.oh/skills` n'est plus lu ; `oh doctor` signale les paquets qui y restent. La refonte de l'ajout de briques (commande dédiée, import vérifié vers le catalogue d'équipe, TUI) est décrite dans l'ADR.
 
 ---
 

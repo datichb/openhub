@@ -60,7 +60,7 @@ oh bundle show <workflow> -p <project>      # with the project's stack skills
 oh bundle build <workflow> --json           # builds the bundle and describes its content
 ```
 
-`oh skill budget <wf>` is a deprecated alias of `oh bundle show <wf> --budget`. The budget is an estimate (≈ 4 characters per token). In the TUI, the **Bricks catalog** (`bricks`) shows the skills, their origin, their estimated cost, and the workflows that ship them.
+The former `oh skill budget` alias is removed ([ADR-051](./adr/051-community-skills-disconnection.en.md)). The budget is an estimate (≈ 4 characters per token). In the TUI, the **Bricks catalog** (`bricks`) shows the skills, their origin, their estimated cost, and the workflows that ship them.
 
 Related ADRs: [ADR-043](./adr/043-session-bundle-deploy-removal.en.md) (session bundle), [ADR-041](./adr/041-closed-world-isolation.en.md) (closed world), [ADR-039](./adr/039-declarative-workflows-oh-v1.en.md) (`oh/v1` workflows), [ADR-010](./adr/010-hybrid-skills-architecture.en.md) (Bucket A/B, evolved by 043), [ADR-008](./adr/008-stack-skills-dynamic-injection.en.md) (stack skills, evolved by 043).
 
@@ -468,31 +468,11 @@ The other stack skills are not detected: to ship them, a (team or project) workf
 
 ---
 
-## Community Skills Marketplace
+## Adding skills
 
-Community skills extend the hub with third-party protocols. They are published to the [oh-skills-index](https://github.com/datichb/oh-skills-index) or distributed via Git URL.
+A skill that is not in the hub is added to the **team catalogue** (`catalog/skills/` of the team-state, or of a solo space): it is versioned, shared, and used by validation and bundles like a hub skill. See [Team brick catalogue](../guides/team-workflows.en.md#team-brick-catalogue).
 
-### Installing community skills
-
-```bash
-oh skill add <index-name>            # install by index name
-oh skill add https://github.com/...  # install from Git URL
-oh skill list                        # list installed community skills
-oh skill remove <name>               # remove a community skill
-oh skill search <query>              # search the community index
-```
-
-### Storage
-
-```
-~/.oh/skills/<name>/
-├── manifest.json     ← name, description, version, author, skill_file, tags
-└── SKILL.md          ← skill content
-```
-
-### Delivery
-
-An installed community skill only reaches a session if the workflow lists it in `skills.extra`, by its bare name (no folder). It is then delivered **on demand** in `skills/<name>/SKILL.md` in the bundle. Its name must not clash with a hub skill (identifiers are unique in a bundle). See [Shipped workflows](../reference/workflows.en.md) and [Team workflows](../guides/team-workflows.en.md).
+> **Disconnected in v5** ([ADR-051](./adr/051-community-skills-disconnection.en.md)): the former community skills registry (`oh skill add|list|remove|search`, `~/.oh/skills/<name>/`) is no longer wired. `~/.oh/skills` is no longer read; `oh doctor` reports the packages left there. The redesign of adding bricks (dedicated command, verified import into the team catalogue, TUI) is described in the ADR.
 
 ---
 

@@ -16,11 +16,10 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/bricks"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
-	"github.com/datichb/openhub/cli/internal/skillregistry"
 )
 
-// Skills are referenced by "<category>/<name>" (hub file skills/<ref>.md) or
-// by a bare community skill name (~/.oh/skills/<name>/). Their identifier in
+// Skills are referenced by "<category>/<name>" (file skills/<ref>.md of the
+// hub, merged with the team catalogue). Their identifier in
 // a bundle is the last path component, which becomes the folder name
 // skills/<id>/SKILL.md: it must be unique in the bundle and equal to the
 // frontmatter `name:` (the tool identifies skills by name).
@@ -333,7 +332,6 @@ type SkillProblemKind string
 
 const (
 	SkillDuplicateID        SkillProblemKind = "duplicate_id"        // error
-	SkillShadowed           SkillProblemKind = "shadowed"            // warning: community skill hidden by a hub skill
 	SkillMissingRequire     SkillProblemKind = "missing_require"     // error
 	SkillRequireCycle       SkillProblemKind = "require_cycle"       // error
 	SkillInvalidFrontmatter SkillProblemKind = "invalid_frontmatter" // error
@@ -359,14 +357,14 @@ type SkillProblem struct {
 func problem(kind SkillProblemKind, ref, detail string) SkillProblem {
 	isErr := true
 	switch kind {
-	case SkillShadowed, SkillNoDescription, SkillMissingAgentSkill, SkillLegacyBucket, SkillUndeclaredAnnex, SkillOrphanAnnex:
+	case SkillNoDescription, SkillMissingAgentSkill, SkillLegacyBucket, SkillUndeclaredAnnex, SkillOrphanAnnex:
 		isErr = false
 	}
 	return SkillProblem{Kind: kind, Error: isErr, Ref: ref, Detail: detail}
 }
 
-// CheckSkills inspects the whole skill catalogue (hub skills, installed
-// community skills) and the skill references of the hub agents.
+// CheckSkills inspects the whole skill catalogue (hub skills) and the skill
+// references of the hub agents.
 func CheckSkills(hubDir string) ([]SkillProblem, error) {
 	var problems []SkillProblem
 	docs := map[string]*skillDoc{} // ref → doc
@@ -406,30 +404,6 @@ func CheckSkills(hubDir string) ([]SkillProblem, error) {
 	})
 	if err != nil {
 		return nil, fmt.Errorf("walking skills: %w", err)
-	}
-
-	community, _ := skillregistry.NewRegistry().ListInstalled()
-	for _, c := range community {
-		name := c.Manifest.Name
-		if refs, ok := byID[name]; ok {
-			problems = append(problems, problem(SkillShadowed, name, refs[0]))
-			continue
-		}
-		skillFile, err := skillregistry.NewRegistry().SkillMDPath(name)
-		if err != nil {
-			continue
-		}
-		content, err := os.ReadFile(skillFile)
-		if err != nil {
-			continue
-		}
-		doc, perr := parseSkill(name, skillFile, content)
-		if perr != nil {
-			problems = append(problems, problem(SkillInvalidFrontmatter, name, perr.Error()))
-			continue
-		}
-		docs[name] = doc
-		byID[name] = append(byID[name], name)
 	}
 
 	for _, id := range sortedKeys(byID) {
@@ -510,9 +484,6 @@ func checkAnnexes(skillsRoot string, docs map[string]*skillDoc) []SkillProblem {
 	used := map[string]bool{}
 	for _, ref := range sortedKeys(docs) {
 		d := docs[ref]
-		if !isUnder(d.Source, skillsRoot) {
-			continue // community skill: the whole package is shipped
-		}
 		declared := map[string]bool{}
 		for _, rel := range d.Front.Annexes {
 			clean := path.Clean(filepath.ToSlash(rel))

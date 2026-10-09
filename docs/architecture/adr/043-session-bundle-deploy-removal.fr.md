@@ -42,7 +42,7 @@ Décisions D4 et D14 : un paquet par session, construit hors du projet, et plus 
 - Hash = SHA-256 du `bundle.json` canonique (sans chemins) et du contenu des fichiers. La compilation est idempotente : même entrée, même dossier. Les chemins de la machine sont des variables développées au démarrage du serveur (`{{oh.bundle}}`, `{{oh.bin}}`, [ADR-038](./038-sessionspec-tool-adapters.fr.md)).
 - La config rendue n'est pas écrite dans le paquet : elle est passée par `OPENCODE_CONFIG_CONTENT`. Le plugin oh est installé dans le dossier de données du groupe (`~/.oh/servers/<groupe>/`). Les données propres à une session sont dans `~/.oh/sessions/<id>/`.
 - La clé de groupe de serveur contient le hash du paquet : deux workflows (ou deux versions) n'ont jamais le même serveur.
-- `oh bundle build|show <workflow> [--budget] [--json]` construit ou décrit un paquet ; `oh skill budget` en est un alias.
+- `oh bundle build|show <workflow> [--budget] [--json]` construit ou décrit un paquet ; `oh skill budget` en était un alias (supprimé par l'[ADR-051](./051-community-skills-disconnection.fr.md)).
 
 ### 3. Suppression du déploiement
 

@@ -29,7 +29,7 @@ Acceptes par toutes les commandes.
 | [Infrastructure](cli-infra.fr.md) | `cli-infra.fr.md` | `oh init`, `oh doctor`, `oh status`, `oh repair`, `oh export`, `oh import`, `oh purge`, `oh upgrade oh`, `oh migrate deploy-cleanup`, `oh daemon status\|stop`, `oh remote setup\|status`, `oh serve` |
 | [MCP](cli-mcp.fr.md) | `cli-mcp.fr.md` | `oh mcp list\|status\|enable\|disable\|reset\|setup\|serve` |
 | [Equipe](cli-team.fr.md) | `cli-team.fr.md` | `oh team *`, `oh teams *`, `oh conventions check`, `oh patterns *`, `oh policies *`, `oh takeover-brief *` |
-| [Outils](cli-tools.fr.md) | `cli-tools.fr.md` | `oh skill add\|list\|remove\|search\|check\|budget`, `oh worktree *`, `oh secrets *`, `oh metrics`, `oh dashboard`, `oh board`, `oh version`, `oh completion` |
+| [Outils](cli-tools.fr.md) | `cli-tools.fr.md` | `oh skill check`, `oh worktree *`, `oh secrets *`, `oh metrics`, `oh dashboard`, `oh board`, `oh version`, `oh completion` |
 
 Commandes internes (masquees de l'aide, non documentees en detail) : `oh daemon run` (demon `ohd`, lance automatiquement par oh), `oh runner install|run` (cote CI de l'execution distante, utilise par le pipeline `oh-runner`), `oh mcp serve workflow` (serveur MCP `workflow` injecte dans chaque paquet de session).
 

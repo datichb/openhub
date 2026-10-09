@@ -112,9 +112,9 @@ See [skills.en.md](./skills.en.md), [delivery flow](../diagrams/skill-injection-
 
 oh's **MCP servers** are native Go implementations (`cli/internal/mcp/`), run by `oh mcp serve <name>` (stdio JSON-RPC): `figma`, `gitlab`, `gslides`, `github`, `jira`, `linear`, `team`, and `workflow` (checkpoints and outputs, added to every workflow bundle). The servers enabled for the project are placed in the bundle at launch; the `mcp:` field of a workflow filters them. Off the machine, they are served by the daemon's MCP gateway. Tokens stay in the machine keychain.
 
-### Community Skills
+### Adding bricks
 
-Community skills are installed from the [oh-skills-index](https://github.com/datichb/oh-skills-index) or a Git URL (`oh skill add|list|remove|search|check`) and stored in `~/.oh/skills/<name>/`. They are only shipped in a bundle when the workflow lists them in `skills.extra`.
+Agents and skills outside the hub come from the team catalogue (`catalog/` of the team-state, or of a solo space), versioned and shared; `oh skill check` checks the catalogue. The former community skills registry (`oh skill add|list|remove|search`, `~/.oh/skills/`) is disconnected in v5 ([ADR-051](./adr/051-community-skills-disconnection.en.md)).
 
 ### Observability
 
@@ -228,6 +228,7 @@ Implementing and diagnosing are given to different agents (developer, debugger);
 | [048](./adr/048-opencode-v1-abandonment.en.md) | Dropping opencode V1 | deprecates 014 |
 | [049](./adr/049-tool-independence-architecture-guard.en.md) | Tool independence and architecture guard | evolves 038 |
 | [050](./adr/050-session-context-capability.en.md) | Evolving session state through an adapter capability | evolves 047 |
+| [051](./adr/051-community-skills-disconnection.en.md) | Community skills registry disconnected | partly replaces 027 (skill marketplace) |
 
 All ADRs: [`docs/architecture/adr/`](./adr/).
 
@@ -269,8 +270,7 @@ openhub/
     ├── bundles/<hash>/  ← Session bundles (immutable)
     ├── sessions/<id>/   ← Static environment, restrictions, results, remote artifacts
     ├── servers/<group>/ ← opencode data of the group (XDG_DATA_HOME), proxy URL
-    ├── teams/<id>/      ← Solo spaces
-    └── skills/          ← Community skills
+    └── teams/<id>/      ← Solo spaces
 ```
 
 **Platforms:** macOS and Linux (amd64, arm64); Windows local only (daemon inside the oh process, no container or remote).

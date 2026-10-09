@@ -2,73 +2,15 @@
 
 # Reference CLI — Outils
 
-## Marketplace de Skills
+## Skills
 
-`oh skill` installe, liste et supprime des skills communautaires (index communautaire ou depot git). Les skills disponibles pour une session sont ceux de son paquet de session (voir [`oh bundle show`](cli-workflows.fr.md#oh-bundle-build--show)).
+`oh skill` vérifie le catalogue des skills. Les skills d'une session sont celles du hub et du catalogue d'équipe (`catalog/skills/` du team-state), livrées par son paquet de session (voir [`oh bundle show`](cli-workflows.fr.md#oh-bundle-build--show), qui donne aussi le budget avec `--budget`).
 
-### oh skill add
-
-Installe un skill depuis l'index communautaire (par son nom) ou depuis une URL git.
-
-```
-oh skill add <source>
-```
-
-**Exemple :**
-
-```bash
-oh skill add golang-idioms
-oh skill add https://github.com/u/oh-skill-example
-```
-
----
-
-### oh skill list
-
-Liste les skills communautaires installes.
-
-**Alias :** `oh skill ls`
-
-```
-oh skill list
-```
-
----
-
-### oh skill remove
-
-Desinstalle un skill communautaire.
-
-**Alias :** `oh skill rm`
-
-```
-oh skill remove <nom>
-oh skill rm <nom>
-```
-
----
-
-### oh skill search
-
-Recherche dans l'index communautaire (sans requete : tout l'index).
-
-```
-oh skill search [requete]
-```
-
-**Exemple :**
-
-```bash
-oh skill search
-oh skill search go
-oh skill search "code review"
-```
-
----
+> **Déconnecté en v5** ([ADR-051](../architecture/adr/051-community-skills-disconnection.fr.md)) : le registre de skills communautaires (`oh skill add`, `list`, `remove`, `search`) et `oh skill budget` sont supprimés, et `~/.oh/skills` n'est plus lu. `oh doctor` signale les paquets qui y restent.
 
 ### oh skill check
 
-Verifie les skills du hub et les skills communautaires installes : identifiants en double, dependances `requires:` manquantes ou cycliques, frontmatter invalide (`name:` different du nom du fichier, description manquante), champ `bucket:` obsolete, skills references par des agents mais absents. Sort avec le code 1 en cas d'erreur.
+Vérifie les skills du hub : identifiants en double, dépendances `requires:` manquantes ou cycliques, frontmatter invalide (`name:` différent du nom du fichier, description manquante), champ `bucket:` obsolète, skills référencées par des agents mais absentes. Sort avec le code 1 en cas d'erreur.
 
 ```
 oh skill check [--json]
@@ -76,28 +18,7 @@ oh skill check [--json]
 
 | Flag | Type | Description |
 |------|------|-------------|
-| `--json` | bool | Problemes au format JSON |
-
----
-
-### oh skill budget
-
-Alias deprecie en v5 : le budget d'une session se lit avec `oh bundle show <workflow> --budget`. `oh skill budget <workflow>` y renvoie (avertissement) ; avec un nom d'agent ou `--all`, l'ancien calcul par agent (cout en lignes et tokens du prompt systeme toujours charge, skills les plus couteux) reste disponible avec un avertissement.
-
-```
-oh skill budget [workflow|agent] [options]
-```
-
-| Flag | Court | Type | Description |
-|------|-------|------|-------------|
-| `--all` | `-a` | bool | Afficher le budget de tous les agents |
-| `--threshold` | `-t` | int | Seuil en lignes pour signaler un skill (defaut : 150) |
-
-```bash
-oh skill budget ticket                  # = oh bundle show ticket --budget
-oh skill budget orchestrator-dev
-oh skill budget --all --threshold 200
-```
+| `--json` | bool | Problèmes au format JSON |
 
 ---
 

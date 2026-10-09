@@ -28,6 +28,7 @@ func v5DoctorChecks() []views.DoctorCheck {
 
 	out = append(out, workflowIntegrityChecks()...)
 	out = append(out, deployLeftoversCheck(ctx))
+	out = append(out, legacySkillsCheck())
 	out = append(out, remoteDoctorChecks()...)
 
 	if !v5Available(ctx) {

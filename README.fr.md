@@ -100,7 +100,7 @@ Dans la TUI, **Démarrer** liste les workflows (★ épinglés, récents), ouvre
 | `oh metrics` · `oh dashboard` · `oh board` · `oh serve` | Usage et coûts, tableau de bord TUI, kanban Beads, tableau de bord web local |
 | `oh export` · `oh import` | Sauvegarde et restauration |
 | `oh upgrade oh` | Mise à jour d'oh (hors Homebrew) |
-| `oh skill add` · `list` · `remove` · `search` | Skills communautaires |
+| `oh skill check` | Contrôle du catalogue des skills (doublons, `requires:`, frontmatter, annexes) |
 | `oh beads …` | Relais vers `bd` (CLI Beads) |
 
 **Alias dépréciés** (avertissement, puis `oh run`) : `oh start` → `oh run feature`, `oh start --agent X` → `oh run libre --agent X`, `oh start --dev` → `oh run ticket`, `oh audit` → `oh run audit`, `oh review` → `oh run review` (`--publish` reste une commande d'oh), `oh debug` → `oh run debug`. `oh deploy` et `oh sync` affichent seulement un message de migration.
@@ -218,7 +218,7 @@ openhub/
 └── docs/                <- Documentation (bilingue fr/en)
 ```
 
-Les données de l'utilisateur sont dans `~/.oh/` (hors dépôt) : `hub.toml`, `oh.db`, contenu du hub extrait, paquets de session, sessions, groupes de serveurs, espaces solo, skills communautaires. Voir [Vue d'ensemble de l'architecture](docs/architecture/overview.fr.md).
+Les données de l'utilisateur sont dans `~/.oh/` (hors dépôt) : `hub.toml`, `oh.db`, contenu du hub extrait, paquets de session, sessions, groupes de serveurs, espaces solo. Voir [Vue d'ensemble de l'architecture](docs/architecture/overview.fr.md).
 
 ---
 
@@ -249,7 +249,7 @@ Configuration par `oh mcp setup` (jetons rangés dans le trousseau du système ;
 | Sessions | [Sessions v5](docs/guides/sessions-v5.fr.md) · [Workflows (scénarios)](docs/guides/workflows.fr.md) · [Review et retours](docs/guides/review-feedback.fr.md) |
 | Workflows | [Workflows livrés](docs/reference/workflows.fr.md) · [Schéma des workflows](docs/reference/workflow-schema.fr.md) · [Workflows d'équipe](docs/guides/team-workflows.fr.md) |
 | Exécution | [Conteneur](docs/guides/container.fr.md) · [Runners distants](docs/guides/remote-runners.fr.md) |
-| Architecture | [Vue d'ensemble](docs/architecture/overview.fr.md) · [Agents](docs/architecture/agents.fr.md) · [Skills](docs/architecture/skills.fr.md) · [ADR](docs/architecture/adr/) (48) |
+| Architecture | [Vue d'ensemble](docs/architecture/overview.fr.md) · [Agents](docs/architecture/agents.fr.md) · [Skills](docs/architecture/skills.fr.md) · [ADR](docs/architecture/adr/) (51) |
 | Référence | [CLI](docs/reference/cli.fr.md) · [Configuration](docs/reference/config.fr.md) · [Glossaire](docs/reference/glossary.fr.md) · [Modèle Beads](docs/reference/beads-model.fr.md) |
 | Exploitation | [Dépannage](docs/guides/troubleshooting.fr.md) · [Fournisseurs](docs/guides/providers.fr.md) · [Sauvegarde et restauration](docs/guides/backup-restore.fr.md) · [Tableau de bord](docs/guides/dashboard.fr.md) |
 

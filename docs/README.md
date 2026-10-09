@@ -63,7 +63,7 @@ Complete index of all openhub documentation (oh v5). Guides and references are b
 |-------|-------------|
 | [Authoring Agents](guides/authoring.en.md) | Create custom agents |
 | [Authoring Skills](guides/authoring-skills.en.md) | Create custom skills |
-| [Skill Marketplace](guides/skill-marketplace.en.md) | Install community skills (delivered through `skills.extra` of a workflow) |
+| [Skill Marketplace](guides/skill-marketplace.en.md) | **Historical (disconnected in v5, ADR-051)**: former community skills registry; skills now come from the hub and the team catalogue |
 | [Pathfinder Agent](guides/agent-pathfinder.en.md) | Using the pathfinder agent |
 | [Inter-Agent Interruption](guides/inter-agent-interruption.en.md) | Agent interruption protocol |
 | [External Agents](guides/external-agents.en.md) | **Historical (removed in v5)**: per-project agents of `oh deploy`; agents now come from the workflow |
@@ -137,7 +137,7 @@ The `workflow` MCP server (`workflow_status`, `workflow_checkpoint`, `workflow_o
 
 ---
 
-## Architecture (6 docs + 48 ADRs)
+## Architecture (6 docs + 51 ADRs)
 
 | Document | Description |
 |----------|-------------|
@@ -147,7 +147,7 @@ The `workflow` MCP server (`workflow_status`, `workflow_checkpoint`, `workflow_o
 | [Task Delegation](architecture/task-delegation.en.md) | Inter-agent delegation model (`calls:`, `after:`) |
 | [Living Wiki](architecture/living-wiki.en.md) | Living documentation wiki architecture |
 | [TodoWrite Isolation](architecture/todowrite-session-isolation.en.md) | Session isolation design |
-| [ADRs](architecture/adr/) | 48 Architecture Decision Records (v5: 038 to 048) |
+| [ADRs](architecture/adr/) | 51 Architecture Decision Records (v5: 038 to 051) |
 
 ### v5 decisions
 
@@ -164,6 +164,9 @@ The `workflow` MCP server (`workflow_status`, `workflow_checkpoint`, `workflow_o
 | [046](architecture/adr/046-beads-gateways.en.md) | Beads on the machine and gateways |
 | [047](architecture/adr/047-session-interaction-daemon.en.md) | Session interaction, multi-session, `ohd` daemon |
 | [048](architecture/adr/048-opencode-v1-abandonment.en.md) | opencode V1 abandonment |
+| [049](architecture/adr/049-tool-independence-architecture-guard.en.md) | Tool independence and architecture guard |
+| [050](architecture/adr/050-session-context-capability.en.md) | Evolving session state through an adapter capability |
+| [051](architecture/adr/051-community-skills-disconnection.en.md) | Community skills registry disconnected |
 
 ---
 
@@ -214,6 +217,7 @@ Internal development notes (mostly monolingual, not translated). Some describe t
 | Document | Description |
 |----------|-------------|
 | [Architecture](dev/architecture.md) | Internal architecture notes |
+| [v5 Audit](dev/audit-v5.md) | v5 audit (security, design, ergonomics, functional, architecture) and correction plan (P0/P1/P2) |
 | [CLI Migration Analysis](dev/cli-migration-analysis.md) | Bash-to-Go migration analysis |
 | [CLI Migration Plan v2](dev/cli-migration-plan-v2.md) | Migration implementation plan |
 | [CLI Remaining Work](dev/cli-remaining-work.md) | Post-migration remaining tasks |

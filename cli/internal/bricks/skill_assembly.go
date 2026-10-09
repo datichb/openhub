@@ -7,34 +7,17 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-
-	"github.com/datichb/openhub/cli/internal/skillregistry"
 )
 
-// resolveSkillPath resolves a skill reference to an absolute file path.
-// It first tries the hub skills directory (skills/<ref>.md), and falls back
-// to the community skills registry (~/.oh/skills/<name>/SKILL.md) if not found.
+// resolveSkillPath resolves a skill reference to its file in the skills
+// directory (skills/<ref>.md: hub skills, merged with the team catalogue).
+// The community skills of ~/.oh/skills are no longer read (ADR-051).
 func resolveSkillPath(skillsDir, skillRef string) (string, error) {
-	// Try hub path first
 	hubPath := filepath.Join(skillsDir, skillRef+".md")
-	if _, err := os.Stat(hubPath); err == nil {
-		return hubPath, nil
+	if _, err := os.Stat(hubPath); err != nil {
+		return "", fmt.Errorf("skill %q not found in hub (%s)", skillRef, hubPath)
 	}
-
-	// Fall back to community registry: extract skill name from ref
-	parts := strings.Split(skillRef, "/")
-	skillName := parts[len(parts)-1]
-
-	reg := skillregistry.NewRegistry()
-	communityPath, err := reg.SkillMDPath(skillName)
-	if err == nil {
-		if _, statErr := os.Stat(communityPath); statErr == nil {
-			return communityPath, nil
-		}
-	}
-
-	// Neither found — return error pointing to the hub path
-	return "", fmt.Errorf("skill %q not found in hub (%s) or community registry", skillRef, hubPath)
+	return hubPath, nil
 }
 
 // splitFrontmatterAndBody splits a markdown file into frontmatter (including delimiters)

@@ -91,3 +91,11 @@ Dans `opencode.json`, seules les clés **écrites par oh et inchangées depuis l
 ## 9. Anciennes surcharges du workflow (migration v38)
 
 Les surcharges de l'ancien workflow unique (`hub.toml [workflow]`, `[workflow]` du `config.toml` d'équipe, configuration de workflow des projets) sont migrées **automatiquement** au démarrage vers des workflows `feature` du team-state (équipe, projet ; un espace solo est créé pour un projet sans équipe). Rien n'est perdu : la configuration d'origine est archivée à côté (`workflows/migrated/…`, `~/.oh/migrated/` pour `hub.toml`). Une configuration de projet illisible ou au format inconnu n'est pas migrée : elle est archivée dans `~/.oh/migrated/project-<id>-workflow-config.json`, avec un message au démarrage. Détails : [Workflows d'équipe › Migration des anciennes surcharges](team-workflows.fr.md).
+
+## 10. Skills communautaires et `oh skill budget` déconnectés
+
+L'ancien registre de skills communautaires (`oh skill add`, `list`, `remove`, `search`) et `oh skill budget` sont **supprimés** ([ADR-051](../architecture/adr/051-community-skills-disconnection.fr.md)) ; `oh skill check` reste.
+
+- `~/.oh/skills` n'est plus lu : ces skills ne sont plus livrées dans les sessions, et un workflow qui en cite une dans `skills.extra` devient invalide (« skill inconnue »).
+- Rien n'est supprimé : `oh doctor` liste les paquets restés dans `~/.oh/skills`. Pour garder une skill, copiez son `SKILL.md` dans le catalogue d'équipe (`catalog/skills/<catégorie>/<nom>.md` du team-state, ou de votre espace solo `oh team init --solo`), puis citez-la par sa référence (`<catégorie>/<nom>`) dans `skills.extra`. Le dossier de `~/.oh/skills` peut ensuite être supprimé.
+- Budget d'une session : `oh bundle show <workflow> --budget`.

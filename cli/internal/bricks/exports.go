@@ -71,7 +71,7 @@ func FindAgentFiles(hubDir string) (map[string]string, error) {
 	return out, err
 }
 
-// SkillSourcePath resolves a skill ref (hub path, then community registry).
+// SkillSourcePath resolves a skill ref to its file under hubDir/skills.
 func SkillSourcePath(hubDir, ref string) (string, error) {
 	return resolveSkillPath(filepath.Join(hubDir, "skills"), ref)
 }
