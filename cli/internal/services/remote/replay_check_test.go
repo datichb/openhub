@@ -22,6 +22,7 @@ func TestReplayClassifyPoC(t *testing.T) {
 	snap := &remote.Snapshot{Issues: map[string]json.RawMessage{"bd-42": nil, "my-app-x9": nil}}
 	ph := map[string]bool{"pending-1": true}
 	allow := []string{"update", "create", "note", "comments", "dep add", "label"}
+	closing := func(st string) bool { return st != "review" }
 	for _, tc := range []struct {
 		argv   []string
 		refuse string // "" = pending
@@ -31,8 +32,26 @@ func TestReplayClassifyPoC(t *testing.T) {
 		{[]string{"update", "my-app-x9", "--notes", "ok"}, ""},
 		{[]string{"update", "bd-42", "--status", "closed"}, "closing a ticket"},
 		{[]string{"update", "bd-42", "--status=Closed"}, "closing a ticket"},
-		{[]string{"update", "bd-42", "-sclosed"}, "combined short options"},
+		{[]string{"update", "bd-42", "-sclosed"}, "closing a ticket"},
+		{[]string{"update", "bd-42", "-s=closed"}, "closing a ticket"},
+		{[]string{"update", "bd-42", "-qsclosed"}, "closing a ticket"},
+		{[]string{"update", "bd-42", "--status", "done"}, "closing a ticket"},
+		{[]string{"update", "bd-42", "--status", "shipped"}, "closing a ticket"}, // done category of the project
+		{[]string{"update", "bd-42", "--status", "unknown"}, "closing a ticket"}, // unknown status: closing
+		{[]string{"update", "bd-42", "--status", "review"}, ""},                  // wip category
+		{[]string{"done", "bd-42"}, "not allowed"},                               // alias of close
 		{[]string{"update", "bd-42", "--DB=/tmp/x"}, "refused"},
+		{[]string{"update", "bd-42", "-qC/tmp/other"}, "option --directory refused"},
+		{[]string{"update", "--db", "/x", "bd-42"}, "option --db refused"},
+		{[]string{"create", "Follow-up", "--repo=/other"}, "option --repo refused"},
+		{[]string{"update", "bd-42", "--set-metadata", "k=v"}, "not replayed"},
+		{[]string{"update", "bd-42", "--body-file", "/etc/hosts"}, "names a file of the job"},
+		{[]string{"update", "bd-42", "--body-file=-"}, ""},
+		{[]string{"note", "bd-42", "-f/etc/hosts"}, "unknown option"}, // note has no -f
+		{[]string{"comments", "add", "bd-42", "-f/etc/hosts"}, "names a file of the job"},
+		{[]string{"label", "add", "bd-42", "my-app-zz9", "needs-review"}, "my-app-zz9 is not a ticket"},
+		{[]string{"dep", "rm", "bd-42", "my-app-zz9"}, "not allowed"}, // dep remove not granted
+		{[]string{"--json", "update", "my-app-zz9", "--status", "open"}, "my-app-zz9 is not a ticket of the session"},
 		{[]string{"update", "bd-42", "--parent", "my-app-zz9"}, "my-app-zz9 is not a ticket of the session"},
 		{[]string{"update", "bd-42", "--parent=pending-1"}, ""},
 		{[]string{"create", "Follow-up", "--parent", "other-epic"}, "other-epic is not a ticket of the session"},
@@ -48,7 +67,7 @@ func TestReplayClassifyPoC(t *testing.T) {
 		{[]string{"label", "add", "bd-42", "needs-review"}, ""},
 		{[]string{"update", "--", "my-app-zz9"}, "not a ticket of the session"},
 	} {
-		it := classify(beadswire.JournalEntry{Seq: 1, Argv: tc.argv}, allow, snap, ph)
+		it := classify(beadswire.JournalEntry{Seq: 1, Argv: tc.argv}, allow, snap, ph, closing)
 		if tc.refuse == "" {
 			assert.Equal(t, ItemPending, it.State, "%v: %s", tc.argv, it.Reason)
 			continue
@@ -57,8 +76,13 @@ func TestReplayClassifyPoC(t *testing.T) {
 		assert.Contains(t, it.Reason, tc.refuse, "%v", tc.argv)
 	}
 	// close granted: a closing status is a close.
-	it := classify(beadswire.JournalEntry{Argv: []string{"update", "bd-42", "--status", "closed"}}, append(allow, "close"), snap, ph)
-	assert.Equal(t, ItemPending, it.State, it.Reason)
+	for _, argv := range [][]string{{"update", "bd-42", "--status", "closed"}, {"update", "bd-42", "-sshipped"}, {"done", "bd-42"}} {
+		it := classify(beadswire.JournalEntry{Argv: argv}, append(allow, "close"), snap, ph, closing)
+		assert.Equal(t, ItemPending, it.State, "%v: %s", argv, it.Reason)
+	}
+	// bd statuses unreadable on the machine: every custom status closes.
+	it := classify(beadswire.JournalEntry{Argv: []string{"update", "bd-42", "--status", "review"}}, allow, snap, ph, nil)
+	assert.Equal(t, ItemRefused, it.State)
 }
 
 // The journal and the envelope kept on the machine are sealed with the
@@ -114,4 +138,15 @@ func TestReplayRefusesUnauthenticatedJournal(t *testing.T) {
 	assert.NotContains(t, string(data), "journal_key")
 	key, _ := e.svc.Secrets.Get(ctx, remote.JournalKeySecret(e.sessionID))
 	assert.NotContains(t, string(data), key)
+}
+
+// Placeholders are replaced in the arguments and in the options that hold
+// ids; bd runs the canonical form of the checked entry.
+func TestReplaySubstitutesInIDFlags(t *testing.T) {
+	c, why := parseEntry([]string{"create", "Child", "--parent=pending-1", "--deps", "blocks:pending-2,bd-42"})
+	require.Empty(t, why)
+	got := substitute(c, map[string]string{"pending-1": "bd-n1", "pending-2": "bd-n2"})
+	assert.Equal(t, []string{"create", "--parent=bd-n1", "--deps=blocks:bd-n2,bd-42", "--", "Child"}, got.Argv())
+	c, _ = parseEntry([]string{"dep", "add", "pending-1", "bd-42"})
+	assert.Equal(t, []string{"dep", "add", "--", "bd-n1", "bd-42"}, substitute(c, map[string]string{"pending-1": "bd-n1"}).Argv())
 }

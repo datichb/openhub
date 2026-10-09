@@ -238,10 +238,10 @@ Limites : les serveurs MCP qui ont besoin d'un jeton de votre machine (gitlab, j
 **Rejeu du journal Beads** — `oh session resolve <id>` ou la fenêtre de la TUI :
 
 - le journal est **authentifié** : le job le scelle (HMAC) avec une clé propre à la session, que votre machine garde dans son trousseau et qui ne figure ni dans les artefacts ni dans la copie locale de l'enveloppe ; un journal, un instantané ou une liste `beads.allow` modifiés, ou une clé absente, et rien n'est rejoué ;
-- chaque écriture est **revérifiée** sur la machine : `beads.allow` du workflow (une fermeture par `update --status closed` demande `close`), options connues seulement (options courtes combinées, `--id`, `--db`, fichiers du job refusés), et **chaque ticket nommé** — en argument comme dans `--parent` ou `--deps` — doit être un ticket de la session (ou créé par elle) ; les autres écritures sont refusées ;
+- chaque écriture est **revérifiée** sur la machine, lue comme `bd` la lit (même analyseur que la passerelle Beads : `-sclosed`, `-s=closed`, alias `done`…) : `beads.allow` du workflow (toute fermeture — `close`, `update --status closed|done`, statut du projet de catégorie `done` d'après `bd statuses`, statut inconnu, `duplicate`… — demande `close`), options d'une courte liste seulement (`--id`, `--db`, `-C`, `--repo`, fichiers du job refusés), et **chaque ticket nommé** — en argument comme dans `--parent` ou `--deps` — doit être un ticket de la session (ou créé par elle) ; les autres écritures sont refusées ;
 - l'affichage neutralise les caractères de contrôle venus du job (séquences ANSI/OSC, retours chariot) : ils sont montrés, jamais interprétés ;
 - un ticket **modifié sur la machine depuis l'envoi** (sa révision a changé) est un **conflit** : pour chacun, *Garder local* (rien n'est appliqué sur ce ticket), *Appliquer distant* (toutes ses écritures), *Fusionner les notes* (seulement les notes et commentaires) ;
-- **rien n'est appliqué sans confirmation** ; les tickets créés dans le job reçoivent leur vrai identifiant et les écritures suivantes l'utilisent ;
+- **rien n'est appliqué sans confirmation** ; `bd` exécute la forme canonique de ce qui a été vérifié ; les tickets créés dans le job reçoivent leur vrai identifiant et les écritures suivantes l'utilisent ;
 - relançable : une écriture en échec est retentée, les autres ne sont pas rejouées.
 
 ```bash

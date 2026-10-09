@@ -218,6 +218,12 @@ func (b *Beads) closingStatus(ctx context.Context, bin, dir, beadsDir, status st
 	if err != nil {
 		return true
 	}
+	return ClosingStatus(out, status)
+}
+
+// ClosingStatus reads the output of `bd statuses --json`: whether status is
+// a done status (unknown or unreadable: closing).
+func ClosingStatus(out []byte, status string) bool {
 	var st struct {
 		Custom []struct {
 			Name     string `json:"name"`

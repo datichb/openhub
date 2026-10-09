@@ -238,10 +238,10 @@ Limits: MCP servers that need a token of your machine (gitlab, jira, figma…) a
 **Replaying the Beads journal** — `oh session resolve <id>` or the TUI window:
 
 - the journal is **authenticated**: the job seals it (HMAC) with a key of the session, kept by your machine in its keychain and present neither in the artifacts nor in the local copy of the envelope; a modified journal, snapshot or `beads.allow` list, or a missing key, and nothing is replayed;
-- every write is **checked again** on the machine: workflow `beads.allow` (a close through `update --status closed` needs `close`), known options only (combined short options, `--id`, `--db`, job files refused), and **every ticket named** — as an argument as well as in `--parent` or `--deps` — must be a ticket of the session (or created by it); the other writes are refused;
+- every write is **checked again** on the machine, read the way `bd` reads it (the analyser of the Beads gateway: `-sclosed`, `-s=closed`, the `done` alias…): workflow `beads.allow` (any close — `close`, `update --status closed|done`, a project status of category `done` according to `bd statuses`, an unknown status, `duplicate`… — needs `close`), options of a short list only (`--id`, `--db`, `-C`, `--repo`, job files refused), and **every ticket named** — as an argument as well as in `--parent` or `--deps` — must be a ticket of the session (or created by it); the other writes are refused;
 - the display neutralizes the control characters coming from the job (ANSI/OSC sequences, carriage returns): they are shown, never interpreted;
 - a ticket **changed on the machine since sending** (its revision changed) is a **conflict**: for each, *Keep local* (nothing applied to that ticket), *Apply remote* (all its writes), *Merge the notes* (notes and comments only);
-- **nothing is applied without confirmation**; tickets created in the job get their real id and the following writes use it;
+- **nothing is applied without confirmation**; `bd` runs the canonical form of what was checked; tickets created in the job get their real id and the following writes use it;
 - can be run again: a failed write is retried, the others are not replayed.
 
 ```bash

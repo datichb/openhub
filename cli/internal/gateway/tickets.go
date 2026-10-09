@@ -1,6 +1,10 @@
 package gateway
 
-import "strings"
+import (
+	"strings"
+
+	"github.com/datichb/openhub/cli/internal/gateway/bdargs"
+)
 
 // Ticket operations seen by the workflow guard (A17, A38): closing a ticket
 // waits for the checkpoint that unlocks it; claimed and closed tickets tell
@@ -74,6 +78,9 @@ func ticketOp(c command) (BeadsOp, bool) {
 	}
 	return BeadsOp{}, false
 }
+
+// TicketOp is ticketOp for a command parsed by bdargs (journal replay).
+func TicketOp(c bdargs.Cmd) (BeadsOp, bool) { return ticketOp(command{Cmd: c}) }
 
 func cleanIDs(args []string) []string {
 	var ids []string

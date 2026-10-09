@@ -184,7 +184,8 @@ func TestGitTokenOnlyThroughAskpass(t *testing.T) {
 	calls := strings.Split(string(data), "ARGS ")
 	var clone string
 	for _, c := range calls {
-		if strings.HasPrefix(c, "-c core.hooksPath=/dev/null -c core.fsmonitor=false") && strings.Contains(c, " clone ") {
+		if strings.HasPrefix(c, "-c core.fsmonitor=false -c core.hooksPath="+os.DevNull) && strings.Contains(c, " clone ") &&
+			strings.Contains(c, "-c credential.helper= ") && strings.Contains(c, "--upload-pack=git-upload-pack") {
 			clone = c
 		}
 		lines := strings.SplitN(c, "\n", 2)

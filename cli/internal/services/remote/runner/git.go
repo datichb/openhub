@@ -13,6 +13,8 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+
+	"github.com/datichb/openhub/cli/internal/gitutil"
 )
 
 // Git runs git in the job (as root) with the project token.
@@ -39,34 +41,15 @@ type Git struct {
 	Agent *User
 }
 
-// gitSafeArgs disable what a repository could make git execute.
-var gitSafeArgs = []string{
-	"-c", "core.hooksPath=/dev/null",
-	"-c", "core.fsmonitor=false",
-	"-c", "credential.helper=",
-	"-c", "protocol.ext.allow=never",
-}
-
 // gitEnv is the environment of the git processes: the runner's, without
 // any GIT_* variable, with no global or system configuration and no
-// terminal prompt.
-func gitEnv(extra ...string) []string {
-	var env []string
-	for _, kv := range os.Environ() {
-		if strings.HasPrefix(kv, "GIT_") {
-			continue
-		}
-		env = append(env, kv)
-	}
-	return append(env, append([]string{
-		"GIT_TERMINAL_PROMPT=0",
-		"GIT_CONFIG_NOSYSTEM=1",
-		"GIT_CONFIG_GLOBAL=" + os.DevNull,
-	}, extra...)...)
-}
+// terminal prompt (gitutil.IsolatedEnv).
+func gitEnv(extra ...string) []string { return gitutil.IsolatedEnv(os.Environ(), extra...) }
 
 func (g Git) runEnv(ctx context.Context, dir string, env []string, args ...string) (string, error) {
-	cmd := exec.CommandContext(ctx, "git", append(append([]string{}, gitSafeArgs...), args...)...)
+	// What a repository could make git execute is overridden on the
+	// command line, nothing taken from a user configuration.
+	cmd := exec.CommandContext(ctx, "git", gitutil.IsolatedArgs(args...)...)
 	cmd.Dir = dir
 	cmd.Env = env
 	var out, errOut bytes.Buffer

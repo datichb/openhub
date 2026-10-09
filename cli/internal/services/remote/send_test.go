@@ -117,6 +117,9 @@ func (b *fakeBeads) Claim(_ context.Context, _, id string) error {
 	return nil
 }
 func (b *fakeBeads) Exec(_ context.Context, _ string, argv []string, stdin []byte) ([]byte, error) {
+	if strings.Join(argv, " ") == "statuses --json" { // read only (replay check)
+		return []byte(`{"custom_statuses":[{"name":"review","category":"wip"},{"name":"shipped","category":"done"}]}`), nil
+	}
 	b.execs = append(b.execs, strings.Join(argv, " "))
 	if b.execFail != "" && strings.Contains(strings.Join(argv, " "), b.execFail) {
 		return nil, errors.New("bd failed")
