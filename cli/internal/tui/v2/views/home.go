@@ -104,7 +104,6 @@ func (v *HomeView) Mount(content *tview.Flex, app *tview.Application) {
 		SetScrollable(false)
 	logo.SetBackgroundColor(theme.BgPanel)
 	bannerStr, bh := renderBanner("OPENHUB", 100, theme.ActiveMode.AccentHex)
-	logo.SetText(fmt.Sprintf("\n%s", bannerStr))
 
 	// ── Footer ──────────────────────────────────────────────────────────
 	footer := tview.NewTextView().
@@ -120,11 +119,17 @@ func (v *HomeView) Mount(content *tview.Flex, app *tview.Application) {
 		}
 	}
 
-	headerHeight := bh + 3
-
 	// buildFn reads v.items at call time (not captured slices) so that
 	// both initial mount and async data arrival produce correct layouts.
-	buildFn := func(width int) homeFlexResult {
+	// Compact (N20): the banner on one line, no footer.
+	buildFn := func(width int, compact bool) homeFlexResult {
+		headerHeight := bh + 3
+		if compact {
+			headerHeight = 1
+			logo.SetText(compactBanner("OPENHUB", theme.ActiveMode.AccentHex, ""))
+		} else {
+			logo.SetText(fmt.Sprintf("\n%s", bannerStr))
+		}
 		leftItems, rightItems := v.splitItems()
 		r := buildHomeLayout(width, homeFlexConfig{
 			App:          app,
@@ -135,6 +140,7 @@ func (v *HomeView) Mount(content *tview.Flex, app *tview.Application) {
 			LeftItems:    leftItems,
 			RightItems:   rightItems,
 			OnSelect:     onSelect,
+			Compact:      compact,
 		})
 		// Keep HomeView pointers in sync after every rebuild (including resize).
 		if r.Dual != nil {

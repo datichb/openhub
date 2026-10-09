@@ -414,3 +414,63 @@ func TestSessionsDetailShowsNext(t *testing.T) {
 	v.renderDetail(&SessionRow{ID: "ses_1", Workflow: "ticket", Next: "review"})
 	assert.Contains(t, v.detail.GetText(true), i18n.Tf("tui.launch.chain_next", "review"))
 }
+
+// N19: Ctrl+S on the first step goes to the recap without launching; the
+// second Ctrl+S (recap loaded) launches. Alt+←/PgUp go back, Alt+→/PgDn
+// forward.
+func TestLaunchFormCtrlSGoesToTheRecap(t *testing.T) {
+	cfg := launchCfg(t)
+	cfg.Tickets = []string{"bd-1"}
+	release := make(chan struct{})
+	cfg.Recap = func(context.Context, LaunchChoices) (*LaunchRecap, error) {
+		<-release
+		return &LaunchRecap{Rows: []InfoField{{Label: "Agents", Value: "developer"}}}, nil
+	}
+	launched := make(chan LaunchChoices, 2)
+	cfg.Launch = func(_ context.Context, c LaunchChoices) error { launched <- c; return nil }
+	v := NewLaunchFormView(cfg)
+	sh := &recordingShell{}
+	v.SetShell(sh)
+	content := tview.NewFlex()
+	app := runApp(t, content)
+	onLoop(app, func() { v.Mount(content, app) })
+	ctrlS := tcell.NewEventKey(tcell.KeyCtrlS, 0, tcell.ModNone)
+
+	onLoop(app, func() { assert.Nil(t, v.HandleKey(ctrlS)) })
+	assert.Equal(t, launchStepRecap, v.step, "straight to the recap")
+	onLoop(app, func() { v.HandleKey(ctrlS) }) // recap not loaded yet: no launch
+	select {
+	case <-launched:
+		t.Fatal("launched before the recap was loaded")
+	case <-time.After(50 * time.Millisecond):
+	}
+	close(release)
+	require.Eventually(t, func() bool {
+		loaded := false
+		onLoop(app, func() { loaded = v.recap != nil })
+		return loaded
+	}, 2*time.Second, 10*time.Millisecond)
+
+	// Back and forward keys.
+	onLoop(app, func() { v.HandleKey(tcell.NewEventKey(tcell.KeyLeft, 0, tcell.ModAlt)) })
+	assert.Equal(t, launchStepOptions, v.step)
+	onLoop(app, func() { v.HandleKey(tcell.NewEventKey(tcell.KeyPgUp, 0, tcell.ModNone)) })
+	assert.Equal(t, launchStepInputs, v.step)
+	onLoop(app, func() { v.HandleKey(tcell.NewEventKey(tcell.KeyPgDn, 0, tcell.ModNone)) })
+	assert.Equal(t, launchStepOptions, v.step)
+	onLoop(app, func() { v.HandleKey(tcell.NewEventKey(tcell.KeyRight, 0, tcell.ModAlt)) })
+	assert.Equal(t, launchStepRecap, v.step)
+	require.Eventually(t, func() bool {
+		loaded := false
+		onLoop(app, func() { loaded = v.recap != nil })
+		return loaded
+	}, 2*time.Second, 10*time.Millisecond)
+
+	onLoop(app, func() { v.HandleKey(ctrlS) })
+	select {
+	case c := <-launched:
+		assert.Equal(t, []string{"bd-1"}, c.Tickets)
+	case <-time.After(2 * time.Second):
+		t.Fatal("not launched from the loaded recap")
+	}
+}

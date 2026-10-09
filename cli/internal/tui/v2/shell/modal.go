@@ -246,7 +246,15 @@ func buildButtonBar(actions []views.ModalAction, dismiss func()) (*tview.Flex, [
 		isPrimary := i == 0
 
 		btn := tview.NewButton(a.Label)
-		if isPrimary {
+		switch {
+		case a.Danger:
+			btn.SetStyle(tcell.StyleDefault.
+				Background(theme.Error).
+				Foreground(theme.BgModal))
+			btn.SetActivatedStyle(tcell.StyleDefault.
+				Background(theme.Warning).
+				Foreground(theme.BgModal))
+		case isPrimary:
 			// Primary button: mode accent pill at rest, secondary when focused
 			btn.SetStyle(tcell.StyleDefault.
 				Background(theme.ActiveMode.Accent).
@@ -254,7 +262,7 @@ func buildButtonBar(actions []views.ModalAction, dismiss func()) (*tview.Flex, [
 			btn.SetActivatedStyle(tcell.StyleDefault.
 				Background(theme.ActiveMode.Secondary).
 				Foreground(theme.BgModal))
-		} else {
+		default:
 			// Secondary button: ghost style at rest, mode accent when focused
 			btn.SetStyle(tcell.StyleDefault.
 				Background(theme.BgModalHighlight).

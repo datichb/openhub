@@ -66,7 +66,7 @@ oh                                   # TUI : Démarrer, Sessions, catalogue des 
 
 Options utiles de `oh run` : `--recap` (récapitulatif et confirmation), `--mode manuel|semi-auto|auto`, `--runtime local|container|remote`, `--location base|new|<chemin>`, `--headless`, `-a/--agent` (avec `libre`). Sans argument, `oh run` lance le workflow par défaut du projet.
 
-Dans la TUI, **Démarrer** liste les workflows (★ épinglés, récents), ouvre la fiche de lancement (Entrées → Options → Récap, `Ctrl+S` lance), et la vue **Sessions** rassemble les sessions à traiter, en cours, en veille, terminées et à récupérer.
+Dans la TUI, **Démarrer** liste les workflows (★ épinglés, récents), ouvre la fiche de lancement (Entrées → Options → Récap : `Ctrl+S` va au récap, puis lance), et la vue **Sessions** rassemble les sessions à traiter, en cours, en veille, terminées et à récupérer.
 
 ---
 

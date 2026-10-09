@@ -163,7 +163,7 @@ Launch ticket (hub:ticket) · my-app
 
 A new tab opens with opencode: the `orchestrator-dev` agent reads the ticket and prepares its plan. Without `--recap`, the session starts right away.
 
-> From the TUI, the same launch goes through "Start" → `ticket` → launch form: "Pick…" button for the ticket, `manuel` mode at the Options step, then `Ctrl+S`.
+> From the TUI, the same launch goes through "Start" → `ticket` → launch form: "Pick…" button for the ticket, `manuel` mode at the Options step, then `Ctrl+S` (recap) and `Ctrl+S` again (launch).
 
 ---
 
@@ -337,7 +337,7 @@ In the Sessions view, `o` shows the same description.
 
 The `review` workflow reviews a branch without changing anything. Two ways to launch it:
 
-**From the TUI:** on the `ticket` session, press `e` (**Chain with…**). oh offers the workflows that take an output of the session; choose `review`: the launch form opens with `branch = feat/bd-42`. Pick the "Review type" (for example `adversarial`), then `Ctrl+S`.
+**From the TUI:** on the `ticket` session, press `e` (**Chain with…**). oh offers the workflows that take an output of the session; choose `review`: the launch form opens with `branch = feat/bd-42`. Pick the "Review type" (for example `adversarial`), then `Ctrl+S` twice (recap, then launch).
 
 **From the command line:**
 

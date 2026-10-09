@@ -37,19 +37,22 @@ Le TUI suit un design **omnibar-first** inspiré des lanceurs fuzzy (fzf, Telesc
 └───────────────────────────────────────────────────────────────────┘
 ```
 
+**Petits terminaux** (v5.0) : sous 32 lignes, mise en page compacte (bandeau sur une ligne, omnibar et barre de mode sur 3 lignes, sans pied de page ni espaces) ; sous 60×16, message « Terminal trop petit » et seul `Ctrl+Q` fonctionne. Seuils centralisés dans `views.LevelFor` ; réglage `[cli] compact = auto | always | never`. Le changement de mise en page garde l'élément sélectionné.
+
 ## Raccourcis globaux
 
 | Touche | Action |
 |--------|--------|
 | `Ctrl+P` | Activer l'omnibar |
-| `Esc` | Retour (vue précédente) ; à la racine d'un mode Projet ou Équipe : retour au mode Hub |
+| `/` | Activer l'omnibar, si la vue n'utilise pas `/` (recherche) |
+| `Esc` | Ferme d'abord les toasts affichés ; sinon retour (vue précédente) ; à la racine d'un mode Projet ou Équipe : retour au mode Hub |
 | `Ctrl+T` | Mode Équipe (sélecteur si plusieurs équipes) ; depuis le mode Équipe : retour au Hub |
 | `Ctrl+Q` / `Ctrl+C` | Quitter la TUI (si des sessions travaillent : finir l'étape puis veille, arrière-plan, ou arrêter maintenant) |
 | `?` / `F1` | Aide et raccourcis |
 | `j` / `k`, `g` / `G` | Bas / haut, premier / dernier élément (dans toute liste) |
-| `d` | Fermer le plus ancien toast affiché |
-| `Enter` | Active l'omnibar si la vue ne l'utilise pas |
-| Toute autre lettre | Active l'omnibar avec ce caractère (si la vue ne l'utilise pas) |
+| `Enter` | Action de la liste, du bouton ou du champ sélectionné ; active l'omnibar seulement si rien ne l'utilise |
+
+**Contrat des touches** (v5.0) : les fenêtres (formulaires, confirmations) et l'omnibar reçoivent toutes les touches ; puis viennent les touches réservées (`Esc`, `Ctrl+P`, `Ctrl+T`, `?`, `F1`, `Ctrl+Q` / `Ctrl+C`), que les vues ne redéfinissent pas ; puis les touches de la vue ; puis la liste ou le champ sélectionné. `Enter` et les lettres ne sont plus pris à la liste : taper une lettre « n'importe où » n'ouvre plus l'omnibar, et `d` ne ferme plus les toasts (`Esc`). Toute action destructrice (suppression, nettoyage, libération d'un ticket, rejet d'une proposition…) demande une confirmation.
 
 Le reste passe par l'omnibar ou par les touches de la vue (affichées dans la ligne d'aide).
 
@@ -112,7 +115,7 @@ Générée depuis le YAML du workflow (titre « Lancer · <workflow> »), en tro
 2. **Options** : **Mode** ; **Exécution** (`⌂ local`, `▣ conteneur`, `☁ distant` ; un environnement indisponible affiche la raison ; en conteneur : moteur, image en cache ou à construire avec la durée estimée) ; **Emplacement** (`base`, worktrees existants, `+ nouveau worktree`) ; **Ouverture** (auto, iTerm2, Terminal.app, tmux, navigateur, ce terminal, ne pas ouvrir).
 3. **Récap** : agents, budget du 1er tour, isolation, sessions et emplacements (« N sessions · 1 serveur · un worktree par session qui écrit »), avertissements.
 
-`Tab` champ suivant, `Ctrl+S` lance depuis n'importe quelle étape, `Ctrl+B` revient, `Esc` ferme. Un second lancement pendant la préparation est ignoré. Avec plusieurs tickets, une case « Une seule session pour tous les tickets » est proposée. Quand une précondition suggère un autre workflow, le récap propose « Lancer <wf> d'abord (puis revenir) ».
+`Tab` champ suivant ; `Ctrl+S` va au récap depuis n'importe quelle étape, puis lance depuis le récap une fois chargé ; `Alt+←`, `PgUp` ou `Ctrl+B` reviennent à l'étape précédente, `Alt+→` ou `PgDn` passent à la suivante ; `Esc` ferme. Un second lancement pendant la préparation est ignoré. Avec plusieurs tickets, une case « Une seule session pour tous les tickets » est proposée. Quand une précondition suggère un autre workflow, le récap propose « Lancer <wf> d'abord (puis revenir) ».
 
 ### Démarrer, board, catalogue
 
@@ -303,13 +306,13 @@ Colonnes du `[board]` du team-state ; par défaut **6 colonnes** : TODO, IN PROG
 | Statut d'équipe | `r` rafraîchir |
 | Activité | `t` aujourd'hui, `w` semaine, `0` tout, `r` rafraîchir |
 | Reprises | `Enter` voir le brief, `e` enrichir (IA, workflow `brief-enrich`), `r` rafraîchir |
-| Worktrees | `a` ajouter, `d` supprimer, `o` ouvrir dans un terminal, `p` nettoyer (prune), `x` supprimer les worktrees mergés, `r` rafraîchir |
+| Worktrees | `a` ajouter, `d` supprimer, `o` ouvrir dans un terminal, `p` nettoyer (prune), `x` supprimer les worktrees mergés (jamais ceux qu'utilise une session non arrêtée), `r` rafraîchir ; `d`, `p` et `x` demandent une confirmation |
 
 ## Wizards inline
 
 Les flows de configuration multi-step (`team init`, `init`, `project add`) utilisent un composant **InlineWizardView** qui tourne dans le shell TUI sans switch alt-screen. Le wizard est pushé sur le router stack via `shell.PushView(v)` et pop automatiquement à la fin.
 
-Raccourcis : `Ctrl+S` valider, `Ctrl+B` retour, double `Esc` passer.
+Raccourcis : `Ctrl+S` valider, `Ctrl+B` / `Alt+←` / `PgUp` retour, `Esc` → « Quitter l'assistant ? » (**Quitter**, **Passer l'étape** si elle est facultative, **Continuer**).
 
 Voir [Référence InlineWizardView](tui-inline-wizard.fr.md) pour l'API complète et les patterns de création de nouveaux wizards.
 

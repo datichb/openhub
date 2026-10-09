@@ -154,6 +154,9 @@ func (s *standaloneShellStub) ShowToastMsg(string, bool) {
 func (s *standaloneShellStub) ShowInlineForm(InlineFormConfig) {
 	panic("standaloneShellStub: ShowInlineForm not supported")
 }
+func (s *standaloneShellStub) Confirm(string, string, bool, func()) {
+	panic("standaloneShellStub: Confirm not supported")
+}
 func (s *standaloneShellStub) SetProjectMode(*ActiveProject) {
 	panic("standaloneShellStub: SetProjectMode not supported")
 }

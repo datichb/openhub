@@ -19,6 +19,7 @@ name = "OpenHub"                   # name shown in the TUI title
 
 [cli]
 language = "en"                    # "fr" or "en" (default: "en")
+compact = "auto"                   # compact TUI: auto (under 32 rows, default) | always | never
 
 [llm]
 default_provider = "bedrock"       # bedrock | anthropic | openrouter | github-copilot

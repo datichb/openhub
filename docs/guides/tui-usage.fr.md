@@ -22,18 +22,31 @@ Au premier demarrage sans configuration, l'assistant `oh init` se lance dans la 
 
 | Touche | Action |
 |--------|--------|
-| `Ctrl+P` | Ouvrir l'omnibar |
-| une lettre | Ouvrir l'omnibar avec cette lettre (si la vue ne l'utilise pas) |
-| `?` ou `F1` | Aide (raccourcis de la vue active) |
-| `Esc` | Retour a la vue precedente ; a la racine d'un mode projet ou equipe, retour au mode Hub |
+| `Ctrl+P` ou `/` | Ouvrir l'omnibar (`/` : si la vue ne l'utilise pas pour chercher) |
+| `?` ou `F1` | Aide (raccourcis globaux, fiche et assistants, touches de la vue active) |
+| `Esc` | Fermer les toasts affiches ; sinon retour a la vue precedente ; a la racine d'un mode projet ou equipe, retour au mode Hub |
 | `Ctrl+T` | Entrer en mode equipe (choix si plusieurs equipes) ; depuis le mode equipe, revenir au Hub |
 | `Ctrl+Q` (ou `Ctrl+C`) | Quitter (voir [Fermer oh](#fermer-oh)) |
 | `j` / `k`, `g` / `G` | Bas / haut, debut / fin de liste (dans la vue Sessions, `g` recupere une session distante) |
 | `{` / `}` | Section precedente / suivante dans les listes a sections |
 | `Tab` | Changer de colonne ou de champ (`h` / `l` sur les accueils a deux colonnes) |
-| `d` | Fermer le plus ancien toast |
+| `Entree` | action de la liste, du bouton ou du champ selectionne (l'omnibar s'ouvre seulement si rien ne l'utilise) |
 
-Les resultats des actions s'affichent en toasts (succes, erreur, info) qui disparaissent seuls. Chaque vue affiche ses raccourcis en bas.
+Les resultats des actions s'affichent en toasts (succes, erreur, info) qui disparaissent seuls (`Esc` les ferme). Chaque vue affiche ses raccourcis en bas.
+
+**Changement en v5.0** : taper une lettre « n'importe ou » n'ouvre plus l'omnibar (utilisez `Ctrl+P` ou `/`) ; `Entree` et les lettres vont toujours a la liste ou au champ selectionne ; `d` ne ferme plus les toasts (`Esc`). Les touches `Esc`, `Ctrl+P`, `Ctrl+T`, `?`, `F1` et `Ctrl+Q` ont le meme sens dans toutes les vues. Toute action destructrice (supprimer un worktree, nettoyer, liberer un ticket, rejeter une proposition du wiki…) demande une confirmation.
+
+### Petits terminaux
+
+La mise en page suit la taille du terminal :
+
+| Taille | Mise en page |
+|--------|--------------|
+| 32 lignes et plus | complete : bandeau en grand, pied de page, barre du bas sur 8 lignes |
+| 16 a 31 lignes | **compacte** : bandeau sur une ligne, pas de pied de page ni d'espaces, barre du bas sur 3 lignes (≈ 19 lignes de liste en 80×24) |
+| moins de 60 colonnes ou 16 lignes | message « Terminal trop petit (L×H) — 60×16 minimum » ; seul `Ctrl+Q` fonctionne |
+
+Le passage d'une mise en page a l'autre garde l'element selectionne. Reglage `[cli] compact = auto | always | never` (Reglages › CLI › Mode compact, ou `oh config set cli.compact always`) : `auto` (defaut) suit la hauteur, `always` force la mise en page compacte, `never` la mise en page complete (le message « trop petit » reste).
 
 ### Badge des sessions
 
@@ -85,11 +98,12 @@ Ouverte depuis « Démarrer », le catalogue, l'omnibar (`run <workflow>`) ou le
 | Touche | Action |
 |--------|--------|
 | `Tab` | champ suivant |
-| `Ctrl+S` | lancer, depuis n'importe quelle etape (sans passer par le recap) |
-| `Ctrl+B` | etape precedente |
+| `Ctrl+S` | aller au recap (depuis n'importe quelle etape) ; sur le recap charge : lancer |
+| `Alt+←`, `PgUp` ou `Ctrl+B` | etape precedente |
+| `Alt+→` ou `PgDn` | etape suivante |
 | `Esc` | fermer la fiche |
 
-Les boutons « Suivant », « Retour » et « Lancer » font la meme chose. Pendant le lancement, la fiche affiche « Lancement en cours… » (un second `Ctrl+S` est ignore) ; en conteneur, la progression de la construction de l'image s'affiche dessous.
+On lance toujours depuis le recap : un premier `Ctrl+S` l'affiche, un second lance une fois le recap calcule. Les boutons « Suivant », « Retour » et « Lancer » font la meme chose. Pendant le lancement, la fiche affiche « Lancement en cours… » (un second `Ctrl+S` est ignore) ; en conteneur, la progression de la construction de l'image s'affiche dessous.
 
 ### Selecteur de tickets Beads
 
@@ -299,11 +313,11 @@ Fuzzy matching sur les noms et les alias :
 
 | Commande | Description |
 |----------|-------------|
+| `worktrees` | worktrees git du projet (`a` ajouter, `d` supprimer, `o` ouvrir une session, `p` nettoyer les references, `x` supprimer les worktrees fusionnes, jamais ceux qu'utilise une session ; `d`, `p` et `x` demandent confirmation) |
 | `projects` | liste des projets (`a` ajouter, `d` supprimer, `n` renommer, `m` deplacer, `p` mode Projet, `b` initialiser Beads, `r` rafraichir, `Entree` configurer) |
 | `project add` | assistant d'ajout de projet |
 | `board`, `board init` | board Beads du projet, initialisation |
 | `project-config` | configuration du projet (dont Exécution) |
-| `worktrees` | worktrees git |
 | `settings`, `models`, `provider`, `mcp`, `secrets` | reglages, modeles, fournisseur, serveurs MCP, secrets |
 | `teams`, `team-detail` | equipes, detail de l'equipe (`K` cle du fournisseur pour l'equipe ; espace solo : « Passer en équipe ») |
 | `init` | relancer l'assistant de configuration |
@@ -336,9 +350,8 @@ Commandes supprimees en v5 : `deploy`, `sync`, `plugins`, `upgrade`, la vue Work
 | Touche | Action |
 |--------|--------|
 | `Ctrl+S` | valider l'etape |
-| `Ctrl+B` | etape precedente |
-| `Esc` (1 fois) | indication « appuyer encore pour passer » |
-| `Esc` (2 fois) | passer l'etape (sauf etape obligatoire) |
+| `Alt+←`, `PgUp` ou `Ctrl+B` | etape precedente |
+| `Esc` | « Quitter l'assistant ? » : **Quitter**, **Passer l'étape** (si elle est facultative) ou **Continuer** (choix par defaut ; `Esc` aussi) |
 
 Un ecran de resume termine l'assistant : `Entree` ouvre la vue de detail, `Esc` revient a la vue precedente.
 

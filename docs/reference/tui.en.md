@@ -37,19 +37,22 @@ The TUI follows an **omnibar-first** design inspired by fuzzy launchers (fzf, Te
 └───────────────────────────────────────────────────────────────────┘
 ```
 
+**Small terminals** (v5.0): under 32 rows, compact layout (one-line banner, omnibar and mode bar on 3 rows, no footer nor spacing); under 60×16, « Terminal too small » message and only `Ctrl+Q` works. Thresholds in `views.LevelFor`; setting `[cli] compact = auto | always | never`. Changing layout keeps the selected item.
+
 ## Global Shortcuts
 
 | Key | Action |
 |-----|--------|
 | `Ctrl+P` | Activate the omnibar |
-| `Esc` | Back (previous view); at the root of Project or Team mode: back to Hub mode |
+| `/` | Activate the omnibar, when the view does not use `/` (search) |
+| `Esc` | First closes the toasts shown; otherwise back (previous view); at the root of Project or Team mode: back to Hub mode |
 | `Ctrl+T` | Team mode (selector when several teams); from Team mode: back to Hub |
 | `Ctrl+Q` / `Ctrl+C` | Quit the TUI (when sessions are working: finish the step then sleep, background, or stop now) |
 | `?` / `F1` | Help and shortcuts |
 | `j` / `k`, `g` / `G` | Down / up, first / last item (in any list) |
-| `d` | Dismiss the oldest visible toast |
-| `Enter` | Activates the omnibar when the view does not use it |
-| Any other letter | Activates the omnibar with that character (when the view does not use it) |
+| `Enter` | Action of the selected list, button or field; activates the omnibar only when nothing uses it |
+
+**Key contract** (v5.0): windows (forms, confirmations) and the omnibar receive every key; then come the reserved keys (`Esc`, `Ctrl+P`, `Ctrl+T`, `?`, `F1`, `Ctrl+Q` / `Ctrl+C`), which views do not redefine; then the view keys; then the selected list or field. `Enter` and letters are no longer taken from the list: typing a letter « anywhere » no longer opens the omnibar, and `d` no longer dismisses toasts (`Esc`). Every destructive action (removal, cleanup, releasing a ticket, rejecting a proposal…) asks for a confirmation.
 
 Everything else goes through the omnibar or the view keys (shown in the hint line).
 
@@ -112,7 +115,7 @@ Generated from the workflow YAML (title "Launch · <workflow>"), in three steps:
 2. **Options**: **Mode**; **Runtime** (`⌂ local`, `▣ container`, `☁ remote`; an unavailable environment shows the reason; in a container: engine, cached image or image to build with the estimated duration); **Location** (`base`, existing worktrees, `+ new worktree`); **Opening** (auto, iTerm2, Terminal.app, tmux, browser, this terminal, do not open).
 3. **Recap**: agents, first-turn budget, isolation, sessions and locations ("N sessions · 1 server · one worktree per writing session"), warnings.
 
-`Tab` next field, `Ctrl+S` launches from any step, `Ctrl+B` goes back, `Esc` closes. A second launch while preparing is ignored. With several tickets, a "A single session for every ticket" checkbox is offered. When a precondition suggests another workflow, the recap offers "Launch <wf> first (then come back)".
+`Tab` next field; `Ctrl+S` goes to the recap from any step, then launches from the recap once loaded; `Alt+←`, `PgUp` or `Ctrl+B` go back one step, `Alt+→` or `PgDn` forward; `Esc` closes. A second launch while preparing is ignored. With several tickets, a "A single session for every ticket" checkbox is offered. When a precondition suggests another workflow, the recap offers "Launch <wf> first (then come back)".
 
 ### Start, board, catalogue
 
@@ -303,13 +306,13 @@ Columns of the team-state `[board]`; by default **6 columns**: TODO, IN PROGRESS
 | Team status | `r` refresh |
 | Activity | `t` today, `w` week, `0` all, `r` refresh |
 | Takeover briefs | `Enter` see the brief, `e` enrich (AI, `brief-enrich` workflow), `r` refresh |
-| Worktrees | `a` add, `d` remove, `o` open in a terminal, `p` prune, `x` remove merged worktrees, `r` refresh |
+| Worktrees | `a` add, `d` remove, `o` open in a terminal, `p` prune, `x` remove merged worktrees (never one used by a session that is not stopped), `r` refresh; `d`, `p` and `x` ask for a confirmation |
 
 ## Inline Wizards
 
 Multi-step configuration flows (`team init`, `init`, `project add`) use an **InlineWizardView** component that runs inside the TUI shell without an alt-screen switch. The wizard is pushed onto the router stack via `shell.PushView(v)` and pops automatically on completion.
 
-Shortcuts: `Ctrl+S` submit, `Ctrl+B` back, double `Esc` skip.
+Shortcuts: `Ctrl+S` submit, `Ctrl+B` / `Alt+←` / `PgUp` back, `Esc` → « Quit the wizard? » (**Quit**, **Skip the step** when optional, **Continue**).
 
 See [InlineWizardView Reference](tui-inline-wizard.en.md) for the full API and patterns for creating new wizards.
 

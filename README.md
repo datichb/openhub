@@ -66,7 +66,7 @@ oh                                   # TUI: Start, Sessions, workflow catalogue,
 
 Useful options of `oh run`: `--recap` (summary and confirmation), `--mode manuel|semi-auto|auto`, `--runtime local|container|remote`, `--location base|new|<path>`, `--headless`, `-a/--agent` (with `libre`). Without argument, `oh run` launches the project's default workflow.
 
-In the TUI, **Start** lists the workflows (★ pinned, recent ones), opens the launch form (Inputs → Options → Recap, `Ctrl+S` launches), and the **Sessions** view gathers the sessions to handle, in progress, sleeping, finished and to fetch.
+In the TUI, **Start** lists the workflows (★ pinned, recent ones), opens the launch form (Inputs → Options → Recap: `Ctrl+S` goes to the recap, then launches), and the **Sessions** view gathers the sessions to handle, in progress, sleeping, finished and to fetch.
 
 ---
 

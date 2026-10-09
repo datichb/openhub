@@ -81,6 +81,20 @@ var configFieldMap = map[string]configField{
 		},
 		Unset: func(c *config.Config) { c.CLI.SetupDone = false },
 	},
+	"cli.compact": {
+		Set: func(c *config.Config, v string) error {
+			switch v {
+			case "auto", "always", "never":
+				c.CLI.Compact = v
+				if v == "auto" {
+					c.CLI.Compact = ""
+				}
+				return nil
+			}
+			return errors.New(i18n.Tf("tui.compact.setting.invalid", v))
+		},
+		Unset: func(c *config.Config) { c.CLI.Compact = "" },
+	},
 	// LLM (former key: config.LegacyKeyAliases)
 	"llm.default_provider": {
 		Set:   func(c *config.Config, v string) error { c.LLM.DefaultProvider = v; return nil },

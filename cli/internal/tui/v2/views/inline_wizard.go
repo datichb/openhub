@@ -108,13 +108,21 @@ type InlineWizardView struct {
 	stepStates  []widgets.Step
 	groupStates []widgets.Step // derived from stepStates when Groups is set
 	infoAccum   []inlineStepInfoEntry
-	escPending  bool
 	completed   bool
 	aborted     bool
 	wizardErr   error
 
 	// spinner for async OnDone operations
-	spinner *widgets.Spinner
+	spinner    *widgets.Spinner
+	processing bool // a step's OnDone is running
+
+	// form is the form of the current step (nil for other steps).
+	form *tview.Form
+	// hintsHost is the flex holding the hints bar; the « quit the wizard? »
+	// prompt (quitBar) takes its row while shown (N19).
+	hintsHost *tview.Flex
+	quitBar   *tview.Flex
+	quitBack  tview.Primitive
 
 	// activeTimers tracks pending time.AfterFunc timers so they can be
 	// cancelled on Unmount (avoids referencing a dead wizard).
@@ -175,17 +183,14 @@ func (w *InlineWizardView) statusHintsForStep(idx int) string {
 	if idx < 0 || idx >= len(w.cfg.Steps) {
 		return "enter " + i18n.T("wizard.hint.submit")
 	}
-	step := w.cfg.Steps[idx]
 	hasPrev := w.findPrev(idx) != -1
 
 	var parts []string
 	parts = append(parts, "ctrl+s "+i18n.T("wizard.hint.submit"))
 	if hasPrev {
-		parts = append(parts, "ctrl+b "+i18n.T("wizard.hint.back"))
+		parts = append(parts, "ctrl+b/alt+← "+i18n.T("wizard.hint.back"))
 	}
-	if !step.Required {
-		parts = append(parts, "esc×2 "+i18n.T("wizard.hint.skip"))
-	}
+	parts = append(parts, "esc "+i18n.T("tui.wizard.quit.hint"))
 	return strings.Join(parts, " · ")
 }
 
@@ -194,7 +199,7 @@ func (w *InlineWizardView) statusHintsForStep(idx int) string {
 // (↑↓ navigate · enter select · tab next field) instead of the generic
 // wizard hints. Also refreshes the label visual hierarchy via fixFormLabelFocus.
 func (w *InlineWizardView) updateDropdownHints(form *tview.Form) {
-	if w.hintsBar == nil || w.escPending {
+	if w.hintsBar == nil || w.quitBar != nil {
 		return
 	}
 	if isDropDownFocused(form) {
@@ -210,7 +215,7 @@ func (w *InlineWizardView) Mount(content *tview.Flex, app *tview.Application) {
 	w.completed = false
 	w.aborted = false
 	w.wizardErr = nil
-	w.escPending = false
+	w.quitBar, w.quitBack, w.form, w.processing = nil, nil, nil, false
 
 	if len(w.cfg.Steps) == 0 {
 		w.completed = true
@@ -337,6 +342,7 @@ func (w *InlineWizardView) mountClassicLayout(content *tview.Flex) {
 		AddItem(w.stepContent, 0, 1, true).
 		AddItem(w.infoPanel, 0, 0, false).
 		AddItem(w.hintsBar.TextView, 1, 0, false)
+	w.hintsHost = w.mainFlex
 
 	content.AddItem(w.mainFlex, 0, 1, true)
 }
@@ -392,6 +398,7 @@ func (w *InlineWizardView) mountGroupedLayout(content *tview.Flex) {
 	})
 	leftCol.AddItem(w.stepContent, 0, 1, true)
 	leftCol.AddItem(w.hintsBar.TextView, 1, 0, false)
+	w.hintsHost = leftCol
 
 	// Vertical separator (│) between left column and sidebar
 	sep := tview.NewBox()
@@ -507,6 +514,7 @@ func (w *InlineWizardView) Unmount() {
 	w.spinner = nil
 	w.doRenderStep = nil
 	w.bodyRow = nil
+	w.form, w.hintsHost, w.quitBar, w.quitBack = nil, nil, nil, nil
 	w.groupStates = nil
 }
 
@@ -524,50 +532,41 @@ func (w *InlineWizardView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 	}
 	step := w.cfg.Steps[idx]
 
-	// ── Ctrl+B: go back (all step types) ──
-	if event.Key() == tcell.KeyCtrlB {
+	// ── The « quit the wizard? » prompt has the keys (Esc = continue) ──
+	if w.quitBar != nil {
+		switch event.Key() {
+		case tcell.KeyEscape:
+			w.closeQuitPrompt()
+			return nil
+		case tcell.KeyLeft, tcell.KeyBacktab:
+			w.moveQuitFocus(-1)
+			return nil
+		case tcell.KeyRight, tcell.KeyTab:
+			w.moveQuitFocus(1)
+			return nil
+		}
+		return event
+	}
+
+	// ── Ctrl+B, Alt+←, PgUp: go back (all step types) ──
+	if isBackKey(event) {
 		w.goBack()
 		return nil
 	}
 
-	// ── CustomView steps: forward all non-Esc events to the widget tree ──
+	// ── Esc: ask whether to quit (an open drop-down list closes first) ──
+	if event.Key() == tcell.KeyEscape {
+		if step.CustomView == nil && formDropDownOpen(w.form) {
+			return event
+		}
+		if !w.processing {
+			w.askQuit()
+		}
+		return nil
+	}
+
+	// ── CustomView steps: forward all other events to the widget tree ──
 	if step.CustomView != nil {
-		if event.Key() == tcell.KeyEscape {
-			if step.Required {
-				// Required: show transient message, do not skip.
-				w.hintsBar.SetHints(fmt.Sprintf("%s%s %s[-]",
-					widgets.ColorTag(theme.Error), theme.IconWarning,
-					i18n.T("wizard.step_required")))
-				w.trackTimer(time.AfterFunc(2*time.Second, func() {
-					if w.app != nil {
-						w.app.QueueUpdateDraw(func() {
-							if w.hintsBar != nil {
-								w.hintsBar.SetHints(w.statusHintsForStep(w.currentStep))
-							}
-						})
-					}
-				}))
-				return nil
-			}
-			// Optional: double-Esc to skip (consistent with Form steps).
-			if !w.escPending {
-				w.escPending = true
-				w.hintsBar.SetHints(i18n.T("wizard.esc_to_skip"))
-				return nil
-			}
-			w.escPending = false
-			w.hintsBar.SetHints(w.statusHintsForStep(w.currentStep))
-			w.skipCurrent()
-			if !w.completed {
-				w.doRenderStep(w.currentStep)
-			}
-			return nil
-		}
-		// Any non-Esc key resets double-Esc pending state
-		if w.escPending {
-			w.escPending = false
-			w.hintsBar.SetHints(w.statusHintsForStep(w.currentStep))
-		}
 		if handler := w.stepContent.InputHandler(); handler != nil {
 			handler(event, func(p tview.Primitive) { w.app.SetFocus(p) })
 			return nil
@@ -576,9 +575,7 @@ func (w *InlineWizardView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 	}
 
 	// ── Form steps: let tview deliver to the focused form widget ──
-	// The form's own InputCapture handles Ctrl+S (submit) and its CancelFunc
-	// handles Esc (double-Esc skip for optional, block for required).
-	// We only intercept Ctrl+B (above); everything else passes through.
+	// The form's own InputCapture handles Ctrl+S (submit).
 	return event
 }
 
@@ -648,6 +645,125 @@ func (w *InlineWizardView) skipCurrent() {
 	w.renderInfoPanel()
 }
 
+// ── « Quit the wizard? » (N19) ──────────────────────────────────────────────
+
+// askQuit is Esc: « Quitter l'assistant ? [Quitter] [Passer l'étape] (when
+// the step is optional) [Continuer] », in place of the hints bar. The focus
+// starts on Continuer.
+func (w *InlineWizardView) askQuit() {
+	if w.app == nil || w.quitBar != nil || w.hintsHost == nil || w.hintsBar == nil {
+		return
+	}
+	step := w.cfg.Steps[w.currentStep]
+	w.quitBack = w.app.GetFocus()
+
+	question := fmt.Sprintf("%s%s %s[-] ", widgets.ColorTag(theme.Warning), theme.IconWarning, i18n.T("tui.wizard.quit.title"))
+	label := tview.NewTextView().SetDynamicColors(true).SetText(question)
+	label.SetBackgroundColor(theme.BgPanel)
+
+	buttons := tview.NewForm().SetHorizontal(true)
+	buttons.SetBackgroundColor(theme.BgPanel)
+	buttons.SetBorderPadding(0, 0, 0, 0)
+	buttons.SetButtonsAlign(tview.AlignLeft)
+	buttons.SetButtonStyle(tcell.StyleDefault.Background(theme.BgElement).Foreground(theme.FgPrimary))
+	buttons.SetButtonActivatedStyle(tcell.StyleDefault.Background(theme.ActiveMode.Primary).Foreground(theme.BgPanel))
+	buttons.AddButton(i18n.T("tui.wizard.quit.quit"), w.quitWizard)
+	if !step.Required {
+		buttons.AddButton(i18n.T("tui.wizard.quit.skip"), w.skipFromPrompt)
+	}
+	buttons.AddButton(i18n.T("tui.wizard.quit.continue"), w.closeQuitPrompt)
+	buttons.SetCancelFunc(w.closeQuitPrompt)
+	buttons.SetFocus(buttons.GetButtonCount() - 1)
+
+	bar := tview.NewFlex().
+		AddItem(label, tview.TaggedStringWidth(question)+1, 0, false).
+		AddItem(buttons, 0, 1, true)
+	bar.SetBackgroundColor(theme.BgPanel)
+	w.hintsHost.ResizeItem(w.hintsBar.TextView, 0, 0)
+	w.hintsHost.AddItem(bar, 1, 0, true)
+	w.quitBar = bar
+	w.app.SetFocus(buttons)
+}
+
+// moveQuitFocus moves the focus between the buttons of the quit prompt
+// (←/→, Tab/Shift+Tab), wrapping around.
+func (w *InlineWizardView) moveQuitFocus(delta int) {
+	if w.quitBar == nil || w.app == nil {
+		return
+	}
+	buttons, ok := w.quitBar.GetItem(1).(*tview.Form)
+	if !ok || buttons.GetButtonCount() == 0 {
+		return
+	}
+	n := buttons.GetButtonCount()
+	cur := 0
+	for i := 0; i < n; i++ {
+		if buttons.GetButton(i).HasFocus() {
+			cur = i
+		}
+	}
+	next := ((cur+delta)%n + n) % n
+	buttons.SetFocus(next)
+	w.app.SetFocus(buttons)
+}
+
+// closeQuitPrompt is « Continuer » (or Esc on the prompt): back to the step.
+func (w *InlineWizardView) closeQuitPrompt() {
+	if w.quitBar == nil {
+		return
+	}
+	if w.hintsHost != nil {
+		w.hintsHost.RemoveItem(w.quitBar)
+		if w.hintsBar != nil {
+			w.hintsHost.ResizeItem(w.hintsBar.TextView, 1, 0)
+		}
+	}
+	w.quitBar = nil
+	back := w.quitBack
+	w.quitBack = nil
+	if w.app != nil && back != nil {
+		w.app.SetFocus(back)
+	}
+}
+
+// quitWizard is « Quitter »: OnComplete(false, nil), then the wizard is
+// popped.
+func (w *InlineWizardView) quitWizard() {
+	w.closeQuitPrompt()
+	if !w.completed && !w.aborted {
+		w.aborted = true
+		w.fireComplete()
+	}
+	if w.shell != nil {
+		w.shell.PopView()
+	}
+}
+
+// skipFromPrompt is « Passer l'étape » (optional steps only).
+func (w *InlineWizardView) skipFromPrompt() {
+	w.closeQuitPrompt()
+	if w.currentStep < 0 || w.currentStep >= len(w.cfg.Steps) || w.cfg.Steps[w.currentStep].Required {
+		return
+	}
+	w.skipCurrent()
+	if !w.completed && w.doRenderStep != nil {
+		w.doRenderStep(w.currentStep)
+	}
+}
+
+// formDropDownOpen reports whether a drop-down list of the form is open.
+func formDropDownOpen(form *tview.Form) bool {
+	if form == nil {
+		return false
+	}
+	for i := 0; i < form.GetFormItemCount(); i++ {
+		if dd, ok := form.GetFormItem(i).(*tview.DropDown); ok && dd.IsOpen() {
+			return true
+		}
+	}
+	return false
+}
+
 func (w *InlineWizardView) goBack() {
 	prev := w.findPrev(w.currentStep)
 	if prev == -1 {
@@ -695,6 +811,7 @@ func (w *InlineWizardView) runWithSpinner(step WizardStep, afterDone func()) {
 		afterDone()
 		return
 	}
+	w.processing = true
 
 	// Block input on the current step content while OnDone executes.
 	// The current content stays visible (no flash) until either OnDone
@@ -749,6 +866,7 @@ func (w *InlineWizardView) runWithSpinner(step WizardStep, afterDone func()) {
 		}
 		spinnerTimer.Stop()
 		tvApp.QueueUpdateDraw(func() {
+			w.processing = false
 			// Guard: wizard may have been unmounted while OnDone was running.
 			if w.app == nil {
 				return
@@ -860,8 +978,7 @@ func (w *InlineWizardView) renderStep(idx int) {
 		return event
 	})
 
-	// Reset double-Esc state
-	w.escPending = false
+	w.form = nil
 	w.hintsBar.SetHints(w.statusHintsForStep(w.currentStep))
 
 	// ── Warn if both Form and CustomView are set (mutually exclusive) ──
@@ -966,57 +1083,20 @@ func (w *InlineWizardView) renderStep(idx int) {
 			// Apply initial label focus hierarchy (bold on focused, muted on rest).
 			fixFormLabelFocus(form)
 
-			// Esc handling: Required steps block skip; optional use double-Esc.
-			// When a DropDown has focus, the first Escape closes its popup
-			// rather than initiating the skip sequence (tview forwards the
-			// Escape via finishedFunc, so CancelFunc always fires).
+			// Esc asks whether to quit the wizard (N19). When a DropDown has
+			// focus, the Escape closing its popup also reaches CancelFunc
+			// (tview forwards it via finishedFunc): swallow it.
 			form.SetCancelFunc(func() {
-				// If a DropDown is focused, swallow this Escape — it was
-				// triggered by closing the popup, not by the user wanting
-				// to skip the step.
 				if isDropDownFocused(form) {
 					w.updateDropdownHints(form)
 					return
 				}
-
-				if step.Required {
-					w.hintsBar.SetHints(fmt.Sprintf("%s%s %s[-]",
-						widgets.ColorTag(theme.Error), theme.IconWarning,
-						i18n.T("wizard.step_required")))
-					w.trackTimer(time.AfterFunc(2*time.Second, func() {
-						if w.app != nil {
-							w.app.QueueUpdateDraw(func() {
-								if w.hintsBar != nil {
-									w.hintsBar.SetHints(w.statusHintsForStep(w.currentStep))
-								}
-							})
-						}
-					}))
-					return
-				}
-
-				if !w.escPending {
-					w.escPending = true
-					w.hintsBar.SetHints(i18n.T("wizard.esc_to_skip"))
-					return
-				}
-
-				// Second Esc: confirm skip
-				w.escPending = false
-				w.hintsBar.SetHints(w.statusHintsForStep(w.currentStep))
-				w.skipCurrent()
-				if !w.completed {
-					w.doRenderStep(w.currentStep)
-				}
+				w.askQuit()
 			})
+			w.form = form
 
 			// Ctrl+S = submit, Ctrl+B = back
 			form.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-				// Any non-Esc key resets double-Esc pending state
-				if w.escPending && event.Key() != tcell.KeyEscape {
-					w.escPending = false
-					w.hintsBar.SetHints(w.statusHintsForStep(w.currentStep))
-				}
 				// Arrow keys → Tab/Backtab (except on DropDowns)
 				if remapped := remapArrowToTab(form, event); remapped != nil {
 					defer w.updateDropdownHints(form)
@@ -1059,10 +1139,6 @@ func (w *InlineWizardView) renderStep(idx int) {
 					w.stepContentInner.AddItem(form, 0, 1, true)
 
 					form.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-						if w.escPending && event.Key() != tcell.KeyEscape {
-							w.escPending = false
-							w.hintsBar.SetHints(w.statusHintsForStep(w.currentStep))
-						}
 						if event.Key() == tcell.KeyCtrlS {
 							onDone()
 							return nil
@@ -1123,11 +1199,6 @@ func (w *InlineWizardView) renderStep(idx int) {
 					// Engine wraps nav (saves nav capture, installs its own that delegates).
 					navFormCapture := form.GetInputCapture()
 					form.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-						// Reset double-Esc on non-Esc key.
-						if w.escPending && event.Key() != tcell.KeyEscape {
-							w.escPending = false
-							w.hintsBar.SetHints(w.statusHintsForStep(w.currentStep))
-						}
 						if event.Key() == tcell.KeyCtrlS {
 							onDone()
 							return nil
@@ -1526,7 +1597,13 @@ func (w *InlineWizardView) handleSummaryKey(event *tcell.EventKey) *tcell.EventK
 	case tcell.KeyEnter, tcell.KeyTab, tcell.KeyBacktab:
 		// Let tview deliver to the focused form button.
 		return event
-	case tcell.KeyCtrlB:
+	case tcell.KeyEscape:
+		// The wizard is done: back to the previous view.
+		if w.shell != nil {
+			w.shell.PopView()
+		}
+		return nil
+	case tcell.KeyCtrlB, tcell.KeyPgUp:
 		// Allow going back from summary to review/edit the last step.
 		w.completed = false
 		w.wizardErr = nil

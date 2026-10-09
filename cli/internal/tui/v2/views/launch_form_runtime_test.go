@@ -73,6 +73,7 @@ func TestLaunchFormShowsPreparation(t *testing.T) {
 	content := tview.NewFlex()
 	app := runApp(t, content)
 	onLoop(app, func() { v.Mount(content, app) })
+	onLoop(app, func() { v.toRecap() }) // no Recap function: loaded at once
 	onLoop(app, func() { v.launch() })
 
 	require.Eventually(t, func() bool {

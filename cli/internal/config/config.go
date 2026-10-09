@@ -252,6 +252,9 @@ type WorktreeConfig struct {
 type CLIConfig struct {
 	Language  string `mapstructure:"language" toml:"language"`
 	SetupDone bool   `mapstructure:"setup_done" toml:"setup_done,omitempty"`
+	// Compact is the compact layout of the TUI: auto (under 32 rows, the
+	// default), always or never.
+	Compact string `mapstructure:"compact" toml:"compact,omitempty"`
 }
 
 // DeployConfig holds the `[deploy]` section. Only the project instruction

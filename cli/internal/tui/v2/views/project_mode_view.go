@@ -160,9 +160,7 @@ func (v *ProjectModeView) Mount(content *tview.Flex, app *tview.Application) {
 	header.SetBackgroundColor(theme.BgPanel)
 	v.headerTV = header
 
-	v.renderHeader()
 	_, bh := renderBanner(v.project.Name, 100, theme.ActiveMode.AccentHex)
-	headerHeight := bh + 5
 
 	// ── Footer ──────────────────────────────────────────────────────────
 	muted := theme.ColorTag(theme.TextMutedHex)
@@ -198,7 +196,17 @@ func (v *ProjectModeView) Mount(content *tview.Flex, app *tview.Application) {
 	combinedHeader.AddItem(bannerView, bh+1, 0, false) // banner + leading \n
 	combinedHeader.AddItem(header, 0, 1, false)        // badge/path fills rest
 
-	buildFn := func(width int) homeFlexResult {
+	buildFn := func(width int, compact bool) homeFlexResult {
+		// Compact (N20): banner and badge on one line, path and tool on
+		// the next, no footer.
+		headerHeight := bh + 5
+		if compact {
+			headerHeight = 2
+			combinedHeader.ResizeItem(bannerView, 1, 0)
+		} else {
+			combinedHeader.ResizeItem(bannerView, bh+1, 0)
+		}
+		v.renderHeader(compact)
 		r := buildHomeLayout(width, homeFlexConfig{
 			App:          app,
 			Header:       combinedHeader,
@@ -208,6 +216,7 @@ func (v *ProjectModeView) Mount(content *tview.Flex, app *tview.Application) {
 			LeftItems:    leftItems,
 			RightItems:   rightItems,
 			OnSelect:     onSelect,
+			Compact:      compact,
 		})
 		// Keep pointers in sync after every rebuild (including resize).
 		if r.Dual != nil {
@@ -279,8 +288,9 @@ func (v *ProjectModeView) executeItem(idx int) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 // renderHeader sets (or re-sets) the header text (badge, path, tool).
-// The banner is rendered separately in bannerTV (centered).
-func (v *ProjectModeView) renderHeader() {
+// The banner is rendered separately in bannerTV (centered); compact: one
+// line each (N20).
+func (v *ProjectModeView) renderHeader(compact bool) {
 	if v.headerTV == nil || v.project == nil {
 		return
 	}
@@ -290,8 +300,12 @@ func (v *ProjectModeView) renderHeader() {
 
 	// Update banner (centered)
 	if v.bannerTV != nil {
-		banner, _ := renderBanner(v.project.Name, 100, theme.ActiveMode.AccentHex)
-		v.bannerTV.SetText("\n" + banner)
+		if compact {
+			v.bannerTV.SetText(compactBanner(v.project.Name, theme.ActiveMode.AccentHex, i18n.T("tui.pm.header_badge")))
+		} else {
+			banner, _ := renderBanner(v.project.Name, 100, theme.ActiveMode.AccentHex)
+			v.bannerTV.SetText("\n" + banner)
+		}
 	}
 
 	// Update header (badge + path + session tool)
@@ -302,6 +316,15 @@ func (v *ProjectModeView) renderHeader() {
 	pathInfo := v.project.Path
 	if v.project.Branch != "" {
 		pathInfo += fmt.Sprintf(" · %s", v.project.Branch)
+	}
+	v.headerTV.SetWrap(!compact) // compact: one line, cut on the right
+	if compact {
+		line := "  " + muted + pathInfo + reset
+		if tool != "" {
+			line += muted + " · " + reset + tool
+		}
+		v.headerTV.SetText(line)
+		return
 	}
 	v.headerTV.SetText(fmt.Sprintf("  %s%s%s\n  %s%s%s\n  %s",
 		secondary, i18n.T("tui.pm.header_badge"), reset,

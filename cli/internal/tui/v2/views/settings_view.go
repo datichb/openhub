@@ -252,6 +252,26 @@ func (v *SettingsView) buildFields() {
 			Validator:   &FieldValidator{AllowedValues: []string{"fr", "en"}},
 			Get:         func() string { return v.live.CLI.Language },
 			Set:         func(val string) { v.live.CLI.Language = val }},
+		{Key: "compact", Kind: CfgFieldSelect, Label: i18n.T("tui.compact.setting.label"),
+			Description: i18n.T("tui.compact.setting.desc"),
+			Options: []SelectOption{
+				{Label: i18n.T("tui.compact.setting.auto"), Value: CompactAuto},
+				{Label: i18n.T("tui.compact.setting.always"), Value: CompactAlways},
+				{Label: i18n.T("tui.compact.setting.never"), Value: CompactNever},
+			},
+			Validator: &FieldValidator{AllowedValues: []string{CompactAuto, CompactAlways, CompactNever}},
+			Get: func() string {
+				if v.live.CLI.Compact == "" {
+					return CompactAuto
+				}
+				return v.live.CLI.Compact
+			},
+			Set: func(val string) {
+				if val == CompactAuto {
+					val = ""
+				}
+				v.live.CLI.Compact = val
+			}},
 
 		// ── LLM ─────────────────────────────────────────────────────────────
 		{Kind: CfgFieldSectionHeader, Label: i18n.T("tui.config.section.llm")},

@@ -164,6 +164,17 @@ func (s *Shell) showToast(msg string, level ToastLevel, duration time.Duration) 
 // dismissToast removes a toast by page name and updates tracking state.
 // Must be called on the tview event loop (inside QueueUpdateDraw or a handler).
 func (s *Shell) dismissToast(pageName string) {
+	tracked := false
+	for i, id := range s.activeToastIDs {
+		if id == pageName {
+			s.activeToastIDs = append(s.activeToastIDs[:i], s.activeToastIDs[i+1:]...)
+			tracked = true
+			break
+		}
+	}
+	if !tracked {
+		return // already dismissed (Esc before its timer)
+	}
 	prev := s.app.GetFocus()
 	s.pages.RemovePage(pageName)
 	// Pages.RemovePage re-delegates focus to the last visible page (possibly
@@ -172,24 +183,17 @@ func (s *Shell) dismissToast(pageName string) {
 	if s.activeToasts > 0 {
 		s.activeToasts--
 	}
-	// Remove from tracked IDs
-	for i, id := range s.activeToastIDs {
-		if id == pageName {
-			s.activeToastIDs = append(s.activeToastIDs[:i], s.activeToastIDs[i+1:]...)
-			break
-		}
-	}
 }
 
-// DismissOldestToast removes the oldest visible toast (manual dismiss via 'd' key).
-// Returns true if a toast was dismissed, false if no toasts are visible.
-// Must be called on the tview event loop.
-func (s *Shell) DismissOldestToast() bool {
+// DismissToasts removes every visible toast (Esc, N19). It reports whether
+// a toast was shown. Must be called on the tview event loop.
+func (s *Shell) DismissToasts() bool {
 	if len(s.activeToastIDs) == 0 {
 		return false
 	}
-	oldest := s.activeToastIDs[0]
-	s.dismissToast(oldest)
+	for len(s.activeToastIDs) > 0 {
+		s.dismissToast(s.activeToastIDs[0])
+	}
 	return true
 }
 

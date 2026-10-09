@@ -73,6 +73,7 @@ func runTUIWithProject(projectName string) error {
 		HomeViewID:    homeViewID,
 		Notifications: notifStore,
 		BeforeQuit:    func(quit func()) { v5BeforeQuit(a, tuiShell)(quit) },
+		Compact:       func() string { return a.Config.CLI.Compact },
 		TeamsProvider: func() []views.SelectOption { // B12
 			var out []views.SelectOption
 			for _, t := range a.Config.Teams {

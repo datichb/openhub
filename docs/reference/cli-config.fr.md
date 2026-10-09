@@ -60,7 +60,7 @@ oh config set <key> <value>
 
 | Groupe | Cles modifiables |
 |--------|------------------|
-| CLI | `cli.language`, `cli.setup_done` |
+| CLI | `cli.language`, `cli.setup_done`, `cli.compact` (`auto`, `always`, `never`) |
 | Provider | `llm.default_provider`, `provider.bedrock.aws_profile`, `provider.bedrock.aws_region`, `provider.bedrock.auth_mode`, `provider.anthropic.auth_mode`, `provider.openrouter.auth_mode` |
 | MCP | `mcp.figma.enabled`, `mcp.figma.token_key`, `mcp.gitlab.enabled`, `mcp.gitlab.token_key`, `mcp.gitlab.write_enabled`, `mcp.gitlab.url`, `mcp.jira.enabled`, `mcp.jira.token_key`, `mcp.jira.url`, `mcp.gslides.enabled`, `mcp.gslides.token_key` |
 | Worktrees | `worktree.auto_cleanup`, `worktree.base_branch`, `worktree.branch_pattern` |

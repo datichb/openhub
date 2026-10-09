@@ -13,6 +13,20 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 - **Nouvelles opérations verrouillables `create` et `apply`** (schéma `oh/v1`, ajout compatible ; audit v5, W0) : `unlocks: [create]` refuse la création de tickets Beads (`bd create`), `unlocks: [apply]` les modifications d'infrastructure (`terraform apply`, `kubectl apply|delete`, `helm upgrade`, commandes create/delete/update des clouds…) tant que le checkpoint n'est pas passé. Une opération inconnue d'une version plus ancienne d'oh est un avertissement (`unlock_unknown`) et ne verrouille rien, au lieu de rendre le workflow invalide.
 
+### Changed — touches de la TUI (points critiques des audits v5, N19) — ⚠ changement de comportement
+
+- **Contrat des touches** : les fenêtres et la palette reçoivent toutes les touches, puis viennent les touches réservées (`Esc`, `Ctrl+P`, `Ctrl+T`, `?`, `F1`, `Ctrl+Q`/`Ctrl+C`), que les vues ne redéfinissent plus, puis la vue, puis la liste ou le champ sélectionné. **`Entrée` et les lettres ne sont plus pris à la liste** : taper une lettre « n'importe où » n'ouvre plus la palette (utilisez `Ctrl+P` ou `/`), et `Entrée` n'ouvre la palette que si rien ne l'utilise (le catalogue des workflows lance enfin le workflow sélectionné avec `Entrée`). **`d` ne ferme plus les toasts** : `Esc` les ferme, avant de revenir en arrière.
+- **Confirmations** (`ShellAccess.Confirm`) avant toute action destructrice : worktrees `d` (supprimer), `p` (nettoyer les références), `x` (supprimer les worktrees fusionnés, jamais ceux qu'utilise une session non arrêtée), board d'équipe `x` (libérer un ticket), wiki `x` (rejeter une proposition). Les commandes git de la vue Worktrees ne bloquent plus l'affichage.
+- **Fiche de lancement** : `Ctrl+S` va au récap depuis n'importe quelle étape ; on lance seulement depuis le récap chargé (second `Ctrl+S` ou bouton « Lancer »). Retour : `Alt+←` ou `PgUp` en plus de `Ctrl+B` ; suivant : `Alt+→` ou `PgDn`.
+- **Assistants** : `Esc` ouvre « Quitter l'assistant ? » (**Quitter**, **Passer l'étape** si elle est facultative, **Continuer**) ; plus de double `Esc` qui passait l'étape sans prévenir. Retour : `Ctrl+B`, `Alt+←` ou `PgUp`. Sur l'écran de résumé, `Esc` revient à la vue précédente.
+- Aide (`?`) : fiche et assistants, touches de la vue active ; guides `tui-usage` et référence TUI mis à jour.
+
+### Added — petits terminaux (points critiques des audits v5, N20)
+
+- **Mode compact de la TUI** sous 32 lignes : bandeau sur une ligne, pas de pied de page ni d'espaces, barre du bas sur 3 lignes au lieu de 8 (en 80×24 : ≈ 19 lignes de liste au lieu de 0 sur l'accueil). Largeur étroite limitée à la largeur du terminal (`min(72, largeur)`). Le changement de mise en page garde l'élément sélectionné.
+- Sous **60×16** : message « Terminal trop petit (L×H) — 60×16 minimum », seul `Ctrl+Q` fonctionne.
+- Réglage **`[cli] compact = auto | always | never`** (Réglages › CLI › Mode compact, `oh config set cli.compact …`).
+
 ### Added — runtime v5 (phase 0, opencode V2)
 
 - **Sessions sur le runtime v5** dès qu'opencode V2 est installé (l'ancien chemin de lancement ne fonctionne pas avec V2 ; pas encore pris en charge sous Windows) : paquet de session compilé hors du projet (`~/.oh/bundles/<hash>`), serveur `opencode serve` dédié par groupe (paquet, projet), « monde fermé » vérifié (seuls les agents/skills du paquet sont visibles), plugin oh embarqué (prompt d'agent ajouté au prompt de base d'opencode).
