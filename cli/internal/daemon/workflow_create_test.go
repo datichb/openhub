@@ -52,7 +52,8 @@ func TestWorkflowCreateGuard(t *testing.T) {
 		BundleHash: "h1", Mode: "manuel", State: domain.RunActive, LaunchPath: project, WorkflowID: "cadrage"}))
 
 	bd := filepath.Join(t.TempDir(), "bd")
-	require.NoError(t, os.WriteFile(bd, []byte("#!/bin/sh\necho \"bd $*\"\n"), 0o755))
+	require.NoError(t, os.WriteFile(bd, []byte(fakeWhere+"echo \"bd $*\"\n"), 0o755))
+	require.NoError(t, os.MkdirAll(filepath.Join(project, ".beads"), 0o700))
 	fake := &rulesAdapter{fakeAdapter: newFake(), rules: map[string][]sessionspec.PermissionRule{}}
 	cp := &checkpoint.Service{Sessions: sessions, States: states, SessionOutputs: states, BundlesDir: bundles, SessionsDir: t.TempDir()}
 	dctx, cancel := context.WithCancel(ctx)
