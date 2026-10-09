@@ -1386,6 +1386,8 @@
   "cmd.gateway.mcp.unavailable": "oh MCP server %s unavailable on the machine: %v",
   "cmd.gateway.mcp.failed": "oh MCP server %s: %v",
   "cmd.gateway.mcp.refused": "Call to the oh MCP server %s refused: %v",
+  "cmd.proxy.region.invalid": "Invalid AWS region \"%s\": expected an AWS region name such as eu-west-1 (the region names the host that receives the credential)",
+  "cmd.proxy.region.unknown": "AWS region \"%s\": Bedrock is not known there by this version of oh (accepted)",
   "cmd.history.short": "Session history",
   "cmd.history.long": "Display session history. Use --team to view team history.",
   "cmd.history.export.short": "Export session history",

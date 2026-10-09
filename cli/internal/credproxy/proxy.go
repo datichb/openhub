@@ -297,6 +297,9 @@ func (p *Proxy) IssueWithHash(hash string, g Grant) error {
 	if g.Provider == "" || g.Upstream.BaseURL == "" || g.Upstream.Auth == nil {
 		return errors.New("credproxy: grant needs provider, upstream URL and auth")
 	}
+	if err := checkUpstream(g.Provider, g.Upstream.BaseURL); err != nil {
+		return err
+	}
 	p.mu.Lock()
 	prev := p.byToken[hash]
 	st := &grantState{Grant: g, hash: hash}
@@ -497,6 +500,11 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("credproxy: model %q not allowed for this session", model), http.StatusForbidden)
 		return
 	}
+	if err := checkRouting(provider, g.AllowedModels, body); err != nil {
+		slog.Warn("credproxy: model routing refused", "provider", provider, "error", err)
+		http.Error(w, err.Error(), http.StatusForbidden)
+		return
+	}
 	if g.MaxTokens > 0 {
 		g.mu.Lock()
 		used := g.usage.InputTokens + g.usage.OutputTokens
@@ -507,6 +515,11 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	if err := checkUpstream(g.Provider, g.Upstream.BaseURL); err != nil { // checked again on every request (S-21)
+		slog.Error("credproxy: upstream refused", "provider", provider, "error", err)
+		http.Error(w, "credproxy: upstream refused", http.StatusBadGateway)
+		return
+	}
 	body = withStreamUsage(provider, escapedRest, body)
 	upstream, _ := url.Parse(g.Upstream.BaseURL)
 	rp := &httputil.ReverseProxy{

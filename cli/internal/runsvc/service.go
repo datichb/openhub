@@ -460,6 +460,15 @@ func (s *Service) resolveProvider(ctx context.Context, req *StartRequest) (provi
 			slog.Warn("runsvc: no AWS region configured (oh config, AWS_REGION, profile); using us-east-1")
 		}
 	}
+	if provider.Name(req.Provider) == provider.Bedrock {
+		// The region names the host the credential goes to (S-21).
+		if credproxy.CheckRegion(region) != nil {
+			return cred, "", errors.New(i18n.Tf("cmd.proxy.region.invalid", region))
+		}
+		if !credproxy.KnownBedrockRegion(region) {
+			slog.Warn("runsvc: AWS region where Bedrock is not known to run", "region", region)
+		}
+	}
 	return cred, region, nil
 }
 

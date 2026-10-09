@@ -1,7 +1,5 @@
 package credproxy
 
-import "fmt"
-
 // Provider upstreams (provider IDs of the tool).
 const (
 	ProviderBedrock    = "amazon-bedrock"
@@ -9,14 +7,6 @@ const (
 	ProviderOpenRouter = "openrouter"
 	ProviderOpenAI     = "openai"
 )
-
-// BedrockUpstream returns the Bedrock runtime endpoint for a region.
-func BedrockUpstream(region string, auth Auth) Upstream {
-	if region == "" {
-		region = "us-east-1"
-	}
-	return Upstream{BaseURL: fmt.Sprintf("https://bedrock-runtime.%s.amazonaws.com", region), Auth: auth}
-}
 
 // AnthropicUpstream returns the Anthropic API endpoint (x-api-key auth).
 func AnthropicUpstream(apiKey string) Upstream {

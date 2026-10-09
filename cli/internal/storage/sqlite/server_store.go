@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/datichb/openhub/cli/internal/domain"
@@ -157,8 +158,16 @@ func (gs *GrantStore) ListActive(ctx context.Context) ([]domain.ProxyGrant, erro
 		if err := rows.Scan(&g.TokenHash, &g.Owner, &g.Provider, &g.Region, &src, &models, &g.MaxTokens, &g.CreatedAt); err != nil {
 			return nil, err
 		}
-		_ = json.Unmarshal([]byte(src), &g.Source)
-		_ = json.Unmarshal([]byte(models), &g.AllowedModels)
+		// An unreadable source or model list is never read as "any model"
+		// (audit v5, S-23): the grant is left out, its token refused.
+		if err := json.Unmarshal([]byte(src), &g.Source); err != nil {
+			slog.Warn("sqlite: proxy grant with an unreadable credential source, not restored", "owner", g.Owner, "error", err)
+			continue
+		}
+		if err := json.Unmarshal([]byte(models), &g.AllowedModels); err != nil {
+			slog.Warn("sqlite: proxy grant with an unreadable model list, not restored", "owner", g.Owner, "error", err)
+			continue
+		}
 		out = append(out, g)
 	}
 	return out, rows.Err()

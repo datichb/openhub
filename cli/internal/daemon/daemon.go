@@ -508,7 +508,7 @@ func (d *Daemon) register(ctx context.Context, g domain.ProxyGrant, secret strin
 func upstreamFor(provider, region string, auth credproxy.Auth) (credproxy.Upstream, error) {
 	switch provider {
 	case credproxy.ProviderBedrock:
-		return credproxy.BedrockUpstream(region, auth), nil
+		return credproxy.BedrockUpstream(region, auth)
 	case credproxy.ProviderAnthropic:
 		return credproxy.Upstream{BaseURL: "https://api.anthropic.com/v1", Auth: auth}, nil
 	case credproxy.ProviderOpenRouter:

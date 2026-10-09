@@ -339,7 +339,7 @@ func TestProxyUsageLedger(t *testing.T) {
 
 	tok := credproxy.NewToken()
 	require.NoError(t, d.proxy.IssueWithToken(tok, credproxy.Grant{SessionID: "g1", Provider: credproxy.ProviderOpenAI,
-		Upstream: credproxy.Upstream{BaseURL: "https://x", Auth: credproxy.BearerAuth{Token: "s"}}}))
+		Upstream: credproxy.Upstream{BaseURL: "https://api.openai.com/v1", Auth: credproxy.BearerAuth{Token: "s"}}}))
 	d.continueProxyUsage(ctx, "g1", credproxy.TokenHash(tok))
 	u, ok := d.proxy.Usage(tok)
 	require.True(t, ok)
