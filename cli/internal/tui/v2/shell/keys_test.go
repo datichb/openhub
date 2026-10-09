@@ -334,3 +334,59 @@ func TestConfirm(t *testing.T) {
 	_, onList := focus.(*widgets.SectionedList)
 	assert.True(t, onList, "focus back on the list")
 }
+
+// Recap without provider credentials: Enter on « Configure the provider »
+// opens the provider view, Esc comes back to the form and the recap checks
+// again (now configured).
+func TestKeysLaunchFormConfigureProvider(t *testing.T) {
+	doc, diags := workflow.Parse([]byte(keysLaunchSpec), workflow.Source{Layer: workflow.LayerHub})
+	require.False(t, diags.HasErrors(), "%v", diags)
+	var mu sync.Mutex
+	configured, calls := false, 0
+	home := &keyView{id: "home", focusList: true}
+	providerView := &keyView{id: "provider", focusList: true}
+	s := newKeyShell(t, home, providerView)
+	form := views.NewLaunchFormView(views.LaunchFormConfig{WorkflowID: "ticket", Spec: doc.Spec, Lang: "fr", Tickets: []string{"bd-1"},
+		Runtimes:  []views.LaunchRuntime{{Kind: "local", Label: "local", Available: true}},
+		Locations: []views.SelectOption{{Label: "base", Value: "base"}},
+		Recap: func(context.Context, views.LaunchChoices) (*views.LaunchRecap, error) {
+			mu.Lock()
+			defer mu.Unlock()
+			calls++
+			if !configured {
+				return nil, views.ProviderCredentialsError("no credentials")
+			}
+			return &views.LaunchRecap{}, nil
+		},
+		ConfigureProvider: func() { s.NavigateTo("provider") }})
+	s.loop(func() { s.PushView(form) })
+	s.key(tcell.KeyCtrlS, 0, tcell.ModNone)
+	label := i18n.T("tui.launch.configure_provider")
+	focused := func() (l string) {
+		s.loop(func() {
+			if b, ok := s.app.GetFocus().(*tview.Button); ok {
+				l = b.GetLabel()
+			}
+		})
+		return l
+	}
+	require.Eventually(t, func() bool { return focused() == label }, 2*time.Second, 5*time.Millisecond)
+
+	s.key(tcell.KeyEnter, 0, tcell.ModNone)
+	current := func() (id string) {
+		s.loop(func() { id = s.router.Current().ID() })
+		return id
+	}
+	require.Equal(t, "provider", current())
+	mu.Lock()
+	configured = true
+	mu.Unlock()
+	s.key(tcell.KeyEscape, 0, tcell.ModNone)
+	require.Equal(t, form.ID(), current(), "back on the form")
+	require.Eventually(t, func() bool {
+		mu.Lock()
+		defer mu.Unlock()
+		return calls == 2
+	}, 2*time.Second, 5*time.Millisecond, "recap checked again")
+	assert.Eventually(t, func() bool { return focused() != label }, 2*time.Second, 5*time.Millisecond, "button gone")
+}

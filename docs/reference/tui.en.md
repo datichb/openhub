@@ -115,7 +115,7 @@ Generated from the workflow YAML (title "Launch · <workflow>"), in three steps:
 2. **Options**: **Mode**; **Runtime** (`⌂ local`, `▣ container`, `☁ remote`; an unavailable environment shows the reason; in a container: engine, cached image or image to build with the estimated duration); **Location** (`base`, existing worktrees, `+ new worktree`); **Opening** (auto, iTerm2, Terminal.app, tmux, browser, this terminal, do not open).
 3. **Recap**: agents, first-turn budget, isolation, sessions and locations ("N sessions · 1 server · one worktree per writing session"), warnings.
 
-`Tab` next field; `Ctrl+S` goes to the recap from any step, then launches from the recap once loaded; `Alt+←`, `PgUp` or `Ctrl+B` go back one step, `Alt+→` or `PgDn` forward; `Esc` closes. A second launch while preparing is ignored. With several tickets, a "A single session for every ticket" checkbox is offered. When a precondition suggests another workflow, the recap offers "Launch <wf> first (then come back)".
+`Tab` next field; `Ctrl+S` goes to the recap from any step, then launches from the recap once loaded; `Alt+←`, `PgUp` or `Ctrl+B` go back one step, `Alt+→` or `PgDn` forward; `Esc` closes. A second launch while preparing is ignored. With several tickets, a "A single session for every ticket" checkbox is offered. When a precondition suggests another workflow, the recap offers "Launch <wf> first (then come back)". When the provider has no credentials, the recap shows the message and a **Configure the provider** button (focused): it opens the Provider view; back on the form (`Esc`), the recap checks again.
 
 ### Start, board, catalogue
 

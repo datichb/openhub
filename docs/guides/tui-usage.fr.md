@@ -103,7 +103,7 @@ Ouverte depuis « Démarrer », le catalogue, l'omnibar (`run <workflow>`) ou le
 | `Alt+→` ou `PgDn` | etape suivante |
 | `Esc` | fermer la fiche |
 
-On lance toujours depuis le recap : un premier `Ctrl+S` l'affiche, un second lance une fois le recap calcule. Les boutons « Suivant », « Retour » et « Lancer » font la meme chose. Pendant le lancement, la fiche affiche « Lancement en cours… » (un second `Ctrl+S` est ignore) ; en conteneur, la progression de la construction de l'image s'affiche dessous.
+On lance toujours depuis le recap : un premier `Ctrl+S` l'affiche, un second lance une fois le recap calcule. Les boutons « Suivant », « Retour » et « Lancer » font la meme chose. Pendant le lancement, la fiche affiche « Lancement en cours… » (un second `Ctrl+S` est ignore) ; en conteneur, la progression de la construction de l'image s'affiche dessous. Si le fournisseur n'a pas d'identifiants, le recap l'indique avec un bouton « Configurer le fournisseur » : il ouvre la vue Fournisseur, et au retour (`Esc`) le recap verifie a nouveau.
 
 ### Selecteur de tickets Beads
 

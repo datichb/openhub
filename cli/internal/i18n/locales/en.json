@@ -1012,6 +1012,8 @@
   "tui.launch.dirty.worktree": "new worktree",
   "tui.launch.hints": "Tab next field · Ctrl+S recap · Alt+→/PgDn next · Alt+←/PgUp back · Esc close",
   "tui.launch.launch": "Launch",
+  "tui.launch.configure_provider": "Configure the provider",
+  "tui.launch.configure_provider_hint": "« Configure the provider » opens the Provider view; back here (Esc), the recap checks the credentials again.",
   "tui.launch.launching": "Launching…",
   "tui.launch.location": "Location",
   "tui.launch.location_base": "base",

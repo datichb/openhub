@@ -103,7 +103,7 @@ Opened from "Start", the catalogue, the omnibar (`run <workflow>`) or the board 
 | `Alt+→` or `PgDn` | next step |
 | `Esc` | close the form |
 
-A launch always starts from the recap: a first `Ctrl+S` shows it, a second one launches once the recap is computed. The "Next", "Back" and "Launch" buttons do the same. While launching, the form shows "Launching…" (a second `Ctrl+S` is ignored); in a container, the image build progress shows below.
+A launch always starts from the recap: a first `Ctrl+S` shows it, a second one launches once the recap is computed. The "Next", "Back" and "Launch" buttons do the same. While launching, the form shows "Launching…" (a second `Ctrl+S` is ignored); in a container, the image build progress shows below. If the provider has no credentials, the recap says so with a "Configure the provider" button: it opens the Provider view, and back here (`Esc`) the recap checks again.
 
 ### Beads ticket picker
 

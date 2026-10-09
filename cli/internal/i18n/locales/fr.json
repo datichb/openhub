@@ -1012,6 +1012,8 @@
   "tui.launch.dirty.worktree": "nouveau worktree",
   "tui.launch.hints": "Tab champ suivant · Ctrl+S récap · Alt+→/PgDn suivant · Alt+←/PgUp retour · Esc fermer",
   "tui.launch.launch": "Lancer",
+  "tui.launch.configure_provider": "Configurer le fournisseur",
+  "tui.launch.configure_provider_hint": "« Configurer le fournisseur » ouvre la vue Fournisseur ; au retour (Échap), le récap vérifie à nouveau les identifiants.",
   "tui.launch.launching": "Lancement en cours…",
   "tui.launch.location": "Emplacement",
   "tui.launch.location_base": "base",

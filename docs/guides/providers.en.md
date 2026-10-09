@@ -149,6 +149,8 @@ At each launch (`oh run <workflow>`), the provider configuration is written into
 
 The bundle builder reads your configured provider and model, then generates the appropriate provider block. This block points to the credential proxy of the oh daemon: it never contains the real key (the session authenticates to the proxy with an `ohs_…` token). To see the bundle: `oh bundle show <workflow>`.
 
+Before building anything, oh checks that the provider has credentials (project, team, hub; AWS profile for Bedrock); otherwise the launch is refused with « oh provider setup ». In the TUI, the recap of the launch form shows this message and a **Configure the provider** button: it opens the Provider view; back on the form (`Esc`), the recap checks the credentials again.
+
 ## Switching Providers
 
 ```bash

@@ -2,6 +2,7 @@ package views
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -59,7 +60,24 @@ type LaunchFormConfig struct {
 	// none); Progress relays the preparation output while launching.
 	RuntimeStatus RuntimeStatusFunc
 	Progress      *LaunchProgress
+	// ConfigureProvider opens the provider settings when the credentials of
+	// the provider are missing (recap button); back on the form, the recap
+	// is computed again. nil = no button.
+	ConfigureProvider func()
 }
+
+// ErrProviderCredentials marks a recap or launch error caused by missing
+// credentials of the provider: the recap offers « Configure the provider ».
+var ErrProviderCredentials = errors.New("provider credentials missing")
+
+type providerCredentialsError struct{ msg string }
+
+func (e providerCredentialsError) Error() string        { return e.msg }
+func (e providerCredentialsError) Is(target error) bool { return target == ErrProviderCredentials }
+
+// ProviderCredentialsError is an error with message msg that matches
+// ErrProviderCredentials.
+func ProviderCredentialsError(msg string) error { return providerCredentialsError{msg: msg} }
 
 const (
 	launchStepInputs = iota
@@ -88,9 +106,12 @@ type LaunchFormView struct {
 	recapGen  int
 	launching bool
 	launchErr error
-	rt        runtimeState
-	ctx       context.Context
-	cancel    context.CancelFunc
+	// recheck: the provider settings were opened from the recap; the recap
+	// is computed again when the form comes back.
+	recheck bool
+	rt      runtimeState
+	ctx     context.Context
+	cancel  context.CancelFunc
 }
 
 var (
@@ -149,6 +170,10 @@ func (v *LaunchFormView) Mount(content *tview.Flex, app *tview.Application) {
 	root.SetBackgroundColor(theme.BgPanel)
 	content.Clear()
 	content.AddItem(root, 0, 1, true)
+	if v.recheck && v.step == launchStepRecap {
+		v.recheck, v.launchErr = false, nil
+		v.loadRecap()
+	}
 	v.render()
 }
 
@@ -382,6 +407,10 @@ func (v *LaunchFormView) renderRecap() {
 	v.body.AddItem(tv, 0, 1, false)
 	f := v.newForm()
 	f.AddButton(i18n.T("tui.launch.back"), v.back)
+	if v.needsProvider() {
+		f.AddButton(i18n.T("tui.launch.configure_provider"), v.configureProvider)
+		f.SetFocus(1)
+	}
 	f.AddButton(i18n.T("tui.launch.launch"), v.launch)
 	if v.recap != nil && v.cfg.LaunchFirst != nil {
 		for _, s := range v.recap.Suggestions {
@@ -417,6 +446,9 @@ func (v *LaunchFormView) recapText() string {
 	if v.launchErr != nil {
 		b.WriteString("[" + theme.ErrorHex + "]✗ " + tview.Escape(v.launchErr.Error()) + "[-]\n")
 	}
+	if v.needsProvider() {
+		b.WriteString(muted + i18n.T("tui.launch.configure_provider_hint") + "[-]\n")
+	}
 	if v.recap != nil {
 		for _, r := range v.recap.Rows {
 			fmt.Fprintf(&b, "%s%-14s[-] %s\n", muted, tview.Escape(r.Label), tview.Escape(r.Value))
@@ -429,6 +461,23 @@ func (v *LaunchFormView) recapText() string {
 		}
 	}
 	return b.String()
+}
+
+// needsProvider reports whether the recap offers « Configure the provider »:
+// the recap or the launch failed for want of provider credentials.
+func (v *LaunchFormView) needsProvider() bool {
+	return v.cfg.ConfigureProvider != nil && !v.launching &&
+		(errors.Is(v.recapErr, ErrProviderCredentials) || errors.Is(v.launchErr, ErrProviderCredentials))
+}
+
+// configureProvider opens the provider settings; the recap is computed
+// again when the form comes back (Mount).
+func (v *LaunchFormView) configureProvider() {
+	if v.cfg.ConfigureProvider == nil || v.launching {
+		return
+	}
+	v.recheck = true
+	v.cfg.ConfigureProvider()
 }
 
 // launchDirtyChoices are the keys of the dirty directory choices.
@@ -494,8 +543,8 @@ func (v *LaunchFormView) loadRecap() {
 				return
 			}
 			v.recap, v.recapErr = r, err
-			if r != nil && len(r.Suggestions) > 0 && v.step == launchStepRecap {
-				v.render() // suggestion buttons
+			if v.step == launchStepRecap && ((r != nil && len(r.Suggestions) > 0) || v.needsProvider()) {
+				v.render() // suggestion or provider buttons
 				return
 			}
 			if v.recapTV != nil {
@@ -591,6 +640,10 @@ func (v *LaunchFormView) launchWith(fn func(ctx context.Context, c LaunchChoices
 				return
 			}
 			v.launchErr = err
+			if v.needsProvider() && v.step == launchStepRecap {
+				v.render() // provider button
+				return
+			}
 			if v.recapTV != nil {
 				v.recapTV.SetText(v.recapText())
 			}

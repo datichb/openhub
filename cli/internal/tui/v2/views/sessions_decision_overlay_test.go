@@ -108,7 +108,7 @@ func TestDecisionSettledElsewhereClosesItsWindow(t *testing.T) {
 	be.rows = []SessionRow{{ID: "ses_a", Project: "openhub", Agent: "developer", State: "active", Started: time.Now()}}
 	be.mu.Unlock()
 	onLoop(func() { v.reload() })
-	require.Eventually(t, func() bool { c, _ := sh.state(); return c == 1 }, 3*time.Second, 20*time.Millisecond)
+	require.Eventually(t, func() bool { c, ts := sh.state(); return c == 1 && ts != "" }, 3*time.Second, 20*time.Millisecond)
 	_, toasts := sh.state()
 	assert.Contains(t, toasts, "elsewhere")
 

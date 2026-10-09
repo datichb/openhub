@@ -12,6 +12,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/beads"
+	"github.com/datichb/openhub/cli/internal/daemon"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/launcher"
@@ -135,6 +136,11 @@ func launchFormConfig(ctx context.Context, a *app.App, project *domain.Project, 
 		cfg.DefaultRuntime = string(pickLaunchRuntime(a, sp, project))
 	}
 	cfg.RuntimeStatus, cfg.Progress = tuiRuntimeStatus(a, project), &views.LaunchProgress{}
+	cfg.ConfigureProvider = func() {
+		if tuiShell != nil {
+			tuiShell.NavigateTo("provider")
+		}
+	}
 	if beads.Available() == nil && beads.IsInitialized(project.Path) {
 		cfg.Beads = views.NewBeadsSource(project.Path)
 	}
@@ -318,12 +324,19 @@ func tuiAttachOptions() []views.SelectOption {
 }
 
 // tuiLaunchError gives the launch form the message of the CLI (missing
-// credentials, refusal of the daemon translated: N12).
+// credentials, refusal of the daemon translated: N12). Missing credentials
+// match views.ErrProviderCredentials (« Configure the provider » button).
 func tuiLaunchError(err error) error {
 	if err == nil {
 		return nil
 	}
-	if msg := localizeError(err); msg != err.Error() {
+	msg := localizeError(err)
+	var pe *ProviderCredentialError
+	var api *daemon.APIError
+	if errors.As(err, &pe) || (errors.As(err, &api) && api.Path == "/grants" && api.Status == 422) {
+		return views.ProviderCredentialsError(msg)
+	}
+	if msg != err.Error() {
 		return errors.New(msg)
 	}
 	return err

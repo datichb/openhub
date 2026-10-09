@@ -2,6 +2,7 @@ package views
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"sync"
 	"testing"
@@ -473,4 +474,116 @@ func TestLaunchFormCtrlSGoesToTheRecap(t *testing.T) {
 	case <-time.After(2 * time.Second):
 		t.Fatal("not launched from the loaded recap")
 	}
+}
+
+// recapButtons lists the labels of the recap buttons.
+func recapButtons(app *tview.Application, v *LaunchFormView) []string {
+	var labels []string
+	onLoop(app, func() {
+		if v.form == nil {
+			return
+		}
+		for i := 0; i < v.form.GetButtonCount(); i++ {
+			labels = append(labels, v.form.GetButton(i).GetLabel())
+		}
+	})
+	return labels
+}
+
+// Missing provider credentials: the recap offers « Configure the provider »
+// (focused); it opens the provider settings and, back on the form, the
+// recap checks again.
+func TestLaunchFormConfigureProvider(t *testing.T) {
+	cfg := launchCfg(t)
+	cfg.Tickets = []string{"bd-1"}
+	var mu sync.Mutex
+	configured := false
+	calls := 0
+	cfg.Recap = func(context.Context, LaunchChoices) (*LaunchRecap, error) {
+		mu.Lock()
+		defer mu.Unlock()
+		calls++
+		if !configured {
+			return nil, ProviderCredentialsError("no credentials for anthropic")
+		}
+		return &LaunchRecap{Rows: []InfoField{{Label: "Agents", Value: "developer"}}}, nil
+	}
+	opened := 0
+	cfg.ConfigureProvider = func() { opened++ }
+	v := NewLaunchFormView(cfg)
+	sh := &recordingShell{}
+	v.SetShell(sh)
+	content := tview.NewFlex()
+	app := runApp(t, content)
+	onLoop(app, func() { v.Mount(content, app) })
+	onLoop(app, func() { v.HandleKey(tcell.NewEventKey(tcell.KeyCtrlS, 0, tcell.ModNone)) })
+
+	label := i18n.T("tui.launch.configure_provider")
+	require.Eventually(t, func() bool {
+		for _, l := range recapButtons(app, v) {
+			if l == label {
+				return true
+			}
+		}
+		return false
+	}, 2*time.Second, 10*time.Millisecond, "button shown")
+	onLoop(app, func() {
+		assert.Contains(t, v.recapTV.GetText(true), "no credentials for anthropic")
+		b, ok := app.GetFocus().(*tview.Button)
+		require.True(t, ok)
+		assert.Equal(t, label, b.GetLabel(), "focused")
+		b.InputHandler()(tcell.NewEventKey(tcell.KeyEnter, 0, tcell.ModNone), func(tview.Primitive) {})
+	})
+	assert.Equal(t, 1, opened)
+
+	// The provider view is pushed (form unmounted), configured, then popped.
+	onLoop(app, func() { v.Unmount() })
+	mu.Lock()
+	configured = true
+	mu.Unlock()
+	onLoop(app, func() { v.Mount(content, app) })
+	require.Eventually(t, func() bool {
+		loaded := false
+		onLoop(app, func() { loaded = v.recap != nil })
+		return loaded
+	}, 2*time.Second, 10*time.Millisecond, "recap checked again")
+	assert.NotContains(t, recapButtons(app, v), label)
+	mu.Lock()
+	assert.Equal(t, 2, calls)
+	mu.Unlock()
+	assert.Equal(t, launchStepRecap, v.step)
+}
+
+// Another recap error, or no ConfigureProvider: no button.
+func TestLaunchFormConfigureProviderOnlyForCredentials(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		err  error
+		set  bool
+	}{
+		{"other error", errors.New("boom"), true},
+		{"no callback", ProviderCredentialsError("missing"), false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			cfg := launchCfg(t)
+			cfg.Tickets = []string{"bd-1"}
+			cfg.Recap = func(context.Context, LaunchChoices) (*LaunchRecap, error) { return nil, tc.err }
+			if tc.set {
+				cfg.ConfigureProvider = func() {}
+			}
+			v := NewLaunchFormView(cfg)
+			v.SetShell(&recordingShell{})
+			content := tview.NewFlex()
+			app := runApp(t, content)
+			onLoop(app, func() { v.Mount(content, app) })
+			onLoop(app, func() { v.HandleKey(tcell.NewEventKey(tcell.KeyCtrlS, 0, tcell.ModNone)) })
+			require.Eventually(t, func() bool {
+				got := false
+				onLoop(app, func() { got = v.recapErr != nil })
+				return got
+			}, 2*time.Second, 10*time.Millisecond)
+			assert.NotContains(t, recapButtons(app, v), i18n.T("tui.launch.configure_provider"))
+		})
+	}
+	assert.ErrorIs(t, ProviderCredentialsError("x"), ErrProviderCredentials)
 }

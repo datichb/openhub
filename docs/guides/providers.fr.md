@@ -149,6 +149,8 @@ A chaque lancement (`oh run <workflow>`), la configuration du fournisseur est ec
 
 La construction du paquet lit votre fournisseur et modele configures, puis genere le bloc provider correspondant. Ce bloc pointe vers le proxy d'identifiants du demon oh : il ne contient jamais la vraie cle (la session s'authentifie aupres du proxy avec un jeton `ohs_…`). Pour voir le paquet : `oh bundle show <workflow>`.
 
+Avant de construire quoi que ce soit, oh verifie que le fournisseur a des identifiants (projet, equipe, hub ; profil AWS pour Bedrock) ; sinon le lancement est refuse avec « oh provider setup ». Dans la TUI, le recap de la fiche de lancement affiche ce message et un bouton **Configurer le fournisseur** : il ouvre la vue Fournisseur ; au retour (`Esc`), le recap verifie a nouveau les identifiants.
+
 ## Changer de fournisseur
 
 ```bash
