@@ -85,14 +85,13 @@ func useIDs(us []domain.WorkflowUse) []string {
 // was applied first (a branch merged out of order).
 func TestMigrationsAppliedOutOfOrder(t *testing.T) {
 	s := openTemp(t)
-	_, err := s.DB().Exec(`DROP TABLE preferences; DELETE FROM schema_migrations WHERE version = 32;
-		INSERT INTO schema_migrations (version) VALUES (99)`)
+	_, err := s.DB().Exec(`DROP TABLE preferences; DELETE FROM schema_migrations WHERE version = 32`)
 	require.NoError(t, err)
 	require.NoError(t, s.migrate())
 	var n int
 	require.NoError(t, s.DB().QueryRow(`SELECT COUNT(*) FROM schema_migrations WHERE version = 32`).Scan(&n))
 	assert.Equal(t, 1, n)
 	_, err = s.DB().Exec(`SELECT scope FROM preferences`)
-	assert.NoError(t, err, "v32 applied after v99")
+	assert.NoError(t, err, "v32 applied after v42")
 	require.NoError(t, s.migrate(), "idempotent")
 }

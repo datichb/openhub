@@ -160,6 +160,23 @@ If repair fails, restore from a backup:
 oh import oh-backup-2026-10-01.tar.gz
 ```
 
+**Database upgrade (migrations)**
+
+On the first run after upgrading `oh`, the `~/.oh/oh.db` database is migrated. Several processes may open it at once (TUI, daemon, MCP servers): one migrates, the others wait (lock `oh.db.migrate.lock`, 30 s at most) and then find it up to date. Before migrating an existing database, `oh` copies it to `~/.oh/backups/oh.db.v<version>-<date>.bak` (the last three are kept). If the copy fails, the migration is refused (`OH_SKIP_DB_BACKUP=1` to override).
+
+If a migration fails, the message names the backup to restore:
+```
+Database migration v42 failed: …
+A backup was taken before migrating: ~/.oh/backups/oh.db.v41-….bak
+To restore it: oh repair --restore ~/.oh/backups/oh.db.v41-….bak
+```
+
+**Database upgraded by a more recent `oh`**
+```
+The database ~/.oh/oh.db was upgraded by a more recent oh (migrations v44; …)
+```
+An older `oh` refuses to work on a database whose schema it does not know: upgrade `oh`. `oh doctor` and `oh repair` still work. To override at your own risk: `OH_ALLOW_NEWER_SCHEMA=1` (no migration is applied then).
+
 ---
 
 ### Worktree

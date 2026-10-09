@@ -160,6 +160,23 @@ Si la reparation echoue, restaurez depuis une sauvegarde :
 oh import oh-backup-2026-10-01.tar.gz
 ```
 
+**Mise a jour de la base (migrations)**
+
+Au premier lancement apres une mise a jour d'`oh`, la base `~/.oh/oh.db` est migree. Plusieurs processus peuvent l'ouvrir en meme temps (TUI, demon, serveurs MCP) : un seul migre, les autres attendent (verrou `oh.db.migrate.lock`, 30 s au plus) puis trouvent la base a jour. Avant de migrer une base existante, `oh` en fait une copie dans `~/.oh/backups/oh.db.v<version>-<date>.bak` (les trois dernieres sont gardees). Si la copie echoue, la migration est refusee (`OH_SKIP_DB_BACKUP=1` pour passer outre).
+
+Si une migration echoue, le message donne la sauvegarde a restaurer :
+```
+La migration v42 de la base de données a échoué : …
+Une sauvegarde a été faite avant la migration : ~/.oh/backups/oh.db.v41-….bak
+Pour la restaurer : oh repair --restore ~/.oh/backups/oh.db.v41-….bak
+```
+
+**Base mise a jour par une version plus recente d'`oh`**
+```
+La base de données ~/.oh/oh.db a été mise à jour par une version plus récente d'oh (migrations v44 ; …)
+```
+Une version plus ancienne d'`oh` refuse de travailler sur une base dont elle ne connait pas le schema : mettez `oh` a jour. `oh doctor` et `oh repair` restent utilisables. Pour passer outre a vos risques : `OH_ALLOW_NEWER_SCHEMA=1` (aucune migration n'est alors appliquee).
+
 ---
 
 ### Worktree

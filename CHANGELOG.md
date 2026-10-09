@@ -16,6 +16,7 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 ### Fixed — robustesse (points critiques des audits v5, piste R)
 
 - **Worktrees fusionnés** : une branche est « fusionnée » si sa pointe est atteignable depuis la branche de base (`git merge-base --is-ancestor`). Avant, une branche extraite dans un worktree (préfixe `+ ` de `git branch --merged`) n'était jamais vue fusionnée, et une branche neuve, sans commit propre, l'était : `oh worktree cleanup` et la vue Worktrees supprimaient un worktree tout juste créé.
+- **Migrations de la base sûres** (N14) : au premier lancement après une mise à jour, la TUI, le démon et les serveurs MCP n'échouent plus sur « duplicate column » : un seul processus migre (verrou entre processus, transaction `BEGIN IMMEDIATE` par version, état relu sous le verrou), une base à moitié migrée par une ancienne version s'ouvre. Une copie de la base (`~/.oh/backups/oh.db.v<version>-<date>.bak`, trois gardées) est faite avant de migrer ; sans copie, pas de migration (`OH_SKIP_DB_BACKUP=1`). Une migration en échec nomme la sauvegarde à restaurer. Une base mise à jour par une version plus récente d'oh est refusée avec un message clair (`OH_ALLOW_NEWER_SCHEMA=1` pour passer outre).
 
 ### Added — runtime v5 (phase 0, opencode V2)
 

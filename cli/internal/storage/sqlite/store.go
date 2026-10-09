@@ -13,7 +13,9 @@ import (
 
 // Store wraps the SQLite connection shared across all store implementations.
 type Store struct {
-	db *sql.DB
+	db    *sql.DB
+	path  string
+	newer *SchemaNewerError // schema written by a more recent oh (AllowNewer)
 }
 
 // DBPath returns the default path to the SQLite database.
@@ -21,19 +23,55 @@ func DBPath() string {
 	return filepath.Join(config.HubDir(), "oh.db")
 }
 
+// OpenOptions tunes Open.
+type OpenOptions struct {
+	// AllowNewer opens a database whose schema was written by a more recent
+	// oh (no migration is run; SchemaNewer reports it). Without it, such a
+	// database is refused with ErrSchemaNewer unless OH_ALLOW_NEWER_SCHEMA=1.
+	AllowNewer bool
+}
+
 // Open opens (or creates) the SQLite database and runs migrations.
 func Open(path string) (*Store, error) {
-	// Ensure directory exists
-	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
-		return nil, fmt.Errorf("creating db directory: %w", err)
-	}
+	return OpenWith(path, OpenOptions{})
+}
 
-	// The database holds server passwords and proxy tokens: owner-only
-	// access. SQLite creates the -wal/-shm files with the mode of the main
-	// file, so it is created (or fixed) before the first connection.
-	_ = os.Chmod(filepath.Dir(path), 0o700)
-	if f, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0o600); err == nil {
-		f.Close()
+// OpenWith opens (or creates) the SQLite database and runs the pending
+// migrations (see Migrate).
+func OpenWith(path string, opts OpenOptions) (*Store, error) {
+	s, err := open(path, true)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.migrateWith(opts.AllowNewer || os.Getenv("OH_ALLOW_NEWER_SCHEMA") == "1"); err != nil {
+		s.db.Close()
+		return nil, fmt.Errorf("running migrations: %w", err)
+	}
+	return s, nil
+}
+
+// OpenRaw opens an existing database without running any migration (repair,
+// doctor): the file must exist.
+func OpenRaw(path string) (*Store, error) {
+	if _, err := os.Stat(path); err != nil {
+		return nil, fmt.Errorf("opening database: %w", err)
+	}
+	return open(path, false)
+}
+
+func open(path string, create bool) (*Store, error) {
+	if create {
+		// Ensure directory exists
+		if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+			return nil, fmt.Errorf("creating db directory: %w", err)
+		}
+		// The database holds server passwords and proxy tokens: owner-only
+		// access. SQLite creates the -wal/-shm files with the mode of the main
+		// file, so it is created (or fixed) before the first connection.
+		_ = os.Chmod(filepath.Dir(path), 0o700)
+		if f, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0o600); err == nil {
+			f.Close()
+		}
 	}
 	for _, p := range []string{path, path + "-wal", path + "-shm"} {
 		_ = os.Chmod(p, 0o600)
@@ -50,14 +88,7 @@ func Open(path string) (*Store, error) {
 		db.Close()
 		return nil, fmt.Errorf("opening database: %w", err)
 	}
-
-	s := &Store{db: db}
-	if err := s.migrate(); err != nil {
-		db.Close()
-		return nil, fmt.Errorf("running migrations: %w", err)
-	}
-
-	return s, nil
+	return &Store{db: db, path: path}, nil
 }
 
 // OpenDefault opens the database at the default path.
@@ -117,56 +148,6 @@ type migration struct {
 	irreversible bool
 }
 
-func (s *Store) migrate() error {
-	// Ensure schema_migrations table exists
-	if _, err := s.db.Exec(`CREATE TABLE IF NOT EXISTS schema_migrations (
-		version    INTEGER PRIMARY KEY,
-		applied_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-	)`); err != nil {
-		return fmt.Errorf("creating schema_migrations table: %w", err)
-	}
-
-	// Applied versions. Up to sequentialMigrations, a version below the
-	// highest applied one counts as applied (historical behaviour). Above it,
-	// every missing migration is applied: parallel branches reserve version
-	// numbers and may merge out of order (a v32 merged after a v33 must run).
-	applied := map[int]bool{}
-	maxApplied := 0
-	rows, err := s.db.Query(`SELECT version FROM schema_migrations`)
-	if err != nil {
-		return fmt.Errorf("reading applied migrations: %w", err)
-	}
-	for rows.Next() {
-		var v int
-		if err := rows.Scan(&v); err != nil {
-			rows.Close()
-			return fmt.Errorf("reading applied migrations: %w", err)
-		}
-		applied[v] = true
-		maxApplied = max(maxApplied, v)
-	}
-	rows.Close()
-	if err := rows.Err(); err != nil {
-		return fmt.Errorf("reading applied migrations: %w", err)
-	}
-
-	// Define migrations (ordered by version).
-	// Each migration runs inside a transaction so that the schema change and the
-	// version record are committed atomically. Without this, a crash between the
-	// ALTER TABLE and the INSERT INTO schema_migrations leaves the database in an
-	// inconsistent state where the column exists but the migration is re-attempted
-	// on next startup, causing a "duplicate column name" error.
-	for _, m := range schemaMigrations {
-		if applied[m.version] || (m.version <= sequentialMigrations && m.version <= maxApplied) {
-			continue
-		}
-		if err := s.runMigration(m); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
 // appliedVersions returns the recorded migration versions.
 func (s *Store) appliedVersions() (map[int]bool, error) {
 	rows, err := s.db.Query(`SELECT version FROM schema_migrations`)
@@ -183,27 +164,6 @@ func (s *Store) appliedVersions() (map[int]bool, error) {
 		out[v] = true
 	}
 	return out, rows.Err()
-}
-
-// runMigration executes a single migration inside a transaction so that the
-// schema change and the version record are committed atomically.
-func (s *Store) runMigration(m migration) error {
-	tx, err := s.db.Begin()
-	if err != nil {
-		return fmt.Errorf("beginning transaction for migration v%d: %w", m.version, err)
-	}
-	if _, err := tx.Exec(m.up); err != nil {
-		_ = tx.Rollback()
-		return fmt.Errorf("migration v%d: %w", m.version, err)
-	}
-	if _, err := tx.Exec(`INSERT INTO schema_migrations (version) VALUES (?)`, m.version); err != nil {
-		_ = tx.Rollback()
-		return fmt.Errorf("recording migration v%d: %w", m.version, err)
-	}
-	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("committing migration v%d: %w", m.version, err)
-	}
-	return nil
 }
 
 // MigrateDown rolls back migrations from the current version down to targetVersion (exclusive).
