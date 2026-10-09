@@ -799,6 +799,7 @@
   "cmd.status.title_projects": "Projects",
   "cmd.status.total_active": "Total: %d (active: %d)",
   "cmd.status.tracker": "Tracker: %s",
+  "cmd.runtime.container.listen_refused": "The container engine shows the machine to containers through %s, an address of the local network: oh does not open the credential proxy there (it would be reachable from the network). Typical case: rootless Podman with pasta networking. Workarounds: slirp4netns as the default rootless Podman network (`default_rootless_network_cmd = \"slirp4netns\"` in `containers.conf`), Podman 5.3+ (`host.containers.internal` on an address of its own), or rootful Podman, Docker or Colima.",
   "cmd.runtime.container.available": "%s %s ready",
   "cmd.runtime.container.unsupported_os": "Containers are not supported on %s: local runtime only",
   "cmd.runtime.container.no_engine": "No container engine found: install Colima or Podman",

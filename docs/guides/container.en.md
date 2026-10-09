@@ -107,3 +107,4 @@ The probes run a few short containers. They use the `busybox` image (downloaded 
 | « container unavailable » in the launch form | VM stopped (`colima start`, `podman machine start`) or no engine |
 | « … is not shared with the colima VM » | Project outside `$HOME` (Colima) |
 | opencode does not start on an Alpine base | `libstdc++` and `libgcc` missing: add them to the Dockerfile |
+| « … an address of the local network: oh does not open the credential proxy there » (Linux) | Rootless Podman with `pasta` networking (Podman 5 default): containers reach the machine through its local-network address, where oh never opens the proxy. Switch rootless Podman to `slirp4netns` (`default_rootless_network_cmd` in `containers.conf`), or use Podman 5.3+, rootful Podman, Docker or Colima |

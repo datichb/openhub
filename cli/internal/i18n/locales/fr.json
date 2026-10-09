@@ -799,6 +799,7 @@
   "cmd.status.title_projects": "Projets",
   "cmd.status.total_active": "Total: %d (actifs: %d)",
   "cmd.status.tracker": "Tracker: %s",
+  "cmd.runtime.container.listen_refused": "Le moteur de conteneurs présente la machine aux conteneurs par %s, une adresse du réseau local : oh n'y ouvre pas le proxy d'identifiants (il serait joignable depuis le réseau). Cas typique : Podman sans root avec le réseau pasta. Contournements : réseau par défaut de Podman sans root en `slirp4netns` (`default_rootless_network_cmd = \"slirp4netns\"` dans `containers.conf`), Podman 5.3+ (`host.containers.internal` sur une adresse propre au conteneur), ou Podman en mode root, Docker ou Colima.",
   "cmd.runtime.container.available": "%s %s prêt",
   "cmd.runtime.container.unsupported_os": "Conteneurs non pris en charge sous %s : exécution locale uniquement",
   "cmd.runtime.container.no_engine": "Aucun moteur de conteneurs trouvé : installez Colima ou Podman",

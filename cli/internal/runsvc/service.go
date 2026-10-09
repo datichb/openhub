@@ -26,6 +26,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/daemon"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/filelock"
+	"github.com/datichb/openhub/cli/internal/hostnet"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/limits"
 	"github.com/datichb/openhub/cli/internal/provider"
@@ -686,6 +687,12 @@ func (s *Service) proxyURLFor(ctx context.Context, dc DaemonClient, pg *ohruntim
 	if pg.ListenHost != "" {
 		l, err := dc.ProxyListen(ctx, pg.ListenHost)
 		if err != nil {
+			if strings.Contains(err.Error(), hostnet.ErrNotEngineInterface.Error()) {
+				// The engine shows the machine to its containers by an
+				// address of the local network (Podman rootless with pasta):
+				// the proxy never listens there (S-25).
+				return "", fmt.Errorf("%s (%w)", i18n.Tf("cmd.runtime.container.listen_refused", pg.ListenHost), err)
+			}
 			return "", fmt.Errorf("making the credential proxy reachable from the %s runtime: %w", pg.Group.Key.Runtime, err)
 		}
 		lu, err := url.Parse(l)

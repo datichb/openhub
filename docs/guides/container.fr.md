@@ -107,3 +107,4 @@ Les sondes lancent quelques conteneurs courts. Elles utilisent l'image `busybox`
 | « conteneur indisponible » dans la fiche | VM arrêtée (`colima start`, `podman machine start`) ou moteur absent |
 | « … is not shared with the colima VM » | Projet hors de `$HOME` (Colima) |
 | opencode ne démarre pas sur une base Alpine | `libstdc++` et `libgcc` manquants : ajoutez-les au Dockerfile |
+| « … adresse du réseau local : oh n'y ouvre pas le proxy d'identifiants » (Linux) | Podman sans root avec le réseau `pasta` (défaut de Podman 5) : les conteneurs joignent la machine par son adresse sur le réseau local, où oh n'ouvre jamais le proxy. Passez Podman sans root en `slirp4netns` (`default_rootless_network_cmd` dans `containers.conf`), utilisez Podman 5.3+, Podman en mode root, Docker ou Colima |
