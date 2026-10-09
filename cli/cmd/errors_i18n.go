@@ -12,6 +12,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/i18n"
 	sessionsvc "github.com/datichb/openhub/cli/internal/services/session"
 	"github.com/datichb/openhub/cli/internal/storage/sqlite"
+	"github.com/datichb/openhub/cli/internal/teamstate"
 )
 
 // Errors of cobra and of shared layers, translated before they are printed
@@ -51,6 +52,7 @@ func localizeError(err error) string {
 	var newer *sqlite.SchemaNewerError
 	var mig *sqlite.MigrationError
 	var startup *startupError
+	var busy *teamstate.BusyError
 	switch {
 	case errors.As(err, &api) && api.Path == "/shutdown" && api.Status == 409:
 		return i18n.T("cmd.daemon.stop_busy")
@@ -64,6 +66,10 @@ func localizeError(err error) string {
 		return i18n.Tf("cmd.init.level.migration_failed_backup", mig.Version, mig.Err, mig.Backup, mig.Backup)
 	case errors.As(err, &mig):
 		return i18n.Tf("cmd.init.level.migration_failed", mig.Version, mig.Err)
+	case errors.As(err, &busy) && busy.Holder != "":
+		return i18n.Tf("teamstate.lock.busy_by", busy.Path, busy.Holder)
+	case errors.As(err, &busy):
+		return i18n.Tf("teamstate.lock.busy", busy.Path)
 	case errors.As(err, &startup):
 		return i18n.Tf("cmd.init.level.failed", localizeError(startup.err))
 	}

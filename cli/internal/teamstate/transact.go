@@ -149,8 +149,14 @@ type TxResult struct {
 // A remote that cannot be reached gives ErrOffline with nothing committed.
 // On a repo without remote (solo), the commit stays local.
 func (r *Repo) Transact(ctx context.Context, build func(ctx context.Context, tx *Tx) (TxResult, error)) error {
+	release, err := r.lockGit(ctx)
+	if err != nil {
+		return err
+	}
+	defer release()
 	r.mu.Lock()
 	defer r.mu.Unlock()
+
 	if !r.IsCloned() {
 		return ErrNotCloned
 	}
@@ -187,10 +193,16 @@ func (r *Repo) Transact(ctx context.Context, build func(ctx context.Context, tx 
 		if pushErr == nil {
 			return nil
 		}
-		// Drop our commit whatever the reason: it is rebuilt or queued.
-		if _, err := r.git(ctx, r.path, "reset", "-q", "--hard", "HEAD~1"); err != nil {
+		// Drop our commit whatever the reason: it is rebuilt or queued. Only
+		// the files of the transaction are put back (a hard reset would
+		// also throw away changes of the clone that are not ours).
+		if _, err := r.git(ctx, r.path, "reset", "-q", "--soft", "HEAD~1"); err != nil {
 			return fmt.Errorf("dropping the local commit after %v: %w", pushErr, err)
 		}
+		if _, err := r.git(ctx, r.path, append([]string{"reset", "-q", "HEAD", "--"}, files...)...); err != nil {
+			return fmt.Errorf("unstaging the dropped commit after %v: %w", pushErr, err)
+		}
+		r.restore(ctx, tx)
 		if !isRejectedPush(pushErr) {
 			return classifyRemoteError(r.remote, pushErr)
 		}
@@ -296,6 +308,11 @@ func (r *Repo) Queue() ([]QueuedOp, error) {
 
 // Enqueue adds op, replacing a queued operation on the same workflow.
 func (r *Repo) Enqueue(op QueuedOp) error {
+	release, err := r.lockGit(context.Background())
+	if err != nil {
+		return err
+	}
+	defer release()
 	ops, err := r.Queue()
 	if err != nil {
 		return err
@@ -314,6 +331,11 @@ func (r *Repo) Enqueue(op QueuedOp) error {
 
 // Dequeue removes the queued operation on scope/id.
 func (r *Repo) Dequeue(scope, id string) error {
+	release, err := r.lockGit(context.Background())
+	if err != nil {
+		return err
+	}
+	defer release()
 	ops, err := r.Queue()
 	if err != nil {
 		return err

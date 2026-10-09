@@ -13,6 +13,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/limits"
 	sessionsvc "github.com/datichb/openhub/cli/internal/services/session"
 	"github.com/datichb/openhub/cli/internal/storage/sqlite"
+	"github.com/datichb/openhub/cli/internal/teamstate"
 )
 
 // A15: oh config set|unset know the v5 sections, with validated values.
@@ -129,6 +130,8 @@ func TestLocalizeError(t *testing.T) {
 		"1 argument(s) attendu(s), 0 reçu(s)":    errors.New("accepts 1 arg(s), received 0"),
 		"Des sessions tournent":                  &daemon.APIError{Method: "POST", Path: "/shutdown", Status: 409, Message: "sessions are running (use force)"},
 		"lancez cette commande dans un terminal": errors.New("open /dev/tty: device not configured"),
+		// N15
+		"occupé par pid 42": fmt.Errorf("pull: %w", &teamstate.BusyError{Path: "/t", Holder: "pid 42 (oh tui) since 10:00:00"}),
 		// N14
 		"version plus récente d'oh (migrations v999":                                     fmt.Errorf("running migrations: %w", &sqlite.SchemaNewerError{Unknown: []int{999}, Known: 42}),
 		"oh repair --restore /b/oh.db.v41.bak":                                           &sqlite.MigrationError{Version: 42, Backup: "/b/oh.db.v41.bak", Err: errors.New("boom")},

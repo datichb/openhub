@@ -142,6 +142,8 @@
   "cmd.run.project.confirm": "You are not in the directory of a project. Use project %s (%s)?",
   "cmd.run.project.outside": "you are not in the directory of a project: run the command from the project directory or use -p <project> (list: oh project list)",
   "cmd.run.project.declined": "cancelled: run the command from the project directory or use -p <project>",
+  "teamstate.lock.busy": "The team-state %s is busy with another oh operation: try again in a moment.",
+  "teamstate.lock.busy_by": "The team-state %s is busy (held by %s): try again in a moment.",
   "cmd.run.provider.missing": "cannot launch, no credentials found for the provider (project, team, hub; AWS profile for Bedrock): %s. Set them up with oh provider setup (or pick another provider with -P)",
   "cmd.run.provider.grant_refused": "the oh daemon could not prepare the provider credentials for the session: %s. Check with oh doctor; set up the provider with oh provider setup",
   "cmd.run.no_default_workflow": "No workflow: give one (oh run <workflow>) or choose a default workflow for %s (Project config › Execution)",

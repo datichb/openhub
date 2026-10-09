@@ -27,13 +27,9 @@ const (
 // never overlap with a rebase/checkout that could leave files in a
 // transitional state.
 //
-// NOTE: This mutex only protects against concurrent goroutines within a single
-// process. Multiple oh processes (e.g., CLI and TUI running simultaneously, or
-// parallel sessions via oh parallel) that share the same local clone path may
-// produce corrupted git state. Callers performing one-shot mutations (team
-// rejoin, team init) should avoid running them while a TUI session is active
-// on the same team-state clone. A future improvement could use a filesystem
-// lock (flock) to serialize cross-process access.
+// The git operations also hold the write lock of the clone (lock.go): an
+// in-process lock shared by every Repo of the same path, and the file lock
+// .git/oh.lock shared with the other oh processes (N15).
 type Repo struct {
 	mu            sync.RWMutex
 	path          string   // local clone path (e.g. ~/.oh/team-state/)
@@ -119,6 +115,11 @@ func IsPullWarning(err error) bool {
 // Clone performs the initial clone of the remote repository.
 // Acquires the write lock for the duration of the git operation.
 func (r *Repo) Clone(ctx context.Context) error {
+	release, err := r.lockGit(ctx)
+	if err != nil {
+		return err
+	}
+	defer release()
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	return r.clone(ctx)
@@ -153,6 +154,11 @@ func (r *Repo) clone(ctx context.Context) error {
 // Acquires the write lock so that in-flight file reads are not interrupted
 // by a rebase that rewrites working-tree files.
 func (r *Repo) Pull(ctx context.Context) error {
+	release, err := r.lockGit(ctx)
+	if err != nil {
+		return err
+	}
+	defer release()
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	return r.pull(ctx)
@@ -180,6 +186,11 @@ func (r *Repo) pull(ctx context.Context) error {
 // Push pushes local commits to the remote.
 // Acquires the write lock.
 func (r *Repo) Push(ctx context.Context) error {
+	release, err := r.lockGit(ctx)
+	if err != nil {
+		return err
+	}
+	defer release()
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	return r.push(ctx)
@@ -212,6 +223,11 @@ func (r *Repo) push(ctx context.Context) error {
 //
 // Acquires the write lock for the entire operation.
 func (r *Repo) CommitAndPush(ctx context.Context, msg string, files ...string) error {
+	release, err := r.lockGit(ctx)
+	if err != nil {
+		return err
+	}
+	defer release()
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	return r.commitAndPush(ctx, msg, files...)
@@ -233,6 +249,11 @@ func (r *Repo) WithWriteLock(ctx context.Context, fn func(ctx context.Context) e
 
 // withWriteLock is the internal implementation.
 func (r *Repo) withWriteLock(ctx context.Context, fn func(ctx context.Context) error) error {
+	release, err := r.lockGit(ctx)
+	if err != nil {
+		return err
+	}
+	defer release()
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -399,7 +420,10 @@ func (r *Repo) git(ctx context.Context, dir string, args ...string) (string, err
 	cmd.Dir = dir
 	cmd.Env = append(os.Environ(),
 		"GIT_TERMINAL_PROMPT=0",
-		"GIT_SSH_COMMAND=ssh -o BatchMode=yes -o StrictHostKeyChecking=accept-new",
+		"GIT_SSH_COMMAND=ssh -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=15 -o ServerAliveInterval=15 -o ServerAliveCountMax=2",
+		// A stalled HTTP transfer gives up instead of holding the lock.
+		"GIT_HTTP_LOW_SPEED_LIMIT=1000",
+		"GIT_HTTP_LOW_SPEED_TIME=30",
 	)
 	out, err := cmd.CombinedOutput()
 	if err != nil {

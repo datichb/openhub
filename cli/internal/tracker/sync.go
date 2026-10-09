@@ -105,8 +105,9 @@ func (e *Engine) Run(ctx context.Context) (*SyncResult, error) {
 	slog.Debug("tracker.sync.start", "projects", len(e.cfg.Projects), "autoplan", e.cfg.AutoPlanAssigned) //nolint:staticcheck // backward compat: deprecated field
 	start := time.Now()
 
-	// Global timeout to bound the total sync wall time.
-	ctx, cancel := context.WithTimeout(ctx, 60*time.Second)
+	// Global timeout to bound the total sync wall time (plus the wait for
+	// the lock of the team-state clone: a background writer, N15).
+	ctx, cancel := context.WithTimeout(teamstate.WithLockWait(ctx, teamstate.BackgroundLockWait), teamstate.BackgroundLockWait+60*time.Second)
 	defer cancel()
 
 	// Load (or initialise) the local sync state.

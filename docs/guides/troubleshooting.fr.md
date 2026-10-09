@@ -197,6 +197,16 @@ Une version plus ancienne d'`oh` refuse de travailler sur une base dont elle ne 
 
 ---
 
+### team-state
+
+**team-state occupe**
+```
+Le team-state ~/.oh/teams/<equipe> est occupé par pid 4242 (oh tui) depuis 10:02:03 : réessayez dans un instant.
+```
+Toutes les ecritures git d'`oh` dans un clone du team-state (CLI, TUI, demon, serveurs MCP) passent par un verrou : `.git/oh.lock` entre processus, et un verrou par chemin dans un meme processus. Une commande attend jusqu'a 30 s, le demon et la synchronisation du suivi 2 min ; les synchronisations periodiques de la TUI sautent un tour. Un `.git/index.lock` de plus de 2 minutes (git interrompu) est supprime avec un avertissement ; un plus recent signale un git lance a la main dans le clone : attendez qu'il se termine. Les transferts reseau bloques abandonnent apres 30 s sans debit. Un push refuse n'efface plus que les fichiers de la publication en cours (plus de `reset --hard`).
+
+---
+
 ### Worktree
 
 **`.opencode/ directory missing` (oh < v5)**

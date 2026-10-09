@@ -90,7 +90,7 @@ func (r *Repo) AppendEvent(ctx context.Context, e Event) error {
 // Errors are logged as warnings and never block the caller.
 func (r *Repo) AppendEventAsync(e Event) {
 	safego.Go(func() {
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		ctx, cancel := context.WithTimeout(WithLockWait(context.Background(), BackgroundLockWait), BackgroundLockWait+30*time.Second)
 		defer cancel()
 		if err := r.AppendEvent(ctx, e); err != nil {
 			slog.Warn("teamstate.appendEventAsync", "event", e.Type, "actor", e.Actor, "project", e.Project, "error", err)

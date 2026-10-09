@@ -35,6 +35,11 @@ func InitSolo(ctx context.Context, path string, member Member) (*Repo, error) {
 		return nil, fmt.Errorf("creating %s: %w", path, err)
 	}
 	r := NewRepo("", path)
+	release, err := r.lockGit(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer release()
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	if _, err := r.git(ctx, path, "init"); err != nil {
@@ -80,8 +85,14 @@ func (r *Repo) IsLocalOnly(ctx context.Context) bool {
 // origin and pushes the whole history. The remote must be empty; on failure
 // the remote is removed again and the repo stays solo.
 func (r *Repo) Promote(ctx context.Context, remote string) error {
+	release, err := r.lockGit(ctx)
+	if err != nil {
+		return err
+	}
+	defer release()
 	r.mu.Lock()
 	defer r.mu.Unlock()
+
 	if !r.IsCloned() {
 		return ErrNotCloned
 	}

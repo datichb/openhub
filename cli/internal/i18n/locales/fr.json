@@ -142,6 +142,8 @@
   "cmd.run.project.confirm": "Vous n'êtes dans le dossier d'aucun projet. Utiliser le projet %s (%s) ?",
   "cmd.run.project.outside": "vous n'êtes dans le dossier d'aucun projet : lancez la commande depuis le dossier du projet ou utilisez -p <projet> (liste : oh project list)",
   "cmd.run.project.declined": "annulé : lancez la commande depuis le dossier du projet ou utilisez -p <projet>",
+  "teamstate.lock.busy": "Le team-state %s est occupé par une autre opération d'oh : réessayez dans un instant.",
+  "teamstate.lock.busy_by": "Le team-state %s est occupé par %s : réessayez dans un instant.",
   "cmd.run.provider.missing": "lancement impossible, identifiants du fournisseur introuvables (projet, équipe, hub ; profil AWS pour Bedrock) : %s. Configurez-les avec oh provider setup (ou choisissez un autre fournisseur avec -P)",
   "cmd.run.provider.grant_refused": "le démon oh n'a pas pu préparer les identifiants du fournisseur pour la session : %s. Vérifiez avec oh doctor ; configurez le fournisseur avec oh provider setup",
   "cmd.run.no_default_workflow": "Aucun workflow : précisez-le (oh run <workflow>) ou choisissez un workflow par défaut pour %s (Config projet › Exécution)",

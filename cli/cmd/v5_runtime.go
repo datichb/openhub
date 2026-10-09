@@ -67,6 +67,9 @@ func sessionEndHook(a *app.App, async bool) func(context.Context, domain.Session
 		if a == nil || a.Projects == nil || s.ProjectID == "" {
 			return
 		}
+		// The daemon writes the team-state in the background: it waits
+		// longer for the lock of the clone (N15).
+		ctx = teamstate.WithLockWait(ctx, teamstate.BackgroundLockWait)
 		proj, err := a.Projects.Get(ctx, s.ProjectID)
 		if err != nil {
 			return
@@ -100,7 +103,7 @@ func sessionEndHook(a *app.App, async bool) func(context.Context, domain.Session
 			repo.AppendEventAsync(event)
 			return
 		}
-		wctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		wctx, cancel := context.WithTimeout(teamstate.WithLockWait(context.Background(), teamstate.BackgroundLockWait), teamstate.BackgroundLockWait+30*time.Second)
 		defer cancel()
 		if err := repo.AppendEvent(wctx, event); err != nil {
 			slog.Warn("team session.complete event failed", "session", s.ID, "error", err)
