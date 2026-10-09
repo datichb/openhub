@@ -6,6 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/datichb/openhub/cli/internal/sessionspec"
 	"github.com/datichb/openhub/cli/internal/workflow"
 )
 
@@ -76,4 +77,21 @@ func TestBuildStrictIsolationFromSpec(t *testing.T) {
 	loaded, err := Load(out, strict.Spec.Hash)
 	require.NoError(t, err)
 	assert.True(t, loaded.Spec.StrictIsolation, "stored in bundle.json (read by the SessionService)")
+}
+
+// N24 (S-19): a read-only workflow never gets the write tools of the
+// project's MCP servers.
+func TestReadWorkflowDropsMCPWriteSwitch(t *testing.T) {
+	mcp := []sessionspec.MCPServerDef{{Name: "gitlab", Environment: map[string]string{"GITLAB_WRITE_ENABLED": "true", "GITLAB_URL": "https://g"}}}
+	for _, c := range []struct {
+		risk  string
+		write bool
+	}{{"read", false}, {"write", true}} {
+		req := Request{Spec: parseSpec(t, "apiVersion: oh/v1\nkind: Workflow\nid: x\nrisk: "+c.risk+"\n"), MCP: mcp}
+		require.NoError(t, req.applySpec())
+		_, has := req.MCP[0].Environment["GITLAB_WRITE_ENABLED"]
+		assert.Equal(t, c.write, has, c.risk)
+		assert.Equal(t, "https://g", req.MCP[0].Environment["GITLAB_URL"])
+	}
+	assert.Equal(t, "true", mcp[0].Environment["GITLAB_WRITE_ENABLED"], "the caller's servers are untouched")
 }

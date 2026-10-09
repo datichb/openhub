@@ -67,8 +67,7 @@ func TestBaseCheckpointRulesInBundle(t *testing.T) {
 }
 
 // A17: the operations a checkpoint unlocks are refused on the shell until it
-// is passed, also while the circuit breaker holds; a skipped checkpoint
-// locks nothing.
+// is passed, also while the circuit breaker holds.
 func TestSessionRulesLockedOperations(t *testing.T) {
 	wf := testRuntime()
 	wf.Checkpoints[1].Unlocks = []string{sessionspec.UnlockCommit, sessionspec.UnlockClose}
@@ -90,8 +89,10 @@ func TestSessionRulesLockedOperations(t *testing.T) {
 	passedOnly := &domain.CheckpointState{Passed: map[string]time.Time{"cp-2": time.Now()}}
 	assert.Equal(t, []string{"commit", "close"}, LockedOps(wf, "manuel", passedOnly), "a closed window locks again")
 
+	// A checkpoint that unlocks an operation is never skipped (N24, S-17):
+	// skip counts as pause and the lock stays.
 	wf.Checkpoints[1].Behaviors["auto"] = "skip"
-	assert.Empty(t, LockedOps(wf, "auto", nil))
+	assert.Equal(t, []string{"commit", "close"}, LockedOps(wf, "auto", nil))
 	c, ok := UnlockingCheckpoint(wf, sessionspec.UnlockClose)
 	assert.True(t, ok)
 	assert.Equal(t, "cp-2", c.ID)

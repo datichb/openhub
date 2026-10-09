@@ -51,8 +51,12 @@ func (s *Spec) AllowsRuntime(r Runtime) bool {
 	return false
 }
 
-// IsMandatory reports whether the checkpoint cannot be removed or relaxed.
-func (c CheckpointSpec) IsMandatory() bool { return c.Mandatory != nil && *c.Mandatory }
+// IsMandatory reports whether the checkpoint cannot be removed or relaxed. A
+// checkpoint that unlocks an operation (`unlocks:`) is mandatory too: skipping
+// it would drop the lock (N24, S-17).
+func (c CheckpointSpec) IsMandatory() bool {
+	return (c.Mandatory != nil && *c.Mandatory) || len(c.Unlocks) > 0
+}
 
 // RemotePolicy returns `remote`; unset means defer (wait for the user).
 func (c CheckpointSpec) RemotePolicy() RemotePolicy {

@@ -53,6 +53,16 @@ func (o Origins) deleteUnder(prefix string) {
 	}
 }
 
+// writes reports whether a document wrote field (or one of its items).
+func (o Origins) writes(field string) bool {
+	for p := range o {
+		if p == field || strings.HasPrefix(p, field+".") || strings.HasPrefix(p, field+"[") {
+			return true
+		}
+	}
+	return false
+}
+
 func originOf(doc *Document) Origin {
 	return Origin{
 		Layer:   doc.Source.Layer,
@@ -147,7 +157,7 @@ func ResolveSpec(cat Catalog, ref Ref, opts *SessionOptions) (*Resolved, Diagnos
 	refs := []Ref{root.Ref()}
 	for i := len(chain) - 2; i >= 0; i-- {
 		doc := chain[i]
-		p := &patcher{dst: spec.Clone(), doc: doc, parent: chain[i+1].Ref().String()}
+		p := &patcher{dst: spec.Clone(), doc: doc, parent: chain[i+1].Ref().String(), parentMCP: origins.writes("mcp")}
 		p.apply()
 		spec = p.dst
 		diags = append(diags, p.diags...)

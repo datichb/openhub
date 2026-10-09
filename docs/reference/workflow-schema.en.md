@@ -23,7 +23,7 @@ oh workflow show ticket --origin         # resolved values and source document
 - **Translatable texts** (`label`, `description`, `help`): a plain text, or a table per language `{ fr: …, en: … }`. Without the requested language, oh takes the plain text, then `en`, then `fr`.
 - **Ordered maps**: `inputs`, `agents`, `checkpoints` and `preconditions` keep the file order (order of the launch form, of the checkpoints and of the checks).
 - **Patch** (`extends`): the **presence** of a field in the file replaces it, not its value. Maps are merged by key; lists and texts are replaced as a whole.
-- **Security**: `risk`, `isolation`, `runtime.allowed`, `modes.allowed`, `code_mode`, `beads.allow`, mandatory checkpoints, `remote` and `limits` may only **be hardened**. A loosening is an error (`loosening`) and the parent value is kept.
+- **Security**: `risk`, `isolation`, `runtime.allowed`, `modes.allowed`, `code_mode`, `beads.allow`, mandatory checkpoints (and checkpoints with `unlocks`), `remote`, `limits`, `after` gates, `calls` lists, `circuit_breaker`, and outside the hub layer `mcp` and `plugins`, may only **be hardened**. A loosening is an error (`loosening`) and the parent value is kept.
 - **Lock**: a top-level field listed in the `enforce` of a parent document can no longer be written by a document that extends it (`enforced_field`).
 
 In the tables below, the **Patch** column reads:
@@ -114,7 +114,7 @@ beads: { allow: [show, list, update, close] }
 - Absent: no declared restriction. The Beads gateway then applies a read-only list (`show`, `list`, `ready`, `search`, `children`, `comments`, `count`, `status`, `graph`, `history`). Every shipped workflow declares its list.
 - `allow: []`: no command allowed.
 - The list is applied by the daemon's Beads gateway in every runtime (locally, oh's fake `bd` comes first on the session `PATH`; a `bd` called by a path is refused) and when the journal is replayed (remote). See [ADR-046](../architecture/adr/046-beads-gateways.en.md).
-- Patch: on a parent without `beads`, any list hardens. On a parent with a list, the new list must be a subset of it; `beads: null` is a loosening.
+- Patch: a parent without `beads` stands for the default read-only list (the one the gateway applies: `show`, `list`, `ready`, `search`, `children`, `comments`, `count`, `status`, `graph`, `history`): the child list must be a subset of it (`create`, `close`… are a loosening). On a parent with a list, the new list must be a subset of it; `beads: null` is a loosening.
 
 ### `runtime`
 
@@ -150,7 +150,7 @@ limits:
 | `entry.selectable` | boolean | `true`, `false` | `false` | to be written with `entry.agent` |
 | `modes.default` | text | a mode of `modes.allowed` | first allowed mode | replaces |
 | `modes.allowed` | list | `manuel`, `semi-auto`, `auto`, or custom modes | `[manuel, semi-auto, auto]` | hardens (subset of the parent; an empty list means every mode) |
-| `circuit_breaker.max_consecutive_subagents` | integer ≥ 0 | N delegations in a row without interaction | `0` (breaker disabled) | replaces |
+| `circuit_breaker.max_consecutive_subagents` | integer ≥ 0 | N delegations in a row without interaction | `0` (breaker disabled) | hardens (lower value; `0` does not replace an active breaker) |
 
 ### `entry`
 
@@ -283,7 +283,7 @@ The key is the id of an agent of the brick catalogue (hub + team), in kebab-case
 | `calls` | list | agent ids of the workflow | `task` permission of the agent, restricted to the workflow | allowed delegations (`calls_unknown`, `graph_cycle`) |
 
 - **Graph**: `calls` when written, otherwise the agent's `task` permission, limited to the members. A self-delegation is only kept when written (`reviewer: { calls: [reviewer] }`). The maximum depth of the graph becomes opencode's `experimental.subagent_depth`.
-- **Patch**: merged by id, field by field; `role: disabled` removes the agent (except the entry agent); `calls` is replaced as a whole.
+- **Patch**: merged by id, field by field; `role: disabled` removes the agent (except the entry agent). `after` cannot be removed nor moved earlier (only to a checkpoint declared later); `calls` written by the parent may only shrink (subset); an added agent is accepted.
 
 ---
 
@@ -315,7 +315,7 @@ The id is in kebab-case (`checkpoint_id_invalid`) and must not be an agent id (`
 - **Behaviors**: `pause` always asks the user; `auto` goes on alone; `skip` skips the checkpoint; `conditional` asks depending on `condition`. oh does not evaluate the condition: a `conditional` checkpoint always asks the user when it is reported.
 - **Strictness order**: `skip` < `auto` < `conditional` < `pause`. On a `mandatory` checkpoint, a patch cannot choose a less strict behavior, nor remove it (`mandatory_checkpoint_removed`); `skip` on a mandatory checkpoint counts as a pause.
 - **`remote`** (remote session): `auto` approved automatically; `defer` the session stops cleanly and waits for the user on the machine; `forbid` the workflow cannot run remotely.
-- **`unlocks`**: until the checkpoint is passed, oh refuses these operations to **every agent** of the session, whatever the model: `commit` (`git commit`, including `env git commit`, `git -c … commit`), `push` (`git push`), `close` (closing a Beads ticket, also refused by the Beads gateway), `create` (creating Beads tickets: `bd create`), `apply` (changing infrastructure: `terraform apply|destroy`, `kubectl apply|delete|…`, `helm install|upgrade|…`, `aws|gcloud|az` create/delete/update commands, `pulumi up|destroy`). Once the checkpoint is passed, closing a ticket is accepted only if the work was committed since (or if there is nothing to commit, outside `.beads/`). The window closes again when the checkpoint is asked again (next ticket, another fix) and, for a checkpoint that unlocks `close`, when a ticket is closed. An operation is unlocked by one checkpoint only (`unlock_duplicate`); a checkpoint that unlocks cannot be removed (`unlocking_checkpoint_removed`). A checkpoint skipped in the mode locks nothing. An operation unknown to the running oh (written by a newer version) is a warning (`unlock_unknown`) and locks nothing: update oh on every machine of the team.
+- **`unlocks`**: until the checkpoint is passed, oh refuses these operations to **every agent** of the session, whatever the model: `commit` (`git commit`, including `env git commit`, `git -c … commit`), `push` (`git push`), `close` (closing a Beads ticket, also refused by the Beads gateway), `create` (creating Beads tickets: `bd create`), `apply` (changing infrastructure: `terraform apply|destroy`, `kubectl apply|delete|…`, `helm install|upgrade|…`, `aws|gcloud|az` create/delete/update commands, `pulumi up|destroy`). Once the checkpoint is passed, closing a ticket is accepted only if the work was committed since (or if there is nothing to commit, outside `.beads/`). The window closes again when the checkpoint is asked again (next ticket, another fix) and, for a checkpoint that unlocks `close`, when a ticket is closed. An operation is unlocked by one checkpoint only (`unlock_duplicate`); a checkpoint that unlocks cannot be removed (`unlocking_checkpoint_removed`). A checkpoint with `unlocks` is treated as mandatory: it is never skipped (`skip` means `pause`, warning `unlock_skip`) and a patch cannot relax it (`loosening`). An operation unknown to the running oh (written by a newer version) is a warning (`unlock_unknown`) and locks nothing: update oh on every machine of the team.
 - A mode that is neither allowed nor one of the three shipped modes: `checkpoint_mode_unknown`; `conditional` without `condition`: `checkpoint_condition_missing`.
 - Checkpoint execution (3 levels: prompt, MCP tool `workflow_checkpoint`, oh plugin): [ADR-042](../architecture/adr/042-checkpoints-headless-decisions.en.md).
 
@@ -358,14 +358,14 @@ Checked before launch, in file order, in the session location.
 | `models.agents.<agent>` | `provider/model[#variant]` | — | merged by agent |
 | `skills.extra` | list of skill refs | — | replaces |
 | `skills.deny` | list (ref or bare name) | — | replaces |
-| `mcp` | list of oh MCP server ids | MCP servers of the project | replaces |
-| `plugins` | list | no plugin besides the oh plugin | replaces |
+| `mcp` | list of oh MCP server ids | MCP servers of the project | hardens outside the hub layer (subset of the parent list; parent without a list: any list hardens) |
+| `plugins` | list | no plugin besides the oh plugin | hardens outside the hub layer (subset of the parent: a plugin runs code) |
 | `beads.allow` | see [Security](#beads) | | |
 
 - **`models`**: workflow level of the [model cascade](model-resolution.en.md) (workflow·agent > workflow > project…). Invalid format: `model_invalid`; agent outside the workflow: `model_agent_unknown`.
 - **`skills`**: skills come from the member agents and their dependencies (`requires:`). `extra` adds some (`skill_unknown`), `deny` removes some (a `path/skill` ref or a bare name). A denied skill required by another one: `skill_denied_required`; missing dependency: `skill_closure`; duplicate id: `skill_duplicate`.
-- **`mcp`**: ids of oh MCP servers (`gitlab`, `figma`, `jira`, `team`…). Absent: the session keeps the project's MCP servers; present (even empty): only those of the list. The `workflow` server (`workflow_status`, `workflow_checkpoint`, `workflow_outputs`) is always added.
-- **`plugins`**: an id (npm spec, e.g. `context-mode@latest`) or `{ id, options }`. Installed by opencode when the server starts; a plugin that fails to load does not stop the session. The module must export the opencode V2 format (`{ id, setup }`).
+- **`mcp`**: ids of oh MCP servers (`gitlab`, `figma`, `jira`, `team`…). Absent: the session keeps the project's MCP servers; present (even empty): only those of the list. The `workflow` server (`workflow_status`, `workflow_checkpoint`, `workflow_outputs`) is always added. With `risk: read`, the servers start **without their write tools**, whatever the project setting (`write_enabled`).
+- **`plugins`**: an id (npm spec, e.g. `context-mode@latest`) or `{ id, options }`. Refused with `risk: read` for a plugin whose tools run commands (`context-mode`: `read_plugin_exec`). Installed by opencode when the server starts; a plugin that fails to load does not stop the session. The module must export the opencode V2 format (`{ id, setup }`).
 - Empty or duplicate list entries: `field_required`, `duplicate_entry`.
 
 ---
@@ -422,10 +422,10 @@ A diagnostic has a severity (error or warning), a code, the field path, the sour
 | `enforced_field`, `enforce_unknown_field` | field locked by a parent; unknown `enforce` value |
 | `entry_not_primary`, `entry_role`, `entry_disabled`, `agent_unknown`, `agent_unreachable` | invalid entry agent or member |
 | `after_unknown`, `after_cycle`, `calls_unknown`, `graph_cycle` | `after` gates and delegations |
-| `checkpoint_agent_clash`, `checkpoint_mode_unknown`, `checkpoint_mode_missing`, `checkpoint_condition_missing`, `mandatory_checkpoint_removed`, `unlocking_checkpoint_removed`, `unlock_duplicate`, `patch_unknown_checkpoint` | checkpoints |
+| `checkpoint_agent_clash`, `checkpoint_mode_unknown`, `checkpoint_mode_missing`, `checkpoint_condition_missing`, `mandatory_checkpoint_removed`, `unlocking_checkpoint_removed`, `unlock_duplicate`, `unlock_unknown`, `unlock_skip`, `patch_unknown_checkpoint` | checkpoints |
 | `precondition_check_invalid`, `precondition_path_invalid`, `precondition_self`, `precondition_unknown_workflow`, `patch_unknown_precondition` | preconditions |
 | `prompt_both`, `prompt_empty`, `prompt_template_path`, `prompt_template_missing`, `prompt_parse`, `prompt_unknown_variable` | prompt |
-| `read_agent_writes`, `read_beads_unrestricted`, `read_beads_write` | `risk: read` rules |
+| `read_agent_writes`, `read_beads_unrestricted`, `read_beads_write`, `read_plugin_exec` | `risk: read` rules |
 | `plan_agent_writes`, `plan_beads_unrestricted`, `plan_beads_delete`, `plan_without_beads_write` | `risk: plan` rules |
 | `remote_forbidden_checkpoint`, `runtime_default_not_allowed`, `mode_default_not_allowed`, `isolation_unsupported` | environments, modes, isolation |
 | `model_invalid`, `model_agent_unknown`, `skill_unknown`, `skill_unknown_deny`, `skill_closure`, `skill_duplicate`, `skill_denied_required` | resources |

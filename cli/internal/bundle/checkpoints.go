@@ -114,8 +114,8 @@ var ApplyLockPatterns = []string{
 }
 
 // LockedOps returns the operations (`unlocks:`) still locked: their
-// checkpoint is not passed in the current window (a checkpoint skipped in the
-// mode never locks), in declaration order.
+// checkpoint is not passed in the current window (an unlocking checkpoint is
+// never skipped, CheckpointDef.Behavior), in declaration order.
 func LockedOps(wf *sessionspec.WorkflowRuntime, mode string, st *domain.CheckpointState) []string {
 	if wf == nil {
 		return nil

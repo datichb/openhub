@@ -13,6 +13,10 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 - **Nouvelles opérations verrouillables `create` et `apply`** (schéma `oh/v1`, ajout compatible ; audit v5, W0) : `unlocks: [create]` refuse la création de tickets Beads (`bd create`), `unlocks: [apply]` les modifications d'infrastructure (`terraform apply`, `kubectl apply|delete`, `helm upgrade`, commandes create/delete/update des clouds…) tant que le checkpoint n'est pas passé. Une opération inconnue d'une version plus ancienne d'oh est un avertissement (`unlock_unknown`) et ne verrouille rien, au lieu de rendre le workflow invalide.
 
+### Fixed — points critiques des audits v5 (workflows)
+
+- **Superposition « ne peut que durcir » réellement appliquée** (N24) : un workflow parent sans bloc `beads:` vaut la liste en lecture seule de la passerelle (un workflow d'équipe ou de projet ne peut plus y ajouter `create`, `close` ou `delete`) ; un checkpoint qui porte `unlocks:` est traité comme obligatoire (jamais sauté, `skip` vaut `pause` avec l'avertissement `unlock_skip`, un patch ne peut plus l'assouplir) ; hors couche hub, `mcp` et `plugins` ne peuvent que se réduire ; `after:` ne peut plus être retiré ni avancé, une liste `calls` ne peut que se réduire, `circuit_breaker` ne peut que baisser. Un workflow `risk: read` lance les serveurs MCP du projet sans leurs outils d'écriture et refuse le plugin `context-mode` (`read_plugin_exec`).
+
 ### Added — runtime v5 (phase 0, opencode V2)
 
 - **Sessions sur le runtime v5** dès qu'opencode V2 est installé (l'ancien chemin de lancement ne fonctionne pas avec V2 ; pas encore pris en charge sous Windows) : paquet de session compilé hors du projet (`~/.oh/bundles/<hash>`), serveur `opencode serve` dédié par groupe (paquet, projet), « monde fermé » vérifié (seuls les agents/skills du paquet sont visibles), plugin oh embarqué (prompt d'agent ajouté au prompt de base d'opencode).

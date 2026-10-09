@@ -63,6 +63,24 @@ var OhVariables = []string{"project", "location", "branch", "mode", "runtime", "
 // BeadsWriteCommands are the `bd` subcommands that modify tickets.
 var BeadsWriteCommands = []string{"create", "update", "close", "reopen", "delete", "edit", "comment", "comments", "label", "dep", "duplicate", "supersede"}
 
+// ExecPlugins are the plugins whose tools run commands (context-mode:
+// ctx_execute…): refused in a read-only workflow, where they would bypass
+// `bash: deny` (N24, S-19).
+var ExecPlugins = []string{"context-mode"}
+
+// PluginPackage strips the version or tag of a plugin spec
+// ("@scope/pkg@^1" → "@scope/pkg", "pkg@latest" → "pkg").
+func PluginPackage(spec string) string {
+	start := 0
+	if strings.HasPrefix(spec, "@") {
+		start = 1
+	}
+	if i := strings.Index(spec[start:], "@"); i >= 0 {
+		return spec[:start+i]
+	}
+	return spec
+}
+
 // BeadsPlanForbidden are the write subcommands refused even with risk: plan.
 var BeadsPlanForbidden = []string{"delete"}
 
@@ -513,6 +531,14 @@ func (v *validator) checkpoints() {
 		if cp.Remote != "" {
 			v.enum(base+".remote", string(cp.Remote), cp.Remote.Valid(), "auto", "defer", "forbid")
 		}
+		if len(cp.Unlocks) > 0 {
+			for _, mode := range sortedKeys(cp.Mode) {
+				if cp.Mode[mode] == BehaviorSkip {
+					// Treated as pause: skipping would drop the lock (N24).
+					v.warn("unlock_skip", base+".mode."+mode, k, mode)
+				}
+			}
+		}
 		for i, op := range cp.Unlocks {
 			at := fmt.Sprintf("%s.unlocks[%d]", base, i)
 			if !op.Valid() {
@@ -732,6 +758,11 @@ func (v *validator) security() {
 				if info.Shell {
 					v.err("read_agent_writes", p, m, "shell")
 				}
+			}
+		}
+		for i, pl := range s.Plugins {
+			if containsStr(ExecPlugins, PluginPackage(pl.ID)) {
+				v.err("read_plugin_exec", fmt.Sprintf("plugins[%d]", i), pl.ID)
 			}
 		}
 		if s.Beads == nil {
