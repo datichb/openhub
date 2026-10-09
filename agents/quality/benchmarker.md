@@ -22,7 +22,7 @@ permission:
     # Outils benchmark API/charge
     "k6 run*": allow
     "k6 inspect*": allow
-    "wrk*": allow
+    "wrk*": ask
     "ab *": allow
     "hey *": allow
     # Outils benchmark Go
@@ -31,20 +31,18 @@ permission:
     "go tool trace*": allow
     "go build*": allow
     # Outils benchmark Python
-    "python -m py_spy*": allow
-    "py-spy*": allow
+    "python -m py_spy*": ask
+    "py-spy*": ask
     "python -m pytest --benchmark*": allow
     "pytest --benchmark*": allow
-    # Profiling générique
-    "perf*": allow
-    "hyperfine*": allow
+    # Profiling générique : lance une commande arbitraire → confirmation
+    "perf*": ask
+    "hyperfine*": ask
     # Réseau
     "curl*": allow
     # Divers
     "echo *": allow
     "which *": allow
-    "env *": allow
-    "printenv*": allow
     "date*": allow
   read: allow
   glob: allow

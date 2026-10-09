@@ -118,7 +118,7 @@ func GlobalShellGuard(ohHome string) []sessionspec.PermissionRule {
 	add := func(p string, eff sessionspec.Effect) {
 		out = append(out, sessionspec.PermissionRule{Action: sessionspec.ActionShell, Resource: p, Effect: eff})
 	}
-	lists := [][]string{controlPlaneDeny, gitEnvDeny, hookDeny, commitNoVerifyDeny(), execDeny, outsideDeny, installDeny, dockerDeny}
+	lists := [][]string{controlPlaneDeny, gitEnvDeny, hookDeny, commitNoVerifyDeny(), execDeny, outsideDeny, installDeny, dockerDeny, credentialDeny}
 	for _, l := range lists {
 		for _, p := range l {
 			add(p, sessionspec.EffectDeny)

@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"testing"
 	"time"
 
@@ -13,6 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/datichb/openhub/cli/internal/adapters"
+	"github.com/datichb/openhub/cli/internal/bundle"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 )
@@ -86,7 +88,9 @@ func TestGuardCloseAndWindow(t *testing.T) {
 	assert.Equal(t, "c1", st.Unlocks["close"].Head)
 	rules, _ = svc.Rules(ctx, "ses_l")
 	for _, r := range rules {
-		assert.NotEqual(t, sessionspec.ActionShell, r.Action)
+		if !slices.Contains(bundle.ApplyLockPatterns, r.Resource) { // apply: nothing unlocks it here (N4)
+			assert.NotEqual(t, sessionspec.ActionShell, r.Action)
+		}
 	}
 	status, err := svc.Status(ctx, "ses_l")
 	require.NoError(t, err)

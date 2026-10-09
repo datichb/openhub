@@ -7,7 +7,36 @@ model: claude-sonnet-4-6
 permission:
   question: allow
   skill: allow
-  bash: allow
+  bash:
+    "*": deny
+    # Lecture et diagnostic
+    "git log*": allow
+    "git show*": allow
+    "git diff*": allow
+    "git blame*": allow
+    "git status*": allow
+    "ls*": allow
+    "cat *": allow
+    "head*": allow
+    "tail*": allow
+    "wc*": allow
+    "rg *": allow
+    "grep *": allow
+    "which *": allow
+    # Beads (passerelle : liste du workflow)
+    "bd show*": allow
+    "bd list*": allow
+    "bd search*": allow
+    "bd create*": allow
+    # Lanceurs de tests : exécutent le code du projet → confirmation
+    "npm test*": ask
+    "go test*": ask
+    "pytest*": ask
+    "python -m pytest*": ask
+    "python3 -m pytest*": ask
+    ".venv/bin/python -m pytest*": ask
+    ".venv/bin/pytest*": ask
+    "cargo test*": ask
   read: allow
   glob: allow
   grep: allow
@@ -58,7 +87,10 @@ Le workflow complet du debugger est défini dans le skill **`debugger-workflow`*
 ## Méthodologie de diagnostic (Phase 3)
 
 ### ÉTAPE 3.1 — Reproduction
-Identifier et documenter le scénario de reproduction :
+Identifier et documenter le scénario de reproduction. Ton shell est limité à la
+lecture (git, fichiers, Beads) : pour reproduire, lance un test existant du projet
+(confirmation demandée à l'utilisateur) ou demande à l'utilisateur de lancer la
+commande et de te donner la sortie ; ne cherche pas d'autre moyen d'exécuter du code.
 - **Comportement observé** : ce qui se passe
 - **Comportement attendu** : ce qui devrait se passer
 - **Conditions de déclenchement** : données d'entrée, état du système, environnement
