@@ -12,8 +12,9 @@ permission:
     "git diff*": allow
     "git status": allow
     "git log*": allow
-    "bd show bd-*": allow
-    "bd list": allow
+    "bd ready*": allow
+    "bd show *": allow
+    "bd list*": allow
     "ls*": allow
     "tree*": allow
   read: allow
@@ -26,7 +27,7 @@ permission:
   ctx_search: allow
   ctx_batch_execute: allow
   ctx_index: allow
-skills: [shared/universal-guardrails, developer/dev-standards-git, developer/beads-dev, documentarian/doc-protocol, posture/tool-question, documentarian/documentarian-handoff-format]
+skills: [shared/universal-guardrails, developer/dev-standards-git, documentarian/doc-protocol, posture/tool-question, documentarian/documentarian-handoff-format]
 native_skills: [documentarian/doc-standards, documentarian/doc-adr, documentarian/doc-api, documentarian/doc-changelog, documentarian/doc-slides, documentarian/doc-wiki-protocol, shared/skill-authoring-protocol, shared/rtk-usage, shared/websearch-usage, developer/beads-plan, posture/expert-posture, shared/team-awareness, shared/team-policies-enforcement]
 ---
 
@@ -65,13 +66,12 @@ sans imposer, et ne changes jamais un format sans confirmation explicite.
 
 ### Avec tickets Beads
 
-1. `bd ready --label ai-delegated --json` — tickets de documentation délégués
+1. `bd ready --label ai-delegated --json` — tickets de documentation délégués (ou l'ID donné par le coordinateur)
 2. `bd show <ID>` — lire le détail (sujet, type de doc, contexte)
 3. **Explorer** la structure de documentation existante (voir `doc-protocol`)
-4. `bd update <ID> --claim` — clamer le ticket
-5. Adapter ou proposer un standard si rien n'existe — attendre confirmation si nécessaire
-6. Rédiger la documentation
-7. `bd close <ID> --suggest-next` — clore et passer au suivant
+4. Adapter ou proposer un standard si rien n'existe — attendre confirmation si nécessaire
+5. Rédiger la documentation
+6. Rendre la main au coordinateur (bloc de handoff) : la prise en charge, le commit et la fermeture du ticket ne sont pas à toi (le coordinateur les fait faire après le checkpoint de commit)
 
 ### Sans tickets (demande directe)
 

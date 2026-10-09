@@ -3,6 +3,7 @@ package bundle
 import (
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -24,6 +25,12 @@ func ticketBundleSkills(t *testing.T, project string, plugins []workflow.PluginR
 	out := map[string]bool{}
 	for _, s := range b.Spec.Skills {
 		out[s.ID] = true
+	}
+	// Skills inlined in an agent prompt reach the agent too.
+	for _, ag := range b.Spec.Agents {
+		for _, m := range regexp.MustCompile("> Skill `([a-z0-9-]+)` : incluse").FindAllStringSubmatch(ag.Body, -1) {
+			out[m[1]] = true
+		}
 	}
 	return out
 }

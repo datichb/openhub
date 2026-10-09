@@ -257,7 +257,7 @@
       "model": "/claude-sonnet-4-6",
       "permissions": [
         "shell * deny",
-        "shell bd list * allow",
+        "shell bd list* allow",
         "shell bd show * allow",
         "edit * deny",
         "glob * allow",

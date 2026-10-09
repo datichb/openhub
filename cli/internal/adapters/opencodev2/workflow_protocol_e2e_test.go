@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -19,6 +20,8 @@ import (
 	"github.com/datichb/openhub/cli/internal/services/checkpoint"
 	sessionsvc "github.com/datichb/openhub/cli/internal/services/session"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
+	"github.com/datichb/openhub/cli/internal/workflow"
+	"github.com/datichb/openhub/cli/internal/workflow/hubcat"
 )
 
 // N6 (DC6): one checkpoint protocol, with a real model.
@@ -220,4 +223,71 @@ func TestE2ELockPatternsWithoutFalsePositives(t *testing.T) {
 		assert.Contains(t, reply, mark, "allowed command ran: %q", reply)
 	}
 	assert.Equal(t, "init commit\n", gitLog(t, project), "the detours are refused")
+}
+
+// DC26 (N11): the shipped quick workflow, its real developer: no commit
+// before cp-commit; the developer asks it, and commits once approved.
+func TestE2EQuickCommitGate(t *testing.T) {
+	_, file, _, _ := runtime.Caller(0)
+	hub := filepath.Join(filepath.Dir(file), "..", "..", "..", "..")
+	if _, err := os.Stat(filepath.Join(hub, "workflows", "quick.yaml")); err != nil {
+		t.Skip("hub content not found")
+	}
+	tok := bedrockToken(t)
+	a := newContractAdapter(t)
+	e := newWorkflowEnv(t, a)
+	e.env = map[string]string{"GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@t", "GIT_COMMITTER_NAME": "t", "GIT_COMMITTER_EMAIL": "t@t"}
+	cat, diags := hubcat.LoadWorkflows(hub)
+	require.Empty(t, diags)
+	hc, err := hubcat.New(hub)
+	require.NoError(t, err)
+	r, diags := workflow.ResolveSpec(cat, workflow.Ref{Layer: workflow.LayerHub, ID: "quick"}, &workflow.SessionOptions{Mode: "semi-auto",
+		Inputs: map[string]any{"request": "Crée le fichier hello.txt contenant le mot hello, puis commite-le avec le message 'feat: hello'."}})
+	require.False(t, diags.HasErrors(), "%v", diags)
+	prompt, err := workflow.RenderPrompt(r, hc, workflow.PromptContext{Project: "demo", Mode: "semi-auto", Runtime: "local", Lang: "fr", Workflow: "quick"})
+	require.NoError(t, err)
+	built, err := bundle.Build(bundle.Request{HubDir: hub, OutDir: t.TempDir(), Spec: r.Spec, Provider: "bedrock"})
+	require.NoError(t, err)
+	b := built.Spec
+	m := sessionspec.ParseModelRef(e2eModel)
+	b.DefaultModel = &m
+	for i := range b.Agents {
+		b.Agents[i].Model = &m
+	}
+	e.saveBundle(t, b)
+	h, project := e.startGroup(t, a, b, tok)
+	gitInit := exec.Command("git", "-C", project, "commit", "--allow-empty", "-qm", "init")
+	gitInit.Env = append(os.Environ(), "GIT_AUTHOR_NAME=t", "GIT_AUTHOR_EMAIL=t@t", "GIT_COMMITTER_NAME=t", "GIT_COMMITTER_EMAIL=t@t")
+	require.NoError(t, gitInit.Run())
+	c := NewClient(h.URL, h.Password)
+	waitMCPConnected(t, c, project, sessionspec.WorkflowMCPServer)
+	svc := &sessionsvc.Service{Sessions: e.sessions, Decisions: e.decisions, Servers: e.servers, Adapter: a, BundlesDir: e.bundles}
+	svc.UseCheckpoints(e.cp, e.client.WorkflowRefresh)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+	defer cancel()
+	id := sessionspec.NewSessionID()
+	require.NoError(t, e.sessions.Create(ctx, &domain.Session{ID: id, ProjectID: "p1", Status: domain.SessionStatusRunning, GroupKey: "g1",
+		BundleHash: b.Hash, Mode: "semi-auto", State: domain.RunActive, LaunchPath: project}))
+	require.NoError(t, a.CreateSession(ctx, h, sessionspec.SessionSpec{SessionID: id, Title: "e2e quick", EntryAgent: b.EntryAgent, Location: project,
+		SessionRules: bundle.SessionRules(b.Workflow, "semi-auto", nil)}))
+	require.NoError(t, a.SendPrompt(ctx, h, id, prompt))
+	var dec domain.Decision
+	require.Eventually(t, func() bool {
+		l, err := e.decisions.ListOpen(ctx, domain.DecisionFilter{SessionID: id})
+		if err != nil {
+			return false
+		}
+		for _, d := range l {
+			if d.Kind == domain.DecisionCheckpoint {
+				dec = d
+				return true
+			}
+		}
+		return false
+	}, 6*time.Minute, 500*time.Millisecond, "the developer asks cp-commit")
+	assert.Equal(t, "init\n", gitLog(t, project), "nothing committed before cp-commit")
+	require.NoError(t, svc.Decide(ctx, sessionsvc.Reply{DecisionID: dec.ID, Decision: checkpoint.ChoiceApprove}))
+	require.NoError(t, c.Wait(ctx, id))
+	assert.Contains(t, gitLog(t, project), "hello", "committed after cp-commit: %s", r2text(t, ctx, c, id))
 }

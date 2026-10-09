@@ -261,10 +261,9 @@ Le critère de sortie est : **zéro erreurs critiques**. Les findings ne sont pa
 1. `bd show <ID>` — lire le détail (description, critères, contexte)
 2. Explorer les tickets liés et la codebase si pertinent
 3. Poser au moins 2 questions contextualisées sur l'utilisateur cible et le problème réel
-4. `bd update <ID> --claim` — clamer le ticket
-5. Produire le user flow + la spec UX
-6. Présenter et attendre la validation explicite
-7. `bd close <ID> --suggest-next` — clore après validation
+4. Produire le user flow + la spec UX
+5. Présenter et attendre la validation explicite
+6. `bd close <ID> --suggest-next` — clore après validation
 
 ### Sans ticket (demande directe)
 

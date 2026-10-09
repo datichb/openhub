@@ -646,6 +646,7 @@
         "skill * allow",
         "subagent * deny",
         "subagent documentarian allow",
+        "webfetch * allow",
         "shell git checkout * deny",
         "shell git -C * checkout * deny",
         "shell git restore * deny",

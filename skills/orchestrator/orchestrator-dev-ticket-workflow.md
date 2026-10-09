@@ -131,120 +131,41 @@ question({
 
 ---
 
-### Étape 3 — Pre-review automatique
+### Étape 3 — Pre-review (faite par le developer)
 
-**Rôle :** Exécuter les vérifications automatiques (lint, types, tests, format) avant de soumettre à la review. Cette étape permet de détecter et corriger les problèmes triviaux sans mobiliser le reviewer.
+**Rôle :** les vérifications automatiques (lint, types, tests, format) sont un **critère de fin du developer** : il les lance lui-même avec les commandes du projet avant de rendre la main, applique les corrections déterministes (`--fix`, formatage) et les rapporte dans son bloc `## Retour vers orchestrator-dev` (section des tests et vérifications). Tu ne lances aucune commande et tu ne lis pas `package.json` : tu lis le résultat dans la passation.
 
-**Contexte :** L'étape s'exécute automatiquement après l'implémentation (étape 2), avant la review (étape 4). Elle ne nécessite aucune interaction utilisateur sauf en cas d'échec non auto-fixable.
+> Référence pour les corrections auto-applicables : skill `developer/quick-fix` (lint fix, formatage, point-virgule ; jamais de renommage, refactoring ni logique métier).
 
-#### Checks à exécuter (dans l'ordre)
+#### Lecture du résultat
 
-```bash
-# 1. Lint
-npm run lint
+| Résultat rapporté par le developer | Action |
+|----------|--------|
+| Tous les checks ✅ (avec ou sans auto-fix) | → Étape 4 (Review) |
+| Un check en échec non auto-fixable (types, tests, lint sans `--fix`, syntaxe) | Re-délégation au developer (ci-dessous) puis de nouveau étape 3 |
+| Checks absents de la passation | Re-délégation : « Lance les vérifications du projet (lint, types, tests, format) et rapporte leur résultat. » |
 
-# 2. Types (TypeScript)
-npx tsc --noEmit
-
-# 3. Tests
-npm test
-
-# 4. Format
-npx prettier --check .
-```
-
-> **Note :** Adapter les commandes selon la stack du projet (yarn, pnpm, etc.). Si le projet utilise un script unifié (`npm run check`), l'utiliser à la place.
-> 
-> **Détection du script unifié :** Vérifier via `npm run` (liste les scripts disponibles) ou lire directement le champ `scripts` de `package.json`. Exemple : si `"check": "eslint . && tsc --noEmit && vitest run"` existe, utiliser `npm run check` au lieu des commandes séparées.
-
-#### Mécanisme d'auto-fix
-
-Si un check échoue avec un problème **auto-fixable**, appliquer la correction immédiatement :
-
-```bash
-# Lint fix
-npm run lint -- --fix
-
-# Format fix
-npx prettier --write .
-```
-
-**Référence normative pour l'éligibilité :** Le skill `developer/quick-fix` est la **source de vérité** pour déterminer si une correction est auto-applicable sans review. Consulter ce skill en cas de doute. Résumé :
-- ✅ Lint fix (prefer-const, unused imports, etc.)
-- ✅ Formatage (indentation, espaces, trailing comma)
-- ✅ Point-virgule manquant/en trop
-- ❌ Renommage de variable, refactoring, changement de signature, logique métier
-
-> Seules les corrections **déterministes** et **sans impact sur la logique métier** sont appliquées automatiquement. En cas de doute, ne pas appliquer.
-
-#### Comportement selon le résultat
-
-**Si tous les checks passent (avec ou sans auto-fix) :**
-
-```
-▶️ [Pre-review] Checks passés.
-   - Lint : ✅ (2 auto-fixes appliqués)
-   - Types : ✅
-   - Tests : ✅ (42 tests, 0 échecs)
-   - Format : ✅ (3 fichiers reformatés)
-```
-
-→ Passer à l'étape 4 (Review automatique).
-
-**Si un check échoue avec un problème NON auto-fixable :**
-
-Retourner le ticket au developer avec un message clair incluant les détails de l'erreur.
-Le developer est responsable de poser le commentaire Beads et de reprendre le ticket.
-
-Transmettre au developer dans le prompt de re-délégation :
+Prompt de re-délégation en cas d'échec :
 
 ```
 [Pre-review échouée]
 Ticket : <ID>
-Erreur(s) détectée(s) :
+Erreur(s) rapportée(s) :
 - <check> : <message d'erreur>
 
 Action requise :
-1. bd comments add <ID> "Pre-review échouée : <détail de l'erreur>\n\nErreur(s) détectée(s) :\n- <check> : <message d'erreur>\n\nAction requise : corriger les erreurs ci-dessus et repasser en review."
+1. bd comments add <ID> "Pre-review échouée : <détail de l'erreur>"
 2. Corriger les erreurs
-3. Repasser en review (bd update <ID> --add-label ready-for-review)
+3. Relancer les vérifications du projet et repasser en review (bd update <ID> --add-label ready-for-review)
 ```
 
-```
-⚠️ [Pre-review] Échec — retour au developer.
-   - Lint : ✅
-   - Types : ❌ (TS2345: Argument of type 'string' is not assignable...)
-   - Tests : non exécuté (arrêt après échec types)
-   - Format : non exécuté
-```
-
-> « Je retourne le ticket à `<developer-xxx>` pour correction des erreurs de typage. »
-
-→ Reprendre à l'étape 2 (Délégation de l'implémentation).
-
-**Erreurs considérées comme NON auto-fixables :**
-- Erreurs de typage TypeScript
-- Tests en échec
-- Erreurs de lint sans `--fix` disponible (règles désactivées, erreurs de parsing)
-- Erreurs de syntaxe bloquantes
-
-#### Résumé des transitions
-
-| Résultat | Action |
-|----------|--------|
-| Tous checks ✅ | → Étape 4 (Review) |
-| Échec auto-fixable uniquement | Auto-fix + → Étape 4 (Review) |
-| Échec non auto-fixable | Commentaire Beads + → Étape 2 (Developer) |
-
-> **Compteur de cycles :** Les boucles "Pre-review échoue → retour developer → Pre-review" ne comptent **pas** dans la limite des 3 cycles de review (étape 4). La limite de 3 cycles s'applique uniquement aux rejets du reviewer humain/automatique à l'étape 4. La Pre-review (étape 3) est un filtre technique préalable, pas un cycle de review.
->
-> **Cap de sécurité pre-review :** Après **5 cycles** pre-review → developer sans résolution des erreurs, escalader à l'utilisateur (voir skill `orchestrator/error-recovery-protocol`, section "Boucle pre-review infinie"). Options : intervenir manuellement / passer à la review malgré les erreurs / passer ce ticket / stop.
+> **Compteur de cycles :** les boucles « pre-review échoue → retour developer » ne comptent **pas** dans la limite des 3 cycles de review (étape 4). Après **5 cycles** sans résolution, escalader à l'utilisateur (skill `orchestrator/error-recovery-protocol`, « Boucle pre-review infinie ») : intervenir manuellement / passer à la review malgré les erreurs / passer ce ticket / stop.
 
 ---
 
 ### Étape 4 — Review automatique
 
-Dès que la pre-review est passée, invoquer **automatiquement** le `reviewer` :
+Dès que la pre-review rapportée par le developer est verte, invoquer **automatiquement** le `reviewer` :
 
 **Mise à jour todowrite — agent d'entrée uniquement :**
 
@@ -340,7 +261,7 @@ X = nombre de 🔴 Critique + 🟠 Majeur de `### Synthèse des problèmes` (san
   - `retour-initial` → retourner à l'agent `developer` avec le même domaine initial
 
   > « Je retourne le ticket à `developer` (domaine <xxx>) avec les corrections demandées. »
-  > Puis repasser étape 3 (Pre-review) → étape 4 (review).
+  > Puis repasser étape 3 (pre-review rapportée par le developer) → étape 4 (review).
 
   ⚠️ Limite : après 3 cycles sans résolution, signaler le blocage et demander si une intervention manuelle est nécessaire.
 

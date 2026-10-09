@@ -60,7 +60,7 @@ description: Référentiel de sécurité applicative — OWASP Top 10, CVE des d
 
 ### A06 — Vulnerable and Outdated Components
 
-- [ ] Les dépendances directes sont à jour (vérifier `npm audit`, `composer audit`, etc.)
+- [ ] Les dépendances directes sont à jour (lire les lockfiles et rechercher les CVE ; `npm audit`, `composer audit`… sont à recommander à l'utilisateur, pas à lancer)
 - [ ] Absence de dépendances avec CVE critique connue non corrigée
 - [ ] Les versions des runtimes (Node.js, PHP, Python...) sont supportées (pas en EOL)
 - [ ] Un outil d'analyse des dépendances est intégré en CI (Dependabot, Snyk, etc.)

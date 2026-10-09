@@ -114,7 +114,7 @@ The former onboarding pre-phase (mode C) is no longer part of `feature`: the `pr
 
 ## `quick`
 
-Direct development session with the `developer` agent, without planning or checkpoints. The developer infers the domain from the request and loads the matching standards. It suggests `feature` when the request turns out to be large. Allowed Beads commands: `show`, `list`, `ready`, `search`, `children`, `comments`, `count`, `status`, `graph`, `history`, `create`, `update`, `close`, `dep`, `label`.
+Direct development session with the `developer` agent, without planning. A single checkpoint, `cp-commit` (mandatory, paused in every mode): it unlocks `commit`; before it, oh refuses every `git commit`. Pushing is left to the user. The developer infers the domain from the request and loads the matching standards. It suggests `feature` when the request turns out to be large. Allowed Beads commands: `show`, `list`, `ready`, `search`, `children`, `comments`, `count`, `status`, `graph`, `history`, `create`, `update`, `close`, `dep`, `label`.
 
 | Input | Type | Required | Purpose |
 |---|---|---|---|
@@ -145,7 +145,7 @@ Discovers the project and creates or enriches the `docs/wiki/` wiki (`doc-wiki-p
 | `refresh` | `bool` (default: no) | no | Rediscover the project and enrich the existing wiki, without deleting anything |
 | `focus` | `text` (4,000 characters max) | no | Modules or topics to dig into |
 
-The onboarder can write files: the `docs/wiki/` limit (plus the minimal root `ONBOARDING.md`) is a prompt instruction, not a permission. Output: `wiki`. Allowed Beads commands: `show`, `list`, `ready`, `search`, `children`, `comments`, `count`, `status`, `graph`, `history`, `create`, `update`, `dep`, `label`.
+The onboarder only writes `docs/wiki/`, `ONBOARDING.md` and `CONVENTIONS.md`: it is a permission (any other write is refused, `.gitignore` and `.git/` included). It does not commit: committing the wiki is left to the user. Output: `wiki`. Allowed Beads commands: `show`, `list`, `ready`, `search`, `children`, `comments`, `count`, `status`, `graph`, `history`, `create`, `update`, `dep`, `label`.
 
 ## `review`
 
@@ -196,7 +196,7 @@ Diagnosis of a bug or isolated problem by the `debugger`: diagnostic report (urg
 |---|---|---|---|
 | `issue` | `text` (8,000 characters max) | no | The observed problem; empty: the session asks for it |
 
-Output: `tickets`. Allowed Beads commands: `show`, `list`, `ready`, `search`, `children`, `comments`, `count`, `status`, `graph`, `history`, `create`, `update`, `close`, `dep`, `label`.
+A fix made in the session ends with `cp-commit` (mandatory, paused in every mode, unlocks `commit`). Output: `tickets`. Allowed Beads commands: `show`, `list`, `ready`, `search`, `children`, `comments`, `count`, `status`, `graph`, `history`, `create`, `update`, `close`, `dep`, `label`.
 
 ## `sweep`
 
@@ -231,7 +231,7 @@ Enriches a ticket takeover brief, without interaction (headless session: `oh run
 
 ## `libre`
 
-Session with the agent of your choice, without checkpoints: `oh run libre --agent debugger -i request="…"` (without `--agent`: `orchestrator`). The entry of the workflow is **selectable** (`entry.selectable: true`): oh computes the members from the chosen agent and the agents it may call (`task` permission of the catalogue, transitively). The world stays closed: nothing else is visible. In the TUI, the free session (`coder` command, or « Démarrer » when the catalogue is empty) opens the launch form with the default agent. Allowed Beads commands: `show`, `list`, `ready`, `search`, `children`, `comments`, `count`, `status`, `graph`, `history`, `create`, `update`, `close`, `reopen`, `edit`, `comment`, `dep`, `label`, `duplicate`, `supersede` (everything but `delete`).
+Session with the agent of your choice, without checkpoints nor commit lock (the agent asks for confirmation before any irreversible action): `oh run libre --agent debugger -i request="…"` (without `--agent`: `orchestrator`). The entry of the workflow is **selectable** (`entry.selectable: true`): oh computes the members from the chosen agent and the agents it may call (`task` permission of the catalogue, transitively). The world stays closed: nothing else is visible. In the TUI, the free session (`coder` command, or « Démarrer » when the catalogue is empty) opens the launch form with the default agent. Allowed Beads commands: `show`, `list`, `ready`, `search`, `children`, `comments`, `count`, `status`, `graph`, `history`, `create`, `update`, `close`, `reopen`, `edit`, `comment`, `dep`, `label`, `duplicate`, `supersede` (everything but `delete`).
 
 | Input | Type | Required | Role |
 |---|---|---|---|
