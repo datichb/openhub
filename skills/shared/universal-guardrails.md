@@ -17,7 +17,7 @@ AVANT d'appeler l'outil `question`. Ne jamais inverser cet ordre.
 
 ## Commandes non-terminantes
 
-Les commandes non-terminantes (`yarn dev`, `vite`, `nodemon`, `tsc --watch`, `tail -f`)
+Les commandes non-terminantes (`yarn dev`, `vite`, `nodemon`, `tsc --watch`, `tail -f`) <!-- capability: example -->
 ne bloquent jamais ton tour : lance-les en arrière-plan. Si les outils context-mode
 (`ctx_*`, plugin `context-mode` du workflow) sont disponibles, elles ne passent jamais dans
 `ctx_batch_execute` (utiliser `ctx_execute` avec `background: true`), et `ctx_batch_execute`

@@ -1,0 +1,20 @@
+# Capability lint (capability_test.go): what the content may ask although the
+# permissions refuse it. Keep it short: fix the content or the permissions
+# first. Format "<workflow>/<agent>: <command>" (quoted).
+references:
+  # Command sheets: they list every bd command, the agent picks what its
+  # permissions allow.
+  - developer/beads-plan
+  - developer/beads-dev
+commands:
+  # dev-standards-universal (checklist inlined in the reviewer): « les tests
+  # existants passent ». The reviewer's shell belongs to the security track
+  # (piste S, N3): to settle there (run the tests, or read the developer's
+  # report).
+  - "feature/reviewer: npm test"
+  - "libre/reviewer: npm test"
+  - "review-feedback/reviewer: npm test"
+  - "review/reviewer: npm test"
+  - "sweep/reviewer: npm test"
+  - "ticket/reviewer: npm test"
+tasks: []

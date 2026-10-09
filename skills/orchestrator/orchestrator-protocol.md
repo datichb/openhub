@@ -94,10 +94,10 @@ Avant d'utiliser un outil, te poser cette question :
 | Situation | Action correcte |
 |-----------|-----------------|
 | Feature en langage naturel | `task(subagent_type: "planner", prompt: "Feature: authentification JWT avec refresh tokens")` |
-| Bug signalé | `debugger` dans le workflow : `task(subagent_type: "debugger", prompt: "Bug: erreur 500 sur POST /users lors de la création d'un compte")` ; sinon proposer le workflow `debug` |
+| Bug signalé | `debugger` dans le workflow : `task(subagent_type: "debugger", prompt: "Bug: erreur 500 sur POST /users lors de la création d'un compte")` ; sinon proposer le workflow `debug` | <!-- capability: optional -->
 | Tickets existants à implémenter | 1. `task(subagent_type: "planner", prompt: "Mode classification pour tickets: bd-10, bd-11, bd-12")`<br>2. Recevoir le champ `Agent prévu` + `### Ordre de traitement`<br>3. Router selon ces instructions |
 | Projet inconnu | Proposer le workflow `onboarding`, puis le retour à ce workflow |
-| Audit demandé | `auditor` dans le workflow : `task(subagent_type: "auditor", prompt: "Audit sécurité complet du projet")` ; sinon proposer le workflow `audit` |
+| Audit demandé | `auditor` dans le workflow : `task(subagent_type: "auditor", prompt: "Audit sécurité complet du projet")` ; sinon proposer le workflow `audit` | <!-- capability: optional -->
 | Implémentation des tickets | `task(subagent_type: "orchestrator-dev", prompt: "Mode de workflow : semi-auto\nTickets : bd-XX, bd-YY")` |
 | Ticket GitLab `#42` fourni | `task(subagent_type: "pathfinder", prompt: "Ticket GitLab #42 — <description utilisateur>")` — le pathfinder lit le ticket dans sa propre session |
 

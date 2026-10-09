@@ -200,6 +200,12 @@ This skill defines... It complements <other-skill> if applicable.
 - [ ] **Bucket B skills**: agents that need it have it in their `native_skills:` frontmatter; the agent body guide section lists it with a loading trigger description
 - [ ] **Stack-specific skills** (`developer/stacks/`): detection added in `detect_stack()`, mapping added in `config/stack-skills.json` — no agent frontmatter changes needed
 
+### Automatic content checks
+
+`go test ./internal/bundle` checks the content shipped with every workflow:
+- **one checkpoint protocol**: no question (`question`) whose header or text names a checkpoint (`cp-2`, « CP 2 », its label), no « end the session » to relay a checkpoint (`TestShippedCheckpointProtocol`); a skill generated from the workflow stays a « GÉNÉRÉ » stub, no skill is orphaned;
+- **capabilities** (`TestCapabilities`): every command written for an agent (code spans, shell blocks, known first word: `bd`, `git`, `npm`, `go`…) must be allowed by its permissions; every `task(subagent_type: "x")` must target an agent it may call; an agent `after: cp-x` is not asked in the template before `cp-x`; a checkpoint that unlocks an operation has a member able to run it. A line that forbids (`❌`, « jamais »…) or relays an instruction to another agent (`> 1.`, « … ») is not counted. For a command meant for the user, an example or an optional agent, add `<!-- capability: user -->` (or `example`, `optional`) on the line, or alone on the line before a code block. The remaining exceptions are in `cli/internal/bundle/testdata/capability_allow.yaml`, the report in `testdata/capabilities.golden` (`-update`).
+
 ---
 
 ## Annotated example — Creating a `developer-security` agent

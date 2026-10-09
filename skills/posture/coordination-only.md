@@ -79,11 +79,13 @@ Après avoir utilisé un outil autre que `task`, `question`, `todowrite` ou `ski
 
 | Situation | ❌ Tentation (interdit) | ✅ Action correcte |
 |-----------|------------------------|-------------------|
-| Feature en langage naturel | Lire le code pour comprendre | `task(subagent_type: "planner", prompt: "Feature: ...")` |
-| Bug signalé | Chercher la cause dans le code | `task(subagent_type: "debugger", prompt: "Bug: ...")` |
-| Tickets à implémenter | Lire les tickets pour router | `task(subagent_type: "planner", prompt: "Mode classification pour tickets: [IDs]")` puis `task(subagent_type: "orchestrator-dev", ...)` |
-| Projet inconnu | Explorer la codebase | `task(subagent_type: "onboarder", prompt: "Explorer le projet")` |
-| Audit demandé | Analyser le code | `task(subagent_type: "auditor", prompt: "Audit [domaine]")` |
+| Feature en langage naturel | Lire le code pour comprendre | Déléguer à l'agent de planification de ta ligne « Peut déléguer à » (`task`) |
+| Bug signalé | Chercher la cause dans le code | Déléguer au diagnostic s'il figure dans la carte, sinon proposer le workflow `debug` |
+| Tickets à implémenter | Lire les tickets pour router | Déléguer la classification, puis l'implémentation, aux agents prévus par la carte |
+| Projet inconnu | Explorer la codebase | Proposer le workflow `onboarding` |
+| Audit demandé | Analyser le code | Déléguer à l'auditeur s'il figure dans la carte, sinon proposer le workflow `audit` |
+
+> Tu ne lances que les agents de ta ligne « Peut déléguer à » de la carte du workflow : tout autre `task` est refusé.
 
 ---
 

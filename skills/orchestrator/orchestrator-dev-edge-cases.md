@@ -225,7 +225,7 @@ Le ticket #<ID> est bloqué : <raison>. Comment procéder ?
 **task_id :** <task_id de la session en cours>
 ```
 
-Si résolu : demander au developer de reprendre le ticket (`bd update <ID> -s in_progress`) puis reprendre l'implémentation.
+Si résolu : demander au developer de reprendre le ticket (`bd update <ID> -s in_progress`) puis reprendre l'implémentation. <!-- capability: relay -->
 
 ---
 

@@ -71,14 +71,6 @@ Après **5 cycles** pre-review -> retour developer sans résolution des erreurs 
 
 Avant d'escalader, **tenter UNE ré-invocation** avec `task_id` (erreur transitoire possible). Si la 2ème tentative échoue aussi, appliquer le protocole Cas C existant (relance sans `task_id` ou stop).
 
-### Worktree creation failure (mode parallèle)
-
-| Erreur | Action |
-|--------|--------|
-| Branche déjà existante | `git worktree remove <path>` + `git branch -D <branch>` puis réessayer |
-| Verrou git (`.git/index.lock`) | Attendre 5 secondes, réessayer (max 3 tentatives) |
-| Erreur persistante après 3 tentatives | **Fallback séquentiel** pour ce ticket : le retirer du lot parallèle et le traiter en séquentiel après les sessions parallèles restantes |
-
 ### Conflit de fichiers entre sessions parallèles
 
 > La détection existe déjà dans `orchestrator-dev-parallel`. Ce protocole ajoute le **traitement** :
@@ -86,7 +78,7 @@ Avant d'escalader, **tenter UNE ré-invocation** avec `task_id` (erreur transito
 1. **Identifier la session prioritaire** : celle qui a le ticket de plus haute priorité (ou le premier lancé)
 2. **Mettre en pause la session secondaire** (attendre qu'elle atteigne un CP naturel)
 3. **Lancer la review de la session prioritaire en premier**
-4. **Après merge de la prioritaire** : ré-invoquer la session secondaire dans un nouveau worktree basé sur la branche mise à jour
+4. **Après le commit de la prioritaire** (son `cp-2` passé) : ré-invoquer la session secondaire, qui repart de l'arborescence à jour
 5. Si les conflits persistent après resolution : escalader à l'utilisateur
 
 ## Règle absolue

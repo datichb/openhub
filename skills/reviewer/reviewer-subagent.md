@@ -72,7 +72,8 @@ Pour garantir l'isolation contextuelle, orchestrer des sessions parallèles **av
 2. **Préparer le contexte à injecter** — même protocole que le mode combiné standalone :
    a. Extraire la synthèse compacte (conventions, architecture, review-rules, god nodes, périmètre)
    b. Formater `[WIKI-CONTEXT:]`, `[DIFF-SCOPE:]`, `[STANDARDS:]`
-3. **Lancer les sessions en parallèle** via l'outil `task` :
+3. **Lancer les sessions en parallèle** via l'outil `task`, si `reviewer` figure dans ta ligne « Peut déléguer à » de la carte du workflow ; sinon, fais les deux analyses toi-même, l'une après l'autre (adversariale, puis edge-case), avec le même contexte, et passe à l'étape 5 :
+   <!-- capability: optional -->
    ```
    // Session 1 — Adversarial (contexte wiki injecté)
    task(subagent_type: "reviewer", prompt: "[MODE:adversarial] [REVIEW:single] [WIKI-CONTEXT:<synthèse>] [DIFF-SCOPE:<liste fichiers>] [STANDARDS:<liste>] Revue adversariale de la feature <branche>. git diff <base>..<branche>")

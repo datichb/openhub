@@ -435,7 +435,7 @@ Continuer en spécifiant le composant directement, avec des valeurs en dur à ha
 3. Identifier les composants concernés et les tokens à utiliser ou créer
 4. Produire la spécification
 5. Présenter avec les options de direction artistique si choix à faire — attendre validation
-6. `bd close <ID> --suggest-next` — clore après validation
+6. Signaler la validation dans la passation : la fermeture du ticket de spécification revient au coordinateur
 
 ### Sans ticket (demande directe)
 

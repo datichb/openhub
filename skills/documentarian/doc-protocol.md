@@ -154,7 +154,7 @@ passer en revue cette checklist :
 - [ ] Guide d'installation pour les nouveaux développeurs
 - [ ] Variables d'environnement documentées (`.env.example` ou section README)
 - [ ] Architecture de haut niveau décrite
-- [ ] Commandes de développement documentées (`make`, `npm run`, scripts)
+- [ ] Commandes de développement documentées (`make`, `npm run`, scripts) <!-- capability: example -->
 
 ### Documentation architecturale
 - [ ] Au moins un ADR pour les choix techniques majeurs

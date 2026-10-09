@@ -263,7 +263,7 @@ Le critère de sortie est : **zéro erreurs critiques**. Les findings ne sont pa
 3. Poser au moins 2 questions contextualisées sur l'utilisateur cible et le problème réel
 4. Produire le user flow + la spec UX
 5. Présenter et attendre la validation explicite
-6. `bd close <ID> --suggest-next` — clore après validation
+6. Signaler la validation dans la passation : la fermeture du ticket de spécification revient au coordinateur
 
 ### Sans ticket (demande directe)
 
