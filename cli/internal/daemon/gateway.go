@@ -43,14 +43,16 @@ func (d *Daemon) startGateway(ctx context.Context) {
 	}
 	d.gateway = st
 	d.mcp = &gateway.MCP{Resolve: d.resolveMCP, Check: d.checkMCP}
-	d.proxy.Mount(beadswire.Prefix, &gateway.Beads{
+	beads := &gateway.Beads{
 		Store:  st,
 		View:   d.opts.GatewayView,
 		Alive:  d.sessionAlive,
 		Binary: d.opts.BeadsBinary,
 		Guard:  d.guardTickets,
 		Done:   d.ticketsDone,
-	})
+	}
+	st.ResolveBase = beads.ResolveBase // the Beads workspace is fixed at the grant (S-08)
+	d.proxy.Mount(beadswire.Prefix, beads)
 }
 
 // guardTickets refuses to close a ticket before the checkpoint that

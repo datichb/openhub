@@ -13,7 +13,7 @@ import (
 )
 
 func TestTicketOp(t *testing.T) {
-	allow := []string{"close", "done", "update", "show"}
+	allow := []string{"close", "done", "update", "show", "duplicate", "supersede", "import", "ready", "todo"}
 	for _, tc := range []struct {
 		argv []string
 		want *BeadsOp
@@ -25,13 +25,26 @@ func TestTicketOp(t *testing.T) {
 		{[]string{"update", "pt-1", "--status=done"}, &BeadsOp{Kind: OpClose, IDs: []string{"pt-1"}}},
 		{[]string{"update", "pt-1", "--claim"}, &BeadsOp{Kind: OpClaim, IDs: []string{"pt-1"}}},
 		{[]string{"update", "pt-1", "-s", "in_progress", "--notes", "x y"}, &BeadsOp{Kind: OpClaim, IDs: []string{"pt-1"}}},
-		{[]string{"update", "pt-1", "-s", "review"}, nil},
+		{[]string{"update", "pt-1", "-s", "blocked"}, nil},
+		// S-07: attached and combined forms, closing commands.
+		{[]string{"update", "pt-1", "-sclosed"}, &BeadsOp{Kind: OpClose, IDs: []string{"pt-1"}}},
+		{[]string{"update", "pt-1", "-s=closed"}, &BeadsOp{Kind: OpClose, IDs: []string{"pt-1"}}},
+		{[]string{"-q", "update", "-qsclosed", "pt-1"}, &BeadsOp{Kind: OpClose, IDs: []string{"pt-1"}}},
+		{[]string{"update", "pt-1", "-s", "open", "--status", "closed"}, &BeadsOp{Kind: OpClose, IDs: []string{"pt-1"}}},
+		{[]string{"-s", "closed", "update", "pt-1"}, &BeadsOp{Kind: OpClose, IDs: []string{"pt-1"}}},
+		{[]string{"update", "pt-1", "-s", "shipped"}, &BeadsOp{Kind: OpClose, IDs: []string{"pt-1"}, Status: "shipped"}},
+		{[]string{"duplicate", "pt-1", "--of", "pt-2"}, &BeadsOp{Kind: OpClose, IDs: []string{"pt-1"}}},
+		{[]string{"supersede", "pt-1", "--with=pt-2"}, &BeadsOp{Kind: OpClose, IDs: []string{"pt-1"}}},
+		{[]string{"import", "-i", "x.jsonl"}, &BeadsOp{Kind: OpClose}},
+		{[]string{"todo", "done", "pt-3"}, &BeadsOp{Kind: OpClose, IDs: []string{"pt-3"}}},
+		{[]string{"ready", "--claim"}, &BeadsOp{Kind: OpClaim}},
+		{[]string{"close", "--help"}, nil},
 		{[]string{"update", "pt-1", "--title", "closed"}, nil},
 		{[]string{"show", "pt-1"}, nil},
 	} {
 		c, err := checkBeads(tc.argv, allow)
 		require.NoError(t, err, tc.argv)
-		op, ok := ticketOp(tc.argv, c)
+		op, ok := ticketOp(c)
 		if tc.want == nil {
 			assert.False(t, ok, "%v: %+v", tc.argv, op)
 			continue
@@ -80,7 +93,7 @@ func TestBeadsGitHooks(t *testing.T) {
 	f.b.View = nil // local session: same paths
 	code, resp = hook(true, "hooks", "run", "prepare-commit-msg", ".git/COMMIT_EDITMSG", "message")
 	require.Equal(t, http.StatusOK, code, resp.Error)
-	assert.Contains(t, string(resp.Stdout), "argv:hooks run prepare-commit-msg .git/COMMIT_EDITMSG message")
+	assert.Contains(t, string(resp.Stdout), "argv:hooks run -- prepare-commit-msg .git/COMMIT_EDITMSG message")
 	code, _ = hook(false, "hooks", "run", "pre-commit")
 	assert.Equal(t, http.StatusForbidden, code, "not run by git: beads.allow applies")
 	code, _ = hook(true, "hooks", "install")

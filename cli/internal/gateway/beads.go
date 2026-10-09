@@ -106,7 +106,7 @@ func (b *Beads) Exec(ctx context.Context, g Grant, req beadswire.ExecRequest) (r
 		view.Locations = []string{g.Location}
 	}
 	dir := view.hostDir(req.Cwd, g.Location)
-	argv, err := view.translateArgs(req.Argv, c, dir)
+	argv, err := view.translateArgs(c, dir)
 	if err != nil {
 		return refusalResp(err.Error()), http.StatusForbidden
 	}
@@ -119,17 +119,32 @@ func (b *Beads) Exec(ctx context.Context, g Grant, req beadswire.ExecRequest) (r
 		slog.Debug("gateway: Beads git hook skipped (not a local session)", "session", g.SessionID, "hook", req.Argv)
 		return beadswire.ExecResponse{}, http.StatusOK
 	}
-	op, isOp := ticketOp(req.Argv, c)
-	if isOp && b.Guard != nil {
-		if err := b.Guard(ctx, g, op); err != nil {
-			slog.Debug("gateway: bd refused by the workflow", "session", g.SessionID, "command", c.Name, "error", err)
+	beadsDir := ""
+	if c.Name() != "" && !c.Help() {
+		base := b.base(ctx, g)
+		if base == nil {
+			return refusalResp(i18n.T("cmd.gateway.beads.base_unknown")), http.StatusServiceUnavailable
+		}
+		if err := base.check(); err != nil {
+			slog.Warn("gateway: Beads workspace of the session changed", "session", g.SessionID, "error", err)
 			return refusalResp(err.Error()), http.StatusForbidden
 		}
+		if base.Dir != journalBase {
+			beadsDir = base.Dir
+		}
 	}
-	bin := b.Binary
-	if bin == "" {
-		if bin, err = exec.LookPath("bd"); err != nil {
-			return refusalResp(i18n.T("cmd.gateway.beads.bd_missing")), http.StatusServiceUnavailable
+	bin, err := b.binary()
+	if err != nil {
+		return refusalResp(i18n.T("cmd.gateway.beads.bd_missing")), http.StatusServiceUnavailable
+	}
+	op, isOp := ticketOp(c)
+	if isOp && op.Status != "" && !b.closingStatus(ctx, bin, dir, beadsDir, op.Status) {
+		isOp = false
+	}
+	if isOp && b.Guard != nil {
+		if err := b.Guard(ctx, g, op); err != nil {
+			slog.Debug("gateway: bd refused by the workflow", "session", g.SessionID, "command", c.Key(), "error", err)
+			return refusalResp(err.Error()), http.StatusForbidden
 		}
 	}
 	timeout := b.Timeout
@@ -144,9 +159,7 @@ func (b *Beads) Exec(ctx context.Context, g Grant, req beadswire.ExecRequest) (r
 	defer cancel()
 	cmd := exec.CommandContext(cctx, bin, argv...)
 	cmd.Dir = dir
-	if hook {
-		cmd.Env = append(os.Environ(), beadswire.EnvGitHook+"=1")
-	}
+	cmd.Env = beadsEnv(os.Environ(), beadsDir, hook)
 	cmd.Stdin = bytes.NewReader(req.Stdin)
 	stdout, stderr := &capped{max: limit}, &capped{max: limit}
 	cmd.Stdout, cmd.Stderr = stdout, stderr
@@ -165,11 +178,47 @@ func (b *Beads) Exec(ctx context.Context, g Grant, req beadswire.ExecRequest) (r
 	if stdout.cut || stderr.cut {
 		resp.Stderr = append(resp.Stderr, []byte(fmt.Sprintf("bd: %s\n", i18n.Tf("cmd.gateway.beads.output_truncated", limit)))...)
 	}
-	slog.Debug("gateway: bd", "session", g.SessionID, "command", c.Name, "exit", resp.ExitCode)
+	slog.Debug("gateway: bd", "session", g.SessionID, "command", c.Key(), "exit", resp.ExitCode)
 	if isOp && b.Done != nil && resp.ExitCode == 0 && resp.Error == "" {
 		b.Done(ctx, g, op)
 	}
 	return resp, http.StatusOK
+}
+
+func (b *Beads) binary() (string, error) {
+	if b.Binary != "" {
+		return b.Binary, nil
+	}
+	return exec.LookPath("bd")
+}
+
+// closingStatus asks bd whether a status of the project's configuration
+// is a done status (bd statuses); unknown answers count as closing.
+func (b *Beads) closingStatus(ctx context.Context, bin, dir, beadsDir, status string) bool {
+	ctx, cancel := context.WithTimeout(ctx, baseTimeout)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, bin, "statuses", "--json")
+	cmd.Dir = dir
+	cmd.Env = beadsEnv(os.Environ(), beadsDir, false)
+	out, err := cmd.Output()
+	if err != nil {
+		return true
+	}
+	var st struct {
+		Custom []struct {
+			Name     string `json:"name"`
+			Category string `json:"category"`
+		} `json:"custom_statuses"`
+	}
+	if json.Unmarshal(out, &st) != nil {
+		return true
+	}
+	for _, s := range st.Custom {
+		if strings.EqualFold(s.Name, status) {
+			return s.Category == "done"
+		}
+	}
+	return true // bd refuses an unknown status; counted as closing
 }
 
 // capped keeps the first max bytes written (not an embedded bytes.Buffer:
@@ -192,3 +241,24 @@ func (c *capped) Write(p []byte) (int, error) {
 }
 
 func (c *capped) Bytes() []byte { return c.buf.Bytes() }
+
+// beadsEnv is the environment of the real bd: the one of the daemon, with
+// the workspace fixed by oh (BEADS_DIR) and the git hook marker set only
+// when git runs the command.
+func beadsEnv(base []string, beadsDir string, hook bool) []string {
+	env := make([]string, 0, len(base)+2)
+	for _, kv := range base {
+		k, _, _ := strings.Cut(kv, "=")
+		if k == "BEADS_DIR" || k == beadswire.EnvGitHook {
+			continue
+		}
+		env = append(env, kv)
+	}
+	if beadsDir != "" {
+		env = append(env, "BEADS_DIR="+beadsDir)
+	}
+	if hook {
+		env = append(env, beadswire.EnvGitHook+"=1")
+	}
+	return env
+}

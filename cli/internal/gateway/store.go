@@ -1,6 +1,7 @@
 package gateway
 
 import (
+	"context"
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
@@ -30,12 +31,18 @@ type Grant struct {
 	Location   string    `json:"location"`    // machine directory of the session
 	BeadsAllow []string  `json:"beads_allow"` // nil = DefaultBeadsAllow, [] = nothing
 	CreatedAt  time.Time `json:"created_at"`
+	// Base is the Beads workspace fixed when the grant was issued (nil =
+	// not resolved yet, see ResolveBase).
+	Base *Base `json:"beads_base,omitempty"`
 }
 
 // Store keeps the active gateway grants. Tokens themselves are never
 // written: only their SHA-256 and the grant scope are saved (0600), so that
 // grants survive a daemon restart while tool servers keep running.
 type Store struct {
+	// ResolveBase fixes the Beads workspace of a new grant (nil = later).
+	ResolveBase func(ctx context.Context, location string) *Base
+
 	path   string // "" = memory only
 	mu     sync.Mutex
 	byHash map[string]Grant
@@ -98,6 +105,9 @@ func (s *Store) Issue(g Grant) (string, error) {
 	}
 	if g.CreatedAt.IsZero() {
 		g.CreatedAt = time.Now()
+	}
+	if g.Base == nil && s.ResolveBase != nil {
+		g.Base = s.ResolveBase(context.Background(), g.Location)
 	}
 	tok := NewToken()
 	s.mu.Lock()
@@ -195,4 +205,18 @@ func (s *Store) saveLocked() error {
 		return err
 	}
 	return os.Rename(tmp, s.path)
+}
+
+// setBase remembers the Beads workspace resolved for the grants of a
+// session holder.
+func (s *Store) setBase(g Grant, base *Base) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for h, old := range s.byHash {
+		if old.SessionID == g.SessionID && old.Holder == g.Holder && old.Base == nil {
+			old.Base = base
+			s.byHash[h] = old
+		}
+	}
+	_ = s.saveLocked()
 }

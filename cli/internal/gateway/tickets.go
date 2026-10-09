@@ -16,58 +16,71 @@ const (
 type BeadsOp struct {
 	Kind string
 	IDs  []string // tickets named on the command line (may be empty)
+	// Status is a status of the project's own configuration set by
+	// `update --status` (the gateway asks bd whether it closes the ticket).
+	Status string
 }
 
-// Boolean flags of `bd close` and `bd update` (bd 1.3): any other flag
-// takes a value.
-var ticketBoolFlags = map[string]bool{
-	"--claim": true, "--claim-next": true, "--continue": true, "-f": true, "--force": true, "--no-auto": true,
-	"--suggest-next": true, "--allow-empty-description": true, "--ephemeral": true, "--history": true,
-	"--no-history": true, "--persistent": true, "--stdin": true,
+// Statuses of bd 1.3 that do not close a ticket (category active, wip,
+// frozen); closed is the built-in done status.
+var openStatuses = map[string]bool{
+	"open": true, "in_progress": true, "blocked": true, "deferred": true, "pinned": true, "hooked": true,
 }
 
-// ticketOp returns the ticket operation of a checked command (c: parsed by
-// checkBeads), if any: `close` (alias `done`), `update --status closed|done`
-// (closing), `update --claim` or `--status in_progress` (claiming).
-func ticketOp(argv []string, c command) (BeadsOp, bool) {
-	if c.At < 0 || (c.Name != "close" && c.Name != "done" && c.Name != "update") {
+// closingCommands close tickets whatever their flags (bd 1.3): the
+// duplicate and the superseded issues are closed by bd, an import or a
+// batch can change any status, raw SQL anything.
+var closingCommands = map[string]bool{
+	"close": true, "duplicate": true, "supersede": true, "import": true, "batch": true, "sql": true,
+	"todo done": true, "gate resolve": true, "mol squash": true, "mol burn": true,
+}
+
+// ticketOp returns the ticket operation of a checked command, if any:
+// closing commands (close and its alias done, duplicate, supersede, import,
+// batch…), `update --status` with a done status (closing), `update
+// --claim`, `ready --claim` or `--status in_progress` (claiming).
+func ticketOp(c command) (BeadsOp, bool) {
+	if c.Name() == "" || c.Help() {
 		return BeadsOp{}, false
 	}
-	var ids []string
-	status, claim := "", false
-	args := argv[c.At+1:]
-	for i := 0; i < len(args); i++ {
-		a := args[i]
-		if a == "--" {
-			ids = append(ids, args[i+1:]...)
-			break
-		}
-		if !strings.HasPrefix(a, "-") || a == "-" {
-			if !strings.ContainsAny(a, " \t\n") {
-				ids = append(ids, a)
-			}
-			continue
-		}
-		name, value, hasValue := strings.Cut(a, "=")
-		if globalBoolFlags[name] || ticketBoolFlags[name] {
-			claim = claim || name == "--claim" || name == "--claim-next"
-			continue
-		}
-		if !hasValue && i+1 < len(args) {
-			i++
-			value = args[i]
-		}
-		if name == "-s" || name == "--status" {
-			status = strings.ToLower(strings.TrimSpace(value))
-		}
-	}
+	key := c.Key()
 	switch {
-	case c.Name != "update":
-		return BeadsOp{Kind: OpClose, IDs: ids}, true
-	case status == "closed" || status == "done":
-		return BeadsOp{Kind: OpClose, IDs: ids}, true
-	case claim || status == "in_progress":
-		return BeadsOp{Kind: OpClaim, IDs: ids}, true
+	case closingCommands[key]:
+		ids := c.Args
+		switch key {
+		case "duplicate", "supersede":
+			ids = c.Args[:min(1, len(c.Args))] // the second issue stays open
+		case "import", "batch", "sql":
+			ids = nil
+		}
+		return BeadsOp{Kind: OpClose, IDs: cleanIDs(ids)}, true
+	case key == "update":
+		if v, ok := c.Value("status"); ok {
+			st := strings.ToLower(strings.TrimSpace(v))
+			switch {
+			case st == "closed" || st == "done":
+				return BeadsOp{Kind: OpClose, IDs: cleanIDs(c.Args)}, true
+			case st == "in_progress":
+				return BeadsOp{Kind: OpClaim, IDs: cleanIDs(c.Args)}, true
+			case !openStatuses[st]:
+				return BeadsOp{Kind: OpClose, IDs: cleanIDs(c.Args), Status: st}, true
+			}
+		}
+		if c.Bool("claim") {
+			return BeadsOp{Kind: OpClaim, IDs: cleanIDs(c.Args)}, true
+		}
+	case key == "ready" && c.Bool("claim"):
+		return BeadsOp{Kind: OpClaim}, true
 	}
 	return BeadsOp{}, false
+}
+
+func cleanIDs(args []string) []string {
+	var ids []string
+	for _, a := range args {
+		if a != "" && a != "-" && !strings.ContainsAny(a, " \t\n") {
+			ids = append(ids, a)
+		}
+	}
+	return ids
 }

@@ -50,6 +50,14 @@ closed + label cancelled
 - **`blocked`** can only occur from `in_progress`.
   Unblocking moves back to `in_progress`.
 
+### In an oh session (Beads gateway)
+
+In a session started by oh, `bd` goes through the Beads gateway of the daemon ([SECURITY](../../SECURITY.md#gateways)):
+
+- **Closing a ticket** goes through the workflow lock (checkpoint `unlocks: [close]`), whatever the form: `bd close` / `bd done`, `bd update --status closed` (including `-sclosed`, `-s=closed`), a status of category `done` in the project configuration (`bd config set status.custom "shipped:done"`), `bd duplicate`, `bd supersede`, `bd import`, `bd batch`, `bd sql`, `bd todo done`.
+- **Refused forms**: a flag unknown to `bd` 1.3.1 (oh's flag table), `--db`, `--database`, `-C`/`--directory`, `--global`, `--repo`, a file (`-f`, `-o`, `--body-file`…) outside the session folders.
+- **Fixed database**: the database is the one of the session start; when `.beads/redirect`, `.beads/metadata.json` or `.beads/config.yaml` change during the session, `bd` is refused until the file is restored or the session restarted. Agents cannot write to `.beads/`.
+
 ---
 
 ## Types (5)
