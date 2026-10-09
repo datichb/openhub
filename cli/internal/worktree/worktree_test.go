@@ -109,8 +109,11 @@ func TestIsMerged_Integration(t *testing.T) {
 	runGit(t, repoDir, "init", "-b", "main")
 	runGit(t, repoDir, "commit", "--allow-empty", "-m", "initial")
 
-	// Create a branch that is merged (no new commits)
-	runGit(t, repoDir, "branch", "already-merged")
+	// A branch with its own commit, merged into main
+	runGit(t, repoDir, "checkout", "-q", "-b", "already-merged")
+	runGit(t, repoDir, "commit", "--allow-empty", "-m", "work")
+	runGit(t, repoDir, "checkout", "-q", "main")
+	runGit(t, repoDir, "merge", "-q", "--no-ff", "-m", "merge", "already-merged")
 
 	merged, err := IsMerged(repoDir, "already-merged", "main")
 	require.NoError(t, err)
@@ -124,6 +127,46 @@ func TestIsMerged_Integration(t *testing.T) {
 	merged, err = IsMerged(repoDir, "not-merged", "main")
 	require.NoError(t, err)
 	assert.False(t, merged)
+
+	// A fresh branch (no commit of its own) has nothing merged
+	runGit(t, repoDir, "branch", "fresh")
+	merged, err = IsMerged(repoDir, "fresh", "main")
+	require.NoError(t, err)
+	assert.False(t, merged, "a fresh branch is not merged")
+
+	// Unknown base: an error, not "merged"
+	_, err = IsMerged(repoDir, "already-merged", "nope")
+	assert.Error(t, err)
+}
+
+// N16: a branch checked out in a worktree is listed by `git branch --merged`
+// with a "+ " prefix, which the old parser missed; a fresh worktree branch was
+// cleaned up as merged.
+func TestIsMerged_WorktreeBranches(t *testing.T) {
+	repoDir := t.TempDir()
+	runGit(t, repoDir, "init", "-b", "main")
+	runGit(t, repoDir, "commit", "--allow-empty", "-m", "initial")
+
+	done := filepath.Join(t.TempDir(), "done")
+	runGit(t, repoDir, "worktree", "add", "-q", "-b", "feat/done", done)
+	runGit(t, done, "commit", "--allow-empty", "-m", "work")
+	runGit(t, repoDir, "merge", "-q", "--ff-only", "feat/done")
+
+	fresh := filepath.Join(t.TempDir(), "fresh")
+	runGit(t, repoDir, "worktree", "add", "-q", "-b", "feat/fresh", fresh)
+
+	merged, err := IsMerged(repoDir, "feat/done", "main")
+	require.NoError(t, err)
+	assert.True(t, merged, "a worktree branch fast-forwarded into main is merged")
+	merged, err = IsMerged(repoDir, "feat/fresh", "main")
+	require.NoError(t, err)
+	assert.False(t, merged)
+
+	res, err := CleanupMerged(repoDir, "main", false)
+	require.NoError(t, err)
+	assert.Equal(t, []string{"feat/done"}, res.Removed)
+	assert.NoDirExists(t, done)
+	assert.DirExists(t, fresh, "a fresh worktree is kept")
 }
 
 func TestDetectBaseBranch_Integration(t *testing.T) {

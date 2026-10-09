@@ -13,6 +13,10 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 - **Nouvelles opérations verrouillables `create` et `apply`** (schéma `oh/v1`, ajout compatible ; audit v5, W0) : `unlocks: [create]` refuse la création de tickets Beads (`bd create`), `unlocks: [apply]` les modifications d'infrastructure (`terraform apply`, `kubectl apply|delete`, `helm upgrade`, commandes create/delete/update des clouds…) tant que le checkpoint n'est pas passé. Une opération inconnue d'une version plus ancienne d'oh est un avertissement (`unlock_unknown`) et ne verrouille rien, au lieu de rendre le workflow invalide.
 
+### Fixed — robustesse (points critiques des audits v5, piste R)
+
+- **Worktrees fusionnés** : une branche est « fusionnée » si sa pointe est atteignable depuis la branche de base (`git merge-base --is-ancestor`). Avant, une branche extraite dans un worktree (préfixe `+ ` de `git branch --merged`) n'était jamais vue fusionnée, et une branche neuve, sans commit propre, l'était : `oh worktree cleanup` et la vue Worktrees supprimaient un worktree tout juste créé.
+
 ### Added — runtime v5 (phase 0, opencode V2)
 
 - **Sessions sur le runtime v5** dès qu'opencode V2 est installé (l'ancien chemin de lancement ne fonctionne pas avec V2 ; pas encore pris en charge sous Windows) : paquet de session compilé hors du projet (`~/.oh/bundles/<hash>`), serveur `opencode serve` dédié par groupe (paquet, projet), « monde fermé » vérifié (seuls les agents/skills du paquet sont visibles), plugin oh embarqué (prompt d'agent ajouté au prompt de base d'opencode).
