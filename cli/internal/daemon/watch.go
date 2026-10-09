@@ -192,6 +192,9 @@ func (w *watcher) onEvent(ctx context.Context, ev adapters.ToolEvent) {
 	if ev.Kind == adapters.EventSessionCreated && ev.ParentID != "" {
 		w.adoptChild(ctx, ev.SessionID, ev.ParentID)
 	}
+	if ev.Answer != nil {
+		w.onAnswer(ctx, ev)
+	}
 	if root, ok := w.rootOf(ev.SessionID); ok {
 		w.onChildEvent(ctx, root, ev)
 		return

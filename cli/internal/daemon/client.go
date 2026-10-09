@@ -25,6 +25,15 @@ type Client struct {
 	http       *http.Client
 	stream     *http.Client // no timeout (live stream)
 	capability string       // issuing capability (privileged routes)
+	token      string       // server group token (workflow routes)
+}
+
+// WithGroupToken returns a copy of c sending the token of a server group
+// (workflow routes, sent by the workflow MCP server).
+func (c *Client) WithGroupToken(token string) *Client {
+	cp := *c
+	cp.token = token
+	return &cp
 }
 
 // WithCapability returns a copy of c sending the issuing capability, needed
@@ -67,6 +76,9 @@ func (c *Client) do(ctx context.Context, method, path string, body, out any) err
 	}
 	if c.capability != "" {
 		req.Header.Set(CapabilityHeader, c.capability)
+	}
+	if c.token != "" {
+		req.Header.Set("Authorization", "Bearer "+c.token)
 	}
 	resp, err := c.http.Do(req)
 	if err != nil {

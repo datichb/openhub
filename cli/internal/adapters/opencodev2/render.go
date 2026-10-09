@@ -52,6 +52,8 @@ func Render(b sessionspec.BundleSpec, p sessionspec.ProviderSpec, natives []stri
 		if tokenEnv := providerTokenEnv(p); tokenEnv != "" {
 			env[tokenEnv] = p.SessionToken
 		}
+		// The workflow MCP server authenticates to the oh daemon with it.
+		env[sessionspec.EnvGroupToken] = p.SessionToken
 	}
 	return adapters.RenderedConfig{
 		Env:   env,

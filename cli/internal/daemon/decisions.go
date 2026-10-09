@@ -65,6 +65,24 @@ func (w *watcher) syncToolDecisions(ctx context.Context, root, toolSession strin
 	}
 }
 
+// onAnswer records the answer given in the tool to a checkpoint request
+// (N1): only an observed validation lets the checkpoint pass.
+func (w *watcher) onAnswer(ctx context.Context, ev adapters.ToolEvent) {
+	store, cp := w.d.opts.Decisions, w.d.opts.Checkpoints
+	if store == nil || cp == nil || ev.Answer.ID == "" {
+		return
+	}
+	root := ev.SessionID
+	if r, ok := w.rootOf(ev.SessionID); ok {
+		root = r
+	}
+	d, err := store.Get(ctx, domain.DecisionID(domain.DecisionCheckpoint, root, ev.Answer.ID))
+	if err != nil || d == nil || d.Kind != domain.DecisionCheckpoint {
+		return
+	}
+	cp.ToolReplied(ctx, *d, ev.Answer.Approved)
+}
+
 // isToolKind reports whether a decision kind mirrors a tool request.
 func isToolKind(k domain.DecisionKind) bool {
 	return k == domain.DecisionPermission || k == domain.DecisionQuestion || k == domain.DecisionCheckpoint

@@ -136,6 +136,9 @@ type Daemon struct {
 	sigMu         sync.Mutex
 	sigCache      map[string]credproxy.Auth // SigV4 signers by profile/region
 	kick          chan struct{}
+	// wfTokens are the tokens handed to the workflow MCP servers the
+	// daemon runs itself (gateway, container): hash → server group.
+	wfTokens map[string]string
 }
 
 type stateFile struct {

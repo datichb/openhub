@@ -56,6 +56,13 @@ func ParseMCPToolAction(action string) (server, tool string, ok bool) {
 	return server, tool, ok && server != "" && tool != ""
 }
 
+// EnvGroupToken holds, in the environment of the tool server (and so of the
+// workflow MCP server it runs), the token of its server group: the workflow
+// MCP server sends it to the oh daemon, which refuses the workflow routes
+// without it (v5 critical N1). Never in the shell of a session (the adapter
+// removes it).
+const EnvGroupToken = "OH_GROUP_TOKEN"
+
 // WorkflowMCPDef is the declaration of the workflow MCP server.
 func WorkflowMCPDef() MCPServerDef {
 	return MCPServerDef{Name: WorkflowMCPServer, Type: "local", Command: []string{OhBinVar, "mcp", "serve", WorkflowMCPServer}}

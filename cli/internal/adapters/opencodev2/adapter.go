@@ -125,7 +125,7 @@ func (a *Adapter) StartServer(ctx context.Context, g adapters.ServerGroup) (adap
 		if err := installPlugin(dir, g.Bundle); err != nil {
 			return adapters.ServerHandle{}, fmt.Errorf("installing oh plugin: %w", err)
 		}
-		h, err := a.start(ctx, g, withOhPlugin(g.Bundle, dir, a.PluginTrace, hookOptions(g.Provider)))
+		h, err := a.start(ctx, g, withOhPlugin(g.Bundle, dir, a.PluginTrace, hookOptions(g.Provider), serverSecretEnv(g.Provider)))
 		if err != nil {
 			return h, err
 		}
@@ -352,6 +352,7 @@ func (a *Adapter) Events(ctx context.Context, h adapters.ServerHandle) (<-chan a
 			if len(e.Data) > 0 {
 				_ = json.Unmarshal(e.Data, &te.Data)
 			}
+			te.Answer = permissionAnswer(e.Type, te.Data)
 			select {
 			case out <- te:
 			case <-ctx.Done():

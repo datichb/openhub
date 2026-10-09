@@ -21,6 +21,10 @@
 //   traceFile     optional JSONL trace of injected prompts (tests only)
 //   hookURL       oh hooks base URL (credential proxy listener)
 //   tokenEnv      environment variable holding the session token for hookURL
+//   gated         actions relayed to oh even when allowed (an "always"
+//                 answer saved by the tool never passes a checkpoint)
+//   scrubEnv      server variables removed from every shell environment
+//                 (password of the server, inline config, tokens)
 
 import { appendFileSync, readFileSync } from "fs"
 import { join } from "path"
@@ -33,6 +37,8 @@ type Options = {
   traceFile?: string
   hookURL?: string
   tokenEnv?: string
+  gated?: string[]
+  scrubEnv?: string[]
 }
 
 const hookTimeoutMs = 2000
@@ -79,7 +85,18 @@ export default {
       })
     }
 
+    if (opts.scrubEnv && opts.scrubEnv.length > 0) {
+      // A shell without a session environment inherits the server process
+      // environment: its secrets never reach the agent.
+      const scrub = [...opts.scrubEnv]
+      await ctx.shell.hook("create.before", (event: any) => {
+        if (!event?.env) return
+        for (const k of scrub) delete event.env[k]
+      })
+    }
+
     if (opts.hookURL && opts.tokenEnv) {
+      const gated = new Set(opts.gated ?? [])
       // The permission event does not carry the tool input: keep it by call id.
       const inputs = new Map<string, any>()
       await ctx.tool.hook("execute.before", (event: any) => {
@@ -88,7 +105,7 @@ export default {
         if (inputs.size > maxCalls) inputs.delete(inputs.keys().next().value as string)
       })
       await ctx.permission.hook("evaluate", async (event: any) => {
-        if (event?.effect !== "ask") return
+        if (event?.effect !== "ask" && !(event?.effect === "allow" && gated.has(event?.action))) return
         const callID = event.source?.id
         try {
           const res = await fetch(`${opts.hookURL}/permission`, {

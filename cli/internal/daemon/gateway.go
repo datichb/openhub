@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"maps"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -19,6 +20,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/gateway/beadswire"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/services/checkpoint"
+	"github.com/datichb/openhub/cli/internal/sessionspec"
 )
 
 // startGateway restores the gateway grants (hashes only) and serves the
@@ -194,7 +196,17 @@ func (d *Daemon) resolveMCP(ctx context.Context, group, name string) (gateway.MC
 	if err != nil {
 		return gateway.MCPCommand{}, err
 	}
-	return d.opts.MCPCommand(ctx, *srv, name)
+	c, err := d.opts.MCPCommand(ctx, *srv, name)
+	if err != nil || name != sessionspec.WorkflowMCPServer {
+		return c, err
+	}
+	env := maps.Clone(c.Env)
+	if env == nil {
+		env = map[string]string{}
+	}
+	env[sessionspec.EnvGroupToken] = d.workflowToken(group)
+	c.Env = env
+	return c, nil
 }
 
 // checkMCP refuses tool calls made for a session of another group (the

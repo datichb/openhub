@@ -60,6 +60,8 @@ type buildError struct {
 
 func (e *buildError) Error() string { return e.err.Error() + "\n" + e.out }
 
+const harnessCapability = "harness-capability"
+
 type workflowEnv struct {
 	home      string // OH_HOME (short: it holds the daemon socket)
 	ohBin     string
@@ -94,7 +96,9 @@ func newWorkflowEnv(t *testing.T, a *Adapter) *workflowEnv {
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan error, 1)
 	go func() {
-		done <- daemon.Run(ctx, daemon.Options{Paths: paths, Version: "test", Servers: e.servers, Sessions: e.sessions,
+		// Guarded like the real daemon (capability): the workflow routes
+		// need the group token (v5 critical N1).
+		done <- daemon.Run(ctx, daemon.Options{Paths: paths, Version: "test", Servers: e.servers, Sessions: e.sessions, Capability: harnessCapability,
 			Decisions: e.decisions, Checkpoints: e.cp, Tick: 200 * time.Millisecond, IdleAfter: time.Hour, IdleSleep: time.Hour,
 			Adapter: func(name string) adapters.ToolAdapter {
 				if name == Name {
@@ -110,7 +114,7 @@ func newWorkflowEnv(t *testing.T, a *Adapter) *workflowEnv {
 		case <-time.After(5 * time.Second):
 		}
 	})
-	e.client = daemon.NewClient(paths)
+	e.client = daemon.NewClient(paths).WithCapability(harnessCapability)
 	require.Eventually(t, func() bool { _, err := e.client.Health(context.Background()); return err == nil }, 5*time.Second, 20*time.Millisecond)
 	return e
 }

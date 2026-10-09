@@ -34,6 +34,9 @@ type Service struct {
 	// committed outside the Beads data (nil = git).
 	Head func(ctx context.Context, dir string) (head string, dirty bool, err error)
 	Now  func() time.Time
+	// ApprovalWait bounds the wait for the tool approval of a paused
+	// checkpoint (0 = 3 s).
+	ApprovalWait time.Duration
 }
 
 // Errors.

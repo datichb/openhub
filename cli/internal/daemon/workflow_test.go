@@ -41,7 +41,8 @@ func TestWorkflowAPI(t *testing.T) {
 
 	dctx, cancel := context.WithCancel(ctx)
 	done := make(chan error, 1)
-	cp := &checkpoint.Service{Sessions: sessions, SessionOutputs: sqlite.NewCheckpointStore(st), BundlesDir: bundles, SessionsDir: t.TempDir()}
+	cs := sqlite.NewCheckpointStore(st)
+	cp := &checkpoint.Service{Sessions: sessions, States: cs, SessionOutputs: cs, BundlesDir: bundles, SessionsDir: t.TempDir(), ApprovalWait: 10 * time.Millisecond}
 	go func() {
 		done <- Run(dctx, Options{Paths: p, Version: "t", Servers: sqlite.NewServerStore(st), Sessions: sessions, Checkpoints: cp, Tick: time.Hour, IdleAfter: time.Hour})
 	}()
@@ -53,12 +54,12 @@ func TestWorkflowAPI(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "cp-1", stat.Next)
 
-	res, err := c.WorkflowCheckpoint(ctx, "ses_a", checkpoint.Call{ID: "cp-1", Summary: "s"})
-	require.NoError(t, err)
-	assert.Equal(t, "pause", res.Behavior)
+	_, err = c.WorkflowCheckpoint(ctx, "ses_a", checkpoint.Call{ID: "cp-1", Summary: "s"})
+	var api *APIError
+	require.True(t, errors.As(err, &api))
+	assert.Equal(t, 409, api.Status, "N1: cp-1 pauses in manuel and was not validated")
 
 	_, err = c.WorkflowCheckpoint(ctx, "ses_a", checkpoint.Call{ID: "cp-9"})
-	var api *APIError
 	require.True(t, errors.As(err, &api))
 	assert.Equal(t, 422, api.Status)
 
@@ -89,7 +90,7 @@ func TestWorkflowAPI(t *testing.T) {
 	cpReq := `{"sessionID":"ses_a","action":"mcp:workflow/checkpoint","input":{"id":"cp-1"}}`
 	code, out := hook(g.Token, cpReq)
 	assert.Equal(t, 200, code)
-	assert.JSONEq(t, `{}`, out, "cp-1 pauses in manuel: decision kept")
+	assert.JSONEq(t, `{"effect":"ask"}`, out, "cp-1 pauses in manuel: asked (even after an always answer)")
 	code, _ = hook(other.Token, cpReq)
 	assert.Equal(t, 403, code, "another group cannot ask about this session")
 	code, _ = hook("nope", cpReq)

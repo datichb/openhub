@@ -18,6 +18,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"os"
 	"strings"
 
 	"github.com/datichb/openhub/cli/internal/daemon"
@@ -35,9 +36,12 @@ type Backend interface {
 	WorkflowOutput(ctx context.Context, toolSession string, o checkpoint.Output) error
 }
 
-// Serve runs the server on stdio against the oh daemon.
+// Serve runs the server on stdio against the oh daemon, with the token of
+// the server group found in its environment (the daemon refuses the
+// workflow routes without it).
 func Serve() error {
-	return New(daemon.NewClient(daemon.DefaultPaths())).Serve()
+	c := daemon.NewClient(daemon.DefaultPaths()).WithGroupToken(os.Getenv(sessionspec.EnvGroupToken))
+	return New(c).Serve()
 }
 
 // New returns the MCP server backed by b.

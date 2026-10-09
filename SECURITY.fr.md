@@ -79,6 +79,8 @@ Le démon oh (`ohd`) fait tourner un proxy d'identifiants sur `127.0.0.1` (une �
 - **Socket.** `~/.oh/run/ohd.sock`, droits 0600. L'identité du pair est vérifiée par le noyau à chaque connexion (UID, `LOCAL_PEERCRED` sous macOS, `SO_PEERCRED` sous Linux) : seuls les processus de votre utilisateur sont acceptés. Sur les autres systèmes, seuls les droits 0600 s'appliquent.
 - **Capacité d'émission.** Les routes qui donnent un accès (jetons du proxy et des passerelles, identifiants, écoutes supplémentaires du proxy) ou arrêtent le démon exigent en plus l'en-tête `X-Oh-Capability`. C'est un secret aléatoire gardé dans le trousseau du système (`openhub.daemon.capability`) ou, sans trousseau utilisable, dans `~/.oh/run/capability` (0600, signalé par `oh doctor`). Il n'est lu que par la CLI oh et le démon, comparé à temps constant, et jamais placé dans un environnement.
 - **Crochets.** Les routes du plugin oh et des passerelles (`/oh/v1/hooks/*`) sont authentifiées par le jeton du groupe.
+- **Routes du workflow.** `/v1/workflow/status`, `/checkpoint` et `/outputs` (dorsale du serveur MCP `workflow`) exigent le jeton du groupe de serveur de la session, que le serveur MCP lit dans l'environnement du serveur de l'outil (jamais dans le shell d'une session) ; la session doit appartenir à ce groupe (401/403 sinon). Les routes que seul oh appelle (`/v1/workflow/rules`, politiques de sortie `/groups/{g}/policy`, clients attachés `/v1/clients`) exigent la capacité. Un battement de cœur maintient un client 5 minutes au plus.
+- **Checkpoints liés à la validation de l'utilisateur.** Un checkpoint en pause dans le mode de la session ne passe qu'avec une validation vue par oh : donnée dans oh (TUI, CLI), ou dans l'interface de l'outil (oh lit la réponse à la demande de permission dans le flux d'événements). Tout autre appel (socket, requête MCP forgée) est refusé et ne déverrouille rien ; l'agent reçoit la consigne d'attendre la validation. Une réponse « toujours » enregistrée par l'outil ne laisse pas passer les checkpoints suivants : oh redemande.
 - **Contrôles.** `oh doctor` signale le stockage de la capacité, les droits et le propriétaire du socket, et les jetons restés en clair dans `oh.db`.
 - **Windows.** Le démon tourne dans le processus oh (pas de démon en arrière-plan).
 
@@ -138,7 +140,7 @@ Optionnelles et désactivées par défaut (`oh budget show|set|unset|raise`) : s
 
 ### Limites connues du mode local
 
-- Le shell de l'agent tourne sous votre utilisateur. Il peut voir le jeton du proxy de son serveur, et il peut toujours atteindre le socket du démon et `oh.db`.
+- Le shell de l'agent tourne sous votre utilisateur. Il peut toujours atteindre le socket du démon et `oh.db`, mais le socket ne fait plus passer un checkpoint (voir plus haut).
 - Sans la capacité, il ne peut pas obtenir de nouveaux jetons, mais un processus de votre utilisateur peut lire l'entrée du trousseau ou le fichier de capacité, ou lancer `oh` lui-même. Ces protections compliquent l'abus ; elles n'isolent pas l'agent.
 - La clé LLM n'est jamais dans l'environnement de l'agent ni dans la configuration d'opencode, mais votre trousseau est lisible par votre utilisateur.
 - Le mot de passe des serveurs opencode reste en clair dans `oh.db` (nécessaire pour attacher une session).

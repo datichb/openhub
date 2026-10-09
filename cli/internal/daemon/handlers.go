@@ -25,15 +25,15 @@ func (d *Daemon) routes() http.Handler {
 	mux.HandleFunc("POST "+apiPrefix+"/shutdown", d.privileged(d.handleShutdown))
 	mux.HandleFunc("POST "+apiPrefix+"/clients/heartbeat", d.handleHeartbeat)
 	mux.HandleFunc("DELETE "+apiPrefix+"/clients/{id}", d.handleClientGone)
-	mux.HandleFunc("GET "+apiPrefix+"/clients", d.handleClients)
-	mux.HandleFunc("POST "+apiPrefix+"/groups/{group}/policy", d.handlePolicy)
+	mux.HandleFunc("GET "+apiPrefix+"/clients", d.privileged(d.handleClients))
+	mux.HandleFunc("POST "+apiPrefix+"/groups/{group}/policy", d.privileged(d.handlePolicy))
 	mux.HandleFunc("POST "+apiPrefix+"/proxy/listeners", d.privileged(d.handleListen))
 	mux.HandleFunc("POST "+apiPrefix+"/gateway/grants", d.privileged(d.handleGatewayGrant))
 	mux.HandleFunc("GET "+apiPrefix+"/stream", d.handleStream)
 	mux.HandleFunc("GET "+apiPrefix+"/workflow/status", d.handleWorkflowStatus)
 	mux.HandleFunc("POST "+apiPrefix+"/workflow/checkpoint", d.handleWorkflowCheckpoint)
 	mux.HandleFunc("POST "+apiPrefix+"/workflow/outputs", d.handleWorkflowOutputs)
-	mux.HandleFunc("POST "+apiPrefix+"/workflow/rules", d.handleWorkflowRules)
+	mux.HandleFunc("POST "+apiPrefix+"/workflow/rules", d.privileged(d.handleWorkflowRules))
 	mux.HandleFunc("POST "+apiPrefix+"/sessions/{id}/decided", d.handleSessionDecided)
 	return mux
 }

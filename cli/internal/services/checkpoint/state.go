@@ -159,9 +159,71 @@ func (s *Service) Settled(ctx context.Context, d domain.Decision) {
 	})
 }
 
+// ErrNotApproved refuses a checkpoint that waits for the user in the mode
+// of the session but was not validated (v5 critical N1): neither in oh nor
+// by an answer of the tool observed by oh. The call cannot pass it by
+// another way (the daemon socket, a forged MCP request).
+var ErrNotApproved = errors.New("checkpoint not validated by the user")
+
+// approvalWait is how long a call waits for the approval of the tool to be
+// observed (the answer event and the call race each other).
+const approvalWait = 3 * time.Second
+
+// ToolReplied records the answer given in the tool to the request behind a
+// checkpoint decision (d): a positive one validates the checkpoint for the
+// call that follows. A validation made in oh is kept (with its message).
+func (s *Service) ToolReplied(ctx context.Context, d domain.Decision, approved bool) {
+	if d.Kind != domain.DecisionCheckpoint || !approved {
+		return
+	}
+	id, _ := d.Payload.Data[DataCheckpoint].(string)
+	if id == "" {
+		return
+	}
+	_, _ = s.update(ctx, d.SessionID, func(st *domain.CheckpointState) error {
+		if _, ok := st.Approved[id]; ok {
+			return errUnchanged
+		}
+		if st.Approved == nil {
+			st.Approved = map[string]domain.CheckpointApproval{}
+		}
+		st.Approved[id] = domain.CheckpointApproval{By: string(domain.ResolvedByTool)}
+		return nil
+	})
+}
+
 // pass records a checkpoint passed (the workflow_checkpoint call ran) and
-// opens the window of the operations it unlocks.
+// opens the window of the operations it unlocks. A checkpoint that waits for
+// the user in the mode passes only with a validation (ErrNotApproved): the
+// one of oh, or the answer of the tool observed by oh, possibly a little
+// after the call (approvalWait, while the checkpoint waits).
 func (s *Service) pass(ctx context.Context, sess *domain.Session, c sessionspec.CheckpointDef) (domain.CheckpointApproval, error) {
+	needs := bundle.NeedsDecision(c.Behavior(sess.Mode))
+	deadline := time.Now().Add(s.approvalWait())
+	for {
+		ap, err := s.tryPass(ctx, sess, c, needs)
+		if !errors.Is(err, ErrNotApproved) || time.Now().After(deadline) {
+			return ap, err
+		}
+		if st, serr := s.state(ctx, sess.ID); serr != nil || st.Waiting != c.ID {
+			return ap, err // nothing asked: no answer to wait for
+		}
+		select {
+		case <-ctx.Done():
+			return ap, err
+		case <-time.After(50 * time.Millisecond):
+		}
+	}
+}
+
+func (s *Service) approvalWait() time.Duration {
+	if s.ApprovalWait > 0 {
+		return s.ApprovalWait
+	}
+	return approvalWait
+}
+
+func (s *Service) tryPass(ctx context.Context, sess *domain.Session, c sessionspec.CheckpointDef, needs bool) (domain.CheckpointApproval, error) {
 	sessionID, id := sess.ID, c.ID
 	head := ""
 	if len(c.Unlocks) > 0 {
@@ -169,13 +231,14 @@ func (s *Service) pass(ctx context.Context, sess *domain.Session, c sessionspec.
 	}
 	var ap domain.CheckpointApproval
 	_, err := s.update(ctx, sessionID, func(st *domain.CheckpointState) error {
-		ap = st.Approved[id]
+		var ok bool
+		ap, ok = st.Approved[id]
+		if needs && !ok {
+			return ErrNotApproved
+		}
 		delete(st.Approved, id)
 		if ap.By == "" {
 			ap.By = "mode"
-			if st.Waiting == id {
-				ap.By = string(domain.ResolvedByTool) // validated in the tool UI
-			}
 		}
 		if st.Passed == nil {
 			st.Passed = map[string]time.Time{}
@@ -379,7 +442,7 @@ func (s *Service) Workflow(ctx context.Context, sessionID string) (*sessionspec.
 // Evaluate answers the tool plugin (level 3) for a permission about to be
 // asked: "allow" for a workflow_checkpoint call that does not wait for the
 // user in the session mode (or an unknown checkpoint, whose call then fails
-// with the list), "" to keep the rendered decision.
+// with the list), "ask" for one that waits, "" to keep the rendered decision.
 func (s *Service) Evaluate(ctx context.Context, root, action string, input map[string]any) (effect string, err error) {
 	if action != bundle.CheckpointAction() {
 		return "", nil
@@ -396,5 +459,7 @@ func (s *Service) Evaluate(ctx context.Context, root, action string, input map[s
 	if !known || !bundle.NeedsDecision(c.Behavior(sess.Mode)) {
 		return string(sessionspec.EffectAllow), nil
 	}
-	return "", nil
+	// Asked even when the tool would let it run (an "always" answer saved
+	// by the tool): only a validation passes it (N1).
+	return string(sessionspec.EffectAsk), nil
 }

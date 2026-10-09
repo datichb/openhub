@@ -79,6 +79,8 @@ The oh daemon (`ohd`) runs a credential proxy on `127.0.0.1` (one listener per m
 - **Socket.** `~/.oh/run/ohd.sock`, mode 0600. The peer identity is checked by the kernel on each connection (UID, `LOCAL_PEERCRED` on macOS, `SO_PEERCRED` on Linux): only processes of your user are accepted. On other systems, the 0600 mode alone applies.
 - **Issuing capability.** The routes that hand out access (proxy and gateway tokens, credentials, extra proxy listeners) or stop the daemon also require the `X-Oh-Capability` header. It is a random secret kept in the OS keychain (`openhub.daemon.capability`), or, without a usable keychain, in `~/.oh/run/capability` (0600, reported by `oh doctor`). It is read by the oh CLI and the daemon only, compared in constant time, and never put in any environment.
 - **Hooks.** The oh plugin and gateway routes (`/oh/v1/hooks/*`) are authenticated by the group token.
+- **Workflow routes.** `/v1/workflow/status`, `/checkpoint` and `/outputs` (backend of the `workflow` MCP server) require the token of the session's server group, which the MCP server reads from the tool server environment (never from the shell of a session); the session must belong to that group (401/403 otherwise). The routes only oh calls (`/v1/workflow/rules`, quit policies `/groups/{g}/policy`, attached clients `/v1/clients`) require the capability. A heartbeat keeps a client alive for 5 minutes at most.
+- **Checkpoints bound to the user's validation.** A checkpoint that pauses in the session mode passes only with a validation seen by oh: given in oh (TUI, CLI), or given in the tool interface (oh reads the answer to the permission request in the event stream). Any other call (socket, forged MCP request) is refused and unlocks nothing; the agent is told to wait for the validation. An "always" answer saved by the tool does not let later checkpoints through: oh asks again.
 - **Checks.** `oh doctor` reports the capability storage, the mode and owner of the socket, and tokens left in clear in `oh.db`.
 - **Windows.** The daemon runs inside the oh process (no background daemon).
 
@@ -138,7 +140,7 @@ Optional and disabled by default (`oh budget show|set|unset|raise`): maximum act
 
 ### Known limitations of the local mode
 
-- The agent's shell runs as your user. It may see its server's own proxy token, and it can still reach the daemon socket and `oh.db`.
+- The agent's shell runs as your user. It can still reach the daemon socket and `oh.db`, but the socket no longer passes a checkpoint (see above).
 - Without the capability it cannot obtain new tokens, but a process of your user can read the keychain item or the capability file, or run `oh` itself. These protections raise the bar; they do not isolate the agent.
 - The LLM key is never in the agent's environment or in the opencode configuration, but your keychain is readable by your user.
 - The password of the opencode servers stays in clear in `oh.db` (needed to attach to a session).

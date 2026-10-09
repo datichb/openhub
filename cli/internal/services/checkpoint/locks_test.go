@@ -52,6 +52,14 @@ func (f *fakeHead) get(_ context.Context, dir string) (string, bool, error) {
 	return f.head, f.dirty, nil
 }
 
+// reachValidated runs a workflow_checkpoint call validated by the user.
+func reachValidated(t *testing.T, svc *Service, ctx context.Context, session, id string) (Result, error) {
+	t.Helper()
+	svc.ToolReplied(ctx, domain.Decision{Kind: domain.DecisionCheckpoint, SessionID: session,
+		Payload: domain.DecisionPayload{Data: map[string]any{DataCheckpoint: id}}}, true)
+	return svc.Reached(ctx, session, Call{ID: id})
+}
+
 func askCP(t *testing.T, svc *Service, ctx context.Context, id string) bool {
 	t.Helper()
 	_, _, relocked, err := svc.Asked(ctx, "ses_l", "ses_l", adapters.PendingDecision{ID: "per_" + id, Call: &adapters.ToolCall{Input: map[string]any{"id": id}}})
@@ -71,7 +79,7 @@ func TestGuardCloseAndWindow(t *testing.T) {
 	require.NoError(t, err)
 	assert.Contains(t, rules, sessionspec.PermissionRule{Action: sessionspec.ActionShell, Resource: "*git*commit*", Effect: sessionspec.EffectDeny})
 
-	res, err := svc.Reached(ctx, "ses_l", Call{ID: "cp-2"})
+	res, err := reachValidated(t, svc, ctx, "ses_l", "cp-2")
 	require.NoError(t, err)
 	assert.Equal(t, []string{"commit", "close"}, res.Unlocked)
 	st, _ := svc.State(ctx, "ses_l")
@@ -97,7 +105,7 @@ func TestGuardCloseAndWindow(t *testing.T) {
 	assert.True(t, changed, "a closed ticket locks again")
 	require.ErrorAs(t, svc.GuardClose(ctx, "ses_l", "/work"), &lock)
 
-	_, err = svc.Reached(ctx, "ses_l", Call{ID: "cp-2"})
+	_, err = reachValidated(t, svc, ctx, "ses_l", "cp-2")
 	require.NoError(t, err)
 	assert.True(t, askCP(t, svc, ctx, "cp-2"), "cp-2 asked again: a new round")
 	require.ErrorAs(t, svc.GuardClose(ctx, "ses_l", "/work"), &lock)
@@ -153,7 +161,7 @@ func TestFinishDeclaresOutputs(t *testing.T) {
 	require.NoError(t, err)
 	assert.False(t, done)
 
-	_, err = svc.Reached(ctx, "ses_l", Call{ID: "cp-2"})
+	_, err = reachValidated(t, svc, ctx, "ses_l", "cp-2")
 	require.NoError(t, err)
 	_, err = svc.BeadsDone(ctx, "ses_l", BeadsClaim, []string{"pt-1"})
 	require.NoError(t, err)
