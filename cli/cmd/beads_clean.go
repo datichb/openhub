@@ -16,7 +16,6 @@ import (
 	"github.com/datichb/openhub/cli/internal/beads"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
-	"github.com/datichb/openhub/cli/internal/launcher"
 	"github.com/datichb/openhub/cli/internal/safego"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
@@ -25,8 +24,11 @@ import (
 // Beads « zero impact »: what `bd init` wrote in a project outside .beads/ is
 // taken back out when oh initializes Beads or registers a project, after the
 // user saw the changes (N17, DC16), and on demand by `oh doctor --fix`
-// (committed content too). The commit of `bd init` is undone only with an
-// explicit --yes. [beads] zero_impact = ask (default) | auto | off.
+// (committed content too). The commit of `bd init` (not pushed, not the
+// first one, remotes fetched first) is undone only once listed and
+// confirmed in a terminal (CLI or TUI), or with an explicit --yes: never
+// without a terminal nor by the automatic mode. [beads] zero_impact = ask
+// (default) | auto | off.
 
 // Values of [beads] zero_impact.
 const (
@@ -46,10 +48,12 @@ func zeroImpactMode(a *app.App) string {
 }
 
 // beadsCleanPlan is the clean-up proposed for a project (nil: nothing to
-// do, or zero impact off).
-func beadsCleanPlan(a *app.App, path string, yes bool) (*beads.CleanReport, beads.CleanOptions) {
+// do, or zero impact off). confirmed: the plan is shown and confirmed in a
+// terminal before it is applied (mode ask), which may then undo the commit
+// of bd init like --yes.
+func beadsCleanPlan(a *app.App, path string, yes, confirmed bool) (*beads.CleanReport, beads.CleanOptions) {
 	mode := zeroImpactMode(a)
-	opts := beads.CleanOptions{UndoCommit: yes, KeepUntracked: mode == zeroImpactAuto && !yes}
+	opts := beads.CleanOptions{UndoCommit: yes || (confirmed && mode == zeroImpactAsk), KeepUntracked: mode == zeroImpactAuto && !yes}
 	if path == "" || mode == zeroImpactOff || !beads.IsInitialized(path) {
 		return nil, opts
 	}
@@ -76,11 +80,12 @@ func applyBeadsClean(path string, opts beads.CleanOptions) beads.CleanReport {
 }
 
 // printBeadsClean offers the clean-up of a registered project (CLI): the
-// changes are listed, then applied after a confirmation (auto: applied;
-// without a terminal: listed only). yes applies without asking and undoes
-// the commit of bd init when it was not pushed.
+// changes are listed, then applied after a confirmation, the undo of the
+// commit of bd init included (auto: applied, commit kept; without a
+// terminal: listed only). yes applies without asking and undoes the commit
+// of bd init when it was not pushed.
 func printBeadsClean(w io.Writer, a *app.App, path string, yes bool) {
-	plan, opts := beadsCleanPlan(a, path, yes)
+	plan, opts := beadsCleanPlan(a, path, yes, stdinIsTerminal())
 	if plan == nil {
 		return
 	}
@@ -140,7 +145,7 @@ func offerBeadsClean(a *app.App, path string) {
 		return
 	}
 	safego.Go(func() {
-		plan, opts := beadsCleanPlan(a, path, false)
+		plan, opts := beadsCleanPlan(a, path, false, true)
 		if plan == nil || !plan.Changed() {
 			return
 		}
@@ -183,8 +188,10 @@ func printCleanActions(w io.Writer, r beads.CleanReport) {
 // for a confirmation (--yes without terminal) and applies it.
 func runDoctorFix(cmd *cobra.Command, a *app.App) error {
 	w := cmd.OutOrStdout()
-	yesFlag, _ := cmd.Flags().GetBool("yes")
-	plans, err := beadsFixPlans(cmd.Context(), a, yesFlag)
+	yes, _ := cmd.Flags().GetBool("yes")
+	// The commit of bd init is listed (and undone) when the plan is applied
+	// with --yes or confirmed in a terminal.
+	plans, err := beadsFixPlans(cmd.Context(), a, yes || stdinIsTerminal())
 	if err != nil {
 		return err
 	}
@@ -198,15 +205,13 @@ func runDoctorFix(cmd *cobra.Command, a *app.App) error {
 		fmt.Fprintf(w, "  %s (%s)\n", p.project.Name, p.project.Path)
 		printCleanActions(w, p.report)
 	}
-	yes, _ := cmd.Flags().GetBool("yes")
+	undo := yes
 	if !yes {
 		printCleanHints(w, beads.CleanReport{Actions: commitKept(plans)})
-	}
-	if !yes {
 		if !stdinIsTerminal() {
 			return errors.New(i18n.T("cmd.doctor.fix.needs_yes"))
 		}
-		ok, err := launcher.NewCLIUI(cmd.ErrOrStderr()).Confirm(i18n.T("cmd.doctor.fix.confirm"))
+		ok, err := cliConfirm(cmd.ErrOrStderr(), i18n.T("cmd.doctor.fix.confirm"))
 		if err != nil {
 			return err
 		}
@@ -214,9 +219,10 @@ func runDoctorFix(cmd *cobra.Command, a *app.App) error {
 			fmt.Fprintln(w, i18n.T("cmd.doctor.fix.cancelled"))
 			return nil
 		}
+		undo = true
 	}
 	for _, p := range plans {
-		if _, err := beads.FixImpact(p.project.Path, false, yes); err != nil {
+		if _, err := beads.FixImpact(p.project.Path, false, undo); err != nil {
 			return fmt.Errorf("%s: %w", p.project.Name, err)
 		}
 	}

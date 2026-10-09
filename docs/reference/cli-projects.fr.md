@@ -46,7 +46,7 @@ oh project add [options]
 | `--name` | `-n` | string | Nom du projet |
 | `--path` | `-d` | string | Chemin du projet (defaut : repertoire courant) |
 | `--language` | `-l` | string | Langage principal |
-| `--yes` | `-y` | bool | Beads zéro impact : retirer ce que `bd init` a écrit sans confirmation et annuler son commit s'il n'est pas poussé (sinon : liste, puis confirmation ; sans terminal, rien n'est changé) |
+| `--yes` | `-y` | bool | Beads zéro impact : retirer ce que `bd init` a écrit sans confirmation et annuler son commit s'il n'est pas poussé (sinon : liste, annulation du commit comprise, puis confirmation ; sans terminal, rien n'est changé) |
 
 **Exemple :**
 

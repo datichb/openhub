@@ -32,8 +32,9 @@ type CleanOptions struct {
 	// (the change then shows in git status).
 	Tracked bool
 	// UndoCommit undoes the commit of `bd init` (HEAD, absent from every
-	// remote branch once the remotes are fetched). Only with an explicit
-	// --yes (N17): otherwise the commit is reported (CleanCommitKept).
+	// remote branch once the remotes are fetched). Only once the user saw
+	// it in the plan and confirmed in a terminal, or with an explicit --yes
+	// (N17): otherwise the commit is reported (CleanCommitKept).
 	UndoCommit bool
 	// KeepUntracked leaves the untracked settings files of other tools
 	// (.claude/settings.json…) untouched, reported as CleanAsk: they may be
@@ -91,7 +92,11 @@ const (
 	// CleanUncommit: the commit of `bd init`, not pushed, was undone (the
 	// files stay in the working tree); Path is "commit <hash>".
 	CleanUncommit = "uncommit"
-	// CleanCommitKept: the commit of `bd init` could be undone with --yes.
+	// CleanUndoCommit: in a plan (DryRun), the commit of `bd init` will be
+	// undone if no remote has it once they are fetched.
+	CleanUndoCommit = "undo_commit"
+	// CleanCommitKept: the commit of `bd init` could be undone after a
+	// confirmation in a terminal or with --yes.
 	CleanCommitKept = "commit_kept"
 	// CleanCommitUnverified: a remote could not be fetched, the commit may
 	// be pushed: never undone.
@@ -239,10 +244,11 @@ func (c *cleaner) undoInitCommit() {
 		c.report.Actions = append(c.report.Actions, CleanAction{Path: commit, Kind: CleanSkipped})
 		return
 	}
-	c.report.Actions = append(c.report.Actions, CleanAction{Path: commit, Kind: CleanUncommit})
 	if c.opts.DryRun {
+		c.report.Actions = append(c.report.Actions, CleanAction{Path: commit, Kind: CleanUndoCommit})
 		return
 	}
+	c.report.Actions = append(c.report.Actions, CleanAction{Path: commit, Kind: CleanUncommit})
 	_, _ = c.gitOut("reset", "-q", "HEAD~1")
 }
 

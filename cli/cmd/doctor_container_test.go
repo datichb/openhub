@@ -1,11 +1,13 @@
 package cmd
 
 import (
+	"errors"
 	"net/http"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 
+	"github.com/datichb/openhub/cli/internal/gateway/bdargs"
 	"github.com/datichb/openhub/cli/internal/runtime/container"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
@@ -32,4 +34,21 @@ func TestGatewayReachCheck(t *testing.T) {
 
 func TestDoctorChecksRegistered(t *testing.T) {
 	assert.GreaterOrEqual(t, len(doctorChecks), 2, "container and gateway checks, one file each")
+}
+
+func TestBdVersionCheck(t *testing.T) {
+	same := bdVersionResult(bdargs.GeneratedFor, nil)
+	assert.True(t, same.OK)
+	assert.False(t, same.Warn)
+
+	other := bdVersionResult("bd version 99.1.0 (Homebrew)\n", nil)
+	assert.True(t, other.OK, "a warning, not a failure")
+	assert.True(t, other.Warn)
+	assert.Contains(t, other.Detail, "99.1.0")
+	assert.Contains(t, other.Detail, bdargs.VersionNumber(bdargs.GeneratedFor))
+	assert.Contains(t, other.Detail, "go run ./internal/gateway/bdargs/gen/main.go")
+
+	unreadable := bdVersionResult("", errors.New("exit status 1"))
+	assert.True(t, unreadable.Warn)
+	assert.Contains(t, unreadable.Detail, "exit status 1")
 }

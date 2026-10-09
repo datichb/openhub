@@ -195,9 +195,29 @@ func trustFile(common string) string {
 }
 
 type trust struct {
-	Common      string `json:"common"`
-	Fingerprint string `json:"fingerprint"`
+	Common      string            `json:"common"`
+	Fingerprint string            `json:"fingerprint"`
+	Files       map[string]string `json:"files,omitempty"`
 }
+
+// ConfigChangedError is ErrConfigChanged with what changed: the files whose
+// content differs from the session start, appeared or disappeared (empty
+// when the start recorded no file list: older oh).
+type ConfigChangedError struct {
+	Common string
+	// Fingerprint is the current fingerprint (one alert per state).
+	Fingerprint string
+	Files       []string
+}
+
+func (e *ConfigChangedError) Error() string {
+	if len(e.Files) == 0 {
+		return fmt.Sprintf("%s (%s)", ErrConfigChanged, e.Common)
+	}
+	return fmt.Sprintf("%s (%s: %s)", ErrConfigChanged, e.Common, strings.Join(e.Files, ", "))
+}
+
+func (e *ConfigChangedError) Unwrap() error { return ErrConfigChanged }
 
 // commonDir returns the git common directory of dir ("" outside a repository).
 func commonDir(ctx context.Context, dir string) string {
@@ -212,19 +232,30 @@ func commonDir(ctx context.Context, dir string) string {
 // the configuration files of its common directory and of the worktree, the
 // hooks, info/attributes and the `.git` pointer file of a worktree.
 func Fingerprint(ctx context.Context, dir string) (common, fingerprint string, err error) {
+	common, fingerprint, _, err = fingerprintFiles(ctx, dir)
+	return common, fingerprint, err
+}
+
+// fingerprintFiles is Fingerprint with the hash of each file ("-" for a
+// missing one), to tell which file changed.
+func fingerprintFiles(ctx context.Context, dir string) (common, fingerprint string, files map[string]string, err error) {
 	common = commonDir(ctx, dir)
 	if common == "" {
-		return "", "", fmt.Errorf("%s is not a git repository", dir)
+		return "", "", nil, fmt.Errorf("%s is not a git repository", dir)
 	}
+	files = map[string]string{}
 	h := sha256.New()
 	add := func(name string) {
 		data, err := os.ReadFile(name)
 		if err != nil {
 			fmt.Fprintf(h, "%s\x00-\x00", name)
+			files[name] = "-"
 			return
 		}
 		fmt.Fprintf(h, "%s\x00%d\x00", name, len(data))
 		h.Write(data)
+		sum := sha256.Sum256(data)
+		files[name] = hex.EncodeToString(sum[:])
 	}
 	add(filepath.Join(common, "config"))
 	add(filepath.Join(common, "info", "attributes"))
@@ -252,7 +283,7 @@ func Fingerprint(ctx context.Context, dir string) (common, fingerprint string, e
 			add(p)
 		}
 	}
-	return common, hex.EncodeToString(h.Sum(nil)), nil
+	return common, hex.EncodeToString(h.Sum(nil)), files, nil
 }
 
 func isFile(p string) bool {
@@ -262,7 +293,7 @@ func isFile(p string) bool {
 
 // Trust records the fingerprint of the repository of dir (session start).
 func Trust(ctx context.Context, dir string) error {
-	common, fp, err := Fingerprint(ctx, dir)
+	common, fp, files, err := fingerprintFiles(ctx, dir)
 	if err != nil {
 		return err
 	}
@@ -273,37 +304,58 @@ func Trust(ctx context.Context, dir string) error {
 	if err := os.MkdirAll(filepath.Dir(f), 0o700); err != nil {
 		return err
 	}
-	data, _ := json.Marshal(trust{Common: common, Fingerprint: fp})
+	data, _ := json.Marshal(trust{Common: common, Fingerprint: fp, Files: files})
 	return os.WriteFile(f, data, 0o600)
 }
 
-// Check refuses (ErrConfigChanged) a repository whose fingerprint differs
-// from the one recorded by Trust; nil when nothing was recorded (or dir is
-// not a repository: the git call itself fails).
+// Check refuses (ErrConfigChanged, as a *ConfigChangedError) a repository
+// whose fingerprint differs from the one recorded by Trust; nil when nothing
+// was recorded (or dir is not a repository: the git call itself fails).
 func Check(ctx context.Context, dir string) error {
-	common, fp, ferr := Fingerprint(ctx, dir)
+	common, fp, files, ferr := fingerprintFiles(ctx, dir)
 	if ferr != nil {
 		common = ""
 	}
-	if want, ok := recorded(common); ok && want != fp {
-		return fmt.Errorf("%w (%s)", ErrConfigChanged, common)
+	if want, ok := recorded(common); ok && want.Fingerprint != fp {
+		return &ConfigChangedError{Common: common, Fingerprint: fp, Files: changedFiles(want.Files, files)}
 	}
 	return nil
 }
 
-// recorded returns the fingerprint Trust recorded for a common directory.
-func recorded(common string) (string, bool) {
+// changedFiles lists the files of now that differ from then, and those of
+// then that are gone (sorted).
+func changedFiles(then, now map[string]string) []string {
+	if then == nil {
+		return nil
+	}
+	var out []string
+	for f, h := range now {
+		if then[f] != h && (then[f] != "" || h != "-") {
+			out = append(out, f)
+		}
+	}
+	for f, h := range then {
+		if _, ok := now[f]; !ok && h != "-" {
+			out = append(out, f)
+		}
+	}
+	sort.Strings(out)
+	return out
+}
+
+// recorded returns what Trust recorded for a common directory.
+func recorded(common string) (trust, bool) {
 	f := trustFile(common)
 	if common == "" || f == "" {
-		return "", false
+		return trust{}, false
 	}
 	data, err := os.ReadFile(f)
 	if err != nil {
-		return "", false
+		return trust{}, false
 	}
 	var t trust
 	if json.Unmarshal(data, &t) != nil {
-		return "", false
+		return trust{}, false
 	}
-	return t.Fingerprint, true
+	return t, true
 }

@@ -12,6 +12,7 @@ package bdargs
 
 import (
 	"fmt"
+	"regexp"
 	"sort"
 	"strings"
 )
@@ -372,4 +373,20 @@ func minusFirst(args []string, x string, d *cmdDef) []string {
 		}
 	}
 	return args
+}
+
+var versionRe = regexp.MustCompile(`\d+\.\d+(?:\.\d+)?(?:[-+][0-9A-Za-z.-]+)?`)
+
+// VersionNumber extracts the version number of the output of `bd version`
+// ("bd version 1.3.1 (Homebrew)" → "1.3.1"); "" when there is none.
+func VersionNumber(out string) string {
+	return versionRe.FindString(out)
+}
+
+// SameVersion reports whether the output of `bd version` names the bd
+// version the table was generated from (GeneratedFor), and that version.
+// The build (Homebrew…) does not count.
+func SameVersion(out string) (expected string, same bool) {
+	expected = VersionNumber(GeneratedFor)
+	return expected, VersionNumber(out) == expected
 }
