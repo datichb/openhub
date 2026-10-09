@@ -64,7 +64,7 @@ Secrets are never stored in plaintext on disk. `~/.oh` is 0700; `oh.db` and its 
 
 ### LLM credential proxy
 
-The oh daemon (`ohd`) runs a credential proxy on `127.0.0.1` (one listener per machine; on Linux, a second listener on the address seen by containers).
+The oh daemon (`ohd`) runs a credential proxy on `127.0.0.1` (one listener per machine; on Linux, a second listener on the address seen from containers, accepted only when it is an address of a container engine bridge of the machine — `docker0`, `br-…`, `podman…`, `cni…`, `virbr…` — and checked again when the daemon restarts: never an address of the local network or of a VPN, even when the project image gives it).
 
 - **Group tokens.** Each server group (bundle version, project, runtime) gets a random 256-bit token `ohs_…`, given to opencode in the provider variable. It is revoked when the group sleeps, stops or is abandoned; without a valid token the proxy answers 401.
 - **The key stays in the keychain.** The proxy reads the credential from the keychain (project key, provider key for the project, team key, hub key, then an AWS profile for Bedrock) and applies it in the transport, on the final request: header replaced, or AWS SigV4 signature. If the credential cannot be applied (for example expired AWS credentials), the request is refused (502) and nothing is sent to the provider.

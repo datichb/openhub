@@ -3,7 +3,6 @@ package daemon
 import (
 	"encoding/json"
 	"log/slog"
-	"net"
 	"net/http"
 	"os"
 	"strings"
@@ -205,12 +204,12 @@ func (d *Daemon) handleListen(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusBadRequest, "invalid body")
 		return
 	}
-	ip := net.ParseIP(req.Host)
-	if ip == nil || ip.IsUnspecified() || (!ip.IsPrivate() && !ip.IsLoopback()) {
-		writeErr(w, http.StatusBadRequest, "host must be a private or loopback IP address")
+	ip, err := listenHost(req.Host)
+	if err != nil {
+		writeErr(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	u, err := d.proxy.Listen(ip.String())
+	u, err := d.proxy.Listen(ip)
 	if err != nil {
 		writeErr(w, http.StatusInternalServerError, err.Error())
 		return

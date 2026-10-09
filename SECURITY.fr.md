@@ -64,7 +64,7 @@ Les secrets ne sont jamais stockés en clair sur le disque. `~/.oh` est en 0700 
 
 ### Proxy d'identifiants LLM
 
-Le démon oh (`ohd`) fait tourner un proxy d'identifiants sur `127.0.0.1` (une écoute par machine ; sous Linux, une seconde écoute sur l'adresse vue des conteneurs).
+Le démon oh (`ohd`) fait tourner un proxy d'identifiants sur `127.0.0.1` (une écoute par machine ; sous Linux, une seconde écoute sur l'adresse vue des conteneurs, acceptée seulement si c'est une adresse d'un pont du moteur de conteneurs de la machine — `docker0`, `br-…`, `podman…`, `cni…`, `virbr…` — et revérifiée au redémarrage du démon : jamais une adresse du réseau local ni d'un VPN, même si l'image du projet la donne).
 
 - **Jetons de groupe.** Chaque groupe de serveur (version du paquet, projet, environnement d'exécution) reçoit un jeton aléatoire de 256 bits `ohs_…`, donné à opencode dans la variable du fournisseur. Il est révoqué à la veille, à l'arrêt ou à l'abandon du groupe ; sans jeton valide, le proxy répond 401.
 - **La clé reste dans le trousseau.** Le proxy lit l'identifiant dans le trousseau (clé du projet, clé du fournisseur pour le projet, clé de l'équipe, clé du hub, puis un profil AWS pour Bedrock) et l'applique dans le transport, sur la requête finale : en-tête remplacé, ou signature AWS SigV4. Si l'identifiant ne peut pas être appliqué (par exemple des identifiants AWS expirés), la requête est refusée (502) et rien n'est envoyé au fournisseur.

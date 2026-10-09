@@ -354,6 +354,10 @@ func (d *Daemon) startProxy() error {
 		}
 	}
 	for _, h := range st.ListenHosts {
+		if _, err := listenHost(h); err != nil { // checked again (S-25): ohd.json is a plain file
+			slog.Warn("ohd: proxy listener not restored", "host", h, "error", err)
+			continue
+		}
 		if _, err := d.proxy.Listen(h); err != nil {
 			slog.Warn("ohd: cannot restore proxy listener", "host", h, "error", err)
 		}
