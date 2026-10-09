@@ -3,6 +3,7 @@ package bundle
 import (
 	"fmt"
 	"sort"
+	"strings"
 
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 	"github.com/datichb/openhub/cli/internal/workflow"
@@ -57,7 +58,38 @@ func (req *Request) applySpec() error {
 			req.DenySkills = s.Skills.Deny
 		}
 	}
+	if s.Risk == workflow.RiskRead {
+		req.MCP = readOnlyMCP(req.MCP)
+	}
 	return nil
+}
+
+// MCPWriteEnvSuffix ends the variable that turns on the write tools of an oh
+// MCP server (GITLAB_WRITE_ENABLED…).
+const MCPWriteEnvSuffix = "_WRITE_ENABLED"
+
+// readOnlyMCP returns servers without their write switch: a read-only
+// workflow (risk: read) never gets the write tools of the project's MCP
+// servers, whatever the project allows (N24, S-19).
+func readOnlyMCP(servers []sessionspec.MCPServerDef) []sessionspec.MCPServerDef {
+	if len(servers) == 0 {
+		return servers
+	}
+	out := make([]sessionspec.MCPServerDef, len(servers))
+	for i, m := range servers {
+		out[i] = m
+		if len(m.Environment) == 0 {
+			continue
+		}
+		env := make(map[string]string, len(m.Environment))
+		for k, v := range m.Environment {
+			if !strings.HasSuffix(strings.ToUpper(k), MCPWriteEnvSuffix) {
+				env[k] = v
+			}
+		}
+		out[i].Environment = env
+	}
+	return out
 }
 
 // specSkills returns the chain skills generated from the workflow YAML

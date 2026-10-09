@@ -21,6 +21,15 @@ prompt:
   template: prompts/quick.md.tmpl
 agents:
   developer: { role: workflow, mode: primary }
+checkpoints:
+  cp-commit:
+    label: { fr: Commit, en: Commit }
+    description:
+      fr: Présenter le résumé des changements (fichiers, tests) avant le commit.
+      en: Present the summary of the changes (files, tests) before the commit.
+    mandatory: true
+    mode: { manuel: pause, semi-auto: pause, auto: pause }
+    unlocks: [commit]
 beads:
   allow: [show, list, ready, search, children, comments, count, status, graph, history, create, update, close, dep, label]
 runtime: { default: local, allowed: [local] }

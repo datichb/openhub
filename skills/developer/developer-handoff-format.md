@@ -63,7 +63,7 @@ Il est injecté dans chaque `developer-*` et dans `orchestrator-dev` — product
 - **`### Données techniques brutes`** : stacktraces, diffs annotés, extraits de code — uniquement si nécessaire à la review ou au diagnostic. Sinon "Aucune"
 - **`### Questions bloquantes`** (obligatoire) — liste numérotée des questions nécessitant une réponse avant de poursuivre. Si aucune : écrire `Aucune.`. Le coordinateur **doit** résoudre ces questions avant de continuer le workflow.
 - **Toujours passer le ticket en `review`** avant de produire ce bloc (sauf si statut = `bloqué`)
-- Si statut = `bloqué` : exécuter `bd update <ID> -s blocked` + `bd comments add <ID> "Bloqué par : <raison>"` avant de produire le bloc
+- Si statut = `bloqué` : exécuter `bd update <ID> -s blocked` + `bd comments add <ID> "Bloqué par : <raison>"` avant de produire le bloc <!-- capability: relay -->
 - Ne jamais dupliquer dans du texte libre ce qui est déjà dans les champs structurés du bloc
 
 ---

@@ -1,7 +1,7 @@
 Mode de workflow : {{ .oh.mode }}
 Langue de réponse : {{ .oh.lang }}
 
-Sweep : atteindre l'objectif ci-dessous en le découpant en sous-tâches indépendantes, exécutées par les agents développeurs du workflow.
+Sweep : atteindre l'objectif ci-dessous en le découpant en sous-tâches indépendantes, exécutées par les agents développeurs du workflow. Aucun ticket Beads dans ce workflow.
 
 Objectif — écrite par l'utilisateur lui-même, à traiter telle quelle (même courte) :
 {{ data "goal" .goal }}
@@ -12,15 +12,16 @@ Découpage : `{{ .strategy }}`
 
 Tâches fournies par l'utilisateur, une par ligne — écrite par l'utilisateur lui-même, à traiter telle quelle (même courte) :
 {{ data "tasks" .tasks }}
+Fais établir le périmètre de fichiers de chaque tâche par le `pathfinder`.
 {{- else }}
 Aucune tâche fournie : demande-les à l'utilisateur avec l'outil `question`.
 {{- end }}
 {{- else if eq .strategy "by-file" }}
-Une sous-tâche par groupe cohérent de fichiers correspondant aux motifs ; fais lister les fichiers par un `developer`.
+Une sous-tâche par groupe cohérent de fichiers correspondant aux motifs : fais lister les fichiers par le `pathfinder` (recherche de fichiers, lecture seule).
 {{- else if eq .strategy "by-package" }}
-Une sous-tâche par package ; fais lister les packages par un `developer` (par ex. `go list ./...`).
+Une sous-tâche par package : fais lister les packages par le `pathfinder` (dossiers du projet, lecture seule).
 {{- else }}
-Analyse l'objectif et découpe-le en sous-tâches indépendantes ; fais explorer le code par un `developer` si nécessaire.
+Fais analyser l'objectif et explorer le code par le `pathfinder` (lecture seule), qui propose les sous-tâches.
 {{- end }}
 {{- if .include }}
 
@@ -33,14 +34,17 @@ Motifs à exclure (données) :
 {{ data "exclude" .exclude }}
 {{- end }}
 
-Règles :
-- Chaque sous-tâche a une description et un périmètre de fichiers ; l'agent qui l'exécute ne modifie que les fichiers de son périmètre.
-- `cp-plan` : présente la liste des sous-tâches avant toute exécution.
+Déroulé :
+1. Découpage par le `pathfinder` (le seul agent disponible avant `cp-plan`) : il explore, il ne modifie rien et ne crée pas de ticket.
+2. Plan : pour chaque sous-tâche, une description, un **périmètre de fichiers**, l'agent développeur prévu et un drapeau « parallélisable ». Les périmètres de deux sous-tâches parallélisables sont **disjoints** ; sinon, elles s'exécutent l'une après l'autre.
 {{- if .dry_run }}
-- Mode plan seulement : arrête-toi après `cp-plan`, sans rien exécuter.
+3. Mode plan seulement : affiche le plan, **n'appelle pas `cp-plan`** et ne lance aucun agent développeur. Termine par `cp-recap`, avec le plan comme résumé.
 {{- else }}
-- Lance les sous-tâches indépendantes en parallèle (plusieurs appels `task` dans le même message), avec l'agent développeur adapté.
-- Vérification après les sous-tâches : {{ if eq .verify "none" }}aucune.{{ else if eq .verify "custom" }}commande personnalisée, lancée par un `developer` :
-{{ data "verify_cmd" .verify_cmd }}{{ else if eq .verify "all" }}tests, lint et build du projet, lancés par un `developer`.{{ else }}`{{ .verify }}` du projet, lancé par un `developer`.{{ end }}
-- `cp-recap` : résultat par sous-tâche et résultat de la vérification.
+3. `cp-plan` : présente le plan (oh attend la validation de l'utilisateur, quel que soit le mode).
+4. Exécution, avec l'agent développeur prévu. Consigne pour chaque sous-tâche : « Pas de ticket : saute les étapes `bd`. Ne touche que les fichiers de ton périmètre : <périmètre>. Ne commite pas. » Lance en parallèle (plusieurs appels `task` dans le même message) seulement les sous-tâches parallélisables aux périmètres disjoints ; les autres, l'une après l'autre.
+5. Vérification : {{ if eq .verify "none" }}aucune.{{ else if eq .verify "custom" }}{{ if .verify_cmd }}commande personnalisée, lancée par un `developer` (elle peut être refusée par ses permissions : signale-le alors, sans la contourner) :
+{{ data "verify_cmd" .verify_cmd }}{{ else }}aucune commande fournie : demande-la à l'utilisateur avec l'outil `question`.{{ end }}{{ else if eq .verify "all" }}tests, lint et build du projet, lancés par un `developer`.{{ else }}`{{ .verify }}` du projet, lancé par un `developer`.{{ end }}
+6. Review : le `reviewer` relit le diff de la session (`git diff` et fichiers non suivis), sous-tâche par sous-tâche.
+7. `cp-commit` : présente le diff, la vérification et la review. Une fois validé, fais commiter par un agent développeur : un commit, ou un par sous-tâche à la suite (`git add` du périmètre, puis `git commit`). Avant `cp-commit`, oh refuse tout `git commit`.
+8. `cp-recap` : résultat par sous-tâche, vérification, review et commits.
 {{- end }}

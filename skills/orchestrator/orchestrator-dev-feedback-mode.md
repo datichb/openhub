@@ -1,13 +1,13 @@
 ---
 name: orchestrator-dev-feedback-mode
-description: Mini-workflow de correction basé sur le feedback de review humain. Short-circuite le workflow standard quand le prompt contient [MODE:feedback].
+description: Mini-workflow de correction basé sur le feedback de review humain (workflow review-feedback) — classement, cp-fix, correction sans commit par le developer, nouvelle review, cp-2, commit ; push et réponses aux fils laissés à l'utilisateur. Remplace le workflow standard quand le prompt contient [MODE:feedback].
 condition: mode_feedback
 ---
 
 # Mode Feedback — Correction depuis review humaine
 
 > Ce skill est chargé automatiquement quand le prompt contient `[MODE:feedback]`.
-> Il **remplace** le workflow standard (Steps 1-6) par un workflow de correction ciblée.
+> Il **remplace** le workflow standard (étapes 1 à 6) par un workflow de correction ciblée. Il n'y a **pas de ticket Beads** : le travail est identifié par la MR et sa branche.
 
 ## Détection
 
@@ -15,7 +15,7 @@ Si le prompt contient `[MODE:feedback]`, appliquer **ce workflow à la place** d
 
 ## Workflow
 
-### Step 1 : Lecture du feedback
+### Étape 1 : Lecture du feedback
 
 Le prompt contient les discussions MR non résolues sous la forme :
 
@@ -33,39 +33,29 @@ Commentaire:
    - Mots-clés importants (manque, devrait, il faut, wrong, missing, should, fix) → **Majeur**
    - Suggestions (suggestion, idéalement, optionnel, nit, could, consider) → **Mineur**
    - Défaut → **Majeur**
-3. Présenter la synthèse classée à l'utilisateur
+3. Présenter la synthèse classée dans la discussion (une ligne par discussion : sévérité, fichier, correction prévue)
 
-### Step 2 : CP — Confirmation
-
-Utiliser l'outil `question` pour demander confirmation :
+### Étape 2 : `cp-fix` — corrections à appliquer
 
 ```
-Feedback MR à traiter :
-- X corrections critiques
-- Y corrections majeures  
-- Z suggestions
-
-Appliquer toutes les corrections ? (les suggestions sont optionnelles)
+workflow_checkpoint({ id: "cp-fix", summary: "Feedback MR : X critiques, Y majeures, Z suggestions. Proposé : tout corriger (les suggestions sont optionnelles)." })
 ```
 
-Options :
-- "Tout corriger" (recommended) — appliquer critiques + majeurs + suggestions
-- "Critiques et majeurs seulement" — ignorer les suggestions
-- "Annuler"
+La réponse peut restreindre les corrections (« critiques et majeures seulement ») ou arrêter : applique-la. Le `developer` et le `reviewer` ne peuvent pas être lancés avant `cp-fix`.
 
-### Step 3 : Délégation au developer
+### Étape 3 : Correction par le developer (sans commit)
 
-Construire un prompt de délégation au format `### Corrections requises` standard :
+Déléguer via `task(subagent_type: "developer")` avec ce prompt :
 
 ```
 [Retours reviewer humain — Feedback MR]
-Ticket : <ID>
+MR : <ref>
 Branche : <branch>
 
 Action requise :
-1. Appliquer les corrections ci-dessous
-2. Vérifier que les tests passent
-3. Faire un commit : fix(review): address reviewer feedback
+1. Appliquer les corrections ci-dessous (pas de ticket : saute les étapes `bd`)
+2. Lancer les tests du projet (et le lint s'il existe) ; corriger ce qui échoue
+3. Ne pas commiter : rendre la main avec la liste des fichiers modifiés et le résultat des tests
 
 ### Corrections requises
 - [HUMAN:CRITIQUE] `path/to/file.go:42` — <description de la correction>
@@ -73,26 +63,40 @@ Action requise :
 - [HUMAN:MINEUR] — <suggestion optionnelle>
 ```
 
-> **Important** : Les findings sont tagués `[HUMAN:xxx]` pour que le developer sache que la source est un reviewer humain. Le protocol `reviewer-reception` s'applique avec un niveau de confiance plus élevé pour les findings humains.
+> **Important** : Les findings sont tagués `[HUMAN:xxx]` pour que le developer sache que la source est un reviewer humain. Le protocole `reviewer-reception` s'applique avec un niveau de confiance plus élevé pour les findings humains.
 
-Déléguer via `Task(subagent_type: "developer")`.
+Tu ne lances aucune commande toi-même : les tests sont lancés par le developer, tu lis leur résultat dans son retour.
 
-### Step 4 : Post-correction
+### Étape 4 : Nouvelle review
 
-Après que le developer a terminé :
+Déléguer via `task(subagent_type: "reviewer")` :
 
-1. Vérifier que les tests passent (lancer le pre-review : lint/types/tests)
-2. Si l'outil `gitlab_reply_to_mr_discussion` est disponible, poster une réponse sur chaque thread adressé :
-   > `[OpenHub] Corrections appliquées dans le commit <hash>.`
-3. Si l'outil `team_notify` est disponible, notifier l'équipe :
-   > "MR mise à jour avec les corrections demandées pour <ticket>"
-4. Si l'outil `team_review_verdict` est disponible, enregistrer le verdict :
-   > `team_review_verdict({ project, ticket_id, verdict: "rejected", reason: "human-feedback-applied" })`
-   (Le verdict "rejected" indique que des corrections ont été apportées — le reviewer humain décidera de l'approbation finale)
+```
+[SKILL:reviewer/reviewer-subagent] [MODE:feedback]
+Branche : <branch> — base : <base>
+Diff : git diff <base>...HEAD, plus les modifications non commitées de l'arborescence (git diff, git status)
+Vérifie que chaque retour ci-dessous est traité, et qu'aucune régression n'est introduite.
 
-### Step 5 : Récap
+### Retours à vérifier
+<la liste des corrections requises, telle quelle>
+```
 
-Produire un récapitulatif :
+Retour `corriger` → renvoyer au developer (étape 3) avec les retours du reviewer, puis nouvelle review.
+
+### Étape 5 : `cp-2` — commit
+
+Afficher le rapport de review intégralement, puis :
+
+```
+workflow_checkpoint({ id: "cp-2", summary: "Feedback MR : X/Y corrections appliquées, tests <résultat>, verdict du reviewer : <verdict>. Validation = commit." })
+```
+
+Validé → relancer aussitôt le developer : « `git add` des fichiers corrigés, puis `git commit -m "fix(review): address reviewer feedback"` (hooks compris, jamais `--no-verify`). » Avant `cp-2`, oh refuse tout `git commit`. Refusé → correction selon la consigne reçue (étape 3), nouvelle review, puis `cp-2` de nouveau.
+
+### Étape 6 : Récap
+
+Le push et les réponses aux fils de la MR **reviennent à l'utilisateur** (oh refuse `git push` dans ce workflow ; aucun agent ne répond sur la MR) :
+
 ```
 ## Récap feedback MR
 
@@ -103,7 +107,9 @@ Corrections appliquées : X/Y
 
 Commit : <hash>
 Tests : ✓ passent
-Réponses GitLab : ✓ postées (ou — non disponible)
+Review : <verdict>
+
+À faire par toi : pousser la branche (`git push`), puis répondre aux fils et les résoudre sur la MR.
 ```
 
 ## Compteur de cycles

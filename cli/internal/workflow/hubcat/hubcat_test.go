@@ -103,6 +103,7 @@ agents:
   documentarian: { role: independent }
 checkpoints:
   cp-1: { mode: { manuel: pause, semi-auto: auto, auto: auto } }
+  cp-2: { mandatory: true, unlocks: [commit], mode: { manuel: pause, semi-auto: pause, auto: pause } }
 `)
 	write(t, filepath.Join(wfDir, "prompts", "ticket.md.tmpl"), "Implement {{ .ticket }} in {{ .oh.project }}.\n")
 	write(t, filepath.Join(wfDir, "audit.yaml"), `apiVersion: oh/v1
@@ -216,13 +217,10 @@ func TestOrchestratorHasNoHardCodedModes(t *testing.T) {
 }
 
 // The former entry modes A–E are workflows now (P1-T14): no agent or skill
-// refers to them, except the legacy static skills only used by `oh deploy`.
+// refers to them (the legacy static skills were removed, N6).
 func TestNoLegacyEntryModes(t *testing.T) {
 	legacy := regexp.MustCompile(`\b[Mm]odes? [A-E]\b`)
-	allowed := map[string]bool{
-		filepath.Join("skills", "orchestrator", "orchestrator-modes.md"):          true,
-		filepath.Join("skills", "orchestrator", "orchestrator-ticket-routing.md"): true,
-	}
+	allowed := map[string]bool{}
 	for _, dir := range []string{"agents", "skills"} {
 		err := filepath.WalkDir(filepath.Join(repoHub, dir), func(path string, d fs.DirEntry, err error) error {
 			if err != nil || d.IsDir() || filepath.Ext(path) != ".md" {

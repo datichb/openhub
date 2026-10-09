@@ -1,8 +1,6 @@
 package bundle
 
 import (
-	"strings"
-
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 	"github.com/datichb/openhub/cli/internal/workflow"
 )
@@ -28,13 +26,4 @@ func WorkflowPlugins(refs []workflow.PluginRef) []sessionspec.PluginDef {
 
 // npmPackageName strips the version or tag of an npm spec
 // ("@scope/pkg@^1" → "@scope/pkg", "pkg@latest" → "pkg").
-func npmPackageName(spec string) string {
-	start := 0
-	if strings.HasPrefix(spec, "@") {
-		start = 1
-	}
-	if i := strings.Index(spec[start:], "@"); i >= 0 {
-		return spec[:start+i]
-	}
-	return spec
-}
+func npmPackageName(spec string) string { return workflow.PluginPackage(spec) }

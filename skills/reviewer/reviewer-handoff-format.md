@@ -55,10 +55,10 @@ Il est injecté dans le `reviewer` et dans `orchestrator-dev` — producteur et 
 ### À la réception du bloc `## Retour vers orchestrator-dev` du reviewer
 
 1. **Lire le `### Verdict`** pour décider de la suite :
-   - `commit` → continuer vers CP-2 (commit)
+   - `commit` → continuer vers le checkpoint de commit (`cp-2`, par `workflow_checkpoint`)
    - `corriger` ou `corriger-sécurité` → cycle de correction
 
-2. **Au CP-2** : copier intégralement la section `### Rapport complet` du bloc dans le `## Question pour l'orchestrator > ### Rapport de review complet` pour transmission à l'orchestrator (l'utilisateur doit voir le rapport avant de décider).
+2. **Avant `cp-2`** : afficher intégralement la section `### Rapport complet` dans la discussion (l'utilisateur doit voir le rapport avant de décider), puis appeler `workflow_checkpoint`.
 
 3. **Transmettre les `### Corrections requises`** au developer via `bd comments add <ID>` si correction choisie. Ne PAS transmettre les `### Suggestions (non-bloquant)` comme corrections — elles sont informatives.
 

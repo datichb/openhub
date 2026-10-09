@@ -27,7 +27,7 @@ inputs:
 prompt:
   template: prompts/feature.md.tmpl
 agents:
-  orchestrator: { role: workflow }
+  orchestrator: { role: workflow, calls: [pathfinder, planner, designer, orchestrator-dev, reviewer, documentarian] }
   pathfinder: { role: workflow, mode: subagent }
   planner: { role: workflow, mode: subagent }
   designer: { role: workflow, mode: subagent }
@@ -38,6 +38,14 @@ agents:
   reviewer: { role: workflow, mode: subagent }
   documentarian: { role: independent }
 checkpoints:
+  cp-tickets:
+    label: { fr: Valider les tickets à créer, en: Approve the tickets to create }
+    description:
+      fr: Présenter le découpage proposé par l'agent de planning ; les tickets ne sont créés qu'après la validation. Avec des tickets existants seulement, confirmer la liste (aucune création).
+      en: Present the breakdown proposed by the planning agent; tickets are only created once approved. With existing tickets only, confirm the list (nothing created).
+    mandatory: true
+    mode: { manuel: pause, semi-auto: pause, auto: pause }
+    unlocks: [create]
   cp-0:
     label: { fr: Valider le plan, en: Approve the plan }
     description:
@@ -57,7 +65,7 @@ checkpoints:
     label: { fr: Commit ou correction, en: Commit or fix }
     mandatory: true
     mode: { manuel: pause, semi-auto: pause, auto: pause }
-    unlocks: [commit, push, close]
+    unlocks: [commit, close]
   cp-3:
     label: { fr: Ticket suivant, en: Next ticket }
     mode: { manuel: pause, semi-auto: auto, auto: auto }

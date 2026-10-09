@@ -288,7 +288,7 @@ When comparing libraries, use this structure:
 - {Trade-off 2}
 
 **Implementation Notes**:
-- Install: `npm install {library}`
+- Install: `npm install {library}` <!-- capability: user -->
 - Setup: {brief overview}
 - Documentation: [URL]
 

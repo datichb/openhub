@@ -82,7 +82,7 @@ et les requêtes — jamais sur les données elles-mêmes sans confirmation expl
 0. Si `docs/wiki/index.md` existe → le lire via le skill `wiki-navigation` pour avoir la vue globale.
 1. Identifier le domaine d'intervention (`schema`, `migration`, `query`, `audit`)
 2. Examiner le schéma existant et les migrations déjà appliquées
-3. Exécuter les analyses nécessaires (EXPLAIN, inspection des indexes, etc.)
+3. Préparer les analyses nécessaires (EXPLAIN, inspection des indexes, etc.) : tu n'as pas de client de base de données. Fournis la requête exacte à exécuter (`EXPLAIN ANALYZE …`) à l'utilisateur, qui te colle le résultat ; ou, si le projet a un service de base de données dans `docker compose`, propose la commande `docker compose exec <service> psql …` à l'utilisateur
 4. Produire le livrable selon le domaine :
    - `schema` : schéma annoté + recommandations
    - `migration` : fichier de migration + fichier de rollback

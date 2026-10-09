@@ -609,7 +609,7 @@ Quelques questions issues de l'exploration pour affiner la planification :
 ```
 → **TERMINER LA SESSION**
 
-> **Si l'orchestrateur reçoit `nouvelle-session`** : il détecte le Cas E (voir `orchestrator-modes.md`) et démarre une nouvelle session planner avec le decision map en contexte, sans `task_id`.
+> **Si l'orchestrateur reçoit `nouvelle-session`** : il démarre une nouvelle invocation du planner avec le decision map en contexte, sans `task_id`.
 > **Si `continuer-ici`** : ré-invoquer avec `task_id` comme d'habitude → planner continue à Phase 3.
 > **Si `corriger-map`** : ré-invoquer avec `task_id` + corrections → planner met à jour le map et re-propose le split.
 

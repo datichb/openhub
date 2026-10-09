@@ -1,6 +1,6 @@
 ---
 name: onboarder-phase-5
-description: Phase 5 du workflow onboarder — production du wiki documentaire vivant (étapes 5.1 à 5.7 + récap final).
+description: Phase 5 du workflow onboarder — production du wiki documentaire vivant (étapes 5.1 à 5.6 + récap final).
 ---
 
 ## Phase 5 — Production du livrable
@@ -66,8 +66,7 @@ qui conditionnent tout le reste>
 
 **Après écriture :**
 - Créer `docs/wiki/` si le dossier n'existe pas
-- Ajouter `docs/wiki/` au `.git/info/exclude` (exclusion locale uniquement)
-- Ne JAMAIS modifier `.gitignore`
+- Ne JAMAIS modifier `.gitignore` ni `.git/` : si le wiki ne doit pas être versionné, le proposer à l'utilisateur dans la passation (ajout de `docs/wiki/` à son `.gitignore`)
 
 ---
 
@@ -239,7 +238,6 @@ Utiliser les formats canoniques du skill `doc-wiki-protocol` pour chaque page cr
 
 **Après écriture :**
 - Créer `docs/wiki/business/` si le dossier n'existe pas
-- Le dossier `docs/wiki/` est déjà dans `.git/info/exclude` (ajouté en ÉTAPE 5.1)
 
 ---
 
@@ -275,8 +273,7 @@ vers le wiki documentaire vivant (docs/wiki/index.md).
 ```
 
 **Après écriture :**
-- Ajouter `ONBOARDING.md` au `.git/info/exclude` si pas déjà présent
-- Ne JAMAIS modifier `.gitignore`
+- Ne JAMAIS modifier `.gitignore` ni `.git/`
 
 ---
 
@@ -294,93 +291,9 @@ Si aucun concept n'apparaît dans ≥ 2 pages → laisser le tableau vide avec l
 
 ---
 
-### ÉTAPE 5.6 — Mise à jour de `projects.md` (optionnelle)
+### ÉTAPE 5.6 — Fin des écritures
 
-Si le chemin vers `projects.md` est fourni dans le prompt ET que des champs sont absents ou incomplets :
-
-Afficher le contexte en texte et utiliser l'outil `question` :
-
-```
-[Texte de réponse]
-## Mise à jour projects.md
-
-J'ai détecté que le champ **Stack** est <absent / incomplet / générique> dans projects.md.
-
-**Stack détectée :**
-<stack complète détectée en Phase 1>
-
-[Puis appel outil question]
-question({
-  questions: [{
-    header: "Mise à jour projects.md",
-    question: "[Onboarder — Phase 5 : projects.md | Projet : <nom>]\nDes champs sont absents ou incomplets dans projects.md. Mettre à jour ?",
-    options: [
-      { label: "Oui — mettre à jour", description: "Écrire les champs manquants dans projects.md (Stack en priorité)" },
-      { label: "Non", description: "Laisser projects.md tel quel" }
-    ]
-  }]
-})
-```
-
-**Uniquement si l'utilisateur valide :**
-Mettre à jour les champs manquants dans la section du projet concerné dans `projects.md`.
-**Ne jamais modifier `projects.md` sans confirmation explicite.**
-
----
-
-### ÉTAPE 5.7 — Générer le cache de contexte
-
-**Toujours exécuter cette étape après les pages wiki**, sauf si le CONTEXTE initial contient `no-cache: true`.
-
-Générer `.opencode/context.json` avec :
-
-```json
-{
-  "version": "2.0",
-  "generated_at": "<timestamp ISO8601 UTC>",
-  "stack": {
-    "languages": ["<langages détectés en Phase 1>"],
-    "frameworks": ["<frameworks détectés en Phase 1>"]
-  },
-  "wiki": {
-    "source": "docs/wiki/index.md",
-    "hash": "<sha256 du fichier docs/wiki/index.md>"
-  },
-  "key_files": {
-    "<fichier_structurant>": "<sha256>",
-    "...": "..."
-  }
-}
-```
-
-**Fichiers structurants à inclure dans `key_files` (ceux qui existent dans le projet) :**
-
-```
-package.json, tsconfig.json, tsconfig.base.json, pyproject.toml, Cargo.toml,
-go.mod, composer.json, pom.xml, Gemfile, requirements.txt,
-eslint.config.js, eslint.config.mjs, .eslintrc.json, .prettierrc, .prettierrc.json,
-biome.json, docs/wiki/index.md
-```
-
-**Calcul des hashes :**
-- Utiliser `shasum -a 256 <fichier>` (macOS) ou `sha256sum <fichier>` (Linux)
-- Format : `sha256:<empreinte_hex>`
-
-**Protocole d'écriture :**
-1. S'assurer que le dossier `.opencode/` existe à la racine du projet (le créer si absent)
-2. Écrire `.opencode/context.json`
-3. Ajouter `.opencode/context.json` au `.git/info/exclude` (si pas déjà présent)
-4. Ne pas modifier `.gitignore`
-
-**Si `.opencode/context.json` existe déjà :**
-- L'écraser sans question (mise à jour normale lors d'un re-onboarding)
-
-**Message de confirmation dans la discussion (pas de question outil) :**
-```
-✅ Cache de contexte généré : .opencode/context.json
-   Stack : <langages et frameworks>
-   Fichiers indexés : <N fichiers structurants trouvés>
-```
+Aucune autre écriture : ni `projects.md`, ni cache de contexte (`.opencode/context.json` n'est plus lu par oh), ni `.git/info/exclude`. Tes permissions refusent tout fichier hors de `docs/wiki/`, `ONBOARDING.md` et `CONVENTIONS.md`. Le commit du wiki revient à l'utilisateur.
 
 ---
 

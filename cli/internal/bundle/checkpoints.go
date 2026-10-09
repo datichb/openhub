@@ -83,15 +83,56 @@ func SessionRules(wf *sessionspec.WorkflowRuntime, mode string, st *domain.Check
 
 // lockPatterns are the shell commands refused while an operation is locked.
 // The tool matches each command of a compound line on its own (`a && b`,
-// pipes, subshells, `VAR=x cmd`; verified on opencode 2.0.20), so a leading
-// `*` also catches `env git commit`, `git -c k=v commit`, `sh -c '…'`.
-// Closing a ticket is also refused by the Beads gateway, whatever the shell.
+// pipes, subshells; verified on opencode 2.0.20). The patterns are anchored
+// on the subcommand (N10), so that `git log --grep commit`, `git diff
+// src/pushX.ts` or `bd list --status closed` stay allowed, and cover the
+// usual detours: a prefix (`env git commit`, `X=1 git commit`), global
+// options (`git -c k=v commit`, `git -C dir commit`, `bd --json close`), a
+// path (`/usr/bin/git commit`), a shell string (`sh -c 'git commit'`), a git
+// alias defined on the command line. Commits made by other commands (revert,
+// cherry-pick, merge, pull, am) are locked with commit. Closing and creating
+// tickets are also refused by the Beads gateway, whatever the shell.
 var lockPatterns = map[string][]string{
-	sessionspec.UnlockCommit: {"*git*commit*"},
-	sessionspec.UnlockPush:   {"*git*push*"},
-	sessionspec.UnlockClose:  {"*bd*close*", "*bd*update*closed*"},
-	sessionspec.UnlockCreate: {"*bd*create*"},
+	sessionspec.UnlockCommit: subcommandPatterns("git", "commit", "revert", "cherry-pick", "merge", "pull", "am"),
+	sessionspec.UnlockPush:   subcommandPatterns("git", "push"),
+	sessionspec.UnlockClose:  append(subcommandPatterns("bd", "close", "done"), "bd update *closed*", "* bd update *closed*", "*/bd update *closed*"),
+	sessionspec.UnlockCreate: append(subcommandPatterns("bd", "create", "duplicate", "supersede"), "bd q *", "* bd q *", "*/bd q *"),
 	sessionspec.UnlockApply:  ApplyLockPatterns,
+}
+
+// wordOnly are the subcommands that prefix harmless ones (git merge-base).
+var wordOnly = map[string]bool{"merge": true}
+
+// subcommandPatterns returns the patterns that refuse `<tool> <sub>` for
+// each sub, whatever comes before the tool or between the tool and sub.
+func subcommandPatterns(tool string, subs ...string) []string {
+	var out []string
+	for _, sub := range subs {
+		word := sub + "*"
+		if wordOnly[sub] {
+			word = sub + " *" // git merge, not git merge-base
+		}
+		out = append(out,
+			tool+" "+word,               // git commit -m x
+			"* "+tool+" "+word,          // env git commit, X=1 git commit
+			"*/"+tool+" "+word,          // /usr/bin/git commit
+			"*sh -c *"+tool+"*"+sub+"*", // sh -c 'git commit', bash -c "…"
+		)
+		if wordOnly[sub] {
+			out = append(out, tool+" "+sub, "* "+tool+" "+sub, "*/"+tool+" "+sub)
+		}
+		// Global options first (git -c k=v commit, git -C dir commit, bd
+		// --json close): the subcommand is a word of its own, so that
+		// `bd --json list --status closed` stays allowed.
+		for _, pre := range []string{"", "* ", "*/"} {
+			out = append(out, pre+tool+" -* "+sub+" *", pre+tool+" -* "+sub)
+		}
+	}
+	if tool == "git" {
+		// git -c alias.x='!git commit' x: an alias hides the subcommand.
+		out = append(out, "git -*alias*", "* git -*alias*", "*/git -*alias*")
+	}
+	return out
 }
 
 // ApplyLockPatterns are the infrastructure changes refused while `apply` is
@@ -114,8 +155,8 @@ var ApplyLockPatterns = []string{
 }
 
 // LockedOps returns the operations (`unlocks:`) still locked: their
-// checkpoint is not passed in the current window (a checkpoint skipped in the
-// mode never locks), in declaration order.
+// checkpoint is not passed in the current window (an unlocking checkpoint is
+// never skipped, CheckpointDef.Behavior), in declaration order.
 func LockedOps(wf *sessionspec.WorkflowRuntime, mode string, st *domain.CheckpointState) []string {
 	if wf == nil {
 		return nil

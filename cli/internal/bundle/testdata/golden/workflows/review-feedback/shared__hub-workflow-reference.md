@@ -11,8 +11,9 @@ Agent d'entrée : `orchestrator-dev`. Seuls les agents ci-dessous existent dans 
 
 | Agent | Rôle | Mode | Après | Peut déléguer à |
 |---|---|---|---|---|
-| `orchestrator-dev` | workflow (entrée) | primary | — | `developer` |
+| `orchestrator-dev` | workflow (entrée) | primary | — | `developer`, `reviewer` |
 | `developer` | workflow | subagent | `cp-fix` | — |
+| `reviewer` | workflow | subagent | `cp-fix` | — |
 
 Règles de délégation :
 - Tu ne lances (outil `task`) que les agents de la colonne « Peut déléguer à » de ta ligne. Tout autre appel est refusé par l'outil.

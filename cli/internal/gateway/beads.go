@@ -149,6 +149,9 @@ func (b *Beads) Exec(ctx context.Context, g Grant, req beadswire.ExecRequest) (r
 		return refusalResp(i18n.T("cmd.gateway.beads.bd_missing")), http.StatusServiceUnavailable
 	}
 	op, isOp := ticketOp(c)
+	if !isOp {
+		op, isOp = createOp(c)
+	}
 	if isOp && op.Status != "" && !b.closingStatus(ctx, bin, dir, beadsDir, op.Status) {
 		isOp = false
 	}

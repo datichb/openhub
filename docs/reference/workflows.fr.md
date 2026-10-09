@@ -28,10 +28,10 @@ On lance un workflow avec `oh run <workflow>` ou la fiche de lancement de la TUI
 | `cadrage` | `conductor` | `pathfinder`, `planner`, `designer` | plan | local | ancien mode A sans implémentation |
 | `onboarding` | `onboarder` | — | write (`docs/wiki/`) | local, distant | `oh start --onboard` (ancien mode C) |
 | `review` | `reviewer` | — | read | local, distant | `oh review` |
-| `review-feedback` | `orchestrator-dev` | `developer` | write | local | `oh review feedback` |
+| `review-feedback` | `orchestrator-dev` | `developer`, `reviewer` | write | local | `oh review feedback` |
 | `audit` | `auditor` | `auditor-subagent` | read | local, distant | `oh audit` |
 | `debug` | `debugger` | `developer` (à la demande) | write | local | `oh debug` (ancien mode D) |
-| `sweep` | `conductor` | `developer`, `developer-refactor`, `developer-migrator` | write | local | `oh start --sweep` |
+| `sweep` | `conductor` | `pathfinder`, `developer`, `developer-refactor`, `developer-migrator`, `reviewer` | write | local | `oh start --sweep` |
 | `brief-enrich` | `brief-enricher` | — | read | local | `oh takeover-brief enrich` |
 | `libre` | au choix (`orchestrator` par défaut) | ceux que l'agent choisi peut appeler | write | local, conteneur | `oh start --agent`, session libre de la TUI |
 
@@ -85,7 +85,7 @@ Implémente un ou plusieurs tickets Beads déjà détaillés : routage vers le b
 
 Mode par défaut : `semi-auto`. Commandes Beads autorisées : `show`, `list`, `ready`, `children`, `dep`, `update`, `close`, `comments`, `label`. Sorties : `branch`, `tickets`.
 
-`cp-2` déverrouille `commit`, `push` et `close` : avant sa validation, oh refuse à tous les agents `git commit`, `git push` et la fermeture du ticket. Une fois `cp-2` validé, l'`orchestrator-dev` relance le `developer`, qui commite puis ferme le ticket ; oh refuse la fermeture tant que le travail n'est pas commité. Une question qui imite un checkpoint (« CP-2 — commit ? » posée avec l'outil `question`) est fermée par oh, qui rappelle à l'agent d'appeler `workflow_checkpoint`. Quand le ticket de la session est fermé (ou le dernier checkpoint passé) et que l'étape se termine, oh déclare les sorties manquantes (`branch`, `tickets`) et la session passe à **terminée** : « Enchaîner avec… » est proposé.
+`cp-2` déverrouille `commit` et `close` : avant sa validation, oh refuse à tous les agents `git commit` (et `revert`, `cherry-pick`, `merge`, `pull`, qui commitent aussi) et la fermeture du ticket. Le push revient à l'utilisateur (aucun workflow livré ne le déverrouille). Une fois `cp-2` validé, l'`orchestrator-dev` relance le `developer`, qui commite puis ferme le ticket ; oh refuse la fermeture tant que le travail n'est pas commité. Une question qui imite un checkpoint (« CP-2 — commit ? » posée avec l'outil `question`) est fermée par oh, qui rappelle à l'agent d'appeler `workflow_checkpoint`. Quand le ticket de la session est fermé (ou le dernier checkpoint passé) et que l'étape se termine, oh déclare les sorties manquantes (`branch`, `tickets`) et la session passe à **terminée** : « Enchaîner avec… » est proposé.
 
 ## `feature`
 
@@ -100,6 +100,7 @@ Sans demande ni ticket, la session commence par demander quelle feature réalise
 
 | Checkpoint | manuel | semi-auto | auto |
 |---|---|---|---|
+| `cp-tickets` Valider les tickets à créer (obligatoire, déverrouille `create`) | pause | pause | pause |
 | `cp-0` Valider le plan (obligatoire) | pause | pause | pause |
 | `cp-spec` Valider la spec UX/UI | si une spec a été produite | idem | idem |
 | `cp-1` Démarrer le ticket | pause | auto | auto |
@@ -107,13 +108,13 @@ Sans demande ni ticket, la session commence par demander quelle feature réalise
 | `cp-3` Ticket suivant | pause | auto | auto |
 | `cp-feature` Récap de la feature | pause | pause | auto |
 
-`orchestrator-dev` ne démarre qu'après `cp-0`. Mode par défaut : `semi-auto`. Sorties : `tickets`, `branch`. Commandes Beads autorisées : `show`, `list`, `ready`, `search`, `children`, `comments`, `count`, `status`, `graph`, `history`, `create`, `update`, `close`, `dep`, `label`, `duplicate`, `supersede`.
+Aucun ticket n'est créé avant `cp-tickets` (avec des tickets existants seulement, `cp-tickets` confirme la liste). `orchestrator-dev` ne démarre qu'après `cp-0` ; il passe lui-même `cp-1`, `cp-2` et `cp-3`, avec **un `cp-2` par ticket** (chaque ticket est commité puis fermé avant le suivant ; pas de validation groupée). En fin de feature, l'`orchestrator` fait relire l'ensemble par le `reviewer` (review adversariale sur la branche de travail), avant `cp-feature`. Mode par défaut : `semi-auto`. Sorties : `tickets`, `branch`. Commandes Beads autorisées : `show`, `list`, `ready`, `search`, `children`, `comments`, `count`, `status`, `graph`, `history`, `create`, `update`, `close`, `dep`, `label`, `duplicate`, `supersede`.
 
 L'ancienne pré-phase d'onboarding (mode C) n'est plus dans `feature` : la précondition `project-context` propose le workflow `onboarding`, puis le retour à `feature`.
 
 ## `quick`
 
-Session de développement directe avec l'agent `developer`, sans planification ni checkpoint. Le développeur déduit le domaine de la demande et charge les standards correspondants. Il propose `feature` si la demande s'avère importante. Commandes Beads autorisées : `show`, `list`, `ready`, `search`, `children`, `comments`, `count`, `status`, `graph`, `history`, `create`, `update`, `close`, `dep`, `label`.
+Session de développement directe avec l'agent `developer`, sans planification. Un seul checkpoint, `cp-commit` (obligatoire, en pause dans tous les modes) : il déverrouille `commit` ; avant lui, oh refuse tout `git commit`. Le push revient à l'utilisateur. Le développeur déduit le domaine de la demande et charge les standards correspondants. Il propose `feature` si la demande s'avère importante. Commandes Beads autorisées : `show`, `list`, `ready`, `search`, `children`, `comments`, `count`, `status`, `graph`, `history`, `create`, `update`, `close`, `dep`, `label`.
 
 | Entrée | Type | Obligatoire | Rôle |
 |---|---|---|---|
@@ -130,10 +131,10 @@ Explore, planifie et spécifie une feature sans l'implémenter : seuls des ticke
 | Checkpoint | manuel | semi-auto | auto |
 |---|---|---|---|
 | `cp-scope` Valider le périmètre (avant la planification) | pause | pause | auto |
-| `cp-tickets` Valider le découpage (obligatoire, avant la création des tickets) | pause | pause | pause |
+| `cp-tickets` Valider le découpage (obligatoire, déverrouille `create`) | pause | pause | pause |
 | `cp-recap` Récap du cadrage | pause | pause | auto |
 
-`planner` ne démarre qu'après `cp-scope`. Mode par défaut : `semi-auto`. Commandes Beads autorisées : `show`, `list`, `ready`, `children`, `search`, `count`, `label`, `dep`, `create`, `update`, `comments`, `duplicate`, `supersede`. Sortie : `tickets`. Pour implémenter ensuite : `ticket` ou `feature` sur les tickets créés.
+`planner` ne démarre qu'après `cp-scope`. Avant `cp-tickets`, oh refuse toute création de ticket (règles shell et passerelle Beads) : le planner propose le découpage, le `conductor` passe `cp-tickets`, puis relance le planner qui crée les tickets. Mode par défaut : `semi-auto`. Commandes Beads autorisées : `show`, `list`, `ready`, `children`, `search`, `count`, `label`, `dep`, `create`, `update`, `comments`, `duplicate`, `supersede`. Sortie : `tickets`. Pour implémenter ensuite : `ticket` ou `feature` sur les tickets créés.
 
 ## `onboarding`
 
@@ -144,7 +145,7 @@ Découvre le projet et crée ou enrichit le wiki `docs/wiki/` (protocole `doc-wi
 | `refresh` | `bool` (défaut : non) | non | Re-découvrir le projet et enrichir le wiki existant, sans rien supprimer |
 | `focus` | `text` (4 000 caractères max) | non | Modules ou sujets à approfondir |
 
-L'onboarder peut écrire des fichiers : la limite à `docs/wiki/` (plus le `ONBOARDING.md` minimaliste de la racine) est une consigne du prompt, pas une permission. Sortie : `wiki`. Commandes Beads autorisées : `show`, `list`, `ready`, `search`, `children`, `comments`, `count`, `status`, `graph`, `history`, `create`, `update`, `dep`, `label`.
+L'onboarder n'écrit que dans `docs/wiki/`, `ONBOARDING.md` et `CONVENTIONS.md` : c'est une permission (toute autre écriture est refusée, `.gitignore` et `.git/` compris). Il ne commite pas : le commit du wiki revient à l'utilisateur. Sortie : `wiki`. Commandes Beads autorisées : `show`, `list`, `ready`, `search`, `children`, `comments`, `count`, `status`, `graph`, `history`, `create`, `update`, `dep`, `label`.
 
 ## `review`
 
@@ -176,7 +177,7 @@ Applique les commentaires non résolus d'une merge request. `oh run review-feedb
 | `cp-fix` Corrections à appliquer | pause | pause | auto |
 | `cp-2` Commit ou correction (obligatoire) | pause | pause | pause |
 
-`developer` ne démarre qu'après `cp-fix`. Mode par défaut : `semi-auto`. Sortie : `branch`. Commandes Beads autorisées : `show`, `list`, `ready`, `search`, `children`, `comments`, `count`, `status`, `graph`, `history`, `create`, `update`, `close`, `dep`, `label`.
+Déroulé : classement des retours → `cp-fix` → correction par le `developer`, **sans commit**, tests du projet compris → nouvelle review des corrections par le `reviewer` → `cp-2` (déverrouille `commit`) → commit `fix(review): address reviewer feedback` → récap. Le push de la branche et les réponses aux fils de la MR **reviennent à l'utilisateur** (aucun agent ne pousse ni ne répond sur GitLab). `developer` et `reviewer` ne démarrent qu'après `cp-fix`. Mode par défaut : `semi-auto`. Sortie : `branch`. Commandes Beads autorisées : `show`, `list`, `ready`, `search`, `children`, `comments`, `count`, `status`, `graph`, `history`, `create`, `update`, `close`, `dep`, `label`.
 
 ## `audit`
 
@@ -195,11 +196,11 @@ Diagnostic d'un bug ou d'un problème isolé par le `debugger` : rapport de diag
 |---|---|---|---|
 | `issue` | `text` (8 000 caractères max) | non | Le problème observé ; vide : la session le demande |
 
-Sortie : `tickets`. Commandes Beads autorisées : `show`, `list`, `ready`, `search`, `children`, `comments`, `count`, `status`, `graph`, `history`, `create`, `update`, `close`, `dep`, `label`.
+Une correction faite dans la session se termine par `cp-commit` (obligatoire, en pause dans tous les modes, déverrouille `commit`). Sortie : `tickets`. Commandes Beads autorisées : `show`, `list`, `ready`, `search`, `children`, `comments`, `count`, `status`, `graph`, `history`, `create`, `update`, `close`, `dep`, `label`.
 
 ## `sweep`
 
-Atteint un objectif transverse en le découpant en sous-tâches indépendantes, lancées en parallèle par le `conductor` vers les agents développeurs, puis vérifie le résultat.
+Atteint un objectif transverse en le découpant en sous-tâches indépendantes : le `pathfinder` (lecture seule) découpe, le `conductor` fait valider le plan, lance les agents développeurs (en parallèle seulement pour des périmètres de fichiers disjoints), fait vérifier et relire le résultat par le `reviewer`, puis fait commiter après validation. Aucun ticket Beads.
 
 | Entrée | Type | Obligatoire | Rôle |
 |---|---|---|---|
@@ -208,15 +209,16 @@ Atteint un objectif transverse en le découpant en sous-tâches indépendantes, 
 | `tasks` | `text` (8 000 caractères max) | non | Tâches, une par ligne (`manual`) |
 | `include`, `exclude` | `string` (1 000 caractères max) | non | Motifs glob, séparés par des virgules |
 | `verify` | `enum` : `none` (défaut), `tests`, `lint`, `build`, `all`, `custom` | non | Vérification finale |
-| `verify_cmd` | `string` (500 caractères max) | non | Commande de vérification (`custom`) |
-| `dry_run` | `bool` (défaut : non) | non | Afficher le découpage sans rien exécuter |
+| `verify_cmd` | `string` (500 caractères max) | avec `custom` | Commande de vérification ; `verify: custom` sans elle est refusé au lancement (`verify_cmd_missing`). Lancée par un `developer` : elle peut être refusée par ses permissions |
+| `dry_run` | `bool` (défaut : non) | non | Afficher le découpage sans rien exécuter : `cp-plan` n'est pas appelé, la session se termine par `cp-recap` |
 
 | Checkpoint | manuel | semi-auto | auto |
 |---|---|---|---|
-| `cp-plan` Valider le découpage (avant toute exécution) | pause | pause | auto |
+| `cp-plan` Valider le découpage (obligatoire, avant toute exécution) | pause | pause | pause |
+| `cp-commit` Commit du sweep (obligatoire) | pause | pause | pause |
 | `cp-recap` Récap du sweep | pause | pause | auto |
 
-Les agents développeurs ne démarrent qu'après `cp-plan`. Mode par défaut : `semi-auto` ; coupe-circuit à 20 délégations consécutives (12 pour les autres workflows à checkpoints). Commandes Beads autorisées : `show`, `list`, `ready`, `search`, `children`, `comments`, `count`, `status`, `graph`, `history`, `create`, `update`, `close`, `dep`, `label`. Sortie : `branch`. Différence avec l'ancien `--sweep` : les sous-tâches s'exécutent dans la même session et le même emplacement (pas un worktree par tâche) ; `--sweep-branch-prefix` et `--max-sessions` n'ont pas d'équivalent.
+Les agents développeurs et le `reviewer` ne démarrent qu'après `cp-plan` ; `cp-commit` déverrouille `commit` (avant lui, oh refuse tout `git commit`). Mode par défaut : `semi-auto` ; coupe-circuit à 12 délégations consécutives. Commandes Beads autorisées : `show`, `list`, `search`. Sortie : `branch`. Différence avec l'ancien `--sweep` : les sous-tâches s'exécutent dans la même session et le même emplacement (pas un worktree par tâche) ; `--sweep-branch-prefix` et `--max-sessions` n'ont pas d'équivalent.
 
 ## `brief-enrich`
 
@@ -229,7 +231,7 @@ Enrichit un brief de reprise de ticket, sans interaction (session sans interface
 
 ## `libre`
 
-Session avec l'agent de ton choix, sans checkpoint : `oh run libre --agent debugger -i request="…"` (sans `--agent` : `orchestrator`). L'entrée du workflow est **au choix** (`entry.selectable: true`) : oh calcule les membres à partir de l'agent choisi et des agents qu'il peut appeler (permission `task` du catalogue, de proche en proche). Le monde reste fermé : rien d'autre n'est visible. Dans la TUI, la session libre (commande `coder`, ou « Démarrer » quand le catalogue est vide) ouvre la fiche avec l'agent par défaut. Commandes Beads autorisées : `show`, `list`, `ready`, `search`, `children`, `comments`, `count`, `status`, `graph`, `history`, `create`, `update`, `close`, `reopen`, `edit`, `comment`, `dep`, `label`, `duplicate`, `supersede` (tout sauf `delete`).
+Session avec l'agent de ton choix, sans checkpoint ni verrou de commit (l'agent demande confirmation avant toute action irréversible) : `oh run libre --agent debugger -i request="…"` (sans `--agent` : `orchestrator`). L'entrée du workflow est **au choix** (`entry.selectable: true`) : oh calcule les membres à partir de l'agent choisi et des agents qu'il peut appeler (permission `task` du catalogue, de proche en proche). Le monde reste fermé : rien d'autre n'est visible. Dans la TUI, la session libre (commande `coder`, ou « Démarrer » quand le catalogue est vide) ouvre la fiche avec l'agent par défaut. Commandes Beads autorisées : `show`, `list`, `ready`, `search`, `children`, `comments`, `count`, `status`, `graph`, `history`, `create`, `update`, `close`, `reopen`, `edit`, `comment`, `dep`, `label`, `duplicate`, `supersede` (tout sauf `delete`).
 
 | Entrée | Type | Obligatoire | Rôle |
 |---|---|---|---|

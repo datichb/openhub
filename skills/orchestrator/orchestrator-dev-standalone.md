@@ -1,57 +1,45 @@
 ---
 name: orchestrator-dev-standalone
-description: Parcours d'exécution de l'agent orchestrator dev en mode standalone (invoqué directement par l'utilisateur) — CP-0 récapitule les tickets (mode fixé au lancement), tous les CPs posent les questions via l'outil question, todo list visible par l'utilisateur.
+description: Parcours d'exécution de l'agent orchestrator dev comme agent d'entrée de la session (workflow ticket, review-feedback) — récap des tickets au démarrage (mode fixé au lancement), checkpoints par workflow_checkpoint, confirmations hors checkpoint par l'outil question, todo list visible par l'utilisateur.
 ---
 
-# Skill — Parcours Orchestrator-dev Standalone
+# Skill — Parcours Orchestrator-dev agent d'entrée
 
-> Ce skill est chargé automatiquement quand l'orchestrator-dev est invoqué directement par l'utilisateur (aucun `[SKILL:...]` injecté dans le prompt).
+> Ce skill est chargé quand l'orchestrator-dev est l'agent d'entrée de la session (aucun `[SKILL:...]` injecté dans le prompt).
 
 ## Principe fondamental
 
-En mode standalone, tous les checkpoints posent les questions **directement via l'outil `question`**. La todo list est visible par l'utilisateur en temps réel.
+Chaque checkpoint listé dans la table des checkpoints de la carte du workflow (section « Modes de workflow et checkpoints ») passe **uniquement** par l'outil `workflow_checkpoint` (`id` + `summary`). C'est oh qui applique le mode : l'appel attend la validation de l'utilisateur (`pause`), passe aussitôt (`auto`) ou n'est pas à faire (`skip`). Validation reçue = suite prévue (validation de `cp-2` = commit puis fermeture) ; refus = suivre la consigne reçue, puis rappeler `workflow_checkpoint` pour le même checkpoint. oh ferme sans effet une question qui nomme un checkpoint, et refuse `git commit` et la fermeture du ticket tant que `cp-2` n'est pas validé.
 
-> **Session lancée sur un workflow oh** (premier message avec `Mode de workflow : <mode>`) : chaque checkpoint de la carte du workflow (CP-1, CP-2, CP-3…) passe **uniquement** par l'outil `workflow_checkpoint` (`id` + `summary`), jamais par l'outil `question` ni par un texte. Les exemples `question` de ce skill ne valent que **hors workflow**. Validation reçue = suite prévue (CP-2 validé = commit) ; refus = suivre la consigne reçue, puis rappeler `workflow_checkpoint`. oh ferme sans effet une question qui imite un checkpoint, et refuse `git commit` et la fermeture du ticket tant que CP-2 n'est pas validé.
+L'outil `question` ne sert qu'aux confirmations **hors checkpoint** (branche dédiée, CHANGELOG), sans jamais nommer un checkpoint. N'appelle que les checkpoints de la table : un checkpoint décrit ci-dessous mais absent de la table n'existe pas dans cette session. La todo list est visible par l'utilisateur en temps réel.
 
 ---
 
-## CP-0 — Initialisation standalone
+## Démarrage
 
-Afficher les tickets à traiter. Le mode est donné par la ligne `Mode de workflow : <mode>` du premier message : ne le redemande pas. Seulement si cette ligne est absente (session sans workflow), le demander via les blocs question du skill `orchestrator-workflow-modes`.
+Afficher les tickets à traiter. Le mode est donné par la ligne `Mode de workflow : <mode>` du premier message : ne le redemande pas.
 
 **Initialiser todowrite** avec 1 tâche par ticket (toutes en `pending`) avec les labels de phase :
 
 | Moment | Mise à jour du label | Statut |
 |--------|---------------------|--------|
-| CP-0 (initialisation) | `#bd-12 — <titre>` | `pending` |
-| CP-1 démarrage | `#bd-12 — <titre> [dev]` | `in_progress` |
-| Étape 4 — review lancée | `#bd-12 — <titre> [review]` | `in_progress` |
-| Étape 5 — CP-2 en attente | `#bd-12 — <titre> [CP-2]` | `in_progress` |
-| CP-2 commit validé | `#bd-12 — <titre>` | `completed` |
-| CP-1 passer / ticket ignoré | `#bd-12 — <titre>` | `cancelled` |
+| Démarrage | `#bd-12 — <titre>` | `pending` |
+| Ticket démarré (`cp-1` passé) | `#bd-12 — <titre> [dev]` | `in_progress` |
+| Review lancée | `#bd-12 — <titre> [review]` | `in_progress` |
+| `cp-2` en attente | `#bd-12 — <titre> [validation]` | `in_progress` |
+| Commit fait | `#bd-12 — <titre>` | `completed` |
+| Ticket ignoré | `#bd-12 — <titre>` | `cancelled` |
 
 ---
 
-## Comportement des CPs (standalone)
+## Checkpoints
 
-### CP-1 — Démarrer le ticket
-Poser la question via l'outil `question` :
+### `cp-1` — Démarrer le ticket
 ```
-question({
-  questions: [{
-    header: "CP-1 — Ticket #<ID>",
-    question: "Démarrer l'implémentation du ticket #<ID> — <titre> ?",
-    options: [
-      { label: "Oui — démarrer", description: "Déléguer l'implémentation à <developer-xxx>" },
-      { label: "Voir le détail", description: "Afficher le contenu complet du ticket via bd show <ID>" },
-      { label: "Passer", description: "Ignorer ce ticket et passer au suivant" },
-      { label: "Stop", description: "Arrêter le workflow et afficher le récap de l'état courant" }
-    ]
-  }]
-})
+workflow_checkpoint({ id: "cp-1", summary: "Ticket #<ID> — <titre> : <résumé en 2 lignes>. Agent prévu : <developer-xxx>." })
 ```
 
-### Branche dédiée
+### Branche dédiée (confirmation hors checkpoint)
 Sauf si le premier message contient une ligne `Branche de travail : <branche>` (session déjà sur sa branche : ne rien demander), poser la question via l'outil `question` :
 ```
 question({
@@ -66,36 +54,19 @@ question({
 })
 ```
 
-### CP-2 — Commit ou corriger ?
-Afficher le rapport de review intégralement dans le texte **avant** d'appeler `question`. Utiliser les labels dynamiques selon le verdict du reviewer :
+### `cp-2` — Commit ou correction
+Afficher le rapport de review intégralement dans le texte, puis :
 ```
-question({
-  questions: [{
-    header: "CP-2 — Ticket #<ID>",
-    question: "Le rapport de review est affiché ci-dessus. Quelle suite pour le ticket #<ID> ?",
-    options: [
-      { label: "<Commit | Commit (Recommandé — aucun problème bloquant)>", description: "Formuler le message Conventional Commits et demander au developer de commiter" },
-      { label: "<Corriger | Corriger (Recommandé — X problèmes à résoudre)>", description: "Retourner le ticket au developer avec les retours du reviewer" }
-    ]
-  }]
-})
+workflow_checkpoint({ id: "cp-2", summary: "Ticket #<ID> — verdict du reviewer : <commit | corriger | corriger-sécurité>. <synthèse des problèmes>. Validation = commit puis fermeture ; refus = correction." })
+```
+Validé → relancer aussitôt le developer : commit Conventional Commits, puis fermeture du ticket. Refusé → retourner le ticket au developer avec la consigne reçue et les retours du reviewer, nouvelle review, puis rappeler `cp-2`.
+
+### `cp-3` — Ticket suivant
+```
+workflow_checkpoint({ id: "cp-3", summary: "Ticket #<ID> terminé (commit <sha court>). Suivant : #<ID-suivant> — <titre>." })
 ```
 
-### CP-3 — Ticket suivant ou stop ?
-```
-question({
-  questions: [{
-    header: "CP-3 — Suite",
-    question: "Ticket #<ID> terminé. Continuer avec le ticket suivant ?",
-    options: [
-      { label: "Ticket suivant (Recommandé)", description: "Passer au ticket #<ID-suivant> — <titre>" },
-      { label: "Stop", description: "Arrêter le workflow et afficher le récap global" }
-    ]
-  }]
-})
-```
-
-### CHANGELOG (feature/fix)
+### CHANGELOG (feature/fix, confirmation hors checkpoint)
 ```
 question({
   questions: [{
@@ -111,6 +82,6 @@ question({
 
 ---
 
-## Récap global (fin de session standalone)
+## Récap global (fin de session)
 
 Produire le récap global en texte clair. **Ne pas** produire le bloc `## Retour vers orchestrator`.

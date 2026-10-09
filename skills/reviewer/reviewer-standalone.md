@@ -69,9 +69,10 @@ Orchestrer des **sessions parallèles indépendantes** avec injection du context
       - `[DIFF-SCOPE:<liste fichiers>]` — les fichiers modifiés (périmètre de review)
       - `[STANDARDS:<liste>]` — les dev-standards à charger (ex: `frontend,testing,security,git`)
 
-2. **Lancer les sessions en parallèle** via l'outil `task` :
+2. **Lancer les sessions en parallèle** via l'outil `task` (si `reviewer` figure dans ta ligne « Peut déléguer à » ; sinon, fais les analyses toi-même, l'une après l'autre) :
 
    Pour "Standard + Adversarial" :
+   <!-- capability: optional -->
    ```
    // Session 1 — Standard (contexte wiki injecté)
    task(subagent_type: "reviewer", prompt: "[MODE:standard] [REVIEW:single] [WIKI-CONTEXT:<synthèse>] [DIFF-SCOPE:<liste fichiers>] [STANDARDS:<liste>] Review de la branche <branche>. git diff <base>..<branche>")
@@ -81,6 +82,7 @@ Orchestrer des **sessions parallèles indépendantes** avec injection du context
    ```
 
    Pour "Standard + Adversarial + Edge-case" :
+   <!-- capability: optional -->
    ```
    // Session 1 — Standard
    task(subagent_type: "reviewer", prompt: "[MODE:standard] [REVIEW:single] [WIKI-CONTEXT:<synthèse>] [DIFF-SCOPE:<liste fichiers>] [STANDARDS:<liste>] ...")

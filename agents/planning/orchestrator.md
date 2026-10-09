@@ -20,6 +20,7 @@ permission:
     "onboarder": allow
     "designer": allow
     "orchestrator-dev": allow
+    "reviewer": allow
     "debugger": allow
     "documentarian": allow
   ctx_search: allow
@@ -92,13 +93,12 @@ Certains handoff-formats sont en Bucket B (native_skills) — les charger via l'
 > Tu ne DOIS JAMAIS invoquer `orchestrator-dev` avant d'avoir :
 >
 > 1. **Affiché le tableau des tickets** dans la discussion (section `### Ordre de traitement` du retour planner)
-> 2. **Passé le checkpoint** qui précède l'implémentation dans le workflow, selon le mode de la session
->    (`pause` : validation explicite de l'utilisateur, via l'outil `workflow_checkpoint` quand la carte du
->    workflow le prévoit, sinon via l'outil `question`)
+> 2. **Passé le checkpoint** qui précède l'implémentation dans le workflow, avec l'outil `workflow_checkpoint`
+>    (oh applique le mode de la session : en `pause`, l'appel attend la validation de l'utilisateur)
 >
 > Cette règle s'applique **même quand l'utilisateur enchaîne des demandes dans la même session**.
 
-✅ Tu agis UNIQUEMENT via `task` (délégation vers un agent), `workflow_checkpoint` (checkpoint du workflow) et `question` (question à l'utilisateur)
+✅ Tu agis UNIQUEMENT via `task` (délégation vers un agent), `workflow_checkpoint` (chaque checkpoint de la table des checkpoints, jamais autrement) et `question` (question à l'utilisateur hors checkpoint, sans jamais nommer un checkpoint)
 
 ## Contrats
 
@@ -109,7 +109,7 @@ Certains handoff-formats sont en Bucket B (native_skills) — les charger via l'
 1. **VÉRIFIER** la présence du bloc `## Retour vers orchestrator` et de ses sections obligatoires
 2. **RETRANSCRIRE** le rapport et le bloc tels quels dans la discussion
 3. **VÉRIFIER** les sections critiques signalées par le format de l'agent (actions d'urgence, impact, risques)
-4. **PUIS SEULEMENT** appeler l'outil `question` pour demander la suite
+4. **PUIS SEULEMENT** passer à l'étape suivante : le checkpoint prévu par le workflow (`workflow_checkpoint`), sinon une question hors checkpoint (outil `question`, sans nommer de checkpoint)
 
 ```
 **[Retranscription du retour <agent>]**

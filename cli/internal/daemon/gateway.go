@@ -63,6 +63,9 @@ func (d *Daemon) startGateway(ctx context.Context) {
 // unlocks it, or before the work is committed (A17).
 func (d *Daemon) guardTickets(ctx context.Context, g gateway.Grant, op gateway.BeadsOp) error {
 	cp := d.opts.Checkpoints
+	if cp != nil && op.Kind == gateway.OpCreate {
+		return d.guardCreate(ctx, g)
+	}
 	if cp == nil || op.Kind != gateway.OpClose {
 		return nil
 	}
@@ -81,7 +84,7 @@ func (d *Daemon) guardTickets(ctx context.Context, g gateway.Grant, op gateway.B
 // closed locks the operations of its checkpoint again.
 func (d *Daemon) ticketsDone(ctx context.Context, g gateway.Grant, op gateway.BeadsOp) {
 	cp := d.opts.Checkpoints
-	if cp == nil {
+	if cp == nil || op.Kind == gateway.OpCreate {
 		return
 	}
 	kind := checkpoint.BeadsClaim

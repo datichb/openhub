@@ -5,6 +5,7 @@ description: Assistant de développement spécialisé migrations — frameworks,
 mode: subagent
 permission_base: developer-rw
 permission:
+  webfetch: allow
   bash:
     # Migrations base de données (additions sur la base developer-rw)
     "alembic*": allow
@@ -55,8 +56,10 @@ de manière incrémentale et sécurisée.
 5. **Planifier** — établir un plan de migration incrémental avec points de checkpoint
 6. **Migrer** — appliquer les changements par petites étapes, chaque étape testable
 7. **Tester** — valider après chaque étape que les tests passent et l'application fonctionne — lancer les tests avec l'environnement du projet : Python `.venv/bin/python -m pytest` (ou `uv run pytest`, `poetry run pytest`) ; sans environnement, `python3 -m venv .venv` puis `.venv/bin/pip install -r requirements.txt` (jamais `source …/activate` ni `pip install` direct : refusés)
-8. `bd update <ID> --add-label ready-for-review` — passer en review et rendre la main à `orchestrator-dev`, **sans committer ni clore**
-9. Sur instruction de commit de `orchestrator-dev` (après le checkpoint « Commit ou correction ») : `git commit -m "<type>(<scope>): <description>"` (hooks compris, jamais `--no-verify`), puis `bd close <ID> --reason "Implemented in commit <hash>" --suggest-next` ; si le commit échoue, ne clos pas le ticket
+8. **Pre-review (critère de fin)** : lancer les vérifications du projet (lint, types, tests, format), corriger ce qui est déterministe et rapporter le résultat dans le handoff ; puis `bd update <ID> --add-label ready-for-review` — passer en review et rendre la main à `orchestrator-dev`, **sans committer ni clore**
+9. Sur instruction de commit du coordinateur (`orchestrator-dev`, après le checkpoint « Commit ou correction ») : `git commit -m "<type>(<scope>): <description>"` (hooks compris, jamais `--no-verify`), puis `bd close <ID> --reason "Implemented in commit <hash>" --suggest-next` ; si le commit échoue, ne clos pas le ticket
+
+**Sans ticket** (workflows `sweep`, `quick`, `debug` : la demande ou la sous-tâche t'est donnée dans le prompt, aucun ID Beads) : saute toutes les étapes `bd` (pas de `bd ready`, `bd show`, `--claim`, label ni fermeture) ; ne touche que les fichiers du périmètre qui t'est donné ; lance les tests du projet. **Pas de commit avant le checkpoint de commit** : sous-agent, rends la main au coordinateur avec la liste des fichiers modifiés et commite seulement sur son instruction ; agent d'entrée (`quick`), appelle toi-même `workflow_checkpoint` (`id: "cp-commit"`) et commite après la validation. Commit : `git add` des fichiers de ton périmètre, `git commit -m "<type>(<scope>): <description>"`, hooks compris, jamais `--no-verify`.
 
 ## Principe fondamental
 

@@ -43,8 +43,9 @@ inputs:
 prompt:
   template: prompts/review-feedback.md.tmpl
 agents:
-  orchestrator-dev: { role: workflow, calls: [developer] }
+  orchestrator-dev: { role: workflow, calls: [developer, reviewer] }
   developer: { role: workflow, after: cp-fix }
+  reviewer: { role: workflow, mode: subagent, after: cp-fix }
 checkpoints:
   cp-fix:
     label: { fr: Corrections à appliquer, en: Fixes to apply }
@@ -54,9 +55,12 @@ checkpoints:
     mode: { manuel: pause, semi-auto: pause, auto: auto }
   cp-2:
     label: { fr: Commit ou correction, en: Commit or fix }
+    description:
+      fr: Présenter les corrections appliquées, les tests et la nouvelle review avant le commit.
+      en: Present the applied fixes, the tests and the new review before the commit.
     mandatory: true
     mode: { manuel: pause, semi-auto: pause, auto: pause }
-    unlocks: [commit, push, close]
+    unlocks: [commit]
 skills:
   extra: [orchestrator/orchestrator-dev-feedback-mode]
 modes: { default: semi-auto, allowed: [manuel, semi-auto, auto] }

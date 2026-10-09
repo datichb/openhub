@@ -23,7 +23,7 @@ oh workflow show ticket --origin         # valeurs résolues et document d'origi
 - **Textes traduisibles** (`label`, `description`, `help`) : un texte simple, ou une table par langue `{ fr: …, en: … }`. Sans la langue demandée, oh prend le texte simple, puis `en`, puis `fr`.
 - **Cartes ordonnées** : `inputs`, `agents`, `checkpoints` et `preconditions` gardent l'ordre du fichier (ordre de la fiche de lancement, des checkpoints et des tests).
 - **Patch** (`extends`) : c'est la **présence** d'un champ dans le fichier qui le remplace, pas sa valeur. Les cartes sont fusionnées par clé ; les listes et les textes sont remplacés en bloc.
-- **Sécurité** : `risk`, `isolation`, `runtime.allowed`, `modes.allowed`, `code_mode`, `beads.allow`, checkpoints obligatoires, `remote` et `limits` ne peuvent que **se durcir**. Un assouplissement est une erreur (`loosening`) et la valeur du parent est gardée.
+- **Sécurité** : `risk`, `isolation`, `runtime.allowed`, `modes.allowed`, `code_mode`, `beads.allow`, checkpoints obligatoires (et checkpoints qui portent `unlocks`), `remote`, `limits`, les verrous `after`, les listes `calls`, `circuit_breaker`, et hors de la couche hub `mcp` et `plugins`, ne peuvent que **se durcir**. Un assouplissement est une erreur (`loosening`) et la valeur du parent est gardée.
 - **Verrou** : un champ de premier niveau cité dans `enforce` d'un document parent ne peut plus être écrit par un document qui l'étend (`enforced_field`).
 
 Dans les tableaux ci-dessous, la colonne **Patch** vaut :
@@ -114,7 +114,7 @@ beads: { allow: [show, list, update, close] }
 - Absent : pas de restriction déclarée. La passerelle Beads applique alors une liste en lecture seule (`show`, `list`, `ready`, `search`, `children`, `comments`, `count`, `status`, `graph`, `history`). Les workflows livrés déclarent tous leur liste.
 - `allow: []` : aucune commande permise.
 - La liste est appliquée par la passerelle Beads du démon dans tous les environnements (en local, le faux `bd` d'oh passe en tête du `PATH` de la session ; un `bd` appelé par un chemin est refusé) et au rejeu du journal (distant). Voir [ADR-046](../architecture/adr/046-beads-gateways.fr.md).
-- Patch : sur un parent sans `beads`, toute liste durcit. Sur un parent avec liste, la nouvelle liste doit en être un sous-ensemble ; `beads: null` est un assouplissement.
+- Patch : un parent sans `beads` vaut la liste en lecture seule par défaut (celle qu'applique la passerelle : `show`, `list`, `ready`, `search`, `children`, `comments`, `count`, `status`, `graph`, `history`) : la liste de l'enfant doit en être un sous-ensemble (`create`, `close`… sont un assouplissement). Sur un parent avec liste, la nouvelle liste doit en être un sous-ensemble ; `beads: null` est un assouplissement.
 
 ### `runtime`
 
@@ -150,7 +150,7 @@ limits:
 | `entry.selectable` | booléen | `true`, `false` | `false` | à écrire avec `entry.agent` |
 | `modes.default` | texte | un mode de `modes.allowed` | premier mode autorisé | remplace |
 | `modes.allowed` | liste | `manuel`, `semi-auto`, `auto`, ou modes propres | `[manuel, semi-auto, auto]` | durcit (sous-ensemble du parent ; une liste vide vaut tous les modes) |
-| `circuit_breaker.max_consecutive_subagents` | entier ≥ 0 | N délégations de suite sans interaction | `0` (coupe-circuit désactivé) | remplace |
+| `circuit_breaker.max_consecutive_subagents` | entier ≥ 0 | N délégations de suite sans interaction | `0` (coupe-circuit désactivé) | durcit (valeur plus basse ; `0` ne remplace pas un coupe-circuit actif) |
 
 ### `entry`
 
@@ -283,7 +283,7 @@ La clé est l'id d'un agent du catalogue de briques (hub + équipe), en kebab-ca
 | `calls` | liste | ids d'agents du workflow | permission `task` de l'agent, restreinte au workflow | délégations permises (`calls_unknown`, `graph_cycle`) |
 
 - **Graphe** : `calls` quand il est écrit, sinon la permission `task` de l'agent, limitée aux membres. L'auto-délégation n'est retenue que si elle est écrite (`reviewer: { calls: [reviewer] }`). La profondeur maximale du graphe devient `experimental.subagent_depth` d'opencode.
-- **Patch** : fusion par id, champ par champ ; `role: disabled` retire l'agent (sauf l'agent d'entrée) ; `calls` est remplacé en bloc.
+- **Patch** : fusion par id, champ par champ ; `role: disabled` retire l'agent (sauf l'agent d'entrée) et le retire des listes `calls` des autres. `after` ne peut pas être retiré ni avancé (seulement reporté à un checkpoint déclaré plus loin) ; `calls` écrit par le parent ne peut que se réduire (sous-ensemble) ; un agent ajouté est accepté.
 
 ---
 
@@ -296,7 +296,7 @@ checkpoints:
     description: Après la review, demander s'il faut committer ou corriger.
     mandatory: true
     mode: { manuel: pause, semi-auto: pause, auto: pause }
-    unlocks: [commit, push, close]
+    unlocks: [commit, close]
     remote: defer
 ```
 
@@ -315,7 +315,7 @@ L'id est en kebab-case (`checkpoint_id_invalid`) et ne doit pas être celui d'un
 - **Comportements** : `pause` demande toujours l'utilisateur ; `auto` continue seul ; `skip` saute le checkpoint ; `conditional` demande selon `condition`. oh n'évalue pas la condition : un checkpoint `conditional` demande toujours l'utilisateur quand il est signalé.
 - **Ordre de rigueur** : `skip` < `auto` < `conditional` < `pause`. Sur un checkpoint `mandatory`, un patch ne peut pas choisir un comportement moins strict, ni le retirer (`mandatory_checkpoint_removed`) ; `skip` sur un checkpoint obligatoire compte comme une pause.
 - **`remote`** (session distante) : `auto` validé automatiquement ; `defer` la session s'arrête proprement et attend l'utilisateur sur la machine ; `forbid` le workflow ne peut pas s'exécuter à distance.
-- **`unlocks`** : tant que le checkpoint n'est pas passé, oh refuse ces opérations à **tous les agents** de la session, quel que soit le modèle : `commit` (`git commit`, y compris `env git commit`, `git -c … commit`), `push` (`git push`), `close` (fermeture d'un ticket Beads, refusée aussi par la passerelle Beads), `create` (création de tickets Beads : `bd create`), `apply` (modification de l'infrastructure : `terraform apply|destroy`, `kubectl apply|delete|…`, `helm install|upgrade|…`, commandes create/delete/update d'`aws|gcloud|az`, `pulumi up|destroy`). Une fois le checkpoint passé, la fermeture d'un ticket n'est acceptée que si le travail est commité depuis (ou s'il n'y a rien à committer, hors `.beads/`). La fenêtre se referme quand le checkpoint est demandé de nouveau (ticket suivant, nouvelle correction) et, pour un checkpoint qui déverrouille `close`, quand un ticket est fermé. Une opération n'est déverrouillée que par un seul checkpoint (`unlock_duplicate`) ; un checkpoint qui déverrouille ne peut pas être retiré (`unlocking_checkpoint_removed`). Un checkpoint sauté dans le mode ne verrouille rien. Une opération inconnue de la version d'oh utilisée (écrite par une version plus récente) donne un avertissement (`unlock_unknown`) et ne verrouille rien : mettez oh à jour sur tous les postes de l'équipe.
+- **`unlocks`** : tant que le checkpoint n'est pas passé, oh refuse ces opérations à **tous les agents** de la session, quel que soit le modèle : `commit` (`git commit`, y compris `env git commit`, `git -c … commit`, `/usr/bin/git commit`, `sh -c '…'`, un alias défini en ligne de commande, et les commandes qui commitent : `revert`, `cherry-pick`, `merge`, `pull`, `am` ; les motifs sont ancrés sur la sous-commande : `git log --grep commit`, `git diff src/pushX.ts`, `bd list --status closed` restent permis), `push` (`git push` ; avertissement `unlock_push_without_publish` hors `risk: publish` : aucun agent livré ne pousse, le push revient à l'utilisateur), `close` (fermeture d'un ticket Beads, refusée aussi par la passerelle Beads), `create` (création de tickets Beads : `bd create`, `bd q`, `bd create-form`, `bd duplicate`, `bd supersede` ; la création est refusée aussi par la passerelle Beads, et la fenêtre ne se referme pas à la fermeture d'un ticket, seulement quand le checkpoint est redemandé), `apply` (modification de l'infrastructure : `terraform apply|destroy`, `kubectl apply|delete|…`, `helm install|upgrade|…`, commandes create/delete/update d'`aws|gcloud|az`, `pulumi up|destroy`). Une fois le checkpoint passé, la fermeture d'un ticket n'est acceptée que si le travail est commité depuis (ou s'il n'y a rien à committer, hors `.beads/`). La fenêtre se referme quand le checkpoint est demandé de nouveau (ticket suivant, nouvelle correction) et, pour un checkpoint qui déverrouille `close`, quand un ticket est fermé. Une opération n'est déverrouillée que par un seul checkpoint (`unlock_duplicate`) ; un checkpoint qui déverrouille ne peut pas être retiré (`unlocking_checkpoint_removed`). Un checkpoint qui porte `unlocks` est traité comme obligatoire : il n'est jamais sauté (`skip` vaut `pause`, avertissement `unlock_skip`) et un patch ne peut pas l'assouplir (`loosening`). Une opération inconnue de la version d'oh utilisée (écrite par une version plus récente) donne un avertissement (`unlock_unknown`) et ne verrouille rien : mettez oh à jour sur tous les postes de l'équipe.
 - Un mode qui n'est ni autorisé ni un des trois modes livrés : `checkpoint_mode_unknown` ; `conditional` sans `condition` : `checkpoint_condition_missing`.
 - Exécution des checkpoints (3 niveaux : prompt, outil MCP `workflow_checkpoint`, plugin oh) : [ADR-042](../architecture/adr/042-checkpoints-headless-decisions.fr.md).
 
@@ -358,14 +358,14 @@ Testées avant le lancement, dans l'ordre du fichier, dans l'emplacement de la s
 | `models.agents.<agent>` | `fournisseur/modèle[#variante]` | — | fusion par agent |
 | `skills.extra` | liste de références de skills | — | remplace |
 | `skills.deny` | liste (référence ou nom seul) | — | remplace |
-| `mcp` | liste d'ids de serveurs MCP oh | serveurs MCP du projet | remplace |
-| `plugins` | liste | aucun plugin en plus du plugin oh | remplace |
+| `mcp` | liste d'ids de serveurs MCP oh | serveurs MCP du projet | durcit hors couche hub (sous-ensemble de la liste du parent ; parent sans liste : toute liste durcit) |
+| `plugins` | liste | aucun plugin en plus du plugin oh | durcit hors couche hub (sous-ensemble du parent : un plugin exécute du code) |
 | `beads.allow` | voir [Sécurité](#beads) | | |
 
 - **`models`** : niveau workflow de la [cascade des modèles](model-resolution.fr.md) (workflow·agent > workflow > projet…). Format invalide : `model_invalid` ; agent hors du workflow : `model_agent_unknown`.
 - **`skills`** : les skills viennent des agents membres et de leurs dépendances (`requires:`). `extra` en ajoute (`skill_unknown`), `deny` en retire (une référence `chemin/skill` ou un nom seul). Une skill refusée mais requise par une autre : `skill_denied_required` ; dépendance introuvable : `skill_closure` ; identifiant en double : `skill_duplicate`.
-- **`mcp`** : ids des serveurs MCP d'oh (`gitlab`, `figma`, `jira`, `team`…). Absent : la session garde les serveurs MCP du projet ; présent (même vide) : seulement ceux de la liste. Le serveur `workflow` (`workflow_status`, `workflow_checkpoint`, `workflow_outputs`) est toujours ajouté.
-- **`plugins`** : un id (spécification npm, ex. `context-mode@latest`) ou `{ id, options }`. Installés par opencode au démarrage du serveur ; un plugin qui ne se charge pas n'empêche pas la session. Le module doit exporter le format opencode V2 (`{ id, setup }`).
+- **`mcp`** : ids des serveurs MCP d'oh (`gitlab`, `figma`, `jira`, `team`…). Absent : la session garde les serveurs MCP du projet ; présent (même vide) : seulement ceux de la liste. Le serveur `workflow` (`workflow_status`, `workflow_checkpoint`, `workflow_outputs`) est toujours ajouté. En `risk: read`, les serveurs sont lancés **sans leurs outils d'écriture**, quel que soit le réglage du projet (`write_enabled`).
+- **`plugins`** : un id (spécification npm, ex. `context-mode@latest`) ou `{ id, options }`. Refusé en `risk: read` pour un plugin dont les outils exécutent des commandes (`context-mode` : `read_plugin_exec`). Installés par opencode au démarrage du serveur ; un plugin qui ne se charge pas n'empêche pas la session. Le module doit exporter le format opencode V2 (`{ id, setup }`).
 - Les entrées vides ou en double des listes : `field_required`, `duplicate_entry`.
 
 ---
@@ -422,14 +422,15 @@ Un diagnostic a une gravité (erreur ou avertissement), un code, le chemin du ch
 | `enforced_field`, `enforce_unknown_field` | champ verrouillé par un parent ; valeur d'`enforce` inconnue |
 | `entry_not_primary`, `entry_role`, `entry_disabled`, `agent_unknown`, `agent_unreachable` | agent d'entrée ou membre invalide |
 | `after_unknown`, `after_cycle`, `calls_unknown`, `graph_cycle` | verrous `after` et délégations |
-| `checkpoint_agent_clash`, `checkpoint_mode_unknown`, `checkpoint_mode_missing`, `checkpoint_condition_missing`, `mandatory_checkpoint_removed`, `unlocking_checkpoint_removed`, `unlock_duplicate`, `patch_unknown_checkpoint` | checkpoints |
+| `checkpoint_agent_clash`, `checkpoint_mode_unknown`, `checkpoint_mode_missing`, `checkpoint_condition_missing`, `mandatory_checkpoint_removed`, `unlocking_checkpoint_removed`, `unlock_duplicate`, `unlock_unknown`, `unlock_skip`, `unlock_push_without_publish`, `patch_unknown_checkpoint` | checkpoints |
 | `precondition_check_invalid`, `precondition_path_invalid`, `precondition_self`, `precondition_unknown_workflow`, `patch_unknown_precondition` | préconditions |
 | `prompt_both`, `prompt_empty`, `prompt_template_path`, `prompt_template_missing`, `prompt_parse`, `prompt_unknown_variable` | prompt |
-| `read_agent_writes`, `read_beads_unrestricted`, `read_beads_write` | règles de `risk: read` |
+| `read_agent_writes`, `read_beads_unrestricted`, `read_beads_write`, `read_plugin_exec` | règles de `risk: read` |
 | `plan_agent_writes`, `plan_beads_unrestricted`, `plan_beads_delete`, `plan_without_beads_write` | règles de `risk: plan` |
 | `remote_forbidden_checkpoint`, `runtime_default_not_allowed`, `mode_default_not_allowed`, `isolation_unsupported` | environnements, modes, isolation |
+| `parallel_writers_without_commit_gate` | avertissement : `risk: write`, au moins deux agents qui modifient des fichiers et aucun checkpoint qui déverrouille `commit` (sauf entrée au choix, `libre`) |
 | `model_invalid`, `model_agent_unknown`, `skill_unknown`, `skill_unknown_deny`, `skill_closure`, `skill_duplicate`, `skill_denied_required` | ressources |
-| `session_mode_not_allowed`, `session_runtime_not_allowed`, `session_input_unknown`, `session_input_invalid`, `session_input_missing`, `session_entry_not_selectable`, `session_entry_unknown` | options de lancement |
+| `session_mode_not_allowed`, `session_runtime_not_allowed`, `session_input_unknown`, `session_input_invalid`, `session_input_missing`, `verify_cmd_missing` (une entrée `enum` qui vaut `custom` exige l'entrée `<entrée>_cmd` quand le workflow la déclare), `session_entry_not_selectable`, `session_entry_unknown` | options de lancement |
 
 ---
 

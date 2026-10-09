@@ -192,8 +192,10 @@ questions, then proposes a plan:
 
 #### 3. [CP-0] Plan validation
 
-The orchestrator displays the ticket table **in the discussion** (not inside the question),
-then asks you to validate the plan:
+The orchestrator displays the ticket table **in the discussion**,
+then passes the `cp-0` checkpoint (`workflow_checkpoint` tool): you approve the plan from oh or from the tool interface.
+
+> **One checkpoint protocol**: every checkpoint of the workflow goes through the `workflow_checkpoint` tool, whether the agent is the entry agent or a subagent (`orchestrator-dev`, invoked by the orchestrator, calls `cp-1`, `cp-2`, `cp-3` itself). A question asked with the `question` tool that names a checkpoint (`cp-2`, « CP 2 », its label) is closed by oh without effect. One `cp-2` per ticket: there is no grouped approval of several commits.
 
 ```
 ## Planned tickets — JWT Authentication
@@ -233,7 +235,7 @@ The orchestrator passes dev tickets to `orchestrator-dev` with the chosen mode.
 3. Developer returns a structured `## Return to orchestrator-dev` block — files modified, acceptance criteria checked, **points of attention for the review** (fragile zones, technical trade-offs)
 4. Launches review automatically — passing the developer's points of attention to the reviewer
 6. Reviewer returns a structured block with an **actionable verdict** (`commit` / `fix` / `fix-security`), problem summary by severity, and required corrections verbatim
-7. Presents the review report `[CP-2]` — **always a pause, no exception**
+7. Presents the review report and passes `cp-2` (one call per ticket) — **always a pause, no exception**; once approved, the developer commits then closes the ticket
 8. If "fix": corrections are copied verbatim into the Beads comment — no manual summary; routing to `developer-security` if the verdict is `fix-security`
 9. Closes and moves to the next `[CP-3]` (automatic in semi-auto/auto)
 10. After all tickets: `orchestrator-dev` emits a **condensed per-ticket summary** (status, key files, covered criteria, attention points + aggregated global attention points) followed by the **structured** `## Return to orchestrator` **block** (per-ticket detail table, statistics, global status) — the two are complementary; the orchestrator **displays this summary in its discussion thread** before presenting the [CP-feature] to the user

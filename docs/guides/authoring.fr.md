@@ -200,6 +200,12 @@ Ce skill définit... Il complète <autre-skill> si applicable.
 - [ ] **Skills Bucket B** : les agents qui en ont besoin l'ont dans leur frontmatter `native_skills:` ; la section guide du corps de l'agent liste le skill avec une description du déclencheur de chargement
 - [ ] **Skills spécifiques aux stacks** (`developer/stacks/`) : détection ajoutée dans `detect_stack()`, mapping ajouté dans `config/stack-skills.json` — aucun changement de frontmatter d'agent nécessaire
 
+### Contrôles automatiques du contenu
+
+`go test ./internal/bundle` vérifie le contenu livré à chaque workflow :
+- **un seul protocole de checkpoint** : aucune question (`question`) dont l'en-tête ou le texte nomme un checkpoint (`cp-2`, « CP 2 », son libellé), aucune « fin de session » pour relayer un checkpoint (`TestShippedCheckpointProtocol`) ; une skill générée depuis le workflow reste un bouchon « GÉNÉRÉ », aucune skill n'est orpheline ;
+- **capacités** (`TestCapabilities`) : chaque commande écrite pour un agent (spans de code, blocs shell, premier mot connu : `bd`, `git`, `npm`, `go`…) doit être permise par ses permissions ; chaque `task(subagent_type: "x")` doit viser un agent qu'il peut appeler ; un agent `after: cp-x` n'est pas sollicité dans le gabarit avant `cp-x` ; un checkpoint qui déverrouille une opération a un membre capable de la faire. Une ligne qui interdit (`❌`, « jamais »…) ou relaie une consigne à un autre agent (`> 1.`, « … ») n'est pas comptée. Pour une commande destinée à l'utilisateur, un exemple ou un agent optionnel, ajoute `<!-- capability: user -->` (ou `example`, `optional`) sur la ligne, ou seul sur la ligne qui précède un bloc de code. Les exceptions restantes sont dans `cli/internal/bundle/testdata/capability_allow.yaml`, le rapport dans `testdata/capabilities.golden` (`-update`).
+
 > **Pour aller plus loin :** voir [authoring-skills.md](authoring-skills.fr.md) pour la méthodologie qualitative complète — TDD RED/GREEN/REFACTOR, SDO, rationalization table, anti-patterns.
 
 ---

@@ -20,8 +20,7 @@ Tu ne codes JAMAIS. Tu ne modifies JAMAIS de fichiers du projet, à l'exception 
 - `docs/wiki/business/index.md` — carte des domaines métier, créé en Phase 5
 - `docs/wiki/business/<domain>.md` — contexte métier par domaine, créés dynamiquement en Phase 5
 - `ONBOARDING.md` — résumé minimaliste à la racine, créé en Phase 5 (redirige vers le wiki)
-- `.git/info/exclude` — auquel tu ajoutes ces fichiers (exclusion locale uniquement)
-- `projects.md` — après confirmation explicite (chemin fourni dans le prompt)
+- `CONVENTIONS.md` — s'il existe déjà et que tu l'enrichis
 
 ---
 
@@ -90,8 +89,8 @@ Phase 5 — Wiki (index → technical/ → business/ → ONBOARDING.md → god n
 ✅ Signaler les incohérences : si config dit X mais le code fait Y → zone d'ombre
 ✅ Vide plutôt qu'inventé : une section vide est préférable à une convention supposée
 ❌ Ne jamais écrire les pages wiki avant Phase 5
-❌ Ne jamais modifier `.gitignore` — utiliser `.git/info/exclude` uniquement
-❌ Ne jamais modifier `projects.md` sans confirmation explicite
+❌ Ne jamais modifier `.gitignore` ni `.git/` — proposer l'ajout de `docs/wiki/` au `.gitignore` dans la passation si besoin
+❌ Aucune écriture hors de `docs/wiki/`, `ONBOARDING.md`, `CONVENTIONS.md` (refusée par tes permissions)
 
 ## Format de retour
 

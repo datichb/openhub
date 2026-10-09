@@ -5,9 +5,9 @@ description: Workflow ticket par ticket de l'orchestrator-dev — étapes 1a à 
 
 ## Workflow ticket par ticket
 
-> **Session lancée sur un workflow oh** (premier message avec `Mode de workflow : <mode>`) : chaque checkpoint de la carte du workflow (CP-1, CP-2, CP-3…) passe **uniquement** par l'outil `workflow_checkpoint` (`id` + `summary`), jamais par l'outil `question` ni par un texte. Les exemples `question` de ce skill ne valent que **hors workflow**. Validation reçue = suite prévue (CP-2 validé = commit) ; refus = suivre la consigne reçue, puis rappeler `workflow_checkpoint`. oh ferme sans effet une question qui imite un checkpoint, et refuse `git commit` et la fermeture du ticket tant que CP-2 n'est pas validé.
+> **Un seul protocole de checkpoint** : chaque checkpoint listé dans la table des checkpoints de la carte du workflow passe **uniquement** par l'outil `workflow_checkpoint` (`id` + `summary`), appelé par toi-même — y compris quand tu es invoqué via `task` par l'orchestrator. C'est oh qui applique le mode (`pause` : l'appel attend la validation ; `auto` : il passe aussitôt ; `skip` : ne l'appelle pas). Validation reçue = suite prévue (validation de `cp-2` = commit puis fermeture) ; refus = suivre la consigne reçue, puis rappeler `workflow_checkpoint`. oh ferme sans effet une question qui nomme un checkpoint, et refuse `git commit` et la fermeture du ticket tant que `cp-2` n'est pas validé. L'outil `question` ne sert qu'aux confirmations hors checkpoint (branche, CHANGELOG), sans nommer de checkpoint.
 
-### Étape 1a — Présentation du ticket + CP-1
+### Étape 1a — Présentation du ticket + `cp-1`
 
 Afficher le ticket :
 
@@ -28,77 +28,18 @@ Afficher le ticket :
 ---
 ```
 
-**Selon le mode :**
+**Checkpoint `cp-1`** (démarrer le ticket) :
 
-- **`manuel`** → pause CP-1 :
+```
+workflow_checkpoint({ id: "cp-1", summary: "Ticket #<ID> — <titre> : <résumé en 2 lignes>. Agent prévu : <developer-xxx>." })
+```
 
-  **Si CONTEXTE = orchestrator_feature (mode `manuel`) :**
+- Validé (ou passé automatiquement selon le mode) → mettre à jour todowrite (ticket en `in_progress`) → étape 1b
+- Refusé avec une consigne (« voir le détail », « passer », « stop ») → l'appliquer : afficher `bd show <ID>` puis rappeler `cp-1` ; passer = ticket `cancelled`, ticket suivant ; stop = **Récap global — Fin de session**
 
-  Produire dans cet ordre et terminer la session :
+**Mise à jour todowrite au démarrage du ticket — agent d'entrée uniquement (exemple : premier ticket démarre) :**
 
-  ````markdown
-  ## Question pour l'orchestrator
-
-  **Agent :** orchestrator-dev
-  **Ticket :** #<ID> — <titre>
-  **Phase :** CP-1
-
-  ### Contexte
-  Prêt à démarrer l'implémentation du ticket #<ID> — <titre>.
-  <Description courte du ticket issue de bd show>
-
-  ### Question en attente
-  Démarrer l'implémentation du ticket #<ID> — <titre> ?
-
-  ### Options disponibles
-  - `demarrer` — Déléguer l'implémentation à <developer-xxx>
-  - `voir-detail` — Afficher le contenu complet du ticket (bd show <ID>)
-  - `passer` — Ignorer ce ticket et passer au suivant
-  - `stop` — Arrêter le workflow
-
-  ### État de la session
-  **Tickets traités :** [bd-XX ✅, ...]
-  **En cours :** bd-<ID>
-  **Tickets restants :** [bd-YY, bd-ZZ, ...]
-  **task_id :** <task_id de la session en cours>
-  ````
-
-  Suivi du bloc `## Retour vers orchestrator` avec `**Type de récap :** partiel`.
-
-  → **TERMINER LA SESSION**
-
-  **Instruction de reprise :** "Réponse CP-1 ticket #<ID> : [option choisie]. Reprendre depuis CP-1."
-
-  **Sinon (mode `manuel` standalone)** → pause CP-1 via l'outil `question` :
-
-  ```
-  question({
-    questions: [{
-      header: "CP-1 — Ticket #<ID>",
-      question: "Démarrer l'implémentation du ticket #<ID> — <titre> ?",
-      options: [
-        { label: "Oui — démarrer", description: "Déléguer l'implémentation à <developer-xxx>" },
-        { label: "Voir le détail", description: "Afficher le contenu complet du ticket via bd show <ID>" },
-        { label: "Passer", description: "Ignorer ce ticket et passer au suivant" },
-        { label: "Stop", description: "Arrêter le workflow et afficher le récap de l'état courant" }
-      ]
-    }]
-  })
-  ```
-  - **Oui — démarrer** → mettre à jour todowrite (ticket en `in_progress`) → passer à l'étape 1b
-  - **Voir le détail** → exécuter `bd show <ID>`, afficher la sortie intégrale, puis re-poser CP-1 (boucle — l'utilisateur peut demander le détail autant de fois que nécessaire)
-  - **Passer** → mettre à jour todowrite (ticket en `cancelled`) → ticket ignoré, ticket suivant
-  - **Stop** → aller directement à la section **Récap global — Fin de session** (afficher le récap et produire le bloc `## Retour vers orchestrator` si CONTEXTE = orchestrator_feature)
-
-- **`semi-auto` / `auto`** → enchaîner directement :
-  ```
-  ▶️ [CP-1] Démarrage automatique.
-  ```
-  → mettre à jour todowrite (ticket en `in_progress`) → passer à l'étape 1b
-
-**Mise à jour todowrite au CP-1 — standalone uniquement (exemple : premier ticket démarre) :**
-
-> En mode sous-agent (CONTEXTE = orchestrator_feature), cette mise à jour reste locale à la session isolée et n'est pas visible par l'utilisateur. L'orchestrator feature gère sa propre liste.
+> Invoqué via `task` par l'orchestrator, cette mise à jour reste locale à la session isolée et n'est pas visible par l'utilisateur. L'orchestrator feature gère sa propre liste.
 
 ```
 todowrite({
@@ -118,47 +59,9 @@ todowrite({
 
 > Si le premier message contient une ligne `Branche de travail : <branche>`, la session a déjà sa branche (worktree ou branche dédiée choisie au lancement) : **sauter cette étape**, sans question ni création de branche, et indiquer cette branche à l'agent développeur.
 >
-> Sinon, cette étape ne peut pas être sautée, quel que soit le mode (manuel, semi-auto ou auto).
-> Elle s'exécute après CP-1, avant toute délégation à un `developer-*`.
+> Sinon, cette étape s'exécute après `cp-1`, avant toute délégation à un `developer-*`, quel que soit le mode. Invoqué via `task` par l'orchestrator (sans ligne `Branche de travail`) : rester sur la branche courante et le signaler dans le bloc `## Retour vers orchestrator`.
 
-Calculer le nom de branche selon la convention `<type>/<ticket-id>-<description-courte>` à partir du type et du titre du ticket, puis :
-
-**Si CONTEXTE = orchestrator_feature :**
-
-Produire dans cet ordre et terminer la session :
-
-````markdown
-## Question pour l'orchestrator
-
-**Agent :** orchestrator-dev
-**Ticket :** #<ID> — <titre>
-**Phase :** Branche dédiée
-
-### Contexte
-Avant de démarrer l'implémentation du ticket #<ID>, une branche dédiée est recommandée.
-**Nom de branche calculé :** `<type>/<ticket-id>-<description-courte>`
-
-### Question en attente
-Créer une branche dédiée pour le ticket #<ID> ?
-
-### Options disponibles
-- `oui-branche` — Créer et basculer sur `<type>/<ticket-id>-<description-courte>` avant de démarrer
-- `non-branche` — Rester sur la branche courante
-
-### État de la session
-**Tickets traités :** [bd-XX ✅, ...]
-**En cours :** bd-<ID>
-**Tickets restants :** [bd-YY, bd-ZZ, ...]
-**task_id :** <task_id de la session en cours>
-````
-
-Suivi du bloc `## Retour vers orchestrator` avec `**Type de récap :** partiel`.
-
-→ **TERMINER LA SESSION**
-
-**Instruction de reprise :** "Réponse branche ticket #<ID> : [option choisie]. Reprendre depuis délégation au developer."
-
-**Sinon** → utiliser l'outil `question` :
+Calculer le nom de branche selon la convention `<type>/<ticket-id>-<description-courte>` à partir du type et du titre du ticket, puis demander (confirmation hors checkpoint) :
 
 ```
 question({
@@ -175,15 +78,9 @@ question({
 
 - **Oui** → transmettre le nom de branche à l'agent développeur avec l'instruction :
   > « Crée et bascule sur la branche `<nom>` avant de démarrer :
-  > `git checkout -b <nom>` »
+  > `git switch -c <nom>` »
 
-  > **Worktrees activés (`worktree.enabled = true` dans `opencode.json`) — mode séquentiel uniquement** : utiliser `git worktree` au lieu de `git checkout -b`.
-  > Créer le worktree dans le dossier **frère du dépôt** `../<projet>-<slug>` où `<projet>` = nom du dossier du dépôt et `<slug>` = nom de branche avec `/` remplacés par `-` (même emplacement que `oh worktree create`).
-  > Transmettre à l'agent développeur :
-  > « Travaille dans le worktree pré-créé `../<projet>-<slug>/`. Tous tes changements doivent être faits dans ce répertoire. »
-  > À CP-2 après commit validé, proposer : `git worktree remove ../<projet>-<slug>` si la branche est prête pour PR.
-  >
-  > ⚠️ **Mode parallèle (`auto` avec N tickets simultanés) : ne pas déléguer la création du worktree au developer agent.** Les worktrees sont pré-créés séquentiellement par l'orchestrator-dev lui-même avant le lancement parallèle (voir section "Workflow parallèle"). Chaque developer reçoit uniquement le chemin du worktree déjà existant.
+  > Un worktree se choisit au lancement de la session (emplacement proposé par oh) : ne crée pas de worktree toi-même.
 
 - **Non** → continuer sur la branche courante, ne pas créer de branche
 
@@ -227,129 +124,50 @@ question({
 
    3. **Vérifier `### Questions bloquantes`** :
       - `Aucune.` → continuer vers l'étape 3
-      - Non-vide → **escalader les questions à l'utilisateur** (via `question` en mode standalone, via `## Question pour l'orchestrator` en mode sous-agent) avant de continuer. Ne jamais ignorer, ne jamais auto-résoudre. Après résolution, ré-invoquer le developer avec `task_id` + les réponses si des modifications sont nécessaires.
+      - Non-vide → **escalader les questions à l'utilisateur** (via `question` en agent d'entrée, via `## Question pour l'orchestrator` en sous-agent) avant de continuer. Ne jamais ignorer, ne jamais auto-résoudre. Après résolution, ré-invoquer le developer avec `task_id` + les réponses si des modifications sont nécessaires.
 
    > ❌ Ne jamais passer à l'étape 3 sans avoir reçu à la fois le compte rendu d'implémentation ET le bloc `## Retour vers orchestrator-dev`.
    > ❌ Ne jamais ignorer des questions bloquantes non résolues — elles doivent être traitées avant la review.
 
 ---
 
-### Étape 3 — Pre-review automatique
+### Étape 3 — Pre-review (faite par le developer)
 
-**Rôle :** Exécuter les vérifications automatiques (lint, types, tests, format) avant de soumettre à la review. Cette étape permet de détecter et corriger les problèmes triviaux sans mobiliser le reviewer.
+**Rôle :** les vérifications automatiques (lint, types, tests, format) sont un **critère de fin du developer** : il les lance lui-même avec les commandes du projet avant de rendre la main, applique les corrections déterministes (`--fix`, formatage) et les rapporte dans son bloc `## Retour vers orchestrator-dev` (section des tests et vérifications). Tu ne lances aucune commande et tu ne lis pas `package.json` : tu lis le résultat dans la passation.
 
-**Contexte :** L'étape s'exécute automatiquement après l'implémentation (étape 2), avant la review (étape 4). Elle ne nécessite aucune interaction utilisateur sauf en cas d'échec non auto-fixable.
+> Référence pour les corrections auto-applicables : skill `developer/quick-fix` (lint fix, formatage, point-virgule ; jamais de renommage, refactoring ni logique métier).
 
-#### Checks à exécuter (dans l'ordre)
+#### Lecture du résultat
 
-```bash
-# 1. Lint
-npm run lint
+| Résultat rapporté par le developer | Action |
+|----------|--------|
+| Tous les checks ✅ (avec ou sans auto-fix) | → Étape 4 (Review) |
+| Un check en échec non auto-fixable (types, tests, lint sans `--fix`, syntaxe) | Re-délégation au developer (ci-dessous) puis de nouveau étape 3 |
+| Checks absents de la passation | Re-délégation : « Lance les vérifications du projet (lint, types, tests, format) et rapporte leur résultat. » |
 
-# 2. Types (TypeScript)
-npx tsc --noEmit
-
-# 3. Tests
-npm test
-
-# 4. Format
-npx prettier --check .
-```
-
-> **Note :** Adapter les commandes selon la stack du projet (yarn, pnpm, etc.). Si le projet utilise un script unifié (`npm run check`), l'utiliser à la place.
-> 
-> **Détection du script unifié :** Vérifier via `npm run` (liste les scripts disponibles) ou lire directement le champ `scripts` de `package.json`. Exemple : si `"check": "eslint . && tsc --noEmit && vitest run"` existe, utiliser `npm run check` au lieu des commandes séparées.
-
-#### Mécanisme d'auto-fix
-
-Si un check échoue avec un problème **auto-fixable**, appliquer la correction immédiatement :
-
-```bash
-# Lint fix
-npm run lint -- --fix
-
-# Format fix
-npx prettier --write .
-```
-
-**Référence normative pour l'éligibilité :** Le skill `developer/quick-fix` est la **source de vérité** pour déterminer si une correction est auto-applicable sans review. Consulter ce skill en cas de doute. Résumé :
-- ✅ Lint fix (prefer-const, unused imports, etc.)
-- ✅ Formatage (indentation, espaces, trailing comma)
-- ✅ Point-virgule manquant/en trop
-- ❌ Renommage de variable, refactoring, changement de signature, logique métier
-
-> Seules les corrections **déterministes** et **sans impact sur la logique métier** sont appliquées automatiquement. En cas de doute, ne pas appliquer.
-
-#### Comportement selon le résultat
-
-**Si tous les checks passent (avec ou sans auto-fix) :**
-
-```
-▶️ [Pre-review] Checks passés.
-   - Lint : ✅ (2 auto-fixes appliqués)
-   - Types : ✅
-   - Tests : ✅ (42 tests, 0 échecs)
-   - Format : ✅ (3 fichiers reformatés)
-```
-
-→ Passer à l'étape 4 (Review automatique).
-
-**Si un check échoue avec un problème NON auto-fixable :**
-
-Retourner le ticket au developer avec un message clair incluant les détails de l'erreur.
-Le developer est responsable de poser le commentaire Beads et de reprendre le ticket.
-
-Transmettre au developer dans le prompt de re-délégation :
+Prompt de re-délégation en cas d'échec :
 
 ```
 [Pre-review échouée]
 Ticket : <ID>
-Erreur(s) détectée(s) :
+Erreur(s) rapportée(s) :
 - <check> : <message d'erreur>
 
 Action requise :
-1. bd comments add <ID> "Pre-review échouée : <détail de l'erreur>\n\nErreur(s) détectée(s) :\n- <check> : <message d'erreur>\n\nAction requise : corriger les erreurs ci-dessus et repasser en review."
+1. bd comments add <ID> "Pre-review échouée : <détail de l'erreur>"
 2. Corriger les erreurs
-3. Repasser en review (bd update <ID> --add-label ready-for-review)
+3. Relancer les vérifications du projet et repasser en review (bd update <ID> --add-label ready-for-review)
 ```
 
-```
-⚠️ [Pre-review] Échec — retour au developer.
-   - Lint : ✅
-   - Types : ❌ (TS2345: Argument of type 'string' is not assignable...)
-   - Tests : non exécuté (arrêt après échec types)
-   - Format : non exécuté
-```
-
-> « Je retourne le ticket à `<developer-xxx>` pour correction des erreurs de typage. »
-
-→ Reprendre à l'étape 2 (Délégation de l'implémentation).
-
-**Erreurs considérées comme NON auto-fixables :**
-- Erreurs de typage TypeScript
-- Tests en échec
-- Erreurs de lint sans `--fix` disponible (règles désactivées, erreurs de parsing)
-- Erreurs de syntaxe bloquantes
-
-#### Résumé des transitions
-
-| Résultat | Action |
-|----------|--------|
-| Tous checks ✅ | → Étape 4 (Review) |
-| Échec auto-fixable uniquement | Auto-fix + → Étape 4 (Review) |
-| Échec non auto-fixable | Commentaire Beads + → Étape 2 (Developer) |
-
-> **Compteur de cycles :** Les boucles "Pre-review échoue → retour developer → Pre-review" ne comptent **pas** dans la limite des 3 cycles de review (étape 4). La limite de 3 cycles s'applique uniquement aux rejets du reviewer humain/automatique à l'étape 4. La Pre-review (étape 3) est un filtre technique préalable, pas un cycle de review.
->
-> **Cap de sécurité pre-review :** Après **5 cycles** pre-review → developer sans résolution des erreurs, escalader à l'utilisateur (voir skill `orchestrator/error-recovery-protocol`, section "Boucle pre-review infinie"). Options : intervenir manuellement / passer à la review malgré les erreurs / passer ce ticket / stop.
+> **Compteur de cycles :** les boucles « pre-review échoue → retour developer » ne comptent **pas** dans la limite des 3 cycles de review (étape 4). Après **5 cycles** sans résolution, escalader à l'utilisateur (skill `orchestrator/error-recovery-protocol`, « Boucle pre-review infinie ») : intervenir manuellement / passer à la review malgré les erreurs / passer ce ticket / stop.
 
 ---
 
 ### Étape 4 — Review automatique
 
-Dès que la pre-review est passée, invoquer **automatiquement** le `reviewer` :
+Dès que la pre-review rapportée par le developer est verte, invoquer **automatiquement** le `reviewer` :
 
-**Mise à jour todowrite — standalone uniquement :**
+**Mise à jour todowrite — agent d'entrée uniquement :**
 
 ```
 todowrite({
@@ -373,139 +191,36 @@ Fournir au reviewer :
 À la réception du résultat, effectuer les vérifications suivantes dans l'ordre :
 
 1. **Détecter la présence du bloc `## Retour vers orchestrator-dev`** avec sa section `### Rapport complet` :
-   - **Présent** → lire le `### Verdict` pour préparer le CP-2 :
-     - `commit` → CP-2 avec information "reviewer approuve — aucun problème bloquant"
-     - `corriger` ou `corriger-sécurité` → CP-2 avec synthèse des problèmes + routing recommandé
+   - **Présent** → lire le `### Verdict` pour préparer `cp-2` :
+     - `commit` → résumé « reviewer approuve — aucun problème bloquant »
+     - `corriger` ou `corriger-sécurité` → résumé avec la synthèse des problèmes + routing recommandé
    - **Absent** → appliquer le protocole de retry (voir skill `orchestrator/error-recovery-protocol`) : max 2 re-invocations avec `task_id` + instruction corrective. Après 2 échecs → escalader à l'utilisateur.
    - **`### Rapport complet` absent dans le bloc** → appliquer le protocole de retry : max 2 re-invocations avec `task_id` + instruction listant les champs manquants. Après 2 échecs → escalader.
 
 Le format attendu, les définitions des verdicts et du routing sont définis dans le skill `reviewer/reviewer-handoff-format` — s'y référer comme source de vérité.
 
 2. **Vérifier `### Questions bloquantes`** :
-   - `Aucune.` → continuer vers le CP-2
-   - Non-vide → escalader les questions à l'utilisateur avant de passer au CP-2.
+   - `Aucune.` → continuer vers `cp-2`
+   - Non-vide → escalader les questions à l'utilisateur avant d'appeler `cp-2`.
 
 > ❌ Ne jamais passer à l'étape 5 sans avoir reçu à la fois le rapport de review complet ET le bloc `## Retour vers orchestrator-dev`.
-> ❌ Ne jamais ignorer des questions bloquantes du reviewer — elles doivent être traitées avant le CP-2.
+> ❌ Ne jamais ignorer des questions bloquantes du reviewer — elles doivent être traitées avant `cp-2`.
 
 ---
 
 ### Étape 5 — Décision après review
 
-Afficher le rapport de review intégralement dans le texte de la discussion (ne pas inclure dans l'outil `question`).
+Afficher le rapport de review intégralement dans le texte de la discussion.
 
-**Session sur un workflow oh** → appeler `workflow_checkpoint` avec `id: "cp-2"` et un `summary` (verdict du reviewer, option recommandée : commit ou corriger). Validé → **commit** ci-dessous, aussitôt ; refusé avec une consigne → **corriger** avec cette consigne.
-
-**En mode standalone hors workflow** → utiliser l'outil `question` pour CP-2.
-
-**Mise à jour todowrite avant de poser la question — standalone uniquement :**
+**Checkpoint `cp-2`** (commit ou correction), **un appel par ticket** :
 
 ```
-todowrite({
-  todos: [
-    { content: "#bd-12 — <titre court> [CP-2]", status: "in_progress", priority: "high" },  // ← label [CP-2]
-    { content: "#bd-13 — <titre court>", status: "pending", priority: "high" },
-    { content: "#bd-14 — <titre court>", status: "pending", priority: "medium" }
-  ]
-})
+workflow_checkpoint({ id: "cp-2", summary: "Ticket #<ID> — <titre>. Verdict du reviewer : <commit | corriger | corriger-sécurité> (<X> problèmes 🔴/🟠). Recommandé : <commit | corriger>. Validation = commit puis fermeture ; refus = correction." })
 ```
 
-#### Préparation des options selon le verdict
+X = nombre de 🔴 Critique + 🟠 Majeur de `### Synthèse des problèmes` (sans 🟡 Mineur ni 💡 Suggestion). Le checkpoint attend la validation de l'utilisateur dans tous les modes. Validé → **commit** ci-dessous, aussitôt ; refusé avec une consigne → **corriger** avec cette consigne.
 
-Utiliser le `### Verdict` du retour reviewer pour construire dynamiquement les labels des options présentées au CP-2 :
-
-| Verdict | Option "Commit" | Option "Corriger" |
-|---------|-----------------|-------------------|
-| `commit` | `Commit (Recommandé — aucun problème bloquant)` | `Corriger` |
-| `corriger` | `Commit` | `Corriger (Recommandé — X problèmes à résoudre)` |
-| `corriger-sécurité` | `Commit` | `Corriger (Recommandé — problème de sécurité)` |
-| absent/invalide | `Commit` | `Corriger` |
-
-**Calcul de X pour verdict `corriger` :**
-- Compter le nombre total de 🔴 Critique + 🟠 Majeur depuis `### Synthèse des problèmes` du retour reviewer
-- Ne pas inclure 🟡 Mineur ni 💡 Suggestion dans le compte
-
-**Exemple avec verdict `commit` (les labels sont dynamiques selon le verdict reçu) :**
-
-```
-question({
-  questions: [{
-    header: "CP-2 — Ticket #<ID>",
-    question: "Le rapport de review est affiché ci-dessus. Quelle suite pour le ticket #<ID> ?",
-    options: [
-      { label: "Commit (Recommandé — aucun problème bloquant)", description: "Formuler le message Conventional Commits et demander au developer de commiter" },
-      { label: "Corriger", description: "Retourner le ticket au developer avec les retours du reviewer" }
-    ]
-  }]
-})
-```
-
-**En mode invoqué depuis l'orchestrator** → produire le bloc `## Question pour l'orchestrator` et arrêter la session.
-
-> ⚠️ **Si CONTEXTE = orchestrator_feature** : ajouter le bloc `## Retour vers orchestrator` **immédiatement après** le bloc `## Question pour l'orchestrator`, avant de clore la session. Les deux blocs sont émis ensemble.
-> **Champ `Type de récap` obligatoire :** quand le bloc `## Retour vers orchestrator` est émis avec `## Question pour l'orchestrator`, renseigner `**Type de récap :** partiel`. La session n'est pas terminée — des tickets restent à traiter après la réponse de l'utilisateur.
-
-**Vérification obligatoire avant de produire le bloc CP-2 :**
-> « Le rapport de review complet est-il présent et non résumé dans la section `### Rapport de review complet` ? Si non, retourner à l'étape 4 et redemander le rapport intégral au reviewer. »
-
-Pour remplir les sections du bloc, utiliser :
-- `### Contexte complet` : la `### Synthèse des problèmes` du retour reviewer + le verdict + le routing recommandé
-- `### Rapport de review complet` : le rapport de review copié **intégralement, tel quel, sans modification ni résumé**
-
-```
----
-
-## Question pour l'orchestrator
-
-**Agent :** orchestrator-dev
-**Ticket :** #<ID> — <titre>
-**Phase :** CP-2
-
-### Contexte complet
-**Synthèse :**
-| Sévérité | Nombre | Résumé |
-|----------|--------|--------|
-<tableau issu du ### Synthèse des problèmes du retour reviewer>
-
-**Verdict reviewer :** <commit | corriger | corriger-sécurité>
-**Routing recommandé :** <retour-initial | developer-security>
-
-### Rapport de review complet
-<rapport de review intégral copié tel quel — toutes sections (Résumé, 🔴 Critique, 🟠 Majeur, 🟡 Mineur, 💡 Suggestion, ✅ Points positifs, 🔍 Hors scope), aucune omission, aucune reformulation>
-
-### Question en attente
-Quelle suite pour le ticket #<ID> — <titre> ?
-
-### Options disponibles
-Les labels sont dynamiques selon le verdict (même logique que le mode standalone) :
-
-| Verdict | Option "Commit" | Option "Corriger" |
-|---------|-----------------|-------------------|
-| `commit` | `Commit (Recommandé — aucun problème bloquant)` | `Corriger` |
-| `corriger` | `Commit` | `Corriger (Recommandé — X problèmes à résoudre)` |
-| `corriger-sécurité` | `Commit` | `Corriger (Recommandé — problème de sécurité)` |
-| absent/invalide | `Commit` | `Corriger` |
-
-**Exemple avec verdict `commit` :**
-- `Commit (Recommandé — aucun problème bloquant)` : Formuler le message Conventional Commits et demander au developer de commiter
-- `Corriger` : Retourner le ticket au developer avec les retours du reviewer
-
-**Exemple avec verdict `corriger` (3 🔴 Critique + 2 🟠 Majeur = 5 problèmes) :**
-- `Commit` : Formuler le message Conventional Commits et demander au developer de commiter
-- `Corriger (Recommandé — 5 problèmes à résoudre)` : Retourner le ticket au developer avec les retours du reviewer
-
-> ⚠️ Les labels ci-dessus sont dynamiques — adapter selon le verdict et le compte de problèmes du retour reviewer.
-
-### État de la session
-**Tickets traités :** [bd-XX ✅, ...]
-**En cours :** bd-<ID>
-**Tickets restants :** [bd-YY, bd-ZZ, ...]
-**task_id :** <task_id de la session en cours>
-```
-
-CP-2 est **toujours une pause, dans tous les modes**.
-
-**Après chaque décision CP-2, si l'outil `team_review_verdict` est disponible :**
+**Après chaque décision sur `cp-2`, si l'outil `team_review_verdict` est disponible :**
 - Sur **commit** : `team_review_verdict({ project, ticket_id, verdict: "approved", reviewer_verdict: "<verdict original>", cycle: <N> })`
 - Sur **corriger** : `team_review_verdict({ project, ticket_id, verdict: "rejected", reason: "corrections-requises", reviewer_verdict: "<verdict original>", cycle: <N> })`
 
@@ -526,7 +241,7 @@ CP-2 est **toujours une pause, dans tous les modes**.
   Transmettre au developer dans le prompt de re-délégation :
 
   ```
-  [Retours reviewer — CP-2]
+  [Retours reviewer]
   Ticket : <ID>
   
   Action requise :
@@ -546,11 +261,11 @@ CP-2 est **toujours une pause, dans tous les modes**.
   - `retour-initial` → retourner à l'agent `developer` avec le même domaine initial
 
   > « Je retourne le ticket à `developer` (domaine <xxx>) avec les corrections demandées. »
-  > Puis repasser étape 3 (Pre-review) → étape 4 (review).
+  > Puis repasser étape 3 (pre-review rapportée par le developer) → étape 4 (review).
 
   ⚠️ Limite : après 3 cycles sans résolution, signaler le blocage et demander si une intervention manuelle est nécessaire.
 
-⏸️ **Attendre la décision explicite** (réponse de `workflow_checkpoint` en session de workflow, outil `question` sinon).
+⏸️ **Attendre la réponse de `workflow_checkpoint`** : c'est la décision de l'utilisateur.
 
 ---
 
@@ -626,63 +341,14 @@ todowrite({
 })
 ```
 
-> En mode sous-agent (CONTEXTE = orchestrator_feature), cette mise à jour est locale à la session isolée. L'orchestrator feature met à jour sa propre liste en recevant le récap via les blocs de handoff.
-> En mode standalone, cette mise à jour est immédiatement visible par l'utilisateur.
+> Invoqué via `task` par l'orchestrator, cette mise à jour est locale à la session isolée. L'orchestrator feature met à jour sa propre liste en recevant le récap via les blocs de handoff.
+> Agent d'entrée de la session : cette mise à jour est immédiatement visible par l'utilisateur.
 
-**Selon le mode :**
+**Checkpoint `cp-3`** (ticket suivant) :
 
-- **`manuel`** → pause CP-3 :
+```
+workflow_checkpoint({ id: "cp-3", summary: "Ticket #<ID> terminé (commit <sha court>). Suivant : #<ID-suivant> — <titre>." })
+```
 
-  **Si CONTEXTE = orchestrator_feature (mode `manuel`) :**
-
-  Produire dans cet ordre et terminer la session :
-
-  ````markdown
-  ## Question pour l'orchestrator
-
-  **Agent :** orchestrator-dev
-  **Ticket :** #<ID> — <titre>
-  **Phase :** CP-3
-
-  ### Contexte
-  Le ticket #<ID> — <titre> est terminé et committé.
-
-  ### Question en attente
-  Passer au ticket suivant ?
-
-  ### Options disponibles
-  - `suivant` — Passer au ticket suivant dans la liste
-  - `stop` — Arrêter le workflow et afficher le récap global
-
-  ### État de la session
-  **Tickets traités :** [bd-XX ✅, bd-<ID> ✅]
-  **En cours :** —
-  **Tickets restants :** [bd-YY, bd-ZZ, ...]
-  **task_id :** <task_id de la session en cours>
-  ````
-
-  Suivi du bloc `## Retour vers orchestrator` avec `**Type de récap :** partiel`.
-
-  → **TERMINER LA SESSION**
-
-  **Instruction de reprise :** "Réponse CP-3 : [option choisie]. Reprendre depuis ticket suivant / récap global."
-
-  **Sinon (mode `manuel` standalone)** → pause CP-3 via l'outil `question` :
-
-  ```
-  question({
-    questions: [{
-      header: "CP-3 — Suite",
-      question: "Ticket #<ID> terminé. Passer au ticket suivant ?",
-      options: [
-        { label: "Suivant", description: "Passer au ticket suivant dans la liste" },
-        { label: "Stop", description: "Arrêter le workflow et afficher le récap global" }
-      ]
-    }]
-  })
-  ```
-
-- **`semi-auto` / `auto`** → enchaîner directement :
-  ```
-  ▶️ [CP-3] Enchaînement automatique vers le ticket suivant.
-  ```
+- Validé (ou passé automatiquement selon le mode) → ticket suivant
+- Refusé avec « stop » → **Récap global — Fin de session**

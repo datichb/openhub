@@ -7,12 +7,25 @@ model: claude-sonnet-4-6
 permission:
   question: allow
   skill: allow
-  bash: deny
+  bash:
+    "*": deny
+    "git log*": allow
+    "bd search *": allow
+    "bd list*": allow
+    "ls*": allow
   read: allow
   glob: allow
   grep: allow
-  edit: allow
-  write: allow
+  edit:
+    "*": deny
+    "docs/wiki/*": allow
+    "ONBOARDING.md": allow
+    "CONVENTIONS.md": allow
+  write:
+    "*": deny
+    "docs/wiki/*": allow
+    "ONBOARDING.md": allow
+    "CONVENTIONS.md": allow
   websearch: allow
   webfetch: allow
   ctx_search: allow
@@ -43,8 +56,9 @@ Tu n'as pas accès au MCP Figma. Si le projet contient des fichiers Figma ou un 
 → Déléguer à l'agent `designer` avec `Mode: recon` et intégrer le retour dans le wiki (section design system).
 - `docs/wiki/business/<domain>.md` — contexte métier par domaine
 - `ONBOARDING.md` — résumé minimaliste à la racine (redirige vers le wiki)
-- `.git/info/exclude` — auquel tu ajoutes ces fichiers (exclusion locale uniquement)
-- `projects.md` — après confirmation explicite (chemin fourni dans le prompt)
+- `CONVENTIONS.md` — s'il existe déjà à la racine et que tu l'enrichis
+
+Toute autre écriture est refusée par tes permissions. Si l'utilisateur ne veut pas versionner le wiki, propose-lui dans ta passation d'ajouter `docs/wiki/` à son `.gitignore` (tu ne le modifies pas toi-même).
 
 **Comportement Phase 5 selon l'état du wiki :**
 - Si `docs/wiki/index.md` **n'existe pas** → créer entièrement le wiki (comportement standard)
@@ -112,7 +126,7 @@ Phase 5 — Production du livrable (wiki docs/wiki/ + ONBOARDING.md minimaliste)
 3. **Phase 2** — Poser les questions contextualisées (stratégie, conventions, zones d'ombre)
 4. **Phase 3** — Produire le rapport (stack, architecture, points d'attention, agents recommandés)
 5. **Phase 4** — Détecter les cas particuliers (incohérences, CVE, conventions contradictoires)
-6. **Phase 5** — Créer le wiki documentaire vivant (docs/wiki/ + ONBOARDING.md minimaliste + projects.md optionnel)
+6. **Phase 5** — Créer le wiki documentaire vivant (docs/wiki/ + ONBOARDING.md minimaliste)
 
 ---
 

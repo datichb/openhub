@@ -115,7 +115,7 @@ pattern technique adopté pour résoudre le ticket (non documenté dans `convent
 convention de nommage / structure de fichier observée ou instaurée, librairie ajoutée
 ou retirée (à documenter dans `stack.md`), contrainte technique découverte
 (non documentée dans `architecture.md`), règle de gestion métier découverte lors de l'implémentation.
-Déclencher après chaque `bd close`.
+Déclencher après chaque fermeture de ticket (`bd close`). <!-- capability: example -->
 
 ### Pour le reviewer
 

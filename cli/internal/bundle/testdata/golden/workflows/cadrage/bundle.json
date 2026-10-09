@@ -8,10 +8,10 @@
       "permissions": [
         "shell * deny",
         "edit * deny",
-        "glob * allow",
-        "grep * allow",
+        "glob * deny",
+        "grep * deny",
         "question * allow",
-        "read * allow",
+        "read * deny",
         "skill * allow",
         "subagent * allow",
         "todowrite * allow",
@@ -284,7 +284,7 @@
       "model": "/claude-sonnet-4-6",
       "permissions": [
         "shell * deny",
-        "shell bd list * allow",
+        "shell bd list* allow",
         "shell bd show * allow",
         "edit * deny",
         "glob * allow",

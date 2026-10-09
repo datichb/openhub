@@ -83,7 +83,7 @@ func TestGuardCloseAndWindow(t *testing.T) {
 	assert.Contains(t, lock.Msg, "cp-2")
 	rules, err := svc.Rules(ctx, "ses_l")
 	require.NoError(t, err)
-	assert.Contains(t, rules, sessionspec.PermissionRule{Action: sessionspec.ActionShell, Resource: "*git*commit*", Effect: sessionspec.EffectDeny})
+	assert.Contains(t, rules, sessionspec.PermissionRule{Action: sessionspec.ActionShell, Resource: "git commit*", Effect: sessionspec.EffectDeny})
 
 	res, err := svc.Reached(ctx, "ses_l", Call{ID: "cp-2"})
 	require.NoError(t, err)
@@ -161,6 +161,8 @@ func TestFinished(t *testing.T) {
 			Timeline: []domain.CheckpointEvent{ev("passed", "cp-2", 2), ev(timelineClosed, "pt-1", 3)}}, false},
 		{"cp-1 after the close", domain.CheckpointState{Passed: passed("cp-1", "cp-2"), Closed: []string{"pt-1"},
 			Timeline: []domain.CheckpointEvent{ev("passed", "cp-2", 2), ev(timelineClosed, "pt-1", 3), ev("passed", "cp-1", 4)}}, false},
+		{"plan only: straight to the last checkpoint", domain.CheckpointState{Passed: passed("cp-3"),
+			Timeline: []domain.CheckpointEvent{ev("passed", "cp-3", 3)}}, true},
 		{"waiting", domain.CheckpointState{Passed: passed("cp-1", "cp-2", "cp-3"), Waiting: "cp-3",
 			Timeline: []domain.CheckpointEvent{ev("passed", "cp-3", 3)}}, false},
 	} {

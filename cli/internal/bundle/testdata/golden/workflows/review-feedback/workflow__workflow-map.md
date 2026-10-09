@@ -17,8 +17,9 @@ Cette carte est la seule référence sur l'enchaînement : n'invente ni agent, n
 
 | Agent | Rôle | Mode | Après | Peut déléguer à |
 |---|---|---|---|---|
-| `orchestrator-dev` | workflow (entrée) | primary | — | `developer` |
+| `orchestrator-dev` | workflow (entrée) | primary | — | `developer`, `reviewer` |
 | `developer` | workflow | subagent | `cp-fix` | — |
+| `reviewer` | workflow | subagent | `cp-fix` | — |
 
 Règles de délégation :
 - Tu ne lances (outil `task`) que les agents de la colonne « Peut déléguer à » de ta ligne. Tout autre appel est refusé par l'outil.
@@ -33,7 +34,8 @@ Règles de délégation :
 | **cp-2** — Commit ou correction (obligatoire) | pause | pause | pause |
 
 - **cp-fix** : Présenter les corrections classées (critiques, majeures, suggestions) et confirmer lesquelles appliquer.
-- **cp-2** déverrouille `commit`, `push`, `close` : avant son passage, oh refuse ces opérations à tous les agents de la session (`git commit`, `git push`, fermeture d'un ticket), quel que soit le mode. Une fois passé, fais-les aussitôt, dans l'ordre : commit, puis fermeture du ticket (oh refuse la fermeture tant que le travail n'est pas commité). Le ticket fermé, elles sont de nouveau verrouillées jusqu'au prochain passage de **cp-2**.
+- **cp-2** : Présenter les corrections appliquées, les tests et la nouvelle review avant le commit.
+- **cp-2** déverrouille `commit` : avant son passage, oh refuse à tous les agents de la session `git commit` (et les commandes qui commitent : revert, cherry-pick, merge, pull), quel que soit le mode. Une fois passé, commite aussitôt ; la fenêtre se referme quand **cp-2** est demandé de nouveau. Le push revient à l'utilisateur : ne pousse pas.
 
 Passage d'un checkpoint : appelle l'outil `workflow_checkpoint` avec `id` (identifiant du tableau) et `summary` (ce qui est fait, ce qui va suivre, points d'attention), **avant** de lancer l'étape suivante. C'est oh qui applique le comportement du mode :
 - `pause` (et `conditional`) : l'appel attend la validation de l'utilisateur (depuis oh ou l'interface). S'il est refusé, ne continue pas : suis la consigne reçue (corriger, préciser), puis rappelle `workflow_checkpoint` pour le même checkpoint.

@@ -67,26 +67,37 @@ inputs:
 prompt:
   template: prompts/sweep.md.tmpl
 agents:
+  pathfinder: { role: workflow, mode: subagent }
   developer: { role: workflow, after: cp-plan }
   developer-refactor: { role: workflow, after: cp-plan }
   developer-migrator: { role: workflow, after: cp-plan }
+  reviewer: { role: workflow, mode: subagent, after: cp-plan }
 checkpoints:
   cp-plan:
     label: { fr: Valider le découpage, en: Approve the decomposition }
     description:
-      fr: Présenter la liste des sous-tâches (description, périmètre de fichiers) avant toute exécution.
-      en: Present the subtask list (description, file scope) before any execution.
-    mode: { manuel: pause, semi-auto: pause, auto: auto }
+      fr: Présenter la liste des sous-tâches (description, périmètre de fichiers disjoint, agent, parallélisable ou non) avant toute exécution.
+      en: Present the subtask list (description, disjoint file scope, agent, parallel or not) before any execution.
+    mandatory: true
+    mode: { manuel: pause, semi-auto: pause, auto: pause }
+  cp-commit:
+    label: { fr: Commit du sweep, en: Commit the sweep }
+    description:
+      fr: Présenter le diff, la vérification et la review avant le commit (un commit, ou un par sous-tâche à la suite).
+      en: Present the diff, the verification and the review before committing (one commit, or one per subtask in a row).
+    mandatory: true
+    mode: { manuel: pause, semi-auto: pause, auto: pause }
+    unlocks: [commit]
   cp-recap:
     label: { fr: Récap du sweep, en: Sweep recap }
     description:
-      fr: Résultat par sous-tâche et résultat de la vérification.
-      en: Result per subtask and verification result.
+      fr: Résultat par sous-tâche, vérification, review et commits.
+      en: Result per subtask, verification, review and commits.
     mode: { manuel: pause, semi-auto: pause, auto: auto }
 modes: { default: semi-auto, allowed: [manuel, semi-auto, auto] }
-circuit_breaker: { max_consecutive_subagents: 20 }
+circuit_breaker: { max_consecutive_subagents: 12 }
 beads:
-  allow: [show, list, ready, search, children, comments, count, status, graph, history, create, update, close, dep, label]
+  allow: [show, list, search]
 runtime: { default: local, allowed: [local] }
 outputs:
   - { id: branch, type: branch, label: { fr: Branche de travail, en: Working branch } }

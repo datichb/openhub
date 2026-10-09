@@ -185,6 +185,7 @@ git log v1.1.0..HEAD --format="%s" --merges \
 
 ### Workflow de release
 
+<!-- capability: user -->
 ```bash
 # 1. Vérifier les commits depuis la dernière version
 git log $(git describe --tags --abbrev=0)..HEAD --oneline --no-merges
@@ -231,7 +232,7 @@ Un `CHANGELOG.md` à la racine avec des sections par package :
 
 | Outil | Usage | Commande type |
 |-------|-------|---------------|
-| `changesets` | Changelogs par package, versioning indépendant | `npx changeset add` puis `npx changeset version` |
+| `changesets` | Changelogs par package, versioning indépendant | `npx changeset add` puis `npx changeset version` | <!-- capability: user -->
 | `lerna version` | Versioning coordonné ou indépendant | `lerna version --conventional-commits` |
 | Independent versioning | Chaque package a son propre SemVer | Configuré dans `lerna.json` : `"version": "independent"` |
 
@@ -239,6 +240,7 @@ Un `CHANGELOG.md` à la racine avec des sections par package :
 
 En monorepo, les tags suivent le format `@scope/package@version` :
 
+<!-- capability: user -->
 ```bash
 git tag -a @scope/api-gateway@1.3.0 -m "Release @scope/api-gateway@1.3.0"
 ```

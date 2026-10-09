@@ -6,11 +6,12 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/gateway/bdargs"
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/sessionspec"
 )
 
 // DefaultBeadsAllow applies when the workflow declares no `beads:` block:
 // read-only commands. An explicit empty list refuses every command.
-var DefaultBeadsAllow = []string{"show", "list", "ready", "search", "children", "comments", "count", "status", "graph", "history"}
+var DefaultBeadsAllow = sessionspec.DefaultBeadsAllow
 
 // forbiddenFlags would let a command escape the project database or write
 // files on the machine; they are refused wherever and however they are

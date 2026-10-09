@@ -7,6 +7,7 @@ import (
 	"strings"
 	"text/template"
 
+	"github.com/datichb/openhub/cli/internal/sessionspec"
 	"github.com/datichb/openhub/cli/internal/workflow"
 )
 
@@ -92,6 +93,7 @@ func GenerateWorkflowSkills(spec *workflow.Spec, graph map[string][]string, mode
 			}
 			return strings.Join(out, ", ")
 		},
+		"unlockText": unlockText,
 	}).ParseFS(templateFS, "templates/*.md.tmpl")
 	if err != nil {
 		return nil, fmt.Errorf("parsing workflow skill templates: %w", err)
@@ -105,6 +107,49 @@ func GenerateWorkflowSkills(spec *workflow.Spec, graph map[string][]string, mode
 		out[ref] = buf.String()
 	}
 	return out, nil
+}
+
+// unlockOpText describes each operation a checkpoint may unlock (generated
+// text, generatedLang).
+var unlockOpText = map[string]string{
+	sessionspec.UnlockCommit: "`git commit` (et les commandes qui commitent : revert, cherry-pick, merge, pull)",
+	sessionspec.UnlockPush:   "`git push`",
+	sessionspec.UnlockClose:  "la fermeture d'un ticket",
+	sessionspec.UnlockCreate: "la création de tickets",
+	sessionspec.UnlockApply:  "les modifications d'infrastructure (`terraform apply`, `kubectl apply`…)",
+}
+
+// unlockText is the rule of a checkpoint that unlocks ops: only the declared
+// operations are named (N10), in the order the agent should run them.
+func unlockText(id string, ops []string) string {
+	has := map[string]bool{}
+	var names []string
+	for _, op := range ops {
+		if t, ok := unlockOpText[op]; ok && !has[op] {
+			has[op] = true
+			names = append(names, t)
+		}
+	}
+	if len(names) == 0 {
+		return ""
+	}
+	var b strings.Builder
+	fmt.Fprintf(&b, "avant son passage, oh refuse à tous les agents de la session %s, quel que soit le mode.", strings.Join(names, ", "))
+	switch {
+	case has[sessionspec.UnlockCommit] && has[sessionspec.UnlockClose]:
+		fmt.Fprintf(&b, " Une fois passé, fais-les aussitôt, dans l'ordre : commit, puis fermeture du ticket (oh refuse la fermeture tant que le travail n'est pas commité). Le ticket fermé, elles sont de nouveau verrouillées jusqu'au prochain passage de **%s**.", id)
+	case has[sessionspec.UnlockCommit]:
+		fmt.Fprintf(&b, " Une fois passé, commite aussitôt ; la fenêtre se referme quand **%s** est demandé de nouveau.", id)
+	case has[sessionspec.UnlockClose]:
+		fmt.Fprintf(&b, " Le ticket fermé, la fermeture est de nouveau verrouillée jusqu'au prochain passage de **%s**.", id)
+	}
+	if has[sessionspec.UnlockCreate] {
+		fmt.Fprintf(&b, " Une fois passé, crée les tickets validés : la création reste possible jusqu'à ce que **%s** soit demandé de nouveau.", id)
+	}
+	if !has[sessionspec.UnlockPush] && (has[sessionspec.UnlockCommit] || has[sessionspec.UnlockClose]) {
+		b.WriteString(" Le push revient à l'utilisateur : ne pousse pas.")
+	}
+	return b.String()
 }
 
 func buildMapData(spec *workflow.Spec, graph map[string][]string, modeOf func(string) workflow.AgentMode) mapData {

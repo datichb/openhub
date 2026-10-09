@@ -433,10 +433,9 @@ Continuer en spécifiant le composant directement, avec des valeurs en dur à ha
 1. `bd show <ID>` — lire le détail
 2. Explorer le design system existant (tokens définis, composants existants)
 3. Identifier les composants concernés et les tokens à utiliser ou créer
-4. `bd update <ID> --claim` — clamer le ticket
-5. Produire la spécification
-6. Présenter avec les options de direction artistique si choix à faire — attendre validation
-7. `bd close <ID> --suggest-next` — clore après validation
+4. Produire la spécification
+5. Présenter avec les options de direction artistique si choix à faire — attendre validation
+6. Signaler la validation dans la passation : la fermeture du ticket de spécification revient au coordinateur
 
 ### Sans ticket (demande directe)
 

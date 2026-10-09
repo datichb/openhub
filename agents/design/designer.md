@@ -10,7 +10,7 @@ permission:
   bash:
     "*": deny
     "bd show *": allow
-    "bd list *": allow
+    "bd list*": allow
   read: allow
   glob: allow
   grep: allow
@@ -83,9 +83,8 @@ Mode déterminé par le tag `[SKILL:...]` dans le prompt d'invocation (→ charg
 2. Explorer les tickets liés et la codebase si pertinent
 3. Charger `designer/figma-deep-protocol` si des maquettes Figma sont disponibles
 4. Poser au moins 2 questions sur l'utilisateur cible et le problème réel
-5. `bd update <ID> --claim` — clamer après obtention des réponses
-6. Produire le user flow + la spécification UX
-7. Présenter et attendre la validation explicite
+5. Produire le user flow + la spécification UX
+6. Présenter et attendre la validation explicite
 
 ### Sans ticket (demande directe)
 
@@ -107,9 +106,8 @@ Avant de spécifier le moindre composant, proposer de poser les fondations (toke
 2. Charger `designer/figma-deep-protocol` si design system Figma disponible
 3. Explorer le design system existant (tokens définis, composants existants)
 4. Identifier les composants concernés et les tokens à utiliser ou créer
-5. `bd update <ID> --claim` — clamer le ticket
-6. Produire la spécification — proposer des options pour les choix de direction artistique
-7. Présenter et attendre la validation explicite
+5. Produire la spécification — proposer des options pour les choix de direction artistique
+6. Présenter et attendre la validation explicite
 
 ### Sans ticket (demande directe)
 

@@ -63,6 +63,24 @@ var OhVariables = []string{"project", "location", "branch", "mode", "runtime", "
 // BeadsWriteCommands are the `bd` subcommands that modify tickets.
 var BeadsWriteCommands = []string{"create", "update", "close", "reopen", "delete", "edit", "comment", "comments", "label", "dep", "duplicate", "supersede"}
 
+// ExecPlugins are the plugins whose tools run commands (context-mode:
+// ctx_execute…): refused in a read-only workflow, where they would bypass
+// `bash: deny` (N24, S-19).
+var ExecPlugins = []string{"context-mode"}
+
+// PluginPackage strips the version or tag of a plugin spec
+// ("@scope/pkg@^1" → "@scope/pkg", "pkg@latest" → "pkg").
+func PluginPackage(spec string) string {
+	start := 0
+	if strings.HasPrefix(spec, "@") {
+		start = 1
+	}
+	if i := strings.Index(spec[start:], "@"); i >= 0 {
+		return spec[:start+i]
+	}
+	return spec
+}
+
 // BeadsPlanForbidden are the write subcommands refused even with risk: plan.
 var BeadsPlanForbidden = []string{"delete"}
 
@@ -513,6 +531,14 @@ func (v *validator) checkpoints() {
 		if cp.Remote != "" {
 			v.enum(base+".remote", string(cp.Remote), cp.Remote.Valid(), "auto", "defer", "forbid")
 		}
+		if len(cp.Unlocks) > 0 {
+			for _, mode := range sortedKeys(cp.Mode) {
+				if cp.Mode[mode] == BehaviorSkip {
+					// Treated as pause: skipping would drop the lock (N24).
+					v.warn("unlock_skip", base+".mode."+mode, k, mode)
+				}
+			}
+		}
 		for i, op := range cp.Unlocks {
 			at := fmt.Sprintf("%s.unlocks[%d]", base, i)
 			if !op.Valid() {
@@ -521,6 +547,11 @@ func (v *validator) checkpoints() {
 				// here.
 				v.warn("unlock_unknown", at, string(op), UnlockOpNames())
 				continue
+			}
+			if op == UnlockPush && s.Risk != RiskPublish {
+				// No agent may push outside a publishing workflow (DC7): the
+				// lock opens nothing.
+				v.warn("unlock_push_without_publish", at, k)
 			}
 			if prev, dup := unlockedBy[op]; dup {
 				v.err("unlock_duplicate", at, string(op), prev, k)
@@ -734,6 +765,11 @@ func (v *validator) security() {
 				}
 			}
 		}
+		for i, pl := range s.Plugins {
+			if containsStr(ExecPlugins, PluginPackage(pl.ID)) {
+				v.err("read_plugin_exec", fmt.Sprintf("plugins[%d]", i), pl.ID)
+			}
+		}
 		if s.Beads == nil {
 			v.err("read_beads_unrestricted", "risk")
 		} else {
@@ -744,6 +780,7 @@ func (v *validator) security() {
 			}
 		}
 	}
+	v.parallelWriters()
 	if s.AllowsRuntime(RuntimeRemote) {
 		for _, k := range s.Checkpoints.Keys() {
 			cp, _ := s.Checkpoints.Get(k)
@@ -763,6 +800,30 @@ func (v *validator) security() {
 	}
 	if s.Isolation == IsolationStrict && v.env.Isolation != "" && v.env.Isolation != sessionspec.IsolationFull {
 		v.warn("isolation_unsupported", "isolation", string(v.env.Isolation))
+	}
+}
+
+// parallelWriters warns about a writing workflow whose agents (two or more
+// that edit files) may all commit at will: no checkpoint unlocks commit
+// (N7). A free session (entry.selectable, `libre`) has no gate by nature.
+func (v *validator) parallelWriters() {
+	s := v.s
+	if s.Risk != RiskWrite || v.env.Agents == nil || (s.Entry != nil && s.Entry.Selectable) {
+		return
+	}
+	for _, k := range s.Checkpoints.Keys() {
+		if cp, _ := s.Checkpoints.Get(k); containsOp(cp.Unlocks, UnlockCommit) {
+			return
+		}
+	}
+	var writers []string
+	for _, m := range s.Members() {
+		if info, ok := v.env.Agents.Agent(m); ok && info.Edits {
+			writers = append(writers, m)
+		}
+	}
+	if len(writers) >= 2 {
+		v.warn("parallel_writers_without_commit_gate", "checkpoints", strings.Join(writers, ", "))
 	}
 }
 

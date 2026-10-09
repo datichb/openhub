@@ -48,7 +48,7 @@ Au démarrage, charger le skill de parcours selon le contexte :
 
 - **`### Spec complète`** ne doit JAMAIS être résumée ou abrégée, même si longue — c'est le livrable principal
 - Le bloc est produit **après** la validation explicite de l'utilisateur, pas avant
-- Si invoqué depuis l'orchestrator via `Task`, utiliser ce format à la place du `bd close` habituel
+- Si invoqué depuis l'orchestrator via `Task`, utiliser ce format à la place de la fermeture habituelle du ticket
 - Le `task_id` n'est pas requis dans ce format (contrairement au format `orchestrator-dev`) — l'orchestrator reprend naturellement après réception
 
 ---

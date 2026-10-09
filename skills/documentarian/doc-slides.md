@@ -538,6 +538,7 @@ question({
 
 Commandes de compilation :
 
+<!-- capability: user -->
 ```bash
 # HTML
 marp docs/presentations/[fichier].md -o docs/presentations/[fichier].html
@@ -552,6 +553,7 @@ marp --pdf docs/presentations/[fichier].md -o docs/presentations/[fichier].pdf
 
 Informer sans bloquer :
 
+<!-- capability: user -->
 ```
 Le fichier Marp a été généré : docs/presentations/[fichier].md
 

@@ -481,7 +481,7 @@ question({
 
 ### Comportement en subagent
 
-En mode orchestrator, le split est géré par l'orchestrateur (voir `orchestrator-modes.md` Cas E) :
+En mode orchestrator, le split est géré par l'orchestrateur : le planner produit le bloc de question de split (voir `planning/planner-execution-modes`) et l'orchestrateur relaie la réponse.
 
 ---
 

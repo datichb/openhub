@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/datichb/openhub/cli/internal/limits"
+	"github.com/datichb/openhub/cli/internal/sessionspec"
 )
 
 // ApplyPatch returns parent with patch applied (`extends`). parent is not
@@ -20,7 +21,7 @@ import (
 // is mandatory, or a precondition.
 func ApplyPatch(parent *Spec, patch *Document, parentRef string) (*Spec, Diagnostics) {
 	out := parent.Clone()
-	p := &patcher{dst: out, doc: patch, parent: parentRef}
+	p := &patcher{dst: out, doc: patch, parent: parentRef, parentMCP: parent.MCP != nil}
 	p.apply()
 	return out, p.diags
 }
@@ -34,6 +35,9 @@ type patcher struct {
 	removed []string
 	// blocked holds the top-level fields locked by a parent (`enforce`).
 	blocked map[string]bool
+	// parentMCP tells whether a parent document writes `mcp:` (absent, the
+	// session keeps every MCP server of the project).
+	parentMCP bool
 }
 
 func (p *patcher) has(path string) bool { return !p.blocked[topField(path)] && p.doc.Has(path) }
@@ -104,12 +108,7 @@ func (p *patcher) apply() {
 	p.agents()
 	p.checkpoints()
 	p.modes()
-	if p.has("circuit_breaker.max_consecutive_subagents") {
-		if d.CircuitBreaker == nil {
-			d.CircuitBreaker = &CircuitBreaker{}
-		}
-		d.CircuitBreaker.MaxConsecutiveSubagents = s.CircuitBreaker.MaxConsecutiveSubagents
-	}
+	p.circuitBreaker()
 	p.models()
 	if p.has("skills.extra") || p.has("skills.deny") {
 		if d.Skills == nil {
@@ -122,12 +121,8 @@ func (p *patcher) apply() {
 			d.Skills.Deny = s.Skills.Deny
 		}
 	}
-	if p.has("plugins") {
-		d.Plugins = s.Plugins
-	}
-	if p.has("mcp") {
-		d.MCP = s.MCP
-	}
+	p.plugins()
+	p.mcp()
 	p.beads()
 	p.runtime()
 	if p.has("outputs") {
@@ -245,6 +240,7 @@ func (p *patcher) agents() {
 			}
 			p.dst.Agents.Delete(k)
 			p.removed = append(p.removed, base)
+			p.dropCalls(k)
 			continue
 		}
 		if !exists {
@@ -259,10 +255,16 @@ func (p *patcher) agents() {
 			old.Mode = v.Mode
 		}
 		if h("after") {
-			old.After = v.After
+			p.after(base+".after", &old, v.After)
 		}
 		if h("calls") {
-			old.Calls = v.Calls
+			// An explicit list of the parent only shrinks; without one, the
+			// graph comes from the agent's own permissions (not known here).
+			if extra := missingFrom(v.Calls, old.Calls); old.Calls != nil && len(extra) > 0 {
+				p.loosening(base+".calls", strings.Join(extra, ","), strings.Join(old.Calls, ","))
+			} else {
+				old.Calls = v.Calls
+			}
 		}
 		p.dst.Agents.Set(k, old)
 	}
@@ -280,10 +282,10 @@ func (p *patcher) checkpoints() {
 			switch {
 			case !exists:
 				p.report(warnDiag("patch_unknown_checkpoint", base, k, p.parent))
-			case old.IsMandatory():
-				p.report(errDiag("mandatory_checkpoint_removed", base+".disabled", k))
 			case len(old.Unlocks) > 0:
 				p.report(errDiag("unlocking_checkpoint_removed", base+".disabled", k))
+			case old.IsMandatory():
+				p.report(errDiag("mandatory_checkpoint_removed", base+".disabled", k))
 			default:
 				p.dst.Checkpoints.Delete(k)
 				p.removed = append(p.removed, base)
@@ -395,11 +397,13 @@ func (p *patcher) beads() {
 	}
 	s := p.doc.Spec
 	parent := p.dst.Beads
-	if parent == nil { // unrestricted parent: any list hardens it
-		if s.Beads != nil {
-			p.dst.Beads = &BeadsAccess{Allow: s.Beads.Allow}
+	if parent == nil {
+		// Without a `beads:` block the gateway applies the read-only default
+		// list: the child is compared to it (N24, S-16).
+		if s.Beads == nil {
+			return
 		}
-		return
+		parent = &BeadsAccess{Allow: sessionspec.DefaultBeadsAllow}
 	}
 	if s.Beads == nil {
 		p.loosening("beads", "null", strings.Join(parent.Allow, ","))
@@ -410,6 +414,104 @@ func (p *patcher) beads() {
 		return
 	}
 	p.dst.Beads = &BeadsAccess{Allow: s.Beads.Allow}
+}
+
+// dropCalls removes a disabled agent from the explicit delegations of the
+// others (it is no longer a member; narrowing calls only hardens).
+func (p *patcher) dropCalls(agent string) {
+	for _, k := range p.dst.Agents.Keys() {
+		a, _ := p.dst.Agents.Get(k)
+		if a.Calls == nil || !slices.Contains(a.Calls, agent) {
+			continue
+		}
+		a.Calls = slices.DeleteFunc(slices.Clone(a.Calls), func(c string) bool { return c == agent })
+		p.dst.Agents.Set(k, a)
+	}
+}
+
+// after keeps a gate: it cannot be removed, nor moved to an earlier
+// checkpoint (N24, S-20). Moving it to a later checkpoint hardens it.
+func (p *patcher) after(path string, old *AgentRef, after string) {
+	if old.After == "" || after == old.After {
+		old.After = after
+		return
+	}
+	cps := p.dst.Checkpoints.Keys()
+	if from, to := slices.Index(cps, old.After), slices.Index(cps, after); from >= 0 && to > from {
+		old.After = after
+		return
+	}
+	shown := after
+	if shown == "" {
+		shown = `""`
+	}
+	p.loosening(path, shown, old.After)
+}
+
+// circuitBreaker may only be lowered (0 disables the breaker: a loosening
+// when the parent has one).
+func (p *patcher) circuitBreaker() {
+	if !p.has("circuit_breaker.max_consecutive_subagents") {
+		return
+	}
+	newV := p.doc.Spec.CircuitBreaker.MaxConsecutiveSubagents
+	d := p.dst
+	if d.CircuitBreaker != nil && d.CircuitBreaker.MaxConsecutiveSubagents != nil && *d.CircuitBreaker.MaxConsecutiveSubagents > 0 {
+		old := *d.CircuitBreaker.MaxConsecutiveSubagents
+		if newV == nil || *newV == 0 || *newV > old {
+			shown := "null"
+			if newV != nil {
+				shown = fmt.Sprint(*newV)
+			}
+			p.loosening("circuit_breaker.max_consecutive_subagents", shown, old)
+			return
+		}
+	}
+	if d.CircuitBreaker == nil {
+		d.CircuitBreaker = &CircuitBreaker{}
+	}
+	d.CircuitBreaker.MaxConsecutiveSubagents = newV
+}
+
+// widens reports whether a layer may add plugins or MCP servers: only the
+// hub layer (oh's own content). Other layers may only keep a subset of the
+// parent list (N24, S-18): a plugin runs code, an MCP server reaches the
+// forges with the user's tokens.
+func (p *patcher) widens() bool { return p.doc.Source.Layer == LayerHub }
+
+func (p *patcher) plugins() {
+	if !p.has("plugins") {
+		return
+	}
+	s, d := p.doc.Spec, p.dst
+	ids := func(ps []PluginRef) []string {
+		out := make([]string, len(ps))
+		for i, x := range ps {
+			out[i] = PluginPackage(x.ID)
+		}
+		return out
+	}
+	if extra := missingFrom(ids(s.Plugins), ids(d.Plugins)); len(extra) > 0 && !p.widens() {
+		p.loosening("plugins", strings.Join(extra, ","), strings.Join(ids(d.Plugins), ","))
+		return
+	}
+	d.Plugins = s.Plugins
+}
+
+// mcp: a parent that does not write `mcp:` keeps every MCP server of the
+// project, so any list narrows it; otherwise the child keeps a subset.
+func (p *patcher) mcp() {
+	if !p.has("mcp") {
+		return
+	}
+	s, d := p.doc.Spec, p.dst
+	if p.parentMCP {
+		if extra := missingFrom(s.MCP, d.MCP); len(extra) > 0 && !p.widens() {
+			p.loosening("mcp", strings.Join(extra, ","), strings.Join(d.MCP, ","))
+			return
+		}
+	}
+	d.MCP = s.MCP
 }
 
 func (p *patcher) runtime() {

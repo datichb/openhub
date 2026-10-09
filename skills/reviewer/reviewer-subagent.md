@@ -22,8 +22,9 @@ Le mode est déterminé par les tags présents dans le prompt :
 | Tag présent | Mode | Contexte |
 |-------------|------|----------|
 | `[MODE:standard]` ou aucun tag MODE | Standard | Review de ticket (orchestrator-dev, Étape 4) |
-| `[MODE:adversarial]` | Adversarial | CP-feature (orchestrator) |
-| `[MODE:adversarial+edge-case]` | Adversarial + Edge-case combiné | CP-feature avec option edge-case |
+| `[MODE:adversarial]` | Adversarial | Review de fin de feature (orchestrator) |
+| `[MODE:adversarial+edge-case]` | Adversarial + Edge-case combiné | Review de fin de feature avec option edge-case |
+| `[MODE:feedback]` | Standard, centrée sur les retours | Corrections d'un feedback de MR (workflow `review-feedback`) : pour chaque retour de `### Retours à vérifier`, dire s'il est traité ; le diff inclut les modifications non commitées (`git diff`, `git status`) |
 
 ---
 
@@ -71,7 +72,8 @@ Pour garantir l'isolation contextuelle, orchestrer des sessions parallèles **av
 2. **Préparer le contexte à injecter** — même protocole que le mode combiné standalone :
    a. Extraire la synthèse compacte (conventions, architecture, review-rules, god nodes, périmètre)
    b. Formater `[WIKI-CONTEXT:]`, `[DIFF-SCOPE:]`, `[STANDARDS:]`
-3. **Lancer les sessions en parallèle** via l'outil `task` :
+3. **Lancer les sessions en parallèle** via l'outil `task`, si `reviewer` figure dans ta ligne « Peut déléguer à » de la carte du workflow ; sinon, fais les deux analyses toi-même, l'une après l'autre (adversariale, puis edge-case), avec le même contexte, et passe à l'étape 5 :
+   <!-- capability: optional -->
    ```
    // Session 1 — Adversarial (contexte wiki injecté)
    task(subagent_type: "reviewer", prompt: "[MODE:adversarial] [REVIEW:single] [WIKI-CONTEXT:<synthèse>] [DIFF-SCOPE:<liste fichiers>] [STANDARDS:<liste>] Revue adversariale de la feature <branche>. git diff <base>..<branche>")

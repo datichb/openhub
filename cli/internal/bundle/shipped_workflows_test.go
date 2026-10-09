@@ -92,6 +92,7 @@ var extraSamples = map[string]map[string]map[string]any{
 	"sweep": {
 		"manual-custom": {"goal": "Migrer les appels dépréciés", "strategy": "manual", "tasks": "tâche 1\ntâche 2", "verify": "custom", "verify_cmd": "make check"},
 		"tests":         {"goal": "Migrer les appels dépréciés", "verify": "tests"},
+		"by-package":    {"goal": "Migrer les appels dépréciés", "strategy": "by-package", "verify": "tests", "dry_run": "false"},
 	},
 	"review":     {"mode-only": {"review_mode": "adversarial"}},
 	"onboarding": {"refresh": {"refresh": "true"}},

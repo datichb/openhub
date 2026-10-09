@@ -29,7 +29,7 @@ func TestParse_FullExampleIsClean(t *testing.T) {
 	if got := doc.Pos("agents.developer.after"); got != (Pos{29, 32}) {
 		t.Fatalf("pos agents.developer.after = %v", got)
 	}
-	if got := doc.Pos("outputs[1].type"); got != (Pos{56, 15}) {
+	if got := doc.Pos("outputs[1].type"); got != (Pos{57, 15}) {
 		t.Fatalf("pos outputs[1].type = %v", got)
 	}
 	if !doc.Has("code_mode") || doc.Has("inputs.branch.required") {
