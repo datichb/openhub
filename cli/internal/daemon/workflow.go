@@ -163,6 +163,7 @@ func (d *Daemon) handleWorkflowCheckpoint(w http.ResponseWriter, r *http.Request
 		return
 	}
 	if errors.Is(err, gitutil.ErrConfigChanged) {
+		d.raiseGitChanged(r.Context(), root, req.ID, err)
 		writeErr(w, http.StatusConflict, i18n.Tf("cmd.daemon.workflow.git_changed", req.ID))
 		return
 	}

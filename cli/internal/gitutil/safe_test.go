@@ -110,10 +110,26 @@ func TestCheckDetectsTamperedConfig(t *testing.T) {
 	require.NoError(t, Check(ctx, repo))
 
 	gitIn(t, repo, "config", "core.fsmonitor", "touch /tmp/x")
-	assert.True(t, errors.Is(Check(ctx, repo), ErrConfigChanged), "config changed")
+	err := Check(ctx, repo)
+	assert.True(t, errors.Is(err, ErrConfigChanged), "config changed")
+	var changed *ConfigChangedError
+	require.ErrorAs(t, err, &changed)
+	require.Len(t, changed.Files, 1, "the file that changed is named")
+	assert.Equal(t, "config", filepath.Base(changed.Files[0]))
+	assert.NotEmpty(t, changed.Fingerprint)
+
 	require.NoError(t, Trust(ctx, repo))
-	require.NoError(t, os.WriteFile(filepath.Join(repo, ".git", "hooks", "post-checkout"), []byte("#!/bin/sh\n"), 0o755))
-	assert.True(t, errors.Is(Check(ctx, repo), ErrConfigChanged), "hook added")
+	hook := filepath.Join(repo, ".git", "hooks", "post-checkout")
+	require.NoError(t, os.WriteFile(hook, []byte("#!/bin/sh\n"), 0o755))
+	err = Check(ctx, repo)
+	assert.True(t, errors.Is(err, ErrConfigChanged), "hook added")
+	require.ErrorAs(t, err, &changed)
+	require.Len(t, changed.Files, 1)
+	assert.Equal(t, "post-checkout", filepath.Base(changed.Files[0]))
+	require.NoError(t, Trust(ctx, repo))
+	require.NoError(t, os.Remove(hook))
+	require.ErrorAs(t, Check(ctx, repo), &changed)
+	assert.Equal(t, []string{"post-checkout"}, []string{filepath.Base(changed.Files[0])}, "hook removed")
 
 	// A worktree: its pointer file is covered.
 	require.NoError(t, Trust(ctx, repo))
