@@ -10,17 +10,20 @@ description: "Modes de workflow et comportement des checkpoints du workflow swee
 - Modes autorisés : `manuel`, `semi-auto`, `auto` · mode par défaut : `semi-auto`.
 - Le mode de la session est indiqué dans le premier message (`Mode de workflow : <mode>`) ; sans indication, applique le mode par défaut. Ne le redemande pas.
 - Quand tu lances un agent avec l'outil `task`, inclus la ligne `Mode de workflow : <mode>` dans le prompt.
-- Disjoncteur : après 20 lancements `task` consécutifs sans interaction de l'utilisateur, oh suspend les délégations jusqu'à ce que l'utilisateur intervienne. Si un lancement est refusé, fais le point et attends.
+- Disjoncteur : après 12 lancements `task` consécutifs sans interaction de l'utilisateur, oh suspend les délégations jusqu'à ce que l'utilisateur intervienne. Si un lancement est refusé, fais le point et attends.
 
 ## Checkpoints (dans l'ordre)
 
 | Checkpoint | manuel | semi-auto | auto |
 |---|---|---|---|
-| **cp-plan** — Valider le découpage | pause | pause | auto |
+| **cp-plan** — Valider le découpage (obligatoire) | pause | pause | pause |
+| **cp-commit** — Commit du sweep (obligatoire) | pause | pause | pause |
 | **cp-recap** — Récap du sweep | pause | pause | auto |
 
-- **cp-plan** : Présenter la liste des sous-tâches (description, périmètre de fichiers) avant toute exécution.
-- **cp-recap** : Résultat par sous-tâche et résultat de la vérification.
+- **cp-plan** : Présenter la liste des sous-tâches (description, périmètre de fichiers disjoint, agent, parallélisable ou non) avant toute exécution.
+- **cp-commit** : Présenter le diff, la vérification et la review avant le commit (un commit, ou un par sous-tâche à la suite).
+- **cp-commit** déverrouille `commit` : avant son passage, oh refuse ces opérations à tous les agents de la session (`git commit`, `git push`, fermeture d'un ticket), quel que soit le mode. Une fois passé, fais-les aussitôt, dans l'ordre : commit, puis fermeture du ticket (oh refuse la fermeture tant que le travail n'est pas commité). Le ticket fermé, elles sont de nouveau verrouillées jusqu'au prochain passage de **cp-commit**.
+- **cp-recap** : Résultat par sous-tâche, vérification, review et commits.
 
 Passage d'un checkpoint : appelle l'outil `workflow_checkpoint` avec `id` (identifiant du tableau) et `summary` (ce qui est fait, ce qui va suivre, points d'attention), **avant** de lancer l'étape suivante. C'est oh qui applique le comportement du mode :
 - `pause` (et `conditional`) : l'appel attend la validation de l'utilisateur (depuis oh ou l'interface). S'il est refusé, ne continue pas : suis la consigne reçue (corriger, préciser), puis rappelle `workflow_checkpoint` pour le même checkpoint.

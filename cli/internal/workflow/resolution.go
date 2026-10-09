@@ -274,9 +274,21 @@ func (r *Resolved) applySession(opts *SessionOptions) Diagnostics {
 		if _, given := r.Inputs[k]; !given && in.Required && in.Default == nil {
 			add(errDiag("session_input_missing", "session.inputs."+k, k))
 		}
+		// Convention: an enum input set to `custom` needs its companion
+		// `<input>_cmd` input when the workflow declares one (sweep:
+		// verify: custom + verify_cmd, N7).
+		if v, ok := r.Inputs[k]; ok && in.Type == InputEnum && fmt.Sprint(v) == CustomValue {
+			cmd, given := r.Inputs[k+"_cmd"]
+			if _, has := s.Inputs.Get(k + "_cmd"); has && (!given || strings.TrimSpace(fmt.Sprint(cmd)) == "") {
+				add(errDiag("verify_cmd_missing", "session.inputs."+k+"_cmd", k, k+"_cmd"))
+			}
+		}
 	}
 	return diags
 }
+
+// CustomValue is the enum value that asks for a `<input>_cmd` companion.
+const CustomValue = "custom"
 
 // checkInputValue reports whether v suits the input type. Strings as typed
 // on a command line are accepted for every type ("true", "12", "a,b").

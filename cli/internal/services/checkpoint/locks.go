@@ -164,20 +164,28 @@ func containsFold(list []string, s string) bool {
 // finished reports whether the workflow of a session reached its end: every
 // mandatory checkpoint passed, nothing waiting, and either the last
 // checkpoint is the latest one passed, or every ticket the session took is
-// closed with no other checkpoint passed since the last closing.
+// closed with no other checkpoint passed since the last closing. A session
+// whose only passed checkpoint is the last one (plan only) ends too.
 func finished(wf *sessionspec.WorkflowRuntime, mode string, st domain.CheckpointState) bool {
 	if wf == nil || st.Waiting != "" {
 		return false
 	}
 	last := ""
+	missing := false
 	for _, c := range wf.Checkpoints {
 		if c.Behavior(mode) == sessionspec.CheckpointSkip {
 			continue
 		}
 		if c.Mandatory && !st.HasPassed(c.ID) {
-			return false
+			missing = true
 		}
 		last = c.ID
+	}
+	if missing {
+		// A session that went straight to its last checkpoint passed nothing
+		// else: nothing was unlocked nor done (a plan-only run, sweep
+		// dry_run, N7). It ends there.
+		return last != "" && len(st.Passed) == 1 && st.HasPassed(last) && !wfMandatory(wf, last)
 	}
 	lastPass, lastClose := -1, -1
 	passedSinceClose := false
@@ -204,6 +212,11 @@ func finished(wf *sessionspec.WorkflowRuntime, mode string, st domain.Checkpoint
 		}
 	}
 	return true
+}
+
+func wfMandatory(wf *sessionspec.WorkflowRuntime, id string) bool {
+	c, ok := wf.Checkpoint(id)
+	return ok && (c.Mandatory || len(c.Unlocks) > 0)
 }
 
 // Finish marks the end of the workflow of root when it is reached (called

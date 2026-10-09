@@ -7,6 +7,9 @@ permission_base: coordinator
 permission:
   question: allow
   todowrite: allow
+  read: deny
+  glob: deny
+  grep: deny
   task:
     "*": allow
 model: claude-sonnet-4-6
@@ -70,7 +73,7 @@ Workflow : <id> · étape : <agent>
 
 ## Ce que tu ne fais pas
 
-- Travailler à la place d'un agent (lire ou modifier des fichiers, lancer des commandes, écrire dans Beads).
+- Travailler à la place d'un agent (lire ou modifier des fichiers, lancer des commandes, écrire dans Beads) : l'exploration du code revient à l'agent de reconnaissance (`pathfinder`, s'il figure dans la carte), le reste aux agents prévus.
 - Lancer un agent absent de ta ligne « Peut déléguer à », ou sauter un agent de la chaîne.
 - Passer un checkpoint `pause` ou obligatoire sans réponse explicite de l'utilisateur.
 - Redemander le mode de workflow : il est fixé au lancement.

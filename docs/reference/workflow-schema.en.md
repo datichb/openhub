@@ -428,8 +428,9 @@ A diagnostic has a severity (error or warning), a code, the field path, the sour
 | `read_agent_writes`, `read_beads_unrestricted`, `read_beads_write`, `read_plugin_exec` | `risk: read` rules |
 | `plan_agent_writes`, `plan_beads_unrestricted`, `plan_beads_delete`, `plan_without_beads_write` | `risk: plan` rules |
 | `remote_forbidden_checkpoint`, `runtime_default_not_allowed`, `mode_default_not_allowed`, `isolation_unsupported` | environments, modes, isolation |
+| `parallel_writers_without_commit_gate` | warning: `risk: write`, at least two agents that edit files and no checkpoint that unlocks `commit` (except a selectable entry, `libre`) |
 | `model_invalid`, `model_agent_unknown`, `skill_unknown`, `skill_unknown_deny`, `skill_closure`, `skill_duplicate`, `skill_denied_required` | resources |
-| `session_mode_not_allowed`, `session_runtime_not_allowed`, `session_input_unknown`, `session_input_invalid`, `session_input_missing`, `session_entry_not_selectable`, `session_entry_unknown` | launch options |
+| `session_mode_not_allowed`, `session_runtime_not_allowed`, `session_input_unknown`, `session_input_invalid`, `session_input_missing`, `verify_cmd_missing` (an `enum` input set to `custom` requires the `<input>_cmd` input when the workflow declares it), `session_entry_not_selectable`, `session_entry_unknown` | launch options |
 
 ---
 

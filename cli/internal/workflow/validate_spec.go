@@ -775,6 +775,7 @@ func (v *validator) security() {
 			}
 		}
 	}
+	v.parallelWriters()
 	if s.AllowsRuntime(RuntimeRemote) {
 		for _, k := range s.Checkpoints.Keys() {
 			cp, _ := s.Checkpoints.Get(k)
@@ -794,6 +795,30 @@ func (v *validator) security() {
 	}
 	if s.Isolation == IsolationStrict && v.env.Isolation != "" && v.env.Isolation != sessionspec.IsolationFull {
 		v.warn("isolation_unsupported", "isolation", string(v.env.Isolation))
+	}
+}
+
+// parallelWriters warns about a writing workflow whose agents (two or more
+// that edit files) may all commit at will: no checkpoint unlocks commit
+// (N7). A free session (entry.selectable, `libre`) has no gate by nature.
+func (v *validator) parallelWriters() {
+	s := v.s
+	if s.Risk != RiskWrite || v.env.Agents == nil || (s.Entry != nil && s.Entry.Selectable) {
+		return
+	}
+	for _, k := range s.Checkpoints.Keys() {
+		if cp, _ := s.Checkpoints.Get(k); containsOp(cp.Unlocks, UnlockCommit) {
+			return
+		}
+	}
+	var writers []string
+	for _, m := range s.Members() {
+		if info, ok := v.env.Agents.Agent(m); ok && info.Edits {
+			writers = append(writers, m)
+		}
+	}
+	if len(writers) >= 2 {
+		v.warn("parallel_writers_without_commit_gate", "checkpoints", strings.Join(writers, ", "))
 	}
 }
 

@@ -8,10 +8,10 @@
       "permissions": [
         "shell * deny",
         "edit * deny",
-        "glob * allow",
-        "grep * allow",
+        "glob * deny",
+        "grep * deny",
         "question * allow",
-        "read * allow",
+        "read * deny",
         "skill * allow",
         "subagent * allow",
         "todowrite * allow",

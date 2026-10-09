@@ -103,6 +103,7 @@ agents:
   documentarian: { role: independent }
 checkpoints:
   cp-1: { mode: { manuel: pause, semi-auto: auto, auto: auto } }
+  cp-2: { mandatory: true, unlocks: [commit], mode: { manuel: pause, semi-auto: pause, auto: pause } }
 `)
 	write(t, filepath.Join(wfDir, "prompts", "ticket.md.tmpl"), "Implement {{ .ticket }} in {{ .oh.project }}.\n")
 	write(t, filepath.Join(wfDir, "audit.yaml"), `apiVersion: oh/v1

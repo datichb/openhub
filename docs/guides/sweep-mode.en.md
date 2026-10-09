@@ -4,7 +4,7 @@
 
 The former sweep mode (`oh start --sweep`, one session and one worktree per subtask) was removed with opencode V1 (v5).
 
-v5 equivalent: the **`sweep`** workflow: the `conductor` splits the goal, has you validate the split (`cp-plan`), launches the subtasks in parallel to the developer agents in the same session, then verifies the result.
+v5 equivalent: the **`sweep`** workflow: the `pathfinder` splits the goal (read-only), the `conductor` has you validate the split (`cp-plan`, in every mode), launches the subtasks to the developer agents in the same session (in parallel only for disjoint scopes), has the result verified and reviewed by the `reviewer`, then has it committed after your approval (`cp-commit`).
 
 ```bash
 oh run sweep -i goal="move logs to slog" -i strategy=by-package -i verify=tests

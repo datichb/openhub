@@ -31,7 +31,7 @@ A workflow is launched with `oh run <workflow>` or the TUI launch form; the form
 | `review-feedback` | `orchestrator-dev` | `developer` | write | local | `oh review feedback` |
 | `audit` | `auditor` | `auditor-subagent` | read | local, remote | `oh audit` |
 | `debug` | `debugger` | `developer` (on demand) | write | local | `oh debug` (former mode D) |
-| `sweep` | `conductor` | `developer`, `developer-refactor`, `developer-migrator` | write | local | `oh start --sweep` |
+| `sweep` | `conductor` | `pathfinder`, `developer`, `developer-refactor`, `developer-migrator`, `reviewer` | write | local | `oh start --sweep` |
 | `brief-enrich` | `brief-enricher` | — | read | local | `oh takeover-brief enrich` |
 | `libre` | your choice (`orchestrator` by default) | those the chosen agent may call | write | local, container | `oh start --agent`, TUI free session |
 
@@ -199,7 +199,7 @@ Output: `tickets`. Allowed Beads commands: `show`, `list`, `ready`, `search`, `c
 
 ## `sweep`
 
-Reaches a cross-cutting goal by splitting it into independent subtasks, launched in parallel by the `conductor` to the developer agents, then verifies the result.
+Reaches a cross-cutting goal by splitting it into independent subtasks: the `pathfinder` (read-only) splits, the `conductor` has the plan approved, launches the developer agents (in parallel only for disjoint file scopes), has the result verified and reviewed by the `reviewer`, then has it committed after approval. No Beads ticket.
 
 | Input | Type | Required | Purpose |
 |---|---|---|---|
@@ -208,15 +208,16 @@ Reaches a cross-cutting goal by splitting it into independent subtasks, launched
 | `tasks` | `text` (8,000 characters max) | no | Tasks, one per line (`manual`) |
 | `include`, `exclude` | `string` (1,000 characters max) | no | Glob patterns, comma-separated |
 | `verify` | `enum`: `none` (default), `tests`, `lint`, `build`, `all`, `custom` | no | Final verification |
-| `verify_cmd` | `string` (500 characters max) | no | Verification command (`custom`) |
-| `dry_run` | `bool` (default: no) | no | Show the decomposition without running anything |
+| `verify_cmd` | `string` (500 characters max) | with `custom` | Verification command; `verify: custom` without it is refused at launch (`verify_cmd_missing`). Run by a `developer`: its permissions may refuse it |
+| `dry_run` | `bool` (default: no) | no | Show the decomposition without running anything: `cp-plan` is not called, the session ends with `cp-recap` |
 
 | Checkpoint | manuel | semi-auto | auto |
 |---|---|---|---|
-| `cp-plan` Approve the decomposition (before any execution) | pause | pause | auto |
+| `cp-plan` Approve the decomposition (mandatory, before any execution) | pause | pause | pause |
+| `cp-commit` Commit the sweep (mandatory) | pause | pause | pause |
 | `cp-recap` Sweep recap | pause | pause | auto |
 
-The developer agents only start after `cp-plan`. Default mode: `semi-auto`; circuit breaker at 20 consecutive delegations (12 for the other workflows with checkpoints). Allowed Beads commands: `show`, `list`, `ready`, `search`, `children`, `comments`, `count`, `status`, `graph`, `history`, `create`, `update`, `close`, `dep`, `label`. Output: `branch`. Difference with the former `--sweep`: subtasks run in the same session and location (no worktree per task); `--sweep-branch-prefix` and `--max-sessions` have no equivalent.
+The developer agents and the `reviewer` only start after `cp-plan`; `cp-commit` unlocks `commit` (before it, oh refuses every `git commit`). Default mode: `semi-auto`; circuit breaker at 12 consecutive delegations. Allowed Beads commands: `show`, `list`, `search`. Output: `branch`. Difference with the former `--sweep`: subtasks run in the same session and location (no worktree per task); `--sweep-branch-prefix` and `--max-sessions` have no equivalent.
 
 ## `brief-enrich`
 

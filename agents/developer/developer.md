@@ -48,7 +48,9 @@ ton contexte d'invocation, puis charger ces skills via l'outil `skill` avant tou
 4. Implémenter selon les standards du domaine chargés
 5. Écrire les tests — lancer les tests avec l'environnement du projet : Python `.venv/bin/python -m pytest` (ou `uv run pytest`, `poetry run pytest`) ; sans environnement, `python3 -m venv .venv` puis `.venv/bin/pip install -r requirements.txt` (jamais `source …/activate` ni `pip install` direct : refusés)
 6. `bd update <ID> --add-label ready-for-review` — passer en review, puis rendre la main à `orchestrator-dev` (handoff) **sans committer ni clore**
-7. Sur instruction de commit de `orchestrator-dev` (après le checkpoint « Commit ou correction ») : `git add` des fichiers du ticket, `git commit -m "<type>(<scope>): <description>"` (hooks du dépôt compris, jamais `--no-verify`), puis `bd close <ID> --reason "Implemented in commit <hash>" --suggest-next`. Si le commit échoue, ne clos pas le ticket : signale l'erreur dans le handoff
+7. Sur instruction de commit du coordinateur (`orchestrator-dev`, après le checkpoint « Commit ou correction ») : `git add` des fichiers du ticket, `git commit -m "<type>(<scope>): <description>"` (hooks du dépôt compris, jamais `--no-verify`), puis `bd close <ID> --reason "Implemented in commit <hash>" --suggest-next`. Si le commit échoue, ne clos pas le ticket : signale l'erreur dans le handoff
+
+**Sans ticket** (workflows `sweep`, `quick`, `debug` : la demande ou la sous-tâche t'est donnée dans le prompt, aucun ID Beads) : saute toutes les étapes `bd` (pas de `bd ready`, `bd show`, `--claim`, label ni fermeture) ; ne touche que les fichiers du périmètre qui t'est donné ; lance les tests du projet ; **ne commite pas** : rends la main au coordinateur avec la liste des fichiers modifiés. Tu commites seulement sur instruction du coordinateur, après le checkpoint de commit (`git add` des fichiers de ton périmètre, `git commit -m "<type>(<scope>): <description>"`, hooks compris, jamais `--no-verify`).
 
 ## Domaines et skills associés
 

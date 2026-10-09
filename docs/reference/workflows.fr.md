@@ -31,7 +31,7 @@ On lance un workflow avec `oh run <workflow>` ou la fiche de lancement de la TUI
 | `review-feedback` | `orchestrator-dev` | `developer` | write | local | `oh review feedback` |
 | `audit` | `auditor` | `auditor-subagent` | read | local, distant | `oh audit` |
 | `debug` | `debugger` | `developer` (à la demande) | write | local | `oh debug` (ancien mode D) |
-| `sweep` | `conductor` | `developer`, `developer-refactor`, `developer-migrator` | write | local | `oh start --sweep` |
+| `sweep` | `conductor` | `pathfinder`, `developer`, `developer-refactor`, `developer-migrator`, `reviewer` | write | local | `oh start --sweep` |
 | `brief-enrich` | `brief-enricher` | — | read | local | `oh takeover-brief enrich` |
 | `libre` | au choix (`orchestrator` par défaut) | ceux que l'agent choisi peut appeler | write | local, conteneur | `oh start --agent`, session libre de la TUI |
 
@@ -199,7 +199,7 @@ Sortie : `tickets`. Commandes Beads autorisées : `show`, `list`, `ready`, `sear
 
 ## `sweep`
 
-Atteint un objectif transverse en le découpant en sous-tâches indépendantes, lancées en parallèle par le `conductor` vers les agents développeurs, puis vérifie le résultat.
+Atteint un objectif transverse en le découpant en sous-tâches indépendantes : le `pathfinder` (lecture seule) découpe, le `conductor` fait valider le plan, lance les agents développeurs (en parallèle seulement pour des périmètres de fichiers disjoints), fait vérifier et relire le résultat par le `reviewer`, puis fait commiter après validation. Aucun ticket Beads.
 
 | Entrée | Type | Obligatoire | Rôle |
 |---|---|---|---|
@@ -208,15 +208,16 @@ Atteint un objectif transverse en le découpant en sous-tâches indépendantes, 
 | `tasks` | `text` (8 000 caractères max) | non | Tâches, une par ligne (`manual`) |
 | `include`, `exclude` | `string` (1 000 caractères max) | non | Motifs glob, séparés par des virgules |
 | `verify` | `enum` : `none` (défaut), `tests`, `lint`, `build`, `all`, `custom` | non | Vérification finale |
-| `verify_cmd` | `string` (500 caractères max) | non | Commande de vérification (`custom`) |
-| `dry_run` | `bool` (défaut : non) | non | Afficher le découpage sans rien exécuter |
+| `verify_cmd` | `string` (500 caractères max) | avec `custom` | Commande de vérification ; `verify: custom` sans elle est refusé au lancement (`verify_cmd_missing`). Lancée par un `developer` : elle peut être refusée par ses permissions |
+| `dry_run` | `bool` (défaut : non) | non | Afficher le découpage sans rien exécuter : `cp-plan` n'est pas appelé, la session se termine par `cp-recap` |
 
 | Checkpoint | manuel | semi-auto | auto |
 |---|---|---|---|
-| `cp-plan` Valider le découpage (avant toute exécution) | pause | pause | auto |
+| `cp-plan` Valider le découpage (obligatoire, avant toute exécution) | pause | pause | pause |
+| `cp-commit` Commit du sweep (obligatoire) | pause | pause | pause |
 | `cp-recap` Récap du sweep | pause | pause | auto |
 
-Les agents développeurs ne démarrent qu'après `cp-plan`. Mode par défaut : `semi-auto` ; coupe-circuit à 20 délégations consécutives (12 pour les autres workflows à checkpoints). Commandes Beads autorisées : `show`, `list`, `ready`, `search`, `children`, `comments`, `count`, `status`, `graph`, `history`, `create`, `update`, `close`, `dep`, `label`. Sortie : `branch`. Différence avec l'ancien `--sweep` : les sous-tâches s'exécutent dans la même session et le même emplacement (pas un worktree par tâche) ; `--sweep-branch-prefix` et `--max-sessions` n'ont pas d'équivalent.
+Les agents développeurs et le `reviewer` ne démarrent qu'après `cp-plan` ; `cp-commit` déverrouille `commit` (avant lui, oh refuse tout `git commit`). Mode par défaut : `semi-auto` ; coupe-circuit à 12 délégations consécutives. Commandes Beads autorisées : `show`, `list`, `search`. Sortie : `branch`. Différence avec l'ancien `--sweep` : les sous-tâches s'exécutent dans la même session et le même emplacement (pas un worktree par tâche) ; `--sweep-branch-prefix` et `--max-sessions` n'ont pas d'équivalent.
 
 ## `brief-enrich`
 

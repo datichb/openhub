@@ -428,8 +428,9 @@ Un diagnostic a une gravité (erreur ou avertissement), un code, le chemin du ch
 | `read_agent_writes`, `read_beads_unrestricted`, `read_beads_write`, `read_plugin_exec` | règles de `risk: read` |
 | `plan_agent_writes`, `plan_beads_unrestricted`, `plan_beads_delete`, `plan_without_beads_write` | règles de `risk: plan` |
 | `remote_forbidden_checkpoint`, `runtime_default_not_allowed`, `mode_default_not_allowed`, `isolation_unsupported` | environnements, modes, isolation |
+| `parallel_writers_without_commit_gate` | avertissement : `risk: write`, au moins deux agents qui modifient des fichiers et aucun checkpoint qui déverrouille `commit` (sauf entrée au choix, `libre`) |
 | `model_invalid`, `model_agent_unknown`, `skill_unknown`, `skill_unknown_deny`, `skill_closure`, `skill_duplicate`, `skill_denied_required` | ressources |
-| `session_mode_not_allowed`, `session_runtime_not_allowed`, `session_input_unknown`, `session_input_invalid`, `session_input_missing`, `session_entry_not_selectable`, `session_entry_unknown` | options de lancement |
+| `session_mode_not_allowed`, `session_runtime_not_allowed`, `session_input_unknown`, `session_input_invalid`, `session_input_missing`, `verify_cmd_missing` (une entrée `enum` qui vaut `custom` exige l'entrée `<entrée>_cmd` quand le workflow la déclare), `session_entry_not_selectable`, `session_entry_unknown` | options de lancement |
 
 ---
 
