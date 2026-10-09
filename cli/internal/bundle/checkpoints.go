@@ -87,7 +87,7 @@ func SessionRules(wf *sessionspec.WorkflowRuntime, mode string, st *domain.Check
 // `*` also catches `env git commit`, `git -c k=v commit`, `sh -c '…'`.
 // Closing a ticket is also refused by the Beads gateway, whatever the shell.
 var lockPatterns = map[string][]string{
-	sessionspec.UnlockCommit: {"*git*commit*"},
+	sessionspec.UnlockCommit: append([]string{"*git*commit*"}, CommitLockExtra...),
 	sessionspec.UnlockPush:   {"*git*push*"},
 	sessionspec.UnlockClose:  {"*bd*close*", "*bd*update*closed*"},
 	sessionspec.UnlockCreate: {"*bd*create*"},

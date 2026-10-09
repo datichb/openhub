@@ -29,8 +29,11 @@ type Request struct {
 	// pluginTools are the permissions provided by plugins (set by Build).
 	pluginTools map[string]bricks.PluginTools
 
-	HubDir      string // ~/.oh/hub (agents/, skills/, permissions/)
-	OutDir      string // ~/.oh/bundles
+	HubDir string // ~/.oh/hub (agents/, skills/, permissions/)
+	OutDir string // ~/.oh/bundles
+	// OhHome is the oh home (~/.oh), refused to the shell of the agents by
+	// its path when it is elsewhere (global guard).
+	OhHome      string
 	ProjectPath string // for stack skills and project instructions (may be empty)
 	EntryAgent  string
 
@@ -144,6 +147,7 @@ func Build(req Request) (*Bundle, error) {
 		StrictIsolation: req.StrictIsolation,
 	}
 	applyWorkflowRuntime(&spec, req.Spec)
+	spec.AgentGuard = append(GlobalShellGuard(req.OhHome), GlobalEditGuard()...)
 	if req.WebsearchEnabled {
 		spec.Permissions = append(spec.Permissions,
 			sessionspec.PermissionRule{Action: sessionspec.ActionWebSrch, Resource: "*", Effect: sessionspec.EffectAllow},

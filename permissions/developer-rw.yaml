@@ -96,10 +96,13 @@ bash:
   "phpcs*": allow
   # RTK (wrapper token-optimisé)
   "rtk *": allow
-  # Filesystem — lecture
+  # Filesystem — lecture (find -exec/-delete/-ok… refusés par le garde-fou
+  # d'oh ; recherche dans les fichiers : rg, grep)
   "ls*": allow
   "tree*": allow
   "find*": allow
+  "rg *": allow
+  "grep *": allow
   "cat *": allow
   "wc *": allow
   "file *": allow
@@ -109,17 +112,21 @@ bash:
   "mv *": allow
   "rm *": allow
   "touch *": allow
-  # Processus
-  "pkill*": allow
-  "kill *": allow
+  # Processus : les tâches du shell de la session ; tuer un processus par
+  # nom ou par pid demande (pkill -f peut tuer le serveur de la session ou
+  # vos propres processus)
+  "kill %*": allow
+  "kill *": ask
+  "pkill*": ask
   # Réseau
   "curl*": allow
   "wget*": allow
-  # Docker local
+  # Docker local (run/exec : exécution arbitraire sur le moteur → ask ;
+  # montages de la machine, --privileged… refusés par le garde-fou d'oh)
   "docker build*": allow
-  "docker run*": allow
+  "docker run*": ask
   "docker compose*": allow
-  "docker exec*": allow
+  "docker exec*": ask
   "docker logs*": allow
   "docker ps*": allow
   "docker stop*": allow
@@ -128,7 +135,6 @@ bash:
   "echo *": allow
   "make*": allow
   "which *": allow
-  "printenv*": allow
 read: allow
 glob: allow
 grep: allow

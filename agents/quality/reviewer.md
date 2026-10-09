@@ -12,7 +12,8 @@ permission:
     "git log*": allow
     "git show*": allow
     "git status": allow
-    "git fetch*": allow
+    "git fetch": allow
+    "git fetch origin*": allow
     "bd show *": allow
   read: allow
   glob: allow

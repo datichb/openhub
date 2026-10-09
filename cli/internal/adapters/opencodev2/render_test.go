@@ -270,7 +270,7 @@ func TestRenderMCPToolActions(t *testing.T) {
 func TestControlPlaneGuardLastOfEveryAgent(t *testing.T) {
 	b := sessionspec.BundleSpec{EntryAgent: "a", Agents: []sessionspec.AgentDef{{ID: "a",
 		Permissions: []sessionspec.PermissionRule{{Action: sessionspec.ActionShell, Resource: "*", Effect: sessionspec.EffectAllow}}}}}
-	rules := agentRules(b.Agents[0], b, nil)
+	rules := append(agentRules(b.Agents[0], b, nil), AgentGuard(b)...)
 	for _, line := range []string{
 		"printenv OPENCODE_SERVER_PASSWORD",
 		"echo $OPENCODE_CONFIG_CONTENT",
@@ -281,4 +281,20 @@ func TestControlPlaneGuardLastOfEveryAgent(t *testing.T) {
 		assert.Equal(t, sessionspec.EffectDeny, bundle.ShellEffect(rules, line), line)
 	}
 	assert.Equal(t, sessionspec.EffectAllow, bundle.ShellEffect(rules, "go test ./internal/adapters/opencodev2/..."), "developing oh itself stays possible")
+
+	// Rendered once in the plugin options, per agent without the plugin.
+	b.AgentGuard = []sessionspec.PermissionRule{{Action: sessionspec.ActionShell, Resource: "*g*", Effect: sessionspec.EffectDeny}}
+	withP := withOhPlugin(b, "/p", "", nil, nil)
+	cfg, err := BuildConfig(withP, sessionspec.ProviderSpec{}, nil)
+	require.NoError(t, err)
+	perms := cfg["agents"].(map[string]any)["a"].(map[string]any)["permissions"].([]Rule)
+	assert.NotContains(t, perms, Rule{Action: "shell", Resource: "*g*", Effect: "deny"})
+	opts := withP.Plugins[len(withP.Plugins)-1].Options
+	assert.Contains(t, opts["guard"], Rule{Action: "shell", Resource: "*g*", Effect: "deny"})
+	cfg, err = BuildConfig(withoutOhPlugin(b), sessionspec.ProviderSpec{}, nil)
+	require.NoError(t, err)
+	perms = cfg["agents"].(map[string]any)["a"].(map[string]any)["permissions"].([]Rule)
+	assert.Equal(t, Rule{Action: "shell", Resource: "*--user opencode:*", Effect: "deny"}, perms[len(perms)-1], "fallback: last of the agent")
+	assert.Contains(t, perms, Rule{Action: "shell", Resource: "*g*", Effect: "deny"})
+
 }

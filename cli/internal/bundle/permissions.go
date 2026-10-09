@@ -67,7 +67,37 @@ func ConvertPermissions(perms map[string]interface{}) []sessionspec.PermissionRu
 		}
 		rules = append(rules, mergeRuleSets(action, sets)...)
 	}
-	return rules
+	return execToolsFollowShell(rules)
+}
+
+// shellExecTools are plugin tools that run code like the shell does
+// (context-mode): they never get more than the shell of the agent (v5
+// critical N3, audit S-19), so an agent refused the shell is refused them.
+var shellExecTools = []string{"ctx_execute", "ctx_execute_file", "ctx_batch_execute"}
+
+// execToolsFollowShell caps the effect of the shell execution tools with the
+// effect of `shell: "*"` (deny when the agent has no rule for the shell).
+func execToolsFollowShell(rules []sessionspec.PermissionRule) []sessionspec.PermissionRule {
+	var shell []sessionspec.PermissionRule
+	for _, r := range rules {
+		if r.Action == sessionspec.ActionShell {
+			shell = append(shell, r)
+		}
+	}
+	limit, ok := evaluate(shell, "*")
+	if !ok {
+		limit = sessionspec.EffectDeny
+	}
+	out := make([]sessionspec.PermissionRule, 0, len(rules))
+	for _, r := range rules {
+		for _, t := range shellExecTools {
+			if r.Action == t && restrictiveness(limit) > restrictiveness(r.Effect) {
+				r.Effect = limit
+			}
+		}
+		out = append(out, r)
+	}
+	return out
 }
 
 // keyRules converts the value of one V1 key, ordered from the most general to

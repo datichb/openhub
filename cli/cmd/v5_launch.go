@@ -210,7 +210,7 @@ func selectMCP(available []sessionspec.MCPServerDef, ids []string) (kept []sessi
 // launch: hub, project instructions, model cascade and MCP servers.
 func sessionBundleRequest(a *app.App, project *domain.Project, tc config.ResolvedTeamConfig, prov string) bundle.Request {
 	req := bundle.Request{
-		HubDir: hubcontent.HubContentDir(), OutDir: ohBundlesDir(), Provider: prov, ToolProvider: toolProviderID(prov),
+		HubDir: hubcontent.HubContentDir(), OutDir: ohBundlesDir(), OhHome: config.HubDir(), Provider: prov, ToolProvider: toolProviderID(prov),
 		ExtraInstructionFiles: a.Config.Deploy.InstructionFiles,
 		WebsearchEnabled:      a.Config.Websearch.Enabled,
 	}

@@ -50,6 +50,7 @@ If declined, we will provide a clear explanation.
 - **Closed world.** A session only sees the agents and skills of its session bundle, and this is checked at each server start.
 - **Beads stays on the machine.** Outside the machine, `bd` goes through a gateway restricted by the workflow's allow-list.
 - **Local mode is not a sandbox.** In local mode the agent's shell runs as your user (see [Known limitations of the local mode](#known-limitations-of-the-local-mode)). Use container sessions for real isolation.
+- **Guard rails, not barriers.** oh's shell rules (patterns) stop the mistakes of a model and cheap workarounds; they do not confine an agent that tries to get out (see [What the shell rules do not protect](#what-the-shell-rules-do-not-protect)). The locks that do not depend on patterns are: the checkpoint validation seen by oh, the gateways (Beads, MCP), the credential proxy and the container.
 
 Design decisions: [ADR-041](docs/architecture/adr/041-closed-world-isolation.en.md) (closed world), [ADR-044](docs/architecture/adr/044-credential-proxy-session-limits.en.md) (credential proxy, limits), [ADR-045](docs/architecture/adr/045-execution-environments.en.md) (execution environments), [ADR-046](docs/architecture/adr/046-beads-gateways.en.md) (gateways).
 
@@ -109,8 +110,9 @@ The closed world is about what the model sees, not what the shell can do.
 - The real `bd` runs without a shell, in the session folder (2 min timeout, 8 MiB per stream).
 - **Shell start-up**: the shell of a local session reads oh's start-up files (`ZDOTDIR` for zsh, `BASH_ENV` for bash, `~/.oh/run/shell/`): they load the user's own files (`~/.zshenv`…), then put the fake `bd` back first, so that a real `bd` installed by npm, volta or in `~/.local/bin` cannot come first. The daemon checks it once per session (alert ✗ in "To handle" otherwise) and so does `oh doctor`.
 - **Git hooks of Beads** (`bd hooks run <hook>`, run by git with `BD_GIT_HOOK=1`): they go through the gateway whatever `beads.allow` says, so that a commit is never blocked by the allow-list; only `hooks run` and the hooks of bd are accepted. Outside the machine (container), they are not run on the machine (the hooks bd chains would run outside the container).
-- **Git hooks are never bypassed**: every agent is refused `--no-verify` (`-n` for a commit), `-c core.hooksPath=…`, `git config core.hooksPath`, `GIT_CONFIG_*`, config includes, and writing to `.git/` or `.beads/hooks/` (shell and edit tool).
-- **Commit and closing locked by a checkpoint** (`unlocks:`, e.g. `cp-2` of `ticket`): until it is approved, `git commit`, `git push` and closing a ticket are refused to every agent; then the gateway closes a ticket only once the work is committed.
+- **Git hooks** (guard rail): every agent is refused `--no-verify` and its abbreviations, `-n` alone or combined with the short options of a commit (`-an`, `-qn`, `-aqn`…), `-c core.hooksPath=…` and any `git -c` option, `git config core.hooksPath`, `GIT_CONFIG_*`, config includes, writing to `.git/`, `.beads/hooks/`, `.husky/`, `.githooks/` (shell), editing `.git/`, the `.git` file of a worktree and `.beads/hooks/`; editing the hook files of the project (`.husky/*`, `.githooks/*`, `lefthook*.yml`, `.pre-commit-config.yaml`) asks.
+- **Commit and closing locked by a checkpoint** (`unlocks:`, e.g. `cp-2` of `ticket`): until it is approved, `git commit` (and the commands that create a commit: `git revert`, `pull`, `merge`, `cherry-pick`, `am`, `rebase`, `stash pop`), `git push` and closing a ticket are refused to every agent; then the gateway closes a ticket only once the work is committed.
+- **Global guard** (last of every agent, whatever its permission base, also without a locking workflow; applied by the oh plugin, rendered in every agent without it): git commands that throw work away anywhere in the line (after `env`, `X=y`, `sh -c`, `git -C`); git options and variables that run a program or write a file (`--output`, `--upload-pack`, `--receive-pack`, `--ext-diff`, `--textconv`, `fsmonitor`, `GIT_DIR`, `GIT_SSH*`, `GIT_EXTERNAL_DIFF`, `GIT_PAGER`…); the oh socket and data (`ohd.sock`, `--unix-socket`, `~/.oh/run`, `~/.oh/bundles`, `oh.db`, `oh mcp serve`); the secrets and API of the opencode server; `find -exec|-delete|-ok…`; shell start-up files, `~/.ssh`, `~/.aws`, `~/.kube`, `~/.gitconfig`, `~/.netrc`, `~/.npmrc`, `crontab`, `LaunchAgents`; system installations (`npm -g` in any order, `--location=global`, `yarn global`, `pnpm -g`, `uv --system`, `--break-system-packages`, `sudo`); docker/podman options that get out of the container (`--privileged`, machine mounts, `--network host`, docker socket…). The context-mode tools that run code (`ctx_execute`…) never get more than the agent's shell.
 
 **MCP gateway** (outside the machine). oh MCP servers of the bundle run on the machine, started by the daemon from the immutable bundle; they read their own tokens from the keychain. The container reaches them over HTTP with the group token (`{env:…}`, never written in the configuration). A call whose `_meta` designates a session of another group is refused (403).
 
@@ -150,6 +152,17 @@ Optional and disabled by default (`oh budget show|set|unset|raise`): maximum act
 - The shipped development agents (`developer-rw` base) install dependencies only in the project: `pip` only inside the project's virtual environment (`.venv/bin/…`, `uv`, `poetry`), no `npm -g`, `yarn global`, `pnpm add -g`, `gem install` nor `--break-system-packages`. Their allow-list is a guard rail, not a sandbox: test runners and build tools run the project's code.
 
 Treat the local mode as "the agent acts with your user rights". Real isolation comes with container sessions.
+
+### What the shell rules do not protect
+
+opencode compares the shell rules with the raw text of each command of a line (verified on opencode 2.0.20):
+
+- **Quotes and spaces** are not normalized: `git pu''sh` or `git  push` (two spaces) do not match `git push*`.
+- **Declarations**: `export X=…`, `declare`, `local`… are not checked; a pattern on a variable name (`*GIT_DIR*`) is bypassed with `export GIT_DIR=… && git …`.
+- **Interpreters and project tools**: any agent that can edit a file and run a build tool, a test runner or an interpreter runs whatever it wants (`npm run`, `make`, `pytest` with a `conftest.py`, `.venv/bin/python`, `go run`…).
+- **Outside the project**: opencode's "external directory" permission covers the working directory and `cd` only; a redirection (`> ~/file`) or an argument writes outside the project without asking. Only the patterns of the guard cover sensitive files.
+
+What does not depend on patterns: a paused checkpoint passes only with your validation seen by oh; Beads and the oh MCP servers go through gateways that apply the workflow list; the proxy keeps the keys; the container isolates the file system. For work that writes, prefer the container, and give infrastructure tools read-only credentials.
 
 ### Known limitations of the remote mode
 

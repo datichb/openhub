@@ -149,6 +149,10 @@ func renderAgent(a sessionspec.AgentDef, b sessionspec.BundleSpec, bundleSkills 
 	}
 
 	rules := agentRules(a, b, bundleSkills)
+	if !usePlugin {
+		// Without the oh plugin, the guard is rendered in every agent.
+		rules = append(rules, AgentGuard(b)...)
+	}
 	out["permissions"] = toRules(rules)
 	return out
 }
@@ -185,7 +189,17 @@ func agentRules(a sessionspec.AgentDef, b sessionspec.BundleSpec, bundleSkills [
 			rules = append(rules, sessionspec.PermissionRule{Action: sessionspec.ActionSubagent, Resource: tgt, Effect: sessionspec.EffectAllow})
 		}
 	}
-	return append(rules, controlPlaneGuard()...)
+	return rules
+}
+
+// AgentGuard returns the rules in force last for every agent: the guard of
+// the bundle and the control plane of the tool. With the oh plugin they are
+// given once to the plugin (option guard), which applies them to every
+// evaluated permission: rendered in every agent they would make the inline
+// configuration too large (one environment variable, 128 KiB at most on
+// Linux). Without the plugin they are rendered last of every agent.
+func AgentGuard(b sessionspec.BundleSpec) []sessionspec.PermissionRule {
+	return append(append([]sessionspec.PermissionRule(nil), b.AgentGuard...), controlPlaneGuard()...)
 }
 
 // controlPlaneShell are the shell commands refused to every agent, last of

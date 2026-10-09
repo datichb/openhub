@@ -106,6 +106,7 @@ func withOhPlugin(b sessionspec.BundleSpec, dir, traceFile string, hooks map[str
 		"skills":       skills,
 		"systemAgents": systemAgents,
 		"scrubEnv":     append([]string{}, scrubEnv...),
+		"guard":        toRules(AgentGuard(b)),
 	}
 	if traceFile != "" {
 		opts["traceFile"] = traceFile
