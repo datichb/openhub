@@ -237,7 +237,7 @@ oh bundle show ticket --budget
 oh bundle show 3f9c2a… --json
 ```
 
-`oh skill budget <workflow>` is a deprecated alias of `oh bundle show <workflow> --budget`; without a workflow, the former per-agent computation stays available with a warning.
+The former `oh skill budget` alias is removed ([ADR-051](../architecture/adr/051-community-skills-disconnection.en.md)): the budget of a session is read with `oh bundle show <workflow> --budget`.
 
 ## Environment variables
 

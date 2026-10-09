@@ -14,7 +14,7 @@ import (
 // its content.
 func fakeHub(t *testing.T, files map[string]string) string {
 	t.Helper()
-	t.Setenv("OH_HOME", t.TempDir()) // isolate the community registry
+	t.Setenv("OH_HOME", t.TempDir()) // isolate the user data (~/.oh)
 	dir := t.TempDir()
 	for rel, content := range files {
 		p := filepath.Join(dir, rel)

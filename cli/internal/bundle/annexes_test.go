@@ -66,30 +66,29 @@ func TestBuildAnnexErrors(t *testing.T) {
 	}
 }
 
-func TestBuildShipsCommunitySkillPackage(t *testing.T) {
+// ADR-051: a package left in ~/.oh/skills by the former community registry
+// is neither shipped nor checked.
+func TestBuildIgnoresCommunitySkillPackage(t *testing.T) {
 	hub := fakeHub(t, map[string]string{
 		"agents/test/solo.md": agentMD("solo", "", "golang-idioms"),
 	})
 	pkg := filepath.Join(config.HubDir(), "skills", "golang-idioms")
 	for rel, content := range map[string]string{
-		"manifest.json":       `{"name":"golang-idioms","version":"1.0.0"}`,
-		"SKILL.md":            skillMD("golang-idioms", "", "See reference/errors.md."),
-		"reference/errors.md": "ERRORS\n",
-		".git/config":         "ignored",
+		"manifest.json": `{"name":"golang-idioms","version":"1.0.0"}`,
+		"SKILL.md":      skillMD("golang-idioms", "", "COMMUNITY"),
 	} {
 		require.NoError(t, os.MkdirAll(filepath.Dir(filepath.Join(pkg, rel)), 0o755))
 		require.NoError(t, os.WriteFile(filepath.Join(pkg, rel), []byte(content), 0o644))
 	}
 	b, err := buildSolo(t, hub)
 	require.NoError(t, err)
-	assert.Equal(t, []string{"golang-idioms"}, b.Spec.SkillIDs())
-	data, err := os.ReadFile(filepath.Join(b.Dir, "skills", "golang-idioms", "reference", "errors.md"))
+	assert.Empty(t, b.Spec.SkillIDs())
+	_, err = os.Stat(filepath.Join(b.Dir, "skills", "golang-idioms"))
+	assert.True(t, os.IsNotExist(err))
+
+	problems, err := CheckSkills(hub)
 	require.NoError(t, err)
-	assert.Equal(t, "ERRORS\n", string(data))
-	for _, absent := range []string{"manifest.json", ".git"} {
-		_, err := os.Stat(filepath.Join(b.Dir, "skills", "golang-idioms", absent))
-		assert.True(t, os.IsNotExist(err), absent)
-	}
+	assert.Contains(t, problems, problem(SkillMissingAgentSkill, "golang-idioms", "solo"), "a missing skill for the catalogue")
 }
 
 func TestCheckSkillsAnnexes(t *testing.T) {

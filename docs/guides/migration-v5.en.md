@@ -91,3 +91,11 @@ In `opencode.json`, only the keys **written by oh and unchanged since the last d
 ## 9. Former workflow overrides (migration v38)
 
 The overrides of the former single workflow (`hub.toml [workflow]`, `[workflow]` of the team `config.toml`, project workflow configuration) are migrated **automatically** at startup to `feature` workflows of the team-state (team, project; a solo space is created for a project without team). Nothing is lost: the original configuration is archived next to them (`workflows/migrated/…`, `~/.oh/migrated/` for `hub.toml`). An unreadable project configuration, or one in an unknown format, is not migrated: it is archived in `~/.oh/migrated/project-<id>-workflow-config.json`, with a message at startup. Details: [Team workflows › Migration of the former overrides](team-workflows.en.md).
+
+## 10. Community skills and `oh skill budget` disconnected
+
+The former community skills registry (`oh skill add`, `list`, `remove`, `search`) and `oh skill budget` are **removed** ([ADR-051](../architecture/adr/051-community-skills-disconnection.en.md)); `oh skill check` stays.
+
+- `~/.oh/skills` is no longer read: these skills are no longer shipped in sessions, and a workflow listing one in `skills.extra` becomes invalid ("unknown skill").
+- Nothing is deleted: `oh doctor` lists the packages left in `~/.oh/skills`. To keep a skill, copy its `SKILL.md` into the team catalogue (`catalog/skills/<category>/<name>.md` of the team-state, or of your solo space `oh team init --solo`), then list it by its reference (`<category>/<name>`) in `skills.extra`. The `~/.oh/skills` folder can then be deleted.
+- Budget of a session: `oh bundle show <workflow> --budget`.

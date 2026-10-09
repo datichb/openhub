@@ -2,6 +2,8 @@
 
 # Skill Marketplace - Guide
 
+> **Disconnected in v5.** This guide describes the former community skills registry (`oh skill add|list|remove|search`), removed in v5: it no longer worked (missing index, installing from GitHub had no effect) and made session bundles depend on the machine. `~/.oh/skills` is no longer read; `oh doctor` reports the packages left there. To add a skill, use the [team brick catalogue](./team-workflows.en.md#team-brick-catalogue). Decision and leads for the redesign: [ADR-051](../architecture/adr/051-community-skills-disconnection.en.md). The rest of this page is kept for history.
+
 ## Overview
 
 The skill marketplace lets the community extend `oh` with custom agent skills — without modifying the binary. Community skills are downloaded from the [oh-skills-index](https://github.com/datichb/oh-skills-index) or directly from a Git URL, then shipped in the session bundle alongside built-in skills when a workflow lists them in `skills.extra` — no redeploy (`oh deploy` removed in v5).

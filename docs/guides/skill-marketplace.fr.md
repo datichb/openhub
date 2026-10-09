@@ -2,6 +2,8 @@
 
 # Marketplace de Skills - Guide
 
+> **Déconnecté en v5.** Ce guide décrit l'ancien registre de skills communautaires (`oh skill add|list|remove|search`), supprimé en v5 : il ne fonctionnait plus (index absent, installation depuis GitHub sans effet) et rendait les paquets de session dépendants de la machine. `~/.oh/skills` n'est plus lu ; `oh doctor` signale les paquets qui y restent. Pour ajouter une skill, utilisez le [catalogue de briques d'équipe](./team-workflows.fr.md#catalogue-de-briques-déquipe). Décision et pistes de refonte : [ADR-051](../architecture/adr/051-community-skills-disconnection.fr.md). La suite de cette page est conservée pour l'historique.
+
 ## Vue d'ensemble
 
 Le marketplace de skills permet à la communauté d'étendre `oh` avec des skills d'agents personnalisées — sans modifier le binaire. Les skills communautaires sont téléchargées depuis le [oh-skills-index](https://github.com/datichb/oh-skills-index) ou directement depuis une URL Git, puis livrées dans le paquet de session avec les skills intégrées quand un workflow les liste dans `skills.extra` — sans redéploiement (`oh deploy` supprimé en v5).

@@ -100,7 +100,7 @@ In the TUI, **Start** lists the workflows (★ pinned, recent ones), opens the l
 | `oh metrics` · `oh dashboard` · `oh board` · `oh serve` | Usage and cost, TUI dashboard, Beads kanban, local web dashboard |
 | `oh export` · `oh import` | Backup and restore |
 | `oh upgrade oh` | Self-update of oh (non-Homebrew installs) |
-| `oh skill add` · `list` · `remove` · `search` | Community skills |
+| `oh skill check` | Skill catalogue check (duplicates, `requires:`, frontmatter, annexes) |
 | `oh beads …` | Proxy to `bd` (Beads CLI) |
 
 **Deprecated aliases** (warning, then `oh run`): `oh start` → `oh run feature`, `oh start --agent X` → `oh run libre --agent X`, `oh start --dev` → `oh run ticket`, `oh audit` → `oh run audit`, `oh review` → `oh run review` (`--publish` stays an oh command), `oh debug` → `oh run debug`. `oh deploy` and `oh sync` only display a migration message.
@@ -218,7 +218,7 @@ openhub/
 └── docs/                <- Documentation (bilingual fr/en)
 ```
 
-User data lives in `~/.oh/` (outside the repository): `hub.toml`, `oh.db`, extracted hub content, session bundles, sessions, server groups, solo spaces, community skills. See [Architecture overview](docs/architecture/overview.en.md).
+User data lives in `~/.oh/` (outside the repository): `hub.toml`, `oh.db`, extracted hub content, session bundles, sessions, server groups, solo spaces. See [Architecture overview](docs/architecture/overview.en.md).
 
 ---
 
@@ -249,7 +249,7 @@ Configure them with `oh mcp setup` (tokens stored in the OS keychain; the server
 | Sessions | [v5 Sessions](docs/guides/sessions-v5.en.md) · [Workflows (scenarios)](docs/guides/workflows.en.md) · [Review & Feedback](docs/guides/review-feedback.en.md) |
 | Workflows | [Shipped workflows](docs/reference/workflows.en.md) · [Workflow schema](docs/reference/workflow-schema.en.md) · [Team workflows](docs/guides/team-workflows.en.md) |
 | Execution | [Container runtime](docs/guides/container.en.md) · [Remote runners](docs/guides/remote-runners.en.md) |
-| Architecture | [Overview](docs/architecture/overview.en.md) · [Agents](docs/architecture/agents.en.md) · [Skills](docs/architecture/skills.en.md) · [ADRs](docs/architecture/adr/) (48) |
+| Architecture | [Overview](docs/architecture/overview.en.md) · [Agents](docs/architecture/agents.en.md) · [Skills](docs/architecture/skills.en.md) · [ADRs](docs/architecture/adr/) (51) |
 | Reference | [CLI](docs/reference/cli.en.md) · [Configuration](docs/reference/config.en.md) · [Glossary](docs/reference/glossary.en.md) · [Beads model](docs/reference/beads-model.en.md) |
 | Operations | [Troubleshooting](docs/guides/troubleshooting.en.md) · [Providers](docs/guides/providers.en.md) · [Backup & Restore](docs/guides/backup-restore.en.md) · [Dashboard](docs/guides/dashboard.en.md) |
 

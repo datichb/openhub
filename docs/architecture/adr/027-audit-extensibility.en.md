@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted
+Accepted — **Skill marketplace (§4) disconnected by [ADR-051](./051-community-skills-disconnection.en.md)** (`oh skill add|list|remove|search` removed, `~/.oh/skills` no longer read)
 
 ## Date
 

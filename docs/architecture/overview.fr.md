@@ -112,9 +112,9 @@ Voir [skills.fr.md](./skills.fr.md), [flux de livraison](../diagrams/skill-injec
 
 Les **serveurs MCP** d'oh sont des implémentations Go natives (`cli/internal/mcp/`), lancées par `oh mcp serve <nom>` (stdio JSON-RPC) : `figma`, `gitlab`, `gslides`, `github`, `jira`, `linear`, `team`, et `workflow` (checkpoints et sorties, ajouté à tout paquet de workflow). Les serveurs activés pour le projet sont placés dans le paquet au lancement ; le champ `mcp:` d'un workflow les filtre. Hors machine, ils sont servis par la passerelle MCP du démon. Les jetons restent dans le trousseau de la machine.
 
-### Skills communautaires
+### Ajout de briques
 
-Les skills communautaires s'installent depuis le [oh-skills-index](https://github.com/datichb/oh-skills-index) ou une URL Git (`oh skill add|list|remove|search|check`) et se rangent dans `~/.oh/skills/<nom>/`. Elles ne sont livrées dans un paquet que si le workflow les liste dans `skills.extra`.
+Les agents et les skills hors hub viennent du catalogue d'équipe (`catalog/` du team-state, ou d'un espace solo), versionné et partagé ; `oh skill check` contrôle le catalogue. L'ancien registre de skills communautaires (`oh skill add|list|remove|search`, `~/.oh/skills/`) est déconnecté en v5 ([ADR-051](./adr/051-community-skills-disconnection.fr.md)).
 
 ### Observabilité
 
@@ -228,6 +228,7 @@ Implémenter et diagnostiquer sont confiés à des agents différents (developer
 | [048](./adr/048-opencode-v1-abandonment.fr.md) | Abandon d'opencode V1 | déprécie 014 |
 | [049](./adr/049-tool-independence-architecture-guard.fr.md) | Indépendance vis-à-vis de l'outil et garde-fou d'architecture | fait évoluer 038 |
 | [050](./adr/050-session-context-capability.fr.md) | État de session évolutif par capacité de l'adaptateur | fait évoluer 047 |
+| [051](./adr/051-community-skills-disconnection.fr.md) | Déconnexion du registre de skills communautaires | remplace en partie 027 (marketplace de skills) |
 
 Tous les ADR : [`docs/architecture/adr/`](./adr/).
 
@@ -269,8 +270,7 @@ openhub/
     ├── bundles/<hash>/  ← Paquets de session (immuables)
     ├── sessions/<id>/   ← Environnement statique, restrictions, résultats, artefacts distants
     ├── servers/<groupe>/ ← Données opencode du groupe (XDG_DATA_HOME), URL du proxy
-    ├── teams/<id>/      ← Espaces solo
-    └── skills/          ← Skills communautaires
+    └── teams/<id>/      ← Espaces solo
 ```
 
 **Plateformes :** macOS et Linux (amd64, arm64) ; Windows en local uniquement (démon dans le processus oh, pas de conteneur ni de distant).

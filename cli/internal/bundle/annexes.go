@@ -2,7 +2,6 @@ package bundle
 
 import (
 	"fmt"
-	"io/fs"
 	"os"
 	"path"
 	"path/filepath"
@@ -13,14 +12,13 @@ import (
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 )
 
-// Annexes are the files a skill points to (templates, references…). Hub
-// skills declare them in their frontmatter, relative to the hub skills/
-// directory:
+// Annexes are the files a skill points to (templates, references…). Skills
+// declare them in their frontmatter, relative to the skills/ directory:
 //
 //	annexes: [templates/review-report-format.md]
 //
-// Community skills ship every file of their package. In the bundle the
-// annexes are copied next to the skill: skills/<id>/<annex path>.
+// In the bundle the annexes are copied next to the skill:
+// skills/<id>/<annex path>.
 //
 //   - On-demand skill: the tool gives the skill's base directory, so the
 //     relative path written in the skill works as is.
@@ -38,17 +36,13 @@ type annexFile struct {
 	Src string // absolute source path
 }
 
-// annexes returns the files of a skill. Hub skills: the declared annexes
-// (an annex outside skills/ or missing is an error). Community skills: every
-// file of the package except the skill file and its manifest.
+// annexes returns the declared annexes of a skill (an annex outside skills/
+// or missing is an error).
 func (l *skillLoader) annexes(d *skillDoc) ([]annexFile, error) {
 	if d.Source == "" {
 		return nil, nil // generated skill
 	}
 	hubSkills := filepath.Join(l.hubDir, "skills")
-	if !isUnder(d.Source, hubSkills) {
-		return communityFiles(d.Source)
-	}
 	out := make([]annexFile, 0, len(d.Front.Annexes))
 	for _, rel := range d.Front.Annexes {
 		clean := path.Clean(filepath.ToSlash(rel))
@@ -62,29 +56,6 @@ func (l *skillLoader) annexes(d *skillDoc) ([]annexFile, error) {
 		out = append(out, annexFile{Rel: clean, Src: src})
 	}
 	return out, nil
-}
-
-func communityFiles(skillFile string) ([]annexFile, error) {
-	root := filepath.Dir(skillFile)
-	var out []annexFile
-	err := filepath.WalkDir(root, func(p string, e fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		if e.IsDir() {
-			if strings.HasPrefix(e.Name(), ".") && p != root {
-				return filepath.SkipDir
-			}
-			return nil
-		}
-		if p == skillFile || (filepath.Dir(p) == root && e.Name() == "manifest.json") {
-			return nil
-		}
-		rel, _ := filepath.Rel(root, p)
-		out = append(out, annexFile{Rel: filepath.ToSlash(rel), Src: p})
-		return nil
-	})
-	return out, err
 }
 
 // writeAnnexes copies the annexes of a skill to <skillsDir>/<id>/.
@@ -125,9 +96,4 @@ func inlineAnnexRefs(body []byte, d *skillDoc, files []annexFile) []byte {
 		text = re.ReplaceAllString(text, "${1}"+sessionspec.BundleRootVar+"/skills/"+d.ID+"/"+rel)
 	}
 	return []byte(text)
-}
-
-func isUnder(p, dir string) bool {
-	rel, err := filepath.Rel(dir, p)
-	return err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))
 }

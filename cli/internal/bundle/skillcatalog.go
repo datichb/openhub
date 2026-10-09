@@ -13,7 +13,7 @@ type SkillCatalog struct {
 	loader *skillLoader
 }
 
-// NewSkillCatalog reads the skills of hubDir (then the community skills).
+// NewSkillCatalog reads the skills of hubDir.
 func NewSkillCatalog(hubDir string) *SkillCatalog {
 	return &SkillCatalog{loader: newSkillLoader(hubDir, nil)}
 }

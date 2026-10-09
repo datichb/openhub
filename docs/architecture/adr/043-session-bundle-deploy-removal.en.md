@@ -42,7 +42,7 @@ Decisions D4 and D14: one bundle per session, built outside the project, and no 
 - Hash = SHA-256 of the canonical `bundle.json` (without paths) and of the file contents. Compilation is idempotent: same input, same directory. Machine paths are variables expanded when the server starts (`{{oh.bundle}}`, `{{oh.bin}}`, [ADR-038](./038-sessionspec-tool-adapters.en.md)).
 - The rendered config is not written into the bundle: it is passed through `OPENCODE_CONFIG_CONTENT`. The oh plugin is installed in the group data directory (`~/.oh/servers/<group>/`). Session-specific data lives in `~/.oh/sessions/<id>/`.
 - The server group key contains the bundle hash: two workflows (or two versions) never share a server.
-- `oh bundle build|show <workflow> [--budget] [--json]` builds or describes a bundle; `oh skill budget` is an alias.
+- `oh bundle build|show <workflow> [--budget] [--json]` builds or describes a bundle; `oh skill budget` was an alias (removed by [ADR-051](./051-community-skills-disconnection.en.md)).
 
 ### 3. Removal of deployment
 

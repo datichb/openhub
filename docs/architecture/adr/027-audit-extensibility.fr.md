@@ -2,7 +2,7 @@
 
 ## Statut
 
-Accepté
+Accepté — **Marketplace de skills (§4) déconnecté par [ADR-051](./051-community-skills-disconnection.fr.md)** (`oh skill add|list|remove|search` supprimées, `~/.oh/skills` n'est plus lu)
 
 ## Date
 

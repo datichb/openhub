@@ -2,7 +2,7 @@
 
 # Guide — External Agents per Project
 
-> **Removed in v5.** This guide describes the behaviour of `oh deploy` (removed in v5). Since v5 nothing is deployed into the project: each session starts from a session bundle built at launch from its workflow, in a closed world — the agents of a session are those of its workflow, and agents in `<project>/.opencode/agents/` are not integrated. To use a custom agent, install it in the hub and reference it in a workflow (see [Workflows](./workflows.en.md)). Former deployments can be cleaned up with `oh migrate deploy-cleanup`. The rest of this page is kept for history.
+> **Removed in v5.** This guide describes the behaviour of `oh deploy` (removed in v5). Since v5 nothing is deployed into the project: each session starts from a session bundle built at launch from its workflow, in a closed world — the agents of a session are those of its workflow, and agents in `<project>/.opencode/agents/` are not integrated. To use a custom agent, add it to the [team brick catalogue](./team-workflows.en.md#team-brick-catalogue) (`catalog/agents/` of the team-state or of a solo space) and reference it in a workflow (see [Workflows](./workflows.en.md)). Former deployments can be cleaned up with `oh migrate deploy-cleanup`. The rest of this page is kept for history.
 
 This guide explains how to integrate existing agents from a target project with the openhub, without overwriting them or forcing migration.
 

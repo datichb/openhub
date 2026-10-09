@@ -2,73 +2,15 @@
 
 # CLI Reference — Tools
 
-## Skills Marketplace
+## Skills
 
-`oh skill` installs, lists and removes community skills (community index or git repository). The skills available to a session are those of its session bundle (see [`oh bundle show`](cli-workflows.en.md#oh-bundle-build--show)).
+`oh skill` checks the skill catalogue. The skills of a session are those of the hub and of the team catalogue (`catalog/skills/` of the team-state), delivered by its session bundle (see [`oh bundle show`](cli-workflows.en.md#oh-bundle-build--show), which also gives the budget with `--budget`).
 
-### oh skill add
-
-Installs a skill from the community index (by name) or from a git URL.
-
-```
-oh skill add <source>
-```
-
-**Example:**
-
-```bash
-oh skill add golang-idioms
-oh skill add https://github.com/u/oh-skill-example
-```
-
----
-
-### oh skill list
-
-Lists the installed community skills.
-
-**Alias:** `oh skill ls`
-
-```
-oh skill list
-```
-
----
-
-### oh skill remove
-
-Uninstalls a community skill.
-
-**Alias:** `oh skill rm`
-
-```
-oh skill remove <name>
-oh skill rm <name>
-```
-
----
-
-### oh skill search
-
-Searches the community index (without query: the whole index).
-
-```
-oh skill search [query]
-```
-
-**Example:**
-
-```bash
-oh skill search
-oh skill search go
-oh skill search "code review"
-```
-
----
+> **Disconnected in v5** ([ADR-051](../architecture/adr/051-community-skills-disconnection.en.md)): the community skills registry (`oh skill add`, `list`, `remove`, `search`) and `oh skill budget` are removed, and `~/.oh/skills` is no longer read. `oh doctor` reports the packages left there.
 
 ### oh skill check
 
-Checks the hub skills and the installed community skills: duplicate ids, `requires:` dependencies missing or cyclic, invalid frontmatter (`name:` different from the file name, missing description), obsolete `bucket:` field, skills referenced by agents but missing. Exits with code 1 on errors.
+Checks the hub skills: duplicate ids, `requires:` dependencies missing or cyclic, invalid frontmatter (`name:` different from the file name, missing description), obsolete `bucket:` field, skills referenced by agents but missing. Exits with code 1 on errors.
 
 ```
 oh skill check [--json]
@@ -76,28 +18,7 @@ oh skill check [--json]
 
 | Flag | Type | Description |
 |------|------|-------------|
-| `--json` | bool | Problems in JSON format |
-
----
-
-### oh skill budget
-
-Deprecated alias in v5: the budget of a session is read with `oh bundle show <workflow> --budget`. `oh skill budget <workflow>` redirects there (warning); with an agent name or `--all`, the former per-agent computation (cost in lines and tokens of the always-loaded system prompt, most expensive skills) stays available with a warning.
-
-```
-oh skill budget [workflow|agent] [options]
-```
-
-| Flag | Short | Type | Description |
-|------|-------|------|-------------|
-| `--all` | `-a` | bool | Show the budget of every agent |
-| `--threshold` | `-t` | int | Line threshold to flag a skill (default: 150) |
-
-```bash
-oh skill budget ticket                  # = oh bundle show ticket --budget
-oh skill budget orchestrator-dev
-oh skill budget --all --threshold 200
-```
+| `--json` | bool | Problems as JSON |
 
 ---
 
