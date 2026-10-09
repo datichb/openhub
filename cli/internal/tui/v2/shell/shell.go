@@ -1270,7 +1270,8 @@ func (s *Shell) isInteractiveZone(x, y int) bool {
 // Layers, in order:
 //  1. urgency: Ctrl+Q / Ctrl+C (quit), Esc clearing a text selection;
 //  2. the palette, the overlays (modals, forms) and the views that capture
-//     input (forms, wizards) receive every other key;
+//     input (forms, wizards) receive every other key, Esc included (it
+//     does not close the toasts there);
 //  3. reserved keys, never redefined by a view: Esc (closes the toasts
 //     shown, then goes back), Ctrl+P, Ctrl+T, ? and F1;
 //  4. the active view (HandleKey);
@@ -1308,16 +1309,13 @@ func (s *Shell) globalKeyHandler(event *tcell.EventKey) *tcell.EventKey {
 		return event
 	}
 
-	// Esc closes the toasts shown before anything else (N19).
-	if event.Key() == tcell.KeyEscape && s.DismissToasts() {
-		return nil
-	}
-
 	// ── InputCapturing views (e.g. inline wizards with forms) ────────
 	// When the current view captures input, only Ctrl+Q/C (handled above)
 	// and selection-clear remain global. Everything else is delegated to
 	// HandleKey first; if the view doesn't consume the event, it falls
 	// through to tview's normal focus-based widget delivery (forms, etc.).
+	// Esc keeps its meaning there (close the form, « Quit the wizard? »):
+	// it does not close the toasts, which go away on their own.
 	if cur := s.router.Current(); cur != nil {
 		if ic, ok := cur.(views.InputCapturing); ok && ic.CapturesInput() {
 			result := cur.HandleKey(event)
@@ -1327,6 +1325,11 @@ func (s *Shell) globalKeyHandler(event *tcell.EventKey) *tcell.EventKey {
 			// View didn't consume → let tview deliver to the focused widget
 			return event
 		}
+	}
+
+	// Esc closes the toasts shown before going back (N19).
+	if event.Key() == tcell.KeyEscape && s.DismissToasts() {
+		return nil
 	}
 
 	// ── Reserved keys ────────────────────────────────────────────────

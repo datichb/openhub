@@ -11,8 +11,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 	"github.com/datichb/openhub/cli/internal/tui/v2/widgets"
+	"github.com/datichb/openhub/cli/internal/workflow"
 )
 
 // keyView is a view with a SectionedList (focusable or not) that records
@@ -165,6 +167,87 @@ func TestKeysEscClosesTheToastsFirst(t *testing.T) {
 	s.key(tcell.KeyEscape, 0, tcell.ModNone)
 	s.loop(func() { depth = s.router.StackDepth() })
 	assert.Equal(t, 1, depth, "second Esc goes back")
+}
+
+// showToastAndWait shows a toast that stays (error) and waits until it is up.
+func showToastAndWait(t *testing.T, s *simShell) {
+	t.Helper()
+	s.ShowToast("hello", ToastError)
+	require.Eventually(t, func() bool { return s.toastCount() == 1 }, 2*time.Second, 5*time.Millisecond)
+}
+
+func (s *simShell) toastCount() (n int) {
+	s.loop(func() { n = len(s.activeToastIDs) })
+	return n
+}
+
+const keysLaunchSpec = `apiVersion: oh/v1
+kind: Workflow
+id: ticket
+description: { fr: Implémenter un ticket, en: Implement a ticket }
+risk: write
+inputs:
+  ticket: { type: beads-id, required: true }
+modes: { default: semi-auto, allowed: [manuel, semi-auto] }
+runtime: { default: local, allowed: [local] }
+`
+
+// In the launch form (input capturing), Esc closes the form at once: it
+// does not close the toasts, which go away on their own.
+func TestKeysEscInLaunchFormKeepsTheToasts(t *testing.T) {
+	doc, diags := workflow.Parse([]byte(keysLaunchSpec), workflow.Source{Layer: workflow.LayerHub})
+	require.False(t, diags.HasErrors(), "%v", diags)
+	form := views.NewLaunchFormView(views.LaunchFormConfig{WorkflowID: "ticket", Spec: doc.Spec, Lang: "fr",
+		Runtimes:  []views.LaunchRuntime{{Kind: "local", Label: "local", Available: true}},
+		Locations: []views.SelectOption{{Label: "base", Value: "base"}}})
+	home := &keyView{id: "home", focusList: true}
+	s := newKeyShell(t, home)
+	s.loop(func() { s.PushView(form) })
+	showToastAndWait(t, s)
+
+	s.key(tcell.KeyEscape, 0, tcell.ModNone)
+	depth := 0
+	s.loop(func() { depth = s.router.StackDepth() })
+	assert.Equal(t, 1, depth, "Esc closes the form")
+	assert.Equal(t, 1, s.toastCount(), "the toast stays")
+}
+
+// In a wizard (input capturing), Esc asks « Quit the wizard? » at once and
+// keeps the toasts; outside, Esc closes them again.
+func TestKeysEscInWizardKeepsTheToasts(t *testing.T) {
+	wiz := views.NewInlineWizardView(views.InlineWizardConfig{ID: "w", Steps: []views.WizardStep{{Label: "a", Required: true,
+		Form: func(_ *tview.Application, onDone func()) *tview.Form {
+			f := tview.NewForm()
+			f.AddInputField("Name", "", 0, nil, nil)
+			f.AddButton("Next", onDone)
+			return f
+		}}}})
+	home := &keyView{id: "home", focusList: true}
+	s := newKeyShell(t, home)
+	s.loop(func() { s.PushView(wiz) })
+	showToastAndWait(t, s)
+
+	s.key(tcell.KeyEscape, 0, tcell.ModNone)
+	focused := func() (label string) {
+		s.loop(func() {
+			if b, ok := s.app.GetFocus().(*tview.Button); ok {
+				label = b.GetLabel()
+			}
+		})
+		return label
+	}
+	require.Eventually(t, func() bool { return focused() == i18n.T("tui.wizard.quit.continue") }, time.Second, 5*time.Millisecond, "question asked")
+	assert.Equal(t, 1, s.toastCount(), "the toast stays")
+
+	s.key(tcell.KeyLeft, 0, tcell.ModNone) // « Quitter »
+	s.key(tcell.KeyEnter, 0, tcell.ModNone)
+	require.Eventually(t, func() bool {
+		depth := 0
+		s.loop(func() { depth = s.router.StackDepth() })
+		return depth == 1
+	}, time.Second, 5*time.Millisecond, "wizard quit")
+	s.key(tcell.KeyEscape, 0, tcell.ModNone)
+	assert.Equal(t, 0, s.toastCount(), "outside the wizard, Esc closes the toasts")
 }
 
 // `d` handled by a view goes to the view only: it no longer closes a toast.

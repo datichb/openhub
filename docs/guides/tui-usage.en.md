@@ -24,7 +24,7 @@ On the first start without configuration, the `oh init` wizard opens in the TUI 
 |-----|--------|
 | `Ctrl+P` or `/` | Open the omnibar (`/`: when the view does not use it to search) |
 | `?` or `F1` | Help (global shortcuts, form and wizards, keys of the current view) |
-| `Esc` | Close the toasts shown; otherwise back to the previous view; at the root of a project or team mode, back to Hub mode |
+| `Esc` | Close the toasts shown; otherwise back to the previous view; at the root of a project or team mode, back to Hub mode. In the launch form and the wizards, `Esc` keeps its meaning (close the form, « Quit the wizard? ») and does not close the toasts |
 | `Ctrl+T` | Enter team mode (choice when there are several teams); from team mode, back to the Hub |
 | `Ctrl+Q` (or `Ctrl+C`) | Quit (see [Quitting oh](#quitting-oh)) |
 | `j` / `k`, `g` / `G` | Down / up, top / bottom of a list (in the Sessions view, `g` fetches a remote session) |
@@ -32,7 +32,7 @@ On the first start without configuration, the `oh init` wizard opens in the TUI 
 | `Tab` | Switch column or field (`h` / `l` on two-column landings) |
 | `Enter` | action of the selected list, button or field (the omnibar opens only when nothing uses it) |
 
-Action results show up as toasts (success, error, info) that disappear by themselves (`Esc` closes them). Each view shows its shortcuts at the bottom.
+Action results show up as toasts (success, error, info) that disappear by themselves (`Esc` closes them, except in the launch form and the wizards). Each view shows its shortcuts at the bottom.
 
 **Changed in v5.0**: typing a letter « anywhere » no longer opens the omnibar (use `Ctrl+P` or `/`); `Enter` and letters always go to the selected list or field; `d` no longer dismisses toasts (`Esc`). `Esc`, `Ctrl+P`, `Ctrl+T`, `?`, `F1` and `Ctrl+Q` mean the same in every view. Every destructive action (removing a worktree, cleaning up, releasing a ticket, rejecting a wiki proposal…) asks for a confirmation.
 

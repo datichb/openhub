@@ -45,7 +45,7 @@ The TUI follows an **omnibar-first** design inspired by fuzzy launchers (fzf, Te
 |-----|--------|
 | `Ctrl+P` | Activate the omnibar |
 | `/` | Activate the omnibar, when the view does not use `/` (search) |
-| `Esc` | First closes the toasts shown; otherwise back (previous view); at the root of Project or Team mode: back to Hub mode |
+| `Esc` | First closes the toasts shown; otherwise back (previous view); at the root of Project or Team mode: back to Hub mode. In the views that capture input (launch form, wizards, workflow editor, publishing), `Esc` goes to the view (close the form, « Quit the wizard? ») and does not close the toasts, which go away on their own |
 | `Ctrl+T` | Team mode (selector when several teams); from Team mode: back to Hub |
 | `Ctrl+Q` / `Ctrl+C` | Quit the TUI (when sessions are working: finish the step then sleep, background, or stop now) |
 | `?` / `F1` | Help and shortcuts |

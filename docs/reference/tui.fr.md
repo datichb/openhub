@@ -45,7 +45,7 @@ Le TUI suit un design **omnibar-first** inspiré des lanceurs fuzzy (fzf, Telesc
 |--------|--------|
 | `Ctrl+P` | Activer l'omnibar |
 | `/` | Activer l'omnibar, si la vue n'utilise pas `/` (recherche) |
-| `Esc` | Ferme d'abord les toasts affichés ; sinon retour (vue précédente) ; à la racine d'un mode Projet ou Équipe : retour au mode Hub |
+| `Esc` | Ferme d'abord les toasts affichés ; sinon retour (vue précédente) ; à la racine d'un mode Projet ou Équipe : retour au mode Hub. Dans les vues qui capturent la saisie (fiche de lancement, assistants, éditeur de workflow, publication), `Esc` va à la vue (fermer la fiche, « Quitter l'assistant ? ») et ne ferme pas les toasts, qui disparaissent seuls |
 | `Ctrl+T` | Mode Équipe (sélecteur si plusieurs équipes) ; depuis le mode Équipe : retour au Hub |
 | `Ctrl+Q` / `Ctrl+C` | Quitter la TUI (si des sessions travaillent : finir l'étape puis veille, arrière-plan, ou arrêter maintenant) |
 | `?` / `F1` | Aide et raccourcis |
