@@ -356,7 +356,13 @@ func (v *WikiView) rejectSelected() {
 	if !isProposal || pi < 0 || pi >= len(v.proposals) {
 		return
 	}
-	v.doRejectProposal(v.proposals[pi])
+	proposal := v.proposals[pi]
+	if v.shell == nil {
+		return
+	}
+	v.shell.Confirm(i18n.T("tui.confirm.wiki_reject.title"), i18n.Tf("tui.confirm.wiki_reject.detail", proposal.Page, proposal.ID), true, func() {
+		v.doRejectProposal(proposal)
+	})
 }
 
 func (v *WikiView) doAcceptProposal(proposal teamstate.WikiProposal) {

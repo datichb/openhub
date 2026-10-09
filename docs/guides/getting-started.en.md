@@ -141,7 +141,7 @@ oh resolves the workflow (hub, team, project layers), builds the session bundle,
 oh
 ```
 
-On the home screen, the **Start** section lists your pinned workflows (★), the recent ones and "All workflows". `Enter` opens the **launch form**: Inputs → Options → Recap; `Ctrl+S` launches. See [Using the TUI](tui-usage.en.md).
+On the home screen, the **Start** section lists your pinned workflows (★), the recent ones and "All workflows". `Enter` opens the **launch form**: Inputs → Options → Recap; `Ctrl+S` goes to the recap, a second `Ctrl+S` launches. See [Using the TUI](tui-usage.en.md).
 
 ## Session bundle
 

@@ -33,16 +33,36 @@ func (s *Shell) showHelpOverlay() {
 	fmt.Fprintf(&b, "\n  %s%s%s\n\n",
 		accent, i18n.T("tui.help.section.global"), reset)
 	rows := []struct{ key, desc string }{
-		{"Ctrl+P", i18n.T("tui.help.ctrl_p")},
+		{"Ctrl+P · /", i18n.T("tui.help.ctrl_p")},
 		{"?  / F1", i18n.T("tui.help.help")},
 		{"Enter", i18n.T("tui.help.enter")},
 		{"Esc", i18n.T("tui.help.esc")},
 		{"j/k / ↑↓", i18n.T("tui.help.arrows")},
+		{"Ctrl+T", i18n.T("tui.keys.help.ctrl_t")},
 		{"Ctrl+Q", i18n.T("tui.help.quit")},
-		{"[lettre]", i18n.T("tui.help.rune_search")},
 	}
 	for _, r := range rows {
 		fmt.Fprintf(&b, "  %s%-14s%s  %s\n", accent, r.key, reset, r.desc)
+	}
+	fmt.Fprintf(&b, "  %s%s%s\n", muted, i18n.T("tui.keys.help.letters"), reset)
+
+	// ── Launch form and wizards ───────────────────────────────────────────────
+	fmt.Fprintf(&b, "\n  %s%s%s\n\n", accent, i18n.T("tui.keys.help.forms"), reset)
+	for _, r := range []struct{ key, desc string }{
+		{"Ctrl+S", i18n.T("tui.keys.help.ctrl_s")},
+		{"Alt+← / PgUp", i18n.T("tui.keys.help.back")},
+		{"Alt+→ / PgDn", i18n.T("tui.keys.help.next")},
+		{"Esc", i18n.T("tui.keys.help.esc_wizard")},
+	} {
+		fmt.Fprintf(&b, "  %s%-14s%s  %s\n", accent, r.key, reset, r.desc)
+	}
+
+	// ── Keys of the active view (its hints bar) ───────────────────────────────
+	if cur := s.router.Current(); cur != nil {
+		if hints := cur.StatusHints(); hints != "" {
+			fmt.Fprintf(&b, "\n  %s%s : %s%s\n\n  %s\n",
+				accent, i18n.T("tui.keys.help.view_keys"), cur.Title(), reset, hints)
+		}
 	}
 
 	// ── Section 2 : Contextual commands from the active view ──────────────────

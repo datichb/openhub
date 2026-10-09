@@ -30,6 +30,7 @@ func (m *mockShell) ShowMultiSelectModal(string, []SelectOption, []string, func(
 func (m *mockShell) ShowScrollableModal(string, string, []ModalAction) {}
 func (m *mockShell) ShowToastMsg(string, bool)                         {}
 func (m *mockShell) ShowInlineForm(InlineFormConfig)                   {}
+func (m *mockShell) Confirm(string, string, bool, func())              {}
 func (m *mockShell) NavigateTo(string)                                 {}
 func (m *mockShell) SetProjectMode(*ActiveProject)                     {}
 func (m *mockShell) SetActiveProject(*ActiveProject)                   {}

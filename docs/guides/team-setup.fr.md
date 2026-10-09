@@ -37,8 +37,8 @@ Le wizard s'exécute en plein écran avec 5 étapes adaptatives et un panneau d'
 ### Mode TUI (wizard inline)
 
 Le wizard tourne directement dans le shell TUI sans quitter l'interface. L'omnibar
-et les toasts restent accessibles. Raccourcis : `Ctrl+S` valider, `Ctrl+B` retour,
-double `Esc` pour passer une étape optionnelle.
+et les toasts restent accessibles. Raccourcis : `Ctrl+S` valider, `Ctrl+B` (ou `Alt+←`, `PgUp`) retour,
+`Esc` pour « Quitter l'assistant ? » (quitter, passer une étape facultative ou continuer).
 
 ### Phase 1 — Connexion au repo (séquentiel)
 

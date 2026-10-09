@@ -51,7 +51,7 @@ Type partagé avec `RunWizard` (`wizard.go`) :
 | `Processing` | Message du spinner pendant `OnDone` |
 | `InfoFields` | Paires clé/valeur ajoutées au panneau d'infos après succès |
 | `Skip` / `SkipIf` | Étape déjà satisfaite / condition évaluée juste avant le rendu |
-| `Required` | Interdit de passer l'étape avec `Esc` (il reste `Ctrl+C` pour quitter) |
+| `Required` | Pas de bouton « Passer l'étape » dans la question de `Esc` (on peut quitter l'assistant) |
 | `SidebarHidden` | Exclut l'étape de la barre latérale en mode groupé (pages d'intro) |
 
 ### Mode groupé (`Groups`)
@@ -87,7 +87,7 @@ L'injection est automatique quand le wizard est pushé via `shell.PushView(v)`.
 │ ✓ Dépôt: git@gitlab.com:team/state.git             │  Info panel (hauteur dynamique)
 │ ✓ Config: stale_days=3                              │
 ├─────────────────────────────────────────────────────┤
-│ ctrl+s valider · ctrl+b retour · esc passer         │  Hints bar (1 ligne, fixe)
+│ ctrl+s valider · ctrl+b/alt+← retour · esc quitter  │  Hints bar (1 ligne, fixe)
 └─────────────────────────────────────────────────────┘
 ```
 
@@ -131,9 +131,8 @@ Widgets utilisés (tous existants dans le design system) :
 | Action | Déclencheur | Comportement |
 |--------|-------------|-------------|
 | **Valider** | Bouton form / `Ctrl+S` | Validate → Spinner → OnDone → avancer |
-| **Retour** | `Ctrl+B` | Reset step actuel → Pending, précédent → Active, pop info |
-| **Passer** | Double `Esc` | 1er Esc = hint, 2ème = skip (bloqué si `Required`) |
-| **Quitter** | `Esc` au shell | Pop le wizard (retour vue précédente) |
+| **Retour** | `Ctrl+B`, `Alt+←`, `PgUp` | Reset step actuel → Pending, précédent → Active, pop info |
+| **Quitter / Passer** | `Esc` | Question « Quitter l'assistant ? » à la place de la barre d'aide : **Quitter** (`OnComplete(false, nil)` puis pop), **Passer l'étape** (étapes non `Required`), **Continuer** (focus par défaut ; `Esc` aussi). Une liste déroulante ouverte se ferme d'abord. Plus de double `Esc` |
 
 ---
 
@@ -313,7 +312,7 @@ l'utilisateur ne choisisse sa navigation, ce qui permet de persister les changem
 | `tview.Application` | Crée la sienne | Utilise celle du shell |
 | Omnibar | Non disponible | Visible et accessible |
 | Toasts | Non disponibles | Fonctionnels |
-| Navigation | `Ctrl+C` quitte | `Esc` pop vers la vue précédente |
+| Navigation | `Ctrl+C` quitte | `Esc` → « Quitter l'assistant ? » |
 | Info panel | Panneau latéral dédié | Intégré dans le layout vertical |
 | Cycle de vie | Blocking (`Run()` → `WizardResult`) | Async (`Mount/Unmount`, callback `OnComplete`) |
 | Utilisation | CLI one-shot, `--no-tui` | TUI shell interactif |

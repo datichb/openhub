@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/v2/widgets"
 )
@@ -273,10 +274,13 @@ func TestInlineWizardView_HandleKey_FormPassthrough(t *testing.T) {
 	result = v.HandleKey(enterEvent)
 	assert.NotNil(t, result, "enter should pass through on form step")
 
-	// Esc should pass through (form's CancelFunc handles it)
+	// Esc asks whether to quit (N19); Esc again closes the question
 	escEvent := tcell.NewEventKey(tcell.KeyEscape, 0, tcell.ModNone)
 	result = v.HandleKey(escEvent)
-	assert.NotNil(t, result, "esc should pass through on form step")
+	assert.Nil(t, result, "esc opens the quit question on form step")
+	require.NotNil(t, v.quitBar)
+	assert.Nil(t, v.HandleKey(escEvent))
+	assert.Nil(t, v.quitBar, "second esc = continue")
 
 	// Ctrl+B should be consumed (go back)
 	ctrlBEvent := tcell.NewEventKey(tcell.KeyCtrlB, 0, tcell.ModNone)
@@ -322,11 +326,13 @@ func TestInlineWizardView_HandleKey_CustomViewEscRequired(t *testing.T) {
 	app := tview.NewApplication()
 	v.Mount(content, app)
 
-	// Esc on a required CustomView step should be consumed (not skip)
+	// Esc on a required CustomView step asks whether to quit, without
+	// « skip the step »
 	escEvent := tcell.NewEventKey(tcell.KeyEscape, 0, tcell.ModNone)
 	result := v.HandleKey(escEvent)
 	assert.Nil(t, result, "esc should be consumed on required CustomView step")
 	assert.Equal(t, 0, v.currentStep, "should NOT advance past required step on Esc")
+	assert.Equal(t, []string{i18n.T("tui.wizard.quit.quit"), i18n.T("tui.wizard.quit.continue")}, quitButtons(t, v))
 
 	v.Unmount()
 }
@@ -362,17 +368,15 @@ func TestInlineWizardView_HandleKey_CustomViewEscOptional(t *testing.T) {
 
 	assert.Equal(t, 0, v.currentStep)
 
-	// First Esc on an optional CustomView step should NOT skip (double-Esc required)
+	// Esc asks; « skip the step » skips it
 	escEvent := tcell.NewEventKey(tcell.KeyEscape, 0, tcell.ModNone)
 	result := v.HandleKey(escEvent)
 	assert.Nil(t, result, "esc should be consumed on optional CustomView step")
-	assert.Equal(t, 0, v.currentStep, "first esc should NOT advance (double-esc required)")
-	assert.True(t, v.escPending, "escPending should be set after first Esc")
-
-	// Second Esc should skip to next step
-	result = v.HandleKey(escEvent)
-	assert.Nil(t, result, "second esc should be consumed")
-	assert.Equal(t, 1, v.currentStep, "should advance to next step after double-esc skip")
+	assert.Equal(t, 0, v.currentStep, "esc alone does not skip")
+	assert.Equal(t, []string{i18n.T("tui.wizard.quit.quit"), i18n.T("tui.wizard.quit.skip"), i18n.T("tui.wizard.quit.continue")}, quitButtons(t, v))
+	pressQuitButton(t, v, i18n.T("tui.wizard.quit.skip"))
+	assert.Nil(t, v.quitBar)
+	assert.Equal(t, 1, v.currentStep, "should advance to next step after « skip »")
 
 	v.Unmount()
 }
@@ -461,7 +465,7 @@ func TestInlineWizardView_TabToButtonFormWithTrailingTextView(t *testing.T) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// N2 — Double-Esc on CustomView in a 3-step wizard
+// N2 — No more silent double-Esc (N19): two Esc open then close the question
 // ─────────────────────────────────────────────────────────────────────────────
 
 func TestInlineWizardView_DoubleEscCustomView(t *testing.T) {
@@ -507,26 +511,18 @@ func TestInlineWizardView_DoubleEscCustomView(t *testing.T) {
 	require.Equal(t, 0, v.currentStep, "should start at step 0")
 	escEvent := tcell.NewEventKey(tcell.KeyEscape, 0, tcell.ModNone)
 
-	// First Esc: sets escPending, does NOT advance
 	result := v.HandleKey(escEvent)
 	assert.Nil(t, result, "first esc consumed")
-	assert.True(t, v.escPending, "escPending should be true after first Esc")
-	assert.Equal(t, 0, v.currentStep, "still on step 0 after first Esc")
-
-	// Non-Esc key after first Esc: resets escPending
-	runeEvent := tcell.NewEventKey(tcell.KeyRune, 'x', tcell.ModNone)
-	v.HandleKey(runeEvent)
-	assert.False(t, v.escPending, "escPending should be reset by non-Esc key")
-	assert.Equal(t, 0, v.currentStep, "still on step 0 after non-Esc key")
-
-	// Re-arm double-Esc: first Esc again
+	assert.NotNil(t, v.quitBar, "first esc asks")
 	v.HandleKey(escEvent)
-	assert.True(t, v.escPending, "escPending re-armed")
+	assert.Nil(t, v.quitBar, "second esc continues")
+	assert.Equal(t, 0, v.currentStep, "never skipped silently")
 
-	// Second Esc: should skip to next step
+	// « Continue » keeps the step too
 	v.HandleKey(escEvent)
-	assert.False(t, v.escPending, "escPending cleared after skip")
-	assert.Equal(t, 1, v.currentStep, "should advance to step 1 after double-Esc")
+	pressQuitButton(t, v, i18n.T("tui.wizard.quit.continue"))
+	assert.Nil(t, v.quitBar)
+	assert.Equal(t, 0, v.currentStep)
 
 	v.Unmount()
 }
@@ -714,11 +710,11 @@ func TestInlineWizardView_ContextualHints(t *testing.T) {
 	// ── Step 0: Required, first step (no back, no skip) ──
 	hints0 := v.statusHintsForStep(0)
 
-	// Required step should NOT mention esc/skip
-	assert.False(t, strings.Contains(strings.ToLower(hints0), "esc"),
-		"required step hints should not contain 'esc', got: %s", hints0)
-	assert.False(t, strings.Contains(strings.ToLower(hints0), "skip"),
-		"required step hints should not contain 'skip', got: %s", hints0)
+	// Every step offers Esc (quit question), never a skip shortcut
+	assert.True(t, strings.Contains(strings.ToLower(hints0), "esc "+i18n.T("tui.wizard.quit.hint")),
+		"step hints should contain the esc quit hint, got: %s", hints0)
+	assert.False(t, strings.Contains(strings.ToLower(hints0), "esc×2"),
+		"no double esc any more, got: %s", hints0)
 
 	// First step has no predecessor → no back hint
 	assert.False(t, strings.Contains(strings.ToLower(hints0), "ctrl+b"),
@@ -733,9 +729,8 @@ func TestInlineWizardView_ContextualHints(t *testing.T) {
 	v.stepStates[0].Status = widgets.StepDone
 	hints1 := v.statusHintsForStep(1)
 
-	// Optional step should mention skip (esc×2)
 	assert.True(t, strings.Contains(hints1, "esc"),
-		"optional step hints should contain 'esc' for skip, got: %s", hints1)
+		"optional step hints should contain 'esc', got: %s", hints1)
 
 	// Should have back since step 0 is done
 	assert.True(t, strings.Contains(strings.ToLower(hints1), "ctrl+b"),
@@ -1156,27 +1151,23 @@ func TestInlineWizardView_E2E_HandleKey(t *testing.T) {
 	escEvent := tcell.NewEventKey(tcell.KeyEscape, 0, tcell.ModNone)
 	ctrlBEvent := tcell.NewEventKey(tcell.KeyRune, 'b', tcell.ModCtrl)
 
-	// ── Esc on Required CustomView: NOT skipped, no escPending ──
+	// ── Esc on Required CustomView: question without « skip » ──
 	result := v.HandleKey(escEvent)
 	assert.Nil(t, result, "Esc on required CustomView should be consumed")
 	assert.Equal(t, 0, v.currentStep, "Required CustomView not skipped")
-	assert.False(t, v.escPending, "Required CustomView should not set escPending")
+	assert.Len(t, quitButtons(t, v), 2)
+	v.HandleKey(escEvent)
 
 	// Advance step 0
 	v.advanceAfterDone(v.cfg.Steps[0])
 	assert.Equal(t, 1, v.currentStep)
 
-	// ── Single Esc on Optional CustomView: sets escPending ──
-	v.escPending = false
+	// ── Esc on Optional CustomView: question, then « skip » ──
 	result = v.HandleKey(escEvent)
 	assert.Nil(t, result, "Esc should be consumed")
-	assert.True(t, v.escPending, "first Esc should set escPending on optional CustomView")
-	assert.Equal(t, 1, v.currentStep, "should not skip on single Esc")
-
-	// ── Double Esc on Optional CustomView: skips ──
-	result = v.HandleKey(escEvent)
-	assert.Nil(t, result)
-	assert.Equal(t, 2, v.currentStep, "double Esc should skip optional CustomView")
+	assert.Equal(t, 1, v.currentStep, "should not skip on Esc")
+	pressQuitButton(t, v, i18n.T("tui.wizard.quit.skip"))
+	assert.Equal(t, 2, v.currentStep, "« skip » skips the optional CustomView")
 	assert.Equal(t, widgets.StepSkipped, v.stepStates[1].Status)
 
 	// ── Ctrl+B on Form step: goes back to step 1 ──
@@ -1289,4 +1280,93 @@ func TestIsLastFocusableFormItem_Export(t *testing.T) {
 	assert.False(t, IsLastFocusableFormItem(form, 0), "first item is not last")
 	assert.True(t, IsLastFocusableFormItem(form, 1), "second item is last")
 	assert.False(t, IsLastFocusableFormItem(nil, 0), "nil form returns false")
+}
+
+// quitButtons returns the labels of the « quit the wizard? » prompt.
+func quitButtons(t *testing.T, v *InlineWizardView) []string {
+	t.Helper()
+	require.NotNil(t, v.quitBar, "quit question shown")
+	form, ok := v.quitBar.GetItem(1).(*tview.Form)
+	require.True(t, ok)
+	var labels []string
+	for i := 0; i < form.GetButtonCount(); i++ {
+		labels = append(labels, form.GetButton(i).GetLabel())
+	}
+	return labels
+}
+
+// pressQuitButton activates a button of the « quit the wizard? » prompt.
+func pressQuitButton(t *testing.T, v *InlineWizardView, label string) {
+	t.Helper()
+	require.NotNil(t, v.quitBar, "quit question shown")
+	form := v.quitBar.GetItem(1).(*tview.Form)
+	idx := form.GetButtonIndex(label)
+	require.GreaterOrEqual(t, idx, 0, "button %q", label)
+	form.GetButton(idx).InputHandler()(tcell.NewEventKey(tcell.KeyEnter, 0, tcell.ModNone), func(tview.Primitive) {})
+}
+
+type popShell struct {
+	mockShell
+	popped int
+}
+
+func (s *popShell) PopView() bool { s.popped++; return true }
+
+// N19: Esc on a required step → « Quitter » → OnComplete(false, nil) and the
+// wizard is popped; the focus starts on « Continuer ».
+func TestInlineWizardView_EscQuit(t *testing.T) {
+	var calls []bool
+	v := NewInlineWizardView(InlineWizardConfig{
+		ID: "wizard.quit", Title: "Quit",
+		OnComplete: func(ok bool, err error) { calls = append(calls, ok); assert.NoError(t, err) },
+		Steps: []WizardStep{{
+			Label: "Required", Required: true,
+			Form: func(_ *tview.Application, onDone func()) *tview.Form {
+				f := tview.NewForm()
+				f.AddInputField("Name", "", 0, nil, nil)
+				f.AddButton("Next", onDone)
+				return f
+			},
+		}},
+	})
+	sh := &popShell{}
+	v.SetShell(sh)
+	content := tview.NewFlex().SetDirection(tview.FlexRow)
+	app := runApp(t, content)
+	onLoop(app, func() { v.Mount(content, app) })
+	onLoop(app, func() {
+		assert.Nil(t, v.HandleKey(tcell.NewEventKey(tcell.KeyEscape, 0, tcell.ModNone)))
+		form := v.quitBar.GetItem(1).(*tview.Form)
+		assert.Equal(t, form.GetButton(form.GetButtonCount()-1), app.GetFocus(), "focus on « continue »")
+		pressQuitButton(t, v, i18n.T("tui.wizard.quit.quit"))
+	})
+	assert.Equal(t, []bool{false}, calls)
+	assert.Equal(t, 1, sh.popped)
+	onLoop(app, func() { v.Unmount() })
+	assert.Equal(t, []bool{false}, calls, "OnComplete called once")
+}
+
+// N19: Ctrl+B, Alt+← and PgUp go back in a wizard.
+func TestInlineWizardView_BackKeys(t *testing.T) {
+	step := func(label string) WizardStep {
+		return WizardStep{Label: label, Form: func(_ *tview.Application, onDone func()) *tview.Form {
+			f := tview.NewForm()
+			f.AddButton("Next", onDone)
+			return f
+		}}
+	}
+	for _, ev := range []*tcell.EventKey{
+		tcell.NewEventKey(tcell.KeyCtrlB, 0, tcell.ModNone),
+		tcell.NewEventKey(tcell.KeyLeft, 0, tcell.ModAlt),
+		tcell.NewEventKey(tcell.KeyPgUp, 0, tcell.ModNone),
+	} {
+		v := NewInlineWizardView(InlineWizardConfig{ID: "wizard.back", Steps: []WizardStep{step("a"), step("b")}})
+		v.Mount(tview.NewFlex(), tview.NewApplication())
+		v.advanceAfterDone(v.cfg.Steps[0])
+		v.renderStep(v.currentStep)
+		require.Equal(t, 1, v.currentStep)
+		assert.Nil(t, v.HandleKey(ev))
+		assert.Equal(t, 0, v.currentStep, ev.Name())
+		v.Unmount()
+	}
 }

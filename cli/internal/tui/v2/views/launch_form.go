@@ -16,9 +16,10 @@ import (
 // ─────────────────────────────────────────────────────────────────────────────
 // Launch form (P1-T22, 10-tui §4): generated from the workflow YAML — inputs,
 // then options (mode, runtime with availability, location, opening), then a
-// recap computed by the wiring layer (bundle, plan, warnings). Ctrl+S
-// launches from any step, Ctrl+B goes back, Esc closes. Beads inputs open the
-// tview picker in place.
+// recap computed by the wiring layer (bundle, plan, warnings). Ctrl+S goes
+// to the recap, then launches from the loaded recap only (N19); Ctrl+B,
+// Alt+← or PgUp go back, Alt+→ or PgDn forward, Esc closes. Beads inputs open
+// the tview picker in place.
 // ─────────────────────────────────────────────────────────────────────────────
 
 // LaunchFormConfig configures a launch form.
@@ -120,6 +121,9 @@ func (v *LaunchFormView) StatusHints() string {
 	if v.picker != nil {
 		return v.picker.StatusHints()
 	}
+	if v.step == launchStepRecap {
+		return i18n.T("tui.keys.launch_recap")
+	}
 	return i18n.T("tui.launch.hints")
 }
 
@@ -160,12 +164,23 @@ func (v *LaunchFormView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 	if v.picker != nil {
 		return event // the picker has the focus and its own keys
 	}
+	if isBackKey(event) {
+		v.back()
+		return nil
+	}
+	if isNextKey(event) {
+		if v.step < launchStepRecap {
+			v.next()
+		}
+		return nil
+	}
 	switch event.Key() {
 	case tcell.KeyCtrlS:
-		v.launch()
-		return nil
-	case tcell.KeyCtrlB:
-		v.back()
+		if v.step == launchStepRecap {
+			v.launch()
+		} else {
+			v.toRecap()
+		}
 		return nil
 	case tcell.KeyRune:
 		if v.dirtyKey(event.Rune()) {
@@ -509,6 +524,16 @@ func (v *LaunchFormView) next() {
 	v.render()
 }
 
+// toRecap is Ctrl+S before the recap: straight to the recap (N19).
+func (v *LaunchFormView) toRecap() {
+	if v.launching || v.blocked() {
+		return
+	}
+	v.step = launchStepRecap
+	v.loadRecap()
+	v.render()
+}
+
 func (v *LaunchFormView) back() {
 	if v.launching || v.step == launchStepInputs {
 		return
@@ -531,17 +556,24 @@ func (v *LaunchFormView) blocked() bool {
 
 func (v *LaunchFormView) launch() { v.launchWith(v.cfg.Launch) }
 
-// launchWith runs a launch function off the event loop (double launch
-// protection: ignored while a launch is in progress, m12).
+// launchWith runs a launch function off the event loop, from the loaded
+// recap only (N19; double launch protection: ignored while a launch is in
+// progress, m12).
 func (v *LaunchFormView) launchWith(fn func(ctx context.Context, c LaunchChoices) error) {
-	if v.launching || v.blocked() || fn == nil {
+	if v.launching || fn == nil || v.step != launchStepRecap {
+		return
+	}
+	if v.recap == nil {
+		if v.recapErr == nil && v.shell != nil {
+			v.shell.ShowToastMsg(i18n.T("tui.keys.recap_loading"), false)
+		}
+		return
+	}
+	if v.blocked() {
 		return
 	}
 	v.launching, v.launchErr = true, nil
-	if v.step != launchStepRecap {
-		v.step = launchStepRecap
-		v.render()
-	} else if v.recapTV != nil {
+	if v.recapTV != nil {
 		v.recapTV.SetText(v.recapText())
 	}
 	app, ctx, choices := v.app, v.ctx, v.m.choices()
@@ -611,4 +643,28 @@ func indexOf(list []string, v string) int {
 		}
 	}
 	return 0
+}
+
+// isBackKey reports the « previous step » keys of the launch form and the
+// wizards: Ctrl+B, Alt+← and PgUp (N19).
+func isBackKey(event *tcell.EventKey) bool {
+	switch event.Key() {
+	case tcell.KeyCtrlB, tcell.KeyPgUp:
+		return true
+	case tcell.KeyLeft:
+		return event.Modifiers()&tcell.ModAlt != 0
+	}
+	return false
+}
+
+// isNextKey reports the « next step » keys of the launch form: Alt+→ and
+// PgDn.
+func isNextKey(event *tcell.EventKey) bool {
+	switch event.Key() {
+	case tcell.KeyPgDn:
+		return true
+	case tcell.KeyRight:
+		return event.Modifiers()&tcell.ModAlt != 0
+	}
+	return false
 }

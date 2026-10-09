@@ -50,7 +50,7 @@ Type shared with `RunWizard` (`wizard.go`):
 | `Processing` | Spinner message while `OnDone` runs |
 | `InfoFields` | Key/value pairs added to the info panel after success |
 | `Skip` / `SkipIf` | Step already satisfied / condition evaluated just before rendering |
-| `Required` | Forbids skipping the step with `Esc` (`Ctrl+C` still quits) |
+| `Required` | No « Skip the step » button in the `Esc` question (the wizard can still be quit) |
 | `SidebarHidden` | Excludes the step from the sidebar in grouped mode (intro pages) |
 
 ### Grouped mode (`Groups`)
@@ -86,7 +86,7 @@ Injection is automatic when the wizard is pushed via `shell.PushView(v)`.
 │ ✓ Repo: git@gitlab.com:team/state.git               │  Info panel (dynamic height)
 │ ✓ Config: stale_days=3                              │
 ├─────────────────────────────────────────────────────┤
-│ ctrl+s submit · ctrl+b back · esc skip              │  Hints bar (1 row, fixed)
+│ ctrl+s submit · ctrl+b/alt+← back · esc quit        │  Hints bar (1 row, fixed)
 └─────────────────────────────────────────────────────┘
 ```
 
@@ -130,9 +130,8 @@ Widgets used (all existing in the design system):
 | Action | Trigger | Behavior |
 |--------|---------|----------|
 | **Submit** | Form button / `Ctrl+S` | Validate → Spinner → OnDone → advance |
-| **Back** | `Ctrl+B` | Reset current → Pending, previous → Active, pop info |
-| **Skip** | Double `Esc` | 1st Esc = hint, 2nd = skip (blocked if `Required`) |
-| **Quit** | `Esc` at shell | Pop the wizard (return to previous view) |
+| **Back** | `Ctrl+B`, `Alt+←`, `PgUp` | Reset current → Pending, previous → Active, pop info |
+| **Quit / Skip** | `Esc` | « Quit the wizard? » question in place of the hints bar: **Quit** (`OnComplete(false, nil)` then pop), **Skip the step** (non-`Required` steps), **Continue** (default focus; `Esc` too). An open drop-down list closes first. No more double `Esc` |
 
 ---
 
@@ -311,7 +310,7 @@ the summary is displayed.
 | `tview.Application` | Creates its own | Uses the shell's |
 | Omnibar | Not available | Visible and accessible |
 | Toasts | Not available | Functional |
-| Navigation | `Ctrl+C` quits | `Esc` pops to previous view |
+| Navigation | `Ctrl+C` quits | `Esc` → « Quit the wizard? » |
 | Info panel | Dedicated side panel | Integrated in vertical layout |
 | Lifecycle | Blocking (`Run()` → `WizardResult`) | Async (`Mount/Unmount`, `OnComplete` callback) |
 | Usage | CLI one-shot, `--no-tui` | TUI shell interactive |

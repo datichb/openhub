@@ -118,6 +118,8 @@ type ModalAction struct {
 	Label     string
 	Callback  func()
 	Separator bool // insert a visual gap before this button to group actions
+	// Danger styles the button as a destructive action.
+	Danger bool
 }
 
 // ShellAccess provides access to shell overlay capabilities from views.
@@ -132,6 +134,11 @@ type ShellAccess interface {
 	ShowScrollableModal(title, content string, actions []ModalAction)
 	ShowToastMsg(msg string, success bool)
 	ShowInlineForm(cfg InlineFormConfig)
+	// Confirm asks for a confirmation before an action (every destructive
+	// action of a view goes through it, N19). onYes runs on the event loop
+	// once the user confirms; cancelling (button, Esc) does nothing. danger
+	// styles the confirmation button as destructive.
+	Confirm(title, detail string, danger bool, onYes func())
 	// NavigateTo navigates to a registered view by ID.
 	NavigateTo(viewID string)
 	// SetProjectMode activates or deactivates project mode with the given project.

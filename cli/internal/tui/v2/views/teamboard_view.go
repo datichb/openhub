@@ -1002,6 +1002,15 @@ func (v *TeamBoardView) releaseTicket() {
 	if ticketID == "" {
 		return
 	}
+	v.shell.Confirm(i18n.T("tui.confirm.release.title"), i18n.Tf("tui.confirm.release.detail", ticketID), true, func() {
+		v.doReleaseTicket(ticketID)
+	})
+}
+
+func (v *TeamBoardView) doReleaseTicket(ticketID string) {
+	if v.actionInProgress.Load() {
+		return
+	}
 	v.actionInProgress.Store(true)
 	go func() {
 		err := v.actions.OnRelease(ticketID)

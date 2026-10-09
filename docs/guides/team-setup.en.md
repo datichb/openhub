@@ -37,8 +37,8 @@ The wizard runs full-screen with 5 adaptive steps and a side info panel.
 ### TUI mode (inline wizard)
 
 The wizard runs directly inside the TUI shell without leaving the interface. The omnibar
-and toasts remain accessible. Shortcuts: `Ctrl+S` submit, `Ctrl+B` back,
-double `Esc` to skip an optional step.
+and toasts remain accessible. Shortcuts: `Ctrl+S` submit, `Ctrl+B` (or `Alt+←`, `PgUp`) back,
+`Esc` for « Quit the wizard? » (quit, skip an optional step or continue).
 
 ### Phase 1 — Repository connection (sequential)
 

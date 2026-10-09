@@ -1251,8 +1251,19 @@ func (s *Shell) isInteractiveZone(x, y int) bool {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Global key handler — minimal and predictable
+// Global key handler — the key contract (N19)
 // ─────────────────────────────────────────────────────────────────────────────
+//
+// Layers, in order:
+//  1. urgency: Ctrl+Q / Ctrl+C (quit), Esc clearing a text selection;
+//  2. the palette, the overlays (modals, forms) and the views that capture
+//     input (forms, wizards) receive every other key;
+//  3. reserved keys, never redefined by a view: Esc (closes the toasts
+//     shown, then goes back), Ctrl+P, Ctrl+T, ? and F1;
+//  4. the active view (HandleKey);
+//  5. the focused widget: Enter and the letters are never taken from it;
+//  6. fallbacks: j/k/g/G become arrows/Home/End, / opens the palette, Enter
+//     opens the palette only when the focused widget does not use it.
 
 func (s *Shell) globalKeyHandler(event *tcell.EventKey) *tcell.EventKey {
 	// Ctrl+Q / Ctrl+C: quit (always available)
@@ -1280,6 +1291,11 @@ func (s *Shell) globalKeyHandler(event *tcell.EventKey) *tcell.EventKey {
 		return event
 	}
 
+	// Esc closes the toasts shown before anything else (N19).
+	if event.Key() == tcell.KeyEscape && s.DismissToasts() {
+		return nil
+	}
+
 	// ── InputCapturing views (e.g. inline wizards with forms) ────────
 	// When the current view captures input, only Ctrl+Q/C (handled above)
 	// and selection-clear remain global. Everything else is delegated to
@@ -1296,53 +1312,19 @@ func (s *Shell) globalKeyHandler(event *tcell.EventKey) *tcell.EventKey {
 		}
 	}
 
-	// Ctrl+P or /: activate omnibar
-	if event.Key() == tcell.KeyCtrlP {
+	// ── Reserved keys ────────────────────────────────────────────────
+	switch event.Key() {
+	case tcell.KeyCtrlP:
 		s.omnibar.Activate()
 		return nil
-	}
-
-	// Ctrl+T: toggle team mode (ADR-032 Phase 3)
-	// From team mode → return to hub. From hub/project → enter team mode.
-	// If multiple teams, show a selector.
-	if event.Key() == tcell.KeyCtrlT {
-		switch s.activeMode {
-		case views.ModeTeam:
-			// Already in team mode → go back to hub
-			s.SetMode(views.ModeHub)
-		default:
-			// Enter team mode — use TeamsProvider if configured
-			if s.cfg.TeamsProvider != nil {
-				teams := s.cfg.TeamsProvider()
-				switch len(teams) {
-				case 0:
-					s.ShowToast(i18n.T("tui.no_team_configured"), ToastWarning)
-				case 1:
-					s.activeTeam = &views.ActiveTeam{ID: teams[0].Value, Name: teams[0].Label}
-					s.SetMode(views.ModeTeam)
-				default:
-					s.ShowSelectModal(i18n.T("tui.select_team"), teams, "", func(selected string) {
-						for _, t := range teams {
-							if t.Value == selected {
-								s.activeTeam = &views.ActiveTeam{ID: t.Value, Name: t.Label}
-								s.SetMode(views.ModeTeam)
-								return
-							}
-						}
-					})
-				}
-			} else {
-				// No TeamsProvider — fallback to previous behavior
-				s.activeMode = views.ModeTeam
-				theme.SetActiveMode(string(views.ModeTeam))
-				s.router.NavigateTo("teams")
-			}
-		}
+	case tcell.KeyCtrlT:
+		s.toggleTeamMode()
 		return nil
-	}
-
-	// Esc: pop view (go back), or exit to hub at root of a non-hub mode.
-	if event.Key() == tcell.KeyEsc {
+	case tcell.KeyF1:
+		s.showHelpOverlay()
+		return nil
+	case tcell.KeyEsc:
+		// Pop view (go back), or exit to hub at root of a non-hub mode.
 		if s.router.StackDepth() > 1 {
 			s.router.Pop()
 			return nil
@@ -1350,8 +1332,13 @@ func (s *Shell) globalKeyHandler(event *tcell.EventKey) *tcell.EventKey {
 		// At root of a non-hub mode → return to hub directly (Ctrl+T to come back)
 		if s.activeMode != views.ModeHub {
 			s.SetMode(views.ModeHub)
-			return nil
 		}
+		return nil
+	}
+	focus := s.app.GetFocus()
+	textInput := focusIsTextInput(focus)
+	if event.Key() == tcell.KeyRune && event.Rune() == '?' && !textInput {
+		s.showHelpOverlay()
 		return nil
 	}
 
@@ -1361,16 +1348,18 @@ func (s *Shell) globalKeyHandler(event *tcell.EventKey) *tcell.EventKey {
 	// Views that don't handle Tab return the event, and tview's native focus
 	// cycling takes over (Phase 2).
 	if cur := s.router.Current(); cur != nil {
-		result := cur.HandleKey(event)
-		if result == nil {
+		if cur.HandleKey(event) == nil {
 			return nil // view consumed the event
 		}
 	}
 
-	// If the view didn't consume a printable rune, activate omnibar with it.
-	// Exception: j/k are universal navigation keys — translate them to
-	// Down/Up arrow so every list/table widget responds natively.
-	// Exception: ? opens the help overlay instantly (lazygit / htop convention).
+	// A text field keeps every key the view did not take.
+	if textInput {
+		return event
+	}
+
+	// Fallbacks: j/k/g/G are the universal list keys (arrows, Home, End);
+	// / opens the palette; every other letter goes to the focused widget.
 	if event.Key() == tcell.KeyRune {
 		switch event.Rune() {
 		case 'j':
@@ -1381,33 +1370,91 @@ func (s *Shell) globalKeyHandler(event *tcell.EventKey) *tcell.EventKey {
 			return tcell.NewEventKey(tcell.KeyHome, 0, tcell.ModNone)
 		case 'G':
 			return tcell.NewEventKey(tcell.KeyEnd, 0, tcell.ModNone)
-		case '?':
-			s.showHelpOverlay()
+		case '/':
+			s.omnibar.Activate()
 			return nil
-		case 'd':
-			// Dismiss the oldest visible toast (if any)
-			if s.DismissOldestToast() {
-				return nil
-			}
-			// No toast to dismiss — fall through to omnibar activation
 		}
-		s.omnibar.ActivateWithRune(event.Rune())
-		return nil
+		return event
 	}
 
-	// F1: same as '?' — show help overlay (Windows/htop/mc convention).
-	if event.Key() == tcell.KeyF1 {
-		s.showHelpOverlay()
-		return nil
-	}
-
-	// Enter: active l'omnibar si aucune vue n'a consommé l'event.
-	if event.Key() == tcell.KeyEnter {
+	// Enter belongs to the focused widget; the palette opens only when the
+	// widget does not use it.
+	if event.Key() == tcell.KeyEnter && !focusAcceptsEnter(focus) {
 		s.omnibar.Activate()
 		return nil
 	}
 
 	return event
+}
+
+// toggleTeamMode is Ctrl+T (ADR-032 Phase 3): from team mode, back to the
+// hub; from the hub or a project, into team mode (selector when several
+// teams are configured).
+func (s *Shell) toggleTeamMode() {
+	if s.activeMode == views.ModeTeam {
+		s.SetMode(views.ModeHub)
+		return
+	}
+	if s.cfg.TeamsProvider == nil {
+		// No TeamsProvider — fallback to the teams list view.
+		s.activeMode = views.ModeTeam
+		theme.SetActiveMode(string(views.ModeTeam))
+		s.router.NavigateTo("teams")
+		return
+	}
+	teams := s.cfg.TeamsProvider()
+	switch len(teams) {
+	case 0:
+		s.ShowToast(i18n.T("tui.no_team_configured"), ToastWarning)
+	case 1:
+		s.activeTeam = &views.ActiveTeam{ID: teams[0].Value, Name: teams[0].Label}
+		s.SetMode(views.ModeTeam)
+	default:
+		s.ShowSelectModal(i18n.T("tui.select_team"), teams, "", func(selected string) {
+			for _, t := range teams {
+				if t.Value == selected {
+					s.activeTeam = &views.ActiveTeam{ID: t.Value, Name: t.Label}
+					s.SetMode(views.ModeTeam)
+					return
+				}
+			}
+		})
+	}
+}
+
+// enterAcceptor is implemented by custom widgets that use Enter.
+type enterAcceptor interface{ AcceptsEnter() bool }
+
+// listLike matches tview.List and the widgets embedding it (SectionedList).
+type listLike interface {
+	SetSelectedFunc(func(int, string, string, rune)) *tview.List
+}
+
+// focusAcceptsEnter reports whether the focused widget uses Enter (lists,
+// tables, buttons, forms and their fields, trees).
+func focusAcceptsEnter(p tview.Primitive) bool {
+	switch w := p.(type) {
+	case nil:
+		return false
+	case enterAcceptor:
+		return w.AcceptsEnter()
+	case *tview.List, *tview.Table, *tview.Button, *tview.Form, *tview.InputField,
+		*tview.DropDown, *tview.TreeView, *tview.Checkbox, *tview.TextArea:
+		return true
+	case listLike:
+		return true
+	}
+	return false
+}
+
+// focusIsTextInput reports whether the focused widget is a text field: it
+// keeps the letters, ? and / included.
+func focusIsTextInput(p tview.Primitive) bool {
+	switch p.(type) {
+	case *tview.InputField, *tview.TextArea:
+		return true
+	}
+	return false
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -163,7 +163,7 @@ Lancer ticket (hub:ticket) · my-app
 
 Un nouvel onglet s'ouvre avec opencode : l'agent `orchestrator-dev` lit le ticket et prepare son plan. Sans `--recap`, la session demarre directement.
 
-> Depuis la TUI, le meme lancement se fait par « Démarrer » → `ticket` → fiche de lancement : bouton « Choisir… » pour le ticket, mode `manuel` a l'etape Options, puis `Ctrl+S`.
+> Depuis la TUI, le meme lancement se fait par « Démarrer » → `ticket` → fiche de lancement : bouton « Choisir… » pour le ticket, mode `manuel` a l'etape Options, puis `Ctrl+S` (recap) et `Ctrl+S` encore (lancement).
 
 ---
 
@@ -337,7 +337,7 @@ Dans la vue Sessions, `o` affiche la meme description.
 
 Le workflow `review` relit une branche sans rien modifier. Deux facons de le lancer :
 
-**Depuis la TUI :** sur la session `ticket`, appuyez sur `e` (**Enchaîner avec…**). oh propose les workflows qui prennent une sortie de la session ; choisissez `review` : la fiche de lancement s'ouvre avec `branch = feat/bd-42`. Choisissez le « Type de review » (par exemple `adversarial`), puis `Ctrl+S`.
+**Depuis la TUI :** sur la session `ticket`, appuyez sur `e` (**Enchaîner avec…**). oh propose les workflows qui prennent une sortie de la session ; choisissez `review` : la fiche de lancement s'ouvre avec `branch = feat/bd-42`. Choisissez le « Type de review » (par exemple `adversarial`), puis `Ctrl+S` deux fois (recap, puis lancement).
 
 **En ligne de commande :**
 

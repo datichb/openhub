@@ -141,7 +141,7 @@ oh resout le workflow (couches hub, equipe, projet), construit le paquet de sess
 oh
 ```
 
-Sur l'accueil, la section **Démarrer** liste vos workflows epingles (★), les recents et « Tous les workflows ». `Entree` ouvre la **fiche de lancement** : Entrées → Options → Récap ; `Ctrl+S` lance. Voir [Utiliser le TUI](tui-usage.fr.md).
+Sur l'accueil, la section **Démarrer** liste vos workflows epingles (★), les recents et « Tous les workflows ». `Entree` ouvre la **fiche de lancement** : Entrées → Options → Récap ; `Ctrl+S` va au récap, un second `Ctrl+S` lance. Voir [Utiliser le TUI](tui-usage.fr.md).
 
 ## Paquet de session
 

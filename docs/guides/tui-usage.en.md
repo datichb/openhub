@@ -22,18 +22,19 @@ On the first start without configuration, the `oh init` wizard opens in the TUI 
 
 | Key | Action |
 |-----|--------|
-| `Ctrl+P` | Open the omnibar |
-| a letter | Open the omnibar with that letter (when the view does not use it) |
-| `?` or `F1` | Help (shortcuts of the current view) |
-| `Esc` | Back to the previous view; at the root of a project or team mode, back to Hub mode |
+| `Ctrl+P` or `/` | Open the omnibar (`/`: when the view does not use it to search) |
+| `?` or `F1` | Help (global shortcuts, form and wizards, keys of the current view) |
+| `Esc` | Close the toasts shown; otherwise back to the previous view; at the root of a project or team mode, back to Hub mode |
 | `Ctrl+T` | Enter team mode (choice when there are several teams); from team mode, back to the Hub |
 | `Ctrl+Q` (or `Ctrl+C`) | Quit (see [Quitting oh](#quitting-oh)) |
 | `j` / `k`, `g` / `G` | Down / up, top / bottom of a list (in the Sessions view, `g` fetches a remote session) |
 | `{` / `}` | Previous / next section in sectioned lists |
 | `Tab` | Switch column or field (`h` / `l` on two-column landings) |
-| `d` | Dismiss the oldest toast |
+| `Enter` | action of the selected list, button or field (the omnibar opens only when nothing uses it) |
 
-Action results show up as toasts (success, error, info) that disappear by themselves. Each view shows its shortcuts at the bottom.
+Action results show up as toasts (success, error, info) that disappear by themselves (`Esc` closes them). Each view shows its shortcuts at the bottom.
+
+**Changed in v5.0**: typing a letter « anywhere » no longer opens the omnibar (use `Ctrl+P` or `/`); `Enter` and letters always go to the selected list or field; `d` no longer dismisses toasts (`Esc`). `Esc`, `Ctrl+P`, `Ctrl+T`, `?`, `F1` and `Ctrl+Q` mean the same in every view. Every destructive action (removing a worktree, cleaning up, releasing a ticket, rejecting a wiki proposal…) asks for a confirmation.
 
 ### Sessions badge
 
@@ -85,11 +86,12 @@ Opened from "Start", the catalogue, the omnibar (`run <workflow>`) or the board 
 | Key | Action |
 |-----|--------|
 | `Tab` | next field |
-| `Ctrl+S` | launch, from any step (without going through the recap) |
-| `Ctrl+B` | previous step |
+| `Ctrl+S` | go to the recap (from any step); on the loaded recap: launch |
+| `Alt+←`, `PgUp` or `Ctrl+B` | previous step |
+| `Alt+→` or `PgDn` | next step |
 | `Esc` | close the form |
 
-The "Next", "Back" and "Launch" buttons do the same. While launching, the form shows "Launching…" (a second `Ctrl+S` is ignored); in a container, the image build progress shows below.
+A launch always starts from the recap: a first `Ctrl+S` shows it, a second one launches once the recap is computed. The "Next", "Back" and "Launch" buttons do the same. While launching, the form shows "Launching…" (a second `Ctrl+S` is ignored); in a container, the image build progress shows below.
 
 ### Beads ticket picker
 
@@ -303,7 +305,7 @@ Fuzzy matching on names and aliases:
 | `project add` | project wizard |
 | `board`, `board init` | project Beads board, initialization |
 | `project-config` | project configuration (including Execution) |
-| `worktrees` | git worktrees |
+| `worktrees` | git worktrees of the project (`a` add, `d` remove, `o` open a session, `p` prune the references, `x` remove the merged worktrees, never one used by a session; `d`, `p` and `x` ask for a confirmation) |
 | `settings`, `models`, `provider`, `mcp`, `secrets` | settings, models, provider, MCP servers, secrets |
 | `teams`, `team-detail` | teams, team detail (`K` provider key for the team; solo space: "Switch to a team") |
 | `init` | run the setup wizard again |
@@ -336,9 +338,8 @@ Commands removed in v5: `deploy`, `sync`, `plugins`, `upgrade`, the Workflow vie
 | Key | Action |
 |-----|--------|
 | `Ctrl+S` | submit the step |
-| `Ctrl+B` | previous step |
-| `Esc` (once) | "press again to skip" hint |
-| `Esc` (twice) | skip the step (unless it is required) |
+| `Alt+←`, `PgUp` or `Ctrl+B` | previous step |
+| `Esc` | « Quit the wizard? »: **Quit**, **Skip the step** (when optional) or **Continue** (the default; `Esc` too) |
 
 A summary screen ends the wizard: `Enter` opens the detail view, `Esc` goes back to the previous view.
 
