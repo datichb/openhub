@@ -31,6 +31,9 @@ import (
 var controlPlaneDeny = []string{
 	"*ohd.sock*", "*--unix-socket*", "*.oh/run*", "*.oh/servers*", "*.oh/bundles*", "*.oh/oh.db*",
 	"*oh mcp serve*", "*oh * mcp * serve*",
+	// the environment of other processes of the user (the tool server holds
+	// its password and tokens there)
+	"*/proc/*/environ*", "*ps *eww*", "*ps *-E*", "*ps *axe*",
 }
 
 // gitEnvDeny: git environment and transport options that run a program or

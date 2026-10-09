@@ -43,7 +43,7 @@ func TestGlobalGuard(t *testing.T) {
 		"rm -rf .beads/hooks", "BD_GIT_HOOK=1 bd hooks run post-merge x", "echo x > .husky/pre-commit",
 		// the oh control plane
 		"curl --unix-socket ~/.oh/run/ohd.sock http://ohd/v1/workflow/checkpoint", "cat ~/.oh/run/server-passwords/x.pw",
-		"cat ~/.oh/oh.db", "ls ~/.oh/bundles", "oh mcp serve workflow", "/usr/local/bin/oh mcp serve workflow",
+		"cat ~/.oh/oh.db", "ls ~/.oh/bundles", "ps eww -p 123", "cat /proc/1/environ", "oh mcp serve workflow", "/usr/local/bin/oh mcp serve workflow",
 		// commands that run others
 		"find . -name '*.go' -exec rm {} ;", "find . -delete",
 		// persistence and credentials outside the project

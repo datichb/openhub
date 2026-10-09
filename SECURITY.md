@@ -149,6 +149,7 @@ Optional and disabled by default (`oh budget show|set|unset|raise`): maximum act
 ### Known limitations of the local mode
 
 - The agent's shell runs as your user. It can still reach the daemon socket and `oh.db`, but the socket no longer passes a checkpoint (see above).
+- **Environment of other processes**: a process of your user can read the environment of another one (`ps eww` on macOS, `/proc/<pid>/environ` on Linux), including the opencode server (password, tokens); these commands are refused to agents as a guard rail, not a barrier.
 - **oh's git on the machine**: oh runs git in your repositories (state before a checkpoint, worktrees, diffs, Beads clean-up) with what the repository configuration could run neutralized (`core.fsmonitor`, hooks, `diff.external`, textconv, `core.sshCommand`, `uploadpack`/`receivepack`, credential helpers, `ext::` URLs), and refuses to pass a checkpoint that unlocks an operation when the git configuration or hooks changed since the session started.
 - Without the capability it cannot obtain new tokens, but a process of your user can read the keychain item or the capability file, or run `oh` itself. These protections raise the bar; they do not isolate the agent.
 - The LLM key is never in the agent's environment or in the opencode configuration, but your keychain is readable by your user.

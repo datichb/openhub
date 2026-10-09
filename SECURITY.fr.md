@@ -149,6 +149,7 @@ Optionnelles et désactivées par défaut (`oh budget show|set|unset|raise`) : s
 ### Limites connues du mode local
 
 - Le shell de l'agent tourne sous votre utilisateur. Il peut toujours atteindre le socket du démon et `oh.db`, mais le socket ne fait plus passer un checkpoint (voir plus haut).
+- **Environnement des autres processus** : un processus de votre utilisateur peut lire l'environnement d'un autre (`ps eww` sous macOS, `/proc/<pid>/environ` sous Linux), dont celui du serveur opencode (mot de passe, jetons) ; ces commandes sont refusées aux agents comme garde-fou, pas comme barrière.
 - **git d'oh sur la machine** : oh lance git dans vos dépôts (état avant un checkpoint, worktrees, diff, nettoyage Beads) en neutralisant ce que la configuration du dépôt pourrait exécuter (`core.fsmonitor`, hooks, `diff.external`, textconv, `core.sshCommand`, `uploadpack`/`receivepack`, assistants d'identification, URL `ext::`), et refuse de passer un checkpoint qui déverrouille une opération quand la configuration ou les hooks git ont changé depuis le début de la session.
 - Sans la capacité, il ne peut pas obtenir de nouveaux jetons, mais un processus de votre utilisateur peut lire l'entrée du trousseau ou le fichier de capacité, ou lancer `oh` lui-même. Ces protections compliquent l'abus ; elles n'isolent pas l'agent.
 - La clé LLM n'est jamais dans l'environnement de l'agent ni dans la configuration d'opencode, mais votre trousseau est lisible par votre utilisateur.
