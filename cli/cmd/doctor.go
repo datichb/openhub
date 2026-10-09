@@ -283,11 +283,18 @@ func checkProviderCredentials() (string, bool) {
 }
 
 func providerCredentialStatus(ctx context.Context, a *app.App, project *domain.Project) (string, bool) {
-	prov := a.Config.LLM.DefaultProvider
+	return credentialStatus(ctx, a, project, "")
+}
+
+// credentialStatus follows the credential cascade of a launch of project
+// with the provider override (-P), as the launch does (N12: checked before
+// any launch).
+func credentialStatus(ctx context.Context, a *app.App, project *domain.Project, providerFlag string) (string, bool) {
+	prov := provider.ResolveProvider(providerFlag, "", a.Config.LLM.DefaultProvider)
 	cfg := hubProviderCfg(a, prov)
 	var projectID, tokenKey, teamID string
 	if project != nil {
-		prov, tokenKey, cfg = projectProvider(a, project, "")
+		prov, tokenKey, cfg = projectProvider(a, project, providerFlag)
 		projectID = project.ID
 		if tc := config.ResolveTeamForProject(a.Config, project); tc.Enabled {
 			teamID = tc.TeamID

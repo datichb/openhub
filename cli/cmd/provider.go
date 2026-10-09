@@ -47,7 +47,7 @@ func runProviderSetup(cmd *cobra.Command, args []string) error {
 	var project *domain.Project
 	if projectID != "" {
 		var err error
-		project, err = resolveProject(ctx, a, projectID)
+		project, err = resolveProject(ctx, a, projectID, projectWrite)
 		if err != nil {
 			return err
 		}

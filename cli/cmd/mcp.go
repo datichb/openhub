@@ -130,7 +130,7 @@ func runMCPEnable(cmd *cobra.Command, args []string) error {
 	// Project-level enable
 	a := MustApp()
 	ctx := cmd.Context()
-	project, err := resolveProject(ctx, a, projectID)
+	project, err := resolveProject(ctx, a, projectID, projectWrite)
 	if err != nil {
 		return err
 	}
@@ -224,7 +224,7 @@ func runMCPDisable(cmd *cobra.Command, args []string) error {
 	// Project-level disable
 	a := MustApp()
 	ctx := cmd.Context()
-	project, err := resolveProject(ctx, a, projectID)
+	project, err := resolveProject(ctx, a, projectID, projectWrite)
 	if err != nil {
 		return err
 	}
@@ -274,7 +274,7 @@ func runMCPReset(cmd *cobra.Command, args []string) error {
 
 	a := MustApp()
 	ctx := cmd.Context()
-	project, err := resolveProject(ctx, a, projectID)
+	project, err := resolveProject(ctx, a, projectID, projectWrite)
 	if err != nil {
 		return err
 	}
@@ -335,7 +335,7 @@ func runMCPSetup(cmd *cobra.Command, args []string) error {
 	var project *domain.Project
 	if projectID != "" {
 		var err error
-		project, err = resolveProject(ctx, a, projectID)
+		project, err = resolveProject(ctx, a, projectID, projectWrite)
 		if err != nil {
 			return err
 		}
@@ -548,7 +548,7 @@ func runMCPStatus(cmd *cobra.Command, args []string) error {
 	var project *domain.Project
 	if projectID != "" {
 		var err error
-		project, err = resolveProject(ctx, a, projectID)
+		project, err = resolveProject(ctx, a, projectID, projectRead)
 		if err != nil {
 			return err
 		}

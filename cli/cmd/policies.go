@@ -167,7 +167,7 @@ func runPoliciesCheck(cmd *cobra.Command, args []string) error {
 	}
 
 	// Enrich context with git data if we can resolve a project path.
-	if p, err := resolveProject(ctx, a, project); err == nil && p.Path != "" {
+	if p, err := resolveProject(ctx, a, project, projectRead); err == nil && p.Path != "" {
 		baseBranch := gitutil.DetectBaseBranch(p.Path, a.Config.Worktree.BaseBranch)
 
 		// Auto-detect branch name if not provided via flag.

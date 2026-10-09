@@ -54,6 +54,8 @@ func localizeError(err error) string {
 	switch {
 	case errors.As(err, &api) && api.Path == "/shutdown" && api.Status == 409:
 		return i18n.T("cmd.daemon.stop_busy")
+	case errors.As(err, &api) && api.Path == "/grants" && api.Status == 422:
+		return i18n.Tf("cmd.run.provider.grant_refused", api.Message)
 	case isNoTerminalError(err):
 		return i18n.T("cmd.errors.no_terminal")
 	case errors.As(err, &newer):

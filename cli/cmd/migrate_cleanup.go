@@ -68,7 +68,7 @@ func cleanupOptions(a *app.App) adapters.LegacyOptions {
 func scanDeployLeftovers(ctx context.Context, a *app.App, projectID string) ([]projectCleanup, error) {
 	var projects []domain.Project
 	if projectID != "" {
-		p, err := resolveProject(ctx, a, projectID)
+		p, err := resolveProject(ctx, a, projectID, projectWrite)
 		if err != nil {
 			return nil, err
 		}

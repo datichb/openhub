@@ -103,7 +103,7 @@ func initSoloTeam(ctx context.Context, a *app.App, p soloTeamParams) (*soloTeamR
 	var project *domain.Project
 	if p.ProjectRef != "" {
 		var err error
-		if project, err = resolveProject(ctx, a, p.ProjectRef); err != nil {
+		if project, err = resolveProject(ctx, a, p.ProjectRef, projectWrite); err != nil {
 			return nil, err
 		}
 		if project.TeamID != nil && *project.TeamID != "" {

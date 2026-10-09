@@ -147,7 +147,7 @@ func launchFormConfig(ctx context.Context, a *app.App, project *domain.Project, 
 	cfg.Recap = func(ctx context.Context, c views.LaunchChoices) (*views.LaunchRecap, error) {
 		p, err := runs.get(ctx, a, opts(c))
 		if err != nil {
-			return nil, err
+			return nil, tuiLaunchError(err)
 		}
 		rows, warns := runRecap(p)
 		out := &views.LaunchRecap{Warnings: warns, Dirty: planDirty(p.plan)}
@@ -175,7 +175,7 @@ func launchFormConfig(ctx context.Context, a *app.App, project *domain.Project, 
 		if tuiStartWiring != nil {
 			tuiStartWiring.invalidate() // recents
 		}
-		return err
+		return tuiLaunchError(err)
 	}
 	cfg.LaunchFirst = func(ctx context.Context, c views.LaunchChoices, workflowID string) error {
 		p, err := runs.get(ctx, a, opts(c))
@@ -315,4 +315,16 @@ func tuiAttachOptions() []views.SelectOption {
 		out = append(out, views.SelectOption{Label: i18n.T("tui.launch.attach_" + string(p)), Value: string(p)})
 	}
 	return out
+}
+
+// tuiLaunchError gives the launch form the message of the CLI (missing
+// credentials, refusal of the daemon translated: N12).
+func tuiLaunchError(err error) error {
+	if err == nil {
+		return nil
+	}
+	if msg := localizeError(err); msg != err.Error() {
+		return errors.New(msg)
+	}
+	return err
 }

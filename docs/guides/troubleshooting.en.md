@@ -73,6 +73,18 @@ oh secrets set ANTHROPIC_API_KEY    # Via keychain (recommended)
 export ANTHROPIC_API_KEY="sk-..."   # Via environment variable
 ```
 
+**Launch refused for want of credentials**
+```
+cannot launch, no credentials found for the provider (project, team, hub; AWS profile for Bedrock): …
+```
+`oh run` (and the launch form of the TUI, at the Recap step) checks the provider credentials before building the bundle or asking anything of the daemon, with the same cascade as `oh doctor`: project key, team key, hub key, then AWS profile for Bedrock. Set them up with `oh provider setup` (or `-P` for another provider). A refusal of the daemon ("the oh daemon could not prepare the provider credentials…") is diagnosed with `oh doctor`.
+
+**Command run outside of a project directory**
+```
+you are not in the directory of a project: run the command from the project directory or use -p <project>
+```
+Outside of a project directory, `oh` no longer silently takes the only registered project. A command that writes (`oh run` and its aliases, `oh review feedback`, `oh mcp setup|enable|disable|reset`, `oh project rename|move|configure`, `oh budget set`…) asks for confirmation in a terminal and refuses without one; a command that reads (`oh bundle show`, `oh mcp status`…) names the project it uses on stderr. With several projects, a list lets you choose. Use `-p <project>` (`oh project list`).
+
 **Invalid token (MCP services)**
 ```
 Error: 401 Unauthorized

@@ -32,7 +32,7 @@ func agentCommandAlias(cmd *cobra.Command, old, workflowID string, inputs map[st
 	}
 	a := MustApp()
 	projectID, _ := cmd.Flags().GetString("project")
-	project, err := resolveProject(ctx, a, projectID)
+	project, err := resolveProject(ctx, a, projectID, projectWrite)
 	if err != nil {
 		return err
 	}
@@ -107,7 +107,7 @@ func runReviewPublish(cmd *cobra.Command) error {
 	}
 
 	projectID, _ := cmd.Flags().GetString("project")
-	project, err := resolveProject(ctx, a, projectID)
+	project, err := resolveProject(ctx, a, projectID, projectWrite)
 	if err != nil {
 		return err
 	}

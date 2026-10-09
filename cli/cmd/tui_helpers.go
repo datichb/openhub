@@ -22,7 +22,7 @@ import (
 func resolveActiveProject(a *app.App) (*domain.Project, error) {
 	ctx := context.Background()
 	if tuiShell == nil {
-		return resolveProject(ctx, a, "")
+		return resolveProject(ctx, a, "", projectRead)
 	}
 	if ap := tuiShell.ActiveProject(); ap != nil && ap.ID != "" {
 		return a.Projects.Get(ctx, ap.ID)

@@ -73,6 +73,18 @@ oh secrets set ANTHROPIC_API_KEY    # Via le trousseau (recommande)
 export ANTHROPIC_API_KEY="sk-..."   # Via variable d'environnement
 ```
 
+**Lancement refuse faute d'identifiants**
+```
+lancement impossible, identifiants du fournisseur introuvables (projet, équipe, hub ; profil AWS pour Bedrock) : …
+```
+`oh run` (et la fiche de lancement de la TUI, a l'etape Recap) verifie les identifiants du fournisseur avant de construire le paquet ou de demander quoi que ce soit au demon, selon la meme cascade qu'`oh doctor` : cle du projet, de l'equipe, du hub, puis profil AWS pour Bedrock. Configurez-les avec `oh provider setup` (ou `-P` pour un autre fournisseur). Un refus du demon (« le démon oh n'a pas pu préparer les identifiants… ») se diagnostique avec `oh doctor`.
+
+**Commande lancee hors du dossier d'un projet**
+```
+vous n'êtes dans le dossier d'aucun projet : lancez la commande depuis le dossier du projet ou utilisez -p <projet>
+```
+Hors du dossier d'un projet, `oh` ne prend plus en silence le seul projet enregistre. Une commande qui ecrit (`oh run` et ses alias, `oh review feedback`, `oh mcp setup|enable|disable|reset`, `oh project rename|move|configure`, `oh budget set`…) demande confirmation dans un terminal et refuse sans terminal ; une commande qui lit (`oh bundle show`, `oh mcp status`…) annonce sur la sortie d'erreur le projet utilise. Avec plusieurs projets, une liste permet de choisir. Utilisez `-p <projet>` (`oh project list`).
+
 **Token invalide (services MCP)**
 ```
 Error: 401 Unauthorized

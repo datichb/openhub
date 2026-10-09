@@ -96,6 +96,13 @@ func prepareWorkflowRun(ctx context.Context, a *app.App, opts runOptions, errOut
 	if err != nil {
 		return nil, err
 	}
+	// Credentials checked before anything is built or asked of the daemon
+	// (N12). A remote session gets its own from the runner.
+	if sessionspec.RuntimeKind(res.Runtime) != sessionspec.RuntimeRemote {
+		if err := launchCredentials(ctx, a, opts.Project, opts.Provider); err != nil {
+			return nil, err
+		}
+	}
 
 	svc, err := newRunService(ctx, a)
 	if err != nil {
@@ -597,4 +604,21 @@ func printRunWarnings(w io.Writer, warns []runsvc.Warning) {
 	for _, wr := range warns {
 		fmt.Fprintf(w, "  %s %s\n", theme.WarningStyle.Render(theme.IconWarning), warningText(wr))
 	}
+}
+
+// ProviderCredentialError is a launch refused for want of credentials of
+// its provider (the TUI shows it in the recap of the launch form).
+type ProviderCredentialError struct{ Detail string }
+
+func (e *ProviderCredentialError) Error() string {
+	return i18n.Tf("cmd.run.provider.missing", e.Detail)
+}
+
+// launchCredentials refuses a launch whose provider has no credentials
+// (project, team, hub, AWS profile for Bedrock).
+var launchCredentials = func(ctx context.Context, a *app.App, project *domain.Project, providerFlag string) error {
+	if detail, ok := credentialStatus(ctx, a, project, providerFlag); !ok {
+		return &ProviderCredentialError{Detail: detail}
+	}
+	return nil
 }

@@ -27,7 +27,10 @@ func startAlias(cmd *cobra.Command, a *app.App) error {
 	devMode, _ := f.GetBool("dev")
 	ticket, _ := f.GetString("ticket")
 	projectID, _ := f.GetString("project")
-	project, err := resolveProject(cmd.Context(), a, projectID)
+	if err := requireV2(cmd.Context()); err != nil {
+		return err
+	}
+	project, err := resolveProject(cmd.Context(), a, projectID, projectWrite)
 	if err != nil {
 		return err
 	}
