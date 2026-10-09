@@ -23,6 +23,10 @@ var fileFlags = map[string]bool{
 	"source-db": true, "auth-token-file": true, "agents-file": true, "server-socket": true,
 }
 
+// IsFileFlag reports a flag (long name) whose value names a file bd reads
+// or writes.
+func IsFileFlag(name, value string) bool { return isFileFlag(name, value) }
+
 func isFileFlag(name, value string) bool {
 	switch {
 	case fileFlags[name]:

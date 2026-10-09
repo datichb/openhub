@@ -69,18 +69,10 @@ func checkBeads(argv, allow []string) (command, error) {
 	if c.Name() == "" || c.Help() {
 		return c, nil // bd, bd --version, bd help, bd <cmd> --help
 	}
-	second := ""
-	switch {
-	case len(c.Path) > 1:
-		second = c.Path[1]
-	case len(c.Args) > 0:
-		second = c.Args[0]
+	if BeadsAllowed(c.Cmd, allow) {
+		return c, nil
 	}
-	for _, e := range allow {
-		if allowed(e, c.Name(), second) {
-			return c, nil
-		}
-	}
+	second := secondWord(c.Cmd)
 	if len(allow) == 0 {
 		return c, refuse("cmd.gateway.beads.none_allowed")
 	}
@@ -89,6 +81,37 @@ func checkBeads(argv, allow []string) (command, error) {
 		shown += " " + second
 	}
 	return c, refuse("cmd.gateway.beads.not_allowed", shown, strings.Join(allow, ", "))
+}
+
+// BeadsAllowed reports whether an allow-list (nil = DefaultBeadsAllow)
+// grants a parsed command, by the gateway's rule (also used by the replay of
+// a remote session's journal on the machine).
+func BeadsAllowed(c bdargs.Cmd, allow []string) bool {
+	if allow == nil {
+		allow = DefaultBeadsAllow
+	}
+	second := secondWord(c)
+	for _, e := range allow {
+		if allowed(e, c.Name(), second) {
+			return true
+		}
+	}
+	return false
+}
+
+// ForbiddenFlag reports a flag (long name) the gateway refuses wherever it
+// is written.
+func ForbiddenFlag(name string) bool { return forbiddenFlags[name] }
+
+// secondWord is the subcommand, or the first argument, of a command.
+func secondWord(c bdargs.Cmd) string {
+	switch {
+	case len(c.Path) > 1:
+		return c.Path[1]
+	case len(c.Args) > 0:
+		return c.Args[0]
+	}
+	return ""
 }
 
 // allowed matches one allow-list entry: its first word may be an alias.

@@ -20,20 +20,26 @@ const (
 // RemoteRef locates a remote session: GitLab target, pipeline and packages
 // (sessions.remote_ref, migration v39). No secret.
 type RemoteRef struct {
-	Target      string       `json:"target"`            // remote target name (hub.toml)
-	URL         string       `json:"url"`               // GitLab instance
-	RunnerID    int64        `json:"runner_project_id"` // oh-runner project
-	ProjectPath string       `json:"project_path"`      // target project (GitLab path)
-	ProjectDir  string       `json:"project_dir"`       // project base directory on the machine (Beads)
-	ProjectID   int64        `json:"project_id"`        // target project (GitLab ID)
-	Ref         string       `json:"ref"`               // branch the job starts from
-	Commit      string       `json:"commit,omitempty"`  // commit at sending time
-	Branch      string       `json:"branch,omitempty"`  // branch pushed by the job
-	Pipeline    int64        `json:"pipeline"`          // pipeline ID
-	PipelineURL string       `json:"pipeline_url"`      // web page of the pipeline
-	BundleURL   string       `json:"bundle_url"`        // generic package of the bundle
-	SessionURL  string       `json:"session_url"`       // generic package of the envelope
-	Image       string       `json:"image"`             // project image of the job
+	Target      string `json:"target"`            // remote target name (hub.toml)
+	URL         string `json:"url"`               // GitLab instance
+	RunnerID    int64  `json:"runner_project_id"` // oh-runner project
+	ProjectPath string `json:"project_path"`      // target project (GitLab path)
+	ProjectDir  string `json:"project_dir"`       // project base directory on the machine (Beads)
+	ProjectID   int64  `json:"project_id"`        // target project (GitLab ID)
+	Ref         string `json:"ref"`               // branch the job starts from
+	Commit      string `json:"commit,omitempty"`  // commit at sending time
+	Branch      string `json:"branch,omitempty"`  // branch pushed by the job
+	Pipeline    int64  `json:"pipeline"`          // pipeline ID
+	PipelineURL string `json:"pipeline_url"`      // web page of the pipeline
+	BundleURL   string `json:"bundle_url"`        // generic package of the bundle
+	SessionURL  string `json:"session_url"`       // generic package of the envelope
+	Image       string `json:"image"`             // project image of the job
+	// ImageBuilt: the pipeline builds Image (its digest is recorded from
+	// the image job once it succeeded). ImageDigest is the digest the run
+	// job used or the image job reported (sha256:…), reused by the next
+	// sessions of the same image instead of its tag.
+	ImageBuilt  bool         `json:"image_built,omitempty"`
+	ImageDigest string       `json:"image_digest,omitempty"`
 	Tickets     []string     `json:"tickets,omitempty"` // Beads tickets reserved for the session
 	TeamID      string       `json:"team_id,omitempty"` // team-state of the claims ("" = none)
 	Status      RemoteStatus `json:"status"`            //

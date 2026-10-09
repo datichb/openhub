@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
 	"sync"
@@ -32,8 +33,14 @@ import (
 // configuration and hooks is recorded when a session starts (Trust) and git
 // calls that matter (checkpoints, worktrees) are refused when it changed.
 
-// noHooks is an empty hooks directory (git runs no hook from it).
+// noHooks is a hooks path git runs no hook from: the null device (a fixed
+// directory of a shared /tmp could be created, hooks included, by another
+// account), or an empty directory of the user's own temporary directory on
+// Windows.
 func noHooks() string {
+	if runtime.GOOS != "windows" {
+		return os.DevNull
+	}
 	dir := filepath.Join(os.TempDir(), "oh-git-no-hooks")
 	_ = os.MkdirAll(dir, 0o700)
 	return dir
@@ -65,6 +72,30 @@ func globalConfig() (ssh string, helpers []string) {
 // program-running configuration neutralized.
 func SafeArgs(args ...string) []string {
 	ssh, helpers := globalConfig()
+	return safeArgs(ssh, helpers, args)
+}
+
+// IsolatedArgs is SafeArgs taking nothing from the user's configuration
+// (plain ssh, no credential helper), for git processes that run with
+// IsolatedEnv: the remote runner, root in a job, hands its token over by
+// GIT_ASKPASS.
+func IsolatedArgs(args ...string) []string { return safeArgs("", nil, args) }
+
+// IsolatedEnv is the environment of IsolatedArgs: parent without any GIT_*
+// variable, no global or system configuration file, no terminal prompt, no
+// optional lock, then extra.
+func IsolatedEnv(parent []string, extra ...string) []string {
+	out := make([]string, 0, len(parent)+5+len(extra))
+	for _, kv := range parent {
+		if !strings.HasPrefix(kv, "GIT_") {
+			out = append(out, kv)
+		}
+	}
+	out = append(out, "GIT_TERMINAL_PROMPT=0", "GIT_OPTIONAL_LOCKS=0", "GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_GLOBAL="+os.DevNull)
+	return append(out, extra...)
+}
+
+func safeArgs(ssh string, helpers, args []string) []string {
 	if ssh == "" {
 		ssh = "ssh"
 	}

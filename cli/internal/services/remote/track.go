@@ -131,6 +131,9 @@ func (s *Service) trackOne(ctx context.Context, sid string, ref domain.RemoteRef
 	if st == domain.RemoteFailed {
 		ref.Error = "pipeline " + pl.Status
 	}
+	if st == domain.RemoteReady || st == domain.RemoteFailed {
+		s.recordImage(ctx, c, &ref, nil)
+	}
 	if err := s.Remote.SetRemoteRef(ctx, sid, ref); err != nil {
 		return nil, err
 	}

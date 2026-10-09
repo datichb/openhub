@@ -6,7 +6,7 @@ import (
 )
 
 // ManifestSchema is the version of the session envelope format.
-const ManifestSchema = 2 // 2: journal key (S-04)
+const ManifestSchema = 3 // 2: journal key (S-04); 3: journal key sealed for the target (N21)
 
 // Files of the session envelope (oh-session package).
 const (
@@ -64,12 +64,16 @@ type Manifest struct {
 	Checkpoints []ManifestCheckpoint `json:"checkpoints,omitempty"`
 	// Team is where the runner publishes the progress of the claims.
 	Team *ManifestTeam `json:"team,omitempty"`
-	// JournalKey (base64) authenticates the Beads journal of the session:
-	// the runner seals the journal with it (Summary.JournalMAC) and the
-	// machine, which keeps it in its keychain, checks the seal before any
-	// replay (S-04). Never written to the local copy of the manifest nor to
-	// the artifacts, never readable by the agent account in the job.
-	JournalKey string `json:"journal_key,omitempty"`
+	// JournalKeySealed is the journal key of the session (base64), which
+	// authenticates its Beads journal (S-04), encrypted for the target
+	// (SealJournalKey): only the run job, which holds the private key of
+	// oh-runner (VarJournalKey), opens it, in memory. The runner seals the
+	// journal with it (Summary.JournalMAC) and the machine, which keeps the
+	// key in its keychain, checks the seal before any replay. Members who
+	// read the package registry of oh-runner never see the key.
+	JournalKeySealed string `json:"journal_key_sealed,omitempty"`
+	// LegacyJournalKey is the clear key of schema 2 envelopes: refused.
+	LegacyJournalKey string `json:"journal_key,omitempty"`
 }
 
 // ManifestWorkflow identifies the workflow.

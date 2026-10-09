@@ -6,6 +6,8 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -94,6 +96,23 @@ func TestSafeArgs(t *testing.T) {
 	assert.NotContains(t, SafeArgs("status"), "--no-ext-diff")
 	env := safeEnv([]string{"GIT_DIR=/x", "GIT_CONFIG_COUNT=1", "GIT_CONFIG_KEY_0=core.pager", "PATH=/bin"})
 	assert.Equal(t, []string{"PATH=/bin", "GIT_TERMINAL_PROMPT=0", "GIT_OPTIONAL_LOCKS=0"}, env)
+}
+
+// The isolated variant (remote runner) takes nothing from the user's
+// configuration and drops every GIT_* variable; no hook directory another
+// account could prepare is used.
+func TestIsolatedArgs(t *testing.T) {
+	args := strings.Join(IsolatedArgs("--git-dir=/r", "push", "url", "HEAD"), " ")
+	assert.Contains(t, args, "-c core.sshCommand=ssh ")
+	assert.Contains(t, args, "-c credential.helper= --git-dir=/r")
+	assert.NotRegexp(t, `credential\.helper=\S`, args)
+	assert.Contains(t, args, "push --receive-pack=git-receive-pack url HEAD")
+	if runtime.GOOS != "windows" {
+		assert.Contains(t, args, "core.hooksPath="+os.DevNull)
+	}
+	env := IsolatedEnv([]string{"GIT_DIR=/x", "GIT_OBJECT_DIRECTORY=/o", "GIT_ALTERNATE_OBJECT_DIRECTORIES=/a", "PATH=/bin"}, "GIT_ASKPASS=/s")
+	assert.Equal(t, []string{"PATH=/bin", "GIT_TERMINAL_PROMPT=0", "GIT_OPTIONAL_LOCKS=0", "GIT_CONFIG_NOSYSTEM=1",
+		"GIT_CONFIG_GLOBAL=" + os.DevNull, "GIT_ASKPASS=/s"}, env)
 }
 
 // N5: a change of the repository configuration or hooks after the session

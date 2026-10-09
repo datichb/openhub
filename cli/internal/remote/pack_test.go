@@ -52,3 +52,35 @@ func TestProjectTokenVar(t *testing.T) {
 	_, ok = ProjectTokenID("OH_PROJECT_TOKEN_x")
 	assert.False(t, ok)
 }
+
+// N21: the journal key travels encrypted for the target, bound to its
+// session; only the private key of the target opens it.
+func TestSealJournalKey(t *testing.T) {
+	pub, priv, err := NewJournalKeyPair()
+	require.NoError(t, err)
+	sealed, err := SealJournalKey(pub, "ses_1", "journal-key")
+	require.NoError(t, err)
+	assert.NotContains(t, sealed, "journal-key")
+	got, err := OpenJournalKey(priv, "ses_1", sealed)
+	require.NoError(t, err)
+	assert.Equal(t, "journal-key", got)
+
+	_, err = OpenJournalKey(priv, "ses_2", sealed)
+	assert.ErrorIs(t, err, ErrJournalKeySealed, "bound to the session")
+	_, other, _ := NewJournalKeyPair()
+	_, err = OpenJournalKey(other, "ses_1", sealed)
+	assert.ErrorIs(t, err, ErrJournalKeySealed, "another key pair")
+	raw := []byte(sealed)
+	raw[len(raw)-2] ^= 1
+	_, err = OpenJournalKey(priv, "ses_1", string(raw))
+	assert.Error(t, err, "modified")
+	again, _ := SealJournalKey(pub, "ses_1", "journal-key")
+	assert.NotEqual(t, sealed, again, "ephemeral key")
+	_, err = SealJournalKey("not-a-key", "ses_1", "k")
+	assert.Error(t, err)
+	derived, err := JournalPublicKey(priv)
+	require.NoError(t, err)
+	assert.Equal(t, pub, derived)
+	assert.GreaterOrEqual(t, len(priv), 8, "GitLab masks it")
+	assert.Regexp(t, `^[A-Za-z0-9+/]+$`, priv, "base64 alphabet only (maskable)")
+}

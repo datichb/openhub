@@ -12,6 +12,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/gateway"
+	"github.com/datichb/openhub/cli/internal/gateway/bdargs"
 	"github.com/datichb/openhub/cli/internal/gateway/beadswire"
 	"github.com/datichb/openhub/cli/internal/remote"
 )
@@ -115,82 +116,42 @@ type replayState struct {
 	Resolutions  map[string]Resolution `json:"resolutions,omitempty"`
 }
 
-// refusedFlags change the database or directory of bd (gateway policy).
-var refusedFlags = map[string]bool{"--db": true, "--database": true, "-C": true, "--directory": true, "--global": true,
-	"--cpu-profile": true, "--mem-profile": true, "--dolt-auto-commit": true}
-
-// fileFlags name job files, absent from the machine (stdin "-" excepted).
-var fileFlags = map[string]bool{"--body-file": true, "--design-file": true, "--file": true, "-f": true, "--graph": true,
-	"--output": true, "-o": true, "--input": true, "-i": true}
-
-// valueFlags take a value.
-var valueFlags = map[string]bool{
-	"--status": true, "-s": true, "--assignee": true, "-a": true, "--title": true, "--priority": true, "-p": true,
-	"--type": true, "-t": true, "--label": true, "-l": true, "--parent": true, "--description": true, "-d": true,
-	"--notes": true, "--note": true, "--reason": true, "-r": true, "--actor": true, "--design": true,
-	"--acceptance": true, "--external-ref": true, "--estimate": true, "--deps": true, "--id": true,
-	"--labels": true, "--add-label": true, "--remove-label": true, "--append-notes": true,
-	"--body-file": true, "--design-file": true, "--file": true, "-f": true, "--output": true, "-o": true, "--input": true, "-i": true,
+// replayFlags are the options a replayed entry may carry (long names of bd,
+// as bdargs reads them): any other option is refused (S-04), even one bd
+// knows.
+var replayFlags = map[string]bool{
+	// global
+	"json": true, "quiet": true, "verbose": true, "actor": true,
+	// fields
+	"status": true, "assignee": true, "title": true, "priority": true, "type": true, "label": true, "labels": true,
+	"parent": true, "description": true, "notes": true, "append-notes": true, "reason": true, "design": true,
+	"acceptance": true, "external-ref": true, "estimate": true, "deps": true, "add-label": true, "remove-label": true,
+	"claim": true, "force": true, "all": true,
+	// standard input only (job files are refused)
+	"body-file": true, "design-file": true, "file": true, "output": true, "input": true, "stdin": true,
 }
-
-// boolFlags take no value. With valueFlags, they are the options a replayed
-// entry may carry: any other option is refused (S-04).
-var boolFlags = map[string]bool{"--json": true, "--claim": true, "--quiet": true, "-q": true, "--force": true,
-	"--all": true, "--verbose": true, "-v": true, "--stdin": true, "--no-daemon": true}
 
 // idFlags hold ticket ids (comma separated, "type:id" for --deps).
-var idFlags = map[string]bool{"--parent": true, "--deps": true}
+var idFlags = map[string]bool{"parent": true, "deps": true}
 
-type bdArgs struct {
-	cmd   string
-	pos   []string
-	flags map[string]string
-}
-
-func parseBd(argv []string) bdArgs {
-	a := bdArgs{flags: map[string]string{}}
-	for i := 0; i < len(argv); i++ {
-		v := argv[i]
-		if v == "--" {
-			a.pos = append(a.pos, argv[i+1:]...)
-			if a.cmd == "" && len(a.pos) > 0 {
-				a.cmd, a.pos = a.pos[0], a.pos[1:]
-			}
-			break
-		}
-		if strings.HasPrefix(v, "-") && v != "-" {
-			name, val, has := strings.Cut(v, "=")
-			if !has && valueFlags[name] && i+1 < len(argv) {
-				val = argv[i+1]
-				i++
-			}
-			a.flags[name] = val
-			continue
-		}
-		if a.cmd == "" {
-			a.cmd = v
-			continue
-		}
-		a.pos = append(a.pos, v)
+// parseEntry reads a journal entry as bd does (the gateway's analyser,
+// bdargs); reason says why it cannot be replayed.
+func parseEntry(argv []string) (c bdargs.Cmd, reason string) {
+	c, err := bdargs.Parse(argv)
+	var pe *bdargs.Error
+	switch {
+	case err == nil:
+	case errors.As(err, &pe) && pe.Kind == bdargs.UnknownFlag:
+		return c, "unknown option " + pe.Token + " refused (" + bdargs.GeneratedFor + ")"
+	case errors.As(err, &pe) && pe.Kind == bdargs.UnknownCommand:
+		return c, "unknown command " + pe.Token + " refused (" + bdargs.GeneratedFor + ")"
+	default:
+		return c, "arguments refused: " + err.Error()
 	}
-	return a
-}
-
-// allowed applies the workflow allow-list (one word, or "dep add").
-func allowed(a bdArgs, allow []string) bool {
-	if allow == nil {
-		allow = gateway.DefaultBeadsAllow
+	if c.Name() == "" || c.Help() {
+		return c, "no command"
 	}
-	two := a.cmd
-	if len(a.pos) > 0 {
-		two += " " + a.pos[0]
-	}
-	for _, x := range allow {
-		if x == a.cmd || x == two {
-			return true
-		}
-	}
-	return false
+	return c, ""
 }
 
 // ErrJournalUnauthenticated is returned when the envelope kept on the
@@ -324,8 +285,9 @@ func (s *Service) planReplay(ctx context.Context, sid string) (*ReplayPlan, []be
 		}
 	}
 	touched := map[string][]int{}
+	closing := s.closingStatuses(ctx, ref.ProjectDir)
 	for _, e := range journal {
-		it := classify(e, man.BeadsAllow, snap, placeholders)
+		it := classify(e, man.BeadsAllow, snap, placeholders, closing)
 		if prev, ok := st.Items[e.Seq]; ok && prev.State != ItemPending && prev.State != ItemFailed {
 			it.State, it.Reason, it.Created = prev.State, prev.Reason, prev.Created
 		}
@@ -372,39 +334,53 @@ func (s *Service) planReplay(ctx context.Context, sid string) (*ReplayPlan, []be
 	return plan, journal, nil
 }
 
-// classify checks an entry again on the machine.
-func classify(e beadswire.JournalEntry, allow []string, snap *remote.Snapshot, placeholders map[string]bool) ReplayItem {
-	a := parseBd(e.Argv)
-	it := ReplayItem{Seq: e.Seq, Argv: e.Argv, Command: a.cmd, Placeholder: e.Placeholder, State: ItemPending}
+// closingStatuses asks bd on the machine, once, which statuses of the
+// project's configuration close a ticket (unreadable: every status closes).
+func (s *Service) closingStatuses(ctx context.Context, dir string) func(string) bool {
+	var out []byte
+	asked := false
+	return func(status string) bool {
+		if !asked {
+			asked = true
+			out, _ = s.beads().Exec(ctx, dir, []string{"statuses", "--json"}, nil)
+		}
+		return gateway.ClosingStatus(out, status)
+	}
+}
+
+// classify checks an entry again on the machine. closing tells whether a
+// status of the project's own configuration closes a ticket.
+func classify(e beadswire.JournalEntry, allow []string, snap *remote.Snapshot, placeholders map[string]bool, closing func(status string) bool) ReplayItem {
+	it := ReplayItem{Seq: e.Seq, Argv: e.Argv, Placeholder: e.Placeholder, State: ItemPending}
 	refuse := func(why string) ReplayItem {
 		it.State, it.Reason = ItemRefused, why
 		return it
 	}
-	if a.cmd == "" {
-		return refuse("no command")
+	c, why := parseEntry(e.Argv)
+	it.Command = c.Key()
+	if why != "" {
+		return refuse(why)
 	}
-	if !allowed(a, allow) {
+	if !gateway.BeadsAllowed(c, allow) {
 		return refuse("not allowed by the workflow (beads.allow)")
 	}
-	for f, v := range a.flags {
-		lf := strings.ToLower(f)
+	for _, f := range c.Flags {
 		switch {
-		case refusedFlags[lf] || strings.HasPrefix(f, "-C") && len(f) > 2:
-			return refuse("option " + f + " refused")
-		case !strings.HasPrefix(f, "--") && len(f) > 2:
-			return refuse("combined short options " + f + " refused")
-		case fileFlags[f] && v != "-":
-			return refuse("option " + f + " names a file of the job")
-		case f == "--id":
+		case gateway.ForbiddenFlag(f.Name):
+			return refuse("option --" + f.Name + " refused")
+		case f.Name == "id":
 			return refuse("option --id refused (the machine chooses the id)")
-		case !valueFlags[f] && !boolFlags[f]:
-			return refuse("unknown option " + f)
+		case gateway.IsFileFlag(f.Name, f.Value) && f.Explicit && f.Value != "-":
+			return refuse("option --" + f.Name + " names a file of the job")
+		case !replayFlags[f.Name]:
+			return refuse("option --" + f.Name + " refused (not replayed)")
 		}
 	}
-	if closes(a) && !allowed(bdArgs{cmd: "close"}, allow) {
+	if op, ok := gateway.TicketOp(c); ok && op.Kind == gateway.OpClose && (op.Status == "" || closing == nil || closing(op.Status)) &&
+		!gateway.BeadsAllowed(bdargs.Cmd{Path: []string{"close"}}, allow) {
 		return refuse("closing a ticket is not allowed by the workflow (beads.allow)")
 	}
-	ids, ok := ticketArgs(a)
+	ids, ok := ticketArgs(c)
 	if !ok {
 		return refuse("unexpected arguments")
 	}
@@ -425,62 +401,46 @@ func classify(e beadswire.JournalEntry, allow []string, snap *remote.Snapshot, p
 	return it
 }
 
-// closes reports an entry that closes a ticket, by `close` or by a status.
-func closes(a bdArgs) bool {
-	if a.cmd == "close" {
-		return true
-	}
-	for _, f := range []string{"--status", "-s"} {
-		if v, ok := a.flags[f]; ok && strings.EqualFold(strings.TrimSpace(v), "closed") {
-			return true
-		}
-	}
-	return false
-}
-
 // ticketArgs returns every ticket id an entry names, by position (per
 // command) and in the options that hold ids; ok is false when the
 // arguments do not have the shape of the command.
-func ticketArgs(a bdArgs) (ids []string, ok bool) {
-	pos := a.pos
-	switch a.cmd {
+func ticketArgs(c bdargs.Cmd) (ids []string, ok bool) {
+	args := c.Args
+	switch c.Key() {
 	case "create", "q":
-		if len(pos) > 1 {
+		if len(args) > 1 {
 			return nil, false // the title is one argument
 		}
-	case "note", "comment":
-		if len(pos) == 0 {
+	case "note", "comment", "comments add":
+		if len(args) == 0 {
 			return nil, false
 		}
-		ids = append(ids, pos[0])
+		ids = append(ids, args[0])
 	case "comments":
-		switch {
-		case len(pos) >= 2 && pos[0] == "add":
-			ids = append(ids, pos[1])
-		case len(pos) == 1:
-			ids = append(ids, pos[0])
-		default:
+		if len(args) != 1 {
 			return nil, false
 		}
-	case "dep":
-		if len(pos) < 3 || (pos[0] != "add" && pos[0] != "remove" && pos[0] != "rm") {
+		ids = append(ids, args[0])
+	case "dep add", "dep remove":
+		if len(args) < 2 {
 			return nil, false
 		}
-		ids = append(ids, pos[1:]...)
-	case "label":
-		if len(pos) < 2 || (pos[0] != "add" && pos[0] != "remove") {
+		ids = append(ids, args...)
+	case "label add", "label remove": // ids… label
+		if len(args) < 2 {
 			return nil, false
 		}
-		ids = append(ids, pos[1])
+		ids = append(ids, args[:len(args)-1]...)
+	case "dep", "label":
+		return nil, false
 	default:
-		ids = append(ids, pos...)
+		ids = append(ids, args...)
 	}
-	for f := range idFlags {
-		v, has := a.flags[f]
-		if !has {
+	for _, f := range c.Flags {
+		if !idFlags[f.Name] {
 			continue
 		}
-		for _, x := range strings.Split(v, ",") {
+		for _, x := range strings.Split(f.Value, ",") {
 			x = strings.TrimSpace(x)
 			if _, id, typed := strings.Cut(x, ":"); typed {
 				x = strings.TrimSpace(id)
@@ -517,8 +477,11 @@ func conflictOf(t string, snapRaw, curRaw json.RawMessage, journal []beadswire.J
 		if !in[e.Seq] {
 			continue
 		}
-		a := parseBd(e.Argv)
-		switch a.cmd {
+		c2, why := parseEntry(e.Argv)
+		if why != "" {
+			continue
+		}
+		switch c2.Key() {
 		case "close":
 			after["status"] = "closed"
 		case "reopen":
@@ -526,23 +489,23 @@ func conflictOf(t string, snapRaw, curRaw json.RawMessage, journal []beadswire.J
 		case "unclaim":
 			after["status"], after["assignee"] = "open", ""
 		case "update":
-			if _, ok := a.flags["--claim"]; ok {
+			if c2.Bool("claim") {
 				after["status"] = "in_progress"
 			}
-			for _, f := range [][2]string{{"--status", "status"}, {"-s", "status"}, {"--assignee", "assignee"}, {"-a", "assignee"}, {"--title", "title"}} {
-				if v, ok := a.flags[f[0]]; ok {
-					after[f[1]] = v
+			for _, f := range []string{"status", "assignee", "title"} {
+				if v, ok := c2.Value(f); ok {
+					after[f] = v
 				}
 			}
-			for _, f := range []string{"--notes", "--note"} {
-				if v, ok := a.flags[f]; ok {
+			for _, f := range []string{"notes", "append-notes"} {
+				if v, ok := c2.Value(f); ok {
 					c.Notes = append(c.Notes, v)
 				}
 			}
-		case "note", "comment", "comments":
-			text := strings.Join(a.pos[1:], " ")
-			if len(a.pos) > 1 && a.pos[0] == "add" && len(a.pos) > 2 { // comments add <id> text
-				text = strings.Join(a.pos[2:], " ")
+		case "note", "comment", "comments add":
+			text := ""
+			if len(c2.Args) > 1 {
+				text = strings.Join(c2.Args[1:], " ")
 			}
 			if text == "" && e.Stdin != nil {
 				text = string(e.Stdin)
@@ -563,16 +526,19 @@ func conflictOf(t string, snapRaw, curRaw json.RawMessage, journal []beadswire.J
 
 // notesOnly reduces an entry to its notes and comments (MergeNotes), nil
 // when it has none.
-func notesOnly(argv []string) []string {
-	a := parseBd(argv)
-	switch a.cmd {
-	case "note", "comment", "comments":
-		return argv
+func notesOnly(c bdargs.Cmd) *bdargs.Cmd {
+	switch c.Key() {
+	case "note", "comment", "comments add":
+		return &c
 	case "update":
-		for _, f := range []string{"--notes", "--note"} {
-			if v, ok := a.flags[f]; ok && len(a.pos) > 0 {
-				return []string{"update", a.pos[0], f, v}
+		out := bdargs.Cmd{Path: c.Path, Args: c.Args}
+		for _, f := range c.Flags {
+			if f.Name == "notes" || f.Name == "append-notes" {
+				out.Flags = append(out.Flags, f)
 			}
+		}
+		if len(out.Flags) > 0 && len(out.Args) > 0 {
+			return &out
 		}
 	}
 	return nil
@@ -617,25 +583,34 @@ func (s *Service) ApplyReplay(ctx context.Context, sid string, res map[string]Re
 			st.Items[it.Seq] = *it
 			continue
 		}
-		argv := it.Argv
+		// bd runs the canonical form of what was checked (bdargs).
+		parsed, why := parseEntry(it.Argv)
+		cmd := &parsed
+		if why != "" {
+			cmd = nil
+		}
 		for _, t := range it.Tickets {
+			if cmd == nil {
+				break
+			}
 			switch conflicting[t] {
 			case KeepLocal:
-				argv = nil
+				cmd = nil
 			case MergeNotes:
-				argv = notesOnly(argv)
+				cmd = notesOnly(*cmd)
 			}
 		}
-		if argv == nil {
+		if cmd == nil {
 			it.State, it.Reason = ItemSkipped, "kept local"
 			st.Items[it.Seq] = *it
 			_ = s.saveReplayState(sid, st)
 			continue
 		}
-		argv = substitute(argv, st.Placeholders)
-		if it.Placeholder != "" && !contains(argv, "--json") {
-			argv = append(argv, "--json")
+		run := substitute(*cmd, st.Placeholders)
+		if it.Placeholder != "" && !run.Bool("json") {
+			run.Flags = append(run.Flags, bdargs.Flag{Name: "json", Value: "true"})
 		}
+		argv := run.Argv()
 		out, err := b.Exec(ctx, ref.ProjectDir, argv, stdinOf[it.Seq])
 		if err != nil {
 			it.State, it.Reason = ItemFailed, err.Error()
@@ -673,24 +648,37 @@ func (s *Service) ApplyReplay(ctx context.Context, sid string, res map[string]Re
 	return plan, nil
 }
 
-func substitute(argv []string, ph map[string]string) []string {
-	out := make([]string, len(argv))
-	for i, a := range argv {
+// substitute replaces the placeholders of created issues by their id, in
+// the arguments and in the options that hold ids.
+func substitute(c bdargs.Cmd, ph map[string]string) bdargs.Cmd {
+	out := bdargs.Cmd{Path: c.Path, Args: make([]string, len(c.Args)), Flags: make([]bdargs.Flag, len(c.Flags))}
+	for i, a := range c.Args {
 		if id, ok := ph[a]; ok {
 			a = id
 		}
-		out[i] = a
+		out.Args[i] = a
+	}
+	for i, f := range c.Flags {
+		if idFlags[f.Name] {
+			parts := strings.Split(f.Value, ",")
+			for j, x := range parts {
+				typ, id, typed := strings.Cut(strings.TrimSpace(x), ":")
+				if !typed {
+					id, typ = typ, ""
+				}
+				if newID, ok := ph[strings.TrimSpace(id)]; ok {
+					if typed {
+						parts[j] = typ + ":" + newID
+					} else {
+						parts[j] = newID
+					}
+				}
+			}
+			f.Value = strings.Join(parts, ",")
+		}
+		out.Flags[i] = f
 	}
 	return out
-}
-
-func contains(s []string, v string) bool {
-	for _, x := range s {
-		if x == v {
-			return true
-		}
-	}
-	return false
 }
 
 // createdID reads the id printed by `bd create --json` (object or array).

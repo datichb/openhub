@@ -135,8 +135,9 @@ oh :
 4. écrit `.gitlab-ci.yml` (refuse de remplacer un fichier qui n'a pas été généré par oh, sauf `--force`) ;
 5. crée le jeton de déclenchement et le garde dans le trousseau ;
 6. pose les variables CI : `OH_LLM_PROVIDER`, `OH_LLM_REGION` (non secrètes), `OH_LLM_KEY`, `OH_PROJECT_TOKEN_<id du projet>`, `OH_TEAMSTATE_TOKEN` (masquées et protégées) ;
-7. signale l'absence de runner en ligne avec l'étiquette ;
-8. enregistre la cible dans `~/.oh/hub.toml` (`[[remote.targets]]`, sans aucun secret).
+7. crée, s'il manque, la **paire de clés du journal** d'`oh-runner` : clé privée X25519 en variable `OH_JOURNAL_KEY` (masquée, protégée, limitée au job `oh-run`), clé publique dans le dépôt (`oh-journal-key.pub`, lue par la machine de chaque membre à l'envoi). Une paire complète est gardée : relancer `oh remote setup` depuis une autre machine ne casse pas les sessions déjà envoyées ;
+8. signale l'absence de runner en ligne avec l'étiquette ;
+9. enregistre la cible dans `~/.oh/hub.toml` (`[[remote.targets]]`, sans aucun secret).
 
 La commande est relançable : seul ce qui manque ou a changé est modifié. Ajoutez un projet cible plus tard avec `oh remote setup --project <chemin>`.
 
@@ -192,7 +193,7 @@ Puis, pour chaque session :
 
 1. **réservation** des tickets : `bd update <id> --claim` sur votre machine et claim dans le team-state (refus si un autre membre l'a déjà) ;
 2. **instantané Beads** des tickets, de leurs dépendances et de leurs enfants (`beads-snapshot.json`), avec la révision de chacun pour détecter les conflits au retour ;
-3. **envoi** dans le registre de packages d'`oh-runner` : le paquet de session par son hash (`oh-bundle/<hash>`, envoyé une seule fois) et l'enveloppe de la session (`oh-session/<hash>` : prompt, entrées, politique des checkpoints, instantané) ;
+3. **envoi** dans le registre de packages d'`oh-runner` : le paquet de session par son hash (`oh-bundle/<hash>`, envoyé une seule fois) et l'enveloppe de la session (`oh-session/<hash>` : prompt, entrées, politique des checkpoints, instantané, et la clé du journal de la session **chiffrée** pour le job avec la clé publique d'`oh-runner`) ;
 4. **déclenchement** du pipeline ; la session apparaît dans `oh session list` (☁) et l'avancement dans le claim du ticket.
 
 Si le déclenchement échoue, les réservations faites par oh sont annulées. `--headless` ne s'applique pas au distant.
@@ -203,7 +204,7 @@ Politique des checkpoints dans le job (jamais d'approbation aveugle) : `remote: 
 
 Le job `oh-run` exécute `oh runner run` dans l'image du projet :
 
-1. **Récupération** du paquet et de l'enveloppe de session avec le jeton du job (`CI_JOB_TOKEN`), vérifiés par leur hash.
+1. **Récupération** du paquet et de l'enveloppe de session avec le jeton du job (`CI_JOB_TOKEN`), vérifiés par leur hash ; la clé du journal est déchiffrée en mémoire avec `OH_JOURNAL_KEY` (jamais écrite, jamais visible du compte de l'agent ni des artefacts).
 2. **Nettoyage** de l'environnement : toutes les variables secrètes (clé LLM, jetons, `CI_JOB_TOKEN`, mots de passe du registre) sont retirées du processus avant de lancer quoi que ce soit.
 3. **Clone** du projet avec son jeton (`OH_PROJECT_TOKEN_<id>`, remis à git par un script `GIT_ASKPASS` éphémère, jamais dans une URL, une variable ni la configuration git) et création de la branche de la session.
 4. **Session** : même code que sur votre machine — démon oh, proxy d'identifiants (seul détenteur de la clé LLM), serveur opencode et paquet en « monde fermé ». Le serveur opencode tourne sous le compte `oh` (créé dans l'image), qui ne peut lire ni les processus du job, ni la base oh, ni les secrets.
@@ -237,11 +238,11 @@ Limites : les serveurs MCP qui ont besoin d'un jeton de votre machine (gitlab, j
 
 **Rejeu du journal Beads** — `oh session resolve <id>` ou la fenêtre de la TUI :
 
-- le journal est **authentifié** : le job le scelle (HMAC) avec une clé propre à la session, que votre machine garde dans son trousseau et qui ne figure ni dans les artefacts ni dans la copie locale de l'enveloppe ; un journal, un instantané ou une liste `beads.allow` modifiés, ou une clé absente, et rien n'est rejoué ;
-- chaque écriture est **revérifiée** sur la machine : `beads.allow` du workflow (une fermeture par `update --status closed` demande `close`), options connues seulement (options courtes combinées, `--id`, `--db`, fichiers du job refusés), et **chaque ticket nommé** — en argument comme dans `--parent` ou `--deps` — doit être un ticket de la session (ou créé par elle) ; les autres écritures sont refusées ;
+- le journal est **authentifié** : le job le scelle (HMAC) avec une clé propre à la session, que votre machine garde dans son trousseau et qui ne figure ni dans les artefacts ni dans la copie locale de l'enveloppe, et qui ne voyage que chiffrée pour le job (les membres qui lisent le registre de packages d'`oh-runner` ne peuvent pas forger un journal) ; un journal, un instantané ou une liste `beads.allow` modifiés, ou une clé absente, et rien n'est rejoué ;
+- chaque écriture est **revérifiée** sur la machine, lue comme `bd` la lit (même analyseur que la passerelle Beads : `-sclosed`, `-s=closed`, alias `done`…) : `beads.allow` du workflow (toute fermeture — `close`, `update --status closed|done`, statut du projet de catégorie `done` d'après `bd statuses`, statut inconnu, `duplicate`… — demande `close`), options d'une courte liste seulement (`--id`, `--db`, `-C`, `--repo`, fichiers du job refusés), et **chaque ticket nommé** — en argument comme dans `--parent` ou `--deps` — doit être un ticket de la session (ou créé par elle) ; les autres écritures sont refusées ;
 - l'affichage neutralise les caractères de contrôle venus du job (séquences ANSI/OSC, retours chariot) : ils sont montrés, jamais interprétés ;
 - un ticket **modifié sur la machine depuis l'envoi** (sa révision a changé) est un **conflit** : pour chacun, *Garder local* (rien n'est appliqué sur ce ticket), *Appliquer distant* (toutes ses écritures), *Fusionner les notes* (seulement les notes et commentaires) ;
-- **rien n'est appliqué sans confirmation** ; les tickets créés dans le job reçoivent leur vrai identifiant et les écritures suivantes l'utilisent ;
+- **rien n'est appliqué sans confirmation** ; `bd` exécute la forme canonique de ce qui a été vérifié ; les tickets créés dans le job reçoivent leur vrai identifiant et les écritures suivantes l'utilisent ;
 - relançable : une écriture en échec est retentée, les autres ne sont pas rejouées.
 
 ```bash
@@ -256,8 +257,8 @@ Trois jobs, déclenchés **uniquement** par oh (jamais à un push) :
 | Job | Quand | Rôle |
 |---|---|---|
 | `oh-cli` | image absente du registre | récupère oh (release vérifiée par `checksums.txt`, ou binaire de développement vérifié par son SHA-256) et prépare la couche oh |
-| `oh-image` | image absente du registre | construit l'image de base (Dockerfile de dev du projet, avec le contexte de build envoyé par votre machine dans le registre de packages ; sinon Debian + git + ripgrep) puis la couche oh, et les pousse. Ce job exécute les `RUN` du Dockerfile : il n'a que le jeton du job (`CI_JOB_TOKEN`), aucun secret d'oh ni jeton de projet |
-| `oh-run` | toujours | `oh runner run` dans l'image du projet, dans l'environnement `oh-run/<id du projet>` ; artefacts dans `oh-out/` (7 jours) |
+| `oh-image` | image absente du registre | construit l'image de base (Dockerfile de dev du projet, avec le contexte de build envoyé par votre machine dans le registre de packages ; sinon Debian + git + ripgrep) puis la couche oh **à partir de la base désignée par son empreinte**, et les pousse ; publie l'image par son empreinte (`oh-image.env` : `OH_RUN_IMAGE=<dépôt>@sha256:…`, Kaniko `--digest-file`, Docker `docker push`). Ce job exécute les `RUN` du Dockerfile : il n'a que le jeton du job (`CI_JOB_TOKEN`), aucun secret d'oh ni jeton de projet |
+| `oh-run` | toujours | `oh runner run` dans l'image du projet **désignée par son empreinte** (`OH_RUN_IMAGE`, jamais par son étiquette), dans l'environnement `oh-run/<id du projet>` ; artefacts dans `oh-out/` (7 jours) |
 
 Les variables du déclenchement (identifiant de session, projet, branche, adresses du paquet et de l'image) ne sont pas secrètes : elles sont visibles dans la page du pipeline.
 
@@ -265,7 +266,9 @@ Les variables du déclenchement (identifiant de session, projet, branche, adress
 
 - Les variables secrètes sont **masquées** (absentes des journaux), **protégées** (branche par défaut d'`oh-runner` seulement) et **limitées à l'environnement du job `oh-run`** : la clé LLM et le jeton team-state à `oh-run/*`, le jeton d'un projet à `oh-run/<id du projet>`. Les jobs de construction d'image ne les reçoivent pas, et le job d'un projet ne reçoit pas le jeton des autres. `oh remote setup` remplace les variables visibles de tous les jobs laissées par une version précédente ; `oh remote status` les signale.
 - L'étiquette de l'image de base est l'empreinte du Dockerfile **et** des fichiers qu'il lit (sources des `COPY`/`ADD`, montages `RUN --mount=type=bind` ; tout l'arbre si elles ne peuvent pas être isolées). Seuls ces fichiers, au commit de départ, sont envoyés comme contexte de build.
-- Limite : le jeton du job de construction (`CI_JOB_TOKEN`) peut écrire dans le registre de conteneurs d'`oh-runner`. Un Dockerfile malveillant d'un projet cible pourrait y remplacer l'image d'un autre projet de la même cible : ne regroupez dans une cible que des projets de même confiance. Restreignez les Maintainers d'`oh-runner` : ils peuvent lire ces variables.
+- **Image du job par empreinte.** Le jeton du job de construction (`CI_JOB_TOKEN`) peut écrire dans le registre de conteneurs d'`oh-runner` : un Dockerfile malveillant d'un projet cible peut y remplacer l'étiquette de l'image d'un autre projet de la même cible. Le job `oh-run` ne prend donc jamais une image par son étiquette : après une construction, par l'empreinte que le job `oh-image` du même pipeline a poussée ; sinon par l'empreinte que **votre machine** a enregistrée lors de la première construction réussie (`oh.db`), et seulement si l'étiquette désigne toujours cette empreinte (sinon l'image est reconstruite, avec un avertissement). Une étiquette présente dans le registre mais jamais enregistrée par votre machine (construite par un autre membre, ou posée par un autre job) n'est pas utilisée : l'image est reconstruite une fois par machine.
+- **Clé du journal chiffrée.** L'enveloppe de session (registre de packages) est lisible par les membres d'`oh-runner` et par les jobs de construction ; la clé du journal n'y figure que chiffrée pour le job (X25519, HKDF-SHA256, AES-256-GCM, liée à la session). Seul le job `oh-run`, qui reçoit `OH_JOURNAL_KEY`, l'ouvre.
+- Risques résiduels : un projet cible peut encore effacer ou remplacer les étiquettes et les paquets génériques d'`oh-runner` (le pipeline suivant échoue sur l'empreinte ou reconstruit l'image : déni de service, pas d'exécution) ; le reste de l'enveloppe (prompt, entrées, instantané des tickets) reste lisible des membres d'`oh-runner` et des jobs de construction ; la prise en compte du dotenv dans `image:` relève de GitLab Runner (à valider sur votre instance : sans elle, le job `oh-run` échoue, il ne prend jamais l'étiquette). Ne regroupez dans une cible que des projets de même confiance. Restreignez les Maintainers d'`oh-runner` : ils peuvent lire les variables secrètes, `OH_JOURNAL_KEY` compris.
 - La clé LLM n'est lue que par le proxy d'identifiants d'oh dans le job ; opencode ne reçoit qu'un jeton de session.
 - Les jetons de projet ont la portée minimale : dépôt (lecture/écriture) et lecture de l'API ; la MR est ouverte par les options de `git push`.
 - Kaniko n'a pas besoin de mode privilégié ; Docker-in-Docker si, à réserver à une machine dédiée.
@@ -281,4 +284,7 @@ Les variables du déclenchement (identifiant de session, projet, branche, adress
 | Job `oh-image` : `OH_PROJECT_TOKEN_<id> is missing` | `oh remote setup --project <chemin du projet>`. |
 | Job `oh-cli` : échec du téléchargement | Le runner n'atteint pas `github.com` : envoyez le binaire avec `--oh-binary`. |
 | `Pipeline généré — échec` (fichier non généré par oh) | `.gitlab-ci.yml` écrit à la main : `oh remote setup --force` le remplace. |
+| Envoi refusé : « oh-runner n'a pas de paire de clés du journal » | `oh-runner` configuré par une version précédente d'oh : relancez `oh remote setup`. |
+| Job `oh-run` : `the journal key of the session cannot be opened` | La paire de clés a été remplacée après l'envoi (variable `OH_JOURNAL_KEY` supprimée ou modifiée) : relancez `oh remote setup`, puis renvoyez la session. |
+| Job `oh-run` : image vide ou invalide (`OH_RUN_IMAGE`) | Le job `oh-image` n'a pas publié l'empreinte, ou le runner ne lit pas le dotenv dans `image:` : voir le journal du job `oh-image`. |
 | Envoi refusé : schéma du pipeline différent | Le pipeline a été généré par une autre version d'oh (le schéma 2 passe la version de l'outil dans `OH_TOOL_VERSION`) : relancez `oh remote setup`. |
