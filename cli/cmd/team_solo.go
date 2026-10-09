@@ -170,10 +170,7 @@ func nextSoloID(cfg *config.Config) string {
 // attachProjectToSolo sets the project's team and creates its workflow
 // folders in the team-state.
 func attachProjectToSolo(ctx context.Context, a *app.App, repo *teamstate.Repo, project *domain.Project, teamID string) error {
-	if err := repo.EnsureWorkflowLayout(teamstate.ProjectScope(project.ID)); err != nil {
-		return err
-	}
-	if err := repo.CommitAndPush(ctx, "team: add project "+project.ID, "."); err != nil {
+	if err := repo.CommitWorkflowLayout(ctx, teamstate.ProjectScope(project.ID), "team: add project "+project.ID); err != nil {
 		return err
 	}
 	tid := teamID

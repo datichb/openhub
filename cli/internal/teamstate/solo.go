@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	toml "github.com/pelletier/go-toml/v2"
 )
@@ -68,8 +69,23 @@ func InitSolo(ctx context.Context, path string, member Member) (*Repo, error) {
 	if err := os.WriteFile(filepath.Join(path, "config.toml"), cfg, 0o644); err != nil {
 		return nil, err
 	}
-	if err := r.commitAndPush(ctx, "team: init solo space", "."); err != nil {
+	// A new repository nobody else writes yet (lock held): its files are
+	// those just created.
+	files, err := r.git(ctx, path, "ls-files", "--others", "--exclude-standard", "-z")
+	if err != nil {
 		return nil, err
+	}
+	add := []string{"add", "--"}
+	for _, f := range strings.Split(files, "\x00") {
+		if f != "" {
+			add = append(add, f)
+		}
+	}
+	if _, err := r.git(ctx, path, add...); err != nil {
+		return nil, fmt.Errorf("staging files: %w", err)
+	}
+	if _, err := r.git(ctx, path, "commit", "-q", "-m", "team: init solo space"); err != nil {
+		return nil, fmt.Errorf("committing: %w", err)
 	}
 	return r, nil
 }

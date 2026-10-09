@@ -204,7 +204,7 @@ An older `oh` refuses to work on a database whose schema it does not know: upgra
 ```
 The team-state ~/.oh/teams/<team> is busy (held by pid 4242 (oh tui) since 10:02:03): try again in a moment.
 ```
-Every git write of `oh` in a team-state clone (CLI, TUI, daemon, MCP servers) goes through a lock: `.git/oh.lock` between processes, and a lock per path within a process. A command waits up to 30 s, the daemon and the tracker synchronization 2 min; the periodic synchronizations of the TUI skip a turn. A `.git/index.lock` older than 2 minutes (interrupted git) is removed with a warning; a more recent one means a git started by hand in the clone: wait for it to finish. Stalled network transfers give up after 30 s without throughput. A rejected push now only puts back the files of the current publication (no more `reset --hard`).
+Every git write of `oh` in a team-state clone (CLI, TUI, daemon, MCP servers) goes through a lock: `.git/oh.lock` between processes, and a lock per path within a process. A command waits up to 30 s, the daemon and the tracker synchronization 2 min; the periodic synchronizations of the TUI skip a turn. A `.git/index.lock` older than 2 minutes (interrupted git) is removed with a warning; a more recent one means a git started by hand in the clone: wait for it to finish. Stalled network transfers give up after 30 s without throughput. A rejected push now only puts back the files of the current publication (no more `reset --hard`). Every write is a transaction (pull, write, commit, push, run again on top of the remote when another member pushed meanwhile) that commits **its own files only**: a file you changed by hand in the clone is never taken along; a tracker synchronization (GitLab, Jira) makes a single commit.
 
 ---
 

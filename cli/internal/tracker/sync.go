@@ -129,13 +129,47 @@ func (e *Engine) Run(ctx context.Context) (*SyncResult, error) {
 		}
 	}
 
-	result := &SyncResult{SyncedAt: time.Now().UTC()}
-
-	// Pull to start from a fresh baseline.
-	if pullErr := e.repo.Pull(ctx); pullErr != nil && !teamstate.IsPullWarning(pullErr) {
-		return nil, fmt.Errorf("sync engine: pull failed: %w", pullErr)
+	// One transaction for the whole run (N15): pull, every claim change of
+	// the reconciliation and the clean-up of done claims, one commit, one
+	// push. A push overtaken by another member runs the reconciliation
+	// again on top of it.
+	var result *SyncResult
+	var fatal, abort error
+	txErr := e.repo.Transact(ctx, func(ctx context.Context, _ *teamstate.Tx) (teamstate.TxResult, error) {
+		result = &SyncResult{SyncedAt: time.Now().UTC()}
+		fatal, abort = e.reconcileAll(ctx, result)
+		if abort != nil {
+			return teamstate.TxResult{}, abort
+		}
+		e.cleanupDone(ctx, result)
+		return teamstate.TxResult{Message: fmt.Sprintf("sync: %d created, %d updated, %d labels pushed, %d released",
+			result.ClaimsCreated, result.ClaimsUpdated, result.LabelsPushed, result.ClaimsReleased)}, nil
+	})
+	if abort != nil {
+		return nil, abort
+	}
+	if txErr != nil {
+		if result == nil || errors.Is(txErr, teamstate.ErrOffline) || errors.Is(txErr, teamstate.ErrBusy) {
+			return nil, fmt.Errorf("sync engine: %w", txErr)
+		}
+		slog.Warn("tracker.sync.push_failed", "error", txErr)
 	}
 
+	// Persist the updated sync timestamps.
+	if err := e.state.Save(e.stateDir); err != nil {
+		slog.Warn("tracker.sync.state_save_failed", "error", err)
+	}
+	slog.Debug("tracker.sync.complete", "duration", time.Since(start), "created", result.ClaimsCreated, "updated", result.ClaimsUpdated)
+	if fatal != nil {
+		return result, fatal
+	}
+	return result, nil
+}
+
+// reconcileAll reconciles every project inside the transaction of Run. A
+// fatal error (invalid token) stops the loop and is reported after the
+// commit of what was done; abort aborts the transaction.
+func (e *Engine) reconcileAll(ctx context.Context, result *SyncResult) (fatal, abort error) {
 	// Load members once (needed for auto-plan and assignee lookup).
 	members, err := e.repo.ListMembers()
 	if err != nil {
@@ -172,7 +206,7 @@ func (e *Engine) Run(ctx context.Context) (*SyncResult, error) {
 			// Fatal errors (token invalid, rate limit) abort the entire run.
 			if errors.Is(projectErr, ErrTokenInvalid) {
 				e.consecutiveTokenErrors++
-				return result, projectErr
+				return projectErr, nil
 			}
 			if IsRateLimited(projectErr) {
 				result.Errors = append(result.Errors, SyncError{ProjectID: hubProjectID, Err: projectErr})
@@ -187,44 +221,31 @@ func (e *Engine) Run(ctx context.Context) (*SyncResult, error) {
 
 	// Reset token error counter on a successful run.
 	e.consecutiveTokenErrors = 0
+	return nil, nil
+}
 
-	// Persist the updated sync timestamps.
-	if err := e.state.Save(e.stateDir); err != nil {
-		slog.Warn("tracker.sync.state_save_failed", "error", err)
+// cleanupDone releases the done claims past their retention (board terminal
+// statuses), inside the transaction of Run.
+func (e *Engine) cleanupDone(ctx context.Context, result *SyncResult) {
+	reader, ok := e.repo.(teamstate.TeamStateReader)
+	if !ok {
+		return
 	}
-
-	// Commit and push all claim updates (status, metadata, labels) from the reconciliation loop.
-	// Without this, local TOML changes would be discarded on the next Pull.
-	if result.ClaimsCreated+result.ClaimsUpdated+result.LabelsPushed > 0 {
-		commitMsg := fmt.Sprintf("sync: %d created, %d updated, %d labels pushed",
-			result.ClaimsCreated, result.ClaimsUpdated, result.LabelsPushed)
-		if err := e.repo.CommitAndPush(ctx, commitMsg, "."); err != nil {
-			slog.Warn("tracker.sync.push_failed", "error", err)
-		}
+	teamCfg, cfgErr := reader.LoadConfig()
+	if cfgErr != nil || teamCfg == nil {
+		return
 	}
-
-	slog.Debug("tracker.sync.complete", "duration", time.Since(start), "created", result.ClaimsCreated, "updated", result.ClaimsUpdated)
-
-	// Cleanup done claims that exceeded their retention period.
-	// Uses the board config's terminal statuses for custom column support.
-	if reader, ok := e.repo.(teamstate.TeamStateReader); ok {
-		if teamCfg, cfgErr := reader.LoadConfig(); cfgErr == nil && teamCfg != nil {
-			retDays := teamCfg.Claim.DoneRetentionDays
-			if retDays <= 0 {
-				retDays = 7 // default
-			}
-			termStatuses := e.boardCfg.TerminalStatuses()
-			released, cleanErr := e.repo.CleanupDoneClaims(ctx, retDays, termStatuses...)
-			if cleanErr != nil {
-				slog.Warn("tracker.sync.cleanup_failed", "error", cleanErr)
-			} else if len(released) > 0 {
-				slog.Info("tracker.sync.cleanup", "released", len(released), "retention_days", retDays)
-				result.ClaimsReleased = len(released)
-			}
-		}
+	retDays := teamCfg.Claim.DoneRetentionDays
+	if retDays <= 0 {
+		retDays = 7 // default
 	}
-
-	return result, nil
+	released, cleanErr := e.repo.CleanupDoneClaims(ctx, retDays, e.boardCfg.TerminalStatuses()...)
+	if cleanErr != nil {
+		slog.Warn("tracker.sync.cleanup_failed", "error", cleanErr)
+	} else if len(released) > 0 {
+		slog.Info("tracker.sync.cleanup", "released", len(released), "retention_days", retDays)
+		result.ClaimsReleased = len(released)
+	}
 }
 
 // ShouldAutoSync reports whether the engine is eligible for an automatic sync.

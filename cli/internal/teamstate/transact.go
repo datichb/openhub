@@ -37,6 +37,37 @@ const maxTxAttempts = 4
 type Tx struct {
 	r       *Repo
 	written map[string]bool // repo-relative paths written or removed
+	msgs    []string        // messages of the operations that joined
+}
+
+type txKey struct{}
+
+// activeTx is the transaction of ctx on this clone (nil: none).
+func (r *Repo) activeTx(ctx context.Context) *Tx {
+	tx, _ := ctx.Value(txKey{}).(*Tx)
+	if tx == nil || (tx.r != r && canonicalPath(tx.r.path) != canonicalPath(r.path)) {
+		return nil
+	}
+	return tx
+}
+
+func (tx *Tx) addMessage(msg string) {
+	if msg != "" {
+		tx.msgs = append(tx.msgs, msg)
+	}
+}
+
+// message is the commit message: the build's, else the joined operations'.
+func (tx *Tx) message(res TxResult) string {
+	switch {
+	case res.Message != "":
+		return res.Message
+	case len(tx.msgs) == 0:
+		return "team-state: update"
+	case len(tx.msgs) == 1:
+		return tx.msgs[0]
+	}
+	return fmt.Sprintf("%s (+%d)", tx.msgs[0], len(tx.msgs)-1)
 }
 
 // Path is the repo root.
@@ -146,70 +177,115 @@ type TxResult struct {
 // runs again, so build must recompute everything from disk (version
 // numbers, validation). A build error restores the files it touched.
 //
+// It is the only path that writes the team-state (N15): CommitAndPush and
+// WithWriteLock are transactions too. The ctx given to build carries the
+// transaction: the public methods of the repo called with it join it.
+//
 // A remote that cannot be reached gives ErrOffline with nothing committed.
 // On a repo without remote (solo), the commit stays local.
 func (r *Repo) Transact(ctx context.Context, build func(ctx context.Context, tx *Tx) (TxResult, error)) error {
+	return r.transact(ctx, false, build)
+}
+
+// transact is Transact; keep: the files were written before (CommitAndPush)
+// and are kept as they are when a push is rejected (rebased by the next
+// pull) instead of being restored and rebuilt.
+func (r *Repo) transact(ctx context.Context, keep bool, build func(ctx context.Context, tx *Tx) (TxResult, error)) error {
+	if outer := r.activeTx(ctx); outer != nil {
+		res, err := build(ctx, outer)
+		outer.addMessage(res.Message)
+		return err
+	}
 	release, err := r.lockGit(ctx)
 	if err != nil {
 		return err
 	}
 	defer release()
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
 	if !r.IsCloned() {
 		return ErrNotCloned
 	}
 	for attempt := range maxTxAttempts {
-		if err := r.pull(ctx); err != nil {
+		// The instance lock guards the git operations against the reads of
+		// this Repo; the build runs without it (it may read through the
+		// public methods).
+		r.mu.Lock()
+		err := r.pull(ctx)
+		r.mu.Unlock()
+		if err != nil {
 			return classifyRemoteError(r.remote, err)
 		}
 		tx := &Tx{r: r, written: map[string]bool{}}
-		res, err := build(ctx, tx)
+		res, err := build(context.WithValue(ctx, txKey{}, tx), tx)
 		if err != nil {
-			r.restore(ctx, tx)
+			if !keep {
+				r.restore(ctx, tx)
+			}
 			return err
 		}
 		files := tx.files()
 		if len(files) == 0 {
 			return nil
 		}
-		if _, err := r.git(ctx, r.path, append([]string{"add", "-A", "--"}, files...)...); err != nil {
-			r.restore(ctx, tx)
-			return fmt.Errorf("staging files: %w", err)
+		done, retry, err := r.commitTx(ctx, tx, files, tx.message(res), keep)
+		if done || err != nil {
+			return err
 		}
-		if _, err := r.git(ctx, r.path, "diff", "--cached", "--quiet"); err == nil {
-			return nil // nothing changed
-		}
-		if _, err := r.git(ctx, r.path, "commit", "-m", res.Message); err != nil {
-			_, _ = r.git(ctx, r.path, "reset", "-q", "--", ".")
-			r.restore(ctx, tx)
-			return fmt.Errorf("committing: %w", err)
-		}
-		if r.beforePush != nil {
-			r.beforePush()
-		}
-		pushErr := r.push(ctx)
-		if pushErr == nil {
+		if !retry {
 			return nil
 		}
-		// Drop our commit whatever the reason: it is rebuilt or queued. Only
-		// the files of the transaction are put back (a hard reset would
-		// also throw away changes of the clone that are not ours).
-		if _, err := r.git(ctx, r.path, "reset", "-q", "--soft", "HEAD~1"); err != nil {
-			return fmt.Errorf("dropping the local commit after %v: %w", pushErr, err)
-		}
-		if _, err := r.git(ctx, r.path, append([]string{"reset", "-q", "HEAD", "--"}, files...)...); err != nil {
-			return fmt.Errorf("unstaging the dropped commit after %v: %w", pushErr, err)
-		}
-		r.restore(ctx, tx)
-		if !isRejectedPush(pushErr) {
-			return classifyRemoteError(r.remote, pushErr)
-		}
-		slog.Debug("teamstate.transact.retry", "attempt", attempt+1, "error", pushErr)
+		slog.Debug("teamstate.transact.retry", "attempt", attempt+1)
 		time.Sleep(retryDelay * time.Duration(attempt+1))
 	}
 	return ErrPushRejected
+}
+
+// commitTx commits and pushes the files of tx. done: finished (err tells
+// how); retry: the push was rejected, the commit dropped.
+func (r *Repo) commitTx(ctx context.Context, tx *Tx, files []string, msg string, keep bool) (done, retry bool, err error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if _, err := r.git(ctx, r.path, append([]string{"add", "-A", "--"}, files...)...); err != nil {
+		if !keep {
+			r.restore(ctx, tx)
+		}
+		return true, false, fmt.Errorf("staging files: %w", err)
+	}
+	if _, err := r.git(ctx, r.path, "diff", "--cached", "--quiet"); err == nil {
+		return true, false, nil // nothing changed
+	}
+	if _, err := r.git(ctx, r.path, "commit", "-m", msg); err != nil {
+		_, _ = r.git(ctx, r.path, append([]string{"reset", "-q", "HEAD", "--"}, files...)...)
+		if !keep {
+			r.restore(ctx, tx)
+		}
+		return true, false, fmt.Errorf("committing: %w", err)
+	}
+	if r.beforePush != nil {
+		r.beforePush()
+	}
+	pushErr := r.push(ctx)
+	if pushErr == nil {
+		return true, false, nil
+	}
+	// Drop our commit whatever the reason: it is rebuilt or queued. Only
+	// the files of the transaction are put back (a hard reset would also
+	// throw away changes of the clone that are not ours).
+	if _, err := r.git(ctx, r.path, "reset", "-q", "--soft", "HEAD~1"); err != nil {
+		return true, false, fmt.Errorf("dropping the local commit after %v: %w", pushErr, err)
+	}
+	if _, err := r.git(ctx, r.path, append([]string{"reset", "-q", "HEAD", "--"}, files...)...); err != nil {
+		return true, false, fmt.Errorf("unstaging the dropped commit after %v: %w", pushErr, err)
+	}
+	if !keep {
+		r.restore(ctx, tx)
+	}
+	if !isRejectedPush(pushErr) {
+		if isAuthError(pushErr) {
+			return true, false, fmt.Errorf("push échoué — %s", authErrorMessage(r.remote))
+		}
+		return true, false, classifyRemoteError(r.remote, pushErr)
+	}
+	return false, true, nil
 }
 
 func (tx *Tx) files() []string {
