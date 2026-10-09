@@ -90,6 +90,27 @@ var lockPatterns = map[string][]string{
 	sessionspec.UnlockCommit: {"*git*commit*"},
 	sessionspec.UnlockPush:   {"*git*push*"},
 	sessionspec.UnlockClose:  {"*bd*close*", "*bd*update*closed*"},
+	sessionspec.UnlockCreate: {"*bd*create*"},
+	sessionspec.UnlockApply:  ApplyLockPatterns,
+}
+
+// ApplyLockPatterns are the infrastructure changes refused while `apply` is
+// locked (leading `*`: global flags such as --context, --profile, -chdir may
+// come first). The infra guard of the agents refuses them outside a workflow.
+var ApplyLockPatterns = []string{
+	"*terraform* apply*", "*terraform* destroy*", "*terraform* import*", "*terraform* refresh*",
+	"*terraform* taint*", "*terraform* untaint*", "*terraform* state rm*", "*terraform* state mv*",
+	"*terraform* state push*", "*terraform* force-unlock*",
+	"*tofu* apply*", "*tofu* destroy*", "*tofu* import*", "*tofu* state rm*", "*tofu* state mv*",
+	"*kubectl* apply*", "*kubectl* create*", "*kubectl* delete*", "*kubectl* replace*", "*kubectl* patch*",
+	"*kubectl* edit*", "*kubectl* scale*", "*kubectl* rollout *", "*kubectl* drain*", "*kubectl* cordon*",
+	"*kubectl* taint*", "*kubectl* label*", "*kubectl* annotate*", "*kubectl* set *",
+	"*helm* install*", "*helm* upgrade*", "*helm* uninstall*", "*helm* delete*", "*helm* rollback*",
+	"*pulumi* up*", "*pulumi* destroy*", "*pulumi* refresh*", "*pulumi* import*",
+	"*aws* create-*", "*aws* delete-*", "*aws* put-*", "*aws* update-*", "*aws* modify-*", "*aws* terminate-*",
+	"*aws* s3 cp*", "*aws* s3 mv*", "*aws* s3 rm*", "*aws* s3 sync*",
+	"*gcloud* create*", "*gcloud* delete*", "*gcloud* update*", "*gcloud* deploy*",
+	"*az* create*", "*az* delete*", "*az* update*", "*az* deploy*",
 }
 
 // LockedOps returns the operations (`unlocks:`) still locked: their
@@ -108,6 +129,9 @@ func LockedOps(wf *sessionspec.WorkflowRuntime, mode string, st *domain.Checkpoi
 			continue
 		}
 		for _, op := range c.Unlocks {
+			if _, known := lockPatterns[op]; !known {
+				continue // operation of a newer oh: locks nothing here
+			}
 			if _, open := unlocked(st, op); !open {
 				out = append(out, op)
 			}

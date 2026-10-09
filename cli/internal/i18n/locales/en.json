@@ -2006,6 +2006,7 @@
   "workflow.diag.unknown_workflow": "Unknown workflow: %s",
   "workflow.diag.unlocking_checkpoint_removed": "Checkpoint %s unlocks operations (unlocks): it cannot be removed",
   "workflow.diag.unlock_duplicate": "Operation %s is already unlocked by checkpoint %s (duplicate in %s)",
+  "workflow.diag.unlock_unknown": "Operation %s is unknown to this version of oh (ignored: it locks nothing here; known operations: %s). Update oh.",
   "wizard.hint.submit": "submit",
   "wizard.hint.back": "back",
   "wizard.hint.skip": "skip",

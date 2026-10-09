@@ -96,3 +96,20 @@ func TestSessionRulesLockedOperations(t *testing.T) {
 	assert.True(t, ok)
 	assert.Equal(t, "cp-2", c.ID)
 }
+
+func TestSessionRulesLockCreateAndApply(t *testing.T) {
+	wf := testRuntime()
+	wf.Checkpoints[1].Unlocks = []string{sessionspec.UnlockCreate, sessionspec.UnlockApply}
+	rules := SessionRules(wf, "manuel", nil)
+	shell := sessionspec.ActionShell
+	assert.Contains(t, rules, rule(shell, "*bd*create*", sessionspec.EffectDeny))
+	assert.Contains(t, rules, rule(shell, "*terraform* apply*", sessionspec.EffectDeny))
+	assert.Contains(t, rules, rule(shell, "*kubectl* delete*", sessionspec.EffectDeny))
+	assert.Equal(t, []string{"create", "apply"}, LockedOps(wf, "manuel", nil))
+
+	// An operation unknown to this version locks nothing (DC9).
+	wf.Checkpoints[1].Unlocks = []string{"merge"}
+	for _, r := range SessionRules(wf, "manuel", nil) {
+		assert.NotEqual(t, shell, r.Action, "unknown operation: %v", r)
+	}
+}

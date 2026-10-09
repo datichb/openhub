@@ -99,6 +99,8 @@ const (
 	UnlockCommit = "commit"
 	UnlockPush   = "push"
 	UnlockClose  = "close"
+	UnlockCreate = "create"
+	UnlockApply  = "apply"
 )
 
 // Behavior returns the behavior of the checkpoint in mode (unset = pause; a

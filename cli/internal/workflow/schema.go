@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"regexp"
+	"strings"
 
 	"gopkg.in/yaml.v3"
 )
@@ -254,8 +255,9 @@ type CheckpointSpec struct {
 	Remote    RemotePolicy `yaml:"remote,omitempty"`
 	Mandatory *bool        `yaml:"mandatory,omitempty"`
 	// Unlocks lists the operations refused to every agent of the session
-	// until this checkpoint is passed (commit, push, close). The window
-	// closes again when a ticket is closed or the checkpoint is asked again.
+	// until this checkpoint is passed (commit, push, close, create, apply).
+	// The window closes again when the checkpoint is asked again, and for a
+	// checkpoint that unlocks close, when a ticket is closed.
 	Unlocks []UnlockOp `yaml:"unlocks,omitempty"`
 	// Disabled removes an inherited checkpoint (patch only).
 	Disabled bool `yaml:"disabled,omitempty"`
@@ -268,10 +270,21 @@ const (
 	UnlockCommit UnlockOp = "commit" // git commit
 	UnlockPush   UnlockOp = "push"   // git push
 	UnlockClose  UnlockOp = "close"  // closing a Beads ticket
+	UnlockCreate UnlockOp = "create" // creating Beads tickets
+	UnlockApply  UnlockOp = "apply"  // changing infrastructure (terraform apply, kubectl apply…)
 )
 
 // UnlockOps lists the valid operations.
-var UnlockOps = []UnlockOp{UnlockCommit, UnlockPush, UnlockClose}
+var UnlockOps = []UnlockOp{UnlockCommit, UnlockPush, UnlockClose, UnlockCreate, UnlockApply}
+
+// UnlockOpNames returns the valid operations, comma-separated (diagnostics).
+func UnlockOpNames() string {
+	names := make([]string, len(UnlockOps))
+	for i, o := range UnlockOps {
+		names[i] = string(o)
+	}
+	return strings.Join(names, ", ")
+}
 
 // Valid reports whether the operation is known.
 func (o UnlockOp) Valid() bool {

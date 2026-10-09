@@ -515,10 +515,16 @@ func (v *validator) checkpoints() {
 		}
 		for i, op := range cp.Unlocks {
 			at := fmt.Sprintf("%s.unlocks[%d]", base, i)
-			v.enum(at, string(op), op.Valid(), "commit", "push", "close")
+			if !op.Valid() {
+				// An operation of a newer oh: warned, not refused, so that a
+				// team on mixed versions keeps working (DC9). It locks nothing
+				// here.
+				v.warn("unlock_unknown", at, string(op), UnlockOpNames())
+				continue
+			}
 			if prev, dup := unlockedBy[op]; dup {
 				v.err("unlock_duplicate", at, string(op), prev, k)
-			} else if op.Valid() {
+			} else {
 				unlockedBy[op] = k
 			}
 		}

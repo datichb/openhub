@@ -10,13 +10,34 @@ import (
 
 func TestValidate_Unlocks(t *testing.T) {
 	cases := []struct{ name, body, code, path string }{
-		{"unknown", "risk: write\ncheckpoints:\n  cp-1: { unlocks: [merge], mode: { manuel: pause, semi-auto: pause, auto: pause } }\n", "enum_invalid", "checkpoints.cp-1.unlocks[0]"},
 		{"duplicate", "risk: write\ncheckpoints:\n  cp-1: { unlocks: [commit], mode: { manuel: pause, semi-auto: pause, auto: pause } }\n  cp-2: { unlocks: [close, commit], mode: { manuel: pause, semi-auto: pause, auto: pause } }\n", "unlock_duplicate", "checkpoints.cp-2.unlocks[1]"},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			assertDiag(t, checkYAML(t, vHeader+c.body, testEnv()), c.code, c.path, SeverityError)
 		})
+	}
+}
+
+// An operation unknown to this version (written by a newer oh) is a warning,
+// not an error: a team on mixed versions keeps working (DC9).
+func TestValidate_UnlockUnknownIsWarning(t *testing.T) {
+	body := "risk: write\ncheckpoints:\n  cp-1: { unlocks: [merge, commit], mode: { manuel: pause, semi-auto: pause, auto: pause } }\n"
+	diags := checkYAML(t, vHeader+body, testEnv())
+	assertDiag(t, diags, "unlock_unknown", "checkpoints.cp-1.unlocks[0]", SeverityWarning)
+	for _, d := range diags {
+		if d.Severity == SeverityError {
+			t.Fatalf("unexpected error: %v", diagList(diags))
+		}
+	}
+}
+
+func TestValidate_UnlockCreateAndApply(t *testing.T) {
+	body := "risk: write\ncheckpoints:\n  cp-tickets: { unlocks: [create], mode: { manuel: pause, semi-auto: pause, auto: pause } }\n  cp-apply: { unlocks: [apply], mode: { manuel: pause, semi-auto: pause, auto: pause } }\n"
+	for _, d := range checkYAML(t, vHeader+body, testEnv()) {
+		if strings.HasPrefix(d.Code, "unlock_") || d.Code == "enum_invalid" {
+			t.Fatalf("create and apply are valid operations: %v", d)
+		}
 	}
 }
 

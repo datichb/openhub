@@ -2006,6 +2006,7 @@
   "workflow.diag.unknown_workflow": "Workflow inconnu : %s",
   "workflow.diag.unlocking_checkpoint_removed": "Le checkpoint %s déverrouille des opérations (unlocks) : il ne peut pas être retiré",
   "workflow.diag.unlock_duplicate": "L'opération %s est déjà déverrouillée par le checkpoint %s (doublon dans %s)",
+  "workflow.diag.unlock_unknown": "Opération %s inconnue de cette version d'oh (ignorée : elle ne verrouille rien ici ; opérations connues : %s). Mettez oh à jour.",
   "wizard.hint.submit": "valider",
   "wizard.hint.back": "retour",
   "wizard.hint.skip": "passer",
