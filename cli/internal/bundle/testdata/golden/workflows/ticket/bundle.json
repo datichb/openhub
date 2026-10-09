@@ -89,7 +89,16 @@
         "edit .git/* deny",
         "edit */.git/* deny",
         "edit .beads/hooks/* deny",
-        "edit */.beads/hooks/* deny"
+        "edit */.beads/hooks/* deny",
+        "shell *BD_GIT_HOOK* deny",
+        "shell *.beads/redirect* deny",
+        "shell *.beads/metadata.json* deny",
+        "shell *.beads/config.yaml* deny",
+        "shell *\u003e*.beads/* deny",
+        "shell *.beads/embeddeddolt* deny",
+        "shell *.beads/dolt/* deny",
+        "edit .beads/* deny",
+        "edit */.beads/* deny"
       ]
     },
     {
@@ -269,7 +278,16 @@
         "edit .git/* deny",
         "edit */.git/* deny",
         "edit .beads/hooks/* deny",
-        "edit */.beads/hooks/* deny"
+        "edit */.beads/hooks/* deny",
+        "shell *BD_GIT_HOOK* deny",
+        "shell *.beads/redirect* deny",
+        "shell *.beads/metadata.json* deny",
+        "shell *.beads/config.yaml* deny",
+        "shell *\u003e*.beads/* deny",
+        "shell *.beads/embeddeddolt* deny",
+        "shell *.beads/dolt/* deny",
+        "edit .beads/* deny",
+        "edit */.beads/* deny"
       ]
     },
     {
@@ -449,7 +467,16 @@
         "edit .git/* deny",
         "edit */.git/* deny",
         "edit .beads/hooks/* deny",
-        "edit */.beads/hooks/* deny"
+        "edit */.beads/hooks/* deny",
+        "shell *BD_GIT_HOOK* deny",
+        "shell *.beads/redirect* deny",
+        "shell *.beads/metadata.json* deny",
+        "shell *.beads/config.yaml* deny",
+        "shell *\u003e*.beads/* deny",
+        "shell *.beads/embeddeddolt* deny",
+        "shell *.beads/dolt/* deny",
+        "edit .beads/* deny",
+        "edit */.beads/* deny"
       ]
     },
     {
@@ -638,7 +665,16 @@
         "edit .git/* deny",
         "edit */.git/* deny",
         "edit .beads/hooks/* deny",
-        "edit */.beads/hooks/* deny"
+        "edit */.beads/hooks/* deny",
+        "shell *BD_GIT_HOOK* deny",
+        "shell *.beads/redirect* deny",
+        "shell *.beads/metadata.json* deny",
+        "shell *.beads/config.yaml* deny",
+        "shell *\u003e*.beads/* deny",
+        "shell *.beads/embeddeddolt* deny",
+        "shell *.beads/dolt/* deny",
+        "edit .beads/* deny",
+        "edit */.beads/* deny"
       ]
     },
     {
@@ -716,7 +752,16 @@
         "edit .git/* deny",
         "edit */.git/* deny",
         "edit .beads/hooks/* deny",
-        "edit */.beads/hooks/* deny"
+        "edit */.beads/hooks/* deny",
+        "shell *BD_GIT_HOOK* deny",
+        "shell *.beads/redirect* deny",
+        "shell *.beads/metadata.json* deny",
+        "shell *.beads/config.yaml* deny",
+        "shell *\u003e*.beads/* deny",
+        "shell *.beads/embeddeddolt* deny",
+        "shell *.beads/dolt/* deny",
+        "edit .beads/* deny",
+        "edit */.beads/* deny"
       ]
     },
     {
@@ -794,7 +839,16 @@
         "edit .git/* deny",
         "edit */.git/* deny",
         "edit .beads/hooks/* deny",
-        "edit */.beads/hooks/* deny"
+        "edit */.beads/hooks/* deny",
+        "shell *BD_GIT_HOOK* deny",
+        "shell *.beads/redirect* deny",
+        "shell *.beads/metadata.json* deny",
+        "shell *.beads/config.yaml* deny",
+        "shell *\u003e*.beads/* deny",
+        "shell *.beads/embeddeddolt* deny",
+        "shell *.beads/dolt/* deny",
+        "edit .beads/* deny",
+        "edit */.beads/* deny"
       ]
     }
   ],

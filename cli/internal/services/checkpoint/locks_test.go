@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -37,12 +38,25 @@ func newLockService(t *testing.T) (*Service, context.Context, *fakeHead) {
 		BundleHash: "h_lock", Mode: "manuel", State: domain.RunActive, LaunchPath: "/work"}))
 	h := &fakeHead{head: "c1"}
 	svc.Head = h.get
+	svc.Work = h.work
 	return svc, ctx, h
 }
 
 type fakeHead struct {
-	head  string
-	dirty bool
+	head      string
+	dirty     bool
+	committed bool  // the commits since the checkpoint change files
+	err       error // git failed
+}
+
+func (f *fakeHead) work(_ context.Context, dir, since string, _ time.Time) (Work, error) {
+	if dir != "/work" {
+		return Work{}, errors.New("unexpected dir " + dir)
+	}
+	if f.err != nil {
+		return Work{}, f.err
+	}
+	return Work{Head: f.head, Dirty: f.dirty, Committed: f.head != since && f.committed}, nil
 }
 
 func (f *fakeHead) get(_ context.Context, dir string) (string, bool, error) {
@@ -87,10 +101,17 @@ func TestGuardCloseAndWindow(t *testing.T) {
 	h.dirty = true
 	require.ErrorAs(t, svc.GuardClose(ctx, "ses_l", "/work"), &lock, "work not committed")
 	assert.Contains(t, lock.Msg, "commit")
+	h.dirty = false
+	require.ErrorAs(t, svc.GuardClose(ctx, "ses_l", "/work"), &lock, "S-09: nothing committed since cp-2")
 	h.head = "c2"
+	require.ErrorAs(t, svc.GuardClose(ctx, "ses_l", "/work"), &lock, "S-09: an empty commit does not count")
+	h.committed, h.dirty = true, true
+	require.ErrorAs(t, svc.GuardClose(ctx, "ses_l", "/work"), &lock, "S-09: changes left to commit")
+	h.err = errors.New("git: broken")
+	require.ErrorAs(t, svc.GuardClose(ctx, "ses_l", "/work"), &lock, "S-09: a git error refuses")
+	assert.Contains(t, lock.Msg, "git: broken")
+	h.err, h.dirty = nil, false
 	assert.NoError(t, svc.GuardClose(ctx, "ses_l", "/work"), "committed since cp-2")
-	h.head, h.dirty = "c1", false
-	assert.NoError(t, svc.GuardClose(ctx, "ses_l", "/work"), "nothing to commit")
 
 	changed, err := svc.BeadsDone(ctx, "ses_l", BeadsClose, []string{"pt-1"})
 	require.NoError(t, err)
@@ -100,6 +121,7 @@ func TestGuardCloseAndWindow(t *testing.T) {
 	_, err = svc.Reached(ctx, "ses_l", Call{ID: "cp-2"})
 	require.NoError(t, err)
 	assert.True(t, askCP(t, svc, ctx, "cp-2"), "cp-2 asked again: a new round")
+	h.committed = false
 	require.ErrorAs(t, svc.GuardClose(ctx, "ses_l", "/work"), &lock)
 	assert.False(t, askCP(t, svc, ctx, "cp-2"))
 
@@ -205,6 +227,63 @@ func TestImitation(t *testing.T) {
 		}
 	}
 	assert.Equal(t, 3, n)
+}
+
+// S-09 (audit v5): the work counts as committed only with a non-empty
+// commit on top of the checkpoint commit.
+func TestGitWork(t *testing.T) {
+	dir := t.TempDir()
+	git := func(args ...string) string {
+		cmd := exec.Command("git", append([]string{"-C", dir, "-c", "user.name=t", "-c", "user.email=t@t", "-c", "commit.gpgsign=false", "-c", "core.hooksPath=/dev/null"}, args...)...)
+		out, err := cmd.CombinedOutput()
+		require.NoError(t, err, string(out))
+		return strings.TrimSpace(string(out))
+	}
+	ctx := context.Background()
+	git("init", "-q")
+	start := time.Now()
+	time.Sleep(1100 * time.Millisecond)
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "a.go"), []byte("a"), 0o644))
+	git("add", "a.go")
+	git("commit", "-qm", "first")
+	w, err := GitWork(ctx, dir, "", start)
+	require.NoError(t, err)
+	assert.True(t, w.Committed, "first commit after the checkpoint")
+	_, err = GitWork(ctx, dir, "", start.Add(-time.Hour).Add(2*time.Hour))
+	assert.ErrorIs(t, err, errUnknownStart, "commits older than the checkpoint, start unknown")
+
+	base := git("rev-parse", "HEAD")
+	git("commit", "--allow-empty", "-qm", "empty")
+	w, err = GitWork(ctx, dir, base, time.Now())
+	require.NoError(t, err)
+	assert.False(t, w.Committed, "an empty commit does not count")
+
+	require.NoError(t, os.MkdirAll(filepath.Join(dir, ".beads"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, ".beads", "issues.jsonl"), []byte("{}"), 0o644))
+	git("add", ".beads")
+	git("commit", "-qm", "beads only")
+	w, _ = GitWork(ctx, dir, base, time.Now())
+	assert.False(t, w.Committed, "Beads files do not count")
+
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "a.go"), []byte("b"), 0o644))
+	git("commit", "-qam", "work")
+	w, err = GitWork(ctx, dir, base, time.Now())
+	require.NoError(t, err)
+	assert.True(t, w.Committed)
+	assert.False(t, w.Dirty)
+
+	// HEAD elsewhere: a branch that does not contain the checkpoint commit.
+	work := git("rev-parse", "HEAD")
+	git("checkout", "-q", "-b", "other", base)
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "c.go"), []byte("c"), 0o644))
+	git("add", "c.go")
+	git("commit", "-qm", "elsewhere")
+	w, err = GitWork(ctx, dir, work, time.Now())
+	require.NoError(t, err)
+	assert.False(t, w.Committed, "not on top of the checkpoint commit")
+
+	_, err = GitWork(ctx, t.TempDir(), base, time.Now())
+	assert.Error(t, err, "not a repository")
 }
 
 func TestGitHead(t *testing.T) {

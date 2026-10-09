@@ -25,11 +25,14 @@ func fakeBd(t *testing.T) string {
 	t.Helper()
 	p := filepath.Join(t.TempDir(), "bd")
 	script := `#!/bin/sh
+if [ "$1" = "where" ]; then printf '{"path":"%s/.beads"}\n' "$(pwd -P)"; exit 0; fi
 echo "argv:$*"
+echo "beads_dir:$BEADS_DIR"
 echo "pwd:$(pwd -P)"
-for a in "$@"; do [ "$a" = "-" ] && cat; done
-[ "$1" = "show" ] && [ "$2" = "boom" ] && { echo "bd failed" >&2; exit 4; }
-[ "$1" = "show" ] && [ "$2" = "slow" ] && sleep 5
+for a in "$@"; do case "$a" in -|*=-) cat;; esac; done
+for last in "$@"; do :; done
+[ "$1" = "show" ] && [ "$last" = "boom" ] && { echo "bd failed" >&2; exit 4; }
+[ "$1" = "show" ] && [ "$last" = "slow" ] && sleep 5
 exit 0
 `
 	require.NoError(t, os.WriteFile(p, []byte(script), 0o755))
@@ -54,9 +57,11 @@ func newFixture(t *testing.T, allow []string) *fixture {
 	t.Helper()
 	project := realDir(t)
 	require.NoError(t, os.MkdirAll(filepath.Join(project, "sub"), 0o755))
+	require.NoError(t, os.MkdirAll(filepath.Join(project, ".beads"), 0o700))
 	st, err := OpenStore("")
 	require.NoError(t, err)
-	g := Grant{SessionID: "ses_1", GroupKey: "g1", Location: project, BeadsAllow: allow}
+	dir := filepath.Join(project, ".beads")
+	g := Grant{SessionID: "ses_1", GroupKey: "g1", Location: project, BeadsAllow: allow, Base: &Base{Dir: dir, Files: hashBaseFiles(dir)}}
 	tok, err := st.Issue(g)
 	require.NoError(t, err)
 	b := &Beads{Store: st, Binary: fakeBd(t), View: func(context.Context, string) (View, error) {
@@ -82,7 +87,8 @@ func TestBeadsRunsAllowedCommandInTranslatedDir(t *testing.T) {
 	code, resp := f.call(t, f.token, beadswire.ExecRequest{Argv: []string{"--json", "show", "bd-1"}, Cwd: "/work/proj/sub"})
 	require.Equal(t, http.StatusOK, code, resp.Error)
 	assert.Equal(t, 0, resp.ExitCode)
-	assert.Contains(t, string(resp.Stdout), "argv:--json show bd-1")
+	assert.Contains(t, string(resp.Stdout), "argv:show --json -- bd-1")
+	assert.Contains(t, string(resp.Stdout), "beads_dir:"+filepath.Join(f.project, ".beads"), "workspace fixed by oh")
 	assert.Contains(t, string(resp.Stdout), "pwd:"+filepath.Join(f.project, "sub"))
 
 	// Outside the session locations: bd runs in the session location.
@@ -114,7 +120,10 @@ func TestBeadsRefusals(t *testing.T) {
 		{[]string{"dep", "add", "a", "b"}, "dep add"},
 		{[]string{"show", "x", "--db", "/other.db"}, "--db"},
 		{[]string{"--db=/x", "show"}, "--db"},
-		{[]string{"-C/elsewhere", "show"}, "-C"},
+		{[]string{"-C/elsewhere", "show"}, "--directory"},
+		{[]string{"-qC/elsewhere", "list"}, "--directory"}, // S-08: combined short flags
+		{[]string{"list", "--DB=/x"}, "--DB"},
+		{[]string{"show", "x", "--database=y"}, "--database"},
 		{[]string{"--global", "list"}, "--global"},
 		{[]string{"--weird", "show"}, "--weird"},
 	} {
@@ -158,13 +167,13 @@ func TestBeadsFilePaths(t *testing.T) {
 	require.NoError(t, os.WriteFile(filepath.Join(f.project, "d.md"), []byte("x"), 0o644))
 
 	_, resp := f.call(t, f.token, beadswire.ExecRequest{Argv: []string{"create", "t", "--body-file", "/work/proj/d.md"}, Cwd: "/work/proj"})
-	assert.Contains(t, string(resp.Stdout), "--body-file "+filepath.Join(f.project, "d.md"))
+	assert.Contains(t, string(resp.Stdout), "argv:create --body-file="+filepath.Join(f.project, "d.md")+" -- t")
 
 	_, resp = f.call(t, f.token, beadswire.ExecRequest{Argv: []string{"create", "t", "--body-file=sub/../d.md", "--metadata", "@/work/proj/d.md"}, Cwd: "/work/proj"})
-	assert.Contains(t, string(resp.Stdout), "--body-file=sub/../d.md --metadata @"+filepath.Join(f.project, "d.md"))
+	assert.Contains(t, string(resp.Stdout), "--body-file=sub/../d.md --metadata=@"+filepath.Join(f.project, "d.md"))
 
 	_, resp = f.call(t, f.token, beadswire.ExecRequest{Argv: []string{"import", "/work/proj/i.jsonl"}, Cwd: "/work/proj"})
-	assert.Contains(t, string(resp.Stdout), "argv:import "+filepath.Join(f.project, "i.jsonl"))
+	assert.Contains(t, string(resp.Stdout), "argv:import -- "+filepath.Join(f.project, "i.jsonl"))
 
 	for _, argv := range [][]string{
 		{"create", "t", "--body-file", "/etc/passwd"},
@@ -172,6 +181,10 @@ func TestBeadsFilePaths(t *testing.T) {
 		{"create", "t", "--body-file", "/opt/oh/bundle/agents/a.md"},
 		{"export", "-o", "/tmp/out.jsonl"},
 		{"export", "--output=/home/x"},
+		{"export", "-o/etc/x"},       // S-08: attached value
+		{"create", "-f/etc/hosts"},   // S-08: -f is --file for create
+		{"import", "-i/etc/x.jsonl"}, // attached input
+		{"create", "--graph=/etc/x"},
 		{"import", "../outside.jsonl"},
 	} {
 		code, resp := f.call(t, f.token, beadswire.ExecRequest{Argv: argv, Cwd: "/work/proj"})

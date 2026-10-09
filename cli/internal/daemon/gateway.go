@@ -26,7 +26,11 @@ import (
 // (HostAddress, Linux bridge listener). Grants of groups that are no longer
 // running are dropped.
 func (d *Daemon) startGateway(ctx context.Context) {
-	st, err := gateway.OpenStore(d.opts.Paths.Gateway())
+	var key []byte
+	if d.opts.Capability != "" {
+		key = []byte("oh-gateway-grants:" + d.opts.Capability) // the file is signed by the daemon (S-14)
+	}
+	st, err := gateway.OpenSignedStore(d.opts.Paths.Gateway(), key)
 	if err != nil {
 		slog.Warn("ohd: gateway grants not restored", "error", err)
 	}
@@ -43,14 +47,16 @@ func (d *Daemon) startGateway(ctx context.Context) {
 	}
 	d.gateway = st
 	d.mcp = &gateway.MCP{Resolve: d.resolveMCP, Check: d.checkMCP}
-	d.proxy.Mount(beadswire.Prefix, &gateway.Beads{
+	beads := &gateway.Beads{
 		Store:  st,
 		View:   d.opts.GatewayView,
 		Alive:  d.sessionAlive,
 		Binary: d.opts.BeadsBinary,
 		Guard:  d.guardTickets,
 		Done:   d.ticketsDone,
-	})
+	}
+	st.ResolveBase = beads.ResolveBase // the Beads workspace is fixed at the grant (S-08)
+	d.proxy.Mount(beadswire.Prefix, beads)
 }
 
 // guardTickets refuses to close a ticket before the checkpoint that
@@ -63,8 +69,10 @@ func (d *Daemon) guardTickets(ctx context.Context, g gateway.Grant, op gateway.B
 	err := cp.GuardClose(ctx, g.SessionID, g.Location)
 	var lock *checkpoint.LockError
 	if err != nil && !errors.As(err, &lock) {
-		slog.Debug("ohd: ticket guard", "session", g.SessionID, "error", err)
-		return nil // no workflow state: the allow-list still applies
+		// The guard fails closed (S-09): a session without workflow is
+		// answered nil by GuardClose, any other error refuses.
+		slog.Warn("ohd: ticket guard failed, closing refused", "session", g.SessionID, "error", err)
+		return errors.New(i18n.Tf("cmd.gateway.beads.guard_failed", err))
 	}
 	return err
 }
@@ -173,6 +181,32 @@ func (w *watcher) applyChildEnv(child, root string) {
 	}
 	if err != nil {
 		slog.Warn("ohd: environment of a subagent session not applied", "session", root, "child", child, "error", err)
+	}
+}
+
+// Gateway tokens of subagents (audit v5, S-14) live while the sub-session
+// runs: revoked when it ends, given again (with the session environment)
+// when the delegating agent resumes it.
+
+func (w *watcher) endChildGrant(root, child string) {
+	if w.d.gateway == nil || !w.d.gateway.RevokeHolder(root, child) {
+		return
+	}
+	w.mu.Lock()
+	if w.childGrantEnded == nil {
+		w.childGrantEnded = map[string]bool{}
+	}
+	w.childGrantEnded[child] = true
+	w.mu.Unlock()
+}
+
+func (w *watcher) resumeChildGrant(root, child string) {
+	w.mu.Lock()
+	ended := w.childGrantEnded[child]
+	delete(w.childGrantEnded, child)
+	w.mu.Unlock()
+	if ended {
+		go w.applyChildEnv(child, root)
 	}
 }
 

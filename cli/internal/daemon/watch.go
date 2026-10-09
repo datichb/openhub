@@ -67,6 +67,10 @@ type watcher struct {
 	lastEvent    time.Time // last session activity seen (idle-sleep timer)
 	started      time.Time
 	done         chan struct{} // closed when run returns
+
+	// childGrantEnded: subagents whose gateway token was revoked at the end
+	// of their run (given again when they resume, S-14).
+	childGrantEnded map[string]bool
 }
 
 // stop cancels the watcher and waits for its goroutine (no write after return).
@@ -538,8 +542,10 @@ func (w *watcher) onChildEvent(ctx context.Context, root string, ev adapters.Too
 	switch ev.Kind {
 	case adapters.EventExecStarted:
 		w.holdOverBudget(ctx, root, ev.SessionID)
+		w.resumeChildGrant(root, ev.SessionID)
 	case adapters.EventExecEnded:
 		w.accountChild(ctx, root, ev.SessionID) // subagent cost counts for the oh session
+		w.endChildGrant(root, ev.SessionID)
 	}
 }
 

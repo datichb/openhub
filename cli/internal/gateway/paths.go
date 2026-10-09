@@ -15,10 +15,22 @@ type View struct {
 	Locations []string // machine directories the session may name
 }
 
-// fileFlags take a file path (read or written by bd on the machine).
+// fileFlags take a file path read or written by bd on the machine (bd 1.3
+// long names; short forms are read by bdargs).
 var fileFlags = map[string]bool{
-	"--body-file": true, "--design-file": true, "--file": true, "-f": true, "--graph": true,
-	"--output": true, "-o": true, "--input": true, "-i": true,
+	"body-file": true, "design-file": true, "file": true, "graph": true, "output": true, "input": true,
+	"reason-file": true, "ids-file": true, "from-file": true, "path": true, "search-path": true,
+	"source-db": true, "auth-token-file": true, "agents-file": true, "server-socket": true,
+}
+
+func isFileFlag(name, value string) bool {
+	switch {
+	case fileFlags[name]:
+		return true
+	case name == "metadata":
+		return strings.HasPrefix(value, "@")
+	}
+	return strings.HasPrefix(name, "proxied-server-") && strings.HasSuffix(name, "-path")
 }
 
 // within reports whether host (clean, absolute) is inside a location;
@@ -63,12 +75,11 @@ func (v View) toHost(p string) string {
 	return ""
 }
 
-// translateArgs rewrites the runtime paths of argv for the machine. File
+// translateArgs rewrites the runtime paths of a command for the machine
+// and returns the argument list bd runs (canonical form, bdargs). File
 // arguments (file flags, @file metadata, import files) must resolve inside
 // the session locations; other absolute paths under a mount are translated.
-func (v View) translateArgs(argv []string, c command, dir string) ([]string, error) {
-	out := make([]string, len(argv))
-	copy(out, argv)
+func (v View) translateArgs(c command, dir string) ([]string, error) {
 	file := func(val string) (string, error) {
 		if val == "" || val == "-" {
 			return val, nil
@@ -92,55 +103,35 @@ func (v View) translateArgs(argv []string, c command, dir string) ([]string, err
 		}
 		return host, nil
 	}
-	ended := false
-	for i := 0; i < len(out); i++ {
-		a := out[i]
-		if a == "--" {
-			ended = true
+	out := c.Cmd
+	out.Flags = append(out.Flags[:0:0], c.Flags...)
+	out.Args = append(out.Args[:0:0], c.Args...)
+	for i, f := range out.Flags {
+		if !isFileFlag(f.Name, f.Value) || !f.Explicit {
 			continue
 		}
-		if !ended && strings.HasPrefix(a, "-") {
-			name, val, hasValue := strings.Cut(a, "=")
-			isFile := fileFlags[name] || (name == "--metadata" && strings.HasPrefix(val, "@"))
-			switch {
-			case isFile && hasValue:
-				nv, err := file(val)
-				if err != nil {
-					return nil, err
-				}
-				out[i] = name + "=" + nv
-			case fileFlags[name] && i+1 < len(out):
-				nv, err := file(out[i+1])
-				if err != nil {
-					return nil, err
-				}
-				out[i+1] = nv
-				i++
-			case name == "--metadata" && i+1 < len(out) && strings.HasPrefix(out[i+1], "@"):
-				nv, err := file(out[i+1])
-				if err != nil {
-					return nil, err
-				}
-				out[i+1] = nv
-				i++
-			}
-			continue
+		nv, err := file(f.Value)
+		if err != nil {
+			return nil, err
 		}
-		if c.Name == "import" && i > c.At {
+		out.Flags[i].Value = nv
+	}
+	for i, a := range out.Args {
+		if c.Name() == "import" {
 			nv, err := file(a)
 			if err != nil {
 				return nil, err
 			}
-			out[i] = nv
+			out.Args[i] = nv
 			continue
 		}
 		if filepath.IsAbs(a) && v.Paths != nil {
 			if h, ok := v.Paths.ToHost(a); ok {
-				out[i] = h
+				out.Args[i] = h
 			}
 		}
 	}
-	return out, nil
+	return out.Argv(), nil
 }
 
 // exists reports whether a directory exists on the machine.

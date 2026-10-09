@@ -24,6 +24,10 @@ import (
 	"github.com/datichb/openhub/cli/internal/storage/sqlite"
 )
 
+// fakeWhere starts a fake bd: `bd where --json` names the .beads of its
+// directory (the gateway fixes the workspace of a grant with it).
+const fakeWhere = "#!/bin/sh\n[ \"$1\" = where ] && { printf '{\"path\":\"%s/.beads\"}' \"$(pwd -P)\"; exit 0; }\n"
+
 func TestDaemonBeadsGateway(t *testing.T) {
 	p := shortPaths(t)
 	st, err := sqlite.Open(filepath.Join(p.Dir, "oh.db"))
@@ -44,7 +48,8 @@ func TestDaemonBeadsGateway(t *testing.T) {
 	require.NoError(t, err)
 
 	bd := filepath.Join(t.TempDir(), "bd")
-	require.NoError(t, os.WriteFile(bd, []byte("#!/bin/sh\necho \"$* in $(pwd -P)\"\n"), 0o755))
+	require.NoError(t, os.WriteFile(bd, []byte(fakeWhere+"echo \"$* in $(pwd -P)\"\n"), 0o755))
+	require.NoError(t, os.Mkdir(filepath.Join(project, ".beads"), 0o700))
 
 	start := func() (context.CancelFunc, chan error) {
 		dctx, cancel := context.WithCancel(ctx)
@@ -85,7 +90,7 @@ func TestDaemonBeadsGateway(t *testing.T) {
 	require.NoError(t, err)
 	code, out := exec(g.Token, "show", "bd-1")
 	require.Equal(t, http.StatusOK, code, out.Error)
-	assert.Equal(t, "show bd-1 in "+project+"\n", string(out.Stdout))
+	assert.Equal(t, "show -- bd-1 in "+project+"\n", string(out.Stdout))
 	code, out = exec(g.Token, "create", "x")
 	assert.Equal(t, http.StatusForbidden, code)
 	assert.NotEmpty(t, out.Error)
@@ -195,6 +200,23 @@ func TestDaemonSubagentSessionEnvironment(t *testing.T) {
 	assert.Equal(t, []string{"show"}, g.BeadsAllow)
 	_, ok = st2.Lookup(root.Token)
 	assert.True(t, ok, "the root token is kept")
+
+	// S-14: the token of a subagent ends with its run, a resumed run gets
+	// a new one.
+	lookup := func(tok string) bool {
+		s, err := gateway.OpenStore(p.Gateway())
+		require.NoError(t, err)
+		_, ok := s.Lookup(tok)
+		return ok
+	}
+	ch <- adapters.ToolEvent{Kind: adapters.EventExecEnded, SessionID: "ses_c"}
+	require.Eventually(t, func() bool { return !lookup(tok) }, 3*time.Second, 20*time.Millisecond)
+	assert.True(t, lookup(root.Token))
+	ch <- adapters.ToolEvent{Kind: adapters.EventExecStarted, SessionID: "ses_c"}
+	require.Eventually(t, func() bool {
+		next := fake.envOf("ses_c")[beadswire.EnvToken]
+		return next != "" && next != tok && lookup(next)
+	}, 3*time.Second, 20*time.Millisecond)
 	require.NoError(t, c.RevokeOwner(ctx, "g1"))
 	st3, _ := gateway.OpenStore(p.Gateway())
 	assert.Equal(t, 0, st3.Len())

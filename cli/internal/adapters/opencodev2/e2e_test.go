@@ -180,10 +180,12 @@ func TestE2EThroughCredentialProxy(t *testing.T) {
 	p := credproxy.New()
 	require.NoError(t, p.Start("127.0.0.1:0"))
 	t.Cleanup(func() { _ = p.Close(context.Background()) })
+	up, err := credproxy.BedrockUpstream("eu-west-1", credproxy.BearerAuth{Token: real})
+	require.NoError(t, err)
 	tok, err := p.Issue(credproxy.Grant{
 		SessionID:     "e2e",
 		Provider:      credproxy.ProviderBedrock,
-		Upstream:      credproxy.BedrockUpstream("eu-west-1", credproxy.BearerAuth{Token: real}),
+		Upstream:      up,
 		AllowedModels: []string{"eu.anthropic.claude-haiku-*"},
 	})
 	require.NoError(t, err)
@@ -223,7 +225,9 @@ func TestE2EThroughCredentialProxySigV4(t *testing.T) {
 	p := credproxy.New()
 	require.NoError(t, p.Start("127.0.0.1:0"))
 	t.Cleanup(func() { _ = p.Close(context.Background()) })
-	tok, err := p.Issue(credproxy.Grant{Provider: credproxy.ProviderBedrock, Upstream: credproxy.BedrockUpstream("eu-west-1", auth)})
+	up, err := credproxy.BedrockUpstream("eu-west-1", auth)
+	require.NoError(t, err)
+	tok, err := p.Issue(credproxy.Grant{Provider: credproxy.ProviderBedrock, Upstream: up})
 	require.NoError(t, err)
 
 	r := startE2EWith(t, e2eBundle(t), false, sessionspec.ProviderSpec{

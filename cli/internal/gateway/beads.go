@@ -16,6 +16,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"runtime"
 	"strings"
 	"time"
 
@@ -86,16 +87,8 @@ func writeResp(w http.ResponseWriter, status int, resp beadswire.ExecResponse) {
 // Exec checks and runs one command for a grant. The HTTP status is 200 when
 // bd ran (whatever its exit code), 403 when the command is refused.
 func (b *Beads) Exec(ctx context.Context, g Grant, req beadswire.ExecRequest) (resp beadswire.ExecResponse, status int) {
-	allow := g.BeadsAllow
-	hook := req.GitHook && isGitHook(req.Argv)
-	if hook {
-		allow = gitHookAllow // run by git, whatever the workflow allows (A19)
-	}
-	c, err := checkBeads(req.Argv, allow)
-	if err != nil {
-		return refusalResp(err.Error()), http.StatusForbidden
-	}
 	view := View{}
+	var err error
 	if b.View != nil {
 		if view, err = b.View(ctx, g.GroupKey); err != nil {
 			slog.Warn("gateway: runtime view unavailable", "group", g.GroupKey, "error", err)
@@ -105,31 +98,64 @@ func (b *Beads) Exec(ctx context.Context, g Grant, req beadswire.ExecRequest) (r
 	if len(view.Locations) == 0 {
 		view.Locations = []string{g.Location}
 	}
+	hookName := ""
+	if req.GitHook {
+		hookName = GitHookName(req.Argv)
+	}
+	if hookName != "" && (len(view.Paths) > 0 || journalMode()) {
+		// Another runtime: the hooks bd chains (the project's own hooks)
+		// would run on the machine, out of the container; a remote job
+		// replays its journal later. Skipped: nothing runs.
+		slog.Debug("gateway: Beads git hook skipped (not a local session)", "session", g.SessionID, "hook", hookName)
+		return beadswire.ExecResponse{}, http.StatusOK
+	}
+	allow := g.BeadsAllow
+	hook := false
+	if hookName != "" {
+		if b.Store == nil || !b.Store.consumeHookToken(req.HookToken, g, hookName) {
+			slog.Warn("gateway: Beads git hook without a valid hook token", "session", g.SessionID, "hook", hookName)
+			return refusalResp(i18n.T("cmd.gateway.beads.hook_unverified")), http.StatusForbidden
+		}
+		hook, allow = true, gitHookAllow // run by git, whatever the workflow allows (A19)
+	}
+	c, err := checkBeads(req.Argv, allow)
+	if err != nil {
+		return refusalResp(err.Error()), http.StatusForbidden
+	}
 	dir := view.hostDir(req.Cwd, g.Location)
-	argv, err := view.translateArgs(req.Argv, c, dir)
+	argv, err := view.translateArgs(c, dir)
 	if err != nil {
 		return refusalResp(err.Error()), http.StatusForbidden
 	}
 	if !exists(dir) {
 		return refusalResp(i18n.Tf("cmd.gateway.beads.path_outside", dir)), http.StatusForbidden
 	}
-	if hook && len(view.Paths) > 0 {
-		// Another runtime: the hooks bd chains (the project's own hooks)
-		// would run on the machine, out of the container. Skipped.
-		slog.Debug("gateway: Beads git hook skipped (not a local session)", "session", g.SessionID, "hook", req.Argv)
-		return beadswire.ExecResponse{}, http.StatusOK
-	}
-	op, isOp := ticketOp(req.Argv, c)
-	if isOp && b.Guard != nil {
-		if err := b.Guard(ctx, g, op); err != nil {
-			slog.Debug("gateway: bd refused by the workflow", "session", g.SessionID, "command", c.Name, "error", err)
+	beadsDir := ""
+	if c.Name() != "" && !c.Help() {
+		base := b.base(ctx, g)
+		if base == nil {
+			return refusalResp(i18n.T("cmd.gateway.beads.base_unknown")), http.StatusServiceUnavailable
+		}
+		if err := base.check(); err != nil {
+			slog.Warn("gateway: Beads workspace of the session changed", "session", g.SessionID, "error", err)
 			return refusalResp(err.Error()), http.StatusForbidden
 		}
+		if base.Dir != journalBase {
+			beadsDir = base.Dir
+		}
 	}
-	bin := b.Binary
-	if bin == "" {
-		if bin, err = exec.LookPath("bd"); err != nil {
-			return refusalResp(i18n.T("cmd.gateway.beads.bd_missing")), http.StatusServiceUnavailable
+	bin, err := b.binary()
+	if err != nil {
+		return refusalResp(i18n.T("cmd.gateway.beads.bd_missing")), http.StatusServiceUnavailable
+	}
+	op, isOp := ticketOp(c)
+	if isOp && op.Status != "" && !b.closingStatus(ctx, bin, dir, beadsDir, op.Status) {
+		isOp = false
+	}
+	if isOp && b.Guard != nil {
+		if err := b.Guard(ctx, g, op); err != nil {
+			slog.Debug("gateway: bd refused by the workflow", "session", g.SessionID, "command", c.Key(), "error", err)
+			return refusalResp(err.Error()), http.StatusForbidden
 		}
 	}
 	timeout := b.Timeout
@@ -144,9 +170,7 @@ func (b *Beads) Exec(ctx context.Context, g Grant, req beadswire.ExecRequest) (r
 	defer cancel()
 	cmd := exec.CommandContext(cctx, bin, argv...)
 	cmd.Dir = dir
-	if hook {
-		cmd.Env = append(os.Environ(), beadswire.EnvGitHook+"=1")
-	}
+	cmd.Env = beadsEnv(os.Environ(), beadsDir, hook)
 	cmd.Stdin = bytes.NewReader(req.Stdin)
 	stdout, stderr := &capped{max: limit}, &capped{max: limit}
 	cmd.Stdout, cmd.Stderr = stdout, stderr
@@ -165,11 +189,47 @@ func (b *Beads) Exec(ctx context.Context, g Grant, req beadswire.ExecRequest) (r
 	if stdout.cut || stderr.cut {
 		resp.Stderr = append(resp.Stderr, []byte(fmt.Sprintf("bd: %s\n", i18n.Tf("cmd.gateway.beads.output_truncated", limit)))...)
 	}
-	slog.Debug("gateway: bd", "session", g.SessionID, "command", c.Name, "exit", resp.ExitCode)
+	slog.Debug("gateway: bd", "session", g.SessionID, "command", c.Key(), "exit", resp.ExitCode)
 	if isOp && b.Done != nil && resp.ExitCode == 0 && resp.Error == "" {
 		b.Done(ctx, g, op)
 	}
 	return resp, http.StatusOK
+}
+
+func (b *Beads) binary() (string, error) {
+	if b.Binary != "" {
+		return b.Binary, nil
+	}
+	return exec.LookPath("bd")
+}
+
+// closingStatus asks bd whether a status of the project's configuration
+// is a done status (bd statuses); unknown answers count as closing.
+func (b *Beads) closingStatus(ctx context.Context, bin, dir, beadsDir, status string) bool {
+	ctx, cancel := context.WithTimeout(ctx, baseTimeout)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, bin, "statuses", "--json")
+	cmd.Dir = dir
+	cmd.Env = beadsEnv(os.Environ(), beadsDir, false)
+	out, err := cmd.Output()
+	if err != nil {
+		return true
+	}
+	var st struct {
+		Custom []struct {
+			Name     string `json:"name"`
+			Category string `json:"category"`
+		} `json:"custom_statuses"`
+	}
+	if json.Unmarshal(out, &st) != nil {
+		return true
+	}
+	for _, s := range st.Custom {
+		if strings.EqualFold(s.Name, status) {
+			return s.Category == "done"
+		}
+	}
+	return true // bd refuses an unknown status; counted as closing
 }
 
 // capped keeps the first max bytes written (not an embedded bytes.Buffer:
@@ -192,3 +252,50 @@ func (c *capped) Write(p []byte) (int, error) {
 }
 
 func (c *capped) Bytes() []byte { return c.buf.Bytes() }
+
+// beadsEnv is the environment of the real bd (audit v5, S-14): only what
+// bd needs from the daemon's (PATH, HOME, user, locale, temporary
+// directory, XDG directories, the Beads settings BEADS_*, the journal mode
+// of a remote job), with the workspace fixed by oh (BEADS_DIR) and the git
+// hook marker set only when git runs the command. The daemon's secrets and
+// other variables are not passed.
+func beadsEnv(base []string, beadsDir string, hook bool) []string {
+	env := make([]string, 0, 16)
+	for _, kv := range base {
+		k, _, _ := strings.Cut(kv, "=")
+		if keepBeadsVar(k) {
+			env = append(env, kv)
+		}
+	}
+	if beadsDir != "" {
+		env = append(env, "BEADS_DIR="+beadsDir)
+	}
+	if hook {
+		env = append(env, beadswire.EnvGitHook+"=1")
+	}
+	return env
+}
+
+// beadsVars are the variables of the daemon passed to bd.
+var beadsVars = map[string]bool{
+	"PATH": true, "HOME": true, "USER": true, "LOGNAME": true, "SHELL": true, "LANG": true, "TZ": true,
+	"TMPDIR": true, "TEMP": true, "TMP": true, "NO_COLOR": true,
+	"XDG_CONFIG_HOME": true, "XDG_DATA_HOME": true, "XDG_CACHE_HOME": true, "XDG_STATE_HOME": true, "XDG_RUNTIME_DIR": true,
+	// Windows
+	"SYSTEMROOT": true, "SYSTEMDRIVE": true, "WINDIR": true, "COMSPEC": true, "PATHEXT": true, "USERPROFILE": true,
+	"APPDATA": true, "LOCALAPPDATA": true, "PROGRAMDATA": true, "HOMEDRIVE": true, "HOMEPATH": true, "USERNAME": true,
+	// journal mode of a remote job (cmd/runner.go)
+	beadswire.EnvMode: true, beadswire.EnvSnapshot: true, beadswire.EnvJournal: true,
+}
+
+func keepBeadsVar(k string) bool {
+	switch {
+	case k == "BEADS_DIR" || k == beadswire.EnvGitHook:
+		return false
+	case beadsVars[k], beadsVars[strings.ToUpper(k)] && runtime.GOOS == "windows":
+		return true
+	case strings.HasPrefix(k, "LC_"), strings.HasPrefix(k, "BEADS_"):
+		return true
+	}
+	return false
+}

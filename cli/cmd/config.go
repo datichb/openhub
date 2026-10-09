@@ -106,7 +106,13 @@ var configFieldMap = map[string]configField{
 		Unset: func(c *config.Config) { c.Provider.Bedrock.AWSProfile = "" },
 	},
 	"provider.bedrock.aws_region": {
-		Set:   func(c *config.Config, v string) error { c.Provider.Bedrock.AWSRegion = v; return nil },
+		Set: func(c *config.Config, v string) error {
+			if err := checkBedrockRegion(os.Stderr, v); err != nil {
+				return err
+			}
+			c.Provider.Bedrock.AWSRegion = v
+			return nil
+		},
 		Unset: func(c *config.Config) { c.Provider.Bedrock.AWSRegion = "" },
 	},
 	"provider.bedrock.auth_mode": {

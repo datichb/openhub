@@ -197,7 +197,7 @@ func Run(ctx context.Context, opts Options) error {
 	_ = os.Chmod(opts.Paths.Socket(), 0o600)
 	l = peerListener{Listener: l}
 	d.listener = l
-	d.http = &http.Server{Handler: d.routes(), ReadHeaderTimeout: 10 * time.Second}
+	d.http = &http.Server{Handler: d.routes(), ReadHeaderTimeout: 10 * time.Second, ConnContext: withConn}
 	go func() {
 		if err := d.http.Serve(l); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			slog.Error("ohd api stopped", "error", err)
@@ -354,6 +354,10 @@ func (d *Daemon) startProxy() error {
 		}
 	}
 	for _, h := range st.ListenHosts {
+		if _, err := listenHost(h); err != nil { // checked again (S-25): ohd.json is a plain file
+			slog.Warn("ohd: proxy listener not restored", "host", h, "error", err)
+			continue
+		}
 		if _, err := d.proxy.Listen(h); err != nil {
 			slog.Warn("ohd: cannot restore proxy listener", "host", h, "error", err)
 		}
@@ -508,7 +512,7 @@ func (d *Daemon) register(ctx context.Context, g domain.ProxyGrant, secret strin
 func upstreamFor(provider, region string, auth credproxy.Auth) (credproxy.Upstream, error) {
 	switch provider {
 	case credproxy.ProviderBedrock:
-		return credproxy.BedrockUpstream(region, auth), nil
+		return credproxy.BedrockUpstream(region, auth)
 	case credproxy.ProviderAnthropic:
 		return credproxy.Upstream{BaseURL: "https://api.anthropic.com/v1", Auth: auth}, nil
 	case credproxy.ProviderOpenRouter:

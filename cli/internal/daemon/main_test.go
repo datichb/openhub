@@ -6,11 +6,16 @@ import (
 	"os"
 	"testing"
 
+	"github.com/datichb/openhub/cli/internal/gateway/fakebd"
 	"github.com/datichb/openhub/cli/internal/mcp/protocol"
 )
 
 // TestMain runs the test binary as a stdio MCP server (MCP gateway tests).
+// With OH_DAEMON_TEST_FAKEBD=1 it is the fake bd of the sessions.
 func TestMain(m *testing.M) {
+	if os.Getenv("OH_DAEMON_TEST_FAKEBD") == "1" {
+		os.Exit(fakebd.Main(os.Args[1:]))
+	}
 	if os.Getenv("OH_DAEMON_TEST_MCP") == "1" {
 		s := protocol.NewServer("test", "1")
 		s.RegisterTool(protocol.Tool{Name: "whoami", InputSchema: map[string]any{"type": "object"}},

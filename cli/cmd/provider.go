@@ -478,6 +478,11 @@ func setupGithubCopilot(a *app.App) error {
 // ─────────────────────────────────────────────────────────────────────────────
 
 func persistProviderConfig(ctx context.Context, a *app.App, project *domain.Project, name provider.Name, rawConfig string, _ provider.DetectionResult) error {
+	if parts := splitProviderRawConfig(rawConfig); name == provider.Bedrock && len(parts) == 3 {
+		if err := checkBedrockRegion(a.IO.ErrOut, parts[1]); err != nil {
+			return err
+		}
+	}
 	if project != nil {
 		// Project-scoped: update project.ProviderConfig
 		if project.ProviderConfig == nil {

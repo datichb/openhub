@@ -41,3 +41,18 @@ func TestResolveProviderRegionFromEnv(t *testing.T) {
 	_, region, _ = s.resolveProvider(t.Context(), &req)
 	assert.Equal(t, "eu-central-1", region, "oh config first")
 }
+
+// S-21 (audit v5): a region that is not one refuses the launch, from the
+// oh config as from AWS_REGION.
+func TestResolveProviderRefusesInvalidRegion(t *testing.T) {
+	t.Setenv("AWS_CONFIG_FILE", "/nonexistent")
+	s := &Service{}
+	req := StartRequest{Provider: "bedrock"}
+	req.ProviderCfg.AWSRegion = "x.evil.com#"
+	_, _, err := s.resolveProvider(t.Context(), &req)
+	assert.Error(t, err)
+	req.ProviderCfg.AWSRegion = ""
+	t.Setenv("AWS_REGION", "x.evil.com#")
+	_, _, err = s.resolveProvider(t.Context(), &req)
+	assert.Error(t, err)
+}

@@ -75,6 +75,26 @@ func TestGrantStore(t *testing.T) {
 	assert.Empty(t, active)
 }
 
+// S-23 (audit v5): a grant whose model list cannot be read is not restored
+// (never "any model").
+func TestGrantStoreUnreadableModels(t *testing.T) {
+	st := openTemp(t)
+	gs := NewGrantStore(st)
+	ctx := context.Background()
+	require.NoError(t, gs.Insert(ctx, &domain.ProxyGrant{TokenHash: "ohs_1", Owner: "g1", Provider: "amazon-bedrock", AllowedModels: []string{"eu.*"}}))
+	require.NoError(t, gs.Insert(ctx, &domain.ProxyGrant{TokenHash: "ohs_2", Owner: "g2", Provider: "amazon-bedrock", AllowedModels: []string{"eu.*"}}))
+	require.NoError(t, gs.Insert(ctx, &domain.ProxyGrant{TokenHash: "ohs_3", Owner: "g3", Provider: "amazon-bedrock"}))
+	_, err := st.DB().Exec(`UPDATE proxy_grants SET allowed_models = '["eu.*"' WHERE token = 'ohs_1'`)
+	require.NoError(t, err)
+	_, err = st.DB().Exec(`UPDATE proxy_grants SET source = 'not json' WHERE token = 'ohs_2'`)
+	require.NoError(t, err)
+	active, err := gs.ListActive(ctx)
+	require.NoError(t, err)
+	require.Len(t, active, 1)
+	assert.Equal(t, "ohs_3", active[0].TokenHash)
+	assert.Empty(t, active[0].AllowedModels, "no list stays no list")
+}
+
 func TestSessionStoreV5Fields(t *testing.T) {
 	s := openTemp(t)
 	ctx := context.Background()

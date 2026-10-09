@@ -335,7 +335,7 @@ func agentDef(req Request, a *bricks.AssembledAgent, instructions string) (sessi
 	}
 	perms = bricks.DropPluginPermissions(perms, req.pluginTools, req.loadedPlugins())
 	own := ConvertPermissions(perms)
-	def.Permissions = append(append(append(own, GitShellGuard(own)...), BeadsShellGuard()...), HookGuard()...)
+	def.Permissions = append(append(append(append(own, GitShellGuard(own)...), BeadsShellGuard()...), HookGuard()...), BeadsDirGuard()...)
 	return def, nil
 }
 

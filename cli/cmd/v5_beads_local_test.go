@@ -19,14 +19,16 @@ func TestEnsureBeadsShim(t *testing.T) {
 		t.Skip("shell shim")
 	}
 	dir := t.TempDir()
+	t.Setenv("OH_HOME", filepath.Join(dir, "oh home"))
 	fake := filepath.Join(dir, "oh it's")
-	require.NoError(t, os.WriteFile(fake, []byte("#!/bin/sh\nprintf '%s|' \"$@\"\n"), 0o755))
+	require.NoError(t, os.WriteFile(fake, []byte("#!/bin/sh\nprintf '%s|' \"$OH_BD_DAEMON_SOCKET\" \"$@\"\n"), 0o755))
 	shims := filepath.Join(dir, "bin")
 	require.NoError(t, ensureBeadsShim(shims, fake))
 
 	out, err := exec.Command(filepath.Join(shims, "bd"), "close", "bd-1", "--reason", "a b").Output()
 	require.NoError(t, err)
-	assert.Equal(t, BeadsShimArg+"|close|bd-1|--reason|a b|", string(out))
+	assert.Equal(t, filepath.Join(dir, "oh home", "run", "ohd.sock")+"|"+BeadsShimArg+"|close|bd-1|--reason|a b|", string(out),
+		"the daemon socket is given to the fake bd (hook tokens, S-06)")
 
 	require.NoError(t, ensureBeadsShim(shims, "/elsewhere/oh"))
 	data, err := os.ReadFile(filepath.Join(shims, "bd"))

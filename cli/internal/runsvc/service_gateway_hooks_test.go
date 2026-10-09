@@ -54,7 +54,16 @@ func TestLocalSessionBeadsHooksAndShell(t *testing.T) {
 		return string(out)
 	}
 	shims := filepath.Join(root, "bin")
-	sh("../..", "go", "build", "-o", filepath.Join(shims, "bd"), "./cmd/oh-bd")
+	sh("../..", "go", "build", "-o", filepath.Join(root, "oh-bd"), "./cmd/oh-bd")
+	// Like the bd of local sessions (cmd/v5_beads_local.go): it gives the
+	// daemon socket, where a git hook gets its hook token (S-06).
+	if err := os.MkdirAll(shims, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(shims, "bd"), []byte("#!/bin/sh\n"+beadswire.EnvDaemonSocket+"="+filepath.Join(root, "run", "ohd.sock")+
+		" exec "+filepath.Join(root, "oh-bd")+" \"$@\"\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
 
 	// The user's start-up file puts another bd first (A16).
 	home, other := filepath.Join(root, "home"), filepath.Join(root, "other")
@@ -205,6 +214,9 @@ func TestLocalSessionBeadsHooksAndShell(t *testing.T) {
 	}
 	if out := shell("bd hooks run pre-commit; echo EXIT=$?"); !strings.Contains(out, "EXIT=1") {
 		t.Fatalf("bd hooks outside a git hook stays refused by beads.allow:\n%s", out)
+	}
+	if out := shell("BD_GIT_HOOK=1 bd hooks run post-merge 0; echo EXIT=$?"); !strings.Contains(out, "EXIT=1") {
+		t.Fatalf("S-06: BD_GIT_HOOK set outside git opens nothing:\n%s", out)
 	}
 	if err := svc.StopSession(ctx, res.SessionID); err != nil {
 		t.Fatal(err)

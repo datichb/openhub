@@ -3,9 +3,11 @@ package checkpoint
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os/exec"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/datichb/openhub/cli/internal/adapters"
 	"github.com/datichb/openhub/cli/internal/bundle"
@@ -72,8 +74,11 @@ func GitHead(ctx context.Context, dir string) (head string, dirty bool, err erro
 }
 
 // GuardClose checks that root may close a ticket now: the checkpoint that
-// unlocks closing is passed, and the work was committed since. dir is the
-// session location on the machine. nil when the workflow locks nothing.
+// unlocks closing is passed, and the work was committed since (audit v5,
+// S-09): HEAD moved from the commit of the checkpoint, on top of it, with
+// at least one change to tracked files outside .beads, and nothing left to
+// commit. dir is the session location on the machine. nil when the
+// workflow locks nothing; any error refuses (the guard fails closed).
 func (s *Service) GuardClose(ctx context.Context, root, dir string) error {
 	sess, wf, err := s.session(ctx, root)
 	if errors.Is(err, ErrNoWorkflow) {
@@ -98,11 +103,83 @@ func (s *Service) GuardClose(ctx context.Context, root, dir string) error {
 	if dir == "" {
 		dir = sess.LaunchPath
 	}
-	cur, dirty := s.head(ctx, dir)
-	if cur == u.Head && dirty {
+	work := s.Work
+	if work == nil {
+		work = GitWork
+	}
+	w, err := work(ctx, dir, u.Head, u.At)
+	switch {
+	case err != nil:
+		return &LockError{Msg: i18n.Tf("cmd.gateway.beads.locked_git", c.ID, label, err)}
+	case !w.Committed:
 		return &LockError{Msg: i18n.Tf("cmd.gateway.beads.locked_commit", c.ID, label)}
+	case w.Dirty:
+		return &LockError{Msg: i18n.Tf("cmd.gateway.beads.locked_dirty", c.ID, label)}
 	}
 	return nil
+}
+
+// Work is what a directory committed since a commit.
+type Work struct {
+	Head  string // current commit
+	Dirty bool   // changes not committed, outside .beads
+	// Committed: HEAD moved on top of the commit, and the commits since
+	// change tracked files outside .beads (an empty commit does not count).
+	Committed bool
+}
+
+// errUnknownStart: the commit of the checkpoint is not known (git failed
+// when it passed) while the repository already had commits.
+var errUnknownStart = errors.New("the commit at the checkpoint is not known")
+
+// GitWork tells what dir committed since the commit since ("" = no commit
+// when the checkpoint passed at at).
+func GitWork(ctx context.Context, dir, since string, at time.Time) (Work, error) {
+	head, dirty, err := GitHead(ctx, dir)
+	if err != nil {
+		return Work{}, err
+	}
+	w := Work{Head: head, Dirty: dirty}
+	if head == "" || head == since {
+		return w, nil
+	}
+	git := func(args ...string) *exec.Cmd {
+		return exec.CommandContext(ctx, "git", append([]string{"-C", dir}, args...)...)
+	}
+	from := since
+	if since == "" {
+		// No commit at the checkpoint: every commit must be newer.
+		out, err := git("rev-list", "--max-count=1", fmt.Sprintf("--before=%d", at.Add(-time.Second).Unix()), "HEAD").Output()
+		if err != nil {
+			return w, err
+		}
+		if strings.TrimSpace(string(out)) != "" {
+			return w, errUnknownStart
+		}
+		empty := git("hash-object", "-t", "tree", "--stdin")
+		empty.Stdin = strings.NewReader("")
+		out, err = empty.Output()
+		if err != nil {
+			return w, err
+		}
+		from = strings.TrimSpace(string(out))
+	} else if err := git("merge-base", "--is-ancestor", since, head).Run(); err != nil {
+		var exit *exec.ExitError
+		if errors.As(err, &exit) && exit.ExitCode() == 1 {
+			return w, nil // HEAD is elsewhere: not committed on top of the checkpoint
+		}
+		return w, err
+	}
+	err = git("diff", "--quiet", from, head, "--", ".", ":(exclude).beads").Run()
+	var exit *exec.ExitError
+	switch {
+	case err == nil: // no change: empty commits only
+	case errors.As(err, &exit) && exit.ExitCode() == 1:
+		w.Committed = true
+	default:
+		return w, err
+	}
+	return w, nil
 }
 
 // BeadsDone records a Beads operation that ran for root (claimed or closed

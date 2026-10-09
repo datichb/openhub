@@ -33,6 +33,9 @@ type Service struct {
 	// Head returns the commit of a directory and whether it has changes not
 	// committed outside the Beads data (nil = git).
 	Head func(ctx context.Context, dir string) (head string, dirty bool, err error)
+	// Work tells what a directory committed since a commit (nil = git,
+	// GitWork): the closing guard (S-09).
+	Work func(ctx context.Context, dir, since string, at time.Time) (Work, error)
 	Now  func() time.Time
 }
 

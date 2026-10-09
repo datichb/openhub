@@ -3,8 +3,12 @@ package fakebd
 import (
 	"bytes"
 	"encoding/json"
+	"net"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -95,4 +99,41 @@ func TestRunTellsGitHook(t *testing.T) {
 	vars[beadswire.EnvGitHook] = "1"
 	assert.Equal(t, 0, Run([]string{"hooks", "run", "pre-commit"}, "/w", envOf(vars), nil, &bytes.Buffer{}, &bytes.Buffer{}))
 	assert.True(t, got.GitHook)
+}
+
+// S-06: a git hook asks the daemon socket for its hook token and sends it.
+func TestRunAsksHookToken(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("unix socket")
+	}
+	dir, err := os.MkdirTemp("/tmp", "ohbd-")
+	require.NoError(t, err)
+	t.Cleanup(func() { os.RemoveAll(dir) })
+	sock := filepath.Join(dir, "ohd.sock")
+	l, err := net.Listen("unix", sock)
+	require.NoError(t, err)
+	var asked beadswire.HookTokenRequest
+	daemon := &http.Server{Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, beadswire.HookTokenPath, r.URL.Path)
+		require.NoError(t, json.NewDecoder(r.Body).Decode(&asked))
+		_ = json.NewEncoder(w).Encode(beadswire.HookTokenResponse{HookToken: "ohh_1"})
+	})}
+	go func() { _ = daemon.Serve(l) }()
+	t.Cleanup(func() { _ = daemon.Close() })
+
+	var got beadswire.ExecRequest
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		require.NoError(t, json.NewDecoder(r.Body).Decode(&got))
+		_ = json.NewEncoder(w).Encode(beadswire.ExecResponse{})
+	}))
+	defer srv.Close()
+	vars := map[string]string{beadswire.EnvURL: srv.URL, beadswire.EnvToken: "ohg_x", beadswire.EnvGitHook: "1", beadswire.EnvDaemonSocket: sock}
+	assert.Equal(t, 0, Run([]string{"hooks", "run", "post-merge", "0"}, "/w", envOf(vars), nil, &bytes.Buffer{}, &bytes.Buffer{}))
+	assert.Equal(t, "ohh_1", got.HookToken)
+	assert.Equal(t, beadswire.HookTokenRequest{Token: "ohg_x", Argv: []string{"hooks", "run", "post-merge", "0"}}, asked)
+
+	got = beadswire.ExecRequest{}
+	delete(vars, beadswire.EnvGitHook)
+	assert.Equal(t, 0, Run([]string{"hooks", "run", "post-merge", "0"}, "/w", envOf(vars), nil, &bytes.Buffer{}, &bytes.Buffer{}))
+	assert.Empty(t, got.HookToken, "no hook token outside a git hook")
 }

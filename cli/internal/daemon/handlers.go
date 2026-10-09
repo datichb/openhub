@@ -3,7 +3,6 @@ package daemon
 import (
 	"encoding/json"
 	"log/slog"
-	"net"
 	"net/http"
 	"os"
 	"strings"
@@ -29,6 +28,7 @@ func (d *Daemon) routes() http.Handler {
 	mux.HandleFunc("POST "+apiPrefix+"/groups/{group}/policy", d.handlePolicy)
 	mux.HandleFunc("POST "+apiPrefix+"/proxy/listeners", d.privileged(d.handleListen))
 	mux.HandleFunc("POST "+apiPrefix+"/gateway/grants", d.privileged(d.handleGatewayGrant))
+	mux.HandleFunc("POST "+hookTokenRoute, d.handleHookToken) // S-06: checked on the caller process tree
 	mux.HandleFunc("GET "+apiPrefix+"/stream", d.handleStream)
 	mux.HandleFunc("GET "+apiPrefix+"/workflow/status", d.handleWorkflowStatus)
 	mux.HandleFunc("POST "+apiPrefix+"/workflow/checkpoint", d.handleWorkflowCheckpoint)
@@ -204,12 +204,12 @@ func (d *Daemon) handleListen(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusBadRequest, "invalid body")
 		return
 	}
-	ip := net.ParseIP(req.Host)
-	if ip == nil || ip.IsUnspecified() || (!ip.IsPrivate() && !ip.IsLoopback()) {
-		writeErr(w, http.StatusBadRequest, "host must be a private or loopback IP address")
+	ip, err := listenHost(req.Host)
+	if err != nil {
+		writeErr(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	u, err := d.proxy.Listen(ip.String())
+	u, err := d.proxy.Listen(ip)
 	if err != nil {
 		writeErr(w, http.StatusInternalServerError, err.Error())
 		return

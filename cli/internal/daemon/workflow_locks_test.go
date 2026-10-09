@@ -78,7 +78,8 @@ func TestWorkflowLocksAndEnd(t *testing.T) {
 		BundleHash: "h1", Mode: "manuel", State: domain.RunActive, LaunchPath: project, WorkflowID: "ticket"}))
 
 	bd := filepath.Join(t.TempDir(), "bd")
-	require.NoError(t, os.WriteFile(bd, []byte("#!/bin/sh\necho \"bd $*\"\n"), 0o755))
+	require.NoError(t, os.WriteFile(bd, []byte(fakeWhere+"echo \"bd $*\"\n"), 0o755))
+	require.NoError(t, os.MkdirAll(filepath.Join(project, ".beads"), 0o700))
 	fake := &rulesAdapter{fakeAdapter: newFake(), rules: map[string][]sessionspec.PermissionRule{}}
 	fake.usage["ses_a"] = adapters.SessionResult{Branch: "feat/pt-1"}
 	cp := &checkpoint.Service{Sessions: sessions, States: states, SessionOutputs: states, BundlesDir: bundles, SessionsDir: t.TempDir()}
@@ -107,7 +108,7 @@ func TestWorkflowLocksAndEnd(t *testing.T) {
 	c := NewClient(p)
 	h, err := c.Health(ctx)
 	require.NoError(t, err)
-	g, err := c.IssueGatewayGrant(ctx, GatewayGrantRequest{SessionID: "ses_a", GroupKey: "g1", ProjectID: "p1", Location: project, BeadsAllow: []string{"show", "update", "close"}})
+	g, err := c.IssueGatewayGrant(ctx, GatewayGrantRequest{SessionID: "ses_a", GroupKey: "g1", ProjectID: "p1", Location: project, BeadsAllow: []string{"show", "update", "close", "duplicate"}})
 	require.NoError(t, err)
 	bdExec := func(argv ...string) (int, beadswire.ExecResponse) {
 		body, _ := json.Marshal(beadswire.ExecRequest{Argv: argv, Cwd: project})
@@ -166,6 +167,12 @@ func TestWorkflowLocksAndEnd(t *testing.T) {
 	require.NoError(t, os.WriteFile(filepath.Join(project, "a.txt"), []byte("b"), 0o644))
 	code, out = bdExec("close", "pt-1")
 	assert.Equal(t, http.StatusForbidden, code)
+	assert.Contains(t, out.Error, "commit")
+	gitRun(t, project, "commit", "--allow-empty", "-qm", "chore: empty")
+	code, _ = bdExec("close", "pt-1")
+	assert.Equal(t, http.StatusForbidden, code, "S-09: an empty commit does not count")
+	code, out = bdExec("duplicate", "pt-1", "--of", "pt-2")
+	assert.Equal(t, http.StatusForbidden, code, "S-07: duplicate closes too")
 	assert.Contains(t, out.Error, "commit")
 	gitRun(t, project, "commit", "-qam", "feat: b")
 	code, out = bdExec("close", "pt-1", "--reason", "Implemented in commit x")
