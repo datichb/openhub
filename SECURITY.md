@@ -18,9 +18,9 @@
 
 Use [GitHub Security Advisories](https://github.com/datichb/openhub/security/advisories/new) to report a vulnerability privately. This allows us to assess the impact, prepare a fix, and coordinate disclosure before any public announcement.
 
-### Alternative
+### If you cannot use GitHub Security Advisories
 
-Send an email to **security@example.com** with the following information:
+Open a public issue that only asks for a private contact (no details of the vulnerability). A report should contain:
 
 - Description of the vulnerability
 - Steps to reproduce
@@ -162,7 +162,7 @@ The `oh upgrade oh` command downloads binaries exclusively from GitHub Releases 
 - **URL allowlist** — only `github.com` and `objects.githubusercontent.com` are accepted
 - **HTTPS-only** — plaintext HTTP is rejected
 - **SHA256 checksums** — the downloaded binary is verified against the published checksum file; installation is refused if checksums do not match
-- **Cosign signing** — release checksums are signed with [Sigstore](https://www.sigstore.dev/) (keyless OIDC). Client-side verification is currently advisory (logged warning); enforcement is planned for a future version
+- **Cosign signing** — release checksums are signed with [Sigstore](https://www.sigstore.dev/) (keyless OIDC, identity: the `release.yml` workflow of this repository on a `v*` tag). When the `cosign` CLI is installed, `oh upgrade oh` and `install.sh` verify the signature and **refuse** an invalid one. Without `cosign` they only verify the checksum and print a warning; set `OH_REQUIRE_SIGNATURE=1` to refuse any update whose signature cannot be verified
 - **Atomic replacement** — the binary is replaced atomically with automatic rollback on failure
 
 ### Supply chain
@@ -184,7 +184,10 @@ The `oh upgrade oh` command downloads binaries exclusively from GitHub Releases 
 7. **Run `oh doctor`** — it checks the opencode version, the daemon capability, the socket and tokens left in clear.
 8. **Verify binary signatures** — after downloading, verify the Cosign signature:
    ```bash
-   cosign verify-blob --bundle checksums.txt.sigstore.json checksums.txt
+   cosign verify-blob --bundle checksums.txt.sigstore.json \
+     --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+     --certificate-identity-regexp '^https://github\.com/datichb/openhub/\.github/workflows/release\.yml@refs/tags/v.*$' \
+     checksums.txt
    ```
 9. **Keep openhub updated** — run `oh upgrade oh` (or `brew upgrade openhub`) regularly to receive security patches.
 

@@ -169,8 +169,8 @@ func TestDeepCopyTeamConfig_TrackerMaps(t *testing.T) {
 		Tracker: teamstate.TrackerConfig{
 			LabelStatusMapping: map[string]string{"blocked": "blocked"},
 			StatusMapping:      map[string]string{"In Progress": "in_progress"},
-			Projects:           map[string]string{"p1": "42"},
-			TicketPatterns:     map[string]string{"p1": `PRJ-\d+`},
+			Projects:           map[string]string{"p1": "42"},      //nolint:staticcheck // legacy tracker fields still read by the sync engine (backward compatibility)
+			TicketPatterns:     map[string]string{"p1": `PRJ-\d+`}, //nolint:staticcheck // legacy tracker fields still read by the sync engine (backward compatibility)
 			UnassignedLabels:   []string{"team::backend"},
 			TypeEnforced:       dcBoolPtr(true),
 			PushLabelsEnforced: dcBoolPtr(false),

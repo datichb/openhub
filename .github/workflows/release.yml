@@ -1,23 +1,24 @@
 name: Release — GoReleaser
 
 on:
-  workflow_run:
-    workflows: ["CI — Go CLI"]
-    types: [completed]
-    branches: [main]
+  # A tag push (v5.0.0, v5.0.0-rc.1…) releases. The former trigger
+  # (workflow_run filtered on the main branch) never ran for a tag: the
+  # head branch of a tag push is the tag, not main.
+  push:
+    tags: ["v*"]
 
 permissions:
   contents: write
   id-token: write # required for cosign keyless signing via Sigstore OIDC
 
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   release:
     name: Release oh
     runs-on: ubuntu-latest
-    # Only run if CI succeeded on a tag push
-    if: >-
-      github.event.workflow_run.conclusion == 'success' &&
-      startsWith(github.event.workflow_run.head_branch, 'v')
     defaults:
       run:
         working-directory: cli
@@ -26,7 +27,6 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
-          ref: ${{ github.event.workflow_run.head_sha }}
 
       - name: Setup Go
         uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
@@ -36,6 +36,12 @@ jobs:
 
       - name: Download dependencies
         run: go mod download
+
+      - name: Prepare embedded hub content
+        run: make embed-sync
+
+      - name: Test
+        run: go test ./...
 
       - name: Install Cosign
         uses: sigstore/cosign-installer@ba7bc0a3fef59531c69a25acd34668d6d3fe6f22 # v4.1.0

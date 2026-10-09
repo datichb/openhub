@@ -23,7 +23,7 @@ import (
 )
 
 // oh bundle build|show: the session bundle of a workflow (replaces oh deploy
-// to inspect what a session sees, and oh skill budget).
+// to inspect what a session sees; its --budget replaces oh skill budget).
 
 var bundleCmd = &cobra.Command{
 	Use:   "bundle",

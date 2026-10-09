@@ -138,29 +138,55 @@ main() {
         exit 1
     fi
 
-    # Verify checksum (sha256sum on Linux, shasum on macOS)
-    if command -v sha256sum > /dev/null 2>&1; then
-        EXPECTED=$(grep " ${ARCHIVE_NAME}$" "$TMP_DIR/$CHECKSUMS_NAME" | awk '{print $1}')
-        ACTUAL=$(sha256sum "$TMP_DIR/$ARCHIVE_NAME" | awk '{print $1}')
-    elif command -v shasum > /dev/null 2>&1; then
-        EXPECTED=$(grep " ${ARCHIVE_NAME}$" "$TMP_DIR/$CHECKSUMS_NAME" | awk '{print $1}')
-        ACTUAL=$(shasum -a 256 "$TMP_DIR/$ARCHIVE_NAME" | awk '{print $1}')
+    # Verify the signature of the checksums (cosign, when installed)
+    SIG_NAME="${CHECKSUMS_NAME}.sigstore.json"
+    if command -v cosign > /dev/null 2>&1; then
+        download "https://github.com/${REPO}/releases/download/v${VERSION}/${SIG_NAME}" "$TMP_DIR/$SIG_NAME" || true
+        if [ -f "$TMP_DIR/$SIG_NAME" ]; then
+            if ! cosign verify-blob --bundle "$TMP_DIR/$SIG_NAME" \
+                --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+                --certificate-identity-regexp '^https://github\.com/datichb/openhub/\.github/workflows/release\.yml@refs/tags/v.*$' \
+                "$TMP_DIR/$CHECKSUMS_NAME" > /dev/null 2>&1; then
+                echo "Error: the signature of ${CHECKSUMS_NAME} is invalid — refusing to install."
+                exit 1
+            fi
+            echo "  Signature OK"
+        elif [ "${OH_REQUIRE_SIGNATURE:-}" = "1" ]; then
+            echo "Error: no signature for v${VERSION} and OH_REQUIRE_SIGNATURE=1."
+            exit 1
+        else
+            echo "  Warning: no signature for v${VERSION} (checksum only)."
+        fi
+    elif [ "${OH_REQUIRE_SIGNATURE:-}" = "1" ]; then
+        echo "Error: cosign is not installed and OH_REQUIRE_SIGNATURE=1."
+        exit 1
     else
-        echo "Warning: Neither sha256sum nor shasum found — skipping checksum verification."
-        EXPECTED=""
-        ACTUAL=""
+        echo "  Note: cosign is not installed — signature not verified (checksum only)."
     fi
 
-    if [ -n "$EXPECTED" ] && [ -n "$ACTUAL" ]; then
-        if [ "$EXPECTED" != "$ACTUAL" ]; then
-            echo "Error: Checksum mismatch!"
-            echo "  Expected: $EXPECTED"
-            echo "  Actual:   $ACTUAL"
-            echo "The downloaded file may be corrupted or tampered with."
-            exit 1
-        fi
-        echo "  Checksum OK"
+    # Verify checksum (sha256sum on Linux, shasum on macOS)
+    EXPECTED=$(grep " ${ARCHIVE_NAME}$" "$TMP_DIR/$CHECKSUMS_NAME" | awk '{print $1}')
+    if command -v sha256sum > /dev/null 2>&1; then
+        ACTUAL=$(sha256sum "$TMP_DIR/$ARCHIVE_NAME" | awk '{print $1}')
+    elif command -v shasum > /dev/null 2>&1; then
+        ACTUAL=$(shasum -a 256 "$TMP_DIR/$ARCHIVE_NAME" | awk '{print $1}')
+    else
+        echo "Error: neither sha256sum nor shasum found — refusing to install an unverified binary."
+        exit 1
     fi
+
+    if [ -z "$EXPECTED" ]; then
+        echo "Error: no checksum for ${ARCHIVE_NAME} in ${CHECKSUMS_NAME} — refusing to install."
+        exit 1
+    fi
+    if [ "$EXPECTED" != "$ACTUAL" ]; then
+        echo "Error: Checksum mismatch!"
+        echo "  Expected: $EXPECTED"
+        echo "  Actual:   $ACTUAL"
+        echo "The downloaded file may be corrupted or tampered with."
+        exit 1
+    fi
+    echo "  Checksum OK"
 
     # Extract
     echo "Extracting..."
