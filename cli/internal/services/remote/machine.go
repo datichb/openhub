@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/datichb/openhub/cli/internal/beads"
+	"github.com/datichb/openhub/cli/internal/gitutil"
 	"github.com/datichb/openhub/cli/internal/remote"
 )
 
@@ -229,7 +230,7 @@ type Git interface {
 type GitCLI struct{}
 
 func (GitCLI) git(ctx context.Context, dir string, args ...string) (string, error) {
-	cmd := exec.CommandContext(ctx, "git", append([]string{"-C", dir}, args...)...)
+	cmd := gitutil.Command(ctx, dir, args...)
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
 	out, err := cmd.Output()
@@ -274,7 +275,7 @@ func (g GitCLI) FetchBranch(ctx context.Context, dir, branch string) error {
 
 // IsAncestor implements Git.
 func (g GitCLI) IsAncestor(ctx context.Context, dir, ancestor, commit string) (bool, error) {
-	cmd := exec.CommandContext(ctx, "git", "-C", dir, "merge-base", "--is-ancestor", ancestor, commit)
+	cmd := gitutil.Command(ctx, dir, "merge-base", "--is-ancestor", ancestor, commit)
 	err := cmd.Run()
 	var ee *exec.ExitError
 	if errors.As(err, &ee) && ee.ExitCode() == 1 {
@@ -291,7 +292,7 @@ func (g GitCLI) Dirty(ctx context.Context, dir string) (bool, error) {
 
 // ShowFile implements Git.
 func (g GitCLI) ShowFile(ctx context.Context, dir, commit, path string) ([]byte, error) {
-	cmd := exec.CommandContext(ctx, "git", "-C", dir, "show", commit+":"+path)
+	cmd := gitutil.Command(ctx, dir, "show", commit+":"+path)
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
 	out, err := cmd.Output()

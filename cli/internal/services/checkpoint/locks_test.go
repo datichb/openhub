@@ -16,6 +16,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/adapters"
 	"github.com/datichb/openhub/cli/internal/bundle"
 	"github.com/datichb/openhub/cli/internal/domain"
+	"github.com/datichb/openhub/cli/internal/gitutil"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 )
 
@@ -245,4 +246,34 @@ func TestGitHead(t *testing.T) {
 	assert.False(t, dirty)
 	_, _, err = GitHead(context.Background(), t.TempDir())
 	assert.Error(t, err, "not a repository")
+}
+
+// N5 (v5 critical): a checkpoint that unlocks operations is refused when the
+// git configuration of the session location changed since the session
+// started (a program would run on the machine at the next git of oh).
+func TestGuardRefusesTamperedConfig(t *testing.T) {
+	gitutil.SetTrustDir(t.TempDir())
+	t.Cleanup(func() { gitutil.SetTrustDir("") })
+	svc, ctx, _ := newLockService(t)
+	svc.Head = nil // real git
+	repo := t.TempDir()
+	out, err := exec.Command("git", "init", "-q", repo).CombinedOutput()
+	require.NoError(t, err, string(out))
+	_, err = svc.Sessions.Get(ctx, "ses_l")
+	require.NoError(t, err)
+	require.NoError(t, svc.Sessions.Create(ctx, &domain.Session{ID: "ses_g", ProjectID: "p1", Status: domain.SessionStatusRunning, GroupKey: "g1",
+		BundleHash: "h_lock", Mode: "manuel", State: domain.RunActive, LaunchPath: repo}))
+	require.NoError(t, gitutil.Trust(ctx, repo))
+
+	out, err = exec.Command("git", "-C", repo, "config", "core.fsmonitor", "touch /tmp/oh-pwned").CombinedOutput()
+	require.NoError(t, err, string(out))
+	_, err = reachValidated(t, svc, ctx, "ses_g", "cp-2")
+	require.ErrorIs(t, err, gitutil.ErrConfigChanged)
+	st, _ := svc.State(ctx, "ses_g")
+	assert.False(t, st.HasPassed("cp-2"))
+	assert.Empty(t, st.Unlocks)
+
+	require.NoError(t, gitutil.Trust(ctx, repo)) // a new session trusts it again
+	_, err = reachValidated(t, svc, ctx, "ses_g", "cp-2")
+	require.NoError(t, err)
 }

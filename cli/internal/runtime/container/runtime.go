@@ -12,6 +12,7 @@ import (
 	"runtime"
 	"strings"
 	"sync"
+	"time"
 
 	ohruntime "github.com/datichb/openhub/cli/internal/runtime"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
@@ -230,6 +231,12 @@ func (r *Runtime) Command(ctx context.Context, pg *ohruntime.Prepared, p ohrunti
 		return nil, fmt.Errorf("%w: %s", ErrUnavailable, av.Message())
 	}
 	_, _ = r.opts.Runner.Run(ctx, e.CLI, e.Command("rm", "-f", s.Name)[1:]...)
+	// A fresh HOME for each start of the group container (audit S-33).
+	for _, m := range s.Mounts {
+		if m.Volume && m.Target == InnerHome {
+			_, _ = r.opts.Runner.Run(ctx, e.CLI, e.Command("volume", "rm", "-f", m.Source)[1:]...)
+		}
+	}
 	dir := r.opts.CacheDir
 	if pg.Group.DataDir != "" {
 		dir = filepath.Dir(specFile(pg.Group.DataDir))
@@ -245,6 +252,12 @@ func (r *Runtime) Command(ctx context.Context, pg *ohruntime.Prepared, p ohrunti
 	if err := os.WriteFile(envFile, []byte(content), 0o600); err != nil {
 		return nil, err
 	}
+	// The env file holds the session tokens: the engine CLI reads it when
+	// it starts; it is removed shortly after, and at Teardown (audit S-35).
+	go func() {
+		time.Sleep(envFileLife)
+		_ = os.Remove(envFile)
+	}()
 	cmd := exec.Command(e.CLI, append(append([]string{}, e.Args...), args...)...)
 	for _, k := range cliEnvKeys {
 		if v, ok := os.LookupEnv(k); ok {
@@ -267,5 +280,11 @@ func (r *Runtime) Teardown(ctx context.Context, pg *ohruntime.Prepared) error {
 	}
 	// "no such container" is the normal case.
 	_, _ = r.opts.Runner.Run(ctx, e.CLI, e.Command("rm", "-f", s.Name)[1:]...)
+	if pg.Group.DataDir != "" {
+		_ = os.Remove(filepath.Join(filepath.Dir(specFile(pg.Group.DataDir)), "container.env"))
+	}
 	return nil
 }
+
+// envFileLife is how long the env file of a container start stays on disk.
+var envFileLife = 20 * time.Second

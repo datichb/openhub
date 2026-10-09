@@ -127,7 +127,9 @@ MCP server tokens (GitLab, Figma, Jira, Linear, GitHub, Google) are:
 ### Container sessions
 
 - **No secret in the container's environment.** The environment is passed with `--env-file` (0600) and is minimal, with no variable from the machine. The only credentials the shell sees are the `ohs_…` token and an `ohg_…` token (with `OH_GATEWAY_URL`).
-- **Read-only bundle** on `/opt/oh/bundle`. `HOME` is a volume of the project: your configuration is never visible. `~/.oh` is not mounted: neither the daemon socket nor `oh.db` are reachable.
+- **Read-only bundle** on `/opt/oh/bundle`. `HOME` is a volume of the server group, emptied at each container start: your configuration is never visible and nothing an agent leaves there (`.zshenv`…) reaches another session. `~/.oh` is not mounted: neither the daemon socket nor `oh.db` are reachable.
+- **Git files that run programs are read-only**: `.git/config`, `.git/hooks`, `info/attributes`, and for a worktree its `.git` file and the `commondir`/`gitdir` links, in every view of the repository inside the container. The git of the machine (oh, then you after the session) runs nothing an agent planted there. Consequence: `git push -u` and `git branch --set-upstream-to` (which write the configuration) fail inside the container; branches are created without tracking configuration (`branch.autoSetupMerge=false`).
+- **Hardened container**: `--cap-drop=ALL`, `--security-opt=no-new-privileges`, `--pids-limit=4096`; cache volumes refuse commas, quotes, `=`, `..` and targets under `/opt/oh`. The environment file (session tokens) is removed shortly after the container starts and when it stops.
 - The opencode port is published on `127.0.0.1` only. A mount outside the folders shared with the VM is refused.
 - The container is removed when the session stops or sleeps (`run --rm --init`).
 
@@ -145,6 +147,7 @@ Optional and disabled by default (`oh budget show|set|unset|raise`): maximum act
 ### Known limitations of the local mode
 
 - The agent's shell runs as your user. It can still reach the daemon socket and `oh.db`, but the socket no longer passes a checkpoint (see above).
+- **oh's git on the machine**: oh runs git in your repositories (state before a checkpoint, worktrees, diffs, Beads clean-up) with what the repository configuration could run neutralized (`core.fsmonitor`, hooks, `diff.external`, textconv, `core.sshCommand`, `uploadpack`/`receivepack`, credential helpers, `ext::` URLs), and refuses to pass a checkpoint that unlocks an operation when the git configuration or hooks changed since the session started.
 - Without the capability it cannot obtain new tokens, but a process of your user can read the keychain item or the capability file, or run `oh` itself. These protections raise the bar; they do not isolate the agent.
 - The LLM key is never in the agent's environment or in the opencode configuration, but your keychain is readable by your user.
 - The shell of a session never gets the opencode server password, its inline configuration, the group token nor the provider token: the oh plugin removes them from every shell, also without a session environment (a subagent not yet adopted, a session opened in the tool interface). Without an active oh plugin (fallback mode, reported in the log), a shell without a session environment still inherits them. Commands aiming at these variables or at the server API (permission and question answers, session environment) are refused to every agent, as a guard rail.

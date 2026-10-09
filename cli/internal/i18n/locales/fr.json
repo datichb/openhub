@@ -3942,6 +3942,7 @@
   "cmd.daemon.workflow.not_approved": "Le checkpoint %s attend la validation de l'utilisateur : il n'est pas passé. Appelez workflow_checkpoint et attendez sa réponse ; ne cherchez pas à le passer autrement.",
   "cmd.daemon.workflow.unauthorized": "route du workflow réservée au serveur MCP workflow de la session (jeton du groupe absent ou invalide ; une session lancée par une version précédente d'oh doit être relancée)",
   "cmd.daemon.workflow.forbidden": "cette session n'appartient pas au groupe de ce jeton",
+  "cmd.daemon.workflow.git_changed": "Le checkpoint %s n'est pas passé : la configuration ou les hooks git du dépôt ont changé depuis le début de la session (un programme pourrait s'exécuter sur la machine). Signalez-le à l'utilisateur ; ne modifiez pas .git.",
   "cmd.export.long": "Crée une archive .oh-backup.tar.gz contenant la base, hub.toml et les secrets chiffrés.",
   "cmd.export.flags.output": "Chemin de sortie (défaut : ./oh-backup-<date>.tar.gz)",
   "cmd.history.flags.limit": "Nombre maximal d'entrées",

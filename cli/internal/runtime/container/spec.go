@@ -136,9 +136,36 @@ func buildSpec(e Engine, in specInput, g ohruntime.Group, image, groupKey string
 		}
 	}
 
+	// The git files that make git run programs are read-only inside (v5
+	// critical N5, DC5): the git of the machine (oh, and the user after the
+	// session) would run them.
+	// A file may be visible at several places (the project mount and the
+	// git common directory at its machine path): every view is covered.
+	views := append(ohruntime.PathMap(nil), s.Paths...)
+	protected := map[string]bool{}
+	for _, l := range locs {
+		for _, src := range gitProtected(l) {
+			for _, inner := range innerViews(views, src) {
+				if protected[inner] {
+					continue
+				}
+				protected[inner] = true
+				if err := add(Mount{Source: src, Target: inner, ReadOnly: true}); err != nil {
+					return Spec{}, err
+				}
+			}
+		}
+	}
+
 	name := imageName(g.ProjectID)
-	s.Mounts = append(s.Mounts, Mount{Source: "oh-" + name + "-home", Target: InnerHome, Volume: true})
+	// HOME is a volume of the group, emptied when its container starts
+	// (Command): nothing an agent leaves there (.zshenv…) reaches another
+	// session (audit S-33).
+	s.Mounts = append(s.Mounts, Mount{Source: homeVolume(name, groupKey), Target: InnerHome, Volume: true})
 	for _, v := range g.Volumes {
+		if err := checkVolume(v); err != nil {
+			return Spec{}, err
+		}
 		if filepath.IsAbs(v) {
 			s.Mounts = append(s.Mounts, Mount{Source: volumeName(name, v), Target: clean(v), Volume: true})
 			continue
@@ -156,9 +183,12 @@ func buildSpec(e Engine, in specInput, g ohruntime.Group, image, groupKey string
 	// The repository is owned by another uid in some setups; worktree
 	// metadata must never be pruned from inside (the worktrees live on the
 	// machine, at paths the container does not see).
-	s.Env["GIT_CONFIG_COUNT"] = "2"
+	// The repository configuration is read-only: branches are created
+	// without writing their tracking configuration.
+	s.Env["GIT_CONFIG_COUNT"] = "3"
 	s.Env["GIT_CONFIG_KEY_0"], s.Env["GIT_CONFIG_VALUE_0"] = "safe.directory", "*"
 	s.Env["GIT_CONFIG_KEY_1"], s.Env["GIT_CONFIG_VALUE_1"] = "gc.worktreePruneExpire", "never"
+	s.Env["GIT_CONFIG_KEY_2"], s.Env["GIT_CONFIG_VALUE_2"] = "branch.autoSetupMerge", "false"
 
 	ids := strconv.Itoa(in.UID) + ":" + strconv.Itoa(in.GID)
 	if e.Kind == EnginePodman && e.Rootless {
@@ -178,7 +208,10 @@ func buildSpec(e Engine, in specInput, g ohruntime.Group, image, groupKey string
 // container variables (HOME…) never mix with the CLI process environment.
 func runArgs(s Spec, p ohruntime.Proc, envFile string) (args []string, envContent string, err error) {
 	args = []string{"run", "--rm", "--init", "--name", s.Name,
-		"--label", labelManaged + "=true", "--label", "oh.container=" + s.Name}
+		"--label", labelManaged + "=true", "--label", "oh.container=" + s.Name,
+		// The agent's processes get no capability and cannot gain one
+		// (setuid); a fork bomb stays in the container (audit S-33).
+		"--cap-drop=ALL", "--security-opt=no-new-privileges", "--pids-limit=" + strconv.Itoa(pidsLimit)}
 	args = append(args, s.UserArgs...)
 	for _, h := range s.AddHosts {
 		args = append(args, "--add-host", h)
@@ -227,6 +260,9 @@ func runArgs(s Spec, p ohruntime.Proc, envFile string) (args []string, envConten
 	return args, b.String(), nil
 }
 
+// pidsLimit bounds the processes of a group container.
+const pidsLimit = 4096
+
 func clean(p string) string {
 	if abs, err := filepath.Abs(p); err == nil {
 		p = abs
@@ -274,6 +310,96 @@ func volumeName(project, target string) string {
 
 // gitCommonDir returns the git common directory of a worktree location ("" =
 // not a linked worktree). Pure file reads: no git binary needed.
+// innerViews returns every path at which the bind mounts of views show the
+// machine path src.
+func innerViews(views ohruntime.PathMap, src string) []string {
+	var out []string
+	for _, m := range views {
+		if src == m.Host {
+			out = append(out, m.Inner)
+		} else if rel, ok := strings.CutPrefix(src, m.Host+string(filepath.Separator)); ok {
+			out = append(out, filepath.Join(m.Inner, rel))
+		}
+	}
+	return out
+}
+
+// homeVolume is the HOME volume of a group container.
+func homeVolume(project, groupKey string) string {
+	sum := sha256.Sum256([]byte(groupKey))
+	return "oh-" + project + "-" + hex.EncodeToString(sum[:4]) + "-home"
+}
+
+// checkVolume refuses a cache volume path that would inject mount options
+// or hide oh's own directories.
+func checkVolume(v string) error {
+	if strings.ContainsAny(v, ",\"\n\r=") {
+		return fmt.Errorf("volume %q: commas, quotes, '=' and newlines are not allowed", v)
+	}
+	if c := filepath.Clean(v); filepath.IsAbs(c) && (c == "/opt/oh" || strings.HasPrefix(c, "/opt/oh/") || c == "/") {
+		return fmt.Errorf("volume %q: %s is reserved to oh", v, c)
+	}
+	if strings.Contains(filepath.ToSlash(v), "..") {
+		return fmt.Errorf("volume %q: '..' is not allowed", v)
+	}
+	return nil
+}
+
+// gitProtected returns the machine paths of a location that hold what makes
+// git run programs: configuration, hooks, attributes, and for a worktree its
+// `.git` pointer file and the links of its administrative directory. The
+// hooks directory is created when missing (empty), so that it can be mounted
+// read-only. Paths that do not exist are left out.
+func gitProtected(loc string) []string {
+	dotGit := filepath.Join(loc, ".git")
+	st, err := os.Stat(dotGit)
+	if err != nil {
+		return nil
+	}
+	var out []string
+	keep := func(p string) {
+		if _, err := os.Lstat(p); err == nil {
+			out = append(out, p)
+		}
+	}
+	commonFiles := func(common string) {
+		hooks := filepath.Join(common, "hooks")
+		_ = os.MkdirAll(hooks, 0o755)
+		keep(filepath.Join(common, "config"))
+		keep(hooks)
+		keep(filepath.Join(common, "info", "attributes"))
+		if mods, _ := filepath.Glob(filepath.Join(common, "modules", "*")); len(mods) > 0 {
+			for _, m := range mods {
+				keep(filepath.Join(m, "config"))
+				keep(filepath.Join(m, "hooks"))
+			}
+		}
+	}
+	if st.IsDir() {
+		commonFiles(clean(dotGit))
+		return out
+	}
+	common := gitCommonDir(loc)
+	if common == "" {
+		return nil
+	}
+	keep(clean(dotGit))
+	commonFiles(common)
+	if data, err := os.ReadFile(dotGit); err == nil {
+		if gd, ok := strings.CutPrefix(strings.TrimSpace(string(data)), "gitdir:"); ok {
+			gd = strings.TrimSpace(gd)
+			if !filepath.IsAbs(gd) {
+				gd = filepath.Join(loc, gd)
+			}
+			gd = clean(gd)
+			keep(filepath.Join(gd, "commondir"))
+			keep(filepath.Join(gd, "gitdir"))
+			keep(filepath.Join(gd, "config.worktree"))
+		}
+	}
+	return out
+}
+
 func gitCommonDir(loc string) string {
 	data, err := os.ReadFile(filepath.Join(loc, ".git"))
 	if err != nil {

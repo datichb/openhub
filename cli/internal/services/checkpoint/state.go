@@ -10,6 +10,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/adapters"
 	"github.com/datichb/openhub/cli/internal/bundle"
 	"github.com/datichb/openhub/cli/internal/domain"
+	"github.com/datichb/openhub/cli/internal/gitutil"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 )
@@ -227,7 +228,13 @@ func (s *Service) tryPass(ctx context.Context, sess *domain.Session, c sessionsp
 	sessionID, id := sess.ID, c.ID
 	head := ""
 	if len(c.Unlocks) > 0 {
-		head, _ = s.head(ctx, sess.LaunchPath)
+		var err error
+		head, _, err = s.headErr(ctx, sess.LaunchPath)
+		if errors.Is(err, gitutil.ErrConfigChanged) {
+			// The repository runs programs oh did not see at the start
+			// of the session (N5): nothing is unlocked.
+			return domain.CheckpointApproval{}, err
+		}
 	}
 	var ap domain.CheckpointApproval
 	_, err := s.update(ctx, sessionID, func(st *domain.CheckpointState) error {

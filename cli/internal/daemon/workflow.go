@@ -11,6 +11,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/adapters"
 	"github.com/datichb/openhub/cli/internal/credproxy"
 	"github.com/datichb/openhub/cli/internal/domain"
+	"github.com/datichb/openhub/cli/internal/gitutil"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/services/checkpoint"
 )
@@ -159,6 +160,10 @@ func (d *Daemon) handleWorkflowCheckpoint(w http.ResponseWriter, r *http.Request
 	res, err := d.opts.Checkpoints.Reached(r.Context(), root, req.Call)
 	if errors.Is(err, checkpoint.ErrNotApproved) {
 		writeErr(w, http.StatusConflict, i18n.Tf("cmd.daemon.workflow.not_approved", req.ID))
+		return
+	}
+	if errors.Is(err, gitutil.ErrConfigChanged) {
+		writeErr(w, http.StatusConflict, i18n.Tf("cmd.daemon.workflow.git_changed", req.ID))
 		return
 	}
 	if err != nil {

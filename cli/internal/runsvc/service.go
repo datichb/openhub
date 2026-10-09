@@ -288,6 +288,7 @@ func (s *Service) StartSession(ctx context.Context, req StartRequest) (*StartRes
 	if err := s.saveStaticEnv(sid, static); err != nil {
 		return nil, fmt.Errorf("saving session environment: %w", err)
 	}
+	trustRepository(ctx, req.Location)
 	if err := s.saveBeadsAllow(sid, req.BeadsAllow); err != nil {
 		return nil, fmt.Errorf("saving session Beads allow-list: %w", err)
 	}
