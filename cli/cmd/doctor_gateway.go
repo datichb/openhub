@@ -6,9 +6,11 @@ import (
 	"net/http"
 	"os/exec"
 	"runtime"
+	"time"
 
 	"github.com/datichb/openhub/cli/internal/daemon"
 	"github.com/datichb/openhub/cli/internal/gateway"
+	"github.com/datichb/openhub/cli/internal/gateway/bdargs"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/runtime/container"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
@@ -32,7 +34,7 @@ func gatewayDoctorChecks(ctx context.Context) []views.DoctorCheck {
 	}
 	var out []views.DoctorCheck
 	if p, err := exec.LookPath("bd"); err == nil {
-		out = append(out, check("bd", true, p))
+		out = append(out, check("bd", true, p), bdVersionCheck(ctx, p))
 	} else {
 		out = append(out, check("bd", false, i18n.T("cmd.doctor.gateway.bd_missing")))
 	}
@@ -94,6 +96,33 @@ func gatewayReachCheck(check func(string, bool, string) views.DoctorCheck, key, 
 		return check(key, false, i18n.Tf("cmd.doctor.gateway.route_missing", url))
 	}
 	return check(key, true, i18n.Tf("cmd.doctor.gateway.reachable", url, code, image))
+}
+
+// bdVersionCheck warns when the installed bd is not the version the
+// argument table of the Beads gateway was generated from (bdargs): an
+// option of another version is refused by the gateway.
+func bdVersionCheck(ctx context.Context, bin string) views.DoctorCheck {
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+	out, err := exec.CommandContext(ctx, bin, "version").Output()
+	if err != nil {
+		return bdVersionResult("", err)
+	}
+	return bdVersionResult(string(out), nil)
+}
+
+// bdVersionResult turns the output of `bd version` into the check.
+func bdVersionResult(out string, err error) views.DoctorCheck {
+	name := i18n.T("cmd.doctor.gateway.bd_version")
+	expected, same := bdargs.SameVersion(out)
+	switch {
+	case err != nil:
+		return views.DoctorCheck{Name: name, OK: true, Warn: true, Detail: i18n.Tf("cmd.doctor.gateway.bd_version_unknown", err.Error(), expected)}
+	case same:
+		return views.DoctorCheck{Name: name, OK: true, Detail: expected}
+	}
+	return views.DoctorCheck{Name: name, OK: true, Warn: true,
+		Detail: i18n.Tf("cmd.doctor.gateway.bd_version_other", orNone(bdargs.VersionNumber(out)), expected)}
 }
 
 func orNone(s string) string {

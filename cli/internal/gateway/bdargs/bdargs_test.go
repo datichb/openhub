@@ -93,3 +93,16 @@ func TestKnown(t *testing.T) {
 	_, ok = Known("dep", "nope")
 	assert.False(t, ok)
 }
+
+func TestVersionNumber(t *testing.T) {
+	assert.Equal(t, "1.3.1", VersionNumber("bd version 1.3.1 (Homebrew)\n"))
+	assert.Equal(t, "1.4.0-rc.1", VersionNumber("bd version 1.4.0-rc.1 (dev)"))
+	assert.Equal(t, "", VersionNumber("bd: unknown command"))
+	expected, same := SameVersion(GeneratedFor)
+	assert.True(t, same)
+	assert.NotEmpty(t, expected)
+	_, same = SameVersion("bd version " + expected + " (built from source)")
+	assert.True(t, same, "the build does not count")
+	_, same = SameVersion("bd version 99.0.0 (Homebrew)")
+	assert.False(t, same)
+}
