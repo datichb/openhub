@@ -143,8 +143,10 @@ func Init(projectPath, prefix string) error {
 	defer localCancel()
 	_ = BdCommand(localCtx, "-C", projectPath, "config", "set", "dolt.local-only", "true").Run()
 
-	// Belt & suspenders: sanitize in case flags were ignored or bd evolved.
-	_ = SanitizeBeadsInit(projectPath)
+	// Belt & suspenders: bd's sections of .git/hooks, in case the flags
+	// were ignored. The project files are cleaned by the caller, after the
+	// user saw the changes (N17).
+	sanitizeHooks(projectPath)
 
 	// Register default labels used by the hub agents
 	for _, label := range []string{"ai-delegated", "feature", "fix"} {

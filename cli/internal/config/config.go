@@ -55,6 +55,8 @@ type Config struct {
 	// Limits holds the optional session restrictions of the hub level (I6,
 	// off by default; cascade in internal/limits).
 	Limits limits.Limits `mapstructure:"limits" toml:"limits,omitempty"`
+	// Beads holds the Beads settings of the hub (zero impact clean-up).
+	Beads BeadsConfig `mapstructure:"beads" toml:"beads,omitempty"`
 }
 
 // ExecutionConfig configures where v5 sessions run.

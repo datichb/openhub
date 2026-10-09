@@ -46,6 +46,7 @@ oh project add [options]
 | `--name` | `-n` | string | Project name |
 | `--path` | `-d` | string | Project path (default: current directory) |
 | `--language` | `-l` | string | Main language |
+| `--yes` | `-y` | bool | Beads zero impact: remove what `bd init` wrote without a confirmation and undo its commit when it was not pushed (otherwise: listed, then a confirmation; without a terminal nothing changes) |
 
 **Example:**
 

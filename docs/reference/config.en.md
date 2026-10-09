@@ -105,6 +105,9 @@ group = "acme"
 [remote.projects]                  # oh project → target (otherwise automatic choice)
 # web-app = "acme"
 
+[beads]
+# zero_impact = "ask"              # ask | auto | off (files written by bd init)
+
 [limits]                           # hub I6 restrictions (off by default)
 # max_active_sessions = 4
 # session_budget_usd = 5
@@ -133,6 +136,7 @@ Removed in v5 (ignored if still in the file): `[opencode] version`, `channel`, `
 | `[limits]` | `max_active_sessions`, `session_budget_usd`, `daily_budget_usd`, `memory_mb`, `models` | not set | Hub I6 restrictions (`oh budget set`) |
 | `[deploy]` | `instruction_files` | `[]` | Project files added to the instructions of the bundle agents |
 | `[websearch]` | `enabled` | `false` | WebSearch / WebFetch permissions |
+| `[beads]` | `zero_impact` | `ask` | Files written by `bd init` outside `.beads/` when a project is registered or Beads initialized: `ask` (listed, then a confirmation; without a terminal, nothing), `auto` (no question; untracked settings files left alone), `off` (nothing). The commit of `bd init` is only undone with `--yes` ([Getting started](../guides/getting-started.en.md)) |
 
 See [container](../guides/container.en.md), [remote runners](../guides/remote-runners.en.md) and [v5 sessions](../guides/sessions-v5.en.md#restrictions).
 

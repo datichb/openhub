@@ -30,9 +30,9 @@ const (
 	projectWrite
 )
 
-// projectConfirm asks to confirm the project used outside of its directory
+// cliConfirm asks a yes/no question on the terminal
 // (replaced in tests).
-var projectConfirm = func(w io.Writer, msg string) (bool, error) {
+var cliConfirm = func(w io.Writer, msg string) (bool, error) {
 	return launcher.NewCLIUI(w).Confirm(msg)
 }
 
@@ -100,7 +100,7 @@ func resolveProject(ctx context.Context, a *app.App, projectID string, use proje
 		if !stdinIsTerminal() {
 			return nil, errors.New(i18n.T("cmd.run.project.outside"))
 		}
-		ok, err := projectConfirm(errOut, i18n.Tf("cmd.run.project.confirm", p.Name, p.Path))
+		ok, err := cliConfirm(errOut, i18n.Tf("cmd.run.project.confirm", p.Name, p.Path))
 		if err != nil {
 			return nil, err
 		}

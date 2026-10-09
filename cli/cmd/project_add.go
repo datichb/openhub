@@ -24,6 +24,9 @@ import (
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
 
+// projectAddYes is --yes of oh project add (Beads zero impact, N17).
+var projectAddYes bool
+
 func projectAddCmd() *cobra.Command {
 	var (
 		name     string
@@ -65,6 +68,7 @@ func projectAddCmd() *cobra.Command {
 	cmd.Flags().StringVarP(&name, "name", "n", "", "Nom du projet")
 	cmd.Flags().StringVarP(&path, "path", "d", "", "Chemin du projet (défaut: répertoire courant)")
 	cmd.Flags().StringVarP(&language, "language", "l", "", "Langage principal")
+	cmd.Flags().BoolVarP(&projectAddYes, "yes", "y", false, "Beads zéro impact : nettoyer sans confirmation et annuler le commit de bd init s'il n'est pas poussé")
 
 	return cmd
 }
@@ -342,7 +346,7 @@ func runProjectAddInteractive(ctx context.Context, a *app.App) error {
 	fmt.Fprintf(a.IO.Out, "\n%s %s\n",
 		theme.SuccessStyle.Render(theme.IconSuccess),
 		i18n.Tf("cmd.project.registered", theme.Bold.Render(name), absPath))
-	printBeadsClean(a.IO.Out, absPath)
+	printBeadsClean(a.IO.Out, a, absPath, projectAddYes)
 	if projectSolo {
 		if sp, err := attachProjectSolo(ctx, a, result); err != nil {
 			fmt.Fprintf(a.IO.Out, "%s %s\n", theme.WarningStyle.Render(theme.IconWarning), i18n.Tf("tui.solo.project.failed", err.Error()))
@@ -406,7 +410,7 @@ func doCreateProjectMinimal(ctx context.Context, a *app.App, name, absPath, lang
 	fmt.Fprintf(a.IO.Out, "%s %s\n",
 		theme.SuccessStyle.Render(theme.IconSuccess),
 		i18n.Tf("cmd.project.registered", theme.Bold.Render(name), absPath))
-	printBeadsClean(a.IO.Out, absPath)
+	printBeadsClean(a.IO.Out, a, absPath, projectAddYes)
 	return nil
 }
 

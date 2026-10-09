@@ -50,59 +50,76 @@ func TestDiagnoseBeadsImpactBd13AgentFiles(t *testing.T) {
 
 // Zero impact with a real `bd init` (bd 1.3): CleanImpact takes back out
 // everything bd wrote outside .beads/ and keeps the user's own content
-// (CLAUDE.md, .claude/settings.json, .gitignore).
+// (CLAUDE.md, .claude/settings.json, .gitignore). bd commits what it wrote:
+// the commit is undone (UndoCommit) when the repository had one before; as
+// the first commit of a repository it is kept (F-01) and nothing changes.
 func TestCleanImpactAfterRealBdInit(t *testing.T) {
 	if _, err := exec.LookPath("bd"); err != nil {
 		t.Skip("bd not installed")
 	}
-	dir := t.TempDir()
-	run := func(name string, args ...string) {
-		t.Helper()
-		c := exec.Command(name, args...)
-		c.Dir = dir
-		if out, err := c.CombinedOutput(); err != nil {
-			t.Fatalf("%s %v: %v\n%s", name, args, err, out)
+	for _, firstCommit := range []bool{false, true} {
+		dir := t.TempDir()
+		run := func(name string, args ...string) {
+			t.Helper()
+			c := exec.Command(name, args...)
+			c.Dir = dir
+			c.Env = append(os.Environ(), "GIT_AUTHOR_NAME=t", "GIT_AUTHOR_EMAIL=t@t", "GIT_COMMITTER_NAME=t", "GIT_COMMITTER_EMAIL=t@t")
+			if out, err := c.CombinedOutput(); err != nil {
+				t.Fatalf("%s %v: %v\n%s", name, args, err, out)
+			}
 		}
-	}
-	run("git", "init", "-q")
-	user := map[string]string{
-		"CLAUDE.md":             "# Mon projet\n\nRègles maison.\n",
-		".gitignore":            "dist/\n",
-		".claude/settings.json": "{\n  \"permissions\": {\n    \"allow\": [\n      \"Read\"\n    ]\n  }\n}\n",
-	}
-	writeProject(t, dir, user)
-	run("bd", "init", "--prefix", "t", "--quiet")
+		run("git", "init", "-q")
+		user := map[string]string{
+			"CLAUDE.md":             "# Mon projet\n\nRègles maison.\n",
+			".gitignore":            "dist/\n",
+			".claude/settings.json": "{\n  \"permissions\": {\n    \"allow\": [\n      \"Read\"\n    ]\n  }\n}\n",
+		}
+		if !firstCommit {
+			writeProject(t, dir, map[string]string{"a.txt": "x\n"})
+			run("git", "add", "a.txt")
+			run("git", "commit", "-qm", "init")
+		}
+		writeProject(t, dir, user)
+		run("bd", "init", "--prefix", "t", "--quiet")
 
-	if len(DiagnoseBeadsImpact(dir)) == 0 {
-		t.Fatal("bd init left no side effect: the test no longer covers bd")
-	}
-	report, err := CleanImpact(dir, CleanOptions{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !report.Changed() {
-		t.Fatalf("nothing cleaned: %+v", report)
-	}
-	for rel, want := range user {
-		got, err := os.ReadFile(filepath.Join(dir, rel))
+		if len(DiagnoseBeadsImpact(dir)) == 0 {
+			t.Fatal("bd init left no side effect: the test no longer covers bd")
+		}
+		report, err := CleanImpact(dir, CleanOptions{UndoCommit: true})
 		if err != nil {
-			t.Fatalf("%s: %v", rel, err)
+			t.Fatal(err)
 		}
-		if strings.TrimSpace(string(got)) != strings.TrimSpace(want) {
-			t.Errorf("%s:\n%s\nwant:\n%s", rel, got, want)
+		committed := len(report.Actions) > 0 && strings.HasPrefix(report.Actions[0].Path, "commit ")
+		if firstCommit {
+			if committed && (report.Actions[0].Kind != CleanCommitFirst || report.Changed()) {
+				t.Fatalf("first commit of bd init: %+v", report)
+			}
+			continue
 		}
-	}
-	for _, rel := range []string{"AGENTS.md", ".cursor", ".codex", ".agents"} {
-		if _, err := os.Stat(filepath.Join(dir, rel)); err == nil {
-			t.Errorf("%s left by bd init", rel)
+		if !report.Changed() {
+			t.Fatalf("nothing cleaned: %+v", report)
 		}
-	}
-	if issues := DiagnoseBeadsImpact(dir); len(issues) != 0 {
-		t.Errorf("still reported: %+v", issues)
-	}
-	exclude, _ := os.ReadFile(filepath.Join(dir, ".git", "info", "exclude"))
-	if !strings.Contains(string(exclude), ".beads") || !strings.Contains(string(exclude), ".dolt/") {
-		t.Errorf("exclude:\n%s", exclude)
+		for rel, want := range user {
+			got, err := os.ReadFile(filepath.Join(dir, rel))
+			if err != nil {
+				t.Fatalf("%s: %v", rel, err)
+			}
+			if strings.TrimSpace(string(got)) != strings.TrimSpace(want) {
+				t.Errorf("%s:\n%s\nwant:\n%s", rel, got, want)
+			}
+		}
+		for _, rel := range []string{"AGENTS.md", ".cursor", ".codex", ".agents"} {
+			if _, err := os.Stat(filepath.Join(dir, rel)); err == nil {
+				t.Errorf("%s left by bd init", rel)
+			}
+		}
+		if issues := DiagnoseBeadsImpact(dir); len(issues) != 0 {
+			t.Errorf("still reported: %+v", issues)
+		}
+		exclude, _ := os.ReadFile(filepath.Join(dir, ".git", "info", "exclude"))
+		if !strings.Contains(string(exclude), ".beads") || !strings.Contains(string(exclude), ".dolt/") {
+			t.Errorf("exclude:\n%s", exclude)
+		}
 	}
 }
 
@@ -183,6 +200,13 @@ func TestCleanImpactUndoesBdInitCommit(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	if git(dir, "log", "-1", "--format=%s") != bdInitCommitSubject {
+		t.Fatalf("commit undone without UndoCommit (N17): %+v", report)
+	}
+	report, err = CleanImpact(dir, CleanOptions{UndoCommit: true})
+	if err != nil {
+		t.Fatal(err)
+	}
 	if got := git(dir, "log", "-1", "--format=%s"); got != "init" {
 		t.Fatalf("HEAD = %q, report %+v", got, report)
 	}
@@ -195,7 +219,7 @@ func TestCleanImpactUndoesBdInitCommit(t *testing.T) {
 	git(bare, "init", "-q", "--bare")
 	git(pushed, "remote", "add", "origin", bare)
 	git(pushed, "push", "-q", "origin", "main")
-	report, err = CleanImpact(pushed, CleanOptions{})
+	report, err = CleanImpact(pushed, CleanOptions{UndoCommit: true})
 	if err != nil {
 		t.Fatal(err)
 	}

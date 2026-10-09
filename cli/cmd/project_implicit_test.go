@@ -44,9 +44,9 @@ func withTerminal(t *testing.T, on bool) {
 func withConfirm(t *testing.T, answer bool) *int {
 	t.Helper()
 	asked := 0
-	prev := projectConfirm
-	projectConfirm = func(io.Writer, string) (bool, error) { asked++; return answer, nil }
-	t.Cleanup(func() { projectConfirm = prev })
+	prev := cliConfirm
+	cliConfirm = func(io.Writer, string) (bool, error) { asked++; return answer, nil }
+	t.Cleanup(func() { cliConfirm = prev })
 	return &asked
 }
 

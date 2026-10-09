@@ -105,6 +105,9 @@ group = "acme"
 [remote.projects]                  # projet oh → cible (sinon choix automatique)
 # web-app = "acme"
 
+[beads]
+# zero_impact = "ask"              # ask | auto | off (fichiers écrits par bd init)
+
 [limits]                           # restrictions I6 du hub (désactivées par défaut)
 # max_active_sessions = 4
 # session_budget_usd = 5
@@ -133,6 +136,7 @@ Supprimés en v5 (ignorés s'ils restent dans le fichier) : `[opencode] version`
 | `[limits]` | `max_active_sessions`, `session_budget_usd`, `daily_budget_usd`, `memory_mb`, `models` | non définies | Restrictions I6 du hub (`oh budget set`) |
 | `[deploy]` | `instruction_files` | `[]` | Fichiers du projet ajoutés aux instructions des agents du paquet |
 | `[websearch]` | `enabled` | `false` | Permissions WebSearch / WebFetch |
+| `[beads]` | `zero_impact` | `ask` | Fichiers écrits par `bd init` hors de `.beads/` à l'enregistrement d'un projet ou à l'initialisation de Beads : `ask` (liste puis confirmation ; sans terminal, rien), `auto` (sans question ; fichiers de réglages non suivis laissés), `off` (rien). Le commit de `bd init` n'est annulé qu'avec `--yes` ([Premiers pas](../guides/getting-started.fr.md)) |
 
 Voir [conteneur](../guides/container.fr.md), [exécution distante](../guides/remote-runners.fr.md) et [sessions v5](../guides/sessions-v5.fr.md#restrictions).
 
