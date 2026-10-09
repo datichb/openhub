@@ -57,7 +57,7 @@ func kinds(r CleanReport) map[string]string {
 	return out
 }
 
-func TestUndoCommitNeedsExplicitYes(t *testing.T) {
+func TestUndoCommitOnlyWhenAsked(t *testing.T) {
 	r := bdCommitRepo(t, false)
 	report, err := CleanImpact(r.dir, CleanOptions{})
 	if err != nil {
@@ -69,8 +69,22 @@ func TestUndoCommitNeedsExplicitYes(t *testing.T) {
 	if _, ok := kinds(report)[CleanCommitKept]; !ok {
 		t.Fatalf("commit not reported as kept: %+v", report)
 	}
-	if _, err := CleanImpact(r.dir, CleanOptions{UndoCommit: true}); err != nil {
+	plan, err := CleanImpact(r.dir, CleanOptions{UndoCommit: true, DryRun: true})
+	if err != nil {
 		t.Fatal(err)
+	}
+	if _, ok := kinds(plan)[CleanUndoCommit]; !ok || !plan.Changed() {
+		t.Fatalf("plan does not list the undo: %+v", plan)
+	}
+	if r.git("log", "-1", "--format=%s") != bdInitCommitSubject {
+		t.Fatal("commit undone by a plan")
+	}
+	report, err = CleanImpact(r.dir, CleanOptions{UndoCommit: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := kinds(report)[CleanUncommit]; !ok {
+		t.Fatalf("undo not reported: %+v", report)
 	}
 	if got := r.git("log", "-1", "--format=%s"); got != "init" {
 		t.Fatalf("HEAD = %q", got)

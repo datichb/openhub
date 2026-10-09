@@ -144,7 +144,7 @@ Supprimés en v5 (ignorés s'ils restent dans le fichier) : `[opencode] version`
 | `[limits]` | `max_active_sessions`, `session_budget_usd`, `daily_budget_usd`, `memory_mb`, `models` | non définies | Restrictions I6 du hub (`oh budget set`) |
 | `[deploy]` | `instruction_files` | `[]` | Fichiers du projet ajoutés aux instructions des agents du paquet |
 | `[websearch]` | `enabled` | `false` | Permissions WebSearch / WebFetch |
-| `[beads]` | `zero_impact` | `ask` | Fichiers écrits par `bd init` hors de `.beads/` à l'enregistrement d'un projet ou à l'initialisation de Beads : `ask` (liste puis confirmation ; sans terminal, rien), `auto` (sans question ; fichiers de réglages non suivis laissés), `off` (rien). Le commit de `bd init` n'est annulé qu'avec `--yes` ([Premiers pas](../guides/getting-started.fr.md)) |
+| `[beads]` | `zero_impact` | `ask` | Fichiers écrits par `bd init` hors de `.beads/` à l'enregistrement d'un projet ou à l'initialisation de Beads : `ask` (liste puis confirmation ; sans terminal, rien), `auto` (sans question ; fichiers de réglages non suivis laissés), `off` (rien). Le commit de `bd init` n'est annulé qu'après confirmation dans un terminal (`ask`) ou avec `--yes`, jamais en `auto` ([Premiers pas](../guides/getting-started.fr.md)) |
 | `[gc]` | `enabled` | `true` | Nettoyage périodique par le démon (`oh gc` fonctionne toujours) |
 | | `every_hours` | `24` | Intervalle du nettoyage du démon (son premier passage est une simulation ; il nettoie après un premier `oh gc`) |
 | | `session_days` | `30` | Fichiers d'une session **arrêtée** gardés (paquet, données du serveur, dossier, worktree automatique) ; les sessions terminées ou en échec restent reprenables |

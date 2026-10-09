@@ -150,12 +150,11 @@ func TestPrintBeadsCleanModes(t *testing.T) {
 	}
 }
 
-// N17: the commit of bd init is undone only with --yes, never when pushed.
-func TestPrintBeadsCleanCommit(t *testing.T) {
-	useLocale(t, "en")
-	withTerminal(t, true)
-	withConfirm(t, true)
-	git := func(dir string, args ...string) string {
+// bdInitCommitRepo is a repository whose last commit is the one of bd init
+// (not the first one, not pushed).
+func bdInitCommitRepo(t *testing.T) (dir string, git func(dir string, args ...string) string) {
+	t.Helper()
+	git = func(dir string, args ...string) string {
 		t.Helper()
 		c := exec.Command("git", args...)
 		c.Dir = dir
@@ -166,44 +165,136 @@ func TestPrintBeadsCleanCommit(t *testing.T) {
 		}
 		return strings.TrimSpace(string(out))
 	}
-	repo := func() string {
-		dir := t.TempDir()
-		git(dir, "init", "-q", "-b", "main")
-		git(dir, "commit", "-q", "--allow-empty", "-m", "init")
-		if err := os.MkdirAll(filepath.Join(dir, ".beads"), 0o755); err != nil {
-			t.Fatal(err)
-		}
-		_ = os.WriteFile(filepath.Join(dir, ".beads", "config.yaml"), nil, 0o644)
-		_ = os.WriteFile(filepath.Join(dir, "CLAUDE.md"), []byte("<!-- BEGIN BEADS INTEGRATION v:1 -->\nbd\n<!-- END BEADS INTEGRATION -->\n"), 0o644)
-		git(dir, "add", ".")
-		git(dir, "commit", "-qm", "bd init: initialize beads issue tracking")
-		return dir
+	dir = t.TempDir()
+	git(dir, "init", "-q", "-b", "main")
+	git(dir, "commit", "-q", "--allow-empty", "-m", "init")
+	if err := os.MkdirAll(filepath.Join(dir, ".beads"), 0o755); err != nil {
+		t.Fatal(err)
 	}
-	a := newMockApp(nil, nil)
+	_ = os.WriteFile(filepath.Join(dir, ".beads", "config.yaml"), nil, 0o644)
+	_ = os.WriteFile(filepath.Join(dir, "CLAUDE.md"), []byte("<!-- BEGIN BEADS INTEGRATION v:1 -->\nbd\n<!-- END BEADS INTEGRATION -->\n"), 0o644)
+	git(dir, "add", ".")
+	git(dir, "commit", "-qm", "bd init: initialize beads issue tracking")
+	return dir, git
+}
 
-	dir := repo()
+const bdInitSubject = "bd init: initialize beads issue tracking"
+
+// N17 (finitions): the commit of bd init is undone once listed and
+// confirmed in a terminal, or with --yes; never without a terminal nor
+// --yes, never by the automatic mode, never when pushed.
+func TestPrintBeadsCleanCommit(t *testing.T) {
+	useLocale(t, "en")
+	a := newMockApp(nil, nil)
 	var out bytes.Buffer
+
+	// Terminal, confirmed: listed, then undone.
+	withTerminal(t, true)
+	asked := withConfirm(t, true)
+	dir, git := bdInitCommitRepo(t)
 	printBeadsClean(&out, a, dir, false)
-	if git(dir, "log", "-1", "--format=%s") != "bd init: initialize beads issue tracking" {
-		t.Fatal("commit undone without --yes")
+	if got := git(dir, "log", "-1", "--format=%s"); got != "init" {
+		t.Fatalf("confirmed: HEAD = %q\n%s", got, out.String())
+	}
+	if *asked != 1 || !strings.Contains(out.String(), "undone if not pushed") {
+		t.Fatalf("the undo was not listed before the confirmation:\n%s", out.String())
+	}
+
+	// Terminal, declined: kept.
+	withConfirm(t, false)
+	dir, git = bdInitCommitRepo(t)
+	printBeadsClean(&out, a, dir, false)
+	if git(dir, "log", "-1", "--format=%s") != bdInitSubject {
+		t.Fatal("commit undone although declined")
+	}
+
+	// Without a terminal nor --yes: kept, the hint names the ways.
+	withTerminal(t, false)
+	withConfirm(t, true)
+	dir, git = bdInitCommitRepo(t)
+	out.Reset()
+	printBeadsClean(&out, a, dir, false)
+	if git(dir, "log", "-1", "--format=%s") != bdInitSubject {
+		t.Fatal("commit undone without terminal nor --yes")
 	}
 	if !strings.Contains(out.String(), "--yes") {
 		t.Fatalf("no hint:\n%s", out.String())
 	}
 
-	dir = repo()
+	// --yes without a terminal: undone.
+	dir, git = bdInitCommitRepo(t)
 	printBeadsClean(&out, a, dir, true)
 	if got := git(dir, "log", "-1", "--format=%s"); got != "init" {
 		t.Fatalf("--yes: HEAD = %q", got)
 	}
 
-	dir = repo()
+	// Automatic mode, terminal: files cleaned, commit kept (nobody asked).
+	withTerminal(t, true)
+	auto := newMockApp(nil, nil)
+	auto.Config.Beads.ZeroImpact = zeroImpactAuto
+	dir, git = bdInitCommitRepo(t)
+	printBeadsClean(&out, auto, dir, false)
+	if git(dir, "log", "-1", "--format=%s") != bdInitSubject {
+		t.Fatal("commit undone by the automatic mode")
+	}
+
+	// Pushed: never.
+	dir, git = bdInitCommitRepo(t)
 	bare := t.TempDir()
 	git(bare, "init", "-q", "--bare")
 	git(dir, "remote", "add", "origin", bare)
 	git(dir, "push", "-q", "origin", "main")
 	printBeadsClean(&out, a, dir, true)
-	if git(dir, "log", "-1", "--format=%s") != "bd init: initialize beads issue tracking" {
+	if git(dir, "log", "-1", "--format=%s") != bdInitSubject {
 		t.Fatal("pushed commit undone")
+	}
+	dir, git = bdInitCommitRepo(t)
+	git(bare, "init", "-q", "--bare")
+	git(dir, "remote", "add", "origin", bare)
+	git(dir, "push", "-q", "-f", "origin", "main")
+	git(dir, "update-ref", "refs/remotes/origin/main", "HEAD~1") // stale ref: the plan cannot tell
+	printBeadsClean(&out, a, dir, false)
+	if git(dir, "log", "-1", "--format=%s") != bdInitSubject {
+		t.Fatal("pushed commit undone after a confirmation (remotes not fetched?)")
+	}
+}
+
+// N17 (finitions): oh doctor --fix undoes the commit of bd init once
+// confirmed in a terminal; without a terminal nothing happens without --yes.
+func TestDoctorFixUndoesCommitOnceConfirmed(t *testing.T) {
+	useLocale(t, "en")
+	dir, git := bdInitCommitRepo(t)
+	a := newMockApp(nil, nil)
+	a.Projects = &mockProjectStore{projects: []domain.Project{{ID: "p1", Name: "web", Path: dir, Status: domain.ProjectStatusActive}}}
+
+	withTerminal(t, false)
+	cmd, _ := doctorFixCmd()
+	if err := runDoctorFix(cmd, a); err == nil {
+		t.Fatal("without terminal nor --yes: applied")
+	}
+	if git(dir, "log", "-1", "--format=%s") != bdInitSubject {
+		t.Fatal("commit undone without terminal nor --yes")
+	}
+
+	withTerminal(t, true)
+	withConfirm(t, false)
+	cmd, _ = doctorFixCmd()
+	if err := runDoctorFix(cmd, a); err != nil {
+		t.Fatal(err)
+	}
+	if git(dir, "log", "-1", "--format=%s") != bdInitSubject {
+		t.Fatal("commit undone although declined")
+	}
+
+	asked := withConfirm(t, true)
+	cmd, out := doctorFixCmd()
+	if err := runDoctorFix(cmd, a); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out.String(), "undone if not pushed") || *asked != 1 {
+		t.Fatalf("the undo was not listed before the confirmation:\n%s", out.String())
+	}
+	if got := git(dir, "log", "-1", "--format=%s"); got != "init" {
+		t.Fatalf("confirmed: HEAD = %q\n%s", got, out.String())
 	}
 }

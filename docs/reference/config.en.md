@@ -144,7 +144,7 @@ Removed in v5 (ignored if still in the file): `[opencode] version`, `channel`, `
 | `[limits]` | `max_active_sessions`, `session_budget_usd`, `daily_budget_usd`, `memory_mb`, `models` | not set | Hub I6 restrictions (`oh budget set`) |
 | `[deploy]` | `instruction_files` | `[]` | Project files added to the instructions of the bundle agents |
 | `[websearch]` | `enabled` | `false` | WebSearch / WebFetch permissions |
-| `[beads]` | `zero_impact` | `ask` | Files written by `bd init` outside `.beads/` when a project is registered or Beads initialized: `ask` (listed, then a confirmation; without a terminal, nothing), `auto` (no question; untracked settings files left alone), `off` (nothing). The commit of `bd init` is only undone with `--yes` ([Getting started](../guides/getting-started.en.md)) |
+| `[beads]` | `zero_impact` | `ask` | Files written by `bd init` outside `.beads/` when a project is registered or Beads initialized: `ask` (listed, then a confirmation; without a terminal, nothing), `auto` (no question; untracked settings files left alone), `off` (nothing). The commit of `bd init` is only undone after a confirmation in a terminal (`ask`) or with `--yes`, never in `auto` ([Getting started](../guides/getting-started.en.md)) |
 | `[gc]` | `enabled` | `true` | Periodic clean-up by the daemon (`oh gc` always works) |
 | | `every_hours` | `24` | Interval of the daemon clean-up (its first pass is a simulation; it cleans up after a first `oh gc`) |
 | | `session_days` | `30` | Files of a **stopped** session kept (bundle, server data, folder, automatic worktree); completed or failed sessions can still be resumed |
