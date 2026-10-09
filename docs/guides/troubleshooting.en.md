@@ -235,6 +235,10 @@ oh worktree list           # List all active worktrees
 
 ---
 
+### Disk space
+
+`oh gc --dry-run` shows what oh can free (session bundles, server data, folders of stopped sessions, worktrees oh created, temporary folders, orphan servers, old history); `oh gc` removes it after a confirmation. The daemon does it every 24 h once a first `oh gc` was run (`oh doctor` › "Clean-up" reminds you). See [`oh gc`](../reference/cli-infra.en.md#oh-gc).
+
 ### Logs
 
 | Log | Location |

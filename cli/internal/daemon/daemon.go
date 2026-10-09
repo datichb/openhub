@@ -103,6 +103,17 @@ type Options struct {
 	LogMaxBytes    int64
 	LogKeep        int
 	LogRotateEvery time.Duration
+	// Tasks run in the background every Task.Every once the grants are
+	// restored (clean-up: oh gc). Unlike Periodic, they never keep the
+	// daemon awake.
+	Tasks []Task
+}
+
+// Task is a periodic background job of the daemon.
+type Task struct {
+	Name  string
+	Every time.Duration // default 1 h
+	Run   func(ctx context.Context)
 }
 
 // Daemon is the running ohd process.
@@ -224,6 +235,9 @@ func Run(ctx context.Context, opts Options) error {
 		go d.runPeriodic(ctx)
 	}
 	go d.runLogRotation(ctx)
+	for _, t := range opts.Tasks {
+		go d.runTask(ctx, t)
+	}
 	// Supervision revokes grants: it must not race with their restoration.
 	select {
 	case <-d.restored:

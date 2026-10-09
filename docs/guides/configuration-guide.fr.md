@@ -445,7 +445,7 @@ instruction_files = ["docs/ARCHITECTURE.md"]
 
 ```toml
 [worktree]
-auto_cleanup = true          # supprimer les worktrees merges automatiquement
+auto_cleanup = true          # oh gc supprime periodiquement les worktrees crees par oh (propres, pousses, inutilises)
 base_branch = "main"         # branche de base pour les nouveaux worktrees
 branch_pattern = "oh/%s"     # pattern de nommage de branche (%s = nom worktree)
 ```

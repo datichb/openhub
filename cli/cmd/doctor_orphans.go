@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -14,6 +13,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/adapters"
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/domain"
+	"github.com/datichb/openhub/cli/internal/gc"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/storage/sqlite"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
@@ -27,78 +27,7 @@ import (
 
 func init() { registerDoctorCheck(orphanServersCheck) }
 
-// Reasons of an orphan server.
-const (
-	orphanTemp    = "temp"     // test or discovery server whose parent is gone
-	orphanUnowned = "unowned"  // server of this hub that oh does not run any more
-	orphanHubGone = "hub_gone" // server of an oh home that no longer exists
-)
-
-type orphanServer struct {
-	adapters.ServerProcess
-	Reason string
-}
-
-// classifyOrphans keeps the processes that belong to nobody. live are the
-// PIDs of the servers this hub runs (nil: unknown, the servers of this hub
-// are then left alone); exists tells whether a file exists, recent whether
-// a log was written in the last minutes (a server being started).
-func classifyOrphans(procs []adapters.ServerProcess, hubDir, tmpDir string, live map[int]bool, exists, recent func(string) bool) []orphanServer {
-	hubServers := filepath.Join(resolvedPath(hubDir), "servers") + string(filepath.Separator)
-	tmp := resolvedPath(tmpDir) + string(filepath.Separator)
-	var out []orphanServer
-	for _, p := range procs {
-		work, logPath := resolvedPath(p.WorkDir), resolvedPath(p.LogPath)
-		switch {
-		case p.PPID == 1 && (isTempServerDir(work, tmp) || isTempServerDir(logPath, tmp)):
-			out = append(out, orphanServer{p, orphanTemp})
-		case logPath != "" && strings.HasPrefix(logPath, hubServers):
-			if live != nil && !live[p.PID] && !recent(logPath) {
-				out = append(out, orphanServer{p, orphanUnowned})
-			}
-		case logPath != "":
-			// <oh home>/servers/<group>/data/<log>
-			data := filepath.Dir(logPath)
-			if filepath.Base(data) != "data" {
-				continue
-			}
-			servers := filepath.Dir(filepath.Dir(data))
-			if filepath.Base(servers) != "servers" {
-				continue
-			}
-			if home := filepath.Dir(servers); !exists(filepath.Join(home, "oh.db")) {
-				out = append(out, orphanServer{p, orphanHubGone})
-			}
-		}
-	}
-	return out
-}
-
-// isTempServerDir reports a directory of a test (t.TempDir: <tmp>/Test…) or
-// of the native agents discovery (<tmp>/oh-natives-…).
-func isTempServerDir(p, tmp string) bool {
-	rest, ok := strings.CutPrefix(p, tmp)
-	return ok && (strings.HasPrefix(rest, "Test") || strings.HasPrefix(rest, "oh-natives-"))
-}
-
-func resolvedPath(p string) string {
-	if p == "" {
-		return ""
-	}
-	// Resolve the closest existing ancestor (a deleted test directory, a
-	// group whose data directory is gone), keep the rest as is.
-	p = filepath.Clean(p)
-	rest := ""
-	for dir := p; ; dir = filepath.Dir(dir) {
-		if r, err := filepath.EvalSymlinks(dir); err == nil {
-			return filepath.Join(r, rest)
-		}
-		if parent := filepath.Dir(dir); parent == dir {
-			return p
-		}
-		rest = filepath.Join(filepath.Base(dir), rest)
-	}
-}
+type orphanServer = gc.Orphan
 
 // serverLister is the capability of the preferred adapter (nil: none).
 func serverLister() adapters.ServerProcessLister {
@@ -125,12 +54,6 @@ func liveServerPIDs(ctx context.Context) map[int]bool {
 	return live
 }
 
-// recentlyWritten reports a file changed in the last two minutes.
-func recentlyWritten(p string) bool {
-	fi, err := os.Stat(p)
-	return err == nil && time.Since(fi.ModTime()) < 2*time.Minute
-}
-
 // findOrphanServers lists the orphan servers of the machine.
 func findOrphanServers(ctx context.Context) ([]orphanServer, adapters.ServerProcessLister, error) {
 	l := serverLister()
@@ -141,7 +64,7 @@ func findOrphanServers(ctx context.Context) ([]orphanServer, adapters.ServerProc
 	if err != nil {
 		return nil, l, err
 	}
-	return classifyOrphans(procs, config.HubDir(), os.TempDir(), liveServerPIDs(ctx), fileExists, recentlyWritten), l, nil
+	return gc.ClassifyOrphans(procs, config.HubDir(), os.TempDir(), liveServerPIDs(ctx), fileExists, gc.RecentlyWritten), l, nil
 }
 
 func orphanServersCheck(ctx context.Context) []views.DoctorCheck {

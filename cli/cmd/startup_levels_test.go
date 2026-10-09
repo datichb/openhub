@@ -112,7 +112,7 @@ func TestFailedMigrationDoctorAndRepair(t *testing.T) {
 	assert.Equal(t, 1, code)
 	assert.Contains(t, out, "oh repair --restore")
 
-	backups, _ := filepath.Glob(filepath.Join(home, "backups", "oh.db.v41-*.bak"))
+	backups, _ := filepath.Glob(filepath.Join(home, "backups", "oh.db.v*-*.bak"))
 	require.NotEmpty(t, backups)
 	_, errOut, code = runOhHome(t, home, "repair", "--restore", backups[0])
 	assert.NotEqual(t, 0, code, "no terminal: --auto required")

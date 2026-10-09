@@ -159,6 +159,34 @@ oh import ~/sauvegardes/oh-backup.tar.gz --merge
 
 ---
 
+### oh gc
+
+Nettoie ce qu'oh laisse derrière lui, après un résumé (tailles par catégorie) et une confirmation : paquets de session qu'aucune session ne sert plus, données des groupes de serveurs arrêtés (verrou du groupe pris, serveur arrêté ; ses jetons du proxy révoqués), dossiers des sessions **arrêtées** (`results/` gardé jusqu'à `history_days`), worktrees **créés par oh** au lancement (propres, fichiers non suivis compris, non verrouillés, sans commit absent de toute autre branche, inutilisés ; leur branche supprimée seulement si elle est fusionnée), dossiers temporaires `.build-*`/`.fetch-*` de plus d'une heure, serveurs orphelins, historique ancien de la base (par lots, puis `PRAGMA optimize`). Les sessions terminées ou en échec, qui restent reprenables, ne sont jamais nettoyées ; les worktrees des sessions antérieures à la v5.0 non plus. Retentions : [`[gc]`](config.fr.md).
+
+```
+oh gc [--dry-run] [--yes] [--json] [--only <catégories>] [--older-than <durée>]
+```
+
+| Flag | Court | Type | Description |
+|------|-------|------|-------------|
+| `--dry-run` | | bool | Afficher ce qui serait supprimé, sans rien supprimer |
+| `--yes` | `-y` | bool | Supprimer sans confirmation (obligatoire sans terminal) |
+| `--json` | | bool | Plan (ou résultat) au format JSON |
+| `--only` | | liste | `bundles`, `servers`, `sessions`, `worktrees`, `temp`, `orphans`, `history` |
+| `--older-than` | | durée | Remplace `session_days` pour cette fois (`30d`, `12h`) |
+
+Le démon fait le même nettoyage toutes les `[gc] every_hours` (24 h) sans se garder éveillé pour autant. Son **premier passage est une simulation** : `oh doctor` affiche alors « N récupérables : lancez oh gc » ; après un premier `oh gc`, le démon nettoie tout seul. Un seul nettoyage à la fois (`~/.oh/run/gc.lock`).
+
+**Exemple :**
+
+```bash
+oh gc --dry-run
+oh gc --only bundles,servers --yes
+oh gc --older-than 7d
+```
+
+---
+
 ### oh repair
 
 Vérifie la base SQLite `~/.oh/oh.db` **sans la migrer** et sans avoir besoin d'une configuration ou d'une base qui fonctionnent : intégrité (`PRAGMA integrity_check`), version du schéma et version connue d'oh, migrations en attente, dernière migration en échec, sauvegardes faites avant les migrations (`~/.oh/backups/`). En cas de corruption, les fichiers de la base (avec `-wal` et `-shm`) sont copiés en `oh.db.corrupt-<date>`, puis les options sont proposées : restaurer une sauvegarde d'avant migration, restaurer un export, et seulement en dernier recours repartir d'une base vide.

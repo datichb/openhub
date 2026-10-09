@@ -38,8 +38,12 @@ func ensureDaemon(ctx context.Context) (*daemon.Client, daemon.Health, error) {
 	if err != nil {
 		return nil, daemon.Health{}, err
 	}
+	var gcCfg config.GCConfig
+	if c, err := config.Load(); err == nil && c != nil {
+		gcCfg = c.GC
+	}
 	return daemon.Ensure(ctx, daemon.Paths{Dir: ohRunDir()}, daemon.EnsureOptions{Version: buildinfo.Version, Capability: capability,
-		InProcess: startInProcessDaemon})
+		InProcess: startInProcessDaemon, LogMaxBytes: gcCfg.LogMaxBytes(), LogKeep: gcCfg.Logs()})
 }
 
 // daemonCapability returns the issuing capability shared with the daemon:

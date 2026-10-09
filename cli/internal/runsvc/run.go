@@ -166,12 +166,14 @@ func (s *Service) Start(ctx context.Context, plan *RunPlan) ([]*StartResult, err
 	var out []*StartResult
 	for i := range plan.Sessions {
 		ps := &plan.Sessions[i]
+		created := false
 		if ps.Location.Create {
 			p, err := s.createWorktree(req.ProjectPath, ps.Location.Branch)
 			if err != nil {
 				return out, fmt.Errorf("worktree %s: %w", ps.Location.Branch, err)
 			}
 			ps.Location.Path, ps.Location.Create = p, false
+			created = true
 		}
 		var stashed string
 		if ps.Location.Stash {
@@ -194,6 +196,9 @@ func (s *Service) Start(ctx context.Context, plan *RunPlan) ([]*StartResult, err
 		sr.LocationKind = string(ps.Location.Kind)
 		sr.ParentSessionID = req.ParentSessionID
 		sr.Tickets = ps.Tickets
+		if created {
+			sr.WorktreeAuto, sr.WorktreeBranch = true, ps.Location.Branch
+		}
 		res, err := s.StartSession(ctx, sr)
 		if res != nil && res.SessionID != "" {
 			res.Stashed = stashed

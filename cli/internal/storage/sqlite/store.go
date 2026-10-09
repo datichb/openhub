@@ -625,4 +625,23 @@ WHERE (SELECT SUM(u.cost_usd) FROM usage_sessions u WHERE u.root_id = sessions.i
 		down: `ALTER TABLE sessions DROP COLUMN tickets;
 ALTER TABLE sessions DROP COLUMN start_ref`,
 	},
+	{
+		// v5 critical (N16, oh gc): the worktree a session got from oh at
+		// launch (automatic: removed by oh gc once clean, pushed and unused;
+		// the sessions recorded before stay "unknown" and are never cleaned)
+		// and the indexes of the clean-up queries.
+		version: 43,
+		up: `ALTER TABLE sessions ADD COLUMN worktree_auto INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE sessions ADD COLUMN worktree_branch TEXT NOT NULL DEFAULT '';
+CREATE INDEX IF NOT EXISTS idx_sessions_state_ended ON sessions(state, ended_at);
+CREATE INDEX IF NOT EXISTS idx_agent_events_started ON agent_events(started_at);
+CREATE INDEX IF NOT EXISTS idx_pending_decisions_resolved ON pending_decisions(resolved_at);
+CREATE INDEX IF NOT EXISTS idx_usage_sessions_day ON usage_sessions(day)`,
+		down: `DROP INDEX IF EXISTS idx_usage_sessions_day;
+DROP INDEX IF EXISTS idx_pending_decisions_resolved;
+DROP INDEX IF EXISTS idx_agent_events_started;
+DROP INDEX IF EXISTS idx_sessions_state_ended;
+ALTER TABLE sessions DROP COLUMN worktree_branch;
+ALTER TABLE sessions DROP COLUMN worktree_auto`,
+	},
 }

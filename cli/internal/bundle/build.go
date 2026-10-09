@@ -18,6 +18,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/datichb/openhub/cli/internal/bricks"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
@@ -274,7 +275,8 @@ func Build(req Request) (*Bundle, error) {
 	}
 
 	if _, err := os.Stat(filepath.Join(final, specFile)); err == nil {
-		return &Bundle{Spec: spec, Dir: final}, nil // already compiled
+		touchBundle(final) // already compiled
+		return &Bundle{Spec: spec, Dir: final}, nil
 	}
 	data, err := json.MarshalIndent(spec, "", "  ")
 	if err != nil {
@@ -285,11 +287,19 @@ func Build(req Request) (*Bundle, error) {
 	}
 	if err := os.Rename(tmp, final); err != nil {
 		if _, statErr := os.Stat(filepath.Join(final, specFile)); statErr == nil {
-			return &Bundle{Spec: spec, Dir: final}, nil // concurrent build won
+			touchBundle(final) // concurrent build won
+			return &Bundle{Spec: spec, Dir: final}, nil
 		}
 		return nil, fmt.Errorf("finalizing bundle: %w", err)
 	}
 	return &Bundle{Spec: spec, Dir: final}, nil
+}
+
+// touchBundle marks a reused bundle as recently used: oh gc keeps a bundle
+// during a grace period after its last use (N16).
+func touchBundle(dir string) {
+	now := time.Now()
+	_ = os.Chtimes(dir, now, now)
 }
 
 // Load reads a compiled bundle by hash.

@@ -62,7 +62,7 @@ var helpSectionOrder = []struct {
 	{"help.section.config", []string{"config", "provider", "secrets"}},
 	{"help.section.analytics", []string{"status", "metrics", "dashboard", "serve", "history"}},
 	{"help.section.team", []string{"team", "teams", "conventions", "beads", "policies", "patterns"}},
-	{"help.section.infra", []string{"init", "doctor", "repair", "export", "import", "purge", "upgrade", "migrate", "daemon", "remote", "version", "completion"}},
+	{"help.section.infra", []string{"init", "doctor", "repair", "gc", "export", "import", "purge", "upgrade", "migrate", "daemon", "remote", "version", "completion"}},
 }
 
 // customHelpFunc replaces Cobra's default help with a paged, colored, i18n-aware display.

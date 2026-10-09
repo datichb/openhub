@@ -195,7 +195,7 @@ func TestBackupBeforeMigration(t *testing.T) {
 	fi, err := os.Stat(backups[0])
 	require.NoError(t, err)
 	assert.Equal(t, os.FileMode(0o600), fi.Mode().Perm())
-	assert.Contains(t, filepath.Base(backups[0]), "oh.db.v41-")
+	assert.Contains(t, filepath.Base(backups[0]), fmt.Sprintf("oh.db.v%d-", MaxKnownVersion()))
 	s.Close()
 
 	b, err := OpenRaw(backups[0])

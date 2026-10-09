@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -52,4 +53,35 @@ func TestEnsureRotatesTheLog(t *testing.T) {
 	fi, err := os.Stat(p.Log() + ".1")
 	require.NoError(t, err)
 	assert.EqualValues(t, 200, fi.Size())
+}
+
+// N16: a task runs once the grants are restored, then every Every; a panic
+// does not stop it; it never marks the daemon busy.
+func TestRunTask(t *testing.T) {
+	d := &Daemon{restored: make(chan struct{}), stop: make(chan struct{})}
+	runs := make(chan struct{}, 10)
+	n := 0
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go d.runTask(ctx, Task{Name: "t", Every: 10 * time.Millisecond, Run: func(context.Context) {
+		n++
+		runs <- struct{}{}
+		if n == 1 {
+			panic("boom")
+		}
+	}})
+	select {
+	case <-runs:
+		t.Fatal("ran before the grants were restored")
+	case <-time.After(50 * time.Millisecond):
+	}
+	close(d.restored)
+	for range 3 {
+		select {
+		case <-runs:
+		case <-time.After(2 * time.Second):
+			t.Fatal("task not run again")
+		}
+	}
+	assert.False(t, d.periodicBusy)
 }

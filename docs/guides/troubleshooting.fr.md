@@ -235,6 +235,10 @@ oh worktree list           # Lister tous les worktrees actifs
 
 ---
 
+### Espace disque
+
+`oh gc --dry-run` montre ce qu'oh peut libérer (paquets de session, données des serveurs, dossiers des sessions arrêtées, worktrees créés par oh, dossiers temporaires, serveurs orphelins, historique ancien) ; `oh gc` le supprime après confirmation. Le démon le fait toutes les 24 h une fois qu'un premier `oh gc` a été lancé (`oh doctor` › « Nettoyage » le rappelle). Voir [`oh gc`](../reference/cli-infra.fr.md#oh-gc).
+
 ### Journaux
 
 | Journal | Emplacement |

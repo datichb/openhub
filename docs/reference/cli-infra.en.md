@@ -159,6 +159,34 @@ oh import ~/backups/oh-backup.tar.gz --merge
 
 ---
 
+### oh gc
+
+Cleans up what oh leaves behind, after a summary (sizes per category) and a confirmation: session bundles no session uses any more, data of the stopped server groups (group lock held, server stopped; its proxy tokens revoked), folders of the **stopped** sessions (`results/` kept until `history_days`), worktrees **oh created** at launch (clean, untracked files included, unlocked, with no commit missing from every other branch, unused; their branch deleted only when merged), temporary `.build-*`/`.fetch-*` folders older than an hour, orphan servers, old history of the database (by batches, then `PRAGMA optimize`). Completed or failed sessions, which can still be resumed, are never cleaned up; neither are the worktrees of sessions recorded before v5.0. Retentions: [`[gc]`](config.en.md).
+
+```
+oh gc [--dry-run] [--yes] [--json] [--only <categories>] [--older-than <duration>]
+```
+
+| Flag | Short | Type | Description |
+|------|-------|------|-------------|
+| `--dry-run` | | bool | Show what would be removed, remove nothing |
+| `--yes` | `-y` | bool | Remove without confirmation (required without a terminal) |
+| `--json` | | bool | Plan (or result) as JSON |
+| `--only` | | list | `bundles`, `servers`, `sessions`, `worktrees`, `temp`, `orphans`, `history` |
+| `--older-than` | | duration | Replaces `session_days` this once (`30d`, `12h`) |
+
+The daemon runs the same clean-up every `[gc] every_hours` (24 h) without staying awake for it. Its **first pass is a simulation**: `oh doctor` then shows "N reclaimable: run oh gc"; after a first `oh gc`, the daemon cleans up on its own. One clean-up at a time (`~/.oh/run/gc.lock`).
+
+**Example:**
+
+```bash
+oh gc --dry-run
+oh gc --only bundles,servers --yes
+oh gc --older-than 7d
+```
+
+---
+
 ### oh repair
 
 Checks the SQLite database `~/.oh/oh.db` **without migrating it** and without needing a working configuration or database: integrity (`PRAGMA integrity_check`), schema version and the version this oh knows, pending migrations, last failed migration, backups taken before the migrations (`~/.oh/backups/`). On corruption, the database files (with `-wal` and `-shm`) are copied to `oh.db.corrupt-<date>`, then the options are listed: restore a backup taken before a migration, restore an export, and only as a last resort start from an empty database.

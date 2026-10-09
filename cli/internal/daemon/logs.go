@@ -54,3 +54,41 @@ func (d *Daemon) rotateLogs() {
 		}
 	}
 }
+
+// runTask runs a task every Task.Every, the first time once the grants are
+// restored.
+func (d *Daemon) runTask(ctx context.Context, t Task) {
+	every := t.Every
+	if every <= 0 {
+		every = time.Hour
+	}
+	select {
+	case <-d.restored:
+	case <-ctx.Done():
+		return
+	case <-d.stop:
+		return
+	}
+	tick := time.NewTicker(every)
+	defer tick.Stop()
+	for {
+		safeRun(ctx, t)
+		select {
+		case <-ctx.Done():
+			return
+		case <-d.stop:
+			return
+		case <-tick.C:
+		}
+	}
+}
+
+// safeRun runs a task; a panic is logged, the daemon goes on.
+func safeRun(ctx context.Context, t Task) {
+	defer func() {
+		if r := recover(); r != nil {
+			slog.Error("daemon task panicked", "task", t.Name, "panic", r)
+		}
+	}()
+	t.Run(ctx)
+}

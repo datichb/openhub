@@ -234,6 +234,8 @@ func TestStartRunsTheSessionsInOneGroup(t *testing.T) {
 	assert.Equal(t, "worktree", sess.Location)
 	assert.Equal(t, "ses_parent", sess.ParentSessionID)
 	assert.Equal(t, "p1 · ticket bd-2", *sess.Title)
+	assert.True(t, sess.WorktreeAuto, "created by oh (N16, v43)")
+	assert.Equal(t, "feat/bd-2", sess.WorktreeBranch)
 }
 
 func TestStartRefusesADoubleLaunch(t *testing.T) {

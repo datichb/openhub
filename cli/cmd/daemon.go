@@ -130,10 +130,14 @@ func daemonOptions(ctx context.Context, a *app.App, capability string) daemon.Op
 			}
 			return ""
 		},
-		Secrets:   a.Secrets,
-		Teardown:  daemonTeardown(a),
-		Periodic:  daemonRemoteTracking(a),
-		IdleSleep: time.Duration(a.Config.Session.IdleSleepMinutes) * time.Minute,
+		Secrets:  a.Secrets,
+		Teardown: daemonTeardown(a),
+		Periodic: daemonRemoteTracking(a),
+		Tasks:    []daemon.Task{{Name: "gc", Every: time.Hour, Run: daemonGC(a)}},
+		// [gc] log_max_mb, log_keep.
+		LogMaxBytes: a.Config.GC.LogMaxBytes(),
+		LogKeep:     a.Config.GC.Logs(),
+		IdleSleep:   time.Duration(a.Config.Session.IdleSleepMinutes) * time.Minute,
 		// Async: a git push must not stall supervision (the daemon
 		// outlives the last server by IdleAfter).
 		OnSessionEnd: sessionEndHook(a, true),

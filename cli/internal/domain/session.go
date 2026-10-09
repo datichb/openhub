@@ -60,6 +60,11 @@ type Session struct {
 	StartRef string
 	// Tickets are the tickets the session works on (v42).
 	Tickets []string
+	// WorktreeAuto: oh created the worktree of the session (LaunchPath) at
+	// launch, on WorktreeBranch; oh gc may remove it once clean, pushed and
+	// unused (v43). False for the sessions recorded before (unknown).
+	WorktreeAuto   bool
+	WorktreeBranch string
 }
 
 // RunState is the fine-grained lifecycle of a v5 session.
