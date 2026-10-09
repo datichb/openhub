@@ -318,7 +318,7 @@ Fuzzy matching sur les noms et les alias :
 | `project add` | assistant d'ajout de projet |
 | `board`, `board init` | board Beads du projet, initialisation |
 | `project-config` | configuration du projet (dont Exécution) |
-| `settings`, `models`, `provider`, `mcp`, `secrets` | reglages, modeles, fournisseur, serveurs MCP, secrets |
+| `settings`, `models`, `provider`, `mcp`, `secrets` | reglages, modeles, fournisseur (region Bedrock verifiee des la saisie, message sous le champ), serveurs MCP, secrets |
 | `teams`, `team-detail` | equipes, detail de l'equipe (`K` cle du fournisseur pour l'equipe ; espace solo : « Passer en équipe ») |
 | `init` | relancer l'assistant de configuration |
 

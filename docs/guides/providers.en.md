@@ -48,6 +48,8 @@ auth_mode = "bearer"              # "bearer" | "profile"
 
 This section is optional — if absent, `oh` uses environment credentials.
 
+The region must be an AWS region name (`eu-west-1`): it names the host that receives the credential. It is checked as it is typed — Provider view of the TUI, `oh init` and `oh provider setup` wizards ("Custom..."): the message shows under the field, an invalid value is refused, a region where Bedrock is not known only warns — then by `oh config set provider.bedrock.aws_region`, at launch and by the credential proxy.
+
 ## Project-Level Override
 
 Override the provider for a specific project:

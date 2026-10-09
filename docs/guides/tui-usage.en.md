@@ -318,7 +318,7 @@ Fuzzy matching on names and aliases:
 | `board`, `board init` | project Beads board, initialization |
 | `project-config` | project configuration (including Execution) |
 | `worktrees` | git worktrees of the project (`a` add, `d` remove, `o` open a session, `p` prune the references, `x` remove the merged worktrees, never one used by a session; `d`, `p` and `x` ask for a confirmation) |
-| `settings`, `models`, `provider`, `mcp`, `secrets` | settings, models, provider, MCP servers, secrets |
+| `settings`, `models`, `provider`, `mcp`, `secrets` | settings, models, provider (Bedrock region checked as it is typed, message under the field), MCP servers, secrets |
 | `teams`, `team-detail` | teams, team detail (`K` provider key for the team; solo space: "Switch to a team") |
 | `init` | run the setup wizard again |
 

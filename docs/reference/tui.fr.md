@@ -177,7 +177,7 @@ Sections : **À traiter** (décisions en attente), **En cours**, **En veille**, 
 | Settings | `settings`, config, cfg, hub config | — | Réglages du hub |
 | Config Projet | `project-config`, config projet, project config | Projet | Configuration du projet (dont Exécution) |
 | Models | `models`, mod, model, llm | — | Modèles |
-| Provider | `provider`, prov, api | — | Fournisseur LLM |
+| Provider | `provider`, prov, api | — | Fournisseur LLM (la région Bedrock est vérifiée dès la saisie : message sous le champ, valeur invalide refusée) |
 | MCP | `mcp`, servers | — | Serveurs MCP |
 | Secrets & Tokens | `secrets`, tokens, credentials, keychain | — | Secrets du trousseau |
 | Équipes | `teams`, team, equipe, equipes | — | Liste des équipes |

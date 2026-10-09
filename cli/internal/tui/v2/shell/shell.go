@@ -548,10 +548,21 @@ func (s *Shell) ShowInlineForm(cfg views.InlineFormConfig) {
 
 		case views.FieldText:
 			values[field.Key] = field.Default
+			var check *tview.TextView
 			form.AddInputField(field.Label, field.Default, 40, nil,
-				func(text string) { values[field.Key] = text })
+				func(text string) {
+					values[field.Key] = text
+					if check != nil {
+						check.SetText(views.ValidationText(field.Validate(text)))
+					}
+				})
 			itemToMeta[form.GetFormItemCount()-1] = len(metas)
 			metas = append(metas, fieldMeta{field: field})
+			if field.Validate != nil {
+				// The message of the check, under the field, as it is typed.
+				form.AddTextView("", views.ValidationText(field.Validate(field.Default)), 0, 2, true, false)
+				check, _ = form.GetFormItem(form.GetFormItemCount() - 1).(*tview.TextView)
+			}
 			if field.Hint != "" {
 				form.AddTextView("", "  "+field.Hint, 0, hintLines(field.Hint), true, false)
 			}
@@ -720,6 +731,12 @@ func (s *Shell) ShowInlineForm(cfg views.InlineFormConfig) {
 					}
 				}
 			}
+			if f.Validate != nil && (f.Conditional == nil || f.Conditional(values)) {
+				if msg, invalid := f.Validate(values[f.Key]); invalid {
+					s.ShowToast(msg, ToastWarning)
+					return
+				}
+			}
 		}
 		dismiss()
 		if cfg.OnSubmit != nil {
@@ -776,13 +793,15 @@ func (s *Shell) ShowInlineForm(cfg views.InlineFormConfig) {
 	// Separator (centered 60% rule)
 	outerFlex.AddItem(newSeparator(), 1, 0, false)
 
-	// Button bar (unified buildButtonBar — primary/secondary differentiated)
+	// Button bar (unified buildButtonBar — primary/secondary differentiated).
+	// The callbacks dismiss the form themselves: a refused submission
+	// (required field, invalid value) keeps it open.
 	buttonBar, buttonFocusables := buildButtonBar(
 		[]views.ModalAction{
 			{Label: i18n.T("tui.modal.btn.confirm"), Callback: submitForm},
 			{Label: i18n.T("tui.modal.btn.cancel"), Callback: cancelForm},
 		},
-		dismiss,
+		func() {},
 	)
 	outerFlex.AddItem(buttonBar, 1, 0, false)
 
@@ -841,6 +860,9 @@ func (s *Shell) ShowInlineForm(cfg views.InlineFormConfig) {
 	for _, f := range cfg.Fields {
 		if f.Conditional == nil || f.Conditional(values) {
 			visibleFields++
+			if f.Validate != nil {
+				visibleFields++ // room for the message under the field
+			}
 		}
 	}
 	size := s.computeModalSize(modalSizeHint{FieldCount: visibleFields, FixedWidth: theme.ModalMaxWidth})

@@ -1,5 +1,11 @@
 package views
 
+import (
+	"github.com/rivo/tview"
+
+	"github.com/datichb/openhub/cli/internal/tui/theme"
+)
+
 // FieldType defines the type of an inline form field.
 type FieldType int
 
@@ -41,6 +47,9 @@ type FormField struct {
 	// once at form construction time, in field order). Fields whose
 	// Conditional returns false are skipped entirely.
 	Conditional func(values map[string]string) bool
+	// Validate, if set (text fields), checks the value as it is typed: msg
+	// is shown under the field ("" = nothing), invalid refuses submitting.
+	Validate func(value string) (msg string, invalid bool)
 }
 
 // InlineFormConfig holds the configuration for a modal form.
@@ -49,4 +58,17 @@ type InlineFormConfig struct {
 	Fields   []FormField
 	OnSubmit func(values map[string]string, multi map[string][]string)
 	OnCancel func()
+}
+
+// ValidationText renders the message of a field check (FormField.Validate)
+// for a text view with dynamic colours: red when the value is refused,
+// yellow for a warning, nothing when msg is empty.
+func ValidationText(msg string, invalid bool) string {
+	if msg == "" {
+		return ""
+	}
+	if invalid {
+		return "  [" + theme.ErrorHex + "]✗ " + tview.Escape(msg) + "[-]"
+	}
+	return "  [" + theme.WarningHex + "]⚠ " + tview.Escape(msg) + "[-]"
 }

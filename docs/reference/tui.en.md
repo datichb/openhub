@@ -177,7 +177,7 @@ Sections: **To handle** (pending decisions), **Running**, **Sleeping**, **Finish
 | Settings | `settings`, config, cfg, hub config | — | Hub settings |
 | Project Config | `project-config`, config projet, project config | Project | Project configuration (including Execution) |
 | Models | `models`, mod, model, llm | — | Models |
-| Provider | `provider`, prov, api | — | LLM provider |
+| Provider | `provider`, prov, api | — | LLM provider (the Bedrock region is checked as it is typed: message under the field, invalid value refused) |
 | MCP | `mcp`, servers | — | MCP servers |
 | Secrets & Tokens | `secrets`, tokens, credentials, keychain | — | Keychain secrets |
 | Teams | `teams`, team, equipe, equipes | — | Team list |

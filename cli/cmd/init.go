@@ -114,6 +114,18 @@ func bedrockStepIndex(steps *[]views.WizardStep, id string) int {
 	return -1
 }
 
+// bedrockRegionStepProblem is the check of a wizard step with a Bedrock
+// region (oh init, oh provider setup): required, and an AWS region name.
+func bedrockRegionStepProblem(region string) string {
+	if region == "" {
+		return i18n.T("cmd.init.wizard_region_required")
+	}
+	if msg, invalid := providerPkg.RegionProblem(region); invalid {
+		return msg
+	}
+	return ""
+}
+
 // addBedrockRegionDropDown appends a region DropDown (with "Custom..." option)
 // to the form. It mutates the shared state via pointers and calls rerenderSafe
 // when the selection changes so the form rebuilds with/without the custom input.
@@ -153,7 +165,17 @@ func addBedrockRegionDropDown(form *tview.Form, region *string, regionIdx *int, 
 		},
 	)
 	if *custom {
-		form.AddInputField(i18n.T("cmd.init.wizard_custom_region_input"), *region, 0, nil, func(t string) { *region = t })
+		// The region is checked as it is typed (same rule as the credential
+		// proxy); the message shows under the field.
+		var check *tview.TextView
+		form.AddInputField(i18n.T("cmd.init.wizard_custom_region_input"), *region, 0, nil, func(t string) {
+			*region = t
+			if check != nil {
+				check.SetText(views.ValidationText(providerPkg.RegionProblem(t)))
+			}
+		})
+		form.AddTextView("", views.ValidationText(providerPkg.RegionProblem(*region)), 60, 2, true, false)
+		check, _ = form.GetFormItem(form.GetFormItemCount() - 1).(*tview.TextView)
 	}
 }
 

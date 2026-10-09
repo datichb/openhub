@@ -2,6 +2,7 @@ package shell
 
 import (
 	"context"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -389,4 +390,69 @@ func TestKeysLaunchFormConfigureProvider(t *testing.T) {
 		return calls == 2
 	}, 2*time.Second, 5*time.Millisecond, "recap checked again")
 	assert.Eventually(t, func() bool { return focused() != label }, 2*time.Second, 5*time.Millisecond, "button gone")
+}
+
+// A text field with a check shows its message under the field as it is
+// typed; an invalid value is not submitted (Bedrock region).
+func TestInlineFormValidateAsTyped(t *testing.T) {
+	home := &keyView{id: "home", focusList: true}
+	s := newKeyShell(t, home)
+	submitted := make(chan string, 1)
+	s.loop(func() {
+		s.ShowInlineForm(views.InlineFormConfig{Title: "Region",
+			Fields: []views.FormField{{Key: "region", Label: "Region", Type: views.FieldText,
+				Validate: func(v string) (string, bool) {
+					if v == "bad" {
+						return "invalid region", true
+					}
+					return "", false
+				}}},
+			OnSubmit: func(vals map[string]string, _ map[string][]string) { submitted <- vals["region"] }})
+	})
+	for _, r := range "bad" {
+		s.key(tcell.KeyRune, r, tcell.ModNone)
+	}
+	screen := func() string {
+		cells, w, h := s.sim.GetContents()
+		var b strings.Builder
+		for y := 0; y < h; y++ {
+			for x := 0; x < w; x++ {
+				if rs := cells[y*w+x].Runes; len(rs) > 0 {
+					b.WriteRune(rs[0])
+				}
+			}
+			b.WriteByte('\n')
+		}
+		return b.String()
+	}
+	require.Eventually(t, func() bool { s.loop(func() {}); return strings.Contains(screen(), "✗ invalid region") }, time.Second, 5*time.Millisecond, "message under the field")
+
+	s.key(tcell.KeyTab, 0, tcell.ModNone)   // to « Confirm »
+	s.key(tcell.KeyEnter, 0, tcell.ModNone) // refused
+	select {
+	case v := <-submitted:
+		t.Fatalf("invalid value submitted: %q", v)
+	case <-time.After(30 * time.Millisecond):
+	}
+	shown := false
+	s.loop(func() { shown = s.pages.HasPage("inline-overlay") })
+	assert.True(t, shown, "the form stays")
+
+	s.key(tcell.KeyBacktab, 0, tcell.ModNone) // back to the field
+	for range 3 {
+		s.key(tcell.KeyBackspace2, 0, tcell.ModNone)
+	}
+	for _, r := range "good" {
+		s.key(tcell.KeyRune, r, tcell.ModNone)
+	}
+	s.loop(func() {})
+	assert.NotContains(t, screen(), "✗ invalid region", "message cleared")
+	s.key(tcell.KeyTab, 0, tcell.ModNone)
+	s.key(tcell.KeyEnter, 0, tcell.ModNone)
+	select {
+	case v := <-submitted:
+		assert.Equal(t, "good", v)
+	case <-time.After(time.Second):
+		t.Fatal("valid value not submitted")
+	}
 }
