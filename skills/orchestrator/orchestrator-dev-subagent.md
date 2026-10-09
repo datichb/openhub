@@ -1,6 +1,6 @@
 ---
 name: orchestrator-dev-subagent
-description: Parcours d'exécution de l'agent orchestrator dev en mode sous-agent (invoqué via task depuis l'agent orchestrator feature) — CPs à enjeu fort produisent des blocs Question pour l'orchestrator + Retour vers orchestrator (partiel), session terminée après chaque CP à enjeu fort. Bloc Retour vers orchestrator (final) obligatoire en fin de session.
+description: Parcours d'exécution de l'agent orchestrator dev en mode sous-agent (invoqué via task depuis l'agent orchestrator feature) — checkpoints de ticket par workflow_checkpoint (comme en agent d'entrée), bloc Question pour l'orchestrator réservé aux vraies clarifications, bloc Retour vers orchestrator (final) obligatoire en fin de session.
 ---
 
 # Skill — Parcours Orchestrator-dev Sous-agent
@@ -11,165 +11,41 @@ description: Parcours d'exécution de l'agent orchestrator dev en mode sous-agen
 
 Quand l'orchestrator-dev est invoqué via `task`, sa todo list est dans une session **isolée et non visible** par l'utilisateur. L'orchestrator feature est le seul responsable de la liste visible.
 
+**Les checkpoints de ticket passent par `workflow_checkpoint`, appelé par toi-même** : l'outil fonctionne depuis une sous-session, oh rattache l'appel à la session de l'utilisateur et la validation se fait depuis oh ou l'interface, comme pour l'agent d'entrée. Ne relaie jamais un checkpoint à l'orchestrator, ne t'arrête pas pour lui : appelle l'outil et attends sa réponse. N'appelle que les checkpoints de la table des checkpoints de la carte du workflow.
+
 **Confirmer le contexte au démarrage :**
-> `[orchestrator-dev] Contexte détecté : invoqué depuis l'agent orchestrator feature. Mode de workflow reçu : <valeur canonique>. Mode interruption actif — CP-1 (mode manuel), branche dédiée et CP-2 produisent des blocs ## Question pour l'orchestrator et terminent la session. Le bloc ## Retour vers orchestrator sera produit à chaque arrêt de session.`
+> `[orchestrator-dev] Invoqué depuis l'agent orchestrator feature. Mode de workflow reçu : <valeur canonique>. Checkpoints de ticket par workflow_checkpoint ; bloc ## Retour vers orchestrator en fin de session.`
 
 ---
 
-## Règle absolue — CPs à enjeu fort
+## Démarrage
 
-Les **CPs à enjeu fort** dans ce mode sont : CP-1 (mode manuel), branche dédiée, CP-2.
+Le mode de workflow est transmis dans le prompt (`Mode de workflow : <mode>`) — ne pas le redemander. Sans cette ligne, appliquer le mode par défaut de la carte du workflow.
 
-Pour chaque CP à enjeu fort : **ne pas poser la question via l'outil `question`**. À la place :
-1. Produire le bloc `## Question pour l'orchestrator`
-2. Produire le bloc `## Retour vers orchestrator` avec `**Type de récap :** partiel`
-3. **TERMINER LA SESSION**
+Afficher le récapitulatif des tickets reçus et démarrer directement. Si le prompt contient `Branche de travail : <branche>`, la session a déjà sa branche : ne pas en proposer une autre.
 
 ---
 
-## CP-0 — Initialisation depuis l'agent orchestrator feature
+## Checkpoints de ticket
 
-Le mode de workflow est transmis en paramètre — ne pas le redemander.
+Pour chaque ticket, dans l'ordre reçu :
 
-**Règle de parsing du mode :**
-- Contient `manuel` → mode `manuel`
-- Contient `semi-auto` → mode `semi-auto`
-- Contient `auto` (mais pas `semi-auto`) → mode `auto`
-
-Si aucune valeur détectée : mode `manuel` par défaut + signal :
-> `⚠️ [orchestrator-dev] Mode de workflow non détecté dans le prompt — mode manuel appliqué par défaut.`
-
-Afficher le récapitulatif des tickets reçus et démarrer directement sans redemander le mode.
+1. `cp-1` (démarrer le ticket) : `workflow_checkpoint({ id: "cp-1", summary: "Ticket #<ID> — <titre>. Agent prévu : <developer-xxx>." })`.
+2. Implémentation par le developer, puis review (skill `orchestrator-dev-ticket-workflow`).
+3. `cp-2` (commit ou correction) : `workflow_checkpoint({ id: "cp-2", summary: "Ticket #<ID> — verdict : <commit | corriger | corriger-sécurité>. <synthèse>. Validation = commit puis fermeture." })`. **Un appel par ticket.** Validé → relancer aussitôt le developer : commit, puis fermeture du ticket. Refusé → correction selon la consigne reçue, nouvelle review, puis rappeler `cp-2`.
+4. `cp-3` (ticket suivant) : `workflow_checkpoint({ id: "cp-3", summary: "Ticket #<ID> terminé. Suivant : #<ID-suivant>." })`.
 
 ---
 
-## Format des blocs structurés (CPs à enjeu fort)
+## Bloc `## Question pour l'orchestrator` — vraies clarifications seulement
 
-### Bloc CP-1 (mode manuel)
+Seulement quand une information manque et qu'aucun checkpoint ne la couvre : dépendance non résolue, ticket bloqué, 3 cycles de review sans résolution, agent requis absent du workflow. Format : skill `orchestrator-handoff-format`. Produire ce bloc suivi de `## Retour vers orchestrator` (`**Type de récap :** partiel`) ; l'orchestrator relaie la question à l'utilisateur et te ré-invoque avec `task_id` et la réponse.
 
-```markdown
-## Question pour l'orchestrator
+> ❌ Ce bloc ne pose jamais un checkpoint : `cp-1`, `cp-2`, `cp-3` passent par `workflow_checkpoint`.
 
-**Agent :** orchestrator-dev
-**Ticket :** #<ID> — <titre>
-**Phase :** CP-1
+### Reprise (ré-invoqué avec task_id)
 
-### Contexte
-Prêt à démarrer l'implémentation du ticket #<ID> — <titre>.
-<Description courte du ticket issue de bd show>
-
-### Question en attente
-Démarrer l'implémentation du ticket #<ID> — <titre> ?
-
-### Options disponibles
-- `demarrer` — Déléguer l'implémentation à <developer-xxx>
-- `voir-detail` — Afficher le contenu complet du ticket (bd show <ID>)
-- `passer` — Ignorer ce ticket et passer au suivant
-- `stop` — Arrêter le workflow
-
-### État de la session
-**Tickets traités :** [bd-XX ✅, ...]
-**En cours :** bd-<ID>
-**Tickets restants :** [bd-YY, bd-ZZ, ...]
-**task_id :** <task_id de la session en cours>
-```
-Suivi du bloc `## Retour vers orchestrator` avec `**Type de récap :** partiel`.
-
-→ **TERMINER LA SESSION**
-
-**Instruction de reprise :** "Réponse CP-1 ticket #<ID> : [option choisie]. Reprendre depuis CP-1."
-
----
-
-### Bloc Branche dédiée
-
-À ne pas produire si le prompt d'invocation contient une ligne `Branche de travail : <branche>` (la session a déjà sa branche).
-
-```markdown
-## Question pour l'orchestrator
-
-**Agent :** orchestrator-dev
-**Ticket :** #<ID> — <titre>
-**Phase :** Branche dédiée
-
-### Contexte
-Avant de démarrer l'implémentation du ticket #<ID>, une branche dédiée est recommandée.
-**Nom de branche calculé :** `<type>/<ticket-id>-<description-courte>`
-
-### Question en attente
-Créer une branche dédiée pour le ticket #<ID> ?
-
-### Options disponibles
-- `oui-branche` — Créer et basculer sur `<type>/<ticket-id>-<description-courte>` avant de démarrer
-- `non-branche` — Rester sur la branche courante
-
-### État de la session
-**Tickets traités :** [bd-XX ✅, ...]
-**En cours :** bd-<ID>
-**Tickets restants :** [bd-YY, bd-ZZ, ...]
-**task_id :** <task_id de la session en cours>
-```
-Suivi du bloc `## Retour vers orchestrator` avec `**Type de récap :** partiel`.
-
-→ **TERMINER LA SESSION**
-
-**Instruction de reprise :** "Réponse branche ticket #<ID> : [option choisie]. Reprendre depuis délégation au developer."
-
----
-
-### Bloc CP-2 (tous modes)
-
-CP-2 est **toujours une pause, dans tous les modes**.
-
-```markdown
-## Question pour l'orchestrator
-
-**Agent :** orchestrator-dev
-**Ticket :** #<ID> — <titre>
-**Phase :** CP-2
-
-### Contexte complet
-**Synthèse :**
-| Sévérité | Nombre | Résumé |
-|----------|--------|--------|
-<tableau issu du ### Synthèse des problèmes du retour reviewer>
-
-**Verdict reviewer :** <commit | corriger | corriger-sécurité>
-**Routing recommandé :** <retour-initial | developer-security>
-
-### Rapport de review complet
-<rapport de review intégral copié tel quel — toutes sections, aucune omission, aucune reformulation>
-
-### Question en attente
-Quelle suite pour le ticket #<ID> — <titre> ?
-
-### Options disponibles
-Les labels sont dynamiques selon le verdict :
-- `commit` → `Commit (Recommandé — aucun problème bloquant)` ou `Commit`
-- `corriger` → `Corriger (Recommandé — X problèmes à résoudre)` ou `Corriger`
-- `corriger-sécurité` → `Corriger (Recommandé — problème de sécurité)` ou `Corriger`
-
-### État de la session
-**Tickets traités :** [bd-XX ✅, ...]
-**En cours :** bd-<ID>
-**Tickets restants :** [bd-YY, bd-ZZ, ...]
-**task_id :** <task_id de la session en cours>
-```
-
-> ⚠️ Ajouter le bloc `## Retour vers orchestrator` avec `**Type de récap :** partiel` **immédiatement après** le bloc `## Question pour l'orchestrator`.
-
-→ **TERMINER LA SESSION**
-
-**Instruction de reprise :** "Réponse CP-2 ticket #<ID> : [option choisie]. Reprendre depuis commit / correction."
-
----
-
-## Règle de reprise (ré-invoqué avec task_id)
-
-Quand le prompt de reprise contient `"Réponse de l'utilisateur au CP <phase>"` ou `"Réponse CP-X ticket #<ID>"` :
-- **Ne pas reposer la question** — reprendre directement à l'étape suivante selon la réponse reçue
-- Appliquer la réponse comme si elle avait été donnée via l'outil `question` en mode standalone
-- Continuer le workflow normalement jusqu'au prochain CP à enjeu fort ou jusqu'à la fin
+Quand le prompt de reprise contient `Réponse de l'utilisateur :` : ne pas reposer la question, appliquer la réponse et continuer jusqu'à la fin.
 
 ---
 
@@ -181,16 +57,3 @@ En fin de session (tous les tickets traités ou arrêt demandé), produire **uni
 
 > ⚠️ Produire **TOUJOURS** le bloc `## Retour vers orchestrator` — sans exception, même en cas de stop, de ticket bloqué ou de session incomplète.
 > ❌ Ne jamais produire de récap global en texte libre — tout est dans le bloc structuré.
-
----
-
-## Comportement des CPs selon le mode (référence rapide)
-
-| CP | `manuel` | `semi-auto` | `auto` |
-|----|----------|-------------|--------|
-| CP-1 | ⏸️ bloc Question | ▶️ auto | ▶️ auto |
-| Branche | ⏸️ bloc Question | ⏸️ bloc Question | ⏸️ bloc Question |
-| CP-2 | ⏸️ bloc Question | ⏸️ **bloc Question** | ⏸️ **bloc Question** |
-| CP-3 | ▶️ auto (enchaîne) | ▶️ auto | ▶️ auto |
-
-> CP-2 est toujours une pause dans tous les modes — sans exception.

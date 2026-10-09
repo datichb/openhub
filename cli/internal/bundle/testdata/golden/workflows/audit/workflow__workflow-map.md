@@ -27,7 +27,7 @@ Règles de délégation :
 
 ## Checkpoints (dans l'ordre)
 
-Aucun checkpoint : avance sans pause imposée, en demandant confirmation avant toute action irréversible.
+Aucun checkpoint dans ce workflow : avance sans pause imposée. Pour toute confirmation (et avant toute action irréversible), utilise l'outil `question`, sans nommer de checkpoint.
 
 ## Mode de workflow
 

@@ -192,8 +192,10 @@ de clarification, puis propose un plan :
 
 #### 3. [CP-0] Validation du plan
 
-L'orchestrateur affiche le tableau des tickets **dans la discussion** (pas dans la question),
-puis demande de valider le plan :
+L'orchestrateur affiche le tableau des tickets **dans la discussion**,
+puis passe le checkpoint `cp-0` (outil `workflow_checkpoint`) : vous validez le plan depuis oh ou l'interface de l'outil.
+
+> **Un seul protocole de checkpoint** : chaque checkpoint du workflow passe par l'outil `workflow_checkpoint`, que l'agent soit l'agent d'entrée ou un sous-agent (`orchestrator-dev` invoqué par l'orchestrateur appelle lui-même `cp-1`, `cp-2`, `cp-3`). Une question posée avec l'outil `question` qui nomme un checkpoint (`cp-2`, « CP 2 », son libellé) est fermée par oh sans effet. Un `cp-2` par ticket : il n'y a pas de validation groupée de plusieurs commits.
 
 ```
 ## Tickets planifiés — Authentification JWT
@@ -233,7 +235,7 @@ L'orchestrateur transmet les tickets dev à `orchestrator-dev` avec le mode choi
 3. Le developer retourne un bloc structuré `## Retour vers orchestrator-dev` — fichiers modifiés, critères d'acceptance cochés, **points d'attention pour la review** (zones fragiles, compromis techniques)
 4. Lance la review automatiquement — en transmettant les points d'attention du developer au reviewer
 6. Le reviewer retourne un bloc structuré avec un **verdict actionnable** (`commit` / `corriger` / `corriger-sécurité`), une synthèse des problèmes par sévérité et les corrections requises verbatim
-7. Présente le rapport de review `[CP-2]` — **toujours une pause**, sans exception
+7. Présente le rapport de review et passe `cp-2` (un appel par ticket) — **toujours une pause**, sans exception ; après la validation, le developer commite puis ferme le ticket
 8. Si "corriger" : les corrections sont copiées verbatim dans le commentaire Beads — sans résumé manuel ; routing vers `developer-security` si le verdict est `corriger-sécurité`
 9. Clôture et passe au suivant `[CP-3]` (automatique en semi-auto/auto)
 10. Après tous les tickets : `orchestrator-dev` émet une **synthèse condensée par ticket** (statut, fichiers clés, critères couverts, points d'attention + points d'attention globaux agrégés) suivie du **bloc structuré** `## Retour vers orchestrator` (tableau de détail des tickets, statistiques, statut global) — les deux sont complémentaires ; l'agent orchestrator **affiche cette synthèse dans son fil de discussion** avant de présenter le [CP-feature] à l'utilisateur

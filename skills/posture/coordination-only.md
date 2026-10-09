@@ -92,7 +92,8 @@ Après avoir utilisé un outil autre que `task`, `question`, `todowrite` ou `ski
 | Règle | ✅ / ❌ |
 |-------|--------|
 | Utiliser `task` pour toute délégation | ✅ |
-| Utiliser `question` pour les checkpoints | ✅ |
+| Utiliser `workflow_checkpoint` pour les checkpoints du workflow | ✅ |
+| Utiliser `question` pour les questions hors checkpoint (sans nommer de checkpoint) | ✅ |
 | Utiliser `todowrite` pour le suivi de progression | ✅ |
 | Utiliser `skill` pour charger une posture ou un protocole | ✅ |
 
@@ -102,6 +103,6 @@ Après avoir utilisé un outil autre que `task`, `question`, `todowrite` ou `ski
 
 ## Différence avec les agents exécutants
 
-Coordinateur = `task` + `question` uniquement. Exécutant = `read`, `glob`, `grep`, `edit`, `write`, `bash` — toute l'analyse et modification technique leur appartient.
+Coordinateur = `task` + `workflow_checkpoint` + `question` uniquement. Exécutant = `read`, `glob`, `grep`, `edit`, `write`, `bash` — toute l'analyse et modification technique leur appartient.
 
 Si tu vois du code, si tu analyses du contenu, si tu modifies un fichier → **tu as dépassé ton rôle**.

@@ -7,7 +7,7 @@ The hub uses a **hybrid architecture** with two delivery paths (Bucket A inlined
 
 Sources of truth:
 
-- the hub `skills/` folder (198 files: 184 skills and 14 annexes in `skills/templates/`);
+- the hub `skills/` folder (196 files: 182 skills and 14 annexes in `skills/templates/`);
 - the agent frontmatter (`agents/**/*.md`): `skills:` = Bucket A (inlined), `native_skills:` = Bucket B (on demand).
 
 Since v5, nothing is deployed into the project any more: skills reach the session through the **session bundle**, built at each launch from the workflow (see below).
@@ -34,7 +34,7 @@ At each launch (`oh run <workflow>`), `internal/bundle` builds the session bundl
 Skills generated from the workflow YAML (`cli/internal/bundle/workflowgen.go`):
 
 - `workflow/workflow-map`: map of the workflow (agents, delegations, checkpoints, modes, outputs). Inlined into `conductor`. The static `skills/workflow/workflow-map.md` is only used outside a workflow.
-- `orchestrator/orchestrator-workflow-modes` and `shared/hub-workflow-reference`: generated versions for the agents that load them (`orchestrator`, `orchestrator-dev`, `planner`). They replace the static hub file.
+- `orchestrator/orchestrator-workflow-modes` and `shared/hub-workflow-reference`: generated versions for the agents that load them (`orchestrator`, `orchestrator-dev`, `planner`). They replace the static hub file, now a « GÉNÉRÉ » stub. The pre-v5 skills `orchestrator-modes` and `orchestrator-ticket-routing` are removed.
 
 Build rules:
 
@@ -122,7 +122,7 @@ All hub agents have `permission: skill: allow`, either directly or through their
 
 ## Skill inventory (source of truth)
 
-**184 skills** across 13 folders (144 domain skills + 40 stack skills), plus **14 annexes** in `skills/templates/`.
+**182 skills** across 13 folders (142 domain skills + 40 stack skills), plus **14 annexes** in `skills/templates/`.
 
 How to read the tables: the **Agents** column gives the bucket and the agents from their frontmatter (`A` = `skills:`, `B` = `native_skills:`). `—` = no agent references it: the skill is only in a bundle if a workflow adds it through `skills.extra`.
 
@@ -166,7 +166,7 @@ The last six are in no frontmatter: other skills mention them in their text, but
 | `tool-question` | A: all except auditor-subagent and dev-rw | opencode `question` tool — syntax, multi-questions, `multiple: true`, mandatory structure (`header` ≤ 30 chars), recommended option first |
 | `tool-todowrite` | A: conductor, orchestrator, orchestrator-dev | `todowrite` tool — 3-step threshold, real-time updates, difference with Beads |
 
-### `orchestrator/` — 19 skills
+### `orchestrator/` — 17 skills
 
 | Skill | Agents | Content |
 |-------|--------|---------|
@@ -187,8 +187,6 @@ The last six are in no frontmatter: other skills mention them in their text, but
 | `error-recovery-protocol` | B: orchestrator-dev | Retry and recovery after a subagent failure: classification, retry budget, fallbacks |
 | `team-coordination` | B: orchestrator-dev | Team coordination (claims, conflicts, handover) |
 | `takeover-context-protocol` | B: orchestrator, orchestrator-dev | Using a takeover brief on a ticket handed over by another member |
-| `orchestrator-modes` | — | **Pre-v5** — the 5 orchestrator entry modes (A to E) |
-| `orchestrator-ticket-routing` | — | **Pre-v5** — routing by ticket type |
 
 ### `planning/` — 24 skills
 
@@ -364,11 +362,9 @@ These files still exist in `skills/`. They describe behavior from before v5; som
 |-------|----------------|--------------------|
 | `shared/rtk-usage` | Yes — Bucket B of 15 agents, so in every shipped bundle except `brief-enrich` | RTK was installed as a global opencode V1 plugin (`oh plugin`, removed in v5). oh no longer installs it |
 | `shared/context-mode-usage` | Yes — Bucket A of `developer`, `developer-refactor`, `developer-migrator` | Describes the `ctx_*` tools of the `context-mode` plugin, which does not load under opencode V2. `universal-guardrails` mentions them too |
-| `orchestrator/orchestrator-dev-parallel` | Yes — Bucket B of `orchestrator-dev` (`feature`, `ticket`, `review-feedback`, `libre` bundles) | Parallelism with worktrees created inside the session. In v5, parallel work goes through `oh run ticket --tickets a,b`: one session and one worktree per ticket |
+| `orchestrator/orchestrator-dev-parallel` | Yes — Bucket B of `orchestrator-dev` (`feature`, `ticket`, `review-feedback`, `libre` bundles) | Simultaneous implementation in the session tree, then one `cp-2` and one commit per ticket (no worktree created by the agent, no grouped approval). For one session and one worktree per ticket: `oh run ticket --tickets a,b` |
 | `orchestrator/parallel-coordination` | Yes — Bucket B of `orchestrator-dev` | Describes the former parallel mode (external coordinator, monitor), removed in v5. See [Sessions v5](../guides/sessions-v5.en.md) |
 | `orchestrator/session-state-protocol` | Yes — Bucket B of `orchestrator-dev` | Writes `.opencode/session-state.json` via `scripts/lib/session-state.sh` (missing) for the former dashboard. In v5, session state comes from the `ohd` daemon |
-| `orchestrator/orchestrator-modes` | No — no agent references it | The 5 orchestrator entry modes (A to E) are replaced by workflows (`feature`, `ticket`, `debug`, `onboarding`…) |
-| `orchestrator/orchestrator-ticket-routing` | No — no agent references it | Routing comes from the workflow map and `orchestrator-dev-protocol` |
 
 ---
 

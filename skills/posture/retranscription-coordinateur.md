@@ -96,37 +96,9 @@ Quand un sous-agent termine sa session avec `## Question pour l'orchestrator` :
 **Maintenant seulement,** utiliser l'outil `question` pour relayer la question à l'utilisateur.
 ```
 
-### Cas spécial : CP-2 avec rapport de review
+### Cas spécial : rapport de review dans une question montante
 
-Pour un CP-2, le bloc `## Question pour l'orchestrator` contient un `### Rapport de review complet`. Ce rapport DOIT être affiché dans la discussion AVANT de poser la question :
-
-```
-**[Retranscription — CP-2 Ticket #<ID>]**
-
----
-
-### Contexte
-
-<Copier le `### Contexte complet` du bloc question>
-
----
-
-### Rapport de review
-
-<Copier intégralement le `### Rapport de review complet` du bloc question — JAMAIS résumer>
-
----
-
-### État de la session
-
-<Copier le `### État de la session`>
-
----
-
-**[Fin de retranscription]**
-
-→ **Maintenant seulement**, appeler `question`.
-```
+Quand le bloc `## Question pour l'orchestrator` contient un `### Rapport de review complet` (blocage après 3 cycles de review), ce rapport DOIT être affiché intégralement dans la discussion AVANT de poser la question. Les checkpoints (dont la validation avant commit) ne passent jamais par ce bloc : l'agent qui les atteint appelle lui-même `workflow_checkpoint`.
 
 ---
 
