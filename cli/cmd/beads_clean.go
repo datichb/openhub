@@ -17,6 +17,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/launcher"
+	"github.com/datichb/openhub/cli/internal/safego"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
@@ -138,7 +139,7 @@ func offerBeadsClean(a *app.App, path string) {
 		printBeadsClean(os.Stderr, a, path, false)
 		return
 	}
-	go func() {
+	safego.Go(func() {
 		plan, opts := beadsCleanPlan(a, path, false)
 		if plan == nil || !plan.Changed() {
 			return
@@ -146,7 +147,7 @@ func offerBeadsClean(a *app.App, path string) {
 		var body strings.Builder
 		printCleanActions(&body, *plan)
 		apply := func() {
-			go func() {
+			safego.Go(func() {
 				r := applyBeadsClean(path, opts)
 				var hints strings.Builder
 				printCleanHints(&hints, r)
@@ -157,7 +158,7 @@ func offerBeadsClean(a *app.App, path string) {
 					}
 					sh.ShowToastMsg(msg, true)
 				})
-			}()
+			})
 		}
 		sh.App().QueueUpdateDraw(func() {
 			if zeroImpactMode(a) == zeroImpactAuto {
@@ -169,7 +170,7 @@ func offerBeadsClean(a *app.App, path string) {
 				{Label: i18n.T("cmd.beads.clean.later"), Callback: func() {}},
 			})
 		})
-	}()
+	})
 }
 
 func printCleanActions(w io.Writer, r beads.CleanReport) {

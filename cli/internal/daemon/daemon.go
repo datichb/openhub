@@ -19,6 +19,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/credproxy"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/gateway"
+	"github.com/datichb/openhub/cli/internal/safego"
 	"github.com/datichb/openhub/cli/internal/services/checkpoint"
 )
 
@@ -234,9 +235,10 @@ func Run(ctx context.Context, opts Options) error {
 	if opts.Periodic != nil {
 		go d.runPeriodic(ctx)
 	}
-	go d.runLogRotation(ctx)
+	// A panic of these background jobs must not take the daemon down (A-02).
+	safego.Go(func() { d.runLogRotation(ctx) })
 	for _, t := range opts.Tasks {
-		go d.runTask(ctx, t)
+		safego.Go(func() { d.runTask(ctx, t) })
 	}
 	// Supervision revokes grants: it must not race with their restoration.
 	select {
