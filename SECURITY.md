@@ -127,6 +127,8 @@ MCP server tokens (GitLab, Figma, Jira, Linear, GitHub, Google) are:
 
 ### Remote sessions (GitLab CI)
 
+> **Experimental, disabled by default in 5.0.** The remote mode has never been validated on a real runner and security fixes of the job are in progress. oh refuses it until `[remote] experimental = true` is set (`oh config set remote.experimental true`); only enable it for trials, with test projects and tokens.
+
 - **Masked and protected CI variables.** The job only receives the CI variables of the `oh-runner` project: LLM key of the jobs, an access token per target project, a team-state write token. They are masked (absent from logs) and protected (default branch of `oh-runner`, which must be protected). `oh remote setup` reads secrets from hidden input or an environment variable, never from arguments; `[[remote.targets]]` in `hub.toml` holds no secret. The machine keeps only your GitLab API token and the trigger token, in the keychain.
 - **No secret in pipeline variables or artifacts.** Inputs and prompt travel in the session envelope (package registry), not in pipeline variables. Artifacts (`journal.jsonl`, `summary.json`, `session.export`) and error messages are scrubbed of secret values.
 - **Inside the job.** `ScrubEnv` removes every variable whose name contains `TOKEN`, `PASSWORD`, `SECRET`, `_KEY`, `PASSPHRASE`, `CREDENTIAL`, `JWT` or `AUTH` before the daemon starts. The LLM key is held by the proxy of the job only. opencode runs under the `oh` account (uid 10001), which cannot read the job's processes, `oh.db` or the secrets. The project token is given to git through `GIT_CONFIG_*` in the git process environment, never in an argument, URL or file.
@@ -153,7 +155,7 @@ Treat the local mode as "the agent acts with your user rights". Real isolation c
 - API key only (no AWS profile), and no I6 limits in the job.
 - The parent GitLab shell keeps its own environment; only the `oh` account (server, agents) is protected from it.
 - Maintainers of `oh-runner` can read its CI variables: restrict them.
-- The remote mode has not yet been validated on a real runner.
+- The remote mode has not yet been validated on a real runner: it is **experimental and disabled by default** (`[remote] experimental = true` to try it).
 
 ### Self-update
 

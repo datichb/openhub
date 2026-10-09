@@ -36,7 +36,7 @@ func addRunFlags(c *cobra.Command) {
 	f.StringArrayP("input", "i", nil, "Entrée du workflow (clé=valeur, répétable)")
 	f.String("mode", "", "Mode du workflow (manuel, semi-auto, auto)")
 	f.StringP("agent", "a", "", i18n.T("cmd.run.flags.agent"))
-	f.String("runtime", "", "Environnement d'exécution (local, container, remote)")
+	f.String("runtime", "", i18n.T("cmd.run.flags.runtime"))
 	f.String("location", "", "Emplacement : base, new (nouveau worktree) ou chemin d'un worktree existant")
 	f.Bool("allow-dirty", false, "Lancer quand même dans un dossier modifié (sans worktree ni stash)")
 	f.Bool("stash", false, "Mettre de côté (git stash) les modifications du dossier avant le lancement")

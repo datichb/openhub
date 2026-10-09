@@ -87,6 +87,9 @@ func remoteDetail(ref domain.RemoteRef) string {
 
 // FetchRemote implements views.SessionRemote.
 func (t *tuiSessions) FetchRemote(ctx context.Context, id string) (views.RemoteFetchReport, error) {
+	if err := requireRemoteExperimental(t.a); err != nil {
+		return views.RemoteFetchReport{}, err
+	}
 	res, err := newRemoteReturnService(ctx, t.a).Fetch(ctx, id, remotesvc.FetchOptions{})
 	if err != nil {
 		return views.RemoteFetchReport{}, err
@@ -139,6 +142,9 @@ func toReplayView(p *remotesvc.ReplayPlan) *views.ReplayView {
 
 // PlanReplay implements views.SessionRemote.
 func (t *tuiSessions) PlanReplay(ctx context.Context, id string) (*views.ReplayView, error) {
+	if err := requireRemoteExperimental(t.a); err != nil {
+		return nil, err
+	}
 	p, err := newRemoteReturnService(ctx, t.a).PlanReplay(ctx, id)
 	if err != nil {
 		return nil, err
@@ -148,6 +154,9 @@ func (t *tuiSessions) PlanReplay(ctx context.Context, id string) (*views.ReplayV
 
 // ApplyReplay implements views.SessionRemote.
 func (t *tuiSessions) ApplyReplay(ctx context.Context, id string, res map[string]string) (*views.ReplayView, error) {
+	if err := requireRemoteExperimental(t.a); err != nil {
+		return nil, err
+	}
 	r := map[string]remotesvc.Resolution{}
 	for k, v := range res {
 		r[k] = remotesvc.Resolution(v)

@@ -70,6 +70,9 @@ func printReplayPlan(w io.Writer, p *remotesvc.ReplayPlan) {
 func runSessionResolve(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 	a := MustApp()
+	if err := requireRemoteExperimental(a); err != nil {
+		return err
+	}
 	out := cmd.OutOrStdout()
 	id, err := resolveSessionRef(ctx, args[0])
 	if err != nil {

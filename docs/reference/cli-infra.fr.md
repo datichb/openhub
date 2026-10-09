@@ -225,6 +225,8 @@ oh daemon stop [--force]
 
 Exécution distante sur GitLab CI : un projet `oh-runner` par groupe GitLab, dont le pipeline est généré par oh ; la CI des projets n'est jamais modifiée. Les sessions se lancent avec `oh run --runtime remote` et se récupèrent avec [`oh session fetch`](cli-sessions.fr.md#oh-session-fetch) puis [`oh session resolve`](cli-sessions.fr.md#oh-session-resolve). Guide : [Exécution distante](../guides/remote-runners.fr.md). Le côté CI (`oh runner install|run`) est une commande interne utilisée par le pipeline.
 
+**Expérimental en 5.0, désactivé par défaut** : `oh remote setup` (comme `oh run --runtime remote`, `oh session fetch` et `oh session resolve`) est refusé tant que `oh config set remote.experimental true` n'a pas été fait ; `oh remote status` et `oh doctor` le rappellent par un avertissement.
+
 #### oh remote setup
 
 Vérifie l'accès à l'API GitLab, crée ou valide le projet `oh-runner` du groupe, écrit le pipeline généré par oh, crée le jeton de déclenchement (gardé dans le trousseau) et pose les variables CI masquées : clé LLM des jobs (`--llm`), jeton d'accès de chaque projet cible (`--project`, portées `write_repository` et `read_api`), jeton du team-state (`--teamstate`). Les secrets sont lus au terminal (saisie masquée) ou dans une variable d'environnement (`--*-env`), jamais en argument. Relançable : seul ce qui manque ou a changé est modifié.

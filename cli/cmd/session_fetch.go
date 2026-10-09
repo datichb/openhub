@@ -80,6 +80,9 @@ func trackRemoteSessions(ctx context.Context, a *app.App) {
 func runSessionFetch(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 	a := MustApp()
+	if err := requireRemoteExperimental(a); err != nil {
+		return err
+	}
 	out := cmd.OutOrStdout()
 	id, err := resolveSessionRef(ctx, args[0])
 	if err != nil {

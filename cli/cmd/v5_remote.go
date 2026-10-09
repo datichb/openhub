@@ -54,6 +54,9 @@ func remoteTargetFor(a *app.App, project *domain.Project) (*config.RemoteTarget,
 // prepareRemote checks that the workflow can run remotely (P5-T04) and
 // chooses the target.
 func prepareRemote(ctx context.Context, a *app.App, project *domain.Project, res *workflowsvc.Resolution) (*remotePrep, error) {
+	if err := requireRemoteExperimental(a); err != nil {
+		return nil, err
+	}
 	cps, err := res.RemotePlan(i18n.Locale())
 	var fe *workflowsvc.RemoteForbiddenError
 	switch {
@@ -151,6 +154,10 @@ func newRemoteSendService(a *app.App) *remotesvc.Service {
 // sendRemote sends each session of the plan (P5-T05 → T08).
 func (p *preparedRun) sendRemote(ctx context.Context, a *app.App, ui launcher.LaunchUI) ([]*runsvc.StartResult, error) {
 	rp := p.remote
+	if err := requireRemoteExperimental(a); err != nil {
+		return nil, err
+	}
+	ui.Notify(i18n.T("cmd.remote.experimental.warning"), launcher.LevelWarning)
 	svc := newRemoteSendService(a)
 	base := p.plan.Request.Base
 

@@ -132,7 +132,7 @@ func launchFormConfig(ctx context.Context, a *app.App, project *domain.Project, 
 		DefaultMode: req.Mode, DefaultRuntime: req.Runtime,
 	}
 	if cfg.DefaultRuntime == "" {
-		cfg.DefaultRuntime = string(sp.PickRuntime(runtimePrefs(a, project)...))
+		cfg.DefaultRuntime = string(pickLaunchRuntime(a, sp, project))
 	}
 	cfg.RuntimeStatus, cfg.Progress = tuiRuntimeStatus(a, project), &views.LaunchProgress{}
 	if beads.Available() == nil && beads.IsInitialized(project.Path) {

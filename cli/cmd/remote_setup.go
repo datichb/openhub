@@ -150,8 +150,12 @@ func remoteDefaultsFromGit() (url, group string) {
 
 func runRemoteSetup(cmd *cobra.Command, _ []string) error {
 	a := MustApp()
+	if err := requireRemoteExperimental(a); err != nil {
+		return err
+	}
 	ctx := ctxOf(cmd)
 	out := cmd.OutOrStdout()
+	printRemoteExperimentalWarning(cmd.ErrOrStderr())
 	f := cmd.Flags()
 	in := &remoteSetupInput{cmd: cmd, in: bufio.NewReader(os.Stdin), tty: interactive()}
 	str := func(name string) string { v, _ := f.GetString(name); return strings.TrimSpace(v) }

@@ -4,6 +4,14 @@
 
 An oh session can run on a **GitLab CI runner** instead of your machine. This guide covers the setup: the runner, the central `oh-runner` project of a GitLab group, and `oh remote setup`. Remote execution is available on macOS and Linux; on Windows, oh stays local.
 
+> **Experimental, disabled by default (v5.0).** Remote execution has never been validated on a real runner. It stays disabled until you explicitly enable it on your machine:
+>
+> ```bash
+> oh config set remote.experimental true
+> ```
+>
+> Without this setting, `oh remote setup`, `oh run --runtime remote`, the ☁ option of the launch form, `oh session fetch` and `oh session resolve` refuse with the message "experimental remote mode, not validated: oh config set remote.experimental true". Once enabled, a warning stays in the launch recap, in `oh remote status` and in `oh doctor`. Use it for trials only, with test projects and tokens: security fixes of the job (final git steps, image build, Beads journal replay) are in progress before this flag is lifted.
+
 > **v5.0:** remote execution is covered by tests (responder, machine ↔ job contract, journal replay, full local run of `oh runner run`), but has not yet been validated on a real runner. MCP servers that read a token from the machine keychain (gitlab, jira, figma…) are not available in the job (`workflow` is), and the build args of the Execution config are not passed to the remote image.
 
 ## How it works
@@ -112,9 +120,10 @@ Never paste them in a command: `oh remote setup` asks for them with hidden input
 
 ## 3. Configure oh: `oh remote setup`
 
-From a project of the group (the instance and the group are suggested from its `origin` remote):
+From a project of the group (the instance and the group are suggested from its `origin` remote), after enabling the experimental mode:
 
 ```bash
+oh config set remote.experimental true
 oh remote setup --llm --teamstate --project acme/dev/api
 ```
 

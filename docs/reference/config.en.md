@@ -96,6 +96,7 @@ tool_version = ""                  # tool (opencode) version of the images; empt
 strict_isolation = false           # also hide the personal opencode config locally
 
 [remote]
+experimental = false              # experimental remote mode (5.0): true to try it
 [[remote.targets]]                 # oh-runner projects (one per GitLab instance and group)
 name = "acme"
 url = "https://gitlab.com"
@@ -128,7 +129,8 @@ Removed in v5 (ignored if still in the file): `[opencode] version`, `channel`, `
 | | `keep_images` | `2` | Images kept per project and role (base, dev) |
 | | `tool_version` | empty | opencode version of the images; when it differs from the machine client, container launches are refused |
 | | `strict_isolation` | `false` | Also hides the personal opencode configuration (`XDG_CONFIG_HOME`) from local servers |
-| `[remote]` | `targets[]` | — | `oh-runner` targets (`oh remote setup`): `name`, `url`, `group`, `runner_project`, `token_key`, `trigger_key`, `tag`, `builder` (`kaniko`\|`dind`), `arch` (`amd64`\|`arm64`), `timeout` |
+| `[remote]` | `experimental` | `false` | Enables the remote mode, **experimental** in 5.0 (never validated on a real runner): without it, `oh remote setup`, `oh run --runtime remote`, the ☁ option, `oh session fetch` and `oh session resolve` are refused |
+| | `targets[]` | — | `oh-runner` targets (`oh remote setup`): `name`, `url`, `group`, `runner_project`, `token_key`, `trigger_key`, `tag`, `builder` (`kaniko`\|`dind`), `arch` (`amd64`\|`arm64`), `timeout` |
 | | `projects` | — | oh project → target name |
 | `[limits]` | `max_active_sessions`, `session_budget_usd`, `daily_budget_usd`, `memory_mb`, `models` | not set | Hub I6 restrictions (`oh budget set`) |
 | `[deploy]` | `instruction_files` | `[]` | Project files added to the instructions of the bundle agents |

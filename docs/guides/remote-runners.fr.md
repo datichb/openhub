@@ -4,6 +4,14 @@
 
 Une session oh peut tourner sur un **runner GitLab CI** au lieu de votre machine. Ce guide couvre la mise en place : le runner, le projet central `oh-runner` d'un groupe GitLab, et `oh remote setup`. L'exécution distante est disponible sur macOS et Linux ; sous Windows, oh reste en local.
 
+> **Expérimental, désactivé par défaut (v5.0).** L'exécution distante n'a jamais été validée sur un vrai runner. Elle reste désactivée tant que vous ne l'activez pas explicitement sur votre machine :
+>
+> ```bash
+> oh config set remote.experimental true
+> ```
+>
+> Sans ce réglage, `oh remote setup`, `oh run --runtime remote`, l'option ☁ de la fiche de lancement, `oh session fetch` et `oh session resolve` refusent avec le message « mode distant expérimental, non validé : oh config set remote.experimental true ». Une fois activée, un avertissement reste affiché dans le récapitulatif du lancement, dans `oh remote status` et dans `oh doctor`. Réservez-la aux essais, avec des projets et des jetons de test : des corrections de sécurité du job (étapes git finales, construction de l'image, rejeu du journal Beads) sont en cours avant de lever ce drapeau.
+
 > **v5.0 :** l'exécution distante est couverte par les tests (répondeur, contrat machine ↔ job, rejeu du journal, essai local complet de `oh runner run`), mais n'a pas encore été validée sur un vrai runner. Les serveurs MCP qui lisent un jeton dans le trousseau de la machine (gitlab, jira, figma…) ne sont pas disponibles dans le job (`workflow` l'est), et les build args de la config Exécution ne sont pas transmis à l'image distante.
 
 ## Principe
@@ -112,9 +120,10 @@ Ne les collez jamais dans une commande : `oh remote setup` les demande en saisie
 
 ## 3. Configurer oh : `oh remote setup`
 
-Depuis un projet du groupe (l'instance et le groupe sont proposés à partir de son remote `origin`) :
+Depuis un projet du groupe (l'instance et le groupe sont proposés à partir de son remote `origin`), après avoir activé le mode expérimental :
 
 ```bash
+oh config set remote.experimental true
 oh remote setup --llm --teamstate --project acme/dev/api
 ```
 

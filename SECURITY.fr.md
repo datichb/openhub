@@ -127,6 +127,8 @@ Les jetons des serveurs MCP (GitLab, Figma, Jira, Linear, GitHub, Google) sont :
 
 ### Sessions distantes (GitLab CI)
 
+> **Expérimental, désactivé par défaut en 5.0.** Le mode distant n'a jamais été validé sur un vrai runner et des corrections de sécurité du job sont en cours. oh le refuse tant que `[remote] experimental = true` n'est pas posé (`oh config set remote.experimental true`) ; ne l'activez que pour des essais, avec des projets et des jetons de test.
+
 - **Variables CI masquées et protégées.** Le job ne reçoit que les variables CI du projet `oh-runner` : clé LLM des jobs, un jeton d'accès par projet cible, un jeton d'écriture du team-state. Elles sont masquées (absentes des journaux) et protégées (branche par défaut d'`oh-runner`, qui doit être protégée). `oh remote setup` lit les secrets en saisie masquée ou dans une variable d'environnement, jamais dans les arguments ; `[[remote.targets]]` dans `hub.toml` ne contient aucun secret. La machine ne garde que votre jeton API GitLab et le jeton de déclenchement, dans le trousseau.
 - **Aucun secret dans les variables du pipeline ni dans les artefacts.** Les entrées et le prompt voyagent dans l'enveloppe de session (registre de packages), pas dans les variables du pipeline. Les artefacts (`journal.jsonl`, `summary.json`, `session.export`) et les messages d'erreur sont expurgés des valeurs secrètes.
 - **Dans le job.** `ScrubEnv` retire toute variable dont le nom contient `TOKEN`, `PASSWORD`, `SECRET`, `_KEY`, `PASSPHRASE`, `CREDENTIAL`, `JWT` ou `AUTH` avant le démarrage du démon. La clé LLM n'est détenue que par le proxy du job. opencode tourne sous le compte `oh` (uid 10001), qui ne peut lire ni les processus du job, ni `oh.db`, ni les secrets. Le jeton du projet est donné à git par `GIT_CONFIG_*` dans l'environnement du processus git, jamais en argument, dans une URL ou dans un fichier.
@@ -153,7 +155,7 @@ Considérez que l'agent agit avec les droits de votre utilisateur. La vraie isol
 - Clé API seulement (pas de profil AWS), et pas de restrictions I6 dans le job.
 - Le shell GitLab parent garde son propre environnement ; seul le compte `oh` (serveur, agents) en est protégé.
 - Les Maintainers d'`oh-runner` peuvent lire ses variables CI : restreignez-les.
-- Le mode distant n'a pas encore été validé sur un vrai runner.
+- Le mode distant n'a pas encore été validé sur un vrai runner : il est **expérimental et désactivé par défaut** (`[remote] experimental = true` pour l'essayer).
 
 ### Mise à jour automatique
 
