@@ -62,6 +62,8 @@ openhub stocke les jetons d'API et les secrets via deux mécanismes :
 
 Les secrets ne sont jamais stockés en clair sur le disque. `~/.oh` est en 0700 ; `oh.db` et ses fichiers WAL en 0600.
 
+Les mots de passe des serveurs opencode (nécessaires pour attacher une session et pour que le démon pilote le serveur) ne sont pas dans `oh.db` : un fichier 0600 par groupe sous `~/.oh/run/server-passwords/` (dossier 0700), `oh.db` n'en garde que l'empreinte. Une base d'une version précédente est convertie au démarrage du démon (puis compactée) ; `oh doctor` signale un mot de passe resté en clair. Ces fichiers restent lisibles par votre utilisateur : le shell des agents n'y accède que par erreur (refus shell de `~/.oh/run`), pas par une barrière.
+
 ### Proxy d'identifiants LLM
 
 Le démon oh (`ohd`) fait tourner un proxy d'identifiants sur `127.0.0.1` (une écoute par machine ; sous Linux, une seconde écoute sur l'adresse vue des conteneurs).
@@ -143,7 +145,7 @@ Optionnelles et désactivées par défaut (`oh budget show|set|unset|raise`) : s
 - Le shell de l'agent tourne sous votre utilisateur. Il peut toujours atteindre le socket du démon et `oh.db`, mais le socket ne fait plus passer un checkpoint (voir plus haut).
 - Sans la capacité, il ne peut pas obtenir de nouveaux jetons, mais un processus de votre utilisateur peut lire l'entrée du trousseau ou le fichier de capacité, ou lancer `oh` lui-même. Ces protections compliquent l'abus ; elles n'isolent pas l'agent.
 - La clé LLM n'est jamais dans l'environnement de l'agent ni dans la configuration d'opencode, mais votre trousseau est lisible par votre utilisateur.
-- Le mot de passe des serveurs opencode reste en clair dans `oh.db` (nécessaire pour attacher une session).
+- Le shell d'une session ne reçoit jamais le mot de passe du serveur opencode, sa configuration en ligne, le jeton du groupe ni celui du fournisseur : le plugin oh les retire de tout shell, y compris sans environnement de session (sous-agent pas encore adopté, session ouverte dans l'interface de l'outil). Sans plugin oh actif (mode de repli, signalé dans le journal), un shell sans environnement de session les hérite encore. Les commandes qui visent ces variables ou l'API du serveur (réponses aux permissions et aux questions, environnement de session) sont refusées à tous les agents, comme garde-fou.
 - Sans isolation stricte, votre configuration opencode d'utilisateur est chargée ; `Attest` refuse ce qui ajoute des agents, des skills ou des serveurs MCP visibles, pas les autres réglages.
 - Les agents de développement livrés (base `developer-rw`) n'installent des dépendances que dans le projet : `pip` seulement dans l'environnement virtuel du projet (`.venv/bin/…`, `uv`, `poetry`), pas de `npm -g`, `yarn global`, `pnpm add -g`, `gem install` ni `--break-system-packages`. Leur liste blanche est un garde-fou, pas un bac à sable : lanceurs de tests et outils de build exécutent le code du projet.
 

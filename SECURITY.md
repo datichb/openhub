@@ -62,6 +62,8 @@ openhub stores API tokens and secrets using two mechanisms:
 
 Secrets are never stored in plaintext on disk. `~/.oh` is 0700; `oh.db` and its WAL files are 0600.
 
+The passwords of the opencode servers (needed to attach to a session and for the daemon to drive the server) are not in `oh.db`: one 0600 file per group under `~/.oh/run/server-passwords/` (0700 folder), `oh.db` keeps only their hash. A database of an older version is converted when the daemon starts (then compacted); `oh doctor` reports a password left in clear. These files stay readable by your user: the shell of the agents only reaches them by mistake (shell refusal of `~/.oh/run`), not through a barrier.
+
 ### LLM credential proxy
 
 The oh daemon (`ohd`) runs a credential proxy on `127.0.0.1` (one listener per machine; on Linux, a second listener on the address seen by containers).
@@ -143,7 +145,7 @@ Optional and disabled by default (`oh budget show|set|unset|raise`): maximum act
 - The agent's shell runs as your user. It can still reach the daemon socket and `oh.db`, but the socket no longer passes a checkpoint (see above).
 - Without the capability it cannot obtain new tokens, but a process of your user can read the keychain item or the capability file, or run `oh` itself. These protections raise the bar; they do not isolate the agent.
 - The LLM key is never in the agent's environment or in the opencode configuration, but your keychain is readable by your user.
-- The password of the opencode servers stays in clear in `oh.db` (needed to attach to a session).
+- The shell of a session never gets the opencode server password, its inline configuration, the group token nor the provider token: the oh plugin removes them from every shell, also without a session environment (a subagent not yet adopted, a session opened in the tool interface). Without an active oh plugin (fallback mode, reported in the log), a shell without a session environment still inherits them. Commands aiming at these variables or at the server API (permission and question answers, session environment) are refused to every agent, as a guard rail.
 - Without strict isolation, your opencode user configuration is loaded; `Attest` refuses what adds visible agents, skills or MCP servers, not other settings.
 - The shipped development agents (`developer-rw` base) install dependencies only in the project: `pip` only inside the project's virtual environment (`.venv/bin/…`, `uv`, `poetry`), no `npm -g`, `yarn global`, `pnpm add -g`, `gem install` nor `--break-system-packages`. Their allow-list is a guard rail, not a sandbox: test runners and build tools run the project's code.
 

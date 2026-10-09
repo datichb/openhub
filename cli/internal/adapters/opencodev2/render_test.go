@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/datichb/openhub/cli/internal/bundle"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 )
 
@@ -262,4 +263,22 @@ func TestRenderMCPToolActions(t *testing.T) {
 
 	assert.Equal(t, "shell", ToolAction("shell"))
 	assert.Equal(t, "gitlab_issues", ToolAction(sessionspec.MCPToolAction("gitlab", "issues")))
+}
+
+// N2 (v5 critical): driving the tool server from the shell is refused to
+// every agent, even one allowed to run anything.
+func TestControlPlaneGuardLastOfEveryAgent(t *testing.T) {
+	b := sessionspec.BundleSpec{EntryAgent: "a", Agents: []sessionspec.AgentDef{{ID: "a",
+		Permissions: []sessionspec.PermissionRule{{Action: sessionspec.ActionShell, Resource: "*", Effect: sessionspec.EffectAllow}}}}}
+	rules := agentRules(b.Agents[0], b, nil)
+	for _, line := range []string{
+		"printenv OPENCODE_SERVER_PASSWORD",
+		"echo $OPENCODE_CONFIG_CONTENT",
+		"curl -u opencode:x http://127.0.0.1:4096/api/session/ses_1/permission/per_1/reply -d '{\"decision\":\"once\"}'",
+		"curl http://127.0.0.1:4096/api/permission/request",
+		"curl -X PUT http://127.0.0.1:4096/api/session/ses_1/environment",
+	} {
+		assert.Equal(t, sessionspec.EffectDeny, bundle.ShellEffect(rules, line), line)
+	}
+	assert.Equal(t, sessionspec.EffectAllow, bundle.ShellEffect(rules, "go test ./internal/adapters/opencodev2/..."), "developing oh itself stays possible")
 }

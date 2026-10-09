@@ -13,7 +13,7 @@ import (
 
 // securityDoctorChecks reports the local mode protections of the oh daemon
 // (M12): where the issuing capability is kept, the daemon socket, and proxy
-// tokens left in clear by an older oh.
+// tokens and server passwords left in clear by an older oh.
 func securityDoctorChecks(ctx context.Context) []views.DoctorCheck {
 	var out []views.DoctorCheck
 	name := i18n.T("cmd.doctor.security.capability")
@@ -52,6 +52,14 @@ func securityDoctorChecks(ctx context.Context) []views.DoctorCheck {
 			out = append(out, views.DoctorCheck{Name: i18n.T("cmd.doctor.security.tokens"), OK: true, Detail: i18n.T("cmd.doctor.security.tokens_hashed")})
 		} else {
 			out = append(out, views.DoctorCheck{Name: i18n.T("cmd.doctor.security.tokens"), OK: false, Detail: i18n.Tf("cmd.doctor.security.tokens_clear", n)})
+		}
+		// N26: server passwords out of oh.db (moved by the daemon).
+		if k, err := sqlite.NewServerStore(store).CountClearPasswords(ctx); err == nil {
+			if k == 0 {
+				out = append(out, views.DoctorCheck{Name: i18n.T("cmd.doctor.security.passwords"), OK: true, Detail: i18n.T("cmd.doctor.security.passwords_ok")})
+			} else {
+				out = append(out, views.DoctorCheck{Name: i18n.T("cmd.doctor.security.passwords"), OK: false, Detail: i18n.Tf("cmd.doctor.security.passwords_clear", k)})
+			}
 		}
 	}
 	return out

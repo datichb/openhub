@@ -185,7 +185,27 @@ func agentRules(a sessionspec.AgentDef, b sessionspec.BundleSpec, bundleSkills [
 			rules = append(rules, sessionspec.PermissionRule{Action: sessionspec.ActionSubagent, Resource: tgt, Effect: sessionspec.EffectAllow})
 		}
 	}
-	return rules
+	return append(rules, controlPlaneGuard()...)
+}
+
+// controlPlaneShell are the shell commands refused to every agent, last of
+// its rules, that would drive the tool server itself (v5 critical N2): its
+// secrets and the API answering permissions and questions. The server
+// password never reaches the shell (plugin, scrubEnv); these rules guard
+// against mistakes and cheap tries, they are not a barrier (a pattern is
+// escaped by quotes, probe U2).
+var controlPlaneShell = []string{
+	"*OPENCODE_SERVER_PASSWORD*", "*OPENCODE_CONFIG_CONTENT*",
+	"*/api/session/*/permission*", "*/api/permission*", "*/api/session/*/form*", "*/api/form*",
+	"*/api/session/*/environment*", "*-u opencode:*", "*--user opencode:*",
+}
+
+func controlPlaneGuard() []sessionspec.PermissionRule {
+	out := make([]sessionspec.PermissionRule, 0, len(controlPlaneShell))
+	for _, p := range controlPlaneShell {
+		out = append(out, sessionspec.PermissionRule{Action: sessionspec.ActionShell, Resource: p, Effect: sessionspec.EffectDeny})
+	}
+	return out
 }
 
 func globalRules(b sessionspec.BundleSpec, skills []string) []sessionspec.PermissionRule {
