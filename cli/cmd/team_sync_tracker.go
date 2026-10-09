@@ -106,8 +106,8 @@ func runSyncTracker(cmd *cobra.Command, _ []string) error {
 		UnassignedLabels:     effTracker.UnassignedLabels,
 		MaxUnassignedIssues:  effTracker.MaxUnassignedIssues,
 		PushLabels:           effTracker.PushLabels,
-		TicketPatterns:       ticketPatterns,
-		Projects:             projects,
+		TicketPatterns:       ticketPatterns, //nolint:staticcheck // legacy tracker fields still read by the sync engine (backward compatibility)
+		Projects:             projects,       //nolint:staticcheck // legacy tracker fields still read by the sync engine (backward compatibility)
 		StatusMapping:        effTracker.StatusMapping,
 		LabelStatusMapping:   effTracker.LabelStatusMapping,
 	}

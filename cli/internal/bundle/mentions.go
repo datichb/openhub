@@ -1,7 +1,6 @@
 package bundle
 
 import (
-	"fmt"
 	"io/fs"
 	"path/filepath"
 	"regexp"
@@ -90,12 +89,12 @@ func absentSkillsNote(ids []string) string {
 		return ""
 	}
 	sort.Strings(ids)
-	return fmt.Sprintf("\n\n> Skills absentes de ce paquet de session (elles ne s'appliquent pas à ce projet ou à ce workflow) : `%s`. Ne les charge pas avec l'outil `skill`.\n", strings.Join(ids, "`, `"))
+	return "\n\n> Skills absentes de ce paquet de session (elles ne s'appliquent pas à ce projet ou à ce workflow) : `" + strings.Join(ids, "`, `") + "`. Ne les charge pas avec l'outil `skill`.\n"
 }
 
 // inlinedSkillHeading opens an inlined skill in an agent body.
 func inlinedSkillHeading(id string) string {
-	return fmt.Sprintf("> Skill `%s` : incluse ci-dessous dans ton prompt, ne la charge pas avec l'outil `skill`.\n\n", id)
+	return "> Skill `" + id + "` : incluse ci-dessous dans ton prompt, ne la charge pas avec l'outil `skill`.\n\n"
 }
 
 // deliverable reports whether a mentioned skill can be shipped on demand:

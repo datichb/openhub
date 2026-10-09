@@ -18,9 +18,9 @@
 
 Utilisez les [GitHub Security Advisories](https://github.com/datichb/openhub/security/advisories/new) pour signaler une vulnérabilité de manière privée. Cela nous permet d'évaluer l'impact, de préparer un correctif et de coordonner la divulgation avant toute annonce publique.
 
-### Alternative
+### Si vous ne pouvez pas utiliser les GitHub Security Advisories
 
-Envoyez un email à **security@example.com** avec les informations suivantes :
+Ouvrez une issue publique qui demande seulement un contact privé (sans détail de la vulnérabilité). Un signalement contient :
 
 - Description de la vulnérabilité
 - Étapes de reproduction
@@ -162,7 +162,7 @@ La commande `oh upgrade oh` télécharge les binaires exclusivement depuis GitHu
 - **Liste blanche d'URL** — seuls `github.com` et `objects.githubusercontent.com` sont acceptés
 - **HTTPS uniquement** — le HTTP en clair est rejeté
 - **Sommes de contrôle SHA256** — le binaire téléchargé est vérifié contre le fichier de sommes publié ; l'installation est refusée si elles ne correspondent pas
-- **Signature Cosign** — les sommes de contrôle de release sont signées avec [Sigstore](https://www.sigstore.dev/) (OIDC sans clé). La vérification côté client est actuellement indicative (avertissement dans les journaux) ; l'application stricte est prévue pour une version future
+- **Signature Cosign** — les sommes de contrôle de release sont signées avec [Sigstore](https://www.sigstore.dev/) (OIDC sans clé, identité : le workflow `release.yml` de ce dépôt sur un tag `v*`). Quand la CLI `cosign` est installée, `oh upgrade oh` et `install.sh` vérifient la signature et **refusent** une signature invalide. Sans `cosign`, ils ne vérifient que la somme de contrôle et affichent un avertissement ; `OH_REQUIRE_SIGNATURE=1` refuse toute mise à jour dont la signature ne peut pas être vérifiée
 - **Remplacement atomique** — le binaire est remplacé de manière atomique, avec retour arrière automatique en cas d'échec
 
 ### Chaîne d'approvisionnement
@@ -184,7 +184,10 @@ La commande `oh upgrade oh` télécharge les binaires exclusivement depuis GitHu
 7. **Lancez `oh doctor`** — il vérifie la version d'opencode, la capacité du démon, le socket et les jetons restés en clair.
 8. **Vérifiez les signatures des binaires** — après téléchargement, vérifiez la signature Cosign :
    ```bash
-   cosign verify-blob --bundle checksums.txt.sigstore.json checksums.txt
+   cosign verify-blob --bundle checksums.txt.sigstore.json \
+     --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+     --certificate-identity-regexp '^https://github\.com/datichb/openhub/\.github/workflows/release\.yml@refs/tags/v.*$' \
+     checksums.txt
    ```
 9. **Gardez openhub à jour** — lancez `oh upgrade oh` (ou `brew upgrade openhub`) régulièrement pour recevoir les correctifs de sécurité.
 

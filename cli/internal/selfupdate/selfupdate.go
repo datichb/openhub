@@ -9,7 +9,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log/slog"
 	"net/http"
 	"net/url"
 	"os"
@@ -204,34 +203,27 @@ func Update(version string, progress ProgressFunc) (string, error) {
 	}
 	tmpFile.Close()
 
-	// Download checksums and verify integrity
-	expectedHash, err := downloadAndParseChecksums(checksumAsset, assetName)
+	// Download the checksums, verify their signature, then the archive
+	sums, err := fetchChecksums(checksumAsset)
 	if err != nil {
 		return "", fmt.Errorf("fetching checksums: %w", err)
 	}
-	if err := verifyChecksum(tmpPath, expectedHash); err != nil {
-		return "", err
-	}
-
-	// Check for cosign signature bundle (graceful — warn if absent, don't block)
-	sigBundleName := checksumAssetName + signatureBundleSuffix
-	var hasSigBundle bool
+	var sigBundle *Asset
 	for i := range release.Assets {
-		if release.Assets[i].Name == sigBundleName {
-			hasSigBundle = true
+		if release.Assets[i].Name == checksumAssetName+signatureBundleSuffix {
+			sigBundle = &release.Assets[i]
 			break
 		}
 	}
-	if !hasSigBundle {
-		slog.Warn("release has no cosign signature bundle — skipping signature verification",
-			"release", release.TagName,
-			"expected", sigBundleName,
-			"hint", "signature verification will be required in a future version")
-	} else {
-		slog.Debug("cosign signature bundle found",
-			"release", release.TagName,
-			"asset", sigBundleName,
-			"note", "client-side verification requires cosign CLI — run: cosign verify-blob --bundle checksums.txt.sigstore.json --certificate-oidc-issuer https://token.actions.githubusercontent.com --certificate-identity-regexp 'github.com/datichb/openhub' checksums.txt")
+	if err := verifySignature(release, sums, sigBundle); err != nil {
+		return "", err
+	}
+	expectedHash, err := parseChecksums(sums, assetName)
+	if err != nil {
+		return "", err
+	}
+	if err := verifyChecksum(tmpPath, expectedHash); err != nil {
+		return "", err
 	}
 
 	// Extract binary from archive
@@ -395,11 +387,10 @@ func validateDownloadURL(rawURL string) error {
 	return fmt.Errorf("untrusted host %q — expected github.com or objects.githubusercontent.com", u.Host)
 }
 
-// downloadAndParseChecksums downloads the checksums file and extracts the expected
-// SHA256 hash for the named asset. Returns the hex-encoded hash string.
-func downloadAndParseChecksums(checksumAsset *Asset, targetAssetName string) (string, error) {
+// fetchChecksums downloads the checksums file of a release.
+func fetchChecksums(checksumAsset *Asset) ([]byte, error) {
 	if err := validateDownloadURL(checksumAsset.BrowserDownloadURL); err != nil {
-		return "", fmt.Errorf("untrusted checksums URL: %w", err)
+		return nil, fmt.Errorf("untrusted checksums URL: %w", err)
 	}
 
 	var body []byte
@@ -430,9 +421,14 @@ func downloadAndParseChecksums(checksumAsset *Asset, targetAssetName string) (st
 		return false, nil
 	})
 	if retryErr != nil {
-		return "", retryErr
+		return nil, retryErr
 	}
+	return body, nil
+}
 
+// parseChecksums extracts the expected SHA256 (hex) of the named asset from a
+// checksums file.
+func parseChecksums(body []byte, targetAssetName string) (string, error) {
 	// Parse checksums.txt format: "<sha256>  <filename>\n"
 	scanner := bufio.NewScanner(strings.NewReader(string(body)))
 	for scanner.Scan() {
