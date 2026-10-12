@@ -29,15 +29,16 @@ Checks the system health and dependencies. Exits with code 1 when a check fails 
 `oh doctor` works even when `hub.toml` does not load or the database does not open (degraded startup): the failing check says so (TOML error with line and column, unreadable database) and the other checks run. The database is opened **without being migrated**: schema version and the version this oh knows, pending migrations (⚠), last failed migration, schema newer than this oh, quick integrity check, WAL size.
 
 ```
-oh doctor [--fix [--yes]]
+oh doctor [--fix [--yes]] [--offline]
 ```
 
 | Flag | Short | Type | Description |
 |------|-------|------|-------------|
+| `--offline` | | bool | No network call: neither latest published release nor validation of the provider key (also `OH_DOCTOR_OFFLINE=1`) |
 | `--fix` | | bool | First repairs what can be repaired, after a summary and a confirmation: a **`hub.toml` that no longer loads** (replaced by the latest valid backup `hub.toml.bak-<date>`, the broken file kept as `hub.toml.broken-<date>`), **Beads zero impact** (content written by `bd init` in the registered projects, committed content included; the commit of `bd init` itself is undone once listed and confirmed in a terminal, or with `--yes`, after a `git fetch`, when it is neither pushed nor the first of the repository) |
 | `--yes` | `-y` | bool | With `--fix`: apply without confirmation (required without a terminal) |
 
-Checks: OS and architecture, git, `bd` (optional), oh version (update available: warning; a pre-release such as `5.0.0-rc.1` or a `git describe` development build newer than the latest published release is up to date), `hub.toml`, provider credentials (cascade of a launch from the current directory: project key, team key, hub key, then AWS profile for Bedrock), database, API keys (keychain), Beads "zero impact" (hooks, `.gitignore`), then the v5 checks: opencode V2 (minimum version; V1 refused with the [migration guide](../guides/migration-v5.en.md)), `ohd` daemon, git, terminal opening, container engine and image, gateways, restrictions and memory, security (socket, capability, tokens), leftovers of former deployments, integrity of the team-state workflows, remote targets, orphan team claims (ticket closed, or every session on the ticket ended; with the `oh team release` command to run), orphan opencode servers (started by oh or its tests, owned by nobody any more; `--fix` stops them after a confirmation).
+Checks: OS and architecture, git, `bd` (optional), oh version (update available: warning; a pre-release such as `5.0.0-rc.1` or a `git describe` development build newer than the latest published release is up to date), `hub.toml`, provider credentials (cascade of a launch from the current directory: project key, team key, hub key, then AWS profile for Bedrock, according to `auth_mode`; key, scope and date it was stored; a Bedrock API key is validated against AWS, ✗ when rejected; a shell `AWS_BEARER_TOKEN_BEDROCK` that is unused or differs from the stored key is reported), database, API keys (keychain), Beads "zero impact" (hooks, `.gitignore`), then the v5 checks: opencode V2 (minimum version; V1 refused with the [migration guide](../guides/migration-v5.en.md)), `ohd` daemon, git, terminal opening, container engine and image, gateways, restrictions and memory, security (socket, capability, tokens), leftovers of former deployments, integrity of the team-state workflows, remote targets, orphan team claims (ticket closed, or every session on the ticket ended; with the `oh team release` command to run), orphan opencode servers (started by oh or its tests, owned by nobody any more; `--fix` stops them after a confirmation).
 
 **Example:**
 

@@ -30,6 +30,7 @@ This page covers **v5 session management** (`oh session …`), **restrictions** 
 | [`oh session results`](#oh-session-results) | Changed files, branch, cost, MR description, diff |
 | [`oh session resume`](#oh-session-resume) | Resume a sleeping session without interface |
 | [`oh session stop`](#oh-session-stop) | Stop a session |
+| [`oh session delete`](#oh-session-delete) | Delete a session for good (worktree, local branch, files) |
 | [`oh session open`](#oh-session-open) | Open a session in the browser |
 | [`oh session fetch`](#oh-session-fetch) | Fetch a finished remote session |
 | [`oh session resolve`](#oh-session-resolve) | Replay the Beads journal of a remote session |
@@ -204,6 +205,19 @@ oh session stop <session>
 ```
 
 Stops the session, and its server when no other session of the group uses it.
+
+### oh session delete
+
+```
+oh session delete <session> [--yes] [--discard-base-changes]
+```
+
+Deletes a session for good, after listing what goes: the session is stopped (team claims released), its separate worktree removed (kept, with its branch, when another open session works in it) and its local branch deleted, then its record, its decisions, its folder `~/.oh/sessions/<id>` and, when no other session uses its server group, the tool data of the group. The commits pushed nowhere and the uncommitted files that are lost are listed before the confirmation. **Never touched**: the remote branch, the usage ledger (spending). A session that worked in the project directory keeps its uncommitted changes there, unless `--discard-base-changes` (second question in a terminal). Also offered at launch (`oh run --on-existing=delete`) and in the TUI Sessions view (`D`).
+
+| Flag | Short | Type | Default | Description |
+|------|-------|------|---------|-------------|
+| `--yes` | `-y` | bool | `false` | No confirmation (required without a terminal: otherwise the plan is printed and the deletion refused) |
+| `--discard-base-changes` | | bool | `false` | Also discard the uncommitted changes of a session that worked in the project directory |
 
 ### oh session open
 

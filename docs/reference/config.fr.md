@@ -27,7 +27,7 @@ default_provider = "bedrock"       # bedrock | anthropic | openrouter | github-c
 [provider.bedrock]
 aws_profile = "default"            # profil AWS (bedrock uniquement)
 aws_region = "eu-west-1"           # région AWS (bedrock uniquement)
-auth_mode = "bearer"               # "bearer" | "profile" | "env" (bedrock uniquement)
+auth_mode = "bearer"               # "bearer" (clé API enregistrée seulement) | "profile" | "env" (SigV4, clé enregistrée ignorée) — bedrock uniquement ; absent : clés enregistrées puis profil AWS
 
 [provider.anthropic]
 # Utilise la clé API stockée dans le trousseau (pas de champ)
@@ -692,11 +692,12 @@ Le `opencode.json` du projet n'est plus généré (`oh deploy` supprimé en v5).
 | `OH_SESSION_ATTACH` | Ouverture des sessions (passe avant `[session] attach`) |
 | `OH_RICH_TUI` | `0` désactive la TUI (invites en ligne seulement) |
 | `OH_DAEMON_INPROCESS` | `1` fait tourner le démon dans le processus oh (toujours le cas sous Windows) |
+| `OH_DOCTOR_OFFLINE` | `1` : `oh doctor` sans appel réseau (comme `--offline`) |
 | `CI` | Non vide : pas de TUI |
 | `TERM` | `dumb` : pas de TUI |
 | `TMUX`, `TERM_PROGRAM` | Détection de tmux et d'iTerm2 pour l'ouverture des sessions |
 | `OH_SESSION_ID`, `OH_TEAM_ID`, `OH_PROJECT_ID` | Posées par oh dans l'environnement des sessions et des serveurs MCP (ne pas définir à la main) |
-| `AWS_PROFILE`, `AWS_REGION`, `AWS_DEFAULT_REGION`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_BEARER_TOKEN_BEDROCK` | Détection des identifiants Bedrock (`oh init`, `oh doctor`) |
+| `AWS_PROFILE`, `AWS_REGION`, `AWS_DEFAULT_REGION`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_BEARER_TOKEN_BEDROCK` | Détection des identifiants Bedrock (`oh init`, `oh doctor`) ; `AWS_BEARER_TOKEN_BEDROCK` n'est jamais transmise aux sessions : `oh provider setup bedrock --from-env` l'enregistre dans le trousseau |
 | `ANTHROPIC_API_KEY`, `OPENROUTER_API_KEY` | Détection des identifiants Anthropic et OpenRouter |
 | `FIGMA_TOKEN` | Token API Figma (serveur MCP) |
 | `GITLAB_TOKEN`, `GITLAB_URL`, `GITLAB_WRITE_ENABLED` | Serveur MCP GitLab (URL par défaut : `https://gitlab.com`) |

@@ -43,10 +43,19 @@ default_provider = "bedrock"
 [provider.bedrock]
 aws_profile = "default"           # AWS profile to use
 aws_region = "eu-west-1"          # Bedrock region
-auth_mode = "bearer"              # "bearer" | "profile"
+auth_mode = "bearer"              # "bearer" | "profile" | "env"
 ```
 
 This section is optional — if absent, `oh` uses environment credentials.
+
+`auth_mode` decides the Bedrock credential (⚠ v5.0: it is now strictly honoured):
+
+| `auth_mode` | Credential used |
+|-------------|-----------------|
+| `bearer` | only the stored Bedrock API key (project, team, hub); without one, the launch is refused (`auth_mode bearer`) and `oh doctor` explains it: "auth_mode is bearer but no Bedrock API key is stored…: run oh provider setup bedrock" |
+| `profile` | SigV4 signing with the AWS profile (`aws_profile`); a stored key is ignored |
+| `env` | SigV4 signing with the AWS default chain (`AWS_ACCESS_KEY_ID`… variables, SSO…); a stored key is ignored |
+| (absent) | stored keys, then AWS profile |
 
 The region must be an AWS region name (`eu-west-1`): it names the host that receives the credential. It is checked as it is typed — Provider view of the TUI, `oh init` and `oh provider setup` wizards ("Custom..."): the message shows under the field, an invalid value is refused, a region where Bedrock is not known only warns — then by `oh config set provider.bedrock.aws_region`, at launch and by the credential proxy.
 
@@ -84,6 +93,17 @@ Resolution order for the bearer token:
 
 1. `bedrock-token-<project-id>` (per-project)
 2. `bedrock-token-default` (global)
+
+**Shell key (`AWS_BEARER_TOKEN_BEDROCK`)**: oh never passes this variable to the tool, by design (only keychain keys are used). To use the key of your shell, store it:
+
+```bash
+oh provider setup bedrock --from-env           # key a launch from here uses (else the hub key)
+oh provider setup bedrock --from-env -p my-app # project key
+```
+
+The wizard does the same with "Use existing" when the variable is set, and `oh run` offers it when no key is stored. `auth_mode` becomes `bearer`.
+
+**Rejected key**: when AWS rejects the key (short-term Bedrock API keys expire after 12 h at most), the daemon logs it and raises a ✗ alert in "To handle" with the key name, its scope and the date it was stored. `oh doctor` validates the key against AWS (`--offline` or `OH_DOCTOR_OFFLINE=1` to skip it) and reports a shell `AWS_BEARER_TOKEN_BEDROCK` that is unused or differs from the stored key. See [Troubleshooting](troubleshooting.en.md#provider-and-authentication).
 
 ### Anthropic / OpenAI / OpenRouter
 

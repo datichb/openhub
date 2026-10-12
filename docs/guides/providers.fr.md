@@ -43,10 +43,19 @@ default_provider = "bedrock"
 [provider.bedrock]
 aws_profile = "default"           # profil AWS a utiliser
 aws_region = "eu-west-1"          # region Bedrock
-auth_mode = "bearer"              # "bearer" | "profile"
+auth_mode = "bearer"              # "bearer" | "profile" | "env"
 ```
 
 Cette section est facultative — si absente, `oh` utilise les credentials de l'environnement.
+
+`auth_mode` decide de l'identifiant Bedrock (⚠ v5.0 : il est desormais respecte strictement) :
+
+| `auth_mode` | Identifiant utilise |
+|-------------|---------------------|
+| `bearer` | uniquement la cle API Bedrock enregistree (projet, equipe, hub) ; sans cle, le lancement est refuse (`auth_mode bearer`) et `oh doctor` l'explique : « auth_mode vaut bearer mais aucune clé API Bedrock n'est enregistrée… : lancez oh provider setup bedrock » |
+| `profile` | signature SigV4 avec le profil AWS (`aws_profile`) ; une cle enregistree est ignoree |
+| `env` | signature SigV4 avec la chaine AWS par defaut (variables `AWS_ACCESS_KEY_ID`…, SSO…) ; une cle enregistree est ignoree |
+| (absent) | cles enregistrees, puis profil AWS |
 
 La region doit etre un nom de region AWS (`eu-west-1`) : elle designe l'hote qui recoit l'identifiant. Elle est verifiee des la saisie — vue Fournisseur de la TUI, assistants `oh init` et `oh provider setup` (« Personnalisé... ») : le message s'affiche sous le champ, une valeur invalide est refusee, une region ou Bedrock n'est pas connu donne un simple avertissement — puis par `oh config set provider.bedrock.aws_region`, au lancement et par le proxy d'identifiants.
 
@@ -84,6 +93,17 @@ Ordre de resolution du bearer token :
 
 1. `bedrock-token-<project-id>` (par projet)
 2. `bedrock-token-default` (global)
+
+**Cle du shell (`AWS_BEARER_TOKEN_BEDROCK`)** : oh ne transmet jamais cette variable a l'outil, par conception (seules les cles du trousseau sont utilisees). Pour utiliser la cle de votre shell, enregistrez-la :
+
+```bash
+oh provider setup bedrock --from-env           # cle utilisee par un lancement d'ici (sinon cle du hub)
+oh provider setup bedrock --from-env -p my-app # cle du projet
+```
+
+L'assistant fait de meme avec « Utiliser l'existant » quand la variable est definie, et `oh run` le propose quand aucune cle n'est enregistree. `auth_mode` passe a `bearer`.
+
+**Cle refusee** : si AWS refuse la cle (les cles API Bedrock a court terme expirent au bout de 12 h au plus), le demon le journalise et leve une alerte ✗ dans « À traiter » avec le nom de la cle, sa portee et sa date d'enregistrement. `oh doctor` valide la cle aupres d'AWS (`--offline` ou `OH_DOCTOR_OFFLINE=1` pour s'en passer) et signale une `AWS_BEARER_TOKEN_BEDROCK` du shell inutilisee ou differente de la cle enregistree. Voir [Depannage](troubleshooting.fr.md#fournisseur-et-authentification).
 
 ### Anthropic / OpenAI / OpenRouter
 

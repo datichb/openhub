@@ -22,7 +22,7 @@ Run `oh doctor` to check your installation health. It performs about twenty chec
 | 4 | bd (beads) | Beads CLI (optional) | `brew install datichb/tap/bd` |
 | 5 | oh version | Latest published oh release: a newer release is a warning (⚠, not a failure); a pre-release or a development build newer than the latest published release is "up to date" | `oh upgrade oh` (or `brew upgrade openhub`) |
 | 6 | Configuration | `hub.toml` loads correctly | `oh init` to reinitialize |
-| 7 | Provider credentials | Credentials found through the cascade of a launch from the current directory: project key, team key, hub key, then AWS profile (Bedrock); the source is shown | `oh provider setup`, `oh secrets set` or env var |
+| 7 | Provider credentials | Credentials found through the cascade of a launch from the current directory: project key, team key, hub key, then AWS profile (Bedrock); the key, its scope and the date it was stored are shown, a Bedrock API key is validated against AWS (unless `oh doctor --offline` or `OH_DOCTOR_OFFLINE=1`); an unused shell `AWS_BEARER_TOKEN_BEDROCK` is reported | `oh provider setup`, `oh provider setup bedrock --from-env`, `oh secrets set` |
 | 8 | Database | SQLite database accessible | `oh repair` |
 | 9 | API keys | MCP service tokens (Figma, GitLab, etc.) | `oh mcp setup <service>` |
 | 10 | Beads zero-impact | No side effects from Beads (hooks, gitignore, agent files written by `bd init`: `AGENTS.md`, `CLAUDE.md`, `.claude/`, `.codex/`, `.cursor/`, `.agents/`; `.beads/` in `.git/info/exclude`) | `oh doctor --fix` (see [Getting started](getting-started.en.md#initial-setup-oh-init)) |
@@ -79,6 +79,21 @@ export ANTHROPIC_API_KEY="sk-..."   # Via environment variable
 cannot launch, no credentials found for the provider (project, team, hub; AWS profile for Bedrock): …
 ```
 `oh run` (and the launch form of the TUI, at the Recap step) checks the provider credentials before building the bundle or asking anything of the daemon, with the same cascade as `oh doctor`: project key, team key, hub key, then AWS profile for Bedrock. Set them up with `oh provider setup` (or `-P` for another provider). A refusal of the daemon ("the oh daemon could not prepare the provider credentials…") is diagnosed with `oh doctor`.
+
+**Bedrock key rejected by AWS**
+```
+Authentication failed: Please make sure your API Key is valid
+```
+AWS rejects the Bedrock API key the session uses. Usual causes:
+- **short-term** Bedrock API keys expire (12 h at most);
+- you renewed the key in your shell (`AWS_BEARER_TOKEN_BEDROCK`), but oh ignores this variable by design: it only uses the key stored in the keychain.
+
+oh also raises a ✗ alert in "To handle" (key, scope, date it was stored). `oh doctor` tells which key is used and whether AWS accepts it. To fix it:
+```bash
+oh provider setup bedrock --from-env   # store the key of your shell (-p <project> for the project key)
+oh provider setup bedrock              # or enter a new key
+```
+then launch the session again. With `auth_mode = "profile"` or `"env"`, oh signs with SigV4 and uses no stored key: renew the AWS credentials (e.g. `aws sso login`).
 
 **Command run outside of a project directory**
 ```

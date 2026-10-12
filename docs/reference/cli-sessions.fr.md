@@ -30,6 +30,7 @@ Cette page couvre la **gestion des sessions v5** (`oh session …`), les **restr
 | [`oh session results`](#oh-session-results) | Fichiers modifiés, branche, coût, description de MR, diff |
 | [`oh session resume`](#oh-session-resume) | Reprendre une session en veille sans interface |
 | [`oh session stop`](#oh-session-stop) | Arrêter une session |
+| [`oh session delete`](#oh-session-delete) | Supprimer définitivement une session (worktree, branche locale, fichiers) |
 | [`oh session open`](#oh-session-open) | Ouvrir une session dans le navigateur |
 | [`oh session fetch`](#oh-session-fetch) | Récupérer une session distante terminée |
 | [`oh session resolve`](#oh-session-resolve) | Rejouer le journal Beads d'une session distante |
@@ -204,6 +205,19 @@ oh session stop <session>
 ```
 
 Arrête la session, et son serveur si plus aucune autre session du groupe ne l'utilise.
+
+### oh session delete
+
+```
+oh session delete <session> [--yes] [--discard-base-changes]
+```
+
+Supprime définitivement une session, après la liste de ce qui part : la session est arrêtée (réservations d'équipe libérées), son worktree séparé supprimé (gardé, avec sa branche, si une autre session ouverte y travaille) et sa branche locale supprimée, puis son enregistrement, ses décisions, son dossier `~/.oh/sessions/<id>` et, si aucune autre session n'utilise son groupe de serveurs, les données de l'outil du groupe. Les commits poussés nulle part et les fichiers non commités perdus sont listés avant la confirmation. **Jamais touchés** : la branche distante, le registre d'usage (dépenses). Une session qui travaillait dans le dossier du projet y laisse ses modifications non commitées, sauf `--discard-base-changes` (seconde question dans un terminal). Aussi proposé au lancement (`oh run --on-existing=delete`) et dans la vue Sessions de la TUI (`D`).
+
+| Flag | Court | Type | Défaut | Description |
+|------|-------|------|--------|-------------|
+| `--yes` | `-y` | bool | `false` | Sans confirmation (obligatoire sans terminal : sinon le plan est affiché et la suppression refusée) |
+| `--discard-base-changes` | | bool | `false` | Abandonner aussi les modifications non commitées d'une session qui travaillait dans le dossier du projet |
 
 ### oh session open
 
