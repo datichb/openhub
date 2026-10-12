@@ -5,6 +5,8 @@ description: Standards Helm — structure d'un chart, valeurs par environnement,
 
 # Skill — Standards Helm
 
+> Versions de référence (octobre 2026) : Helm 4.3 (Helm 3.22 encore maintenu), External Secrets Operator API `v1`.
+
 ## Rôle
 
 Ce skill définit les bonnes pratiques pour la création et la maintenance de charts Helm.
@@ -124,7 +126,7 @@ app.kubernetes.io/managed-by: {{ .Release.Service }}
 
 ```yaml
 # ✅ ExternalSecret dans un template Helm
-apiVersion: external-secrets.io/v1beta1
+apiVersion: external-secrets.io/v1
 kind: ExternalSecret
 metadata:
   name: {{ include "my-chart.fullname" . }}-secrets
@@ -160,12 +162,12 @@ helm upgrade --install my-app-production ./my-chart \
   -f values-prod.yaml \
   --set image.tag=abc1234 \
   --namespace production \
-  --atomic \
+  --rollback-on-failure \
   --timeout 5m
 ```
 
 - Nommer les releases de façon cohérente : `<app>-<env>` (ex: `api-production`)
-- Utiliser `--atomic` pour le rollback automatique en cas d'échec
+- Utiliser `--rollback-on-failure` (Helm 4 ; `--atomic` en Helm 3) pour le rollback automatique en cas d'échec
 - Passer le tag d'image en `--set` depuis le pipeline (jamais hardcodé dans values.yaml)
 
 ---
@@ -184,4 +186,4 @@ helm upgrade --install my-app-production ./my-chart \
 - Faire un `helm upgrade` en production sans `helm diff`
 - Utiliser `latest` comme tag d'image dans les values
 - Créer des templates sans passer par `_helpers.tpl` pour les labels
-- Omettre `--atomic` sur les déploiements critiques
+- Omettre `--rollback-on-failure` (`--atomic` en Helm 3) sur les déploiements critiques
