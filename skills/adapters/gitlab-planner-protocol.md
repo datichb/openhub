@@ -1,6 +1,7 @@
 ---
 name: gitlab-planner-protocol
 description: Protocole d'intégration GitLab pour l'agent Planner — lecture du ticket source, exploitation des labels et milestones pour contextualiser la décomposition en sous-tickets
+mcp: gitlab
 ---
 
 # Skill — GitLab Planner Protocol (v1)

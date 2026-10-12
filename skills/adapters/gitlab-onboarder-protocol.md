@@ -1,6 +1,7 @@
 ---
 name: gitlab-onboarder-protocol
 description: Protocole d'intégration GitLab pour l'agent Onboarder — cartographie du projet via labels, milestones actifs et tickets récents pour enrichir ONBOARDING.md et CONVENTIONS.md
+mcp: gitlab
 ---
 
 # Skill — GitLab Onboarder Protocol (v1)

@@ -377,6 +377,7 @@ description: <Description courte — affichée dans le catalogue de skills de la
 requires: [<ref>, …]          # facultatif — skills livrées avec celle-ci
 annexes: [templates/<f>.md]   # facultatif — fichiers copiés à côté du SKILL.md
 plugin: <id>                  # facultatif — livrée seulement si le workflow charge ce plugin
+mcp: <serveur>                # facultatif — livrée seulement si la session a ce serveur MCP
 ---
 
 # Skill — <Titre>
@@ -384,7 +385,7 @@ plugin: <id>                  # facultatif — livrée seulement si le workflow 
 <Corps du skill>
 ```
 
-> `name:` doit être égal au nom du fichier : opencode identifie les skills par leur nom. `requires:`, `annexes:` et `plugin:` sont lus par oh et retirés du `SKILL.md` livré. Une skill `plugin: context-mode` (consignes d'outils fournis par un plugin) n'entre dans le paquet que si le workflow déclare ce plugin (`plugins:`). De même, les permissions propres à un plugin (outils `ctx_*` de context-mode, commandes `rtk` ; liste dans `permissions/plugin-tools.yaml`) sont retirées des agents quand le plugin n'est pas chargé. Un agent qui cite une skill absente du paquet (plugin absent, skills frontend dans un projet sans frontend) reçoit une ligne qui la nomme : il ne tente pas de la charger. Le champ `bucket:` est obsolète : le bucket se décide dans le frontmatter de l'agent.
+> `name:` doit être égal au nom du fichier : opencode identifie les skills par leur nom. `requires:`, `annexes:`, `plugin:` et `mcp:` sont lus par oh et retirés du `SKILL.md` livré. Une skill `plugin: context-mode` (consignes d'outils fournis par un plugin) n'entre dans le paquet que si le workflow déclare ce plugin (`plugins:`). Une skill `mcp: gitlab` (adaptateur de tracker : `adapters/gitlab-*`, `adapters/github-*` avec `mcp: github`) n'entre dans le paquet que si la session a ce serveur MCP (configuré pour le projet) : planner, pathfinder et onboarder listent les deux adaptateurs, seul celui du tracker configuré est livré. De même, les permissions propres à un plugin (outils `ctx_*` de context-mode, commandes `rtk` ; liste dans `permissions/plugin-tools.yaml`) sont retirées des agents quand le plugin n'est pas chargé. Un agent qui cite une skill absente du paquet (plugin absent, serveur MCP absent, skills frontend dans un projet sans frontend) reçoit une ligne qui la nomme : il ne tente pas de la charger. Le champ `bucket:` est obsolète : le bucket se décide dans le frontmatter de l'agent.
 > La référence utilisée dans le frontmatter des agents est le chemin relatif à `skills/`, sans `.md` (`developer/beads-plan`).
 > `oh skill check` vérifie le catalogue : identifiants en double, `requires:` manquants ou cycliques, `name:` différent du nom de fichier, description absente, skills référencées par un agent mais introuvables.
 

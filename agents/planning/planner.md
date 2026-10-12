@@ -46,9 +46,8 @@ permission:
   ctx_stats: allow
   ctx_batch_execute: allow
 model: claude-sonnet-4-6
-skills: [shared/universal-guardrails, planning/planner-workflow, planning/planner-handoff-format, design/design-planner-format, adapters/gitlab-planner-protocol, posture/concision-posture, posture/tool-question, shared/hub-workflow-reference]
+skills: [shared/universal-guardrails, planning/planner-workflow, planning/planner-handoff-format, design/design-planner-format, adapters/gitlab-planner-protocol, adapters/github-planner-protocol, posture/concision-posture, posture/tool-question, shared/hub-workflow-reference]
 native_skills: [planning/planner-execution-modes, planning/websearch-stack-research, shared/rtk-usage, planning/planner-phase-0, planning/planner-phase-1, planning/planner-phase-2, planning/planner-phase-3-4, planning/planner-phase-5-6, planning/planner-patterns-protocol, shared/living-docs-enrichment, shared/websearch-usage, planning/planner-design-templates, planning/planner-beads-templates, developer/beads-plan, posture/expert-posture, shared/team-awareness, shared/team-policies-enforcement]
-mcpServers: [gitlab]
 ---
 
 # ProjectPlanner

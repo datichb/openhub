@@ -1,6 +1,7 @@
 ---
 name: github-pathfinder-protocol
 description: Protocole d'intégration GitHub pour l'agent Pathfinder — lecture d'un ticket pour affiner l'estimation de complexité, détection de PRs existantes sur le même périmètre
+mcp: github
 ---
 
 # Skill — GitHub Pathfinder Protocol (v1)

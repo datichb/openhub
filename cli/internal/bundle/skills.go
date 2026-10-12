@@ -33,12 +33,13 @@ import (
 //	requires: [<ref>, …]   skills that must be present with this one
 //	annexes:  [<path>, …]  files shipped next to the skill (see annexes.go)
 //	plugin:   <id>         shipped only when the workflow loads this plugin
+//	mcp:      <server>     shipped only when the session has this MCP server
 //
 // The delivered SKILL.md keeps only the Agent Skills spec keys; any other key
 // is reported by CheckSkills.
 
 // hubSkillKeys are frontmatter keys consumed by oh, never delivered to the tool.
-var hubSkillKeys = []string{"requires", "annexes", "plugin"}
+var hubSkillKeys = []string{"requires", "annexes", "plugin", "mcp"}
 
 // deliveredSkillKeys are the Agent Skills spec keys, the only ones delivered.
 var deliveredSkillKeys = []string{"name", "description", "license", "compatibility", "metadata", "allowed-tools"}
@@ -57,6 +58,7 @@ type skillFront struct {
 	Requires    []string `yaml:"requires"`
 	Annexes     []string `yaml:"annexes"`
 	Plugin      string   `yaml:"plugin"`
+	MCP         string   `yaml:"mcp"`
 	Bucket      string   `yaml:"bucket"` // legacy (B17), reported by CheckSkills
 }
 
@@ -147,12 +149,17 @@ func parseSkill(ref, src string, content []byte) (*skillDoc, error) {
 
 // rootFilter tells whether an optional skill (agent skills, native skills,
 // mentions, stack) applies to the session (A8): a skill of a plugin the
-// workflow does not load, or a frontend domain skill in a project without
+// workflow does not load, a skill of an MCP server the session does not have
+// (tracker adapters), or a frontend domain skill in a project without
 // frontend, is left out. A requirement of a kept skill is never filtered.
-func rootFilter(l *skillLoader, plugins []sessionspec.PluginDef, projectPath string) func(ref string) bool {
+func rootFilter(l *skillLoader, plugins []sessionspec.PluginDef, mcp []sessionspec.MCPServerDef, projectPath string) func(ref string) bool {
 	loaded := map[string]bool{}
 	for _, p := range plugins {
 		loaded[p.ID] = true
+	}
+	servers := map[string]bool{}
+	for _, m := range mcp {
+		servers[m.Name] = true
 	}
 	frontend := map[string]bool{}
 	for _, ref := range bricks.FrontendSkills {
@@ -169,8 +176,13 @@ func rootFilter(l *skillLoader, plugins []sessionspec.PluginDef, projectPath str
 				return false
 			}
 		}
-		if d, err := l.load(ref); err == nil && d.Front.Plugin != "" && !loaded[d.Front.Plugin] {
-			return false
+		if d, err := l.load(ref); err == nil {
+			if d.Front.Plugin != "" && !loaded[d.Front.Plugin] {
+				return false
+			}
+			if d.Front.MCP != "" && !servers[d.Front.MCP] {
+				return false
+			}
 		}
 		return true
 	}

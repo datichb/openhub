@@ -21,7 +21,6 @@ type AgentFrontmatter struct {
 	Permission     map[string]interface{} `yaml:"permission"`      // structured permissions (nested maps for bash/task)
 	Skills         []string               `yaml:"skills"`          // Bucket A — inline skills
 	NativeSkills   []string               `yaml:"native_skills"`   // Bucket B — on-demand skills
-	MCPServers     []string               `yaml:"mcpServers"`      // required MCP servers
 }
 
 // ParseAgentFrontmatter reads an agent .md file and extracts its YAML frontmatter.

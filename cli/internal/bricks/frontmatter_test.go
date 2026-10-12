@@ -22,7 +22,6 @@ permission:
 model: anthropic/claude-sonnet-4-6
 skills: [skill-a, skill-b]
 native_skills: [native-a]
-mcpServers: [gitlab]
 ---
 
 # Orchestrator
@@ -40,7 +39,6 @@ Body content here.
 	assert.Equal(t, "anthropic/claude-sonnet-4-6", fm.Model)
 	assert.Equal(t, []string{"skill-a", "skill-b"}, fm.Skills)
 	assert.Equal(t, []string{"native-a"}, fm.NativeSkills)
-	assert.Equal(t, []string{"gitlab"}, fm.MCPServers)
 
 	// Check permissions
 	assert.Equal(t, "allow", fm.Permission["question"])
@@ -242,7 +240,6 @@ permission:
 model: anthropic/claude-sonnet-4-6
 skills: [skill-a, skill-b, skill-c]
 native_skills: [native-a, native-b]
-mcpServers: [gitlab]
 ---
 
 # Pathfinder

@@ -107,7 +107,6 @@ permission:
   task:               # agents que cet agent peut lancer (restreint ensuite au workflow)
     "*": deny
     "documentarian": allow
-mcpServers: [gitlab]  # optionnel — MCP utilisés par l'agent
 skills: [chemin/vers/skill, ...]          # Bucket A — assemblées inline à la construction du paquet de session
 native_skills: [chemin/vers/skill, ...]   # Bucket B — livrées dans skills/ du paquet de session, chargées à la demande
 ---
@@ -152,14 +151,14 @@ L'agent d'entrée doit être `primary`.
 
 Relevé des frontmatter de `agents/`.
 
-| Famille | Agent | Mode (frontmatter) | Base de permissions | MCP |
+| Famille | Agent | Mode (frontmatter) | Base de permissions | MCP (skills `mcp:`) |
 |---------|-------|--------------------|---------------------|-----|
 | planning | `conductor` | `primary` | `coordinator` | — |
 | planning | `orchestrator` | `primary` | — | — |
 | planning | `orchestrator-dev` | `primary` | — | — |
-| planning | `planner` | `primary` | — | `gitlab` |
-| planning | `pathfinder` | `primary` | — | `gitlab` |
-| planning | `onboarder` | `primary` | — | `gitlab` |
+| planning | `planner` | `primary` | — | `gitlab`, `github` |
+| planning | `pathfinder` | `primary` | — | `gitlab`, `github` |
+| planning | `onboarder` | `primary` | — | `gitlab`, `github` |
 | developer | `developer` | `subagent` | `developer-rw` | — |
 | developer | `developer-refactor` | `subagent` | `developer-rw` | — |
 | developer | `developer-migrator` | `subagent` | `developer-rw` | — |
@@ -599,7 +598,7 @@ Spécialiste en génération de tests. Opère en quatre modes :
 | **Label** | ProjectPlanner |
 | **Fichier** | `agents/planning/planner.md` |
 | **Skills** | Voir [Matrice d'assignation des skills](#matrice-dassignation-des-skills-source-de-verite) — ligne planner |
-| **MCP Servers** | `gitlab` |
+| **MCP Servers** | `gitlab`, `github` |
 | **Invocation** | Sous-agent dans `feature` et `cadrage` — description d'une feature en langage naturel / `"Planifie le ticket #42"` |
 
 Consultant fonctionnel et technique qui analyse le contexte projet avant de planifier.
@@ -639,7 +638,7 @@ délègue l'écriture au `documentarian` via `task` (skill `living-docs-enrichme
 | **Label** | Pathfinder |
 | **Fichier** | `agents/planning/pathfinder.md` |
 | **Skills** | Voir [Matrice d'assignation des skills](#matrice-dassignation-des-skills-source-de-verite) — ligne pathfinder |
-| **MCP Servers** | `gitlab` |
+| **MCP Servers** | `gitlab`, `github` |
 | **Invocation** | Sous-agent dans `feature` et `cadrage` — `"Pathfinder la feature [X]"` / `"Estime la complexité de [feature]"` / `"Pathfinder le ticket #42"` |
 
 Agent de reconnaissance rapide. Explore le contexte d'une feature et produit une estimation
@@ -663,7 +662,7 @@ la reconnaissance Figma au `designer` (mode `recon`) pour détecter les composan
 | **Label** | Onboarder |
 | **Fichier** | `agents/planning/onboarder.md` |
 | **Skills** | Voir [Matrice d'assignation des skills](#matrice-dassignation-des-skills-source-de-verite) — ligne onboarder |
-| **MCP Servers** | `gitlab` |
+| **MCP Servers** | `gitlab`, `github` |
 | **Invocation** | Agent d'entrée du workflow `onboarding` (`oh run onboarding`) — `"Onboarde-toi sur ce projet"` / `"Découvre ce projet"` |
 
 Agent de découverte de projet. Explore la codebase d'un projet existant en 6 phases structurées

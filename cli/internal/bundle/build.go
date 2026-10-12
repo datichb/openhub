@@ -162,7 +162,7 @@ func Build(req Request) (*Bundle, error) {
 	skillRefs := map[string]bool{}
 	loader := newSkillLoader(req.HubDir, generated)
 	denied := denyList(req.DenySkills)
-	keep := rootFilter(loader, req.Plugins, req.ProjectPath)
+	keep := rootFilter(loader, req.Plugins, req.MCP, req.ProjectPath)
 	mentionIndex := hubSkillIndex(req.HubDir, generated)
 	ids := skillIndex{}
 	callers := callersOf(bundleGraph(graph, selected))

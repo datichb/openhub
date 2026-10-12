@@ -377,6 +377,7 @@ description: <Short description — shown in the session skill catalog>
 requires: [<ref>, …]          # optional — skills shipped together with this one
 annexes: [templates/<f>.md]   # optional — files copied next to the SKILL.md
 plugin: <id>                  # optional — shipped only when the workflow loads this plugin
+mcp: <server>                 # optional — shipped only when the session has this MCP server
 ---
 
 # Skill — <Title>
@@ -384,7 +385,7 @@ plugin: <id>                  # optional — shipped only when the workflow load
 <Skill body>
 ```
 
-> `name:` must equal the file name: opencode identifies skills by name. `requires:`, `annexes:` and `plugin:` are read by oh and stripped from the delivered `SKILL.md`. A `plugin: context-mode` skill (instructions for tools provided by a plugin) enters the bundle only when the workflow declares that plugin (`plugins:`). Likewise, the permissions of a plugin (context-mode `ctx_*` tools, `rtk` commands; listed in `permissions/plugin-tools.yaml`) are removed from the agents when the plugin is not loaded. An agent that names a skill absent from the bundle (plugin not loaded, frontend skills in a project without frontend) gets a line naming it: it does not try to load it. The `bucket:` field is obsolete: the bucket is decided in the agent frontmatter.
+> `name:` must equal the file name: opencode identifies skills by name. `requires:`, `annexes:`, `plugin:` and `mcp:` are read by oh and stripped from the delivered `SKILL.md`. A `plugin: context-mode` skill (instructions for tools provided by a plugin) enters the bundle only when the workflow declares that plugin (`plugins:`). An `mcp: gitlab` skill (tracker adapter: `adapters/gitlab-*`, and `adapters/github-*` with `mcp: github`) enters the bundle only when the session has that MCP server (configured for the project): planner, pathfinder and onboarder list both adapters, only the one of the configured tracker is shipped. Likewise, the permissions of a plugin (context-mode `ctx_*` tools, `rtk` commands; listed in `permissions/plugin-tools.yaml`) are removed from the agents when the plugin is not loaded. An agent that names a skill absent from the bundle (plugin not loaded, MCP server missing, frontend skills in a project without frontend) gets a line naming it: it does not try to load it. The `bucket:` field is obsolete: the bucket is decided in the agent frontmatter.
 > The reference used in agent frontmatter is the path relative to `skills/`, without `.md` (`developer/beads-plan`).
 > `oh skill check` checks the catalog: duplicate identifiers, missing or cyclic `requires:`, `name:` different from the file name, missing description, skills referenced by an agent but not found.
 

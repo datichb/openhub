@@ -107,7 +107,6 @@ permission:
   task:               # agents this agent may launch (then restricted to the workflow)
     "*": deny
     "documentarian": allow
-mcpServers: [gitlab]  # optional — MCP servers used by the agent
 skills: [path/to/skill, ...]          # Bucket A — assembled inline when the session bundle is built
 native_skills: [path/to/skill, ...]   # Bucket B — delivered in the session bundle skills/, loaded on-demand
 ---
@@ -152,14 +151,14 @@ The entry agent must be `primary`.
 
 Taken from the frontmatter files in `agents/`.
 
-| Family | Agent | Mode (frontmatter) | Permission base | MCP |
+| Family | Agent | Mode (frontmatter) | Permission base | MCP (`mcp:` skills) |
 |--------|-------|--------------------|-----------------|-----|
 | planning | `conductor` | `primary` | `coordinator` | — |
 | planning | `orchestrator` | `primary` | — | — |
 | planning | `orchestrator-dev` | `primary` | — | — |
-| planning | `planner` | `primary` | — | `gitlab` |
-| planning | `pathfinder` | `primary` | — | `gitlab` |
-| planning | `onboarder` | `primary` | — | `gitlab` |
+| planning | `planner` | `primary` | — | `gitlab`, `github` |
+| planning | `pathfinder` | `primary` | — | `gitlab`, `github` |
+| planning | `onboarder` | `primary` | — | `gitlab`, `github` |
 | developer | `developer` | `subagent` | `developer-rw` | — |
 | developer | `developer-refactor` | `subagent` | `developer-rw` | — |
 | developer | `developer-migrator` | `subagent` | `developer-rw` | — |
@@ -595,7 +594,7 @@ Writes tests directly. Follows the project's existing testing conventions and st
 | **Label** | ProjectPlanner |
 | **File** | `agents/planning/planner.md` |
 | **Skills** | See [Skill Assignment Matrix](#skill-assignment-matrix-source-of-truth) — planner row |
-| **MCP Servers** | `gitlab` |
+| **MCP Servers** | `gitlab`, `github` |
 | **Invocation** | Subagent in `feature` and `cadrage` — natural language feature description / `"Plan ticket #42"` |
 
 Functional and technical consultant who analyzes the project context before planning.
@@ -632,7 +631,7 @@ in Phase 1, the planner offers 3 options to the user:
 | **Label** | Pathfinder |
 | **File** | `agents/planning/pathfinder.md` |
 | **Skills** | See [Skill Assignment Matrix](#skill-assignment-matrix-source-of-truth) — pathfinder row |
-| **MCP Servers** | `gitlab` |
+| **MCP Servers** | `gitlab`, `github` |
 | **Invocation** | Subagent in `feature` and `cadrage` — `"Pathfind feature [X]"` / `"Estimate the complexity of [feature]"` / `"Pathfind ticket #42"` |
 
 Fast reconnaissance agent. Explores the context of a feature and produces a complexity
@@ -656,7 +655,7 @@ Figma reconnaissance to the `designer` (mode `recon`) to detect components and a
 | **Label** | Onboarder |
 | **File** | `agents/planning/onboarder.md` |
 | **Skills** | See [Skill Assignment Matrix](#skill-assignment-matrix-source-of-truth) — onboarder row |
-| **MCP Servers** | `gitlab` |
+| **MCP Servers** | `gitlab`, `github` |
 | **Invocation** | Entry agent of the `onboarding` workflow (`oh run onboarding`) — `"Onboard yourself on this project"` / `"Discover this project"` |
 
 Project discovery agent. Explores an existing project's codebase in 6 structured phases
