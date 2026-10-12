@@ -257,6 +257,7 @@ openhub/
 │       ├── bricks/      ← Bricks: agent assembly, skills, permissions, model cascade
 │       ├── sessionspec/ ← Neutral model (SessionSpec, BundleSpec)
 │       ├── adapters/    ← Adapter interface + opencodev2 (render, server, Attest, plugin)
+│       │   └── opencodev2/deploycleanup/ ← Cleanup of former deployments
 │       ├── runsvc/      ← Launch: server groups, sessions, worktrees, sleep, resume
 │       ├── daemon/      ← ohd daemon: supervision, decisions, feed, notifications
 │       ├── credproxy/   ← LLM credential proxy
@@ -268,7 +269,6 @@ openhub/
 │       ├── mcp/         ← Native MCP servers (including workflow and team)
 │       ├── storage/     ← SQLite (oh.db), keychain, file encryption
 │       ├── tui/         ← tview/tcell TUI (shell, views, widgets)
-│       ├── deploycleanup/ ← Cleanup of former deployments
 │       └── …            ← beads, config, i18n, prompt, tracker, worktree, termlaunch…
 ├── docs/                ← Documentation (bilingual fr/en)
 └── ~/.oh/               ← User data (outside the repository)

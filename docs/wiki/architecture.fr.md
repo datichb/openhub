@@ -73,7 +73,7 @@ Plus rien n'est ecrit dans le projet (`oh deploy` et `oh sync` sont des alias qu
 | `internal/teamstate/` | Gestion de l'etat equipe (claims, wiki, policies, evenements, workflows d'equipe, catalogue, espace solo) |
 | `internal/tui/` | Shell TUI (base tview, modes hub / projet / equipe) |
 | `internal/storage/` | Base SQLite (`oh.db`), trousseau systeme, chiffrement fichier |
-| `internal/deploycleanup/` | Nettoyage des restes des anciens deploiements (`oh migrate deploy-cleanup`) |
+| `internal/adapters/opencodev2/deploycleanup/` | Nettoyage des restes des anciens déploiements (`oh migrate deploy-cleanup`) |
 | `internal/i18n/` | Internationalisation (FR + EN, fichiers locale JSON) |
 
 `internal/deploy`, `internal/opencode`, `internal/parallel`, `internal/sweep`, `internal/plugin` et `platform.SessionPlatform` ont ete supprimes en v5 (remplaces par `internal/bricks`, `internal/bundle`, les adaptateurs et `internal/runsvc`).

@@ -200,6 +200,7 @@ openhub/
 │       ├── bricks/        <- Agents, skills, permissions, cascade des modèles
 │       ├── sessionspec/   <- Modèle neutre (SessionSpec, BundleSpec)
 │       ├── adapters/      <- Adaptateurs d'outil (opencode V2 : rendu, serveur, Attest, plugin)
+│       │   └── opencodev2/deploycleanup/ <- Nettoyage des anciens déploiements
 │       ├── runsvc/        <- Lancement : groupes de serveurs, sessions, worktrees, veille, reprise
 │       ├── daemon/        <- Démon ohd : supervision, décisions, flux, notifications
 │       ├── credproxy/     <- Proxy d'identifiants LLM
@@ -209,7 +210,6 @@ openhub/
 │       ├── limits/        <- Restrictions des sessions (I6)
 │       ├── teamstate/     <- Dépôt team-state (claims, workflows, catalogue, solo)
 │       ├── mcp/           <- Serveurs MCP natifs (figma, gitlab, gslides, github, jira, linear, team, workflow)
-│       ├── deploycleanup/ <- Nettoyage des anciens déploiements
 │       ├── storage/       <- SQLite (oh.db), trousseau, chiffrement de fichiers
 │       ├── tui/           <- TUI tview/tcell
 │       └── ...            <- beads, config, i18n, prompt, tracker, worktree, termlaunch, selfupdate…
