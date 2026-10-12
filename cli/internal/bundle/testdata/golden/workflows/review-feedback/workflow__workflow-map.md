@@ -33,6 +33,8 @@ Règles de délégation :
 | **cp-fix** — Corrections à appliquer | pause | pause | auto |
 | **cp-2** — Commit ou correction (obligatoire) | pause | pause | pause |
 
+Séquence : `cp-fix` → `cp-2` [commit] (entre crochets, les opérations que le checkpoint déverrouille).
+
 - **cp-fix** : Présenter les corrections classées (critiques, majeures, suggestions) et confirmer lesquelles appliquer.
 - **cp-2** : Présenter les corrections appliquées, les tests et la nouvelle review avant le commit.
 - **cp-2** déverrouille `commit` : avant son passage, oh refuse à tous les agents de la session `git commit` (et les commandes qui commitent : revert, cherry-pick, merge, pull), quel que soit le mode. Une fois passé, commite aussitôt ; la fenêtre se referme quand **cp-2** est demandé de nouveau. Le push revient à l'utilisateur : ne pousse pas.

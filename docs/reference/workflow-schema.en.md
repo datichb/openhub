@@ -304,7 +304,7 @@ checkpoints:
     remote: defer
 ```
 
-The id is in kebab-case (`checkpoint_id_invalid`) and must not be an agent id (`checkpoint_agent_clash`). Checkpoints are passed in file order.
+The id is in kebab-case (`checkpoint_id_invalid`) and must not be an agent id (`checkpoint_agent_clash`). Checkpoints are passed in file order. The generated skills give this order on a « Séquence » line, with the operations each checkpoint unlocks (« `cp-1` → `cp-2` [commit, close] → `cp-3` »): the agents rely on it instead of hard-coding checkpoint ids.
 
 | Field | Type | Values | Absent | Patch |
 |---|---|---|---|---|

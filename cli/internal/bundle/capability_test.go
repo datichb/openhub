@@ -37,7 +37,11 @@ import (
 //   - every bd command the agent may run is granted by the workflow's
 //     Beads list (beads.allow), as the gateway checks it;
 //   - every checkpoint that unlocks an operation has a member able to run it;
-//   - an agent gated `after: cp-x` is not asked in the prompt before cp-x.
+//   - an agent gated `after: cp-x` is not asked in the prompt before cp-x;
+//   - every checkpoint id (`cp-x`) named in the content is a checkpoint of
+//     the workflow, except on the lines marked `<!-- capability: optional -->`
+//     (a line describing another workflow). A workflow without checkpoints
+//     (libre) is not checked: its generated section says there are none;
 // The report is pinned in testdata/capabilities.golden (-update).
 
 var (
@@ -45,6 +49,7 @@ var (
 	capPlacehold  = regexp.MustCompile(`<[^<>\n]+>|\[[A-Z][^\[\]\n]*\]`)
 	capSplit      = regexp.MustCompile(`&&|\|\||;|\|`)
 	capTaskRef    = regexp.MustCompile(`task\(subagent_type:\s*"([a-z0-9-]+)"`)
+	capCheckpoint = regexp.MustCompile(`\bcp-[a-z0-9]+(?:-[a-z0-9]+)*\b`)
 	capUserMarker = "<!-- capability:" // user (a command for the user), example, optional
 	// A line that forbids, quotes an instruction for another agent or
 	// documents a refusal is not a request to the agent.
@@ -68,6 +73,9 @@ type capAllow struct {
 	// Tasks: "<workflow>/<agent>: <target>" delegations written in a skill
 	// shared by several workflows.
 	Tasks []string `yaml:"tasks"`
+	// Checkpoints: "<workflow>/<agent>: <cp-id>" checkpoints named by a skill
+	// shared by several workflows.
+	Checkpoints []string `yaml:"checkpoints"`
 	// References are reference skills (command sheets): what they list is
 	// not asked of the agent.
 	References []string `yaml:"references"`
@@ -160,6 +168,19 @@ func capCommands(text string) []string {
 // marked `<!-- capability: optional -->` (an agent used when the workflow
 // has it).
 func capTaskRefs(text string) []string {
+	return capRefs(text, capTaskRef, 1)
+}
+
+// capCheckpointRefs lists the checkpoint ids named in a text, with the same
+// marker as capTaskRefs.
+func capCheckpointRefs(text string) []string {
+	return capRefs(text, capCheckpoint, 0)
+}
+
+// capRefs lists the distinct matches (group) of re in text, except on the
+// lines marked `<!-- capability: … -->` (or in the code block that follows a
+// marker alone on its line).
+func capRefs(text string, re *regexp.Regexp, group int) []string {
 	var out []string
 	inFence, skipNext, skipFence := false, false, false
 	for _, line := range strings.Split(text, "\n") {
@@ -181,9 +202,9 @@ func capTaskRefs(text string) []string {
 		if skipFence || strings.Contains(line, capUserMarker) {
 			continue
 		}
-		for _, m := range capTaskRef.FindAllStringSubmatch(line, -1) {
-			if !slices.Contains(out, m[1]) {
-				out = append(out, m[1])
+		for _, m := range re.FindAllStringSubmatch(line, -1) {
+			if !slices.Contains(out, m[group]) {
+				out = append(out, m[group])
 			}
 		}
 	}
@@ -279,7 +300,7 @@ func TestCapabilities(t *testing.T) {
 		require.NoError(t, yaml.Unmarshal(data, &allow))
 	}
 	allowed := map[string]bool{}
-	for _, c := range append(allow.Commands, allow.Tasks...) {
+	for _, c := range slices.Concat(allow.Commands, allow.Tasks, allow.Checkpoints) {
 		allowed[c] = true
 	}
 	used := map[string]bool{}
@@ -343,6 +364,18 @@ func TestCapabilities(t *testing.T) {
 					used[id] = true
 				} else {
 					errs = append(errs, "delegation outside the graph: "+id)
+				}
+			}
+			for _, cp := range capCheckpointRefs(text) {
+				if _, ok := wf.Checkpoint(cp); ok || len(wf.Checkpoints) == 0 {
+					continue
+				}
+				id := key + ": " + cp
+				report = append(report, "cp     "+id)
+				if allowed[id] {
+					used[id] = true
+				} else {
+					errs = append(errs, "checkpoint outside the workflow: "+id)
 				}
 			}
 		}
@@ -421,6 +454,11 @@ func assertGoldenFile(t *testing.T, name, content string) {
 func TestCapCommands(t *testing.T) {
 	got := capCommands("Lance `bd show <ID>` puis `git add . && git commit -m \"x\"`.\n```bash\n# comment\nnpm test\nnpx tsc --noEmit # types\n```\n`npm audit` <!-- capability: user -->\nTexte `foo bar`.")
 	assert.Equal(t, []string{"bd show x", "git add .", "git commit -m \"x\"", "npm test", "npx tsc --noEmit"}, got)
+}
+
+func TestCapCheckpointRefs(t *testing.T) {
+	text := "Passe `cp-1`, puis `workflow_checkpoint({ id: \"cp-2\" })`.\nDans `quick`, `cp-commit`. <!-- capability: optional -->\n<!-- capability: optional -->\n```\ncp-feature\n```\nCP-2 : commit ? Le checkpoint `cp-<id>`."
+	assert.Equal(t, []string{"cp-1", "cp-2"}, capCheckpointRefs(text))
 }
 
 // The former sweep prompt asked a developer (gated after cp-plan) to list

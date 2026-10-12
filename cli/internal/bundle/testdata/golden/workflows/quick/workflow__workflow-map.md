@@ -30,6 +30,8 @@ Règles de délégation :
 |---|---|---|---|
 | **cp-commit** — Commit (obligatoire) | pause | pause | pause |
 
+Séquence : `cp-commit` [commit, close] (entre crochets, les opérations que le checkpoint déverrouille).
+
 - **cp-commit** : Présenter le résumé des changements (fichiers, tests) avant le commit, puis la fermeture du ticket s'il y en a un.
 - **cp-commit** déverrouille `commit`, `close` : avant son passage, oh refuse à tous les agents de la session `git commit` (et les commandes qui commitent : revert, cherry-pick, merge, pull), la fermeture d'un ticket, quel que soit le mode. Une fois passé, fais-les aussitôt, dans l'ordre : commit, puis fermeture du ticket (oh refuse la fermeture tant que le travail n'est pas commité). Le ticket fermé, elles sont de nouveau verrouillées jusqu'au prochain passage de **cp-commit**. Le push revient à l'utilisateur : ne pousse pas.
 

@@ -52,6 +52,7 @@ type mapData struct {
 	Modes                  []string
 	DefaultMode            string
 	Checkpoints            []checkpointRow
+	Sequence               string
 	Remote                 bool
 	MaxConsecutive         int
 	MaxFixRounds           int
@@ -153,6 +154,19 @@ func unlockText(id string, ops []string) string {
 	return b.String()
 }
 
+// checkpointSequence is the order of the checkpoints with the operations
+// each one unlocks: "`cp-1` → `cp-2` [commit, close] → `cp-3`".
+func checkpointSequence(cps []checkpointRow) string {
+	steps := make([]string, len(cps))
+	for i, cp := range cps {
+		steps[i] = "`" + cp.ID + "`"
+		if len(cp.Unlocks) > 0 {
+			steps[i] += " [" + strings.Join(cp.Unlocks, ", ") + "]"
+		}
+	}
+	return strings.Join(steps, " → ")
+}
+
 func buildMapData(spec *workflow.Spec, graph map[string][]string, modeOf func(string) workflow.AgentMode) mapData {
 	d := mapData{
 		ID:          spec.ID,
@@ -208,6 +222,7 @@ func buildMapData(spec *workflow.Spec, graph map[string][]string, modeOf func(st
 		}
 		d.Checkpoints = append(d.Checkpoints, row)
 	}
+	d.Sequence = checkpointSequence(d.Checkpoints)
 	for _, o := range spec.Outputs {
 		d.Outputs = append(d.Outputs, outputRow{ID: o.ID, Type: o.Type, Label: o.Label.Text(generatedLang)})
 	}

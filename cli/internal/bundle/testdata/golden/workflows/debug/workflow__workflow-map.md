@@ -33,6 +33,8 @@ Règles de délégation :
 | **cp-ticket** — Créer le ticket de correction (obligatoire) | pause | pause | pause |
 | **cp-commit** — Commit (obligatoire) | pause | pause | pause |
 
+Séquence : `cp-ticket` [create] → `cp-commit` [commit, close] (entre crochets, les opérations que le checkpoint déverrouille).
+
 - **cp-ticket** : Présenter le diagnostic et le ticket de correction à créer ; le ticket n'est créé qu'après la validation.
 - **cp-ticket** déverrouille `create` : avant son passage, oh refuse à tous les agents de la session la création de tickets, quel que soit le mode. Une fois passé, crée les tickets validés : la création reste possible jusqu'à ce que **cp-ticket** soit demandé de nouveau.
 - **cp-commit** : Présenter le résumé des changements (fichiers, tests) avant le commit, puis la fermeture du ticket s'il y en a un.

@@ -25,6 +25,8 @@ description: "Modes de workflow et comportement des checkpoints du workflow feat
 | **cp-3** — Ticket suivant | pause | auto | auto |
 | **cp-feature** — Récap de la feature | pause | pause | auto |
 
+Séquence : `cp-tickets` [create] → `cp-0` → `cp-spec` → `cp-1` → `cp-2` [commit, close] → `cp-3` → `cp-feature` (entre crochets, les opérations que le checkpoint déverrouille).
+
 - **cp-tickets** : Présenter le découpage proposé par l'agent de planning ; les tickets ne sont créés qu'après la validation. Avec des tickets existants seulement, confirmer la liste (aucune création).
 - **cp-tickets** déverrouille `create` : avant son passage, oh refuse à tous les agents de la session la création de tickets, quel que soit le mode. Une fois passé, crée les tickets validés : la création reste possible jusqu'à ce que **cp-tickets** soit demandé de nouveau.
 - **cp-0** : Afficher le tableau des tickets (ordre de traitement, agent prévu) et attendre la confirmation avant toute implémentation.

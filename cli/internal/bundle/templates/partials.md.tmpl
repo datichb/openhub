@@ -21,6 +21,8 @@ Règles de délégation :
 {{- range $cp := .Checkpoints }}
 | **{{ $cp.ID }}**{{ if $cp.Label }} — {{ $cp.Label }}{{ end }}{{ if $cp.Mandatory }} (obligatoire){{ end }} |{{ range $cp.Behaviors }} {{ . }} |{{ end }}{{ if $.Remote }} {{ $cp.Remote }} |{{ end }}
 {{- end }}
+
+Séquence : {{ .Sequence }} (entre crochets, les opérations que le checkpoint déverrouille).
 {{ range .Checkpoints }}
 {{- if .Description }}
 - **{{ .ID }}** : {{ .Description }}

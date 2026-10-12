@@ -20,6 +20,8 @@ description: "Modes de workflow et comportement des checkpoints du workflow cadr
 | **cp-tickets** — Valider le découpage (obligatoire) | pause | pause | pause |
 | **cp-recap** — Récap du cadrage | pause | pause | auto |
 
+Séquence : `cp-scope` → `cp-tickets` [create] → `cp-recap` (entre crochets, les opérations que le checkpoint déverrouille).
+
 - **cp-scope** : Présenter le rapport d'exploration et confirmer le périmètre avant la planification.
 - **cp-tickets** : Les tickets ne sont créés qu'après validation du découpage par l'utilisateur.
 - **cp-tickets** déverrouille `create` : avant son passage, oh refuse à tous les agents de la session la création de tickets, quel que soit le mode. Une fois passé, crée les tickets validés : la création reste possible jusqu'à ce que **cp-tickets** soit demandé de nouveau.

@@ -37,6 +37,8 @@ Règles de délégation :
 | **cp-commit** — Commit du sweep (obligatoire) | pause | pause | pause |
 | **cp-recap** — Récap du sweep | pause | pause | auto |
 
+Séquence : `cp-plan` → `cp-commit` [commit] → `cp-recap` (entre crochets, les opérations que le checkpoint déverrouille).
+
 - **cp-plan** : Présenter la liste des sous-tâches (description, périmètre de fichiers disjoint, agent, parallélisable ou non) avant toute exécution.
 - **cp-commit** : Présenter le diff, le résultat de la vérification (PASS ou FAIL ; un summary qui commence par VÉRIFICATION ÉCHOUÉE si elle échoue encore) et la review avant le commit (un commit, ou un par sous-tâche à la suite).
 - **cp-commit** déverrouille `commit` : avant son passage, oh refuse à tous les agents de la session `git commit` (et les commandes qui commitent : revert, cherry-pick, merge, pull), quel que soit le mode. Une fois passé, commite aussitôt ; la fenêtre se referme quand **cp-commit** est demandé de nouveau. Le push revient à l'utilisateur : ne pousse pas.

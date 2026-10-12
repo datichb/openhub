@@ -20,6 +20,8 @@ description: "Modes de workflow et comportement des checkpoints du workflow tick
 | **cp-2** — Commit ou correction (obligatoire) | pause | pause | pause | defer |
 | **cp-3** — Revue | pause | conditional | auto | defer |
 
+Séquence : `cp-1` → `cp-2` → `cp-3` (entre crochets, les opérations que le checkpoint déverrouille).
+
 - **cp-2** : Montrer le diff avant de committer.
 - **cp-3** (conditional) : le diff dépasse 300 lignes
 

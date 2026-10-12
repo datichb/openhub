@@ -21,6 +21,8 @@ description: "Modes de workflow et comportement des checkpoints du workflow tick
 | **cp-2** — Commit ou correction (obligatoire) | pause | pause | pause | defer |
 | **cp-3** — Ticket suivant | pause | auto | auto | auto |
 
+Séquence : `cp-1` → `cp-2` [commit, close] → `cp-3` (entre crochets, les opérations que le checkpoint déverrouille).
+
 - **cp-1** : Présenter le ticket et l'agent prévu avant de lancer l'implémentation.
 - **cp-2** : Après la review, présenter le résultat et demander s'il faut committer ou corriger.
 - **cp-2** déverrouille `commit`, `close` : avant son passage, oh refuse à tous les agents de la session `git commit` (et les commandes qui commitent : revert, cherry-pick, merge, pull), la fermeture d'un ticket, quel que soit le mode. Une fois passé, fais-les aussitôt, dans l'ordre : commit, puis fermeture du ticket (oh refuse la fermeture tant que le travail n'est pas commité). Le ticket fermé, elles sont de nouveau verrouillées jusqu'au prochain passage de **cp-2**. Le push revient à l'utilisateur : ne pousse pas.
