@@ -9,6 +9,20 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ## [Unreleased]
 
+### Fixed — consolidation des agents, skills et workflows (lot C0)
+
+- **Rôle de l'agent généré depuis le workflow** : chaque agent reçoit une section « Rôle dans cette session » (agent d'entrée, sous-agent invoqué par `<appelants>`, ou les deux). Les agents et les skills de modes d'exécution ne déduisent plus leur mode d'un tag `[SKILL:…]` que les appelants n'envoyaient pas : un planner, pathfinder ou designer lancé en sous-agent ne suit plus le parcours standalone, où ses appels à l'outil `question` restaient invisibles pour l'utilisateur.
+- **Fermeture de ticket verrouillée partout où elle est permise** : `cp-commit` déverrouille `commit` et `close` dans `quick` et `debug` ; `review-feedback` (sans ticket) passe en Beads lecture seule. Avant, `bd close` y passait à tout moment, sans commit, et la provenance enregistrait un commit qui n'existait pas. La documentation décrit la garde réelle (commit non vide depuis le checkpoint, arbre propre).
+- **Skills nommées par une skill à la demande livrées** : `requires:` sur les skills de modes d'exécution (protocoles standalone et sous-agent, jamais livrés jusqu'ici), `designer-subagent`, les phases 0 du planner et de l'onboarder (boucle de validation, livrée seulement dans `audit`) et la phase 1 du planner (`elicitation-techniques`).
+- **Skills chargées par leur nom** : les appels `skill("cat/nom")` et les consignes « charger `cat/nom` » (index de phases du planner, de l'onboarder et du debugger, designer…) nomment la skill sans sa catégorie, comme l'attend l'outil `skill`.
+- **`bd lint` et `bd find-duplicates`** autorisés dans `feature` et `libre` : la vérification des tickets du planner y était refusée par la passerelle.
+- **Blocs de code non refermés** dans `planner-phase-1`, `ui-protocol` et `auditor-workflow` : la suite de la skill était lue comme du code.
+- **Valeurs de routage** : la colonne `Agent prévu` du modèle du planner vaut `developer (<domaine>)` (et non `developer-backend`), le routage du reviewer `domaine-security` ; plus aucun nom d'agent disparu (`developer-<type>`, `auditor-<domaine>`, `qa-engineer`) dans le contenu livré.
+- **Ticket du debugger** créé en un seul `bd create` (description, acceptance, notes) : les `bd update`, variables shell et `jq` du modèle étaient refusés par ses permissions.
+- **Jest** : clé `setupFilesAfterEnv` (la clé `setupFilesAfterFramework` n'existe pas, le fichier de setup était ignoré).
+- **Benchmarker** : `k6 run`, `ab`, `hey` et `curl` demandent confirmation (ils visent une cible) ; écriture limitée à `reports/benchmarks/`.
+- **Tests de contenu** : rôle par agent, aucune détection de mode par tag, verrou de fermeture des workflows livrés, skills nommées par une skill livrée chargeables dans leur paquet, consignes de chargement sans catégorie, blocs de code équilibrés, noms d'agents existants, commandes `bd` autorisées par le `beads.allow` du workflow (lint de capacités).
+
 ### Security — passerelle Beads : lecture seule, auteur, provenance (ADR-052) — ⚠ changement de comportement
 
 - **Sessions en lecture seule vraiment en lecture seule** : une liste `beads.allow` qui ne nomme que des commandes de lecture (liste par défaut comprise, sans bloc `beads:`) refuse aussi les formes d'écriture de ces commandes. `bd comments add` et `bd ready --claim` passaient jusque-là avec la liste par défaut ; ils sont refusés (« … écrit dans Beads, mais cette session est en lecture seule »), sur la machine comme au rejeu d'un journal distant.
