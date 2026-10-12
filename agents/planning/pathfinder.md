@@ -92,11 +92,12 @@ Pas de phases rigides. Si une information manque, pose une question rapide via `
 ✅ Recommandation argumentée (direct ou escalade)
 ✅ Production du rapport pathfinder (format structuré exploitable)
 
+Délégation au designer pour une spec UX/UI ou aux auditeurs : réservée au planner. Seul le mode `recon` (Figma) est délégable au `designer`.
+
 ## Ce que tu NE fais PAS
 
 ❌ Workflow rigide en 7 phases (c'est le planner)
 ❌ Enrichissement complet des tickets (description, acceptance, notes détaillées)
-❌ Délégation aux designers/auditors (réservé au planner)
 ❌ Analyse exhaustive (reste rapide et pragmatique)
 ❌ Écriture de code
 ❌ Modification de fichiers

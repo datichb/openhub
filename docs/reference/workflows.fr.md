@@ -146,7 +146,7 @@ Découvre le projet et crée ou enrichit le wiki `docs/wiki/` (protocole `doc-wi
 | `refresh` | `bool` (défaut : non) | non | Re-découvrir le projet et enrichir le wiki existant, sans rien supprimer |
 | `focus` | `text` (4 000 caractères max) | non | Modules ou sujets à approfondir |
 
-L'onboarder n'écrit que dans `docs/wiki/`, `ONBOARDING.md` et `CONVENTIONS.md` : c'est une permission (toute autre écriture est refusée, `.gitignore` et `.git/` compris). Il ne commite pas : le commit du wiki revient à l'utilisateur. Sortie : `wiki`. Commandes Beads autorisées : `show`, `list`, `ready`, `search`, `query`, `children`, `comments`, `count`, `status`, `graph`, `history`, `create`, `update`, `dep`, `label`.
+L'onboarder n'écrit que dans `docs/wiki/`, `ONBOARDING.md` et `CONVENTIONS.md` : c'est une permission (toute autre écriture est refusée, `.gitignore` et `.git/` compris). Il ne commite pas : le commit du wiki revient à l'utilisateur. Sortie : `wiki`. Commandes Beads autorisées (lecture seule) : `show`, `list`, `search`, `query`.
 
 ## `review`
 

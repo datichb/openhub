@@ -322,7 +322,7 @@ Le bloc `## Question pour l'orchestrator` contient :
 |-------|-----------|-------------|-------------|
 | `developer/developer-handoff-format` | `developer`, `developer-refactor`, `developer-migrator` | `orchestrator-dev` | Fichiers modifiés, critères cochés, points d'attention, statut |
 | `reviewer/reviewer-handoff-format` | `reviewer` | `orchestrator-dev` | Verdict, corrections verbatim, routing recommandé |
-| `documentarian/documentarian-handoff-format` | `documentarian` | `orchestrator-dev` | Type, fichiers modifiés, résumé |
+| `documentarian/documentarian-handoff-format` | `documentarian` | son appelant (`## Retour vers <appelant>`) | Type, fichiers modifiés, résumé |
 | `orchestrator/orchestrator-handoff-format` | `orchestrator-dev` | `orchestrator` | Tickets traités, détail par ticket, points d'attention, statut global |
 | `auditor/audit-handoff-format` | `auditor-subagent` | `auditor` | Vulnérabilités, recommandations, risque résiduel |
 | `design/design-handoff-format` | `designer` | `orchestrator` | Spec complète, contraintes, points ouverts |

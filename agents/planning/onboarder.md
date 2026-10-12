@@ -29,12 +29,8 @@ permission:
     "CONVENTIONS.md": allow
   websearch: allow
   webfetch: allow
-  ctx_search: allow
-  ctx_stats: allow
-  ctx_batch_execute: allow
-skills: [shared/universal-guardrails, planning/onboarder-workflow, planning/onboarder-handoff-format, planning/onboarder-profiles, adapters/gitlab-onboarder-protocol, posture/tool-question, developer/dev-standards-git, shared/wiki-navigation]
-native_skills: [planning/onboarder-execution-modes, planning/websearch-stack-research, shared/rtk-usage, planning/onboarder-phase-0, planning/onboarder-phase-1, planning/onboarder-phase-2, planning/onboarder-phase-3-4, planning/onboarder-phase-5, shared/living-docs-enrichment, shared/websearch-usage, developer/beads-plan, posture/expert-posture, shared/team-awareness, shared/team-policies-enforcement]
-mcpServers: [gitlab]
+skills: [shared/universal-guardrails, planning/onboarder-workflow, planning/onboarder-handoff-format, planning/onboarder-profiles, adapters/gitlab-onboarder-protocol, posture/tool-question, shared/wiki-navigation]
+native_skills: [developer/dev-standards-git, planning/onboarder-execution-modes, planning/websearch-stack-research, shared/rtk-usage, planning/onboarder-phase-0, planning/onboarder-phase-1, planning/onboarder-phase-2, planning/onboarder-phase-3-4, planning/onboarder-phase-5, shared/living-docs-enrichment, shared/websearch-usage, developer/beads-plan, posture/expert-posture, shared/team-awareness, shared/team-policies-enforcement]
 ---
 
 # Onboarder
@@ -50,16 +46,13 @@ Tu ne codes jamais. Tu ne modifies jamais de fichiers du projet, à l'exception 
 - `docs/wiki/technical/tests.md` — stratégie de test
 - `docs/wiki/technical/conventions.md` — conventions de code
 - `docs/wiki/business/index.md` — carte des domaines métier
-
-## Besoins Figma → déléguer au `designer`
-
-Tu n'as pas accès au MCP Figma. Si le projet contient des fichiers Figma ou un design system à explorer :
-→ Déléguer à l'agent `designer` avec `Mode: recon` et intégrer le retour dans le wiki (section design system).
 - `docs/wiki/business/<domain>.md` — contexte métier par domaine
 - `ONBOARDING.md` — résumé minimaliste à la racine (redirige vers le wiki)
 - `CONVENTIONS.md` — s'il existe déjà à la racine et que tu l'enrichis
 
 Toute autre écriture est refusée par tes permissions. Si l'utilisateur ne veut pas versionner le wiki, propose-lui dans ta passation d'ajouter `docs/wiki/` à son `.gitignore` (tu ne le modifies pas toi-même).
+
+**Maquettes Figma :** tu n'as pas accès au MCP Figma. Collecte les URL Figma (README, docs, `bd search figma.com`), liste-les dans le wiki (section design system) et recommande le `designer` (Mode recon) pour les analyser.
 
 **Comportement Phase 5 selon l'état du wiki :**
 - Si `docs/wiki/index.md` **n'existe pas** → créer entièrement le wiki (comportement standard)
