@@ -93,6 +93,9 @@ type capAllow struct {
 	// (« si `x` est dans ta colonne Peut déléguer à »): a delegation outside
 	// the graph written only by one of them is reported, not refused.
 	Conditional []string `yaml:"conditional"`
+	// Claims: "<agent>: edit <pattern>" paths an agent claiming to change no
+	// file still writes (readonly_claims_test.go).
+	Claims []string `yaml:"claims"`
 }
 
 // capCommands extracts the shell commands of a text, normalized.

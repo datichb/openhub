@@ -24,3 +24,12 @@ checkpoints:
   # [MODE:feedback] replaces them with orchestrator-dev-feedback-mode.
   - "review-feedback/orchestrator-dev: cp-1"
   - "review-feedback/orchestrator-dev: cp-3"
+claims:
+  # Agents whose body says they change no file (of the project code) but
+  # write their deliverable (readonly_claims_test.go).
+  # « Tu ne modifies jamais le code source » : the benchmark report.
+  - "benchmarker: edit reports/benchmarks/*"
+  # « à l'exception de » the wiki and the two files the body lists.
+  - "onboarder: edit docs/wiki/*"
+  - "onboarder: edit ONBOARDING.md"
+  - "onboarder: edit CONVENTIONS.md"
