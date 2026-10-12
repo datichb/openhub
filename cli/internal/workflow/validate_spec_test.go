@@ -101,6 +101,7 @@ func TestValidate_Rules(t *testing.T) {
 		{"isolation enum", "risk: write\nisolation: loose\n", "enum_invalid", "isolation", SeverityError},
 		{"negative breaker", "risk: write\ncircuit_breaker: { max_consecutive_subagents: -1 }\n", "negative_value", "circuit_breaker.max_consecutive_subagents", SeverityError},
 		{"negative budget", "risk: write\nlimits: { budget_usd: -2 }\n", "negative_value", "limits.budget_usd", SeverityError},
+		{"negative fix rounds", "risk: write\nlimits: { max_fix_rounds: -1 }\n", "negative_value", "limits.max_fix_rounds", SeverityError},
 		// entry
 		{"entry unknown", "risk: write\nentry: { agent: ghost }\n", "agent_unknown", "entry.agent", SeverityError},
 		{"entry subagent", "risk: write\nentry: { agent: developer }\n", "entry_not_primary", "entry.agent", SeverityError},

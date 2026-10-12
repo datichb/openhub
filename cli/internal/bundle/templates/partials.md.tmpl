@@ -55,4 +55,7 @@ Aucun checkpoint dans ce workflow : avance sans pause imposée. Pour toute confi
 {{- if .MaxConsecutive }}
 - Disjoncteur : après {{ .MaxConsecutive }} lancements `task` consécutifs sans interaction de l'utilisateur, oh suspend les délégations jusqu'à ce que l'utilisateur intervienne. Si un lancement est refusé, fais le point et attends.
 {{- end }}
+{{- if .MaxFixRounds }}
+- Au plus {{ .MaxFixRounds }} tours de correction (developer → reviewer) par ticket ; au-delà, passe le checkpoint de commit en signalant les points non résolus.
+{{- end }}
 {{- end -}}

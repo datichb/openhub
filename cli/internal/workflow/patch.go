@@ -540,6 +540,7 @@ func (p *patcher) runtime() {
 
 func (p *patcher) limits() {
 	p.limitModels()
+	p.limitFixRounds()
 	if !p.has("limits.budget_usd") {
 		return
 	}
@@ -559,6 +560,30 @@ func (p *patcher) limits() {
 		p.dst.Limits = &Limits{}
 	}
 	p.dst.Limits.BudgetUSD = newV
+}
+
+// limitFixRounds may only be lowered (0 or null removes the cap: a
+// loosening when the parent has one).
+func (p *patcher) limitFixRounds() {
+	if !p.has("limits.max_fix_rounds") {
+		return
+	}
+	newV := p.doc.Spec.Limits.MaxFixRounds
+	if p.dst.Limits != nil && p.dst.Limits.MaxFixRounds != nil && *p.dst.Limits.MaxFixRounds > 0 {
+		old := *p.dst.Limits.MaxFixRounds
+		if newV == nil || *newV == 0 || *newV > old {
+			shown := "null"
+			if newV != nil {
+				shown = fmt.Sprint(*newV)
+			}
+			p.loosening("limits.max_fix_rounds", shown, old)
+			return
+		}
+	}
+	if p.dst.Limits == nil {
+		p.dst.Limits = &Limits{}
+	}
+	p.dst.Limits.MaxFixRounds = newV
 }
 
 // limitModels narrows the model allow-list: every pattern of the child must

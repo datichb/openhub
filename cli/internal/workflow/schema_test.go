@@ -103,7 +103,7 @@ func TestSpec_DecodeFullExample(t *testing.T) {
 	if len(s.Outputs) != 3 || s.Outputs[1].Type != OutputMergeRequest {
 		t.Fatalf("outputs = %+v", s.Outputs)
 	}
-	if s.Limits == nil || s.Limits.BudgetUSD == nil || *s.Limits.BudgetUSD != 5 {
+	if s.Limits == nil || s.Limits.BudgetUSD == nil || *s.Limits.BudgetUSD != 5 || s.Limits.MaxFixRounds == nil || *s.Limits.MaxFixRounds != 3 {
 		t.Fatalf("limits = %+v", s.Limits)
 	}
 }

@@ -50,7 +50,7 @@ beads: { allow: [show, update, close, list] }
 runtime: { default: local, allowed: [local, container, remote] }
 outputs:
   - { id: branch, type: branch }
-limits: { budget_usd: 5, models: ["eu.anthropic.*"] }
+limits: { budget_usd: 5, models: ["eu.anthropic.*"], max_fix_rounds: 3 }
 `
 
 func resolveOK(t *testing.T, cat Catalog, ref string) *Resolved {
@@ -193,6 +193,9 @@ func TestResolve_HardeningOnly(t *testing.T) {
 		{"budget removed", "limits: { budget_usd: null }\n", "limits.budget_usd"},
 		{"models widened", "limits: { models: [\"us.*\"] }\n", "limits.models"},
 		{"models removed", "limits: { models: [] }\n", "limits.models"},
+		{"fix rounds raised", "limits: { max_fix_rounds: 5 }\n", "limits.max_fix_rounds"},
+		{"fix rounds uncapped", "limits: { max_fix_rounds: 0 }\n", "limits.max_fix_rounds"},
+		{"fix rounds removed", "limits: { max_fix_rounds: null }\n", "limits.max_fix_rounds"},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -246,7 +249,7 @@ extends: hub:ticket
 risk: read
 beads: { allow: [show, list] }
 runtime: { allowed: [local] }
-limits: { budget_usd: 2, models: ["eu.anthropic.claude-haiku-*"] }
+limits: { budget_usd: 2, models: ["eu.anthropic.claude-haiku-*"], max_fix_rounds: 1 }
 checkpoints:
   cp-1: { remote: forbid, mandatory: true }
   cp-2: { remote: forbid }
@@ -255,7 +258,7 @@ checkpoints:
 	r := resolveOK(t, cat, "team:ticket")
 	cp1, _ := r.Spec.Checkpoints.Get("cp-1")
 	if r.Spec.Risk != RiskRead || !cp1.IsMandatory() || cp1.Remote != RemoteForbid || *r.Spec.Limits.BudgetUSD != 2 ||
-		!reflect.DeepEqual(r.Spec.Limits.Models, []string{"eu.anthropic.claude-haiku-*"}) {
+		!reflect.DeepEqual(r.Spec.Limits.Models, []string{"eu.anthropic.claude-haiku-*"}) || *r.Spec.Limits.MaxFixRounds != 1 {
 		t.Fatalf("spec = %+v", r.Spec)
 	}
 }

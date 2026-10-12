@@ -84,7 +84,7 @@ func (s *Spec) Clone() *Spec {
 		}
 	}
 	if s.Limits != nil {
-		c.Limits = &Limits{BudgetUSD: clonePtr(s.Limits.BudgetUSD), Models: slices.Clone(s.Limits.Models)}
+		c.Limits = &Limits{BudgetUSD: clonePtr(s.Limits.BudgetUSD), Models: slices.Clone(s.Limits.Models), MaxFixRounds: clonePtr(s.Limits.MaxFixRounds)}
 	}
 	return &c
 }

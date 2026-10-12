@@ -413,6 +413,10 @@ type Limits struct {
 	// Models restricts the models the sessions may use (wildcard patterns;
 	// additive to oh/v1).
 	Models []string `yaml:"models,omitempty"`
+	// MaxFixRounds caps the developer → reviewer fix rounds per ticket (an
+	// instruction of the generated skills; 0 or absent = no cap; additive to
+	// oh/v1).
+	MaxFixRounds *int `yaml:"max_fix_rounds,omitempty"`
 }
 
 // ---------------------------------------------------------------------------

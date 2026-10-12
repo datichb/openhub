@@ -4,7 +4,7 @@
 
 A workflow is a YAML file `apiVersion: oh/v1`, `kind: Workflow`, named `<id>.yaml`. This page describes every field: type, values, effective value when the field is absent, behavior in a patch (`extends`) and locking (`enforce`).
 
-The schema is **frozen** (`cli/internal/workflow/schema.go`, type `Spec`): it only changes through optional additions. Additions made after the freeze: `risk: plan`, `preconditions`, `enforce`, `limits.models`, `entry.selectable`. Decision: [ADR-039](../architecture/adr/039-declarative-workflows-oh-v1.en.md).
+The schema is **frozen** (`cli/internal/workflow/schema.go`, type `Spec`): it only changes through optional additions. Additions made after the freeze: `risk: plan`, `preconditions`, `enforce`, `limits.models`, `limits.max_fix_rounds`, `entry.selectable`. Decision: [ADR-039](../architecture/adr/039-declarative-workflows-oh-v1.en.md).
 
 See also: [shipped workflows](workflows.en.md) · [team workflows](../guides/team-workflows.en.md) · [workflows CLI](cli-workflows.en.md).
 
@@ -81,6 +81,7 @@ enforce: [checkpoints, modes]   # or ["*"] for the whole document
 | `runtime.allowed` | list | `local`, `container`, `remote` | `[runtime.default]` | hardens (subset of the parent) |
 | `limits.budget_usd` | number ≥ 0 | USD per session | no budget at workflow level | hardens (lower or equal value) |
 | `limits.models` | list | patterns (`*` wildcard) | no list at workflow level | hardens (patterns covered by the parent) |
+| `limits.max_fix_rounds` | integer ≥ 0 | fix rounds per ticket | `0` (no cap) | hardens (lower or equal value, never `0` or absent under a capped parent) |
 
 ### `risk`
 
@@ -135,11 +136,13 @@ runtime: { default: local, allowed: [local, container, remote] }
 limits:
   budget_usd: 5                       # soft cap per session
   models: ["eu.anthropic.claude-*"]   # allowed models
+  max_fix_rounds: 3                   # developer → reviewer fix rounds per ticket
 ```
 
 - Adds up with the I6 restrictions of the hub, the team and the project (`oh budget show`): the most specific value wins (workflow > project > hub > team recommendation); a value enforced by the team stays a ceiling. See [ADR-044](../architecture/adr/044-credential-proxy-session-limits.en.md).
 - `budget_usd`: soft cap, checked between two steps; beyond it, a `$` decision asks to raise it or stop. Negative value: `negative_value`.
 - `models`: patterns on the id sent to the provider; the credential proxy refuses the others. An empty pattern: `field_required`.
+- `max_fix_rounds`: cap on the fix rounds (developer → reviewer) per ticket. It is an instruction, not a lock: it is written in the « Mode de workflow » section of the generated skills (« Au plus N tours de correction… ; au-delà, passe le checkpoint de commit en signalant les points non résolus. »). `0` or absent: no cap. A layer may only lower it (`loosening` otherwise). Negative value: `negative_value`. The hub `feature`, `ticket` and `review-feedback` workflows set `3`.
 
 ---
 

@@ -54,6 +54,7 @@ type mapData struct {
 	Checkpoints            []checkpointRow
 	Remote                 bool
 	MaxConsecutive         int
+	MaxFixRounds           int
 	Outputs                []outputRow
 }
 
@@ -167,6 +168,9 @@ func buildMapData(spec *workflow.Spec, graph map[string][]string, modeOf func(st
 	}
 	if cb := spec.CircuitBreaker; cb != nil && cb.MaxConsecutiveSubagents != nil {
 		d.MaxConsecutive = *cb.MaxConsecutiveSubagents
+	}
+	if l := spec.Limits; l != nil && l.MaxFixRounds != nil {
+		d.MaxFixRounds = *l.MaxFixRounds
 	}
 	for _, id := range spec.Members() {
 		ref, listed := spec.Agents.Get(id)

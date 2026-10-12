@@ -60,6 +60,7 @@ checkpoints:
     remote: auto
 modes: { default: semi-auto, allowed: [manuel, semi-auto, auto] }
 circuit_breaker: { max_consecutive_subagents: 12 }
+limits: { max_fix_rounds: 3 }
 beads: { allow: [show, list, ready, children, dep, update, close, comments, label] }
 runtime: { default: local, allowed: [local, container, remote] }
 outputs:

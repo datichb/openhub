@@ -81,7 +81,7 @@ Vérifie que chaque retour ci-dessous est traité, et qu'aucune régression n'es
 <la liste des corrections requises, telle quelle>
 ```
 
-Retour `corriger` → renvoyer au developer (étape 3) avec les retours du reviewer, puis nouvelle review.
+Retour `corriger` → renvoyer au developer (étape 3) avec les retours du reviewer, puis nouvelle review — au plus le nombre de tours de correction indiqué dans la section « Mode de workflow » ; au-delà, passer à `cp-2` en listant les points non résolus dans le `summary`.
 
 ### Étape 5 : `cp-2` — commit
 
@@ -116,5 +116,5 @@ Review : <verdict>
 
 Le compteur de cycles humain est **séparé** du compteur AI :
 - Ne pas compter les cycles AI précédents
-- Ne pas appliquer la limite de 3 cycles AI
+- La limite de tours de correction (developer → reviewer) de la section « Mode de workflow » s'applique aux tours de cette session
 - Avertir si c'est le 3ème cycle humain : "C'est la 3ème itération de feedback humain. Si les corrections ne sont pas satisfaisantes, envisagez une discussion directe."
