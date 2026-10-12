@@ -18,8 +18,9 @@ import (
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SessionsView (P3-T16, P3-T18; replaces the empty "parallel" view, B11/T6):
-// « À traiter » (decisions of every session), running, sleeping and finished
-// sessions, a detail pane and the live feed (t).
+// « À traiter » (sessions with open decisions, each followed by its decisions),
+// the other running, sleeping and finished sessions, a detail pane and the
+// live feed (t).
 // ─────────────────────────────────────────────────────────────────────────────
 
 const (
@@ -201,25 +202,30 @@ func (v *SessionsView) watchChanges(ctx context.Context, gen uint64, app *tview.
 
 // ── Rendering ─────────────────────────────────────────────────────────────
 
-// sessionsSections groups rows: decisions first, then running, sleeping,
-// and recently finished sessions.
-func sessionsSections(rows []SessionRow, now time.Time) (decisions []SessionDecision, running, sleeping, finished []SessionRow) {
+// sessionsSections groups rows: the sessions with open decisions first
+// (« À traiter », oldest decision first), then the other running, sleeping
+// and recently finished sessions. A session appears in a single section.
+func sessionsSections(rows []SessionRow, now time.Time) (inbox, running, sleeping, finished []SessionRow) {
 	for _, r := range rows {
 		switch {
 		case r.Finished:
 			if now.Sub(r.Changed) <= sessionsFinishedFor || r.Changed.IsZero() {
 				finished = append(finished, r)
 			}
+		case len(r.Decisions) > 0:
+			r.Decisions = append([]SessionDecision(nil), r.Decisions...)
+			sort.SliceStable(r.Decisions, func(i, j int) bool { return r.Decisions[i].Created.Before(r.Decisions[j].Created) })
+			inbox = append(inbox, r)
 		case r.State == "sleeping":
 			sleeping = append(sleeping, r)
-			decisions = append(decisions, r.Decisions...)
 		default:
 			running = append(running, r)
-			decisions = append(decisions, r.Decisions...)
 		}
 	}
-	sort.SliceStable(decisions, func(i, j int) bool { return decisions[i].Created.Before(decisions[j].Created) })
-	return decisions, running, sleeping, finished
+	sort.SliceStable(inbox, func(i, j int) bool {
+		return inbox[i].Decisions[0].Created.Before(inbox[j].Decisions[0].Created)
+	})
+	return inbox, running, sleeping, finished
 }
 
 func (v *SessionsView) row(id string) *SessionRow {
@@ -238,15 +244,26 @@ func (v *SessionsView) render() {
 	}
 	v.focusID = ""
 	rest, toFetch := splitRemote(v.rows)
-	decisions, running, sleeping, finished := sessionsSections(rest, time.Now())
+	inbox, running, sleeping, finished := sessionsSections(rest, time.Now())
 	var items []widgets.SectionItem
 	header := func(key string, n int) {
 		items = append(items, widgets.SectionItem{MainText: i18n.Tf(key, n), IsHeader: true})
 	}
-	if len(decisions) > 0 {
-		header("tui.sessions.section.inbox", len(decisions))
-		for _, d := range decisions {
-			items = append(items, v.decisionItem(d))
+	if len(inbox) > 0 {
+		n := 0
+		for _, r := range inbox {
+			n += len(r.Decisions)
+		}
+		header("tui.sessions.section.inbox", n)
+		for _, r := range inbox {
+			items = append(items, inboxSessionItem(r))
+			for _, d := range r.Decisions {
+				items = append(items, decisionItem(d))
+			}
+		}
+		// Land on the first decision to handle.
+		if keep == "" {
+			keep = "d:" + inbox[0].Decisions[0].ID
 		}
 	}
 	header("tui.sessions.section.running", len(running))
@@ -278,21 +295,27 @@ func muted(s string) string {
 	return theme.ColorTag(theme.TextMutedHex) + s + theme.TagColor
 }
 
-func (v *SessionsView) decisionItem(d SessionDecision) widgets.SectionItem {
-	r := v.row(d.SessionID)
-	who := ""
-	if r != nil {
-		who = sessionLabel(*r)
-	}
+// decisionItem is a decision row, indented under its session row (« À traiter »).
+func decisionItem(d SessionDecision) widgets.SectionItem {
 	color := theme.WarningHex
 	if d.Kind == DecisionKindError || d.Kind == DecisionKindBudget || d.Kind == DecisionKindCircuit {
 		color = theme.ErrorHex
 	}
 	return widgets.SectionItem{
-		MainText:      fmt.Sprintf("%s%s%s %s  %s", theme.ColorTag(color), d.Icon, theme.TagColor, who, d.Summary),
-		SecondaryText: "   " + ago(d.Created),
+		MainText:      fmt.Sprintf("  %s└%s %s%s%s %s", theme.ColorTag(theme.TextMutedHex), theme.TagColor, theme.ColorTag(color), d.Icon, theme.TagColor, d.Summary),
+		SecondaryText: "       " + ago(d.Created),
 		Reference:     decisionRef{id: d.ID, session: d.SessionID},
 	}
+}
+
+// shortSessionID is the short form of a session ID shown on its row: the
+// first 6 characters after "ses_".
+func shortSessionID(id string) string {
+	s := []rune(strings.TrimPrefix(id, "ses_"))
+	if len(s) > 6 {
+		s = s[:6]
+	}
+	return string(s)
 }
 
 func sessionLabel(r SessionRow) string {
@@ -307,6 +330,17 @@ func sessionLabel(r SessionRow) string {
 }
 
 func sessionItem(r SessionRow) widgets.SectionItem {
+	return sessionRowItem(r, false)
+}
+
+// inboxSessionItem is the row of a session with open decisions (« À
+// traiter »): its state (en veille, en cours…) is on the main line since it
+// is not listed under its state section.
+func inboxSessionItem(r SessionRow) widgets.SectionItem {
+	return sessionRowItem(r, true)
+}
+
+func sessionRowItem(r SessionRow, withState bool) widgets.SectionItem {
 	color := theme.ActiveMode.PrimaryHex
 	switch r.State {
 	case "waiting":
@@ -316,11 +350,21 @@ func sessionItem(r SessionRow) widgets.SectionItem {
 	case "sleeping", "stopped", "completed":
 		color = theme.TextMutedHex
 	}
-	main := fmt.Sprintf("%s%s%s %s", theme.ColorTag(color), r.StateIcon, theme.TagColor, sessionLabel(r))
+	main := fmt.Sprintf("%s%s%s ", theme.ColorTag(color), r.StateIcon, theme.TagColor)
+	if withState && r.StateLabel != "" {
+		main += fmt.Sprintf("%s%s%s · ", theme.ColorTag(color), r.StateLabel, theme.TagColor)
+	}
+	main += sessionLabel(r)
+	if short := shortSessionID(r.ID); short != "" {
+		main += "  " + muted(short)
+	}
 	if r.Title != "" && !strings.Contains(r.Title, r.Agent) {
 		main += "  " + muted(r.Title)
 	}
 	second := fmt.Sprintf("   %s · %s · $%.2f", r.StateLabel, r.Agent, r.Cost)
+	if withState {
+		second = fmt.Sprintf("   %s · $%.2f", r.Agent, r.Cost)
+	}
 	if n := len(r.Decisions); n > 0 && !r.Finished {
 		second += " · " + i18n.Tf("tui.sessions.waiting_decisions", n)
 	}
@@ -577,6 +621,8 @@ func (v *SessionsView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 				v.shell.ShowSelectModal(i18n.T("tui.launch.chain_title"), opts, "", func(wf string) { ch.Chain(id, wf) })
 			})
 		}
+	case 'D':
+		v.deleteSession(r)
 	case 'g':
 		v.fetchSelected(r)
 	case 'w':
@@ -659,6 +705,30 @@ func (v *SessionsView) raiseBudget(d *SessionDecision) {
 		v.decide(&dec, "raise", strings.TrimSpace(amount), nil)
 	})
 	v.trackDecision(dec.ID)
+}
+
+// deleteSession deletes a session for good (D): what it loses is listed and
+// confirmed, then the changes of the project directory are kept or
+// discarded on a second question.
+func (v *SessionsView) deleteSession(r *SessionRow) {
+	del, ok := v.cfg.Backend.(SessionDeleter)
+	if !ok || r == nil || v.shell == nil {
+		return
+	}
+	id, label := r.ID, sessionLabel(*r)
+	var plan DeleteSummary
+	v.async(func(ctx context.Context) (string, error) {
+		var err error
+		plan, err = del.PlanDelete(ctx, id)
+		return "", err
+	}, func(string) {
+		confirmSessionDelete(v.shell, i18n.Tf("tui.sessions.delete_confirm", label, shortSessionID(id)), plan, func(discard bool) {
+			v.async(func(ctx context.Context) (string, error) { return del.DeleteSession(ctx, id, discard) }, func(msg string) {
+				v.toast(msg, true)
+				v.reload()
+			})
+		})
+	})
 }
 
 func (v *SessionsView) showMR(id string) {

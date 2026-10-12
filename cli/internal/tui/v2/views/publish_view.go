@@ -10,6 +10,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
+	"github.com/datichb/openhub/cli/internal/tui/v2/widgets"
 )
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -112,6 +113,7 @@ func (v *PublishView) Mount(content *tview.Flex, app *tview.Application) {
 		AddButton(i18n.T("tui.publish.publish"), v.publish).
 		AddButton(i18n.T("tui.catalog.edit.cancel"), v.close)
 	v.form.SetBackgroundColor(theme.BgPanel)
+	widgets.StyleFormButtons(v.form, 0) // « Publier »
 	v.hints = tview.NewTextView().SetDynamicColors(true)
 	v.hints.SetBackgroundColor(theme.BgPanel)
 	root := tview.NewFlex().SetDirection(tview.FlexRow).

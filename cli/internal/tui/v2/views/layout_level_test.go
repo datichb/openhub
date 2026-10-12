@@ -34,4 +34,8 @@ func TestContentWidthFor(t *testing.T) {
 	assert.Equal(t, 64, contentWidthFor(layoutNarrow, 64))
 	assert.Equal(t, 90, contentWidthFor(layoutWide, 120))
 	assert.Equal(t, 72, contentWidthFor(layoutNarrow, 0), "unknown width")
+	// The dual layout grows with the terminal, capped at 180.
+	assert.Equal(t, 134, contentWidthFor(layoutDual, 140))
+	assert.Equal(t, 174, contentWidthFor(layoutDual, 180))
+	assert.Equal(t, 180, contentWidthFor(layoutDual, 250))
 }

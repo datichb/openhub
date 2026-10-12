@@ -8,6 +8,7 @@ import (
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/datichb/openhub/cli/internal/i18n"
 
@@ -491,6 +492,30 @@ func TestHomeView_SplitItems_DualColumn(t *testing.T) {
 
 	// Right should contain: Projects (replaces old Quick Actions)
 	assert.Contains(t, rightHeaders, "Projects")
+}
+
+func TestHomeView_SingleProjectsSection_AddLast(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		projects []ProjectEntry
+	}{
+		{"with projects", []ProjectEntry{{ID: "p1", Name: "my-app", Path: "/tmp/my-app"}, {ID: "p2", Name: "other", Path: "/tmp/other"}}},
+		{"no project", nil},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			v := NewHomeView(HomeViewConfig{ListProjects: func() []ProjectEntry { return tc.projects }})
+			for _, items := range [][]homeItem{v.buildItems(), v.buildStaticItems()} {
+				v.items = items
+				_, right := v.splitItems()
+				assert.Equal(t, []string{"Projects"}, collectHeaders(right))
+				require.NotEmpty(t, right)
+				assert.Contains(t, right[len(right)-1].MainText, i18n.T("tui.home.project_add"))
+			}
+			v.items = v.buildItems()
+			_, right := v.splitItems()
+			assert.Len(t, right, 1+len(tc.projects)+1)
+		})
+	}
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

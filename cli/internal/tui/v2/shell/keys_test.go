@@ -232,7 +232,7 @@ func TestKeysEscInWizardKeepsTheToasts(t *testing.T) {
 	focused := func() (label string) {
 		s.loop(func() {
 			if b, ok := s.app.GetFocus().(*tview.Button); ok {
-				label = b.GetLabel()
+				label = widgets.ButtonLabel(b)
 			}
 		})
 		return label
@@ -311,29 +311,57 @@ func TestKeysCatalogEnterLaunches(t *testing.T) {
 	assert.False(t, s.omnibarActive())
 }
 
-// Confirm runs onYes only once confirmed; Esc cancels.
+// Confirm runs onYes only once confirmed; Esc cancels. A dangerous action
+// starts on « Annuler » (Enter by reflex cancels), a safe one on « Oui » (N19).
 func TestConfirm(t *testing.T) {
 	v := &keyView{id: "home", focusList: true}
 	s := newKeyShell(t, v)
 	yes := 0
+	focused := func() (label string) {
+		s.loop(func() {
+			if b, ok := s.app.GetFocus().(*tview.Button); ok {
+				label = widgets.ButtonLabel(b)
+			}
+		})
+		return label
+	}
+	shown := func() (ok bool) {
+		s.loop(func() { ok = s.pages.HasPage("inline-overlay") })
+		return ok
+	}
 	s.loop(func() { s.Confirm("Delete?", "detail", true, func() { yes++ }) })
-	s.key(tcell.KeyEnter, 0, tcell.ModNone) // focus on the text: nothing
-	s.loop(func() {})
-	assert.Equal(t, 0, yes)
-	s.key(tcell.KeyEscape, 0, tcell.ModNone)
-	shown := true
-	s.loop(func() { shown = s.pages.HasPage("inline-overlay") })
-	assert.False(t, shown)
+	assert.Equal(t, i18n.T("tui.confirm.cancel"), focused())
+	s.key(tcell.KeyEnter, 0, tcell.ModNone) // « Annuler »: nothing done
+	assert.False(t, shown())
 	assert.Equal(t, 0, yes)
 
 	s.loop(func() { s.Confirm("Delete?", "detail", true, func() { yes++ }) })
-	s.key(tcell.KeyTab, 0, tcell.ModNone)   // to « Confirm »
+	s.key(tcell.KeyEscape, 0, tcell.ModNone)
+	assert.False(t, shown())
+	assert.Equal(t, 0, yes)
+
+	s.loop(func() { s.Confirm("Delete?", "detail", true, func() { yes++ }) })
+	s.key(tcell.KeyBacktab, 0, tcell.ModNone) // to « Oui »
+	assert.Equal(t, i18n.T("tui.confirm.yes"), focused())
 	s.key(tcell.KeyEnter, 0, tcell.ModNone) // press it
 	assert.Equal(t, 1, yes)
 	var focus tview.Primitive
 	s.loop(func() { focus = s.app.GetFocus() })
 	_, onList := focus.(*widgets.SectionedList)
 	assert.True(t, onList, "focus back on the list")
+
+	// Safe action: the focus starts on « Oui »; Tab cycles text → buttons.
+	s.loop(func() { s.Confirm("Save?", "detail", false, func() { yes++ }) })
+	assert.Equal(t, i18n.T("tui.confirm.yes"), focused())
+	s.key(tcell.KeyTab, 0, tcell.ModNone) // « Annuler »
+	assert.Equal(t, i18n.T("tui.confirm.cancel"), focused())
+	s.key(tcell.KeyTab, 0, tcell.ModNone) // the text
+	assert.Equal(t, "", focused())
+	s.key(tcell.KeyDown, 0, tcell.ModNone) // ↓ scrolls the text, stays there
+	assert.Equal(t, "", focused())
+	s.key(tcell.KeyTab, 0, tcell.ModNone) // « Oui » again
+	s.key(tcell.KeyEnter, 0, tcell.ModNone)
+	assert.Equal(t, 2, yes)
 }
 
 // Recap without provider credentials: Enter on « Configure the provider »
@@ -366,7 +394,7 @@ func TestKeysLaunchFormConfigureProvider(t *testing.T) {
 	focused := func() (l string) {
 		s.loop(func() {
 			if b, ok := s.app.GetFocus().(*tview.Button); ok {
-				l = b.GetLabel()
+				l = widgets.ButtonLabel(b)
 			}
 		})
 		return l

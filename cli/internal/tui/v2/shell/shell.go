@@ -756,12 +756,6 @@ func (s *Shell) ShowInlineForm(cfg views.InlineFormConfig) {
 
 	// Remove border from the form — the outer Flex will have the border
 	form.SetBorder(false)
-	form.SetButtonStyle(tcell.StyleDefault.
-		Background(theme.ActiveMode.Accent).
-		Foreground(theme.BgPanel))
-	form.SetButtonActivatedStyle(tcell.StyleDefault.
-		Background(theme.ActiveMode.Secondary).
-		Foreground(theme.BgPanel))
 
 	// ── Layout: outer Flex with border + rounded corners ─────────────────
 	outerFlex := tview.NewFlex().SetDirection(tview.FlexRow)
@@ -809,47 +803,75 @@ func (s *Shell) ShowInlineForm(cfg views.InlineFormConfig) {
 	// Bottom padding
 	outerFlex.AddItem(tview.NewBox().SetBackgroundColor(theme.BgModal), 1, 0, false)
 
-	// ── Focus cycling: form ↔ buttons via Tab ────────────────────────────
-	var allFocusables []tview.Primitive
-	allFocusables = append(allFocusables, form)
-	allFocusables = append(allFocusables, buttonFocusables...)
-	currentFocus := 0
+	// ── Focus cycling: Tab / Shift+Tab go through every field then every
+	// button (the focused element is read from the app: mouse-safe) ──────
+	// Tab stops: the focusable fields (not the validation messages), then
+	// the buttons. Recomputed on each key: conditional fields come and go.
+	stops := func() (fields []int) {
+		for i := 0; i < form.GetFormItemCount(); i++ {
+			if _, msg := form.GetFormItem(i).(*tview.TextView); !msg {
+				fields = append(fields, i)
+			}
+		}
+		return fields
+	}
+	focusAt := func(fields []int, k int) {
+		if k < len(fields) {
+			form.SetFocus(fields[k])
+			s.app.SetFocus(form)
+			return
+		}
+		s.app.SetFocus(buttonFocusables[k-len(fields)])
+	}
+	current := func(fields []int) int {
+		for k, i := range fields {
+			if form.GetFormItem(i).HasFocus() {
+				return k
+			}
+		}
+		for j, b := range buttonFocusables {
+			if b.HasFocus() {
+				return len(fields) + j
+			}
+		}
+		return -1
+	}
 
 	outerFlex.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		if event.Key() == tcell.KeyTab && currentFocus == 0 && len(allFocusables) > 1 {
-			// Tab from form → first button
-			currentFocus = 1
-			s.app.SetFocus(allFocusables[currentFocus])
+		fields := stops()
+		total := len(fields) + len(buttonFocusables)
+		cur := current(fields)
+		onButton := cur >= len(fields)
+		switch event.Key() {
+		case tcell.KeyTab:
+			focusAt(fields, (cur+1)%total)
 			return nil
-		}
-		if event.Key() == tcell.KeyBacktab && currentFocus > 0 {
-			// BackTab from button → form
-			currentFocus = 0
-			s.app.SetFocus(allFocusables[currentFocus])
+		case tcell.KeyBacktab:
+			if cur < 0 {
+				cur = 0
+			}
+			focusAt(fields, (cur-1+total)%total)
 			return nil
-		}
-		if currentFocus > 0 {
+		case tcell.KeyLeft, tcell.KeyRight:
 			// Navigate between buttons with ←/→
-			if event.Key() == tcell.KeyLeft || event.Key() == tcell.KeyRight {
-				btnCount := len(allFocusables) - 1
-				btnIdx := currentFocus - 1
+			if onButton {
+				btnCount := len(buttonFocusables)
+				btnIdx := cur - len(fields)
 				if event.Key() == tcell.KeyLeft {
 					btnIdx = (btnIdx - 1 + btnCount) % btnCount
 				} else {
 					btnIdx = (btnIdx + 1) % btnCount
 				}
-				currentFocus = btnIdx + 1
-				s.app.SetFocus(allFocusables[currentFocus])
+				focusAt(fields, len(fields)+btnIdx)
 				return nil
 			}
-			// Up from button → form
-			if event.Key() == tcell.KeyUp {
-				currentFocus = 0
-				s.app.SetFocus(allFocusables[currentFocus])
+		case tcell.KeyUp:
+			// Up from a button → last field
+			if onButton && len(fields) > 0 {
+				focusAt(fields, len(fields)-1)
 				return nil
 			}
-		}
-		if event.Key() == tcell.KeyEscape {
+		case tcell.KeyEscape:
 			cancelForm()
 			return nil
 		}
@@ -1865,5 +1887,6 @@ func (s *Shell) showInlineScrollable(title, content string, actions []views.Moda
 		PageName:     "inline-overlay",
 		FocusReturn:  s.content,
 		FocusTarget:  textView,
+		FocusAction:  min(len(actions), 1), // the primary action, if any
 	})
 }

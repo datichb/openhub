@@ -2,6 +2,8 @@ package widgets
 
 import (
 	"fmt"
+	"strings"
+	"unicode/utf8"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -43,7 +45,9 @@ type SectionedList struct {
 	app                *tview.Application
 	onSelect           func(index int, item SectionItem)
 	onChange           func(index int, item SectionItem)
-	tabCaptureDisabled bool // when true, Tab/BackTab are not captured (for dual-column navigation)
+	tabCaptureDisabled bool        // when true, Tab/BackTab are not captured (for dual-column navigation)
+	texts              [][2]string // full (unfitted) main/secondary text per tview.List row
+	fitWidth           int         // width the rows were last fitted to (0 = not fitted)
 }
 
 // NewSectionedList creates a SectionedList with standard styling.
@@ -62,23 +66,87 @@ func NewSectionedList() *SectionedList {
 	sl.SetInputCapture(sl.handleInput)
 	sl.SetChangedFunc(sl.handleChanged)
 
-	// Draw a subtle scroll indicator when items overflow the visible area
-	sl.SetDrawFunc(func(screen tcell.Screen, x, y, width, height int) (int, int, int, int) {
-		totalLines := sl.GetItemCount() * 2 // each item = main + secondary
-		if totalLines > height && sl.GetCurrentItem() < sl.GetItemCount()-1 {
-			// Draw ▼ at bottom-right corner
-			screen.SetContent(x+width-2, y+height-1, '▼', nil,
-				tcell.StyleDefault.Foreground(theme.FgMuted).Background(theme.BgPanel))
-		}
-		if sl.GetCurrentItem() > 0 {
-			// Draw ▲ at top-right corner when scrolled down
-			screen.SetContent(x+width-2, y, '▲', nil,
-				tcell.StyleDefault.Foreground(theme.FgMuted).Background(theme.BgPanel))
-		}
+	// The draw func returns the padded inner rect (tview uses its result as
+	// the inner rect, so returning the full rect would drop SetBorderPadding)
+	// and fits the texts to the real width. Scroll markers: see Draw.
+	sl.SetDrawFunc(func(_ tcell.Screen, _, _, _, _ int) (int, int, int, int) {
+		x, y, width, height := sl.GetInnerRect()
+		sl.fitTexts(width - scrollMarkerReserve)
 		return x, y, width, height
 	})
 
 	return sl
+}
+
+// Draw draws the list, then a subtle scroll indicator (inside the inner
+// rect) when items overflow the visible area.
+func (sl *SectionedList) Draw(screen tcell.Screen) {
+	sl.List.Draw(screen)
+	x, y, width, height := sl.GetInnerRect()
+	if width <= 0 || height <= 0 {
+		return
+	}
+	markerStyle := tcell.StyleDefault.Foreground(theme.FgMuted).Background(theme.BgPanel)
+	totalLines := sl.GetItemCount() * 2 // each item = main + secondary
+	if totalLines > height && sl.GetCurrentItem() < sl.GetItemCount()-1 {
+		screen.SetContent(x+width-1, y+height-1, '▼', nil, markerStyle)
+	}
+	if sl.GetCurrentItem() > 0 {
+		screen.SetContent(x+width-1, y, '▲', nil, markerStyle)
+	}
+}
+
+// scrollMarkerReserve is the number of right-hand cells kept free of text for
+// the ▲/▼ scroll markers (one gap + the marker).
+const scrollMarkerReserve = 2
+
+// fitTexts ellipsizes the rows to width display cells. Only re-applied when
+// the width changed since the last fit (or after a rebuild).
+func (sl *SectionedList) fitTexts(width int) {
+	if width == sl.fitWidth || width <= 0 || len(sl.texts) != sl.GetItemCount() {
+		return
+	}
+	sl.fitWidth = width
+	for i, t := range sl.texts {
+		sl.SetItemText(i, TruncateTagged(t[0], width), TruncateTagged(t[1], width))
+	}
+}
+
+// TruncateTagged shortens text so that it fits in width display cells,
+// ending with "…" when cut. tview style tags (e.g. [#ff0000], [-], [::b])
+// have no width and are never split.
+func TruncateTagged(text string, width int) string {
+	if width <= 0 {
+		return ""
+	}
+	if tview.TaggedStringWidth(text) <= width {
+		return text
+	}
+	// Candidate cut points: rune boundaries outside style tags.
+	cuts := []int{0}
+	for i := 0; i < len(text); {
+		if text[i] == '[' {
+			if j := strings.IndexByte(text[i:], ']'); j > 0 && tview.TaggedStringWidth(text[i:i+j+1]) == 0 {
+				i += j + 1
+				cuts = append(cuts, i)
+				continue
+			}
+		}
+		_, size := utf8.DecodeRuneInString(text[i:])
+		i += size
+		cuts = append(cuts, i)
+	}
+	// Largest cut whose prefix (plus the ellipsis) fits.
+	lo, hi := 0, len(cuts)-1
+	for lo < hi {
+		mid := (lo + hi + 1) / 2
+		if tview.TaggedStringWidth(text[:cuts[mid]]) <= width-1 {
+			lo = mid
+		} else {
+			hi = mid - 1
+		}
+	}
+	return text[:cuts[lo]] + "…"
 }
 
 // SetApp sets the tview.Application for draw updates.
@@ -203,18 +271,22 @@ func (sl *SectionedList) rebuild() {
 	sl.Clear()
 	sl.listToItem = nil
 	sl.itemToList = make([]int, len(sl.items))
+	sl.texts = nil
+	sl.fitWidth = 0
 
 	for i, item := range sl.items {
 		// Insert a blank spacer line before headers (except the very first item)
 		if item.IsHeader && i > 0 {
 			sl.AddItem("", "", 0, nil)
 			sl.listToItem = append(sl.listToItem, -1) // -1 = spacer
+			sl.texts = append(sl.texts, [2]string{})
 		}
 
 		sl.itemToList[i] = sl.GetItemCount()
 		main, secondary := sl.formatItem(item)
 		sl.AddItem(main, secondary, 0, nil)
 		sl.listToItem = append(sl.listToItem, i)
+		sl.texts = append(sl.texts, [2]string{main, secondary})
 	}
 
 	// Ensure cursor is on a selectable item
