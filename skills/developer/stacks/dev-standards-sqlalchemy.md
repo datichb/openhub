@@ -5,6 +5,8 @@ description: Standards SQLAlchemy — models, sessions, Alembic, requêtes async
 
 # Skill — Standards SQLAlchemy
 
+> Versions de référence (octobre 2026) : SQLAlchemy 2.1 (Python ≥ 3.11), Alembic 1.20.
+
 ## Rôle
 
 Ce skill définit les bonnes pratiques pour l'accès aux données avec SQLAlchemy (v2+).
@@ -54,8 +56,12 @@ class User(Base):
 
 ## Sessions — async (avec asyncpg)
 
+- Installer `sqlalchemy[asyncio]` : depuis 2.1, `greenlet` n'est plus installé par défaut et l'API async en dépend
+
 ```python
 # database.py
+from collections.abc import AsyncIterator
+
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 
 engine = create_async_engine(
@@ -67,7 +73,7 @@ engine = create_async_engine(
 
 AsyncSessionFactory = async_sessionmaker(engine, expire_on_commit=False)
 
-async def get_session() -> AsyncSession:
+async def get_session() -> AsyncIterator[AsyncSession]:
     async with AsyncSessionFactory() as session:
         yield session
 ```
