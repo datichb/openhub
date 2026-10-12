@@ -22,6 +22,9 @@ type AgentFrontmatter struct {
 	Skills         []string               `yaml:"skills"`          // Bucket A — inline skills
 	NativeSkills   []string               `yaml:"native_skills"`   // Bucket B — on-demand skills
 	MCPServers     []string               `yaml:"mcpServers"`      // required MCP servers
+	// Verify grants the build, test, lint and type check commands of the
+	// project's stack (VerifyCommands), asked in a read-only workflow.
+	Verify bool `yaml:"verify"`
 }
 
 // ParseAgentFrontmatter reads an agent .md file and extracts its YAML frontmatter.
