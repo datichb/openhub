@@ -82,7 +82,7 @@ question({
     header: "Créer ticket Beads",
     question: "[Debugger — Phase 5 : Ticket | Bug : <titre>]\nCréer ce ticket de correction dans Beads ?",
     options: [
-      { label: "Oui — créer le ticket", description: "Créer le ticket avec bd create et enrichir description/acceptance/notes techniques" },
+      { label: "Oui — créer le ticket", description: "Créer le ticket avec bd create (description, critères d'acceptance, notes techniques)" },
       { label: "Non", description: "Ne pas créer de ticket" }
     ]
   }]
@@ -128,7 +128,7 @@ question({
 **Question :** Créer ce ticket de correction dans Beads ?
 
 **Options :**
-- `oui-creer-ticket` — Créer le ticket avec bd create et enrichir description/acceptance/notes techniques
+- `oui-creer-ticket` — Créer le ticket avec bd create (description, critères d'acceptance, notes techniques)
 - `non` — Ne pas créer de ticket
 
 **Instruction de reprise :** "Réponse Phase 5 debugger : [option]. Reprendre depuis Phase 5 — confirmation ticket Beads."
@@ -136,14 +136,16 @@ question({
 
 ---
 
-## Commandes bd create/update (si oui)
+## Commande bd create (si oui)
+
+Un seul appel : `bd create` reçoit la description, les critères d'acceptance et les notes (tes permissions refusent `bd update` et les variables shell) :
 
 ```bash
-TICKET=$(bd create "<titre>" -p <priorité> -t bug -l from-diagnostic --json)
-ID=$(echo $TICKET | jq -r '.id')
-bd update $ID --description "<description, avec une section ## Étapes de reproduction (Steps to Reproduce)>"
-bd update $ID --acceptance "<critères d'acceptance>"
-bd update $ID --notes "<cause racine, fichiers impliqués, points d'attention>"
+bd create "<titre>" -p <priorité> -t bug -l from-diagnostic \
+  --description "<description, avec une section ## Étapes de reproduction (Steps to Reproduce)>" \
+  --acceptance "<critères d'acceptance>" \
+  --notes "<cause racine, fichiers impliqués, points d'attention>" \
+  --json
 ```
 
-Vérifier ensuite le ticket avec `bd lint $ID` : il signale une section `Steps to Reproduce` ou des critères d'acceptation manquants (le titre doit contenir « Steps to Reproduce », exigé par bd).
+Vérifier ensuite le ticket avec `bd lint <ID>` (l'identifiant est dans la réponse JSON) : il signale une section `Steps to Reproduce` ou des critères d'acceptation manquants (le titre doit contenir « Steps to Reproduce », exigé par bd).

@@ -504,7 +504,7 @@ Quelques questions issues de l'exploration pour affiner le diagnostic :
 **Question :** Créer ce ticket de correction dans Beads ?
 
 **Options :**
-- `oui-creer-ticket` — Créer le ticket avec bd create et enrichir description/acceptance/notes techniques
+- `oui-creer-ticket` — Créer le ticket avec bd create (description, critères d'acceptance, notes techniques)
 - `non` — Ne pas créer de ticket
 
 **Instruction de reprise :** "Réponse Phase 5 debugger : [option]. Reprendre depuis Phase 5 — confirmation ticket Beads."
