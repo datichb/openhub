@@ -228,10 +228,10 @@ X = nombre de 🔴 Critique + 🟠 Majeur de `### Synthèse des problèmes` (san
 
 - **commit** →
   1. Formuler le message de commit selon Conventional Commits :
-     `<type>(<scope>): <description>` — basé sur le type du ticket, l'ID et son titre
+     `<type>(<scope>): <description> (<ID>)` — basé sur le type du ticket et son titre ; l'ID entre parenthèses en fin de ligne relie le commit au ticket (oh doctor signale ainsi les tickets commités mais restés ouverts)
   2. Relancer **aussitôt** le developer (même `task_id`) avec l'instruction — c'est lui qui commite et clôt, jamais avant cette instruction :
      > « Crée le commit final et clos le ticket :
-     > 1. `git commit -m "<type>(<scope>): <description>"`
+     > 1. `git commit -m "<type>(<scope>): <description> (<ID>)"`
      > 2. `bd close <ID> --reason "Implemented in commit <hash>" --suggest-next` »
   → étape 6
 

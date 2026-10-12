@@ -366,6 +366,8 @@ func classify(e beadswire.JournalEntry, allow []string, snap *remote.Snapshot, p
 	}
 	for _, f := range c.Flags {
 		switch {
+		case f.Name == "actor":
+			// set by the Beads gateway of the job; rewritten on replay
 		case gateway.ForbiddenFlag(f.Name):
 			return refuse("option --" + f.Name + " refused")
 		case f.Name == "id":
@@ -577,6 +579,11 @@ func (s *Service) ApplyReplay(ctx context.Context, sid string, res map[string]Re
 		return plan, err
 	}
 	b := s.beads()
+	human := gateway.ResolveHuman
+	if s.Human != nil {
+		human = s.Human
+	}
+	person := human(ctx, ref.ProjectDir)
 	for i := range plan.Items {
 		it := &plan.Items[i]
 		if it.State != ItemPending {
@@ -607,6 +614,7 @@ func (s *Service) ApplyReplay(ctx context.Context, sid string, res map[string]Re
 			continue
 		}
 		run := substitute(*cmd, st.Placeholders)
+		run = replayActor(run, person)
 		if it.Placeholder != "" && !run.Bool("json") {
 			run.Flags = append(run.Flags, bdargs.Flag{Name: "json", Value: "true"})
 		}
@@ -650,6 +658,30 @@ func (s *Service) ApplyReplay(ctx context.Context, sid string, res map[string]Re
 
 // substitute replaces the placeholders of created issues by their id, in
 // the arguments and in the options that hold ids.
+// replayActor sets the actor of a replayed write on the machine: the person
+// of the machine and the oh agent recorded by the job, marked remote. A
+// claim keeps bd's own actor (the person), since bd makes it the assignee.
+func replayActor(c bdargs.Cmd, human string) bdargs.Cmd {
+	agent := ""
+	flags := make([]bdargs.Flag, 0, len(c.Flags)+1)
+	for _, f := range c.Flags {
+		if f.Name == "actor" {
+			agent = gateway.ActorAgent(f.Value)
+			continue
+		}
+		flags = append(flags, f)
+	}
+	c.Flags = flags
+	if op, ok := gateway.TicketOp(c); ok && op.Kind == gateway.OpClaim {
+		return c
+	}
+	if agent == "" {
+		agent = "session"
+	}
+	c.Flags = append(c.Flags, bdargs.Flag{Name: "actor", Value: gateway.Actor(human, agent+" (remote)"), Explicit: true})
+	return c
+}
+
 func substitute(c bdargs.Cmd, ph map[string]string) bdargs.Cmd {
 	out := bdargs.Cmd{Path: c.Path, Args: make([]string, len(c.Args)), Flags: make([]bdargs.Flag, len(c.Flags))}
 	for i, a := range c.Args {

@@ -37,7 +37,14 @@ type bdSource struct{ path string }
 
 func (s bdSource) Tickets(context.Context) ([]beads.Ticket, error) { return beads.ListAll(s.path) }
 func (s bdSource) Detail(_ context.Context, id string) (*beads.TicketDetail, error) {
-	return beads.Show(s.path, id)
+	d, err := beads.Show(s.path, id)
+	if err != nil {
+		return nil, err
+	}
+	if res, err := beads.Lint(s.path, id); err == nil && len(res) == 1 {
+		d.Missing = res[0].Missing
+	}
+	return d, nil
 }
 
 // BeadsPickerConfig configures a Beads picker.
@@ -384,6 +391,9 @@ func (p *BeadsPicker) refreshPreview() {
 		text := head
 		if n := acceptanceCount(d.Acceptance); n > 0 {
 			text += " — " + i18n.Tf("tui.picker.beads.preview_criteria", n)
+		}
+		if len(d.Missing) > 0 {
+			text += "\n" + fmt.Sprintf("[%s]⚠ %s[-]", theme.WarningHex, tview.Escape(i18n.Tf("tui.picker.beads.preview_missing", strings.Join(d.Missing, ", "))))
 		}
 		if desc := strings.TrimSpace(d.Description); desc != "" {
 			text += "\n" + tview.Escape(desc)

@@ -3,9 +3,11 @@ package cmd
 import (
 	"errors"
 	"net/http"
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/datichb/openhub/cli/internal/gateway/bdargs"
 	"github.com/datichb/openhub/cli/internal/runtime/container"
@@ -51,4 +53,20 @@ func TestBdVersionCheck(t *testing.T) {
 	unreadable := bdVersionResult("", errors.New("exit status 1"))
 	assert.True(t, unreadable.Warn)
 	assert.Contains(t, unreadable.Detail, "exit status 1")
+}
+
+func TestBdSchemaCheck(t *testing.T) {
+	ok := bdSchemaResult([]byte(`{"schema_version":1,"types":{"issue":{"properties":{}}}}`), nil)
+	assert.True(t, ok.OK)
+	assert.True(t, ok.Warn, "fields oh reads are missing")
+	assert.Contains(t, ok.Detail, "issue.title")
+
+	full, err := os.ReadFile("../internal/beads/bdschema/schema_bd.json")
+	require.NoError(t, err)
+	good := bdSchemaResult(full, nil)
+	assert.False(t, good.Warn, good.Detail)
+
+	bad := bdSchemaResult(nil, errors.New("unknown command"))
+	assert.True(t, bad.Warn)
+	assert.Contains(t, bad.Detail, "unknown command")
 }

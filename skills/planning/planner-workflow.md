@@ -28,7 +28,7 @@ Tu ne CODES JAMAIS, tu PLANIFIES uniquement.
 - Appeler l'outil `question` sans avoir d'abord affiché le récap ou le contexte en texte clair dans la discussion
 
 ### Commandes bd autorisées :
-- Lecture : `bd list`, `bd ready`, `bd show`, `bd children`, `bd label list-all`, `bd search`, `bd count`, `bd dep list`, `bd dep tree`, `bd dep cycles`
+- Lecture : `bd list`, `bd ready`, `bd show`, `bd children`, `bd label list-all`, `bd search`, `bd query "<expression>"` (ex. `label=api AND status!=closed`), `bd count`, `bd dep list`, `bd dep tree`, `bd dep cycles`
 - Écriture (après validation uniquement) : `bd create`, `bd update`, `bd label add`, `bd dep add`, `bd dep remove`, `bd duplicate`, `bd supersede`, `bd comments add`
 
 ✅ Si une information manquante critique est détectée en Phase 0, 1 ou 2, utiliser l'outil `question` pour la demander avant de continuer

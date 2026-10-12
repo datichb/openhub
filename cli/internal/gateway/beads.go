@@ -20,6 +20,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/datichb/openhub/cli/internal/gateway/bdargs"
 	"github.com/datichb/openhub/cli/internal/gateway/beadswire"
 	"github.com/datichb/openhub/cli/internal/i18n"
 )
@@ -41,6 +42,10 @@ type Beads struct {
 	Guard func(ctx context.Context, g Grant, op BeadsOp) error
 	// Done is told the ticket operations that ran successfully (nil = none).
 	Done func(ctx context.Context, g Grant, op BeadsOp)
+	// Agent names the oh agent using a grant (the session's entry agent,
+	// or the subagent of the holder; "" = unknown), second part of the
+	// Beads actor of its writes (nil = unknown).
+	Agent func(ctx context.Context, g Grant) string
 }
 
 const (
@@ -127,6 +132,10 @@ func (b *Beads) Exec(ctx context.Context, g Grant, req beadswire.ExecRequest) (r
 	if err != nil {
 		return refusalResp(err.Error()), http.StatusForbidden
 	}
+	if bdargs.IsRead(c.Cmd) {
+		// Second line behind the allow-list: bd itself refuses a write.
+		argv = append([]string{"--readonly"}, argv...)
+	}
 	if !exists(dir) {
 		return refusalResp(i18n.Tf("cmd.gateway.beads.path_outside", dir)), http.StatusForbidden
 	}
@@ -159,6 +168,11 @@ func (b *Beads) Exec(ctx context.Context, g Grant, req beadswire.ExecRequest) (r
 		if err := b.Guard(ctx, g, op); err != nil {
 			slog.Debug("gateway: bd refused by the workflow", "session", g.SessionID, "command", c.Key(), "error", err)
 			return refusalResp(err.Error()), http.StatusForbidden
+		}
+	}
+	if !hook && c.Name() != "" && !c.Help() && !bdargs.IsRead(c.Cmd) {
+		if actor := b.actor(ctx, g, isOp && op.Kind == OpClaim); actor != "" {
+			argv = append([]string{"--actor=" + actor}, argv...)
 		}
 	}
 	timeout := b.Timeout
@@ -206,12 +220,30 @@ func (b *Beads) binary() (string, error) {
 	return exec.LookPath("bd")
 }
 
+// actor is the Beads actor of a write of the session (agents cannot choose
+// it: --actor is refused). bd makes the actor of a claim the assignee of
+// the ticket, so a claim keeps the person alone (the agent is recorded in
+// the provenance of the claim).
+func (b *Beads) actor(ctx context.Context, g Grant, claim bool) string {
+	if claim {
+		return cleanActorPart(g.Human)
+	}
+	agent := ""
+	if b.Agent != nil {
+		agent = b.Agent(ctx, g)
+	}
+	if agent == "" && g.Holder != "" {
+		agent = "subagent"
+	}
+	return Actor(g.Human, agent)
+}
+
 // closingStatus asks bd whether a status of the project's configuration
 // is a done status (bd statuses); unknown answers count as closing.
 func (b *Beads) closingStatus(ctx context.Context, bin, dir, beadsDir, status string) bool {
 	ctx, cancel := context.WithTimeout(ctx, baseTimeout)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, bin, "statuses", "--json")
+	cmd := exec.CommandContext(ctx, bin, "--readonly", "statuses", "--json")
 	cmd.Dir = dir
 	cmd.Env = beadsEnv(os.Environ(), beadsDir, false)
 	out, err := cmd.Output()

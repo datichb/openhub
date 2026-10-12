@@ -73,6 +73,7 @@
         "shell bd show * allow",
         "shell git log * allow",
         "shell bd count * allow",
+        "shell bd query * allow",
         "shell bd create * ask",
         "shell bd search * allow",
         "shell bd update * ask",

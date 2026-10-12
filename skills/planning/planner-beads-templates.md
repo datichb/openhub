@@ -48,6 +48,11 @@ bd update $EPIC_ID \
 [Principaux risques identifiés sur cet epic]
 EOF
 )" \
+  --acceptance "$(cat <<'EOF'
+## Critères de succès (Success Criteria)
+- [Résultat observable qui prouve que l'epic a atteint son objectif]
+EOF
+)" \
   --notes "$(cat <<'EOF'
 ## Ordre d'implémentation
 1. [ticket X] — bloquant
@@ -321,9 +326,10 @@ T=$(bd create "Titre" -t task -p 2 -l ai-delegated -a dev-agent --parent $EPIC_I
 - Ne jamais utiliser `bd edit`
 - Les descriptions sont en langage naturel, jamais en code
 - Les critères d'acceptance sont observables et vérifiables
+- Un ticket `bug` a une section `## Étapes de reproduction (Steps to Reproduce)` dans sa description (titre exigé par `bd lint`)
 - **Toujours renseigner `--estimate`** — même approximatif
 - **Toujours renseigner `--design`** pour tout ticket touchant un composant UI
-- **Toujours enrichir les epics** avec `--description` et `--notes` immédiatement après création
+- **Toujours enrichir les epics** avec `--description`, `--acceptance` (critères de succès) et `--notes` immédiatement après création
 - **Toujours inclure une section "Approches alternatives"** dans les notes quand un choix technique existe
 
 ---

@@ -37,6 +37,9 @@ type Grant struct {
 	// Base is the Beads workspace fixed when the grant was issued (nil =
 	// not resolved yet, see ResolveBase).
 	Base *Base `json:"beads_base,omitempty"`
+	// Human is the person the session works for (git user.name of the
+	// location), first part of the Beads actor of its changes.
+	Human string `json:"human,omitempty"`
 }
 
 // Store keeps the active gateway grants. Tokens themselves are never
@@ -45,6 +48,8 @@ type Grant struct {
 type Store struct {
 	// ResolveBase fixes the Beads workspace of a new grant (nil = later).
 	ResolveBase func(ctx context.Context, location string) *Base
+	// ResolveHuman names the person of a new grant (nil = none).
+	ResolveHuman func(ctx context.Context, location string) string
 
 	path   string // "" = memory only
 	key    []byte // signs the saved grants (nil = not signed)
@@ -158,6 +163,9 @@ func (s *Store) Issue(g Grant) (string, error) {
 	}
 	if g.Base == nil && s.ResolveBase != nil {
 		g.Base = s.ResolveBase(context.Background(), g.Location)
+	}
+	if g.Human == "" && s.ResolveHuman != nil {
+		g.Human = s.ResolveHuman(context.Background(), g.Location)
 	}
 	tok := NewToken()
 	s.mu.Lock()
@@ -291,4 +299,19 @@ func (s *Store) setBase(g Grant, base *Base) {
 		}
 	}
 	_ = s.saveLocked()
+}
+
+// Roots returns the grants of the sessions themselves (not of their
+// sub-sessions).
+func (s *Store) Roots() []Grant {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	var out []Grant
+	for _, g := range s.byHash {
+		if g.Holder == "" {
+			out = append(out, g)
+		}
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].SessionID < out[j].SessionID })
+	return out
 }

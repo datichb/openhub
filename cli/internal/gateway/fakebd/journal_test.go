@@ -89,7 +89,23 @@ func TestJournalReads(t *testing.T) {
 	assert.Contains(t, out, "bd-43")
 	_, out, _ = bd(t, e, "", "count")
 	assert.Equal(t, "4\n", out)
+	_, out, _ = bd(t, e, "", "--readonly", "show", "--json", "--", "bd-42")
+	assert.Contains(t, out, "CSV export", "canonical form of the gateway")
+
+	// A read the snapshot cannot answer is never recorded as a write.
+	code, _, errOut = bd(t, e, "", "--readonly", "query", "--", "status=open")
+	assert.Equal(t, 1, code)
+	assert.Contains(t, errOut, "not available in a remote session")
 	assert.Empty(t, readJournal(t, j), "reads are not recorded")
+}
+
+// --readonly makes the journal refuse a write, as bd would.
+func TestJournalReadOnly(t *testing.T) {
+	e, j := journalEnv(t)
+	code, _, errOut := bd(t, e, "", "--readonly", "update", "bd-42", "--status", "review")
+	assert.Equal(t, 1, code)
+	assert.Contains(t, errOut, "read-only mode")
+	assert.Empty(t, readJournal(t, j))
 }
 
 func TestJournalWrites(t *testing.T) {

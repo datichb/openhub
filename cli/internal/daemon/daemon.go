@@ -122,6 +122,9 @@ type Daemon struct {
 	opts     Options
 	proxy    *credproxy.Proxy
 	gateway  *gateway.Store
+	beadsGW  *gateway.Beads
+	leaseMu  sync.Mutex
+	leases   map[string]map[string]bool // session → tickets claimed through the gateway
 	mcp      *gateway.MCP
 	listener net.Listener
 	http     *http.Server
@@ -241,6 +244,7 @@ func Run(ctx context.Context, opts Options) error {
 	}
 	// A panic of these background jobs must not take the daemon down (A-02).
 	safego.Go(func() { d.runLogRotation(ctx) })
+	safego.Go(func() { d.runLeases(ctx) })
 	for _, t := range opts.Tasks {
 		safego.Go(func() { d.runTask(ctx, t) })
 	}

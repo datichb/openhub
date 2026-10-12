@@ -25,8 +25,12 @@ func fakeBd(t *testing.T) string {
 	t.Helper()
 	p := filepath.Join(t.TempDir(), "bd")
 	script := `#!/bin/sh
+ro=""; actor=""
+while :; do case "$1" in --readonly) ro=1; shift;; --actor=*) actor="${1#--actor=}"; shift;; *) break;; esac; done
 if [ "$1" = "where" ]; then printf '{"path":"%s/.beads"}\n' "$(pwd -P)"; exit 0; fi
 echo "argv:$*"
+echo "readonly:$ro"
+echo "actor:$actor"
 echo "beads_dir:$BEADS_DIR"
 echo "pwd:$(pwd -P)"
 for a in "$@"; do case "$a" in -|*=-) cat;; esac; done
@@ -126,6 +130,7 @@ func TestBeadsRefusals(t *testing.T) {
 		{[]string{"show", "x", "--database=y"}, "--database"},
 		{[]string{"--global", "list"}, "--global"},
 		{[]string{"--weird", "show"}, "--weird"},
+		{[]string{"find-duplicates", "--method", "ai"}, "--method=ai"},
 	} {
 		code, resp := f.call(t, f.token, beadswire.ExecRequest{Argv: tc.argv, Cwd: "/work/proj"})
 		assert.Equal(t, http.StatusForbidden, code, tc.argv)
@@ -160,6 +165,69 @@ func TestBeadsTokenAndSession(t *testing.T) {
 	f.b.Store.RevokeOwner("g1")
 	code, _ = f.call(t, f.token, beadswire.ExecRequest{Argv: []string{"show"}})
 	assert.Equal(t, http.StatusUnauthorized, code)
+}
+
+// Reads run with --readonly (bd refuses a write behind the allow-list);
+// writes do not, and carry the actor set by oh.
+func TestBeadsReadOnlyFlagAndActor(t *testing.T) {
+	f := newFixture(t, []string{"show", "query", "update", "comments", "ready"})
+	agent := "developer"
+	f.b.Agent = func(context.Context, Grant) string { return agent }
+	f.grant.Human = "Ada Lovelace"
+	tok, err := f.b.Store.Issue(f.grant)
+	require.NoError(t, err)
+	run := func(argv ...string) string {
+		code, resp := f.call(t, tok, beadswire.ExecRequest{Argv: argv, Cwd: "/work/proj"})
+		require.Equal(t, http.StatusOK, code, resp.Error)
+		return string(resp.Stdout)
+	}
+	for _, argv := range [][]string{{"show", "bd-1"}, {"query", "status=open"}, {"comments", "bd-1"}, {"ready"}} {
+		out := run(argv...)
+		assert.Contains(t, out, "readonly:1\n", argv)
+		assert.Contains(t, out, "actor:\n", argv)
+	}
+	out := run("update", "bd-1", "--title", "x")
+	assert.Contains(t, out, "readonly:\n")
+	assert.Contains(t, out, "actor:Ada Lovelace via oh/developer\n")
+	out = run("comments", "add", "bd-1", "hi")
+	assert.Contains(t, out, "readonly:\n")
+	assert.Contains(t, out, "actor:Ada Lovelace via oh/developer\n")
+
+	// bd makes the actor of a claim the assignee: the person alone.
+	for _, argv := range [][]string{{"update", "bd-1", "--claim"}, {"update", "bd-1", "-s", "in_progress"}, {"ready", "--claim"}} {
+		out = run(argv...)
+		assert.Contains(t, out, "readonly:\n", argv)
+		assert.Contains(t, out, "actor:Ada Lovelace\n", argv)
+	}
+
+	// A subagent not named yet.
+	agent = ""
+	f.grant.Holder = "ses_child"
+	tok, err = f.b.Store.Issue(f.grant)
+	require.NoError(t, err)
+	assert.Contains(t, run("update", "bd-1", "--title", "y"), "actor:Ada Lovelace via oh/subagent\n")
+
+	// Agents cannot choose the actor.
+	for _, argv := range [][]string{{"--actor", "me", "update", "bd-1"}, {"update", "bd-1", "--actor=me"}} {
+		code, resp := f.call(t, tok, beadswire.ExecRequest{Argv: argv, Cwd: "/work/proj"})
+		assert.Equal(t, http.StatusForbidden, code, argv)
+		assert.Contains(t, resp.Error, "--actor")
+	}
+}
+
+// A session whose allow-list names only read commands is read-only: the
+// write forms of those commands are refused.
+func TestBeadsReadOnlySession(t *testing.T) {
+	f := newFixture(t, nil) // default list: read commands only
+	for _, argv := range [][]string{{"comments", "add", "bd-1", "hi"}, {"ready", "--claim"}} {
+		code, resp := f.call(t, f.token, beadswire.ExecRequest{Argv: argv, Cwd: "/work/proj"})
+		assert.Equal(t, http.StatusForbidden, code, argv)
+		assert.Contains(t, resp.Error, "read-only", argv)
+	}
+	for _, argv := range [][]string{{"comments", "bd-1"}, {"ready"}, {"query", "status=open"}} {
+		code, resp := f.call(t, f.token, beadswire.ExecRequest{Argv: argv, Cwd: "/work/proj"})
+		assert.Equal(t, http.StatusOK, code, argv, resp.Error)
+	}
 }
 
 func TestBeadsFilePaths(t *testing.T) {

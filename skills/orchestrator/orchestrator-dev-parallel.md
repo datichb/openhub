@@ -36,7 +36,7 @@ Pour chaque ticket, l'un après l'autre :
 2. `workflow_checkpoint({ id: "cp-2", summary: "Ticket #<ID> — verdict : <…>. Validation = commit puis fermeture." })`.
 3. Validé → relancer le developer de ce ticket (même `task_id`) :
    > « Crée le commit final de ce ticket et clos-le :
-   > 1. `git add <fichiers de ce ticket>` puis `git commit -m "<type>(<scope>): <description>"` — seulement les fichiers de ce ticket
+   > 1. `git add <fichiers de ce ticket>` puis `git commit -m "<type>(<scope>): <description> (<ID>)"` — seulement les fichiers de ce ticket
    > 2. `bd close <ID> --reason "Implemented in commit <hash>" --suggest-next` »
    Refusé → correction de ce ticket (retours du reviewer + consigne reçue), nouvelle review, puis `cp-2` de nouveau.
 4. La fermeture du ticket referme la fenêtre de commit : passer au ticket suivant, qui demande son propre `cp-2`.

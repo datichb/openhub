@@ -251,6 +251,12 @@ func (p *preparedRun) planRun(ctx context.Context, req runsvc.RunRequest) error 
 			rp.inputs = append(rp.inputs, p.sessions[i].Inputs)
 		}
 	}
+	memories := ""
+	if beads.IsInitialized(opts.Project.Path) {
+		if m, err := beads.Memories(opts.Project.Path); err == nil {
+			memories = m
+		}
+	}
 	for i := range plan.Sessions {
 		loc := plan.Sessions[i].Location.Path
 		branch := plan.Sessions[i].Location.WorkBranch(opts.Project.Path)
@@ -258,7 +264,7 @@ func (p *preparedRun) planRun(ctx context.Context, req runsvc.RunRequest) error 
 			loc = remotesvc.WorkDir(opts.Project.Name)
 		}
 		prompt, err := p.sessions[i].RenderPrompt(workflowsvc.PromptContext{Project: opts.Project.Name,
-			Location: loc, Branch: branch, Lang: i18n.Locale()})
+			Location: loc, Branch: branch, Lang: i18n.Locale(), Memories: memories})
 		if err != nil {
 			return err
 		}

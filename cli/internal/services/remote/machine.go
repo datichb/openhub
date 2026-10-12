@@ -6,12 +6,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"os/exec"
 	"sort"
 	"strings"
 	"time"
 
 	"github.com/datichb/openhub/cli/internal/beads"
+	"github.com/datichb/openhub/cli/internal/gateway"
 	"github.com/datichb/openhub/cli/internal/gitutil"
 	"github.com/datichb/openhub/cli/internal/remote"
 )
@@ -30,8 +32,34 @@ type Beads interface {
 	Exec(ctx context.Context, dir string, argv []string, stdin []byte) ([]byte, error)
 }
 
+// ProvenanceRecorder is a Beads that records provenance events
+// (bd provenance record); a Beads without it records none.
+type ProvenanceRecorder interface {
+	RecordProvenance(ctx context.Context, dir string, ev gateway.Provenance) error
+}
+
 // BdCLI runs the bd binary.
 type BdCLI struct{}
+
+// RecordProvenance implements ProvenanceRecorder.
+func (b BdCLI) RecordProvenance(ctx context.Context, dir string, ev gateway.Provenance) error {
+	_, err := b.run(ctx, dir, gateway.ProvenanceArgs(ev)...)
+	return err
+}
+
+// recordProvenance records events on the machine's Beads; failures are only
+// logged (the operation they describe already happened).
+func (s *Service) recordProvenance(ctx context.Context, dir string, evs ...gateway.Provenance) {
+	rec, ok := s.beads().(ProvenanceRecorder)
+	if !ok || dir == "" {
+		return
+	}
+	for _, ev := range evs {
+		if err := rec.RecordProvenance(ctx, dir, ev); err != nil {
+			slog.Warn("remote: provenance not recorded", "ticket", ev.Issue, "kind", ev.Kind, "err", err)
+		}
+	}
+}
 
 func (BdCLI) run(ctx context.Context, dir string, args ...string) ([]byte, error) {
 	cmd := beads.BdCommand(ctx, append([]string{"-C", dir}, args...)...)

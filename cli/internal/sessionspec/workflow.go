@@ -113,7 +113,7 @@ const (
 // DefaultBeadsAllow is the `bd` allow-list of a workflow that declares no
 // `beads:` block (read-only commands), applied by the Beads gateway and used
 // as the parent list when a workflow layer patches such a workflow.
-var DefaultBeadsAllow = []string{"show", "list", "ready", "search", "children", "comments", "count", "status", "graph", "history"}
+var DefaultBeadsAllow = []string{"show", "list", "ready", "search", "query", "children", "comments", "count", "status", "graph", "history"}
 
 // Behavior returns the behavior of the checkpoint in mode (unset = pause; a
 // mandatory checkpoint, or one that unlocks an operation, is never skipped).

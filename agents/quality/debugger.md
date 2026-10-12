@@ -27,6 +27,8 @@ permission:
     "bd show*": allow
     "bd list*": allow
     "bd search*": allow
+    "bd query*": allow
+    "bd lint*": allow
     "bd create*": allow
     # Lanceurs de tests : exécutent le code du projet → confirmation
     "npm test*": ask

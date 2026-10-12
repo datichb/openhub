@@ -97,7 +97,7 @@ checkpoints:
 modes: { default: semi-auto, allowed: [manuel, semi-auto, auto] }
 circuit_breaker: { max_consecutive_subagents: 12 }
 beads:
-  allow: [show, list, search]
+  allow: [show, list, search, query]
 runtime: { default: local, allowed: [local] }
 outputs:
   - { id: branch, type: branch, label: { fr: Branche de travail, en: Working branch } }

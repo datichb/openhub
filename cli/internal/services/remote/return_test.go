@@ -54,6 +54,7 @@ func newReturnEnv(t *testing.T, summary remote.Summary, journal []byte) *returnE
 	t.Helper()
 	e := &returnEnv{sendEnv: newSendEnv(t)}
 	e.svc.SessionsDir = t.TempDir()
+	e.svc.Human = func(context.Context, string) string { return "Ada" }
 	e.req.BeadsAllow = []string{"show", "update", "create", "dep add", "note"}
 	e.svc.Target = func(name string) (*config.RemoteTarget, bool) {
 		if name == e.target.Name {
@@ -197,10 +198,10 @@ func TestReplayWithConflict(t *testing.T) {
 	plan, err = e.svc.ApplyReplay(ctx, e.sessionID, map[string]Resolution{"bd-42": MergeNotes})
 	require.NoError(t, err)
 	assert.Equal(t, []string{
-		"update --notes=done on the runner -- bd-42", // merged: notes only, status kept local
-		"create --json -- Follow-up",
+		"update --notes=done on the runner --actor=Ada via oh/session (remote) -- bd-42", // merged: notes only, status kept local
+		"create --json --actor=Ada via oh/session (remote) -- Follow-up",
 		// dep add touches bd-42 (merge notes): skipped
-		"note -- bd-43 checked",
+		"note --actor=Ada via oh/session (remote) -- bd-43 checked",
 	}, e.beads.execs)
 	states = map[int]string{}
 	for _, it := range plan.Items {
@@ -232,7 +233,7 @@ func TestReplayApplyRemoteSubstitutesPlaceholders(t *testing.T) {
 	e.beads.execFail = "--status=review"
 	plan, err := e.svc.ApplyReplay(ctx, e.sessionID, map[string]Resolution{"bd-42": ApplyRemote})
 	require.NoError(t, err)
-	assert.Equal(t, []string{"create --json -- Follow-up", "dep add -- bd-n1 bd-42", "update --status=review -- bd-42"}, e.beads.execs)
+	assert.Equal(t, []string{"create --actor=Ada via oh/session (remote) --json -- Follow-up", "dep add --actor=Ada via oh/session (remote) -- bd-n1 bd-42", "update --status=review --actor=Ada via oh/session (remote) -- bd-42"}, e.beads.execs)
 	assert.Equal(t, ItemFailed, plan.Items[2].State)
 	ref, _ := sqlite.NewRemoteStore(e.store).GetRemoteRef(ctx, e.sessionID)
 	assert.Equal(t, domain.RemoteFetched, ref.Status, "a failed entry keeps the session to resolve")

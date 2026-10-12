@@ -17,6 +17,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/bundle"
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/domain"
+	"github.com/datichb/openhub/cli/internal/gateway"
 	"github.com/datichb/openhub/cli/internal/remote"
 	"github.com/datichb/openhub/cli/internal/remote/ciconfig"
 	"github.com/datichb/openhub/cli/internal/remote/gitlab"
@@ -337,6 +338,10 @@ func (s *Service) Send(ctx context.Context, req SendRequest) (*SendResult, error
 	res.SessionID, res.Ref = sid, rref
 	if err := s.persist(ctx, req, sid, rref); err != nil {
 		return res, err
+	}
+	for _, tk := range req.Tickets {
+		s.recordProvenance(ctx, req.ProjectDir, gateway.Provenance{Issue: tk, Kind: gateway.ProvClaim, RefKind: gateway.RefWorkID, Ref: sid,
+			Payload: map[string]string{"runtime": "remote", "workflow": req.Workflow.ID, "pipeline": pl.WebURL}})
 	}
 	if req.Team != nil {
 		for _, tk := range req.Tickets {

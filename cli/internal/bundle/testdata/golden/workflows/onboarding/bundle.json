@@ -10,6 +10,7 @@
         "shell ls* allow",
         "shell bd list* allow",
         "shell git log* allow",
+        "shell bd query * allow",
         "shell bd search * allow",
         "edit * deny",
         "edit docs/wiki/* allow",

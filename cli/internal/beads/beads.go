@@ -4,6 +4,7 @@ package beads
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -51,31 +52,116 @@ func BdCommand(ctx context.Context, args ...string) *exec.Cmd {
 	return cmd
 }
 
-// ListReady returns tickets ready for implementation.
-// Runs: bd -C <path> ready [--label <l> | --assignee <a>] --json
+// ListReady returns tickets ready for implementation (no limit: bd shows
+// 100 by default).
+// Runs: bd -C <path> ready [--label <l> | --assignee <a>] --json -n 0
 func ListReady(projectPath string, opts ReadyOpts) ([]Ticket, error) {
-	args := []string{"-C", projectPath, "ready", "--json"}
+	args := []string{"-C", projectPath, "ready"}
 	if opts.Assignee != "" {
-		args = append(args[:len(args)-1], "--assignee", opts.Assignee, "--json")
+		args = append(args, "--assignee", opts.Assignee)
 	} else if opts.Label != "" {
-		args = append(args[:len(args)-1], "--label", opts.Label, "--json")
+		args = append(args, "--label", opts.Label)
 	}
-
-	return runBdJSON(args)
+	return runBdJSON(append(args, "--json", "-n", "0"))
 }
 
-// ListAll returns all tickets (flat, no tree nesting).
-// Runs: bd -C <path> list --json --flat
+// ListAll returns all open tickets (flat, no tree nesting, no limit: bd
+// lists 50 by default).
+// Runs: bd -C <path> list --json --flat -n 0
 func ListAll(projectPath string) ([]Ticket, error) {
-	args := []string{"-C", projectPath, "list", "--json", "--flat"}
+	args := []string{"-C", projectPath, "list", "--json", "--flat", "-n", "0"}
 	return runBdJSON(args)
 }
 
-// ListCWD returns all tickets from the current working directory (flat, no tree nesting).
-// Runs: bd list --json --flat
+// ListCWD returns all open tickets from the current working directory
+// (flat, no tree nesting, no limit).
+// Runs: bd list --json --flat -n 0
 // This is used by the CLI board command which operates in the cwd.
 func ListCWD() ([]Ticket, error) {
-	return runBdJSON([]string{"list", "--json", "--flat"})
+	return runBdJSON([]string{"list", "--json", "--flat", "-n", "0"})
+}
+
+// LintResult is a ticket bd lint finds incomplete: the recommended
+// sections missing for its type ("## Acceptance Criteria" for a task or a
+// feature, "## Steps to Reproduce" for a bug, "## Success Criteria" for an
+// epic; the acceptance criteria field counts).
+type LintResult struct {
+	ID      string   `json:"id"`
+	Title   string   `json:"title"`
+	Type    string   `json:"type"`
+	Missing []string `json:"missing"`
+}
+
+// Lint checks tickets (every open ticket without ids) for missing sections.
+// bd exits 1 when it finds some: only an unreadable answer is an error.
+// Runs: bd -C <path> --readonly lint [ids…] --json
+func Lint(projectPath string, ids ...string) ([]LintResult, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+	cmd := BdCommand(ctx, append(append([]string{"-C", projectPath, "--readonly", "lint"}, ids...), "--json")...)
+	out, err := cmd.Output()
+	var res struct {
+		Results []LintResult `json:"results"`
+	}
+	if jerr := json.Unmarshal(out, &res); jerr != nil {
+		if err != nil {
+			if exitErr, ok := err.(*exec.ExitError); ok {
+				return nil, fmt.Errorf("bd lint: %s", strings.TrimSpace(string(exitErr.Stderr)))
+			}
+			return nil, fmt.Errorf("bd lint: %w", err)
+		}
+		return nil, fmt.Errorf("bd lint: %w", jerr)
+	}
+	return res.Results, nil
+}
+
+// QueryTerm is one comparison of a bd query: a field of bd's query
+// language, an operator and a value (quoted by QueryExpr).
+type QueryTerm struct {
+	Field string
+	Op    string // "=", "!=", ">", ">=", "<", "<="
+	Value string
+}
+
+// queryFields are the fields of bd's query language (bd query --help).
+var queryFields = map[string]bool{
+	"status": true, "priority": true, "type": true, "assignee": true, "owner": true, "label": true,
+	"title": true, "description": true, "notes": true, "created": true, "updated": true, "started": true,
+	"closed": true, "id": true, "spec": true, "pinned": true, "ephemeral": true, "template": true,
+	"parent": true, "mol_type": true,
+}
+
+var queryOps = map[string]bool{"=": true, "!=": true, ">": true, ">=": true, "<": true, "<=": true}
+
+// QueryExpr joins terms with AND. Values are quoted, so that a label or a
+// title never changes the expression (`x OR status=closed`, parentheses).
+func QueryExpr(terms ...QueryTerm) (string, error) {
+	parts := make([]string, 0, len(terms))
+	for _, t := range terms {
+		if !queryFields[t.Field] {
+			return "", fmt.Errorf("bd query: unknown field %q", t.Field)
+		}
+		if !queryOps[t.Op] {
+			return "", fmt.Errorf("bd query: unknown operator %q", t.Op)
+		}
+		v := strings.NewReplacer(`\`, `\\`, `"`, `\"`).Replace(t.Value)
+		parts = append(parts, t.Field+t.Op+`"`+v+`"`)
+	}
+	if len(parts) == 0 {
+		return "", errors.New("bd query: no term")
+	}
+	return strings.Join(parts, " AND "), nil
+}
+
+// Query returns the tickets matching a bd query expression (QueryExpr),
+// without bd's default limit of 50; all includes closed tickets.
+// Runs: bd -C <path> --readonly query <expr> --json -n 0 [--all]
+func Query(projectPath, expr string, all bool) ([]Ticket, error) {
+	args := []string{"-C", projectPath, "--readonly", "query", expr, "--json", "-n", "0"}
+	if all {
+		args = append(args, "--all")
+	}
+	return runBdJSON(args)
 }
 
 // IsInitialized reports whether the project at projectPath has a .beads/ directory.
@@ -347,9 +433,12 @@ type TicketDetail struct {
 	Notes       string          `json:"notes,omitempty"`
 	Design      string          `json:"design,omitempty"`
 	Estimate    int             `json:"estimated_minutes,omitempty"`
-	Assignee    string          `json:"owner,omitempty"`
+	Assignee    string          `json:"assignee,omitempty"`
+	Owner       string          `json:"owner,omitempty"`
 	ExternalRef string          `json:"external_ref,omitempty"`
 	CloseReason string          `json:"close_reason,omitempty"`
+	// Missing are the sections bd lint finds missing (not part of bd show).
+	Missing []string `json:"-"`
 }
 
 // PriorityString returns the priority as a human-readable string (e.g. "P0").
@@ -411,16 +500,7 @@ func runBdJSON(args []string) ([]Ticket, error) {
 	// Use an intermediate struct because bd may return priority as a JSON number
 	// (0-3) rather than a string ("P0"-"P3").
 	// Field names match the exact JSON keys returned by bd (snake_case).
-	var raw []struct {
-		ID          string          `json:"id"`
-		Title       string          `json:"title"`
-		Status      string          `json:"status"`
-		Priority    json.RawMessage `json:"priority"`
-		Type        string          `json:"issue_type"`
-		Parent      string          `json:"parent,omitempty"`
-		Labels      []string        `json:"labels,omitempty"`
-		ExternalRef string          `json:"external_ref,omitempty"`
-	}
+	var raw []bdIssue
 	if err := json.Unmarshal([]byte(trimmed), &raw); err != nil {
 		return nil, fmt.Errorf("parsing bd output: %w", err)
 	}
@@ -439,6 +519,19 @@ func runBdJSON(args []string) ([]Ticket, error) {
 		}
 	}
 	return tickets, nil
+}
+
+// bdIssue is a record of `bd list|ready|query --json`. Field names match
+// the exact JSON keys returned by bd (snake_case, bdschema).
+type bdIssue struct {
+	ID          string          `json:"id"`
+	Title       string          `json:"title"`
+	Status      string          `json:"status"`
+	Priority    json.RawMessage `json:"priority"`
+	Type        string          `json:"issue_type"`
+	Parent      string          `json:"parent,omitempty"`
+	Labels      []string        `json:"labels,omitempty"`
+	ExternalRef string          `json:"external_ref,omitempty"`
 }
 
 // normalizePriority converts a bd priority value (number or string) to a
@@ -601,19 +694,6 @@ func RememberGitLabContext(projectPath, gitlabRef, title, description string) er
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("bd remember failed: %s: %w", strings.TrimSpace(string(output)), err)
-	}
-	return nil
-}
-
-// AddNote adds a note to an existing bead ticket.
-// Runs: bd -C <path> update <ticketID> --note "<note>"
-func AddNote(projectPath, ticketID, note string) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-	cmd := BdCommand(ctx, "-C", projectPath, "update", ticketID, "--note", note)
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("bd update note failed: %s: %w", strings.TrimSpace(string(output)), err)
 	}
 	return nil
 }

@@ -9,7 +9,7 @@ Explorer, planifier et spécifier une feature sans l'implémenter (création des
 
 - Agent d'entrée : `conductor`
 - Risque : `plan` : aucune modification de fichier ; écritures Beads limitées aux commandes autorisées
-- Commandes Beads autorisées : `show`, `list`, `ready`, `children`, `search`, `count`, `label`, `dep`, `create`, `update`, `comments`, `duplicate`, `supersede`
+- Commandes Beads autorisées : `show`, `list`, `ready`, `children`, `search`, `query`, `count`, `lint`, `find-duplicates`, `label`, `dep`, `create`, `update`, `comments`, `duplicate`, `supersede`
 
 Cette carte est la seule référence sur l'enchaînement : n'invente ni agent, ni étape, ni checkpoint qui n'y figure pas.
 

@@ -219,6 +219,16 @@ func TestBeadsPickerRendersGroupsClaimsAndPreview(t *testing.T) {
 	assert.Contains(t, drawPicker(t, p), "aperçu indisponible", "missing detail reported in the preview")
 }
 
+func TestBeadsPickerPreviewLint(t *testing.T) {
+	src := sampleBeads()
+	src.details["bd-42"].Missing = []string{"## Acceptance Criteria"}
+	p := NewBeadsPicker(context.Background(), nil, BeadsPickerConfig{Source: src, Filter: "ai-delegated"})
+	p.Load()
+	out := drawPicker(t, p)
+	assert.Contains(t, out, "bd lint")
+	assert.Contains(t, out, "## Acceptance Criteria")
+}
+
 func TestBeadsPickerKeysSingle(t *testing.T) {
 	var done []string
 	canceled := false

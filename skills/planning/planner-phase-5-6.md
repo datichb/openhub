@@ -31,6 +31,11 @@ bd update $EPIC_ID \
 [Principaux risques identifiés sur cet epic]
 EOF
 )" \
+  --acceptance "$(cat <<'EOF'
+## Critères de succès (Success Criteria)
+- [Résultat observable qui prouve que l'epic a atteint son objectif]
+EOF
+)" \
   --notes "$(cat <<'EOF'
 ## Ordre d'implémentation
 1. [ticket X] — bloquant
@@ -304,9 +309,10 @@ T=$(bd create "Titre" -t task -p 2 -l ai-delegated -a dev-agent --parent $EPIC_I
 - Ne jamais utiliser `bd edit`
 - Les descriptions sont en langage naturel, jamais en code
 - Les critères d'acceptance sont observables et vérifiables
+- Un ticket `bug` a une section `## Étapes de reproduction (Steps to Reproduce)` dans sa description (titre exigé par `bd lint`)
 - **Toujours renseigner `--estimate`** — même approximatif
 - **Toujours renseigner `--design`** pour tout ticket touchant un composant UI
-- **Toujours enrichir les epics** avec `--description` et `--notes` immédiatement après création
+- **Toujours enrichir les epics** avec `--description`, `--acceptance` (critères de succès) et `--notes` immédiatement après création
 - **Toujours inclure une section "Approches alternatives"** dans les notes quand un choix technique existe
 
 ---
@@ -441,7 +447,14 @@ bd children <epic-id>
 
 # Tous les tickets ouverts créés dans cette session
 bd list -s open --json
+
+# Sections manquantes des tickets créés (code de sortie 1 = au moins un ticket incomplet)
+bd lint <id-1> <id-2> … --json
 ```
+
+`bd lint` signale les sections recommandées absentes : `## Acceptance Criteria` pour une feature ou une task (le champ `--acceptance` suffit), `Steps to Reproduce` pour un bug, `Success Criteria` (ou le champ `--acceptance`) pour un epic. Compléter chaque ticket signalé (`bd update <id> --acceptance …` ou `--description …`), puis relancer `bd lint` jusqu'à ce qu'il ne signale plus rien. Un ticket qui reste incomplet est listé dans « Points d'attention » du récap.
+
+Chercher ensuite les doublons parmi les tickets ouverts : `bd find-duplicates --status open --json` (méthode mécanique par défaut ; `--method ai` est refusé par oh). Pour chaque paire qui contient un ticket créé dans cette session : vrai doublon d'un ticket existant → le signaler dans « Points d'attention » avec la commande à lancer après validation (`bd duplicate <nouveau> --of <existant>`) ; simple proximité de titre → ignorer.
 
 ## Récap de fin de Phase 6
 

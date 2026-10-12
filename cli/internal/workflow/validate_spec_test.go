@@ -182,7 +182,9 @@ func TestValidate_Rules(t *testing.T) {
 		{"plan beads unrestricted", "risk: plan\nentry: { agent: auditor }\n", "plan_beads_unrestricted", "risk", SeverityError},
 		{"plan beads delete", "risk: plan\nentry: { agent: auditor }\nbeads: { allow: [show, create, delete] }\n", "plan_beads_delete", "beads.allow[2]", SeverityError},
 		{"plan without writes", "risk: plan\nentry: { agent: auditor }\nbeads: { allow: [show, list] }\n", "plan_without_beads_write", "risk", SeverityWarning},
-		{"read comments", "risk: read\nentry: { agent: auditor }\nbeads: { allow: [show, comments] }\n", "read_beads_write", "beads.allow[1]", SeverityError},
+		{"read comments add", "risk: read\nentry: { agent: auditor }\nbeads: { allow: [show, comments add] }\n", "read_beads_write", "beads.allow[1]", SeverityError},
+		{"read note", "risk: read\nentry: { agent: auditor }\nbeads: { allow: [show, note] }\n", "read_beads_write", "beads.allow[1]", SeverityError},
+		{"read unknown command", "risk: read\nentry: { agent: auditor }\nbeads: { allow: [show, assign] }\n", "read_beads_write", "beads.allow[1]", SeverityError},
 		// preconditions
 		{"precondition id", "risk: write\npreconditions:\n  Wiki: { check: { path_exists: [a] } }\n", "precondition_id_invalid", "preconditions.Wiki", SeverityError},
 		{"precondition check", "risk: write\npreconditions:\n  wiki: { check: {} }\n", "precondition_check_invalid", "preconditions.wiki.check", SeverityError},
@@ -238,7 +240,7 @@ func TestValidate_MinimalWorkflowIsValid(t *testing.T) {
 		t.Fatalf("diags:\n%s", diagList(diags))
 	}
 	// Read-only audit with restricted Beads access.
-	diags = checkYAML(t, vHeader+"risk: read\nentry: { agent: auditor }\nbeads: { allow: [show, list] }\nagents:\n  auditor: { role: workflow }\n  auditor-subagent: { role: workflow }\n", testEnv())
+	diags = checkYAML(t, vHeader+"risk: read\nentry: { agent: auditor }\nbeads: { allow: [show, list, view, query, comments, dep tree] }\nagents:\n  auditor: { role: workflow }\n  auditor-subagent: { role: workflow }\n", testEnv())
 	if len(diags) != 0 {
 		t.Fatalf("diags:\n%s", diagList(diags))
 	}

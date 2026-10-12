@@ -36,10 +36,18 @@ type PromptContext struct {
 	Runtime  string
 	Lang     string
 	Workflow string
+	// Memories are the persistent memories of the project's Beads (bd
+	// remember), given inside data tags: they are not instructions.
+	Memories string
 }
 
 func (c PromptContext) values() map[string]any {
+	memories := ""
+	if strings.TrimSpace(c.Memories) != "" {
+		memories = DelimitData("memories", c.Memories)
+	}
 	return map[string]any{
+		"memories": memories,
 		"project":  c.Project,
 		"location": c.Location,
 		"branch":   c.Branch,

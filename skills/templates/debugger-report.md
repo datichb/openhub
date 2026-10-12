@@ -141,7 +141,9 @@ question({
 ```bash
 TICKET=$(bd create "<titre>" -p <priorité> -t bug -l from-diagnostic --json)
 ID=$(echo $TICKET | jq -r '.id')
-bd update $ID --description "<description>"
+bd update $ID --description "<description, avec une section ## Étapes de reproduction (Steps to Reproduce)>"
 bd update $ID --acceptance "<critères d'acceptance>"
 bd update $ID --notes "<cause racine, fichiers impliqués, points d'attention>"
 ```
+
+Vérifier ensuite le ticket avec `bd lint $ID` : il signale une section `Steps to Reproduce` ou des critères d'acceptation manquants (le titre doit contenir « Steps to Reproduce », exigé par bd).

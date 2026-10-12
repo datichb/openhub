@@ -7,6 +7,7 @@ import (
 	"strings"
 	"text/template/parse"
 
+	"github.com/datichb/openhub/cli/internal/gateway/bdargs"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 )
 
@@ -58,10 +59,13 @@ type PromptSource interface {
 const ReservedInputID = "oh"
 
 // OhVariables are the fields available under .oh in prompt templates.
-var OhVariables = []string{"project", "location", "branch", "mode", "runtime", "lang", "workflow"}
+var OhVariables = []string{"project", "location", "branch", "mode", "runtime", "lang", "workflow", "memories"}
 
-// BeadsWriteCommands are the `bd` subcommands that modify tickets.
-var BeadsWriteCommands = []string{"create", "update", "close", "reopen", "delete", "edit", "comment", "comments", "label", "dep", "duplicate", "supersede"}
+// BeadsWrites reports whether a beads.allow entry may write to Beads: every
+// entry that does not name a read command of bd (bdargs). A workflow whose
+// entries all name read commands is read-only, write forms included
+// (`comments add`, `ready --claim` are refused by the gateway).
+func BeadsWrites(entry string) bool { return !bdargs.EntryIsRead(entry) }
 
 // ExecPlugins are the plugins whose tools run commands (context-mode:
 // ctx_execute…): refused in a read-only workflow, where they would bypass
@@ -774,7 +778,7 @@ func (v *validator) security() {
 			v.err("read_beads_unrestricted", "risk")
 		} else {
 			for i, cmd := range s.Beads.Allow {
-				if containsStr(BeadsWriteCommands, cmd) {
+				if BeadsWrites(cmd) {
 					v.err("read_beads_write", fmt.Sprintf("beads.allow[%d]", i), cmd)
 				}
 			}
@@ -857,7 +861,7 @@ func (v *validator) planRules() {
 	for i, cmd := range s.Beads.Allow {
 		if containsStr(BeadsPlanForbidden, cmd) {
 			v.err("plan_beads_delete", fmt.Sprintf("beads.allow[%d]", i), cmd)
-		} else if containsStr(BeadsWriteCommands, cmd) {
+		} else if BeadsWrites(cmd) {
 			writes = true
 		}
 	}

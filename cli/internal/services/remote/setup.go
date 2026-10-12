@@ -50,10 +50,13 @@ type Service struct {
 	ToolVersion string
 
 	// Sending (lot 5.A).
-	Sessions     domain.SessionStore
-	Remote       domain.RemoteStore
-	Git          Git   // default GitCLI
-	Beads        Beads // default BdCLI
+	Sessions domain.SessionStore
+	Remote   domain.RemoteStore
+	Git      Git   // default GitCLI
+	Beads    Beads // default BdCLI
+	// Human names the person of the machine, actor of the replayed
+	// Beads writes (default gateway.ResolveHuman).
+	Human        func(ctx context.Context, dir string) string
 	Now          func() time.Time
 	NewSessionID func() string
 

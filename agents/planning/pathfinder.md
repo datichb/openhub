@@ -15,6 +15,7 @@ permission:
     "bd children *": allow
     "bd label list-all": allow
     "bd search *": allow
+    "bd query *": allow
     "bd count *": allow
     "bd dep list *": allow
     "bd dep tree *": allow

@@ -18,6 +18,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/gateway"
 	"github.com/datichb/openhub/cli/internal/gateway/beadswire"
+	"github.com/datichb/openhub/cli/internal/gitutil"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/services/checkpoint"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
@@ -56,8 +57,11 @@ func (d *Daemon) startGateway(ctx context.Context) {
 		Binary: d.opts.BeadsBinary,
 		Guard:  d.guardTickets,
 		Done:   d.ticketsDone,
+		Agent:  d.beadsAgent,
 	}
 	st.ResolveBase = beads.ResolveBase // the Beads workspace is fixed at the grant (S-08)
+	st.ResolveHuman = gateway.ResolveHuman
+	d.beadsGW = beads
 	d.proxy.Mount(beadswire.Prefix, beads)
 }
 
@@ -85,6 +89,8 @@ func (d *Daemon) guardTickets(ctx context.Context, g gateway.Grant, op gateway.B
 // ticketsDone records the tickets a session claimed or closed; a ticket
 // closed locks the operations of its checkpoint again.
 func (d *Daemon) ticketsDone(ctx context.Context, g gateway.Grant, op gateway.BeadsOp) {
+	d.recordProvenance(ctx, g, op)
+	d.trackLease(g, op)
 	cp := d.opts.Checkpoints
 	if cp == nil || op.Kind == gateway.OpCreate {
 		return
@@ -101,6 +107,78 @@ func (d *Daemon) ticketsDone(ctx context.Context, g gateway.Grant, op gateway.Be
 	if changed {
 		d.applyRules(ctx, g.SessionID)
 	}
+}
+
+// recordProvenance binds a claimed ticket to the session, and a closed
+// ticket to the commit it was closed on (bd provenance record). A failure
+// is only logged: it never refuses the operation, which already ran.
+func (d *Daemon) recordProvenance(ctx context.Context, g gateway.Grant, op gateway.BeadsOp) {
+	gw := d.beadsGW
+	if gw == nil || len(op.IDs) == 0 {
+		return
+	}
+	actor := gw.ActorOf(ctx, g)
+	var evs []gateway.Provenance
+	switch op.Kind {
+	case gateway.OpClaim:
+		for _, id := range op.IDs {
+			evs = append(evs, gateway.Provenance{Issue: id, Kind: gateway.ProvClaim, RefKind: gateway.RefWorkID, Ref: g.SessionID,
+				Actor: actor, Payload: provenancePayload("workflow", g.WorkflowID)})
+		}
+	case gateway.OpClose:
+		gctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+		head, _ := gitutil.Command(gctx, g.Location, "rev-parse", "HEAD").Output()
+		branch, _ := gitutil.Command(gctx, g.Location, "rev-parse", "--abbrev-ref", "HEAD").Output()
+		cancel()
+		sha := strings.TrimSpace(string(head))
+		if sha == "" {
+			return
+		}
+		for _, id := range op.IDs {
+			evs = append(evs, gateway.Provenance{Issue: id, Kind: gateway.ProvCommit, RefKind: gateway.RefGitSHA, Ref: sha,
+				Actor: actor, Payload: provenancePayload("session", g.SessionID, "branch", strings.TrimSpace(string(branch)))})
+		}
+	}
+	for _, ev := range evs {
+		if err := gw.RecordProvenance(ctx, g, ev); err != nil {
+			slog.Warn("ohd: provenance not recorded", "session", g.SessionID, "ticket", ev.Issue, "kind", ev.Kind, "error", err)
+		}
+	}
+}
+
+// provenancePayload keeps the non-empty values of key/value pairs.
+func provenancePayload(kv ...string) map[string]string {
+	out := map[string]string{}
+	for i := 0; i+1 < len(kv); i += 2 {
+		if kv[i+1] != "" {
+			out[kv[i]] = kv[i+1]
+		}
+	}
+	return out
+}
+
+// beadsAgent names the oh agent of a gateway grant: the entry agent of the
+// session, or the subagent of a sub-session ("" = not known yet).
+func (d *Daemon) beadsAgent(ctx context.Context, g gateway.Grant) string {
+	if d.opts.Sessions == nil {
+		return ""
+	}
+	s, err := d.opts.Sessions.Get(ctx, g.SessionID)
+	if err != nil || s == nil {
+		return ""
+	}
+	if g.Holder == "" {
+		return s.EntryAgent
+	}
+	d.wmu.Lock()
+	w := d.watchers[s.GroupKey]
+	d.wmu.Unlock()
+	if w == nil {
+		return ""
+	}
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	return w.childAgent[g.Holder]
 }
 
 // sessionAlive: Beads is reachable while the session is open and awake.

@@ -4,10 +4,13 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"os"
 	"os/exec"
 	"runtime"
+	"strings"
 	"time"
 
+	"github.com/datichb/openhub/cli/internal/beads/bdschema"
 	"github.com/datichb/openhub/cli/internal/daemon"
 	"github.com/datichb/openhub/cli/internal/gateway"
 	"github.com/datichb/openhub/cli/internal/gateway/bdargs"
@@ -34,7 +37,7 @@ func gatewayDoctorChecks(ctx context.Context) []views.DoctorCheck {
 	}
 	var out []views.DoctorCheck
 	if p, err := exec.LookPath("bd"); err == nil {
-		out = append(out, check("bd", true, p), bdVersionCheck(ctx, p))
+		out = append(out, check("bd", true, p), bdVersionCheck(ctx, p), bdSchemaCheck(ctx, p))
 	} else {
 		out = append(out, check("bd", false, i18n.T("cmd.doctor.gateway.bd_missing")))
 	}
@@ -123,6 +126,35 @@ func bdVersionResult(out string, err error) views.DoctorCheck {
 	}
 	return views.DoctorCheck{Name: name, OK: true, Warn: true,
 		Detail: i18n.Tf("cmd.doctor.gateway.bd_version_other", orNone(bdargs.VersionNumber(out)), expected)}
+}
+
+// bdSchemaCheck warns when the record schema of the installed bd (bd
+// schema) lacks a field oh reads from its JSON output (bdschema).
+func bdSchemaCheck(ctx context.Context, bin string) views.DoctorCheck {
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, bin, "schema")
+	cmd.Dir = os.TempDir() // no workspace needed
+	out, err := cmd.Output()
+	return bdSchemaResult(out, err)
+}
+
+// bdSchemaResult turns the output of `bd schema` into the check.
+func bdSchemaResult(out []byte, err error) views.DoctorCheck {
+	name := i18n.T("cmd.doctor.gateway.bd_schema")
+	var s *bdschema.Schema
+	if err == nil {
+		s, err = bdschema.Parse(out)
+	}
+	if err != nil {
+		return views.DoctorCheck{Name: name, OK: true, Warn: true, Detail: i18n.Tf("cmd.doctor.gateway.bd_schema_unknown", err.Error())}
+	}
+	if missing := bdschema.Missing(s); len(missing) > 0 {
+		expected, _ := bdargs.SameVersion("")
+		return views.DoctorCheck{Name: name, OK: true, Warn: true,
+			Detail: i18n.Tf("cmd.doctor.gateway.bd_schema_missing", strings.Join(missing, ", "), expected)}
+	}
+	return views.DoctorCheck{Name: name, OK: true, Detail: i18n.Tf("cmd.doctor.gateway.bd_schema_ok", s.Version)}
 }
 
 func orNone(s string) string {

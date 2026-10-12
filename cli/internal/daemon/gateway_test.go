@@ -90,7 +90,7 @@ func TestDaemonBeadsGateway(t *testing.T) {
 	require.NoError(t, err)
 	code, out := exec(g.Token, "show", "bd-1")
 	require.Equal(t, http.StatusOK, code, out.Error)
-	assert.Equal(t, "show -- bd-1 in "+project+"\n", string(out.Stdout))
+	assert.Equal(t, "--readonly show -- bd-1 in "+project+"\n", string(out.Stdout), "a read runs with --readonly")
 	code, out = exec(g.Token, "create", "x")
 	assert.Equal(t, http.StatusForbidden, code)
 	assert.NotEmpty(t, out.Error)

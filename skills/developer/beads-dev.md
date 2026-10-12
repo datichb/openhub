@@ -48,7 +48,7 @@ Le reviewer consulte l'implémentation et décide :
 Quand orchestrator-dev te transmet l'instruction de commit (le checkpoint « Commit ou correction » est validé), tu exécutes les deux actions, dans cet ordre :
 
 ```bash
-git commit -m "<type>(<scope>): <description>"
+git commit -m "<type>(<scope>): <description> (<ID>)"
 bd close <ID> --reason "Implemented in commit <hash>" --suggest-next
 ```
 

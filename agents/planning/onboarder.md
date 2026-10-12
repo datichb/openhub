@@ -11,6 +11,7 @@ permission:
     "*": deny
     "git log*": allow
     "bd search *": allow
+    "bd query *": allow
     "bd list*": allow
     "ls*": allow
   read: allow

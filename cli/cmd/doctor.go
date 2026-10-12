@@ -75,6 +75,7 @@ func doctorRegistry() []check {
 		{i18n.T("cmd.doctor.check.database"), one(checkDatabase)},
 		{i18n.T("cmd.doctor.check.api_keys"), single(checkAPIKeys)},
 		{i18n.T("cmd.doctor.check.beads"), single(checkBeadsSanity)},
+		{i18n.T("cmd.doctor.check.beads_tracking"), beadsTrackingChecks},
 		{i18n.T("cmd.doctor.check.runtime"), v5DoctorChecks},
 	}
 }

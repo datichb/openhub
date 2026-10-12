@@ -16,6 +16,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/bundle"
 	"github.com/datichb/openhub/cli/internal/domain"
+	"github.com/datichb/openhub/cli/internal/gateway"
 	"github.com/datichb/openhub/cli/internal/gateway/beadswire"
 	"github.com/datichb/openhub/cli/internal/remote"
 )
@@ -143,8 +144,26 @@ func (s *Service) Fetch(ctx context.Context, sid string, opts FetchOptions) (*Fe
 	if err := s.Remote.SetRemoteRef(ctx, sid, ref); err != nil {
 		return res, err
 	}
+	s.recordProvenance(ctx, ref.ProjectDir, fetchProvenance(sid, ref, res.Summary)...)
 	res.Ref = ref
 	return res, nil
+}
+
+// fetchProvenance binds the tickets of a remote session to what its job
+// produced: the pushed commit and the draft merge request.
+func fetchProvenance(sid string, ref domain.RemoteRef, sm remote.Summary) []gateway.Provenance {
+	var evs []gateway.Provenance
+	for _, tk := range ref.Tickets {
+		if sm.Commit != "" {
+			evs = append(evs, gateway.Provenance{Issue: tk, Kind: gateway.ProvCommit, RefKind: gateway.RefGitSHA, Ref: sm.Commit,
+				Payload: map[string]string{"session": sid, "branch": ref.Branch, "runtime": "remote"}})
+		}
+		if sm.MRURL != "" {
+			evs = append(evs, gateway.Provenance{Issue: tk, Kind: gateway.ProvHandoff, RefKind: gateway.RefPR, Ref: sm.MRURL,
+				Payload: map[string]string{"session": sid}})
+		}
+	}
+	return evs
 }
 
 // importSession recreates the session locally (worktree of the pushed branch).

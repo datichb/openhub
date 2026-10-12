@@ -14,11 +14,12 @@ import (
 var DefaultBeadsAllow = sessionspec.DefaultBeadsAllow
 
 // forbiddenFlags would let a command escape the project database or write
-// files on the machine; they are refused wherever and however they are
-// written (bd reads `-C/x`, `-qC/x`, `--db=x` as well as `--db x`).
+// files on the machine, or choose its actor (set by oh); they are refused
+// wherever and however they are written (bd reads `-C/x`, `-qC/x`, `--db=x`
+// as well as `--db x`).
 var forbiddenFlags = map[string]bool{
 	"db": true, "database": true, "directory": true, "global": true, "cpu-profile": true,
-	"mem-profile": true, "dolt-auto-commit": true, "repo": true,
+	"mem-profile": true, "dolt-auto-commit": true, "repo": true, "actor": true,
 }
 
 // Refusal is a command refused by the gateway, with a localized message.
@@ -52,6 +53,10 @@ func parseBeads(argv []string) (command, error) {
 			return command{}, refuse("cmd.gateway.beads.forbidden_flag", "--"+f.Name)
 		}
 	}
+	// find-duplicates --method ai sends the tickets to an external model.
+	if m, ok := c.Value("method"); ok && c.Key() == "find-duplicates" && m != "mechanical" {
+		return command{}, refuse("cmd.gateway.beads.external_model", "--method="+m)
+	}
 	return command{Cmd: c}, nil
 }
 
@@ -80,16 +85,28 @@ func checkBeads(argv, allow []string) (command, error) {
 	if len(c.Path) == 1 && second != "" {
 		shown += " " + second
 	}
+	if bdargs.ReadOnly(allow) && allowedEntry(c.Cmd, allow) {
+		return c, refuse("cmd.gateway.beads.read_only", shown)
+	}
 	return c, refuse("cmd.gateway.beads.not_allowed", shown, strings.Join(allow, ", "))
 }
 
 // BeadsAllowed reports whether an allow-list (nil = DefaultBeadsAllow)
 // grants a parsed command, by the gateway's rule (also used by the replay of
-// a remote session's journal on the machine).
+// a remote session's journal on the machine). A list naming only read
+// commands is read-only: the write forms of its commands (`comments add`,
+// `ready --claim`) are not granted.
 func BeadsAllowed(c bdargs.Cmd, allow []string) bool {
 	if allow == nil {
 		allow = DefaultBeadsAllow
 	}
+	if bdargs.ReadOnly(allow) && !bdargs.IsRead(c) {
+		return false
+	}
+	return allowedEntry(c, allow)
+}
+
+func allowedEntry(c bdargs.Cmd, allow []string) bool {
 	second := secondWord(c)
 	for _, e := range allow {
 		if allowed(e, c.Name(), second) {

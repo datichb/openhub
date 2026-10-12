@@ -11,6 +11,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/datichb/openhub/cli/internal/beads/bdschema"
+	"github.com/datichb/openhub/cli/internal/domain"
+	"github.com/datichb/openhub/cli/internal/gateway"
 	"github.com/datichb/openhub/cli/internal/gateway/beadswire"
 	"github.com/datichb/openhub/cli/internal/remote"
 )
@@ -149,4 +152,36 @@ func TestReplaySubstitutesInIDFlags(t *testing.T) {
 	assert.Equal(t, []string{"create", "--parent=bd-n1", "--deps=blocks:bd-n2,bd-42", "--", "Child"}, got.Argv())
 	c, _ = parseEntry([]string{"dep", "add", "pending-1", "bd-42"})
 	assert.Equal(t, []string{"dep", "add", "--", "bd-n1", "bd-42"}, substitute(c, map[string]string{"pending-1": "bd-n1"}).Argv())
+}
+
+// The actor of a replayed write is the person of the machine and the agent
+// recorded by the job; a claim keeps bd's own actor (the assignee).
+func TestReplayActor(t *testing.T) {
+	argv := func(a ...string) string {
+		c, why := parseEntry(a)
+		require.Empty(t, why, a)
+		return strings.Join(replayActor(c, "Ada").Argv(), " ")
+	}
+	assert.Equal(t, "update --title=x --actor=Ada via oh/developer (remote) -- bd-42",
+		argv("--actor=CI via oh/developer", "update", "bd-42", "--title", "x"))
+	assert.Equal(t, "note --actor=Ada via oh/session (remote) -- bd-42 n", argv("note", "bd-42", "n"))
+	assert.Equal(t, "update --claim -- bd-42", argv("--actor=CI", "update", "bd-42", "--claim"))
+	assert.Equal(t, "update --status=in_progress -- bd-42", argv("update", "bd-42", "-s", "in_progress"))
+}
+
+func TestFetchProvenance(t *testing.T) {
+	ref := domain.RemoteRef{Tickets: []string{"bd-42"}, Branch: "oh/remote-1"}
+	evs := fetchProvenance("ses_r", ref, remote.Summary{Commit: strings.Repeat("ab", 20), MRURL: "https://gl/x/-/merge_requests/3"})
+	require.Len(t, evs, 2)
+	assert.Equal(t, gateway.ProvCommit, evs[0].Kind)
+	assert.Equal(t, "oh/remote-1", evs[0].Payload["branch"])
+	assert.Equal(t, gateway.RefPR, evs[1].RefKind)
+	assert.Empty(t, fetchProvenance("ses_r", ref, remote.Summary{}), "nothing pushed: nothing recorded")
+}
+
+// The fields oh reads from `bd show --json` are in the bd output contract.
+func TestIssueHeadFollowsBdSchema(t *testing.T) {
+	assert.Empty(t, bdschema.Uncovered(issueHead{}, "issue"))
+	var h issueHead
+	assert.Empty(t, bdschema.Uncovered(h.Dependencies, "dependency"))
 }

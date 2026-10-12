@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/datichb/openhub/cli/internal/gateway/bdargs"
 	"github.com/datichb/openhub/cli/internal/gateway/beadswire"
 	"github.com/datichb/openhub/cli/internal/remote"
 )
@@ -108,6 +109,13 @@ func (j journalBackend) Exec(req beadswire.ExecRequest) (beadswire.ExecResponse,
 	}
 	if readCommands[p.cmd] {
 		return j.read(snap, p)
+	}
+	if c, err := bdargs.Parse(req.Argv); err == nil && bdargs.IsRead(c) {
+		// A read the snapshot cannot answer: never recorded as a write.
+		return fail(fmt.Sprintf("bd %s is not available in a remote session (reads: show, list, ready, children, search, count)", c.Key())), nil
+	}
+	if v, ok := p.flags["--readonly"]; ok && v != "false" && v != "0" {
+		return fail(fmt.Sprintf("Error: operation '%s' is not allowed in read-only mode", p.cmd)), nil
 	}
 	return j.write(snap, p, req)
 }
