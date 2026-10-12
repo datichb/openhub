@@ -284,6 +284,32 @@ func TestValidate_DiagnosticPointsToPatchLayer(t *testing.T) {
 	}
 }
 
+// C1: a workflow that still names an agent removed from the hub gets its
+// replacement, not a bare "unknown agent".
+func TestValidate_RemovedAgent(t *testing.T) {
+	cat := catalogOf(t, map[string]string{
+		"hub:x":  vHeader + "risk: write\nprompt: { text: go }\n",
+		"team:x": vHeader + "extends: hub:x\nagents:\n  developer-refactor: { role: workflow }\n",
+	})
+	_, diags := Check(cat, Ref{LayerTeam, "x"}, nil, testEnv())
+	assertDiag(t, diags, "agent_removed", "agents.developer-refactor", SeverityError)
+	for _, d := range diags {
+		if d.Code == "agent_removed" && !strings.Contains(d.Message, "refactor") {
+			t.Fatalf("message without the replacement: %q", d.Message)
+		}
+	}
+	diags = checkYAML(t, vHeader+"risk: write\nentry: { agent: test-generator }\n", testEnv())
+	assertDiag(t, diags, "agent_removed", "entry.agent", SeverityError)
+	for id := range removedAgents {
+		if d := unknownAgentDiag("agent_unknown", "x", id); d.Code != "agent_removed" || strings.Contains(d.Message, "workflow.removed_agent") {
+			t.Errorf("%s: %+v", id, d)
+		}
+	}
+	if d := unknownAgentDiag("agent_unknown", "x", "ghost"); d.Code != "agent_unknown" {
+		t.Errorf("ghost: %+v", d)
+	}
+}
+
 func TestTemplateVariables(t *testing.T) {
 	inputs := map[string]bool{"a": true, "items": true}
 	src := `{{ .a }} {{ .oh.project }} {{ range .items }}{{ .name }}{{ end }} {{ with .a }}{{ .x }}{{ $.b }}{{ end }} {{ upper .c }} {{ define "t" }}{{ .d }}{{ end }}`
