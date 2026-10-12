@@ -30,6 +30,9 @@ import (
 type Request struct {
 	// pluginTools are the permissions provided by plugins (set by Build).
 	pluginTools map[string]bricks.PluginTools
+	// verifyCommands are the verification commands of the project (set by
+	// Build, VerifyRules).
+	verifyCommands []string
 
 	HubDir string // ~/.oh/hub (agents/, skills/, permissions/)
 	OutDir string // ~/.oh/bundles
@@ -162,7 +165,14 @@ func Build(req Request) (*Bundle, error) {
 	skillRefs := map[string]bool{}
 	loader := newSkillLoader(req.HubDir, generated)
 	denied := denyList(req.DenySkills)
-	keep := rootFilter(loader, req.Plugins, req.ProjectPath)
+	// The project is scanned once: stack skills, frontend filter and
+	// verification commands.
+	signals := bricks.Signals{}
+	if req.ProjectPath != "" {
+		signals = bricks.DetectSignals(req.ProjectPath)
+	}
+	req.verifyCommands = bricks.VerifyCommands(signals)
+	keep := frontendFilter(rootFilter(loader, req.Plugins, ""), req.ProjectPath, signals)
 	mentionIndex := hubSkillIndex(req.HubDir, generated)
 	ids := skillIndex{}
 	callers := callersOf(bundleGraph(graph, selected))
@@ -227,7 +237,7 @@ func Build(req Request) (*Bundle, error) {
 		}
 	}
 	if req.ProjectPath != "" {
-		for _, ref := range keepRoots(bricks.ResolveStackSkills(req.ProjectPath), keep) {
+		for _, ref := range keepRoots(bricks.StackSkillsFor(signals), keep) {
 			skillRefs[ref] = true
 		}
 	}
@@ -384,7 +394,12 @@ func agentDef(req Request, a *bricks.AssembledAgent, instructions string) (sessi
 	}
 	perms = bricks.DropPluginPermissions(perms, req.pluginTools, req.loadedPlugins())
 	own := ConvertPermissions(perms)
-	def.Permissions = append(append(append(append(append(own, InfraGuard(own)...), GitShellGuard(own)...), BeadsShellGuard()...), HookGuard()...), BeadsDirGuard()...)
+	var verify []sessionspec.PermissionRule
+	if fm.Verify && req.Spec != nil {
+		// After the agent's own rules ("*": deny first), before the guards.
+		verify = VerifyRules(req.verifyCommands, req.Spec.Risk)
+	}
+	def.Permissions = append(append(append(append(append(append(own, verify...), InfraGuard(own)...), GitShellGuard(own)...), BeadsShellGuard()...), HookGuard()...), BeadsDirGuard()...)
 	return def, nil
 }
 

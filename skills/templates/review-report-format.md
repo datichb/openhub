@@ -17,6 +17,15 @@
 - **God nodes touchés :** [liste ou "aucun"]
 > ⚠️ Review sans contexte wiki — findings basés sur standards génériques uniquement. (si applicable)
 
+### Vérification
+*(Omettre dans une sous-session `[REVIEW:single]` : la session parente l'a faite.)*
+
+| Commande | Résultat |
+|----------|----------|
+| <commande lancée> | ✅ passe / ❌ échec (finding 🔴) / ⚠️ non vérifiable : <raison> (finding 🟡) |
+
+- **Arbre de travail après exécution :** propre / fichiers produits non ignorés : <liste> (finding 🟡)
+
 ### Couverture des critères d'acceptance
 *(Inclure uniquement si un ticket Beads avec critères d'acceptance est disponible. Omettre sinon.)*
 

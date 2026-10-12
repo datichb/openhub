@@ -22,7 +22,8 @@ Tu fournis un avis technique — l'humain prend la décision finale.
 ❌ Tu n'approuves et ne rejettes JAMAIS une PR — tu fournis un avis, l'humain décide
 ✅ Si tu es incertain, tu formules en question plutôt qu'en affirmation
 ✅ Tu restes dans le scope de la PR — les problèmes hors scope sont mentionnés séparément
-✅ Chaque finding 🔴/🟠/🟡 DOIT référencer un `fichier:ligne` effectivement modifié dans le diff. Un problème dans un fichier non modifié → `🔍 Hors scope` uniquement
+✅ Chaque finding 🔴/🟠/🟡 DOIT référencer un `fichier:ligne` effectivement modifié dans le diff. Un problème dans un fichier non modifié → `🔍 Hors scope` uniquement. Seule exception : les findings de la vérification (build, tests, lint, arbre de travail), qui citent le fichier ou le test en échec
+✅ Tu exécutes le build et les tests du projet (section « Vérification ») sans jamais rien installer ni corriger
 ✅ Chaque finding porte un score de confiance [1-5] justifié (voir section dédiée)
 ✅ Les corrections (🔴/🟠/🟡) et les observations (💡/✅/🔍) sont deux blocs distincts dans le rapport
 ✅ Avant publication → passer la checklist d'auto-vérification (section en fin de skill)
@@ -43,6 +44,26 @@ Exclure du périmètre d'analyse. Ne pas produire de finding sur ces fichiers :
 > **Exception unique :** si un fichier exclu contient un **secret** ou une **faille de sécurité** → le signaler malgré l'exclusion, en section `🔴 Critique`.
 
 Si le projet définit des exclusions supplémentaires dans `docs/wiki/technical/review-rules.md` → les appliquer en complément de cette liste.
+
+---
+
+## Vérification — build, tests, lint, typecheck
+
+Un échec de build ou de test fait partie de la review. Étape exécutée **une seule fois**, par le reviewer principal, après l'acquisition du diff et avant sa lecture détaillée. Une sous-session lancée avec `[REVIEW:single]` ne la refait pas : la session parente ajoute ses findings au rapport fusionné.
+
+1. **Trouver les commandes du projet**, dans cet ordre : `README`, `CONVENTIONS.md` ou `conventions.md` du wiki, scripts de `package.json` (`test`, `build`, `lint`, `typecheck`), cibles du `Makefile` (`test`, `build`, `lint`). À défaut, les commandes usuelles de la stack :
+   - Go : `go build ./...`, `go test ./...`, `go vet ./...`
+   - Node : `npm test`, `npm run build`, `npm run lint`, `npm run typecheck`, `npx --no tsc --noEmit` (ou leur forme pnpm, yarn, bun selon le lockfile)
+   - Python : `.venv/bin/python -m pytest`, `ruff check .` (ou `uv run --no-sync pytest`, `poetry run pytest` selon l'outil du projet)
+   - Rust : `cargo build`, `cargo test`, `cargo clippy` ; Java : `mvn -q verify`, `./gradlew build`
+2. **Exécuter** le build, puis les tests, puis le lint et le typecheck s'ils sont configurés, avec les commandes qui te sont permises : oh les accorde selon la stack détectée ; dans le workflow `review` (code souvent écrit par un tiers : ses tests exécutent son code), chacune est demandée à l'utilisateur.
+3. **Reporter** dans `### Vérification` du rapport (commande → résultat) :
+   - Échec → finding 🔴 Critique, score 5/5 (sortie observée), avec un extrait de la sortie : fichier ou test en échec, premières lignes d'erreur. Verdict `corriger`.
+   - Impossible à exécuter (dépendances absentes, environnement, base de données, permission demandée et refusée) → finding 🟡 « non vérifiable » avec la raison. N'installe jamais rien pour y parvenir.
+   - Succès → ligne ✅, sans finding.
+4. **Contrôler l'arbre de travail** : `git status --porcelain` avant et après l'exécution (les modifications non commitées du developer y figurent déjà). Un fichier apparu ou modifié entre les deux, produit par le build ou les tests (`dist/`, `coverage/`…) et non ignoré → finding 🟡 (à ajouter au `.gitignore`) : il bloquerait la clôture du ticket, qui exige un arbre propre.
+
+❌ Tu ne corriges rien : jamais d'option qui modifie le projet (`--fix`, `--write`, mise à jour de snapshots), refusées de toute façon.
 
 ---
 
@@ -328,7 +349,7 @@ Quand le reviewer est invoqué dans le cadre d'une review multi-mode (sessions p
 
 Quand tu es invoqué via l'outil `Task` par `orchestrator-dev` :
 
-1. **Produire toujours le rapport de review complet** au format défini ci-dessus, même si la review ne trouve aucun problème (review propre). Un rapport sans problèmes comporte au minimum `### Walkthrough`, `### Résumé`, `### Périmètre et contexte`, `### Couverture des critères d'acceptance` (si ticket Beads avec critères disponible) et `### ✅ Points positifs`.
+1. **Produire toujours le rapport de review complet** au format défini ci-dessus, même si la review ne trouve aucun problème (review propre). Un rapport sans problèmes comporte au minimum `### Walkthrough`, `### Résumé`, `### Périmètre et contexte`, `### Vérification`, `### Couverture des critères d'acceptance` (si ticket Beads avec critères disponible) et `### ✅ Points positifs`.
 
 2. **Intégrer le rapport dans le bloc `## Retour vers orchestrator-dev`** défini dans le skill `reviewer-handoff-format` — le rapport complet est placé dans la section `### Rapport complet` du bloc. Le bloc est le seul output attendu.
 
@@ -341,15 +362,16 @@ Quand tu es invoqué via l'outil `Task` par `orchestrator-dev` :
 Avant de produire le rapport final (ou de l'intégrer dans le bloc handoff),
 passer cette checklist. **Tout échec nécessite une correction du rapport.**
 
-1. [ ] **Périmètre** — chaque finding 🔴/🟠/🟡 pointe un `fichier:ligne` présent dans le diff (fichier dans la liste `git diff --name-only`, ligne dans une hunk modifiée)
-2. [ ] **Fichiers exclus** — aucun finding ne porte sur un fichier de la liste d'exclusions (lock, generated, minified, build, snap) sauf faille de sécurité
-3. [ ] **Conventions wiki** — `docs/wiki/technical/conventions.md` a été lu (ou l'absence de wiki est signalée dans `### Périmètre et contexte`)
-4. [ ] **Pas de contradiction convention** — aucun finding ne contredit une convention documentée ou un pattern intentionnel de `review-rules.md` sans justification sécurité explicite
-5. [ ] **God nodes** — les god nodes touchés par des fichiers modifiés ont été identifiés et vérifiés via les pages wiki liées
-6. [ ] **Résumé factuel** — le résumé et le walkthrough décrivent uniquement les changements du diff, pas l'état général du code
-7. [ ] **Hors scope correct** — la section `🔍 Hors scope` contient uniquement des problèmes dans des fichiers NON modifiés par le diff
-8. [ ] **Cohérence score/sévérité** — aucun finding ≤ 2/5 n'est classé 🔴 Critique ou 🟠 Majeur
-9. [ ] **Couverture critères d'acceptance** — si un ticket Beads avec critères d'acceptance est disponible, le tableau `### Couverture des critères d'acceptance` est présent et chaque critère a un statut (✅/⚠️/❌). Si le ticket est inaccessible ou sans critères, l'absence du tableau est signalée dans `### Périmètre et contexte`
+1. [ ] **Périmètre** — chaque finding 🔴/🟠/🟡 pointe un `fichier:ligne` présent dans le diff (fichier dans la liste `git diff --name-only`, ligne dans une hunk modifiée), sauf les findings de la vérification
+2. [ ] **Vérification** — `### Vérification` liste chaque commande lancée et son résultat ; un échec est un finding 🔴 (verdict `corriger`), une commande impossible à lancer un finding 🟡 « non vérifiable » (omis dans une sous-session `[REVIEW:single]`)
+3. [ ] **Fichiers exclus** — aucun finding ne porte sur un fichier de la liste d'exclusions (lock, generated, minified, build, snap) sauf faille de sécurité
+4. [ ] **Conventions wiki** — `docs/wiki/technical/conventions.md` a été lu (ou l'absence de wiki est signalée dans `### Périmètre et contexte`)
+5. [ ] **Pas de contradiction convention** — aucun finding ne contredit une convention documentée ou un pattern intentionnel de `review-rules.md` sans justification sécurité explicite
+6. [ ] **God nodes** — les god nodes touchés par des fichiers modifiés ont été identifiés et vérifiés via les pages wiki liées
+7. [ ] **Résumé factuel** — le résumé et le walkthrough décrivent uniquement les changements du diff, pas l'état général du code
+8. [ ] **Hors scope correct** — la section `🔍 Hors scope` contient uniquement des problèmes dans des fichiers NON modifiés par le diff
+9. [ ] **Cohérence score/sévérité** — aucun finding ≤ 2/5 n'est classé 🔴 Critique ou 🟠 Majeur
+10. [ ] **Couverture critères d'acceptance** — si un ticket Beads avec critères d'acceptance est disponible, le tableau `### Couverture des critères d'acceptance` est présent et chaque critère a un statut (✅/⚠️/❌). Si le ticket est inaccessible ou sans critères, l'absence du tableau est signalée dans `### Périmètre et contexte`
 
 Si la review n'a accédé à aucun wiki (projet non onboardé), le bloc `### Périmètre et contexte` DOIT contenir :
 > ⚠️ Review sans contexte wiki — findings basés sur standards génériques uniquement.

@@ -85,7 +85,7 @@ Implémente un ou plusieurs tickets Beads déjà détaillés : routage vers le b
 
 Mode par défaut : `semi-auto`. Commandes Beads autorisées : `show`, `list`, `ready`, `children`, `dep`, `update`, `close`, `comments`, `label`. Sorties : `branch`, `tickets`.
 
-`cp-2` déverrouille `commit` et `close` : avant sa validation, oh refuse à tous les agents `git commit` (et `revert`, `cherry-pick`, `merge`, `pull`, qui commitent aussi) et la fermeture du ticket. Le push revient à l'utilisateur (aucun workflow livré ne le déverrouille). Une fois `cp-2` validé, l'`orchestrator-dev` relance le `developer`, qui commite puis ferme le ticket ; oh refuse la fermeture tant que le travail n'est pas commité. Une question qui imite un checkpoint (« CP-2 — commit ? » posée avec l'outil `question`) est fermée par oh, qui rappelle à l'agent d'appeler `workflow_checkpoint`. Quand le ticket de la session est fermé (ou le dernier checkpoint passé) et que l'étape se termine, oh déclare les sorties manquantes (`branch`, `tickets`) et la session passe à **terminée** : « Enchaîner avec… » est proposé.
+`cp-2` déverrouille `commit` et `close` : avant sa validation, oh refuse à tous les agents `git commit` (et `revert`, `cherry-pick`, `merge`, `pull`, qui commitent aussi) et la fermeture du ticket. Le push revient à l'utilisateur (aucun workflow livré ne le déverrouille). Une fois `cp-2` validé, l'`orchestrator-dev` relance le `developer`, qui commite puis ferme le ticket ; oh refuse la fermeture tant que le travail n'est pas commité. Le `reviewer` lance le build et les tests du projet (et le lint, le typecheck) avant sa review, avec les commandes de la stack détectée, autorisées ici : un échec est un finding 🔴 (verdict `corriger`) ; les fichiers produits par le build et non ignorés sont signalés, la fermeture exigeant un arbre propre. Il en va de même dans `feature`, `sweep`, `review-feedback` et `libre`. Une question qui imite un checkpoint (« CP-2 — commit ? » posée avec l'outil `question`) est fermée par oh, qui rappelle à l'agent d'appeler `workflow_checkpoint`. Quand le ticket de la session est fermé (ou le dernier checkpoint passé) et que l'étape se termine, oh déclare les sorties manquantes (`branch`, `tickets`) et la session passe à **terminée** : « Enchaîner avec… » est proposé.
 
 ## `feature`
 
@@ -158,6 +158,8 @@ Review en lecture seule d'une branche ou des modifications récentes. Commande B
 | `base` | `branch` (défaut : `main`) | non | Branche de base |
 
 Les modes combinés (`standard+adversarial`, `all`) lancent des sessions `reviewer` en parallèle : le workflow déclare l'auto-délégation `reviewer: { calls: [reviewer] }`. Une auto-délégation n'est retenue que si elle est écrite dans `calls` (jamais déduite des permissions) ; elle compte pour un niveau de profondeur.
+
+Le reviewer lance une fois le build et les tests de la branche, avant les sessions parallèles : dans ce workflow `risk: read` (souvent la merge request d'un tiers, dont les tests exécutent le code), chaque commande est demandée à l'utilisateur ; refusée ou impossible à lancer, elle est signalée en finding 🟡 « non vérifiable ». Rien n'est installé.
 
 La publication d'une MR (`oh review --publish`) n'est pas un workflow : elle reste une commande d'oh.
 

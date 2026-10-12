@@ -43,6 +43,11 @@ import (
 //     (a line describing another workflow). A workflow without checkpoints
 //     (libre) is not checked: its generated section says there are none;
 // The report is pinned in testdata/capabilities.golden (-update).
+//
+// The bundles are built for capProject, a project of the common stacks: the
+// commands granted from the detected stack (the verification commands of the
+// reviewer, bricks.VerifyCommands) are those of a real session, and a
+// command the content names but no stack grants is reported.
 
 var (
 	capCodeSpan   = regexp.MustCompile("`([^`\n]+)`")
@@ -289,8 +294,30 @@ func capAgentText(t *testing.T, hub string, b *Bundle, a sessionspec.AgentDef, f
 	return sb.String()
 }
 
+// capProject writes a project of the common stacks: Go, Node with
+// TypeScript (web frontend: no skill filtered), Python with uv and Poetry,
+// Rust, Maven, Make.
+func capProject(t *testing.T) string {
+	t.Helper()
+	dir := t.TempDir()
+	for name, content := range map[string]string{
+		"go.mod":         "module example.com/demo\n",
+		"package.json":   `{"dependencies":{"react":"19","react-dom":"19"},"devDependencies":{"typescript":"6","vitest":"4"}}`,
+		"pyproject.toml": "[project]\nname = \"demo\"\ndependencies = [\"pytest\"]\n",
+		"Cargo.toml":     "[package]\nname = \"demo\"\n",
+		"pom.xml":        "<project/>\n",
+		"Makefile":       "test:\n",
+		"uv.lock":        "",
+		"poetry.lock":    "",
+	} {
+		require.NoError(t, os.WriteFile(filepath.Join(dir, name), []byte(content), 0o644))
+	}
+	return dir
+}
+
 func TestCapabilities(t *testing.T) {
 	hub, cat, env := shippedWorkflows(t)
+	project := capProject(t)
 	hc, err := hubcat.New(hub)
 	require.NoError(t, err)
 	files, err := bricks.FindAgentFiles(hub)
@@ -309,7 +336,7 @@ func TestCapabilities(t *testing.T) {
 	for _, ref := range cat.Refs() {
 		r, diags := workflow.Check(cat, ref, nil, env)
 		require.False(t, diags.HasErrors(), "%v", diags)
-		b, err := Build(Request{HubDir: hub, OutDir: t.TempDir(), Spec: r.Spec})
+		b, err := Build(Request{HubDir: hub, OutDir: t.TempDir(), ProjectPath: project, Spec: r.Spec})
 		require.NoError(t, err)
 		wf := b.Spec.Workflow
 		locks := SessionRules(wf, r.Spec.DefaultMode(), nil)

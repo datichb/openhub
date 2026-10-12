@@ -52,13 +52,18 @@ const (
 // react-dom) is not a web frontend. An unreadable or missing path counts as
 // a frontend (nothing is filtered).
 func HasFrontend(projectPath string) bool {
+	return FrontendIn(projectPath, DetectSignals(projectPath))
+}
+
+// FrontendIn is HasFrontend with the signals already detected in projectPath.
+func FrontendIn(projectPath string, signals Signals) bool {
 	if projectPath == "" {
 		return true
 	}
 	if st, err := os.Stat(projectPath); err != nil || !st.IsDir() {
 		return true
 	}
-	return DetectSignals(projectPath).Has("frontend")
+	return signals.Has("frontend")
 }
 
 func inHTMLDir(rel string) bool {

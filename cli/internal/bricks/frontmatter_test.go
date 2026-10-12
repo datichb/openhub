@@ -114,6 +114,15 @@ permission:
 
 	// Mode defaults to "primary" when not specified
 	assert.Equal(t, "primary", fm.Mode)
+	assert.False(t, fm.Verify)
+}
+
+// C1.6: `verify: true` grants the verification commands; unknown keys are
+// ignored.
+func TestParseAgentFrontmatterFromBytes_Verify(t *testing.T) {
+	fm, err := ParseAgentFrontmatterFromBytes([]byte("---\nid: reviewer\nverify: true\nfuture_key: x\n---\n\n# Reviewer\n"))
+	require.NoError(t, err)
+	assert.True(t, fm.Verify)
 }
 
 func TestParseAgentFrontmatterFromBytes_WithComments(t *testing.T) {
