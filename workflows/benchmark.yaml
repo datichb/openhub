@@ -1,0 +1,56 @@
+apiVersion: oh/v1
+kind: Workflow
+id: benchmark
+category: quality
+label: { fr: Benchmark, en: Benchmark }
+description:
+  fr: Mesurer les performances d'une cible (page, endpoint, package, commande) et les comparer à une référence, sans modifier le code
+  en: Measure the performance of a target (page, endpoint, package, command) and compare it with a baseline, without modifying the code
+risk: write
+entry:
+  agent: benchmarker
+inputs:
+  target:
+    type: string
+    required: true
+    label: { fr: Cible, en: Target }
+    help:
+      fr: Ce qu'il faut mesurer — URL, endpoint, package Go, script ou commande
+      en: What to measure — URL, endpoint, Go package, script or command
+    max_length: 1000
+  mode:
+    type: enum
+    values: [frontend, api, go, python]
+    label: { fr: Mode de mesure, en: Measurement mode }
+    help:
+      fr: "Vide : le benchmarker le déduit de la cible et de la stack"
+      en: "Empty: the benchmarker infers it from the target and the stack"
+  baseline:
+    type: string
+    label: { fr: Référence, en: Baseline }
+    help:
+      fr: Ref git ou chemin d'un rapport précédent à comparer (mesure avant/après) ; vide = dernier rapport de reports/benchmarks/
+      en: Git ref or path of a previous report to compare with (before/after measurement); empty = latest report in reports/benchmarks/
+    max_length: 500
+prompt:
+  template: prompts/benchmark.md.tmpl
+agents:
+  benchmarker: { role: workflow }
+checkpoints:
+  cp-target:
+    label: { fr: Valider la cible et le profil de charge, en: Approve the target and the load profile }
+    description:
+      fr: Avant toute mesure, confirmer la cible, l'environnement (jamais la production sans confirmation explicite), le profil de charge et la durée.
+      en: Before any measurement, confirm the target, the environment (never production without explicit confirmation), the load profile and the duration.
+    mandatory: true
+    mode: { manuel: pause, semi-auto: pause, auto: pause }
+  cp-recap:
+    label: { fr: Récap du benchmark, en: Benchmark recap }
+    description:
+      fr: Présenter les résultats (métriques, régressions, chemin du rapport) avant de terminer.
+      en: Present the results (metrics, regressions, report path) before finishing.
+    mode: { manuel: pause, semi-auto: auto, auto: auto }
+beads: { allow: [show, list, ready, search, query] }
+runtime: { default: local, allowed: [local] }
+outputs:
+  - { id: report, type: path, label: { fr: Rapport de benchmark, en: Benchmark report } }

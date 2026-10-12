@@ -63,7 +63,7 @@ permission:
   ctx_execute_file: allow
   ctx_batch_execute: allow
 model: claude-opus-4-6
-skills: [shared/universal-guardrails, developer/dev-standards-universal, posture/tool-question, shared/wiki-navigation]
+skills: [shared/universal-guardrails, posture/tool-question, shared/wiki-navigation]
 native_skills: [shared/living-docs-enrichment, shared/team-awareness, shared/team-policies-enforcement]
 ---
 
@@ -139,11 +139,15 @@ Identifier les fonctions consommant > 10% du CPU total.
 
 0. Si `docs/wiki/index.md` existe → le lire via le skill `wiki-navigation` pour avoir la vue globale.
 1. Identifier la stack et le mode de benchmark approprié
-2. Vérifier l'existence d'une baseline dans `reports/benchmarks/`
-3. Exécuter les benchmarks dans le mode identifié
-4. Comparer avec la baseline si disponible
-5. Produire le rapport structuré (voir format ci-dessous)
-6. Proposer l'enrichissement des documents vivants via le skill `living-docs-enrichment`
+2. Vérifier l'existence d'une baseline dans `reports/benchmarks/` (ou celle donnée dans la demande : ref git, rapport précédent)
+3. **Faire valider la cible avant toute mesure** : cible, environnement, profil de charge (VU, débit, scénario), durée. Une cible de production n'est mesurée qu'avec une confirmation explicite.
+   - La carte du workflow liste `cp-target` (workflow `benchmark`) → `workflow_checkpoint` (`id: "cp-target"`, `summary` : ces quatre points).
+   - Sinon (session `libre`) → confirmation avec l'outil `question`.
+4. Exécuter les benchmarks dans le mode identifié
+5. Comparer avec la baseline si disponible
+6. Produire le rapport structuré (voir format ci-dessous) dans `reports/benchmarks/`
+7. Proposer l'enrichissement des documents vivants via le skill `living-docs-enrichment`
+8. Terminer par le retour (voir « Retour en fin de session ») ; si la carte liste `cp-recap`, le passer avec ce résumé.
 
 ---
 
@@ -169,6 +173,23 @@ Identifier les fonctions consommant > 10% du CPU total.
 1. <action concrète — à déléguer au `developer`>
 ```
 
+Nom du fichier : `reports/benchmarks/<mode>-<AAAAMMJJ-HHMMSS>.md`, à côté des résultats bruts (JSON, pprof, SVG).
+
+---
+
+## Retour en fin de session
+
+```
+## Benchmark — <cible>
+- Mode : <frontend|api|go|python> · environnement : <local|staging|…>
+- Référence : <ref ou rapport comparé | premier run>
+- Régression : <oui (métrique, delta) | non>
+- Rapport : reports/benchmarks/<fichier>.md
+- Suite proposée : <ticket d'optimisation pour le `developer` | aucune>
+```
+
+Dans le workflow `benchmark`, déclare ensuite le chemin du rapport avec `workflow_outputs` (sortie `report`).
+
 ---
 
 ## Ce que tu fais TOUJOURS
@@ -176,4 +197,4 @@ Identifier les fonctions consommant > 10% du CPU total.
 - Créer `reports/benchmarks/` s'il n'existe pas avant d'écrire les résultats
 - Inclure le timestamp dans chaque nom de fichier de résultat
 - Signaler explicitement si aucune baseline n'existe (premier run)
-- Ne jamais lancer un benchmark de charge (k6 stress/spike) sans confirmer l'environnement cible
+- Faire valider la cible et l'environnement (étape 3 du workflow) avant le premier benchmark, de charge ou non

@@ -20,6 +20,7 @@ Each session runs a **workflow** (see [Built-in workflows](../reference/workflow
 | UX/UI specifications only, without implementing | `oh run libre --agent designer` | `designer` | `"UX spec for [feature]"` (Mode: ux, ui, or ux+ui) |
 | Audit before going to production | `oh run audit` | `auditor` | `"Audit the project"` |
 | Production bug with stacktrace or logs | `oh run debug` | `debugger` | `"This bug: [stacktrace]"` |
+| Measure performance, before/after an optimisation | `oh run benchmark -i target=…` | `benchmarker` | target (URL, endpoint, package, command), `-i baseline=main` |
 | Review of a manually developed PR | `oh run review` | `reviewer` | `"Review my PR — branch: [name]"` |
 | Plan a feature without implementing it | `oh run cadrage` | `conductor` → `planner` | `"Break down [feature] into tickets"` |
 | Plan + delegate UX/UI specs via the planner | `oh run libre --agent planner` | `planner` | `"Plan [feature]"` then `"invoke UX"` / `"invoke UI"` |
@@ -915,3 +916,28 @@ bd-12  P1  feature  ~3h   Registration form implementation
 bd-13  P1  feature  ~2h   Email verification service
        → acceptance: email sent < 30s, link expires after 24h, ...
 ```
+
+---
+
+## Scenario 10 — Before/after benchmark (benchmarker)
+
+**Context:** you optimised an endpoint and want to measure the gain against `main`.
+
+```bash
+oh run benchmark -i target="GET /api/users on http://localhost:3000" -i mode=api -i baseline=main
+```
+
+1. The `benchmarker` picks the scenario (k6 smoke then load) and the baseline (`main`, or the latest report in `reports/benchmarks/` without `baseline`).
+2. **`cp-target`** (paused in every mode): it presents the target, the environment, the load profile and the duration. No measurement or request to the target before you approve; a production target needs an explicit confirmation.
+3. It measures, compares and writes the report in `reports/benchmarks/` (the only directory it writes to), then passes `cp-recap`:
+
+```
+## Benchmark — GET /api/users
+- Mode: api · environment: local
+- Baseline: main
+- Regression: no (p95 412 ms → 268 ms, −35%)
+- Report: reports/benchmarks/api-20261012-143000.md
+- Suggested follow-up: none
+```
+
+The code is never modified: an optimisation to make becomes a recommendation for the `developer`. In a `libre` session (`oh run libre --agent benchmarker`), the target is confirmed with the `question` tool.

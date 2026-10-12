@@ -219,7 +219,7 @@ This table is the authoritative reference for which skills each agent loads. It 
 |-------|-------------------|-------------------------------|
 | **reviewer** | `developer/dev-standards-universal`, `reviewer/review-protocol`, `posture/concision-posture`, `posture/tool-question`, `reviewer/reviewer-handoff-format`, `shared/wiki-navigation` | `reviewer/reviewer-standalone`, `reviewer/reviewer-subagent`, `reviewer/reviewer-adversarial`, `reviewer/reviewer-edge-case`, `reviewer/review-merge`, `developer/dev-standards-security`, `developer/dev-standards-backend`, `developer/dev-standards-frontend`, `developer/dev-standards-frontend-data`, `developer/dev-standards-frontend-a11y`, `developer/dev-standards-testing`, `developer/dev-standards-git`, `developer/dev-standards-api`, `developer/dev-standards-devops`, `shared/rtk-usage`, `shared/living-docs-enrichment` |
 | **debugger** | `quality/debugger-workflow`, `quality/debugger-handoff-format`, `quality/debugger-forensic`, `quality/debugger-report-templates`, `posture/tool-question`, `shared/wiki-navigation` | `quality/debugger-execution-modes`, `shared/rtk-usage`, `quality/debugger-phase-0-1`, `quality/debugger-phase-2-3`, `quality/debugger-phase-4-5`, `shared/living-docs-enrichment`, `posture/expert-posture` |
-| **benchmarker** | `developer/dev-standards-universal`, `posture/tool-question`, `shared/wiki-navigation` | `shared/living-docs-enrichment` |
+| **benchmarker** | `posture/tool-question`, `shared/wiki-navigation` | `shared/living-docs-enrichment` |
 | **test-generator** | `developer/dev-standards-universal`, `developer/dev-standards-testing`, `posture/tool-question`, `shared/wiki-navigation` | `shared/living-docs-enrichment` |
 
 ### Design family
@@ -550,7 +550,7 @@ In `orchestrator_feature` mode: uses the session interruption mechanism — each
 |--|--|
 | **Label** | Benchmarker |
 | **File** | `agents/quality/benchmarker.md` |
-| **Invocation** | `"Benchmark [target]"` / `"Lighthouse audit [url]"` / `"Load test [endpoint]"` |
+| **Invocation** | Entry agent of the `benchmark` workflow (`oh run benchmark -i target=…`) or of a `libre` session — `"Benchmark [target]"` / `"Load test [endpoint]"` |
 
 Performance benchmarking specialist. Operates in four modes:
 
@@ -561,7 +561,7 @@ Performance benchmarking specialist. Operates in four modes:
 | `go` | pprof, benchstat | CPU/memory profile, flame graph analysis, benchmark comparison |
 | `python` | py-spy, memory-profiler | Sampling profile, hot functions, memory leak detection |
 
-Does not modify code (`edit: deny`); `write` is allowed for its reports. Produces structured benchmark reports with baseline comparisons and actionable recommendations.
+Does not modify code: it only writes in `reports/benchmarks/` (permission). Before any measurement, it has the target, the environment, the load profile and the duration approved (`cp-target` checkpoint of the `benchmark` workflow, `question` tool in a `libre` session). Produces structured benchmark reports with baseline comparisons (before/after measurement) and actionable recommendations for the `developer`.
 
 ---
 

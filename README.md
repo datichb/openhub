@@ -111,7 +111,7 @@ In the TUI, **Start** lists the workflows (★ pinned, recent ones), opens the l
 
 ## Workflows
 
-The 12 workflows shipped by the hub:
+The 13 workflows shipped by the hub:
 
 | Workflow | Entry agent | Use |
 |----------|-------------|-----|
@@ -124,6 +124,7 @@ The 12 workflows shipped by the hub:
 | `review-feedback` | `orchestrator-dev` | Process the feedback of a review |
 | `audit` | `auditor` | Multi-domain audit (`-i type=security`…) |
 | `debug` | `debugger` | Diagnose a bug (`-i issue="…"`) |
+| `benchmark` | `benchmarker` | Measure performance, before/after (`-i target=…`) |
 | `sweep` | `conductor` | Goal-driven series of changes (`-i goal=…`) |
 | `brief-enrich` | `brief-enricher` | Enrich a takeover brief (headless) |
 | `libre` | your choice (`--agent`) | Free session with the agent of your choice |

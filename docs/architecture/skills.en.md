@@ -221,7 +221,7 @@ The last six are in no frontmatter: other skills mention them in their text, but
 
 | Skill | Agents | Content |
 |-------|--------|---------|
-| `dev-standards-universal` | A: dev-rw, database, infra, benchmarker, reviewer, test-generator | Clean Code, SOLID, naming, structure — language-agnostic. Completion gate (tests, behavior, regressions) and `BLOCKED_ARCHITECTURE` signal |
+| `dev-standards-universal` | A: dev-rw, database, infra, reviewer, test-generator | Clean Code, SOLID, naming, structure — language-agnostic. Completion gate (tests, behavior, regressions) and `BLOCKED_ARCHITECTURE` signal |
 | `dev-standards-simplicity` | A: dev-rw | KISS, YAGNI, no premature abstraction or optimization, measurable complexity thresholds |
 | `quick-fix` | A: dev-rw | Deterministic fixes without review (lint, missing import, typo, formatting) |
 | `beads-dev` | A: dev-rw, documentarian | Beads executor workflow: `bd update --claim`, `bd close --suggest-next`, `ai-delegated` rules |
@@ -531,7 +531,7 @@ Handoff skills (`*-handoff-format`) are loaded by both the producer and the cons
 | `database` | dev-standards-universal, tool-question, wiki-navigation | dev-standards-security, living-docs-enrichment |
 | `infra` | dev-standards-universal, tool-question, wiki-navigation | dev-standards-security, living-docs-enrichment |
 | `test-generator` | dev-standards-universal, dev-standards-testing, tool-question, wiki-navigation | living-docs-enrichment |
-| `benchmarker` | dev-standards-universal, tool-question, wiki-navigation | living-docs-enrichment |
+| `benchmarker` | tool-question, wiki-navigation | living-docs-enrichment |
 | `brief-enricher` | — (`skills: []`) | — (common skills only) |
 
-`database`, `infra`, `test-generator` and `benchmarker` are in none of the 12 shipped workflows: their skills only reach a bundle if a team or project workflow declares them as members. Stack skills are added to each bundle depending on the project ([Stack skills](#stack-skills--developerstacks)).
+`database`, `infra` and `test-generator` are in none of the 13 shipped workflows: their skills only reach a bundle if a team or project workflow declares them as members. Stack skills are added to each bundle depending on the project ([Stack skills](#stack-skills--developerstacks)).

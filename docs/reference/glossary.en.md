@@ -183,7 +183,7 @@ A workflow may restrict the modes (`modes.allowed`). See [`oh/v1` schema](workfl
 
 ### Workflow
 
-The declarative description of a use case (YAML `apiVersion: oh/v1`): entry agent, agents, checkpoints, inputs, resources, environments and limits. 12 workflows shipped by the hub (`feature`, `ticket`, `quick`, `cadrage`, `onboarding`, `review`, `review-feedback`, `audit`, `debug`, `sweep`, `brief-enrich`, `libre`), extensible by the team and the project (`extends`, security may only be hardened). Launched with `oh run <workflow>`. See [Shipped workflows](workflows.en.md) and [`oh/v1` schema](workflow-schema.en.md).
+The declarative description of a use case (YAML `apiVersion: oh/v1`): entry agent, agents, checkpoints, inputs, resources, environments and limits. 13 workflows shipped by the hub (`feature`, `ticket`, `quick`, `cadrage`, `onboarding`, `review`, `review-feedback`, `audit`, `debug`, `benchmark`, `sweep`, `brief-enrich`, `libre`), extensible by the team and the project (`extends`, security may only be hardened). Launched with `oh run <workflow>`. See [Shipped workflows](workflows.en.md) and [`oh/v1` schema](workflow-schema.en.md).
 
 ### Worktree
 

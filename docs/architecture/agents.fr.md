@@ -219,7 +219,7 @@ Ce tableau est la reference faisant autorite pour les skills charges par chaque 
 |-------|-------------------|-------------------------------|
 | **reviewer** | `developer/dev-standards-universal`, `reviewer/review-protocol`, `posture/concision-posture`, `posture/tool-question`, `reviewer/reviewer-handoff-format`, `shared/wiki-navigation` | `reviewer/reviewer-standalone`, `reviewer/reviewer-subagent`, `reviewer/reviewer-adversarial`, `reviewer/reviewer-edge-case`, `reviewer/review-merge`, `developer/dev-standards-security`, `developer/dev-standards-backend`, `developer/dev-standards-frontend`, `developer/dev-standards-frontend-data`, `developer/dev-standards-frontend-a11y`, `developer/dev-standards-testing`, `developer/dev-standards-git`, `developer/dev-standards-api`, `developer/dev-standards-devops`, `shared/rtk-usage`, `shared/living-docs-enrichment` |
 | **debugger** | `quality/debugger-workflow`, `quality/debugger-handoff-format`, `quality/debugger-forensic`, `quality/debugger-report-templates`, `posture/tool-question`, `shared/wiki-navigation` | `quality/debugger-execution-modes`, `shared/rtk-usage`, `quality/debugger-phase-0-1`, `quality/debugger-phase-2-3`, `quality/debugger-phase-4-5`, `shared/living-docs-enrichment`, `posture/expert-posture` |
-| **benchmarker** | `developer/dev-standards-universal`, `posture/tool-question`, `shared/wiki-navigation` | `shared/living-docs-enrichment` |
+| **benchmarker** | `posture/tool-question`, `shared/wiki-navigation` | `shared/living-docs-enrichment` |
 | **test-generator** | `developer/dev-standards-universal`, `developer/dev-standards-testing`, `posture/tool-question`, `shared/wiki-navigation` | `shared/living-docs-enrichment` |
 
 ### Famille design
@@ -554,7 +554,7 @@ En mode `orchestrator_feature` : utilise le mécanisme d'interruption de session
 |--|--|
 | **Label** | Benchmarker |
 | **Fichier** | `agents/quality/benchmarker.md` |
-| **Invocation** | `"Benchmark [cible]"` / `"Audit Lighthouse [url]"` / `"Load test [endpoint]"` |
+| **Invocation** | Agent d'entrée du workflow `benchmark` (`oh run benchmark -i target=…`) ou d'une session `libre` — `"Benchmark [cible]"` / `"Load test [endpoint]"` |
 
 Spécialiste en benchmarking de performance. Opère en quatre modes :
 
@@ -565,7 +565,7 @@ Spécialiste en benchmarking de performance. Opère en quatre modes :
 | `go` | pprof, benchstat | Profil CPU/mémoire, analyse flame graph, comparaison de benchmarks |
 | `python` | py-spy, memory-profiler | Profil par échantillonnage, fonctions chaudes, détection de fuites mémoire |
 
-Ne modifie pas le code (`edit: deny`) ; `write` est autorisé pour ses rapports. Produit des rapports de benchmark structurés avec comparaisons de baseline et recommandations actionnables.
+Ne modifie pas le code : il n'écrit que dans `reports/benchmarks/` (permission). Avant toute mesure, il fait valider la cible, l'environnement, le profil de charge et la durée (checkpoint `cp-target` du workflow `benchmark`, outil `question` en session `libre`). Produit des rapports de benchmark structurés avec comparaisons de baseline (mesure avant/après) et recommandations actionnables pour le `developer`.
 
 ---
 
