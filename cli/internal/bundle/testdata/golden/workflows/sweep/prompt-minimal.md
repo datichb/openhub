@@ -16,5 +16,5 @@ Déroulé :
 4. Exécution, avec l'agent développeur prévu. Consigne pour chaque sous-tâche : « Pas de ticket : saute les étapes `bd`. Ne touche que les fichiers de ton périmètre : <périmètre>. Ne commite pas. » Lance en parallèle (plusieurs appels `task` dans le même message) seulement les sous-tâches parallélisables aux périmètres disjoints ; les autres, l'une après l'autre.
 5. Vérification : aucune.
 6. Review : le `reviewer` relit le diff de la session (`git diff` et fichiers non suivis), sous-tâche par sous-tâche.
-7. `cp-commit` : présente le diff, la vérification et la review. Une fois validé, fais commiter par un agent développeur : un commit, ou un par sous-tâche à la suite (`git add` du périmètre, puis `git commit`). Avant `cp-commit`, oh refuse tout `git commit`.
+7. `cp-commit` : présente le diff, le résultat de la vérification (`PASS` ou `FAIL`) et la review. Une fois validé, fais commiter par un agent développeur : un commit, ou un par sous-tâche à la suite (`git add` du périmètre, puis `git commit`). Avant `cp-commit`, oh refuse tout `git commit`.
 8. `cp-recap` : résultat par sous-tâche, vérification, review et commits.
