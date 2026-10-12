@@ -418,22 +418,20 @@ Le `task_id` n'est pas un identifiant LLM propriétaire — c'est un **ID de ses
 
 ---
 
-## Le marqueur de contexte d'invocation
+## Parcours d'exécution : standalone ou sous-agent
 
 ### Convention de chargement du parcours d'exécution
 
-Depuis l'ADR-016, l'agent orchestrator injecte deux marqueurs dans les prompts `task` vers les agents primaires :
+Le parcours (standalone ou sous-agent) n'est plus deviné depuis le prompt : oh ajoute à chaque agent du paquet une section générée **« Rôle dans cette session »**, calculée depuis le graphe du workflow (`calls:` des membres, agent d'entrée) :
 
-```
-[CONTEXTE] Invoqué depuis l'orchestrateur feature.
-[SKILL:planning/planner-subagent]
-```
+| Position dans le workflow | Rôle généré | Parcours |
+|---------------------------|-------------|----------|
+| Agent d'entrée, appelé par aucun membre | agent d'entrée, échange avec l'utilisateur | standalone (outil `question` pour les validations) |
+| Agent d'entrée qu'un membre peut aussi appeler | agent d'entrée pouvant être invoqué via `task` par les appelants listés | sous-agent si le prompt vient d'un autre agent (marqueur `[CONTEXTE]`, `[REVIEW:single]` ou reprise avec `task_id`), standalone sinon |
+| Atteint seulement via `task` | sous-agent, appelants listés ; l'utilisateur ne voit pas ses appels à `question` | sous-agent (blocs de retour intermédiaire et de question vers l'appelant, puis bloc de retour final) |
+| Ni l'un ni l'autre (ex. le `developer` de `debug`, vers lequel l'utilisateur bascule) | lancé directement par l'utilisateur | standalone |
 
-Le marqueur `[SKILL:<nom>]` indique à l'agent quel skill de parcours charger au démarrage :
-- Présent → l'agent charge le skill sous-agent (mécanisme d'interruption actif)
-- Absent → l'agent charge le skill standalone par défaut (outil `question` actif)
-
-Ce mécanisme remplace la détection du marqueur `[CONTEXTE]` directement dans les agents — la logique de bifurcation est désormais entièrement dans les skills dédiés.
+Les agents chargent leur skill de parcours d'après cette section. Les marqueurs `[SKILL:<réf>]` que certaines skills écrivent encore dans un prompt `task` (`[SKILL:reviewer/reviewer-subagent]`, `[SKILL:designer/prototype-protocol]`, `[SKILL:orchestrator/orchestrator-dev-feedback-mode]` de `review-feedback`) désignent une skill supplémentaire à charger ; ils ne décident plus du parcours.
 
 > **Skills de parcours disponibles :** certains agents ont deux skills séparées, d'autres une seule skill
 > `*-execution-modes` qui couvre les deux parcours.
@@ -453,7 +451,7 @@ Ce mécanisme remplace la détection du marqueur `[CONTEXTE]` directement dans l
 
 | Aspect | Standalone | Depuis orchestrateur |
 |--------|-----------|---------------------|
-| Skill de parcours | `-standalone` (défaut implicite) | `-subagent` (injecté via `[SKILL:...]`) |
+| Skill de parcours | `-standalone` | `-subagent` (tous deux choisis d'après « Rôle dans cette session ») |
 | Mode de workflow | Fixé au lancement (`oh run … --mode`), ligne `Mode de workflow : <mode>` du prompt initial | Transmis dans le prompt de délégation |
 | Questions CP | Posées via `question` | Bloc `## Question pour l'orchestrator` |
 | Récap global | Affiché à l'utilisateur | Transmis à l'orchestrator |
@@ -475,17 +473,16 @@ Les agents suivants implémentent le mécanisme d'interruption de session quand 
 
 ### Ré-invocation avec task_id
 
-Lors des ré-invocations avec `task_id`, l'agent orchestrator **doit toujours re-transmettre** le marqueur `[SKILL:...]` :
+Une ré-invocation avec `task_id` reprend la session enfant : le sous-agent garde son parcours (sa section « Rôle dans cette session » ne change pas, et une reprise avec `task_id` est elle-même un signal sous-agent pour un agent qui peut aussi être l'agent d'entrée).
 
 ```
 task(
   subagent_type: "planner",
   task_id: "<task_id>",
-  prompt: "Réponse Phase 1 : [option]. [CONTEXTE] Invoqué depuis l'orchestrateur feature. [SKILL:planning/planner-subagent]"
+  prompt: "Réponse Phase 1 : [option]."
 )
 ```
 
-Sans ce marqueur, l'agent rechargé démarre en mode standalone — comportement dégradé mais non cassé.
 
 ---
 

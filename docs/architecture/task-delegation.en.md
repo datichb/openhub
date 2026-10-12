@@ -416,22 +416,20 @@ The `task_id` is not a proprietary LLM identifier — it is a **standard OpenCod
 
 ---
 
-## The invocation context marker
+## Execution path: standalone or sub-agent
 
 ### Execution path loading convention
 
-Since ADR-016, the orchestrator agent injects two markers into `task` prompts sent to primary agents:
+The path (standalone or sub-agent) is no longer guessed from the prompt: oh appends to every agent of the bundle a generated **« Rôle dans cette session »** section, computed from the workflow graph (`calls:` of the members, entry agent):
 
-```
-[CONTEXT] Invoked from the feature orchestrator.
-[SKILL:planning/planner-subagent]
-```
+| Position in the workflow | Generated role | Path |
+|--------------------------|----------------|------|
+| Entry agent, called by no member | entry agent, talks to the user | standalone (`question` tool for validations) |
+| Entry agent that a member may also call | entry agent that may be invoked through `task` by the listed callers | sub-agent if the prompt comes from another agent (`[CONTEXTE]`, `[REVIEW:single]` marker or resumption with `task_id`), standalone otherwise |
+| Reached only through `task` | sub-agent, callers listed; the user does not see its `question` calls | sub-agent (intermediate return and question blocks to the caller, then final return block) |
+| Neither (e.g. `developer` in `debug`, which the user switches to) | launched directly by the user | standalone |
 
-The `[SKILL:<name>]` marker tells the agent which path skill to load at startup:
-- Present → the agent loads the sub-agent skill (interruption mechanism active)
-- Absent → the agent loads the default standalone skill (`question` tool active)
-
-This mechanism replaces detection of the `[CONTEXT]` marker directly within agents — the branching logic is now entirely within dedicated skills.
+The agents load their path skill from this section. The `[SKILL:<ref>]` markers that some skills still write in a `task` prompt (`[SKILL:reviewer/reviewer-subagent]`, `[SKILL:designer/prototype-protocol]`, `[SKILL:orchestrator/orchestrator-dev-feedback-mode]` of `review-feedback`) name an extra skill to load; they no longer decide the path.
 
 > **Available path skills:** some agents have two separate skills, others a single `*-execution-modes` skill
 > covering both paths.
@@ -451,7 +449,7 @@ This mechanism replaces detection of the `[CONTEXT]` marker directly within agen
 
 | Aspect | Standalone | From orchestrator |
 |--------|-----------|-------------------|
-| Path skill | `-standalone` (implicit default) | `-subagent` (injected via `[SKILL:...]`) |
+| Path skill | `-standalone` | `-subagent` (both chosen from « Rôle dans cette session ») |
 | Workflow mode | Set at launch (`oh run … --mode`), `Mode de workflow : <mode>` line of the initial prompt | Passed in the delegation prompt |
 | CP questions | Asked via `question` | `## Question for the orchestrator` block |
 | Global recap | Displayed to the user | Transmitted to the orchestrator |
@@ -473,17 +471,16 @@ The following agents implement the session interruption mechanism when the sub-a
 
 ### Re-invocation with task_id
 
-On re-invocations with `task_id`, the orchestrator agent **must always re-transmit** the `[SKILL:...]` marker:
+A re-invocation with `task_id` resumes the child session: the sub-agent keeps its path (its « Rôle dans cette session » section does not change, and a resumption with `task_id` is itself a sub-agent signal for an agent that may also be the entry agent).
 
 ```
 task(
   subagent_type: "planner",
   task_id: "<task_id>",
-  prompt: "Phase 1 response: [option]. [CONTEXT] Invoked from the feature orchestrator. [SKILL:planning/planner-subagent]"
+  prompt: "Phase 1 response: [option]."
 )
 ```
 
-Without this marker, the reloaded agent starts in standalone mode — degraded but not broken behavior.
 
 ---
 

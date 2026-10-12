@@ -25,6 +25,7 @@ In v5, the agent no longer decides the chain: the session **workflow** does
   oh keeps the state and raises the decisions ([ADR-042](./adr/042-checkpoints-headless-decisions.en.md)).
 - **Entry agent**: the workflow `entry.agent`, or `conductor` by default (`cadrage`, `sweep` workflows).
   The `libre` workflow lets you pick the entry agent (`oh run libre --agent <id>`).
+- **Role in the session**: oh appends to every agent a generated « Rôle dans cette session » section, computed from this graph: entry agent (standalone path, `question` tool), sub-agent invoked through `task` by the listed callers (sub-agent path), or both (decided from the invocation prompt). The agents choose their path skill from it — see [Execution path](./task-delegation.en.md#execution-path-standalone-or-sub-agent).
 - **Closed world**: an agent only sees the agents and skills of the **session bundle** built from the
   workflow ([ADR-043](./adr/043-session-bundle-deploy-removal.en.md)). OpenCode's native agents are
   disabled, and the `Attest` check blocks startup if anything else is visible

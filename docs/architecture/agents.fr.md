@@ -25,6 +25,7 @@ En v5, ce n'est plus l'agent qui décide de l'enchaînement : c'est le **workflo
   oh tient l'état et pose les décisions ([ADR-042](./adr/042-checkpoints-headless-decisions.fr.md)).
 - **Agent d'entrée** : celui de `entry.agent` du workflow, ou `conductor` par défaut (workflows `cadrage`, `sweep`).
   Le workflow `libre` laisse choisir l'agent d'entrée (`oh run libre --agent <id>`).
+- **Rôle dans la session** : oh ajoute à chaque agent une section générée « Rôle dans cette session », calculée depuis ce graphe : agent d'entrée (parcours standalone, outil `question`), sous-agent invoqué via `task` par les appelants listés (parcours sous-agent), ou les deux (décidé d'après le prompt d'invocation). Les agents y choisissent leur skill de parcours — voir [Parcours d'exécution](./task-delegation.fr.md#parcours-dexécution--standalone-ou-sous-agent).
 - **Monde fermé** : un agent ne voit que les agents et les skills du **paquet de session** construit depuis le
   workflow ([ADR-043](./adr/043-session-bundle-deploy-removal.fr.md)). Les agents natifs d'opencode sont
   désactivés, et la vérification `Attest` bloque le démarrage si quelque chose d'autre est visible
