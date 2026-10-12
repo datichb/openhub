@@ -5,6 +5,8 @@ description: Standards GitHub Actions — structure des workflows, permissions, 
 
 # Skill — Standards GitHub Actions
 
+> Versions de référence (octobre 2026) : actions/checkout v7, actions/setup-node v7, aws-actions/configure-aws-credentials v6, Node.js 24 LTS.
+
 ## Rôle
 
 Ce skill définit les bonnes pratiques pour les pipelines CI/CD avec GitHub Actions.
@@ -62,7 +64,7 @@ permissions:
 
 ## Actions épinglées
 
-- Actions officielles GitHub : `@v4` acceptable (maintenues activement)
+- Actions officielles GitHub : tag de version majeure acceptable (`actions/checkout@v7`, `actions/setup-node@v7`) — maintenues activement
 - Actions tierces : épingler au **SHA de commit** — jamais `@main` ni `@latest`
 
 ```yaml
@@ -99,10 +101,10 @@ jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
-          node-version: "20"
+          node-version: "24"
           cache: "npm"
       - run: npm ci
       - run: npm run lint
@@ -111,10 +113,10 @@ jobs:
     runs-on: ubuntu-latest
     needs: lint
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
-          node-version: "20"
+          node-version: "24"
           cache: "npm"
       - run: npm ci
       - run: npm test -- --coverage
@@ -131,7 +133,7 @@ jobs:
 
 ```yaml
 # ✅ Authentification AWS sans secret statique (OIDC)
-- uses: aws-actions/configure-aws-credentials@v4
+- uses: aws-actions/configure-aws-credentials@v6
   with:
     role-to-assume: arn:aws:iam::123456789:role/github-actions
     aws-region: eu-west-1
