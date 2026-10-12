@@ -5,6 +5,8 @@ description: Standards pandas — vectorisation, validation de schéma, bonnes p
 
 # Skill — Standards pandas
 
+> Versions de référence (octobre 2026) : pandas 3.0 (Python ≥ 3.11), pandera 0.34.
+
 ## Rôle
 
 Ce skill définit les bonnes pratiques pour le traitement de données avec pandas.
@@ -27,7 +29,8 @@ pour de la transformation, de l'analyse ou du preprocessing ML.
 - Toujours vérifier le schéma à l'entrée (dtypes, colonnes attendues) avant de transformer
 - Préférer les opérations vectorisées aux boucles `for` sur les DataFrames
 - Éviter `iterrows()` et `itertuples()` sur les grands datasets — utiliser `apply()` avec parcimonie ou la vectorisation native
-- Copier explicitement quand nécessaire (`df.copy()`) pour éviter les `SettingWithCopyWarning`
+- Copy-on-Write (défaut depuis pandas 3) : chaque sous-ensemble ou résultat de méthode se comporte comme une copie — plus de `SettingWithCopyWarning`, plus de `.copy()` défensifs ; modifier un objet uniquement directement (`df.loc[mask, "col"] = …`), jamais par affectation chaînée (`df[mask]["col"] = …` n'a aucun effet)
+- Les colonnes texte sont inférées avec le dtype dédié `str` (pandas 3) — ne plus tester `dtype == object` pour détecter du texte
 - Nommer les étapes de transformation de façon explicite — pas de chaînes de `.pipe()` sans commentaire
 
 ```python
@@ -50,9 +53,7 @@ def renommer_colonnes(df: pd.DataFrame) -> pd.DataFrame:
     return df.rename(columns={"montant": "montant_ht", "taux": "taux_tva"})
 
 def calculer_ttc(df: pd.DataFrame) -> pd.DataFrame:
-    df = df.copy()
-    df["prix_ttc"] = df["montant_ht"] * (1 + df["taux_tva"])
-    return df
+    return df.assign(prix_ttc=df["montant_ht"] * (1 + df["taux_tva"]))
 
 def filtrer_valides(df: pd.DataFrame) -> pd.DataFrame:
     return df[df["statut"] == "valide"]
@@ -88,9 +89,7 @@ schema = pa.DataFrameSchema(
 
 @pa.check_input(schema)
 def calculer_ttc(df: pd.DataFrame) -> pd.DataFrame:
-    df = df.copy()
-    df["prix_ttc"] = df["prix_ht"] * (1 + df["taux_tva"])
-    return df
+    return df.assign(prix_ttc=df["prix_ht"] * (1 + df["taux_tva"]))
 ```
 
 ---
@@ -156,6 +155,6 @@ def test_calcul_prix_ttc_dataframe_vide():
 
 - Modifier les données sources brutes — travailler sur des copies
 - Utiliser `iterrows()` sur des DataFrames volumineux
-- Ignorer les `SettingWithCopyWarning` — les corriger avec `.copy()`
+- Utiliser l'affectation chaînée (`df[mask]["col"] = …`) — sans effet sous Copy-on-Write
 - Laisser passer des données invalides sans validation explicite
 - Utiliser des données personnelles réelles dans les tests

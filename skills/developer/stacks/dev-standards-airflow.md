@@ -5,6 +5,8 @@ description: Standards Apache Airflow — DAGs, TaskFlow API, idempotence, secre
 
 # Skill — Standards Apache Airflow
 
+> Versions de référence (octobre 2026) : Apache Airflow 3.3 (Task SDK `airflow.sdk`).
+
 ## Rôle
 
 Ce skill définit les bonnes pratiques pour l'orchestration de pipelines avec Apache Airflow.
@@ -31,8 +33,8 @@ Il complète `dev-standards-python.md`.
 - Les secrets sont injectés via Airflow Variables ou Connections — jamais en dur
 
 ```python
-from airflow.decorators import dag, task
-from datetime import datetime
+from airflow.sdk import dag, task  # Airflow 3 — remplace airflow.decorators
+from datetime import datetime, timedelta
 import logging
 
 logger = logging.getLogger(__name__)
@@ -92,10 +94,10 @@ Chaque tâche doit pouvoir être re-exécutée sans produire de doublons ou d'é
 - Les credentials (DB, API keys, tokens) sont dans les **Airflow Connections**
 - Les paramètres de configuration (URLs, buckets, noms de tables) sont dans les **Airflow Variables**
 - Ne jamais stocker de secrets dans les variables d'environnement du DAG
-- Utiliser `BaseHook.get_connection(conn_id)` pour accéder aux connexions
+- Utiliser `BaseHook.get_connection(conn_id)` (importé depuis `airflow.sdk`) pour accéder aux connexions
 
 ```python
-from airflow.hooks.base import BaseHook
+from airflow.sdk import BaseHook
 
 @task()
 def extraire_depuis_api() -> list[dict]:
@@ -114,7 +116,7 @@ def extraire_depuis_api() -> list[dict]:
 - Les erreurs métier (données invalides) → lever une exception explicite sans retry
 
 ```python
-from airflow.operators.python import get_current_context
+from airflow.sdk import get_current_context
 
 @task(retries=3, retry_delay=timedelta(minutes=2))
 def appeler_api_externe() -> list[dict]:
@@ -149,7 +151,7 @@ tests/
 ### Test de structure du DAG
 
 ```python
-from airflow.models import DagBag
+from airflow.dag_processing.dagbag import DagBag  # chemin documenté en Airflow 3
 
 def test_dag_chargement_sans_erreur():
     """Le DAG doit se charger sans erreur d'import."""
