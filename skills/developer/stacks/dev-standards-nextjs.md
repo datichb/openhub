@@ -5,6 +5,8 @@ description: Standards Next.js — App Router, Server Components, Server Actions
 
 # Skill — Standards Next.js
 
+> Versions de référence (octobre 2026) : Next.js 16.4, React 19, Zod 4.
+
 ## Rôle
 
 Ce skill définit les bonnes pratiques pour le développement avec Next.js (App Router).
@@ -99,37 +101,46 @@ export function EditButton({ userId }: EditButtonProps) {
 | **ISR** | Données semi-statiques avec revalidation périodique |
 | **CSR** | Dashboards interactifs, données personnelles post-auth |
 
-```tsx
-// ✅ ISR — revalidation toutes les heures
-export const revalidate = 3600
+- `params` et `searchParams` sont des **Promise** (depuis Next 15) — toujours `await` (ou `use()` côté client)
 
-async function BlogPost({ params }: { params: { slug: string } }) {
-  const post = await fetchPost(params.slug)
+```tsx
+// ✅ params asynchrone
+export default async function BlogPost({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params
+  const post = await fetchPost(slug)
   return <Article post={post} />
 }
-
-// ✅ Forcer le rendu dynamique
-export const dynamic = 'force-dynamic'
 ```
 
 ---
 
-## Fetch et gestion du cache
+## Fetch et gestion du cache (Cache Components)
 
-- Utiliser le `fetch` étendu de Next.js avec les options de cache dans les Server Components
-- `cache: 'no-store'` pour les données dynamiques par requête
-- `next: { revalidate: N }` pour l'ISR
+- Depuis Next 15, `fetch` n'est plus mis en cache par défaut — inutile d'ajouter `cache: 'no-store'`
+- Next 16 : activer `cacheComponents: true` (défaut des nouveaux projets `create-next-app`) — tout est dynamique par défaut, on choisit explicitement ce qui est mis en cache
+- Mettre en cache avec la directive `'use cache'` (fonction, composant ou page), toujours accompagnée d'un `cacheLife`
+- Envelopper les lectures non cachées (données par requête, `cookies()`, `headers()`) dans un `<Suspense>`
+- Avec Cache Components, les route segment configs `revalidate` / `dynamic` ne s'utilisent plus
 
 ```tsx
-// ✅ Fetch avec stratégie de cache explicite
-const data = await fetch('https://api.exemple.com/products', {
-  next: { revalidate: 3600 },  // ISR — revalide toutes les heures
-})
+// ✅ Donnée mise en cache explicitement
+import { cacheLife, cacheTag } from 'next/cache'
 
-// ✅ Fetch dynamique
-const data = await fetch('https://api.exemple.com/cart', {
-  cache: 'no-store',
-})
+export async function getProducts() {
+  'use cache'
+  cacheLife('hours')
+  cacheTag('products')
+  return db.product.findMany()
+}
+
+// ✅ Donnée par requête — streamée dans un Suspense
+export default function Page() {
+  return (
+    <Suspense fallback={<CartSkeleton />}>
+      <Cart />
+    </Suspense>
+  )
+}
 ```
 
 ---
@@ -147,7 +158,7 @@ import { z } from 'zod'
 
 const schema = z.object({
   name: z.string().min(1).max(100),
-  email: z.string().email(),
+  email: z.email(),
 })
 
 export async function updateUser(formData: FormData) {
@@ -157,7 +168,7 @@ export async function updateUser(formData: FormData) {
   })
 
   if (!parsed.success) {
-    return { error: parsed.error.flatten() }
+    return { error: z.flattenError(parsed.error) }
   }
 
   await db.user.update({ where: { id: userId }, data: parsed.data })
@@ -178,7 +189,8 @@ export const metadata: Metadata = {
 
 // ✅ Métadonnées dynamiques
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const product = await fetchProduct(params.id)
+  const { id } = await params
+  const product = await fetchProduct(id)
   return { title: product.name, description: product.description }
 }
 ```
@@ -194,6 +206,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 | Composants partagés | `components/` à la racine ou dans `_components/` dans le segment |
 | Server Actions | `actions/` ou `_actions.ts` co-localisé |
 | Route Handlers | `route.ts` dans `app/api/` |
+| Proxy (ex-middleware) | `proxy.ts` à la racine, fonction `proxy()` — `middleware.ts` est déprécié depuis Next 16 |
 | Variables d'env publiques | Préfixe `NEXT_PUBLIC_` |
 | Variables d'env privées | Sans préfixe — côté serveur uniquement |
 
