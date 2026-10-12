@@ -5,6 +5,8 @@ description: Bonnes pratiques Vue.js — Composition API, typage, templates, com
 
 # Skill — Standards Vue.js
 
+> Versions de référence (octobre 2026) : Vue 3.5, Pinia 4.
+
 ## Rôle
 Ce skill définit les bonnes pratiques spécifiques à Vue.js.
 Il complète `dev-standards-universal.md` et `dev-standards-frontend.md`.
@@ -30,10 +32,24 @@ Tu proposes, l'utilisateur décide.
 
 ## Typage Vue.js
 
-- Props typées avec `defineProps<T>()`
+- Props typées avec `defineProps<T>()` — valeurs par défaut via la déstructuration réactive (Vue 3.5+) : `const { size = 'md' } = defineProps<Props>()` (plus besoin de `withDefaults`)
 - Emits typés avec `defineEmits<{ eventName: [payload: Type] }>()`
+- `v-model` de composant avec `defineModel<T>()` — pas de couple prop `modelValue` + emit `update:modelValue` écrit à la main
+- Refs de template avec `useTemplateRef<T>('nom')` (Vue 3.5+)
 - `ref` et `reactive` typés explicitement si l'inférence est ambiguë
 - `computed` typé en retour si complexe
+
+```vue
+<script setup lang="ts">
+const { label, size = 'md' } = defineProps<{ label: string; size?: 'sm' | 'md' }>()
+const model = defineModel<string>({ required: true })
+const input = useTemplateRef<HTMLInputElement>('input')
+</script>
+
+<template>
+  <input ref="input" v-model="model" :aria-label="label" :class="size" />
+</template>
+```
 
 ---
 
@@ -90,7 +106,7 @@ Les règles générales d'accessibilité sont définies dans `skills/developer/d
 Cette section couvre les spécificités Vue.js.
 
 - Composants UI tiers vérifiés pour la conformité accessibilité avant adoption
-  (Headless UI, Radix Vue, ou équivalents accessibles privilégiés)
+  (Headless UI, Reka UI — ex-Radix Vue —, ou équivalents accessibles privilégiés)
 - `v-show` vs `v-if` : `v-show` masque visuellement mais l'élément reste dans le DOM
   et peut être lu par certains lecteurs d'écran — utiliser `aria-hidden` si nécessaire
 - `<Transition>` : respecter `prefers-reduced-motion` via media query CSS

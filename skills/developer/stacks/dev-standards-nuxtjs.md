@@ -5,9 +5,11 @@ description: Standards Nuxt.js — auto-imports, composables, useFetch/useAsyncD
 
 # Skill — Standards Nuxt.js
 
+> Versions de référence (octobre 2026) : Nuxt 4.6 (Nuxt 3 en fin de vie depuis juillet 2026).
+
 ## Rôle
 
-Ce skill définit les bonnes pratiques pour le développement avec Nuxt.js (v3+).
+Ce skill définit les bonnes pratiques pour le développement avec Nuxt.js (v4).
 Il complète `dev-standards-vuejs.md`, `dev-standards-typescript.md` et
 `dev-standards-frontend.md`.
 
@@ -24,7 +26,7 @@ Il complète `dev-standards-vuejs.md`, `dev-standards-typescript.md` et
 ## Structure du projet
 
 ```
-app/                        ← code applicatif (ou src/ selon config)
+app/                        ← code applicatif (srcDir par défaut depuis Nuxt 4)
 ├── components/             ← composants auto-importés (PascalCase)
 ├── composables/            ← composables auto-importés (useXxx)
 ├── layouts/                ← layouts auto-importés
@@ -84,8 +86,8 @@ const { data: user } = await useAsyncData('current-user', () =>
 
 - `useFetch` pour les appels HTTP vers les routes Nitro ou des APIs externes
 - `useAsyncData` pour les sources de données non-HTTP
-- Toujours définir une `key` unique pour éviter les conflits de cache
-- Gérer explicitement `status` (`pending`, `success`, `error`) dans le template
+- Clé explicite pour `useAsyncData` (sinon générée à partir du fichier et de la ligne) et dès qu'une donnée est partagée entre composants — `useFetch` génère sa clé depuis l'URL
+- Gérer explicitement `status` (`idle`, `pending`, `success`, `error`) dans le template
 
 ### Serveur uniquement — server/api/
 
@@ -198,5 +200,5 @@ export default defineNuxtConfig({
 - Exposer des secrets dans `runtimeConfig.public` ou les variables `NUXT_PUBLIC_`
 - Appeler la base de données depuis un composable côté client
 - Utiliser `ref` global (hors `useState`) pour l'état partagé en SSR — risque de pollution entre requêtes
-- Omettre la `key` dans `useFetch`/`useAsyncData`
+- Omettre la `key` de `useAsyncData` quand la donnée est partagée
 - Ignorer la gestion des états `pending` et `error` dans le template
