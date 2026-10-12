@@ -32,3 +32,8 @@ locked feature/planner: bd create -t epic
 locked feature/planner: bd duplicate
 locked feature/planner: bd duplicate x --of x
 locked feature/planner: bd supersede
+locked infra-change/operator: helm upgrade
+locked infra-change/operator: helm upgrade x x -f x
+locked infra-change/operator: kubectl apply
+locked infra-change/operator: kubectl apply -f x
+locked infra-change/operator: terraform apply
