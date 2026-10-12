@@ -396,26 +396,52 @@ Ces skills sont livrées **à la demande** (comme le Bucket B). Au lancement, `R
 
 ### Détection automatique
 
-La détection lit quelques fichiers à la racine du projet. Un seul langage est retenu, dans cet ordre : `go.mod`, `package.json`, `pyproject.toml`/`setup.py`, `Cargo.toml`, `build.gradle(.kts)`, `pom.xml`.
+`DetectSignals()` (`cli/internal/bricks/stack_signals.go`) parcourt le projet une seule fois : dossiers jusqu'à 4 niveaux de profondeur, 20 000 entrées au plus, sans entrer dans les dépendances, builds et outillage (`node_modules`, `vendor`, `.git`, `dist`, `build`, `target`, `.venv`, `docs`…). Les monorepos sont suivis : le parcours trouve les manifestes imbriqués (`apps/web/package.json`, `services/api/go.mod`…), et les dossiers de workspace déclarés par `package.json` (`workspaces`), `pnpm-workspace.yaml` ou `go.work` sont lus même au-delà de cette profondeur. Les dépendances sont comparées par **nom exact** : `dependencies` et `devDependencies` de chaque `package.json` ; dépendances Python de `pyproject.toml` (`[project]`, dépendances optionnelles, `[dependency-groups]`, `[tool.poetry.*dependencies]`), `requirements*.txt` et `Pipfile` (noms normalisés, versions ignorées) ; gems du `Gemfile` ; `require` de `composer.json`. Chaque stack trouvée ajoute ses skills : un projet peut recevoir plusieurs langages et frameworks (`eslint-config-next`, `@testing-library/jest-dom` ou `prettier-plugin-svelte` seuls n'ajoutent rien).
 
 | Signal détecté | Skills ajoutées |
 |----------------|-----------------|
-| `go.mod` | `dev-standards-golang` |
-| `package.json` | `dev-standards-typescript` |
-| `pyproject.toml` ou `setup.py` | `dev-standards-python` |
+| `tsconfig*.json`, ou dépendance `typescript` | `dev-standards-typescript` |
+| `pyproject.toml`, `requirements*.txt` (ou `requirements/*.txt`), `setup.py`, `Pipfile` | `dev-standards-python` |
+| `go.mod` ou `go.work` | `dev-standards-golang` |
 | `Cargo.toml` | `dev-standards-rust` |
-| `build.gradle(.kts)` ou `pom.xml` | `dev-standards-kotlin` |
-| `next` dans `package.json` | `dev-standards-nextjs`, `dev-standards-react` |
-| `nuxt` dans `package.json` | `dev-standards-nuxtjs`, `dev-standards-vuejs` |
-| `"react"` dans `package.json` | `dev-standards-react` |
-| `"vue"` dans `package.json` | `dev-standards-vuejs` |
-| `"express"` dans `package.json` | `dev-standards-express` |
-| `vitest` / `jest` dans `package.json` | `dev-standards-vitest` / `dev-standards-jest` |
-| `Dockerfile` ou `docker-compose.y(a)ml` | `dev-standards-docker` |
-| `.github/workflows/` | `dev-standards-github-actions` |
+| npm `vue` | `dev-standards-vuejs` |
+| npm `react` (pas dans une app React Native sans `react-dom`) | `dev-standards-react` |
+| npm `next`, ou `next.config.*` | `dev-standards-nextjs`, `dev-standards-react` |
+| npm `nuxt`, ou `nuxt.config.*` | `dev-standards-nuxtjs`, `dev-standards-vuejs` |
+| `angular.json`, ou npm `@angular/core` | `dev-standards-angular` |
+| npm `express` | `dev-standards-express` |
+| npm `@nestjs/core`, ou `nest-cli.json` | `dev-standards-nestjs` |
+| Python `django`, ou `manage.py` | `dev-standards-django` |
+| Python `fastapi` | `dev-standards-fastapi` |
+| Composer `laravel/framework`, ou `artisan` | `dev-standards-laravel` |
+| gem `rails`, ou `config/application.rb` | `dev-standards-rails` |
+| `pom.xml` / `build.gradle(.kts)` citant `spring-boot` ou `org.springframework.boot` | `dev-standards-springboot` |
+| Build Gradle ou catalogue de versions avec `com.android.application`, `com.android.library`, `kotlin("android")` ; ou `AndroidManifest.xml` | `dev-standards-kotlin` (Android) |
+| `schema.prisma`, `prisma.config.ts`, ou npm `prisma` / `@prisma/client` | `dev-standards-prisma` |
+| npm `typeorm` | `dev-standards-typeorm` |
+| Python `sqlalchemy` | `dev-standards-sqlalchemy` |
+| npm `mongoose` ou `mongodb` | `dev-standards-mongodb` |
+| `openapi.y(a)ml`, `swagger.y(a)ml`, `*.openapi.y(a)ml` (ou `.json`) | `dev-standards-openapi` |
+| npm `vitest` | `dev-standards-vitest` |
+| npm `jest` | `dev-standards-jest` |
+| `playwright.config.*`, ou npm `@playwright/test` | `dev-standards-playwright` |
+| `cypress.config.*`, ou npm `cypress` | `dev-standards-cypress` |
+| npm `react-native` ou `expo` | `dev-standards-react-native` |
+| `pubspec.yaml` avec une clé `flutter:` | `dev-standards-flutter` |
+| `Package.swift` ou `*.xcodeproj` | `dev-standards-swift` |
+| Python `pandas` | `dev-standards-pandas` |
+| `dbt_project.yml` | `dev-standards-dbt` |
+| Python `apache-airflow`, ou un `dags/*.py` qui importe `airflow` | `dev-standards-airflow` |
+| Python `pyspark` | `dev-standards-pyspark` |
+| `Dockerfile*`, `*.dockerfile`, `Containerfile`, `compose*.y(a)ml`, `docker-compose*.y(a)ml` | `dev-standards-docker` |
+| `.github/workflows/*.y(a)ml` | `dev-standards-github-actions` |
 | `.gitlab-ci.yml` | `dev-standards-gitlab-ci` |
+| `*.tf` ou `*.tofu` | `dev-standards-terraform` |
+| `kustomization.y(a)ml`, ou un YAML avec `apiVersion` et `kind: Deployment`/`Service`/… dans `k8s/`, `kubernetes/`, `deploy(ment(s))/`, `manifests/`, `argocd/`, `gitops/` | `dev-standards-kubernetes` |
+| `Chart.yaml` | `dev-standards-helm` |
+| Un YAML avec `apiVersion: argoproj.io/…` dans les mêmes dossiers | `dev-standards-argocd` |
 
-Les autres skills de stack ne sont pas détectées : pour les livrer, un workflow (d'équipe ou de projet) les ajoute par `skills.extra`. `oh bundle show <workflow> -p <projet>` affiche celles qui sont retenues.
+Les autres signaux (Java, Ruby, PHP, Dart, Svelte, Fastify, Flask, gestionnaires de paquets, `Makefile`…) n'ajoutent pas de skill ; ils sont gardés pour le contexte projet (`prompt.DetectStack` : langage principal = le premier trouvé à la racine, dans l'ordre Go, TypeScript, JavaScript, Python, Ruby, Rust, Kotlin (Android), Java, PHP, Dart, Swift ; sinon le premier trouvé ailleurs). Les skills de domaine frontend (`dev-standards-frontend*`) ne sont gardées que dans un projet qui a un frontend web : une app React Native seule n'en est pas un. Une stack que la détection manque s'ajoute par un workflow (d'équipe ou de projet) avec `skills.extra`. `oh bundle show <workflow> -p <projet>` affiche celles qui sont retenues.
 
 ### Catalogue des 40 skills de stack
 
@@ -429,38 +455,38 @@ Les autres skills de stack ne sont pas détectées : pour les livrer, un workflo
 | Frontend | `dev-standards-react` | Oui | Hooks, TanStack Query, memo/useCallback, RTL |
 | Frontend | `dev-standards-nextjs` | Oui | App Router, Server/Client Components, ISR, Server Actions |
 | Frontend | `dev-standards-nuxtjs` | Oui | Auto-imports, useFetch, routes Nitro, routeRules |
-| Frontend | `dev-standards-angular` | Non | Standalone components, Signals, inject(), RxJS, Reactive Forms |
+| Frontend | `dev-standards-angular` | Oui | Standalone components, Signals, inject(), RxJS, Reactive Forms |
 | Backend | `dev-standards-express` | Oui | Routage par domaine, middleware zod, AppError, helmet/cors |
-| Backend | `dev-standards-nestjs` | Non | Modules, DTOs + class-validator, guards, ConfigService |
-| Backend | `dev-standards-django` | Non | BaseModel UUID, serializers, services, migrations |
-| Backend | `dev-standards-fastapi` | Non | pydantic-settings, Pydantic v2, services async, tests httpx |
-| Backend | `dev-standards-laravel` | Non | Eloquent, FormRequest, API Resources, queues/jobs |
-| Backend | `dev-standards-rails` | Non | MVC, service objects, query objects, RSpec |
-| Backend | `dev-standards-springboot` | Non | JPA, record DTOs + @Valid, @Transactional, ProblemDetail |
-| ORM / BDD | `dev-standards-prisma` | Non | Schema, client singleton, select explicite, transactions |
-| ORM / BDD | `dev-standards-typeorm` | Non | Entités, repository custom, QueryBuilder paramétré |
-| ORM / BDD | `dev-standards-sqlalchemy` | Non | Mapped v2, sessions async, Alembic |
-| ORM / BDD | `dev-standards-mongodb` | Non | Schemas Mongoose, lean(), index, agrégations |
-| Spec API | `dev-standards-openapi` | Non | `$ref`, schemas réutilisables, writeOnly, sécurité JWT, codegen |
+| Backend | `dev-standards-nestjs` | Oui | Modules, DTOs + class-validator, guards, ConfigService |
+| Backend | `dev-standards-django` | Oui | BaseModel UUID, serializers, services, migrations |
+| Backend | `dev-standards-fastapi` | Oui | pydantic-settings, Pydantic v2, services async, tests httpx |
+| Backend | `dev-standards-laravel` | Oui | Eloquent, FormRequest, API Resources, queues/jobs |
+| Backend | `dev-standards-rails` | Oui | MVC, service objects, query objects, RSpec |
+| Backend | `dev-standards-springboot` | Oui | JPA, record DTOs + @Valid, @Transactional, ProblemDetail |
+| ORM / BDD | `dev-standards-prisma` | Oui | Schema, client singleton, select explicite, transactions |
+| ORM / BDD | `dev-standards-typeorm` | Oui | Entités, repository custom, QueryBuilder paramétré |
+| ORM / BDD | `dev-standards-sqlalchemy` | Oui | Mapped v2, sessions async, Alembic |
+| ORM / BDD | `dev-standards-mongodb` | Oui | Schemas Mongoose, lean(), index, agrégations |
+| Spec API | `dev-standards-openapi` | Oui | `$ref`, schemas réutilisables, writeOnly, sécurité JWT, codegen |
 | Tests | `dev-standards-vitest` | Oui | vi.mock, vi.fn, vi.spyOn, fake timers, Vue Test Utils |
 | Tests | `dev-standards-jest` | Oui | jest.mock, jest.fn, RTL, snapshots |
-| Tests | `dev-standards-playwright` | Non | Locators sémantiques, POM, fixtures de session |
-| Tests | `dev-standards-cypress` | Non | data-cy, cy.intercept, commandes custom, cy.session |
-| Mobile | `dev-standards-react-native` | Non | Expo, React Navigation, Zustand/RTK, Detox |
-| Mobile | `dev-standards-flutter` | Non | BLoC/Riverpod, freezed, flutter_test |
-| Mobile | `dev-standards-swift` | Non | SwiftUI, MVVM, Swift Concurrency, XCTest |
-| Mobile | `dev-standards-kotlin` | Oui (Gradle/Maven) | Jetpack Compose, MVVM+Clean, Hilt, Coroutines+Flow |
-| Data / ML | `dev-standards-pandas` | Non | Vectorisation, pandera, `.pipe()` |
-| Data / ML | `dev-standards-dbt` | Non | Couches staging/intermediate/mart, schema.yml, tests |
-| Data / ML | `dev-standards-airflow` | Non | TaskFlow API, idempotence, Connections/Variables |
-| Data / ML | `dev-standards-pyspark` | Non | DataFrame API, broadcast join, partitionnement, MLflow |
+| Tests | `dev-standards-playwright` | Oui | Locators sémantiques, POM, fixtures de session |
+| Tests | `dev-standards-cypress` | Oui | data-cy, cy.intercept, commandes custom, cy.session |
+| Mobile | `dev-standards-react-native` | Oui | Expo, React Navigation, Zustand/RTK, Detox |
+| Mobile | `dev-standards-flutter` | Oui | BLoC/Riverpod, freezed, flutter_test |
+| Mobile | `dev-standards-swift` | Oui | SwiftUI, MVVM, Swift Concurrency, XCTest |
+| Mobile | `dev-standards-kotlin` | Oui (Android) | Jetpack Compose, MVVM+Clean, Hilt, Coroutines+Flow |
+| Data / ML | `dev-standards-pandas` | Oui | Vectorisation, pandera, `.pipe()` |
+| Data / ML | `dev-standards-dbt` | Oui | Couches staging/intermediate/mart, schema.yml, tests |
+| Data / ML | `dev-standards-airflow` | Oui | TaskFlow API, idempotence, Connections/Variables |
+| Data / ML | `dev-standards-pyspark` | Oui | DataFrame API, broadcast join, partitionnement, MLflow |
 | DevOps / CI | `dev-standards-docker` | Oui | Multi-stage, non-root, .dockerignore, healthchecks, secrets BuildKit |
 | DevOps / CI | `dev-standards-github-actions` | Oui | Permissions minimales, concurrency, SHA pinning, OIDC |
 | DevOps / CI | `dev-standards-gitlab-ci` | Oui | `rules`, templates YAML, variables masquées, `when: manual` en prod |
-| Plateforme | `dev-standards-terraform` | Non | Modules, variables + validation, state distant, plan → PR → apply |
-| Plateforme | `dev-standards-kubernetes` | Non | Deployment, RBAC, NetworkPolicy, ResourceQuota, PDB, Kustomize |
-| Plateforme | `dev-standards-helm` | Non | Structure de chart, values sans secrets, helm diff + --atomic |
-| Plateforme | `dev-standards-argocd` | Non | GitOps, sync policies par env, ESO, Vault |
+| Plateforme | `dev-standards-terraform` | Oui | Modules, variables + validation, state distant, plan → PR → apply |
+| Plateforme | `dev-standards-kubernetes` | Oui | Deployment, RBAC, NetworkPolicy, ResourceQuota, PDB, Kustomize |
+| Plateforme | `dev-standards-helm` | Oui | Structure de chart, values sans secrets, helm diff + --atomic |
+| Plateforme | `dev-standards-argocd` | Oui | GitOps, sync policies par env, ESO, Vault |
 
 ---
 

@@ -34,6 +34,10 @@ func TestHasFrontend(t *testing.T) {
 		{"vue sources", map[string]string{"src/components/App.vue": ""}, true},
 		{"django templates", map[string]string{"manage.py": "", "shop/templates/shop/list.html": ""}, true},
 		{"root index.html", map[string]string{"index.html": ""}, true},
+		{"react native", map[string]string{"package.json": `{"dependencies":{"react-native":"0.76","react":"18"}}`, "src/App.tsx": ""}, false},
+		{"expo web", map[string]string{"package.json": `{"dependencies":{"expo":"51","react":"18","react-dom":"18"}}`}, true},
+		{"native and web apps", map[string]string{"apps/mobile/package.json": `{"dependencies":{"expo":"51"}}`, "apps/web/package.json": `{"dependencies":{"next":"15"}}`}, true},
+		{"workspace web app", map[string]string{"package.json": `{"workspaces":{"packages":["a/b/c/d/*"]}}`, "a/b/c/d/web/package.json": `{"dependencies":{"vue":"3"}}`}, true},
 	}
 	for _, c := range cases {
 		if got := HasFrontend(mk(c.files)); got != c.want {

@@ -1,8 +1,6 @@
 package bricks
 
 import (
-	"encoding/json"
-	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -17,10 +15,11 @@ var FrontendSkills = []string{
 	"developer/dev-standards-frontend-data",
 }
 
-// frontendDeps are npm packages of a web frontend.
+// frontendDeps are npm packages of a web frontend (react counts only
+// outside a React Native app: see DetectSignals).
 var frontendDeps = []string{
-	"react", "react-dom", "preact", "vue", "nuxt", "next", "svelte", "@sveltejs/kit",
-	"@angular/core", "solid-js", "lit", "astro", "@remix-run/react", "react-native", "expo", "vite",
+	"react-dom", "preact", "vue", "nuxt", "next", "svelte", "@sveltejs/kit",
+	"@angular/core", "solid-js", "lit", "astro", "@remix-run/react", "vite",
 }
 
 // frontendExts are source files of a web frontend.
@@ -30,7 +29,10 @@ var frontendExts = map[string]bool{".tsx": true, ".jsx": true, ".vue": true, ".s
 var skippedDirs = map[string]bool{
 	"node_modules": true, ".git": true, "vendor": true, "dist": true, "build": true, "target": true,
 	".venv": true, "venv": true, "__pycache__": true, "htmlcov": true, "coverage": true, "site": true,
-	"docs": true, ".beads": true, ".next": true, ".nuxt": true, ".svelte-kit": true,
+	"docs": true, ".beads": true, ".next": true, ".nuxt": true, ".svelte-kit": true, ".output": true,
+	".terraform": true, ".gradle": true, ".dart_tool": true, ".tox": true, ".mypy_cache": true,
+	".pytest_cache": true, ".ruff_cache": true, ".turbo": true, ".cache": true, ".idea": true,
+	".expo": true, "Pods": true, "DerivedData": true,
 }
 
 // htmlDirs are the folders whose HTML files are a frontend (server templates
@@ -42,11 +44,13 @@ const (
 	frontendMaxFiles = 20000
 )
 
-// HasFrontend reports whether a project has a web frontend: a package.json
-// (root or sub-folder) depending on a frontend framework, frontend sources
-// (.tsx, .jsx, .vue, .svelte, .astro), a root index.html or HTML templates.
-// The scan is bounded (depth and number of entries); an unreadable or
-// missing path counts as a frontend (nothing is filtered).
+// HasFrontend reports whether a project has a web frontend (the "frontend"
+// signal of DetectSignals): a package.json (root, sub-folder or workspace)
+// depending on a web framework, web sources (.vue, .svelte, .astro; .tsx
+// and .jsx unless the only JS app is a React Native one), a root index.html
+// or HTML templates. A React Native app alone (react-native or expo without
+// react-dom) is not a web frontend. An unreadable or missing path counts as
+// a frontend (nothing is filtered).
 func HasFrontend(projectPath string) bool {
 	if projectPath == "" {
 		return true
@@ -54,64 +58,7 @@ func HasFrontend(projectPath string) bool {
 	if st, err := os.Stat(projectPath); err != nil || !st.IsDir() {
 		return true
 	}
-	if fileExistsIn(projectPath, "index.html") {
-		return true
-	}
-	found, seen := false, 0
-	_ = filepath.WalkDir(projectPath, func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return nil //nolint:nilerr // unreadable entry: skipped
-		}
-		seen++
-		if seen > frontendMaxFiles {
-			return fs.SkipAll
-		}
-		rel, _ := filepath.Rel(projectPath, path)
-		depth := len(strings.Split(rel, string(filepath.Separator)))
-		if d.IsDir() {
-			if path != projectPath && (skippedDirs[d.Name()] || depth > frontendMaxDepth) {
-				return fs.SkipDir
-			}
-			return nil
-		}
-		name := d.Name()
-		switch {
-		case frontendExts[filepath.Ext(name)]:
-			found = true
-		case name == "package.json" && packageHasFrontend(path):
-			found = true
-		case filepath.Ext(name) == ".html" && inHTMLDir(rel):
-			found = true
-		}
-		if found {
-			return fs.SkipAll
-		}
-		return nil
-	})
-	return found
-}
-
-func packageHasFrontend(path string) bool {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return false
-	}
-	var pkg struct {
-		Dependencies    map[string]any `json:"dependencies"`
-		DevDependencies map[string]any `json:"devDependencies"`
-	}
-	if json.Unmarshal(data, &pkg) != nil {
-		return false
-	}
-	for _, dep := range frontendDeps {
-		if _, ok := pkg.Dependencies[dep]; ok {
-			return true
-		}
-		if _, ok := pkg.DevDependencies[dep]; ok {
-			return true
-		}
-	}
-	return false
+	return DetectSignals(projectPath).Has("frontend")
 }
 
 func inHTMLDir(rel string) bool {
@@ -121,9 +68,4 @@ func inHTMLDir(rel string) bool {
 		}
 	}
 	return false
-}
-
-func fileExistsIn(dir, name string) bool {
-	_, err := os.Stat(filepath.Join(dir, name))
-	return err == nil
 }

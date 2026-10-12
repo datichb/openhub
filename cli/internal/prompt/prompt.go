@@ -3,99 +3,151 @@
 package prompt
 
 import (
-	"io"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/datichb/openhub/cli/internal/bricks"
 )
 
 // StackInfo holds detected technology stack information for a project.
 type StackInfo struct {
-	Language       string
+	// Language is the primary language; Languages are all the languages
+	// found, primary first (see languagePriority).
+	Language  string
+	Languages []string
+	// Framework is the primary framework; Frameworks are all the
+	// frameworks found, primary first (see frameworkPriority).
 	Framework      string
+	Frameworks     []string
 	PackageManager string
 	TestRunner     string
 	HasDocker      bool
 	HasCI          bool
+	// Signals are the raw stack signals (bricks.DetectSignals).
+	Signals bricks.Signals
 }
 
-// DetectStack analyzes a project directory to detect its technology stack.
-func DetectStack(projectPath string) StackInfo {
-	info := StackInfo{}
+// languagePriority orders the language signals (signal, label): the primary
+// language is the first one found at the project root, else the first one
+// found anywhere (monorepo without root manifest).
+var languagePriority = [][2]string{
+	{"golang", "go"}, {"typescript", "typescript"}, {"javascript", "javascript"},
+	{"python", "python"}, {"ruby", "ruby"}, {"rust", "rust"}, {"android", "kotlin"},
+	{"java", "java"}, {"php", "php"}, {"dart", "dart"}, {"swift", "swift"},
+}
 
-	// Language detection
-	switch {
-	case fileExists(projectPath, "go.mod"):
-		info.Language = "go"
-		info.PackageManager = "go modules"
-		if fileExists(projectPath, "Makefile") {
-			info.TestRunner = "make test"
-		} else {
-			info.TestRunner = "go test ./..."
+// frameworkPriority orders the framework signals (signal, label).
+var frameworkPriority = [][2]string{
+	{"nextjs", "Next.js"}, {"nuxtjs", "Nuxt"}, {"svelte", "SvelteKit"}, {"angular", "Angular"},
+	{"react-native", "React Native"}, {"react", "React"}, {"vuejs", "Vue"}, {"nestjs", "NestJS"},
+	{"express", "Express"}, {"fastify", "Fastify"}, {"django", "django"}, {"fastapi", "fastapi"},
+	{"flask", "flask"}, {"rails", "rails"}, {"laravel", "laravel"}, {"springboot", "Spring Boot"},
+	{"flutter", "Flutter"},
+}
+
+// DetectStack analyzes a project directory to detect its technology stack,
+// from the signals of bricks.DetectSignals.
+func DetectStack(projectPath string) StackInfo {
+	sig := bricks.DetectSignals(projectPath)
+	info := StackInfo{Signals: sig}
+
+	var found [][2]string
+	for _, l := range languagePriority {
+		if sig.Has(l[0]) && (l[0] != "javascript" || !sig.Has("typescript")) {
+			found = append(found, l)
 		}
-	case fileExists(projectPath, "package.json"):
-		info.Language = "typescript"
-		switch {
-		case fileExists(projectPath, "bun.lockb") || fileExists(projectPath, "bunfig.toml"):
-			info.PackageManager = "bun"
-		case fileExists(projectPath, "pnpm-lock.yaml"):
-			info.PackageManager = "pnpm"
-		case fileExists(projectPath, "yarn.lock"):
-			info.PackageManager = "yarn"
-		default:
-			info.PackageManager = "npm"
+	}
+	primary := ""
+	if len(found) > 0 {
+		main := found[0]
+		for _, l := range found {
+			if sig.At(l[0], ".") {
+				main = l
+				break
+			}
 		}
-		info.TestRunner = detectJSTestRunner(projectPath)
-		info.Framework = detectJSFramework(projectPath)
-	case fileExists(projectPath, "pyproject.toml") || fileExists(projectPath, "setup.py") || fileExists(projectPath, "requirements.txt"):
-		info.Language = "python"
-		info.Framework = detectPythonFramework(projectPath)
-		switch {
-		case fileExists(projectPath, "poetry.lock"):
-			info.PackageManager = "poetry"
-		case fileExists(projectPath, "Pipfile"):
-			info.PackageManager = "pipenv"
-		default:
-			info.PackageManager = "pip"
+		primary, info.Language = main[0], main[1]
+		info.Languages = []string{main[1]}
+		for _, l := range found {
+			if l != main {
+				info.Languages = append(info.Languages, l[1])
+			}
 		}
-		info.TestRunner = "pytest"
-	case fileExists(projectPath, "Gemfile"):
-		info.Language = "ruby"
-		info.PackageManager = "bundler"
-		gemfile := readFile(filepath.Join(projectPath, "Gemfile"))
-		if strings.Contains(gemfile, "\"rails\"") || strings.Contains(gemfile, "'rails'") || fileExists(projectPath, "config/application.rb") {
-			info.Framework = "rails"
+	}
+	for _, f := range frameworkPriority {
+		if sig.Has(f[0]) {
+			info.Frameworks = append(info.Frameworks, f[1])
 		}
-		if strings.Contains(gemfile, "rspec") {
-			info.TestRunner = "rspec"
-		} else if info.Framework == "rails" {
-			info.TestRunner = "bin/rails test"
-		}
-	case fileExists(projectPath, "Cargo.toml"):
-		info.Language = "rust"
-		info.PackageManager = "cargo"
-		info.TestRunner = "cargo test"
-	case fileExists(projectPath, "build.gradle") || fileExists(projectPath, "build.gradle.kts"):
-		info.Language = "java"
-		info.PackageManager = "gradle"
-		info.TestRunner = "gradle test"
-	case fileExists(projectPath, "pom.xml"):
-		info.Language = "java"
-		info.PackageManager = "maven"
-		info.TestRunner = "mvn test"
+	}
+	if len(info.Frameworks) > 0 {
+		info.Framework = info.Frameworks[0]
 	}
 
-	// Docker
-	info.HasDocker = fileExists(projectPath, "Dockerfile") ||
-		fileExists(projectPath, "docker-compose.yml") ||
-		fileExists(projectPath, "docker-compose.yaml")
-
-	// CI
-	info.HasCI = dirExists(projectPath, ".github/workflows") ||
-		fileExists(projectPath, ".gitlab-ci.yml") ||
-		fileExists(projectPath, "Jenkinsfile")
-
+	info.PackageManager, info.TestRunner = toolsFor(primary, sig)
+	info.HasDocker = sig.Has("docker")
+	info.HasCI = sig.Has("github-actions") || sig.Has("gitlab-ci") || sig.Has("jenkins")
 	return info
+}
+
+// firstOf returns the label of the first signal found (root first).
+func firstOf(sig bricks.Signals, pairs ...string) string {
+	for _, root := range []bool{true, false} {
+		for i := 0; i+1 < len(pairs); i += 2 {
+			if (root && sig.At(pairs[i], ".")) || (!root && sig.Has(pairs[i])) {
+				return pairs[i+1]
+			}
+		}
+	}
+	return ""
+}
+
+// toolsFor returns the package manager and test command of the primary
+// language.
+func toolsFor(primary string, sig bricks.Signals) (pm, test string) {
+	switch primary {
+	case "golang":
+		if sig.At("make", ".") {
+			return "go modules", "make test"
+		}
+		return "go modules", "go test ./..."
+	case "typescript", "javascript":
+		pm = firstOf(sig, "bun", "bun", "pnpm", "pnpm", "yarn", "yarn")
+		if pm == "" {
+			pm = "npm"
+		}
+		test = firstOf(sig, "vitest", "vitest", "jest", "jest", "mocha", "mocha")
+		if test == "" {
+			test = "npm test"
+		}
+		return pm, test
+	case "python":
+		pm = firstOf(sig, "poetry", "poetry", "pipenv", "pipenv", "uv", "uv")
+		if pm == "" {
+			pm = "pip"
+		}
+		return pm, "pytest"
+	case "ruby":
+		switch {
+		case sig.Has("rspec"):
+			return "bundler", "rspec"
+		case sig.Has("rails"):
+			return "bundler", "bin/rails test"
+		}
+		return "bundler", ""
+	case "rust":
+		return "cargo", "cargo test"
+	case "android", "java":
+		if sig.Has("gradle") {
+			return "gradle", "gradle test"
+		}
+		if sig.Has("maven") {
+			return "maven", "mvn test"
+		}
+	case "php":
+		return "composer", ""
+	}
+	return "", ""
 }
 
 // BuildContext builds a context string from stack info for injection into prompts.
@@ -105,8 +157,14 @@ func BuildContext(info StackInfo) string {
 	if info.Language != "" {
 		parts = append(parts, "Language: "+info.Language)
 	}
+	if others := others(info.Languages, info.Language); others != "" {
+		parts = append(parts, "Other languages: "+others)
+	}
 	if info.Framework != "" {
 		parts = append(parts, "Framework: "+info.Framework)
+	}
+	if others := others(info.Frameworks, info.Framework); others != "" {
+		parts = append(parts, "Other frameworks: "+others)
 	}
 	if info.PackageManager != "" {
 		parts = append(parts, "Package manager: "+info.PackageManager)
@@ -127,60 +185,15 @@ func BuildContext(info StackInfo) string {
 	return strings.Join(parts, "\n")
 }
 
-// detectPythonFramework reads the dependencies of a Python project
-// (pyproject.toml, requirements.txt, Pipfile, setup.py).
-func detectPythonFramework(path string) string {
-	var deps strings.Builder
-	for _, f := range []string{"pyproject.toml", "requirements.txt", "Pipfile", "setup.py"} {
-		deps.WriteString(strings.ToLower(readFile(filepath.Join(path, f))))
-		deps.WriteString("\n")
+// others joins the values of list other than primary.
+func others(list []string, primary string) string {
+	var out []string
+	for _, v := range list {
+		if v != primary {
+			out = append(out, v)
+		}
 	}
-	d := deps.String()
-	switch {
-	case strings.Contains(d, "django") || fileExists(path, "manage.py"):
-		return "django"
-	case strings.Contains(d, "fastapi"):
-		return "fastapi"
-	case strings.Contains(d, "flask"):
-		return "flask"
-	}
-	return ""
-}
-
-func detectJSTestRunner(path string) string {
-	pkg := readFile(filepath.Join(path, "package.json"))
-	switch {
-	case strings.Contains(pkg, "vitest"):
-		return "vitest"
-	case strings.Contains(pkg, "jest"):
-		return "jest"
-	case strings.Contains(pkg, "mocha"):
-		return "mocha"
-	default:
-		return "npm test"
-	}
-}
-
-func detectJSFramework(path string) string {
-	pkg := readFile(filepath.Join(path, "package.json"))
-	switch {
-	case strings.Contains(pkg, "next"):
-		return "Next.js"
-	case strings.Contains(pkg, "nuxt"):
-		return "Nuxt"
-	case strings.Contains(pkg, "svelte"):
-		return "SvelteKit"
-	case strings.Contains(pkg, "\"react\""):
-		return "React"
-	case strings.Contains(pkg, "\"vue\""):
-		return "Vue"
-	case strings.Contains(pkg, "\"express\""):
-		return "Express"
-	case strings.Contains(pkg, "\"fastify\""):
-		return "Fastify"
-	default:
-		return ""
-	}
+	return strings.Join(out, ", ")
 }
 
 func fileExists(base, name string) bool {
@@ -191,20 +204,6 @@ func fileExists(base, name string) bool {
 func dirExists(base, name string) bool {
 	info, err := os.Stat(filepath.Join(base, name))
 	return err == nil && info.IsDir()
-}
-
-func readFile(path string) string {
-	const maxFileSize = 512 * 1024 // 512 KB
-	f, err := os.Open(path)
-	if err != nil {
-		return ""
-	}
-	defer f.Close()
-	data, err := io.ReadAll(io.LimitReader(f, maxFileSize))
-	if err != nil {
-		return ""
-	}
-	return string(data)
 }
 
 // HasGitHubActions returns true if the project has GitHub Actions workflows.
