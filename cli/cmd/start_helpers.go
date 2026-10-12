@@ -143,6 +143,7 @@ func hubProviderCfg(a *app.App, prov string) provider.Config {
 		return provider.Config{
 			AWSProfile: a.Config.Provider.Bedrock.AWSProfile,
 			AWSRegion:  a.Config.Provider.Bedrock.AWSRegion,
+			AuthMode:   a.Config.Provider.Bedrock.AuthMode,
 		}
 	default:
 		return provider.Config{}

@@ -2,6 +2,7 @@ package provider
 
 import (
 	"context"
+	"time"
 
 	"github.com/datichb/openhub/cli/internal/platform"
 )
@@ -10,6 +11,22 @@ import (
 // Satisfied by app.App.Secrets (keychain or filecrypt backends).
 type SecretStore interface {
 	Get(ctx context.Context, key string) (string, error)
+}
+
+// SecretModifiedAt returns when the secret of key was last stored, when the
+// store knows it (macOS keychain); ok is false otherwise.
+func SecretModifiedAt(ctx context.Context, store any, key string) (time.Time, bool) {
+	m, isDated := store.(interface {
+		ModifiedAt(ctx context.Context, key string) (time.Time, error)
+	})
+	if !isDated || key == "" {
+		return time.Time{}, false
+	}
+	t, err := m.ModifiedAt(ctx, key)
+	if err != nil || t.IsZero() {
+		return time.Time{}, false
+	}
+	return t, true
 }
 
 // ResolveProvider returns the effective provider following the cascade:
@@ -41,6 +58,9 @@ func ResolveProviderConfig(projectCfg *ProviderConfig, hubCfg Config) Config {
 		if projectCfg.AWSRegion != "" {
 			result.AWSRegion = projectCfg.AWSRegion
 		}
+		if projectCfg.AuthMode != "" {
+			result.AuthMode = projectCfg.AuthMode
+		}
 	}
 	return result
 }
@@ -51,6 +71,7 @@ func ResolveProviderConfig(projectCfg *ProviderConfig, hubCfg Config) Config {
 type ProviderConfig struct {
 	AWSProfile string
 	AWSRegion  string
+	AuthMode   string
 }
 
 // ResolveCredentials extracts provider-specific credentials from the secret store.

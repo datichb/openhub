@@ -196,6 +196,7 @@ func Run(ctx context.Context, opts Options) error {
 	d := &Daemon{opts: opts, proxy: credproxy.New(), pending: map[string]domain.ProxyGrant{}, clients: map[string]client{}, verified: map[string]bool{}, verifyFails: map[string]int{}, policies: map[string]QuitPolicy{}, watchers: map[string]*watcher{}, feed: newHub(), lastBusy: time.Now(), started: time.Now(), stop: make(chan struct{}), restored: make(chan struct{}), sigCache: map[string]credproxy.Auth{}, ledger: ledger{last: map[string]adapters.SessionResult{}}, kick: make(chan struct{}, 1)}
 	d.proxy.Hooks = d.hooksHandler()
 	d.proxy.OnUsage = d.onProxyUsage
+	d.proxy.OnAuthRejected = d.onAuthRejected
 	if err := d.startProxy(); err != nil {
 		return err
 	}
@@ -545,6 +546,7 @@ func (d *Daemon) register(ctx context.Context, g domain.ProxyGrant, secret strin
 	if err := d.proxy.IssueWithHash(g.TokenHash, credproxy.Grant{
 		SessionID: g.Owner, Provider: g.Provider, Upstream: up,
 		AllowedModels: g.AllowedModels, MaxTokens: g.MaxTokens,
+		Credential: credentialRef(g.Source, secret),
 	}); err != nil {
 		return err
 	}

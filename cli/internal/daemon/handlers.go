@@ -161,7 +161,8 @@ func (d *Daemon) handleUsage(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusNotFound, "unknown token")
 		return
 	}
-	writeJSON(w, http.StatusOK, UsageResponse{Requests: u.Requests, InputTokens: u.InputTokens, OutputTokens: u.OutputTokens})
+	writeJSON(w, http.StatusOK, UsageResponse{Requests: u.Requests, InputTokens: u.InputTokens, OutputTokens: u.OutputTokens,
+		AuthRejected: d.authRejected(r.URL.Query().Get("token"))})
 }
 
 func (d *Daemon) handleTouch(w http.ResponseWriter, r *http.Request) {

@@ -39,7 +39,7 @@ func projectProvider(a *app.App, project *domain.Project, providerFlag string) (
 	prov = provider.ResolveProvider(providerFlag, project.Provider, a.Config.LLM.DefaultProvider)
 	var projProv *provider.ProviderConfig
 	if project.ProviderConfig != nil {
-		projProv = &provider.ProviderConfig{AWSProfile: project.ProviderConfig.AWSProfile, AWSRegion: project.ProviderConfig.AWSRegion}
+		projProv = &provider.ProviderConfig{AWSProfile: project.ProviderConfig.AWSProfile, AWSRegion: project.ProviderConfig.AWSRegion, AuthMode: project.ProviderConfig.AuthMode}
 		tokenKey = project.ProviderConfig.TokenKey
 	}
 	return prov, tokenKey, provider.ResolveProviderConfig(projProv, hubProviderCfg(a, prov))

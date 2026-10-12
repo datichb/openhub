@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -12,13 +11,9 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/beads"
 	"github.com/datichb/openhub/cli/internal/buildinfo"
-	"github.com/datichb/openhub/cli/internal/config"
-	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
-	"github.com/datichb/openhub/cli/internal/provider"
 	"github.com/datichb/openhub/cli/internal/selfupdate"
 	"github.com/datichb/openhub/cli/internal/tui/progress"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
@@ -35,6 +30,14 @@ func init() {
 	rootCmd.AddCommand(withInitLevel(doctorCmd, levelDegraded))
 	doctorCmd.Flags().Bool("fix", false, "Répare ce qui peut l'être (Beads zéro impact) après un résumé et une confirmation")
 	doctorCmd.Flags().BoolP("yes", "y", false, "Avec --fix : appliquer sans confirmation (obligatoire sans terminal)")
+	doctorCmd.Flags().Bool("offline", false, "Aucun appel réseau (version publiée, validation de la clé du provider) ; aussi OH_DOCTOR_OFFLINE=1")
+}
+
+// doctorOffline reports whether oh doctor must not use the network
+// (--offline, OH_DOCTOR_OFFLINE).
+var doctorOffline = func() bool {
+	v := os.Getenv("OH_DOCTOR_OFFLINE")
+	return v != "" && v != "0" && v != "false"
 }
 
 // check is one entry of the doctor registry: the label shown while it runs
@@ -68,7 +71,7 @@ func doctorRegistry() []check {
 		{"bd (beads)", single(checkOptionalBinary("bd", "brew install datichb/tap/bd"))},
 		{i18n.T("cmd.doctor.check.version"), one(checkOhUpdate)},
 		{i18n.T("cmd.doctor.check.config"), single(checkConfig)},
-		{i18n.T("cmd.doctor.check.credentials"), single(checkProviderCredentials)},
+		{i18n.T("cmd.doctor.check.credentials"), one(checkProviderCredentials)},
 		{i18n.T("cmd.doctor.check.database"), one(checkDatabase)},
 		{i18n.T("cmd.doctor.check.api_keys"), single(checkAPIKeys)},
 		{i18n.T("cmd.doctor.check.beads"), single(checkBeadsSanity)},
@@ -101,7 +104,9 @@ func runDoctor(cmd *cobra.Command, args []string) error {
 	fmt.Fprintln(a.IO.Out, theme.Title.Render("  oh doctor  "))
 	fmt.Fprintln(a.IO.Out)
 	printStartupHints(a.IO.Out)
-
+	if off, _ := cmd.Flags().GetBool("offline"); off {
+		_ = os.Setenv("OH_DOCTOR_OFFLINE", "1")
+	}
 	if fix, _ := cmd.Flags().GetBool("fix"); fix {
 		if err := fixConfig(cmd); err != nil {
 			return err
@@ -269,88 +274,15 @@ func checkAPIKeys() (string, bool) {
 	return i18n.Tf("cmd.doctor.tokens_ok", found, configured, strings.Join(foundDetails, ", ")), true
 }
 
-// checkProviderCredentials follows the credential cascade of a session
-// started from the current directory: project (explicit key, project key) →
-// team → hub → AWS profile or default chain for Bedrock (A2).
-func checkProviderCredentials() (string, bool) {
-	a := TryApp()
-	if a == nil || a.Config == nil {
-		return i18n.T("cmd.doctor.app_unavailable"), false
-	}
-	ctx := context.Background()
-	var project *domain.Project
-	if a.Projects != nil {
-		project, _ = budgetProject(ctx, a, "")
-	}
-	return providerCredentialStatus(ctx, a, project)
-}
-
-func providerCredentialStatus(ctx context.Context, a *app.App, project *domain.Project) (string, bool) {
-	return credentialStatus(ctx, a, project, "")
-}
-
-// credentialStatus follows the credential cascade of a launch of project
-// with the provider override (-P), as the launch does (N12: checked before
-// any launch).
-func credentialStatus(ctx context.Context, a *app.App, project *domain.Project, providerFlag string) (string, bool) {
-	prov := provider.ResolveProvider(providerFlag, "", a.Config.LLM.DefaultProvider)
-	cfg := hubProviderCfg(a, prov)
-	var projectID, tokenKey, teamID string
-	if project != nil {
-		prov, tokenKey, cfg = projectProvider(a, project, providerFlag)
-		projectID = project.ID
-		if tc := config.ResolveTeamForProject(a.Config, project); tc.Enabled {
-			teamID = tc.TeamID
-		}
-	}
-	if prov == "" {
-		return i18n.T("cmd.doctor.no_provider"), false
-	}
-	scope := i18n.T("cmd.doctor.credentials.scope_hub")
-	if project != nil {
-		scope = i18n.Tf("cmd.doctor.credentials.scope_project", project.Name)
-	}
-
-	name := provider.Name(prov)
-	if provider.KeychainKey(name, "") == "" {
-		// Provider without a secret (gh auth…): detected on the host.
-		if det := provider.Detect(name); det.Available {
-			return fmt.Sprintf("%s — %s (%s)", prov, det.Source, det.Details), true
-		}
-		return i18n.Tf("cmd.doctor.credentials.missing", prov, scope), false
-	}
-
-	var secrets provider.SecretStore
-	if a.Secrets != nil {
-		secrets = a.Secrets
-	}
-	cred, err := provider.ResolveCredentialSource(ctx, secrets, name, projectID, teamID, tokenKey, &cfg)
-	if errors.Is(err, provider.ErrNoCredential) {
-		return i18n.Tf("cmd.doctor.credentials.missing", prov, scope), false
-	}
-	if err != nil {
-		return i18n.Tf("cmd.doctor.credentials.error", prov, err), false
-	}
-	switch cred.Source.Scope {
-	case "project", "team", "hub":
-		return i18n.Tf("cmd.doctor.credentials.found_"+cred.Source.Scope, prov, cred.Source.KeychainKey), true
-	}
-	// Bedrock SigV4: the AWS SDK resolves the credentials at launch.
-	if cfg.AWSProfile != "" {
-		return i18n.Tf("cmd.doctor.credentials.found_aws_profile", prov, cfg.AWSProfile), true
-	}
-	if det := provider.Detect(name); det.Available {
-		return i18n.Tf("cmd.doctor.credentials.found_aws", prov, det.Source, det.Details), true
-	}
-	return i18n.Tf("cmd.doctor.credentials.missing", prov, scope), false
-}
-
 // checkOhUpdate compares the running oh with the latest published release:
 // a newer release is a warning (the check passes), never an older one (A1).
 func checkOhUpdate() views.DoctorCheck {
 	current := buildinfo.Version
 	if compareOhVersion(current, "0.0.0") == versionUnknown {
 		return views.DoctorCheck{OK: true, Detail: i18n.Tf("cmd.doctor.version.dev", current)}
+	}
+	if doctorOffline() {
+		return views.DoctorCheck{OK: true, Detail: i18n.Tf("cmd.doctor.version.offline", current)}
 	}
 	release, err := selfupdate.LatestRelease()
 	if err != nil {

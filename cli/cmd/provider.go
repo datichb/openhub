@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/charmbracelet/huh"
@@ -36,6 +37,20 @@ func init() {
 	rootCmd.AddCommand(providerCmd)
 	providerCmd.AddCommand(providerSetupCmd)
 	providerSetupCmd.Flags().StringP("project", "p", "", "Configure provider for a specific project")
+	providerSetupCmd.Flags().Bool("from-env", false, "Bedrock : enregistre dans le trousseau la clé API du shell (AWS_BEARER_TOKEN_BEDROCK), sans wizard")
+}
+
+// runProviderImportEnv imports the shell Bedrock API key (--from-env).
+func runProviderImportEnv(ctx context.Context, a *app.App, project *domain.Project, explicit bool) error {
+	if !explicit && a.Projects != nil {
+		project, _ = budgetProject(ctx, a, "")
+	}
+	key, err := importBedrockEnvToken(ctx, a, project, explicit)
+	if err != nil {
+		return err
+	}
+	fmt.Fprintf(a.IO.Out, "%s %s\n", theme.SuccessStyle.Render(theme.IconSuccess), i18n.Tf("cmd.provider.from_env.done", key))
+	return nil
 }
 
 func runProviderSetup(cmd *cobra.Command, args []string) error {
@@ -51,6 +66,14 @@ func runProviderSetup(cmd *cobra.Command, args []string) error {
 		if err != nil {
 			return err
 		}
+	}
+	if fromEnv, _ := cmd.Flags().GetBool("from-env"); fromEnv {
+		if len(args) > 0 && provider.Name(args[0]) != provider.Bedrock {
+			return errors.New(i18n.T("cmd.provider.from_env.bedrock_only"))
+		}
+		return runProviderImportEnv(ctx, a, project, project != nil)
+	}
+	if project != nil {
 		fmt.Fprintf(a.IO.Out, "%s %s (%s)\n\n",
 			theme.Title.Render("oh provider setup"),
 			i18n.T("cmd.provider.project_scope"), project.Name)
@@ -157,7 +180,24 @@ func setupBedrock(ctx context.Context, a *app.App, project *domain.Project) erro
 				return form
 			},
 			OnDone: func() error {
+				if useExisting && detection.IsEnvBearer() {
+					// The shell key is never passed to the tool: store it.
+					key, err := importBedrockEnvToken(ctx, a, project, project != nil)
+					if err == nil {
+						fmt.Fprintf(a.IO.Out, "%s %s\n", theme.SuccessStyle.Render(theme.IconSuccess), i18n.Tf("cmd.provider.from_env.done", key))
+					}
+					return err
+				}
 				if useExisting {
+					// The detected AWS credentials are SigV4 ones: a stored
+					// auth_mode bearer would refuse the launch.
+					mode := provider.AuthEnv
+					if detection.Source == "aws-profile" {
+						mode = provider.AuthProfile
+					}
+					if err := setBedrockAuthMode(ctx, a, project, mode); err != nil {
+						return err
+					}
 					return persistProviderConfig(ctx, a, project, provider.Bedrock, "", detection)
 				}
 				return nil
