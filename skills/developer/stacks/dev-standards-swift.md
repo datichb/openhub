@@ -48,7 +48,7 @@ Sources/
 ## Swift moderne
 
 - Swift Concurrency (`async/await`, `Task`, `Actor`) — pas de completion handlers ni de callbacks
-- Mode de langage Swift 6 (vérification stricte des data races) ; pour les cibles d'app, isolation `@MainActor` par défaut (option « Approachable Concurrency », Swift 6.2+)
+- Mode de langage Swift 6 (vérification stricte des data races) ; pour les cibles d'app, activer l'isolation `@MainActor` par défaut (option disponible depuis Swift 6.2)
 - `Sendable` sur les types partagés entre actors
 - Value types (`struct`) par défaut — `class` uniquement si héritage ou identité requise
 - `enum` avec associated values pour les états (idle, loading, loaded, error)
