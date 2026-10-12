@@ -30,7 +30,7 @@ Afficher le récapitulatif des tickets reçus et démarrer directement. Si le pr
 
 Pour chaque ticket, dans l'ordre reçu :
 
-1. `cp-1` (démarrer le ticket) : `workflow_checkpoint({ id: "cp-1", summary: "Ticket #<ID> — <titre>. Agent prévu : <developer-xxx>." })`.
+1. `cp-1` (démarrer le ticket) : `workflow_checkpoint({ id: "cp-1", summary: "Ticket #<ID> — <titre>. Agent prévu : developer (<domaine>)." })`.
 2. Implémentation par le developer, puis review (skill `orchestrator-dev-ticket-workflow`).
 3. `cp-2` (commit ou correction) : `workflow_checkpoint({ id: "cp-2", summary: "Ticket #<ID> — verdict : <commit | corriger | corriger-sécurité>. <synthèse>. Validation = commit puis fermeture." })`. **Un appel par ticket.** Validé → relancer aussitôt le developer : commit, puis fermeture du ticket. Refusé → correction selon la consigne reçue, nouvelle review, puis rappeler `cp-2`.
 4. `cp-3` (ticket suivant) : `workflow_checkpoint({ id: "cp-3", summary: "Ticket #<ID> terminé. Suivant : #<ID-suivant>." })`.

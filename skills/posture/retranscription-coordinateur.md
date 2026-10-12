@@ -11,7 +11,7 @@ Ce skill s'adresse aux **agents coordinateurs** (orchestrator, auditor, orchestr
 
 | Perspective | Agent concerné | Skill de référence | Responsabilité |
 |-------------|---------------|-------------------|----------------|
-| **Producteur** | planner, auditor-*, designer, developer-*, reviewer, debugger, onboarder | `*-handoff-format` de chaque agent | **Produire** le bloc de handoff structuré (seul output) |
+| **Producteur** | planner, auditor-subagent, designer, developer, reviewer, debugger, onboarder | `*-handoff-format` de chaque agent | **Produire** le bloc de handoff structuré (seul output) |
 | **Consommateur** | orchestrator, auditor (coordinateur), orchestrator-dev | **Ce skill** (`retranscription-coordinateur`) | **Retranscrire** les champs du bloc reçu de manière formatée avant d'appeler `question` |
 
 **Flux complet :**

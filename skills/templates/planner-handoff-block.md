@@ -15,9 +15,9 @@
 
 | ID | Titre | Type | Priorité | Labels | Agent prévu | TDD | Dépend de |
 |----|-------|------|----------|--------|-------------|-----|-----------|
-| bd-XX | <titre> | feature | P1 | <labels> | developer-backend | — | — |
-| bd-YY | <titre> | task | P1 | <labels> | developer-frontend | ✅ | bd-XX |
-| bd-ZZ | <titre> | feature | P2 | audit-security | auditor | — | — |
+| bd-XX | <titre> | feature | P1 | <labels> | developer (backend) | — | — |
+| bd-YY | <titre> | task | P1 | <labels> | developer (frontend) | ✅ | bd-XX |
+| bd-ZZ | <titre> | feature | P2 | security | developer (security) | — | — |
 
 **Total :** X tickets créés (Y epics + Z tickets fils)
 

@@ -9,6 +9,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/datichb/openhub/cli/internal/bricks"
 )
 
 // The `skill` tool knows a skill by its name (the last component of its hub
@@ -41,6 +43,46 @@ func TestHubMarkdownFencesBalanced(t *testing.T) {
 			}
 			rel, _ := filepath.Rel(hub, path)
 			assert.Zero(t, n%2, "%s: unbalanced code fence (%d fence lines)", rel, n)
+			return nil
+		}))
+	}
+}
+
+// C0.6: agent names written in the content are agents of the hub (or skill
+// and permission base names that share their prefix): a routing value such
+// as `developer-backend` names an agent that no longer exists.
+func TestNoStaleAgentNames(t *testing.T) {
+	hub := repoHub(t)
+	known := map[string]bool{}
+	agents, err := bricks.FindAgentFiles(hub)
+	require.NoError(t, err)
+	for id := range agents {
+		known[id] = true
+	}
+	for _, dir := range []string{"skills", "permissions"} {
+		require.NoError(t, filepath.WalkDir(filepath.Join(hub, dir), func(path string, d os.DirEntry, err error) error {
+			if err == nil && !d.IsDir() {
+				known[strings.TrimSuffix(strings.TrimSuffix(d.Name(), ".md"), ".yaml")] = true
+			}
+			return err
+		}))
+	}
+	nameRe := regexp.MustCompile(`\b(?:developer|auditor|ux|ui|qa)-[a-z0-9<*]+(?:-[a-z0-9<*]+)*`)
+	for _, dir := range []string{"agents", "skills", "workflows"} {
+		require.NoError(t, filepath.WalkDir(filepath.Join(hub, dir), func(path string, d os.DirEntry, err error) error {
+			if err != nil || d.IsDir() || !(strings.HasSuffix(path, ".md") || strings.HasSuffix(path, ".tmpl")) {
+				return err
+			}
+			data, err := os.ReadFile(path)
+			if err != nil {
+				return err
+			}
+			rel, _ := filepath.Rel(hub, path)
+			for i, line := range strings.Split(string(data), "\n") {
+				for _, m := range nameRe.FindAllString(line, -1) {
+					assert.True(t, known[m], "%s:%d: %q is neither an agent, a skill nor a permission base of the hub", rel, i+1, m)
+				}
+			}
 			return nil
 		}))
 	}

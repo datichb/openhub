@@ -36,7 +36,7 @@ Afficher les tickets à traiter. Le mode est donné par la ligne `Mode de workfl
 
 ### `cp-1` — Démarrer le ticket
 ```
-workflow_checkpoint({ id: "cp-1", summary: "Ticket #<ID> — <titre> : <résumé en 2 lignes>. Agent prévu : <developer-xxx>." })
+workflow_checkpoint({ id: "cp-1", summary: "Ticket #<ID> — <titre> : <résumé en 2 lignes>. Agent prévu : developer (<domaine>)." })
 ```
 
 ### Branche dédiée (confirmation hors checkpoint)

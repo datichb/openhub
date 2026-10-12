@@ -17,7 +17,7 @@ Construire ce récap en agrégeant les données structurées collectées à chaq
 
 ### Synthèse par ticket
 
-<Pour chaque ticket traité, inclure la synthèse structurée issue du bloc handoff developer-* et du compte rendu d'étape (étape 6).>
+<Pour chaque ticket traité, inclure la synthèse structurée issue du bloc handoff developer et du compte rendu d'étape (étape 6).>
 <"Aucun ticket traité" si la session est interrompue avant toute implémentation>
 
 #### Ticket #bd-XX — <titre>
@@ -36,7 +36,7 @@ Construire ce récap en agrégeant les données structurées collectées à chaq
 
 ### Points d'attention globaux
 <Agrégation des points d'attention techniques collectés à chaque étape 6 :
- - Points signalés par les developer-* (décisions techniques, compromis, dette)
+ - Points signalés par les developer (décisions techniques, compromis, dette)
  - Points récurrents signalés par le reviewer sur plusieurs tickets>
 <"Aucun point d'attention" si aucun point n'a été signalé en cours de session>
 ```
@@ -131,7 +131,7 @@ Chaque événement est une ligne JSON dans `.opencode/metrics.jsonl` :
 {"timestamp":"2024-01-15T10:45:00Z","event":"ticket_complete","ticket_id":"bd-42","agent":"developer","domain":"backend","duration_seconds":900}
 ```
 
-> **Note :** Ces fonctions sont destinées à être appelées par les agents orchestrateurs qui pilotent le workflow. Les agents `developer-*` n'appellent pas directement les fonctions de métriques — c'est l'agent orchestrator qui trace les événements.
+> **Note :** Ces fonctions sont destinées à être appelées par les agents orchestrateurs qui pilotent le workflow. Les agents `developer` n'appellent pas directement les fonctions de métriques — c'est l'agent orchestrator qui trace les événements.
 
 ---
 

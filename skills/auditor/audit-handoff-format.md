@@ -1,12 +1,12 @@
 ---
 name: audit-handoff-format
-description: Source de vérité pour le format de retour des agents auditor-* vers l'orchestrator. Définit le bloc structuré unique à produire quand un agent auditeur termine son rapport et est invoqué depuis l'orchestrator. Le rapport d'audit complet est intégré dans le bloc. Injecté dans tous les auditor-* et dans l'orchestrator pour garantir que le producteur et le consommateur partagent le même contrat.
+description: Source de vérité pour le format de retour des agents `auditor-subagent` vers l'`auditor`. Définit le bloc structuré unique à produire quand un agent auditeur termine son rapport et est invoqué depuis l'`auditor`. Le rapport d'audit complet est intégré dans le bloc. Injecté dans `auditor-subagent` et dans `auditor` pour garantir que le producteur et le consommateur partagent le même contrat.
 ---
 
 # Skill — Format de handoff auditor → orchestrator
 
-Ce skill est la **source de vérité** pour le format de retour des agents `auditor-*` vers l'orchestrator.
-Il est injecté dans chaque `auditor-*` et dans l'`orchestrator` — producteur et consommateur partagent le même contrat.
+Ce skill est la **source de vérité** pour le format de retour de l'agent `auditor-subagent` vers l'`auditor`.
+Il est injecté dans `auditor-subagent` (producteur) et dans `auditor` (consommateur) — producteur et consommateur partagent le même contrat.
 
 ---
 
@@ -23,7 +23,7 @@ Il est injecté dans chaque `auditor-*` et dans l'`orchestrator` — producteur 
 
 ## Retour vers orchestrator
 
-**Agent :** auditor-<domaine>
+**Agent :** auditor-subagent (<domaine>)
 **Ticket :** #<ID> — <titre>
 
 ### Périmètre audité
@@ -103,7 +103,7 @@ Il est injecté dans chaque `auditor-*` et dans l'`orchestrator` — producteur 
 
 ---
 
-## Règles pour le producteur (auditor-*)
+## Règles pour le producteur (auditor-subagent)
 
 - **Toujours inclure `### Rapport d'audit complet`** même si aucun problème n'est identifié — le rapport documente le périmètre audité et les bonnes pratiques observées
 - **Toujours renseigner le `### Périmètre audité`** — même si le périmètre est complet, l'indiquer explicitement

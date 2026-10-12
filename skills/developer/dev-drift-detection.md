@@ -1,6 +1,6 @@
 ---
 name: dev-drift-detection
-description: Détecte et gère la dérive architecturale en cours d'implémentation — signaux de déclenchement, 3 options de décision (réviser scope / revert / bifurquer), template de rapport de dérive vers l'orchestrateur. Invocable quand un developer-subagent signale un blocage architectural ou une contradiction spec/réalité.
+description: Détecte et gère la dérive architecturale en cours d'implémentation — signaux de déclenchement, 3 options de décision (réviser scope / revert / bifurquer), template de rapport de dérive vers l'orchestrateur. Invocable quand un `developer` (sous-agent) signale un blocage architectural ou une contradiction spec/réalité.
 ---
 
 # Skill — Détection de dérive architecturale
@@ -85,7 +85,7 @@ Créer un ticket de refactoring qui prépare le terrain, puis implémenter le ti
 
 ## Format du rapport de dérive
 
-Quand le developer-subagent retourne un status `BLOCKED_ARCHITECTURE`, produire ce rapport :
+Quand le `developer` (sous-agent) retourne un status `BLOCKED_ARCHITECTURE`, produire ce rapport :
 
 ```markdown
 ## Rapport de dérive — #<ID>

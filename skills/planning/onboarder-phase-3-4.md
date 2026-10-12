@@ -67,7 +67,7 @@ Produire le rapport de contexte structuré avec la carte des agents recommandés
 | Agent | Pourquoi | Invocation suggérée |
 |-------|----------|---------------------|
 | `auditor` (security) | [observation concrète] | `"Audite la sécurité de ce projet"` |
-| `developer-security` | À invoquer après l'audit pour corriger les failles | `"Implémente le hardening suite à l'audit sécurité"` |
+| `developer` (domaine security) | À invoquer après l'audit pour corriger les failles | `"Implémente le hardening suite à l'audit sécurité"` |
 
 *(Section absente si aucun 🔴/🟠 pertinent)*
 
@@ -75,8 +75,8 @@ Produire le rapport de contexte structuré avec la carte des agents recommandés
 
 | Agent | Pourquoi | Invocation suggérée |
 |-------|----------|---------------------|
-| `developer-frontend` | [stack frontend détectée] | `"Implémente [feature frontend]"` |
-| `developer-backend` | [stack backend détectée] | `"Implémente [feature backend]"` |
+| `developer` (domaine frontend) | [stack frontend détectée] | `"Implémente [feature frontend]"` |
+| `developer` (domaine backend) | [stack backend détectée] | `"Implémente [feature backend]"` |
 
 #### Optionnels — selon les ambitions du projet
 
@@ -116,11 +116,11 @@ bd ready                  # Tickets prêts à travailler
 
 | Signal détecté | Agents prioritaires |
 |---------------|---------------------|
-| Secrets en dur dans le code | `auditor` (security) → `developer-security` |
-| Pas de validation des inputs côté serveur | `auditor` (security) → `developer-security` |
+| Secrets en dur dans le code | `auditor` (security) → `developer` (domaine security) |
+| Pas de validation des inputs côté serveur | `auditor` (security) → `developer` (domaine security) |
 | Dépendances avec versions très anciennes (potentiel CVE) | `auditor` (security) |
-| Hashing faible ou absent (MD5, SHA1, plain text) | `auditor` (security) → `developer-security` |
-| CORS trop permissif (`*`) ou absent | `auditor` (security) → `developer-security` |
+| Hashing faible ou absent (MD5, SHA1, plain text) | `auditor` (security) → `developer` (domaine security) |
+| CORS trop permissif (`*`) ou absent | `auditor` (security) → `developer` (domaine security) |
 | Données personnelles sans chiffrement ni contrôle d'accès | `auditor` (privacy) |
 | Pas de tests (dossier `tests/` vide ou absent) | `developer` (avec skill `dev-standards-testing`) |
 | Ratio fichiers source / fichiers test très déséquilibré | `developer` (avec skill `dev-standards-testing`) |
@@ -128,26 +128,26 @@ bd ready                  # Tickets prêts à travailler
 | Bundle non optimisé (pas de lazy loading, assets non compressés) | `auditor` (performance) |
 | Pas de logs structurés / monitoring absent | `auditor` (observability) |
 | Imports circulaires, God classes, couplage fort évident | `auditor` (architecture) |
-| Migrations en attente non appliquées | `developer-backend` (traitement prioritaire) |
+| Migrations en attente non appliquées | `developer` (domaine backend) (traitement prioritaire) |
 
 #### Agents recommandés (activés par la stack)
 
 | Stack détectée | Agent recommandé |
 |---------------|-----------------|
-| Vue.js / Nuxt.js | `developer-frontend` |
-| React / Next.js / Angular | `developer-frontend` |
-| Node.js / NestJS / Express / Fastify | `developer-backend` |
-| Python / Django / FastAPI / Flask | `developer-backend` |
-| PHP / Laravel / Symfony | `developer-backend` |
-| Ruby on Rails | `developer-backend` |
-| Frontend + backend dans le même dépôt | `developer-fullstack` |
-| API REST documentée (OpenAPI) | `developer-api` |
-| API GraphQL | `developer-api` |
-| dbt / Airflow / PySpark / notebooks | `developer-data` |
-| Docker / GitHub Actions / scripts CI | `developer-devops` |
-| Terraform / Kubernetes / Helm / ArgoCD | `developer-platform` |
-| React Native / Expo | `developer-mobile` |
-| Flutter | `developer-mobile` |
+| Vue.js / Nuxt.js | `developer` (domaine frontend) |
+| React / Next.js / Angular | `developer` (domaine frontend) |
+| Node.js / NestJS / Express / Fastify | `developer` (domaine backend) |
+| Python / Django / FastAPI / Flask | `developer` (domaine backend) |
+| PHP / Laravel / Symfony | `developer` (domaine backend) |
+| Ruby on Rails | `developer` (domaine backend) |
+| Frontend + backend dans le même dépôt | `developer` (domaine fullstack) |
+| API REST documentée (OpenAPI) | `developer` (domaine api) |
+| API GraphQL | `developer` (domaine api) |
+| dbt / Airflow / PySpark / notebooks | `developer` (domaine data) |
+| Docker / GitHub Actions / scripts CI | `developer` (domaine devops) |
+| Terraform / Kubernetes / Helm / ArgoCD | `developer` (domaine platform) |
+| React Native / Expo | `developer` (domaine mobile) |
+| Flutter | `developer` (domaine mobile) |
 | Parcours utilisateur complexe non documenté | `designer` |
 | Incohérences visuelles / absence de design system | `designer` |
 

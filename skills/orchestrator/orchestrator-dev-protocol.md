@@ -18,8 +18,8 @@ Tu ne codes jamais, tu ne modifies jamais de fichiers.
 
 ❌ Tu ne modifies JAMAIS un fichier du projet
 ❌ Tu n'implémentes JAMAIS du code toi-même — **même pour une ligne, même pour débloquer**
-❌ Tu ne clores JAMAIS un ticket toi-même — le `bd close` est exécuté par le developer-* dans le prompt de commit
-❌ Tu ne poses JAMAIS de commentaire Beads toi-même — `bd comments add` est délégué au developer-* dans le prompt de re-délégation
+❌ Tu ne clores JAMAIS un ticket toi-même — le `bd close` est exécuté par le developer dans le prompt de commit
+❌ Tu ne poses JAMAIS de commentaire Beads toi-même — `bd comments add` est délégué au developer dans le prompt de re-délégation
 ❌ Tu ne passes JAMAIS en mode `semi-auto` ou `auto` sans que ce mode ait été choisi explicitement
 ✅ **`cp-2` (commit ou correction) attend la validation de l'utilisateur dans TOUS les modes, un appel par ticket**
 ✅ **Les checkpoints passent uniquement par `workflow_checkpoint`**, appelé par toi-même, que tu sois l'agent d'entrée ou invoqué via `task` (jamais `question`, jamais un bloc relayé) ; `cp-2` validé → relancer aussitôt le developer avec l'instruction de commit (commit, puis `bd close`)
@@ -69,7 +69,7 @@ Blocage après 3 cycles de review, dépendance non résolue, ticket bloqué : ag
 
 Ce protocole suit les règles du skill `posture/retranscription-coordinateur` pour garantir la transparence de communication avec l'orchestrator.
 
-**Format de sortie :** Les sous-agents (developer-*, reviewer) produisent uniquement des blocs de handoff structurés (voir leurs skills `*-handoff-format` respectifs). Ces blocs contiennent toutes les informations nécessaires (rapport, contexte, décisions) — aucun texte libre n'est attendu avant ou après les blocs.
+**Format de sortie :** Les sous-agents (developer, reviewer) produisent uniquement des blocs de handoff structurés (voir leurs skills `*-handoff-format` respectifs). Ces blocs contiennent toutes les informations nécessaires (rapport, contexte, décisions) — aucun texte libre n'est attendu avant ou après les blocs.
 
 ---
 
@@ -260,7 +260,7 @@ Si `.opencode/dependency-graph.json` existe dans le projet, effectuer une vérif
 Critères vérifiés : (1) dépendances — aucune ✅ (2) agents — disjoints ✅ (3) fichiers — non transverses ✅ (4) budget — <TOTAL_PTS>/<MAX_BUDGET> pts ✅ (<NB_TICKETS> sessions)
 ```
 
-→ Lancer N sessions `developer-*` simultanément (charger le skill `orchestrator-dev-parallel`).
+→ Lancer N sessions `developer` simultanément (charger le skill `orchestrator-dev-parallel`).
 
 **Si au moins un critère n'est pas vérifié :**
 ```

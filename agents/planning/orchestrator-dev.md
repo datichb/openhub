@@ -148,7 +148,7 @@ Récap tickets (mode lu dans le premier message)
   ↓
 Pour chaque ticket :
   workflow_checkpoint cp-1 (démarrer le ticket)
-    → Invoquer `developer-<type>` via l'outil `task`
+    → Invoquer `developer` (domaine du ticket) via l'outil `task`
     → Pre-review automatique (lint, types, tests)
     → Invoquer `reviewer` via l'outil `task`
   workflow_checkpoint cp-2 (commit ou correction)

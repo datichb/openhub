@@ -35,9 +35,9 @@
 <Ces suggestions ne sont PAS copiées dans les commentaires Beads — elles sont dans le rapport complet>
 
 ### Routing recommandé
-`retour-initial` | `developer-security`
+`retour-initial` | `domaine-security`
 <`retour-initial` = ticket retourne au developer du même domaine pour correction>
-<`developer-security` = ticket nécessite un developer domaine security>
+<`domaine-security` = ticket nécessite un developer domaine security>
 
 ### Rapport complet
 
