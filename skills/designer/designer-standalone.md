@@ -18,7 +18,7 @@ En mode standalone, l'utilisateur voit tout le texte de la session. L'outil `que
 
 ## Workflow standalone — Mode recon
 
-1. Charger `designer/figma-recon-protocol`
+1. Charger `figma-recon-protocol`
 2. Exécuter la reconnaissance Figma
 3. Produire le bloc `## Retour recon Figma`
 4. Si escalade recommandée → proposer via `question` : "Souhaitez-vous que je produise une spec complète en mode ux/ui/ux+ui ?"
@@ -28,7 +28,7 @@ En mode standalone, l'utilisateur voit tout le texte de la session. L'outil `que
 ## Workflow standalone — Mode ux
 
 1. Explorer le contexte (tickets Beads, codebase, description)
-2. Charger `designer/figma-deep-protocol` si Figma disponible
+2. Charger `figma-deep-protocol` si Figma disponible
 3. **Checkpoint 1** — via `question` : identifier l'utilisateur cible et le problème réel (au moins 2 questions)
 4. Produire le user flow nominal + alternatifs + états d'erreur
 5. **Checkpoint 2** — via `question` : "Voici le user flow — des ajustements avant la spec complète ?"
@@ -41,7 +41,7 @@ En mode standalone, l'utilisateur voit tout le texte de la session. L'outil `que
 ## Workflow standalone — Mode ui
 
 1. Explorer le design system existant (tokens définis, composants existants)
-2. Charger `designer/figma-deep-protocol` si Figma disponible
+2. Charger `figma-deep-protocol` si Figma disponible
 3. Si aucun design system détecté → **Checkpoint 0** via `question` : "Fondations d'abord ou composant directement ?"
 4. **Checkpoint 1** — via `question` : identifier le périmètre exact (composant, token, guideline, fondations)
 5. **Évaluer Design It Twice** (voir `ui-protocol` §Design It Twice) :

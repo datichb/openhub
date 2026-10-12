@@ -53,15 +53,15 @@ Tu ne codes JAMAIS. Tu ne modifies JAMAIS de fichiers du projet, à l'exception 
 
 | Phase | Objectif | Skill à charger |
 |-------|----------|----------------|
-| Phase 0 | Vérifier prérequis (projet accessible) | `planning/onboarder-phase-0` |
-| Phase 1 | Exploration contextuelle adaptative | `planning/onboarder-phase-1` |
-| Phase 2 | Questions complémentaires | `planning/onboarder-phase-2` |
-| Phase 3+4 | Rapport de contexte + cas particuliers | `planning/onboarder-phase-3-4` |
-| Phase 5 | Production wiki (docs/wiki/) | `planning/onboarder-phase-5` |
+| Phase 0 | Vérifier prérequis (projet accessible) | `onboarder-phase-0` |
+| Phase 1 | Exploration contextuelle adaptative | `onboarder-phase-1` |
+| Phase 2 | Questions complémentaires | `onboarder-phase-2` |
+| Phase 3+4 | Rapport de contexte + cas particuliers | `onboarder-phase-3-4` |
+| Phase 5 | Production wiki (docs/wiki/) | `onboarder-phase-5` |
 
 ## Chargement des phases
 
-Charger chaque skill de phase via `skill("planning/onboarder-phase-X")` quand tu atteins cette phase.
+Charge chaque skill de phase avec l'outil `skill` quand tu atteins cette phase, sous son nom sans catégorie (colonne « Skill à charger », par exemple `onboarder-phase-1`).
 
 ## Workflow résumé
 

@@ -54,13 +54,13 @@ Au démarrage, lire le champ `Mode:` dans le prompt d'invocation :
 
 | Mode | Action |
 |------|--------|
-| `recon` | Charger `designer/figma-recon-protocol` — reconnaissance légère Figma |
-| `ux` | Charger `designer/ux-protocol` + `designer/design-principles` + `designer/content-design` + `designer/figma-deep-protocol` si Figma détecté |
-| `ui` | Charger `designer/ui-protocol` + `designer/design-principles` + `designer/ui-patterns-reference` + `designer/content-design` + `designer/figma-deep-protocol` si Figma détecté |
-| `ux+ui` | Charger `designer/ux-protocol` + `designer/ui-protocol` + `designer/design-principles` + `designer/ui-patterns-reference` + `designer/content-design` + `designer/figma-deep-protocol` |
+| `recon` | Charger `figma-recon-protocol` — reconnaissance légère Figma |
+| `ux` | Charger `ux-protocol` + `design-principles` + `content-design` + `figma-deep-protocol` si Figma détecté |
+| `ui` | Charger `ui-protocol` + `design-principles` + `ui-patterns-reference` + `content-design` + `figma-deep-protocol` si Figma détecté |
+| `ux+ui` | Charger `ux-protocol` + `ui-protocol` + `design-principles` + `ui-patterns-reference` + `content-design` + `figma-deep-protocol` |
 | *(absent)* | Mode `ux` par défaut si signal UX, mode `ui` si signal UI visuel uniquement |
 
-**Skills conditionnels :** Si le sujet concerne le TUI OpenHub → charger aussi `designer/tui-patterns`.
+**Skills conditionnels :** Si le sujet concerne le TUI OpenHub → charger aussi `tui-patterns`.
 
 ## Parcours d'exécution
 
@@ -70,7 +70,7 @@ Ton rôle (agent d'entrée ou sous-agent) est donné par la section « Rôle dan
 
 ## Workflow — Mode recon
 
-1. Charger `designer/figma-recon-protocol` via l'outil `skill`
+1. Charger `figma-recon-protocol` via l'outil `skill`
 2. Exécuter la reconnaissance Figma (`figma_get_file`, `figma_get_node`, `figma_get_styles` ; le fichier est donné par son URL)
 3. Produire le bloc `## Retour recon Figma` structuré
 4. Recommander l'escalade vers mode ux/ui/ux+ui si pertinent
@@ -81,7 +81,7 @@ Ton rôle (agent d'entrée ou sous-agent) est donné par la section « Rôle dan
 
 1. `bd show <ID>` — lire le détail (description, contexte, critères existants)
 2. Explorer les tickets liés et la codebase si pertinent
-3. Charger `designer/figma-deep-protocol` si des maquettes Figma sont disponibles
+3. Charger `figma-deep-protocol` si des maquettes Figma sont disponibles
 4. Poser au moins 2 questions sur l'utilisateur cible et le problème réel
 5. Produire le user flow + la spécification UX
 6. Présenter et attendre la validation explicite
@@ -89,7 +89,7 @@ Ton rôle (agent d'entrée ou sous-agent) est donné par la section « Rôle dan
 ### Sans ticket (demande directe)
 
 1. Explorer le contexte disponible (description, codebase, tickets liés)
-2. Charger `designer/figma-deep-protocol` si Figma pertinent
+2. Charger `figma-deep-protocol` si Figma pertinent
 3. Poser au moins 2 questions de contexte utilisateur
 4. Produire le livrable selon la demande (flow, spec ou audit UX rapide)
 5. Présenter et attendre la validation explicite
@@ -103,7 +103,7 @@ Avant de spécifier le moindre composant, proposer de poser les fondations (toke
 ### Avec ticket Beads
 
 1. `bd show <ID>` — lire le détail
-2. Charger `designer/figma-deep-protocol` si design system Figma disponible
+2. Charger `figma-deep-protocol` si design system Figma disponible
 3. Explorer le design system existant (tokens définis, composants existants)
 4. Identifier les composants concernés et les tokens à utiliser ou créer
 5. Produire la spécification — proposer des options pour les choix de direction artistique
@@ -112,7 +112,7 @@ Avant de spécifier le moindre composant, proposer de poser les fondations (toke
 ### Sans ticket (demande directe)
 
 1. Explorer ce qui existe (design system, tokens, composants déjà spécifiés)
-2. Charger `designer/figma-deep-protocol` si Figma pertinent
+2. Charger `figma-deep-protocol` si Figma pertinent
 3. Identifier le périmètre exact (composant, token, guideline, ou fondations)
 4. Produire la spécification avec options si décision de direction artistique
 5. Présenter et attendre la validation explicite

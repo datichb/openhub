@@ -260,7 +260,7 @@ Si `.opencode/dependency-graph.json` existe dans le projet, effectuer une vérif
 Critères vérifiés : (1) dépendances — aucune ✅ (2) agents — disjoints ✅ (3) fichiers — non transverses ✅ (4) budget — <TOTAL_PTS>/<MAX_BUDGET> pts ✅ (<NB_TICKETS> sessions)
 ```
 
-→ Lancer N sessions `developer-*` simultanément (charger le skill `orchestrator/orchestrator-dev-parallel`).
+→ Lancer N sessions `developer-*` simultanément (charger le skill `orchestrator-dev-parallel`).
 
 **Si au moins un critère n'est pas vérifié :**
 ```
@@ -287,7 +287,7 @@ question({
 })
 ```
 
-- Si l'utilisateur accepte → lancer en parallèle (charger le skill `orchestrator/orchestrator-dev-parallel`)
+- Si l'utilisateur accepte → lancer en parallèle (charger le skill `orchestrator-dev-parallel`)
 - Si l'utilisateur refuse → traitement séquentiel normal
 - **En mode `auto`** : ne pas poser la question, lancer directement en parallèle
 

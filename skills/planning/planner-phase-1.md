@@ -9,7 +9,7 @@ requires: [shared/elicitation-techniques]
 ## Objectif
 Explorer le projet de manière ciblée selon le type de feature demandé.
 
-> **Si une ambiguité est détectée** sur le périmètre, les besoins ou les parties prenantes à ce stade ou pendant cette phase : charger le skill `shared/elicitation-techniques` (bucket-B) via l'outil `skill` pour choisir la technique d'élicitation adaptée avant de continuer.
+> **Si une ambiguité est détectée** sur le périmètre, les besoins ou les parties prenantes à ce stade ou pendant cette phase : charger le skill `elicitation-techniques` (bucket-B) via l'outil `skill` pour choisir la technique d'élicitation adaptée avant de continuer.
 
 ## Étape 1.1 — Projet et tickets existants
 
@@ -275,7 +275,7 @@ question({
 
 SI signaux UX ou UI détectés à la Phase 1 :
 → Invoquer l'agent `designer` avec le champ `Mode: recon | ux | ui | ux+ui` approprié.
-→ Charger le skill `design/design-planner-format` pour les templates de délégation et formats de retour.
+→ Charger le skill `design-planner-format` pour les templates de délégation et formats de retour.
 
 **Choix du mode :**
 - Signal UX uniquement → `Mode: ux`

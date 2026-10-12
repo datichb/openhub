@@ -114,7 +114,7 @@ question({
          - `implémenté` ou `partiellement-implémenté` → continuer vers l'étape 3
          - `bloqué` → traiter comme un "Ticket bloqué en cours d'implémentation" (voir section dédiée)
           - `BLOCKED_ARCHITECTURE` → **charger puis appliquer le skill de gestion de dérive** :
-            0. Appeler `skill("developer/dev-drift-detection")` pour charger le protocole
+            0. Charger la skill `dev-drift-detection` (outil `skill`) pour appliquer le protocole
             1. Lire le rapport de dérive fourni par le developer
             2. Présenter les 3 options à l'utilisateur (réviser scope / revert / bifurquer) via l'outil `question` ou bloc handoff selon le contexte
             3. Appliquer la décision : modifier le ticket Beads (Option A), relancer depuis l'étape 1b (Option B), ou créer le ticket de refactoring et mettre le ticket courant en `blocked` (Option C)

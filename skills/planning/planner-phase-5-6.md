@@ -7,7 +7,7 @@ description: Phase 5 (création tickets dans Beads), Phase 5.5 (délégation ai-
 
 **Uniquement après validation explicite du plan.**
 
-→ Charger le skill `planning/planner-beads-templates` via l'outil `skill` pour les templates complets de création (epics, features, tasks, dépendances, labels, estimations, règles d'enrichissement).
+→ Charger le skill `planner-beads-templates` via l'outil `skill` pour les templates complets de création (epics, features, tasks, dépendances, labels, estimations, règles d'enrichissement).
 
 ---
 

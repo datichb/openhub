@@ -171,12 +171,12 @@ Toujours doubler avec une icône ou un texte.
 ## Patterns de référence
 
 Pour les patterns UI détaillés par type de composant (navigation, dashboard, empty states,
-error states, loading, forms, modals, menus) → charger `designer/ui-patterns-reference`.
+error states, loading, forms, modals, menus) → charger `ui-patterns-reference`.
 
 Pour les patterns spécifiques au TUI OpenHub (omnibar, overlays, widgets Aurum, tokens) →
-charger `designer/tui-patterns`.
+charger `tui-patterns`.
 
-Pour le wording des composants (messages d'erreur, labels, copy) → charger `designer/content-design`.
+Pour le wording des composants (messages d'erreur, labels, copy) → charger `content-design`.
 
 ---
 

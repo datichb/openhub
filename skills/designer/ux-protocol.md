@@ -65,7 +65,7 @@ Toute spécification UX commence par une compréhension du contexte :
 → Feedback immédiat (< 100ms interaction directe, < 400ms résultats). Skeleton screens, optimistic UI.
 
 Pour la référence complète (10 heuristiques Nielsen détaillées, 6 principes Gestalt,
-12 Laws of UX, grille Tenets & Traps) → charger `designer/design-principles`.
+12 Laws of UX, grille Tenets & Traps) → charger `design-principles`.
 
 ### Journey-first design
 

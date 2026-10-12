@@ -88,7 +88,7 @@ Une fois le profil identifié, cibler les fichiers structurants.
 
 #### Profil Frontend Vue.js
 
-SI profil détecté → charger le skill `planning/onboarder-profiles` via `skill` pour les fichiers structurants à explorer selon le profil applicatif.
+SI profil détecté → charger le skill `onboarder-profiles` via `skill` pour les fichiers structurants à explorer selon le profil applicatif.
 
 ### ÉTAPE 1.3 — Lire les tickets Beads et ADRs
 
