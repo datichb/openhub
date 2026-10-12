@@ -5,6 +5,8 @@ description: Standards Laravel — Eloquent, controllers, Form Requests, service
 
 # Skill — Standards Laravel
 
+> Versions de référence (octobre 2026) : Laravel 13 (PHP ≥ 8.3).
+
 ## Rôle
 
 Ce skill définit les bonnes pratiques pour le développement backend avec Laravel.
@@ -48,27 +50,30 @@ app/
 
 ## Models Eloquent
 
-- Définir `$fillable` ou `$guarded` explicitement — jamais les deux
+- Définir les attributs assignables en masse avec `#[Fillable([...])]` (ou `#[Guarded]`) — jamais les deux (Laravel 13 ; propriétés `$fillable` / `$guarded` sur les versions antérieures)
+- `#[Hidden([...])]` pour les champs sensibles, casts via la méthode `casts()` (Laravel 11+)
 - Les relations sont typées avec PHPDoc ou les return types
-- Les scopes locaux pour les requêtes fréquentes
+- Les scopes locaux (attribut `#[Scope]`) pour les requêtes fréquentes
 
 ```php
-// ✅ Model bien configuré
+// ✅ Model bien configuré (squelette Laravel 13)
+#[Fillable(['name', 'email'])]
+#[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
 {
-    protected $fillable = ['name', 'email'];
-
-    protected $hidden = ['password', 'remember_token'];
-
-    protected $casts = [
-        'email_verified_at' => 'datetime',
-        'password'          => 'hashed',
-    ];
-
-    // ✅ Scope local pour les requêtes fréquentes
-    public function scopeActive(Builder $query): Builder
+    protected function casts(): array
     {
-        return $query->where('is_active', true);
+        return [
+            'email_verified_at' => 'datetime',
+            'password'          => 'hashed',
+        ];
+    }
+
+    // ✅ Scope local pour les requêtes fréquentes — User::active()
+    #[Scope]
+    protected function active(Builder $query): void
+    {
+        $query->where('is_active', true);
     }
 
     // ✅ Relation typée
@@ -269,7 +274,7 @@ class UserControllerTest extends TestCase
 ## Ce que tu ne fais PAS
 
 - Mettre de la logique métier dans les controllers
-- Utiliser `$guarded = []` (tout fillable) — définir `$fillable` explicitement
+- Rendre tout assignable en masse (`#[Unguarded]`, `$guarded = []`) — lister les champs avec `#[Fillable]`
 - Exposer les passwords dans les API Resources
 - Modifier des migrations déjà exécutées en production
 - Ignorer les transactions pour les opérations multi-étapes

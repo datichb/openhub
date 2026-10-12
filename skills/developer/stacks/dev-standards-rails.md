@@ -5,6 +5,8 @@ description: Standards Ruby on Rails — MVC, ActiveRecord, concerns, services o
 
 # Skill — Standards Ruby on Rails
 
+> Versions de référence (octobre 2026) : Rails 8.1, Ruby 3.4 / 4.0.
+
 ## Rôle
 
 Ce skill définit les bonnes pratiques pour le développement backend avec Ruby on Rails.
@@ -65,7 +67,7 @@ class User < ApplicationRecord
   scope :recent, -> { order(created_at: :desc) }
 
   # Normalisation
-  before_validation { self.email = email&.downcase&.strip }
+  normalizes :email, with: ->(email) { email.strip.downcase }
 
   # Méthode métier simple
   def full_display_name
@@ -106,7 +108,7 @@ module Api
       end
 
       def user_params
-        params.require(:user).permit(:name, :email, :password)
+        params.expect(user: [:name, :email, :password]) # Rails 8 — remplace require/permit
       end
     end
   end
@@ -190,7 +192,7 @@ end
 
 ```ruby
 # ✅ Migration bien structurée
-class CreateUsers < ActiveRecord::Migration[7.1]
+class CreateUsers < ActiveRecord::Migration[8.1]
   def change
     create_table :users, id: :uuid do |t|
       t.string :name, null: false
