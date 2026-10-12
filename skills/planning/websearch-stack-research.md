@@ -3,44 +3,41 @@ name: websearch-stack-research
 description: "Protocole de recherche WebSearch spécialisé pour les agents de planification — découverte et évaluation de stacks technologiques, librairies, frameworks et patterns architecturaux. Utiliser quand le pathfinder détecte une stack incomplète ou non documentée, quand le planner doit choisir entre plusieurs librairies, ou quand l'onboarder identifie des lacunes technologiques. Couvre : comparaisons de librairies, critères d'évaluation (popularité, maintenance, TypeScript, bundle size, licence), patterns de requêtes ciblées, gestion des résultats biaisés ou obsolètes. Mots-clés : library comparison, framework selection, migration planning, tech stack, npm downloads, GitHub stars, bundle size, ecosystem trends."
 ---
 
-# WebSearch Stack Research — Planning Agent Protocol
+# Recherche de stack par WebSearch — protocole des agents de planification
 
-**Version**: 1.0.0  
-**Target**: Planning agents (pathfinder, onboarder, planner)  
-**Extends**: `skills/shared/websearch-usage.md`
+Complète le skill `websearch-usage` (règles générales, sécurité, format de restitution).
 
-## Purpose
+## Objectif
 
-This skill provides a specialized protocol for using WebSearch to discover and evaluate **technology stacks**, **libraries**, **frameworks**, and **architectural patterns** during project planning and scouting phases. It enables data-driven technology recommendations based on current ecosystem trends.
+Utiliser WebSearch pour découvrir et évaluer **stacks technologiques**, **librairies**, **frameworks** et **patterns architecturaux** pendant la reconnaissance et la planification, afin de recommander des technologies sur des données à jour.
 
-## When to Use Stack Research
+## Quand faire une recherche de stack
 
-### Trigger Conditions
-Use WebSearch for stack research when:
-1. **Project Initialization**: Pathfinder detects incomplete or undocumented tech stack
-2. **Technology Decision**: Choosing between multiple libraries/frameworks
-3. **Migration Planning**: Evaluating alternatives to legacy tech
-4. **Feature Implementation**: Unknown how to implement new requirements
-5. **Best Practices Discovery**: Learning patterns for unfamiliar technology
+### Déclencheurs
+1. **Initialisation du projet** : le pathfinder détecte une stack incomplète ou non documentée
+2. **Choix technologique** : plusieurs librairies/frameworks en concurrence
+3. **Planification de migration** : alternatives à une technologie legacy
+4. **Implémentation d'une feature** : on ne sait pas comment répondre au besoin
+5. **Découverte de bonnes pratiques** : technologie peu familière
 
-### Planning Phase Integration
+### Selon l'agent
 ```
-Pathfinder Phase:
-→ Discover existing tech stack
-→ WebSearch: Missing documentation, migration guides
+Pathfinder :
+→ découvrir la stack existante
+→ WebSearch : documentation manquante, guides de migration
 
-Onboarder Phase:
-→ Identify knowledge gaps
-→ WebSearch: Official docs, setup guides, tutorials
+Onboarder :
+→ identifier les lacunes de connaissance
+→ WebSearch : documentation officielle, guides d'installation, tutoriels
 
-Planner Phase:
-→ Design features with uncertain implementation
-→ WebSearch: Library comparisons, architecture patterns
+Planner :
+→ concevoir des features à l'implémentation incertaine
+→ WebSearch : comparaisons de librairies, patterns d'architecture
 ```
 
-## Stack Research Query Patterns
+## Patterns de requête
 
-### Pattern 1: Library Comparison
+### 1. Comparaison de librairies
 ```
 ✅ "React state management comparison Zustand Redux Jotai 2026"
 ✅ "Next.js authentication library comparison NextAuth Clerk Auth.js"
@@ -48,7 +45,7 @@ Planner Phase:
 ✅ "headless CMS comparison Sanity Contentful Strapi 2026"
 ```
 
-### Pattern 2: Documentation Discovery
+### 2. Documentation
 ```
 ✅ "Tailwind CSS official documentation"
 ✅ "Prisma schema reference guide"
@@ -56,7 +53,7 @@ Planner Phase:
 ✅ "TypeScript 5.4 documentation"
 ```
 
-### Pattern 3: Ecosystem Trends
+### 3. Tendances de l'écosystème
 ```
 ✅ "React ecosystem trends 2026"
 ✅ "serverless framework comparison AWS Lambda 2026"
@@ -64,7 +61,7 @@ Planner Phase:
 ✅ "monorepo tools comparison Turborepo Nx pnpm workspaces"
 ```
 
-### Pattern 4: Best Practices & Patterns
+### 4. Bonnes pratiques et patterns
 ```
 ✅ "Next.js project structure best practices 2026"
 ✅ "microservices architecture Node.js patterns"
@@ -72,7 +69,7 @@ Planner Phase:
 ✅ "React component design patterns 2026"
 ```
 
-### Pattern 5: Integration & Setup
+### 5. Intégration et installation
 ```
 ✅ "integrate Stripe Next.js App Router"
 ✅ "setup Tailwind CSS with Next.js 14"
@@ -80,448 +77,213 @@ Planner Phase:
 ✅ "deploy Next.js Vercel environment variables"
 ```
 
-## Evaluation Criteria for Stack Decisions
+## Critères d'évaluation
 
-When researching libraries/frameworks, evaluate on:
+| Critère | Requêtes | Seuils / signaux |
+|---------|----------|------------------|
+| **Popularité** | `"most popular {catégorie} 2026"`, `"npm downloads {lib}"`, `"GitHub stars {lib}"` | ✅ Haute : > 1M téléchargements npm/semaine, > 20K stars — ✅ Moyenne : 100K-1M, 5K-20K — ⚠ Faible : < 100K, < 5K (risque plus élevé) |
+| **Maintenance et communauté** | `"{lib} active development 2026"`, `"{lib} community support"` | ❌ Dernier commit > 6 mois, nombreuses issues critiques ouvertes, annonce d'épuisement des mainteneurs |
+| **Documentation** | `"{lib} documentation"`, `"{lib} getting started guide"` | ✅ Docs officielles avec recherche, exemples TypeScript, guides de migration, référence d'API |
+| **TypeScript** | `"{lib} TypeScript support"`, `"{lib} type definitions"` | ✅ Excellent : écrit en TS — ✅ Bon : types DefinitelyTyped maintenus — ⚠ Faible : pas de types ou types communautaires incomplets |
+| **Bundle size** | `"{lib} bundle size"`, `"bundlephobia {lib}"` | Gzippé : ✅ < 10KB, ✅ 10-50KB, ⚠ > 50KB (à justifier) |
+| **Performance** | `"{lib} performance benchmark 2026"`, `"{lib} vs {alt} speed comparison"` | Benchmarks indépendants (pas publiés par l'éditeur), scénarios réels, données récentes |
+| **Licence** | `"{lib} license"` | ✅ MIT, Apache 2.0, ISC, BSD — ⚠ GPL (revue juridique) — ❌ Propriétaire (achat) |
 
-### 1. Popularity & Adoption
+## Exemples de déroulé
+
+### Pathfinder
 ```
-Search indicators:
-- "most popular {category} 2026"
-- "npm downloads {library}"
-- "GitHub stars {library}"
-
-Thresholds:
-✅ HIGH: >1M weekly npm downloads, >20K GitHub stars
-✅ MEDIUM: 100K-1M downloads, 5K-20K stars
-⚠ LOW: <100K downloads, <5K stars (higher risk)
-```
-
-### 2. Maintenance & Community
-```
-Search indicators:
-- "{library} active development 2026"
-- "{library} community support"
-- "{library} issues response time"
-
-Red flags:
-❌ Last commit >6 months ago
-❌ Many open critical issues
-❌ Maintainer burnout announcements
+1. PATHFINDER : analyse du code existant
+   → Détecté : Next.js 13, React 18, gestion d'état inconnue
+2. WEBSEARCH : "Next.js 13 state management detection patterns"
+   → Chercher les imports Redux, Zustand, Jotai
+3. PATHFINDER : nouveau scan → Zustand utilisé
+4. WEBSEARCH : "Zustand best practices 2026" → documentation officielle pour le handoff
+5. HANDOFF : carte complète de la stack
+   → État : Zustand (docs : https://zustand-demo.pmnd.rs/)
 ```
 
-### 3. Documentation Quality
+### Onboarder
 ```
-Search:
-- "{library} documentation"
-- "{library} getting started guide"
-- "{library} tutorials 2026"
-
-Quality signs:
-✅ Official docs with search
-✅ TypeScript examples
-✅ Migration guides
-✅ API reference
-✅ Video tutorials
+1. ONBOARDER : revue des besoins du projet → lacune : « Comment gérer l'authentification ? »
+2. WEBSEARCH : "Next.js authentication library comparison 2026"
+   - NextAuth.js (le plus populaire, complexe)
+   - Clerk (le plus simple, offres payantes)
+   - Auth.js (NextAuth v5, bêta)
+3. WEBSEARCH : "NextAuth.js Next.js 14 App Router setup" → guide de migration officiel
+4. ONBOARDER : documenter l'installation (provider, sessions, routes protégées)
 ```
 
-### 4. TypeScript Support
+### Planner
 ```
-Search:
-- "{library} TypeScript support"
-- "{library} type definitions"
-
-Tiers:
-✅ EXCELLENT: Written in TS, full type coverage
-✅ GOOD: DefinitelyTyped types maintained
-⚠ POOR: No types, community types incomplete
-```
-
-### 5. Bundle Size
-```
-Search:
-- "{library} bundle size"
-- "bundlephobia {library}"
-- "{library} vs {alternative} size comparison"
-
-Thresholds (gzipped):
-✅ SMALL: <10KB
-✅ MEDIUM: 10-50KB
-⚠ LARGE: >50KB (justify if necessary)
+1. PLANNER : feature « Notifications temps réel » → implémentation incertaine
+2. WEBSEARCH : "real-time notifications Next.js 2026 WebSocket vs SSE"
+   - Pusher (hébergé, simple) — Ably (hébergé, complet)
+   - Socket.io (auto-hébergé, complexe) — Server-Sent Events (natif, simple)
+3. WEBSEARCH : "Server-Sent Events Next.js App Router example" → tutoriel avec code
+4. PLANNER : dans le plan d'implémentation
+   → Approche : SSE avec l'API EventSource
+   → Justification : support natif des navigateurs, plus simple que WebSocket pour des notifications à sens unique
+   → Référence : [URL du guide SSE]
 ```
 
-### 6. Performance
-```
-Search:
-- "{library} performance benchmark 2026"
-- "{library} vs {alternative} speed comparison"
-
-Look for:
-- Independent benchmarks (not vendor-published)
-- Real-world scenarios (not micro-benchmarks)
-- Recent data (2024-2026)
-```
-
-### 7. License
-```
-Search:
-- "{library} license"
-
-Acceptable for most projects:
-✅ MIT, Apache 2.0, ISC, BSD
-⚠ GPL (requires legal review)
-❌ Proprietary (requires purchase)
-```
-
-## Workflow Integration
-
-### Pathfinder → WebSearch Workflow
-```
-1. PATHFINDER: Analyze existing codebase
-   → Detected: Next.js 13, React 18, unknown state management
-
-2. WEBSEARCH: Identify missing pieces
-   Query: "Next.js 13 state management detection patterns"
-   → Learn: Look for Redux, Zustand, Jotai imports
-
-3. PATHFINDER: Re-scan with new patterns
-   → Detected: Zustand in use
-
-4. WEBSEARCH: Document Zustand usage
-   Query: "Zustand best practices 2026"
-   → Fetch: Official docs for handoff
-
-5. HANDOFF: Complete tech stack map
-   → State: Zustand (docs: https://zustand-demo.pmnd.rs/)
-```
-
-### Onboarder → WebSearch Workflow
-```
-1. ONBOARDER: Review project requirements
-   → Gap: "How do we handle authentication?"
-
-2. WEBSEARCH: Research options
-   Query: "Next.js authentication library comparison 2026"
-   Results:
-   - NextAuth.js (most popular, complex)
-   - Clerk (easiest, paid tiers)
-   - Auth.js (NextAuth v5, beta)
-
-3. WEBSEARCH: Deep dive on top candidate
-   Query: "NextAuth.js Next.js 14 App Router setup"
-   → Fetch: Official migration guide
-
-4. ONBOARDER: Document setup steps
-   → Include: Auth provider setup, session handling, protected routes
-```
-
-### Planner → WebSearch Workflow
-```
-1. PLANNER: Design feature "Real-time notifications"
-   → Uncertainty: How to implement?
-
-2. WEBSEARCH: Discover solutions
-   Query: "real-time notifications Next.js 2026 WebSocket vs SSE"
-   Options:
-   - Pusher (hosted, easy)
-   - Ably (hosted, feature-rich)
-   - Socket.io (self-hosted, complex)
-   - Server-Sent Events (native, simple)
-
-3. WEBSEARCH: Evaluate best fit
-   Query: "Server-Sent Events Next.js App Router example"
-   → Fetch: Tutorial with code examples
-
-4. PLANNER: Include in implementation plan
-   → Approach: SSE with EventSource API
-   → Rationale: Native browser support, simpler than WebSockets for one-way notifications
-   → Reference: [SSE guide URL]
-```
-
-## Library Comparison Template
-
-When comparing libraries, use this structure:
+## Gabarit de comparaison
 
 ```markdown
-## Library Comparison: {Category}
+## Comparaison de librairies : {Catégorie}
 
-**Use Case**: {Specific requirement}  
-**Date**: 2026-05-29  
-**Search Query**: "{your query}"
+**Cas d'usage** : {besoin précis}
+**Date** : {AAAA-MM-JJ}
+**Requête** : "{requête}"
 
-### Options Evaluated
+### Options évaluées
 
-#### Option 1: {Library A}
-- **Popularity**: {downloads/stars}
-- **Bundle Size**: {size} KB gzipped
-- **TypeScript**: ✅ Full support / ⚠ Partial / ❌ None
-- **Documentation**: [URL]
-- **Last Updated**: {date}
-- **Pros**:
-  - {pro 1}
-  - {pro 2}
-- **Cons**:
-  - {con 1}
-  - {con 2}
-- **Best For**: {scenario}
+#### Option 1 : {Librairie A}
+- **Popularité** : {téléchargements/stars}
+- **Bundle size** : {taille} KB gzippé
+- **TypeScript** : ✅ Complet / ⚠ Partiel / ❌ Aucun
+- **Documentation** : [URL]
+- **Dernière mise à jour** : {date}
+- **Pour** : {…}
+- **Contre** : {…}
+- **Idéal pour** : {scénario}
 
-#### Option 2: {Library B}
+#### Option 2 : {Librairie B}
 ...
 
-#### Option 3: {Library C}
-...
+### Recommandation
 
-### Recommendation
+**Choix** : {Librairie X}
 
-**Selected**: {Library X}
+**Justification** :
+1. {raison 1, chiffrée}
+2. {raison 2, chiffrée}
 
-**Rationale**:
-1. {Reason 1 with data}
-2. {Reason 2 with data}
-3. {Reason 3 with data}
+**Compromis acceptés** :
+- {compromis}
 
-**Trade-offs Accepted**:
-- {Trade-off 1}
-- {Trade-off 2}
+**Notes d'implémentation** :
+- Installation : `npm install {librairie}` <!-- capability: user -->
+- Mise en place : {aperçu}
+- Documentation : [URL]
 
-**Implementation Notes**:
-- Install: `npm install {library}` <!-- capability: user -->
-- Setup: {brief overview}
-- Documentation: [URL]
-
-**Sources**:
-- Comparison article: [URL]
-- Official docs: [URL]
-- Benchmark: [URL]
+**Sources** :
+- Article de comparaison : [URL]
+- Documentation officielle : [URL]
+- Benchmark : [URL]
 ```
 
-## Ecosystem-Specific Search Strategies
+## Recherches courantes par écosystème
 
-### React Ecosystem
-```
-Common searches:
-- "React UI component library comparison 2026" (MUI, Chakra, Radix, shadcn/ui)
-- "React form library comparison 2026" (React Hook Form, Formik, Final Form)
-- "React animation library comparison" (Framer Motion, React Spring, GSAP)
-- "React testing library best practices" (Testing Library, Enzyme, Cypress)
-```
+| Écosystème | Requêtes |
+|------------|----------|
+| **React** | `"React UI component library comparison 2026"` (MUI, Chakra, Radix, shadcn/ui), `"React form library comparison 2026"` (React Hook Form, Formik, Final Form), `"React animation library comparison"` (Framer Motion, React Spring, GSAP), `"React testing library best practices"` |
+| **Next.js** | `"Next.js database integration 2026"` (Prisma, Drizzle, Supabase), `"Next.js deployment options comparison"` (Vercel, Netlify, AWS Amplify), `"Next.js CMS integration"` (Sanity, Contentful, Strapi, Payload), `"Next.js monitoring tools"` (Sentry, LogRocket, Datadog) |
+| **Node.js backend** | `"Node.js framework comparison 2026"` (Express, Fastify, Hapi, NestJS), `"Node.js validation library"` (Zod, Yup, Joi, AJV), `"Node.js job queue library"` (Bull, BullMQ, Bee-Queue), `"Node.js logging library"` (Winston, Pino, Bunyan) |
+| **Base de données** | `"database comparison SQL vs NoSQL 2026"`, `"PostgreSQL vs MySQL vs MongoDB use cases"`, `"serverless database comparison PlanetScale Neon Supabase"`, `"database migration tool comparison Prisma Drizzle TypeORM"` |
 
-### Next.js Ecosystem
-```
-Common searches:
-- "Next.js database integration 2026" (Prisma, Drizzle, Supabase)
-- "Next.js deployment options comparison" (Vercel, Netlify, AWS Amplify)
-- "Next.js CMS integration" (Sanity, Contentful, Strapi, Payload)
-- "Next.js monitoring tools" (Sentry, LogRocket, Datadog)
-```
+## Résultats biaisés, obsolètes ou incomplets
 
-### Node.js Backend
-```
-Common searches:
-- "Node.js framework comparison 2026" (Express, Fastify, Hapi, NestJS)
-- "Node.js validation library" (Zod, Yup, Joi, AJV)
-- "Node.js job queue library" (Bull, BullMQ, Bee-Queue)
-- "Node.js logging library" (Winston, Pino, Bunyan)
-```
+| Problème | Solutions |
+|----------|-----------|
+| **Biais éditeur** (pages marketing uniquement) | Ajouter « independent comparison » (`"independent headless CMS comparison 2026"`), chercher les discussions communautaires (`"Reddit {A} vs {B}"`), des sources académiques |
+| **Information obsolète** (résultats 2020-2022) | Ajouter l'année (`"React state management 2025-2026"`), « latest » / « current », consulter les changelogs officiels |
+| **Contexte manquant** (comparaison générique) | Ajouter le besoin précis (`"React form library large multi-step forms"`), l'échelle (`"database choice small startup vs enterprise"`), les contraintes techniques (`"real-time library serverless AWS Lambda"`) |
 
-### Database Selection
+## Limiter le nombre de recherches
+
+### Affinage progressif
 ```
-Common searches:
-- "database comparison SQL vs NoSQL 2026"
-- "PostgreSQL vs MySQL vs MongoDB use cases"
-- "serverless database comparison PlanetScale Neon Supabase"
-- "database migration tool comparison Prisma Drizzle TypeORM"
-```
-
-## Handling Incomplete or Biased Results
-
-### Vendor Bias
-```
-Problem: Search returns vendor marketing pages only
-
-Solutions:
-1. Add "independent comparison" to query
-   ✅ "independent headless CMS comparison 2026"
-2. Search for community discussions
-   ✅ "Reddit {library A} vs {library B}"
-3. Look for academic or research sources
-   ✅ "research paper {technology}"
-```
-
-### Outdated Information
-```
-Problem: Top results are from 2020-2022
-
-Solutions:
-1. Add year filter
-   ✅ "React state management 2025-2026"
-2. Search for "latest" or "current"
-   ✅ "latest React patterns 2026"
-3. Check official changelogs
-   ✅ "React 18 new features"
-```
-
-### Missing Context
-```
-Problem: Generic comparison without use-case specificity
-
-Solutions:
-1. Add your specific requirements
-   ✅ "React form library large multi-step forms"
-2. Add scale indicators
-   ✅ "database choice small startup vs enterprise"
-3. Add technical constraints
-   ✅ "real-time library serverless AWS Lambda"
-```
-
-## Rate Limit Strategy
-
-Stack research can be extensive. Optimize with:
-
-### Progressive Refinement
-```
-Round 1: Broad Overview
+Tour 1 : vue d'ensemble
 ✅ "Next.js full-stack architecture 2026"
-→ Get landscape understanding
 
-Round 2: Targeted Deep Dives
+Tour 2 : approfondissements ciblés (2-3 candidats par catégorie)
 ✅ "Next.js authentication NextAuth vs Clerk"
 ✅ "Next.js database Prisma vs Drizzle"
-→ Compare top 2-3 candidates per category
 
-Round 3: Implementation Details (WebFetch)
+Tour 3 : détails d'implémentation (WebFetch)
 ✅ webfetch("https://next-auth.js.org/getting-started")
-→ Fetch official documentation for selected choices
 ```
 
-### Parallel Research Categories
-If you need to research multiple categories, batch them:
+### Regrouper les catégories
 ```
-Single query approach:
 ✅ "Next.js tech stack recommendations 2026 database authentication deployment"
-→ Get overview of all categories in one search
-→ Follow up with targeted queries only where needed
+→ vue d'ensemble de toutes les catégories en une recherche, puis requêtes ciblées seulement si nécessaire
 ```
 
-### Leverage Known Resources
-For common stacks, go direct to known comparisons:
+### Ressources connues
 ```
 ✅ webfetch("https://2024.stateofjs.com/en-US/libraries/")
 ✅ webfetch("https://risingstars.js.org/2025/en")
 ✅ webfetch("https://npmtrends.com/{lib1}-vs-{lib2}")
-→ Annual surveys and trend reports cover many comparisons
+→ les enquêtes annuelles et rapports de tendances couvrent de nombreuses comparaisons
 ```
 
-## Error Handling
+## Cas difficiles
 
-### Scenario 1: No Clear Winner
-```
-Research shows: All options have similar trade-offs
+| Situation | Action |
+|-----------|--------|
+| **Pas de gagnant net** (compromis similaires) | Choisir le plus populaire (moins de risque, plus de ressources) ; documenter « pas de différence significative, {X} choisi pour la taille de sa communauté » ; noter qu'une migration reste possible |
+| **Toutes les options ont un défaut rédhibitoire** | Réévaluer les besoins ; chercher des solutions hybrides (`"{feature} custom implementation"`) ; envisager une solution maison minimale ; documenter les compromis pour décision |
+| **Recommandations contradictoires** | Comparer les dates (la plus récente l'emporte), l'autorité (officiel > blog), le contexte (échelle, contraintes) ; restituer « avis partagés, {X} recommandé parce que {raison} » |
 
-Action:
-1. Default to most popular (lower risk, more resources)
-2. Document: "No significant difference found, chose {X} based on community size"
-3. Plan: "Can migrate to alternative if needs change"
-```
+## Restitution dans le handoff
 
-### Scenario 2: All Options Have Deal-Breakers
-```
-Research shows: Every library has a critical limitation for our use case
-
-Action:
-1. Re-evaluate requirements (are they all necessary?)
-2. Search for hybrid solutions: "{feature} custom implementation"
-3. Consider building minimal custom solution
-4. Document trade-offs clearly for stakeholder decision
-```
-
-### Scenario 3: Conflicting Recommendations
-```
-Source A: "Use {X} for {use case}"
-Source B: "Avoid {X}, use {Y} instead"
-
-Action:
-1. Check publication dates (recent wins)
-2. Check source authority (official > blog)
-3. Check context (scale, constraints, etc.)
-4. Report: "Mixed opinions found, recommending {X} because {reason}"
-```
-
-## Integration with Documentation
-
-### Handoff Format
-After research, include in handoff document:
+Après la recherche, inclure dans le document de handoff :
 
 ```markdown
-## Technology Stack
+## Stack technique
 
-### Core Framework
-- **Next.js 14** (App Router)
-  - Docs: https://nextjs.org/docs
-  - Chosen for: SSR, file-based routing, Vercel ecosystem
-  - Version: 14.2.0 (latest stable)
-
-### State Management
+### Gestion d'état
 - **Zustand 4.5**
-  - Docs: https://zustand-demo.pmnd.rs/
-  - Chosen for: Simplicity, TypeScript support, small bundle (3KB)
-  - Alternative considered: Redux (rejected due to boilerplate complexity)
+  - Docs : https://zustand-demo.pmnd.rs/
+  - Choisi pour : simplicité, support TypeScript, bundle réduit (3KB)
+  - Alternative envisagée : Redux (écartée : boilerplate)
 
-### Database
+### Base de données
 - **Prisma 5** + PostgreSQL 16
-  - Docs: https://www.prisma.io/docs
-  - Chosen for: Type-safe ORM, excellent DX, migration tooling
-  - Alternative considered: Drizzle (rejected due to smaller community)
+  - Docs : https://www.prisma.io/docs
+  - Choisi pour : ORM typé, bonne DX, outillage de migration
+  - Alternative envisagée : Drizzle (écartée : communauté plus réduite)
 
-### Authentication
-- **NextAuth.js 5** (Auth.js)
-  - Docs: https://authjs.dev/
-  - Chosen for: OAuth providers, session handling, Next.js integration
-  - Setup guide: [Internal doc link]
-
-### Research Sources
-- Stack comparison: https://example.com/nextjs-stack-2026
-- Community recommendations: https://reddit.com/r/nextjs/...
-- Benchmark data: https://github.com/user/comparison-repo
+### Sources de la recherche
+- Comparaison de stack : [URL]
+- Recommandations communautaires : [URL]
+- Benchmark : [URL]
 ```
 
-## Best Practices Summary
+## Bonnes pratiques
 
-**DO**:
-- ✅ Research before committing to a library (avoid costly migrations)
-- ✅ Evaluate multiple options (minimum 2-3 candidates)
-- ✅ Check publication dates (prefer 2024-2026 sources)
-- ✅ Verify with official documentation
-- ✅ Consider bundle size, TypeScript support, maintenance status
-- ✅ Document rationale for choices (for future reference)
-- ✅ Include sources in handoff documents
+**À FAIRE** :
+- ✅ Rechercher avant de s'engager sur une librairie (éviter les migrations coûteuses)
+- ✅ Évaluer plusieurs options (2-3 candidats minimum)
+- ✅ Vérifier les dates de publication (sources 2024-2026)
+- ✅ Confirmer avec la documentation officielle
+- ✅ Prendre en compte bundle size, support TypeScript, maintenance
+- ✅ Documenter la justification des choix et inclure les sources dans le handoff
 
-**DON'T**:
-- ❌ Choose based on hype alone (viral tweets != good fit)
-- ❌ Ignore bundle size (frontend performance matters)
-- ❌ Select unmaintained libraries (future security risk)
-- ❌ Over-engineer (YAGNI principle applies)
-- ❌ Trust vendor comparisons uncritically (biased)
-- ❌ Skip TypeScript support check (if using TS)
-- ❌ Forget to document trade-offs
-
-**Remember**: Stack decisions have long-term consequences. Invest time in research during planning to avoid expensive migrations later. WebSearch enables data-driven, current, and well-informed technology choices.
+**À NE PAS FAIRE** :
+- ❌ Choisir sur le seul effet de mode
+- ❌ Ignorer le bundle size (la performance frontend compte)
+- ❌ Retenir une librairie non maintenue (risque de sécurité futur)
+- ❌ Sur-concevoir (YAGNI)
+- ❌ Croire sans recul les comparaisons d'éditeurs
+- ❌ Oublier de documenter les compromis
 
 ---
 
-## Stack Research Checklist
+## Checklist avant recommandation
 
-Before recommending a library/framework:
-- [ ] Identified 2-3 candidate options
-- [ ] Checked popularity (npm downloads, GitHub stars)
-- [ ] Verified active maintenance (recent commits, issue response)
-- [ ] Reviewed documentation quality
-- [ ] Confirmed TypeScript support (if applicable)
-- [ ] Checked bundle size (<50KB preferred)
-- [ ] Found performance benchmarks (if performance-critical)
-- [ ] Verified license compatibility
-- [ ] Read community feedback (Reddit, GitHub discussions)
-- [ ] Documented rationale and trade-offs
-- [ ] Included official documentation links in handoff
+- [ ] 2-3 options candidates identifiées
+- [ ] Popularité vérifiée (téléchargements npm, stars GitHub)
+- [ ] Maintenance active vérifiée (commits récents, réponse aux issues)
+- [ ] Qualité de la documentation évaluée
+- [ ] Support TypeScript confirmé (si applicable)
+- [ ] Bundle size vérifié (< 50KB de préférence)
+- [ ] Benchmarks trouvés (si la performance est critique)
+- [ ] Compatibilité de licence vérifiée
+- [ ] Retours communautaires lus (Reddit, discussions GitHub)
+- [ ] Justification et compromis documentés
+- [ ] Liens vers la documentation officielle inclus dans le handoff
 
-If all checkboxes pass → Recommend with confidence.
+Toutes les cases cochées → recommander en confiance.
