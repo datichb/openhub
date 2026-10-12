@@ -5,6 +5,8 @@ description: Standards TypeScript — typage strict, inférence, types utilitair
 
 # Skill — Standards TypeScript
 
+> Versions de référence (octobre 2026) : TypeScript 7.0 (compilateur natif ; TypeScript 6.0 pour les outils dépendant de l'API JS).
+
 ## Rôle
 
 Ce skill définit les conventions TypeScript à respecter sur les projets qui utilisent
@@ -16,10 +18,12 @@ dans la stack du projet.
 
 ## Configuration de base
 
-- `strict: true` activé dans `tsconfig.json` — obligatoire
+- `strict: true` explicite dans `tsconfig.json` — obligatoire (défaut depuis TS 6, mais on le déclare)
 - `noImplicitAny`, `strictNullChecks`, `strictFunctionTypes` inclus dans `strict`
 - `noUncheckedIndexedAccess: true` recommandé pour les accès tableaux/objets
-- `paths` configurés pour les alias d'import — éviter les chemins relatifs profonds (`../../../`)
+- `verbatimModuleSyntax: true` (imports de types explicites via `import type`) et `erasableSyntaxOnly: true` si le code est exécuté par type stripping (Node.js, Deno, Bun)
+- `types` explicite (`["node"]`, …) — vaut `[]` par défaut depuis TS 6
+- `paths` configurés pour les alias d'import, sans `baseUrl` (déprécié depuis TS 6) — éviter les chemins relatifs profonds (`../../../`)
 - Un seul `tsconfig.json` de base étendu par environnement si nécessaire
 
 ---
@@ -55,21 +59,22 @@ type CreateUserDto = Omit<User, 'id' | 'createdAt'>
 
 ### Enums
 
-- Préférer les `const enum` ou les unions de littéraux pour les valeurs constantes
-- Les `enum` classiques sont évités (génèrent du JS à l'exécution, difficiles à tree-shaker)
+- Préférer les unions de littéraux ou un objet `as const` pour les valeurs constantes
+- Ni `enum` ni `const enum` : ils génèrent du JS (ou en dépendent), sont incompatibles avec `isolatedModules` / `erasableSyntaxOnly` et difficiles à tree-shaker
 
 ```typescript
 // ✅ Union de littéraux — léger, inférable
 type Direction = 'north' | 'south' | 'east' | 'west'
 
-// ✅ Const enum si valeur numérique nécessaire
-const enum HttpStatus {
-  OK = 200,
-  Created = 201,
-  NotFound = 404,
-}
+// ✅ Objet as const si une valeur à l'exécution est nécessaire
+const HttpStatus = {
+  OK: 200,
+  Created: 201,
+  NotFound: 404,
+} as const
+type HttpStatus = (typeof HttpStatus)[keyof typeof HttpStatus]
 
-// ❌ Enum classique — éviter
+// ❌ Enum / const enum — éviter
 enum Color { Red, Green, Blue }
 ```
 

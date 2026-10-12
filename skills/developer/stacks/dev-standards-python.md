@@ -5,6 +5,8 @@ description: Standards Python — style, typage, environnements, gestion des err
 
 # Skill — Standards Python
 
+> Versions de référence (octobre 2026) : Python 3.14 (3.12 minimum), uv 0.13, Ruff 0.17.
+
 ## Rôle
 
 Ce skill définit les conventions Python à respecter sur tous les projets utilisant
@@ -19,8 +21,8 @@ Airflow, PySpark) sont définis dans les skills dédiés correspondants.
 
 ## Version et environnement
 
-- Python ≥ 3.10 — utiliser les features modernes (match/case, type hints natifs, `X | Y`)
-- Environnement isolé obligatoire : `venv`, `poetry` ou `uv` — jamais d'installation globale
+- Python ≥ 3.12 (3.10 est en fin de vie depuis octobre 2026, 3.11 le sera en octobre 2027) — 3.14 pour les nouveaux projets
+- Environnement isolé obligatoire, géré par `uv` (recommandé) ou `poetry` / `venv` — jamais d'installation globale
 - Le fichier de dépendances (`pyproject.toml`, `requirements.txt`) est versionné avec le projet
 - Les versions des dépendances sont épinglées dans le lockfile (`poetry.lock`, `uv.lock`)
 - Un fichier `.python-version` ou `.tool-versions` fixe la version du runtime
@@ -56,7 +58,7 @@ from myapp.utils.formatting import format_currency
 - `mypy` ou `pyright` activé en mode strict sur les modules critiques
 - Pas de `# type: ignore` sans commentaire explicatif
 - Utiliser `TypeVar`, `Generic`, `Protocol` pour les abstractions réutilisables
-- Les types complexes sont aliasés pour la lisibilité
+- Les types complexes sont aliasés pour la lisibilité (instruction `type`, Python 3.12+)
 
 ```python
 # ✅ Typage complet
@@ -70,11 +72,15 @@ def compute_discount(price, rate):
     return price * (1 - rate)
 ```
 
-### Types modernes (Python ≥ 3.10)
+### Types modernes (Python ≥ 3.12)
 
 ```python
 # ✅ Union moderne
 def find_user(user_id: str) -> User | None: ...
+
+# ✅ Alias et génériques (PEP 695)
+type UserId = str
+def first[T](items: list[T]) -> T | None: ...
 
 # ✅ Match/case pour les discriminated unions
 match event.type:

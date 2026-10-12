@@ -5,6 +5,8 @@ description: Standards Rust — ownership, borrowing, gestion des erreurs, async
 
 # Skill — Standards Rust
 
+> Versions de référence (octobre 2026) : Rust 1.99, édition 2024.
+
 ## Rôle
 
 Ce skill définit les conventions Rust à respecter sur les projets Rust.
@@ -110,7 +112,7 @@ async fn main() -> anyhow::Result<()> {
 ### Pièges
 
 - Pas d'opérations bloquantes dans un contexte async — utiliser `spawn_blocking`
-- Pas de `Mutex` std dans du code async — utiliser `tokio::sync::Mutex`
+- `std::sync::Mutex` convient en async tant que le verrou n'est pas tenu à travers un `.await` — sinon `tokio::sync::Mutex`
 - Attention aux tailles de futures sur la stack — `Box::pin` si nécessaire
 
 ---
@@ -175,7 +177,7 @@ mod tests {
 |-------|-------|----------|
 | `clippy` | Linter | `cargo clippy --all-targets -- -D warnings` |
 | `rustfmt` | Formatage | `cargo fmt` |
-| `cargo test` | Tests + doc-tests | `cargo test --all` |
+| `cargo test` | Tests + doc-tests | `cargo test --workspace` |
 | `cargo audit` | CVE scanner | `cargo audit` |
 | `cargo doc` | Documentation | `cargo doc --no-deps` |
 
@@ -189,7 +191,7 @@ cognitive-complexity-threshold = 10
 ### Configuration rustfmt (`rustfmt.toml`)
 
 ```toml
-edition = "2021"
+edition = "2024"
 max_width = 100
 use_small_heuristics = "Default"
 ```
