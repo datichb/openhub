@@ -119,7 +119,7 @@ du workflow) est visible dans l'interface OpenCode.
 | `orchestrator-dev` | Agent d'entrée (`ticket`, `review-feedback`) | Racine | ✅ Oui | Maintient la liste des tickets avec labels de phase |
 | `orchestrator-dev` | Invoqué via `task` depuis `orchestrator` | Isolée (enfant) | ❌ Non | Peut maintenir une liste interne (débogage) — non visible |
 | `planner`, `pathfinder`, `onboarder`, `debugger`, `designer` | Invoqués via `task` depuis `orchestrator` ou `conductor` | Isolée (enfant) | ❌ Non | Pas de liste todowrite |
-| `developer`, `developer-refactor`, `developer-migrator`, `reviewer`, `documentarian` | Invoqués via `task` depuis `orchestrator-dev` | Isolée (petit-enfant dans `feature`) | ❌ Non | Pas de liste todowrite |
+| `developer`, `reviewer`, `documentarian` | Invoqués via `task` depuis `orchestrator-dev` | Isolée (petit-enfant dans `feature`) | ❌ Non | Pas de liste todowrite |
 
 Un agent qui est l'agent d'entrée de son workflow (`auditor` dans `audit`, `debugger` dans `debug`, `developer`
 dans `quick`…) tourne dans la session racine : sa todo list, s'il en tient une, est visible.
@@ -209,7 +209,7 @@ Quand `orchestrator-dev` est invoqué directement, mettre à jour le label de la
 
 - Les règles fondamentales de `tool-todowrite.md` s'appliquent sans exception : exactement
   1 tâche `in_progress` à la fois, mise à jour en temps réel, liste complète à chaque appel.
-- Les agents `developer`, `developer-refactor`, `developer-migrator`, `reviewer`, `documentarian` n'utilisent pas
+- Les agents `developer`, `reviewer`, `documentarian` n'utilisent pas
   `todowrite` quand ils sont invoqués en tant que sous-agents : leurs sessions sont invisibles.
 - Le mécanisme de handoff inter-agents (`## Retour vers <parent>`, `## Question pour <parent>`)
   reste le seul canal de communication entre sessions isolées.

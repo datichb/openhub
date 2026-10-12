@@ -470,7 +470,6 @@ prompt:
 
 agents:
   documentarian: { role: disabled }       # removed from the bundle
-  developer-migrator: { role: disabled }
   reviewer: { mode: subagent }            # only `mode` is rewritten
 
 checkpoints:

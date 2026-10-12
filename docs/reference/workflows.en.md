@@ -22,8 +22,8 @@ A workflow is launched with `oh run <workflow>` or the TUI launch form; the form
 
 | Workflow | Entry agent | Agents | Risk | Runtime | Replaces |
 |---|---|---|---|---|---|
-| `ticket` | `orchestrator-dev` | `developer`, `developer-refactor`, `developer-migrator`, `reviewer`, `documentarian` (on demand) | write | local, container, remote | `oh start --dev`, `-t` |
-| `feature` | `orchestrator` | `pathfinder`, `planner`, `designer`, `orchestrator-dev`, `developer*`, `reviewer`, `documentarian` (on demand) | write | local | `oh start` (former modes A, B and E) |
+| `ticket` | `orchestrator-dev` | `developer`, `reviewer`, `documentarian` (on demand) | write | local, container, remote | `oh start --dev`, `-t` |
+| `feature` | `orchestrator` | `pathfinder`, `planner`, `designer`, `orchestrator-dev`, `developer`, `reviewer`, `documentarian` (on demand) | write | local | `oh start` (former modes A, B and E) |
 | `quick` | `developer` | — | write | local | quick session |
 | `cadrage` | `conductor` | `pathfinder`, `planner`, `designer` | plan | local | former mode A without implementation |
 | `onboarding` | `onboarder` | — | write (`docs/wiki/`) | local, remote | `oh start --onboard` (former mode C) |
@@ -31,7 +31,7 @@ A workflow is launched with `oh run <workflow>` or the TUI launch form; the form
 | `review-feedback` | `orchestrator-dev` | `developer`, `reviewer` | write | local | `oh review feedback` |
 | `audit` | `auditor` | `auditor-subagent` | read | local, remote | `oh audit` |
 | `debug` | `debugger` | `developer`, `documentarian` (on demand) | write | local | `oh debug` (former mode D) |
-| `sweep` | `conductor` | `pathfinder`, `developer`, `developer-refactor`, `developer-migrator`, `reviewer` | write | local | `oh start --sweep` |
+| `sweep` | `conductor` | `pathfinder`, `developer`, `reviewer` | write | local | `oh start --sweep` |
 | `brief-enrich` | `brief-enricher` | — | read | local | `oh takeover-brief enrich` |
 | `libre` | your choice (`orchestrator` by default) | those the chosen agent may call | write | local, container | `oh start --agent`, TUI free session |
 

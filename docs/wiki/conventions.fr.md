@@ -65,7 +65,7 @@ L'ancien prefixe `sweep/<slug>` (une branche par sous-tache du mode sweep) n'est
 
 | Type | Convention | Exemple |
 |------|-----------|---------|
-| Agent | `agents/<famille>/<id>.md` (`<role>[-<specialite>]`) | `agents/developer/developer-refactor.md` |
+| Agent | `agents/<famille>/<id>.md` (`<role>[-<specialite>]`) | `agents/auditor/auditor-subagent.md` |
 | Skill | `skills/<dossier>/<domaine>-<sujet>.md` | `skills/auditor/audit-security.md` |
 | Workflow | `workflows/<id>.yaml` + `workflows/prompts/<id>.md.tmpl` | `workflows/ticket.yaml` |
 | Guide | `<slug>.{en,fr}.md` | `sessions-v5.en.md` |

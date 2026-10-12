@@ -22,13 +22,11 @@ L'agent est toujours `developer` — c'est le **domaine** passé dans le prompt 
 | **mobile** | Apps iOS/Android (React Native, Flutter, Swift, Kotlin) | Backend, web frontend |
 | **go** | Services Go, CLI tools, APIs Go (activates `dev-standards-golang`) | Frontend, mobile |
 | **rust** | Crates Rust, systemes embarques, WASM, CLI Rust (activates `dev-standards-rust`) | Frontend, mobile |
+| **refactor** | Extraction, renommage, simplification, réorganisation, patterns, dette technique (`dev-standards-refactoring`) | Changement de comportement, upgrade de dépendance |
+| **migration** | Upgrade de framework, version majeure, build tool, dépendance EOL (`dev-standards-migration`) | Nouvelle feature, refactoring indépendant de la migration |
+| **tests** | Ajout de tests sur du code existant : gaps de couverture, unitaires, intégration, property-based (`test-generation`) | Modification du code de production |
 
-**Agents distincts (pas un domaine de `developer`) :**
-
-| Agent | Scope |
-|-------|-------|
-| `developer-refactor` | Extraction, renommage, simplification, réorganisation, patterns, dette technique |
-| `developer-migrator` | Upgrade frameworks, versions majeures, build tools, dépendances EOL |
+Un ticket qui touche le schéma, une migration de base ou des requêtes SQL reçoit en plus `dev-standards-database`, quel que soit son domaine.
 
 ---
 
@@ -66,23 +64,21 @@ L'agent est toujours `developer` — c'est le **domaine** passé dans le prompt 
 
 ---
 
-### 3. developer-refactor vs developer-migrator
+### 3. refactor vs migration
 
-**Frontière :** Un upgrade qui nécessite du refactoring → qui prend le lead ?
+**Frontière :** Un upgrade qui nécessite du refactoring → quel domaine ?
 
 **Règle :**
-- `developer-refactor` : Ne **jamais** modifier les versions de dépendances ou frameworks. Scope : amélioration du code existant sans changer les dépendances.
-- `developer-migrator` : Peut refactorer **uniquement si requis par un breaking change** de la migration (ex : méthode dépréciée supprimée, API changée).
+- Domaine **refactor** : améliore le code existant à dépendances constantes (versions de frameworks et de bibliothèques inchangées).
+- Domaine **migration** : refactore seulement ce qu'un breaking change impose (méthode dépréciée supprimée, API changée).
 
 **Exemples :**
-- Extraire une fonction en plusieurs petites fonctions → **developer-refactor**
-- Renommer des variables pour cohérence → **developer-refactor**
-- Upgrade Vue 2 → Vue 3 (nécessite refactoring Composition API) → **developer-migrator**
-- Upgrade Node 16 → Node 20 (breaking changes sur crypto) → **developer-migrator**
+- Extraire une fonction en plusieurs petites fonctions → **refactor**
+- Renommer des variables pour cohérence → **refactor**
+- Upgrade Vue 2 → Vue 3 (nécessite refactoring Composition API) → **migration**
+- Upgrade Node 16 → Node 20 (breaking changes sur crypto) → **migration**
 
-**Si le refactoring est indépendant de la migration :**
-- D'abord `developer-migrator` (upgrade minimal pour que ça compile)
-- Puis `developer-refactor` (amélioration du code migré)
+**Si le refactoring est indépendant de la migration :** deux tickets — d'abord **migration** (upgrade minimal pour que ça compile), puis **refactor** (amélioration du code migré).
 
 ---
 
@@ -143,8 +139,9 @@ L'agent est toujours `developer` — c'est le **domaine** passé dans le prompt 
 | Terraform, K8s, Helm, GitOps | `platform` | — |
 | Go, goroutine, go.mod, go.sum | `go` | `backend` (si pas specifique Go) |
 | Rust, Cargo.toml, crate, WASM | `rust` | `backend` (si pas specifique Rust) |
-| refactoring, extraction, renommage, dette | `developer-refactor` (agent dédié) | — |
-| migration, upgrade, version majeure | `developer-migrator` (agent dédié) | — |
+| refactoring, extraction, renommage, dette | `refactor` | — |
+| migration, upgrade, version majeure | `migration` | — |
+| ajouter des tests, couverture, tests manquants | `tests` | — |
 | sécurité, hardening, CORS, headers, audit | `security` | `backend` (si pas suite audit) |
 
 **En cas d'ambiguïté :** choisir le domaine `fullstack` et l'indiquer dans le compte rendu d'étape.

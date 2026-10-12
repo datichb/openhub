@@ -2,7 +2,7 @@
 
 # Agent Reference
 
-20 agents in total, organized into 7 families (planning, developer, auditor, quality, design, documentation, utility).
+17 agents in total, organized into 7 families (planning, developer, auditor, quality, design, documentation, utility).
 Each agent is defined in `agents/<family>/<id>.md` with a frontmatter declaring its metadata,
 permissions, skills, and mode. This `agents/` folder is the source of truth for this page.
 
@@ -39,7 +39,7 @@ In a session, only the agents of the bundle can be reached. To see the actual co
 The diagram shows the delegations allowed by the frontmatter (`permission.task`). In a session, only
 those linking two workflow members remain possible. `documentarian` can also be delegated to by most
 writing agents (`developer-rw` base) and by `planner`, `pathfinder`, `debugger`, `reviewer`,
-`benchmarker`, `test-generator`: not all of these links are drawn.
+`benchmarker`: not all of these links are drawn.
 
 ```mermaid
 flowchart TD
@@ -51,10 +51,8 @@ flowchart TD
         PATH["pathfinder<br/>Recon"]
         ONB["onboarder<br/>Discovery"]
     end
-    subgraph DV ["Developer (5)"]
+    subgraph DV ["Developer (3)"]
         DEV["developer<br/>Subagent"]
-        DEVR["developer-refactor<br/>Subagent"]
-        DEVM["developer-migrator<br/>Subagent"]
         DB["database<br/>Specialist"]
         INFRA["infra<br/>DevOps"]
     end
@@ -62,11 +60,10 @@ flowchart TD
         AUD["auditor<br/>Coordinator"]
         AUDS["auditor-subagent<br/>Subagent"]
     end
-    subgraph QU ["Quality (4)"]
+    subgraph QU ["Quality (3)"]
         REV["reviewer"]
         DBG["debugger"]
         BENCH["benchmarker"]
-        TEST["test-generator"]
     end
     subgraph DS ["Design (1)"]
         DES["designer"]
@@ -79,11 +76,10 @@ flowchart TD
     end
     COND -.->|workflow members| PATH & PLAN & DES
     ORCH --> PATH & PLAN & ONB & DES & ORCHDEV & DBG & DOC
-    ORCHDEV --> DEV & DEVR & DEVM & REV & DOC
+    ORCHDEV --> DEV & REV & DOC
     PLAN --> DES
     PATH --> DES
     AUD --> AUDS & DOC
-    TEST --> REV
     REV -->|calls: reviewer| REV
 ```
 
@@ -161,8 +157,6 @@ Taken from the frontmatter files in `agents/`.
 | planning | `pathfinder` | `primary` | — | `gitlab` |
 | planning | `onboarder` | `primary` | — | `gitlab` |
 | developer | `developer` | `subagent` | `developer-rw` | — |
-| developer | `developer-refactor` | `subagent` | `developer-rw` | — |
-| developer | `developer-migrator` | `subagent` | `developer-rw` | — |
 | developer | `database` | `primary` | `developer-rw` | — |
 | developer | `infra` | `primary` | `developer-rw` | — |
 | auditor | `auditor` | `primary` | `coordinator` | — |
@@ -170,7 +164,6 @@ Taken from the frontmatter files in `agents/`.
 | quality | `reviewer` | `primary` | — | — |
 | quality | `debugger` | `primary` | — | — |
 | quality | `benchmarker` | `primary` | — | — |
-| quality | `test-generator` | `primary` | `developer-rw` | — |
 | design | `designer` | `primary` | — | `figma` |
 | documentation | `documentarian` | `primary` | — | — |
 | utility | `brief-enricher` | `subagent` | — | — |
@@ -200,9 +193,7 @@ This table is the authoritative reference for which skills each agent loads. It 
 
 | Agent | Bucket A (inline) | Bucket B (native / on-demand) |
 |-------|-------------------|-------------------------------|
-| **developer** | `developer/dev-standards-universal`, `developer/dev-standards-simplicity`, `developer/quick-fix`, `developer/beads-dev`, `developer/developer-handoff-format`, `posture/subagent-concision-posture`, `shared/wiki-navigation`, `shared/context-mode-usage` | `developer/dev-standards-security`, `developer/dev-standards-git`, `developer/dev-standards-testing`, `reviewer/reviewer-reception`, `shared/rtk-usage`, `shared/living-docs-enrichment`, `developer/beads-plan` |
-| **developer-refactor** | `developer/dev-standards-universal`, `developer/dev-standards-simplicity`, `developer/quick-fix`, `developer/beads-plan`, `developer/beads-dev`, `developer/developer-handoff-format`, `posture/subagent-concision-posture`, `shared/wiki-navigation`, `shared/context-mode-usage` | `developer/dev-standards-security`, `developer/dev-standards-testing`, `developer/dev-standards-git`, `developer/dev-standards-refactoring`, `shared/rtk-usage`, `shared/living-docs-enrichment` |
-| **developer-migrator** | *(same as developer-refactor)* | `developer/dev-standards-security`, `developer/dev-standards-testing`, `developer/dev-standards-git`, `developer/dev-standards-migration`, `shared/rtk-usage`, `shared/living-docs-enrichment` |
+| **developer** | `developer/dev-standards-universal`, `developer/dev-standards-simplicity`, `developer/quick-fix`, `developer/beads-dev`, `developer/developer-handoff-format`, `posture/subagent-concision-posture`, `shared/wiki-navigation`, `shared/context-mode-usage` | `developer/dev-standards-security`, `developer/dev-standards-git`, `developer/dev-standards-testing`, `developer/dev-standards-refactoring`, `developer/dev-standards-migration`, `developer/dev-standards-database`, `developer/test-generation`, `reviewer/reviewer-reception`, `shared/rtk-usage`, `shared/living-docs-enrichment`, `developer/beads-plan` |
 | **database** | `developer/dev-standards-universal`, `posture/tool-question`, `shared/wiki-navigation` | `developer/dev-standards-security`, `shared/living-docs-enrichment` |
 | **infra** | `developer/dev-standards-universal`, `posture/tool-question`, `shared/wiki-navigation` | `developer/dev-standards-security`, `shared/living-docs-enrichment` |
 
@@ -220,7 +211,6 @@ This table is the authoritative reference for which skills each agent loads. It 
 | **reviewer** | `developer/dev-standards-universal`, `reviewer/review-protocol`, `posture/concision-posture`, `posture/tool-question`, `reviewer/reviewer-handoff-format`, `shared/wiki-navigation` | `reviewer/reviewer-standalone`, `reviewer/reviewer-subagent`, `reviewer/reviewer-adversarial`, `reviewer/reviewer-edge-case`, `reviewer/review-merge`, `developer/dev-standards-security`, `developer/dev-standards-backend`, `developer/dev-standards-frontend`, `developer/dev-standards-frontend-data`, `developer/dev-standards-frontend-a11y`, `developer/dev-standards-testing`, `developer/dev-standards-git`, `developer/dev-standards-api`, `developer/dev-standards-devops`, `shared/rtk-usage`, `shared/living-docs-enrichment` |
 | **debugger** | `quality/debugger-workflow`, `quality/debugger-handoff-format`, `quality/debugger-forensic`, `quality/debugger-report-templates`, `posture/tool-question`, `shared/wiki-navigation` | `quality/debugger-execution-modes`, `shared/rtk-usage`, `quality/debugger-phase-0-1`, `quality/debugger-phase-2-3`, `quality/debugger-phase-4-5`, `shared/living-docs-enrichment`, `posture/expert-posture` |
 | **benchmarker** | `developer/dev-standards-universal`, `posture/tool-question`, `shared/wiki-navigation` | `shared/living-docs-enrichment` |
-| **test-generator** | `developer/dev-standards-universal`, `developer/dev-standards-testing`, `posture/tool-question`, `shared/wiki-navigation` | `shared/living-docs-enrichment` |
 
 ### Design family
 
@@ -317,7 +307,7 @@ Never routes directly to `developer-*` — always delegates to `orchestrator-dev
 
 AI tech lead specialized in driving implementation. Takes a list of ready-to-implement
 Beads tickets, routes to the `developer` agent with the appropriate domain specified in the
-invocation prompt (or to `developer-refactor` / `developer-migrator`), supervises the review.
+invocation prompt (including `refactor`, `migration` and `tests`), supervises the review.
 Three modes: `manuel`, `semi-auto`, `auto`, set at launch (`oh run … --mode`) within the workflow `modes.allowed` list.
 
 CP-2 (commit or fix?) is `mandatory` and pauses in all modes of the shipped workflows. It unlocks `commit`, `push` and `close` (`unlocks:`): until it is approved, oh refuses these operations to every agent; then the `developer`, handed back by `orchestrator-dev`, commits and closes the ticket.
@@ -386,18 +376,16 @@ Follows the same Beads workflow (`bd claim → implement → test → bd close`)
 The **domain** and the **native_skills to load** are passed by `orchestrator-dev` in the invocation prompt.
 Each `task` instance runs in its own child session — parallel invocations with different domains are independent.
 
-Common skills for the three `developer*` agents: `dev-standards-universal`, `dev-standards-simplicity`, `quick-fix`, `dev-standards-security`, `dev-standards-git`, `dev-standards-testing`, `beads-plan`, `beads-dev`, `developer/developer-handoff-format`, `shared/living-docs-enrichment` (see the matrix for the bucket of each).
+Skills of the `developer` agent: `dev-standards-universal`, `dev-standards-simplicity`, `quick-fix`, `dev-standards-security`, `dev-standards-git`, `dev-standards-testing`, `beads-plan`, `beads-dev`, `developer/developer-handoff-format`, `shared/living-docs-enrichment` (see the matrix for the bucket of each).
 
 | Agent | File | Domain | Specific Native Skills |
 |-------|------|--------|----------------------|
-| `developer` | `agents/developer/developer.md` | frontend, backend, fullstack, api, mobile, data, devops, platform, security — domain passed at invocation | Domain skills injected via invocation prompt (see `orchestrator-dev-protocol`) |
+| `developer` | `agents/developer/developer.md` | frontend, backend, fullstack, api, mobile, data, devops, platform, security, refactor, migration, tests — domain passed at invocation | Domain skills injected via invocation prompt (routing table of `orchestrator-dev-protocol`): `dev-standards-refactoring` (refactor), `dev-standards-migration` (migration), `test-generation` (tests), `dev-standards-database` (schema, migrations, queries) |
 
 **Separate agents (distinct workflow):**
 
 | Agent | File | Domain |
 |-------|------|--------|
-| `developer-refactor` | `agents/developer/developer-refactor.md` | Structural refactoring only — never changes observable behavior |
-| `developer-migrator` | `agents/developer/developer-migrator.md` | Incremental migrations — framework upgrades, major versions, EOL dependencies |
 | `database` | `agents/developer/database.md` | DB specialist: schema design, migration planning, query optimization, DB security audit |
 | `infra` | `agents/developer/infra.md` | IaC specialist: Terraform/K8s/Helm review, cloud cost estimation, IaC security (tfsec, checkov) |
 
@@ -565,27 +553,6 @@ Does not modify code (`edit: deny`); `write` is allowed for its reports. Produce
 
 ---
 
-### `test-generator`
-
-| | |
-|--|--|
-| **Label** | TestGenerator |
-| **File** | `agents/quality/test-generator.md` |
-| **Invocation** | `"Generate tests for [target]"` / `"Coverage gap analysis for [module]"` / `"Property tests for [function]"` |
-
-Test generation specialist. Operates in four modes:
-
-| Mode | Output |
-|------|--------|
-| `gap-analysis` | Coverage gap report: uncovered lines, branches, edge cases — prioritized by risk |
-| `unit` | Unit tests targeting uncovered functions/methods — follows existing test conventions |
-| `integration` | Integration tests covering component boundaries and external dependencies |
-| `property` | Property-based tests (hypothesis/fast-check/QuickCheck) for invariant verification |
-
-Writes tests directly. Follows the project's existing testing conventions and stack (detected from `dev-standards-testing` and stack skills). Never modifies production code. May delegate to `reviewer` and `documentarian`.
-
----
-
 ## Family — Planning Agents
 
 ### `planner`
@@ -729,12 +696,12 @@ It has no inline skill (not even `shared/universal-guardrails`).
 
 - **Read-only agents** (no `edit` or `write`): conductor, orchestrator, auditor, auditor-subagent, reviewer, debugger, designer, planner, pathfinder, brief-enricher — `planner`, `pathfinder` and `debugger` can still write to Beads
 - **Agents that delegate documentation writing**: auditor (coordinator), planner, pathfinder, debugger, reviewer — may invoke the `documentarian` via `task` to enrich `ONBOARDING.md` / `CONVENTIONS.md` / the wiki, only after explicit user confirmation (skill `living-docs-enrichment`) and if `documentarian` is a workflow member
-- **Agents that write code**: `developer`, `developer-refactor`, `developer-migrator`, `database`, `infra`, `test-generator` — only modify files in their domain
+- **Agents that write code**: `developer`, `database`, `infra` — only modify files in their domain
 - **Agents that write documentation**: documentarian — the agent in charge of writing to `ONBOARDING.md`, `CONVENTIONS.md` and the wiki afterwards (the `onboarder` creates them); other agents propose enrichments via the `living-docs-enrichment` skill, always delegated to `documentarian` after explicit user confirmation
 - **Agents that create tickets**: planner (feature tickets), pathfinder (after confirmation), debugger (bug tickets after confirmation)
 - **Agents that read tickets**: most can do `bd show <ID>` to contextualize their work, within the workflow `beads.allow` list
 - **Coordinator agents**: conductor, orchestrator, orchestrator-dev, auditor — never code, drive other agents
 - **Discovery agents**: onboarder — explores and reports, doesn't drive other agents
-- **`primary` agents** (frontmatter): conductor, orchestrator, orchestrator-dev, planner, pathfinder, onboarder, auditor, designer, documentarian, debugger, reviewer, benchmarker, test-generator, database, infra
-- **`subagent` agents** (frontmatter): `developer`, `developer-refactor`, `developer-migrator`, `auditor-subagent`, `brief-enricher`
+- **`primary` agents** (frontmatter): conductor, orchestrator, orchestrator-dev, planner, pathfinder, onboarder, auditor, designer, documentarian, debugger, reviewer, benchmarker, database, infra
+- **`subagent` agents** (frontmatter): `developer`, `auditor-subagent`, `brief-enricher`
 - **In a session**: the effective mode and possible delegations are those of the workflow; an agent outside the bundle does not exist for the session

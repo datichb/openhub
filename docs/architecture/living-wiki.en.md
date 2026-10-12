@@ -73,8 +73,8 @@ ONBOARDING.md                   ← minimal summary (15-25 lines), redirects to 
 ## Navigation protocol (skill `wiki-navigation`)
 
 The `shared/wiki-navigation` skill is **Bucket A** (inline) in the agents that consult a project's context:
-`pathfinder`, `onboarder`, `developer`, `developer-refactor`, `developer-migrator`, `database`,
-`infra`, `auditor-subagent`, `reviewer`, `debugger`, `benchmarker`, `test-generator`.
+`pathfinder`, `onboarder`, `developer`, `database`,
+`infra`, `auditor-subagent`, `reviewer`, `debugger`, `benchmarker`.
 
 **Fundamental rule:** read `docs/wiki/index.md` first, then load only the page
 relevant to the current task. Never read the full wiki by default.

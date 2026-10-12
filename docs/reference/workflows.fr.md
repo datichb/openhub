@@ -22,8 +22,8 @@ On lance un workflow avec `oh run <workflow>` ou la fiche de lancement de la TUI
 
 | Workflow | Agent d'entrée | Agents | Risque | Exécution | Remplace |
 |---|---|---|---|---|---|
-| `ticket` | `orchestrator-dev` | `developer`, `developer-refactor`, `developer-migrator`, `reviewer`, `documentarian` (à la demande) | write | local, conteneur, distant | `oh start --dev`, `-t` |
-| `feature` | `orchestrator` | `pathfinder`, `planner`, `designer`, `orchestrator-dev`, `developer*`, `reviewer`, `documentarian` (à la demande) | write | local | `oh start` (anciens modes A, B et E) |
+| `ticket` | `orchestrator-dev` | `developer`, `reviewer`, `documentarian` (à la demande) | write | local, conteneur, distant | `oh start --dev`, `-t` |
+| `feature` | `orchestrator` | `pathfinder`, `planner`, `designer`, `orchestrator-dev`, `developer`, `reviewer`, `documentarian` (à la demande) | write | local | `oh start` (anciens modes A, B et E) |
 | `quick` | `developer` | — | write | local | session rapide |
 | `cadrage` | `conductor` | `pathfinder`, `planner`, `designer` | plan | local | ancien mode A sans implémentation |
 | `onboarding` | `onboarder` | — | write (`docs/wiki/`) | local, distant | `oh start --onboard` (ancien mode C) |
@@ -31,7 +31,7 @@ On lance un workflow avec `oh run <workflow>` ou la fiche de lancement de la TUI
 | `review-feedback` | `orchestrator-dev` | `developer`, `reviewer` | write | local | `oh review feedback` |
 | `audit` | `auditor` | `auditor-subagent` | read | local, distant | `oh audit` |
 | `debug` | `debugger` | `developer`, `documentarian` (à la demande) | write | local | `oh debug` (ancien mode D) |
-| `sweep` | `conductor` | `pathfinder`, `developer`, `developer-refactor`, `developer-migrator`, `reviewer` | write | local | `oh start --sweep` |
+| `sweep` | `conductor` | `pathfinder`, `developer`, `reviewer` | write | local | `oh start --sweep` |
 | `brief-enrich` | `brief-enricher` | — | read | local | `oh takeover-brief enrich` |
 | `libre` | au choix (`orchestrator` par défaut) | ceux que l'agent choisi peut appeler | write | local, conteneur | `oh start --agent`, session libre de la TUI |
 
