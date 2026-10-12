@@ -209,6 +209,7 @@ func New(cfg Config) *Shell {
 			s.SetOmnibarVisible(true)
 		}
 	})
+	s.router.SetBeforeMount(s.syncModeWithStack)
 
 	// Register all views and wire ShellAccess
 	for _, v := range cfg.Views {
@@ -1224,6 +1225,38 @@ func (s *Shell) Mode() views.Mode {
 	return s.activeMode
 }
 
+// modeRoots maps the landing view of each mode to that mode.
+var modeRoots = map[string]views.Mode{
+	"home":         views.ModeHub,
+	"team.mode":    views.ModeTeam,
+	"project.mode": views.ModeProject,
+}
+
+// syncModeWithStack derives the mode from the nearest landing view in the
+// navigation stack, before the view is mounted: going back (Esc, « home »
+// command) to a landing restores its mode, its theme and its context.
+func (s *Shell) syncModeWithStack(stack []views.View) {
+	for i := len(stack) - 1; i >= 0; i-- {
+		mode, ok := modeRoots[stack[i].ID()]
+		if !ok {
+			continue
+		}
+		if mode == views.ModeProject && s.activeProject == nil {
+			continue
+		}
+		s.activeMode = mode
+		switch mode {
+		case views.ModeHub:
+			s.activeProject = nil
+			s.activeTeam = nil
+		case views.ModeTeam:
+			s.activeProject = nil
+		}
+		break
+	}
+	theme.SetActiveMode(string(s.activeMode))
+}
+
 // SetActiveTeam sets the active team context without triggering navigation.
 func (s *Shell) SetActiveTeam(team *views.ActiveTeam) {
 	s.activeTeam = team
@@ -1329,6 +1362,12 @@ func (s *Shell) globalKeyHandler(event *tcell.EventKey) *tcell.EventKey {
 	// If an inline overlay or sub-overlay is active, let it handle keys
 	if s.pages.HasPage("sub-overlay") || s.pages.HasPage("inline-overlay") {
 		return event
+	}
+
+	// F1 opens the help in every view, forms and editors included.
+	if event.Key() == tcell.KeyF1 {
+		s.showHelpOverlay()
+		return nil
 	}
 
 	// ── InputCapturing views (e.g. inline wizards with forms) ────────

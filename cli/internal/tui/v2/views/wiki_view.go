@@ -20,7 +20,7 @@ type WikiView struct {
 	resolveTeam ResolveTeamFunc
 	slist       *widgets.SectionedList
 	header      *tview.TextView
-	contentFlex *tview.Flex
+	page        *widgets.ListDetailPage
 	shell       ShellAccess
 	proposals   []teamstate.WikiProposal
 	pages       []string
@@ -67,11 +67,10 @@ func (v *WikiView) Mount(content *tview.Flex, app *tview.Application) {
 		SetScrollable(false).
 		SetWordWrap(true)
 	v.header.SetBackgroundColor(theme.BgPanel)
-	v.header.SetBorderPadding(1, 0, 2, 2)
 
 	// Sectioned list for proposals + pages
 	v.slist = widgets.NewSectionedList().SetApp(app)
-	v.slist.SetBorderPadding(0, 0, 2, 2)
+	v.slist.SetItemChangedFunc(func(idx int, _ widgets.SectionItem) { v.showItemDetail(idx) })
 
 	v.slist.SetItemSelectedFunc(func(idx int, item widgets.SectionItem) {
 		if pi, ok := v.proposalIndices[idx]; ok {
@@ -83,14 +82,13 @@ func (v *WikiView) Mount(content *tview.Flex, app *tview.Application) {
 		}
 	})
 
-	// Vertical layout: header (fixed) + list (flexible)
-	v.contentFlex = tview.NewFlex().SetDirection(tview.FlexRow).
-		AddItem(v.header, 5, 0, false).
-		AddItem(v.slist, 0, 1, true)
-	v.contentFlex.SetBackgroundColor(theme.BgPanel)
+	// The header stays above the list, the detail on the right.
+	v.page = widgets.NewListDetailPage(v.Title(), i18n.T("tui.catalog.detail"))
+	v.page.AddHeader(v.header, 5)
+	v.page.SetMain(v.slist)
 
 	v.refresh()
-	content.AddItem(v.contentFlex, 0, 1, true)
+	v.page.Mount(content)
 }
 
 // Unmount cleans up resources.
@@ -98,7 +96,7 @@ func (v *WikiView) Unmount() {
 	v.app = nil
 	v.slist = nil
 	v.header = nil
-	v.contentFlex = nil
+	v.page = nil
 }
 
 // HandleKey processes wiki view key events.
@@ -147,6 +145,7 @@ func (v *WikiView) refresh() {
 	if v.slist != nil {
 		v.slist.SetItems(nil)
 	}
+	setPageDetail(v.page, emptyDetail())
 
 	repo := v.getRepo()
 	if repo == nil {
@@ -244,6 +243,40 @@ func (v *WikiView) renderContent(repo teamstate.TeamStateWriter) {
 	}
 
 	v.slist.SetItems(items)
+	idx, _, _ := v.slist.CurrentItem()
+	v.showItemDetail(idx)
+}
+
+// showItemDetail fills the detail pane with the list item at idx (proposal
+// or page).
+func (v *WikiView) showItemDetail(idx int) {
+	if v.page == nil {
+		return
+	}
+	if pi, ok := v.proposalIndices[idx]; ok && pi >= 0 && pi < len(v.proposals) {
+		p := v.proposals[pi]
+		var d detailText
+		d.title(tview.Escape(p.Page) + "  " + theme.ColorTag(theme.TextMutedHex) + "[" + tview.Escape(p.ID) + "]" + theme.TagReset)
+		d.field(i18n.T("tui.wiki.detail_author"), tview.Escape(p.Author))
+		d.field(i18n.T("tui.wiki.detail_confidence"), tview.Escape(p.Confidence))
+		d.field(i18n.T("tui.wiki.detail_project"), tview.Escape(p.Project))
+		if !p.CreatedAt.IsZero() {
+			d.field(i18n.T("tui.wiki.detail_date"), p.CreatedAt.Format("2006-01-02 15:04"))
+		}
+		d.keys("Enter", i18n.T("tui.hints.see"), "a", i18n.T("tui.wiki.hints_accept"), "x", i18n.T("tui.wiki.hints_reject"))
+		d.gap().para(tview.Escape(p.Content))
+		v.page.SetDetail(d.String())
+		return
+	}
+	if pi, ok := v.pageIndices[idx]; ok && pi >= 0 && pi < len(v.pages) {
+		var d detailText
+		d.title(tview.Escape(v.pages[pi]))
+		d.field(i18n.T("tui.detail.path"), tview.Escape("wiki/"+v.pages[pi]+".md"))
+		d.keys("Enter", i18n.T("tui.hints.see"), "r", i18n.T("tui.hints.refresh"))
+		v.page.SetDetail(d.String())
+		return
+	}
+	v.page.SetDetail(emptyDetail())
 }
 
 func (v *WikiView) buildProposalItem(p teamstate.WikiProposal) widgets.SectionItem {

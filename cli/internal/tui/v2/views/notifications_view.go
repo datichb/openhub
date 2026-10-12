@@ -9,6 +9,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
+	"github.com/datichb/openhub/cli/internal/tui/v2/widgets"
 )
 
 // NotificationEntry is a display-agnostic representation of a past notification.
@@ -44,9 +45,12 @@ type NotificationsViewConfig struct {
 // On every Mount it asynchronously loads the last 50 entries from the
 // persistent JSONL file (cross-session history) and displays them.
 type NotificationsView struct {
-	cfg NotificationsViewConfig
-	tv  *tview.TextView
-	app *tview.Application
+	cfg     NotificationsViewConfig
+	list    *widgets.SectionedList
+	page    *widgets.ListDetailPage
+	app     *tview.Application
+	entries []NotificationEntry
+	loaded  bool
 }
 
 var _ View = (*NotificationsView)(nil)
@@ -66,7 +70,7 @@ func (v *NotificationsView) Title() string { return i18n.T("tui.notifications.ti
 // StatusHints returns keybinding hints.
 func (v *NotificationsView) StatusHints() string {
 	return fmt.Sprintf("j/k %s · Ctrl+P %s",
-		i18n.T("tui.hints.scroll"),
+		i18n.T("tui.hints.nav"),
 		i18n.T("tui.hints.commands"),
 	)
 }
@@ -76,48 +80,27 @@ func (v *NotificationsView) StatusHints() string {
 // the TUI event loop.
 func (v *NotificationsView) Mount(content *tview.Flex, app *tview.Application) {
 	v.app = app
-
-	v.tv = tview.NewTextView().
-		SetDynamicColors(true).
-		SetScrollable(true).
-		SetWrap(true).
-		SetWordWrap(true).
-		SetTextAlign(tview.AlignLeft)
-	v.tv.SetBackgroundColor(theme.BgPanel)
-	v.tv.SetBorderPadding(1, 0, 2, 2)
-
-	// j/k navigation
-	v.tv.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		row, col := v.tv.GetScrollOffset()
-		if event.Key() == tcell.KeyRune {
-			switch event.Rune() {
-			case 'j':
-				v.tv.ScrollTo(row+1, col)
-				return nil
-			case 'k':
-				if row > 0 {
-					v.tv.ScrollTo(row-1, col)
-				}
-				return nil
-			}
-		}
-		return event
-	})
-
-	// Show loading placeholder immediately
-	muted := theme.ColorTag(theme.TextMutedHex)
-	v.tv.SetText(fmt.Sprintf("\n  %s%s%s", muted, i18n.T("tui.notifications.loading"), theme.TagColor))
-	content.AddItem(v.tv, 0, 1, true)
+	v.loaded = false
+	v.list = widgets.NewSectionedList()
+	v.list.SetApp(app)
+	v.list.SetItemChangedFunc(func(_ int, it widgets.SectionItem) { v.showDetail(it) })
+	v.page = newListPage(v.Title(), v.list)
+	v.page.Mount(content)
+	v.render()
+	if app != nil {
+		app.SetFocus(v.list)
+	}
 
 	// Load entries from the persistent file asynchronously.
 	// QueueUpdateDraw is called from a goroutine (not from a handler), so no deadlock.
 	go func() {
 		entries := v.loadEntries()
 		app.QueueUpdateDraw(func() {
-			if v.tv == nil {
+			if v.list == nil {
 				return // view was unmounted before the goroutine finished
 			}
-			v.tv.SetText(renderNotifications(entries))
+			v.entries, v.loaded = entries, true
+			v.render()
 		})
 	}()
 }
@@ -134,7 +117,7 @@ func (v *NotificationsView) loadEntries() []NotificationEntry {
 
 // Unmount cleans up resources.
 func (v *NotificationsView) Unmount() {
-	v.tv = nil
+	v.list, v.page = nil, nil
 	v.app = nil
 }
 
@@ -145,24 +128,65 @@ func (v *NotificationsView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 
 // ── Rendering ─────────────────────────────────────────────────────────────────
 
-// renderNotifications formats notification entries for tview dynamic colors.
-// No manual word-wrapping — the TextView has SetWrap(true)/SetWordWrap(true).
-// Entries are already in most-recent-first order.
-func renderNotifications(entries []NotificationEntry) string {
-	if len(entries) == 0 {
-		muted := theme.ColorTag(theme.TextMutedHex)
-		return fmt.Sprintf("\n  %s%s%s", muted, i18n.T("tui.notifications.empty"), theme.TagColor)
+// render fills the list with the entries (already most-recent-first).
+func (v *NotificationsView) render() {
+	if v.list == nil {
+		return
 	}
-
-	var sb strings.Builder
-	sb.WriteString("\n")
-	for _, e := range entries {
+	muted := theme.ColorTag(theme.TextMutedHex)
+	items := make([]widgets.SectionItem, 0, len(v.entries))
+	for i, e := range v.entries {
 		icon, colorTag := notificationStyle(e.Level)
-		timeStr := fmt.Sprintf("%s%s%s", theme.ColorTag(theme.TextMutedHex), e.TimeLabel, theme.TagColor)
-		fmt.Fprintf(&sb, "  %s  %s%s%s  %s\n",
-			timeStr, colorTag, icon, theme.TagColor, e.Message)
+		msg := strings.ReplaceAll(e.Message, "\n", " ")
+		items = append(items, widgets.SectionItem{
+			MainText: fmt.Sprintf("%s%s%s  %s%s%s  %s",
+				muted, e.TimeLabel, theme.TagColor, colorTag, icon, theme.TagColor, truncateRunes(msg, 120)),
+			Reference: i,
+		})
 	}
-	return sb.String()
+	if len(items) == 0 {
+		msg := i18n.T("tui.notifications.loading")
+		if v.loaded {
+			msg = i18n.T("tui.notifications.empty")
+		}
+		items = append(items, widgets.SectionItem{MainText: muted + msg + theme.TagColor, IsHeader: true})
+	}
+	v.list.SetItems(items)
+	_, it, _ := v.list.CurrentItem()
+	v.showDetail(it)
+}
+
+// showDetail fills the detail pane with the full notification of it.
+func (v *NotificationsView) showDetail(it widgets.SectionItem) {
+	if v.page == nil {
+		return
+	}
+	i, ok := it.Reference.(int)
+	if !ok || i < 0 || i >= len(v.entries) {
+		v.page.SetDetail(emptyDetail())
+		return
+	}
+	e := v.entries[i]
+	icon, colorTag := notificationStyle(e.Level)
+	var d detailText
+	d.title(colorTag + icon + theme.TagColor + " " + notificationLevelLabel(e.Level))
+	d.field(i18n.T("tui.detail.date"), e.TimeLabel)
+	d.gap().para(e.Message)
+	v.page.SetDetail(d.String())
+}
+
+// notificationLevelLabel is the translated label of a level integer.
+func notificationLevelLabel(level int) string {
+	switch level {
+	case 0:
+		return i18n.T("tui.detail.ok")
+	case 1:
+		return i18n.T("tui.detail.failed")
+	case 2:
+		return i18n.T("tui.detail.warn")
+	default:
+		return i18n.T("tui.detail.info")
+	}
 }
 
 // notificationStyle returns the icon and tview color tag for a level integer.

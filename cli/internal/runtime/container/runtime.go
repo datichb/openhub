@@ -55,9 +55,24 @@ func New(opts Options) *Runtime {
 // Kind implements ohruntime.Runtime.
 func (r *Runtime) Kind() sessionspec.RuntimeKind { return sessionspec.RuntimeContainer }
 
-// Available implements ohruntime.Runtime. The engine is detected again at
-// each call (a VM may have been started or stopped meanwhile).
+// Available implements ohruntime.Runtime. A detected engine is checked
+// again with a single `version` call; otherwise the engine is detected again
+// (a VM may have been started or stopped meanwhile).
 func (r *Runtime) Available(ctx context.Context) (ohruntime.Availability, error) {
+	r.mu.Lock()
+	cached := r.engine
+	r.mu.Unlock()
+	if cached != nil {
+		args := append(append([]string{}, cached.Args...), "version", "--format", "{{.Server.Version}}")
+		if out, err := r.opts.Runner.Run(ctx, cached.CLI, args...); err == nil && strings.TrimSpace(string(out)) != "" {
+			e := *cached
+			e.Version = strings.TrimSpace(string(out))
+			r.mu.Lock()
+			r.engine = &e
+			r.mu.Unlock()
+			return available(e), nil
+		}
+	}
 	e, av := r.detector().Detect(ctx, r.opts.Engine)
 	r.mu.Lock()
 	if av.OK {
@@ -99,7 +114,8 @@ func (r *Runtime) HostAddress() string {
 
 func (r *Runtime) detector() Detector {
 	home, _ := os.UserHomeDir()
-	return Detector{Runner: r.opts.Runner, GOOS: r.opts.GOOS, ColimaProfile: r.opts.ColimaProfile, Home: home}
+	return Detector{Runner: r.opts.Runner, GOOS: r.opts.GOOS, ColimaProfile: r.opts.ColimaProfile,
+		ColimaHome: os.Getenv("COLIMA_HOME"), Home: home}
 }
 
 var _ ohruntime.Runtime = (*Runtime)(nil)
@@ -261,6 +277,9 @@ func (r *Runtime) Command(ctx context.Context, pg *ohruntime.Prepared, p ohrunti
 	cmd := exec.Command(e.CLI, append(append([]string{}, e.Args...), args...)...)
 	for _, k := range cliEnvKeys {
 		if v, ok := os.LookupEnv(k); ok {
+			if k == "PATH" {
+				v = withDirs(v, binDirs())
+			}
 			cmd.Env = append(cmd.Env, k+"="+v)
 		}
 	}

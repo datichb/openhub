@@ -53,6 +53,7 @@ type BricksView struct {
 	shell  ShellAccess
 	app    *tview.Application
 	list   *widgets.SectionedList
+	page   *widgets.ListDetailPage
 	detail *tview.TextView
 	rows   []BrickRow
 	err    error
@@ -80,16 +81,9 @@ func (v *BricksView) Mount(content *tview.Flex, app *tview.Application) {
 	v.list.SetApp(app)
 	v.list.SetItemChangedFunc(func(_ int, it widgets.SectionItem) { v.showDetail(it) })
 	v.list.SetItemSelectedFunc(func(_ int, it widgets.SectionItem) { v.openWorkflows(it) })
-	v.list.SetBorder(true).SetTitleAlign(tview.AlignLeft)
-	v.list.SetBorderColor(theme.ActiveMode.Primary)
-	v.detail = tview.NewTextView().SetDynamicColors(true).SetWrap(true)
-	v.detail.SetBackgroundColor(theme.BgPanel)
-	v.detail.SetBorder(true).SetTitle(" " + i18n.T("tui.bricks.detail") + " ").SetTitleAlign(tview.AlignLeft)
-	v.detail.SetBorderColor(theme.FgMuted)
-	v.detail.SetBorderPadding(0, 0, 1, 1)
-	row := tview.NewFlex().AddItem(v.list, 0, 3, true).AddItem(v.detail, 0, 2, false)
-	content.Clear()
-	content.AddItem(row, 0, 1, true)
+	v.page = newListPage(v.Title(), v.list)
+	v.detail = v.page.Detail
+	v.page.Mount(content)
 	v.render()
 	if app != nil {
 		app.SetFocus(v.list)
@@ -121,7 +115,7 @@ func (v *BricksView) reload() {
 
 func (v *BricksView) Unmount() {
 	v.gen++
-	v.app, v.list, v.detail = nil, nil, nil
+	v.app, v.list, v.page, v.detail = nil, nil, nil, nil
 }
 
 // SetRows replaces the bricks (tests).
@@ -178,14 +172,14 @@ func (v *BricksView) render() {
 	if v.list == nil {
 		return
 	}
-	title := " " + v.Title()
+	title := v.Title()
 	if v.kind != "" {
 		title += " · " + i18n.T("tui.bricks.kind."+v.kind)
 	}
 	if v.query != "" {
 		title += " · /" + v.query
 	}
-	v.list.SetTitle(title + " ")
+	v.page.SetTitle(title)
 	var items []widgets.SectionItem
 	for _, kind := range []string{"agent", "skill"} {
 		var rows []widgets.SectionItem
@@ -269,7 +263,7 @@ func (v *BricksView) showDetail(it widgets.SectionItem) {
 	}
 	r, ok := v.rowOf(it)
 	if !ok {
-		v.detail.SetText("")
+		v.detail.SetText(emptyDetail())
 		return
 	}
 	muted, reset := theme.ColorTag(theme.TextSecondaryHex), theme.TagColor
@@ -296,8 +290,20 @@ func (v *BricksView) showDetail(it widgets.SectionItem) {
 		workflows = strings.Join(r.Workflows, ", ")
 	}
 	line(i18n.T("tui.bricks.field.workflows"), tview.Escape(workflows))
+	var keys detailText
+	keys.keys(bricksKeys(r)...)
+	b.WriteString(keys.String())
 	v.detail.SetText(b.String())
 	v.detail.ScrollToBeginning()
+}
+
+// bricksKeys are the keys listed in the detail pane of a brick.
+func bricksKeys(r BrickRow) []string {
+	var keys []string
+	if len(r.Workflows) > 0 {
+		keys = append(keys, "Enter", i18n.T("tui.hints.open"))
+	}
+	return append(keys, "/", i18n.T("tui.hints.search"), "f", i18n.T("tui.hints.filter"))
 }
 
 // openWorkflows is Enter: choose a workflow that ships the brick and open it.

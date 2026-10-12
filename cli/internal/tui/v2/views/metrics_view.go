@@ -3,6 +3,7 @@ package views
 import (
 	"context"
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/gdamore/tcell/v2"
@@ -18,6 +19,8 @@ import (
 type MetricsViewConfig struct {
 	AgentEvents domain.AgentEventStore // optional — if nil, agent table is hidden
 	Stats       platform.StatsProvider // platform stats provider (ADR-036)
+	// TeamProjects lists the projects of a team (team mode scope).
+	TeamProjects func(teamID string) []ActiveProject
 }
 
 // MetricsView displays the usage metrics of the session registry.
@@ -31,6 +34,84 @@ type MetricsView struct {
 }
 
 var _ View = (*MetricsView)(nil)
+
+// metricsScope is what the metrics cover: the whole hub, a team (its
+// projects) or a project.
+type metricsScope struct {
+	label    string
+	projects []ActiveProject // nil = whole hub
+}
+
+func (v *MetricsView) scope() metricsScope {
+	if v.shell == nil {
+		return metricsScope{label: i18n.T("tui.metrics.scope_hub")}
+	}
+	switch v.shell.Mode() {
+	case ModeProject:
+		if ap := v.shell.ActiveProject(); ap != nil {
+			return metricsScope{label: ap.Name, projects: []ActiveProject{*ap}}
+		}
+	case ModeTeam:
+		if t := v.shell.ActiveTeam(); t != nil {
+			sc := metricsScope{label: i18n.Tf("tui.metrics.scope_team", t.Name), projects: []ActiveProject{}}
+			if v.cfg.TeamProjects != nil {
+				sc.projects = v.cfg.TeamProjects(t.ID)
+			}
+			return sc
+		}
+	}
+	return metricsScope{label: i18n.T("tui.metrics.scope_hub")}
+}
+
+// mergeAgentMetrics sums the metrics of several projects, by agent.
+func mergeAgentMetrics(lists ...[]domain.AgentMetrics) []domain.AgentMetrics {
+	byName := map[string]*domain.AgentMetrics{}
+	var order []string
+	for _, list := range lists {
+		for _, m := range list {
+			acc, ok := byName[m.AgentName]
+			if !ok {
+				c := m
+				c.TopSkills = append([]string(nil), m.TopSkills...)
+				byName[m.AgentName] = &c
+				order = append(order, m.AgentName)
+				continue
+			}
+			runs := acc.TotalRuns + m.TotalRuns
+			if runs > 0 {
+				acc.AvgDurationSec = (acc.AvgDurationSec*float64(acc.TotalRuns) + m.AvgDurationSec*float64(m.TotalRuns)) / float64(runs)
+			}
+			acc.TotalRuns = runs
+			acc.SuccessCount += m.SuccessCount
+			acc.FailureCount += m.FailureCount
+			acc.TotalTokensIn += m.TotalTokensIn
+			acc.TotalTokensOut += m.TotalTokensOut
+			acc.TotalCostUSD += m.TotalCostUSD
+		}
+	}
+	out := make([]domain.AgentMetrics, 0, len(order))
+	for _, name := range order {
+		m := byName[name]
+		if m.TotalRuns > 0 {
+			m.SuccessRate = float64(m.SuccessCount) / float64(m.TotalRuns) * 100
+		}
+		out = append(out, *m)
+	}
+	sort.SliceStable(out, func(i, j int) bool { return out[i].TotalRuns > out[j].TotalRuns })
+	return out
+}
+
+// addStats adds b to a (the projects of a team).
+func addStats(a, b *platform.AggregateStats) {
+	a.TotalSessions += b.TotalSessions
+	a.TotalTokensIn += b.TotalTokensIn
+	a.TotalTokensOut += b.TotalTokensOut
+	a.TotalCost += b.TotalCost
+	a.TodaySessions += b.TodaySessions
+	a.ActiveProjects += b.ActiveProjects
+	a.CacheReadTokens += b.CacheReadTokens
+	a.ReasoningTokens += b.ReasoningTokens
+}
 
 // NewMetricsView creates a new metrics view.
 func NewMetricsView(cfg MetricsViewConfig) *MetricsView {
@@ -143,25 +224,30 @@ func (v *MetricsView) buildAgentsText() string {
 			"\n\n  " + theme.ColorTag(theme.TextSecondaryHex) + i18n.T("tui.metrics.press_tab_usage") + theme.TagColor
 	}
 
-	projectID := ""
-	scopeLabel := ""
-	if v.shell != nil {
-		if ap := v.shell.ActiveProject(); ap != nil {
-			projectID = ap.ID
-			scopeLabel = ap.Name
+	sc := v.scope()
+	scopeLabel := sc.label
+	var metrics []domain.AgentMetrics
+	var err error
+	if sc.projects == nil {
+		metrics, err = v.cfg.AgentEvents.Metrics(context.Background(), "")
+	} else {
+		lists := make([][]domain.AgentMetrics, 0, len(sc.projects))
+		for _, p := range sc.projects {
+			m, e := v.cfg.AgentEvents.Metrics(context.Background(), p.ID)
+			if e != nil {
+				err = e
+				break
+			}
+			lists = append(lists, m)
 		}
+		metrics = mergeAgentMetrics(lists...)
 	}
-
-	metrics, err := v.cfg.AgentEvents.Metrics(context.Background(), projectID)
 	if err != nil {
 		return fmt.Sprintf("  %s", i18n.Tf("tui.metrics.error", err.Error()))
 	}
 
 	var sb strings.Builder
-	title := i18n.T("tui.metrics.agent_telemetry")
-	if scopeLabel != "" {
-		title = i18n.Tf("tui.metrics.agent_telemetry_scoped", scopeLabel)
-	}
+	title := i18n.Tf("tui.metrics.agent_telemetry_scoped", scopeLabel)
 	fmt.Fprintf(&sb, "\n  [::b]%s%s\n\n", title, theme.TagReset)
 
 	if len(metrics) == 0 {
@@ -217,18 +303,23 @@ func (v *MetricsView) buildUsageText() string {
 		)
 	}
 
-	// Determine scope: project-scoped or global
+	// Scope: the whole hub, the projects of the team, or the project.
+	sc := v.scope()
+	scopeLabel := sc.label
 	var stats *platform.AggregateStats
 	var err error
-	var scopeLabel string
-	if v.shell != nil {
-		if ap := v.shell.ActiveProject(); ap != nil {
-			stats, err = v.cfg.Stats.ProjectStats(ap.Path, v.period)
-			scopeLabel = ap.Name
-		}
-	}
-	if stats == nil {
+	if sc.projects == nil {
 		stats, err = v.cfg.Stats.AggregateStats(v.period)
+	} else {
+		stats = &platform.AggregateStats{}
+		for _, p := range sc.projects {
+			s, e := v.cfg.Stats.ProjectStats(p.Path, v.period)
+			if e != nil {
+				err = e
+				break
+			}
+			addStats(stats, s)
+		}
 	}
 	if err != nil {
 		return fmt.Sprintf("  %s", i18n.Tf("tui.metrics.error", err.Error()))
@@ -244,10 +335,7 @@ func (v *MetricsView) buildUsageText() string {
 	}
 
 	var sb strings.Builder
-	title := i18n.Tf("tui.metrics.title_period", periodLabel)
-	if scopeLabel != "" {
-		title = i18n.Tf("tui.metrics.title_scoped_period", scopeLabel, periodLabel)
-	}
+	title := i18n.Tf("tui.metrics.title_scoped_period", scopeLabel, periodLabel)
 	fmt.Fprintf(&sb, "\n  [::b]%s%s\n\n", title, theme.TagReset)
 
 	// Main stats

@@ -31,7 +31,7 @@ func TestConfigSetV5Keys(t *testing.T) {
 	for _, kv := range [][2]string{
 		{"session.idle_sleep_minutes", "1"}, {"session.attach", "tmux"}, {"session.iterm_style", "split"}, {"session.notify", "off"},
 		{"execution.runtime", "container"}, {"execution.engine", "podman"}, {"execution.keep_images", "3"},
-		{"execution.tool_version", "v2.0.20"}, {"execution.strict_isolation", "true"},
+		{"execution.colima_profile", "work"}, {"execution.tool_version", "v2.0.20"}, {"execution.strict_isolation", "true"},
 		{"limits.daily_budget_usd", "12.5"}, {"limits.max_active_sessions", "4"}, {"limits.models", "eu.anthropic.*, us.*"},
 		{"remote.projects.p1", "acme"}, {"remote.targets.acme.builder", "dind"}, {"remote.targets.acme.timeout", "1h 30m"},
 	} {
@@ -41,7 +41,7 @@ func TestConfigSetV5Keys(t *testing.T) {
 	}
 	if c.Session.IdleSleepMinutes != 1 || c.Session.Attach != "tmux" || c.Session.Notify != "off" ||
 		c.Execution.Runtime != "container" || c.Execution.Engine != "podman" || c.Execution.KeepImages != 3 ||
-		c.Execution.ToolVersion != "2.0.20" || !c.Execution.StrictIsolation ||
+		c.Execution.ColimaProfile != "work" || c.Execution.ToolVersion != "2.0.20" || !c.Execution.StrictIsolation ||
 		c.Limits.DailyBudgetUSD != 12.5 || c.Limits.MaxActiveSessions != 4 || len(c.Limits.Models) != 2 ||
 		c.Remote.Projects["p1"] != "acme" || c.Remote.Targets[0].Builder != "dind" || c.Remote.Targets[0].Timeout != "1h 30m" {
 		t.Fatalf("config = %+v", c)
@@ -51,9 +51,13 @@ func TestConfigSetV5Keys(t *testing.T) {
 	if err := set("execution.engine", "auto"); err != nil || c.Execution.Engine != "" {
 		t.Fatalf("engine auto: %v %q", err, c.Execution.Engine)
 	}
+	if err := set("execution.colima_profile", "default"); err != nil || c.Execution.ColimaProfile != "" {
+		t.Fatalf("colima profile default: %v %q", err, c.Execution.ColimaProfile)
+	}
 
 	for _, kv := range [][2]string{
 		{"session.idle_sleep_minutes", "0"}, {"session.attach", "kitty"}, {"execution.runtime", "remote"},
+		{"execution.colima_profile", "bad profile"},
 		{"execution.tool_version", "latest"}, {"execution.strict_isolation", "maybe"}, {"limits.daily_budget_usd", "-1"},
 		{"remote.projects.p1", "nope"}, {"remote.targets.nope.tag", "oh"}, {"remote.targets.acme.arch", "386"},
 		{"remote.targets.acme.timeout", "soon"},

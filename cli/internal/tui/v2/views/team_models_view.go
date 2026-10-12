@@ -46,6 +46,7 @@ type teamModelsRef struct {
 type TeamModelsView struct {
 	app      *tview.Application
 	list     *widgets.SectionedList
+	page     *widgets.ListDetailPage
 	shell    ShellAccess
 	cfg      TeamModelsViewConfig
 	mountGen uint64
@@ -134,15 +135,15 @@ func (v *TeamModelsView) Mount(content *tview.Flex, app *tview.Application) {
 func (v *TeamModelsView) buildList(content *tview.Flex, loading tview.Primitive, app *tview.Application, gen uint64) {
 	v.list = widgets.NewSectionedList()
 	v.list.SetApp(app)
-	v.list.SetBorderPadding(1, 0, 2, 2)
+	v.page = newListPage(v.Title(), v.list)
 
 	v.list.SetItemSelectedFunc(func(index int, item widgets.SectionItem) {
 		v.editByItem(item)
 	})
+	v.list.SetItemChangedFunc(func(_ int, item widgets.SectionItem) { v.showDetail(item) })
 
 	v.renderList()
-	content.RemoveItem(loading)
-	content.AddItem(v.list, 0, 1, true)
+	v.page.Mount(content)
 	app.SetFocus(v.list)
 }
 
@@ -154,6 +155,30 @@ func (v *TeamModelsView) Unmount() {
 	v.undoStack.Clear()
 	v.app = nil
 	v.list = nil
+	v.page = nil
+}
+
+// showDetail fills the detail pane with the override of item.
+func (v *TeamModelsView) showDetail(item widgets.SectionItem) {
+	if v.page == nil || v.teamCfg == nil {
+		return
+	}
+	extra := []string{"a", i18n.T("tui.hints.add"), "w", i18n.T("tui.hints.save"), "u", i18n.T("tui.hints.undo")}
+	ref, ok := item.Reference.(teamModelsRef)
+	if !ok {
+		v.page.SetDetail(modelOverrideDetail("", "", "", "", extra...))
+		return
+	}
+	val := ""
+	switch ref.section {
+	case "general":
+		val = v.teamCfg.Models.Default
+	case "families":
+		val = v.teamCfg.Models.Families[ref.key]
+	case "agents":
+		val = v.teamCfg.Models.Agents[ref.key]
+	}
+	v.page.SetDetail(modelOverrideDetail(ref.section, ref.key, val, "", extra...))
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -200,17 +225,16 @@ func (v *TeamModelsView) renderList() {
 	reset := theme.TagColor
 	notConfigured := i18n.T("tui.config.not_configured")
 
-	title := i18n.T("tui.config.section.models")
+	title := v.Title()
 	if v.dirty {
-		title += "  " + theme.ColorTag(theme.ActiveMode.PrimaryHex) + "● " + i18n.T("tui.settings.modified") + reset
+		title += " · ● " + i18n.T("tui.settings.modified")
 	}
-
-	items := []widgets.SectionItem{
-		{IsHeader: true, MainText: title},
+	if v.page != nil {
+		v.page.SetTitle(title)
 	}
 
 	// ── General ──────────────────────────────────────────────────────────
-	items = append(items, widgets.SectionItem{IsHeader: true, MainText: i18n.T("tui.config.section.general")})
+	items := []widgets.SectionItem{{IsHeader: true, MainText: i18n.T("tui.config.section.general")}}
 
 	defaultVal := v.teamCfg.Models.Default
 	if defaultVal == "" {
@@ -270,6 +294,8 @@ func (v *TeamModelsView) renderList() {
 	if savedIdx >= 0 {
 		v.list.SelectIndex(savedIdx)
 	}
+	_, it, _ := v.list.CurrentItem()
+	v.showDetail(it)
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

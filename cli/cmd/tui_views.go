@@ -40,7 +40,7 @@ func domainProjectToViewItem(p domain.Project) views.ProjectItem {
 			}
 		}
 	}
-	return views.ProjectItem{
+	item := views.ProjectItem{
 		ID:           p.ID,
 		Name:         p.Name,
 		Path:         p.Path,
@@ -50,6 +50,29 @@ func domainProjectToViewItem(p domain.Project) views.ProjectItem {
 		Status:       string(p.Status),
 		MCPOverrides: mcpOverrides,
 	}
+	if p.TeamID != nil {
+		item.TeamID = *p.TeamID
+	}
+	return item
+}
+
+// teamProjects lists the projects attached to a team.
+func teamProjects(a *app.App, teamID string) []views.ActiveProject {
+	if a == nil || a.Projects == nil {
+		return nil
+	}
+	projects, err := a.Projects.List(context.Background(), "")
+	if err != nil {
+		slog.Warn("failed to list team projects", "team", teamID, "error", err)
+		return []views.ActiveProject{}
+	}
+	out := []views.ActiveProject{}
+	for _, p := range projects {
+		if p.TeamID != nil && *p.TeamID == teamID {
+			out = append(out, views.ActiveProject{ID: p.ID, Name: p.Name, Path: p.Path})
+		}
+	}
+	return out
 }
 
 // loadProjectItems fetches all projects from the store and converts them to view items.
@@ -91,6 +114,10 @@ func buildViews(a *app.App, notifStore *shell.NotificationStore) []views.View {
 				Name:   name,
 				Path:   path,
 				Status: domain.ProjectStatusActive,
+			}
+			if tuiShell != nil && tuiShell.Mode() == views.ModeTeam && tuiShell.ActiveTeam() != nil {
+				teamID := tuiShell.ActiveTeam().ID
+				p.TeamID = &teamID
 			}
 			if _, _, err := upsertProject(context.Background(), a.Projects, p); err != nil {
 				slog.Warn("failed to create/update project", "error", err)
@@ -350,8 +377,9 @@ func buildViews(a *app.App, notifStore *shell.NotificationStore) []views.View {
 		}),
 		views.NewStatusView(a),
 		views.NewMetricsView(views.MetricsViewConfig{
-			AgentEvents: a.AgentEvents,
-			Stats:       a.Stats,
+			AgentEvents:  a.AgentEvents,
+			Stats:        a.Stats,
+			TeamProjects: func(teamID string) []views.ActiveProject { return teamProjects(a, teamID) },
 		}),
 		views.NewDoctorView(a),
 		views.NewTeamsView(views.TeamsViewDeps{

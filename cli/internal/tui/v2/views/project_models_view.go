@@ -33,6 +33,7 @@ type projectModelsRef struct {
 type ProjectModelsView struct {
 	app      *tview.Application
 	list     *widgets.SectionedList
+	page     *widgets.ListDetailPage
 	shell    ShellAccess
 	cfg      ProjectModelsViewConfig
 	mountGen uint64
@@ -101,15 +102,19 @@ func (v *ProjectModelsView) Mount(content *tview.Flex, app *tview.Application) {
 
 			v.list = widgets.NewSectionedList()
 			v.list.SetApp(app)
-			v.list.SetBorderPadding(1, 0, 2, 2)
+			title := v.Title()
+			if v.live != nil {
+				title += " · " + v.live.Name
+			}
+			v.page = newListPage(title, v.list)
 
 			if v.live == nil {
 				items := []widgets.SectionItem{{
 					MainText: i18n.T("tui.project.no_active"),
 				}}
 				v.list.SetItems(items)
-				content.RemoveItem(loading)
-				content.AddItem(v.list, 0, 1, true)
+				v.page.SetDetail(emptyDetail())
+				v.page.Mount(content)
 				app.SetFocus(v.list)
 				return
 			}
@@ -117,10 +122,10 @@ func (v *ProjectModelsView) Mount(content *tview.Flex, app *tview.Application) {
 			v.list.SetItemSelectedFunc(func(index int, item widgets.SectionItem) {
 				v.editByItem(item)
 			})
+			v.list.SetItemChangedFunc(func(_ int, item widgets.SectionItem) { v.showDetail(item) })
 
 			v.renderList()
-			content.RemoveItem(loading)
-			content.AddItem(v.list, 0, 1, true)
+			v.page.Mount(content)
 			app.SetFocus(v.list)
 		})
 	}()
@@ -134,6 +139,30 @@ func (v *ProjectModelsView) Unmount() {
 	v.undoStack.Clear()
 	v.app = nil
 	v.list = nil
+	v.page = nil
+}
+
+// showDetail fills the detail pane with the override of item.
+func (v *ProjectModelsView) showDetail(item widgets.SectionItem) {
+	if v.page == nil || v.live == nil {
+		return
+	}
+	extra := []string{"a", i18n.T("tui.hints.add"), "u", i18n.T("tui.hints.undo")}
+	ref, ok := item.Reference.(projectModelsRef)
+	if !ok {
+		v.page.SetDetail(modelOverrideDetail("", "", "", "", extra...))
+		return
+	}
+	val := ""
+	switch ref.section {
+	case "general":
+		val = v.live.Model
+	case "families":
+		val = v.modelOverrides().Families[ref.key]
+	case "agents":
+		val = v.modelOverrides().Agents[ref.key]
+	}
+	v.page.SetDetail(modelOverrideDetail(ref.section, ref.key, val, "", extra...))
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -174,14 +203,8 @@ func (v *ProjectModelsView) renderList() {
 	}
 	savedIdx := v.list.GetCurrentItem()
 
-	title := v.live.Name + " · " + i18n.T("tui.config.section.models")
-
-	items := []widgets.SectionItem{
-		{IsHeader: true, MainText: title},
-	}
-
 	// ── Général ──────────────────────────────────────────────────────────
-	items = append(items, widgets.SectionItem{IsHeader: true, MainText: i18n.T("tui.project_models.section_general")})
+	items := []widgets.SectionItem{{IsHeader: true, MainText: i18n.T("tui.project_models.section_general")}}
 	modelVal := v.live.Model
 	if modelVal == "" {
 		modelVal = fmt.Sprintf("%s(%s)%s", theme.ColorTag(theme.TextMutedHex), i18n.T("tui.settings.inherited"), theme.TagColor)
@@ -229,6 +252,8 @@ func (v *ProjectModelsView) renderList() {
 	if savedIdx >= 0 {
 		v.list.SelectIndex(savedIdx)
 	}
+	_, it, _ := v.list.CurrentItem()
+	v.showDetail(it)
 }
 
 // modelOverrides returns a non-nil ProjectModelOverrides (reads from live, never mutates).

@@ -119,7 +119,7 @@ type PoliciesView struct {
 	resolveTeam ResolveTeamFunc
 	slist       *widgets.SectionedList
 	header      *tview.TextView
-	contentFlex *tview.Flex
+	page        *widgets.ListDetailPage
 	shell       ShellAccess
 	policies    []teamstate.Policy
 
@@ -165,18 +165,16 @@ func (v *PoliciesView) Mount(content *tview.Flex, tvApp *tview.Application) {
 		SetScrollable(false).
 		SetWordWrap(true)
 	v.header.SetBackgroundColor(theme.BgPanel)
-	v.header.SetBorderPadding(1, 0, 2, 2)
 
 	v.slist = widgets.NewSectionedList().SetApp(tvApp)
-	v.slist.SetBorderPadding(0, 0, 2, 2)
+	v.slist.SetItemChangedFunc(func(idx int, _ widgets.SectionItem) { v.showItemDetail(idx) })
 
-	v.contentFlex = tview.NewFlex().SetDirection(tview.FlexRow).
-		AddItem(v.header, 5, 0, false).
-		AddItem(v.slist, 0, 1, true)
-	v.contentFlex.SetBackgroundColor(theme.BgPanel)
+	v.page = widgets.NewListDetailPage(v.Title(), i18n.T("tui.catalog.detail"))
+	v.page.AddHeader(v.header, 5)
+	v.page.SetMain(v.slist)
 
 	v.refresh()
-	content.AddItem(v.contentFlex, 0, 1, true)
+	v.page.Mount(content)
 }
 
 // Unmount cleans up resources.
@@ -184,7 +182,7 @@ func (v *PoliciesView) Unmount() {
 	v.app = nil
 	v.slist = nil
 	v.header = nil
-	v.contentFlex = nil
+	v.page = nil
 }
 
 // HandleKey processes policies view key events.
@@ -241,6 +239,7 @@ func (v *PoliciesView) refresh() {
 	if v.slist != nil {
 		v.slist.SetItems(nil)
 	}
+	setPageDetail(v.page, emptyDetail())
 
 	repo := v.getRepo()
 	if repo == nil {
@@ -385,6 +384,39 @@ func (v *PoliciesView) renderPolicies(repo teamstate.TeamStateWriter) {
 	v.actionIndices[checkIdx] = func() { v.checkPolicies() }
 
 	v.slist.SetItems(items)
+	idx, _, _ := v.slist.CurrentItem()
+	v.showItemDetail(idx)
+}
+
+// showItemDetail fills the detail pane with the list item at idx (policy or
+// action).
+func (v *PoliciesView) showItemDetail(idx int) {
+	if v.page == nil {
+		return
+	}
+	if pi, ok := v.policyIndices[idx]; ok && pi >= 0 && pi < len(v.policies) {
+		p := v.policies[pi]
+		var d detailText
+		d.title(tview.Escape(p.Name))
+		d.b.WriteString(tview.Escape(v.formatPolicyDetail(p)))
+		d.keys("Enter", i18n.T("tui.hints.actions"),
+			"e", i18n.T("tui.hints.edit"), "d", i18n.T("tui.hints.delete"),
+			"c", i18n.T("tui.hints.check"), "r", i18n.T("tui.hints.refresh"))
+		v.page.SetDetail(d.String())
+		return
+	}
+	if _, ok := v.actionIndices[idx]; ok && v.slist != nil {
+		items := v.slist.GetItems()
+		var d detailText
+		if idx >= 0 && idx < len(items) {
+			d.title(strings.TrimSpace(items[idx].MainText))
+		}
+		d.para(i18n.T("tui.detail.policy.action"))
+		d.keys("Enter", i18n.T("tui.hints.open"), "a", i18n.T("tui.hints.add"), "t", "template")
+		v.page.SetDetail(d.String())
+		return
+	}
+	v.page.SetDetail(emptyDetail())
 }
 
 func (v *PoliciesView) buildPolicyItem(p teamstate.Policy) widgets.SectionItem {

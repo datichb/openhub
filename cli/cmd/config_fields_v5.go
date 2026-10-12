@@ -83,6 +83,9 @@ func validToolVersion(s string) bool {
 	return ok && len(parts) == 3
 }
 
+// colimaProfileRe matches a Colima profile name.
+var colimaProfileRe = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]*$`)
+
 func v5ConfigFields() map[string]configField {
 	fields := map[string]configField{
 		"session.attach": enumField("session.attach", func(c *config.Config) *string { return &c.Session.Attach },
@@ -97,6 +100,20 @@ func v5ConfigFields() map[string]configField {
 			"", "local", "container"),
 		"execution.engine": enumField("execution.engine", func(c *config.Config) *string { return &c.Execution.Engine },
 			"auto", "auto", "colima", "podman", "docker"),
+		"execution.colima_profile": {
+			Set: func(c *config.Config, v string) error {
+				v = strings.TrimSpace(v)
+				if !colimaProfileRe.MatchString(v) {
+					return invalidConfigValue("execution.colima_profile", v, "default | work")
+				}
+				if v == "default" {
+					v = ""
+				}
+				c.Execution.ColimaProfile = v
+				return nil
+			},
+			Unset: func(c *config.Config) { c.Execution.ColimaProfile = "" },
+		},
 		"execution.keep_images":      intField("execution.keep_images", func(c *config.Config) *int { return &c.Execution.KeepImages }, 1, 20),
 		"execution.strict_isolation": boolField("execution.strict_isolation", func(c *config.Config) *bool { return &c.Execution.StrictIsolation }),
 		"remote.experimental":        boolField("remote.experimental", func(c *config.Config) *bool { return &c.Remote.Experimental }),

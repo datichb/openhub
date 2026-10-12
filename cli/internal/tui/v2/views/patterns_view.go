@@ -21,7 +21,7 @@ type PatternsView struct {
 	resolveTeam ResolveTeamFunc
 	slist       *widgets.SectionedList
 	header      *tview.TextView
-	contentFlex *tview.Flex
+	page        *widgets.ListDetailPage
 	shell       ShellAccess
 	patterns    []teamstate.Pattern
 
@@ -68,11 +68,10 @@ func (v *PatternsView) Mount(content *tview.Flex, app *tview.Application) {
 		SetScrollable(false).
 		SetWordWrap(true)
 	v.header.SetBackgroundColor(theme.BgPanel)
-	v.header.SetBorderPadding(1, 0, 2, 2)
 
 	// Sectioned list for patterns + actions
 	v.slist = widgets.NewSectionedList().SetApp(app)
-	v.slist.SetBorderPadding(0, 0, 2, 2)
+	v.slist.SetItemChangedFunc(func(idx int, _ widgets.SectionItem) { v.showItemDetail(idx) })
 
 	v.slist.SetItemSelectedFunc(func(idx int, item widgets.SectionItem) {
 		if fn, ok := v.actionIndices[idx]; ok {
@@ -84,14 +83,13 @@ func (v *PatternsView) Mount(content *tview.Flex, app *tview.Application) {
 		}
 	})
 
-	// Vertical layout: header (fixed) + list (flexible)
-	v.contentFlex = tview.NewFlex().SetDirection(tview.FlexRow).
-		AddItem(v.header, 5, 0, false).
-		AddItem(v.slist, 0, 1, true)
-	v.contentFlex.SetBackgroundColor(theme.BgPanel)
+	// The header stays above the list, the detail on the right.
+	v.page = widgets.NewListDetailPage(v.Title(), i18n.T("tui.catalog.detail"))
+	v.page.AddHeader(v.header, 5)
+	v.page.SetMain(v.slist)
 
 	v.refresh()
-	content.AddItem(v.contentFlex, 0, 1, true)
+	v.page.Mount(content)
 }
 
 // Unmount cleans up resources.
@@ -99,7 +97,7 @@ func (v *PatternsView) Unmount() {
 	v.app = nil
 	v.slist = nil
 	v.header = nil
-	v.contentFlex = nil
+	v.page = nil
 }
 
 // HandleKey processes patterns view key events.
@@ -150,6 +148,7 @@ func (v *PatternsView) refresh() {
 	if v.slist != nil {
 		v.slist.SetItems(nil)
 	}
+	setPageDetail(v.page, emptyDetail())
 
 	repo := v.getRepo()
 	if repo == nil {
@@ -250,6 +249,48 @@ func (v *PatternsView) renderPatterns(repo teamstate.TeamStateWriter) {
 	v.actionIndices[createIdx] = func() { v.addPattern() }
 
 	v.slist.SetItems(items)
+	idx, _, _ := v.slist.CurrentItem()
+	v.showItemDetail(idx)
+}
+
+// showItemDetail fills the detail pane with the list item at idx (pattern or
+// action).
+func (v *PatternsView) showItemDetail(idx int) {
+	if v.page == nil {
+		return
+	}
+	if pi, ok := v.patternIndices[idx]; ok && pi >= 0 && pi < len(v.patterns) {
+		p := v.patterns[pi]
+		var d detailText
+		d.title(tview.Escape(p.Name))
+		d.para(tview.Escape(p.Description))
+		status := theme.ColorTag(theme.TextMutedHex) + i18n.T("tui.detail.pattern.pending") + theme.TagReset
+		if p.Validated {
+			status = theme.ColorTag(theme.SuccessHex) + i18n.T("tui.detail.pattern.validated") + theme.TagReset
+		}
+		d.field(i18n.T("tui.detail.status"), status)
+		d.field(i18n.T("tui.detail.complexity"), tview.Escape(p.Complexity))
+		d.field(i18n.T("tui.detail.tags"), tview.Escape(strings.Join(p.Tags, ", ")))
+		d.field(i18n.T("tui.detail.origin"), tview.Escape(p.Source))
+		d.field(i18n.T("tui.detail.project"), tview.Escape(p.Project))
+		d.field(i18n.T("tui.detail.date"), tview.Escape(p.CreatedAt))
+		keys := []string{"Enter", i18n.T("tui.hints.see")}
+		if !p.Validated {
+			keys = append(keys, "v", i18n.T("tui.hints.validate"))
+		}
+		d.keys(append(keys, "d", i18n.T("tui.hints.delete"), "r", i18n.T("tui.hints.refresh"))...)
+		v.page.SetDetail(d.String())
+		return
+	}
+	if _, ok := v.actionIndices[idx]; ok && v.slist != nil {
+		var d detailText
+		d.title(i18n.T("tui.patterns.action_create"))
+		d.para(i18n.T("tui.patterns.hint_complexity"))
+		d.keys("Enter", i18n.T("tui.hints.open"), "a", i18n.T("tui.hints.add"))
+		v.page.SetDetail(d.String())
+		return
+	}
+	v.page.SetDetail(emptyDetail())
 }
 
 func (v *PatternsView) buildPatternItem(p teamstate.Pattern) widgets.SectionItem {

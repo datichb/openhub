@@ -40,3 +40,43 @@ const (
 	// IconSepConn is a connector separator.
 	IconSepConn = "┃"
 )
+
+// Workflow catalogue pictograms (catalogue list, legend, sessions, board).
+const (
+	// IconDraft marks a draft (leading) or a published workflow that has a
+	// draft (trailing).
+	IconDraft = "✎"
+	// IconPinned marks a pinned workflow.
+	IconPinned = "★"
+	// IconRuntimeLocal, IconRuntimeContainer and IconRuntimeRemote are the
+	// runtimes (local, container, remote).
+	IconRuntimeLocal     = "⌂"
+	IconRuntimeContainer = "▣"
+	IconRuntimeRemote    = "☁"
+	// IconValid marks a valid workflow.
+	IconValid = "✔"
+	// IconInvalid marks a workflow with errors.
+	IconInvalid = "✗"
+	// IconWarn marks validation or integrity warnings.
+	IconWarn = "⚠"
+	// IconQueued marks an operation waiting for the network.
+	IconQueued = "⏳"
+	// IconNewBrick marks a draft that introduces a team brick.
+	IconNewBrick = "+"
+	// IconExtends introduces the `extends` chain of a workflow.
+	IconExtends = "↳"
+)
+
+// RuntimeIcon returns the pictogram of a runtime ("" = local); an unknown
+// runtime is returned as is.
+func RuntimeIcon(rt string) string {
+	switch rt {
+	case "local", "":
+		return IconRuntimeLocal
+	case "container":
+		return IconRuntimeContainer
+	case "remote":
+		return IconRuntimeRemote
+	}
+	return rt
+}

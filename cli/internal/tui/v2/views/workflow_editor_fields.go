@@ -82,17 +82,76 @@ func (v *WorkflowEditorView) textField(label, help, lock string, value func(*wor
 
 // selectField edits a scalar among options.
 func (v *WorkflowEditorView) selectField(label, help, lock string, opts func() []string, value func(*workflow.Spec) string, path ...string) *edField {
+	return v.selectFieldDesc(label, help, lock, opts, nil, value, path...)
+}
+
+// selectFieldDesc is selectField with a label per option (describe nil:
+// the value itself).
+func (v *WorkflowEditorView) selectFieldDesc(label, help, lock string, opts func() []string, describe func(string) string, value func(*workflow.Spec) string, path ...string) *edField {
 	f := &edField{label: label, help: help, path: path, lock: lock, value: value}
 	f.edit = func() {
 		choices := []SelectOption{v.unsetOption()}
 		for _, o := range opts() {
-			choices = append(choices, SelectOption{Label: o, Value: o})
+			l := o
+			if describe != nil {
+				l = describe(o)
+			}
+			choices = append(choices, SelectOption{Label: l, Value: o})
 		}
 		cur := v.current(path...)
 		if cur == "" {
 			cur = unsetValue
 		}
 		v.shell.ShowSelectModal(label, choices, cur, func(s string) { v.setOrUnset(s, path...) })
+	}
+	return f
+}
+
+// describer labels a choice with its description, the i18n key prefix+value:
+// « strict — requires full isolation ».
+func describer(prefix string) func(string) string {
+	return func(val string) string {
+		if val == "" {
+			return "—"
+		}
+		return val + " — " + i18n.T(prefix+val)
+	}
+}
+
+// descOpts are the choices vals labelled by describer(prefix).
+func descOpts(prefix string, vals ...string) []SelectOption {
+	d := describer(prefix)
+	out := make([]SelectOption, len(vals))
+	for i, s := range vals {
+		out[i] = SelectOption{Label: d(s), Value: s}
+	}
+	return out
+}
+
+// extendsField chooses the parent among the workflows the document may
+// extend (WorkflowEditorConfig.Workflows), « none » or a typed reference.
+func (v *WorkflowEditorView) extendsField() *edField {
+	label := i18n.T("tui.editor.field.extends")
+	f := &edField{label: label, help: i18n.T("tui.editor.help.extends"), path: []string{"extends"},
+		value: specStr(func(*workflow.Spec) string { return v.current("extends") })}
+	f.edit = func() {
+		cur := v.current("extends")
+		choices := []SelectOption{{Label: i18n.T("tui.catalog.edit.source_none"), Value: unsetValue}}
+		for _, ref := range sortRefs(append(append([]string(nil), v.cfg.Workflows...), cur)) {
+			choices = append(choices, SelectOption{Label: ref, Value: ref})
+		}
+		choices = append(choices, SelectOption{Label: i18n.T("tui.catalog.edit.source_other"), Value: catalogSourceOther})
+		sel := cur
+		if sel == "" {
+			sel = unsetValue
+		}
+		v.shell.ShowSelectModal(label, choices, sel, func(s string) {
+			if s == catalogSourceOther {
+				v.shell.ShowInputModal(label, cur, func(s string) { v.setOrUnset(strings.TrimSpace(s), "extends") })
+				return
+			}
+			v.setOrUnset(s, "extends")
+		})
 	}
 	return f
 }
@@ -263,6 +322,9 @@ func runtimesOf(rs []workflow.Runtime) []string {
 	return out
 }
 
+// runtimeDescribe labels a runtime « container — ▣ conteneur ».
+func runtimeDescribe(r string) string { return r + " — " + runtimeWords([]string{r}) }
+
 // ── General ────────────────────────────────────────────────────────────────
 
 func (v *WorkflowEditorView) generalFields() []*edField {
@@ -272,15 +334,15 @@ func (v *WorkflowEditorView) generalFields() []*edField {
 		{label: t("tui.editor.group.identity"), header: true},
 		{label: t("tui.editor.field.id"), help: t("tui.editor.help.id"), value: specStr(func(sp *workflow.Spec) string { return sp.ID }),
 			edit: func() { v.toast(t("tui.editor.help.id"), false) }},
-		v.textField(t("tui.editor.field.extends"), t("tui.editor.help.extends"), "", specStr(func(sp *workflow.Spec) string { return v.current("extends") }), "extends"),
+		v.extendsField(),
 		v.textField(t("tui.editor.field.label"), "", "label", specStr(func(sp *workflow.Spec) string { return sp.Label.Text(lang) }), "label"),
 		v.textField(t("tui.editor.field.description"), "", "description", specStr(func(sp *workflow.Spec) string { return sp.Description.Text(lang) }), "description"),
 		v.selectField(t("tui.editor.field.category"), "", "category", lit("develop", "frame", "quality", "knowledge", "other"),
 			specStr(func(sp *workflow.Spec) string { return string(sp.Category) }), "category"),
 		{label: t("tui.editor.group.security"), header: true},
-		v.selectField(t("tui.editor.field.risk"), t("tui.editor.help.risk"), "risk", lit("read", "plan", "write", "publish"),
+		v.selectFieldDesc(t("tui.editor.field.risk"), t("tui.editor.help.risk"), "risk", lit("read", "plan", "write", "publish"), RiskDescription,
 			specStr(func(sp *workflow.Spec) string { return string(sp.Risk) }), "risk"),
-		v.selectField(t("tui.editor.field.isolation"), t("tui.editor.help.isolation"), "isolation", lit("standard", "strict"),
+		v.selectFieldDesc(t("tui.editor.field.isolation"), t("tui.editor.help.isolation"), "isolation", lit("standard", "strict"), describer("tui.editor.opt.isolation."),
 			specStr(func(sp *workflow.Spec) string { return string(sp.Isolation) }), "isolation"),
 		v.boolField(t("tui.editor.field.code_mode"), t("tui.editor.help.code_mode"), "code_mode",
 			specStr(func(sp *workflow.Spec) string { return boolText(sp.CodeMode) }), "code_mode"),
@@ -290,11 +352,18 @@ func (v *WorkflowEditorView) generalFields() []*edField {
 		{label: t("tui.editor.group.run"), header: true},
 		v.selectField(t("tui.editor.field.entry"), t("tui.editor.help.entry"), "entry", v.agentChoices,
 			specStr(func(sp *workflow.Spec) string { return sp.EntryAgent() }), "entry", "agent"),
+		v.boolField(t("tui.editor.field.selectable"), t("tui.editor.help.selectable"), "entry",
+			specStr(func(sp *workflow.Spec) string {
+				if sp.Entry != nil && sp.Entry.Selectable {
+					return "true"
+				}
+				return "false"
+			}), "entry", "selectable"),
 		v.selectField(t("tui.editor.field.mode_default"), "", "modes", v.modeChoices,
 			specStr(func(sp *workflow.Spec) string { return sp.DefaultMode() }), "modes", "default"),
 		v.listField(t("tui.editor.field.modes_allowed"), "", "modes", v.modeChoices,
 			specList(func(sp *workflow.Spec) []string { return sp.AllowedModes() }), "modes", "allowed"),
-		v.selectField(t("tui.editor.field.runtime_default"), "", "runtime", lit("local", "container", "remote"),
+		v.selectFieldDesc(t("tui.editor.field.runtime_default"), "", "runtime", lit("local", "container", "remote"), runtimeDescribe,
 			specStr(func(sp *workflow.Spec) string {
 				if sp.Runtime != nil {
 					return string(sp.Runtime.Default)
@@ -571,36 +640,50 @@ func (v *WorkflowEditorView) editAgent(sp *workflow.Spec, id string) {
 			after = append(after, k)
 		}
 	}
-	initial := map[string]string{"role": string(a.Role), "mode": string(a.Mode), "after": a.After, "calls": strings.Join(a.Calls, ", ")}
+	initial := map[string]string{"role": string(a.Role), "mode": string(a.Mode), "after": a.After}
 	if initial["role"] == "" {
 		initial["role"] = string(workflow.RoleWorkflow)
+	}
+	var calls []SelectOption
+	members := sp.Members()
+	for _, c := range a.Calls {
+		if !slices.Contains(members, c) {
+			members = append(members, c)
+		}
+	}
+	for _, m := range members {
+		calls = append(calls, SelectOption{Label: m, Value: m})
 	}
 	v.shell.ShowInlineForm(InlineFormConfig{
 		Title: i18n.Tf("tui.editor.graph.agent_title", id),
 		Fields: []FormField{
-			{Key: "role", Label: t("tui.editor.field.role"), Type: FieldSelect, Default: initial["role"], Options: opts("workflow", "independent", "disabled")},
-			{Key: "mode", Label: t("tui.editor.field.agent_mode"), Type: FieldSelect, Default: initial["mode"], Options: opts("", "primary", "subagent")},
-			{Key: "after", Label: t("tui.editor.field.after"), Type: FieldSelect, Default: initial["after"], Options: opts(after...)},
-			{Key: "calls", Label: t("tui.editor.field.calls"), Type: FieldText, Default: initial["calls"], Hint: t("tui.editor.help.calls")},
+			{Key: "role", Label: t("tui.editor.field.role"), Type: FieldSelect, Default: initial["role"],
+				Options: descOpts("tui.editor.opt.role.", "workflow", "independent", "disabled")},
+			{Key: "mode", Label: t("tui.editor.field.agent_mode"), Type: FieldSelect, Default: initial["mode"],
+				Options: descOpts("tui.editor.opt.agent_mode.", "", "primary", "subagent")},
+			{Key: "after", Label: t("tui.editor.field.after"), Type: FieldSelect, Default: initial["after"], Options: opts(after...),
+				Hint: t("tui.editor.help.after")},
+			{Key: "calls", Label: t("tui.editor.field.calls"), Type: FieldMultiSelect, DefaultMulti: a.Calls, Options: calls,
+				Hint: t("tui.editor.help.calls")},
 		},
-		OnSubmit: func(vals map[string]string, _ map[string][]string) {
+		OnSubmit: func(vals map[string]string, multi map[string][]string) {
 			v.edit(func(e *workflow.DocEdit) error {
-				for _, k := range []string{"role", "mode", "after", "calls"} {
+				for _, k := range []string{"role", "mode", "after"} {
 					if vals[k] == initial[k] {
 						continue
 					}
 					p := []string{"agents", id, k}
-					switch {
-					case vals[k] == "":
+					if vals[k] == "" {
 						e.Unset(p...)
-					case k == "calls":
-						if err := e.Set(splitList(vals[k]), p...); err != nil {
-							return err
-						}
-					default:
-						if err := e.Set(vals[k], p...); err != nil {
-							return err
-						}
+					} else if err := e.Set(vals[k], p...); err != nil {
+						return err
+					}
+				}
+				if sel := multi["calls"]; !slices.Equal(sel, a.Calls) {
+					if len(sel) == 0 {
+						e.Unset("agents", id, "calls") // derived from the permissions
+					} else if err := e.Set(sel, "agents", id, "calls"); err != nil {
+						return err
 					}
 				}
 				if !e.Has("agents", id, "role") && !v.inherited("agents."+id) {
@@ -622,18 +705,36 @@ func (v *WorkflowEditorView) editCheckpoint(sp *workflow.Spec, id string) {
 		b := string(cp.Mode[m])
 		initial["mode:"+m] = b
 		fields = append(fields, FormField{Key: "mode:" + m, Label: i18n.Tf("tui.editor.field.behavior", m), Type: FieldSelect,
-			Default: b, Options: opts(append([]string{""}, checkpointBehaviors...)...)})
+			Default: b, Options: descOpts("tui.editor.opt.behavior.", append([]string{""}, checkpointBehaviors...)...)})
+	}
+	var unlocks []SelectOption
+	for _, o := range workflow.UnlockOps {
+		unlocks = append(unlocks, SelectOption{Label: describer("tui.editor.opt.unlock.")(string(o)), Value: string(o)})
+	}
+	curUnlocks := make([]string, len(cp.Unlocks))
+	for i, o := range cp.Unlocks {
+		curUnlocks[i] = string(o)
 	}
 	fields = append(fields,
 		FormField{Key: "condition", Label: t("tui.editor.field.condition"), Type: FieldText, Default: cp.Condition, Hint: t("tui.editor.help.condition")},
-		FormField{Key: "remote", Label: t("tui.editor.field.remote"), Type: FieldSelect, Default: initial["remote"], Options: opts("", "auto", "defer", "forbid")},
+		FormField{Key: "remote", Label: t("tui.editor.field.remote"), Type: FieldSelect, Default: initial["remote"],
+			Options: descOpts("tui.editor.opt.remote.", "", "auto", "defer", "forbid")},
 		FormField{Key: "mandatory", Label: t("tui.editor.field.mandatory"), Type: FieldSelect, Default: initial["mandatory"], Options: opts("", "true", "false")},
+		FormField{Key: "unlocks", Label: t("tui.editor.field.unlocks"), Type: FieldMultiSelect, Options: unlocks, DefaultMulti: curUnlocks,
+			Hint: t("tui.editor.help.unlocks")},
 	)
 	v.shell.ShowInlineForm(InlineFormConfig{
 		Title:  i18n.Tf("tui.editor.graph.checkpoint_title", id),
 		Fields: fields,
-		OnSubmit: func(vals map[string]string, _ map[string][]string) {
+		OnSubmit: func(vals map[string]string, multi map[string][]string) {
 			v.edit(func(e *workflow.DocEdit) error {
+				if sel := multi["unlocks"]; !slices.Equal(sel, curUnlocks) {
+					if len(sel) == 0 {
+						e.Unset("checkpoints", id, "unlocks")
+					} else if err := e.Set(sel, "checkpoints", id, "unlocks"); err != nil {
+						return err
+					}
+				}
 				for k, old := range initial {
 					nv := vals[k]
 					if nv == old {

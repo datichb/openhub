@@ -36,12 +36,20 @@ func (m *mockShell) SetProjectMode(*ActiveProject)                     {}
 func (m *mockShell) SetActiveProject(*ActiveProject)                   {}
 func (m *mockShell) ActiveProject() *ActiveProject                     { return m.project }
 func (m *mockShell) SetMode(Mode)                                      {}
-func (m *mockShell) Mode() Mode                                        { return ModeHub }
-func (m *mockShell) SetActiveTeam(*ActiveTeam)                         {}
-func (m *mockShell) ActiveTeam() *ActiveTeam                           { return m.team }
-func (m *mockShell) PushView(View)                                     {}
-func (m *mockShell) PopView() bool                                     { return true }
-func (m *mockShell) SetOmnibarVisible(bool)                            {}
+func (m *mockShell) Mode() Mode {
+	switch {
+	case m.team != nil:
+		return ModeTeam
+	case m.project != nil:
+		return ModeProject
+	}
+	return ModeHub
+}
+func (m *mockShell) SetActiveTeam(*ActiveTeam) {}
+func (m *mockShell) ActiveTeam() *ActiveTeam   { return m.team }
+func (m *mockShell) PushView(View)             {}
+func (m *mockShell) PopView() bool             { return true }
+func (m *mockShell) SetOmnibarVisible(bool)    {}
 
 func TestBoardView_ImplementsView(t *testing.T) {
 	var _ View = (*BoardView)(nil)
@@ -317,10 +325,13 @@ func TestDoctorView_ShowsDoctorRegistry(t *testing.T) {
 			{Name: "Provider credentials", OK: false, Detail: "missing"},
 		}
 	}
-	v.tv = tview.NewTextView()
+	v.summary, v.list = tview.NewTextView(), widgets.NewSectionedList()
 	v.checks = v.collectChecks()
 	v.render()
-	text := v.tv.GetText(true)
+	text := v.summary.GetText(true)
+	for _, it := range v.list.GetItems() {
+		text += "\n" + it.MainText + " " + it.SecondaryText
+	}
 	assert.Contains(t, text, "oh version")
 	assert.Contains(t, text, "5.0.1 available")
 	assert.Contains(t, text, "Provider credentials")

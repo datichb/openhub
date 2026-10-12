@@ -36,6 +36,7 @@ type ProjectConfigViewConfig struct {
 type ProjectConfigView struct {
 	app      *tview.Application
 	list     *widgets.SectionedList
+	page     *widgets.ListDetailPage
 	shell    ShellAccess
 	cfg      ProjectConfigViewConfig
 	mountGen uint64
@@ -108,15 +109,15 @@ func (v *ProjectConfigView) Mount(content *tview.Flex, app *tview.Application) {
 
 			v.list = widgets.NewSectionedList()
 			v.list.SetApp(app)
-			v.list.SetBorderPadding(1, 0, 2, 2)
+			v.page = newListPage(v.pageTitle(), v.list)
 
 			if v.live == nil {
 				items := []widgets.SectionItem{{
 					MainText: i18n.T("tui.project.no_active"),
 				}}
 				v.list.SetItems(items)
-				content.RemoveItem(loading)
-				content.AddItem(v.list, 0, 1, true)
+				v.page.SetDetail(emptyDetail())
+				v.page.Mount(content)
 				app.SetFocus(v.list)
 				return
 			}
@@ -124,11 +125,13 @@ func (v *ProjectConfigView) Mount(content *tview.Flex, app *tview.Application) {
 			v.list.SetItemSelectedFunc(func(index int, item widgets.SectionItem) {
 				v.onItemSelected(index, item)
 			})
+			v.list.SetItemChangedFunc(func(_ int, item widgets.SectionItem) {
+				showFieldItemDetail(v.page, v.fields, item, "u", i18n.T("tui.hints.undo"))
+			})
 
 			v.buildFields()
 			v.renderFields()
-			content.RemoveItem(loading)
-			content.AddItem(v.list, 0, 1, true)
+			v.page.Mount(content)
 			app.SetFocus(v.list)
 		})
 	}()
@@ -142,6 +145,15 @@ func (v *ProjectConfigView) Unmount() {
 	v.undoStack.Clear()
 	v.app = nil
 	v.list = nil
+	v.page = nil
+}
+
+// pageTitle is the title of the list frame (the active project).
+func (v *ProjectConfigView) pageTitle() string {
+	if v.live == nil {
+		return v.Title()
+	}
+	return v.Title() + " · " + v.live.Name
 }
 
 func (v *ProjectConfigView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
@@ -418,6 +430,7 @@ func (v *ProjectConfigView) renderFields() {
 	if savedIdx >= 0 {
 		v.list.SelectIndex(savedIdx)
 	}
+	showCurrentFieldDetail(v.page, v.list, v.fields, "u", i18n.T("tui.hints.undo"))
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

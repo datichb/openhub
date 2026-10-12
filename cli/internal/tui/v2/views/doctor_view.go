@@ -2,7 +2,6 @@ package views
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -10,6 +9,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
+	"github.com/datichb/openhub/cli/internal/tui/v2/widgets"
 )
 
 // DoctorCheck represents a single health check result. Warn marks a passed
@@ -23,11 +23,14 @@ type DoctorCheck struct {
 
 // DoctorView displays system health checks with real execution.
 type DoctorView struct {
-	app    *tview.Application
-	appCtx *app.App
-	tv     *tview.TextView
-	checks []DoctorCheck
-	run    func() []DoctorCheck
+	app     *tview.Application
+	appCtx  *app.App
+	summary *tview.TextView
+	list    *widgets.SectionedList
+	page    *widgets.ListDetailPage
+	checks  []DoctorCheck
+	loading string // non-empty while the checks run
+	run     func() []DoctorCheck
 }
 
 var _ View = (*DoctorView)(nil)
@@ -45,32 +48,39 @@ func (v *DoctorView) Title() string { return i18n.T("tui.doctor.title") }
 
 // StatusHints returns keybinding hints.
 func (v *DoctorView) StatusHints() string {
-	return fmt.Sprintf("r %s · Esc %s", i18n.T("tui.hints.recheck"), i18n.T("tui.hints.back"))
+	return fmt.Sprintf("j/k %s · r %s · Esc %s", i18n.T("tui.hints.nav"), i18n.T("tui.hints.recheck"), i18n.T("tui.hints.back"))
 }
 
 // Mount builds the doctor checks display and runs all checks.
 func (v *DoctorView) Mount(content *tview.Flex, tvApp *tview.Application) {
 	v.app = tvApp
 
-	v.tv = tview.NewTextView().
-		SetDynamicColors(true).
-		SetTextAlign(tview.AlignLeft)
-	v.tv.SetBackgroundColor(theme.BgPanel)
-	v.tv.SetBorderPadding(1, 0, 2, 2)
+	v.summary = tview.NewTextView().SetDynamicColors(true)
+	v.summary.SetBackgroundColor(theme.BgPanel)
+	v.list = widgets.NewSectionedList()
+	v.list.SetApp(tvApp)
+	v.list.SetItemChangedFunc(func(_ int, it widgets.SectionItem) { v.showDetail(it) })
+
+	v.page = widgets.NewListDetailPage(v.Title(), i18n.T("tui.catalog.detail"))
+	v.page.AddHeader(v.summary, 2)
+	v.page.SetMain(v.list)
+	v.page.Mount(content)
+	if tvApp != nil {
+		tvApp.SetFocus(v.list)
+	}
 
 	// Show loading placeholder immediately
-	muted := theme.ColorTag(theme.TextMutedHex)
-	v.tv.SetText(fmt.Sprintf("\n  %s%s%s", muted, i18n.T("tui.doctor.loading"), theme.TagColor))
-	content.AddItem(v.tv, 0, 1, true)
+	v.loading = i18n.T("tui.doctor.loading")
+	v.render()
 
 	// Run checks asynchronously (they invoke subprocesses)
 	go func() {
 		checks := v.collectChecks()
 		tvApp.QueueUpdateDraw(func() {
-			if v.tv == nil {
+			if v.list == nil {
 				return
 			}
-			v.checks = checks
+			v.checks, v.loading = checks, ""
 			v.render()
 		})
 	}()
@@ -79,21 +89,24 @@ func (v *DoctorView) Mount(content *tview.Flex, tvApp *tview.Application) {
 // Unmount cleans up resources.
 func (v *DoctorView) Unmount() {
 	v.app = nil
-	v.tv = nil
+	v.summary, v.list, v.page = nil, nil, nil
 }
 
 // HandleKey processes view-specific key events.
 func (v *DoctorView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 	if event.Rune() == 'r' {
-		muted := theme.ColorTag(theme.TextMutedHex)
-		v.tv.SetText(fmt.Sprintf("\n  %s%s%s", muted, i18n.T("tui.doctor.rechecking"), theme.TagColor))
+		if v.list == nil || v.app == nil {
+			return nil
+		}
+		v.loading = i18n.T("tui.doctor.rechecking")
+		v.render()
 		go func() {
 			checks := v.collectChecks()
 			v.app.QueueUpdateDraw(func() {
-				if v.tv == nil || v.app == nil {
+				if v.list == nil || v.app == nil {
 					return
 				}
-				v.checks = checks
+				v.checks, v.loading = checks, ""
 				v.render()
 			})
 		}()
@@ -116,37 +129,80 @@ func (v *DoctorView) collectChecks() []DoctorCheck {
 var DoctorChecks func() []DoctorCheck
 
 func (v *DoctorView) render() {
-	if v.tv == nil {
+	if v.list == nil {
+		return
+	}
+	muted := theme.ColorTag(theme.TextMutedHex)
+	if v.loading != "" {
+		if v.summary != nil {
+			v.summary.SetText(muted + v.loading + theme.TagColor)
+		}
+		v.list.SetItems([]widgets.SectionItem{{MainText: muted + v.loading + theme.TagColor, IsHeader: true}})
+		v.showDetail(widgets.SectionItem{})
 		return
 	}
 
-	var sb strings.Builder
-	fmt.Fprintf(&sb, "\n  [::b]%s%s\n\n", i18n.T("tui.doctor.check_title"), theme.TagReset)
-
 	passed := 0
-	for _, c := range v.checks {
-		icon := theme.ColorTag(theme.SuccessHex) + theme.IconSuccess + theme.TagColor
-		switch {
-		case !c.OK:
-			icon = theme.ColorTag(theme.ErrorHex) + theme.IconError + theme.TagColor
-		case c.Warn:
-			icon = theme.ColorTag(theme.WarningHex) + theme.IconWarning + theme.TagColor
-			passed++
-		default:
+	items := make([]widgets.SectionItem, 0, len(v.checks))
+	for i, c := range v.checks {
+		if c.OK {
 			passed++
 		}
-		fmt.Fprintf(&sb, "  %s  %-28s %s%s%s\n",
-			icon, c.Name,
-			theme.ColorTag(theme.TextSecondaryHex), c.Detail, theme.TagColor)
+		items = append(items, widgets.SectionItem{
+			MainText:      doctorIcon(c) + "  " + tview.Escape(c.Name),
+			SecondaryText: theme.ColorTag(theme.TextSecondaryHex) + tview.Escape(c.Detail) + theme.TagColor,
+			Reference:     i,
+		})
 	}
 
-	fmt.Fprintf(&sb, "\n  %s%s%s\n",
-		theme.ColorTag(theme.TextPrimaryHex), i18n.Tf("tui.doctor.summary", passed, len(v.checks)), theme.TagColor)
-
-	if passed == len(v.checks) {
-		fmt.Fprintf(&sb, "\n  %s%s %s%s\n",
-			theme.ColorTag(theme.SuccessHex), theme.IconSuccess, i18n.T("tui.doctor.all_passed"), theme.TagColor)
+	if v.summary != nil {
+		line := fmt.Sprintf("[::b]%s[::-]  %s%s%s",
+			i18n.T("tui.doctor.check_title"),
+			theme.ColorTag(theme.TextPrimaryHex), i18n.Tf("tui.doctor.summary", passed, len(v.checks)), theme.TagColor)
+		if passed == len(v.checks) {
+			line += fmt.Sprintf("  %s%s %s%s", theme.ColorTag(theme.SuccessHex), theme.IconSuccess, i18n.T("tui.doctor.all_passed"), theme.TagColor)
+		}
+		v.summary.SetText(line)
 	}
+	v.list.SetItems(items)
+	_, it, _ := v.list.CurrentItem()
+	v.showDetail(it)
+}
 
-	v.tv.SetText(sb.String())
+// doctorIcon is the status icon of a check.
+func doctorIcon(c DoctorCheck) string {
+	switch {
+	case !c.OK:
+		return theme.ColorTag(theme.ErrorHex) + theme.IconError + theme.TagColor
+	case c.Warn:
+		return theme.ColorTag(theme.WarningHex) + theme.IconWarning + theme.TagColor
+	default:
+		return theme.ColorTag(theme.SuccessHex) + theme.IconSuccess + theme.TagColor
+	}
+}
+
+// showDetail fills the detail pane with the check of it.
+func (v *DoctorView) showDetail(it widgets.SectionItem) {
+	if v.page == nil {
+		return
+	}
+	i, ok := it.Reference.(int)
+	if !ok || i < 0 || i >= len(v.checks) {
+		v.page.SetDetail(emptyDetail())
+		return
+	}
+	c := v.checks[i]
+	status := i18n.T("tui.detail.ok")
+	switch {
+	case !c.OK:
+		status = i18n.T("tui.detail.failed")
+	case c.Warn:
+		status = i18n.T("tui.detail.warn")
+	}
+	var d detailText
+	d.title(tview.Escape(c.Name))
+	d.field(i18n.T("tui.detail.status"), doctorIcon(c)+" "+status)
+	d.gap().para(tview.Escape(c.Detail))
+	d.keys("r", i18n.T("tui.hints.recheck"))
+	v.page.SetDetail(d.String())
 }

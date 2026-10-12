@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -82,7 +83,7 @@ func showQuickActionModal(shell ShellAccess, ticket TicketContext, qa *BoardQuic
 func ticketWorkflowLabel(w TicketWorkflow) string {
 	star := "  "
 	if w.Pinned {
-		star = "★ "
+		star = theme.IconPinned + " "
 	}
 	label := w.Label
 	if r := []rune(label); len(r) > 34 {

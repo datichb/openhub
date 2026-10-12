@@ -58,6 +58,7 @@ type TeamDetailViewConfig struct {
 type TeamDetailView struct {
 	app   *tview.Application
 	list  *widgets.SectionedList
+	page  *widgets.ListDetailPage
 	shell ShellAccess
 	cfg   TeamDetailViewConfig
 
@@ -111,10 +112,13 @@ func (v *TeamDetailView) Mount(content *tview.Flex, app *tview.Application) {
 
 	v.list = widgets.NewSectionedList()
 	v.list.SetApp(app)
-	v.list.SetBorderPadding(1, 0, 2, 2)
+	v.page = newListPage(v.Title(), v.list)
 
 	v.list.SetItemSelectedFunc(func(_ int, item widgets.SectionItem) {
 		v.editSelected()
+	})
+	v.list.SetItemChangedFunc(func(_ int, item widgets.SectionItem) {
+		showFieldItemDetail(v.page, v.fields, item, v.extraKeys()...)
 	})
 
 	// Async pull team-state then load
@@ -132,7 +136,19 @@ func (v *TeamDetailView) Mount(content *tview.Flex, app *tview.Application) {
 		v.renderFields()
 	}
 
-	content.AddItem(v.list, 0, 1, true)
+	v.page.Mount(content)
+}
+
+// extraKeys are the page keys listed in the detail pane.
+func (v *TeamDetailView) extraKeys() []string {
+	keys := []string{"w", i18n.T("tui.hints.save"), "u", i18n.T("tui.hints.undo")}
+	if v.solo() {
+		return keys
+	}
+	return append(keys,
+		"a", i18n.T("tui.hints.add"), "d", i18n.T("tui.hints.del"),
+		"s", i18n.T("tui.hints.sync"), "t", i18n.T("tui.hints.test"),
+		"K", i18n.T("tui.team.llm_key.hint"), "r", i18n.T("tui.hints.refresh"))
 }
 
 func (v *TeamDetailView) Unmount() {
@@ -141,6 +157,7 @@ func (v *TeamDetailView) Unmount() {
 	}
 	v.app = nil
 	v.list = nil
+	v.page = nil
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -487,6 +504,7 @@ func (v *TeamDetailView) renderFields() {
 	if savedIdx >= 0 {
 		v.list.SelectIndex(savedIdx)
 	}
+	showCurrentFieldDetail(v.page, v.list, v.fields, v.extraKeys()...)
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

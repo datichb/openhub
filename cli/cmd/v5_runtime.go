@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"os"
 	"path/filepath"
 	"time"
 
@@ -136,11 +137,15 @@ func executionConfig(a *app.App) config.ExecutionConfig {
 }
 
 // v5ContainerRuntime is the container runtime configured by the Settings
-// (engine, image cache), without the pinned version check (Doctor).
+// (engine, Colima profile, image cache), without the pinned version check (Doctor).
 func v5ContainerRuntime(a *app.App) *container.Runtime {
 	ex := executionConfig(a)
 	engine, _ := container.ParseEngine(ex.Engine)
-	return container.New(container.Options{Engine: engine, KeepImages: ex.Images(),
+	profile := ex.ColimaProfile
+	if profile == "" {
+		profile = os.Getenv("COLIMA_PROFILE")
+	}
+	return container.New(container.Options{Engine: engine, ColimaProfile: profile, KeepImages: ex.Images(),
 		CacheDir: filepath.Join(ohCacheDir(), "container")})
 }
 

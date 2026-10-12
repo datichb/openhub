@@ -107,6 +107,28 @@ func (s *Service) catalogOf(cat *catalog) []Summary {
 	return out
 }
 
+// Refs lists the references (layer:id) of every published document of c,
+// shadowed ones included (hub:ticket under team:ticket), by layer then id.
+func (s *Service) Refs(ctx context.Context, c Context) ([]wf.Ref, error) {
+	cat, err := s.load(ctx, c)
+	if err != nil {
+		return nil, err
+	}
+	return cat.docs.Refs(), nil
+}
+
+// ExtendsCandidates keeps the refs a document of layer may extend: a layer
+// as specific or less (hub < team < project), self excluded.
+func ExtendsCandidates(refs []wf.Ref, layer wf.Layer, self string) []wf.Ref {
+	var out []wf.Ref
+	for _, r := range refs {
+		if r.Layer.Rank() <= layer.Rank() && r.String() != self {
+			out = append(out, r)
+		}
+	}
+	return out
+}
+
 // IDs returns the identifiers of the catalogue (preferences, omnibar).
 func IDs(list []Summary) []string {
 	out := make([]string, len(list))

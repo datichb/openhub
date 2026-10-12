@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/datichb/openhub/cli/internal/config"
+	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/tui/common"
 	"github.com/datichb/openhub/cli/internal/tui/v2/shell"
@@ -38,11 +39,20 @@ func runTUIWithProject(projectName string) error {
 
 	// Resolve initial project if requested
 	var initialProject *views.ActiveProject
+	var p *domain.Project
 	if projectName != "" && a.Projects != nil {
-		p, err := a.Projects.GetByName(context.Background(), projectName)
+		var err error
+		p, err = a.Projects.GetByName(context.Background(), projectName)
 		if err != nil || p == nil {
 			return fmt.Errorf("projet introuvable: %q", projectName)
 		}
+	} else if projectName == "" && a.Projects != nil {
+		// Inside a registered project: project mode; elsewhere: hub, no question.
+		if projects, err := a.Projects.List(context.Background(), domain.ProjectStatusActive); err == nil {
+			p = projectAtCwd(projects)
+		}
+	}
+	if p != nil {
 		initialProject = &views.ActiveProject{
 			ID:     p.ID,
 			Name:   p.Name,

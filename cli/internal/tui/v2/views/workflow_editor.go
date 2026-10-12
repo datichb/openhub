@@ -3,6 +3,7 @@ package views
 import (
 	"context"
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
@@ -49,6 +50,9 @@ type EditorCheck struct {
 	// Bundle summarises the bundle built from the draft.
 	Bundle    []string
 	BundleErr string
+	// Delegation is the delegation graph (member → members it may launch);
+	// nil when unknown.
+	Delegation map[string][]string
 }
 
 // Errors counts the errors.
@@ -95,6 +99,8 @@ type WorkflowEditorConfig struct {
 	Lang      string
 	// Agents lists the catalogue agents (choices).
 	Agents []string
+	// Workflows lists the references (layer:id) the document may extend.
+	Workflows []string
 	// Check validates the text (off the event loop).
 	Check func(ctx context.Context, yaml, prompt []byte) (*EditorCheck, error)
 	// Save saves the draft (off the event loop); prompt nil keeps the
@@ -128,6 +134,7 @@ type WorkflowEditorView struct {
 	app   *tview.Application
 
 	root    *tview.Flex
+	page    *widgets.ListDetailPage
 	tabs    *tview.TextView
 	body    *tview.Flex
 	status  *tview.TextView
@@ -173,6 +180,9 @@ func (v *WorkflowEditorView) StatusHints() string {
 // CapturesInput keeps the editor keys while it is mounted.
 func (v *WorkflowEditorView) CapturesInput() bool { return v.app != nil }
 
+// Legend implements LegendProvider (help overlay, F1).
+func (v *WorkflowEditorView) Legend() string { return i18n.T("tui.editor.legend") }
+
 // Dirty reports unsaved changes.
 func (v *WorkflowEditorView) Dirty() bool { return v.m.dirty() }
 
@@ -189,14 +199,12 @@ func (v *WorkflowEditorView) Mount(content *tview.Flex, app *tview.Application) 
 	v.body.SetBackgroundColor(theme.BgPanel)
 	v.status = tview.NewTextView().SetDynamicColors(true)
 	v.status.SetBackgroundColor(theme.BgPanel)
-	v.root = tview.NewFlex().SetDirection(tview.FlexRow).
-		AddItem(v.tabs, 1, 0, false).
-		AddItem(v.body, 0, 1, true).
-		AddItem(v.status, 1, 0, false)
-	v.root.SetBorder(true).SetBorderColor(theme.ActiveMode.Primary).SetTitle(" " + v.Title() + " ").SetTitleAlign(tview.AlignLeft)
-	v.root.SetBackgroundColor(theme.BgPanel)
-	content.Clear()
-	content.AddItem(v.root, 0, 1, true)
+	// Same layout as the catalogue: tabs, body and status framed on the
+	// left, the detail of the selection on the right.
+	v.page = widgets.NewListDetailPage(v.Title(), i18n.T("tui.catalog.detail"))
+	v.page.AddHeader(v.tabs, 1).SetMain(v.body).AddFooter(v.status, 1)
+	v.root = v.page.Root
+	v.page.Mount(content)
 	v.render()
 	v.recheck(0)
 }
@@ -209,7 +217,7 @@ func (v *WorkflowEditorView) Unmount() {
 		v.timer.Stop()
 	}
 	v.checkGen++
-	v.app, v.root, v.tabs, v.body, v.status, v.list, v.graph, v.detail = nil, nil, nil, nil, nil, nil, nil, nil
+	v.app, v.root, v.page, v.tabs, v.body, v.status, v.list, v.graph, v.detail = nil, nil, nil, nil, nil, nil, nil, nil, nil
 }
 
 // ── checking ───────────────────────────────────────────────────────────────
@@ -541,7 +549,10 @@ func (v *WorkflowEditorView) renderBody() {
 	}
 	v.body.Clear()
 	v.body.SetDirection(tview.FlexColumn)
-	v.list, v.graph, v.detail = nil, nil, nil
+	v.list, v.graph = nil, nil
+	v.detail = v.page.Detail
+	v.detail.Clear()
+	v.page.SetDetailTitle(i18n.T("tui.catalog.detail"))
 	switch v.section {
 	case edGraph:
 		v.renderGraph(graphSel)
@@ -553,13 +564,7 @@ func (v *WorkflowEditorView) renderBody() {
 		v.list.SetItems(v.fieldItems())
 		v.list.SetItemSelectedFunc(func(_ int, it widgets.SectionItem) { v.activate(it.Reference) })
 		v.list.SetItemChangedFunc(func(_ int, it widgets.SectionItem) { v.showFieldDetail(it.Reference) })
-		v.detail = v.newDetail()
-		if v.section == edInputs {
-			flex := tview.NewFlex().SetDirection(tview.FlexRow).AddItem(v.list, 0, 1, true).AddItem(v.detail, 0, 1, false)
-			v.body.AddItem(flex, 0, 1, true)
-		} else {
-			v.body.AddItem(v.list, 0, 3, true).AddItem(v.detail, 0, 2, false)
-		}
+		v.body.AddItem(v.list, 0, 1, true)
 	}
 	if v.list == nil {
 		return
@@ -616,14 +621,6 @@ func (v *WorkflowEditorView) newList() *widgets.SectionedList {
 	l.SetTabCaptureDisabled(true)
 	l.SetBorder(false)
 	return l
-}
-
-func (v *WorkflowEditorView) newDetail() *tview.TextView {
-	d := tview.NewTextView().SetDynamicColors(true).SetWrap(true).SetScrollable(true)
-	d.SetBackgroundColor(theme.BgPanel)
-	d.SetBorder(true).SetBorderColor(theme.FgMuted).SetTitleAlign(tview.AlignLeft)
-	d.SetBorderPadding(0, 0, 1, 1)
-	return d
 }
 
 // spec is the resolved workflow of the last check (nil before it).
@@ -695,8 +692,9 @@ func (v *WorkflowEditorView) graphModel() widgets.GraphModel {
 
 func (v *WorkflowEditorView) renderGraph(prev string) {
 	v.graph = widgets.NewModelGraph(v.graphModel(), false)
-	v.graph.SetBorder(true).SetBorderColor(theme.FgMuted).
-		SetTitle(" " + i18n.Tf("tui.editor.graph.mode", v.graphMode()) + " ").SetTitleAlign(tview.AlignLeft)
+	mode := tview.NewTextView().SetDynamicColors(true)
+	mode.SetBackgroundColor(theme.BgPanel)
+	mode.SetText("[" + theme.TextMutedHex + "]" + tview.Escape(i18n.Tf("tui.editor.graph.mode", v.graphMode())) + "[-]")
 	if prev != "" {
 		v.graph.Select(prev)
 	} else if v.focusPath != "" {
@@ -708,8 +706,8 @@ func (v *WorkflowEditorView) renderGraph(prev string) {
 	}
 	v.graph.SetOnChange(v.showGraphDetail)
 	v.graph.SetOnSelect(func(e widgets.GraphElement) { v.editGraphElement(e) })
-	v.detail = v.newDetail()
-	v.body.AddItem(v.graph, 0, 7, true).AddItem(v.detail, 0, 3, false)
+	col := tview.NewFlex().SetDirection(tview.FlexRow).AddItem(mode, 1, 0, false).AddItem(v.graph, 0, 1, true)
+	v.body.AddItem(col, 0, 1, true)
 	v.showGraphDetail()
 	if v.app != nil {
 		v.app.SetFocus(v.graph)
@@ -754,6 +752,11 @@ func (v *WorkflowEditorView) showGraphDetail() {
 		row(i18n.T("tui.editor.field.condition"), cp.Condition, p+".condition")
 		row(i18n.T("tui.editor.field.remote"), string(cp.Remote), p+".remote")
 		row(i18n.T("tui.editor.field.mandatory"), boolText(cp.Mandatory), p+".mandatory")
+		var unlocks []string
+		for _, o := range cp.Unlocks {
+			unlocks = append(unlocks, string(o))
+		}
+		row(i18n.T("tui.editor.field.unlocks"), strings.Join(unlocks, ", "), p+".unlocks")
 	case widgets.ElementAgent, widgets.ElementIndependentAgent:
 		a, declared := sp.Agents.Get(sel.ID)
 		v.detail.SetTitle(" " + sel.ID + " ")
@@ -765,6 +768,7 @@ func (v *WorkflowEditorView) showGraphDetail() {
 		row(i18n.T("tui.editor.field.agent_mode"), string(a.Mode), p+".mode")
 		row(i18n.T("tui.editor.field.after"), a.After, p+".after")
 		row(i18n.T("tui.editor.field.calls"), strings.Join(a.Calls, ", "), p+".calls")
+		v.writeDelegation(&b, sp, sel.ID, a)
 		if sel.ID == sp.EntryAgent() {
 			fmt.Fprintf(&b, "\n▶ %s\n", i18n.T("tui.editor.graph.entry"))
 		}
@@ -773,10 +777,48 @@ func (v *WorkflowEditorView) showGraphDetail() {
 		b.WriteString(i18n.T("tui.editor.graph.start_help"))
 	case widgets.ElementEdge:
 		v.detail.SetTitle(" → ")
-		b.WriteString(i18n.T("tui.editor.graph.edge_help"))
+		b.WriteString(i18n.T("tui.editor.graph.edge_add"))
 	}
 	b.WriteString("\n" + muted + i18n.T("tui.editor.graph.help") + "[-]")
+	b.WriteString("\n\n" + muted + i18n.T("tui.editor.graph.edge_help") + "[-]")
 	v.detail.SetText(b.String())
+}
+
+// delegation is the delegation graph of the check (explicit `calls` only
+// when the check does not give it) and whether it is complete.
+func (v *WorkflowEditorView) delegation(sp *workflow.Spec) (map[string][]string, bool) {
+	if v.check != nil && v.check.Delegation != nil {
+		return v.check.Delegation, true
+	}
+	return workflow.DelegationGraph(sp, nil), false
+}
+
+// writeDelegation lists whom id delegates to and who calls it, and flags a
+// workflow agent the entry cannot reach.
+func (v *WorkflowEditorView) writeDelegation(b *strings.Builder, sp *workflow.Spec, id string, a workflow.AgentRef) {
+	graph, complete := v.delegation(sp)
+	muted := "[" + theme.TextMutedHex + "]"
+	var callers []string
+	for _, m := range sp.Members() {
+		if m != id && slices.Contains(graph[m], id) {
+			callers = append(callers, m)
+		}
+	}
+	list := func(l []string) string {
+		if len(l) == 0 {
+			return "—"
+		}
+		return strings.Join(l, ", ")
+	}
+	to := tview.Escape(list(graph[id]))
+	if a.Calls == nil && len(graph[id]) > 0 {
+		to += " " + muted + i18n.T("tui.editor.graph.derived") + "[-]"
+	}
+	fmt.Fprintf(b, "\n%s%-11s[-] %s\n", muted, i18n.T("tui.editor.graph.delegates_to"), to)
+	fmt.Fprintf(b, "%s%-11s[-] %s\n", muted, i18n.T("tui.editor.graph.called_by"), tview.Escape(list(callers)))
+	if complete && a.Role != workflow.RoleIndependent && a.Role != workflow.RoleDisabled && !workflow.Reachable(sp.EntryAgent(), graph)[id] {
+		fmt.Fprintf(b, "[%s]%s %s[-]\n", theme.WarningHex, theme.IconWarn, i18n.T("tui.editor.graph.unreachable"))
+	}
 }
 
 // onOff shows a boolean as on/off.
@@ -805,9 +847,8 @@ func boolText(b *bool) string {
 func (v *WorkflowEditorView) renderPreview() {
 	summary := tview.NewTextView().SetDynamicColors(true).SetWrap(true).SetScrollable(true)
 	summary.SetBackgroundColor(theme.BgPanel)
-	summary.SetBorder(true).SetBorderColor(theme.FgMuted).SetTitle(" " + i18n.T("tui.editor.preview.bundle") + " ").SetTitleAlign(tview.AlignLeft)
-	summary.SetBorderPadding(0, 0, 1, 1)
 	var b strings.Builder
+	fmt.Fprintf(&b, "[%s::b]%s[-::-]\n", theme.ActiveMode.PrimaryHex, tview.Escape(i18n.T("tui.editor.preview.bundle")))
 	switch {
 	case v.check == nil:
 		b.WriteString(i18n.T("tui.editor.checking"))
@@ -823,8 +864,7 @@ func (v *WorkflowEditorView) renderPreview() {
 	}
 	summary.SetText(b.String())
 	v.list = v.newList()
-	v.list.SetBorder(true).SetBorderColor(theme.FgMuted).SetTitle(" " + i18n.T("tui.editor.preview.diagnostics") + " ").SetTitleAlign(tview.AlignLeft)
-	var items []widgets.SectionItem
+	items := []widgets.SectionItem{{MainText: i18n.T("tui.editor.preview.diagnostics"), IsHeader: true}}
 	if v.check != nil {
 		for _, d := range v.check.Diagnostics {
 			icon := "[" + theme.WarningHex + "]⚠[-]"
@@ -839,10 +879,11 @@ func (v *WorkflowEditorView) renderPreview() {
 			items = append(items, widgets.SectionItem{MainText: main, SecondaryText: tview.Escape(sec), Reference: d})
 		}
 	}
-	if len(items) == 0 {
+	if len(items) == 1 {
 		items = append(items, widgets.SectionItem{MainText: "[" + theme.SuccessHex + "]✔[-] " + i18n.T("tui.editor.preview.no_diagnostics"), IsHeader: true})
 	}
 	v.list.SetItems(items)
+	v.list.SetItemChangedFunc(func(_ int, it widgets.SectionItem) { v.showDiagDetail(it.Reference) })
 	v.list.SetItemSelectedFunc(func(_ int, it widgets.SectionItem) {
 		if d, ok := it.Reference.(EditorDiag); ok {
 			v.jumpTo(d)
@@ -961,6 +1002,32 @@ func (v *WorkflowEditorView) fieldSecondary(f *edField, doc *workflow.Document) 
 		}
 	}
 	return tview.Escape(strings.Join(parts, "  "))
+}
+
+// showDiagDetail explains the selected diagnostic of the preview.
+func (v *WorkflowEditorView) showDiagDetail(ref any) {
+	if v.detail == nil {
+		return
+	}
+	d, ok := ref.(EditorDiag)
+	if !ok {
+		v.detail.SetText("")
+		return
+	}
+	icon, color := theme.IconWarn, theme.WarningHex
+	if d.Error {
+		icon, color = theme.IconInvalid, theme.ErrorHex
+	}
+	var b strings.Builder
+	fmt.Fprintf(&b, "[%s]%s[-] %s\n", color, icon, tview.Escape(d.Message))
+	if d.Path != "" {
+		fmt.Fprintf(&b, "\n[%s]%s[-]\n", theme.TextMutedHex, tview.Escape(d.Path))
+	}
+	if d.Hint != "" {
+		fmt.Fprintf(&b, "\n%s\n", tview.Escape(d.Hint))
+	}
+	b.WriteString("\n[" + theme.TextMutedHex + "]" + i18n.T("tui.editor.preview.jump_help") + "[-]")
+	v.detail.SetText(b.String())
 }
 
 func (v *WorkflowEditorView) showFieldDetail(ref any) {

@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/datichb/openhub/cli/internal/app"
@@ -21,20 +23,43 @@ import (
 // and the caller shows its own selector.
 func resolveActiveProject(a *app.App) (*domain.Project, error) {
 	ctx := context.Background()
-	if tuiShell == nil {
-		return resolveProject(ctx, a, "", projectRead)
+	if a == nil || a.Projects == nil {
+		return nil, fmt.Errorf("no project store")
 	}
-	if ap := tuiShell.ActiveProject(); ap != nil && ap.ID != "" {
-		return a.Projects.Get(ctx, ap.ID)
+	if tuiShell != nil {
+		if ap := tuiShell.ActiveProject(); ap != nil && ap.ID != "" {
+			return a.Projects.Get(ctx, ap.ID)
+		}
 	}
 	projects, err := a.Projects.List(ctx, domain.ProjectStatusActive)
 	if err != nil {
 		return nil, err
 	}
+	if tuiShell == nil {
+		// Views are being built: the project of the current directory only.
+		if p := projectAtCwd(projects); p != nil {
+			return p, nil
+		}
+	}
 	if len(projects) == 1 {
 		return &projects[0], nil
 	}
 	return nil, fmt.Errorf("no active project selected")
+}
+
+// projectAtCwd returns the project containing the current directory, if any.
+func projectAtCwd(projects []domain.Project) *domain.Project {
+	cwd, err := os.Getwd()
+	if err != nil {
+		return nil
+	}
+	for i, p := range projects {
+		absPath, _ := filepath.Abs(p.Path)
+		if absPath == cwd || isSubPath(cwd, absPath) {
+			return &projects[i]
+		}
+	}
+	return nil
 }
 
 // makeResolveTeamFunc returns a ResolveTeamFunc for use in team views.
@@ -43,7 +68,7 @@ func resolveActiveProject(a *app.App) (*domain.Project, error) {
 func makeResolveTeamFunc(a *app.App) views.ResolveTeamFunc {
 	return func() views.TeamResolution {
 		// Team mode: the team chosen in the TUI wins (B5).
-		if tuiShell != nil && tuiShell.ActiveTeam() != nil {
+		if tuiShell != nil && tuiShell.Mode() == views.ModeTeam && tuiShell.ActiveTeam() != nil {
 			if t := a.Config.FindTeam(tuiShell.ActiveTeam().ID); t != nil {
 				return views.TeamResolution{Enabled: t.Enabled && !t.Solo, StateRepo: t.StateRepo, StatePath: t.StatePath, MemberID: t.MemberID,
 					Solo: t.Solo, TeamID: t.ID}
