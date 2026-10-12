@@ -1,96 +1,89 @@
 package bricks
 
-import (
-	"github.com/datichb/openhub/cli/internal/prompt"
-)
+import "sort"
 
-// stackSkillMapping maps detected stack attributes to skill refs in skills/developer/stacks/.
-// Each key corresponds to a StackInfo field value (Language, Framework, or feature flag).
-// The values are skill refs relative to the skills/ directory.
+// stackSkillMapping maps the signals of DetectSignals to skill refs in
+// skills/developer/stacks/ (relative to the skills/ directory). Every stack
+// skill is reachable from at least one signal; the other signals (java,
+// ruby, svelte, flask, package managers…) ship no skill.
 var stackSkillMapping = map[string][]string{
 	// Languages
 	"typescript": {"developer/stacks/dev-standards-typescript"},
 	"python":     {"developer/stacks/dev-standards-python"},
-	"java":       {"developer/stacks/dev-standards-kotlin"}, // Kotlin standards apply to JVM
+	"golang":     {"developer/stacks/dev-standards-golang"},
 	"rust":       {"developer/stacks/dev-standards-rust"},
-	"go":         {"developer/stacks/dev-standards-golang"},
-	"ruby":       {}, // no Ruby language skill: Rails has its own
 
-	// JS/TS Frameworks
-	"Next.js":   {"developer/stacks/dev-standards-nextjs", "developer/stacks/dev-standards-react"},
-	"Nuxt":      {"developer/stacks/dev-standards-nuxtjs", "developer/stacks/dev-standards-vuejs"},
-	"SvelteKit": {},
-	"React":     {"developer/stacks/dev-standards-react"},
-	"Vue":       {"developer/stacks/dev-standards-vuejs"},
-	"Express":   {"developer/stacks/dev-standards-express"},
-	"Fastify":   {},
+	// Frontend
+	"vuejs":   {"developer/stacks/dev-standards-vuejs"},
+	"react":   {"developer/stacks/dev-standards-react"},
+	"nextjs":  {"developer/stacks/dev-standards-nextjs", "developer/stacks/dev-standards-react"},
+	"nuxtjs":  {"developer/stacks/dev-standards-nuxtjs", "developer/stacks/dev-standards-vuejs"},
+	"angular": {"developer/stacks/dev-standards-angular"},
 
-	// Python frameworks (pyproject.toml, requirements.txt, Pipfile, setup.py)
-	// and Rails (Gemfile)
-	"django":  {"developer/stacks/dev-standards-django"},
-	"fastapi": {"developer/stacks/dev-standards-fastapi"},
-	"flask":   {},
-	"rails":   {"developer/stacks/dev-standards-rails"},
+	// Backend
+	"express":    {"developer/stacks/dev-standards-express"},
+	"nestjs":     {"developer/stacks/dev-standards-nestjs"},
+	"django":     {"developer/stacks/dev-standards-django"},
+	"fastapi":    {"developer/stacks/dev-standards-fastapi"},
+	"laravel":    {"developer/stacks/dev-standards-laravel"},
+	"rails":      {"developer/stacks/dev-standards-rails"},
+	"springboot": {"developer/stacks/dev-standards-springboot"},
 
-	// Test runners
-	"vitest": {"developer/stacks/dev-standards-vitest"},
-	"jest":   {"developer/stacks/dev-standards-jest"},
+	// ORM / DB, API spec
+	"prisma":     {"developer/stacks/dev-standards-prisma"},
+	"typeorm":    {"developer/stacks/dev-standards-typeorm"},
+	"sqlalchemy": {"developer/stacks/dev-standards-sqlalchemy"},
+	"mongodb":    {"developer/stacks/dev-standards-mongodb"},
+	"openapi":    {"developer/stacks/dev-standards-openapi"},
 
-	// Infrastructure (detected from HasDocker/HasCI flags)
+	// Testing
+	"vitest":     {"developer/stacks/dev-standards-vitest"},
+	"jest":       {"developer/stacks/dev-standards-jest"},
+	"playwright": {"developer/stacks/dev-standards-playwright"},
+	"cypress":    {"developer/stacks/dev-standards-cypress"},
+
+	// Mobile (the Kotlin skill is the Android one)
+	"react-native": {"developer/stacks/dev-standards-react-native"},
+	"flutter":      {"developer/stacks/dev-standards-flutter"},
+	"swift":        {"developer/stacks/dev-standards-swift"},
+	"android":      {"developer/stacks/dev-standards-kotlin"},
+
+	// Data / ML
+	"pandas":  {"developer/stacks/dev-standards-pandas"},
+	"dbt":     {"developer/stacks/dev-standards-dbt"},
+	"airflow": {"developer/stacks/dev-standards-airflow"},
+	"pyspark": {"developer/stacks/dev-standards-pyspark"},
+
+	// DevOps / CI, platform
 	"docker":         {"developer/stacks/dev-standards-docker"},
 	"github-actions": {"developer/stacks/dev-standards-github-actions"},
 	"gitlab-ci":      {"developer/stacks/dev-standards-gitlab-ci"},
+	"terraform":      {"developer/stacks/dev-standards-terraform"},
+	"kubernetes":     {"developer/stacks/dev-standards-kubernetes"},
+	"helm":           {"developer/stacks/dev-standards-helm"},
+	"argocd":         {"developer/stacks/dev-standards-argocd"},
 }
 
-// ResolveStackSkills detects the project's tech stack and returns the skill refs
-// that should be deployed as native skills (Bucket B) for the detected stack.
+// ResolveStackSkills detects the project's tech stack (DetectSignals) and
+// returns the skill refs that should be deployed as native skills (Bucket B)
+// for it: the union of the refs of its signals, sorted and deduplicated.
 func ResolveStackSkills(projectPath string) []string {
-	info := prompt.DetectStack(projectPath)
+	return StackSkillsFor(DetectSignals(projectPath))
+}
 
+// StackSkillsFor returns the stack skill refs of signals, sorted and
+// deduplicated.
+func StackSkillsFor(signals Signals) []string {
 	seen := make(map[string]bool)
 	var skills []string
-
-	addSkills := func(key string) {
-		refs, ok := stackSkillMapping[key]
-		if !ok {
-			return
-		}
-		for _, ref := range refs {
+	for _, name := range signals.Names() {
+		for _, ref := range stackSkillMapping[name] {
 			if !seen[ref] {
 				seen[ref] = true
 				skills = append(skills, ref)
 			}
 		}
 	}
-
-	// Language
-	if info.Language != "" {
-		addSkills(info.Language)
-	}
-
-	// Framework
-	if info.Framework != "" {
-		addSkills(info.Framework)
-	}
-
-	// Test runner
-	if info.TestRunner != "" {
-		addSkills(info.TestRunner)
-	}
-
-	// Infrastructure features
-	if info.HasDocker {
-		addSkills("docker")
-	}
-	if info.HasCI {
-		// Detect CI type from available files
-		if prompt.HasGitHubActions(projectPath) {
-			addSkills("github-actions")
-		}
-		if prompt.HasGitLabCI(projectPath) {
-			addSkills("gitlab-ci")
-		}
-	}
-
+	sort.Strings(skills)
 	return skills
 }

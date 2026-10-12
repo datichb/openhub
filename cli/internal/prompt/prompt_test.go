@@ -24,6 +24,7 @@ func TestDetectStack_TypeScript_Bun(t *testing.T) {
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "package.json"), []byte(`{"devDependencies":{"vitest":"1.0"}}`), 0o644))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "bun.lockb"), []byte(""), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "tsconfig.json"), []byte("{}"), 0o644))
 
 	info := DetectStack(dir)
 	assert.Equal(t, "typescript", info.Language)
@@ -65,6 +66,7 @@ func TestDetectStack_CI(t *testing.T) {
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module test"), 0o644))
 	require.NoError(t, os.MkdirAll(filepath.Join(dir, ".github", "workflows"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, ".github", "workflows", "ci.yml"), []byte("on: push"), 0o644))
 
 	info := DetectStack(dir)
 	assert.True(t, info.HasCI)
@@ -98,7 +100,7 @@ func TestBuildContext_Empty(t *testing.T) {
 
 func TestDetectStack_NextJS(t *testing.T) {
 	dir := t.TempDir()
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "package.json"), []byte(`{"dependencies":{"next":"14.0"},"devDependencies":{"jest":"29"}}`), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "package.json"), []byte(`{"dependencies":{"next":"14.0"},"devDependencies":{"jest":"29","typescript":"5"}}`), 0o644))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "yarn.lock"), []byte(""), 0o644))
 
 	info := DetectStack(dir)
@@ -127,4 +129,52 @@ func TestDetectStack_PythonFrameworksAndRails(t *testing.T) {
 	assert.Equal(t, "ruby", info.Language)
 	assert.Equal(t, "rails", info.Framework)
 	assert.Equal(t, "rspec", info.TestRunner)
+}
+
+// C3.2: detection is multi-signal; the primary language is the first one
+// (by priority) found at the root, the others are kept.
+func TestDetectStack_MultiSignal(t *testing.T) {
+	write := func(dir, rel, content string) {
+		p := filepath.Join(dir, filepath.FromSlash(rel))
+		require.NoError(t, os.MkdirAll(filepath.Dir(p), 0o755))
+		require.NoError(t, os.WriteFile(p, []byte(content), 0o644))
+	}
+
+	dir := t.TempDir()
+	write(dir, "package.json", `{"workspaces":["apps/*"],"devDependencies":{"typescript":"5"}}`)
+	write(dir, "pnpm-lock.yaml", "")
+	write(dir, "apps/web/package.json", `{"dependencies":{"next":"15"},"devDependencies":{"vitest":"2"}}`)
+	write(dir, "services/api/go.mod", "module api")
+	info := DetectStack(dir)
+	assert.Equal(t, "typescript", info.Language, "root manifest first")
+	assert.Equal(t, []string{"typescript", "go"}, info.Languages)
+	assert.Equal(t, "Next.js", info.Framework)
+	assert.Equal(t, "pnpm", info.PackageManager)
+	assert.Equal(t, "vitest", info.TestRunner)
+	assert.True(t, info.Signals.Has("golang"))
+	ctx := BuildContext(info)
+	assert.Contains(t, ctx, "Language: typescript\nOther languages: go")
+
+	dir = t.TempDir()
+	write(dir, "web/package.json", `{"dependencies":{"vue":"3"}}`)
+	write(dir, "api/go.mod", "module api")
+	info = DetectStack(dir)
+	assert.Equal(t, "go", info.Language, "no root manifest: priority order")
+	assert.Equal(t, []string{"go", "javascript"}, info.Languages)
+	assert.Equal(t, "Vue", info.Framework)
+
+	dir = t.TempDir()
+	write(dir, "pom.xml", "<artifactId>spring-boot-starter-web</artifactId>")
+	info = DetectStack(dir)
+	assert.Equal(t, "java", info.Language)
+	assert.Equal(t, "Spring Boot", info.Framework)
+	assert.Equal(t, "maven", info.PackageManager)
+	assert.Equal(t, "mvn test", info.TestRunner)
+
+	dir = t.TempDir()
+	write(dir, "package.json", `{"devDependencies":{"eslint-config-next":"15","@testing-library/jest-dom":"6"}}`)
+	info = DetectStack(dir)
+	assert.Equal(t, "javascript", info.Language)
+	assert.Empty(t, info.Framework)
+	assert.Equal(t, "npm test", info.TestRunner)
 }
