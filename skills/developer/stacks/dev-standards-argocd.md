@@ -5,6 +5,8 @@ description: Standards ArgoCD / GitOps — principes GitOps, Applications ArgoCD
 
 # Skill — Standards ArgoCD / GitOps
 
+> Versions de référence (octobre 2026) : Argo CD 3.5, External Secrets Operator API `v1`.
+
 ## Rôle
 
 Ce skill définit les bonnes pratiques pour le GitOps avec ArgoCD et la gestion
@@ -102,7 +104,7 @@ Synchronise les secrets depuis un gestionnaire externe (Vault, AWS Secrets Manag
 
 ```yaml
 # ✅ SecretStore — connexion au backend de secrets
-apiVersion: external-secrets.io/v1beta1
+apiVersion: external-secrets.io/v1
 kind: SecretStore
 metadata:
   name: vault-backend
@@ -120,7 +122,7 @@ spec:
 
 ---
 # ✅ ExternalSecret — synchronisation d'un secret spécifique
-apiVersion: external-secrets.io/v1beta1
+apiVersion: external-secrets.io/v1
 kind: ExternalSecret
 metadata:
   name: app-secrets

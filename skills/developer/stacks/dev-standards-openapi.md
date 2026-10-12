@@ -5,6 +5,8 @@ description: Standards OpenAPI 3.x — structure du document, $ref, schémas ré
 
 # Skill — Standards OpenAPI
 
+> Versions de référence (octobre 2026) : OpenAPI 3.1 (3.2 publiée, support outillage à vérifier avant adoption).
+
 ## Rôle
 
 Ce skill définit les bonnes pratiques pour la rédaction et la maintenance de contrats
@@ -167,8 +169,7 @@ components:
           type: object
           properties:
             cursor:
-              type: string
-              nullable: true
+              type: [string, "null"]   # OpenAPI 3.1 — `nullable: true` n'existe plus
             hasMore:
               type: boolean
             limit:

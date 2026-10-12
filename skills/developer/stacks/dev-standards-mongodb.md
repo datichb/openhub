@@ -5,6 +5,8 @@ description: Standards MongoDB / Mongoose — schemas, indexes, validation, agr�
 
 # Skill — Standards MongoDB / Mongoose
 
+> Versions de référence (octobre 2026) : MongoDB 8.x / 9.0, Mongoose 9.
+
 ## Rôle
 
 Ce skill définit les bonnes pratiques pour l'accès aux données avec MongoDB via Mongoose.
@@ -25,10 +27,11 @@ Il complète `dev-standards-backend.md`.
 
 ```typescript
 // models/user.model.ts
-import { Schema, model, Document, Types } from 'mongoose'
+import { Schema, model, type HydratedDocument } from 'mongoose'
 
-export interface IUser extends Document {
-  _id: Types.ObjectId
+// ✅ Interface « brute » du document — ne pas étendre `Document`
+// (ou laisser Mongoose inférer le type depuis le schéma : InferSchemaType<typeof userSchema>)
+export interface IUser {
   name: string
   email: string
   password: string
@@ -36,6 +39,8 @@ export interface IUser extends Document {
   createdAt: Date
   updatedAt: Date
 }
+
+export type UserDocument = HydratedDocument<IUser>
 
 const userSchema = new Schema<IUser>(
   {
@@ -177,11 +182,10 @@ Les transactions nécessitent un replica set ou MongoDB Atlas.
 ## Middlewares Mongoose
 
 ```typescript
-// ✅ Middleware pre-save pour le hachage du mot de passe
-userSchema.pre('save', async function (next) {
-  if (!this.isModified('password')) return next()
+// ✅ Middleware pre-save pour le hachage du mot de passe (async, sans next() depuis Mongoose 9)
+userSchema.pre('save', async function () {
+  if (!this.isModified('password')) return
   this.password = await bcrypt.hash(this.password, 12)
-  next()
 })
 
 // ✅ Méthode d'instance custom

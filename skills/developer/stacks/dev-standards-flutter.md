@@ -5,10 +5,12 @@ description: Standards Flutter — architecture, widgets, état (BLoC/Riverpod),
 
 # Skill — Standards Flutter
 
+> Versions de référence (octobre 2026) : Flutter 3.47 (Dart 3.13), flutter_bloc 9, Riverpod 3.
+
 ## Rôle
 
 Ce skill définit les bonnes pratiques pour le développement mobile avec Flutter et Dart.
-Il complète `dev-standards-universal.md` et `dev-standards-python.md` n'est pas applicable ici.
+Il complète `dev-standards-universal.md`.
 
 ---
 
@@ -148,7 +150,7 @@ class AuthError extends AuthState {
 // ✅ Test de widget avec mock
 testWidgets('affiche le nom de l\'utilisateur', (tester) async {
   await tester.pumpWidget(
-    MaterialApp(child: UserCard(name: 'Alice', avatarUrl: '', onTap: () {})),
+    MaterialApp(home: UserCard(name: 'Alice', avatarUrl: '', onTap: () {})),
   );
   expect(find.text('Alice'), findsOneWidget);
 });

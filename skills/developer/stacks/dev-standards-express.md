@@ -5,6 +5,8 @@ description: Standards Express / Fastify — routing, middleware, validation, ge
 
 # Skill — Standards Express / Fastify
 
+> Versions de référence (octobre 2026) : Express 5.3, Fastify 5.12, Zod 4.
+
 ## Rôle
 
 Ce skill définit les bonnes pratiques pour le développement backend avec Express.js
@@ -69,25 +71,18 @@ usersRouter.delete('/:id', authenticate, handler.remove)
 - Les handlers reçoivent, valident (via middleware) et délèguent au service
 - Pas de logique métier dans les handlers
 - Réponses typées et cohérentes
+- Express 5 transmet automatiquement les rejets des handlers `async` au error handler — pas de `try/catch` + `next(err)` systématique
 
 ```typescript
-// ✅ Handler mince
-export const findOne: RequestHandler = async (req, res, next) => {
-  try {
-    const user = await usersService.findOneOrThrow(req.params.id)
-    res.json({ data: user })
-  } catch (err) {
-    next(err)
-  }
+// ✅ Handler mince — une exception remonte seule jusqu'à errorHandler
+export const findOne: RequestHandler = async (req, res) => {
+  const user = await usersService.findOneOrThrow(req.params.id)
+  res.json({ data: user })
 }
 
-export const create: RequestHandler = async (req, res, next) => {
-  try {
-    const user = await usersService.create(req.body)
-    res.status(201).json({ data: user })
-  } catch (err) {
-    next(err)
-  }
+export const create: RequestHandler = async (req, res) => {
+  const user = await usersService.create(req.body)
+  res.status(201).json({ data: user })
 }
 ```
 
@@ -100,14 +95,14 @@ export const create: RequestHandler = async (req, res, next) => {
 import { z } from 'zod'
 import type { RequestHandler } from 'express'
 
-export function validateBody(schema: z.ZodSchema): RequestHandler {
+export function validateBody(schema: z.ZodType): RequestHandler {
   return (req, res, next) => {
     const result = schema.safeParse(req.body)
     if (!result.success) {
       res.status(422).json({
         error: {
           code: 'VALIDATION_ERROR',
-          details: result.error.flatten(),
+          details: z.flattenError(result.error),
         },
       })
       return
@@ -117,9 +112,9 @@ export function validateBody(schema: z.ZodSchema): RequestHandler {
   }
 }
 
-// ✅ Schéma de validation
+// ✅ Schéma de validation (Zod 4)
 export const createUserSchema = z.object({
-  email: z.string().email(),
+  email: z.email(),
   name: z.string().min(2).max(100),
   password: z.string().min(8),
 })

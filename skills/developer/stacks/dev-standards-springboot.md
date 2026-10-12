@@ -5,6 +5,8 @@ description: Standards Spring Boot — beans, JPA/Hibernate, REST controllers, v
 
 # Skill — Standards Spring Boot
 
+> Versions de référence (octobre 2026) : Spring Boot 4.1, Spring Framework 7, Java 25 LTS.
+
 ## Rôle
 
 Ce skill définit les bonnes pratiques pour le développement backend avec Spring Boot.
@@ -198,7 +200,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ProblemDetail handleValidation(MethodArgumentNotValidException ex) {
-        ProblemDetail detail = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_ENTITY, "Données invalides");
+        ProblemDetail detail = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_CONTENT, "Données invalides"); // UNPROCESSABLE_ENTITY déprécié depuis Spring 7
         detail.setProperty("code", "VALIDATION_ERROR");
         detail.setProperty("fields", ex.getBindingResult().getFieldErrors().stream()
             .collect(Collectors.toMap(FieldError::getField, FieldError::getDefaultMessage)));
@@ -251,6 +253,8 @@ class UserControllerIntegrationTest {
     }
 }
 ```
+
+- Remplacer un bean dans le contexte de test avec `@MockitoBean` / `@MockitoSpyBean` (Spring Framework) — `@MockBean` / `@SpyBean` ne sont plus disponibles en Spring Boot 4
 
 ---
 

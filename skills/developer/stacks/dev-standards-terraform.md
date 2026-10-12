@@ -5,6 +5,8 @@ description: Standards Terraform — structure des modules, variables, state rem
 
 # Skill — Standards Terraform
 
+> Versions de référence (octobre 2026) : Terraform 1.16, OpenTofu 1.13.
+
 ## Rôle
 
 Ce skill définit les bonnes pratiques pour l'infrastructure as code avec Terraform.
@@ -82,22 +84,25 @@ variable "database_password" {
 
 ## State remote
 
-- State remote avec verrouillage obligatoire : S3 + DynamoDB, GCS, Terraform Cloud, ou équivalent
+- State remote avec verrouillage obligatoire : S3 (verrou natif `use_lockfile`), GCS, HCP Terraform, ou équivalent
 - Un workspace Terraform = un environnement (dev, staging, production)
 - Ne jamais partager le state entre environnements
 
 ```hcl
-# ✅ Backend S3 avec verrouillage DynamoDB
+# ✅ Backend S3 avec verrouillage natif (Terraform ≥ 1.10, OpenTofu ≥ 1.10)
 terraform {
   backend "s3" {
-    bucket         = "mon-projet-terraform-state"
-    key            = "production/terraform.tfstate"
-    region         = "eu-west-1"
-    encrypt        = true
-    dynamodb_table = "terraform-state-lock"
+    bucket       = "mon-projet-terraform-state"
+    key          = "production/terraform.tfstate"
+    region       = "eu-west-1"
+    encrypt      = true
+    use_lockfile = true   # remplace dynamodb_table, déprécié
   }
 }
 ```
+
+- Activer le versioning du bucket S3 pour pouvoir restaurer un state
+- **OpenTofu** (fork open source, licence MPL) applique les mêmes standards : binaire `tofu`, mêmes fichiers `.tf`
 
 ---
 

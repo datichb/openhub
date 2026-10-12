@@ -5,6 +5,8 @@ description: Standards FastAPI — Pydantic, async/await, dépendances, routeurs
 
 # Skill — Standards FastAPI
 
+> Versions de référence (octobre 2026) : FastAPI 0.143, Pydantic 2.14.
+
 ## Rôle
 
 Ce skill définit les bonnes pratiques pour le développement backend avec FastAPI.
@@ -17,7 +19,7 @@ Il complète `dev-standards-python.md`, `dev-standards-backend.md` et
 
 ❌ Jamais de logique métier dans les endpoint functions — déléguer aux services
 ❌ Jamais de secrets en dur dans le code — utiliser `pydantic-settings`
-❌ Jamais d'opérations bloquantes dans des fonctions `async` — utiliser `run_in_executor`
+❌ Jamais d'opérations bloquantes dans des fonctions `async` — déclarer l'endpoint en `def` (exécuté dans un threadpool) ou utiliser `asyncio.to_thread`
 ✅ Tous les modèles d'entrée sont des classes Pydantic
 
 ---
@@ -101,54 +103,62 @@ class UserResponse(BaseModel):
 
 ```python
 # router.py
-from fastapi import APIRouter, Depends, HTTPException, status
+import uuid
+
+from fastapi import APIRouter, status
 from .schemas import UserCreate, UserResponse
-from .service import UserService
-from ..dependencies import get_user_service, get_current_user
+from ..dependencies import CurrentUser, UserServiceDep
 
 router = APIRouter(prefix='/users', tags=['users'])
 
-@router.get('/{user_id}', response_model=UserResponse)
+@router.get('/{user_id}')
 async def get_user(
     user_id: uuid.UUID,
-    service: UserService = Depends(get_user_service),
-    _: User = Depends(get_current_user),  # auth obligatoire
+    service: UserServiceDep,
+    _: CurrentUser,  # auth obligatoire
 ) -> UserResponse:
     return await service.find_or_raise(user_id)
 
-@router.post('/', response_model=UserResponse, status_code=status.HTTP_201_CREATED)
-async def create_user(
-    data: UserCreate,
-    service: UserService = Depends(get_user_service),
-) -> UserResponse:
+@router.post('/', status_code=status.HTTP_201_CREATED)
+async def create_user(data: UserCreate, service: UserServiceDep) -> UserResponse:
     return await service.create(data)
 ```
+
+- Le type de retour annoté sert de `response_model` — inutile de le répéter
 
 ---
 
 ## Injection de dépendances
 
+- Toujours la forme `Annotated[T, Depends(...)]` (recommandée par FastAPI) et des alias réutilisables
+
 ```python
 # dependencies.py
+from typing import Annotated
+
 from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from .database import get_session
 from .routers.users.service import UserService
 
-async def get_user_service(
-    session: AsyncSession = Depends(get_session),
-) -> UserService:
+SessionDep = Annotated[AsyncSession, Depends(get_session)]
+
+async def get_user_service(session: SessionDep) -> UserService:
     return UserService(session)
 
+UserServiceDep = Annotated[UserService, Depends(get_user_service)]
+
 async def get_current_user(
-    token: str = Depends(oauth2_scheme),
-    session: AsyncSession = Depends(get_session),
+    token: Annotated[str, Depends(oauth2_scheme)],
+    session: SessionDep,
 ) -> User:
     payload = decode_jwt(token)
     user = await session.get(User, payload['sub'])
     if not user:
         raise HTTPException(status_code=401, detail='Utilisateur introuvable')
     return user
+
+CurrentUser = Annotated[User, Depends(get_current_user)]
 ```
 
 ---
@@ -198,10 +208,18 @@ class UserService:
 
 ```python
 # main.py
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
-app = FastAPI()
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # démarrage (pools, clients) — remplace les @app.on_event dépréciés
+    yield
+    await engine.dispose()  # arrêt
+
+app = FastAPI(lifespan=lifespan)
 
 @app.exception_handler(ValueError)
 async def value_error_handler(request: Request, exc: ValueError) -> JSONResponse:

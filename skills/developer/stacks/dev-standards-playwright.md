@@ -5,6 +5,8 @@ description: Standards Playwright — configuration, locators sémantiques, fixt
 
 # Skill — Standards Playwright
 
+> Versions de référence (octobre 2026) : Playwright 1.64.
+
 ## Rôle
 
 Ce skill définit les bonnes pratiques pour les tests E2E avec Playwright.
@@ -90,11 +92,9 @@ await expect(page.getByText('Utilisateur créé')).toBeVisible()
 // ✅ Attendre qu'un élément disparaisse
 await expect(page.getByRole('progressbar')).toBeHidden()
 
-// ✅ Attendre une navigation
-await Promise.all([
-  page.waitForURL('**/dashboard'),
-  page.getByRole('button', { name: 'Se connecter' }).click(),
-])
+// ✅ Attendre une navigation — l'assertion attend d'elle-même
+await page.getByRole('button', { name: 'Se connecter' }).click()
+await expect(page).toHaveURL(/\/dashboard/)
 
 // ✅ Attendre une réponse réseau
 const responsePromise = page.waitForResponse('**/api/users')
@@ -166,25 +166,31 @@ test.describe('Authentification', () => {
 
 ## Fixtures
 
+- Authentification : se connecter une seule fois dans un **setup project** et réutiliser le `storageState` (approche recommandée par Playwright) plutôt que via l'UI dans chaque test
+
 ```typescript
-// fixtures/auth.ts — fixtures de connexion réutilisables
-import { test as base } from '@playwright/test'
+// tests/auth.setup.ts — exécuté une fois, avant les projets qui en dépendent
+import { test as setup, expect } from '@playwright/test'
 import { LoginPage } from '../pages/LoginPage'
 
-type AuthFixtures = {
-  authenticatedPage: { page: Page }
-}
+const authFile = 'playwright/.auth/user.json'
 
-export const test = base.extend<AuthFixtures>({
-  authenticatedPage: async ({ page }, use) => {
-    const loginPage = new LoginPage(page)
-    await loginPage.goto()
-    await loginPage.login(process.env.TEST_USER_EMAIL!, process.env.TEST_USER_PASSWORD!)
-    await page.waitForURL('**/dashboard')
-    await use({ page })
-  },
+setup('authenticate', async ({ page }) => {
+  const loginPage = new LoginPage(page)
+  await loginPage.goto()
+  await loginPage.login(process.env.TEST_USER_EMAIL!, process.env.TEST_USER_PASSWORD!)
+  await expect(page).toHaveURL(/\/dashboard/)
+  await page.context().storageState({ path: authFile })
 })
+
+// playwright.config.ts
+// projects: [
+//   { name: 'setup', testMatch: /.*\.setup\.ts/ },
+//   { name: 'chromium', use: { ...devices['Desktop Chrome'], storageState: authFile }, dependencies: ['setup'] },
+// ]
 ```
+
+- `playwright/.auth/` est dans `.gitignore`
 
 ---
 

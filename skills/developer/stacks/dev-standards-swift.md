@@ -5,6 +5,8 @@ description: Standards Swift / iOS natif — SwiftUI, MVVM, Swift Concurrency, s
 
 # Skill — Standards Swift (iOS natif)
 
+> Versions de référence (octobre 2026) : Swift 6.4, SwiftUI + Observation (iOS 17+), Swift Testing.
+
 ## Rôle
 
 Ce skill définit les bonnes pratiques pour le développement iOS natif avec Swift et SwiftUI.
@@ -24,8 +26,8 @@ Il complète `dev-standards-universal.md`.
 
 ## Architecture
 
-- **SwiftUI** pour toutes les nouvelles vues (iOS 14+) — UIKit uniquement si une API native l'impose
-- Pattern **MVVM** : View observe ViewModel via `@Observable` (Swift 5.9+) ou `@ObservableObject`
+- **SwiftUI** pour toutes les nouvelles vues — UIKit uniquement si une API native l'impose
+- Pattern **MVVM** : View observe ViewModel annoté `@Observable` (framework Observation, iOS 17+) — protocole `ObservableObject` + `@Published` uniquement si la cible minimale est antérieure à iOS 17
 - Découper en Swift Packages (`swift-package-manager`) pour les modules réutilisables
 - Organisation par feature :
 
@@ -46,13 +48,15 @@ Sources/
 ## Swift moderne
 
 - Swift Concurrency (`async/await`, `Task`, `Actor`) — pas de completion handlers ni de callbacks
+- Mode de langage Swift 6 (vérification stricte des data races) ; pour les cibles d'app, activer l'isolation `@MainActor` par défaut (option disponible depuis Swift 6.2)
 - `Sendable` sur les types partagés entre actors
 - Value types (`struct`) par défaut — `class` uniquement si héritage ou identité requise
 - `enum` avec associated values pour les états (idle, loading, loaded, error)
 - `Result<Success, Failure>` pour les opérations pouvant échouer
 
 ```swift
-// ✅ ViewModel avec async/await, état typé, @Observable (Swift 5.9+)
+// ✅ ViewModel avec async/await, état typé, @Observable (iOS 17+)
+@MainActor
 @Observable
 final class UserListViewModel {
     private(set) var state: ViewState<[User]> = .idle
@@ -140,15 +144,18 @@ enum UserError: LocalizedError {
 
 ## Tests
 
-- Tests unitaires : **XCTest** (inclus dans Xcode)
+- Tests unitaires : **Swift Testing** (`@Test`, `#expect`, `#require`) pour le nouveau code — XCTest reste nécessaire pour les tests UI et de performance
 - Tests UI : **XCUITest**
 - Mocker les dépendances via les protocols (injection dans le constructeur)
-- Tests async avec `async/await` natif dans XCTest
+- Tests async avec `async/await` natif
 
 ```swift
-// ✅ Test async avec mock
-final class UserListViewModelTests: XCTestCase {
-    func test_loadUsers_updatesStateToLoaded() async throws {
+// ✅ Test async avec mock (Swift Testing)
+import Testing
+
+@MainActor
+struct UserListViewModelTests {
+    @Test func loadUsersUpdatesStateToLoaded() async throws {
         // Arrange
         let mockRepo = MockUserRepository(users: [User(id: "1", name: "Alice")])
         let viewModel = UserListViewModel(userRepository: mockRepo)
@@ -157,12 +164,12 @@ final class UserListViewModelTests: XCTestCase {
         await viewModel.loadUsers()
 
         // Assert
-        if case .loaded(let users) = viewModel.state {
-            XCTAssertEqual(users.count, 1)
-            XCTAssertEqual(users.first?.name, "Alice")
-        } else {
-            XCTFail("État attendu : .loaded")
+        guard case .loaded(let users) = viewModel.state else {
+            Issue.record("État attendu : .loaded")
+            return
         }
+        #expect(users.count == 1)
+        #expect(users.first?.name == "Alice")
     }
 }
 ```

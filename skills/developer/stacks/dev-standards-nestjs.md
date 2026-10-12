@@ -5,6 +5,8 @@ description: Standards NestJS — modules, providers, controllers, guards, pipes
 
 # Skill — Standards NestJS
 
+> Versions de référence (octobre 2026) : NestJS 12 (Node.js ≥ 20.19 / 22.12).
+
 ## Rôle
 
 Ce skill définit les bonnes pratiques pour le développement backend avec NestJS.
@@ -18,7 +20,7 @@ Il complète `dev-standards-universal.md`, `dev-standards-typescript.md`,
 ❌ Jamais de logique métier dans les controllers — déléguer aux services
 ❌ Jamais d'accès direct à la base de données depuis un controller ou un service d'application
 ❌ Jamais de secrets en dur dans le code — utiliser `ConfigService`
-✅ Toute entrée externe est validée via un DTO avec `class-validator`
+✅ Toute entrée externe est validée — DTO `class-validator` ou schéma Standard Schema (Zod, Valibot) depuis Nest 12
 
 ---
 
@@ -89,7 +91,7 @@ export class UsersController {
 
 ## DTOs et validation
 
-- Tous les inputs sont des classes DTO avec des décorateurs `class-validator`
+- Tous les inputs sont des classes DTO avec des décorateurs `class-validator` — ou, si le projet utilise déjà des schémas Zod/Valibot, l'option `schema` des décorateurs (`@Body({ schema })`) avec `StandardSchemaValidationPipe` global (Nest 12+) ; une seule approche par projet
 - `ValidationPipe` global avec `whitelist: true` et `forbidNonWhitelisted: true`
 - DTOs d'entrée et de sortie distincts — ne jamais retourner une entité directement
 
@@ -188,11 +190,11 @@ export const CurrentUser = createParamDecorator(
 ## Configuration
 
 ```typescript
-// ✅ Validation de la config au démarrage
-const envSchema = Joi.object({
-  DATABASE_URL: Joi.string().required(),
-  JWT_SECRET: Joi.string().min(32).required(),
-  PORT: Joi.number().default(3000),
+// ✅ Validation de la config au démarrage — Standard Schema depuis @nestjs/config 12 (Joi ≥ 18 reste accepté)
+const envSchema = z.object({
+  DATABASE_URL: z.string(),
+  JWT_SECRET: z.string().min(32),
+  PORT: z.coerce.number().default(3000),
 })
 
 @Module({
@@ -209,6 +211,8 @@ export class AppModule {}
 ---
 
 ## Tests
+
+Jest pour les projets CommonJS ; Vitest est le runner par défaut des projets ESM générés par Nest 12 (`vi.fn()` au lieu de `jest.fn()`).
 
 ```typescript
 // ✅ Test unitaire d'un service avec mock du repository

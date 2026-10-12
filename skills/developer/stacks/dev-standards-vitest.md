@@ -5,6 +5,8 @@ description: Standards Vitest — configuration, mocking (vi.mock, vi.fn, vi.spy
 
 # Skill — Standards Vitest
 
+> Versions de référence (octobre 2026) : Vitest 5 (Vite ≥ 6.4, Node.js ≥ 22.12).
+
 ## Rôle
 
 Ce skill définit les bonnes pratiques pour les tests avec Vitest.
@@ -25,6 +27,7 @@ export default defineConfig({
     environment: 'node',        // 'jsdom' pour les tests de composants UI
     coverage: {
       provider: 'v8',
+      include: ['src'],         // obligatoire pour voir les fichiers non couverts (coverage.all supprimé en v4)
       reporter: ['text', 'lcov'],
       thresholds: {
         lines: 80,
@@ -34,9 +37,12 @@ export default defineConfig({
       exclude: ['**/*.d.ts', '**/index.ts', 'src/migrations/**'],
     },
     setupFiles: ['./tests/setup.ts'],
+    // clearMocks: true par défaut depuis Vitest 5 — historique des mocks vidé avant chaque test
   },
 })
 ```
+
+- Monorepo / environnements multiples : déclarer `test.projects` (remplace `vitest.workspace`)
 
 ---
 
@@ -73,13 +79,14 @@ describe('UserService', () => {
 ### vi.mock — module entier
 
 ```typescript
-// ✅ Mock d'un module au niveau du fichier
+// ✅ Mock d'un module au niveau du fichier (vi.mock toujours au top-level — erreur sinon en Vitest 5)
+// Mock appelé avec `new` : implémentation en `function` ou `class`, pas en fonction fléchée (Vitest 4+)
 vi.mock('../repositories/userRepository', () => ({
-  UserRepository: vi.fn().mockImplementation(() => ({
-    findById: vi.fn(),
-    create: vi.fn(),
-    findByEmail: vi.fn(),
-  })),
+  UserRepository: vi.fn(class {
+    findById = vi.fn()
+    create = vi.fn()
+    findByEmail = vi.fn()
+  }),
 }))
 ```
 
@@ -96,10 +103,8 @@ expect(mockSendEmail).toHaveBeenCalledWith({
   subject: expect.stringContaining('Bienvenue'),
 })
 
-// Reset entre les tests
-beforeEach(() => {
-  vi.clearAllMocks()  // réinitialise les compteurs d'appels
-})
+// Reset entre les tests : inutile depuis Vitest 5 (clearMocks activé par défaut)
+// — vi.resetAllMocks() si les implémentations doivent aussi être réinitialisées
 ```
 
 ### vi.spyOn — espionner sans remplacer
@@ -223,7 +228,8 @@ npx vitest run --coverage src/services/user.service.ts
 
 ## Ce que tu ne fais PAS
 
-- Utiliser `vi.mock` sans `vi.clearAllMocks()` dans `beforeEach` — les mocks persistent entre tests
+- Désactiver `clearMocks` (défaut `true` depuis Vitest 5) sans raison — les appels enregistrés fuiraient entre tests
+- Appeler `vi.mock` ailleurs qu'au top-level du fichier
 - Mocker la logique métier que le test est censé vérifier
 - Omettre les seuils de couverture dans la config
 - Utiliser `vi.fn()` sur des fonctions synchrones critiques sans vérifier les appels

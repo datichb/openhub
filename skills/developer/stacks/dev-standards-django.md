@@ -5,6 +5,8 @@ description: Standards Django — models, views, serializers, DRF, migrations, p
 
 # Skill — Standards Django
 
+> Versions de référence (octobre 2026) : Django 5.2 LTS / 6.1, Django REST Framework 3.18.
+
 ## Rôle
 
 Ce skill définit les bonnes pratiques pour le développement backend avec Django
@@ -169,7 +171,7 @@ class UserService:
         return user
 
     def send_welcome_email(self, user: User) -> None:
-        # déléguer à un task Celery ou un service email
+        # déléguer à une tâche de fond (framework Tasks intégré depuis Django 6.0, ou Celery)
         ...
 
 user_service = UserService()

@@ -5,6 +5,8 @@ description: Standards TypeORM — entities, repositories, migrations, relations
 
 # Skill — Standards TypeORM
 
+> Versions de référence (octobre 2026) : TypeORM 1.1 (Node.js ≥ 20).
+
 ## Rôle
 
 Ce skill définit les bonnes pratiques pour l'accès aux données avec TypeORM.
@@ -64,6 +66,7 @@ export class User {
 - `select: false` sur les colonnes sensibles (password, tokens)
 - `@Index()` sur les colonnes filtrées et triées fréquemment
 - `@CreateDateColumn()` et `@UpdateDateColumn()` systématiques
+- TypeORM 1.0 : une valeur `null`/`undefined` dans un `where` lève une erreur (au lieu d'être ignorée) — utiliser `IsNull()` pour filtrer sur `NULL`, ne pas rétablir l'ancien comportement via `invalidWhereValuesBehavior`
 
 ---
 

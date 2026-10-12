@@ -5,10 +5,12 @@ description: Standards Kotlin / Android natif — Jetpack Compose, MVVM + Clean,
 
 # Skill — Standards Kotlin (Android natif)
 
+> Versions de référence (octobre 2026) : Kotlin 2.4 (K2), KSP 2.3, Jetpack Compose.
+
 ## Rôle
 
 Ce skill définit les bonnes pratiques pour le développement Android natif avec Kotlin
-et Jetpack Compose.
+et Jetpack Compose — il ne couvre pas Kotlin côté serveur (Ktor, Spring) ni Kotlin Multiplatform.
 Il complète `dev-standards-universal.md`.
 
 ---
@@ -18,7 +20,7 @@ Il complète `dev-standards-universal.md`.
 ❌ Jamais de secrets ou tokens dans le code de l'application
 ❌ Jamais de données sensibles dans `SharedPreferences` non chiffré
 ❌ Jamais de logs en production sans guard `BuildConfig.DEBUG`
-✅ Les données sensibles utilisent `EncryptedSharedPreferences` ou `Android Keystore`
+✅ Les données sensibles sont chiffrées avec une clé de l'`Android Keystore` (`EncryptedSharedPreferences` est déprécié)
 ✅ Toute communication réseau passe par HTTPS — Network Security Config activé
 
 ---
@@ -29,6 +31,7 @@ Il complète `dev-standards-universal.md`.
 - Architecture **MVVM + Clean** : `ViewModel` → `UseCase` → `Repository`
 - `StateFlow` / `SharedFlow` pour les états réactifs
 - Injection de dépendances : **Hilt** (recommandé) ou **Koin**
+- Compilateur K2 (défaut depuis Kotlin 2.0) ; processeurs d'annotations via **KSP** (Hilt, Room, Moshi) — kapt est en mode maintenance
 - Organisation par feature :
 
 ```
@@ -124,9 +127,9 @@ fun UserCard(
 
 ## Sécurité
 
-- `EncryptedSharedPreferences` ou `Android Keystore` pour les données sensibles
+- Clés de chiffrement dans l'`Android Keystore` (API plateforme) pour les données sensibles — plus `EncryptedSharedPreferences`, déprécié
 - `Network Security Config` (XML) pour forcer HTTPS et le certificate pinning
-- ProGuard/R8 activé en release (`minifyEnabled = true` dans `build.gradle`)
+- R8 activé en release (`isMinifyEnabled = true` dans `build.gradle.kts`)
 - Guard `BuildConfig.DEBUG` autour de tous les logs de développement
 - Valider les deep links entrants (Intent source, paramètres)
 
@@ -137,7 +140,7 @@ fun UserCard(
 - Tests unitaires : **JUnit 5** + **Mockk**
 - Tests de composables Compose : **Compose UI Test** (`ComposeTestRule`)
 - Tests d'intégration : **Espresso** pour les flows critiques
-- Les ViewModels sont testés indépendamment via `TestCoroutineDispatcher`
+- Les ViewModels sont testés indépendamment avec `runTest` et un `StandardTestDispatcher` injecté via `Dispatchers.setMain` (`TestCoroutineDispatcher` est déprécié)
 
 ```kotlin
 // ✅ Test ViewModel avec Turbine (Flow testing)
@@ -175,6 +178,7 @@ fun `loadUsers emits Success state when use case succeeds`() = runTest {
 
 - Publier sur le Play Store sans validation humaine
 - Stocker des données sensibles dans `SharedPreferences` non chiffré
+- Ajouter `kapt` quand le processeur supporte KSP
 - Utiliser des `AsyncTask` ou des callbacks — Coroutines + Flow uniquement
 - Accéder au ViewModel depuis les composables feuilles — remonter l'état au niveau Screen
 - Utiliser des singletons non injectés (Hilt/Koin) — jamais d'`object` global avec état

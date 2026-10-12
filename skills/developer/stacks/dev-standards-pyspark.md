@@ -5,6 +5,8 @@ description: Standards PySpark — DataFrames API, partitionnement, éviter les 
 
 # Skill — Standards PySpark / Spark
 
+> Versions de référence (octobre 2026) : Apache Spark / PySpark 4.2 (Python ≥ 3.10).
+
 ## Rôle
 
 Ce skill définit les bonnes pratiques pour le développement de jobs distribués avec
@@ -31,6 +33,7 @@ Il complète `dev-standards-python.md`.
 - Éviter les shuffles inutiles (`groupBy`, `join`) — partitionner en amont
 - Tester la logique avec des DataFrames locaux (pas besoin de cluster pour les tests unitaires)
 - Utiliser `spark.sql()` pour les transformations complexes documentées
+- Mode ANSI activé par défaut depuis Spark 4 : un cast invalide, un débordement ou une division par zéro lève une erreur au lieu de renvoyer `NULL` — utiliser `try_cast` / les fonctions `try_*` quand une conversion tolérante est voulue, ne pas désactiver `spark.sql.ansi.enabled` globalement
 
 ```python
 from pyspark.sql import SparkSession

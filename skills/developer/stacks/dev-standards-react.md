@@ -5,6 +5,8 @@ description: Standards React — hooks, composition, gestion d'état (Context/Zu
 
 # Skill — Standards React
 
+> Versions de référence (octobre 2026) : React 19.3, React Compiler 1.0.
+
 ## Rôle
 
 Ce skill définit les bonnes pratiques pour le développement frontend avec React.
@@ -75,20 +77,39 @@ useEffect(() => {
   return () => controller.abort()
 }, [userId])  // dépendance explicite
 
-// ✅ useMemo uniquement si calcul mesurément coûteux
-const sortedItems = useMemo(
-  () => items.slice().sort((a, b) => a.name.localeCompare(b.name)),
-  [items]
-)
-
-// ✅ useCallback pour les fonctions passées à des composants mémoïsés
-const handleSubmit = useCallback((data: FormData) => {
-  onSubmit(data)
-}, [onSubmit])
+// ✅ Mémoïsation : laisser React Compiler s'en charger (pas de useMemo/useCallback/memo systématiques)
+// useMemo/useCallback restent une échappatoire, ex. stabiliser une dépendance d'effet
+const options = useMemo(() => ({ userId, locale }), [userId, locale])
+useEffect(() => subscribe(options), [options])
 ```
 
-- `useMemo` et `useCallback` uniquement si un problème de performance est mesuré
+- Avec React Compiler, ne pas ajouter `useMemo`, `useCallback` ou `React.memo` manuellement — uniquement si un besoin précis est mesuré
 - `useEffect` avec des dépendances explicites et exhaustives — pas de tableau vide `[]` sauf au montage justifié
+
+### React 19
+
+- `ref` est une prop ordinaire des composants fonctions — plus de `forwardRef` sur les nouveaux composants
+- `use(promise)` / `use(Context)` pour lire une Promise (avec `Suspense`) ou un contexte, y compris conditionnellement
+- Mutations de formulaire via les Actions : `<form action={fn}>`, `useActionState`, `useFormStatus`, `useOptimistic`
+- `<Context value={…}>` remplace `<Context.Provider>`
+
+```tsx
+// ✅ Action de formulaire avec état et pending
+function ProfileForm() {
+  const [error, submitAction, isPending] = useActionState(async (_prev: string | null, formData: FormData) => {
+    const result = await updateName(formData.get('name') as string)
+    return result.error ?? null
+  }, null)
+
+  return (
+    <form action={submitAction}>
+      <input name="name" aria-label="Nom" />
+      <button type="submit" disabled={isPending}>Enregistrer</button>
+      {error && <p role="alert">{error}</p>}
+    </form>
+  )
+}
+```
 
 ---
 
@@ -108,8 +129,8 @@ const handleSubmit = useCallback((data: FormData) => {
 
 ## Performance
 
-- `React.memo()` sur les composants de présentation qui reçoivent les mêmes props souvent
-- `useCallback` et `useMemo` uniquement après mesure — ne pas sur-optimiser
+- Activer **React Compiler** (stable depuis la 1.0) — il mémoïse automatiquement composants et valeurs
+- `React.memo()`, `useCallback` et `useMemo` manuels uniquement après mesure, ou sans le compilateur
 - `React.lazy` + `Suspense` pour le code splitting des routes ou composants lourds
 - Éviter les re-renders inutiles : déplacer l'état au plus bas dans l'arbre
 

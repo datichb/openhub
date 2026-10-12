@@ -5,6 +5,8 @@ description: Standards Docker — Dockerfile multi-stage, utilisateur non-root, 
 
 # Skill — Standards Docker
 
+> Versions de référence (octobre 2026) : Docker Engine 29, Docker Compose 5 (`compose.yaml`), Node.js 24 LTS, PostgreSQL 18.
+
 ## Rôle
 
 Ce skill définit les bonnes pratiques pour la containerisation avec Docker.
@@ -35,14 +37,14 @@ Il complète `dev-standards-devops.md`.
 
 ```dockerfile
 # ✅ Multi-stage, non-root, version épinglée
-FROM node:20.11-alpine AS builder
+FROM node:24.21-alpine AS builder
 WORKDIR /app
 COPY package*.json ./
-RUN npm ci --frozen-lockfile
+RUN npm ci
 COPY . .
 RUN npm run build
 
-FROM node:20.11-alpine AS production
+FROM node:24.21-alpine AS production
 WORKDIR /app
 RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 COPY --from=builder --chown=appuser:appgroup /app/dist ./dist
@@ -74,8 +76,8 @@ coverage/
 
 ## Docker Compose
 
-- Un fichier `docker-compose.yml` pour le développement local
-- Un `docker-compose.override.yml` pour les surcharges locales — non versionné (dans `.gitignore`)
+- Un fichier `compose.yaml` (nom canonique — `docker-compose.yml` n'est plus que rétrocompatible) pour le développement local
+- Un `compose.override.yaml` pour les surcharges locales — non versionné (dans `.gitignore`)
 - Les services ont des `healthcheck` définis
 - Les volumes de données sont nommés — pas de chemins absolus
 - Les réseaux sont explicitement définis — pas de reliance sur le réseau `default`
@@ -100,7 +102,7 @@ services:
     restart: unless-stopped
 
   db:
-    image: postgres:16-alpine
+    image: postgres:18-alpine
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
@@ -111,7 +113,7 @@ services:
       timeout: 5s
       retries: 5
     volumes:
-      - db_data:/var/lib/postgresql/data
+      - db_data:/var/lib/postgresql   # depuis postgres 18 (PGDATA versionné dessous)
     networks:
       - backend
 

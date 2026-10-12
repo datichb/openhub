@@ -5,6 +5,8 @@ description: Standards GitLab CI — structure .gitlab-ci.yml, stages, rules, va
 
 # Skill — Standards GitLab CI
 
+> Versions de référence (octobre 2026) : GitLab 19, Docker 29 (DinD), Node.js 24 LTS.
+
 ## Rôle
 
 Ce skill définit les bonnes pratiques pour les pipelines CI/CD avec GitLab CI/CD.
@@ -51,7 +53,7 @@ stages:
 # ✅ Variables non sensibles dans le fichier
 variables:
   DOCKER_DRIVER: overlay2
-  NODE_VERSION: "20"
+  NODE_VERSION: "24"
 
 # ✅ Variables sensibles dans GitLab CI/CD Variables (masked + protected)
 # DATABASE_URL, DEPLOY_TOKEN, etc. — jamais dans le fichier
@@ -87,7 +89,7 @@ deploy:production:
 ```yaml
 # ✅ Template YAML factorisé avec ancre
 .node_template: &node_template
-  image: node:20-alpine
+  image: node:24-alpine
   cache:
     key: ${CI_COMMIT_REF_SLUG}
     paths:
@@ -121,15 +123,15 @@ test:unit:
 ```yaml
 build:image:
   stage: build
-  image: docker:24
+  image: docker:29-cli
   services:
-    - docker:24-dind
+    - docker:29-dind
   variables:
     DOCKER_TLS_CERTDIR: "/certs"
   rules:
     - if: $CI_COMMIT_BRANCH == "main"
   script:
-    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+    - echo "$CI_REGISTRY_PASSWORD" | docker login $CI_REGISTRY -u $CI_REGISTRY_USER --password-stdin
     - docker build -t $CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA .
     - docker push $CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA
 ```

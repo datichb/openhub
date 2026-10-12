@@ -5,9 +5,11 @@ description: Standards Angular — standalone components, signals, injection de 
 
 # Skill — Standards Angular
 
+> Versions de référence (octobre 2026) : Angular 22.
+
 ## Rôle
 
-Ce skill définit les bonnes pratiques pour le développement avec Angular (v17+).
+Ce skill définit les bonnes pratiques pour le développement avec Angular (v21+).
 Il complète `dev-standards-universal.md`, `dev-standards-typescript.md` et
 `dev-standards-frontend.md`.
 
@@ -21,26 +23,34 @@ Il complète `dev-standards-universal.md`, `dev-standards-typescript.md` et
 
 ---
 
-## Standalone Components (v17+)
+## Standalone Components
 
 - Utiliser les **standalone components** systématiquement — pas de NgModules pour les nouveaux développements
+- Standalone par défaut depuis v19 : ne plus écrire `standalone: true`
 - `imports` directement dans le décorateur `@Component`
+- Control flow natif dans les templates (`@if`, `@for` avec `track`, `@switch`, `@defer`) — plus de `*ngIf` / `*ngFor`, donc plus besoin de `CommonModule`
 
 ```typescript
 // ✅ Standalone component moderne
 @Component({
   selector: 'app-user-card',
-  standalone: true,
-  imports: [CommonModule, RouterLink],
+  imports: [RouterLink],
   template: `
     <article>
       <h3>{{ user().name }}</h3>
       <p>{{ user().email }}</p>
+      @if (user().roles.length) {
+        <ul>
+          @for (role of user().roles; track role) {
+            <li>{{ role }}</li>
+          }
+        </ul>
+      }
       <button (click)="onEdit()">Modifier</button>
     </article>
   `,
 })
-export class UserCardComponent {
+export class UserCard {
   user = input.required<User>()
   edit = output<void>()
 
@@ -52,17 +62,18 @@ export class UserCardComponent {
 
 ---
 
-## Signals (v17+)
+## Signals et zoneless
 
 - Préférer les **Signals** pour l'état local et réactif — plus performants que les Observables pour l'état synchrone
-- `input()` / `output()` pour les inputs/outputs (remplace `@Input`/`@Output`)
+- `input()` / `output()` / `model()` pour les inputs/outputs (remplace `@Input`/`@Output`)
 - `computed()` pour les valeurs dérivées
 - `effect()` avec parcimonie — uniquement pour les effets de bord
+- Zoneless par défaut depuis v21 : pas de `zone.js`, pas de `provideZoneChangeDetection` — la détection de changement repose sur les signals, l'`async` pipe et les événements de template
 
 ```typescript
 // ✅ Composant avec Signals
-@Component({ standalone: true, ... })
-export class CounterComponent {
+@Component({ ... })
+export class Counter {
   count = signal(0)
   doubled = computed(() => this.count() * 2)
 
@@ -81,8 +92,8 @@ export class CounterComponent {
 
 ```typescript
 // ✅ inject() moderne
-@Component({ standalone: true })
-export class UserListComponent {
+@Component({ ... })
+export class UserList {
   private userService = inject(UserService)
   private router = inject(Router)
 
@@ -125,8 +136,8 @@ export class UserService {
 
 ```typescript
 // ✅ Gestion des abonnements avec takeUntilDestroyed
-@Component({ standalone: true })
-export class NotificationsComponent {
+@Component({ ... })
+export class Notifications {
   private destroyRef = inject(DestroyRef)
 
   ngOnInit() {
@@ -147,8 +158,8 @@ export const routes: Routes = [
   {
     path: 'dashboard',
     loadComponent: () =>
-      import('./pages/dashboard/dashboard.component').then(m => m.DashboardComponent),
-    canActivate: [AuthGuard],
+      import('./pages/dashboard/dashboard').then(m => m.Dashboard),
+    canActivate: [authGuard],
   },
   {
     path: 'users',
@@ -159,7 +170,7 @@ export const routes: Routes = [
 ```
 
 - Lazy loading systématique pour les features (`loadComponent` / `loadChildren`)
-- Guards injectables avec `inject()` (syntaxe fonctionnelle v15+)
+- Guards et resolvers fonctionnels (`CanActivateFn`, `ResolveFn`) avec `inject()` — pas de classes de guard
 
 ---
 
@@ -171,8 +182,8 @@ export const routes: Routes = [
 
 ```typescript
 // ✅ Reactive Form avec validation
-@Component({ standalone: true, imports: [ReactiveFormsModule] })
-export class LoginFormComponent {
+@Component({ imports: [ReactiveFormsModule] })
+export class LoginForm {
   private fb = inject(FormBuilder)
 
   form = this.fb.group({
@@ -193,12 +204,12 @@ export class LoginFormComponent {
 
 | Élément | Convention | Exemple |
 |---|---|---|
-| Composants | kebab-case sélecteur + PascalCase classe | `app-user-card`, `UserCardComponent` |
+| Composants | kebab-case sélecteur + PascalCase classe, sans suffixe (style guide v20+) | `app-user-card`, `UserCard` |
 | Services | suffixe `Service` | `UserService` |
-| Guards | suffixe `Guard` | `AuthGuard` |
-| Resolvers | suffixe `Resolver` | `UserResolver` |
+| Guards | fonction camelCase suffixée `Guard` | `authGuard` |
+| Resolvers | fonction camelCase suffixée `Resolver` | `userResolver` |
 | Pipes | suffixe `Pipe` | `FormatDatePipe` |
-| Fichiers | kebab-case | `user-card.component.ts` |
+| Fichiers | kebab-case | `user-card.ts` |
 | Signals d'input | `input()` / `input.required()` | `user = input.required<User>()` |
 | Signals d'output | `output()` | `edit = output<void>()` |
 

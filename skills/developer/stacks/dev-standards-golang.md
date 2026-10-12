@@ -5,6 +5,8 @@ description: Standards Go — idiomes, gestion des erreurs, interfaces, concurre
 
 # Skill — Standards Go
 
+> Versions de référence (octobre 2026) : Go 1.27, golangci-lint 2.14.
+
 ## Rôle
 
 Ce skill définit les conventions Go à respecter sur les projets Go.
@@ -165,7 +167,7 @@ for _, tt := range tests {
 ```go
 func BenchmarkMaFonction(b *testing.B) {
     b.ReportAllocs()
-    for i := 0; i < b.N; i++ {
+    for b.Loop() { // Go 1.24+ — remplace la boucle sur b.N
         maFonction(input)
     }
 }
@@ -192,21 +194,27 @@ func BenchmarkMaFonction(b *testing.B) {
 | `golangci-lint` | Linter multi-règles | `golangci-lint run ./...` |
 | `go test -race` | Race detector | `go test ./... -race` |
 | `govulncheck` | CVE scanner | `govulncheck ./...` |
-| `gofmt` / `goimports` | Formatage | `gofmt -s -w .` |
+| `gofmt` / `goimports` | Formatage | `golangci-lint fmt` ou `gofmt -s -w .` |
 
 ### Configuration golangci-lint recommandée
 
 ```yaml
+# .golangci.yml — format v2 (golangci-lint ≥ 2.0)
+version: "2"
+
 linters:
+  default: standard   # errcheck, govet, ineffassign, staticcheck, unused
   enable:
     - bodyclose
     - gocritic
     - nilerr
     - misspell
-    - errcheck
     - gosec
-    - ineffassign
-    - unused
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
 ```
 
 ---

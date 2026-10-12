@@ -5,6 +5,8 @@ description: Standards dbt — layers staging/intermediate/mart, documentation s
 
 # Skill — Standards dbt
 
+> Versions de référence (octobre 2026) : dbt Core 1.12 (dbt Core 2.0 en release candidate sur PyPI).
+
 ## Rôle
 
 Ce skill définit les bonnes pratiques pour le développement de transformations SQL
@@ -62,34 +64,38 @@ models/
 - Les tests dbt obligatoires sur toutes les clés primaires : `not_null` + `unique`
 
 ```yaml
-# ✅ schema.yml complet
+# ✅ schema.yml complet — clé `data_tests:` (dbt ≥ 1.8) et `arguments:` (dbt ≥ 1.10.5)
 models:
   - name: mart_commandes
     description: "Commandes validées agrégées par client et par mois"
     columns:
       - name: commande_id
         description: "Identifiant unique de la commande"
-        tests:
+        data_tests:
           - not_null
           - unique
       - name: statut
         description: "Statut de la commande"
-        tests:
+        data_tests:
           - not_null
           - accepted_values:
-              values: ['validee', 'annulee', 'en_attente']
+              arguments:
+                values: ['validee', 'annulee', 'en_attente']
       - name: client_id
         description: "Clé étrangère vers dim_clients"
-        tests:
+        data_tests:
           - not_null
           - relationships:
-              to: ref('dim_clients')
-              field: id
+              arguments:
+                to: ref('dim_clients')
+                field: id
       - name: chiffre_affaires
         description: "Montant TTC total des commandes du mois"
-        tests:
+        data_tests:
           - not_null
 ```
+
+- `tests:` reste accepté comme alias mais ne plus l'utiliser — `data_tests:` distingue les tests de données des unit tests (`unit_tests:`)
 
 ---
 
@@ -153,7 +159,7 @@ SELECT * FROM renamed
 
 ## Tests
 
-### Tests natifs dbt (dans schema.yml)
+### Tests natifs dbt (clé `data_tests:` dans schema.yml)
 
 - `not_null` — obligatoire sur toutes les clés primaires et colonnes critiques
 - `unique` — obligatoire sur toutes les clés primaires
