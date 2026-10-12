@@ -28,7 +28,7 @@ func TestHubMarkdownFencesBalanced(t *testing.T) {
 	hub := repoHub(t)
 	for _, dir := range []string{"agents", "skills", "workflows"} {
 		require.NoError(t, filepath.WalkDir(filepath.Join(hub, dir), func(path string, d os.DirEntry, err error) error {
-			if err != nil || d.IsDir() || !(strings.HasSuffix(path, ".md") || strings.HasSuffix(path, ".tmpl")) {
+			if err != nil || d.IsDir() || (!strings.HasSuffix(path, ".md") && !strings.HasSuffix(path, ".tmpl")) {
 				return err
 			}
 			data, err := os.ReadFile(path)
@@ -70,7 +70,7 @@ func TestNoStaleAgentNames(t *testing.T) {
 	nameRe := regexp.MustCompile(`\b(?:developer|auditor|ux|ui|qa)-[a-z0-9<*]+(?:-[a-z0-9<*]+)*`)
 	for _, dir := range []string{"agents", "skills", "workflows"} {
 		require.NoError(t, filepath.WalkDir(filepath.Join(hub, dir), func(path string, d os.DirEntry, err error) error {
-			if err != nil || d.IsDir() || !(strings.HasSuffix(path, ".md") || strings.HasSuffix(path, ".tmpl")) {
+			if err != nil || d.IsDir() || (!strings.HasSuffix(path, ".md") && !strings.HasSuffix(path, ".tmpl")) {
 				return err
 			}
 			data, err := os.ReadFile(path)
@@ -93,7 +93,7 @@ func TestSkillLoadInstructionsUseNames(t *testing.T) {
 	hub := repoHub(t)
 	for _, dir := range []string{"agents", "skills", "workflows"} {
 		require.NoError(t, filepath.WalkDir(filepath.Join(hub, dir), func(path string, d os.DirEntry, err error) error {
-			if err != nil || d.IsDir() || !(strings.HasSuffix(path, ".md") || strings.HasSuffix(path, ".tmpl")) {
+			if err != nil || d.IsDir() || (!strings.HasSuffix(path, ".md") && !strings.HasSuffix(path, ".tmpl")) {
 				return err
 			}
 			data, err := os.ReadFile(path)
