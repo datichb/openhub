@@ -1,7 +1,6 @@
 ---
 name: orchestrator-dev-feedback-mode
 description: Mini-workflow de correction basé sur le feedback de review humain (workflow review-feedback) — classement, cp-fix, correction sans commit par le developer, nouvelle review, cp-2, commit ; push et réponses aux fils laissés à l'utilisateur. Remplace le workflow standard quand le prompt contient [MODE:feedback].
-condition: mode_feedback
 ---
 
 # Mode Feedback — Correction depuis review humaine

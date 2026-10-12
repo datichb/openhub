@@ -1,8 +1,6 @@
 ---
 name: team-awareness
 description: Règles de base de collaboration en équipe via le serveur MCP `team` (claims, statut, activité) quand les fonctionnalités d'équipe sont activées.
-scope: all
-condition: team_enabled
 ---
 
 # Team Awareness Protocol
