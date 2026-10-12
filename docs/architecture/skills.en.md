@@ -7,7 +7,7 @@ The hub uses a **hybrid architecture** with two delivery paths (Bucket A inlined
 
 Sources of truth:
 
-- the hub `skills/` folder (196 files: 182 skills and 14 annexes in `skills/templates/`);
+- the hub `skills/` folder (198 files: 184 skills and 14 annexes in `skills/templates/`);
 - the agent frontmatter (`agents/**/*.md`): `skills:` = Bucket A (inlined), `native_skills:` = Bucket B (on demand).
 
 Since v5, nothing is deployed into the project any more: skills reach the session through the **session bundle**, built at each launch from the workflow (see below).
@@ -143,7 +143,7 @@ Short notations:
 | `team-awareness` | B: the 16 agents | Collaboration through the `team` MCP server (claims, status, activity) |
 | `team-policies-enforcement` | B: the 16 agents except conductor | Compliance with team policies |
 | `skill-authoring-protocol` | B: documentarian | Skill authoring — TDD RED/GREEN/REFACTOR, SDO checklist, anti-patterns, validation checklist |
-| `rtk-usage` | B: 15 agents | **Pre-v5** — RTK guide (see [Pre-v5 skills](#pre-v5-skills)) |
+| `rtk-usage` | B: 14 agents (all except benchmarker and brief-enricher) | **Pre-v5** — RTK guide (see [Pre-v5 skills](#pre-v5-skills)) |
 | `context-mode-usage` | A: dev-rw | **Pre-v5** — usage of the context-mode `ctx_*` tools (see [Pre-v5 skills](#pre-v5-skills)) |
 | `elicitation-techniques` | — | Elicitation techniques when requirements are ambiguous |
 | `handoff-bloc-unique-rule` | — | Universal handoff contract (producer/consumer rules) |
@@ -152,7 +152,7 @@ Short notations:
 | `subagent-execution-protocol` | — | Subagent execution protocol (interruption, checklist) |
 | `tracker-integration-protocol` | — | GitLab/GitHub tracker integration (triggers, ticket reading, errors) |
 
-The last six are in no frontmatter: other skills mention them in their text, but that does not add them to the bundle (only `requires:` does).
+The last six are in no agent frontmatter. Four reach the bundle through the `requires:` of another skill: `elicitation-techniques` (`planning/planner-phase-1`), `phase-0-validation-loop` (`planning/planner-phase-0`, `planning/onboarder-phase-0`), `standalone-execution-protocol` and `subagent-execution-protocol` (the `*-execution-modes` skills of the auditor, debugger, pathfinder, onboarder and planner; `designer/designer-subagent` for the second). `handoff-bloc-unique-rule` and `tracker-integration-protocol` are only mentioned in the text of other skills, which does not add them to the bundle (only `requires:` does).
 
 ### `posture/` — 7 skills (behavioral posture)
 
@@ -166,7 +166,7 @@ The last six are in no frontmatter: other skills mention them in their text, but
 | `tool-question` | A: all except auditor-subagent and dev-rw | opencode `question` tool — syntax, multi-questions, `multiple: true`, mandatory structure (`header` ≤ 30 chars), recommended option first |
 | `tool-todowrite` | A: conductor, orchestrator, orchestrator-dev | `todowrite` tool — 3-step threshold, real-time updates, difference with Beads |
 
-### `orchestrator/` — 17 skills
+### `orchestrator/` — 15 skills
 
 | Skill | Agents | Content |
 |-------|--------|---------|
@@ -182,8 +182,6 @@ The last six are in no frontmatter: other skills mention them in their text, but
 | `orchestrator-dev-edge-cases` | B: orchestrator-dev | Edge cases: drift, failed review, conflicts, agent failure |
 | `orchestrator-dev-feedback-mode` | — | Fix mini-workflow from a review feedback (`[MODE:feedback]`) |
 | `orchestrator-dev-parallel` | B: orchestrator-dev | **Pre-v5** — parallelism with worktrees inside a session (see [Pre-v5 skills](#pre-v5-skills)) |
-| `parallel-coordination` | B: orchestrator-dev | **Pre-v5** — coordination of the former parallel mode |
-| `session-state-protocol` | B: orchestrator-dev | **Pre-v5** — session state for the former TUI dashboard |
 | `error-recovery-protocol` | B: orchestrator-dev | Retry and recovery after a subagent failure: classification, retry budget, fallbacks |
 | `team-coordination` | B: orchestrator-dev | Team coordination (claims, conflicts, handover) |
 | `takeover-context-protocol` | B: orchestrator, orchestrator-dev | Using a takeover brief on a ticket handed over by another member |
@@ -364,11 +362,9 @@ These files still exist in `skills/`. They describe behavior from before v5; som
 
 | Skill | Still shipped? | What changed in v5 |
 |-------|----------------|--------------------|
-| `shared/rtk-usage` | Yes — Bucket B of 13 agents, so in every shipped bundle except `brief-enrich` | RTK was installed as a global opencode V1 plugin (`oh plugin`, removed in v5). oh no longer installs it |
+| `shared/rtk-usage` | Yes — Bucket B of 14 agents (all except `benchmarker` and `brief-enricher`), so in every shipped bundle except `benchmark` and `brief-enrich` | RTK was installed as a global opencode V1 plugin (`oh plugin`, removed in v5). oh no longer installs it |
 | `shared/context-mode-usage` | Yes — Bucket A of `developer` | Describes the `ctx_*` tools of the `context-mode` plugin, which does not load under opencode V2. `universal-guardrails` mentions them too |
 | `orchestrator/orchestrator-dev-parallel` | Yes — Bucket B of `orchestrator-dev` (`feature`, `ticket`, `review-feedback`, `libre` bundles) | Simultaneous implementation in the session tree, then one `cp-2` and one commit per ticket (no worktree created by the agent, no grouped approval). For one session and one worktree per ticket: `oh run ticket --tickets a,b` |
-| `orchestrator/parallel-coordination` | Yes — Bucket B of `orchestrator-dev` | Describes the former parallel mode (external coordinator, monitor), removed in v5. See [Sessions v5](../guides/sessions-v5.en.md) |
-| `orchestrator/session-state-protocol` | Yes — Bucket B of `orchestrator-dev` | Writes `.opencode/session-state.json` via `scripts/lib/session-state.sh` (missing) for the former dashboard. In v5, session state comes from the `ohd` daemon |
 
 ---
 
@@ -391,7 +387,8 @@ mcp: <server>                 # optional — shipped only when the session has t
 
 > `name:` must equal the file name: opencode identifies skills by name. `requires:`, `annexes:`, `plugin:` and `mcp:` are read by oh and stripped from the delivered `SKILL.md`. A `plugin: context-mode` skill (instructions for tools provided by a plugin) enters the bundle only when the workflow declares that plugin (`plugins:`). An `mcp: gitlab` skill (tracker adapter: `adapters/gitlab-*`, and `adapters/github-*` with `mcp: github`) enters the bundle only when the session has that MCP server (configured for the project): planner, pathfinder and onboarder list both adapters, only the one of the configured tracker is shipped. Likewise, the permissions of a plugin (context-mode `ctx_*` tools, `rtk` commands; listed in `permissions/plugin-tools.yaml`) are removed from the agents when the plugin is not loaded. An agent that names a skill absent from the bundle (plugin not loaded, MCP server missing, frontend skills in a project without frontend) gets a line naming it: it does not try to load it. The `bucket:` field is obsolete: the bucket is decided in the agent frontmatter.
 > The reference used in agent frontmatter is the path relative to `skills/`, without `.md` (`developer/beads-plan`).
-> `oh skill check` checks the catalog: duplicate identifiers, missing or cyclic `requires:`, `name:` different from the file name, missing description, skills referenced by an agent but not found.
+> **Allowed keys.** The delivered `SKILL.md` keeps only the [Agent Skills](https://agentskills.io/specification) keys: `name`, `description`, `license`, `compatibility`, `metadata`, `allowed-tools`. The hub keys `requires`, `annexes`, `plugin` and `mcp` are read by oh and never delivered. Any other key is an `unknown_key` error of `oh skill check` (the obsolete `bucket:` is a `legacy_bucket` warning). `name:` is at most 64 characters, lowercase letters, digits and single hyphens (`^[a-z0-9]+(-[a-z0-9]+)*$`, `invalid_name`); `description:` is at most 1024 characters (`long_description`).
+> `oh skill check` checks the catalog. Errors: duplicate identifiers, missing or cyclic `requires:`, invalid frontmatter, `name:` different from the file name, `invalid_name`, `long_description`, `unknown_key`, missing annex. Warnings: missing description, obsolete `bucket:`, skills referenced by an agent but not found, templates referenced in the text but not declared in `annexes:`, templates no skill uses. Non-zero exit code on errors.
 
 ---
 
@@ -520,7 +517,7 @@ Handoff skills (`*-handoff-format`) are loaded by both the producer and the cons
 |-------|----------------------|-----------------------------|
 | `conductor` ¹ | coordination-only, concision-posture, retranscription-coordinateur, tool-question, tool-todowrite, **workflow-map** (generated) | — |
 | `orchestrator` ¹ | coordination-only, concision-posture, retranscription-coordinateur, orchestrator-workflow-modes (generated), orchestrator-handoff-format, orchestrator-protocol, tool-question, tool-todowrite, planner-handoff-format, hub-workflow-reference (generated) | pathfinder-handoff-format, design-handoff-format, onboarder-handoff-format, debugger-handoff-format, documentarian-handoff-format, orchestrator-recap-edge, beads-plan, takeover-context-protocol |
-| `orchestrator-dev` ¹ | coordination-only, concision-posture, retranscription-coordinateur, orchestrator-workflow-modes (generated), orchestrator-dev-protocol, orchestrator-handoff-format, tool-question, tool-todowrite, developer-handoff-format, reviewer-handoff-format, documentarian-handoff-format | orchestrator-dev-standalone, orchestrator-dev-subagent, dev-drift-detection, session-state-protocol, orchestrator-dev-ticket-workflow, orchestrator-dev-parallel, orchestrator-dev-recap, orchestrator-dev-edge-cases, error-recovery-protocol, team-coordination, takeover-context-protocol, parallel-coordination |
+| `orchestrator-dev` ¹ | coordination-only, concision-posture, retranscription-coordinateur, orchestrator-workflow-modes (generated), orchestrator-dev-protocol, orchestrator-handoff-format, tool-question, tool-todowrite, developer-handoff-format, reviewer-handoff-format, documentarian-handoff-format | orchestrator-dev-standalone, orchestrator-dev-subagent, dev-drift-detection, orchestrator-dev-ticket-workflow, orchestrator-dev-parallel, orchestrator-dev-recap, orchestrator-dev-edge-cases, error-recovery-protocol, team-coordination, takeover-context-protocol |
 | `pathfinder` ¹ | beads-plan, pathfinder-protocol, pathfinder-handoff-format, gitlab-pathfinder-protocol, concision-posture, tool-question, websearch-usage, wiki-navigation | pathfinder-execution-modes, websearch-stack-research, living-docs-enrichment |
 | `planner` ¹ | planner-workflow, planner-handoff-format, design-planner-format, gitlab-planner-protocol, concision-posture, tool-question, hub-workflow-reference (generated) | planner-execution-modes, websearch-stack-research, planner-phase-0, -1, -2, -3-4, -5-6, planner-patterns-protocol, living-docs-enrichment, websearch-usage, planner-design-templates, planner-beads-templates, beads-plan, expert-posture |
 | `onboarder` ¹ | onboarder-workflow, onboarder-handoff-format, onboarder-profiles, gitlab-onboarder-protocol, tool-question, wiki-navigation | dev-standards-git, onboarder-execution-modes, websearch-stack-research, onboarder-phase-0, -1, -2, -3-4, -5, living-docs-enrichment, websearch-usage, beads-plan, expert-posture |

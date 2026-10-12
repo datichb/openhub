@@ -119,13 +119,29 @@ Une skill peut déclarer les skills sans lesquelles elle n'a pas de sens :
 
 ```yaml
 ---
-name: orchestrator-dev-parallel
+name: planner-phase-0
 description: …
-requires: [orchestrator/parallel-coordination]
+requires: [shared/phase-0-validation-loop]
 ---
 ```
 
 À la compilation du paquet de session (`oh bundle`), oh ajoute la fermeture transitive des `requires:` : une skill inlinée (Bucket A) tire des skills inlinées (placées avant elle), une skill à la demande (Bucket B) tire des skills à la demande. Une dépendance introuvable, un cycle, une dépendance refusée par le workflow (`skills.deny`) ou deux skills de même identifiant **bloquent** la construction du paquet. Le champ `requires:` n'est pas transmis à l'outil (retiré du `SKILL.md` livré).
+
+### Clés du frontmatter
+
+Le frontmatter n'accepte que deux sortes de clés :
+
+| Sorte | Clés | Dans le `SKILL.md` livré |
+|-------|------|--------------------------|
+| Clés [Agent Skills](https://agentskills.io/specification) | `name`, `description`, `license`, `compatibility`, `metadata`, `allowed-tools` | Conservées |
+| Clés du hub, lues par oh | `requires`, `annexes`, `plugin`, `mcp` | Retirées |
+
+Toute autre clé (hors `bucket:`, signalé comme obsolète) est une **erreur** `unknown_key` d'`oh skill check` : la supprimer, ou porter l'information dans le corps. Limites de la spécification Agent Skills, erreurs elles aussi :
+
+- `name:` — 64 caractères au plus, minuscules, chiffres et tirets simples (`planner-phase-0` ; ni `Planner_Phase0`, ni `-x`, ni `a--b`) : `invalid_name` ;
+- `description:` — 1024 caractères au plus : `long_description`.
+
+`plugin: <id>` ne livre la skill que si le workflow charge ce plugin (`plugins:`) ; `mcp: <serveur>` ne la livre que si la session a ce serveur MCP (adaptateurs de tracker : `mcp: gitlab` pour `adapters/gitlab-*`, `mcp: github` pour `adapters/github-*` — un agent peut lister les deux adaptateurs, seul celui du tracker configuré est livré).
 
 ### Gabarits et annexes (`annexes:`)
 
@@ -247,8 +263,9 @@ Avant de merger ou de déclarer un skill terminé :
 - [ ] Anti-patterns vérifiés (narrative, bilingue, générique, code flowchart, over-spec)
 
 **SDO**
-- [ ] `description:` ≤ 2 phrases, keywords discriminants, cross-refs si nécessaire
-- [ ] `name:` identique au nom du fichier (sans `.md`) : c'est l'identifiant de la skill dans le paquet de session, unique dans tout le catalogue
+- [ ] `description:` ≤ 2 phrases (1024 caractères au plus), keywords discriminants, cross-refs si nécessaire
+- [ ] `name:` identique au nom du fichier (sans `.md`), en kebab-case, 64 caractères au plus : c'est l'identifiant de la skill dans le paquet de session, unique dans tout le catalogue
+- [ ] Aucune clé de frontmatter hors des clés Agent Skills et de `requires`/`annexes`/`plugin`/`mcp`
 - [ ] `requires:` liste les skills indispensables (références `<catégorie>/<nom>`), si besoin ; pas de champ `bucket:` (le bucket est décidé par le frontmatter de l'agent : `skills:` = A, `native_skills:` = B)
 - [ ] Gabarits cités déclarés dans `annexes:`
 - [ ] `oh skill check` sans erreur

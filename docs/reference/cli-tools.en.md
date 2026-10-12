@@ -10,7 +10,26 @@
 
 ### oh skill check
 
-Checks the hub skills: duplicate ids, `requires:` dependencies missing or cyclic, invalid frontmatter (`name:` different from the file name, missing description), obsolete `bucket:` field, skills referenced by agents but missing. Exits with code 1 on errors.
+Checks the hub skills (`skills/**/*.md`, the `skills/templates/` annexes excepted) and the skills named by the hub agents. Exits with code 1 on errors.
+
+| Kind | Level | Problem |
+|------|-------|---------|
+| `duplicate_id` | error | Two skills with the same identifier (last path component) |
+| `missing_require` | error | `requires:` names a skill not found |
+| `require_cycle` | error | `requires:` cycle |
+| `invalid_frontmatter` | error | Frontmatter that is not valid YAML |
+| `name_mismatch` | error | `name:` different from the file name |
+| `invalid_name` | error | `name:` over 64 characters or not kebab-case (lowercase letters, digits, single hyphens) |
+| `long_description` | error | `description:` over 1024 characters |
+| `unknown_key` | error | Frontmatter key that is neither an Agent Skills key (`name`, `description`, `license`, `compatibility`, `metadata`, `allowed-tools`) nor a hub key (`requires`, `annexes`, `plugin`, `mcp`) |
+| `missing_annex` | error | `annexes:` names a file not found |
+| `no_description` | warning | Missing `description:` |
+| `legacy_bucket` | warning | Obsolete `bucket:` field |
+| `missing_agent_skill` | warning | Skill named in an agent's `skills:` or `native_skills:` but not found |
+| `undeclared_annex` | warning | Template referenced in the text but missing from `annexes:` |
+| `orphan_annex` | warning | File of `skills/templates/` used by no skill |
+
+Only the Agent Skills keys reach the delivered `SKILL.md`; the hub keys are read by oh (`plugin:` and `mcp:` ship the skill only when the workflow loads that plugin or the session has that MCP server). See [Skill format](../architecture/skills.en.md#skill-format).
 
 ```
 oh skill check [--json]
@@ -18,7 +37,7 @@ oh skill check [--json]
 
 | Flag | Type | Description |
 |------|------|-------------|
-| `--json` | bool | Problems as JSON |
+| `--json` | bool | Problems as JSON (`kind`, `error`, `ref`, `detail`) |
 
 ---
 
