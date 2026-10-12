@@ -195,3 +195,24 @@ func TestAuditBundleShipsDomainChecklists(t *testing.T) {
 		assert.True(t, shipped[id], "audit bundle does not ship %s", id)
 	}
 }
+
+// C1: the `type` input of the audit workflow offers exactly the domains of
+// the hub (skills/auditor/audit-<domain>.md).
+func TestAuditTypeEnumMatchesDomainSkills(t *testing.T) {
+	hub, cat, _ := shippedWorkflows(t)
+	doc, ok := cat.Lookup(workflow.Ref{Layer: workflow.LayerHub, ID: "audit"})
+	require.True(t, ok)
+	in, ok := doc.Spec.Inputs.Get("type")
+	require.True(t, ok, "audit has no type input")
+	files, err := filepath.Glob(filepath.Join(hub, "skills", "auditor", "audit-*.md"))
+	require.NoError(t, err)
+	var domains []string
+	for _, f := range files {
+		id := strings.TrimSuffix(filepath.Base(f), ".md")
+		if id == "audit-handoff-format" || id == "audit-protocol-light" {
+			continue
+		}
+		domains = append(domains, strings.TrimPrefix(id, "audit-"))
+	}
+	assert.ElementsMatch(t, domains, in.Values, "audit.yaml type values vs skills/auditor/audit-*.md")
+}

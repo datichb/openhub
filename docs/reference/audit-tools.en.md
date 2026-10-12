@@ -4,7 +4,8 @@
 
 Useful commands and tools for each audit domain.
 This document is intended for human use — audit agents do not execute these commands
-(they perform static analysis of source code only).
+(they perform static analysis of source code only), except the IaC analysis tools of the
+`infra` domain, which the `auditor-subagent` may run after your confirmation.
 
 ---
 
@@ -148,6 +149,34 @@ radon cc src/ -a
 
 # Code duplication (all languages)
 npx jscpd --min-lines 10 --reporters json src/
+```
+
+---
+
+## Infrastructure as code (`infra` domain)
+
+```bash
+terraform fmt -check -recursive
+terraform init -backend=false -lockfile=readonly && terraform validate
+tflint --recursive
+tfsec .                      # or: trivy config .
+checkov -d . --compact
+kube-score score k8s/*.yaml
+kubesec scan k8s/deployment.yaml
+helm lint ./chart && helm template ./chart
+infracost breakdown --path infra/
+terraform plan -input=false -detailed-exitcode   # drift (exit code 2), read-only credentials
+kubectl diff -f k8s/                              # Kubernetes drift (run by you)
+```
+
+## Database (`database` domain)
+
+```sql
+-- PostgreSQL: roles, privileges and RLS (run by you, results pasted to the session)
+SELECT rolname, rolsuper, rolbypassrls FROM pg_roles;
+SELECT grantee, table_name, privilege_type FROM information_schema.role_table_grants WHERE grantee = 'PUBLIC';
+SELECT relname, relrowsecurity, relforcerowsecurity FROM pg_class WHERE relkind = 'r' AND relnamespace = 'public'::regnamespace;
+SHOW ssl;
 ```
 
 ---

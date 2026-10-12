@@ -58,7 +58,7 @@ func TestGlobalGuard(t *testing.T) {
 	}
 	agents := [][2]string{
 		{"developer", "developer"}, {"debugger", "debugger"}, {"benchmarker", "benchmarker"},
-		{"reviewer", "reviewer"}, {"infra", "infra"}, {"orchestrator-dev", "orchestrator-dev"},
+		{"reviewer", "reviewer"}, {"operator", "operator"}, {"orchestrator-dev", "orchestrator-dev"},
 	}
 	for _, ag := range agents {
 		rules := effectiveRules(t, ag[0], ag[1])

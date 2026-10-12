@@ -4,8 +4,8 @@ id: audit
 category: quality
 label: { fr: Audit, en: Audit }
 description:
-  fr: Audit du projet (sécurité, performance, architecture, accessibilité…), sans rien modifier
-  en: Project audit (security, performance, architecture, accessibility…), without modifying anything
+  fr: Audit du projet (sécurité, performance, architecture, accessibilité, infrastructure, base de données…), sans rien modifier
+  en: Project audit (security, performance, architecture, accessibility, infrastructure, database…), without modifying anything
 risk: read
 entry:
   agent: auditor
@@ -13,7 +13,7 @@ inputs:
   type:
     type: enum
     required: true
-    values: [security, performance, architecture, accessibility, ecodesign, observability, privacy]
+    values: [security, performance, architecture, accessibility, ecodesign, observability, privacy, infra, database]
     default: security
     label: { fr: Type d'audit, en: Audit type }
   focus:

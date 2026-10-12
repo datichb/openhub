@@ -61,9 +61,10 @@ La famille d'un agent est déduite de son dossier dans `agents/` :
 | Dossier | Famille | Agents |
 |------------|---------|--------|
 | `agents/planning/` | `planning` | conductor, orchestrator, orchestrator-dev, planner, pathfinder, onboarder |
-| `agents/developer/` | `developer` | developer, developer-refactor, developer-migrator, database, infra |
+| `agents/developer/` | `developer` | developer, developer-refactor, developer-migrator |
 | `agents/quality/` | `quality` | reviewer, debugger, benchmarker, test-generator |
 | `agents/auditor/` | `auditor` | auditor, auditor-subagent |
+| `agents/infra/` | `infra` | operator |
 | `agents/design/` | `design` | designer |
 | `agents/documentation/` | `documentation` | documentarian |
 | `agents/utility/` | `utility` | brief-enricher |
@@ -175,8 +176,8 @@ Ce champ est le **niveau 9** de la cascade : il ne s'applique que si aucun nivea
 | Agent | Plancher |
 |-------|----------|
 | `conductor`, `orchestrator`, `orchestrator-dev`, `planner`, `pathfinder`, `onboarder` | `claude-sonnet-4-6` |
-| `auditor`, `auditor-subagent`, `designer`, `debugger`, `documentarian` | `claude-sonnet-4-6` |
-| `reviewer`, `benchmarker`, `test-generator`, `database`, `infra` | `claude-opus-4-6` |
+| `auditor`, `auditor-subagent`, `designer`, `debugger`, `documentarian`, `operator` | `claude-sonnet-4-6` |
+| `reviewer`, `benchmarker`, `test-generator` | `claude-opus-4-6` |
 | `brief-enricher` | `anthropic/claude-sonnet-4-5` |
 
 Les agents `developer*` n'en déclarent pas : sans configuration, opencode utilise son modèle par défaut.

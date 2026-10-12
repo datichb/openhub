@@ -142,7 +142,7 @@ The `workflow` MCP server (`workflow_status`, `workflow_checkpoint`, `workflow_o
 | Document | Description |
 |----------|-------------|
 | [Overview](architecture/overview.en.md) | v5 concepts: workflow → session bundle → group server → session, daemon, credential proxy, gateways, closed world |
-| [Agents](architecture/agents.en.md) | The 20 agents (7 families, including `conductor`) |
+| [Agents](architecture/agents.en.md) | The 19 agents (8 families, including `conductor`) |
 | [Skills](architecture/skills.en.md) | Hybrid skill system (Bucket A/B), delivery through the session bundle |
 | [Task Delegation](architecture/task-delegation.en.md) | Inter-agent delegation model (`calls:`, `after:`) |
 | [Living Wiki](architecture/living-wiki.en.md) | Living documentation wiki architecture |

@@ -2,7 +2,7 @@
 
 # Référence des agents
 
-20 agents au total, organisés en 7 familles (planning, developer, auditor, quality, design, documentation, utility).
+19 agents au total, organisés en 8 familles (planning, developer, auditor, infra, quality, design, documentation, utility).
 Chaque agent est défini dans `agents/<famille>/<id>.md` avec un frontmatter déclarant ses métadonnées,
 ses permissions, ses skills et son mode. Ce dossier `agents/` est la source de vérité de cette page.
 
@@ -51,12 +51,13 @@ flowchart TD
         PATH["pathfinder<br/>Recon"]
         ONB["onboarder<br/>Decouverte"]
     end
-    subgraph DV ["Developer (5)"]
+    subgraph DV ["Developer (3)"]
         DEV["developer<br/>Sous-agent"]
         DEVR["developer-refactor<br/>Sous-agent"]
         DEVM["developer-migrator<br/>Sous-agent"]
-        DB["database<br/>Specialiste"]
-        INFRA["infra<br/>DevOps"]
+    end
+    subgraph IN ["Infra (1)"]
+        OPS["operator<br/>Plan et application"]
     end
     subgraph AU ["Auditor (2)"]
         AUD["auditor<br/>Coordinateur"]
@@ -100,7 +101,7 @@ label: <NomAffiché>
 description: <Description courte — visible dans les outils IA>
 mode: primary         # primary (défaut) | subagent
 model: <modèle>       # dernier niveau de la cascade des modèles
-permission_base: <base>   # optionnel — permissions/<base>.yaml (coordinator, developer-rw, readonly-code)
+permission_base: <base>   # optionnel — permissions/<base>.yaml (coordinator, developer-rw, readonly-code, readonly-ops)
 permission:
   question: allow     # optionnel — autorise l'outil question d'OpenCode (agents primary interactifs uniquement)
   skill: allow        # allow | deny — active l'outil skill natif (Bucket B)
@@ -162,10 +163,9 @@ Relevé des frontmatter de `agents/`.
 | developer | `developer` | `subagent` | `developer-rw` | — |
 | developer | `developer-refactor` | `subagent` | `developer-rw` | — |
 | developer | `developer-migrator` | `subagent` | `developer-rw` | — |
-| developer | `database` | `primary` | `developer-rw` | — |
-| developer | `infra` | `primary` | `developer-rw` | — |
 | auditor | `auditor` | `primary` | `coordinator` | — |
 | auditor | `auditor-subagent` | `subagent` | `readonly-code` | — |
+| infra | `operator` | `primary` | `readonly-ops` | — |
 | quality | `reviewer` | `primary` | — | — |
 | quality | `debugger` | `primary` | — | — |
 | quality | `benchmarker` | `primary` | — | — |
@@ -202,8 +202,6 @@ Ce tableau est la reference faisant autorite pour les skills charges par chaque 
 | **developer** | `developer/dev-standards-universal`, `developer/dev-standards-simplicity`, `developer/quick-fix`, `developer/beads-dev`, `developer/developer-handoff-format`, `posture/subagent-concision-posture`, `shared/wiki-navigation`, `shared/context-mode-usage` | `developer/dev-standards-security`, `developer/dev-standards-git`, `developer/dev-standards-testing`, `reviewer/reviewer-reception`, `shared/rtk-usage`, `shared/living-docs-enrichment`, `developer/beads-plan` |
 | **developer-refactor** | `developer/dev-standards-universal`, `developer/dev-standards-simplicity`, `developer/quick-fix`, `developer/beads-plan`, `developer/beads-dev`, `developer/developer-handoff-format`, `posture/subagent-concision-posture`, `shared/wiki-navigation`, `shared/context-mode-usage` | `developer/dev-standards-security`, `developer/dev-standards-testing`, `developer/dev-standards-git`, `developer/dev-standards-refactoring`, `shared/rtk-usage`, `shared/living-docs-enrichment` |
 | **developer-migrator** | *(identique a developer-refactor)* | `developer/dev-standards-security`, `developer/dev-standards-testing`, `developer/dev-standards-git`, `developer/dev-standards-migration`, `shared/rtk-usage`, `shared/living-docs-enrichment` |
-| **database** | `developer/dev-standards-universal`, `posture/tool-question`, `shared/wiki-navigation` | `developer/dev-standards-security`, `shared/living-docs-enrichment` |
-| **infra** | `developer/dev-standards-universal`, `posture/tool-question`, `shared/wiki-navigation` | `developer/dev-standards-security`, `shared/living-docs-enrichment` |
 
 ### Famille auditor
 
@@ -211,6 +209,12 @@ Ce tableau est la reference faisant autorite pour les skills charges par chaque 
 |-------|-------------------|-------------------------------|
 | **auditor** | `posture/coordination-only`, `posture/retranscription-coordinateur`, `auditor/auditor-workflow`, `auditor/audit-protocol-light`, `auditor/audit-handoff-format`, `posture/tool-question` | `auditor/auditor-execution-modes`, `shared/rtk-usage`, `shared/living-docs-enrichment` |
 | **auditor-subagent** | `auditor/audit-protocol-light`, `posture/subagent-concision-posture`, `auditor/audit-handoff-format`, `shared/wiki-navigation` | `auditor/websearch-cve-lookup`, `auditor/websearch-performance-research`, `shared/rtk-usage`, `posture/expert-posture`, `shared/websearch-usage` |
+
+### Famille infra
+
+| Agent | Bucket A (inline) | Bucket B (natif / a la demande) |
+|-------|-------------------|-------------------------------|
+| **operator** | `posture/tool-question`, `shared/wiki-navigation` | `developer/dev-standards-security`, `shared/rtk-usage`, `shared/living-docs-enrichment` (+ skills de stack Terraform/Helm/Kubernetes détectées dans le projet) |
 
 ### Famille quality
 
@@ -363,17 +367,17 @@ Sous-agent unique de l'auditeur (ADR-017). Lecture seule. Invocable via l'audite
 
 | Agent | Fichier | Domaine | Référentiels |
 |-------|---------|---------|-------------|
-| `auditor-subagent` | `agents/auditor/auditor-subagent.md` | Sécurité, Performance, Accessibilité, Éco-conception, Architecture, Privacy, Observabilité — domaine précisé à l'invocation | OWASP Top 10, Core Web Vitals, WCAG 2.1 AA / RGAA 4.1, RGESN / GreenIT, SOLID / Clean Architecture, RGPD / EDPB / CNIL, Méthode RED / SLOs / OpenTelemetry |
+| `auditor-subagent` | `agents/auditor/auditor-subagent.md` | Sécurité, Performance, Accessibilité, Éco-conception, Architecture, Privacy, Observabilité, Infrastructure, Base de données — domaine précisé à l'invocation | OWASP Top 10, Core Web Vitals, WCAG 2.1 AA / RGAA 4.1, RGESN / GreenIT, SOLID / Clean Architecture, RGPD / EDPB / CNIL, Méthode RED / SLOs / OpenTelemetry, CIS Benchmarks / NSA-CISA Kubernetes Hardening, CIS PostgreSQL/MySQL |
 
 L'agent `auditor-subagent` reçoit le domaine + la `native_skill` à charger dans le prompt d'invocation du coordinateur `auditor`.
 Il injecte `auditor/audit-protocol-light` (format de rapport commun allégé)
 + la skill de domaine spécifique (`auditor/audit-<domaine>`) chargée à la demande
-+ `auditor/audit-handoff-format` (contrat de retour structuré).
++ `auditor/audit-handoff-format` (contrat de retour structuré : bloc `## Retour vers auditor`).
 
 Tous les rapports produits incluent une section **`### Découvertes à documenter`**
 en fin de rapport — les découvertes à capitaliser dans `ONBOARDING.md` / `CONVENTIONS.md`.
 Cette section est consolidée par le coordinateur `auditor` en Phase 4 (skill `living-docs-enrichment`).
-L'agent ne fait jamais d'appel `task` — sa lecture seule est stricte (base `readonly-code`, pas de `bash`).
+L'agent ne fait jamais d'appel `task` — sa lecture seule est stricte (base `readonly-code`). Son seul accès au shell : les outils d'analyse statique du domaine `infra` (`terraform validate`, `terraform plan`, `tflint`, `tfsec`, `checkov`, `trivy config`, `kube-score`, `kubesec`, `helm lint`, `helm template`, `infracost`), chacun demandé ; toute autre commande est refusée.
 
 ---
 
@@ -397,8 +401,6 @@ Skills communs aux trois agents `developer*` : `dev-standards-universal`, `dev-s
 |-------|---------|---------|
 | `developer-refactor` | `agents/developer/developer-refactor.md` | Refactoring structurel uniquement — ne modifie jamais le comportement observable |
 | `developer-migrator` | `agents/developer/developer-migrator.md` | Migrations incrémentales — upgrades de framework, versions majeures, dépendances EOL |
-| `database` | `agents/developer/database.md` | Spécialiste BDD : conception de schéma, planification de migration, optimisation de requêtes, audit sécurité BDD |
-| `infra` | `agents/developer/infra.md` | Spécialiste IaC : revue Terraform/K8s/Helm, estimation coût cloud, sécurité IaC (tfsec, checkov) |
 
 > Voir [ADR-013](./adr/013-developer-agent-consolidation.fr.md) pour la décision de consolidation.
 > Voir [ADR-002](./adr/002-developer-segmentation.fr.md) (remplacé) pour la justification de la segmentation précédente.
@@ -422,25 +424,22 @@ Skills communs aux trois agents `developer*` : `dev-standards-universal`, `dev-s
 
 Les skills de stack détectées dans le projet sont ajoutées au paquet de session à sa construction. Les skills du domaine frontend (`dev-standards-frontend`, `-a11y`, `-data`), proposées par `orchestrator-dev`, `developer` et `reviewer`, ne sont livrées que si le projet a un frontend ; sans chemin de projet, rien n'est filtré.
 
-**Agent `database` — modes :**
-
-| Mode | Déclencheur | Sortie |
-|------|-------------|--------|
-| `schema` | Conception de schéma demandée | ERD, définitions de tables, contraintes, index |
-| `migration` | Planification de migration demandée | Plan de migration ordonné, stratégie de rollback |
-| `query` | Optimisation de requêtes demandée | Analyse du plan d'exécution, recommandations d'index |
-| `audit` | Audit sécurité BDD demandé | Findings de sécurité, revue des privilèges, audit chiffrement |
-
-**Agent `infra` — modes :**
-
-| Mode | Déclencheur | Sortie |
-|------|-------------|--------|
-| `review` | Revue IaC demandée (Terraform/K8s/Helm) | Revue structurée par sévérité |
-| `cost` | Estimation de coût cloud demandée | Décomposition des coûts par ressource, recommandations d'optimisation |
-| `security` | Scan sécurité IaC demandé | Findings tfsec/checkov, remédiation |
-| `drift` | Détection de dérive demandée | Delta entre état déclaré et état réel |
-
 **Post-ticket — Enrichissement des documents vivants :** après chaque `bd close`, identifie les patterns, conventions ou contraintes techniques découverts lors de l'implémentation qui sont absents de `CONVENTIONS.md` ou `ONBOARDING.md`, et propose à l'utilisateur de les capitaliser (skill `living-docs-enrichment`).
+
+---
+
+## Famille — Agents infra
+
+### `operator`
+
+| | |
+|--|--|
+| **Label** | Opérateur infra |
+| **Fichier** | `agents/infra/operator.md` |
+| **Skills** | Voir [Matrice d'assignation des skills](#matrice-dassignation-des-skills-source-de-verite) — ligne operator |
+| **Invocation** | Agent d'entrée du workflow `infra-change` (`oh run infra-change`) |
+
+Applique un changement d'infrastructure déjà écrit dans le dépôt. Vérifie le contexte réel par rapport à la cible, produit le plan (`terraform plan -out`, `kubectl diff`, `helm diff upgrade`, `pulumi preview`), le delta de coût, les risques et le retour arrière, les présente à `cp-plan`, puis après `cp-apply` applique exactement le plan validé (`terraform apply <fichier de plan>`) et vérifie le résultat. Base `readonly-ops` : ni édition, ni écriture, ni délégation ; ses outils d'infrastructure sont demandés et le garde-fou infra d'oh autorise les lectures, demande les secrets et refuse toute modification jusqu'à `cp-apply`. L'écriture du code IaC revient au `developer` (domaine devops, skills de stack Terraform/Helm/Kubernetes), l'analyse en lecture seule au domaine d'audit `infra`.
 
 ---
 
@@ -735,14 +734,14 @@ Il n'a aucune skill inline (pas même `shared/universal-guardrails`).
 
 ## Règles communes à tous les agents
 
-- **Agents en lecture seule** (pas d'`edit` ni de `write`) : conductor, orchestrator, auditor, auditor-subagent, reviewer, debugger, designer, planner, pathfinder, brief-enricher — `planner`, `pathfinder` et `debugger` peuvent toutefois écrire dans Beads
+- **Agents en lecture seule** (pas d'`edit` ni de `write`) : conductor, orchestrator, auditor, auditor-subagent, reviewer, debugger, designer, planner, pathfinder, brief-enricher, operator — `planner`, `pathfinder` et `debugger` peuvent toutefois écrire dans Beads ; l'`operator` modifie l'infrastructure après `cp-apply`, jamais les fichiers
 - **Agents qui délèguent l'écriture documentaire** : auditor (coordinateur), planner, pathfinder, debugger, reviewer — peuvent invoquer le `documentarian` via `task` pour enrichir `ONBOARDING.md` / `CONVENTIONS.md` / le wiki, uniquement après confirmation explicite de l'utilisateur (skill `living-docs-enrichment`) et si `documentarian` est membre du workflow
-- **Agents qui écrivent du code** : `developer`, `developer-refactor`, `developer-migrator`, `database`, `infra`, `test-generator` — modifient uniquement les fichiers de leur domaine
+- **Agents qui écrivent du code** : `developer`, `developer-refactor`, `developer-migrator`, `test-generator` — modifient uniquement les fichiers de leur domaine
 - **Agents qui écrivent de la documentation** : documentarian — seul agent chargé d'écrire dans `ONBOARDING.md`, `CONVENTIONS.md` et le wiki après coup (l'`onboarder` les crée) ; les autres agents proposent des enrichissements via la skill `living-docs-enrichment`, toujours délégués au `documentarian` après confirmation explicite de l'utilisateur
 - **Agents qui créent des tickets** : planner (tickets feature), pathfinder (après confirmation), debugger (tickets bug après confirmation)
 - **Agents qui lisent les tickets** : la plupart peuvent faire `bd show <ID>` pour contextualiser leur travail, dans la limite de `beads.allow` du workflow
 - **Agents coordinateurs** : conductor, orchestrator, orchestrator-dev, auditor — ne codent jamais, pilotent d'autres agents
 - **Agents de découverte** : onboarder — explore et rapporte, ne pilote pas d'autres agents
-- **Agents `primary`** (frontmatter) : conductor, orchestrator, orchestrator-dev, planner, pathfinder, onboarder, auditor, designer, documentarian, debugger, reviewer, benchmarker, test-generator, database, infra
+- **Agents `primary`** (frontmatter) : conductor, orchestrator, orchestrator-dev, planner, pathfinder, onboarder, auditor, designer, documentarian, debugger, reviewer, benchmarker, test-generator, operator
 - **Agents `subagent`** (frontmatter) : `developer`, `developer-refactor`, `developer-migrator`, `auditor-subagent`, `brief-enricher`
 - **Dans une session** : le mode effectif et les délégations possibles sont ceux du workflow ; un agent hors du paquet n'existe pas pour la session

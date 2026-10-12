@@ -1,0 +1,52 @@
+apiVersion: oh/v1
+kind: Workflow
+id: infra-change
+category: develop
+label: { fr: Changement d'infrastructure, en: Infrastructure change }
+description:
+  fr: Appliquer un changement d'infrastructure déjà écrit (plan, coût, risques, validation, puis application du plan validé)
+  en: Apply an infrastructure change already written (plan, cost, risks, approval, then apply the approved plan)
+risk: write
+isolation: strict
+entry:
+  agent: operator
+inputs:
+  request:
+    type: text
+    required: true
+    label: { fr: Changement, en: Change }
+    help:
+      fr: Le changement à appliquer (commit, dossier, module, release) et son objectif
+      en: The change to apply (commit, directory, module, release) and its goal
+    max_length: 8000
+  target:
+    type: string
+    required: true
+    label: { fr: Cible, en: Target }
+    help:
+      fr: Environnement visé tel que le projet le nomme (dev, staging, prod, workspace Terraform, contexte kube, stack Pulumi)
+      en: Target environment as the project names it (dev, staging, prod, Terraform workspace, kube context, Pulumi stack)
+    max_length: 200
+prompt:
+  template: prompts/infra-change.md.tmpl
+agents:
+  operator: { role: workflow }
+checkpoints:
+  cp-plan:
+    label: { fr: Plan, en: Plan }
+    description:
+      fr: Présenter la cible vérifiée, le plan (créations, modifications, destructions), le delta de coût, les risques et le retour arrière.
+      en: Present the verified target, the plan (creations, changes, destructions), the cost delta, the risks and the rollback.
+    mode: { manuel: pause, semi-auto: pause, auto: pause }
+  cp-apply:
+    label: { fr: Application, en: Apply }
+    description:
+      fr: Confirmer la cible et le plan validé avant de l'appliquer ; les modifications de l'infrastructure restent refusées avant.
+      en: Confirm the target and the approved plan before applying it; infrastructure changes stay refused until then.
+    mandatory: true
+    mode: { manuel: pause, semi-auto: pause, auto: pause }
+    unlocks: [apply]
+    remote: forbid
+beads:
+  allow: [show, list, ready, search, query, children, comments, count, status, graph, history]
+runtime: { default: local, allowed: [local] }

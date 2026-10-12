@@ -50,7 +50,7 @@ last_updated: 2026-10-06
 | Identifiants | Proxy d'identifiants de `ohd` (jeton `ohs_` par groupe ; les vraies cles restent dans le trousseau ; SigV4 pour les profils AWS) |
 | Fournisseurs | Anthropic Claude, AWS Bedrock, OpenAI, OpenRouter (configurable) |
 | Workflows | 13 workflows declaratifs `oh/v1` (YAML, embarques via go:embed) |
-| Agents | 20 agents avec architecture de skills hybride (Bucket A/B), dont l'agent d'entree generique `conductor` |
+| Agents | 16 agents avec architecture de skills hybride (Bucket A/B), dont l'agent d'entree generique `conductor` |
 | Skills | 184 skills de protocole + 14 annexes (embarques via go:embed, livres par le paquet de session) |
 | Plugin | Plugin oh pour opencode (TypeScript, embarque ; monde ferme et checkpoints) |
 

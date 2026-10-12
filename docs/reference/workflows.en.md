@@ -25,11 +25,12 @@ A workflow is launched with `oh run <workflow>` or the TUI launch form; the form
 | `ticket` | `orchestrator-dev` | `developer`, `developer-refactor`, `developer-migrator`, `reviewer`, `documentarian` (on demand) | write | local, container, remote | `oh start --dev`, `-t` |
 | `feature` | `orchestrator` | `pathfinder`, `planner`, `designer`, `orchestrator-dev`, `developer*`, `reviewer`, `documentarian` (on demand) | write | local | `oh start` (former modes A, B and E) |
 | `quick` | `developer` | — | write | local | quick session |
+| `infra-change` | `operator` | — | write (infrastructure, no file) | local | former `infra` agent (application part) |
 | `cadrage` | `conductor` | `pathfinder`, `planner`, `designer` | plan | local | former mode A without implementation |
 | `onboarding` | `onboarder` | — | write (`docs/wiki/`) | local, remote | `oh start --onboard` (former mode C) |
 | `review` | `reviewer` | — | read | local, remote | `oh review` |
 | `review-feedback` | `orchestrator-dev` | `developer`, `reviewer` | write | local | `oh review feedback` |
-| `audit` | `auditor` | `auditor-subagent` | read | local, remote | `oh audit` |
+| `audit` | `auditor` | `auditor-subagent` | read | local, remote | `oh audit`, former `infra` and `database` agents (analysis part) |
 | `debug` | `debugger` | `developer`, `documentarian` (on demand) | write | local | `oh debug` (former mode D) |
 | `benchmark` | `benchmarker` | — | write (`reports/benchmarks/`) | local | `oh run libre --agent benchmarker` |
 | `sweep` | `conductor` | `pathfinder`, `developer`, `developer-refactor`, `developer-migrator`, `reviewer` | write | local | `oh start --sweep` |
@@ -184,12 +185,31 @@ Flow: classification of the comments → `cp-fix` → fixes by the `developer`, 
 
 ## `audit`
 
-Read-only audit: the `auditor` coordinates `auditor-subagent`s. Allowed Beads commands: `show`, `list`. No checkpoint.
+Read-only audit: the `auditor` coordinates `auditor-subagent`s, one per domain (skill `auditor/audit-<type>`). Allowed Beads commands: `show`, `list`. No checkpoint.
 
 | Input | Type | Required | Purpose |
 |---|---|---|---|
-| `type` | `enum`: `security`, `performance`, `architecture`, `accessibility`, `ecodesign`, `observability`, `privacy` (default: `security`) | yes | Audit type |
+| `type` | `enum`: `security`, `performance`, `architecture`, `accessibility`, `ecodesign`, `observability`, `privacy`, `infra`, `database` (default: `security`) | yes | Audit type |
 | `focus` | `text` (4,000 characters max) | no | Modules, files or questions to target |
+
+- `infra`: IaC review (Terraform/OpenTofu, Kubernetes, Helm, ArgoCD), IaC security, cloud cost, drift. The `auditor-subagent` may run static analysis tools (`tflint`, `tfsec`, `checkov`, `trivy config`, `kube-score`, `kubesec`, `helm lint`, `helm template`, `infracost`, `terraform fmt -check`, `terraform validate`, `terraform plan`), each one asked; any other command, changes included, is refused. Applying a change is the job of `infra-change`.
+- `database`: roles and privileges, Row-Level Security, injection surfaces, encryption at rest and in transit, backups, migration safety, exposure of sensitive data. Static reading only: queries against a real database are given to the user.
+
+## `infra-change`
+
+Applies an infrastructure change already written in the repository (Terraform/OpenTofu, Kubernetes, Helm, Pulumi): the `operator` checks the real context against the target, produces the plan (`terraform plan -out`, `kubectl diff`, `helm diff upgrade`, `pulumi preview`), the cost delta (`infracost` when installed), the risks and the rollback, then applies **exactly** the approved plan (`terraform apply <planfile>`) and checks the result. It modifies no file (`readonly-ops` base) and delegates to no agent: writing IaC code belongs to the `developer` (`quick`, `ticket`), read-only analysis to `audit` (`type=infra`). `isolation: strict`, local runtime only. Allowed Beads commands: read only.
+
+| Input | Type | Required | Purpose |
+|---|---|---|---|
+| `request` | `text` (8,000 characters max) | yes | The change to apply (commit, directory, module, release) and its goal |
+| `target` | `string` (200 characters max) | yes | Target environment as the project names it (`staging`, `prod`, Terraform workspace, kube context, Pulumi stack) |
+
+| Checkpoint | manuel | semi-auto | auto | remote |
+|---|---|---|---|---|
+| `cp-plan` Plan | pause | pause | pause | — |
+| `cp-apply` Apply (mandatory, unlocks `apply`) | pause | pause | pause | forbidden |
+
+`target` is free text rather than an enum: projects name their environments in their own way (workspaces, contexts, stacks); the `operator` checks it against the real context before any plan and stops on a mismatch. Infrastructure reads are allowed, secret reads are asked, and every change (`terraform apply`, `kubectl apply`, `helm upgrade`, `pulumi up`, cloud create/delete/update commands…) is refused until `cp-apply`, then asked one by one ([infrastructure guard](../../SECURITY.md)).
 
 ## `debug`
 

@@ -56,6 +56,8 @@ var auditCmd = &cobra.Command{
 			"ecodesign":     "éco-conception (empreinte carbone, poids, requêtes inutiles)",
 			"observability": "observabilité (logs, traces, métriques, alerting, SLI/SLO)",
 			"privacy":       "vie privée (RGPD, données personnelles, consentement, rétention)",
+			"infra":         "infrastructure (revue IaC, sécurité, coût, drift)",
+			"database":      "base de données (privilèges, RLS, injections, chiffrement, sauvegardes, migrations)",
 		}
 
 		if _, ok := validTypes[auditType]; !ok {
@@ -321,7 +323,7 @@ func publishReviewToTeamState(ctx context.Context, a *app.App, projectID, ticket
 func init() {
 	rootCmd.AddCommand(auditCmd)
 	auditCmd.Flags().StringP("project", "p", "", "Nom du projet")
-	auditCmd.Flags().StringP("type", "t", "security", "Type d'audit (security, performance, architecture, accessibility, ecodesign, observability, privacy)")
+	auditCmd.Flags().StringP("type", "t", "security", "Type d'audit (security, performance, architecture, accessibility, ecodesign, observability, privacy, infra, database)")
 	_ = auditCmd.RegisterFlagCompletionFunc("project", completeProjectIDs)
 
 	rootCmd.AddCommand(reviewCmd)

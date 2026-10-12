@@ -118,11 +118,12 @@ The 13 workflows shipped by the hub:
 | `feature` | `orchestrator` | Feature end-to-end: plan, design, implementation, review |
 | `ticket` | `orchestrator-dev` | Ready-to-code Beads tickets (`--tickets a,b`: one session per ticket) |
 | `quick` | `developer` | Small, well-defined change |
+| `infra-change` | `operator` | Apply an infrastructure change already written: plan, approval, apply (`-i target=staging`) |
 | `cadrage` | `conductor` | Plan without implementing |
 | `onboarding` | `onboarder` | Discover a project, write its wiki (`docs/wiki/`) |
 | `review` | `reviewer` | Review a branch (read only) |
 | `review-feedback` | `orchestrator-dev` | Process the feedback of a review |
-| `audit` | `auditor` | Multi-domain audit (`-i type=security`…) |
+| `audit` | `auditor` | Multi-domain audit (`-i type=security`, `infra`, `database`…) |
 | `debug` | `debugger` | Diagnose a bug (`-i issue="…"`) |
 | `benchmark` | `benchmarker` | Measure performance, before/after (`-i target=…`) |
 | `sweep` | `conductor` | Goal-driven series of changes (`-i goal=…`) |
@@ -135,12 +136,12 @@ Workflows resolve **by layers**: hub < team < project < session options. A layer
 
 ## Agents
 
-20 agents in 7 families. Their default mode comes from their frontmatter; a workflow decides which ones are members of a session and may change their mode.
+19 agents in 8 families. Their default mode comes from their frontmatter; a workflow decides which ones are members of a session and may change their mode.
 
 - **`primary`**: entry point of a session
 - **`subagent`**: delegated by another agent of the workflow
 
-### Primary agents (15)
+### Primary agents (14)
 
 | Agent | Family | Role |
 |-------|--------|------|
@@ -150,14 +151,13 @@ Workflows resolve **by layers**: hub < team < project < session options. A layer
 | `planner` | Planning | Break down features into Beads tickets |
 | `pathfinder` | Planning | Fast reconnaissance, complexity estimation |
 | `onboarder` | Planning | Project discovery, wiki creation |
-| `auditor` | Auditor | Multi-domain audit coordinator (7 domains) |
+| `auditor` | Auditor | Multi-domain audit coordinator (9 domains, infrastructure and database included) |
 | `designer` | Design | Figma analysis, UX/UI specs (recon, ux, ui, ux+ui) |
 | `reviewer` | Quality | PR/MR review by severity (standard, adversarial, edge-case) |
 | `debugger` | Quality | Bug diagnosis, root cause |
 | `benchmarker` | Quality | Lighthouse, k6, pprof, py-spy performance benchmarks |
 | `test-generator` | Quality | Gap analysis, unit/integration/property-based tests |
-| `database` | Developer | Schema, migrations, query optimization, DB security audit |
-| `infra` | Developer | Terraform/K8s review, cost estimation, IaC security |
+| `operator` | Infra | Infrastructure change: plan, cost, risks, then apply of the approved plan (`infra-change`) |
 | `documentarian` | Documentation | README, CHANGELOG, ADR, API docs |
 
 ### Subagents (5)
@@ -167,7 +167,7 @@ Workflows resolve **by layers**: hub < team < project < session options. A layer
 | `developer` | `orchestrator-dev` | Implementation (frontend, backend, fullstack, api, mobile, data, devops, platform, security) |
 | `developer-refactor` | `orchestrator-dev` | Structural refactoring |
 | `developer-migrator` | `orchestrator-dev` | Incremental migrations |
-| `auditor-subagent` | `auditor` | All audit domains (security, performance, accessibility, ecodesign, architecture, privacy, observability) |
+| `auditor-subagent` | `auditor` | All audit domains (security, performance, accessibility, ecodesign, architecture, privacy, observability, infra, database) |
 | `brief-enricher` | `brief-enrich` workflow | Read-only takeover brief enrichment |
 
 See [Agents](docs/architecture/agents.en.md).
@@ -190,7 +190,7 @@ Choose with `oh run --runtime …`, else the project setting, the Settings, then
 
 ```
 openhub/
-├── agents/              <- Agent definitions (20 agents, 7 families)
+├── agents/              <- Agent definitions (19 agents, 8 families)
 ├── skills/              <- Protocols: Bucket A (inline) + Bucket B (on demand)
 ├── workflows/           <- Shipped workflows (oh/v1) + prompt templates
 ├── permissions/         <- Permission bases of the agents

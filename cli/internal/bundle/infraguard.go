@@ -2,9 +2,9 @@ package bundle
 
 import "github.com/datichb/openhub/cli/internal/sessionspec"
 
-// Infrastructure guard (v5 critical N4, DC4). The agents that may run
-// infrastructure tools (their own rules do not refuse the tool) get, after
-// their own rules:
+// Infrastructure guard (v5 critical N4, DC4). The agents that run an
+// infrastructure tool as a whole (their own rules do not refuse an arbitrary
+// sub-command of it, e.g. `terraform*`) get, after their own rules:
 //   - the read-only commands allowed (anchored on the tool: a global option
 //     before the sub-command falls back to the agent's own rule);
 //   - the reads of secrets and the tunnels asked;
@@ -17,60 +17,69 @@ import "github.com/datichb/openhub/cli/internal/sessionspec"
 // repository (providers, programs): the real protection is read-only
 // credentials (ReadOnlyAccess role, kubeconfig `view`) or a container
 // without ~/.aws and ~/.kube (SECURITY).
+//
+// An agent that only names some sub-commands (auditor-subagent: `terraform
+// validate*`, `terraform plan*` asked, everything else refused) keeps its
+// own rules: they already refuse the changes, and the guard would allow
+// what it chose to ask.
 
 // infraFamily is the guard of one tool, applied when the agent's own rules
-// do not refuse probe.
+// do not refuse an arbitrary sub-command of tool (guardProbe).
 type infraFamily struct {
-	probe string
-	read  []string // allowed
-	ask   []string // asked (secrets, tunnels, repositories)
-	keep  []string // allowed again after ask (harmless forms of an asked one)
+	tool string
+	read []string // allowed
+	ask  []string // asked (secrets, tunnels, repositories)
+	keep []string // allowed again after ask (harmless forms of an asked one)
 }
 
 var infraFamilies = []infraFamily{
-	{probe: "terraform plan", read: []string{
+	{tool: "terraform", read: []string{
 		"terraform fmt*", "terraform validate*", "terraform init*", "terraform plan*", "terraform show*",
 		"terraform state list*", "terraform state show*", "terraform providers*", "terraform graph*",
 		"terraform workspace list*", "terraform workspace show*", "terraform version*", "terraform -version*",
 	}, ask: []string{"*terraform* output*", "*terraform* console*"}},
-	{probe: "tofu plan", read: []string{
+	{tool: "tofu", read: []string{
 		"tofu fmt*", "tofu validate*", "tofu init*", "tofu plan*", "tofu show*", "tofu state list*", "tofu state show*",
 		"tofu providers*", "tofu graph*", "tofu workspace list*", "tofu workspace show*", "tofu version*",
 	}, ask: []string{"*tofu* output*", "*tofu* console*"}},
-	{probe: "kubectl get pods", read: []string{
+	{tool: "kubectl", read: []string{
 		"kubectl get *", "kubectl describe *", "kubectl logs *", "kubectl explain *", "kubectl version*", "kubectl api-*",
 		"kubectl top *", "kubectl diff *", "kubectl auth can-i *", "kubectl kustomize*", "kubectl config get-contexts*",
 		"kubectl config current-context*", "kubectl cluster-info", "kubectl * --dry-run=client*", "kubectl * --dry-run=server*",
 	}, ask: []string{"*kubectl* get secret*", "*kubectl* get secrets*", "*kubectl* describe secret*", "*kubectl* port-forward*", "*kubectl* proxy*"}},
-	{probe: "helm list", read: []string{
+	{tool: "helm", read: []string{
 		"helm template *", "helm lint *", "helm show *", "helm list*", "helm ls*", "helm status *", "helm history *",
 		"helm diff *", "helm search *", "helm dependency list*", "helm dependency build*", "helm version*",
 		"helm get manifest *", "helm get notes *",
 	}, ask: []string{"*helm* get values*", "*helm* get all*", "*helm* repo add*", "*helm* repo update*"}},
-	{probe: "aws s3 ls", read: []string{
+	{tool: "aws", read: []string{
 		"aws sts get-caller-identity*", "aws * describe-*", "aws * list-*", "aws s3 ls*", "aws --version",
 	}, ask: []string{"*aws* get-*"}, keep: []string{"aws sts get-caller-identity*"}},
-	{probe: "gcloud projects list", read: []string{
+	{tool: "gcloud", read: []string{
 		"gcloud * list*", "gcloud * describe *", "gcloud config list*", "gcloud version*", "gcloud info*",
 	}},
-	{probe: "az group list", read: []string{
+	{tool: "az", read: []string{
 		"az * list*", "az * show*", "az deployment * what-if *", "az deployment * validate *", "az version*", "az account show*",
 	}},
-	{probe: "pulumi preview", read: []string{
+	{tool: "pulumi", read: []string{
 		"pulumi preview*", "pulumi stack ls*", "pulumi about*", "pulumi whoami*", "pulumi version*",
 	}, ask: []string{"*pulumi* stack output*", "*pulumi* config*"}},
-	{probe: "vault status", read: []string{
+	{tool: "vault", read: []string{
 		"vault status*", "vault secrets list*", "vault kv list *", "vault kv metadata get *", "vault version*",
 	}, ask: []string{"*vault* kv get*", "*vault* read *"}},
-	{probe: "ansible-lint", read: []string{
+	{tool: "ansible-playbook", read: []string{
 		"ansible-lint*", "ansible-playbook * --syntax-check*", "ansible-playbook * --list-*", "ansible-inventory * --list*",
 		"ansible --version*",
 	}},
 }
 
-// ApplyLockPatterns are the infrastructure changes asked to an infra agent,
-// and refused while `apply` is locked (leading `*`: global flags such as
-// --context, --profile, -chdir may come first).
+// guardProbe is a sub-command no rule names: only a rule covering the whole
+// tool matches it.
+const guardProbe = "oh-guard-probe"
+
+// ApplyLockPatterns are the infrastructure changes asked to an agent that
+// runs the tools (operator), and refused while `apply` is locked (leading
+// `*`: global flags such as --context, --profile, -chdir may come first).
 var ApplyLockPatterns = []string{
 	"*terraform* apply*", "*terraform* destroy*", "*terraform* import*", "*terraform* refresh*",
 	"*terraform* taint*", "*terraform* untaint*", "*terraform* state rm*", "*terraform* state mv*",
@@ -83,7 +92,11 @@ var ApplyLockPatterns = []string{
 	"*kubectl* cordon*", "*kubectl* uncordon*", "*kubectl* taint*", "*kubectl* label*", "*kubectl* annotate*",
 	"*kubectl* set *", "*kubectl* exec*", "*kubectl* cp *", "*kubectl* run *", "*kubectl* expose*", "*kubectl* debug*",
 	"*kubectl* attach*", "*kubectl* certificate*", "*--dry-run=none*",
-	"*helm* install*", "*helm* upgrade*", "*helm* uninstall*", "*helm* delete*", "*helm* rollback*", "*helm* test *",
+	// helm: the sub-command right after helm or after a global flag, so
+	// that the helm-diff plugin (helm diff upgrade|rollback, --install)
+	// stays a read.
+	"*helm install*", "*helm -* install*", "*helm upgrade*", "*helm -* upgrade*", "*helm uninstall*", "*helm -* uninstall*",
+	"*helm delete*", "*helm -* delete*", "*helm rollback*", "*helm -* rollback*", "*helm test *", "*helm -* test *",
 	"*helm* plugin install*",
 	"*pulumi* up*", "*pulumi* destroy*", "*pulumi* refresh*", "*pulumi* import*", "*pulumi* state *", "*pulumi* cancel*",
 	"*aws* create-*", "*aws* delete-*", "*aws* put-*", "*aws* update-*", "*aws* modify-*", "*aws* terminate-*",
@@ -120,11 +133,11 @@ func InfraGuard(own []sessionspec.PermissionRule) []sessionspec.PermissionRule {
 	}
 	found := false
 	for _, f := range infraFamilies {
-		if eff, ok := evaluate(shell, f.probe); !ok || eff == sessionspec.EffectDeny {
+		if eff, ok := evaluate(shell, f.tool+" "+guardProbe); !ok || eff == sessionspec.EffectDeny {
 			continue
 		}
 		found = true
-		if f.probe == "ansible-lint" {
+		if f.tool == "ansible-playbook" {
 			// A playbook run changes hosts (also with --check on some
 			// modules): asked, its read-only forms allowed after.
 			add("*ansible-playbook *", sessionspec.EffectAsk)

@@ -9,16 +9,17 @@ import (
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 )
 
-// N4 (v5 critical, DC4): the infra agent reads freely, asks for secrets,
+// N4 (v5 critical, DC4): the operator reads freely, asks for secrets,
 // never changes anything while `apply` is locked, and never prints
 // credentials; global options before the sub-command do not help.
 func TestInfraReadOnly(t *testing.T) {
-	rules := effectiveRules(t, "infra", "infra")
+	rules := effectiveRules(t, "operator", "operator")
 	for _, cmd := range []string{
 		"terraform plan", "terraform -chdir=infra validate", "terraform state list", "kubectl get pods -A",
 		"kubectl describe deploy api", "kubectl logs api-1", "kubectl diff -f k8s/", "helm template ./chart", "helm list -A",
+		"helm diff upgrade api ./chart -f values.yaml", "helm diff upgrade --install api ./chart",
 		"aws sts get-caller-identity", "aws ec2 describe-instances", "aws s3 ls", "gcloud compute instances list",
-		"az group list", "pulumi preview", "vault status", "ansible-lint site.yml", "ansible-playbook site.yml --syntax-check",
+		"az group list", "pulumi preview",
 	} {
 		eff := ShellEffect(rules, cmd)
 		if cmd == "terraform -chdir=infra validate" {
@@ -28,15 +29,16 @@ func TestInfraReadOnly(t *testing.T) {
 		assert.Equal(t, sessionspec.EffectAllow, eff, cmd)
 	}
 	for _, cmd := range []string{
-		"kubectl get secret db -o yaml", "terraform output", "vault kv get secret/db", "helm get values api",
-		"aws ssm get-parameter --name x", "kubectl port-forward svc/db 5432", "ansible-playbook site.yml --check",
+		"kubectl get secret db -o yaml", "terraform output", "helm get values api",
+		"aws ssm get-parameter --name x", "kubectl port-forward svc/db 5432",
 	} {
 		assert.Equal(t, sessionspec.EffectAsk, ShellEffect(rules, cmd), cmd)
 	}
 	mutations := []string{
 		"terraform apply", "terraform -chdir=x apply -auto-approve", "terraform destroy", "tofu apply",
 		"kubectl apply -f k8s/", "kubectl --context prod delete pod x", "kubectl exec -it api -- sh", "kubectl apply --dry-run=none -f x",
-		"helm upgrade api ./chart", "helm uninstall api", "aws --profile p ec2 terminate-instances --instance-ids i-1",
+		"helm upgrade api ./chart", "helm uninstall api", "helm --kube-context prod upgrade --install api ./chart",
+		"/usr/local/bin/helm rollback api 3", "aws --profile p ec2 terminate-instances --instance-ids i-1",
 		"aws s3 rm s3://b/x", "aws lambda invoke --function-name f out", "gcloud compute instances delete x", "az group delete -n x",
 		"pulumi up", "vault kv put secret/x a=b", "vault login",
 	}
@@ -65,10 +67,45 @@ func TestInfraReadOnly(t *testing.T) {
 	}
 	assert.Equal(t, sessionspec.EffectAllow, ShellEffect(append(rules, SessionRules(none, "manuel", nil)...), "kubectl get pods"))
 
+	// The families the operator does not run (vault, ansible): guarded the
+	// same way for an agent that runs them as a whole.
+	other := ConvertPermissions(map[string]interface{}{"bash": map[string]interface{}{"*": "deny", "vault *": "ask", "ansible*": "ask"}})
+	other = append(other, InfraGuard(other)...)
+	for _, cmd := range []string{"vault status", "ansible-lint site.yml", "ansible-playbook site.yml --syntax-check"} {
+		assert.Equal(t, sessionspec.EffectAllow, ShellEffect(other, cmd), cmd)
+	}
+	for _, cmd := range []string{"vault kv get secret/db", "ansible-playbook site.yml --check", "vault kv put secret/x a=b"} {
+		assert.Equal(t, sessionspec.EffectAsk, ShellEffect(other, cmd), cmd)
+	}
+	assert.Equal(t, sessionspec.EffectDeny, ShellEffect(other, "kubectl get pods"), "a family it does not run")
+
 	// The guard never widens an agent that does not run the tools.
 	dev := effectiveRules(t, "developer", "developer")
 	assert.Equal(t, sessionspec.EffectDeny, ShellEffect(dev, "kubectl get pods"))
 	assert.Empty(t, InfraGuard(ConvertPermissions(map[string]interface{}{"bash": map[string]interface{}{"*": "deny", "git *": "allow"}})))
+}
+
+// C1: the auditor-subagent names a few analysis sub-commands (infra audit
+// domain): they stay asked (the guard, for agents that run a tool as a
+// whole, does not apply), everything else is refused, changes included.
+func TestAuditorSubagentInfraTools(t *testing.T) {
+	rules := effectiveRules(t, "auditor", "auditor-subagent")
+	for _, cmd := range []string{
+		"terraform validate", "terraform plan -input=false -detailed-exitcode", "terraform init -backend=false -lockfile=readonly",
+		"terraform fmt -check -recursive", "tflint --recursive", "tfsec .", "checkov -d . --compact", "trivy config .",
+		"kube-score score k8s/deploy.yaml", "kubesec scan k8s/deploy.yaml", "helm lint ./chart", "helm template ./chart",
+		"infracost breakdown --path infra",
+	} {
+		assert.Equal(t, sessionspec.EffectAsk, ShellEffect(rules, cmd), cmd)
+	}
+	for _, cmd := range []string{
+		"terraform apply", "terraform init", "terraform fmt", "terraform output", "terraform state pull", "kubectl get pods",
+		"kubectl apply -f k8s/", "helm upgrade api ./chart", "aws s3 ls", "trivy image alpine", "cat .env", "rm -rf infra",
+	} {
+		assert.Equal(t, sessionspec.EffectDeny, ShellEffect(rules, cmd), cmd)
+	}
+	assert.Empty(t, InfraGuard(rules), "no infra guard for named sub-commands")
+	assert.Equal(t, sessionspec.EffectDeny, ToolEffect(rules, sessionspec.ActionEdit, "infra/main.tf"))
 }
 
 // N4 (DC3): the debugger reads and diagnoses; it asks before running the

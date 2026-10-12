@@ -95,6 +95,7 @@ var extraSamples = map[string]map[string]map[string]any{
 		"by-package":    {"goal": "Migrer les appels dépréciés", "strategy": "by-package", "verify": "tests", "dry_run": "false"},
 	},
 	"review":     {"mode-only": {"review_mode": "adversarial"}},
+	"audit":      {"infra": {"type": "infra"}},
 	"onboarding": {"refresh": {"refresh": "true"}},
 }
 

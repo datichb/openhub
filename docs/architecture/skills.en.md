@@ -116,19 +116,19 @@ flowchart TD
 
 **Bucket B** — Domain standards, stack skills, checklists, doc type skills, detailed phases, research skills. Loaded only when the task needs them.
 
-All hub agents have `permission: skill: allow`, either directly or through their `permission_base` (`coordinator`, `developer-rw`, `readonly-code`). In the session, the closed-world rules limit the `skill` tool to the bundle skills.
+All hub agents have `permission: skill: allow`, either directly or through their `permission_base` (`coordinator`, `developer-rw`, `readonly-code`, `readonly-ops`). In the session, the closed-world rules limit the `skill` tool to the bundle skills.
 
 ---
 
 ## Skill inventory (source of truth)
 
-**182 skills** across 13 folders (142 domain skills + 40 stack skills), plus **14 annexes** in `skills/templates/`.
+**184 skills** across 13 folders (144 domain skills + 40 stack skills), plus **14 annexes** in `skills/templates/`.
 
 How to read the tables: the **Agents** column gives the bucket and the agents from their frontmatter (`A` = `skills:`, `B` = `native_skills:`). `—` = no agent references it: the skill is only in a bundle if a workflow adds it through `skills.extra`.
 
 Short notations:
 
-- **all** = the 19 agents except `brief-enricher`;
+- **all** = the 18 agents except `brief-enricher`;
 - **dev-rw** = `developer`, `developer-refactor`, `developer-migrator`.
 
 ### `shared/` — 16 skills (cross-cutting)
@@ -136,12 +136,12 @@ Short notations:
 | Skill | Agents | Content |
 |-------|--------|---------|
 | `universal-guardrails` | A: all | Cross-cutting guardrails — git push, recap/question ordering, context-mode usage, cleanup of background processes |
-| `wiki-navigation` | A: auditor-subagent, database, dev-rw, infra, onboarder, pathfinder, benchmarker, debugger, reviewer, test-generator | Living wiki navigation: read the index first, load the relevant pages, never the whole wiki |
+| `wiki-navigation` | A: auditor-subagent, dev-rw, onboarder, operator, pathfinder, benchmarker, debugger, reviewer, test-generator | Living wiki navigation: read the index first, load the relevant pages, never the whole wiki |
 | `hub-workflow-reference` | A: orchestrator, planner | Agent catalog, pathfinder vs planner heuristic, standard sequences, handoff table. **Generated from the workflow** in the bundle |
 | `websearch-usage` | A: pathfinder · B: auditor-subagent, designer, documentarian, onboarder, planner | `websearch` tool good practices: targeted queries, source checking |
-| `living-docs-enrichment` | B: auditor, database, dev-rw, infra, onboarder, pathfinder, planner, benchmarker, debugger, reviewer, test-generator | Incremental enrichment of the wiki (`docs/wiki/`), `ONBOARDING.md` and `CONVENTIONS.md`; delegates writing to the documentarian after confirmation |
-| `team-awareness` | B: the 20 agents | Collaboration through the `team` MCP server (claims, status, activity) |
-| `team-policies-enforcement` | B: the 20 agents except conductor | Compliance with team policies |
+| `living-docs-enrichment` | B: auditor, dev-rw, onboarder, operator, pathfinder, planner, benchmarker, debugger, reviewer, test-generator | Incremental enrichment of the wiki (`docs/wiki/`), `ONBOARDING.md` and `CONVENTIONS.md`; delegates writing to the documentarian after confirmation |
+| `team-awareness` | B: the 19 agents | Collaboration through the `team` MCP server (claims, status, activity) |
+| `team-policies-enforcement` | B: the 19 agents except conductor | Compliance with team policies |
 | `skill-authoring-protocol` | B: documentarian | Skill authoring — TDD RED/GREEN/REFACTOR, SDO checklist, anti-patterns, validation checklist |
 | `rtk-usage` | B: 15 agents | **Pre-v5** — RTK guide (see [Pre-v5 skills](#pre-v5-skills)) |
 | `context-mode-usage` | A: dev-rw | **Pre-v5** — usage of the context-mode `ctx_*` tools (see [Pre-v5 skills](#pre-v5-skills)) |
@@ -221,13 +221,13 @@ The last six are in no frontmatter: other skills mention them in their text, but
 
 | Skill | Agents | Content |
 |-------|--------|---------|
-| `dev-standards-universal` | A: dev-rw, database, infra, reviewer, test-generator | Clean Code, SOLID, naming, structure — language-agnostic. Completion gate (tests, behavior, regressions) and `BLOCKED_ARCHITECTURE` signal |
+| `dev-standards-universal` | A: dev-rw, reviewer, test-generator | Clean Code, SOLID, naming, structure — language-agnostic. Completion gate (tests, behavior, regressions) and `BLOCKED_ARCHITECTURE` signal |
 | `dev-standards-simplicity` | A: dev-rw | KISS, YAGNI, no premature abstraction or optimization, measurable complexity thresholds |
 | `quick-fix` | A: dev-rw | Deterministic fixes without review (lint, missing import, typo, formatting) |
 | `beads-dev` | A: dev-rw, documentarian | Beads executor workflow: `bd update --claim`, `bd close --suggest-next`, `ai-delegated` rules |
 | `beads-plan` | A: developer-refactor, developer-migrator, pathfinder · B: developer, designer, documentarian, onboarder, orchestrator, planner | Reading and creating Beads tickets: `bd list`, `bd show`, `bd create`, labels, dependencies, external links |
 | `developer-handoff-format` | A: dev-rw, orchestrator-dev | **Handoff contract** `## Return to orchestrator-dev`: modified files, tests, acceptance criteria, points of attention, status |
-| `dev-standards-security` | B: dev-rw, database, infra, reviewer | Secrets, input validation, injections, auth, logs, dependencies |
+| `dev-standards-security` | B: dev-rw, operator, reviewer | Secrets, input validation, injections, auth, logs, dependencies |
 | `dev-standards-testing` | A: test-generator · B: dev-rw, reviewer | Testing strategy, pyramid, coverage, TDD, completion gate |
 | `dev-standards-git` | A: documentarian · B: dev-rw, onboarder, reviewer | Conventional Commits, branches, PR/MR |
 | `dev-standards-backend` | B: reviewer | Layered architecture, DTOs, services, repositories |
@@ -245,7 +245,7 @@ Domain standards (`dev-standards-frontend`, `-backend`, `-api`…) are requested
 
 The **40 stack skills** in `developer/stacks/` are described in [Stack skills](#stack-skills--developerstacks).
 
-### `auditor/` — 13 skills
+### `auditor/` — 15 skills
 
 | Skill | Agents | Content |
 |-------|--------|---------|
@@ -262,8 +262,10 @@ The **40 stack skills** in `developer/stacks/` are described in [Stack skills](#
 | `audit-ecodesign` | — | RGESN, GreenIT, digital sobriety |
 | `audit-privacy` | — | GDPR, EDPB, minimisation, consent, PIA |
 | `audit-observability` | — | RED method, structured logs, traces, SLOs, alerting, dashboards |
+| `audit-infra` | — | IaC review (Terraform/OpenTofu, Kubernetes, Helm, ArgoCD), IaC security (CIS, NSA/CISA), cost, drift; static analysis tools asked |
+| `audit-database` | — | Roles and privileges, RLS, injection surfaces, encryption, backups, migration safety, sensitive data |
 
-The 7 domain checklists are meant to be passed to `auditor-subagent` by the coordinator, but no agent declares them: they are only in the `audit` bundle if a workflow adds them through `skills.extra`.
+The 9 domain checklists are loaded on demand by `auditor-subagent`, which names them in its domain table: they ship in every bundle where it is a member (`audit`). The `type` input of `audit` offers exactly these domains (test `TestAuditTypeEnumMatchesDomainSkills`).
 
 ### `quality/` — 8 skills
 
@@ -501,12 +503,12 @@ A skill that is not in the hub is added to the **team catalogue** (`catalog/skil
 
 ## Agent ↔ skills matrix
 
-Summary of the frontmatter of the 20 agents (`agents/**/*.md`). For the per-agent view, see also the [Skill Assignment Matrix](./agents.en.md#skill-assignment-matrix-source-of-truth).
+Summary of the frontmatter of the 19 agents (`agents/**/*.md`). For the per-agent view, see also the [Skill Assignment Matrix](./agents.en.md#skill-assignment-matrix-source-of-truth).
 
 Common skills, not repeated in the table:
 
 - `shared/universal-guardrails` (A): all agents except `brief-enricher`;
-- `shared/team-awareness` (B): the 20 agents;
+- `shared/team-awareness` (B): the 19 agents;
 - `shared/team-policies-enforcement` (B): all except `conductor`;
 - `shared/rtk-usage` (B, [pre-v5](#pre-v5-skills)): the agents marked ¹.
 
@@ -529,10 +531,9 @@ Handoff skills (`*-handoff-format`) are loaded by both the producer and the cons
 | `debugger` ¹ | debugger-workflow, debugger-handoff-format, debugger-forensic, debugger-report-templates, tool-question, wiki-navigation | debugger-execution-modes, debugger-phase-0-1, -2-3, -4-5, living-docs-enrichment, expert-posture |
 | `auditor` ¹ | coordination-only, retranscription-coordinateur, auditor-workflow, audit-protocol-light, audit-handoff-format, tool-question | auditor-execution-modes, living-docs-enrichment |
 | `auditor-subagent` ¹ | audit-protocol-light, subagent-concision-posture, audit-handoff-format, wiki-navigation | websearch-cve-lookup, websearch-performance-research, expert-posture, websearch-usage |
-| `database` | dev-standards-universal, tool-question, wiki-navigation | dev-standards-security, living-docs-enrichment |
-| `infra` | dev-standards-universal, tool-question, wiki-navigation | dev-standards-security, living-docs-enrichment |
+| `operator` ¹ | tool-question, wiki-navigation | dev-standards-security, living-docs-enrichment |
 | `test-generator` | dev-standards-universal, dev-standards-testing, tool-question, wiki-navigation | living-docs-enrichment |
 | `benchmarker` | tool-question, wiki-navigation | living-docs-enrichment |
 | `brief-enricher` | — (`skills: []`) | — (common skills only) |
 
-`database`, `infra` and `test-generator` are in none of the 13 shipped workflows: their skills only reach a bundle if a team or project workflow declares them as members. Stack skills are added to each bundle depending on the project ([Stack skills](#stack-skills--developerstacks)).
+Every shipped agent is a member of at least one of the 14 shipped workflows. Stack skills are added to each bundle depending on the project ([Stack skills](#stack-skills--developerstacks)).

@@ -1,12 +1,18 @@
 ---
 name: audit-handoff-format
-description: Source de vérité pour le format de retour des agents `auditor-subagent` vers l'`auditor`. Définit le bloc structuré unique à produire quand un agent auditeur termine son rapport et est invoqué depuis l'`auditor`. Le rapport d'audit complet est intégré dans le bloc. Injecté dans `auditor-subagent` et dans `auditor` pour garantir que le producteur et le consommateur partagent le même contrat.
+description: Source de vérité pour le format de retour d'audit — bloc `## Retour vers auditor` de l'`auditor-subagent` vers l'`auditor`, et même structure pour le bloc `## Retour vers orchestrator` de l'`auditor` quand l'orchestrator l'invoque. Le rapport d'audit complet est intégré dans le bloc. Injecté dans `auditor-subagent` et dans `auditor` pour que producteur et consommateur partagent le même contrat.
 ---
 
-# Skill — Format de handoff auditor → orchestrator
+# Skill — Format de handoff d'audit
 
-Ce skill est la **source de vérité** pour le format de retour de l'agent `auditor-subagent` vers l'`auditor`.
-Il est injecté dans `auditor-subagent` (producteur) et dans `auditor` (consommateur) — producteur et consommateur partagent le même contrat.
+Ce skill est la **source de vérité** pour le format de retour d'audit, utilisé sur deux étapes :
+
+| Producteur | Consommateur | Titre du bloc |
+|------------|--------------|---------------|
+| `auditor-subagent` (un domaine) | `auditor` | `## Retour vers auditor` |
+| `auditor` (synthèse multi-domaines, invoqué via `task` par l'orchestrator) | `orchestrator` | `## Retour vers orchestrator` |
+
+Il est injecté dans `auditor-subagent` et dans `auditor` : producteur et consommateur partagent le même contrat.
 
 ---
 
@@ -16,12 +22,16 @@ Il est injecté dans `auditor-subagent` (producteur) et dans `auditor` (consomma
 
 ---
 
-## Format du bloc `## Retour vers orchestrator`
+## Format du bloc
+
+Structure commune ; l'exemple montre le bloc du sous-agent. L'`auditor` produit la même
+structure sous le titre `## Retour vers orchestrator`, avec `**Agent :** auditor (<domaines>)`
+et un rapport complet multi-domaines.
 
 ```
 ---
 
-## Retour vers orchestrator
+## Retour vers auditor
 
 **Agent :** auditor-subagent (<domaine>)
 **Ticket :** #<ID> — <titre>
@@ -113,11 +123,17 @@ Il est injecté dans `auditor-subagent` (producteur) et dans `auditor` (consomma
 
 ---
 
-## Règles pour le consommateur (orchestrator)
+## Règles pour l'auditor (consommateur du sous-agent)
 
-**Spécificités auditor à vérifier :**
+- **Champs obligatoires** : `Périmètre audité`, `Synthèse des problèmes identifiés`, `Recommandations priorisées`, `Risque résiduel si non corrigé`, `Rapport d'audit complet`, `Statut`. Si l'un est absent → ré-invoquer le sous-agent (même `task_id`) pour qu'il complète.
+- **Statut `bloquant`** → pause de Phase 3 (audit bloquant) avant de lancer les domaines suivants.
+- **Consolidation** : reprendre score, compteurs par sévérité et recommandations de chaque bloc dans la synthèse de Phase 4 ; signaler le périmètre non couvert de chaque domaine.
 
-- **Champs obligatoires** : `Périmètre audité`, `Synthèse des problèmes identifiés`, `Recommandations priorisées`, `Risque résiduel si non corrigé`, `Rapport d'audit complet`, `Statut`. Si l'un est absent → demander à l'agent auditor de compléter avant de continuer.
+---
+
+## Règles pour l'orchestrator (consommateur de l'auditor)
+
+- **Champs obligatoires** : les mêmes. Si l'un est absent → demander à l'`auditor` de compléter avant de continuer.
 - **Retranscription** : afficher les champs du bloc de manière formatée dans la discussion (voir skill `retranscription-coordinateur`). Le `### Rapport d'audit complet` est affiché intégralement à l'utilisateur.
 - **Statut** : `bloquant` → le mentionner explicitement dans la question CP-audit · `acceptable` → le mentionner pour aider l'utilisateur à choisir "Accepter".
 - **Corrections** : transmettre les `### Recommandations priorisées` **intégralement** à `orchestrator-dev` si l'utilisateur choisit "Corriger" au CP-audit — ne jamais les résumer.

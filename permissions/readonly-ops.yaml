@@ -1,0 +1,41 @@
+# Permission base: readonly-ops
+# Operations without file changes — reads the project and runs only the
+# commands its agent adds (infrastructure tools: oh's infra guard allows the
+# reads, asks for the secrets and refuses the changes until `apply` is
+# unlocked). No edit, no write, no delegation.
+# Used by: operator
+question: allow
+skill: allow
+bash:
+  "*": deny
+  # Git — lecture
+  "git status*": allow
+  "git diff*": allow
+  "git log*": allow
+  "git show*": allow
+  "git rev-parse*": allow
+  # Filesystem — lecture (find -exec/-delete/-ok… refusés par le garde-fou
+  # d'oh ; recherche dans les fichiers : rg, grep)
+  "ls*": allow
+  "tree*": allow
+  "find*": allow
+  "cat *": allow
+  "head*": allow
+  "tail*": allow
+  "wc *": allow
+  "rg *": allow
+  "grep *": allow
+  "which *": allow
+  # Beads (passerelle : liste du workflow)
+  "bd show*": allow
+  "bd list*": allow
+  "bd search*": allow
+  "bd query*": allow
+read: allow
+glob: allow
+grep: allow
+edit: deny
+write: deny
+task: deny
+ctx_search: allow
+ctx_batch_execute: allow

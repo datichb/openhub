@@ -164,7 +164,7 @@ func (v *ModelsView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 }
 
 // Model family names (known set).
-var modelFamilies = []string{"planning", "developer", "quality", "auditor", "design", "documentation"}
+var modelFamilies = []string{"planning", "developer", "quality", "auditor", "infra", "design", "documentation", "utility"}
 
 func (v *ModelsView) loadEntries() {
 	v.entries = nil

@@ -233,7 +233,7 @@ restreinte aux membres du workflow, ou remplacée par `calls:`.
 | `reviewer` | `documentarian` ; `reviewer` (lui-même) seulement avec `calls: [reviewer]` |
 | `test-generator` | `reviewer`, `documentarian` |
 | `debugger`, `benchmarker` | `documentarian` |
-| `developer`, `developer-refactor`, `developer-migrator`, `database`, `infra` | `documentarian` |
+| `developer`, `developer-refactor`, `developer-migrator` | `documentarian` |
 | `auditor-subagent`, `designer`, `documentarian`, `onboarder`, `brief-enricher` | *(aucun)* |
 
 ### Modes `primary` vs `subagent`
