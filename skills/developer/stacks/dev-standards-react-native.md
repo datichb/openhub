@@ -5,6 +5,8 @@ description: Standards React Native — architecture, composants, navigation, é
 
 # Skill — Standards React Native
 
+> Versions de référence (octobre 2026) : React Native 0.87, Expo SDK 57, React 19.
+
 ## Rôle
 
 Ce skill définit les bonnes pratiques pour le développement mobile avec React Native.
@@ -18,14 +20,14 @@ Il complète `dev-standards-universal.md`, `dev-standards-typescript.md` et
 ❌ Jamais de secrets, tokens ou clés API dans le code de l'application
 ❌ Jamais de données sensibles dans AsyncStorage non chiffré
 ❌ Jamais de contournement des mécanismes de sécurité de la plateforme
-✅ Les tokens d'authentification sont stockés via `react-native-keychain`
+✅ Les tokens d'authentification sont stockés via `expo-secure-store` (Expo) ou `react-native-keychain`
 ✅ Toute communication réseau passe par HTTPS
 
 ---
 
 ## Architecture
 
-- Utiliser **Expo** pour les nouveaux projets (bare workflow si accès natif avancé nécessaire)
+- Utiliser **Expo** pour les nouveaux projets (prebuild / development builds si accès natif avancé nécessaire)
 - Séparation stricte : logique métier dans des hooks/services, UI dans les composants
 - Organisation par feature :
 
@@ -94,10 +96,9 @@ const styles = StyleSheet.create({
 ## Performance
 
 - Utiliser `FlatList` ou `FlashList` pour les listes longues — jamais `ScrollView` + `map`
-- `React.memo()` sur les composants purs qui re-renderent souvent
-- `useCallback` et `useMemo` uniquement si un problème de perf est mesuré (pas par défaut)
+- Activer **React Compiler** plutôt que `React.memo()`, `useCallback` et `useMemo` manuels — ceux-ci uniquement si un problème de perf est mesuré
 - Éviter les fonctions anonymes dans les props de composants de liste (crée de nouveaux refs)
-- Activer Hermes (moteur JS optimisé pour React Native)
+- Hermes et la New Architecture sont activés d'office (New Architecture seule possible depuis 0.82) — vérifier la compatibilité des bibliothèques natives avant adoption
 - Lazy loading des écrans avec `React.lazy` ou le lazy loading intégré de React Navigation
 
 ---
