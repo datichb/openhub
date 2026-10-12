@@ -5,6 +5,8 @@ description: Standards Prisma — schema, migrations, client, relations, transac
 
 # Skill — Standards Prisma
 
+> Versions de référence (octobre 2026) : Prisma ORM 7.10.
+
 ## Rôle
 
 Ce skill définit les bonnes pratiques pour l'accès aux données avec Prisma ORM.
@@ -24,14 +26,14 @@ Il complète `dev-standards-typescript.md` et `dev-standards-backend.md`.
 ## Schema
 
 ```prisma
-// ✅ schema.prisma bien structuré
+// ✅ prisma/schema.prisma bien structuré
 generator client {
-  provider = "prisma-client-js"
+  provider = "prisma-client"          // remplace prisma-client-js (déprécié)
+  output   = "../src/generated/prisma" // obligatoire depuis Prisma 7
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider = "postgresql"             // l'URL est dans prisma.config.ts
 }
 
 model User {
@@ -74,19 +76,32 @@ enum OrderStatus {
 - `@@index()` sur les colonnes filtrées et triées fréquemment
 - `@updatedAt` systématique sur les modèles mutables
 
+```typescript
+// ✅ prisma.config.ts — URL de connexion pour la CLI (les .env ne sont plus chargés automatiquement)
+import 'dotenv/config'
+import { defineConfig, env } from 'prisma/config'
+
+export default defineConfig({
+  schema: 'prisma/schema.prisma',
+  datasource: { url: env('DATABASE_URL') },
+})
+```
+
 ---
 
 ## Client Prisma — singleton
 
 ```typescript
-// lib/prisma.ts — instance unique
-import { PrismaClient } from '@prisma/client'
+// lib/prisma.ts — instance unique, driver adapter obligatoire depuis Prisma 7
+import { PrismaClient } from '../generated/prisma/client'
+import { PrismaPg } from '@prisma/adapter-pg'
 
 const globalForPrisma = globalThis as unknown as { prisma: PrismaClient }
 
 export const prisma =
   globalForPrisma.prisma ??
   new PrismaClient({
+    adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL }),
     log: process.env.NODE_ENV === 'development' ? ['query', 'warn', 'error'] : ['error'],
   })
 
@@ -165,6 +180,7 @@ const [updatedUser, log] = await prisma.$transaction([
 # ✅ Workflow de migration
 # Développement — génère et applique
 npx prisma migrate dev --name "add_user_phone"
+npx prisma generate   # plus lancé automatiquement par migrate dev depuis Prisma 7
 
 # Production — applique uniquement les migrations en attente
 npx prisma migrate deploy
@@ -183,7 +199,7 @@ npx prisma migrate status
 ```typescript
 // ✅ Mock du PrismaClient avec jest-mock-extended
 import { mockDeep, DeepMockProxy } from 'jest-mock-extended'
-import { PrismaClient } from '@prisma/client'
+import { PrismaClient } from './generated/prisma/client'
 
 // prisma.mock.ts
 export const prismaMock = mockDeep<PrismaClient>()
