@@ -22,6 +22,7 @@ var crossReferences = map[string]string{
 	"handoff-bloc-unique-rule → retranscription-coordinateur": "consumer side, inlined in the coordinators",
 	"onboarder-phase-3-4 → dev-standards-testing":             "agent recommendation written in the report",
 	"expert-posture → concision-posture":                      "relation between postures",
+	"dev-standards-backend → dev-standards-migration":         "destructive migration protocol, the developer's: the reviewer only reads the backend standards",
 }
 
 // C0.3: a skill named inside a shipped skill is loadable in that bundle

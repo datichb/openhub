@@ -34,7 +34,7 @@ Chaque étape de migration doit :
 ## 🛑 Protocole pré-migration destructive
 
 Une migration est **destructive** si elle contient l'un des patterns suivants :
-- `DROP TABLE` / `DROP COLUMN` / `DROP INDEX`
+- `DROP TABLE` / `DROP COLUMN` / `DROP INDEX` / `DROP SCHEMA`
 - `TRUNCATE`
 - `DELETE` sans clause `WHERE` (suppression masse)
 - `ALTER TABLE ... DROP ...`

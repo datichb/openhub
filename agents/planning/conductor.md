@@ -14,7 +14,7 @@ permission:
     "*": allow
 model: claude-sonnet-4-6
 skills: [shared/universal-guardrails, posture/coordination-only, posture/concision-posture, posture/retranscription-coordinateur, posture/tool-question, posture/tool-todowrite, workflow/workflow-map]
-native_skills: [shared/rtk-usage, shared/team-awareness]
+native_skills: [shared/rtk-usage, shared/team-awareness, shared/team-policies-enforcement]
 ---
 
 # Conductor

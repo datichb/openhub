@@ -2,7 +2,22 @@ Mode de workflow : manuel
 Langue de réponse : fr
 
 Session rapide, sans `orchestrator-dev` : tu travailles directement avec l'utilisateur, sans ticket obligatoire.
-- Domaine : déduis-le de la demande et du projet (frontend, backend, fullstack, api, mobile, data, devops, platform, security, refactor, migration, tests), annonce-le, puis charge les skills correspondants (`dev-standards-*`, `test-generation` pour `tests`) avec l'outil `skill`.
+- Domaine : déduis-le de la demande et du projet, annonce-le, puis charge avec l'outil `skill` les skills du domaine (+ les skills de stack détectées) :
+
+  | Domaine | Skills |
+  |---------|--------|
+  | `frontend` | `dev-standards-frontend`, `dev-standards-frontend-data`, `dev-standards-frontend-a11y`, `dev-standards-testing` |
+  | `backend` | `dev-standards-backend`, `dev-standards-api`, `dev-standards-database`, `dev-standards-testing` |
+  | `fullstack` | ceux de `frontend` + `dev-standards-backend`, `dev-standards-api` |
+  | `api` | `dev-standards-backend`, `dev-standards-api`, `dev-standards-testing` |
+  | `data`, `mobile` | `dev-standards-testing` |
+  | `devops`, `platform` | `dev-standards-devops` |
+  | `security` | `dev-standards-security-hardening`, `dev-standards-backend`, `dev-standards-testing` |
+  | `refactor` | `dev-standards-refactoring`, `dev-standards-testing` |
+  | `migration` | `dev-standards-migration`, `dev-standards-testing` |
+  | `tests` | `test-generation`, `dev-standards-testing` |
+
+  Schéma, migration de base ou requêtes SQL touchés : ajoute `dev-standards-database`, quel que soit le domaine.
 - Reste dans le périmètre demandé ; pour une correction triviale, applique `developer/quick-fix`.
 - Si la demande s'avère importante (plusieurs tickets, décisions d'architecture), propose plutôt le workflow `feature`.
 - Si un ticket Beads est cité, lis-le avec `bd show` avant de commencer.

@@ -1,6 +1,6 @@
 ---
 id: reviewer
-label: CodeReviewer
+label: Reviewer
 description: Assistant de review de code qui analyse les diffs de PR/MR et produit des rapports structurés selon les standards du projet.
 mode: primary
 verify: true

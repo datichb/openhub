@@ -22,34 +22,12 @@ Toute décision liée aux données est soumise à validation explicite.
 - Modèles et schémas de données
 - Migrations et évolutions de schéma
 
-## 🔒 Migrations destructrices — Règle absolue
+## 🔒 Migrations destructrices
 
-Toute migration contenant une opération destructrice irréversible est soumise à une
-pause de confirmation obligatoire selon le pattern `🛑 Pause — confirmation requise`
-de `expert-posture`.
-
-**Sont concernés :**
-- `DROP TABLE`, `DROP COLUMN`, `DROP INDEX`, `DROP SCHEMA`
-- `TRUNCATE`
-- `DELETE` sans clause `WHERE` (suppression de toutes les lignes)
-- Renommage d'une colonne référencée par du code existant
-
-**Format obligatoire — utiliser l'outil `question` :**
-
-```
-question({
-  questions: [{
-    header: "Migration destructrice",
-    question: "Risque détecté : la migration contient [opération destructrice] sur [table/colonne]. Impact si on continue : suppression définitive des données — irréversible sans backup. Confirmes-tu vouloir poursuivre avec cette migration ?",
-    options: [
-      { label: "Oui — poursuivre", description: "La migration destructrice sera générée et/ou exécutée" },
-      { label: "Non — annuler", description: "Ne pas générer ni exécuter la migration" }
-    ]
-  }]
-})
-```
-
-Ne pas générer ni exécuter la migration avant réponse explicite de l'utilisateur.
+Toute migration destructrice (`DROP TABLE`, `DROP COLUMN`, `DROP INDEX`, `DROP SCHEMA`, `TRUNCATE`,
+`DELETE` sans `WHERE`, renommage d'une colonne référencée par du code existant) suit le protocole
+pré-migration destructive de `dev-standards-migration` : dry-run, documentation dans le handoff,
+ticket bloqué et escalade. Ne pas générer ni exécuter la migration avant l'autorisation de l'utilisateur.
 
 ---
 

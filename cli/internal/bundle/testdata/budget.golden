@@ -45,8 +45,8 @@ none     libre                  reviewer                        14427    11820  
 none     libre                  TOTAL                          107054    89832   76   91   5992
 none     onboarding             onboarder                        6067     4679    6   20   1109
 none     onboarding             TOTAL                            6067     4679    6   20   1109
-none     quick                  developer                       13109    10471    8   16   1034
-none     quick                  TOTAL                           13109    10471    8   16   1034
+none     quick                  developer                       13109    10471    8   22   1309
+none     quick                  TOTAL                           13109    10471    8   22   1309
 none     review                 reviewer                        14418    11820    7   20   1467
 none     review                 TOTAL                           14418    11820    7   20   1467
 none     review-feedback        developer                       13138    10471    8   40   2787
@@ -103,8 +103,8 @@ stacks   libre                  reviewer                        14427    11820  
 stacks   libre                  TOTAL                          107054    89832   76   97   6228
 stacks   onboarding             onboarder                        6067     4679    6   26   1345
 stacks   onboarding             TOTAL                            6067     4679    6   26   1345
-stacks   quick                  developer                       13109    10471    8   22   1270
-stacks   quick                  TOTAL                           13109    10471    8   22   1270
+stacks   quick                  developer                       13109    10471    8   28   1545
+stacks   quick                  TOTAL                           13109    10471    8   28   1545
 stacks   review                 reviewer                        14418    11820    7   26   1703
 stacks   review                 TOTAL                           14418    11820    7   26   1703
 stacks   review-feedback        developer                       13138    10471    8   46   3023

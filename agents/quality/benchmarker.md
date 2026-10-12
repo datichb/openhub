@@ -1,6 +1,6 @@
 ---
 id: benchmarker
-label: Agent Benchmarker
+label: Benchmarker
 description: Mesure et compare les performances (Lighthouse, k6, pprof, go bench). Détecte les régressions, produit des rapports comparatifs et identifie les goulots d'étranglement.
 mode: primary
 permission:

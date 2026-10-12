@@ -108,15 +108,12 @@ func knownModel(m string) bool {
 // C4: the floor model of every agent is a bare model name (the provider is
 // the project's) known to the model resolution.
 func TestAgentModelsAreKnown(t *testing.T) {
-	// TODO(C2 content track): brief-enricher moves to claude-sonnet-4-6;
-	// drop this exception then (it no longer applies to the new value).
-	pinned := map[string]string{"brief-enricher": "anthropic/claude-sonnet-4-5"}
 	files, err := bricks.FindAgentFiles(repoHub(t))
 	require.NoError(t, err)
 	for _, id := range sortedKeys(files) {
 		fm, err := bricks.ParseAgentFrontmatter(files[id])
 		require.NoError(t, err)
-		if fm.Model == "" || pinned[id] == fm.Model {
+		if fm.Model == "" {
 			continue
 		}
 		assert.NotContains(t, fm.Model, "/", "%s: model %q names a provider: write the bare model name", id, fm.Model)

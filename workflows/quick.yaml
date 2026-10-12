@@ -30,6 +30,20 @@ checkpoints:
     mandatory: true
     mode: { manuel: pause, semi-auto: pause, auto: pause }
     unlocks: [commit, close]
+skills:
+  extra:
+    - developer/dev-standards-frontend
+    - developer/dev-standards-frontend-data
+    - developer/dev-standards-frontend-a11y
+    - developer/dev-standards-backend
+    - developer/dev-standards-api
+    - developer/dev-standards-database
+    - developer/dev-standards-devops
+    - developer/dev-standards-security-hardening
+    - developer/dev-standards-refactoring
+    - developer/dev-standards-migration
+    - developer/dev-standards-testing
+    - developer/test-generation
 beads:
   allow: [show, list, ready, search, query, children, comments, count, status, graph, history, create, update, close, dep, label]
 runtime: { default: local, allowed: [local] }
