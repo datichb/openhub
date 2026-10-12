@@ -85,6 +85,29 @@ func TestInfraReadOnly(t *testing.T) {
 	assert.Empty(t, InfraGuard(ConvertPermissions(map[string]interface{}{"bash": map[string]interface{}{"*": "deny", "git *": "allow"}})))
 }
 
+// C1: the auditor-subagent names a few analysis sub-commands (infra audit
+// domain): they stay asked (the guard, for agents that run a tool as a
+// whole, does not apply), everything else is refused, changes included.
+func TestAuditorSubagentInfraTools(t *testing.T) {
+	rules := effectiveRules(t, "auditor", "auditor-subagent")
+	for _, cmd := range []string{
+		"terraform validate", "terraform plan -input=false -detailed-exitcode", "terraform init -backend=false -lockfile=readonly",
+		"terraform fmt -check -recursive", "tflint --recursive", "tfsec .", "checkov -d . --compact", "trivy config .",
+		"kube-score score k8s/deploy.yaml", "kubesec scan k8s/deploy.yaml", "helm lint ./chart", "helm template ./chart",
+		"infracost breakdown --path infra",
+	} {
+		assert.Equal(t, sessionspec.EffectAsk, ShellEffect(rules, cmd), cmd)
+	}
+	for _, cmd := range []string{
+		"terraform apply", "terraform init", "terraform fmt", "terraform output", "terraform state pull", "kubectl get pods",
+		"kubectl apply -f k8s/", "helm upgrade api ./chart", "aws s3 ls", "trivy image alpine", "cat .env", "rm -rf infra",
+	} {
+		assert.Equal(t, sessionspec.EffectDeny, ShellEffect(rules, cmd), cmd)
+	}
+	assert.Empty(t, InfraGuard(rules), "no infra guard for named sub-commands")
+	assert.Equal(t, sessionspec.EffectDeny, ToolEffect(rules, sessionspec.ActionEdit, "infra/main.tf"))
+}
+
 // N4 (DC3): the debugger reads and diagnoses; it asks before running the
 // project's tests and cannot change files or run anything else.
 func TestDebuggerShell(t *testing.T) {

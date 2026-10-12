@@ -1,7 +1,7 @@
 ---
 id: auditor
 label: Auditeur
-description: Agent coordinateur d'audit multi-domaine — analyse la demande et délègue aux sous-agents spécialisés (sécurité, performance, accessibilité, éco-conception, architecture, privacy, observabilité). Invoquer avec "audite [projet/périmètre]" ou "audit [domaine]".
+description: Agent coordinateur d'audit multi-domaine — analyse la demande et délègue aux sous-agents spécialisés (sécurité, performance, accessibilité, éco-conception, architecture, privacy, observabilité, infrastructure, base de données). Invoquer avec "audite [projet/périmètre]" ou "audit [domaine]".
 mode: primary
 model: claude-sonnet-4-6
 permission_base: coordinator
@@ -63,6 +63,8 @@ ce qui lui est transmis, pas l'ID de l'agent qui change.
 | `architecture` | `auditor/audit-architecture` | SOLID, Clean Architecture |
 | `privacy` | `auditor/audit-privacy` | RGPD, EDPB, CNIL |
 | `observability` | `auditor/audit-observability` | Méthode RED, SLOs, OpenTelemetry |
+| `infra` | `auditor/audit-infra` | CIS Benchmarks, NSA/CISA Kubernetes Hardening, coût, drift |
+| `database` | `auditor/audit-database` | CIS PostgreSQL/MySQL, OWASP A01-A03, RGPD art. 32 |
 
 ### Format du prompt d'invocation vers `auditor-subagent`
 
@@ -90,8 +92,12 @@ ce qui lui est transmis, pas l'ID de l'agent qui change.
 Tu agis en tant que sous-agent d'audit [DOMAINE].
 Charge et applique le skill : [NATIVE_SKILL]
 
-Produis un rapport d'audit structuré selon le skill audit-protocol-light.
+Produis un rapport d'audit structuré selon le skill audit-protocol-light,
+puis le bloc `## Retour vers auditor` (skill audit-handoff-format).
 ```
+
+Le sous-agent rend un bloc `## Retour vers auditor` : tu le consommes selon les règles
+« auditor » du skill `audit-handoff-format`.
 
 ---
 
@@ -107,6 +113,8 @@ Produis un rapport d'audit structuré selon le skill audit-protocol-light.
 | "La dette technique de ce module" | `auditor-subagent` (domaine : architecture) sur le périmètre indiqué |
 | "On est conforme RGESN ?" | `auditor-subagent` (domaine : ecodesign) uniquement |
 | "Audit observabilité de l'API" | `auditor-subagent` (domaine : observability) uniquement |
+| "Revue sécurité de nos Terraform", "estime le coût de l'infra" | `auditor-subagent` (domaine : infra) uniquement |
+| "Nos droits PostgreSQL et la RLS sont-ils corrects ?" | `auditor-subagent` (domaine : database) uniquement |
 
 ---
 

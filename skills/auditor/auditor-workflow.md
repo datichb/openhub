@@ -77,6 +77,8 @@ Le coordinateur injecte le domaine et le native_skill dans le prompt d'invocatio
 | `architecture` | `auditor/audit-architecture` | SOLID, Clean Architecture |
 | `privacy` | `auditor/audit-privacy` | RGPD, EDPB, CNIL |
 | `observability` | `auditor/audit-observability` | Méthode RED, SLOs, OpenTelemetry |
+| `infra` | `auditor/audit-infra` | CIS Benchmarks, NSA/CISA Kubernetes Hardening, coût, drift |
+| `database` | `auditor/audit-database` | CIS PostgreSQL/MySQL, OWASP A01-A03, RGPD art. 32 |
 
 ---
 
@@ -332,7 +334,7 @@ Identifier l'intention dans la demande :
 
 **Audit complet :**
 - `"audite le projet"`, `"audit 360"`, `"audit complet"`, `"audite tout"`
-- → Tous les sous-agents (7 domaines)
+- → Tous les domaines pertinents pour la stack (9 domaines ; `infra` et `database` seulement si le projet contient de l'IaC ou une base de données)
 
 **Audit ciblé :**
 - `"audite la sécurité"`, `"audit sécu"` → domaine `security`
@@ -342,6 +344,8 @@ Identifier l'intention dans la demande :
 - `"audit éco-conception"`, `"RGESN"`, `"GreenIT"` → domaine `ecodesign`
 - `"audit architecture"`, `"dette technique"` → domaine `architecture`
 - `"audit observabilité"`, `"monitoring"`, `"SLOs"` → domaine `observability`
+- `"revue Terraform"`, `"sécurité Kubernetes"`, `"coût cloud"`, `"drift"`, `"IaC"` → domaine `infra`
+- `"audit base de données"`, `"droits PostgreSQL"`, `"RLS"`, `"migrations sûres"`, `"sauvegardes"` → domaine `database`
 
 **Audit express :**
 - `"quick audit"`, `"audit rapide"`, `"audit essentiel"`
@@ -360,6 +364,8 @@ Certains domaines d'audit ne sont pertinents que pour certaines stacks :
 | Accessibilité | Frontend avec UI (HTML/CSS/JS) | Non pertinent pour API pure, CLI, backend |
 | Éco-conception | Application déployée (web, mobile, serveur) | Moins pertinent pour lib, SDK |
 | Observability | Application en production avec endpoints | Moins pertinent pour lib, script one-shot |
+| Infra | Code IaC présent (Terraform/OpenTofu, manifestes Kubernetes, charts Helm, ArgoCD, Pulumi) | Non pertinent sans IaC dans le dépôt |
+| Database | Base de données utilisée (schéma, migrations, ORM, configuration de connexion) | Non pertinent sans base de données |
 
 Si un domaine est demandé mais non pertinent pour la stack → le signaler et proposer de le retirer.
 
@@ -383,6 +389,8 @@ Si la **demande est ambiguë** ou si un **domaine demandé n'est pas pertinent p
 | Architecture | auditor-subagent (architecture) | ✅ Pertinent | Moyenne |
 | Privacy | auditor-subagent (privacy) | ✅ Pertinent | Haute |
 | Observabilité | auditor-subagent (observability) | ✅ Pertinent | Moyenne |
+| Infrastructure | auditor-subagent (infra) | ✅ Pertinent | Moyenne |
+| Base de données | auditor-subagent (database) | ✅ Pertinent | Haute |
 
 **Domaines écartés :**
 - <domaine écartés — raison>
@@ -491,7 +499,8 @@ Pour chaque sous-agent à invoquer, préparer un prompt complet avec :
 
 ---
 
-Produis un rapport d'audit structuré selon le skill `audit-protocol-light`.
+Produis un rapport d'audit structuré selon le skill `audit-protocol-light`,
+puis le bloc `## Retour vers auditor` (skill `audit-handoff-format`).
 ```
 
 #### ÉTAPE 3.2 — Invoquer le sous-agent
@@ -524,7 +533,8 @@ Charge et applique le skill : audit-security
 
 #### ÉTAPE 3.3 — Collecter les rapports
 
-Pour chaque invocation, collecter :
+Chaque sous-agent rend un bloc `## Retour vers auditor` (règles « auditor » du skill
+`audit-handoff-format`). Pour chaque invocation, collecter :
 - Le rapport d'audit complet (format `audit-protocol-light`)
 - Le score global /10
 - Le nombre de problèmes par criticité (🔴 Critique, 🟠 Majeur, 🟡 Mineur)

@@ -5,7 +5,7 @@ description: "Carte du workflow audit : agents, délégations, checkpoints, mode
 
 # Carte du workflow `audit`
 
-Audit du projet (sécurité, performance, architecture, accessibilité…), sans rien modifier
+Audit du projet (sécurité, performance, architecture, accessibilité, infrastructure, base de données…), sans rien modifier
 
 - Agent d'entrée : `auditor`
 - Risque : `read` : aucune modification de fichier, aucune écriture Beads
