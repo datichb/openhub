@@ -72,6 +72,7 @@
   ],
   "skills": [
     "beads-plan",
+    "dev-standards-git",
     "doc-wiki-protocol",
     "expert-posture",
     "handoff-bloc-unique-rule",
@@ -88,7 +89,6 @@
     "subagent-execution-protocol",
     "team-awareness",
     "team-policies-enforcement",
-    "tracker-integration-protocol",
     "websearch-stack-research",
     "websearch-usage"
   ],

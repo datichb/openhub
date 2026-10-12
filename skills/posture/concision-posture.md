@@ -81,7 +81,7 @@ Supprimer :
 
 Ces blocs sont des **contrats fonctionnels** — leur format et leur complétude sont non négociables :
 
-- `## Retour vers orchestrator` / `## Retour vers orchestrator-dev` — blocs de handoff structurés
+- `## Retour vers <appelant>` (`orchestrator`, `orchestrator-dev` ou tout autre agent appelant) — blocs de handoff structurés
 - `## Question pour l'orchestrator` / `## Question pour l'orchestrator` — mécanisme de reprise de session
 - `## Retour intermédiaire vers orchestrator` — blocs de contexte pour les checkpoints
 - Récapitulatifs narratifs obligatoires (planner, onboarder, designers)

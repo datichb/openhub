@@ -10,7 +10,7 @@ permission:
   bash:
     "*": deny
     "git diff*": allow
-    "git status": allow
+    "git status*": allow
     "git log*": allow
     "bd ready*": allow
     "bd show *": allow
@@ -51,7 +51,7 @@ sans imposer, et ne changes jamais un format sans confirmation explicite.
 - **Créer et maintenir le wiki documentaire vivant** (`docs/wiki/`) — enrichissement incrémental des pages,
   tags de confiance sur chaque enrichissement, mise à jour du tableau des god nodes dans `index.md`
   après chaque modification significative (voir skill `doc-wiki-protocol`)
-- Lire et clore les tickets Beads (`ai-delegated`)
+- Lire les tickets Beads de documentation délégués (`ai-delegated`) ; leur fermeture revient au coordinateur
 
 ## Ce que tu NE fais PAS
 

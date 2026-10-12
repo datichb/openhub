@@ -111,7 +111,7 @@ Dans la TUI, **Démarrer** liste les workflows (★ épinglés, récents), ouvre
 
 ## Workflows
 
-Les 12 workflows livrés par le hub :
+Les 13 workflows livrés par le hub :
 
 | Workflow | Agent d'entrée | Usage |
 |----------|----------------|-------|
@@ -124,6 +124,7 @@ Les 12 workflows livrés par le hub :
 | `review-feedback` | `orchestrator-dev` | Traiter les retours d'une review |
 | `audit` | `auditor` | Audit multi-domaines (`-i type=security`…) |
 | `debug` | `debugger` | Diagnostiquer un bug (`-i issue="…"`) |
+| `benchmark` | `benchmarker` | Mesurer les performances, avant/après (`-i target=…`) |
 | `sweep` | `conductor` | Série de modifications guidée par un but (`-i goal=…`) |
 | `brief-enrich` | `brief-enricher` | Enrichir un brief de reprise (sans interface) |
 | `libre` | au choix (`--agent`) | Session libre avec l'agent de votre choix |

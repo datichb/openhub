@@ -44,7 +44,7 @@ func TestShippedWorkflowSkillMentionsResolve(t *testing.T) {
 					headed[a.ID][m[1]] = true
 				}
 			}
-			keep := rootFilter(newSkillLoader(hub, generated), b.Spec.Plugins, "")
+			keep := rootFilter(newSkillLoader(hub, generated), b.Spec.Plugins, b.Spec.MCP, "")
 			check := func(where, agent, text string) {
 				for _, ref := range mentionedSkills(text, index) {
 					if !keep(ref) {

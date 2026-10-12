@@ -18,7 +18,7 @@ flowchart LR
 ```
 
 **Key concepts** (see the full [Glossary](../reference/glossary.en.md)):
-- **Workflow** -- what a session does: entry agent, allowed agents, inputs, checkpoints, modes (`manuel`, `semi-auto`, `auto`). 12 workflows are shipped (see [Shipped workflows](../reference/workflows.en.md)).
+- **Workflow** -- what a session does: entry agent, allowed agents, inputs, checkpoints, modes (`manuel`, `semi-auto`, `auto`). 13 workflows are shipped (see [Shipped workflows](../reference/workflows.en.md)).
 - **Session** -- one run of a workflow on a project. It runs on an `opencode serve` server managed by oh.
 - **Session bundle** -- the agents, skills, permissions and MCP of a session, built at launch outside the project (`~/.oh/bundles/<hash>/`). Nothing is copied into the project. Only the bundle's agents are visible ("closed world").
 - **Decision** -- what the session waits for from you: `⏸` checkpoint, `?` question, `!` permission, `$` budget, `✗` error.

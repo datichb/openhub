@@ -754,7 +754,6 @@
     "subagent-execution-protocol",
     "team-awareness",
     "team-policies-enforcement",
-    "tracker-integration-protocol",
     "websearch-stack-research"
   ],
   "subagent_graph": {

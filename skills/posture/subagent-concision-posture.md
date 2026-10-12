@@ -59,7 +59,7 @@ Le bloc de handoff est défini dans le skill `*-handoff-format` correspondant à
 
 Le bloc de handoff est un **contrat fonctionnel**. Son format, ses champs et sa complétude sont non négociables :
 
-- `## Retour vers orchestrator` / `## Retour vers orchestrator-dev`
+- `## Retour vers <appelant>` (`orchestrator`, `orchestrator-dev` ou tout autre agent appelant)
 - `## Question pour l'orchestrator`
 - `## Retour intermédiaire vers orchestrator`
 - `## Question batch pour l'orchestrator`

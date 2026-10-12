@@ -1,5 +1,5 @@
 %% OpenHub -- Workflow scenarios map (v5)
-%% "What do you need?" -> one of the 12 workflows shipped by the hub
+%% "What do you need?" -> one of the 13 workflows shipped by the hub
 %% (workflows/*.yaml), grouped by category, with their entry agent, risk and
 %% allowed runtimes (⌂ local, ▣ container, ☁ remote).
 %% Solid arrows: "Chain with…" suggestions at the end of a session (a typed output
@@ -17,6 +17,7 @@ flowchart LR
     Start -->|"review a branch"| REV
     Start -->|"audit the code"| AUD
     Start -->|"fix a bug"| DBG
+    Start -->|"measure performance"| BENCH
     Start -->|"document the project"| ONB
     Start -->|"one agent, no workflow"| LIB
 
@@ -36,6 +37,7 @@ flowchart LR
         REV["<b>review</b><br/>reviewer · read · ⌂ ☁"]
         AUD["<b>audit</b><br/>auditor · read · ⌂ ☁"]
         DBG["<b>debug</b><br/>debugger · write · ⌂"]
+        BENCH["<b>benchmark</b><br/>benchmarker · write · ⌂"]
     end
 
     subgraph KNOWLEDGE ["Knowledge"]

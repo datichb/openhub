@@ -206,9 +206,11 @@ Lancer uniquement si :
 **Annoncer avant d'explorer :**
 > "Je vais rechercher les maquettes Figma liées au projet."
 
-#### Recherche des fichiers Figma
+#### Collecte des URL Figma
 
-Le serveur MCP Figma n'a pas d'outil de recherche : chercher des URL Figma (`figma.com/file/<file_key>/…` ou `figma.com/design/<file_key>/…`) dans le README, `docs/`, le wiki et les tickets Beads (`bd search figma.com`). Pour chaque fichier trouvé : `figma_get_file(file_key)`.
+Tu n'as pas accès au MCP Figma : tu collectes les URL, l'analyse des maquettes revient au `designer` (Mode recon).
+
+Cherche les URL Figma (`figma.com/file/<file_key>/…` ou `figma.com/design/<file_key>/…`) dans le README, `docs/`, le wiki et les tickets Beads (`bd search figma.com`).
 
 **Si aucune URL trouvée :**
 
@@ -223,7 +225,7 @@ question({
     header: "Fichiers Figma",
     question: "[Onboarder — Phase 1.5 | Projet : <nom>]\nJe n'ai trouvé aucune URL de fichier Figma (README, documentation, wiki, tickets).\n\nComment procéder ?",
     options: [
-      { label: "Fournir l'URL du fichier", description: "Coller l'URL du fichier Figma à analyser" },
+      { label: "Fournir l'URL du fichier", description: "Coller l'URL du fichier Figma à référencer dans le wiki" },
       { label: "Pas de maquettes Figma", description: "Ce projet n'a pas de maquettes Figma — passer à Phase 1.6" },
       { label: "Ignorer pour l'instant", description: "Continuer l'onboarding sans les maquettes" }
     ]
@@ -231,51 +233,22 @@ question({
 })
 ```
 
-**Si fichier(s) trouvé(s) :**
-→ Continuer vers analyse
+#### Design system côté code
 
-#### Analyse des fichiers Figma (max 3 fichiers pertinents)
-
-Pour chaque fichier :
-
-```
-figma_get_file(file_key)
-→ Obtenir : nom, pages, frames, composants, date de modification ;
-  en déduire la complexité et les signaux UX/UI
-
-figma_get_styles(file_key)
-→ Obtenir : styles publiés (couleur, typo, effets) = tokens du design system
-
-figma_get_node(file_key, node_id)
-→ Détail d'une page ou d'un composant (ex. page Tokens) si besoin
-```
-
-#### Identification du design system
-
-**Critères de détection :**
-- Fichier Figma nommé "*Design System*" ou "*DS*" ou "*Components*"
-- Présence de tokens structurés dans Figma Variables
-- Composants nommés selon une convention (DSFR*, Material*, Ant*, Custom*)
-
-**Si design system détecté :**
-- Lister les composants principaux (max 10)
-- Extraire les design tokens
-- Identifier le framework (DSFR / Material / Ant Design / Custom)
-
-**Si pas de design system :**
-- Mentionner "Pas de design system centralisé détecté dans Figma"
+Repère le design system dans le code : dépendances (`@gouvfr/dsfr`, `@mui/material`, `antd`…), dossier de composants partagés, fichier de tokens (CSS custom properties, `tokens.json`, thème Tailwind).
 
 #### Récap Figma
 
 ```markdown
 **Maquettes Figma détectées :**
-- Fichiers trouvés : X fichiers
-  - [Nom fichier 1](URL)
-  - [Nom fichier 2](URL)
-- Design system : <Oui — Framework : DSFR / Non>
-  - Composants disponibles : <liste>
-- Design tokens : <X tokens couleur, Y tokens typo, Z tokens spacing / Non configurés>
+- URL trouvées : X
+  - <URL 1> (source : README / docs / bd-X)
+  - <URL 2>
+- Design system (code) : <DSFR / Material / Ant Design / Custom / Non détecté>
+- Analyse des maquettes : recommandée au `designer` (Mode recon) — `oh run libre --agent designer`
 ```
+
+En Phase 5, liste ces URL dans le wiki (section design system de `docs/wiki/technical/architecture.md`) et ajoute le `designer` (Mode recon) aux agents recommandés.
 
 ---
 

@@ -20,6 +20,7 @@ Chaque session lance un **workflow** (voir [Workflows livrés](../reference/work
 | Spécifications UX/UI uniquement, sans implémenter | `oh run libre --agent designer` | `designer` | `"Spec UX pour [feature]"` (Mode : ux, ui ou ux+ui) |
 | Audit avant mise en production | `oh run audit` | `auditor` | `"Audite le projet"` |
 | Bug en production avec stacktrace ou logs | `oh run debug` | `debugger` | `"Ce bug : [stacktrace]"` |
+| Mesurer les performances, avant/après une optimisation | `oh run benchmark -i target=…` | `benchmarker` | cible (URL, endpoint, package, commande), `-i baseline=main` |
 | Review d'une PR développée manuellement | `oh run review` | `reviewer` | `"Review de ma PR — branche : [nom]"` |
 | Planifier une feature sans l'implémenter | `oh run cadrage` | `conductor` → `planner` | `"Décompose [feature] en tickets"` |
 | Planifier + déléguer les specs UX/UI au planner | `oh run libre --agent planner` | `planner` | `"Planifie [feature]"` puis `"invoquer UX"` / `"invoquer UI"` |
@@ -915,3 +916,28 @@ bd-12  P1  feature  ~3h   Implémentation formulaire d'inscription
 bd-13  P1  feature  ~2h   Service de vérification email
        → acceptance : email envoyé < 30s, lien expire après 24h, ...
 ```
+
+---
+
+## Scénario 10 — Benchmark avant/après (benchmarker)
+
+**Contexte :** vous avez optimisé un endpoint et voulez mesurer le gain par rapport à `main`.
+
+```bash
+oh run benchmark -i target="GET /api/users sur http://localhost:3000" -i mode=api -i baseline=main
+```
+
+1. Le `benchmarker` identifie le scénario (k6 smoke puis load) et la référence (`main`, ou le dernier rapport de `reports/benchmarks/` sans `baseline`).
+2. **`cp-target`** (en pause dans tous les modes) : il présente la cible, l'environnement, le profil de charge et la durée. Aucune mesure ni requête vers la cible avant votre validation ; une cible de production demande une confirmation explicite.
+3. Il mesure, compare et écrit le rapport dans `reports/benchmarks/` (seul répertoire où il écrit), puis passe `cp-recap` :
+
+```
+## Benchmark — GET /api/users
+- Mode : api · environnement : local
+- Référence : main
+- Régression : non (p95 412 ms → 268 ms, −35 %)
+- Rapport : reports/benchmarks/api-20261012-143000.md
+- Suite proposée : aucune
+```
+
+Le code n'est jamais modifié : une optimisation à faire devient une recommandation pour le `developer`. Dans une session `libre` (`oh run libre --agent benchmarker`), la confirmation de la cible passe par l'outil `question`.

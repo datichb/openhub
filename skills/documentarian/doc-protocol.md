@@ -178,13 +178,13 @@ passer en revue cette checklist :
 1. bd ready --label ai-delegated --json          → tickets doc délégués
 2. bd show <ID>                                   → lire le détail
 3. Étape 0 — exploration du projet               → comprendre la structure existante
-4. bd update <ID> --claim                         → clamer le ticket
-5. Adapter ou proposer un standard               → voir tableau d'adaptation
-6. [Attendre confirmation si standard proposé]
-7. Rédiger la documentation
-8. bd update <ID> --add-label ready-for-review                      → passer en review
-9. bd close <ID> --suggest-next                  → clore et voir le ticket suivant
+4. Adapter ou proposer un standard               → voir tableau d'adaptation
+5. [Attendre confirmation si standard proposé]
+6. Rédiger la documentation
+7. Bloc de retour vers l'appelant                → voir documentarian-handoff-format
 ```
+
+La prise en charge, le commit et la fermeture du ticket reviennent au coordinateur.
 
 ---
 

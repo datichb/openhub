@@ -321,7 +321,7 @@ Invoquer `documentarian` uniquement si l'utilisateur répond "Oui".
    - **Présent** → continuer la vérification suivante
    - **Absent** → demander explicitement au documentarian de présenter le contenu complet avant de continuer.
 
-2. **Détecter la présence du bloc `## Retour vers orchestrator-dev`** :
+2. **Détecter la présence du bloc de retour** (titre commençant par `## Retour vers`) :
    - **Présent** → lire le `### Statut` et intégrer le `### Résumé de l'entrée` dans le compte rendu d'étape
    - **Absent** → demander explicitement au documentarian de produire le bloc avant de continuer.
 

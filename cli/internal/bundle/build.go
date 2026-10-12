@@ -172,7 +172,7 @@ func Build(req Request) (*Bundle, error) {
 		signals = bricks.DetectSignals(req.ProjectPath)
 	}
 	req.verifyCommands = bricks.VerifyCommands(signals)
-	keep := frontendFilter(rootFilter(loader, req.Plugins, ""), req.ProjectPath, signals)
+	keep := frontendFilter(rootFilter(loader, req.Plugins, req.MCP, ""), req.ProjectPath, signals)
 	mentionIndex := hubSkillIndex(req.HubDir, generated)
 	ids := skillIndex{}
 	callers := callersOf(bundleGraph(graph, selected))

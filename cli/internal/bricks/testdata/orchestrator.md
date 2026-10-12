@@ -17,8 +17,6 @@ permission:
 skills:
   - planning
   - decomposition
-mcpServers:
-  - gitlab
 ---
 
 # Orchestrator Agent

@@ -1,6 +1,6 @@
 ---
 
-## Retour vers orchestrator-dev
+## Retour vers <appelant>
 
 **Agent :** documentarian
 **Ticket :** #<ID> — <titre> (si applicable, sinon "— demande directe")

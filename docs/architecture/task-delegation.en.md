@@ -320,7 +320,7 @@ The `## Question for the orchestrator` block contains:
 |-------|----------|----------|------------|
 | `developer/developer-handoff-format` | `developer`, `developer-refactor`, `developer-migrator` | `orchestrator-dev` | Modified files, checked criteria, attention points, status |
 | `reviewer/reviewer-handoff-format` | `reviewer` | `orchestrator-dev` | Verdict, verbatim corrections, recommended routing |
-| `documentarian/documentarian-handoff-format` | `documentarian` | `orchestrator-dev` | Type, modified files, summary |
+| `documentarian/documentarian-handoff-format` | `documentarian` | its caller (`## Retour vers <caller>`) | Type, modified files, summary |
 | `orchestrator/orchestrator-handoff-format` | `orchestrator-dev` | `orchestrator` | Processed tickets, per-ticket detail, attention points, global status |
 | `auditor/audit-handoff-format` | `auditor-subagent` | `auditor` | Vulnerabilities, recommendations, residual risk |
 | `design/design-handoff-format` | `designer` | `orchestrator` | Full spec, constraints, open points |

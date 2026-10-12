@@ -107,7 +107,6 @@ permission:
   task:               # agents que cet agent peut lancer (restreint ensuite au workflow)
     "*": deny
     "documentarian": allow
-mcpServers: [gitlab]  # optionnel — MCP utilisés par l'agent
 skills: [chemin/vers/skill, ...]          # Bucket A — assemblées inline à la construction du paquet de session
 native_skills: [chemin/vers/skill, ...]   # Bucket B — livrées dans skills/ du paquet de session, chargées à la demande
 ---
@@ -152,14 +151,14 @@ L'agent d'entrée doit être `primary`.
 
 Relevé des frontmatter de `agents/`.
 
-| Famille | Agent | Mode (frontmatter) | Base de permissions | MCP |
+| Famille | Agent | Mode (frontmatter) | Base de permissions | MCP (skills `mcp:`) |
 |---------|-------|--------------------|---------------------|-----|
 | planning | `conductor` | `primary` | `coordinator` | — |
 | planning | `orchestrator` | `primary` | — | — |
 | planning | `orchestrator-dev` | `primary` | — | — |
-| planning | `planner` | `primary` | — | `gitlab` |
-| planning | `pathfinder` | `primary` | — | `gitlab` |
-| planning | `onboarder` | `primary` | — | `gitlab` |
+| planning | `planner` | `primary` | — | `gitlab`, `github` |
+| planning | `pathfinder` | `primary` | — | `gitlab`, `github` |
+| planning | `onboarder` | `primary` | — | `gitlab`, `github` |
 | developer | `developer` | `subagent` | `developer-rw` | — |
 | developer | `developer-refactor` | `subagent` | `developer-rw` | — |
 | developer | `developer-migrator` | `subagent` | `developer-rw` | — |
@@ -190,11 +189,11 @@ Ce tableau est la reference faisant autorite pour les skills charges par chaque 
 | Agent | Bucket A (inline) | Bucket B (natif / a la demande) |
 |-------|-------------------|-------------------------------|
 | **conductor** | `posture/coordination-only`, `posture/concision-posture`, `posture/retranscription-coordinateur`, `posture/tool-question`, `posture/tool-todowrite`, `workflow/workflow-map` (générée depuis le YAML du workflow) | `shared/rtk-usage` |
-| **orchestrator** | `posture/coordination-only`, `posture/concision-posture`, `posture/retranscription-coordinateur`, `orchestrator/orchestrator-workflow-modes`, `orchestrator/orchestrator-handoff-format`, `orchestrator/orchestrator-protocol`, `posture/tool-question`, `posture/tool-todowrite`, `planning/planner-handoff-format`, `shared/hub-workflow-reference` | `planning/pathfinder-handoff-format`, `design/design-handoff-format`, `auditor/audit-handoff-format`, `planning/onboarder-handoff-format`, `quality/debugger-handoff-format`, `documentarian/documentarian-handoff-format`, `shared/rtk-usage`, `orchestrator/orchestrator-recap-edge`, `developer/beads-plan`, `orchestrator/takeover-context-protocol` |
+| **orchestrator** | `posture/coordination-only`, `posture/concision-posture`, `posture/retranscription-coordinateur`, `orchestrator/orchestrator-workflow-modes`, `orchestrator/orchestrator-handoff-format`, `orchestrator/orchestrator-protocol`, `posture/tool-question`, `posture/tool-todowrite`, `planning/planner-handoff-format`, `shared/hub-workflow-reference` | `planning/pathfinder-handoff-format`, `design/design-handoff-format`, `planning/onboarder-handoff-format`, `quality/debugger-handoff-format`, `documentarian/documentarian-handoff-format`, `shared/rtk-usage`, `orchestrator/orchestrator-recap-edge`, `developer/beads-plan`, `orchestrator/takeover-context-protocol` |
 | **orchestrator-dev** | `posture/coordination-only`, `posture/concision-posture`, `posture/retranscription-coordinateur`, `orchestrator/orchestrator-workflow-modes`, `orchestrator/orchestrator-dev-protocol`, `orchestrator/orchestrator-handoff-format`, `posture/tool-question`, `posture/tool-todowrite`, `developer/developer-handoff-format`, `reviewer/reviewer-handoff-format`, `documentarian/documentarian-handoff-format` | `orchestrator/orchestrator-dev-standalone`, `orchestrator/orchestrator-dev-subagent`, `developer/dev-drift-detection`, `orchestrator/session-state-protocol`, `shared/rtk-usage`, `orchestrator/orchestrator-dev-ticket-workflow`, `orchestrator/orchestrator-dev-parallel`, `orchestrator/orchestrator-dev-recap`, `orchestrator/orchestrator-dev-edge-cases`, `orchestrator/error-recovery-protocol`, `orchestrator/team-coordination`, `orchestrator/takeover-context-protocol`, `orchestrator/parallel-coordination` |
 | **planner** | `planning/planner-workflow`, `planning/planner-handoff-format`, `design/design-planner-format`, `adapters/gitlab-planner-protocol`, `posture/concision-posture`, `posture/tool-question`, `shared/hub-workflow-reference` | `planning/planner-execution-modes`, `planning/websearch-stack-research`, `shared/rtk-usage`, `planning/planner-phase-0`, `planning/planner-phase-1`, `planning/planner-phase-2`, `planning/planner-phase-3-4`, `planning/planner-phase-5-6`, `planning/planner-patterns-protocol`, `shared/living-docs-enrichment`, `shared/websearch-usage`, `planning/planner-design-templates`, `planning/planner-beads-templates`, `developer/beads-plan`, `posture/expert-posture` |
 | **pathfinder** | `developer/beads-plan`, `planning/pathfinder-protocol`, `planning/pathfinder-handoff-format`, `adapters/gitlab-pathfinder-protocol`, `posture/concision-posture`, `posture/tool-question`, `shared/websearch-usage`, `shared/wiki-navigation` | `planning/pathfinder-execution-modes`, `planning/websearch-stack-research`, `shared/rtk-usage`, `shared/living-docs-enrichment` |
-| **onboarder** | `planning/onboarder-workflow`, `planning/onboarder-handoff-format`, `planning/onboarder-profiles`, `adapters/gitlab-onboarder-protocol`, `posture/tool-question`, `developer/dev-standards-git`, `shared/wiki-navigation` | `planning/onboarder-execution-modes`, `planning/websearch-stack-research`, `shared/rtk-usage`, `planning/onboarder-phase-0`, `planning/onboarder-phase-1`, `planning/onboarder-phase-2`, `planning/onboarder-phase-3-4`, `planning/onboarder-phase-5`, `shared/living-docs-enrichment`, `shared/websearch-usage`, `developer/beads-plan`, `posture/expert-posture` |
+| **onboarder** | `planning/onboarder-workflow`, `planning/onboarder-handoff-format`, `planning/onboarder-profiles`, `adapters/gitlab-onboarder-protocol`, `posture/tool-question`, `shared/wiki-navigation` | `developer/dev-standards-git`, `planning/onboarder-execution-modes`, `planning/websearch-stack-research`, `shared/rtk-usage`, `planning/onboarder-phase-0`, `planning/onboarder-phase-1`, `planning/onboarder-phase-2`, `planning/onboarder-phase-3-4`, `planning/onboarder-phase-5`, `shared/living-docs-enrichment`, `shared/websearch-usage`, `developer/beads-plan`, `posture/expert-posture` |
 
 ### Famille developer
 
@@ -219,7 +218,7 @@ Ce tableau est la reference faisant autorite pour les skills charges par chaque 
 |-------|-------------------|-------------------------------|
 | **reviewer** | `developer/dev-standards-universal`, `reviewer/review-protocol`, `posture/concision-posture`, `posture/tool-question`, `reviewer/reviewer-handoff-format`, `shared/wiki-navigation` | `reviewer/reviewer-standalone`, `reviewer/reviewer-subagent`, `reviewer/reviewer-adversarial`, `reviewer/reviewer-edge-case`, `reviewer/review-merge`, `developer/dev-standards-security`, `developer/dev-standards-backend`, `developer/dev-standards-frontend`, `developer/dev-standards-frontend-data`, `developer/dev-standards-frontend-a11y`, `developer/dev-standards-testing`, `developer/dev-standards-git`, `developer/dev-standards-api`, `developer/dev-standards-devops`, `shared/rtk-usage`, `shared/living-docs-enrichment` |
 | **debugger** | `quality/debugger-workflow`, `quality/debugger-handoff-format`, `quality/debugger-forensic`, `quality/debugger-report-templates`, `posture/tool-question`, `shared/wiki-navigation` | `quality/debugger-execution-modes`, `shared/rtk-usage`, `quality/debugger-phase-0-1`, `quality/debugger-phase-2-3`, `quality/debugger-phase-4-5`, `shared/living-docs-enrichment`, `posture/expert-posture` |
-| **benchmarker** | `developer/dev-standards-universal`, `posture/tool-question`, `shared/wiki-navigation` | `shared/living-docs-enrichment` |
+| **benchmarker** | `posture/tool-question`, `shared/wiki-navigation` | `shared/living-docs-enrichment` |
 | **test-generator** | `developer/dev-standards-universal`, `developer/dev-standards-testing`, `posture/tool-question`, `shared/wiki-navigation` | `shared/living-docs-enrichment` |
 
 ### Famille design
@@ -556,7 +555,7 @@ En mode `orchestrator_feature` : utilise le mécanisme d'interruption de session
 |--|--|
 | **Label** | Benchmarker |
 | **Fichier** | `agents/quality/benchmarker.md` |
-| **Invocation** | `"Benchmark [cible]"` / `"Audit Lighthouse [url]"` / `"Load test [endpoint]"` |
+| **Invocation** | Agent d'entrée du workflow `benchmark` (`oh run benchmark -i target=…`) ou d'une session `libre` — `"Benchmark [cible]"` / `"Load test [endpoint]"` |
 
 Spécialiste en benchmarking de performance. Opère en quatre modes :
 
@@ -567,7 +566,7 @@ Spécialiste en benchmarking de performance. Opère en quatre modes :
 | `go` | pprof, benchstat | Profil CPU/mémoire, analyse flame graph, comparaison de benchmarks |
 | `python` | py-spy, memory-profiler | Profil par échantillonnage, fonctions chaudes, détection de fuites mémoire |
 
-Ne modifie pas le code (`edit: deny`) ; `write` est autorisé pour ses rapports. Produit des rapports de benchmark structurés avec comparaisons de baseline et recommandations actionnables.
+Ne modifie pas le code : il n'écrit que dans `reports/benchmarks/` (permission). Avant toute mesure, il fait valider la cible, l'environnement, le profil de charge et la durée (checkpoint `cp-target` du workflow `benchmark`, outil `question` en session `libre`). Produit des rapports de benchmark structurés avec comparaisons de baseline (mesure avant/après) et recommandations actionnables pour le `developer`.
 
 ---
 
@@ -601,7 +600,7 @@ Spécialiste en génération de tests. Opère en quatre modes :
 | **Label** | ProjectPlanner |
 | **Fichier** | `agents/planning/planner.md` |
 | **Skills** | Voir [Matrice d'assignation des skills](#matrice-dassignation-des-skills-source-de-verite) — ligne planner |
-| **MCP Servers** | `gitlab` |
+| **MCP Servers** | `gitlab`, `github` |
 | **Invocation** | Sous-agent dans `feature` et `cadrage` — description d'une feature en langage naturel / `"Planifie le ticket #42"` |
 
 Consultant fonctionnel et technique qui analyse le contexte projet avant de planifier.
@@ -641,7 +640,7 @@ délègue l'écriture au `documentarian` via `task` (skill `living-docs-enrichme
 | **Label** | Pathfinder |
 | **Fichier** | `agents/planning/pathfinder.md` |
 | **Skills** | Voir [Matrice d'assignation des skills](#matrice-dassignation-des-skills-source-de-verite) — ligne pathfinder |
-| **MCP Servers** | `gitlab` |
+| **MCP Servers** | `gitlab`, `github` |
 | **Invocation** | Sous-agent dans `feature` et `cadrage` — `"Pathfinder la feature [X]"` / `"Estime la complexité de [feature]"` / `"Pathfinder le ticket #42"` |
 
 Agent de reconnaissance rapide. Explore le contexte d'une feature et produit une estimation
@@ -665,7 +664,7 @@ la reconnaissance Figma au `designer` (mode `recon`) pour détecter les composan
 | **Label** | Onboarder |
 | **Fichier** | `agents/planning/onboarder.md` |
 | **Skills** | Voir [Matrice d'assignation des skills](#matrice-dassignation-des-skills-source-de-verite) — ligne onboarder |
-| **MCP Servers** | `gitlab` |
+| **MCP Servers** | `gitlab`, `github` |
 | **Invocation** | Agent d'entrée du workflow `onboarding` (`oh run onboarding`) — `"Onboarde-toi sur ce projet"` / `"Découvre ce projet"` |
 
 Agent de découverte de projet. Explore la codebase d'un projet existant en 6 phases structurées

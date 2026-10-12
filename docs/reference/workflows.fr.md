@@ -31,6 +31,7 @@ On lance un workflow avec `oh run <workflow>` ou la fiche de lancement de la TUI
 | `review-feedback` | `orchestrator-dev` | `developer`, `reviewer` | write | local | `oh review feedback` |
 | `audit` | `auditor` | `auditor-subagent` | read | local, distant | `oh audit` |
 | `debug` | `debugger` | `developer`, `documentarian` (à la demande) | write | local | `oh debug` (ancien mode D) |
+| `benchmark` | `benchmarker` | — | write (`reports/benchmarks/`) | local | `oh run libre --agent benchmarker` |
 | `sweep` | `conductor` | `pathfinder`, `developer`, `developer-refactor`, `developer-migrator`, `reviewer` | write | local | `oh start --sweep` |
 | `brief-enrich` | `brief-enricher` | — | read | local | `oh takeover-brief enrich` |
 | `libre` | au choix (`orchestrator` par défaut) | ceux que l'agent choisi peut appeler | write | local, conteneur | `oh start --agent`, session libre de la TUI |
@@ -145,7 +146,7 @@ Découvre le projet et crée ou enrichit le wiki `docs/wiki/` (protocole `doc-wi
 | `refresh` | `bool` (défaut : non) | non | Re-découvrir le projet et enrichir le wiki existant, sans rien supprimer |
 | `focus` | `text` (4 000 caractères max) | non | Modules ou sujets à approfondir |
 
-L'onboarder n'écrit que dans `docs/wiki/`, `ONBOARDING.md` et `CONVENTIONS.md` : c'est une permission (toute autre écriture est refusée, `.gitignore` et `.git/` compris). Il ne commite pas : le commit du wiki revient à l'utilisateur. Sortie : `wiki`. Commandes Beads autorisées : `show`, `list`, `ready`, `search`, `query`, `children`, `comments`, `count`, `status`, `graph`, `history`, `create`, `update`, `dep`, `label`.
+L'onboarder n'écrit que dans `docs/wiki/`, `ONBOARDING.md` et `CONVENTIONS.md` : c'est une permission (toute autre écriture est refusée, `.gitignore` et `.git/` compris). Il ne commite pas : le commit du wiki revient à l'utilisateur. Sortie : `wiki`. Commandes Beads autorisées (lecture seule) : `show`, `list`, `search`, `query`.
 
 ## `review`
 
@@ -199,6 +200,23 @@ Diagnostic d'un bug ou d'un problème isolé par le `debugger` : rapport de diag
 | `issue` | `text` (8 000 caractères max) | non | Le problème observé ; vide : la session le demande |
 
 Le ticket de correction n'est créé qu'après `cp-ticket` (« Créer le ticket de correction », en pause dans tous les modes, déverrouille `create`) : le `debugger` y présente le diagnostic et le ticket, au lieu de demander la confirmation avec l'outil `question` (qu'il garde dans une session `libre`). Une correction faite dans la session se termine par `cp-commit` (obligatoire, en pause dans tous les modes, déverrouille `commit` et `close`). Sortie : `tickets`. Commandes Beads autorisées : `show`, `list`, `ready`, `search`, `query`, `lint`, `children`, `comments`, `count`, `status`, `graph`, `history`, `create`, `update`, `close`, `dep`, `label`.
+
+## `benchmark`
+
+Mesure des performances d'une cible par le `benchmarker` (modes `frontend` : Lighthouse, `api` : k6, `go` : go bench et pprof, `python` : py-spy), comparée à une référence. Le code n'est pas modifié : le `benchmarker` n'écrit que dans `reports/benchmarks/` (permission) ; les optimisations deviennent des recommandations pour le `developer`.
+
+| Entrée | Type | Obligatoire | Rôle |
+|---|---|---|---|
+| `target` | `string` (1 000 caractères max) | oui | Ce qu'il faut mesurer : URL, endpoint, package Go, script ou commande |
+| `mode` | `enum` : `frontend`, `api`, `go`, `python` | non | Vide : déduit de la cible et de la stack |
+| `baseline` | `string` (500 caractères max) | non | Ref git ou rapport précédent à comparer (mesure avant/après) ; vide : dernier rapport de `reports/benchmarks/` |
+
+| Checkpoint | manuel | semi-auto | auto |
+|---|---|---|---|
+| `cp-target` Valider la cible et le profil de charge (obligatoire, avant toute mesure) | pause | pause | pause |
+| `cp-recap` Récap du benchmark | pause | auto | auto |
+
+À `cp-target`, le `benchmarker` présente la cible, l'environnement (la production demande une confirmation explicite), le profil de charge et la durée ; dans une session `libre`, il confirme avec l'outil `question`. Les outils de charge (`k6 run`, `wrk`, `ab`, `hey`) et `curl` demandent en plus une confirmation à chaque appel. Le `documentarian` n'est pas membre : les enrichissements du wiki sont listés dans le rapport. Sortie : `report` (chemin du rapport). Commandes Beads autorisées : `show`, `list`, `ready`, `search`, `query`.
 
 ## `sweep`
 

@@ -18,7 +18,7 @@ flowchart LR
 ```
 
 **Concepts cles** (voir le [Glossaire](../reference/glossary.fr.md) complet) :
-- **Workflow** -- ce que fait une session : agent d'entree, agents autorises, entrees, checkpoints, modes (`manuel`, `semi-auto`, `auto`). 12 workflows sont livres (voir [Workflows livres](../reference/workflows.fr.md)).
+- **Workflow** -- ce que fait une session : agent d'entree, agents autorises, entrees, checkpoints, modes (`manuel`, `semi-auto`, `auto`). 13 workflows sont livres (voir [Workflows livres](../reference/workflows.fr.md)).
 - **Session** -- une execution d'un workflow sur un projet. Elle tourne sur un serveur `opencode serve` gere par oh.
 - **Paquet de session** -- agents, skills, permissions et MCP d'une session, construits au lancement hors du projet (`~/.oh/bundles/<hash>/`). Rien n'est copie dans le projet. Seuls les agents du paquet sont visibles (« monde ferme »).
 - **Decision** -- ce que la session attend de vous : `⏸` checkpoint, `?` question, `!` permission, `$` budget, `✗` erreur.

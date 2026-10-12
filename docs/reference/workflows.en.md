@@ -31,6 +31,7 @@ A workflow is launched with `oh run <workflow>` or the TUI launch form; the form
 | `review-feedback` | `orchestrator-dev` | `developer`, `reviewer` | write | local | `oh review feedback` |
 | `audit` | `auditor` | `auditor-subagent` | read | local, remote | `oh audit` |
 | `debug` | `debugger` | `developer`, `documentarian` (on demand) | write | local | `oh debug` (former mode D) |
+| `benchmark` | `benchmarker` | — | write (`reports/benchmarks/`) | local | `oh run libre --agent benchmarker` |
 | `sweep` | `conductor` | `pathfinder`, `developer`, `developer-refactor`, `developer-migrator`, `reviewer` | write | local | `oh start --sweep` |
 | `brief-enrich` | `brief-enricher` | — | read | local | `oh takeover-brief enrich` |
 | `libre` | your choice (`orchestrator` by default) | those the chosen agent may call | write | local, container | `oh start --agent`, TUI free session |
@@ -145,7 +146,7 @@ Discovers the project and creates or enriches the `docs/wiki/` wiki (`doc-wiki-p
 | `refresh` | `bool` (default: no) | no | Rediscover the project and enrich the existing wiki, without deleting anything |
 | `focus` | `text` (4,000 characters max) | no | Modules or topics to dig into |
 
-The onboarder only writes `docs/wiki/`, `ONBOARDING.md` and `CONVENTIONS.md`: it is a permission (any other write is refused, `.gitignore` and `.git/` included). It does not commit: committing the wiki is left to the user. Output: `wiki`. Allowed Beads commands: `show`, `list`, `ready`, `search`, `query`, `children`, `comments`, `count`, `status`, `graph`, `history`, `create`, `update`, `dep`, `label`.
+The onboarder only writes `docs/wiki/`, `ONBOARDING.md` and `CONVENTIONS.md`: it is a permission (any other write is refused, `.gitignore` and `.git/` included). It does not commit: committing the wiki is left to the user. Output: `wiki`. Allowed Beads commands (read only): `show`, `list`, `search`, `query`.
 
 ## `review`
 
@@ -199,6 +200,23 @@ Diagnosis of a bug or isolated problem by the `debugger`: diagnostic report (urg
 | `issue` | `text` (8,000 characters max) | no | The observed problem; empty: the session asks for it |
 
 The fix ticket is only created after `cp-ticket` (« Create the fix ticket », paused in every mode, unlocks `create`): the `debugger` presents the diagnosis and the ticket there, instead of asking for confirmation with the `question` tool (which it keeps in a `libre` session). A fix made in the session ends with `cp-commit` (mandatory, paused in every mode, unlocks `commit` and `close`). Output: `tickets`. Allowed Beads commands: `show`, `list`, `ready`, `search`, `query`, `lint`, `children`, `comments`, `count`, `status`, `graph`, `history`, `create`, `update`, `close`, `dep`, `label`.
+
+## `benchmark`
+
+Performance measurement of a target by the `benchmarker` (modes `frontend`: Lighthouse, `api`: k6, `go`: go bench and pprof, `python`: py-spy), compared with a baseline. The code is not modified: the `benchmarker` only writes in `reports/benchmarks/` (permission); optimisations become recommendations for the `developer`.
+
+| Input | Type | Required | Purpose |
+|---|---|---|---|
+| `target` | `string` (1,000 characters max) | yes | What to measure: URL, endpoint, Go package, script or command |
+| `mode` | `enum`: `frontend`, `api`, `go`, `python` | no | Empty: inferred from the target and the stack |
+| `baseline` | `string` (500 characters max) | no | Git ref or previous report to compare with (before/after measurement); empty: latest report in `reports/benchmarks/` |
+
+| Checkpoint | manuel | semi-auto | auto |
+|---|---|---|---|
+| `cp-target` Approve the target and the load profile (mandatory, before any measurement) | pause | pause | pause |
+| `cp-recap` Benchmark recap | pause | auto | auto |
+
+At `cp-target`, the `benchmarker` presents the target, the environment (production needs an explicit confirmation), the load profile and the duration; in a `libre` session, it confirms with the `question` tool. The load tools (`k6 run`, `wrk`, `ab`, `hey`) and `curl` also ask for confirmation on each call. The `documentarian` is not a member: the wiki enrichments are listed in the report. Output: `report` (report path). Allowed Beads commands: `show`, `list`, `ready`, `search`, `query`.
 
 ## `sweep`
 

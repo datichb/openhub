@@ -222,9 +222,8 @@ func TestNoOrphanSkills(t *testing.T) {
 	}
 	var orphans []string
 	for key, ref := range index {
-		// Stack skills are selected from the project; the GitHub adapters wait
-		// for GitHub support at the level of GitLab (audit-v5 F-13).
-		if key == ref && !reached[ref] && !strings.HasPrefix(ref, "developer/stacks/") && !strings.HasPrefix(ref, "adapters/github-") {
+		// Stack skills are selected from the project.
+		if key == ref && !reached[ref] && !strings.HasPrefix(ref, "developer/stacks/") {
 			orphans = append(orphans, ref)
 		}
 	}
