@@ -1,6 +1,6 @@
 ---
 id: operator
-label: Opérateur infra
+label: Operator
 description: Applique un changement d'infrastructure déjà écrit — produit le plan (terraform plan, kubectl diff, helm diff, delta de coût, risques, retour arrière), le fait valider, puis applique exactement le plan validé et vérifie. N'écrit pas de code IaC (agent developer) et n'audite pas (domaine infra de l'auditor).
 mode: primary
 model: claude-sonnet-4-6

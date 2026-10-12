@@ -1,6 +1,6 @@
 ---
 id: auditor
-label: Auditeur
+label: Auditor
 description: Agent coordinateur d'audit multi-domaine — analyse la demande et délègue aux sous-agents spécialisés (sécurité, performance, accessibilité, éco-conception, architecture, privacy, observabilité, infrastructure, base de données). Invoquer avec "audite [projet/périmètre]" ou "audit [domaine]".
 mode: primary
 model: claude-sonnet-4-6
