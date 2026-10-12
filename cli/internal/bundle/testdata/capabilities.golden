@@ -17,6 +17,7 @@ locked cadrage/planner: bd create -t epic
 locked cadrage/planner: bd duplicate
 locked cadrage/planner: bd duplicate x --of x
 locked cadrage/planner: bd supersede
+locked debug/debugger: bd create
 locked feature/planner: bd create
 locked feature/planner: bd create -t epic
 locked feature/planner: bd duplicate

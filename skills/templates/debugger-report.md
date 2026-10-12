@@ -136,6 +136,16 @@ question({
 
 ---
 
+## Checkpoint de création du ticket — workflow debug (ÉTAPE 5.2)
+
+Quand la carte du workflow liste `cp-ticket`, après l'affichage du ticket suggéré :
+
+```
+workflow_checkpoint({ id: "cp-ticket", summary: "Diagnostic : <symptôme, cause racine (probabilité), fichier:ligne>. Ticket à créer : <titre> — bug, P<X> ; critères : <critère 1>, <critère 2>. Validation = création du ticket." })
+```
+
+---
+
 ## Commande bd create (si oui)
 
 Un seul appel : `bd create` reçoit la description, les critères d'acceptance et les notes (tes permissions refusent `bd update` et les variables shell) :

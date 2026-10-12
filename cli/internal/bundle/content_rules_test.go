@@ -35,8 +35,12 @@ func agentRules(b *Bundle, agent, action string) []sessionspec.PermissionRule {
 }
 
 // DC26 (N11): quick and debug write files: the commit waits for cp-commit,
-// which pauses in every mode.
+// which pauses in every mode. In debug, the fix ticket waits for cp-ticket.
 func TestQuickAndDebugCommitGate(t *testing.T) {
+	locked := map[string][]string{
+		"quick": {sessionspec.UnlockCommit, sessionspec.UnlockClose},
+		"debug": {sessionspec.UnlockCreate, sessionspec.UnlockCommit, sessionspec.UnlockClose},
+	}
 	for _, id := range []string{"quick", "debug"} {
 		wf := shippedBundle(t, id).Spec.Workflow
 		require.NotNil(t, wf, id)
@@ -44,8 +48,13 @@ func TestQuickAndDebugCommitGate(t *testing.T) {
 		require.True(t, ok, id)
 		for _, mode := range []string{"manuel", "semi-auto", "auto"} {
 			assert.Equal(t, sessionspec.CheckpointPause, cp.Behavior(mode), "%s %s", id, mode)
-			assert.Equal(t, []string{sessionspec.UnlockCommit, sessionspec.UnlockClose}, LockedOps(wf, mode, nil), "%s %s", id, mode)
+			assert.Equal(t, locked[id], LockedOps(wf, mode, nil), "%s %s", id, mode)
 		}
+	}
+	cp, ok := shippedBundle(t, "debug").Spec.Workflow.Checkpoint("cp-ticket")
+	require.True(t, ok)
+	for _, mode := range []string{"manuel", "semi-auto", "auto"} {
+		assert.Equal(t, sessionspec.CheckpointPause, cp.Behavior(mode), "debug cp-ticket %s", mode)
 	}
 }
 

@@ -459,9 +459,11 @@ Type : bug | Priorité : P0
 
 #### 3. Création du ticket
 
+Dans le workflow `debug`, la création passe par le checkpoint `cp-ticket` (« Créer le ticket de correction », en pause dans tous les modes) : oh refuse `bd create` avant sa validation. Dans une session `libre`, le debugger pose la question avec l'outil `question`.
+
 ```
-⏸️ Créer ce ticket dans Beads ? (oui/non)
-→ oui
+⏸️ cp-ticket — Créer le ticket de correction (diagnostic + ticket proposé)
+→ validé
 
 bd create "Corriger l'absence de guard null dans UserService.findById" -p 0 -t bug --json
 → Ticket bd-42 créé

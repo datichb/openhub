@@ -52,7 +52,7 @@ Le récap de Phase 4 doit contenir :
 Le récap de Phase 5 doit contenir :
 
 - **Rapport** : symptôme résumé, localisation (`fichier:ligne`), hypothèse principale (probabilité + résumé), nombre de fichiers impliqués
-- **Ticket Beads** : ✅ bd-X créé (titre, priorité, label `from-diagnostic`) ou ❌ Non créé (refus de l'utilisateur)
+- **Ticket Beads** : ✅ bd-X créé (titre, priorité, label `from-diagnostic`) ou ❌ Non créé (refus de l'utilisateur, à la question ou au checkpoint `cp-ticket` du workflow `debug`)
 
 **Selon la réponse à la question de validation :**
 - **Terminer** → Fin de session

@@ -17,8 +17,9 @@ Cette carte est la seule référence sur l'enchaînement : n'invente ni agent, n
 
 | Agent | Rôle | Mode | Après | Peut déléguer à |
 |---|---|---|---|---|
-| `debugger` | workflow (entrée) | primary | — | — |
-| `developer` | independent | primary | — | — |
+| `debugger` | workflow (entrée) | primary | — | `documentarian` |
+| `developer` | independent | primary | — | `documentarian` |
+| `documentarian` | independent | primary | — | — |
 
 Règles de délégation :
 - Tu ne lances (outil `task`) que les agents de la colonne « Peut déléguer à » de ta ligne. Tout autre appel est refusé par l'outil.
@@ -29,8 +30,11 @@ Règles de délégation :
 
 | Checkpoint | manuel | semi-auto | auto |
 |---|---|---|---|
+| **cp-ticket** — Créer le ticket de correction (obligatoire) | pause | pause | pause |
 | **cp-commit** — Commit (obligatoire) | pause | pause | pause |
 
+- **cp-ticket** : Présenter le diagnostic et le ticket de correction à créer ; le ticket n'est créé qu'après la validation.
+- **cp-ticket** déverrouille `create` : avant son passage, oh refuse à tous les agents de la session la création de tickets, quel que soit le mode. Une fois passé, crée les tickets validés : la création reste possible jusqu'à ce que **cp-ticket** soit demandé de nouveau.
 - **cp-commit** : Présenter le résumé des changements (fichiers, tests) avant le commit, puis la fermeture du ticket s'il y en a un.
 - **cp-commit** déverrouille `commit`, `close` : avant son passage, oh refuse à tous les agents de la session `git commit` (et les commandes qui commitent : revert, cherry-pick, merge, pull), la fermeture d'un ticket, quel que soit le mode. Une fois passé, fais-les aussitôt, dans l'ordre : commit, puis fermeture du ticket (oh refuse la fermeture tant que le travail n'est pas commité). Le ticket fermé, elles sont de nouveau verrouillées jusqu'au prochain passage de **cp-commit**. Le push revient à l'utilisateur : ne pousse pas.
 

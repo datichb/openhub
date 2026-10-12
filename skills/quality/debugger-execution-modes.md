@@ -25,6 +25,8 @@ Le mode est donné par la section « Rôle dans cette session » de ton prompt (
 **Confirmer le contexte au démarrage :**
 > `[debugger] Mode standalone actif — je poserai une question de validation à chaque fin de phase via l'outil question.`
 
+Exception : la création du ticket de correction (Phase 5) passe par `workflow_checkpoint` (`id: "cp-ticket"`) quand la carte du workflow liste ce checkpoint — voir `debugger-report-templates`, ÉTAPE 5.2.
+
 ---
 
 ## Format des questions de validation

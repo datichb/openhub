@@ -11,8 +11,9 @@ Agent d'entrée : `debugger`. Seuls les agents ci-dessous existent dans cette se
 
 | Agent | Rôle | Mode | Après | Peut déléguer à |
 |---|---|---|---|---|
-| `debugger` | workflow (entrée) | primary | — | — |
-| `developer` | independent | primary | — | — |
+| `debugger` | workflow (entrée) | primary | — | `documentarian` |
+| `developer` | independent | primary | — | `documentarian` |
+| `documentarian` | independent | primary | — | — |
 
 Règles de délégation :
 - Tu ne lances (outil `task`) que les agents de la colonne « Peut déléguer à » de ta ligne. Tout autre appel est refusé par l'outil.
