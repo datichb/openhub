@@ -396,26 +396,52 @@ These skills are delivered **on demand** (like Bucket B). At launch, `ResolveSta
 
 ### Automatic detection
 
-Detection reads a few files at the project root. Only one language is kept, in this order: `go.mod`, `package.json`, `pyproject.toml`/`setup.py`, `Cargo.toml`, `build.gradle(.kts)`, `pom.xml`.
+`DetectSignals()` (`cli/internal/bricks/stack_signals.go`) scans the project once: folders up to 4 levels deep, at most 20,000 entries, without entering dependencies, builds and tooling (`node_modules`, `vendor`, `.git`, `dist`, `build`, `target`, `.venv`, `docs`…). Monorepos are followed: the walk finds nested manifests (`apps/web/package.json`, `services/api/go.mod`…), and the workspace folders declared by `package.json` (`workspaces`), `pnpm-workspace.yaml` or `go.work` are read even beyond that depth. Dependencies are matched by **exact name**: `dependencies` and `devDependencies` of every `package.json`; Python dependencies of `pyproject.toml` (`[project]`, optional dependencies, `[dependency-groups]`, `[tool.poetry.*dependencies]`), `requirements*.txt` and `Pipfile` (normalised names, versions ignored); gems of the `Gemfile`; `require` of `composer.json`. Every stack found adds its skills: a project can get several languages and frameworks (`eslint-config-next`, `@testing-library/jest-dom` or `prettier-plugin-svelte` alone add nothing).
 
 | Signal detected | Skills added |
 |-----------------|--------------|
-| `go.mod` | `dev-standards-golang` |
-| `package.json` | `dev-standards-typescript` |
-| `pyproject.toml` or `setup.py` | `dev-standards-python` |
+| `tsconfig*.json`, or `typescript` dependency | `dev-standards-typescript` |
+| `pyproject.toml`, `requirements*.txt` (or `requirements/*.txt`), `setup.py`, `Pipfile` | `dev-standards-python` |
+| `go.mod` or `go.work` | `dev-standards-golang` |
 | `Cargo.toml` | `dev-standards-rust` |
-| `build.gradle(.kts)` or `pom.xml` | `dev-standards-kotlin` |
-| `next` in `package.json` | `dev-standards-nextjs`, `dev-standards-react` |
-| `nuxt` in `package.json` | `dev-standards-nuxtjs`, `dev-standards-vuejs` |
-| `"react"` in `package.json` | `dev-standards-react` |
-| `"vue"` in `package.json` | `dev-standards-vuejs` |
-| `"express"` in `package.json` | `dev-standards-express` |
-| `vitest` / `jest` in `package.json` | `dev-standards-vitest` / `dev-standards-jest` |
-| `Dockerfile` or `docker-compose.y(a)ml` | `dev-standards-docker` |
-| `.github/workflows/` | `dev-standards-github-actions` |
+| npm `vue` | `dev-standards-vuejs` |
+| npm `react` (not in a React Native app without `react-dom`) | `dev-standards-react` |
+| npm `next`, or `next.config.*` | `dev-standards-nextjs`, `dev-standards-react` |
+| npm `nuxt`, or `nuxt.config.*` | `dev-standards-nuxtjs`, `dev-standards-vuejs` |
+| `angular.json`, or npm `@angular/core` | `dev-standards-angular` |
+| npm `express` | `dev-standards-express` |
+| npm `@nestjs/core`, or `nest-cli.json` | `dev-standards-nestjs` |
+| Python `django`, or `manage.py` | `dev-standards-django` |
+| Python `fastapi` | `dev-standards-fastapi` |
+| Composer `laravel/framework`, or `artisan` | `dev-standards-laravel` |
+| gem `rails`, or `config/application.rb` | `dev-standards-rails` |
+| `pom.xml` / `build.gradle(.kts)` naming `spring-boot` or `org.springframework.boot` | `dev-standards-springboot` |
+| Gradle build or version catalog with `com.android.application`, `com.android.library`, `kotlin("android")`; or `AndroidManifest.xml` | `dev-standards-kotlin` (Android) |
+| `schema.prisma`, `prisma.config.ts`, or npm `prisma` / `@prisma/client` | `dev-standards-prisma` |
+| npm `typeorm` | `dev-standards-typeorm` |
+| Python `sqlalchemy` | `dev-standards-sqlalchemy` |
+| npm `mongoose` or `mongodb` | `dev-standards-mongodb` |
+| `openapi.y(a)ml`, `swagger.y(a)ml`, `*.openapi.y(a)ml` (or `.json`) | `dev-standards-openapi` |
+| npm `vitest` | `dev-standards-vitest` |
+| npm `jest` | `dev-standards-jest` |
+| `playwright.config.*`, or npm `@playwright/test` | `dev-standards-playwright` |
+| `cypress.config.*`, or npm `cypress` | `dev-standards-cypress` |
+| npm `react-native` or `expo` | `dev-standards-react-native` |
+| `pubspec.yaml` with a `flutter:` key | `dev-standards-flutter` |
+| `Package.swift` or `*.xcodeproj` | `dev-standards-swift` |
+| Python `pandas` | `dev-standards-pandas` |
+| `dbt_project.yml` | `dev-standards-dbt` |
+| Python `apache-airflow`, or a `dags/*.py` importing `airflow` | `dev-standards-airflow` |
+| Python `pyspark` | `dev-standards-pyspark` |
+| `Dockerfile*`, `*.dockerfile`, `Containerfile`, `compose*.y(a)ml`, `docker-compose*.y(a)ml` | `dev-standards-docker` |
+| `.github/workflows/*.y(a)ml` | `dev-standards-github-actions` |
 | `.gitlab-ci.yml` | `dev-standards-gitlab-ci` |
+| `*.tf` or `*.tofu` | `dev-standards-terraform` |
+| `kustomization.y(a)ml`, or a YAML with `apiVersion` and `kind: Deployment`/`Service`/… in `k8s/`, `kubernetes/`, `deploy(ment(s))/`, `manifests/`, `argocd/`, `gitops/` | `dev-standards-kubernetes` |
+| `Chart.yaml` | `dev-standards-helm` |
+| A YAML with `apiVersion: argoproj.io/…` in the same folders | `dev-standards-argocd` |
 
-The other stack skills are not detected: to ship them, a (team or project) workflow adds them through `skills.extra`. `oh bundle show <workflow> -p <project>` shows the ones that are kept.
+The other signals (Java, Ruby, PHP, Dart, Svelte, Fastify, Flask, package managers, `Makefile`…) add no skill; they are kept for the project context (`prompt.DetectStack`: primary language = the first one found at the root, in the order Go, TypeScript, JavaScript, Python, Ruby, Rust, Kotlin (Android), Java, PHP, Dart, Swift; else the first one found anywhere). The frontend domain skills (`dev-standards-frontend*`) are kept only in a project with a web frontend: a React Native app alone is not one. A stack missed by the detection is added by a (team or project) workflow through `skills.extra`. `oh bundle show <workflow> -p <project>` shows the ones that are kept.
 
 ### Catalog of the 40 stack skills
 
@@ -429,38 +455,38 @@ The other stack skills are not detected: to ship them, a (team or project) workf
 | Frontend | `dev-standards-react` | Yes | Hooks, TanStack Query, memo/useCallback, RTL |
 | Frontend | `dev-standards-nextjs` | Yes | App Router, Server/Client Components, ISR, Server Actions |
 | Frontend | `dev-standards-nuxtjs` | Yes | Auto-imports, useFetch, Nitro routes, routeRules |
-| Frontend | `dev-standards-angular` | No | Standalone components, Signals, inject(), RxJS, Reactive Forms |
+| Frontend | `dev-standards-angular` | Yes | Standalone components, Signals, inject(), RxJS, Reactive Forms |
 | Backend | `dev-standards-express` | Yes | Domain routing, zod middleware, AppError, helmet/cors |
-| Backend | `dev-standards-nestjs` | No | Modules, DTOs + class-validator, guards, ConfigService |
-| Backend | `dev-standards-django` | No | BaseModel UUID, serializers, services, migrations |
-| Backend | `dev-standards-fastapi` | No | pydantic-settings, Pydantic v2, async services, httpx tests |
-| Backend | `dev-standards-laravel` | No | Eloquent, FormRequest, API Resources, queues/jobs |
-| Backend | `dev-standards-rails` | No | MVC, service objects, query objects, RSpec |
-| Backend | `dev-standards-springboot` | No | JPA, record DTOs + @Valid, @Transactional, ProblemDetail |
-| ORM / DB | `dev-standards-prisma` | No | Schema, singleton client, explicit select, transactions |
-| ORM / DB | `dev-standards-typeorm` | No | Entities, custom repository, parameterised QueryBuilder |
-| ORM / DB | `dev-standards-sqlalchemy` | No | Mapped v2, async sessions, Alembic |
-| ORM / DB | `dev-standards-mongodb` | No | Mongoose schemas, lean(), indexes, aggregations |
-| API spec | `dev-standards-openapi` | No | `$ref`, reusable schemas, writeOnly, JWT security, codegen |
+| Backend | `dev-standards-nestjs` | Yes | Modules, DTOs + class-validator, guards, ConfigService |
+| Backend | `dev-standards-django` | Yes | BaseModel UUID, serializers, services, migrations |
+| Backend | `dev-standards-fastapi` | Yes | pydantic-settings, Pydantic v2, async services, httpx tests |
+| Backend | `dev-standards-laravel` | Yes | Eloquent, FormRequest, API Resources, queues/jobs |
+| Backend | `dev-standards-rails` | Yes | MVC, service objects, query objects, RSpec |
+| Backend | `dev-standards-springboot` | Yes | JPA, record DTOs + @Valid, @Transactional, ProblemDetail |
+| ORM / DB | `dev-standards-prisma` | Yes | Schema, singleton client, explicit select, transactions |
+| ORM / DB | `dev-standards-typeorm` | Yes | Entities, custom repository, parameterised QueryBuilder |
+| ORM / DB | `dev-standards-sqlalchemy` | Yes | Mapped v2, async sessions, Alembic |
+| ORM / DB | `dev-standards-mongodb` | Yes | Mongoose schemas, lean(), indexes, aggregations |
+| API spec | `dev-standards-openapi` | Yes | `$ref`, reusable schemas, writeOnly, JWT security, codegen |
 | Testing | `dev-standards-vitest` | Yes | vi.mock, vi.fn, vi.spyOn, fake timers, Vue Test Utils |
 | Testing | `dev-standards-jest` | Yes | jest.mock, jest.fn, RTL, snapshots |
-| Testing | `dev-standards-playwright` | No | Semantic locators, POM, session fixtures |
-| Testing | `dev-standards-cypress` | No | data-cy, cy.intercept, custom commands, cy.session |
-| Mobile | `dev-standards-react-native` | No | Expo, React Navigation, Zustand/RTK, Detox |
-| Mobile | `dev-standards-flutter` | No | BLoC/Riverpod, freezed, flutter_test |
-| Mobile | `dev-standards-swift` | No | SwiftUI, MVVM, Swift Concurrency, XCTest |
-| Mobile | `dev-standards-kotlin` | Yes (Gradle/Maven) | Jetpack Compose, MVVM+Clean, Hilt, Coroutines+Flow |
-| Data / ML | `dev-standards-pandas` | No | Vectorisation, pandera, `.pipe()` |
-| Data / ML | `dev-standards-dbt` | No | staging/intermediate/mart layers, schema.yml, tests |
-| Data / ML | `dev-standards-airflow` | No | TaskFlow API, idempotence, Connections/Variables |
-| Data / ML | `dev-standards-pyspark` | No | DataFrame API, broadcast join, partitioning, MLflow |
+| Testing | `dev-standards-playwright` | Yes | Semantic locators, POM, session fixtures |
+| Testing | `dev-standards-cypress` | Yes | data-cy, cy.intercept, custom commands, cy.session |
+| Mobile | `dev-standards-react-native` | Yes | Expo, React Navigation, Zustand/RTK, Detox |
+| Mobile | `dev-standards-flutter` | Yes | BLoC/Riverpod, freezed, flutter_test |
+| Mobile | `dev-standards-swift` | Yes | SwiftUI, MVVM, Swift Concurrency, XCTest |
+| Mobile | `dev-standards-kotlin` | Yes (Android) | Jetpack Compose, MVVM+Clean, Hilt, Coroutines+Flow |
+| Data / ML | `dev-standards-pandas` | Yes | Vectorisation, pandera, `.pipe()` |
+| Data / ML | `dev-standards-dbt` | Yes | staging/intermediate/mart layers, schema.yml, tests |
+| Data / ML | `dev-standards-airflow` | Yes | TaskFlow API, idempotence, Connections/Variables |
+| Data / ML | `dev-standards-pyspark` | Yes | DataFrame API, broadcast join, partitioning, MLflow |
 | DevOps / CI | `dev-standards-docker` | Yes | Multi-stage, non-root, .dockerignore, healthchecks, BuildKit secrets |
 | DevOps / CI | `dev-standards-github-actions` | Yes | Minimal permissions, concurrency, SHA pinning, OIDC |
 | DevOps / CI | `dev-standards-gitlab-ci` | Yes | `rules`, YAML templates, masked variables, `when: manual` in prod |
-| Platform | `dev-standards-terraform` | No | Modules, variables + validation, remote state, plan → PR → apply |
-| Platform | `dev-standards-kubernetes` | No | Deployment, RBAC, NetworkPolicy, ResourceQuota, PDB, Kustomize |
-| Platform | `dev-standards-helm` | No | Chart structure, values without secrets, helm diff + --atomic |
-| Platform | `dev-standards-argocd` | No | GitOps, sync policies per env, ESO, Vault |
+| Platform | `dev-standards-terraform` | Yes | Modules, variables + validation, remote state, plan → PR → apply |
+| Platform | `dev-standards-kubernetes` | Yes | Deployment, RBAC, NetworkPolicy, ResourceQuota, PDB, Kustomize |
+| Platform | `dev-standards-helm` | Yes | Chart structure, values without secrets, helm diff + --atomic |
+| Platform | `dev-standards-argocd` | Yes | GitOps, sync policies per env, ESO, Vault |
 
 ---
 
