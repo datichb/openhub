@@ -60,8 +60,7 @@ func TestReadOnlyClaimsMatchPermissions(t *testing.T) {
 		for _, cmd := range []string{"rm x", "mv a b", "sed -i s/a/b/ x"} {
 			assert.Equal(t, sessionspec.EffectDeny, ShellEffect(rules, cmd), "%s claims read-only: %s", id, cmd)
 		}
-		// Every path its own rules let it write is a listed exception (the
-		// guard asks for the hook files of every agent: not its own rules).
+		// Every path its own rules let it write is a listed exception.
 		for _, r := range own {
 			if (r.Action == sessionspec.ActionEdit || r.Action == sessionspec.ActionAll) && r.Effect != sessionspec.EffectDeny {
 				key := id + ": edit " + r.Resource

@@ -73,6 +73,15 @@ func TestGlobalGuard(t *testing.T) {
 		}
 	}
 
+	// The hook files ask only for an agent that may edit them: a read-only
+	// agent keeps its refusal (a global ask would loosen it).
+	for _, path := range []string{".husky/pre-commit", "web/.husky/pre-commit", ".pre-commit-config.yaml", "lefthook.yml"} {
+		assert.Equal(t, sessionspec.EffectAsk, ToolEffect(effectiveRules(t, "developer", "developer"), sessionspec.ActionEdit, path), "developer: edit %s", path)
+		for _, ag := range [][2]string{{"reviewer", "reviewer"}, {"debugger", "debugger"}, {"operator", "operator"}} {
+			assert.Equal(t, sessionspec.EffectDeny, ToolEffect(effectiveRules(t, ag[0], ag[1]), sessionspec.ActionEdit, path), "%s: edit %s", ag[1], path)
+		}
+	}
+
 	// What a developer must still run (developer_permissions_test.go and
 	// the forms close to the refused ones).
 	dev := effectiveRules(t, "developer", "developer")

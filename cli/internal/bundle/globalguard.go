@@ -146,20 +146,47 @@ func customOhHome(home string) string {
 }
 
 // GlobalEditGuard returns the global edit rules: the git pointer file of a
-// worktree and the git directory are never edited; the hooks of the project
-// and the Beads data files that redirect the database ask.
+// worktree, the git directory and the Beads data files that redirect the
+// database are never edited. The hooks of the project ask, per agent
+// (HookEditGuard): a global ask would loosen the deny of a read-only agent.
 func GlobalEditGuard() []sessionspec.PermissionRule {
 	var out []sessionspec.PermissionRule
 	add := func(p string, eff sessionspec.Effect) {
 		out = append(out, sessionspec.PermissionRule{Action: sessionspec.ActionEdit, Resource: p, Effect: eff})
 	}
-	for _, p := range []string{".husky/*", ".githooks/*", "lefthook*.yml", ".lefthook*.yml", ".pre-commit-config.yaml"} {
-		add(p, sessionspec.EffectAsk)
-		add("*/"+p, sessionspec.EffectAsk)
-	}
 	for _, p := range []string{".git", ".git/*", ".beads/redirect", ".beads/config.yaml", ".beads/hooks/*"} {
 		add(p, sessionspec.EffectDeny)
 		add("*/"+p, sessionspec.EffectDeny)
+	}
+	return out
+}
+
+// hookEditPatterns are the hook files of the project, each with a path it
+// matches (to read the agent's own effect on it).
+var hookEditPatterns = []struct{ pattern, sample string }{
+	{".husky/*", ".husky/pre-commit"},
+	{".githooks/*", ".githooks/pre-commit"},
+	{"lefthook*.yml", "lefthook.yml"},
+	{".lefthook*.yml", ".lefthook.yml"},
+	{".pre-commit-config.yaml", ".pre-commit-config.yaml"},
+}
+
+// HookEditGuard returns, for an agent whose own rules let it edit the hook
+// files, rules that ask before each edit of them; an agent that may not edit
+// them keeps its refusal.
+func HookEditGuard(own []sessionspec.PermissionRule) []sessionspec.PermissionRule {
+	var out []sessionspec.PermissionRule
+	for _, h := range hookEditPatterns {
+		for _, p := range []string{h.pattern, "*/" + h.pattern} {
+			sample := h.sample
+			if p != h.pattern {
+				sample = "sub/" + h.sample
+			}
+			if ToolEffect(own, sessionspec.ActionEdit, sample) == sessionspec.EffectDeny {
+				continue
+			}
+			out = append(out, sessionspec.PermissionRule{Action: sessionspec.ActionEdit, Resource: p, Effect: sessionspec.EffectAsk})
+		}
 	}
 	return out
 }

@@ -399,7 +399,7 @@ func agentDef(req Request, a *bricks.AssembledAgent, instructions string) (sessi
 		// After the agent's own rules ("*": deny first), before the guards.
 		verify = VerifyRules(req.verifyCommands, req.Spec.Risk)
 	}
-	def.Permissions = append(append(append(append(append(append(own, verify...), InfraGuard(own)...), GitShellGuard(own)...), BeadsShellGuard()...), HookGuard()...), BeadsDirGuard()...)
+	def.Permissions = append(append(append(append(append(append(append(own, verify...), InfraGuard(own)...), GitShellGuard(own)...), BeadsShellGuard()...), HookGuard()...), HookEditGuard(own)...), BeadsDirGuard()...)
 	return def, nil
 }
 
