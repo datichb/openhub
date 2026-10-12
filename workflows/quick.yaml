@@ -25,11 +25,11 @@ checkpoints:
   cp-commit:
     label: { fr: Commit, en: Commit }
     description:
-      fr: Présenter le résumé des changements (fichiers, tests) avant le commit.
-      en: Present the summary of the changes (files, tests) before the commit.
+      fr: Présenter le résumé des changements (fichiers, tests) avant le commit, puis la fermeture du ticket s'il y en a un.
+      en: Present the summary of the changes (files, tests) before the commit, then the closing of the ticket if there is one.
     mandatory: true
     mode: { manuel: pause, semi-auto: pause, auto: pause }
-    unlocks: [commit]
+    unlocks: [commit, close]
 beads:
   allow: [show, list, ready, search, query, children, comments, count, status, graph, history, create, update, close, dep, label]
 runtime: { default: local, allowed: [local] }

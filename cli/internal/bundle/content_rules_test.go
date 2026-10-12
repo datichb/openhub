@@ -44,8 +44,41 @@ func TestQuickAndDebugCommitGate(t *testing.T) {
 		require.True(t, ok, id)
 		for _, mode := range []string{"manuel", "semi-auto", "auto"} {
 			assert.Equal(t, sessionspec.CheckpointPause, cp.Behavior(mode), "%s %s", id, mode)
-			assert.Equal(t, []string{sessionspec.UnlockCommit}, LockedOps(wf, mode, nil), "%s %s", id, mode)
+			assert.Equal(t, []string{sessionspec.UnlockCommit, sessionspec.UnlockClose}, LockedOps(wf, mode, nil), "%s %s", id, mode)
 		}
+	}
+}
+
+// C0.2: closing a ticket is locked wherever an agent may close one, so a
+// ticket is never marked done without a commit (and its provenance never
+// records a commit that did not happen). libre has no checkpoint by design.
+func TestShippedWorkflowsLockClose(t *testing.T) {
+	_, cat, _ := shippedWorkflows(t)
+	for _, ref := range cat.Refs() {
+		r, diags := workflow.ResolveSpec(cat, ref, nil)
+		require.Empty(t, diags.Errors(), ref.ID)
+		if ref.ID == "libre" || r.Spec.Beads == nil {
+			continue
+		}
+		allowsClose := false
+		for _, cmd := range r.Spec.Beads.Allow {
+			if cmd == "close" {
+				allowsClose = true
+			}
+		}
+		if !allowsClose {
+			continue
+		}
+		locked := false
+		for _, key := range r.Spec.Checkpoints.Keys() {
+			cp, _ := r.Spec.Checkpoints.Get(key)
+			for _, op := range cp.Unlocks {
+				if string(op) == sessionspec.UnlockClose {
+					locked = true
+				}
+			}
+		}
+		assert.True(t, locked, "%s allows bd close but no checkpoint unlocks close", ref.ID)
 	}
 }
 
