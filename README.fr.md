@@ -111,18 +111,19 @@ Dans la TUI, **Démarrer** liste les workflows (★ épinglés, récents), ouvre
 
 ## Workflows
 
-Les 12 workflows livrés par le hub :
+Les 13 workflows livrés par le hub :
 
 | Workflow | Agent d'entrée | Usage |
 |----------|----------------|-------|
 | `feature` | `orchestrator` | Feature de bout en bout : plan, conception, implémentation, review |
 | `ticket` | `orchestrator-dev` | Tickets Beads prêts à coder (`--tickets a,b` : une session par ticket) |
 | `quick` | `developer` | Petite modification bien délimitée |
+| `infra-change` | `operator` | Appliquer un changement d'infrastructure déjà écrit : plan, validation, application (`-i target=staging`) |
 | `cadrage` | `conductor` | Cadrer sans implémenter |
 | `onboarding` | `onboarder` | Découvrir un projet, écrire son wiki (`docs/wiki/`) |
 | `review` | `reviewer` | Relire une branche (lecture seule) |
 | `review-feedback` | `orchestrator-dev` | Traiter les retours d'une review |
-| `audit` | `auditor` | Audit multi-domaines (`-i type=security`…) |
+| `audit` | `auditor` | Audit multi-domaines (`-i type=security`, `infra`, `database`…) |
 | `debug` | `debugger` | Diagnostiquer un bug (`-i issue="…"`) |
 | `sweep` | `conductor` | Série de modifications guidée par un but (`-i goal=…`) |
 | `brief-enrich` | `brief-enricher` | Enrichir un brief de reprise (sans interface) |
@@ -134,12 +135,12 @@ Les workflows se résolvent **par couches** : hub < équipe < projet < options d
 
 ## Agents
 
-20 agents en 7 familles. Leur mode par défaut vient de leur frontmatter ; un workflow choisit les membres d'une session et peut changer leur mode.
+19 agents en 8 familles. Leur mode par défaut vient de leur frontmatter ; un workflow choisit les membres d'une session et peut changer leur mode.
 
 - **`primary`** : point d'entrée d'une session
 - **`subagent`** : délégué par un autre agent du workflow
 
-### Agents primaires (15)
+### Agents primaires (14)
 
 | Agent | Famille | Rôle |
 |-------|---------|------|
@@ -149,14 +150,13 @@ Les workflows se résolvent **par couches** : hub < équipe < projet < options d
 | `planner` | Planning | Découpage des features en tickets Beads |
 | `pathfinder` | Planning | Reconnaissance rapide, estimation de complexité |
 | `onboarder` | Planning | Découverte du projet, création du wiki |
-| `auditor` | Auditor | Coordinateur d'audit multi-domaines (7 domaines) |
+| `auditor` | Auditor | Coordinateur d'audit multi-domaines (9 domaines, dont infrastructure et base de données) |
 | `designer` | Design | Analyse Figma, specs UX/UI (recon, ux, ui, ux+ui) |
 | `reviewer` | Quality | Review de PR/MR par sévérité (standard, adversarial, edge-case) |
 | `debugger` | Quality | Diagnostic de bug, cause racine |
 | `benchmarker` | Quality | Benchmarks de performance Lighthouse, k6, pprof, py-spy |
 | `test-generator` | Quality | Analyse des manques, tests unitaires/intégration/property-based |
-| `database` | Developer | Schéma, migrations, optimisation des requêtes, audit de sécurité BD |
-| `infra` | Developer | Review Terraform/K8s, estimation des coûts, sécurité IaC |
+| `operator` | Infra | Changement d'infrastructure : plan, coût, risques, puis application du plan validé (`infra-change`) |
 | `documentarian` | Documentation | README, CHANGELOG, ADR, docs d'API |
 
 ### Sous-agents (5)
@@ -166,7 +166,7 @@ Les workflows se résolvent **par couches** : hub < équipe < projet < options d
 | `developer` | `orchestrator-dev` | Implémentation (frontend, backend, fullstack, api, mobile, data, devops, platform, security) |
 | `developer-refactor` | `orchestrator-dev` | Refactoring structurel |
 | `developer-migrator` | `orchestrator-dev` | Migrations incrémentales |
-| `auditor-subagent` | `auditor` | Tous les domaines d'audit (sécurité, performance, accessibilité, écoconception, architecture, vie privée, observabilité) |
+| `auditor-subagent` | `auditor` | Tous les domaines d'audit (sécurité, performance, accessibilité, écoconception, architecture, vie privée, observabilité, infrastructure, base de données) |
 | `brief-enricher` | workflow `brief-enrich` | Enrichissement d'un brief de reprise, en lecture seule |
 
 Voir [Agents](docs/architecture/agents.fr.md).
@@ -189,7 +189,7 @@ Choix par `oh run --runtime …`, sinon le réglage du projet, les Réglages, pu
 
 ```
 openhub/
-├── agents/              <- Définitions des agents (20 agents, 7 familles)
+├── agents/              <- Définitions des agents (19 agents, 8 familles)
 ├── skills/              <- Protocoles : Bucket A (inline) + Bucket B (à la demande)
 ├── workflows/           <- Workflows livrés (oh/v1) + gabarits de prompt
 ├── permissions/         <- Bases de permissions des agents

@@ -1,5 +1,5 @@
 %% OpenHub -- Agent Hierarchy (v5)
-%% 20 agents across 7 families, showing mode (primary/subagent)
+%% 19 agents across 8 families, showing mode (primary/subagent)
 %% and the delegations their permissions allow. In a session, the workflow
 %% decides which agents are members and which delegations are reachable
 %% (SubagentGraph, closed world): see ADR-039 and ADR-041.
@@ -15,13 +15,15 @@ flowchart TD
         ONB["fa:fa-book <strong>onboarder</strong><br/>Primary · Discovery<br/>read-write"]
     end
 
-    subgraph Developer ["Developer Family (5 agents)"]
+    subgraph Developer ["Developer Family (3 agents)"]
         direction TB
         DEV["fa:fa-code <strong>developer</strong><br/>Subagent · Generic<br/>read-write"]
         DEVR["fa:fa-recycle <strong>developer-refactor</strong><br/>Subagent · Refactoring<br/>read-write"]
         DEVM["fa:fa-exchange <strong>developer-migrator</strong><br/>Subagent · Migration<br/>read-write"]
-        DB["fa:fa-database <strong>database</strong><br/>Primary · DB Specialist<br/>read-write"]
-        INFRA["fa:fa-server <strong>infra</strong><br/>Primary · DevOps<br/>read-write"]
+    end
+
+    subgraph Infra ["Infra Family (1 agent)"]
+        OPS["fa:fa-server <strong>operator</strong><br/>Primary · Plan and apply<br/>no file edits"]
     end
 
     subgraph Auditor ["Auditor Family (2 agents)"]
@@ -75,7 +77,6 @@ flowchart TD
     PLAN -->|delegates| DES
     PATH -->|delegates| DOC
     PATH -->|delegates| DES
-    DB -->|delegates| DOC
     BENCH -->|delegates| DOC
     TEST -->|delegates| DOC
     TEST -->|delegates| REV
@@ -83,6 +84,7 @@ flowchart TD
     style Planning fill:#3498db15,stroke:#3498db
     style Developer fill:#2ecc7115,stroke:#2ecc71
     style Auditor fill:#e74c3c15,stroke:#e74c3c
+    style Infra fill:#34495e15,stroke:#34495e
     style Quality fill:#f39c1215,stroke:#f39c12
     style Design fill:#9b59b615,stroke:#9b59b6
     style Documentation fill:#1abc9c15,stroke:#1abc9c

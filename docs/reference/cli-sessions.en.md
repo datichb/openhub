@@ -421,7 +421,7 @@ oh audit [options]
 | `--project` | `-p` | Project ID | `-p` |
 | `--type` | `-t` | Audit type (default: security) | `-i type=<type>` |
 
-Available types: `security`, `performance`, `architecture`, `accessibility`, `ecodesign`, `observability`, `privacy`.
+Available types: `security`, `performance`, `architecture`, `accessibility`, `ecodesign`, `observability`, `privacy`, `infra`, `database`.
 
 **Example:**
 

@@ -231,7 +231,7 @@ restricted to the workflow members, or replaced by `calls:`.
 | `reviewer` | `documentarian`; `reviewer` (itself) only with `calls: [reviewer]` |
 | `test-generator` | `reviewer`, `documentarian` |
 | `debugger`, `benchmarker` | `documentarian` |
-| `developer`, `developer-refactor`, `developer-migrator`, `database`, `infra` | `documentarian` |
+| `developer`, `developer-refactor`, `developer-migrator` | `documentarian` |
 | `auditor-subagent`, `designer`, `documentarian`, `onboarder`, `brief-enricher` | *(none)* |
 
 ### `primary` vs `subagent` modes

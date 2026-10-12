@@ -19,6 +19,7 @@ Chaque session lance un **workflow** (voir [Workflows livrés](../reference/work
 | Tickets Beads déjà planifiés, prêts à coder | `oh run ticket --tickets bd-X,bd-Y` | `orchestrator-dev` | `"Implémente les tickets bd-X à bd-Y"` |
 | Spécifications UX/UI uniquement, sans implémenter | `oh run libre --agent designer` | `designer` | `"Spec UX pour [feature]"` (Mode : ux, ui ou ux+ui) |
 | Audit avant mise en production | `oh run audit` | `auditor` | `"Audite le projet"` |
+| Appliquer un changement d'infrastructure déjà écrit (Terraform, Kubernetes, Helm) | `oh run infra-change -i target=staging` | `operator` | `"Applique le changement d'infra/db"` |
 | Bug en production avec stacktrace ou logs | `oh run debug` | `debugger` | `"Ce bug : [stacktrace]"` |
 | Review d'une PR développée manuellement | `oh run review` | `reviewer` | `"Review de ma PR — branche : [nom]"` |
 | Planifier une feature sans l'implémenter | `oh run cadrage` | `conductor` → `planner` | `"Décompose [feature] en tickets"` |
@@ -305,7 +306,7 @@ flowchart TD
 Prompt : "Audite le projet"
 ```
 
-L'auditeur qualifie la demande comme un **audit complet** et délègue à `auditor-subagent` pour chacun des 7 domaines (une invocation par domaine, domaine + native_skill transmis dans le prompt).
+L'auditeur qualifie la demande comme un **audit complet** et délègue à `auditor-subagent` pour chaque domaine pertinent (jusqu'à 9 : `infra` et `database` seulement si le projet contient de l'IaC ou une base de données ; une invocation par domaine, domaine + native_skill transmis dans le prompt).
 
 #### 2. Audit ciblé
 
@@ -915,3 +916,20 @@ bd-12  P1  feature  ~3h   Implémentation formulaire d'inscription
 bd-13  P1  feature  ~2h   Service de vérification email
        → acceptance : email envoyé < 30s, lien expire après 24h, ...
 ```
+
+---
+
+## Scénario 10 — Changement d'infrastructure (operator)
+
+**Contexte :** un changement Terraform est fusionné sur `main` et doit arriver en `staging`. Le code est déjà écrit (par vous ou une session `developer`) ; la session se contente de planifier, faire valider et appliquer.
+
+```bash
+oh run infra-change -i target=staging -i request="Appliquer la nouvelle classe d'instance RDS d'infra/db (commit a1b2c3d)"
+```
+
+1. L'`operator` vérifie le contexte réel (`terraform workspace show`, `aws sts get-caller-identity`) par rapport à `staging` et s'arrête en cas d'écart.
+2. Il lance `terraform plan -out=…` et présente **`cp-plan`** : changements à créer / modifier / détruire (chaque remplacement nommé), delta de coût (`infracost` s'il est installé), risques, retour arrière.
+3. Vous validez ; il présente **`cp-apply`** avec la cible et le fichier de plan. Jusque-là, oh refuse `terraform apply` et toute autre modification.
+4. Après validation, il lance `terraform apply <fichier de plan>` (chaque commande de modification demandée), vérifie le résultat (`terraform plan` sans changement) et rend compte.
+
+Pour relire le même code sans rien appliquer : `oh run audit -i type=infra`.

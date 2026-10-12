@@ -116,19 +116,19 @@ flowchart TD
 
 **Bucket B** — Standards de domaine, skills de stack, checklists, skills de type documentaire, phases détaillées, skills de recherche. Chargées seulement quand la tâche en a besoin.
 
-Tous les agents du hub ont `permission: skill: allow`, directement ou par leur `permission_base` (`coordinator`, `developer-rw`, `readonly-code`). Dans la session, les règles du monde fermé limitent l'outil `skill` aux skills du paquet.
+Tous les agents du hub ont `permission: skill: allow`, directement ou par leur `permission_base` (`coordinator`, `developer-rw`, `readonly-code`, `readonly-ops`). Dans la session, les règles du monde fermé limitent l'outil `skill` aux skills du paquet.
 
 ---
 
 ## Inventaire des skills (source de vérité)
 
-**182 skills** dans 13 dossiers (142 skills de domaine + 40 skills de stack), plus **14 annexes** dans `skills/templates/`.
+**184 skills** dans 13 dossiers (144 skills de domaine + 40 skills de stack), plus **14 annexes** dans `skills/templates/`.
 
 Lecture des tableaux : la colonne **Agents** donne le bucket et les agents d'après leur frontmatter (`A` = `skills:`, `B` = `native_skills:`). `—` = aucun agent ne la référence : la skill n'est dans un paquet que si un workflow l'ajoute par `skills.extra`.
 
 Notations courtes :
 
-- **tous** = les 19 agents sauf `brief-enricher` ;
+- **tous** = les 18 agents sauf `brief-enricher` ;
 - **dev-rw** = `developer`, `developer-refactor`, `developer-migrator`.
 
 ### `shared/` — 16 skills (transverses)
@@ -136,12 +136,12 @@ Notations courtes :
 | Skill | Agents | Contenu |
 |-------|--------|---------|
 | `universal-guardrails` | A : tous | Garde-fous transverses — git push, ordre récap/question, usage de context-mode, nettoyage des processus en arrière-plan |
-| `wiki-navigation` | A : auditor-subagent, database, dev-rw, infra, onboarder, pathfinder, benchmarker, debugger, reviewer, test-generator | Navigation du wiki vivant : lire l'index d'abord, charger les pages utiles, jamais le wiki entier |
+| `wiki-navigation` | A : auditor-subagent, dev-rw, onboarder, operator, pathfinder, benchmarker, debugger, reviewer, test-generator | Navigation du wiki vivant : lire l'index d'abord, charger les pages utiles, jamais le wiki entier |
 | `hub-workflow-reference` | A : orchestrator, planner | Catalogue des agents, heuristique pathfinder vs planner, séquences standard, table des handoffs. **Version générée depuis le workflow** dans le paquet |
 | `websearch-usage` | A : pathfinder · B : auditor-subagent, designer, documentarian, onboarder, planner | Bonnes pratiques de l'outil `websearch` : requêtes ciblées, vérification des sources |
-| `living-docs-enrichment` | B : auditor, database, dev-rw, infra, onboarder, pathfinder, planner, benchmarker, debugger, reviewer, test-generator | Enrichissement incrémental du wiki (`docs/wiki/`), d'`ONBOARDING.md` et de `CONVENTIONS.md` ; délègue l'écriture au documentarian après confirmation |
-| `team-awareness` | B : les 20 agents | Collaboration via le serveur MCP `team` (claims, statut, activité) |
-| `team-policies-enforcement` | B : les 20 agents sauf conductor | Respect des politiques d'équipe |
+| `living-docs-enrichment` | B : auditor, dev-rw, onboarder, operator, pathfinder, planner, benchmarker, debugger, reviewer, test-generator | Enrichissement incrémental du wiki (`docs/wiki/`), d'`ONBOARDING.md` et de `CONVENTIONS.md` ; délègue l'écriture au documentarian après confirmation |
+| `team-awareness` | B : les 19 agents | Collaboration via le serveur MCP `team` (claims, statut, activité) |
+| `team-policies-enforcement` | B : les 19 agents sauf conductor | Respect des politiques d'équipe |
 | `skill-authoring-protocol` | B : documentarian | Rédaction de skills — TDD RED/GREEN/REFACTOR, checklist SDO, anti-patterns, checklist de validation |
 | `rtk-usage` | B : 15 agents | **Antérieure à v5** — guide RTK (voir [Skills antérieures à v5](#skills-antérieures-à-v5)) |
 | `context-mode-usage` | A : dev-rw | **Antérieure à v5** — usage des outils `ctx_*` de context-mode (voir [Skills antérieures à v5](#skills-antérieures-à-v5)) |
@@ -221,13 +221,13 @@ Les six dernières ne sont dans aucun frontmatter : d'autres skills les citent d
 
 | Skill | Agents | Contenu |
 |-------|--------|---------|
-| `dev-standards-universal` | A : dev-rw, database, infra, benchmarker, reviewer, test-generator | Clean Code, SOLID, nommage, structure — agnostique du langage. Gate de complétion (tests, comportement, régressions) et signal `BLOCKED_ARCHITECTURE` |
+| `dev-standards-universal` | A : dev-rw, benchmarker, reviewer, test-generator | Clean Code, SOLID, nommage, structure — agnostique du langage. Gate de complétion (tests, comportement, régressions) et signal `BLOCKED_ARCHITECTURE` |
 | `dev-standards-simplicity` | A : dev-rw | KISS, YAGNI, pas d'abstraction ni d'optimisation prématurées, seuils de complexité mesurables |
 | `quick-fix` | A : dev-rw | Corrections déterministes sans review (lint, import manquant, typo, formatage) |
 | `beads-dev` | A : dev-rw, documentarian | Workflow exécuteur Beads : `bd update --claim`, `bd close --suggest-next`, règles `ai-delegated` |
 | `beads-plan` | A : developer-refactor, developer-migrator, pathfinder · B : developer, designer, documentarian, onboarder, orchestrator, planner | Lecture et création de tickets Beads : `bd list`, `bd show`, `bd create`, labels, dépendances, liens externes |
 | `developer-handoff-format` | A : dev-rw, orchestrator-dev | **Contrat de handoff** `## Retour vers orchestrator-dev` : fichiers modifiés, tests, critères d'acceptance, points d'attention, statut |
-| `dev-standards-security` | B : dev-rw, database, infra, reviewer | Secrets, validation des entrées, injections, auth, logs, dépendances |
+| `dev-standards-security` | B : dev-rw, operator, reviewer | Secrets, validation des entrées, injections, auth, logs, dépendances |
 | `dev-standards-testing` | A : test-generator · B : dev-rw, reviewer | Stratégie de tests, pyramide, couverture, TDD, gate de complétion |
 | `dev-standards-git` | A : documentarian, onboarder · B : dev-rw, reviewer | Conventional Commits, branches, PR/MR |
 | `dev-standards-backend` | B : reviewer | Architecture en couches, DTOs, services, repositories |
@@ -245,7 +245,7 @@ Les standards de domaine (`dev-standards-frontend`, `-backend`, `-api`…) sont 
 
 Les **40 skills de stack** de `developer/stacks/` sont décrites dans [Skills de stack](#skills-de-stack--developerstacks).
 
-### `auditor/` — 13 skills
+### `auditor/` — 15 skills
 
 | Skill | Agents | Contenu |
 |-------|--------|---------|
@@ -262,8 +262,10 @@ Les **40 skills de stack** de `developer/stacks/` sont décrites dans [Skills de
 | `audit-ecodesign` | — | RGESN, GreenIT, sobriété numérique |
 | `audit-privacy` | — | RGPD, EDPB, minimisation, consentement, PIA |
 | `audit-observability` | — | Méthode RED, logs structurés, traces, SLOs, alerting, dashboards |
+| `audit-infra` | — | Revue IaC (Terraform/OpenTofu, Kubernetes, Helm, ArgoCD), sécurité IaC (CIS, NSA/CISA), coût, drift ; outils d'analyse statique demandés |
+| `audit-database` | — | Rôles et privilèges, RLS, surfaces d'injection, chiffrement, sauvegardes, sûreté des migrations, données sensibles |
 
-Les 7 checklists de domaine sont prévues pour être indiquées à `auditor-subagent` par le coordinateur, mais aucun agent ne les déclare : elles ne sont dans le paquet `audit` que si un workflow les ajoute par `skills.extra`.
+Les 9 checklists de domaine sont chargées à la demande par `auditor-subagent`, qui les nomme dans sa table des domaines : elles sont livrées dans chaque paquet dont il est membre (`audit`). L'entrée `type` d'`audit` propose exactement ces domaines (test `TestAuditTypeEnumMatchesDomainSkills`).
 
 ### `quality/` — 8 skills
 
@@ -500,12 +502,12 @@ Une skill qui n'est pas dans le hub s'ajoute au **catalogue d'équipe** (`catalo
 
 ## Matrice agents ↔ skills
 
-Résumé du frontmatter des 20 agents (`agents/**/*.md`). Pour la vue par agent, voir aussi la [Matrice d'assignation des skills](./agents.fr.md#matrice-dassignation-des-skills-source-de-verite).
+Résumé du frontmatter des 19 agents (`agents/**/*.md`). Pour la vue par agent, voir aussi la [Matrice d'assignation des skills](./agents.fr.md#matrice-dassignation-des-skills-source-de-verite).
 
 Communs, non répétés dans le tableau :
 
 - `shared/universal-guardrails` (A) : tous les agents sauf `brief-enricher` ;
-- `shared/team-awareness` (B) : les 20 agents ;
+- `shared/team-awareness` (B) : les 19 agents ;
 - `shared/team-policies-enforcement` (B) : tous sauf `conductor` ;
 - `shared/rtk-usage` (B, [antérieure à v5](#skills-antérieures-à-v5)) : les agents marqués ¹.
 
@@ -528,10 +530,9 @@ Les skills de handoff (`*-handoff-format`) sont chargées par le producteur et p
 | `debugger` ¹ | debugger-workflow, debugger-handoff-format, debugger-forensic, debugger-report-templates, tool-question, wiki-navigation | debugger-execution-modes, debugger-phase-0-1, -2-3, -4-5, living-docs-enrichment, expert-posture |
 | `auditor` ¹ | coordination-only, retranscription-coordinateur, auditor-workflow, audit-protocol-light, audit-handoff-format, tool-question | auditor-execution-modes, living-docs-enrichment |
 | `auditor-subagent` ¹ | audit-protocol-light, subagent-concision-posture, audit-handoff-format, wiki-navigation | websearch-cve-lookup, websearch-performance-research, expert-posture, websearch-usage |
-| `database` | dev-standards-universal, tool-question, wiki-navigation | dev-standards-security, living-docs-enrichment |
-| `infra` | dev-standards-universal, tool-question, wiki-navigation | dev-standards-security, living-docs-enrichment |
+| `operator` ¹ | tool-question, wiki-navigation | dev-standards-security, living-docs-enrichment |
 | `test-generator` | dev-standards-universal, dev-standards-testing, tool-question, wiki-navigation | living-docs-enrichment |
 | `benchmarker` | dev-standards-universal, tool-question, wiki-navigation | living-docs-enrichment |
 | `brief-enricher` | — (`skills: []`) | — (communs seulement) |
 
-`database`, `infra`, `test-generator` et `benchmarker` ne figurent dans aucun des 12 workflows livrés : leurs skills n'arrivent dans un paquet que si un workflow d'équipe ou de projet les déclare comme membres. Les skills de stack s'ajoutent à chaque paquet selon le projet ([Skills de stack](#skills-de-stack--developerstacks)).
+`test-generator` et `benchmarker` ne figurent dans aucun des 13 workflows livrés : leurs skills n'arrivent dans un paquet que si un workflow d'équipe ou de projet les déclare comme membres. Les skills de stack s'ajoutent à chaque paquet selon le projet ([Skills de stack](#skills-de-stack--developerstacks)).

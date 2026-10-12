@@ -4,7 +4,8 @@
 
 Commandes et outils utiles pour chaque domaine d'audit.
 Ce document est destiné à l'usage humain — les agents d'audit n'exécutent pas ces commandes
-(ils font de l'analyse statique du code source uniquement).
+(ils font de l'analyse statique du code source uniquement), sauf les outils d'analyse IaC du
+domaine `infra`, que l'`auditor-subagent` peut lancer après votre confirmation.
 
 ---
 
@@ -148,6 +149,34 @@ radon cc src/ -a
 
 # Duplication de code (tous langages)
 npx jscpd --min-lines 10 --reporters json src/
+```
+
+---
+
+## Infrastructure as code (domaine `infra`)
+
+```bash
+terraform fmt -check -recursive
+terraform init -backend=false -lockfile=readonly && terraform validate
+tflint --recursive
+tfsec .                      # ou : trivy config .
+checkov -d . --compact
+kube-score score k8s/*.yaml
+kubesec scan k8s/deployment.yaml
+helm lint ./chart && helm template ./chart
+infracost breakdown --path infra/
+terraform plan -input=false -detailed-exitcode   # drift (code 2), identifiants en lecture seule
+kubectl diff -f k8s/                              # drift Kubernetes (lancé par vous)
+```
+
+## Base de données (domaine `database`)
+
+```sql
+-- PostgreSQL : rôles, privilèges et RLS (lancé par vous, résultats collés dans la session)
+SELECT rolname, rolsuper, rolbypassrls FROM pg_roles;
+SELECT grantee, table_name, privilege_type FROM information_schema.role_table_grants WHERE grantee = 'PUBLIC';
+SELECT relname, relrowsecurity, relforcerowsecurity FROM pg_class WHERE relkind = 'r' AND relnamespace = 'public'::regnamespace;
+SHOW ssl;
 ```
 
 ---

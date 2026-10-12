@@ -19,6 +19,7 @@ Each session runs a **workflow** (see [Built-in workflows](../reference/workflow
 | Beads tickets already planned, ready to code | `oh run ticket --tickets bd-X,bd-Y` | `orchestrator-dev` | `"Implement tickets bd-X to bd-Y"` |
 | UX/UI specifications only, without implementing | `oh run libre --agent designer` | `designer` | `"UX spec for [feature]"` (Mode: ux, ui, or ux+ui) |
 | Audit before going to production | `oh run audit` | `auditor` | `"Audit the project"` |
+| Apply an infrastructure change already written (Terraform, Kubernetes, Helm) | `oh run infra-change -i target=staging` | `operator` | `"Apply the change of infra/db"` |
 | Production bug with stacktrace or logs | `oh run debug` | `debugger` | `"This bug: [stacktrace]"` |
 | Review of a manually developed PR | `oh run review` | `reviewer` | `"Review my PR — branch: [name]"` |
 | Plan a feature without implementing it | `oh run cadrage` | `conductor` → `planner` | `"Break down [feature] into tickets"` |
@@ -305,7 +306,7 @@ flowchart TD
 Prompt: "Audit the project"
 ```
 
-The auditor qualifies the request as a **full audit** and delegates to `auditor-subagent` for each of the 7 domains (one invocation per domain, domain + native_skill passed in the prompt).
+The auditor qualifies the request as a **full audit** and delegates to `auditor-subagent` for each relevant domain (up to 9: `infra` and `database` only when the project has IaC or a database; one invocation per domain, domain + native_skill passed in the prompt).
 
 #### 2. Targeted audit
 
@@ -915,3 +916,20 @@ bd-12  P1  feature  ~3h   Registration form implementation
 bd-13  P1  feature  ~2h   Email verification service
        → acceptance: email sent < 30s, link expires after 24h, ...
 ```
+
+---
+
+## Scenario 10 — Infrastructure change (operator)
+
+**Context:** a Terraform change is merged on `main` and must reach `staging`. The code is already written (by you or a `developer` session); the session only plans, gets approval and applies.
+
+```bash
+oh run infra-change -i target=staging -i request="Apply the new RDS instance class of infra/db (commit a1b2c3d)"
+```
+
+1. The `operator` checks the real context (`terraform workspace show`, `aws sts get-caller-identity`) against `staging` and stops on a mismatch.
+2. It runs `terraform plan -out=…` and presents **`cp-plan`**: changes to create / modify / destroy (each replacement named), cost delta (`infracost` when installed), risks, rollback.
+3. You approve; it presents **`cp-apply`** with the target and the plan file. Until then oh refuses `terraform apply` and every other change.
+4. After approval it runs `terraform apply <planfile>` (each change command asked), checks the result (`terraform plan` without changes) and reports.
+
+To review the same code without applying anything: `oh run audit -i type=infra`.

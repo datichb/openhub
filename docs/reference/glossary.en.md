@@ -126,7 +126,7 @@ A specialized coordinator agent for implementation workflows. Manages the Beads 
 
 ### Permission Profile
 
-A YAML file (in `permissions/`) that defines what tools an agent can use (`bash`, `read`, `edit`, `write`, `glob`, `grep`, `webfetch`, `websearch`, `skill`, `task`). Three built-in profiles: `coordinator` (read-only), `developer-rw` (full access), `readonly-code` (read-only code).
+A YAML file (in `permissions/`) that defines what tools an agent can use (`bash`, `read`, `edit`, `write`, `glob`, `grep`, `webfetch`, `websearch`, `skill`, `task`). Four built-in profiles: `coordinator` (read-only), `developer-rw` (full access), `readonly-code` (read-only code), `readonly-ops` (infrastructure operations without file changes).
 
 ### Provider
 
@@ -183,7 +183,7 @@ A workflow may restrict the modes (`modes.allowed`). See [`oh/v1` schema](workfl
 
 ### Workflow
 
-The declarative description of a use case (YAML `apiVersion: oh/v1`): entry agent, agents, checkpoints, inputs, resources, environments and limits. 12 workflows shipped by the hub (`feature`, `ticket`, `quick`, `cadrage`, `onboarding`, `review`, `review-feedback`, `audit`, `debug`, `sweep`, `brief-enrich`, `libre`), extensible by the team and the project (`extends`, security may only be hardened). Launched with `oh run <workflow>`. See [Shipped workflows](workflows.en.md) and [`oh/v1` schema](workflow-schema.en.md).
+The declarative description of a use case (YAML `apiVersion: oh/v1`): entry agent, agents, checkpoints, inputs, resources, environments and limits. 13 workflows shipped by the hub (`feature`, `ticket`, `quick`, `infra-change`, `cadrage`, `onboarding`, `review`, `review-feedback`, `audit`, `debug`, `sweep`, `brief-enrich`, `libre`), extensible by the team and the project (`extends`, security may only be hardened). Launched with `oh run <workflow>`. See [Shipped workflows](workflows.en.md) and [`oh/v1` schema](workflow-schema.en.md).
 
 ### Worktree
 

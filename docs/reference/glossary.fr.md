@@ -134,7 +134,7 @@ Services du [demon ohd](#demon-ohd). La **passerelle Beads** execute sur la mach
 
 ### Permission Profile (Profil de permissions)
 
-Un fichier YAML (dans `permissions/`) qui definit quels outils un agent peut utiliser (`bash`, `read`, `edit`, `write`, `glob`, `grep`, `webfetch`, `websearch`, `skill`, `task`). Trois profils integres : `coordinator` (lecture seule), `developer-rw` (acces complet), `readonly-code` (code en lecture seule).
+Un fichier YAML (dans `permissions/`) qui definit quels outils un agent peut utiliser (`bash`, `read`, `edit`, `write`, `glob`, `grep`, `webfetch`, `websearch`, `skill`, `task`). Quatre profils integres : `coordinator` (lecture seule), `developer-rw` (acces complet), `readonly-code` (code en lecture seule), `readonly-ops` (operations d'infrastructure sans modification de fichier).
 
 ### Proxy d'identifiants
 
@@ -183,7 +183,7 @@ Un workflow peut restreindre les modes (`modes.allowed`). Voir [schema `oh/v1`](
 
 ### Workflow
 
-La description declarative d'un cas d'usage (YAML `apiVersion: oh/v1`) : agent d'entree, agents, checkpoints, entrees, ressources, environnements et limites. 12 workflows livres par le hub (`feature`, `ticket`, `quick`, `cadrage`, `onboarding`, `review`, `review-feedback`, `audit`, `debug`, `sweep`, `brief-enrich`, `libre`), extensibles par l'equipe et le projet (`extends`, la securite ne pouvant que se durcir). Lance par `oh run <workflow>`. Voir [Workflows livres](workflows.fr.md) et [schema `oh/v1`](workflow-schema.fr.md).
+La description declarative d'un cas d'usage (YAML `apiVersion: oh/v1`) : agent d'entree, agents, checkpoints, entrees, ressources, environnements et limites. 13 workflows livres par le hub (`feature`, `ticket`, `quick`, `infra-change`, `cadrage`, `onboarding`, `review`, `review-feedback`, `audit`, `debug`, `sweep`, `brief-enrich`, `libre`), extensibles par l'equipe et le projet (`extends`, la securite ne pouvant que se durcir). Lance par `oh run <workflow>`. Voir [Workflows livres](workflows.fr.md) et [schema `oh/v1`](workflow-schema.fr.md).
 
 ### Worktree
 
