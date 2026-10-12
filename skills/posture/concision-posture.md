@@ -85,7 +85,7 @@ Ces blocs sont des **contrats fonctionnels** — leur format et leur complétude
 - `## Question pour l'orchestrator` / `## Question pour l'orchestrator` — mécanisme de reprise de session
 - `## Retour intermédiaire vers orchestrator` — blocs de contexte pour les checkpoints
 - Récapitulatifs narratifs obligatoires (planner, onboarder, designers)
-- Rapports de review, rapports QA, rapports de diagnostic
+- Rapports de review, rapports de diagnostic
 
 ### Contenu technique
 

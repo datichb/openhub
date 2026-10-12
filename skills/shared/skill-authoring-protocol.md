@@ -15,7 +15,7 @@ Charger la skill `skill-authoring-protocol` (outil `skill`) quand :
 - Amélioration qualitative d'un skill existant (REFACTOR)
 - Revue SDO d'un skill existant
 
-> Guide complet : `docs/guides/authoring-skills.md`
+> Guide complet : `docs/guides/authoring-skills.fr.md`
 
 ---
 
@@ -97,14 +97,13 @@ Pour chaque règle : "Comment un modèle respecterait-il la lettre en violant l'
 - [ ] Anti-patterns vérifiés
 
 **SDO**
-- [ ] `description:` ≤ 2 phrases, discriminante, keywords couverts
-- [ ] `name:` identique au nom du fichier (identifiant unique dans le catalogue)
+- [ ] `description:` ≤ 2 phrases, discriminante, keywords couverts (1024 caractères max.)
+- [ ] `name:` identique au nom du fichier (identifiant unique dans le catalogue), 64 caractères max., minuscules, chiffres et tirets
+- [ ] Frontmatter limité à `name`, `description`, `license`, `compatibility`, `metadata`, `allowed-tools` (livrés) et `requires`, `annexes`, `plugin` (lus par oh) — toute autre clé est une erreur
 - [ ] `requires:` si la skill dépend d'autres skills (pas de champ `bucket:`)
 - [ ] `oh skill check` sans erreur
 
 **Intégration**
-- [ ] Bucket A → dans `skills:` agents + `skills.fr.md` mis à jour
-- [ ] Bucket B → dans `native_skills:` agents + déclencheur documenté
-- [ ] Entrée dans `docs/architecture/skills.fr.md`
-- [ ] Si nouvel agent : `skills/shared/hub-workflow-reference.md` mis à jour
-- [ ] Si skill de type Reference : `source-of-truth: true` dans frontmatter
+- [ ] Inclus dans le prompt → dans `skills:` des agents ; à la demande → dans `native_skills:` des agents + déclencheur documenté (voir `docs/architecture/skills.fr.md` / `skills.en.md`)
+- [ ] Entrée dans `docs/architecture/skills.fr.md` et `docs/architecture/skills.en.md`
+- [ ] Si nouvel agent : l'ajouter aux `agents:` des `workflows/*.yaml` concernés (`skills/shared/hub-workflow-reference.md` est générée, ne pas l'éditer)

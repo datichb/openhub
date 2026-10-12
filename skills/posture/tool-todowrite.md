@@ -59,11 +59,10 @@ Quand `orchestrator-dev` est invoqué directement, mettre à jour le label de la
 | Phase | Suffixe |
 |-------|---------|
 | Implémentation | `[dev]` |
-| QA | `[QA]` |
 | Review | `[review]` |
 | En attente CP-2 | `[CP-2]` |
 | Terminé | *(pas de suffixe)* |
 
-Exemple : `#bd-12 — Endpoint POST /users [dev]` → `[QA]` → `[review]` → `completed`
+Exemple : `#bd-12 — Endpoint POST /users [dev]` → `[review]` → `completed`
 
 > Ces suffixes ne s'appliquent qu'en mode standalone. En mode sous-agent, la liste est invisible.

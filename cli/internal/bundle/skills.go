@@ -9,8 +9,12 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"regexp"
+	"slices"
 	"sort"
+	"strconv"
 	"strings"
+	"unicode/utf8"
 
 	"gopkg.in/yaml.v3"
 
@@ -29,9 +33,23 @@ import (
 //	requires: [<ref>, …]   skills that must be present with this one
 //	annexes:  [<path>, …]  files shipped next to the skill (see annexes.go)
 //	plugin:   <id>         shipped only when the workflow loads this plugin
+//
+// The delivered SKILL.md keeps only the Agent Skills spec keys; any other key
+// is reported by CheckSkills.
 
 // hubSkillKeys are frontmatter keys consumed by oh, never delivered to the tool.
 var hubSkillKeys = []string{"requires", "annexes", "plugin"}
+
+// deliveredSkillKeys are the Agent Skills spec keys, the only ones delivered.
+var deliveredSkillKeys = []string{"name", "description", "license", "compatibility", "metadata", "allowed-tools"}
+
+// Agent Skills spec limits.
+const (
+	maxSkillNameLen        = 64
+	maxSkillDescriptionLen = 1024
+)
+
+var skillNamePattern = regexp.MustCompile(`^[a-z0-9]+(-[a-z0-9]+)*$`)
 
 type skillFront struct {
 	Name        string   `yaml:"name"`
@@ -48,6 +66,7 @@ type skillDoc struct {
 	Source  string // file path, "" for a generated skill
 	Content []byte // whole file
 	Front   skillFront
+	Keys    []string // top-level frontmatter keys, in order
 }
 
 func (d *skillDoc) body() []byte {
@@ -57,7 +76,7 @@ func (d *skillDoc) body() []byte {
 
 // delivered returns the SKILL.md content handed to the tool.
 func (d *skillDoc) delivered() []byte {
-	return stripFrontmatterKeys(d.Content, hubSkillKeys...)
+	return keepFrontmatterKeys(d.Content, deliveredSkillKeys...)
 }
 
 var errSkillNotFound = errors.New("skill not found")
@@ -108,8 +127,19 @@ func (l *skillLoader) load(ref string) (*skillDoc, error) {
 func parseSkill(ref, src string, content []byte) (*skillDoc, error) {
 	d := &skillDoc{Ref: ref, ID: skillID(ref), Source: src, Content: content}
 	if fm, _ := bricks.SplitFrontmatter(content); fm != nil {
-		if err := yaml.Unmarshal(frontmatterYAML(fm), &d.Front); err != nil {
+		var node yaml.Node
+		if err := yaml.Unmarshal(frontmatterYAML(fm), &node); err != nil {
 			return nil, fmt.Errorf("skill %s: invalid frontmatter: %w", ref, err)
+		}
+		if len(node.Content) > 0 {
+			if err := node.Decode(&d.Front); err != nil {
+				return nil, fmt.Errorf("skill %s: invalid frontmatter: %w", ref, err)
+			}
+			if m := node.Content[0]; m.Kind == yaml.MappingNode {
+				for i := 0; i+1 < len(m.Content); i += 2 {
+					d.Keys = append(d.Keys, m.Content[i].Value)
+				}
+			}
 		}
 	}
 	return d, nil
@@ -291,6 +321,18 @@ func frontmatterYAML(fm []byte) []byte {
 // stripFrontmatterKeys removes top-level keys (and their block values) from
 // the frontmatter of a markdown file.
 func stripFrontmatterKeys(content []byte, keys ...string) []byte {
+	return filterFrontmatter(content, func(key string) bool { return !slices.Contains(keys, key) })
+}
+
+// keepFrontmatterKeys keeps only the given top-level keys (and their block
+// values) in the frontmatter of a markdown file.
+func keepFrontmatterKeys(content []byte, keys ...string) []byte {
+	return filterFrontmatter(content, func(key string) bool { return slices.Contains(keys, key) })
+}
+
+// filterFrontmatter keeps the top-level frontmatter keys accepted by keep,
+// with their block values. Lines that are not a key (comments) are kept.
+func filterFrontmatter(content []byte, keep func(key string) bool) []byte {
 	fm, body := bricks.SplitFrontmatter(content)
 	if fm == nil {
 		return content
@@ -306,15 +348,8 @@ func stripFrontmatterKeys(content []byte, keys ...string) []byte {
 			continue
 		}
 		skipping = false
-		if top {
-			hit := false
-			for _, k := range keys {
-				if strings.HasPrefix(line, k+":") {
-					hit = true
-					break
-				}
-			}
-			if hit {
+		if top && !strings.HasPrefix(line, "#") {
+			if key, _, ok := strings.Cut(line, ":"); ok && !keep(strings.Trim(strings.TrimSpace(key), `"'`)) {
 				skipping = true
 				continue
 			}
@@ -336,6 +371,9 @@ const (
 	SkillRequireCycle       SkillProblemKind = "require_cycle"       // error
 	SkillInvalidFrontmatter SkillProblemKind = "invalid_frontmatter" // error
 	SkillNameMismatch       SkillProblemKind = "name_mismatch"       // error
+	SkillInvalidName        SkillProblemKind = "invalid_name"        // error: Agent Skills name rule
+	SkillLongDescription    SkillProblemKind = "long_description"    // error: over 1024 characters
+	SkillUnknownKey         SkillProblemKind = "unknown_key"         // error: key neither delivered nor read by oh
 	SkillNoDescription      SkillProblemKind = "no_description"      // warning
 	SkillMissingAgentSkill  SkillProblemKind = "missing_agent_skill" // warning
 	SkillLegacyBucket       SkillProblemKind = "legacy_bucket"       // warning (B17)
@@ -425,8 +463,19 @@ func CheckSkills(hubDir string) ([]SkillProblem, error) {
 		if strings.TrimSpace(d.Front.Description) == "" {
 			problems = append(problems, problem(SkillNoDescription, ref, ""))
 		}
+		if len(d.Front.Name) > maxSkillNameLen || !skillNamePattern.MatchString(d.Front.Name) {
+			problems = append(problems, problem(SkillInvalidName, ref, d.Front.Name))
+		}
+		if n := utf8.RuneCountInString(d.Front.Description); n > maxSkillDescriptionLen {
+			problems = append(problems, problem(SkillLongDescription, ref, strconv.Itoa(n)))
+		}
 		if d.Front.Bucket != "" {
 			problems = append(problems, problem(SkillLegacyBucket, ref, d.Front.Bucket))
+		}
+		for _, k := range d.Keys {
+			if k != "bucket" && !slices.Contains(deliveredSkillKeys, k) && !slices.Contains(hubSkillKeys, k) {
+				problems = append(problems, problem(SkillUnknownKey, ref, k))
+			}
 		}
 	}
 	for _, ref := range sortedKeys(docs) {

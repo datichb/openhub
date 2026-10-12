@@ -1,8 +1,6 @@
 ---
 name: takeover-context-protocol
 description: Utiliser un brief de reprise (takeover brief) au démarrage d'une session sur un ticket transféré par un autre membre.
-scope: orchestrator
-condition: team_enabled
 ---
 
 # Takeover Context Protocol

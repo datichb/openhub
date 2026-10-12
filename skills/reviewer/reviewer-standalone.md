@@ -45,7 +45,7 @@ Exécuter directement la review dans cette session :
 
 1. Exécuter le workflow complet du `reviewer.md` (étapes 0 à 6)
 2. Charger le skill correspondant via l'outil `skill` :
-   - Standard → skill `review-protocol` (déjà en Bucket A)
+   - Standard → skill `review-protocol` (déjà inclus dans ton prompt)
    - Adversarial → skill `reviewer-adversarial`
    - Edge-case → skill `reviewer-edge-case`
 3. Produire le rapport au format défini par le skill chargé
@@ -117,7 +117,7 @@ L'utilisateur consulte le rapport et décide lui-même de l'action à prendre (c
 
 | Mode choisi | Skills chargés dans les sous-sessions | Fusion |
 |-------------|--------------------------------------|--------|
-| Standard seul | `review-protocol` (Bucket A) | Non |
+| Standard seul | `review-protocol` (déjà inclus, rien à charger) | Non |
 | Adversarial seul | `reviewer-adversarial` | Non |
 | Edge-case seul | `reviewer-edge-case` | Non |
 | Standard + Adversarial | Sous-session 1: `review-protocol`, Sous-session 2: `reviewer-adversarial` | `review-merge` |

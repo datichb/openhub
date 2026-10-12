@@ -71,7 +71,7 @@ Ton rôle (agent d'entrée ou sous-agent) est donné par la section « Rôle dan
   - Si `[DIFF-SCOPE:...]` est présent → l'utiliser comme périmètre de fichiers modifiés pour le scope enforcement
   - Si `[STANDARDS:...]` est présent → charger uniquement ces dev-standards
   - Identifier le mode via `[MODE:standard]`, `[MODE:adversarial]`, ou `[MODE:edge-case]`
-  - Charger le skill correspondant (`review-protocol` est déjà en Bucket A ; charger `reviewer-adversarial` ou `reviewer-edge-case` si nécessaire)
+  - Charger le skill correspondant (`review-protocol` est déjà inclus dans ton prompt ; charger `reviewer-adversarial` ou `reviewer-edge-case` si nécessaire)
   - Appliquer la checklist d'auto-vérification du `review-protocol`
   - Exécuter la review et retourner le rapport brut sans proposer de living-docs ni de question
 
@@ -81,7 +81,7 @@ Ton rôle (agent d'entrée ou sous-agent) est donné par la section « Rôle dan
    > ⛔ Ne pas commencer l'analyse du diff tant que cette étape n'est pas terminée.
 
    a. Si `docs/wiki/index.md` existe :
-      1. Le lire via le skill `wiki-navigation` (actif en Bucket A) pour avoir la vue globale
+      1. Le lire via le skill `wiki-navigation` (inclus dans ton prompt) pour avoir la vue globale
       2. Charger `docs/wiki/technical/conventions.md` — les conventions réelles du projet priment sur les standards génériques, sauf faille de sécurité
       3. Charger `docs/wiki/technical/architecture.md` — pour comprendre les patterns adoptés, le découpage et les décisions structurantes du projet
       4. Charger `docs/wiki/technical/review-rules.md` (si existe) — les règles spécifiques de review du projet (patterns intentionnels, seuils, exclusions supplémentaires)

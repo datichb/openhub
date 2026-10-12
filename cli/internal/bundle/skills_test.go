@@ -139,7 +139,16 @@ func TestStripFrontmatterKeys(t *testing.T) {
 	assert.Equal(t, "no frontmatter\n", string(stripFrontmatterKeys([]byte("no frontmatter\n"), "requires")))
 }
 
+func TestDeliveredKeepsSpecKeysOnly(t *testing.T) {
+	in := "---\nname: x\ndescription: d\nlicense: MIT\nmetadata:\n  author: a\nallowed-tools: read\nscope: team\ncondition:\n  - a\nrequires: [c]\n# comment\ncompatibility: oh\n---\nbody scope: stays\n"
+	d, err := parseSkill("a/x", "", []byte(in))
+	require.NoError(t, err)
+	assert.Equal(t, "---\nname: x\ndescription: d\nlicense: MIT\nmetadata:\n  author: a\nallowed-tools: read\n# comment\ncompatibility: oh\n---\nbody scope: stays\n", string(d.delivered()))
+	assert.Equal(t, []string{"name", "description", "license", "metadata", "allowed-tools", "scope", "condition", "requires", "compatibility"}, d.Keys)
+}
+
 func TestCheckSkills(t *testing.T) {
+	long := strings.Repeat("a", 65)
 	hub := fakeHub(t, map[string]string{
 		"agents/test/solo.md":       agentMD("solo", "a/ok", "b/ghost"),
 		"skills/a/ok.md":            skillMD("ok", "", "x"),
@@ -151,6 +160,10 @@ func TestCheckSkills(t *testing.T) {
 		"skills/c/wrong.md":         skillMD("right", "", "x"),
 		"skills/c/legacy.md":        skillMD("legacy", "bucket: A\n", "x"),
 		"skills/c/nodesc.md":        "---\nname: nodesc\n---\nx\n",
+		"skills/c/unknown.md":       skillMD("unknown", "scope: team\nlicense: MIT\nplugin: p\n", "x"),
+		"skills/c/Bad_Name.md":      skillMD("Bad_Name", "", "x"),
+		"skills/c/" + long + ".md":  skillMD(long, "", "x"),
+		"skills/c/verbose.md":       "---\nname: verbose\ndescription: " + strings.Repeat("é", 1025) + "\n---\nx\n",
 		"skills/c/broken.md":        "---\nname: [\n---\nx\n",
 		"skills/templates/annex.md": "# not a skill\n",
 	})
@@ -167,6 +180,10 @@ func TestCheckSkills(t *testing.T) {
 		"require_cycle c/one c/one → c/two → c/one": true,
 		"name_mismatch c/wrong right":               true,
 		"legacy_bucket c/legacy A":                  false,
+		"unknown_key c/unknown scope":               true,
+		"invalid_name c/Bad_Name Bad_Name":          true,
+		"invalid_name c/" + long + " " + long:       true,
+		"long_description c/verbose 1025":           true,
 		"no_description c/nodesc ":                  false,
 		"missing_agent_skill b/ghost solo":          false,
 		"orphan_annex templates/annex.md ":          false,

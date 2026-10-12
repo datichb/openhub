@@ -17,7 +17,6 @@ var crossReferences = map[string]string{
 	"living-docs-enrichment → onboarder-workflow":             "where the onboarder writes the wiki, for the reader",
 	"living-docs-enrichment → doc-wiki-protocol":              "the documentarian applies it, the caller only delegates",
 	"team-awareness → takeover-context-protocol":              "team mode only (MCP team)",
-	"team-awareness → parallel-coordination":                  "team mode only (MCP team)",
 	"retranscription-coordinateur → planner-handoff-format":   "example of a critical section, the planner format ships with the planner",
 	"retranscription-coordinateur → coordination-only":        "relation between postures, inlined in the coordinators",
 	"handoff-bloc-unique-rule → retranscription-coordinateur": "consumer side, inlined in the coordinators",

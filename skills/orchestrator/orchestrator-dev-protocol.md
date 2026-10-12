@@ -235,25 +235,6 @@ Avant de démarrer le traitement ticket par ticket, évaluer si le lot est élig
    La somme des poids ne doit pas dépasser le budget configuré (défaut : **6 points**).
    Le nombre de sessions ne peut jamais dépasser le plafond technique (défaut : **5**, maximum : **10**).
 
-**Vérification complémentaire via le graphe de dépendances (si disponible) :**
-
-Si `.opencode/dependency-graph.json` existe dans le projet, effectuer une vérification supplémentaire avant le lancement parallèle :
-
-- Pour chaque paire de tickets (A, B) dans le lot, lire les fichiers qu'ils prévoient de modifier (depuis leur description ou leur périmètre déclaré)
-- Vérifier si des fichiers modifiés par A sont dans la chaîne `imports` ou `imported_by` des fichiers modifiés par B
-- Si un lien est détecté : signaler le conflit potentiel **sans bloquer** :
-
-```
-⚠️ Conflit potentiel (graphe de dépendances) :
-   Ticket <A> → <fichier_A> ↔ Ticket <B> → <fichier_B>
-   Lien : <fichier_A> importe <fichier_B>
-   → Recommandation : traiter <A> en premier, puis <B>
-```
-
-> Ce signalement est informatif, pas bloquant. L'orchestrateur-dev peut malgré tout lancer en parallèle si les modifications prévues semblent indépendantes, mais doit mentionner le risque dans le récap.
-
-> Si le graphe est absent ou que les fichiers cibles ne sont pas identifiables depuis les descriptions, ignorer cette vérification.
-
 **Si tous les critères sont vérifiés :**
 ```
 ▶️ [Parallélisme conditionnel] <NB_TICKETS> tickets éligibles — lancement simultané.

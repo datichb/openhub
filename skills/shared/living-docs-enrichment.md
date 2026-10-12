@@ -1,6 +1,6 @@
 ---
 name: living-docs-enrichment
-description: Compétence d'enrichissement du wiki documentaire vivant (docs/wiki/) — à activer après chaque rapport d'audit, diagnostic, planification, implémentation de ticket, review ou cycle QA. L'agent identifie les découvertes à capitaliser avec leur niveau de confiance, demande confirmation à l'utilisateur, puis délègue l'écriture au documentarian via l'outil task. Aucune écriture directe.
+description: Compétence d'enrichissement du wiki documentaire vivant (docs/wiki/) — à activer après chaque rapport d'audit, diagnostic, planification, implémentation de ticket ou review. L'agent identifie les découvertes à capitaliser avec leur niveau de confiance, demande confirmation à l'utilisateur, puis délègue l'écriture au documentarian via l'outil task. Aucune écriture directe.
 ---
 
 # Skill — Enrichissement du Wiki Documentaire Vivant
@@ -276,7 +276,7 @@ Après affichage du résumé, si confirmation requise, utiliser l'outil `questio
 question({
   questions: [{
     header: "Enrichir le wiki",
-    question: "[<Nom de l'agent> — Post-<audit/diagnostic/planification/implémentation/review/QA> | Projet : <nom>]\nJ'ai identifié X enrichissements à capitaliser dans le wiki, dont Y tagués DÉDUIT/INCERTAIN (voir résumé ci-dessus). Déléguer l'écriture au documentarian ?",
+    question: "[<Nom de l'agent> — Post-<audit/diagnostic/planification/implémentation/review> | Projet : <nom>]\nJ'ai identifié X enrichissements à capitaliser dans le wiki, dont Y tagués DÉDUIT/INCERTAIN (voir résumé ci-dessus). Déléguer l'écriture au documentarian ?",
     options: [
       { label: "Oui — déléguer au documentarian (Recommandé)", description: "Invoquer le documentarian pour enrichir le wiki de manière incrémentale" },
       { label: "Oui — uniquement les CONFIRMÉ", description: "Déléguer seulement les enrichissements CONFIRMÉ, écarter les DÉDUIT/INCERTAIN" },
@@ -304,7 +304,7 @@ task({
   prompt: `
 Enrichis de manière incrémentale les pages du wiki documentaire du projet listées ci-dessous,
 avec les découvertes issues d'un <audit <domaine> / diagnostic de bug / planification de feature
-/ implémentation de ticket / code review / cycle QA / reconnaissance>.
+/ implémentation de ticket / code review / reconnaissance>.
 
 ## Règles impératives
 
@@ -382,7 +382,6 @@ Le `documentarian` a enrichi les pages suivantes :
 | Planification feature | Architecture, Zones d'ombre | — | Architecture, Décisions | Stack | — | Termes ambigus | Flux, Règles |
 | Implémentation ticket | — | Patterns, Nommage | — | Librairies | — | Termes métier découverts | Règles de gestion |
 | Code review | Zones d'ombre, Points importants 🟠 | Nommage, Patterns | — | — | — | Termes inconsistants | — |
-| Cycle QA | — | — | — | — | Frameworks, Conventions | — | — |
 | Reconnaissance rapide (pathfinder) | Stack, Architecture | — | Structure globale | Stack, Dépendances | — | Termes de domaine | Flux, Entités |
 | Re-onboarding (onboarder) | Toutes sections | Toutes sections | Toutes sections | Toutes sections | Toutes sections | Toutes sections | Toutes sections |
 
