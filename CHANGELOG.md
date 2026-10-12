@@ -23,6 +23,61 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 - **Benchmarker** : `k6 run`, `ab`, `hey` et `curl` demandent confirmation (ils visent une cible) ; écriture limitée à `reports/benchmarks/`.
 - **Tests de contenu** : rôle par agent, aucune détection de mode par tag, verrou de fermeture des workflows livrés, skills nommées par une skill livrée chargeables dans leur paquet, consignes de chargement sans catégorie, blocs de code équilibrés, noms d'agents existants, commandes `bd` autorisées par le `beads.allow` du workflow (lint de capacités).
 
+### Changed — consolidation des agents (lot C1) — ⚠ changement de comportement
+
+Voir [MIGRATION.md](MIGRATION.md) pour les workflows d'équipe ou de projet qui nomment un agent supprimé (`oh workflow validate` signale `agent_removed` avec son remplaçant).
+
+- **16 agents au lieu de 20.** `developer-refactor`, `developer-migrator` et `test-generator` deviennent des domaines du `developer` (`refactor`, `migration`, `tests`, avec les commandes de migration de base de données) et les skills `test-generation` et `dev-standards-database`. L'agent `infra` est remplacé par le domaine d'audit `infra` (analyse) et par l'agent `operator` (application). L'agent `database` est remplacé par le domaine d'audit `database` et la skill développeur `dev-standards-database`. Une seule table de routage (`orchestrator-dev-protocol`).
+- **Nouveaux workflows** :
+  - `infra-change` : l'`operator` (base `readonly-ops`, aucune écriture de fichier) produit le plan, puis `cp-plan`, puis `cp-apply`, qui déverrouille `apply`, obligatoire et refusé à distance.
+  - `benchmark` : le `benchmarker` confirme la cible au checkpoint `cp-target` avant toute charge et écrit seulement dans `reports/benchmarks/`.
+- **Audit** : domaines `infra` (revue IaC, sécurité, coûts, dérive ; outils d'analyse statique soumis à confirmation) et `database` ; la liste `type` d'`audit.yaml` suit les skills `audit-*`.
+- **Le reviewer lance le build, les tests, le lint et le typecheck** du projet. Les commandes viennent de la stack détectée (`bricks.VerifyCommands`), jamais une installation ni une publication, et les options qui corrigent sont refusées. Elles sont permises sur le code de l'équipe et demandées dans `review` (`risk: read`, souvent la MR d'un tiers). Étape « Vérification » unique avant la lecture du diff : un échec donne 🔴, une vérification impossible ou des fichiers produits non ignorés donnent 🟡.
+- **Workflows** :
+  - `limits.max_fix_rounds` (3 dans `feature`, `ticket`, `review-feedback`) ;
+  - mémoires du projet dans les 14 prompts ;
+  - `sweep` : vérification PASS/FAIL signalée au `cp-commit` ;
+  - `debug` : `documentarian` et checkpoint `cp-ticket` (déverrouille `create`) ;
+  - `audit` et `review` ne promettent plus d'enrichir le wiki (lecture seule) ;
+  - orchestrator-dev suit la table des checkpoints générée (ligne « Séquence »), sans `cp-1`/`cp-2`/`cp-3` codés en dur.
+- **Adaptateurs de tracker** livrés seulement avec leur serveur MCP (clé de skill `mcp:`) ; le champ d'agent `mcpServers`, jamais lu, est supprimé.
+- **Nettoyages** :
+  - onboarder : plus de délégation au designer, URL Figma collectées, Beads en lecture seule ;
+  - pathfinder : délégation au designer en mode `recon` seulement ;
+  - documentarian : « Retour vers <appelant> », ne ferme plus de ticket ;
+  - `quick` livre les standards de domaine ;
+  - un seul protocole de migration destructive (`dev-standards-migration`) ;
+  - modèle `claude-sonnet-4-6` pour `brief-enricher` ;
+  - libellés d'agents en anglais ;
+  - conductor : politiques d'équipe ;
+  - `auditor-subagent` : « Retour vers auditor ».
+
+### Changed — skills (lots C2 et C3)
+
+- **Frontmatter au format Agent Skills** : le `SKILL.md` livré ne garde que `name`, `description`, `license`, `compatibility`, `metadata` et `allowed-tools` (clés d'oh : `requires`, `annexes`, `plugin`, `mcp`). `oh skill check` signale une clé inconnue (`unknown_key`), un nom hors format (`invalid_name`, 64 caractères, kebab-case) ou une description de plus de 1024 caractères (`long_description`).
+- **Skills supprimées** : `session-state-protocol` et `parallel-coordination` (mécanismes antérieurs à la v5), ainsi que les sections metrics et dependency-graph. Le contenu périmé (QA, « Bucket A/B », `opencode.json`, checklist d'écriture de skills) est corrigé, les skills du designer sont ré-accentuées et les skills websearch sont en français.
+- **Skills de stack à jour (octobre 2026)** : 38 skills sur 40, chacune avec une ligne « Versions de référence ». Entre autres Next.js 16, React 19 et son Compiler, Angular 21, Nuxt 4, TypeScript 6/7, Python ≥ 3.12, Rust 2024, golangci-lint v2, images Node 24, Helm 4, External Secrets v1, Terraform `use_lockfile`, Prisma 7, Express 5, Nest 12, Laravel 13, Rails 8.1, Spring 7, Vitest 4/5, Jest 30, Swift 6, Airflow 3, dbt `data_tests`, pandas 3 et Spark 4.
+- **Détection de stack à plusieurs signaux** :
+  - noms de dépendances exacts (finis les faux positifs `eslint-config-next` ou `@testing-library/jest-dom`) ;
+  - monorepos (`workspaces`, `pnpm-workspace.yaml`, `go.work`) ;
+  - signaux de fichiers (`*.tf`, `Chart.yaml`, `playwright.config.*`…), dans un parcours borné ;
+  - les 40 skills de stack sont atteignables ;
+  - Spring Boot ne reçoit plus la skill Android, React Native ne reçoit plus les skills frontend web ;
+  - un seul parcours du projet par paquet.
+
+### Security — consolidation (lot C4)
+
+- **Fichiers de hooks** (`.husky/`, `.githooks/`, `lefthook*.yml`, `.pre-commit-config.yaml`) : la garde globale les mettait en « demander » pour tous les agents, ce qui assouplissait le refus des agents en lecture seule (la dernière règle l'emporte). La confirmation ne s'applique plus qu'aux agents qui ont le droit de les modifier.
+- **Garde infra** : elle ne s'applique qu'aux agents qui couvrent tout un outil (`terraform*`). Un agent qui ne nomme que des sous-commandes garde ses propres règles, et `helm diff` reste une lecture.
+- **Lint de contenu étendu** :
+  - chaque agent est contrôlé, y compris hors des workflows livrés (`libre@<agent>`) ;
+  - délégations écrites sur plusieurs lignes ou en prose ;
+  - un agent qui se dit en lecture seule a bien des permissions en lecture seule ;
+  - en-têtes des bases de permissions ;
+  - modèles connus ;
+  - titres de retour.
+- **Budget de contexte figé** (`cli/internal/bundle/testdata/budget.golden`) : tokens par agent et par workflow livré (prompt, skills incluses, catalogue visible), avec et sans projet de stacks courantes. Toute hausse de plus de 10 % d'un prompt est signalée. C'est la référence de la phase d'allègement.
+
 ### Security — passerelle Beads : lecture seule, auteur, provenance (ADR-052) — ⚠ changement de comportement
 
 - **Sessions en lecture seule vraiment en lecture seule** : une liste `beads.allow` qui ne nomme que des commandes de lecture (liste par défaut comprise, sans bloc `beads:`) refuse aussi les formes d'écriture de ces commandes. `bd comments add` et `bd ready --claim` passaient jusque-là avec la liste par défaut ; ils sont refusés (« … écrit dans Beads, mais cette session est en lecture seule »), sur la machine comme au rejeu d'un journal distant.
