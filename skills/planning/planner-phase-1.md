@@ -1,6 +1,7 @@
 ---
 name: planner-phase-1
 description: Phase 1 (exploration contextuelle — 1.1 projet/tickets, 1.2 codebase, 1.2bis librairies, 1.2ter impacts cascade, 1.3 Figma) et Phase 1.5 (délégation design) du workflow planner.
+requires: [shared/elicitation-techniques]
 ---
 
 # Phase 1 — Exploration contextuelle
