@@ -44,6 +44,7 @@ type MCPView struct {
 
 	// Layout
 	list *widgets.SectionedList
+	page *widgets.ListDetailPage
 
 	// Data
 	services []MCPService
@@ -106,13 +107,17 @@ func (v *MCPView) Mount(content *tview.Flex, tvApp *tview.Application) {
 
 			v.list = widgets.NewSectionedList()
 			v.list.SetApp(tvApp)
-			v.list.SetBorderPadding(1, 0, 2, 2)
+			v.page = newListPage(v.Title(), v.list)
+			v.list.SetItemChangedFunc(func(_ int, it widgets.SectionItem) {
+				if i, ok := it.Reference.(int); ok {
+					v.showDetail(i)
+				}
+			})
 
 			v.populateList()
 			v.buildCommands()
 
-			content.RemoveItem(loading)
-			content.AddItem(v.list, 0, 1, true)
+			v.page.Mount(content)
 			tvApp.SetFocus(v.list)
 		})
 	}()
@@ -123,6 +128,7 @@ func (v *MCPView) Unmount() {
 	v.mountGen++ // invalidate in-flight async goroutine
 	v.app = nil
 	v.list = nil
+	v.page = nil
 	v.commands = nil
 }
 
@@ -178,6 +184,53 @@ func (v *MCPView) populateList() {
 	}
 
 	v.list.SetItems(items)
+	v.showDetail(v.currentServiceIndex())
+}
+
+// showDetail fills the detail pane with the service at index i.
+func (v *MCPView) showDetail(i int) {
+	if v.page == nil {
+		return
+	}
+	if i < 0 || i >= len(v.services) {
+		v.page.SetDetail(emptyDetail())
+		return
+	}
+	svc := v.services[i]
+	onOff := func(b bool) string {
+		if b {
+			return theme.ColorTag(theme.SuccessHex) + "✓ " + i18n.T("tui.config.enabled") + theme.TagReset
+		}
+		return theme.ColorTag(theme.TextMutedHex) + "✗ " + i18n.T("tui.config.disabled") + theme.TagReset
+	}
+	var d detailText
+	d.title(svc.Name)
+	if svc.Name == "team" {
+		d.para(i18n.T("tui.detail.mcp.team_desc"))
+	} else {
+		d.para(i18n.Tf("tui.detail.mcp.hub_desc", svc.Name))
+	}
+	d.field(i18n.T("tui.detail.mcp.enabled"), onOff(svc.Enabled))
+	switch {
+	case svc.Name == "team":
+		d.field(i18n.T("tui.detail.mcp.token"), i18n.T("tui.mcp.no_token"))
+	case svc.HasToken:
+		d.field(i18n.T("tui.detail.mcp.token"), theme.ColorTag(theme.SuccessHex)+"✓ "+i18n.T("tui.config.configured")+theme.TagReset)
+	default:
+		d.field(i18n.T("tui.detail.mcp.token"), theme.ColorTag(theme.ErrorHex)+"✗ "+i18n.T("tui.mcp.token_missing")+theme.TagReset)
+	}
+	if svc.Name == "gitlab" {
+		d.field(i18n.T("tui.detail.mcp.write"), onOff(svc.WriteEnabled))
+	}
+	keys := []string{"Space", i18n.T("tui.hints.toggle")}
+	if svc.Name != "team" {
+		keys = append(keys, "t", i18n.T("tui.hints.token"))
+	}
+	if svc.Name == "gitlab" {
+		keys = append(keys, "w", i18n.T("tui.hints.write"))
+	}
+	d.keys(append(keys, "r", i18n.T("tui.hints.refresh"))...)
+	v.page.SetDetail(d.String())
 }
 
 func (v *MCPView) hubItemText(svc MCPService) string {

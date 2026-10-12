@@ -65,6 +65,18 @@ func (s *Shell) showHelpOverlay() {
 		}
 	}
 
+	// ── Legend of the active view's pictograms ────────────────────────────────
+	if cur := s.router.Current(); cur != nil {
+		if lp, ok := cur.(views.LegendProvider); ok {
+			if legend := lp.Legend(); legend != "" {
+				fmt.Fprintf(&b, "\n  %s%s : %s%s\n\n", accent, i18n.T("tui.help.section.legend"), cur.Title(), reset)
+				for _, line := range strings.Split(legend, "\n") {
+					fmt.Fprintf(&b, "  %s\n", line)
+				}
+			}
+		}
+	}
+
 	// ── Section 2 : Contextual commands from the active view ──────────────────
 	if cur := s.router.Current(); cur != nil {
 		if cp, ok := cur.(views.CommandProvider); ok {

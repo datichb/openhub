@@ -2,12 +2,14 @@ package views
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
+	"github.com/datichb/openhub/cli/internal/tui/v2/widgets"
 )
 
 // ProjectItem represents a project entry in the list.
@@ -19,6 +21,7 @@ type ProjectItem struct {
 	Provider     string
 	Model        string
 	Status       string
+	TeamID       string            // "" = solo project
 	MCPOverrides map[string]string // service → "inherit"|"enabled"|"disabled"
 }
 
@@ -138,6 +141,7 @@ func (v *ProjectsView) Mount(content *tview.Flex, app *tview.Application) {
 		} else {
 			projects = v.cfg.Projects
 		}
+		projects = v.scoped(projects)
 
 		app.QueueUpdateDraw(func() {
 			if v.app == nil || v.mountGen != gen {
@@ -151,15 +155,14 @@ func (v *ProjectsView) Mount(content *tview.Flex, app *tview.Application) {
 				ShowSecondaryText(true).
 				SetHighlightFullLine(true).
 				SetMainTextColor(theme.FgPrimary).
-				SetSecondaryTextColor(theme.FgSecondary)
+				SetSecondaryTextColor(theme.FgSecondary).
+				SetSelectedBackgroundColor(theme.BgElement).
+				SetSelectedTextColor(theme.FgPrimary)
 			v.list.SetBackgroundColor(theme.BgPanel)
-			v.list.SetBorderPadding(1, 0, 2, 2)
 
-			v.detail = tview.NewTextView().
-				SetDynamicColors(true).
-				SetTextAlign(tview.AlignLeft)
-			v.detail.SetBackgroundColor(theme.BgPanel)
-			v.detail.SetBorderPadding(0, 0, 2, 2)
+			page := widgets.NewListDetailPage(v.listTitle(len(projects)), i18n.T("tui.catalog.detail"))
+			page.SetMain(v.list)
+			v.detail = page.Detail
 
 			for _, p := range projects {
 				v.list.AddItem(p.Name, "    "+p.Path, 0, nil)
@@ -181,12 +184,33 @@ func (v *ProjectsView) Mount(content *tview.Flex, app *tview.Application) {
 			}
 
 			// Replace loading with real layout
-			content.RemoveItem(loading)
-			content.AddItem(v.list, 0, 3, true)
-			content.AddItem(v.detail, 6, 0, false)
+			page.Mount(content)
 			app.SetFocus(v.list)
 		})
 	}()
+}
+
+// scopedTeam returns the team whose projects are listed (nil outside team mode).
+func (v *ProjectsView) scopedTeam() *ActiveTeam {
+	if v.shell == nil || v.shell.Mode() != ModeTeam {
+		return nil
+	}
+	return v.shell.ActiveTeam()
+}
+
+// scoped keeps the projects of the active team in team mode.
+func (v *ProjectsView) scoped(projects []ProjectItem) []ProjectItem {
+	t := v.scopedTeam()
+	if t == nil {
+		return projects
+	}
+	out := make([]ProjectItem, 0, len(projects))
+	for _, p := range projects {
+		if p.TeamID == t.ID {
+			out = append(out, p)
+		}
+	}
+	return out
 }
 
 // Unmount cleans up resources.
@@ -365,29 +389,28 @@ func (v *ProjectsView) showDetail(p ProjectItem) {
 	if v.detail == nil {
 		return
 	}
+	label := func(s string) string { return theme.ColorTag(theme.TextSecondaryHex) + s + theme.TagColor }
+	var b strings.Builder
+	fmt.Fprintf(&b, "[::b]%s%s\n\n", p.Name, theme.TagReset)
+	fmt.Fprintf(&b, "%s %s\n", label("ID :"), p.ID)
+	fmt.Fprintf(&b, "%s %s\n", label(i18n.T("tui.projects.label_path")), p.Path)
+	fmt.Fprintf(&b, "%s %s\n", label(i18n.T("tui.projects.label_language")), displayOrPlaceholder(p.Language, "-"))
+	fmt.Fprintf(&b, "%s %s\n", label("Provider :"), displayOrPlaceholder(p.Provider, "hub default"))
+	fmt.Fprintf(&b, "%s %s\n", label(i18n.T("tui.projects.label_model")), displayOrPlaceholder(p.Model, "hub default"))
+	team := p.TeamID
+	if team == "" {
+		team = i18n.T("tui.projects.solo")
+	}
+	fmt.Fprintf(&b, "%s %s\n", label(i18n.T("tui.projects.label_team")), team)
+	v.detail.SetText(b.String())
+}
 
-	sep := theme.ColorTag(theme.TextMutedHex) + "─────────────────────────────────────────────────────────────────" + theme.TagColor
-
-	// Line 1: ID and path
-	line1 := fmt.Sprintf("  %sID:%s %s  %s·%s  %s%s%s %s",
-		theme.ColorTag(theme.TextSecondaryHex), theme.TagColor, p.ID,
-		theme.ColorTag(theme.TextMutedHex), theme.TagColor,
-		theme.ColorTag(theme.TextSecondaryHex), theme.TagColor, i18n.T("tui.projects.label_path"), p.Path,
-	)
-
-	// Line 2: Language, Provider, Model
-	lang := displayOrPlaceholder(p.Language, "-")
-	prov := displayOrPlaceholder(p.Provider, "hub default")
-	model := displayOrPlaceholder(p.Model, "hub default")
-	line2 := fmt.Sprintf("  %s%s%s %s  %s·%s  %sProvider:%s %s  %s·%s  %s%s%s %s",
-		theme.ColorTag(theme.TextSecondaryHex), theme.TagColor, i18n.T("tui.projects.label_language"), lang,
-		theme.ColorTag(theme.TextMutedHex), theme.TagColor,
-		theme.ColorTag(theme.TextSecondaryHex), theme.TagColor, prov,
-		theme.ColorTag(theme.TextMutedHex), theme.TagColor,
-		theme.ColorTag(theme.TextSecondaryHex), theme.TagColor, i18n.T("tui.projects.label_model"), model,
-	)
-
-	v.detail.SetText(fmt.Sprintf("%s\n%s\n%s", sep, line1, line2))
+// listTitle is the title of the list frame (the team in team mode).
+func (v *ProjectsView) listTitle(n int) string {
+	if t := v.scopedTeam(); t != nil {
+		return i18n.Tf("tui.projects.title_team", t.Name, n)
+	}
+	return fmt.Sprintf("%s (%d)", i18n.T("tui.projects.title"), n)
 }
 
 // displayOrPlaceholder returns val if non-empty, otherwise the placeholder.
@@ -455,7 +478,7 @@ func (v *ProjectsView) refreshProjects() {
 	if v.cfg.RefreshFunc == nil {
 		return
 	}
-	v.cfg.Projects = v.cfg.RefreshFunc()
+	v.cfg.Projects = v.scoped(v.cfg.RefreshFunc())
 	if v.list == nil {
 		return
 	}

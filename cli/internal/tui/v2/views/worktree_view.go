@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"path/filepath"
+	"strings"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -12,6 +13,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
+	"github.com/datichb/openhub/cli/internal/tui/v2/widgets"
 	"github.com/datichb/openhub/cli/internal/worktree"
 )
 
@@ -53,6 +55,7 @@ type WorktreeView struct {
 	appCtx      *app.App
 	cfg         WorktreeViewConfig
 	list        *tview.List
+	page        *widgets.ListDetailPage
 	shell       ShellAccess
 	items       []worktree.Entry
 	headerCount int // number of non-actionable items prepended to v.list before v.items
@@ -91,13 +94,45 @@ func (v *WorktreeView) Mount(content *tview.Flex, tvApp *tview.Application) {
 		ShowSecondaryText(true).
 		SetHighlightFullLine(true).
 		SetMainTextColor(theme.FgPrimary).
-		SetSecondaryTextColor(theme.FgSecondary)
+		SetSecondaryTextColor(theme.FgSecondary).
+		SetSelectedBackgroundColor(theme.BgElement).
+		SetSelectedTextColor(theme.FgPrimary)
 	v.list.SetBackgroundColor(theme.BgPanel)
-	v.list.SetBorder(false)
-	v.list.SetBorderPadding(1, 0, 1, 1)
+	v.list.SetChangedFunc(func(int, string, string, rune) { v.showDetail() })
+	v.page = newListPage(v.Title(), v.list)
 
 	v.refresh()
-	content.AddItem(v.list, 0, 1, true)
+	v.page.Mount(content)
+}
+
+// showDetail fills the detail pane with the row under the cursor.
+func (v *WorktreeView) showDetail() {
+	if v.page == nil || v.list == nil {
+		return
+	}
+	var d detailText
+	if wt, ok := v.selectedItem(); ok {
+		d.title(tview.Escape(wt.Branch))
+		d.field(i18n.T("tui.detail.branch"), tview.Escape(wt.Branch))
+		d.field(i18n.T("tui.detail.path"), tview.Escape(wt.Path))
+		d.field("HEAD :", tview.Escape(wt.Head))
+		d.keys("Enter", i18n.T("tui.hints.open"), "d", i18n.T("tui.hints.delete"),
+			"a", i18n.T("tui.hints.add"), "p", i18n.T("tui.hints.prune"),
+			"x", i18n.T("tui.hints.cleanup"), "r", i18n.T("tui.hints.refresh"))
+		v.page.SetDetail(d.String())
+		return
+	}
+	idx := v.list.GetCurrentItem()
+	if idx < 0 || idx >= v.list.GetItemCount() {
+		v.page.SetDetail(emptyDetail())
+		return
+	}
+	main, secondary := v.list.GetItemText(idx)
+	d.title(tview.Escape(strings.TrimSpace(main)))
+	d.para(tview.Escape(strings.TrimSpace(secondary)))
+	d.keys("a", i18n.T("tui.hints.add"), "p", i18n.T("tui.hints.prune"),
+		"x", i18n.T("tui.hints.cleanup"), "r", i18n.T("tui.hints.refresh"))
+	v.page.SetDetail(d.String())
 }
 
 // Unmount cleans up resources.
@@ -105,6 +140,7 @@ func (v *WorktreeView) Unmount() {
 	v.gen++
 	v.app = nil
 	v.list = nil
+	v.page = nil
 }
 
 // HandleKey processes worktree view key events.
@@ -146,6 +182,7 @@ func (v *WorktreeView) refresh() {
 		v.items = nil
 		v.list.Clear()
 		v.list.AddItem("  "+i18n.T("tui.worktree.no_project"), "  "+i18n.T("tui.worktree.no_project_hint"), 0, nil)
+		v.showDetail()
 		return
 	}
 	v.gen++
@@ -165,6 +202,7 @@ func (v *WorktreeView) refresh() {
 }
 
 func (v *WorktreeView) render(projectPath string, entries []worktree.Entry, err error) {
+	defer v.showDetail()
 	v.list.Clear()
 	v.headerCount = 0
 	if err != nil {

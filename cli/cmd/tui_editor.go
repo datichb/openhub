@@ -28,14 +28,20 @@ func openWorkflowEditor(c workflowsvc.Context, layer workflow.Layer, t *workflow
 	}
 	ref := t.Ref
 	ref.Layer = layer
-	var agents []string
+	var agents, workflows []string
 	go func() {
 		ctx := sh.Context()
-		agents, _ = newWorkflowService(ctx).AgentIDs(ctx, c)
+		svc := newWorkflowService(ctx)
+		agents, _ = svc.AgentIDs(ctx, c)
+		if refs, err := svc.Refs(ctx, c); err == nil {
+			for _, r := range workflowsvc.ExtendsCandidates(refs, layer, ref.String()) {
+				workflows = append(workflows, r.String())
+			}
+		}
 		sh.App().QueueUpdateDraw(func() {
 			sh.PushView(views.NewWorkflowEditorView(views.WorkflowEditorConfig{
 				Ref: ref.String(), Layer: layer, YAML: t.YAML, Prompt: t.Prompt, Unsaved: unsaved, PromptOwn: promptOwn,
-				Lang: i18n.Locale(), Agents: agents,
+				Lang: i18n.Locale(), Agents: agents, Workflows: workflows,
 				Check: func(ctx context.Context, yaml, prompt []byte) (*views.EditorCheck, error) {
 					return editorCheck(ctx, c, layer, yaml, prompt)
 				},
@@ -83,6 +89,7 @@ func editorCheck(ctx context.Context, c workflowsvc.Context, layer workflow.Laye
 		return out, nil
 	}
 	out.Spec, out.Origins = res.Spec, res.Origins
+	out.Delegation = res.Delegation()
 	if p, err := workflowsvc.PromptPreview(res, workflowsvc.PromptContext{Lang: i18n.Locale()}); err != nil {
 		out.PromptErr = err.Error()
 	} else {

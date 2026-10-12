@@ -107,6 +107,12 @@ type CommandProvider interface {
 	ContextCommands() []ContextCommand
 }
 
+// LegendProvider is an optional interface for views that explain their
+// pictograms in the help overlay (? / F1), one entry per line.
+type LegendProvider interface {
+	Legend() string
+}
+
 // SelectOption represents a selectable option with a friendly label and a stored value.
 type SelectOption struct {
 	Label string // Friendly display (e.g. "Français")

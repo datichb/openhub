@@ -14,14 +14,19 @@ import (
 // Shell uses this to update breadcrumb, status bar, and menu highlight.
 type OnNavigate func(v views.View)
 
+// BeforeMount is called with the navigation stack (the view about to be
+// mounted last) before the view is mounted. It must not call the router.
+type BeforeMount func(stack []views.View)
+
 // Router maintains a stack of views for back-navigation.
 type Router struct {
-	stack      []views.View
-	registry   map[string]views.View
-	content    *tview.Flex
-	app        *tview.Application
-	onNavigate OnNavigate
-	mu         sync.Mutex
+	stack       []views.View
+	registry    map[string]views.View
+	content     *tview.Flex
+	app         *tview.Application
+	onNavigate  OnNavigate
+	beforeMount BeforeMount
+	mu          sync.Mutex
 }
 
 // New creates a router bound to the given content panel and app.
@@ -40,6 +45,13 @@ func (r *Router) Register(v views.View) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.registry[v.ID()] = v
+}
+
+// SetBeforeMount installs the hook run before every mount.
+func (r *Router) SetBeforeMount(fn BeforeMount) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.beforeMount = fn
 }
 
 // Push navigates to a new view, unmounting the current one.
@@ -162,6 +174,9 @@ func (r *Router) currentLocked() views.View {
 }
 
 func (r *Router) mountLocked(v views.View) {
+	if r.beforeMount != nil {
+		r.beforeMount(append([]views.View(nil), r.stack...))
+	}
 	r.content.SetDrawFunc(nil) // clear stale resize handler from previous view
 	r.content.Clear()
 	v.Mount(r.content, r.app)

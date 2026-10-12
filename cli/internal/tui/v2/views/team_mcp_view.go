@@ -49,6 +49,7 @@ type TeamMCPViewConfig struct {
 type TeamMCPView struct {
 	app      *tview.Application
 	list     *widgets.SectionedList
+	page     *widgets.ListDetailPage
 	shell    ShellAccess
 	cfg      TeamMCPViewConfig
 	mountGen uint64
@@ -127,17 +128,19 @@ func (v *TeamMCPView) Mount(content *tview.Flex, app *tview.Application) {
 
 		v.list = widgets.NewSectionedList()
 		v.list.SetApp(app)
-		v.list.SetBorderPadding(1, 0, 2, 2)
+		v.page = newListPage(v.Title(), v.list)
 
 		v.list.SetItemSelectedFunc(func(index int, item widgets.SectionItem) {
 			v.onItemSelected(index, item)
+		})
+		v.list.SetItemChangedFunc(func(_ int, item widgets.SectionItem) {
+			showFieldItemDetail(v.page, v.fields, item, teamMCPExtraKeys()...)
 		})
 
 		v.buildFields()
 		v.renderFields()
 
-		content.RemoveItem(loading)
-		content.AddItem(v.list, 0, 1, true)
+		v.page.Mount(content)
 		app.SetFocus(v.list)
 	}
 
@@ -173,6 +176,12 @@ func (v *TeamMCPView) Unmount() {
 	}
 	v.app = nil
 	v.list = nil
+	v.page = nil
+}
+
+// teamMCPExtraKeys are the page keys listed in the detail pane.
+func teamMCPExtraKeys() []string {
+	return []string{"t", i18n.T("tui.hints.test"), "w", i18n.T("tui.hints.save"), "u", i18n.T("tui.hints.undo"), "r", i18n.T("tui.hints.refresh")}
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -406,6 +415,7 @@ func (v *TeamMCPView) renderFields() {
 	if savedIdx >= 0 {
 		v.list.SelectIndex(savedIdx)
 	}
+	showCurrentFieldDetail(v.page, v.list, v.fields, teamMCPExtraKeys()...)
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

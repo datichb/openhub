@@ -9,6 +9,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/teamstate"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
+	"github.com/datichb/openhub/cli/internal/tui/v2/widgets"
 )
 
 // TakeoverView displays and manages takeover briefs.
@@ -16,6 +17,7 @@ type TakeoverView struct {
 	app         *tview.Application
 	resolveTeam ResolveTeamFunc
 	list        *tview.List
+	page        *widgets.ListDetailPage
 	shell       ShellAccess
 	briefs      []teamstate.TakeoverMeta
 	onEnrich    func(project, ticketID string) error
@@ -54,18 +56,54 @@ func (v *TakeoverView) Mount(content *tview.Flex, app *tview.Application) {
 		ShowSecondaryText(true).
 		SetHighlightFullLine(true).
 		SetMainTextColor(theme.FgPrimary).
-		SetSecondaryTextColor(theme.FgSecondary)
+		SetSecondaryTextColor(theme.FgSecondary).
+		SetSelectedBackgroundColor(theme.BgElement).
+		SetSelectedTextColor(theme.FgPrimary)
 	v.list.SetBackgroundColor(theme.BgPanel)
-	v.list.SetBorderPadding(1, 0, 2, 2)
+	v.list.SetChangedFunc(func(idx int, _, _ string, _ rune) { v.showDetail(idx) })
+	v.page = newListPage(v.Title(), v.list)
 
 	v.refresh()
-	content.AddItem(v.list, 0, 1, true)
+	v.page.Mount(content)
+}
+
+// showDetail fills the detail pane with the brief at idx.
+func (v *TakeoverView) showDetail(idx int) {
+	if v.page == nil {
+		return
+	}
+	if idx < 0 || idx >= len(v.briefs) {
+		v.page.SetDetail(emptyDetail())
+		return
+	}
+	b := v.briefs[idx]
+	var d detailText
+	d.title(tview.Escape(b.TicketID))
+	d.para(i18n.T("tui.detail.takeover.desc"))
+	d.field(i18n.T("tui.detail.project"), tview.Escape(b.Project))
+	d.field(i18n.T("tui.detail.from"), tview.Escape(b.TransferredFrom))
+	d.field(i18n.T("tui.detail.to"), tview.Escape(b.TransferredTo))
+	if !b.TransferDate.IsZero() {
+		d.field(i18n.T("tui.detail.date"), b.TransferDate.Format("2006-01-02 15:04"))
+	}
+	reason := b.Reason
+	if b.StaleDays > 0 {
+		reason += " · " + i18n.Tf("tui.detail.stale_days", b.StaleDays)
+	}
+	d.field(i18n.T("tui.detail.reason"), tview.Escape(reason))
+	keys := []string{"Enter", i18n.T("tui.hints.see")}
+	if v.onEnrich != nil {
+		keys = append(keys, "e", i18n.T("tui.hints.enrich_ai"))
+	}
+	d.keys(append(keys, "r", i18n.T("tui.hints.refresh"))...)
+	v.page.SetDetail(d.String())
 }
 
 // Unmount cleans up resources.
 func (v *TakeoverView) Unmount() {
 	v.app = nil
 	v.list = nil
+	v.page = nil
 }
 
 // HandleKey processes takeover view key events.
@@ -104,6 +142,7 @@ func (v *TakeoverView) refresh() {
 	repo := v.getRepo()
 	if repo == nil {
 		v.list.AddItem("  "+i18n.T("tui.takeover.team_not_configured"), "", 0, nil)
+		v.showDetail(-1)
 		return
 	}
 
@@ -118,6 +157,7 @@ func (v *TakeoverView) renderBriefs(repo teamstate.TeamStateWriter) {
 	}
 	v.list.Clear()
 	v.briefs = nil
+	defer func() { v.showDetail(v.list.GetCurrentItem()) }()
 
 	briefs, err := repo.ListBriefs("")
 	if err != nil {

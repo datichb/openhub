@@ -48,6 +48,7 @@ type HistoryView struct {
 	shell    ShellAccess
 	app      *tview.Application
 	list     *widgets.SectionedList
+	page     *widgets.ListDetailPage
 	versions []HistoryVersion
 	err      error
 	busy     bool
@@ -76,15 +77,14 @@ func (v *HistoryView) Mount(content *tview.Flex, app *tview.Application) {
 	v.ctx, v.cancel = context.WithCancel(parent)
 	v.list = widgets.NewSectionedList()
 	v.list.SetApp(app)
-	v.list.SetBorder(true).SetTitle(" " + v.Title() + " ").SetTitleAlign(tview.AlignLeft)
-	v.list.SetBorderColor(theme.ActiveMode.Primary)
 	v.list.SetItemSelectedFunc(func(_ int, it widgets.SectionItem) {
 		if n, ok := it.Reference.(int); ok {
 			v.showDiff(n)
 		}
 	})
-	content.Clear()
-	content.AddItem(v.list, 0, 1, true)
+	v.list.SetItemChangedFunc(func(_ int, it widgets.SectionItem) { v.showDetail(it) })
+	v.page = newListPage(v.Title(), v.list)
+	v.page.Mount(content)
 	v.render()
 	if app != nil {
 		app.SetFocus(v.list)
@@ -96,7 +96,7 @@ func (v *HistoryView) Unmount() {
 	if v.cancel != nil {
 		v.cancel()
 	}
-	v.app, v.list = nil, nil
+	v.app, v.list, v.page = nil, nil, nil
 }
 
 func (v *HistoryView) load() {
@@ -164,6 +164,46 @@ func (v *HistoryView) render() {
 		items = append(items, widgets.SectionItem{MainText: tview.Escape(msg), IsHeader: true})
 	}
 	v.list.SetItems(items)
+	_, it, _ := v.list.CurrentItem()
+	v.showDetail(it)
+}
+
+// showDetail fills the detail pane with the version of it.
+func (v *HistoryView) showDetail(it widgets.SectionItem) {
+	if v.page == nil {
+		return
+	}
+	n, ok := it.Reference.(int)
+	var h *HistoryVersion
+	for i := range v.versions {
+		if ok && v.versions[i].Version == n {
+			h = &v.versions[i]
+		}
+	}
+	if h == nil {
+		v.page.SetDetail(emptyDetail())
+		return
+	}
+	var d detailText
+	title := fmt.Sprintf("v%d", h.Version)
+	if h.Current {
+		title += "  [" + theme.SuccessHex + "](" + i18n.T("tui.history.current") + ")[-]"
+	}
+	d.title(title)
+	d.para(tview.Escape(h.Message))
+	d.field(i18n.T("tui.detail.author"), tview.Escape(h.By))
+	if !h.At.IsZero() {
+		d.field(i18n.T("tui.detail.date"), h.At.Local().Format("02/01/2006 15:04"))
+	}
+	if h.Current {
+		d.gap().muted(i18n.T("tui.detail.history.current"))
+	}
+	keys := []string{"Enter", i18n.T("tui.detail.history.diff")}
+	if v.cfg.Restore != nil && !h.Current {
+		keys = append(keys, "r", i18n.T("tui.detail.history.restore"))
+	}
+	d.keys(keys...)
+	v.page.SetDetail(d.String())
 }
 
 func (v *HistoryView) showDiff(n int) {

@@ -100,24 +100,22 @@ func (v *SessionsView) Mount(content *tview.Flex, app *tview.Application) {
 	}
 
 	v.list = widgets.NewSectionedList().SetApp(app)
-	v.list.SetBorderPadding(0, 0, 1, 1)
 	v.list.SetItemChangedFunc(func(int, widgets.SectionItem) { v.onSelectionChanged() })
 
-	v.detail = tview.NewTextView().SetDynamicColors(true).SetWrap(true)
-	v.detail.SetBackgroundColor(theme.BgPanel)
-	v.detail.SetBorder(true).SetBorderColor(theme.BorderNormal).SetTitleAlign(tview.AlignLeft)
-	v.detail.SetBorderPadding(0, 0, 1, 1)
+	page := widgets.NewListDetailPage(v.Title(), i18n.T("tui.catalog.detail"))
+	page.SetMain(v.list)
+	v.detail = page.Detail
 
 	v.feed = tview.NewTextView().SetDynamicColors(true).SetWrap(true).SetScrollable(true)
 	v.feed.SetBackgroundColor(theme.BgPanel)
-	v.feed.SetBorder(true).SetBorderColor(theme.BorderNormal).SetTitleAlign(tview.AlignLeft)
+	v.feed.SetBorder(true).SetBorderColor(theme.FgMuted).SetTitleAlign(tview.AlignLeft)
 	v.feed.SetBorderPadding(0, 0, 1, 1)
 
-	v.top = tview.NewFlex()
-	v.top.AddItem(v.list, 0, 1, true)
-	v.root = tview.NewFlex().SetDirection(tview.FlexRow)
-	v.root.AddItem(v.top, 0, 1, true)
-	v.root.AddItem(v.detail, 7, 0, false)
+	// Right column: the detail, and the live feed below it when shown.
+	v.top = tview.NewFlex().SetDirection(tview.FlexRow)
+	v.top.AddItem(v.detail, 0, 1, false)
+	page.SetRight(v.top)
+	v.root = page.Root
 	content.AddItem(v.root, 0, 1, true)
 	app.SetFocus(v.list)
 
@@ -425,7 +423,7 @@ func (v *SessionsView) renderDetail(r *SessionRow) {
 		return
 	}
 	if r == nil {
-		v.detail.SetTitle("")
+		v.detail.SetTitle(" " + i18n.T("tui.catalog.detail") + " ")
 		v.detail.SetText(muted(i18n.T("tui.sessions.detail_empty")))
 		return
 	}
@@ -452,17 +450,7 @@ func (v *SessionsView) renderDetail(r *SessionRow) {
 	v.detail.SetText(b.String())
 }
 
-func runtimeIcon(rt string) string {
-	switch rt {
-	case "local", "":
-		return "⌂"
-	case "container":
-		return "▣"
-	case "remote":
-		return "☁"
-	}
-	return rt
-}
+func runtimeIcon(rt string) string { return theme.RuntimeIcon(rt) }
 
 func shortHash(h string) string {
 	if len(h) > 8 {
@@ -841,9 +829,9 @@ func (v *SessionsView) showFeedPanel(on bool) {
 		return
 	}
 	v.top.Clear()
-	v.top.AddItem(v.list, 0, 1, true)
+	v.top.AddItem(v.detail, 0, 1, false)
 	if on {
-		v.top.AddItem(v.feed, 0, 1, false)
+		v.top.AddItem(v.feed, 0, 2, false)
 	}
 }
 

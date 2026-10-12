@@ -3,6 +3,7 @@ package views
 import (
 	"context"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/gdamore/tcell/v2"
@@ -121,6 +122,7 @@ type WorkflowCatalogView struct {
 	app    *tview.Application
 	list   *widgets.SectionedList
 	detail *tview.TextView
+	page   *widgets.ListDetailPage
 	data   CatalogData
 	err    error
 	gen    uint64
@@ -141,6 +143,12 @@ func (v *WorkflowCatalogView) SetShell(s ShellAccess) { v.shell = s }
 
 func (v *WorkflowCatalogView) ID() string    { return "workflows" }
 func (v *WorkflowCatalogView) Title() string { return i18n.T("tui.catalog.title") }
+
+// Legend implements LegendProvider (help overlay).
+func (v *WorkflowCatalogView) Legend() string {
+	_, body, _ := strings.Cut(catalogLegend(), "\n")
+	return body
+}
 func (v *WorkflowCatalogView) StatusHints() string {
 	if v.editing() {
 		return i18n.T("tui.catalog.edit.hints")
@@ -165,16 +173,10 @@ func (v *WorkflowCatalogView) Mount(content *tview.Flex, app *tview.Application)
 		}
 		v.showDetail(it)
 	})
-	v.list.SetBorder(true).SetTitleAlign(tview.AlignLeft)
-	v.list.SetBorderColor(theme.ActiveMode.Primary)
-	v.detail = tview.NewTextView().SetDynamicColors(true).SetWrap(true)
-	v.detail.SetBackgroundColor(theme.BgPanel)
-	v.detail.SetBorder(true).SetTitle(" " + i18n.T("tui.catalog.detail") + " ").SetTitleAlign(tview.AlignLeft)
-	v.detail.SetBorderColor(theme.FgMuted)
-	v.detail.SetBorderPadding(0, 0, 1, 1)
-	row := tview.NewFlex().AddItem(v.list, 0, 3, true).AddItem(v.detail, 0, 2, false)
-	content.Clear()
-	content.AddItem(row, 0, 1, true)
+	v.page = widgets.NewListDetailPage(v.Title(), i18n.T("tui.catalog.detail"))
+	v.page.SetMain(v.list)
+	v.detail = v.page.Detail
+	v.page.Mount(content)
 	v.render()
 	if app != nil {
 		app.SetFocus(v.list)
@@ -214,7 +216,7 @@ func (v *WorkflowCatalogView) Refresh() { v.reload(nil) }
 
 func (v *WorkflowCatalogView) Unmount() {
 	v.gen++
-	v.app, v.list, v.detail = nil, nil, nil
+	v.app, v.list, v.detail, v.page = nil, nil, nil, nil
 }
 
 // SetEntries replaces the entries (tests).
@@ -409,24 +411,85 @@ func (v *WorkflowCatalogView) askNew(e CatalogEntry, hasEntry bool, kind string)
 				{Label: i18n.T("tui.catalog.edit.new_extends"), Value: CatalogNewExtends},
 				{Label: i18n.T("tui.catalog.edit.new_copy"), Value: CatalogNewCopy},
 			}},
-			{Key: "source", Label: i18n.T("tui.catalog.edit.new_source"), Type: FieldText, Default: source,
-				Hint: i18n.T("tui.catalog.edit.new_source_hint")},
+			{Key: "source", Label: i18n.T("tui.catalog.edit.new_source"), Type: FieldSelect, Default: source,
+				Options: v.sourceOptions(source), Hint: i18n.T("tui.catalog.edit.new_source_hint")},
 			{Key: "layer", Label: i18n.T("tui.catalog.edit.new_layer"), Type: FieldSelect, Default: layer, Options: layers},
 			{Key: "id", Label: i18n.T("tui.catalog.edit.new_id"), Type: FieldText, Default: id, Required: true,
 				Hint: i18n.T("tui.catalog.edit.new_id_hint")},
 		},
 		OnSubmit: func(vals map[string]string, _ map[string][]string) {
 			n := CatalogNew{Kind: vals["kind"], Source: strings.TrimSpace(vals["source"]), ID: strings.TrimSpace(vals["id"]), Layer: vals["layer"]}
-			if n.Kind != CatalogNewEmpty && n.Source == "" {
-				v.toast(i18n.T("tui.catalog.edit.new_source_required"), false)
-				return
-			}
 			if n.Kind == CatalogNewEmpty {
 				n.Source = ""
 			}
-			v.cfg.New(n)
+			if n.Source == catalogSourceOther {
+				v.shell.ShowInputModal(i18n.T("tui.catalog.edit.new_source"), "", func(s string) {
+					n.Source = strings.TrimSpace(s)
+					v.submitNew(n)
+				})
+				return
+			}
+			v.submitNew(n)
 		},
 	})
+}
+
+// catalogSourceOther is the « other… » choice of the source (typed).
+const catalogSourceOther = "\x00other"
+
+// sourceOptions are the references a new workflow can extend or copy: the
+// published documents of the catalogue (cur kept when unknown), « none »
+// and « other… ».
+func (v *WorkflowCatalogView) sourceOptions(cur string) []SelectOption {
+	var refs []string
+	for _, e := range v.data.Entries {
+		if e.Draft {
+			continue
+		}
+		refs = append(refs, e.Ref)
+		refs = append(refs, e.Chain...) // shadowed parents (hub:ticket under team:ticket)
+	}
+	refs = append(refs, cur)
+	out := []SelectOption{{Label: i18n.T("tui.catalog.edit.source_none"), Value: ""}}
+	for _, ref := range sortRefs(refs) {
+		out = append(out, SelectOption{Label: ref, Value: ref})
+	}
+	return append(out, SelectOption{Label: i18n.T("tui.catalog.edit.source_other"), Value: catalogSourceOther})
+}
+
+// sortRefs dedups layer:id references (empty ones dropped) and sorts them
+// by layer (hub, team, project) then id.
+func sortRefs(refs []string) []string {
+	rank := func(ref string) int {
+		layer, _, _ := strings.Cut(ref, ":")
+		for i, l := range catalogLayers {
+			if l == layer {
+				return i
+			}
+		}
+		return len(catalogLayers)
+	}
+	var out []string
+	for _, r := range refs {
+		if r != "" && !slices.Contains(out, r) {
+			out = append(out, r)
+		}
+	}
+	slices.SortFunc(out, func(a, b string) int {
+		if ra, rb := rank(a), rank(b); ra != rb {
+			return ra - rb
+		}
+		return strings.Compare(a, b)
+	})
+	return out
+}
+
+func (v *WorkflowCatalogView) submitNew(n CatalogNew) {
+	if n.Kind != CatalogNewEmpty && n.Source == "" {
+		v.toast(i18n.T("tui.catalog.edit.new_source_required"), false)
+		return
+	}
+	v.cfg.New(n)
 }
 
 // askRemove archives a published workflow (with a message) or discards a
@@ -462,9 +525,9 @@ func (v *WorkflowCatalogView) showFindings(e CatalogEntry) {
 	}
 	var b strings.Builder
 	if e.Valid {
-		fmt.Fprintf(&b, "[%s]✔ %s[-]\n", theme.SuccessHex, i18n.T("tui.catalog.valid"))
+		fmt.Fprintf(&b, "[%s]%s %s[-]\n", theme.SuccessHex, theme.IconValid, i18n.T("tui.catalog.valid"))
 	} else {
-		fmt.Fprintf(&b, "[%s]✗ %s[-]\n", theme.ErrorHex, i18n.Tf("tui.catalog.edit.errors", e.Errors))
+		fmt.Fprintf(&b, "[%s]%s %s[-]\n", theme.ErrorHex, theme.IconInvalid, i18n.Tf("tui.catalog.edit.errors", e.Errors))
 	}
 	for _, f := range e.Findings {
 		fmt.Fprintf(&b, "  %s\n", tview.Escape(f))
@@ -481,14 +544,14 @@ func (v *WorkflowCatalogView) render() {
 	if v.list == nil {
 		return
 	}
-	title := " " + v.Title()
+	title := v.Title()
 	if v.data.Team != "" {
 		title += " · " + i18n.Tf("tui.catalog.edit.team", v.data.Team)
 	}
 	if v.data.Project != "" {
 		title += " · " + i18n.Tf("tui.catalog.edit.project", v.data.Project)
 	}
-	v.list.SetTitle(title + " ")
+	v.page.SetTitle(title)
 	var items []widgets.SectionItem
 	for _, layer := range catalogLayers {
 		var rows []widgets.SectionItem
@@ -521,7 +584,7 @@ func (v *WorkflowCatalogView) render() {
 	if len(v.data.Integrity) > 0 {
 		items = append(items, widgets.SectionItem{MainText: i18n.Tf("tui.catalog.edit.integrity", len(v.data.Integrity)), IsHeader: true})
 		for i, d := range v.data.Integrity {
-			items = append(items, widgets.SectionItem{MainText: "[" + theme.WarningHex + "]⚠[-] " + tview.Escape(d.Message),
+			items = append(items, widgets.SectionItem{MainText: "[" + theme.WarningHex + "]" + theme.IconWarn + "[-] " + tview.Escape(d.Message),
 				SecondaryText: tview.Escape(d.Source), Reference: itemRef{integrity: i + 1}})
 		}
 	}
@@ -531,6 +594,8 @@ func (v *WorkflowCatalogView) render() {
 			msg = v.err.Error()
 		}
 		items = append(items, widgets.SectionItem{MainText: msg, IsHeader: true})
+	} else if len(v.data.Entries) > 0 {
+		items = append([]widgets.SectionItem{{MainText: catalogColumns(), IsHeader: true}}, items...)
 	}
 	cur := -1
 	if idx, _, ok := v.list.CurrentItem(); ok {
@@ -558,38 +623,46 @@ func catalogMain(e CatalogEntry) string {
 	star := "  "
 	switch {
 	case e.Draft:
-		star = "✎ "
+		star = theme.IconDraft + " "
 	case e.Pinned:
-		star = "★ "
+		star = theme.IconPinned + " "
 	}
 	version := "—"
 	if e.Version > 0 {
 		version = fmt.Sprintf("v%d", e.Version)
 	}
-	status := "[" + theme.SuccessHex + "]✔[-]"
+	status := "[" + theme.SuccessHex + "]" + theme.IconValid + "[-]"
 	switch {
 	case !e.Valid && e.Errors > 0:
-		status = "[" + theme.ErrorHex + "]✗ " + i18n.Tf("tui.catalog.edit.errors", e.Errors) + "[-]"
+		status = "[" + theme.ErrorHex + "]" + theme.IconInvalid + " " + i18n.Tf("tui.catalog.edit.errors", e.Errors) + "[-]"
 	case !e.Valid:
-		status = "[" + theme.ErrorHex + "]✗[-]"
+		status = "[" + theme.ErrorHex + "]" + theme.IconInvalid + "[-]"
 	case e.Warnings > 0:
-		status = "[" + theme.WarningHex + "]⚠[-]"
+		status = "[" + theme.WarningHex + "]" + theme.IconWarn + "[-]"
 	}
 	var marks []string
 	if e.HasDraft {
-		marks = append(marks, "✎")
+		marks = append(marks, theme.IconDraft)
 	}
 	if e.Queued {
-		marks = append(marks, "["+theme.WarningHex+"]⏳ "+i18n.T("tui.catalog.edit.pending")+"[-]")
+		marks = append(marks, "["+theme.WarningHex+"]"+theme.IconQueued+" "+i18n.T("tui.catalog.edit.pending")+"[-]")
 	}
 	if len(e.NewBricks) > 0 {
-		marks = append(marks, "["+theme.InfoHex+"]+ "+i18n.T("tui.catalog.edit.new_brick")+"[-]")
+		marks = append(marks, "["+theme.InfoHex+"]"+theme.IconNewBrick+" "+i18n.T("tui.catalog.edit.new_brick")+"[-]")
 	}
-	line := fmt.Sprintf("%s%-18s %-4s %-8s %s  %s", star, e.ID, version, e.Risk, runtimeIcons(e.Runtimes), status)
+	line := fmt.Sprintf("%s%-18s %-4s %-8s %-5s  %s", star, e.ID, version, e.Risk, runtimeIcons(e.Runtimes), status)
 	if len(marks) > 0 {
 		line += "  " + strings.Join(marks, " ")
 	}
 	return line
+}
+
+// catalogColumns is the column header of the list, aligned on catalogMain
+// (the header style adds « ── » before the text: one column less for the id).
+func catalogColumns() string {
+	t := i18n.T
+	return fmt.Sprintf("%-17s %-4s %-8s %-5s  %s", t("tui.catalog.col.id"), t("tui.catalog.col.version"),
+		t("tui.catalog.col.risk"), t("tui.catalog.col.runtimes"), t("tui.catalog.col.status"))
 }
 
 func catalogSecondary(e CatalogEntry) string {
@@ -598,21 +671,62 @@ func catalogSecondary(e CatalogEntry) string {
 		d = e.Label
 	}
 	if len(e.Chain) > 1 {
-		d += "  ↳ " + strings.Join(e.Chain[:len(e.Chain)-1], " → ")
+		d += "  " + theme.IconExtends + " " + strings.Join(e.Chain[:len(e.Chain)-1], " → ")
 	}
 	return d
 }
 
 // runtimeIcons renders ⌂ ▣ ☁ for local, container, remote.
 func runtimeIcons(rs []string) string {
-	icons := map[string]string{"local": "⌂", "container": "▣", "remote": "☁"}
 	var out []string
 	for _, r := range rs {
-		if ic, ok := icons[r]; ok {
-			out = append(out, ic)
+		switch r {
+		case "local", "container", "remote":
+			out = append(out, theme.RuntimeIcon(r))
 		}
 	}
 	return strings.Join(out, " ")
+}
+
+// runtimeWords renders « ⌂ local · ▣ conteneur » (detail pane).
+func runtimeWords(rs []string) string {
+	var out []string
+	for _, r := range rs {
+		switch r {
+		case "local", "container", "remote":
+			out = append(out, theme.RuntimeIcon(r)+" "+i18n.T("tui.catalog.runtime."+r))
+		default:
+			out = append(out, r)
+		}
+	}
+	return strings.Join(out, " · ")
+}
+
+// RiskDescription renders « write — modifie fichiers et Beads » ("" stays "").
+func RiskDescription(risk string) string {
+	switch risk {
+	case "read", "plan", "write", "publish":
+		return risk + " — " + i18n.T("tui.catalog.risk_desc."+risk)
+	}
+	return risk
+}
+
+// catalogLegend explains the pictograms of the list (detail pane, help).
+func catalogLegend() string {
+	t := i18n.T
+	lines := []string{
+		theme.IconDraft + "  " + t("tui.catalog.legend.draft"),
+		theme.IconPinned + "  " + t("tui.catalog.legend.pinned"),
+		"v<N> / —  " + t("tui.catalog.legend.version"),
+		"read · plan · write · publish  " + t("tui.catalog.legend.risk"),
+		runtimeWords([]string{"local", "container", "remote"}),
+		theme.IconValid + " " + t("tui.catalog.legend.valid") + " · " + theme.IconInvalid + " " + t("tui.catalog.legend.errors") +
+			" · " + theme.IconWarn + " " + t("tui.catalog.legend.warnings"),
+		theme.IconQueued + "  " + t("tui.catalog.legend.queued"),
+		theme.IconNewBrick + " " + t("tui.catalog.edit.new_brick") + "  " + t("tui.catalog.legend.new_brick"),
+		theme.IconExtends + "  " + t("tui.catalog.legend.extends"),
+	}
+	return t("tui.catalog.legend.title") + "\n" + strings.Join(lines, "\n")
 }
 
 func (v *WorkflowCatalogView) showDetail(it widgets.SectionItem) {
@@ -621,7 +735,7 @@ func (v *WorkflowCatalogView) showDetail(it widgets.SectionItem) {
 	}
 	if r, ok := it.Reference.(itemRef); ok && r.integrity > 0 && r.integrity <= len(v.data.Integrity) {
 		d := v.data.Integrity[r.integrity-1]
-		v.detail.SetText(fmt.Sprintf("[%s]⚠[-] %s\n\n[%s]%s[-]\n\n%s", theme.WarningHex, tview.Escape(d.Message),
+		v.detail.SetText(fmt.Sprintf("[%s]%s[-] %s\n\n[%s]%s[-]\n\n%s", theme.WarningHex, theme.IconWarn, tview.Escape(d.Message),
 			theme.TextMutedHex, tview.Escape(d.Source), i18n.T("tui.catalog.edit.integrity_hint")))
 		return
 	}
@@ -634,7 +748,7 @@ func (v *WorkflowCatalogView) showDetail(it widgets.SectionItem) {
 	var b strings.Builder
 	fmt.Fprintf(&b, "[::b]%s[::-]  %s%s[-]\n", tview.Escape(e.ID), muted, tview.Escape(e.Ref))
 	if e.Draft {
-		fmt.Fprintf(&b, "✎ %s\n", i18n.T("tui.catalog.edit.draft"))
+		fmt.Fprintf(&b, "%s %s\n", theme.IconDraft, i18n.T("tui.catalog.edit.draft"))
 	}
 	if e.Desc != "" {
 		fmt.Fprintf(&b, "%s\n", tview.Escape(e.Desc))
@@ -647,20 +761,20 @@ func (v *WorkflowCatalogView) showDetail(it widgets.SectionItem) {
 	}
 	row("tui.catalog.chain", strings.Join(e.Chain, " → "))
 	row("tui.catalog.entry", e.Entry)
-	row("tui.catalog.risk", e.Risk)
-	row("tui.catalog.runtimes", strings.Join(e.Runtimes, ", "))
+	row("tui.catalog.risk", RiskDescription(e.Risk))
+	row("tui.catalog.runtimes", runtimeWords(e.Runtimes))
 	row("tui.catalog.inputs", strings.Join(e.Inputs, ", "))
 	row("tui.catalog.edit.team_bricks", strings.Join(e.TeamBricks, ", "))
 	if len(e.NewBricks) > 0 {
-		fmt.Fprintf(&b, "[%s]+ %s[-] %s\n", theme.InfoHex, i18n.T("tui.catalog.edit.new_brick"), tview.Escape(strings.Join(e.NewBricks, ", ")))
+		fmt.Fprintf(&b, "[%s]%s %s[-] %s\n", theme.InfoHex, theme.IconNewBrick, i18n.T("tui.catalog.edit.new_brick"), tview.Escape(strings.Join(e.NewBricks, ", ")))
 	}
 	if e.Queued {
-		fmt.Fprintf(&b, "[%s]⏳ %s[-]\n", theme.WarningHex, i18n.T("tui.catalog.edit.queued_detail"))
+		fmt.Fprintf(&b, "[%s]%s %s[-]\n", theme.WarningHex, theme.IconQueued, i18n.T("tui.catalog.edit.queued_detail"))
 	}
 	if e.Valid {
-		fmt.Fprintf(&b, "\n[%s]✔ %s[-]\n", theme.SuccessHex, i18n.T("tui.catalog.valid"))
+		fmt.Fprintf(&b, "\n[%s]%s %s[-]\n", theme.SuccessHex, theme.IconValid, i18n.T("tui.catalog.valid"))
 	} else {
-		fmt.Fprintf(&b, "\n[%s]✗ %s[-]\n", theme.ErrorHex, i18n.T("tui.catalog.invalid"))
+		fmt.Fprintf(&b, "\n[%s]%s %s[-]\n", theme.ErrorHex, theme.IconInvalid, i18n.T("tui.catalog.invalid"))
 		for _, p := range e.Problems {
 			fmt.Fprintf(&b, "  · %s\n", tview.Escape(p))
 		}
@@ -668,6 +782,7 @@ func (v *WorkflowCatalogView) showDetail(it widgets.SectionItem) {
 	if v.editing() {
 		fmt.Fprintf(&b, "\n%s%s[-]\n", muted, catalogActions(e))
 	}
+	fmt.Fprintf(&b, "\n%s%s[-]\n", muted, tview.Escape(catalogLegend()))
 	v.detail.SetText(b.String())
 }
 

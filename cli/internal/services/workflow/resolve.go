@@ -105,6 +105,12 @@ func (r *Resolution) MCPSelection() (ids []string, set bool) {
 	return r.Spec.MCP, set
 }
 
+// Delegation returns the delegation graph of the workflow (who may launch
+// whom): `calls` when written, else the agents' own task permissions.
+func (r *Resolution) Delegation() map[string][]string {
+	return wf.DelegationGraph(r.Spec, r.env.Agents)
+}
+
 // WaitingCheckpoints returns the checkpoints that may wait for the user in
 // the resolved mode (pause, conditional; skip on a mandatory checkpoint
 // counts as pause): a run without interface cannot pass them.

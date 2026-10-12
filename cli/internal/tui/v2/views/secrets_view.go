@@ -60,6 +60,7 @@ type SecretsView struct {
 	app      *tview.Application
 	content  *tview.Flex
 	list     *widgets.SectionedList
+	page     *widgets.ListDetailPage
 	shell    ShellAccess
 	cfg      SecretsViewConfig
 	mountGen uint64
@@ -96,7 +97,6 @@ func (v *SecretsView) Mount(content *tview.Flex, app *tview.Application) {
 	loadingTV := tview.NewTextView().
 		SetDynamicColors(true)
 	loadingTV.SetBackgroundColor(theme.BgPanel)
-	loadingTV.SetBorderPadding(1, 0, 2, 2)
 	muted := theme.ColorTag(theme.TextMutedHex)
 	loadingTV.SetText(fmt.Sprintf("\n  %s%s%s", muted, i18n.T("tui.secrets.loading"), theme.TagColor))
 	content.AddItem(loadingTV, 0, 1, true)
@@ -111,16 +111,16 @@ func (v *SecretsView) Mount(content *tview.Flex, app *tview.Application) {
 
 			v.list = widgets.NewSectionedList()
 			v.list.SetApp(app)
-			v.list.SetBorderPadding(1, 0, 2, 2)
+			v.page = newListPage(v.Title(), v.list)
 
 			v.list.SetItemSelectedFunc(func(index int, item widgets.SectionItem) {
 				v.editByItem(item)
 			})
+			v.list.SetItemChangedFunc(func(_ int, item widgets.SectionItem) { v.showDetail(item) })
 
 			v.entries = entries
 			v.renderList()
-			content.RemoveItem(loadingTV)
-			content.AddItem(v.list, 0, 1, true)
+			v.page.Mount(content)
 			app.SetFocus(v.list)
 		})
 	}()
@@ -131,6 +131,49 @@ func (v *SecretsView) Unmount() {
 	v.app = nil
 	v.content = nil
 	v.list = nil
+	v.page = nil
+}
+
+// showDetail fills the detail pane with the secret of item.
+func (v *SecretsView) showDetail(item widgets.SectionItem) {
+	if v.page == nil {
+		return
+	}
+	i, ok := item.Reference.(int)
+	if !ok || i < 0 || i >= len(v.entries) {
+		var d detailText
+		if len(v.entries) == 0 {
+			d.title(i18n.T("tui.secrets.empty"))
+			d.para(i18n.T("tui.detail.secret.desc"))
+			d.keys("a", i18n.T("tui.hints.add"), "r", i18n.T("tui.hints.refresh"))
+			v.page.SetDetail(d.String())
+			return
+		}
+		v.page.SetDetail(emptyDetail())
+		return
+	}
+	e := v.entries[i]
+	var d detailText
+	d.title(tview.Escape(e.Key))
+	d.para(i18n.T("tui.detail.secret.desc"))
+	scope := "global"
+	if e.Scope != "global" && e.Scope != "" {
+		scope = i18n.T("tui.secrets.section_project") + " " + tview.Escape(e.Scope)
+	}
+	d.field(i18n.T("tui.detail.scope"), scope)
+	if e.Present {
+		d.field(i18n.T("tui.detail.value"), theme.ColorTag(theme.SuccessHex)+"✓ "+theme.TagReset+tview.Escape(e.Masked))
+	} else {
+		d.field(i18n.T("tui.detail.value"), theme.ColorTag(theme.ErrorHex)+"✗ "+i18n.T("tui.secrets.absent")+theme.TagReset)
+	}
+	d.field(i18n.T("tui.secrets.referenced_by"), tview.Escape(e.Source))
+	d.field(i18n.T("tui.detail.secret.fallback"), tview.Escape(e.Fallback))
+	keys := []string{"Enter", i18n.T("tui.hints.edit"), "a", i18n.T("tui.hints.add")}
+	if e.Present {
+		keys = append(keys, "d", i18n.T("tui.hints.delete"))
+	}
+	d.keys(append(keys, "r", i18n.T("tui.hints.refresh"))...)
+	v.page.SetDetail(d.String())
 }
 
 func (v *SecretsView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
@@ -286,6 +329,7 @@ func (v *SecretsView) renderList() {
 			SecondaryText: i18n.T("tui.secrets.empty_hint"),
 		}}
 		v.list.SetItems(items)
+		v.showDetail(widgets.SectionItem{})
 		return
 	}
 
@@ -329,6 +373,8 @@ func (v *SecretsView) renderList() {
 	if savedIdx >= 0 {
 		v.list.SelectIndex(savedIdx)
 	}
+	_, it, _ := v.list.CurrentItem()
+	v.showDetail(it)
 }
 
 func (v *SecretsView) entryToItem(e secretEntry, entryIdx int) widgets.SectionItem {

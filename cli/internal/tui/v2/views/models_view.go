@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sort"
+	"strings"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -13,6 +14,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
+	"github.com/datichb/openhub/cli/internal/tui/v2/widgets"
 )
 
 // modelEntry represents a single row in the models view.
@@ -28,6 +30,7 @@ type ModelsView struct {
 	app      *tview.Application
 	appCtx   *app.App
 	table    *tview.Table
+	page     *widgets.ListDetailPage
 	entries  []modelEntry
 	shell    ShellAccess
 	commands []ContextCommand
@@ -88,7 +91,8 @@ func (v *ModelsView) Mount(content *tview.Flex, tvApp *tview.Application) {
 				SetSelectable(true, false).
 				SetFixed(1, 0)
 			v.table.SetBackgroundColor(theme.BgPanel)
-			v.table.SetBorderPadding(1, 0, 2, 2)
+			v.page = newListPage(v.Title(), v.table)
+			v.table.SetSelectionChangedFunc(func(row, _ int) { v.showDetail(row - 1) })
 			v.table.SetSelectedStyle(tcell.StyleDefault.
 				Background(theme.BgElement).
 				Foreground(theme.FgPrimary))
@@ -104,8 +108,7 @@ func (v *ModelsView) Mount(content *tview.Flex, tvApp *tview.Application) {
 			v.populateTable()
 			v.buildCommands()
 
-			content.RemoveItem(loading)
-			content.AddItem(v.table, 0, 1, true)
+			v.page.Mount(content)
 			tvApp.SetFocus(v.table)
 		})
 	}()
@@ -116,6 +119,35 @@ func (v *ModelsView) Unmount() {
 	v.mountGen++ // invalidate in-flight async goroutine
 	v.app = nil
 	v.table = nil
+	v.page = nil
+}
+
+// showDetail fills the detail pane with the entry at idx.
+func (v *ModelsView) showDetail(idx int) {
+	if v.page == nil {
+		return
+	}
+	if idx < 0 || idx >= len(v.entries) {
+		v.page.SetDetail(emptyDetail())
+		return
+	}
+	e := v.entries[idx]
+	section, key := "general", e.Key
+	switch {
+	case strings.HasPrefix(e.Scope, "family:"):
+		section, key = "families", strings.TrimPrefix(e.Scope, "family:")
+	case strings.HasPrefix(e.Scope, "agent:"):
+		section, key = "agents", strings.TrimPrefix(e.Scope, "agent:")
+	}
+	value := e.Value
+	if value == i18n.T("tui.models.not_set") {
+		value = ""
+	}
+	level := "hub"
+	if e.Level != "hub" {
+		level = i18n.T("tui.secrets.section_project") + " " + tview.Escape(e.Level)
+	}
+	v.page.SetDetail(modelOverrideDetail(section, key, value, level, "a", i18n.T("tui.hints.add")))
 }
 
 // HandleKey processes models view key events.
@@ -226,6 +258,12 @@ func (v *ModelsView) populateTable() {
 		v.table.SetCell(i+1, 2, tview.NewTableCell(e.Key).SetTextColor(theme.FgPrimary).SetExpansion(1))
 		v.table.SetCell(i+1, 3, tview.NewTableCell(e.Value).SetTextColor(theme.FgPrimary).SetExpansion(2))
 	}
+	row, _ := v.table.GetSelection()
+	if row < 1 && len(v.entries) > 0 {
+		v.table.Select(1, 0)
+		row = 1
+	}
+	v.showDetail(row - 1)
 }
 
 func (v *ModelsView) editEntry(idx int) {

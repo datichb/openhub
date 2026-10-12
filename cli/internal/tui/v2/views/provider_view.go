@@ -51,6 +51,7 @@ type ProviderView struct {
 	shell  ShellAccess
 
 	list     *widgets.SectionedList
+	page     *widgets.ListDetailPage
 	commands []ContextCommand
 	mountGen uint64
 
@@ -135,7 +136,7 @@ func (v *ProviderView) Mount(content *tview.Flex, tvApp *tview.Application) {
 
 			v.list = widgets.NewSectionedList()
 			v.list.SetApp(tvApp)
-			v.list.SetBorderPadding(1, 0, 2, 2)
+			v.page = newListPage(v.Title(), v.list)
 
 			v.buildLines()
 			v.renderList()
@@ -148,8 +149,8 @@ func (v *ProviderView) Mount(content *tview.Flex, tvApp *tview.Application) {
 			})
 
 			v.buildCommands()
-			content.RemoveItem(loading)
-			content.AddItem(v.list, 0, 1, true)
+			v.showCurrentDetail()
+			v.page.Mount(content)
 			tvApp.SetFocus(v.list)
 		})
 	}()
@@ -160,6 +161,7 @@ func (v *ProviderView) Unmount() {
 	v.mountGen++ // invalidate in-flight async goroutine
 	v.app = nil
 	v.list = nil
+	v.page = nil
 }
 
 // HandleKey processes provider view key events.
@@ -479,6 +481,84 @@ func (v *ProviderView) renderList() {
 	if savedIdx >= 0 && savedIdx < len(items) {
 		v.list.SelectIndex(savedIdx)
 	}
+	v.showCurrentDetail()
+}
+
+// showCurrentDetail fills the detail pane with the line under the cursor.
+func (v *ProviderView) showCurrentDetail() {
+	if v.page == nil || v.list == nil {
+		return
+	}
+	_, item, ok := v.list.CurrentItem()
+	ref, isRef := item.Reference.(int)
+	if !ok || !isRef || ref < 0 || ref >= len(v.lines) {
+		v.page.SetDetail(emptyDetail())
+		return
+	}
+	line := v.lines[ref]
+	cfg := v.vcfg.GetConfig()
+	val := ""
+	if line.get != nil {
+		val = line.get(cfg)
+	}
+	pageKeys := []string{"s", i18n.T("tui.hints.setup"), "d", i18n.T("tui.detail.provider.reset"), "r", i18n.T("tui.hints.refresh")}
+	var d detailText
+	switch line.kind {
+	case "provider-item":
+		name := line.provider
+		d.title(name)
+		d.para(provider.Description(provider.Name(name)))
+		res := v.cachedDetection(name)
+		if res.Available {
+			d.field(i18n.T("tui.detail.provider.detected"), theme.ColorTag(theme.SuccessHex)+"✓ "+tview.Escape(res.Source)+theme.TagReset)
+		} else {
+			d.field(i18n.T("tui.detail.provider.detected"), theme.ColorTag(theme.ErrorHex)+"✗ "+i18n.T("tui.provider.not_detected")+theme.TagReset)
+		}
+		if res.Details != "" {
+			fmt.Fprintf(&d.b, "  %s%s%s\n", theme.ColorTag(theme.TextMutedHex), tview.Escape(res.Details), theme.TagReset)
+		}
+		if name == cfg.LLM.DefaultProvider {
+			d.field(i18n.T("tui.detail.status"), theme.ColorTag(theme.ActiveMode.PrimaryHex)+"★ "+i18n.T("tui.detail.provider.default_yes")+theme.TagReset)
+		}
+		d.keys(append([]string{"Space", i18n.T("tui.detail.provider.set_default"), "Enter", i18n.T("tui.hints.detail")}, pageKeys...)...)
+	case "info":
+		d.title(line.provider)
+		d.para(val)
+		d.keys(pageKeys...)
+	case "action":
+		d.title(line.key)
+		d.keys(append([]string{"Enter", i18n.T("tui.hints.open")}, pageKeys...)...)
+	default:
+		d.title(line.key)
+		d.field("Provider :", line.provider)
+		if val == "" {
+			val = theme.ColorTag(theme.TextMutedHex) + i18n.T("tui.config.not_configured") + theme.TagReset
+		} else if line.kind != "password" {
+			val = tview.Escape(val)
+		}
+		d.field(i18n.T("tui.detail.value"), val)
+		if line.validate != nil && line.get != nil {
+			if msg, _ := line.validate(line.get(cfg)); msg != "" {
+				d.gap().warn(tview.Escape(msg))
+			}
+		}
+		if len(line.options) > 0 {
+			d.gap().field(i18n.T("tui.detail.options"), " ")
+			cur := ""
+			if line.get != nil {
+				cur = line.get(cfg)
+			}
+			for _, o := range line.options {
+				mark := "  "
+				if o.Value == cur {
+					mark = theme.ColorTag(theme.ActiveMode.PrimaryHex) + "● " + theme.TagReset
+				}
+				fmt.Fprintf(&d.b, "  %s%s\n", mark, tview.Escape(o.Label))
+			}
+		}
+		d.keys(append([]string{"Enter", i18n.T("tui.hints.edit")}, pageKeys...)...)
+	}
+	v.page.SetDetail(d.String())
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -494,6 +574,7 @@ func (v *ProviderView) handleChanged(index int, item widgets.SectionItem) {
 	if v.rendering {
 		return
 	}
+	defer v.showCurrentDetail()
 	ref, ok := item.Reference.(int)
 	if !ok || ref < 0 || ref >= len(v.lines) {
 		return

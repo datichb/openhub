@@ -389,6 +389,7 @@ func (v *TeamModeView) buildItems() []teamModeItem {
 	items = append(items,
 		teamModeItem{Icon: "─", Label: i18n.T("tui.tm.section.navigation"), SectionID: "navigation"},
 		teamModeItem{Icon: "📂", Label: i18n.T("tui.tm.item.projects"), Desc: i18n.T("tui.tm.item.projects_desc"), Action: navigate("projects.list")},
+		teamModeItem{Icon: "📊", Label: i18n.T("tui.tm.item.metrics"), Desc: i18n.T("tui.tm.item.metrics_desc"), Action: navigate("metrics")},
 		teamModeItem{Icon: "🏠", Label: i18n.T("tui.tm.item.hub_mode"), Desc: i18n.T("tui.tm.item.hub_mode_desc"), Action: func() {
 			if v.cfg.OnExitTeamMode != nil {
 				v.cfg.OnExitTeamMode()

@@ -17,6 +17,7 @@ import (
 // add/remove/sync operations.
 type TeamsView struct {
 	list       *widgets.SectionedList
+	page       *widgets.ListDetailPage
 	app        *tview.Application
 	shell      ShellAccess
 	cfg        *config.Config
@@ -45,6 +46,7 @@ func NewTeamsView(deps TeamsViewDeps) *TeamsView {
 		undoStack:  widgets.NewUndoStack[[]config.TeamConfig](10),
 	}
 	v.list.SetItemSelectedFunc(v.handleSelect)
+	v.list.SetItemChangedFunc(func(_ int, it widgets.SectionItem) { v.showDetail(it) })
 	return v
 }
 
@@ -68,14 +70,56 @@ func (v *TeamsView) StatusHints() string {
 func (v *TeamsView) Mount(content *tview.Flex, app *tview.Application) {
 	v.app = app
 	v.list.SetApp(app)
+	v.page = newListPage(v.Title(), v.list)
 	v.rebuild()
 
-	content.Clear()
-	content.AddItem(v.list, 0, 1, true)
+	v.page.Mount(content)
 	app.SetFocus(v.list)
 }
 
-func (v *TeamsView) Unmount() {}
+func (v *TeamsView) Unmount() { v.page = nil }
+
+// showDetail fills the detail pane with the team of it.
+func (v *TeamsView) showDetail(it widgets.SectionItem) {
+	if v.page == nil {
+		return
+	}
+	id, _ := it.Reference.(string)
+	var team *config.TeamConfig
+	for i := range v.cfg.Teams {
+		if id != "" && v.cfg.Teams[i].ID == id {
+			team = &v.cfg.Teams[i]
+		}
+	}
+	if team == nil {
+		var d detailText
+		d.title(i18n.T("tui.teams.no_teams"))
+		d.para(i18n.T("tui.teams.no_teams_hint"))
+		d.keys("a", i18n.T("tui.hints.add"), "u", i18n.T("tui.hints.undo"))
+		v.page.SetDetail(d.String())
+		return
+	}
+	status := theme.ColorTag(theme.SuccessHex) + "✓ " + theme.TagColor + i18n.T("tui.teams.status_active")
+	if !team.Enabled {
+		status = theme.ColorTag(theme.TextMutedHex) + i18n.T("tui.teams.status_inactive") + theme.TagColor
+	}
+	repo := team.StateRepo
+	if team.Solo {
+		repo = i18n.T("tui.solo.teams_label")
+	}
+	var d detailText
+	d.title(tview.Escape(team.DisplayName()))
+	d.para(i18n.T("tui.detail.team.desc"))
+	d.field("ID :", tview.Escape(team.ID))
+	d.field(i18n.T("tui.detail.member"), tview.Escape(team.MemberID))
+	d.field(i18n.T("tui.detail.status"), status)
+	d.field(i18n.T("tui.detail.repo"), tview.Escape(repo))
+	d.field(i18n.T("tui.detail.path"), tview.Escape(team.StatePath))
+	d.keys("Enter", i18n.T("tui.hints.detail"), "s", i18n.T("tui.hints.sync"),
+		"a", i18n.T("tui.hints.add"), "d", i18n.T("tui.hints.delete"),
+		"r", i18n.T("tui.hints.refresh"), "u", i18n.T("tui.hints.undo"))
+	v.page.SetDetail(d.String())
+}
 
 func (v *TeamsView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 	switch event.Key() {
@@ -202,6 +246,11 @@ func (v *TeamsView) rebuild() {
 	}
 
 	v.list.SetItems(items)
+	_, it, ok := v.list.CurrentItem()
+	if !ok && len(items) > 0 {
+		it = items[0]
+	}
+	v.showDetail(it)
 }
 
 func (v *TeamsView) handleSelect(index int, item widgets.SectionItem) {

@@ -291,7 +291,14 @@ func buildBeadsSummaryFunc(a *app.App) func() map[string]views.BeadsSummary {
 		}
 
 		result := make(map[string]views.BeadsSummary)
+		teamID := ""
+		if tuiShell != nil && tuiShell.Mode() == views.ModeTeam && tuiShell.ActiveTeam() != nil {
+			teamID = tuiShell.ActiveTeam().ID
+		}
 		for _, p := range projects {
+			if teamID != "" && (p.TeamID == nil || *p.TeamID != teamID) {
+				continue
+			}
 			if p.Path == "" || !beads.IsInitialized(p.Path) {
 				continue
 			}

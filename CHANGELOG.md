@@ -9,6 +9,20 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ## [Unreleased]
 
+### Fixed — retours de test de la TUI
+
+- **Détection de Docker / Colima** : outils cherchés aussi hors du `PATH` (`/opt/homebrew/bin`, `/usr/local/bin`, Docker Desktop, Rancher Desktop…), repli sur le socket de Colima quand `colima status` ou le contexte docker `colima` font défaut, « VM arrêtée » réservé à une VM réellement arrêtée, `docker version` réessayé une fois, raison de chaque moteur installé affichée quand aucun ne répond. Profil Colima réglable : `oh config set execution.colima_profile <nom>` (ou `COLIMA_PROFILE`).
+- **Lancement hors d'un projet** : la TUI démarre en mode hub sans demander de projet ; dans le dossier d'un projet enregistré, elle démarre en mode projet.
+- **Retour au hub** (`Esc`, commande « home ») : le mode, le thème et le contexte suivent l'écran d'accueil atteint ; revenir d'un projet ouvert depuis une équipe rend le mode équipe. Le thème est appliqué avant l'affichage de la vue.
+- **Mode équipe** : le menu Projets ne liste que les projets de l'équipe (un projet ajouté depuis ce mode lui est rattaché) ; le résumé Beads du board d'équipe aussi.
+- **Métriques contextuelles** : tout le hub, les projets de l'équipe ou le projet selon le mode, périmètre affiché dans le titre ; entrée Métriques dans le menu équipe.
+
+### Changed — lisibilité de la TUI
+
+- **Mise en page unique des pages de liste** : liste à gauche encadrée de la couleur du mode, détail à droite (catalogue des workflows, éditeur de workflow sur tous ses onglets, sessions, projets, réglages, provider, MCP, modèles, secrets, policies, historique, doctor, notifications, équipes…). Le détail explique la ligne sélectionnée (description, valeur, origine, verrou, touches).
+- **Workflows** : en-têtes de colonnes et légende des pictogrammes dans le catalogue, risque et exécution écrits en clair ; choix décrits dans l'éditeur (risque, isolation, rôle, mode, comportements des checkpoints) ; `extends` et « Source » choisis parmi les workflows autorisés ; `calls` choisi parmi les agents du workflow ; `entry.selectable` et `unlocks` modifiables ; onglet Graphe : « Délègue à », « Appelé par », agents injoignables depuis l'entrée signalés, fonctionnement du flux expliqué.
+- **Aide `F1`** accessible partout, éditeur et formulaires compris, avec la légende des pictogrammes de la vue.
+
 ### Added — points critiques des audits v5
 
 - **Nouvelles opérations verrouillables `create` et `apply`** (schéma `oh/v1`, ajout compatible ; audit v5, W0) : `unlocks: [create]` refuse la création de tickets Beads (`bd create`), `unlocks: [apply]` les modifications d'infrastructure (`terraform apply`, `kubectl apply|delete`, `helm upgrade`, commandes create/delete/update des clouds…) tant que le checkpoint n'est pas passé. Une opération inconnue d'une version plus ancienne d'oh est un avertissement (`unlock_unknown`) et ne verrouille rien, au lieu de rendre le workflow invalide.
