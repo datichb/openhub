@@ -6,8 +6,17 @@ references:
   # permissions allow.
   - developer/beads-plan
   - developer/beads-dev
+conditional:
+  # ÉTAPE 4 invokes the documentarian only when it is in the agent's
+  # « Peut déléguer à » column, otherwise the enrichments are listed in the
+  # report.
+  - shared/living-docs-enrichment
 commands:
-tasks: []
+tasks:
+  # orchestrator-dev-protocol (inlined): its invocation table names the
+  # documentarian, absent from review-feedback (feedback mode, no
+  # CHANGELOG). The lightening phase reworks the protocol.
+  - "review-feedback/orchestrator-dev: documentarian"
 checkpoints:
   # Ticket path of orchestrator-dev (on-demand skills ticket-workflow,
   # standalone, subagent, parallel: cp-1 → cp-2 → cp-3 of ticket and
@@ -15,3 +24,12 @@ checkpoints:
   # [MODE:feedback] replaces them with orchestrator-dev-feedback-mode.
   - "review-feedback/orchestrator-dev: cp-1"
   - "review-feedback/orchestrator-dev: cp-3"
+claims:
+  # Agents whose body says they change no file (of the project code) but
+  # write their deliverable (readonly_claims_test.go).
+  # « Tu ne modifies jamais le code source » : the benchmark report.
+  - "benchmarker: edit reports/benchmarks/*"
+  # « à l'exception de » the wiki and the two files the body lists.
+  - "onboarder: edit docs/wiki/*"
+  - "onboarder: edit ONBOARDING.md"
+  - "onboarder: edit CONVENTIONS.md"

@@ -1,6 +1,7 @@
 # Permission base: coordinator
 # Coordination-only — no direct file modification, no bash execution.
-# Delegates all work via task tool. Used by: orchestrator, auditor
+# Delegates all work via task tool.
+# Used by: auditor, conductor
 question: allow
 skill: allow
 bash: deny

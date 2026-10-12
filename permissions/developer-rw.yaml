@@ -1,6 +1,7 @@
 # Permission base: developer-rw
 # Full read/write development permissions with safe git operations.
-# Used by: developer (+ overrides: DB migration commands)
+# The agent adds its own commands in its frontmatter (DB migrations).
+# Used by: developer
 question: deny
 skill: allow
 bash:

@@ -1,3 +1,19 @@
+cond   audit/auditor: documentarian (shared/living-docs-enrichment)
+cond   benchmark/benchmarker: documentarian (shared/living-docs-enrichment)
+cond   cadrage/pathfinder: documentarian (shared/living-docs-enrichment)
+cond   cadrage/planner: documentarian (shared/living-docs-enrichment)
+cond   infra-change/operator: documentarian (shared/living-docs-enrichment)
+cond   libre/onboarder: documentarian (shared/living-docs-enrichment)
+cond   libre@onboarder: documentarian (shared/living-docs-enrichment)
+cond   libre@operator: documentarian (shared/living-docs-enrichment)
+cond   onboarding/onboarder: documentarian (shared/living-docs-enrichment)
+cond   quick/developer: documentarian (shared/living-docs-enrichment)
+cond   review-feedback/developer: documentarian (shared/living-docs-enrichment)
+cond   review-feedback/reviewer: documentarian (shared/living-docs-enrichment)
+cond   review/reviewer: documentarian (shared/living-docs-enrichment)
+cond   sweep/developer: documentarian (shared/living-docs-enrichment)
+cond   sweep/pathfinder: documentarian (shared/living-docs-enrichment)
+cond   sweep/reviewer: documentarian (shared/living-docs-enrichment)
 cp     review-feedback/orchestrator-dev: cp-1
 cp     review-feedback/orchestrator-dev: cp-3
 locked cadrage/planner: bd create
@@ -16,3 +32,9 @@ locked infra-change/operator: helm upgrade x x -f x
 locked infra-change/operator: kubectl apply
 locked infra-change/operator: kubectl apply -f x
 locked infra-change/operator: terraform apply
+locked libre@operator: helm upgrade
+locked libre@operator: helm upgrade x x -f x
+locked libre@operator: kubectl apply
+locked libre@operator: kubectl apply -f x
+locked libre@operator: terraform apply
+task   review-feedback/orchestrator-dev: documentarian

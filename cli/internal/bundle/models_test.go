@@ -96,3 +96,32 @@ func TestBuildAppliesWorkflowModels(t *testing.T) {
 	require.NotNil(t, b.Spec.DefaultModel)
 	assert.Contains(t, b.Spec.DefaultModel.Model, "claude-haiku-4-5")
 }
+
+// knownModel reports whether the model resolution has an explicit entry for
+// a bare model name (the Bedrock or GitHub Copilot table): a typo or a
+// retired name only gets the best-effort fallback of every provider.
+func knownModel(m string) bool {
+	return bricks.NormalizeModelForProvider(m, "bedrock") != "amazon-bedrock/anthropic."+m ||
+		bricks.NormalizeModelForProvider(m, "github-copilot") != "github-copilot/"+m
+}
+
+// C4: the floor model of every agent is a bare model name (the provider is
+// the project's) known to the model resolution.
+func TestAgentModelsAreKnown(t *testing.T) {
+	// TODO(C2 content track): brief-enricher moves to claude-sonnet-4-6;
+	// drop this exception then (it no longer applies to the new value).
+	pinned := map[string]string{"brief-enricher": "anthropic/claude-sonnet-4-5"}
+	files, err := bricks.FindAgentFiles(repoHub(t))
+	require.NoError(t, err)
+	for _, id := range sortedKeys(files) {
+		fm, err := bricks.ParseAgentFrontmatter(files[id])
+		require.NoError(t, err)
+		if fm.Model == "" || pinned[id] == fm.Model {
+			continue
+		}
+		assert.NotContains(t, fm.Model, "/", "%s: model %q names a provider: write the bare model name", id, fm.Model)
+		assert.True(t, knownModel(fm.Model), "%s: model %q is unknown to the model resolution (bricks/model_resolve.go)", id, fm.Model)
+	}
+	assert.False(t, knownModel("claude-sonet-4-6"), "a typo")
+	assert.True(t, knownModel("claude-sonnet-4-6"))
+}
