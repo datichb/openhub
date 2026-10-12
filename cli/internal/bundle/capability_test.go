@@ -34,7 +34,10 @@ import (
 //     listed in testdata/capability_allow.yaml;
 //   - a command refused only while an operation is locked (`unlocks:`) is
 //     reported, not refused;
-//   - every task(subagent_type: "x") names an agent the agent may call;
+//   - every task(subagent_type: "x") (on one line or several) and every
+//     delegation written in prose (« délègue au `x` », « invoque `x` »,
+//     x an agent of the hub) names an agent the agent may call; a skill
+//     listed `conditional:` only delegates when the workflow map allows it;
 //   - every bd command the agent may run is granted by the workflow's
 //     Beads list (beads.allow), as the gateway checks it;
 //   - every checkpoint that unlocks an operation has a member able to run it;
@@ -54,7 +57,8 @@ var (
 	capCodeSpan   = regexp.MustCompile("`([^`\n]+)`")
 	capPlacehold  = regexp.MustCompile(`<[^<>\n]+>|\[[A-Z][^\[\]\n]*\]`)
 	capSplit      = regexp.MustCompile(`&&|\|\||;|\|`)
-	capTaskRef    = regexp.MustCompile(`task\(subagent_type:\s*"([a-z0-9-]+)"`)
+	capTaskRef    = regexp.MustCompile(`(?i)\btask\(\s*\{?[^()]*?\bsubagent_type:\s*"([a-z0-9-]+)"`)
+	capProseTask  = regexp.MustCompile("(?i)\\b(?:d[ée]l[èée]gu|invoqu)[a-z]*\\s+(?:(?:à|au|aux|le|la|les|l'|l’|un|une)\\s*)?(?:(?:l'|l’)?(?:sous-)?agent\\s+)?`([a-z0-9-]+)`")
 	capCheckpoint = regexp.MustCompile(`\bcp-[a-z0-9]+(?:-[a-z0-9]+)*\b`)
 	capUserMarker = "<!-- capability:" // user (a command for the user), example, optional
 	// A line that forbids, quotes an instruction for another agent or
@@ -85,6 +89,10 @@ type capAllow struct {
 	// References are reference skills (command sheets): what they list is
 	// not asked of the agent.
 	References []string `yaml:"references"`
+	// Conditional are skills whose delegations depend on the workflow map
+	// (« si `x` est dans ta colonne Peut déléguer à »): a delegation outside
+	// the graph written only by one of them is reported, not refused.
+	Conditional []string `yaml:"conditional"`
 }
 
 // capCommands extracts the shell commands of a text, normalized.
@@ -170,11 +178,47 @@ func capCommands(text string) []string {
 	return out
 }
 
-// capTaskRefs lists the delegations written in a text, except on the lines
+// capTaskRefs lists the delegations written in a text, task(…) calls on one
+// line or several (`task({` then `subagent_type: "x"`), except on the lines
 // marked `<!-- capability: optional -->` (an agent used when the workflow
 // has it).
 func capTaskRefs(text string) []string {
-	return capRefs(text, capTaskRef, 1)
+	var visible []string
+	for _, l := range capVisibleLines(text) {
+		visible = append(visible, l.text)
+	}
+	var out []string
+	for _, m := range capTaskRef.FindAllStringSubmatch(strings.Join(visible, "\n"), -1) {
+		if !slices.Contains(out, m[1]) {
+			out = append(out, m[1])
+		}
+	}
+	return out
+}
+
+// capProseTaskRefs lists the agents of known a text delegates to in prose
+// (« délègue au `x` », « invoque `x` »), outside code blocks, the sections
+// that list what not to do and the lines that forbid or quote (capNotAsked).
+func capProseTaskRefs(text string, known map[string]string) []string {
+	var out []string
+	notAsked := false
+	for _, l := range capVisibleLines(text) {
+		if l.fenced {
+			continue
+		}
+		if t := strings.TrimSpace(l.text); strings.HasPrefix(t, "#") || strings.HasSuffix(t, ":**") {
+			notAsked = capNotSection.MatchString(t)
+		}
+		if notAsked || capNotAsked.MatchString(l.text) {
+			continue
+		}
+		for _, m := range capProseTask.FindAllStringSubmatch(l.text, -1) {
+			if _, ok := known[m[1]]; ok && !slices.Contains(out, m[1]) {
+				out = append(out, m[1])
+			}
+		}
+	}
+	return out
 }
 
 // capCheckpointRefs lists the checkpoint ids named in a text, with the same
@@ -188,6 +232,27 @@ func capCheckpointRefs(text string) []string {
 // marker alone on its line).
 func capRefs(text string, re *regexp.Regexp, group int) []string {
 	var out []string
+	for _, l := range capVisibleLines(text) {
+		for _, m := range re.FindAllStringSubmatch(l.text, -1) {
+			if !slices.Contains(out, m[group]) {
+				out = append(out, m[group])
+			}
+		}
+	}
+	return out
+}
+
+type capLine struct {
+	text   string
+	fenced bool
+}
+
+// capVisibleLines are the lines of a text the refs are read from: a line
+// marked `<!-- capability: … -->`, a code block following a marker alone on
+// its line and the fence lines are blanked (a multi-line match does not
+// cross them).
+func capVisibleLines(text string) []capLine {
+	var out []capLine
 	inFence, skipNext, skipFence := false, false, false
 	for _, line := range strings.Split(text, "\n") {
 		t := strings.TrimSpace(line)
@@ -199,20 +264,19 @@ func capRefs(text string, re *regexp.Regexp, group int) []string {
 			if !inFence {
 				skipFence = false
 			}
+			out = append(out, capLine{})
 			continue
 		}
 		if strings.HasPrefix(t, capUserMarker) && strings.HasSuffix(t, "-->") {
 			skipNext = true
+			out = append(out, capLine{})
 			continue
 		}
 		if skipFence || strings.Contains(line, capUserMarker) {
+			out = append(out, capLine{})
 			continue
 		}
-		for _, m := range re.FindAllStringSubmatch(line, -1) {
-			if !slices.Contains(out, m[group]) {
-				out = append(out, m[group])
-			}
-		}
+		out = append(out, capLine{text: line, fenced: inFence})
 	}
 	return out
 }
@@ -332,6 +396,7 @@ func TestCapabilities(t *testing.T) {
 		allowed[c] = true
 	}
 	used := map[string]bool{}
+	usedCond := map[string]bool{}
 
 	// Every agent is linted, members of no shipped workflow included: each
 	// one is also the entry of a libre session (key libre@<agent>), linted
@@ -413,16 +478,53 @@ func TestCapabilities(t *testing.T) {
 			for _, c := range b.Spec.SubagentGraph[a.ID] {
 				calls[c] = true
 			}
+			// conditional names the conditional skill a delegation comes
+			// from ("" when another text asks it too).
+			without := map[string]string{}
+			conditional := func(m string, refs func(string) []string) string {
+				for _, c := range allow.Conditional {
+					if _, ok := without[c]; !ok {
+						without[c] = capAgentText(t, hub, b, a, files, append(slices.Clone(allow.References), c))
+					}
+					if without[c] != text && !slices.Contains(refs(without[c]), m) {
+						return c
+					}
+				}
+				return ""
+			}
+			prose := func(s string) []string { return capProseTaskRefs(s, files) }
 			for _, m := range capTaskRefs(text) {
 				if calls[m] {
 					continue
 				}
 				id := key + ": " + m
+				if c := conditional(m, capTaskRefs); c != "" {
+					report = append(report, "cond   "+id+" ("+c+")")
+					usedCond[c] = true
+					continue
+				}
 				report = append(report, "task   "+id)
 				if allowed[id] {
 					used[id] = true
 				} else {
 					errs = append(errs, "delegation outside the graph: "+id)
+				}
+			}
+			for _, m := range prose(text) {
+				if calls[m] || m == a.ID || slices.Contains(capTaskRefs(text), m) {
+					continue
+				}
+				id := key + ": " + m
+				if c := conditional(m, prose); c != "" {
+					report = append(report, "cond   "+id+" ("+c+")")
+					usedCond[c] = true
+					continue
+				}
+				report = append(report, "prose  "+id)
+				if allowed[id] {
+					used[id] = true
+				} else {
+					errs = append(errs, "delegation in prose outside the graph: "+id)
 				}
 			}
 			for _, cp := range capCheckpointRefs(text) {
@@ -463,6 +565,11 @@ func TestCapabilities(t *testing.T) {
 	for id := range allowed {
 		if !used[id] {
 			errs = append(errs, "stale entry of testdata/capability_allow.yaml: "+id)
+		}
+	}
+	for _, c := range allow.Conditional {
+		if !usedCond[c] {
+			errs = append(errs, "stale conditional skill of testdata/capability_allow.yaml: "+c)
 		}
 	}
 	sort.Strings(errs)
@@ -513,6 +620,17 @@ func assertGoldenFile(t *testing.T, name, content string) {
 func TestCapCommands(t *testing.T) {
 	got := capCommands("Lance `bd show <ID>` puis `git add . && git commit -m \"x\"`.\n```bash\n# comment\nnpm test\nnpx tsc --noEmit # types\n```\n`npm audit` <!-- capability: user -->\nTexte `foo bar`.")
 	assert.Equal(t, []string{"bd show x", "git add .", "git commit -m \"x\"", "npm test", "npx tsc --noEmit"}, got)
+}
+
+func TestCapTaskRefs(t *testing.T) {
+	text := "Lance `task(subagent_type: \"a\")` puis `Task(subagent_type: \"b\")`.\n```\ntask({\n  description: \"x\",\n  subagent_type: \"c\",\n})\n```\n<!-- capability: optional -->\n```\ntask({\n  subagent_type: \"d\"\n})\n```"
+	assert.Equal(t, []string{"a", "b", "c"}, capTaskRefs(text))
+
+	known := map[string]string{"planner": "", "designer": "", "debugger": "", "reviewer": "", "pathfinder": ""}
+	prose := "Tu délègues au `planner`.\nInvoquer le `designer` en mode recon.\nNe délègue jamais au `debugger`.\n" +
+		"Déléguer à l'agent `reviewer` <!-- capability: optional -->\nDélègue au `inconnu`.\n```\ndélègue au `pathfinder`\n```\n" +
+		"## Ce que tu NE fais PAS\n- Invoquer le `pathfinder`"
+	assert.Equal(t, []string{"planner", "designer"}, capProseTaskRefs(prose, known))
 }
 
 func TestCapCheckpointRefs(t *testing.T) {
