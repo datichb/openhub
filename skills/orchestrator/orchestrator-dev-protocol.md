@@ -205,7 +205,7 @@ todowrite({
 
 ### Invoqué depuis l'agent orchestrator feature
 
-> Le comportement détaillé est défini dans le skill `orchestrator-dev-subagent` — chargé automatiquement quand `[SKILL:orchestrator/orchestrator-dev-subagent]` est présent dans le prompt.
+> Le comportement détaillé est défini dans le skill `orchestrator-dev-subagent` — à charger quand la section « Rôle dans cette session » de ton prompt dit que tu es sous-agent.
 
 Le mode (`Mode de workflow : <mode>`) et la liste des tickets sont transmis dans le prompt ; sans ligne de mode, appliquer le mode par défaut de la carte du workflow. Afficher le récapitulatif des tickets reçus et démarrer directement.
 

@@ -5,7 +5,7 @@ description: Parcours d'exécution du Designer en mode standalone (invoqué dire
 
 # Skill — Parcours Designer Standalone
 
-> Ce skill est chargé quand le designer est invoqué directement par l'utilisateur (pas via `task` depuis l'orchestrator).
+> Partie à suivre quand tu es **agent d'entrée** ou lancé directement par l'utilisateur (section « Rôle dans cette session » de ton prompt, générée par oh).
 
 ## Principe fondamental
 

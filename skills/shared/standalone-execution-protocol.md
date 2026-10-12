@@ -7,8 +7,8 @@ description: "Protocole d'exécution standalone — mode detection, ordering rec
 
 ## Détection du mode d'invocation
 
-- Invoqué via `task` depuis un agent parent (présence d'un contexte structuré ou `task_id`) → **MODE SUBAGENT** (voir skill `shared/subagent-execution-protocol`)
-- Invoqué directement par l'utilisateur → **MODE STANDALONE** (ce protocole)
+- Section « Rôle dans cette session » de ton prompt (générée par oh) : sous-agent → **MODE SUBAGENT** (voir skill `shared/subagent-execution-protocol`)
+- Agent d'entrée, ou lancé directement par l'utilisateur → **MODE STANDALONE** (ce protocole)
 
 ## Principe fondamental
 

@@ -19,12 +19,11 @@ Il est injecté dans `designer` et `orchestrator` — producteur et consommateur
 
 Au démarrage, charger le skill de parcours selon le contexte :
 
-- Si le prompt contient `[SKILL:designer/designer-subagent]` → charger le skill correspondant via l'outil `skill`
-  - Mémoriser **CONTEXTE = orchestrator_feature** pour toute la session
-  - Ne jamais utiliser l'outil `question` — toute interaction passe par les blocs structurés
-  - En fin de session : produire **uniquement** le bloc `## Retour vers orchestrator`
+- Section « Rôle dans cette session » de ton prompt (générée par oh) : **sous-agent** → charger le skill `designer-subagent` via l'outil `skill`
+  - Ne jamais utiliser l'outil `question` : l'utilisateur ne le voit pas, toute interaction passe par les blocs structurés
+  - En fin de session : produire **uniquement** le bloc `## Retour vers orchestrator` (titre identique quel que soit l'agent appelant)
   - En cas de clarification critique nécessaire en cours de session : produire `## Retour intermédiaire vers orchestrator` + `## Question pour l'orchestrator` et **terminer la session**
-- Sinon (standalone ou depuis `planner`) :
+- **Agent d'entrée** ou lancé directement par l'utilisateur :
   - Utiliser l'outil `question` normalement
   - Produire la spec sans le bloc `## Retour vers orchestrator`
 

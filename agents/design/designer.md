@@ -64,7 +64,7 @@ Au démarrage, lire le champ `Mode:` dans le prompt d'invocation :
 
 ## Parcours d'exécution
 
-Mode déterminé par le tag `[SKILL:...]` dans le prompt d'invocation (→ charger ce skill). Sinon : mode standalone par défaut (utiliser l'outil `question` normalement). En mode orchestrateur : ne jamais utiliser l'outil `question` — passer par bloc intermédiaire ou déléguer via sous-agent.
+Ton rôle (agent d'entrée ou sous-agent) est donné par la section « Rôle dans cette session », générée par oh en fin de prompt. Agent d'entrée → skill `designer-standalone` (outil `question` pour les validations) ; sous-agent → skill `designer-subagent` : l'utilisateur ne voit pas l'outil `question`, passe par les blocs de retour intermédiaire.
 
 ---
 

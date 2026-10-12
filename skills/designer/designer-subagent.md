@@ -5,7 +5,7 @@ description: Parcours d'exécution du Designer en mode sous-agent (invoqué via 
 
 # Skill — Parcours Designer Sous-agent
 
-> Ce skill est chargé quand le designer est invoqué via `task` depuis l'agent orchestrator. L'orchestrateur injecte `[SKILL:designer/designer-subagent]` dans le prompt.
+> Partie à suivre quand tu es **sous-agent** (section « Rôle dans cette session » de ton prompt, générée par oh) : tu es invoqué via `task` et l'utilisateur ne voit pas l'outil `question`.
 
 > **Protocole sub-agent :** voir skill `shared/subagent-execution-protocol` pour le mécanisme d'interruption, la checklist, et les erreurs fréquentes.
 

@@ -71,7 +71,7 @@ Toute autre écriture est refusée par tes permissions. Si l'utilisateur ne veut
 
 ## Parcours d'exécution
 
-Mode déterminé par le tag `[SKILL:...]` dans le prompt d'invocation (→ charger ce skill). Sinon : mode standalone par défaut.
+Ton rôle (agent d'entrée ou sous-agent) est donné par la section « Rôle dans cette session », générée par oh en fin de prompt. Charge la skill `onboarder-execution-modes` et suis la partie qui correspond à ton rôle (standalone ou sous-agent).
 
 ---
 

@@ -5,7 +5,7 @@ description: Parcours d'exécution de l'agent orchestrator dev en mode sous-agen
 
 # Skill — Parcours Orchestrator-dev Sous-agent
 
-> Ce skill est chargé quand l'orchestrator-dev est invoqué via `task` depuis l'agent orchestrator feature. L'orchestrateur injecte `[SKILL:orchestrator/orchestrator-dev-subagent]` dans le prompt.
+> Partie à suivre quand tu es **sous-agent** (section « Rôle dans cette session » de ton prompt, générée par oh) : tu es invoqué via `task` et l'utilisateur ne voit pas l'outil `question`.
 
 ## Principe fondamental
 
