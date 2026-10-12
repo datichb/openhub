@@ -313,3 +313,22 @@ func TestShippedWorkflowPromptsWorkBranch(t *testing.T) {
 		assert.Contains(t, out, "Branche de travail : oh/ticket-bd-1", id)
 	}
 }
+
+// Every shipped prompt gives the project memories (bd remember) to the entry
+// agent, inside their data tags.
+func TestShippedWorkflowPromptsCarryMemories(t *testing.T) {
+	hub, cat, _ := shippedWorkflows(t)
+	hc, err := hubcat.New(hub)
+	require.NoError(t, err)
+	const memory = "Le projet cible Go 1.24."
+	block := workflow.DelimitData("memories", memory)
+	for _, ref := range cat.Refs() {
+		doc, _ := cat.Lookup(ref)
+		r, diags := workflow.ResolveSpec(cat, ref, &workflow.SessionOptions{Inputs: sampleInputs(doc.Spec, false)})
+		require.False(t, diags.HasErrors(), "%v", diags)
+		pc := workflow.PromptContext{Project: "demo", Location: "/src/demo", Mode: r.Spec.DefaultMode(), Lang: "fr", Workflow: ref.ID, Memories: memory}
+		out, err := workflow.RenderPrompt(r, hc, pc)
+		require.NoError(t, err)
+		assert.Contains(t, out, block, "%s: project memories missing from the prompt", ref.ID)
+	}
+}
