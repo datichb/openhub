@@ -16,3 +16,8 @@ locked infra-change/operator: helm upgrade x x -f x
 locked infra-change/operator: kubectl apply
 locked infra-change/operator: kubectl apply -f x
 locked infra-change/operator: terraform apply
+locked libre@operator: helm upgrade
+locked libre@operator: helm upgrade x x -f x
+locked libre@operator: kubectl apply
+locked libre@operator: kubectl apply -f x
+locked libre@operator: terraform apply

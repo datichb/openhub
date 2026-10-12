@@ -25,7 +25,8 @@ import (
 
 // Capability lint (N11): the instructions shipped to an agent (its prompt,
 // inlined skills and the skills it may load) only ask for what its
-// permissions allow. For each shipped workflow and each agent:
+// permissions allow. For each shipped workflow and each agent (and for each
+// agent of the hub as the entry of a libre session, libre@<agent>):
 //   - every shell command written in the content (code spans, shell blocks)
 //     whose first word is a known tool is evaluated against the agent rules,
 //     guards included: a refused command is an error, unless it is marked
@@ -332,17 +333,48 @@ func TestCapabilities(t *testing.T) {
 	}
 	used := map[string]bool{}
 
-	var report, errs []string
+	// Every agent is linted, members of no shipped workflow included: each
+	// one is also the entry of a libre session (key libre@<agent>), linted
+	// alone (its delegates are entries of their own libre session).
+	type capRun struct {
+		ref   workflow.Ref
+		key   string
+		entry string // only this agent is linted ("" = every member)
+		opts  *workflow.SessionOptions
+	}
+	var runs []capRun
+	libre := workflow.Ref{Layer: workflow.LayerHub, ID: "libre"}
 	for _, ref := range cat.Refs() {
-		r, diags := workflow.Check(cat, ref, nil, env)
-		require.False(t, diags.HasErrors(), "%v", diags)
+		runs = append(runs, capRun{ref: ref, key: ref.ID})
+		if ref == libre {
+			doc, ok := cat.Lookup(ref)
+			require.True(t, ok)
+			for _, id := range sortedKeys(files) {
+				if id != doc.Spec.EntryAgent() {
+					runs = append(runs, capRun{ref: ref, key: "libre@" + id, entry: id, opts: &workflow.SessionOptions{EntryAgent: id}})
+				}
+			}
+		}
+	}
+
+	var report, errs []string
+	for _, run := range runs {
+		ref := run.ref
+		r, diags := workflow.Check(cat, ref, run.opts, env)
+		require.False(t, diags.HasErrors(), "%s: %v", run.key, diags)
 		b, err := Build(Request{HubDir: hub, OutDir: t.TempDir(), ProjectPath: project, Spec: r.Spec})
 		require.NoError(t, err)
 		wf := b.Spec.Workflow
 		locks := SessionRules(wf, r.Spec.DefaultMode(), nil)
 		for _, a := range b.Spec.Agents {
+			if run.entry != "" && a.ID != run.entry {
+				continue
+			}
 			text := capAgentText(t, hub, b, a, files, allow.References)
-			key := ref.ID + "/" + a.ID
+			key := run.key + "/" + a.ID
+			if run.entry != "" {
+				key = run.key
+			}
 			cmds := capCommands(text)
 			if !capHasShell(a.Permissions) {
 				cmds = nil
