@@ -321,7 +321,7 @@ L'orchestrator invoquera automatiquement le pathfinder.
 
 ### Q: Pathfinder peut-il consulter les designers/auditors ?
 
-**R:** Non, seul le planner peut déléguer aux agents spécialisés (designer, auditor-*, etc.). C'est une raison d'escalader si ces signaux sont forts.
+**R:** Seulement le `designer`, pour une reconnaissance Figma (Mode : recon), et le `documentarian` ; aucune spec UX/UI ne peut lui être demandée. Pathfinder ne délègue jamais à un auditeur : la délégation design (specs UX/UI) revient au planner, et un audit passe par le workflow `audit`. Des signaux design ou audit forts sont une raison d'escalader vers le planner.
 
 ### Q: Comment forcer le planner sans passer par pathfinder ?
 

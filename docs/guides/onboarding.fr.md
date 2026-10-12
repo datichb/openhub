@@ -142,14 +142,14 @@ client généré). Redis utilisé pour les sessions et le cache.
 | Agent | Pourquoi | Invocation suggérée |
 |-------|----------|---------------------|
 | `auditor` (security) | Secret en dur dans `server/config/db.ts:12` | `"Audite la sécurité de ce projet"` |
-| `developer-security` | À invoquer après l'audit pour corriger les failles | `"Implémente le hardening suite à l'audit sécurité"` |
+| `developer` (security) | À invoquer après l'audit pour corriger les failles | `"Implémente le hardening suite à l'audit sécurité"` |
 
 #### Recommandés — stack détectée
 
 | Agent | Pourquoi | Invocation suggérée |
 |-------|----------|---------------------|
-| `developer-fullstack` | Vue 3 + Fastify dans le même dépôt | `"Implémente [feature]"` |
-| `developer-api` | API REST Fastify exposée | `"Implémente l'endpoint [X]"` |
+| `developer` (fullstack) | Vue 3 + Fastify dans le même dépôt | `"Implémente [feature]"` |
+| `developer` (api) | API REST Fastify exposée | `"Implémente l'endpoint [X]"` |
 
 #### Optionnels — selon les ambitions du projet
 
@@ -346,7 +346,7 @@ L'onboarder signale un risque sécurité prioritaire → tu lances l'audit cibl�
    → L'auditor approfondit l'analyse (domaine security)
 
 3. "Implémente le hardening suite à l'audit sécurité"
-   → Le developer-security corrige les failles
+   → Le developer (domaine security) corrige les failles
 ```
 
 ### Re-onboarding après une longue absence
@@ -364,7 +364,7 @@ et te donnera un état des lieux à jour.
 ### Re-onboarding — mode enrichissement incrémental
 
 Lorsque `docs/wiki/index.md` existe déjà (généré lors d'un onboarding précédent
-et progressivement enrichi par d'autres agents : `developer-*`, `reviewer`, `auditor`, etc.),
+et progressivement enrichi par d'autres agents : `developer`, `reviewer`, `auditor`, etc.),
 l'onboarder le détecte en Phase 5 et propose trois options :
 
 1. **Enrichissement incrémental (Recommandé)** — les pages wiki concernées sont enrichies

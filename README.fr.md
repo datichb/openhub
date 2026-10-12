@@ -111,7 +111,7 @@ Dans la TUI, **Démarrer** liste les workflows (★ épinglés, récents), ouvre
 
 ## Workflows
 
-Les 13 workflows livrés par le hub :
+Les 14 workflows livrés par le hub :
 
 | Workflow | Agent d'entrée | Usage |
 |----------|----------------|-------|
@@ -141,7 +141,7 @@ Les workflows se résolvent **par couches** : hub < équipe < projet < options d
 - **`primary`** : point d'entrée d'une session
 - **`subagent`** : délégué par un autre agent du workflow
 
-### Agents primaires (14)
+### Agents primaires (13)
 
 | Agent | Famille | Rôle |
 |-------|---------|------|
@@ -247,7 +247,7 @@ Configuration par `oh mcp setup` (jetons rangés dans le trousseau du système ;
 | Sessions | [Sessions v5](docs/guides/sessions-v5.fr.md) · [Workflows (scénarios)](docs/guides/workflows.fr.md) · [Review et retours](docs/guides/review-feedback.fr.md) |
 | Workflows | [Workflows livrés](docs/reference/workflows.fr.md) · [Schéma des workflows](docs/reference/workflow-schema.fr.md) · [Workflows d'équipe](docs/guides/team-workflows.fr.md) |
 | Exécution | [Conteneur](docs/guides/container.fr.md) · [Runners distants](docs/guides/remote-runners.fr.md) |
-| Architecture | [Vue d'ensemble](docs/architecture/overview.fr.md) · [Agents](docs/architecture/agents.fr.md) · [Skills](docs/architecture/skills.fr.md) · [ADR](docs/architecture/adr/) (51) |
+| Architecture | [Vue d'ensemble](docs/architecture/overview.fr.md) · [Agents](docs/architecture/agents.fr.md) · [Skills](docs/architecture/skills.fr.md) · [ADR](docs/architecture/adr/) (52) |
 | Référence | [CLI](docs/reference/cli.fr.md) · [Configuration](docs/reference/config.fr.md) · [Glossaire](docs/reference/glossary.fr.md) · [Modèle Beads](docs/reference/beads-model.fr.md) |
 | Exploitation | [Dépannage](docs/guides/troubleshooting.fr.md) · [Fournisseurs](docs/guides/providers.fr.md) · [Sauvegarde et restauration](docs/guides/backup-restore.fr.md) · [Tableau de bord](docs/guides/dashboard.fr.md) |
 

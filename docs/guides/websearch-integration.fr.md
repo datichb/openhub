@@ -135,7 +135,7 @@ WebSearch : activé
 
 ## Agents avec WebSearch
 
-### 13 agents supportés
+### 6 agents supportés
 
 | Famille | Agent | Use Cases WebSearch |
 |---------|-------|---------------------|

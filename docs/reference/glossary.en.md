@@ -12,7 +12,7 @@ The oh component that translates a [SessionSpec](#sessionspec) into the format o
 
 ### Agent
 
-A specialized AI role definition (Markdown file with YAML frontmatter) that determines the persona, permissions, skills, and delegation rules for an AI session. Agents are organized into 7 families: planning, developer, auditor, quality, design, documentation, utility. See [Agent architecture](../architecture/agents.en.md).
+A specialized AI role definition (Markdown file with YAML frontmatter) that determines the persona, permissions, skills, and delegation rules for an AI session. 16 agents, organized into 8 families: planning, developer, auditor, infra, quality, design, documentation, utility. See [Agent architecture](../architecture/agents.en.md).
 
 ### Brick / Brick catalogue
 

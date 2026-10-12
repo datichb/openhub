@@ -95,7 +95,7 @@ The **team-state** is the team's shared git repository: members, policies, claim
 
 ### Agent
 
-An **agent** is a Markdown file (`agents/<family>/<id>.md`) defining the identity of a role: who it is, what it does, what it does not do, its permissions and skills. 20 agents in 7 families. See [agents.en.md](./agents.en.md).
+An **agent** is a Markdown file (`agents/<family>/<id>.md`) defining the identity of a role: who it is, what it does, what it does not do, its permissions and skills. 16 agents in 8 families (planning, developer, auditor, infra, quality, design, documentation, utility). See [agents.en.md](./agents.en.md).
 
 ### Skill
 
@@ -139,6 +139,12 @@ sequenceDiagram
 
     U->>O: oh run feature -i request=… (semi-auto mode)
     O->>PL: Delegates planning
+    PL-->>O: Proposed breakdown (tickets to create)
+    O->>OH: workflow_checkpoint cp-tickets (mandatory)
+    OH->>U: ⏸ cp-tickets — approve the tickets to create?
+    U-->>OH: Approve
+    Note over OH: bd create refused until cp-tickets (unlocks: create)
+    O->>PL: Breakdown approved: create the tickets
     PL-->>O: Tickets created
     O->>OH: workflow_checkpoint cp-0 (plan)
     OH->>U: ⏸ cp-0 mandatory — approve the plan?
@@ -239,7 +245,7 @@ All ADRs: [`docs/architecture/adr/`](./adr/).
 
 ```
 openhub/
-├── agents/              ← Role definitions (20 agents, 7 families)
+├── agents/              ← Role definitions (16 agents, 8 families)
 ├── skills/              ← Protocols: Bucket A (inline) + Bucket B (on demand)
 ├── workflows/           ← Shipped workflows (oh/v1) + prompt templates
 ├── cli/                 ← Go binary (oh)

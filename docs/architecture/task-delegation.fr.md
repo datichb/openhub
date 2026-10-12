@@ -246,10 +246,10 @@ dans `feature`, `planner` et `reviewer` passent en `subagent` ; dans `quick`, `d
 
 ### Règle absolue — isolation des niveaux
 
-> **L'orchestrator ne route JAMAIS directement vers les `developer-*`.**
+> **L'orchestrator ne route JAMAIS directement vers le `developer`.**
 
 Cette règle est fondamentale : l'`orchestrator` délègue toujours à
-`orchestrator-dev`, qui lui-même route vers le bon `developer-*`.
+`orchestrator-dev`, qui lui-même délègue au `developer` avec le bon domaine.
 Cette indirection permet de :
 
 - Centraliser le workflow d'implémentation (review, cycles de correction)
@@ -492,35 +492,36 @@ Sans ce marqueur, l'agent rechargé démarre en mode standalone — comportement
 ## Checkpoints et points de décision
 
 > **v5.** Les checkpoints sont déclarés dans le YAML du workflow (`checkpoints:`), avec leur comportement par mode.
-> Exemple `feature` : `cp-0`, `cp-spec`, `cp-1`, `cp-2`, `cp-3`, `cp-feature`. L'agent les signale avec l'outil MCP
+> Exemple `feature` : `cp-tickets`, `cp-0`, `cp-spec`, `cp-1`, `cp-2`, `cp-3`, `cp-feature`. L'agent les signale avec l'outil MCP
 > `workflow_checkpoint` (pas avec `question`) ; oh tient la machine à états, répond seul aux checkpoints automatiques
 > et pose une décision ⏸ dans « À traiter » pour ceux qui attendent l'utilisateur. Les agents verrouillés par `after:`
 > restent refusés tant que leur checkpoint n'est pas passé
-> ([ADR-042](./adr/042-checkpoints-headless-decisions.fr.md)). Le tableau ci-dessous décrit le protocole des skills ;
-> en cas d'écart, le YAML du workflow fait foi (`oh workflow show <id>`).
+> ([ADR-042](./adr/042-checkpoints-headless-decisions.fr.md)). Le tableau ci-dessous décrit le workflow `feature` ;
+> le YAML du workflow fait foi (`oh workflow show <id>`).
 
-### Tableau complet des checkpoints
+### Tableau complet des checkpoints (`feature`)
 
-| CP | Agent | Moment | Pause modes | **Mécanisme en mode orchestrator_feature** |
-|----|-------|--------|-------------|----------------------------------------------|
-| **CP-onboard** | `orchestrator` | Après `onboarder`, avant planification | Toujours manuel | Question montante de l'onboarder → task_id |
-| **CP-0** | `orchestrator` | Après planification, avant conception | Toujours manuel | Question montante du planner → task_id |
-| **CP-spec** | `orchestrator` | Après specs UX/UI, avant implémentation | Toujours manuel | Question montante du designer → task_id |
-| **CP-audit** | `orchestrator` | Après audit, avant implémentation | Toujours manuel | Question montante de l'auditor → task_id |
-| **CP-1** | `orchestrator-dev` | Avant chaque ticket | Manuel / auto (semi-auto, auto) | Bloc `## Question pour l'orchestrator` → task_id (mode manuel uniquement) |
-| **CP-2** | `orchestrator-dev` | Après review — commit ou corriger ? | **Toujours manuel** | Bloc `## Question pour l'orchestrator` → task_id (inchangé, déjà implémenté) |
-| **CP-3** | `orchestrator-dev` | Après commit — ticket suivant ? | Manuel / auto (semi-auto, auto) | Bloc `## Question pour l'orchestrator` → task_id (mode manuel uniquement) |
-| **CP-feature** | `orchestrator` | Fin de feature | Toujours manuel | Retour final complet |
+| Checkpoint | Appelé par | Moment | Mode (manuel / semi-auto / auto) | Déverrouille |
+|------------|------------|--------|----------------------------------|--------------|
+| **cp-tickets** | `orchestrator` | Découpage de l'agent de planning, avant toute création de ticket (tickets existants seulement : confirme la liste) | pause / pause / pause (obligatoire) | `create` |
+| **cp-0** | `orchestrator` | Tableau des tickets, avant toute implémentation | pause / pause / pause (obligatoire) | — (`orchestrator-dev` verrouillé jusqu'à `cp-0` par `after:`) |
+| **cp-spec** | `orchestrator` | Après une spec UX/UI du designer | conditionnel dans tous les modes | — |
+| **cp-1** | `orchestrator-dev` | Avant chaque ticket | pause / auto / auto | — (`developer` verrouillé jusqu'à `cp-1` par `after:`) |
+| **cp-2** | `orchestrator-dev` | Après review — commit ou correction ? | **pause / pause / pause** (obligatoire) | `commit`, `close` |
+| **cp-3** | `orchestrator-dev` | Après commit — ticket suivant ? | pause / auto / auto | — |
+| **cp-feature** | `orchestrator` | Fin de feature | pause / pause / auto | — |
+
+Les autres workflows déclarent leurs propres checkpoints (`grep -h '^  cp-' workflows/*.yaml`) : `cp-ticket` (debug, déverrouille `create`), `cp-commit` (debug, quick, sweep), `cp-plan` et `cp-apply` (infra-change, `cp-apply` déverrouille `apply`), `cp-target` (benchmark), `cp-scope`, `cp-fix`, `cp-recap`… Aucun workflow livré ne déverrouille `push`.
 
 ### Règle absolue — CP-2 est non automatisable
 
-> **CP-2 (commit ou corriger ?) est une pause dans TOUS les modes, sans exception.**
+> **CP-2 (commit ou correction ?) est une pause dans TOUS les modes, sans exception.**
 
 Cette règle ne peut pas être outrepassée, même en mode `auto`. Dans les workflows livrés, `cp-2` est `mandatory: true`
 et en `pause` dans les trois modes : une couche équipe ou projet ne peut pas l'assouplir. Justification :
 
 - "Absence d'erreur technique" ≠ "conforme aux attentes fonctionnelles"
-- La décision de merger engage la responsabilité de l'utilisateur
+- La décision de commiter engage la responsabilité de l'utilisateur
 - Un score de confiance IA sur un rapport de review serait une fausse précision
 
 → [ADR-042](./adr/042-checkpoints-headless-decisions.fr.md) (remplace [ADR-006](./adr/006-orchestrator-configurable-mode.fr.md))
