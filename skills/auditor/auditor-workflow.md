@@ -510,14 +510,14 @@ Le prompt doit inclure à la fin :
 
 ```
 Tu agis en tant que sous-agent d'audit [DOMAINE].
-Charge et applique le skill : auditor/audit-[DOMAINE]
+Charge et applique le skill : audit-[DOMAINE]
 ```
 
 Exemple pour le domaine `security` :
 
 ```
 Tu agis en tant que sous-agent d'audit security.
-Charge et applique le skill : auditor/audit-security
+Charge et applique le skill : audit-security
 ```
 
 **Si plusieurs domaines :** les invoquer **séquentiellement** (un par un) — pas en parallèle — pour éviter les conflits de lecture et permettre de stopper si un audit critique bloque.
@@ -556,6 +556,7 @@ Les audits suivants n'ont pas encore été lancés : <liste des domaines restant
       ]
     }]
   })
+```
 
 ### Récap de fin de Phase 3
 

@@ -1,6 +1,7 @@
 ---
 name: planner-phase-0
 description: Phase 0 (prérequis) et Phase 0.5 (complexity scoring) du workflow planner.
+requires: [shared/phase-0-validation-loop]
 ---
 
 # Phase 0 — Vérification des prérequis

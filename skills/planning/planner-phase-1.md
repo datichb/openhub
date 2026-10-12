@@ -1,6 +1,7 @@
 ---
 name: planner-phase-1
 description: Phase 1 (exploration contextuelle — 1.1 projet/tickets, 1.2 codebase, 1.2bis librairies, 1.2ter impacts cascade, 1.3 Figma) et Phase 1.5 (délégation design) du workflow planner.
+requires: [shared/elicitation-techniques]
 ---
 
 # Phase 1 — Exploration contextuelle
@@ -8,7 +9,7 @@ description: Phase 1 (exploration contextuelle — 1.1 projet/tickets, 1.2 codeb
 ## Objectif
 Explorer le projet de manière ciblée selon le type de feature demandé.
 
-> **Si une ambiguité est détectée** sur le périmètre, les besoins ou les parties prenantes à ce stade ou pendant cette phase : charger le skill `shared/elicitation-techniques` (bucket-B) via l'outil `skill` pour choisir la technique d'élicitation adaptée avant de continuer.
+> **Si une ambiguité est détectée** sur le périmètre, les besoins ou les parties prenantes à ce stade ou pendant cette phase : charger le skill `elicitation-techniques` (bucket-B) via l'outil `skill` pour choisir la technique d'élicitation adaptée avant de continuer.
 
 ## Étape 1.1 — Projet et tickets existants
 
@@ -247,7 +248,6 @@ question({
 ```
 
 > **Option B — Prototype rapide** : L'orchestrateur invoque le designer avec `[SKILL:designer/prototype-protocol]` + `[QUESTION: <question précise>]`. Le designer produit un artefact rapide (wireframe, schéma, description) pour répondre à la question. Le résultat alimente Phase 2.
-```
 
 Si **aucun signal design** :
 ```
@@ -274,7 +274,7 @@ question({
 
 SI signaux UX ou UI détectés à la Phase 1 :
 → Invoquer l'agent `designer` avec le champ `Mode: recon | ux | ui | ux+ui` approprié.
-→ Charger le skill `design/design-planner-format` pour les templates de délégation et formats de retour.
+→ Charger le skill `design-planner-format` pour les templates de délégation et formats de retour.
 
 **Choix du mode :**
 - Signal UX uniquement → `Mode: ux`

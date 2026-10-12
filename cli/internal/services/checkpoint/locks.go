@@ -27,7 +27,8 @@ import (
 // The shell side is held by the session rules (bundle.SessionRules); the
 // Beads side by the oh gateway, which asks GuardClose before closing a
 // ticket and reports what ran (BeadsDone). A ticket is closed only once the
-// session committed since the checkpoint (or has nothing to commit).
+// session made a non-empty commit since the checkpoint and has nothing left
+// to commit.
 
 // Beads operations reported by the gateway.
 const (

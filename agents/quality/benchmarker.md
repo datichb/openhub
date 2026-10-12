@@ -19,12 +19,12 @@ permission:
     "npx lighthouse*": allow
     "lighthouse*": allow
     "npx lhci*": allow
-    # Outils benchmark API/charge
-    "k6 run*": allow
+    # Outils benchmark API/charge : génèrent du trafic vers une cible → confirmation
+    "k6 run*": ask
     "k6 inspect*": allow
     "wrk*": ask
-    "ab *": allow
-    "hey *": allow
+    "ab *": ask
+    "hey *": ask
     # Outils benchmark Go
     "go test -bench*": allow
     "go tool pprof*": allow
@@ -38,17 +38,23 @@ permission:
     # Profiling générique : lance une commande arbitraire → confirmation
     "perf*": ask
     "hyperfine*": ask
-    # Réseau
-    "curl*": allow
+    # Réseau (cible à confirmer)
+    "curl*": ask
     # Divers
     "echo *": allow
     "which *": allow
     "date*": allow
+    # Rapports
+    "mkdir -p reports/benchmarks*": allow
   read: allow
   glob: allow
   grep: allow
-  edit: deny
-  write: allow
+  edit:
+    "*": deny
+    "reports/benchmarks/*": allow
+  write:
+    "*": deny
+    "reports/benchmarks/*": allow
   task:
     "*": deny
     "documentarian": allow

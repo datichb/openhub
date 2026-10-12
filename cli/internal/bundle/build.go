@@ -165,6 +165,7 @@ func Build(req Request) (*Bundle, error) {
 	keep := rootFilter(loader, req.Plugins, req.ProjectPath)
 	mentionIndex := hubSkillIndex(req.HubDir, generated)
 	ids := skillIndex{}
+	callers := callersOf(bundleGraph(graph, selected))
 	for _, id := range selected {
 		fm, err := bricks.ParseAgentFrontmatter(files[id])
 		if err != nil {
@@ -209,6 +210,7 @@ func Build(req Request) (*Bundle, error) {
 			}
 		}
 		a.Body += absentSkillsNote(absent)
+		a.Body += sessionRoleNote(id, req.EntryAgent, callers[id])
 		def, err := agentDef(req, a, instructions)
 		if err != nil {
 			return nil, err

@@ -45,7 +45,7 @@ Le récap de Phase 4 doit contenir :
 
 **Uniquement après validation explicite.**
 
-→ Charger le skill `quality/debugger-report-templates` via l'outil `skill` pour la structure exacte du rapport de diagnostic et le template de création du ticket Beads.
+→ Charger le skill `debugger-report-templates` via l'outil `skill` pour la structure exacte du rapport de diagnostic et le template de création du ticket Beads.
 
 ## Récap de fin de Phase 5
 

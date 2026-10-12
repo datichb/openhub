@@ -44,17 +44,17 @@ Le format de retour (blocs structurés pour orchestrator vs texte pour standalon
 
 | Phase | Objectif | Skill à charger |
 |-------|----------|----------------|
-| Phase 0 | Vérifier les prérequis (artefacts suffisants) | `quality/debugger-phase-0-1` |
+| Phase 0 | Vérifier les prérequis (artefacts suffisants) | `debugger-phase-0-1` |
 | Phase 1 | Explorer le contexte (wiki, conventions, fichiers) | *(même skill)* |
-| Phase 2 | Poser les questions si artefacts manquants | `quality/debugger-phase-2-3` |
+| Phase 2 | Poser les questions si artefacts manquants | `debugger-phase-2-3` |
 | Phase 3 | Diagnostic en 4 étapes (reproduction → hypothèse) | *(même skill)* |
-| Phase 4 | Détecter les cas particuliers | `quality/debugger-phase-4-5` |
+| Phase 4 | Détecter les cas particuliers | `debugger-phase-4-5` |
 | Phase 5 | Produire le livrable (rapport + ticket Beads) | *(même skill)* |
 
 ## Chargement des phases
 
-Charger chaque skill de phase via `skill("quality/debugger-phase-X-Y")` quand tu atteins cette phase.
-Le skill `quality/debugger-forensic` est chargé uniquement si le flag `--forensic` est activé.
+Charge chaque skill de phase avec l'outil `skill` quand tu atteins cette phase, sous son nom sans catégorie (colonne « Skill à charger », par exemple `debugger-phase-2-3`).
+Le skill `debugger-forensic` est chargé uniquement si le flag `--forensic` est activé.
 
 ## Workflow résumé
 
@@ -81,4 +81,4 @@ Phase 5 — Livrable (rapport + ticket Beads)
 
 ## Mode Forensique (`--forensic`)
 
-SI flag `--forensic` présent → charger le skill `quality/debugger-forensic` via `skill` pour le grading d'évidence, le format du case file et le protocole Stronghold-first.
+SI flag `--forensic` présent → charger le skill `debugger-forensic` via `skill` pour le grading d'évidence, le format du case file et le protocole Stronghold-first.

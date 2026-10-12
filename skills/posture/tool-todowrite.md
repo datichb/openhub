@@ -48,7 +48,7 @@ Chaque agent invoqué via `task` a sa propre session isolée. La todo list est s
 | `orchestrator` | utilisateur | ✅ |
 | `orchestrator-dev` | utilisateur directement | ✅ |
 | `orchestrator-dev` | orchestrator via `task` | ❌ |
-| `developer-*`, `reviewer`… | via `task` | ❌ |
+| `developer`, `reviewer`… | via `task` | ❌ |
 
 ---
 

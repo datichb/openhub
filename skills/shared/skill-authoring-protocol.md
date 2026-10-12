@@ -10,7 +10,7 @@ description: Protocole condensé d'authoring skills — TDD RED/GREEN/REFACTOR, 
 
 ## Quand charger ce skill
 
-Charger via `skill("shared/skill-authoring-protocol")` quand :
+Charger la skill `skill-authoring-protocol` (outil `skill`) quand :
 - Création d'un nouveau skill
 - Amélioration qualitative d'un skill existant (REFACTOR)
 - Revue SDO d'un skill existant

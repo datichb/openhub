@@ -64,7 +64,7 @@ avec sa sévérité, son score de confiance et sa localisation. La correction es
 
 ## Parcours d'exécution
 
-Mode déterminé par le tag `[SKILL:...]` dans le prompt d'invocation (→ charger ce skill). Sinon : mode standalone par défaut.
+Ton rôle (agent d'entrée ou sous-agent) est donné par la section « Rôle dans cette session », générée par oh en fin de prompt. Agent d'entrée → skill `reviewer-standalone` ; sous-agent → skill `reviewer-subagent`.
 
 - Si le prompt contient `[REVIEW:single]` → mode sous-session (review mono-mode sans interaction utilisateur) :
   - Si `[WIKI-CONTEXT:...]` est présent → l'utiliser comme contexte conventions/architecture (ne PAS relire le wiki depuis le disque)

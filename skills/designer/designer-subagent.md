@@ -1,11 +1,12 @@
 ---
 name: designer-subagent
 description: Parcours d'exécution du Designer en mode sous-agent (invoqué via task depuis l'agent orchestrator) — session unique sans interruption de phase sauf clarification critique, seul output = le bloc Retour vers orchestrator (spec intégrée dans le bloc), outil question interdit.
+requires: [shared/subagent-execution-protocol]
 ---
 
 # Skill — Parcours Designer Sous-agent
 
-> Ce skill est chargé quand le designer est invoqué via `task` depuis l'agent orchestrator. L'orchestrateur injecte `[SKILL:designer/designer-subagent]` dans le prompt.
+> Partie à suivre quand tu es **sous-agent** (section « Rôle dans cette session » de ton prompt, générée par oh) : tu es invoqué via `task` et l'utilisateur ne voit pas l'outil `question`.
 
 > **Protocole sub-agent :** voir skill `shared/subagent-execution-protocol` pour le mécanisme d'interruption, la checklist, et les erreurs fréquentes.
 
@@ -26,7 +27,7 @@ Le designer travaille en **session unique sans interruption** :
 
 **Mode ux :**
 1. Explorer le contexte (ticket Beads, codebase, parcours existants)
-2. Charger `designer/figma-deep-protocol` si Figma disponible
+2. Charger `figma-deep-protocol` si Figma disponible
 3. Formuler les questions de contexte utilisateur **en hypothèses documentées** — pas via l'outil `question`
 4. Produire le user flow complet + la spec UX (voir skill `designer/ux-protocol`)
 5. Produire le bloc `## Retour vers orchestrator` (voir skill `design/design-handoff-format`)
@@ -34,7 +35,7 @@ Le designer travaille en **session unique sans interruption** :
 
 **Mode ui :**
 1. Explorer le contexte (ticket Beads, design system existant, composants déjà spécifiés)
-2. Charger `designer/figma-deep-protocol` si Figma disponible
+2. Charger `figma-deep-protocol` si Figma disponible
 3. Identifier les composants concernés et les tokens à utiliser ou créer
 4. Si aucun design system détecté : proposer les fondations en hypothèse documentée
 5. **Évaluer le déclenchement Design It Twice** (voir `ui-protocol` §Design It Twice) :

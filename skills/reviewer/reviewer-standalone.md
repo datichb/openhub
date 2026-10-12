@@ -5,7 +5,7 @@ description: Parcours d'exécution du reviewer en mode standalone (invoqué dire
 
 # Skill — Parcours Reviewer Standalone
 
-> Ce skill est chargé automatiquement quand le reviewer est invoqué directement par l'utilisateur (aucun `[SKILL:...]` injecté dans le prompt).
+> Partie à suivre quand tu es **agent d'entrée** ou lancé directement par l'utilisateur (section « Rôle dans cette session » de ton prompt, générée par oh).
 
 ## Principe fondamental
 

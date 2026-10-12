@@ -14,7 +14,7 @@ Afficher le ticket :
 ```
 ## Ticket #<ID> — <titre>
 
-**Priorité :** P<PRIORITE> | **Type :** <type> | **Agent :** <developer-xxx>
+**Priorité :** P<PRIORITE> | **Type :** <type> | **Agent :** developer (<domaine>)
 
 **Description :**
 <description du ticket>
@@ -31,7 +31,7 @@ Afficher le ticket :
 **Checkpoint `cp-1`** (démarrer le ticket) :
 
 ```
-workflow_checkpoint({ id: "cp-1", summary: "Ticket #<ID> — <titre> : <résumé en 2 lignes>. Agent prévu : <developer-xxx>." })
+workflow_checkpoint({ id: "cp-1", summary: "Ticket #<ID> — <titre> : <résumé en 2 lignes>. Agent prévu : developer (<domaine>)." })
 ```
 
 - Validé (ou passé automatiquement selon le mode) → mettre à jour todowrite (ticket en `in_progress`) → étape 1b
@@ -59,7 +59,7 @@ todowrite({
 
 > Si le premier message contient une ligne `Branche de travail : <branche>`, la session a déjà sa branche (worktree ou branche dédiée choisie au lancement) : **sauter cette étape**, sans question ni création de branche, et indiquer cette branche à l'agent développeur.
 >
-> Sinon, cette étape s'exécute après `cp-1`, avant toute délégation à un `developer-*`, quel que soit le mode. Invoqué via `task` par l'orchestrator (sans ligne `Branche de travail`) : rester sur la branche courante et le signaler dans le bloc `## Retour vers orchestrator`.
+> Sinon, cette étape s'exécute après `cp-1`, avant toute délégation à un `developer`, quel que soit le mode. Invoqué via `task` par l'orchestrator (sans ligne `Branche de travail`) : rester sur la branche courante et le signaler dans le bloc `## Retour vers orchestrator`.
 
 Calculer le nom de branche selon la convention `<type>/<ticket-id>-<description-courte>` à partir du type et du titre du ticket, puis demander (confirmation hors checkpoint) :
 
@@ -91,7 +91,7 @@ question({
 ### Étape 2 — Délégation de l'implémentation
 
 1. Annoncer la délégation :
-   > « Je délègue l'implémentation du ticket #<ID> à `<developer-xxx>`. »
+   > « Je délègue l'implémentation du ticket #<ID> à `developer` (domaine <domaine>). »
 
 2. Invoquer l'agent développeur identifié, en fournissant :
    - L'ID du ticket (`bd show <ID>`)
@@ -114,7 +114,7 @@ question({
          - `implémenté` ou `partiellement-implémenté` → continuer vers l'étape 3
          - `bloqué` → traiter comme un "Ticket bloqué en cours d'implémentation" (voir section dédiée)
           - `BLOCKED_ARCHITECTURE` → **charger puis appliquer le skill de gestion de dérive** :
-            0. Appeler `skill("developer/dev-drift-detection")` pour charger le protocole
+            0. Charger la skill `dev-drift-detection` (outil `skill`) pour appliquer le protocole
             1. Lire le rapport de dérive fourni par le developer
             2. Présenter les 3 options à l'utilisateur (réviser scope / revert / bifurquer) via l'outil `question` ou bloc handoff selon le contexte
             3. Appliquer la décision : modifier le ticket Beads (Option A), relancer depuis l'étape 1b (Option B), ou créer le ticket de refactoring et mettre le ticket courant en `blocked` (Option C)
@@ -256,7 +256,7 @@ X = nombre de 🔴 Critique + 🟠 Majeur de `### Synthèse des problèmes` (san
   > **Règle de transmission :** copier les `### Corrections requises` telles quelles dans le prompt — ne jamais résumer ni reformuler.
 
   **Routing de la correction — basé sur le `### Routing recommandé` du retour reviewer :**
-  - `developer-security` → router vers `developer` (domaine `security`)
+  - `domaine-security` → router vers `developer` (domaine `security`)
     > « La correction est de nature sécurité — je route vers `developer` (domaine security). »
   - `retour-initial` → retourner à l'agent `developer` avec le même domaine initial
 
@@ -276,7 +276,7 @@ Construire le compte rendu en agrégeant les données structurées collectées a
 ```
 ## ✅ Ticket #<ID> terminé — <titre>
 
-**Agent :** <developer-xxx>
+**Agent :** developer (<domaine>)
 **Cycles de review :** <NB_CYCLES>
 **Corrections demandées :** <oui/non>
 **Statut Beads :** clos

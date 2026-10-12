@@ -272,7 +272,7 @@ Créer un ADR pour toute décision qui répond à **au moins un** de ces critèr
 ## Exemple complet — MADR léger
 
 ```markdown
-# 023 — Suppression de l'agent qa-engineer et du checkpoint CP-QA
+# 023 — Remplacement de Jest par Vitest
 
 ## Statut
 
@@ -280,34 +280,33 @@ accepted
 
 ## Contexte
 
-L'agent `qa-engineer` intervenait entre l'implémentation (developer) et la review
-(reviewer) pour écrire les tests manquants. En pratique, le developer écrivait déjà
-des tests, rendant le passage QA souvent redondant. La pre-review exécutait aussi
-les tests automatiquement. Le checkpoint CP-QA ajoutait ~220 lignes de protocole
-et un cycle complet de latence au workflow.
+Les tests du frontend tournent avec Jest, configuré séparément du build Vite :
+deux transformations TypeScript, des alias dupliqués entre `jest.config.js` et
+`vite.config.ts`, et une suite qui prend ~4 minutes en CI. Les modules ESM des
+dépendances récentes demandent des contournements (`transformIgnorePatterns`).
 
 ## Décision
 
-Nous avons décidé de supprimer l'agent `qa-engineer` et le checkpoint CP-QA.
-La responsabilité de couverture des tests est transférée au `developer`
-(via le skill `dev-standards-testing` enrichi). Le `reviewer` vérifie la couverture
-des critères d'acceptance et peut demander des tests supplémentaires.
+Nous avons décidé de remplacer Jest par Vitest pour les tests unitaires et de
+composants. Vitest réutilise la configuration Vite (alias, plugins) ; l'API
+compatible (`describe`, `it`, `expect`, `vi.fn`) limite la migration aux mocks
+de modules et à la configuration.
 
 ## Conséquences
 
 ### Positives
-- Workflow simplifié : Developer → Pre-review → Reviewer → CP-2
-- Moins de latence : suppression d'un cycle agent complet
-- Protocole orchestrator allégé de ~220 lignes
+- Une seule configuration de transformation (Vite) pour le build et les tests
+- Suite CI ramenée à ~1 minute (mode threads)
+- Support ESM natif, plus de `transformIgnorePatterns`
 
 ### Négatives / Compromis
-- Perte de la spécialisation QA concentrée
-- Le developer doit appliquer la checklist de couverture en plus de l'implémentation
+- Migration des `jest.mock` vers `vi.mock` (hoisting différent) sur ~40 fichiers
+- Les plugins Jest maison (reporter de couverture) sont à réécrire
 
 ## Alternatives rejetées
 
 | Alternative | Raison du rejet |
 |-------------|----------------|
-| Garder le QA en risque élevé uniquement | Ne résout ni la latence ni la redondance |
-| Fusionner QA dans le reviewer | Le reviewer est read-only — ne peut pas écrire de tests |
+| Garder Jest avec `ts-jest` en mode ESM | Ne supprime pas la double configuration |
+| Passer à `node:test` | Pas de mocks de modules ni d'environnement DOM intégrés |
 ```

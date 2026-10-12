@@ -2,7 +2,7 @@
 
 ## Retour vers orchestrator-dev
 
-**Agent :** developer-<type>
+**Agent :** developer (<domaine>)
 **Ticket :** #<ID> — <titre>
 **Branche :** <nom de la branche sur laquelle le travail a été effectué>
 

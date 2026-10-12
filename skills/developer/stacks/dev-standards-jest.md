@@ -24,7 +24,7 @@ const config: Config = {
   testEnvironment: 'node',   // 'jsdom' pour les tests UI
   roots: ['<rootDir>/src'],
   testMatch: ['**/__tests__/**/*.test.ts', '**/*.spec.ts'],
-  setupFilesAfterFramework: ['<rootDir>/jest.setup.ts'],
+  setupFilesAfterEnv: ['<rootDir>/jest.setup.ts'],
   coverageThreshold: {
     global: {
       lines: 80,

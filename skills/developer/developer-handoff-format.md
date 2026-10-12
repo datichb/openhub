@@ -1,13 +1,13 @@
 ---
 name: developer-handoff-format
-description: Source de vérité pour le format de retour des agents developer-* vers orchestrator-dev. Définit le bloc structuré unique à produire en fin d'implémentation quand invoqué depuis orchestrator-dev. Injecté dans tous les developer-* et dans orchestrator-dev pour garantir que producteur et consommateur partagent le même contrat.
+description: Source de vérité pour le format de retour des agents developer vers orchestrator-dev. Définit le bloc structuré unique à produire en fin d'implémentation quand invoqué depuis orchestrator-dev. Injecté dans tous les developer et dans orchestrator-dev pour garantir que producteur et consommateur partagent le même contrat.
 annexes: [templates/developer-handoff-block.md]
 ---
 
-# Skill — Format de handoff developer-* → orchestrator-dev
+# Skill — Format de handoff developer → orchestrator-dev
 
-Ce skill est la **source de vérité** pour le format de retour des agents `developer-*` vers `orchestrator-dev`.
-Il est injecté dans chaque `developer-*` et dans `orchestrator-dev` — producteur et consommateur partagent le même contrat.
+Ce skill est la **source de vérité** pour le format de retour des agents `developer` vers `orchestrator-dev`.
+Il est injecté dans chaque `developer` et dans `orchestrator-dev` — producteur et consommateur partagent le même contrat.
 
 ---
 
@@ -53,7 +53,7 @@ Il est injecté dans chaque `developer-*` et dans `orchestrator-dev` — product
 
 ---
 
-## Règles pour le producteur (developer-*)
+## Règles pour le producteur (developer)
 
 - **`### Contexte et décisions`** est le champ qui capture le "pourquoi" — minimum 2 entrées pour toute implémentation non triviale, chaque entrée = choix + raison
 - **`**Diff résumé**`** : exécuter `git diff --stat HEAD~1` (ou `git diff --stat <branche-base>...HEAD` si plusieurs commits) et coller la sortie sur une seule ligne condensée

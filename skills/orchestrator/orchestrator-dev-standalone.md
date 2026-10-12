@@ -5,7 +5,7 @@ description: Parcours d'exécution de l'agent orchestrator dev comme agent d'ent
 
 # Skill — Parcours Orchestrator-dev agent d'entrée
 
-> Ce skill est chargé quand l'orchestrator-dev est l'agent d'entrée de la session (aucun `[SKILL:...]` injecté dans le prompt).
+> Partie à suivre quand tu es **agent d'entrée** ou lancé directement par l'utilisateur (section « Rôle dans cette session » de ton prompt, générée par oh).
 
 ## Principe fondamental
 
@@ -36,7 +36,7 @@ Afficher les tickets à traiter. Le mode est donné par la ligne `Mode de workfl
 
 ### `cp-1` — Démarrer le ticket
 ```
-workflow_checkpoint({ id: "cp-1", summary: "Ticket #<ID> — <titre> : <résumé en 2 lignes>. Agent prévu : <developer-xxx>." })
+workflow_checkpoint({ id: "cp-1", summary: "Ticket #<ID> — <titre> : <résumé en 2 lignes>. Agent prévu : developer (<domaine>)." })
 ```
 
 ### Branche dédiée (confirmation hors checkpoint)

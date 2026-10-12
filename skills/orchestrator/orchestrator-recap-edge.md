@@ -175,14 +175,13 @@ il ne fait pas partie du workflow lancé), ne jamais silencieusement basculer ve
 
 | Agent manquant | Substitut proposé | Limitation |
 |----------------|-------------------|------------|
-| `auditor-security` | `developer` (domaine security) | Pas de rapport structuré OWASP — analyse ad hoc uniquement |
-| `auditor-accessibility` | `developer` (domaine frontend) | Pas de rapport WCAG/RGAA — vérifications basiques uniquement |
-| `auditor-architecture` | `developer` (domaine fullstack) | Pas d'analyse SOLID/couplage structurée — revue partielle |
-| `auditor-performance` | `developer` (domaine fullstack) | Pas de rapport Web Vitals/N+1 — analyse ad hoc |
-| `auditor-privacy` | *(aucun substitut)* | — |
-| `auditor-ecodesign` | *(aucun substitut)* | — |
-| `auditor-observability` | *(aucun substitut)* | — |
-| `designer` | *(aucun substitut)* | — |
+| `auditor` (domaine security) | `developer` (domaine security) | Pas de rapport structuré OWASP — analyse ad hoc uniquement |
+| `auditor` (domaine accessibility) | `developer` (domaine frontend) | Pas de rapport WCAG/RGAA — vérifications basiques uniquement |
+| `auditor` (domaine architecture) | `developer` (domaine fullstack) | Pas d'analyse SOLID/couplage structurée — revue partielle |
+| `auditor` (domaine performance) | `developer` (domaine fullstack) | Pas de rapport Web Vitals/N+1 — analyse ad hoc |
+| `auditor` (domaine privacy) | *(aucun substitut)* | — |
+| `auditor` (domaine ecodesign) | *(aucun substitut)* | — |
+| `auditor` (domaine observability) | *(aucun substitut)* | — |
 | `designer` | *(aucun substitut)* | — |
 
 > **Note :** L'agent `developer` listé comme substitut est invoqué **via `orchestrator-dev`** avec le domaine approprié, jamais directement par l'orchestrator. L'orchestrator délègue à `orchestrator-dev` qui route ensuite vers `developer` avec le bon domaine.

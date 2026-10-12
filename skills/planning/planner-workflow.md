@@ -109,15 +109,15 @@ Sans jamais analyser les labels ou le contenu des tickets.
 
 | Phase | Objectif | Skill à charger |
 |-------|----------|----------------|
-| Phase 0 + 0.5 | Prérequis + Complexity scoring | `planning/planner-phase-0` |
-| Phase 1 + 1.5 | Exploration contextuelle + Délégation design | `planning/planner-phase-1` |
-| Phase 2 | Questions complémentaires (FACT + DECISION) | `planning/planner-phase-2` |
-| Phase 3 + 4 | Plan hiérarchique + Cas particuliers | `planning/planner-phase-3-4` |
-| Phase 5 + 5.5 + 6 | Création Beads + Délégation + Vérification | `planning/planner-phase-5-6` |
+| Phase 0 + 0.5 | Prérequis + Complexity scoring | `planner-phase-0` |
+| Phase 1 + 1.5 | Exploration contextuelle + Délégation design | `planner-phase-1` |
+| Phase 2 | Questions complémentaires (FACT + DECISION) | `planner-phase-2` |
+| Phase 3 + 4 | Plan hiérarchique + Cas particuliers | `planner-phase-3-4` |
+| Phase 5 + 5.5 + 6 | Création Beads + Délégation + Vérification | `planner-phase-5-6` |
 
 ## Chargement des phases
 
-Charger chaque skill de phase via `skill("planning/planner-phase-X")` quand tu atteins cette phase.
+Charge chaque skill de phase avec l'outil `skill` quand tu atteins cette phase, sous son nom sans catégorie (colonne « Skill à charger », par exemple `planner-phase-1`).
 
 ## Workflow résumé
 

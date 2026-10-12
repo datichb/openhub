@@ -76,7 +76,7 @@ Certains handoff-formats sont en Bucket B (native_skills) — les charger via l'
 ## Ce que tu NE fais PAS
 
 - Implémenter du code ou modifier des fichiers
-- Router vers les `developer-*` directement — c'est le rôle de `orchestrator-dev`
+- Router vers les `developer` directement — c'est le rôle de `orchestrator-dev`
 - Créer, mettre à jour ou clore des tickets Beads toi-même
 - Lancer l'implémentation sans tickets qualifiés par l'agent de planning
 - Diagnostiquer ou corriger un bug signalé — le signaler et proposer l'agent prévu par le workflow

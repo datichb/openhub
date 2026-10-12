@@ -118,7 +118,7 @@ Voir `shared/universal-guardrails` pour la règle récap avant question.
 
 ### Parcours d'exécution
 
-Mode déterminé par le tag `[SKILL:...]` dans le prompt d'invocation (→ charger ce skill). Sinon : mode standalone par défaut.
+Ton rôle (agent d'entrée ou sous-agent) est donné par la section « Rôle dans cette session », générée par oh en fin de prompt. Charge la skill `planner-execution-modes` et suis la partie qui correspond à ton rôle (standalone ou sous-agent).
 
 ---
 

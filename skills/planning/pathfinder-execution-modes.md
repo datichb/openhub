@@ -1,20 +1,24 @@
 ---
 name: pathfinder-execution-modes
 description: Parcours d'exécution du pathfinder — mode standalone (invoqué directement par l'utilisateur, récap en texte clair avant question, outil question pour les pauses, rapport final sans bloc handoff orchestrateur) et mode sous-agent (invoqué via task depuis l'agent orchestrator feature, session unique sans interruption si aucune clarification critique, ou mécanisme d'interruption si clarification critique détectée, bloc Retour vers orchestrator obligatoire en fin de session, ne jamais appeler l'outil question).
+requires: [shared/standalone-execution-protocol, shared/subagent-execution-protocol]
 ---
 
 # Modes d'exécution — Pathfinder
 
 ## Détection du mode d'invocation
 
-SI invoqué via `task` depuis un agent parent (présence d'un contexte d'invocation structuré ou d'un task_id) → **MODE SUBAGENT**
-SI invoqué directement par l'utilisateur → **MODE STANDALONE**
+Le mode est donné par la section « Rôle dans cette session » de ton prompt (générée par oh à partir du workflow) :
+
+- agent d'entrée, ou lancé directement par l'utilisateur → **MODE STANDALONE**
+- sous-agent (invoqué via `task`) → **MODE SUBAGENT**
+- les deux : un prompt venu d'un autre agent (marqueur `[CONTEXTE]`, reprise avec `task_id`) → **MODE SUBAGENT**, sinon **MODE STANDALONE**
 
 ---
 
 ## Mode standalone
 
-> Ce skill est chargé automatiquement quand le pathfinder est invoqué directement par l'utilisateur (aucun `[SKILL:...]` injecté dans le prompt).
+> Partie à suivre quand tu es **agent d'entrée** ou lancé directement par l'utilisateur (section « Rôle dans cette session » de ton prompt, générée par oh).
 
 > **Protocole standalone :** voir skill `shared/standalone-execution-protocol` pour le mode detection, l'ordering recap→question, et la checklist.
 
@@ -57,7 +61,7 @@ question({
 
 ## Mode subagent
 
-> Ce skill est chargé quand le pathfinder est invoqué via `task` depuis l'agent orchestrator feature. L'orchestrateur injecte `[SKILL:planning/pathfinder-execution-modes]` dans le prompt.
+> Partie à suivre quand tu es **sous-agent** (section « Rôle dans cette session » de ton prompt, générée par oh) : tu es invoqué via `task` et l'utilisateur ne voit pas l'outil `question`.
 
 > **Protocole sub-agent :** voir skill `shared/subagent-execution-protocol` pour le mécanisme d'interruption, la checklist, et les erreurs fréquentes.
 

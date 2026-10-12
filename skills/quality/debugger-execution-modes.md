@@ -1,20 +1,24 @@
 ---
 name: debugger-execution-modes
 description: Parcours d'exécution du debugger — mode standalone (invoqué directement par l'utilisateur, récaps en texte clair avant chaque appel question, validation via outil question, rapport de diagnostic sans bloc handoff orchestrateur) et mode sous-agent (invoqué via task depuis l'agent orchestrator feature, mécanisme d'interruption de session, blocs structurés Retour intermédiaire + Question pour l'agent orchestrator, task_id obligatoire, ne jamais appeler l'outil question).
+requires: [shared/standalone-execution-protocol, shared/subagent-execution-protocol]
 ---
 
 # Modes d'exécution — Debugger
 
 ## Détection du mode d'invocation
 
-SI invoqué via `task` depuis un agent parent (présence d'un contexte d'invocation structuré ou d'un task_id) → **MODE SUBAGENT**
-SI invoqué directement par l'utilisateur → **MODE STANDALONE**
+Le mode est donné par la section « Rôle dans cette session » de ton prompt (générée par oh à partir du workflow) :
+
+- agent d'entrée, ou lancé directement par l'utilisateur → **MODE STANDALONE**
+- sous-agent (invoqué via `task`) → **MODE SUBAGENT**
+- les deux : un prompt venu d'un autre agent (marqueur `[CONTEXTE]`, reprise avec `task_id`) → **MODE SUBAGENT**, sinon **MODE STANDALONE**
 
 ---
 
 ## Mode standalone
 
-> Ce skill est chargé quand le debugger est invoqué directement par l'utilisateur (pas via `task` depuis un agent orchestrateur).
+> Partie à suivre quand tu es **agent d'entrée** ou lancé directement par l'utilisateur (section « Rôle dans cette session » de ton prompt, générée par oh).
 
 > **Protocole standalone :** voir skill `shared/standalone-execution-protocol` pour le mode detection, l'ordering recap→question, et la checklist.
 
@@ -51,7 +55,7 @@ Produire uniquement :
 
 ## Mode subagent
 
-> Ce skill est chargé quand le debugger est invoqué via `task` depuis l'agent orchestrator feature. L'orchestrateur injecte `[SKILL:quality/debugger-execution-modes]` dans le prompt.
+> Partie à suivre quand tu es **sous-agent** (section « Rôle dans cette session » de ton prompt, générée par oh) : tu es invoqué via `task` et l'utilisateur ne voit pas l'outil `question`.
 
 > **Protocole sub-agent :** voir skill `shared/subagent-execution-protocol` pour le mécanisme d'interruption, la checklist, et les erreurs fréquentes.
 
@@ -500,7 +504,7 @@ Quelques questions issues de l'exploration pour affiner le diagnostic :
 **Question :** Créer ce ticket de correction dans Beads ?
 
 **Options :**
-- `oui-creer-ticket` — Créer le ticket avec bd create et enrichir description/acceptance/notes techniques
+- `oui-creer-ticket` — Créer le ticket avec bd create (description, critères d'acceptance, notes techniques)
 - `non` — Ne pas créer de ticket
 
 **Instruction de reprise :** "Réponse Phase 5 debugger : [option]. Reprendre depuis Phase 5 — confirmation ticket Beads."

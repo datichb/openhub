@@ -36,7 +36,7 @@ L'agent qui applique ce skill ne fait que :
 **Chaîne de dépendances complète :**
 
 ```
-Agent (auditor, planner, debugger, developer-*, reviewer…)
+Agent (auditor, planner, debugger, developer, reviewer…)
   │  applique ce skill après son rapport/livrable
   ↓
 living-docs-enrichment
@@ -108,7 +108,7 @@ zone d'ombre du wiki levée par l'analyse, pattern d'erreur récurrent absent
 de `conventions.md` (gestion d'erreur, validation, auth), point d'attention critique
 à mémoriser dans `index.md`, règle de gestion métier implicite découverte lors du diagnostic.
 
-### Pour les developer-*
+### Pour les developer
 
 Les découvertes émergent de l'implémentation du ticket :
 pattern technique adopté pour résoudre le ticket (non documenté dans `conventions.md`),
@@ -362,7 +362,7 @@ Le `documentarian` a enrichi les pages suivantes :
 - `docs/wiki/business/<domain>.md` — U modifications
 
 > Ces informations seront automatiquement utilisées par les agents futurs
-> (developer-*, orchestrator-dev, auditors) lors de leurs prochains accès au projet.
+> (developer, orchestrator-dev, auditors) lors de leurs prochains accès au projet.
 ```
 
 ---

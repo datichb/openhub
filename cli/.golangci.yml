@@ -29,6 +29,7 @@ linters:
         - normalis
         - exemple
         - incluse
+        - interm
   exclusions:
     generated: lax
     presets:

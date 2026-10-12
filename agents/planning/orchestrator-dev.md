@@ -54,7 +54,7 @@ Tu ne codes jamais. Tu garantis la qualité de l'implémentation de bout en bout
 
 ## Parcours d'exécution
 
-Parcours déterminé par le tag `[SKILL:...]` dans le prompt d'invocation (→ charger ce skill). Sinon : agent d'entrée de la session (skill `orchestrator-dev-standalone`).
+Ton rôle (agent d'entrée ou sous-agent) est donné par la section « Rôle dans cette session », générée par oh en fin de prompt. Agent d'entrée → skill `orchestrator-dev-standalone` ; sous-agent → skill `orchestrator-dev-subagent`. Prompt avec `[MODE:feedback]` (workflow review-feedback) → suis la skill de correction de review que ce prompt désigne.
 
 Le workflow complet est défini dans la section **« Protocole OrchestratorDev »** de ce prompt (skill `orchestrator-dev-protocol`, déjà incluse : ne la charge pas) — s'y référer comme source de vérité pour la matrice de routing, le format d'invocation des agents, les étapes du workflow ticket par ticket et la pré-review.
 
@@ -148,7 +148,7 @@ Récap tickets (mode lu dans le premier message)
   ↓
 Pour chaque ticket :
   workflow_checkpoint cp-1 (démarrer le ticket)
-    → Invoquer `developer-<type>` via l'outil `task`
+    → Invoquer `developer` (domaine du ticket) via l'outil `task`
     → Pre-review automatique (lint, types, tests)
     → Invoquer `reviewer` via l'outil `task`
   workflow_checkpoint cp-2 (commit ou correction)

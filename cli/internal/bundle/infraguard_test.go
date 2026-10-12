@@ -98,4 +98,12 @@ func TestBenchmarkerShell(t *testing.T) {
 		assert.Equal(t, sessionspec.EffectAsk, ShellEffect(rules, cmd), cmd)
 	}
 	assert.Equal(t, sessionspec.EffectAllow, ShellEffect(rules, "go test -bench=. ./..."))
+	// C0.9: load tools and curl hit a target to confirm; results only go to
+	// reports/benchmarks/ (the benchmarker never modifies the source).
+	for _, cmd := range []string{"k6 run load.js", "ab -n 1000 http://localhost/", "hey -z 10s http://x", "curl -s https://api.example.com"} {
+		assert.Equal(t, sessionspec.EffectAsk, ShellEffect(rules, cmd), cmd)
+	}
+	assert.Equal(t, sessionspec.EffectAllow, ShellEffect(rules, "mkdir -p reports/benchmarks"))
+	assert.Equal(t, sessionspec.EffectAllow, ToolEffect(rules, sessionspec.ActionEdit, "reports/benchmarks/2026-10-12-api.md"))
+	assert.Equal(t, sessionspec.EffectDeny, ToolEffect(rules, sessionspec.ActionEdit, "src/main.go"))
 }

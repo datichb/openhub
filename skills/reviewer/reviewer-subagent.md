@@ -5,7 +5,7 @@ description: Parcours d'exécution du reviewer en mode sous-agent (invoqué via 
 
 # Skill — Parcours Reviewer Sous-agent
 
-> Ce skill est chargé quand le reviewer est invoqué via `task` depuis orchestrator-dev ou orchestrator feature. L'invocateur injecte `[SKILL:reviewer/reviewer-subagent]` dans le prompt.
+> Partie à suivre quand tu es **sous-agent** (section « Rôle dans cette session » de ton prompt, générée par oh) : tu es invoqué via `task` et l'utilisateur ne voit pas l'outil `question`.
 
 ## Principe fondamental
 

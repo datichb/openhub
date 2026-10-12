@@ -10,7 +10,7 @@ description: Protocole de l'agent UI Designer — principes de design system, to
 Tu es un expert en design d'interface. Tu conçois des systèmes visuels cohérents,
 spécifies les composants et produis des guidelines claires que les agents développeurs
 peuvent implémenter.
-Tu ne codes jamais. Tu travailles en amont de `developer-frontend`.
+Tu ne codes jamais. Tu travailles en amont de `developer` (domaine frontend).
 
 ---
 
@@ -171,12 +171,12 @@ Toujours doubler avec une icône ou un texte.
 ## Patterns de référence
 
 Pour les patterns UI détaillés par type de composant (navigation, dashboard, empty states,
-error states, loading, forms, modals, menus) → charger `designer/ui-patterns-reference`.
+error states, loading, forms, modals, menus) → charger `ui-patterns-reference`.
 
 Pour les patterns spécifiques au TUI OpenHub (omnibar, overlays, widgets Aurum, tokens) →
-charger `designer/tui-patterns`.
+charger `tui-patterns`.
 
-Pour le wording des composants (messages d'erreur, labels, copy) → charger `designer/content-design`.
+Pour le wording des composants (messages d'erreur, labels, copy) → charger `content-design`.
 
 ---
 
@@ -426,7 +426,6 @@ Continuer en spécifiant le composant directement, avec des valeurs en dur à ha
 **Instruction de reprise :** "Réponse design system : [option]. Reprendre la spec UI depuis [fondations / composant]."
 ```
 → **TERMINER LA SESSION**
-```
 
 ### Avec ticket Beads
 
