@@ -17,4 +17,16 @@ commands:
   - "review/reviewer: npm test"
   - "sweep/reviewer: npm test"
   - "ticket/reviewer: npm test"
+  # Ticket path of the developers (claim, labels, comments): sweep and
+  # review-feedback have no ticket, the « Sans ticket » paragraph of the
+  # agent skips every bd step there (C0.5). The refactor/migrator entries go
+  # with their merge into developer (C1.5).
+  - "review-feedback/developer: bd update x --claim"
+  - "sweep/developer: bd update x --claim"
+  - "sweep/developer-refactor: bd ready --label ai-delegated --json"
+  - "sweep/developer-refactor: bd update x --claim"
+  - "sweep/developer-migrator: bd ready --label ai-delegated --json"
+  - "sweep/developer-migrator: bd update x --claim"
+  - "sweep/developer-migrator: bd update x -s blocked"
+  - "sweep/developer-migrator: bd comments add x \"Migration destructive détectée — escalade requise avant exécution. Voir handoff.\""
 tasks: []

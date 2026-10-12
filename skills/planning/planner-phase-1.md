@@ -248,7 +248,6 @@ question({
 ```
 
 > **Option B — Prototype rapide** : L'orchestrateur invoque le designer avec `[SKILL:designer/prototype-protocol]` + `[QUESTION: <question précise>]`. Le designer produit un artefact rapide (wireframe, schéma, description) pour répondre à la question. Le résultat alimente Phase 2.
-```
 
 Si **aucun signal design** :
 ```

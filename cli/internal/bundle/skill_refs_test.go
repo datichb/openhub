@@ -20,6 +20,32 @@ var (
 	categoryRefRe = regexp.MustCompile("`((?:shared|planning|quality|developer|designer|design|reviewer|auditor|orchestrator|posture|documentarian|adapters|workflow)/[a-z0-9-]+)`")
 )
 
+// C0.5: an unbalanced code fence turns the rest of a skill into code for the
+// model, and flips the capability lint for everything read after it.
+func TestHubMarkdownFencesBalanced(t *testing.T) {
+	hub := repoHub(t)
+	for _, dir := range []string{"agents", "skills", "workflows"} {
+		require.NoError(t, filepath.WalkDir(filepath.Join(hub, dir), func(path string, d os.DirEntry, err error) error {
+			if err != nil || d.IsDir() || !(strings.HasSuffix(path, ".md") || strings.HasSuffix(path, ".tmpl")) {
+				return err
+			}
+			data, err := os.ReadFile(path)
+			if err != nil {
+				return err
+			}
+			n := 0
+			for _, line := range strings.Split(string(data), "\n") {
+				if strings.HasPrefix(strings.TrimSpace(line), "```") {
+					n++
+				}
+			}
+			rel, _ := filepath.Rel(hub, path)
+			assert.Zero(t, n%2, "%s: unbalanced code fence (%d fence lines)", rel, n)
+			return nil
+		}))
+	}
+}
+
 // C0.4
 func TestSkillLoadInstructionsUseNames(t *testing.T) {
 	hub := repoHub(t)

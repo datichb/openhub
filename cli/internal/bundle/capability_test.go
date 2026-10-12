@@ -16,6 +16,8 @@ import (
 	"gopkg.in/yaml.v3"
 
 	"github.com/datichb/openhub/cli/internal/bricks"
+	"github.com/datichb/openhub/cli/internal/gateway"
+	"github.com/datichb/openhub/cli/internal/gateway/bdargs"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 	"github.com/datichb/openhub/cli/internal/workflow"
 	"github.com/datichb/openhub/cli/internal/workflow/hubcat"
@@ -32,6 +34,8 @@ import (
 //   - a command refused only while an operation is locked (`unlocks:`) is
 //     reported, not refused;
 //   - every task(subagent_type: "x") names an agent the agent may call;
+//   - every bd command the agent may run is granted by the workflow's
+//     Beads list (beads.allow), as the gateway checks it;
 //   - every checkpoint that unlocks an operation has a member able to run it;
 //   - an agent gated `after: cp-x` is not asked in the prompt before cp-x.
 // The report is pinned in testdata/capabilities.golden (-update).
@@ -308,6 +312,22 @@ func TestCapabilities(t *testing.T) {
 				case capEffect(locks, cmd) == sessionspec.EffectDeny:
 					report = append(report, "locked "+id)
 				}
+				// C0.5: a bd command the agent may run must also be granted
+				// by the workflow's Beads list (the gateway refuses it).
+				if rest, ok := strings.CutPrefix(cmd, "bd "); ok && capEffect(a.Permissions, cmd) != sessionspec.EffectDeny {
+					var allowList []string
+					if r.Spec.Beads != nil {
+						allowList = r.Spec.Beads.Allow
+					}
+					if c, err := bdargs.Parse(strings.Fields(rest)); err == nil && c.Name() != "" && !gateway.BeadsAllowed(c, allowList) {
+						report = append(report, "beads  "+id)
+						if allowed[id] {
+							used[id] = true
+						} else {
+							errs = append(errs, "refused by the Beads list of the workflow: "+id)
+						}
+					}
+				}
 			}
 			calls := map[string]bool{}
 			for _, c := range b.Spec.SubagentGraph[a.ID] {
@@ -354,6 +374,9 @@ func TestCapabilities(t *testing.T) {
 		}
 	}
 	sort.Strings(errs)
+	for _, e := range errs {
+		t.Log(e)
+	}
 	assert.Empty(t, errs)
 	sort.Strings(report)
 	assertGoldenFile(t, filepath.Join("testdata", "capabilities.golden"), strings.Join(report, "\n")+"\n")

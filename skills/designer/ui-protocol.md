@@ -426,7 +426,6 @@ Continuer en spécifiant le composant directement, avec des valeurs en dur à ha
 **Instruction de reprise :** "Réponse design system : [option]. Reprendre la spec UI depuis [fondations / composant]."
 ```
 → **TERMINER LA SESSION**
-```
 
 ### Avec ticket Beads
 

@@ -454,7 +454,8 @@ bd lint <id-1> <id-2> … --json
 
 `bd lint` signale les sections recommandées absentes : `## Acceptance Criteria` pour une feature ou une task (le champ `--acceptance` suffit), `Steps to Reproduce` pour un bug, `Success Criteria` (ou le champ `--acceptance`) pour un epic. Compléter chaque ticket signalé (`bd update <id> --acceptance …` ou `--description …`), puis relancer `bd lint` jusqu'à ce qu'il ne signale plus rien. Un ticket qui reste incomplet est listé dans « Points d'attention » du récap.
 
-Chercher ensuite les doublons parmi les tickets ouverts : `bd find-duplicates --status open --json` (méthode mécanique par défaut ; `--method ai` est refusé par oh). Pour chaque paire qui contient un ticket créé dans cette session : vrai doublon d'un ticket existant → le signaler dans « Points d'attention » avec la commande à lancer après validation (`bd duplicate <nouveau> --of <existant>`) ; simple proximité de titre → ignorer.
+Chercher ensuite les doublons parmi les tickets ouverts : `bd find-duplicates --status open --json` (méthode mécanique par défaut).
+La méthode `--method ai` est refusée par oh (les tickets ne partent pas vers un modèle externe). Pour chaque paire qui contient un ticket créé dans cette session : vrai doublon d'un ticket existant → le signaler dans « Points d'attention » avec la commande à lancer après validation (`bd duplicate <nouveau> --of <existant>`) ; simple proximité de titre → ignorer.
 
 ## Récap de fin de Phase 6
 

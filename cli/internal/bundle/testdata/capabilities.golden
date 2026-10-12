@@ -1,3 +1,11 @@
+beads  review-feedback/developer: bd update x --claim
+beads  sweep/developer-migrator: bd comments add x "Migration destructive détectée — escalade requise avant exécution. Voir handoff."
+beads  sweep/developer-migrator: bd ready --label ai-delegated --json
+beads  sweep/developer-migrator: bd update x --claim
+beads  sweep/developer-migrator: bd update x -s blocked
+beads  sweep/developer-refactor: bd ready --label ai-delegated --json
+beads  sweep/developer-refactor: bd update x --claim
+beads  sweep/developer: bd update x --claim
 deny   feature/reviewer: npm test
 deny   libre/reviewer: npm test
 deny   review-feedback/reviewer: npm test
@@ -5,8 +13,12 @@ deny   review/reviewer: npm test
 deny   sweep/reviewer: npm test
 deny   ticket/reviewer: npm test
 locked cadrage/planner: bd create
+locked cadrage/planner: bd create -t epic
 locked cadrage/planner: bd duplicate
+locked cadrage/planner: bd duplicate x --of x
 locked cadrage/planner: bd supersede
 locked feature/planner: bd create
+locked feature/planner: bd create -t epic
 locked feature/planner: bd duplicate
+locked feature/planner: bd duplicate x --of x
 locked feature/planner: bd supersede
