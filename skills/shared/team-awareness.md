@@ -61,7 +61,6 @@ Certains claims peuvent avoir été créés automatiquement en statut `planned` 
 - Utilise `team_events` pour comprendre l'activité récente sur le projet courant
 - Utilise `team_members` si tu as besoin de savoir qui contacter pour un sujet
 - Si un `team_takeover_brief` existe pour le ticket courant, le consulter pour charger le contexte du prédécesseur (voir skill `takeover-context-protocol`)
-- En mode parallèle, le skill `parallel-coordination` est injecté automatiquement avec les règles spécifiques
 
 ## Après le travail
 
