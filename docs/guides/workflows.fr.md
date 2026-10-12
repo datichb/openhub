@@ -286,6 +286,8 @@ flowchart TD
     A --> AR[auditor-subagent\ndomaine: architecture]
     A --> APR[auditor-subagent\ndomaine: privacy]
     A --> AO[auditor-subagent\ndomaine: observabilité]
+    A -.-> |IaC détectée| AI[auditor-subagent\ndomaine: infra]
+    A -.-> |base de données détectée| AD[auditor-subagent\ndomaine: database]
     AS --> S[Synthèse exécutive\nmulti-domaines]
     AP --> S
     AA --> S
@@ -293,6 +295,8 @@ flowchart TD
     AR --> S
     APR --> S
     AO --> S
+    AI --> S
+    AD --> S
     S --> U2[Rapport final\navec score global]
 ```
 
