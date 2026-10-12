@@ -20,6 +20,7 @@ var configDefaults = map[string]string{
 	"session.idle_sleep_minutes": "5",
 	"session.notify":             "on",
 	"execution.engine":           "auto",
+	"execution.colima_profile":   "default",
 	"execution.keep_images":      strconv.Itoa(config.DefaultKeepImages),
 	"execution.strict_isolation": "false",
 	"mcp.figma.token_key":        config.DefaultFigmaTokenKey,

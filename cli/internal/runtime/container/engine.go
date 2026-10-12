@@ -9,10 +9,15 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
+	"os"
 	"os/exec"
+	"path/filepath"
+	"slices"
 	"strings"
+	"time"
 
 	ohruntime "github.com/datichb/openhub/cli/internal/runtime"
 )
@@ -44,7 +49,12 @@ const (
 	reasonVMStopped     = "cmd.runtime.container.vm_stopped"
 	reasonUnreachable   = "cmd.runtime.container.unreachable"
 	reasonColimaRuntime = "cmd.runtime.container.colima_runtime"
+	reasonAllFailed     = "cmd.runtime.container.all_failed"
 )
+
+// versionRetryDelay is the pause before the second `version` probe of an
+// engine (a VM may be slow to answer).
+var versionRetryDelay = 500 * time.Millisecond
 
 // Runner runs engine command-line tools (a fake one is used in tests).
 type Runner interface {
@@ -57,12 +67,67 @@ type Runner interface {
 }
 
 // ExecRunner runs real commands.
-type ExecRunner struct{}
+type ExecRunner struct {
+	// Dirs are searched when a tool is not in PATH, and appended to the PATH
+	// of the commands (nil: well-known install directories).
+	Dirs []string
+}
+
+func (r ExecRunner) dirs() []string {
+	if r.Dirs != nil {
+		return r.Dirs
+	}
+	return binDirs()
+}
+
+// binDirs are the usual install directories of the engine tools (a GUI or
+// login shell may not have them in PATH).
+func binDirs() []string {
+	dirs := []string{"/opt/homebrew/bin", "/usr/local/bin", "/opt/local/bin", "/opt/podman/bin",
+		"/Applications/Docker.app/Contents/Resources/bin", "/home/linuxbrew/.linuxbrew/bin"}
+	if home, err := os.UserHomeDir(); err == nil && home != "" {
+		dirs = append(dirs, filepath.Join(home, ".docker", "bin"), filepath.Join(home, ".rd", "bin"),
+			filepath.Join(home, ".local", "bin"))
+	}
+	return dirs
+}
+
+// withDirs appends to a PATH value the existing dirs it lacks.
+func withDirs(path string, dirs []string) string {
+	have := filepath.SplitList(path)
+	for _, d := range dirs {
+		if slices.Contains(have, d) {
+			continue
+		}
+		if fi, err := os.Stat(d); err != nil || !fi.IsDir() {
+			continue
+		}
+		have = append(have, d)
+		if path == "" {
+			path = d
+		} else {
+			path += string(os.PathListSeparator) + d
+		}
+	}
+	return path
+}
+
+// env is the environment of the commands (nil: inherited as is).
+func (r ExecRunner) env() []string {
+	path := os.Getenv("PATH")
+	np := withDirs(path, r.dirs())
+	if np == path {
+		return nil
+	}
+	env := slices.DeleteFunc(os.Environ(), func(kv string) bool { return strings.HasPrefix(kv, "PATH=") })
+	return append(env, "PATH="+np)
+}
 
 // Stream implements Runner.
-func (ExecRunner) Stream(ctx context.Context, line func(string), name string, args ...string) error {
+func (r ExecRunner) Stream(ctx context.Context, line func(string), name string, args ...string) error {
 	pr, pw := io.Pipe()
 	cmd := exec.CommandContext(ctx, name, args...)
+	cmd.Env = r.env()
 	cmd.Stdout, cmd.Stderr = pw, pw
 	if err := cmd.Start(); err != nil {
 		return err
@@ -94,13 +159,26 @@ func (ExecRunner) Stream(ctx context.Context, line func(string), name string, ar
 	return nil
 }
 
-// LookPath implements Runner.
-func (ExecRunner) LookPath(name string) (string, error) { return exec.LookPath(name) }
+// LookPath implements Runner: PATH first, then the install directories.
+func (r ExecRunner) LookPath(name string) (string, error) {
+	p, err := exec.LookPath(name)
+	if err == nil || strings.ContainsRune(name, os.PathSeparator) {
+		return p, err
+	}
+	for _, d := range r.dirs() {
+		c := filepath.Join(d, name)
+		if fi, serr := os.Stat(c); serr == nil && fi.Mode().IsRegular() && fi.Mode()&0o111 != 0 {
+			return c, nil
+		}
+	}
+	return "", err
+}
 
 // Run implements Runner.
-func (ExecRunner) Run(ctx context.Context, name string, args ...string) ([]byte, error) {
+func (r ExecRunner) Run(ctx context.Context, name string, args ...string) ([]byte, error) {
 	var stdout, stderr bytes.Buffer
 	cmd := exec.CommandContext(ctx, name, args...)
+	cmd.Env = r.env()
 	cmd.Stdout, cmd.Stderr = &stdout, &stderr
 	if err := cmd.Run(); err != nil {
 		msg := strings.TrimSpace(stderr.String())
@@ -143,6 +221,7 @@ type Detector struct {
 	Runner        Runner
 	GOOS          string // runtime.GOOS
 	ColimaProfile string // default: "default"
+	ColimaHome    string // Colima directory (default: <Home>/.colima)
 	Home          string // user home directory (Colima shares it with its VM)
 }
 
@@ -159,7 +238,7 @@ func ParseEngine(s string) (EngineKind, bool) {
 
 // Detect returns the engine for the setting pref and its availability. With
 // auto, the first available engine wins (Colima, Podman, Docker); when none
-// is available, the reason of the first installed one is reported.
+// is available, the reasons of every installed one are reported.
 func (d Detector) Detect(ctx context.Context, pref EngineKind) (Engine, ohruntime.Availability) {
 	if d.GOOS == "windows" {
 		return Engine{}, unavailable("", reasonUnsupportedOS, d.GOOS)
@@ -178,20 +257,59 @@ func (d Detector) Detect(ctx context.Context, pref EngineKind) (Engine, ohruntim
 		e, av, _ := probe(ctx)
 		return e, av
 	}
-	var first *ohruntime.Availability
+	var failed failures
 	for _, k := range []EngineKind{EngineColima, EnginePodman, EngineDocker} {
 		e, av, installed := probes[k](ctx)
 		if av.OK {
 			return e, av
 		}
-		if installed && first == nil {
-			first = &av
+		if installed {
+			failed = append(failed, av)
 		}
 	}
-	if first != nil {
-		return Engine{}, *first
+	switch len(failed) {
+	case 0:
+		return Engine{}, unavailable("", reasonNoEngine)
+	case 1:
+		return Engine{}, failed[0]
 	}
-	return Engine{}, unavailable("", reasonNoEngine)
+	return Engine{}, unavailable("", reasonAllFailed, failed)
+}
+
+// failures are the reasons of the installed engines that do not work
+// (localized when the message is formatted).
+type failures []ohruntime.Availability
+
+func (f failures) String() string {
+	msgs := make([]string, len(f))
+	for i, av := range f {
+		msgs[i] = av.Message()
+	}
+	return strings.Join(msgs, "; ")
+}
+
+// serverVersion runs `version` on an engine CLI, once more after a short
+// pause when it fails.
+func (d Detector) serverVersion(ctx context.Context, cli string, args ...string) (string, error) {
+	args = append(append([]string{}, args...), "version", "--format", "{{.Server.Version}}")
+	for attempt := 0; ; attempt++ {
+		out, err := d.Runner.Run(ctx, cli, args...)
+		v := strings.TrimSpace(string(out))
+		if err == nil && v != "" {
+			return v, nil
+		}
+		if err == nil {
+			err = errors.New("no server version")
+		}
+		if attempt > 0 || ctx.Err() != nil {
+			return "", err
+		}
+		select {
+		case <-ctx.Done():
+			return "", err
+		case <-time.After(versionRetryDelay):
+		}
+	}
 }
 
 func unavailable(engine, reason string, args ...any) ohruntime.Availability {
@@ -211,49 +329,123 @@ type colimaStatus struct {
 }
 
 // colima probes Colima: the VM must run the docker runtime; the docker CLI
-// is driven through the Colima context.
+// is driven through the Colima context, else through the Colima socket.
 func (d Detector) colima(ctx context.Context) (Engine, ohruntime.Availability, bool) {
 	name := string(EngineColima)
-	if _, err := d.Runner.LookPath("colima"); err != nil {
-		return Engine{}, unavailable(name, reasonNotInstalled, "Colima"), false
-	}
 	profile := d.ColimaProfile
 	if profile == "" {
 		profile = "default"
 	}
-	out, err := d.Runner.Run(ctx, "colima", "status", "--profile", profile, "--json")
-	var st colimaStatus
-	if err != nil || json.Unmarshal(out, &st) != nil {
-		start := "colima start"
-		if profile != "default" {
-			start += " --profile " + profile
-		}
-		return Engine{}, unavailable(name, reasonVMStopped, "Colima", start), true
+	if _, err := d.Runner.LookPath("colima"); err != nil {
+		return Engine{}, unavailable(name, reasonNotInstalled, "Colima"), false
 	}
-	if st.Runtime != "docker" {
-		return Engine{}, unavailable(name, reasonColimaRuntime, st.Runtime), true
+	sockets := d.colimaSockets(profile)
+	st, statusErr := d.colimaStatus(ctx, profile)
+	if statusErr != nil && len(sockets) == 0 {
+		return Engine{}, colimaDown(profile, statusErr), true
+	}
+	if statusErr == nil {
+		if st.Runtime != "docker" {
+			return Engine{}, unavailable(name, reasonColimaRuntime, st.Runtime), true
+		}
+		if s := strings.TrimPrefix(st.Socket, "unix://"); s != "" && !slices.Contains(sockets, s) {
+			sockets = append([]string{s}, sockets...)
+		}
 	}
 	cli, err := d.Runner.LookPath("docker")
 	if err != nil {
 		return Engine{}, unavailable(name, reasonCLIMissing, "Colima", "docker"), true
 	}
-	ctxName := "colima"
+	var tries [][]string
+	if statusErr == nil {
+		ctxName := "colima"
+		if profile != "default" {
+			ctxName += "-" + profile
+		}
+		tries = append(tries, []string{"--context", ctxName})
+	}
+	for _, s := range sockets {
+		tries = append(tries, []string{"--host", "unix://" + s})
+	}
+	e := Engine{Kind: EngineColima, CLI: cli, Host: hostDocker, VM: true, Shared: d.colimaShared()}
+	var dockerErr error
+	for _, args := range tries {
+		v, err := d.serverVersion(ctx, cli, args...)
+		if err != nil {
+			if dockerErr == nil {
+				dockerErr = err
+			}
+			continue
+		}
+		e.Args, e.Version = args, v
+		if st.MountType != "" {
+			e.Details = append(e.Details, "mount="+st.MountType)
+		}
+		if st.Arch != "" {
+			e.Details = append(e.Details, "arch="+st.Arch)
+		}
+		return e, available(e), true
+	}
+	if statusErr != nil {
+		return Engine{}, colimaDown(profile, statusErr), true
+	}
+	return Engine{}, unavailable(name, reasonUnreachable, "Colima", dockerErr.Error()), true
+}
+
+// colimaDown explains a failed `colima status`: VM stopped, or a status that
+// could not be read.
+func colimaDown(profile string, err error) ohruntime.Availability {
+	if !colimaStopped(err) {
+		return unavailable(string(EngineColima), reasonUnreachable, "Colima", err.Error())
+	}
+	start := "colima start"
 	if profile != "default" {
-		ctxName += "-" + profile
+		start += " --profile " + profile
 	}
-	e := Engine{Kind: EngineColima, CLI: cli, Args: []string{"--context", ctxName}, Host: hostDocker, VM: true, Shared: d.colimaShared()}
-	v, err := d.Runner.Run(ctx, cli, e.Command("version", "--format", "{{.Server.Version}}")[1:]...)
+	return unavailable(string(EngineColima), reasonVMStopped, "Colima", start)
+}
+
+// colimaStatus reads `colima status --json` (warnings may precede the JSON).
+func (d Detector) colimaStatus(ctx context.Context, profile string) (colimaStatus, error) {
+	var st colimaStatus
+	out, err := d.Runner.Run(ctx, "colima", "status", "--profile", profile, "--json")
 	if err != nil {
-		return Engine{}, unavailable(name, reasonUnreachable, "Colima", err.Error()), true
+		return st, err
 	}
-	e.Version = strings.TrimSpace(string(v))
-	if st.MountType != "" {
-		e.Details = append(e.Details, "mount="+st.MountType)
+	i := bytes.IndexByte(out, '{')
+	if i < 0 {
+		return st, fmt.Errorf("colima status: unexpected output %q", firstLine(string(out)))
 	}
-	if st.Arch != "" {
-		e.Details = append(e.Details, "arch="+st.Arch)
+	if err := json.NewDecoder(bytes.NewReader(out[i:])).Decode(&st); err != nil {
+		return st, fmt.Errorf("colima status: %w", err)
 	}
-	return e, available(e), true
+	return st, nil
+}
+
+// colimaStopped tells whether a `colima status` error means the VM is not
+// running (rather than a status that could not be read).
+func colimaStopped(err error) bool {
+	msg := strings.ToLower(err.Error())
+	return strings.Contains(msg, "not running") || strings.Contains(msg, "is stopped") || strings.Contains(msg, "does not exist")
+}
+
+// colimaSockets returns the existing docker sockets of a Colima profile.
+func (d Detector) colimaSockets(profile string) []string {
+	var dirs []string
+	if d.ColimaHome != "" {
+		dirs = append(dirs, d.ColimaHome)
+	}
+	if d.Home != "" {
+		dirs = append(dirs, filepath.Join(d.Home, ".colima"), filepath.Join(d.Home, ".config", "colima"))
+	}
+	var out []string
+	for _, dir := range dirs {
+		s := filepath.Join(dir, profile, "docker.sock")
+		if _, err := os.Stat(s); err == nil && !slices.Contains(out, s) {
+			out = append(out, s)
+		}
+	}
+	return out
 }
 
 // colimaShared returns the directories Colima shares by default (the home
@@ -276,20 +468,16 @@ func (d Detector) podman(ctx context.Context) (Engine, ohruntime.Availability, b
 	if e.VM {
 		e.Shared = []string{"/Users", "/private", "/var/folders"} // podman machine defaults
 	}
-	v, err := d.Runner.Run(ctx, cli, "version", "--format", "{{.Server.Version}}")
-	if err != nil || strings.TrimSpace(string(v)) == "" {
+	v, err := d.serverVersion(ctx, cli)
+	if err != nil {
 		if e.VM {
 			if st, serr := d.Runner.Run(ctx, cli, "machine", "inspect", "--format", "{{.State}}"); serr == nil && strings.TrimSpace(string(st)) != "running" {
 				return Engine{}, unavailable(name, reasonVMStopped, "Podman", "podman machine start"), true
 			}
 		}
-		msg := "no server version"
-		if err != nil {
-			msg = err.Error()
-		}
-		return Engine{}, unavailable(name, reasonUnreachable, "Podman", msg), true
+		return Engine{}, unavailable(name, reasonUnreachable, "Podman", err.Error()), true
 	}
-	e.Version = strings.TrimSpace(string(v))
+	e.Version = v
 	if r, err := d.Runner.Run(ctx, cli, "info", "--format", "{{.Host.Security.Rootless}}"); err == nil {
 		e.Rootless = strings.TrimSpace(string(r)) == "true"
 		e.Details = append(e.Details, "rootless="+strings.TrimSpace(string(r)))
@@ -309,11 +497,11 @@ func (d Detector) docker(ctx context.Context) (Engine, ohruntime.Availability, b
 	if e.VM {
 		e.Shared = []string{"/Users", "/Volumes", "/private", "/tmp", "/var/folders"} // Docker Desktop defaults
 	}
-	v, err := d.Runner.Run(ctx, cli, "version", "--format", "{{.Server.Version}}")
+	v, err := d.serverVersion(ctx, cli)
 	if err != nil {
 		return Engine{}, unavailable(name, reasonUnreachable, "Docker", err.Error()), true
 	}
-	e.Version = strings.TrimSpace(string(v))
+	e.Version = v
 	if c, err := d.Runner.Run(ctx, cli, "context", "show"); err == nil {
 		e.Details = append(e.Details, "context="+strings.TrimSpace(string(c)))
 	}

@@ -68,6 +68,9 @@ type ExecutionConfig struct {
 	Runtime string `mapstructure:"runtime" toml:"runtime,omitempty"`
 	// Engine selects the container engine: auto (default) | colima | podman | docker.
 	Engine string `mapstructure:"engine" toml:"engine,omitempty"`
+	// ColimaProfile is the Colima profile used by the colima engine
+	// ("" = $COLIMA_PROFILE, else "default").
+	ColimaProfile string `mapstructure:"colima_profile" toml:"colima_profile,omitempty"`
 	// KeepImages is the number of container images kept per project and
 	// role (base, dev) — default 2.
 	KeepImages int `mapstructure:"keep_images" toml:"keep_images,omitempty"`
