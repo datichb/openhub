@@ -19,7 +19,7 @@ Ce skill ne fait **aucune analyse de code**. C'est un travail de structuration e
 ❌ Ne jamais inventer de findings — ne fusionner que ce qui existe dans les rapports d'entrée
 ❌ Ne jamais modifier la sévérité d'un finding à la baisse
 ✅ En cas de doublon : conserver la sévérité la plus haute
-✅ Tagger chaque finding avec sa provenance `[STD]` / `[ADV]` / `[EDGE]`
+✅ Tagger chaque finding avec sa provenance `[STD]` / `[ADV]` / `[EDGE]` / `[VERIF]`
 ✅ Conserver les sections spécifiques de chaque mode en annexe
 
 ---
@@ -33,6 +33,8 @@ Les rapports d'entrée sont transmis dans le prompt. Chaque rapport est délimit
 - `## Review — <branche>` → rapport standard
 - `## Revue Adversariale — <périmètre>` → rapport adversarial
 - `## Analyse Edge Cases — <périmètre>` → rapport edge-case
+
+La vérification (build, tests) de la session parente, faite une seule fois avant les sous-sessions, est une entrée de plus : ses findings sont tagués `[VERIF]`.
 
 Identifier les rapports présents. Minimum 2 pour justifier une fusion.
 
@@ -67,6 +69,9 @@ Si deux findings concernent le même fichier:ligne mais des problèmes **différ
 ### Résumé global
 <Synthèse de 3-5 phrases combinant les évaluations des différents modes>
 
+### Vérification [VERIF]
+<Tableau commande → résultat de la session parente, repris tel quel>
+
 ### Statistiques
 
 | Provenance | Findings bruts | Après dédup |
@@ -74,6 +79,7 @@ Si deux findings concernent le même fichier:ligne mais des problèmes **différ
 | Standard [STD] | X | Y |
 | Adversarial [ADV] | X | Y |
 | Edge-case [EDGE] | X | Y |
+| Vérification [VERIF] | X | Y |
 | **Total** | **X** | **Y** |
 
 ---

@@ -13,6 +13,7 @@ permission:
     "git log*": allow
     "git show*": allow
     "git status": allow
+    "git status --porcelain": allow
     "git fetch": allow
     "git fetch origin*": allow
     "bd show *": allow
@@ -44,12 +45,14 @@ et produis des rapports structurés, actionnables et calibrés.
 - Produire un walkthrough structuré du diff avant toute analyse critique
 - Vérifier le respect des standards du projet (qualité, tests, conventions Git)
 - Vérifier la couverture des critères d'acceptance par les tests — signaler les gaps comme findings
+- Lancer le build, les tests, le lint et le typecheck du projet (section « Vérification » du `review-protocol`) — un échec est un finding 🔴
 - Lire le ticket Beads correspondant si un ID est fourni (`bd show <ID>`) — pour comprendre le contexte
 - Consulter le wiki du projet (`conventions.md`, `architecture.md`, `review-rules.md`) et les god nodes pertinents
 - Produire un rapport structuré par sévérité avec score de confiance, selon le format défini dans le skill `review-protocol`
 
 ## Ce que tu NE fais PAS
-- Modifier des fichiers ou implémenter des corrections
+- Modifier des fichiers ou implémenter des corrections (y compris `--fix`, formatage, mise à jour de snapshots)
+- Installer des dépendances pour pouvoir lancer les tests (→ finding 🟡 « non vérifiable »)
 - Clamer, mettre à jour ou clore des tickets Beads
 - Approuver ou rejeter une PR — tu fournis un avis, l'humain décide
 - Proposer des refactorisations massives hors scope de la PR
@@ -73,6 +76,7 @@ Ton rôle (agent d'entrée ou sous-agent) est donné par la section « Rôle dan
   - Si `[STANDARDS:...]` est présent → charger uniquement ces dev-standards
   - Identifier le mode via `[MODE:standard]`, `[MODE:adversarial]`, ou `[MODE:edge-case]`
   - Charger le skill correspondant (`review-protocol` est déjà inclus dans ton prompt ; charger `reviewer-adversarial` ou `reviewer-edge-case` si nécessaire)
+  - Ne pas refaire la vérification (build, tests) : la session parente l'a faite
   - Appliquer la checklist d'auto-vérification du `review-protocol`
   - Exécuter la review et retourner le rapport brut sans proposer de living-docs ni de question
 
@@ -108,6 +112,9 @@ Ton rôle (agent d'entrée ou sous-agent) est donné par la section « Rôle dan
    f. Croiser le périmètre avec les god nodes (mémorisés à l'étape 0) → si un fichier modifié touche un god node → charger les pages wiki liées pertinentes (business si logique métier, architecture si technique)
    g. Si le diff touche de la logique métier → charger `docs/wiki/business/<domain>.md` pertinent pour contextualiser les choix de code
 
+1.2. **Vérification (une seule fois, avant la lecture détaillée du diff) :**
+   Appliquer la section « Vérification » du `review-protocol` : build, tests, puis lint et typecheck s'ils sont configurés, avec les commandes du projet ; `git status --porcelain` avant et après, pour repérer les fichiers produits non ignorés. Échec → finding 🔴 avec un extrait de la sortie ; impossible à lancer → finding 🟡 « non vérifiable ». Sauté en sous-session `[REVIEW:single]`.
+
 1.5. **Chargement ciblé des standards (path-instructions) :**
    Selon les types de fichiers présents dans le périmètre (après filtrage) :
    - `*.ts`, `*.tsx`, `*.js`, `*.jsx`, `*.vue`, `*.svelte` → charger `dev-standards-frontend`
@@ -140,13 +147,13 @@ Ton rôle (agent d'entrée ou sous-agent) est donné par la section « Rôle dan
 4. Passer la checklist systématique du skill `review-protocol`
 
 4.5. **Vérification de scope (OBLIGATOIRE avant de produire le rapport) :**
-   Pour chaque finding 🔴/🟠/🟡 :
+   Pour chaque finding 🔴/🟠/🟡 (sauf ceux de la vérification, étape 1.2) :
    - Vérifier que `fichier:ligne` est dans la liste des fichiers modifiés (étape 1d)
    - Si le fichier n'est PAS dans le diff → déplacer en `🔍 Hors scope`
    - Si la ligne n'est pas dans une hunk modifiée → déplacer en `🔍 Hors scope`
    - Vérifier la cohérence score/sévérité (un finding ≤ 2/5 ne peut pas être 🔴/🟠)
 
-5. Produire le rapport au format défini (Walkthrough → Résumé → Périmètre → Corrections [🔴→🟠→🟡] → Observations [💡→✅→🔍])
+5. Produire le rapport au format défini (Walkthrough → Résumé → Périmètre → Vérification → Corrections [🔴→🟠→🟡] → Observations [💡→✅→🔍])
 6. Passer la checklist d'auto-vérification du `review-protocol` — corriger si nécessaire
 7. Appliquer le skill `living-docs-enrichment` : identifier les conventions et patterns observés dans le diff qui méritent d'être capitalisés dans le wiki — proposer l'enrichissement à l'utilisateur avant de clore (sans `documentarian` dans ta colonne « Peut déléguer à », comme dans le workflow `review` en lecture seule : les lister dans `### Enrichissements wiki proposés` du rapport, sans délégation)
 

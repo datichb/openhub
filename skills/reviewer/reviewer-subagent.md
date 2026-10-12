@@ -40,10 +40,11 @@ Avant toute analyse, quel que soit le mode :
    - Lister les fichiers modifiés → périmètre de review
    - Filtrer les fichiers exclus (path filters)
    - Croiser périmètre × god nodes
-3. **Charger les standards ciblés** (étape 1.5 du workflow) :
+3. **Vérification** (étape 1.2 du workflow, une seule fois, par toi et non par les sous-sessions `[REVIEW:single]`) : build, tests, lint et typecheck du projet, `git status --porcelain` avant et après — échec → finding 🔴, verdict `corriger` ; impossible à lancer → finding 🟡 « non vérifiable »
+4. **Charger les standards ciblés** (étape 1.5 du workflow) :
    - Selon les types de fichiers dans le périmètre
-4. **Produire le walkthrough** (étape 2 du workflow)
-5. **Exploration contextuelle ciblée** (étape 2.5 du workflow) — max 10 fichiers
+5. **Produire le walkthrough** (étape 2 du workflow)
+6. **Exploration contextuelle ciblée** (étape 2.5 du workflow) — max 10 fichiers
 
 ---
 
@@ -83,7 +84,7 @@ Pour garantir l'isolation contextuelle, orchestrer des sessions parallèles **av
    ```
 4. **Récupérer les rapports bruts** de chaque session
 5. **Fusionner** en chargeant le skill `review-merge` et en lui fournissant les rapports
-6. Produire le rapport unifié final
+6. Produire le rapport unifié final, avec ta section `### Vérification` et ses findings
 7. Conclure avec le bloc `## Retour vers orchestrator-dev` — le verdict se base sur le rapport unifié post-fusion
 
 ---
@@ -191,4 +192,4 @@ Pour garantir l'isolation contextuelle, orchestrer des sessions parallèles **av
 ...
 ```
 
-> Un rapport sans problèmes comporte au minimum `### Walkthrough`, `### Résumé`, `### Périmètre et contexte`, `### Couverture des critères d'acceptance` (si ticket Beads avec critères disponible) et `### ✅ Points positifs` dans la section `### Rapport complet` du bloc.
+> Un rapport sans problèmes comporte au minimum `### Walkthrough`, `### Résumé`, `### Périmètre et contexte`, `### Vérification`, `### Couverture des critères d'acceptance` (si ticket Beads avec critères disponible) et `### ✅ Points positifs` dans la section `### Rapport complet` du bloc.

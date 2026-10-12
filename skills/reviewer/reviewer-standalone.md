@@ -43,7 +43,7 @@ question({
 
 Exécuter directement la review dans cette session :
 
-1. Exécuter le workflow complet du `reviewer.md` (étapes 0 à 6)
+1. Exécuter le workflow complet du `reviewer.md` (étapes 0 à 6, vérification de l'étape 1.2 comprise)
 2. Charger le skill correspondant via l'outil `skill` :
    - Standard → skill `review-protocol` (déjà inclus dans ton prompt)
    - Adversarial → skill `reviewer-adversarial`
@@ -56,7 +56,7 @@ Exécuter directement la review dans cette session :
 Orchestrer des **sessions parallèles indépendantes** avec injection du contexte projet :
 
 1. **Préparer le contexte à injecter** (session parente — avant de lancer les sous-sessions) :
-   a. Exécuter les étapes 0 et 1 du workflow `reviewer.md` (wiki + diff + périmètre)
+   a. Exécuter les étapes 0, 1 et 1.2 du workflow `reviewer.md` (wiki + diff + périmètre + vérification : build et tests, une seule fois ici)
    b. Identifier les standards pertinents (étape 1.5 du workflow)
    c. Extraire une **synthèse compacte** (max ~60 lignes) contenant :
       - Les conventions clés du projet (nommage, patterns, imports, structure)
@@ -98,7 +98,7 @@ Orchestrer des **sessions parallèles indépendantes** avec injection du context
 4. **Fusionner** en appliquant le skill `review-merge` :
    - Charger le skill `review-merge` via l'outil `skill`
    - Lui fournir les rapports bruts récupérés
-   - Produire le rapport unifié final
+   - Produire le rapport unifié final, avec la section `### Vérification` et ses findings (préparés en 1.a)
 5. Passer à l'Étape 3
 
 ---
@@ -132,6 +132,7 @@ Quand une sous-session est lancée avec `[REVIEW:single]` :
 - Si `[WIKI-CONTEXT:...]` est présent → l'utiliser comme contexte conventions/architecture (ne PAS relire le wiki depuis le disque — le contexte a été préparé par la session parente)
 - Si `[DIFF-SCOPE:...]` est présent → l'utiliser comme périmètre de fichiers modifiés pour le scope enforcement
 - Si `[STANDARDS:...]` est présent → charger uniquement ces dev-standards (ne PAS charger les autres)
+- Ne pas refaire la vérification (build, tests) : la session parente l'a faite
 - Exécuter la review dans le mode indiqué par `[MODE:...]`
 - Inclure le walkthrough dans le rapport (construit à partir du diff et du DIFF-SCOPE)
 - Inclure le score de confiance sur chaque finding
