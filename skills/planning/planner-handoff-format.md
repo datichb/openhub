@@ -37,7 +37,7 @@ En standalone, le bloc est également le seul output après la Phase 4 (vérific
 
 - **`### Récapitulatif de planification`** doit capturer le raisonnement et les décisions — minimum 3-5 phrases
 - **Lister tous les tickets créés** dans le tableau — ne pas en omettre, même les tickets mineurs
-- **Renseigner la colonne `Agent prévu`** pour chaque ticket — cette colonne est la **source de vérité pour le routing**, l'orchestrator ne doit pas avoir à deviner l'agent depuis les labels ou le contenu du ticket. Valeur : `developer (<domaine>)` (frontend, backend, fullstack, api, mobile, data, devops, platform, security), ou `developer-refactor` / `developer-migrator` pour un refactoring ou une migration
+- **Renseigner la colonne `Agent prévu`** pour chaque ticket — cette colonne est la **source de vérité pour le routing**, l'orchestrator ne doit pas avoir à deviner l'agent depuis les labels ou le contenu du ticket. Valeur : `developer (<domaine>)` (frontend, backend, fullstack, api, mobile, data, devops, platform, security, refactor, migration, tests) — par exemple `developer (refactor)` pour un refactoring, `developer (migration)` pour une migration, `developer (tests)` pour ajouter des tests
 - **Renseigner obligatoirement la section `### Ordre de traitement`** — cette section définit la séquence exacte d'exécution, l'orchestrator la suivra sans recalculer l'ordre depuis les dépendances
 - **Signaler toute hypothèse** faite lors de la planification — l'orchestrator doit pouvoir la valider avec l'utilisateur
 - Ce bloc est produit **après** la validation explicite du plan par l'utilisateur (après Phase 4)

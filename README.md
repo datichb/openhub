@@ -136,7 +136,7 @@ Workflows resolve **by layers**: hub < team < project < session options. A layer
 
 ## Agents
 
-19 agents in 8 families. Their default mode comes from their frontmatter; a workflow decides which ones are members of a session and may change their mode.
+16 agents in 8 families. Their default mode comes from their frontmatter; a workflow decides which ones are members of a session and may change their mode.
 
 - **`primary`**: entry point of a session
 - **`subagent`**: delegated by another agent of the workflow
@@ -156,17 +156,14 @@ Workflows resolve **by layers**: hub < team < project < session options. A layer
 | `reviewer` | Quality | PR/MR review by severity (standard, adversarial, edge-case) |
 | `debugger` | Quality | Bug diagnosis, root cause |
 | `benchmarker` | Quality | Lighthouse, k6, pprof, py-spy performance benchmarks |
-| `test-generator` | Quality | Gap analysis, unit/integration/property-based tests |
 | `operator` | Infra | Infrastructure change: plan, cost, risks, then apply of the approved plan (`infra-change`) |
 | `documentarian` | Documentation | README, CHANGELOG, ADR, API docs |
 
-### Subagents (5)
+### Subagents (3)
 
 | Agent | Delegated by | Domain |
 |-------|-------------|--------|
-| `developer` | `orchestrator-dev` | Implementation (frontend, backend, fullstack, api, mobile, data, devops, platform, security) |
-| `developer-refactor` | `orchestrator-dev` | Structural refactoring |
-| `developer-migrator` | `orchestrator-dev` | Incremental migrations |
+| `developer` | `orchestrator-dev` | Implementation (frontend, backend, fullstack, api, mobile, data, devops, platform, security), refactoring (`refactor`), migrations (`migration`), test generation (`tests`) |
 | `auditor-subagent` | `auditor` | All audit domains (security, performance, accessibility, ecodesign, architecture, privacy, observability, infra, database) |
 | `brief-enricher` | `brief-enrich` workflow | Read-only takeover brief enrichment |
 
@@ -190,7 +187,7 @@ Choose with `oh run --runtime …`, else the project setting, the Settings, then
 
 ```
 openhub/
-├── agents/              <- Agent definitions (19 agents, 8 families)
+├── agents/              <- Agent definitions (16 agents, 8 families)
 ├── skills/              <- Protocols: Bucket A (inline) + Bucket B (on demand)
 ├── workflows/           <- Shipped workflows (oh/v1) + prompt templates
 ├── permissions/         <- Permission bases of the agents

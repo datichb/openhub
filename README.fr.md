@@ -136,7 +136,7 @@ Les workflows se résolvent **par couches** : hub < équipe < projet < options d
 
 ## Agents
 
-19 agents en 8 familles. Leur mode par défaut vient de leur frontmatter ; un workflow choisit les membres d'une session et peut changer leur mode.
+16 agents en 8 familles. Leur mode par défaut vient de leur frontmatter ; un workflow choisit les membres d'une session et peut changer leur mode.
 
 - **`primary`** : point d'entrée d'une session
 - **`subagent`** : délégué par un autre agent du workflow
@@ -156,17 +156,14 @@ Les workflows se résolvent **par couches** : hub < équipe < projet < options d
 | `reviewer` | Quality | Review de PR/MR par sévérité (standard, adversarial, edge-case) |
 | `debugger` | Quality | Diagnostic de bug, cause racine |
 | `benchmarker` | Quality | Benchmarks de performance Lighthouse, k6, pprof, py-spy |
-| `test-generator` | Quality | Analyse des manques, tests unitaires/intégration/property-based |
 | `operator` | Infra | Changement d'infrastructure : plan, coût, risques, puis application du plan validé (`infra-change`) |
 | `documentarian` | Documentation | README, CHANGELOG, ADR, docs d'API |
 
-### Sous-agents (5)
+### Sous-agents (3)
 
 | Agent | Délégué par | Domaine |
 |-------|-------------|---------|
-| `developer` | `orchestrator-dev` | Implémentation (frontend, backend, fullstack, api, mobile, data, devops, platform, security) |
-| `developer-refactor` | `orchestrator-dev` | Refactoring structurel |
-| `developer-migrator` | `orchestrator-dev` | Migrations incrémentales |
+| `developer` | `orchestrator-dev` | Implémentation (frontend, backend, fullstack, api, mobile, data, devops, platform, security), refactoring (`refactor`), migrations (`migration`), génération de tests (`tests`) |
 | `auditor-subagent` | `auditor` | Tous les domaines d'audit (sécurité, performance, accessibilité, écoconception, architecture, vie privée, observabilité, infrastructure, base de données) |
 | `brief-enricher` | workflow `brief-enrich` | Enrichissement d'un brief de reprise, en lecture seule |
 
@@ -190,7 +187,7 @@ Choix par `oh run --runtime …`, sinon le réglage du projet, les Réglages, pu
 
 ```
 openhub/
-├── agents/              <- Définitions des agents (19 agents, 8 familles)
+├── agents/              <- Définitions des agents (16 agents, 8 familles)
 ├── skills/              <- Protocoles : Bucket A (inline) + Bucket B (à la demande)
 ├── workflows/           <- Workflows livrés (oh/v1) + gabarits de prompt
 ├── permissions/         <- Bases de permissions des agents

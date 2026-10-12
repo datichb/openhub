@@ -22,7 +22,7 @@ Chaque agent ne verifie que les policies pertinentes a ses actions :
 | Agent | Policies a verifier |
 |-------|---------------------|
 | `orchestrator-dev` | `branch_naming` (avant delegation), `review_required` (avant fermeture ticket) |
-| `developer`, `developer-refactor`, `developer-migrator` | `commit_format` (avant commit), `forbidden_patterns` custom (sur leur diff) |
+| `developer` | `commit_format` (avant commit), `forbidden_patterns` custom (sur leur diff) |
 | `reviewer` | `tests_required` (mentionner dans le rapport si non respecte) |
 | `orchestrator` | `max_ticket_wip` (avant de proposer un nouveau ticket) |
 | `designer` | Aucune policy code applicable |

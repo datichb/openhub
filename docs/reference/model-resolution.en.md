@@ -61,8 +61,8 @@ An agent's family is derived from its directory in `agents/`:
 | Directory | Family | Agents |
 |-----------|--------|--------|
 | `agents/planning/` | `planning` | conductor, orchestrator, orchestrator-dev, planner, pathfinder, onboarder |
-| `agents/developer/` | `developer` | developer, developer-refactor, developer-migrator |
-| `agents/quality/` | `quality` | reviewer, debugger, benchmarker, test-generator |
+| `agents/developer/` | `developer` | developer |
+| `agents/quality/` | `quality` | reviewer, debugger, benchmarker |
 | `agents/auditor/` | `auditor` | auditor, auditor-subagent |
 | `agents/infra/` | `infra` | operator |
 | `agents/design/` | `design` | designer |
@@ -177,7 +177,7 @@ This field is **level 9** of the cascade: it only applies when no level above de
 |-------|-------|
 | `conductor`, `orchestrator`, `orchestrator-dev`, `planner`, `pathfinder`, `onboarder` | `claude-sonnet-4-6` |
 | `auditor`, `auditor-subagent`, `designer`, `debugger`, `documentarian`, `operator` | `claude-sonnet-4-6` |
-| `reviewer`, `benchmarker`, `test-generator` | `claude-opus-4-6` |
+| `reviewer`, `benchmarker` | `claude-opus-4-6` |
 | `brief-enricher` | `anthropic/claude-sonnet-4-5` |
 
 The `developer*` agents declare none: without configuration, opencode uses its default model.

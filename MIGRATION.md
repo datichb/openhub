@@ -2,6 +2,20 @@
 
 oh v5 abandonne opencode V1 (opencode V2 obligatoire), lance chaque session depuis un workflow (`oh run`) et ne déploie plus rien dans les projets. Les anciennes commandes (`oh start`, `oh audit`…) restent des alias dépréciés pendant v5.x ; `oh deploy`/`oh sync` n'affichent plus qu'un message de migration. Les fichiers des anciens déploiements se retirent avec `oh migrate deploy-cleanup` (proposé une fois après la mise à jour) ; les anciennes surcharges du workflow sont migrées automatiquement vers le team-state (migration v38). Guide complet : [docs/guides/migration-v5.fr.md](docs/guides/migration-v5.fr.md) ([English](docs/guides/migration-v5.en.md)).
 
+## Agents supprimés (consolidation C1)
+
+Ces agents ne sont plus livrés. Un workflow d'équipe ou de projet qui les nomme (`agents:`, `entry.agent`, `oh run libre --agent`) est refusé par `oh workflow validate` avec le remplaçant (diagnostic `agent_removed`).
+
+| Agent supprimé | Remplacement |
+|----------------|--------------|
+| `developer-refactor` | `developer`, domaine `refactor` (skill `developer/dev-standards-refactoring`) |
+| `developer-migrator` | `developer`, domaine `migration` (skill `developer/dev-standards-migration`) ; les commandes de migration de base (`alembic`, `python manage.py migrate`/`makemigrations`, `rails db:migrate`/`db:rollback`, `flask db`) sont dans les permissions du `developer` |
+| `test-generator` | `developer`, domaine `tests` (skill `developer/test-generation`) — aussi dans `sweep` pour un objectif d'ajout de tests |
+| `infra` | agent `operator`, workflow `infra-change`, domaine d'audit `infra` |
+| `database` | domaine d'audit `database` ; pour implémenter, `developer` avec la skill `developer/dev-standards-database` |
+
+À faire dans vos workflows : retirer ces membres (`developer` suffit, le domaine passe dans le prompt d'invocation) ; dans les tickets planifiés, la colonne « Agent prévu » s'écrit `developer (refactor)`, `developer (migration)` ou `developer (tests)`.
+
 ---
 
 # Migration `oc` -> `oh`

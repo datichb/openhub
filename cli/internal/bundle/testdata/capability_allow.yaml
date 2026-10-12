@@ -7,30 +7,8 @@ references:
   - developer/beads-plan
   - developer/beads-dev
 commands:
-  # Ticket path of the developers (claim, labels, comments): sweep and
-  # review-feedback have no ticket, the « Sans ticket » paragraph of the
-  # agent skips every bd step there (C0.5). The refactor/migrator entries go
-  # with their merge into developer (C1.5).
-  - "review-feedback/developer: bd update x --claim"
-  - "sweep/developer: bd update x --claim"
-  - "sweep/developer-refactor: bd ready --label ai-delegated --json"
-  - "sweep/developer-refactor: bd update x --claim"
-  - "sweep/developer-migrator: bd ready --label ai-delegated --json"
-  - "sweep/developer-migrator: bd update x --claim"
-  - "sweep/developer-migrator: bd update x -s blocked"
-  - "sweep/developer-migrator: bd comments add x \"Migration destructive détectée — escalade requise avant exécution. Voir handoff.\""
 tasks: []
 checkpoints:
-  # The « Sans ticket » paragraph of the developers names `cp-commit` for
-  # their entry path in quick (agent file owned by another track; the
-  # refactor/migrator entries go with their merge into developer, C1.5).
-  - "feature/developer: cp-commit"
-  - "feature/developer-refactor: cp-commit"
-  - "feature/developer-migrator: cp-commit"
-  - "ticket/developer: cp-commit"
-  - "ticket/developer-refactor: cp-commit"
-  - "ticket/developer-migrator: cp-commit"
-  - "review-feedback/developer: cp-commit"
   # Ticket path of orchestrator-dev (on-demand skills ticket-workflow,
   # standalone, subagent, parallel: cp-1 → cp-2 → cp-3 of ticket and
   # feature). They ship with the agent in review-feedback, where

@@ -16,13 +16,11 @@ Agent d'entrée : `orchestrator`. Seuls les agents ci-dessous existent dans cett
 | `designer` | workflow | primary | — | — |
 | `documentarian` | workflow | primary | — | — |
 | `onboarder` | workflow | primary | — | — |
-| `orchestrator-dev` | workflow | primary | — | `developer`, `developer-migrator`, `developer-refactor`, `documentarian`, `reviewer` |
+| `orchestrator-dev` | workflow | primary | — | `developer`, `documentarian`, `reviewer` |
 | `pathfinder` | workflow | primary | — | `designer`, `documentarian` |
 | `planner` | workflow | primary | — | `designer`, `documentarian` |
 | `reviewer` | workflow | primary | — | `documentarian`, `reviewer` |
 | `developer` | workflow | subagent | — | `documentarian` |
-| `developer-migrator` | workflow | subagent | — | `documentarian` |
-| `developer-refactor` | workflow | subagent | — | `documentarian` |
 
 Règles de délégation :
 - Tu ne lances (outil `task`) que les agents de la colonne « Peut déléguer à » de ta ligne. Tout autre appel est refusé par l'outil.

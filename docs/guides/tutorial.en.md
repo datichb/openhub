@@ -151,7 +151,7 @@ Expected output:
 Launch ticket (hub:ticket) · my-app
   Mode           manuel
   Runtime        local
-  Agents (6)     orchestrator-dev (entry) · developer · developer-refactor · developer-migrator · reviewer · documentarian
+  Agents (4)     orchestrator-dev (entry) · developer · reviewer · documentarian
   Skills (23)    ~14200 tokens (entry agent 5400 + skill catalogue 8800)
   MCP            gitlab, workflow
   Isolation      full

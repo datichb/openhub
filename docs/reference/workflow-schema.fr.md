@@ -470,7 +470,6 @@ prompt:
 
 agents:
   documentarian: { role: disabled }       # retiré du paquet
-  developer-migrator: { role: disabled }
   reviewer: { mode: subagent }            # seul `mode` est réécrit
 
 checkpoints:

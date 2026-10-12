@@ -33,8 +33,6 @@ agents:
   designer: { role: workflow, mode: subagent }
   orchestrator-dev: { role: workflow, mode: subagent, after: cp-0 }
   developer: { role: workflow, after: cp-1 }
-  developer-refactor: { role: workflow, after: cp-1 }
-  developer-migrator: { role: workflow, after: cp-1 }
   reviewer: { role: workflow, mode: subagent }
   documentarian: { role: independent }
 checkpoints:

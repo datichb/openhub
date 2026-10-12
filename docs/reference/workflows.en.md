@@ -22,8 +22,8 @@ A workflow is launched with `oh run <workflow>` or the TUI launch form; the form
 
 | Workflow | Entry agent | Agents | Risk | Runtime | Replaces |
 |---|---|---|---|---|---|
-| `ticket` | `orchestrator-dev` | `developer`, `developer-refactor`, `developer-migrator`, `reviewer`, `documentarian` (on demand) | write | local, container, remote | `oh start --dev`, `-t` |
-| `feature` | `orchestrator` | `pathfinder`, `planner`, `designer`, `orchestrator-dev`, `developer*`, `reviewer`, `documentarian` (on demand) | write | local | `oh start` (former modes A, B and E) |
+| `ticket` | `orchestrator-dev` | `developer`, `reviewer`, `documentarian` (on demand) | write | local, container, remote | `oh start --dev`, `-t` |
+| `feature` | `orchestrator` | `pathfinder`, `planner`, `designer`, `orchestrator-dev`, `developer`, `reviewer`, `documentarian` (on demand) | write | local | `oh start` (former modes A, B and E) |
 | `quick` | `developer` | — | write | local | quick session |
 | `infra-change` | `operator` | — | write (infrastructure, no file) | local | former `infra` agent (application part) |
 | `cadrage` | `conductor` | `pathfinder`, `planner`, `designer` | plan | local | former mode A without implementation |
@@ -33,7 +33,7 @@ A workflow is launched with `oh run <workflow>` or the TUI launch form; the form
 | `audit` | `auditor` | `auditor-subagent` | read | local, remote | `oh audit`, former `infra` and `database` agents (analysis part) |
 | `debug` | `debugger` | `developer`, `documentarian` (on demand) | write | local | `oh debug` (former mode D) |
 | `benchmark` | `benchmarker` | — | write (`reports/benchmarks/`) | local | `oh run libre --agent benchmarker` |
-| `sweep` | `conductor` | `pathfinder`, `developer`, `developer-refactor`, `developer-migrator`, `reviewer` | write | local | `oh start --sweep` |
+| `sweep` | `conductor` | `pathfinder`, `developer`, `reviewer` | write | local | `oh start --sweep` |
 | `brief-enrich` | `brief-enricher` | — | read | local | `oh takeover-brief enrich` |
 | `libre` | your choice (`orchestrator` by default) | those the chosen agent may call | write | local, container | `oh start --agent`, TUI free session |
 

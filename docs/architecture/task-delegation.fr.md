@@ -139,8 +139,6 @@ permission:
   task:
     "*": deny
     "developer": allow
-    "developer-refactor": allow
-    "developer-migrator": allow
     "reviewer": allow
     "documentarian": allow
 ```
@@ -181,7 +179,7 @@ flowchart TB
     end
 
     subgraph L4["Niveau 4 — Implémenteurs subagent"]
-        DEV["developer<br/>developer-refactor<br/>developer-migrator"]
+        DEV["developer"]
         AUD["auditor-subagent"]
         DOC[documentarian]
     end
@@ -226,14 +224,13 @@ restreinte aux membres du workflow, ou remplacée par `calls:`.
 |---------------|--------------------------|
 | `conductor` | `*` — en pratique les membres de son workflow |
 | `orchestrator` | `pathfinder`, `planner`, `onboarder`, `designer`, `orchestrator-dev`, `debugger`, `documentarian` |
-| `orchestrator-dev` | `developer`, `developer-refactor`, `developer-migrator`, `reviewer`, `documentarian` |
+| `orchestrator-dev` | `developer`, `reviewer`, `documentarian` |
 | `auditor` | `auditor-subagent`, `documentarian` |
 | `planner` | `designer`, `documentarian` |
 | `pathfinder` | `designer`, `documentarian` |
 | `reviewer` | `documentarian` ; `reviewer` (lui-même) seulement avec `calls: [reviewer]` |
-| `test-generator` | `reviewer`, `documentarian` |
 | `debugger`, `benchmarker` | `documentarian` |
-| `developer`, `developer-refactor`, `developer-migrator` | `documentarian` |
+| `developer` | `documentarian` |
 | `auditor-subagent`, `designer`, `documentarian`, `onboarder`, `brief-enricher` | *(aucun)* |
 
 ### Modes `primary` vs `subagent`
@@ -243,7 +240,7 @@ restreinte aux membres du workflow, ou remplacée par `calls:`.
 | `primary` | Visible dans le Tab picker | Directe par l'utilisateur ou via `task` |
 | `subagent` | Invisible dans le Tab picker | Uniquement via `task` par un parent autorisé |
 
-Dans les frontmatter, `developer`, `developer-refactor`, `developer-migrator`, `auditor-subagent` et
+Dans les frontmatter, `developer`, `auditor-subagent` et
 `brief-enricher` sont en mode `subagent`. Le workflow peut changer le mode d'un membre (`agents.<id>.mode`) :
 dans `feature`, `planner` et `reviewer` passent en `subagent` ; dans `quick`, `developer` passe en `primary`.
 
@@ -320,7 +317,7 @@ Le bloc `## Question pour l'orchestrator` contient :
 
 | Skill | Producteur | Consommateur | Champs clés |
 |-------|-----------|-------------|-------------|
-| `developer/developer-handoff-format` | `developer`, `developer-refactor`, `developer-migrator` | `orchestrator-dev` | Fichiers modifiés, critères cochés, points d'attention, statut |
+| `developer/developer-handoff-format` | `developer` | `orchestrator-dev` | Fichiers modifiés, critères cochés, points d'attention, statut |
 | `reviewer/reviewer-handoff-format` | `reviewer` | `orchestrator-dev` | Verdict, corrections verbatim, routing recommandé |
 | `documentarian/documentarian-handoff-format` | `documentarian` | son appelant (`## Retour vers <appelant>`) | Type, fichiers modifiés, résumé |
 | `orchestrator/orchestrator-handoff-format` | `orchestrator-dev` | `orchestrator` | Tickets traités, détail par ticket, points d'attention, statut global |
@@ -666,7 +663,7 @@ Un lot de tickets est éligible au traitement parallèle si et seulement si **to
 | # | Critère | Vérification |
 |---|---|---|
 | 1 | **Pas de dépendance formelle entre tickets du lot** | `bd dep list <ID>` pour chaque ticket — l'intersection avec les IDs du lot est vide |
-| 2 | **Domaines disjoints** | Tickets confiés à `developer` avec des domaines distincts (ou à `developer-refactor` / `developer-migrator`) — pas de domaine `fullstack` dans le lot |
+| 2 | **Domaines disjoints** | Tickets confiés à `developer` avec des domaines distincts (`refactor` et `migration` compris) — pas de domaine `fullstack` dans le lot |
 | 3 | **Pas de fichiers transverses prévisibles** | Aucun ticket ne mentionne de types partagés, migrations de base de données, ou fichiers de configuration globaux |
 | 4 | **Mode `auto` actif** | Les modes `manuel` et `semi-auto` restent séquentiels |
 

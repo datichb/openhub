@@ -118,7 +118,7 @@ is visible in the OpenCode interface.
 | `orchestrator-dev` | Entry agent (`ticket`, `review-feedback`) | Root | ✅ Yes | Maintains the ticket list with phase labels |
 | `orchestrator-dev` | Invoked via `task` from `orchestrator` | Isolated (child) | ❌ No | May maintain an internal list (debugging) — not visible |
 | `planner`, `pathfinder`, `onboarder`, `debugger`, `designer` | Invoked via `task` from `orchestrator` or `conductor` | Isolated (child) | ❌ No | No todowrite list |
-| `developer`, `developer-refactor`, `developer-migrator`, `reviewer`, `documentarian` | Invoked via `task` from `orchestrator-dev` | Isolated (grandchild in `feature`) | ❌ No | No todowrite list |
+| `developer`, `reviewer`, `documentarian` | Invoked via `task` from `orchestrator-dev` | Isolated (grandchild in `feature`) | ❌ No | No todowrite list |
 
 An agent that is the entry agent of its workflow (`auditor` in `audit`, `debugger` in `debug`, `developer`
 in `quick`…) runs in the root session: its todo list, if it keeps one, is visible.
@@ -208,7 +208,7 @@ so the user knows where the implementation stands:
 
 - The fundamental rules of `tool-todowrite.md` apply without exception: exactly
   1 task `in_progress` at a time, real-time updates, full list on every call.
-- Agents `developer`, `developer-refactor`, `developer-migrator`, `reviewer`, `documentarian` do not use
+- Agents `developer`, `reviewer`, `documentarian` do not use
   `todowrite` when invoked as subagents: their sessions are invisible.
 - The inter-agent handoff mechanism (`## Return to <parent>`, `## Question for <parent>`)
   remains the only communication channel between isolated sessions.

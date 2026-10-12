@@ -55,7 +55,7 @@ func TestSweepWorkflow(t *testing.T) {
 		assert.Equal(t, sessionspec.CheckpointPause, cp.Behavior(mode), mode)
 	}
 	locked := LockedAgents(wf, "auto", nil)
-	for _, a := range []string{"developer", "developer-refactor", "developer-migrator", "reviewer"} {
+	for _, a := range []string{"developer", "reviewer"} {
 		assert.Contains(t, locked, a)
 	}
 	assert.NotContains(t, locked, "pathfinder")

@@ -1,5 +1,5 @@
 %% OpenHub -- Agent Hierarchy (v5)
-%% 19 agents across 8 families, showing mode (primary/subagent)
+%% 16 agents across 8 families, showing mode (primary/subagent)
 %% and the delegations their permissions allow. In a session, the workflow
 %% decides which agents are members and which delegations are reachable
 %% (SubagentGraph, closed world): see ADR-039 and ADR-041.
@@ -17,9 +17,7 @@ flowchart TD
 
     subgraph Developer ["Developer Family (3 agents)"]
         direction TB
-        DEV["fa:fa-code <strong>developer</strong><br/>Subagent · Generic<br/>read-write"]
-        DEVR["fa:fa-recycle <strong>developer-refactor</strong><br/>Subagent · Refactoring<br/>read-write"]
-        DEVM["fa:fa-exchange <strong>developer-migrator</strong><br/>Subagent · Migration<br/>read-write"]
+        DEV["fa:fa-code <strong>developer</strong><br/>Subagent · Domains incl. refactor, migration, tests<br/>read-write"]
     end
 
     subgraph Infra ["Infra Family (1 agent)"]
@@ -32,12 +30,11 @@ flowchart TD
         AUDS["fa:fa-search <strong>auditor-subagent</strong><br/>Subagent · Domain expert<br/>read-only"]
     end
 
-    subgraph Quality ["Quality Family (4 agents)"]
+    subgraph Quality ["Quality Family (3 agents)"]
         direction TB
         REV["fa:fa-check-circle <strong>reviewer</strong><br/>Primary · Code review<br/>read-only"]
         DBG["fa:fa-bug <strong>debugger</strong><br/>Primary · Diagnostics<br/>read-only"]
         BENCH["fa:fa-tachometer <strong>benchmarker</strong><br/>Primary · Performance<br/>read-write"]
-        TEST["fa:fa-flask <strong>test-generator</strong><br/>Primary · Testing<br/>read-write"]
     end
 
     subgraph Design ["Design Family (1 agent)"]
@@ -65,8 +62,6 @@ flowchart TD
     ORCH -->|delegates| DOC
 
     ORCHDEV -->|routes to| DEV
-    ORCHDEV -->|routes to| DEVR
-    ORCHDEV -->|routes to| DEVM
     ORCHDEV -->|routes to| REV
     ORCHDEV -->|routes to| DOC
 
@@ -78,8 +73,6 @@ flowchart TD
     PATH -->|delegates| DOC
     PATH -->|delegates| DES
     BENCH -->|delegates| DOC
-    TEST -->|delegates| DOC
-    TEST -->|delegates| REV
 
     style Planning fill:#3498db15,stroke:#3498db
     style Developer fill:#2ecc7115,stroke:#2ecc71

@@ -128,20 +128,20 @@ How to read the tables: the **Agents** column gives the bucket and the agents fr
 
 Short notations:
 
-- **all** = the 18 agents except `brief-enricher`;
-- **dev-rw** = `developer`, `developer-refactor`, `developer-migrator`.
+- **all** = the 15 agents except `brief-enricher`;
+- **dev-rw** = `developer` (its domains include `refactor`, `migration` and `tests`).
 
 ### `shared/` — 16 skills (cross-cutting)
 
 | Skill | Agents | Content |
 |-------|--------|---------|
 | `universal-guardrails` | A: all | Cross-cutting guardrails — git push, recap/question ordering, context-mode usage, cleanup of background processes |
-| `wiki-navigation` | A: auditor-subagent, dev-rw, onboarder, operator, pathfinder, benchmarker, debugger, reviewer, test-generator | Living wiki navigation: read the index first, load the relevant pages, never the whole wiki |
+| `wiki-navigation` | A: auditor-subagent, dev-rw, onboarder, operator, pathfinder, benchmarker, debugger, reviewer | Living wiki navigation: read the index first, load the relevant pages, never the whole wiki |
 | `hub-workflow-reference` | A: orchestrator, planner | Agent catalog, pathfinder vs planner heuristic, standard sequences, handoff table. **Generated from the workflow** in the bundle |
 | `websearch-usage` | A: pathfinder · B: auditor-subagent, designer, documentarian, onboarder, planner | `websearch` tool good practices: targeted queries, source checking |
-| `living-docs-enrichment` | B: auditor, dev-rw, onboarder, operator, pathfinder, planner, benchmarker, debugger, reviewer, test-generator | Incremental enrichment of the wiki (`docs/wiki/`), `ONBOARDING.md` and `CONVENTIONS.md`; delegates writing to the documentarian after confirmation |
-| `team-awareness` | B: the 19 agents | Collaboration through the `team` MCP server (claims, status, activity) |
-| `team-policies-enforcement` | B: the 19 agents except conductor | Compliance with team policies |
+| `living-docs-enrichment` | B: auditor, dev-rw, onboarder, operator, pathfinder, planner, benchmarker, debugger, reviewer | Incremental enrichment of the wiki (`docs/wiki/`), `ONBOARDING.md` and `CONVENTIONS.md`; delegates writing to the documentarian after confirmation |
+| `team-awareness` | B: the 16 agents | Collaboration through the `team` MCP server (claims, status, activity) |
+| `team-policies-enforcement` | B: the 16 agents except conductor | Compliance with team policies |
 | `skill-authoring-protocol` | B: documentarian | Skill authoring — TDD RED/GREEN/REFACTOR, SDO checklist, anti-patterns, validation checklist |
 | `rtk-usage` | B: 15 agents | **Pre-v5** — RTK guide (see [Pre-v5 skills](#pre-v5-skills)) |
 | `context-mode-usage` | A: dev-rw | **Pre-v5** — usage of the context-mode `ctx_*` tools (see [Pre-v5 skills](#pre-v5-skills)) |
@@ -217,18 +217,18 @@ The last six are in no frontmatter: other skills mention them in their text, but
 | `onboarder-phase-5` | B: onboarder | Phase 5 — living wiki production |
 | `websearch-stack-research` | B: onboarder, pathfinder, planner | Stack, library and pattern research via websearch |
 
-### `developer/` — 19 generic skills + 40 stack skills
+### `developer/` — 21 generic skills + 40 stack skills
 
 | Skill | Agents | Content |
 |-------|--------|---------|
-| `dev-standards-universal` | A: dev-rw, reviewer, test-generator | Clean Code, SOLID, naming, structure — language-agnostic. Completion gate (tests, behavior, regressions) and `BLOCKED_ARCHITECTURE` signal |
+| `dev-standards-universal` | A: dev-rw, reviewer | Clean Code, SOLID, naming, structure — language-agnostic. Completion gate (tests, behavior, regressions) and `BLOCKED_ARCHITECTURE` signal |
 | `dev-standards-simplicity` | A: dev-rw | KISS, YAGNI, no premature abstraction or optimization, measurable complexity thresholds |
 | `quick-fix` | A: dev-rw | Deterministic fixes without review (lint, missing import, typo, formatting) |
 | `beads-dev` | A: dev-rw, documentarian | Beads executor workflow: `bd update --claim`, `bd close --suggest-next`, `ai-delegated` rules |
-| `beads-plan` | A: developer-refactor, developer-migrator, pathfinder · B: developer, designer, documentarian, onboarder, orchestrator, planner | Reading and creating Beads tickets: `bd list`, `bd show`, `bd create`, labels, dependencies, external links |
+| `beads-plan` | A: pathfinder · B: developer, designer, documentarian, onboarder, orchestrator, planner | Reading and creating Beads tickets: `bd list`, `bd show`, `bd create`, labels, dependencies, external links |
 | `developer-handoff-format` | A: dev-rw, orchestrator-dev | **Handoff contract** `## Return to orchestrator-dev`: modified files, tests, acceptance criteria, points of attention, status |
 | `dev-standards-security` | B: dev-rw, operator, reviewer | Secrets, input validation, injections, auth, logs, dependencies |
-| `dev-standards-testing` | A: test-generator · B: dev-rw, reviewer | Testing strategy, pyramid, coverage, TDD, completion gate |
+| `dev-standards-testing` | B: dev-rw, reviewer | Testing strategy, pyramid, coverage, TDD, completion gate |
 | `dev-standards-git` | A: documentarian · B: dev-rw, onboarder, reviewer | Conventional Commits, branches, PR/MR |
 | `dev-standards-backend` | B: reviewer | Layered architecture, DTOs, services, repositories |
 | `dev-standards-frontend` | B: reviewer | Logic/presentation separation, performance, bundle, lazy loading |
@@ -236,8 +236,10 @@ The last six are in no frontmatter: other skills mention them in their text, but
 | `dev-standards-frontend-a11y` | B: reviewer | WCAG 2.1 A/AA, semantic HTML, ARIA, contrast |
 | `dev-standards-api` | B: reviewer | Versioning, pagination, errors, idempotency, schema-first, breaking changes, webhooks |
 | `dev-standards-devops` | B: reviewer | Shell scripts, secrets, image registries, observability, IaC |
-| `dev-standards-refactoring` | B: developer-refactor | Refactoring patterns, impact analysis, small steps, test safety net |
-| `dev-standards-migration` | B: developer-migrator | Migrations (frameworks, versions, DB/ORM), Strangler Fig, rollback |
+| `dev-standards-refactoring` | B: dev-rw (domain `refactor`) | Refactoring patterns, impact analysis, small steps, test safety net |
+| `dev-standards-migration` | B: dev-rw (domain `migration`) | Migrations (frameworks, versions, DB/ORM), Strangler Fig, rollback, destructive migration protocol |
+| `dev-standards-database` | B: dev-rw | Schema (constraints, types, indexes), zero-downtime migrations (expand / contract), `EXPLAIN`, ORM pitfalls (N+1) |
+| `test-generation` | B: dev-rw (domain `tests`) | Tests on existing code: coverage gap analysis, priorities, unit, integration and property-based tests |
 | `dev-drift-detection` | B: orchestrator-dev | Architectural drift: signals, 3 options (revise scope / revert / branch off), report |
 | `dev-standards-security-hardening` | — | CORS, HTTP headers, hashing, JWT, sessions, rate limiting, encryption |
 
@@ -362,8 +364,8 @@ These files still exist in `skills/`. They describe behavior from before v5; som
 
 | Skill | Still shipped? | What changed in v5 |
 |-------|----------------|--------------------|
-| `shared/rtk-usage` | Yes — Bucket B of 15 agents, so in every shipped bundle except `brief-enrich` | RTK was installed as a global opencode V1 plugin (`oh plugin`, removed in v5). oh no longer installs it |
-| `shared/context-mode-usage` | Yes — Bucket A of `developer`, `developer-refactor`, `developer-migrator` | Describes the `ctx_*` tools of the `context-mode` plugin, which does not load under opencode V2. `universal-guardrails` mentions them too |
+| `shared/rtk-usage` | Yes — Bucket B of 13 agents, so in every shipped bundle except `brief-enrich` | RTK was installed as a global opencode V1 plugin (`oh plugin`, removed in v5). oh no longer installs it |
+| `shared/context-mode-usage` | Yes — Bucket A of `developer` | Describes the `ctx_*` tools of the `context-mode` plugin, which does not load under opencode V2. `universal-guardrails` mentions them too |
 | `orchestrator/orchestrator-dev-parallel` | Yes — Bucket B of `orchestrator-dev` (`feature`, `ticket`, `review-feedback`, `libre` bundles) | Simultaneous implementation in the session tree, then one `cp-2` and one commit per ticket (no worktree created by the agent, no grouped approval). For one session and one worktree per ticket: `oh run ticket --tickets a,b` |
 | `orchestrator/parallel-coordination` | Yes — Bucket B of `orchestrator-dev` | Describes the former parallel mode (external coordinator, monitor), removed in v5. See [Sessions v5](../guides/sessions-v5.en.md) |
 | `orchestrator/session-state-protocol` | Yes — Bucket B of `orchestrator-dev` | Writes `.opencode/session-state.json` via `scripts/lib/session-state.sh` (missing) for the former dashboard. In v5, session state comes from the `ohd` daemon |
@@ -503,12 +505,12 @@ A skill that is not in the hub is added to the **team catalogue** (`catalog/skil
 
 ## Agent ↔ skills matrix
 
-Summary of the frontmatter of the 19 agents (`agents/**/*.md`). For the per-agent view, see also the [Skill Assignment Matrix](./agents.en.md#skill-assignment-matrix-source-of-truth).
+Summary of the frontmatter of the 16 agents (`agents/**/*.md`). For the per-agent view, see also the [Skill Assignment Matrix](./agents.en.md#skill-assignment-matrix-source-of-truth).
 
 Common skills, not repeated in the table:
 
 - `shared/universal-guardrails` (A): all agents except `brief-enricher`;
-- `shared/team-awareness` (B): the 19 agents;
+- `shared/team-awareness` (B): the 16 agents;
 - `shared/team-policies-enforcement` (B): all except `conductor`;
 - `shared/rtk-usage` (B, [pre-v5](#pre-v5-skills)): the agents marked ¹.
 
@@ -524,15 +526,12 @@ Handoff skills (`*-handoff-format`) are loaded by both the producer and the cons
 | `onboarder` ¹ | onboarder-workflow, onboarder-handoff-format, onboarder-profiles, gitlab-onboarder-protocol, tool-question, wiki-navigation | dev-standards-git, onboarder-execution-modes, websearch-stack-research, onboarder-phase-0, -1, -2, -3-4, -5, living-docs-enrichment, websearch-usage, beads-plan, expert-posture |
 | `designer` ¹ | designer-protocol, design-planner-format, design-handoff-format, tool-question | ux-protocol, ui-protocol, figma-recon-protocol, figma-deep-protocol, prototype-protocol, designer-subagent, designer-standalone, websearch-design-patterns, design-principles, ui-patterns-reference, content-design, tui-patterns, websearch-usage, beads-plan, expert-posture |
 | `documentarian` ¹ | dev-standards-git, beads-dev, doc-protocol, tool-question, documentarian-handoff-format | doc-standards, doc-adr, doc-api, doc-changelog, doc-slides, doc-wiki-protocol, skill-authoring-protocol, websearch-usage, beads-plan, expert-posture |
-| `developer` ¹ | dev-standards-universal, dev-standards-simplicity, quick-fix, beads-dev, developer-handoff-format, subagent-concision-posture, wiki-navigation, context-mode-usage | dev-standards-security, dev-standards-git, dev-standards-testing, reviewer-reception, living-docs-enrichment, beads-plan |
-| `developer-refactor` ¹ | dev-standards-universal, dev-standards-simplicity, quick-fix, beads-plan, beads-dev, developer-handoff-format, subagent-concision-posture, wiki-navigation, context-mode-usage | dev-standards-security, dev-standards-testing, dev-standards-git, dev-standards-refactoring, living-docs-enrichment |
-| `developer-migrator` ¹ | dev-standards-universal, dev-standards-simplicity, quick-fix, beads-plan, beads-dev, developer-handoff-format, subagent-concision-posture, wiki-navigation, context-mode-usage | dev-standards-security, dev-standards-testing, dev-standards-git, dev-standards-migration, living-docs-enrichment |
+| `developer` ¹ | dev-standards-universal, dev-standards-simplicity, quick-fix, beads-dev, developer-handoff-format, subagent-concision-posture, wiki-navigation, context-mode-usage | dev-standards-security, dev-standards-git, dev-standards-testing, dev-standards-refactoring, dev-standards-migration, dev-standards-database, test-generation, reviewer-reception, living-docs-enrichment, beads-plan |
 | `reviewer` ¹ | dev-standards-universal, review-protocol, concision-posture, tool-question, reviewer-handoff-format, wiki-navigation | reviewer-standalone, reviewer-subagent, reviewer-adversarial, reviewer-edge-case, review-merge, dev-standards-security, -backend, -frontend, -frontend-data, -frontend-a11y, -testing, -git, -api, -devops, living-docs-enrichment |
 | `debugger` ¹ | debugger-workflow, debugger-handoff-format, debugger-forensic, debugger-report-templates, tool-question, wiki-navigation | debugger-execution-modes, debugger-phase-0-1, -2-3, -4-5, living-docs-enrichment, expert-posture |
 | `auditor` ¹ | coordination-only, retranscription-coordinateur, auditor-workflow, audit-protocol-light, audit-handoff-format, tool-question | auditor-execution-modes, living-docs-enrichment |
 | `auditor-subagent` ¹ | audit-protocol-light, subagent-concision-posture, audit-handoff-format, wiki-navigation | websearch-cve-lookup, websearch-performance-research, expert-posture, websearch-usage |
 | `operator` ¹ | tool-question, wiki-navigation | dev-standards-security, living-docs-enrichment |
-| `test-generator` | dev-standards-universal, dev-standards-testing, tool-question, wiki-navigation | living-docs-enrichment |
 | `benchmarker` | tool-question, wiki-navigation | living-docs-enrichment |
 | `brief-enricher` | — (`skills: []`) | — (common skills only) |
 

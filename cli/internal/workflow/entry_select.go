@@ -28,7 +28,7 @@ func (r *Resolved) SelectEntry(id string, agents AgentCatalog) Diagnostics {
 		return diags
 	}
 	if _, ok := agents.Agent(id); !ok {
-		add(errDiag("session_entry_unknown", "session.agent", id))
+		add(unknownAgentDiag("session_entry_unknown", "session.agent", id))
 		return diags
 	}
 	var all []string

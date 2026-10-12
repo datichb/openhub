@@ -34,7 +34,7 @@
 <Répéter pour chaque ticket traité — minimum 1-2 lignes par ticket. Omettre pour les tickets ignorés.>
 
 ### Points d'attention globaux
-- <point 1 — agrégation des points signalés par developer, developer-refactor, developer-migrator, reviewer>
+- <point 1 — agrégation des points signalés par developer et reviewer>
 - <point 2>
 <"Aucun point d'attention global" si tous les tickets sont propres>
 

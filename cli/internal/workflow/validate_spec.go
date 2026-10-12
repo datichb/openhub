@@ -211,7 +211,7 @@ func (v *validator) entry() {
 		info, ok := v.env.Agents.Agent(entry)
 		if !ok {
 			if !listed { // a listed agent is reported by agents()
-				v.err("agent_unknown", v.entryPath(), entry)
+				v.add(unknownAgentDiag("agent_unknown", v.entryPath(), entry))
 			}
 			return
 		}
@@ -458,7 +458,7 @@ func (v *validator) agents() {
 		}
 		if v.env.Agents != nil {
 			if _, ok := v.env.Agents.Agent(k); !ok {
-				v.err("agent_unknown", base, k)
+				v.add(unknownAgentDiag("agent_unknown", base, k))
 			}
 		}
 		if a.After != "" {
