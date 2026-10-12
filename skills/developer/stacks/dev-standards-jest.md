@@ -5,6 +5,8 @@ description: Standards Jest — configuration, mocking (jest.mock, jest.fn, jest
 
 # Skill — Standards Jest
 
+> Versions de référence (octobre 2026) : Jest 30, ts-jest 29.4.
+
 ## Rôle
 
 Ce skill définit les bonnes pratiques pour les tests avec Jest.
@@ -39,6 +41,9 @@ const config: Config = {
 
 export default config
 ```
+
+- `ts-jest` ne prend pas en charge TypeScript 7 (peer `typescript <7`) : garder TypeScript 6 pour Jest (alias npm) ou passer à `@swc/jest`
+- Jest 30 : les alias de matchers (`toBeCalled`, `toBeCalledWith`, `toReturn`…) sont supprimés — utiliser `toHaveBeenCalled*` / `toHaveReturned*` ; `--testPathPattern` devient `--testPathPatterns`
 
 ---
 
