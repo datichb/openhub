@@ -31,7 +31,7 @@ L'agent qui applique ce skill ne fait que :
 1. Consolider les découvertes issues de son travail
 2. Formuler le tag de confiance approprié pour chaque enrichissement
 3. Proposer l'enrichissement à l'utilisateur
-4. Invoquer le `documentarian` si l'utilisateur accepte
+4. Invoquer le `documentarian` si l'utilisateur accepte — et seulement s'il figure dans ta colonne « Peut déléguer à » de la carte du workflow (sinon, ÉTAPE 3)
 
 **Chaîne de dépendances complète :**
 
@@ -265,6 +265,8 @@ Avant tout appel à `question`, afficher en texte clair :
 
 ### ÉTAPE 3 — Demander confirmation (si nécessaire)
 
+**Workflow sans documentarian** (workflows en lecture seule comme `audit` ou `review`) : Si `documentarian` n'est pas dans ta colonne « Peut déléguer à » (carte du workflow), ne l'invoque pas : liste les enrichissements dans `### Enrichissements wiki proposés` de ton rapport et propose une session `oh run libre --agent documentarian`. Ne pose pas la question de délégation ci-dessous et arrête ce skill ici.
+
 **Règle de triage automatique :**
 - Si **tous** les enrichissements proposés sont tagués `CONFIRMÉ` → **auto-délégation** : passer directement à l'ÉTAPE 4 sans poser de question. Afficher :
   `> 💾 Wiki documentaire : X enrichissements CONFIRMÉ — délégation automatique au documentarian.`
@@ -294,6 +296,8 @@ question({
 ---
 
 ### ÉTAPE 4 — Déléguer au documentarian
+
+Si `documentarian` n'est pas dans ta colonne « Peut déléguer à » (carte du workflow), ne l'invoque pas : liste les enrichissements dans `### Enrichissements wiki proposés` de ton rapport et propose une session `oh run libre --agent documentarian`.
 
 Invoquer le `documentarian` via l'outil `task` avec un prompt structuré :
 
