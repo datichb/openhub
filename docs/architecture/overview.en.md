@@ -229,6 +229,7 @@ Implementing and diagnosing are given to different agents (developer, debugger);
 | [049](./adr/049-tool-independence-architecture-guard.en.md) | Tool independence and architecture guard | evolves 038 |
 | [050](./adr/050-session-context-capability.en.md) | Evolving session state through an adapter capability | evolves 047 |
 | [051](./adr/051-community-skills-disconnection.en.md) | Community skills registry disconnected | partly replaces 027 (skill marketplace) |
+| [052](./adr/052-beads-identity-provenance.en.md) | Beads identity and provenance: `--readonly`, actor, provenance events | evolves 046 |
 
 All ADRs: [`docs/architecture/adr/`](./adr/).
 

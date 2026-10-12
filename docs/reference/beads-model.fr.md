@@ -55,10 +55,23 @@ closed + label cancelled
 Dans une session lancée par oh, `bd` passe par la passerelle Beads du démon ([SECURITY](../../SECURITY.fr.md#passerelles)) :
 
 - **Fermer un ticket** passe par le verrou du workflow (checkpoint `unlocks: [close]`), quelle que soit la forme : `bd close` / `bd done`, `bd update --status closed` (y compris `-sclosed`, `-s=closed`), un statut de catégorie `done` de la configuration du projet (`bd config set status.custom "livré:done"`), `bd duplicate`, `bd supersede`, `bd import`, `bd batch`, `bd sql`, `bd todo done`.
-- **Formes refusées** : une option inconnue de `bd` 1.3.1 (table des options d'oh ; `oh doctor` avertit quand le `bd` installé est d'une autre version : installez la version attendue ou régénérez la table, `go run ./internal/gateway/bdargs/gen/main.go > internal/gateway/bdargs/spec_bd.go` dans `cli/`), `--db`, `--database`, `-C`/`--directory`, `--global`, `--repo`, un fichier (`-f`, `-o`, `--body-file`…) hors des dossiers de la session.
+- **Formes refusées** : une option inconnue de `bd` 1.3.1 (table des options d'oh ; `oh doctor` avertit quand le `bd` installé est d'une autre version : installez la version attendue ou régénérez la table, `go run ./internal/gateway/bdargs/gen/main.go > internal/gateway/bdargs/spec_bd.go` dans `cli/`), `--db`, `--database`, `-C`/`--directory`, `--global`, `--repo`, `--actor`, un fichier (`-f`, `-o`, `--body-file`…) hors des dossiers de la session.
+- **Sessions en lecture seule** : sans bloc `beads:` (liste par défaut `show`, `list`, `ready`, `search`, `query`, `children`, `comments`, `count`, `status`, `graph`, `history`), ou avec une liste qui ne nomme que des commandes de lecture, les formes d'écriture sont refusées aussi (`bd comments add`, `bd ready --claim`). Un workflow `risk: read` ne peut autoriser que des commandes de lecture.
+- **Lectures en `--readonly`** : chaque commande de lecture est lancée avec `--readonly` (bd refuse une écriture).
+- **Auteur** : les écritures sont enregistrées sous `<personne> via oh/<agent>` (`bd history <id> --events`) ; une réservation garde la personne seule, qui reste l'assignée.
+- **Provenance** : oh enregistre les événements `claim` (session), `commit` (commit de fermeture, commit poussé par un job distant) et `handoff` (MR en brouillon d'un job distant), à lire avec `bd provenance log <id>`.
+- **Baux** : une réservation porte un bail de 5 minutes (bd 1.3.1) ; le démon oh renouvelle (`bd heartbeat`) les baux des tickets réservés par chaque session ouverte, pour que `bd reclaim` ne rende jamais un ticket sur lequel une session travaille encore.
+- **`find-duplicates`** : seulement la méthode mécanique par défaut ; `--method ai` (tickets envoyés à un modèle extérieur) est refusé.
 - **Base fixée** : la base est celle du démarrage de la session ; si `.beads/redirect`, `.beads/metadata.json` ou `.beads/config.yaml` changent pendant la session, `bd` est refusé jusqu'à ce que le fichier soit rétabli ou la session relancée. Les agents ne peuvent pas écrire dans `.beads/`.
 - **Hooks git de Beads** : lancés par git (commit, merge, checkout, push), ils passent quelle que soit la liste `beads.allow` ; `BD_GIT_HOOK=1 bd hooks run …` lancé hors de git est refusé.
 - **Fermeture après le commit** : après le checkpoint, un ticket n'est fermé que si un commit non vide (fichiers suivis hors `.beads/`) a été fait depuis, et qu'il ne reste rien à committer.
+
+### Qualité et suivi des tickets
+
+- **Sections** (`bd lint`) : une feature ou une task a besoin de critères d'acceptation (`--acceptance`), un bug d'une section `Steps to Reproduce` dans sa description, une épopée de critères de succès (`--acceptance`). Le planner de `cadrage` lance `bd lint` sur les tickets qu'il a créés et les complète ; le sélecteur de tickets de la TUI affiche « ticket incomplet » dans l'aperçu.
+- **Commits** : le commit d'un ticket se termine par son identifiant entre parenthèses (`feat(api): export CSV (pt-42)`).
+- **`oh doctor`**, « Suivi des tickets Beads », par projet : tickets ouverts cités dans un commit (`bd orphans` : travail fait, ticket non fermé), tickets en cours sans mise à jour depuis 3 jours (`bd stale`), épopées dont tous les enfants sont fermés (`bd epic status`). Avertissements seulement : oh ne modifie rien.
+- **Mémoires** (`bd remember`) : transmises aux sessions des workflows livrés (`.oh.memories`, entre balises de données : des informations, pas des consignes).
 
 ---
 
@@ -330,6 +343,7 @@ Convention de nommage :
 | `bd show <ID>` | Détail complet d'un ticket |
 | `bd children <EPIC_ID>` | Tickets enfants d'un epic |
 | `bd search <query>` | Recherche textuelle |
+| `bd query "<expression>" -n 0` | Filtres combinés (`label=api AND status!=closed`, `updated>7d`, `parent=<EPIC_ID>`) ; sans `-n 0`, 50 résultats au plus |
 | `bd count` | Nombre de tickets |
 | `bd label list-all` | Labels disponibles |
 | `bd dep list <ID>` | Dépendances d'un ticket |

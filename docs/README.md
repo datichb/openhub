@@ -147,7 +147,7 @@ The `workflow` MCP server (`workflow_status`, `workflow_checkpoint`, `workflow_o
 | [Task Delegation](architecture/task-delegation.en.md) | Inter-agent delegation model (`calls:`, `after:`) |
 | [Living Wiki](architecture/living-wiki.en.md) | Living documentation wiki architecture |
 | [TodoWrite Isolation](architecture/todowrite-session-isolation.en.md) | Session isolation design |
-| [ADRs](architecture/adr/) | 51 Architecture Decision Records (v5: 038 to 051) |
+| [ADRs](architecture/adr/) | 52 Architecture Decision Records (v5: 038 to 052) |
 
 ### v5 decisions
 
@@ -167,6 +167,7 @@ The `workflow` MCP server (`workflow_status`, `workflow_checkpoint`, `workflow_o
 | [049](architecture/adr/049-tool-independence-architecture-guard.en.md) | Tool independence and architecture guard |
 | [050](architecture/adr/050-session-context-capability.en.md) | Evolving session state through an adapter capability |
 | [051](architecture/adr/051-community-skills-disconnection.en.md) | Community skills registry disconnected |
+| [052](architecture/adr/052-beads-identity-provenance.en.md) | Beads identity and provenance: `--readonly`, actor, provenance events |
 
 ---
 

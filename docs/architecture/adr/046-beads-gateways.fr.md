@@ -4,7 +4,7 @@
 
 ## Statut
 
-Accepté
+Accepté — évolué par l'[ADR-052](052-beads-identity-provenance.fr.md) (`--readonly` sur les lectures, auteur fixé par oh, événements de provenance)
 
 ## Date
 

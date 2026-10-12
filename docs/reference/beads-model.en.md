@@ -55,10 +55,23 @@ closed + label cancelled
 In a session started by oh, `bd` goes through the Beads gateway of the daemon ([SECURITY](../../SECURITY.md#gateways)):
 
 - **Closing a ticket** goes through the workflow lock (checkpoint `unlocks: [close]`), whatever the form: `bd close` / `bd done`, `bd update --status closed` (including `-sclosed`, `-s=closed`), a status of category `done` in the project configuration (`bd config set status.custom "shipped:done"`), `bd duplicate`, `bd supersede`, `bd import`, `bd batch`, `bd sql`, `bd todo done`.
-- **Refused forms**: a flag unknown to `bd` 1.3.1 (oh's flag table; `oh doctor` warns when the installed `bd` is another version: install the expected version or regenerate the table, `go run ./internal/gateway/bdargs/gen/main.go > internal/gateway/bdargs/spec_bd.go` in `cli/`), `--db`, `--database`, `-C`/`--directory`, `--global`, `--repo`, a file (`-f`, `-o`, `--body-file`…) outside the session folders.
+- **Refused forms**: a flag unknown to `bd` 1.3.1 (oh's flag table; `oh doctor` warns when the installed `bd` is another version: install the expected version or regenerate the table, `go run ./internal/gateway/bdargs/gen/main.go > internal/gateway/bdargs/spec_bd.go` in `cli/`), `--db`, `--database`, `-C`/`--directory`, `--global`, `--repo`, `--actor`, a file (`-f`, `-o`, `--body-file`…) outside the session folders.
+- **Read-only sessions**: without a `beads:` block (default list `show`, `list`, `ready`, `search`, `query`, `children`, `comments`, `count`, `status`, `graph`, `history`), or with a list naming only read commands, the write forms are refused too (`bd comments add`, `bd ready --claim`). A `risk: read` workflow may only allow read commands.
+- **Reads with `--readonly`**: every read command runs with `--readonly` (bd refuses a write).
+- **Actor**: writes are recorded as `<person> via oh/<agent>` (`bd history <id> --events`); a claim keeps the person alone, who stays the assignee.
+- **Provenance**: oh records `claim` (session), `commit` (closing commit, pushed commit of a remote job) and `handoff` (draft MR of a remote job) events, read with `bd provenance log <id>`.
+- **Leases**: a claim carries a 5-minute lease (bd 1.3.1); the oh daemon refreshes (`bd heartbeat`) the leases of the tickets claimed by every open session, so that `bd reclaim` never gives back a ticket a session still works on.
+- **`find-duplicates`**: only the default mechanical method; `--method ai` (tickets sent to an outside model) is refused.
 - **Fixed database**: the database is the one of the session start; when `.beads/redirect`, `.beads/metadata.json` or `.beads/config.yaml` change during the session, `bd` is refused until the file is restored or the session restarted. Agents cannot write to `.beads/`.
 - **Git hooks of Beads**: run by git (commit, merge, checkout, push), they go through whatever `beads.allow` says; `BD_GIT_HOOK=1 bd hooks run …` run outside git is refused.
 - **Closing after the commit**: after the checkpoint, a ticket is closed only when a non-empty commit (tracked files outside `.beads/`) was made since, and nothing is left to commit.
+
+### Ticket quality and follow-up
+
+- **Sections** (`bd lint`): a feature or a task needs acceptance criteria (`--acceptance`), a bug a `Steps to Reproduce` section in its description, an epic success criteria (`--acceptance`). The planner of `cadrage` runs `bd lint` on the tickets it created and completes them; the ticket picker of the TUI shows « incomplete ticket » in the preview.
+- **Commits**: the commit of a ticket ends with its id in parentheses (`feat(api): CSV export (pt-42)`).
+- **`oh doctor`**, « Beads ticket follow-up », per project: open tickets named in a commit (`bd orphans`: work done, ticket not closed), tickets in progress not updated for 3 days (`bd stale`), epics whose children are all closed (`bd epic status`). Warnings only: oh changes nothing.
+- **Memories** (`bd remember`): given to the sessions of the shipped workflows (`.oh.memories`, inside data tags: information, not instructions).
 
 ---
 
@@ -330,6 +343,7 @@ Naming convention:
 | `bd show <ID>` | Full ticket detail |
 | `bd children <EPIC_ID>` | Child tickets of an epic |
 | `bd search <query>` | Text search |
+| `bd query "<expression>" -n 0` | Compound filters (`label=api AND status!=closed`, `updated>7d`, `parent=<EPIC_ID>`); without `-n 0`, 50 results at most |
 | `bd count` | Number of tickets |
 | `bd label list-all` | Available labels |
 | `bd dep list <ID>` | Dependencies of a ticket |

@@ -9,6 +9,37 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ## [Unreleased]
 
+### Security — passerelle Beads : lecture seule, auteur, provenance (ADR-052) — ⚠ changement de comportement
+
+- **Sessions en lecture seule vraiment en lecture seule** : une liste `beads.allow` qui ne nomme que des commandes de lecture (liste par défaut comprise, sans bloc `beads:`) refuse aussi les formes d'écriture de ces commandes. `bd comments add` et `bd ready --claim` passaient jusque-là avec la liste par défaut ; ils sont refusés (« … écrit dans Beads, mais cette session est en lecture seule »), sur la machine comme au rejeu d'un journal distant.
+- **`risk: read`** : chaque entrée de `beads.allow` doit nommer une commande de lecture de bd (liste fermée d'oh). L'ancienne liste noire oubliait `note`, `assign`, `tag`, `priority`, `defer`, `todo`, `batch`, `import`, `kv`, `remember`, `heartbeat`, `rename`, `config`… : un workflow `risk: read` qui en autorise une devient invalide (`read_beads_write`). `comments` (lecture) y est maintenant accepté.
+- **`--readonly` sur chaque lecture** : la passerelle lance toute commande de lecture (`show`, `list`, `query`, `comments`…) avec `bd --readonly`, pour que bd refuse lui-même une écriture derrière la liste blanche. Deuxième protection seulement : bd 1.3.1 laisse encore passer `config set`, `hooks install`, `backup` et `import` dans ce mode. Dans un job distant, le faux `bd` en mode journal refuse une écriture marquée `--readonly`, et une lecture qu'il ne sait pas servir (`query`…) échoue au lieu d'être enregistrée.
+- **Auteur fixé par oh** : chaque écriture porte `--actor="<personne> via oh/<agent>"` (`user.name` de git dans l'emplacement de la session ; agent d'entrée ou sous-agent), visible dans `bd history <id> --events`. Une réservation (`--claim`, `--status in_progress`) garde la personne seule, qui reste l'assignée du ticket. `--actor` est refusé aux agents. Au rejeu d'une session distante, l'auteur devient la personne de la machine et l'agent du job, marqué `(remote)`.
+
+### Added — provenance Beads et `bd query`
+
+- **Provenance** (`bd provenance record --source=oh`, journal sans modification possible) : oh relie un ticket réservé à la session (`claim`, `work-id`), un ticket fermé au commit de fermeture (`commit`, `git-sha`, avec la branche), et, pour une session distante, à l'envoi (`claim`), au commit poussé (`commit`) et à la MR en brouillon (`handoff`, `pr`). À lire avec `bd provenance log <id>`. Un échec est seulement journalisé. Les agents ne peuvent pas enregistrer de provenance.
+- **`bd query`** dans la liste Beads par défaut (lecture) ; `beads.Query` / `beads.QueryExpr` côté code (valeurs entre guillemets : un label ou un titre ne change jamais l'expression, sans la limite de 50 résultats de bd).
+
+### Removed
+
+- `beads.AddNote`, jamais appelée, qui utilisait l'option `--note` inexistante dans bd 1.3.1.
+
+### Added — qualité et suivi des tickets Beads
+
+- **Contrat du format JSON de bd** (`internal/beads/bdschema`) : schéma des enregistrements de bd 1.3.1 (`bd schema`) embarqué, liste des champs lus par oh ; les tests vérifient que chaque structure qui décode bd n'utilise que des champs déclarés, et que le bd installé les fournit toujours. **`oh doctor`** (« Beads : format JSON de bd ») avertit quand le bd installé n'a plus un champ lu par oh.
+- **`bd lint`** : le planner de `cadrage` vérifie les tickets qu'il a créés (critères d'acceptation, `Steps to Reproduce` d'un bug, critères de succès d'une épopée) et les complète ; les modèles d'épopée et de bug ont les sections attendues. Le sélecteur de tickets de la TUI affiche « ticket incomplet (bd lint) » dans l'aperçu. `lint` et `find-duplicates` rejoignent la liste Beads de `cadrage`, `lint` celle de `debug`.
+- **Doublons** : le planner cherche les doublons des tickets créés (`bd find-duplicates`, méthode mécanique) et les signale. La passerelle refuse `find-duplicates --method ai`, qui enverrait les tickets à un modèle extérieur.
+- **`oh doctor`, « Suivi des tickets Beads »** (par projet, avertissements seulement) : tickets ouverts cités dans un commit (`bd orphans`), tickets en cours sans mise à jour depuis 3 jours (`bd stale`), épopées dont tous les enfants sont fermés (`bd epic status`). Le message de commit d'un ticket se termine désormais par son identifiant entre parenthèses (`feat(api): export CSV (pt-42)`), ce qui permet cette détection.
+- **Baux des sessions locales** : bd 1.3.1 fait expirer une réservation au bout de 5 minutes sans `bd heartbeat` ; `bd reclaim` pouvait alors rendre un ticket sur lequel une session travaillait. Le démon renouvelle chaque minute les baux des tickets réservés par les sessions ouvertes (comme il le faisait déjà pour les sessions distantes).
+- **Mémoires du projet** (`bd remember`) transmises aux sessions des workflows livrés : nouvelle variable de prompt `.oh.memories`, déjà entre balises de données (des informations, pas des consignes ; 4 000 caractères au plus).
+- **`bd query`** dans les listes Beads des workflows livrés qui avaient `search`, et dans les permissions du planner, du pathfinder, de l'onboarder et du debugger.
+
+### Fixed — lecture des tickets Beads
+
+- **Listes tronquées** : `bd list` s'arrête à 50 tickets et `bd ready` à 100 par défaut ; le sélecteur de tickets de la TUI, le tableau et les autres listes d'oh n'affichaient pas les suivants. oh demande maintenant tous les tickets (`-n 0`).
+- **Assigné d'un ticket** : la fiche d'un ticket (tableau de la TUI) affichait le créateur (`owner`) comme assigné.
+
 ### Added — lancement sur un ticket déjà en cours
 
 - **Détection par ticket** : au lancement, oh cherche les sessions ouvertes (ni arrêtées ni en échec) du projet qui travaillent sur un des tickets, quel que soit leur workflow. Une session d'un autre workflow est signalée pour information (la nouvelle démarre à côté) ; une session **du même workflow** demande un choix : sans choix, le lancement est refusé (« La session … travaille déjà sur … : choisissez quoi faire avec --on-existing=… »).

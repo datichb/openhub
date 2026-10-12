@@ -111,10 +111,11 @@ A writing session (`risk` other than `read`) gets a worktree when another writin
 beads: { allow: [show, list, update, close] }
 ```
 
-- Absent: no declared restriction. The Beads gateway then applies a read-only list (`show`, `list`, `ready`, `search`, `children`, `comments`, `count`, `status`, `graph`, `history`). Every shipped workflow declares its list.
+- Absent: no declared restriction. The Beads gateway then applies a read-only list (`show`, `list`, `ready`, `search`, `query`, `children`, `comments`, `count`, `status`, `graph`, `history`). Every shipped workflow declares its list.
 - `allow: []`: no command allowed.
+- A list that names only read commands (`show`, `list`, `query`, `comments`, `dep tree`…) is read-only: the write forms of those commands are refused (`comments add`, `ready --claim`). With `risk: read`, every entry must name a read command (`read_beads_write`). See [ADR-052](../architecture/adr/052-beads-identity-provenance.en.md).
 - The list is applied by the daemon's Beads gateway in every runtime (locally, oh's fake `bd` comes first on the session `PATH`; a `bd` called by a path is refused) and when the journal is replayed (remote). See [ADR-046](../architecture/adr/046-beads-gateways.en.md).
-- Patch: a parent without `beads` stands for the default read-only list (the one the gateway applies: `show`, `list`, `ready`, `search`, `children`, `comments`, `count`, `status`, `graph`, `history`): the child list must be a subset of it (`create`, `close`… are a loosening). On a parent with a list, the new list must be a subset of it; `beads: null` is a loosening.
+- Patch: a parent without `beads` stands for the default read-only list (the one the gateway applies: `show`, `list`, `ready`, `search`, `query`, `children`, `comments`, `count`, `status`, `graph`, `history`): the child list must be a subset of it (`create`, `close`… are a loosening). On a parent with a list, the new list must be a subset of it; `beads: null` is a loosening.
 
 ### `runtime`
 
@@ -253,7 +254,7 @@ prompt:
 | `text` | text | inline template |
 
 - Exactly one of the two (`prompt_both`, `prompt_empty`). Absent: no first message (the session waits for the user).
-- **Variables**: inputs at the top level (`{{ .ticket }}`); the session context under `.oh`: `.oh.project`, `.oh.location`, `.oh.mode`, `.oh.runtime`, `.oh.lang`, `.oh.workflow`. Any other variable: `prompt_unknown_variable`.
+- **Variables**: inputs at the top level (`{{ .ticket }}`); the session context under `.oh`: `.oh.project`, `.oh.location`, `.oh.mode`, `.oh.runtime`, `.oh.lang`, `.oh.workflow`, `.oh.branch`, `.oh.memories` (persistent memories of the project's Beads, `bd remember`, already inside data tags; empty without any). Any other variable: `prompt_unknown_variable`.
 - **Functions**:
   - `{{ data "request" .request }}` writes the value, truncated. A computed input (`from:`) goes between `<oh:data name="…">` and `</oh:data>`: the agent treats it as data, never as instructions (a tag inside the value is neutralised). An input typed by the user is written as it is: it is their request. Every `string` or `text` input must go through `data`.
   - `{{ join .tickets ", " }}` joins a list.

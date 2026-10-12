@@ -111,10 +111,11 @@ Une session qui écrit (`risk` autre que `read`) reçoit un worktree si une autr
 beads: { allow: [show, list, update, close] }
 ```
 
-- Absent : pas de restriction déclarée. La passerelle Beads applique alors une liste en lecture seule (`show`, `list`, `ready`, `search`, `children`, `comments`, `count`, `status`, `graph`, `history`). Les workflows livrés déclarent tous leur liste.
+- Absent : pas de restriction déclarée. La passerelle Beads applique alors une liste en lecture seule (`show`, `list`, `ready`, `search`, `query`, `children`, `comments`, `count`, `status`, `graph`, `history`). Les workflows livrés déclarent tous leur liste.
 - `allow: []` : aucune commande permise.
+- Une liste qui ne nomme que des commandes de lecture (`show`, `list`, `query`, `comments`, `dep tree`…) est en lecture seule : les formes d'écriture de ces commandes sont refusées (`comments add`, `ready --claim`). Avec `risk: read`, chaque entrée doit nommer une commande de lecture (`read_beads_write`). Voir l'[ADR-052](../architecture/adr/052-beads-identity-provenance.fr.md).
 - La liste est appliquée par la passerelle Beads du démon dans tous les environnements (en local, le faux `bd` d'oh passe en tête du `PATH` de la session ; un `bd` appelé par un chemin est refusé) et au rejeu du journal (distant). Voir [ADR-046](../architecture/adr/046-beads-gateways.fr.md).
-- Patch : un parent sans `beads` vaut la liste en lecture seule par défaut (celle qu'applique la passerelle : `show`, `list`, `ready`, `search`, `children`, `comments`, `count`, `status`, `graph`, `history`) : la liste de l'enfant doit en être un sous-ensemble (`create`, `close`… sont un assouplissement). Sur un parent avec liste, la nouvelle liste doit en être un sous-ensemble ; `beads: null` est un assouplissement.
+- Patch : un parent sans `beads` vaut la liste en lecture seule par défaut (celle qu'applique la passerelle : `show`, `list`, `ready`, `search`, `query`, `children`, `comments`, `count`, `status`, `graph`, `history`) : la liste de l'enfant doit en être un sous-ensemble (`create`, `close`… sont un assouplissement). Sur un parent avec liste, la nouvelle liste doit en être un sous-ensemble ; `beads: null` est un assouplissement.
 
 ### `runtime`
 
@@ -253,7 +254,7 @@ prompt:
 | `text` | texte | gabarit en ligne |
 
 - Exactement un des deux (`prompt_both`, `prompt_empty`). Absent : pas de premier message (la session attend l'utilisateur).
-- **Variables** : les entrées au premier niveau (`{{ .ticket }}`) ; le contexte de session sous `.oh` : `.oh.project`, `.oh.location`, `.oh.mode`, `.oh.runtime`, `.oh.lang`, `.oh.workflow`. Toute autre variable : `prompt_unknown_variable`.
+- **Variables** : les entrées au premier niveau (`{{ .ticket }}`) ; le contexte de session sous `.oh` : `.oh.project`, `.oh.location`, `.oh.mode`, `.oh.runtime`, `.oh.lang`, `.oh.workflow`, `.oh.branch`, `.oh.memories` (mémoires persistantes du Beads du projet, `bd remember`, déjà entre balises de données ; vide sans mémoire). Toute autre variable : `prompt_unknown_variable`.
 - **Fonctions** :
   - `{{ data "request" .request }}` écrit la valeur, tronquée. Une entrée calculée (`from:`) est placée entre `<oh:data name="…">` et `</oh:data>` : l'agent la traite comme une donnée, jamais comme une consigne (une balise contenue dans la valeur est neutralisée). Une entrée saisie par l'utilisateur est écrite telle quelle : c'est sa demande. Toute entrée `string` ou `text` doit passer par `data`.
   - `{{ join .tickets ", " }}` joint une liste.

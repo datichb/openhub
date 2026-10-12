@@ -4,7 +4,7 @@
 
 ## Status
 
-Accepted
+Accepted — evolved by [ADR-052](052-beads-identity-provenance.en.md) (`--readonly` on reads, actor set by oh, provenance events)
 
 ## Date
 
