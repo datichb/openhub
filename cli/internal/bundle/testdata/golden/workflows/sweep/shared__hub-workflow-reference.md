@@ -11,11 +11,9 @@ Agent d'entrée : `conductor`. Seuls les agents ci-dessous existent dans cette s
 
 | Agent | Rôle | Mode | Après | Peut déléguer à |
 |---|---|---|---|---|
-| `conductor` | workflow (entrée) | primary | — | `developer`, `developer-migrator`, `developer-refactor`, `pathfinder`, `reviewer` |
+| `conductor` | workflow (entrée) | primary | — | `developer`, `pathfinder`, `reviewer` |
 | `pathfinder` | workflow | subagent | — | — |
 | `developer` | workflow | subagent | `cp-plan` | — |
-| `developer-refactor` | workflow | subagent | `cp-plan` | — |
-| `developer-migrator` | workflow | subagent | `cp-plan` | — |
 | `reviewer` | workflow | subagent | `cp-plan` | — |
 
 Règles de délégation :

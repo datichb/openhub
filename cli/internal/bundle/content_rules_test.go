@@ -129,7 +129,12 @@ func TestAgentInstructionsMatchPermissions(t *testing.T) {
 	}
 	designer := agentRules(feature, "designer", sessionspec.ActionShell)
 	assert.Equal(t, sessionspec.EffectAllow, eff(designer, "bd list"), "designer: bd list without argument")
-	assert.NotEmpty(t, agentRules(feature, "developer-migrator", sessionspec.ActionWebFetch), "developer-migrator reads changelogs on the web")
+	// C1: the developer runs the DB migration commands of the former
+	// developer-migrator (domain migration).
+	dev := agentRules(feature, "developer", sessionspec.ActionShell)
+	for _, c := range []string{"alembic upgrade head", "python manage.py migrate --plan", "python manage.py makemigrations", "rails db:migrate", "rails db:rollback", "flask db upgrade", "npx prisma migrate diff"} {
+		assert.Equal(t, sessionspec.EffectAllow, eff(dev, c), "developer: %s", c)
+	}
 
 	sweep := shippedBundle(t, "sweep")
 	for _, action := range []string{sessionspec.ActionRead, "glob", "grep"} {

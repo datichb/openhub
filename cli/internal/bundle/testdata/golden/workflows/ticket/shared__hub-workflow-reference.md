@@ -11,10 +11,8 @@ Agent d'entrée : `orchestrator-dev`. Seuls les agents ci-dessous existent dans 
 
 | Agent | Rôle | Mode | Après | Peut déléguer à |
 |---|---|---|---|---|
-| `orchestrator-dev` | workflow (entrée) | primary | — | `developer`, `developer-migrator`, `developer-refactor`, `documentarian`, `reviewer` |
+| `orchestrator-dev` | workflow (entrée) | primary | — | `developer`, `documentarian`, `reviewer` |
 | `developer` | workflow | subagent | `cp-1` | `documentarian` |
-| `developer-refactor` | workflow | subagent | `cp-1` | `documentarian` |
-| `developer-migrator` | workflow | subagent | `cp-1` | `documentarian` |
 | `reviewer` | workflow | subagent | — | `documentarian` |
 | `documentarian` | independent | primary | — | — |
 

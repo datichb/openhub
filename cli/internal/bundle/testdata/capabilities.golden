@@ -1,20 +1,5 @@
-beads  review-feedback/developer: bd update x --claim
-beads  sweep/developer-migrator: bd comments add x "Migration destructive détectée — escalade requise avant exécution. Voir handoff."
-beads  sweep/developer-migrator: bd ready --label ai-delegated --json
-beads  sweep/developer-migrator: bd update x --claim
-beads  sweep/developer-migrator: bd update x -s blocked
-beads  sweep/developer-refactor: bd ready --label ai-delegated --json
-beads  sweep/developer-refactor: bd update x --claim
-beads  sweep/developer: bd update x --claim
-cp     feature/developer-migrator: cp-commit
-cp     feature/developer-refactor: cp-commit
-cp     feature/developer: cp-commit
-cp     review-feedback/developer: cp-commit
 cp     review-feedback/orchestrator-dev: cp-1
 cp     review-feedback/orchestrator-dev: cp-3
-cp     ticket/developer-migrator: cp-commit
-cp     ticket/developer-refactor: cp-commit
-cp     ticket/developer: cp-commit
 deny   feature/reviewer: npm test
 deny   libre/reviewer: npm test
 deny   review-feedback/reviewer: npm test

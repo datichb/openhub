@@ -1,6 +1,6 @@
 # Permission base: developer-rw
 # Full read/write development permissions with safe git operations.
-# Used by: developer, developer-refactor, developer-migrator (+ overrides), test-generator (+ overrides)
+# Used by: developer (+ overrides: DB migration commands)
 question: deny
 skill: allow
 bash:

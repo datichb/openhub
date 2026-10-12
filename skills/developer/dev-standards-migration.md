@@ -63,15 +63,18 @@ Réversibilité : [rollback possible via <commande> / non-réversible]
 Dry-run output : [résultat de la commande de preview ci-dessus]
 ```
 
-**Étape 3 — STOP** : marquer le statut `bloqué` et retourner à orchestrator-dev.
+**Étape 3 — STOP** : marquer le statut `bloqué` et rendre la main au coordinateur (handoff). Avec un ticket :
 
+<!-- capability: optional -->
 ```bash
 bd update <ID> -s blocked
 bd comments add <ID> "Migration destructive détectée — escalade requise avant exécution. Voir handoff."
 ```
 
-> Le developer-migrator NE PEUT PAS exécuter une migration destructive de manière autonome.
-> Seul l'utilisateur peut autoriser l'exécution via un checkpoint explicite (CP-2).
+Sans ticket (sweep, quick), le handoff avec le bloc ci-dessus suffit.
+
+> Le developer n'exécute pas une migration destructive de manière autonome :
+> seul l'utilisateur l'autorise, en réponse à l'escalade.
 
 ---
 
@@ -126,7 +129,7 @@ bd comments add <ID> "Migration destructive détectée — escalade requise avan
 | Changement de DB (MySQL → PostgreSQL) | Très élevée | Dual-write puis switch |
 | Upgrade majeur ORM | Moyenne | Suivre le guide officiel, tester les requêtes |
 
-**Attention :** Ne pas confondre avec les SQL migrations de schéma (scope du domaine backend).
+**Attention :** les migrations de schéma SQL (colonnes, index, backfill) suivent `dev-standards-database`.
 
 ### Build tools
 

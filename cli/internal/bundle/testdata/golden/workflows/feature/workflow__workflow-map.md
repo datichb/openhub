@@ -21,10 +21,8 @@ Cette carte est la seule référence sur l'enchaînement : n'invente ni agent, n
 | `pathfinder` | workflow | subagent | — | `designer`, `documentarian` |
 | `planner` | workflow | subagent | — | `designer`, `documentarian` |
 | `designer` | workflow | subagent | — | — |
-| `orchestrator-dev` | workflow | subagent | `cp-0` | `developer`, `developer-migrator`, `developer-refactor`, `documentarian`, `reviewer` |
+| `orchestrator-dev` | workflow | subagent | `cp-0` | `developer`, `documentarian`, `reviewer` |
 | `developer` | workflow | subagent | `cp-1` | `documentarian` |
-| `developer-refactor` | workflow | subagent | `cp-1` | `documentarian` |
-| `developer-migrator` | workflow | subagent | `cp-1` | `documentarian` |
 | `reviewer` | workflow | subagent | — | `documentarian` |
 | `documentarian` | independent | primary | — | — |
 

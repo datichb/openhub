@@ -30,8 +30,6 @@ prompt:
 agents:
   orchestrator-dev: { role: workflow }
   developer: { role: workflow, after: cp-1 }
-  developer-refactor: { role: workflow, after: cp-1 }
-  developer-migrator: { role: workflow, after: cp-1 }
   reviewer: { role: workflow, mode: subagent }
   documentarian: { role: independent }
 checkpoints:

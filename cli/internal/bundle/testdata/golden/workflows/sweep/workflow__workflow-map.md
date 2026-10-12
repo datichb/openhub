@@ -17,11 +17,9 @@ Cette carte est la seule référence sur l'enchaînement : n'invente ni agent, n
 
 | Agent | Rôle | Mode | Après | Peut déléguer à |
 |---|---|---|---|---|
-| `conductor` | workflow (entrée) | primary | — | `developer`, `developer-migrator`, `developer-refactor`, `pathfinder`, `reviewer` |
+| `conductor` | workflow (entrée) | primary | — | `developer`, `pathfinder`, `reviewer` |
 | `pathfinder` | workflow | subagent | — | — |
 | `developer` | workflow | subagent | `cp-plan` | — |
-| `developer-refactor` | workflow | subagent | `cp-plan` | — |
-| `developer-migrator` | workflow | subagent | `cp-plan` | — |
 | `reviewer` | workflow | subagent | `cp-plan` | — |
 
 Règles de délégation :
@@ -39,7 +37,7 @@ Règles de délégation :
 
 Séquence : `cp-plan` → `cp-commit` [commit] → `cp-recap` (entre crochets, les opérations que le checkpoint déverrouille).
 
-- **cp-plan** : Présenter la liste des sous-tâches (description, périmètre de fichiers disjoint, agent, parallélisable ou non) avant toute exécution.
+- **cp-plan** : Présenter la liste des sous-tâches (description, périmètre de fichiers disjoint, domaine du developer, parallélisable ou non) avant toute exécution.
 - **cp-commit** : Présenter le diff, le résultat de la vérification (PASS ou FAIL ; un summary qui commence par VÉRIFICATION ÉCHOUÉE si elle échoue encore) et la review avant le commit (un commit, ou un par sous-tâche à la suite).
 - **cp-commit** déverrouille `commit` : avant son passage, oh refuse à tous les agents de la session `git commit` (et les commandes qui commitent : revert, cherry-pick, merge, pull), quel que soit le mode. Une fois passé, commite aussitôt ; la fenêtre se referme quand **cp-commit** est demandé de nouveau. Le push revient à l'utilisateur : ne pousse pas.
 - **cp-recap** : Résultat par sous-tâche, vérification, review et commits.

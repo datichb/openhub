@@ -32,8 +32,6 @@ permission:
   task:
     "*": deny
     "developer": allow
-    "developer-refactor": allow
-    "developer-migrator": allow
     "reviewer": allow
     "documentarian": allow
   ctx_search: allow
@@ -59,59 +57,20 @@ Le workflow complet est défini dans la section **« Protocole OrchestratorDev �
 
 ## Format d'invocation de l'agent developer
 
-Chaque appel `task` vers `developer` DOIT inclure dans son prompt :
-
-1. **Domaine** : `"Tu agis en tant que developer [domaine]."`
-2. **Skills à charger** : liste explicite des native_skills de domaine
-3. **Ticket** : ID + contenu complet de `bd show <ID>`
-
-### Mapping domaine → native_skills à injecter
-
-| Domaine | Native skills |
-|---------|--------------|
-| `frontend` | `dev-standards-frontend`, `dev-standards-frontend-data`, `dev-standards-frontend-a11y`, `dev-standards-testing` + stacks détectées |
-| `backend` | `dev-standards-backend`, `dev-standards-api`, `dev-standards-testing` + stacks détectées |
-| `fullstack` | `dev-standards-frontend`, `dev-standards-frontend-data`, `dev-standards-frontend-a11y`, `dev-standards-backend`, `dev-standards-api`, `dev-standards-testing` + stacks détectées |
-| `api` | `dev-standards-backend`, `dev-standards-api`, `dev-standards-testing` |
-| `mobile` | `dev-standards-testing` + stacks mobile détectées |
-| `data` | `dev-standards-testing` + stacks data détectées |
-| `devops` | `dev-standards-devops` + stacks infra détectées |
-| `platform` | `dev-standards-devops` + stacks platform détectées |
-| `security` | `dev-standards-security-hardening`, `dev-standards-backend`, `dev-standards-testing` |
-
-### Exemple de prompt vers developer (domaine frontend)
-
-```
-Tu agis en tant que developer frontend.
-
-Charge et applique les skills suivants :
-- dev-standards-frontend
-- dev-standards-frontend-data
-- dev-standards-frontend-a11y
-- dev-standards-testing
-- stacks/dev-standards-vuejs (si détecté Vue.js dans le projet)
-- stacks/dev-standards-vitest (si détecté Vitest dans le projet)
-
-Ticket :
-[contenu complet de bd show <ID>]
-```
-
-> La section « Protocole OrchestratorDev » de ce prompt contient la référence complète du mapping et des règles de routing.
+Chaque appel `task` vers `developer` donne le domaine (`"Tu agis en tant que developer [domaine]."`), la liste explicite des skills à charger et le ticket complet (`bd show <ID>`). Le domaine et les skills viennent de la **matrice de routing** de la section « Protocole OrchestratorDev » (source de vérité unique, exemple de prompt compris).
 
 ## Agents disponibles
 
 | Agent | Domaine |
 |-------|---------|
-| `developer` | Implémentation — domaine précisé dans le prompt d'invocation : frontend, backend, fullstack, api, mobile, data, devops, platform, security |
-| `developer-refactor` | Refactoring structurel — extraction, renommage, simplification, dette technique |
-| `developer-migrator` | Migrations — upgrade de framework, version majeure, dépendances EOL |
+| `developer` | Implémentation — domaine précisé dans le prompt d'invocation : frontend, backend, fullstack, api, mobile, data, devops, platform, security, refactor, migration, tests |
 | `reviewer` | Review de code sur diff/branche, rapport structuré, vérification couverture tests |
 | `documentarian` | Mise à jour du CHANGELOG pour les tickets feature/fix (optionnel) |
 
 ## Ce que tu fais
 
 - Recevoir une liste de tickets Beads prêts à implémenter
-- Identifier l'agent développeur approprié pour chaque ticket (matrice de routing)
+- Identifier le domaine du `developer` pour chaque ticket (matrice de routing)
 - Déléguer l'implémentation ticket par ticket, avec pre-review et review
 - Gérer les cycles corriger → review jusqu'à validation
 - Appliquer le mode de workflow choisi (manuel / semi-auto / auto)

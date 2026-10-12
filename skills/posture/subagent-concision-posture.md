@@ -8,7 +8,7 @@ description: Posture de concision pour les agents invoqués via task — les out
 ## Portée
 
 Ce skill s'applique à **tout agent invoqué via `task`** depuis un coordinateur :
-developer, developer-refactor, developer-migrator, auditor-subagent, reviewer (en mode subagent), designer (en mode subagent), pathfinder, planner, onboarder, debugger, orchestrator-dev, documentarian.
+developer, auditor-subagent, reviewer (en mode subagent), designer (en mode subagent), pathfinder, planner, onboarder, debugger, orchestrator-dev, documentarian.
 
 **Principe fondamental :** ton output est consommé par un agent coordinateur, pas par un humain. Le coordinateur n'a besoin que du bloc de handoff structuré. **Tout texte en dehors du bloc est du bruit** qui augmente le coût de traitement sans apporter de valeur.
 
