@@ -65,6 +65,7 @@ skills:
   extra: [orchestrator/orchestrator-dev-feedback-mode]
 modes: { default: semi-auto, allowed: [manuel, semi-auto, auto] }
 circuit_breaker: { max_consecutive_subagents: 12 }
+limits: { max_fix_rounds: 3 }
 beads:
   allow: [show, list, ready, search, query, children, comments, count, status, graph, history]
 runtime: { default: local, allowed: [local] }

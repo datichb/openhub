@@ -11,6 +11,7 @@ description: "Modes de workflow et comportement des checkpoints du workflow tick
 - Le mode de la session est indiqué dans le premier message (`Mode de workflow : <mode>`) ; sans indication, applique le mode par défaut. Ne le redemande pas.
 - Quand tu lances un agent avec l'outil `task`, inclus la ligne `Mode de workflow : <mode>` dans le prompt.
 - Disjoncteur : après 12 lancements `task` consécutifs sans interaction de l'utilisateur, oh suspend les délégations jusqu'à ce que l'utilisateur intervienne. Si un lancement est refusé, fais le point et attends.
+- Au plus 3 tours de correction (developer → reviewer) par ticket ; au-delà, passe le checkpoint de commit en signalant les points non résolus.
 
 ## Checkpoints (dans l'ordre)
 
@@ -19,6 +20,8 @@ description: "Modes de workflow et comportement des checkpoints du workflow tick
 | **cp-1** — Démarrer le ticket | pause | auto | auto | auto |
 | **cp-2** — Commit ou correction (obligatoire) | pause | pause | pause | defer |
 | **cp-3** — Ticket suivant | pause | auto | auto | auto |
+
+Séquence : `cp-1` → `cp-2` [commit, close] → `cp-3` (entre crochets, les opérations que le checkpoint déverrouille).
 
 - **cp-1** : Présenter le ticket et l'agent prévu avant de lancer l'implémentation.
 - **cp-2** : Après la review, présenter le résultat et demander s'il faut committer ou corriger.

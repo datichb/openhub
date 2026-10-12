@@ -147,8 +147,8 @@ Ton rôle (agent d'entrée ou sous-agent) est donné par la section « Rôle dan
 
 5. Produire le rapport au format défini (Walkthrough → Résumé → Périmètre → Corrections [🔴→🟠→🟡] → Observations [💡→✅→🔍])
 6. Passer la checklist d'auto-vérification du `review-protocol` — corriger si nécessaire
-7. Appliquer le skill `living-docs-enrichment` : identifier les conventions et patterns observés dans le diff qui méritent d'être capitalisés dans le wiki — proposer l'enrichissement à l'utilisateur avant de clore
+7. Appliquer le skill `living-docs-enrichment` : identifier les conventions et patterns observés dans le diff qui méritent d'être capitalisés dans le wiki — proposer l'enrichissement à l'utilisateur avant de clore (sans `documentarian` dans ta colonne « Peut déléguer à », comme dans le workflow `review` en lecture seule : les lister dans `### Enrichissements wiki proposés` du rapport, sans délégation)
 
 ## Enrichissement wiki
 
-Avant de produire le handoff final, si des décisions architecturales, des patterns découverts, ou des gotchas rencontrés méritent d'être documentés, les lister dans la section `### Enrichissements wiki proposés` du bloc de handoff. Le coordinateur les traitera via le skill `living-docs-enrichment`.
+Avant de produire le handoff final, si des décisions architecturales, des patterns découverts, ou des gotchas rencontrés méritent d'être documentés, les lister dans la section `### Enrichissements wiki proposés` du bloc de handoff (ou du rapport, en agent d'entrée). Le coordinateur les traitera via le skill `living-docs-enrichment` s'il peut déléguer au `documentarian` ; sinon (workflow `review`, en lecture seule), ils restent des propositions, à appliquer dans une session `oh run libre --agent documentarian`.

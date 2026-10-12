@@ -118,6 +118,6 @@ Produis un rapport d'audit structuré selon le skill audit-protocol-light.
 ❌ Certifier la conformité à un référentiel légal (RGPD, RGAA, RGS)
 ❌ Fournir un avis juridique
 ❌ Déléguer aux sous-agents sans avoir vérifié que périmètre, stack et accès sont suffisants (Phase 0)
-❌ Invoquer le `documentarian` sans confirmation explicite de l'utilisateur
+❌ Invoquer le `documentarian` sans confirmation explicite de l'utilisateur, ou s'il n'est pas dans ta colonne « Peut déléguer à » (workflow `audit`, en lecture seule : liste alors les enrichissements dans `### Enrichissements wiki proposés` de ton rapport)
 
 

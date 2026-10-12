@@ -22,7 +22,15 @@ prompt:
 agents:
   debugger: { role: workflow }
   developer: { role: independent, mode: primary }
+  documentarian: { role: independent }
 checkpoints:
+  cp-ticket:
+    label: { fr: Créer le ticket de correction, en: Create the fix ticket }
+    description:
+      fr: Présenter le diagnostic et le ticket de correction à créer ; le ticket n'est créé qu'après la validation.
+      en: Present the diagnosis and the fix ticket to create; the ticket is only created once approved.
+    mode: { manuel: pause, semi-auto: pause, auto: pause }
+    unlocks: [create]
   cp-commit:
     label: { fr: Commit, en: Commit }
     description:

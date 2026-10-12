@@ -56,7 +56,7 @@ outputs:
   - { id: branch, type: branch }
   - { id: mr, type: merge_request }
   - { id: tickets, type: beads-ids }
-limits: { budget_usd: 5 }
+limits: { budget_usd: 5, max_fix_rounds: 3 }
 preconditions:
   context:
     label: { fr: Aucun contexte projet, en: No project context }

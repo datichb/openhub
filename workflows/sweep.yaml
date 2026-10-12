@@ -83,8 +83,8 @@ checkpoints:
   cp-commit:
     label: { fr: Commit du sweep, en: Commit the sweep }
     description:
-      fr: Présenter le diff, la vérification et la review avant le commit (un commit, ou un par sous-tâche à la suite).
-      en: Present the diff, the verification and the review before committing (one commit, or one per subtask in a row).
+      fr: Présenter le diff, le résultat de la vérification (PASS ou FAIL ; un summary qui commence par VÉRIFICATION ÉCHOUÉE si elle échoue encore) et la review avant le commit (un commit, ou un par sous-tâche à la suite).
+      en: Present the diff, the verification result (PASS or FAIL; a summary starting with VÉRIFICATION ÉCHOUÉE when it still fails) and the review before committing (one commit, or one per subtask in a row).
     mandatory: true
     mode: { manuel: pause, semi-auto: pause, auto: pause }
     unlocks: [commit]

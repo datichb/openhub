@@ -77,6 +77,7 @@ checkpoints:
     mode: { manuel: pause, semi-auto: pause, auto: auto }
 modes: { default: semi-auto, allowed: [manuel, semi-auto, auto] }
 circuit_breaker: { max_consecutive_subagents: 12 }
+limits: { max_fix_rounds: 3 }
 preconditions:
   project-context:
     label:

@@ -4,7 +4,7 @@
 
 Un workflow est un fichier YAML `apiVersion: oh/v1`, `kind: Workflow`, nommé `<id>.yaml`. Cette page décrit chaque champ : type, valeurs, valeur effective quand le champ est absent, comportement dans un patch (`extends`) et verrouillage (`enforce`).
 
-Le schéma est **figé** (`cli/internal/workflow/schema.go`, type `Spec`) : il n'évolue que par ajouts facultatifs. Ajouts faits après le gel : `risk: plan`, `preconditions`, `enforce`, `limits.models`, `entry.selectable`. Décision : [ADR-039](../architecture/adr/039-declarative-workflows-oh-v1.fr.md).
+Le schéma est **figé** (`cli/internal/workflow/schema.go`, type `Spec`) : il n'évolue que par ajouts facultatifs. Ajouts faits après le gel : `risk: plan`, `preconditions`, `enforce`, `limits.models`, `limits.max_fix_rounds`, `entry.selectable`. Décision : [ADR-039](../architecture/adr/039-declarative-workflows-oh-v1.fr.md).
 
 Voir aussi : [workflows livrés](workflows.fr.md) · [workflows d'équipe](../guides/team-workflows.fr.md) · [CLI workflows](cli-workflows.fr.md).
 
@@ -81,6 +81,7 @@ enforce: [checkpoints, modes]   # ou ["*"] pour tout le document
 | `runtime.allowed` | liste | `local`, `container`, `remote` | `[runtime.default]` | durcit (sous-ensemble du parent) |
 | `limits.budget_usd` | nombre ≥ 0 | USD par session | pas de budget au niveau workflow | durcit (valeur inférieure ou égale) |
 | `limits.models` | liste | motifs (`*` joker) | pas de liste au niveau workflow | durcit (motifs couverts par le parent) |
+| `limits.max_fix_rounds` | entier ≥ 0 | tours de correction par ticket | `0` (pas de plafond) | durcit (valeur inférieure ou égale, jamais `0` ni absente sous un parent plafonné) |
 
 ### `risk`
 
@@ -135,11 +136,13 @@ runtime: { default: local, allowed: [local, container, remote] }
 limits:
   budget_usd: 5                       # plafond souple par session
   models: ["eu.anthropic.claude-*"]   # modèles autorisés
+  max_fix_rounds: 3                   # tours de correction developer → reviewer par ticket
 ```
 
 - S'ajoute aux restrictions I6 du hub, de l'équipe et du projet (`oh budget show`) : la valeur la plus précise l'emporte (workflow > projet > hub > recommandation de l'équipe) ; une valeur imposée par l'équipe reste un plafond. Voir [ADR-044](../architecture/adr/044-credential-proxy-session-limits.fr.md).
 - `budget_usd` : plafond souple, vérifié entre deux étapes ; au-delà, une décision `$` demande de relever ou d'arrêter. Valeur négative : `negative_value`.
 - `models` : motifs sur l'identifiant envoyé au fournisseur ; le proxy d'identifiants refuse les autres. Un motif vide : `field_required`.
+- `max_fix_rounds` : plafond de tours de correction (developer → reviewer) par ticket. C'est une consigne, pas un verrou : elle est écrite dans la section « Mode de workflow » des skills générées (« Au plus N tours de correction… ; au-delà, passe le checkpoint de commit en signalant les points non résolus. »). `0` ou absent : pas de plafond. Une couche ne peut que l'abaisser (`loosening` sinon). Valeur négative : `negative_value`. Les workflows `feature`, `ticket` et `review-feedback` du hub fixent `3`.
 
 ---
 
@@ -301,7 +304,7 @@ checkpoints:
     remote: defer
 ```
 
-L'id est en kebab-case (`checkpoint_id_invalid`) et ne doit pas être celui d'un agent (`checkpoint_agent_clash`). Les checkpoints sont passés dans l'ordre du fichier.
+L'id est en kebab-case (`checkpoint_id_invalid`) et ne doit pas être celui d'un agent (`checkpoint_agent_clash`). Les checkpoints sont passés dans l'ordre du fichier. Les skills générées donnent cet ordre sur une ligne « Séquence », avec les opérations que chaque checkpoint déverrouille (« `cp-1` → `cp-2` [commit, close] → `cp-3` ») : les agents s'y réfèrent au lieu de nommer des checkpoints en dur.
 
 | Champ | Type | Valeurs | Absent | Patch |
 |---|---|---|---|---|

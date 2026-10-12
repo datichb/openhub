@@ -11,6 +11,7 @@ description: "Modes de workflow et comportement des checkpoints du workflow revi
 - Le mode de la session est indiqué dans le premier message (`Mode de workflow : <mode>`) ; sans indication, applique le mode par défaut. Ne le redemande pas.
 - Quand tu lances un agent avec l'outil `task`, inclus la ligne `Mode de workflow : <mode>` dans le prompt.
 - Disjoncteur : après 12 lancements `task` consécutifs sans interaction de l'utilisateur, oh suspend les délégations jusqu'à ce que l'utilisateur intervienne. Si un lancement est refusé, fais le point et attends.
+- Au plus 3 tours de correction (developer → reviewer) par ticket ; au-delà, passe le checkpoint de commit en signalant les points non résolus.
 
 ## Checkpoints (dans l'ordre)
 
@@ -18,6 +19,8 @@ description: "Modes de workflow et comportement des checkpoints du workflow revi
 |---|---|---|---|
 | **cp-fix** — Corrections à appliquer | pause | pause | auto |
 | **cp-2** — Commit ou correction (obligatoire) | pause | pause | pause |
+
+Séquence : `cp-fix` → `cp-2` [commit] (entre crochets, les opérations que le checkpoint déverrouille).
 
 - **cp-fix** : Présenter les corrections classées (critiques, majeures, suggestions) et confirmer lesquelles appliquer.
 - **cp-2** : Présenter les corrections appliquées, les tests et la nouvelle review avant le commit.

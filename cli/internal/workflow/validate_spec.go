@@ -180,6 +180,9 @@ func (v *validator) header() {
 	if s.Limits != nil && s.Limits.BudgetUSD != nil && *s.Limits.BudgetUSD < 0 {
 		v.err("negative_value", "limits.budget_usd", *s.Limits.BudgetUSD)
 	}
+	if s.Limits != nil && s.Limits.MaxFixRounds != nil && *s.Limits.MaxFixRounds < 0 {
+		v.err("negative_value", "limits.max_fix_rounds", *s.Limits.MaxFixRounds)
+	}
 	if s.Limits != nil {
 		for i, m := range s.Limits.Models {
 			if strings.TrimSpace(m) == "" {

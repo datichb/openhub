@@ -368,12 +368,12 @@ remontées par les sous-agents et propose à l'utilisateur de capitaliser les d�
 | Section | Action | Contenu proposé | Confiance |
 |---------|--------|-----------------|-----------|
 | `## Librairies clés` | Ajouter "À ne pas utiliser" | "lodash 4.17.20 — CVE-2024-1234 : prototype pollution" | `CONFIRMÉ` · package.json |
-
-→ question : Déléguer l'écriture au documentarian ?
 ```
 
-Si l'utilisateur accepte, l'auditeur invoque le `documentarian` via `task` pour enrichir
-les pages wiki de manière incrémentale (voir skill `living-docs-enrichment`).
+Le workflow `audit` est en lecture seule : le `documentarian` (qui écrit) n'en fait pas partie.
+L'auditeur liste donc les enrichissements dans `### Enrichissements wiki proposés` de son rapport,
+sans délégation ; applique-les ensuite avec `oh run libre --agent documentarian`
+(voir skill `living-docs-enrichment`).
 
 ---
 
@@ -459,9 +459,11 @@ Type : bug | Priorité : P0
 
 #### 3. Création du ticket
 
+Dans le workflow `debug`, la création passe par le checkpoint `cp-ticket` (« Créer le ticket de correction », en pause dans tous les modes) : oh refuse `bd create` avant sa validation. Dans une session `libre`, le debugger pose la question avec l'outil `question`.
+
 ```
-⏸️ Créer ce ticket dans Beads ? (oui/non)
-→ oui
+⏸️ cp-ticket — Créer le ticket de correction (diagnostic + ticket proposé)
+→ validé
 
 bd create "Corriger l'absence de guard null dans UserService.findById" -p 0 -t bug --json
 → Ticket bd-42 créé
@@ -487,8 +489,8 @@ Après la création du ticket, le debugger identifie les découvertes à capital
 → question : Déléguer l'écriture au documentarian ?
 ```
 
-Si l'utilisateur accepte, le debugger invoque le `documentarian` via `task`
-(skill `living-docs-enrichment`) pour enrichir le wiki de manière incrémentale.
+Si l'utilisateur accepte, le debugger invoque le `documentarian` via `task` (membre du workflow `debug`,
+skill `living-docs-enrichment`) pour enrichir le wiki de manière incrémentale.
 
 #### 5. Correction et review
 
@@ -555,12 +557,12 @@ Après avoir produit le rapport de review, le reviewer identifie des conventions
 | Section | Action | Contenu proposé | Confiance |
 |---------|--------|-----------------|-----------|
 | `## Nommage` | Ajouter | "Les composables de filtrage sont toujours nommés `use<Entité>Filters`" | `CONFIRMÉ` · src/users/hooks/useUserFilters.ts:1 |
-
-→ question : Déléguer l'écriture au documentarian ?
 ```
 
-Si l'utilisateur accepte, le reviewer invoque le `documentarian` via `task`
-(skill `shared/living-docs-enrichment`) pour enrichir le wiki de manière incrémentale.
+Le workflow `review` est en lecture seule : le `documentarian` n'en fait pas partie. Le reviewer
+liste les enrichissements dans `### Enrichissements wiki proposés` de son rapport, sans délégation ;
+applique-les ensuite avec `oh run libre --agent documentarian` (skill `shared/living-docs-enrichment`).
+Dans `feature` ou `ticket`, où le `documentarian` est disponible, le coordinateur peut les lui déléguer.
 
 ---
 

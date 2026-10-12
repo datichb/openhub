@@ -33,6 +33,8 @@ Règles de délégation :
 | **cp-fix** — Corrections à appliquer | pause | pause | auto |
 | **cp-2** — Commit ou correction (obligatoire) | pause | pause | pause |
 
+Séquence : `cp-fix` → `cp-2` [commit] (entre crochets, les opérations que le checkpoint déverrouille).
+
 - **cp-fix** : Présenter les corrections classées (critiques, majeures, suggestions) et confirmer lesquelles appliquer.
 - **cp-2** : Présenter les corrections appliquées, les tests et la nouvelle review avant le commit.
 - **cp-2** déverrouille `commit` : avant son passage, oh refuse à tous les agents de la session `git commit` (et les commandes qui commitent : revert, cherry-pick, merge, pull), quel que soit le mode. Une fois passé, commite aussitôt ; la fenêtre se referme quand **cp-2** est demandé de nouveau. Le push revient à l'utilisateur : ne pousse pas.
@@ -51,6 +53,7 @@ Passage d'un checkpoint : appelle l'outil `workflow_checkpoint` avec `id` (ident
 - Le mode de la session est indiqué dans le premier message (`Mode de workflow : <mode>`) ; sans indication, applique le mode par défaut. Ne le redemande pas.
 - Quand tu lances un agent avec l'outil `task`, inclus la ligne `Mode de workflow : <mode>` dans le prompt.
 - Disjoncteur : après 12 lancements `task` consécutifs sans interaction de l'utilisateur, oh suspend les délégations jusqu'à ce que l'utilisateur intervienne. Si un lancement est refusé, fais le point et attends.
+- Au plus 3 tours de correction (developer → reviewer) par ticket ; au-delà, passe le checkpoint de commit en signalant les points non résolus.
 
 ## Sorties à déclarer
 

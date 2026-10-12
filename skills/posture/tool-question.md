@@ -16,7 +16,7 @@ description: Utilisation de l'outil question d'OpenCode — quand et comment pos
 
 ## Quand NE PAS utiliser `question`
 
-- **Checkpoints du workflow** : chaque checkpoint de la table des checkpoints passe par l'outil `workflow_checkpoint`, jamais par `question`. Une question qui nomme un checkpoint (`cp-2`, « CP 2 », son libellé) est fermée par oh sans effet.
+- **Checkpoints du workflow** : chaque checkpoint de la table des checkpoints passe par l'outil `workflow_checkpoint`, jamais par `question`. Une question qui nomme un checkpoint (son identifiant `cp-<id>`, « CP 2 », son libellé) est fermée par oh sans effet.
 - Informations déjà disponibles dans le contexte ou le codebase
 - Clarifications mineures résolvables par une hypothèse raisonnable
 - Quand la réponse n'influence pas le résultat final

@@ -368,12 +368,12 @@ surfaced by subagents and proposes to the user to capitalize the relevant discov
 | Section | Action | Proposed content | Confidence |
 |---------|--------|-----------------|------------|
 | `## Key libraries` | Add "Do not use" | "lodash 4.17.20 — CVE-2024-1234: prototype pollution" | `CONFIRMÉ` · package.json |
-
-→ question: Delegate writing to the documentarian?
 ```
 
-If the user accepts, the auditor invokes the `documentarian` via `task` to enrich
-the wiki incrementally (see skill `living-docs-enrichment`).
+The `audit` workflow is read-only: the `documentarian` (which writes) is not part of it.
+The auditor therefore lists the enrichments in `### Enrichissements wiki proposés` of its report,
+without delegation; apply them afterwards with `oh run libre --agent documentarian`
+(see skill `living-docs-enrichment`).
 
 ---
 
@@ -459,9 +459,11 @@ Type: bug | Priority: P0
 
 #### 3. Ticket creation
 
+In the `debug` workflow, the creation goes through the `cp-ticket` checkpoint (« Create the fix ticket », paused in every mode): oh refuses `bd create` before it is approved. In a `libre` session, the debugger asks with the `question` tool.
+
 ```
-⏸️ Create this ticket in Beads? (yes/no)
-→ yes
+⏸️ cp-ticket — Create the fix ticket (diagnosis + proposed ticket)
+→ approved
 
 bd create "Fix missing null guard in UserService.findById" -p 0 -t bug --json
 → Ticket bd-42 created
@@ -487,8 +489,8 @@ After ticket creation, the debugger identifies findings worth capitalizing:
 → question: Delegate writing to the documentarian?
 ```
 
-If the user accepts, the debugger invokes the `documentarian` via `task`
-(skill `living-docs-enrichment`) to enrich the wiki incrementally.
+If the user accepts, the debugger invokes the `documentarian` via `task` (member of the `debug` workflow,
+skill `living-docs-enrichment`) to enrich the wiki incrementally.
 
 #### 5. Fix and review
 
@@ -555,12 +557,12 @@ After producing the review report, the reviewer identifies conventions worth cap
 | Section | Action | Proposed content | Confidence |
 |---------|--------|-----------------|------------|
 | `## Naming` | Add | "Filter composables are always named `use<Entity>Filters`" | `CONFIRMÉ` · src/users/hooks/useUserFilters.ts:1 |
-
-→ question: Delegate writing to the documentarian?
 ```
 
-If the user accepts, the reviewer invokes the `documentarian` via `task`
-(skill `shared/living-docs-enrichment`) to enrich the wiki incrementally.
+The `review` workflow is read-only: the `documentarian` is not part of it. The reviewer
+lists the enrichments in `### Enrichissements wiki proposés` of its report, without delegation;
+apply them afterwards with `oh run libre --agent documentarian` (skill `shared/living-docs-enrichment`).
+In `feature` or `ticket`, where the `documentarian` is available, the coordinator may delegate them to it.
 
 ---
 

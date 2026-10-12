@@ -11,6 +11,7 @@ description: "Modes de workflow et comportement des checkpoints du workflow feat
 - Le mode de la session est indiqué dans le premier message (`Mode de workflow : <mode>`) ; sans indication, applique le mode par défaut. Ne le redemande pas.
 - Quand tu lances un agent avec l'outil `task`, inclus la ligne `Mode de workflow : <mode>` dans le prompt.
 - Disjoncteur : après 12 lancements `task` consécutifs sans interaction de l'utilisateur, oh suspend les délégations jusqu'à ce que l'utilisateur intervienne. Si un lancement est refusé, fais le point et attends.
+- Au plus 3 tours de correction (developer → reviewer) par ticket ; au-delà, passe le checkpoint de commit en signalant les points non résolus.
 
 ## Checkpoints (dans l'ordre)
 
@@ -23,6 +24,8 @@ description: "Modes de workflow et comportement des checkpoints du workflow feat
 | **cp-2** — Commit ou correction (obligatoire) | pause | pause | pause |
 | **cp-3** — Ticket suivant | pause | auto | auto |
 | **cp-feature** — Récap de la feature | pause | pause | auto |
+
+Séquence : `cp-tickets` [create] → `cp-0` → `cp-spec` → `cp-1` → `cp-2` [commit, close] → `cp-3` → `cp-feature` (entre crochets, les opérations que le checkpoint déverrouille).
 
 - **cp-tickets** : Présenter le découpage proposé par l'agent de planning ; les tickets ne sont créés qu'après la validation. Avec des tickets existants seulement, confirmer la liste (aucune création).
 - **cp-tickets** déverrouille `create` : avant son passage, oh refuse à tous les agents de la session la création de tickets, quel que soit le mode. Une fois passé, crée les tickets validés : la création reste possible jusqu'à ce que **cp-tickets** soit demandé de nouveau.

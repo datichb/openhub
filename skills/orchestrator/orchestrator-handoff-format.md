@@ -9,7 +9,7 @@ annexes: [templates/orchestrator-dev-handoff-blocks.md]
 Ce skill est la **source de vérité unique** pour les deux formats de communication.
 Il est injecté dans `orchestrator` et `orchestrator-dev` — le producteur et le consommateur partagent ainsi le même contrat, sans risque de désynchro.
 
-> **Checkpoints** : `orchestrator-dev` passe lui-même les checkpoints de ticket (`cp-1`, `cp-2`, `cp-3`) avec `workflow_checkpoint`, même invoqué via `task`. Aucun de ces blocs ne relaie un checkpoint, et aucun en-tête ne contient un identifiant de checkpoint.
+> **Checkpoints** : `orchestrator-dev` passe lui-même les checkpoints de son tableau « Modes de workflow et checkpoints », dans l'ordre, avec `workflow_checkpoint`, même invoqué via `task`. Aucun de ces blocs ne relaie un checkpoint, et aucun en-tête ne contient un identifiant de checkpoint.
 
 ---
 

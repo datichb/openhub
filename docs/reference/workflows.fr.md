@@ -30,7 +30,7 @@ On lance un workflow avec `oh run <workflow>` ou la fiche de lancement de la TUI
 | `review` | `reviewer` | — | read | local, distant | `oh review` |
 | `review-feedback` | `orchestrator-dev` | `developer`, `reviewer` | write | local | `oh review feedback` |
 | `audit` | `auditor` | `auditor-subagent` | read | local, distant | `oh audit` |
-| `debug` | `debugger` | `developer` (à la demande) | write | local | `oh debug` (ancien mode D) |
+| `debug` | `debugger` | `developer`, `documentarian` (à la demande) | write | local | `oh debug` (ancien mode D) |
 | `sweep` | `conductor` | `pathfinder`, `developer`, `developer-refactor`, `developer-migrator`, `reviewer` | write | local | `oh start --sweep` |
 | `brief-enrich` | `brief-enricher` | — | read | local | `oh takeover-brief enrich` |
 | `libre` | au choix (`orchestrator` par défaut) | ceux que l'agent choisi peut appeler | write | local, conteneur | `oh start --agent`, session libre de la TUI |
@@ -190,13 +190,13 @@ Audit en lecture seule : l'`auditor` coordonne des `auditor-subagent`. Commandes
 
 ## `debug`
 
-Diagnostic d'un bug ou d'un problème isolé par le `debugger` : rapport de diagnostic (actions d'urgence en premier) et ticket de correction. Le `developer` est disponible à la demande dans la session.
+Diagnostic d'un bug ou d'un problème isolé par le `debugger` : rapport de diagnostic (actions d'urgence en premier) et ticket de correction. Le `developer` et le `documentarian` (enrichissement du wiki demandé par le `debugger`) sont disponibles à la demande dans la session.
 
 | Entrée | Type | Obligatoire | Rôle |
 |---|---|---|---|
 | `issue` | `text` (8 000 caractères max) | non | Le problème observé ; vide : la session le demande |
 
-Une correction faite dans la session se termine par `cp-commit` (obligatoire, en pause dans tous les modes, déverrouille `commit` et `close`). Sortie : `tickets`. Commandes Beads autorisées : `show`, `list`, `ready`, `search`, `query`, `lint`, `children`, `comments`, `count`, `status`, `graph`, `history`, `create`, `update`, `close`, `dep`, `label`.
+Le ticket de correction n'est créé qu'après `cp-ticket` (« Créer le ticket de correction », en pause dans tous les modes, déverrouille `create`) : le `debugger` y présente le diagnostic et le ticket, au lieu de demander la confirmation avec l'outil `question` (qu'il garde dans une session `libre`). Une correction faite dans la session se termine par `cp-commit` (obligatoire, en pause dans tous les modes, déverrouille `commit` et `close`). Sortie : `tickets`. Commandes Beads autorisées : `show`, `list`, `ready`, `search`, `query`, `lint`, `children`, `comments`, `count`, `status`, `graph`, `history`, `create`, `update`, `close`, `dep`, `label`.
 
 ## `sweep`
 

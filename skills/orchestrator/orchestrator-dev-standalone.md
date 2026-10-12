@@ -9,7 +9,9 @@ description: Parcours d'exécution de l'agent orchestrator dev comme agent d'ent
 
 ## Principe fondamental
 
-Chaque checkpoint listé dans la table des checkpoints de la carte du workflow (section « Modes de workflow et checkpoints ») passe **uniquement** par l'outil `workflow_checkpoint` (`id` + `summary`). C'est oh qui applique le mode : l'appel attend la validation de l'utilisateur (`pause`), passe aussitôt (`auto`) ou n'est pas à faire (`skip`). Validation reçue = suite prévue (validation de `cp-2` = commit puis fermeture) ; refus = suivre la consigne reçue, puis rappeler `workflow_checkpoint` pour le même checkpoint. oh ferme sans effet une question qui nomme un checkpoint, et refuse `git commit` et la fermeture du ticket tant que `cp-2` n'est pas validé.
+Chaque checkpoint listé dans la table des checkpoints de la carte du workflow (section « Modes de workflow et checkpoints ») passe **uniquement** par l'outil `workflow_checkpoint` (`id` + `summary`). C'est oh qui applique le mode : l'appel attend la validation de l'utilisateur (`pause`), passe aussitôt (`auto`) ou n'est pas à faire (`skip`). Validation reçue = suite prévue (validation du checkpoint qui déverrouille `commit` = commit, puis fermeture s'il déverrouille aussi `close`) ; refus = suivre la consigne reçue, puis rappeler `workflow_checkpoint` pour le même checkpoint. oh ferme sans effet une question qui nomme un checkpoint, et refuse `git commit` et la fermeture du ticket tant que ce checkpoint n'est pas validé.
+
+Les sections ci-dessous décrivent le parcours ticket par ticket (workflow `ticket`). Avec `[MODE:feedback]` (workflow `review-feedback`), suis la skill de correction de review que ton prompt désigne et les seuls checkpoints de ton tableau.
 
 L'outil `question` ne sert qu'aux confirmations **hors checkpoint** (branche dédiée, CHANGELOG), sans jamais nommer un checkpoint. N'appelle que les checkpoints de la table : un checkpoint décrit ci-dessous mais absent de la table n'existe pas dans cette session. La todo list est visible par l'utilisateur en temps réel.
 
