@@ -148,15 +148,15 @@ func launchFormConfig(ctx context.Context, a *app.App, project *domain.Project, 
 	opts := func(c views.LaunchChoices) runOptions {
 		return runOptions{Workflow: sp.ID, Project: project, Inputs: c.Inputs, Tickets: c.Tickets, Mode: c.Mode,
 			Runtime: c.Runtime, Location: c.Location, Attach: c.Attach, ParentSessionID: req.Parent, OneSession: c.OneSession, Draft: req.Draft,
-			Dirty: runsvc.DirtyPolicy(c.Dirty)}
+			Dirty: runsvc.DirtyPolicy(c.Dirty), OnExisting: runsvc.OnExisting(c.OnExisting), DiscardBaseChanges: c.DiscardBaseChanges}
 	}
 	cfg.Recap = func(ctx context.Context, c views.LaunchChoices) (*views.LaunchRecap, error) {
 		p, err := runs.get(ctx, a, opts(c))
 		if err != nil {
 			return nil, tuiLaunchError(err)
 		}
-		rows, warns := runRecap(p)
-		out := &views.LaunchRecap{Warnings: warns, Dirty: planDirty(p.plan)}
+		rows, warns := launchRecap(p)
+		out := &views.LaunchRecap{Warnings: warns, Dirty: planDirty(p.plan), Existing: tuiExisting(p.plan), NeedsChoice: p.plan.NeedsChoice}
 		for _, s := range p.suggestions {
 			label := i18n.Tf("cmd.run.precondition_first", s.Workflow)
 			if s.Resume {
@@ -169,19 +169,40 @@ func launchFormConfig(ctx context.Context, a *app.App, project *domain.Project, 
 		}
 		return out, nil
 	}
+	var resumed string // existing session continued by the last launch
 	cfg.Launch = func(ctx context.Context, c views.LaunchChoices) error {
+		resumed = ""
 		p, err := runs.get(ctx, a, opts(c))
 		if err != nil {
-			return err
+			return tuiLaunchError(err)
 		}
 		runs.reset() // a plan starts once
 		// Image build output, shown by the form while launching.
 		p.plan.Request.Base.Progress = cfg.Progress.Line
-		_, err = p.start(ctx, a, tuiLaunchUI())
+		results, err := p.start(ctx, a, tuiLaunchUI())
 		if tuiStartWiring != nil {
 			tuiStartWiring.invalidate() // recents
 		}
+		if err == nil && len(results) > 0 && results[0].Existing != runsvc.OnExistingUnset {
+			resumed = results[0].SessionID
+		}
 		return tuiLaunchError(err)
+	}
+	cfg.Launched = func() {
+		if resumed != "" && tuiSess != nil {
+			tuiSess.open(resumed) // the session continued, not a new one
+		}
+	}
+	cfg.PlanDelete = func(ctx context.Context, id string) (views.DeleteSummary, error) {
+		svc, err := newRunService(ctx, a)
+		if err != nil {
+			return views.DeleteSummary{}, err
+		}
+		plan, err := svc.PlanDelete(ctx, id, runsvc.DeleteOptions{ProjectPath: project.Path})
+		if err != nil {
+			return views.DeleteSummary{}, err
+		}
+		return deleteSummary(plan), nil
 	}
 	cfg.LaunchFirst = func(ctx context.Context, c views.LaunchChoices, workflowID string) error {
 		p, err := runs.get(ctx, a, opts(c))
@@ -224,7 +245,16 @@ type tuiRunCache struct {
 func (c *tuiRunCache) get(ctx context.Context, a *app.App, opts runOptions) (*preparedRun, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	if c.p != nil && reflect.DeepEqual(c.opts, opts) {
+	if c.p != nil && reflect.DeepEqual(withoutExistingChoice(c.opts), withoutExistingChoice(opts)) {
+		if c.opts.OnExisting != opts.OnExisting || c.opts.DiscardBaseChanges != opts.DiscardBaseChanges {
+			// Another choice for the existing session: planned again, no
+			// new resolution or bundle build.
+			if err := c.p.replan(ctx, opts.OnExisting, opts.DiscardBaseChanges); err != nil {
+				c.p = nil
+				return nil, err
+			}
+			c.opts = opts
+		}
 		return c.p, nil
 	}
 	p, err := prepareWorkflowRun(ctx, a, opts, io.Discard)
@@ -233,6 +263,39 @@ func (c *tuiRunCache) get(ctx context.Context, a *app.App, opts runOptions) (*pr
 	}
 	c.opts, c.p = opts, p
 	return p, nil
+}
+
+func withoutExistingChoice(o runOptions) runOptions {
+	o.OnExisting, o.DiscardBaseChanges = runsvc.OnExistingUnset, false
+	return o
+}
+
+// tuiExisting is the comparison block of the recap: each open session of
+// the tickets next to its planned session; the choices apply to the
+// session targeted by the first planned session.
+func tuiExisting(plan *runsvc.RunPlan) []views.LaunchExisting {
+	target, _ := existingTarget(plan)
+	req := plan.Request
+	var out []views.LaunchExisting
+	for _, e := range plan.Existing {
+		ps := plan.Sessions[e.Planned]
+		x := views.LaunchExisting{ID: e.ID, Title: e.Title, Shared: e.Shared, SameWorkflow: e.SameWorkflow, Target: e.ID == target.ID,
+			State: string(e.State), StateLabel: stateLabel(e.State), OpenDecisions: e.OpenDecisions,
+			Workflow: e.WorkflowID, PlannedWorkflow: req.Workflow.ID, Version: e.WorkflowVersion, PlannedVersion: req.Workflow.Version,
+			Runtime: e.Runtime, PlannedRuntime: plannedField(e, runsvc.DiffRuntime, e.Runtime),
+			Mode: e.Mode, PlannedMode: plannedField(e, runsvc.DiffMode, e.Mode),
+			Model: e.Model, PlannedModel: plannedField(e, runsvc.DiffModel, e.Model),
+			Path: e.LaunchPath, PlannedPath: ps.Location.Path, Branch: e.Branch, PlannedBranch: ps.Location.Branch,
+			WorkKnown: e.Work.Known, CommitsUnpushed: e.Work.CommitsUnpushed, ChangedFiles: e.Work.ChangedFiles, Cost: e.Cost}
+		for _, d := range e.Diffs {
+			x.Diffs = append(x.Diffs, d.Field)
+		}
+		for _, c := range e.Actions {
+			x.Actions = append(x.Actions, string(c))
+		}
+		out = append(out, x)
+	}
+	return out
 }
 
 func (c *tuiRunCache) reset() {
@@ -333,8 +396,12 @@ func tuiLaunchError(err error) error {
 	msg := localizeError(err)
 	var pe *ProviderCredentialError
 	var api *daemon.APIError
+	var te *runsvc.TransferError
 	if errors.As(err, &pe) || (errors.As(err, &api) && api.Path == "/grants" && api.Status == 422) {
 		return views.ProviderCredentialsError(msg)
+	}
+	if errors.As(err, &te) {
+		return views.TransferFailedError(i18n.Tf("cmd.run.existing.transfer_failed", te.SessionID, localizeError(te.Err)))
 	}
 	if msg != err.Error() {
 		return errors.New(msg)

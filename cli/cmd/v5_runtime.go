@@ -166,7 +166,7 @@ func newRunService(ctx context.Context, a *app.App) (*runsvc.Service, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &runsvc.Service{
+	svc := &runsvc.Service{
 		Adapter:        ad,
 		AdapterVer:     v5Tool.Version,
 		Servers:        sqlite.NewServerStore(store),
@@ -192,7 +192,9 @@ func newRunService(ctx context.Context, a *app.App) (*runsvc.Service, error) {
 			}
 			return c, nil
 		},
-	}, nil
+	}
+	svc.WakeSession = func(ctx context.Context, id string) error { return resumeV5Session(ctx, a, svc, id) }
+	return svc, nil
 }
 
 // newSessionService wires the SessionService (inbox, decisions, instructions,

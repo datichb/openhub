@@ -178,6 +178,34 @@ func (ss *SessionStore) Update(ctx context.Context, s *domain.Session) error {
 	return nil
 }
 
+// Delete removes a session with its decisions and agent events, in one
+// transaction (the usage ledger is kept: budgets stay spent).
+func (ss *SessionStore) Delete(ctx context.Context, id string) error {
+	tx, err := ss.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback() }()
+	for _, q := range []string{
+		`DELETE FROM pending_decisions WHERE session_id = ?`,
+		`DELETE FROM agent_events WHERE session_id = ?`,
+	} {
+		if _, err := tx.ExecContext(ctx, q, id); err != nil {
+			return fmt.Errorf("deleting session %s: %w", id, err)
+		}
+	}
+	res, err := tx.ExecContext(ctx, `DELETE FROM sessions WHERE id = ?`, id)
+	if err != nil {
+		return fmt.Errorf("deleting session %s: %w", id, err)
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		return domain.ErrNotFound
+	}
+	return tx.Commit()
+}
+
+var _ domain.SessionDeleter = (*SessionStore)(nil)
+
 func (ss *SessionStore) ListRunning(ctx context.Context, projectID string) ([]domain.Session, error) {
 	query := `SELECT ` + sessionColumns + ` FROM sessions WHERE status = 'running'`
 	var args []interface{}

@@ -263,7 +263,10 @@ func firstNonEmpty(v ...string) string {
 
 // ── views.SessionsBackend ─────────────────────────────────────────────────
 
-var _ views.SessionsBackend = (*tuiSessions)(nil)
+var (
+	_ views.SessionsBackend = (*tuiSessions)(nil)
+	_ views.SessionDeleter  = (*tuiSessions)(nil)
+)
 
 func (t *tuiSessions) List(ctx context.Context, projectID string, all bool) ([]views.SessionRow, error) {
 	svc, err := t.service(ctx)
@@ -413,6 +416,32 @@ func (t *tuiSessions) Resume(ctx context.Context, sessionID string) error {
 		return err
 	}
 	return resumeV5Session(ctx, t.a, rs, sessionID)
+}
+
+// PlanDelete lists what deleting a session loses (D).
+func (t *tuiSessions) PlanDelete(ctx context.Context, sessionID string) (views.DeleteSummary, error) {
+	rs, err := newRunService(ctx, t.a)
+	if err != nil {
+		return views.DeleteSummary{}, err
+	}
+	plan, err := rs.PlanDelete(ctx, sessionID, runsvc.DeleteOptions{ProjectPath: sessionProjectPath(ctx, t.a, rs, sessionID)})
+	if err != nil {
+		return views.DeleteSummary{}, err
+	}
+	return deleteSummary(plan), nil
+}
+
+// DeleteSession deletes a session for good, as `oh session delete`.
+func (t *tuiSessions) DeleteSession(ctx context.Context, sessionID string, discardBase bool) (string, error) {
+	rs, err := newRunService(ctx, t.a)
+	if err != nil {
+		return "", err
+	}
+	rep, err := rs.DeleteSession(ctx, sessionID, runsvc.DeleteOptions{ProjectPath: sessionProjectPath(ctx, t.a, rs, sessionID), DiscardBaseChanges: discardBase})
+	if err != nil {
+		return "", err
+	}
+	return deleteReportText(rep), nil
 }
 
 // Attach opens the session client off the event loop: a new terminal tab or

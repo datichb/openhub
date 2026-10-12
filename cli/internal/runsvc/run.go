@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/datichb/openhub/cli/internal/domain"
@@ -29,12 +30,29 @@ type Warning struct {
 
 // Warning codes.
 const (
-	WarnAutoWorktree   = "auto_worktree"   // O10: another writing session uses the directory
+	WarnAutoWorktree = "auto_worktree" // O10: another writing session uses the directory (new worktree)
+	// WarnAutoWorktreeExisting: O10 with a worktree that already exists.
+	WarnAutoWorktreeExisting = "auto_worktree_existing"
+	// WarnWorktreeBusy: the worktree of the session is used by another
+	// writing session too.
+	WarnWorktreeBusy = "worktree_busy"
+	// WarnTicketWorktree: the session works in the project directory while
+	// an open session of its ticket works in a worktree.
+	WarnTicketWorktree = "ticket_worktree"
+	// WarnExisting: an open session (another workflow) works on a ticket of
+	// the launch; WarnParallel: the new session starts beside it.
+	WarnExisting = "existing"
+	WarnParallel = "parallel"
+	// WarnTransferBundle: the transferred session continues with another
+	// bundle than the one it started with.
+	WarnTransferBundle = "transfer_bundle"
 	WarnSharedLocation = "shared_location" // writers share a directory (no git: no worktree)
 	WarnDirty          = "dirty"           // uncommitted changes where a writer starts (allowed)
 	WarnDirtyWorktree  = "dirty_worktree"  // uncommitted changes: the writer works in a worktree
 	WarnDirtyStash     = "dirty_stash"     // uncommitted changes: stashed when the session starts
-	WarnPending        = "pending"         // decisions already waiting in other sessions
+	// WarnPending: decisions already waiting (args: on the tickets of the
+	// launch, in the project, in total).
+	WarnPending = "pending"
 	// WarnVolumeMountPoint: a relative cache volume of the container is
 	// absent from a location; the engine creates it there, empty, as the
 	// mount point (its content stays in the container volume).
@@ -73,6 +91,12 @@ type RunRequest struct {
 	Dirty DirtyPolicy
 	// ParentSessionID chains the sessions to a previous one (O7).
 	ParentSessionID string
+	// OnExisting is what is done with the open sessions of the tickets of
+	// the launch (RunPlan.Existing).
+	OnExisting OnExisting
+	// DiscardBaseChanges allows OnExistingDelete to discard the uncommitted
+	// changes of a session that worked in the project directory.
+	DiscardBaseChanges bool
 }
 
 // PlannedSession is a session of a plan. Prompt is rendered by the caller
@@ -81,6 +105,10 @@ type PlannedSession struct {
 	PlannedInput
 	Location Location `json:"location"`
 	Prompt   string   `json:"-"`
+	// Existing is the open session of its tickets the choice applies to
+	// ("" = none); Action the choice applied (OnExistingUnset = none).
+	Existing string     `json:"existing,omitempty"`
+	Action   OnExisting `json:"action,omitempty"`
 }
 
 // RunPlan is what Start will do.
@@ -88,6 +116,12 @@ type RunPlan struct {
 	Request  RunRequest       `json:"-"`
 	Sessions []PlannedSession `json:"sessions"`
 	Warnings []Warning        `json:"warnings,omitempty"`
+	// Existing are the open sessions of the project working on a ticket of
+	// the launch, most recent first.
+	Existing []ExistingSession `json:"existing,omitempty"`
+	// NeedsChoice: one of them runs the same workflow and no choice was
+	// made (RunRequest.OnExisting); Start refuses the plan.
+	NeedsChoice bool `json:"needs_choice,omitempty"`
 }
 
 // Worktrees counts the worktrees of the plan (created or reused).
@@ -123,21 +157,124 @@ func (s *Service) Plan(ctx context.Context, req RunRequest) (*RunPlan, error) {
 		branches[i] = in.Branch
 	}
 	writes := RiskWrites(req.Workflow.Risk)
-	locs, warns, err := s.planLocations(ctx, req.Base.ProjectID, req.ProjectPath, req.Location, writes, branches, req.Dirty)
+	existing, projectSessions := s.findExisting(ctx, req.Base.ProjectID, inputs)
+	for i := range existing {
+		existing[i].SameWorkflow = existing[i].WorkflowID == req.Workflow.ID && existing[i].ID != req.ParentSessionID
+	}
+	targets := existingTargets(existing, len(inputs))
+	lo, actions, err := s.existingLocations(req, existing, targets)
 	if err != nil {
 		return nil, err
 	}
-	plan := &RunPlan{Request: req, Warnings: warns}
+	locs, warns, err := s.planLocations(ctx, req.Base.ProjectID, req.ProjectPath, req.Location, writes, branches, req.Dirty, lo)
+	if err != nil {
+		return nil, err
+	}
+	plan := &RunPlan{Request: req, Warnings: warns, Existing: existing}
 	for i, in := range inputs {
-		plan.Sessions = append(plan.Sessions, PlannedSession{PlannedInput: in, Location: locs[i]})
+		plan.Sessions = append(plan.Sessions, PlannedSession{PlannedInput: in, Location: locs[i], Existing: targets[i], Action: actions[i]})
+	}
+	for i := range plan.Existing {
+		e := &plan.Existing[i]
+		compareExisting(e, req, plan.Sessions[e.Planned])
+		e.Work = workInfo(e.LaunchPath, req.ProjectPath)
+		if e.SameWorkflow && req.OnExisting == OnExistingUnset {
+			plan.NeedsChoice = true
+		}
+		switch {
+		case e.ID != targets[e.Planned] || req.OnExisting == OnExistingParallel:
+			plan.Warnings = append(plan.Warnings, Warning{Code: WarnParallel, Args: []any{e.ID, strings.Join(e.Shared, ", ")}})
+		case req.OnExisting == OnExistingUnset && !e.SameWorkflow:
+			plan.Warnings = append(plan.Warnings, Warning{Code: WarnExisting, Args: []any{e.ID, e.WorkflowID, strings.Join(e.Shared, ", ")}})
+		case req.OnExisting == OnExistingTransfer && req.Base.Bundle != nil && e.BundleHash != req.Base.Bundle.Spec.Hash:
+			plan.Warnings = append(plan.Warnings, Warning{Code: WarnTransferBundle, Args: []any{e.ID}})
+		}
 	}
 	plan.Warnings = append(plan.Warnings, volumeMountPoints(req.Base, locs)...)
 	if s.Decisions != nil {
 		if open, err := s.Decisions.ListOpen(ctx, domain.DecisionFilter{}); err == nil && len(open) > 0 {
-			plan.Warnings = append(plan.Warnings, Warning{Code: WarnPending, Args: []any{len(open)}})
+			plan.Warnings = append(plan.Warnings, pendingWarning(open, projectSessions, plan.Existing))
 		}
 	}
 	return plan, nil
+}
+
+// existingLocations applies the choice made for the existing sessions to
+// the locations of a run: the action of each planned session and the
+// location changes it implies.
+func (s *Service) existingLocations(req RunRequest, existing []ExistingSession, targets []string) (locOptions, []OnExisting, error) {
+	lo := locOptions{free: map[string]bool{}, fixed: map[int]Location{}, recreate: map[string]bool{}, clean: map[string]bool{},
+		ticketWorktree: map[int]ExistingSession{}}
+	actions := make([]OnExisting, len(targets))
+	project := filepath.Clean(req.ProjectPath)
+	for i, id := range targets {
+		if id == "" {
+			continue
+		}
+		e, _ := existingByID(existing, id)
+		if e.LaunchPath != "" && filepath.Clean(e.LaunchPath) != project {
+			lo.ticketWorktree[i] = e
+		}
+		c := req.OnExisting
+		if c == OnExistingUnset {
+			continue
+		}
+		if !e.Allows(c) {
+			return lo, nil, fmt.Errorf("%w: %s (%s)", ErrChoiceUnavailable, c, e.ID)
+		}
+		actions[i] = c
+		if e.LaunchPath == "" {
+			continue
+		}
+		path := filepath.Clean(e.LaunchPath)
+		here := Location{Path: path, Kind: LocationWorktree, Branch: e.Branch}
+		if path == project {
+			here.Kind = LocationBase
+		}
+		switch c {
+		case OnExistingResume, OnExistingTransfer, OnExistingKeep:
+			lo.fixed[i] = here
+			lo.free[path] = true
+		case OnExistingDelete:
+			lo.free[path] = true
+			if path == project {
+				if req.DiscardBaseChanges {
+					lo.clean[path] = true
+				}
+			} else {
+				lo.recreate[path] = true
+			}
+		}
+	}
+	return lo, actions, nil
+}
+
+// pendingWarning counts the open decisions on the tickets of a launch (its
+// existing sessions, whose OpenDecisions it sets), in its project and in
+// total.
+func pendingWarning(open []domain.Decision, project []domain.Session, existing []ExistingSession) Warning {
+	inProject := map[string]bool{}
+	for _, o := range project {
+		inProject[o.ID] = true
+	}
+	onTicket := map[string]int{}
+	for _, e := range existing {
+		onTicket[e.ID] = 0
+	}
+	nProject, nTicket := 0, 0
+	for _, d := range open {
+		if inProject[d.SessionID] {
+			nProject++
+		}
+		if _, ok := onTicket[d.SessionID]; ok {
+			onTicket[d.SessionID]++
+			nTicket++
+		}
+	}
+	for i := range existing {
+		existing[i].OpenDecisions = onTicket[existing[i].ID]
+	}
+	return Warning{Code: WarnPending, Args: []any{nTicket, nProject, len(open)}}
 }
 
 // Start runs a plan: worktrees are created, then each session is started in
@@ -146,6 +283,9 @@ func (s *Service) Plan(ctx context.Context, req RunRequest) (*RunPlan, error) {
 // Sessions started before an error are returned with it.
 func (s *Service) Start(ctx context.Context, plan *RunPlan) ([]*StartResult, error) {
 	req := plan.Request
+	if plan.NeedsChoice && req.OnExisting == OnExistingUnset {
+		return nil, &ExistingChoiceError{Existing: plan.Existing}
+	}
 	var unlocks []func()
 	defer func() {
 		for _, u := range unlocks {
@@ -166,6 +306,36 @@ func (s *Service) Start(ctx context.Context, plan *RunPlan) ([]*StartResult, err
 	var out []*StartResult
 	for i := range plan.Sessions {
 		ps := &plan.Sessions[i]
+		var (
+			handoff string
+			deleted *DeleteReport
+			kept    *ExistingSession
+		)
+		if ps.Existing != "" {
+			e, _ := existingByID(plan.Existing, ps.Existing)
+			switch ps.Action {
+			case OnExistingResume, OnExistingTransfer:
+				res, err := s.continueExisting(ctx, req.Base, e, ps.Action)
+				if res != nil {
+					out = append(out, res)
+				}
+				if err != nil {
+					return out, err
+				}
+				continue
+			case OnExistingKeep:
+				if err := s.StopSession(ctx, e.ID); err != nil {
+					return out, fmt.Errorf("stopping session %s: %w", e.ID, err)
+				}
+				handoff, kept = s.HandoffBrief(ctx, e.ID, req.ProjectPath), &e
+			case OnExistingDelete:
+				rep, err := s.DeleteSession(ctx, e.ID, DeleteOptions{ProjectPath: req.ProjectPath, DiscardBaseChanges: req.DiscardBaseChanges})
+				if err != nil {
+					return out, fmt.Errorf("deleting session %s: %w", e.ID, err)
+				}
+				deleted = rep
+			}
+		}
 		created := false
 		if ps.Location.Create {
 			p, err := s.createWorktree(req.ProjectPath, ps.Location.Branch)
@@ -199,9 +369,20 @@ func (s *Service) Start(ctx context.Context, plan *RunPlan) ([]*StartResult, err
 		if created {
 			sr.WorktreeAuto, sr.WorktreeBranch = true, ps.Location.Branch
 		}
+		if kept != nil {
+			// The new session continues the work of the stopped one.
+			sr.ParentSessionID, sr.Handoff = kept.ID, handoff
+			if prev, err := s.Session(ctx, kept.ID); err == nil {
+				sr.WorktreeAuto, sr.WorktreeBranch = prev.WorktreeAuto, prev.WorktreeBranch
+			}
+		}
 		res, err := s.StartSession(ctx, sr)
 		if res != nil && res.SessionID != "" {
 			res.Stashed = stashed
+			res.Deleted = deleted
+			if kept != nil {
+				res.Replaced = kept.ID
+			}
 			out = append(out, res)
 		}
 		if err != nil {

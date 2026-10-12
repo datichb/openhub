@@ -67,6 +67,13 @@ type runOptions struct {
 	epics []workflowsvc.EpicExpansion
 	// Progress receives preparation output (container image build).
 	Progress func(line string)
+	// OnExisting is what is done with an open session already working on a
+	// ticket of the launch (--on-existing; "" = ask, or refused for the
+	// same workflow).
+	OnExisting runsvc.OnExisting
+	// DiscardBaseChanges lets OnExistingDelete discard the uncommitted
+	// changes of a session that worked in the project directory.
+	DiscardBaseChanges bool
 }
 
 // preparedRun is a launch ready to start: its plan can be shown (recap).
@@ -82,6 +89,14 @@ type preparedRun struct {
 	suggestions []preconditionSuggestion
 	// remote is set for a remote launch (sessions sent to GitLab CI).
 	remote *remotePrep
+
+	// What planning again needs (replan: another choice for the existing
+	// sessions): the resolution and prompt values of each session.
+	sessions    []*workflowsvc.Resolution
+	values      []map[string]any
+	ticketInput string
+	preconds    []runsvc.Warning
+	missingMCP  []string
 }
 
 // prepareWorkflowRun resolves, compiles and plans a launch.
@@ -148,6 +163,7 @@ func prepareWorkflowRun(ctx context.Context, a *app.App, opts runOptions, errOut
 		Base: base, ProjectPath: opts.Project.Path, Location: runsvc.ParseLocation(opts.Location),
 		Workflow:        runsvc.WorkflowRef{ID: res.Spec.ID, Layer: string(res.Ref.Layer), Version: res.Spec.Version, Risk: string(res.Spec.Risk)},
 		ParentSessionID: opts.ParentSessionID, Dirty: opts.Dirty,
+		OnExisting: opts.OnExisting, DiscardBaseChanges: opts.DiscardBaseChanges,
 	}
 	if kind == sessionspec.RuntimeRemote {
 		req.Dirty = runsvc.DirtyAllow // the job clones the project
@@ -195,20 +211,44 @@ func prepareWorkflowRun(ctx context.Context, a *app.App, opts runOptions, errOut
 	if err != nil {
 		return nil, err
 	}
-	plan, err := svc.Plan(ctx, req)
-	if err != nil {
-		return nil, runPlanError(err)
+	p := &preparedRun{opts: opts, project: opts.Project, resolution: res, bundle: b, svc: svc, suggestions: suggestions, remote: rp,
+		sessions: sessions, values: values, ticketInput: ticketInput, preconds: preconds, missingMCP: missingMCP}
+	if err := p.planRun(ctx, req); err != nil {
+		return nil, err
 	}
-	plan.Warnings = append(preconds, plan.Warnings...)
-	for _, m := range missingMCP {
+	return p, nil
+}
+
+// replan plans the launch again with another choice for the open sessions
+// of its tickets (no new resolution or bundle build).
+func (p *preparedRun) replan(ctx context.Context, choice runsvc.OnExisting, discardBase bool) error {
+	req := p.plan.Request
+	req.OnExisting, req.DiscardBaseChanges = choice, discardBase
+	p.opts.OnExisting, p.opts.DiscardBaseChanges = choice, discardBase
+	return p.planRun(ctx, req)
+}
+
+// planRun plans the sessions of the launch and renders their prompts.
+func (p *preparedRun) planRun(ctx context.Context, req runsvc.RunRequest) error {
+	opts, rp := p.opts, p.remote
+	plan, err := p.svc.Plan(ctx, req)
+	if err != nil {
+		return runPlanError(err)
+	}
+	plan.Warnings = append(append([]runsvc.Warning{}, p.preconds...), plan.Warnings...)
+	for _, m := range p.missingMCP {
 		plan.Warnings = append(plan.Warnings, runsvc.Warning{Code: "mcp_missing", Args: []any{m}})
 	}
 	if rp != nil {
-		// Remote: the job clones the project; no local location or warning.
-		plan.Warnings = preconds
+		// Remote: the job clones the project; no local location, warning or
+		// existing session to continue.
+		plan.Warnings = p.preconds
+		plan.Existing, plan.NeedsChoice = nil, false
+		rp.tickets, rp.inputs = nil, nil
 		for i := range plan.Sessions {
-			rp.tickets = append(rp.tickets, remoteTickets(values[i], ticketInput))
-			rp.inputs = append(rp.inputs, sessions[i].Inputs)
+			plan.Sessions[i].Existing, plan.Sessions[i].Action = "", ""
+			rp.tickets = append(rp.tickets, remoteTickets(p.values[i], p.ticketInput))
+			rp.inputs = append(rp.inputs, p.sessions[i].Inputs)
 		}
 	}
 	for i := range plan.Sessions {
@@ -217,14 +257,15 @@ func prepareWorkflowRun(ctx context.Context, a *app.App, opts runOptions, errOut
 		if rp != nil {
 			loc = remotesvc.WorkDir(opts.Project.Name)
 		}
-		p, err := sessions[i].RenderPrompt(workflowsvc.PromptContext{Project: opts.Project.Name,
+		prompt, err := p.sessions[i].RenderPrompt(workflowsvc.PromptContext{Project: opts.Project.Name,
 			Location: loc, Branch: branch, Lang: i18n.Locale()})
 		if err != nil {
-			return nil, err
+			return err
 		}
-		plan.Sessions[i].Prompt = p
+		plan.Sessions[i].Prompt = prompt
 	}
-	return &preparedRun{opts: opts, project: opts.Project, resolution: res, bundle: b, svc: svc, plan: plan, suggestions: suggestions, remote: rp}, nil
+	p.plan = plan
+	return nil
 }
 
 // resolveLaunch resolves the workflow of a launch with its inputs: the
@@ -447,6 +488,10 @@ func (p *preparedRun) start(ctx context.Context, a *app.App, ui launcher.LaunchU
 	if errors.Is(err, runsvc.ErrLaunchInProgress) {
 		return results, errors.New(i18n.T("cmd.run.in_progress"))
 	}
+	var choice *runsvc.ExistingChoiceError
+	if errors.As(err, &choice) {
+		return results, errors.New(existingChoiceMessage(choice.Existing))
+	}
 	for _, res := range results {
 		for _, w := range res.Report.Warnings {
 			ui.Notify(i18n.Tf("cmd.v5.isolation_warning", w), launcher.LevelWarning)
@@ -471,6 +516,12 @@ func afterStart(ctx context.Context, a *app.App, svc *runsvc.Service, ui launche
 	if res.Stashed != "" {
 		ui.Notify(i18n.Tf("cmd.run.stashed", res.Stashed), launcher.LevelInfo)
 	}
+	if d := res.Deleted; d != nil {
+		ui.Notify(deleteReportText(d), launcher.LevelInfo)
+	}
+	if res.Replaced != "" {
+		ui.Notify(i18n.Tf("cmd.run.existing.replaced", res.Replaced, res.SessionID), launcher.LevelInfo)
+	}
 	for _, n := range res.Notes {
 		ui.Notify(n, launcher.LevelInfo)
 	}
@@ -483,6 +534,8 @@ func afterStart(ctx context.Context, a *app.App, svc *runsvc.Service, ui launche
 		ui.Notify(i18n.T("cmd.daemon.inprocess_notice"), launcher.LevelWarning)
 	}
 	switch {
+	case attach == sessionspec.AttachNone && res.Existing != "":
+		ui.Notify(i18n.Tf("cmd.run.existing.continued."+string(res.Existing), res.SessionID), launcher.LevelSuccess)
 	case attach == sessionspec.AttachNone:
 		ui.Notify(i18n.Tf("cmd.run.started", res.SessionID), launcher.LevelSuccess)
 	case attach == sessionspec.AttachBrowser:
@@ -512,6 +565,17 @@ func afterStart(ctx context.Context, a *app.App, svc *runsvc.Service, ui launche
 // runRecap is what a launch will do: labelled rows and warnings (oh run
 // --recap, TUI launch form).
 func runRecap(p *preparedRun) (rows [][2]string, warnings []string) {
+	rows, warnings = launchRecap(p)
+	rows = append(rows, existingRecapRows(p.plan)...)
+	if p.plan.NeedsChoice {
+		warnings = append(warnings, existingChoiceMessage(p.plan.Existing))
+	}
+	return rows, warnings
+}
+
+// launchRecap is the recap without the existing sessions of the tickets
+// (the TUI shows them as a comparison block).
+func launchRecap(p *preparedRun) (rows [][2]string, warnings []string) {
 	r := bundle.Show(p.bundle)
 	add := func(label, value string) { rows = append(rows, [2]string{label, value}) }
 	add(i18n.T("cmd.run.recap.mode"), p.resolution.Mode)
@@ -553,6 +617,9 @@ func runRecap(p *preparedRun) (rows [][2]string, warnings []string) {
 		label := s.Label
 		if label == "" {
 			label = theme.IconArrow
+		}
+		if s.Action != runsvc.OnExistingUnset {
+			loc += " · " + i18n.Tf("cmd.run.recap.on_existing", i18n.T("cmd.run.existing.choice."+string(s.Action)), s.Existing)
 		}
 		add("  "+label, loc)
 	}
