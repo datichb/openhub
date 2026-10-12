@@ -25,7 +25,6 @@ permission:
     "ONBOARDING.md": allow
     "CONVENTIONS.md": allow
     "docs/wiki/index.md": allow
-    "opencode.json": allow
   glob: deny
   grep: deny
   edit: deny

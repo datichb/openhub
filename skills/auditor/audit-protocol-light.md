@@ -1,6 +1,6 @@
 ---
 name: audit-protocol-light
-description: Protocole d'audit allégé — format de rapport structuré, niveaux de criticité, format des findings individuels et scoring /10. Version compacte d'audit-protocol, injectée dans les sous-agents spécialisés.
+description: Format du rapport d'audit des sous-agents auditor — structure du rapport, niveaux de criticité, format des findings et score /10.
 ---
 
 # Skill — Protocole d'Audit (light)

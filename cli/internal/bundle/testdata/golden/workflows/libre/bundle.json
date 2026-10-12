@@ -374,7 +374,6 @@
         "question * allow",
         "read * deny",
         "read ONBOARDING.md allow",
-        "read opencode.json allow",
         "read CONVENTIONS.md allow",
         "read docs/wiki/index.md allow",
         "skill * allow",

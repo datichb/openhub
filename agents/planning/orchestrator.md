@@ -50,7 +50,7 @@ N'invente ni étape, ni agent, ni checkpoint qui n'y figure pas.
 
 ## Chargement des handoff-formats à la demande
 
-Certains handoff-formats sont en Bucket B (native_skills) — les charger via l'outil `skill` **avant** d'invoquer l'agent correspondant :
+Certains handoff-formats ne sont pas inclus dans ton prompt — les charger avec l'outil `skill` **avant** d'invoquer l'agent correspondant :
 
 | Agent à invoquer | Skill à charger |
 |------------------|----------------|

@@ -73,7 +73,7 @@ Il est injecté dans chaque `developer` et dans `orchestrator-dev` — producteu
 ### À la réception du bloc `## Retour vers orchestrator-dev` d'un developer
 
 1. **Lire le `### Statut`** pour décider de la suite :
-   - `implémenté` ou `partiellement-implémenté` → continuer vers l'étape 3 (QA optionnel) ou l'étape 4 (review)
+   - `implémenté` ou `partiellement-implémenté` → continuer vers l'étape 3 (pre-review du developer) puis l'étape 4 (review)
    - `bloqué` → traiter comme un "Ticket bloqué en cours d'implémentation" (voir section dédiée du protocole)
 
 2. **Transmettre les `### Points d'attention pour la review`** au reviewer à l'étape 4 :
