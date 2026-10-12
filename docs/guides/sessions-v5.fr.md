@@ -48,6 +48,22 @@ idle_sleep_minutes = 5     # un serveur inactif se met en veille après N minute
 - Si vous quittez la TUI (Ctrl+Q ou commande `quit`) pendant que des sessions travaillent, oh demande quoi faire **pour chacune** : « finir l'étape, veille » (défaut), « arrière-plan » ou « arrêter maintenant ». Échap annule. Les sessions en attente ou inactives sont mises en veille tout de suite.
 - Au retour, un message résume ce qui s'est passé pendant votre absence (sessions changées, décisions arrivées, coût).
 
+## Lancer sur un ticket déjà en cours
+
+Au lancement, oh cherche les sessions ouvertes (ni arrêtées ni en échec) du projet qui travaillent déjà sur un des tickets, quel que soit leur workflow. Le récap de la TUI (et `oh run` dans un terminal) compare chacune au nouveau lancement : état, workflow et version, bundle, environnement, mode, fournisseur, modèle, emplacement et branche, travail (commits non poussés, fichiers modifiés), décisions ouvertes, coût ; les différences sont marquées ⚠.
+
+Une session d'un **autre workflow** est signalée pour information : la nouvelle démarre à côté. Une session du **même workflow** demande un choix :
+
+| Choix | TUI | `--on-existing` | Effet |
+|---|---|---|---|
+| Reprendre | `r` | `resume` | pas de nouvelle session : la session existante est rouverte (réveillée si elle dort) |
+| Reprendre ailleurs | `t` | `transfer` | la session et sa conversation passent à l'environnement (local ↔ conteneur) et au modèle choisis ; en cas d'échec elle reste inchangée et oh propose « Remplacer » |
+| Remplacer (garder le travail) | `k` | `keep` | la session est arrêtée ; la nouvelle travaille dans le même dossier et la même branche et reçoit un **brief de passation** (objectif, résultats, décisions prises, commits, fichiers modifiés) |
+| Supprimer et relancer | `d` | `delete` | la session et son travail sont supprimés (confirmation, voir `oh session delete`), puis le lancement part à neuf |
+| En parallèle | `p` | `parallel` | la nouvelle session démarre à côté, dans un autre worktree (les deux peuvent entrer en conflit) |
+
+Dans la TUI, un choix lance aussitôt. Sans terminal, `oh run` refuse tant que `--on-existing` n'est pas donné. Une session distante ne propose que « En parallèle » (elle se récupère avec `oh session fetch`).
+
 ## Commandes
 
 | Commande | Rôle |
@@ -69,9 +85,10 @@ idle_sleep_minutes = 5     # un serveur inactif se met en veille après N minute
 | `oh session resolve <id> [--dry-run] [--yes]` | rejouer son journal Beads (conflits, confirmation) |
 | `oh session resume <id>` | reprendre une session en veille sans ouvrir d'interface |
 | `oh session stop <id>` | arrêter une session, et son serveur si aucune autre session ne l'utilise |
+| `oh session delete <id> [--yes] [--discard-base-changes]` | supprimer définitivement une session : worktree, branche locale (jamais la distante), décisions, fichiers (confirmation) |
 | `oh daemon status` | état du démon (serveurs, jetons de proxy) |
 | `oh daemon stop [--force]` | arrêter le démon (refusé si des sessions tournent, sauf `--force`) |
-| `oh doctor` | vérifications v5 : runtime, démon, git, terminal |
+| `oh doctor [--offline]` | vérifications v5 : runtime, démon, git, terminal, identifiants (clé Bedrock validée auprès d'AWS, sauf `--offline`) |
 
 Dans ces commandes, `<id>` peut être un début d'identifiant (`oh session follow dRcJ`) ; `approve`, `answer` et `dismiss` acceptent aussi l'identifiant d'une décision (affiché par `inbox`) quand une session en a plusieurs. **Première réponse gagne** : si la décision a déjà été prise dans l'interface opencode ou le navigateur, oh le dit et n'envoie rien.
 
@@ -79,9 +96,9 @@ Dans ces commandes, `<id>` peut être un début d'identifiant (`oh session follo
 
 Ouvrez-la depuis l'omnibar (`sessions`) ou les sections « Sessions » des pages d'accueil, de projet et d'équipe. La barre du bas affiche partout `● N ⏸ M` (sessions vivantes, décisions en attente).
 
-- **À traiter** : décisions de toutes les sessions. `Entrée` ouvre la fiche (permission : une fois / toujours / refuser + message ; question : formulaire généré ; alerte : classer ou attacher), `y`/`n` valident ou refusent une permission, `x` classe une alerte.
+- **À traiter** : sessions qui ont des décisions en attente, chacune suivie de ses décisions (une session n'apparaît qu'une fois dans la vue ; identifiant court sur la ligne). `Entrée` ouvre la fiche (permission : une fois / toujours / refuser + message ; question : formulaire généré ; alerte : classer ou attacher), `y`/`n` valident ou refusent une permission, `x` classe une alerte.
 - **En cours, En veille, Terminées (7 j), À récupérer** (sessions distantes terminées) ; détail de la session sélectionnée en bas.
-- `t` (ou `Entrée` sur une session) : flux en direct à droite (agent, outils, messages, coût). `a` attacher, `A` choisir comment ouvrir (iTerm2, Terminal.app, tmux, navigateur, ici), `m` consigne, `i` interrompre, `M` modèle, `s` arrêter, `c` reprendre, `o` résultats et description de MR, `w` navigateur, `e` enchaîner un autre workflow, `g` récupérer une session distante, `f` projet actif / tous les projets, `r` rafraîchir.
+- `t` (ou `Entrée` sur une session) : flux en direct à droite (agent, outils, messages, coût). `a` attacher, `A` choisir comment ouvrir (iTerm2, Terminal.app, tmux, navigateur, ici), `m` consigne, `i` interrompre, `M` modèle, `s` arrêter, `D` supprimer (confirmation, comme `oh session delete`), `c` reprendre, `o` résultats et description de MR, `w` navigateur, `e` enchaîner un autre workflow, `g` récupérer une session distante, `f` projet actif / tous les projets, `r` rafraîchir.
 
 Avec tmux, la session s'ouvre dans une nouvelle fenêtre ; avec `[session] iterm_style = "split"`, dans un volet à côté.
 
@@ -111,6 +128,7 @@ oh tient à jour, pour l'agent d'entrée de la session, un **état de session** 
 | `oh.checkpoints` | workflow, mode, checkpoints passés, checkpoint en cours et suivant, coupe-circuit | à la création de la session (avant le premier prompt), puis à chaque transition ; aucune pour un workflow sans checkpoint |
 | `oh.budget` | budget de la session (relèvements compris), dépensé, restant | à la décision `$` et dès la réponse à un relèvement |
 | `oh.resume` | consigne de reprise | après `oh session resume` quand le serveur a redémarré ; retirée après l'étape suivante |
+| `oh.handoff` | brief de passation : travail de la session remplacée (objectif, résultats, décisions, commits, fichiers modifiés) ; copie dans `~/.oh/sessions/<id>/handoff.md` | au démarrage d'une session lancée avec « Remplacer (garder le travail) » (`--on-existing=keep`) |
 
 - Une entrée n'est réécrite que si sa valeur change : l'outil annonce chaque changement à l'étape suivante, par un message dans l'historique de la session. Un changement survenu pendant que l'agent travaille est écrit à la fin de son étape (annoncé au tour suivant) : écrit pendant l'étape, il ferait faire à l'agent une étape de plus qui remplacerait sa réponse.
 - Les **sous-agents** ne reçoivent pas cet état (limite de l'outil) ; ils lisent l'état du workflow avec l'outil `workflow_status`.
@@ -123,6 +141,10 @@ Le démon oh affiche une notification système quand une décision vous attend e
 ## Clés LLM
 
 La clé est cherchée dans cet ordre : projet, équipe, hub, puis (Bedrock uniquement) le profil AWS avec signature SigV4. Une clé d'équipe se saisit dans **Détail équipe**, touche `K`. Elle est rangée dans le trousseau sous `openhub.team.<équipe>.provider.<fournisseur>.token`.
+
+Pour Bedrock, `auth_mode` restreint cette cascade : `bearer` n'utilise que la clé API enregistrée (lancement refusé s'il n'y en a pas) ; `profile` et `env` signent en SigV4 et ignorent les clés enregistrées. La variable `AWS_BEARER_TOKEN_BEDROCK` du shell n'est jamais transmise à l'outil : `oh provider setup bedrock --from-env` l'enregistre dans le trousseau (voir [Fournisseurs](providers.fr.md)).
+
+Si le fournisseur refuse la clé (expirée, révoquée), le démon le journalise et une alerte ✗ apparaît dans « À traiter » pour les sessions concernées : clé utilisée (projet, équipe, hub ou profil AWS), date d'enregistrement et commande pour la renouveler. `oh doctor` valide aussi la clé Bedrock auprès d'AWS.
 
 La région Bedrock vient de la config oh, puis de `AWS_REGION` / `AWS_DEFAULT_REGION`, puis du profil AWS. Si aucune n'est définie, oh utilise `us-east-1` et l'indique dans ses logs.
 
@@ -159,3 +181,4 @@ Les budgets sont des **plafonds souples**, vérifiés sur le coût indiqué par 
 - **opencode 2.0.20** : le shell d'une session ne reçoit pas l'environnement du serveur (oh y repose `PATH`, `HOME`… en local) ; les sous-agents ne reçoivent pas l'environnement de session (le démon le leur réapplique) ; quand une permission est refusée, l'agent ne voit pas le message du refus (oh lui envoie la consigne à part).
 - **Restrictions souples** : le nombre maximum de sessions actives peut être dépassé par deux lancements simultanés ; un budget est contrôlé à la fin d'une étape (l'étape en cours se termine) ; le plafond mémoire ne mesure pas les conteneurs.
 - **Paquets** : `~/.oh/bundles/` n'est pas purgé automatiquement (les paquets non utilisés restent sur le disque).
+- **Ticket déjà en cours** : « Reprendre ailleurs » (transfert) n'emporte que la session elle-même, pas les sessions de ses sous-agents ; un transfert vers un autre bundle que celui du démarrage est signalé (agents, skills ou règles peuvent différer). Le choix s'applique à une seule session par ticket (la plus récente du même workflow) : les autres restent à côté, avec un avertissement.

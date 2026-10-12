@@ -10,6 +10,7 @@ Declarative workflows (`apiVersion: oh/v1`) describe a use case: entry agent, ag
 oh run [workflow] [-i key=value]… [--tickets a,b] [--one-session] [--mode <mode>] [--runtime local|container|remote]
                   [--location base|new|<worktree>] [--allow-dirty | --stash] [--attach <opening>] [--recap] [--draft] [-a <agent>]
                   [--headless [--output <file>] [--timeout <duration>]] [--parent <session>] [-p <project>] [-P <provider>]
+                  [--on-existing resume|transfer|keep|delete|parallel [--discard-base-changes]]
 ```
 
 | Flag | Short | Type | Default | Description |
@@ -30,6 +31,8 @@ oh run [workflow] [-i key=value]… [--tickets a,b] [--one-session] [--mode <mod
 | `--output` | | string | standard output | With `--headless`: file of the answer |
 | `--timeout` | | duration | `30m` | With `--headless`: maximum wait (`0` = none) |
 | `--parent` | | string | | Previous session (chaining) |
+| `--on-existing` | | string | ask (terminal) | Open session already on a ticket of the launch: `resume`, `transfer`, `keep`, `delete` or `parallel` (see below) |
+| `--discard-base-changes` | | bool | `false` | With `delete`: also discard the uncommitted changes of a session that worked in the project directory |
 | `--project` | `-p` | string | project of the current folder | Project |
 | `--provider` | `-P` | string | project provider | LLM provider |
 
@@ -40,9 +43,10 @@ Launches a workflow: layer resolution and validation, session bundle, session pl
 - **Computed inputs** (`from:`): an empty input that declares `from:` is computed by oh at launch (e.g. `review-feedback`: branch, target branch and discussions read on the MR of the `mr` input; `brief-enrich`: the takeover brief of the ticket). Sources: [workflow schema](workflow-schema.en.md#computed-inputs-from).
 - **Location** (`--location`): `base` (default, project directory), `new` (a new worktree per session, branch = `branch` input or `oh/<workflow>-<ticket>`), or the path of an existing worktree. A writing session (`risk` other than `read`) **automatically gets a worktree** when another writing session (running or asleep) uses the same directory. Replaces `--worktree`.
 - **Uncommitted changes**: a writing session never starts in a base directory with uncommitted changes (untracked files included) without a choice. By default it works in a **new worktree** of its branch and your changes stay untouched; `--stash` puts them aside first (`git stash apply <commit>` brings them back, the commit is printed), `--allow-dirty` launches there anyway. An existing worktree chosen with `--location <path>` is only reported. Whatever the choice, no agent may run the git commands that throw away work (`git checkout <…>` except `-b`, `git restore`, `git reset --hard|--merge|--keep`, `git clean`, `git stash` except `list`/`show`, `git switch -f|--discard-changes`, `git worktree remove`, `git branch -D`, `git rm` except `--cached`, also as `git -C <dir> …`): branch changes go through `git switch`.
+- **Ticket already worked on** (`--on-existing`): oh looks for the open sessions (neither stopped nor failed) of the project working on a ticket of the launch, whatever their workflow. In a terminal, it shows for each one an "Existing session / New launch" table (state, workflow, version, bundle, runtime, mode, provider, model, location, branch, work, open decisions, cost, last activity; differences marked ⚠) then, for a session of **the same workflow**, asks what to do. Choices: `resume` resumes it (no new session); `transfer` moves the session and its conversation to the runtime (local ↔ container) and model of the launch — on failure, the session is unchanged and oh offers `keep`; `keep` stops it and starts the new session in the same directory and branch, with a handoff brief (`~/.oh/sessions/<id>/handoff.md`); `delete` deletes it with its work (as [`oh session delete`](cli-sessions.en.md#oh-session-delete), confirmed in a terminal) then launches afresh; `parallel` starts the new session beside it, in another worktree. **Without a terminal**, a session of the same workflow requires `--on-existing` (refused otherwise: "choose what to do with --on-existing=…"); a session of another workflow is reported and the new one starts beside it. A remote session only offers `parallel`. A transfer does not carry the subagent sessions.
 - **Default workflow**: without argument, `oh run` launches the project default workflow (Project config › Execution).
 - **Runtime** (`--runtime`): `local`, `container` or `remote` (must be in `runtime.allowed`; refused with the reason when the container engine is unavailable or the remote target is not set up; `remote` is **experimental** and refused without `oh config set remote.experimental true`); without `--runtime`, the project default runtime, then the Settings one, then the workflow one, when allowed. See [Container](../guides/container.en.md) and [Remote execution](../guides/remote-runners.en.md) (`oh remote setup`, then `oh session fetch` / `oh session resolve` on return).
-- **Recap** (`--recap`): agents, first-turn budget, MCP, Code Mode, allowed Beads commands, checkpoints in the session mode (pause, auto, skipped, conditional; mandatory ones marked), isolation, sessions and locations, warnings (uncommitted changes, automatic worktree, pending decisions), then confirmation.
+- **Recap** (`--recap`): agents, first-turn budget, MCP, Code Mode, allowed Beads commands, checkpoints in the session mode (pause, auto, skipped, conditional; mandatory ones marked), isolation, sessions and locations (with the choice applied to an existing session), existing sessions of the tickets, warnings (uncommitted changes, automatic or already existing worktree, worktree shared with another writing session, ticket worked on in a worktree while this session takes the project directory, pending decisions on the ticket, in the project and in total), then confirmation.
 - **Single session** (`--one-session`): every ticket in the same session, instead of one session per ticket.
 - **MCP**: without an `mcp:` field in the workflow, the session gets the project MCP servers; with `mcp:` (even empty), only the listed ones (a listed server missing from the project is reported).
 - **Preconditions**: a blocking precondition refuses the launch; a suggestion (e.g. no wiki → `onboarding`) offers to run the suggested workflow first. With `resume: true`, the initial launch is remembered and offered again when that session ends ("Chain with…" in the TUI).
@@ -64,6 +68,7 @@ oh run libre --agent debugger -i request="Test X fails"
 oh run audit -i type=security --runtime container
 oh run review --headless --output review.md --timeout 20m
 oh run ticket --tickets bd-42 --runtime remote
+oh run ticket --tickets bd-42 --runtime container --on-existing=transfer   # resume the ticket's session in a container
 ```
 
 ## oh workflow list

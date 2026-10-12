@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 
 	"github.com/datichb/openhub/cli/internal/domain"
 )
@@ -20,6 +21,23 @@ func TeamKeychainKey(name Name, teamID string) string {
 // ErrNoCredential reports that no key of the cascade holds a credential.
 var ErrNoCredential = errors.New("no credential found")
 
+// Bedrock authentication modes (Config.AuthMode). Empty = keychain cascade,
+// then the AWS profile / default chain.
+const (
+	AuthBearer  = "bearer"  // Bedrock API key from the keychain cascade only
+	AuthProfile = "profile" // SigV4 with the AWS profile (stored keys ignored)
+	AuthEnv     = "env"     // SigV4 with the AWS default chain (stored keys ignored)
+)
+
+// ErrBearerNotStored reports a Bedrock project in bearer mode without any
+// stored API key (it also matches ErrNoCredential).
+var ErrBearerNotStored = fmt.Errorf("%w (auth_mode bearer)", ErrNoCredential)
+
+// EnvBearerToken is the Bedrock API key of the user's shell
+// (AWS_BEARER_TOKEN_BEDROCK), which oh never passes to the tool: it can only
+// be imported into the keychain (oh provider setup bedrock --from-env).
+func EnvBearerToken() string { return os.Getenv(EnvVar(Bedrock)) }
+
 // ResolvedCredential is a provider credential found on the host.
 type ResolvedCredential struct {
 	Source  domain.CredentialSource
@@ -33,12 +51,22 @@ type ResolvedCredential struct {
 //	projectTokenKey (explicit project override) → project key → team key → hub key
 //	→ (Bedrock only) AWS profile / default credential chain (SigV4).
 //
+// For Bedrock, cfg.AuthMode narrows it: bearer = stored keys only
+// (ErrBearerNotStored without one), profile/env = SigV4 only.
+//
 // The returned Source never contains the secret; it is what the oh daemon
 // persists to restore proxy grants.
 func ResolveCredentialSource(ctx context.Context, secrets SecretStore, prov Name, projectID, teamID, projectTokenKey string, cfg *Config) (ResolvedCredential, error) {
 	out := ResolvedCredential{}
+	mode := ""
 	if cfg != nil {
 		out.Region, out.Profile = cfg.AWSRegion, cfg.AWSProfile
+		if prov == Bedrock {
+			mode = cfg.AuthMode
+		}
+	}
+	if mode == AuthProfile || mode == AuthEnv {
+		secrets = nil // SigV4 chosen: a stored key is never used
 	}
 	kind := domain.CredentialBearer
 	if prov == Anthropic {
@@ -80,6 +108,9 @@ func ResolveCredentialSource(ctx context.Context, secrets SecretStore, prov Name
 		}
 	}
 	if prov == Bedrock {
+		if mode == AuthBearer {
+			return out, fmt.Errorf("%w for provider %s (project %q, team %q)", ErrBearerNotStored, prov, projectID, teamID)
+		}
 		out.Source = domain.CredentialSource{Kind: domain.CredentialSigV4, Profile: out.Profile, Scope: "aws"}
 		return out, nil
 	}

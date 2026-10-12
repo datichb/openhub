@@ -14,6 +14,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/tui/theme"
+	"github.com/datichb/openhub/cli/internal/tui/v2/widgets"
 	"github.com/datichb/openhub/cli/internal/workflow"
 )
 
@@ -395,7 +397,13 @@ func TestLaunchFormSuggestionRunsFirst(t *testing.T) {
 	var idx int
 	require.Eventually(t, func() bool {
 		idx = -1
-		onLoop(app, func() { idx = v.form.GetButtonIndex("Lancer onboarding d'abord") })
+		onLoop(app, func() {
+			for i := 0; i < v.form.GetButtonCount(); i++ {
+				if widgets.ButtonLabel(v.form.GetButton(i)) == "Lancer onboarding d'abord" {
+					idx = i
+				}
+			}
+		})
 		return idx >= 0
 	}, 2*time.Second, 10*time.Millisecond, "suggestion button shown once the recap is loaded")
 	onLoop(app, func() {
@@ -484,7 +492,7 @@ func recapButtons(app *tview.Application, v *LaunchFormView) []string {
 			return
 		}
 		for i := 0; i < v.form.GetButtonCount(); i++ {
-			labels = append(labels, v.form.GetButton(i).GetLabel())
+			labels = append(labels, widgets.ButtonLabel(v.form.GetButton(i)))
 		}
 	})
 	return labels
@@ -531,7 +539,7 @@ func TestLaunchFormConfigureProvider(t *testing.T) {
 		assert.Contains(t, v.recapTV.GetText(true), "no credentials for anthropic")
 		b, ok := app.GetFocus().(*tview.Button)
 		require.True(t, ok)
-		assert.Equal(t, label, b.GetLabel(), "focused")
+		assert.Equal(t, label, widgets.ButtonLabel(b), "focused")
 		b.InputHandler()(tcell.NewEventKey(tcell.KeyEnter, 0, tcell.ModNone), func(tview.Primitive) {})
 	})
 	assert.Equal(t, 1, opened)
@@ -586,4 +594,68 @@ func TestLaunchFormConfigureProviderOnlyForCredentials(t *testing.T) {
 		})
 	}
 	assert.ErrorIs(t, ProviderCredentialsError("x"), ErrProviderCredentials)
+}
+
+// The recap focuses « Lancer » (primary) and draws it with the shared
+// focused style and markers; « Retour » keeps the neutral rest style even
+// though tview.Form resets the button styles on every draw.
+func TestLaunchFormRecapButtonStyles(t *testing.T) {
+	cfg := launchCfg(t)
+	cfg.Tickets = []string{"bd-1"}
+	cfg.Recap = func(context.Context, LaunchChoices) (*LaunchRecap, error) { return &LaunchRecap{}, nil }
+	v := NewLaunchFormView(cfg)
+	v.SetShell(&recordingShell{})
+	content := tview.NewFlex()
+	app := runApp(t, content)
+	onLoop(app, func() { v.Mount(content, app); v.toRecap() })
+
+	sc := tcell.NewSimulationScreen("UTF-8")
+	require.NoError(t, sc.Init())
+	sc.SetSize(100, 3)
+	var focusedLabel string
+	onLoop(app, func() {
+		if b, ok := app.GetFocus().(*tview.Button); ok {
+			focusedLabel = widgets.ButtonLabel(b)
+		}
+		v.form.SetRect(0, 0, 100, 3)
+		v.form.Draw(sc)
+		v.form.Draw(sc) // a second frame: the styles survive Form.Draw
+	})
+	sc.Show()
+	assert.Equal(t, i18n.T("tui.launch.launch"), focusedLabel, "« Lancer » focused by default")
+
+	cells, w, _ := sc.GetContents()
+	find := func(s string) int {
+		runes := []rune(s)
+		for x := 0; x+len(runes) <= w; x++ {
+			ok := true
+			for i, r := range runes {
+				c := cells[1*w+x+i]
+				if len(c.Runes) == 0 || c.Runes[0] != r {
+					ok = false
+					break
+				}
+			}
+			if ok {
+				return x
+			}
+		}
+		return -1
+	}
+	launchX := find("▸ " + i18n.T("tui.launch.launch") + " ◂")
+	backX := find(i18n.T("tui.launch.back"))
+	require.GreaterOrEqual(t, launchX, 0, "focus markers drawn")
+	require.GreaterOrEqual(t, backX, 0)
+
+	fg, bg, attr := cells[w+launchX+2].Style.Decompose()
+	wantFg, wantBg, _ := theme.ButtonFocusedStyle().Decompose()
+	assert.Equal(t, wantBg, bg, "focused background")
+	assert.Equal(t, wantFg, fg, "focused text")
+	assert.NotZero(t, attr&tcell.AttrBold)
+
+	fg, bg, _ = cells[w+backX].Style.Decompose()
+	restFg, restBg, _ := theme.ButtonStyle(false).Decompose()
+	assert.Equal(t, restBg, bg, "rest background")
+	assert.Equal(t, restFg, fg, "rest text")
+	assert.NotEqual(t, wantBg, restBg)
 }

@@ -26,6 +26,8 @@ const (
 	KeyCheckpoints = "oh.checkpoints"
 	KeyBudget      = "oh.budget"
 	KeyResume      = "oh.resume"
+	// KeyHandoff is the brief of the session a new one continues.
+	KeyHandoff = "oh.handoff"
 )
 
 // Entry is a state entry to set.

@@ -54,6 +54,8 @@ Le TUI suit un design **omnibar-first** inspiré des lanceurs fuzzy (fzf, Telesc
 
 **Contrat des touches** (v5.0) : les fenêtres (formulaires, confirmations) et l'omnibar reçoivent toutes les touches ; puis viennent les touches réservées (`Esc`, `Ctrl+P`, `Ctrl+T`, `?`, `F1`, `Ctrl+Q` / `Ctrl+C`), que les vues ne redéfinissent pas ; puis les touches de la vue ; puis la liste ou le champ sélectionné. `Enter` et les lettres ne sont plus pris à la liste : taper une lettre « n'importe où » n'ouvre plus l'omnibar, et `d` ne ferme plus les toasts (`Esc`). Toute action destructrice (suppression, nettoyage, libération d'un ticket, rejet d'une proposition…) demande une confirmation.
 
+**Boutons** : un seul style (`theme.ButtonStyle`, `widgets.DecorateButton`) dans les fenêtres, formulaires, assistants et le récap : action principale en gras dans la couleur du mode, bouton sélectionné sur fond clair et encadré `▸ libellé ◂`. Sélection initiale sur l'action principale (« Annuler » pour une confirmation dangereuse) ; `Tab` / `Shift+Tab` (et `←` / `→`) parcourent tous les boutons ; `↓` / `↑` font défiler le texte d'une fenêtre.
+
 Le reste passe par l'omnibar ou par les touches de la vue (affichées dans la ligne d'aide).
 
 La barre de mode affiche le badge des sessions **`● N ⏸ M`** (N sessions qui travaillent, M décisions en attente) ; il passe en alerte quand une décision attend.
@@ -113,7 +115,7 @@ Générée depuis le YAML du workflow (titre « Lancer · <workflow> »), en tro
 
 1. **Entrées** : une ligne par entrée (ticket Beads avec sélecteur `Choisir…`, case pour `bool`, liste pour `enum`, zone de texte pour `text`) ; « Ce workflow n'a pas d'entrée » sinon.
 2. **Options** : **Mode** ; **Exécution** (`⌂ local`, `▣ conteneur`, `☁ distant` ; un environnement indisponible affiche la raison ; en conteneur : moteur, image en cache ou à construire avec la durée estimée) ; **Emplacement** (`base`, worktrees existants, `+ nouveau worktree`) ; **Ouverture** (auto, iTerm2, Terminal.app, tmux, navigateur, ce terminal, ne pas ouvrir).
-3. **Récap** : agents, budget du 1er tour, isolation, sessions et emplacements (« N sessions · 1 serveur · un worktree par session qui écrit »), avertissements.
+3. **Récap** : agents, budget du 1er tour, isolation, sessions et emplacements (« N sessions · 1 serveur · un worktree par session qui écrit »), avertissements ; « Lancer » est l'action principale. Si une session ouverte travaille déjà sur le ticket, un bloc la compare au lancement (« Session existante / Nouveau lancement », différences ⚠) ; pour une session du même workflow, « Lancer » laisse place aux choix, boutons ou touches : `r` reprendre, `t` reprendre ailleurs (transfert local ↔ conteneur, modèle), `k` remplacer en gardant le travail (brief de passation), `d` supprimer et relancer (confirmation), `p` en parallèle ; un choix lance aussitôt (voir [Sessions v5](../guides/sessions-v5.fr.md#lancer-sur-un-ticket-déjà-en-cours)).
 
 `Tab` champ suivant ; `Ctrl+S` va au récap depuis n'importe quelle étape, puis lance depuis le récap une fois chargé ; `Alt+←`, `PgUp` ou `Ctrl+B` reviennent à l'étape précédente, `Alt+→` ou `PgDn` passent à la suivante ; `Esc` ferme. Un second lancement pendant la préparation est ignoré. Avec plusieurs tickets, une case « Une seule session pour tous les tickets » est proposée. Quand une précondition suggère un autre workflow, le récap propose « Lancer <wf> d'abord (puis revenir) ». Quand le fournisseur n'a pas d'identifiants, le récap affiche le message et un bouton **Configurer le fournisseur** (sélectionné) : il ouvre la vue Fournisseur ; au retour sur la fiche (`Esc`), le récap vérifie à nouveau.
 
@@ -133,7 +135,7 @@ Générée depuis le YAML du workflow (titre « Lancer · <workflow> »), en tro
 
 ### Vue Sessions
 
-Sections : **À traiter** (décisions en attente), **En cours**, **En veille**, **Terminées, 7 j**, **À récupérer** (sessions distantes terminées). Le détail à droite montre la session (workflow, runtime ⌂ ▣ ☁, emplacement, coût, décisions, sorties, suite proposée « ↪ Enchaîner avec … (e) »).
+Sections : **À traiter** (sessions qui ont des décisions en attente, chacune suivie de ses décisions ; une session n'apparaît qu'une fois dans la vue, identifiant court), **En cours**, **En veille**, **Terminées, 7 j**, **À récupérer** (sessions distantes terminées). Le détail à droite montre la session (workflow, runtime ⌂ ▣ ☁, emplacement, coût, décisions, sorties, suite proposée « ↪ Enchaîner avec … (e) »).
 
 | Touche | Action |
 |--------|--------|
@@ -148,6 +150,7 @@ Sections : **À traiter** (décisions en attente), **En cours**, **En veille**, 
 | `i` | Interrompre l'étape en cours |
 | `M` | Changer le modèle des prochaines étapes (`fournisseur/modèle`) |
 | `s` | Arrêter la session (confirmation) |
+| `D` | Supprimer définitivement la session (comme `oh session delete` ; confirmation avec ce qui est supprimé et perdu) |
 | `c` | Reprendre une session en veille |
 | `o` | Résultats (description de MR) |
 | `e` | Enchaîner avec… (workflows qui prennent une sortie de la session) |

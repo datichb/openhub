@@ -496,12 +496,7 @@ func RunWizard(cfg WizardConfig) WizardResult {
 				form.SetFieldBackgroundColor(theme.BgElement)
 				form.SetFieldTextColor(theme.FgPrimary)
 				form.SetLabelColor(theme.FgPrimary)
-				form.SetButtonStyle(tcell.StyleDefault.
-					Background(theme.ActiveMode.Primary).
-					Foreground(theme.BgPanel))
-				form.SetButtonActivatedStyle(tcell.StyleDefault.
-					Background(theme.ActiveMode.Secondary).
-					Foreground(theme.BgPanel))
+				widgets.StyleFormButtons(form, 0)
 				form.SetBorder(false)
 
 				// Fix DropDown popup list colors (same fix as inline wizard, ADR-034).

@@ -54,6 +54,8 @@ The TUI follows an **omnibar-first** design inspired by fuzzy launchers (fzf, Te
 
 **Key contract** (v5.0): windows (forms, confirmations) and the omnibar receive every key; then come the reserved keys (`Esc`, `Ctrl+P`, `Ctrl+T`, `?`, `F1`, `Ctrl+Q` / `Ctrl+C`), which views do not redefine; then the view keys; then the selected list or field. `Enter` and letters are no longer taken from the list: typing a letter « anywhere » no longer opens the omnibar, and `d` no longer dismisses toasts (`Esc`). Every destructive action (removal, cleanup, releasing a ticket, rejecting a proposal…) asks for a confirmation.
 
+**Buttons**: one style (`theme.ButtonStyle`, `widgets.DecorateButton`) in windows, forms, wizards and the recap: primary action in bold in the mode color, focused button on a light background and framed `▸ label ◂`. Initial focus on the primary action ("Cancel" for a dangerous confirmation); `Tab` / `Shift+Tab` (and `←` / `→`) cycle through every button; `↓` / `↑` scroll the text of a window.
+
 Everything else goes through the omnibar or the view keys (shown in the hint line).
 
 The mode bar shows the sessions badge **`● N ⏸ M`** (N working sessions, M pending decisions); it turns to alert when a decision is waiting.
@@ -113,7 +115,7 @@ Generated from the workflow YAML (title "Launch · <workflow>"), in three steps:
 
 1. **Inputs**: one line per input (Beads ticket with a `Pick…` picker, checkbox for `bool`, list for `enum`, text area for `text`); "This workflow has no input" otherwise.
 2. **Options**: **Mode**; **Runtime** (`⌂ local`, `▣ container`, `☁ remote`; an unavailable environment shows the reason; in a container: engine, cached image or image to build with the estimated duration); **Location** (`base`, existing worktrees, `+ new worktree`); **Opening** (auto, iTerm2, Terminal.app, tmux, browser, this terminal, do not open).
-3. **Recap**: agents, first-turn budget, isolation, sessions and locations ("N sessions · 1 server · one worktree per writing session"), warnings.
+3. **Recap**: agents, first-turn budget, isolation, sessions and locations ("N sessions · 1 server · one worktree per writing session"), warnings; "Launch" is the primary action. When an open session already works on the ticket, a block compares it with the launch ("Existing session / New launch", differences ⚠); for a session of the same workflow, "Launch" gives way to the choices, buttons or keys: `r` resume, `t` resume elsewhere (transfer local ↔ container, model), `k` replace keeping the work (handoff brief), `d` delete and relaunch (confirmation), `p` in parallel; a choice launches at once (see [Sessions v5](../guides/sessions-v5.en.md#launching-on-a-ticket-already-worked-on)).
 
 `Tab` next field; `Ctrl+S` goes to the recap from any step, then launches from the recap once loaded; `Alt+←`, `PgUp` or `Ctrl+B` go back one step, `Alt+→` or `PgDn` forward; `Esc` closes. A second launch while preparing is ignored. With several tickets, a "A single session for every ticket" checkbox is offered. When a precondition suggests another workflow, the recap offers "Launch <wf> first (then come back)". When the provider has no credentials, the recap shows the message and a **Configure the provider** button (focused): it opens the Provider view; back on the form (`Esc`), the recap checks again.
 
@@ -133,7 +135,7 @@ Generated from the workflow YAML (title "Launch · <workflow>"), in three steps:
 
 ### Sessions view
 
-Sections: **To handle** (pending decisions), **Running**, **Sleeping**, **Finished, 7 days**, **To fetch** (finished remote sessions). The detail on the right shows the session (workflow, runtime ⌂ ▣ ☁, location, cost, decisions, outputs, suggested next step "↪ Chain with … (e)").
+Sections: **To handle** (sessions with pending decisions, each followed by its decisions; a session shows only once in the view, short ID), **Running**, **Sleeping**, **Finished, 7 days**, **To fetch** (finished remote sessions). The detail on the right shows the session (workflow, runtime ⌂ ▣ ☁, location, cost, decisions, outputs, suggested next step "↪ Chain with … (e)").
 
 | Key | Action |
 |-----|--------|
@@ -148,6 +150,7 @@ Sections: **To handle** (pending decisions), **Running**, **Sleeping**, **Finish
 | `i` | Interrupt the current turn |
 | `M` | Switch the model of the next steps (`provider/model`) |
 | `s` | Stop the session (confirmation) |
+| `D` | Delete the session for good (as `oh session delete`; confirmation listing what is deleted and lost) |
 | `c` | Resume a sleeping session |
 | `o` | Results (merge request description) |
 | `e` | Chain with… (workflows that take an output of the session) |

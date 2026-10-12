@@ -36,6 +36,8 @@ Les resultats des actions s'affichent en toasts (succes, erreur, info) qui dispa
 
 **Changement en v5.0** : taper une lettre « n'importe ou » n'ouvre plus l'omnibar (utilisez `Ctrl+P` ou `/`) ; `Entree` et les lettres vont toujours a la liste ou au champ selectionne ; `d` ne ferme plus les toasts (`Esc`). Les touches `Esc`, `Ctrl+P`, `Ctrl+T`, `?`, `F1` et `Ctrl+Q` ont le meme sens dans toutes les vues. Toute action destructrice (supprimer un worktree, nettoyer, liberer un ticket, rejeter une proposition du wiki…) demande une confirmation.
 
+**Boutons** (fenetres, formulaires, assistants, recap) : un seul style partout. L'action principale est ecrite en gras dans la couleur du mode ; le bouton selectionne est sur fond clair, encadre `▸ libellé ◂`. A l'ouverture, l'action principale est selectionnee (« Annuler » pour une confirmation dangereuse, comme une suppression). `Tab` / `Shift+Tab` (ou `←` / `→`) passent d'un bouton a l'autre, tous compris ; `↓` / `↑` font defiler le texte d'une fenetre trop longue ; `Entree` valide le bouton selectionne.
+
 ### Petits terminaux
 
 La mise en page suit la taille du terminal :
@@ -56,11 +58,11 @@ La barre du bas affiche partout `● N ⏸ M` : `N` sessions vivantes (ni en vei
 
 | Mode | Contenu de l'accueil |
 |------|----------------------|
-| **Hub** | Démarrer, Sessions en cours, Système (Configuration = Reglages, Métriques, Doctor, Secrets), Projets, Équipes |
+| **Hub** | Démarrer, Sessions en cours, Système (Configuration = Reglages, Métriques, Doctor, Secrets), Projets (projets connus, puis « Ajouter un projet »), Équipes |
 | **Projet** | Démarrer (avec catégories), Sessions du projet, Projet (Board, Métriques, Statut), Configuration (Config Projet, Worktrees, Workflows du projet), Équipe |
 | **Équipe** | Démarrer (avec catégories), Sessions de l'équipe, Board (board d'equipe, statut, activite, resumes de reprise), Configuration (patterns, politiques, detail equipe, workflows de l'equipe), Navigation |
 
-Selectionner un projet ou une equipe sur l'accueil Hub ouvre son mode. Lance depuis le dossier d'un projet enregistre, `oh` demarre en mode Projet. L'omnibar ne montre que les commandes du mode actif.
+Selectionner un projet ou une equipe sur l'accueil Hub ouvre son mode. Lance depuis le dossier d'un projet enregistre, `oh` demarre en mode Projet. L'omnibar ne montre que les commandes du mode actif. Sur les accueils, les textes trop longs sont coupes par « … » et les deux colonnes s'elargissent avec le terminal (jusqu'a 180 colonnes).
 
 ---
 
@@ -103,7 +105,19 @@ Ouverte depuis « Démarrer », le catalogue, l'omnibar (`run <workflow>`) ou le
 | `Alt+→` ou `PgDn` | etape suivante |
 | `Esc` | fermer la fiche |
 
-On lance toujours depuis le recap : un premier `Ctrl+S` l'affiche, un second lance une fois le recap calcule. Les boutons « Suivant », « Retour » et « Lancer » font la meme chose. Pendant le lancement, la fiche affiche « Lancement en cours… » (un second `Ctrl+S` est ignore) ; en conteneur, la progression de la construction de l'image s'affiche dessous. Si le fournisseur n'a pas d'identifiants, le recap l'indique avec un bouton « Configurer le fournisseur » : il ouvre la vue Fournisseur, et au retour (`Esc`) le recap verifie a nouveau.
+On lance toujours depuis le recap : un premier `Ctrl+S` l'affiche, un second lance une fois le recap calcule. Les boutons « Suivant », « Retour » et « Lancer » font la meme chose. Pendant le lancement, la fiche affiche « Lancement en cours… » (un second `Ctrl+S` est ignore) ; en conteneur, la progression de la construction de l'image s'affiche dessous. Si le fournisseur n'a pas d'identifiants, le recap l'indique avec un bouton « Configurer le fournisseur » : il ouvre la vue Fournisseur, et au retour (`Esc`) le recap verifie a nouveau. « Lancer » est l'action principale du recap.
+
+**Ticket deja en cours** : si une session ouverte travaille deja sur le ticket, le recap la compare au lancement (tableau « Session existante / Nouveau lancement » : etat, workflow, execution, mode, modele, dossier / branche, travail ; differences marquees ⚠). Une session d'un autre workflow est affichee pour information. Pour une session du meme workflow, il faut choisir (un choix lance aussitot ; « Lancer » / `Ctrl+S` ne suffisent plus) :
+
+| Touche | Bouton | Effet |
+|--------|--------|-------|
+| `r` | Reprendre | rouvrir la session existante, pas de nouvelle session |
+| `t` | Reprendre en local / en conteneur / avec ces reglages | transferer la session et sa conversation vers l'execution et le modele choisis ; en cas d'echec (« Transfert impossible »), la session est inchangee et oh propose « Remplacer » |
+| `k` | Remplacer (garder le travail) | arreter la session ; la nouvelle continue dans le meme dossier et la meme branche, avec un brief de passation |
+| `d` | Supprimer et relancer | supprimer la session et son travail (confirmation : ce qui sera supprime et perdu, puis, si elle travaillait dans le dossier du projet, garder ou supprimer ses modifications), puis relancer |
+| `p` | Lancer en parallele | nouvelle session a cote, dans un autre worktree |
+
+Voir [Sessions v5 › Lancer sur un ticket déjà en cours](sessions-v5.fr.md#lancer-sur-un-ticket-déjà-en-cours).
 
 ### Selecteur de tickets Beads
 
@@ -128,7 +142,7 @@ Commande `sessions` (alias `parallel`, `inbox`), ou la section Sessions des accu
 
 | Section | Contenu |
 |---------|---------|
-| **À traiter** | decisions de toutes les sessions : `⏸` checkpoint, `?` question, `!` permission, `$` budget, `✗` erreur ou coupe-circuit |
+| **À traiter** | sessions qui ont des decisions en attente, chacune suivie de ses decisions : `⏸` checkpoint, `?` question, `!` permission, `$` budget, `✗` erreur ou coupe-circuit (une session n'apparait qu'une fois dans la vue, avec son identifiant court) |
 | **En cours** | sessions vivantes (au travail, en attente, inactives) |
 | **À récupérer** | sessions distantes (GitLab CI) : pipeline en cours, MR prete, journal Beads a rejouer |
 | **En veille** | sessions dont le serveur dort ; elles se reprennent |
@@ -149,6 +163,7 @@ Le panneau **Détail** montre la session selectionnee : workflow, mode, executio
 | `i` | interrompre l'etape en cours |
 | `M` | changer le modele des prochaines etapes (`fournisseur/modele`) |
 | `s` | arreter la session (confirmation) |
+| `D` | supprimer definitivement la session : worktree, branche locale (jamais la distante), decisions, fichiers (confirmation, « Annuler » selectionne) |
 | `c` | reprendre une session en veille |
 | `o` | resultats et description de MR |
 | `w` | ouvrir dans le navigateur (code a usage unique) |

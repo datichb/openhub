@@ -111,6 +111,17 @@ type SessionChainer interface {
 	Chain(sessionID, workflowID string)
 }
 
+// SessionDeleter is implemented by backends able to delete a session for
+// good (D, `oh session delete`).
+type SessionDeleter interface {
+	// PlanDelete lists what deleting the session loses (confirmation).
+	PlanDelete(ctx context.Context, sessionID string) (DeleteSummary, error)
+	// DeleteSession deletes it; discardBase also discards the uncommitted
+	// changes of the project directory it worked in. It returns the summary
+	// shown in a toast.
+	DeleteSession(ctx context.Context, sessionID string, discardBase bool) (string, error)
+}
+
 // SessionsSummary is the cached overview shown on the home, project and team
 // landings and in the mode bar badge.
 type SessionsSummary struct {

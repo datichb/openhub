@@ -170,13 +170,17 @@ oh provider setup [provider-name] [options]
 | Flag | Court | Type | Description |
 |------|-------|------|-------------|
 | `--project` | `-p` | string | Configurer le provider d'un projet |
+| `--from-env` | | bool | Bedrock : enregistrer dans le trousseau la clé API du shell (`AWS_BEARER_TOKEN_BEDROCK`), sans assistant ; `auth_mode` passe à `bearer`. Avec `-p`, clé du projet ; sinon la clé qu'utilise un lancement depuis le dossier courant (à défaut, celle du hub) |
 
 Providers : `bedrock`, `anthropic`, `openrouter`, `github-copilot`.
+
+oh ne transmet jamais `AWS_BEARER_TOKEN_BEDROCK` à l'outil : seules les clés du trousseau servent. Dans l'assistant, « Utiliser l'existant » enregistre aussi la clé du shell.
 
 ```bash
 oh provider setup
 oh provider setup anthropic
 oh provider setup bedrock -p mon-app
+oh provider setup bedrock --from-env -p mon-app
 ```
 
 ---

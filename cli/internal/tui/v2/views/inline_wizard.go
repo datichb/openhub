@@ -665,13 +665,12 @@ func (w *InlineWizardView) askQuit() {
 	buttons.SetBackgroundColor(theme.BgPanel)
 	buttons.SetBorderPadding(0, 0, 0, 0)
 	buttons.SetButtonsAlign(tview.AlignLeft)
-	buttons.SetButtonStyle(tcell.StyleDefault.Background(theme.BgElement).Foreground(theme.FgPrimary))
-	buttons.SetButtonActivatedStyle(tcell.StyleDefault.Background(theme.ActiveMode.Primary).Foreground(theme.BgPanel))
 	buttons.AddButton(i18n.T("tui.wizard.quit.quit"), w.quitWizard)
 	if !step.Required {
 		buttons.AddButton(i18n.T("tui.wizard.quit.skip"), w.skipFromPrompt)
 	}
 	buttons.AddButton(i18n.T("tui.wizard.quit.continue"), w.closeQuitPrompt)
+	widgets.StyleFormButtons(buttons, buttons.GetButtonCount()-1) // « Continuer »
 	buttons.SetCancelFunc(w.closeQuitPrompt)
 	buttons.SetFocus(buttons.GetButtonCount() - 1)
 
@@ -1068,12 +1067,7 @@ func (w *InlineWizardView) renderStep(idx int) {
 			form.SetFieldBackgroundColor(theme.BgElement)
 			form.SetFieldTextColor(theme.FgPrimary)
 			form.SetLabelColor(theme.FgPrimary)
-			form.SetButtonStyle(tcell.StyleDefault.
-				Background(theme.ActiveMode.Primary).
-				Foreground(theme.BgPanel))
-			form.SetButtonActivatedStyle(tcell.StyleDefault.
-				Background(theme.ActiveMode.Secondary).
-				Foreground(theme.BgPanel))
+			widgets.StyleFormButtons(form, 0)
 			form.SetBorder(false)
 
 			// Fix DropDown popup list colors (tview bakes them at construction
@@ -1672,12 +1666,7 @@ func NewStyledButtonForm() *tview.Form {
 	f := tview.NewForm()
 	f.SetBackgroundColor(theme.BgPanel)
 	f.SetButtonsAlign(tview.AlignCenter)
-	f.SetButtonStyle(tcell.StyleDefault.
-		Background(theme.ActiveMode.Primary).
-		Foreground(theme.BgPanel))
-	f.SetButtonActivatedStyle(tcell.StyleDefault.
-		Background(theme.ActiveMode.Secondary).
-		Foreground(theme.BgPanel))
+	widgets.StyleFormButtons(f, 0) // buttons added later are styled on draw
 	f.SetBorder(false)
 	f.SetBorderPadding(1, 1, 1, 1) // must match estimateButtonFormHeight assumptions
 	return f

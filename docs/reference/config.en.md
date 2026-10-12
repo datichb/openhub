@@ -27,7 +27,7 @@ default_provider = "bedrock"       # bedrock | anthropic | openrouter | github-c
 [provider.bedrock]
 aws_profile = "default"            # AWS profile (bedrock only)
 aws_region = "eu-west-1"           # AWS region (bedrock only)
-auth_mode = "bearer"               # "bearer" | "profile" | "env" (bedrock only)
+auth_mode = "bearer"               # "bearer" (stored API key only) | "profile" | "env" (SigV4, stored key ignored) — bedrock only; absent: stored keys then AWS profile
 
 [provider.anthropic]
 # Uses the API key stored in the keychain (no field)
@@ -692,11 +692,12 @@ The project's `opencode.json` is no longer generated (`oh deploy` removed in v5)
 | `OH_SESSION_ATTACH` | How sessions are opened (comes before `[session] attach`) |
 | `OH_RICH_TUI` | `0` disables the TUI (inline prompts only) |
 | `OH_DAEMON_INPROCESS` | `1` runs the daemon inside the oh process (always the case on Windows) |
+| `OH_DOCTOR_OFFLINE` | `1`: `oh doctor` without network calls (as `--offline`) |
 | `CI` | Not empty: no TUI |
 | `TERM` | `dumb`: no TUI |
 | `TMUX`, `TERM_PROGRAM` | tmux and iTerm2 detection to open sessions |
 | `OH_SESSION_ID`, `OH_TEAM_ID`, `OH_PROJECT_ID` | Set by oh in the environment of sessions and MCP servers (do not set by hand) |
-| `AWS_PROFILE`, `AWS_REGION`, `AWS_DEFAULT_REGION`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_BEARER_TOKEN_BEDROCK` | Bedrock credential detection (`oh init`, `oh doctor`) |
+| `AWS_PROFILE`, `AWS_REGION`, `AWS_DEFAULT_REGION`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_BEARER_TOKEN_BEDROCK` | Bedrock credential detection (`oh init`, `oh doctor`); `AWS_BEARER_TOKEN_BEDROCK` is never passed to the sessions: `oh provider setup bedrock --from-env` stores it in the keychain |
 | `ANTHROPIC_API_KEY`, `OPENROUTER_API_KEY` | Anthropic and OpenRouter credential detection |
 | `FIGMA_TOKEN` | Figma API token (MCP server) |
 | `GITLAB_TOKEN`, `GITLAB_URL`, `GITLAB_WRITE_ENABLED` | GitLab MCP server (default URL: `https://gitlab.com`) |

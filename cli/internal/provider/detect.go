@@ -46,6 +46,33 @@ func DetectAll() []DetectionResult {
 
 func detectBedrock() DetectionResult {
 	r := DetectionResult{Provider: Bedrock}
+	if os.Getenv("AWS_ACCESS_KEY_ID") == "" || os.Getenv("AWS_SECRET_ACCESS_KEY") == "" {
+		// Check bearer token env var
+		if EnvBearerToken() != "" {
+			r.Available = true
+			r.Source = "env"
+			r.Details = DetailsBearerToken
+			return r
+		}
+	}
+	return DetectBedrockSigV4()
+}
+
+// DetailsBearerToken is the detection details of the Bedrock API key of the
+// shell (AWS_BEARER_TOKEN_BEDROCK).
+const DetailsBearerToken = "bearer token"
+
+// IsEnvBearer reports whether a Bedrock detection is the API key of the
+// shell (AWS_BEARER_TOKEN_BEDROCK).
+func (r DetectionResult) IsEnvBearer() bool {
+	return r.Provider == Bedrock && r.Source == "env" && r.Details == DetailsBearerToken
+}
+
+// DetectBedrockSigV4 detects the AWS credentials the SDK can sign with
+// (environment keys, ~/.aws/credentials), ignoring the shell API key: what
+// a launch in SigV4 uses.
+func DetectBedrockSigV4() DetectionResult {
+	r := DetectionResult{Provider: Bedrock}
 
 	// Check env vars first
 	if os.Getenv("AWS_ACCESS_KEY_ID") != "" && os.Getenv("AWS_SECRET_ACCESS_KEY") != "" {
@@ -58,14 +85,6 @@ func detectBedrock() DetectionResult {
 		if region != "" {
 			r.Details = "region " + region
 		}
-		return r
-	}
-
-	// Check bearer token env var
-	if os.Getenv("AWS_BEARER_TOKEN_BEDROCK") != "" {
-		r.Available = true
-		r.Source = "env"
-		r.Details = "bearer token"
 		return r
 	}
 

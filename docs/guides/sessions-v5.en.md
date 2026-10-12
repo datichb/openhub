@@ -48,6 +48,22 @@ idle_sleep_minutes = 5     # an idle server goes to sleep after N minutes
 - When you quit the TUI (Ctrl+Q or the `quit` command) while sessions are working, oh asks what to do **for each one**: "finish step, sleep" (default), "background" or "stop now". Esc cancels. Waiting or idle sessions go to sleep right away.
 - When you come back, a message sums up what happened while you were away (changed sessions, new decisions, cost).
 
+## Launching on a ticket already worked on
+
+At launch, oh looks for the open sessions (neither stopped nor failed) of the project already working on one of the tickets, whatever their workflow. The TUI recap (and `oh run` in a terminal) compares each one with the new launch: state, workflow and version, bundle, runtime, mode, provider, model, location and branch, work (unpushed commits, changed files), open decisions, cost; differences are marked ⚠.
+
+A session of **another workflow** is reported for information: the new one starts beside it. A session of the **same workflow** needs a choice:
+
+| Choice | TUI | `--on-existing` | Effect |
+|---|---|---|---|
+| Resume | `r` | `resume` | no new session: the existing session is opened again (woken up when asleep) |
+| Resume elsewhere | `t` | `transfer` | the session and its conversation move to the chosen runtime (local ↔ container) and model; on failure it stays unchanged and oh offers "Replace" |
+| Replace (keep the work) | `k` | `keep` | the session is stopped; the new one works in the same directory and branch and gets a **handoff brief** (objective, results, decisions taken, commits, changed files) |
+| Delete and relaunch | `d` | `delete` | the session and its work are deleted (confirmation, see `oh session delete`), then the launch starts afresh |
+| In parallel | `p` | `parallel` | the new session starts beside it, in another worktree (the two may conflict) |
+
+In the TUI, a choice launches at once. Without a terminal, `oh run` refuses until `--on-existing` is given. A remote session only offers "In parallel" (it is fetched back with `oh session fetch`).
+
 ## Commands
 
 | Command | Purpose |
@@ -69,9 +85,10 @@ idle_sleep_minutes = 5     # an idle server goes to sleep after N minutes
 | `oh session resolve <id> [--dry-run] [--yes]` | replay its Beads journal (conflicts, confirmation) |
 | `oh session resume <id>` | resume a sleeping session without opening a client |
 | `oh session stop <id>` | stop a session, and its server if no other session uses it |
+| `oh session delete <id> [--yes] [--discard-base-changes]` | delete a session for good: worktree, local branch (never the remote one), decisions, files (confirmation) |
 | `oh daemon status` | daemon state (servers, proxy tokens) |
 | `oh daemon stop [--force]` | stop the daemon (refused while sessions run, unless `--force`) |
-| `oh doctor` | v5 checks: runtime, daemon, git, terminal |
+| `oh doctor [--offline]` | v5 checks: runtime, daemon, git, terminal, credentials (Bedrock key validated against AWS, unless `--offline`) |
 
 In these commands, `<id>` may be the beginning of an ID (`oh session follow dRcJ`); `approve`, `answer` and `dismiss` also accept a decision ID (shown by `inbox`) when a session has several. **First answer wins**: when the decision was already made in the opencode UI or the browser, oh says so and sends nothing.
 
@@ -79,9 +96,9 @@ In these commands, `<id>` may be the beginning of an ID (`oh session follow dRcJ
 
 Open it from the omnibar (`sessions`) or from the "Sessions" sections of the home, project and team landings. The bottom bar shows `● N ⏸ M` on every screen (live sessions, waiting decisions).
 
-- **To handle**: decisions of every session. `Enter` opens the card (permission: once / always / reject + message; question: generated form; alert: dismiss or attach), `y`/`n` approve or reject a permission, `x` dismisses an alert.
+- **To handle**: sessions with waiting decisions, each followed by its decisions (a session shows only once in the view; short ID on the row). `Enter` opens the card (permission: once / always / reject + message; question: generated form; alert: dismiss or attach), `y`/`n` approve or reject a permission, `x` dismisses an alert.
 - **Running, Sleeping, Finished (7 days), To fetch** (finished remote sessions); detail of the selected session at the bottom.
-- `t` (or `Enter` on a session): live feed on the right (agent, tools, messages, cost). `a` attach, `A` choose how to open (iTerm2, Terminal.app, tmux, browser, here), `m` instruction, `i` interrupt, `M` model, `s` stop, `c` resume, `o` results and merge request description, `w` browser, `e` chain another workflow, `g` fetch a remote session, `f` active project / every project, `r` refresh.
+- `t` (or `Enter` on a session): live feed on the right (agent, tools, messages, cost). `a` attach, `A` choose how to open (iTerm2, Terminal.app, tmux, browser, here), `m` instruction, `i` interrupt, `M` model, `s` stop, `D` delete (confirmation, as `oh session delete`), `c` resume, `o` results and merge request description, `w` browser, `e` chain another workflow, `g` fetch a remote session, `f` active project / every project, `r` refresh.
 
 With tmux, the session opens in a new window; with `[session] iterm_style = "split"`, in a pane next to it.
 
@@ -111,6 +128,7 @@ oh keeps, for the entry agent of the session, a **session state** up to date (S8
 | `oh.checkpoints` | workflow, mode, checkpoints passed, current and next checkpoint, circuit breaker | at the creation of the session (before the first prompt), then at each transition; none for a workflow without checkpoint |
 | `oh.budget` | session budget (raises included), spent, remaining | at the `$` decision and as soon as a raise is answered |
 | `oh.resume` | resume instruction | after `oh session resume` when the server restarted; removed after the next step |
+| `oh.handoff` | handoff brief: work of the replaced session (objective, results, decisions, commits, changed files); copy in `~/.oh/sessions/<id>/handoff.md` | when a session launched with "Replace (keep the work)" (`--on-existing=keep`) starts |
 
 - An entry is written again only when its value changes: the tool announces each change at the next step, with a message in the session history. A change that happens while the agent works is written once its step ended (announced at the next turn): written during the step, it would make the agent run one more step that replaces its answer.
 - **Subagents** do not receive this state (tool limit); they read the workflow state with the `workflow_status` tool.
@@ -123,6 +141,10 @@ The oh daemon shows a system notification when a decision waits for you and when
 ## LLM keys
 
 The key is looked up in this order: project, team, hub, then (Bedrock only) the AWS profile with SigV4 signing. A team key is set in **Team detail**, key `K`, and stored in the keychain as `openhub.team.<team>.provider.<provider>.token`.
+
+For Bedrock, `auth_mode` narrows this cascade: `bearer` only uses the stored API key (launch refused without one); `profile` and `env` sign with SigV4 and ignore the stored keys. The shell variable `AWS_BEARER_TOKEN_BEDROCK` is never passed to the tool: `oh provider setup bedrock --from-env` stores it in the keychain (see [Providers](providers.en.md)).
+
+When the provider refuses the key (expired, revoked), the daemon logs it and a ✗ alert shows up in "To handle" for the sessions concerned: key used (project, team, hub or AWS profile), date it was stored and the command to renew it. `oh doctor` also validates the Bedrock key against AWS.
 
 The Bedrock region comes from the oh config, then `AWS_REGION` / `AWS_DEFAULT_REGION`, then the AWS profile. When none is set, `us-east-1` is used and oh logs a warning.
 
@@ -159,3 +181,4 @@ Budgets are **soft caps**, checked on the cost reported by the tool: the step th
 - **opencode 2.0.20**: a session shell does not receive the server environment (oh sets `PATH`, `HOME`… again in local mode); sub-agents do not receive the session environment (the daemon re-applies it to them); when a permission is refused, the agent does not see the refusal message (oh sends it the instruction separately).
 - **Soft restrictions**: the maximum number of active sessions can be exceeded by two simultaneous launches; a budget is checked at the end of a step (the current step finishes); the memory cap does not measure containers.
 - **Bundles**: `~/.oh/bundles/` is not purged automatically (unused bundles stay on disk).
+- **Ticket already worked on**: "Resume elsewhere" (transfer) only carries the session itself, not the sessions of its subagents; a transfer to another bundle than the one it started with is reported (agents, skills or rules may differ). The choice applies to a single session per ticket (the most recent of the same workflow): the others stay beside it, with a warning.

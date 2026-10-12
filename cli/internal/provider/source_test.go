@@ -76,3 +76,47 @@ func TestResolveCredentialSourceKeychainErrorIsReported(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "keychain locked")
 }
+
+// auth_mode narrows the Bedrock cascade: bearer = stored keys only (a clear
+// error without one), profile/env = SigV4 even when a key is stored.
+func TestResolveCredentialSourceAuthMode(t *testing.T) {
+	ctx := context.Background()
+	stored := mapSecrets{"openhub.provider.bedrock.token.p1": "old-key"}
+
+	r, err := ResolveCredentialSource(ctx, stored, Bedrock, "p1", "", "", &Config{AuthMode: AuthBearer})
+	require.NoError(t, err)
+	assert.Equal(t, "old-key", r.Secret)
+
+	_, err = ResolveCredentialSource(ctx, mapSecrets{}, Bedrock, "p1", "", "", &Config{AuthMode: AuthBearer, AWSProfile: "work"})
+	assert.ErrorIs(t, err, ErrBearerNotStored, "bearer mode never falls back to SigV4")
+	assert.ErrorIs(t, err, ErrNoCredential)
+
+	for _, mode := range []string{AuthProfile, AuthEnv} {
+		r, err = ResolveCredentialSource(ctx, stored, Bedrock, "p1", "", "custom.key", &Config{AuthMode: mode, AWSProfile: "work"})
+		require.NoError(t, err, mode)
+		assert.Equal(t, domain.CredentialSigV4, r.Source.Kind, mode)
+		assert.Empty(t, r.Secret, mode)
+	}
+
+	// auth_mode is a Bedrock setting only.
+	r, err = ResolveCredentialSource(ctx, mapSecrets{"openhub.provider.anthropic.token": "k"}, Anthropic, "p1", "", "", &Config{AuthMode: AuthProfile})
+	require.NoError(t, err)
+	assert.Equal(t, "k", r.Secret)
+}
+
+func TestResolveProviderConfigAuthMode(t *testing.T) {
+	got := ResolveProviderConfig(&ProviderConfig{AuthMode: AuthProfile}, Config{AuthMode: AuthBearer, AWSRegion: "eu-west-1"})
+	assert.Equal(t, AuthProfile, got.AuthMode)
+	assert.Equal(t, "eu-west-1", got.AWSRegion)
+	assert.Equal(t, AuthBearer, ResolveProviderConfig(&ProviderConfig{}, Config{AuthMode: AuthBearer}).AuthMode)
+}
+
+func TestDetectBedrockEnvBearer(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("AWS_ACCESS_KEY_ID", "")
+	t.Setenv("AWS_SECRET_ACCESS_KEY", "")
+	t.Setenv("AWS_BEARER_TOKEN_BEDROCK", "ABSK-shell")
+	assert.True(t, Detect(Bedrock).IsEnvBearer())
+	assert.False(t, DetectBedrockSigV4().Available, "the shell API key is not a SigV4 credential")
+	assert.Equal(t, "ABSK-shell", EnvBearerToken())
+}

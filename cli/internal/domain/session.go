@@ -114,3 +114,9 @@ type SessionStore interface {
 	// ListRunning returns sessions with status "running" for a project.
 	ListRunning(ctx context.Context, projectID string) ([]Session, error)
 }
+
+// SessionDeleter is implemented by the session stores able to delete a
+// session for good, with its decisions and events (`oh session delete`).
+type SessionDeleter interface {
+	Delete(ctx context.Context, id string) error
+}

@@ -103,6 +103,10 @@ type Service struct {
 	LaunchLocksDir string
 	// Git replaces the git operations of the launcher (tests).
 	Git Git
+	// WakeSession restarts the server of a sleeping session with its own
+	// provider settings (launch on an existing session). Nil = ResumeSession
+	// with the settings of the launch.
+	WakeSession func(ctx context.Context, sessionID string) error
 }
 
 // StartRequest describes a session to start.
@@ -136,6 +140,9 @@ type StartRequest struct {
 	WorktreeBranch string
 	// Headless marks a session run without interactive client.
 	Headless bool
+	// Handoff is the brief of the session this one continues (launch with
+	// OnExistingKeep), given to the entry agent before its first prompt.
+	Handoff string
 
 	Provider      string          // hub provider name: bedrock | anthropic | openrouter
 	ProviderCfg   provider.Config // AWS profile / region
@@ -190,6 +197,13 @@ type StartResult struct {
 	// is the number of sessions queued before it.
 	Queued bool
 	Ahead  int
+	// Existing is set when SessionID is an existing session continued by
+	// the launch (OnExistingResume or OnExistingTransfer) instead of a new one.
+	Existing OnExisting
+	// Replaced is the session stopped for this one (OnExistingKeep).
+	Replaced string
+	// Deleted is the deletion done before the launch (OnExistingDelete).
+	Deleted *DeleteReport
 }
 
 // ErrServerNotRunning is returned when the server of a session is asleep or stopped.
@@ -231,34 +245,11 @@ func (s *Service) StartSession(ctx context.Context, req StartRequest) (*StartRes
 	}
 	key := sessionspec.GroupKey{BundleHash: spec.Hash, ProjectID: req.ProjectID, Runtime: kind,
 		Config: configFingerprint(req, ToolProviderID(s.Adapter, req.Provider), cred, region)}
-	var (
-		gk     string
-		srv    *domain.Server
-		reused bool
-		report adapters.VisibilityReport
-		pg     *ohruntime.Prepared
-	)
-	// A container group whose mounts do not cover the location is restarted
-	// when idle; when busy, the next slot (sibling group) is used.
-	for ; ; key.Slot++ {
-		if key.Slot > maxSlots {
-			return nil, fmt.Errorf("runsvc: no container group can host %s (all %d slots busy)", req.Location, maxSlots)
-		}
-		gk = key.String()
-		unlock, err := s.lockGroup(ctx, gk)
-		if err != nil {
-			return nil, err
-		}
-		srv, reused, report, pg, err = s.ensureServer(ctx, dc, req, key, gk, cred, region, rt, !s.groupBusy(ctx, req.ProjectID, gk))
-		unlock()
-		if errors.Is(err, errNotMounted) {
-			continue
-		}
-		if err != nil {
-			return nil, err
-		}
-		break
+	j, err := s.joinGroup(ctx, dc, req, &key, cred, region, rt)
+	if err != nil {
+		return nil, err
 	}
+	gk, srv, reused, report, pg := j.gk, j.srv, j.reused, j.report, j.pg
 
 	res := &StartResult{GroupKey: gk, Server: srv, Reused: reused, Report: report}
 	h := handle(srv)
@@ -319,6 +310,9 @@ func (s *Service) StartSession(ctx context.Context, req StartRequest) (*StartRes
 	}
 	res.SessionID = sid
 	s.setInitialContext(ctx, h, sid, spec.Workflow, req.Mode)
+	if req.Handoff != "" {
+		s.setHandoffContext(ctx, h, sid, req.Handoff)
+	}
 
 	switch {
 	case queued != nil:
@@ -338,6 +332,38 @@ func (s *Service) StartSession(ctx context.Context, req StartRequest) (*StartRes
 		res.AttachMethod, res.AttachErr = s.Attach(ctx, sid, req.Location, attachPref(req.Attach), req.ITermStyle, req.Title)
 	}
 	return res, nil
+}
+
+// joinGroup returns a running server of the group of key that sees
+// req.Location, starting it when needed. A container group whose mounts do
+// not cover the location is restarted when idle; when busy, the next slot
+// (sibling group) is used: key.Slot is then the slot of the group.
+func (s *Service) joinGroup(ctx context.Context, dc DaemonClient, req StartRequest, key *sessionspec.GroupKey, cred provider.ResolvedCredential, region string, rt ohruntime.Runtime) (joined, error) {
+	for ; ; key.Slot++ {
+		if key.Slot > maxSlots {
+			return joined{}, fmt.Errorf("runsvc: no container group can host %s (all %d slots busy)", req.Location, maxSlots)
+		}
+		j := joined{gk: key.String()}
+		unlock, err := s.lockGroup(ctx, j.gk)
+		if err != nil {
+			return joined{}, err
+		}
+		j.srv, j.reused, j.report, j.pg, err = s.ensureServer(ctx, dc, req, *key, j.gk, cred, region, rt, !s.groupBusy(ctx, req.ProjectID, j.gk))
+		unlock()
+		if errors.Is(err, errNotMounted) {
+			continue
+		}
+		return j, err
+	}
+}
+
+// joined is the server group a session joins.
+type joined struct {
+	gk     string
+	srv    *domain.Server
+	reused bool
+	report adapters.VisibilityReport
+	pg     *ohruntime.Prepared
 }
 
 // groupLockWait bounds the wait for the lock of a server group (another

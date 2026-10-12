@@ -243,6 +243,12 @@ func (v *HomeView) executeItem(idx int) {
 // buildStaticItems returns items that don't require I/O (Sessions + System + Projets).
 // Used for the initial synchronous frame before async data arrives.
 func (v *HomeView) buildStaticItems() []homeItem {
+	return append(v.buildLeftStaticItems(), v.buildProjectsSection(nil)...)
+}
+
+// buildLeftStaticItems returns the I/O-free sections other than « Projets »
+// (Démarrer, Sessions, Système).
+func (v *HomeView) buildLeftStaticItems() []homeItem {
 	var items []homeItem
 
 	// ── Démarrer (P1-T20) ──
@@ -271,16 +277,39 @@ func (v *HomeView) buildStaticItems() []homeItem {
 		homeItem{Icon: "🔑", Label: i18n.T("tui.home.secrets"), Desc: i18n.T("tui.home.secrets_desc"), ViewID: "secrets"},
 	)
 
-	// ── Projets (enriched — replaces old "Quick Actions") ──
-	items = append(items, homeItem{Icon: "─", Label: i18n.T("tui.home.section.projects"), Desc: ""})
-	items = append(items,
-		homeItem{Icon: "➕", Label: i18n.T("tui.home.project_add"), Desc: i18n.T("tui.home.project_add_desc"), Action: func() {
-			if v.cfg.OnAddProject != nil {
-				v.cfg.OnAddProject()
-			}
-		}},
-	)
+	return items
+}
 
+// buildProjectsSection returns the single « Projets » section: the known
+// projects followed by the « Ajouter un projet » row (always present, so the
+// section exists even without any project).
+func (v *HomeView) buildProjectsSection(projects []ProjectEntry) []homeItem {
+	items := []homeItem{{Icon: "─", Label: i18n.T("tui.home.section.projects"), Desc: ""}}
+	for _, p := range projects {
+		proj := p // capture
+		desc := proj.Path
+		if proj.ActiveCount > 0 {
+			desc = i18n.Tf("tui.home.project_active", proj.ActiveCount, proj.Path)
+		}
+		if proj.ActiveBranch != "" {
+			desc += fmt.Sprintf(" · %s", proj.ActiveBranch)
+		}
+		items = append(items, homeItem{
+			Icon:  "📁",
+			Label: proj.Name,
+			Desc:  desc,
+			Action: func() {
+				if v.cfg.OnSelectProject != nil {
+					v.cfg.OnSelectProject(proj.ID, proj.Name, proj.Path)
+				}
+			},
+		})
+	}
+	items = append(items, homeItem{Icon: "➕", Label: i18n.T("tui.home.project_add"), Desc: i18n.T("tui.home.project_add_desc"), Action: func() {
+		if v.cfg.OnAddProject != nil {
+			v.cfg.OnAddProject()
+		}
+	}})
 	return items
 }
 
@@ -310,35 +339,15 @@ func (v *HomeView) buildItems() []homeItem {
 	}
 
 	// ── Projects section (ADR-032 Phase 3) ──
+	// One « Projets » section; « Ajouter un projet » is its last row.
+	var projects []ProjectEntry
 	if v.cfg.ListProjects != nil {
-		projects := v.cfg.ListProjects()
-		if len(projects) > 0 {
-			items = append(items, homeItem{Icon: "─", Label: i18n.T("tui.home.section.projects"), Desc: ""})
-			for _, p := range projects {
-				proj := p // capture
-				desc := proj.Path
-				if proj.ActiveCount > 0 {
-					desc = i18n.Tf("tui.home.project_active", proj.ActiveCount, proj.Path)
-				}
-				if proj.ActiveBranch != "" {
-					desc += fmt.Sprintf(" · %s", proj.ActiveBranch)
-				}
-				items = append(items, homeItem{
-					Icon:  "📁",
-					Label: proj.Name,
-					Desc:  desc,
-					Action: func() {
-						if v.cfg.OnSelectProject != nil {
-							v.cfg.OnSelectProject(proj.ID, proj.Name, proj.Path)
-						}
-					},
-				})
-			}
-		}
+		projects = v.cfg.ListProjects()
 	}
+	items = append(items, v.buildProjectsSection(projects)...)
 
-	// Append static items (System + Actions rapides) — shared with buildStaticItems
-	items = append(items, v.buildStaticItems()...)
+	// Append the other static sections (Démarrer, Sessions, Système).
+	items = append(items, v.buildLeftStaticItems()...)
 
 	return items
 }

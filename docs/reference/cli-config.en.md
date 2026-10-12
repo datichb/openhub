@@ -170,13 +170,17 @@ oh provider setup [provider-name] [options]
 | Flag | Short | Type | Description |
 |------|-------|------|-------------|
 | `--project` | `-p` | string | Configure the provider of a project |
+| `--from-env` | | bool | Bedrock: store the API key of the shell (`AWS_BEARER_TOKEN_BEDROCK`) in the keychain, without wizard; `auth_mode` becomes `bearer`. With `-p`, the project key; otherwise the key a launch from the current directory uses (failing that, the hub key) |
 
 Providers: `bedrock`, `anthropic`, `openrouter`, `github-copilot`.
+
+oh never passes `AWS_BEARER_TOKEN_BEDROCK` to the tool: only keychain keys are used. In the wizard, "Use existing" also stores the shell key.
 
 ```bash
 oh provider setup
 oh provider setup anthropic
 oh provider setup bedrock -p my-app
+oh provider setup bedrock --from-env -p my-app
 ```
 
 ---

@@ -71,12 +71,56 @@ func sampleRows() []SessionRow {
 }
 
 func TestSessionsSections(t *testing.T) {
-	d, running, sleeping, finished := sessionsSections(sampleRows(), time.Now())
-	assert.Len(t, d, 1)
-	assert.Len(t, running, 2)
+	inbox, running, sleeping, finished := sessionsSections(sampleRows(), time.Now())
+	require.Len(t, inbox, 1)
+	assert.Equal(t, "ses_a", inbox[0].ID)
+	require.Len(t, running, 1, "a session with decisions is not repeated under its state")
+	assert.Equal(t, "ses_b", running[0].ID)
 	assert.Len(t, sleeping, 1)
 	require.Len(t, finished, 1, "finished sessions older than 7 days are hidden")
 	assert.Equal(t, "ses_d", finished[0].ID)
+}
+
+// A sleeping session with decisions appears once, in « À traiter »: its row
+// (state on the main line, short id) then its decisions, indented.
+func TestSessionsView_SessionOnce(t *testing.T) {
+	now := time.Now()
+	rows := []SessionRow{
+		{ID: "ses_abcdef123", Agent: "developer", State: "sleeping", StateIcon: "◌", StateLabel: "en veille",
+			Decisions: []SessionDecision{
+				{ID: "d2", SessionID: "ses_abcdef123", Kind: DecisionKindPermission, Icon: "!", Summary: "second", Created: now},
+				{ID: "d1", SessionID: "ses_abcdef123", Kind: DecisionKindPermission, Icon: "!", Summary: "first", Created: now.Add(-time.Minute)},
+			}},
+		{ID: "ses_zz", Agent: "reviewer", State: "sleeping", StateIcon: "◌", StateLabel: "en veille"},
+	}
+	v := NewSessionsView(SessionsViewConfig{Backend: &fakeSessions{rows: rows}})
+	v.SetShell(&mockShell{})
+	v.Mount(tview.NewFlex(), tview.NewApplication())
+	v.rows = rows
+	v.render()
+
+	var keys []string
+	for _, it := range v.list.GetItems() {
+		if k := refKey(it.Reference); k != "" {
+			keys = append(keys, k)
+		}
+	}
+	assert.Equal(t, []string{"s:ses_abcdef123", "d:d1", "d:d2", "s:ses_zz"}, keys)
+	items := v.list.GetItems()
+	assert.Contains(t, items[1].MainText, "en veille")
+	assert.Contains(t, items[1].MainText, "abcdef")
+	assert.NotContains(t, items[1].MainText, "abcdef1")
+
+	// The cursor lands on the first decision; the session row is selectable.
+	r, d := v.selected()
+	require.NotNil(t, d)
+	assert.Equal(t, "d1", d.ID)
+	assert.Equal(t, "ses_abcdef123", r.ID)
+	v.selectKey("s:ses_abcdef123")
+	r, d = v.selected()
+	assert.Nil(t, d)
+	assert.Equal(t, "ses_abcdef123", r.ID)
+	v.Unmount()
 }
 
 func TestSessionsView_MountRenderKeys(t *testing.T) {

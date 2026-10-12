@@ -51,6 +51,8 @@ func addRunFlags(c *cobra.Command) {
 	f.Bool("headless", false, "Sans interface : attendre la fin du tour, afficher la réponse, arrêter la session")
 	f.String("output", "", "Avec --headless : écrire la réponse dans ce fichier (défaut : sortie standard)")
 	f.Duration("timeout", 30*time.Minute, "Avec --headless : durée maximale d'attente (0 = aucune)")
+	f.String("on-existing", "", i18n.T("cmd.run.flags.on_existing"))
+	f.Bool("discard-base-changes", false, i18n.T("cmd.run.flags.discard_base"))
 }
 
 func runWorkflowCmd(cmd *cobra.Command, args []string) error {
@@ -155,6 +157,15 @@ func runOptionsFromFlags(cmd *cobra.Command, workflowID string) (runOptions, err
 	case stash:
 		opts.Dirty = runsvc.DirtyStash
 	}
+	if f.Lookup("on-existing") != nil {
+		v, _ := f.GetString("on-existing")
+		choice, err := runsvc.ParseOnExisting(v)
+		if err != nil {
+			return opts, errors.New(i18n.Tf("cmd.run.existing.bad_flag", v))
+		}
+		opts.OnExisting = choice
+		opts.DiscardBaseChanges, _ = f.GetBool("discard-base-changes")
+	}
 	tickets, _ := f.GetStringSlice("tickets")
 	for _, t := range tickets {
 		if t = strings.TrimSpace(t); t != "" {
@@ -172,6 +183,9 @@ func runWorkflowCLI(cmd *cobra.Command, opts runOptions, recap bool) error {
 	opts.Progress = func(line string) { fmt.Fprintln(out, theme.Subtitle.Render("  "+line)) }
 	fmt.Fprintf(out, "%s %s\n", theme.SuccessStyle.Render(theme.IconArrow), i18n.Tf("cmd.run.preparing", opts.Workflow))
 	p, err := prepareWorkflowRun(ctx, a, opts, cmd.ErrOrStderr())
+	if err != nil && offerBedrockEnvImport(ctx, a, opts.Project, opts.Provider, err, cmd.ErrOrStderr()) {
+		p, err = prepareWorkflowRun(ctx, a, opts, cmd.ErrOrStderr())
+	}
 	if err != nil {
 		return err
 	}
@@ -180,6 +194,12 @@ func runWorkflowCLI(cmd *cobra.Command, opts runOptions, recap bool) error {
 		if handled || err != nil {
 			return err
 		}
+	}
+	if ok, err := resolveExistingChoice(ctx, out, p, isTerminal()); err != nil || !ok {
+		if err == nil {
+			fmt.Fprintln(out, i18n.T("cmd.run.cancelled"))
+		}
+		return err
 	}
 	if recap {
 		printRunRecap(out, p)
@@ -196,6 +216,20 @@ func runWorkflowCLI(cmd *cobra.Command, opts runOptions, recap bool) error {
 		printRunWarnings(out, p.plan.Warnings)
 	}
 	_, err = p.start(ctx, a, launcher.NewCLIUI(out))
+	var te *runsvc.TransferError
+	if errors.As(err, &te) {
+		if !isTerminal() {
+			return fmt.Errorf("%w\n%s", err, i18n.T("cmd.run.existing.transfer_hint"))
+		}
+		ok, aerr := askTransferFallback(out, te)
+		if aerr != nil || !ok {
+			return errors.Join(err, aerr)
+		}
+		if err := p.replan(ctx, runsvc.OnExistingKeep, false); err != nil {
+			return err
+		}
+		_, err = p.start(ctx, a, launcher.NewCLIUI(out))
+	}
 	return err
 }
 

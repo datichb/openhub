@@ -36,6 +36,8 @@ Action results show up as toasts (success, error, info) that disappear by themse
 
 **Changed in v5.0**: typing a letter « anywhere » no longer opens the omnibar (use `Ctrl+P` or `/`); `Enter` and letters always go to the selected list or field; `d` no longer dismisses toasts (`Esc`). `Esc`, `Ctrl+P`, `Ctrl+T`, `?`, `F1` and `Ctrl+Q` mean the same in every view. Every destructive action (removing a worktree, cleaning up, releasing a ticket, rejecting a wiki proposal…) asks for a confirmation.
 
+**Buttons** (windows, forms, wizards, recap): one style everywhere. The primary action is written in bold in the mode color; the focused button has a light background, framed `▸ label ◂`. On opening, the primary action is focused ("Cancel" for a dangerous confirmation, such as a deletion). `Tab` / `Shift+Tab` (or `←` / `→`) move from one button to the next, all of them included; `↓` / `↑` scroll the text of a window that is too long; `Enter` activates the focused button.
+
 ### Small terminals
 
 The layout follows the terminal size:
@@ -56,11 +58,11 @@ The bottom bar shows `● N ⏸ M` everywhere: `N` live sessions (neither sleepi
 
 | Mode | Landing content |
 |------|-----------------|
-| **Hub** | Start, Running sessions, System (Configuration = Settings, Metrics, Doctor, Secrets), Projects, Teams |
+| **Hub** | Start, Running sessions, System (Configuration = Settings, Metrics, Doctor, Secrets), Projects (known projects, then "Add a project"), Teams |
 | **Project** | Start (with categories), Project sessions, Project (Board, Metrics, Status), Configuration (Project Config, Worktrees, Project workflows), Team |
 | **Team** | Start (with categories), Team sessions, Board (team board, status, activity, takeover briefs), Configuration (patterns, policies, team detail, team workflows), Navigation |
 
-Selecting a project or a team on the Hub landing opens its mode. Started from the directory of a registered project, `oh` opens in Project mode. The omnibar only shows the commands of the active mode.
+Selecting a project or a team on the Hub landing opens its mode. Started from the directory of a registered project, `oh` opens in Project mode. The omnibar only shows the commands of the active mode. On the landings, texts that are too long are cut with "…" and the two columns widen with the terminal (up to 180 columns).
 
 ---
 
@@ -103,7 +105,19 @@ Opened from "Start", the catalogue, the omnibar (`run <workflow>`) or the board 
 | `Alt+→` or `PgDn` | next step |
 | `Esc` | close the form |
 
-A launch always starts from the recap: a first `Ctrl+S` shows it, a second one launches once the recap is computed. The "Next", "Back" and "Launch" buttons do the same. While launching, the form shows "Launching…" (a second `Ctrl+S` is ignored); in a container, the image build progress shows below. If the provider has no credentials, the recap says so with a "Configure the provider" button: it opens the Provider view, and back here (`Esc`) the recap checks again.
+A launch always starts from the recap: a first `Ctrl+S` shows it, a second one launches once the recap is computed. The "Next", "Back" and "Launch" buttons do the same. While launching, the form shows "Launching…" (a second `Ctrl+S` is ignored); in a container, the image build progress shows below. If the provider has no credentials, the recap says so with a "Configure the provider" button: it opens the Provider view, and back here (`Esc`) the recap checks again. "Launch" is the primary action of the recap.
+
+**Ticket already worked on**: when an open session already works on the ticket, the recap compares it with the launch ("Existing session / New launch" table: state, workflow, runtime, mode, model, directory / branch, work; differences marked ⚠). A session of another workflow is shown for information. For a session of the same workflow, a choice is needed (a choice launches at once; "Launch" / `Ctrl+S` are no longer enough):
+
+| Key | Button | Effect |
+|-----|--------|--------|
+| `r` | Resume | open the existing session again, no new session |
+| `t` | Resume locally / in a container / with these settings | transfer the session and its conversation to the chosen runtime and model; on failure ("Transfer failed"), the session is unchanged and oh offers "Replace" |
+| `k` | Replace (keep the work) | stop the session; the new one continues in the same directory and branch, with a handoff brief |
+| `d` | Delete and relaunch | delete the session and its work (confirmation: what will be deleted and lost, then, when it worked in the project directory, keep or discard its changes), then launch again |
+| `p` | Launch in parallel | new session beside it, in another worktree |
+
+See [Sessions v5 › Launching on a ticket already worked on](sessions-v5.en.md#launching-on-a-ticket-already-worked-on).
 
 ### Beads ticket picker
 
@@ -128,7 +142,7 @@ A preview of the ticket (acceptance criteria) shows below the list; a ticket cla
 
 | Section | Content |
 |---------|---------|
-| **To handle** | decisions of every session: `⏸` checkpoint, `?` question, `!` permission, `$` budget, `✗` error or circuit breaker |
+| **To handle** | sessions with waiting decisions, each followed by its decisions: `⏸` checkpoint, `?` question, `!` permission, `$` budget, `✗` error or circuit breaker (a session shows only once in the view, with its short ID) |
 | **Running** | live sessions (working, waiting, idle) |
 | **To fetch** | remote sessions (GitLab CI): pipeline running, MR ready, Beads journal to replay |
 | **Sleeping** | sessions whose server sleeps; they can be resumed |
@@ -149,6 +163,7 @@ The **Detail** pane shows the selected session: workflow, mode, runtime, directo
 | `i` | interrupt the current step |
 | `M` | switch the model for the next steps (`provider/model`) |
 | `s` | stop the session (confirmation) |
+| `D` | delete the session for good: worktree, local branch (never the remote one), decisions, files (confirmation, "Cancel" focused) |
 | `c` | resume a sleeping session |
 | `o` | results and MR description |
 | `w` | open in the browser (one-time code) |

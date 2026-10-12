@@ -33,6 +33,103 @@ type LaunchChoices struct {
 	// changes: LaunchDirtyWorktree (default), LaunchDirtyStash or
 	// LaunchDirtyAllow.
 	Dirty string
+	// OnExisting is what is done with the open session already working on a
+	// ticket of the launch (LaunchExisting*; "" = no choice);
+	// DiscardBaseChanges lets a deletion discard the uncommitted changes of
+	// a session that worked in the project directory.
+	OnExisting         string
+	DiscardBaseChanges bool
+}
+
+// Choices for an open session already working on a ticket of the launch
+// (runsvc.OnExisting values).
+const (
+	LaunchExistingResume   = "resume"
+	LaunchExistingTransfer = "transfer"
+	LaunchExistingKeep     = "keep"
+	LaunchExistingDelete   = "delete"
+	LaunchExistingParallel = "parallel"
+)
+
+// Fields compared between an existing session and the launch
+// (runsvc.Diff* values).
+const (
+	LaunchDiffWorkflow = "workflow"
+	LaunchDiffVersion  = "version"
+	LaunchDiffRuntime  = "runtime"
+	LaunchDiffMode     = "mode"
+	LaunchDiffModel    = "model"
+	LaunchDiffLocation = "location"
+	LaunchDiffBranch   = "branch"
+)
+
+// LaunchExisting is an open session working on a ticket of the launch,
+// next to the planned session (recap comparison block).
+type LaunchExisting struct {
+	ID     string
+	Title  string
+	Shared []string // tickets worked on by both
+	// SameWorkflow: it runs the workflow of the launch (a choice is needed).
+	SameWorkflow bool
+	// Target: the choice buttons apply to it.
+	Target bool
+
+	State, StateLabel string
+	OpenDecisions     int
+
+	Workflow, PlannedWorkflow string
+	Version, PlannedVersion   int
+	Runtime, PlannedRuntime   string
+	Mode, PlannedMode         string
+	Model, PlannedModel       string
+	Path, PlannedPath         string
+	Branch, PlannedBranch     string
+
+	// Work of the existing session (WorkKnown false outside git).
+	WorkKnown       bool
+	CommitsUnpushed int
+	ChangedFiles    int
+	Cost            float64
+
+	// Diffs are the differing fields (LaunchDiff*); Actions the possible
+	// choices (LaunchExisting*).
+	Diffs   []string
+	Actions []string
+}
+
+// Differs reports whether a field differs from the launch.
+func (e LaunchExisting) Differs(fields ...string) bool {
+	for _, d := range e.Diffs {
+		for _, f := range fields {
+			if d == f {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// Allows reports whether a choice is possible.
+func (e LaunchExisting) Allows(choice string) bool {
+	for _, a := range e.Actions {
+		if a == choice {
+			return true
+		}
+	}
+	return false
+}
+
+// DeleteSummary is what deleting a session loses (confirmation).
+type DeleteSummary struct {
+	SessionID string
+	// Items are the lines of the confirmation: removed, kept, lost.
+	Items []string
+	// Losses: commits or uncommitted changes are lost.
+	Losses bool
+	// BaseChanges are the uncommitted changes of the project directory the
+	// session worked in: kept unless the user also discards them (second
+	// confirmation).
+	BaseChanges int
 }
 
 // Choices offered when the directory of a writing session has uncommitted
@@ -52,6 +149,24 @@ type LaunchRecap struct {
 	Dirty bool
 	// Suggestions are workflows to run first (failed preconditions).
 	Suggestions []LaunchSuggestion
+	// Existing are the open sessions working on a ticket of the launch;
+	// NeedsChoice: one runs the same workflow, « Lancer » gives way to the
+	// choices (LaunchChoices.OnExisting).
+	Existing    []LaunchExisting
+	NeedsChoice bool
+}
+
+// existingTarget is the existing session the choices apply to.
+func (r *LaunchRecap) existingTarget() (LaunchExisting, bool) {
+	if r == nil {
+		return LaunchExisting{}, false
+	}
+	for _, e := range r.Existing {
+		if e.Target {
+			return e, true
+		}
+	}
+	return LaunchExisting{}, false
 }
 
 // LaunchSuggestion offers to run another workflow first.
@@ -76,6 +191,8 @@ type launchModel struct {
 	runtimes    []LaunchRuntime
 	oneSession  bool
 	dirty       string
+	onExisting  string
+	discardBase bool
 }
 
 func newLaunchModel(cfg LaunchFormConfig) *launchModel {
@@ -178,7 +295,7 @@ func (m *launchModel) validate() []string {
 // choices returns the launch choices.
 func (m *launchModel) choices() LaunchChoices {
 	c := LaunchChoices{Inputs: map[string]string{}, Mode: m.mode, Runtime: m.runtime, Location: m.location, Attach: m.attach,
-		OneSession: m.oneSession && m.perSession, Dirty: m.dirty}
+		OneSession: m.oneSession && m.perSession, Dirty: m.dirty, OnExisting: m.onExisting, DiscardBaseChanges: m.discardBase}
 	keys := make([]string, 0, len(m.values))
 	for k := range m.values {
 		keys = append(keys, k)

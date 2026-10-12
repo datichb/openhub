@@ -5,10 +5,12 @@ import (
 	"strings"
 
 	"github.com/gdamore/tcell/v2"
+	"github.com/mattn/go-runewidth"
 	"github.com/rivo/tview"
 
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
+	"github.com/datichb/openhub/cli/internal/tui/v2/widgets"
 )
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -39,6 +41,9 @@ type modalConfig struct {
 
 	// FocusTarget is the primitive to focus initially. If nil, Content is focused.
 	FocusTarget tview.Primitive
+	// FocusAction, when > 0, focuses the button of Actions[FocusAction-1]
+	// initially (it wins over FocusTarget).
+	FocusAction int
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -65,9 +70,12 @@ func (s *Shell) showModal(cfg modalConfig) {
 	s.pages.AddPage(cfg.PageName, grid, true, true)
 
 	// Set initial focus
-	if cfg.FocusTarget != nil {
+	switch {
+	case cfg.FocusAction > 0 && cfg.FocusAction < len(focusables):
+		s.app.SetFocus(focusables[cfg.FocusAction])
+	case cfg.FocusTarget != nil:
 		s.app.SetFocus(cfg.FocusTarget)
-	} else if len(focusables) > 0 {
+	case len(focusables) > 0:
 		s.app.SetFocus(focusables[0])
 	}
 }
@@ -132,50 +140,50 @@ func (s *Shell) buildModalFrame(cfg modalConfig) (result tview.Primitive, result
 		frame.AddItem(pad, 1, 0, false)
 	}
 
-	// ── Tab cycling for focusables ──
+	// ── Focus cycling (the focused element is read from the app, so a mouse
+	// click keeps it in sync) ──
 	if len(focusables) > 1 {
-		currentFocus := 0
 		frame.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-			// Tab / BackTab: cycle through all focusables
-			if event.Key() == tcell.KeyTab || event.Key() == tcell.KeyBacktab {
+			cur := focusIndex(s.app, focusables)
+			switch event.Key() {
+			case tcell.KeyTab, tcell.KeyBacktab:
+				// Cycle through the content and every button.
+				next := cur + 1
 				if event.Key() == tcell.KeyBacktab {
-					currentFocus = (currentFocus - 1 + len(focusables)) % len(focusables)
-				} else {
-					currentFocus = (currentFocus + 1) % len(focusables)
+					next = cur - 1
+					if cur < 0 {
+						next = 0
+					}
 				}
-				s.app.SetFocus(focusables[currentFocus])
+				s.app.SetFocus(focusables[(next+len(focusables))%len(focusables)])
 				return nil
-			}
-
-			// ↓ from content (index 0) → jump to first button
-			if event.Key() == tcell.KeyDown && currentFocus == 0 && len(focusables) > 1 {
-				currentFocus = 1
-				s.app.SetFocus(focusables[currentFocus])
-				return nil
-			}
-
-			// ↑ from a button → jump back to content
-			if event.Key() == tcell.KeyUp && currentFocus > 0 {
-				currentFocus = 0
-				s.app.SetFocus(focusables[currentFocus])
-				return nil
-			}
-
-			// ←/→ navigate between buttons when focus is on a button
-			if currentFocus > 0 && (event.Key() == tcell.KeyLeft || event.Key() == tcell.KeyRight) {
-				btnCount := len(focusables) - 1 // exclude content (index 0)
-				btnIdx := currentFocus - 1      // 0-based within buttons
-				if event.Key() == tcell.KeyLeft {
-					btnIdx = (btnIdx - 1 + btnCount) % btnCount
-				} else {
-					btnIdx = (btnIdx + 1) % btnCount
+			case tcell.KeyDown:
+				// ↓ scrolls a text or moves in a list; from other content
+				// (an input…) it reaches the buttons.
+				if cur == 0 && !scrollsVertically(cfg.Content) {
+					s.app.SetFocus(focusables[1])
+					return nil
 				}
-				currentFocus = btnIdx + 1
-				s.app.SetFocus(focusables[currentFocus])
-				return nil
-			}
-
-			if event.Key() == tcell.KeyEscape {
+			case tcell.KeyUp:
+				// ↑ from a button → back to the content
+				if cur > 0 {
+					s.app.SetFocus(focusables[0])
+					return nil
+				}
+			case tcell.KeyLeft, tcell.KeyRight:
+				// ←/→ navigate between buttons when focus is on a button
+				if cur > 0 {
+					btnCount := len(focusables) - 1 // exclude content (index 0)
+					btnIdx := cur - 1
+					if event.Key() == tcell.KeyLeft {
+						btnIdx = (btnIdx - 1 + btnCount) % btnCount
+					} else {
+						btnIdx = (btnIdx + 1) % btnCount
+					}
+					s.app.SetFocus(focusables[btnIdx+1])
+					return nil
+				}
+			case tcell.KeyEscape:
 				s.pages.RemovePage(cfg.PageName)
 				if cfg.FocusReturn != nil {
 					s.app.SetFocus(cfg.FocusReturn)
@@ -189,6 +197,33 @@ func (s *Shell) buildModalFrame(cfg modalConfig) (result tview.Primitive, result
 	}
 
 	return frame, focusables
+}
+
+// focusIndex is the index of the focusable that has the focus (or contains
+// it), -1 when none.
+func focusIndex(app *tview.Application, focusables []tview.Primitive) int {
+	f := app.GetFocus()
+	for i, p := range focusables {
+		if p == f {
+			return i
+		}
+	}
+	for i, p := range focusables {
+		if p.HasFocus() {
+			return i
+		}
+	}
+	return -1
+}
+
+// scrollsVertically reports whether ↑/↓ belong to the content (text to
+// scroll, list to move in) rather than to the modal navigation.
+func scrollsVertically(p tview.Primitive) bool {
+	switch p.(type) {
+	case *tview.TextView, *tview.List, *tview.TreeView, *tview.Table:
+		return true
+	}
+	return false
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -229,15 +264,6 @@ func buildButtonBar(actions []views.ModalAction, dismiss func()) (*tview.Flex, [
 
 	var focusables []tview.Primitive
 
-	// Calculate total width needed for centering
-	totalWidth := 0
-	for i, act := range actions {
-		totalWidth += len(act.Label) + theme.ModalButtonPadX*2
-		if i > 0 {
-			totalWidth += theme.ModalButtonGap
-		}
-	}
-
 	// Left spacer for centering (weight 1)
 	bar.AddItem(tview.NewBox().SetBackgroundColor(theme.BgModal), 0, 1, false)
 
@@ -245,32 +271,16 @@ func buildButtonBar(actions []views.ModalAction, dismiss func()) (*tview.Flex, [
 		a := act
 		isPrimary := i == 0
 
-		btn := tview.NewButton(a.Label)
+		// Shared look (theme.ButtonStyle / ButtonFocusedStyle): the first
+		// action is the primary one, a dangerous one is drawn in red.
+		role := widgets.ButtonNormal
 		switch {
 		case a.Danger:
-			btn.SetStyle(tcell.StyleDefault.
-				Background(theme.Error).
-				Foreground(theme.BgModal))
-			btn.SetActivatedStyle(tcell.StyleDefault.
-				Background(theme.Warning).
-				Foreground(theme.BgModal))
+			role = widgets.ButtonDanger
 		case isPrimary:
-			// Primary button: mode accent pill at rest, secondary when focused
-			btn.SetStyle(tcell.StyleDefault.
-				Background(theme.ActiveMode.Accent).
-				Foreground(theme.BgModal))
-			btn.SetActivatedStyle(tcell.StyleDefault.
-				Background(theme.ActiveMode.Secondary).
-				Foreground(theme.BgModal))
-		default:
-			// Secondary button: ghost style at rest, mode accent when focused
-			btn.SetStyle(tcell.StyleDefault.
-				Background(theme.BgModalHighlight).
-				Foreground(theme.FgSecondary))
-			btn.SetActivatedStyle(tcell.StyleDefault.
-				Background(theme.ActiveMode.Accent).
-				Foreground(theme.BgModal))
+			role = widgets.ButtonPrimary
 		}
+		btn := widgets.DecorateButton(tview.NewButton(a.Label), role)
 		btn.SetSelectedFunc(func() {
 			dismiss()
 			if a.Callback != nil {
@@ -278,7 +288,7 @@ func buildButtonBar(actions []views.ModalAction, dismiss func()) (*tview.Flex, [
 			}
 		})
 
-		btnWidth := len(a.Label) + theme.ModalButtonPadX*2
+		btnWidth := runewidth.StringWidth(a.Label) + theme.ModalButtonPadX*2
 		if i > 0 {
 			// Gap between buttons — wider when Separator is set to group actions visually
 			gap := theme.ModalButtonGap

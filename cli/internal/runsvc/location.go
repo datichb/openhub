@@ -139,15 +139,35 @@ func (s *Service) busyWriters(ctx context.Context, projectID string) map[string]
 	return out
 }
 
+// locOptions adjust the locations of a run for the existing sessions of
+// its tickets (RunRequest.OnExisting).
+type locOptions struct {
+	// free are directories released before the launch (stopped or deleted
+	// session): not busy.
+	free map[string]bool
+	// fixed are imposed locations by planned session (keep, resume, transfer).
+	fixed map[int]Location
+	// recreate are worktrees removed before the launch (delete): created again.
+	recreate map[string]bool
+	// clean are directories whose changes are discarded before the launch.
+	clean map[string]bool
+	// ticketWorktree is, by planned session, an existing session of its
+	// ticket working in a worktree of the project (base chosen anyway).
+	ticketWorktree map[int]ExistingSession
+}
+
 // planLocations resolves the location of each session of a run. writes
 // tells whether the workflow may modify files (O10 applies to writers);
 // branches gives the branch of each session's worktree, if one is needed;
 // dirty tells what a writer does in a directory with uncommitted changes.
-func (s *Service) planLocations(ctx context.Context, projectID, projectPath string, choice LocationChoice, writes bool, branches []string, dirty DirtyPolicy) ([]Location, []Warning, error) {
+func (s *Service) planLocations(ctx context.Context, projectID, projectPath string, choice LocationChoice, writes bool, branches []string, dirty DirtyPolicy, lo locOptions) ([]Location, []Warning, error) {
 	projectPath = filepath.Clean(projectPath)
 	busy := map[string]string{}
 	if writes {
 		busy = s.busyWriters(ctx, projectID)
+		for p := range lo.free {
+			delete(busy, filepath.Clean(p))
+		}
 	}
 	isGit := s.isGitRepo(projectPath)
 	var (
@@ -168,8 +188,20 @@ func (s *Service) planLocations(ctx context.Context, projectID, projectPath stri
 		}
 		p := filepath.Clean(worktree.SiblingPath(projectPath, b))
 		loc := Location{Path: p, Kind: LocationWorktree, Branch: b, Auto: auto}
-		if st, err := os.Stat(p); err != nil || !st.IsDir() {
+		if st, err := os.Stat(p); err != nil || !st.IsDir() || lo.recreate[p] {
 			loc.Create = true
+		}
+		return loc, nil
+	}
+	// autoWorktree moves a session to its worktree; that one may be used
+	// too (another session on the same branch).
+	autoWorktree := func(i int) (Location, error) {
+		loc, err := newWorktree(i, true)
+		if err != nil {
+			return loc, err
+		}
+		if other, ok := busy[loc.Path]; ok && writes {
+			warns = append(warns, Warning{Code: WarnWorktreeBusy, Args: []any{other, loc.Path}})
 		}
 		return loc, nil
 	}
@@ -177,6 +209,11 @@ func (s *Service) planLocations(ctx context.Context, projectID, projectPath stri
 	// Several sessions that write: one worktree each (one ticket, one branch).
 	perSession := writes && n > 1 && choice.Kind == LocationBase
 	for i := 0; i < n; i++ {
+		if loc, ok := lo.fixed[i]; ok {
+			taken[loc.Path] = true
+			out = append(out, loc)
+			continue
+		}
 		var (
 			loc Location
 			err error
@@ -184,8 +221,13 @@ func (s *Service) planLocations(ctx context.Context, projectID, projectPath stri
 		switch {
 		case choice.Kind == LocationNew:
 			loc, err = newWorktree(i, false)
+			if err == nil && writes {
+				if other, ok := busy[loc.Path]; ok {
+					warns = append(warns, Warning{Code: WarnWorktreeBusy, Args: []any{other, loc.Path}})
+				}
+			}
 		case perSession:
-			loc, err = newWorktree(i, true)
+			loc, err = autoWorktree(i)
 		case choice.Kind == LocationWorktree:
 			st, serr := os.Stat(choice.Path)
 			if serr != nil || !st.IsDir() {
@@ -207,16 +249,20 @@ func (s *Service) planLocations(ctx context.Context, projectID, projectPath stri
 				case !isGit:
 					warns = append(warns, Warning{Code: WarnSharedLocation, Args: []any{loc.Path}})
 				default:
-					if loc, err = newWorktree(i, true); err != nil {
+					if loc, err = autoWorktree(i); err != nil {
 						return nil, nil, err
 					}
 					if ok {
-						warns = append(warns, Warning{Code: WarnAutoWorktree, Args: []any{other, loc.Path}})
+						code := WarnAutoWorktree
+						if !loc.Create {
+							code = WarnAutoWorktreeExisting
+						}
+						warns = append(warns, Warning{Code: code, Args: []any{other, loc.Path}})
 					}
 				}
 			}
 		}
-		if writes && !loc.Create && s.isDirty(loc.Path) {
+		if writes && !loc.Create && !lo.clean[loc.Path] && s.isDirty(loc.Path) {
 			switch {
 			case dirty == DirtyStash:
 				loc.Stash = true
@@ -225,7 +271,7 @@ func (s *Service) planLocations(ctx context.Context, projectID, projectPath stri
 				// The user's changes stay where they are: the session works
 				// in a worktree of its branch.
 				from := loc.Path
-				if loc, err = newWorktree(i, true); err != nil {
+				if loc, err = autoWorktree(i); err != nil {
 					return nil, nil, err
 				}
 				warns = append(warns, Warning{Code: WarnDirtyWorktree, Args: []any{from, loc.Path}})
@@ -233,6 +279,11 @@ func (s *Service) planLocations(ctx context.Context, projectID, projectPath stri
 				// --allow-dirty, or an existing worktree chosen explicitly.
 				warns = append(warns, Warning{Code: WarnDirty, Args: []any{loc.Path}})
 			}
+		}
+		if e, ok := lo.ticketWorktree[i]; ok && loc.Kind == LocationBase && filepath.Clean(e.LaunchPath) != loc.Path {
+			// The ticket is worked on in its worktree: the base gets a
+			// second copy of the work.
+			warns = append(warns, Warning{Code: WarnTicketWorktree, Args: []any{e.ID, e.LaunchPath}})
 		}
 		taken[loc.Path] = true
 		out = append(out, loc)

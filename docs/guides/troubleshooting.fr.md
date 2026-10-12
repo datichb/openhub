@@ -22,7 +22,7 @@ Executez `oh doctor` pour verifier l'etat de sante de votre installation. Il eff
 | 4 | bd (beads) | CLI Beads (optionnel) | `brew install datichb/tap/bd` |
 | 5 | Version oh | Derniere version publiee de oh : une version plus recente est un avertissement (⚠, sans echec) ; une pre-version ou un build de developpement plus recent que la derniere version publiee est « a jour » | `oh upgrade oh` (ou `brew upgrade openhub`) |
 | 6 | Configuration | `hub.toml` se charge correctement | `oh init` pour reinitialiser |
-| 7 | Identifiants fournisseur | Identifiants trouves selon la cascade d'un lancement depuis le dossier courant : cle du projet, de l'equipe, du hub, puis profil AWS (Bedrock) ; la source est affichee | `oh provider setup`, `oh secrets set` ou variable d'env |
+| 7 | Identifiants fournisseur | Identifiants trouves selon la cascade d'un lancement depuis le dossier courant : cle du projet, de l'equipe, du hub, puis profil AWS (Bedrock) ; la cle, sa portee et sa date d'enregistrement sont affichees, une cle API Bedrock est validee aupres d'AWS (sauf `oh doctor --offline` ou `OH_DOCTOR_OFFLINE=1`) ; une `AWS_BEARER_TOKEN_BEDROCK` du shell inutilisee est signalee | `oh provider setup`, `oh provider setup bedrock --from-env`, `oh secrets set` |
 | 8 | Base de donnees | Base SQLite accessible | `oh repair` |
 | 9 | Cles API | Tokens des services MCP (Figma, GitLab, etc.) | `oh mcp setup <service>` |
 | 10 | Beads zero-impact | Aucun effet de bord de Beads (hooks, gitignore, fichiers d'agents écrits par `bd init` : `AGENTS.md`, `CLAUDE.md`, `.claude/`, `.codex/`, `.cursor/`, `.agents/` ; `.beads/` dans `.git/info/exclude`) | `oh doctor --fix` (voir [Premiers pas](getting-started.fr.md#configuration-initiale--oh-init)) |
@@ -79,6 +79,21 @@ export ANTHROPIC_API_KEY="sk-..."   # Via variable d'environnement
 lancement impossible, identifiants du fournisseur introuvables (projet, équipe, hub ; profil AWS pour Bedrock) : …
 ```
 `oh run` (et la fiche de lancement de la TUI, a l'etape Recap) verifie les identifiants du fournisseur avant de construire le paquet ou de demander quoi que ce soit au demon, selon la meme cascade qu'`oh doctor` : cle du projet, de l'equipe, du hub, puis profil AWS pour Bedrock. Configurez-les avec `oh provider setup` (ou `-P` pour un autre fournisseur). Un refus du demon (« le démon oh n'a pas pu préparer les identifiants… ») se diagnostique avec `oh doctor`.
+
+**Cle Bedrock refusee par AWS**
+```
+Authentication failed: Please make sure your API Key is valid
+```
+AWS refuse la cle API Bedrock utilisee par la session. Causes habituelles :
+- les cles API Bedrock **a court terme** expirent (12 h au plus) ;
+- vous avez renouvele la cle dans votre shell (`AWS_BEARER_TOKEN_BEDROCK`), mais oh ignore cette variable par conception : il n'utilise que la cle enregistree dans le trousseau.
+
+oh leve aussi une alerte ✗ dans « À traiter » (clé, portee, date d'enregistrement). `oh doctor` dit quelle cle est utilisee et si AWS l'accepte. Pour corriger :
+```bash
+oh provider setup bedrock --from-env   # enregistrer la cle de votre shell (-p <projet> pour la cle du projet)
+oh provider setup bedrock              # ou saisir une nouvelle cle
+```
+puis relancez la session. Avec `auth_mode = "profile"` ou `"env"`, oh signe en SigV4 et n'utilise aucune cle enregistree : renouvelez les identifiants AWS (par ex. `aws sso login`).
 
 **Commande lancee hors du dossier d'un projet**
 ```

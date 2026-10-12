@@ -60,8 +60,9 @@ type Grant struct {
 	SessionID     string
 	Provider      string // provider id of the tool (adapters.ProviderMapper)
 	Upstream      Upstream
-	AllowedModels []string // wildcard patterns on the model id; empty = any
-	MaxTokens     int64    // input+output token budget; 0 = unlimited
+	AllowedModels []string      // wildcard patterns on the model id; empty = any
+	MaxTokens     int64         // input+output token budget; 0 = unlimited
+	Credential    CredentialRef // names the real credential (logs, refusals)
 }
 
 // Usage is the traffic accounted to a grant.
@@ -73,9 +74,10 @@ type Usage struct {
 
 type grantState struct {
 	Grant
-	hash  string // token hash (the token itself is never kept)
-	mu    sync.Mutex
-	usage Usage
+	hash     string // token hash (the token itself is never kept)
+	mu       sync.Mutex
+	usage    Usage
+	rejected *AuthRejection // last credential refusal not followed by a success
 }
 
 // Proxy is a local HTTP proxy. Routes: /<provider>/... → upstream /... .
@@ -95,6 +97,9 @@ type Proxy struct {
 	// OnUsage, when set, receives the usage accounted to the grants (by
 	// owner), for a persistent ledger shared across restarts and new tokens.
 	OnUsage func(owner string, delta Usage)
+	// OnAuthRejected, when set, is called (in its own goroutine) when the
+	// provider starts refusing the credential of a grant (401/403).
+	OnAuthRejected func(r AuthRejection)
 	// Hooks serves HooksPrefix routes for the tools holding a valid session
 	// token (oh plugin → oh daemon); the grant owner is in the request
 	// context (HookOwner).
@@ -550,6 +555,7 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			pr.Out.ContentLength = int64(len(body))
 		},
 		ModifyResponse: func(resp *http.Response) error {
+			p.checkAuth(g, provider, resp)
 			resp.Body = &usageReader{rc: resp.Body, g: g, frames: base64Frames(provider, escapedRest),
 				onReport: func(in, out int64) { p.account(g, Usage{InputTokens: in, OutputTokens: out}) }}
 			return nil

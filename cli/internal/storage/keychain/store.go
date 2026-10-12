@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"time"
 
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/zalando/go-keyring"
@@ -169,6 +170,33 @@ func HasDefault() bool {
 		return true
 	}
 	return exec.Command("security", "default-keychain").Run() == nil
+}
+
+// ModifiedAt returns when the secret of key (global scope) was last stored
+// in the keychain, read from the item attributes without its value (macOS
+// only; an error elsewhere).
+func (s *Store) ModifiedAt(ctx context.Context, key string) (time.Time, error) {
+	if runtime.GOOS != "darwin" {
+		return time.Time{}, fmt.Errorf("keychain dates not supported on %s", runtime.GOOS)
+	}
+	out, err := exec.CommandContext(ctx, "security", "find-generic-password", "-s", serviceName, "-a", key).CombinedOutput()
+	if err != nil {
+		return time.Time{}, fmt.Errorf("security find-generic-password: %w", err)
+	}
+	return parseKeychainDate(string(out), "mdat")
+}
+
+var keychainDateRe = regexp.MustCompile(`"(\w{4})"<timedate>=\S*\s+"(\d{14})Z`)
+
+// parseKeychainDate reads a timedate attribute (mdat, cdat) of the output of
+// "security find-generic-password".
+func parseKeychainDate(output, attr string) (time.Time, error) {
+	for _, m := range keychainDateRe.FindAllStringSubmatch(output, -1) {
+		if m[1] == attr {
+			return time.ParseInLocation("20060102150405", m[2], time.UTC)
+		}
+	}
+	return time.Time{}, fmt.Errorf("keychain attribute %s not found", attr)
 }
 
 // ListKeychainAccounts returns all account names stored in the OS keychain

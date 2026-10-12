@@ -34,19 +34,26 @@ func layoutModeForWidth(width int) homeLayoutMode {
 }
 
 // contentWidthFor is the width of the landing content for mode, never wider
-// than the available width (narrow: min(72, width), N20).
+// than the available width (narrow: min(72, width), N20). The dual layout
+// grows with the terminal (width − 6, capped at 180).
 func contentWidthFor(mode homeLayoutMode, width int) int {
 	w := contentWidthForMode(mode)
+	if mode == layoutDual && width-6 > w {
+		w = min(width-6, maxDualContentWidth)
+	}
 	if width > 0 && w > width {
 		return width
 	}
 	return w
 }
 
+// maxDualContentWidth caps the dual-column landing width on very wide terminals.
+const maxDualContentWidth = 180
+
 func contentWidthForMode(mode homeLayoutMode) int {
 	switch mode {
 	case layoutDual:
-		return 134 // 2 × 65 + 4 gap
+		return 134 // minimum: 2 × 65 + 4 gap
 	case layoutWide:
 		return 90
 	default:

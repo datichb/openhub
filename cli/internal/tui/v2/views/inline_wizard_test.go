@@ -1290,7 +1290,7 @@ func quitButtons(t *testing.T, v *InlineWizardView) []string {
 	require.True(t, ok)
 	var labels []string
 	for i := 0; i < form.GetButtonCount(); i++ {
-		labels = append(labels, form.GetButton(i).GetLabel())
+		labels = append(labels, widgets.ButtonLabel(form.GetButton(i)))
 	}
 	return labels
 }
@@ -1300,7 +1300,12 @@ func pressQuitButton(t *testing.T, v *InlineWizardView, label string) {
 	t.Helper()
 	require.NotNil(t, v.quitBar, "quit question shown")
 	form := v.quitBar.GetItem(1).(*tview.Form)
-	idx := form.GetButtonIndex(label)
+	idx := -1
+	for i := 0; i < form.GetButtonCount(); i++ {
+		if widgets.ButtonLabel(form.GetButton(i)) == label {
+			idx = i
+		}
+	}
 	require.GreaterOrEqual(t, idx, 0, "button %q", label)
 	form.GetButton(idx).InputHandler()(tcell.NewEventKey(tcell.KeyEnter, 0, tcell.ModNone), func(tview.Primitive) {})
 }

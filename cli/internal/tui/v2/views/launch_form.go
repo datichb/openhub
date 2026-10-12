@@ -11,6 +11,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
+	"github.com/datichb/openhub/cli/internal/tui/v2/widgets"
 	"github.com/datichb/openhub/cli/internal/workflow"
 )
 
@@ -64,6 +65,12 @@ type LaunchFormConfig struct {
 	// the provider are missing (recap button); back on the form, the recap
 	// is computed again. nil = no button.
 	ConfigureProvider func()
+	// PlanDelete lists what deleting an existing session loses (« Supprimer
+	// et relancer » confirmation; nil = a plain confirmation).
+	PlanDelete func(ctx context.Context, sessionID string) (DeleteSummary, error)
+	// Launched runs on the event loop once a launch succeeded and the form
+	// closed (e.g. show the resumed session). nil = nothing.
+	Launched func()
 }
 
 // ErrProviderCredentials marks a recap or launch error caused by missing
@@ -143,6 +150,9 @@ func (v *LaunchFormView) StatusHints() string {
 		return v.picker.StatusHints()
 	}
 	if v.step == launchStepRecap {
+		if _, ok := v.recap.existingTarget(); ok {
+			return i18n.T("tui.keys.launch_recap_existing")
+		}
 		return i18n.T("tui.keys.launch_recap")
 	}
 	return i18n.T("tui.launch.hints")
@@ -208,7 +218,7 @@ func (v *LaunchFormView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 		}
 		return nil
 	case tcell.KeyRune:
-		if v.dirtyKey(event.Rune()) {
+		if v.dirtyKey(event.Rune()) || v.existingKey(event.Rune()) {
 			return nil
 		}
 	case tcell.KeyEscape:
@@ -279,13 +289,14 @@ func (v *LaunchFormView) newForm() *tview.Form {
 	f.SetFieldBackgroundColor(theme.BgElement)
 	f.SetFieldTextColor(theme.FgPrimary)
 	f.SetLabelColor(theme.FgPrimary)
-	f.SetButtonStyle(tcell.StyleDefault.Background(theme.ActiveMode.Primary).Foreground(theme.BgPanel))
-	f.SetButtonActivatedStyle(tcell.StyleDefault.Background(theme.ActiveMode.Secondary).Foreground(theme.BgPanel))
 	f.SetBorderPadding(1, 0, 2, 2)
 	return f
 }
 
+// mountForm shows an inputs/options step; its last button (« Suivant ») is
+// the primary one.
 func (v *LaunchFormView) mountForm(f *tview.Form) {
+	widgets.StyleFormButtons(f, f.GetButtonCount()-1)
 	fixFormDropDownStyles(f)
 	v.form = f
 	v.body.AddItem(f, 0, 1, true)
@@ -407,11 +418,31 @@ func (v *LaunchFormView) renderRecap() {
 	v.body.AddItem(tv, 0, 1, false)
 	f := v.newForm()
 	f.AddButton(i18n.T("tui.launch.back"), v.back)
+	// The primary button, focused: « Configurer le fournisseur » when the
+	// launch needs it first, else « Reprendre » (or the first choice) for a
+	// session of the same workflow on the ticket, else « Lancer ».
+	primary := -1
 	if v.needsProvider() {
+		primary = f.GetButtonCount()
 		f.AddButton(i18n.T("tui.launch.configure_provider"), v.configureProvider)
-		f.SetFocus(1)
 	}
-	f.AddButton(i18n.T("tui.launch.launch"), v.launch)
+	if v.recap == nil || !v.recap.NeedsChoice {
+		if primary < 0 {
+			primary = f.GetButtonCount()
+		}
+		f.AddButton(i18n.T("tui.launch.launch"), v.launch)
+	}
+	target, choices := v.existingButtons()
+	for i, c := range choices {
+		choice := c.value
+		if target.SameWorkflow && (i == 0 || choice == LaunchExistingResume) && !v.needsProvider() {
+			primary = f.GetButtonCount()
+		}
+		f.AddButton(existingChoiceLabel(target, choice), func() { v.chooseExisting(choice) })
+	}
+	if primary < 0 {
+		primary = 0
+	}
 	if v.recap != nil && v.cfg.LaunchFirst != nil {
 		for _, s := range v.recap.Suggestions {
 			id := s.WorkflowID
@@ -421,9 +452,16 @@ func (v *LaunchFormView) renderRecap() {
 		}
 	}
 	f.SetButtonsAlign(tview.AlignLeft)
+	height := 3
+	if len(choices) > 0 {
+		f.SetHorizontal(true) // the buttons wrap
+		height = 5
+	}
+	widgets.StyleFormButtons(f, primary)
+	f.SetFocus(f.GetFormItemCount() + primary)
 	v.form = f
 	fixFormDropDownStyles(f)
-	v.body.AddItem(f, 3, 0, true)
+	v.body.AddItem(f, height, 0, true)
 	if v.app != nil {
 		v.app.SetFocus(f)
 	}
@@ -459,6 +497,7 @@ func (v *LaunchFormView) recapText() string {
 		if v.recap.Dirty {
 			b.WriteString(v.dirtyChoicesText() + "\n")
 		}
+		b.WriteString(v.existingText())
 	}
 	return b.String()
 }
@@ -543,8 +582,8 @@ func (v *LaunchFormView) loadRecap() {
 				return
 			}
 			v.recap, v.recapErr = r, err
-			if v.step == launchStepRecap && ((r != nil && len(r.Suggestions) > 0) || v.needsProvider()) {
-				v.render() // suggestion or provider buttons
+			if v.step == launchStepRecap && ((r != nil && (len(r.Suggestions) > 0 || len(r.Existing) > 0)) || v.needsProvider()) {
+				v.render() // suggestion, provider or existing session buttons
 				return
 			}
 			if v.recapTV != nil {
@@ -603,7 +642,15 @@ func (v *LaunchFormView) blocked() bool {
 	return true
 }
 
-func (v *LaunchFormView) launch() { v.launchWith(v.cfg.Launch) }
+func (v *LaunchFormView) launch() {
+	if v.recap != nil && v.recap.NeedsChoice && v.m.onExisting == "" {
+		if v.shell != nil && !v.launching {
+			v.shell.ShowToastMsg(i18n.T("tui.launch.existing.choose"), false)
+		}
+		return
+	}
+	v.launchWith(v.cfg.Launch)
+}
 
 // launchWith runs a launch function off the event loop, from the loaded
 // recap only (N19; double launch protection: ignored while a launch is in
@@ -637,9 +684,17 @@ func (v *LaunchFormView) launchWith(fn func(ctx context.Context, c LaunchChoices
 			v.launching = false
 			if err == nil {
 				v.close()
+				if v.cfg.Launched != nil {
+					v.cfg.Launched()
+				}
 				return
 			}
 			v.launchErr = err
+			choice := v.m.onExisting
+			v.m.onExisting, v.m.discardBase = "", false
+			if choice == LaunchExistingTransfer && errors.Is(err, ErrTransferFailed) {
+				v.offerKeep(err)
+			}
 			if v.needsProvider() && v.step == launchStepRecap {
 				v.render() // provider button
 				return

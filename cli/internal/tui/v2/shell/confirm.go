@@ -8,9 +8,11 @@ import (
 )
 
 // Confirm asks for a confirmation before an action (views.ShellAccess,
-// N19). The focus starts on the text, so an Enter typed by reflex does not
-// confirm; Esc or « Annuler » close the window without acting. The focus
-// returns to the widget that had it.
+// N19). The focus starts on the primary button « Oui », except for a
+// dangerous action where it starts on « Annuler », so an Enter typed by
+// reflex does not destroy anything; Tab reaches the text and the buttons.
+// Esc or « Annuler » close the window without acting. The focus returns to
+// the widget that had it.
 func (s *Shell) Confirm(title, detail string, danger bool, onYes func()) {
 	back := s.app.GetFocus()
 	if back == nil {
@@ -23,6 +25,10 @@ func (s *Shell) Confirm(title, detail string, danger bool, onYes func()) {
 		{Label: yes, Callback: onYes, Danger: danger},
 		{Label: i18n.T("tui.confirm.cancel")},
 	}
+	focus := 1 // « Oui »
+	if danger {
+		focus = 2 // « Annuler »
+	}
 	s.showModal(modalConfig{
 		Title:        title,
 		Content:      text,
@@ -33,5 +39,6 @@ func (s *Shell) Confirm(title, detail string, danger bool, onYes func()) {
 		PageName:     "inline-overlay",
 		FocusReturn:  back,
 		FocusTarget:  text,
+		FocusAction:  focus,
 	})
 }

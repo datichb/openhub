@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/tui/v2/widgets"
 )
 
 // N19, with real key events: Esc asks, ← moves to « Quitter », Enter quits
@@ -43,7 +44,7 @@ func TestInlineWizardView_QuitPromptKeys(t *testing.T) {
 		label := ""
 		onLoop(app, func() {
 			if b, ok := app.GetFocus().(*tview.Button); ok {
-				label = b.GetLabel()
+				label = widgets.ButtonLabel(b)
 			}
 		})
 		return label

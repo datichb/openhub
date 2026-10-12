@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/gdamore/tcell/v2"
+	"github.com/mattn/go-runewidth"
 	"github.com/rivo/tview"
 
 	"github.com/datichb/openhub/cli/internal/tui/theme"
@@ -205,16 +206,17 @@ func (c *CardColumn) Draw(screen tcell.Screen) {
 
 	// Overlay arrows in a different style (secondary color, not bold)
 	if c.focused {
-		runes := []rune(headerText)
-		for di, r := range runes {
-			if di < width && (r == '◄' || r == '►') {
-				screen.SetContent(x+di, y, r, nil, arrowStyle)
+		dx := 0
+		for _, r := range headerText {
+			if dx < width && (r == '◄' || r == '►') {
+				screen.SetContent(x+dx, y, r, nil, arrowStyle)
 			}
+			dx += runewidth.RuneWidth(r)
 		}
 		// Draw right arrow at the end of the line
 		if c.showRightArrow {
 			// Place ► after the header text with a space, or at rightmost position
-			pos := len(runes) + 1
+			pos := runewidth.StringWidth(headerText) + 1
 			if pos < width-1 {
 				screen.SetContent(x+pos, y, '►', nil, arrowStyle)
 			}
@@ -360,14 +362,22 @@ func (c *CardColumn) drawCard(screen tcell.Screen, x, y, maxWidth int, card *Car
 }
 
 // drawText writes plain text at (x, y) with the given style, padded to width.
+// Positions are counted in display cells (wide runes take two).
 func (c *CardColumn) drawText(screen tcell.Screen, x, y, width int, text string, style tcell.Style) {
-	runes := []rune(text)
-	for dx := 0; dx < width; dx++ {
-		if dx < len(runes) {
-			screen.SetContent(x+dx, y, runes[dx], nil, style)
-		} else {
-			screen.SetContent(x+dx, y, ' ', nil, style)
+	dx := 0
+	for _, r := range text {
+		w := runewidth.RuneWidth(r)
+		if w == 0 {
+			continue
 		}
+		if dx+w > width {
+			break
+		}
+		screen.SetContent(x+dx, y, r, nil, style)
+		dx += w
+	}
+	for ; dx < width; dx++ {
+		screen.SetContent(x+dx, y, ' ', nil, style)
 	}
 }
 
@@ -406,8 +416,16 @@ func (c *CardColumn) drawColoredText(screen tcell.Screen, x, y, maxW int, text s
 				}
 			}
 		}
+		w := runewidth.RuneWidth(runes[i])
+		if w == 0 {
+			i++
+			continue
+		}
+		if dx+w > maxW {
+			break
+		}
 		screen.SetContent(x+dx, y, runes[i], nil, style)
-		dx++
+		dx += w
 		i++
 	}
 	// Pad remaining

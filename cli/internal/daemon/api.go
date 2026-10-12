@@ -1,6 +1,10 @@
 package daemon
 
-import "github.com/datichb/openhub/cli/internal/domain"
+import (
+	"time"
+
+	"github.com/datichb/openhub/cli/internal/domain"
+)
 
 // API version prefix.
 const apiPrefix = "/v1"
@@ -47,6 +51,19 @@ type UsageResponse struct {
 	Requests     int64 `json:"requests"`
 	InputTokens  int64 `json:"input_tokens"`
 	OutputTokens int64 `json:"output_tokens"`
+	// AuthRejected is set while the provider refuses the credential of the
+	// grant (401/403 not followed by a success).
+	AuthRejected *AuthRejected `json:"auth_rejected,omitempty"`
+}
+
+// AuthRejected describes the provider refusing the credential of a grant
+// (never the secret).
+type AuthRejected struct {
+	Status        int       `json:"status"`
+	Message       string    `json:"message,omitempty"`
+	CredentialKey string    `json:"credential_key,omitempty"`
+	Scope         string    `json:"scope,omitempty"`
+	At            time.Time `json:"at"`
 }
 
 // PendingGrant describes a restored grant whose secret is not yet available.
