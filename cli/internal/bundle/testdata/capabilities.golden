@@ -15,12 +15,6 @@ cp     review-feedback/orchestrator-dev: cp-3
 cp     ticket/developer-migrator: cp-commit
 cp     ticket/developer-refactor: cp-commit
 cp     ticket/developer: cp-commit
-deny   feature/reviewer: npm test
-deny   libre/reviewer: npm test
-deny   review-feedback/reviewer: npm test
-deny   review/reviewer: npm test
-deny   sweep/reviewer: npm test
-deny   ticket/reviewer: npm test
 locked cadrage/planner: bd create
 locked cadrage/planner: bd create -t epic
 locked cadrage/planner: bd duplicate

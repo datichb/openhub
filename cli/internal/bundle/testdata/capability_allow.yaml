@@ -7,16 +7,6 @@ references:
   - developer/beads-plan
   - developer/beads-dev
 commands:
-  # dev-standards-universal (checklist inlined in the reviewer): « les tests
-  # existants passent ». The reviewer's shell belongs to the security track
-  # (piste S, N3): to settle there (run the tests, or read the developer's
-  # report).
-  - "feature/reviewer: npm test"
-  - "libre/reviewer: npm test"
-  - "review-feedback/reviewer: npm test"
-  - "review/reviewer: npm test"
-  - "sweep/reviewer: npm test"
-  - "ticket/reviewer: npm test"
   # Ticket path of the developers (claim, labels, comments): sweep and
   # review-feedback have no ticket, the « Sans ticket » paragraph of the
   # agent skips every bd step there (C0.5). The refactor/migrator entries go
