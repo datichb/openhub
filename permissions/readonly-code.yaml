@@ -1,6 +1,6 @@
 # Permission base: readonly-code
 # Read-only access to code — no bash, no edit, no write.
-# Used by: auditor-subagent, brief-enricher
+# Used by: auditor-subagent
 skill: allow
 bash: deny
 read: allow
