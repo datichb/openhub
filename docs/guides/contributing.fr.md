@@ -130,7 +130,7 @@ native_skills: [chemin/vers/skill, ...]   # Bucket B — skills natives à la de
 | Type d'agent | Permissions ctx recommandées |
 |---|---|
 | Orchestrateurs (planning) | `ctx_search`, `ctx_stats`, `ctx_batch_execute` |
-| Développeurs (developer, refactor, migrator) | `ctx_search`, `ctx_execute`, `ctx_execute_file`, `ctx_batch_execute`, `ctx_fetch_and_index`, `ctx_index` |
+| Développeur (developer) | `ctx_search`, `ctx_execute`, `ctx_execute_file`, `ctx_batch_execute`, `ctx_fetch_and_index`, `ctx_index` |
 | Qualité (debugger, reviewer) | `ctx_search`, `ctx_execute`, `ctx_execute_file`, `ctx_batch_execute` |
 | Planning (planner, pathfinder, onboarder) | `ctx_search`, `ctx_stats`, `ctx_batch_execute` |
 | Design (designer) | `ctx_search`, `ctx_batch_execute` |
@@ -142,7 +142,7 @@ Voir [ADR-010](../architecture/adr/010-hybrid-skills-architecture.fr.md) pour le
 ### 3. Corps de l'agent
 
 Structure recommandée (voir `agents/auditor/auditor.md` comme référence pour les coordinateurs,
-`agents/developer/developer-frontend.md` pour les agents implémenteurs) :
+`agents/developer/developer.md` pour les agents implémenteurs) :
 
 ```markdown
 # <NomAffiché>
@@ -294,7 +294,7 @@ refactor: <restructuration>
 
 | Type | Convention | Exemple |
 |------|-----------|---------|
-| Agent | `<domaine>[-<spécialité>].md` | `developer-frontend.md` |
+| Agent | `<domaine>[-<spécialité>].md` | `auditor-subagent.md` |
 | Skill (dans un sous-dossier) | `<domaine>-<sujet>.md` | `audit-security.md` |
 
 ### Documentation interne

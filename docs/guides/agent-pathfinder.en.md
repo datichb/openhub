@@ -321,7 +321,7 @@ The orchestrator will automatically invoke Pathfinder.
 
 ### Q: Can Pathfinder consult designers/auditors?
 
-**A:** No, only the planner can delegate to specialized agents (designer, auditor-*, etc.). This is a reason to escalate if these signals are strong.
+**A:** Only the `designer`, for a Figma reconnaissance (Mode: recon), and the `documentarian`; neither can be asked for a UX/UI spec. Pathfinder never delegates to an auditor: the planner handles the design delegation (UX/UI specs), and an audit goes through the `audit` workflow. Strong design or audit signals are a reason to escalate to the planner.
 
 ### Q: How do I force the planner without going through Pathfinder?
 

@@ -246,10 +246,10 @@ dans `feature`, `planner` et `reviewer` passent en `subagent` ; dans `quick`, `d
 
 ### Règle absolue — isolation des niveaux
 
-> **L'orchestrator ne route JAMAIS directement vers les `developer-*`.**
+> **L'orchestrator ne route JAMAIS directement vers le `developer`.**
 
 Cette règle est fondamentale : l'`orchestrator` délègue toujours à
-`orchestrator-dev`, qui lui-même route vers le bon `developer-*`.
+`orchestrator-dev`, qui lui-même délègue au `developer` avec le bon domaine.
 Cette indirection permet de :
 
 - Centraliser le workflow d'implémentation (review, cycles de correction)
@@ -418,22 +418,20 @@ Le `task_id` n'est pas un identifiant LLM propriétaire — c'est un **ID de ses
 
 ---
 
-## Le marqueur de contexte d'invocation
+## Parcours d'exécution : standalone ou sous-agent
 
 ### Convention de chargement du parcours d'exécution
 
-Depuis l'ADR-016, l'agent orchestrator injecte deux marqueurs dans les prompts `task` vers les agents primaires :
+Le parcours (standalone ou sous-agent) n'est plus deviné depuis le prompt : oh ajoute à chaque agent du paquet une section générée **« Rôle dans cette session »**, calculée depuis le graphe du workflow (`calls:` des membres, agent d'entrée) :
 
-```
-[CONTEXTE] Invoqué depuis l'orchestrateur feature.
-[SKILL:planning/planner-subagent]
-```
+| Position dans le workflow | Rôle généré | Parcours |
+|---------------------------|-------------|----------|
+| Agent d'entrée, appelé par aucun membre | agent d'entrée, échange avec l'utilisateur | standalone (outil `question` pour les validations) |
+| Agent d'entrée qu'un membre peut aussi appeler | agent d'entrée pouvant être invoqué via `task` par les appelants listés | sous-agent si le prompt vient d'un autre agent (marqueur `[CONTEXTE]`, `[REVIEW:single]` ou reprise avec `task_id`), standalone sinon |
+| Atteint seulement via `task` | sous-agent, appelants listés ; l'utilisateur ne voit pas ses appels à `question` | sous-agent (blocs de retour intermédiaire et de question vers l'appelant, puis bloc de retour final) |
+| Ni l'un ni l'autre (ex. le `developer` de `debug`, vers lequel l'utilisateur bascule) | lancé directement par l'utilisateur | standalone |
 
-Le marqueur `[SKILL:<nom>]` indique à l'agent quel skill de parcours charger au démarrage :
-- Présent → l'agent charge le skill sous-agent (mécanisme d'interruption actif)
-- Absent → l'agent charge le skill standalone par défaut (outil `question` actif)
-
-Ce mécanisme remplace la détection du marqueur `[CONTEXTE]` directement dans les agents — la logique de bifurcation est désormais entièrement dans les skills dédiés.
+Les agents chargent leur skill de parcours d'après cette section. Les marqueurs `[SKILL:<réf>]` que certaines skills écrivent encore dans un prompt `task` (`[SKILL:reviewer/reviewer-subagent]`, `[SKILL:designer/prototype-protocol]`, `[SKILL:orchestrator/orchestrator-dev-feedback-mode]` de `review-feedback`) désignent une skill supplémentaire à charger ; ils ne décident plus du parcours.
 
 > **Skills de parcours disponibles :** certains agents ont deux skills séparées, d'autres une seule skill
 > `*-execution-modes` qui couvre les deux parcours.
@@ -453,7 +451,7 @@ Ce mécanisme remplace la détection du marqueur `[CONTEXTE]` directement dans l
 
 | Aspect | Standalone | Depuis orchestrateur |
 |--------|-----------|---------------------|
-| Skill de parcours | `-standalone` (défaut implicite) | `-subagent` (injecté via `[SKILL:...]`) |
+| Skill de parcours | `-standalone` | `-subagent` (tous deux choisis d'après « Rôle dans cette session ») |
 | Mode de workflow | Fixé au lancement (`oh run … --mode`), ligne `Mode de workflow : <mode>` du prompt initial | Transmis dans le prompt de délégation |
 | Questions CP | Posées via `question` | Bloc `## Question pour l'orchestrator` |
 | Récap global | Affiché à l'utilisateur | Transmis à l'orchestrator |
@@ -475,52 +473,52 @@ Les agents suivants implémentent le mécanisme d'interruption de session quand 
 
 ### Ré-invocation avec task_id
 
-Lors des ré-invocations avec `task_id`, l'agent orchestrator **doit toujours re-transmettre** le marqueur `[SKILL:...]` :
+Une ré-invocation avec `task_id` reprend la session enfant : le sous-agent garde son parcours (sa section « Rôle dans cette session » ne change pas, et une reprise avec `task_id` est elle-même un signal sous-agent pour un agent qui peut aussi être l'agent d'entrée).
 
 ```
 task(
   subagent_type: "planner",
   task_id: "<task_id>",
-  prompt: "Réponse Phase 1 : [option]. [CONTEXTE] Invoqué depuis l'orchestrateur feature. [SKILL:planning/planner-subagent]"
+  prompt: "Réponse Phase 1 : [option]."
 )
 ```
 
-Sans ce marqueur, l'agent rechargé démarre en mode standalone — comportement dégradé mais non cassé.
 
 ---
 
 ## Checkpoints et points de décision
 
 > **v5.** Les checkpoints sont déclarés dans le YAML du workflow (`checkpoints:`), avec leur comportement par mode.
-> Exemple `feature` : `cp-0`, `cp-spec`, `cp-1`, `cp-2`, `cp-3`, `cp-feature`. L'agent les signale avec l'outil MCP
+> Exemple `feature` : `cp-tickets`, `cp-0`, `cp-spec`, `cp-1`, `cp-2`, `cp-3`, `cp-feature`. L'agent les signale avec l'outil MCP
 > `workflow_checkpoint` (pas avec `question`) ; oh tient la machine à états, répond seul aux checkpoints automatiques
 > et pose une décision ⏸ dans « À traiter » pour ceux qui attendent l'utilisateur. Les agents verrouillés par `after:`
 > restent refusés tant que leur checkpoint n'est pas passé
-> ([ADR-042](./adr/042-checkpoints-headless-decisions.fr.md)). Le tableau ci-dessous décrit le protocole des skills ;
-> en cas d'écart, le YAML du workflow fait foi (`oh workflow show <id>`).
+> ([ADR-042](./adr/042-checkpoints-headless-decisions.fr.md)). Le tableau ci-dessous décrit le workflow `feature` ;
+> le YAML du workflow fait foi (`oh workflow show <id>`).
 
-### Tableau complet des checkpoints
+### Tableau complet des checkpoints (`feature`)
 
-| CP | Agent | Moment | Pause modes | **Mécanisme en mode orchestrator_feature** |
-|----|-------|--------|-------------|----------------------------------------------|
-| **CP-onboard** | `orchestrator` | Après `onboarder`, avant planification | Toujours manuel | Question montante de l'onboarder → task_id |
-| **CP-0** | `orchestrator` | Après planification, avant conception | Toujours manuel | Question montante du planner → task_id |
-| **CP-spec** | `orchestrator` | Après specs UX/UI, avant implémentation | Toujours manuel | Question montante du designer → task_id |
-| **CP-audit** | `orchestrator` | Après audit, avant implémentation | Toujours manuel | Question montante de l'auditor → task_id |
-| **CP-1** | `orchestrator-dev` | Avant chaque ticket | Manuel / auto (semi-auto, auto) | Bloc `## Question pour l'orchestrator` → task_id (mode manuel uniquement) |
-| **CP-2** | `orchestrator-dev` | Après review — commit ou corriger ? | **Toujours manuel** | Bloc `## Question pour l'orchestrator` → task_id (inchangé, déjà implémenté) |
-| **CP-3** | `orchestrator-dev` | Après commit — ticket suivant ? | Manuel / auto (semi-auto, auto) | Bloc `## Question pour l'orchestrator` → task_id (mode manuel uniquement) |
-| **CP-feature** | `orchestrator` | Fin de feature | Toujours manuel | Retour final complet |
+| Checkpoint | Appelé par | Moment | Mode (manuel / semi-auto / auto) | Déverrouille |
+|------------|------------|--------|----------------------------------|--------------|
+| **cp-tickets** | `orchestrator` | Découpage de l'agent de planning, avant toute création de ticket (tickets existants seulement : confirme la liste) | pause / pause / pause (obligatoire) | `create` |
+| **cp-0** | `orchestrator` | Tableau des tickets, avant toute implémentation | pause / pause / pause (obligatoire) | — (`orchestrator-dev` verrouillé jusqu'à `cp-0` par `after:`) |
+| **cp-spec** | `orchestrator` | Après une spec UX/UI du designer | conditionnel dans tous les modes | — |
+| **cp-1** | `orchestrator-dev` | Avant chaque ticket | pause / auto / auto | — (`developer` verrouillé jusqu'à `cp-1` par `after:`) |
+| **cp-2** | `orchestrator-dev` | Après review — commit ou correction ? | **pause / pause / pause** (obligatoire) | `commit`, `close` |
+| **cp-3** | `orchestrator-dev` | Après commit — ticket suivant ? | pause / auto / auto | — |
+| **cp-feature** | `orchestrator` | Fin de feature | pause / pause / auto | — |
+
+Les autres workflows déclarent leurs propres checkpoints (`grep -h '^  cp-' workflows/*.yaml`) : `cp-ticket` (debug, déverrouille `create`), `cp-commit` (debug, quick, sweep), `cp-plan` et `cp-apply` (infra-change, `cp-apply` déverrouille `apply`), `cp-target` (benchmark), `cp-scope`, `cp-fix`, `cp-recap`… Aucun workflow livré ne déverrouille `push`.
 
 ### Règle absolue — CP-2 est non automatisable
 
-> **CP-2 (commit ou corriger ?) est une pause dans TOUS les modes, sans exception.**
+> **CP-2 (commit ou correction ?) est une pause dans TOUS les modes, sans exception.**
 
 Cette règle ne peut pas être outrepassée, même en mode `auto`. Dans les workflows livrés, `cp-2` est `mandatory: true`
 et en `pause` dans les trois modes : une couche équipe ou projet ne peut pas l'assouplir. Justification :
 
 - "Absence d'erreur technique" ≠ "conforme aux attentes fonctionnelles"
-- La décision de merger engage la responsabilité de l'utilisateur
+- La décision de commiter engage la responsabilité de l'utilisateur
 - Un score de confiance IA sur un rapport de review serait une fausse précision
 
 → [ADR-042](./adr/042-checkpoints-headless-decisions.fr.md) (remplace [ADR-006](./adr/006-orchestrator-configurable-mode.fr.md))

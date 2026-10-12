@@ -73,7 +73,7 @@ Nothing is written into the project any more (`oh deploy` and `oh sync` are migr
 | `internal/teamstate/` | Team state management (claims, wiki, policies, events, team workflows, catalogue, solo space) |
 | `internal/tui/` | TUI shell (tview-based, hub / project / team modes) |
 | `internal/storage/` | SQLite database (`oh.db`), OS keychain, file encryption |
-| `internal/deploycleanup/` | Cleanup of former deployment leftovers (`oh migrate deploy-cleanup`) |
+| `internal/adapters/opencodev2/deploycleanup/` | Cleanup of former deployment leftovers (`oh migrate deploy-cleanup`) |
 | `internal/i18n/` | Internationalization (FR + EN, JSON locale files) |
 
 `internal/deploy`, `internal/opencode`, `internal/parallel`, `internal/sweep`, `internal/plugin` and `platform.SessionPlatform` were removed in v5 (replaced by `internal/bricks`, `internal/bundle`, the adapters and `internal/runsvc`).

@@ -119,13 +119,29 @@ A skill can declare the skills it makes no sense without:
 
 ```yaml
 ---
-name: orchestrator-dev-parallel
+name: planner-phase-0
 description: …
-requires: [orchestrator/parallel-coordination]
+requires: [shared/phase-0-validation-loop]
 ---
 ```
 
 When the session bundle is compiled (`oh bundle`), oh adds the transitive closure of `requires:`: an inlined skill (Bucket A) pulls inlined skills (placed before it), an on-demand skill (Bucket B) pulls on-demand skills. A missing dependency, a cycle, a dependency denied by the workflow (`skills.deny`) or two skills with the same identifier **block** the bundle build. The `requires:` field is not passed to the tool (removed from the delivered `SKILL.md`).
+
+### Frontmatter keys
+
+The frontmatter accepts two kinds of keys only:
+
+| Kind | Keys | In the delivered `SKILL.md` |
+|------|------|-----------------------------|
+| [Agent Skills](https://agentskills.io/specification) keys | `name`, `description`, `license`, `compatibility`, `metadata`, `allowed-tools` | Kept |
+| Hub keys, read by oh | `requires`, `annexes`, `plugin`, `mcp` | Removed |
+
+Any other key (`bucket:` aside, reported as obsolete) is an `unknown_key` **error** of `oh skill check`: remove it, or move the information into the body. Limits of the Agent Skills specification, also errors:
+
+- `name:` — at most 64 characters, lowercase letters, digits and single hyphens (`planner-phase-0`; not `Planner_Phase0`, not `-x`, not `a--b`): `invalid_name`;
+- `description:` — at most 1024 characters: `long_description`.
+
+`plugin: <id>` ships the skill only when the workflow loads that plugin (`plugins:`); `mcp: <server>` ships it only when the session has that MCP server (tracker adapters: `mcp: gitlab` for `adapters/gitlab-*`, `mcp: github` for `adapters/github-*` — an agent may list both adapters, only the one of the configured tracker is shipped).
 
 ### Templates and annexes (`annexes:`)
 
@@ -247,8 +263,9 @@ Before merging or declaring a skill complete:
 - [ ] Anti-patterns verified (narrative, bilingual, generic, flowchart code, over-spec)
 
 **SDO**
-- [ ] `description:` ≤ 2 sentences, discriminating keywords, cross-refs if needed
-- [ ] `name:` equal to the file name (without `.md`): it is the skill identifier in the session bundle, unique across the catalogue
+- [ ] `description:` ≤ 2 sentences (1024 characters at most), discriminating keywords, cross-refs if needed
+- [ ] `name:` equal to the file name (without `.md`), kebab-case, 64 characters at most: it is the skill identifier in the session bundle, unique across the catalogue
+- [ ] No frontmatter key outside the Agent Skills keys and `requires`/`annexes`/`plugin`/`mcp`
 - [ ] `requires:` lists the skills it cannot work without (`<category>/<name>` refs), if any; no `bucket:` field (the bucket is decided by the agent frontmatter: `skills:` = A, `native_skills:` = B)
 - [ ] Referenced templates declared in `annexes:`
 - [ ] `oh skill check` reports no error

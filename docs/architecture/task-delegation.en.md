@@ -244,10 +244,10 @@ in `feature`, `planner` and `reviewer` become `subagent`; in `quick`, `developer
 
 ### Absolute rule — level isolation
 
-> **The orchestrator NEVER routes directly to `developer-*` agents.**
+> **The orchestrator NEVER routes directly to the `developer`.**
 
 This rule is fundamental: the `orchestrator` always delegates to
-`orchestrator-dev`, which in turn routes to the appropriate `developer-*`.
+`orchestrator-dev`, which in turn delegates to the `developer` with the right domain.
 This indirection allows:
 
 - Centralizing the implementation workflow (review, correction cycles)
@@ -416,22 +416,20 @@ The `task_id` is not a proprietary LLM identifier — it is a **standard OpenCod
 
 ---
 
-## The invocation context marker
+## Execution path: standalone or sub-agent
 
 ### Execution path loading convention
 
-Since ADR-016, the orchestrator agent injects two markers into `task` prompts sent to primary agents:
+The path (standalone or sub-agent) is no longer guessed from the prompt: oh appends to every agent of the bundle a generated **« Rôle dans cette session »** section, computed from the workflow graph (`calls:` of the members, entry agent):
 
-```
-[CONTEXT] Invoked from the feature orchestrator.
-[SKILL:planning/planner-subagent]
-```
+| Position in the workflow | Generated role | Path |
+|--------------------------|----------------|------|
+| Entry agent, called by no member | entry agent, talks to the user | standalone (`question` tool for validations) |
+| Entry agent that a member may also call | entry agent that may be invoked through `task` by the listed callers | sub-agent if the prompt comes from another agent (`[CONTEXTE]`, `[REVIEW:single]` marker or resumption with `task_id`), standalone otherwise |
+| Reached only through `task` | sub-agent, callers listed; the user does not see its `question` calls | sub-agent (intermediate return and question blocks to the caller, then final return block) |
+| Neither (e.g. `developer` in `debug`, which the user switches to) | launched directly by the user | standalone |
 
-The `[SKILL:<name>]` marker tells the agent which path skill to load at startup:
-- Present → the agent loads the sub-agent skill (interruption mechanism active)
-- Absent → the agent loads the default standalone skill (`question` tool active)
-
-This mechanism replaces detection of the `[CONTEXT]` marker directly within agents — the branching logic is now entirely within dedicated skills.
+The agents load their path skill from this section. The `[SKILL:<ref>]` markers that some skills still write in a `task` prompt (`[SKILL:reviewer/reviewer-subagent]`, `[SKILL:designer/prototype-protocol]`, `[SKILL:orchestrator/orchestrator-dev-feedback-mode]` of `review-feedback`) name an extra skill to load; they no longer decide the path.
 
 > **Available path skills:** some agents have two separate skills, others a single `*-execution-modes` skill
 > covering both paths.
@@ -451,7 +449,7 @@ This mechanism replaces detection of the `[CONTEXT]` marker directly within agen
 
 | Aspect | Standalone | From orchestrator |
 |--------|-----------|-------------------|
-| Path skill | `-standalone` (implicit default) | `-subagent` (injected via `[SKILL:...]`) |
+| Path skill | `-standalone` | `-subagent` (both chosen from « Rôle dans cette session ») |
 | Workflow mode | Set at launch (`oh run … --mode`), `Mode de workflow : <mode>` line of the initial prompt | Passed in the delegation prompt |
 | CP questions | Asked via `question` | `## Question for the orchestrator` block |
 | Global recap | Displayed to the user | Transmitted to the orchestrator |
@@ -473,41 +471,41 @@ The following agents implement the session interruption mechanism when the sub-a
 
 ### Re-invocation with task_id
 
-On re-invocations with `task_id`, the orchestrator agent **must always re-transmit** the `[SKILL:...]` marker:
+A re-invocation with `task_id` resumes the child session: the sub-agent keeps its path (its « Rôle dans cette session » section does not change, and a resumption with `task_id` is itself a sub-agent signal for an agent that may also be the entry agent).
 
 ```
 task(
   subagent_type: "planner",
   task_id: "<task_id>",
-  prompt: "Phase 1 response: [option]. [CONTEXT] Invoked from the feature orchestrator. [SKILL:planning/planner-subagent]"
+  prompt: "Phase 1 response: [option]."
 )
 ```
 
-Without this marker, the reloaded agent starts in standalone mode — degraded but not broken behavior.
 
 ---
 
 ## Checkpoints and decision points
 
 > **v5.** Checkpoints are declared in the workflow YAML (`checkpoints:`), with their behavior per mode.
-> `feature` example: `cp-0`, `cp-spec`, `cp-1`, `cp-2`, `cp-3`, `cp-feature`. The agent signals them with the
+> `feature` example: `cp-tickets`, `cp-0`, `cp-spec`, `cp-1`, `cp-2`, `cp-3`, `cp-feature`. The agent signals them with the
 > `workflow_checkpoint` MCP tool (not with `question`); oh keeps the state machine, answers automatic checkpoints
 > itself, and raises a ⏸ decision in "To handle" for those that wait for the user. Agents locked by `after:` stay
 > denied until their checkpoint is passed ([ADR-042](./adr/042-checkpoints-headless-decisions.en.md)). The table
-> below describes the skills protocol; when they differ, the workflow YAML wins (`oh workflow show <id>`).
+> below describes the `feature` workflow; the workflow YAML is the reference (`oh workflow show <id>`).
 
-### Full checkpoint table
+### Full checkpoint table (`feature`)
 
-| CP | Agent | Moment | Pause modes | **Mechanism in orchestrator_feature mode** |
-|----|-------|--------|-------------|---------------------------------------------|
-| **CP-onboard** | `orchestrator` | After `onboarder`, before planning | Always manual | Upstream question from onboarder → task_id |
-| **CP-0** | `orchestrator` | After planning, before design | Always manual | Upstream question from planner → task_id |
-| **CP-spec** | `orchestrator` | After UX/UI specs, before implementation | Always manual | Upstream question from designer → task_id |
-| **CP-audit** | `orchestrator` | After audit, before implementation | Always manual | Upstream question from auditor → task_id |
-| **CP-1** | `orchestrator-dev` | Before each ticket | Manual / auto (semi-auto, auto) | `## Question for the orchestrator` block → task_id (manual mode only) |
-| **CP-2** | `orchestrator-dev` | After review — commit or fix? | **Always manual** | `## Question for the orchestrator` block → task_id (unchanged, already implemented) |
-| **CP-3** | `orchestrator-dev` | After commit — next ticket? | Manual / auto (semi-auto, auto) | `## Question for the orchestrator` block → task_id (manual mode only) |
-| **CP-feature** | `orchestrator` | End of feature | Always manual | Full final return |
+| Checkpoint | Called by | Moment | Mode (manuel / semi-auto / auto) | Unlocks |
+|------------|-----------|--------|----------------------------------|---------|
+| **cp-tickets** | `orchestrator` | Planning agent's breakdown, before any ticket creation (with existing tickets only: confirms the list) | pause / pause / pause (mandatory) | `create` |
+| **cp-0** | `orchestrator` | Ticket table, before any implementation | pause / pause / pause (mandatory) | — (`orchestrator-dev` is locked until `cp-0` by `after:`) |
+| **cp-spec** | `orchestrator` | After a UX/UI spec by the designer | conditional in all modes | — |
+| **cp-1** | `orchestrator-dev` | Before each ticket | pause / auto / auto | — (`developer` is locked until `cp-1` by `after:`) |
+| **cp-2** | `orchestrator-dev` | After review — commit or fix? | **pause / pause / pause** (mandatory) | `commit`, `close` |
+| **cp-3** | `orchestrator-dev` | After commit — next ticket? | pause / auto / auto | — |
+| **cp-feature** | `orchestrator` | End of feature | pause / pause / auto | — |
+
+The other workflows declare their own checkpoints (`grep -h '^  cp-' workflows/*.yaml`): `cp-ticket` (debug, unlocks `create`), `cp-commit` (debug, quick, sweep), `cp-plan` and `cp-apply` (infra-change, `cp-apply` unlocks `apply`), `cp-target` (benchmark), `cp-scope`, `cp-fix`, `cp-recap`… No shipped workflow unlocks `push`.
 
 ### Absolute rule — CP-2 is non-automatable
 
@@ -517,7 +515,7 @@ This rule cannot be overridden, even in `auto` mode. In the shipped workflows, `
 and `pause` in all three modes: a team or project layer cannot relax it. Justification:
 
 - "No technical errors" ≠ "meets functional expectations"
-- The decision to merge engages the user's responsibility
+- The decision to commit engages the user's responsibility
 - An AI confidence score on a review report would be false precision
 
 → [ADR-042](./adr/042-checkpoints-headless-decisions.en.md) (supersedes [ADR-006](./adr/006-orchestrator-configurable-mode.en.md))

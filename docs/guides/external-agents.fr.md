@@ -126,7 +126,7 @@ mon-app/.opencode/agents/
 ├── planner.md          ← votre agent (copie depuis votre source)
 ├── feature-reviewer.md ← votre agent (copie depuis votre source)
 ├── orchestrator.md     ← hub
-├── developer-frontend.md ← hub
+├── developer.md        ← hub
 ├── reviewer.md         ← hub
 └── ...                 ← autres agents hub
 ```
@@ -188,11 +188,11 @@ Le hub reconnaît automatiquement les noms courants grâce à `config/agent-alia
 |--------------------|-------------------|
 | `planner`, `plan`, `planning`, `project-planner` | `planner` |
 | `orchestrator`, `coordinator`, `router` | `orchestrator` |
-| `frontend`, `front`, `ui-dev` | `developer-frontend` |
-| `backend`, `back`, `server` | `developer-backend` |
+| `frontend`, `front`, `ui-dev` | `developer` |
+| `backend`, `back`, `server` | `developer` |
 | `reviewer`, `review`, `code-reviewer` | `reviewer` |
 | `docs`, `documentation`, `writer` | `documentarian` |
-| `devops`, `ops`, `ci-cd` | `developer-devops` |
+| `devops`, `ops`, `ci-cd` | `developer` |
 | `debug`, `debugger`, `bug-hunter` | `debugger` |
 
 Pour voir la liste complète : `cat config/agent-aliases.json`

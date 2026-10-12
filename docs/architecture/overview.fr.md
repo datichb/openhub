@@ -95,7 +95,7 @@ Le **team-state** est le dépôt git partagé de l'équipe : membres, policies, 
 
 ### Agent
 
-Un **agent** est un fichier Markdown (`agents/<famille>/<id>.md`) qui définit l'identité d'un rôle : qui il est, ce qu'il fait, ce qu'il ne fait pas, ses permissions et ses skills. 20 agents en 7 familles. Voir [agents.fr.md](./agents.fr.md).
+Un **agent** est un fichier Markdown (`agents/<famille>/<id>.md`) qui définit l'identité d'un rôle : qui il est, ce qu'il fait, ce qu'il ne fait pas, ses permissions et ses skills. 16 agents en 8 familles (planning, developer, auditor, infra, quality, design, documentation, utility). Voir [agents.fr.md](./agents.fr.md).
 
 ### Skill
 
@@ -139,6 +139,12 @@ sequenceDiagram
 
     U->>O: oh run feature -i request=… (mode semi-auto)
     O->>PL: Délègue la planification
+    PL-->>O: Découpage proposé (tickets à créer)
+    O->>OH: workflow_checkpoint cp-tickets (obligatoire)
+    OH->>U: ⏸ cp-tickets — valider les tickets à créer ?
+    U-->>OH: Valider
+    Note over OH: bd create refusé avant cp-tickets (unlocks: create)
+    O->>PL: Découpage validé : crée les tickets
     PL-->>O: Tickets créés
     O->>OH: workflow_checkpoint cp-0 (plan)
     OH->>U: ⏸ cp-0 obligatoire — valider le plan ?
@@ -239,7 +245,7 @@ Tous les ADR : [`docs/architecture/adr/`](./adr/).
 
 ```
 openhub/
-├── agents/              ← Définitions des rôles (20 agents, 7 familles)
+├── agents/              ← Définitions des rôles (16 agents, 8 familles)
 ├── skills/              ← Protocoles : Bucket A (inline) + Bucket B (à la demande)
 ├── workflows/           ← Workflows livrés (oh/v1) + gabarits de prompt
 ├── cli/                 ← Binaire Go (oh)
@@ -251,6 +257,7 @@ openhub/
 │       ├── bricks/      ← Briques : assemblage des agents, skills, permissions, cascade des modèles
 │       ├── sessionspec/ ← Modèle neutre (SessionSpec, BundleSpec)
 │       ├── adapters/    ← Interface d'adaptateur + opencodev2 (rendu, serveur, Attest, plugin)
+│       │   └── opencodev2/deploycleanup/ ← Nettoyage des anciens déploiements
 │       ├── runsvc/      ← Lancement : groupes de serveurs, sessions, worktrees, veille, reprise
 │       ├── daemon/      ← Démon ohd : supervision, décisions, flux, notifications
 │       ├── credproxy/   ← Proxy d'identifiants LLM
@@ -262,7 +269,6 @@ openhub/
 │       ├── mcp/         ← Serveurs MCP natifs (dont workflow et team)
 │       ├── storage/     ← SQLite (oh.db), trousseau, chiffrement de fichiers
 │       ├── tui/         ← TUI tview/tcell (shell, vues, widgets)
-│       ├── deploycleanup/ ← Nettoyage des anciens déploiements
 │       └── …            ← beads, config, i18n, prompt, tracker, worktree, termlaunch…
 ├── docs/                ← Documentation (bilingue fr/en)
 └── ~/.oh/               ← Données utilisateur (hors dépôt)

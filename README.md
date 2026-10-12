@@ -111,7 +111,7 @@ In the TUI, **Start** lists the workflows (★ pinned, recent ones), opens the l
 
 ## Workflows
 
-The 13 workflows shipped by the hub:
+The 14 workflows shipped by the hub:
 
 | Workflow | Entry agent | Use |
 |----------|-------------|-----|
@@ -141,7 +141,7 @@ Workflows resolve **by layers**: hub < team < project < session options. A layer
 - **`primary`**: entry point of a session
 - **`subagent`**: delegated by another agent of the workflow
 
-### Primary agents (14)
+### Primary agents (13)
 
 | Agent | Family | Role |
 |-------|--------|------|
@@ -200,6 +200,7 @@ openhub/
 │       ├── bricks/        <- Agents, skills, permissions, model cascade
 │       ├── sessionspec/   <- Neutral model (SessionSpec, BundleSpec)
 │       ├── adapters/      <- Tool adapters (opencode V2: render, server, Attest, plugin)
+│       │   └── opencodev2/deploycleanup/ <- Cleanup of former deployments
 │       ├── runsvc/        <- Launcher: server groups, sessions, worktrees, sleep, resume
 │       ├── daemon/        <- ohd daemon: supervision, decisions, streams, notifications
 │       ├── credproxy/     <- LLM credential proxy
@@ -209,7 +210,6 @@ openhub/
 │       ├── limits/        <- Session limits (I6)
 │       ├── teamstate/     <- team-state repository (claims, workflows, catalogue, solo)
 │       ├── mcp/           <- Native MCP servers (figma, gitlab, gslides, github, jira, linear, team, workflow)
-│       ├── deploycleanup/ <- Cleanup of former deployments
 │       ├── storage/       <- SQLite (oh.db), keychain, file encryption
 │       ├── tui/           <- tview/tcell TUI
 │       └── ...            <- beads, config, i18n, prompt, tracker, worktree, termlaunch, selfupdate…
@@ -247,7 +247,7 @@ Configure them with `oh mcp setup` (tokens stored in the OS keychain; the server
 | Sessions | [v5 Sessions](docs/guides/sessions-v5.en.md) · [Workflows (scenarios)](docs/guides/workflows.en.md) · [Review & Feedback](docs/guides/review-feedback.en.md) |
 | Workflows | [Shipped workflows](docs/reference/workflows.en.md) · [Workflow schema](docs/reference/workflow-schema.en.md) · [Team workflows](docs/guides/team-workflows.en.md) |
 | Execution | [Container runtime](docs/guides/container.en.md) · [Remote runners](docs/guides/remote-runners.en.md) |
-| Architecture | [Overview](docs/architecture/overview.en.md) · [Agents](docs/architecture/agents.en.md) · [Skills](docs/architecture/skills.en.md) · [ADRs](docs/architecture/adr/) (51) |
+| Architecture | [Overview](docs/architecture/overview.en.md) · [Agents](docs/architecture/agents.en.md) · [Skills](docs/architecture/skills.en.md) · [ADRs](docs/architecture/adr/) (52) |
 | Reference | [CLI](docs/reference/cli.en.md) · [Configuration](docs/reference/config.en.md) · [Glossary](docs/reference/glossary.en.md) · [Beads model](docs/reference/beads-model.en.md) |
 | Operations | [Troubleshooting](docs/guides/troubleshooting.en.md) · [Providers](docs/guides/providers.en.md) · [Backup & Restore](docs/guides/backup-restore.en.md) · [Dashboard](docs/guides/dashboard.en.md) |
 

@@ -1,5 +1,5 @@
 %% OpenHub -- Workflow scenarios map (v5)
-%% "What do you need?" -> one of the 13 workflows shipped by the hub
+%% "What do you need?" -> one of the 14 workflows shipped by the hub
 %% (workflows/*.yaml), grouped by category, with their entry agent, risk and
 %% allowed runtimes (⌂ local, ▣ container, ☁ remote).
 %% Solid arrows: "Chain with…" suggestions at the end of a session (a typed output
@@ -13,6 +13,7 @@ flowchart LR
     Start -->|"implement ready tickets"| TICK
     Start -->|"small change"| QUICK
     Start -->|"repetitive change on many files"| SWEEP
+    Start -->|"apply an infrastructure change"| INFRA
     Start -->|"apply MR comments"| RF
     Start -->|"review a branch"| REV
     Start -->|"audit the code"| AUD
@@ -30,6 +31,7 @@ flowchart LR
         TICK["<b>ticket</b><br/>orchestrator-dev · write · ⌂ ▣ ☁<br/>one session per ticket"]
         QUICK["<b>quick</b><br/>developer · write · ⌂"]
         SWEEP["<b>sweep</b><br/>conductor · write · ⌂"]
+        INFRA["<b>infra-change</b><br/>operator · write · ⌂<br/>plan → cp-plan → cp-apply"]
         RF["<b>review-feedback</b><br/>orchestrator-dev · write · ⌂"]
     end
 

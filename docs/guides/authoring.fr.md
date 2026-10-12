@@ -212,6 +212,8 @@ Ce skill définit... Il complète <autre-skill> si applicable.
 
 ## Exemple commenté — Créer un agent `developer-security`
 
+> **Exemple hypothétique.** Le hub ne livre pas d'agent `developer-security` : son unique `developer` couvre la sécurité par le domaine `security` de la matrice de routing (`orchestrator/orchestrator-dev-protocol`). L'exemple montre le frontmatter d'un agent spécialisé que vous pourriez ajouter à un catalogue d'équipe.
+
 ```markdown
 ---
 id: developer-security                    # ← kebab-case, unique

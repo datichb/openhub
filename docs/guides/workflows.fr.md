@@ -113,48 +113,48 @@ sequenceDiagram
     participant U as Utilisateur
     participant O as Orchestrator
     participant PL as Planner
-    participant UX as designer
-    participant UI as designer
-    participant AU as auditor-*
+    participant D as designer
     participant OD as OrchestratorDev
-    participant DEV as Developer-*
-    participant QA as QA Engineer
+    participant DEV as developer
     participant R as Reviewer
 
     U->>O: "Implémente l'authentification JWT"
     O->>PL: Délègue la planification
-    PL->>PL: Clarification → découpage → bd create
-    PL-->>O: 6 tickets créés (bd-1 à bd-6)
-    O->>U: [CP-0] Valider le plan ? (mode semi-auto fixé au lancement)
+    PL->>PL: Clarification → découpage proposé
+    PL-->>O: Tickets à créer (validation demandée)
+    O->>U: [cp-tickets] Valider les tickets à créer ?
+    U->>O: "valider"
+    O->>PL: Découpage validé : crée les tickets
+    PL->>PL: bd create
+    PL-->>O: 5 tickets créés (bd-1 à bd-5)
+    O->>U: [cp-0] Valider le plan ? (mode semi-auto fixé au lancement)
     U->>O: "valider"
 
-    O->>UX: Ticket spec-ux (bd-1)
-    UX-->>O: Spec UX — flow login/register
-    O->>U: [CP-spec] Valider la spec UX ?
+    O->>D: Ticket spec-ux (bd-1) [Mode : ux]
+    D-->>O: Spec UX — flow login/register
+    O->>U: [cp-spec] Valider la spec UX ?
     U->>O: "valider"
 
-    O->>UI: Ticket spec-ui (bd-2)
-    UI-->>O: Spec UI — composants + tokens
-    O->>U: [CP-spec] Valider la spec UI ?
+    O->>D: Ticket spec-ui (bd-2) [Mode : ui]
+    D-->>O: Spec UI — composants + tokens
+    O->>U: [cp-spec] Valider la spec UI ?
     U->>O: "valider"
 
-    O->>AU: Ticket label:audit-security (bd-3)
-    AU-->>O: Rapport audit sécurité
-    O->>U: [CP-audit] Corriger / accepter / ignorer ?
-    U->>O: "corriger → ajouter ticket bd-7"
-
-    O->>OD: Tickets dev bd-4, bd-5, bd-6, bd-7 (mode semi-auto transmis)
+    O->>OD: Tickets dev bd-3, bd-4, bd-5 (mode semi-auto transmis)
     loop Pour chaque ticket
-        OD->>DEV: Délègue l'implémentation (auto en semi-auto)
+        OD->>U: [cp-1] Démarrer le ticket (auto en semi-auto)
+        OD->>DEV: Délègue l'implémentation (domaine dans le prompt)
         DEV-->>OD: Implémentation terminée (tests inclus)
-        OD->>R: Review automatique
+        OD->>R: Review automatique (build et tests lancés)
         R-->>OD: Rapport de review
-        OD->>U: [CP-2] Merger ou corriger ? ← TOUJOURS PAUSE
-        U->>OD: "merge"
+        OD->>U: [cp-2] Commit ou correction ? ← TOUJOURS PAUSE
+        U->>OD: "commit"
+        OD->>DEV: Commite puis ferme le ticket
+        OD->>U: [cp-3] Ticket suivant (auto en semi-auto)
     end
     OD-->>O: Récap condensé (synthèse par ticket : statut, fichiers clés, points d'attention) + bloc structuré
 
-    O->>U: [CP-feature] Récap global feature
+    O->>U: [cp-feature] Récap global feature
 ```
 
 ### Étapes détaillées
@@ -169,7 +169,7 @@ oh run feature --mode semi-auto   # mode du workflow : manuel, semi-auto (défau
 Prompt : "Implémente la feature d'authentification JWT pour notre API REST"
 ```
 
-L'orchestrateur délègue immédiatement au `planner` pour décomposer la feature.
+L'orchestrateur délègue au `planner` (feature complexe) ou au `pathfinder` (feature simple ou exploratoire) pour décomposer la feature.
 
 #### 2. Le planner décompose
 
@@ -183,16 +183,19 @@ de clarification, puis propose un plan :
 - [ ] Spec UX — flow login / register / reset password (label:ux)
 - [ ] Spec UI — composants formulaires + feedback d'erreur (label:ui)
 
-### Phase 1 — Audit préalable
-- [ ] Audit sécurité — OWASP Top 10 sur le périmètre auth (label:audit-security)
-
-### Phase 2 — Implémentation
+### Phase 1 — Implémentation
 - [ ] Modèle User + migrations
 - [ ] Service JWT (sign, verify, refresh)
 - [ ] Endpoints login / logout / refresh
 ```
 
-#### 3. [CP-0] Validation du plan
+#### 3. [cp-tickets] Tickets à créer
+
+Aucun ticket n'existe encore : le planner demande la validation du découpage. L'orchestrateur ne relaie pas cette question, il passe le checkpoint `cp-tickets` (« Valider les tickets à créer », obligatoire), puis relance le planner avec « Découpage validé par l'utilisateur : crée les tickets. ». oh refuse tout `bd create` avant `cp-tickets`. Avec des tickets existants seulement (entrée `tickets`), `cp-tickets` confirme simplement la liste (aucune création).
+
+> Un audit de sécurité, de performance ou d'accessibilité ne fait pas partie de `feature` (l'`auditor` n'en est pas membre) : l'orchestrateur propose le workflow `audit` (`oh run audit`), dont les constats peuvent ensuite être planifiés en tickets.
+
+#### 4. [cp-0] Validation du plan
 
 L'orchestrateur affiche le tableau des tickets **dans la discussion**,
 puis passe le checkpoint `cp-0` (outil `workflow_checkpoint`) : vous validez le plan depuis oh ou l'interface de l'outil.
@@ -202,45 +205,41 @@ puis passe le checkpoint `cp-0` (outil `workflow_checkpoint`) : vous validez le 
 ```
 ## Tickets planifiés — Authentification JWT
 
-| ID   | Titre                          | Type          | Agent prévu       |
-|------|--------------------------------|---------------|-------------------|
-| bd-1 | Spec UX — flow auth            | spec-ux       | designer          |
-| bd-2 | Spec UI — composants auth      | spec-ui       | designer          |
-| bd-3 | Audit sécurité périmètre auth  | audit         | auditor-subagent  |
-| bd-4 | Modèle User + migrations       | task          | developer-backend |
-| bd-5 | Service JWT                    | feature       | developer-backend |
-| bd-6 | Endpoints login/logout/refresh | feature       | developer-backend |
+| ID   | Titre                          | Type          | Agent prévu           |
+|------|--------------------------------|---------------|-----------------------|
+| bd-1 | Spec UX — flow auth            | spec-ux       | designer              |
+| bd-2 | Spec UI — composants auth      | spec-ui       | designer              |
+| bd-3 | Modèle User + migrations       | task          | developer (backend)   |
+| bd-4 | Service JWT                    | feature       | developer (backend)   |
+| bd-5 | Endpoints login/logout/refresh | feature       | developer (api)       |
 
-ℹ️ Ordre automatique appliqué : specs → audits → dev.
+ℹ️ Ordre de traitement défini par le planner : specs → dev.
 ```
 
 Le mode de workflow n'est pas redemandé : il est fixé au lancement (`--mode`, ou champ Mode de la fiche de lancement) et transmis à `orchestrator-dev`.
 
-#### 4. Phases conception et audit
+#### 5. Phase conception
 
-L'orchestrateur traite d'abord les tickets de type `spec-*` et `audit` :
+L'orchestrateur traite d'abord les tickets de type `spec-*` :
 
-- Invoque `designer` (Mode : ux) → spec UX produite → **[CP-spec]** valider / réviser / ignorer
+- Invoque `designer` (Mode : ux) → spec UX produite → **[cp-spec]** valider / réviser / ignorer
   - L'agent design retourne un bloc structuré `## Retour vers orchestrator` avec la spec complète, les contraintes d'implémentation et les points ouverts. L'orchestrateur valide la présence de ce bloc avant de continuer.
-- Invoque `designer` (Mode : ui) → spec UI produite → **[CP-spec]** valider / réviser / ignorer
-- Invoque `auditor-subagent` (domaine sécurité) → rapport d'audit → **[CP-audit]** corriger / accepter / ignorer
-  - L'auditeur retourne un bloc structuré avec le tableau des vulnérabilités par sévérité, les recommandations priorisées, le risque résiduel et un statut (`corrections-requises` / `acceptable` / `bloquant`).
-  - Si "corriger" : un ticket de correction est ajouté à la liste dev
+- Invoque `designer` (Mode : ui) → spec UI produite → **[cp-spec]** valider / réviser / ignorer
 
-#### 5. Phase implémentation via orchestrator-dev
+#### 6. Phase implémentation via orchestrator-dev
 
 L'orchestrateur transmet les tickets dev à `orchestrator-dev` avec le mode choisi.
 `orchestrator-dev` prend le relais :
 
-1. Présente chaque ticket `[CP-1]` (automatique en semi-auto/auto)
-2. Identifie l'agent via la matrice de routing et délègue
+1. Présente chaque ticket `[cp-1]` (automatique en semi-auto/auto)
+2. Choisit le domaine via la matrice de routing et délègue au `developer` (le domaine — `backend`, `refactor`, `migration`, `tests`… — passe dans le prompt d'invocation)
 3. Le developer retourne un bloc structuré `## Retour vers orchestrator-dev` — fichiers modifiés, critères d'acceptance cochés, **points d'attention pour la review** (zones fragiles, compromis techniques)
-4. Lance la review automatiquement — en transmettant les points d'attention du developer au reviewer
-6. Le reviewer retourne un bloc structuré avec un **verdict actionnable** (`commit` / `corriger` / `corriger-sécurité`), une synthèse des problèmes par sévérité et les corrections requises verbatim
-7. Présente le rapport de review et passe `cp-2` (un appel par ticket) — **toujours une pause**, sans exception ; après la validation, le developer commite puis ferme le ticket
-8. Si "corriger" : les corrections sont copiées verbatim dans le commentaire Beads — sans résumé manuel ; routing vers `developer-security` si le verdict est `corriger-sécurité`
-9. Clôture et passe au suivant `[CP-3]` (automatique en semi-auto/auto)
-10. Après tous les tickets : `orchestrator-dev` émet une **synthèse condensée par ticket** (statut, fichiers clés, critères couverts, points d'attention + points d'attention globaux agrégés) suivie du **bloc structuré** `## Retour vers orchestrator` (tableau de détail des tickets, statistiques, statut global) — les deux sont complémentaires ; l'agent orchestrator **affiche cette synthèse dans son fil de discussion** avant de présenter le [CP-feature] à l'utilisateur
+4. Lance la review automatiquement — en transmettant les points d'attention du developer au reviewer, qui lance d'abord le build, les tests, le lint et le contrôle de types du projet
+5. Le reviewer retourne un bloc structuré avec un **verdict actionnable** (`commit` / `corriger` / `corriger-sécurité`), une synthèse des problèmes par sévérité et les corrections requises verbatim
+6. Présente le rapport de review et passe `cp-2` (« Commit ou correction », un appel par ticket) — **toujours une pause**, sans exception ; `cp-2` déverrouille `commit` et `close` : après la validation, le developer commite puis ferme le ticket
+7. Si "corriger" : les corrections sont transmises verbatim au developer, qui les copie dans le commentaire Beads — sans résumé manuel ; routing vers `developer` (domaine `security`) si le routing du reviewer est `domaine-security`. Les tours de correction developer → reviewer sont plafonnés par `limits.max_fix_rounds` (3 dans `feature`)
+8. Passe au ticket suivant `[cp-3]` (automatique en semi-auto/auto)
+9. Après tous les tickets : `orchestrator-dev` émet une **synthèse condensée par ticket** (statut, fichiers clés, critères couverts, points d'attention + points d'attention globaux agrégés) suivie du **bloc structuré** `## Retour vers orchestrator` (tableau de détail des tickets, statistiques, statut global) — les deux sont complémentaires ; l'agent orchestrator **affiche cette synthèse dans son fil de discussion** avant de présenter le [cp-feature] à l'utilisateur
 
 > **Questions des sous-agents :** quand un sous-agent (planner, designer, reviewer…) pose une question,
 > elle remonte dans la session parente avec un bloc de contexte identifiant l'agent et la phase en cours —
@@ -251,24 +250,22 @@ L'orchestrateur transmet les tickets dev à `orchestrator-dev` avec le mode choi
 > domaine) / ignorer le ticket. Pour rendre l'agent disponible, l'ajouter au workflow et relancer la session
 > (`oh deploy` supprimé en v5). Il ne bascule jamais silencieusement.
 
-#### 6. [CP-feature] Récap global
+#### 7. [cp-feature] Récap global
 
 ```
 ## Récap feature — Authentification JWT
 
-| ID   | Titre                          | Phase    | Agent             | Statut     |
-|------|--------------------------------|----------|-------------------|------------|
-| bd-1 | Spec UX — flow auth            | design   | designer          | ✅ Validé  |
-| bd-2 | Spec UI — composants auth      | design   | designer          | ✅ Validé  |
-| bd-3 | Audit sécurité périmètre auth  | audit    | auditor-subagent  | ✅ Accepté |
-| bd-4 | Modèle User + migrations       | dev      | developer-backend | ✅ Mergé   |
-| bd-5 | Service JWT                    | dev      | developer-backend | ✅ Mergé   |
-| bd-6 | Endpoints login/logout/refresh | dev      | developer-backend | ✅ Mergé   |
-| bd-7 | Corriger CORS mal configuré    | dev      | developer-backend | ✅ Mergé   |
+| ID   | Titre                          | Phase    | Agent               | Statut     |
+|------|--------------------------------|----------|---------------------|------------|
+| bd-1 | Spec UX — flow auth            | design   | designer            | ✅ Validé  |
+| bd-2 | Spec UI — composants auth      | design   | designer            | ✅ Validé  |
+| bd-3 | Modèle User + migrations       | dev      | developer (backend) | ✅ Commité |
+| bd-4 | Service JWT                    | dev      | developer (backend) | ✅ Commité |
+| bd-5 | Endpoints login/logout/refresh | dev      | developer (api)     | ✅ Commité |
 
-- Tickets traités : 7 / 7
-- Cycles de review : 8
-- Corrections demandées : 1 (audit sécurité → bd-7)
+- Tickets traités : 5 / 5
+- Cycles de review : 6
+- Corrections demandées : 1 (bd-5, CORS mal configuré)
 ```
 
 ---
@@ -289,6 +286,8 @@ flowchart TD
     A --> AR[auditor-subagent\ndomaine: architecture]
     A --> APR[auditor-subagent\ndomaine: privacy]
     A --> AO[auditor-subagent\ndomaine: observabilité]
+    A -.-> |IaC détectée| AI[auditor-subagent\ndomaine: infra]
+    A -.-> |base de données détectée| AD[auditor-subagent\ndomaine: database]
     AS --> S[Synthèse exécutive\nmulti-domaines]
     AP --> S
     AA --> S
@@ -296,6 +295,8 @@ flowchart TD
     AR --> S
     APR --> S
     AO --> S
+    AI --> S
+    AD --> S
     S --> U2[Rapport final\navec score global]
 ```
 
@@ -390,22 +391,25 @@ sequenceDiagram
     participant U as Utilisateur
     participant D as Debugger
     participant B as Beads
-    participant DEV as Developer-*
+    participant DEV as developer
     participant R as Reviewer
 
     U->>D: Stacktrace + description du bug
     D->>D: Reproduction → Isolation → Identification → Hypothèse
     D-->>U: Rapport de diagnostic
     D-->>U: Ticket suggéré : "Corriger NPE dans UserService:47"
-    U->>D: [CP] "Créer le ticket ?"
-    D->>B: bd create + bd update
+    D->>U: [cp-ticket] Créer le ticket de correction ?
+    U->>D: "valider"
+    D->>B: bd create (description, acceptance, notes)
     B-->>D: bd-42 créé
     D-->>U: "Ticket bd-42 créé"
 
-    U->>DEV: "Prends en charge le ticket bd-42"
-    DEV->>B: bd show bd-42 → bd claim bd-42
+    U->>DEV: "Prends en charge le ticket bd-42" (developer, session debug)
+    DEV->>B: bd show bd-42
     DEV-->>U: Correction implémentée
-    U->>R: "Review de la branche fix/bd-42"
+    DEV->>U: [cp-commit] Commit ?
+    U->>DEV: "valider" → commit + bd close
+    U->>R: "Review de la branche fix/bd-42" (oh run review)
     R-->>U: Rapport de review
 ```
 
@@ -501,7 +505,7 @@ implémente la correction ciblée, et le reviewer vérifie la PR.
 
 ---
 
-## Scénario 4 — Implémentation feature → docs vivants (developer-*)
+## Scénario 4 — Implémentation feature → docs vivants (developer)
 
 **Contexte :** un développeur vient de clore le ticket bd-15 (implémentation filtrage utilisateurs).
 
@@ -610,7 +614,7 @@ sequenceDiagram
     participant U as Utilisateur
     participant D as designer
     participant OD as orchestrator-dev
-    participant DEV as Developer-*
+    participant DEV as developer
     participant R as Reviewer
 
     U->>D: "Spec UX pour le flow d'onboarding utilisateur" [Mode: ux]
@@ -625,12 +629,12 @@ sequenceDiagram
 
     U->>OD: "Implémente les tickets bd-11 à bd-15"
     loop Pour chaque ticket
-        OD->>DEV: developer-frontend (signaux UI/composants)
+        OD->>DEV: developer, domaine frontend (signaux UI/composants)
         DEV-->>OD: Implémentation terminée
         OD->>R: Review automatique
         R-->>OD: Rapport de review
-        OD->>U: [CP-2] Merger ou corriger ?
-        U->>OD: "merge"
+        OD->>U: [cp-2] Commit ou correction ?
+        U->>OD: "commit"
     end
     OD-->>U: Récap implémentation
 ```

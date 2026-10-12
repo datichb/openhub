@@ -10,7 +10,26 @@
 
 ### oh skill check
 
-Vérifie les skills du hub : identifiants en double, dépendances `requires:` manquantes ou cycliques, frontmatter invalide (`name:` différent du nom du fichier, description manquante), champ `bucket:` obsolète, skills référencées par des agents mais absentes. Sort avec le code 1 en cas d'erreur.
+Vérifie les skills du hub (`skills/**/*.md`, hors annexes de `skills/templates/`) et les skills nommées par les agents du hub. Sort avec le code 1 en cas d'erreur.
+
+| Type | Niveau | Problème |
+|------|--------|----------|
+| `duplicate_id` | erreur | Deux skills de même identifiant (dernier élément du chemin) |
+| `missing_require` | erreur | `requires:` nomme une skill introuvable |
+| `require_cycle` | erreur | Cycle de `requires:` |
+| `invalid_frontmatter` | erreur | Frontmatter qui n'est pas du YAML valide |
+| `name_mismatch` | erreur | `name:` différent du nom du fichier |
+| `invalid_name` | erreur | `name:` de plus de 64 caractères ou pas en kebab-case (minuscules, chiffres, tirets simples) |
+| `long_description` | erreur | `description:` de plus de 1024 caractères |
+| `unknown_key` | erreur | Clé de frontmatter qui n'est ni une clé Agent Skills (`name`, `description`, `license`, `compatibility`, `metadata`, `allowed-tools`) ni une clé du hub (`requires`, `annexes`, `plugin`, `mcp`) |
+| `missing_annex` | erreur | `annexes:` nomme un fichier introuvable |
+| `no_description` | avertissement | `description:` absente |
+| `legacy_bucket` | avertissement | Champ `bucket:` obsolète |
+| `missing_agent_skill` | avertissement | Skill nommée dans les `skills:` ou `native_skills:` d'un agent mais introuvable |
+| `undeclared_annex` | avertissement | Gabarit cité dans le texte mais absent d'`annexes:` |
+| `orphan_annex` | avertissement | Fichier de `skills/templates/` utilisé par aucune skill |
+
+Seules les clés Agent Skills arrivent dans le `SKILL.md` livré ; les clés du hub sont lues par oh (`plugin:` et `mcp:` ne livrent la skill que si le workflow charge ce plugin ou si la session a ce serveur MCP). Voir [Format d'un skill](../architecture/skills.fr.md#format-dun-skill).
 
 ```
 oh skill check [--json]
@@ -18,7 +37,7 @@ oh skill check [--json]
 
 | Flag | Type | Description |
 |------|------|-------------|
-| `--json` | bool | Problèmes au format JSON |
+| `--json` | bool | Problèmes au format JSON (`kind`, `error`, `ref`, `detail`) |
 
 ---
 

@@ -110,7 +110,7 @@ In v5, plugins are declared per workflow (`plugins:`) and delivered in the sessi
 | [CLI — MCP](reference/cli-mcp.en.md) | `oh mcp *` (`oh plugin` removed in v5) |
 | [CLI — Team](reference/cli-team.en.md) | `oh team *` (incl. `init --solo`, `promote`), `oh teams *`, `oh conventions`, `oh patterns`, `oh policies`, `oh takeover-brief` |
 | [CLI — Tools](reference/cli-tools.en.md) | `oh skill *`, `oh worktree *`, `oh secrets *`, `oh metrics` |
-| [Shipped Workflows](reference/workflows.en.md) | The 12 `oh/v1` workflows shipped by the hub: entry agents, inputs, checkpoints, prompt templates |
+| [Shipped Workflows](reference/workflows.en.md) | The 14 `oh/v1` workflows shipped by the hub: entry agents, inputs, checkpoints, prompt templates |
 | [Workflow Schema](reference/workflow-schema.en.md) | `apiVersion: oh/v1` schema: fields, validation, layers, `extends`, `enforce` |
 | [Configuration](reference/config.en.md) | hub.toml, project settings, team config |
 | [Beads Model](reference/beads-model.en.md) | Ticket system data model |
@@ -142,7 +142,7 @@ The `workflow` MCP server (`workflow_status`, `workflow_checkpoint`, `workflow_o
 | Document | Description |
 |----------|-------------|
 | [Overview](architecture/overview.en.md) | v5 concepts: workflow → session bundle → group server → session, daemon, credential proxy, gateways, closed world |
-| [Agents](architecture/agents.en.md) | The 19 agents (8 families, including `conductor`) |
+| [Agents](architecture/agents.en.md) | The 16 agents (8 families, including `conductor` and `operator`) |
 | [Skills](architecture/skills.en.md) | Hybrid skill system (Bucket A/B), delivery through the session bundle |
 | [Task Delegation](architecture/task-delegation.en.md) | Inter-agent delegation model (`calls:`, `after:`) |
 | [Living Wiki](architecture/living-wiki.en.md) | Living documentation wiki architecture |
