@@ -170,7 +170,8 @@ MCP server tokens (GitLab, Figma, Jira, Linear, GitHub, Google) are:
 - **Author set by oh.** The daemon takes the author from the calling tool session, never from the request; the tag line (tag, author, date, source) is written by oh, those of the content are removed. Routes authenticated like those of the `workflow` server (group token of the session).
 - **`wiki_apply` reserved to the documentarian.** Generated permission rule (refused to every agent, `ask` for the `documentarian`) and daemon check on the agent it sees calling (403 otherwise).
 - **Untrusted content.** Cleaned (control characters, terminal sequences), neutralised (headings, frontmatter markers, HTML and comments, `oh:when` among them, an unclosed code fence), bounded (4 KiB, 60 lines; 50 open proposals per session, 500 per project) and escaped in the TUI. A proposal citing the oh session data (`~/.oh/sessions`, the scratch folders among them, or the sessions folder actually in use) is refused: a scratch file never reaches the wiki.
-- **No symbolic link.** oh never reads nor writes through a symbolic link in `docs/` or `docs/wiki/`; page paths are relative, without `..` nor hidden components; writes are atomic.
+- **No symbolic link.** oh never reads nor writes through a symbolic link in `docs/` or `docs/wiki/`; page paths are relative, without `..` nor hidden components; writes are atomic. The pages and the files they cite are read without ever leaving the project, even when a link is swapped in during the read (`os.Root`).
+- **Remote session.** The daemon of the job (root) serves the wiki of the clone, which belongs to the agents' `oh` account: reads confined to the clone, git reads as the `oh` account. No proposal is applied in the job (`wiki_apply` refused to all, nothing applied at the commit checkpoint); they come back in `wiki.json`, are cleaned, bounded and queued **pending** again on the machine, where the user validates them.
 
 ### Session limits (I6)
 

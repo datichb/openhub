@@ -22,6 +22,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/remote/ciconfig"
 	"github.com/datichb/openhub/cli/internal/remote/gitlab"
 	"github.com/datichb/openhub/cli/internal/services/report"
+	"github.com/datichb/openhub/cli/internal/services/wiki"
 )
 
 // CIFile is the pipeline file of the oh-runner project.
@@ -76,6 +77,9 @@ type Service struct {
 	// Reports receives the reports of the job (workflow_report) at fetch
 	// time (nil: not imported).
 	Reports *report.Service
+	// Wiki queues the wiki proposals of the job at fetch time (nil: not
+	// imported).
+	Wiki *wiki.Service
 	// Verifications receives the verifications run by oh in the job
 	// (summary.json, R3-remote) at fetch time (nil: not imported).
 	Verifications func(ctx context.Context, sessionID string, list []remote.SummaryVerification) (int, error)

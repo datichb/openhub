@@ -19,6 +19,7 @@ import (
 	sessionsvc "github.com/datichb/openhub/cli/internal/services/session"
 	"github.com/datichb/openhub/cli/internal/services/wiki"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
+	"github.com/datichb/openhub/cli/internal/storage/sqlite"
 )
 
 // wikiContent is the finding the reviewer subagent is asked to propose.
@@ -168,4 +169,83 @@ func TestE2ETicketAppliesValidatedWikiProposal(t *testing.T) {
 	assert.Equal(t, wiki.AppliedByOh, got.AppliedBy)
 	assert.Contains(t, checkpoint.TimelineText(checkpoint.Timeline(b.Workflow, "manuel", "fr", st), 0), "✎ "+p.ID())
 	assert.True(t, strings.Contains(r2text(t, ctx, c, id), "docs/wiki/technical/conventions.md"), "the agent is told what to commit: %s", r2text(t, ctx, c, id))
+}
+
+// p3-remote-wiki, the daemon of a remote job: the reviewer reads and
+// proposes through the wiki MCP server served on the clone; the commit
+// checkpoint passed in the job applies nothing (the clone is pushed as the
+// agents left it); the proposals exported for wiki.json are queued on the
+// machine, pending, numbered by its queue, to be validated there.
+func TestE2ERemoteJobSendsWikiProposalsBack(t *testing.T) {
+	tok := bedrockToken(t)
+	a := newContractAdapter(t)
+	e := newJobWorkflowEnv(t, a)
+	wf := sessionspec.WorkflowRuntime{ID: "ticket", DefaultMode: "manuel", Checkpoints: []sessionspec.CheckpointDef{
+		{ID: "cp-2", Label: map[string]string{"": "Commit ou correction"}, Behaviors: map[string]string{"manuel": "pause"}, Mandatory: true,
+			Unlocks: []string{sessionspec.UnlockCommit}},
+	}}
+	b := wikiBundle(t, wf)
+	b.Hash = "h_remote_wiki"
+	e.saveBundle(t, b)
+	h, project := e.startGroup(t, a, b, tok)
+	page := writeProjectWiki(t, project)
+	c := NewClient(h.URL, h.Password)
+	waitMCPConnected(t, c, project, sessionspec.WikiMCPServer)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 8*time.Minute)
+	defer cancel()
+	id := sessionspec.NewSessionID()
+	require.NoError(t, e.sessions.Create(ctx, &domain.Session{ID: id, ProjectID: "p1", Status: domain.SessionStatusRunning, GroupKey: "g1",
+		BundleHash: b.Hash, Mode: "manuel", State: domain.RunActive, LaunchPath: project, EntryAgent: "lead", Runtime: string(sessionspec.RuntimeRemote)}))
+	require.NoError(t, a.CreateSession(ctx, h, sessionspec.SessionSpec{SessionID: id, Title: "e2e remote wiki", EntryAgent: "lead", Location: project,
+		SessionRules: bundle.SessionRules(b.Workflow, "manuel", nil)}))
+	require.NoError(t, a.SendPrompt(ctx, h, id, "Step 1: call wiki_index and say the title of the wiki in one line. Step 2: "+proposePrompt()+
+		"\nStep 3: call workflow_checkpoint with id cp-2 and a one-line summary. Wait for its answer, then repeat its answer verbatim and stop."))
+
+	// The responder of the job approves the checkpoint (remote: auto).
+	svc := &sessionsvc.Service{Sessions: e.sessions, Decisions: e.decisions, Servers: e.servers, Adapter: a, BundlesDir: e.bundles}
+	svc.UseCheckpoints(e.cp, e.client.WorkflowRefresh)
+	var dec domain.Decision
+	require.Eventually(t, func() bool {
+		l, err := e.decisions.ListOpen(ctx, domain.DecisionFilter{SessionID: id})
+		if err != nil || len(l) == 0 {
+			return false
+		}
+		dec = l[0]
+		return dec.Kind == domain.DecisionCheckpoint
+	}, 5*time.Minute, 300*time.Millisecond, "cp-2 raised by the daemon")
+	require.NoError(t, svc.Decide(ctx, sessionsvc.Reply{DecisionID: dec.ID, Decision: checkpoint.ChoiceApprove}))
+	require.NoError(t, c.Wait(ctx, id))
+	assert.Contains(t, r2text(t, ctx, c, id), "Calc", "wiki_index served in the job")
+
+	filed, err := e.wiki.List(ctx, "p1", id)
+	require.NoError(t, err)
+	require.Len(t, filed, 1, "one proposal queued in the job: %s", r2text(t, ctx, c, id))
+	assert.Equal(t, domain.WikiPending, filed[0].Status, "never applied in the job")
+	assert.Equal(t, "helper", filed[0].Agent)
+	data, err := os.ReadFile(page)
+	require.NoError(t, err)
+	assert.Equal(t, wikiPage, string(data), "nothing written in the clone")
+
+	// Back on the machine (oh session fetch): queued, pending, renumbered.
+	mdb, err := sqlite.Open(filepath.Join(t.TempDir(), "oh.db"))
+	require.NoError(t, err)
+	t.Cleanup(func() { mdb.Close() })
+	machine := &wiki.Service{Store: sqlite.NewWikiProposalStore(mdb), SessionsDir: filepath.Join(e.home, "sessions")}
+	_, err = machine.Propose(ctx, wiki.Filed{ProjectID: "p1", SessionID: "ses_local", Agent: "reviewer",
+		Proposal: wiki.Proposal{Page: "index.md", Content: "déjà en file", Tag: "INCERTAIN"}})
+	require.NoError(t, err)
+	in := make([]wiki.Imported, 0, len(filed))
+	for _, p := range filed {
+		in = append(in, wiki.Imported{ID: p.ID(), Agent: p.Agent, ToolSession: p.ToolSession, CreatedAt: p.CreatedAt,
+			Proposal: wiki.Proposal{Page: p.Page, Section: p.Section, Content: p.Content, Tag: p.Tag, Source: p.Source}})
+	}
+	ids, n, err := machine.Import(ctx, "p1", id, in)
+	require.NoError(t, err)
+	assert.Equal(t, 1, n)
+	assert.Equal(t, map[string]string{filed[0].ID(): "wp-2"}, ids)
+	got, err := machine.Get(ctx, "p1", "wp-2")
+	require.NoError(t, err)
+	assert.Equal(t, domain.WikiPending, got.Status)
+	assert.Contains(t, got.Content, "jamais d'erreur")
 }

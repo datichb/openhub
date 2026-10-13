@@ -38,6 +38,7 @@ func newRemoteReturnService(ctx context.Context, a *app.App) *remotesvc.Service 
 	svc := newRemoteSendService(a)
 	svc.SessionsDir, svc.BundlesDir = ohSessionsDir(), ohBundlesDir()
 	svc.Reports = newReportService()
+	svc.Wiki = newWikiService()
 	svc.Verifications = func(ctx context.Context, sid string, list []remote.SummaryVerification) (int, error) {
 		return newCheckpointService(a).ImportRemoteVerify(ctx, sid, checkpoint.FromSummary(list))
 	}
@@ -134,6 +135,9 @@ func runSessionFetch(cmd *cobra.Command, args []string) error {
 		if d.Answer == "rejected" {
 			fmt.Fprintf(out, "  %s %s\n", theme.IconDot, i18n.Tf("cmd.session.fetch.rejected", termtext.Clean(d.Label), termtext.Clean(fmt.Sprint(d.Resources))))
 		}
+	}
+	if res.Wiki > 0 {
+		fmt.Fprintf(out, "  %s %s\n", theme.IconArrow, i18n.Tf("cmd.session.fetch.wiki", res.Wiki))
 	}
 	if res.Imported {
 		fmt.Fprintf(out, "%s %s\n", ok, i18n.Tf("cmd.session.fetch.imported", res.Location, id))

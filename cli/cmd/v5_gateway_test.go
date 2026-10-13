@@ -71,6 +71,11 @@ func TestOhMCPCommand(t *testing.T) {
 	c, err = ohMCPCommand(spec, srv, "workflow")
 	require.NoError(t, err)
 	assert.Equal(t, []string{sessionspec.OhExecutable(), "mcp", "serve", "workflow"}, c.Argv)
+	// p3-remote-wiki: the wiki server too (job daemon, on its clone).
+	spec.MCP = append(spec.MCP, sessionspec.WikiMCPDef())
+	c, err = ohMCPCommand(spec, srv, "wiki")
+	require.NoError(t, err)
+	assert.Equal(t, []string{sessionspec.OhExecutable(), "mcp", "serve", "wiki"}, c.Argv)
 	_, err = ohMCPCommand(spec, srv, "fs")
 	assert.Error(t, err, "only oh servers are run on the machine")
 }

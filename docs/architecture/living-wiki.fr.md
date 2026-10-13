@@ -182,6 +182,29 @@ source), met à jour le frontmatter (`updated`, `agents`, `confidence`) et recal
 Le serveur est injecté dans les paquets construits depuis un workflow, pour un projet qui a un `docs/wiki/`. Sans
 démon, `wiki_propose` répond « non enregistrée » et l'agent garde la proposition dans son rapport.
 
+### Sessions distantes
+
+Dans une [session distante](../guides/remote-runners.fr.md) (job GitLab CI), le paquet est celui construit sur
+votre machine : les agents ont les mêmes outils `wiki_*` qu'en local, servis par le démon oh du job sur **son
+clone** du projet.
+
+- **Lecture et vérification** : `wiki_index`, `wiki_read`, `wiki_check` (dérive d'un changement comprise) lisent le
+  wiki du clone. Le démon du job tourne sous root et le clone appartient au compte `oh` des agents : oh lit les pages
+  sans jamais sortir du projet (aucun lien symbolique, même posé pendant la lecture, ne le fait lire ni examiner un
+  fichier hors du clone) et ses lectures git tournent sous le compte `oh`, comme toutes ses lectures git dans le
+  clone.
+- **Propositions** : `wiki_propose` met en file dans le job, avec l'auteur vu par oh. **Rien n'est appliqué dans le
+  job** : le checkpoint de commit passé par le répondeur n'applique aucune proposition, et `wiki_apply` est refusé à
+  tous les agents, `documentarian` compris (« les propositions remontent sur la machine »).
+- **Retour** : les propositions de la session partent dans l'artefact `wiki.json`. `oh session fetch` les remet dans
+  la file du projet sur votre machine, **en attente**, nettoyées et bornées de nouveau (l'artefact n'est pas de
+  confiance : une proposition qui cite les données de session d'oh est refusée), et renumérotées par la file locale ;
+  les rapports du job qui les citent reçoivent les nouveaux identifiants (`wp-…`). Un second fetch n'ajoute rien et
+  ne revient pas sur vos décisions. Les identifiants cités dans la transcription du job restent ceux du job.
+- **Validation** : comme en local, sur la carte du checkpoint de commit quand vous reprenez la session
+  (`oh session attach`), ou avec `doc-sync` (`oh wiki pending`). oh applique les propositions acceptées dans le
+  dossier de travail local de la session.
+
 ### Vérification (`oh wiki check`)
 
 Déterministe, lancée par oh sur les fichiers : frontmatter présent et lisible (`updated` en date, `confidence` dans
@@ -280,6 +303,8 @@ Si `docs/wiki/index.md` existe déjà, l'`onboarder` propose (entrée `refresh` 
 - **Enrichissement** : tous les agents proposent avec `wiki_propose` ; plus aucune délégation directe au
   `documentarian`. Les propositions des workflows sans commit restent en file.
 - **Index injecté** : au niveau `index` (L7), l'index du wiki et les god nodes calculés par oh entrent dans le prompt.
+- **Session distante** : mêmes outils, servis dans le job sur le clone ; les propositions remontent sur la machine
+  pour y être validées (voir [Sessions distantes](#sessions-distantes)).
 
 ---
 

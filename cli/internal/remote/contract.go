@@ -99,7 +99,8 @@ func CLIFile(arch string) string { return "oh-linux-" + arch }
 const ImageEnvFile = "oh-image.env"
 
 // OutDir is the artifacts directory of the run job, relative to
-// $CI_PROJECT_DIR (journal.jsonl, summary.json, session.export, reports.json).
+// $CI_PROJECT_DIR (journal.jsonl, summary.json, session.export, reports.json,
+// wiki.json).
 const OutDir = "oh-out"
 
 // RunnerProjectName is the default path of the oh-runner project in a group.

@@ -20,6 +20,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/remote"
 	"github.com/datichb/openhub/cli/internal/remote/gitlab/gitlabtest"
 	"github.com/datichb/openhub/cli/internal/services/report"
+	"github.com/datichb/openhub/cli/internal/services/wiki"
 	"github.com/datichb/openhub/cli/internal/storage/sqlite"
 )
 
@@ -310,6 +311,92 @@ func TestFetchImportsReports(t *testing.T) {
 	f, err = e.svc.Fetch(ctx, e.sessionID, FetchOptions{})
 	require.NoError(t, err)
 	assert.Zero(t, f.Reports, "fetched again: nothing added")
+}
+
+// withArtifacts adds files to the artifacts of the run job of e.
+func (e *returnEnv) withArtifacts(t *testing.T, add map[string][]byte) {
+	t.Helper()
+	zr, err := zip.NewReader(bytes.NewReader(e.pipeline.Artifacts[5]), int64(len(e.pipeline.Artifacts[5])))
+	require.NoError(t, err)
+	for _, f := range zr.File {
+		rc, _ := f.Open()
+		data, _ := io.ReadAll(rc)
+		rc.Close()
+		add[f.Name] = data
+	}
+	e.pipeline.Artifacts[5] = artifactsZip(t, add)
+	e.pipeline.Status = "success"
+}
+
+// p3-remote-wiki: the wiki proposals of the job come back with the session
+// (wiki.json) and are queued, pending, in the queue of the project on the
+// machine, where the user validates them; the reports cite them by their
+// local id; fetching again adds nothing.
+func TestFetchImportsWikiProposals(t *testing.T) {
+	ctx := context.Background()
+	e := newReturnEnv(t, remote.Summary{Schema: 1, Outcome: remote.OutcomeCompleted, Commit: "c9"}, nil)
+
+	// The job side: proposals filed in the session of the job, never
+	// applied there, exported as the runner does.
+	jobDB, err := sqlite.Open(filepath.Join(t.TempDir(), "oh.db"))
+	require.NoError(t, err)
+	t.Cleanup(func() { jobDB.Close() })
+	job := &wiki.Service{Store: sqlite.NewWikiProposalStore(jobDB), SessionsDir: t.TempDir()}
+	for _, c := range []string{"zod pour la validation.", "pino pour les logs."} {
+		_, err := job.Propose(ctx, wiki.Filed{ProjectID: "p-api", SessionID: e.sessionID, ToolSession: "ses_child", Agent: "reviewer",
+			Proposal: wiki.Proposal{Page: "technical/stack.md", Section: "Librairies clés", Content: c, Tag: "DÉDUIT", Source: "package.json"}})
+		require.NoError(t, err)
+	}
+	filed, err := job.List(ctx, "p-api", e.sessionID)
+	require.NoError(t, err)
+	wk := remote.Wiki{Schema: remote.WikiSchema}
+	for _, p := range filed {
+		wk.Proposals = append(wk.Proposals, remote.WikiEntry{ID: p.ID(), Agent: p.Agent, ToolSession: p.ToolSession, Page: p.Page,
+			Section: p.Section, Content: p.Content, Tag: p.Tag, Source: p.Source, CreatedAt: p.CreatedAt})
+	}
+	wk.Proposals = append(wk.Proposals, remote.WikiEntry{ID: "wp-3", Agent: "reviewer", Page: "index.md", Tag: "INCERTAIN",
+		Content: "vu dans " + e.svc.SessionsDir + "/" + e.sessionID + "/scratch/debugger/a.md"}) // not trusted: session data
+	wdata, _ := json.Marshal(wk)
+	rdata, _ := json.Marshal(remote.Reports{Schema: remote.ReportsSchema, Reports: []remote.ReportEntry{{Seq: 1, Agent: "reviewer",
+		Title: "Review (wp-1)", Body: "## Verdict\nvalidé ; proposé wp-1 et wp-2, pas wp-12."}}})
+	e.withArtifacts(t, map[string][]byte{"oh-out/wiki.json": wdata, "oh-out/reports.json": rdata})
+
+	// The machine: the queue of the project already numbers wp-1.
+	machine := &wiki.Service{Store: sqlite.NewWikiProposalStore(e.store), SessionsDir: e.svc.SessionsDir}
+	_, err = machine.Propose(ctx, wiki.Filed{ProjectID: "p-api", SessionID: "ses_local", Agent: "auditor-subagent",
+		Proposal: wiki.Proposal{Page: "index.md", Content: "déjà en file", Tag: "INCERTAIN"}})
+	require.NoError(t, err)
+	reports := &report.Service{Store: sqlite.NewReportStore(e.store), SessionsDir: e.svc.SessionsDir}
+	e.svc.Wiki, e.svc.Reports = machine, reports
+
+	f, err := e.svc.Fetch(ctx, e.sessionID, FetchOptions{})
+	require.NoError(t, err)
+	assert.Equal(t, 2, f.Wiki, "the one citing the session data is refused again")
+	list, err := machine.List(ctx, "p-api", e.sessionID)
+	require.NoError(t, err)
+	require.Len(t, list, 2)
+	assert.Equal(t, []string{"wp-2", "wp-3"}, []string{list[0].ID(), list[1].ID()})
+	for _, p := range list {
+		assert.Equal(t, domain.WikiPending, p.Status, "validated on the machine")
+		assert.Equal(t, "reviewer", p.Agent)
+		assert.Equal(t, "ses_child", p.ToolSession)
+	}
+	_, body, err := reports.Get(ctx, e.sessionID, "rp-1")
+	require.NoError(t, err)
+	assert.Equal(t, "## Verdict\nvalidé ; proposé wp-2 et wp-3, pas wp-12.", body, "the local ids, in one pass")
+	rl, err := reports.List(ctx, e.sessionID)
+	require.NoError(t, err)
+	assert.Equal(t, "Review (wp-2)", rl[0].Title)
+
+	f, err = e.svc.Fetch(ctx, e.sessionID, FetchOptions{})
+	require.NoError(t, err)
+	assert.Zero(t, f.Wiki, "fetched again: nothing added")
+
+	// --no-import leaves the queue alone.
+	_, err = e.svc.Fetch(ctx, e.sessionID, FetchOptions{NoImport: true})
+	require.NoError(t, err)
+	list, _ = machine.List(ctx, "p-api", e.sessionID)
+	assert.Len(t, list, 2)
 }
 
 // R3-remote: the verifications run in the job come back with summary.json
