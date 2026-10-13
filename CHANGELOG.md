@@ -9,6 +9,14 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ## [Unreleased]
 
+### Added — MCP du wiki du projet (lot LD-J)
+
+- **Serveur MCP `wiki`** (`wiki_index`, `wiki_read`, `wiki_propose`, `wiki_pending`, `wiki_apply`, `wiki_check`), servi par le démon dans les workflows d'un projet doté de `docs/wiki/`. Index et god nodes calculés par oh, aussi dans l'index injecté aux agents de niveau `index`.
+- **Propositions** : les agents proposent leurs découvertes avec `wiki_propose` (auteur fixé par oh, contenu nettoyé, toute référence à `~/.oh/sessions` et aux brouillons refusée). L'utilisateur les accepte, modifie ou refuse sur la carte du checkpoint de commit ; oh applique les acceptées au passage du checkpoint, avant le commit, et le trace. Les workflows sans commit les laissent en file. Table `wiki_proposals` (migration 45).
+- **`wiki_apply`** est réservé au documentarian (règle de permission générée et contrôle du démon).
+- **`oh wiki check [--fix]`** (frontmatter, liens, tags, fraîcheur, god nodes) et **`oh wiki pending`**.
+- **Contenu** : `living-docs-enrichment`, `wiki-navigation` et `doc-wiki-protocol` passent aux outils `wiki_*` ; plus de délégation directe au documentarian ; les rapports citent les `wp-…`.
+
 ### Added — évaluations en parallèle (lot eval-parallel)
 
 - **`oh eval --parallel N`** (`OH_EVAL_PARALLEL`, aussi dans `make test-eval`) lance jusqu'à N passages en même temps, chacun isolé (`OH_HOME`, `HOME`, `TMPDIR`, clone, démon, proxy) ; les rapports sont identiques à un lancement séquentiel. S7 et S10 ×2 : 1 min 17 s au lieu d'environ 3 min.
