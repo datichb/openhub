@@ -39,7 +39,7 @@ Séquence : `cp-scope` → `cp-tickets` [create] → `cp-recap` (entre crochets,
 
 - **cp-scope** : Présenter le rapport d'exploration et confirmer le périmètre avant la planification.
 - **cp-tickets** : Les tickets ne sont créés qu'après validation du découpage par l'utilisateur.
-- **cp-tickets** déverrouille `create` : avant son passage, oh refuse à tous les agents de la session la création de tickets, quel que soit le mode. Une fois passé, crée les tickets validés : la création reste possible jusqu'à ce que **cp-tickets** soit demandé de nouveau.
+- **cp-tickets** déverrouille `create` : avant son passage, oh refuse à tous les agents de la session la création de tickets, quel que soit le mode. Une fois passé, crée les tickets validés aussitôt : la création se referme au checkpoint obligatoire suivant, ou quand **cp-tickets** est demandé de nouveau.
 
 Passage d'un checkpoint : appelle l'outil `workflow_checkpoint` avec `id` (identifiant du tableau) et `summary` (ce qui est fait, ce qui va suivre, points d'attention), **avant** de lancer l'étape suivante. C'est oh qui applique le comportement du mode :
 - `pause` (et `conditional`) : l'appel attend la validation de l'utilisateur (depuis oh ou l'interface). S'il est refusé, ne continue pas : suis la consigne reçue (corriger, préciser), puis rappelle `workflow_checkpoint` pour le même checkpoint.

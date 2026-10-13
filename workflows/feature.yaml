@@ -64,6 +64,7 @@ checkpoints:
     mandatory: true
     mode: { manuel: pause, semi-auto: pause, auto: pause }
     unlocks: [commit, close]
+    verify: { from: stack, expect: pass }
   cp-3:
     label: { fr: Ticket suivant, en: Next ticket }
     mode: { manuel: pause, semi-auto: auto, auto: auto }
@@ -72,7 +73,7 @@ checkpoints:
     description:
       fr: Récap global en fin de feature (tickets traités, commits, points ouverts).
       en: Global recap at the end of the feature (processed tickets, commits, open points).
-    mode: { manuel: pause, semi-auto: pause, auto: auto }
+    mode: { manuel: pause, semi-auto: auto, auto: auto }
 modes: { default: semi-auto, allowed: [manuel, semi-auto, auto] }
 circuit_breaker: { max_consecutive_subagents: 12 }
 limits: { max_fix_rounds: 3 }

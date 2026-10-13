@@ -39,7 +39,7 @@ Séquence : `cp-1` → `cp-2` [commit, close] → `cp-3` (entre crochets, les op
 
 - **cp-1** : Présenter le ticket et l'agent prévu avant de lancer l'implémentation.
 - **cp-2** : Après la review, présenter le résultat et demander s'il faut committer ou corriger.
-- **cp-2** déverrouille `commit`, `close` : avant son passage, oh refuse à tous les agents de la session `git commit` (et les commandes qui commitent : revert, cherry-pick, merge, pull), la fermeture d'un ticket, quel que soit le mode. Une fois passé, fais-les aussitôt, dans l'ordre : commit, puis fermeture du ticket (oh refuse la fermeture tant que le travail n'est pas commité). Le ticket fermé, elles sont de nouveau verrouillées jusqu'au prochain passage de **cp-2**. Le push revient à l'utilisateur : ne pousse pas.
+- **cp-2** déverrouille `commit`, `close` : avant son passage, oh refuse à tous les agents de la session `git commit` (et les commandes qui commitent : revert, cherry-pick, merge, pull), la fermeture d'un ticket, quel que soit le mode. Une fois passé, fais-les aussitôt, dans l'ordre : commit, puis fermeture du ticket (oh refuse la fermeture tant que le travail n'est pas commité). Le travail commité, le commit est de nouveau verrouillé ; le ticket fermé, la fermeture aussi, jusqu'au prochain passage de **cp-2**. Le push revient à l'utilisateur : ne pousse pas.
 - **cp-3** : Passer au ticket suivant ou s'arrêter.
 
 Passage d'un checkpoint : appelle l'outil `workflow_checkpoint` avec `id` (identifiant du tableau) et `summary` (ce qui est fait, ce qui va suivre, points d'attention), **avant** de lancer l'étape suivante. C'est oh qui applique le comportement du mode :
