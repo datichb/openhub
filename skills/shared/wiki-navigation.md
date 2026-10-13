@@ -4,172 +4,25 @@ description: "Utiliser quand docs/wiki/index.md existe : lire l'index d'abord, p
 when: wiki | agent=onboarder
 ---
 
-# Skill — Navigation du Wiki Documentaire Vivant
+# Navigation du wiki
 
-## Rôle
+Le wiki (`docs/wiki/`) se lit à la demande, page par page (`ONBOARDING.md` et `CONVENTIONS.md` sont déjà dans ton prompt).
 
-Ce skill définit le protocole que tous les agents doivent suivre pour consulter
-la documentation vivante d'un projet. Les fichiers projet (`ONBOARDING.md`, `CONVENTIONS.md`)
-sont injectés dans ton prompt par oh quand ils existent (inutile de les relire). Le wiki (`docs/wiki/`), lui,
-se lit à la demande, page par page.
-
-L'objectif est d'économiser les tokens en chargeant **uniquement les pages pertinentes**
-à la tâche courante, jamais le wiki en entier.
-
----
-
-## Structure du wiki (rappel)
-
-```
-docs/wiki/
-├── index.md                    ← toujours lu en premier
-├── technical/
-│   ├── architecture.md
-│   ├── stack.md
-│   ├── tests.md
-│   └── conventions.md
-└── business/
-    ├── index.md
-    └── <domain>.md
-ONBOARDING.md                   ← résumé minimaliste, redirige vers docs/wiki/index.md
-```
-
----
-
-## Protocole de navigation — 4 règles absolues
-
-### Règle 1 — Toujours lire `docs/wiki/index.md` en premier
-
-Avant toute action sur un projet, vérifier si `docs/wiki/index.md` existe.
-
-**Si le fichier existe :**
-1. Le lire immédiatement via l'outil `Read`
-2. Mémoriser : stack critique, architecture, god nodes, domaines métier, points critiques actifs
-3. Utiliser ces informations pour décider quelles pages charger ensuite
-
+1. **L'index d'abord** : avant toute action, lis `docs/wiki/index.md` (stack, architecture, god nodes, domaines, points critiques), puis décide des pages à charger. Absent : continue sans wiki, ce n'est pas une erreur.
 <!-- oh:when mcp=wiki -->
-Avec le MCP du wiki : `wiki_index` donne l'index, les pages et les god nodes **calculés par oh** ; `wiki_read(page, section)` charge une page, ou une seule section.
+   Avec le MCP du wiki : `wiki_index` donne l'index, les pages et les god nodes **calculés par oh** ; `wiki_read(page, section)` charge une page, ou une seule section.
 <!-- /oh:when -->
+2. **Seulement la page utile** : `technical/` `conventions.md` (code, nommage, patterns), `architecture.md` (découpage, décisions), `stack.md` (dépendances), `tests.md` ; `business/<domain>.md` pour un domaine (nom dans la table des domaines de l'index), `business/index.md` pour leur vue d'ensemble ; l'index suffit pour le contexte général. Plusieurs domaines : une page après l'autre, si nécessaire.
+3. **Jamais le wiki en entier** : ni `ls docs/wiki/` suivi de toutes les lectures, ni `technical/` et `business/` en parallèle sans raison. Seule exception, explicite : un re-onboarding ou une mise à jour complète du wiki.
+4. **God nodes** : charge les pages liées à un god node seulement si la tâche porte directement sur ce concept.
 
-**Si le fichier n'existe pas :**
-- Ne rien faire — le wiki n'est pas encore généré pour ce projet
-- Continuer le workflow normal sans contexte wiki
-- Ne pas signaler l'absence comme une erreur (l'onboarder génère le wiki)
+## Confiance et fraîcheur
 
-### Règle 2 — Charger uniquement la page pertinente à la tâche
+- `CONFIRMÉ` (fichier et ligne cités) : utilise-le. `DÉDUIT` : vérifie-le si la tâche est sensible. `INCERTAIN` : vérifie dans le code source avant d'agir ; daté de plus de 14 jours, il est non fiable par défaut.
+- Champ `updated` du frontmatter : de 30 à 90 jours, signale `⚠️ Page potentiellement obsolète (dernière MAJ : {date})` et vérifie les sections sensibles dans le code ; au-delà, `⚠️⚠️ Page obsolète` : recommande de relancer l'onboarding sur ce périmètre avant de t'y appuyer.
+<!-- oh:when agent=onboarder -->
 
-Après avoir lu `index.md`, identifier quelle page charger selon la nature de la tâche :
+## Tableau des god nodes
 
-| Nature de la tâche | Page à charger |
-|--------------------|----------------|
-| Implémentation code, patterns, nommage | `docs/wiki/technical/conventions.md` |
-| Architecture, découpage, décisions techniques | `docs/wiki/technical/architecture.md` |
-| Stack, dépendances, versions, librairies | `docs/wiki/technical/stack.md` |
-| Tests, couverture, stratégie de test | `docs/wiki/technical/tests.md` |
-| Logique métier d'un domaine spécifique | `docs/wiki/business/<domain>.md` |
-| Vue globale des domaines métier | `docs/wiki/business/index.md` |
-| Contexte général du projet | `index.md` suffit |
-
-**Si la tâche touche à plusieurs domaines :** charger chaque page concernée,
-une par une, uniquement si nécessaire.
-
-### Règle 3 — Ne jamais lire le wiki en entier par défaut
-
-❌ Ne jamais faire `ls docs/wiki/` puis lire tous les fichiers
-❌ Ne jamais charger `technical/` et `business/` en parallèle sans raison
-✅ Toujours partir de `index.md` → décider → charger une page
-
-**Exception :** lors d'un re-onboarding ou d'une mise à jour complète du wiki,
-le `documentarian` et l'`onboarder` peuvent lire plusieurs pages. Cela reste
-une exception explicite, pas le comportement par défaut.
-
-### Règle 4 — Suivre les références des god nodes
-
-Quand `index.md` indique qu'un concept est un god node avec plusieurs pages liées,
-ne charger les pages liées que si la tâche courante concerne directement ce concept.
-
-Exemple : si `AuthService` est un god node lié à `technical/architecture.md#auth`
-et `business/auth.md`, charger `business/auth.md` uniquement si la tâche
-porte sur la logique métier de l'authentification.
-
----
-
-## Décision de navigation — arbre rapide
-
-```
-La tâche concerne...
-│
-├── ...les règles de code (nommage, patterns, linting)
-│   → docs/wiki/technical/conventions.md
-│
-├── ...l'architecture ou les décisions techniques
-│   → docs/wiki/technical/architecture.md
-│
-├── ...la stack ou les dépendances
-│   → docs/wiki/technical/stack.md
-│
-├── ...les tests ou la stratégie de qualité
-│   → docs/wiki/technical/tests.md
-│
-├── ...un domaine métier précis (auth, billing, orders...)
-│   → docs/wiki/business/<domain>.md
-│   (le nom du domaine est dans la table des domaines de index.md)
-│
-├── ...plusieurs domaines à la fois
-│   → charger chaque page concernée séquentiellement
-│
-└── ...le contexte général du projet
-    → index.md suffit
-```
-
----
-
-## Interprétation des tags de confiance
-
-Chaque enrichissement dans le wiki porte un tag de confiance. Lors de la lecture,
-interpréter ainsi :
-
-| Tag | Signification | Comportement recommandé |
-|-----|--------------|------------------------|
-| `` `CONFIRMÉ` `` | Observation directe dans le code (fichier + ligne citée) | Faire confiance, utiliser directement |
-| `` `DÉDUIT` `` | Raisonnement contextuel, fichier cité sans ligne précise | Faire confiance, vérifier si la tâche est sensible |
-| `` `INCERTAIN` `` | Hypothèse à valider par l'équipe | Vérifier dans le code avant d'utiliser |
-
-Quand un enrichissement `INCERTAIN` est pertinent pour la tâche courante,
-lire le fichier source mentionné pour confirmer avant d'agir.
-
-## Vérification de fraîcheur
-
-Après lecture du frontmatter d'une page wiki, évaluer le champ `updated` :
-
-| Ancienneté de `updated` | Action recommandée |
-|------------------------|-------------------|
-| < 30 jours | Confiance normale — utiliser sans précaution |
-| 30 à 90 jours | Signaler : `⚠️ Page potentiellement obsolète (dernière MAJ : {date})` — vérifier les sections sensibles dans le code |
-| > 90 jours | Signaler : `⚠️⚠️ Page obsolète — recommandation : relancer l'onboarder sur ce périmètre avant de s'appuyer sur ces informations` |
-
-**Règle complémentaire :** tout fait marqué `` `INCERTAIN` `` datant de plus de 14 jours
-est considéré **non fiable par défaut**. Vérifier directement dans le code source
-avant toute décision basée sur ce fait.
-
----
-
-<!-- oh:when agent=documentarian,onboarder -->
-## Mise à jour des god nodes — règle pour le documentarian
-
-oh calcule les god nodes depuis les pages et réécrit le tableau de `docs/wiki/index.md`
-quand il applique une proposition ou sur `oh wiki check --fix` ; `wiki_check` signale un
-tableau qui s'en écarte. À la création ou à la réécriture d'une page, le calcul suit :
-
-**Algorithme :**
-1. Recenser les concepts mentionnés dans la page qui vient d'être modifiée
-2. Pour chaque concept, compter dans combien de pages wiki distinctes il apparaît
-3. Si un concept apparaît dans **≥ 2 pages distinctes** et n'est pas encore dans le tableau → l'ajouter
-4. Si un concept existant est désormais cité dans plus de pages → mettre à jour la colonne "Pages liées"
-5. Mettre à jour le frontmatter `updated` de `index.md` si le tableau a changé
-
-**Criticité d'un god node :**
-- `Critique` — concept cité dans ≥ 4 pages OU mentionné explicitement dans "Points critiques actifs"
-- `Haute` — concept cité dans 3 pages
-- `Normale` — concept cité dans 2 pages
+oh calcule les god nodes et réécrit le tableau de `docs/wiki/index.md` quand il applique une proposition ou sur `oh wiki check --fix` ; `wiki_check` signale un tableau qui s'en écarte. Quand tu écris le tableau : un concept cité dans au moins 2 pages distinctes est un god node, avec ses pages liées ; criticité `Critique` à 4 pages ou plus (ou cité dans « Points critiques actifs »), `Haute` à 3, `Normale` à 2 ; mets à jour le `updated` de l'index si le tableau change.
 <!-- /oh:when -->

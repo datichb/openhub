@@ -4,99 +4,21 @@ description: "Utiliser quand les outils ctx_* (plugin context-mode) sont présen
 plugin: context-mode
 ---
 
-## Règle fondamentale — deux catégories de commandes
+## Deux catégories de commandes
 
-Avant d'exécuter une commande, déterminer si elle **se termine d'elle-même** ou non.
+Avant d'exécuter une commande, détermine si elle **se termine d'elle-même**.
 
-| Type de commande | Exemples | Outil correct |
+| Type | Exemples | Outil |
 |---|---|---|
-| **Se termine seule** | `tsc`, `jest`, `git diff`, `ls`, `bd show`, `curl` | `ctx_batch_execute` avec `timeout` obligatoire |
-| **Ne se termine pas** | `yarn dev`, `npm run dev`, `vite`, `nodemon`, `tail -f`, `webpack --watch` | `ctx_execute` avec `background: true` |
+| **Se termine seule** | `tsc`, `jest`, `git diff`, `ls`, `bd show`, `curl` | `ctx_batch_execute`, `timeout` obligatoire ; `concurrency` 2 à 4 si indépendantes, 1 si dépendantes |
+| **Ne se termine pas** | `yarn dev`, `npm run dev`, `vite`, `nodemon`, `tail -f`, `webpack --watch`, `tsc --watch` | `ctx_execute(language: "shell", code: "<cmd> 2>&1", background: true)` |
 
-**Ne jamais passer une commande non-terminante dans `ctx_batch_execute`.**
+- **Ne jamais passer une commande non terminante dans `ctx_batch_execute`** : tuée au timeout sans avoir démarré, ou, dans un batch parallèle, elle bloque le worker indéfiniment.
+- **`timeout` est obligatoire sur tout appel `ctx_batch_execute`** : sans lui, aucun timer, et avec `concurrency ≥ 2` une commande bloquée suspend tout le batch. C'est un paramètre de l'outil (millisecondes), jamais une commande shell : ni `timeout yarn dev` ni `gtimeout` dans `code` (absents de macOS).
+- Valeurs : lecture ou listing 10000 ; compilation, lint, typecheck 60000 ; tests unitaires 120000 ; tests d'intégration, E2E ou build complet 300000 ; réseau 30000.
 
----
+## Process en arrière-plan
 
-## Pourquoi `ctx_batch_execute` sans timeout est dangereux
+`background: true` détache le process après le timeout et rend l'output partiel du démarrage. **Toujours rediriger stderr** (`2>&1`) : un crash immédiat donne alors l'erreur complète, un démarrage réussi les premières lignes (port, URL) ; pas besoin de `sleep` ni de polling.
 
-Sans `timeout`, aucun timer n'est installé. Avec `concurrency ≥ 2`, si une commande bloque, **tout le batch est suspendu indéfiniment**.
-
-### Règle : `timeout` est obligatoire sur tout appel `ctx_batch_execute`
-
----
-
-## Commandes non-terminantes — utiliser `ctx_execute` avec `background: true`
-
-Pour lancer un serveur de dev, un watcher, ou tout process qui doit rester actif, utiliser `ctx_execute(language: "shell", code: "<cmd> 2>&1", background: true)`.
-
-`background: true` détache le process après le timeout : il continue de tourner sans bloquer l'agent. L'output partiel (démarrage, port, erreurs initiales) est retourné avant le détachement.
-
-Exemples de commandes : `yarn dev`, `npm run start:dev`, `tsc --watch`, `vite build --watch`.
-
----
-
-## Tableau de décision rapide
-
-```
-La commande se termine toute seule ?
-├── OUI → ctx_batch_execute  (+ timeout obligatoire)
-│         Plusieurs commandes indépendantes ? → concurrency: 2-4
-│         Commandes séquentielles ou dépendantes ? → concurrency: 1
-│
-└── NON → ctx_execute avec background: true
-          (yarn dev, vite, nodemon, watchers, tail -f, etc.)
-          ⚠️  Arrêter le process en fin de tâche : Bash("kill <pid>")
-```
-
----
-
-## Valeurs de `timeout` recommandées
-
-> **Important — `timeout` est un paramètre de l'outil MCP (millisecondes), pas une commande shell.**
-> Ne jamais utiliser `timeout yarn dev` ou `gtimeout yarn dev` dans le champ `code` :
-> la commande `timeout` n'existe pas nativement sur macOS (`gtimeout` nécessite GNU coreutils)
-> et est de toute façon le mauvais outil — c'est le paramètre de l'outil qui gère l'interruption.
-
-| Type de commande | Timeout suggéré |
-|---|---|
-| Lecture/listing (`ls`, `bd show`, `git status`) | `10000` (10s) |
-| Compilation, lint, typecheck | `60000` (60s) |
-| Tests unitaires | `120000` (2min) |
-| Tests d'intégration / E2E | `300000` (5min) |
-| Build complet | `300000` (5min) |
-| Commande réseau / curl / fetch | `30000` (30s) |
-
----
-
-## Anti-patterns — règles compactes
-
-| Anti-pattern | Pourquoi c'est faux | Correct |
-|---|---|---|
-| `ctx_batch_execute` sans `timeout` | Aucun timer → hang indéfini | Toujours passer `timeout` |
-| Commande non-terminante dans `ctx_batch_execute` | Process tué au timeout, jamais démarré | `ctx_execute` avec `background: true` |
-| Watcher dans un batch parallèle | Bloque le worker indéfiniment | Séparer : batch pour les terminantes, `ctx_execute` pour le watcher |
-| `timeout`/`gtimeout` dans le champ `code` | Indisponible sur macOS, mauvaise couche | Utiliser le paramètre `timeout` de l'outil MCP |
-| Fin de tâche sans arrêter le process background | Port occupé, process zombie | `Bash("kill <pid>")` avant de clore |
-
----
-
-## Capturer les erreurs de démarrage d'un serveur
-
-**Toujours rediriger stderr vers stdout** (`2>&1`) — sans cela, les erreurs de crash ne sont pas retournées.
-
-`ctx_execute` avec `background: true` retourne l'output partiel accumulé pendant le démarrage :
-- Crash immédiat → l'output contient l'erreur complète
-- Démarrage OK → l'output contient les premières lignes (port, mode, URL)
-
-**Pattern :** lancer avec `2>&1` + `background: true`, lire l'output retourné pour détecter un crash. Pas besoin de `sleep`, `wait` ou polling.
-
----
-
-## Arrêter un process background — obligatoire
-
-**Tout process lancé en background doit être arrêté avant la fin de la tâche, sans exception.**
-Un process oublié occupe le port pour la session suivante et consomme des ressources.
-
-**Arrêt par PID :** capturer le PID au démarrage avec `& echo "PID:$!"`, puis `Bash("kill <pid>")`. Pas de `pkill -f` : il demande une confirmation et peut tuer le serveur de la session.
-
-**Séquence obligatoire :** démarrer → utiliser → `kill <pid>` AVANT de clore la tâche.
+**Arrêt obligatoire** avant de clore la tâche (port occupé, process zombie sinon) : note le PID au lancement (`& echo "PID:$!"`), puis `Bash("kill <pid>")`. Pas de `pkill -f` : il demande une confirmation et peut tuer le serveur de la session.
