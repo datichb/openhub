@@ -1,0 +1,106 @@
+[
+ {
+  "id": "msg_133d55cff002RxRp3U4iShpUwE",
+  "time": {
+   "created": 1791870983431
+  },
+  "text": "You are a subagent spawned by another session.\nRun this command: echo probe-ok",
+  "type": "user"
+ },
+ {
+  "id": "msg_133d55d0a001pnsJ4IGsQ6ZvK4",
+  "time": {
+   "created": 1791870983441,
+   "streamed": 1791870984330,
+   "completed": 1791870984389
+  },
+  "type": "assistant",
+  "agent": "helper",
+  "model": {
+   "id": "eu.anthropic.claude-haiku-4-5-20251001-v1:0",
+   "providerID": "amazon-bedrock"
+  },
+  "content": [
+   {
+    "type": "tool",
+    "id": "tooluse_L0LF3c2qpjmB6KVla4jV2n",
+    "name": "shell",
+    "executed": false,
+    "state": {
+     "status": "completed",
+     "input": {
+      "command": "echo probe-ok"
+     },
+     "content": [
+      {
+       "type": "text",
+       "text": "probe-ok\n"
+      }
+     ],
+     "metadata": {
+      "status": "completed",
+      "truncated": false,
+      "exit": 0
+     }
+    },
+    "time": {
+     "created": 1791870984326,
+     "ran": 1791870984329,
+     "completed": 1791870984387
+    }
+   }
+  ],
+  "finish": "tool-calls",
+  "rawFinish": "tool_use",
+  "cost": 0.0044033,
+  "tokens": {
+   "input": 3728,
+   "output": 55,
+   "reasoning": 0,
+   "cache": {
+    "read": 0,
+    "write": 0
+   }
+  }
+ },
+ {
+  "id": "msg_133d560cc001Pu2fuCNVXca6iW",
+  "time": {
+   "created": 1791870984403,
+   "streamed": 1791870985154,
+   "completed": 1791870985155
+  },
+  "type": "assistant",
+  "agent": "helper",
+  "model": {
+   "id": "eu.anthropic.claude-haiku-4-5-20251001-v1:0",
+   "providerID": "amazon-bedrock"
+  },
+  "content": [
+   {
+    "type": "text",
+    "text": "probe-ok"
+   }
+  ],
+  "finish": "stop",
+  "rawFinish": "end_turn",
+  "cost": 0.0042119,
+  "tokens": {
+   "input": 3799,
+   "output": 6,
+   "reasoning": 0,
+   "cache": {
+    "read": 0,
+    "write": 0
+   }
+  }
+ },
+ {
+  "id": "msg_133d563d0001ypwXyxFzxXy7MX",
+  "time": {
+   "created": 1791870985168
+  },
+  "type": "idle",
+  "outcome": "succeeded"
+ }
+]
