@@ -371,6 +371,7 @@ func (v *ProjectModeView) buildItems() []projectModeItem {
 		{Icon: "📋", Label: i18n.T("tui.pm.item.board"), Desc: i18n.T("tui.pm.item.board_desc"), Action: navigate("board")},
 		{Icon: "📊", Label: i18n.T("tui.pm.item.metrics"), Desc: i18n.T("tui.pm.item.metrics_desc"), Action: navigate("metrics")},
 		{Icon: "📡", Label: i18n.T("tui.pm.item.status"), Desc: i18n.T("tui.pm.item.status_desc"), Action: navigate("status")},
+		{Icon: "📚", Label: i18n.T("tui.pm.item.wiki"), Desc: i18n.T("tui.pm.item.wiki_desc"), Action: navigate("project.wiki")},
 		// ── Configuration section ──
 		{Icon: "─", Label: i18n.T("tui.pm.section.configuration"), SectionID: "configuration"},
 		{Icon: "🔧", Label: i18n.T("tui.pm.item.config"), Desc: i18n.T("tui.pm.item.config_desc"), Action: navigate("project.config")},

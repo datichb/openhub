@@ -294,6 +294,16 @@ func buildCommands(a *app.App) []shell.Command {
 				Modes: modeProject,
 			},
 			shell.Command{
+				ID:          "project-wiki",
+				Label:       i18n.T("tui.cmd.project_wiki"),
+				Aliases:     []string{"wiki", "wiki projet", "project wiki", "doc metrics"},
+				Description: i18n.T("tui.cmd.project_wiki.desc"),
+				Category:    i18n.T("tui.category.projects"),
+				Priority:    40,
+				ViewID:      "project.wiki",
+				Modes:       modeProject,
+			},
+			shell.Command{
 				ID:          "project-config",
 				Label:       i18n.T("tui.cmd.project_config"),
 				Aliases:     []string{"config projet", "project config", "projet config"},

@@ -130,7 +130,16 @@ type CheckpointDef struct {
 	// L3: the agents that pass the checkpoint (workflow `by:`, or deduced
 	// from the delegation graph); oh warns when another agent passes it.
 	By []string `json:"by,omitempty"`
+
+	// LD-D: Wiki "sync" makes the checkpoint synchronize the wiki
+	// (doc-sync): its card shows the whole queue of the project, and when it
+	// is passed oh applies the accepted proposals and records the
+	// synchronization.
+	Wiki string `json:"wiki,omitempty"`
 }
+
+// WikiSync is the `wiki:` of a checkpoint that synchronizes the wiki.
+const WikiSync = "sync"
 
 // Operations a checkpoint unlocks (copied from the oh/v1 schema).
 const (

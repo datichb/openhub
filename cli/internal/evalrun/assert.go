@@ -22,6 +22,7 @@ const (
 	AssertHiddenTests          = "hidden_tests"            // the hidden tests pass on the clone
 	AssertNoDeniedLoop         = "no_denied_loop"          // a refused call is not retried in a loop
 	AssertTextMatches          = "text_matches"            // an agent wrote (or never wrote) a text
+	AssertCalled               = "called"                  // a tool was called (before an event)
 )
 
 // Assertion is a check of a case (`type:` and its parameters).
@@ -50,10 +51,17 @@ type Assertion struct {
 	Skill string `yaml:"skill" json:"skill,omitempty"`
 
 	// changed_within: Paths are globs (`**` = any directories); MaxFiles and
-	// MinFiles bound the number of changed files.
+	// MinFiles bound the number of changed files; each glob of Include
+	// matches at least one changed file.
 	Paths    []string `yaml:"paths" json:"paths,omitempty"`
 	MaxFiles int      `yaml:"max_files" json:"max_files,omitempty"`
 	MinFiles int      `yaml:"min_files" json:"min_files,omitempty"`
+	Include  []string `yaml:"include" json:"include,omitempty"`
+
+	// called: Tool is a pattern of the tool (`*` = any text: `mcp:wiki/propose`,
+	// `*wiki/propose`), restricted to Agent; refused calls left out; Absent
+	// inverts it.
+	Tool string `yaml:"tool" json:"tool,omitempty"`
 
 	// no_denied_loop: a refused call (permission rule, permission
 	// rejected, unknown skill) repeated more than MaxRepeats times (default
@@ -141,8 +149,12 @@ func (a Assertion) Validate() error {
 		if a.Skill == "" {
 			return errors.New("skill is required")
 		}
+	case AssertCalled:
+		if a.Tool == "" {
+			return errors.New("tool is required")
+		}
 	case AssertChangedWithin:
-		for _, p := range a.Paths {
+		for _, p := range append(append([]string(nil), a.Paths...), a.Include...) {
 			if _, err := path.Match(strings.ReplaceAll(p, "**", "*"), ""); err != nil {
 				return fmt.Errorf("path %q: %w", p, err)
 			}
@@ -180,8 +192,17 @@ func (a Assertion) Label() string {
 			s += " before " + a.Before.String()
 		}
 		return s
+	case AssertCalled:
+		s := "called " + a.Tool
+		if a.Absent {
+			s = "never called " + a.Tool
+		}
+		if a.Before != nil {
+			s += " before " + a.Before.String()
+		}
+		return s
 	case AssertChangedWithin:
-		if len(a.Paths) == 0 && a.MaxFiles == 0 && a.MinFiles == 0 {
+		if len(a.Paths) == 0 && a.MaxFiles == 0 && a.MinFiles == 0 && len(a.Include) == 0 {
 			return "no file changed"
 		}
 		return "changed within " + strings.Join(a.Paths, ", ")
@@ -247,6 +268,8 @@ func check(a Assertion, ev Evidence) (pass bool, detail string) {
 		return checkNoDeniedLoop(a, ev.Events)
 	case AssertTextMatches:
 		return checkText(a, ev.Events)
+	case AssertCalled:
+		return checkCalled(a, ev.Events)
 	}
 	return false, "unknown assertion type " + a.Type
 }
@@ -479,8 +502,20 @@ func checkSkillBefore(a Assertion, evs []sessionsvc.TraceEvent) (pass bool, deta
 }
 
 func checkChangedWithin(a Assertion, changed []string) (pass bool, detail string) {
-	// Without paths, max_files or min_files: nothing may change.
-	restrict := len(a.Paths) > 0 || (a.MaxFiles == 0 && a.MinFiles == 0)
+	// Without paths, max_files, min_files or include: nothing may change.
+	restrict := len(a.Paths) > 0 || (a.MaxFiles == 0 && a.MinFiles == 0 && len(a.Include) == 0)
+	for _, inc := range a.Include {
+		found := false
+		for _, f := range changed {
+			if globMatch(inc, f) {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return false, "no changed file matches " + inc
+		}
+	}
 	var outside []string
 	for _, f := range changed {
 		if !restrict {
@@ -574,6 +609,36 @@ func inputKey(e sessionsvc.TraceEvent) string {
 		}
 	}
 	return ""
+}
+
+// checkCalled: a tool call (not refused) of the pattern, before the anchor.
+func checkCalled(a Assertion, evs []sessionsvc.TraceEvent) (pass bool, detail string) {
+	anchor := anchorIndex(a.Before, evs)
+	limit := anchor
+	if limit < 0 {
+		limit = len(evs)
+	}
+	first := -1
+	for i, e := range evs {
+		if e.Kind == sessionsvc.TraceTool && !e.Denied && (a.Agent == "" || e.Agent == a.Agent) && wildcard(a.Tool, e.Tool) {
+			first = i
+			break
+		}
+	}
+	seenBefore := first >= 0 && first < limit
+	if a.Absent {
+		if seenBefore {
+			return false, fmt.Sprintf("called %s (event %d) before %s", evs[first].Tool, evs[first].Seq, a.Before.String())
+		}
+		return true, ""
+	}
+	switch {
+	case first < 0:
+		return false, "tool never called"
+	case !seenBefore:
+		return false, fmt.Sprintf("first call at event %d, after %s (event %d)", evs[first].Seq, a.Before.String(), evs[anchor].Seq)
+	}
+	return true, ""
 }
 
 func checkText(a Assertion, evs []sessionsvc.TraceEvent) (pass bool, detail string) {

@@ -71,3 +71,39 @@ func TestCheckpointCardWiki(t *testing.T) {
 	require.NoError(t, err)
 	assert.Len(t, list, 1)
 }
+
+// LD-D: the card of the checkpoint of doc-sync (`wiki: sync`) carries the
+// whole queue of the project; its user decides on every proposal.
+func TestCheckpointCardWikiSync(t *testing.T) {
+	st, err := sqlite.Open(filepath.Join(t.TempDir(), "oh.db"))
+	require.NoError(t, err)
+	t.Cleanup(func() { st.Close() })
+	ctx := context.Background()
+	_, err = st.DB().Exec(`INSERT INTO projects (id, name, path) VALUES ('p1','p1','/p1')`)
+	require.NoError(t, err)
+	bundles := t.TempDir()
+	require.NoError(t, os.MkdirAll(filepath.Join(bundles, "h1"), 0o755))
+	data, _ := json.Marshal(sessionspec.BundleSpec{Hash: "h1", Workflow: &sessionspec.WorkflowRuntime{ID: "doc-sync",
+		Checkpoints: []sessionspec.CheckpointDef{{ID: "cp-sync", Behaviors: map[string]string{"manuel": "pause"},
+			Unlocks: []string{sessionspec.UnlockCommit}, Wiki: sessionspec.WikiSync}}}})
+	require.NoError(t, os.WriteFile(filepath.Join(bundles, "h1", "bundle.json"), data, 0o644))
+	wk := &wiki.Service{Store: sqlite.NewWikiProposalStore(st)}
+	svc := &Service{Sessions: sqlite.NewSessionStore(st), Decisions: sqlite.NewDecisionStore(st), BundlesDir: bundles, Wiki: wk}
+	svc.UseCheckpoints(&checkpoint.Service{Sessions: svc.Sessions, States: sqlite.NewCheckpointStore(st), BundlesDir: bundles}, nil)
+	require.NoError(t, svc.Sessions.Create(ctx, &domain.Session{ID: "ses_sync", ProjectID: "p1", Status: domain.SessionStatusRunning, GroupKey: "g1", BundleHash: "h1", Mode: "manuel"}))
+	queued, err := wk.Propose(ctx, wiki.Filed{ProjectID: "p1", SessionID: "ses_review", Agent: "reviewer",
+		Proposal: wiki.Proposal{Page: "index.md", Content: "file d'attente", Tag: "INCERTAIN"}})
+	require.NoError(t, err)
+
+	d := &domain.Decision{SessionID: "ses_sync", Kind: domain.DecisionCheckpoint, ToolRef: "per_1",
+		Payload: domain.DecisionPayload{Data: map[string]any{checkpoint.DataCheckpoint: "cp-sync"}}}
+	require.NoError(t, svc.Raise(ctx, d))
+	card, err := svc.CheckpointCard(ctx, d.ID)
+	require.NoError(t, err)
+	assert.True(t, card.WikiCommit)
+	require.Len(t, card.Wiki, 1, "the queue of the project")
+	assert.Equal(t, queued.ID(), card.Wiki[0].ID())
+	p, err := svc.WikiDecide(ctx, "ses_sync", queued.ID(), wiki.ChoiceAccept, "")
+	require.NoError(t, err)
+	assert.Equal(t, domain.WikiAccepted, p.Status)
+}

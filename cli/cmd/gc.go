@@ -77,7 +77,7 @@ func (s gcStore) DeleteServer(ctx context.Context, gk string) error {
 
 func historyOf(r sqlite.HistoryRows) gc.History {
 	return gc.History{Sessions: r.Sessions, AgentEvents: r.AgentEvents, Decisions: r.Decisions,
-		UsageSessions: r.UsageSessions, UsageProxy: r.UsageProxy, BudgetExtra: r.BudgetExtra}
+		UsageSessions: r.UsageSessions, UsageProxy: r.UsageProxy, BudgetExtra: r.BudgetExtra, WikiProposals: r.WikiProposals}
 }
 
 func (s gcStore) CountHistory(ctx context.Context, c gc.Cutoffs) (gc.History, error) {
@@ -280,7 +280,7 @@ func printGCPlan(w io.Writer, plan gc.Report) {
 		}
 	}
 	if h := plan.History; h.Total() > 0 {
-		fmt.Fprintf(w, "  %s\n", i18n.Tf("cmd.gc.kind.history", h.Total(), h.Sessions, h.AgentEvents, h.Decisions, h.UsageSessions+h.UsageProxy+h.BudgetExtra))
+		fmt.Fprintf(w, "  %s\n", i18n.Tf("cmd.gc.kind.history", h.Total(), h.Sessions, h.AgentEvents, h.Decisions, h.UsageSessions+h.UsageProxy+h.BudgetExtra, h.WikiProposals))
 	}
 	for _, e := range plan.Errors {
 		fmt.Fprintf(w, "  %s %s\n", theme.WarningStyle.Render(theme.IconWarning), e)

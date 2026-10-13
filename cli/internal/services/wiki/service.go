@@ -263,18 +263,22 @@ func Summary(results []Result) (applied, failed []string) {
 
 // CommitPassed applies the accepted proposals of a session when its commit
 // checkpoint is passed (checkpoint.Service.CommitPassed): the line for the
-// agent and the proposals applied.
-func (s *Service) CommitPassed(ctx context.Context, sess *domain.Session, checkpoint string) (message string, applied []string) {
+// agent and the proposals applied. At the checkpoint of a synchronization
+// (`wiki: sync`, doc-sync), the accepted proposals of the whole queue of
+// the project are applied, and oh writes the commit the session started
+// from in the index (`synced:`), committed with the wiki.
+func (s *Service) CommitPassed(ctx context.Context, sess *domain.Session, checkpoint string, sync bool) (message string, applied []string) {
 	if s.Store == nil || sess == nil || sess.LaunchPath == "" {
 		return "", nil
 	}
-	results, err := s.ApplyAccepted(ctx, sess.LaunchPath, sess.ProjectID, sess.ID)
+	scope := sess.ID
+	if sync {
+		scope = ""
+	}
+	results, err := s.ApplyAccepted(ctx, sess.LaunchPath, sess.ProjectID, scope)
 	if err != nil {
 		slog.Warn("wiki: accepted proposals not applied", "session", sess.ID, "checkpoint", checkpoint, "error", err)
-		return "", nil
-	}
-	if len(results) == 0 {
-		return "", nil
+		results = nil
 	}
 	var ids []string
 	for _, r := range results {
@@ -283,7 +287,9 @@ func (s *Service) CommitPassed(ctx context.Context, sess *domain.Session, checkp
 		}
 	}
 	pages, failed := Summary(results)
-	slog.Info("wiki: accepted proposals applied", "session", sess.ID, "checkpoint", checkpoint, "applied", ids, "failed", failed)
+	if len(results) > 0 {
+		slog.Info("wiki: accepted proposals applied", "session", sess.ID, "checkpoint", checkpoint, "applied", ids, "failed", failed)
+	}
 	var lines []string
 	if len(ids) > 0 {
 		files := make([]string, len(pages))
@@ -295,5 +301,35 @@ func (s *Service) CommitPassed(ctx context.Context, sess *domain.Session, checkp
 	if len(failed) > 0 {
 		lines = append(lines, i18n.Tf("wiki.commit.failed", strings.Join(failed, " ; ")))
 	}
+	if sync {
+		if line := s.markSync(ctx, sess); line != "" {
+			lines = append(lines, line)
+		}
+	}
 	return strings.Join(lines, "\n"), ids
+}
+
+// markSync writes the synchronization of a doc-sync session in the index:
+// the commit it started from (the commits it was shown).
+func (s *Service) markSync(ctx context.Context, sess *domain.Session) string {
+	commit := strings.TrimSpace(sess.StartRef)
+	if commit == "" {
+		commit = HeadCommit(ctx, sess.LaunchPath)
+	}
+	if commit == "" {
+		return ""
+	}
+	ok, err := SetSyncMarker(sess.LaunchPath, commit, s.now())
+	if err != nil || !ok {
+		slog.Warn("wiki: synchronization not recorded", "session", sess.ID, "commit", commit, "error", err)
+		return ""
+	}
+	return i18n.Tf("wiki.commit.synced", shortSHA(commit), Dir+"/"+IndexPage)
+}
+
+func shortSHA(c string) string {
+	if len(c) > 12 {
+		return c[:12]
+	}
+	return c
 }

@@ -11,8 +11,9 @@
 //     it on the card of the commit checkpoint and oh applies it;
 //   - wiki_pending  the proposals waiting (of the project, or the session);
 //   - wiki_apply    {ids}: applies proposals (documentarian only);
-//   - wiki_check    checks the wiki (frontmatter, links, tags, freshness,
-//     god nodes).
+//   - wiki_check    {[paths, base, head, since_sync]}: checks the wiki
+//     (frontmatter, links, tags, freshness, god nodes); restricted to a
+//     change, the drift of the pages it does not update (LD-H, LD-D).
 //
 // The server holds no state: everything goes to the oh daemon, for the
 // session that calls the tool. Without the daemon, a proposal is not
@@ -43,7 +44,7 @@ type Backend interface {
 	WikiPropose(ctx context.Context, req daemon.WikiProposeRequest) (daemon.WikiProposal, error)
 	WikiPending(ctx context.Context, toolSession string, sessionOnly bool) ([]daemon.WikiProposal, error)
 	WikiApply(ctx context.Context, toolSession string, ids []string) ([]wikisvc.Result, error)
-	WikiCheck(ctx context.Context, toolSession string) (wikisvc.CheckReport, error)
+	WikiCheck(ctx context.Context, toolSession string, opts wikisvc.CheckOptions) (wikisvc.CheckReport, error)
 }
 
 // Serve runs the server on stdio against the oh daemon, with the token of
@@ -99,7 +100,12 @@ func New(b Backend) *protocol.Server {
 	s.RegisterTool(protocol.Tool{
 		Name:        sessionspec.WikiToolCheck,
 		Description: i18n.T("cmd.mcp.wiki.check_desc"),
-		InputSchema: map[string]any{"type": "object", "properties": map[string]any{}},
+		InputSchema: map[string]any{"type": "object", "properties": map[string]any{
+			"paths":      map[string]any{"type": "array", "items": map[string]any{"type": "string"}, "description": i18n.T("cmd.mcp.wiki.paths")},
+			"base":       str("cmd.mcp.wiki.base"),
+			"head":       str("cmd.mcp.wiki.head"),
+			"since_sync": map[string]any{"type": "boolean", "description": i18n.T("cmd.mcp.wiki.since_sync")},
+		}},
 	}, h.check)
 	return s
 }
@@ -290,12 +296,18 @@ func (h handlers) apply(ctx context.Context, params json.RawMessage) (*protocol.
 	return text(strings.TrimRight(b.String(), "\n")), nil
 }
 
-func (h handlers) check(ctx context.Context, _ json.RawMessage) (*protocol.ToolResult, error) {
+func (h handlers) check(ctx context.Context, params json.RawMessage) (*protocol.ToolResult, error) {
+	var in wikisvc.CheckOptions
+	if len(params) > 0 {
+		if err := json.Unmarshal(params, &in); err != nil {
+			return nil, errors.New(i18n.T("cmd.mcp.wiki.check_params"))
+		}
+	}
 	id, err := session(ctx)
 	if err != nil {
 		return nil, err
 	}
-	rep, err := h.b.WikiCheck(ctx, id)
+	rep, err := h.b.WikiCheck(ctx, id, in)
 	if err != nil {
 		return nil, unavailable(err)
 	}
@@ -305,6 +317,9 @@ func (h handlers) check(ctx context.Context, _ json.RawMessage) (*protocol.ToolR
 // CheckText renders a check report, at most limit issues (0: all).
 func CheckText(rep wikisvc.CheckReport, limit int) string {
 	var b strings.Builder
+	if sc := rep.Scope; sc != nil {
+		writeScope(&b, sc, limit)
+	}
 	fmt.Fprintf(&b, "%s\n", i18n.Tf("cmd.mcp.wiki.check_summary", rep.Pages, rep.Errors(), len(rep.Issues)-rep.Errors()))
 	for i, is := range rep.Issues {
 		if limit > 0 && i == limit {
@@ -326,6 +341,60 @@ func CheckText(rep wikisvc.CheckReport, limit int) string {
 		fmt.Fprintf(&b, "%s %s · %s · %s%s\n", mark, loc, is.Kind, is.Message, fix)
 	}
 	return strings.TrimRight(b.String(), "\n")
+}
+
+// writeScope renders the change a check is restricted to: its origin, its
+// commits, the files and the pages concerned.
+func writeScope(b *strings.Builder, sc *wikisvc.CheckScope, limit int) {
+	head := sc.Head
+	if head == "" {
+		head = i18n.T("cmd.mcp.wiki.scope_worktree")
+	}
+	switch sc.From {
+	case wikisvc.FromPaths:
+		fmt.Fprintf(b, "%s\n", i18n.Tf("cmd.mcp.wiki.scope_paths", len(sc.Changed)))
+	case wikisvc.FromNoHistory:
+		fmt.Fprintf(b, "%s\n", i18n.T("cmd.mcp.wiki.scope_none"))
+	default:
+		key := "cmd.mcp.wiki.scope_range"
+		switch sc.From {
+		case wikisvc.FromSync:
+			key = "cmd.mcp.wiki.scope_sync"
+		case wikisvc.FromWikiEdit:
+			key = "cmd.mcp.wiki.scope_last_wiki_commit"
+		}
+		fmt.Fprintf(b, "%s\n", i18n.Tf(key, short(sc.Base), short(head), len(sc.Commits)+sc.MoreCommits, len(sc.Changed)))
+	}
+	for i, c := range sc.Commits {
+		if limit > 0 && i == limit {
+			fmt.Fprintf(b, "  %s\n", i18n.Tf("cmd.mcp.wiki.pending_more", len(sc.Commits)-i+sc.MoreCommits))
+			break
+		}
+		fmt.Fprintf(b, "  %s %s\n", c.SHA, c.Subject)
+	}
+	if sc.MoreCommits > 0 && (limit == 0 || len(sc.Commits) <= limit) {
+		fmt.Fprintf(b, "  %s\n", i18n.Tf("cmd.mcp.wiki.pending_more", sc.MoreCommits))
+	}
+	files := sc.Changed
+	if limit > 0 && len(files) > limit {
+		files = files[:limit]
+	}
+	if len(files) > 0 {
+		fmt.Fprintf(b, "%s\n", i18n.Tf("cmd.mcp.wiki.scope_files", strings.Join(files, ", ")))
+	}
+	if len(sc.Pages) > 0 {
+		fmt.Fprintf(b, "%s\n", i18n.Tf("cmd.mcp.wiki.scope_pages", strings.Join(sc.Pages, ", ")))
+	} else {
+		fmt.Fprintf(b, "%s\n", i18n.T("cmd.mcp.wiki.scope_no_page"))
+	}
+	b.WriteString("\n")
+}
+
+func short(c string) string {
+	if len(c) > 12 && !strings.ContainsAny(c, " /") {
+		return c[:12]
+	}
+	return c
 }
 
 // proposalLine renders a proposal on one line (its content is a datum

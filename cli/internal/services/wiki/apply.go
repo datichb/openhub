@@ -226,7 +226,7 @@ func setFrontmatter(text string, set map[string]string) string {
 		}
 	}
 	var extra []string
-	for _, k := range []string{"updated", "confidence", "agents"} {
+	for _, k := range []string{"updated", "confidence", "agents", "synced"} {
 		if v, ok := set[k]; ok && !done[k] {
 			extra = append(extra, k+": "+v)
 		}

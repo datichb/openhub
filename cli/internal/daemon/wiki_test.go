@@ -127,7 +127,15 @@ func TestWikiRoutes(t *testing.T) {
 	var rep wiki.CheckReport
 	require.Equal(t, http.StatusOK, wikiDo(t, h, http.MethodGet, "/wiki/check?tool_session=ses_rev", "", &rep))
 	assert.Equal(t, 2, rep.Pages)
+	assert.Nil(t, rep.Scope)
 
+	// LD-H: restricted to the files of a change; a bad ref is refused.
+	rep = wiki.CheckReport{}
+	require.Equal(t, http.StatusOK, wikiDo(t, h, http.MethodGet, "/wiki/check?tool_session=ses_rev&path=package.json&path=src/a.go", "", &rep))
+	require.NotNil(t, rep.Scope)
+	assert.Equal(t, []string{"package.json", "src/a.go"}, rep.Scope.Changed)
+	assert.Contains(t, rep.Scope.Pages, "technical/stack.md", "its tag cites package.json")
+	assert.Equal(t, http.StatusUnprocessableEntity, wikiDo(t, h, http.MethodGet, "/wiki/check?tool_session=ses_rev&base=-x", "", nil))
 	// Without the wiki service: not served.
 	d.opts.Wiki = nil
 	assert.Equal(t, http.StatusServiceUnavailable, wikiDo(t, h, http.MethodGet, "/wiki/index?tool_session=ses_rev", "", nil))

@@ -72,7 +72,7 @@ Dans cet ordre, une étape après l'autre. ⛔ **Aucun `read` d'un fichier de co
 
 8. Ticket mentionné → `bd show <ID>` (section « Contexte Beads » du `review-protocol`) ; puis la checklist systématique et la calibration du `review-protocol`.
 
-9. **Scope (OBLIGATOIRE avant le rapport) :** chaque finding 🔴/🟠/🟡, sauf ceux de la vérification, pointe un fichier du périmètre (2c) et une ligne d'une hunk modifiée, sinon il passe en `🔍 Hors scope` ; un finding ≤ 2/5 n'est jamais 🔴/🟠.
+9. **Scope (OBLIGATOIRE avant le rapport) :** chaque finding 🔴/🟠/🟡, sauf ceux de la vérification et de l'axe documentation, pointe un fichier du périmètre (2c) et une ligne d'une hunk modifiée, sinon il passe en `🔍 Hors scope` ; un finding ≤ 2/5 n'est jamais 🔴/🟠.
 
 10. **Rapport** au format du `review-protocol` (Walkthrough → Résumé → Périmètre → Vérification → Corrections [🔴→🟠→🟡] → Observations [💡→✅→🔍]), puis sa checklist d'auto-vérification, corrigée si besoin.
 

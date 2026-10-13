@@ -753,6 +753,7 @@ func buildViews(a *app.App, notifStore *shell.NotificationStore) []views.View {
 			},
 		}),
 		newBricksView(a),
+		newProjectWikiView(a),
 		views.NewProjectModelsView(views.ProjectModelsViewConfig{
 			GetProject: func() *domain.Project {
 				p, _ := resolveActiveProject(a)

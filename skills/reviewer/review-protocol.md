@@ -140,7 +140,7 @@ Rapport de review complet toujours produit, même propre : au minimum `### Walkt
 3. [ ] **Fichiers exclus** — aucun finding sur un fichier exclu, sauf faille de sécurité
 4. [ ] **Conventions** — les conventions du projet ont été lues (ou leur absence est signalée dans `### Périmètre et contexte`), et aucun finding ne les contredit sans justification sécurité explicite
 <!-- oh:when wiki -->
-5. [ ] **God nodes** — les god nodes touchés par des fichiers modifiés ont été vérifiés via les pages wiki liées ; aucun finding ne contredit un pattern intentionnel de `review-rules.md`
+5. [ ] **God nodes** — les god nodes touchés par des fichiers modifiés ont été vérifiés via les pages wiki liées ; aucun finding ne contredit un pattern intentionnel de `review-rules.md` ; chaque dérive de `wiki_check` (axe documentation) est un finding 🟡
 <!-- /oh:when -->
 6. [ ] **Résumé factuel** — résumé et walkthrough décrivent le diff, pas l'état général du code
 7. [ ] **Cohérence score/sévérité** — aucun finding ≤ 2/5 n'est 🔴 ou 🟠

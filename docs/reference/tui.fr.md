@@ -167,6 +167,7 @@ Sections : **À traiter** (sessions qui ont des décisions en attente, chacune s
 | Commande | Alias | Mode | Description |
 |----------|-------|------|-------------|
 | Board Projet | `board`, kanban, tasks, project board | Projet | Kanban du projet actif |
+| Wiki du projet | `project-wiki`, wiki, wiki projet, project wiki, doc metrics | Projet | Métriques du wiki (`docs/wiki/`), calculées par oh : couverture des domaines, âge médian des pages, part de `INCERTAIN`, propositions en attente, dernière synchronisation (`doc-sync`) ; `r` recalcule. Aussi dans la section Projet du mode Projet (📚 Wiki) |
 | Init Board | `board.init`, beads init, init board, init tickets | — | Initialiser Beads dans le projet |
 | Projets | `projects`, proj, list | — | Liste des projets |
 | Ajouter un projet | `project.add`, project add, add project, nouveau projet | — | Assistant d'ajout de projet |

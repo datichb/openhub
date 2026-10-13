@@ -9,9 +9,10 @@ import (
 )
 
 // HistoryStore counts and deletes the history past its retention (oh gc,
-// N16): stopped sessions, agent events and settled decisions older than
-// the history cutoff; usage ledger and budget raises older than the usage
-// cutoff. Deletions go by batches of historyBatch rows.
+// N16): stopped sessions, agent events, settled decisions and closed wiki
+// proposals (applied or refused, LD-J) older than the history cutoff;
+// usage ledger and budget raises older than the usage cutoff. Deletions go
+// by batches of historyBatch rows.
 type HistoryStore struct{ db *sql.DB }
 
 // NewHistoryStore creates a HistoryStore.
@@ -22,6 +23,7 @@ const historyBatch = 500
 // HistoryRows counts rows per table.
 type HistoryRows struct {
 	Sessions, AgentEvents, Decisions, UsageSessions, UsageProxy, BudgetExtra int
+	WikiProposals                                                            int
 }
 
 // oldIDs returns the ids of a table whose time column is before cutoff
@@ -64,7 +66,26 @@ const (
 	oldSessionsQuery  = `SELECT id, ended_at, state_changed_at, started_at FROM sessions WHERE state = 'stopped'`
 	oldEventsQuery    = `SELECT id, started_at FROM agent_events`
 	oldDecisionsQuery = `SELECT id, resolved_at FROM pending_decisions WHERE resolved_at IS NOT NULL`
+	// The last proposal of a project stays: its number is the next one's
+	// base (a purged number is never given again).
+	oldWikiQuery = `SELECT project_id || char(31) || seq, applied_at, decided_at, created_at FROM wiki_proposals
+		WHERE status IN ('applied', 'refused') AND seq < (SELECT MAX(w.seq) FROM wiki_proposals w WHERE w.project_id = wiki_proposals.project_id)`
 )
+
+// deleteWiki removes the closed wiki proposals of ids (project US seq).
+func (h *HistoryStore) deleteWiki(ctx context.Context, ids []string) (int, error) {
+	n := 0
+	for _, id := range ids {
+		project, seq, _ := strings.Cut(id, "\x1f")
+		res, err := h.db.ExecContext(ctx, `DELETE FROM wiki_proposals WHERE project_id = ? AND seq = ? AND status IN ('applied', 'refused')`, project, seq)
+		if err != nil {
+			return n, fmt.Errorf("deleting old wiki proposals: %w", err)
+		}
+		k, _ := res.RowsAffected()
+		n += int(k)
+	}
+	return n, nil
+}
 
 func (h *HistoryStore) countDays(ctx context.Context, table, day string) (int, error) {
 	var n int
@@ -85,8 +106,12 @@ func (h *HistoryStore) Count(ctx context.Context, history, usage time.Time) (His
 		}
 		*q.n = len(ids)
 	}
+	wiki, err := h.oldIDs(ctx, oldWikiQuery, history)
+	if err != nil {
+		return r, err
+	}
+	r.WikiProposals = len(wiki)
 	day := usage.UTC().Format("2006-01-02")
-	var err error
 	if r.UsageSessions, err = h.countDays(ctx, "usage_sessions", day); err != nil {
 		return r, err
 	}
@@ -122,6 +147,13 @@ func (h *HistoryStore) Delete(ctx context.Context, history, usage time.Time) (Hi
 			n, _ := res.RowsAffected()
 			*q.n += int(n)
 		}
+	}
+	wiki, err := h.oldIDs(ctx, oldWikiQuery, history)
+	if err != nil {
+		return r, err
+	}
+	if r.WikiProposals, err = h.deleteWiki(ctx, wiki); err != nil {
+		return r, err
 	}
 	day := usage.UTC().Format("2006-01-02")
 	for _, t := range []struct {

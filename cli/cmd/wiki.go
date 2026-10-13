@@ -40,6 +40,18 @@ func init() {
 	}
 	check.Flags().Bool("fix", false, i18n.T("cmd.wiki.check.flags.fix"))
 	check.Flags().Bool("json", false, i18n.T("cmd.wiki.check.flags.json"))
+	check.Flags().StringSlice("path", nil, i18n.T("cmd.wiki.check.flags.path"))
+	check.Flags().String("base", "", i18n.T("cmd.wiki.check.flags.base"))
+	check.Flags().String("head", "", i18n.T("cmd.wiki.check.flags.head"))
+	check.Flags().Bool("since-sync", false, i18n.T("cmd.wiki.check.flags.since_sync"))
+	stats := &cobra.Command{
+		Use:   "stats [dir]",
+		Short: i18n.T("cmd.wiki.stats.short"),
+		Long:  i18n.T("cmd.wiki.stats.long"),
+		Args:  cobra.MaximumNArgs(1),
+		RunE:  runWikiStats,
+	}
+	stats.Flags().Bool("json", false, i18n.T("cmd.wiki.check.flags.json"))
 	pending := &cobra.Command{
 		Use:   "pending [dir]",
 		Short: i18n.T("cmd.wiki.pending.short"),
@@ -50,7 +62,7 @@ func init() {
 	pending.Flags().Bool("all", false, i18n.T("cmd.wiki.pending.flags.all"))
 	pending.Flags().String("session", "", i18n.T("cmd.wiki.pending.flags.session"))
 	pending.Flags().Bool("json", false, i18n.T("cmd.wiki.pending.flags.json"))
-	wikiCmd.AddCommand(withInitLevel(check, levelNone), withInitDB(pending))
+	wikiCmd.AddCommand(withInitLevel(check, levelNone), withInitDB(pending), withInitDB(stats))
 	rootCmd.AddCommand(wikiCmd)
 }
 
@@ -94,7 +106,12 @@ func runWikiCheck(cmd *cobra.Command, args []string) error {
 			fmt.Fprintln(out, i18n.Tf("cmd.wiki.check.fixed", strings.Join(res.Pages, ", ")))
 		}
 	}
-	rep, err := wiki.Check(cmd.Context(), root, nil)
+	var opts wiki.CheckOptions
+	opts.Paths, _ = cmd.Flags().GetStringSlice("path")
+	opts.Base, _ = cmd.Flags().GetString("base")
+	opts.Head, _ = cmd.Flags().GetString("head")
+	opts.SinceSync, _ = cmd.Flags().GetBool("since-sync")
+	rep, err := wiki.CheckWith(cmd.Context(), root, opts, nil)
 	if err != nil {
 		return wikiError(root, err)
 	}
@@ -117,6 +134,56 @@ func runWikiCheck(cmd *cobra.Command, args []string) error {
 		return errWikiCheck
 	}
 	return nil
+}
+
+// runWikiStats prints the metrics of the wiki (LD-I): coverage of the
+// domains, median age of the pages, share of INCERTAIN, proposals waiting.
+func runWikiStats(cmd *cobra.Command, args []string) error {
+	ctx := cmd.Context()
+	root, err := wikiRoot(args)
+	if err != nil {
+		return err
+	}
+	svc := newWikiService()
+	projectID := ""
+	if a := application; a != nil && a.Projects != nil {
+		projectID, _ = wikiProject(ctx, root, func(ctx context.Context, path string) (string, error) {
+			p, err := a.Projects.GetByPath(ctx, path)
+			if err != nil {
+				return "", err
+			}
+			return p.ID, nil
+		})
+	}
+	m, err := svc.Metrics(ctx, root, projectID)
+	if err != nil {
+		return wikiError(root, err)
+	}
+	out := cmd.OutOrStdout()
+	if asJSON, _ := cmd.Flags().GetBool("json"); asJSON {
+		return writeIndentedJSON(out, m)
+	}
+	printWikiMetrics(out, m)
+	return nil
+}
+
+func printWikiMetrics(w io.Writer, m wiki.Metrics) {
+	fmt.Fprintln(w, i18n.Tf("cmd.wiki.stats.pages", m.Pages, m.ByKind[wiki.KindSpec], m.ByKind[wiki.KindDecision], m.ByKind[wiki.KindPostmortem]))
+	fmt.Fprintln(w, i18n.Tf("cmd.wiki.stats.domains", m.DomainsCovered, m.Domains, int(m.Coverage()*100+0.5)))
+	if len(m.Uncovered) > 0 {
+		fmt.Fprintln(w, "  "+i18n.Tf("cmd.wiki.stats.uncovered", strings.Join(m.Uncovered, ", ")))
+	}
+	fmt.Fprintln(w, i18n.Tf("cmd.wiki.stats.age", m.MedianAgeDays, m.Dated, m.Oldest, m.OldestDays))
+	fmt.Fprintln(w, i18n.Tf("cmd.wiki.stats.tags", int(m.UncertainShare()*100+0.5), m.Tags[wiki.TagUncertain], m.TaggedEnrichments(),
+		m.Tags[wiki.TagConfirmed], m.Tags[wiki.TagDeduced]))
+	if m.Pending < 0 {
+		fmt.Fprintln(w, i18n.T("cmd.wiki.stats.no_queue"))
+	} else {
+		fmt.Fprintln(w, i18n.Tf("cmd.wiki.stats.pending", m.Pending, m.Accepted))
+	}
+	if m.Synced != "" {
+		fmt.Fprintln(w, i18n.Tf("cmd.wiki.stats.synced", m.Synced))
+	}
 }
 
 func wikiError(root string, err error) error {

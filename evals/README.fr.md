@@ -34,6 +34,7 @@ answers:
   checkpoints: { cp-2: approve, "*": approve }   # approve | fix | reject | other, « : message » en option
   permission: once          # once | reject
   question: first           # première option, ou une réponse libre
+  wiki: accept              # propositions du wiki de la carte d'un checkpoint de commit : accept | refuse | pending (défaut : laissées en file)
 assertions:
   - type: ran
     command: "git commit*"
@@ -61,6 +62,8 @@ Les assertions sont décrites dans la [référence d'`oh eval`](../docs/referenc
 | S8 | ticket | Rapports non enregistrés (`reports: off`) : developer et reviewer incluent leur rapport complet dans le bloc |
 | S9 | sweep | Les retours de developer et reviewer s'adressent à `conductor` |
 | S10 | quick | Une décision sur les données est posée en « Questions bloquantes », pas via `question` |
+| S11 | ticket | Projet avec wiki : une proposition `wiki_propose` est acceptée à la carte de `cp-2`, appliquée par oh et commitée avec le code |
+| S12 | doc-sync | Une page `CONFIRMÉ` en dérive est corrigée ; oh note la synchronisation ; seul le wiki est commité, après `cp-sync` |
 
 La mesure de référence (Haiku, trois répétitions) est enregistrée dans `cli/internal/evalrun/testdata/evals/baseline.json` ; `make test-eval` la compare au passage courant.
 

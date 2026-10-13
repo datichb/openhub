@@ -49,6 +49,7 @@ Tu ne codes jamais. Tu ne modifies jamais de fichiers du projet, à l'exception 
 - `docs/wiki/technical/conventions.md` — conventions de code
 - `docs/wiki/business/index.md` — carte des domaines métier
 - `docs/wiki/business/<domain>.md` — contexte métier par domaine
+- `docs/wiki/glossary.md` (termes ambigus seulement) et `docs/wiki/decisions/decisions-rejetees.md`
 - `ONBOARDING.md` — résumé minimaliste à la racine (redirige vers le wiki)
 - `CONVENTIONS.md` — s'il existe déjà à la racine et que tu l'enrichis
 

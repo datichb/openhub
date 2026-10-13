@@ -30,15 +30,24 @@ doivent la vérifier.
 ```
 docs/wiki/
 ├── index.md                    ← carte globale obligatoire — toujours lue en premier
+├── glossary.md                 ← termes du domaine
 ├── technical/
 │   ├── architecture.md         ← patterns dominants, découpage, décisions structurantes
 │   ├── stack.md                ← stack complète, versions, librairies clés
 │   ├── tests.md                ← stratégie, conventions, seuils, frameworks
 │   └── conventions.md          ← nommage, git, linting, config, patterns équipe
-└── business/
-    ├── index.md                ← carte des domaines métier
-    └── <domain>.md             ← règles de gestion, flux, entités, risques
+├── business/
+│   ├── index.md                ← carte des domaines métier
+│   └── <domain>.md             ← règles de gestion, flux, entités, risques
+├── specs/                      ← spécifications (workflow spec)
+├── decisions/                  ← ADR et decisions-rejetees.md
+└── postmortems/                ← un incident par page
 ```
+
+**Un seul référentiel (LD-F)** : specs, glossaire, décisions et postmortems vivent dans le wiki, pas à côté.
+`wiki_check` signale une page hors de cette arborescence (`layout`, avertissement) ; les pages de `specs/`,
+`decisions/` et `postmortems/` consignent des décisions ou des faits datés : leur frontmatter est vérifié, pas leurs
+tags de confiance.
 
 À la racine du projet :
 ```
@@ -99,10 +108,14 @@ Un concept devient un **god node** quand il apparaît dans ≥ 2 pages wiki dist
 **oh les calcule** à partir des pages (service wiki, `cli/internal/services/wiki/`) ; aucun agent ne les recompte :
 
 1. Concepts candidats : ceux que la table de `index.md` déclare, puis ceux que les pages mettent en avant
-   (terme en **gras** d'un à cinq mots, hors libellé terminé par deux-points ; identifiant en code qui mêle
-   majuscules et minuscules, comme `AuthService` ou `useCart`).
-2. Une page cite un concept quand elle le nomme comme mot entier (sans tenir compte de la casse) ou, pour un
-   concept déclaré, quand la table la lie.
+   (terme en **gras** d'un à cinq mots ; identifiant en code qui mêle majuscules et minuscules, comme
+   `AuthService` ou `useCart`). Le bruit est écarté : libellé (`**Note** :`, `**Règle :**`), phrase en gras,
+   mot d'insistance (**jamais**, **Important**…), nom de produit ou de langage (`TypeScript`, `GitHub`…). Dans
+   le glossaire, un terme défini (`**Panier** : …`) est un candidat.
+2. Une page cite un concept quand elle le nomme comme mot entier (sans tenir compte de la casse), hors des
+   métadonnées de ses tags (agent, date, source) et des cibles de ses liens, ou, pour un concept déclaré, quand la
+   table la lie. Les cartes du wiki (`index.md`, l'index d'un dossier, `glossary.md`) ne comptent pas : elles
+   nomment tous les concepts.
 3. Si ≥ 2 pages : god node. Les concepts déclarés gardent leur ordre, puis viennent les autres, par nombre de pages.
 4. Criticité : `Critique` (≥ 4 pages, cité dans « Points critiques actifs » ou déclaré `Critique`), `Haute`
    (3 pages ou déclaré `Haute`), `Normale` (2 pages).
@@ -148,7 +161,7 @@ flowchart LR
    l'agent : elles sont donc committées avec le code. L'application est tracée (statut `applied`, `applied_by: oh`,
    date, entrée `✎` dans la chronologie) et l'agent reçoit la liste des fichiers à committer.
 4. Les workflows sans commit (`audit`, `review`, `benchmark`, `infra-change`…) laissent leurs propositions en file
-   (`oh wiki pending`), pour le futur workflow `doc-sync`.
+   (`oh wiki pending`), pour le workflow `doc-sync`.
 
 **Pourquoi oh applique, et non le documentarian.** Le `documentarian` n'est membre (`independent`) que de
 `feature`, `ticket` et `debug`, jamais de `quick`, `sweep` ni `review-feedback`. Le lancer depuis oh demanderait un
@@ -164,7 +177,7 @@ source), met à jour le frontmatter (`updated`, `agents`, `confidence`) et recal
 | `wiki_propose(page, contenu, tag, source)` | Met une proposition en file ; fonctionne aussi dans les workflows en lecture seule | Tous les agents |
 | `wiki_pending` | Propositions en attente (projet ou session) | Coordinateurs |
 | `wiki_apply(ids)` | Applique des propositions | **documentarian seulement**, soumis à l'utilisateur |
-| `wiki_check` | Frontmatter, liens, tags, fraîcheur, god nodes | Tous les agents, `oh wiki check` |
+| `wiki_check([paths, base, head, since_sync])` | Frontmatter, liens, tags, fraîcheur, arborescence, god nodes ; restreint à un changement : pages concernées et dérive | Tous les agents, `oh wiki check` |
 
 Le serveur est injecté dans les paquets construits depuis un workflow, pour un projet qui a un `docs/wiki/`. Sans
 démon, `wiki_propose` répond « non enregistrée » et l'agent garde la proposition dans son rapport.
@@ -177,6 +190,55 @@ lignes de tag au format `` — `TAG` · agent · AAAA-MM-JJ[ · source] `` (une 
 **fraîcheur** (page dont `updated` est antérieur au dernier commit d'un fichier qu'elle cite, en source de tag ou en
 lien hors du wiki ; fichier cité absent) et god nodes (table de l'index face au calcul). Les erreurs donnent un code
 de sortie non nul ; `--fix` recalcule la confiance des pages et la table des god nodes.
+
+### Dérive d'un changement : axe documentation du reviewer (LD-H)
+
+`wiki_check` restreint à un changement (`paths`, ou `base` et `head`, ou `since_sync`) répond, de façon déterministe :
+les problèmes des pages du wiki que le changement modifie, les **pages concernées** (celles qui citent un fichier
+modifié, en source de tag ou en lien, ou qui portent un god node touché) et deux dérives :
+
+- `drift_confirmed` : une page affirme en `CONFIRMÉ` (tag dont la source est le fichier, ou page `confidence:
+  confirmed` qui le cite) ce qu'un fichier modifié dit désormais, et le changement ne la met pas à jour ;
+- `drift_god_node` : un fichier modifié touche un god node (son nom est celui du concept, `AuthService` et
+  `src/auth_service.go`, ou une page du god node le cite sur une ligne qui nomme le concept), et aucune page du god
+  node n'est mise à jour.
+
+Le `reviewer` appelle `wiki_check` avec la base et la branche de la review ; chaque dérive devient un finding 🟡
+« Documentation » sur la page du wiki (seule exception à sa règle « pas de finding hors du diff »).
+
+### Synchronisation : workflow `doc-sync` (LD-D)
+
+`oh run doc-sync` (agent d'entrée : `documentarian`) rattrape le wiki sur le code et vide la file :
+
+1. `wiki_check` avec `since_sync` : commits depuis la dernière synchronisation, fichiers modifiés, pages concernées
+   et dérives ;
+2. le `documentarian` met à jour ces pages (revérifié dans le code : `CONFIRMÉ` avec `fichier:ligne`) ;
+3. `wiki_pending` : il vérifie chaque proposition en file et prépare sa recommandation ;
+4. checkpoint `cp-sync` (une pause, obligatoire, `unlocks: [commit]`, `wiki: sync`) : la carte montre **toute la
+   file du projet** ; l'utilisateur accepte, modifie ou refuse chaque proposition ;
+5. au passage, oh applique les propositions acceptées et note la synchronisation ; le `documentarian` commite le
+   wiki seul.
+
+**Où est mémorisée la dernière synchronisation ?** Dans le dépôt, champ `synced:` du frontmatter de
+`docs/wiki/index.md` (le commit dont la session est partie), écrit par oh et commité avec le wiki. Pas dans la base
+d'oh : la marque voyage avec la branche, un clone et les autres membres d'une équipe lisent la même, et elle reste en
+phase avec les pages qu'elle décrit (une branche non synchronisée garde l'ancienne). Si elle manque ou n'est plus
+atteignable (historique réécrit), oh prend le dernier commit qui a modifié `docs/wiki/` ; un wiki jamais commité
+n'a rien à synchroniser.
+
+### Métriques (LD-I)
+
+Calculées par oh (`oh wiki stats`, vue « Wiki » du mode projet de la TUI) : **couverture des domaines** (pages
+`business/<domaine>.md` et domaines de la carte de l'index ; un domaine est couvert quand sa page existe et porte au
+moins un enrichissement tagué), **âge médian des pages** (jours depuis `updated`, avec la plus ancienne), **part de
+`INCERTAIN`** parmi les enrichissements tagués, **propositions en attente** (en file, acceptées non appliquées) et
+dernière synchronisation.
+
+### Purge
+
+`oh gc` supprime, passé la rétention de l'historique (`[gc] history_days`), les propositions appliquées ou refusées ;
+celles en attente restent, comme la dernière de chaque projet (son numéro sert de base au suivant : un numéro `wp-…`
+n'est jamais redonné).
 
 ### Re-onboarding
 
@@ -213,8 +275,8 @@ Si `docs/wiki/index.md` existe déjà, l'`onboarder` propose (entrée `refresh` 
   ([ADR-043](./adr/043-session-bundle-deploy-removal.fr.md)). Le wiki lui-même n'est pas intégré : les agents le
   lisent à la demande, avec `wiki-navigation`. D'où un `ONBOARDING.md` court qui renvoie au wiki.
 - **Écritures** : l'`onboarder` et le `documentarian` écrivent le wiki dans le dossier de travail de la session
-  (projet ou worktree). oh n'y écrit que les propositions validées par l'utilisateur à la carte du commit, et la
-  table des god nodes qu'il calcule.
+  (projet ou worktree). oh n'y écrit que les propositions validées par l'utilisateur à la carte du commit, la
+  table des god nodes qu'il calcule et la marque `synced:` de `doc-sync`.
 - **Enrichissement** : tous les agents proposent avec `wiki_propose` ; plus aucune délégation directe au
   `documentarian`. Les propositions des workflows sans commit restent en file.
 - **Index injecté** : au niveau `index` (L7), l'index du wiki et les god nodes calculés par oh entrent dans le prompt.

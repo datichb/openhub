@@ -98,6 +98,10 @@ type Answers struct {
 	Question string `yaml:"question" json:"question,omitempty"`
 	// MaxDecisions bounds the decisions answered in one pass (default 40).
 	MaxDecisions int `yaml:"max_decisions" json:"max_decisions,omitempty"`
+	// Wiki: how the wiki proposals on the card of a commit checkpoint are
+	// decided before the checkpoint is answered: accept | refuse | pending
+	// (default: left as they are, so they stay queued).
+	Wiki string `yaml:"wiki" json:"wiki,omitempty"`
 }
 
 // Duration is a time.Duration read from "15m".
@@ -190,6 +194,11 @@ func (c *Case) Validate() error {
 	case "", "once", "reject":
 	default:
 		errs = append(errs, fmt.Errorf("answers.permission %q (once, reject)", c.Answers.Permission))
+	}
+	switch c.Answers.Wiki {
+	case "", "accept", "refuse", "pending":
+	default:
+		errs = append(errs, fmt.Errorf("answers.wiki %q (accept, refuse, pending)", c.Answers.Wiki))
 	}
 	switch c.Reports {
 	case "", ReportsOff:

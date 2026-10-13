@@ -1,0 +1,47 @@
+apiVersion: oh/v1
+kind: Workflow
+id: doc-sync
+category: knowledge
+label: { fr: Synchronisation du wiki, en: Wiki sync }
+description:
+  fr: Mettre le wiki (docs/wiki/) à jour avec les commits depuis la dernière synchronisation et traiter les propositions en file
+  en: Bring the wiki (docs/wiki/) up to date with the commits since the last synchronization and handle the queued proposals
+risk: write
+entry:
+  agent: documentarian
+inputs:
+  focus:
+    type: text
+    label: { fr: Points d'attention, en: Focus }
+    help:
+      fr: Pages ou sujets à revérifier en priorité (facultatif)
+      en: Pages or topics to check first (optional)
+    max_length: 4000
+prompt:
+  template: prompts/doc-sync.md.tmpl
+agents:
+  documentarian: { role: workflow }
+checkpoints:
+  cp-sync:
+    by: [documentarian]
+    label: { fr: Commit du wiki, en: Wiki commit }
+    description:
+      fr: Présenter les pages mises à jour et les propositions en file (accepter, modifier, refuser) avant le commit du wiki.
+      en: Present the updated pages and the queued proposals (accept, edit, refuse) before the commit of the wiki.
+    mandatory: true
+    mode: { manuel: pause, semi-auto: pause, auto: pause }
+    unlocks: [commit]
+    wiki: sync
+    remote: defer
+preconditions:
+  project-wiki:
+    label:
+      fr: Pas de wiki dans ce projet (docs/wiki/index.md)
+      en: No wiki in this project (docs/wiki/index.md)
+    check: { path_exists: [docs/wiki/index.md] }
+    suggest: { workflow: onboarding, resume: true }
+beads:
+  allow: [show, list, ready, search, query]
+runtime: { default: local, allowed: [local] }
+outputs:
+  - { id: wiki, type: path, label: { fr: Wiki du projet, en: Project wiki } }

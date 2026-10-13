@@ -289,7 +289,22 @@ type CheckpointSpec struct {
 	// oh warns when another agent passes it. Empty: deduced from the
 	// delegation graph (CheckpointBy).
 	By []string `yaml:"by,omitempty"`
+
+	// LD-D: Wiki "sync" makes the checkpoint synchronize the wiki of the
+	// project (doc-sync): its card shows the whole queue of proposals, and
+	// when it is passed oh applies the accepted ones and records the commit
+	// synchronized in docs/wiki/index.md. It requires `unlocks: [commit]`.
+	Wiki CheckpointWiki `yaml:"wiki,omitempty"`
 }
+
+// CheckpointWiki is the role of a checkpoint for the wiki of the project.
+type CheckpointWiki string
+
+// WikiSync: the checkpoint synchronizes the wiki (doc-sync).
+const WikiSync CheckpointWiki = "sync"
+
+// Valid reports whether w is known ("" = none).
+func (w CheckpointWiki) Valid() bool { return w == "" || w == WikiSync }
 
 // UnlockOp is an operation a checkpoint unlocks.
 type UnlockOp string
