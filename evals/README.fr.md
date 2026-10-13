@@ -63,3 +63,14 @@ Les assertions sont décrites dans la [référence d'`oh eval`](../docs/referenc
 | S10 | quick | Une décision sur les données est posée en « Questions bloquantes », pas via `question` |
 
 La mesure de référence (Haiku, trois répétitions) est enregistrée dans `cli/internal/evalrun/testdata/evals/baseline.json` ; `make test-eval` la compare au passage courant.
+
+## Lancer plus vite, sans dépasser un budget
+
+```
+cd cli
+make test-eval OH_EVAL_REPS=3 OH_EVAL_PARALLEL=4 OH_EVAL_BUDGET_TOTAL=5
+```
+
+- `OH_EVAL_PARALLEL` (`--parallel`) : nombre de passages lancés en même temps. Chaque passage reste isolé (son `OH_HOME`, son `HOME`, son `TMPDIR`, son clone, son démon, son proxy) et le rapport est le même qu'en séquentiel. Mesuré sur S7 et S10 ×2 avec Haiku : 1 min 14 s à quatre en parallèle contre environ 3 min 6 s en séquentiel ; chaque passage dure un peu plus (57 s en moyenne contre 44 à 49 s).
+- `OH_EVAL_BUDGET_TOTAL` (`--budget-total`) : plafond de toute l'évaluation ; une fois atteint, plus aucun passage ne démarre. Le plafond par passage (`OH_EVAL_BUDGET_USD`) reste appliqué : 1 $ par défaut, 2,50 $ avec un modèle Sonnet.
+- Un passage arrêté par une limite de débit Bedrock (throttling) est relancé jusqu'à trois fois après une attente croissante ; la section « Relances » du rapport le signale. Si les relances se multiplient, baissez `OH_EVAL_PARALLEL`.

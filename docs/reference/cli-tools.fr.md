@@ -52,7 +52,7 @@ oh skill check [--json]
 Mesure le comportement des workflows livrés avec un vrai modèle, avant et après un changement de contenu. Chaque cas de `evals/<workflow>/<cas>/` décrit une session (workflow, mode, entrées, tickets Beads), une fixture (le projet de départ), d'éventuels tests cachés et les assertions à vérifier sur la trace de la session ([`oh session trace`](cli-sessions.fr.md#oh-session-trace)). Le format des cas est décrit dans [`evals/README.fr.md`](../../evals/README.fr.md).
 
 ```
-oh eval [--case S1,S2] [--reps N] [--models m1,m2] [--budget USD] [--out <dossier>] [--baseline <fichier>] [--record-baseline <fichier>] [--list] [--strict]
+oh eval [--case S1,S2] [--reps N] [--models m1,m2] [--budget USD] [--parallel N] [--budget-total USD] [--out <dossier>] [--baseline <fichier>] [--record-baseline <fichier>] [--list] [--strict]
 ```
 
 Chaque passage tourne isolé : un `OH_HOME` et un `HOME` temporaires (vos sessions, votre base, votre trousseau et votre démon ne sont jamais touchés), un clone jetable de la fixture, un démon oh dédié. La session est lancée sans interface ; ses checkpoints, permissions et questions reçoivent les réponses écrites dans le cas, par l'API de décisions d'oh. Une fois la session terminée (inactive sans décision en attente), oh lit sa trace, copie les tests cachés sur le clone et vérifie les assertions.
@@ -68,7 +68,11 @@ Chaque passage tourne isolé : un `OH_HOME` et un `HOME` temporaires (vos sessio
 | `no_denied_loop` | Un appel refusé (règle, permission refusée, skill inconnu) n'est pas répété plus de `max_repeats` fois |
 | `text_matches` | Un agent a écrit (ou jamais, avec `absent`) un texte ; `questions` regarde aussi les questions posées |
 
-Le modèle est Haiku par défaut ; `OH_EVAL_MODELS` (séparés par des virgules) en ajoute d'autres, par exemple `claude-sonnet-4-6`. Chaque passage est plafonné par le budget de session qu'applique le proxy d'identifiants (`--budget` ou `OH_EVAL_BUDGET_USD`, 1 $ par défaut) : au-delà, la session est arrêtée et le passage compte comme `budget`. La clé Bedrock vient de `OH_EVAL_BEDROCK_TOKEN`, sinon d'`opencode auth`.
+Le modèle est Haiku par défaut ; `OH_EVAL_MODELS` (séparés par des virgules) en ajoute d'autres, par exemple `claude-sonnet-4-6`. Chaque passage est plafonné par le budget de session qu'applique le proxy d'identifiants (`--budget` ou `OH_EVAL_BUDGET_USD` ; 1 $ par défaut, 2,50 $ dès qu'un modèle Sonnet fait partie des modèles) : au-delà, la session est arrêtée et le passage compte comme `budget`. `--budget-total` (ou `OH_EVAL_BUDGET_TOTAL`) plafonne toute l'évaluation : une fois ce montant dépensé, aucun nouveau passage ne démarre, ceux en cours finissent, et le rapport liste les passages non lancés. La clé Bedrock vient de `OH_EVAL_BEDROCK_TOKEN`, sinon d'`opencode auth`.
+
+`--parallel N` (ou `OH_EVAL_PARALLEL`) lance jusqu'à N passages en même temps (1 par défaut). Chaque passage est un processus `oh` à part, avec ses propres `OH_HOME`, `HOME` et `TMPDIR`, son clone, son démon (socket dans son `OH_HOME`), son proxy d'identifiants et son serveur de l'outil sur des ports choisis par le système ; rien n'est partagé entre passages hormis les caches Go. Les rapports sont les mêmes qu'en séquentiel : passages triés par cas, modèle et répétition. Sur la console, `→` signale un passage lancé et `[k/N]` chaque passage terminé.
+
+Un passage arrêté par une limite de débit du fournisseur (throttling Bedrock : `ThrottlingException`, « Too many requests/tokens », HTTP 429 venu du fournisseur et non du plafond du proxy) est relancé sur un clone neuf, jusqu'à trois fois, après 30 s, 1 min puis 2 min. Les fichiers des tentatives abandonnées restent dans `passes/<cas>/<modèle>/<n>/attempt-<k>/` ; le rapport les liste (« Relances ») et compte leur coût dans le coût total. Tout autre échec n'est pas relancé.
 
 | Flag | Type | Description |
 |------|------|-------------|
@@ -77,6 +81,8 @@ Le modèle est Haiku par défaut ; `OH_EVAL_MODELS` (séparés par des virgules)
 | `--models` | strings | Modèles (défaut : `OH_EVAL_MODELS`, sinon Haiku) |
 | `--reps` | int | Répétitions par cas et par modèle (défaut : `OH_EVAL_REPS`, sinon 1) |
 | `--budget` | float | Plafond de coût d'un passage, en dollars |
+| `--parallel` | int | Nombre de passages lancés en même temps (défaut : `OH_EVAL_PARALLEL`, sinon 1) |
+| `--budget-total` | float | Plafond de coût de toute l'évaluation, en dollars (défaut : `OH_EVAL_BUDGET_TOTAL`, sinon aucun) |
 | `--out` | string | Dossier des traces (`passes/<cas>/<modèle>/<n>/trace.jsonl`) et des rapports `report.json` et `report.md` |
 | `--baseline` | string | Mesure de référence à comparer (colonne « Référence » du rapport) |
 | `--record-baseline` | string | Enregistrer ce passage comme mesure de référence |
@@ -86,7 +92,7 @@ Le modèle est Haiku par défaut ; `OH_EVAL_MODELS` (séparés par des virgules)
 | `--strict` | bool | Sortir avec le code 1 si un passage échoue |
 | `--rescore` | string | Vérifier de nouveau les assertions sur les traces d'un passage précédent (son dossier `--out`), sans appeler de modèle ; `changed_within` et `hidden_tests` gardent leur résultat |
 
-Depuis `cli/` : `make test-eval` (une répétition), `make test-eval OH_EVAL_REPS=3`, ou `make test-eval OH_EVAL_REPS=3 OH_EVAL_RECORD=1` pour réenregistrer la mesure de référence (`cli/internal/evalrun/testdata/evals/baseline.json`). Les tests de `go test ./...` n'appellent jamais de modèle.
+Depuis `cli/` : `make test-eval` (une répétition), `make test-eval OH_EVAL_REPS=3`, `make test-eval OH_EVAL_REPS=3 OH_EVAL_PARALLEL=4 OH_EVAL_BUDGET_TOTAL=5` (quatre passages à la fois, 5 $ au plus), ou `make test-eval OH_EVAL_REPS=3 OH_EVAL_RECORD=1` pour réenregistrer la mesure de référence (`cli/internal/evalrun/testdata/evals/baseline.json`). Les tests de `go test ./...` n'appellent jamais de modèle.
 
 ---
 

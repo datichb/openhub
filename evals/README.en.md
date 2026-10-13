@@ -63,3 +63,14 @@ The assertions are described in the [`oh eval` reference](../docs/reference/cli-
 | S10 | quick | A data decision is asked in « Questions bloquantes », not with `question` |
 
 The reference measure (Haiku, three repetitions) is recorded in `cli/internal/evalrun/testdata/evals/baseline.json`; `make test-eval` compares the current run with it.
+
+## Running faster, within a budget
+
+```
+cd cli
+make test-eval OH_EVAL_REPS=3 OH_EVAL_PARALLEL=4 OH_EVAL_BUDGET_TOTAL=5
+```
+
+- `OH_EVAL_PARALLEL` (`--parallel`): number of passes run at the same time. Each pass stays isolated (its `OH_HOME`, `HOME`, `TMPDIR`, clone, daemon and proxy) and the report is the same as in a sequential run. Measured on S7 and S10 ×2 with Haiku: 1 min 14 s four at a time against about 3 min 6 s sequentially; each pass takes a little longer (57 s on average against 44 to 49 s).
+- `OH_EVAL_BUDGET_TOTAL` (`--budget-total`): cap of the whole evaluation; once reached, no new pass starts. The cap per pass (`OH_EVAL_BUDGET_USD`) still applies: $1 by default, $2.50 with a Sonnet model.
+- A pass stopped by a Bedrock rate limit (throttling) runs again up to three times after a growing wait; the « Relances » section of the report says so. When retries pile up, lower `OH_EVAL_PARALLEL`.
