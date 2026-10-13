@@ -179,3 +179,18 @@ func agentSpec(t *testing.T, hub, entry string) *workflow.Spec {
 	require.Empty(t, r.SelectEntry(entry, cat))
 	return r.Spec
 }
+
+// In a free session the agents the entry reaches are launched through task:
+// they are subagents, even when their frontmatter says primary (eval S14).
+func TestSelectedEntryReachesSubagents(t *testing.T) {
+	spec := agentSpec(t, repoHub(t), "orchestrator")
+	require.Greater(t, spec.Agents.Len(), 1)
+	for _, id := range spec.Agents.Keys() {
+		ref, _ := spec.Agents.Get(id)
+		want := workflow.ModeSubagent
+		if id == "orchestrator" {
+			want = workflow.ModePrimary
+		}
+		assert.Equal(t, want, ref.Mode, id)
+	}
+}

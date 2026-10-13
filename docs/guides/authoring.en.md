@@ -78,11 +78,11 @@ Agents using native skills must have `permission: skill: allow`. Coordinators se
 | Agent type | Bucket A (always inline) | Bucket B (native, on-demand) |
 |------------|--------------------------|------------------------------|
 | Developer | `dev-standards-universal`, `dev-standards-simplicity`, `beads-plan`, `beads-dev` | `dev-standards-security`, domain skills, stack skills |
-| Auditor subagent | `audit-protocol-light`, `auditor-subagent-payload`, `posture/subagent-posture`, `shared/handoff-envelope` | Domain audit checklist (`audit-security`, `audit-accessibility`, etc.) |
+| Auditor subagent | `audit-protocol-light`, `auditor-subagent-payload`, `shared/handoff-envelope` | Domain audit checklist (`audit-security`, `audit-accessibility`, etc.) |
 | Coordinator (read-only) | Its own protocol + `posture/coordinator-posture` (the statuses of the launched agents come from the session contract) — no `beads-dev` | none (`skill: deny`) |
 | Expert advisor agent | `posture/expert-posture` | — |
 | Interactive primary agent | `posture/user-facing-posture` (+ `permission: question: allow`) | — |
-| Agent launched by another | `posture/subagent-posture`, `shared/handoff-envelope`, `<family>/<agent>-payload` (statuses in `statuses:`, 200 to 400 tokens, `when: role=subagent`) | — |
+| Agent launched by another | `shared/handoff-envelope`, `<family>/<agent>-payload` (statuses in `statuses:`, 200 to 400 tokens, `when: role=subagent`) | — |
 | Agent managing tickets | `beads-plan` (read + create), `beads-dev` (execution) | — |
 | Agent that commits | Inline via `beads-dev` | `dev-standards-git` (native) |
 

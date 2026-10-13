@@ -173,7 +173,6 @@ Les deux dernières ne sont dans aucun frontmatter d'agent : `elicitation-techni
 |-------|--------|---------|
 | `core-posture` | A : tous sauf brief-enricher | Posture commune : droit au contenu utile, rien d'utile retiré, livrables complets |
 | `user-facing-posture` | A : agents d'entrée (`when: role=entry`) | Échange avec l'utilisateur : récap avant `question`, usage de l'outil `question` (jamais pour un checkpoint) |
-| `subagent-posture` | A : reviewer seulement (`when: role=subagent`) ; retirée des autres agents (L6 cleanup), le contrat de session et `handoff-envelope` portent ses règles | Sous-agent : la réponse finale est l'enveloppe, pas d'outil `question`, décisions dans `### Questions bloquantes` |
 | `coordinator-posture` | A : auditor, conductor, orchestrator, orchestrator-dev | Coordinateur : déléguer, lire l'enveloppe et le rapport (`workflow_report_get`) au lieu de le retranscrire, relayer les questions bloquantes, `todowrite` en agent d'entrée |
 | `expert-posture` | B : auditor-subagent, designer, documentarian, onboarder, planner, debugger | Exploration avant de répondre, recommandation contraire argumentée (⚠️), pause de confirmation avant une action à risque (🛑) |
 
@@ -537,7 +536,7 @@ Communs, non répétés dans le tableau :
 - `shared/team-policies-enforcement` (B, `mcp: team`) : tous sauf `conductor` ;
 - `shared/rtk-usage` (B, [antérieure à v5](#skills-antérieures-à-v5)) : les agents marqués ¹.
 
-Retours entre agents (L5) : l'agent lancé inclut `handoff-envelope` et son payload `<agent>-payload` ; l'appelant lit les statuts dans son contrat de session (table générée depuis les payloads des agents qu'il lance) et le rapport avec `workflow_report_get`. Les postures `user-facing-posture`, `subagent-posture` (reviewer), `handoff-envelope` et les payloads sont filtrées par rôle (`when:`).
+Retours entre agents (L5) : l'agent lancé inclut `handoff-envelope` et son payload `<agent>-payload` ; l'appelant lit les statuts dans son contrat de session (table générée depuis les payloads des agents qu'il lance) et le rapport avec `workflow_report_get`. Les postures `user-facing-posture`, `handoff-envelope` et les payloads sont filtrées par rôle (`when:`).
 
 | Agent | Bucket A (`skills:`) | Bucket B (`native_skills:`) |
 |-------|----------------------|-----------------------------|
@@ -550,7 +549,7 @@ Retours entre agents (L5) : l'agent lancé inclut `handoff-envelope` et son payl
 | `designer` ¹ | core-posture, user-facing-posture, handoff-envelope, execution-protocol, designer-payload, designer-protocol | ux-protocol, ui-protocol, figma-recon-protocol, figma-deep-protocol, prototype-protocol, websearch-design-patterns, design-principles, ui-patterns-reference, content-design, tui-patterns, websearch-usage, expert-posture |
 | `documentarian` ¹ | core-posture, user-facing-posture, handoff-envelope, documentarian-payload, doc-protocol | doc-standards, doc-adr, doc-api, doc-changelog, doc-slides, doc-wiki-protocol, skill-authoring-protocol, websearch-usage, expert-posture |
 | `developer` ¹ | core-posture, user-facing-posture, handoff-envelope, developer-payload, dev-standards-universal, dev-standards-simplicity, beads-dev, wiki-navigation, context-mode-usage | dev-standards-security, dev-standards-git, dev-standards-testing, dev-standards-refactoring, dev-standards-migration, dev-standards-database, test-generation, reviewer-reception, living-docs-enrichment, beads-plan, quick-fix |
-| `reviewer` ¹ | core-posture, user-facing-posture, subagent-posture, handoff-envelope, reviewer-payload, review-protocol, wiki-navigation | reviewer-adversarial, reviewer-edge-case, review-merge, dev-standards-security, dev-standards-backend, dev-standards-frontend, dev-standards-frontend-data, dev-standards-frontend-a11y, dev-standards-testing, dev-standards-git, dev-standards-api, dev-standards-devops, living-docs-enrichment, dev-standards-universal |
+| `reviewer` ¹ | core-posture, user-facing-posture, handoff-envelope, reviewer-payload, review-protocol, wiki-navigation | reviewer-adversarial, reviewer-edge-case, review-merge, dev-standards-security, dev-standards-backend, dev-standards-frontend, dev-standards-frontend-data, dev-standards-frontend-a11y, dev-standards-testing, dev-standards-git, dev-standards-api, dev-standards-devops, living-docs-enrichment, dev-standards-universal |
 | `debugger` ¹ | core-posture, user-facing-posture, handoff-envelope, execution-protocol, debugger-payload, debugger-workflow, wiki-navigation | debugger-phase-0-1, debugger-phase-2-3, debugger-phase-4-5, living-docs-enrichment, expert-posture, debugger-forensic, debugger-report-templates |
 | `auditor` ¹ | core-posture, user-facing-posture, coordinator-posture, execution-protocol, auditor-workflow, audit-protocol-light | auditor-phase-0-1, auditor-phase-3, auditor-phase-4, living-docs-enrichment |
 | `auditor-subagent` ¹ | core-posture, handoff-envelope, auditor-subagent-payload, audit-protocol-light, wiki-navigation | websearch-cve-lookup, websearch-performance-research, expert-posture, websearch-usage |

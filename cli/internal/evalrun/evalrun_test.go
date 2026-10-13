@@ -262,8 +262,7 @@ func TestLoadCases(t *testing.T) {
 func TestShippedCases(t *testing.T) {
 	cases, err := LoadCases(filepath.Join("..", "..", "..", "evals"))
 	require.NoError(t, err)
-	// S14 waits for libre to launch the agents it reaches as subagents.
-	inactive := map[string]bool{"S14": true}
+	inactive := map[string]bool{}
 	var ids []string
 	for _, c := range cases {
 		ids = append(ids, c.ID)
@@ -413,6 +412,7 @@ var notInBaseline = map[string]string{
 	"S11": "added by LD (wiki proposals on the card)",
 	"S12": "added by LD (doc-sync)",
 	"S13": "added by L6 cleanup (onboarding phase skills)",
+	"S14": "added by L6 cleanup (onboarder as a subagent in libre)",
 	"S15": "added by L6 cleanup (designer in cadrage)",
 }
 

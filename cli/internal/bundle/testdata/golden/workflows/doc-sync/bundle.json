@@ -81,8 +81,6 @@
         "edit */.beads/* deny"
       ],
       "skills": [
-        "beads-plan",
-        "dev-standards-git",
         "doc-adr",
         "doc-api",
         "doc-changelog",
@@ -96,8 +94,6 @@
     }
   ],
   "skills": [
-    "beads-plan",
-    "dev-standards-git",
     "doc-adr",
     "doc-api",
     "doc-changelog",

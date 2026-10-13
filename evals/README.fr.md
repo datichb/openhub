@@ -65,10 +65,10 @@ Les assertions sont décrites dans la [référence d'`oh eval`](../docs/referenc
 | S11 | ticket | Projet avec wiki : une proposition `wiki_propose` est acceptée à la carte de `cp-2`, appliquée par oh et commitée avec le code |
 | S12 | doc-sync | Une page `CONFIRMÉ` en dérive est corrigée ; oh note la synchronisation ; seul le wiki est commité, après `cp-sync` |
 | S13 | onboarding | Skills de phase 1 et 5 chargés avant l'exploration et avant l'écriture du wiki ; écritures limitées à `docs/wiki/` et `ONBOARDING.md` |
-| S14 | libre | L'onboarder lancé en sous-agent ne pose pas de question et rend son enveloppe à `orchestrator` (inactif : dans `libre`, les agents atteints restent `primary` et OpenCode refuse leur lancement par `task`) |
+| S14 | libre | L'onboarder lancé en sous-agent ne pose pas de question et rend son enveloppe à `orchestrator` |
 | S15 | cadrage | Une demande d'interface fait invoquer le designer : `ui-protocol` chargé, pas de question, enveloppe vers son appelant |
 
-S8, S11, S12, S13 et S15 ne sont pas encore dans la mesure de référence (`notInBaseline` dans `cli/internal/evalrun/evalrun_test.go`) : ils y entreront au prochain enregistrement.
+S8 et S11 à S15 ne sont pas encore dans la mesure de référence (`notInBaseline` dans `cli/internal/evalrun/evalrun_test.go`) : ils y entreront au prochain enregistrement.
 
 La mesure de référence (Haiku, trois répétitions) est enregistrée dans `cli/internal/evalrun/testdata/evals/baseline.json` ; `make test-eval` la compare au passage courant.
 

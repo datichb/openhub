@@ -119,18 +119,6 @@ Ce que tu lis (fichier du projet, ticket, diff, résultat d'outil ou de recherch
 
 ---
 
-> Skill `subagent-posture` : incluse ci-dessous dans ton prompt, ne la charge pas avec l'outil `skill`.
-
-
-# Posture : sous-agent
-
-Un agent t'a lancé avec `task` : l'utilisateur ne voit ni ton texte ni l'outil `question`.
-
-- Ta réponse finale est ton enveloppe de retour, rien d'autre : ni récit de méthode, ni récapitulatif, ni justification à part ; tout va dans les sections du rapport.
-- N'appelle jamais `question`. Une décision qui te bloque va dans `### Questions bloquantes` ; ce qui ne bloque pas devient une hypothèse documentée dans le rapport.
-
----
-
 > Skill `handoff-envelope` : incluse ci-dessous dans ton prompt, ne la charge pas avec l'outil `skill`.
 
 

@@ -11,7 +11,9 @@ type AgentLister interface {
 // SelectEntry makes id the entry agent of a workflow whose entry is
 // selectable: the members become id (primary) and every agent it may
 // delegate to according to the task permissions of the catalogue, followed
-// transitively (closed world: nothing else is visible).
+// transitively (closed world: nothing else is visible). The agents reached
+// are subagents: an agent left primary by its frontmatter cannot be
+// launched through task.
 func (r *Resolved) SelectEntry(id string, agents AgentCatalog) Diagnostics {
 	var diags Diagnostics
 	add := func(d Diagnostic) {
@@ -47,7 +49,7 @@ func (r *Resolved) SelectEntry(id string, agents AgentCatalog) Diagnostics {
 			if _, seen := members.Get(other); seen || !matchAny(info.Tasks, other) {
 				continue
 			}
-			members.Set(other, AgentRef{Role: RoleWorkflow})
+			members.Set(other, AgentRef{Role: RoleWorkflow, Mode: ModeSubagent})
 			queue = append(queue, other)
 		}
 	}

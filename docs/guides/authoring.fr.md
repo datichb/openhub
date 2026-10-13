@@ -78,11 +78,11 @@ Les agents utilisant des skills natives doivent avoir `permission: skill: allow`
 | Type d'agent | Bucket A (toujours inline) | Bucket B (natif, à la demande) |
 |-------------|---------------------------|-------------------------------|
 | Developer | `dev-standards-universal`, `dev-standards-simplicity`, `beads-plan`, `beads-dev` | `dev-standards-security`, skills de domaine, stack skills |
-| Sous-agent auditeur | `audit-protocol-light`, `auditor-subagent-payload`, `posture/subagent-posture`, `shared/handoff-envelope` | Checklist d'audit du domaine (`audit-security`, `audit-accessibility`, etc.) |
+| Sous-agent auditeur | `audit-protocol-light`, `auditor-subagent-payload`, `shared/handoff-envelope` | Checklist d'audit du domaine (`audit-security`, `audit-accessibility`, etc.) |
 | Coordinateur (lecture seule) | Son protocole propre + `posture/coordinator-posture` (les statuts des agents lancés viennent du contrat de session) — pas de `beads-dev` | aucune (`skill: deny`) |
 | Agent expert conseiller | `posture/expert-posture` | — |
 | Agent interactif primary | `posture/user-facing-posture` (+ `permission: question: allow`) | — |
-| Agent lancé par un autre | `posture/subagent-posture`, `shared/handoff-envelope`, `<famille>/<agent>-payload` (statuts dans `statuses:`, 200 à 400 tokens, `when: role=subagent`) | — |
+| Agent lancé par un autre | `shared/handoff-envelope`, `<famille>/<agent>-payload` (statuts dans `statuses:`, 200 à 400 tokens, `when: role=subagent`) | — |
 | Agent qui gère des tickets | `beads-plan` (lecture + création), `beads-dev` (exécution) | — |
 | Agent qui commit | Inline via `beads-dev` | `dev-standards-git` (natif) |
 

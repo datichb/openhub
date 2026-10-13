@@ -1,8 +1,7 @@
 id: S14
 title: "Libre : l'onboarder lancé en sous-agent ne pose pas de question et rend son enveloppe à orchestrator"
 workflow: libre
-active: false
-inactive_reason: "libre ne rend pas sous-agents les agents qu'il atteint : workflow.SelectEntry (internal/workflow/entry_select.go) ajoute les membres sans mode, l'agent garde mode: primary de son frontmatter et OpenCode refuse task (« Agent onboarder cannot run as a subagent », 3/3 passages le 13/10). À réactiver quand les membres non d'entrée de libre sont en mode subagent."
+active: true
 mode: semi-auto
 text: "Lance l'onboarder (outil task) pour découvrir ce projet et créer son wiki documentaire. Ne fais rien d'autre."
 timeout: 25m

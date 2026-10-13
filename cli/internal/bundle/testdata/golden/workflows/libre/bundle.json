@@ -76,7 +76,7 @@
     },
     {
       "id": "debugger",
-      "mode": "primary",
+      "mode": "subagent",
       "model": "/claude-sonnet-4-6",
       "permissions": [
         "shell * deny",
@@ -172,7 +172,7 @@
     },
     {
       "id": "designer",
-      "mode": "primary",
+      "mode": "subagent",
       "model": "/claude-sonnet-4-6",
       "permissions": [
         "shell * deny",
@@ -248,7 +248,7 @@
     },
     {
       "id": "documentarian",
-      "mode": "primary",
+      "mode": "subagent",
       "model": "/claude-sonnet-4-6",
       "permissions": [
         "shell * deny",
@@ -339,7 +339,7 @@
     },
     {
       "id": "onboarder",
-      "mode": "primary",
+      "mode": "subagent",
       "model": "/claude-sonnet-4-6",
       "permissions": [
         "shell * deny",
@@ -423,7 +423,7 @@
     },
     {
       "id": "orchestrator-dev",
-      "mode": "primary",
+      "mode": "subagent",
       "model": "/claude-sonnet-4-6",
       "permissions": [
         "shell * deny",
@@ -519,7 +519,7 @@
     },
     {
       "id": "pathfinder",
-      "mode": "primary",
+      "mode": "subagent",
       "model": "/claude-sonnet-4-6",
       "permissions": [
         "shell * deny",
@@ -603,7 +603,7 @@
     },
     {
       "id": "planner",
-      "mode": "primary",
+      "mode": "subagent",
       "model": "/claude-sonnet-4-6",
       "permissions": [
         "shell * deny",
@@ -701,7 +701,7 @@
     },
     {
       "id": "reviewer",
-      "mode": "primary",
+      "mode": "subagent",
       "model": "/claude-opus-4-6",
       "permissions": [
         "shell * deny",
