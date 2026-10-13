@@ -1,5 +1,5 @@
 id: S5
-title: "Cadrage : le planner suit la variante sous-agent"
+title: "Cadrage : le planner suit la variante sous-agent (enveloppe vers conductor)"
 workflow: cadrage
 mode: semi-auto
 text: "Ajouter à calc une fonction Mul(a, b int) int, avec son test."
@@ -14,13 +14,14 @@ answers:
     cp-tickets: "reject: Évaluation terminée : ne crée aucun ticket et termine le workflow."
     "*": approve
 assertions:
-  - type: skill_loaded_before
-    name: planner-execution-modes chargé avant son retour
-    skill: planner-execution-modes
+  # Modernisation L5 : planner-execution-modes n'existe plus (protocole
+  # d'exécution inclus, variante sous-agent filtrée par le rôle). La variante
+  # sous-agent se voit au retour : une enveloppe adressée à l'appelant réel
+  # (conductor, nommé par le contrat).
+  - type: text_matches
+    name: le planner adresse son retour à conductor
     agent: planner
-    # Le bloc lui-même (« Retour vers… ») : une phrase qui annonce le
-    # chargement (« … pour produire le bloc de retour ») n'est pas le retour.
-    before: { text: "Retour (intermédiaire )?vers", agent: planner }
+    pattern: "Retour vers conductor"
   - type: no_question_in_subagent
     agents: [planner, pathfinder]
   - type: text_matches
