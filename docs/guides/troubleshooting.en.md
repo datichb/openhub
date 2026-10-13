@@ -95,6 +95,10 @@ oh provider setup bedrock              # or enter a new key
 ```
 then launch the session again. With `auth_mode = "profile"` or `"env"`, oh signs with SigV4 and uses no stored key: renew the AWS credentials (e.g. `aws sso login`).
 
+**Slow session: rate limit of the provider (429)**
+
+The tool retries on its own when the provider answers 429; the session then looks stuck. The credential proxy of the daemon writes it to `~/.oh/run/ohd.log`: a `credproxy: upstream rate limit` warning on the first 429 of a row (provider, session, model, `retry_after`, request id of the provider, message), then debug lines (`in_a_row=<n>`, left out of the log by default) until the first answer that is not a 429. Wait, run fewer sessions at once (`oh session list`), or ask the provider for a higher quota.
+
 **Command run outside of a project directory**
 ```
 you are not in the directory of a project: run the command from the project directory or use -p <project>
