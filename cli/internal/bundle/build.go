@@ -269,7 +269,7 @@ func Build(req Request) (*Bundle, error) {
 		}
 		named(invitingText(a.Body, id, agentIDs), selfMentionedSkills, true)
 		a.Body += absentSkillsNote(absent)
-		a.Body += sessionContract(req, spec.Workflow, id, shipped, callers, env)
+		a.Body += sessionContract(req, spec.Workflow, id, shipped, callers, env, hubPayloadStatuses(loader, mentionIndex))
 		a.Body += instructionsContract(fm.InstructionsLevel(), instructions)
 		a.Body += scratchNote(id, spec.Workflow)
 		def := agentDef(req, a, instructions, perms, spec.AgentGuard)
