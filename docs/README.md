@@ -63,6 +63,7 @@ Complete index of all openhub documentation (oh v5). Guides and references are b
 |-------|-------------|
 | [Authoring Agents](guides/authoring.en.md) | Create custom agents |
 | [Authoring Skills](guides/authoring-skills.en.md) | Create custom skills |
+| [Stack skill freshness](guides/skill-refresh.en.md) | Versions covered by the stack skills, `oh skill check --stale`, `skill-refresh` workflow, monthly check |
 | [Skill Marketplace](guides/skill-marketplace.en.md) | **Historical (disconnected in v5, ADR-051)**: former community skills registry; skills now come from the hub and the team catalogue |
 | [Pathfinder Agent](guides/agent-pathfinder.en.md) | Using the pathfinder agent |
 | [Inter-Agent Interruption](guides/inter-agent-interruption.en.md) | Agent interruption protocol |
