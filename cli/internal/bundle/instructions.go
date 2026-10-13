@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/datichb/openhub/cli/internal/bricks"
+	"github.com/datichb/openhub/cli/internal/services/wiki"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 )
 
@@ -22,8 +23,8 @@ import (
 const instructionsHeading = "\n\n---\n\n# Project instructions\n"
 
 // wikiIndexFile is the index of the living wiki of the project
-// (doc-wiki-protocol), read directly until the wiki service of LD-J.
-const wikiIndexFile = "docs/wiki/index.md"
+// (doc-wiki-protocol).
+const wikiIndexFile = wiki.Dir + "/" + wiki.IndexPage
 
 // indexMaxSections and indexMaxGodNodes cap the index of a file.
 const (
@@ -41,7 +42,7 @@ type instructionFile struct {
 type wikiIndex struct {
 	Title    string
 	Sections []string
-	GodNodes []string // table lines of the god nodes section, header included
+	GodNodes []string // table lines of the god nodes computed by oh, header included
 }
 
 type projectInstructions struct {
@@ -95,30 +96,19 @@ func eachLine(text string, fn func(string)) {
 	}
 }
 
-// parseWikiIndex reads the title, the sections and the god nodes table of
-// the wiki index (section whose heading names the god nodes).
-func parseWikiIndex(text string) *wikiIndex {
-	w := &wikiIndex{}
-	godNodes := false
-	eachLine(text, func(line string) {
-		switch {
-		case strings.HasPrefix(line, "# ") && w.Title == "":
-			w.Title = strings.TrimSpace(line[2:])
-		case strings.HasPrefix(line, "## "):
-			s := strings.TrimSpace(line[3:])
-			w.Sections = append(w.Sections, s)
-			godNodes = strings.Contains(strings.ToLower(s), "god node")
-		case godNodes && strings.HasPrefix(strings.TrimSpace(line), "|"):
-			w.GodNodes = append(w.GodNodes, strings.TrimSpace(line))
-		}
-	})
-	// A header and its separator without a row: no god node.
-	if len(w.GodNodes) <= 2 {
-		w.GodNodes = nil
-	} else if len(w.GodNodes) > 2+indexMaxGodNodes {
-		w.GodNodes = w.GodNodes[:2+indexMaxGodNodes]
+// wikiIndexOf returns the index of the wiki of a project and the god nodes
+// oh computes from its pages (WikiService, LD-J); nil without
+// docs/wiki/index.md. Same data, same render as the table of the index.
+func wikiIndexOf(projectPath string) *wikiIndex {
+	w, err := wiki.Load(projectPath)
+	if err != nil {
+		return nil
 	}
-	return w
+	ix := w.Index()
+	if !ix.Present {
+		return nil
+	}
+	return &wikiIndex{Title: ix.Title, Sections: ix.Sections, GodNodes: ix.GodNodeTable(indexMaxGodNodes)}
 }
 
 // render returns the project instructions of an agent at its level, perms

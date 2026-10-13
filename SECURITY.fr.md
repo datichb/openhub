@@ -163,6 +163,14 @@ Les jetons des serveurs MCP (GitLab, Figma, Jira, Linear, GitHub, Google) sont :
 - **Ni lus ni forgés par les agents.** Les corps sont dans `~/.oh/sessions/<session>/reports/` (fichiers 0600, dossier 0700), refusé à tous les agents par les gardes d'oh (shell, lecture, écriture, recherche ; couche 0, avant les exceptions des brouillons) ; chaque corps est vérifié par son empreinte SHA-256 avant d'être montré. Les agents lisent les rapports de leur session par `workflow_report_get` seulement.
 - **Bornés et nettoyés.** 64 Ko par rapport, 100 rapports et 4 Mo par session ; séquences de terminal et caractères de contrôle retirés ; la TUI échappe le texte. Les rapports d'une session distante (`reports.json`, schéma de pipeline 5) sont de nouveau nettoyés et bornés à l'import.
 
+### Wiki du projet (serveur MCP `wiki`, LD-J)
+
+- **Proposer n'est pas écrire.** Les agents proposent avec `wiki_propose` ; seules les propositions que l'utilisateur accepte à la carte du checkpoint de commit sont écrites dans `docs/wiki/`, par oh, au passage du checkpoint (tracé : statut, `applied_by`, date, entrée de la frise). Les autres restent en file.
+- **Auteur fixé par oh.** Le démon prend l'auteur dans la session de l'outil qui appelle, jamais dans la requête ; la ligne de tag (tag, auteur, date, source) est écrite par oh, celles du contenu sont retirées. Routes authentifiées comme celles du serveur `workflow` (jeton du groupe de la session).
+- **`wiki_apply` réservé au documentarian.** Règle de permission générée (refus pour tout agent, `ask` pour le `documentarian`) et contrôle du démon sur l'agent qu'il voit appeler (403 sinon).
+- **Contenu non fiable.** Nettoyé (caractères de contrôle, séquences de terminal), neutralisé (titres, marqueurs de frontmatter, HTML et commentaires, dont `oh:when`, bloc de code non fermé), borné (4 Ko, 60 lignes ; 50 propositions ouvertes par session, 500 par projet) et échappé dans la TUI. Une proposition qui cite les données de session d'oh (`~/.oh/sessions`, dont les brouillons, ou le dossier des sessions réellement utilisé) est refusée : un brouillon ne passe jamais dans le wiki.
+- **Pas de lien symbolique.** oh ne lit ni n'écrit à travers un lien symbolique dans `docs/` ou `docs/wiki/` ; les chemins de page sont relatifs, sans `..` ni composant caché ; l'écriture est atomique.
+
 ### Restrictions des sessions (I6)
 
 Optionnelles et désactivées par défaut (`oh budget show|set|unset|raise`) : sessions actives max, budget par session et budget journalier en USD, plafond mémoire, liste des modèles autorisés (appliquée par le proxy sur le jeton du groupe). Cascade : workflow (`limits:`) > projet > hub > recommandé d'équipe ; l'imposé d'équipe est un plafond. Les budgets sont des plafonds souples : contrôlés en fin d'étape, ils lèvent alors une décision `$`.

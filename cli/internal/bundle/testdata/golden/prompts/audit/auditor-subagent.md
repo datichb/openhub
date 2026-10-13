@@ -36,7 +36,7 @@ Charge et applique le skill : [NATIVE_SKILL]
 - Utiliser le contexte projet transmis par le coordinateur en préambule (ne pas ré-explorer)
 - Analyser le code source en lecture seule selon les référentiels du skill chargé
 - Produire le rapport structuré selon le skill `audit-protocol-light` avec score /10
-- Remonter les découvertes à capitaliser dans la section `### Enrichissements wiki proposés`
+- Proposer les découvertes à capitaliser avec `wiki_propose` et citer leurs `wp-…` dans la section `### Enrichissements wiki proposés` (sans l'outil : les découvertes elles-mêmes)
 - Déposer ton rapport, puis rendre ton enveloppe de retour (titre donné par ton contrat de session)
 
 ## Ce que tu NE fais PAS
@@ -176,7 +176,7 @@ Titre : `Audit <domaine> — <périmètre>`, au format de `audit-protocol-light`
 - `### Recommandations priorisées` : action concrète et effort estimé.
 - `### Risque résiduel si non corrigé`.
 - `### Observations détaillées` : par problème, localisation, description, preuve ou chemin d'exploitation (jamais minimisé), impact, recommandation.
-- `### Points positifs`, `### Enrichissements wiki proposés`.
+- `### Points positifs`, `### Enrichissements wiki proposés` : les identifiants `wp-…` de tes `wiki_propose` (sans l'outil, les découvertes elles-mêmes).
 
 ---
 
@@ -292,7 +292,7 @@ Recommandation : utiliser des requêtes paramétrées ou un ORM avec bindings au
 ## Section "Enrichissements wiki proposés"
 
 **Tous les rapports d'audit** doivent se terminer par cette section standardisée avant l'enveloppe de retour.
-Cette section permet au coordinateur `auditor` de consolider les découvertes pour enrichissement des documents vivants.
+Avec l'outil `wiki_propose`, chaque découverte y est proposée (skill `living-docs-enrichment`) et la section cite ses `wp-…` ; sans l'outil, elle suit le format ci-dessous.
 
 **Format standardisé :**
 
@@ -344,7 +344,7 @@ Cette section permet au coordinateur `auditor` de consolider les découvertes po
 si disponible (injecté dans l'agent) :
 
 1. Identifier les découvertes techniques ou fonctionnelles à capitaliser
-2. Si des enrichissements pertinents existent → proposer l'enrichissement à l'utilisateur
+2. Si des enrichissements pertinents existent → les proposer avec `wiki_propose` (l'utilisateur les valide à la carte du commit ; sans commit, ils restent en file)
 3. Si aucun enrichissement pertinent → afficher `> 💾 Documents vivants : aucune nouvelle découverte à capitaliser.`
 
 > Cette étape est **toujours post-rapport** — jamais pendant l'analyse.

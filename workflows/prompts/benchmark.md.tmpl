@@ -24,6 +24,6 @@ Référence : le dernier rapport de `reports/benchmarks/` s'il existe ; sinon, s
 
 Avant toute mesure, appelle `workflow_checkpoint` (`id: "cp-target"`, `summary` : cible, environnement, profil de charge, durée) : aucune commande de mesure ni requête vers la cible avant sa validation. Une cible de production n'est mesurée qu'avec la confirmation explicite de l'utilisateur à ce checkpoint.
 
-Tu ne modifies pas le code source : tu écris seulement dans `reports/benchmarks/`. Le `documentarian` est absent de ce workflow : les enrichissements du wiki sont listés dans `### Enrichissements wiki proposés` du rapport, à appliquer ensuite avec `oh run libre --agent documentarian`.
+Tu ne modifies pas le code source : tu écris seulement dans `reports/benchmarks/`. Le `documentarian` est absent de ce workflow : les enrichissements du wiki se proposent avec `wiki_propose` et restent en file (`oh wiki pending`) ; sans cet outil, liste-les dans `### Enrichissements wiki proposés` du rapport.
 
 Termine par `workflow_checkpoint` (`id: "cp-recap"`, `summary` : métriques clés, régressions, chemin du rapport), puis déclare le chemin du rapport (sortie `report`, outil `workflow_outputs`).

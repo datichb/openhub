@@ -176,6 +176,7 @@ For a paused checkpoint, the TUI card shows, besides the agent summary, the chan
 
 - **Verification run by oh**: status, commands and exit code, output excerpt on failure; for a fetched remote session, the result obtained in the job;
 - **Evidence of the agent**: each command reported, observed or not;
-- **Unresolved**: the ticket whose fix rounds reached the limit.
+- **Unresolved**: the ticket whose fix rounds reached the limit;
+- **Wiki proposals** (CP-R4, checkpoint that unlocks the commit only): the `wp-…` proposals of the session (author, page, section, tag, start of the content, escaped), with one action per proposal (accept, edit, refuse, leave queued) and "Accept the N proposals". The accepted ones are applied by oh when the checkpoint is passed, before the commit; see [wiki MCP server](cli-mcp.en.md#wiki-mcp-server).
 
 Choices: Validate · Fix first · Other instruction · **Override the verification** (only when it failed or cannot run).

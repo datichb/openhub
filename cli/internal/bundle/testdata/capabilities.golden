@@ -1,12 +1,3 @@
-cond   audit/auditor: documentarian (shared/living-docs-enrichment)
-cond   benchmark/benchmarker: documentarian (shared/living-docs-enrichment)
-cond   infra-change/operator: documentarian (shared/living-docs-enrichment)
-cond   libre/onboarder: documentarian (shared/living-docs-enrichment)
-cond   libre@onboarder: documentarian (shared/living-docs-enrichment)
-cond   libre@operator: documentarian (shared/living-docs-enrichment)
-cond   onboarding/onboarder: documentarian (shared/living-docs-enrichment)
-cond   quick/developer: documentarian (shared/living-docs-enrichment)
-cond   review/reviewer: documentarian (shared/living-docs-enrichment)
 cp     review-feedback/orchestrator-dev: cp-1
 cp     review-feedback/orchestrator-dev: cp-3
 locked cadrage/planner: bd create

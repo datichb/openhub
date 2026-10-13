@@ -47,6 +47,7 @@ func (t *tuiSessions) CheckpointCard(ctx context.Context, decisionID string) (vi
 	for _, r := range c.Reports {
 		out.Reports = append(out.Reports, views.CheckpointReport{ID: r.ID(), Agent: r.Agent, Title: r.Title, Bytes: r.Bytes, At: r.CreatedAt})
 	}
+	out.Wiki = cardWiki(c.Wiki)
 	return out, nil
 }
 

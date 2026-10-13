@@ -7,10 +7,6 @@ references:
   - developer/beads-plan
   - developer/beads-dev
 conditional:
-  # ÉTAPE 4 invokes the documentarian only when it is in the agent's
-  # « Peut déléguer à » column, otherwise the enrichments are listed in the
-  # report.
-  - shared/living-docs-enrichment
 commands:
 tasks:
   # orchestrator-dev-protocol (inlined): its invocation table names the

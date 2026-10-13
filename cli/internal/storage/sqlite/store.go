@@ -662,4 +662,36 @@ ALTER TABLE sessions DROP COLUMN worktree_auto`,
 		)`,
 		down: `DROP TABLE IF EXISTS session_reports`,
 	},
+	{
+		// Modernisation LD-J (wiki MCP of the project): the proposals for
+		// docs/wiki/ (wp-<seq> per project), kept after their session (the
+		// queue of the workflows without a commit).
+		version: 45,
+		up: `CREATE TABLE IF NOT EXISTS wiki_proposals (
+			project_id   TEXT NOT NULL,
+			seq          INTEGER NOT NULL,
+			session_id   TEXT NOT NULL DEFAULT '',
+			tool_session TEXT NOT NULL DEFAULT '',
+			agent        TEXT NOT NULL DEFAULT '',
+			page         TEXT NOT NULL,
+			section      TEXT NOT NULL DEFAULT '',
+			content      TEXT NOT NULL,
+			tag          TEXT NOT NULL,
+			source       TEXT NOT NULL DEFAULT '',
+			status       TEXT NOT NULL DEFAULT 'pending',
+			original     TEXT NOT NULL DEFAULT '',
+			decided_by   TEXT NOT NULL DEFAULT '',
+			decided_at   DATETIME,
+			applied_by   TEXT NOT NULL DEFAULT '',
+			applied_at   DATETIME,
+			error        TEXT NOT NULL DEFAULT '',
+			created_at   DATETIME NOT NULL,
+			PRIMARY KEY (project_id, seq)
+		);
+CREATE INDEX IF NOT EXISTS idx_wiki_proposals_session ON wiki_proposals(session_id);
+CREATE INDEX IF NOT EXISTS idx_wiki_proposals_status ON wiki_proposals(project_id, status)`,
+		down: `DROP INDEX IF EXISTS idx_wiki_proposals_status;
+DROP INDEX IF EXISTS idx_wiki_proposals_session;
+DROP TABLE IF EXISTS wiki_proposals`,
+	},
 }

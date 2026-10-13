@@ -22,6 +22,7 @@ const (
 	StepBreaker  = domain.CheckpointBreaker
 	StepImitated = domain.CheckpointImitated
 	StepReport   = domain.CheckpointReport
+	StepWiki     = domain.CheckpointWiki
 	StepTodo     = "todo"
 	// R3: verification failed, validated despite it, fix rounds capped.
 	StepVerifyFail = domain.CheckpointVerifyFail
@@ -84,6 +85,8 @@ func Timeline(wf *sessionspec.WorkflowRuntime, mode, lang string, st domain.Chec
 			out = append(out, Step{Kind: e.Kind, ID: e.ID, Label: label(e.ID), At: e.At})
 		case domain.CheckpointReport:
 			out = append(out, Step{Kind: StepReport, ID: e.ID, By: e.By, At: e.At})
+		case domain.CheckpointWiki:
+			out = append(out, Step{Kind: StepWiki, ID: e.ID, By: e.By, At: e.At})
 		}
 	}
 	// A waiting step is current only if it is still the one waited for.
@@ -128,6 +131,8 @@ func StepText(s Step) string {
 		return "⚑ " + s.ID
 	case StepFixLimit:
 		return "⛔ " + s.ID
+	case StepWiki:
+		return "✎ " + s.ID
 	case StepReport:
 		if s.By != "" {
 			return "▤ " + s.ID + " (" + s.By + ")"

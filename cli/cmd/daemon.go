@@ -107,6 +107,7 @@ func init() {
 // daemon run`, or inside the oh process when the daemon cannot run in the
 // background: Windows).
 func daemonOptions(ctx context.Context, a *app.App, capability string) daemon.Options {
+	wk := newWikiService()
 	return daemon.Options{
 		Capability:  capability,
 		Paths:       daemon.Paths{Dir: ohRunDir()},
@@ -122,8 +123,9 @@ func daemonOptions(ctx context.Context, a *app.App, capability string) daemon.Op
 		AgentEvents: sqlite.NewAgentEventStore(store),
 		SessionsDir: ohSessionsDir(),
 		ServersDir:  ohServersDir(),
-		Checkpoints: newCheckpointService(a),
+		Checkpoints: daemonCheckpoints(a, wk),
 		Reports:     daemonReports(),
+		Wiki:        wk,
 		Notify:      daemonNotifier(a),
 		ProjectName: func(ctx context.Context, id string) string {
 			if p, err := a.Projects.Get(ctx, id); err == nil {

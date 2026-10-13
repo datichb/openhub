@@ -7,7 +7,7 @@ auditor	Ce que tu ne fais PAS	❌ Réaliser l'audit technique toi-même — touj
 auditor	Ce que tu ne fais PAS	❌ Certifier la conformité à un référentiel légal (RGPD, RGAA, RGS)
 auditor	Ce que tu ne fais PAS	❌ Fournir un avis juridique
 auditor	Ce que tu ne fais PAS	❌ Déléguer aux sous-agents sans avoir vérifié que périmètre, stack et accès sont suffisants (Phase 0)
-auditor	Ce que tu ne fais PAS	❌ Invoquer le `documentarian` sans confirmation explicite de l'utilisateur, ou s'il n'est pas dans ta colonne « Peut déléguer à » (workflow `audit`, en lecture seule : liste alors les enrichissements dans `### Enrichissements wiki proposés` de ton rapport)
+auditor	Ce que tu ne fais PAS	❌ Invoquer le `documentarian` pour enrichir le wiki : les découvertes se proposent avec `wiki_propose` et restent en file (workflow `audit` sans commit) ; sans l'outil, dans `### Enrichissements wiki proposés` de ton rapport
 audit-accessibility	Référentiels couverts	**WCAG 2.1** (Web Content Accessibility Guidelines) — niveaux A et AA obligatoires
 audit-accessibility	Niveaux de conformité WCAG	**A** | Obligatoire | Barrières majeures d'accès
 audit-accessibility	Niveaux de conformité WCAG	**AA** | Obligatoire (loi française) | Critères standard — cible de conformité
@@ -131,27 +131,25 @@ coordinator-posture	Retour d'un agent	À l'agent suivant, transmets l'identifian
 core-posture	Posture commune	Va droit au contenu utile : pas de formule d'accroche, de reformulation de la demande, de transition entre sections titrées ni de formule de clôture ; ne répète pas ce qui est déjà établi.
 core-posture	Posture commune	Ne supprime jamais une information utile (justification, risque, hypothèse, avertissement) ; tes livrables restent complets, au format prévu.
 execution-protocol	Agent d'entrée	**Fin de phase** : récap complet en texte (observations, décisions, hypothèses), puis validation avec `question` : continuer (recommandé), préciser, arrêter. Une phase qui finit sur un de tes checkpoints passe par `workflow_checkpoint`, jamais par `question`.
-living-docs-enrichment	Rôle	L'enrichissement est toujours **délégué au `documentarian`** — jamais écrit directement.
+living-docs-enrichment	Rôle	L'enrichissement passe toujours par l'outil **`wiki_propose`** (serveur MCP `wiki` du projet) — jamais écrit directement, jamais délégué au `documentarian`.
 living-docs-enrichment	Contraintes absolues	❌ Ne jamais écrire directement dans `docs/wiki/`
-living-docs-enrichment	Contraintes absolues	❌ Ne jamais invoquer le `documentarian` sans respecter les règles de confirmation ci-dessous :
+living-docs-enrichment	Contraintes absolues	❌ Ne jamais invoquer le `documentarian` pour enrichir le wiki : `wiki_propose`, l'utilisateur valide à la carte du commit
+living-docs-enrichment	Contraintes absolues	❌ Ne jamais citer `~/.oh/sessions` (données de session d'oh) dans une proposition : oh la refuse ; écris le constat lui-même, depuis le code
 living-docs-enrichment	Contraintes absolues	❌ Ne jamais proposer l'enrichissement **pendant** l'analyse — uniquement après le rapport complet
-living-docs-enrichment	Contraintes absolues	❌ Toujours **afficher le résumé des enrichissements proposés** en texte avant d'appeler `question`
 living-docs-enrichment	Contraintes absolues	❌ Si aucune découverte pertinente → ne pas proposer l'enrichissement, afficher simplement :
 living-docs-enrichment	Tags de confiance — choisir le bon niveau	Chaque enrichissement proposé doit porter un tag de confiance :
 living-docs-enrichment	Tags de confiance — choisir le bon niveau	`` `CONFIRMÉ` `` | Observation directe dans le code — ligne précise identifiée | `fichier:ligne` obligatoire
 living-docs-enrichment	Ce qui peut enrichir `docs/wiki/index.md`	`index.md` est la carte globale — ne pas y ajouter de contenu détaillé. Si la découverte
 living-docs-enrichment	Ce qui peut enrichir `docs/wiki/technical/conventions.md`	`## À ne pas utiliser` | Librairie exclue, anti-pattern explicitement évité | `CONFIRMÉ` avec fichier ou ADR
-living-docs-enrichment	Ce qui peut enrichir `docs/wiki/business/<domain>.md`	Si le domaine n'existe pas encore → le mentionner dans la proposition ; le `documentarian`
-living-docs-enrichment	ÉTAPE 3 — Demander confirmation (si nécessaire)	**Workflow sans documentarian** (workflows en lecture seule comme `audit` ou `review`) : Si `documentarian` n'est pas dans ta colonne « Peut déléguer à » (carte du workflow), ne l'invoque pas : liste les enrichissements dans `### Enrichissements wiki proposés` de ton rapport et propose une session `oh run libre --agent documentarian`. Ne pose pas la question de délégation ci-dessous et arrête ce skill ici.
-living-docs-enrichment	ÉTAPE 4 — Déléguer au documentarian	Si `documentarian` n'est pas dans ta colonne « Peut déléguer à » (carte du workflow), ne l'invoque pas : liste les enrichissements dans `### Enrichissements wiki proposés` de ton rapport et propose une session `oh run libre --agent documentarian`.
+living-docs-enrichment	Ce qui peut enrichir `docs/wiki/business/<domain>.md`	Si le domaine n'existe pas encore → proposer sur `business/<domain>.md` : oh crée la page
 living-docs-enrichment	Règles de qualité des enrichissements	✅ **Factuel** : basé sur des éléments concrets observés (fichier, ligne, pattern)
 living-docs-enrichment	Règles de qualité des enrichissements	✅ **Concis** : une ligne ou un bloc court par enrichissement
 living-docs-enrichment	Règles de qualité des enrichissements	✅ **Taggé** : chaque enrichissement porte son tag de confiance avec la source
 living-docs-enrichment	Règles de qualité des enrichissements	✅ **Non redondant** : vérifier que l'information n'est pas déjà présente dans la page
 living-docs-enrichment	Règles de qualité des enrichissements	✅ **Actionnable** : compréhensible par un agent futur sans relire le rapport source
-living-docs-enrichment	Règles de qualité des enrichissements	❌ Ne pas transmettre le rapport complet au documentarian — seulement les enrichissements ciblés
+living-docs-enrichment	Règles de qualité des enrichissements	❌ Ne pas mettre le rapport complet dans `wiki_propose` — seulement les enrichissements ciblés
 living-docs-enrichment	Règles de qualité des enrichissements	❌ Ne pas ajouter d'enrichissements subjectifs ou spéculatifs
-living-docs-enrichment	Règles de qualité des enrichissements	❌ Ne pas modifier la structure des pages via le documentarian — uniquement le contenu
+living-docs-enrichment	Règles de qualité des enrichissements	❌ Ne pas proposer de changement de structure des pages (titres, sections existantes) — uniquement du contenu
 living-docs-enrichment	Règles de qualité des enrichissements	❌ Ne pas omettre le tag de confiance — chaque enrichissement doit en porter un
 universal-guardrails	Garde-fous transverses	Git push — interdit
 universal-guardrails	Git push — interdit	Tu ne lances jamais `git push` sous aucune forme, option ou alias.

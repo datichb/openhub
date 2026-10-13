@@ -1,6 +1,7 @@
 package bundle
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"slices"
@@ -28,7 +29,10 @@ func instructionsFixture(t *testing.T, wiki bool) string {
 	if wiki {
 		files["docs/wiki/index.md"] = "---\nupdated: 2026-10-01\n---\n\n# Atlas — Index Wiki\n\n## Stack critique\nGo.\n\n" +
 			"## God nodes — concepts les plus connectés\n\n| Concept | Pages liées | Criticité |\n|---|---|---|\n" +
-			"| Commande | [business/orders.md](business/orders.md) | Critique |\n\n*(Vide si aucun concept)*\n\n## Zones d'ombre\n\n- Rétention.\n"
+			"| Commande | [business/orders.md](business/orders.md), [business/billing.md](business/billing.md) | Critique |\n\n*(Vide si aucun concept)*\n\n## Zones d'ombre\n\n- Rétention.\n"
+		// The pages oh computes the god nodes from (LD-J).
+		files["docs/wiki/business/orders.md"] = "---\nupdated: 2026-10-01\n---\n\n# Commandes\n\n- Une commande.\n"
+		files["docs/wiki/business/billing.md"] = "---\nupdated: 2026-10-01\n---\n\n# Facturation\n\n- Facture par commande.\n"
 	}
 	for name, content := range files {
 		p := filepath.Join(dir, name)
@@ -141,17 +145,47 @@ func TestInstructionsRender(t *testing.T) {
 	assert.NotEmpty(t, instructionsContract(bricks.InstructionsNone, p))
 }
 
-func TestParseWikiIndex(t *testing.T) {
-	w := parseWikiIndex("# W\n\n## God nodes\n\n| C | P | X |\n|---|---|---|\n\n*(Vide)*\n\n## Autre\n")
-	assert.Equal(t, "W", w.Title)
-	assert.Equal(t, []string{"God nodes", "Autre"}, w.Sections)
-	assert.Nil(t, w.GodNodes, "a header without a row")
+// LD-J: the wiki index of the prompts comes from the WikiService, god nodes
+// computed by oh from the pages; the same data renders as the table of the
+// index.
+func TestWikiIndexOf(t *testing.T) {
+	assert.Nil(t, wikiIndexOf(""), "no project")
+	assert.Nil(t, wikiIndexOf(instructionsFixture(t, false)), "no wiki")
+	w := wikiIndexOf(instructionsFixture(t, true))
+	require.NotNil(t, w)
+	assert.Equal(t, "Atlas — Index Wiki", w.Title)
+	assert.Equal(t, []string{"Stack critique", "God nodes — concepts les plus connectés", "Zones d'ombre"}, w.Sections)
+	assert.Equal(t, []string{"| Concept | Pages liées | Criticité |", "|---|---|---|",
+		"| Commande | [business/orders.md](business/orders.md), [business/billing.md](business/billing.md) | Critique |"}, w.GodNodes, "declared row kept")
 
-	var rows strings.Builder
-	for range indexMaxGodNodes + 3 {
-		rows.WriteString("| c | p | x |\n")
+	// A declared god node cited by one page only is not one; a header
+	// without a row is no table.
+	dir := t.TempDir()
+	write := func(rel, text string) {
+		p := filepath.Join(dir, "docs", "wiki", filepath.FromSlash(rel))
+		require.NoError(t, os.MkdirAll(filepath.Dir(p), 0o755))
+		require.NoError(t, os.WriteFile(p, []byte(text), 0o644))
 	}
-	w = parseWikiIndex("## God nodes — concepts\n\n| C | P | X |\n|---|---|---|\n" + rows.String() + "\n## Carte\n\n| pas | un | god node |\n")
+	write("index.md", "# W\n\n## God nodes\n\n| C | P | X |\n|---|---|---|\n| Seul | [a.md](a.md) | Normale |\n\n## Autre\n")
+	write("a.md", "# A\n\nSeul.\n")
+	w = wikiIndexOf(dir)
+	require.NotNil(t, w)
+	assert.Nil(t, w.GodNodes)
+
+	// At most indexMaxGodNodes rows.
+	var rows strings.Builder
+	for i := range indexMaxGodNodes + 3 {
+		fmt.Fprintf(&rows, "| `Concept%dX` | [a.md](a.md), [b.md](b.md) | Normale |\n", i)
+	}
+	write("index.md", "## God nodes — concepts\n\n| C | P | X |\n|---|---|---|\n"+rows.String()+"\n## Carte\n\n| pas | un | god node |\n")
+	var both strings.Builder
+	for i := range indexMaxGodNodes + 3 {
+		fmt.Fprintf(&both, "`Concept%dX` ", i)
+	}
+	write("a.md", "# A\n\n"+both.String()+"\n")
+	write("b.md", "# B\n\n"+both.String()+"\n")
+	w = wikiIndexOf(dir)
+	require.NotNil(t, w)
 	assert.Len(t, w.GodNodes, 2+indexMaxGodNodes)
 
 	// Wiki without instruction files: the index carries the wiki alone.

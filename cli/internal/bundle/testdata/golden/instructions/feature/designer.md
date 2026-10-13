@@ -18,4 +18,4 @@ God nodes (concepts les plus connectés, liens relatifs à `docs/wiki/`) :
 
 | Concept | Pages liées | Criticité |
 |---|---|---|
-| Commande | [business/orders.md](business/orders.md) | Critique |
+| Commande | [business/orders.md](business/orders.md), [business/billing.md](business/billing.md) | Critique |

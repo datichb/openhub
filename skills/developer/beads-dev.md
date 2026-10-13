@@ -57,7 +57,7 @@ Jamais de commit ni de clôture avant cette instruction : oh refuse `git commit`
 `--suggest-next` affiche les tickets qui viennent d'être débloqués par cette clôture,
 ce qui permet de choisir la prochaine tâche sans relancer `bd ready`.
 
-**Après `bd close` — documentation vivante :** tu ne modifies pas la documentation toi-même. Les patterns, conventions ou contraintes découverts sont listés dans la section `### Enrichissements wiki proposés` de ton rapport ; ton coordinateur les propose (skill `living-docs-enrichment`).
+**Après `bd close` — documentation vivante :** tu ne modifies pas la documentation toi-même. Les patterns, conventions ou contraintes découverts se proposent avec `wiki_propose` (skill `living-docs-enrichment`), leurs `wp-…` cités dans la section `### Enrichissements wiki proposés` de ton rapport ; sans l'outil, liste-les dans cette section.
 
 ### Si la review rejette (retours formulés par ton coordinateur) :
 

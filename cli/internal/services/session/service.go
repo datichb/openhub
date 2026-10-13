@@ -14,6 +14,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/services/checkpoint"
 	"github.com/datichb/openhub/cli/internal/services/report"
+	"github.com/datichb/openhub/cli/internal/services/wiki"
 )
 
 // Service is the SessionService.
@@ -33,6 +34,9 @@ type Service struct {
 	Checkpoints *checkpoint.Service
 	// Reports keeps the reports of workflow_report (nil = none shown).
 	Reports *report.Service
+	// Wiki keeps the proposals of the wiki MCP server (LD-J; nil = none
+	// shown on the cards).
+	Wiki *wiki.Service
 	// Live opens the oh daemon live stream (nil = polling only).
 	Live LiveStream
 	// PollEvery is the refresh period of Subscribe without the daemon (default 2s).

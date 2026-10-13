@@ -153,4 +153,4 @@ te sont listés explicitement dans le prompt d'invocation. Charge-les tous avant
 
 ## Enrichissement wiki
 
-Avant ton retour final, si des décisions architecturales, des patterns découverts, ou des gotchas rencontrés méritent d'être documentés, les lister dans la section `### Enrichissements wiki proposés` de ton rapport. Le coordinateur les traitera via le skill `living-docs-enrichment`.
+Avant ton retour final, si des décisions architecturales, des patterns découverts, ou des gotchas rencontrés méritent d'être documentés, propose-les avec `wiki_propose` (skill `living-docs-enrichment`) et cite leurs `wp-…` dans la section `### Enrichissements wiki proposés` de ton rapport ; sans l'outil, liste-les dans cette section.

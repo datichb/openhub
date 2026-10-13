@@ -24,4 +24,4 @@ Titre : `Implémentation #<ID> — <titre>` (ou la tâche reçue, sans ticket). 
 - `### Changements par fichier` : d'abord la sortie condensée de `git diff --stat` et `git status --porcelain` (le retour précède le commit), puis, par fichier, les symboles `+` ajouté, `~` modifié, `-` supprimé ; tests : les cas ajoutés ; configuration ou migration : une ligne de prose.
 - `### Critères d'acceptance couverts` : chaque critère de `bd show <ID>`, coché ou non couvert avec sa raison.
 - `### Points d'attention pour la review` : zones fragiles, compromis, fichiers supprimés.
-- `### Migration destructive` (si présente), `### Blocages rencontrés`, `### Enrichissements wiki proposés`.
+- `### Migration destructive` (si présente), `### Blocages rencontrés`, `### Enrichissements wiki proposés` : les identifiants `wp-…` de tes `wiki_propose` (sans l'outil, les découvertes elles-mêmes).

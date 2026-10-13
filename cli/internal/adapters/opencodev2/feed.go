@@ -192,11 +192,15 @@ func (f *feedDecoder) callOf(e Event) *adapters.ToolCall {
 	return c
 }
 
-// workflowTools are the oh workflow MCP tools, by opencode tool name.
+// workflowTools are the oh workflow and wiki MCP tools, by opencode tool name.
 var workflowTools = func() map[string]string {
 	out := map[string]string{}
 	for _, t := range sessionspec.WorkflowTools {
 		a := sessionspec.MCPToolAction(sessionspec.WorkflowMCPServer, t)
+		out[ToolAction(a)] = a
+	}
+	for _, t := range sessionspec.WikiTools {
+		a := sessionspec.MCPToolAction(sessionspec.WikiMCPServer, t)
 		out[ToolAction(a)] = a
 	}
 	for legacy, t := range sessionspec.LegacyWorkflowTools {
@@ -206,7 +210,7 @@ var workflowTools = func() map[string]string {
 }()
 
 // NeutralAction translates an opencode tool name to its neutral action
-// (the oh workflow tools; built-in names are already neutral).
+// (the oh workflow and wiki tools; built-in names are already neutral).
 func NeutralAction(name string) string {
 	if a, ok := workflowTools[name]; ok {
 		return a
@@ -215,9 +219,13 @@ func NeutralAction(name string) string {
 }
 
 // displayTool is the name of a tool in the live feed: an oh workflow tool
-// without its MCP server prefix (workflow_checkpoint).
+// without its MCP server prefix (workflow_checkpoint); a wiki tool keeps
+// it (wiki_propose).
 func displayTool(name string) string {
-	if _, tool, ok := sessionspec.ParseMCPToolAction(NeutralAction(name)); ok {
+	if server, tool, ok := sessionspec.ParseMCPToolAction(NeutralAction(name)); ok {
+		if server == sessionspec.WikiMCPServer {
+			return server + "_" + tool
+		}
 		return tool
 	}
 	return name

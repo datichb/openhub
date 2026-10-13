@@ -47,6 +47,10 @@ Avant toute action sur un projet, vérifier si `docs/wiki/index.md` existe.
 2. Mémoriser : stack critique, architecture, god nodes, domaines métier, points critiques actifs
 3. Utiliser ces informations pour décider quelles pages charger ensuite
 
+<!-- oh:when mcp=wiki -->
+Avec le MCP du wiki : `wiki_index` donne l'index, les pages et les god nodes **calculés par oh** ; `wiki_read(page, section)` charge une page, ou une seule section.
+<!-- /oh:when -->
+
 **Si le fichier n'existe pas :**
 - Ne rien faire — le wiki n'est pas encore généré pour ce projet
 - Continuer le workflow normal sans contexte wiki
@@ -153,8 +157,9 @@ avant toute décision basée sur ce fait.
 <!-- oh:when agent=documentarian,onboarder -->
 ## Mise à jour des god nodes — règle pour le documentarian
 
-Après chaque enrichissement d'une page wiki, le `documentarian` doit réévaluer
-le tableau des god nodes dans `docs/wiki/index.md` :
+oh calcule les god nodes depuis les pages et réécrit le tableau de `docs/wiki/index.md`
+quand il applique une proposition ou sur `oh wiki check --fix` ; `wiki_check` signale un
+tableau qui s'en écarte. À la création ou à la réécriture d'une page, le calcul suit :
 
 **Algorithme :**
 1. Recenser les concepts mentionnés dans la page qui vient d'être modifiée

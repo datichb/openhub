@@ -19,6 +19,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/mcp/mcpregistry"
+	mcpwiki "github.com/datichb/openhub/cli/internal/mcp/wiki"
 	mcpworkflow "github.com/datichb/openhub/cli/internal/mcp/workflow"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
@@ -658,6 +659,9 @@ func mcpServeCmd() *cobra.Command {
 			// user-configurable service (absent from list/setup/enable).
 			if name == sessionspec.WorkflowMCPServer {
 				return mcpworkflow.Serve()
+			}
+			if name == sessionspec.WikiMCPServer {
+				return mcpwiki.Serve()
 			}
 			registry := mcpregistry.NewDefaultRegistry()
 			server := registry.Get(name)

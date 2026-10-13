@@ -18,6 +18,7 @@ const (
 	CheckpointBreaker  = "breaker"  // circuit breaker tripped
 	CheckpointImitated = "imitated" // a question imitated a checkpoint (closed by oh)
 	CheckpointReport   = "report"   // a report was stored (workflow_report)
+	CheckpointWiki     = "wiki"     // oh applied the wiki proposals accepted on the card (LD-J)
 )
 
 // CheckpointState is the workflow state of a session (sessions.checkpoint_state,

@@ -164,6 +164,14 @@ MCP server tokens (GitLab, Figma, Jira, Linear, GitHub, Google) are:
 - **Neither read nor forged by agents.** Bodies are in `~/.oh/sessions/<session>/reports/` (files 0600, folder 0700), refused to every agent by the oh guards (shell, read, write, search; layer 0, before the scratch exceptions); each body is checked against its SHA-256 digest before it is shown. Agents read the reports of their session through `workflow_report_get` only.
 - **Bounded and cleaned.** 64 KiB per report, 100 reports and 4 MiB per session; terminal sequences and control characters removed; the TUI escapes the text. The reports of a remote session (`reports.json`, pipeline schema 5) are cleaned and bounded again on import.
 
+### Project wiki (`wiki` MCP server, LD-J)
+
+- **Proposing is not writing.** Agents propose with `wiki_propose`; only the proposals the user accepts on the card of the commit checkpoint are written in `docs/wiki/`, by oh, when the checkpoint is passed (traced: status, `applied_by`, date, timeline entry). The others stay queued.
+- **Author set by oh.** The daemon takes the author from the calling tool session, never from the request; the tag line (tag, author, date, source) is written by oh, those of the content are removed. Routes authenticated like those of the `workflow` server (group token of the session).
+- **`wiki_apply` reserved to the documentarian.** Generated permission rule (refused to every agent, `ask` for the `documentarian`) and daemon check on the agent it sees calling (403 otherwise).
+- **Untrusted content.** Cleaned (control characters, terminal sequences), neutralised (headings, frontmatter markers, HTML and comments, `oh:when` among them, an unclosed code fence), bounded (4 KiB, 60 lines; 50 open proposals per session, 500 per project) and escaped in the TUI. A proposal citing the oh session data (`~/.oh/sessions`, the scratch folders among them, or the sessions folder actually in use) is refused: a scratch file never reaches the wiki.
+- **No symbolic link.** oh never reads nor writes through a symbolic link in `docs/` or `docs/wiki/`; page paths are relative, without `..` nor hidden components; writes are atomic.
+
 ### Session limits (I6)
 
 Optional and disabled by default (`oh budget show|set|unset|raise`): maximum active sessions, budget per session and daily budget in USD, memory cap, list of allowed models (enforced by the proxy on the group token). Cascade: workflow (`limits:`) > project > hub > team recommended; a team's enforced value is a ceiling. Budgets are soft ceilings: they are checked at the end of each step, which then raises a `$` decision.

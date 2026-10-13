@@ -133,7 +133,7 @@ te sont listés explicitement dans le prompt d'invocation. Charge-les tous avant
 
 ## Enrichissement wiki
 
-Avant ton retour final, si des décisions architecturales, des patterns découverts, ou des gotchas rencontrés méritent d'être documentés, les lister dans la section `### Enrichissements wiki proposés` de ton rapport. Le coordinateur les traitera via le skill `living-docs-enrichment`.
+Avant ton retour final, si des décisions architecturales, des patterns découverts, ou des gotchas rencontrés méritent d'être documentés, propose-les avec `wiki_propose` (skill `living-docs-enrichment`) et cite leurs `wp-…` dans la section `### Enrichissements wiki proposés` de ton rapport ; sans l'outil, liste-les dans cette section.
 
 ---
 
@@ -241,7 +241,7 @@ Titre : `Implémentation #<ID> — <titre>` (ou la tâche reçue, sans ticket). 
 - `### Changements par fichier` : d'abord la sortie condensée de `git diff --stat` et `git status --porcelain` (le retour précède le commit), puis, par fichier, les symboles `+` ajouté, `~` modifié, `-` supprimé ; tests : les cas ajoutés ; configuration ou migration : une ligne de prose.
 - `### Critères d'acceptance couverts` : chaque critère de `bd show <ID>`, coché ou non couvert avec sa raison.
 - `### Points d'attention pour la review` : zones fragiles, compromis, fichiers supprimés.
-- `### Migration destructive` (si présente), `### Blocages rencontrés`, `### Enrichissements wiki proposés`.
+- `### Migration destructive` (si présente), `### Blocages rencontrés`, `### Enrichissements wiki proposés` : les identifiants `wp-…` de tes `wiki_propose` (sans l'outil, les découvertes elles-mêmes).
 
 ---
 
@@ -523,7 +523,7 @@ Jamais de commit ni de clôture avant cette instruction : oh refuse `git commit`
 `--suggest-next` affiche les tickets qui viennent d'être débloqués par cette clôture,
 ce qui permet de choisir la prochaine tâche sans relancer `bd ready`.
 
-**Après `bd close` — documentation vivante :** tu ne modifies pas la documentation toi-même. Les patterns, conventions ou contraintes découverts sont listés dans la section `### Enrichissements wiki proposés` de ton rapport ; ton coordinateur les propose (skill `living-docs-enrichment`).
+**Après `bd close` — documentation vivante :** tu ne modifies pas la documentation toi-même. Les patterns, conventions ou contraintes découverts se proposent avec `wiki_propose` (skill `living-docs-enrichment`), leurs `wp-…` cités dans la section `### Enrichissements wiki proposés` de ton rapport ; sans l'outil, liste-les dans cette section.
 
 ### Si la review rejette (retours formulés par ton coordinateur) :
 

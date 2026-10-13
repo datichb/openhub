@@ -126,7 +126,7 @@ oh mcp serve <name> [--token-key <key>]
 
 Tools are exposed without the server name (`get_project`): the tool (opencode) prefixes it, the session sees `gitlab_get_project` (the name used by agents, skills and permission rules). A call under the former prefixed name (`gitlab_get_project` on the server side) is still accepted.
 
-`oh mcp serve workflow` is internal: the `workflow` MCP server (see [workflow MCP server](#workflow-mcp-server)) injected into every session bundle, absent from `list`, `setup` and `enable`.
+`oh mcp serve workflow` is internal: the `workflow` MCP server (see [workflow MCP server](#workflow-mcp-server)) injected into every session bundle, absent from `list`, `setup` and `enable`. Likewise, `oh mcp serve wiki` serves the [wiki MCP server](#wiki-mcp-server).
 
 **Example:**
 
@@ -151,6 +151,29 @@ Injected into every session started from a workflow; stateless, it passes each c
 | `workflow_reports` | — | Lists the reports of the session (id, author, title, size, time, sections) |
 
 **Reports (`workflow_report`).** The agent files its whole report; oh keeps it and the coordinators only pass its id on. The author is the agent oh sees calling the tool (an `agent` parameter would be ignored). The reports filed since the previous checkpoint, and those the agent cites in `reports`, are attached to the checkpoint card; each filing enters the timeline (`▤ rp-2 (developer)`). Limits: 64 KiB per report, 100 reports and 4 MiB per session; beyond them the tool refuses and the agent includes the report in its block. Without the daemon (or when it keeps no report: `OH_WORKFLOW_REPORTS=off`), the tool answers "not recorded" without an error and the agent falls back on the whole report in its block. Agents never read nor write the reports other than through these tools (`~/.oh/sessions` refused by the oh guards, before the exceptions of the session scratch folders). User side: [`oh session report`](cli-sessions.en.md#oh-session-report).
+
+When a checkpoint that unlocks the commit is passed, the answer of `workflow_checkpoint` may carry a "Wiki: …" line: the wiki proposals accepted on the card, applied by oh, and the files to commit with the code (see below).
+
+---
+
+### wiki MCP server
+
+The project wiki (`docs/wiki/`), modernisation LD-J. Injected into the sessions started from a workflow when the project has a `docs/wiki/`; stateless, like `workflow`, it passes each call to the oh daemon (token of the server group) for the calling session. The wiki read is the one of the session folder (project or worktree); the proposal queue is the project's. Agents see its tools as `wiki_<tool>`.
+
+| Tool | Parameters | Role |
+|------|------------|------|
+| `wiki_index` | — | Title and sections of the index, pages (title, `updated`, `confidence`), god nodes **computed by oh**, pending proposals (project, session) |
+| `wiki_read` | `page`, `section` (optional) | Reads a page (path relative to `docs/wiki/`), or one section |
+| `wiki_propose` | `page`, `content`, `tag`, `source` (required for `CONFIRMÉ`), `section` (optional) | Queues a proposal; oh answers with its id `wp-<n>` |
+| `wiki_pending` | `session_only` (optional) | Pending proposals (accepted or not), of the project or of the session |
+| `wiki_apply` | `ids` | Applies proposals: **documentarian only** |
+| `wiki_check` | — | Checks the wiki (frontmatter, links, tags, freshness, god nodes), like [`oh wiki check`](cli-projects.en.md#oh-wiki-check) |
+
+**Proposals (`wiki_propose`).** The author is the agent oh sees calling the tool (an `agent` parameter would be ignored); the tag line is written by oh (tag, author, date, source) and those the content carries are removed. The content is cleaned (control characters and terminal sequences removed) and neutralised: headings, frontmatter markers, HTML and comments (`oh:when` markers among them) escaped, an unclosed code fence closed. Any reference to the oh session data (`~/.oh/sessions`, the `scratch/` folders among them, or the sessions folder actually in use) is refused. Limits: 4 KiB and 60 lines per proposal, 50 open proposals per session, 500 per project. The same open proposal of the same session is not duplicated. Without the daemon, the tool answers "not recorded" without an error and the agent keeps the proposal in its report.
+
+**Validation and application.** The open proposals of the session show on the card of the commit checkpoint (TUI): accept, edit (content cleaned again; the original is kept) or refuse, one by one or all at once. When the checkpoint is passed, oh applies the accepted proposals before giving control back to the agent (`✎ wp-…` entry in the timeline, status `applied`, `applied_by: oh`). The others stay queued ([`oh wiki pending`](cli-projects.en.md#oh-wiki-pending)), like every proposal of the workflows without a commit.
+
+**`wiki_apply`.** Refused by a permission rule to every agent but the `documentarian`, for which it is asked to the user (`ask`); the daemon also refuses it (403) to any other agent it sees calling, whatever the rules of the session. It applies the pending or accepted proposals of the project.
 
 ---
 

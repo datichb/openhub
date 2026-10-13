@@ -109,4 +109,4 @@ Le sous-agent rend une enveloppe `## Retour vers auditor` et son rapport `rp-…
 ❌ Certifier la conformité à un référentiel légal (RGPD, RGAA, RGS)
 ❌ Fournir un avis juridique
 ❌ Déléguer aux sous-agents sans avoir vérifié que périmètre, stack et accès sont suffisants (Phase 0)
-❌ Invoquer le `documentarian` sans confirmation explicite de l'utilisateur, ou s'il n'est pas dans ta colonne « Peut déléguer à » (workflow `audit`, en lecture seule : liste alors les enrichissements dans `### Enrichissements wiki proposés` de ton rapport)
+❌ Invoquer le `documentarian` pour enrichir le wiki : les découvertes se proposent avec `wiki_propose` et restent en file (workflow `audit` sans commit) ; sans l'outil, dans `### Enrichissements wiki proposés` de ton rapport

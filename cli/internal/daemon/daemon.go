@@ -22,6 +22,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/safego"
 	"github.com/datichb/openhub/cli/internal/services/checkpoint"
 	"github.com/datichb/openhub/cli/internal/services/report"
+	"github.com/datichb/openhub/cli/internal/services/wiki"
 )
 
 // SecretGetter reads secrets from the host secret store (keychain…).
@@ -65,6 +66,9 @@ type Options struct {
 	// Reports stores the reports of workflow_report (nil = not recorded:
 	// the agents keep their whole report in their handoff block).
 	Reports *report.Service
+	// Wiki keeps the proposals of the wiki MCP server of the projects
+	// (LD-J; nil = wiki MCP unavailable).
+	Wiki *wiki.Service
 	// Adapter returns the tool adapter for a server's adapter name (nil = no watcher).
 	Adapter func(name string) adapters.ToolAdapter
 	// GatewayView returns how the runtime of a server group sees the

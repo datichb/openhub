@@ -46,5 +46,5 @@
 - **Rapports** : outil `workflow_report` disponible{{ if .Subagent }} : dépose ton rapport complet, puis cite son identifiant `rp-…` dans ton bloc{{ end }}{{ if .Callees }} ; `workflow_report_get` lit un rapport cité par un agent que tu as lancé (en entier ou une section) : ne le recopie pas, la carte du checkpoint le montre{{ end }}.
 {{- end }}
 {{- if .WikiMCP }}
-- **Wiki du projet** : outils `wiki_*` disponibles (lecture, propositions).
+- **Wiki du projet** : `wiki_index` et `wiki_read` pour le lire ; `wiki_propose` met une découverte en file, avec son tag et sa source : l'utilisateur la valide à la carte du commit, puis oh l'applique.{{ if .WikiApply }} `wiki_apply` applique des propositions ; `wiki_check` vérifie le wiki.{{ end }}
 {{- end }}

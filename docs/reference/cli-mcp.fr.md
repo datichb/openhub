@@ -126,7 +126,7 @@ oh mcp serve <name> [--token-key <cle>]
 
 Les outils sont exposes sans le nom du serveur (`get_project`) : l'outil (opencode) le prefixe, la session voit `gitlab_get_project` (nom cite par les agents, les skills et les regles de permission). Un appel sous l'ancien nom prefixe (`gitlab_get_project` cote serveur) reste accepte.
 
-`oh mcp serve workflow` est interne : serveur MCP `workflow` (voir [Serveur MCP workflow](#serveur-mcp-workflow)) injecte dans chaque paquet de session, absent de `list`, `setup` et `enable`.
+`oh mcp serve workflow` est interne : serveur MCP `workflow` (voir [Serveur MCP workflow](#serveur-mcp-workflow)) injecte dans chaque paquet de session, absent de `list`, `setup` et `enable`. De même, `oh mcp serve wiki` sert le [Serveur MCP wiki](#serveur-mcp-wiki).
 
 **Exemple :**
 
@@ -151,6 +151,29 @@ Injecté dans chaque session lancée depuis un workflow ; sans état, il transme
 | `workflow_reports` | — | Liste les rapports de la session (identifiant, auteur, titre, taille, heure, sections) |
 
 **Rapports (`workflow_report`).** L'agent dépose son rapport complet ; oh le garde et les coordinateurs ne transmettent que son identifiant. L'auteur est l'agent qu'oh voit appeler l'outil (un paramètre `agent` serait ignoré). Les rapports déposés depuis le checkpoint précédent, et ceux que l'agent cite dans `reports`, sont joints à la carte du checkpoint ; chaque dépôt s'inscrit dans la frise (`▤ rp-2 (developer)`). Limites : 64 Ko par rapport, 100 rapports et 4 Mo par session ; au-delà, l'outil refuse et l'agent inclut le rapport dans son bloc. Sans démon (ou quand il ne garde pas les rapports : `OH_WORKFLOW_REPORTS=off`), l'outil répond « non enregistré » sans erreur et l'agent revient au rapport complet dans son bloc. Les agents ne lisent ni n'écrivent les rapports autrement que par ces outils (refus de `~/.oh/sessions` par les gardes d'oh, avant les exceptions des brouillons de session). Lecture côté utilisateur : [`oh session report`](cli-sessions.fr.md#oh-session-report).
+
+Au passage d'un checkpoint qui déverrouille le commit, la réponse de `workflow_checkpoint` peut porter une ligne « Wiki : … » : les propositions du wiki acceptées à la carte, appliquées par oh, et les fichiers à committer avec le code (voir ci-dessous).
+
+---
+
+### Serveur MCP wiki
+
+Wiki du projet (`docs/wiki/`), modernisation LD-J. Injecté dans les sessions lancées depuis un workflow quand le projet a un `docs/wiki/` ; sans état, comme `workflow`, il transmet chaque appel au démon oh (jeton du groupe de serveurs) pour la session qui appelle. Le wiki lu est celui du dossier de la session (projet ou worktree) ; la file de propositions est celle du projet. Les agents voient ses outils sous le nom `wiki_<outil>`.
+
+| Outil | Paramètres | Rôle |
+|-------|------------|------|
+| `wiki_index` | — | Titre et sections de l'index, pages (titre, `updated`, `confidence`), god nodes **calculés par oh**, propositions en attente (projet, session) |
+| `wiki_read` | `page`, `section` (facultatif) | Lit une page (chemin relatif à `docs/wiki/`), ou une section |
+| `wiki_propose` | `page`, `content`, `tag`, `source` (obligatoire pour `CONFIRMÉ`), `section` (facultatif) | Met une proposition en file ; oh répond par son identifiant `wp-<n>` |
+| `wiki_pending` | `session_only` (facultatif) | Propositions en attente (acceptées ou non), du projet ou de la session |
+| `wiki_apply` | `ids` | Applique des propositions : **documentarian seulement** |
+| `wiki_check` | — | Vérifie le wiki (frontmatter, liens, tags, fraîcheur, god nodes), comme [`oh wiki check`](cli-projects.fr.md#oh-wiki-check) |
+
+**Propositions (`wiki_propose`).** L'auteur est l'agent qu'oh voit appeler l'outil (un paramètre `agent` serait ignoré) ; la ligne de tag est écrite par oh (tag, auteur, date, source) et celles que le contenu porterait sont retirées. Le contenu est nettoyé (caractères de contrôle et séquences de terminal supprimés) et neutralisé : titres, marqueurs de frontmatter, HTML et commentaires (dont les marqueurs `oh:when`) échappés, bloc de code non fermé refermé. Toute référence aux données de session d'oh (`~/.oh/sessions`, dont les brouillons `scratch/`, ou le dossier des sessions réellement utilisé) est refusée. Limites : 4 Ko et 60 lignes par proposition, 50 propositions ouvertes par session, 500 par projet. Une proposition identique et ouverte de la même session n'est pas dupliquée. Sans démon, l'outil répond « non enregistrée » sans erreur et l'agent garde la proposition dans son rapport.
+
+**Validation et application.** Les propositions ouvertes de la session s'affichent sur la carte du checkpoint de commit (TUI) : accepter, modifier (contenu nettoyé à nouveau ; l'original est conservé) ou refuser, une par une ou toutes à la fois. Quand le checkpoint passe, oh applique les propositions acceptées avant de rendre la main à l'agent (entrée `✎ wp-…` dans la frise, statut `applied`, `applied_by: oh`). Les autres restent en file ([`oh wiki pending`](cli-projects.fr.md#oh-wiki-pending)), comme toutes celles des workflows sans commit.
+
+**`wiki_apply`.** Refusé par une règle de permission à tous les agents sauf le `documentarian`, pour qui il est soumis à l'utilisateur (`ask`) ; le démon le refuse aussi (403) à tout autre agent qu'il voit appeler, quelles que soient les règles de la session. Il applique les propositions en attente ou acceptées du projet.
 
 ---
 
