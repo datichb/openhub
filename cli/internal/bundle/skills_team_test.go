@@ -2,6 +2,7 @@ package bundle
 
 import (
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -19,6 +20,9 @@ func TestCheckTeamSkills(t *testing.T) {
 		"agents/team/agent.md":         "---\nid: agent\nscope: agent\n---\n",
 		"skills/team/.hidden.md":       "---\nscope: hidden\n---\n",
 		"skills/team/nofrontmatter.md": "# body only\n",
+		"skills/team/long.md":          "---\nname: long\ndescription: Utiliser " + strings.Repeat("x", 300) + "\n---\nx\n",
+		"skills/team/huge.md":          "---\nname: huge\ndescription: Utiliser " + strings.Repeat("x", 1100) + "\n---\nx\n",
+		"skills/team/vague.md":         "---\nname: vague\ndescription: Conventions de l'équipe\n---\nx\n",
 	})
 	problems, err := CheckTeamSkills(catalog)
 	require.NoError(t, err)
@@ -32,9 +36,12 @@ func TestCheckTeamSkills(t *testing.T) {
 		got[string(p.Kind)+" "+p.Ref+" "+p.Detail] = p.Error
 	}
 	assert.Equal(t, map[string]bool{
-		"unknown_key team:team/unknown scope":  true,
-		"unknown_key team:team/unknown owner":  true,
-		"invalid_frontmatter team:team/broken": true,
+		"unknown_key team:team/unknown scope":      true,
+		"unknown_key team:team/unknown owner":      true,
+		"invalid_frontmatter team:team/broken":     true,
+		"long_description team:team/long 309":      false,
+		"long_description team:team/huge 1109":     true,
+		"description_not_trigger team:team/vague ": false,
 	}, got)
 }
 

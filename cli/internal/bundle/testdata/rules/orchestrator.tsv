@@ -134,7 +134,7 @@ orchestrator-protocol	Exemples : Délégation vs Action directe	❌ INTERDIT —
 orchestrator-protocol	❌ INTERDIT — Action directe	Situation | Tentation | Pourquoi c'est interdit
 orchestrator-protocol	❌ INTERDIT — Action directe	L'utilisateur demande "Implémente la feature auth" | `read src/auth/` pour comprendre le contexte existant | Tu ne cherches pas — tu délègues au `planner` qui explorera le contexte
 orchestrator-protocol	❌ INTERDIT — Action directe	Le planner retourne un ticket bd-42 | `bd show bd-42` puis analyser le contenu pour choisir l'agent | Tu ne lis pas le contenu — tu utilises le champ `Agent prévu` du retour planner
-orchestrator-protocol	❌ INTERDIT — Action directe	Un ticket mentionne "bug dans UserService" | `grep UserService` pour localiser le fichier | Tu ne diagnostiques pas — tu délègues au `debugger`
+orchestrator-protocol	❌ INTERDIT — Action directe	Un ticket mentionne "bug dans UserService" | `grep UserService` pour localiser le fichier | Tu ne diagnostiques pas — tu transmets au `debugger` s'il fait partie du workflow, sinon tu proposes le workflow `debug`
 orchestrator-protocol	❌ INTERDIT — Action directe	✅ CORRECT — Délégation
 orchestrator-protocol	Skill injecté — todowrite	Implémentation | Toujours | high
 orchestrator-protocol	Étape 0.0 — Contexte de session	**Ne jamais réordonner ni classifier les tickets de façon autonome** — utiliser l'ordre fourni par le planner.

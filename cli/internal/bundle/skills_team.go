@@ -6,7 +6,9 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
+	"unicode/utf8"
 )
 
 // TeamSkillPrefix prefixes the refs of the team catalogue skills in the
@@ -17,7 +19,9 @@ const TeamSkillPrefix = "team:"
 // the hub ones: extends: hub:<ref> (replaces a hub skill, never delivered).
 var teamSkillKeys = []string{"extends"}
 
-// CheckTeamSkills applies the unknown_key rule of CheckSkills to the skills
+// CheckTeamSkills applies the unknown_key rule of CheckSkills, and its
+// description rules as warnings (long_description: error past the spec
+// limit only; description_not_trigger), to the skills
 // of a team catalogue (catalogDir/skills/**/*.md, annexes of templates/
 // aside). Refs are prefixed with TeamSkillPrefix; a missing folder is no
 // problem.
@@ -50,6 +54,14 @@ func CheckTeamSkills(catalogDir string) ([]SkillProblem, error) {
 		if perr != nil {
 			problems = append(problems, problem(SkillInvalidFrontmatter, TeamSkillPrefix+ref, perr.Error()))
 			return nil
+		}
+		if desc := doc.Front.Description; strings.TrimSpace(desc) != "" && !isTrigger(desc) {
+			problems = append(problems, problem(SkillNotTrigger, TeamSkillPrefix+ref, ""))
+		}
+		if n := utf8.RuneCountInString(doc.Front.Description); n > maxHubDescriptionLen {
+			p := problem(SkillLongDescription, TeamSkillPrefix+ref, strconv.Itoa(n))
+			p.Error = n > maxSkillDescriptionLen
+			problems = append(problems, p)
 		}
 		for _, k := range doc.Keys {
 			if k != "bucket" && !slices.Contains(deliveredSkillKeys, k) && !slices.Contains(hubSkillKeys, k) && !slices.Contains(teamSkillKeys, k) {

@@ -17,8 +17,3 @@ CONTINUER le travail si l'utilisateur ne reagit pas	guard:mcp team — team-poli
 **Si violation** : supprimer ou commenter les patterns interdits	guard:mcp team — team-policies-enforcement livrée seulement quand le serveur MCP team est dans la session (P1.2)
 **Si violation** : informer que le ticket ne peut pas etre ferme sans review	guard:mcp team — team-policies-enforcement livrée seulement quand le serveur MCP team est dans la session (P1.2)
 **Si violation** : ne pas proposer de nouveau ticket, suggerer de terminer un ticket en cours	guard:mcp team — team-policies-enforcement livrée seulement quand le serveur MCP team est dans la session (P1.2)
-# P1.5 (modernisation): accents of team-policies-enforcement, orchestrator-protocol debugger line
-Ce skill definit comment les agents doivent respecter les team policies.	merged:Ce skill définit comment les agents doivent respecter les team policies. (accents, P1.5)
-CONTINUER le travail si l'utilisateur ne reagit pas	merged:CONTINUER le travail si l'utilisateur ne réagit pas (accents, P1.5)
-**Si violation** : informer que le ticket ne peut pas etre ferme sans review	merged:**Si violation** : informer que le ticket ne peut pas être fermé sans review (accents, P1.5)
-**Si violation** : ne pas proposer de nouveau ticket, suggerer de terminer un ticket en cours	merged:**Si violation** : ne pas proposer de nouveau ticket, suggérer de terminer un ticket en cours (accents, P1.5)

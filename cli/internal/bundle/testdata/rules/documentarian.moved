@@ -24,8 +24,3 @@ Format enrichi — obligatoire quand CONTEXTE = orchestrator_feature	moved:tool-
 Le texte affiché dans ta session enfant n'est **pas visible** par l'utilisateur dans la session parent.	moved:tool-question §En sous-agent — C-6 pas de `question` en sous-agent, décisions dans `### Questions bloquantes` (le condensé enrichi devient le contexte de la question bloquante)
 Termes exacts (noms de fichiers, patterns, warnings) — ne pas paraphraser	moved:tool-question §En sous-agent — C-6 pas de `question` en sous-agent, décisions dans `### Questions bloquantes` (le condensé enrichi devient le contexte de la question bloquante)
 Tout process lancé en background doit être arrêté avant la fin de la tâche	merged:C-19 Tout process lancé en background doit être arrêté avant la fin de la tâche : `kill %<job>`, ou `kill <pid>` avec le PID noté au lancement. Pas de `pkill -f` (ask dans developer-rw.yaml, peut tuer le serveur de la session)
-# P1.5 (modernisation): accents of team-policies-enforcement, orchestrator-protocol debugger line
-Ce skill definit comment les agents doivent respecter les team policies.	merged:Ce skill définit comment les agents doivent respecter les team policies. (accents, P1.5)
-CONTINUER le travail si l'utilisateur ne reagit pas	merged:CONTINUER le travail si l'utilisateur ne réagit pas (accents, P1.5)
-**Si violation** : informer que le ticket ne peut pas etre ferme sans review	merged:**Si violation** : informer que le ticket ne peut pas être fermé sans review (accents, P1.5)
-**Si violation** : ne pas proposer de nouveau ticket, suggerer de terminer un ticket en cours	merged:**Si violation** : ne pas proposer de nouveau ticket, suggérer de terminer un ticket en cours (accents, P1.5)
