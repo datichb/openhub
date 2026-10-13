@@ -12,6 +12,8 @@
 
 Checks the hub skills (`skills/**/*.md`, the `skills/templates/` annexes excepted) and the skills named by the hub agents. Exits with code 1 on errors.
 
+With an active team (solo space included), it also applies the `unknown_key` rule to the skills of the team catalogue (`catalog/skills/**/*.md` of the team-state, `templates/` excepted): their problems carry the `team:` prefix (`team:<path>`), and the `extends` key (replacement of a hub skill, `extends: hub:<ref>`) is allowed there. An unreadable frontmatter there is an `invalid_frontmatter`.
+
 | Kind | Level | Problem |
 |------|-------|---------|
 | `duplicate_id` | error | Two skills with the same identifier (last path component) |
