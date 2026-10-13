@@ -20,6 +20,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/services/checkpoint"
 	"github.com/datichb/openhub/cli/internal/services/report"
+	"github.com/datichb/openhub/cli/internal/services/wiki"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 	"github.com/datichb/openhub/cli/internal/storage/sqlite"
 )
@@ -72,6 +73,7 @@ type workflowEnv struct {
 	decisions domain.DecisionStore
 	cp        *checkpoint.Service
 	reports   *report.Service
+	wiki      *wiki.Service
 	client    *daemon.Client
 	// env is added to the environment of the servers (shell of the sessions).
 	env map[string]string
@@ -94,6 +96,9 @@ func newWorkflowEnv(t *testing.T, a *Adapter) *workflowEnv {
 	e.decisions = sqlite.NewDecisionStore(st)
 	e.cp = &checkpoint.Service{Sessions: e.sessions, States: sqlite.NewCheckpointStore(st), SessionOutputs: sqlite.NewCheckpointStore(st), BundlesDir: e.bundles, SessionsDir: filepath.Join(home, "sessions")}
 	e.reports = &report.Service{Store: sqlite.NewReportStore(st), SessionsDir: filepath.Join(home, "sessions")}
+	// LD-J: proposals of the wiki MCP server, applied at the commit checkpoint.
+	e.wiki = &wiki.Service{Store: sqlite.NewWikiProposalStore(st), SessionsDir: filepath.Join(home, "sessions")}
+	e.cp.CommitPassed = e.wiki.CommitPassed
 
 	paths := daemon.Paths{Dir: filepath.Join(home, "run")}
 	ctx, cancel := context.WithCancel(context.Background())
@@ -102,7 +107,7 @@ func newWorkflowEnv(t *testing.T, a *Adapter) *workflowEnv {
 		// Guarded like the real daemon (capability): the workflow routes
 		// need the group token (v5 critical N1).
 		done <- daemon.Run(ctx, daemon.Options{Paths: paths, Version: "test", Servers: e.servers, Sessions: e.sessions, Capability: harnessCapability,
-			Decisions: e.decisions, Checkpoints: e.cp, Reports: e.reports, Tick: 200 * time.Millisecond, IdleAfter: time.Hour, IdleSleep: time.Hour,
+			Decisions: e.decisions, Checkpoints: e.cp, Reports: e.reports, Wiki: e.wiki, Tick: 200 * time.Millisecond, IdleAfter: time.Hour, IdleSleep: time.Hour,
 			Adapter: func(name string) adapters.ToolAdapter {
 				if name == Name {
 					return a
