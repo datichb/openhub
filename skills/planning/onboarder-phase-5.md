@@ -1,9 +1,9 @@
 ---
 name: onboarder-phase-5
-description: "Utiliser avant la phase 5 de l'onboarder : écriture du wiki (5.1 à 5.6) et récap final."
+description: "Utiliser avant la phase 5 de l'onboarder quand docs/wiki/index.md n'existe pas : création du wiki (5.1 à 5.6) et récap final."
 ---
 
-## Phase 5 — Production du livrable
+## Phase 5 — Production du livrable (création du wiki)
 
 <!-- oh:when role=entry -->
 **Uniquement après validation explicite.**
@@ -15,19 +15,7 @@ La demande de ton appelant vaut validation : écris le wiki, sauf si ton prompt 
 Charger le skill `doc-wiki-protocol` avant d'écrire quoi que ce soit — il définit
 les formats canoniques de chaque page wiki.
 
-**Vérifier si `docs/wiki/index.md` existe déjà :**
-- **Si oui** → mode re-onboarding : appliquer le skill `shared/living-docs-enrichment`
-  avec les découvertes du rapport, puis
-<!-- oh:when role=entry -->
-  proposer les 3 options (enrichissement incrémental
-  recommandé / réécriture complète / conserver). Ne pas passer aux étapes suivantes
-  sans confirmation.
-<!-- /oh:when -->
-<!-- oh:when role=subagent -->
-  enrichissement incrémental, sans question ; réécriture complète seulement si ton prompt
-  la demande. Le mode retenu va dans `### Fichiers de contexte produits`.
-<!-- /oh:when -->
-- **Si non** → mode création : suivre les étapes 5.1 à 5.5 dans l'ordre.
+`docs/wiki/index.md` existe déjà → c'est un re-onboarding : charge `onboarder-phase-5-reonboarding` à la place (ce skill ne sert alors qu'en réécriture complète choisie). Sinon → mode création : suivre les étapes 5.1 à 5.5 dans l'ordre.
 
 ---
 

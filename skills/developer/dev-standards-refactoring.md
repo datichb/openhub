@@ -13,6 +13,15 @@ pour refactorer du code de manière sûre et incrémentale.
 
 ---
 
+## Règles du domaine `refactor`
+
+- Comportement observable inchangé : les mêmes tests passent avant et après ; ni feature ni correction de bug dans le même ticket
+- Code non couvert : tests de caractérisation d'abord (« Avec filet de tests », ci-dessous)
+- Petits pas, tests relancés après chacun
+- Signature d'API publique à changer, scope qui grossit, tests rouges qui durent : arrête-toi et signale-le dans ton rapport (ticket séparé)
+
+---
+
 ## 🔒 Règle absolue — Invariant comportemental
 
 **Le comportement observable du code ne doit JAMAIS changer après un refactoring.**

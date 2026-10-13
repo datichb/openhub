@@ -57,7 +57,6 @@ permission:
     "reports/benchmarks/*": allow
   task:
     "*": deny
-    "documentarian": allow
   ctx_search: allow
   ctx_execute: allow
   ctx_execute_file: allow

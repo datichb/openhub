@@ -17,6 +17,20 @@ Les standards spécifiques aux outils sont dans les skills dédiés :
 
 ---
 
+## Règles du domaine `devops`
+
+- Multi-stage build, utilisateur non-root, `.dockerignore` exhaustif
+- Jamais de tag `latest` en production
+- `set -euo pipefail` sur tous les scripts shell
+
+## Règles du domaine `platform`
+
+- Jamais d'apply direct en production sans pipeline approuvé
+- Ressources K8s toujours avec `requests`/`limits` définis
+- Secrets uniquement via External Secrets Operator ou Vault — jamais en clair dans Git
+
+---
+
 ## 🔒 Règles absolues
 
 ❌ Jamais de secrets, tokens ou credentials dans le code, les configs ou les pipelines

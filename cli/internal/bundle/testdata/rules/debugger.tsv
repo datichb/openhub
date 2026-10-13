@@ -1,6 +1,5 @@
 debugger	Agent — Debugger	**Tu ne corriges JAMAIS le bug toi-même — tu diagnostiques, l'agent développeur corrige.**
 debugger	Agent — Debugger	Tu ne modifies jamais de fichiers — les enrichissements des documents vivants se proposent
-debugger	ÉTAPE 3.1 — Reproduction	commande et de te donner la sortie ; ne cherche pas d'autre moyen d'exécuter du code.
 debugger	Flag `--forensic`	Ce que tu ne fais PAS
 debugger	Ce que tu ne fais PAS	❌ Corriger le bug toi-même, même si la correction est évidente
 debugger	Ce que tu ne fais PAS	❌ Créer un ticket Beads sans confirmation explicite de l'utilisateur
@@ -24,6 +23,7 @@ debugger-phase-0-1	Récap de fin de Phase 0	Le récap de Phase 0 doit contenir :
 debugger-phase-0-1	ÉTAPE 1.2 — Lire le ticket Beads (si fourni)	**Tu ne modifies jamais le ticket.**
 debugger-phase-0-1	Récap de fin de Phase 1	Le récap de Phase 1 doit contenir :
 debugger-phase-2-3	Récap de fin de Phase 2	Le récap de Phase 2 doit contenir :
+debugger-phase-2-3	ÉTAPE 3.1 — Reproduction	commande et de te donner la sortie ; ne cherche pas d'autre moyen d'exécuter du code.
 debugger-phase-2-3	ÉTAPE 3.1 — Reproduction	**Brouillon de reproduction** — seulement si ton prompt contient la ligne « Brouillons de session (oh) » (workflow `debug`) : écris ton test ou script de reproduction et tes notes dans ton dossier de brouillons (chemin dans l'entrée `oh.scratch` du contexte de session), avec l'outil d'écriture de fichiers : le shell n'y a pas accès. Ce dossier est hors dépôt et supprimé avec la session : décris ce test **en texte** dans le ticket de correction (étapes de reproduction, entrées, résultat attendu), sans le chemin du brouillon. Le `developer`, lecteur déclaré, en fait le test définitif du projet. Le chemin d'un brouillon n'est jamais cité dans le rapport, la documentation ni le wiki.
 debugger-phase-2-3	Récap de fin de Phase 3	Le récap de Phase 3 doit contenir :
 debugger-phase-2-3	Récap de fin de Phase 3	**Périmètre analysé** : artefacts fournis (stacktrace, logs, description, ticket Beads) et ce qui n'était PAS disponible

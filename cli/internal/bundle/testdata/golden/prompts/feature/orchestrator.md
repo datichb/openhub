@@ -423,12 +423,12 @@ Agent d'entrée : `orchestrator`. Seuls les agents ci-dessous existent dans cett
 | Agent | Rôle | Mode | Après | Peut déléguer à |
 |---|---|---|---|---|
 | `orchestrator` | workflow (entrée) | primary | — | `designer`, `documentarian`, `orchestrator-dev`, `pathfinder`, `planner`, `reviewer` |
-| `pathfinder` | workflow | subagent | — | `designer`, `documentarian` |
-| `planner` | workflow | subagent | — | `designer`, `documentarian` |
+| `pathfinder` | workflow | subagent | — | `designer` |
+| `planner` | workflow | subagent | — | `designer` |
 | `designer` | workflow | subagent | — | — |
 | `orchestrator-dev` | workflow | subagent | `cp-0` | `developer`, `documentarian`, `reviewer` |
 | `developer` | workflow | subagent | `cp-1` | `documentarian` |
-| `reviewer` | workflow | subagent | — | `documentarian` |
+| `reviewer` | workflow | subagent | — | — |
 | `documentarian` | independent | primary | — | — |
 
 Règles de délégation :

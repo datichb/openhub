@@ -38,9 +38,8 @@ Dans une session, seuls les agents du paquet sont joignables. Pour voir le conte
 ## Hierarchie des agents
 
 Le schéma montre les délégations permises par le frontmatter (`permission.task`). Dans une session, seules
-celles qui relient deux membres du workflow restent possibles. `documentarian` est aussi délégable par la plupart
-des agents qui écrivent (base `developer-rw`) et par `planner`, `pathfinder`, `debugger`, `reviewer`,
-`benchmarker` : ces liens ne sont pas tous dessinés.
+celles qui relient deux membres du workflow restent possibles. `documentarian` est aussi délégable par les agents
+de la base `developer-rw` : ces liens ne sont pas dessinés.
 
 ```mermaid
 flowchart TD
@@ -77,11 +76,11 @@ flowchart TD
         BRF["brief-enricher<br/>Sous-agent"]
     end
     COND -.->|membres du workflow| PATH & PLAN & DES
-    ORCH --> PATH & PLAN & ONB & DES & ORCHDEV & DBG & DOC
+    ORCH --> PATH & PLAN & ONB & DES & ORCHDEV & REV & DBG
     ORCHDEV --> DEV & REV & DOC
     PLAN --> DES
     PATH --> DES
-    AUD --> AUDS & DOC
+    AUD --> AUDS
     REV -->|calls: reviewer| REV
 ```
 
@@ -205,7 +204,7 @@ Ce tableau est la reference faisant autorite pour les skills charges par chaque 
 | **orchestrator-dev** | `posture/core-posture`, `posture/user-facing-posture`, `shared/handoff-envelope`, `posture/coordinator-posture`, `orchestrator/orchestrator-workflow-modes`, `orchestrator/orchestrator-dev-protocol`, `orchestrator/orchestrator-dev-payload` | `developer/dev-drift-detection`, `shared/rtk-usage`, `orchestrator/orchestrator-dev-ticket-workflow`, `orchestrator/orchestrator-dev-parallel`, `orchestrator/orchestrator-dev-recap`, `orchestrator/orchestrator-dev-edge-cases`, `orchestrator/error-recovery-protocol`, `orchestrator/team-coordination`, `orchestrator/takeover-context-protocol` |
 | **planner** | `posture/core-posture`, `posture/user-facing-posture`, `shared/handoff-envelope`, `shared/execution-protocol`, `planning/planner-payload`, `planning/planner-workflow`, `adapters/gitlab-planner-protocol`, `adapters/github-planner-protocol`, `shared/hub-workflow-reference` | `planning/websearch-stack-research`, `shared/rtk-usage`, `planning/planner-phase-0`, `planning/planner-phase-1`, `planning/planner-phase-2`, `planning/planner-phase-2-5`, `planning/planner-phase-3-4`, `planning/planner-phase-5-6`, `planning/planner-patterns-protocol` (livrée seulement avec le serveur MCP `team`), `shared/living-docs-enrichment`, `shared/websearch-usage`, `planning/planner-design-templates`, `developer/beads-plan`, `posture/expert-posture` |
 | **pathfinder** | `posture/core-posture`, `posture/user-facing-posture`, `shared/handoff-envelope`, `shared/execution-protocol`, `planning/pathfinder-payload`, `planning/pathfinder-protocol`, `adapters/gitlab-pathfinder-protocol`, `adapters/github-pathfinder-protocol`, `shared/wiki-navigation` | `shared/websearch-usage`, `planning/websearch-stack-research`, `shared/rtk-usage`, `shared/living-docs-enrichment`, `developer/beads-plan` |
-| **onboarder** | `posture/core-posture`, `posture/user-facing-posture`, `shared/handoff-envelope`, `shared/execution-protocol`, `planning/onboarder-payload`, `planning/onboarder-workflow`, `planning/onboarder-profiles`, `adapters/gitlab-onboarder-protocol`, `adapters/github-onboarder-protocol`, `shared/wiki-navigation` | `developer/dev-standards-git`, `planning/websearch-stack-research`, `shared/rtk-usage`, `planning/onboarder-phase-0`, `planning/onboarder-phase-1`, `planning/onboarder-phase-2`, `planning/onboarder-phase-3-4`, `planning/onboarder-phase-5`, `shared/living-docs-enrichment`, `shared/websearch-usage`, `developer/beads-plan`, `posture/expert-posture` |
+| **onboarder** | `posture/core-posture`, `posture/user-facing-posture`, `shared/handoff-envelope`, `shared/execution-protocol`, `planning/onboarder-payload`, `planning/onboarder-workflow`, `planning/onboarder-profiles`, `adapters/gitlab-onboarder-protocol`, `adapters/github-onboarder-protocol`, `shared/wiki-navigation` | `planning/websearch-stack-research`, `shared/rtk-usage`, `planning/onboarder-phase-0`, `planning/onboarder-phase-1`, `planning/onboarder-phase-2`, `planning/onboarder-phase-3-4`, `planning/onboarder-phase-5`, `planning/onboarder-phase-5-reonboarding`, `shared/living-docs-enrichment`, `shared/websearch-usage`, `posture/expert-posture` |
 
 ### Famille developer
 
@@ -308,7 +307,7 @@ délégué au planner).
 
 Ne route jamais directement vers le `developer` — délègue toujours à `orchestrator-dev`.
 
-**Permissions techniques :** `bash`, `read`, `edit`, `write`, `glob`, `grep` tous désactivés. Agit uniquement via `task` (délégation), `question` et `workflow_checkpoint` (checkpoints). Agents invocables : `pathfinder`, `planner`, `onboarder`, `designer`, `orchestrator-dev`, `debugger`, `documentarian`, restreints aux membres du workflow.
+**Permissions techniques :** `bash`, `read`, `edit`, `write`, `glob`, `grep` tous désactivés. Agit uniquement via `task` (délégation), `question` et `workflow_checkpoint` (checkpoints). Agents invocables : `pathfinder`, `planner`, `onboarder`, `designer`, `orchestrator-dev`, `reviewer`, `debugger`, restreints aux membres du workflow (dans `feature`, le champ `calls` du workflow fixe la liste).
 
 **Injection de contexte :** le contexte projet (stack, conventions) est injecté automatiquement dans la session : les instructions du projet (`ONBOARDING.md`, `CONVENTIONS.md`, `[deploy] instruction_files`) sont intégrées aux agents du paquet de session, au niveau de chacun (voir [Instructions du projet par niveau](#instructions-du-projet-par-niveau)) : l'orchestrateur n'en reçoit rien (`none`), les agents qu'il lance les reçoivent. L'orchestrateur ne lit jamais de fichiers directement — si le contexte est absent, la précondition `project-context` de `feature` propose de lancer d'abord le workflow `onboarding`.
 
@@ -362,9 +361,8 @@ compatibilité stack → délégation à l'agent `auditor-subagent` (invoqué au
 Produit une synthèse exécutive multi-domaines. Lecture seule (base `coordinator`) — ne modifie jamais de fichiers directement.
 
 **Phase 4 — Enrichissement des documents vivants :** après la synthèse, consolide les sections
-`### Découvertes à documenter` des rapports reçus et propose à l'utilisateur d'enrichir
-`ONBOARDING.md` et/ou `CONVENTIONS.md`. Si accepté, délègue l'écriture au `documentarian` via `task`
-(skill `living-docs-enrichment`), à condition que `documentarian` soit membre du workflow. Ne peut invoquer le `documentarian` sans confirmation explicite.
+`### Enrichissements wiki proposés` des rapports reçus et les propose avec `wiki_propose`
+(skill `living-docs-enrichment`) ; dans le workflow `audit`, sans commit, elles restent en file (`oh wiki pending`).
 
 Sous-agent : une seule session (protocole d'exécution) ; il s'arrête seulement sur une question bloquante (enveloppe au statut `en-attente`) et reprend avec `task_id`.
 
@@ -515,7 +513,7 @@ de fichiers.
 
 Les modes combinés (`standard+adversarial`, `all`) lancent des **sessions parallèles indépendantes** avec isolation contextuelle totale, puis fusionnent les résultats via le skill `review-merge` (déduplication, hiérarchie de sévérité, tag de provenance). Dans le workflow `review`, cette auto-délégation est déclarée explicitement (`calls: [reviewer]`).
 
-**Post-rapport — Enrichissement des documents vivants :** après la production du rapport de review, identifie les conventions et patterns observés dans le diff qui sont absents de `CONVENTIONS.md` ou `ONBOARDING.md`, et propose de les capitaliser. Si accepté, délègue l'écriture au `documentarian` via `task` (skill `living-docs-enrichment`).
+**Post-rapport — Enrichissement des documents vivants :** après la production du rapport de review, identifie les conventions et patterns observés dans le diff qui sont absents de `CONVENTIONS.md` ou `ONBOARDING.md`, et les propose avec `wiki_propose` (skill `living-docs-enrichment`) ; dans le workflow `review`, sans commit, elles restent en file (`oh wiki pending`).
 
 ---
 
@@ -543,9 +541,8 @@ preuves, timeline, preuves manquantes). Evidence manquante = finding en soi. Dé
 obligatoire si >5 fichiers ou >10K tokens.
 
 **Phase 5 — Enrichissement des documents vivants :** après le rapport, identifie les zones d'ombre
-levées par le diagnostic et les patterns d'erreur à mémoriser, puis propose à l'utilisateur d'enrichir
-`ONBOARDING.md` et/ou `CONVENTIONS.md`. Si accepté, délègue l'écriture au `documentarian` via `task`
-(skill `living-docs-enrichment`). Ne peut invoquer le `documentarian` sans confirmation explicite.
+levées par le diagnostic et les patterns d'erreur à mémoriser, puis les propose avec `wiki_propose`
+(skill `living-docs-enrichment`) ; l'utilisateur les accepte ou les refuse à la carte du checkpoint de commit.
 
 Sous-agent : une seule session (protocole d'exécution) ; il s'arrête seulement sur une question bloquante (enveloppe au statut `en-attente`) et reprend avec `task_id`.
 
@@ -611,8 +608,8 @@ en Phase 1, le planner propose 3 options à l'utilisateur :
 
 **Phase 6 — Enrichissement des documents vivants :** après validation du plan, identifie les
 patterns architecturaux et conventions observées dans la codebase mais absents de
-`ONBOARDING.md`/`CONVENTIONS.md`, et propose à l'utilisateur de les capitaliser. Si accepté,
-délègue l'écriture au `documentarian` via `task` (skill `living-docs-enrichment`).
+`docs/wiki/`, et les propose avec `wiki_propose` (skill `living-docs-enrichment`) ; l'utilisateur
+les accepte ou les refuse à la carte du checkpoint de commit.
 
 ---
 
@@ -636,7 +633,7 @@ Workflow libre — pas de phases rigides. Suggère l'escalade vers le planner si
 **Enrichissement Figma (optionnel) :** si la feature touche une interface utilisateur, délègue
 la reconnaissance Figma au `designer` (mode `recon`) pour détecter les composants et ajuster la complexité.
 
-**Post-rapport — Enrichissement des documents vivants :** après la production du rapport, identifie les patterns architecturaux et conventions observés lors de la reconnaissance qui sont absents de `ONBOARDING.md`/`CONVENTIONS.md`, et propose à l'utilisateur de les capitaliser. Si accepté, délègue l'écriture au `documentarian` via `task` (skill `living-docs-enrichment`).
+**Post-rapport — Enrichissement des documents vivants :** après la production du rapport, identifie les patterns architecturaux et conventions observés lors de la reconnaissance qui sont absents de `docs/wiki/`, et les propose avec `wiki_propose` (skill `living-docs-enrichment`).
 
 ---
 
@@ -719,9 +716,9 @@ Il n'a aucune skill inline (pas même `shared/universal-guardrails`).
 ## Règles communes à tous les agents
 
 - **Agents en lecture seule** (pas d'`edit` ni de `write`) : conductor, orchestrator, auditor, auditor-subagent, reviewer, debugger, designer, planner, pathfinder, brief-enricher, operator — `planner`, `pathfinder` et `debugger` peuvent toutefois écrire dans Beads ; l'`operator` modifie l'infrastructure après `cp-apply`, jamais les fichiers
-- **Agents qui délèguent l'écriture documentaire** : planner, pathfinder, debugger, reviewer — peuvent invoquer le `documentarian` via `task` pour enrichir `ONBOARDING.md` / `CONVENTIONS.md` / le wiki, uniquement après confirmation explicite de l'utilisateur (skill `living-docs-enrichment`) et si `documentarian` est membre du workflow
+- **Agents qui délèguent l'écriture documentaire** : `orchestrator-dev` seul — il peut invoquer le `documentarian` via `task` pour le CHANGELOG d'un ticket feature ou fix, après confirmation de l'utilisateur et si `documentarian` est membre du workflow. Les autres agents n'invoquent pas le `documentarian` pour le wiki : ils proposent leurs découvertes avec `wiki_propose` (skill `living-docs-enrichment`), l'utilisateur les accepte ou les refuse à la carte du checkpoint de commit, puis oh les applique dans `docs/wiki/`
 - **Agents qui écrivent du code** : `developer` — modifient uniquement les fichiers de leur domaine
-- **Agents qui écrivent de la documentation** : documentarian — seul agent chargé d'écrire dans `ONBOARDING.md`, `CONVENTIONS.md` et le wiki après coup (l'`onboarder` les crée) ; les autres agents proposent des enrichissements via la skill `living-docs-enrichment`, toujours délégués au `documentarian` après confirmation explicite de l'utilisateur
+- **Agents qui écrivent de la documentation** : documentarian — seul agent qui rédige la documentation du projet (CHANGELOG, ADR, guides, workflow `doc-sync`) ; l'`onboarder` crée le wiki, et ses enrichissements ultérieurs passent par `wiki_propose` (voir ci-dessus)
 - **Agents qui créent des tickets** : planner (tickets feature), pathfinder (après confirmation), debugger (tickets bug après confirmation)
 - **Agents qui lisent les tickets** : la plupart peuvent faire `bd show <ID>` pour contextualiser leur travail, dans la limite de `beads.allow` du workflow
 - **Agents coordinateurs** : conductor, orchestrator, orchestrator-dev, auditor — ne codent jamais, pilotent d'autres agents

@@ -11,6 +11,15 @@ Il complète `dev-standards-universal.md` et s'applique à tout projet frontend.
 
 ---
 
+## Règles du domaine `frontend`
+
+- Jamais de logique métier dans les composants UI
+- Accessibilité (WCAG AA) non négociable sur tout composant interactif
+- Tests sur le comportement rendu, les émissions d'événements, les états loading/error
+- Toute décision de gestion de données (store, context, queries, storage) soumise à validation explicite — voir `dev-standards-frontend-data`
+
+---
+
 ## 🔒 Gestion de données — Règle héritée
 
 Toute décision liée à la gestion de données côté frontend est soumise

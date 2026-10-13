@@ -194,7 +194,7 @@ The last two are in no agent frontmatter: `elicitation-techniques` reaches the b
 | `team-coordination` | B (`mcp: team`): orchestrator-dev | Team coordination (claims, conflicts, handover) |
 | `takeover-context-protocol` | B (`mcp: team`): orchestrator, orchestrator-dev | Using a takeover brief on a ticket handed over by another member |
 
-### `planning/` — 21 skills
+### `planning/` — 22 skills
 
 | Skill | Agents | Content |
 |-------|--------|---------|
@@ -217,7 +217,8 @@ The last two are in no agent frontmatter: `elicitation-techniques` reaches the b
 | `onboarder-phase-1` | B: onboarder | Phase 1 — adaptive exploration |
 | `onboarder-phase-2` | B: onboarder | Phase 2 — complementary questions |
 | `onboarder-phase-3-4` | B: onboarder | Phase 3 (context report, agent matrix) and 4 (edge cases) |
-| `onboarder-phase-5` | B: onboarder | Phase 5 — living wiki production |
+| `onboarder-phase-5` | B: onboarder | Phase 5 — living wiki creation (no `docs/wiki/index.md`) |
+| `onboarder-phase-5-reonboarding` | B: onboarder | Phase 5 — re-onboarding: enriching the existing wiki |
 | `websearch-stack-research` | B: onboarder, pathfinder, planner | Stack, library and pattern research via websearch |
 
 ### `developer/` — 21 generic skills + 40 stack skills
@@ -229,10 +230,10 @@ The last two are in no agent frontmatter: `elicitation-techniques` reaches the b
 | `dev-standards-simplicity` | A: dev-rw | KISS, YAGNI, no premature abstraction or optimization, measurable complexity thresholds |
 | `quick-fix` | B: dev-rw | Deterministic fixes without review (lint, missing import, typo, formatting) |
 | `beads-dev` | A: dev-rw, documentarian | Beads executor workflow: `bd update --claim`, `bd close --suggest-next`, `ai-delegated` rules |
-| `beads-plan` | B: pathfinder, developer, designer, documentarian, onboarder, orchestrator, planner | Reading and creating Beads tickets: `bd list`, `bd show`, `bd create`, labels, dependencies, external links |
+| `beads-plan` | B: pathfinder, developer, designer, documentarian, orchestrator, planner | Reading and creating Beads tickets: `bd list`, `bd show`, `bd create`, labels, dependencies, external links |
 | `dev-standards-security` | B: dev-rw, operator, reviewer | Secrets, input validation, injections, auth, logs, dependencies |
 | `dev-standards-testing` | B: dev-rw, reviewer | Testing strategy, pyramid, coverage, TDD, completion gate |
-| `dev-standards-git` | B: documentarian, dev-rw, onboarder, reviewer | Conventional Commits, branches, PR/MR |
+| `dev-standards-git` | B: documentarian, dev-rw, reviewer | Conventional Commits, branches, PR/MR |
 | `dev-standards-backend` | B: reviewer | Layered architecture, DTOs, services, repositories |
 | `dev-standards-frontend` | B: reviewer | Logic/presentation separation, performance, bundle, lazy loading |
 | `dev-standards-frontend-data` | B: reviewer | Frontend data management — decision matrix (local state, Store, Queries, Cookies, WebStorage, IndexedDB, Query String) |
@@ -545,7 +546,7 @@ Returns between agents (L5): the launched agent inlines `handoff-envelope` and i
 | `orchestrator-dev` ¹ | core-posture, user-facing-posture, handoff-envelope, coordinator-posture, orchestrator-workflow-modes (generated), orchestrator-dev-protocol, orchestrator-dev-payload | dev-drift-detection, orchestrator-dev-ticket-workflow, orchestrator-dev-parallel, orchestrator-dev-recap, orchestrator-dev-edge-cases, error-recovery-protocol, team-coordination, takeover-context-protocol |
 | `pathfinder` ¹ | core-posture, user-facing-posture, handoff-envelope, execution-protocol, pathfinder-payload, pathfinder-protocol, gitlab-pathfinder-protocol, github-pathfinder-protocol, wiki-navigation | websearch-usage, websearch-stack-research, living-docs-enrichment, beads-plan |
 | `planner` ¹ | core-posture, user-facing-posture, handoff-envelope, execution-protocol, planner-payload, planner-workflow, gitlab-planner-protocol, github-planner-protocol, hub-workflow-reference (generated) | websearch-stack-research, planner-phase-0, planner-phase-1, planner-phase-2, planner-phase-2-5, planner-phase-3-4, planner-phase-5-6, planner-patterns-protocol (`mcp: team`), living-docs-enrichment, websearch-usage, planner-design-templates, beads-plan, expert-posture |
-| `onboarder` ¹ | core-posture, user-facing-posture, handoff-envelope, execution-protocol, onboarder-payload, onboarder-workflow, onboarder-profiles, gitlab-onboarder-protocol, github-onboarder-protocol, wiki-navigation | dev-standards-git, websearch-stack-research, onboarder-phase-0, onboarder-phase-1, onboarder-phase-2, onboarder-phase-3-4, onboarder-phase-5, living-docs-enrichment, websearch-usage, beads-plan, expert-posture |
+| `onboarder` ¹ | core-posture, user-facing-posture, handoff-envelope, execution-protocol, onboarder-payload, onboarder-workflow, onboarder-profiles, gitlab-onboarder-protocol, github-onboarder-protocol, wiki-navigation | websearch-stack-research, onboarder-phase-0, onboarder-phase-1, onboarder-phase-2, onboarder-phase-3-4, onboarder-phase-5, onboarder-phase-5-reonboarding, living-docs-enrichment, websearch-usage, expert-posture |
 | `designer` ¹ | core-posture, user-facing-posture, handoff-envelope, execution-protocol, designer-payload, designer-protocol | ux-protocol, ui-protocol, figma-recon-protocol, figma-deep-protocol, prototype-protocol, websearch-design-patterns, design-principles, ui-patterns-reference, content-design, tui-patterns, websearch-usage, expert-posture |
 | `documentarian` ¹ | core-posture, user-facing-posture, handoff-envelope, documentarian-payload, doc-protocol | doc-standards, doc-adr, doc-api, doc-changelog, doc-slides, doc-wiki-protocol, skill-authoring-protocol, websearch-usage, expert-posture |
 | `developer` ¹ | core-posture, user-facing-posture, handoff-envelope, developer-payload, dev-standards-universal, dev-standards-simplicity, beads-dev, wiki-navigation, context-mode-usage | dev-standards-security, dev-standards-git, dev-standards-testing, dev-standards-refactoring, dev-standards-migration, dev-standards-database, test-generation, reviewer-reception, living-docs-enrichment, beads-plan, quick-fix |

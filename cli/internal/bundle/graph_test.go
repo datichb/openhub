@@ -24,7 +24,7 @@ risk: write
 entry: { agent: orchestrator-dev }
 agents:
   orchestrator-dev: { role: workflow, calls: [developer, reviewer] }
-  developer: { role: workflow, calls: [] }
+  developer: { role: workflow }
   reviewer: { role: workflow, mode: subagent }
   documentarian: { role: independent }
 `
@@ -39,7 +39,7 @@ func TestBuildFromWorkflowSpec(t *testing.T) {
 		"every workflow member is shipped, independent agents included")
 	assert.Equal(t, map[string][]string{
 		"orchestrator-dev": {"developer", "reviewer"}, // calls, not the broader task permission
-		"reviewer":         {"documentarian"},         // derived from reviewer's task permission
+		"developer":        {"documentarian"},         // derived from developer's task permission
 	}, s.SubagentGraph)
 	assert.Equal(t, 2, s.MaxDepth)
 	assert.Equal(t, "subagent", findAgent(s.Agents, "reviewer").Mode, "workflow mode applied")
@@ -56,12 +56,13 @@ func TestBuildFromWorkflowSpec_Errors(t *testing.T) {
 
 // The reviewer launches parallel reviewer sessions (standard+adversarial,
 // all): its explicit `task: { reviewer: allow }` is kept, in the phase 0
-// bundle as in the oh/v1 one (calls: [reviewer]).
+// bundle as in the oh/v1 one (calls: [reviewer]). The sessions it launches
+// delegate nothing more: one level is enough.
 func TestReviewerSelfDelegation(t *testing.T) {
 	b, err := Build(Request{HubDir: repoHub(t), OutDir: t.TempDir(), Spec: agentSpec(t, repoHub(t), "reviewer")})
 	require.NoError(t, err)
-	assert.Contains(t, b.Spec.SubagentGraph["reviewer"], "reviewer")
-	assert.GreaterOrEqual(t, b.Spec.MaxDepth, 2)
+	assert.Equal(t, []string{"reviewer"}, b.Spec.SubagentGraph["reviewer"])
+	assert.Equal(t, 1, b.Spec.MaxDepth)
 }
 
 func TestBuildStrictIsolationFromSpec(t *testing.T) {

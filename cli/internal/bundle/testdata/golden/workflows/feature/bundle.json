@@ -20,7 +20,6 @@
         "subagent reviewer allow",
         "subagent onboarder allow",
         "subagent pathfinder allow",
-        "subagent documentarian allow",
         "subagent orchestrator-dev allow",
         "todowrite * allow",
         "shell *git* checkout * deny",
@@ -103,7 +102,6 @@
         "skill * allow",
         "subagent * deny",
         "subagent designer allow",
-        "subagent documentarian allow",
         "webfetch * allow",
         "websearch * allow",
         "shell *git* checkout * deny",
@@ -192,7 +190,6 @@
         "skill * allow",
         "subagent * deny",
         "subagent designer allow",
-        "subagent documentarian allow",
         "webfetch * allow",
         "websearch * allow",
         "shell *git* checkout * deny",
@@ -661,7 +658,6 @@
         "skill * allow",
         "subagent * deny",
         "subagent reviewer allow",
-        "subagent documentarian allow",
         "shell *git* checkout * deny",
         "shell *git* restore * deny",
         "shell *git* reset --hard* deny",
@@ -896,15 +892,10 @@
       "reviewer"
     ],
     "pathfinder": [
-      "designer",
-      "documentarian"
+      "designer"
     ],
     "planner": [
-      "designer",
-      "documentarian"
-    ],
-    "reviewer": [
-      "documentarian"
+      "designer"
     ]
   },
   "max_depth": 3,

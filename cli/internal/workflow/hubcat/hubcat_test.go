@@ -30,8 +30,8 @@ func TestAgentInfo_FromRepositoryAgents(t *testing.T) {
 		{"developer", workflow.ModeSubagent, true, false, "documentarian"},
 		{"orchestrator-dev", workflow.ModePrimary, false, false, "developer"},
 		{"auditor-subagent", workflow.ModeSubagent, false, false, ""},
-		{"reviewer", workflow.ModePrimary, false, false, "documentarian"},
-		{"debugger", workflow.ModePrimary, false, false, "documentarian"}, // N4: no free shell
+		{"reviewer", workflow.ModePrimary, false, false, ""},
+		{"debugger", workflow.ModePrimary, false, false, ""}, // N4: no free shell
 	}
 	for _, tc := range cases {
 		a, ok := c.Agent(tc.id)
@@ -47,6 +47,9 @@ func TestAgentInfo_FromRepositoryAgents(t *testing.T) {
 		if len(a.Skills) == 0 {
 			t.Errorf("%s has no skills", tc.id)
 		}
+	}
+	if r, _ := c.Agent("reviewer"); !r.SelfTask {
+		t.Error("reviewer: self-delegation (standard+adversarial) lost")
 	}
 	if _, ok := c.Agent("ghost"); ok {
 		t.Fatal("unknown agent found")

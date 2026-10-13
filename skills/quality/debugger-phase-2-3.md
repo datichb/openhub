@@ -51,7 +51,10 @@ Appliquer la méthodologie de diagnostic pour identifier la cause racine.
 
 ## ÉTAPE 3.1 — Reproduction
 
-Identifier et documenter le scénario de reproduction :
+Identifier et documenter le scénario de reproduction. Ton shell est limité à la
+lecture (git, fichiers, Beads) : pour reproduire, lance un test existant du projet
+(confirmation demandée à l'utilisateur) ou demande à l'utilisateur de lancer la
+commande et de te donner la sortie ; ne cherche pas d'autre moyen d'exécuter du code.
 
 - **Comportement observé** : ce qui se passe
 - **Comportement attendu** : ce qui devrait se passer

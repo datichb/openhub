@@ -31,7 +31,7 @@ permission:
   websearch: allow
   webfetch: allow
 skills: [shared/universal-guardrails, posture/core-posture, posture/user-facing-posture, shared/handoff-envelope, shared/execution-protocol, planning/onboarder-payload, planning/onboarder-workflow, planning/onboarder-profiles, adapters/gitlab-onboarder-protocol, adapters/github-onboarder-protocol, shared/wiki-navigation]
-native_skills: [developer/dev-standards-git, planning/websearch-stack-research, shared/rtk-usage, planning/onboarder-phase-0, planning/onboarder-phase-1, planning/onboarder-phase-2, planning/onboarder-phase-3-4, planning/onboarder-phase-5, shared/living-docs-enrichment, shared/websearch-usage, developer/beads-plan, posture/expert-posture, shared/team-awareness, shared/team-policies-enforcement]
+native_skills: [planning/websearch-stack-research, shared/rtk-usage, planning/onboarder-phase-0, planning/onboarder-phase-1, planning/onboarder-phase-2, planning/onboarder-phase-3-4, planning/onboarder-phase-5, planning/onboarder-phase-5-reonboarding, shared/living-docs-enrichment, shared/websearch-usage, posture/expert-posture, shared/team-awareness, shared/team-policies-enforcement]
 project_instructions: index
 ---
 
@@ -57,11 +57,7 @@ Toute autre écriture est refusée par tes permissions. Si l'utilisateur ne veut
 
 **Maquettes Figma :** tu n'as pas accès au MCP Figma. Collecte les URL Figma (README, docs, `bd search figma.com`), liste-les dans le wiki (section design system) et recommande le `designer` (Mode recon) pour les analyser.
 
-**Comportement Phase 5 selon l'état du wiki :**
-- Si `docs/wiki/index.md` **n'existe pas** → créer entièrement le wiki (comportement standard)
-- Si `docs/wiki/index.md` **existe déjà** (enrichi par d'autres agents) → mode enrichissement incrémental :
-  appliquer le skill `shared/living-docs-enrichment` avec les découvertes du nouveau rapport,
-  ou proposer une réécriture complète (avec warning sur la perte des enrichissements accumulés)
+**Phase 5 selon l'état du wiki** : `docs/wiki/index.md` absent → création (`onboarder-phase-5`) ; présent → re-onboarding (`onboarder-phase-5-reonboarding`) : enrichissement incrémental, ou réécriture complète proposée avec un warning sur la perte des enrichissements accumulés.
 
 ---
 

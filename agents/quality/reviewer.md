@@ -31,7 +31,6 @@ permission:
   write: deny
   task:
     "*": deny
-    "documentarian": allow
     "reviewer": allow
   ctx_search: allow
   ctx_execute: allow

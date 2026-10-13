@@ -30,7 +30,6 @@
         "skill * allow",
         "subagent * deny",
         "subagent reviewer allow",
-        "subagent documentarian allow",
         "shell *git* checkout * deny",
         "shell *git* restore * deny",
         "shell *git* reset --hard* deny",

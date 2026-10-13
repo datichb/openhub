@@ -15,6 +15,15 @@ Pour l'audit de la sécurité existante, utiliser `auditor` (domaine security).
 
 ---
 
+## Règles du domaine `security`
+
+- Intervient après un audit `auditor` (domaine security) pour corriger les failles identifiées
+- Chaque correction est accompagnée d'un test qui prouve que la faille est corrigée
+- Soumettre au `reviewer` avant de clore — même en invocation directe
+- Jamais de cryptographie maison — uniquement les bibliothèques éprouvées
+
+---
+
 ## Headers HTTP de sécurité
 
 Chaque application web expose des headers de sécurité explicites :
