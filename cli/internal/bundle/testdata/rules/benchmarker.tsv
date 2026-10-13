@@ -1,0 +1,78 @@
+benchmarker	Agent Benchmarker	**Tu ne modifies jamais le code source.** Tu mesures, compares et signales.
+benchmarker	Ce que tu fais	Ce que tu NE fais PAS
+benchmarker	Retour en fin de session	Ce que tu fais TOUJOURS
+benchmarker	Ce que tu fais TOUJOURS	Créer `reports/benchmarks/` s'il n'existe pas avant d'écrire les résultats
+living-docs-enrichment	Rôle	L'enrichissement est toujours **délégué au `documentarian`** — jamais écrit directement.
+living-docs-enrichment	Contraintes absolues	❌ Ne jamais écrire directement dans `docs/wiki/`
+living-docs-enrichment	Contraintes absolues	❌ Ne jamais invoquer le `documentarian` sans respecter les règles de confirmation ci-dessous :
+living-docs-enrichment	Contraintes absolues	❌ Ne jamais proposer l'enrichissement **pendant** l'analyse — uniquement après le rapport complet
+living-docs-enrichment	Contraintes absolues	❌ Toujours **afficher le résumé des enrichissements proposés** en texte avant d'appeler `question`
+living-docs-enrichment	Contraintes absolues	❌ Si aucune découverte pertinente → ne pas proposer l'enrichissement, afficher simplement :
+living-docs-enrichment	Tags de confiance — choisir le bon niveau	Chaque enrichissement proposé doit porter un tag de confiance :
+living-docs-enrichment	Tags de confiance — choisir le bon niveau	`` `CONFIRMÉ` `` | Observation directe dans le code — ligne précise identifiée | `fichier:ligne` obligatoire
+living-docs-enrichment	Ce qui peut enrichir `docs/wiki/index.md`	`index.md` est la carte globale — ne pas y ajouter de contenu détaillé. Si la découverte
+living-docs-enrichment	Ce qui peut enrichir `docs/wiki/technical/conventions.md`	`## À ne pas utiliser` | Librairie exclue, anti-pattern explicitement évité | `CONFIRMÉ` avec fichier ou ADR
+living-docs-enrichment	Ce qui peut enrichir `docs/wiki/business/<domain>.md`	Si le domaine n'existe pas encore → le mentionner dans la proposition ; le `documentarian`
+living-docs-enrichment	ÉTAPE 3 — Demander confirmation (si nécessaire)	**Workflow sans documentarian** (workflows en lecture seule comme `audit` ou `review`) : Si `documentarian` n'est pas dans ta colonne « Peut déléguer à » (carte du workflow), ne l'invoque pas : liste les enrichissements dans `### Enrichissements wiki proposés` de ton rapport et propose une session `oh run libre --agent documentarian`. Ne pose pas la question de délégation ci-dessous et arrête ce skill ici.
+living-docs-enrichment	ÉTAPE 4 — Déléguer au documentarian	Si `documentarian` n'est pas dans ta colonne « Peut déléguer à » (carte du workflow), ne l'invoque pas : liste les enrichissements dans `### Enrichissements wiki proposés` de ton rapport et propose une session `oh run libre --agent documentarian`.
+living-docs-enrichment	Règles de qualité des enrichissements	✅ **Factuel** : basé sur des éléments concrets observés (fichier, ligne, pattern)
+living-docs-enrichment	Règles de qualité des enrichissements	✅ **Concis** : une ligne ou un bloc court par enrichissement
+living-docs-enrichment	Règles de qualité des enrichissements	✅ **Taggé** : chaque enrichissement porte son tag de confiance avec la source
+living-docs-enrichment	Règles de qualité des enrichissements	✅ **Non redondant** : vérifier que l'information n'est pas déjà présente dans la page
+living-docs-enrichment	Règles de qualité des enrichissements	✅ **Actionnable** : compréhensible par un agent futur sans relire le rapport source
+living-docs-enrichment	Règles de qualité des enrichissements	❌ Ne pas transmettre le rapport complet au documentarian — seulement les enrichissements ciblés
+living-docs-enrichment	Règles de qualité des enrichissements	❌ Ne pas ajouter d'enrichissements subjectifs ou spéculatifs
+living-docs-enrichment	Règles de qualité des enrichissements	❌ Ne pas modifier la structure des pages via le documentarian — uniquement le contenu
+living-docs-enrichment	Règles de qualité des enrichissements	❌ Ne pas omettre le tag de confiance — chaque enrichissement doit en porter un
+team-awareness	Tools disponibles	`team_policies` | Règles d'équipe actives (conventions, limites, patterns interdits) | read
+team-awareness	Tools disponibles	Les autres agents n'y ont pas accès et ne doivent pas tenter de les appeler.
+team-awareness	Avant de travailler sur un ticket	Ne commence PAS à travailler sur un ticket déjà claimé sans confirmation explicite de l'utilisateur
+team-awareness	Règles	Ne JAMAIS modifier le wiki partagé sans passer par `team_wiki_write` (propositions)
+team-awareness	Règles	Ne pas inclure de données sensibles dans les notifications
+team-awareness	En cas d'indisponibilité des outils team	Si les outils `team_*` ne sont pas disponibles dans la session courante
+team-awareness	En cas d'indisponibilité des outils team	**Informer l'utilisateur** : "Les données d'équipe ne sont pas disponibles dans cette session."
+team-awareness	En cas d'indisponibilité des outils team	**Continuer normalement** sans les données d'équipe — ne pas bloquer le workflow
+team-awareness	En cas d'indisponibilité des outils team	Ne pas inventer de données team (claims, membres, policies) en l'absence de réponse des outils
+team-policies-enforcement	Team Policies Enforcement Protocol	Ce skill definit comment les agents doivent respecter les team policies.
+team-policies-enforcement	Matrice agent / policy	`conductor` | `branch_naming` (avant de déléguer à un developer), `review_required` (avant le checkpoint qui déverrouille le commit : une étape de review de la carte doit avoir rendu son retour)
+team-policies-enforcement	`enforcement = "refuse"`	L'agent DOIT :
+team-policies-enforcement	`enforcement = "refuse"`	L'agent NE DOIT PAS :
+team-policies-enforcement	`enforcement = "warn"`	L'agent DOIT :
+team-policies-enforcement	`enforcement = "warn"`	CONTINUER le travail si l'utilisateur ne reagit pas
+team-policies-enforcement	`forbidden_patterns` (type: forbidden_pattern)	**Comment** : scanner le diff pour les patterns interdits
+team-policies-enforcement	`forbidden_patterns` (type: forbidden_pattern)	**Si violation** : supprimer ou commenter les patterns interdits
+team-policies-enforcement	`review_required` (type: boolean)	**Si violation** : informer que le ticket ne peut pas etre ferme sans review
+team-policies-enforcement	`max_ticket_wip` (type: limit)	**Si violation** : ne pas proposer de nouveau ticket, suggerer de terminer un ticket en cours
+tool-question	Quand utiliser `question`	Quand NE PAS utiliser `question`
+tool-question	Quand NE PAS utiliser `question`	**Checkpoints du workflow** : chaque checkpoint de la table des checkpoints passe par l'outil `workflow_checkpoint`, jamais par `question`. Une question qui nomme un checkpoint (son identifiant `cp-<id>`, « CP 2 », son libellé) est fermée par oh sans effet.
+tool-question	Quand NE PAS utiliser `question`	Quand la réponse n'influence pas le résultat final
+tool-question	Bonnes pratiques	Poser plusieurs questions liées et indépendantes en un seul appel | ✅
+tool-question	Bonnes pratiques	Utiliser `multiple: true` quand l'utilisateur peut choisir plusieurs options | ✅
+tool-question	Bonnes pratiques	Mettre l'option recommandée **en premier** avec `(Recommandé)` dans le label | ✅
+tool-question	Bonnes pratiques	Prévoir la gestion des réponses libres (toujours possibles — ajoutées automatiquement) | ✅
+tool-question	Bonnes pratiques	Ajouter une option "Autre" ou "Personnalisé" (redondant avec la saisie libre auto) | ❌
+tool-question	Bonnes pratiques	Dépasser 5 options par question | ❌
+tool-question	Bonnes pratiques	Poser une question déjà répondue dans la session | ❌
+tool-question	Questions posées en tant que sous-agent	Quand tu es invoqué par un agent parent, **le champ `question` doit commencer par un bloc
+tool-question	Format standard	Format enrichi — obligatoire quand CONTEXTE = orchestrator_feature
+tool-question	Format enrichi — obligatoire quand CONTEXTE = orchestrator_feature	Le texte affiché dans ta session enfant n'est **pas visible** par l'utilisateur dans la session parent.
+tool-question	Format enrichi — obligatoire quand CONTEXTE = orchestrator_feature	Termes exacts (noms de fichiers, patterns, warnings) — ne pas paraphraser
+universal-guardrails	Garde-fous transverses	Git push — interdit
+universal-guardrails	Git push — interdit	Tu ne lances jamais `git push` sous aucune forme, option ou alias.
+universal-guardrails	Ordering : récap → question	AVANT d'appeler l'outil `question`. Ne jamais inverser cet ordre.
+universal-guardrails	Commandes non-terminantes	ne bloquent jamais ton tour : lance-les en arrière-plan. Si les outils context-mode
+universal-guardrails	Commandes non-terminantes	(`ctx_*`, plugin `context-mode` du workflow) sont disponibles, elles ne passent jamais dans
+universal-guardrails	Commandes non-terminantes	reçoit toujours un `timeout`.
+universal-guardrails	Process background — nettoyage	Tout process lancé en background doit être arrêté avant la fin de la tâche
+wiki-navigation	Rôle	Ce skill définit le protocole que tous les agents doivent suivre pour consulter
+wiki-navigation	Rôle	à la tâche courante, jamais le wiki en entier.
+wiki-navigation	Protocole de navigation — 4 règles absolues	Règle 1 — Toujours lire `docs/wiki/index.md` en premier
+wiki-navigation	Règle 1 — Toujours lire `docs/wiki/index.md` en premier	**Si le fichier n'existe pas :**
+wiki-navigation	Règle 1 — Toujours lire `docs/wiki/index.md` en premier	Ne rien faire — le wiki n'est pas encore généré pour ce projet
+wiki-navigation	Règle 1 — Toujours lire `docs/wiki/index.md` en premier	Ne pas signaler l'absence comme une erreur (l'onboarder génère le wiki)
+wiki-navigation	Règle 2 — Charger uniquement la page pertinente à la tâche	Règle 3 — Ne jamais lire le wiki en entier par défaut
+wiki-navigation	Règle 3 — Ne jamais lire le wiki en entier par défaut	❌ Ne jamais faire `ls docs/wiki/` puis lire tous les fichiers
+wiki-navigation	Règle 3 — Ne jamais lire le wiki en entier par défaut	❌ Ne jamais charger `technical/` et `business/` en parallèle sans raison
+wiki-navigation	Règle 3 — Ne jamais lire le wiki en entier par défaut	✅ Toujours partir de `index.md` → décider → charger une page
+wiki-navigation	Mise à jour des god nodes — règle pour le documentarian	Après chaque enrichissement d'une page wiki, le `documentarian` doit réévaluer
+wiki-navigation	Mise à jour des god nodes — règle pour le documentarian	Si un concept apparaît dans **≥ 2 pages distinctes** et n'est pas encore dans le tableau → l'ajouter
