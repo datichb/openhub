@@ -28,6 +28,7 @@ This page covers **v5 session management** (`oh session …`), **restrictions** 
 | [`oh session model`](#oh-session-model) | Change the model of the next steps |
 | [`oh session fork`](#oh-session-fork) | Create a variant (copy of the history) |
 | [`oh session results`](#oh-session-results) | Changed files, branch, cost, MR description, diff |
+| [`oh session report`](#oh-session-report) | Reports filed by the agents (`workflow_report`) |
 | [`oh session resume`](#oh-session-resume) | Resume a sleeping session without interface |
 | [`oh session stop`](#oh-session-stop) | Stop a session |
 | [`oh session delete`](#oh-session-delete) | Delete a session for good (worktree, local branch, files) |
@@ -206,6 +207,22 @@ Sources: the session and its decisions recorded by oh, the checkpoint timeline k
 | `-o`, `--output` | string | Write the JSONL trace to this file |
 
 It is the input of the evaluations ([`oh eval`](cli-tools.en.md#oh-eval)) and of retrospectives.
+
+### oh session report
+
+```
+oh session report <session> [rp-id] [--json]
+```
+
+Reports the agents of the session filed with the `workflow_report` tool ([`workflow` MCP server](cli-mcp.en.md#workflow-mcp-server)). Without an id: the list (id `rp-<n>`, author, title, size, time, sections). With an id: the whole report.
+
+The author is the agent oh saw calling the tool, never a value given by the agent. Bodies are kept in `~/.oh/sessions/<session>/reports/` (files 0600, folder 0700) with their SHA-256 digest: a report changed outside oh is not shown. Limits: 64 KiB per report, 100 reports and 4 MiB per session; terminal sequences and control characters are removed. The reports of a remote session come back with it ([`oh session fetch`](#oh-session-fetch)). `oh gc` keeps them as long as the history of the session (like its results).
+
+| Flag | Type | Description |
+|------|------|-------------|
+| `--json` | bool | JSON output: the list, or the report with its body (`body`) |
+
+In the TUI, the card of a checkpoint lists the reports filed since the previous checkpoint (and those the agent cites); each opens in a scrolling reader.
 
 ### oh session resume
 

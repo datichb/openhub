@@ -126,7 +126,7 @@ oh mcp serve <name> [--token-key <cle>]
 
 Les outils sont exposes sans le nom du serveur (`get_project`) : l'outil (opencode) le prefixe, la session voit `gitlab_get_project` (nom cite par les agents, les skills et les regles de permission). Un appel sous l'ancien nom prefixe (`gitlab_get_project` cote serveur) reste accepte.
 
-`oh mcp serve workflow` est interne : serveur MCP `workflow` (`workflow_status`, `workflow_checkpoint`, `workflow_outputs`) injecte dans chaque paquet de session, absent de `list`, `setup` et `enable`.
+`oh mcp serve workflow` est interne : serveur MCP `workflow` (voir [Serveur MCP workflow](#serveur-mcp-workflow)) injecte dans chaque paquet de session, absent de `list`, `setup` et `enable`.
 
 **Exemple :**
 
@@ -134,6 +134,23 @@ Les outils sont exposes sans le nom du serveur (`get_project`) : l'outil (openco
 oh mcp serve gitlab
 oh mcp serve figma --token-key openhub.mcp.figma.token
 ```
+
+---
+
+### Serveur MCP workflow
+
+Injecté dans chaque session lancée depuis un workflow ; sans état, il transmet chaque appel au démon oh pour la session qui appelle (un sous-agent est rattaché à la session oh qui l'a délégué). Les agents voient ses outils sous le nom `workflow_<outil>`.
+
+| Outil | Paramètres | Rôle |
+|-------|------------|------|
+| `workflow_status` | — | État du workflow : mode, checkpoints, prochain checkpoint, agents et opérations verrouillés, sorties |
+| `workflow_checkpoint` | `id`, `summary`, `reports` (facultatif) | Passe un checkpoint (attend la validation quand il est en pause dans le mode) ; `reports` cite des rapports `rp-…` |
+| `workflow_outputs` | `type`, `value`, `id` | Déclare une sortie typée |
+| `workflow_report` | `title`, `body` | Dépose le rapport complet de l'agent ; oh répond par son identifiant `rp-<n>` |
+| `workflow_report_get` | `id`, `section` (facultatif) | Lit un rapport, en entier ou une section (titre Markdown) |
+| `workflow_reports` | — | Liste les rapports de la session (identifiant, auteur, titre, taille, heure, sections) |
+
+**Rapports (`workflow_report`).** L'agent dépose son rapport complet ; oh le garde et les coordinateurs ne transmettent que son identifiant. L'auteur est l'agent qu'oh voit appeler l'outil (un paramètre `agent` serait ignoré). Les rapports déposés depuis le checkpoint précédent, et ceux que l'agent cite dans `reports`, sont joints à la carte du checkpoint ; chaque dépôt s'inscrit dans la frise (`▤ rp-2 (developer)`). Limites : 64 Ko par rapport, 100 rapports et 4 Mo par session ; au-delà, l'outil refuse et l'agent inclut le rapport dans son bloc. Sans démon (ou quand il ne garde pas les rapports : `OH_WORKFLOW_REPORTS=off`), l'outil répond « non enregistré » sans erreur et l'agent revient au rapport complet dans son bloc. Les agents ne lisent ni n'écrivent les rapports autrement que par ces outils (garde-fou global sur `~/.oh/sessions`). Lecture côté utilisateur : [`oh session report`](cli-sessions.fr.md#oh-session-report).
 
 ---
 
