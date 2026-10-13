@@ -70,15 +70,12 @@
       ],
       "skills": [
         "beads-plan",
-        "debugger-handoff-format",
         "design-handoff-format",
         "documentarian-handoff-format",
         "handoff-bloc-unique-rule",
         "living-docs-enrichment",
-        "onboarder-handoff-format",
         "orchestrator-recap-edge",
-        "pathfinder-handoff-format",
-        "subagent-concision-posture"
+        "pathfinder-handoff-format"
       ]
     },
     {
@@ -163,8 +160,6 @@
         "handoff-bloc-unique-rule",
         "living-docs-enrichment",
         "pathfinder-execution-modes",
-        "standalone-execution-protocol",
-        "subagent-concision-posture",
         "subagent-execution-protocol",
         "websearch-stack-research",
         "websearch-usage"
@@ -269,8 +264,6 @@
         "planner-phase-2",
         "planner-phase-3-4",
         "planner-phase-5-6",
-        "standalone-execution-protocol",
-        "subagent-concision-posture",
         "subagent-execution-protocol",
         "websearch-stack-research",
         "websearch-usage"
@@ -341,7 +334,6 @@
         "beads-plan",
         "content-design",
         "design-principles",
-        "designer-standalone",
         "designer-subagent",
         "expert-posture",
         "figma-deep-protocol",
@@ -448,12 +440,9 @@
         "orchestrator-dev-edge-cases",
         "orchestrator-dev-parallel",
         "orchestrator-dev-recap",
-        "orchestrator-dev-standalone",
         "orchestrator-dev-subagent",
         "orchestrator-dev-ticket-workflow",
-        "planner-handoff-format",
         "quick-fix",
-        "subagent-concision-posture",
         "test-generation"
       ]
     },
@@ -658,7 +647,6 @@
         "dev-standards-testing",
         "handoff-bloc-unique-rule",
         "living-docs-enrichment",
-        "planner-handoff-format",
         "quick-fix",
         "reviewer-reception",
         "test-generation"
@@ -750,9 +738,7 @@
         "review-merge",
         "reviewer-adversarial",
         "reviewer-edge-case",
-        "reviewer-standalone",
-        "reviewer-subagent",
-        "subagent-concision-posture"
+        "reviewer-subagent"
       ]
     },
     {
@@ -844,8 +830,7 @@
         "expert-posture",
         "handoff-bloc-unique-rule",
         "skill-authoring-protocol",
-        "websearch-usage",
-        "wiki-navigation"
+        "websearch-usage"
       ]
     }
   ],
@@ -853,11 +838,9 @@
     "beads-plan",
     "concision-posture",
     "content-design",
-    "debugger-handoff-format",
     "design-handoff-format",
     "design-planner-format",
     "design-principles",
-    "designer-standalone",
     "designer-subagent",
     "dev-drift-detection",
     "dev-standards-api",
@@ -888,11 +871,9 @@
     "figma-recon-protocol",
     "handoff-bloc-unique-rule",
     "living-docs-enrichment",
-    "onboarder-handoff-format",
     "orchestrator-dev-edge-cases",
     "orchestrator-dev-parallel",
     "orchestrator-dev-recap",
-    "orchestrator-dev-standalone",
     "orchestrator-dev-subagent",
     "orchestrator-dev-ticket-workflow",
     "orchestrator-recap-edge",
@@ -902,7 +883,6 @@
     "planner-beads-templates",
     "planner-design-templates",
     "planner-execution-modes",
-    "planner-handoff-format",
     "planner-patterns-protocol",
     "planner-phase-0",
     "planner-phase-1",
@@ -915,11 +895,8 @@
     "reviewer-adversarial",
     "reviewer-edge-case",
     "reviewer-reception",
-    "reviewer-standalone",
     "reviewer-subagent",
     "skill-authoring-protocol",
-    "standalone-execution-protocol",
-    "subagent-concision-posture",
     "subagent-execution-protocol",
     "test-generation",
     "tui-patterns",
@@ -928,8 +905,7 @@
     "ux-protocol",
     "websearch-design-patterns",
     "websearch-stack-research",
-    "websearch-usage",
-    "wiki-navigation"
+    "websearch-usage"
   ],
   "subagent_graph": {
     "developer": [

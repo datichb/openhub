@@ -23,9 +23,12 @@ Règles de délégation :
 - Un agent avec une valeur « Après » ne se lance qu'une fois ce checkpoint passé (ou cet agent terminé).
 - Les agents `independent` sont disponibles à la demande, hors de la chaîne principale.
 
-## Checkpoints (dans l'ordre)
+## Checkpoints
 
-Aucun checkpoint dans ce workflow : avance sans pause imposée. Pour toute confirmation (et avant toute action irréversible), utilise l'outil `question`, sans nommer de checkpoint.
+Aucun checkpoint dans ce workflow : avance sans pause imposée.
+<!-- oh:when role=entry -->
+Pour toute confirmation (et avant toute action irréversible), utilise l'outil `question`, sans nommer de checkpoint.
+<!-- /oh:when -->
 
 ## Mode de workflow
 

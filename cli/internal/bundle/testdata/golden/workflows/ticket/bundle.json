@@ -93,11 +93,8 @@
         "orchestrator-dev-parallel",
         "orchestrator-dev-recap",
         "orchestrator-dev-standalone",
-        "orchestrator-dev-subagent",
         "orchestrator-dev-ticket-workflow",
-        "planner-handoff-format",
         "quick-fix",
-        "subagent-concision-posture",
         "test-generation"
       ]
     },
@@ -302,7 +299,6 @@
         "dev-standards-testing",
         "handoff-bloc-unique-rule",
         "living-docs-enrichment",
-        "planner-handoff-format",
         "quick-fix",
         "reviewer-reception",
         "test-generation"
@@ -394,9 +390,7 @@
         "review-merge",
         "reviewer-adversarial",
         "reviewer-edge-case",
-        "reviewer-standalone",
-        "reviewer-subagent",
-        "subagent-concision-posture"
+        "reviewer-subagent"
       ]
     },
     {
@@ -488,8 +482,7 @@
         "expert-posture",
         "handoff-bloc-unique-rule",
         "skill-authoring-protocol",
-        "websearch-usage",
-        "wiki-navigation"
+        "websearch-usage"
       ]
     }
   ],
@@ -525,21 +518,16 @@
     "orchestrator-dev-parallel",
     "orchestrator-dev-recap",
     "orchestrator-dev-standalone",
-    "orchestrator-dev-subagent",
     "orchestrator-dev-ticket-workflow",
-    "planner-handoff-format",
     "quick-fix",
     "review-merge",
     "reviewer-adversarial",
     "reviewer-edge-case",
     "reviewer-reception",
-    "reviewer-standalone",
     "reviewer-subagent",
     "skill-authoring-protocol",
-    "subagent-concision-posture",
     "test-generation",
-    "websearch-usage",
-    "wiki-navigation"
+    "websearch-usage"
   ],
   "subagent_graph": {
     "developer": [

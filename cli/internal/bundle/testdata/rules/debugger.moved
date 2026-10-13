@@ -54,3 +54,22 @@ Ce que tu NE fais JAMAIS	dropped:L2 — skill hors de portée réelle de l'agent
 ❌ Reformuler le contenu reçu — le copier tel quel	dropped:L2 — skill hors de portée réelle de l'agent (nommée seulement dans les règles du consommateur), toujours inlinée chez les coordinateurs
 ❌ Appeler `question` sans avoir affiché le bloc structuré = l'utilisateur décide sans contexte.	dropped:L2 — skill hors de portée réelle de l'agent (nommée seulement dans les règles du consommateur), toujours inlinée chez les coordinateurs
 ✅ Toujours : retranscrire le bloc complet (template standard ci-dessus) → puis seulement `question`.	dropped:L2 — skill hors de portée réelle de l'agent (nommée seulement dans les règles du consommateur), toujours inlinée chez les coordinateurs
+# L3 : variantes when: et contrat de session (filtrées pour ce rôle ou cet agent, ou réécrites)
+Partie à suivre quand tu es **sous-agent** (section « Rôle dans cette session » de ton prompt, générée par oh) : tu es invoqué via `task` et l'utilisateur ne voit pas l'outil `question`.	merged:Partie du sous-agent : tu es invoqué via `task` et l'utilisateur ne voit pas l'outil `question`. (bloc role=subagent)
+**Champs obligatoires** : `Cause racine`, `Impact et régressions potentielles`, `Tickets de correction créés`, `Rapport de diagnostic complet`, `Questions bloquantes`, `Statut`. Si l'un est absent → demander au debugger de compléter avant de continuer.	guard:when calls=debugger (bloc de debugger-handoff-format)
+**Statut** : `diagnostiqué` → cause établie · `partiellement-diagnostiqué` → signaler l'incertitude · `non-reproductible` → ne pas créer de ticket sans plus d'information.	guard:when calls=debugger (bloc de debugger-handoff-format)
+**Transmission** : ne jamais passer les tickets créés directement à `orchestrator-dev` sans les présenter à l'utilisateur d'abord.	guard:when calls=debugger (bloc de debugger-handoff-format)
+**Sous-agent** (section « Rôle dans cette session » de ton prompt) : n'appelle pas `question`. Arrête-toi et mets le risque et les deux options dans `### Questions bloquantes` de ton bloc de retour ; ton appelant pose la question à l'utilisateur.	merged:**Sous-agent** : n'appelle pas `question`. Arrête-toi et mets le risque et les deux options dans `### Questions bloquantes` de ton bloc de retour (bloc role=subagent)
+Si tu es **sous-agent** (section « Rôle dans cette session » de ton prompt), n'appelle pas `question` : l'utilisateur ne voit pas ces appels. Mets chaque décision dans la section `### Questions bloquantes` de ton bloc de retour (2 à 3 options, la recommandée en premier, avec le contexte qui permet de trancher) ; ton appelant la pose à l'utilisateur.	guard:contrat de session généré par oh (templates/session-contract.md.tmpl, ligne Questions du sous-agent) ; tool-question when: role=entry
+Ce skill définit le protocole que tous les agents doivent suivre pour consulter	guard:when wiki | agent=onboarder (skill wiki-navigation)
+à la tâche courante, jamais le wiki en entier.	guard:when wiki | agent=onboarder (skill wiki-navigation)
+Règle 1 — Toujours lire `docs/wiki/index.md` en premier	guard:when wiki | agent=onboarder (skill wiki-navigation)
+**Si le fichier n'existe pas :**	guard:when wiki | agent=onboarder (skill wiki-navigation)
+Ne rien faire — le wiki n'est pas encore généré pour ce projet	guard:when wiki | agent=onboarder (skill wiki-navigation)
+Ne pas signaler l'absence comme une erreur (l'onboarder génère le wiki)	guard:when wiki | agent=onboarder (skill wiki-navigation)
+Règle 3 — Ne jamais lire le wiki en entier par défaut	guard:when wiki | agent=onboarder (skill wiki-navigation)
+❌ Ne jamais faire `ls docs/wiki/` puis lire tous les fichiers	guard:when wiki | agent=onboarder (skill wiki-navigation)
+❌ Ne jamais charger `technical/` et `business/` en parallèle sans raison	guard:when wiki | agent=onboarder (skill wiki-navigation)
+✅ Toujours partir de `index.md` → décider → charger une page	guard:when wiki | agent=onboarder (skill wiki-navigation)
+Après chaque enrichissement d'une page wiki, le `documentarian` doit réévaluer	guard:when agent=documentarian,onboarder (bloc de wiki-navigation)
+Si un concept apparaît dans **≥ 2 pages distinctes** et n'est pas encore dans le tableau → l'ajouter	guard:when agent=documentarian,onboarder (bloc de wiki-navigation)

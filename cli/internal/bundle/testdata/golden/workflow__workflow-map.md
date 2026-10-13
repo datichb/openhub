@@ -27,18 +27,33 @@ Règles de délégation :
 - Un agent avec une valeur « Après » ne se lance qu'une fois ce checkpoint passé (ou cet agent terminé).
 - Les agents `independent` sont disponibles à la demande, hors de la chaîne principale.
 
+<!-- oh:when agent=orchestrator-dev -->
 ## Checkpoints (dans l'ordre)
+
+Seuls les checkpoints que tu passes figurent ici (contrat de session).
 
 | Checkpoint | manuel | semi-auto | auto | distant |
 |---|---|---|---|---|
+<!-- oh:when agent=orchestrator-dev -->
 | **cp-1** — Démarrer | pause | auto | auto | auto |
+<!-- /oh:when -->
+<!-- oh:when agent=orchestrator-dev -->
 | **cp-2** — Commit ou correction (obligatoire) | pause | pause | pause | defer |
+<!-- /oh:when -->
+<!-- oh:when agent=orchestrator-dev -->
 | **cp-3** — Revue | pause | conditional | auto | defer |
+<!-- /oh:when -->
 
+<!-- oh:when agent=orchestrator-dev -->
 Séquence : `cp-1` → `cp-2` → `cp-3` (entre crochets, les opérations que le checkpoint déverrouille).
+<!-- /oh:when -->
 
+<!-- oh:when agent=orchestrator-dev -->
 - **cp-2** : Montrer le diff avant de committer.
+<!-- /oh:when -->
+<!-- oh:when agent=orchestrator-dev -->
 - **cp-3** (conditional) : le diff dépasse 300 lignes
+<!-- /oh:when -->
 
 Passage d'un checkpoint : appelle l'outil `workflow_checkpoint` avec `id` (identifiant du tableau) et `summary` (ce qui est fait, ce qui va suivre, points d'attention), **avant** de lancer l'étape suivante. C'est oh qui applique le comportement du mode :
 - `pause` (et `conditional`) : l'appel attend la validation de l'utilisateur (depuis oh ou l'interface). S'il est refusé, ne continue pas : suis la consigne reçue (corriger, préciser), puis rappelle `workflow_checkpoint` pour le même checkpoint.
@@ -47,6 +62,7 @@ Passage d'un checkpoint : appelle l'outil `workflow_checkpoint` avec `id` (ident
 - La réponse de l'outil peut contenir une consigne de l'utilisateur : applique-la.
 - Un checkpoint obligatoire n'est jamais sauté, quel que soit le mode.
 - Les checkpoints passent **uniquement** par `workflow_checkpoint` : n'utilise jamais l'outil `question` ni un message texte pour poser ou valider un checkpoint (« CP-2 : commit ou corriger ? »). oh ferme une telle question sans effet et le checkpoint reste à passer. `workflow_status` donne l'état courant (checkpoints passés, prochain checkpoint, agents et opérations encore verrouillés).
+<!-- /oh:when -->
 
 ## Mode de workflow
 

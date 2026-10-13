@@ -75,9 +75,7 @@
         "handoff-bloc-unique-rule",
         "living-docs-enrichment",
         "phase-0-validation-loop",
-        "planner-handoff-format",
-        "standalone-execution-protocol",
-        "subagent-execution-protocol"
+        "standalone-execution-protocol"
       ]
     },
     {
@@ -171,7 +169,6 @@
         "handoff-bloc-unique-rule",
         "living-docs-enrichment",
         "phase-0-validation-loop",
-        "planner-handoff-format",
         "subagent-execution-protocol",
         "websearch-cve-lookup",
         "websearch-performance-research",
@@ -195,7 +192,6 @@
     "handoff-bloc-unique-rule",
     "living-docs-enrichment",
     "phase-0-validation-loop",
-    "planner-handoff-format",
     "standalone-execution-protocol",
     "subagent-execution-protocol",
     "websearch-cve-lookup",

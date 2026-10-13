@@ -11,6 +11,9 @@ description: "Modes de workflow et comportement des checkpoints du workflow onbo
 - Le mode de la session est indiqué dans le premier message (`Mode de workflow : <mode>`) ; sans indication, applique le mode par défaut. Ne le redemande pas.
 - Quand tu lances un agent avec l'outil `task`, inclus la ligne `Mode de workflow : <mode>` dans le prompt.
 
-## Checkpoints (dans l'ordre)
+## Checkpoints
 
-Aucun checkpoint dans ce workflow : avance sans pause imposée. Pour toute confirmation (et avant toute action irréversible), utilise l'outil `question`, sans nommer de checkpoint.
+Aucun checkpoint dans ce workflow : avance sans pause imposée.
+<!-- oh:when role=entry -->
+Pour toute confirmation (et avant toute action irréversible), utilise l'outil `question`, sans nommer de checkpoint.
+<!-- /oh:when -->

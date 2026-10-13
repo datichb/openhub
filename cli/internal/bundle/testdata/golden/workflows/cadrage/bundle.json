@@ -62,8 +62,7 @@
       ],
       "skills": [
         "handoff-bloc-unique-rule",
-        "planner-handoff-format",
-        "subagent-concision-posture"
+        "planner-handoff-format"
       ]
     },
     {
@@ -148,8 +147,6 @@
         "handoff-bloc-unique-rule",
         "living-docs-enrichment",
         "pathfinder-execution-modes",
-        "standalone-execution-protocol",
-        "subagent-concision-posture",
         "subagent-execution-protocol",
         "websearch-stack-research",
         "websearch-usage"
@@ -254,8 +251,6 @@
         "planner-phase-2",
         "planner-phase-3-4",
         "planner-phase-5-6",
-        "standalone-execution-protocol",
-        "subagent-concision-posture",
         "subagent-execution-protocol",
         "websearch-stack-research",
         "websearch-usage"
@@ -326,7 +321,6 @@
         "beads-plan",
         "content-design",
         "design-principles",
-        "designer-standalone",
         "designer-subagent",
         "expert-posture",
         "figma-deep-protocol",
@@ -348,7 +342,6 @@
     "content-design",
     "design-planner-format",
     "design-principles",
-    "designer-standalone",
     "designer-subagent",
     "elicitation-techniques",
     "expert-posture",
@@ -369,8 +362,6 @@
     "planner-phase-3-4",
     "planner-phase-5-6",
     "prototype-protocol",
-    "standalone-execution-protocol",
-    "subagent-concision-posture",
     "subagent-execution-protocol",
     "tui-patterns",
     "ui-patterns-reference",

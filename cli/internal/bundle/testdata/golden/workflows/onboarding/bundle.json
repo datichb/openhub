@@ -75,7 +75,6 @@
         "dev-standards-testing",
         "doc-wiki-protocol",
         "expert-posture",
-        "handoff-bloc-unique-rule",
         "living-docs-enrichment",
         "onboarder-execution-modes",
         "onboarder-phase-0",
@@ -85,7 +84,6 @@
         "onboarder-phase-5",
         "phase-0-validation-loop",
         "standalone-execution-protocol",
-        "subagent-execution-protocol",
         "websearch-stack-research",
         "websearch-usage"
       ]
@@ -97,7 +95,6 @@
     "dev-standards-testing",
     "doc-wiki-protocol",
     "expert-posture",
-    "handoff-bloc-unique-rule",
     "living-docs-enrichment",
     "onboarder-execution-modes",
     "onboarder-phase-0",
@@ -107,7 +104,6 @@
     "onboarder-phase-5",
     "phase-0-validation-loop",
     "standalone-execution-protocol",
-    "subagent-execution-protocol",
     "websearch-stack-research",
     "websearch-usage"
   ],
