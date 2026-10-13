@@ -62,6 +62,11 @@ func TestPlannedPauses(t *testing.T) {
 		return out
 	}
 	assert.Equal(t, []string{"cp-tickets", "cp-0", "cp-spec", "cp-2"}, ids("semi-auto"))
+	tdd := ids
+	rt = WorkflowRuntime(r.Spec.ForMethod(workflow.MethodTDD))
+	assert.Equal(t, []string{"cp-tickets", "cp-0", "cp-spec", "cp-seams", "cp-2"}, tdd("semi-auto"), "R7: TDD adds cp-seams, cp-red passes on its own")
+	assert.Equal(t, []string{"cp-tickets", "cp-0", "cp-spec", "cp-2"}, tdd("auto"))
+	rt = WorkflowRuntime(r.Spec.ForMethod(workflow.MethodStandard))
 	assert.Equal(t, []string{"cp-tickets", "cp-0", "cp-spec", "cp-2"}, ids("auto"), "auto = everything but the mandatory decisions (and cp-spec when it applies)")
 	assert.Len(t, PlannedPauses(rt, "manuel"), 7)
 	p := PlannedPauses(rt, "auto")
