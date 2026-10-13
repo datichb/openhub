@@ -119,11 +119,15 @@ func TestCheckHookCaller(t *testing.T) {
 	assert.ErrorIs(t, CheckHookCaller(ctx, 10, project, "pre-commit", unsupported), procinfo.ErrUnsupported)
 }
 
-// The real process tree of a hook run by git.
+// The real process tree of a hook run by git. The hook waits until the
+// test is done (it used to sleep 2 s: under load, the walk up the tree,
+// which runs git itself, ended after the hook), and git reads no
+// configuration of the machine (signing, templates, global hooks).
 func TestCheckHookCallerRealGit(t *testing.T) {
 	if runtime.GOOS != "darwin" && runtime.GOOS != "linux" {
 		t.Skip("procinfo")
 	}
+	isolateGit(t)
 	project := realDir(t)
 	run := func(args ...string) {
 		cmd := exec.Command("git", append([]string{"-C", project, "-c", "user.name=t", "-c", "user.email=t@t"}, args...)...)
@@ -134,12 +138,20 @@ func TestCheckHookCallerRealGit(t *testing.T) {
 	run("config", "core.hooksPath", filepath.Join(project, ".beads", "hooks"))
 	hooks := filepath.Join(project, ".beads", "hooks")
 	require.NoError(t, os.MkdirAll(hooks, 0o700))
-	pidFile := filepath.Join(t.TempDir(), "pid")
-	require.NoError(t, os.WriteFile(filepath.Join(hooks, "pre-commit"),
-		[]byte("#!/bin/sh\nsh -c 'echo $$ > "+pidFile+"; sleep 2'\n"), 0o755))
+	state := t.TempDir()
+	pidFile, release := filepath.Join(state, "pid"), filepath.Join(state, "release")
+	// At most 120 s, should the test never release it.
+	hook := "#!/bin/sh\nsh -c 'echo $$ > " + pidFile + ".tmp && mv " + pidFile + ".tmp " + pidFile +
+		"; i=0; while [ ! -f " + release + " ] && [ $i -lt 1200 ]; do sleep 0.1; i=$((i+1)); done'\n"
+	require.NoError(t, os.WriteFile(filepath.Join(hooks, "pre-commit"), []byte(hook), 0o755))
 	cmd := exec.Command("git", "-C", project, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "--allow-empty", "-qm", "x")
+	var out strings.Builder
+	cmd.Stdout, cmd.Stderr = &out, &out
 	require.NoError(t, cmd.Start())
-	t.Cleanup(func() { _ = cmd.Wait() })
+	t.Cleanup(func() {
+		_ = os.WriteFile(release, nil, 0o600)
+		_ = cmd.Wait()
+	})
 	var pid int
 	require.Eventually(t, func() bool {
 		data, err := os.ReadFile(pidFile)
@@ -148,7 +160,21 @@ func TestCheckHookCallerRealGit(t *testing.T) {
 		}
 		pid, err = strconv.Atoi(strings.TrimSpace(string(data)))
 		return err == nil
-	}, 10*time.Second, 20*time.Millisecond)
+	}, 30*time.Second, 20*time.Millisecond, "the hook did not start: %s", &out)
 	assert.NoError(t, CheckHookCaller(context.Background(), pid, project, "pre-commit", procinfo.Get))
 	assert.ErrorIs(t, CheckHookCaller(context.Background(), os.Getpid(), project, "pre-commit", procinfo.Get), ErrNotFromGit)
+}
+
+// isolateGit keeps the configuration and repository of the machine away
+// from the git commands of a test.
+func isolateGit(t *testing.T) {
+	t.Helper()
+	t.Setenv("GIT_CONFIG_GLOBAL", os.DevNull)
+	t.Setenv("GIT_CONFIG_NOSYSTEM", "1")
+	for _, k := range []string{"GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE", "GIT_OBJECT_DIRECTORY", "GIT_COMMON_DIR", "GIT_CONFIG_COUNT"} {
+		if _, ok := os.LookupEnv(k); ok {
+			t.Setenv(k, "") // restored after the test
+			require.NoError(t, os.Unsetenv(k))
+		}
+	}
 }

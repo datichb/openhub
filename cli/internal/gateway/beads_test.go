@@ -19,12 +19,9 @@ import (
 	ohruntime "github.com/datichb/openhub/cli/internal/runtime"
 )
 
-// fakeBd writes a bd that prints its arguments and directory, echoes stdin
-// for "-" and exits with $2 for "exit".
-func fakeBd(t *testing.T) string {
-	t.Helper()
-	p := filepath.Join(t.TempDir(), "bd")
-	script := `#!/bin/sh
+// fakeBdScript is a bd that prints its arguments and directory, echoes
+// stdin for "-" and exits with $2 for "exit".
+const fakeBdScript = `#!/bin/sh
 ro=""; actor=""
 while :; do case "$1" in --readonly) ro=1; shift;; --actor=*) actor="${1#--actor=}"; shift;; *) break;; esac; done
 if [ "$1" = "where" ]; then printf '{"path":"%s/.beads"}\n' "$(pwd -P)"; exit 0; fi
@@ -39,8 +36,25 @@ for last in "$@"; do :; done
 [ "$1" = "show" ] && [ "$last" = "slow" ] && sleep 5
 exit 0
 `
-	require.NoError(t, os.WriteFile(p, []byte(script), 0o755))
-	return p
+
+// fakeBdDir holds the fake bd, written once before the tests run (TestMain):
+// a script written while another goroutine starts a process can fail to
+// run (ETXTBSY on Linux), which made the gateway answer 503.
+var fakeBdDir string
+
+func writeFakeBd() (cleanup func(), err error) {
+	dir, err := os.MkdirTemp("", "oh-gateway-bd-*")
+	if err != nil {
+		return nil, err
+	}
+	fakeBdDir = dir
+	return func() { _ = os.RemoveAll(dir) }, os.WriteFile(filepath.Join(dir, "bd"), []byte(fakeBdScript), 0o755)
+}
+
+func fakeBd(t *testing.T) string {
+	t.Helper()
+	require.NotEmpty(t, fakeBdDir, "written by TestMain")
+	return filepath.Join(fakeBdDir, "bd")
 }
 
 func realDir(t *testing.T) string {

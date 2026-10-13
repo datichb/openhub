@@ -1,4 +1,4 @@
-.PHONY: build build-linux run test test-tui test-unit test-integration test-e2e test-container lint clean install embed-sync embed-bd
+.PHONY: build build-linux run test test-tui test-unit test-integration test-e2e test-container lint clean install embed-sync embed-bd sync-content
 
 # Build variables
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
@@ -26,9 +26,10 @@ build-linux: embed-bd
 run:
 	go run -ldflags "$(LDFLAGS)" . $(ARGS)
 
-# Run all tests
+# Run all tests (the full -race suite takes longer than the default 10 minutes)
+TEST_TIMEOUT ?= 40m
 test:
-	go test ./... -v -race
+	go test ./... -v -race -timeout $(TEST_TIMEOUT)
 
 # Run TUI tests only
 test-tui:
@@ -87,15 +88,17 @@ deps:
 generate:
 	go generate ./...
 
-# Sync hub content from repo root into the embed directory (for development).
-# GoReleaser does this automatically at build time via its before-hook.
-embed-sync:
+# Copy the hub content (agents, skills, permissions, workflows) from the repo
+# root into the embed directory, without rebuilding the embedded bd.
+# TestEmbeddedContentInSync fails while the copy differs from the sources.
+sync-content:
 	rm -rf internal/hubcontent/hub
 	mkdir -p internal/hubcontent/hub
-	cp -r ../agents internal/hubcontent/hub/agents
-	cp -r ../skills internal/hubcontent/hub/skills
-	cp -r ../permissions internal/hubcontent/hub/permissions
-	cp -r ../workflows internal/hubcontent/hub/workflows
+	cp -r ../agents ../skills ../permissions ../workflows internal/hubcontent/hub/
+
+# Sync hub content and rebuild the embedded bd (for development).
+# GoReleaser does this automatically at build time via its before-hook.
+embed-sync: sync-content
 	$(MAKE) embed-bd
 
 # Cross-compile the fake bd embedded in container images (linux/amd64, linux/arm64).

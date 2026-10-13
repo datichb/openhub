@@ -31,7 +31,7 @@ func runDaemon(t *testing.T, opts Options) {
 	go func() { done <- Run(ctx, opts) }()
 	t.Cleanup(func() { cancel(); <-done })
 	c := NewClient(opts.Paths)
-	require.Eventually(t, func() bool { h, err := c.Health(context.Background()); return err == nil && !h.Restoring }, 5*time.Second, 20*time.Millisecond)
+	require.Eventually(t, func() bool { h, err := c.Health(context.Background()); return err == nil && !h.Restoring }, 15*time.Second, 20*time.Millisecond) // generous: the -race suite runs packages in parallel
 }
 
 // E14-B1: restarting an old group must not lose its proxy token while starting.
@@ -66,10 +66,12 @@ func TestReusedPIDIsNotSignalled(t *testing.T) {
 	ad.failAll = true
 	runDaemon(t, Options{Paths: p, Servers: servers, Grants: grants, Tick: 30 * time.Millisecond, IdleAfter: time.Hour,
 		Adapter: func(string) adapters.ToolAdapter { return ad }})
+	// verifyFailLimit failed checks, one per tick: 10 s leaves room for the
+	// ticks delayed by the -race suite running packages in parallel.
 	require.Eventually(t, func() bool {
 		s, _ := servers.Get(ctx, "g")
 		return s != nil && s.Status == domain.ServerStopped
-	}, 3*time.Second, 30*time.Millisecond)
+	}, 10*time.Second, 30*time.Millisecond)
 	assert.Equal(t, int32(0), ad.stops.Load(), "no signal sent to a process that is not our server")
 }
 
