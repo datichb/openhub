@@ -7,6 +7,10 @@ description: "Utiliser avant les phases 3 et 4 du planner : plan hiérarchique, 
 
 ## Objectif
 Décomposer la feature en epics et tickets structurés, avec ordre d'implémentation et risques identifiés.
+<!-- oh:when mcp=team -->
+
+Bibliothèque de patterns de l'équipe : charge `planner-patterns-protocol` avant la phase 3.
+<!-- /oh:when -->
 
 ## Format de présentation
 
@@ -101,11 +105,11 @@ Le premier ticket de chaque epic devrait être un **tracer bullet** : une tranch
 
 (Le récap est le plan lui-même tel que présenté ci-dessus)
 
-> ⚠️ **RAPPEL** : En Phase 6, le récapitulatif de planification doit reprendre tous ces éléments (plan hiérarchique + dépendances + hypothèses + risques) sous forme narrative détaillée — ne pas se limiter au tableau structuré du bloc handoff.
+> ⚠️ **RAPPEL** : En Phase 6, le récapitulatif de planification doit reprendre tous ces éléments (plan hiérarchique + dépendances + hypothèses + risques) sous forme narrative détaillée — ne pas se limiter au tableau des tickets.
 
 ## Question de validation obligatoire
+<!-- oh:when role=entry -->
 
-**En mode standalone :**
 ```
 question({
   questions: [{
@@ -120,12 +124,17 @@ question({
 })
 ```
 
-**Selon la réponse (dans tous les contextes) :**
+**Selon la réponse :**
 - **Valider** → Phase 4
 - **Modifier** → rester en Phase 3, intégrer les modifications, re-présenter le plan
 - **Revenir à Phase 2** → Phase 2 (le plan révèle de nouvelles questions)
 
 **Ne pas continuer tant que le plan n'est pas validé.**
+<!-- /oh:when -->
+<!-- oh:when role=subagent -->
+
+Sous-agent : la validation du plan est le checkpoint de ton appelant ; enchaîne sur la phase 4 (la création attend ce checkpoint).
+<!-- /oh:when -->
 
 ---
 
@@ -151,8 +160,13 @@ Vérifier les cas limites qui pourraient avoir été manqués lors de la décomp
 ## Déclencheur de pause ⏸️
 
 Si un **cas particulier critique** est détecté (ex : doublon avéré, dépendance circulaire) :
+<!-- oh:when role=entry -->
 - Afficher le contexte en texte (description du cas, impact, options)
 - Puis utiliser l'outil `question` pour demander comment le traiter
+<!-- /oh:when -->
+<!-- oh:when role=subagent -->
+- Décris le cas (impact, options) dans tes `### Hypothèses et ambiguïtés` et laisse ton appelant le trancher au checkpoint du découpage ; s'il bloque la décomposition, mets-le dans tes `### Questions bloquantes` (statut `en-attente`)
+<!-- /oh:when -->
 
 ## Récap de fin de Phase 4
 
@@ -175,8 +189,8 @@ Si un **cas particulier critique** est détecté (ex : doublon avéré, dépenda
 ```
 
 ## Question de validation obligatoire
+<!-- oh:when role=entry -->
 
-**En mode standalone :**
 ```
 question({
   questions: [{
@@ -191,7 +205,12 @@ question({
 })
 ```
 
-**Selon la réponse (dans tous les contextes) :**
+**Selon la réponse :**
 - **Créer les tickets** → Phase 5
 - **Vérifier d'autres cas** → rester en Phase 4, vérifier d'autres cas, re-produire le récap
 - **Revenir à Phase 3** → Phase 3 (les cas particuliers nécessitent une refonte du plan)
+<!-- /oh:when -->
+<!-- oh:when role=subagent -->
+
+Sous-agent : pas de question ; rapport aux sections de ton payload (`### Tickets proposés`, ordre, hypothèses, risques), statut `découpage-à-valider`, puis arrête-toi : la création attend le checkpoint de ton appelant.
+<!-- /oh:when -->

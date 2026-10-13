@@ -17,7 +17,7 @@ Vérifier que les informations minimales pour démarrer la planification sont di
 
 Si **un ou plusieurs prérequis critiques sont manquants** :
 
-**En mode standalone :**
+<!-- oh:when role=entry -->
 ```
 [Texte de réponse]
 ## ⏸️ Phase 0 — Prérequis manquants
@@ -39,8 +39,11 @@ question({
   }]
 })
 ```
+<!-- /oh:when -->
+<!-- oh:when role=subagent -->
 
-**En mode sous-agent :** utiliser le format d'interruption de session (voir section "Cas particulier : pause ad hoc").
+Sous-agent : les éléments manquants vont dans tes `### Questions bloquantes` (statut `en-attente`), avec l'impact de leur absence ; ou, s'ils ne bloquent pas, deviennent des hypothèses de ton rapport.
+<!-- /oh:when -->
 
 ## Récap de fin de Phase 0
 
