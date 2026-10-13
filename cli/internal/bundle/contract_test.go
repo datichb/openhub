@@ -1,0 +1,166 @@
+package bundle
+
+import (
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	"github.com/datichb/openhub/cli/internal/workflow"
+)
+
+// contractOf returns the session contract of a composed prompt.
+func contractOf(body string) string {
+	i := strings.Index(body, contractHeading)
+	if i < 0 {
+		return ""
+	}
+	rest := body[i+2:]
+	for _, end := range []string{"\n\n> Brouillons", "\n\n---\n\n# Project instructions\n"} {
+		if j := strings.Index(rest, end); j >= 0 {
+			rest = rest[:j+1]
+		}
+	}
+	return rest
+}
+
+// L3: the session contract of every agent of every shipped workflow is
+// pinned in testdata/golden/contracts/<workflow>/<agent>.md
+// (go test ./internal/bundle -run ShippedWorkflowContracts -update).
+func TestShippedWorkflowContracts(t *testing.T) {
+	hub, cat, env := shippedWorkflows(t)
+	for _, ref := range cat.Refs() {
+		t.Run(ref.ID, func(t *testing.T) {
+			r, diags := workflow.Check(cat, ref, nil, env)
+			require.False(t, diags.HasErrors(), "%v", diags)
+			b, err := Build(Request{HubDir: hub, OutDir: t.TempDir(), Spec: r.Spec})
+			require.NoError(t, err)
+			dir := filepath.Join("testdata", "golden", "contracts", ref.ID)
+			want := map[string]bool{}
+			for _, a := range b.Spec.Agents {
+				c := contractOf(a.Body)
+				require.NotEmpty(t, c, "%s/%s: no session contract", ref.ID, a.ID)
+				assert.Equal(t, 1, strings.Count(a.Body, contractHeading), "%s/%s: one contract", ref.ID, a.ID)
+				want[a.ID+".md"] = true
+				assertGolden(t, filepath.Join("contracts", ref.ID, a.ID+".md"), c)
+			}
+			entries, err := os.ReadDir(dir)
+			require.NoError(t, err)
+			for _, e := range entries {
+				if !want[e.Name()] {
+					if *updateGolden {
+						require.NoError(t, os.Remove(filepath.Join(dir, e.Name())))
+						continue
+					}
+					t.Errorf("%s: stale contract %s (-update removes it)", ref.ID, e.Name())
+				}
+			}
+		})
+	}
+}
+
+// L3 (CP-R11): every checkpoint of a shipped workflow says who passes it
+// (`by:`), with members of the workflow that may call workflow_checkpoint,
+// and the runtime of the bundle carries it.
+func TestCheckpointByMembers(t *testing.T) {
+	hub, cat, env := shippedWorkflows(t)
+	for _, ref := range cat.Refs() {
+		r, diags := workflow.Check(cat, ref, nil, env)
+		require.False(t, diags.HasErrors(), "%v", diags)
+		members := r.Spec.Members()
+		var b *Bundle
+		for _, id := range r.Spec.Checkpoints.Keys() {
+			cp, _ := r.Spec.Checkpoints.Get(id)
+			if !assert.NotEmpty(t, cp.By, "%s: checkpoint %s has no by:", ref.ID, id) {
+				continue
+			}
+			if b == nil {
+				var err error
+				b, err = Build(Request{HubDir: hub, OutDir: t.TempDir(), Spec: r.Spec})
+				require.NoError(t, err)
+			}
+			for _, agent := range cp.By {
+				assert.Contains(t, members, agent, "%s: %s.by", ref.ID, id)
+				def := findAgent(b.Spec.Agents, agent)
+				if assert.NotNil(t, def, "%s: %s.by: %s not in the bundle", ref.ID, id, agent) {
+					assert.NotEqual(t, "deny", string(ToolEffect(def.Permissions, CheckpointAction(), "*")),
+						"%s: %s passes %s but may not call workflow_checkpoint", ref.ID, agent, id)
+					assert.Contains(t, def.Body, "`"+id+"`", "%s: the contract of %s names %s", ref.ID, agent, id)
+				}
+			}
+			for _, c := range b.Spec.Workflow.Checkpoints {
+				if c.ID == id {
+					assert.Equal(t, cp.By, c.By, "%s: runtime by of %s", ref.ID, id)
+				}
+			}
+		}
+	}
+}
+
+// CP-R11: an agent's contract and prompt name only its own checkpoints.
+func TestContractOwnCheckpointsOnly(t *testing.T) {
+	feature := shippedBundle(t, "feature")
+	dev := contractOf(agentBody(t, feature, "orchestrator-dev"))
+	for _, id := range []string{"cp-1", "cp-2", "cp-3"} {
+		assert.Contains(t, dev, "`"+id+"`")
+	}
+	orch := agentBody(t, feature, "orchestrator")
+	for _, id := range []string{"cp-tickets", "cp-0", "cp-feature"} {
+		assert.Contains(t, contractOf(orch), "`"+id+"`")
+		assert.NotContains(t, agentBody(t, feature, "orchestrator-dev"), "**"+id+"**", "orchestrator-dev sees the row of %s", id)
+	}
+	assert.NotContains(t, orch, "**cp-2** — ", "orchestrator sees the row of cp-2")
+	assert.Contains(t, contractOf(agentBody(t, feature, "pathfinder")), "aucun n'est à toi")
+	assert.Contains(t, contractOf(agentBody(t, feature, "pathfinder")), "`## Retour vers orchestrator`")
+}
+
+func TestCheckpointByDeduced(t *testing.T) {
+	s := &workflow.Spec{Entry: &workflow.Entry{Agent: "lead"}}
+	s.Agents.Set("lead", workflow.AgentRef{Role: workflow.RoleWorkflow})
+	s.Agents.Set("coord", workflow.AgentRef{Role: workflow.RoleWorkflow})
+	s.Agents.Set("dev", workflow.AgentRef{Role: workflow.RoleWorkflow, After: "cp-start"})
+	s.Checkpoints.Set("cp-start", workflow.CheckpointSpec{})
+	s.Checkpoints.Set("cp-end", workflow.CheckpointSpec{})
+	s.Checkpoints.Set("cp-set", workflow.CheckpointSpec{By: []string{"coord"}})
+	graph := map[string][]string{"lead": {"coord"}, "coord": {"dev"}}
+	assert.Equal(t, []string{"coord"}, s.CheckpointBy("cp-start", graph), "the caller of the gated agent")
+	assert.Equal(t, []string{"lead"}, s.CheckpointBy("cp-end", graph), "the entry agent")
+	assert.Equal(t, []string{"coord"}, s.CheckpointBy("cp-set", graph), "by: as written")
+}
+
+// L3: the contract says whether the agent may ask the user.
+func TestContractQuestion(t *testing.T) {
+	quick := contractOf(agentBody(t, shippedBundle(t, "quick"), "developer"))
+	assert.Contains(t, quick, "outil `question` pour les choix")
+	assert.NotContains(t, quick, "## Retour vers")
+
+	ticket := contractOf(agentBody(t, shippedBundle(t, "ticket"), "developer"))
+	assert.Contains(t, ticket, "n'appelle pas l'outil `question`")
+	assert.Contains(t, ticket, "`## Retour vers orchestrator-dev`")
+
+	brief := contractOf(agentBody(t, shippedBundle(t, "brief-enrich"), "brief-enricher"))
+	assert.Contains(t, brief, "headless")
+	assert.NotContains(t, brief, "outil `question` pour")
+}
+
+func TestContractFixRounds(t *testing.T) {
+	ticket := shippedBundle(t, "ticket")
+	assert.Contains(t, contractOf(agentBody(t, ticket, "orchestrator-dev")), "au plus 3 (developer → reviewer)")
+	assert.NotContains(t, contractOf(agentBody(t, ticket, "developer")), "Tours de correction")
+}
+
+func TestSessionContractTemplate(t *testing.T) {
+	_, err := contractTemplate()
+	require.NoError(t, err)
+	env := whenEnv{roles: map[string]bool{roleSubagent: true}, mcp: map[string]bool{"workflow": true}, flags: map[string]bool{}}
+	got := sessionContract(Request{}, nil, "a", map[string][]string{"a": {"b"}}, map[string][]string{"a": {"x", "y"}}, env)
+	assert.True(t, strings.HasPrefix(got, contractHeading), got)
+	assert.Contains(t, got, "`## Retour vers x` quand `x` t'invoque, `## Retour vers y` quand `y` t'invoque")
+	assert.Contains(t, got, "Agents que tu peux lancer** (outil `task`) : `b`")
+	assert.Contains(t, got, "`workflow_report` disponible : dépose ton rapport complet")
+	assert.NotContains(t, got, "Checkpoints", "no workflow, no checkpoint line")
+	assert.NotContains(t, got, "Wiki du projet", "no wiki server yet")
+}

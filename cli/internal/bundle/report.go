@@ -91,13 +91,13 @@ var inlinedSkillRe = regexp.MustCompile("(?m)^> Skill `([a-z0-9_-]+)` : incluse 
 // inlinedTail are the generated blocks appended after the inlined skills.
 var inlinedTail = []string{
 	"\n\n> Skills absentes de ce paquet de session",
-	"\n\n## Rôle dans cette session\n\n> Généré par oh",
+	contractHeading,
 	"\n\n---\n\n# Project instructions\n",
 }
 
 // InlinedSkills splits a composed agent prompt by its inlined-skill headings:
 // each skill runs from its heading to the next one, the last one up to the
-// generated blocks (absent skills, session role, project instructions).
+// generated blocks (absent skills, session contract, project instructions).
 func InlinedSkills(body string) []InlinedSkill {
 	locs := inlinedSkillRe.FindAllStringSubmatchIndex(body, -1)
 	out := make([]InlinedSkill, 0, len(locs))

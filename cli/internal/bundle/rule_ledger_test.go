@@ -432,13 +432,13 @@ func TestExtractRules(t *testing.T) {
 
 func TestPromptSources(t *testing.T) {
 	body := "corps ❌\n\n---\n\n" + inlinedSkillHeading("a") + "aaaa\n\n---\n\n" + inlinedSkillHeading("b") + "bb" +
-		absentSkillsNote([]string{"c"}) + sessionRoleNote("x", "x", nil)
+		absentSkillsNote([]string{"c"}) + contractHeading + " à partir du workflow `w`."
 	got := promptSources("agent", body)
 	require.Len(t, got, 3)
 	assert.Equal(t, ledgerSource{"agent", "corps ❌\n\n---\n\n"}, got[0])
 	assert.Equal(t, ledgerSource{"a", inlinedSkillHeading("a") + "aaaa\n\n---\n\n"}, got[1])
 	assert.Equal(t, ledgerSource{"b", inlinedSkillHeading("b") + "bb"}, got[2])
-	assert.Equal(t, []ledgerSource{{"agent", "seul"}}, promptSources("agent", "seul"+sessionRoleNote("x", "x", nil)))
+	assert.Equal(t, []ledgerSource{{"agent", "seul"}}, promptSources("agent", "seul"+contractHeading+" à partir du workflow `w`."))
 }
 
 func TestReadMoved(t *testing.T) {

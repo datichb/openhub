@@ -201,9 +201,11 @@ func TestAgentSkillReachability(t *testing.T) {
 		for _, a := range c.b.Spec.Agents {
 			bodies[a.ID] = a.Body
 		}
+		envs := bundleWhenEnvs(c.spec, c.project, c.b.Spec)
 		for _, a := range c.b.Spec.Agents {
 			fm, err := bricks.ParseAgentFrontmatter(files[a.ID])
 			require.NoError(t, err)
+			env := envs[a.ID]
 			inlined := map[string]bool{}
 			for _, in := range InlinedSkills(a.Body) {
 				inlined[in.ID] = true
@@ -252,7 +254,8 @@ func TestAgentSkillReachability(t *testing.T) {
 				if err != nil {
 					continue
 				}
-				for _, ref := range selfMentionedSkills(invitingText(string(d.body()), a.ID, agentIDs), index) {
+				body := filterFor(d.Ref, string(d.body()), env)
+				for _, ref := range selfMentionedSkills(invitingText(body, a.ID, agentIDs), index) {
 					if !bricks.IsStackSkill(ref) {
 						if _, ok := invited[ref]; !ok {
 							invited[ref] = "named by the on-demand skill " + id
@@ -264,6 +267,9 @@ func TestAgentSkillReachability(t *testing.T) {
 				id := skillID(ref)
 				if inlined[id] || (why != "workflow extra" && (!keep(ref) || !deliverable(loader, ref, denied))) {
 					continue // inlined, or left out of the session (plugin, MCP, frontend, denied)
+				}
+				if d, err := loader.load(ref); err == nil && !skillWhen(d, env) {
+					continue // its when: fails for this agent (L3)
 				}
 				assert.Contains(t, a.Skills, id, "%s: %s (%s) is not in its catalogue", where, id, why)
 			}

@@ -14,16 +14,27 @@ Règles de délégation :
 {{- end -}}
 
 {{- define "checkpoints" -}}
+{{ if .Checkpoints -}}
+<!-- oh:when agent={{ join .CheckpointAgents "," }} -->
 ## Checkpoints (dans l'ordre)
-{{ if .Checkpoints }}
+
+Seuls les checkpoints que tu passes figurent ici (contrat de session).
+
 | Checkpoint |{{ range .Modes }} {{ . }} |{{ end }}{{ if .Remote }} distant |{{ end }}
 |---|{{ range .Modes }}---|{{ end }}{{ if .Remote }}---|{{ end }}
 {{- range $cp := .Checkpoints }}
+<!-- oh:when agent={{ join $cp.By "," }} -->
 | **{{ $cp.ID }}**{{ if $cp.Label }} — {{ $cp.Label }}{{ end }}{{ if $cp.Mandatory }} (obligatoire){{ end }} |{{ range $cp.Behaviors }} {{ . }} |{{ end }}{{ if $.Remote }} {{ $cp.Remote }} |{{ end }}
+<!-- /oh:when -->
 {{- end }}
-
+{{ range .Sequences }}
+<!-- oh:when agent={{ .Agent }} -->
 Séquence : {{ .Sequence }} (entre crochets, les opérations que le checkpoint déverrouille).
+<!-- /oh:when -->
+{{- end }}
 {{ range .Checkpoints }}
+{{- if or .Description .Condition (unlockText .ID .Unlocks) }}
+<!-- oh:when agent={{ join .By "," }} -->
 {{- if .Description }}
 - **{{ .ID }}** : {{ .Description }}
 {{- end }}
@@ -34,6 +45,8 @@ Séquence : {{ .Sequence }} (entre crochets, les opérations que le checkpoint d
 {{- if $rule }}
 - **{{ .ID }}** déverrouille {{ codes .Unlocks }} : {{ $rule }}
 {{- end }}
+<!-- /oh:when -->
+{{- end }}
 {{- end }}
 
 Passage d'un checkpoint : appelle l'outil `workflow_checkpoint` avec `id` (identifiant du tableau) et `summary` (ce qui est fait, ce qui va suivre, points d'attention), **avant** de lancer l'étape suivante. C'est oh qui applique le comportement du mode :
@@ -43,8 +56,14 @@ Passage d'un checkpoint : appelle l'outil `workflow_checkpoint` avec `id` (ident
 - La réponse de l'outil peut contenir une consigne de l'utilisateur : applique-la.
 - Un checkpoint obligatoire n'est jamais sauté, quel que soit le mode.
 - Les checkpoints passent **uniquement** par `workflow_checkpoint` : n'utilise jamais l'outil `question` ni un message texte pour poser ou valider un checkpoint (« CP-2 : commit ou corriger ? »). oh ferme une telle question sans effet et le checkpoint reste à passer. `workflow_status` donne l'état courant (checkpoints passés, prochain checkpoint, agents et opérations encore verrouillés).
-{{- else }}
-Aucun checkpoint dans ce workflow : avance sans pause imposée. Pour toute confirmation (et avant toute action irréversible), utilise l'outil `question`, sans nommer de checkpoint.
+<!-- /oh:when -->
+{{- else -}}
+## Checkpoints
+
+Aucun checkpoint dans ce workflow : avance sans pause imposée.
+<!-- oh:when role=entry -->
+Pour toute confirmation (et avant toute action irréversible), utilise l'outil `question`, sans nommer de checkpoint.
+<!-- /oh:when -->
 {{- end }}
 {{- end -}}
 

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"embed"
 	"fmt"
+	"slices"
 	"strings"
 	"text/template"
 
@@ -57,7 +58,13 @@ type mapData struct {
 	MaxConsecutive         int
 	MaxFixRounds           int
 	Outputs                []outputRow
+	// CheckpointAgents are the agents that pass a checkpoint (L3), with
+	// the sequence of their own checkpoints.
+	CheckpointAgents []string
+	Sequences        []agentSequence
 }
+
+type agentSequence struct{ Agent, Sequence string }
 
 type agentRow struct {
 	ID    string
@@ -74,6 +81,8 @@ type checkpointRow struct {
 	Behaviors                         []workflow.CheckpointBehavior // one per allowed mode
 	Remote                            workflow.RemotePolicy
 	Unlocks                           []string
+	// By are the agents that pass it (L3): the other agents do not see it.
+	By []string
 }
 
 type outputRow struct {
@@ -96,6 +105,7 @@ func GenerateWorkflowSkills(spec *workflow.Spec, graph map[string][]string, mode
 			return strings.Join(out, ", ")
 		},
 		"unlockText": unlockText,
+		"join":       strings.Join,
 	}).ParseFS(templateFS, "templates/*.md.tmpl")
 	if err != nil {
 		return nil, fmt.Errorf("parsing workflow skill templates: %w", err)
@@ -209,6 +219,12 @@ func buildMapData(spec *workflow.Spec, graph map[string][]string, modeOf func(st
 			Condition:   cp.Condition,
 			Mandatory:   cp.IsMandatory(),
 			Remote:      cp.RemotePolicy(),
+			By:          spec.CheckpointBy(id, graph),
+		}
+		for _, a := range row.By {
+			if !slices.Contains(d.CheckpointAgents, a) {
+				d.CheckpointAgents = append(d.CheckpointAgents, a)
+			}
 		}
 		for _, op := range cp.Unlocks {
 			row.Unlocks = append(row.Unlocks, string(op))
@@ -223,6 +239,15 @@ func buildMapData(spec *workflow.Spec, graph map[string][]string, modeOf func(st
 		d.Checkpoints = append(d.Checkpoints, row)
 	}
 	d.Sequence = checkpointSequence(d.Checkpoints)
+	for _, a := range d.CheckpointAgents {
+		var own []checkpointRow
+		for _, cp := range d.Checkpoints {
+			if slices.Contains(cp.By, a) {
+				own = append(own, cp)
+			}
+		}
+		d.Sequences = append(d.Sequences, agentSequence{Agent: a, Sequence: checkpointSequence(own)})
+	}
 	for _, o := range spec.Outputs {
 		d.Outputs = append(d.Outputs, outputRow{ID: o.ID, Type: o.Type, Label: o.Label.Text(generatedLang)})
 	}
