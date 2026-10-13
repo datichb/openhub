@@ -4609,6 +4609,8 @@
   "cmd.root.flags.no-tui": "Disable rich TUI (use inline prompts only)",
   "cmd.session.open.unsupported": "%s cannot open a session in the browser",
   "cmd.session.resume.context": "The session was resumed after a sleep (its server restarted): continue the current step where you stopped.",
+  "cmd.session.scratch.context": "Session scratch folders: outside the repository, deleted with the session, never cited in the documentation or the wiki; only the owner writes, the declared readers read, in this session only.",
+  "cmd.session.scratch.folder": "- `%s`: %s (read: %s)",
   "cmd.workflow.input.no_team_space": "No team space for this project: the takeover brief cannot be read",
   "cmd.workflow.input.no_brief": "No takeover brief for %s/%s: hand the ticket over first"
 }

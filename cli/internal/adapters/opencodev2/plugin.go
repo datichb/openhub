@@ -108,6 +108,9 @@ func withOhPlugin(b sessionspec.BundleSpec, dir, traceFile string, hooks map[str
 		"scrubEnv":     append([]string{}, scrubEnv...),
 		"guard":        toRules(AgentGuard(b)),
 	}
+	if len(b.ScopedGuard) > 0 {
+		opts["scopedGuard"] = toScopedRules(b.ScopedGuard)
+	}
 	if traceFile != "" {
 		opts["traceFile"] = traceFile
 	}
@@ -115,6 +118,20 @@ func withOhPlugin(b sessionspec.BundleSpec, dir, traceFile string, hooks map[str
 		opts[k] = v
 	}
 	out.Plugins = append(out.Plugins, sessionspec.PluginDef{ID: OhPluginID, Dir: dir, Options: opts})
+	return out
+}
+
+// ScopedRule is a guard rule of the oh plugin for every agent but Except.
+type ScopedRule struct {
+	Rule
+	Except []string `json:"except,omitempty"`
+}
+
+func toScopedRules(rules []sessionspec.ScopedRule) []ScopedRule {
+	out := make([]ScopedRule, 0, len(rules))
+	for _, r := range rules {
+		out = append(out, ScopedRule{Rule: toRules([]sessionspec.PermissionRule{r.PermissionRule})[0], Except: append([]string{}, r.Except...)})
+	}
 	return out
 }
 

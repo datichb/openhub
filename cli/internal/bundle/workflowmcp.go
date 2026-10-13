@@ -54,6 +54,7 @@ func WorkflowRuntime(s *workflow.Spec) *sessionspec.WorkflowRuntime {
 	for _, o := range s.Outputs {
 		rt.Outputs = append(rt.Outputs, sessionspec.OutputDef{ID: o.ID, Type: string(o.Type), Label: localized(o.Label)})
 	}
+	rt.Scratch = scratchDefs(s)
 	return rt
 }
 

@@ -335,3 +335,26 @@ func TestWorktrees(t *testing.T) {
 	assert.Contains(t, branches, "feat/clean", "a fresh branch is not merged: kept")
 	assert.Contains(t, branches, "feat/pushed", "pushed but not merged: kept")
 }
+
+// SCR: the scratch folders of a session go with it, also when its results
+// are kept; a session still open keeps them.
+func TestRunRemovesScratch(t *testing.T) {
+	f := newFixture(t)
+	oldEnd := now.Add(-40 * day)
+	f.store.sessions = []domain.Session{
+		{ID: "s-old", State: domain.RunStopped, EndedAt: &oldEnd},
+		{ID: "s-open", State: domain.RunIdle, EndedAt: &oldEnd},
+	}
+	for _, id := range []string{"s-old", "s-open"} {
+		mkdir(t, filepath.Join(f.env.SessionsDir, id, "results"), 40*day)
+		scratch := filepath.Join(f.env.SessionsDir, id, "scratch", "debugger")
+		require.NoError(t, os.MkdirAll(scratch, 0o700))
+		require.NoError(t, os.WriteFile(filepath.Join(scratch, "repro.sh"), []byte("#!/bin/sh\n"), 0o400))
+	}
+	done, err := Run(context.Background(), f.env, opts(), nil)
+	require.NoError(t, err)
+	assert.Equal(t, []string{"s-old"}, ids(done, KindSessions))
+	assert.NoDirExists(t, filepath.Join(f.env.SessionsDir, "s-old", "scratch"))
+	assert.DirExists(t, filepath.Join(f.env.SessionsDir, "s-old", "results"), "results kept until the history goes")
+	assert.FileExists(t, filepath.Join(f.env.SessionsDir, "s-open", "scratch", "debugger", "repro.sh"))
+}

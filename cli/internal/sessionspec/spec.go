@@ -71,6 +71,13 @@ type PermissionRule struct {
 	Effect   Effect `json:"effect"`
 }
 
+// ScopedRule is a guard rule that applies to every agent except those of
+// Except (BundleSpec.ScopedGuard).
+type ScopedRule struct {
+	PermissionRule
+	Except []string `json:"except,omitempty"`
+}
+
 // ModelRef identifies a model as "provider/model[#variant]".
 type ModelRef struct {
 	Provider string `json:"provider"`
@@ -165,7 +172,11 @@ type BundleSpec struct {
 	// AgentGuard are rules appended last to the rules of every agent (global
 	// guard of oh): the adapter applies them once for all agents when it can,
 	// per agent otherwise.
-	AgentGuard    []PermissionRule    `json:"agent_guard,omitempty"`
+	AgentGuard []PermissionRule `json:"agent_guard,omitempty"`
+	// ScopedGuard are deny rules of the guard for every agent but those of
+	// Except (session scratch): applied by the adapter with AgentGuard when
+	// it can (an adapter that cannot apply them per agent ignores them).
+	ScopedGuard   []ScopedRule        `json:"scoped_guard,omitempty"`
 	SubagentGraph map[string][]string `json:"subagent_graph,omitempty"`
 	MaxDepth      int                 `json:"max_depth"`
 	CodeMode      bool                `json:"code_mode"`

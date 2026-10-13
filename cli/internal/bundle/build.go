@@ -154,7 +154,8 @@ func Build(req Request) (*Bundle, error) {
 		StrictIsolation: req.StrictIsolation,
 	}
 	applyWorkflowRuntime(&spec, req.Spec)
-	spec.AgentGuard = append(GlobalShellGuard(req.OhHome), GlobalEditGuard()...)
+	spec.AgentGuard = append(append(GlobalShellGuard(req.OhHome), GlobalEditGuard()...), ScratchGuard(spec.Workflow, req.OhHome)...)
+	spec.ScopedGuard = ScratchScopedGuard(spec.Workflow, req.OhHome)
 	if req.WebsearchEnabled {
 		spec.Permissions = append(spec.Permissions,
 			sessionspec.PermissionRule{Action: sessionspec.ActionWebSrch, Resource: "*", Effect: sessionspec.EffectAllow},
@@ -221,6 +222,7 @@ func Build(req Request) (*Bundle, error) {
 		}
 		a.Body += absentSkillsNote(absent)
 		a.Body += sessionRoleNote(id, req.EntryAgent, callers[id])
+		a.Body += scratchNote(id, spec.Workflow)
 		def, err := agentDef(req, a, instructions)
 		if err != nil {
 			return nil, err
@@ -400,6 +402,8 @@ func agentDef(req Request, a *bricks.AssembledAgent, instructions string) (sessi
 		verify = VerifyRules(req.verifyCommands, req.Spec.Risk)
 	}
 	def.Permissions = append(append(append(append(append(append(append(own, verify...), InfraGuard(own)...), GitShellGuard(own)...), BeadsShellGuard()...), HookGuard()...), HookEditGuard(own)...), BeadsDirGuard()...)
+	// Last: the session scratch folders (globalguard.go).
+	def.Permissions = append(def.Permissions, ScratchAgentGuard(fm.ID, &sessionspec.WorkflowRuntime{Scratch: scratchDefs(req.Spec)}, req.OhHome)...)
 	return def, nil
 }
 
