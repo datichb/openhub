@@ -82,3 +82,40 @@ make test-eval OH_EVAL_REPS=3 OH_EVAL_PARALLEL=4 OH_EVAL_BUDGET_TOTAL=5
 - `OH_EVAL_PARALLEL` (`--parallel`) : nombre de passages lancés en même temps. Chaque passage reste isolé (son `OH_HOME`, son `HOME`, son `TMPDIR`, son clone, son démon, son proxy) et le rapport est le même qu'en séquentiel. Mesuré sur S7 et S10 ×2 avec Haiku : 1 min 14 s à quatre en parallèle contre environ 3 min 6 s en séquentiel ; chaque passage dure un peu plus (57 s en moyenne contre 44 à 49 s).
 - `OH_EVAL_BUDGET_TOTAL` (`--budget-total`) : plafond de toute l'évaluation ; une fois atteint, plus aucun passage ne démarre. Le plafond par passage (`OH_EVAL_BUDGET_USD`) reste appliqué : 1 $ par défaut, 2,50 $ avec un modèle Sonnet.
 - Un passage arrêté par une limite de débit Bedrock (throttling) est relancé jusqu'à trois fois après une attente croissante ; la section « Relances » du rapport le signale. Si les relances se multiplient, baissez `OH_EVAL_PARALLEL`.
+
+## Comparer avec et sans un skill
+
+Un nouveau skill n'est gardé que si une évaluation avec et sans lui montre un gain. `--variant` (ou `OH_EVAL_VARIANTS` avec `make test-eval`, variantes séparées par des espaces) lance chaque cas avec plusieurs versions du hub :
+
+```
+cd cli
+make test-eval OH_EVAL_REPS=3 OH_EVAL_PARALLEL=4 OH_EVAL_BUDGET_TOTAL=5 OH_EVAL_CASES=S6 \
+  OH_EVAL_VARIANTS="base sans-23=-skill:debugger-phase-2-3"
+```
+
+| Variante | Hub des passages |
+|---|---|
+| `base` | le hub embarqué dans oh, tel quel |
+| `sans-x=-skill:<id>` | le hub embarqué sans ce skill (nom ou catégorie/nom ; plusieurs `-skill:` séparés par des virgules) |
+| `autre=<dossier>` | un autre hub (`agents/`, `skills/`, `workflows/`, `permissions/`), par exemple `..` pour la racine du dépôt sans `make sync-content` ; `autre=<dossier>,-skill:<id>` le combine avec un retrait |
+
+- **La première variante est la référence** : celle qui contient ce qu'on évalue (le hub avec le skill). Les autres lui sont comparées.
+- **Retrait d'un skill** : le fichier du skill, et ses mentions dans `skills` et `native_skills` du frontmatter des agents. Le corps des agents et des skills n'est pas réécrit : une consigne « charge `x` » reste, et le modèle tente de charger un skill absent (`no_denied_loop` le voit s'il insiste). Si le hub ne se compose plus (un autre skill le demande dans `requires:`, un workflow le cite dans `skills:`), l'évaluation s'arrête avant tout passage et liste les erreurs.
+- **Vérification** : avant tout passage, le hub de chaque variante passe le contrôle des skills (erreurs d'`oh skill check`), la validation des workflows des cas lancés et la composition de leur bundle.
+- **Passages** : chaque cas × modèle × variante × répétition est un passage ; les variantes d'une même répétition sont lancées côte à côte, `--parallel` et `--budget-total` portent sur l'ensemble. Les traces vont dans `passes/<cas>/<variante>/<modèle>/<n>/` ; `--rescore` recalcule la comparaison.
+- **Mesure de référence** : `--record-baseline` refuse les variantes ; la colonne « Référence » n'est remplie que pour une variante qui est le hub embarqué tel quel.
+
+### Critère de gain
+
+Pour chaque cas et chaque modèle, `report.md` (section « Comparaison avec la référence ») et `report.json` (`comparisons`, `verdicts`) donnent la réussite, le coût moyen et la durée moyenne de chaque variante, l'écart avec la référence et un verdict :
+
+| Verdict | Quand |
+|---|---|
+| `gain` | la référence réussit au moins 1/3 de plus (par exemple 3/3 contre 1/3), ou réussit autant et coûte en moyenne au moins 10 % de moins |
+| `ambiguous` | l'écart n'est que d'un seul passage (2/3 contre 1/3) : relancer ×3 (`OH_EVAL_REPS=6`, l'écart d'1/3 devient alors deux passages) |
+| `no_gain` | écart plus petit, recul, ou réussite égale sans baisse de coût suffisante |
+| `incomplete` | aucun passage d'un côté (plafond global atteint) |
+
+Le verdict d'une variante sur tous les cas lancés est un gain s'il y a un gain sur au moins un cas sans recul ailleurs ; un recul d'un seul passage à côté d'un gain le rend ambigu.
+
+Le tableau « Assertions par variante » sépare ce qui tient au chargement du skill (assertions `skill_loaded_before`, forcément en échec sans lui) du résultat métier (diagnostic, faille relevée, tests cachés) : c'est la seconde partie qui dit si le skill apporte quelque chose.

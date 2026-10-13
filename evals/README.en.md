@@ -82,3 +82,40 @@ make test-eval OH_EVAL_REPS=3 OH_EVAL_PARALLEL=4 OH_EVAL_BUDGET_TOTAL=5
 - `OH_EVAL_PARALLEL` (`--parallel`): number of passes run at the same time. Each pass stays isolated (its `OH_HOME`, `HOME`, `TMPDIR`, clone, daemon and proxy) and the report is the same as in a sequential run. Measured on S7 and S10 ×2 with Haiku: 1 min 14 s four at a time against about 3 min 6 s sequentially; each pass takes a little longer (57 s on average against 44 to 49 s).
 - `OH_EVAL_BUDGET_TOTAL` (`--budget-total`): cap of the whole evaluation; once reached, no new pass starts. The cap per pass (`OH_EVAL_BUDGET_USD`) still applies: $1 by default, $2.50 with a Sonnet model.
 - A pass stopped by a Bedrock rate limit (throttling) runs again up to three times after a growing wait; the « Relances » section of the report says so. When retries pile up, lower `OH_EVAL_PARALLEL`.
+
+## Comparing with and without a skill
+
+A new skill is kept only when an evaluation with and without it shows a gain. `--variant` (or `OH_EVAL_VARIANTS` with `make test-eval`, variants separated by spaces) runs each case with several versions of the hub:
+
+```
+cd cli
+make test-eval OH_EVAL_REPS=3 OH_EVAL_PARALLEL=4 OH_EVAL_BUDGET_TOTAL=5 OH_EVAL_CASES=S6 \
+  OH_EVAL_VARIANTS="base without-23=-skill:debugger-phase-2-3"
+```
+
+| Variant | Hub of the passes |
+|---|---|
+| `base` | the hub embedded in oh, as is |
+| `without-x=-skill:<id>` | the embedded hub without this skill (name or category/name; several `-skill:` separated by commas) |
+| `other=<directory>` | another hub (`agents/`, `skills/`, `workflows/`, `permissions/`), for example `..` for the repository root without `make sync-content`; `other=<directory>,-skill:<id>` combines it with a removal |
+
+- **The first variant is the reference**: the one that holds what is evaluated (the hub with the skill). The others are compared with it.
+- **Removing a skill**: the file of the skill, and its mentions in `skills` and `native_skills` of the agents' frontmatter. The body of the agents and skills is not rewritten: an instruction « charge `x` » stays, and the model tries to load a missing skill (`no_denied_loop` sees it if it insists). If the hub no longer composes (another skill needs it in `requires:`, a workflow names it in `skills:`), the evaluation stops before any pass and lists the errors.
+- **Check**: before any pass, the hub of each variant goes through the skill check (errors of `oh skill check`), the validation of the workflows of the cases run and the composition of their bundle.
+- **Passes**: each case × model × variant × repetition is a pass; the variants of a repetition run side by side, `--parallel` and `--budget-total` cover the whole run. The traces go to `passes/<case>/<variant>/<model>/<n>/`; `--rescore` computes the comparison again.
+- **Reference measure**: `--record-baseline` refuses variants; the « Référence » column is only filled for a variant that is the embedded hub as is.
+
+### Gain rule
+
+For each case and each model, `report.md` (section « Comparaison avec la référence ») and `report.json` (`comparisons`, `verdicts`) give the pass rate, mean cost and mean duration of each variant, the gap with the reference and a verdict:
+
+| Verdict | When |
+|---|---|
+| `gain` | the reference passes at least 1/3 more (for example 3/3 against 1/3), or passes as much and costs at least 10 % less on average |
+| `ambiguous` | the gap is a single pass (2/3 against 1/3): run ×3 more (`OH_EVAL_REPS=6`, a gap of 1/3 is then two passes) |
+| `no_gain` | smaller gap, drop, or same pass rate without a large enough cost cut |
+| `incomplete` | no pass on one side (overall cap reached) |
+
+The verdict of a variant over every case run is a gain when there is a gain on at least one case without a drop elsewhere; a drop of a single pass next to a gain makes it ambiguous.
+
+The « Assertions par variante » table separates what comes from loading the skill (`skill_loaded_before` assertions, failing by construction without it) from the business result (diagnosis, flaw found, hidden tests): the second part tells whether the skill brings something.
