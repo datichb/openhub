@@ -9,6 +9,12 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ## [Unreleased]
 
+### Changed — découpage : dev et review, correctif S1 (lot L6 dev-review)
+
+- **Reviewer** : il lance la vérification (build, tests, lint) avant toute lecture du code, dans un ordre fixé par la structure de son workflow (documentation, puis branche et fichiers modifiés, puis vérification, puis seulement le diff), une commande par appel ; une section « Ton shell » liste les commandes permises et précise qu'un refus vise la ligne, pas le shell. Nouvelles commandes en lecture seule : `git branch --show-current`, `git rev-parse`, `git merge-base`, `git ls-files`, `git --no-pager diff/log/show`. En agent d'entrée, il affiche le rapport complet, vérification comprise.
+- **`review-protocol`** allégé (étapes du wiki selon `when: wiki`, exemples de findings dans le modèle de rapport) ; le routage d'orchestrator-dev passe dans la nouvelle skill `orchestrator-dev-routing`, chargée au démarrage, et les critères de parallélisme dans `orchestrator-dev-parallel` ; `beads-dev` perd ses raccourcis et ses doublons ; le developer déclare les standards de domaine comme skills natives.
+- **Budget** : reviewer −2 914 (review), orchestrator-dev −2 712 (ticket), developer −1 251 ; somme des prompts 267 555 → 231 089. Évaluations : S1 3/3 sur Haiku et 1/1 sur Sonnet, S2 3/3.
+
 ### Changed — découpage par phase : planning (lot L6 planning)
 
 - **`planner-phase-2`** est découpée en un cœur et `planner-phase-2-5` (compréhension partagée et decision map Enterprise, chargée seulement à partir de la complexité Large) ; **`planner-beads-templates`** est fusionnée dans `planner-phase-5-6`.
