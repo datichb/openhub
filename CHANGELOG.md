@@ -9,6 +9,17 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ## [Unreleased]
 
+### Changed — points divers (lot P1.5)
+
+- **Java** : nouvelle skill de stack `dev-standards-java`, livrée quand le projet est détecté en Java (Maven, Gradle hors Android ; un projet Spring Boot la reçoit aussi).
+- **`infra-change`** n'accepte plus que le mode `manuel`.
+- **Onboarder** : `bd show` autorisé.
+- **`oh skill check` sur le catalogue d'équipe** (avec une équipe active, espace solo compris) : règle `unknown_key` (la clé `extends` y est permise) et règles de description en avertissement (`description_not_trigger`, `long_description` au-delà de 200 caractères ; erreur au-delà de 1024). Les problèmes portent le préfixe `team:`.
+- **`oh doctor` signale les `AGENTS.md` qu'OpenCode ajoute hors du paquet de session** : ceux des sous-dossiers du projet (chargés quand un agent lit un fichier du dossier, sans réglage pour les couper) et le fichier global `~/.config/opencode/AGENTS.md` (chargé en local, sauf `strict_isolation`). Celui de la racine du projet n'est jamais chargé (`OPENCODE_DISABLE_PROJECT_CONFIG=1`).
+- **Mode `auto`** documenté : tout passe, sauf les décisions obligatoires (checkpoint `mandatory` ou qui déverrouille une action).
+- **`team-policies-enforcement`** : accents, lignes `operator`, `benchmarker` et `auditor-subagent` dans la matrice ; l'orchestrator transmet un bug au `debugger` seulement s'il fait partie du workflow, sinon il propose le workflow `debug`.
+- **Code mort retiré** : `prompt.DetectStack`, `BuildContext`, `HasGitHubActions`, `HasGitLabCI`.
+
 ### Fixed — contradictions du contenu (lots P1.1 et P1.4)
 
 - **22 contradictions entre skills résolues**, une seule règle par sujet : règle de trois pour la duplication (🟠 à partir de 3 copies ou de plus de 10 lignes identiques ajoutées), une seule table de seuils de longueur de fonction (20 / 30 / 50), une seule « gate » de complétion du developer, une seule liste de statuts de handoff (avec `BLOCKED_ARCHITECTURE`), `git diff --stat` et `git status --porcelain` au lieu de `HEAD~1`, `docs/wiki/decisions/decisions-rejetees.md` pour les décisions rejetées, « Enrichissements wiki proposés » partout, `kill %<job>` au lieu de `pkill -f`.
