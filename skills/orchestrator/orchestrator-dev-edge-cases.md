@@ -25,7 +25,7 @@ question({
 
 **En mode invoqué depuis l'orchestrator** → produire le bloc `## Question pour l'orchestrator` et arrêter :
 
-> ⚠️ **Si CONTEXTE = orchestrator_feature** : ajouter le bloc `## Retour vers orchestrator` **immédiatement après** le bloc `## Question pour l'orchestrator`, avant de clore la session. Les deux blocs sont émis ensemble.
+> ⚠️ **En mode sous-agent** : ajouter le bloc `## Retour vers orchestrator` **immédiatement après** le bloc `## Question pour l'orchestrator`, avant de clore la session. Les deux blocs sont émis ensemble.
 
 ```
 ---
@@ -72,30 +72,19 @@ question({
 })
 ```
 
-### Blocage après 3 cycles de review
+### Plafond des tours de correction atteint
 
-**Avant toute escalade**, si l'outil `team_claim_flag_human_review` est disponible, l'appeler pour marquer le ticket :
+Le plafond est `limits.max_fix_rounds` du workflow, donné par la règle générée de ta carte (« Au plus N tours de correction »). Tu ne lances jamais de tour au-delà.
+
+**Avant de passer le checkpoint**, si l'outil `team_claim_flag_human_review` est disponible, l'appeler pour marquer le ticket :
 
 ```
 team_claim_flag_human_review({ project: "<project_id>", ticket_id: "<ticket_id>" })
 ```
 
-> Si le label `needs-human-review` est déjà présent (outil renvoie un succès sans modification), cela signifie qu'une session précédente a déjà escaladé ce ticket. Informer l'utilisateur de cette situation.
+> Si le label `needs-human-review` est déjà présent (outil renvoie un succès sans modification), cela signifie qu'une session précédente a déjà escaladé ce ticket. Le signaler dans le checkpoint.
 
-**En mode standalone** → afficher les problèmes persistants, puis utiliser l'outil `question` :
-
-```
-question({
-  questions: [{
-    header: "Blocage après 3 cycles",
-    question: "Le ticket #<ID> a subi 3 cycles de review sans résolution. Une intervention manuelle est recommandée. Comment procéder ?",
-    options: [
-      { label: "Continuer", description: "Tenter un nouveau cycle de correction" },
-      { label: "Passer ce ticket", description: "Ignorer ce ticket et passer au suivant" }
-    ]
-  }]
-})
-```
+Puis suis la règle générée : passe le checkpoint de commit avec `workflow_checkpoint` en signalant les points non résolus (problèmes persistants, une ligne par tour). L'utilisateur y décide : commit en l'état, correction manuelle ou ticket passé.
 
 ### Détection de ping-pong reviewer
 
@@ -123,7 +112,7 @@ Ne JAMAIS lancer un 3ème cycle sur les mêmes findings sans validation explicit
 
 **En mode invoqué depuis l'orchestrator** → produire le bloc `## Question pour l'orchestrator` et arrêter :
 
-> ⚠️ **Si CONTEXTE = orchestrator_feature** : ajouter le bloc `## Retour vers orchestrator` **immédiatement après** le bloc `## Question pour l'orchestrator`, avant de clore la session. Les deux blocs sont émis ensemble.
+> ⚠️ **En mode sous-agent** : ajouter le bloc `## Retour vers orchestrator` **immédiatement après** le bloc `## Question pour l'orchestrator`, avant de clore la session. Les deux blocs sont émis ensemble.
 
 ```
 ---
@@ -132,22 +121,22 @@ Ne JAMAIS lancer un 3ème cycle sur les mêmes findings sans validation explicit
 
 **Agent :** orchestrator-dev
 **Ticket :** #<ID> — <titre>
-**Phase :** Blocage 3 cycles
+**Phase :** Ping-pong reviewer
 
 ### Contexte complet
-**Problèmes persistants (non résolus après 3 cycles) :** <liste des points signalés à chaque cycle sans résolution>
+**Findings répétés (2 cycles consécutifs) :** <liste des findings répétés>
 
 **Historique des cycles :**
-- Cycle 1 : verdict <commit|corriger> — <synthèse en 1 ligne : N problèmes, thème principal>
-- Cycle 2 : verdict <corriger> — <synthèse en 1 ligne>
-- Cycle 3 : verdict <corriger> — <synthèse en 1 ligne>
+- Cycle <N-1> : verdict <corriger> — <synthèse en 1 ligne : N problèmes, thème principal>
+- Cycle <N> : verdict <corriger> — <synthèse en 1 ligne>
 
 ### Question en attente
-Le ticket #<ID> a subi 3 cycles de review sans résolution. Une intervention manuelle est recommandée. Comment procéder ?
+Le reviewer signale les mêmes problèmes depuis 2 cycles sur #<ID>. Une intervention manuelle est nécessaire. Comment procéder ?
 
 ### Options disponibles
-- `Continuer` : Tenter un nouveau cycle de correction
+- `Reprendre manuellement ce ticket` : l'utilisateur corrige avant de relancer la review
 - `Passer ce ticket` : Ignorer ce ticket et passer au suivant
+- `Arrêter la session` : Terminer le workflow ici
 
 ### État de la session
 **Tickets traités :** [bd-XX ✅, ...]
@@ -193,7 +182,7 @@ question({
 
 **En mode invoqué depuis l'orchestrator** → produire le bloc `## Question pour l'orchestrator` et arrêter :
 
-> ⚠️ **Si CONTEXTE = orchestrator_feature** : ajouter le bloc `## Retour vers orchestrator` **immédiatement après** le bloc `## Question pour l'orchestrator`, avant de clore la session. Les deux blocs sont émis ensemble.
+> ⚠️ **En mode sous-agent** : ajouter le bloc `## Retour vers orchestrator` **immédiatement après** le bloc `## Question pour l'orchestrator`, avant de clore la session. Les deux blocs sont émis ensemble.
 
 ```
 ---
@@ -233,7 +222,7 @@ Si résolu : demander au developer de reprendre le ticket (`bd update <ID> -s in
 
 - Implémenter du code toi-même, même pour "débloquer" une situation
 - Clore un ticket Beads sans que le reviewer ait validé
-- Automatiser CP-2 — cette pause est absolue dans tous les modes
+- Automatiser cp-2 — cette pause est absolue dans tous les modes
 - Exécuter `git merge`, `git push` ou toute opération d'envoi/fusion de branches
 - Modifier les tickets Beads sans validation de l'utilisateur
 - Lancer plusieurs tickets en parallèle sans que les 4 critères soient vérifiés — le parallélisme conditionnel nécessite : aucune dépendance formelle, domaines disjoints, pas de fichiers transverses, budget de points respecté (défaut : 6 pts max)
@@ -252,5 +241,5 @@ Si résolu : demander au developer de reprendre le ticket (`bd update <ID> -s in
 - Omettre le champ `**Type de récap :**` dans le bloc `## Retour vers orchestrator` — ce champ est obligatoire et permet à l'orchestrator de distinguer récap partiel (émis avec une question montante) et récap final (émis seul en fin de session)
 - Appliquer un mode de workflow (`semi-auto` ou `auto`) si aucune valeur canonique n'a été explicitement détectée dans le prompt — utiliser `manuel` comme fallback et signaler l'absence
 - Continuer silencieusement après une reprise via `task_id` sans vérifier que le mode est toujours disponible dans le contexte
-- Mettre à jour todowrite à chaque micro-étape (review, pre-review) — uniquement aux transitions clés (CP-1 start, fin ticket) pour limiter l'overhead en mode auto
+- Mettre à jour todowrite à chaque micro-étape (review, pre-review) — uniquement aux transitions clés (début de cp-1, fin ticket) pour limiter l'overhead en mode auto
 - Avoir plusieurs tâches `in_progress` simultanément dans todowrite — exactement une à la fois (sauf workflow parallèle où chaque session gère son propre state)

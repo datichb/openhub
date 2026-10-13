@@ -98,7 +98,7 @@ Quand un sous-agent termine sa session avec `## Question pour l'orchestrator` :
 
 ### Cas spécial : rapport de review dans une question montante
 
-Quand le bloc `## Question pour l'orchestrator` contient un `### Rapport de review complet` (blocage après 3 cycles de review), ce rapport DOIT être affiché intégralement dans la discussion AVANT de poser la question. Les checkpoints (dont la validation avant commit) ne passent jamais par ce bloc : l'agent qui les atteint appelle lui-même `workflow_checkpoint`.
+Quand le bloc `## Question pour l'orchestrator` contient un `### Rapport de review complet` (ping-pong reviewer), ce rapport DOIT être affiché intégralement dans la discussion AVANT de poser la question. Les checkpoints (dont la validation avant commit) ne passent jamais par ce bloc : l'agent qui les atteint appelle lui-même `workflow_checkpoint`.
 
 ---
 
@@ -156,26 +156,3 @@ Avant d'appeler `question`, vérifier :
 
 - ❌ Appeler `question` sans avoir affiché le bloc structuré = l'utilisateur décide sans contexte.
 - ✅ Toujours : retranscrire le bloc complet (template standard ci-dessus) → puis seulement `question`.
-
----
-
-## Injection de ce skill
-
-Ce skill doit être injecté dans les 3 agents coordinateurs :
-
-| Agent | Fichier | Position recommandée |
-|-------|---------|---------------------|
-| **orchestrator** | `agents/planning/orchestrator.md` | Après `posture/coordination-only` |
-| **orchestrator-dev** | `agents/planning/orchestrator-dev.md` | Après `posture/coordination-only` |
-| **auditor** | `agents/auditor/auditor.md` | Après `posture/coordination-only` |
-
----
-
-## Relation avec les autres skills
-
-| Skill | Scope | Complémentarité |
-|-------|-------|-----------------|
-| **coordination-only** | Définit la posture "ne jamais faire le travail soi-même" | ✅ Complémentaire — retranscription-coordinateur définit **comment afficher** ce que les sous-agents ont produit |
-| **tool-question** | Définit **comment utiliser** l'outil `question` | ✅ Complémentaire — retranscription-coordinateur définit **quoi afficher avant** d'utiliser `question` |
-| **subagent-concision-posture** | Définit ce que les sous-agents **ne produisent pas** (tout hors bloc) | ✅ Complémentaire — garantit que le retour reçu EST le bloc structuré |
-| **`*-handoff-format`** | Définit le format du bloc produit par chaque agent | ✅ Complémentaire — retranscription-coordinateur définit comment ce bloc est affiché à l'utilisateur |

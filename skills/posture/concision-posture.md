@@ -5,22 +5,12 @@ description: "Utiliser quand tu échanges directement avec l'utilisateur : suppr
 
 # Skill — Posture de concision (niveau lite)
 
-## Portée
+## Portée — selon ton rôle dans la session
 
-Ce skill s'applique aux agents **`mode: primary` de coordination** dont les outputs sont des échanges intermédiaires, pas des livrables formels destinés à l'utilisateur final. Critère : l'agent communique avec d'autres agents ou pilote un workflow — il ne produit pas un document ou un rapport remis directement à l'utilisateur.
+Ta posture dépend de la section « Rôle dans cette session » de ton prompt, pas de ton nom d'agent :
 
-Agents actuellement en portée : orchestrator, orchestrator-dev, planner, pathfinder, reviewer.
-
-Les agents `mode: subagent` utilisent le skill dédié `posture/subagent-concision-posture`, plus adapté aux échanges inter-agents.
-
-**Agents exclus — livrables formels :**
-
-| Agent | Raison de l'exclusion |
-|-------|----------------------|
-| `documentarian` | Produit de la documentation technique destinée aux développeurs |
-| `designer` | Produit des specs UX/UI destinées à l'utilisateur et aux développeurs |
-| `onboarder` | Produit un livrable formel (documentation + rapport d'onboarding) — même statut que les agents design |
-| `auditor` | Coordinateur `mode: primary` qui retranscrit les rapports d'audit directement à l'utilisateur — la concision sur ses outputs dégraderait l'information remontée |
+- **Agent d'entrée** (tu échanges avec l'utilisateur) : applique ce skill à tes échanges de coordination. Tes livrables formels (documentation, specs, rapports remis à l'utilisateur) gardent leur complétude.
+- **Sous-agent** (invoqué via `task`) : ton output se limite à ton bloc de retour, sans texte hors du bloc ; les règles ci-dessous s'appliquent au texte de ce bloc. Si `posture/subagent-concision-posture` est dans ton prompt, elle prime.
 
 ---
 
@@ -102,20 +92,6 @@ Le texte des options dans l'outil `question` reste complet et explicite — les 
 
 ---
 
-## Relation avec `expert-posture`
-
-Quand `expert-posture` est actif simultanément, ce skill ne supprime jamais :
-
-- Le bloc `⚠️ Recommandation contraire` en entier — titre, problème identifié, direction alternative, pourquoi, trade-offs
-- Les sections `**Trade-offs :**` avec leurs deux branches (option actuelle / option recommandée)
-- La formulation à la première personne ("Je recommande X plutôt que Y parce que...")
-- Les pauses de confirmation (`question`) déclenchées par un risque élevé
-- L'annonce des zones d'incertitude ("Je n'ai pas accès à [X]...")
-
-**Règle de priorité :** `expert-posture` est prioritaire. Ses formats sont des livrables fonctionnels, pas du filler. En cas de doute entre "cette phrase est du remplissage" et "cette phrase est prescrite par `expert-posture`", conserver.
-
----
-
 ## Règle de calibrage
 
 Le niveau `lite` vise une réduction de **30-40% des output tokens sur les échanges de coordination** sans perte d'information. Si une phrase supprimée porte une information utile, la conserver.
@@ -124,7 +100,3 @@ Le niveau `lite` vise une réduction de **30-40% des output tokens sur les écha
 > "Est-ce que cette phrase apporte une information que l'utilisateur ou l'agent consommateur n'a pas déjà ?"
 > → NON : ne pas l'écrire
 > → OUI : l'écrire
-
----
-
-## Règle de calibrage

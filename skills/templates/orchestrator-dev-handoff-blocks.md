@@ -61,14 +61,14 @@ Aucune.
 
 **Agent :** orchestrator-dev
 **Ticket :** #<ID> — <titre>
-**Phase :** <Blocage 3 cycles | Dépendance non résolue | Ticket bloqué | Agent manquant>
+**Phase :** <Ping-pong reviewer | Dépendance non résolue | Ticket bloqué | Agent manquant>
 
 ### Contexte complet
 <contenu de contexte — synthèse, historique des cycles, raison du blocage, etc.>
 <Ne jamais résumer ni abréger — tout le contenu doit être présent>
 
 ### Rapport de review complet
-<Blocage 3 cycles uniquement : rapports de review des cycles concernés, copiés intégralement>
+<Ping-pong reviewer uniquement : rapports de review des cycles concernés, copiés intégralement>
 <Omettre cette section dans les autres cas (Dépendance non résolue, Ticket bloqué, Agent manquant)>
 
 ### Question en attente
