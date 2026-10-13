@@ -29,9 +29,10 @@ import (
 // positives are accepted (`ls ~/.ssh`, a commit message holding ` -an`).
 
 // controlPlaneDeny: the oh daemon, its socket and data (another session's
-// bundle, the server passwords, the database).
+// bundle, the server passwords, the database, the session folders: the
+// reports of workflow_report are read and filed through oh only, L4).
 var controlPlaneDeny = []string{
-	"*ohd.sock*", "*--unix-socket*", "*.oh/run*", "*.oh/servers*", "*.oh/bundles*", "*.oh/oh.db*",
+	"*ohd.sock*", "*--unix-socket*", "*.oh/run*", "*.oh/servers*", "*.oh/bundles*", "*.oh/oh.db*", "*.oh/sessions*",
 	"*oh mcp serve*", "*oh * mcp * serve*",
 	// the environment of other processes of the user (the tool server holds
 	// its password and tokens there)
@@ -130,10 +131,9 @@ func GlobalShellGuard(ohHome string) []sessionspec.PermissionRule {
 		}
 	}
 	if home := customOhHome(ohHome); home != "" {
-		for _, sub := range []string{"run", "servers", "bundles", "oh.db"} {
+		for _, sub := range []string{"run", "servers", "bundles", "oh.db", "sessions"} {
 			add("*"+filepath.ToSlash(filepath.Join(home, sub))+"*", sessionspec.EffectDeny)
 		}
-		add("*"+filepath.ToSlash(filepath.Join(home, "sessions"))+"/*/"+ScratchDirName+"*", sessionspec.EffectDeny)
 	}
 	return out
 }
@@ -210,9 +210,9 @@ func HookEditGuard(own []sessionspec.PermissionRule) []sessionspec.PermissionRul
 // agent is checked on the tool action, the session on the outside
 // directory. The guards, in this order, each after the rules of the agent:
 //
-//  0. sessionDataDeny (empty for now, L4): a broader refusal of the session
-//     data of oh (`*.oh/sessions*`) for the file tools goes there; it is
-//     emitted first of scratchDeny (ScratchGuard, ScratchAgentGuard) and of
+//  0. sessionDataDeny (L4): the broader refusal of the session data of oh
+//     (`*.oh/sessions*`: reports of workflow_report, transcripts, session
+//     environment) for the file tools; it is emitted first of scratchDeny (ScratchGuard, ScratchAgentGuard) and of
 //     ScratchSessionRules, so that the scratch exceptions still come after
 //     it. Added to GlobalEditGuard or to any rule of the global guard
 //     (applied by the oh plugin whatever the order, a deny first) it would
@@ -260,8 +260,20 @@ func ScratchDir(sessionsDir, sessionID, agent string) string {
 
 // sessionDataDeny: refusals of the session data of oh broader than the
 // scratch folders (layer 0 above), for the file tools and the outside
-// directory. Empty for now.
-var sessionDataDeny []string
+// directory: no agent reads nor forges a stored report (L4), a transcript
+// or the environment of a session. The custom oh home is added by
+// sessionDataPatterns, the sessions folder of the session rules by
+// ScratchSessionRules.
+var sessionDataDeny = []string{"*.oh/sessions*"}
+
+// sessionDataPatterns are the layer 0 patterns, with the custom oh home.
+func sessionDataPatterns(ohHome string) []string {
+	out := append([]string(nil), sessionDataDeny...)
+	if home := customOhHome(ohHome); home != "" {
+		out = append(out, "*"+filepath.ToSlash(filepath.Join(home, "sessions"))+"*")
+	}
+	return out
+}
 
 // scratchShellDeny: shell commands naming a scratch folder (layer 1).
 var scratchShellDeny = []string{"*.oh/sessions/*/scratch*"}
@@ -284,7 +296,7 @@ func scratchRoots(ohHome string) []string {
 // on the file tools and the outside directory.
 func scratchDeny(ohHome string) []sessionspec.PermissionRule {
 	var out []sessionspec.PermissionRule
-	patterns := append([]string(nil), sessionDataDeny...)
+	patterns := sessionDataPatterns(ohHome)
 	for _, root := range scratchRoots(ohHome) {
 		patterns = append(patterns, root+"*/"+ScratchDirName+"/*")
 	}
@@ -351,6 +363,9 @@ func ScratchSessionRules(wf *sessionspec.WorkflowRuntime, sessionsDir, sessionID
 	}
 	for _, p := range sessionDataDeny {
 		add(p, sessionspec.EffectDeny)
+	}
+	if sessionsDir != "" {
+		add(filepath.ToSlash(sessionsDir)+"*", sessionspec.EffectDeny)
 	}
 	add("*.oh/sessions/*/"+ScratchDirName+"/*", sessionspec.EffectDeny)
 	if sessionsDir == "" || sessionID == "" {

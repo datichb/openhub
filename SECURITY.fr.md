@@ -158,7 +158,7 @@ Les jetons des serveurs MCP (GitLab, Figma, Jira, Linear, GitHub, Google) sont :
 ### Rapports des agents (`workflow_report`)
 
 - **Auteur fixé par oh.** Le démon prend l'auteur d'un rapport dans la session de l'outil qui appelle (le sous-agent qu'il voit), jamais dans la requête ; les routes sont celles du serveur MCP `workflow`, avec le jeton du groupe de la session.
-- **Ni lus ni forgés par les agents.** Les corps sont dans `~/.oh/sessions/<session>/reports/` (fichiers 0600, dossier 0700), refusé à tous les agents par le garde-fou global (shell, lecture, écriture) ; chaque corps est vérifié par son empreinte SHA-256 avant d'être montré. Les agents lisent les rapports de leur session par `workflow_report_get` seulement.
+- **Ni lus ni forgés par les agents.** Les corps sont dans `~/.oh/sessions/<session>/reports/` (fichiers 0600, dossier 0700), refusé à tous les agents par les gardes d'oh (shell, lecture, écriture, recherche ; couche 0, avant les exceptions des brouillons) ; chaque corps est vérifié par son empreinte SHA-256 avant d'être montré. Les agents lisent les rapports de leur session par `workflow_report_get` seulement.
 - **Bornés et nettoyés.** 64 Ko par rapport, 100 rapports et 4 Mo par session ; séquences de terminal et caractères de contrôle retirés ; la TUI échappe le texte. Les rapports d'une session distante (`reports.json`, schéma de pipeline 5) sont de nouveau nettoyés et bornés à l'import.
 
 ### Restrictions des sessions (I6)

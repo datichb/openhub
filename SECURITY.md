@@ -159,7 +159,7 @@ MCP server tokens (GitLab, Figma, Jira, Linear, GitHub, Google) are:
 ### Agent reports (`workflow_report`)
 
 - **Author set by oh.** The daemon takes the author of a report from the calling tool session (the subagent it sees), never from the request; the routes are those of the `workflow` MCP server, with the group token of the session.
-- **Neither read nor forged by agents.** Bodies are in `~/.oh/sessions/<session>/reports/` (files 0600, folder 0700), refused to every agent by the global guard (shell, read, write); each body is checked against its SHA-256 digest before it is shown. Agents read the reports of their session through `workflow_report_get` only.
+- **Neither read nor forged by agents.** Bodies are in `~/.oh/sessions/<session>/reports/` (files 0600, folder 0700), refused to every agent by the oh guards (shell, read, write, search; layer 0, before the scratch exceptions); each body is checked against its SHA-256 digest before it is shown. Agents read the reports of their session through `workflow_report_get` only.
 - **Bounded and cleaned.** 64 KiB per report, 100 reports and 4 MiB per session; terminal sequences and control characters removed; the TUI escapes the text. The reports of a remote session (`reports.json`, pipeline schema 5) are cleaned and bounded again on import.
 
 ### Session limits (I6)

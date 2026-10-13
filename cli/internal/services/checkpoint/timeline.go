@@ -21,6 +21,7 @@ const (
 	StepDelegate = domain.CheckpointDelegate
 	StepBreaker  = domain.CheckpointBreaker
 	StepImitated = domain.CheckpointImitated
+	StepReport   = domain.CheckpointReport
 	StepTodo     = "todo"
 	// R3: verification failed, validated despite it, fix rounds capped.
 	StepVerifyFail = domain.CheckpointVerifyFail
@@ -31,7 +32,8 @@ const (
 // Step is one step of a session timeline.
 type Step struct {
 	Kind  string
-	ID    string // checkpoint or agent
+	ID    string // checkpoint, agent or report
+	By    string // author of a report
 	Label string // checkpoint label
 	At    time.Time
 	Count int // delegations of the same agent in a row
@@ -80,6 +82,8 @@ func Timeline(wf *sessionspec.WorkflowRuntime, mode, lang string, st domain.Chec
 				continue
 			}
 			out = append(out, Step{Kind: e.Kind, ID: e.ID, Label: label(e.ID), At: e.At})
+		case domain.CheckpointReport:
+			out = append(out, Step{Kind: StepReport, ID: e.ID, By: e.By, At: e.At})
 		}
 	}
 	// A waiting step is current only if it is still the one waited for.
@@ -124,6 +128,11 @@ func StepText(s Step) string {
 		return "⚑ " + s.ID
 	case StepFixLimit:
 		return "⛔ " + s.ID
+	case StepReport:
+		if s.By != "" {
+			return "▤ " + s.ID + " (" + s.By + ")"
+		}
+		return "▤ " + s.ID
 	}
 	return "○ " + s.ID
 }

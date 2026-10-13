@@ -146,6 +146,17 @@ func TestWorkflowReportAuthorIsTheCallingAgent(t *testing.T) {
 	rec, _ = post(`{"body":"x"}`)
 	assert.Equal(t, http.StatusBadRequest, rec.Code)
 
+	// The timeline records each report with its author.
+	st, err := e.cp.State(context.Background(), "ses_a")
+	require.NoError(t, err)
+	var got []string
+	for _, ev := range st.Timeline {
+		if ev.Kind == domain.CheckpointReport {
+			got = append(got, ev.ID+":"+ev.By)
+		}
+	}
+	assert.Equal(t, []string{"rp-1:reviewer", "rp-2:orchestrator-dev", "rp-3:"}, got)
+
 	// Without a report store: not recorded (the agent falls back on its block).
 	d.opts.Reports = nil
 	rec, _ = post(`{"tool_session":"ses_a","body":"x"}`)

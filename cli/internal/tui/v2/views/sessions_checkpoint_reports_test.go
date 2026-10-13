@@ -2,6 +2,7 @@ package views
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 
@@ -73,4 +74,14 @@ func TestCheckpointCardWithoutReader(t *testing.T) {
 	assert.Nil(t, v.reportActions("ses_a", "d", []CheckpointReport{{ID: "rp-1"}}), "listed only")
 	body := checkpointBody(CheckpointCardView{Reports: []CheckpointReport{{ID: "rp-1", Bytes: 10}}})
 	assert.Contains(t, body, "rp-1 · ?")
+}
+
+// Order on the card: verification, evidence, then reports.
+func TestCheckpointCardOrderVerifyEvidenceReports(t *testing.T) {
+	body := checkpointBody(CheckpointCardView{
+		Verify:  CheckpointVerifyView{Status: verifyPass, Summary: "go test ./... ok", Evidence: []CheckpointEvidenceView{{Cmd: "go test ./...", Observed: true}}},
+		Reports: []CheckpointReport{{ID: "rp-1", Agent: "reviewer", Title: "Review"}},
+	})
+	verify, evidence, reports := strings.Index(body, "go test ./... ok"), strings.LastIndex(body, "go test ./..."), strings.Index(body, "rp-1")
+	assert.True(t, verify >= 0 && evidence > verify && reports > evidence, body)
 }

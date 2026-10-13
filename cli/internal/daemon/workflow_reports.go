@@ -11,6 +11,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/services/checkpoint"
 	"github.com/datichb/openhub/cli/internal/services/report"
 )
 
@@ -209,7 +210,12 @@ func (c *Client) WorkflowReportGet(ctx context.Context, toolSession, id, section
 	return out, err
 }
 
-// reported is called once a report is stored.
-func (d *Daemon) reported(_ context.Context, root string, rp domain.Report) {
-	slog.Debug("ohd: report stored", "session", root, "report", rp.ID(), "agent", rp.Agent)
+// reported records a stored report in the checkpoint timeline of its session.
+func (d *Daemon) reported(ctx context.Context, root string, rp domain.Report) {
+	if d.opts.Checkpoints == nil {
+		return
+	}
+	if err := d.opts.Checkpoints.Reported(ctx, root, rp.ID(), rp.Agent); err != nil && !errors.Is(err, checkpoint.ErrNoState) {
+		slog.Debug("ohd: report not in the timeline", "session", root, "report", rp.ID(), "error", err)
+	}
 }
