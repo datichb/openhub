@@ -9,6 +9,15 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ## [Unreleased]
 
+### Added — mode TDD, mécanisme (lot R7)
+
+- **Méthode de la session** : entrée `method` (`standard` par défaut, `tdd`) sur `ticket` et `feature` (`oh run ticket -i method=tdd`, fiche de lancement). Un checkpoint `method: tdd` n'existe que dans les sessions de cette méthode : oh l'évalue au lancement et le paquet ne contient que ses checkpoints. Une session `standard` garde exactement le paquet d'avant (prompts, goldens et `budget.golden` inchangés). Un checkpoint de méthode n'ajoute qu'une étape : jamais obligatoire, jamais déverrouillant, aucun agent ne l'attend ; dans une couche d'équipe ou de projet, le poser sur un checkpoint hérité est un assouplissement.
+- **`cp-seams`** (pause en manuel et semi-auto, passé par le developer) : points d'injection, interfaces et tests prévus avant d'écrire un test ; oh relève le commit de départ.
+- **`cp-red`** (automatique), vérifié par oh : les changements depuis `cp-seams` touchent un fichier de test de la stack (`must_touch_tests`, `since`) ; les autres fichiers modifiés sont signalés (`outside_tests: warn`, ou `refuse`) ; le code construit ; les tests échouent à l'exécution et non à la compilation (`[build failed]` de Go, cargo, tsc, codes 2 et 5 de pytest refusés).
+- **⚠ `expect: fail`** exige maintenant que build, typecheck et lint réussissent avant l'échec des tests (aucun workflow livré ne l'utilisait).
+- **Budget de pauses** : une méthode ajoute au plus 1 pause, pour ses seules sessions (lint sur la session sans méthode et sur celle de chaque méthode). Une session TDD coûte +392 tokens sur `ticket` et +391 sur `feature` (`orchestrator-dev` et `developer`).
+- Le contenu (skill `tdd`, consignes au developer et au reviewer) viendra avec R1-b.
+
 ### Added — comparer des variantes du hub (lot eval-ab)
 
 - **`oh eval --variant`** (`OH_EVAL_VARIANTS` avec `make test-eval`) : chaque cas tourne avec plusieurs versions du hub — `base` (hub embarqué), `nom=-skill:<id>` (sans ce skill : fichier et mentions dans `skills`/`native_skills` des agents), `nom=<dossier de hub>[,-skill:<id>…]`. Le hub de chaque variante est vérifié avant tout passage (skills, workflows des cas, composition des bundles) ; chaque passage l'installe dans son `OH_HOME` temporaire. `--parallel`, `--budget-total` et `--rescore` couvrent les variantes.
