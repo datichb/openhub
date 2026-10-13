@@ -16,11 +16,16 @@ import (
 // cited by at least two distinct pages of the wiki (the index aside).
 //
 // The concepts are those the index declares in its god nodes table, and
-// those the pages put forward: a bold term (one to five words, not a
-// label ending with a colon) or an identifier in code (`AuthService`,
-// `useCart`: letters, digits and underscores, with an upper and a lower
-// case letter). A page cites a concept when it names it as a whole word
-// (case insensitive), or, for a declared one, when the table links to it.
+// those the pages put forward: a bold term (one to five words; not a label
+// such as `**Note** :` or `**Règle :**`, a sentence or an emphasis word
+// such as **jamais**) or an identifier in code (`AuthService`, `useCart`:
+// letters, digits and underscores, with an upper and a lower case letter;
+// not a product name such as `TypeScript`). A page cites a concept when it
+// names it as a whole word (case insensitive) outside the metadata of its
+// tags (an agent, a source) and the targets of its links, or, for a
+// declared one, when the table links to it. The maps of the wiki (the
+// index of the wiki or of a folder, the glossary) cite no concept: they
+// name them all by design.
 //
 // Criticality: Critique at four pages or more, or when the index names the
 // concept in its critical points, or when the index declares it Critique;
@@ -242,16 +247,16 @@ func (w *Wiki) Index() Index {
 // godNodes computes the god nodes: the declared ones first (in their
 // order), then the others by number of pages.
 func (w *Wiki) godNodes(ix Index, critical string) []GodNode {
-	texts := map[string]string{} // page → text without frontmatter and code fences, lower case
+	texts := map[string]string{} // page → text without frontmatter, code fences and tag metadata, lower case
 	exists := map[string]bool{}
 	var pages []string
 	for _, p := range w.Pages {
 		exists[p.Path] = true
-		if p.Path == IndexPage {
+		if !citingPage(p.Path) {
 			continue
 		}
 		var b strings.Builder
-		EachLine(p.Text, func(_ int, line string) { b.WriteString(line + "\n") })
+		EachLine(p.Text, func(_ int, line string) { b.WriteString(citingText(line) + "\n") })
 		texts[p.Path] = strings.ToLower(b.String())
 		pages = append(pages, p.Path)
 	}
@@ -365,19 +370,89 @@ func (w *Wiki) candidates() []string {
 		if p.Path == IndexPage {
 			continue
 		}
+		glossary := p.Path == GlossaryPage
 		EachLine(p.Text, func(_ int, line string) {
-			for _, m := range boldRe.FindAllStringSubmatch(line, -1) {
-				t := strings.TrimSpace(m[1])
-				if n := len(strings.Fields(t)); n >= 1 && n <= 5 && !strings.ContainsAny(t, ":`[]()") && utf8.RuneCountInString(t) >= 3 {
+			line = citingText(line)
+			for _, m := range boldRe.FindAllStringSubmatchIndex(line, -1) {
+				if t := strings.TrimSpace(line[m[2]:m[3]]); boldConcept(t, line[m[1]:], glossary) {
 					add(t)
 				}
 			}
 			for _, m := range codeRe.FindAllStringSubmatch(line, -1) {
-				if camel(m[1]) {
+				if camel(m[1]) && !productNames[strings.ToLower(m[1])] {
 					add(m[1])
 				}
 			}
 		})
+	}
+	return out
+}
+
+// citingPage reports whether a page counts for the god nodes: the maps of
+// the wiki (the index, the index of a folder, the glossary) name every
+// concept by design; their terms are candidates, they cite none.
+func citingPage(rel string) bool {
+	return rel != IndexPage && path.Base(rel) != IndexPage && rel != GlossaryPage
+}
+
+var tagTailRe = regexp.MustCompile("— *`(?:CONFIRMÉ|DÉDUIT|INCERTAIN)`.*$")
+
+// citingText returns the text of a line that may cite a concept: the
+// metadata of a confidence tag (agent, date, source) and the targets of
+// the links go.
+func citingText(line string) string {
+	line = tagTailRe.ReplaceAllString(line, "")
+	return linkRe.ReplaceAllString(line, "$1")
+}
+
+// boldConcept reports whether a bold text is a concept: one to five words,
+// at least three letters, neither a label (`**Note** :`, `**Règle :**`), a
+// sentence (ending with a punctuation mark) nor an emphasis word. In the
+// glossary, a term defined after it (`**Panier** : …`) is a concept.
+func boldConcept(t, after string, glossary bool) bool {
+	n := len(strings.Fields(t))
+	if n < 1 || n > 5 || strings.ContainsAny(t, ":`[]()") || utf8.RuneCountInString(t) < 3 {
+		return false
+	}
+	if !glossary && strings.HasPrefix(strings.TrimLeft(after, " \u00a0"), ":") {
+		return false // a label: **Fichiers** : …
+	}
+	if strings.ContainsAny(t[len(t)-1:], ".!?,;") {
+		return false
+	}
+	letters := strings.TrimFunc(t, func(r rune) bool { return !unicode.IsLetter(r) && !unicode.IsDigit(r) })
+	if !strings.ContainsFunc(letters, unicode.IsLetter) {
+		return false
+	}
+	return !emphasisWords[strings.ToLower(letters)]
+}
+
+// emphasisWords are bold words that stress a sentence, not concepts.
+var emphasisWords = setOf(
+	"note", "notes", "nb", "important", "attention", "remarque", "rappel", "exemple", "exemples", "example", "warning", "tip",
+	"astuce", "info", "todo", "à faire", "à documenter", "obligatoire", "optionnel", "facultatif", "recommandé", "requis",
+	"interdit", "jamais", "toujours", "non", "oui", "pas", "ne pas", "si", "sinon", "avant", "après", "règle", "règles",
+	"rule", "conseil", "danger", "prérequis", "résultat", "pourquoi", "comment", "quand", "contexte", "décision",
+	"conséquences", "statut", "status", "alternatives", "nouveau", "breaking", "deprecated", "obsolète", "critique",
+	"haute", "normale", "bloquant", "seulement", "uniquement", "aucun", "aucune", "tous", "toutes", "never", "always",
+	"must", "only", "not", "do not", "yes", "no", "new", "required", "optional",
+)
+
+// productNames are the camel case names of languages, platforms and
+// products: technologies the stack page lists, not concepts of the project.
+var productNames = setOf(
+	"javascript", "typescript", "github", "gitlab", "bitbucket", "postgresql", "mysql", "mariadb", "mongodb", "graphql",
+	"oauth", "openid", "openapi", "macos", "ios", "ipados", "iphone", "nodejs", "nextjs", "nuxtjs", "vuejs", "reactjs",
+	"nestjs", "sveltekit", "tailwindcss", "sqlite", "rabbitmq", "dynamodb", "cloudfront", "cloudwatch", "powershell",
+	"devops", "junit", "fastapi", "golang", "youtube", "linkedin", "wordpress", "phpstorm", "intellij",
+	"vscode", "eslint", "phpunit", "opentelemetry", "localstack", "webpack", "jquery", "jetbrains", "docker", "kubernetes",
+	"terraform", "openai", "chatgpt", "elasticsearch", "opensearch", "keycloak", "firebase", "supabase", "vitest",
+)
+
+func setOf(words ...string) map[string]bool {
+	out := make(map[string]bool, len(words))
+	for _, w := range words {
+		out[w] = true
 	}
 	return out
 }

@@ -28,6 +28,7 @@ On lance un workflow avec `oh run <workflow>` ou la fiche de lancement de la TUI
 | `infra-change` | `operator` | — | write (infrastructure, aucun fichier) | local | ancien agent `infra` (partie application) |
 | `cadrage` | `conductor` | `pathfinder`, `planner`, `designer` | plan | local | ancien mode A sans implémentation |
 | `onboarding` | `onboarder` | — | write (`docs/wiki/`) | local, distant | `oh start --onboard` (ancien mode C) |
+| `doc-sync` | `documentarian` | — | write (`docs/wiki/`) | local | — |
 | `review` | `reviewer` | — | read | local, distant | `oh review` |
 | `review-feedback` | `orchestrator-dev` | `developer`, `reviewer` | write | local | `oh review feedback` |
 | `audit` | `auditor` | `auditor-subagent` | read | local, distant | `oh audit`, anciens agents `infra` et `database` (partie analyse) |
@@ -148,6 +149,20 @@ Découvre le projet et crée ou enrichit le wiki `docs/wiki/` (protocole `doc-wi
 | `focus` | `text` (4 000 caractères max) | non | Modules ou sujets à approfondir |
 
 L'onboarder n'écrit que dans `docs/wiki/`, `ONBOARDING.md` et `CONVENTIONS.md` : c'est une permission (toute autre écriture est refusée, `.gitignore` et `.git/` compris). Il ne commite pas : le commit du wiki revient à l'utilisateur. Sortie : `wiki`. Commandes Beads autorisées (lecture seule) : `show`, `list`, `search`, `query`.
+
+## `doc-sync`
+
+Met le wiki à jour avec les commits depuis la dernière synchronisation, puis traite les propositions en file (celles des workflows sans commit : `review`, `audit`…). Précondition : `docs/wiki/index.md` existe (sinon, oh propose `onboarding`).
+
+| Entrée | Type | Obligatoire | Rôle |
+|---|---|---|---|
+| `focus` | `text` (4 000 caractères max) | non | Pages ou sujets à revérifier en priorité |
+
+| Checkpoint | manuel | semi-auto | auto | distant |
+|---|---|---|---|---|
+| `cp-sync` Commit du wiki (obligatoire, déverrouille `commit`, `wiki: sync`) | pause | pause | pause | attend l'utilisateur |
+
+Le `documentarian` appelle `wiki_check` avec `since_sync` (commits, fichiers modifiés, pages concernées et dérives calculés par oh), met à jour les pages, vérifie chaque proposition en file, puis présente `cp-sync`. La carte montre toute la file du projet : l'utilisateur accepte, modifie ou refuse chaque proposition. Au passage, oh applique les acceptées et note la synchronisation (`synced:` dans `docs/wiki/index.md`) ; le `documentarian` commite le wiki seul. Une pause en semi-auto (budget CP-R2 : une action irréversible). Commandes Beads autorisées (lecture seule) : `show`, `list`, `ready`, `search`, `query`. Détails : [Wiki documentaire vivant](../architecture/living-wiki.fr.md#synchronisation--workflow-doc-sync-ld-d).
 
 ## `review`
 

@@ -62,8 +62,9 @@ type Service struct {
 	// passed, before the call returns to the agent (LD-J: oh applies the
 	// wiki proposals the user accepted on the card, so that they are
 	// committed with the code). It returns the line for the agent ("" =
-	// nothing applied) and the proposals applied, for the timeline.
-	CommitPassed func(ctx context.Context, sess *domain.Session, checkpoint string) (message string, applied []string)
+	// nothing applied) and the proposals applied, for the timeline. sync:
+	// the checkpoint synchronizes the wiki (`wiki: sync`, doc-sync, LD-D).
+	CommitPassed func(ctx context.Context, sess *domain.Session, checkpoint string, sync bool) (message string, applied []string)
 }
 
 // Errors.
@@ -258,7 +259,7 @@ func (s *Service) commitPassed(ctx context.Context, sess *domain.Session, c sess
 	if s.CommitPassed == nil || !slices.Contains(c.Unlocks, sessionspec.UnlockCommit) {
 		return ""
 	}
-	msg, applied := s.CommitPassed(ctx, sess, c.ID)
+	msg, applied := s.CommitPassed(ctx, sess, c.ID, c.Wiki == sessionspec.WikiSync)
 	if len(applied) > 0 {
 		_, _ = s.update(ctx, sess.ID, func(st *domain.CheckpointState) error {
 			s.record(st, domain.CheckpointWiki, strings.Join(applied, " "), "oh", c.ID)

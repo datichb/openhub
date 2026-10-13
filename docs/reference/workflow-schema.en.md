@@ -4,7 +4,7 @@
 
 A workflow is a YAML file `apiVersion: oh/v1`, `kind: Workflow`, named `<id>.yaml`. This page describes every field: type, values, effective value when the field is absent, behavior in a patch (`extends`) and locking (`enforce`).
 
-The schema is **frozen** (`cli/internal/workflow/schema.go`, type `Spec`): it only changes through optional additions. Additions made after the freeze: `risk: plan`, `preconditions`, `enforce`, `limits.models`, `limits.max_fix_rounds`, `entry.selectable`, `checkpoints.<id>.verify` and `checkpoints.<id>.when` (R3). Decision: [ADR-039](../architecture/adr/039-declarative-workflows-oh-v1.en.md).
+The schema is **frozen** (`cli/internal/workflow/schema.go`, type `Spec`): it only changes through optional additions. Additions made after the freeze: `risk: plan`, `preconditions`, `enforce`, `limits.models`, `limits.max_fix_rounds`, `entry.selectable`, `checkpoints.<id>.verify` and `checkpoints.<id>.when` (R3), `checkpoints.<id>.by` (L3), `checkpoints.<id>.wiki` (LD-D). Decision: [ADR-039](../architecture/adr/039-declarative-workflows-oh-v1.en.md).
 
 See also: [shipped workflows](workflows.en.md) · [team workflows](../guides/team-workflows.en.md) · [workflows CLI](cli-workflows.en.md).
 
@@ -84,6 +84,7 @@ enforce: [checkpoints, modes]   # or ["*"] for the whole document
 | `limits.max_fix_rounds` | integer ≥ 0 | fix rounds per ticket | `0` (no cap) | hardens (lower or equal value, never `0` or absent under a capped parent) |
 | `checkpoints.<id>.verify` | object | see [Checkpoints](#verify--verification-run-by-oh) | no verification | hardens (never removed nor weakened) |
 | `checkpoints.<id>.when` | object | see [Checkpoints](#when--conditions-evaluated-by-oh) | no condition | hardens (inherited conditions kept) |
+| `checkpoints.<id>.wiki` | text | `sync` | ordinary role | replaces |
 
 ### `risk`
 
@@ -346,6 +347,7 @@ The id is in kebab-case (`checkpoint_id_invalid`) and must not be an agent id (`
 | `verify` | object | `from`, `kinds`, `cmd`, `expect`, `in`, `timeout`, `must_touch` | no verification | hardens (an inherited verification is never removed nor weakened) |
 | `when` | object | `entry`, `labels`, `paths`, `outputs` | no condition | hardens (inherited conditions kept) |
 | `by` | list | member agents of the workflow | deduced from the graph: the agents that launch an agent gated by this checkpoint (`after:`), else the entry agent | replaces |
+| `wiki` | text | `sync` | the card shows the wiki proposals of the session | replaces |
 
 - **Behaviors**: `pause` always asks the user; `auto` goes on alone; `skip` skips the checkpoint; `conditional` asks depending on `condition`. oh does not evaluate the `condition` sentence: without `when:`, a `conditional` checkpoint always asks the user when it is reported; with `when:`, oh evaluates it (see below).
 - **Strictness order**: `skip` < `auto` < `conditional` < `pause`. On a `mandatory` checkpoint, a patch cannot choose a less strict behavior, nor remove it (`mandatory_checkpoint_removed`); `skip` on a mandatory checkpoint counts as a pause.
@@ -388,6 +390,16 @@ One condition is enough. An `auto` checkpoint pauses when a condition holds; a `
 ```
 
 The agents that pass the checkpoint (CP-R11). Each agent's session contract names only its own checkpoints, and the generated checkpoint table shows an agent only its own. When another agent passes the checkpoint, oh lets it through, logs it and adds a warning to the `workflow_checkpoint` answer. Every checkpoint of the shipped workflows sets it (test `TestCheckpointByMembers`). Diagnostics: `checkpoint_by_unknown` (error: not a member), `checkpoint_by_duplicate` (warning).
+
+### `wiki` — synchronization of the wiki
+
+```yaml
+  cp-sync:
+    unlocks: [commit]
+    wiki: sync
+```
+
+`sync` (`doc-sync` workflow): the card of the checkpoint shows **the whole queue** of the wiki proposals of the project, not only those of the session; the user decides on each one. When it is passed, oh applies the accepted proposals and writes in the frontmatter of `docs/wiki/index.md` the commit the session started from (`synced:`), the starting point of the next synchronization. The checkpoint must unlock the commit: otherwise `checkpoint_wiki_commit` (error); another value: `enum_invalid`. See [Living documentation wiki](../architecture/living-wiki.en.md#synchronization-the-doc-sync-workflow-ld-d).
 
 ### Pause budget
 
@@ -497,7 +509,7 @@ A diagnostic has a severity (error or warning), a code, the field path, the sour
 | `entry_not_primary`, `entry_role`, `entry_disabled`, `agent_unknown`, `agent_unreachable` | invalid entry agent or member |
 | `after_unknown`, `after_cycle`, `calls_unknown`, `graph_cycle` | `after` gates and delegations |
 | `scratch_reader_unknown`, `scratch_reader_owner` | scratch reader not in the workflow, or the owner itself |
-| `checkpoint_agent_clash`, `checkpoint_mode_unknown`, `checkpoint_mode_missing`, `checkpoint_condition_missing`, `mandatory_checkpoint_removed`, `unlocking_checkpoint_removed`, `unlock_duplicate`, `unlock_unknown`, `unlock_skip`, `unlock_push_without_publish`, `patch_unknown_checkpoint`, `checkpoint_by_unknown`, `checkpoint_by_duplicate`, `headless_checkpoint_pause` | checkpoints |
+| `checkpoint_agent_clash`, `checkpoint_mode_unknown`, `checkpoint_mode_missing`, `checkpoint_condition_missing`, `mandatory_checkpoint_removed`, `unlocking_checkpoint_removed`, `unlock_duplicate`, `unlock_unknown`, `unlock_skip`, `unlock_push_without_publish`, `patch_unknown_checkpoint`, `checkpoint_by_unknown`, `checkpoint_by_duplicate`, `checkpoint_wiki_commit`, `headless_checkpoint_pause` | checkpoints |
 | `verify_empty`, `verify_cmd_template`, `verify_in_invalid`, `verify_timeout_invalid`, `verified_checkpoint_removed`, `when_empty`, `when_mandatory`, `when_unknown_agent`, `when_unknown_output`, `pause_budget_exceeded` | verification run by oh, conditions, pause budget (R3) |
 | `precondition_check_invalid`, `precondition_path_invalid`, `precondition_self`, `precondition_unknown_workflow`, `patch_unknown_precondition` | preconditions |
 | `prompt_both`, `prompt_empty`, `prompt_template_path`, `prompt_template_missing`, `prompt_parse`, `prompt_unknown_variable` | prompt |

@@ -103,7 +103,8 @@ func (d *Daemon) wikiSession(w http.ResponseWriter, r *http.Request, toolSession
 func (d *Daemon) wikiErr(w http.ResponseWriter, err error) {
 	switch {
 	case errors.Is(err, wiki.ErrBadPage), errors.Is(err, wiki.ErrBadTag), errors.Is(err, wiki.ErrNoSource), errors.Is(err, wiki.ErrEmpty),
-		errors.Is(err, wiki.ErrTooLarge), errors.Is(err, wiki.ErrSessionData), errors.Is(err, wiki.ErrSymlink), errors.Is(err, wiki.ErrBadID):
+		errors.Is(err, wiki.ErrTooLarge), errors.Is(err, wiki.ErrSessionData), errors.Is(err, wiki.ErrSymlink), errors.Is(err, wiki.ErrBadID),
+		errors.Is(err, wiki.ErrBadRef):
 		writeErr(w, http.StatusUnprocessableEntity, err.Error())
 	case errors.Is(err, wiki.ErrNoWiki), errors.Is(err, wiki.ErrNoPage), errors.Is(err, wiki.ErrNoSection), errors.Is(err, domain.ErrNotFound):
 		writeErr(w, http.StatusNotFound, err.Error())
@@ -228,11 +229,17 @@ func (d *Daemon) handleWikiApply(w http.ResponseWriter, r *http.Request) {
 }
 
 func (d *Daemon) handleWikiCheck(w http.ResponseWriter, r *http.Request) {
-	sess, _, ok := d.wikiSession(w, r, r.URL.Query().Get("tool_session"))
+	q := r.URL.Query()
+	sess, _, ok := d.wikiSession(w, r, q.Get("tool_session"))
 	if !ok {
 		return
 	}
-	rep, err := wiki.Check(r.Context(), sess.LaunchPath, nil)
+	paths := q["path"]
+	if len(paths) > wiki.MaxScopePaths {
+		paths = paths[:wiki.MaxScopePaths]
+	}
+	opts := wiki.CheckOptions{Paths: paths, Base: strings.TrimSpace(q.Get("base")), Head: strings.TrimSpace(q.Get("head")), SinceSync: q.Get("since_sync") == "1"}
+	rep, err := wiki.CheckWith(r.Context(), sess.LaunchPath, opts, nil)
 	if err != nil {
 		d.wikiErr(w, err)
 		return
@@ -283,9 +290,23 @@ func (c *Client) WikiApply(ctx context.Context, toolSession string, ids []string
 	return out, err
 }
 
-// WikiCheck checks the wiki of the session.
-func (c *Client) WikiCheck(ctx context.Context, toolSession string) (wiki.CheckReport, error) {
+// WikiCheck checks the wiki of the session, restricted to a change when
+// opts restricts it (LD-H, LD-D).
+func (c *Client) WikiCheck(ctx context.Context, toolSession string, opts wiki.CheckOptions) (wiki.CheckReport, error) {
+	q := url.Values{"tool_session": {toolSession}}
+	for _, p := range opts.Paths {
+		q.Add("path", p)
+	}
+	if opts.Base != "" {
+		q.Set("base", opts.Base)
+	}
+	if opts.Head != "" {
+		q.Set("head", opts.Head)
+	}
+	if opts.SinceSync {
+		q.Set("since_sync", "1")
+	}
 	var out wiki.CheckReport
-	err := c.do(ctx, http.MethodGet, "/wiki/check?tool_session="+url.QueryEscape(toolSession), nil, &out)
+	err := c.do(ctx, http.MethodGet, "/wiki/check?"+q.Encode(), nil, &out)
 	return out, err
 }

@@ -55,7 +55,7 @@ Mesure le comportement des workflows livrés avec un vrai modèle, avant et apr�
 oh eval [--case S1,S2] [--reps N] [--models m1,m2] [--budget USD] [--parallel N] [--budget-total USD] [--out <dossier>] [--baseline <fichier>] [--record-baseline <fichier>] [--list] [--strict]
 ```
 
-Chaque passage tourne isolé : un `OH_HOME` et un `HOME` temporaires (vos sessions, votre base, votre trousseau et votre démon ne sont jamais touchés), un clone jetable de la fixture, un démon oh dédié. La session est lancée sans interface ; ses checkpoints, permissions et questions reçoivent les réponses écrites dans le cas, par l'API de décisions d'oh. Une fois la session terminée (inactive sans décision en attente), oh lit sa trace, copie les tests cachés sur le clone et vérifie les assertions.
+Chaque passage tourne isolé : un `OH_HOME` et un `HOME` temporaires (vos sessions, votre base, votre trousseau et votre démon ne sont jamais touchés), un clone jetable de la fixture, un démon oh dédié. La session est lancée sans interface ; ses checkpoints, permissions et questions reçoivent les réponses écrites dans le cas, par l'API de décisions d'oh (`answers.wiki` : `accept`, `refuse` ou `pending` décide d'abord les propositions du wiki de la carte d'un checkpoint de commit). Une fois la session terminée (inactive sans décision en attente), oh lit sa trace, copie les tests cachés sur le clone et vérifie les assertions.
 
 | Assertion | Vérifie |
 |-----------|---------|
@@ -63,7 +63,8 @@ Chaque passage tourne isolé : un `OH_HOME` et un `HOME` temporaires (vos sessio
 | `checkpoint_order` | Les checkpoints sont atteints dans cet ordre |
 | `no_question_in_subagent` | Aucun sous-agent (ou ceux d'`agents`) n'appelle l'outil `question` ; `include_entry` vérifie aussi l'agent d'entrée |
 | `skill_loaded_before` | Un skill est chargé (avant un événement avec `before`) |
-| `changed_within` | Le clone n'a changé que dans `paths` (`max_files`, `min_files` ; rien du tout sans paramètre) |
+| `changed_within` | Le clone n'a changé que dans `paths` (`max_files`, `min_files` ; chaque motif d'`include` correspond à au moins un fichier changé ; rien du tout sans paramètre) |
+| `called` | Un outil a été appelé (motif de `tool`, par exemple `*wiki/propose` ; avant un événement avec `before`, ou jamais avec `absent`, restreint à `agent`) ; les appels refusés ne comptent pas |
 | `hidden_tests` | Les tests cachés passent sur le clone |
 | `no_denied_loop` | Un appel refusé (règle, permission refusée, skill inconnu) n'est pas répété plus de `max_repeats` fois |
 | `text_matches` | Un agent a écrit (ou jamais, avec `absent`) un texte ; `questions` regarde aussi les questions posées |

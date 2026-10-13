@@ -112,6 +112,13 @@ func TestAssertions(t *testing.T) {
 		{"text other agent", Assertion{Type: AssertTextMatches, Pattern: "conductor", Agent: "reviewer"}, false},
 		{"text in questions", Assertion{Type: AssertTextMatches, Pattern: "z[ée]ro", Questions: true}, true},
 		{"text not in questions", Assertion{Type: AssertTextMatches, Pattern: "z[ée]ro"}, false},
+		{"called", Assertion{Type: AssertCalled, Tool: "read", Agent: "developer"}, true},
+		{"called before cp-1", Assertion{Type: AssertCalled, Tool: "read", Before: &Anchor{Checkpoint: "cp-1"}}, true},
+		{"called refused", Assertion{Type: AssertCalled, Tool: "shell", Agent: "developer", Before: &Anchor{Text: "Retour vers"}}, true},
+		{"called never", Assertion{Type: AssertCalled, Tool: "*wiki/propose"}, false},
+		{"called absent", Assertion{Type: AssertCalled, Tool: "*wiki/apply", Absent: true}, true},
+		{"changed include", Assertion{Type: AssertChangedWithin, Paths: []string{"*.go"}, Include: []string{"calc_test.go"}}, true},
+		{"changed include missing", Assertion{Type: AssertChangedWithin, Include: []string{"docs/wiki/**"}}, false},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -155,6 +162,7 @@ func TestAssertionValidation(t *testing.T) {
 		{Type: AssertRan},
 		{Type: AssertCheckpointOrder},
 		{Type: AssertSkillLoadedBefore},
+		{Type: AssertCalled},
 		{Type: AssertTextMatches},
 		{Type: AssertTextMatches, Pattern: "("},
 		{Type: AssertRan, Command: "x", Before: &Anchor{}},
@@ -261,8 +269,11 @@ func TestShippedCases(t *testing.T) {
 		if c.ID == "S8" {
 			assert.Equal(t, ReportsOff, c.Reports)
 		}
+		if c.ID == "S11" {
+			assert.Equal(t, "accept", c.Answers.Wiki, "the proposals on the card are accepted")
+		}
 	}
-	assert.Equal(t, []string{"S1", "S2", "S3", "S4", "S5", "S6", "S7", "S8", "S9", "S10"}, ids)
+	assert.Equal(t, []string{"S1", "S2", "S3", "S4", "S5", "S6", "S7", "S8", "S9", "S10", "S11"}, ids)
 }
 
 func requireGit(t *testing.T) {
@@ -395,7 +406,7 @@ func TestRunnerAndReport(t *testing.T) {
 
 // notInBaseline are the active cases activated after the reference measure
 // (measured at the next make test-eval OH_EVAL_RECORD=1).
-var notInBaseline = map[string]string{"S8": "activated by L4 (workflow_report)"}
+var notInBaseline = map[string]string{"S8": "activated by L4 (workflow_report)", "S11": "added by LD (wiki proposals on the card)"}
 
 // The reference measure kept in the repository (make test-eval
 // OH_EVAL_RECORD=1) covers every active case, with three repetitions, and

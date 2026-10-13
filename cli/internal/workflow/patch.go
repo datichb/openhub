@@ -355,6 +355,9 @@ func (p *patcher) checkpoints() {
 		if h("by") {
 			old.By = v.By
 		}
+		if h("wiki") {
+			old.Wiki = v.Wiki
+		}
 		p.dst.Checkpoints.Set(k, old)
 	}
 }

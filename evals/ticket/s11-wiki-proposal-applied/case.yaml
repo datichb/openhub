@@ -1,0 +1,48 @@
+id: S11
+title: "Ticket avec wiki : une proposition wiki_propose est validée à la carte de cp-2 et appliquée par oh"
+workflow: ticket
+mode: semi-auto
+tickets: [ev-1]
+# Le projet a un wiki (docs/wiki/) : le serveur MCP wiki est dans la session.
+# Le ticket demande de capitaliser une convention ; la proposition est
+# acceptée à la carte de cp-2 (answers.wiki), oh l'applique au passage et
+# elle est commitée avec le code.
+beads:
+  prefix: ev
+  tickets:
+    - id: ev-1
+      title: "Corriger Sub qui additionne au lieu de soustraire"
+      type: bug
+      labels: [ai-delegated]
+      description: |
+        calc.Sub(a, b) renvoie a + b au lieu de a - b.
+        Le bug vient d'un copier-coller de Add : capitalise la règle d'équipe qui l'aurait évité dans le wiki du projet.
+      acceptance: |
+        Sub(5, 3) == 2 ; un test TestSub couvre Sub ; go test ./... passe.
+        La règle « chaque fonction a un test qui vérifie une valeur attendue écrite à la main, jamais recalculée par le code testé » est proposée au wiki avec wiki_propose (page technical/conventions.md, section « Patterns spécifiques à l'équipe », tag DÉDUIT, source calc_test.go).
+timeout: 25m
+answers:
+  checkpoints:
+    "*": approve
+  question: first
+  wiki: accept
+assertions:
+  - type: called
+    name: une proposition du wiki est faite avant la validation de cp-2
+    tool: "*wiki/propose"
+    before: { checkpoint_passed: cp-2 }
+  - type: called
+    name: aucun agent n'écrit lui-même dans le wiki par wiki_apply
+    tool: "*wiki/apply"
+    absent: true
+  - type: checkpoint_order
+    order: [cp-2]
+  - type: changed_within
+    name: la page du wiki est modifiée (proposition appliquée par oh), avec le code seulement
+    paths: ["calc.go", "*_test.go", "docs/wiki/**"]
+    include: ["docs/wiki/technical/conventions.md", "calc.go"]
+  - type: ran
+    name: commit après la validation de cp-2
+    command: "git commit*"
+  - type: hidden_tests
+  - type: no_denied_loop

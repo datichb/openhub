@@ -167,7 +167,7 @@ The project wiki (`docs/wiki/`), modernisation LD-J. Injected into the sessions 
 | `wiki_propose` | `page`, `content`, `tag`, `source` (required for `CONFIRMÉ`), `section` (optional) | Queues a proposal; oh answers with its id `wp-<n>` |
 | `wiki_pending` | `session_only` (optional) | Pending proposals (accepted or not), of the project or of the session |
 | `wiki_apply` | `ids` | Applies proposals: **documentarian only** |
-| `wiki_check` | — | Checks the wiki (frontmatter, links, tags, freshness, god nodes), like [`oh wiki check`](cli-projects.en.md#oh-wiki-check) |
+| `wiki_check` | `paths`, `base`, `head`, `since_sync` (optional) | Checks the wiki (frontmatter, links, tags, freshness, layout, god nodes), like [`oh wiki check`](cli-projects.en.md#oh-wiki-check); restricted to a change: commits, files, pages concerned and drift (`drift_confirmed`, `drift_god_node`) |
 
 **Proposals (`wiki_propose`).** The author is the agent oh sees calling the tool (an `agent` parameter would be ignored); the tag line is written by oh (tag, author, date, source) and those the content carries are removed. The content is cleaned (control characters and terminal sequences removed) and neutralised: headings, frontmatter markers, HTML and comments (`oh:when` markers among them) escaped, an unclosed code fence closed. Any reference to the oh session data (`~/.oh/sessions`, the `scratch/` folders among them, or the sessions folder actually in use) is refused. Limits: 4 KiB and 60 lines per proposal, 50 open proposals per session, 500 per project. The same open proposal of the same session is not duplicated. Without the daemon, the tool answers "not recorded" without an error and the agent keeps the proposal in its report.
 

@@ -55,7 +55,7 @@ Measures the behaviour of the shipped workflows with a real model, before and af
 oh eval [--case S1,S2] [--reps N] [--models m1,m2] [--budget USD] [--parallel N] [--budget-total USD] [--out <dir>] [--baseline <file>] [--record-baseline <file>] [--list] [--strict]
 ```
 
-Each pass runs isolated: a temporary `OH_HOME` and `HOME` (your sessions, database, keychain and daemon are never touched), a throwaway clone of the fixture, a dedicated oh daemon. The session runs without interface; its checkpoints, permissions and questions get the answers written in the case, through the oh decision API. Once the session is done (idle with no decision waiting), oh reads its trace, copies the hidden tests over the clone and checks the assertions.
+Each pass runs isolated: a temporary `OH_HOME` and `HOME` (your sessions, database, keychain and daemon are never touched), a throwaway clone of the fixture, a dedicated oh daemon. The session runs without interface; its checkpoints, permissions and questions get the answers written in the case, through the oh decision API (`answers.wiki`: `accept`, `refuse` or `pending` first decides the wiki proposals on the card of a commit checkpoint). Once the session is done (idle with no decision waiting), oh reads its trace, copies the hidden tests over the clone and checks the assertions.
 
 | Assertion | Checks |
 |-----------|--------|
@@ -63,7 +63,8 @@ Each pass runs isolated: a temporary `OH_HOME` and `HOME` (your sessions, databa
 | `checkpoint_order` | The checkpoints are reached in this order |
 | `no_question_in_subagent` | No subagent (or those of `agents`) calls the `question` tool; `include_entry` also checks the entry agent |
 | `skill_loaded_before` | A skill is loaded (before an event with `before`) |
-| `changed_within` | The clone changed only within `paths` (`max_files`, `min_files`; nothing at all without parameter) |
+| `changed_within` | The clone changed only within `paths` (`max_files`, `min_files`; each pattern of `include` matches at least one changed file; nothing at all without parameter) |
+| `called` | A tool was called (pattern of `tool`, for instance `*wiki/propose`; before an event with `before`, or never with `absent`, restricted to `agent`); refused calls do not count |
 | `hidden_tests` | The hidden tests pass on the clone |
 | `no_denied_loop` | A refused call (rule, rejected permission, unknown skill) is not repeated more than `max_repeats` times |
 | `text_matches` | An agent wrote (or never, with `absent`) a text; `questions` also looks at the questions asked |

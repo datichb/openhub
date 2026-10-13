@@ -22,6 +22,7 @@ type fakeBackend struct {
 	sessions []string
 	proposed []daemon.WikiProposeRequest
 	applied  []string
+	checks   []wikisvc.CheckOptions
 	err      error
 }
 
@@ -62,7 +63,14 @@ func (f *fakeBackend) WikiApply(_ context.Context, s string, ids []string) ([]wi
 	return []wikisvc.Result{{ID: "wp-1", Page: "index.md"}, {ID: "wp-9", Err: "not found"}}, f.err
 }
 
-func (f *fakeBackend) WikiCheck(_ context.Context, s string) (wikisvc.CheckReport, error) {
+func (f *fakeBackend) WikiCheck(_ context.Context, s string, o wikisvc.CheckOptions) (wikisvc.CheckReport, error) {
+	f.checks = append(f.checks, o)
+	if o.SinceSync {
+		return wikisvc.CheckReport{Pages: 2, Issues: []wikisvc.Issue{
+			{Page: "business/orders.md", Line: 7, Kind: wikisvc.IssueDriftConfirmed, Severity: wikisvc.SeverityWarning, Message: "dérive"},
+		}, Scope: &wikisvc.CheckScope{From: wikisvc.FromSync, Base: "0123456789abcdef", Commits: []wikisvc.Commit{{SHA: "abc1234", Subject: "feat: x"}},
+			Changed: []string{"src/cart.go"}, Pages: []string{"business/orders.md"}}}, f.err
+	}
 	return wikisvc.CheckReport{Pages: 2, Issues: []wikisvc.Issue{
 		{Page: "a.md", Line: 3, Kind: wikisvc.IssueBrokenLink, Severity: wikisvc.SeverityError, Message: "lien"},
 		{Page: "index.md", Kind: wikisvc.IssueGodNodeMissing, Severity: wikisvc.SeverityWarning, Message: "gn", Fixable: true},
@@ -144,6 +152,21 @@ func TestWikiTools(t *testing.T) {
 
 	out = call(t, b, "tools/call", `{"name":"check","arguments":{},`+meta+`}`)
 	assert.Equal(t, "2 pages, 1 erreur(s), 1 avertissement(s).\n✗ a.md:3 · broken_link · lien\n⚠ index.md · god_node_missing · gn [--fix]", out.Result.Content[0].Text)
+
+	// LD-H, LD-D: restricted to a change.
+	out = call(t, b, "tools/call", `{"name":"check","arguments":{"paths":["src/cart.go"],"base":"main","head":"feature/x"},`+meta+`}`)
+	require.False(t, out.Result.IsError, out.Result.Content)
+	out = call(t, b, "tools/call", `{"name":"check","arguments":{"since_sync":true},`+meta+`}`)
+	require.False(t, out.Result.IsError, out.Result.Content)
+	assert.Equal(t, []wikisvc.CheckOptions{{}, {Paths: []string{"src/cart.go"}, Base: "main", Head: "feature/x"}, {SinceSync: true}}, b.checks)
+	txt = out.Result.Content[0].Text
+	assert.Contains(t, txt, "0123456789ab")
+	assert.Contains(t, txt, "  abc1234 feat: x")
+	assert.Contains(t, txt, "src/cart.go")
+	assert.Contains(t, txt, "business/orders.md")
+	assert.Contains(t, txt, "⚠ business/orders.md:7 · drift_confirmed · dérive")
+	out = call(t, b, "tools/call", `{"name":"check","arguments":{"paths":"src"},`+meta+`}`)
+	assert.True(t, out.Result.IsError, "paths is a list")
 }
 
 func TestWikiWithoutDaemon(t *testing.T) {

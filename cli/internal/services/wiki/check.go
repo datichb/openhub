@@ -60,6 +60,11 @@ const (
 	IssueGodNodeStale       = "god_node_stale"
 	IssueGodNodeChanged     = "god_node_changed"
 	IssueGodNodeTable       = "god_node_table"
+	// LD-F: a page out of the layout of the wiki (layout.go).
+	IssueLayout = "layout"
+	// LD-H, LD-D: a change touches what a page states (drift.go).
+	IssueDriftConfirmed = "drift_confirmed"
+	IssueDriftGodNode   = "drift_god_node"
 )
 
 // maxCited bounds the cited files whose date oh reads.
@@ -81,6 +86,8 @@ type CheckReport struct {
 	Pages    int       `json:"pages"`
 	GodNodes []GodNode `json:"god_nodes,omitempty"`
 	Issues   []Issue   `json:"issues"`
+	// Scope is the change the check is restricted to (CheckWith).
+	Scope *CheckScope `json:"scope,omitempty"`
 }
 
 // Errors returns the number of errors.
@@ -155,6 +162,9 @@ func (w *Wiki) Check(ctx context.Context, modified Modified) CheckReport {
 	cited := 0
 	dates := map[string]time.Time{}
 	for _, p := range w.Pages {
+		if PageKind(p.Path) == KindOther {
+			add(Issue{Page: p.Path, Kind: IssueLayout, Severity: SeverityWarning, Message: i18n.T("wiki.check.layout")})
+		}
 		w.checkFrontmatter(p, add)
 		w.checkLinks(p, anchors, add)
 		files := checkTags(p, add)
@@ -360,7 +370,7 @@ func checkTags(p Page, add func(Issue)) []citedFile {
 			out = append(out, citedFile{file: f, line: i + 1})
 		}
 	})
-	if !tagged && p.Path != IndexPage && strings.TrimSpace(p.Body) != "" {
+	if !tagged && p.Path != IndexPage && !narrative(p.Path) && strings.TrimSpace(p.Body) != "" {
 		add(Issue{Page: p.Path, Kind: IssueUntagged, Severity: SeverityWarning, Message: i18n.T("wiki.check.untagged")})
 	}
 	return out

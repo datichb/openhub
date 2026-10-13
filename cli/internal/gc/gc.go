@@ -79,16 +79,19 @@ type History struct {
 	UsageSessions int `json:"usage_sessions"`
 	UsageProxy    int `json:"usage_proxy"`
 	BudgetExtra   int `json:"budget_extra"`
+	// WikiProposals are the closed proposals of the project wikis (applied
+	// or refused), the last one of each project aside.
+	WikiProposals int `json:"wiki_proposals"`
 }
 
 // Total is the number of rows.
 func (h History) Total() int {
-	return h.Sessions + h.AgentEvents + h.Decisions + h.UsageSessions + h.UsageProxy + h.BudgetExtra
+	return h.Sessions + h.AgentEvents + h.Decisions + h.UsageSessions + h.UsageProxy + h.BudgetExtra + h.WikiProposals
 }
 
 // Cutoffs are the dates before which history rows go.
 type Cutoffs struct {
-	History time.Time // stopped sessions, agent events, settled decisions
+	History time.Time // stopped sessions, agent events, settled decisions, closed wiki proposals
 	Usage   time.Time // usage ledger, budget raises
 }
 

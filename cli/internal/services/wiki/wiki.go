@@ -74,6 +74,9 @@ type Frontmatter struct {
 	Updated    string   `yaml:"updated"`
 	Confidence string   `yaml:"confidence"`
 	Agents     []string `yaml:"agents"`
+	// Synced (index.md only) is the last commit the wiki was synchronized
+	// with (doc-sync, sync.go): written by oh, never by an agent.
+	Synced string `yaml:"synced"`
 	// Err is the YAML error of a frontmatter oh could not read.
 	Err error `yaml:"-"`
 }

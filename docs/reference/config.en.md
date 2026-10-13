@@ -148,7 +148,7 @@ Removed in v5 (ignored if still in the file): `[opencode] version`, `channel`, `
 | `[gc]` | `enabled` | `true` | Periodic clean-up by the daemon (`oh gc` always works) |
 | | `every_hours` | `24` | Interval of the daemon clean-up (its first pass is a simulation; it cleans up after a first `oh gc`) |
 | | `session_days` | `30` | Files of a **stopped** session kept (bundle, server data, folder, automatic worktree); completed or failed sessions can still be resumed |
-| | `history_days` | `180` | History kept (stopped sessions, agent events, settled decisions, session results) |
+| | `history_days` | `180` | History kept (stopped sessions, agent events, settled decisions, session results, applied or refused wiki proposals) |
 | | `usage_days` | `400` | Usage ledger (costs, budget raises) kept |
 | | `bundle_grace_hours` | `24` | A bundle used less than that ago is kept |
 | | `log_max_mb`, `log_keep` | `20`, `3` | Size above which a log is shifted, copies kept |

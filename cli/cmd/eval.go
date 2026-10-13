@@ -675,6 +675,26 @@ func runEvalSession(ctx context.Context, cmd *cobra.Command, spec evalPassSpec, 
 	return nil
 }
 
+// evalWiki decides the wiki proposals on the card of a checkpoint (case
+// answers.wiki: accept, refuse or pending) before the checkpoint is
+// answered, as a user would on the card.
+func evalWiki(ctx context.Context, ssvc *sessionsvc.Service, sid, decisionID, cp, choice string, log io.Writer) []evalrun.AnsweredDecision {
+	card, err := ssvc.CheckpointCard(ctx, decisionID)
+	if err != nil || !card.WikiCommit {
+		return nil
+	}
+	var out []evalrun.AnsweredDecision
+	for _, p := range card.Wiki {
+		rec := evalrun.AnsweredDecision{Kind: "wiki", Checkpoint: cp, Decision: choice + " " + p.ID()}
+		if _, err := ssvc.WikiDecide(ctx, sid, p.ID(), choice, ""); err != nil {
+			rec.Error = err.Error()
+		}
+		fmt.Fprintf(log, "eval pass: wiki %s %s → %s %s\n", cp, p.ID(), choice, rec.Error)
+		out = append(out, rec)
+	}
+	return out
+}
+
 // evalLoop answers the decisions of the session until it is done (idle
 // without decision for evalSettle, or ended), out of time or out of budget.
 func evalLoop(ctx context.Context, ssvc *sessionsvc.Service, sid string, answers evalrun.Answers, budget float64, res *evalrun.PassOutput, log io.Writer) string {
@@ -699,6 +719,9 @@ func evalLoop(ctx context.Context, ssvc *sessionsvc.Service, sid string, answers
 			d := it.Decision
 			ans := answers.Decide(d)
 			cp, _ := d.Payload.Data["checkpoint"].(string)
+			if d.Kind == domain.DecisionCheckpoint && answers.Wiki != "" {
+				res.Decisions = append(res.Decisions, evalWiki(ctx, ssvc, sid, d.ID, cp, answers.Wiki, log)...)
+			}
 			rec := evalrun.AnsweredDecision{Kind: string(d.Kind), Checkpoint: cp, Decision: ans.Decision}
 			if err := ssvc.Decide(ctx, sessionsvc.Reply{DecisionID: d.ID, Decision: ans.Decision, Message: ans.Message, Answer: ans.Answer}); err != nil {
 				rec.Error = err.Error()

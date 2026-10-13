@@ -92,3 +92,18 @@ func TestValidate_UnlockPushWithoutPublish(t *testing.T) {
 		}
 	}
 }
+
+// LD-D: `wiki: sync` (doc-sync) on a checkpoint that unlocks the commit.
+func TestValidate_CheckpointWiki(t *testing.T) {
+	mode := "mode: { manuel: pause, semi-auto: pause, auto: pause }"
+	ok := "risk: write\ncheckpoints:\n  cp-sync: { wiki: sync, unlocks: [commit], " + mode + " }\n"
+	for _, d := range checkYAML(t, vHeader+ok, testEnv()) {
+		if d.Severity == SeverityError {
+			t.Fatalf("valid: %v", d)
+		}
+	}
+	assertDiag(t, checkYAML(t, vHeader+"risk: write\ncheckpoints:\n  cp-sync: { wiki: sync, "+mode+" }\n", testEnv()),
+		"checkpoint_wiki_commit", "checkpoints.cp-sync.wiki", SeverityError)
+	assertDiag(t, checkYAML(t, vHeader+"risk: write\ncheckpoints:\n  cp-sync: { wiki: all, unlocks: [commit], "+mode+" }\n", testEnv()),
+		"enum_invalid", "checkpoints.cp-sync.wiki", SeverityError)
+}

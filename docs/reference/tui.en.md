@@ -167,6 +167,7 @@ Sections: **To handle** (sessions with pending decisions, each followed by its d
 | Command | Aliases | Mode | Description |
 |---------|---------|------|-------------|
 | Project Board | `board`, kanban, tasks, project board | Project | Kanban of the active project |
+| Project wiki | `project-wiki`, wiki, wiki projet, project wiki, doc metrics | Project | Metrics of the wiki (`docs/wiki/`), computed by oh: domain coverage, median age of the pages, share of `INCERTAIN`, proposals waiting, last synchronization (`doc-sync`); `r` computes again. Also in the Project section of the project mode (📚 Wiki) |
 | Init Board | `board.init`, beads init, init board, init tickets | — | Initialize Beads in the project |
 | Projects | `projects`, proj, list | — | Project list |
 | Add project | `project.add`, project add, add project, nouveau projet | — | Project creation wizard |

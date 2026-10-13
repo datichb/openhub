@@ -148,7 +148,7 @@ Supprimés en v5 (ignorés s'ils restent dans le fichier) : `[opencode] version`
 | `[gc]` | `enabled` | `true` | Nettoyage périodique par le démon (`oh gc` fonctionne toujours) |
 | | `every_hours` | `24` | Intervalle du nettoyage du démon (son premier passage est une simulation ; il nettoie après un premier `oh gc`) |
 | | `session_days` | `30` | Fichiers d'une session **arrêtée** gardés (paquet, données du serveur, dossier, worktree automatique) ; les sessions terminées ou en échec restent reprenables |
-| | `history_days` | `180` | Historique gardé (sessions arrêtées, événements d'agents, décisions réglées, résultats des sessions) |
+| | `history_days` | `180` | Historique gardé (sessions arrêtées, événements d'agents, décisions réglées, résultats des sessions, propositions du wiki appliquées ou refusées) |
 | | `usage_days` | `400` | Registre d'usage (coûts, relèvements de budget) gardé |
 | | `bundle_grace_hours` | `24` | Un paquet utilisé il y a moins longtemps est gardé |
 | | `log_max_mb`, `log_keep` | `20`, `3` | Taille au-delà de laquelle un journal est décalé, copies gardées |

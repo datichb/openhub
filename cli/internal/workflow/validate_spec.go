@@ -562,6 +562,12 @@ func (v *validator) checkpoints() {
 		if cp.Remote != "" {
 			v.enum(base+".remote", string(cp.Remote), cp.Remote.Valid(), "auto", "defer", "forbid")
 		}
+		if cp.Wiki != "" {
+			v.enum(base+".wiki", string(cp.Wiki), cp.Wiki.Valid(), string(WikiSync))
+			if cp.Wiki.Valid() && !containsOp(cp.Unlocks, UnlockCommit) && !cp.Disabled {
+				v.err("checkpoint_wiki_commit", base+".wiki", k)
+			}
+		}
 		if len(cp.Unlocks) > 0 {
 			for _, mode := range sortedKeys(cp.Mode) {
 				if cp.Mode[mode] == BehaviorSkip {

@@ -177,6 +177,6 @@ Pour un checkpoint en pause, la carte de la TUI affiche, en plus du résumé de 
 - **Vérification lancée par oh** : statut, commandes et code de sortie, extrait de la sortie en cas d'échec ; pour une session distante récupérée, le résultat obtenu dans le job ;
 - **Preuves de l'agent** : chaque commande annoncée, observée ou non ;
 - **Non résolu** : le ticket dont les tours de correction ont atteint la limite ;
-- **Propositions du wiki** (CP-R4, checkpoint qui déverrouille le commit seulement) : les propositions `wp-…` de la session (auteur, page, section, tag, début du contenu, échappé), avec une action par proposition (accepter, modifier, refuser, laisser en file) et « Accepter les N propositions ». Les acceptées sont appliquées par oh au passage du checkpoint, avant le commit ; voir [Serveur MCP wiki](cli-mcp.fr.md#serveur-mcp-wiki).
+- **Propositions du wiki** (CP-R4, checkpoint qui déverrouille le commit seulement) : les propositions `wp-…` de la session (auteur, page, section, tag, début du contenu, échappé), avec une action par proposition (accepter, modifier, refuser, laisser en file) et « Accepter les N propositions ». Les acceptées sont appliquées par oh au passage du checkpoint, avant le commit ; voir [Serveur MCP wiki](cli-mcp.fr.md#serveur-mcp-wiki). Sur un checkpoint `wiki: sync` (`doc-sync`), la carte montre toute la file du projet, propositions des autres sessions comprises.
 
 Choix : Valider · Corriger d'abord · Autre consigne · **Passer outre la vérification** (seulement si elle a échoué ou ne peut pas tourner).

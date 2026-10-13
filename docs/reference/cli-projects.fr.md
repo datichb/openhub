@@ -145,16 +145,21 @@ oh project configure
 
 ### oh wiki check
 
-Vérifie le wiki du projet (`docs/wiki/` du plus proche dossier parent qui en a un) : frontmatter (`updated` en date AAAA-MM-JJ, `confidence` dans `confirmed | mixed | uncertain` et cohérent avec les tags de la page, `agents`), liens relatifs et ancres, lignes de tag (`` — `TAG` · agent · AAAA-MM-JJ[ · source] ``, une source pour `CONFIRMÉ`), pages sans tag, fraîcheur (page plus vieille que le dernier commit d'un fichier qu'elle cite ; fichier cité absent) et god nodes calculés par oh face à la table de `index.md`. Affiche aussi les god nodes calculés. Code de sortie non nul s'il y a des erreurs (utilisable en CI).
+Vérifie le wiki du projet (`docs/wiki/` du plus proche dossier parent qui en a un) : frontmatter (`updated` en date AAAA-MM-JJ, `confidence` dans `confirmed | mixed | uncertain` et cohérent avec les tags de la page, `agents`), liens relatifs et ancres, lignes de tag (`` — `TAG` · agent · AAAA-MM-JJ[ · source] ``, une source pour `CONFIRMÉ`), pages sans tag (sauf `specs/`, `decisions/`, `postmortems/`), arborescence (page hors de `index.md`, `glossary.md`, `technical/`, `business/`, `specs/`, `decisions/`, `postmortems/`), fraîcheur (page plus vieille que le dernier commit d'un fichier qu'elle cite ; fichier cité absent) et god nodes calculés par oh face à la table de `index.md`. Affiche aussi les god nodes calculés. Code de sortie non nul s'il y a des erreurs (utilisable en CI).
 
 ```
-oh wiki check [dir] [--fix] [--json]
+oh wiki check [dir] [--fix] [--json] [--path <fichier>]… [--base <ref> [--head <ref>]] [--since-sync]
 ```
 
 | Flag | Type | Description |
 |------|------|-------------|
 | `--fix` | bool | Répare ce qu'oh sait calculer : `confidence` des pages, table des god nodes de `index.md` (et son `updated`) |
-| `--json` | bool | Rapport en JSON (`pages`, `god_nodes`, `issues` avec `page`, `line`, `kind`, `severity`, `message`, `fixable`) |
+| `--json` | bool | Rapport en JSON (`pages`, `god_nodes`, `issues` avec `page`, `line`, `kind`, `severity`, `message`, `fixable` ; `scope` pour un changement) |
+| `--path` | string, répétable | Restreint à un changement : fichiers modifiés (relatifs à la racine) |
+| `--base`, `--head` | string | Restreint aux fichiers modifiés de la base commune de `--base` et `--head` jusqu'à `--head` (sans `--head` : l'arbre de travail, fichiers non commités compris) |
+| `--since-sync` | bool | Restreint aux commits depuis la dernière synchronisation (`synced:` d'`index.md`, sinon le dernier commit de `docs/wiki/`) |
+
+Restreinte à un changement, la vérification ne garde que les problèmes des pages du wiki qu'il modifie, liste les commits, les fichiers et les **pages concernées** (qui citent un fichier modifié ou portent un god node touché), et ajoute les dérives : `drift_confirmed` (page `CONFIRMÉ` qui cite un fichier modifié, non mise à jour) et `drift_god_node` (god node touché dont aucune page n'est mise à jour). C'est l'axe documentation du `reviewer` et le point de départ de [`doc-sync`](workflows.fr.md#doc-sync).
 
 oh ne suit jamais un lien symbolique dans `docs/wiki/` ; une page de plus de 256 Ko, ou au-delà de 400 pages, n'est pas lue (avertissement).
 
@@ -173,3 +178,11 @@ oh wiki pending [dir] [--all] [--session <id>] [--json]
 | `--json` | bool | Sortie JSON |
 
 Le projet est celui qu'oh connaît pour le dossier (ou un dossier parent).
+
+### oh wiki stats
+
+Métriques du wiki, calculées par oh : pages (dont specs, décisions, postmortems), **couverture des domaines** (pages `business/<domaine>.md` et domaines de la carte de l'index ; couvert = la page existe et porte au moins un enrichissement tagué), **âge médian des pages** (jours depuis `updated`, et la plus ancienne), **part de `INCERTAIN`** parmi les enrichissements tagués, **propositions en attente** (en file et acceptées non appliquées) et dernière synchronisation (`doc-sync`). Mêmes chiffres dans la vue « Wiki » du mode projet de la TUI.
+
+```
+oh wiki stats [dir] [--json]
+```
