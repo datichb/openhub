@@ -1,13 +1,23 @@
 ---
 name: planner-phase-5-6
-description: "Utiliser avant les phases 5 et 6 du planner : création dans Beads, ai-delegated, vérification finale."
+description: "Utiliser avant les phases 5 et 6 du planner : création dans Beads (templates), ai-delegated, vérification finale."
 ---
 
 # Phase 5 — Production du livrable : Création dans Beads
 
 **Uniquement après validation explicite du plan.**
+<!-- oh:when role=subagent -->
 
-→ Charger le skill `planner-beads-templates` via l'outil `skill` pour les templates complets de création (epics, features, tasks, dépendances, labels, estimations, règles d'enrichissement).
+Sous-agent : la création attend le checkpoint de ton appelant ; tu arrives ici relancé avec ton `task_id`, découpage validé.
+<!-- /oh:when -->
+
+## Ordre de création
+
+1. Créer les epics en premier (si applicable) et les enrichir immédiatement
+2. Créer les tickets fils avec `--parent`
+3. Enrichir chaque ticket avec description + acceptance + notes + estimate + design (si UI)
+4. Ajouter les dépendances via `bd dep add` après création
+5. Ajouter les labels pertinents (`-l` à la création ou `bd label add` après)
 
 ---
 
@@ -275,14 +285,6 @@ Si l'estimation est incertaine, utiliser la borne haute et signaler dans les not
 
 ---
 
-## Avec assignee et labels
-
-```bash
-T=$(bd create "Titre" -t task -p 2 -l ai-delegated -a dev-agent --parent $EPIC_ID --estimate [minutes] --json)
-```
-
----
-
 ## Types disponibles (5)
 
 - `-t epic` → epic (conteneur de tickets)
@@ -336,54 +338,27 @@ T=$(bd create "Titre" -t task -p 2 -l ai-delegated -a dev-agent --parent $EPIC_I
 ```markdown
 ## [Phase 5] Création dans Beads terminée
 
-**Epics créés :**
-- bd-X : <titre> — enrichi (description + notes)
-- (aucun si plan à plat)
-
-**Tickets créés :**
-- bd-Y : <titre> — <type> — P<X> — enrichi (description + acceptance + notes + estimate + design si UI)
-- bd-Z : <titre> — <type> — P<X> — enrichi (...)
-- ...
-
-**Total :** X epics + Y tickets créés
-
-**Dépendances ajoutées :**
-- bd-Y → bd-Z (bd-Y dépend de bd-Z)
-- ...
-
-**Labels ajoutés :**
-- bd-W : split-from-bd-42
-- bd-V : needs-clarification (raison : [raison])
-
-**Specs design tracées (si Phase 1.5 skippée) :**
-- bd-Y : commentaire ajouté avec instructions pour invoquer designer (Mode: ui)
+**Epics créés :** bd-X : <titre> — enrichi (aucun si plan à plat)
+**Tickets créés :** bd-Y : <titre> — <type> — P<X> — enrichi (description + acceptance + notes + estimate + design si UI)
+**Total :** X epics + Y tickets
+**Dépendances ajoutées :** bd-Y → bd-Z (bd-Y dépend de bd-Z)
+**Labels ajoutés :** bd-W : split-from-bd-42 · bd-V : needs-clarification (raison)
+**Specs design tracées (si Phase 1.5 skippée) :** bd-Y : commentaire avec les instructions pour le designer (Mode: ui)
 ```
 
-## Transition automatique
-
-**Pas de question de validation ici** — passage automatique à Phase 5.5.
+Pas de question de validation ici — passage automatique à Phase 5.5.
 
 ---
 
 # Phase 5.5 — Délégation ai-delegated (optionnelle)
 
-## Objectif
-Proposer de déléguer certains tickets à l'agent IA en ajoutant le label `ai-delegated`.
-
-## Récap avant question
-
-```markdown
-## [Phase 5.5] Délégation ai-delegated
-
-Le label `ai-delegated` indique qu'un ticket peut être délégué à un agent IA pour implémentation.
-
-**Tickets créés :** X tickets
-**Tickets éligibles à la délégation :** Y tickets (ceux sans dépendance bloquante non terminée)
-```
+Le label `ai-delegated` indique qu'un ticket peut être délégué à un agent IA pour implémentation. Éligibles : les tickets sans dépendance bloquante non terminée.
 
 ## Question de validation obligatoire
+<!-- oh:when role=entry -->
 
-**En mode standalone :**
+Récap en texte (`## [Phase 5.5] Délégation ai-delegated` : tickets créés, tickets éligibles), puis :
+
 ```
 question({
   questions: [{
@@ -398,39 +373,20 @@ question({
 })
 ```
 
-**Uniquement si l'utilisateur valide :**
-```bash
-# Déléguer un ticket
-bd label add <ID> ai-delegated
+**Uniquement si l'utilisateur valide :** `bd label add <ID> ai-delegated` pour chaque ticket retenu.
 
-# Déléguer plusieurs tickets
-bd label add bd-1 ai-delegated
-bd label add bd-2 ai-delegated
-```
+- Si l'utilisateur dit "tous", demander confirmation une dernière fois avant d'exécuter
+<!-- /oh:when -->
+<!-- oh:when role=subagent -->
+
+Sous-agent : n'ajoute pas le label ; liste les tickets éligibles dans ta `### Suite proposée`, l'utilisateur tranche par ton appelant.
+<!-- /oh:when -->
 
 **Règles absolues :**
 - Ne jamais ajouter `ai-delegated` sans validation explicite
 - Ne jamais déléguer un ticket bloqué par un ticket non terminé
-- Si l'utilisateur dit "tous", demander confirmation une dernière fois avant d'exécuter
 
-## Récap de fin de Phase 5.5
-
-```markdown
-## [Phase 5.5] Délégation ai-delegated terminée
-
-**Tickets délégués :**
-- bd-X : label `ai-delegated` ajouté
-- bd-Y : label `ai-delegated` ajouté
-- (aucun si non validé)
-
-**Tickets non délégués :**
-- bd-Z : dépend de bd-W non terminé
-- bd-V : choix de l'utilisateur
-```
-
-## Transition automatique
-
-**Pas de question de validation ici** — passage automatique à Phase 6.
+Récap de fin de Phase 5.5 : tickets délégués (label ajouté) et non délégués (raison : dépendance non terminée, choix de l'utilisateur). Passage automatique à Phase 6.
 
 ---
 
@@ -459,83 +415,41 @@ La méthode `--method ai` est refusée par oh (les tickets ne partent pas vers u
 
 ## Récap de fin de Phase 6
 
+Narratif et détaillé, il reprend le plan validé en phase 3.
+<!-- oh:when role=subagent -->
+Sous-agent : ce récap est ton rapport, aux sections de ton payload.
+<!-- /oh:when -->
+
 ```markdown
 ## [Phase 6] Récapitulatif de planification
 
 ### Tickets créés
-
-**Epic bd-X — [Nom de l'epic]**
-
+**Epic bd-X — [Nom]**
 **bd-Y (P1, feature, ~2h) — [Titre]**
-- **Description :** [Résumé en 2-3 phrases de ce que fait ce ticket]
-- **Critères d'acceptance :** [Liste des critères — format : "Le système doit..."]
-- **Notes :** [Choix techniques, alternatives considérées, points d'attention]
-- **Dépendances :** Aucune — ticket fondation
-
-**bd-Z (P2, task, ~4h) — [Titre]**
-- **Description :** [Résumé en 2-3 phrases]
-- **Critères d'acceptance :** [Critères]
-- **Notes :** [Notes]
-- **Dépendances :** bd-Y (raison : consomme le service créé par bd-Y)
-
-**bd-W (P2, task, ~1h) — [Titre]**
-- **Description :** [Résumé]
-- **Critères d'acceptance :** [Critères]
-- **Notes :** [Notes]
-- **Dépendances :** bd-Y (raison : utilise l'endpoint créé par bd-Y)
-
-**Epic bd-A — [Nom de l'epic]**
-
-**bd-B (P1, feature, ~3h) — [Titre]**
-- **Description :** [Résumé]
-- **Critères d'acceptance :** [Critères]
-- **Notes :** [Notes]
-- **Dépendances :** bd-Z (raison : intègre le middleware créé par bd-Z)
-
----
+- **Description :** [2-3 phrases]
+- **Critères d'acceptance :** [« Le système doit… »]
+- **Notes :** [choix techniques, alternatives, points d'attention]
+- **Dépendances :** [Aucune — ticket fondation | bd-Z (raison)]
 
 ### Ordre d'implémentation suggéré
-
-1. **bd-Y** (bloquant) — ticket fondation, doit être fait en premier
-2. **bd-Z, bd-W** (parallélisables) — peuvent être implémentés en parallèle après bd-Y
-3. **bd-B** (après bd-Z) — dépend du middleware créé par bd-Z
-
----
+1. **bd-Y** (bloquant) — ticket fondation
+2. **bd-Z, bd-W** (parallélisables après bd-Y)
 
 ### Hypothèses et ambiguïtés
-
-- **Hypothèse 1 :** [Ex : "J'ai supposé que l'authentification utilise JWT — l'utilisateur n'a pas précisé le mécanisme"]
-- **Ambiguïté 1 :** [Ex : "Le délai d'expiration du token n'était pas précisé — j'ai fixé 24h par défaut"]
-- (Aucune hypothèse ni ambiguïté si la demande était complète et sans ambiguïté)
-
----
+- **Hypothèse :** [ex : « J'ai supposé que l'authentification utilise JWT »]
 
 ### Risques identifiés
-
-- **Risque 1 :** [Ex : "bd-Z dépend d'une librairie externe non encore évaluée — risque de complexité sous-estimée"]
-- **Risque 2 :** [Ex : "bd-B touche 3 composants UI — risque de régression si les tests ne couvrent pas tous les parcours"]
-- (Aucun risque identifié si le plan est clair et sans risque notable)
-
----
+- **Risque :** [ex : « bd-Z dépend d'une librairie non évaluée »]
 
 ### Résumé
-
-- **Epics créés :** N
-- **Tickets créés :** M
-- **Estimation totale :** ~Xh
-- **Tickets délégués à l'IA :** K tickets avec label `ai-delegated`
+Epics : N · Tickets : M · Estimation totale : ~Xh · Tickets `ai-delegated` : K
 
 ### Points d'attention
-
-- [Point 1 si applicable — ex : ticket bd-Z marqué needs-clarification (raison)]
-- [Point 2 si applicable]
+- [ex : bd-Z marqué needs-clarification (raison)]
 ```
 
----
-
 ## Question de validation obligatoire
-
-**En mode standalone :**
+<!-- oh:when role=entry -->
 
 ```
 question({
@@ -550,6 +464,9 @@ question({
 })
 ```
 
-**Selon la réponse (standalone uniquement) :**
-- **C'est bon** → Fin de session
-- **Ajustements** → rester en Phase 6, appliquer les ajustements via `bd update`, re-produire le récap
+**Selon la réponse :** c'est bon → fin de session ; ajustements → rester en Phase 6, appliquer via `bd update`, refaire le récap.
+<!-- /oh:when -->
+<!-- oh:when role=subagent -->
+
+Sous-agent : pas de question ; dépose ton rapport puis rends ton enveloppe.
+<!-- /oh:when -->

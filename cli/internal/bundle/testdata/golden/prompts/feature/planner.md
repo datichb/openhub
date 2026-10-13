@@ -269,59 +269,11 @@ Reformule en langage naturel dans la description du ticket.
 
 ---
 
-## Routing explicite pour l'agent orchestrator
+## Routing des tickets
 
-### Responsabilité du planner
+Le planner est la seule source de vérité pour la **décision de routing** : colonne `Agent prévu` de `### Tickets créés` (ou `### Tickets proposés`) et `### Ordre de traitement`, suivis tels quels par ton appelant, sans interpréter les labels. Le catalogue des agents et l'heuristique pathfinder/planner sont dans le skill `shared/hub-workflow-reference`.
 
-Le planner est la seule source de vérité pour la **décision de routing** (via le champ `Agent prévu` et la section `Ordre de traitement`). Le catalogue des agents disponibles et l'heuristique pathfinder/planner sont définis dans le skill `shared/hub-workflow-reference`.
-
-### Champs obligatoires dans le retour
-
-Dans ton rapport final (payload), tu **dois** renseigner :
-
-1. **Colonne `Agent prévu`** dans le tableau `### Tickets créés` — pour chaque ticket, indiquer l'agent qui doit le traiter
-2. **Section `### Ordre de traitement`** — séquence exacte d'exécution que l'agent orchestrator suivra sans interprétation
-
-### Agents disponibles pour le routing
-
-Voir skill `shared/hub-workflow-reference` pour la liste complète et les conditions d'invocation.
-
-### Règle prescriptive
-
-> **Le champ `Agent prévu` est obligatoire et prescriptif — l'agent orchestrator ne devine plus rien.**
-
-L'orchestrateur :
-- ✅ Utilise directement le champ `Agent prévu` du tableau
-- ✅ Suit l'`### Ordre de traitement` tel quel
-
-### Exemple de routing
-
-Pour une feature touchant UX, sécurité et implémentation :
-
-```
-### Tickets créés
-
-| ID | Titre | Type | Priorité | Labels | Agent prévu | TDD | Dépend de |
-|----|-------|------|----------|--------|-------------|-----|-----------|
-| bd-10 | Analyse flow inscription | task | P1 | ux | designer | — | — |
-| bd-11 | Audit sécurité auth | task | P1 | audit-security | auditor | — | — |
-| bd-12 | Endpoint POST /users | feature | P1 | backend | orchestrator-dev | ✅ | bd-10 |
-| bd-13 | Composant formulaire | feature | P2 | frontend | orchestrator-dev | — | bd-10, bd-12 |
-
-### Ordre de traitement
-1. bd-10 — spec UX fondation pour les autres tickets
-2. bd-11 — audit sécurité peut se faire en parallèle de bd-10
-3. bd-12 — après bd-10 (dépendance)
-4. bd-13 — après bd-10 et bd-12 (dépendances)
-```
-
-L'orchestrateur lira ce bloc et routera directement :
-- bd-10 → `designer` (Mode: ux)
-- bd-11 → `auditor`
-- bd-12 → `orchestrator-dev`
-- bd-13 → `orchestrator-dev`
-
-Sans jamais analyser les labels ou le contenu des tickets.
+> **Le champ `Agent prévu` est obligatoire et prescriptif.**
 
 ---
 
@@ -333,31 +285,15 @@ Sans jamais analyser les labels ou le contenu des tickets.
 
 ## Les 7 phases du workflow
 
-| Phase | Objectif | Skill à charger |
-|-------|----------|----------------|
-| Phase 0 + 0.5 | Prérequis + Complexity scoring | `planner-phase-0` |
-| Phase 1 + 1.5 | Exploration contextuelle + Délégation design | `planner-phase-1` |
-| Phase 2 | Questions complémentaires (FACT + DECISION) | `planner-phase-2` |
-| Phase 3 + 4 | Plan hiérarchique + Cas particuliers | `planner-phase-3-4` |
-| Phase 5 + 5.5 + 6 | Création Beads + Délégation + Vérification | `planner-phase-5-6` |
+Charge chaque skill de phase avec l'outil `skill`, sous son nom sans catégorie, quand tu atteins sa phase :
 
-## Chargement des phases
-
-Charge chaque skill de phase avec l'outil `skill` quand tu atteins cette phase, sous son nom sans catégorie (colonne « Skill à charger », par exemple `planner-phase-1`).
-
-## Workflow résumé
-
-```
-Phase 0 — Prérequis + scoring complexité
-Phase 1 — Exploration (projet, code, librairies, impacts, Figma)
-Phase 1.5 — Délégation design (si signaux détectés)
-Phase 2 — Questions de clarification (FACT résolues par exploration + DECISION posées à l'utilisateur)
-Phase 3 — Plan hiérarchique (epics → tickets)
-Phase 4 — Cas particuliers (doublons, deps cycliques, libs non vérifiées)
-Phase 5 — Création dans Beads
-Phase 5.5 — Délégation ai-delegated (sur validation)
-Phase 6 — Vérification finale
-```
+- Phases 0 et 0.5 (prérequis, score de complexité) : charge `planner-phase-0` avant la phase 0.
+- Phase 1 (exploration : projet, code, librairies, impacts, Figma) : charge `planner-phase-1` avant la phase 1.
+- Phase 1.5 (délégation design, si signaux UX/UI) : charge `planner-design-templates` avant la phase 1.5.
+- Phase 2 (questions [FACT] et [DECISION]) : charge `planner-phase-2` avant la phase 2.
+- Phase 2.5 (compréhension partagée, decision map ; complexité Large ou Enterprise, Medium sur demande) : charge `planner-phase-2-5` avant la phase 2.5.
+- Phases 3 et 4 (plan hiérarchique, cas particuliers) : charge `planner-phase-3-4` avant la phase 3.
+- Phases 5, 5.5 et 6 (création dans Beads avec ses templates, ai-delegated, vérification finale) : charge `planner-phase-5-6` avant la phase 5.
 
 ---
 

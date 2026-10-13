@@ -1,175 +1,73 @@
 ---
 name: planner-design-templates
-description: "Utiliser quand le planner détecte des signaux design en phase 1 : options A/B/C et prompts vers le designer."
+description: "Utiliser quand le planner détecte des signaux design en phase 1 : délégation au designer, prototype, reprise des specs."
 ---
 
-# Skill — Planner : Templates de délégation design (Phase 1.5)
-
-## Contexte d'usage
-
-Ce skill est chargé par `planner-workflow` en Phase 1.5 quand un signal UX ou UI
-a été détecté en Phase 1 (exploration contextuelle).
-
-Il fournit :
-- Les templates de présentation (option A/B/C) pour UX et UI
-- Les contextes à transmettre aux sous-agents
-- Les instructions de reprise après réception de la spec
-
----
+# Skill — Planner : Délégation design (Phase 1.5)
 
 ## Phase 1.5 — Délégation design (optionnelle)
 
 **Déclenchée si :** signal UX ou UI détecté en Phase 1.
 
 Cette phase se place **avant** Phase 2 car les specs UX/UI influencent directement le découpage en tickets.
+<!-- oh:when role=entry -->
 Elle se traite en sessions séparées — le planner ne continue pas tant que l'utilisateur n'a pas rapporté les specs (ou explicitement décidé de les ignorer).
 
----
+### Proposer la délégation
 
-### Délégation UX
-
-**Condition** : signal UX détecté (parcours multi-étapes, changement d'interaction, formulaire complexe, flow critique).
-
-Présenter le message suivant :
+Pour chaque spec recommandée (UX : parcours multi-étapes, changement d'interaction, formulaire complexe, flow critique ; UI : nouveau composant, composant profondément modifié, variantes à spécifier ; les deux dans le même message si besoin), présente en texte :
 
 ```markdown
-## ⚠️ Spec UX recommandée avant planification
+## ⚠️ Spec <UX|UI> recommandée avant planification
 
-Cette feature [modifie le parcours de sélection / introduit un flow multi-étapes / change une interaction existante].
-Planifier sans spec UX risque de découper les tickets selon la logique technique
-plutôt que selon la logique utilisateur.
+Cette feature [raison concrète]. Planifier sans spec <UX|UI> risque [tickets découpés selon la logique technique plutôt qu'utilisateur | champ `--design` incomplet, décisions visuelles laissées au développeur].
 
-Je recommande d'invoquer l'UX Designer en premier pour :
-- Modéliser le user flow (nominal + alternatifs + états d'erreur)
-- Identifier les frictions et les cas limites du parcours
-- Produire des critères d'acceptance orientés utilisateur
-
-Ces éléments alimenteront directement le découpage en tickets et leurs critères d'acceptance.
-
-### Comment souhaitez-vous procéder ?
-
-**Option A — Je l'invoque directement** *(recommandé)*
-> Tapez "invoquer UX" — j'invoque l'agent **designer** en sous-agent maintenant,
-> avec le contexte complet de la feature, et j'intègre sa spec dès qu'il a terminé.
-
-**Option B — Vous l'invoquez vous-même**
-> Ouvrez une session avec l'agent **designer** et donnez-lui ce contexte :
+**Option A — Je l'invoque directement** *(recommandé)* : tapez "invoquer <UX|UI>" ; j'invoque l'agent **designer** maintenant (UI : composant par composant) et j'intègre sa spec.
+**Option B — Vous l'invoquez vous-même** : ouvrez une session avec l'agent **designer** et le contexte ci-dessous, demandez "Spec <UX|UI> pour [feature | composant]", puis revenez avec la spec.
 > ---
-> Feature : [nom de la feature]
-> Contexte métier : [résumé du besoin collecté]
-> Utilisateurs concernés : [rôles / personas identifiés]
-> Interaction à analyser : [description précise du parcours ou de l'écran concerné]
-> Tickets existants liés : [IDs si applicable]
+> [contexte du prompt de délégation ci-dessous]
 > ---
-> Demandez : "Spec UX pour [nom de la feature]"
-> Puis revenez ici en disant : "Voici la spec UX — continue la planification avec ce contexte."
+**Option C — Continuer sans spec** : tapez "continuer sans <UX|UI>" ; les critères UX ou le champ `--design` seront tracés ticket par ticket en Phase 5.
+```
+<!-- /oh:when -->
+<!-- oh:when role=subagent -->
+Sous-agent : n'expose pas d'options ; invoque directement le designer (une spec UX pour le parcours, une spec UI par composant) et intègre ses specs.
+<!-- /oh:when -->
 
-**Option C — Continuer sans spec UX**
-> Tapez "continuer sans UX" — je procéderai avec le contexte disponible
-> et signalerai les critères d'acceptance UX à compléter ticket par ticket.
+## Prompt de délégation au designer
+
+Déléguer seulement avec au moins un signal design ; mode `ux` (parcours, états, accessibilité structurelle), `ui` (tokens, composants, cohérence visuelle), `ux+ui` (les deux, UX d'abord) ou `recon` (exploration Figma légère). Les questions de phase 2 attendent le retour du designer : sa spec peut les changer.
+
+```
+Agent : designer
+Mode: <recon | ux | ui | ux+ui>
+Objectif : <ce que le designer doit produire, en 1 ou 2 phrases>
+
+### Feature demandée
+<la demande de l'utilisateur, telle quelle>
+### Contexte projet
+<stack, conventions front, frameworks UI, design system existant (phase 1)>
+### Composants existants identifiés
+<UI : le composant visé (NomDuComposant.vue) et son comportement attendu>
+### Signaux design détectés
+<UX : utilisateurs concernés (rôles, personas), interaction ou parcours à analyser, tickets existants liés>
+### Contraintes techniques anticipées
+### Questions ouvertes
+<à trancher par le design ou à clarifier avec l'utilisateur>
+
+Livrables attendus : <user flow, wireframes textuels, tokens, composants, critères d'acceptance>
 ```
 
-**Si l'utilisateur choisit l'Option A ("invoquer UX") :**
+### Réception du retour du designer
 
-Annoncer puis invoquer directement :
-> "J'invoque l'agent **designer** avec le contexte de la feature."
+Son enveloppe porte un statut (`spec-complète`, `spec-partielle`, `choix-requis`, `prototype-livré`, `bloqué`) et l'identifiant de son rapport. Affiche la spec complète (lue avec `workflow_report_get`, jamais résumée) avant toute question ; reprends `### Composants à créer` et `### Tokens design requis` dans les questions de phase 2 si une validation est utile, et ajoute ses `### Questions pour l'utilisateur` à celles de la phase 2. `spec-partielle` : les questions design rejoignent le questionnaire ; `bloqué` : demande à l'utilisateur comment débloquer avant de continuer. Sans spec (enveloppe seule, sans rapport) : demande au designer de la produire.
 
-Transmettre au sous-agent :
-```
-Feature : [nom de la feature]
-Contexte métier : [résumé du besoin collecté en Phase 1]
-Utilisateurs concernés : [rôles / personas identifiés]
-Interaction à analyser : [description précise du parcours ou de l'écran concerné]
-Tickets existants liés : [IDs si applicable]
+### Reprise après la spec
 
-Demande : Spec UX pour [nom de la feature]
-```
+- **UX** : lire le flow nominal et les flows alternatifs ; ajouter les tickets qu'imposent des étapes ou cas d'erreur non prévus ; intégrer les critères UX dans `## Comportement fonctionnel` des tickets concernés ; noter dans leurs notes `User flow : [flow nominal en 1-2 phrases]`.
+- **UI** : identifier les tickets concernés ; intégrer la spec dans leur `--design` ; compléter leur acceptance avec les critères visuels (états, contrastes, ARIA).
 
-Attendre la réponse de **designer** au format `## SPEC UX — [feature]` puis reprendre directement avec la section "Reprise après spec UX" ci-dessous.
-
-**Reprise après spec UX** — quand l'utilisateur rapporte la spec UX :
-
-1. Lire le user flow nominal et les flows alternatifs
-2. En déduire les tickets supplémentaires si des étapes ou cas d'erreur non prévus apparaissent
-3. Intégrer les critères d'acceptance UX dans la section `## Comportement fonctionnel` des tickets concernés
-4. Mentionner dans les notes des tickets : `User flow : [résumé du flow nominal en 1-2 phrases]`
-5. Annoncer : "J'ai intégré la spec UX. Je continue vers Phase 2."
-
----
-
-### Délégation UI
-
-**Condition** : signal UI détecté (nouveau composant, composant profondément modifié, variantes à spécifier).
-
-Présenter le message suivant **en même temps que la délégation UX** si les deux sont nécessaires, ou seul sinon :
-
-```markdown
-## ⚠️ Spec UI recommandée avant planification
-
-Cette feature [crée un nouveau composant / modifie profondément [NomComposant] / nécessite des variantes visuelles].
-Sans spec UI, le champ `--design` des tickets sera incomplet et le développeur frontend
-devra prendre seul les décisions visuelles (composants DSFR, états, accessibilité).
-
-Je recommande d'invoquer l'UI Designer pour chaque composant concerné :
-- Identifier les composants DSFR à utiliser (et leurs variantes)
-- Spécifier les états visuels (default, hover, focus, disabled, error, loading)
-- Définir les règles d'accessibilité (ARIA, contraste, navigation clavier)
-
-### Comment souhaitez-vous procéder ?
-
-**Option A — Je l'invoque directement** *(recommandé)*
-> Tapez "invoquer UI" — j'invoque l'agent **designer** en sous-agent maintenant,
-> composant par composant, et j'intègre ses specs dès qu'il a terminé.
-
-**Option B — Vous l'invoquez vous-même**
-> Pour chaque composant concerné, ouvrez une session avec l'agent **designer**
-> et donnez-lui ce contexte :
-> ---
-> Composant : [NomDuComposant.vue]
-> Feature : [nom de la feature]
-> Comportement attendu : [description fonctionnelle du composant]
-> Design system en place : [DSFR / autre — préciser si connu]
-> Spec UX associée : [coller le user flow si déjà produit]
-> ---
-> Demandez : "Spec UI pour [NomComposant]"
-> Puis revenez ici en disant : "Voici la spec UI pour [composant] — continue la planification avec ce contexte."
-
-**Option C — Continuer sans spec UI**
-> Tapez "continuer sans UI" — je remplirai le champ `--design` avec le contexte disponible
-> et ajouterai un commentaire `bd comments add` sur chaque ticket concerné
-> avec les instructions pour invoquer l'UI Designer ultérieurement.
-```
-
-**Si l'utilisateur choisit l'Option A ("invoquer UI") :**
-
-Annoncer puis invoquer directement, composant par composant :
-> "J'invoque l'agent **designer** pour [NomComposant]."
-
-Transmettre au sous-agent pour chaque composant :
-```
-Composant : [NomDuComposant.vue]
-Feature : [nom de la feature]
-Comportement attendu : [description fonctionnelle du composant]
-Design system en place : [DSFR / autre]
-Spec UX associée : [user flow si déjà produit]
-
-Demande : Spec UI pour [NomComposant]
-```
-
-Attendre la réponse de **designer** au format `## SPEC UI — [NomComposant]` puis reprendre directement avec la section "Reprise après spec UI" ci-dessous.
-
-**Reprise après spec UI** — quand l'utilisateur rapporte la spec UI :
-
-1. Identifier le(s) ticket(s) concerné(s) par cette spec
-2. Intégrer la spec dans le template `--design` du/des ticket(s) concerné(s)
-3. Compléter l'acceptance avec les critères visuels issus de la spec (états, contrastes, ARIA)
-4. Annoncer : "J'ai intégré la spec UI pour [composant]. Je continue vers Phase 2."
-
----
-
-### Si "continuer sans UX/UI"
-
-Appliquer la stratégie de traçabilité en Phase 5 : pour chaque ticket concerné, ajouter un `bd comments add` avec les instructions d'invocation précises (voir Phase 5 — Tickets sans spec design).
+Sans spec (« continuer sans UX/UI ») : en Phase 5, chaque ticket concerné reçoit un `bd comments add` avec les instructions d'invocation (template « spec UI non disponible » de `planner-phase-5-6`).
 
 ---
 
@@ -187,17 +85,7 @@ Si l'utilisateur choisit **"Prototype rapide"** dans la question de délégation
    )
    ```
 
-3. **À la réception du retour prototype** :
-   - Lire `### Réponse à la question` et `### Recommandation`
-   - Si recommandation = `spec-complete-necessaire` → proposer une délégation design complète (Option A)
-   - Si recommandation = `resolu` → intégrer la réponse dans le contexte Phase 2
-   - Si recommandation = `clarification` → poser la nouvelle question en Phase 2
-
-4. **Inclure dans le récap Phase 1.5** :
-   ```markdown
-   **Prototypes produits :**
-   - <question> — réponse : <résumé 1 ligne> (recommandation : <suite>)
-   ```
+3. **À la réception du retour prototype** (`### Réponse à la question`, `### Recommandation`) : `spec-complete-necessaire` → délégation design complète ; `resolu` → réponse intégrée au contexte de la phase 2 ; `clarification` → nouvelle question en phase 2.
 
 ---
 
@@ -206,26 +94,16 @@ Si l'utilisateur choisit **"Prototype rapide"** dans la question de délégation
 ```markdown
 ## [Phase 1.5] Délégation design terminée
 
-**Specs UX produites :**
-- <feature ou parcours concerné> — spec reçue de designer
-- (aucune si skip)
-
-**Specs UI produites :**
-- <composant 1> — spec reçue de designer
-- <composant 2> — spec reçue de designer
-- (aucune si skip)
-
-**Intégration dans la planification :**
-- <élément 1 — ex : ajout de 2 tickets pour gérer les états d'erreur identifiés dans la spec UX>
-- <élément 2 — ex : champ --design des tickets frontend pré-rempli avec la spec UI>
-
-**Specs manquantes (si skip) :**
-- <composant ou parcours> — sera tracé via bd comments add en Phase 5
+**Specs UX produites :** <parcours> — spec reçue de designer (aucune si skip)
+**Specs UI produites :** <composant> — spec reçue de designer (aucune si skip)
+**Prototypes produits :** <question> — réponse : <résumé 1 ligne> (recommandation : <suite>)
+**Intégration dans la planification :** <ex : 2 tickets ajoutés pour les états d'erreur de la spec UX>
+**Specs manquantes (si skip) :** <composant ou parcours> — tracé via bd comments add en Phase 5
 ```
 
 ### Question de validation obligatoire
+<!-- oh:when role=entry -->
 
-**En mode standalone :**
 ```
 question({
   questions: [{
@@ -239,36 +117,9 @@ question({
 })
 ```
 
+**Selon la réponse :** Phase 2 ; revenir à Phase 1 (les specs modifient le périmètre d'exploration).
+<!-- /oh:when -->
+<!-- oh:when role=subagent -->
+
 **En mode sous-agent :** pas de validation de phase : intègre les specs reçues (ou leur absence) dans ton rapport et enchaîne sur la phase 2 (protocole d'exécution).
-
-**Selon la réponse (dans tous les contextes) :**
-- **Phase 2** → Phase 2 (questions complémentaires)
-- **Revenir à Phase 1** → Phase 1 (les specs modifient le périmètre d'exploration)
-
----
-
-## Prompt de délégation au designer
-
-Déléguer seulement avec au moins un signal design ; mode `ux` (parcours, états, accessibilité structurelle), `ui` (tokens, composants, cohérence visuelle), `ux+ui` (les deux, UX d'abord) ou `recon` (exploration Figma légère). Les questions de phase 2 attendent le retour du designer : sa spec peut les changer.
-
-```
-Agent : designer
-Mode: <recon | ux | ui | ux+ui>
-Objectif : <ce que le designer doit produire, en 1 ou 2 phrases>
-
-### Feature demandée
-<la demande de l'utilisateur, telle quelle>
-### Contexte projet
-<stack, conventions front, frameworks UI, design system existant (phase 1)>
-### Composants existants identifiés
-### Signaux design détectés
-### Contraintes techniques anticipées
-### Questions ouvertes
-<à trancher par le design ou à clarifier avec l'utilisateur>
-
-Livrables attendus : <user flow, wireframes textuels, tokens, composants, critères d'acceptance>
-```
-
-### Réception du retour du designer
-
-Son enveloppe porte un statut (`spec-complète`, `spec-partielle`, `choix-requis`, `prototype-livré`, `bloqué`) et l'identifiant de son rapport. Affiche la spec complète (lue avec `workflow_report_get`, jamais résumée) avant toute question ; reprends `### Composants à créer` et `### Tokens design requis` dans les questions de phase 2 si une validation est utile, et ajoute ses `### Questions pour l'utilisateur` à celles de la phase 2. `spec-partielle` : les questions design rejoignent le questionnaire ; `bloqué` : demande à l'utilisateur comment débloquer avant de continuer. Sans spec (enveloppe seule, sans rapport) : demande au designer de la produire.
+<!-- /oh:when -->

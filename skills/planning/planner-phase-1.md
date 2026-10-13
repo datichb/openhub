@@ -100,7 +100,13 @@ Lire les fichiers, puis proposer d'aller plus loin si pertinent :
 
 ## Déclencheur de pause ⏸️
 
-Si une **information critique** émerge pendant l'exploration qui remet en cause le périmètre ou les hypothèses de départ → utiliser le format de pause inter-étape (contexte en texte + question).
+Si une **information critique** émerge pendant l'exploration qui remet en cause le périmètre ou les hypothèses de départ → pause :
+<!-- oh:when role=entry -->
+contexte en texte, puis l'outil `question`.
+<!-- /oh:when -->
+<!-- oh:when role=subagent -->
+dans tes `### Questions bloquantes` (statut `en-attente`).
+<!-- /oh:when -->
 
 ## Étape 1.2bis — Analyse des librairies externes (conditionnelle)
 
@@ -228,8 +234,8 @@ Ce skill prescrit exactement :
 ```
 
 ## Question de validation obligatoire
+<!-- oh:when role=entry -->
 
-**En mode standalone :**
 
 Si **signaux UX ou UI détectés** (depuis codebase ou Figma) :
 ```
@@ -247,7 +253,7 @@ question({
 })
 ```
 
-> **Option B — Prototype rapide** : L'orchestrateur invoque le designer avec `[SKILL:designer/prototype-protocol]` + `[QUESTION: <question précise>]`. Le designer produit un artefact rapide (wireframe, schéma, description) pour répondre à la question. Le résultat alimente Phase 2.
+> **Prototype rapide** : tu invoques le designer en mode prototype (`planner-design-templates`, §Prototype rapide) ; son artefact rapide (wireframe, schéma, description) répond à la question et alimente la phase 2.
 
 Si **aucun signal design** :
 ```
@@ -263,10 +269,15 @@ question({
 })
 ```
 
-**Selon la réponse (dans tous les contextes) :**
+**Selon la réponse :**
 - **Phase 1.5** → Phase 1.5 (délégation design)
 - **Phase 2** → Phase 2 (questions complémentaires)
 - **Explorer davantage** → rester en Phase 1, explorer plus, re-produire le récap
+<!-- /oh:when -->
+<!-- oh:when role=subagent -->
+
+Sous-agent : pas de validation de phase ; signal design clair → phase 1.5 (délégation au designer), signal ambigu → prototype rapide, sinon phase 2 ; le résumé de l'exploration va dans ton rapport.
+<!-- /oh:when -->
 
 ---
 
