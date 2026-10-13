@@ -21,6 +21,9 @@ import (
 // of the return comes from the session contract (the real caller), never from
 // an agent name written in a skill.
 
+// envelopeTitle opens the envelope skill in a composed prompt (French).
+const envelopeTitle = "# Enveloppe de retour" //nolint:misspell // French title
+
 const (
 	envelopeMaxLines = 15
 	payloadMinTokens = 200
@@ -121,9 +124,9 @@ func TestReturnTitlesFromContract(t *testing.T) {
 				}
 				if len(callers) > 0 {
 					assert.Contains(t, payloads, a.ID, "%s/%s is launched by an agent but has no payload", ref.ID, a.ID)
-					assert.Contains(t, a.Body, "# Enveloppe de retour", "%s/%s: no envelope", ref.ID, a.ID)
+					assert.Contains(t, a.Body, envelopeTitle, "%s/%s: no envelope", ref.ID, a.ID)
 				} else {
-					assert.NotContains(t, a.Body, "# Enveloppe de retour", "%s/%s: envelope for an agent no one launches", ref.ID, a.ID)
+					assert.NotContains(t, a.Body, envelopeTitle, "%s/%s: envelope for an agent no one launches", ref.ID, a.ID)
 				}
 				for _, m := range returnHeadingRe.FindAllStringSubmatch(a.Body, -1) {
 					if !ids[m[1]] && m[1] != "appelant" {
