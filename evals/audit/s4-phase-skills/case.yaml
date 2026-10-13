@@ -38,6 +38,24 @@ assertions:
     name: le sous-agent rend son enveloppe à auditor
     agent: auditor-subagent
     pattern: "Retour vers auditor"
+  # Modernisation L6 audit : les phases 0-1, 3 et 4 sont des skills à la
+  # demande, chargées par l'auditor avant leur phase (titres « ## Phase 1 — … »
+  # ou récaps « ## [Phase 1] … »).
+  - type: skill_loaded_before
+    name: auditor-phase-0-1 avant les phases 0 et 1
+    skill: auditor-phase-0-1
+    agent: auditor
+    before: { text: "#+[^\\n]*Phase [01]\\b", agent: auditor }
+  - type: skill_loaded_before
+    name: auditor-phase-3 avant la délégation
+    skill: auditor-phase-3
+    agent: auditor
+    before: { subagent: auditor-subagent }
+  - type: skill_loaded_before
+    name: auditor-phase-4 avant la synthèse
+    skill: auditor-phase-4
+    agent: auditor
+    before: { text: "#+[^\\n]*Phase 4\\b", agent: auditor }
   - type: skill_loaded_before
     name: le skill de domaine est chargé avant l'analyse du code
     skill: audit-security
