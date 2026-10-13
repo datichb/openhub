@@ -644,4 +644,22 @@ DROP INDEX IF EXISTS idx_sessions_state_ended;
 ALTER TABLE sessions DROP COLUMN worktree_branch;
 ALTER TABLE sessions DROP COLUMN worktree_auto`,
 	},
+	{
+		// Modernisation L4 (workflow_report): the reports filed by the agents
+		// of a session (rp-<seq>); the bodies are files of the session folder.
+		version: 44,
+		up: `CREATE TABLE IF NOT EXISTS session_reports (
+			session_id   TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+			seq          INTEGER NOT NULL,
+			agent        TEXT NOT NULL DEFAULT '',
+			tool_session TEXT NOT NULL DEFAULT '',
+			title        TEXT NOT NULL DEFAULT '',
+			bytes        INTEGER NOT NULL DEFAULT 0,
+			sha256       TEXT NOT NULL DEFAULT '',
+			sections     TEXT NOT NULL DEFAULT '',
+			created_at   DATETIME NOT NULL,
+			PRIMARY KEY (session_id, seq)
+		)`,
+		down: `DROP TABLE IF EXISTS session_reports`,
+	},
 }
