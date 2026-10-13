@@ -16,7 +16,6 @@ import (
 var crossReferences = map[string]string{
 	"living-docs-enrichment → onboarder-workflow":     "where the onboarder writes the wiki, for the reader",
 	"onboarder-phase-3-4 → dev-standards-testing":     "agent recommendation written in the report",
-	"expert-posture → concision-posture":              "relation between postures",
 	"dev-standards-backend → dev-standards-migration": "destructive migration protocol, the developer's: the reviewer only reads the backend standards",
 }
 

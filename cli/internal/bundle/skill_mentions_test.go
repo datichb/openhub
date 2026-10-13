@@ -210,7 +210,7 @@ func TestAuditBundleShipsDomainChecklists(t *testing.T) {
 	require.NotEmpty(t, files)
 	for _, f := range files {
 		id := strings.TrimSuffix(filepath.Base(f), ".md")
-		if id == "audit-handoff-format" || id == "audit-protocol-light" {
+		if id == "audit-protocol-light" {
 			continue // formats and light protocol, not domain checklists
 		}
 		assert.True(t, shipped[id], "audit bundle does not ship %s", id)
@@ -231,7 +231,7 @@ func TestAuditTypeEnumMatchesDomainSkills(t *testing.T) {
 	var domains []string
 	for _, f := range files {
 		id := strings.TrimSuffix(filepath.Base(f), ".md")
-		if id == "audit-handoff-format" || id == "audit-protocol-light" {
+		if id == "audit-protocol-light" {
 			continue
 		}
 		domains = append(domains, strings.TrimPrefix(id, "audit-"))

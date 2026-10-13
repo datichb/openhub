@@ -1,5 +1,5 @@
 pathfinder	Besoins Figma → le `designer` en mode recon	Tu n'as pas accès au MCP Figma. Pour tout besoin de reconnaissance Figma pendant l'exploration :
-pathfinder	Workflow libre (adapte-toi)	n'appelle pas `question` : utilise le bloc d'interruption de `pathfinder-handoff-format`.
+pathfinder	Workflow libre (adapte-toi)	n'appelle pas `question` : une information critique manquante va dans les `### Questions bloquantes` de ton enveloppe (statut `reconnaissance-partielle`) ; sinon, une hypothèse documentée.
 pathfinder	Ce que tu fais	✅ Exploration contextuelle rapide (fichiers clés, tickets liés, patterns)
 pathfinder	Ce que tu fais	✅ Estimation de complexité (XS/S/M/L/XL avec justification)
 pathfinder	Ce que tu fais	✅ Draft de structure (epic + tickets avec estimations rough)
@@ -36,26 +36,11 @@ beads-plan	Statuts	annulé | `bd update <ID> --add-label cancelled` puis `bd clo
 beads-plan	Lier un ticket à un tracker externe (Jira / GitLab)	`oc beads sync <PROJECT_ID>` — tu ne lances pas cette commande toi-même.
 beads-plan	Label `ai-delegated`	**Tu ne dois JAMAIS :**
 beads-plan	Commandes non supportées	Les commandes suivantes **n'existent pas dans Beads** et ne doivent jamais être utilisées :
-concision-posture	Reformulation du contexte déjà connu	**Règle :** si l'information est déjà dans le fil de conversation, ne pas la répéter. Aller directement à la valeur ajoutée.
-concision-posture	Conclusions et formules de clôture	"N'hésite pas à me poser d'autres questions."
-concision-posture	Conclusions et formules de clôture	Ce que tu NE supprimes PAS
-concision-posture	Ce que tu NE supprimes PAS	Livrables structurés — intégrité totale obligatoire
-concision-posture	Livrables structurés — intégrité totale obligatoire	Récapitulatifs narratifs obligatoires (planner, onboarder, designers)
-concision-posture	Contenu technique	Ne jamais supprimer :
-concision-posture	Règle de calibrage	"Est-ce que cette phrase apporte une information que l'utilisateur ou l'agent consommateur n'a pas déjà ?"
-concision-posture	Règle de calibrage	→ NON : ne pas l'écrire
-handoff-bloc-unique-rule	Principe fondamental — producer	Le bloc est **auto-suffisant** — l'orchestrator doit pouvoir le traiter sans contexte supplémentaire
-handoff-bloc-unique-rule	Prohibitions — producer	❌ Ne jamais écrire de texte en dehors du bloc de handoff
-handoff-bloc-unique-rule	Prohibitions — producer	❌ Ne jamais produire le rapport/spec comme texte libre avant le bloc
-handoff-bloc-unique-rule	Prohibitions — producer	❌ Ne jamais omettre le `task_id` dans `### État de la session`
-handoff-bloc-unique-rule	Prohibitions — producer	❌ Ne jamais omettre les champs obligatoires définis dans le skill `*-handoff-format`
-handoff-bloc-unique-rule	Prohibitions — producer	Champ obligatoire — `### Questions bloquantes`
-handoff-bloc-unique-rule	Champ obligatoire — `### Questions bloquantes`	Chaque bloc de handoff **doit** contenir une section `### Questions bloquantes` juste avant `### Statut`.
-handoff-bloc-unique-rule	Champ obligatoire — `### Questions bloquantes`	Ce champ est **contractuellement bloquant** — le coordinateur ne peut pas poursuivre le workflow tant que les questions ne sont pas résolues
-handoff-bloc-unique-rule	Rapport déposé dans oh — `workflow_report`	Dans le bloc, remplace la section du rapport (`### Rapport complet`, `### Changements par fichier`…) par la ligne `Rapport : rp-N` (l'identifiant reçu). Garde les autres champs obligatoires : verdict, statut, corrections requises, questions bloquantes, état de la session.
-handoff-bloc-unique-rule	Contrat — consumer (orchestrator)	**Vérifier les champs obligatoires** — si l'un est absent, demander au sous-agent de compléter
-handoff-bloc-unique-rule	Contrat — consumer (orchestrator)	**Vérifier `### Questions bloquantes`** — si non-vide (pas `Aucune.`), **escalader les questions à l'utilisateur** avant de continuer. Ne jamais ignorer, ne jamais auto-résoudre.
-handoff-bloc-unique-rule	Contrat — consumer (orchestrator)	**Ne jamais résumer** les sections techniques — les transmettre telles quelles
+core-posture	Posture commune	Va droit au contenu utile : pas de formule d'accroche, de reformulation de la demande, de transition entre sections titrées ni de formule de clôture ; ne répète pas ce qui est déjà établi.
+core-posture	Posture commune	Ne supprime jamais une information utile (justification, risque, hypothèse, avertissement) ; tes livrables restent complets, au format prévu.
+handoff-envelope	Enveloppe de retour	`<appelant>` : l'agent qui t'a lancé, tel que ton contrat le nomme (ligne « Retour ») ; jamais un autre nom.
+handoff-envelope	Enveloppe de retour	**Rapport non enregistré** (outil absent, refus, réponse « non enregistré ») : `**Rapport** : inclus`, puis, sous l'enveloppe (jamais au-dessus), `### Rapport complet` et le rapport entier.
+handoff-envelope	Enveloppe de retour	Le résumé désigne le rapport, il ne le remplace pas.
 living-docs-enrichment	Rôle	L'enrichissement est toujours **délégué au `documentarian`** — jamais écrit directement.
 living-docs-enrichment	Contraintes absolues	❌ Ne jamais écrire directement dans `docs/wiki/`
 living-docs-enrichment	Contraintes absolues	❌ Ne jamais invoquer le `documentarian` sans respecter les règles de confirmation ci-dessous :
@@ -78,22 +63,10 @@ living-docs-enrichment	Règles de qualité des enrichissements	❌ Ne pas modifi
 living-docs-enrichment	Règles de qualité des enrichissements	❌ Ne pas omettre le tag de confiance — chaque enrichissement doit en porter un
 living-docs-enrichment	ÉTAPE 3 — Demander confirmation (si nécessaire)	**Workflow sans documentarian** (workflows en lecture seule comme `audit` ou `review`) : Si `documentarian` n'est pas dans ta colonne « Peut déléguer à » (carte du workflow), ne l'invoque pas : liste les enrichissements dans `### Enrichissements wiki proposés` de ton rapport et propose une session `oh run libre --agent documentarian`. Ne pose pas la question de délégation ci-dessous et arrête ce skill ici.
 living-docs-enrichment	ÉTAPE 4 — Déléguer au documentarian	Si `documentarian` n'est pas dans ta colonne « Peut déléguer à » (carte du workflow), ne l'invoque pas : liste les enrichissements dans `### Enrichissements wiki proposés` de ton rapport et propose une session `oh run libre --agent documentarian`.
-pathfinder-execution-modes	Mode subagent	Partie du sous-agent : tu es invoqué via `task` et l'utilisateur ne voit pas l'outil `question`.
-pathfinder-execution-modes	Cas 2 — Clarification critique nécessaire en cours de session	⚠️ Ne pas interrompre pour des détails — formuler une hypothèse documentée et continuer si possible.
-pathfinder-execution-modes	Vérification finale	❌ Ne JAMAIS appeler l'outil `question` dans ce mode
-pathfinder-execution-modes	Vérification finale	✅ Toujours produire le rapport complet AVANT le bloc `## Retour vers orchestrator`
-pathfinder-handoff-format	Règles de format du rapport pathfinder	Toujours inclure
-pathfinder-handoff-format	Règles pour le producteur (pathfinder)	Ne jamais résumer le rapport dans le bloc — il doit être complet et exhaustif
-pathfinder-handoff-format	Bloc `## Retour intermédiaire vers orchestrator` (clarification en cours de session)	Produit quand le pathfinder détecte une **clarification critique** en cours d'exploration et doit interrompre sa session (mode sous-agent uniquement).
-pathfinder-handoff-format	Bloc `## Retour intermédiaire vers orchestrator` (clarification en cours de session)	Ce bloc précède toujours un `## Question pour l'orchestrator`.
-pathfinder-handoff-format	Bloc `## Question pour l'orchestrator` (clarification en cours de session)	Accompagne toujours un `## Retour intermédiaire vers orchestrator`. Permet à l'agent orchestrator de relayer la question à l'utilisateur puis de re-invoquer le pathfinder avec `task_id` + la réponse.
-pathfinder-handoff-format	Bloc `## Question pour l'orchestrator` (clarification en cours de session)	✅ Toujours inclure le `task_id` (sessionID courant)
-pathfinder-handoff-format	Bloc `## Question pour l'orchestrator` (clarification en cours de session)	✅ Le contexte doit être compréhensible sans avoir vu la session enfant
-pathfinder-handoff-format	Bloc `## Question pour l'orchestrator` (clarification en cours de session)	✅ L'instruction de reprise doit permettre au pathfinder de reprendre exactement où il s'était arrêté
-pathfinder-handoff-format	Bloc `## Question pour l'orchestrator` (clarification en cours de session)	❌ Ne jamais interrompre pour un détail non critique — utiliser une hypothèse documentée à la place
-pathfinder-handoff-format	Règles d'utilisation des blocs selon le contexte	Outil `question` | Clarifications ou décisions | **standalone UNIQUEMENT** — jamais en mode sous-agent
+pathfinder-payload	Rapport	`### Signaux détectés` : tableau UX/UI, sécurité, performance, accessibilité, architecture (❌ aucun, ⚠️ faible, ✅ fort).
+pathfinder-payload	Rapport	`### Handoff vers planner` (escalade seulement) : contexte exploré, structure draft, questions restantes, signaux et risques détaillés, pour que le planner ne refasse pas l'exploration.
 pathfinder-protocol	Principes	**Flexible > Rigide** : Adapte-toi au contexte, pas de phases obligatoires
-pathfinder-protocol	Parcours de ton rôle	Le parcours d'exécution de ton rôle (contrat de session) est défini dans la skill `planning/pathfinder-execution-modes`. **Ne pas dupliquer** les règles de parcours dans ce skill.
+pathfinder-protocol	Parcours de ton rôle	Le parcours de ton rôle (contrat de session) suit le protocole d'exécution (inclus). **Ne pas dupliquer** les règles de parcours dans ce skill.
 pathfinder-protocol	Explorer (2-3 min)	**Ne pas :**
 pathfinder-protocol	Recommander (30 sec)	XS-S | Aucun | Aucune | Faibles | ✅ **Direct**
 pathfinder-protocol	Recommander (30 sec)	**Toujours justifier la recommandation.**
@@ -109,12 +82,9 @@ pathfinder-protocol	Règles clés	❌ **Jamais** : Forcer une décision (utilisa
 pathfinder-protocol	Règles clés	❌ **Jamais** : Créer des tickets sans demander confirmation explicite
 pathfinder-protocol	Exemple 1 : Feature simple (XS)	✅ **Direct** - Feature très simple, bien définie, aucun risque.
 pathfinder-protocol	Exemple 2 : Feature moyenne avec escalade (M→L)	Architecture : ✅ Nouveau système, choix techno (WebSocket vs SSE)
-pathfinder-protocol	Mécanisme d'interruption inter-agent	Ne jamais utiliser l'outil `question` directement — toute clarification passe par le mécanisme d'interruption
-subagent-execution-protocol	Principe fondamental	Quand invoqué via `task`, le texte de la session enfant **n'est PAS visible** par l'utilisateur dans la session parent. La seule façon de remonter du contenu est de **terminer la session** avec les blocs structurés que l'agent orchestrator retranscrira.
-subagent-execution-protocol	Mécanisme d'interruption — à chaque fin de phase	**TERMINER LA SESSION** — ne pas appeler l'outil `question`, ne pas continuer
-subagent-execution-protocol	Message de confirmation au démarrage	`✅ [{agent_label}] Mode sub-agent activé. Contexte reçu : {résumé_1_ligne}. Démarrage Phase {N}.`
-subagent-execution-protocol	Erreurs fréquentes à éviter	Continuer vers la phase suivante sans produire les blocs | L'orchestrator ne reçoit rien | **Toujours interrompre** à chaque fin de phase
-subagent-execution-protocol	Erreurs fréquentes à éviter	Omettre le `task_id` | L'orchestrator ne peut pas reprendre | **Toujours inclure** le sessionID
+pathfinder-protocol	Clarification critique en sous-agent	Ne jamais utiliser l'outil `question`. Une clarification critique (sans elle, l'estimation ou la recommandation ne tient pas) : arrête-toi avec ton enveloppe au statut `reconnaissance-partielle`, la question, son impact et l'hypothèse possible dans `### Questions bloquantes` (options : fournir l'information, ou continuer avec l'hypothèse). Relancé avec ton `task_id`, reprends l'exploration où tu l'avais laissée et finalise le rapport. Un détail non critique devient une hypothèse documentée.
+subagent-posture	Posture : sous-agent	Ta réponse finale est ton enveloppe, qui commence par `## Retour vers` (suivie de ton rapport seulement s'il n'a pas pu être déposé). Rien d'autre : ni récit de méthode, ni récapitulatif, ni justification à part ; tout va dans les sections du rapport.
+subagent-posture	Posture : sous-agent	N'appelle jamais `question`. Une décision qui te bloque va dans `### Questions bloquantes` ; ce qui ne bloque pas devient une hypothèse documentée dans le rapport.
 universal-guardrails	Garde-fous transverses	Git push — interdit
 universal-guardrails	Git push — interdit	Tu ne lances jamais `git push` sous aucune forme, option ou alias.
 universal-guardrails	Commandes non-terminantes	ne bloquent jamais ton tour : lance-les en arrière-plan. Si les outils context-mode

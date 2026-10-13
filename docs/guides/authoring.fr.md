@@ -78,10 +78,11 @@ Les agents utilisant des skills natives doivent avoir `permission: skill: allow`
 | Type d'agent | Bucket A (toujours inline) | Bucket B (natif, à la demande) |
 |-------------|---------------------------|-------------------------------|
 | Developer | `dev-standards-universal`, `dev-standards-simplicity`, `beads-plan`, `beads-dev` | `dev-standards-security`, skills de domaine, stack skills |
-| Sous-agent auditeur | `audit-protocol-light`, `audit-handoff-format`, `posture/expert-posture` | Checklist d'audit du domaine (`audit-security`, `audit-accessibility`, etc.) |
-| Coordinateur (lecture seule) | Son protocole propre + formats de handoff consommés — pas de `beads-dev` | aucune (`skill: deny`) |
+| Sous-agent auditeur | `audit-protocol-light`, `auditor-subagent-payload`, `posture/subagent-posture`, `shared/handoff-envelope` | Checklist d'audit du domaine (`audit-security`, `audit-accessibility`, etc.) |
+| Coordinateur (lecture seule) | Son protocole propre + `posture/coordinator-posture` (les statuts des agents lancés viennent du contrat de session) — pas de `beads-dev` | aucune (`skill: deny`) |
 | Agent expert conseiller | `posture/expert-posture` | — |
-| Agent interactif primary | `posture/tool-question` (+ `permission: question: allow`) | — |
+| Agent interactif primary | `posture/user-facing-posture` (+ `permission: question: allow`) | — |
+| Agent lancé par un autre | `posture/subagent-posture`, `shared/handoff-envelope`, `<famille>/<agent>-payload` (statuts dans `statuses:`, 200 à 400 tokens, `when: role=subagent`) | — |
 | Agent qui gère des tickets | `beads-plan` (lecture + création), `beads-dev` (exécution) | — |
 | Agent qui commit | Inline via `beads-dev` | `dev-standards-git` (natif) |
 
@@ -190,7 +191,7 @@ Ce skill définit... Il complète <autre-skill> si applicable.
 - [ ] Le corps contient : identité + ce qu'il fait + ce qu'il NE fait PAS + workflow + section guide des skills natives
 - [ ] Les limites explicites pointent vers le bon agent alternatif si applicable
 - [ ] `posture/expert-posture` est dans `skills:` (Bucket A) si l'agent a un rôle de conseil ou d'expertise
-- [ ] `posture/tool-question` est dans `skills:` (Bucket A) **et** `permission: question: allow` est dans le frontmatter si l'agent `primary` a besoin de poser des questions structurées à l'utilisateur
+- [ ] `posture/user-facing-posture` est dans `skills:` (Bucket A) **et** `permission: question: allow` est dans le frontmatter si l'agent `primary` a besoin de poser des questions structurées à l'utilisateur
 - [ ] `beads-plan` est dans `skills:` (Bucket A) si l'agent lit ou crée des tickets Beads
 - [ ] `beads-dev` est en plus dans `skills:` (Bucket A) si l'agent exécute (clame, implémente, clôt) des tickets
 - [ ] La matrice de dépendances dans `docs/architecture/skills.fr.md` est mise à jour
@@ -233,7 +234,8 @@ skills:                                   # ← Bucket A : toujours actif dès l
   - developer/dev-standards-simplicity    #   KISS/YAGNI — toujours actif
   - developer/beads-plan                  #   lit et crée des tickets
   - developer/beads-dev                   #   exécute des tickets
-  - developer/developer-handoff-format    #   contrat de handoff (Bucket A — obligatoire)
+  - shared/handoff-envelope               #   enveloppe de retour (Bucket A — obligatoire en sous-agent)
+  - developer/developer-payload           #   statuts et sections du rapport (Bucket A — obligatoire)
 native_skills:                            # ← Bucket B : chargés à la demande via l'outil skill
   - developer/dev-standards-security      #   principes de sécurité
   - developer/dev-standards-security-hardening  # spécificités de hardening
@@ -243,7 +245,7 @@ native_skills:                            # ← Bucket B : chargés à la demand
 ---
 ```
 
-**Ordre recommandé pour les skills Bucket A :** universel → simplicity → beads-plan → beads-dev → format de handoff.
+**Ordre recommandé pour les skills Bucket A :** postures → enveloppe → payload → universel → simplicity → beads-plan → beads-dev.
 
 **Section guide des skills natives** (obligatoire dans le corps de l'agent quand `native_skills` est non vide) :
 

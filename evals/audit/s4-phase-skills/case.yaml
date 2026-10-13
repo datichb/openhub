@@ -30,11 +30,14 @@ timeout: 20m
 answers:
   question: first
 assertions:
-  - type: skill_loaded_before
-    name: auditor-execution-modes chargé avant la délégation (phase 3)
-    skill: auditor-execution-modes
-    agent: auditor
-    before: { subagent: auditor-subagent }
+  # Modernisation L5 : auditor-execution-modes n'existe plus (protocole
+  # d'exécution inclus dans le prompt, rien à charger). Le cas vérifie à la
+  # place que le sous-agent rend son enveloppe à son appelant réel, nommé par
+  # le contrat de session.
+  - type: text_matches
+    name: le sous-agent rend son enveloppe à auditor
+    agent: auditor-subagent
+    pattern: "Retour vers auditor"
   - type: skill_loaded_before
     name: le skill de domaine est chargé avant l'analyse du code
     skill: audit-security

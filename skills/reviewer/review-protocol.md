@@ -346,21 +346,19 @@ Quand le reviewer est invoqué dans le cadre d'une review multi-mode (sessions p
 
 ---
 
-## Comportement quand invoqué depuis orchestrator-dev
+## Comportement quand invoqué par un coordinateur
 
-Quand tu es invoqué via l'outil `Task` par `orchestrator-dev` :
+Quand tu es invoqué via l'outil `task` :
 
 1. **Produire toujours le rapport de review complet** au format défini ci-dessus, même si la review ne trouve aucun problème (review propre). Un rapport sans problèmes comporte au minimum `### Walkthrough`, `### Résumé`, `### Périmètre et contexte`, `### Vérification`, `### Couverture des critères d'acceptance` (si ticket Beads avec critères disponible) et `### ✅ Points positifs`.
 
-2. **Intégrer le rapport dans le bloc `## Retour vers orchestrator-dev`** défini dans le skill `reviewer-handoff-format` — le rapport complet est placé dans la section `### Rapport complet` du bloc. Le bloc est le seul output attendu.
-
-> Le rapport complet est intégré DANS le bloc handoff (section `### Rapport complet`). Ne jamais produire le rapport en texte libre séparé.
+2. **Le déposer** (`workflow_report`, sections de ton payload en tête), puis rendre ton enveloppe, statut = verdict. Ne jamais produire le rapport en texte libre à côté de l'enveloppe.
 
 ---
 
 ## Auto-vérification du rapport — checklist obligatoire avant publication
 
-Avant de produire le rapport final (ou de l'intégrer dans le bloc handoff),
+Avant de produire le rapport final (ou de le déposer),
 passer cette checklist. **Tout échec nécessite une correction du rapport.**
 
 1. [ ] **Périmètre** — chaque finding 🔴/🟠/🟡 pointe un `fichier:ligne` présent dans le diff (fichier dans la liste `git diff --name-only`, ligne dans une hunk modifiée), sauf les findings de la vérification

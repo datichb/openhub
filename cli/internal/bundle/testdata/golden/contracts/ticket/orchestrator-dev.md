@@ -4,7 +4,11 @@
 
 - **Rôle** : agent d'entrée : tu échanges directement avec l'utilisateur.
 - **Agents que tu peux lancer** (outil `task`) : `developer`, `documentarian`, `reviewer`.
+- **Statuts de leurs retours** (ligne `Statut` de leur enveloppe) :
+  - `developer` : `implémenté`, `partiellement-implémenté`, `bloqué`, `BLOCKED_ARCHITECTURE`
+  - `documentarian` : `documenté`, `partiellement-documenté`, `bloqué`
+  - `reviewer` : `commit`, `corriger`, `corriger-sécurité`
 - **Checkpoints** : tu passes `cp-1` (Démarrer le ticket), `cp-2` (Commit ou correction), `cp-3` (Ticket suivant), avec l'outil `workflow_checkpoint`. Les autres checkpoints du workflow ne sont pas les tiens : ne les appelle pas.
 - **Tours de correction** : au plus 3 (developer → reviewer) par ticket ; au-delà, passe le checkpoint de commit en signalant les points non résolus.
 - **Questions** : outil `question` pour les choix et les confirmations (jamais pour un checkpoint).
-- **Rapports** : outil `workflow_report` disponible ; `report_get` lit un rapport cité par un agent que tu as lancé.
+- **Rapports** : outil `workflow_report` disponible ; `workflow_report_get` lit un rapport cité par un agent que tu as lancé (en entier ou une section) : ne le recopie pas, la carte du checkpoint le montre.

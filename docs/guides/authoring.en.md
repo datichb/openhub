@@ -78,10 +78,11 @@ Agents using native skills must have `permission: skill: allow`. Coordinators se
 | Agent type | Bucket A (always inline) | Bucket B (native, on-demand) |
 |------------|--------------------------|------------------------------|
 | Developer | `dev-standards-universal`, `dev-standards-simplicity`, `beads-plan`, `beads-dev` | `dev-standards-security`, domain skills, stack skills |
-| Auditor subagent | `audit-protocol-light`, `audit-handoff-format`, `posture/expert-posture` | Domain audit checklist (`audit-security`, `audit-accessibility`, etc.) |
-| Coordinator (read-only) | Its own protocol + handoff formats consumed — no `beads-dev` | none (`skill: deny`) |
+| Auditor subagent | `audit-protocol-light`, `auditor-subagent-payload`, `posture/subagent-posture`, `shared/handoff-envelope` | Domain audit checklist (`audit-security`, `audit-accessibility`, etc.) |
+| Coordinator (read-only) | Its own protocol + `posture/coordinator-posture` (the statuses of the launched agents come from the session contract) — no `beads-dev` | none (`skill: deny`) |
 | Expert advisor agent | `posture/expert-posture` | — |
-| Interactive primary agent | `posture/tool-question` (+ `permission: question: allow`) | — |
+| Interactive primary agent | `posture/user-facing-posture` (+ `permission: question: allow`) | — |
+| Agent launched by another | `posture/subagent-posture`, `shared/handoff-envelope`, `<family>/<agent>-payload` (statuses in `statuses:`, 200 to 400 tokens, `when: role=subagent`) | — |
 | Agent managing tickets | `beads-plan` (read + create), `beads-dev` (execution) | — |
 | Agent that commits | Inline via `beads-dev` | `dev-standards-git` (native) |
 
@@ -190,7 +191,7 @@ This skill defines... It complements <other-skill> if applicable.
 - [ ] The body contains: identity + what it does + what it does NOT do + workflow + native skills guide section
 - [ ] Explicit limits point to the correct alternative agent if applicable
 - [ ] `posture/expert-posture` is in `skills:` (Bucket A) if the agent has an advisory or expert role
-- [ ] `posture/tool-question` is in `skills:` (Bucket A) **and** `permission: question: allow` is in the frontmatter if the `primary` agent needs to ask structured questions to the user
+- [ ] `posture/user-facing-posture` is in `skills:` (Bucket A) **and** `permission: question: allow` is in the frontmatter if the `primary` agent needs to ask structured questions to the user
 - [ ] `beads-plan` is in `skills:` (Bucket A) if the agent reads or creates Beads tickets
 - [ ] `beads-dev` is additionally in `skills:` (Bucket A) if the agent executes (claims, implements, closes) tickets
 - [ ] The dependency matrix in `docs/architecture/skills.en.md` is updated
@@ -232,7 +233,8 @@ skills:                                   # ← Bucket A: always-on from the fir
   - developer/beads-plan                  #   reads and creates tickets
   - developer/beads-dev                   #   executes tickets
   - developer/quick-fix                   #   minimal-impact fix protocol
-  - developer/developer-handoff-format    #   handoff contract (Bucket A — mandatory)
+  - shared/handoff-envelope               #   return envelope (Bucket A — mandatory as subagent)
+  - developer/developer-payload           #   statuses and report sections (Bucket A — mandatory)
 native_skills:                            # ← Bucket B: loaded on-demand via skill tool
   - developer/dev-standards-security      #   security principles
   - developer/dev-standards-security-hardening  # hardening specifics
@@ -242,7 +244,7 @@ native_skills:                            # ← Bucket B: loaded on-demand via s
 ---
 ```
 
-**Recommended skill order for Bucket A:** universal → simplicity → beads-plan → beads-dev → quick-fix → handoff format.
+**Recommended skill order for Bucket A:** postures → envelope → payload → universal → simplicity → beads-plan → beads-dev → quick-fix.
 
 **Native skills guide section** (required in agent body when `native_skills` is non-empty):
 

@@ -35,12 +35,14 @@ import (
 //	plugin:   <id>         shipped only when the workflow loads this plugin
 //	mcp:      <server>     shipped only when the session has this MCP server
 //	when:     <condition>  kept only for the agents it holds for (when.go)
+//	statuses: [<status>, …] statuses of the return of an agent, on its
+//	                       payload skill <agent>-payload (L5, contract.go)
 //
 // The delivered SKILL.md keeps only the Agent Skills spec keys; any other key
 // is reported by CheckSkills.
 
 // hubSkillKeys are frontmatter keys consumed by oh, never delivered to the tool.
-var hubSkillKeys = []string{"requires", "annexes", "plugin", "mcp", "when"}
+var hubSkillKeys = []string{"requires", "annexes", "plugin", "mcp", "when", "statuses"}
 
 // deliveredSkillKeys are the Agent Skills spec keys, the only ones delivered.
 var deliveredSkillKeys = []string{"name", "description", "license", "compatibility", "metadata", "allowed-tools"}
@@ -68,6 +70,7 @@ type skillFront struct {
 	Plugin      string   `yaml:"plugin"`
 	MCP         string   `yaml:"mcp"`
 	When        string   `yaml:"when"`
+	Statuses    []string `yaml:"statuses"`
 	Bucket      string   `yaml:"bucket"` // legacy (B17), reported by CheckSkills
 }
 

@@ -13,7 +13,7 @@ permission:
   task:
     "*": allow
 model: claude-sonnet-4-6
-skills: [shared/universal-guardrails, posture/coordination-only, posture/concision-posture, posture/retranscription-coordinateur, posture/tool-question, posture/tool-todowrite, workflow/workflow-map]
+skills: [shared/universal-guardrails, posture/core-posture, posture/user-facing-posture, posture/coordinator-posture, workflow/workflow-map]
 native_skills: [shared/rtk-usage, shared/team-awareness, shared/team-policies-enforcement]
 project_instructions: none
 ---
@@ -42,8 +42,8 @@ Tu ne codes pas, tu ne modifies aucun fichier, tu n'analyses pas le contenu des 
 2. Avant de lancer un agent, passe le checkpoint qui le précède : appel `workflow_checkpoint` (voir la carte), qui
    attend la validation de l'utilisateur quand le mode l'exige.
 3. Lance l'agent avec l'outil `task` et le **contrat de passage de relais** ci-dessous.
-4. Au retour, **retranscris** le résultat à l'utilisateur (posture `retranscription-coordinateur` : rien de résumé,
-   rien d'omis), puis passe au checkpoint suivant.
+4. Au retour, montre l'enveloppe de l'agent à l'utilisateur (posture de coordinateur : statut, résumé, rapport `rp-…`,
+   questions bloquantes), puis passe au checkpoint suivant en citant le rapport dans `reports`.
 5. Quand la chaîne est terminée : récapitulatif court des étapes, puis les sorties à déclarer de la carte.
 
 Tiens la liste des étapes à jour avec `todowrite` (une entrée par agent et par checkpoint de la carte).
@@ -58,17 +58,17 @@ Workflow : <id> · étape : <agent>
 <demande de l'utilisateur ou entrées de la session, verbatim>
 
 ## Contexte des étapes précédentes
-<retours utiles des agents précédents, verbatim, sans résumé>
+<identifiants des rapports des agents précédents (rp-…), et les sections utiles copiées telles quelles>
 
 ## Attendu
-<ce que la carte prévoit pour cette étape, et le bloc de retour habituel de l'agent>
+<ce que la carte prévoit pour cette étape>
 ```
 
 ## Contrat de retour (d'un agent)
 
-- **Retour final** (bloc `## Retour vers …` du format de l'agent) : retranscris-le, puis checkpoint suivant.
-- **Question montante** (bloc `## Question pour …`) : affiche le retour intermédiaire, pose la question à
-  l'utilisateur avec l'outil `question` (mêmes options), puis relance le même agent avec son `task_id` et la réponse.
+- **Retour final** (enveloppe `## Retour vers conductor`) : montre-la, puis checkpoint suivant.
+- **Statut `en-attente`** (questions bloquantes) : affiche leur contexte, pose-les à l'utilisateur avec l'outil
+  `question` (mêmes options), puis relance le même agent avec son `task_id` et la réponse.
 - **Échec ou retour incomplet** : signale-le à l'utilisateur et demande la suite avec `question` ; ne relance pas
   en boucle.
 

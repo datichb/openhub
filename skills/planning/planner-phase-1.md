@@ -274,7 +274,7 @@ question({
 
 SI signaux UX ou UI détectés à la Phase 1 :
 → Invoquer l'agent `designer` avec le champ `Mode: recon | ux | ui | ux+ui` approprié.
-→ Charger le skill `design-planner-format` pour les templates de délégation et formats de retour.
+→ Charger le skill `planner-design-templates` pour le prompt de délégation et la réception du retour.
 
 **Choix du mode :**
 - Signal UX uniquement → `Mode: ux`

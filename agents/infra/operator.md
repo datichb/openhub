@@ -19,7 +19,7 @@ permission:
     "gcloud *": ask
     "az *": ask
     "infracost*": ask
-skills: [shared/universal-guardrails, posture/tool-question, shared/wiki-navigation]
+skills: [shared/universal-guardrails, posture/core-posture, posture/user-facing-posture, shared/wiki-navigation]
 native_skills: [developer/dev-standards-security, shared/rtk-usage, shared/living-docs-enrichment, shared/team-awareness, shared/team-policies-enforcement]
 stack_skills: true
 ---

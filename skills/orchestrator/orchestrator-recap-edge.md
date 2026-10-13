@@ -46,7 +46,7 @@ Après le gate de complétion et **avant** de construire le récap feature, **in
 
 1. **Lancer la review adversariale** sur le diff total de la feature :
    ```
-   task(subagent_type: "reviewer", prompt: "[SKILL:reviewer/reviewer-subagent] [MODE:adversarial] Review adversariale de fin de feature.\nBranche feature : <branche de travail>\nDiff : git diff <base>...HEAD\nFeature : <nom de la feature>\nTickets traités : <liste des IDs>")
+   task(subagent_type: "reviewer", prompt: "[MODE:adversarial] Review adversariale de fin de feature.\nBranche feature : <branche de travail>\nDiff : git diff <base>...HEAD\nFeature : <nom de la feature>\nTickets traités : <liste des IDs>")
    ```
 
 2. **Proposer l'option edge-case** à l'utilisateur :
@@ -65,7 +65,7 @@ Après le gate de complétion et **avant** de construire le récap feature, **in
 
 3. **Si edge-case demandé** → invoquer le reviewer avec le mode combiné :
    ```
-   task(subagent_type: "reviewer", prompt: "[SKILL:reviewer/reviewer-subagent] [MODE:adversarial+edge-case] Review adversariale + edge-case de fin de feature.\nBranche feature : <branche de travail>\nDiff : git diff <base>...HEAD\nFeature : <nom de la feature>")
+   task(subagent_type: "reviewer", prompt: "[MODE:adversarial+edge-case] Review adversariale + edge-case de fin de feature.\nBranche feature : <branche de travail>\nDiff : git diff <base>...HEAD\nFeature : <nom de la feature>")
    ```
    > Note : si la review adversariale seule a déjà été lancée (question posée après le lancement), utiliser le résultat de la review adversariale et lancer une session edge-case additionnelle, puis fusionner les deux résultats.
 
@@ -80,7 +80,7 @@ Après le gate de complétion et **avant** de construire le récap feature, **in
 
 ---
 
-**Avant de construire ce récap**, vérifier que le récap global d'orchestrator-dev a bien été affiché lors de la réception du retour final (Cas A — il ne doit pas être reproduit ici une seconde fois). Puis produire le récap consolidé ci-dessous à partir du bloc structuré `## Retour vers orchestrator` :
+**Avant de construire ce récap**, vérifier que l'enveloppe finale d'orchestrator-dev a bien été affichée à sa réception (son rapport n'est pas reproduit ici une seconde fois). Puis produire le récap consolidé ci-dessous à partir de l'enveloppe et du rapport d'orchestrator-dev (`workflow_report_get`) :
 
 ```
 ## Récap feature — <nom de la feature>

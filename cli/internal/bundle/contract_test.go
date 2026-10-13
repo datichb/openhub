@@ -156,11 +156,34 @@ func TestSessionContractTemplate(t *testing.T) {
 	_, err := contractTemplate()
 	require.NoError(t, err)
 	env := whenEnv{roles: map[string]bool{roleSubagent: true}, mcp: map[string]bool{"workflow": true}, flags: map[string]bool{}}
-	got := sessionContract(Request{}, nil, "a", map[string][]string{"a": {"b"}}, map[string][]string{"a": {"x", "y"}}, env)
+	got := sessionContract(Request{}, nil, "a", map[string][]string{"a": {"b"}}, map[string][]string{"a": {"x", "y"}}, env, nil)
 	assert.True(t, strings.HasPrefix(got, contractHeading), got)
 	assert.Contains(t, got, "`## Retour vers x` quand `x` t'invoque, `## Retour vers y` quand `y` t'invoque")
 	assert.Contains(t, got, "Agents que tu peux lancer** (outil `task`) : `b`")
 	assert.Contains(t, got, "`workflow_report` disponible : dépose ton rapport complet")
 	assert.NotContains(t, got, "Checkpoints", "no workflow, no checkpoint line")
 	assert.NotContains(t, got, "Wiki du projet", "no wiki server yet")
+}
+
+// L5: a caller's contract lists the return statuses of the agents it may
+// launch, from their payload skills; the agent itself is left out.
+func TestContractCalleeStatuses(t *testing.T) {
+	env := whenEnv{roles: map[string]bool{roleEntry: true}, mcp: map[string]bool{}, flags: map[string]bool{}}
+	statuses := func(agent string) []string {
+		return map[string][]string{"b": {"fait", "bloqué"}, "a": {"x"}}[agent]
+	}
+	got := sessionContract(Request{}, nil, "a", map[string][]string{"a": {"a", "b", "c"}}, nil, env, statuses)
+	assert.Contains(t, got, "**Statuts de leurs retours**")
+	assert.Contains(t, got, "  - `b` : `fait`, `bloqué`")
+	assert.NotContains(t, got, "  - `a` :", "its own statuses")
+	assert.NotContains(t, got, "  - `c` :", "no payload, no line")
+
+	none := sessionContract(Request{}, nil, "a", map[string][]string{"a": {"c"}}, nil, env, statuses)
+	assert.NotContains(t, none, "Statuts de leurs retours")
+
+	ticket := contractOf(agentBody(t, shippedBundle(t, "ticket"), "orchestrator-dev"))
+	for _, a := range []string{"developer", "reviewer", "documentarian"} {
+		assert.Contains(t, ticket, "  - `"+a+"` : `", "orchestrator-dev reads the statuses of %s", a)
+	}
+	assert.NotContains(t, contractOf(agentBody(t, shippedBundle(t, "ticket"), "documentarian")), "Statuts de leurs retours")
 }

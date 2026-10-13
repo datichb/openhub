@@ -135,7 +135,7 @@ Quelques questions issues de l'exploration pour affiner la planification :
 *(Round N — questions débloquées par les réponses précédentes)*
 ```
 
-> **En mode subagent** : chaque round produit un `## Question batch pour l'orchestrator` séparé avec le champ `### Round` (voir `planner-execution-modes`).
+> **En mode subagent** : chaque round est une enveloppe au statut `en-attente`, ses questions dans `### Questions bloquantes` (numéro du round dans le résumé) ; relancé avec les réponses, tu passes au round suivant.
 
 > **Skip global** : si l'utilisateur choisit "Skip toutes" à n'importe quel round, les rounds suivants sont annulés. Les questions restantes sont marquées "non répondu" dans le récap.
 
@@ -170,7 +170,7 @@ Quelques questions issues de l'exploration pour affiner la planification :
 
 Puis appeler l'outil `question` avec **une question par clarification** :
 
-> ⚠️ **En mode sous-agent** : **NE PAS appeler l'outil `question`**. Utiliser le format `## Question batch pour l'orchestrator` défini dans `planner-execution-modes` (section "Phase 2 — Questions complémentaires (questions à poser)"). Les questions ci-dessous servent de **modèle de contenu** — le format de sortie change selon le contexte d'invocation.
+> ⚠️ **En mode sous-agent** : **NE PAS appeler l'outil `question`**. Mets ces questions, avec leurs options, dans les `### Questions bloquantes` de ton enveloppe (statut `en-attente`), précédées dans ton rapport du condensé de la phase 1. Les questions ci-dessous servent de **modèle de contenu**.
 
 **En mode standalone :**
 
@@ -481,7 +481,7 @@ question({
 
 ### Comportement en subagent
 
-En mode orchestrator, le split est géré par l'orchestrateur : le planner produit le bloc de question de split (voir `planning/planner-execution-modes`) et l'orchestrateur relaie la réponse.
+Sous-agent : la question du split va dans tes `### Questions bloquantes` (statut `en-attente`, decision map dans ton rapport) ; ton appelant relaie la réponse.
 
 ---
 
@@ -507,9 +507,9 @@ question({
 
 **En mode sous-agent :**
 
-La question de validation (avec ou sans understanding gate) est incluse dans le bloc `## Question pour l'orchestrator` standard (Phase 2 — réponses traitées) défini dans `planner-execution-modes`. Ce bloc est produit **après** la ré-invocation avec les réponses de l'utilisateur — voir le format "Phase 2 — Questions complémentaires (réponses traitées)" dans `planner-execution-modes`.
+Pas de validation de phase : une fois les réponses intégrées, enchaîne sur la phase 3 (protocole d'exécution) ; ta compréhension partagée va dans le rapport, en hypothèses.
 
-> ❌ Ne jamais appeler l'outil `question` en mode subagent — toujours terminer la session avec les blocs structurés.
+> ❌ Ne jamais appeler l'outil `question` en mode subagent.
 
 **Selon la réponse (dans tous les contextes) :**
 - **Passer à Phase 3** → Phase 3

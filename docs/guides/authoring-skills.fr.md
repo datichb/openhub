@@ -14,9 +14,9 @@ Avant d'écrire un skill, identifier son type. Le type conditionne le format att
 | Type | Rôle | Format dominant | Exemples |
 |------|------|----------------|---------|
 | **Technique** | Workflow procédural — guide l'agent étape par étape | Phases numérotées, templates, autocontrôles | `debugger-workflow`, `planner-workflow`, `auditor-workflow` |
-| **Pattern** | Contrainte récurrente — impose un comportement à tout moment | Règles ✅/❌, exemples de violations, triggers | `posture/tool-question`, `posture/coordination-only` |
+| **Pattern** | Contrainte récurrente — impose un comportement à tout moment | Règles ✅/❌, exemples de violations, triggers | `posture/user-facing-posture`, `posture/coordinator-posture` |
 | **Reference** | Catalogue / lookup — consulté à la demande | Tableaux, listes structurées, source de vérité | `shared/hub-workflow-reference`, `developer/dev-standards-*` |
-| **Discipline** | Norme comportementale transversale — façonne la posture globale | Principes, interdictions absolues, exemples | `posture/expert-posture`, `posture/retranscription-coordinateur` |
+| **Discipline** | Norme comportementale transversale — façonne la posture globale | Principes, interdictions absolues, exemples | `posture/expert-posture`, `posture/core-posture` |
 
 > Un skill peut être hybride (ex : Technique + Reference), mais l'un des types domine toujours. Identifier le type dominant pour choisir le format principal.
 
@@ -109,8 +109,8 @@ Exemple pour un skill de complétion :
 
 Si deux skills peuvent être confondus, la description doit pointer vers l'autre :
 ```yaml
-description: Protocole de retransmission pour coordinateurs — règles d'affichage verbatim
-  des résultats agents. Complémentaire à posture/coordination-only (restrictions d'outils).
+description: Utiliser quand tu enchaînes des phases — récap et validation par phase en agent
+  d'entrée, session unique en sous-agent. Complémentaire à shared/handoff-envelope (retour).
 ```
 
 ### Dépendances entre skills (`requires:`)
@@ -119,9 +119,9 @@ Une skill peut déclarer les skills sans lesquelles elle n'a pas de sens :
 
 ```yaml
 ---
-name: planner-phase-0
+name: planner-phase-1
 description: …
-requires: [shared/phase-0-validation-loop]
+requires: [shared/elicitation-techniques]
 ---
 ```
 

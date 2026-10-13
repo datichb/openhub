@@ -230,7 +230,7 @@ Les skills sont organisés par domaine dans `skills/` :
 | `skills/designer/` | Protocoles de design (designer) |
 | `skills/design/` | Contrats de handoff design |
 | `skills/quality/` | Contrats de handoff qualité (debugger et agents hors `qa/` et `reviewer/`) |
-| `skills/posture/` | Posture et comportement transversal (`expert-posture`, `tool-question`) |
+| `skills/posture/` | Posture et comportement transversal (`expert-posture`, `user-facing-posture`, `subagent-posture`) |
 
 Pour un nouveau domaine, créer un nouveau sous-dossier.
 
@@ -283,7 +283,7 @@ native_skills: [chemin/vers/mon-skill]
 ```
 Ajouter également une ligne dans la section guide "## Skills disponibles" du corps de l'agent avec le déclencheur de chargement.
 
-**Skills de handoff :** si votre skill définit un format de retour structuré entre deux agents (un bloc `## Retour vers ...`), il est toujours **Bucket A** — l'injecter dans **les deux** agents — l'agent producteur (celui qui produit le bloc) et l'agent consommateur (celui qui lit le bloc). Cela garantit que les deux agents partagent le même contrat. Voir `skills/reviewer/reviewer-handoff-format.md` ou `skills/auditor/audit-handoff-format.md` comme exemples.
+**Retours entre agents :** un agent lancé par un autre inclut `shared/handoff-envelope` (enveloppe commune) et son payload `<famille>/<agent>-payload` (Bucket A, `when: role=subagent`, 200 à 400 tokens, statuts dans le frontmatter `statuses:`). L'appelant n'inclut aucun format : les statuts des agents qu'il lance sont générés dans son contrat de session. Ne jamais écrire `## Retour vers <agent>` avec un nom d'agent dans une skill : le titre vient du contrat. Exemples : `skills/developer/developer-payload.md`, `skills/reviewer/reviewer-payload.md`.
 
 ---
 

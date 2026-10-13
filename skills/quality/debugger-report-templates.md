@@ -43,9 +43,7 @@ Appeler l'outil `question` :
 
 **En mode sous-agent :**
 
-> **Template :** format défini dans `templates/debugger-report.md` (section « Retour intermédiaire + Question — mode sous-agent ») — charger via `read` quand tu produis ce bloc.
-
-→ **TERMINER LA SESSION**
+Le ticket suggéré (titre, type, priorité, description, critères d'acceptance, notes techniques) va dans ton rapport ; la confirmation de sa création (action irréversible) dans tes `### Questions bloquantes` (options : créer le ticket, ne pas le créer), statut `en-attente`. Arrête-toi : relancé avec la réponse, crée le ticket ou non, puis termine le rapport.
 
 #### Cas Checkpoint — la carte liste `cp-ticket` (workflow `debug`)
 

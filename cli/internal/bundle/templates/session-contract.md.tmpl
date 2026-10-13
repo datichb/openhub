@@ -13,9 +13,16 @@
 - **Rôle** : agent d'entrée : tu échanges directement avec l'utilisateur.
 {{- end }}
 {{- if .Subagent }}
-- **Retour**{{ if .Entry }} (invoqué par un agent){{ end }} : ta réponse finale est un seul bloc{{ range $i, $c := .Callers }}{{ if $i }},{{ end }} `## Retour vers {{ $c }}`{{ if gt (len $.Callers) 1 }} quand `{{ $c }}` t'invoque{{ end }}{{ end }}.
+- **Retour**{{ if .Entry }} (invoqué par un agent){{ end }} : ta réponse finale est ton enveloppe de retour, un seul bloc{{ range $i, $c := .Callers }}{{ if $i }},{{ end }} `## Retour vers {{ $c }}`{{ if gt (len $.Callers) 1 }} quand `{{ $c }}` t'invoque{{ end }}{{ end }}.
 {{- end }}
 - **Agents que tu peux lancer** (outil `task`) : {{ if .Callees }}{{ codes .Callees }}{{ else }}aucun{{ end }}.
+{{- /* L5: statuses of the envelopes of the callees, from their payload skills. */}}
+{{- if .Statuses }}
+- **Statuts de leurs retours** (ligne `Statut` de leur enveloppe) :
+{{- range .Statuses }}
+  - `{{ .Agent }}` : {{ codes .Statuses }}
+{{- end }}
+{{- end }}
 {{- if .HasCheckpoints }}
 {{- if .Own }}
 - **Checkpoints** : tu passes {{ range $i, $c := .Own }}{{ if $i }}, {{ end }}`{{ $c.ID }}`{{ if $c.Label }} ({{ $c.Label }}){{ end }}{{ end }}, avec l'outil `workflow_checkpoint`. Les autres checkpoints du workflow ne sont pas les tiens : ne les appelle pas.
@@ -36,7 +43,7 @@
 - **Questions** : outil `question` pour les choix et les confirmations (jamais pour un checkpoint).
 {{- end }}
 {{- if and .Report (or .Subagent .Callees) }}
-- **Rapports** : outil `workflow_report` disponible{{ if .Subagent }} : dépose ton rapport complet, puis cite son identifiant `rp-…` dans ton bloc{{ end }}{{ if .Callees }} ; `report_get` lit un rapport cité par un agent que tu as lancé{{ end }}.
+- **Rapports** : outil `workflow_report` disponible{{ if .Subagent }} : dépose ton rapport complet, puis cite son identifiant `rp-…` dans ton bloc{{ end }}{{ if .Callees }} ; `workflow_report_get` lit un rapport cité par un agent que tu as lancé (en entier ou une section) : ne le recopie pas, la carte du checkpoint le montre{{ end }}.
 {{- end }}
 {{- if .WikiMCP }}
 - **Wiki du projet** : outils `wiki_*` disponibles (lecture, propositions).

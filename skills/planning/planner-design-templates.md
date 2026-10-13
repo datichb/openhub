@@ -183,7 +183,7 @@ Si l'utilisateur choisit **"Prototype rapide"** dans la question de délégation
    ```
    task(
      subagent_type: "designer",
-     prompt: "Mode: ux [SKILL:designer/prototype-protocol] [QUESTION: <question précise>]\n\nFeature : [nom]\nContexte : [résumé du besoin]\nSignal ambigu détecté : [description du signal]\n\n[SKILL:designer/designer-subagent]"
+     prompt: "Mode: ux [SKILL:designer/prototype-protocol] [QUESTION: <question précise>]\n\nFeature : [nom]\nContexte : [résumé du besoin]\nSignal ambigu détecté : [description du signal]"
    )
    ```
 
@@ -239,36 +239,36 @@ question({
 })
 ```
 
-**En mode sous-agent :**
-```markdown
-## Retour intermédiaire vers orchestrator
-
-**Agent :** planner
-**Phase :** 1.5 — Délégation design (terminée)
-**task_id :** <sessionID courant>
-
-**Résumé :** Délégation design terminée — specs <UX/UI> <reçues et intégrées | skippées>.
-**Points clés :** <specs reçues (composants/parcours concernés) ou "aucune spec — tracé via bd comments add en Phase 5">
-
----
-
-## Question pour l'orchestrator
-
-**Phase :** 1.5
-**task_id :** <sessionID courant>
-
-**Contexte :** La phase de délégation design est terminée. Specs intégrées / skippées.
-
-**Question :** Passer aux questions complémentaires (Phase 2) ?
-
-**Options :**
-- `phase-2` — Passer à Phase 2 (recommandé)
-- `retour-phase-1` — Revenir à Phase 1 pour re-explorer avec les specs design
-
-**Instruction de reprise :** "Réponse Phase 1.5 : [option]. Reprendre depuis Phase 2 / Phase 1."
-```
-→ **TERMINER LA SESSION**
+**En mode sous-agent :** pas de validation de phase : intègre les specs reçues (ou leur absence) dans ton rapport et enchaîne sur la phase 2 (protocole d'exécution).
 
 **Selon la réponse (dans tous les contextes) :**
 - **Phase 2** → Phase 2 (questions complémentaires)
 - **Revenir à Phase 1** → Phase 1 (les specs modifient le périmètre d'exploration)
+
+---
+
+## Prompt de délégation au designer
+
+Déléguer seulement avec au moins un signal design ; mode `ux` (parcours, états, accessibilité structurelle), `ui` (tokens, composants, cohérence visuelle), `ux+ui` (les deux, UX d'abord) ou `recon` (exploration Figma légère). Les questions de phase 2 attendent le retour du designer : sa spec peut les changer.
+
+```
+Agent : designer
+Mode: <recon | ux | ui | ux+ui>
+Objectif : <ce que le designer doit produire, en 1 ou 2 phrases>
+
+### Feature demandée
+<la demande de l'utilisateur, telle quelle>
+### Contexte projet
+<stack, conventions front, frameworks UI, design system existant (phase 1)>
+### Composants existants identifiés
+### Signaux design détectés
+### Contraintes techniques anticipées
+### Questions ouvertes
+<à trancher par le design ou à clarifier avec l'utilisateur>
+
+Livrables attendus : <user flow, wireframes textuels, tokens, composants, critères d'acceptance>
+```
+
+### Réception du retour du designer
+
+Son enveloppe porte un statut (`spec-complète`, `spec-partielle`, `choix-requis`, `prototype-livré`, `bloqué`) et l'identifiant de son rapport. Affiche la spec complète (lue avec `workflow_report_get`, jamais résumée) avant toute question ; reprends `### Composants à créer` et `### Tokens design requis` dans les questions de phase 2 si une validation est utile, et ajoute ses `### Questions pour l'utilisateur` à celles de la phase 2. `spec-partielle` : les questions design rejoignent le questionnaire ; `bloqué` : demande à l'utilisateur comment débloquer avant de continuer. Sans spec (enveloppe seule, sans rapport) : demande au designer de la produire.

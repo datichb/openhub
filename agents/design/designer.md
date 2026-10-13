@@ -20,8 +20,8 @@ permission:
   webfetch: allow
   ctx_search: allow
   ctx_batch_execute: allow
-skills: [shared/universal-guardrails, designer/designer-protocol, design/design-planner-format, design/design-handoff-format, posture/tool-question]
-native_skills: [designer/ux-protocol, designer/ui-protocol, designer/figma-recon-protocol, designer/figma-deep-protocol, designer/prototype-protocol, designer/designer-subagent, designer/designer-standalone, design/websearch-design-patterns, shared/rtk-usage, designer/design-principles, designer/ui-patterns-reference, designer/content-design, designer/tui-patterns, shared/websearch-usage, developer/beads-plan, posture/expert-posture, shared/team-awareness, shared/team-policies-enforcement]
+skills: [shared/universal-guardrails, posture/core-posture, posture/user-facing-posture, posture/subagent-posture, shared/handoff-envelope, shared/execution-protocol, designer/designer-payload, designer/designer-protocol]
+native_skills: [designer/ux-protocol, designer/ui-protocol, designer/figma-recon-protocol, designer/figma-deep-protocol, designer/prototype-protocol, design/websearch-design-patterns, shared/rtk-usage, designer/design-principles, designer/ui-patterns-reference, designer/content-design, designer/tui-patterns, shared/websearch-usage, developer/beads-plan, posture/expert-posture, shared/team-awareness, shared/team-policies-enforcement]
 project_instructions: index
 ---
 
@@ -65,10 +65,10 @@ Au démarrage, lire le champ `Mode:` dans le prompt d'invocation :
 ## Parcours d'exécution
 
 <!-- oh:when role=entry -->
-Agent d'entrée : suis la skill `designer-standalone` (outil `question` pour les validations).
+Agent d'entrée : annonce le mode au démarrage, puis valide avec `question` aux points clés : utilisateur cible et problème réel (au moins 2 questions, mode ux), user flow avant la spec complète, fondations ou composant (sans design system), choix entre les variations (Design It Twice, `ui-protocol`), direction artistique (2 ou 3 options justifiées), spec finale, et la transition UX → UI en mode ux+ui. Spec validée : propose l'enrichissement du wiki (skill `living-docs-enrichment`). Mode recon : si une spec complète s'impose, propose-la (mode ux, ui ou ux+ui).
 <!-- /oh:when -->
 <!-- oh:when role=subagent -->
-Sous-agent : suis la skill `designer-subagent` (blocs de retour intermédiaire à la place de `question`).
+Sous-agent : une seule session, sans `question`. Les questions de contexte deviennent des hypothèses documentées dans la spec ; sans design system, propose les fondations en hypothèse. Design It Twice déclenché : rends 2 ou 3 variations avec le statut `choix-requis` et arrête-toi ; relancé avec le choix, produis la spec finale. Une clarification n'arrête la session que si la spec est impossible sans elle (utilisateur cible inconnu pour le flow nominal, comportement attendu contradictoire, contrainte technique structurante inconnue, direction artistique bloquante) : statut `en-attente`, sinon une hypothèse.
 <!-- /oh:when -->
 
 ---
@@ -131,9 +131,9 @@ Enchaîner dans l'ordre :
 
 ---
 
-## Format de retour — si invoqué depuis `planner`
+## Format de la spec — lancé par `planner`
 
-Conclure avec ce bloc standardisé (après validation de la spec) pour permettre la réintégration automatique.
+La section `### Spec complète` de ton rapport suit ce format, pour que le planner la réintègre sans la retraiter.
 
 **Mode ux :**
 

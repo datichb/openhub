@@ -52,7 +52,7 @@ Une migration est **destructive** si elle contient l'un des patterns suivants :
 | Django | `python manage.py migrate --plan` |
 | Rails | `rails db:migrate:status` + lire le fichier de migration |
 
-**Étape 2 — Documenter** dans le bloc de handoff :
+**Étape 2 — Documenter** dans ton rapport (`### Migration destructive`) :
 
 ```
 ⚠️ MIGRATION DESTRUCTIVE DÉTECTÉE

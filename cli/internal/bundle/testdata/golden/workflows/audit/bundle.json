@@ -71,11 +71,7 @@
         "audit-performance",
         "audit-privacy",
         "audit-security",
-        "auditor-execution-modes",
-        "handoff-bloc-unique-rule",
-        "living-docs-enrichment",
-        "phase-0-validation-loop",
-        "standalone-execution-protocol"
+        "living-docs-enrichment"
       ]
     },
     {
@@ -164,12 +160,8 @@
         "audit-performance",
         "audit-privacy",
         "audit-security",
-        "concision-posture",
         "expert-posture",
-        "handoff-bloc-unique-rule",
         "living-docs-enrichment",
-        "phase-0-validation-loop",
-        "subagent-execution-protocol",
         "websearch-cve-lookup",
         "websearch-performance-research",
         "websearch-usage"
@@ -186,14 +178,8 @@
     "audit-performance",
     "audit-privacy",
     "audit-security",
-    "auditor-execution-modes",
-    "concision-posture",
     "expert-posture",
-    "handoff-bloc-unique-rule",
     "living-docs-enrichment",
-    "phase-0-validation-loop",
-    "standalone-execution-protocol",
-    "subagent-execution-protocol",
     "websearch-cve-lookup",
     "websearch-performance-research",
     "websearch-usage"

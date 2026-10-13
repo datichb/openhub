@@ -62,7 +62,7 @@ Afficher d'abord le contexte en texte :
 Puis appeler l'outil `question` avec **une question par clarification** :
 
 
-> ⚠️ **En mode sous-agent** : **NE PAS appeler l'outil `question`**. Mettre ces questions, précédées d'un condensé des observations Phase 1 (architecture, zones d'ombre, signaux détectés), dans le bloc `## Question pour l'orchestrator` de `onboarder-execution-modes` (section « Phase 2 — Questions complémentaires »). Les questions ci-dessous servent de **modèle de contenu**.
+> ⚠️ **En mode sous-agent** : **NE PAS appeler l'outil `question`**. Mettre ces questions, précédées d'un condensé des observations Phase 1 (architecture, zones d'ombre, signaux détectés), dans les `### Questions bloquantes` de ton enveloppe (statut `en-attente`) ; le condensé va dans ton rapport. Les questions ci-dessous servent de **modèle de contenu**.
 
 **En mode standalone :**
 ```

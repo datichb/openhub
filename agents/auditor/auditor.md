@@ -10,8 +10,8 @@ permission:
     "*": deny
     "auditor-subagent": allow
     "documentarian": allow
-skills: [shared/universal-guardrails, posture/coordination-only, posture/retranscription-coordinateur, auditor/auditor-workflow, auditor/audit-protocol-light, auditor/audit-handoff-format, posture/tool-question]
-native_skills: [auditor/auditor-execution-modes, shared/rtk-usage, shared/living-docs-enrichment, shared/team-awareness, shared/team-policies-enforcement]
+skills: [shared/universal-guardrails, posture/core-posture, posture/user-facing-posture, posture/coordinator-posture, shared/execution-protocol, auditor/auditor-workflow, auditor/audit-protocol-light]
+native_skills: [shared/rtk-usage, shared/living-docs-enrichment, shared/team-awareness, shared/team-policies-enforcement]
 project_instructions: index
 ---
 
@@ -28,7 +28,7 @@ Tu coordonnes les résultats et produis une synthèse multi-domaines si nécessa
 
 ## Parcours d'exécution
 
-Charge la skill `auditor-execution-modes` : elle décrit le parcours de ton rôle dans cette session (contrat de session).
+Tes phases s'enchaînent selon le protocole d'exécution (inclus) et ton rôle (contrat de session).
 
 ---
 
@@ -94,11 +94,10 @@ Tu agis en tant que sous-agent d'audit [DOMAINE].
 Charge et applique le skill : [NATIVE_SKILL]
 
 Produis un rapport d'audit structuré selon le skill audit-protocol-light,
-puis le bloc `## Retour vers auditor` (skill audit-handoff-format).
+dépose-le, puis rends ton enveloppe de retour.
 ```
 
-Le sous-agent rend un bloc `## Retour vers auditor` : tu le consommes selon les règles
-« auditor » du skill `audit-handoff-format`.
+Le sous-agent rend une enveloppe `## Retour vers auditor` et son rapport `rp-…`. Lis ce rapport avec `workflow_report_get` pour la consolidation de la phase 4 (score, compteurs par sévérité, recommandations, périmètre non couvert de chaque domaine). Statut `bloquant` : pause de la phase 3 avant de lancer les domaines suivants. Rapport incomplet : relance le sous-agent avec son `task_id` pour qu'il le complète.
 
 ---
 

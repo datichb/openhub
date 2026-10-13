@@ -125,7 +125,7 @@ project_instructions: index # optionnel — full (défaut) | index | none
 | `mode` | `primary` (défaut) ou `subagent` — contrôle la visibilité dans OpenCode ; le workflow peut le remplacer |
 | `model` | Modèle par défaut, dernier niveau de la cascade (workflow·agent > workflow > projet·agent > … > frontmatter) |
 | `permission_base` | Base de permissions (`permissions/<base>.yaml`) fusionnée avec `permission:` ; un seul niveau d'héritage |
-| `permission.question` | `allow` — active l'outil `question` d'OpenCode pour cet agent. Réservé aux agents `primary` interactifs. Toujours associé à la skill `posture/tool-question`. |
+| `permission.question` | `allow` — active l'outil `question` d'OpenCode pour cet agent. Réservé aux agents `primary` interactifs. Toujours associé à la skill `posture/user-facing-posture` (filtrée pour l'agent d'entrée). |
 | `permission.skill` | `allow` — active l'outil `skill` natif pour que l'agent puisse charger les skills Bucket B à la demande. En monde fermé, seules les skills du catalogue de l'agent sont autorisées (voir [Catalogue par agent](./skills.fr.md#catalogue-par-agent)). |
 | `permission.task` | Agents que cet agent peut lancer. Dans une session, la liste est restreinte aux membres du workflow (ou remplacée par `calls:`). |
 | `skills` | **Bucket A** — chemins relatifs à `skills/`, injectés inline à la construction du paquet de session, toujours actifs dès le premier token. Protocoles de workflow, formats de handoff, principes universels. |
@@ -200,51 +200,51 @@ Ce tableau est la reference faisant autorite pour les skills charges par chaque 
 
 | Agent | Bucket A (inline) | Bucket B (natif / a la demande) |
 |-------|-------------------|-------------------------------|
-| **conductor** | `posture/coordination-only`, `posture/concision-posture`, `posture/retranscription-coordinateur`, `posture/tool-question`, `posture/tool-todowrite`, `workflow/workflow-map` (générée depuis le YAML du workflow) | `shared/rtk-usage` |
-| **orchestrator** | `posture/coordination-only`, `posture/concision-posture`, `posture/retranscription-coordinateur`, `orchestrator/orchestrator-workflow-modes`, `orchestrator/orchestrator-handoff-format`, `orchestrator/orchestrator-protocol`, `posture/tool-question`, `posture/tool-todowrite`, `planning/planner-handoff-format`, `shared/hub-workflow-reference` | `planning/pathfinder-handoff-format`, `design/design-handoff-format`, `planning/onboarder-handoff-format`, `quality/debugger-handoff-format`, `documentarian/documentarian-handoff-format`, `shared/rtk-usage`, `orchestrator/orchestrator-recap-edge`, `developer/beads-plan`, `orchestrator/takeover-context-protocol` |
-| **orchestrator-dev** | `posture/coordination-only`, `posture/concision-posture`, `posture/retranscription-coordinateur`, `orchestrator/orchestrator-workflow-modes`, `orchestrator/orchestrator-dev-protocol`, `orchestrator/orchestrator-handoff-format`, `posture/tool-question`, `posture/tool-todowrite`, `developer/developer-handoff-format`, `reviewer/reviewer-handoff-format`, `documentarian/documentarian-handoff-format` | `orchestrator/orchestrator-dev-standalone`, `orchestrator/orchestrator-dev-subagent`, `developer/dev-drift-detection`, `shared/rtk-usage`, `orchestrator/orchestrator-dev-ticket-workflow`, `orchestrator/orchestrator-dev-parallel`, `orchestrator/orchestrator-dev-recap`, `orchestrator/orchestrator-dev-edge-cases`, `orchestrator/error-recovery-protocol`, `orchestrator/team-coordination`, `orchestrator/takeover-context-protocol` |
-| **planner** | `planning/planner-workflow`, `planning/planner-handoff-format`, `adapters/gitlab-planner-protocol`, `posture/concision-posture`, `posture/tool-question`, `shared/hub-workflow-reference` | `planning/planner-execution-modes`, `planning/websearch-stack-research`, `shared/rtk-usage`, `planning/planner-phase-0`, `planning/planner-phase-1`, `planning/planner-phase-2`, `planning/planner-phase-3-4`, `planning/planner-phase-5-6`, `planning/planner-patterns-protocol`, `shared/living-docs-enrichment`, `shared/websearch-usage`, `planning/planner-design-templates`, `planning/planner-beads-templates`, `developer/beads-plan`, `posture/expert-posture`, `design/design-planner-format` |
-| **pathfinder** | `planning/pathfinder-protocol`, `planning/pathfinder-handoff-format`, `adapters/gitlab-pathfinder-protocol`, `posture/concision-posture`, `posture/tool-question`, `shared/websearch-usage`, `shared/wiki-navigation` | `planning/pathfinder-execution-modes`, `planning/websearch-stack-research`, `shared/rtk-usage`, `shared/living-docs-enrichment`, `developer/beads-plan` |
-| **onboarder** | `planning/onboarder-workflow`, `planning/onboarder-handoff-format`, `planning/onboarder-profiles`, `adapters/gitlab-onboarder-protocol`, `posture/tool-question`, `shared/wiki-navigation` | `developer/dev-standards-git`, `planning/onboarder-execution-modes`, `planning/websearch-stack-research`, `shared/rtk-usage`, `planning/onboarder-phase-0`, `planning/onboarder-phase-1`, `planning/onboarder-phase-2`, `planning/onboarder-phase-3-4`, `planning/onboarder-phase-5`, `shared/living-docs-enrichment`, `shared/websearch-usage`, `developer/beads-plan`, `posture/expert-posture` |
+| **conductor** | `posture/core-posture`, `posture/user-facing-posture`, `posture/coordinator-posture`, `workflow/workflow-map` (générée depuis le YAML du workflow) | `shared/rtk-usage` |
+| **orchestrator** | `posture/core-posture`, `posture/user-facing-posture`, `posture/coordinator-posture`, `orchestrator/orchestrator-workflow-modes`, `orchestrator/orchestrator-protocol`, `shared/hub-workflow-reference` | `shared/rtk-usage`, `orchestrator/orchestrator-recap-edge`, `developer/beads-plan`, `orchestrator/takeover-context-protocol` |
+| **orchestrator-dev** | `posture/core-posture`, `posture/user-facing-posture`, `posture/subagent-posture`, `shared/handoff-envelope`, `posture/coordinator-posture`, `orchestrator/orchestrator-workflow-modes`, `orchestrator/orchestrator-dev-protocol`, `orchestrator/orchestrator-dev-payload` | `developer/dev-drift-detection`, `shared/rtk-usage`, `orchestrator/orchestrator-dev-ticket-workflow`, `orchestrator/orchestrator-dev-parallel`, `orchestrator/orchestrator-dev-recap`, `orchestrator/orchestrator-dev-edge-cases`, `orchestrator/error-recovery-protocol`, `orchestrator/team-coordination`, `orchestrator/takeover-context-protocol` |
+| **planner** | `posture/core-posture`, `posture/user-facing-posture`, `posture/subagent-posture`, `shared/handoff-envelope`, `shared/execution-protocol`, `planning/planner-payload`, `planning/planner-workflow`, `adapters/gitlab-planner-protocol`, `adapters/github-planner-protocol`, `shared/hub-workflow-reference` | `planning/websearch-stack-research`, `shared/rtk-usage`, `planning/planner-phase-0`, `planning/planner-phase-1`, `planning/planner-phase-2`, `planning/planner-phase-3-4`, `planning/planner-phase-5-6`, `planning/planner-patterns-protocol`, `shared/living-docs-enrichment`, `shared/websearch-usage`, `planning/planner-design-templates`, `planning/planner-beads-templates`, `developer/beads-plan`, `posture/expert-posture` |
+| **pathfinder** | `posture/core-posture`, `posture/user-facing-posture`, `posture/subagent-posture`, `shared/handoff-envelope`, `shared/execution-protocol`, `planning/pathfinder-payload`, `planning/pathfinder-protocol`, `adapters/gitlab-pathfinder-protocol`, `adapters/github-pathfinder-protocol`, `shared/wiki-navigation` | `shared/websearch-usage`, `planning/websearch-stack-research`, `shared/rtk-usage`, `shared/living-docs-enrichment`, `developer/beads-plan` |
+| **onboarder** | `posture/core-posture`, `posture/user-facing-posture`, `posture/subagent-posture`, `shared/handoff-envelope`, `shared/execution-protocol`, `planning/onboarder-payload`, `planning/onboarder-workflow`, `planning/onboarder-profiles`, `adapters/gitlab-onboarder-protocol`, `adapters/github-onboarder-protocol`, `shared/wiki-navigation` | `developer/dev-standards-git`, `planning/websearch-stack-research`, `shared/rtk-usage`, `planning/onboarder-phase-0`, `planning/onboarder-phase-1`, `planning/onboarder-phase-2`, `planning/onboarder-phase-3-4`, `planning/onboarder-phase-5`, `shared/living-docs-enrichment`, `shared/websearch-usage`, `developer/beads-plan`, `posture/expert-posture` |
 
 ### Famille developer
 
 | Agent | Bucket A (inline) | Bucket B (natif / a la demande) |
 |-------|-------------------|-------------------------------|
-| **developer** | `developer/dev-standards-universal`, `developer/dev-standards-simplicity`, `developer/beads-dev`, `developer/developer-handoff-format`, `posture/subagent-concision-posture`, `shared/wiki-navigation`, `shared/context-mode-usage` | `developer/dev-standards-security`, `developer/dev-standards-git`, `developer/dev-standards-testing`, `developer/dev-standards-refactoring`, `developer/dev-standards-migration`, `developer/dev-standards-database`, `developer/test-generation`, `reviewer/reviewer-reception`, `shared/rtk-usage`, `shared/living-docs-enrichment`, `developer/beads-plan`, `developer/quick-fix` |
+| **developer** | `posture/core-posture`, `posture/user-facing-posture`, `posture/subagent-posture`, `shared/handoff-envelope`, `developer/developer-payload`, `developer/dev-standards-universal`, `developer/dev-standards-simplicity`, `developer/beads-dev`, `shared/wiki-navigation`, `shared/context-mode-usage` | `developer/dev-standards-security`, `developer/dev-standards-git`, `developer/dev-standards-testing`, `developer/dev-standards-refactoring`, `developer/dev-standards-migration`, `developer/dev-standards-database`, `developer/test-generation`, `reviewer/reviewer-reception`, `shared/rtk-usage`, `shared/living-docs-enrichment`, `developer/beads-plan`, `developer/quick-fix` |
 
 ### Famille auditor
 
 | Agent | Bucket A (inline) | Bucket B (natif / a la demande) |
 |-------|-------------------|-------------------------------|
-| **auditor** | `posture/coordination-only`, `posture/retranscription-coordinateur`, `auditor/auditor-workflow`, `auditor/audit-protocol-light`, `auditor/audit-handoff-format`, `posture/tool-question` | `auditor/auditor-execution-modes`, `shared/rtk-usage`, `shared/living-docs-enrichment` |
-| **auditor-subagent** | `auditor/audit-protocol-light`, `posture/subagent-concision-posture`, `auditor/audit-handoff-format`, `shared/wiki-navigation` | `auditor/websearch-cve-lookup`, `auditor/websearch-performance-research`, `shared/rtk-usage`, `posture/expert-posture`, `shared/websearch-usage` |
+| **auditor** | `posture/core-posture`, `posture/user-facing-posture`, `posture/coordinator-posture`, `shared/execution-protocol`, `auditor/auditor-workflow`, `auditor/audit-protocol-light` | `shared/rtk-usage`, `shared/living-docs-enrichment` |
+| **auditor-subagent** | `posture/core-posture`, `posture/subagent-posture`, `shared/handoff-envelope`, `auditor/auditor-subagent-payload`, `auditor/audit-protocol-light`, `shared/wiki-navigation` | `auditor/websearch-cve-lookup`, `auditor/websearch-performance-research`, `shared/rtk-usage`, `posture/expert-posture`, `shared/websearch-usage` |
 
 ### Famille infra
 
 | Agent | Bucket A (inline) | Bucket B (natif / a la demande) |
 |-------|-------------------|-------------------------------|
-| **operator** | `posture/tool-question`, `shared/wiki-navigation` | `developer/dev-standards-security`, `shared/rtk-usage`, `shared/living-docs-enrichment` (+ skills de stack Terraform/Helm/Kubernetes détectées dans le projet) |
+| **operator** | `posture/core-posture`, `posture/user-facing-posture`, `shared/wiki-navigation` | `developer/dev-standards-security`, `shared/rtk-usage`, `shared/living-docs-enrichment` (+ skills de stack Terraform/Helm/Kubernetes détectées dans le projet) |
 
 ### Famille quality
 
 | Agent | Bucket A (inline) | Bucket B (natif / a la demande) |
 |-------|-------------------|-------------------------------|
-| **reviewer** | `reviewer/review-protocol`, `posture/concision-posture`, `posture/tool-question`, `reviewer/reviewer-handoff-format`, `shared/wiki-navigation` | `reviewer/reviewer-standalone`, `reviewer/reviewer-subagent`, `reviewer/reviewer-adversarial`, `reviewer/reviewer-edge-case`, `reviewer/review-merge`, `developer/dev-standards-security`, `developer/dev-standards-backend`, `developer/dev-standards-frontend`, `developer/dev-standards-frontend-data`, `developer/dev-standards-frontend-a11y`, `developer/dev-standards-testing`, `developer/dev-standards-git`, `developer/dev-standards-api`, `developer/dev-standards-devops`, `shared/rtk-usage`, `shared/living-docs-enrichment`, `developer/dev-standards-universal` |
-| **debugger** | `quality/debugger-workflow`, `quality/debugger-handoff-format`, `posture/tool-question`, `shared/wiki-navigation` | `quality/debugger-execution-modes`, `shared/rtk-usage`, `quality/debugger-phase-0-1`, `quality/debugger-phase-2-3`, `quality/debugger-phase-4-5`, `shared/living-docs-enrichment`, `posture/expert-posture`, `quality/debugger-forensic`, `quality/debugger-report-templates` |
-| **benchmarker** | `posture/tool-question`, `shared/wiki-navigation` | `shared/living-docs-enrichment` |
+| **reviewer** | `posture/core-posture`, `posture/user-facing-posture`, `posture/subagent-posture`, `shared/handoff-envelope`, `reviewer/reviewer-payload`, `reviewer/review-protocol`, `shared/wiki-navigation` | `reviewer/reviewer-adversarial`, `reviewer/reviewer-edge-case`, `reviewer/review-merge`, `developer/dev-standards-security`, `developer/dev-standards-backend`, `developer/dev-standards-frontend`, `developer/dev-standards-frontend-data`, `developer/dev-standards-frontend-a11y`, `developer/dev-standards-testing`, `developer/dev-standards-git`, `developer/dev-standards-api`, `developer/dev-standards-devops`, `shared/rtk-usage`, `shared/living-docs-enrichment`, `developer/dev-standards-universal` |
+| **debugger** | `posture/core-posture`, `posture/user-facing-posture`, `posture/subagent-posture`, `shared/handoff-envelope`, `shared/execution-protocol`, `quality/debugger-payload`, `quality/debugger-workflow`, `shared/wiki-navigation` | `shared/rtk-usage`, `quality/debugger-phase-0-1`, `quality/debugger-phase-2-3`, `quality/debugger-phase-4-5`, `shared/living-docs-enrichment`, `posture/expert-posture`, `quality/debugger-forensic`, `quality/debugger-report-templates` |
+| **benchmarker** | `posture/core-posture`, `posture/user-facing-posture`, `shared/wiki-navigation` | `shared/living-docs-enrichment` |
 
 ### Famille design
 
 | Agent | Bucket A (inline) | Bucket B (natif / a la demande) |
 |-------|-------------------|-------------------------------|
-| **designer** | `designer/designer-protocol`, `design/design-planner-format`, `design/design-handoff-format`, `posture/tool-question` | `designer/ux-protocol`, `designer/ui-protocol`, `designer/figma-recon-protocol`, `designer/figma-deep-protocol`, `designer/prototype-protocol`, `designer/designer-subagent`, `designer/designer-standalone`, `design/websearch-design-patterns`, `shared/rtk-usage`, `designer/design-principles`, `designer/ui-patterns-reference`, `designer/content-design`, `designer/tui-patterns`, `shared/websearch-usage`, `developer/beads-plan`, `posture/expert-posture` |
+| **designer** | `posture/core-posture`, `posture/user-facing-posture`, `posture/subagent-posture`, `shared/handoff-envelope`, `shared/execution-protocol`, `designer/designer-payload`, `designer/designer-protocol` | `designer/ux-protocol`, `designer/ui-protocol`, `designer/figma-recon-protocol`, `designer/figma-deep-protocol`, `designer/prototype-protocol`, `design/websearch-design-patterns`, `shared/rtk-usage`, `designer/design-principles`, `designer/ui-patterns-reference`, `designer/content-design`, `designer/tui-patterns`, `shared/websearch-usage`, `developer/beads-plan`, `posture/expert-posture` |
 
 ### Famille documentation
 
 | Agent | Bucket A (inline) | Bucket B (natif / a la demande) |
 |-------|-------------------|-------------------------------|
-| **documentarian** | `developer/beads-dev`, `documentarian/doc-protocol`, `posture/tool-question`, `documentarian/documentarian-handoff-format` | `documentarian/doc-standards`, `documentarian/doc-adr`, `documentarian/doc-api`, `documentarian/doc-changelog`, `documentarian/doc-slides`, `documentarian/doc-wiki-protocol`, `shared/skill-authoring-protocol`, `shared/rtk-usage`, `shared/websearch-usage`, `developer/beads-plan`, `posture/expert-posture`, `developer/dev-standards-git` |
+| **documentarian** | `posture/core-posture`, `posture/user-facing-posture`, `posture/subagent-posture`, `shared/handoff-envelope`, `documentarian/documentarian-payload`, `documentarian/doc-protocol` | `documentarian/doc-standards`, `documentarian/doc-adr`, `documentarian/doc-api`, `documentarian/doc-changelog`, `documentarian/doc-slides`, `documentarian/doc-wiki-protocol`, `shared/skill-authoring-protocol`, `shared/rtk-usage`, `shared/websearch-usage`, `developer/beads-plan`, `posture/expert-posture`, `developer/dev-standards-git` |
 
 ### Famille utility
 
@@ -336,7 +336,7 @@ CP-2 (commit ou correction ?) est `mandatory` et en pause dans tous les modes de
 
 `bd close`, `bd comments add` et `bd update` sont toujours exécutés par l'agent `developer` dans les prompts de délégation — jamais directement par `orchestrator-dev`. L'orchestrateur-dev se limite à la lecture des tickets Beads (`bd show`, `bd list`).
 
-En mode `orchestrator_feature` : tous les CPs (CP-1, CP-3, branche dédiée, CP-2, blocage, ticket bloqué) produisent un bloc `## Question pour l'orchestrator` + `## Retour vers orchestrator` (partiel) et terminent la session pour que l'agent orchestrator relaie la question à l'utilisateur.
+Sous-agent (workflow `feature`) : ses checkpoints passent quand même par `workflow_checkpoint` ; une clarification hors checkpoint donne une enveloppe au statut `en-attente` (questions bloquantes), puis la reprise avec `task_id` ; en fin de boucle, rapport déposé et enveloppe.
 
 **Dérive architecturale (BLOCKED_ARCHITECTURE) :** quand un developer retourne ce statut, charge le skill `developer/dev-drift-detection` via l'outil `skill` et présente 3 options à l'utilisateur : réviser le scope du ticket Beads / revert + nouvelle approche / bifurquer vers un ticket de refactoring prérequis (mis en `blocked` jusqu'à résolution).
 
@@ -366,7 +366,7 @@ Produit une synthèse exécutive multi-domaines. Lecture seule (base `coordinato
 `ONBOARDING.md` et/ou `CONVENTIONS.md`. Si accepté, délègue l'écriture au `documentarian` via `task`
 (skill `living-docs-enrichment`), à condition que `documentarian` soit membre du workflow. Ne peut invoquer le `documentarian` sans confirmation explicite.
 
-En mode `orchestrator_feature` : utilise le mécanisme d'interruption de session — chaque fin de phase (0 à 3) produit un bloc `## Retour intermédiaire vers orchestrator` + `## Question pour l'orchestrator` et termine la session.
+Sous-agent : une seule session (protocole d'exécution) ; il s'arrête seulement sur une question bloquante (enveloppe au statut `en-attente`) et reprend avec `task_id`.
 
 ---
 
@@ -381,7 +381,7 @@ Sous-agent unique de l'auditeur (ADR-017). Lecture seule. Invocable via l'audite
 L'agent `auditor-subagent` reçoit le domaine + la `native_skill` à charger dans le prompt d'invocation du coordinateur `auditor`.
 Il injecte `auditor/audit-protocol-light` (format de rapport commun allégé)
 + la skill de domaine spécifique (`auditor/audit-<domaine>`) chargée à la demande
-+ `auditor/audit-handoff-format` (contrat de retour structuré : bloc `## Retour vers auditor`).
++ `auditor/auditor-subagent-payload` (statuts et sections de son rapport ; enveloppe `shared/handoff-envelope`).
 
 Tous les rapports produits incluent une section **`### Découvertes à documenter`**
 en fin de rapport — les découvertes à capitaliser dans `ONBOARDING.md` / `CONVENTIONS.md`.
@@ -398,7 +398,7 @@ Suit le même workflow Beads (`bd claim → implémenter → tester → bd close
 Le **domaine** et les **native_skills à charger** sont transmis par `orchestrator-dev` dans le prompt d'invocation.
 Chaque instance `task` s'exécute dans sa propre session enfant — les invocations parallèles avec des domaines différents sont indépendantes.
 
-Skills de l'agent `developer` : `dev-standards-universal`, `dev-standards-simplicity`, `quick-fix`, `dev-standards-security`, `dev-standards-git`, `dev-standards-testing`, `beads-plan`, `beads-dev`, `developer/developer-handoff-format`, `shared/living-docs-enrichment` (voir la matrice pour le bucket de chacun).
+Skills de l'agent `developer` : `dev-standards-universal`, `dev-standards-simplicity`, `quick-fix`, `dev-standards-security`, `dev-standards-git`, `dev-standards-testing`, `beads-plan`, `beads-dev`, `developer/developer-payload`, `shared/living-docs-enrichment` (voir la matrice pour le bucket de chacun).
 
 | Agent | Fichier | Domaine | Native Skills spécifiques |
 |-------|---------|---------|--------------------------|
@@ -483,9 +483,7 @@ via `task` (mode `recon`) au lieu d'appeler le MCP directement — à condition 
 la spec au format standardisé `## SPEC UX — [feature]` et/ou `## SPEC UI — [NomComposant]`
 pour permettre la réintégration automatique dans le plan (pas de `bd close` — le planner reprend la main).
 
-En mode `orchestrator_feature` : n'utilise jamais l'outil `question` — les clarifications
-critiques passent par les blocs `## Retour intermédiaire vers orchestrator` + `## Question pour l'orchestrator`
-avec terminaison de session.
+Sous-agent : n'utilise jamais l'outil `question` — les hypothèses sont documentées dans la spec ; une clarification critique arrête la session (enveloppe `en-attente`), Design It Twice rend `choix-requis`.
 
 **Délégation :** invoqué par `orchestrator`, `planner`, `pathfinder` (permissions `task`) et par `conductor` dans `cadrage`.
 
@@ -549,7 +547,7 @@ levées par le diagnostic et les patterns d'erreur à mémoriser, puis propose �
 `ONBOARDING.md` et/ou `CONVENTIONS.md`. Si accepté, délègue l'écriture au `documentarian` via `task`
 (skill `living-docs-enrichment`). Ne peut invoquer le `documentarian` sans confirmation explicite.
 
-En mode `orchestrator_feature` : utilise le mécanisme d'interruption de session — chaque checkpoint (fin de phase, pause, confirmation d'action irréversible) produit un bloc `## Retour intermédiaire vers orchestrator` + `## Question pour l'orchestrator` et termine la session.
+Sous-agent : une seule session (protocole d'exécution) ; il s'arrête seulement sur une question bloquante (enveloppe au statut `en-attente`) et reprend avec `task_id`.
 
 > Voir [ADR-004](./adr/004-qa-debugger-separation.fr.md).
 
@@ -677,7 +675,7 @@ Proposé par la précondition `project-context` de `feature` et `cadrage` sur un
 
 **Phase 5 — Enrichissement incrémental :** quand le wiki existe déjà (enrichi par d'autres agents), propose un enrichissement incrémental plutôt qu'une réécriture complète. La réécriture complète reste disponible avec un avertissement explicite sur la perte des enrichissements accumulés.
 
-En mode `orchestrator_feature` : utilise le mécanisme d'interruption de session — chaque fin de phase (0 à 4) produit un bloc `## Retour intermédiaire vers orchestrator` + `## Question pour l'orchestrator` et termine la session.
+Sous-agent : une seule session (protocole d'exécution) ; il s'arrête seulement sur une question bloquante (enveloppe au statut `en-attente`) et reprend avec `task_id`.
 
 ---
 

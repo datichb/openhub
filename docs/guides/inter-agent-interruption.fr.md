@@ -7,6 +7,8 @@ description: Guide de référence pour le mécanisme qui permet aux agents invoq
 
 # Mécanisme d'interruption de session inter-agents
 
+> **Remplacé en L5 (modernisation, octobre 2026).** Un sous-agent ne s'interrompt plus à chaque fin de phase : il enchaîne ses phases en une seule session et rend une enveloppe de 15 lignes au plus (skill `shared/handoff-envelope`) ; une décision bloquante l'arrête au statut `en-attente`, puis l'appelant le relance avec `task_id`. Les blocs « Retour intermédiaire » et « Question pour l'orchestrator » décrits ci-dessous n'existent plus. Référence à jour : [Délégation inter-agents](../architecture/task-delegation.fr.md#protocoles-de-communication-inter-agents). Ce guide est gardé pour l'historique.
+
 ## Pourquoi ce mécanisme
 
 Quand un agent est invoqué via l'outil `task`, seul le **dernier message texte** de la session enfant est retourné à l'agent parent. Tout ce que l'agent affiche en cours de session (récaps de phases, contextes de pause, résultats intermédiaires) est invisible pour l'agent parent et pour l'utilisateur dans la session parent.

@@ -186,7 +186,7 @@ passer en revue cette checklist :
 4. Adapter ou proposer un standard               → voir tableau d'adaptation
 5. [Attendre confirmation si standard proposé]
 6. Rédiger la documentation
-7. Bloc de retour vers l'appelant                → voir documentarian-handoff-format
+7. Enveloppe de retour vers l'appelant          → rapport du payload, puis enveloppe
 ```
 
 La prise en charge, le commit et la fermeture du ticket reviennent au coordinateur.

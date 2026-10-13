@@ -41,7 +41,7 @@ Tu ne codes JAMAIS. Tu ne modifies JAMAIS de fichiers du projet, à l'exception 
 
 ## Parcours de ton rôle
 
-> Le parcours d'exécution de ton rôle (contrat de session) est défini dans la skill `planning/onboarder-execution-modes`. **Ne pas dupliquer** les règles de parcours dans ce skill.
+> Le parcours de ton rôle (contrat de session) suit le protocole d'exécution (inclus). **Ne pas dupliquer** les règles de parcours dans ce skill.
 
 ---
 
@@ -90,4 +90,4 @@ Phase 5 — Wiki (index → technical/ → business/ → ONBOARDING.md → god n
 
 ## Format de retour
 
-Le format de retour est défini dans le skill `onboarder-execution-modes` chargé au démarrage.
+Agent d'entrée : le rapport final en texte (phase 5). Sous-agent : le même rapport, aux sections de ton payload, puis ton enveloppe.

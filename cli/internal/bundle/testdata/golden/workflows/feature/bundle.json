@@ -70,12 +70,8 @@
       ],
       "skills": [
         "beads-plan",
-        "design-handoff-format",
-        "documentarian-handoff-format",
-        "handoff-bloc-unique-rule",
         "living-docs-enrichment",
-        "orchestrator-recap-edge",
-        "pathfinder-handoff-format"
+        "orchestrator-recap-edge"
       ]
     },
     {
@@ -157,10 +153,7 @@
       ],
       "skills": [
         "beads-plan",
-        "handoff-bloc-unique-rule",
         "living-docs-enrichment",
-        "pathfinder-execution-modes",
-        "subagent-execution-protocol",
         "websearch-stack-research",
         "websearch-usage"
       ]
@@ -249,22 +242,17 @@
       ],
       "skills": [
         "beads-plan",
-        "design-planner-format",
         "elicitation-techniques",
         "expert-posture",
-        "handoff-bloc-unique-rule",
         "living-docs-enrichment",
-        "phase-0-validation-loop",
         "planner-beads-templates",
         "planner-design-templates",
-        "planner-execution-modes",
         "planner-patterns-protocol",
         "planner-phase-0",
         "planner-phase-1",
         "planner-phase-2",
         "planner-phase-3-4",
         "planner-phase-5-6",
-        "subagent-execution-protocol",
         "websearch-stack-research",
         "websearch-usage"
       ]
@@ -334,13 +322,10 @@
         "beads-plan",
         "content-design",
         "design-principles",
-        "designer-subagent",
         "expert-posture",
         "figma-deep-protocol",
         "figma-recon-protocol",
-        "handoff-bloc-unique-rule",
         "prototype-protocol",
-        "subagent-execution-protocol",
         "tui-patterns",
         "ui-patterns-reference",
         "ui-protocol",
@@ -436,11 +421,9 @@
         "dev-standards-security-hardening",
         "dev-standards-testing",
         "error-recovery-protocol",
-        "handoff-bloc-unique-rule",
         "orchestrator-dev-edge-cases",
         "orchestrator-dev-parallel",
         "orchestrator-dev-recap",
-        "orchestrator-dev-subagent",
         "orchestrator-dev-ticket-workflow",
         "quick-fix",
         "test-generation"
@@ -631,7 +614,6 @@
       ],
       "skills": [
         "beads-plan",
-        "concision-posture",
         "dev-standards-api",
         "dev-standards-backend",
         "dev-standards-database",
@@ -645,7 +627,6 @@
         "dev-standards-security",
         "dev-standards-security-hardening",
         "dev-standards-testing",
-        "handoff-bloc-unique-rule",
         "living-docs-enrichment",
         "quick-fix",
         "reviewer-reception",
@@ -733,12 +714,10 @@
         "dev-standards-security",
         "dev-standards-testing",
         "dev-standards-universal",
-        "handoff-bloc-unique-rule",
         "living-docs-enrichment",
         "review-merge",
         "reviewer-adversarial",
-        "reviewer-edge-case",
-        "reviewer-subagent"
+        "reviewer-edge-case"
       ]
     },
     {
@@ -828,7 +807,6 @@
         "doc-standards",
         "doc-wiki-protocol",
         "expert-posture",
-        "handoff-bloc-unique-rule",
         "skill-authoring-protocol",
         "websearch-usage"
       ]
@@ -836,12 +814,8 @@
   ],
   "skills": [
     "beads-plan",
-    "concision-posture",
     "content-design",
-    "design-handoff-format",
-    "design-planner-format",
     "design-principles",
-    "designer-subagent",
     "dev-drift-detection",
     "dev-standards-api",
     "dev-standards-backend",
@@ -863,26 +837,19 @@
     "doc-slides",
     "doc-standards",
     "doc-wiki-protocol",
-    "documentarian-handoff-format",
     "elicitation-techniques",
     "error-recovery-protocol",
     "expert-posture",
     "figma-deep-protocol",
     "figma-recon-protocol",
-    "handoff-bloc-unique-rule",
     "living-docs-enrichment",
     "orchestrator-dev-edge-cases",
     "orchestrator-dev-parallel",
     "orchestrator-dev-recap",
-    "orchestrator-dev-subagent",
     "orchestrator-dev-ticket-workflow",
     "orchestrator-recap-edge",
-    "pathfinder-execution-modes",
-    "pathfinder-handoff-format",
-    "phase-0-validation-loop",
     "planner-beads-templates",
     "planner-design-templates",
-    "planner-execution-modes",
     "planner-patterns-protocol",
     "planner-phase-0",
     "planner-phase-1",
@@ -895,9 +862,7 @@
     "reviewer-adversarial",
     "reviewer-edge-case",
     "reviewer-reception",
-    "reviewer-subagent",
     "skill-authoring-protocol",
-    "subagent-execution-protocol",
     "test-generation",
     "tui-patterns",
     "ui-patterns-reference",

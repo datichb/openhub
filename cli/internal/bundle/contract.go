@@ -34,6 +34,8 @@ type contractData struct {
 	Report           bool
 	// WikiMCP: the project wiki server (LD-J), not shipped yet.
 	WikiMCP bool
+	// Statuses: the return statuses of the agents it may launch (L5).
+	Statuses []contractStatuses
 }
 
 var (
@@ -58,7 +60,7 @@ func contractTemplate() (*template.Template, error) {
 }
 
 // contractFor returns the contract data of agent id.
-func contractFor(req Request, wf *sessionspec.WorkflowRuntime, id string, graph, callers map[string][]string, env whenEnv) contractData {
+func contractFor(req Request, wf *sessionspec.WorkflowRuntime, id string, graph, callers map[string][]string, env whenEnv, statuses payloadStatuses) contractData {
 	d := contractData{
 		Entry:    env.roles[roleEntry],
 		Subagent: env.roles[roleSubagent],
@@ -84,18 +86,19 @@ func contractFor(req Request, wf *sessionspec.WorkflowRuntime, id string, graph,
 		l := req.Spec.Limits
 		d.MaxFixRounds = *l.MaxFixRounds
 	}
+	d.Statuses = calleeStatuses(id, d.Callees, statuses)
 	return d
 }
 
 // sessionContract renders the contract of agent id ("" when the template
 // fails, which a test prevents).
-func sessionContract(req Request, wf *sessionspec.WorkflowRuntime, id string, graph, callers map[string][]string, env whenEnv) string {
+func sessionContract(req Request, wf *sessionspec.WorkflowRuntime, id string, graph, callers map[string][]string, env whenEnv, statuses payloadStatuses) string {
 	t, err := contractTemplate()
 	if err != nil {
 		return ""
 	}
 	var b bytes.Buffer
-	if err := t.Execute(&b, contractFor(req, wf, id, graph, callers, env)); err != nil {
+	if err := t.Execute(&b, contractFor(req, wf, id, graph, callers, env, statuses)); err != nil {
 		return ""
 	}
 	return "\n\n" + strings.TrimSpace(b.String()) + "\n"
@@ -109,5 +112,58 @@ func fillCheckpointBy(wf *sessionspec.WorkflowRuntime, spec *workflow.Spec, grap
 	}
 	for i := range wf.Checkpoints {
 		wf.Checkpoints[i].By = spec.CheckpointBy(wf.Checkpoints[i].ID, graph)
+	}
+}
+
+// Return statuses of the callees (modernisation L5). Each agent that returns
+// to a caller has a payload skill <agent>-payload whose frontmatter lists
+// the statuses of its envelope (`statuses:`); the contract of a caller gives
+// them for the agents it may launch, so that the caller reads a status
+// without the format of the callee in its prompt.
+
+// payloadSuffix names the payload skill of an agent: <agent>-payload.
+const payloadSuffix = "-payload"
+
+// payloadStatuses returns the statuses of the payload of an agent (nil when
+// it has none).
+type payloadStatuses func(agent string) []string
+
+type contractStatuses struct {
+	Agent    string
+	Statuses []string
+}
+
+// calleeStatuses lists the statuses of the callees of id that have a
+// payload, in the order of callees (the agent itself, when it may launch
+// itself, is left out: it knows its own payload).
+func calleeStatuses(id string, callees []string, statuses payloadStatuses) []contractStatuses {
+	if statuses == nil {
+		return nil
+	}
+	var out []contractStatuses
+	for _, c := range callees {
+		if c == id {
+			continue
+		}
+		if s := statuses(c); len(s) > 0 {
+			out = append(out, contractStatuses{Agent: c, Statuses: s})
+		}
+	}
+	return out
+}
+
+// hubPayloadStatuses reads the statuses from the payload skills of the hub
+// (index: skill id → ref, as hubSkillIndex).
+func hubPayloadStatuses(loader *skillLoader, index map[string]string) payloadStatuses {
+	return func(agent string) []string {
+		ref, ok := index[agent+payloadSuffix]
+		if !ok {
+			return nil
+		}
+		d, err := loader.load(ref)
+		if err != nil {
+			return nil
+		}
+		return d.Front.Statuses
 	}
 }

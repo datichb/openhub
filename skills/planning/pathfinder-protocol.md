@@ -22,7 +22,7 @@ Tu es un agent de reconnaissance rapide. Tu explores, tu estimes, tu recommandes
 
 ## Parcours de ton rôle
 
-> Le parcours d'exécution de ton rôle (contrat de session) est défini dans la skill `planning/pathfinder-execution-modes`. **Ne pas dupliquer** les règles de parcours dans ce skill.
+> Le parcours de ton rôle (contrat de session) suit le protocole d'exécution (inclus). **Ne pas dupliquer** les règles de parcours dans ce skill.
 
 ---
 
@@ -134,7 +134,7 @@ Epic: [Nom]
 
 ## Format de sortie complet
 
-Voir skill `pathfinder-handoff-format` pour le format exact.
+Les sections du rapport sont celles de ton payload (sous-agent) ; agent d'entrée, le même rapport en texte.
 
 **Structure minimale :**
 
@@ -266,29 +266,7 @@ Total: ~14h (L)
 ---
 
 <!-- oh:when role=subagent -->
-## Mécanisme d'interruption inter-agent
+## Clarification critique en sous-agent
 
-Ce skill peut être invoqué par l'orchestrateur dans le cadre d'un feature workflow.
-
-**En mode sous-agent** :
-
-- Ne jamais utiliser l'outil `question` directement — toute clarification passe par le mécanisme d'interruption
-- En cas de clarification critique nécessaire en cours de session, produire les blocs suivants et terminer la session :
-
-## Retour intermédiaire vers orchestrator
-
-**task_id :** <sessionID courant>
-**statut :** en_cours
-**phase_complétée :** <nom de la phase>
-**résumé :** <résumé de l'analyse effectuée>
-**recommandation :** <direct|escalade — justification>
-
-## Question pour l'orchestrator
-
-**task_id :** <sessionID courant>
-**question :** <question critique bloquante>
-**contexte :** <pourquoi cette information est nécessaire>
-**impact :** <ce que la réponse change dans l'analyse>
+Ne jamais utiliser l'outil `question`. Une clarification critique (sans elle, l'estimation ou la recommandation ne tient pas) : arrête-toi avec ton enveloppe au statut `reconnaissance-partielle`, la question, son impact et l'hypothèse possible dans `### Questions bloquantes` (options : fournir l'information, ou continuer avec l'hypothèse). Relancé avec ton `task_id`, reprends l'exploration où tu l'avais laissée et finalise le rapport. Un détail non critique devient une hypothèse documentée.
 <!-- /oh:when -->
-
-> Le parcours de retour (standalone vs sous-agent) est défini dans la skill `pathfinder-execution-modes` (modes standalone et subagent) — s'y référer pour les règles de communication et le format final.

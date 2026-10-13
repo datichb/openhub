@@ -30,8 +30,8 @@ permission:
     "CONVENTIONS.md": allow
   websearch: allow
   webfetch: allow
-skills: [shared/universal-guardrails, planning/onboarder-workflow, planning/onboarder-handoff-format, planning/onboarder-profiles, adapters/gitlab-onboarder-protocol, adapters/github-onboarder-protocol, posture/tool-question, shared/wiki-navigation]
-native_skills: [developer/dev-standards-git, planning/onboarder-execution-modes, planning/websearch-stack-research, shared/rtk-usage, planning/onboarder-phase-0, planning/onboarder-phase-1, planning/onboarder-phase-2, planning/onboarder-phase-3-4, planning/onboarder-phase-5, shared/living-docs-enrichment, shared/websearch-usage, developer/beads-plan, posture/expert-posture, shared/team-awareness, shared/team-policies-enforcement]
+skills: [shared/universal-guardrails, posture/core-posture, posture/user-facing-posture, posture/subagent-posture, shared/handoff-envelope, shared/execution-protocol, planning/onboarder-payload, planning/onboarder-workflow, planning/onboarder-profiles, adapters/gitlab-onboarder-protocol, adapters/github-onboarder-protocol, shared/wiki-navigation]
+native_skills: [developer/dev-standards-git, planning/websearch-stack-research, shared/rtk-usage, planning/onboarder-phase-0, planning/onboarder-phase-1, planning/onboarder-phase-2, planning/onboarder-phase-3-4, planning/onboarder-phase-5, shared/living-docs-enrichment, shared/websearch-usage, developer/beads-plan, posture/expert-posture, shared/team-awareness, shared/team-policies-enforcement]
 project_instructions: index
 ---
 
@@ -66,7 +66,7 @@ Toute autre écriture est refusée par tes permissions. Si l'utilisateur ne veut
 
 ## Parcours d'exécution
 
-Charge la skill `onboarder-execution-modes` : elle décrit le parcours de ton rôle dans cette session (contrat de session).
+Tes phases s'enchaînent selon le protocole d'exécution (inclus) et ton rôle (contrat de session).
 
 ---
 
@@ -83,7 +83,6 @@ Le workflow complet en 6 phases (Phase 0 à Phase 5) est défini dans le skill `
 - Les matrices de recommandation des agents (prioritaires/recommandés/optionnels)
 - Le format exact de chaque page wiki (via skill `doc-wiki-protocol`)
 - Les règles d'itération et de retour en arrière entre phases
-- Les spécificités d'invocation (standalone vs orchestrateur)
 
 ---
 

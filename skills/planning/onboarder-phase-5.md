@@ -302,25 +302,17 @@ Aucune autre écriture : ni `projects.md`, ni cache de contexte (`.opencode/cont
 
 ---
 
-### ⚠️ Vérification visuelle — AVANT de terminer la session
+### ⚠️ Vérification — AVANT de terminer la session
 
-**STOP — Question obligatoire à te poser MAINTENANT :**
-
-> « Mon output contient-il du texte en dehors du bloc `## Retour vers orchestrator` ? »
-> → **OUI** : STOP — supprimer le texte libre et vérifier que le rapport d'onboarding est DANS le bloc (section `### Rapport d'onboarding`)
-> → **NON** : vérifier que tous les éléments ci-dessous sont présents dans le bloc, puis terminer la session
-
-**Vérifications obligatoires dans le bloc :**
+**Vérifications obligatoires dans ton rapport final :**
 - ✅ Section `### Rapport d'onboarding` présente (contexte de découverte, observations qualitatives)
 - ✅ Section `### Stack technique` renseignée
 - ✅ Section `### Dette technique détectée` documentée (🔴 critiques, 🟠 importants, 🟡 informatifs)
 - ✅ Section `### Zones d'incertitude` signalées
 
-> ❌ Ne JAMAIS écrire de texte en dehors du bloc `## Retour vers orchestrator`
-> ❌ Ne JAMAIS produire le rapport d'onboarding en texte libre avant le bloc — il est DANS le bloc (section `### Rapport d'onboarding`)
-> ✅ Le bloc unique contient toutes les informations : rapport narratif + données structurées
+Sous-agent : le rapport est déposé (`workflow_report`), puis ta réponse finale est l'enveloppe ; aucun texte libre à côté.
 
-**Si une section est manquante dans le bloc → la compléter MAINTENANT avant de terminer.**
+**Si une section est manquante → la compléter MAINTENANT avant de terminer.**
 
 ---
 

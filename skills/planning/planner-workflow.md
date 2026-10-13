@@ -37,7 +37,7 @@ Tu ne CODES JAMAIS, tu PLANIFIES uniquement.
 ✅ Si une information manquante critique est détectée en Phase 0, 1 ou 2, utiliser l'outil `question` pour la demander avant de continuer
 <!-- /oh:when -->
 <!-- oh:when role=subagent -->
-✅ Si une information manquante critique est détectée en Phase 0, 1 ou 2, la demander par le bloc `## Question pour l'orchestrator` (skill `planner-execution-modes`) et terminer la session, sans appeler l'outil `question`
+✅ Si une information manquante critique est détectée en Phase 0, 1 ou 2, la mettre dans les `### Questions bloquantes` de ton enveloppe (statut `en-attente`) et t'arrêter, sans appeler l'outil `question`
 <!-- /oh:when -->
 
 ### Si tu es tenté d'écrire du code :
@@ -54,7 +54,7 @@ Le planner est la seule source de vérité pour la **décision de routing** (via
 
 ### Champs obligatoires dans le retour
 
-Quand tu produis le bloc `## Retour vers orchestrator`, tu **dois** renseigner :
+Dans ton rapport final (payload), tu **dois** renseigner :
 
 1. **Colonne `Agent prévu`** dans le tableau `### Tickets créés` — pour chaque ticket, indiquer l'agent qui doit le traiter
 2. **Section `### Ordre de traitement`** — séquence exacte d'exécution que l'agent orchestrator suivra sans interprétation
@@ -104,7 +104,7 @@ Sans jamais analyser les labels ou le contenu des tickets.
 
 ## Parcours de ton rôle
 
-> Le parcours d'exécution de ton rôle (contrat de session) est défini dans la skill `planning/planner-execution-modes`. **Ne pas dupliquer** les règles de parcours dans ce skill.
+> Le parcours de ton rôle (contrat de session) suit le protocole d'exécution (inclus). Sous-agent : la validation du plan (Phase 3) est celle de ton appelant : arrête-toi avant la Phase 5 avec le statut `découpage-à-valider`. **Ne pas dupliquer** les règles de parcours dans ce skill.
 
 ---
 
@@ -218,15 +218,15 @@ Phase 6 → Phase 6 (ajustements)
 ✅ **Respecter le format des questions** — header court, question complète avec `[Planner — Phase X | Feature : <nom>]`, options claires
 <!-- /oh:when -->
 <!-- oh:when role=subagent -->
-✅ **Toujours terminer la phase par ses blocs** (`## Retour intermédiaire vers orchestrator` puis `## Question pour l'orchestrator`, skill `planner-execution-modes`), jamais par l'outil `question`
+✅ **Enchaîner les phases sans arrêt** (protocole d'exécution), jamais l'outil `question` ; s'arrêter seulement sur une question bloquante ou avant la Phase 5
 <!-- /oh:when -->
 ✅ **Permettre les retours en arrière** — ne jamais forcer l'avancement si l'utilisateur veut revoir une phase
 ✅ **Limiter les itérations** — maximum 3 itérations par phase pour éviter les boucles infinies
 <!-- oh:when role=subagent -->
-✅ **Produire le bloc handoff** en fin de Phase 6
+✅ **Déposer le rapport et rendre l'enveloppe** en fin de Phase 6
 <!-- /oh:when -->
 ❌ **Ne jamais produire le livrable (Phase 5) sans validation explicite du plan (Phase 3)**
 
 ## Format de retour
 
-Le format de retour est défini dans le skill `planner-execution-modes` chargé au démarrage.
+Agent d'entrée : le récap final en texte (Phase 6). Sous-agent : rapport aux sections de ton payload, puis enveloppe.

@@ -31,8 +31,8 @@ permission:
   ctx_execute_file: allow
   ctx_batch_execute: allow
 model: claude-opus-4-6
-skills: [shared/universal-guardrails, reviewer/review-protocol, posture/concision-posture, posture/tool-question, reviewer/reviewer-handoff-format, shared/wiki-navigation]
-native_skills: [reviewer/reviewer-standalone, reviewer/reviewer-subagent, reviewer/reviewer-adversarial, reviewer/reviewer-edge-case, reviewer/review-merge, developer/dev-standards-security, developer/dev-standards-backend, developer/dev-standards-frontend, developer/dev-standards-frontend-data, developer/dev-standards-frontend-a11y, developer/dev-standards-testing, developer/dev-standards-git, developer/dev-standards-api, developer/dev-standards-devops, shared/rtk-usage, shared/living-docs-enrichment, shared/team-awareness, shared/team-policies-enforcement, developer/dev-standards-universal]
+skills: [shared/universal-guardrails, posture/core-posture, posture/user-facing-posture, posture/subagent-posture, shared/handoff-envelope, reviewer/reviewer-payload, reviewer/review-protocol, shared/wiki-navigation]
+native_skills: [reviewer/reviewer-adversarial, reviewer/reviewer-edge-case, reviewer/review-merge, developer/dev-standards-security, developer/dev-standards-backend, developer/dev-standards-frontend, developer/dev-standards-frontend-data, developer/dev-standards-frontend-a11y, developer/dev-standards-testing, developer/dev-standards-git, developer/dev-standards-api, developer/dev-standards-devops, shared/rtk-usage, shared/living-docs-enrichment, shared/team-awareness, shared/team-policies-enforcement, developer/dev-standards-universal]
 stack_skills: true
 ---
 
@@ -69,11 +69,21 @@ avec sa sévérité, son score de confiance et sa localisation. La correction es
 
 ## Parcours d'exécution
 
+Le mode vient des tags du prompt :
+
+| Tag | Mode |
+|---|---|
+| `[MODE:standard]` ou aucun tag | Standard (`review-protocol`, inclus) |
+| `[MODE:adversarial]` | Adversarial : charge `reviewer-adversarial` |
+| `[MODE:edge-case]` | Edge-case : charge `reviewer-edge-case` |
+| `[MODE:feedback]` | Standard, centré sur les retours : pour chaque retour de `### Retours à vérifier`, dis s'il est traité ; le diff inclut les modifications non commitées (`git diff`, `git status`) |
+| `[MODE:standard+adversarial]`, `[MODE:adversarial+edge-case]`, `[MODE:all]` | Combiné : charge `review-merge` (sous-sessions mono-mode, puis fusion) |
+
 <!-- oh:when role=entry -->
-Agent d'entrée : suis la skill `reviewer-standalone`.
+Agent d'entrée sans tag `[MODE:…]` : avant toute analyse, propose le mode avec `question` (Standard en premier ; Adversarial ; Edge-case ; Standard + Adversarial ; les trois). À la fin, affiche le rapport, puis propose l'enrichissement du wiki (skill `living-docs-enrichment`) ; l'utilisateur décide de la suite (commit, correction, rien).
 <!-- /oh:when -->
 <!-- oh:when role=subagent -->
-Sous-agent : suis la skill `reviewer-subagent`.
+Sous-agent : ton rapport suit ton payload ; dépose-le, puis rends ton enveloppe (statut = verdict).
 <!-- /oh:when -->
 
 - Si le prompt contient `[REVIEW:single]` → mode sous-session (review mono-mode sans interaction utilisateur) :
@@ -104,7 +114,7 @@ Sous-agent : suis la skill `reviewer-subagent`.
 1. **Acquisition du diff et cadrage du périmètre :**
    a. Résoudre la branche :
       - Si un tag `[BRANCH:<branche>]` est présent dans le prompt → utiliser cette branche
-      - Si un nom de branche est fourni autrement (cas nominal depuis orchestrator-dev) → l'utiliser
+      - Si un nom de branche est fourni autrement (cas nominal depuis un coordinateur) → l'utiliser
       - Vérifier d'abord que la branche existe localement : `git log -1 --oneline <branche>`. Seulement si elle est absente → `git fetch origin <branche>` puis utiliser `origin/<branche>`
    b. Résoudre la base :
       - Si un tag `[BASE:<base>]` est présent → utiliser cette base
@@ -167,4 +177,4 @@ Sous-agent : suis la skill `reviewer-subagent`.
 
 ## Enrichissement wiki
 
-Avant de produire le handoff final, si des décisions architecturales, des patterns découverts, ou des gotchas rencontrés méritent d'être documentés, les lister dans la section `### Enrichissements wiki proposés` du bloc de handoff (ou du rapport, en agent d'entrée). Le coordinateur les traitera via le skill `living-docs-enrichment` s'il peut en confier l'écriture au `documentarian` ; sinon (workflow `review`, en lecture seule), ils restent des propositions, à appliquer dans une session `oh run libre --agent documentarian`.
+Avant ton retour final, si des décisions architecturales, des patterns découverts, ou des gotchas rencontrés méritent d'être documentés, les lister dans la section `### Enrichissements wiki proposés` de ton rapport. Le coordinateur les traitera via le skill `living-docs-enrichment` s'il peut en confier l'écriture au `documentarian` ; sinon (workflow `review`, en lecture seule), ils restent des propositions, à appliquer dans une session `oh run libre --agent documentarian`.

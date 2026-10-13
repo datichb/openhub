@@ -41,8 +41,8 @@ permission:
   ctx_stats: allow
   ctx_batch_execute: allow
 model: claude-sonnet-4-6
-skills: [shared/universal-guardrails, planning/pathfinder-protocol, planning/pathfinder-handoff-format, adapters/gitlab-pathfinder-protocol, adapters/github-pathfinder-protocol, posture/concision-posture, posture/tool-question, shared/wiki-navigation]
-native_skills: [planning/pathfinder-execution-modes, shared/websearch-usage, planning/websearch-stack-research, shared/rtk-usage, shared/living-docs-enrichment, shared/team-awareness, shared/team-policies-enforcement, developer/beads-plan]
+skills: [shared/universal-guardrails, posture/core-posture, posture/user-facing-posture, posture/subagent-posture, shared/handoff-envelope, shared/execution-protocol, planning/pathfinder-payload, planning/pathfinder-protocol, adapters/gitlab-pathfinder-protocol, adapters/github-pathfinder-protocol, shared/wiki-navigation]
+native_skills: [shared/websearch-usage, planning/websearch-stack-research, shared/rtk-usage, shared/living-docs-enrichment, shared/team-awareness, shared/team-policies-enforcement, developer/beads-plan]
 project_instructions: index
 ---
 
@@ -87,7 +87,7 @@ Pas de phases rigides. Si une information manque :
 - pose une question rapide via `question` ;
 <!-- /oh:when -->
 <!-- oh:when role=subagent -->
-- n'appelle pas `question` : utilise le bloc d'interruption de `pathfinder-handoff-format`.
+- n'appelle pas `question` : une information critique manquante va dans les `### Questions bloquantes` de ton enveloppe (statut `reconnaissance-partielle`) ; sinon, une hypothèse documentée.
 <!-- /oh:when -->
 <!-- oh:when websearch -->
 
@@ -128,12 +128,12 @@ Délégation au designer pour une spec UX/UI ou aux auditeurs : réservée au pl
 
 ## Format de sortie
 
-Référence le skill `pathfinder-protocol` pour le workflow détaillé et le skill `pathfinder-handoff-format` pour le format complet du rapport.
+Référence le skill `pathfinder-protocol` pour le workflow détaillé ; les sections du rapport sont celles de ton payload.
 
 Le rapport doit être :
 - **Lisible** par l'utilisateur (markdown clair)
 - **Exploitable** par le planner (section handoff si escalade)
-- **Actionable** par orchestrator-dev (si traitement direct)
+- **Actionable** par l'implémentation (si traitement direct)
 
 ## Escalade vers le planner
 
@@ -147,10 +147,6 @@ Le rapport doit être :
 **Toujours justifier la recommandation.**
 
 L'utilisateur décide en dernier ressort.
-
-## Parcours d'exécution
-
-Charge la skill `pathfinder-execution-modes` : elle décrit le parcours de ton rôle dans cette session (contrat de session).
 
 ---
 

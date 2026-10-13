@@ -23,37 +23,7 @@ question({
 })
 ```
 
-**En mode invoqué depuis l'orchestrator** → produire le bloc `## Question pour l'orchestrator` et arrêter :
-
-> ⚠️ **En mode sous-agent** : ajouter le bloc `## Retour vers orchestrator` **immédiatement après** le bloc `## Question pour l'orchestrator`, avant de clore la session. Les deux blocs sont émis ensemble.
-
-```
----
-
-## Question pour l'orchestrator
-
-**Agent :** orchestrator-dev
-**Ticket :** #<ID> — <titre>
-**Phase :** Dépendance non résolue
-
-### Contexte complet
-Le ticket #<ID> dépend de #<ID-parent> — <titre du ticket parent>.
-Statut du ticket parent : <bd show <ID-parent> — statut et description>
-
-### Question en attente
-Le ticket #<ID> dépend de #<ID-parent> qui n'est pas encore terminé. Comment procéder ?
-
-### Options disponibles
-- `Attendre` : Suspendre ce ticket jusqu'à la résolution du ticket parent
-- `Traiter le parent d'abord` : Réorganiser pour traiter #<ID-parent> avant #<ID>
-- `Continuer quand même` : Ignorer la dépendance et démarrer l'implémentation maintenant
-
-### État de la session
-**Tickets traités :** [bd-XX ✅, ...]
-**En cours :** bd-<ID>
-**Tickets restants :** [bd-YY, bd-ZZ, ...]
-**task_id :** <task_id de la session en cours>
-```
+**Sous-agent** → enveloppe au statut `en-attente` : la même question et ses options dans `### Questions bloquantes`, l'état de la boucle (tickets traités, en cours, restants) dans le résumé ; puis arrête-toi.
 
 ### Ticket sans agent identifiable
 
@@ -90,7 +60,7 @@ Puis suis la règle générée : passe le checkpoint de commit avec `workflow_ch
 
 Si le reviewer retourne **les mêmes findings** sur le même ticket lors de **2 cycles consécutifs**, ne pas re-déléguer automatiquement au developer.
 
-**Critère de détection :** les champs `corrections requises` du bloc de handoff reviewer contiennent des libellés identiques (ou quasi-identiques) à ceux du cycle précédent.
+**Critère de détection :** les `### Corrections requises` du rapport du reviewer contiennent des libellés identiques (ou quasi-identiques) à ceux du cycle précédent.
 
 **Action obligatoire :** escalade immédiate à l'utilisateur, même en mode `semi-auto` ou `auto` :
 
@@ -110,44 +80,11 @@ question({
 
 Ne JAMAIS lancer un 3ème cycle sur les mêmes findings sans validation explicite de l'utilisateur.
 
-**En mode invoqué depuis l'orchestrator** → produire le bloc `## Question pour l'orchestrator` et arrêter :
-
-> ⚠️ **En mode sous-agent** : ajouter le bloc `## Retour vers orchestrator` **immédiatement après** le bloc `## Question pour l'orchestrator`, avant de clore la session. Les deux blocs sont émis ensemble.
-
-```
----
-
-## Question pour l'orchestrator
-
-**Agent :** orchestrator-dev
-**Ticket :** #<ID> — <titre>
-**Phase :** Ping-pong reviewer
-
-### Contexte complet
-**Findings répétés (2 cycles consécutifs) :** <liste des findings répétés>
-
-**Historique des cycles :**
-- Cycle <N-1> : verdict <corriger> — <synthèse en 1 ligne : N problèmes, thème principal>
-- Cycle <N> : verdict <corriger> — <synthèse en 1 ligne>
-
-### Question en attente
-Le reviewer signale les mêmes problèmes depuis 2 cycles sur #<ID>. Une intervention manuelle est nécessaire. Comment procéder ?
-
-### Options disponibles
-- `Reprendre manuellement ce ticket` : l'utilisateur corrige avant de relancer la review
-- `Passer ce ticket` : Ignorer ce ticket et passer au suivant
-- `Arrêter la session` : Terminer le workflow ici
-
-### État de la session
-**Tickets traités :** [bd-XX ✅, ...]
-**En cours :** bd-<ID>
-**Tickets restants :** [bd-YY, bd-ZZ, ...]
-**task_id :** <task_id de la session en cours>
-```
+**Sous-agent** → enveloppe au statut `en-attente` : la même question et ses options dans `### Questions bloquantes`, l'état de la boucle (tickets traités, en cours, restants) dans le résumé ; puis arrête-toi.
 
 ### Ticket bloqué en cours d'implémentation
 
-Si le developer signale un blocage dans son handoff, lui demander de mettre à jour le ticket
+Si le developer signale un blocage dans son retour, lui demander de mettre à jour le ticket
 avant de signaler le blocage à l'agent orchestrator parent.
 
 Transmettre au developer dans le prompt :
@@ -180,39 +117,7 @@ question({
 })
 ```
 
-**En mode invoqué depuis l'orchestrator** → produire le bloc `## Question pour l'orchestrator` et arrêter :
-
-> ⚠️ **En mode sous-agent** : ajouter le bloc `## Retour vers orchestrator` **immédiatement après** le bloc `## Question pour l'orchestrator`, avant de clore la session. Les deux blocs sont émis ensemble.
-
-```
----
-
-## Question pour l'orchestrator
-
-**Agent :** orchestrator-dev
-**Ticket :** #<ID> — <titre>
-**Phase :** Ticket bloqué
-
-### Contexte complet
-**Raison du blocage :** <raison exacte signalée par le developer>
-**Statut Beads :** blocked
-**Label ajouté :** needs-decision | needs-clarification
-**Contenu du ticket :** <bd show <ID> — description complète, critères, notes>
-
-### Question en attente
-Le ticket #<ID> est bloqué : <raison>. Comment procéder ?
-
-### Options disponibles
-- `Résoudre maintenant` : Traiter le blocage avant de continuer l'implémentation
-- `Passer au suivant` : Ignorer ce ticket et passer au ticket suivant
-- `Stop` : Arrêter le workflow et afficher le récap de l'état courant
-
-### État de la session
-**Tickets traités :** [bd-XX ✅, ...]
-**En cours :** bd-<ID> (bloqué)
-**Tickets restants :** [bd-YY, bd-ZZ, ...]
-**task_id :** <task_id de la session en cours>
-```
+**Sous-agent** → enveloppe au statut `en-attente` : la même question et ses options dans `### Questions bloquantes`, l'état de la boucle (tickets traités, en cours, restants) dans le résumé ; puis arrête-toi.
 
 Si résolu : demander au developer de reprendre le ticket (`bd update <ID> -s in_progress`) puis reprendre l'implémentation. <!-- capability: relay -->
 
@@ -230,15 +135,13 @@ Si résolu : demander au developer de reprendre le ticket (`bd update <ID> -s in
 - Lancer en parallèle des tickets avec des dépendances formelles entre eux (`bd dep list` révèle une intersection non vide avec le lot), un ticket de domaine `fullstack` dans le lot, ou des types/migrations/configs partagés mentionnés dans la description
 - Résumer ou abréger les rapports de review — les transmettre dans leur intégralité
 - Résumer les `### Corrections requises` du reviewer dans le commentaire Beads — les copier telles quelles
-- Continuer vers la review sans avoir reçu le bloc `## Retour vers orchestrator-dev` du developer
-- Retenter indéfiniment un subagent qui ne produit pas de handoff — respecter le budget de 2 retries max (voir skill `orchestrator/error-recovery-protocol`), puis escalader
+- Continuer vers la review sans avoir reçu l'enveloppe du developer
+- Retenter indéfiniment un subagent qui ne rend pas d'enveloppe — respecter le budget de 2 retries max (voir skill `orchestrator/error-recovery-protocol`), puis escalader
 - Ignorer un output tronqué (signe de context window exhaustion) — appliquer le protocole de recovery systémique avant de continuer
 - Laisser tourner une boucle pre-review → developer au-delà de 5 cycles sans escalation — cap de sécurité obligatoire
 - Ignorer les `### Points d'attention pour la review` du developer — les transmettre toujours au reviewer
-- Clore une session invoquée depuis l'agent orchestrator feature sans avoir produit (1) le récap global complet ET (2) le bloc `## Retour vers orchestrator` — les deux sont obligatoires même en cas de stop, de ticket bloqué ou de session partielle
-- Accepter un retour du reviewer sans rapport de review complet — rapport et bloc handoff sont tous deux obligatoires
-- Copier le rapport de review dans `### Contexte complet` — le rapport va dans `### Rapport de review complet`, le contexte est réservé à la synthèse et au verdict
-- Omettre le champ `**Type de récap :**` dans le bloc `## Retour vers orchestrator` — ce champ est obligatoire et permet à l'orchestrator de distinguer récap partiel (émis avec une question montante) et récap final (émis seul en fin de session)
+- Clore une session lancée par un agent sans avoir déposé ton rapport ET rendu ton enveloppe — les deux sont obligatoires même en cas de stop, de ticket bloqué ou de session partielle
+- Accepter un retour du reviewer sans rapport de review (identifiant ou rapport inclus) — rapport et enveloppe sont tous deux obligatoires
 - Appliquer un mode de workflow (`semi-auto` ou `auto`) si aucune valeur canonique n'a été explicitement détectée dans le prompt — utiliser `manuel` comme fallback et signaler l'absence
 - Continuer silencieusement après une reprise via `task_id` sans vérifier que le mode est toujours disponible dans le contexte
 - Mettre à jour todowrite à chaque micro-étape (review, pre-review) — uniquement aux transitions clés (début de cp-1, fin ticket) pour limiter l'overhead en mode auto
