@@ -177,7 +177,7 @@ The interactive terminal dashboard launched by running `oh` without arguments. P
 Set at launch (`--mode`, launch form), it determines the behavior of each [checkpoint](#checkpoint-cp), declared by the workflow for each mode:
 - **Manual** (`manuel`): most checkpoints pause for approval
 - **Semi-auto** (default of the shipped workflows): usual checkpoints pass on their own; key decision points (e.g. `cp-0`, `cp-2`) pause
-- **Auto**: everything passes on its own except the checkpoints that stay on `pause` (e.g. `cp-0` plan approval, `cp-2` commit)
+- **Auto**: everything except the mandatory decisions — only the mandatory checkpoints (`mandatory`) and those that unlock an action stop (e.g. `cp-0` plan approval, `cp-2` commit)
 
 A workflow may restrict the modes (`modes.allowed`). See [`oh/v1` schema](workflow-schema.en.md#modes).
 

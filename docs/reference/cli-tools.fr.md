@@ -12,6 +12,8 @@
 
 Vérifie les skills du hub (`skills/**/*.md`, hors annexes de `skills/templates/`) et les skills nommées par les agents du hub. Sort avec le code 1 en cas d'erreur.
 
+Avec une équipe active (espace solo compris), il applique aussi la règle `unknown_key` aux skills du catalogue d'équipe (`catalog/skills/**/*.md` du team-state, hors `templates/`) : leurs problèmes portent le préfixe `team:` (`team:<chemin>`), et la clé `extends` (remplacement d'une skill du hub, `extends: hub:<ref>`) y est permise. Un frontmatter illisible y est un `invalid_frontmatter`. Les règles de description s'y appliquent en avertissement : `description_not_trigger`, et `long_description` au-delà de 200 caractères (erreur au-delà de 1024, limite du standard).
+
 | Type | Niveau | Problème |
 |------|--------|----------|
 | `duplicate_id` | erreur | Deux skills de même identifiant (dernier élément du chemin) |

@@ -26,10 +26,10 @@ Règles de délégation :
 
 ## Checkpoints (dans l'ordre)
 
-| Checkpoint | manuel | semi-auto | auto |
-|---|---|---|---|
-| **cp-plan** — Plan | pause | pause | pause |
-| **cp-apply** — Application (obligatoire) | pause | pause | pause |
+| Checkpoint | manuel |
+|---|---|
+| **cp-plan** — Plan | pause |
+| **cp-apply** — Application (obligatoire) | pause |
 
 Séquence : `cp-plan` → `cp-apply` [apply] (entre crochets, les opérations que le checkpoint déverrouille).
 
@@ -47,6 +47,6 @@ Passage d'un checkpoint : appelle l'outil `workflow_checkpoint` avec `id` (ident
 
 ## Mode de workflow
 
-- Modes autorisés : `manuel`, `semi-auto`, `auto` · mode par défaut : `manuel`.
+- Modes autorisés : `manuel` · mode par défaut : `manuel`.
 - Le mode de la session est indiqué dans le premier message (`Mode de workflow : <mode>`) ; sans indication, applique le mode par défaut. Ne le redemande pas.
 - Quand tu lances un agent avec l'outil `task`, inclus la ligne `Mode de workflow : <mode>` dans le prompt.

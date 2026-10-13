@@ -204,10 +204,12 @@ Applique un changement d'infrastructure déjà écrit dans le dépôt (Terraform
 | `request` | `text` (8 000 caractères max) | oui | Le changement à appliquer (commit, dossier, module, release) et son objectif |
 | `target` | `string` (200 caractères max) | oui | Environnement visé tel que le projet le nomme (`staging`, `prod`, workspace Terraform, contexte kube, stack Pulumi) |
 
-| Checkpoint | manuel | semi-auto | auto | distant |
-|---|---|---|---|---|
-| `cp-plan` Plan | pause | pause | pause | — |
-| `cp-apply` Application (obligatoire, déverrouille `apply`) | pause | pause | pause | interdit |
+| Checkpoint | manuel | distant |
+|---|---|---|
+| `cp-plan` Plan | pause | — |
+| `cp-apply` Application (obligatoire, déverrouille `apply`) | pause | interdit |
+
+Mode `manuel` uniquement (`modes: { default: manuel, allowed: [manuel] }`) : `--mode semi-auto` et `--mode auto` sont refusés, chaque étape d'une modification d'infrastructure reste validée par l'utilisateur.
 
 `target` est un texte libre plutôt qu'une énumération : chaque projet nomme ses environnements à sa façon (workspaces, contextes, stacks) ; l'`operator` la confronte au contexte réel avant tout plan et s'arrête en cas d'écart. Les lectures d'infrastructure sont autorisées, les lectures de secrets demandées, et toute modification (`terraform apply`, `kubectl apply`, `helm upgrade`, `pulumi up`, commandes create/delete/update des clouds…) est refusée jusqu'à `cp-apply`, puis demandée une à une ([garde-fou infra](../../SECURITY.fr.md)).
 

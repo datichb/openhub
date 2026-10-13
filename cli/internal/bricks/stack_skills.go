@@ -4,14 +4,16 @@ import "sort"
 
 // stackSkillMapping maps the signals of DetectSignals to skill refs in
 // skills/developer/stacks/ (relative to the skills/ directory). Every stack
-// skill is reachable from at least one signal; the other signals (java,
-// ruby, svelte, flask, package managers…) ship no skill.
+// skill is reachable from at least one signal; the other signals (ruby,
+// svelte, flask, package managers…) ship no skill. A JVM build that is not
+// Android emits java, so a Spring Boot project gets both skills.
 var stackSkillMapping = map[string][]string{
 	// Languages
 	"typescript": {"developer/stacks/dev-standards-typescript"},
 	"python":     {"developer/stacks/dev-standards-python"},
 	"golang":     {"developer/stacks/dev-standards-golang"},
 	"rust":       {"developer/stacks/dev-standards-rust"},
+	"java":       {"developer/stacks/dev-standards-java"},
 
 	// Frontend
 	"vuejs":   {"developer/stacks/dev-standards-vuejs"},

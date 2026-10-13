@@ -153,7 +153,7 @@ func TestResolveStackSkills_Projects(t *testing.T) {
 		{"spring boot maven", map[string]string{
 			"pom.xml":      "<parent><artifactId>spring-boot-starter-parent</artifactId></parent>",
 			"compose.yaml": "",
-		}, []string{p + "docker", p + "springboot"}},
+		}, []string{p + "docker", p + "java", p + "springboot"}},
 		{"android", map[string]string{
 			"settings.gradle.kts":              `include(":app")`,
 			"app/build.gradle.kts":             `plugins { id("com.android.application"); kotlin("android") }`,

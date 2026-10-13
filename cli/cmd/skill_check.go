@@ -28,6 +28,11 @@ func skillCheckCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			team, err := teamSkillProblems(cmd.Context())
+			if err != nil {
+				return err
+			}
+			problems = append(problems, team...)
 			errs := 0
 			for _, p := range problems {
 				if p.Error {

@@ -177,7 +177,7 @@ Le tableau de bord terminal interactif lance en executant `oh` sans arguments. F
 Fixe au lancement (`--mode`, fiche de lancement), il determine le comportement de chaque [checkpoint](#checkpoint-cp), declare par le workflow pour chaque mode :
 - **Manuel** : la plupart des checkpoints s'arretent pour validation
 - **Semi-auto** (defaut des workflows livres) : les checkpoints courants passent seuls ; les points de decision cles (ex. `cp-0`, `cp-2`) s'arretent
-- **Auto** : tout passe seul sauf les checkpoints qui restent en `pause` (ex. `cp-0` validation du plan, `cp-2` commit)
+- **Auto** : tout sauf les décisions obligatoires — seuls s'arrêtent les checkpoints obligatoires (`mandatory`) et ceux qui déverrouillent une action (ex. `cp-0` validation du plan, `cp-2` commit)
 
 Un workflow peut restreindre les modes (`modes.allowed`). Voir [schema `oh/v1`](workflow-schema.fr.md#modes).
 

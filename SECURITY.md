@@ -93,7 +93,7 @@ The oh daemon (`ohd`) runs a credential proxy on `127.0.0.1` (one listener per m
 A session sees only the agents and skills of its bundle. This is mandatory and not configurable.
 
 - opencode's native agents are disabled; built-in skills are refused; for each agent, delegation is allowed only towards the targets of the workflow graph.
-- The project's opencode configuration and data are excluded (`OPENCODE_DISABLE_PROJECT_CONFIG=1`, data folder per group).
+- The project's opencode configuration and data are excluded (`OPENCODE_DISABLE_PROJECT_CONFIG=1`, data folder per group). This variable also leaves out the `AGENTS.md` of the project root and of its parents. Two sources stay outside this control, reported by `oh doctor`: a subfolder `AGENTS.md`, added to the prompt by the opencode read tool when an agent reads a file of that folder, and `~/.config/opencode/AGENTS.md` in local mode without `[execution] strict_isolation`.
 - The oh plugin removes any agent or skill outside the bundle (a second barrier).
 - **`Attest`** runs after each server start and for each new folder: it compares the agents, the skills visible to each agent (on the effective rules reported by the tool) and the MCP servers with the bundle. Anything unexpected makes the launch fail; the server is stopped and its token revoked.
 - `[execution] strict_isolation` also hides your opencode user configuration in local mode. In a container or a remote job, it is never visible.

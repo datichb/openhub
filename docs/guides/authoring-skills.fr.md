@@ -136,7 +136,7 @@ Le frontmatter n'accepte que deux sortes de clés :
 | Clés [Agent Skills](https://agentskills.io/specification) | `name`, `description`, `license`, `compatibility`, `metadata`, `allowed-tools` | Conservées |
 | Clés du hub, lues par oh | `requires`, `annexes`, `plugin`, `mcp` | Retirées |
 
-Toute autre clé (hors `bucket:`, signalé comme obsolète) est une **erreur** `unknown_key` d'`oh skill check` : la supprimer, ou porter l'information dans le corps. Limites de la spécification Agent Skills, erreurs elles aussi :
+Toute autre clé (hors `bucket:`, signalé comme obsolète) est une **erreur** `unknown_key` d'`oh skill check` : la supprimer, ou porter l'information dans le corps. La règle vaut aussi pour les skills du catalogue d'équipe (`catalog/skills/`), où `extends:` est permis en plus. Limites de la spécification Agent Skills, erreurs elles aussi :
 
 - `name:` — 64 caractères au plus, minuscules, chiffres et tirets simples (`planner-phase-0` ; ni `Planner_Phase0`, ni `-x`, ni `a--b`) : `invalid_name` ;
 - `description:` — 200 caractères au plus pour le hub (`long_description` ; avertissement pour le catalogue d'équipe ; 1024 reste la limite du standard). Elle dit **quand** charger la skill : commencer par « Utiliser quand… » (ou « Utiliser pour… », « Utiliser en phase… »), sinon avertissement `description_not_trigger`.

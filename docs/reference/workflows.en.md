@@ -204,10 +204,12 @@ Applies an infrastructure change already written in the repository (Terraform/Op
 | `request` | `text` (8,000 characters max) | yes | The change to apply (commit, directory, module, release) and its goal |
 | `target` | `string` (200 characters max) | yes | Target environment as the project names it (`staging`, `prod`, Terraform workspace, kube context, Pulumi stack) |
 
-| Checkpoint | manuel | semi-auto | auto | remote |
-|---|---|---|---|---|
-| `cp-plan` Plan | pause | pause | pause | — |
-| `cp-apply` Apply (mandatory, unlocks `apply`) | pause | pause | pause | forbidden |
+| Checkpoint | manuel | remote |
+|---|---|---|
+| `cp-plan` Plan | pause | — |
+| `cp-apply` Apply (mandatory, unlocks `apply`) | pause | forbidden |
+
+`manuel` mode only (`modes: { default: manuel, allowed: [manuel] }`): `--mode semi-auto` and `--mode auto` are refused, every step of an infrastructure change stays approved by the user.
 
 `target` is free text rather than an enum: projects name their environments in their own way (workspaces, contexts, stacks); the `operator` checks it against the real context before any plan and stops on a mismatch. Infrastructure reads are allowed, secret reads are asked, and every change (`terraform apply`, `kubectl apply`, `helm upgrade`, `pulumi up`, cloud create/delete/update commands…) is refused until `cp-apply`, then asked one by one ([infrastructure guard](../../SECURITY.md)).
 

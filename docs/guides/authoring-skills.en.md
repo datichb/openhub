@@ -136,7 +136,7 @@ The frontmatter accepts two kinds of keys only:
 | [Agent Skills](https://agentskills.io/specification) keys | `name`, `description`, `license`, `compatibility`, `metadata`, `allowed-tools` | Kept |
 | Hub keys, read by oh | `requires`, `annexes`, `plugin`, `mcp` | Removed |
 
-Any other key (`bucket:` aside, reported as obsolete) is an `unknown_key` **error** of `oh skill check`: remove it, or move the information into the body. Limits of the Agent Skills specification, also errors:
+Any other key (`bucket:` aside, reported as obsolete) is an `unknown_key` **error** of `oh skill check`: remove it, or move the information into the body. The rule also applies to the skills of the team catalogue (`catalog/skills/`), where `extends:` is allowed too. Limits of the Agent Skills specification, also errors:
 
 - `name:` — at most 64 characters, lowercase letters, digits and single hyphens (`planner-phase-0`; not `Planner_Phase0`, not `-x`, not `a--b`): `invalid_name`;
 - `description:` — at most 200 characters for the hub (`long_description`; a warning for the team catalogue; 1024 stays the standard limit). It says **when** to load the skill: open with « Utiliser quand… » (or « Utiliser pour… », « Utiliser en phase… »), otherwise a `description_not_trigger` warning.

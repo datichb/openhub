@@ -156,6 +156,17 @@ type DataLocator interface {
 	ProjectFiles() []string
 }
 
+// AmbientInstructions lists the instruction files the tool adds to the
+// prompts of a session by itself, outside the session bundle (oh doctor).
+type AmbientInstructions interface {
+	// ProjectAmbientInstructions are the files of a project the tool loads
+	// while the agents explore it (paths relative to the project, sorted).
+	ProjectAmbientInstructions(ctx context.Context, dir string) []string
+	// UserAmbientInstructions are the existing user files the tool loads in
+	// local sessions, unless [execution] strict_isolation hides them.
+	UserAmbientInstructions() []string
+}
+
 // LegacyCleaner removes what the former deployment of oh (v4: tool files
 // written into each project) left (`oh migrate deploy-cleanup`).
 type LegacyCleaner interface {

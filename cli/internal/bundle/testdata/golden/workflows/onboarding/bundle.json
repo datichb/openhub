@@ -9,6 +9,7 @@
         "shell * deny",
         "shell ls* allow",
         "shell bd list* allow",
+        "shell bd show* allow",
         "shell git log* allow",
         "shell bd query * allow",
         "shell bd search * allow",
