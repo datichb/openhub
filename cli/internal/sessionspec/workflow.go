@@ -103,6 +103,10 @@ type WorkflowRuntime struct {
 	// R3 (workflow_verify.go): developer → reviewer rounds per ticket
 	// (`limits.max_fix_rounds`, 0 = no cap).
 	MaxFixRounds int `json:"max_fix_rounds,omitempty"`
+
+	// R7: Method is the method of the session ("" = standard): the
+	// bundle holds only the checkpoints of this method.
+	Method string `json:"method,omitempty"`
 }
 
 // ScratchDef is the scratch folder of an agent for a session: written by
@@ -136,6 +140,11 @@ type CheckpointDef struct {
 	// is passed oh applies the accepted proposals and records the
 	// synchronization.
 	Wiki string `json:"wiki,omitempty"`
+
+	// R7: Base: oh records the commit of the location when the checkpoint
+	// is passed (a later verification counts the changes from there,
+	// VerifyDef.Since).
+	Base bool `json:"base,omitempty"`
 }
 
 // WikiSync is the `wiki:` of a checkpoint that synchronizes the wiki.

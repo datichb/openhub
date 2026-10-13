@@ -241,7 +241,8 @@ func applyCheckpointVerify(rt *sessionspec.WorkflowRuntime, s *workflow.Spec) {
 		if v := cp.Verify; v != nil {
 			d := &sessionspec.VerifyDef{From: string(v.From), Cmd: append([]string(nil), v.Cmd...), Expect: string(v.ExpectOrPass()),
 				In: v.In, TimeoutSec: int(v.TimeoutOrDefault().Seconds()), MustTouch: append([]string(nil), v.MustTouch...),
-				Ask: s.Risk == workflow.RiskRead}
+				Ask:            s.Risk == workflow.RiskRead,
+				MustTouchTests: v.MustTouchTests, OutsideTests: string(v.OutsideTests), Since: v.Since}
 			if v.From != "" {
 				for _, k := range v.EffectiveKinds() {
 					d.Kinds = append(d.Kinds, string(k))
@@ -252,6 +253,18 @@ func applyCheckpointVerify(rt *sessionspec.WorkflowRuntime, s *workflow.Spec) {
 		if w := cp.When; !w.IsZero() {
 			def.When = &sessionspec.WhenDef{Entry: append([]string(nil), w.Entry...), Labels: append([]string(nil), w.Labels...),
 				Paths: append([]string(nil), w.Paths...), Outputs: append([]string(nil), w.Outputs...)}
+		}
+	}
+	// R7: the commit of the location is recorded when a checkpoint a
+	// verification counts the changes from (since:) is passed.
+	for _, def := range rt.Checkpoints {
+		if def.Verify == nil || def.Verify.Since == "" {
+			continue
+		}
+		for i := range rt.Checkpoints {
+			if rt.Checkpoints[i].ID == def.Verify.Since {
+				rt.Checkpoints[i].Base = true
+			}
 		}
 	}
 }

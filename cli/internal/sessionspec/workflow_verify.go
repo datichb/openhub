@@ -34,7 +34,21 @@ type VerifyDef struct {
 	// Ask: the workflow is read-only (risk: read), so the commands only
 	// run at a checkpoint the user validates (Behavior returns pause).
 	Ask bool `json:"ask,omitempty"`
+
+	// R7 (TDD): MustTouchTests: the changes touch a test file of the
+	// stack; OutsideTests: what a change outside the test files does
+	// ("", warn, refuse); Since: the changes are counted from the commit
+	// recorded when this checkpoint was last passed (CheckpointDef.Base).
+	MustTouchTests bool   `json:"must_touch_tests,omitempty"`
+	OutsideTests   string `json:"outside_tests,omitempty"`
+	Since          string `json:"since,omitempty"`
 }
+
+// What a change outside the test files does (copied from the oh/v1 schema).
+const (
+	OutsideTestsWarn   = "warn"
+	OutsideTestsRefuse = "refuse"
+)
 
 // WhenDef are the conditions, evaluated by oh, that make a checkpoint that
 // does not pause in the mode pause (one is enough).

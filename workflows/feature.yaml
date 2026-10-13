@@ -24,6 +24,14 @@ inputs:
       fr: Tickets Beads déjà créés à prendre en charge (facultatif)
       en: Beads tickets already created to take on (optional)
     picker: { multi: true }
+  method:
+    type: enum
+    values: [standard, tdd]
+    default: standard
+    label: { fr: Méthode, en: Method }
+    help:
+      fr: "tdd : le développeur présente les points d'injection et les tests prévus (cp-seams), écrit d'abord des tests qui échouent, vérifiés par oh (cp-red), puis implémente"
+      en: "tdd: the developer presents the seams and the planned tests (cp-seams), writes failing tests first, checked by oh (cp-red), then implements"
 prompt:
   template: prompts/feature.md.tmpl
 agents:
@@ -63,6 +71,23 @@ checkpoints:
     by: [orchestrator-dev]
     label: { fr: Démarrer le ticket, en: Start the ticket }
     mode: { manuel: pause, semi-auto: auto, auto: auto }
+  cp-seams:
+    by: [developer]
+    method: tdd
+    label: { fr: Points d'injection et tests prévus, en: Seams and planned tests }
+    description:
+      fr: "Méthode TDD, avant d'écrire un test : présenter les points d'injection, les interfaces et les tests prévus (comportement attendu, cas limites). Une fois par ticket."
+      en: "TDD method, before writing a test: present the seams, the interfaces and the planned tests (expected behaviour, edge cases). Once per ticket."
+    mode: { manuel: pause, semi-auto: pause, auto: auto }
+  cp-red:
+    by: [developer]
+    method: tdd
+    label: { fr: Tests en échec, en: Failing tests }
+    description:
+      fr: "Méthode TDD, tests écrits et avant le code : oh vérifie que les tests échouent pour la bonne raison et que les changements depuis cp-seams sont des tests (et les seules amorces nécessaires). Une fois par ticket."
+      en: "TDD method, once the tests are written and before the code: oh checks that the tests fail for the right reason and that the changes since cp-seams are tests (and only the stubs they need). Once per ticket."
+    mode: { manuel: auto, semi-auto: auto, auto: auto }
+    verify: { from: stack, expect: fail, must_touch_tests: true, outside_tests: warn, since: cp-seams }
   cp-2:
     by: [orchestrator-dev]
     label: { fr: Commit ou correction, en: Commit or fix }

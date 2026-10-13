@@ -44,6 +44,15 @@ func verifyText(v *VerifySpec) string {
 	if len(v.MustTouch) > 0 {
 		parts = append(parts, "must_touch: "+strings.Join(v.MustTouch, ","))
 	}
+	if v.MustTouchTests {
+		parts = append(parts, "must_touch_tests: true")
+	}
+	if v.OutsideTests != "" {
+		parts = append(parts, "outside_tests: "+string(v.OutsideTests))
+	}
+	if v.Since != "" {
+		parts = append(parts, "since: "+v.Since)
+	}
 	parts = append(parts, "timeout: "+v.TimeoutOrDefault().String())
 	return "{" + strings.Join(parts, ", ") + "}"
 }

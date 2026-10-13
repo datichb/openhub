@@ -78,15 +78,20 @@ Implémente un ou plusieurs tickets Beads déjà détaillés : routage vers le b
 | Entrée | Type | Obligatoire | Rôle |
 |---|---|---|---|
 | `ticket` | `beads-id` (sélecteur : `ai-delegated`, multi-sélection) | oui | Ticket à implémenter ; plusieurs tickets sélectionnés = une session par ticket |
+| `method` | `enum` (`standard`, `tdd`) | non (`standard`) | Méthode : `tdd` ajoute `cp-seams` et `cp-red` (tests écrits d'abord) |
 | `instructions` | `text` (4 000 caractères max) | non | Précisions pour la session |
 
 | Checkpoint | manuel | semi-auto | auto | distant |
 |---|---|---|---|---|
 | `cp-1` Démarrer le ticket | pause | auto | auto | auto |
+| `cp-seams` Points d'injection et tests prévus (méthode `tdd`) | pause | pause | auto | auto |
+| `cp-red` Tests en échec (méthode `tdd`, vérifié par oh) | auto | auto | auto | auto |
 | `cp-2` Commit ou correction (obligatoire) | pause | pause | pause | attend l'utilisateur |
 | `cp-3` Ticket suivant | pause | auto | auto | auto |
 
 Mode par défaut : `semi-auto`. Commandes Beads autorisées : `show`, `list`, `ready`, `children`, `dep`, `update`, `close`, `comments`, `label`. Sorties : `branch`, `tickets`.
+
+En méthode `tdd` (`-i method=tdd`), le `developer` passe lui-même `cp-seams` (il présente les points d'injection, les interfaces et les tests prévus) puis `cp-red`, où oh vérifie que les tests écrits échouent pour la bonne raison (le code construit, les tests compilent et échouent) et qu'un fichier de test a changé depuis `cp-seams` ; les autres fichiers modifiés sont signalés. Sans cette méthode, rien ne change : ni checkpoint, ni texte. Voir [Méthode TDD](checkpoints.fr.md#méthode-tdd--cp-seams-et-cp-red-r7).
 
 `cp-2` déverrouille `commit` et `close` : avant sa validation, oh refuse à tous les agents `git commit` (et `revert`, `cherry-pick`, `merge`, `pull`, qui commitent aussi) et la fermeture du ticket. Le push revient à l'utilisateur (aucun workflow livré ne le déverrouille). Avant que `cp-2` passe, oh lance lui-même le build, les tests et le typecheck de la stack détectée (`verify: { from: stack, expect: pass }`) : la carte de décision affiche le résultat, un échec n'ouvre rien et l'utilisateur peut passer outre (choix tracé). Même vérification sur `cp-2` de `feature` et `review-feedback`, et sur `cp-commit` de `quick`, `debug` et `sweep` ; voir [Checkpoints](checkpoints.fr.md). Une fois `cp-2` validé, l'`orchestrator-dev` relance le `developer`, qui commite puis ferme le ticket ; oh refuse la fermeture tant que le travail n'est pas commité. Le `reviewer` lance le build et les tests du projet (et le lint, le typecheck) avant sa review, avec les commandes de la stack détectée, autorisées ici : un échec est un finding 🔴 (verdict `corriger`) ; les fichiers produits par le build et non ignorés sont signalés, la fermeture exigeant un arbre propre. Il en va de même dans `feature`, `sweep`, `review-feedback` et `libre`. Une question qui imite un checkpoint (« CP-2 — commit ? » posée avec l'outil `question`) est fermée par oh, qui rappelle à l'agent d'appeler `workflow_checkpoint`. Quand le ticket de la session est fermé (ou le dernier checkpoint passé) et que l'étape se termine, oh déclare les sorties manquantes (`branch`, `tickets`) et la session passe à **terminée** : « Enchaîner avec… » est proposé.
 
@@ -98,6 +103,7 @@ Réalise une feature de bout en bout. L'orchestrator choisit l'agent de planning
 |---|---|---|---|
 | `request` | `text` (8 000 caractères max) | non | La feature en langage naturel, ou l'identifiant d'un ticket ou d'une MR GitLab |
 | `tickets` | `beads-ids` | non | Tickets existants à prendre en charge (ancien mode B) |
+| `method` | `enum` (`standard`, `tdd`) | non (`standard`) | Méthode : `tdd` ajoute `cp-seams` et `cp-red` à chaque ticket |
 
 Sans demande ni ticket, la session commence par demander quelle feature réaliser.
 
@@ -107,11 +113,13 @@ Sans demande ni ticket, la session commence par demander quelle feature réalise
 | `cp-0` Valider le plan (obligatoire) | pause | pause | pause |
 | `cp-spec` Valider la spec UX/UI | si une spec a été produite | idem | idem |
 | `cp-1` Démarrer le ticket | pause | auto | auto |
+| `cp-seams` Points d'injection et tests prévus (méthode `tdd`) | pause | pause | auto |
+| `cp-red` Tests en échec (méthode `tdd`, vérifié par oh) | auto | auto | auto |
 | `cp-2` Commit ou correction (obligatoire) | pause | pause | pause |
 | `cp-3` Ticket suivant | pause | auto | auto |
 | `cp-feature` Récap de la feature | pause | auto | auto |
 
-Aucun ticket n'est créé avant `cp-tickets` (avec des tickets existants seulement, `cp-tickets` confirme la liste). `orchestrator-dev` ne démarre qu'après `cp-0` ; il passe lui-même `cp-1`, `cp-2` et `cp-3`, avec **un `cp-2` par ticket** (chaque ticket est commité puis fermé avant le suivant ; pas de validation groupée). En fin de feature, l'`orchestrator` fait relire l'ensemble par le `reviewer` (review adversariale sur la branche de travail), avant `cp-feature`. Mode par défaut : `semi-auto`. Sorties : `tickets`, `branch`. Commandes Beads autorisées : `show`, `list`, `ready`, `search`, `query`, `children`, `comments`, `count`, `lint`, `find-duplicates`, `status`, `graph`, `history`, `create`, `update`, `close`, `dep`, `label`, `duplicate`, `supersede`.
+Aucun ticket n'est créé avant `cp-tickets` (avec des tickets existants seulement, `cp-tickets` confirme la liste). `orchestrator-dev` ne démarre qu'après `cp-0` ; il passe lui-même `cp-1`, `cp-2` et `cp-3` (en méthode `tdd`, le `developer` passe `cp-seams` et `cp-red`, une fois par ticket), avec **un `cp-2` par ticket** (chaque ticket est commité puis fermé avant le suivant ; pas de validation groupée). En fin de feature, l'`orchestrator` fait relire l'ensemble par le `reviewer` (review adversariale sur la branche de travail), avant `cp-feature`. Mode par défaut : `semi-auto`. Sorties : `tickets`, `branch`. Commandes Beads autorisées : `show`, `list`, `ready`, `search`, `query`, `children`, `comments`, `count`, `lint`, `find-duplicates`, `status`, `graph`, `history`, `create`, `update`, `close`, `dep`, `label`, `duplicate`, `supersede`.
 
 L'ancienne pré-phase d'onboarding (mode C) n'est plus dans `feature` : la précondition `project-context` propose le workflow `onboarding`, puis le retour à `feature`.
 

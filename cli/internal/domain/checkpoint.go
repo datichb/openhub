@@ -65,6 +65,11 @@ type CheckpointState struct {
 	// the session (R3-remote, imported at fetch): shown on the card, never
 	// taken for a verification of the work on this machine.
 	RemoteVerify map[string]CheckpointVerify `json:"remote_verify,omitempty"`
+
+	// R7: Bases are the commits of the location when a checkpoint that
+	// starts a count of the changes (CheckpointDef.Base: cp-seams) was last
+	// passed, by checkpoint.
+	Bases map[string]string `json:"bases,omitempty"`
 }
 
 // CheckpointUnlock is an operation unlocked by a checkpoint.

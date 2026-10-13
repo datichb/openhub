@@ -352,6 +352,7 @@ func (p *patcher) checkpoints() {
 			}
 		}
 		p.checkpointVerify(base, &old, v)
+		p.checkpointMethod(base, &old, v)
 		if h("by") {
 			old.By = v.By
 		}

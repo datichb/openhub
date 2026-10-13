@@ -28,10 +28,33 @@ type PauseCount struct {
 	Irreversible []string
 	// Budget is BudgetDecisionPauses + len(Irreversible).
 	Budget int
+	// MethodPauses are the pauses of the checkpoints of a method (R7),
+	// by method: a session of that method may pause MethodPauseAllowance
+	// more times (report 2026-10 §9.2: TDD adds cp-seams).
+	MethodPauses map[Method][]string
 }
 
-// Exceeded reports whether the workflow pauses more than its budget.
-func (c PauseCount) Exceeded() bool { return len(c.Pauses) > c.Budget }
+// MethodPauseAllowance is the decision a method may add to the budget: the
+// method is chosen at launch, for that session only.
+const MethodPauseAllowance = 1
+
+// Exceeded reports whether the workflow pauses more than its budget, in a
+// session without method or in a session of each method.
+func (c PauseCount) Exceeded() bool {
+	base := len(c.Pauses)
+	for _, ps := range c.MethodPauses {
+		base -= len(ps)
+	}
+	if base > c.Budget {
+		return true
+	}
+	for _, ps := range c.MethodPauses {
+		if base+len(ps) > c.Budget+MethodPauseAllowance {
+			return true
+		}
+	}
+	return false
+}
 
 // PauseBudget counts the pauses of the workflow against its budget.
 func (s *Spec) PauseBudget() PauseCount {
@@ -48,6 +71,12 @@ func (s *Spec) PauseBudget() PauseCount {
 			continue
 		}
 		c.Pauses = append(c.Pauses, k)
+		if cp.Method != "" {
+			if c.MethodPauses == nil {
+				c.MethodPauses = map[Method][]string{}
+			}
+			c.MethodPauses[cp.Method] = append(c.MethodPauses[cp.Method], k)
+		}
 		if len(cp.Unlocks) > 0 {
 			c.Irreversible = append(c.Irreversible, k)
 		}
@@ -89,6 +118,7 @@ func (v *validator) checkpointsVerify() {
 		base := "checkpoints." + k
 		if cp.Verify != nil {
 			v.verify(base+".verify", cp.Verify)
+			v.verifyTests(base+".verify", k, cp)
 		}
 		if cp.When != nil {
 			v.when(base+".when", k, cp, agents, outputs)

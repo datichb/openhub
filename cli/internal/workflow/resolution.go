@@ -100,6 +100,9 @@ type Resolved struct {
 	Runtime Runtime
 	// Inputs are the session inputs given (not defaults).
 	Inputs map[string]any
+	// Method is the method of the session (R7, input `method`): Check
+	// keeps in Spec the checkpoints of this method only.
+	Method Method
 }
 
 // Locate fills the source and position of d from the origin of its path.
@@ -269,6 +272,7 @@ func (r *Resolved) applySession(opts *SessionOptions) Diagnostics {
 		}
 		r.Inputs[k] = v
 	}
+	r.Method = s.MethodOf(r.Inputs)
 	for _, k := range s.Inputs.Keys() {
 		in, _ := s.Inputs.Get(k)
 		if _, given := r.Inputs[k]; !given && in.Required && in.Default == nil {

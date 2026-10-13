@@ -237,11 +237,12 @@ func TestShippedWorkflowBundles(t *testing.T) {
 	hub, cat, env := shippedWorkflows(t)
 	hc, err := hubcat.New(hub)
 	require.NoError(t, err)
-	for _, ref := range cat.Refs() {
-		t.Run(ref.ID, func(t *testing.T) {
+	for _, v := range shippedVariants(t, cat) {
+		ref, name := v.ref, v.name
+		t.Run(name, func(t *testing.T) {
 			r, diags := workflow.Check(cat, ref, nil, env) // as the launch: selectable entries expanded
 			require.False(t, diags.HasErrors(), "%v", diags)
-			b, err := Build(Request{HubDir: hub, OutDir: t.TempDir(), Spec: r.Spec})
+			b, err := Build(Request{HubDir: hub, OutDir: t.TempDir(), Spec: r.Spec, Method: v.method})
 			require.NoError(t, err)
 			require.NoError(t, Verify(b.Dir, b.Spec.Hash), "N23: a built bundle verifies")
 
@@ -266,19 +267,44 @@ func TestShippedWorkflowBundles(t *testing.T) {
 			}
 			data, err := json.MarshalIndent(sum, "", "  ")
 			require.NoError(t, err)
-			assertGolden(t, filepath.Join("workflows", ref.ID, "bundle.json"), string(data)+"\n")
+			assertGolden(t, filepath.Join("workflows", name, "bundle.json"), string(data)+"\n")
 
-			_, graph := workflow.SubagentGraph(r.Spec, hc)
-			gen, err := GenerateWorkflowSkills(r.Spec, graph, func(id string) workflow.AgentMode {
+			spec := r.Spec.ForMethod(v.method) // as Build: the checkpoints of the method only
+			_, graph := workflow.SubagentGraph(spec, hc)
+			gen, err := GenerateWorkflowSkills(spec, graph, func(id string) workflow.AgentMode {
 				info, _ := hc.Agent(id)
 				return info.Mode
 			})
 			require.NoError(t, err)
 			for skill, content := range gen {
-				assertGolden(t, filepath.Join("workflows", ref.ID, strings.ReplaceAll(skill, "/", "__")+".md"), content)
+				assertGolden(t, filepath.Join("workflows", name, strings.ReplaceAll(skill, "/", "__")+".md"), content)
 			}
 		})
 	}
+}
+
+// shippedVariant is a shipped workflow as a session of a method sees it
+// (R7): the standard one, named after the workflow, and one per method
+// its checkpoints are declared for, named <id>@<method>.
+type shippedVariant struct {
+	ref    workflow.Ref
+	name   string
+	method workflow.Method
+}
+
+func shippedVariants(t *testing.T, cat *workflow.MemCatalog) []shippedVariant {
+	t.Helper()
+	var out []shippedVariant
+	for _, ref := range cat.Refs() {
+		out = append(out, shippedVariant{ref: ref, name: ref.ID})
+		r, _ := workflow.ResolveSpec(cat, ref, nil)
+		for _, m := range workflow.Methods {
+			if r != nil && r.Spec.HasMethod(m) {
+				out = append(out, shippedVariant{ref: ref, name: ref.ID + "@" + string(m), method: m})
+			}
+		}
+	}
+	return out
 }
 
 func assertGolden(t *testing.T, name, content string) {

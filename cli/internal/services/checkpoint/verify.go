@@ -348,16 +348,17 @@ func (s *Service) runVerify(ctx context.Context, sess *domain.Session, c session
 		// cannot run, the checkpoint waits for an override (R3-remote).
 		return unavailable()
 	}
-	if len(v.MustTouch) > 0 {
-		paths, err := s.changedPaths(ctx, sess)
-		if err != nil || !touches(paths, v.MustTouch) {
-			return domain.CheckpointVerify{Status: domain.VerifyFailed,
-				Reason: i18n.Tf("tui.checkpoint.verify.must_touch", strings.Join(v.MustTouch, ", "))}
-		}
+	failedChanges, note, ok := s.changesCheck(ctx, sess, v)
+	if !ok {
+		return failedChanges
 	}
 	runs := verifyRuns(sess.LaunchPath, dir, v)
 	if len(runs) == 0 {
-		return domain.CheckpointVerify{Status: domain.VerifyNone, Reason: i18n.T("tui.checkpoint.verify.no_command")}
+		return withNote(domain.CheckpointVerify{Status: domain.VerifyNone, Reason: i18n.T("tui.checkpoint.verify.no_command")}, note)
+	}
+	red := v.Expect == sessionspec.VerifyFail
+	if red {
+		runs = redOrder(runs) // R7: the code builds before the tests fail
 	}
 	ctx, cancel := context.WithTimeout(ctx, verifyTimeout(v))
 	defer cancel()
@@ -389,6 +390,12 @@ func (s *Service) runVerify(ctx context.Context, sess *domain.Session, c session
 		}
 		r.Commands = append(r.Commands, res)
 		if exit != 0 {
+			if red {
+				if why := wrongRed(cmd, exit, out.Bytes()); why != "" {
+					r.Status, r.Reason, r.Excerpt = domain.VerifyFailed, why, excerpt(out.Bytes())
+					return r
+				}
+			}
 			failed = out
 			break
 		}
@@ -403,7 +410,7 @@ func (s *Service) runVerify(ctx context.Context, sess *domain.Session, c session
 	default:
 		r.Status = domain.VerifyPassed
 	}
-	return r
+	return withNote(r, note)
 }
 
 // verifyRuns are the commands of a verification: the stack commands of the

@@ -295,6 +295,13 @@ type CheckpointSpec struct {
 	// when it is passed oh applies the accepted ones and records the commit
 	// synchronized in docs/wiki/index.md. It requires `unlocks: [commit]`.
 	Wiki CheckpointWiki `yaml:"wiki,omitempty"`
+
+	// R7 (schema_method.go): method of the session.
+
+	// Method keeps the checkpoint only in the sessions launched with this
+	// method (input `method`, e.g. tdd): elsewhere it does not exist. It
+	// may only add a step: never mandatory, never unlocking.
+	Method Method `yaml:"method,omitempty"`
 }
 
 // CheckpointWiki is the role of a checkpoint for the wiki of the project.
