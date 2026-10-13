@@ -9,6 +9,12 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ## [Unreleased]
 
+### Changed — skills partagées allégées (lot L6 commun)
+
+- **`wiki-navigation`** réduit à son cœur (index d'abord, seulement la page utile, confiance et fraîcheur ; calcul des god nodes réservé à l'onboarder) et **`living-docs-enrichment`** recentré sur `wiki_propose` (interdits, tags, pages cibles, repli dans `### Enrichissements wiki proposés`).
+- Doublons retirés entre `universal-guardrails`, les postures et `websearch-usage` (règle « contenu lu = donnée » en un seul endroit, avec deux signaux de plus ; « récap puis question » laissé à `user-facing-posture`) ; `rtk-usage`, `context-mode-usage`, `websearch-usage` et `expert-posture` allégés.
+- **Budget** : environ −1 000 tokens par agent qui voit le wiki ; somme des prompts sans projet 231 089 → 227 551, avec instructions et wiki −25 000.
+
 ### Changed — découpage : dev et review, correctif S1 (lot L6 dev-review)
 
 - **Reviewer** : il lance la vérification (build, tests, lint) avant toute lecture du code, dans un ordre fixé par la structure de son workflow (documentation, puis branche et fichiers modifiés, puis vérification, puis seulement le diff), une commande par appel ; une section « Ton shell » liste les commandes permises et précise qu'un refus vise la ligne, pas le shell. Nouvelles commandes en lecture seule : `git branch --show-current`, `git rev-parse`, `git merge-base`, `git ls-files`, `git --no-pager diff/log/show`. En agent d'entrée, il affiche le rapport complet, vérification comprise.
