@@ -9,6 +9,15 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ## [Unreleased]
 
+### Changed — enveloppe de retour et protocole unique (lot L5) — ⚠ changement de comportement
+
+- **Enveloppe de retour** : un agent lancé par un autre rend une enveloppe de 15 lignes au plus — `## Retour vers <appelant>` (titre pris dans le contrat de session, jamais écrit en dur), statut, rapport `rp-…`, questions bloquantes, suite proposée, résumé, `task_id`. Son rapport complet est déposé avec `workflow_report`, ou inclus sous l'enveloppe sans démon.
+- **Fin de la retranscription** : le coordinateur affiche l'enveloppe, lit le rapport avec `workflow_report_get` et le cite au checkpoint ; la carte du checkpoint montre les rapports.
+- **Protocole d'exécution unique**, une section par rôle : un sous-agent travaille en une seule session et ne s'arrête que sur une question bloquante (statut `en-attente`), puis reprend avec `task_id`.
+- **Postures** `core`, `coordinator`, `user-facing` (agent d'entrée) et `subagent` ; **un payload par agent appelé** (statuts et titres de son rapport), dont les statuts figurent dans le contrat de session de ses appelants (clé `statuses:`). Nouveau statut du planner `découpage-à-valider` pour `cp-tickets`.
+- **Supprimés** (32 skills, 9 modèles) : les formats de handoff, les modes d'exécution, les paires agent d'entrée / sous-agent, `phase-0-validation-loop`, `handoff-bloc-unique-rule`, `retranscription-coordinateur`, `concision-posture`, `coordination-only`, `subagent-concision-posture`, `tool-question`, `tool-todowrite`. Le hub passe à 169 skills.
+- **Budget** (somme des prompts sans stack) : 342 970 → 277 378 tokens (−19,1 %). Les sous-agents déposent leur rapport dans environ 73 % des retours (contre 1 sur 4).
+
 ### Changed — instructions du projet par niveau (lot L7)
 
 - **`project_instructions`** d'un agent (`full` par défaut, `index`, `none`) décide de ce qu'il reçoit d'`ONBOARDING.md`, `CONVENTIONS.md`, `.claude/CLAUDE.md` et des `instruction_files`.
