@@ -101,7 +101,7 @@ Example for a completion skill:
 
 **Token efficiency**
 
-- ≤ 2 sentences in `description:` — beyond that, the description is truncated or ignored
+- `description:`: a trigger « Utiliser quand… », 200 characters at most — it is in the catalogue of every agent, at every session
 - Condense without losing discriminating keywords
 - Put the most important keywords first
 
@@ -139,9 +139,9 @@ The frontmatter accepts two kinds of keys only:
 Any other key (`bucket:` aside, reported as obsolete) is an `unknown_key` **error** of `oh skill check`: remove it, or move the information into the body. Limits of the Agent Skills specification, also errors:
 
 - `name:` — at most 64 characters, lowercase letters, digits and single hyphens (`planner-phase-0`; not `Planner_Phase0`, not `-x`, not `a--b`): `invalid_name`;
-- `description:` — at most 1024 characters: `long_description`.
+- `description:` — at most 200 characters for the hub (`long_description`; a warning for the team catalogue; 1024 stays the standard limit). It says **when** to load the skill: open with « Utiliser quand… » (or « Utiliser pour… », « Utiliser en phase… »), otherwise a `description_not_trigger` warning.
 
-`plugin: <id>` ships the skill only when the workflow loads that plugin (`plugins:`); `mcp: <server>` ships it only when the session has that MCP server (tracker adapters: `mcp: gitlab` for `adapters/gitlab-*`, `mcp: github` for `adapters/github-*` — an agent may list both adapters, only the one of the configured tracker is shipped).
+`plugin: <id>` ships the skill only when the workflow loads that plugin (`plugins:`); `mcp: <server>` ships it only when the session has that MCP server (tracker adapters: `mcp: gitlab` for `adapters/gitlab-*`, `mcp: github` for `adapters/github-*` — an agent may list both adapters, only the one of the configured tracker is shipped; team skills: `mcp: team`).
 
 ### Templates and annexes (`annexes:`)
 
@@ -263,7 +263,7 @@ Before merging or declaring a skill complete:
 - [ ] Anti-patterns verified (narrative, bilingual, generic, flowchart code, over-spec)
 
 **SDO**
-- [ ] `description:` ≤ 2 sentences (1024 characters at most), discriminating keywords, cross-refs if needed
+- [ ] `description:` as a trigger « Utiliser quand… », 200 characters at most, discriminating keywords, cross-refs if needed
 - [ ] `name:` equal to the file name (without `.md`), kebab-case, 64 characters at most: it is the skill identifier in the session bundle, unique across the catalogue
 - [ ] No frontmatter key outside the Agent Skills keys and `requires`/`annexes`/`plugin`/`mcp`
 - [ ] `requires:` lists the skills it cannot work without (`<category>/<name>` refs), if any; no `bucket:` field (the bucket is decided by the agent frontmatter: `skills:` = A, `native_skills:` = B)

@@ -20,7 +20,7 @@ Vérifie les skills du hub (`skills/**/*.md`, hors annexes de `skills/templates/
 | `invalid_frontmatter` | erreur | Frontmatter qui n'est pas du YAML valide |
 | `name_mismatch` | erreur | `name:` différent du nom du fichier |
 | `invalid_name` | erreur | `name:` de plus de 64 caractères ou pas en kebab-case (minuscules, chiffres, tirets simples) |
-| `long_description` | erreur | `description:` de plus de 1024 caractères |
+| `long_description` | erreur | `description:` de plus de 200 caractères (limite du catalogue du hub ; avertissement pour une skill du catalogue d'équipe, erreur au-delà de 1024, limite du standard Agent Skills) |
 | `unknown_key` | erreur | Clé de frontmatter qui n'est ni une clé Agent Skills (`name`, `description`, `license`, `compatibility`, `metadata`, `allowed-tools`) ni une clé du hub (`requires`, `annexes`, `plugin`, `mcp`) |
 | `missing_annex` | erreur | `annexes:` nomme un fichier introuvable |
 | `no_description` | avertissement | `description:` absente |
@@ -28,6 +28,7 @@ Vérifie les skills du hub (`skills/**/*.md`, hors annexes de `skills/templates/
 | `missing_agent_skill` | avertissement | Skill nommée dans les `skills:` ou `native_skills:` d'un agent mais introuvable |
 | `undeclared_annex` | avertissement | Gabarit cité dans le texte mais absent d'`annexes:` |
 | `orphan_annex` | avertissement | Fichier de `skills/templates/` utilisé par aucune skill |
+| `description_not_trigger` | avertissement | `description:` qui ne dit pas quand charger la skill : elle doit commencer par « Utiliser … » (« Utiliser quand… », « Utiliser pour… ») ; les skills générées depuis le workflow sont exclues |
 
 Seules les clés Agent Skills arrivent dans le `SKILL.md` livré ; les clés du hub sont lues par oh (`plugin:` et `mcp:` ne livrent la skill que si le workflow charge ce plugin ou si la session a ce serveur MCP). Voir [Format d'un skill](../architecture/skills.fr.md#format-dun-skill).
 
