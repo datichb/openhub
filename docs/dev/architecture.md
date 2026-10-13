@@ -121,8 +121,7 @@ cli/
 │   │   └── opencode_test.go             # Tests args/env building, path expansion
 │   │
 │   ├── prompt/                          # Prompts d'amorçage des sessions
-│   │   ├── dev.go                       # BuildDevPrompt()
-│   │   └── onboard.go                   # BuildOnboardPrompt()
+│   │   └── dev.go                       # BuildDevPrompt()
 │   │
 │   ├── deploy/                          # Déploiement transactionnel
 │   │   ├── deploy.go                    # Execute(), Snapshot, Rollback, Phases

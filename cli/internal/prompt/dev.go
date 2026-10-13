@@ -1,3 +1,4 @@
+// Package prompt builds the bootstrap prompts of agentic sessions.
 package prompt
 
 import (

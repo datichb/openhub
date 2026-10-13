@@ -440,21 +440,9 @@ func problem(kind SkillProblemKind, ref, detail string) SkillProblem {
 	return SkillProblem{Kind: kind, Error: isErr, Ref: ref, Detail: detail}
 }
 
-// SkillCheckOptions tunes CheckSkillsWith.
-type SkillCheckOptions struct {
-	// Team tells whether a skill comes from the team catalogue: a description
-	// over the hub limit is then a warning (the spec limit stays an error).
-	Team func(ref string) bool
-}
-
 // CheckSkills inspects the whole skill catalogue (hub skills) and the skill
 // references of the hub agents.
 func CheckSkills(hubDir string) ([]SkillProblem, error) {
-	return CheckSkillsWith(hubDir, SkillCheckOptions{})
-}
-
-// CheckSkillsWith is CheckSkills with options.
-func CheckSkillsWith(hubDir string, opts SkillCheckOptions) ([]SkillProblem, error) {
 	var problems []SkillProblem
 	docs := map[string]*skillDoc{} // ref → doc
 	byID := map[string][]string{}
@@ -520,9 +508,7 @@ func CheckSkillsWith(hubDir string, opts SkillCheckOptions) ([]SkillProblem, err
 			problems = append(problems, problem(SkillInvalidName, ref, d.Front.Name))
 		}
 		if n := utf8.RuneCountInString(d.Front.Description); n > maxHubDescriptionLen {
-			p := problem(SkillLongDescription, ref, strconv.Itoa(n))
-			p.Error = n > maxSkillDescriptionLen || opts.Team == nil || !opts.Team(ref)
-			problems = append(problems, p)
+			problems = append(problems, problem(SkillLongDescription, ref, strconv.Itoa(n)))
 		}
 		if d.Front.Bucket != "" {
 			problems = append(problems, problem(SkillLegacyBucket, ref, d.Front.Bucket))
