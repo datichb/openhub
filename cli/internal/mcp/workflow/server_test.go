@@ -21,6 +21,9 @@ type fakeBackend struct {
 	calls    []checkpoint.Call
 	outputs  []checkpoint.Output
 	err      error
+	// reports
+	reports   []reportCall
+	reportErr error
 }
 
 func (f *fakeBackend) WorkflowStatus(_ context.Context, s string) (checkpoint.Status, error) {
@@ -72,7 +75,7 @@ func TestToolsList(t *testing.T) {
 	for _, tl := range out.Result.Tools {
 		names = append(names, tl.Name)
 	}
-	assert.ElementsMatch(t, []string{"status", "checkpoint", "outputs"}, names)
+	assert.ElementsMatch(t, []string{"status", "checkpoint", "outputs", "report", "report_get", "reports"}, names)
 }
 
 func TestCheckpointCall(t *testing.T) {

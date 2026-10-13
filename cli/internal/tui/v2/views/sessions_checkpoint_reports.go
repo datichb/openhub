@@ -1,0 +1,98 @@
+package views
+
+import (
+	"context"
+	"fmt"
+	"strings"
+	"time"
+
+	"github.com/rivo/tview"
+
+	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/tui/theme"
+)
+
+// Reports on the checkpoint card (modernisation L4, workflow_report): the
+// reports filed since the previous checkpoint, each opened in a scrolling
+// reader. Report texts come from agents: always escaped.
+
+// checkpointCardReports is the number of reports with their own reader
+// action on the card.
+const checkpointCardReports = 4
+
+// CheckpointReport is a report attached to a checkpoint card.
+type CheckpointReport struct {
+	ID    string
+	Agent string
+	Title string
+	Bytes int
+	At    time.Time
+}
+
+// CheckpointReportReader is implemented by session backends that can read
+// a stored report (optional: without it, the card only lists them).
+type CheckpointReportReader interface {
+	CheckpointReport(ctx context.Context, sessionID, id string) (title, body string, err error)
+}
+
+// writeCheckpointReports renders the reports section of the card.
+func writeCheckpointReports(b *strings.Builder, reports []CheckpointReport) {
+	if len(reports) == 0 {
+		return
+	}
+	fmt.Fprintf(b, "%s─ %s%s\n", theme.ColorTag(theme.TextMutedHex), i18n.T("tui.checkpoint.reports"), theme.TagColor)
+	for _, r := range reports {
+		line := fmt.Sprintf("%s · %s · %s", r.ID, firstText(r.Agent, "?"), clipText(r.Title, 80))
+		fmt.Fprintf(b, "  %s  %s\n", tview.Escape(line), muted(tview.Escape(reportMeta(r))))
+	}
+	b.WriteString("\n")
+}
+
+func reportMeta(r CheckpointReport) string {
+	size := i18n.Tf("tui.checkpoint.report_bytes", r.Bytes)
+	if r.Bytes >= 1024 {
+		size = i18n.Tf("tui.checkpoint.report_kib", float64(r.Bytes)/1024)
+	}
+	if r.At.IsZero() {
+		return size
+	}
+	return size + " · " + r.At.Local().Format("15:04")
+}
+
+// reportActions are the reader actions of the card (one per report, the
+// first ones).
+func (v *SessionsView) reportActions(sessionID, decisionID string, reports []CheckpointReport) []ModalAction {
+	rd, ok := v.cfg.Backend.(CheckpointReportReader)
+	if !ok || sessionID == "" {
+		return nil
+	}
+	var out []ModalAction
+	for i, r := range reports {
+		if i == checkpointCardReports {
+			break
+		}
+		rp := r
+		out = append(out, ModalAction{Label: i18n.Tf("tui.checkpoint.read_report", rp.ID), Callback: func() {
+			v.openReport(rd, sessionID, decisionID, rp)
+		}})
+	}
+	return out
+}
+
+// openReport loads a report off the event loop, then shows it in a
+// scrolling reader.
+func (v *SessionsView) openReport(rd CheckpointReportReader, sessionID, decisionID string, r CheckpointReport) {
+	var title, body string // written off the loop, read on it after
+	v.async(func(ctx context.Context) (string, error) {
+		var err error
+		title, body, err = rd.CheckpointReport(ctx, sessionID, r.ID)
+		return "", err
+	}, func(string) {
+		if v.shell == nil {
+			return
+		}
+		head := strings.Join([]string{r.ID, firstText(r.Agent, "?"), firstText(title, r.Title)}, " · ")
+		v.shell.ShowScrollableModal(tview.Escape(head), tview.Escape(body), nil)
+		v.trackDecision(decisionID)
+	})
+}

@@ -13,6 +13,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/adapters"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/services/checkpoint"
+	"github.com/datichb/openhub/cli/internal/services/report"
 )
 
 // Service is the SessionService.
@@ -30,6 +31,8 @@ type Service struct {
 	Resolvers map[domain.DecisionKind]Resolver
 	// Checkpoints is the CheckpointService (set by UseCheckpoints).
 	Checkpoints *checkpoint.Service
+	// Reports keeps the reports of workflow_report (nil = none shown).
+	Reports *report.Service
 	// Live opens the oh daemon live stream (nil = polling only).
 	Live LiveStream
 	// PollEvery is the refresh period of Subscribe without the daemon (default 2s).

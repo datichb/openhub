@@ -81,6 +81,10 @@ type Decision struct {
 // when it is not the oh session itself (a subagent child session).
 const DataToolSession = "tool_session_id"
 
+// DataReports is the Payload.Data key of the reports (rp-…) an agent cites
+// when it reaches a checkpoint (workflow_checkpoint `reports`).
+const DataReports = "reports"
+
 // ToolSessionID returns the tool session to answer (the oh session, or the
 // subagent session that asked).
 func (d Decision) ToolSessionID() string {
