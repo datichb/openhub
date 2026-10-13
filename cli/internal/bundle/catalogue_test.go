@@ -86,8 +86,8 @@ func TestBuildAgentCatalogues(t *testing.T) {
 	assert.Equal(t, []string{"dep", "domain", "extra", "further", "furthest", "lead-native", "prompted"}, solo.Skills,
 		"natives and their requires, mentions, extra and prompt skills, skills named by its on-demand skills (transitively); "+
 			"consumer rules naming another agent, Relation sections, delegation tags and stack skills left out")
-	assert.Equal(t, []string{"dev-standards-golang", "domain", "helper-native", "tagged"}, helper.Skills,
-		"its natives, the stack skills and the skills its caller names (not the caller's natives)")
+	assert.Equal(t, []string{"dev-standards-golang", "domain", "further", "furthest", "helper-native", "tagged"}, helper.Skills,
+		"its natives, the stack skills and the skills its caller names in its prompt or its on-demand skills (not the caller's natives)")
 	assert.Equal(t, []string{"dep", "dev-standards-golang", "domain", "extra", "further", "furthest", "helper-native", "lead-native", "prompted", "tagged"}, b.Spec.SkillIDs(),
 		"the bundle ships the union of the catalogues")
 	assert.Equal(t, []string{"dep", "domain", "extra", "further", "furthest", "lead-native", "prompted"}, idsOf(VisibleSkills(*solo, b.Spec.Skills)))

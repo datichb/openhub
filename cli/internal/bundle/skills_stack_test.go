@@ -113,4 +113,9 @@ func TestAbsentSkillsNote(t *testing.T) {
 	assert.Contains(t, body, "Skills absentes de ce paquet de session")
 	assert.Contains(t, body, "`dev-standards-frontend`")
 	assert.Equal(t, "", absentSkillsNote(nil))
+
+	// A skill named by an on-demand skill: the note closes that skill (no
+	// shipped workflow loads the RTK plugin).
+	std := shippedSkillFile(t, b, "dev-standards-testing")
+	assert.True(t, strings.HasSuffix(std, absentSkillsNote([]string{"rtk-usage"})), "dev-standards-testing ends with the note")
 }

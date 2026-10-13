@@ -1,6 +1,7 @@
 package bundle
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 
@@ -18,8 +19,9 @@ import (
 //   - for the entry agent, the workflow `skills.extra` and the skills named
 //     in the prompt template;
 //   - for an agent that sets skills_from_callers, the skills its callers
-//     name in their prompt, their own native skills aside (a caller names
-//     those for itself);
+//     name in their prompt or in the on-demand skills of their catalogue
+//     (sections addressed to another agent aside), their own native skills
+//     aside (a caller names those for itself);
 //
 // and the `requires:` closure of these, then, transitively, the deliverable
 // skills named (invitingText) by an on-demand skill of the catalogue, the
@@ -125,6 +127,105 @@ func addCallerSkills(cats map[string]*agentCatalogue, callers map[string][]strin
 			}
 		}
 	}
+}
+
+// offerSkillMentions gives the agents that accept the skills of their
+// callers the deliverable skills named by the on-demand skills of their
+// callers (an orchestrator skill telling the developer to load a standard),
+// the sections addressed to another agent and the callers' natives aside.
+// It reports whether a catalogue grew.
+func offerSkillMentions(cats map[string]*agentCatalogue, callers map[string][]string, l *skillLoader, denied skillDenied, index map[string]string, agents map[string]bool) (bool, error) {
+	grew := false
+	for _, id := range sortedKeys(cats) {
+		c := cats[id]
+		if !c.fromCallers {
+			continue
+		}
+		for _, caller := range callers[id] {
+			cc := cats[caller]
+			if cc == nil {
+				continue
+			}
+			docs, err := cc.docs(l, denied)
+			if err != nil {
+				return false, fmt.Errorf("agent %s: %w", caller, err)
+			}
+			for _, d := range docs {
+				if cc.inlined[d.ID] {
+					continue
+				}
+				body := filterFor(d.Ref, string(d.body()), cc.env)
+				for _, ref := range mentionedSkills(invitingText(body, id, agents), index) {
+					if c.seen[ref] || cc.natives[ref] || bricks.IsStackSkill(ref) || (c.keep != nil && !c.keep(ref)) || !deliverable(l, ref, denied) {
+						continue
+					}
+					if m, err := l.load(ref); err != nil || c.inlined[m.ID] {
+						continue
+					}
+					c.add(ref)
+					grew = true
+				}
+			}
+		}
+	}
+	return grew, nil
+}
+
+// absentNamed returns the IDs of the skills the on-demand skill d invites
+// agent to load that are left out of its session (plugin not loaded,
+// frontend skill without frontend, when: failing for it): neither in its
+// catalogue (listed) nor inlined in its prompt.
+func (c *agentCatalogue) absentNamed(l *skillLoader, d *skillDoc, index map[string]string, agent string, agents, listed map[string]bool) []string {
+	body := filterFor(d.Ref, string(d.body()), c.env)
+	var out []string
+	for _, ref := range selfMentionedSkills(invitingText(body, agent, agents), index) {
+		m, err := l.load(ref)
+		if err != nil || m.ID == d.ID || c.inlined[m.ID] || listed[m.ID] || c.keep == nil || c.keep(ref) {
+			continue
+		}
+		out = append(out, m.ID)
+	}
+	return out
+}
+
+// absentFromSkills returns the notes of the skills named by an on-demand
+// skill that are absent from the session. The note closes the on-demand
+// skill (by ref), where the model reads the mention, when the skill is
+// absent for every agent that may load it; otherwise it joins the note of
+// the prompt of the agents it is absent for (by agent): the skill file is
+// shared by its readers.
+func absentFromSkills(cats map[string]*agentCatalogue, readers map[string][]string, listed map[string]map[string]bool, l *skillLoader, index map[string]string, agents map[string]bool) (notes map[string]string, own map[string][]string) {
+	notes, own = map[string]string{}, map[string][]string{}
+	for _, ref := range sortedKeys(readers) {
+		d, err := l.load(ref)
+		if err != nil {
+			continue
+		}
+		ids := readers[ref]
+		count := map[string]int{}
+		per := make([][]string, len(ids))
+		for i, id := range ids {
+			per[i] = cats[id].absentNamed(l, d, index, id, agents, listed[id])
+			for _, a := range per[i] {
+				count[a]++
+			}
+		}
+		var shared []string
+		for _, a := range sortedKeys(count) {
+			if count[a] == len(ids) {
+				shared = append(shared, a)
+			}
+		}
+		notes[ref] = absentSkillsNote(shared)
+		for i, id := range ids {
+			for _, a := range per[i] {
+				if count[a] < len(ids) {
+					own[id] = append(own[id], a)
+				}
+			}
+		}
+	}
+	return notes, own
 }
 
 // promptTemplate returns the template of the workflow prompt: the request's

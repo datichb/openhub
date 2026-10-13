@@ -131,7 +131,7 @@ project_instructions: index # optionnel — full (défaut) | index | none
 | `skills` | **Bucket A** — chemins relatifs à `skills/`, injectés inline à la construction du paquet de session, toujours actifs dès le premier token. Protocoles de workflow, formats de handoff, principes universels. |
 | `native_skills` | **Bucket B** — chemins relatifs à `skills/`, livrés dans le paquet de session sous `skills/<name>/SKILL.md`, chargés à la demande par le LLM via l'outil `skill`. Standards de domaine, stack skills, checklists. |
 | `stack_skills` | `true` — les skills de stack du projet détecté entrent dans le catalogue de l'agent (`developer`, `reviewer`, `debugger`, `operator`). Sans ce champ, l'agent ne les voit pas. |
-| `skills_from_callers` | `true` — les skills que ses appelants nomment dans leur prompt (hors leurs propres `native_skills:`) entrent dans son catalogue : l'appelant choisit la skill à charger (`developer` et ses standards de domaine, `auditor-subagent` et sa checklist d'audit). |
+| `skills_from_callers` | `true` — les skills que ses appelants nomment dans leur prompt ou dans les skills à la demande de leur catalogue (hors leurs propres `native_skills:` et les sections adressées à un autre agent) entrent dans son catalogue : l'appelant choisit la skill à charger (`developer` et ses standards de domaine, `auditor-subagent` et sa checklist d'audit). |
 | `project_instructions` | Ce que l'agent reçoit des instructions du projet (voir [Instructions du projet par niveau](#instructions-du-projet-par-niveau)) : `full` (défaut, aussi pour un agent d'équipe sans le champ), `index` ou `none`. |
 
 Voir [ADR-010](./adr/010-hybrid-skills-architecture.fr.md) pour le raisonnement derrière la séparation Bucket A / Bucket B.

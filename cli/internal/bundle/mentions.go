@@ -4,6 +4,7 @@ import (
 	"io/fs"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 )
@@ -160,12 +161,16 @@ func invitingText(body, agent string, agents map[string]bool) string {
 
 // absentSkillsNote tells the agent which skills it names are not in this
 // session bundle (plugin not loaded, frontend skills in a project without
-// frontend, A8): it does not try to load them ("" when none).
+// frontend, A8): it does not try to load them ("" when none). It closes an
+// agent prompt, or an on-demand skill for the skills that one names
+// (absentFromSkills).
 func absentSkillsNote(ids []string) string {
 	if len(ids) == 0 {
 		return ""
 	}
+	ids = slices.Clone(ids)
 	sort.Strings(ids)
+	ids = slices.Compact(ids)
 	return "\n\n> Skills absentes de ce paquet de session (elles ne s'appliquent pas à ce projet ou à ce workflow) : `" + strings.Join(ids, "`, `") + "`. Ne les charge pas avec l'outil `skill`.\n"
 }
 

@@ -131,7 +131,7 @@ project_instructions: index # optional — full (default) | index | none
 | `skills` | **Bucket A** — paths relative to `skills/`, injected inline when the session bundle is built, always active from the first token. Workflow protocols, handoff formats, universal principles. |
 | `native_skills` | **Bucket B** — paths relative to `skills/`, delivered in the session bundle as `skills/<name>/SKILL.md`, loaded on-demand by the LLM via the `skill` tool. Domain standards, stack skills, checklists. |
 | `stack_skills` | `true` — the stack skills of the detected project enter the agent's catalogue (`developer`, `reviewer`, `debugger`, `operator`). Without it, the agent does not see them. |
-| `skills_from_callers` | `true` — the skills its callers name in their prompt (except their own `native_skills:`) enter its catalogue: the caller picks the skill to load (`developer` and its domain standards, `auditor-subagent` and its audit checklist). |
+| `skills_from_callers` | `true` — the skills its callers name in their prompt or in the on-demand skills of their catalogue (except their own `native_skills:` and the sections addressed to another agent) enter its catalogue: the caller picks the skill to load (`developer` and its domain standards, `auditor-subagent` and its audit checklist). |
 | `project_instructions` | What the agent gets of the project instructions (see [Project instructions by level](#project-instructions-by-level)): `full` (default, also for a team agent without the field), `index` or `none`. |
 
 See [ADR-010](./adr/010-hybrid-skills-architecture.en.md) for the rationale behind the Bucket A / Bucket B split.
