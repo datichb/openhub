@@ -181,6 +181,28 @@ source), updates the frontmatter (`updated`, `agents`, `confidence`) and recompu
 The server is injected in the bundles built from a workflow, for a project that has a `docs/wiki/`. Without the
 daemon, `wiki_propose` answers "not recorded" and the agent keeps the proposal in its report.
 
+### Remote sessions
+
+In a [remote session](../guides/remote-runners.en.md) (GitLab CI job), the bundle is the one built on your machine:
+the agents have the same `wiki_*` tools as locally, served by the oh daemon of the job on **its clone** of the
+project.
+
+- **Reading and checking**: `wiki_index`, `wiki_read`, `wiki_check` (drift of a change included) read the wiki of the
+  clone. The job daemon runs as root and the clone belongs to the agents' `oh` account: oh reads the pages without
+  ever leaving the project (no symbolic link, even one swapped in during the read, makes it read or stat a file out
+  of the clone) and its git reads run as the `oh` account, like all its git reads in the clone.
+- **Proposals**: `wiki_propose` queues in the job, with the author seen by oh. **Nothing is applied in the job**:
+  the commit checkpoint passed by the responder applies no proposal, and `wiki_apply` is refused to every agent,
+  the `documentarian` included ("the proposals go back to the machine").
+- **Return**: the proposals of the session leave in the `wiki.json` artifact. `oh session fetch` puts them back in
+  the queue of the project on your machine, **pending**, cleaned and bounded again (the artifact is not trusted: a
+  proposal citing the oh session data is refused), and renumbered by the local queue; the reports of the job that
+  cite them get the new ids (`wp-…`). A second fetch adds nothing and does not undo your decisions. The ids cited
+  in the transcript of the job stay those of the job.
+- **Validation**: as locally, on the card of the commit checkpoint when you resume the session
+  (`oh session attach`), or with `doc-sync` (`oh wiki pending`). oh applies the accepted proposals in the local
+  working folder of the session.
+
 ### Check (`oh wiki check`)
 
 Deterministic, run by oh on the files: frontmatter present and readable (`updated` a date, `confidence` in
@@ -279,6 +301,8 @@ If `docs/wiki/index.md` already exists, the `onboarder` proposes (workflow `refr
 - **Enrichment**: every agent proposes with `wiki_propose`; no more direct delegation to the `documentarian`. The
   proposals of the workflows without a commit stay queued.
 - **Injected index**: at the level `index` (L7), the wiki index and the god nodes computed by oh enter the prompt.
+- **Remote session**: same tools, served in the job on the clone; the proposals go back to the machine to be
+  validated there (see [Remote sessions](#remote-sessions)).
 
 ---
 

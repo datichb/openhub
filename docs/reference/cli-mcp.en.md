@@ -175,6 +175,8 @@ The project wiki (`docs/wiki/`), modernisation LD-J. Injected into the sessions 
 
 **`wiki_apply`.** Refused by a permission rule to every agent but the `documentarian`, for which it is asked to the user (`ask`); the daemon also refuses it (403) to any other agent it sees calling, whatever the rules of the session. It applies the pending or accepted proposals of the project.
 
+**Remote session.** Same tools, served by the daemon of the job on the wiki of its clone; `wiki_apply` is refused there to every agent ("the proposals go back to the machine") and the commit checkpoint applies nothing. The proposals come back with the `wiki.json` artifact and enter, pending, the queue of the project at `oh session fetch`; see [Living wiki › Remote sessions](../architecture/living-wiki.en.md#remote-sessions).
+
 ---
 
 ### oh mcp list
