@@ -8,6 +8,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -56,6 +57,13 @@ type Service struct {
 	// R3-remote); nil = the account of oh.
 	Account  *Account
 	verifier verifier
+
+	// CommitPassed runs when a checkpoint that unlocks the commit is
+	// passed, before the call returns to the agent (LD-J: oh applies the
+	// wiki proposals the user accepted on the card, so that they are
+	// committed with the code). It returns the line for the agent ("" =
+	// nothing applied) and the proposals applied, for the timeline.
+	CommitPassed func(ctx context.Context, sess *domain.Session, checkpoint string) (message string, applied []string)
 }
 
 // Errors.
@@ -134,6 +142,9 @@ type Result struct {
 	// Warning tells the agent it passed a checkpoint of another agent (L3,
 	// `by:`).
 	Warning string `json:"warning,omitempty"`
+	// Wiki tells the agent the wiki proposals oh applied at the checkpoint
+	// of the commit (LD-J).
+	Wiki string `json:"wiki,omitempty"`
 }
 
 // Output is a typed value declared by workflow_outputs (O7).
@@ -231,6 +242,7 @@ func (s *Service) Reached(ctx context.Context, sessionID string, call Call) (Res
 		res.Message = ap.Message
 		res.Unlocked = c.Unlocks
 		s.reachedR3(ctx, sess.ID, c, call, &res)
+		res.Wiki = s.commitPassed(ctx, sess, c)
 	}
 	for i, cp := range wf.Checkpoints {
 		if cp.ID == c.ID && i+1 < len(wf.Checkpoints) {
@@ -238,6 +250,22 @@ func (s *Service) Reached(ctx context.Context, sessionID string, call Call) (Res
 		}
 	}
 	return res, nil
+}
+
+// commitPassed runs CommitPassed for a checkpoint that unlocks the commit
+// and records what it applied in the timeline.
+func (s *Service) commitPassed(ctx context.Context, sess *domain.Session, c sessionspec.CheckpointDef) string {
+	if s.CommitPassed == nil || !slices.Contains(c.Unlocks, sessionspec.UnlockCommit) {
+		return ""
+	}
+	msg, applied := s.CommitPassed(ctx, sess, c.ID)
+	if len(applied) > 0 {
+		_, _ = s.update(ctx, sess.ID, func(st *domain.CheckpointState) error {
+			s.record(st, domain.CheckpointWiki, strings.Join(applied, " "), "oh", c.ID)
+			return nil
+		})
+	}
+	return msg
 }
 
 func checkpointIDs(wf *sessionspec.WorkflowRuntime) []string {

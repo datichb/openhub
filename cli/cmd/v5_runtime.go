@@ -21,6 +21,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/services/checkpoint"
 	"github.com/datichb/openhub/cli/internal/services/report"
 	sessionsvc "github.com/datichb/openhub/cli/internal/services/session"
+	"github.com/datichb/openhub/cli/internal/services/wiki"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 	"github.com/datichb/openhub/cli/internal/storage/keychain"
 	"github.com/datichb/openhub/cli/internal/storage/sqlite"
@@ -215,6 +216,7 @@ func newSessionService(ctx context.Context, a *app.App) (*sessionsvc.Service, er
 		BundlesDir:  ohBundlesDir(),
 		SessionsDir: ohSessionsDir(),
 		Reports:     newReportService(),
+		Wiki:        newWikiService(),
 		Alive:       filelock.ProcessAlive,
 		Live:        dc.Stream,
 	}
@@ -245,6 +247,20 @@ func newSessionService(ctx context.Context, a *app.App) (*sessionsvc.Service, er
 func newCheckpointService(a *app.App) *checkpoint.Service {
 	cs := sqlite.NewCheckpointStore(store)
 	return &checkpoint.Service{Sessions: a.Sessions, States: cs, SessionOutputs: cs, BundlesDir: ohBundlesDir(), SessionsDir: ohSessionsDir()}
+}
+
+// newWikiService wires the WikiService (proposals of the wiki MCP server,
+// LD-J).
+func newWikiService() *wiki.Service {
+	return &wiki.Service{Store: sqlite.NewWikiProposalStore(store), SessionsDir: ohSessionsDir()}
+}
+
+// daemonCheckpoints is the CheckpointService of the daemon: at the commit
+// checkpoint, oh applies the wiki proposals accepted on the card (LD-J).
+func daemonCheckpoints(a *app.App, wk *wiki.Service) *checkpoint.Service {
+	cp := newCheckpointService(a)
+	cp.CommitPassed = wk.CommitPassed
+	return cp
 }
 
 // envWorkflowReports set to "off" makes the daemon keep no report

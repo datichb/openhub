@@ -169,6 +169,10 @@ func (h handlers) checkpoint(ctx context.Context, params json.RawMessage) (*prot
 		b.WriteString(i18n.Tf("cmd.mcp.workflow.checkpoint_next", res.Next))
 	}
 	writeVerify(&b, res)
+	if res.Wiki != "" {
+		b.WriteString("\n")
+		b.WriteString(res.Wiki)
+	}
 	if res.Warning != "" {
 		b.WriteString("\n")
 		b.WriteString(res.Warning)

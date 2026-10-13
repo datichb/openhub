@@ -38,8 +38,9 @@ type CheckpointCardView struct {
 	Patch      string
 	Messages   []string // "agent › text", oldest first
 	Timeline   string
-	Verify     CheckpointVerifyView // R3 (sessions_checkpoint_verify.go)
-	Reports    []CheckpointReport   // sessions_checkpoint_reports.go
+	Verify     CheckpointVerifyView     // R3 (sessions_checkpoint_verify.go)
+	Reports    []CheckpointReport       // sessions_checkpoint_reports.go
+	Wiki       []CheckpointWikiProposal // sessions_checkpoint_wiki.go
 }
 
 // CheckpointFile is a changed file of the session.
@@ -89,6 +90,7 @@ func (v *SessionsView) showCheckpoint(r *SessionRow, d *SessionDecision, c Check
 		}},
 	}
 	actions = append(actions, v.reportActions(dec.SessionID, dec.ID, c.Reports)...)
+	actions = append(actions, v.wikiActions(r, &dec, c.Wiki)...)
 	if c.Patch != "" {
 		patch := c.Patch
 		actions = append(actions, ModalAction{Label: i18n.T("tui.checkpoint.diff_full"), Callback: func() {
@@ -127,6 +129,7 @@ func checkpointBody(c CheckpointCardView) string {
 	}
 	writeCheckpointVerify(&b, c.Verify, section)
 	writeCheckpointReports(&b, c.Reports)
+	writeCheckpointWiki(&b, c.Wiki)
 	section(i18n.T("tui.checkpoint.changes"))
 	if len(c.Files) == 0 {
 		b.WriteString("  " + muted(i18n.T("tui.checkpoint.no_changes")) + "\n")

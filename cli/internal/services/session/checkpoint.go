@@ -72,6 +72,11 @@ type CheckpointCard struct {
 	// Reports are the reports filed since the last checkpoint (and those
 	// the agent cited), oldest first.
 	Reports []domain.Report
+	// Wiki are the open wiki proposals of the session, on the card of a
+	// checkpoint that unlocks the commit (LD-J, CP-R4); WikiCommit: the
+	// checkpoint is that one.
+	Wiki       []domain.WikiProposal
+	WikiCommit bool
 }
 
 // cardMessages is the number of messages shown on a checkpoint card.
@@ -101,6 +106,7 @@ func (s *Service) CheckpointCard(ctx context.Context, decisionID string) (*Check
 		c.R3 = s.Checkpoints.Card(ctx, d.SessionID, c.Checkpoint)
 	}
 	c.Reports = s.cardReports(ctx, *d)
+	c.Wiki, c.WikiCommit = s.cardWiki(ctx, *d, c.Checkpoint)
 	return c, nil
 }
 
