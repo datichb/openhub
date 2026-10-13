@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -43,10 +44,15 @@ const (
 	envEvalReps   = "OH_EVAL_REPS"
 	envEvalBudget = "OH_EVAL_BUDGET_USD"
 	envEvalToken  = "OH_EVAL_BEDROCK_TOKEN"
+	envEvalPar    = "OH_EVAL_PARALLEL"
+	envEvalTotal  = "OH_EVAL_BUDGET_TOTAL"
 	// defaultEvalModel is Haiku (cheap); OH_EVAL_MODELS adds Sonnet.
 	defaultEvalModel = "claude-haiku-4-5"
-	// defaultEvalBudget is the cost cap of a pass (USD).
-	defaultEvalBudget = 1.0
+	// defaultEvalBudget is the cost cap of a pass (USD);
+	// defaultEvalBudgetSonnet when a Sonnet model runs (a ticket session
+	// of Sonnet goes past 1 $, seen in L3).
+	defaultEvalBudget       = 1.0
+	defaultEvalBudgetSonnet = 2.5
 	// evalRegion is the Bedrock region of the evaluations.
 	evalRegion = "eu-west-1"
 )
@@ -65,6 +71,8 @@ func init() {
 	f.StringSlice("models", nil, i18n.T("cmd.eval.flags.models"))
 	f.Int("reps", 0, i18n.T("cmd.eval.flags.reps"))
 	f.Float64("budget", 0, i18n.T("cmd.eval.flags.budget"))
+	f.Int("parallel", 0, i18n.T("cmd.eval.flags.parallel"))
+	f.Float64("budget-total", 0, i18n.T("cmd.eval.flags.budget_total"))
 	f.String("out", "", i18n.T("cmd.eval.flags.out"))
 	f.String("baseline", "", i18n.T("cmd.eval.flags.baseline"))
 	f.String("record-baseline", "", i18n.T("cmd.eval.flags.record_baseline"))
@@ -121,7 +129,15 @@ func runEval(cmd *cobra.Command, _ []string) error {
 	}
 	budget, _ := cmd.Flags().GetFloat64("budget")
 	if budget <= 0 {
-		budget = envFloat(envEvalBudget, defaultEvalBudget)
+		budget = envFloat(envEvalBudget, defaultPassBudget(models))
+	}
+	parallel, _ := cmd.Flags().GetInt("parallel")
+	if parallel <= 0 {
+		parallel = envInt(envEvalPar, 1)
+	}
+	total, _ := cmd.Flags().GetFloat64("budget-total")
+	if total <= 0 {
+		total = envFloat(envEvalTotal, 0)
 	}
 	token, err := evalBedrockToken(ctx)
 	if err != nil {
@@ -144,13 +160,16 @@ func runEval(cmd *cobra.Command, _ []string) error {
 	}
 	keep, _ := cmd.Flags().GetBool("keep")
 	if !keep {
-		defer os.RemoveAll(work)
+		defer func() { _ = evalrun.RemoveAll(work) }()
 	}
 	errOut := cmd.ErrOrStderr()
 	fmt.Fprintln(errOut, i18n.Tf("cmd.eval.start", len(sel), strings.Join(models, ", "), reps, budget, out))
+	if total > 0 {
+		fmt.Fprintln(errOut, i18n.Tf("cmd.eval.budget_total", total))
+	}
 	r := &evalrun.Runner{
 		Exec: &childEvalExecutor{exe: exe, token: token, goEnv: goEnvironment(ctx)}, Models: models, Reps: reps, BudgetUSD: budget,
-		WorkRoot: work, OutDir: out, Keep: keep,
+		WorkRoot: work, OutDir: out, Keep: keep, Parallel: parallel, BudgetTotalUSD: total, Retry: evalrun.DefaultRetry,
 		Log: func(format string, args ...any) { fmt.Fprintf(errOut, "  "+format+"\n", args...) },
 	}
 	rep, runErr := r.Run(ctx, sel)
@@ -265,6 +284,17 @@ func evalModels() []string {
 	return out
 }
 
+// defaultPassBudget is the cost cap of a pass when neither --budget nor
+// OH_EVAL_BUDGET_USD sets it: higher when a Sonnet model runs.
+func defaultPassBudget(models []string) float64 {
+	for _, m := range models {
+		if strings.Contains(strings.ToLower(m), "sonnet") {
+			return defaultEvalBudgetSonnet
+		}
+	}
+	return defaultEvalBudget
+}
+
 func envInt(key string, def int) int {
 	if n, err := strconv.Atoi(strings.TrimSpace(os.Getenv(key))); err == nil && n > 0 {
 		return n
@@ -376,25 +406,26 @@ enabled = false
 }
 
 // passEnv is the environment of a pass: the user's, without its oh
-// settings, with a temporary oh home and HOME.
-func (e *childEvalExecutor) passEnv(home, user string) []string {
+// settings, with a temporary oh home, HOME and TMPDIR of its own (the
+// passes run side by side with --parallel).
+func (e *childEvalExecutor) passEnv(home, user, tmp string) []string {
 	var env []string
 	for _, kv := range os.Environ() {
 		k, _, _ := strings.Cut(kv, "=")
-		if strings.HasPrefix(k, "OH_") || k == "HOME" || k == "XDG_CONFIG_HOME" || k == "XDG_DATA_HOME" || k == "XDG_STATE_HOME" || k == "XDG_CACHE_HOME" {
+		if strings.HasPrefix(k, "OH_") || k == "HOME" || k == "TMPDIR" || k == "XDG_CONFIG_HOME" || k == "XDG_DATA_HOME" || k == "XDG_STATE_HOME" || k == "XDG_CACHE_HOME" {
 			continue
 		}
 		env = append(env, kv)
 	}
-	env = append(env, "OH_HOME="+home, "HOME="+user, "OH_SESSION_ATTACH=none", "OH_SKIP_DB_BACKUP=1",
+	env = append(env, "OH_HOME="+home, "HOME="+user, "TMPDIR="+tmp, "OH_SESSION_ATTACH=none", "OH_SKIP_DB_BACKUP=1",
 		"GIT_AUTHOR_NAME=oh eval", "GIT_AUTHOR_EMAIL=eval@oh.invalid", "GIT_COMMITTER_NAME=oh eval", "GIT_COMMITTER_EMAIL=eval@oh.invalid")
 	return append(env, e.goEnv...)
 }
 
 // Execute implements evalrun.Executor.
 func (e *childEvalExecutor) Execute(ctx context.Context, p evalrun.Pass) (*evalrun.PassOutput, error) {
-	home, user := filepath.Join(p.Dir, "h"), filepath.Join(p.Dir, "u")
-	for _, d := range []string{home, user} {
+	home, user, tmp := filepath.Join(p.Dir, "h"), filepath.Join(p.Dir, "u"), filepath.Join(p.Dir, "t")
+	for _, d := range []string{home, user, tmp} {
 		if err := os.MkdirAll(d, 0o700); err != nil {
 			return nil, err
 		}
@@ -422,7 +453,7 @@ func (e *childEvalExecutor) Execute(ctx context.Context, p evalrun.Pass) (*evalr
 		return nil, err
 	}
 	defer logf.Close()
-	env := e.passEnv(home, user)
+	env := e.passEnv(home, user, tmp)
 	if c.Reports == evalrun.ReportsOff {
 		env = append(env, envWorkflowReports+"=off")
 	}
@@ -445,13 +476,53 @@ func (e *childEvalExecutor) Execute(ctx context.Context, p evalrun.Pass) (*evalr
 		if runErr != nil {
 			msg = runErr.Error() + ": " + msg
 		}
-		return &evalrun.PassOutput{Outcome: evalrun.OutcomeError, Error: msg}, nil
-	}
-	if err := json.Unmarshal(data, out); err != nil {
+		out = &evalrun.PassOutput{Outcome: evalrun.OutcomeError, Error: msg}
+	} else if err := json.Unmarshal(data, out); err != nil {
 		return nil, err
+	}
+	if out.Outcome != evalrun.OutcomeCompleted && out.Outcome != evalrun.OutcomeBudget {
+		out.Throttle = passThrottle(filepath.Join(p.OutDir, evalLogFile), home, user)
 	}
 	return out, nil
 }
+
+// passThrottle looks for a provider rate limit in the logs of a pass: its
+// own log, the logs of its tool servers (oh home) and those the session
+// tool wrote in the HOME of the pass.
+func passThrottle(passLog, home, user string) string {
+	files := []string{passLog}
+	for _, root := range []string{filepath.Join(home, "servers"), user} {
+		_ = filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
+			if err == nil && !d.IsDir() && strings.HasSuffix(strings.TrimRight(d.Name(), ".0123456789"), ".log") {
+				if info, ierr := d.Info(); ierr == nil && info.Size() <= evalMaxLogBytes {
+					files = append(files, path)
+				}
+			}
+			return nil //nolint:nilerr // an unreadable entry is skipped
+		})
+	}
+	for _, f := range files {
+		data, err := os.ReadFile(f)
+		if err != nil {
+			continue
+		}
+		for _, l := range strings.Split(string(data), "\n") {
+			// Error lines only: the logs also hold the commands of the agents.
+			if !evalErrorLine.MatchString(l) || strings.Contains(l, "spawning process") {
+				continue
+			}
+			if t := evalrun.Throttling(l); t != "" {
+				return t
+			}
+		}
+	}
+	return ""
+}
+
+// evalMaxLogBytes bounds the size of a log read for a rate limit.
+const evalMaxLogBytes = 32 << 20
+
+var evalErrorLine = regexp.MustCompile(`(?i)(level=(error|warn)|\berror\b|exception|eval pass:)`)
 
 // cleanup stops what a pass may have left running in its home (child
 // killed by the timeout): the tool servers it recorded and its daemon.

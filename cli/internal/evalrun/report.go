@@ -14,15 +14,21 @@ import (
 
 // Report is the outcome of an evaluation run.
 type Report struct {
-	StartedAt  time.Time    `json:"started_at"`
-	FinishedAt time.Time    `json:"finished_at"`
-	Models     []string     `json:"models"`
-	Reps       int          `json:"reps"`
-	BudgetUSD  float64      `json:"budget_usd_per_pass"`
-	Cases      []CaseInfo   `json:"cases"`
-	Passes     []PassResult `json:"passes"`
-	Stats      []CaseStats  `json:"stats"`
-	TotalCost  float64      `json:"total_cost_usd"`
+	StartedAt  time.Time `json:"started_at"`
+	FinishedAt time.Time `json:"finished_at"`
+	Models     []string  `json:"models"`
+	Reps       int       `json:"reps"`
+	BudgetUSD  float64   `json:"budget_usd_per_pass"`
+	// BudgetTotalUSD is the cost cap of the run (0: none).
+	BudgetTotalUSD float64      `json:"budget_usd_total,omitempty"`
+	Cases          []CaseInfo   `json:"cases"`
+	Passes         []PassResult `json:"passes"`
+	// Skipped are the passes not started once BudgetTotalUSD was spent.
+	Skipped []SkippedPass `json:"skipped,omitempty"`
+	Stats   []CaseStats   `json:"stats"`
+	// TotalCost is what the run spent, the attempts run again after a rate
+	// limit included.
+	TotalCost float64 `json:"total_cost_usd"`
 	// Note is free text recorded with a baseline (environment, caveats).
 	Note string `json:"note,omitempty"`
 }
@@ -82,6 +88,9 @@ func (r *Report) compute() {
 		s.TotalCost += p.CostUSD
 		s.MeanSecs += p.Seconds
 		r.TotalCost += p.CostUSD
+		for _, a := range p.Retries {
+			r.TotalCost += a.CostUSD
+		}
 		for i, a := range p.Assertions {
 			if i >= len(s.Assertions) {
 				s.Assertions = append(s.Assertions, AssertionStat{Name: a.Name, Type: a.Type})
@@ -168,6 +177,13 @@ func (r *Report) Markdown(base *Report) string {
 	fmt.Fprintf(&b, "- Début : %s · durée : %s\n", r.StartedAt.Format(time.RFC3339), r.FinishedAt.Sub(r.StartedAt).Round(time.Second))
 	fmt.Fprintf(&b, "- Modèles : %s · répétitions : %d · plafond par passage : $%.2f\n", strings.Join(r.Models, ", "), r.Reps, r.BudgetUSD)
 	fmt.Fprintf(&b, "- Coût total : $%.3f · passages : %d\n", r.TotalCost, len(r.Passes))
+	if r.BudgetTotalUSD > 0 {
+		fmt.Fprintf(&b, "- Plafond global : $%.2f", r.BudgetTotalUSD)
+		if n := len(r.Skipped); n > 0 {
+			fmt.Fprintf(&b, " · atteint : %d passage(s) non lancé(s)", n)
+		}
+		b.WriteString("\n")
+	}
 	if r.Note != "" {
 		fmt.Fprintf(&b, "- Note : %s\n", r.Note)
 	}
@@ -240,6 +256,24 @@ func (r *Report) Markdown(base *Report) string {
 		b.WriteString("\n## Échecs\n\n")
 		b.WriteString(strings.Join(failures, "\n"))
 		b.WriteString("\n")
+	}
+	var retried []string
+	for _, p := range r.Passes {
+		for _, a := range p.Retries {
+			retried = append(retried, fmt.Sprintf("- %s · %s · #%d, tentative %d : %s (issue %s, $%.3f, attente %.0f s)", p.Case, shortModel(p.Model), p.Rep,
+				a.Attempt, oneLine(a.Throttle, 200), a.Outcome, a.CostUSD, a.WaitSecs))
+		}
+	}
+	if len(retried) > 0 {
+		b.WriteString("\n## Relances (limite de débit du fournisseur)\n\n")
+		b.WriteString(strings.Join(retried, "\n"))
+		b.WriteString("\n")
+	}
+	if len(r.Skipped) > 0 {
+		b.WriteString("\n## Passages non lancés (plafond global atteint)\n\n")
+		for _, p := range r.Skipped {
+			fmt.Fprintf(&b, "- %s · %s · #%d\n", p.Case, shortModel(p.Model), p.Rep)
+		}
 	}
 	return b.String()
 }

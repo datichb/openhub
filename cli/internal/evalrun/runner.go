@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	sessionsvc "github.com/datichb/openhub/cli/internal/services/session"
@@ -61,6 +62,9 @@ type PassOutput struct {
 	Decisions []AnsweredDecision `json:"decisions,omitempty"`
 	// TracePath is the JSONL trace of the session ("" = none).
 	TracePath string `json:"trace_path,omitempty"`
+	// Throttle is the evidence of a provider rate limit the executor found
+	// (logs of the pass), "" when none.
+	Throttle string `json:"throttle,omitempty"`
 }
 
 // Executor runs the session of a pass on its prepared clone.
@@ -90,6 +94,22 @@ type PassResult struct {
 	Assertions []AssertionResult  `json:"assertions"`
 	Decisions  []AnsweredDecision `json:"decisions,omitempty"`
 	Trace      string             `json:"trace,omitempty"`
+	// Retries are the attempts given up because of a provider rate limit
+	// (throttling), before this result.
+	Retries []RetriedAttempt `json:"retries,omitempty"`
+}
+
+// RetriedAttempt is an attempt of a pass stopped by a provider rate limit
+// and run again after a wait.
+type RetriedAttempt struct {
+	Attempt  int     `json:"attempt"`
+	Outcome  string  `json:"outcome"`
+	Throttle string  `json:"throttle"`
+	CostUSD  float64 `json:"cost_usd"`
+	Seconds  float64 `json:"seconds"`
+	WaitSecs float64 `json:"wait_seconds"`
+	// Dir holds the files of the attempt, relative to the output directory.
+	Dir string `json:"dir,omitempty"`
 }
 
 // Runner runs the passes of a set of cases.
@@ -105,52 +125,27 @@ type Runner struct {
 	OutDir   string
 	// Keep leaves the work directories in place (debugging).
 	Keep bool
-	Log  func(format string, args ...any)
-	Now  func() time.Time
+	// Parallel is the number of passes run at the same time (< 1: one).
+	Parallel int
+	// BudgetTotalUSD caps the cost of the run (0: none): once the passes
+	// done cost that much, no new pass starts (running passes finish).
+	BudgetTotalUSD float64
+	// Retry runs again a pass stopped by a provider rate limit.
+	Retry RetryPolicy
+	// Sleep waits before a retry (tests); nil: a timer bound to ctx.
+	Sleep func(ctx context.Context, d time.Duration) error
+	Log   func(format string, args ...any)
+	Now   func() time.Time
+
+	logMu sync.Mutex
 }
 
 func (r *Runner) logf(format string, args ...any) {
 	if r.Log != nil {
+		r.logMu.Lock()
+		defer r.logMu.Unlock()
 		r.Log(format, args...)
 	}
-}
-
-// Run runs every pass and returns the report (the run goes on after a
-// failed pass; ctx cancellation stops it).
-func (r *Runner) Run(ctx context.Context, cases []*Case) (*Report, error) {
-	if r.Exec == nil {
-		return nil, errors.New("evalrun: no executor")
-	}
-	reps := r.Reps
-	if reps < 1 {
-		reps = 1
-	}
-	now := r.Now
-	if now == nil {
-		now = time.Now
-	}
-	rep := &Report{StartedAt: now(), Models: r.Models, Reps: reps, BudgetUSD: r.BudgetUSD}
-	for _, c := range cases {
-		rep.Cases = append(rep.Cases, CaseInfo{ID: c.ID, Key: c.Key(), Title: c.Title, Workflow: c.Workflow, Active: c.IsActive(), InactiveReason: c.InactiveReason})
-		if !c.IsActive() {
-			continue
-		}
-		for _, m := range r.Models {
-			for i := 1; i <= reps; i++ {
-				if ctx.Err() != nil {
-					rep.FinishedAt = now()
-					rep.compute()
-					return rep, ctx.Err()
-				}
-				res := r.runPass(ctx, c, m, i)
-				r.logf("%s %s #%d: %s %s ($%.3f, %.0fs)", c.ID, m, i, res.Outcome, passWord(res.Pass), res.CostUSD, res.Seconds)
-				rep.Passes = append(rep.Passes, res)
-			}
-		}
-	}
-	rep.FinishedAt = now()
-	rep.compute()
-	return rep, nil
 }
 
 func passWord(ok bool) string {
@@ -160,41 +155,43 @@ func passWord(ok bool) string {
 	return "FAIL"
 }
 
-func (r *Runner) runPass(ctx context.Context, c *Case, model string, rep int) PassResult {
-	res := PassResult{Case: c.ID, Model: model, Rep: rep}
+// runAttempt runs one attempt of a pass on a fresh clone. It also returns
+// the evidence of a provider rate limit that stopped it ("" = none).
+func (r *Runner) runAttempt(ctx context.Context, c *Case, model string, rep int) (res PassResult, throttle string) {
+	res = PassResult{Case: c.ID, Model: model, Rep: rep}
 	budget := c.BudgetUSD
 	if budget <= 0 {
 		budget = r.BudgetUSD
 	}
 	if err := os.MkdirAll(r.WorkRoot, 0o700); err != nil {
 		res.Outcome, res.Error = OutcomeError, err.Error()
-		return res
+		return res, ""
 	}
 	dir, err := os.MkdirTemp(r.WorkRoot, "p-")
 	if err != nil {
 		res.Outcome, res.Error = OutcomeError, err.Error()
-		return res
+		return res, ""
 	}
 	if !r.Keep {
-		defer os.RemoveAll(dir)
+		defer func() { _ = RemoveAll(dir) }()
 	}
-	out := filepath.Join(r.OutDir, "passes", c.ID, safeName(model), fmt.Sprintf("%d", rep))
+	out := r.passOutDir(c, model, rep)
 	if err := os.MkdirAll(out, 0o755); err != nil {
 		res.Outcome, res.Error = OutcomeError, err.Error()
-		return res
+		return res, ""
 	}
 	p := Pass{Case: c, Model: model, Rep: rep, BudgetUSD: budget, Dir: dir, Project: filepath.Join(dir, "project"), OutDir: out}
 	base, err := PrepareClone(ctx, c, p.Project)
 	if err != nil {
 		res.Outcome, res.Error = OutcomeError, "setup: "+err.Error()
-		return res
+		return res, ""
 	}
 	start := time.Now()
 	po, err := r.Exec.Execute(ctx, p)
 	if err != nil {
 		res.Outcome, res.Error = OutcomeError, err.Error()
 		res.Seconds = time.Since(start).Seconds()
-		return res
+		return res, Throttling(res.Error)
 	}
 	res.Outcome, res.Error, res.SessionID = po.Outcome, po.Error, po.SessionID
 	res.CostUSD, res.TokensIn, res.TokensOut, res.Decisions = po.CostUSD, po.TokensIn, po.TokensOut, po.Decisions
@@ -241,7 +238,22 @@ func (r *Runner) runPass(ctx context.Context, c *Case, model string, rep int) Pa
 	for _, a := range res.Assertions {
 		res.Pass = res.Pass && a.Pass
 	}
-	return res
+	return res, throttleEvidence(po, events)
+}
+
+// RemoveAll removes a work directory, the read-only directories it holds
+// included (the bundles of a pass home).
+func RemoveAll(dir string) error {
+	if err := os.RemoveAll(dir); err == nil {
+		return nil
+	}
+	_ = filepath.WalkDir(dir, func(p string, d fs.DirEntry, err error) error {
+		if err == nil && d.IsDir() {
+			_ = os.Chmod(p, 0o700)
+		}
+		return nil
+	})
+	return os.RemoveAll(dir)
 }
 
 func safeName(s string) string {
