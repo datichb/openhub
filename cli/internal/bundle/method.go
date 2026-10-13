@@ -42,12 +42,14 @@ var methodText = map[workflow.Method]string{
 	workflow.MethodTDD: "les tests s'écrivent avant le code : points d'injection et tests prévus présentés, puis tests qui échouent vérifiés par oh, puis implémentation",
 }
 
-// methodContract returns the method line of the contract of agent id (zero
-// when the session has none).
-func methodContract(req Request, wf *sessionspec.WorkflowRuntime, id string) contractMethod {
+// methodContract returns the method line of the contract of agent id: for
+// the agents that pass a checkpoint of the method and those that launch
+// them (zero for the others, and when the session has no method).
+func methodContract(req Request, wf *sessionspec.WorkflowRuntime, id string, callees []string) contractMethod {
 	if req.Method == "" || req.Spec == nil || wf == nil {
 		return contractMethod{}
 	}
+	concerned := false
 	m := contractMethod{ID: string(req.Method), Text: methodText[req.Method]}
 	for _, c := range wf.Checkpoints {
 		cp, ok := req.Spec.Checkpoints.Get(c.ID)
@@ -55,7 +57,11 @@ func methodContract(req Request, wf *sessionspec.WorkflowRuntime, id string) con
 			continue
 		}
 		step := contractMethodStep{ID: c.ID, By: slices.Clone(c.By)}
+		for _, a := range c.By {
+			concerned = concerned || slices.Contains(callees, a)
+		}
 		if slices.Contains(c.By, id) {
+			concerned = true
 			var parts []string
 			if d := strings.TrimSpace(cp.Description.Text(generatedLang)); d != "" {
 				parts = append(parts, d)
@@ -66,6 +72,9 @@ func methodContract(req Request, wf *sessionspec.WorkflowRuntime, id string) con
 			step.Detail = strings.Join(parts, " ")
 		}
 		m.Steps = append(m.Steps, step)
+	}
+	if !concerned {
+		return contractMethod{}
 	}
 	return m
 }

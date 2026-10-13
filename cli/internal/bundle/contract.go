@@ -92,7 +92,7 @@ func contractFor(req Request, wf *sessionspec.WorkflowRuntime, id string, graph,
 		d.MaxFixRounds = *l.MaxFixRounds
 	}
 	d.Statuses = calleeStatuses(id, d.Callees, statuses)
-	d.Method = methodContract(req, wf, id)
+	d.Method = methodContract(req, wf, id, d.Callees)
 	return d
 }
 

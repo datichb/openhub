@@ -105,6 +105,7 @@ func TestMethodBundle(t *testing.T) {
 	lead := findAgent(tdd.Spec.Agents, "orchestrator-dev").Body
 	assert.Contains(t, lead, "**Méthode de la session** : `tdd`", "the coordinator knows the method")
 	assert.NotContains(t, lead, "  - `cp-red` :", "the details go to the agent that passes it")
+	assert.NotContains(t, findAgent(tdd.Spec.Agents, "reviewer").Body, "Méthode de la session", "only the agents concerned")
 	assert.NotContains(t, lead, "tu passes `cp-1` (Démarrer le ticket), `cp-seams`", "its own checkpoints only")
 
 	// A method without checkpoint in the workflow changes nothing.
