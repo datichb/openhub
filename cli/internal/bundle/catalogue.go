@@ -3,7 +3,6 @@ package bundle
 import (
 	"os"
 	"path/filepath"
-	"sort"
 
 	"github.com/datichb/openhub/cli/internal/bricks"
 )
@@ -72,26 +71,6 @@ func (c *agentCatalogue) add(refs ...string) {
 // when: fails for it aside (inlined skills included).
 func (c *agentCatalogue) docs(l *skillLoader, denied skillDenied) ([]*skillDoc, error) {
 	return l.closureFor(c.refs, denied, c.skip)
-}
-
-// skillIDs returns the catalogue of the agent: the IDs of the closure of its
-// refs, the inlined skills aside, sorted. Never nil (an empty catalogue
-// means no skill).
-func (c *agentCatalogue) skillIDs(l *skillLoader, denied skillDenied) ([]string, error) {
-	docs, err := c.docs(l, denied)
-	if err != nil {
-		return nil, err
-	}
-	ids := []string{}
-	seen := map[string]bool{}
-	for _, d := range docs {
-		if !c.inlined[d.ID] && !seen[d.ID] {
-			seen[d.ID] = true
-			ids = append(ids, d.ID)
-		}
-	}
-	sort.Strings(ids)
-	return ids, nil
 }
 
 // expand adds, until nothing changes, the deliverable skills named in the

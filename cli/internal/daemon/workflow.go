@@ -158,7 +158,7 @@ func (d *Daemon) handleWorkflowCheckpoint(w http.ResponseWriter, r *http.Request
 	if !ok {
 		return
 	}
-	req.Call.Agent = d.callerAgent(r.Context(), root, req.ToolSession) // never from the request
+	req.Agent = d.callerAgent(r.Context(), root, req.ToolSession) // never from the request
 	res, err := d.opts.Checkpoints.Reached(r.Context(), root, req.Call)
 	if errors.Is(err, checkpoint.ErrNotApproved) {
 		writeErr(w, http.StatusConflict, i18n.Tf("cmd.daemon.workflow.not_approved", req.ID))
