@@ -180,6 +180,7 @@ func (s *Service) Trace(ctx context.Context, sessionID string, o TraceOptions) (
 	head, rest := evs[0], evs[1:]
 	sort.SliceStable(rest, func(i, j int) bool { return rest[i].Time.Before(rest[j].Time) })
 	evs = append([]TraceEvent{head}, rest...)
+	fillDecisionAgents(evs, sess.EntryAgent)
 	evs = append(evs, summaryEvent(ctx, sess, evs, source, o.Usage))
 	m := newMasker(o.Secrets)
 	for i := range evs {
@@ -304,6 +305,26 @@ func (s *Service) saveTranscript(sessionID string, entries []adapters.Transcript
 	tmp := filepath.Join(dir, transcriptFile+".tmp")
 	if os.WriteFile(tmp, data, 0o600) == nil {
 		_ = os.Rename(tmp, filepath.Join(dir, transcriptFile))
+	}
+}
+
+// fillDecisionAgents names the agent of the decisions that do not tell it:
+// the last agent seen in their tool session (the entry agent for the oh
+// session itself).
+func fillDecisionAgents(evs []TraceEvent, entry string) {
+	last := map[string]string{}
+	for i := range evs {
+		e := &evs[i]
+		switch {
+		case e.Kind == TraceDecision && e.Agent == "":
+			if a := last[e.ToolSession]; a != "" {
+				e.Agent = a
+			} else if !e.InSubagent {
+				e.Agent = entry
+			}
+		case e.Agent != "" && e.ToolSession != "":
+			last[e.ToolSession] = e.Agent
+		}
 	}
 }
 

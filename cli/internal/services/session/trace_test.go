@@ -140,6 +140,7 @@ func TestTraceIsCompleteAndMasked(t *testing.T) {
 	assert.True(t, byCall["c3"].Verification, "go test is a verification of a Go project")
 	assert.True(t, byCall["c4"].Denied)
 	assert.Equal(t, Masked, byCall["c4"].Input["api_key"])
+	assert.Equal(t, "developer", perm.Agent, "the agent of the subagent session that asked")
 	require.NotNil(t, perm.Granted)
 	assert.False(t, *perm.Granted, "rejected permission")
 	assert.True(t, perm.InSubagent)
