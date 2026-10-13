@@ -14,7 +14,7 @@ permission:
     "rails db:rollback*": allow
     "flask db *": allow
 skills: [shared/universal-guardrails, posture/core-posture, posture/user-facing-posture, posture/subagent-posture, shared/handoff-envelope, developer/developer-payload, developer/dev-standards-universal, developer/dev-standards-simplicity, developer/beads-dev, shared/wiki-navigation, shared/context-mode-usage]
-native_skills: [developer/dev-standards-security, developer/dev-standards-git, developer/dev-standards-testing, developer/dev-standards-refactoring, developer/dev-standards-migration, developer/dev-standards-database, developer/test-generation, reviewer/reviewer-reception, shared/rtk-usage, shared/living-docs-enrichment, developer/beads-plan, shared/team-awareness, shared/team-policies-enforcement, developer/quick-fix]
+native_skills: [developer/dev-standards-frontend, developer/dev-standards-frontend-data, developer/dev-standards-frontend-a11y, developer/dev-standards-backend, developer/dev-standards-api, developer/dev-standards-devops, developer/dev-standards-security-hardening, developer/dev-standards-security, developer/dev-standards-git, developer/dev-standards-testing, developer/dev-standards-refactoring, developer/dev-standards-migration, developer/dev-standards-database, developer/test-generation, reviewer/reviewer-reception, shared/rtk-usage, shared/living-docs-enrichment, developer/beads-plan, shared/team-awareness, shared/team-policies-enforcement, developer/quick-fix]
 stack_skills: true
 skills_from_callers: true
 ---

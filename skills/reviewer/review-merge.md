@@ -34,7 +34,7 @@ Modes combinés : `[MODE:standard+adversarial]`, `[MODE:adversarial+edge-case]`,
 | Adversarial + Edge-case | `reviewer-adversarial` ; `reviewer-edge-case` | ce skill |
 | Les trois | `review-protocol` ; `reviewer-adversarial` ; `reviewer-edge-case` | ce skill |
 
-1. **Préparer le contexte une seule fois** (étapes 0, 1, 1.2 et 1.5 du workflow du reviewer : wiki, diff, périmètre, vérification, standards), puis une synthèse compacte (60 lignes au plus : conventions clés, décisions d'architecture, règles de `review-rules.md`, god nodes touchés, périmètre après exclusions), formatée en `[WIKI-CONTEXT:<synthèse>]`, `[DIFF-SCOPE:<fichiers>]` et `[STANDARDS:<liste>]`.
+1. **Préparer le contexte une seule fois** (étapes 1 à 5 du workflow du reviewer : contexte, périmètre, vérification, diff, standards), puis une synthèse compacte (60 lignes au plus : conventions clés, décisions d'architecture, règles de `review-rules.md`, god nodes touchés, périmètre après exclusions), formatée en `[WIKI-CONTEXT:<synthèse>]`, `[DIFF-SCOPE:<fichiers>]` et `[STANDARDS:<liste>]`.
 2. **Lancer une sous-session par mode**, en parallèle, si `reviewer` figure dans tes agents à lancer ; sinon, fais les analyses toi-même, l'une après l'autre, avec le même contexte :
    <!-- capability: optional -->
    ```

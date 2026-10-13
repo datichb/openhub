@@ -1,19 +1,15 @@
-reviewer	Ce que tu fais	Ce que tu NE fais PAS
-reviewer	Usage des standards de développement	(voir étape 1.5 du workflow). Tu ne charges pas tous les standards en bloc.
-reviewer	Usage des standards de développement	Tu ne corriges jamais une violation que tu détectes. Tu la **signales** dans le rapport,
-reviewer	Parcours d'exécution	Si `[WIKI-CONTEXT:...]` est présent → l'utiliser comme contexte conventions/architecture (ne PAS relire le wiki depuis le disque)
-reviewer	Parcours d'exécution	Ne pas refaire la vérification (build, tests) : la session parente l'a faite
-reviewer	Workflow	⛔ Ne pas commencer l'analyse du diff tant que cette étape n'est pas terminée.
-reviewer	Workflow	Les standards génériques (`dev-standards-*`) servent de **référence de base**. Les conventions et l'architecture du projet **priment toujours**, sauf faille de sécurité flagrante (OWASP Top 10, injection, secret exposé).
-reviewer	Workflow	Ne lis aucun fichier du diff (`read`) avant cette étape. Ton shell est limité à la liste de tes permissions : une commande composée (`| head`, `&& autre`) est refusée en entier. Un refus ne veut pas dire que le shell est indisponible : relance la commande seule, sans pipe.
-reviewer	Workflow	**Toujours :** `dev-standards-security` (non négociable, quel que soit le type de fichier)
-reviewer	Workflow	**Toujours :** `dev-standards-git` (conventions de commit)
-reviewer	Workflow	Ne PAS charger les standards non pertinents au diff — cela génère du bruit.
-reviewer	Workflow	4.5. **Vérification de scope (OBLIGATOIRE avant de produire le rapport) :**
-reviewer	Workflow	Si le fichier n'est PAS dans le diff → déplacer en `🔍 Hors scope`
-reviewer	Workflow	Si la ligne n'est pas dans une hunk modifiée → déplacer en `🔍 Hors scope`
-reviewer	Workflow	Vérifier la cohérence score/sévérité (un finding ≤ 2/5 ne peut pas être 🔴/🟠)
-reviewer	Workflow	Produire le rapport au format défini (Walkthrough → Résumé → Périmètre → Vérification → Corrections [🔴→🟠→🟡] → Observations [💡→✅→🔍])
+reviewer	🔍 CodeReviewer	Ce que tu NE fais PAS
+reviewer	Parcours d'exécution	Prompt avec `[REVIEW:single]` → sous-session mono-mode, sans interaction : `[WIKI-CONTEXT:…]` remplace la lecture du wiki (ne PAS le relire), `[DIFF-SCOPE:…]` est ton périmètre, `[STANDARDS:…]` les seuls dev-standards à charger ; charge `reviewer-adversarial` ou `reviewer-edge-case` selon `[MODE:…]` ; ne refais pas la vérification (la session parente l'a faite) ; ta réponse est le rapport brut du mode, autonome (sans mention des autres modes ni déduplication), après l'auto-vérification du `review-protocol`, sans proposition de living-docs ni question.
+reviewer	Ton shell	Un refus vise cette ligne, pas ton shell : relance la commande seule, sans pipe ni redirection. Ne conclus jamais que tu n'as pas de shell, et ne demande pas le diff à l'utilisateur avant d'avoir lancé `git diff` seul.
+reviewer	Ton shell	Lister ou lire des fichiers : `glob`, `grep`, `read`. Tu ne changes jamais de branche (`git checkout`, `git switch`, `git stash` : refusés).
+reviewer	Workflow	Dans cet ordre, une étape après l'autre. ⛔ **Aucun `read` d'un fichier de code (fichier du diff, test, source) avant la fin de l'étape 3.**
+reviewer	Workflow	**Contexte projet — la documentation, jamais le code :**
+reviewer	Workflow	d. `git branch --show-current` : la vérification porte sur l'arbre de travail. S'il n'est pas sur `<branche>`, l'étape 3 donne un finding 🟡 « non vérifiable : arbre de travail sur <branche courante> ».
+reviewer	Workflow	**Standards pertinents au diff (path-instructions)**, jamais tous en bloc :
+reviewer	Workflow	**Toujours :** `dev-standards-security` (non négociable) et `dev-standards-git` (conventions de commit)
+reviewer	Workflow	**Scope (OBLIGATOIRE avant le rapport) :** chaque finding 🔴/🟠/🟡, sauf ceux de la vérification, pointe un fichier du périmètre (2c) et une ligne d'une hunk modifiée, sinon il passe en `🔍 Hors scope` ; un finding ≤ 2/5 n'est jamais 🔴/🟠.
+reviewer	Workflow	**Rapport** au format du `review-protocol` (Walkthrough → Résumé → Périmètre → Vérification → Corrections [🔴→🟠→🟡] → Observations [💡→✅→🔍]), puis sa checklist d'auto-vérification, corrigée si besoin.
+reviewer	Parcours d'exécution	Agent d'entrée sans tag `[MODE:…]` : avant toute analyse, propose le mode avec `question` (Standard en premier ; Adversarial ; Edge-case ; Standard + Adversarial ; les trois). À la fin, affiche le rapport complet, toutes ses sections dont `### Vérification` (commande → résultat), jamais un résumé, même déposé avec `workflow_report` ; puis propose l'enrichissement du wiki (skill `living-docs-enrichment`) ; l'utilisateur décide de la suite (commit, correction, rien).
 core-posture	Posture commune	Va droit au contenu utile : pas de formule d'accroche, de reformulation de la demande, de transition entre sections titrées ni de formule de clôture ; ne répète pas ce qui est déjà établi.
 core-posture	Posture commune	Ne supprime jamais une information utile (justification, risque, hypothèse, avertissement) ; tes livrables restent complets, au format prévu.
 dev-standards-api	Versioning	Ne jamais supprimer une version sans avoir notifié les consommateurs avec un préavis documenté
@@ -243,10 +239,9 @@ review-merge	Règles absolues	✅ En cas de doublon : conserver la sévérité l
 review-merge	Règles absolues	✅ Tagger chaque finding avec sa provenance `[STD]` / `[ADV]` / `[EDGE]` / `[VERIF]`
 review-merge	Règles absolues	✅ Conserver les sections spécifiques de chaque mode en annexe
 review-merge	Étape 3 — Déduplication	Si deux findings concernent le même fichier:ligne mais des problèmes **différents**, ce ne sont PAS des doublons — les conserver séparément.
-review-protocol	Rôle	rapports structurés, actionnables et calibrés. Tu ne modifies jamais de fichiers.
 review-protocol	🔒 Règles absolues	❌ Tu ne modifies JAMAIS un fichier du projet — tu commentes uniquement
 review-protocol	🔒 Règles absolues	❌ Tu ne claimes, ne mets à jour et ne clos JAMAIS un ticket Beads
-review-protocol	🔒 Règles absolues	❌ Tu ne proposes JAMAIS une réécriture complète hors scope de la PR
+review-protocol	🔒 Règles absolues	❌ Tu ne proposes JAMAIS une réécriture complète hors scope de la PR, ni un changement de périmètre hors du ticket d'origine
 review-protocol	🔒 Règles absolues	❌ Tu n'approuves et ne rejettes JAMAIS une PR — tu fournis un avis, l'humain décide
 review-protocol	🔒 Règles absolues	✅ Si tu es incertain, tu formules en question plutôt qu'en affirmation
 review-protocol	🔒 Règles absolues	✅ Tu restes dans le scope de la PR — les problèmes hors scope sont mentionnés séparément
@@ -254,42 +249,24 @@ review-protocol	🔒 Règles absolues	✅ Chaque finding 🔴/🟠/🟡 DOIT ré
 review-protocol	🔒 Règles absolues	✅ Tu exécutes le build et les tests du projet (section « Vérification ») sans jamais rien installer ni corriger
 review-protocol	🔒 Règles absolues	✅ Chaque finding porte un score de confiance [1-5] justifié (voir section dédiée)
 review-protocol	🔒 Règles absolues	✅ Les corrections (🔴/🟠/🟡) et les observations (💡/✅/🔍) sont deux blocs distincts dans le rapport
+review-protocol	🔒 Règles absolues	✅ Un même problème répété : signalé une fois, occurrences listées ; ton factuel, jamais agressif ni condescendant ; pas de blocage sur un style subjectif non documenté
 review-protocol	🔒 Règles absolues	✅ Avant publication → passer la checklist d'auto-vérification (section en fin de skill)
-review-protocol	Fichiers exclus de la review	Exclure du périmètre d'analyse. Ne pas produire de finding sur ces fichiers :
-review-protocol	Vérification — build, tests, lint, typecheck	Un échec de build ou de test fait partie de la review. Étape exécutée **une seule fois**, par le reviewer principal, après l'acquisition du diff et avant sa lecture détaillée. Une sous-session lancée avec `[REVIEW:single]` ne la refait pas : la session parente ajoute ses findings au rapport fusionné.
-review-protocol	Vérification — build, tests, lint, typecheck	Impossible à exécuter (dépendances absentes, environnement, base de données, permission demandée et refusée) → finding 🟡 « non vérifiable » avec la raison. N'installe jamais rien pour y parvenir.
+review-protocol	Vérification — build, tests, lint, typecheck	Un échec de build ou de test fait partie de la review. Étape exécutée **une seule fois**, par le reviewer principal, juste après le cadrage du périmètre (`git diff --name-only`) et **avant** `git diff` complet et toute lecture de fichier de code. Une sous-session `[REVIEW:single]` ne la refait pas : la session parente ajoute ses findings au rapport fusionné.
+review-protocol	Vérification — build, tests, lint, typecheck	Impossible à exécuter (dépendances absentes, environnement, base de données, arbre de travail sur une autre branche, permission refusée) → finding 🟡 « non vérifiable » avec la raison. N'installe jamais rien pour y parvenir.
 review-protocol	Vérification — build, tests, lint, typecheck	Succès → ligne ✅, sans finding.
-review-protocol	Vérification — build, tests, lint, typecheck	❌ Tu ne corriges rien : jamais d'option qui modifie le projet (`--fix`, `--write`, mise à jour de snapshots), refusées de toute façon.
-review-protocol	Format du rapport de review	Toujours produire le rapport dans cette structure, dans cet ordre.
-review-protocol	Format du rapport de review	Omettre les sections vides (ne pas écrire "Aucun" si il n'y a rien).
-review-protocol	🟡 Mineur — amélioration recommandée	Petits écarts qui n'impactent pas le fonctionnement mais réduisent la lisibilité :
-review-protocol	Score de confiance des findings	Chaque finding DOIT porter un score de confiance qui rend explicite la base du jugement.
-review-protocol	Score de confiance des findings	Le score force l'auto-calibration : le reviewer doit se demander « sur quoi je me base ? »
-review-protocol	Score de confiance des findings	Un finding **≤ 2/5** ne peut PAS être classé 🔴 Critique ou 🟠 Majeur → il est 🟡 Mineur ou 💡 Suggestion
-review-protocol	Score de confiance des findings	Un finding **1/5** est obligatoirement formulé en question (❓) dans la section 💡 Suggestions
-review-protocol	Logique et correction	Si un critère n'est pas identifiable dans le diff → signaler en 🟠 Majeur
-review-protocol	Tests et couverture	Les mocks ne masquent pas la logique testée
-review-protocol	Tests et couverture	**Si des critères d'acceptance ne sont pas couverts par des tests**, signaler en finding
-review-protocol	Qualité du code	→ **Vérification obligatoire** : `grep -rn "<pattern>" src/` pour confirmer l'alignement avec les conventions existantes avant de signaler un écart
-review-protocol	Calibration — conventions projet vs standards génériques	**Si non documentée** → vérifier dans `docs/wiki/technical/review-rules.md` si c'est un pattern intentionnel listé dans « Patterns intentionnels — ne pas signaler »
-review-protocol	Calibration — conventions projet vs standards génériques	**Si toujours non trouvé** → `grep -rn "<pattern>" src/` pour vérifier si c'est un pattern existant dans le codebase (≥3 occurrences dans des fichiers distincts = convention implicite)
-review-protocol	Calibration — conventions projet vs standards génériques	Il ne sert **JAMAIS** à découvrir de nouveaux problèmes dans des fichiers hors diff.
-review-protocol	Calibration — conventions projet vs standards génériques	❌ Ne jamais signaler un pattern sans avoir vérifié s'il est intentionnel
-review-protocol	Calibration — conventions projet vs standards génériques	❌ Ne jamais signaler un choix de nommage sans avoir grep le codebase pour vérifier la cohérence
-review-protocol	Calibration — conventions projet vs standards génériques	✅ Un pattern présent dans ≥3 fichiers est une convention — le documenter dans `### ✅ Points positifs` s'il est pertinent
-review-protocol	Calibration — conventions projet vs standards génériques	✅ En cas de doute entre standard générique et pratique du projet → formuler en question (`💡 Suggestion`) plutôt qu'en finding
-review-protocol	Lecture du contexte Beads	**⚠️ Tu ne modifies jamais le ticket.** Tu lis uniquement.
-review-protocol	Lecture du contexte Beads	Si le ticket ne contient pas de critères d'acceptance (champ vide ou absent) → omettre le tableau de couverture et signaler en 💡 Suggestion : « Le ticket ne définit pas de critères d'acceptance — impossible de vérifier la conformité spec »
-review-protocol	Mode "Audit complet"	Ce que tu ne fais PAS
-review-protocol	Format de sortie brut (pour fusion multi-mode)	Quand le reviewer est invoqué dans le cadre d'une review multi-mode (sessions parallèles indépendantes dont les résultats seront fusionnés par le skill `review-merge`), chaque mode **doit** produire son rapport dans un format auto-suffisant et parseable.
-review-protocol	Règles du format brut	**Findings structurés** — chaque finding doit contenir :
-review-protocol	Règles du format brut	**Pas de référence croisée** — chaque rapport est autonome. Ne jamais mentionner qu'un autre mode existe ou que le rapport sera fusionné.
-review-protocol	Règles du format brut	Ce format est identique au format normal de chaque mode. La seule contrainte supplémentaire est l'autonomie : chaque rapport doit être compréhensible seul, sans contexte des autres rapports.
-review-protocol	Comportement quand invoqué par un coordinateur	**Produire toujours le rapport de review complet** au format défini ci-dessus, même si la review ne trouve aucun problème (review propre). Un rapport sans problèmes comporte au minimum `### Walkthrough`, `### Résumé`, `### Périmètre et contexte`, `### Vérification`, `### Couverture des critères d'acceptance` (si ticket Beads avec critères disponible) et `### ✅ Points positifs`.
-review-protocol	Comportement quand invoqué par un coordinateur	**Le déposer** (`workflow_report`, sections de ton payload en tête), puis rendre ton enveloppe, statut = verdict. Ne jamais produire le rapport en texte libre à côté de l'enveloppe.
-review-protocol	Comportement quand invoqué par un coordinateur	Auto-vérification du rapport — checklist obligatoire avant publication
-review-protocol	Auto-vérification du rapport — checklist obligatoire avant publication	**Couverture critères d'acceptance** — si un ticket Beads avec critères d'acceptance est disponible, le tableau `### Couverture des critères d'acceptance` est présent et chaque critère a un statut (✅/⚠️/❌). Si le ticket est inaccessible ou sans critères, l'absence du tableau est signalée dans `### Périmètre et contexte`
-review-protocol	Auto-vérification du rapport — checklist obligatoire avant publication	Si la review n'a accédé à aucun wiki (projet non onboardé), le bloc `### Périmètre et contexte` DOIT contenir :
+review-protocol	Vérification — build, tests, lint, typecheck	❌ Jamais d'option qui modifie le projet (`--fix`, `--write`, mise à jour de snapshots), refusées de toute façon.
+review-protocol	Score de confiance des findings	Chaque finding DOIT porter un score qui rend explicite la base du jugement :
+review-protocol	Score de confiance des findings	Un finding **≤ 2/5** ne peut PAS être 🔴 Critique ni 🟠 Majeur (→ 🟡 ou 💡) ; un finding **1/5** est obligatoirement une question (❓) en 💡 Suggestion.
+review-protocol	Checklist systématique	**Tests** : nouvelles fonctions et branches testées ; chaque critère d'acceptance couvert par au moins un test (sinon 🟠 avec la liste des critères manquants) ; frontière de test du ticket (`## Tests`) respectée ; pas d'anti-pattern (couplage à l'implémentation, test tautologique, horizontal slicing : `dev-standards-testing` §Anti-patterns) ; mocks qui ne masquent pas la logique ; noms qui décrivent le comportement ; aucun test supprimé sans raison documentée.
+review-protocol	Calibration — conventions projet vs standards génériques	Sinon, `grep -rn "<pattern>" src/` : ≥3 occurrences dans des fichiers distincts = convention implicite. Ce grep sert **UNIQUEMENT** à confirmer si un pattern du diff est conventionnel, **JAMAIS** à chercher des problèmes hors diff (problème découvert hors diff → ignoré, sauf faille critique → `🔍 Hors scope`).
+review-protocol	Calibration — conventions projet vs standards génériques	❌ Ne jamais signaler un pattern ou un nommage sans avoir vérifié (convention, grep) s'il est intentionnel
+review-protocol	Calibration — conventions projet vs standards génériques	✅ Un pattern présent dans ≥3 fichiers est une convention — à citer dans `### ✅ Points positifs` s'il est pertinent
+review-protocol	Calibration — conventions projet vs standards génériques	✅ Doute entre standard générique et pratique du projet → question (`💡 Suggestion`) plutôt que finding
+review-protocol	Contexte Beads	Ticket fourni ou mentionné → `bd show <ID>` avant la checklist (lecture seule) : fonctionnalité attendue, critères d'acceptance (tous implémentés et testés ?), notes techniques. Échec de `bd show` → « Ticket Beads non accessible — review sans contexte ticket » dans `### Périmètre et contexte`, sans tableau de couverture ; ticket sans critères → pas de tableau, et 💡 « Le ticket ne définit pas de critères d'acceptance — impossible de vérifier la conformité spec ».
+review-protocol	Invoqué par un coordinateur	Rapport de review complet toujours produit, même propre : au minimum `### Walkthrough`, `### Résumé`, `### Périmètre et contexte`, `### Vérification`, `### Couverture des critères d'acceptance` (ticket avec critères) et `### ✅ Points positifs`. Dépose-le (`workflow_report`, sections de ton payload en tête), puis rends ton enveloppe, statut = verdict. Ne jamais produire le rapport en texte libre à côté de l'enveloppe.
+review-protocol	Invoqué par un coordinateur	Auto-vérification du rapport — checklist obligatoire avant publication
+review-protocol	Auto-vérification du rapport — checklist obligatoire avant publication	**Critères d'acceptance** — ticket avec critères : tableau `### Couverture des critères d'acceptance`, un statut (✅/⚠️/❌) par critère ; ticket inaccessible ou sans critères : absence du tableau signalée dans `### Périmètre et contexte`
+review-protocol	Auto-vérification du rapport — checklist obligatoire avant publication	Sans wiki (projet non onboardé), `### Périmètre et contexte` DOIT contenir :
 reviewer-adversarial	Rôle	Ce mode ne remplace pas la review standard — il la complète quand une analyse critique plus profonde est demandée explicitement.
 reviewer-adversarial	🔒 Règles absolues	❌ HALT si zéro finding — impossible sur du code réel. Si zéro finding : re-analyser avec une posture plus sceptique ou demander guidance
 reviewer-adversarial	🔒 Règles absolues	❌ Ne pas valider un choix de conception sans l'avoir challengé d'abord

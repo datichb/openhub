@@ -21,4 +21,4 @@ locked libre@operator: helm upgrade x x -f x
 locked libre@operator: kubectl apply
 locked libre@operator: kubectl apply -f x
 locked libre@operator: terraform apply
-task   review-feedback/orchestrator-dev: documentarian
+prose  review-feedback/orchestrator-dev: documentarian
