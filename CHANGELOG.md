@@ -9,6 +9,15 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ## [Unreleased]
 
+### Changed — variantes par rôle et contrat de session (lot L3) — ⚠ changement de comportement
+
+- **`when:`** sur une skill et **marqueurs `<!-- oh:when … -->…<!-- /oh:when -->`** dans le texte : conditions `role`, `agent`, `calls`, `websearch`, `mcp`, `plugin`, `beads_write`, `ticket`, `wiki`, `shell`, `headless`, alternatives avec `|`. Les skills incluses et le corps des agents sont filtrés avant l'inclusion, les skills à la demande sur l'union de leurs lecteurs ; le catalogue par agent est calculé après le filtrage. Erreur `invalid_when` dans `oh skill check`.
+- **Contrat de session généré** pour chaque agent, à la place de la note « Rôle dans cette session » : rôle, appelants, agents qu'il peut lancer, titre de retour par appelant, **seulement ses checkpoints**, `max_fix_rounds`, `question` autorisé ou non, `workflow_report`, headless. Un checkpoint cité dans un prompt d'invocation n'est pas celui de l'agent invoqué.
+- **`by:` sur un checkpoint** (renseigné dans les workflows livrés, déduit du graphe sinon) : oh avertit quand un autre agent le passe. **`headless:`** dans le schéma du workflow (`brief-enrich`).
+- **Contenu par rôle** : pas de `question` en sous-agent (blocs « Questions bloquantes »), posture selon le rôle, question de parallélisme réservée à l'agent d'entrée, parcours d'exécution (agent d'entrée ou sous-agent) choisis au build ; la prose de détection du rôle disparaît. Dans `sweep`, le conductor ne lance pas ses developers en arrière-plan.
+- **`wiki-navigation`** n'est livrée que si le projet a un wiki (`docs/wiki/`), sauf à l'onboarder.
+- **Budget** (somme des prompts sans stack, projet sans wiki) : 423 253 → 342 970 tokens (−19 %) ; avec un wiki : −11,7 %.
+
 ### Security — lectures git d'oh dans le clone distant (lot R3-remote-git)
 
 - **Jobs distants** : toutes les lectures git d'oh dans le clone (fenêtre de commit, garde de fermeture des tickets, contrôle de la configuration git, référence de départ, provenance, auteur Beads, jeton des hooks) tournent sous le compte `oh` des agents, propriétaire du clone, au lieu de root, que git refusait (« dubious ownership »). `safe.directory` n'est jamais posé : un filtre ou un réglage écrit par l'agent dans le dépôt ne tourne jamais avec plus de droits que lui.
