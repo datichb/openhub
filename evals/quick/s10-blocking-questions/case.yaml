@@ -1,5 +1,11 @@
+# Modernisation L3 : dans quick, le developer est l'agent d'entrée ; son
+# contrat de session l'autorise à poser ses questions avec l'outil question
+# (« Questions bloquantes » est le format du sous-agent, qui ne parle pas à
+# l'utilisateur). Le cas vérifie donc qu'il ne tranche pas la décision
+# lui-même : il la pose à l'utilisateur (outil question) ou la laisse ouverte
+# dans sa réponse, et ne commite pas.
 id: S10
-title: "Quick : une décision sur les données est posée en « Questions bloquantes », pas via question"
+title: "Quick : une décision sur les données est laissée à l'utilisateur (question de l'agent d'entrée ou question ouverte), sans commit"
 workflow: quick
 mode: semi-auto
 text: |
@@ -11,12 +17,10 @@ answers:
   checkpoints:
     "*": "reject: Évaluation terminée : ne commite pas."
 assertions:
-  - type: no_question_in_subagent
-    name: aucune question posée avec l'outil question
-    include_entry: true
   - type: text_matches
-    name: la décision est posée en « Questions bloquantes »
-    pattern: "Questions bloquantes[\\s\\S]*z[ée]ro"
+    name: la décision est posée à l'utilisateur (outil question, « Questions bloquantes » ou question ouverte)
+    questions: true
+    pattern: "(Questions bloquantes|question ouverte|décision (à prendre|ouverte|en attente)|\"question\")[\\s\\S]*(z[ée]ro|b ?== ?0)|(z[ée]ro|b ?== ?0)[^.\\n]*\\?"
   - type: ran
     name: aucun commit
     command: "git commit*"
