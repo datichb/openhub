@@ -47,6 +47,7 @@ checkpoints:
     mode: { manuel: pause, semi-auto: pause, auto: pause }
     unlocks: [apply]
     remote: forbid
+modes: { default: manuel, allowed: [manuel] }
 beads:
   allow: [show, list, ready, search, query, children, comments, count, status, graph, history]
 runtime: { default: local, allowed: [local] }
