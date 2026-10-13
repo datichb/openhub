@@ -251,7 +251,7 @@ func TestVerifyStackGo(t *testing.T) {
 }
 
 func TestVerifyEnv(t *testing.T) {
-	env := verifyEnv([]string{"PATH=/bin", "HOME=/h", "GOPATH=/g", sessionspec.EnvGroupToken + "=t", "GITLAB_TOKEN=x", "AWS_SECRET_ACCESS_KEY=y", "OPENCODE_SERVER_PASSWORD=z"})
+	env := verifyEnv([]string{"PATH=/bin", "HOME=/h", "GOPATH=/g", sessionspec.EnvGroupToken + "=t", "GITLAB_TOKEN=x", "AWS_SECRET_ACCESS_KEY=y", "TOOL_SERVER_PASSWORD=z"})
 	assert.Equal(t, []string{"PATH=/bin", "HOME=/h", "GOPATH=/g", "CI=true", "NO_COLOR=1", "TERM=dumb"}, env)
 }
 
