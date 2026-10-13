@@ -164,6 +164,12 @@ When a git read fails, these protections stay **closed**: when the state of the 
 
 ---
 
+## Who passes a checkpoint (`by:`, CP-R11)
+
+Each checkpoint names the agents that pass it (`by:`; otherwise deduced from the delegation graph). Each agent sees only its own: in its session contract and in the generated checkpoint table. A checkpoint passed by another agent is not refused: oh logs it and the `workflow_checkpoint` answer carries a warning (« check that it is your checkpoint »).
+
+---
+
 ## Decision card (CP-R5, verification part)
 
 For a paused checkpoint, the TUI card shows, besides the agent summary, the changes, the last messages and the timeline:

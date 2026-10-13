@@ -134,7 +134,7 @@ Le frontmatter n'accepte que deux sortes de clés :
 | Sorte | Clés | Dans le `SKILL.md` livré |
 |-------|------|--------------------------|
 | Clés [Agent Skills](https://agentskills.io/specification) | `name`, `description`, `license`, `compatibility`, `metadata`, `allowed-tools` | Conservées |
-| Clés du hub, lues par oh | `requires`, `annexes`, `plugin`, `mcp` | Retirées |
+| Clés du hub, lues par oh | `requires`, `annexes`, `plugin`, `mcp`, `when` | Retirées |
 
 Toute autre clé (hors `bucket:`, signalé comme obsolète) est une **erreur** `unknown_key` d'`oh skill check` : la supprimer, ou porter l'information dans le corps. La règle vaut aussi pour les skills du catalogue d'équipe (`catalog/skills/`), où `extends:` est permis en plus. Limites de la spécification Agent Skills, erreurs elles aussi :
 
@@ -142,6 +142,8 @@ Toute autre clé (hors `bucket:`, signalé comme obsolète) est une **erreur** `
 - `description:` — 200 caractères au plus pour le hub (`long_description` ; avertissement pour le catalogue d'équipe ; 1024 reste la limite du standard). Elle dit **quand** charger la skill : commencer par « Utiliser quand… » (ou « Utiliser pour… », « Utiliser en phase… »), sinon avertissement `description_not_trigger`.
 
 `plugin: <id>` ne livre la skill que si le workflow charge ce plugin (`plugins:`) ; `mcp: <serveur>` ne la livre que si la session a ce serveur MCP (adaptateurs de tracker : `mcp: gitlab` pour `adapters/gitlab-*`, `mcp: github` pour `adapters/github-*` — un agent peut lister les deux adaptateurs, seul celui du tracker configuré est livré ; skills d'équipe : `mcp: team`).
+
+`when: <condition>` et les blocs `<!-- oh:when … -->` / `<!-- /oh:when -->` réservent une skill ou un passage à certains agents de la session (rôle `entry` ou `subagent`, producteur `agent=` ou consommateur `calls=` d'un format partagé, outils et serveurs disponibles) : voir [Variantes par rôle et par session](../architecture/skills.fr.md#variantes-par-rôle-et-par-session-when). Préférer un bloc par rôle à une phrase qui demande au modèle de deviner son rôle : le [contrat de session](../architecture/agents.fr.md) le lui donne, et chaque agent ne lit que sa branche. Un bloc pour sous-agent n'appelle jamais `question`.
 
 ### Gabarits et annexes (`annexes:`)
 

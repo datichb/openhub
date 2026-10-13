@@ -422,7 +422,7 @@ Le `task_id` n'est pas un identifiant LLM propriétaire — c'est un **ID de ses
 
 ### Convention de chargement du parcours d'exécution
 
-Le parcours (standalone ou sous-agent) n'est plus deviné depuis le prompt : oh ajoute à chaque agent du paquet une section générée **« Rôle dans cette session »**, calculée depuis le graphe du workflow (`calls:` des membres, agent d'entrée) :
+Le parcours (standalone ou sous-agent) n'est plus deviné depuis le prompt : oh ajoute à chaque agent du paquet une section générée **« Contrat de session »**, calculée depuis le graphe du workflow (`calls:` des membres, agent d'entrée) :
 
 | Position dans le workflow | Rôle généré | Parcours |
 |---------------------------|-------------|----------|
@@ -431,7 +431,7 @@ Le parcours (standalone ou sous-agent) n'est plus deviné depuis le prompt : oh 
 | Atteint seulement via `task` | sous-agent, appelants listés ; l'utilisateur ne voit pas ses appels à `question` | sous-agent (blocs de retour intermédiaire et de question vers l'appelant, puis bloc de retour final) |
 | Ni l'un ni l'autre (ex. le `developer` de `debug`, vers lequel l'utilisateur bascule) | lancé directement par l'utilisateur | standalone |
 
-Les agents chargent leur skill de parcours d'après cette section. Les marqueurs `[SKILL:<réf>]` que certaines skills écrivent encore dans un prompt `task` (`[SKILL:reviewer/reviewer-subagent]`, `[SKILL:designer/prototype-protocol]`, `[SKILL:orchestrator/orchestrator-dev-feedback-mode]` de `review-feedback`) désignent une skill supplémentaire à charger ; ils ne décident plus du parcours.
+Les passages propres à un rôle sont filtrés au build (`when: role=…`, [Variantes par rôle](./skills.fr.md#variantes-par-rôle-et-par-session-when)) : un sous-agent ne reçoit ni la skill `-standalone` ni la partie standalone des `*-execution-modes`, un agent d'entrée que personne ne lance ne reçoit pas la partie sous-agent ; seul l'agent qui a les deux rôles lit les deux et décide d'après son prompt d'invocation. Les marqueurs `[SKILL:<réf>]` que certaines skills écrivent encore dans un prompt `task` (`[SKILL:reviewer/reviewer-subagent]`, `[SKILL:designer/prototype-protocol]`, `[SKILL:orchestrator/orchestrator-dev-feedback-mode]` de `review-feedback`) désignent une skill supplémentaire à charger ; ils ne décident plus du parcours.
 
 > **Skills de parcours disponibles :** certains agents ont deux skills séparées, d'autres une seule skill
 > `*-execution-modes` qui couvre les deux parcours.
@@ -451,7 +451,7 @@ Les agents chargent leur skill de parcours d'après cette section. Les marqueurs
 
 | Aspect | Standalone | Depuis orchestrateur |
 |--------|-----------|---------------------|
-| Skill de parcours | `-standalone` | `-subagent` (tous deux choisis d'après « Rôle dans cette session ») |
+| Skill de parcours | `-standalone` | `-subagent` (choisie au build d'après le rôle du contrat de session) |
 | Mode de workflow | Fixé au lancement (`oh run … --mode`), ligne `Mode de workflow : <mode>` du prompt initial | Transmis dans le prompt de délégation |
 | Questions CP | Posées via `question` | Bloc `## Question pour l'orchestrator` |
 | Récap global | Affiché à l'utilisateur | Transmis à l'orchestrator |
@@ -473,7 +473,7 @@ Les agents suivants implémentent le mécanisme d'interruption de session quand 
 
 ### Ré-invocation avec task_id
 
-Une ré-invocation avec `task_id` reprend la session enfant : le sous-agent garde son parcours (sa section « Rôle dans cette session » ne change pas, et une reprise avec `task_id` est elle-même un signal sous-agent pour un agent qui peut aussi être l'agent d'entrée).
+Une ré-invocation avec `task_id` reprend la session enfant : le sous-agent garde son parcours (son contrat de session ne change pas, et une reprise avec `task_id` est elle-même un signal sous-agent pour un agent qui peut aussi être l'agent d'entrée).
 
 ```
 task(

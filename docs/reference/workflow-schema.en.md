@@ -176,6 +176,10 @@ limits:
 
 After N consecutive subagent calls without user interaction, the session stops on a ✗ decision (circuit breaker). Negative value: `negative_value`.
 
+### `headless`
+
+`headless: true`: nobody follows the session (`brief-enrich`, launched without interface). The session contract tells every agent: no question, a missing piece of information goes in the output; the `when: headless` condition of the skills holds. A checkpoint that may wait for the user gives the `headless_checkpoint_pause` warning. Patch: replaces.
+
 ---
 
 ## Inputs (`inputs`)
@@ -328,7 +332,7 @@ checkpoints:
     remote: defer
 ```
 
-The id is in kebab-case (`checkpoint_id_invalid`) and must not be an agent id (`checkpoint_agent_clash`). Checkpoints are passed in file order. The generated skills give this order on a « Séquence » line, with the operations each checkpoint unlocks (« `cp-1` → `cp-2` [commit, close] → `cp-3` »): the agents rely on it instead of hard-coding checkpoint ids.
+The id is in kebab-case (`checkpoint_id_invalid`) and must not be an agent id (`checkpoint_agent_clash`). Checkpoints are passed in file order. The generated skills give this order on a « Séquence » line, with the operations each checkpoint unlocks (« `cp-1` → `cp-2` [commit, close] → `cp-3` »): the agents rely on it instead of hard-coding checkpoint ids. Each agent sees only **its own** checkpoints there (`by:`, CP-R11).
 
 | Field | Type | Values | Absent | Patch |
 |---|---|---|---|---|
@@ -341,6 +345,7 @@ The id is in kebab-case (`checkpoint_id_invalid`) and must not be an agent id (`
 | `disabled` | boolean | `true` | — | removes the inherited checkpoint (patch only; refused when it carries `verify`) |
 | `verify` | object | `from`, `kinds`, `cmd`, `expect`, `in`, `timeout`, `must_touch` | no verification | hardens (an inherited verification is never removed nor weakened) |
 | `when` | object | `entry`, `labels`, `paths`, `outputs` | no condition | hardens (inherited conditions kept) |
+| `by` | list | member agents of the workflow | deduced from the graph: the agents that launch an agent gated by this checkpoint (`after:`), else the entry agent | replaces |
 
 - **Behaviors**: `pause` always asks the user; `auto` goes on alone; `skip` skips the checkpoint; `conditional` asks depending on `condition`. oh does not evaluate the `condition` sentence: without `when:`, a `conditional` checkpoint always asks the user when it is reported; with `when:`, oh evaluates it (see below).
 - **Strictness order**: `skip` < `auto` < `conditional` < `pause`. On a `mandatory` checkpoint, a patch cannot choose a less strict behavior, nor remove it (`mandatory_checkpoint_removed`); `skip` on a mandatory checkpoint counts as a pause.
@@ -374,6 +379,15 @@ Diagnostics: `verify_empty` (neither `from` nor `cmd`), `enum_invalid` (`from`, 
 ```
 
 One condition is enough. An `auto` checkpoint pauses when a condition holds; a `conditional` one pauses only then; a `pause`, mandatory or unlocking checkpoint always pauses: `when:` can only add a pause. With `when:`, `condition` is no longer required. Diagnostics: `when_empty`, `when_mandatory` (warning: no effect), `when_unknown_agent`, `when_unknown_output` (warnings), `field_required`.
+
+### `by` — who passes the checkpoint
+
+```yaml
+  cp-2:
+    by: [orchestrator-dev]
+```
+
+The agents that pass the checkpoint (CP-R11). Each agent's session contract names only its own checkpoints, and the generated checkpoint table shows an agent only its own. When another agent passes the checkpoint, oh lets it through, logs it and adds a warning to the `workflow_checkpoint` answer. Every checkpoint of the shipped workflows sets it (test `TestCheckpointByMembers`). Diagnostics: `checkpoint_by_unknown` (error: not a member), `checkpoint_by_duplicate` (warning).
 
 ### Pause budget
 
@@ -483,7 +497,7 @@ A diagnostic has a severity (error or warning), a code, the field path, the sour
 | `entry_not_primary`, `entry_role`, `entry_disabled`, `agent_unknown`, `agent_unreachable` | invalid entry agent or member |
 | `after_unknown`, `after_cycle`, `calls_unknown`, `graph_cycle` | `after` gates and delegations |
 | `scratch_reader_unknown`, `scratch_reader_owner` | scratch reader not in the workflow, or the owner itself |
-| `checkpoint_agent_clash`, `checkpoint_mode_unknown`, `checkpoint_mode_missing`, `checkpoint_condition_missing`, `mandatory_checkpoint_removed`, `unlocking_checkpoint_removed`, `unlock_duplicate`, `unlock_unknown`, `unlock_skip`, `unlock_push_without_publish`, `patch_unknown_checkpoint` | checkpoints |
+| `checkpoint_agent_clash`, `checkpoint_mode_unknown`, `checkpoint_mode_missing`, `checkpoint_condition_missing`, `mandatory_checkpoint_removed`, `unlocking_checkpoint_removed`, `unlock_duplicate`, `unlock_unknown`, `unlock_skip`, `unlock_push_without_publish`, `patch_unknown_checkpoint`, `checkpoint_by_unknown`, `checkpoint_by_duplicate`, `headless_checkpoint_pause` | checkpoints |
 | `verify_empty`, `verify_cmd_template`, `verify_in_invalid`, `verify_timeout_invalid`, `verified_checkpoint_removed`, `when_empty`, `when_mandatory`, `when_unknown_agent`, `when_unknown_output`, `pause_budget_exceeded` | verification run by oh, conditions, pause budget (R3) |
 | `precondition_check_invalid`, `precondition_path_invalid`, `precondition_self`, `precondition_unknown_workflow`, `patch_unknown_precondition` | preconditions |
 | `prompt_both`, `prompt_empty`, `prompt_template_path`, `prompt_template_missing`, `prompt_parse`, `prompt_unknown_variable` | prompt |

@@ -23,7 +23,8 @@ With an active team (solo space included), it also applies the `unknown_key` rul
 | `name_mismatch` | error | `name:` different from the file name |
 | `invalid_name` | error | `name:` over 64 characters or not kebab-case (lowercase letters, digits, single hyphens) |
 | `long_description` | error | `description:` over 200 characters (hub catalogue limit; a warning for a skill of the team catalogue, an error over 1024, the Agent Skills standard limit) |
-| `unknown_key` | error | Frontmatter key that is neither an Agent Skills key (`name`, `description`, `license`, `compatibility`, `metadata`, `allowed-tools`) nor a hub key (`requires`, `annexes`, `plugin`, `mcp`) |
+| `unknown_key` | error | Frontmatter key that is neither an Agent Skills key (`name`, `description`, `license`, `compatibility`, `metadata`, `allowed-tools`) nor a hub key (`requires`, `annexes`, `plugin`, `mcp`, `when`) |
+| `invalid_when` | error | Invalid `when:` condition or `<!-- oh:when … -->` markers: unknown key or role, marker not alone on its line, unbalanced blocks |
 | `missing_annex` | error | `annexes:` names a file not found |
 | `no_description` | warning | Missing `description:` |
 | `legacy_bucket` | warning | Obsolete `bucket:` field |

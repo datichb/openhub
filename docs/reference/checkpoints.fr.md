@@ -164,6 +164,12 @@ En cas d'échec de lecture git, ces protections restent **fermées** : si l'éta
 
 ---
 
+## Qui passe un checkpoint (`by:`, CP-R11)
+
+Chaque checkpoint nomme les agents qui le passent (`by:` ; sinon déduit du graphe de délégation). Chaque agent ne voit que les siens : dans son contrat de session et dans la table générée des checkpoints. Un checkpoint passé par un autre agent n'est pas refusé : oh l'écrit dans son journal et la réponse de `workflow_checkpoint` porte un avertissement (« vérifie que c'est bien ton checkpoint »).
+
+---
+
 ## Carte de décision (CP-R5, partie vérification)
 
 Pour un checkpoint en pause, la carte de la TUI affiche, en plus du résumé de l'agent, des changements, des derniers messages et de la frise :

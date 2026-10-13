@@ -393,6 +393,7 @@ requires: [<ref>, …]          # optional — skills shipped together with this
 annexes: [templates/<f>.md]   # optional — files copied next to the SKILL.md
 plugin: <id>                  # optional — shipped only when the workflow loads this plugin
 mcp: <server>                 # optional — shipped only when the session has this MCP server
+when: <condition>             # optional — kept only for the agents it applies to
 ---
 
 # Skill — <Title>
@@ -400,10 +401,33 @@ mcp: <server>                 # optional — shipped only when the session has t
 <Skill body>
 ```
 
-> `name:` must equal the file name: opencode identifies skills by name. `requires:`, `annexes:`, `plugin:` and `mcp:` are read by oh and stripped from the delivered `SKILL.md`. A `plugin: context-mode` skill (instructions for tools provided by a plugin) enters the bundle only when the workflow declares that plugin (`plugins:`). An `mcp: gitlab` skill (tracker adapter: `adapters/gitlab-*`, and `adapters/github-*` with `mcp: github`) enters the bundle only when the session has that MCP server (configured for the project): planner, pathfinder and onboarder list both adapters, only the one of the configured tracker is shipped. The team skills (`team-awareness`, `team-policies-enforcement`, `team-coordination`, `takeover-context-protocol`) have `mcp: team`: shipped only when the session has the `team` MCP server. Likewise, the permissions of a plugin (context-mode `ctx_*` tools, `rtk` commands; listed in `permissions/plugin-tools.yaml`) are removed from the agents when the plugin is not loaded. An agent that names a skill absent from the bundle (plugin not loaded, MCP server missing, frontend skills in a project without frontend) gets a line naming it: it does not try to load it. The `bucket:` field is obsolete: the bucket is decided in the agent frontmatter.
+> `name:` must equal the file name: opencode identifies skills by name. `requires:`, `annexes:`, `plugin:`, `mcp:` and `when:` are read by oh and stripped from the delivered `SKILL.md`. A `plugin: context-mode` skill (instructions for tools provided by a plugin) enters the bundle only when the workflow declares that plugin (`plugins:`). An `mcp: gitlab` skill (tracker adapter: `adapters/gitlab-*`, and `adapters/github-*` with `mcp: github`) enters the bundle only when the session has that MCP server (configured for the project): planner, pathfinder and onboarder list both adapters, only the one of the configured tracker is shipped. The team skills (`team-awareness`, `team-policies-enforcement`, `team-coordination`, `takeover-context-protocol`) have `mcp: team`: shipped only when the session has the `team` MCP server. Likewise, the permissions of a plugin (context-mode `ctx_*` tools, `rtk` commands; listed in `permissions/plugin-tools.yaml`) are removed from the agents when the plugin is not loaded. An agent that names a skill absent from the bundle (plugin not loaded, MCP server missing, frontend skills in a project without frontend) gets a line naming it: it does not try to load it. The `bucket:` field is obsolete: the bucket is decided in the agent frontmatter.
 > The reference used in agent frontmatter is the path relative to `skills/`, without `.md` (`developer/beads-plan`).
 > **Allowed keys.** The delivered `SKILL.md` keeps only the [Agent Skills](https://agentskills.io/specification) keys: `name`, `description`, `license`, `compatibility`, `metadata`, `allowed-tools`. The hub keys `requires`, `annexes`, `plugin` and `mcp` are read by oh and never delivered. Any other key is an `unknown_key` error of `oh skill check` (the obsolete `bucket:` is a `legacy_bucket` warning). `name:` is at most 64 characters, lowercase letters, digits and single hyphens (`^[a-z0-9]+(-[a-z0-9]+)*$`, `invalid_name`); `description:` is at most 200 characters (`long_description`; 1024 is the standard limit) and opens with a trigger « Utiliser quand… » (`description_not_trigger`, warning).
-> `oh skill check` checks the catalog. Errors: duplicate identifiers, missing or cyclic `requires:`, invalid frontmatter, `name:` different from the file name, `invalid_name`, `long_description`, `unknown_key`, missing annex. Warnings: missing description, obsolete `bucket:`, skills referenced by an agent but not found, templates referenced in the text but not declared in `annexes:`, templates no skill uses, description without a « Utiliser … » trigger. Non-zero exit code on errors.
+> `oh skill check` checks the catalog. Errors: duplicate identifiers, missing or cyclic `requires:`, invalid frontmatter, `name:` different from the file name, `invalid_name`, `long_description`, `unknown_key`, missing annex, `invalid_when`. Warnings: missing description, obsolete `bucket:`, skills referenced by an agent but not found, templates referenced in the text but not declared in `annexes:`, templates no skill uses, description without a « Utiliser … » trigger. Non-zero exit code on errors.
+
+### Variants by role and by session (`when:`)
+
+A skill, or a block of its text, may apply to some agents of the session only. oh evaluates it at build time, for each agent: the model reads only what concerns it.
+
+```markdown
+---
+name: tool-question
+when: role=entry                  # whole skill: only for an entry agent
+---
+
+<!-- oh:when role=subagent -->
+Text read by a sub-agent only.
+<!-- /oh:when -->
+```
+
+- **Condition**: terms separated by spaces, all true; or several groups separated by `|`, one true. A term is `key=v1,v2` (one of the values), `key!=v1,v2` (none of them), or, for a yes/no key, `key` and `!key`.
+- **Keys**: `role` (`entry`: the entry agent, or an agent no one launches; `subagent`: an agent launched with `task`; an entry agent others may launch has both), `agent` (the agent itself: producer side of a shared format), `calls` (an agent it may launch: consumer side), `mcp`, `plugin`, and the yes/no keys `websearch`, `beads_write`, `ticket`, `wiki` (the project has `docs/wiki/`), `shell`, `headless` (workflow `headless: true`).
+- **Markers**: alone on their line, balanced, nestable; never delivered.
+- **Inlined skills and agent body**: filtered for the agent before inlining. **On-demand skills**: filtered for the union of the agents whose catalogue holds them (a block stays when one of them meets its condition). A skill whose `when:` fails for an agent leaves its catalogue and its `requires:`; if the agent names it, the absent-skills line lists it.
+- Skill mentions are read **after** filtering: a skill named only in a block left out does not enter the catalogue.
+- `oh skill check` reports an invalid condition or markers (`invalid_when`, error). The role of each agent is written in its [session contract](agents.en.md).
+
 
 ---
 
