@@ -92,7 +92,9 @@ func TestPluginPermissionsFollowPlugins(t *testing.T) {
 	assert.Contains(t, with, "rtk *")
 }
 
-// An agent that names a skill left out of the bundle is told not to load it.
+// An agent that names a skill left out of the bundle is told not to load it
+// (the reviewer names the frontend standards in its workflow; L6 moved the
+// routing of orchestrator-dev to an on-demand skill).
 func TestAbsentSkillsNote(t *testing.T) {
 	api := t.TempDir()
 	writeProjectFile(t, api, "pyproject.toml", "[project]\ndependencies = [\"fastapi\"]\n")
@@ -103,7 +105,7 @@ func TestAbsentSkillsNote(t *testing.T) {
 	require.NoError(t, err)
 	var body string
 	for _, a := range b.Spec.Agents {
-		if a.ID == "orchestrator-dev" {
+		if a.ID == "reviewer" {
 			body = a.Body
 		}
 	}
