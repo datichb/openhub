@@ -43,6 +43,7 @@ func (t *tuiSessions) CheckpointCard(ctx context.Context, decisionID string) (vi
 	for _, m := range c.Messages {
 		out.Messages = append(out.Messages, cardMessage(m))
 	}
+	out.Verify = cardVerify(c.R3)
 	return out, nil
 }
 

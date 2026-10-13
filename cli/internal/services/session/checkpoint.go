@@ -67,6 +67,8 @@ type CheckpointCard struct {
 	// Messages are the last texts of the session (oldest first).
 	Messages []domain.FeedItem
 	Timeline []checkpoint.Step
+	// R3 is the verification run by oh, the evidence and the fix rounds.
+	R3 checkpoint.CardR3
 }
 
 // cardMessages is the number of messages shown on a checkpoint card.
@@ -92,6 +94,9 @@ func (s *Service) CheckpointCard(ctx context.Context, decisionID string) (*Check
 	}
 	c.Messages = s.RecentTexts(ctx, d.SessionID, cardMessages)
 	c.Timeline, _ = s.Timeline(ctx, d.SessionID)
+	if s.Checkpoints != nil {
+		c.R3 = s.Checkpoints.Card(ctx, d.SessionID, c.Checkpoint)
+	}
 	return c, nil
 }
 
