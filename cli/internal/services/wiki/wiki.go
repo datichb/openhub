@@ -143,15 +143,21 @@ func Load(root string) (*Wiki, error) {
 	if !st.IsDir() {
 		return nil, ErrNoWiki
 	}
+	// Walked and read inside the project only (confined.go).
+	pr, err := os.OpenRoot(root)
+	if err != nil {
+		return nil, err
+	}
+	defer pr.Close()
+	fsys := pr.FS()
 	w := &Wiki{Root: root}
-	err = filepath.WalkDir(dir, func(p string, d fs.DirEntry, err error) error {
+	err = fs.WalkDir(fsys, Dir, func(p string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return nil //nolint:nilerr // an unreadable entry is skipped
 		}
-		rel, _ := filepath.Rel(dir, p)
-		rel = filepath.ToSlash(rel)
+		rel := strings.TrimPrefix(strings.TrimPrefix(p, Dir), "/")
 		if d.IsDir() {
-			if p != dir && strings.HasPrefix(d.Name(), ".") {
+			if p != Dir && strings.HasPrefix(d.Name(), ".") {
 				return filepath.SkipDir
 			}
 			return nil
@@ -172,7 +178,7 @@ func Load(root string) (*Wiki, error) {
 			w.Skipped = append(w.Skipped, rel)
 			return nil //nolint:nilerr // an unreadable page is skipped
 		}
-		data, err := os.ReadFile(p)
+		data, err := fs.ReadFile(fsys, p)
 		if err != nil {
 			w.Skipped = append(w.Skipped, rel)
 			return nil //nolint:nilerr // an unreadable page is skipped
@@ -327,7 +333,7 @@ func ReadPage(root, page, section string) (string, error) {
 	if !st.Mode().IsRegular() || st.Size() > MaxPageBytes {
 		return "", fmt.Errorf("%w: %s", ErrNoPage, rel)
 	}
-	data, err := os.ReadFile(file)
+	data, err := readConfined(root, Dir+"/"+rel)
 	if err != nil {
 		return "", err
 	}

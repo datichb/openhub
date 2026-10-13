@@ -4,9 +4,7 @@ import (
 	"context"
 	"errors"
 	"io/fs"
-	"os"
 	"path"
-	"path/filepath"
 	"regexp"
 	"slices"
 	"strings"
@@ -107,7 +105,7 @@ type Modified func(ctx context.Context, root, file string) (time.Time, bool)
 
 // GitModified is the default Modified.
 func GitModified(ctx context.Context, root, file string) (time.Time, bool) {
-	st, err := os.Stat(filepath.Join(root, filepath.FromSlash(file)))
+	st, err := statConfined(root, file)
 	if err != nil {
 		return time.Time{}, false
 	}
@@ -312,13 +310,13 @@ func (w *Wiki) checkLinks(p Page, anchors map[string]map[string]bool, add func(I
 				if !insideProject(file) {
 					continue
 				}
-				if _, err := os.Stat(filepath.Join(w.Root, filepath.FromSlash(file))); errors.Is(err, fs.ErrNotExist) {
+				if _, err := statConfined(w.Root, file); errors.Is(err, fs.ErrNotExist) {
 					add(Issue{Page: p.Path, Line: i + 1, Kind: IssueBrokenLink, Severity: SeverityError, Message: i18n.Tf("wiki.check.link_file", target)})
 				}
 				continue
 			}
 			if _, ok := w.Page(rel); !ok {
-				if _, err := os.Stat(filepath.Join(w.Root, filepath.FromSlash(Dir), filepath.FromSlash(rel))); err != nil {
+				if _, err := statConfined(w.Root, Dir+"/"+rel); err != nil {
 					add(Issue{Page: p.Path, Line: i + 1, Kind: IssueBrokenLink, Severity: SeverityError, Message: i18n.Tf("wiki.check.link_page", target)})
 				}
 				continue
