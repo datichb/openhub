@@ -29,7 +29,9 @@ Un checkpoint conditionnel y figure avec la mention « si sa condition est vraie
 | Workflow | Pauses en semi-auto | Dont irréversibles | Budget |
 |---|---|---|---|
 | `feature` | `cp-tickets`, `cp-0`, `cp-spec` (si la condition est vraie), `cp-2` | `cp-tickets`, `cp-2` | 4 |
+| `feature` en méthode `tdd` | les mêmes et `cp-seams` | `cp-tickets`, `cp-2` | 4 + 1 |
 | `ticket` | `cp-2` | `cp-2` | 3 |
+| `ticket` en méthode `tdd` | `cp-seams`, `cp-2` | `cp-2` | 3 + 1 |
 | `cadrage` | `cp-scope`, `cp-tickets`, `cp-recap` | `cp-tickets` | 3 |
 | `sweep` | `cp-plan`, `cp-commit`, `cp-recap` | `cp-commit` | 3 |
 | `review-feedback` | `cp-fix`, `cp-2` | `cp-2` | 3 |
@@ -53,6 +55,8 @@ Un checkpoint `conditional`, ou qui porte un `when:`, compte comme une pause (le
 - sur les workflows livrés par le hub, par le test `TestCheckpointPauseBudget` (bloquant) ;
 - sur les workflows d'équipe et de projet, par `oh workflow validate` : avertissement `pause_budget_exceeded` (le workflow reste utilisable).
 
+Une **méthode** choisie au lancement (`method: tdd`, voir [Méthode TDD](#méthode-tdd--cp-seams-et-cp-red-r7)) ajoute au plus **1 pause**, pour ses seules sessions : le budget est vérifié pour une session sans méthode et pour une session de chaque méthode (rapport §9.2 : « +1 pause par ticket TDD »).
+
 Pour rentrer dans le budget : passer en `auto` les étapes qui ne protègent rien, ou les faire vérifier par oh (`verify:`) plutôt que par une pause.
 
 ---
@@ -71,7 +75,7 @@ Avant qu'un checkpoint passe, et donc avant d'ouvrir ses déverrouillages, oh la
 
 1. **Commandes** : `from: stack` prend celles de la stack détectée (`bricks.VerifyRuns`, dérivées des motifs de `bricks.VerifyCommands` : une cible `make test|build|lint|typecheck` d'abord, sinon les scripts de `package.json` avec le gestionnaire du lockfile, `tsc --noEmit` pour TypeScript, `go build ./...` et `go test ./...`, `cargo`, `pytest`, `mvn`, `./gradlew`). `kinds` choisit les types (par défaut `build`, `test`, `typecheck` ; `lint` sur demande). `cmd` ajoute des commandes **écrites dans le document du workflow**, jamais fournies par l'agent ni par une entrée (pas de gabarit). Jamais d'installation ni de publication.
 2. **Exécution** : sans shell, dans l'emplacement de la session (ou le sous-dossier `in`), avec un environnement nettoyé (chemins, locale, caches des outils ; ni jetons, ni identifiants, ni variables d'oh), une entrée vide, un délai (`timeout`, 10 min par défaut, 30 min au plus ; le groupe de processus est tué à l'échéance) et une sortie bornée (fin de sortie conservée, extrait de 30 lignes).
-3. **Résultat** : `expect: pass` (défaut) exige que toutes les commandes réussissent ; `expect: fail` qu'une échoue (test écrit d'abord, mode TDD) ; un dépassement de délai est toujours un échec. `must_touch` exige en plus que les changements de la session (commits depuis le début, modifications non commitées, fichiers nouveaux) touchent un des chemins donnés.
+3. **Résultat** : `expect: pass` (défaut) exige que toutes les commandes réussissent ; `expect: fail` que les commandes qui construisent le code réussissent et qu'un test échoue à l'exécution (test écrit d'abord, voir [Méthode TDD](#méthode-tdd--cp-seams-et-cp-red-r7)) ; un dépassement de délai est toujours un échec. `must_touch` exige en plus que les changements de la session (commits depuis le début, modifications non commitées, fichiers nouveaux) touchent un des chemins donnés.
 4. **Réutilisation** : le résultat est lié à l'état du travail (HEAD, modifications, fichiers non suivis). Il est réutilisé tant que cet état ne change pas ; sinon la vérification est relancée.
 
 **Au checkpoint en pause**, la vérification démarre dès que l'agent demande le checkpoint : la carte de décision affiche son résultat (en cours, réussie, échouée avec un extrait). **Si elle échoue** :
@@ -148,6 +152,32 @@ Conditions (une suffit) : `entry` (agent d'entrée de la session), `labels` (ét
 | `skip` | sauté | sauté |
 
 Si les chemins modifiés ne peuvent pas être lus (git refuse le dépôt), une condition `paths` est tenue pour vraie : la pause est ajoutée plutôt que perdue. `when:` ne peut qu'**ajouter** une pause, jamais retirer une pause obligatoire. Sans `when:`, un checkpoint `conditional` demande toujours l'utilisateur (oh ne sait pas évaluer la phrase `condition`). Une couche ne peut pas retirer une condition héritée (`loosening`).
+
+---
+
+## Méthode TDD : `cp-seams` et `cp-red` (R7)
+
+`ticket` et `feature` ont une entrée **Méthode** (`method`, `standard` par défaut). Lancés avec `tdd` (`oh run ticket -t <id> -i method=tdd`, ou la fiche de lancement), ils ajoutent deux checkpoints, passés par le `developer`, une fois par ticket, avant l'implémentation :
+
+```
+cp-1 → cp-seams (pause) → cp-red (vérifié par oh) → implémentation → review → cp-2
+```
+
+| Checkpoint | manuel | semi-auto | auto | distant | Rôle |
+|---|---|---|---|---|---|
+| `cp-seams` — Points d'injection et tests prévus | pause | pause | auto | auto | le developer présente les points d'injection, les interfaces et les tests prévus, avant d'écrire un test ; oh relève le commit de l'emplacement |
+| `cp-red` — Tests en échec | auto | auto | auto | auto | oh vérifie que les tests écrits échouent, pour la bonne raison |
+
+La méthode est évaluée **au lancement** (CP-R7) : le paquet d'une session `tdd` contient ces deux checkpoints, leurs descriptions et ce qu'oh vérifie (contrat de session du developer, ligne « Méthode de la session » pour tous les agents) ; le paquet d'une session `standard` est exactement celui d'avant, sans eux. Les deux checkpoints ne sont ni obligatoires ni déverrouillants : ils n'ajoutent qu'une étape. Une session `tdd` compte **une pause de plus** en `manuel` et en semi-auto (`cp-seams`, rapport §9.2 « +1 pause par ticket TDD ») ; en `auto`, aucune.
+
+**Vérification de `cp-red`** (`verify: { from: stack, expect: fail, must_touch_tests: true, outside_tests: warn, since: cp-seams }`), dans cet ordre :
+
+1. **Changements depuis `cp-seams`** : les fichiers modifiés depuis le commit relevé au passage de `cp-seams` (commits, modifications non commitées, fichiers nouveaux ; depuis le début de la session si `cp-seams` n'a pas été passé) doivent comprendre **au moins un fichier de test** de la stack (`*_test.go`, `**/testdata/**` ; `*.test.*`, `*.spec.*`, `**/__tests__/**` ; `test_*.py`, `*_test.py`, `conftest.py` ; `**/src/test/**` ; dossiers `test/`, `tests/`, `spec/`, `fixtures/` ; ceux de toutes les stacks quand aucune n'est détectée). Sinon : refusé, rien n'est lancé.
+2. **Fichiers hors tests** : ils sont **signalés**, pas refusés (`outside_tests: warn`) : le résultat (réponse à l'agent, frise) les nomme (5 au plus). Pourquoi pas un refus : pour qu'un test échoue « pour la bonne raison », le code doit construire, donc les amorces (interfaces, signatures, fonctions qui ne font rien encore) changent des fichiers hors tests ; et les tests unitaires Rust vivent dans les fichiers du code. Le refus reste possible dans un workflow d'équipe (`outside_tests: refuse`). L'implémentation complète écrite trop tôt est, elle, attrapée par l'étape 4.
+3. **Le code construit** : oh lance d'abord les commandes qui construisent (`build`, `typecheck`, `lint` si demandé) ; elles doivent réussir. Un échec est refusé (« le code doit construire, seuls les tests doivent échouer ») et les tests ne sont pas lancés.
+4. **Les tests échouent à l'exécution** : puis les tests. Ils doivent échouer, et pour la bonne raison ; sont refusés : des tests qui ne compilent pas (`go test` : `[build failed]`, `[setup failed]` ; `cargo` : `could not compile` ; `tsc` : `error TS…`), des tests que pytest ne peut pas charger (code de sortie 2, `ERROR collecting`) ou aucun test lancé (code 5) ; une suite qui passe (« un échec était attendu ») ; un dépassement de délai. Ce qu'un outil ne distingue pas (jest, vitest, `mvn`, un script) compte comme un échec de test : la détection est faite sur la sortie et le code de sortie, sans analyse du langage.
+
+Refusé, l'appel de l'agent échoue avec `ErrVerifyFailed`, la raison et l'extrait de la sortie ; il corrige et rappelle `cp-red`. Le checkpoint étant automatique, aucune carte ne s'ouvre : en `manuel`, `cp-seams` reste la décision humaine. En session distante, la vérification tourne dans le job, comme celle de `cp-2` (vérification impossible : checkpoint différé, jamais de passage en silence). Projet sans stack détectée : « rien à vérifier », seule l'étape 1 s'applique.
 
 ---
 

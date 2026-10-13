@@ -4,7 +4,7 @@
 
 Un workflow est un fichier YAML `apiVersion: oh/v1`, `kind: Workflow`, nommé `<id>.yaml`. Cette page décrit chaque champ : type, valeurs, valeur effective quand le champ est absent, comportement dans un patch (`extends`) et verrouillage (`enforce`).
 
-Le schéma est **figé** (`cli/internal/workflow/schema.go`, type `Spec`) : il n'évolue que par ajouts facultatifs. Ajouts faits après le gel : `risk: plan`, `preconditions`, `enforce`, `limits.models`, `limits.max_fix_rounds`, `entry.selectable`, `checkpoints.<id>.verify` et `checkpoints.<id>.when` (R3), `checkpoints.<id>.by` (L3), `checkpoints.<id>.wiki` (LD-D). Décision : [ADR-039](../architecture/adr/039-declarative-workflows-oh-v1.fr.md).
+Le schéma est **figé** (`cli/internal/workflow/schema.go`, type `Spec`) : il n'évolue que par ajouts facultatifs. Ajouts faits après le gel : `risk: plan`, `preconditions`, `enforce`, `limits.models`, `limits.max_fix_rounds`, `entry.selectable`, `checkpoints.<id>.verify` et `checkpoints.<id>.when` (R3), `checkpoints.<id>.by` (L3), `checkpoints.<id>.wiki` (LD-D), `checkpoints.<id>.method` et les champs `must_touch_tests`, `outside_tests`, `since` de `verify` (R7). Décision : [ADR-039](../architecture/adr/039-declarative-workflows-oh-v1.fr.md).
 
 Voir aussi : [workflows livrés](workflows.fr.md) · [workflows d'équipe](../guides/team-workflows.fr.md) · [CLI workflows](cli-workflows.fr.md).
 
@@ -85,6 +85,7 @@ enforce: [checkpoints, modes]   # ou ["*"] pour tout le document
 | `checkpoints.<id>.verify` | objet | voir [Checkpoints](#verify--vérification-lancée-par-oh) | pas de vérification | durcit (ne se retire ni ne s'affaiblit) |
 | `checkpoints.<id>.when` | objet | voir [Checkpoints](#when--conditions-évaluées-par-oh) | pas de condition | durcit (conditions héritées gardées) |
 | `checkpoints.<id>.wiki` | texte | `sync` | rôle ordinaire | remplace |
+| `checkpoints.<id>.method` | texte | `tdd` | checkpoint de toutes les sessions | ne se pose pas sur un checkpoint hérité (`loosening`) |
 
 ### `risk`
 
@@ -226,6 +227,7 @@ L'id d'une entrée suit `^[a-z][a-z0-9_]*$` (`input_id_invalid`) ; `oh` est rés
 - **Troncature** (O11) : les valeurs `string`, `text`, `path`, `branch` sont coupées à `max_length` caractères, avec la mention `[… tronqué : N caractères sur M]`.
 - **Entrées calculées** (`from`) : voir [ci-dessous](#entrées-calculées-from).
 - **Patch** : fusion par id, champ par champ (`picker` aussi). Une entrée ne peut pas être retirée.
+- **`method`** (R7) : l'entrée `method`, de type `enum` (`method_input_type`) aux valeurs `standard` et `tdd`, choisit la **méthode de la session** ; voir [`method`](#method--méthode-de-la-session).
 
 ### Entrées calculées (`from`)
 
@@ -344,10 +346,11 @@ L'id est en kebab-case (`checkpoint_id_invalid`) et ne doit pas être celui d'un
 | `remote` | texte | `auto` < `defer` < `forbid` | `defer` | durcit |
 | `unlocks` | liste | `commit`, `push`, `close`, `create`, `apply` | — (rien de verrouillé) | s'ajoute à la liste héritée (jamais retirée) |
 | `disabled` | booléen | `true` | — | retire le checkpoint hérité (patch seulement ; refusé s'il porte `verify`) |
-| `verify` | objet | `from`, `kinds`, `cmd`, `expect`, `in`, `timeout`, `must_touch` | pas de vérification | durcit (une vérification héritée ne se retire ni ne s'affaiblit) |
+| `verify` | objet | `from`, `kinds`, `cmd`, `expect`, `in`, `timeout`, `must_touch`, `must_touch_tests`, `outside_tests`, `since` | pas de vérification | durcit (une vérification héritée ne se retire ni ne s'affaiblit) |
 | `when` | objet | `entry`, `labels`, `paths`, `outputs` | pas de condition | durcit (conditions héritées gardées) |
 | `by` | liste | agents membres du workflow | déduit du graphe : les agents qui lancent un agent verrouillé par ce checkpoint (`after:`), sinon l'agent d'entrée | remplace |
 | `wiki` | texte | `sync` | la carte montre les propositions du wiki de la session | remplace |
+| `method` | texte | `tdd` | checkpoint de toutes les sessions | ne se pose pas sur un checkpoint hérité (`loosening`) ; un checkpoint ajouté peut en porter une |
 
 - **Comportements** : `pause` demande toujours l'utilisateur ; `auto` continue seul ; `skip` saute le checkpoint ; `conditional` demande selon `condition`. oh n'évalue pas la phrase `condition` : sans `when:`, un checkpoint `conditional` demande toujours l'utilisateur quand il est signalé ; avec `when:`, oh l'évalue (voir ci-dessous).
 - **Ordre de rigueur** : `skip` < `auto` < `conditional` < `pause`. Sur un checkpoint `mandatory`, un patch ne peut pas choisir un comportement moins strict, ni le retirer (`mandatory_checkpoint_removed`) ; `skip` sur un checkpoint obligatoire compte comme une pause.
@@ -367,11 +370,16 @@ L'id est en kebab-case (`checkpoint_id_invalid`) et ne doit pas être celui d'un
       in: services/api            # sous-dossier de l'emplacement de la session
       timeout: 15m                # durée Go, défaut 10m, au plus 30m
       must_touch: ["*_test.go"]   # les changements de la session touchent un de ces chemins
+      must_touch_tests: true      # … et un fichier de test de la stack (R7)
+      outside_tests: warn         # fichiers hors tests : warn (signalés) | refuse
+      since: cp-seams             # changements comptés depuis le dernier passage de ce checkpoint
 ```
 
 Avant que le checkpoint passe, et avant d'ouvrir ses déverrouillages, oh lance les commandes (environnement nettoyé, délai et sortie bornés) ; un échec refuse le passage (`ErrVerifyFailed`, avec un extrait de la sortie). Au checkpoint en pause, l'utilisateur voit le résultat sur la carte et peut **passer outre** (choix tracé). `cmd` ne vient que du document du workflow : jamais de l'agent ni d'une entrée. Dans un workflow `risk: read`, un checkpoint vérifié demande toujours l'utilisateur. Détails : [Checkpoints](checkpoints.fr.md#vérification-lancée-par-oh-verify).
 
-Diagnostics : `verify_empty` (ni `from` ni `cmd`), `enum_invalid` (`from`, `kinds`, `expect`), `field_ignored` (`kinds` sans `from`), `verify_cmd_template`, `verify_in_invalid`, `verify_timeout_invalid`, `field_required` (commande ou chemin vide). Dans un patch, la vérification héritée ne peut que se renforcer (même `from`, `expect` et `in`, types, commandes et chemins conservés, délai au moins égal) : sinon `loosening` ; retirer le checkpoint : `verified_checkpoint_removed`.
+Diagnostics : `verify_empty` (ni `from` ni `cmd`), `enum_invalid` (`from`, `kinds`, `expect`), `field_ignored` (`kinds` sans `from`), `verify_cmd_template`, `verify_in_invalid`, `verify_timeout_invalid`, `field_required` (commande ou chemin vide). Champs du test écrit d'abord (R7) : `must_touch_tests` exige qu'un fichier de test de la stack soit modifié (motifs de `bricks.TestFilePatterns` : `*_test.go`, `*.test.*`, `*.spec.*`, `test_*.py`, `**/tests/**`, `**/src/test/**`…) ; `outside_tests` dit ce que font les autres fichiers modifiés (`warn` : signalés dans le résultat ; `refuse` : refusés ; absent : rien) ; `since` compte les changements depuis le commit relevé au dernier passage d'un checkpoint déclaré avant (sinon depuis le début de la session). Avec `expect: fail`, oh lance d'abord les commandes qui construisent le code (`build`, `typecheck`, `lint`), qui doivent réussir, puis les tests, qui doivent échouer à l'exécution et non à la compilation. Diagnostics : `verify_outside_tests_ignored` (avertissement : `outside_tests` sans `must_touch_tests`), `verify_since_unknown`, `verify_since_method` (le checkpoint de `since` n'existe que dans une méthode que ce checkpoint n'a pas). Détails : [Checkpoints](checkpoints.fr.md#méthode-tdd--cp-seams-et-cp-red-r7).
+
+Dans un patch, la vérification héritée ne peut que se renforcer (même `from`, `expect`, `in` et `since`, types, commandes et chemins conservés, `must_touch_tests` gardé, `outside_tests` au moins aussi strict — absent < `warn` < `refuse` —, délai au moins égal) : sinon `loosening` ; retirer le checkpoint : `verified_checkpoint_removed`.
 
 ### `when` — conditions évaluées par oh
 
@@ -401,9 +409,22 @@ Les agents qui passent le checkpoint (CP-R11). Le contrat de session de chaque a
 
 `sync` (workflow `doc-sync`) : la carte du checkpoint montre **toute la file** des propositions du wiki du projet, et non celles de la session seule ; l'utilisateur décide de chacune. Au passage, oh applique les propositions acceptées et écrit dans le frontmatter de `docs/wiki/index.md` le commit dont la session est partie (`synced:`), point de départ de la synchronisation suivante. Le checkpoint doit déverrouiller le commit : sinon `checkpoint_wiki_commit` (erreur) ; une autre valeur : `enum_invalid`. Voir [Wiki documentaire vivant](../architecture/living-wiki.fr.md#synchronisation--workflow-doc-sync-ld-d).
 
+### `method` — méthode de la session
+
+```yaml
+inputs:
+  method: { type: enum, values: [standard, tdd], default: standard }
+checkpoints:
+  cp-seams:
+    method: tdd
+    mode: { manuel: pause, semi-auto: pause, auto: auto }
+```
+
+Un checkpoint qui porte `method` n'existe que dans les sessions lancées avec cette méthode (entrée `method`, `oh run ticket -i method=tdd`, ou la fiche de lancement) : oh évalue la méthode au lancement et le paquet de session ne contient que les checkpoints de la méthode choisie (CP-R7). Une session `standard` a donc exactement le paquet d'un workflow sans ces checkpoints. Seule valeur aujourd'hui : `tdd` (`enum_invalid` sinon). Un tel checkpoint n'ajoute qu'une étape : il ne peut être ni obligatoire ni déverrouiller une opération (`checkpoint_method_mandatory`), aucun agent ne peut l'attendre (`after:`, `checkpoint_method_after`), et l'entrée `method` doit proposer la méthode (`checkpoint_method_no_input`). Dans un patch, poser ou changer `method` sur un checkpoint hérité est un assouplissement (`loosening`) : il disparaîtrait des autres sessions.
+
 ### Budget de pauses
 
-En semi-auto (ou dans le mode par défaut si semi-auto n'est pas autorisé), un workflow met en pause au plus **2 fois pour des décisions humaines, plus 1 fois par checkpoint qui déverrouille une action irréversible** ; un checkpoint `conditional` ou avec `when:` compte comme une pause. Au-delà : avertissement `pause_budget_exceeded` (bloquant pour les workflows livrés, test `TestCheckpointPauseBudget`). Voir [Checkpoints](checkpoints.fr.md#budget-de-pauses-cp-r2).
+En semi-auto (ou dans le mode par défaut si semi-auto n'est pas autorisé), un workflow met en pause au plus **2 fois pour des décisions humaines, plus 1 fois par checkpoint qui déverrouille une action irréversible** ; un checkpoint `conditional` ou avec `when:` compte comme une pause. Une méthode (`method`) ajoute au plus 1 pause, pour ses seules sessions. Au-delà : avertissement `pause_budget_exceeded` (bloquant pour les workflows livrés, test `TestCheckpointPauseBudget`). Voir [Checkpoints](checkpoints.fr.md#budget-de-pauses-cp-r2).
 
 ---
 
@@ -511,6 +532,7 @@ Un diagnostic a une gravité (erreur ou avertissement), un code, le chemin du ch
 | `scratch_reader_unknown`, `scratch_reader_owner` | lecteur de brouillons absent du workflow, ou propriétaire lui-même |
 | `checkpoint_agent_clash`, `checkpoint_mode_unknown`, `checkpoint_mode_missing`, `checkpoint_condition_missing`, `mandatory_checkpoint_removed`, `unlocking_checkpoint_removed`, `unlock_duplicate`, `unlock_unknown`, `unlock_skip`, `unlock_push_without_publish`, `patch_unknown_checkpoint`, `checkpoint_by_unknown`, `checkpoint_by_duplicate`, `checkpoint_wiki_commit`, `headless_checkpoint_pause` | checkpoints |
 | `verify_empty`, `verify_cmd_template`, `verify_in_invalid`, `verify_timeout_invalid`, `verified_checkpoint_removed`, `when_empty`, `when_mandatory`, `when_unknown_agent`, `when_unknown_output`, `pause_budget_exceeded` | vérification lancée par oh, conditions, budget de pauses (R3) |
+| `method_input_type`, `checkpoint_method_no_input`, `checkpoint_method_mandatory`, `checkpoint_method_after`, `verify_since_unknown`, `verify_since_method`, `verify_outside_tests_ignored` | méthode de la session et test écrit d'abord (R7) |
 | `precondition_check_invalid`, `precondition_path_invalid`, `precondition_self`, `precondition_unknown_workflow`, `patch_unknown_precondition` | préconditions |
 | `prompt_both`, `prompt_empty`, `prompt_template_path`, `prompt_template_missing`, `prompt_parse`, `prompt_unknown_variable` | prompt |
 | `read_agent_writes`, `read_beads_unrestricted`, `read_beads_write`, `read_plugin_exec` | règles de `risk: read` |

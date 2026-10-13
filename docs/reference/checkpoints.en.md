@@ -29,7 +29,9 @@ A conditional checkpoint is listed with "if its condition holds". Repeated check
 | Workflow | Pauses in semi-auto | Irreversible ones | Budget |
 |---|---|---|---|
 | `feature` | `cp-tickets`, `cp-0`, `cp-spec` (if its condition holds), `cp-2` | `cp-tickets`, `cp-2` | 4 |
+| `feature`, `tdd` method | the same and `cp-seams` | `cp-tickets`, `cp-2` | 4 + 1 |
 | `ticket` | `cp-2` | `cp-2` | 3 |
+| `ticket`, `tdd` method | `cp-seams`, `cp-2` | `cp-2` | 3 + 1 |
 | `cadrage` | `cp-scope`, `cp-tickets`, `cp-recap` | `cp-tickets` | 3 |
 | `sweep` | `cp-plan`, `cp-commit`, `cp-recap` | `cp-commit` | 3 |
 | `review-feedback` | `cp-fix`, `cp-2` | `cp-2` | 3 |
@@ -53,6 +55,8 @@ A `conditional` checkpoint, or one with `when:`, counts as a pause (the worst ca
 - on the workflows shipped by the hub, by the `TestCheckpointPauseBudget` test (blocking);
 - on team and project workflows, by `oh workflow validate`: warning `pause_budget_exceeded` (the workflow stays usable).
 
+A **method** chosen at launch (`method: tdd`, see [TDD method](#tdd-method-cp-seams-and-cp-red-r7)) adds at most **1 pause**, for its own sessions: the budget is checked for a session without method and for a session of each method (report §9.2: "+1 pause per TDD ticket").
+
 To stay within budget: make the steps that protect nothing automatic, or have oh verify them (`verify:`) instead of pausing.
 
 ---
@@ -71,7 +75,7 @@ Before a checkpoint passes, hence before its unlocks open, oh runs the verificat
 
 1. **Commands**: `from: stack` takes those of the detected stack (`bricks.VerifyRuns`, derived from the patterns of `bricks.VerifyCommands`: a `make test|build|lint|typecheck` target first, else the `package.json` scripts with the package manager of the lockfile, `tsc --noEmit` for TypeScript, `go build ./...` and `go test ./...`, `cargo`, `pytest`, `mvn`, `./gradlew`). `kinds` picks the kinds (default `build`, `test`, `typecheck`; `lint` on request). `cmd` adds commands **written in the workflow document**, never given by the agent nor by an input (no template). Never an install nor a publish.
 2. **Run**: without a shell, in the session location (or the `in` subfolder), with a cleaned environment (paths, locale, tool caches; no tokens, credentials or oh variables), an empty stdin, a timeout (`timeout`, 10 min by default, at most 30 min; the process group is killed when it expires) and a bounded output (end of output kept, 30-line excerpt).
-3. **Result**: `expect: pass` (default) requires every command to succeed; `expect: fail` one to fail (test written first, TDD); a timeout is always a failure. `must_touch` also requires the changes of the session (commits since its start, uncommitted changes, new files) to touch one of the paths.
+3. **Result**: `expect: pass` (default) requires every command to succeed; `expect: fail` the commands that build the code to pass and a test to fail when it runs (test written first, see [TDD method](#tdd-method-cp-seams-and-cp-red-r7)); a timeout is always a failure. `must_touch` also requires the changes of the session (commits since its start, uncommitted changes, new files) to touch one of the paths.
 4. **Reuse**: the result is tied to the state of the work (HEAD, changes, untracked files). It is reused while that state does not change; otherwise the verification runs again.
 
 **At a paused checkpoint**, the verification starts as soon as the agent asks for the checkpoint: the decision card shows its result (running, passed, failed with an excerpt). **When it fails**:
@@ -148,6 +152,32 @@ Conditions (one is enough): `entry` (entry agent of the session), `labels` (labe
 | `skip` | skipped | skipped |
 
 When the changed paths cannot be read (git refuses the repository), a `paths` condition is taken as true: the pause is added rather than lost. `when:` can only **add** a pause, never remove a mandatory one. Without `when:`, a `conditional` checkpoint always asks the user (oh cannot evaluate the `condition` sentence). A layer cannot drop an inherited condition (`loosening`).
+
+---
+
+## TDD method: `cp-seams` and `cp-red` (R7)
+
+`ticket` and `feature` have a **Method** input (`method`, `standard` by default). Launched with `tdd` (`oh run ticket -t <id> -i method=tdd`, or the launch form), they add two checkpoints, passed by the `developer`, once per ticket, before the implementation:
+
+```
+cp-1 → cp-seams (pause) → cp-red (verified by oh) → implementation → review → cp-2
+```
+
+| Checkpoint | manuel | semi-auto | auto | remote | Role |
+|---|---|---|---|---|---|
+| `cp-seams` — Seams and planned tests | pause | pause | auto | auto | the developer presents the seams, the interfaces and the planned tests, before writing a test; oh records the commit of the location |
+| `cp-red` — Failing tests | auto | auto | auto | auto | oh checks that the tests written fail, for the right reason |
+
+The method is evaluated **at launch** (CP-R7): the bundle of a `tdd` session holds both checkpoints, their descriptions and what oh checks (session contract of the developer, "Method of the session" line for every agent); the bundle of a `standard` session is exactly the one from before, without them. Neither checkpoint is mandatory nor unlocking: they only add a step. A `tdd` session counts **one more pause** in `manuel` and semi-auto (`cp-seams`, report §9.2 "+1 pause per TDD ticket"); none in `auto`.
+
+**Verification of `cp-red`** (`verify: { from: stack, expect: fail, must_touch_tests: true, outside_tests: warn, since: cp-seams }`), in this order:
+
+1. **Changes since `cp-seams`**: the files changed since the commit recorded when `cp-seams` was passed (commits, uncommitted changes, new files; since the start of the session when `cp-seams` was not passed) must include **at least one test file** of the stack (`*_test.go`, `**/testdata/**`; `*.test.*`, `*.spec.*`, `**/__tests__/**`; `test_*.py`, `*_test.py`, `conftest.py`; `**/src/test/**`; `test/`, `tests/`, `spec/`, `fixtures/` folders; those of every stack when none is detected). Otherwise: refused, nothing is run.
+2. **Files outside the tests**: they are **noted**, not refused (`outside_tests: warn`): the result (answer to the agent, timeline) names them (5 at most). Why not a refusal: for a test to fail "for the right reason", the code must build, so the stubs (interfaces, signatures, functions that do nothing yet) change files outside the tests; and Rust unit tests live in the code files. A team workflow may still refuse them (`outside_tests: refuse`). A full implementation written too early is caught by step 4.
+3. **The code builds**: oh first runs the commands that build (`build`, `typecheck`, `lint` when asked); they must pass. A failure is refused ("the code must build, only the tests must fail") and the tests are not run.
+4. **The tests fail when they run**: then the tests. They must fail, for the right reason; refused: tests that do not compile (`go test`: `[build failed]`, `[setup failed]`; `cargo`: `could not compile`; `tsc`: `error TS…`), tests pytest cannot load (exit code 2, `ERROR collecting`) or no test run (code 5); a suite that passes ("a failure was expected"); a timeout. What a tool does not tell apart (jest, vitest, `mvn`, a script) counts as a failing test: the detection reads the output and the exit code, without parsing the language.
+
+When refused, the call of the agent fails with `ErrVerifyFailed`, the reason and an excerpt of the output; it fixes and calls `cp-red` again. The checkpoint being automatic, no card opens: in `manuel`, `cp-seams` remains the human decision. In a remote session, the verification runs in the job, like the one of `cp-2` (verification impossible: checkpoint deferred, never passed silently). Project without a detected stack: "nothing to verify", only step 1 applies.
 
 ---
 

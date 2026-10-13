@@ -4,7 +4,7 @@
 
 A workflow is a YAML file `apiVersion: oh/v1`, `kind: Workflow`, named `<id>.yaml`. This page describes every field: type, values, effective value when the field is absent, behavior in a patch (`extends`) and locking (`enforce`).
 
-The schema is **frozen** (`cli/internal/workflow/schema.go`, type `Spec`): it only changes through optional additions. Additions made after the freeze: `risk: plan`, `preconditions`, `enforce`, `limits.models`, `limits.max_fix_rounds`, `entry.selectable`, `checkpoints.<id>.verify` and `checkpoints.<id>.when` (R3), `checkpoints.<id>.by` (L3), `checkpoints.<id>.wiki` (LD-D). Decision: [ADR-039](../architecture/adr/039-declarative-workflows-oh-v1.en.md).
+The schema is **frozen** (`cli/internal/workflow/schema.go`, type `Spec`): it only changes through optional additions. Additions made after the freeze: `risk: plan`, `preconditions`, `enforce`, `limits.models`, `limits.max_fix_rounds`, `entry.selectable`, `checkpoints.<id>.verify` and `checkpoints.<id>.when` (R3), `checkpoints.<id>.by` (L3), `checkpoints.<id>.wiki` (LD-D), `checkpoints.<id>.method` and the `must_touch_tests`, `outside_tests`, `since` fields of `verify` (R7). Decision: [ADR-039](../architecture/adr/039-declarative-workflows-oh-v1.en.md).
 
 See also: [shipped workflows](workflows.en.md) · [team workflows](../guides/team-workflows.en.md) · [workflows CLI](cli-workflows.en.md).
 
@@ -85,6 +85,7 @@ enforce: [checkpoints, modes]   # or ["*"] for the whole document
 | `checkpoints.<id>.verify` | object | see [Checkpoints](#verify--verification-run-by-oh) | no verification | hardens (never removed nor weakened) |
 | `checkpoints.<id>.when` | object | see [Checkpoints](#when--conditions-evaluated-by-oh) | no condition | hardens (inherited conditions kept) |
 | `checkpoints.<id>.wiki` | text | `sync` | ordinary role | replaces |
+| `checkpoints.<id>.method` | text | `tdd` | checkpoint of every session | not set on an inherited checkpoint (`loosening`) |
 
 ### `risk`
 
@@ -226,6 +227,7 @@ An input id follows `^[a-z][a-z0-9_]*$` (`input_id_invalid`); `oh` is reserved f
 - **Truncation** (O11): `string`, `text`, `path`, `branch` values are cut to `max_length` characters, with the note `[… tronqué : N caractères sur M]`.
 - **Computed inputs** (`from`): see [below](#computed-inputs-from).
 - **Patch**: merged by id, field by field (`picker` too). An input cannot be removed.
+- **`method`** (R7): the `method` input, an `enum` (`method_input_type`) with the values `standard` and `tdd`, chooses the **method of the session**; see [`method`](#method--method-of-the-session).
 
 ### Computed inputs (`from`)
 
@@ -344,10 +346,11 @@ The id is in kebab-case (`checkpoint_id_invalid`) and must not be an agent id (`
 | `remote` | text | `auto` < `defer` < `forbid` | `defer` | hardens |
 | `unlocks` | list | `commit`, `push`, `close`, `create`, `apply` | — (nothing locked) | added to the inherited list (never removed) |
 | `disabled` | boolean | `true` | — | removes the inherited checkpoint (patch only; refused when it carries `verify`) |
-| `verify` | object | `from`, `kinds`, `cmd`, `expect`, `in`, `timeout`, `must_touch` | no verification | hardens (an inherited verification is never removed nor weakened) |
+| `verify` | object | `from`, `kinds`, `cmd`, `expect`, `in`, `timeout`, `must_touch`, `must_touch_tests`, `outside_tests`, `since` | no verification | hardens (an inherited verification is never removed nor weakened) |
 | `when` | object | `entry`, `labels`, `paths`, `outputs` | no condition | hardens (inherited conditions kept) |
 | `by` | list | member agents of the workflow | deduced from the graph: the agents that launch an agent gated by this checkpoint (`after:`), else the entry agent | replaces |
 | `wiki` | text | `sync` | the card shows the wiki proposals of the session | replaces |
+| `method` | text | `tdd` | checkpoint of every session | not set on an inherited checkpoint (`loosening`); an added checkpoint may carry one |
 
 - **Behaviors**: `pause` always asks the user; `auto` goes on alone; `skip` skips the checkpoint; `conditional` asks depending on `condition`. oh does not evaluate the `condition` sentence: without `when:`, a `conditional` checkpoint always asks the user when it is reported; with `when:`, oh evaluates it (see below).
 - **Strictness order**: `skip` < `auto` < `conditional` < `pause`. On a `mandatory` checkpoint, a patch cannot choose a less strict behavior, nor remove it (`mandatory_checkpoint_removed`); `skip` on a mandatory checkpoint counts as a pause.
@@ -367,11 +370,16 @@ The id is in kebab-case (`checkpoint_id_invalid`) and must not be an agent id (`
       in: services/api            # subfolder of the session location
       timeout: 15m                # Go duration, default 10m, at most 30m
       must_touch: ["*_test.go"]   # the changes of the session touch one of these paths
+      must_touch_tests: true      # … and a test file of the stack (R7)
+      outside_tests: warn         # files outside the tests: warn (noted) | refuse
+      since: cp-seams             # changes counted from the last pass of this checkpoint
 ```
 
 Before the checkpoint passes, and before its unlocks open, oh runs the commands (cleaned environment, bounded timeout and output); a failure refuses it (`ErrVerifyFailed`, with an output excerpt). At a paused checkpoint, the user sees the result on the card and may **override** it (traced choice). `cmd` only comes from the workflow document: never from the agent nor from an input. In a `risk: read` workflow, a verified checkpoint always asks the user. Details: [Checkpoints](checkpoints.en.md#verification-run-by-oh-verify).
 
-Diagnostics: `verify_empty` (neither `from` nor `cmd`), `enum_invalid` (`from`, `kinds`, `expect`), `field_ignored` (`kinds` without `from`), `verify_cmd_template`, `verify_in_invalid`, `verify_timeout_invalid`, `field_required` (empty command or path). In a patch, the inherited verification may only be hardened (same `from`, `expect` and `in`, kinds, commands and paths kept, a timeout at least as long): otherwise `loosening`; removing the checkpoint: `verified_checkpoint_removed`.
+Diagnostics: `verify_empty` (neither `from` nor `cmd`), `enum_invalid` (`from`, `kinds`, `expect`), `field_ignored` (`kinds` without `from`), `verify_cmd_template`, `verify_in_invalid`, `verify_timeout_invalid`, `field_required` (empty command or path). Fields of the test written first (R7): `must_touch_tests` requires a test file of the stack to be changed (patterns of `bricks.TestFilePatterns`: `*_test.go`, `*.test.*`, `*.spec.*`, `test_*.py`, `**/tests/**`, `**/src/test/**`…); `outside_tests` says what the other changed files do (`warn`: noted on the result; `refuse`: refused; absent: nothing); `since` counts the changes from the commit recorded at the last pass of a checkpoint declared before (else from the start of the session). With `expect: fail`, oh first runs the commands that build the code (`build`, `typecheck`, `lint`), which must pass, then the tests, which must fail when they run, not when they compile. Diagnostics: `verify_outside_tests_ignored` (warning: `outside_tests` without `must_touch_tests`), `verify_since_unknown`, `verify_since_method` (the `since` checkpoint only exists in a method this checkpoint does not have). Details: [Checkpoints](checkpoints.en.md#tdd-method-cp-seams-and-cp-red-r7).
+
+In a patch, the inherited verification may only be hardened (same `from`, `expect`, `in` and `since`, kinds, commands and paths kept, `must_touch_tests` kept, `outside_tests` at least as strict — absent < `warn` < `refuse` —, a timeout at least as long): otherwise `loosening`; removing the checkpoint: `verified_checkpoint_removed`.
 
 ### `when` — conditions evaluated by oh
 
@@ -401,9 +409,22 @@ The agents that pass the checkpoint (CP-R11). Each agent's session contract name
 
 `sync` (`doc-sync` workflow): the card of the checkpoint shows **the whole queue** of the wiki proposals of the project, not only those of the session; the user decides on each one. When it is passed, oh applies the accepted proposals and writes in the frontmatter of `docs/wiki/index.md` the commit the session started from (`synced:`), the starting point of the next synchronization. The checkpoint must unlock the commit: otherwise `checkpoint_wiki_commit` (error); another value: `enum_invalid`. See [Living documentation wiki](../architecture/living-wiki.en.md#synchronization-the-doc-sync-workflow-ld-d).
 
+### `method` — method of the session
+
+```yaml
+inputs:
+  method: { type: enum, values: [standard, tdd], default: standard }
+checkpoints:
+  cp-seams:
+    method: tdd
+    mode: { manuel: pause, semi-auto: pause, auto: auto }
+```
+
+A checkpoint with `method` only exists in the sessions launched with that method (`method` input, `oh run ticket -i method=tdd`, or the launch form): oh evaluates the method at launch and the session bundle holds only the checkpoints of the chosen method (CP-R7). A `standard` session therefore gets exactly the bundle of a workflow without those checkpoints. Only value today: `tdd` (`enum_invalid` otherwise). Such a checkpoint only adds a step: it can neither be mandatory nor unlock an operation (`checkpoint_method_mandatory`), no agent may wait for it (`after:`, `checkpoint_method_after`), and the `method` input must offer the method (`checkpoint_method_no_input`). In a patch, setting or changing `method` on an inherited checkpoint is a loosening (`loosening`): it would vanish from the other sessions.
+
 ### Pause budget
 
-In semi-auto (or in the default mode when semi-auto is not allowed), a workflow pauses at most **twice for human decisions, plus once per checkpoint that unlocks an irreversible action**; a `conditional` checkpoint or one with `when:` counts as a pause. Over it: warning `pause_budget_exceeded` (blocking for the shipped workflows, `TestCheckpointPauseBudget` test). See [Checkpoints](checkpoints.en.md#pause-budget-cp-r2).
+In semi-auto (or in the default mode when semi-auto is not allowed), a workflow pauses at most **twice for human decisions, plus once per checkpoint that unlocks an irreversible action**; a `conditional` checkpoint or one with `when:` counts as a pause. A method (`method`) adds at most 1 pause, for its own sessions. Over it: warning `pause_budget_exceeded` (blocking for the shipped workflows, `TestCheckpointPauseBudget` test). See [Checkpoints](checkpoints.en.md#pause-budget-cp-r2).
 
 ---
 
@@ -511,6 +532,7 @@ A diagnostic has a severity (error or warning), a code, the field path, the sour
 | `scratch_reader_unknown`, `scratch_reader_owner` | scratch reader not in the workflow, or the owner itself |
 | `checkpoint_agent_clash`, `checkpoint_mode_unknown`, `checkpoint_mode_missing`, `checkpoint_condition_missing`, `mandatory_checkpoint_removed`, `unlocking_checkpoint_removed`, `unlock_duplicate`, `unlock_unknown`, `unlock_skip`, `unlock_push_without_publish`, `patch_unknown_checkpoint`, `checkpoint_by_unknown`, `checkpoint_by_duplicate`, `checkpoint_wiki_commit`, `headless_checkpoint_pause` | checkpoints |
 | `verify_empty`, `verify_cmd_template`, `verify_in_invalid`, `verify_timeout_invalid`, `verified_checkpoint_removed`, `when_empty`, `when_mandatory`, `when_unknown_agent`, `when_unknown_output`, `pause_budget_exceeded` | verification run by oh, conditions, pause budget (R3) |
+| `method_input_type`, `checkpoint_method_no_input`, `checkpoint_method_mandatory`, `checkpoint_method_after`, `verify_since_unknown`, `verify_since_method`, `verify_outside_tests_ignored` | method of the session and test written first (R7) |
 | `precondition_check_invalid`, `precondition_path_invalid`, `precondition_self`, `precondition_unknown_workflow`, `patch_unknown_precondition` | preconditions |
 | `prompt_both`, `prompt_empty`, `prompt_template_path`, `prompt_template_missing`, `prompt_parse`, `prompt_unknown_variable` | prompt |
 | `read_agent_writes`, `read_beads_unrestricted`, `read_beads_write`, `read_plugin_exec` | `risk: read` rules |

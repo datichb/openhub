@@ -78,15 +78,20 @@ Implements one or more detailed Beads tickets: routing to the right developer, p
 | Input | Type | Required | Purpose |
 |---|---|---|---|
 | `ticket` | `beads-id` (picker: `ai-delegated`, multi-select) | yes | Ticket to implement; several selected tickets = one session per ticket |
+| `method` | `enum` (`standard`, `tdd`) | no (`standard`) | Method: `tdd` adds `cp-seams` and `cp-red` (tests written first) |
 | `instructions` | `text` (4,000 characters max) | no | Details for the session |
 
 | Checkpoint | manuel | semi-auto | auto | remote |
 |---|---|---|---|---|
 | `cp-1` Start the ticket | pause | auto | auto | auto |
+| `cp-seams` Seams and planned tests (`tdd` method) | pause | pause | auto | auto |
+| `cp-red` Failing tests (`tdd` method, verified by oh) | auto | auto | auto | auto |
 | `cp-2` Commit or fix (mandatory) | pause | pause | pause | waits for the user |
 | `cp-3` Next ticket | pause | auto | auto | auto |
 
 Default mode: `semi-auto`. Allowed Beads commands: `show`, `list`, `ready`, `children`, `dep`, `update`, `close`, `comments`, `label`. Outputs: `branch`, `tickets`.
+
+With the `tdd` method (`-i method=tdd`), the `developer` passes `cp-seams` itself (it presents the seams, the interfaces and the planned tests), then `cp-red`, where oh checks that the tests written fail for the right reason (the code builds, the tests compile and fail) and that a test file changed since `cp-seams`; the other changed files are noted. Without this method nothing changes: no checkpoint, no text. See [TDD method](checkpoints.en.md#tdd-method-cp-seams-and-cp-red-r7).
 
 `cp-2` unlocks `commit` and `close`: until it is approved, oh refuses `git commit` (and `revert`, `cherry-pick`, `merge`, `pull`, which commit too) and closing the ticket to every agent. Pushing is left to the user (no shipped workflow unlocks it). Before `cp-2` passes, oh itself runs the build, tests and type check of the detected stack (`verify: { from: stack, expect: pass }`): the decision card shows the result, a failure opens nothing and the user may override it (traced choice). Same verification on `cp-2` of `feature` and `review-feedback`, and on `cp-commit` of `quick`, `debug` and `sweep`; see [Checkpoints](checkpoints.en.md). Once `cp-2` is approved, `orchestrator-dev` hands back to the `developer`, who commits and then closes the ticket; oh refuses closing while the work is not committed. The `reviewer` runs the project's build and tests (and lint, type check) before its review, with the commands of the detected stack, allowed here: a failure is a 🔴 finding (verdict `corriger`); files produced by the build and not ignored are reported, since closing requires a clean tree. The same applies in `feature`, `sweep`, `review-feedback` and `libre`. A question imitating a checkpoint ("CP-2 — commit?" asked with the `question` tool) is closed by oh, which reminds the agent to call `workflow_checkpoint`. When the ticket of the session is closed (or the last checkpoint passed) and the step ends, oh declares the missing outputs (`branch`, `tickets`) and the session becomes **completed**: "Chain with…" is offered.
 
@@ -98,6 +103,7 @@ Delivers a feature end to end. The orchestrator picks the planning agent: `pathf
 |---|---|---|---|
 | `request` | `text` (8,000 characters max) | no | The feature in natural language, or the id of a GitLab issue or merge request |
 | `tickets` | `beads-ids` | no | Existing tickets to take on (former mode B) |
+| `method` | `enum` (`standard`, `tdd`) | no (`standard`) | Method: `tdd` adds `cp-seams` and `cp-red` to each ticket |
 
 Without a request or tickets, the session starts by asking which feature to deliver.
 
@@ -107,11 +113,13 @@ Without a request or tickets, the session starts by asking which feature to deli
 | `cp-0` Approve the plan (mandatory) | pause | pause | pause |
 | `cp-spec` Approve the UX/UI spec | if a spec was produced | same | same |
 | `cp-1` Start the ticket | pause | auto | auto |
+| `cp-seams` Seams and planned tests (`tdd` method) | pause | pause | auto |
+| `cp-red` Failing tests (`tdd` method, verified by oh) | auto | auto | auto |
 | `cp-2` Commit or fix (mandatory) | pause | pause | pause |
 | `cp-3` Next ticket | pause | auto | auto |
 | `cp-feature` Feature recap | pause | auto | auto |
 
-No ticket is created before `cp-tickets` (with existing tickets only, `cp-tickets` confirms the list). `orchestrator-dev` only starts after `cp-0`; it passes `cp-1`, `cp-2` and `cp-3` itself, with **one `cp-2` per ticket** (each ticket is committed then closed before the next one; no grouped approval). At the end of the feature, the `orchestrator` has the whole feature reviewed by the `reviewer` (adversarial review on the working branch), before `cp-feature`. Default mode: `semi-auto`. Outputs: `tickets`, `branch`. Allowed Beads commands: `show`, `list`, `ready`, `search`, `query`, `children`, `comments`, `count`, `lint`, `find-duplicates`, `status`, `graph`, `history`, `create`, `update`, `close`, `dep`, `label`, `duplicate`, `supersede`.
+No ticket is created before `cp-tickets` (with existing tickets only, `cp-tickets` confirms the list). `orchestrator-dev` only starts after `cp-0`; it passes `cp-1`, `cp-2` and `cp-3` itself (with the `tdd` method, the `developer` passes `cp-seams` and `cp-red`, once per ticket), with **one `cp-2` per ticket** (each ticket is committed then closed before the next one; no grouped approval). At the end of the feature, the `orchestrator` has the whole feature reviewed by the `reviewer` (adversarial review on the working branch), before `cp-feature`. Default mode: `semi-auto`. Outputs: `tickets`, `branch`. Allowed Beads commands: `show`, `list`, `ready`, `search`, `query`, `children`, `comments`, `count`, `lint`, `find-duplicates`, `status`, `graph`, `history`, `create`, `update`, `close`, `dep`, `label`, `duplicate`, `supersede`.
 
 The former onboarding pre-phase (mode C) is no longer part of `feature`: the `project-context` precondition suggests the `onboarding` workflow, then coming back to `feature`.
 
