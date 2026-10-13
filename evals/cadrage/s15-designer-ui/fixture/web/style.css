@@ -1,0 +1,12 @@
+:root {
+  --color-primary: #1f5fbf;
+  --color-danger: #b42318;
+  --color-text: #1d2433;
+  --space: 8px;
+  --radius: 6px;
+}
+
+body { font-family: system-ui, sans-serif; color: var(--color-text); }
+main { max-width: 32rem; margin: calc(var(--space) * 4) auto; }
+button { border-radius: var(--radius); padding: var(--space) calc(var(--space) * 2); }
+.delete { color: var(--color-danger); }

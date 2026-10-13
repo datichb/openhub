@@ -20,8 +20,8 @@ permission:
   webfetch: allow
   ctx_search: allow
   ctx_batch_execute: allow
-skills: [shared/universal-guardrails, posture/core-posture, posture/user-facing-posture, posture/subagent-posture, shared/handoff-envelope, shared/execution-protocol, designer/designer-payload, designer/designer-protocol]
-native_skills: [designer/ux-protocol, designer/ui-protocol, designer/figma-recon-protocol, designer/figma-deep-protocol, designer/prototype-protocol, design/websearch-design-patterns, shared/rtk-usage, designer/design-principles, designer/ui-patterns-reference, designer/content-design, designer/tui-patterns, shared/websearch-usage, developer/beads-plan, posture/expert-posture, shared/team-awareness, shared/team-policies-enforcement]
+skills: [shared/universal-guardrails, posture/core-posture, posture/user-facing-posture, shared/handoff-envelope, shared/execution-protocol, designer/designer-payload, designer/designer-protocol]
+native_skills: [designer/ux-protocol, designer/ui-protocol, designer/figma-recon-protocol, designer/figma-deep-protocol, designer/prototype-protocol, design/websearch-design-patterns, shared/rtk-usage, designer/design-principles, designer/ui-patterns-reference, designer/content-design, designer/tui-patterns, shared/websearch-usage, posture/expert-posture, shared/team-awareness, shared/team-policies-enforcement]
 project_instructions: index
 ---
 

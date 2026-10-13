@@ -146,8 +146,8 @@ for _, tt := range tests {
 
 ### Couverture
 
-- `go test ./... -coverprofile=coverage.out`
-- `go tool cover -func=coverage.out` pour le résumé
+- `go test -cover ./...` pour le taux par package, sans fichier produit
+- Détail par fonction : profil hors du dépôt, `go test ./... -coverprofile="${TMPDIR:-/tmp}/coverage.out"` puis `go tool cover -func="${TMPDIR:-/tmp}/coverage.out"` ; jamais de `coverage.out` dans le dépôt
 - Priorité aux chemins critiques — pas de couverture cosmétique
 
 ---

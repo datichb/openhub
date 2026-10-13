@@ -51,7 +51,7 @@ permission:
   ctx_execute: allow
   ctx_execute_file: allow
   ctx_batch_execute: allow
-skills: [shared/universal-guardrails, posture/core-posture, posture/user-facing-posture, posture/subagent-posture, shared/handoff-envelope, shared/execution-protocol, quality/debugger-payload, quality/debugger-workflow, shared/wiki-navigation]
+skills: [shared/universal-guardrails, posture/core-posture, posture/user-facing-posture, shared/handoff-envelope, shared/execution-protocol, quality/debugger-payload, quality/debugger-workflow, shared/wiki-navigation]
 native_skills: [shared/rtk-usage, quality/debugger-phase-0-1, quality/debugger-phase-2-3, quality/debugger-phase-4-5, shared/living-docs-enrichment, posture/expert-posture, shared/team-awareness, shared/team-policies-enforcement, quality/debugger-forensic, quality/debugger-report-templates]
 stack_skills: true
 ---

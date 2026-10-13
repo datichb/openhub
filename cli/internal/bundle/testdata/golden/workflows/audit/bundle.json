@@ -14,7 +14,6 @@
         "read * allow",
         "skill * allow",
         "subagent * deny",
-        "subagent documentarian allow",
         "subagent auditor-subagent allow",
         "shell *git* checkout * deny",
         "shell *git* restore * deny",

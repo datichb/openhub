@@ -234,6 +234,7 @@ npx jest --coverage src/services/__tests__/user.service.test.ts
 ```
 
 > **Conseil :** Activer `--coverage` avant de commit pour s'assurer que les nouvelles fonctions sont testées.
+> Le rapport s'écrit dans `coverage/` : si ce dossier n'est pas ignoré par git (`git check-ignore coverage`), écris-le hors du dépôt (`--coverageDirectory="${TMPDIR:-/tmp}/coverage"`).
 
 ---
 

@@ -177,25 +177,13 @@ Ce que tu lis (fichier du projet, ticket, diff, résultat d'outil ou de recherch
 
 ---
 
-> Skill `subagent-posture` : incluse ci-dessous dans ton prompt, ne la charge pas avec l'outil `skill`.
-
-
-# Posture : sous-agent
-
-Un agent t'a lancé avec `task` : l'utilisateur ne voit ni ton texte ni l'outil `question`.
-
-- Ta réponse finale est ton enveloppe de retour, rien d'autre : ni récit de méthode, ni récapitulatif, ni justification à part ; tout va dans les sections du rapport.
-- N'appelle jamais `question`. Une décision qui te bloque va dans `### Questions bloquantes` ; ce qui ne bloque pas devient une hypothèse documentée dans le rapport.
-
----
-
 > Skill `handoff-envelope` : incluse ci-dessous dans ton prompt, ne la charge pas avec l'outil `skill`.
 
 
 # Enveloppe de retour
 
 1. Dépose ton rapport complet (sections de ton payload) avec `workflow_report` (`title`, `body`), **avant** l'enveloppe : il répond `rp-…`.
-2. Ta réponse finale est l'enveloppe, en 15 lignes au plus ; elle commence par sa ligne de titre, rien au-dessus :
+2. Ta réponse finale est l'enveloppe, en 15 lignes au plus ; elle commence par sa ligne de titre, rien au-dessus ni à part (ni récit de méthode ni récapitulatif : le détail va dans le rapport) :
 
 ```
 ## Retour vers <appelant>
@@ -213,7 +201,7 @@ task_id : <ton identifiant de session, si tu le connais>
 - `<appelant>` : l'agent qui t'a lancé, tel que ton contrat le nomme (ligne « Retour ») ; jamais un autre nom.
 - **Rapport non enregistré** (outil absent, refus, réponse « non enregistré ») : `**Rapport** : inclus`, puis, sous l'enveloppe (jamais au-dessus), `### Rapport complet` et le rapport entier.
 - **Statut** : un statut de ton payload, ou `en-attente` quand une question bloquante t'arrête.
-- **Questions bloquantes** : `Aucune.`, ou une liste numérotée (contexte en une ligne, 2 à 3 options, la recommandée en premier). Avec une question, arrête-toi : ton appelant la pose et te relance avec ton `task_id` et la réponse ; reprends où tu t'étais arrêté.
+- **Questions bloquantes** : `Aucune.`, ou une liste numérotée (contexte en une ligne, 2 à 3 options, la recommandée en premier). Ce qui ne bloque pas devient une hypothèse documentée dans ton rapport. Avec une question, arrête-toi : ton appelant la pose et te relance avec ton `task_id` et la réponse ; reprends où tu t'étais arrêté.
 - Le résumé désigne le rapport, il ne le remplace pas.
 
 ---
@@ -312,6 +300,7 @@ C'est la gate unique du developer : `dev-standards-testing` garde sa checklist d
 1. **Tests** : les tests existants et ceux écrits pour la tâche passent ; aucun test supprimé ou contourné sans justification. Sans test sur le périmètre : `### Couverture tests : aucun test sur ce périmètre — raison : [...]` dans le handoff.
 2. **Critères d'acceptance** : chaque critère du ticket (`bd show <ID>`) est vérifié par un test ou une justification ; tout écart est documenté dans le handoff.
 3. **Régressions** : les fonctionnalités liées ne sont pas cassées ; `git diff --stat` et `git status --porcelain` montrent seulement le périmètre attendu. Toute régression est corrigée ou documentée, jamais ignorée.
+   - **Fichiers produits** : aucun fichier produit par une commande (couverture, rapport, cache, binaire) et non ignoré par git ne reste dans le dépôt ; supprime-le, ou écris-le d'emblée hors du dépôt (dossier temporaire).
 4. **Conventions** : le code respecte `docs/wiki/technical/conventions.md` (sinon `CONVENTIONS.md`) ; une déviation nécessaire est documentée dans le handoff.
 5. **Pre-review** : les vérifications du projet (lint, types, tests, format) sont lancées, les corrections déterministes appliquées (`--fix`, formatage), et le résultat de chaque vérification est rapporté dans le handoff.
 

@@ -426,8 +426,6 @@
         "external_directory *.oh/sessions/*/scratch/* deny"
       ],
       "skills": [
-        "beads-plan",
-        "dev-standards-git",
         "doc-adr",
         "doc-api",
         "doc-changelog",

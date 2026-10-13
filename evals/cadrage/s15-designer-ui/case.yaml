@@ -1,0 +1,39 @@
+id: S15
+title: "Cadrage : une demande d'interface fait invoquer le designer (ui-protocol chargé, sans question, enveloppe vers l'appelant)"
+workflow: cadrage
+mode: semi-auto
+text: |
+  Ajouter une confirmation avant la suppression d'une tâche (aujourd'hui, « Supprimer » efface la tâche sans demander).
+  C'est un changement d'interface : fais spécifier le composant de confirmation par le designer (mode ui) avant le découpage en tickets.
+beads:
+  prefix: ev
+timeout: 25m
+answers:
+  question: first
+  checkpoints:
+    cp-scope: approve
+    # La création des tickets n'est pas évaluée ici.
+    cp-tickets: "reject: Évaluation terminée : ne crée aucun ticket et termine le workflow."
+    "*": approve
+# L6 cleanup : le designer, sous-agent dans cadrage, est lancé par
+# conductor, pathfinder ou planner (contrat de session) : son enveloppe
+# s'adresse à l'un d'eux, jamais à un agent hors du workflow.
+assertions:
+  - type: text_matches
+    name: le designer est invoqué et adresse son retour à son appelant
+    agent: designer
+    pattern: "Retour vers (?:conductor|pathfinder|planner)(?:[^-a-z]|$)"
+  - type: text_matches
+    name: aucun retour du designer vers orchestrator
+    agent: designer
+    absent: true
+    pattern: "Retour vers orchestrator"
+  - type: skill_loaded_before
+    name: ui-protocol chargé par le designer
+    skill: ui-protocol
+    agent: designer
+  - type: no_question_in_subagent
+    agents: [designer, pathfinder, planner]
+  - type: changed_within
+    name: aucun fichier modifié
+  - type: no_denied_loop

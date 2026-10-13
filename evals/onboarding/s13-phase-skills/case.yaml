@@ -1,0 +1,27 @@
+id: S13
+title: "Onboarding : skills de phase chargés avant leur phase, écritures limitées au wiki et à ONBOARDING.md"
+workflow: onboarding
+mode: semi-auto
+timeout: 25m
+answers:
+  # Validation de fin de phase : « continuer » est la première option.
+  question: first
+# L6 cleanup : l'onboarder est l'agent d'entrée (questions de phase
+# permises). Les chemins sont absolus dans la trace : les ancres commencent
+# par `*`. Une phase qui n'arrive jamais n'exige que le chargement du skill.
+assertions:
+  - type: skill_loaded_before
+    name: onboarder-phase-1 chargé avant l'exploration du code
+    skill: onboarder-phase-1
+    agent: onboarder
+    before: { tool: read, agent: onboarder, arg: "*.go" }
+  - type: skill_loaded_before
+    name: onboarder-phase-5 chargé avant l'écriture du wiki
+    skill: onboarder-phase-5
+    agent: onboarder
+    before: { tool: write, agent: onboarder, arg: "*docs/wiki/*" }
+  - type: changed_within
+    name: écritures limitées au wiki et à ONBOARDING.md
+    paths: ["docs/wiki/**", "ONBOARDING.md"]
+    min_files: 1
+  - type: no_denied_loop

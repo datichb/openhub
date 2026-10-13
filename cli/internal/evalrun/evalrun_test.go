@@ -262,10 +262,12 @@ func TestLoadCases(t *testing.T) {
 func TestShippedCases(t *testing.T) {
 	cases, err := LoadCases(filepath.Join("..", "..", "..", "evals"))
 	require.NoError(t, err)
+	// S14 waits for libre to launch the agents it reaches as subagents.
+	inactive := map[string]bool{"S14": true}
 	var ids []string
 	for _, c := range cases {
 		ids = append(ids, c.ID)
-		assert.True(t, c.IsActive(), c.ID)
+		assert.Equal(t, !inactive[c.ID], c.IsActive(), c.ID)
 		if c.ID == "S8" {
 			assert.Equal(t, ReportsOff, c.Reports)
 		}
@@ -273,7 +275,7 @@ func TestShippedCases(t *testing.T) {
 			assert.Equal(t, "accept", c.Answers.Wiki, "the proposals on the card are accepted")
 		}
 	}
-	assert.Equal(t, []string{"S1", "S2", "S3", "S4", "S5", "S6", "S7", "S8", "S9", "S10", "S11", "S12"}, ids)
+	assert.Equal(t, []string{"S1", "S2", "S3", "S4", "S5", "S6", "S7", "S8", "S9", "S10", "S11", "S12", "S13", "S14", "S15"}, ids)
 }
 
 func requireGit(t *testing.T) {
@@ -406,7 +408,13 @@ func TestRunnerAndReport(t *testing.T) {
 
 // notInBaseline are the active cases activated after the reference measure
 // (measured at the next make test-eval OH_EVAL_RECORD=1).
-var notInBaseline = map[string]string{"S8": "activated by L4 (workflow_report)", "S11": "added by LD (wiki proposals on the card)", "S12": "added by LD (doc-sync)"}
+var notInBaseline = map[string]string{
+	"S8":  "activated by L4 (workflow_report)",
+	"S11": "added by LD (wiki proposals on the card)",
+	"S12": "added by LD (doc-sync)",
+	"S13": "added by L6 cleanup (onboarding phase skills)",
+	"S15": "added by L6 cleanup (designer in cadrage)",
+}
 
 // The reference measure kept in the repository (make test-eval
 // OH_EVAL_RECORD=1) covers every active case, with three repetitions, and

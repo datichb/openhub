@@ -64,6 +64,11 @@ The assertions are described in the [`oh eval` reference](../docs/reference/cli-
 | S10 | quick | A data decision is asked in « Questions bloquantes », not with `question` |
 | S11 | ticket | Project with a wiki: a `wiki_propose` proposal is accepted on the card of `cp-2`, applied by oh and committed with the code |
 | S12 | doc-sync | A drifting `CONFIRMÉ` page is fixed; oh records the synchronization; only the wiki is committed, after `cp-sync` |
+| S13 | onboarding | Phase 1 and 5 skills loaded before the exploration and before writing the wiki; writes limited to `docs/wiki/` and `ONBOARDING.md` |
+| S14 | libre | The onboarder launched as a subagent asks no question and returns its envelope to `orchestrator` (inactive: in `libre`, the agents reached stay `primary` and OpenCode refuses to launch them with `task`) |
+| S15 | cadrage | A UI request has the designer invoked: `ui-protocol` loaded, no question, envelope to its caller |
+
+S8, S11, S12, S13 and S15 are not in the reference measure yet (`notInBaseline` in `cli/internal/evalrun/evalrun_test.go`): they enter it at the next recording.
 
 The reference measure (Haiku, three repetitions) is recorded in `cli/internal/evalrun/testdata/evals/baseline.json`; `make test-eval` compares the current run with it.
 
