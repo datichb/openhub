@@ -17,6 +17,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/datichb/openhub/cli/internal/adapters"
 	"github.com/datichb/openhub/cli/internal/daemon"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/evalrun"
@@ -280,28 +281,20 @@ func envFloat(key string, def float64) float64 {
 
 // evalBedrockToken returns the Bedrock API key of the evaluations:
 // OH_EVAL_BEDROCK_TOKEN (or OH_E2E_BEDROCK_TOKEN), else the key stored by
-// `opencode auth`. It only goes to the credential proxy of each pass.
+// the session tool. It only goes to the credential proxy of each pass.
 func evalBedrockToken(ctx context.Context) (string, error) {
 	for _, k := range []string{envEvalToken, "OH_E2E_BEDROCK_TOKEN"} {
 		if v := strings.TrimSpace(os.Getenv(k)); v != "" {
 			return v, nil
 		}
 	}
-	out, err := exec.CommandContext(ctx, "opencode", "auth", "export").Output()
+	ad, _, err := detectTool(ctx)
 	if err != nil {
 		return "", errors.New(i18n.T("cmd.eval.no_credential"))
 	}
-	var creds []struct {
-		IntegrationID string `json:"integrationID"`
-		Value         struct {
-			Key string `json:"key"`
-		} `json:"value"`
-	}
-	if json.Unmarshal(out, &creds) == nil {
-		for _, c := range creds {
-			if c.IntegrationID == "amazon-bedrock" && c.Value.Key != "" {
-				return c.Value.Key, nil
-			}
+	if r, ok := ad.(adapters.StoredKeyReader); ok {
+		if k, err := r.StoredProviderKey(ctx, runsvc.ToolProviderID(ad, "bedrock")); err == nil && k != "" {
+			return k, nil
 		}
 	}
 	return "", errors.New(i18n.T("cmd.eval.no_credential"))
