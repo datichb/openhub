@@ -26,7 +26,7 @@ cd openhub/cli
 # Download dependencies
 make deps
 
-# Sync agents/skills/permissions into the Go embed directory
+# Sync the hub content into the Go embed directory and build the fake bd of containers
 # (MANDATORY step before first build — GoReleaser does this automatically in release)
 make embed-sync
 
@@ -34,14 +34,17 @@ make embed-sync
 make build          # -> bin/oh
 ```
 
-> **Important:** `make embed-sync` copies `agents/`, `skills/`, and `permissions/` into
-> `internal/hubcontent/hub/`. If you modify an agent or skill, re-run
-> `make embed-sync` before rebuilding.
+> **Important:** the binary embeds a copy of `agents/`, `skills/`, `permissions/` and
+> `workflows/` (in `internal/hubcontent/hub/`). After changing that content, run
+> `make sync-content`: it copies it again without rebuilding the fake bd (faster than
+> `make embed-sync`). While the copy differs from the sources, `TestEmbeddedContentInSync`
+> fails and lists the files at fault (only in the development repository: release builds
+> copy the sources first).
 
 ### Running tests
 
 ```bash
-make test           # All tests with -race detector
+make test           # All tests with -race detector (timeout: TEST_TIMEOUT=40m)
 make test-unit      # Unit tests only (-short, faster)
 make test-tui       # TUI tests only (./internal/tui/...)
 make test-cover     # Generates coverage.out + coverage.html
@@ -49,12 +52,34 @@ make test-cover     # Generates coverage.out + coverage.html
 
 CI enforces a minimum coverage threshold of **60%** with the race detector enabled.
 
+The full suite takes longer than the default `go test` timeout (10 minutes), especially while
+other suites run in parallel: outside `make test`, pass the timeout yourself
+(`go test -timeout 40m ./...`).
+
+The diagrams of `docs/` are ` ```mermaid ` blocks (sources in `docs/diagrams/*.mermaid`, no SVG
+anymore). `internal/docstest` checks that no diagram SVG is referenced, that a block followed by
+"Diagram source" is identical to its source and, when `mmdc` is installed
+(`npm i -g @mermaid-js/mermaid-cli`), that every diagram renders without error.
+
 ### Linting and formatting
 
 ```bash
 make lint           # golangci-lint run ./...
 make vet            # go vet ./...
 make fmt            # gofmt -s -w .
+```
+
+**One golangci-lint cache per worktree.** golangci-lint keeps one cache for every directory
+(`~/Library/Caches/golangci-lint` on macOS). With several worktrees of the repository linted in
+parallel, that shared cache can return results of another tree or block on its lock. Give each
+worktree its own cache:
+
+```bash
+# A throwaway cache, for one run
+GOLANGCI_LINT_CACHE=$(mktemp -d) golangci-lint run ./...
+
+# Or a cache of the worktree, kept between runs
+export GOLANGCI_LINT_CACHE="${TMPDIR:-/tmp}/golangci-lint-$(basename "$(git rev-parse --show-toplevel)")"   # outside the tree, one per worktree
 ```
 
 Active linters include: `bodyclose`, `gocritic` (diagnostic + style), `misspell`, `nilerr`.

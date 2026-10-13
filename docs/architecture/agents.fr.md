@@ -85,7 +85,7 @@ flowchart TD
     REV -->|calls: reviewer| REV
 ```
 
-> Source du diagramme : [`docs/diagrams/agent-hierarchy.mermaid`](../diagrams/agent-hierarchy.mermaid)
+> Diagramme détaillé (en anglais) : [`docs/diagrams/agent-hierarchy.mermaid`](../diagrams/agent-hierarchy.mermaid)
 
 ---
 

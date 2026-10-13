@@ -43,7 +43,14 @@ func TestMain(m *testing.M) {
 		_ = s.Serve()
 		os.Exit(0)
 	}
-	os.Exit(m.Run())
+	cleanup, err := writeFakeBd()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "fake bd:", err)
+		os.Exit(1)
+	}
+	code := m.Run()
+	cleanup()
+	os.Exit(code)
 }
 
 type mcpFixture struct {

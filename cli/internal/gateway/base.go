@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"syscall"
 	"time"
 
 	"github.com/datichb/openhub/cli/internal/gateway/beadswire"
@@ -54,12 +55,18 @@ func (b *Beads) ResolveBase(ctx context.Context, location string) *Base {
 	}
 	ctx, cancel := context.WithTimeout(ctx, baseTimeout)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, bin, "where", "--json")
-	cmd.Dir = location
-	cmd.Env = beadsEnv(os.Environ(), "", false)
 	var out bytes.Buffer
-	cmd.Stdout = &out
-	_ = cmd.Run() // bd exits 1 without a workspace, with a JSON answer
+	for attempt := 1; ; attempt++ {
+		out.Reset()
+		cmd := exec.CommandContext(ctx, bin, "where", "--json")
+		cmd.Dir = location
+		cmd.Env = beadsEnv(os.Environ(), "", false)
+		cmd.Stdout = &out
+		err := cmd.Run() // bd exits 1 without a workspace, with a JSON answer
+		if attempt >= startAttempts || !transientStart(err) || sleepCtx(ctx, time.Duration(attempt)*50*time.Millisecond) != nil {
+			break
+		}
+	}
 	var w struct {
 		Path  string `json:"path"`
 		Error string `json:"error"`
@@ -74,6 +81,26 @@ func (b *Beads) ResolveBase(ctx context.Context, location string) *Base {
 	}
 	dir := filepath.Clean(w.Path)
 	return &Base{Dir: dir, Files: hashBaseFiles(dir)}
+}
+
+// startAttempts bounds the runs of `bd where` that could not start.
+const startAttempts = 3
+
+// transientStart reports a start failure worth retrying: bd being written
+// or replaced (ETXTBSY), or the process limit reached under load (EAGAIN).
+func transientStart(err error) bool {
+	return errors.Is(err, syscall.ETXTBSY) || errors.Is(err, syscall.EAGAIN)
+}
+
+func sleepCtx(ctx context.Context, d time.Duration) error {
+	t := time.NewTimer(d)
+	defer t.Stop()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-t.C:
+		return nil
+	}
 }
 
 func hashBaseFiles(dir string) map[string]string {

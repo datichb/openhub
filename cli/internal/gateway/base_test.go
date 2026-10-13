@@ -4,9 +4,11 @@ import (
 	"context"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
+	"syscall"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -73,6 +75,16 @@ func TestResolveBase(t *testing.T) {
 
 	f.b.Binary = filepath.Join(t.TempDir(), "missing")
 	assert.Nil(t, f.b.ResolveBase(context.Background(), f.project), "bd not runnable: resolved later")
+}
+
+// `bd where` is run again when it could not start for a passing reason
+// (bd being written, process limit under load), not when bd failed.
+func TestTransientStart(t *testing.T) {
+	assert.True(t, transientStart(&os.PathError{Op: "fork/exec", Path: "bd", Err: syscall.ETXTBSY}))
+	assert.True(t, transientStart(&os.PathError{Op: "fork/exec", Path: "bd", Err: syscall.EAGAIN}))
+	assert.False(t, transientStart(nil))
+	assert.False(t, transientStart(&os.PathError{Op: "fork/exec", Path: "bd", Err: syscall.ENOENT}))
+	assert.False(t, transientStart(&exec.ExitError{}))
 }
 
 // S-14: the grants saved by the daemon are trusted only when signed by it,

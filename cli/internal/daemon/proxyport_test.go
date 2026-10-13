@@ -90,6 +90,17 @@ func TestProxyPortChangeSleepsStaleGroups(t *testing.T) {
 
 // When the previous port is free again, nothing is put to sleep.
 func TestProxyPortKeptKeepsGroups(t *testing.T) {
+	// The free port comes from a closed listener: another process can take it
+	// before the daemon binds it (the daemon then rightly moves and puts the
+	// group to sleep, which is not the case tested here): run again.
+	for attempt := 1; !proxyPortKept(t); attempt++ {
+		if attempt == 3 {
+			t.Fatal("the recorded port was taken by another process three times")
+		}
+	}
+}
+
+func proxyPortKept(t *testing.T) bool {
 	p, servers, grants := hardeningEnv(t)
 	ctx := context.Background()
 	l, err := net.Listen("tcp", "127.0.0.1:0")
@@ -102,9 +113,16 @@ func TestProxyPortKeptKeepsGroups(t *testing.T) {
 	ad := &stopCountingAdapter{fakeAdapter: newFake()}
 	runDaemon(t, Options{Paths: p, Servers: servers, Grants: grants, ServersDir: filepath.Join(p.Dir, "servers"), Tick: 50 * time.Millisecond,
 		IdleAfter: time.Hour, IdleSleep: time.Hour, Adapter: func(string) adapters.ToolAdapter { return ad }})
+	h, err := NewClient(p).Health(ctx)
+	require.NoError(t, err)
+	if got := urlPort(h.ProxyURL); got != port {
+		t.Logf("port %d taken meanwhile (daemon on %d): again", port, got)
+		return false
+	}
 	time.Sleep(300 * time.Millisecond)
 	s, err := servers.Get(ctx, "g")
 	require.NoError(t, err)
 	assert.Equal(t, domain.ServerReady, s.Status)
 	assert.Equal(t, int32(0), ad.stops.Load())
+	return true
 }

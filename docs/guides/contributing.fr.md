@@ -26,22 +26,25 @@ cd openhub/cli
 # Telecharger les dependances
 make deps
 
-# Synchroniser agents/skills/permissions dans le repertoire embed Go
-# (etape OBLIGATOIRE avant le premier build — GoReleaser le fait automatiquement en release)
+# Synchroniser le contenu du hub dans le répertoire embarqué et compiler le faux bd des conteneurs
+# (étape OBLIGATOIRE avant le premier build — GoReleaser le fait automatiquement en release)
 make embed-sync
 
 # Compiler le binaire
 make build          # -> bin/oh
 ```
 
-> **Attention :** `make embed-sync` copie `agents/`, `skills/` et `permissions/` dans
-> `internal/hubcontent/hub/`. Si vous modifiez un agent ou un skill, relancez
-> `make embed-sync` avant de rebuilder.
+> **Attention :** le binaire embarque une copie de `agents/`, `skills/`, `permissions/` et
+> `workflows/` (dans `internal/hubcontent/hub/`). Après une modification de ce contenu, lancez
+> `make sync-content` : il refait la copie sans recompiler le faux bd (plus rapide que
+> `make embed-sync`). Tant que la copie diffère des sources, `TestEmbeddedContentInSync`
+> échoue et liste les fichiers en cause (seulement dans le dépôt de développement : les builds
+> de release copient les sources d'abord).
 
 ### Lancer les tests
 
 ```bash
-make test           # Tous les tests avec -race detector
+make test           # Tous les tests avec -race detector (délai : TEST_TIMEOUT=40m)
 make test-unit      # Tests unitaires uniquement (-short, plus rapide)
 make test-tui       # Tests TUI uniquement (./internal/tui/...)
 make test-cover     # Genere coverage.out + coverage.html
@@ -49,12 +52,34 @@ make test-cover     # Genere coverage.out + coverage.html
 
 Le CI exige un seuil de couverture minimum de **60%** avec le race detector actif.
 
+La suite complète dépasse le délai par défaut de `go test` (10 minutes), surtout quand d'autres
+suites tournent en parallèle : en dehors de `make test`, passez le délai vous-même
+(`go test -timeout 40m ./...`).
+
+Les diagrammes de `docs/` sont des blocs ` ```mermaid ` (sources dans `docs/diagrams/*.mermaid`,
+plus aucun SVG). `internal/docstest` vérifie qu'aucun SVG de diagramme n'est référencé, qu'un bloc
+suivi de « Source du diagramme » est identique à sa source et, si `mmdc` est installé
+(`npm i -g @mermaid-js/mermaid-cli`), que chaque diagramme se rend sans erreur.
+
 ### Linting et formatage
 
 ```bash
 make lint           # golangci-lint run ./...
 make vet            # go vet ./...
 make fmt            # gofmt -s -w .
+```
+
+**Cache de golangci-lint par worktree.** golangci-lint garde un cache commun à tous les
+dossiers (`~/Library/Caches/golangci-lint` sur macOS). Avec plusieurs worktrees du dépôt lancés
+en parallèle, ce cache partagé peut renvoyer des résultats d'un autre arbre ou se bloquer
+sur son verrou. Donnez à chaque worktree son propre cache :
+
+```bash
+# Un cache jetable, pour un passage
+GOLANGCI_LINT_CACHE=$(mktemp -d) golangci-lint run ./...
+
+# Ou un cache propre au worktree, gardé d'un passage à l'autre
+export GOLANGCI_LINT_CACHE="${TMPDIR:-/tmp}/golangci-lint-$(basename "$(git rev-parse --show-toplevel)")"   # hors de l'arbre, un par worktree
 ```
 
 Les linters actifs incluent : `bodyclose`, `gocritic` (diagnostic + style), `misspell`, `nilerr`.
