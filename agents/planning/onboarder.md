@@ -13,6 +13,7 @@ permission:
     "bd search *": allow
     "bd query *": allow
     "bd list*": allow
+    "bd show*": allow
     "ls*": allow
   read: allow
   glob: allow
