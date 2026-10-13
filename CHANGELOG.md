@@ -9,6 +9,14 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ## [Unreleased]
 
+### Changed — hygiène des tests et diagrammes (lots P0.6 et P0.7)
+
+- **`make test`** prend un délai de 40 minutes (`TEST_TIMEOUT`) ; nouvelle cible **`make sync-content`**, qui recopie agents, skills, permissions et workflows dans la copie embarquée sans recompiler bd (`embed-sync` l'appelle).
+- **Test de dérive** : `TestEmbeddedContentInSync` échoue, en développement, quand la copie embarquée diffère des sources, et renvoie à `make sync-content`.
+- **Tests instables fiabilisés** : appel de hook réel (le hook attend le test, git isolé de la configuration de la machine), faux bd écrit une seule fois par paquet, délais du test de PID du démon, port du proxy rejoué s'il est pris entre-temps. La passerelle relance `bd where` jusqu'à 3 fois quand le binaire ne démarre pas (fichier occupé, limite de processus), au lieu de répondre 503.
+- **Diagrammes en Mermaid** : les SVG de `docs/diagrams/` sont supprimés ; les docs intègrent les blocs ` ```mermaid ` et pointent vers les sources `.mermaid`. Un test vérifie que les copies suivent leurs sources et, si `mmdc` est installé, que chaque diagramme se rend.
+- **Contribution** : `docs/guides/contributing.*` documente `make sync-content`, le délai de 40 minutes et un `GOLANGCI_LINT_CACHE` par worktree.
+
 ### Changed — catalogue des skills allégé (lots P1.2 et P1.3)
 
 - **Skills rarement utiles passées à la demande** : `debugger-forensic` et `debugger-report-templates` (debugger), `quick-fix` (developer), `design-planner-format` (planner ; le designer la garde incluse), `dev-standards-universal` (reviewer), `dev-standards-git` (documentarian), `beads-plan` (pathfinder). Chaque agent est invité à les charger à l'étape qui en a besoin.
