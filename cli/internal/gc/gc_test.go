@@ -163,6 +163,8 @@ func TestRunApplies(t *testing.T) {
 	mkdir(t, filepath.Join(f.env.ServersDir, "g2"), 40*day)
 	mkdir(t, filepath.Join(f.env.SessionsDir, "s-old", "results"), 40*day)
 	mkdir(t, filepath.Join(f.env.SessionsDir, "s-ancient", "results"), 200*day)
+	mkdir(t, filepath.Join(f.env.SessionsDir, "s-old", "reports"), 40*day)
+	mkdir(t, filepath.Join(f.env.SessionsDir, "s-ancient", "reports"), 200*day)
 	require.NoError(t, os.WriteFile(filepath.Join(f.env.SessionsDir, "s-old", "context.json"), []byte("{}"), 0o600))
 	// g2 is being resumed by another oh.
 	unlock, err := filelock.Lock(filepath.Join(f.env.ServersDir, "g2", "lock"))
@@ -180,6 +182,7 @@ func TestRunApplies(t *testing.T) {
 	assert.DirExists(t, filepath.Join(f.env.ServersDir, "g2"), "locked group skipped")
 	assert.Equal(t, []string{"g1"}, f.store.deleted)
 	assert.DirExists(t, filepath.Join(f.env.SessionsDir, "s-old", "results"), "results kept until the history goes")
+	assert.DirExists(t, filepath.Join(f.env.SessionsDir, "s-old", "reports"), "reports kept until the history goes")
 	assert.NoFileExists(t, filepath.Join(f.env.SessionsDir, "s-old", "context.json"))
 	assert.NoDirExists(t, filepath.Join(f.env.SessionsDir, "s-ancient"))
 	assert.Len(t, done.Errors, 1)

@@ -29,6 +29,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/runsvc"
 	ohruntime "github.com/datichb/openhub/cli/internal/runtime"
 	"github.com/datichb/openhub/cli/internal/services/remote/runner"
+	"github.com/datichb/openhub/cli/internal/services/report"
 	sessionsvc "github.com/datichb/openhub/cli/internal/services/session"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 	"github.com/datichb/openhub/cli/internal/storage/sqlite"
@@ -139,7 +140,7 @@ func runRunnerJob(cmd *cobra.Command, _ []string) error {
 			BeadsBinary: bd, MCPCommand: gatewayMCPCommand(ohBundlesDir()),
 			Sessions: a.Sessions, Decisions: sqlite.NewDecisionStore(store),
 			SessionsDir: ohSessionsDir(), ServersDir: ohServersDir(),
-			Checkpoints: newCheckpointService(a), Secrets: secrets,
+			Checkpoints: newCheckpointService(a), Reports: newReportService(), Secrets: secrets,
 			IdleAfter: 24 * time.Hour, IdleSleep: 24 * time.Hour,
 			Adapter: func(name string) adapters.ToolAdapter {
 				if name == ad.Name() {
@@ -190,6 +191,7 @@ func runRunnerJob(cmd *cobra.Command, _ []string) error {
 		Quiesce:   func(context.Context) error { return runner.KillUser(user) },
 		Session:   &jobSession{a: a, rs: rs, ss: ss, ad: ad, region: job.Region},
 		Responder: runner.NewResponder(sqlite.NewDecisionStore(store), ss.Decide, m),
+		Reports:   runnerReports(newReportService()),
 	}
 	if m.Team != nil {
 		if repo, err := runner.OpenTeamState(ctx, m.Team, job.Secrets.TeamStateToken, filepath.Join(private, "team-state"), job.Secrets); err == nil {
@@ -365,4 +367,19 @@ func (j *jobSession) Outputs(ctx context.Context, sid string) map[string]any {
 		return sess.Outputs
 	}
 	return nil
+}
+
+// runnerReports reads the reports of the job session for reports.json.
+func runnerReports(rs *report.Service) func(ctx context.Context, sid string) ([]remote.ReportEntry, error) {
+	return func(ctx context.Context, sid string) ([]remote.ReportEntry, error) {
+		list, err := rs.Export(ctx, sid)
+		if err != nil {
+			return nil, err
+		}
+		out := make([]remote.ReportEntry, 0, len(list))
+		for _, e := range list {
+			out = append(out, remote.ReportEntry{Seq: e.Seq, Agent: e.Agent, ToolSession: e.ToolSession, Title: e.Title, CreatedAt: e.CreatedAt, Body: e.Body})
+		}
+		return out, nil
+	}
 }

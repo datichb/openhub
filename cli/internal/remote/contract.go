@@ -12,7 +12,7 @@ import (
 // PipelineSchema is the version of the generated .gitlab-ci.yml contract
 // (variables, stages, artifacts). Bump it on any incompatible change: the
 // machine refuses to send to an oh-runner project with another schema.
-const PipelineSchema = 4 // 2: neutral OH_TOOL_VERSION (QB7); 3: secrets scoped to the run job, image context uploaded by the machine (S-02); 4: run image pinned by digest, journal key pair (N21)
+const PipelineSchema = 5 // 2: neutral OH_TOOL_VERSION (QB7); 3: secrets scoped to the run job, image context uploaded by the machine (S-02); 4: run image pinned by digest, journal key pair (N21); 5: reports of workflow_report among the artifacts (reports.json, L4)
 
 // CI variables of the oh-runner project (set by oh remote setup). Secret ones
 // are masked and protected; they never leave GitLab except into the job.
@@ -99,7 +99,7 @@ func CLIFile(arch string) string { return "oh-linux-" + arch }
 const ImageEnvFile = "oh-image.env"
 
 // OutDir is the artifacts directory of the run job, relative to
-// $CI_PROJECT_DIR (journal.jsonl, summary.json, session.export).
+// $CI_PROJECT_DIR (journal.jsonl, summary.json, session.export, reports.json).
 const OutDir = "oh-out"
 
 // RunnerProjectName is the default path of the oh-runner project in a group.

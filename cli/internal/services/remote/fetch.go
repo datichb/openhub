@@ -19,6 +19,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/gateway"
 	"github.com/datichb/openhub/cli/internal/gateway/beadswire"
 	"github.com/datichb/openhub/cli/internal/remote"
+	"github.com/datichb/openhub/cli/internal/services/report"
 )
 
 // Errors of a fetch.
@@ -40,12 +41,13 @@ type FetchResult struct {
 	Journal   []beadswire.JournalEntry
 	Dir       string // local copy of the artifacts
 	Imported  bool
+	Reports   int    // reports of workflow_report imported
 	Location  string // where the session continues locally
 	Ref       domain.RemoteRef
 }
 
 // artifactNames are the files kept from the run job artifacts.
-var artifactNames = map[string]bool{remote.JournalFile: true, remote.SummaryFile: true, remote.ExportFile: true}
+var artifactNames = map[string]bool{remote.JournalFile: true, remote.SummaryFile: true, remote.ExportFile: true, remote.ReportsFile: true}
 
 // Fetch downloads the artifacts of a finished remote session and imports the
 // session into a local server group so that it can be resumed (P5-T16). The
@@ -112,6 +114,11 @@ func (s *Service) Fetch(ctx context.Context, sid string, opts FetchOptions) (*Fe
 		return nil, err
 	}
 	res.Location = sess.LaunchPath
+	if !opts.NoImport {
+		if res.Reports, err = s.importReports(ctx, sid, dir); err != nil {
+			return res, err
+		}
+	}
 	if !opts.NoImport && sess.Runtime == "remote" {
 		if err := s.importSession(ctx, sess, ref, res); err != nil {
 			return res, err
@@ -241,7 +248,31 @@ func (s *Service) ensureBundle(ctx context.Context, ref domain.RemoteRef, hash s
 	return os.Rename(tmp, dir)
 }
 
-// extractArtifacts keeps oh-out/{journal.jsonl,summary.json,session.export}.
+// importReports records the reports of the job (reports.json, absent when
+// none was filed) in the local session.
+func (s *Service) importReports(ctx context.Context, sid, dir string) (int, error) {
+	if s.Reports == nil {
+		return 0, nil
+	}
+	data, err := os.ReadFile(filepath.Join(dir, remote.ReportsFile))
+	if errors.Is(err, os.ErrNotExist) {
+		return 0, nil
+	}
+	if err != nil {
+		return 0, err
+	}
+	var rs remote.Reports
+	if err := json.Unmarshal(data, &rs); err != nil {
+		return 0, fmt.Errorf("%s: %w", remote.ReportsFile, err)
+	}
+	list := make([]report.Exported, 0, len(rs.Reports))
+	for _, e := range rs.Reports {
+		list = append(list, report.Exported{Report: domain.Report{Seq: e.Seq, Agent: e.Agent, ToolSession: e.ToolSession, Title: e.Title, CreatedAt: e.CreatedAt}, Body: e.Body})
+	}
+	return s.Reports.Import(ctx, sid, list)
+}
+
+// extractArtifacts keeps oh-out/{journal.jsonl,summary.json,session.export,reports.json}.
 func extractArtifacts(data []byte, dir string) error {
 	zr, err := zip.NewReader(bytes.NewReader(data), int64(len(data)))
 	if err != nil {

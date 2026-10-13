@@ -19,6 +19,7 @@ const (
 	JournalFile = "journal.jsonl"
 	SummaryFile = "summary.json"
 	ExportFile  = "session.export"
+	ReportsFile = "reports.json"
 )
 
 // WorkRoot is where the job clones the target project
@@ -192,4 +193,25 @@ const ExportSchema = 1
 type Export struct {
 	Schema   int               `json:"schema"`
 	Sessions []json.RawMessage `json:"sessions"`
+}
+
+// ReportsSchema is the version of reports.json.
+const ReportsSchema = 1
+
+// Reports is the reports.json artifact: the reports the agents filed with
+// workflow_report in the job, imported into the session when it is fetched
+// (cleaned and bounded again: the artifact is not trusted).
+type Reports struct {
+	Schema  int           `json:"schema"`
+	Reports []ReportEntry `json:"reports"`
+}
+
+// ReportEntry is a report of reports.json.
+type ReportEntry struct {
+	Seq         int       `json:"seq"`
+	Agent       string    `json:"agent"`
+	ToolSession string    `json:"tool_session,omitempty"`
+	Title       string    `json:"title"`
+	CreatedAt   time.Time `json:"created_at"`
+	Body        string    `json:"body"`
 }
