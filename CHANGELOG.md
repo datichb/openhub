@@ -28,7 +28,7 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 - **Fenêtres bornées** : la fenêtre `create` se referme au checkpoint obligatoire suivant, la fenêtre `commit` une fois le travail commité.
 - **Budget de pauses** : en semi-auto, 2 décisions plus 1 par checkpoint qui déverrouille une action ; lint sur les workflows livrés, avertissement `pause_budget_exceeded` dans `oh workflow validate`. **`cp-feature` passe en `auto` en semi-auto** (récap simple ; il reste en pause en manuel).
 - **Carte et lancement** : la carte de checkpoint montre la vérification, les preuves et le ticket non résolu ; `oh run` et la TUI affichent les pauses prévues pour le mode choisi. Nouvelle référence `docs/reference/checkpoints.*`.
-- **Limite connue** : dans une session distante, la vérification n'a pas accès au dépôt et le checkpoint passe sans vérification (à traiter juste après).
+- **Sessions distantes** (lot R3-remote) : la vérification tourne dans le job, sur le clone, sous le compte `oh` des agents (jamais en root), avec les mêmes garanties. Une vérification échouée n'y est jamais passée outre (l'agent corrige) ; une vérification impossible diffère le checkpoint à la machine. Les résultats remontent dans `summary.json` (`verifications`), sont affichés et importés par `oh session fetch` (carte, frise), et la session reprise en local est revérifiée. **Changement de comportement** : un emplacement de travail introuvable ne donne plus « rien à vérifier » ; le checkpoint se met en pause dans tous les modes, et seul « Passer outre » (tracé) le laisse passer.
 
 ### Changed — catalogue de skills par agent (lot L2)
 
