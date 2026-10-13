@@ -87,11 +87,11 @@ Agents using native skills must have `permission: skill: allow`. Coordinators se
 
 ### Stack-specific skills (Bucket B — native)
 
-Stack skills are **always Bucket B**. When the session bundle is built (at launch, `oh deploy` removed in v5), oh detects the project stack (`DetectStack()` in `cli/internal/prompt/`) and adds the matching stack skills to the bundle's on-demand skills. The LLM loads the relevant ones on-demand at inference time. Nothing is written to the project's `.opencode/skills/`.
+Stack skills are **always Bucket B**. When the session bundle is built (at launch, `oh deploy` removed in v5), oh detects the project stack (`DetectSignals()` in `cli/internal/bricks/stack_signals.go`) and adds the matching stack skills to the bundle's on-demand skills. The LLM loads the relevant ones on-demand at inference time. Nothing is written to the project's `.opencode/skills/`.
 
 **You do not need to declare stack-specific skills in agent frontmatters.** The stack → skills mapping is the `stackSkillMapping` table in `cli/internal/bricks/stack_skills.go` (language, framework, test runner, Docker, CI).
 
-**Adding a new stack:** add the detection in `DetectStack()` and the entry in `stackSkillMapping`. Create the skill file in `skills/developer/stacks/`. No agent frontmatter changes needed — the skill will be automatically shipped in the bundle of the relevant projects (`oh bundle show <workflow>` to check).
+**Adding a new stack:** add the detection in `DetectSignals()` and the entry in `stackSkillMapping`. Create the skill file in `skills/developer/stacks/`. No agent frontmatter changes needed — the skill will be automatically shipped in the bundle of the relevant projects (`oh bundle show <workflow>` to check).
 
 ---
 

@@ -120,9 +120,9 @@ cli/
 │   │   ├── opencode.go                  # FindBinary(), Exec(), Run(), Version()
 │   │   └── opencode_test.go             # Tests args/env building, path expansion
 │   │
-│   ├── prompt/                          # Détection stack & construction contexte
-│   │   ├── prompt.go                    # DetectStack(), BuildContext()
-│   │   └── prompt_test.go              # Tests Go/TS/Python/Rust/Docker/CI/NextJS
+│   ├── prompt/                          # Prompts d'amorçage des sessions
+│   │   ├── dev.go                       # BuildDevPrompt()
+│   │   └── onboard.go                   # BuildOnboardPrompt()
 │   │
 │   ├── deploy/                          # Déploiement transactionnel
 │   │   ├── deploy.go                    # Execute(), Snapshot, Rollback, Phases
@@ -209,7 +209,6 @@ cli/
          │
          ▼
     cmd/start.go        resolveProject() → détection cwd ou picker
-                        prompt.DetectStack() → StackInfo
                         secrets.Get("bedrock-token-*") → bearer token
          │
          ▼
