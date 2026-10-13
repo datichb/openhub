@@ -111,7 +111,7 @@ Recommandation : utiliser des requêtes paramétrées ou un ORM avec bindings au
 
 ## Section "Enrichissements wiki proposés"
 
-**Tous les rapports d'audit** doivent se terminer par cette section standardisée avant le bloc de handoff.
+**Tous les rapports d'audit** doivent se terminer par cette section standardisée avant l'enveloppe de retour.
 Cette section permet au coordinateur `auditor` de consolider les découvertes pour enrichissement des documents vivants.
 
 **Format standardisé :**

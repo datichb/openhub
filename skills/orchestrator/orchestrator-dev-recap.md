@@ -1,11 +1,11 @@
 ---
 name: orchestrator-dev-recap
-description: "Utiliser après le dernier ticket : récap d'implémentation et bloc de retour."
+description: "Utiliser après le dernier ticket : récap d'implémentation (texte ou rapport) et enveloppe de retour."
 ---
 
 ## Récap global — Fin de session
 
-**Deux étapes obligatoires dans cet ordre — ne jamais les inverser, ne jamais en omettre une.**
+**Agent d'entrée : le récap en texte. Sous-agent : le même récap est ton rapport, suivi de ton enveloppe.**
 
 ### Étape 1 — Récap global complet (texte)
 
@@ -17,7 +17,7 @@ Construire ce récap en agrégeant les données structurées collectées à chaq
 
 ### Synthèse par ticket
 
-<Pour chaque ticket traité, inclure la synthèse structurée issue du bloc handoff developer et du compte rendu d'étape (étape 6).>
+<Pour chaque ticket traité, la synthèse issue des retours du developer (enveloppe et rapport) et du compte rendu d'étape (étape 6).>
 <"Aucun ticket traité" si la session est interrompue avant toute implémentation>
 
 #### Ticket #bd-XX — <titre>
@@ -41,40 +41,15 @@ Construire ce récap en agrégeant les données structurées collectées à chaq
 <"Aucun point d'attention" si aucun point n'a été signalé en cours de session>
 ```
 
-> ❌ Ne jamais omettre ce récap — il contient la synthèse par ticket et les points d'attention. Le tableau de synthèse des tickets et les statistiques sont dans le bloc structuré `## Retour vers orchestrator` qui suit.
+> ❌ Ne jamais omettre ce récap — il contient la synthèse par ticket et les points d'attention.
 
-### Étape 2 — Bloc de retour structuré (obligatoire si invoqué depuis l'agent orchestrator feature)
+### Étape 2 — Sous-agent : rapport et enveloppe
 
-> ⚠️ Ce bloc est **requis sans exception** — y compris en cas de stop, de ticket bloqué ou de session incomplète.
-> **Champ `Type de récap` obligatoire :** renseigner `**Type de récap :** final` — ce bloc est émis seul en fin de session, tous les tickets ont été traités ou stop demandé.
-> Il vient **après** le récap global complet — il en est le résumé structuré, il ne le remplace pas.
-> Ne jamais clore la session sans avoir produit les deux.
+> ⚠️ **Requis sans exception** — y compris en cas de stop, de ticket bloqué ou de session incomplète.
 
-Ajouter immédiatement après le récap global le bloc `## Retour vers orchestrator` :
-
-```
----
-
-## Retour vers orchestrator
-
-**Tickets traités :** [bd-XX ✅, bd-YY ✅, ...]
-**Tickets ignorés :** [bd-ZZ ⏭️, ...]
-
-### Détail par ticket
-| ID | Agent (domaine) | Cycles review | Critères couverts | Statut |
-|----|----------------|---------------|-------------------|--------|
-| bd-XX | developer (frontend) | 1 | tous | ✅ Terminé |
-| bd-YY | developer (backend)  | 2 | partielle | ✅ Terminé |
-| bd-ZZ | developer (api)      | — | — | ⏭️ Ignoré  |
-
-**Points d'attention :**
-- <agrégation des points d'attention techniques collectés à chaque étape 6>
-**Statut global :** succès | partiel | bloqué
-```
-
-Le format exact, les champs obligatoires et les définitions des statuts (`succès`, `partiel`, `bloqué`) sont définis dans le skill `orchestrator-handoff-format` — s'y référer comme source de vérité unique.
+Sous-agent : ce récap est ton rapport (sections et statuts `succès`, `partiel`, `bloqué` de ton payload) ; dépose-le, puis rends ton enveloppe.
 
 > Les `### Points d'attention` doivent reprendre l'agrégation ci-dessus — jamais une liste vide si des points ont été signalés en cours de session.
 
 **Vérification obligatoire avant de clore la session :**
-> « Suis-je invoqué depuis l'agent orchestrator feature ? Si oui, ai-je produit le bloc `## Retour vers orchestrator` avec tous les champs requis (dont `### Contexte et décisions par ticket` et `### Points d'attention globaux`) ? Si non, le produire maintenant. Aucun texte libre avant ou après le bloc. »
+> « Suis-je lancé par un agent ? Si oui, ai-je déposé mon rapport (dont `### Contexte et décisions par ticket` et `### Points d'attention globaux`) et rendu mon enveloppe ? Si non, le faire maintenant. »

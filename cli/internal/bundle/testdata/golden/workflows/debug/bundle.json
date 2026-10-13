@@ -105,15 +105,13 @@
         "list *.oh/sessions/*/scratch/debugger/* allow"
       ],
       "skills": [
-        "debugger-execution-modes",
         "debugger-forensic",
         "debugger-phase-0-1",
         "debugger-phase-2-3",
         "debugger-phase-4-5",
         "debugger-report-templates",
         "expert-posture",
-        "living-docs-enrichment",
-        "standalone-execution-protocol"
+        "living-docs-enrichment"
       ]
     },
     {
@@ -429,7 +427,6 @@
         "doc-standards",
         "doc-wiki-protocol",
         "expert-posture",
-        "handoff-bloc-unique-rule",
         "skill-authoring-protocol",
         "websearch-usage"
       ]
@@ -437,7 +434,6 @@
   ],
   "skills": [
     "beads-plan",
-    "debugger-execution-modes",
     "debugger-forensic",
     "debugger-phase-0-1",
     "debugger-phase-2-3",
@@ -457,12 +453,10 @@
     "doc-standards",
     "doc-wiki-protocol",
     "expert-posture",
-    "handoff-bloc-unique-rule",
     "living-docs-enrichment",
     "quick-fix",
     "reviewer-reception",
     "skill-authoring-protocol",
-    "standalone-execution-protocol",
     "test-generation",
     "websearch-usage"
   ],

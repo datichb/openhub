@@ -27,27 +27,27 @@ Après épuisement du budget de retry, escalader **systématiquement** à l'util
 
 ## Protocole par failure mode
 
-### Handoff absent (pas de bloc `## Retour vers orchestrator-dev`)
+### Enveloppe absente (aucune enveloppe de retour)
 
-1. **Retry 1** : ré-invoquer avec `task_id` + instruction : `"Le handoff structuré est absent. Produire le bloc ## Retour vers orchestrator-dev avec tous les champs obligatoires (voir skill *-handoff-format)."`
-2. **Retry 2** : ré-invoquer avec `task_id` + instruction renforcée : `"IMPORTANT : ton seul output doit être le bloc ## Retour vers orchestrator-dev. Aucun texte avant ou après."`
+1. **Retry 1** : ré-invoquer avec `task_id` + instruction : `"Ton enveloppe de retour est absente. Dépose ton rapport, puis rends ton enveloppe (format inclus dans ton prompt)."`
+2. **Retry 2** : ré-invoquer avec `task_id` + instruction renforcée : `"IMPORTANT : ta réponse finale est ton enveloppe de retour, rien d'autre."`
 3. **Après 2 échecs** : escalader à l'utilisateur avec le dernier output brut du subagent + options : `Reprendre manuellement` / `Passer ce ticket` / `Stop`
 
-### Handoff malformé (champs manquants ou invalides)
+### Enveloppe ou rapport incomplets (champs manquants ou invalides)
 
-1. **Retry 1** : ré-invoquer avec `task_id` + instruction listant les champs manquants : `"Les champs suivants sont absents ou invalides : <liste>. Compléter le bloc ## Retour vers orchestrator-dev."`
+1. **Retry 1** : ré-invoquer avec `task_id` + instruction listant les champs manquants : `"Les champs suivants sont absents ou invalides : <liste>. Complète ton rapport et ton enveloppe."`
 2. **Retry 2** : même instruction renforcée
 3. **Après 2 échecs** : escalader à l'utilisateur
 
 ### Context window exhaustion / output tronqué
 
-**Signal de détection :** le subagent retourne un résultat qui contient des indicateurs de progression (fichiers modifiés, tests écrits, messages) mais **pas** de bloc `## Retour vers orchestrator-dev` en fin de output, ET la longueur du output est inhabituellement longue.
+**Signal de détection :** le subagent retourne un résultat qui contient des indicateurs de progression (fichiers modifiés, tests écrits, messages) mais **pas** d'enveloppe de retour en fin de output, ET la longueur du output est inhabituellement longue.
 
 1. **Sauvegarder** le résultat partiel — extraire ce qui est exploitable (fichiers mentionnés, statut Beads apparent)
 2. **Ré-invoquer dans une NOUVELLE session** (pas `task_id` — la session est saturée) avec un prompt réduit :
    - Ticket ID + description courte
    - Liste des fichiers déjà modifiés (extraite du résultat partiel)
-   - Instruction : `"Compléter l'implémentation commencée et produire le bloc ## Retour vers orchestrator-dev. Fichiers déjà modifiés : <liste>."`
+   - Instruction : `"Compléter l'implémentation commencée et déposer ton rapport, puis rendre ton enveloppe. Fichiers déjà modifiés : <liste>."`
 3. **Si le 2ème essai échoue aussi** : escalader à l'utilisateur avec le résultat partiel
    - Options : `Reprendre manuellement` / `Passer ce ticket` / `Stop`
 

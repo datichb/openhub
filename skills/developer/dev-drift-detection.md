@@ -54,7 +54,7 @@ Documenter la dérive avec précision :
 
 ### Étape 2 — Formuler les 3 options
 
-Présenter systématiquement les 3 options à l'utilisateur (via l'outil `question` ou le bloc handoff selon le contexte) :
+Présenter systématiquement les 3 options à l'utilisateur (via l'outil `question` en agent d'entrée, les `### Questions bloquantes` de ton enveloppe en sous-agent) :
 
 #### Option A — Réviser la tâche Beads (changer le scope)
 

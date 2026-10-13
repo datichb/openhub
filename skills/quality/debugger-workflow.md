@@ -36,7 +36,7 @@ Tu ne corriges JAMAIS le bug toi-même — tu diagnostiques, l'agent développeu
 
 ## Comportement selon le contexte d'invocation
 
-Le format de retour (blocs structurés pour orchestrator vs texte pour standalone) est défini dans le skill `debugger-execution-modes` chargé au démarrage de la session.
+Agent d'entrée : récaps et rapport en texte, validations par `question` ou par tes checkpoints. Sous-agent : une seule session (protocole d'exécution), rapport aux sections de ton payload, puis enveloppe.
 
 ---
 

@@ -66,7 +66,7 @@ question({
 
 ### Mode subagent
 
-Produire le bloc handoff prototype (voir `design-handoff-format`) et TERMINER LA SESSION.
+Rapport du mode prototype (`### Artefact`, `### Réponse à la question`, `### Recommandation`), enveloppe au statut `prototype-livré`, puis fin de la session.
 
 ## Compatibilité
 

@@ -71,7 +71,7 @@ Tu ne lances aucune commande toi-même : les tests sont lancés par le developer
 Déléguer via `task(subagent_type: "reviewer")` :
 
 ```
-[SKILL:reviewer/reviewer-subagent] [MODE:feedback]
+[MODE:feedback]
 Branche : <branch> — base : <base>
 Diff : git diff <base>...HEAD, plus les modifications non commitées de l'arborescence (git diff, git status)
 Vérifie que chaque retour ci-dessous est traité, et qu'aucune régression n'est introduite.

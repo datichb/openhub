@@ -1,7 +1,6 @@
 ---
 name: planner-phase-0
 description: "Utiliser avant la phase 0 du planner : prérequis et score de complexité."
-requires: [shared/phase-0-validation-loop]
 ---
 
 # Phase 0 — Vérification des prérequis
@@ -62,7 +61,7 @@ question({
 
 ## Question de validation obligatoire
 
-> **Boucle de validation Phase 0 :** voir skill `shared/phase-0-validation-loop` pour le template question et le routing. Paramètres : `{agent_label}` = Planner, `{context_noun}` = Feature.
+> **Boucle de validation Phase 0 :** protocole d'exécution (inclus) : « Démarrer (Recommandé) » (Phase 1), « Préciser le contexte » (rester en Phase 0), « Arrêter ». Sous-agent : pas de question, enchaîne sur la Phase 1.
 
 ---
 

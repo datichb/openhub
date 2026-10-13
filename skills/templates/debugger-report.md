@@ -91,51 +91,6 @@ question({
 
 ---
 
-## Retour intermédiaire + Question — mode sous-agent (ÉTAPE 5.2)
-
-```markdown
-## Retour intermédiaire vers orchestrator
-
-**Agent :** debugger
-**Phase :** 5 — Création ticket Beads (action irréversible)
-**task_id :** <sessionID courant>
-
-## Ticket de correction suggéré
-
-**Titre :** <titre>
-**Type :** bug
-**Priorité :** P<X>
-
-**Description :**
-<description complète>
-
-**Critères d'acceptance :**
-- <critère 1>
-- <critère 2>
-
-**Notes techniques :**
-<cause racine, fichiers à modifier, points d'attention>
-
----
-
-## Question pour l'orchestrator
-
-**Phase :** 5
-**task_id :** <sessionID courant>
-
-**Contexte :** Rapport de diagnostic produit. Demande de confirmation avant création du ticket Beads (action irréversible).
-
-**Question :** Créer ce ticket de correction dans Beads ?
-
-**Options :**
-- `oui-creer-ticket` — Créer le ticket avec bd create (description, critères d'acceptance, notes techniques)
-- `non` — Ne pas créer de ticket
-
-**Instruction de reprise :** "Réponse Phase 5 debugger : [option]. Reprendre depuis Phase 5 — confirmation ticket Beads."
-```
-
----
-
 ## Checkpoint de création du ticket — workflow debug (ÉTAPE 5.2)
 
 Quand la carte du workflow liste `cp-ticket`, après l'affichage du ticket suggéré :

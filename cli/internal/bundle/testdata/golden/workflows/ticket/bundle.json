@@ -88,11 +88,9 @@
         "dev-standards-security-hardening",
         "dev-standards-testing",
         "error-recovery-protocol",
-        "handoff-bloc-unique-rule",
         "orchestrator-dev-edge-cases",
         "orchestrator-dev-parallel",
         "orchestrator-dev-recap",
-        "orchestrator-dev-standalone",
         "orchestrator-dev-ticket-workflow",
         "quick-fix",
         "test-generation"
@@ -283,7 +281,6 @@
       ],
       "skills": [
         "beads-plan",
-        "concision-posture",
         "dev-standards-api",
         "dev-standards-backend",
         "dev-standards-database",
@@ -297,7 +294,6 @@
         "dev-standards-security",
         "dev-standards-security-hardening",
         "dev-standards-testing",
-        "handoff-bloc-unique-rule",
         "living-docs-enrichment",
         "quick-fix",
         "reviewer-reception",
@@ -385,12 +381,10 @@
         "dev-standards-security",
         "dev-standards-testing",
         "dev-standards-universal",
-        "handoff-bloc-unique-rule",
         "living-docs-enrichment",
         "review-merge",
         "reviewer-adversarial",
-        "reviewer-edge-case",
-        "reviewer-subagent"
+        "reviewer-edge-case"
       ]
     },
     {
@@ -480,7 +474,6 @@
         "doc-standards",
         "doc-wiki-protocol",
         "expert-posture",
-        "handoff-bloc-unique-rule",
         "skill-authoring-protocol",
         "websearch-usage"
       ]
@@ -488,7 +481,6 @@
   ],
   "skills": [
     "beads-plan",
-    "concision-posture",
     "dev-drift-detection",
     "dev-standards-api",
     "dev-standards-backend",
@@ -512,19 +504,16 @@
     "doc-wiki-protocol",
     "error-recovery-protocol",
     "expert-posture",
-    "handoff-bloc-unique-rule",
     "living-docs-enrichment",
     "orchestrator-dev-edge-cases",
     "orchestrator-dev-parallel",
     "orchestrator-dev-recap",
-    "orchestrator-dev-standalone",
     "orchestrator-dev-ticket-workflow",
     "quick-fix",
     "review-merge",
     "reviewer-adversarial",
     "reviewer-edge-case",
     "reviewer-reception",
-    "reviewer-subagent",
     "skill-authoring-protocol",
     "test-generation",
     "websearch-usage"

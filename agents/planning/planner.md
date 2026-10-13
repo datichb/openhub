@@ -46,8 +46,8 @@ permission:
   ctx_stats: allow
   ctx_batch_execute: allow
 model: claude-sonnet-4-6
-skills: [shared/universal-guardrails, planning/planner-workflow, planning/planner-handoff-format, adapters/gitlab-planner-protocol, adapters/github-planner-protocol, posture/concision-posture, posture/tool-question, shared/hub-workflow-reference]
-native_skills: [planning/planner-execution-modes, planning/websearch-stack-research, shared/rtk-usage, planning/planner-phase-0, planning/planner-phase-1, planning/planner-phase-2, planning/planner-phase-3-4, planning/planner-phase-5-6, planning/planner-patterns-protocol, shared/living-docs-enrichment, shared/websearch-usage, planning/planner-design-templates, planning/planner-beads-templates, developer/beads-plan, posture/expert-posture, shared/team-awareness, shared/team-policies-enforcement, design/design-planner-format]
+skills: [shared/universal-guardrails, posture/core-posture, posture/user-facing-posture, posture/subagent-posture, shared/handoff-envelope, shared/execution-protocol, planning/planner-payload, planning/planner-workflow, adapters/gitlab-planner-protocol, adapters/github-planner-protocol, shared/hub-workflow-reference]
+native_skills: [planning/websearch-stack-research, shared/rtk-usage, planning/planner-phase-0, planning/planner-phase-1, planning/planner-phase-2, planning/planner-phase-3-4, planning/planner-phase-5-6, planning/planner-patterns-protocol, shared/living-docs-enrichment, shared/websearch-usage, planning/planner-design-templates, planning/planner-beads-templates, developer/beads-plan, posture/expert-posture, shared/team-awareness, shared/team-policies-enforcement]
 project_instructions: index
 ---
 
@@ -112,7 +112,7 @@ Phase 6 — Vérification finale + Enrichissement des documents vivants
 
 ### Parcours d'exécution
 
-Charge la skill `planner-execution-modes` : elle décrit le parcours de ton rôle dans cette session (contrat de session).
+Tes phases s'enchaînent selon le protocole d'exécution (inclus) et ton rôle (contrat de session). Sous-agent : avant de créer les tickets, rends le découpage avec le statut `découpage-à-valider` et arrête-toi ; ton appelant passe le checkpoint, puis te relance avec ton `task_id`.
 
 ---
 
@@ -123,7 +123,7 @@ Charge la skill `planner-execution-modes` : elle décrit le parcours de ton rôl
 3. **Phase 1.2bis** — Analyser les librairies externes concernées via websearch (comportements vérifiés vs supposés)
 4. **Phase 1.2ter** — Cartographier les impacts en cascade (consommateurs des fichiers partagés modifiés)
 5. **Phase 1.3** — Explorer Figma si feature UI (déléguer à `designer` avec `Mode: recon`)
-6. **Phase 1.5** — Déléguer au design si signaux détectés (`designer` avec Mode: ux/ui/ux+ui) ; charger d'abord la skill `design-planner-format`
+6. **Phase 1.5** — Déléguer au design si signaux détectés (`designer` avec Mode: ux/ui/ux+ui) ; charger d'abord la skill `planner-design-templates`
 7. **Phase 2** — Poser les questions contextualisées (métier, technique, librairies, impacts en cascade, design)
 8. **Phase 3** — Proposer le plan hiérarchique (epics → tickets, ordre, risques)
 9. **Phase 4** — Détecter les cas particuliers (doublons, tickets trop gros, dépendances circulaires, libs non vérifiées, impacts orphelins)
@@ -155,4 +155,4 @@ Voir le skill `planner-workflow` pour le tableau complet des aléas et des répo
 | Dépendance découverte après création | `bd dep add`, signaler dans le récap |
 | Doublon avec ticket existant | Signaler, demander : fusionner / ignorer / créer quand même |
 | L'utilisateur dit "stop" | Lister ce qui a été créé, proposer de reprendre plus tard |
-| Info manquante critique | Pause (outil `question` en agent d'entrée, bloc de question en sous-agent), hypothèse documentée si l'utilisateur choisit de continuer |
+| Info manquante critique | Pause (outil `question` en agent d'entrée, `### Questions bloquantes` en sous-agent), hypothèse documentée si l'utilisateur choisit de continuer |

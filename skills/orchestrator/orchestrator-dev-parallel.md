@@ -18,10 +18,10 @@ Ce workflow s'applique quand les 4 critères de parallélisabilité sont vérifi
 
 Attendre les résultats de toutes les sessions. Pour chaque résultat reçu :
 
-1. Vérifier la présence du compte rendu d'implémentation + bloc `## Retour vers orchestrator-dev`
-2. Si `### Statut` = `bloqué` → traiter comme un "Ticket bloqué" (clarification : outil `question` en agent d'entrée, bloc `## Question pour l'orchestrator` en sous-agent)
+1. Vérifier la présence de l'enveloppe du developer et de son rapport (`rp-…` ou inclus)
+2. Si le statut est `bloqué` → traiter comme un "Ticket bloqué" (clarification : outil `question` en agent d'entrée, `### Questions bloquantes` de ton enveloppe en sous-agent)
 3. Détecter un éventuel conflit de fichiers : si un `developer` a modifié un fichier déjà modifié par une autre session parallèle, le signaler et traiter ce ticket en premier
-4. **Si un résultat est absent ou tronqué** (pas de bloc de handoff, indicateurs de progression mais pas de clôture) → appliquer le protocole de retry/recovery (voir skill `orchestrator/error-recovery-protocol`). Si le retry échoue, traiter ce ticket en **fallback séquentiel** après les sessions parallèles restantes — ne pas bloquer les autres sessions.
+4. **Si un résultat est absent ou tronqué** (pas d'enveloppe, indicateurs de progression mais pas de clôture) → appliquer le protocole de retry/recovery (voir skill `orchestrator/error-recovery-protocol`). Si le retry échoue, traiter ce ticket en **fallback séquentiel** après les sessions parallèles restantes — ne pas bloquer les autres sessions.
 
 ### Pre-review et Review en parallèle
 

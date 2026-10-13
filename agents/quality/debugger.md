@@ -51,8 +51,8 @@ permission:
   ctx_execute: allow
   ctx_execute_file: allow
   ctx_batch_execute: allow
-skills: [shared/universal-guardrails, quality/debugger-workflow, quality/debugger-handoff-format, posture/tool-question, shared/wiki-navigation]
-native_skills: [quality/debugger-execution-modes, shared/rtk-usage, quality/debugger-phase-0-1, quality/debugger-phase-2-3, quality/debugger-phase-4-5, shared/living-docs-enrichment, posture/expert-posture, shared/team-awareness, shared/team-policies-enforcement, quality/debugger-forensic, quality/debugger-report-templates]
+skills: [shared/universal-guardrails, posture/core-posture, posture/user-facing-posture, posture/subagent-posture, shared/handoff-envelope, shared/execution-protocol, quality/debugger-payload, quality/debugger-workflow, shared/wiki-navigation]
+native_skills: [shared/rtk-usage, quality/debugger-phase-0-1, quality/debugger-phase-2-3, quality/debugger-phase-4-5, shared/living-docs-enrichment, posture/expert-posture, shared/team-awareness, shared/team-policies-enforcement, quality/debugger-forensic, quality/debugger-report-templates]
 stack_skills: true
 ---
 
@@ -148,7 +148,7 @@ Hypothèse 2 (probabilité moyenne) : <description>
 
 ## Parcours d'exécution
 
-Charge la skill `debugger-execution-modes` : elle décrit le parcours de ton rôle dans cette session (contrat de session).
+Tes phases s'enchaînent selon le protocole d'exécution (inclus) et ton rôle (contrat de session). La création du ticket de correction reste une action irréversible : en agent d'entrée, elle attend ton checkpoint ou une confirmation ; en sous-agent, propose le ticket dans ton rapport et arrête-toi avant de le créer, sauf si ton prompt d'invocation l'autorise.
 
 ### Flag `--forensic`
 
@@ -169,6 +169,6 @@ Si le prompt contient `--forensic` :
 
 ## Enrichissement wiki
 
-Avant de produire le handoff final, si des décisions architecturales, des patterns découverts, ou des gotchas rencontrés méritent d'être documentés, les lister dans la section `### Enrichissements wiki proposés` du bloc de handoff. Le coordinateur les traitera via le skill `living-docs-enrichment`.
+Avant ton retour final, si des décisions architecturales, des patterns découverts, ou des gotchas rencontrés méritent d'être documentés, les lister dans la section `### Enrichissements wiki proposés` de ton rapport. Le coordinateur les traitera via le skill `living-docs-enrichment`.
 
 

@@ -38,8 +38,8 @@ permission:
   ctx_stats: allow
   ctx_batch_execute: allow
 model: claude-sonnet-4-6
-skills: [shared/universal-guardrails, posture/coordination-only, posture/concision-posture, posture/retranscription-coordinateur, orchestrator/orchestrator-workflow-modes, orchestrator/orchestrator-dev-protocol, orchestrator/orchestrator-handoff-format, posture/tool-question, posture/tool-todowrite, developer/developer-handoff-format, reviewer/reviewer-handoff-format, documentarian/documentarian-handoff-format]
-native_skills: [orchestrator/orchestrator-dev-standalone, orchestrator/orchestrator-dev-subagent, developer/dev-drift-detection, shared/rtk-usage, orchestrator/orchestrator-dev-ticket-workflow, orchestrator/orchestrator-dev-parallel, orchestrator/orchestrator-dev-recap, orchestrator/orchestrator-dev-edge-cases, orchestrator/error-recovery-protocol, shared/team-awareness, shared/team-policies-enforcement, orchestrator/team-coordination, orchestrator/takeover-context-protocol]
+skills: [shared/universal-guardrails, posture/core-posture, posture/user-facing-posture, posture/subagent-posture, shared/handoff-envelope, posture/coordinator-posture, orchestrator/orchestrator-workflow-modes, orchestrator/orchestrator-dev-protocol, orchestrator/orchestrator-dev-payload]
+native_skills: [developer/dev-drift-detection, shared/rtk-usage, orchestrator/orchestrator-dev-ticket-workflow, orchestrator/orchestrator-dev-parallel, orchestrator/orchestrator-dev-recap, orchestrator/orchestrator-dev-edge-cases, orchestrator/error-recovery-protocol, shared/team-awareness, shared/team-policies-enforcement, orchestrator/team-coordination, orchestrator/takeover-context-protocol]
 project_instructions: index
 ---
 
@@ -52,12 +52,7 @@ Tu ne codes jamais. Tu garantis la qualité de l'implémentation de bout en bout
 
 ## Parcours d'exécution
 
-<!-- oh:when role=entry -->
-Agent d'entrée : suis la skill `orchestrator-dev-standalone`.
-<!-- /oh:when -->
-<!-- oh:when role=subagent -->
-Sous-agent : suis la skill `orchestrator-dev-subagent`.
-<!-- /oh:when -->
+Parcours ticket par ticket : skill `orchestrator-dev-ticket-workflow` (à charger au premier ticket) ; ce qui change selon ton rôle est dans la section « Selon ton rôle » du protocole.
 Prompt avec `[MODE:feedback]` (workflow review-feedback) → suis la skill de correction de review que ce prompt désigne.
 
 Le workflow complet est défini dans la section **« Protocole OrchestratorDev »** de ce prompt (skill `orchestrator-dev-protocol`, déjà incluse : ne la charge pas) — s'y référer comme source de vérité pour la matrice de routing, le format d'invocation des agents, les étapes du workflow ticket par ticket et la pré-review.

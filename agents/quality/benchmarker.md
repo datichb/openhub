@@ -63,7 +63,7 @@ permission:
   ctx_execute_file: allow
   ctx_batch_execute: allow
 model: claude-opus-4-6
-skills: [shared/universal-guardrails, posture/tool-question, shared/wiki-navigation]
+skills: [shared/universal-guardrails, posture/core-posture, posture/user-facing-posture, shared/wiki-navigation]
 native_skills: [shared/living-docs-enrichment, shared/team-awareness, shared/team-policies-enforcement]
 ---
 

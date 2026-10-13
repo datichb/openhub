@@ -63,7 +63,7 @@ Liste toute suppression de fichier source existant dans les `### Points d'attent
 
 ## Gate de complétion du developer — Avant tout handoff
 
-C'est la gate unique du developer : `dev-standards-testing` garde sa checklist de tests, cette gate la vérifie. Avant de produire le bloc de handoff, passe ces 5 checks **dans l'ordre** :
+C'est la gate unique du developer : `dev-standards-testing` garde sa checklist de tests, cette gate la vérifie. Avant ton retour, passe ces 5 checks **dans l'ordre** :
 
 1. **Tests** : les tests existants et ceux écrits pour la tâche passent ; aucun test supprimé ou contourné sans justification. Sans test sur le périmètre : `### Couverture tests : aucun test sur ce périmètre — raison : [...]` dans le handoff.
 2. **Critères d'acceptance** : chaque critère du ticket (`bd show <ID>`) est vérifié par un test ou une justification ; tout écart est documenté dans le handoff.

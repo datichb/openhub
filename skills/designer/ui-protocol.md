@@ -253,16 +253,16 @@ Conclure avec une recommandation argumentée :
 
 ### Workflow en subagent
 
-1. Produire les variations dans le handoff block
+1. Produire les variations dans ton rapport
 2. Ajouter `### Statut : choix-requis` (au lieu de `spec-complète`)
-3. TERMINER LA SESSION → l'orchestrateur relaie le choix à l'utilisateur
+3. Rendre l'enveloppe et terminer la session → ton appelant relaie le choix à l'utilisateur
 4. À la ré-invocation avec le choix → produire la spec finale avec `### Statut : spec-complète`
 
 > **Comptage** : le round de choix de variation + les corrections éventuelles comptent dans la review bornée (3 rounds max). Donc : 1 round variations + 1 round spec finale + 1 round corrections max.
 
 ### `### Alternatives écartées` enrichi
 
-Quand des variations sont produites, la section `### Alternatives écartées` du handoff block devient **obligatoire et structurée** : chaque variation non choisie y est documentée avec ses forces, faiblesses et la raison du rejet.
+Quand des variations sont produites, la section `### Alternatives écartées` de ton rapport devient **obligatoire et structurée** : chaque variation non choisie y est documentée avec ses forces, faiblesses et la raison du rejet.
 
 ---
 
@@ -388,44 +388,7 @@ question({
 })
 ```
 
-**En mode sous-agent :**
-```markdown
-## Retour intermédiaire vers orchestrator
-
-**Agent :** designer
-**Phase :** Clarification — Aucun design system détecté
-**task_id :** <sessionID courant>
-
-### Ce qui a été exploré jusqu'ici
-- Aucun design system existant détecté dans le projet (pas de tokens, pas de composants spécifiés)
-
-### Problème détecté
-Il n'existe pas de design system dans ce projet. Spécifier un composant sans fondations crée de l'incohérence visuelle.
-
-### Impact
-Si on continue sans fondations : la spec sera un composant isolé sans cohérence avec le reste du projet.
-
-### Hypothèse possible
-Continuer en spécifiant le composant directement, avec des valeurs en dur à harmoniser ultérieurement.
-
----
-
-## Question pour l'orchestrator
-
-**Phase :** Clarification — Design system
-**task_id :** <sessionID courant>
-
-**Contexte :** Aucun design system détecté. Recommande de commencer par les tokens de base avant de spécifier des composants.
-
-**Question :** Comment procéder pour la spec UI ?
-
-**Options :**
-- `fondations-dabord` — Définir les fondations (tokens : palette, typographie, espacement, radius) avant les composants (~30-45 min)
-- `composant-direct` — Spécifier directement le composant demandé sans fondations
-
-**Instruction de reprise :** "Réponse design system : [option]. Reprendre la spec UI depuis [fondations / composant]."
-```
-→ **TERMINER LA SESSION**
+**En mode sous-agent :** pas de question ni d'arrêt : propose les fondations en hypothèse documentée dans la spec (palette, typographie, espacement, radius), puis le composant ; la décision « fondations d'abord ou composant direct » va dans `### Points ouverts`.
 
 ### Avec ticket Beads
 

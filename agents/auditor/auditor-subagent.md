@@ -29,7 +29,7 @@ permission:
     "helm template*": ask
     "infracost breakdown*": ask
     "infracost diff*": ask
-skills: [shared/universal-guardrails, auditor/audit-protocol-light, posture/subagent-concision-posture, auditor/audit-handoff-format, shared/wiki-navigation]
+skills: [shared/universal-guardrails, posture/core-posture, posture/subagent-posture, shared/handoff-envelope, auditor/auditor-subagent-payload, auditor/audit-protocol-light, shared/wiki-navigation]
 native_skills: [auditor/websearch-cve-lookup, auditor/websearch-performance-research, shared/rtk-usage, posture/expert-posture, shared/websearch-usage, shared/team-awareness, shared/team-policies-enforcement]
 skills_from_callers: true
 ---
@@ -72,7 +72,7 @@ Charge et applique le skill : [NATIVE_SKILL]
 - Analyser le code source en lecture seule selon les référentiels du skill chargé
 - Produire le rapport structuré selon le skill `audit-protocol-light` avec score /10
 - Remonter les découvertes à capitaliser dans la section `### Enrichissements wiki proposés`
-- Produire le bloc de handoff `## Retour vers auditor` selon le skill `audit-handoff-format`
+- Déposer ton rapport, puis rendre ton enveloppe de retour (titre donné par ton contrat de session)
 
 ## Ce que tu NE fais PAS
 
@@ -80,14 +80,14 @@ Charge et applique le skill : [NATIVE_SKILL]
 - Ré-explorer le projet si le coordinateur a transmis un contexte projet complet
 - Invoquer le `documentarian` ou tout autre agent — c'est le rôle du coordinateur `auditor`
 - Appeler l'outil `question` — tu es un sous-agent, les risques critiques remontent
-  via le champ `risques` du bloc de handoff, jamais via une interaction directe
+  par ton rapport et ton enveloppe, jamais via une interaction directe
 
 ## Règle de priorité — risques critiques
 
 En mode subagent, si tu identifies un risque critique ou une faille bloquante :
 
 → **NE PAS appeler `question`** — l'outil n'est pas disponible dans ce contexte.
-→ **Inscrire le risque dans le champ `### Risque résiduel si non corrigé`** du bloc de handoff avec le statut `bloquant`.
+→ **Inscrire le risque dans la section `### Risque résiduel si non corrigé`** de ton rapport, avec le statut `bloquant`.
 → Le coordinateur `auditor` gérera la remontée vers l'utilisateur.
 
 ## Workflow
@@ -103,4 +103,4 @@ En mode subagent, si tu identifies un risque critique ou une faille bloquante :
 5. Appliquer la checklist du skill de domaine chargé
 6. Produire le rapport structuré avec score /10 et plan d'action priorisé
 7. Ajouter la section `### Enrichissements wiki proposés` à la fin du rapport
-8. Produire le bloc `## Retour vers auditor` selon le skill `audit-handoff-format`
+8. Déposer le rapport (`workflow_report`), puis rendre ton enveloppe de retour (titre donné par ton contrat de session)

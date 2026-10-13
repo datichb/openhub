@@ -24,6 +24,26 @@ Ce skill ne fait **aucune analyse de code**. C'est un travail de structuration e
 
 ---
 
+## Mode combiné — préparer et lancer les sessions
+
+Modes combinés : `[MODE:standard+adversarial]`, `[MODE:adversarial+edge-case]`, `[MODE:all]` (ou le choix de l'utilisateur au démarrage).
+
+| Mode | Skill de chaque sous-session | Fusion |
+|---|---|---|
+| Standard + Adversarial | `review-protocol` (inclus) ; `reviewer-adversarial` | ce skill |
+| Adversarial + Edge-case | `reviewer-adversarial` ; `reviewer-edge-case` | ce skill |
+| Les trois | `review-protocol` ; `reviewer-adversarial` ; `reviewer-edge-case` | ce skill |
+
+1. **Préparer le contexte une seule fois** (étapes 0, 1, 1.2 et 1.5 du workflow du reviewer : wiki, diff, périmètre, vérification, standards), puis une synthèse compacte (60 lignes au plus : conventions clés, décisions d'architecture, règles de `review-rules.md`, god nodes touchés, périmètre après exclusions), formatée en `[WIKI-CONTEXT:<synthèse>]`, `[DIFF-SCOPE:<fichiers>]` et `[STANDARDS:<liste>]`.
+2. **Lancer une sous-session par mode**, en parallèle, si `reviewer` figure dans tes agents à lancer ; sinon, fais les analyses toi-même, l'une après l'autre, avec le même contexte :
+   <!-- capability: optional -->
+   ```
+   task(subagent_type: "reviewer", prompt: "[MODE:<mode>] [REVIEW:single] [WIKI-CONTEXT:<synthèse>] [DIFF-SCOPE:<fichiers>] [STANDARDS:<liste>] Review <mode> de <branche>. git diff <base>..<branche>")
+   ```
+3. **Fusionner** les rapports bruts reçus avec les étapes ci-dessous, en y ajoutant ta section `### Vérification` (préparée en 1).
+
+---
+
 ## EXECUTION
 
 ### Étape 1 — Recevoir les rapports bruts
@@ -138,9 +158,6 @@ Avant de produire le rapport final :
 
 ---
 
-## Intégration avec le handoff
+## Intégration avec le retour
 
-Quand invoqué en contexte subagent (depuis orchestrator-dev ou cp-feature) : <!-- capability: optional -->
-- Le rapport unifié est suivi du bloc `## Retour vers orchestrator-dev` comme pour une review standard
-- Le verdict se base sur le rapport unifié (les sévérités les plus hautes post-fusion déterminent le verdict)
-- Le champ `### Corrections requises` inclut les tags de provenance pour traçabilité
+Le verdict se base sur le rapport unifié (les sévérités les plus hautes après fusion). Sous-agent : le rapport unifié est ton rapport (payload du reviewer) ; `### Corrections requises` garde les tags de provenance.

@@ -37,13 +37,7 @@ Tu coordonnes les résultats et produis une synthèse multi-domaines si nécessa
 
 ## Comportement selon le contexte d'invocation
 
-> Le parcours d'exécution (standalone vs sous-agent) est défini dans la skill `auditor/auditor-execution-modes` :
-> - **Mode standalone** — récaps texte + outil `question`, synthèse finale sans bloc handoff
-> - **Mode subagent** — mécanisme d'interruption session à chaque phase (0-3), blocs structurés, `task_id`
->
-> Cette skill est chargée au démarrage selon le contexte (voir "Chargement du parcours d'exécution" dans `auditor.md`).
->
-> Ce skill (`auditor-workflow`) contient les **formats de sortie par phase** du parcours standalone (l'auditor est l'agent d'entrée du workflow `audit`). Il ne redéfinit **pas** les règles de mécanisme de session (quand terminer, comment gérer le `task_id`, checklist de vérification) — celles-ci sont dans les skills dédiés ci-dessus.
+> Tu es l'agent d'entrée du workflow `audit` : les phases s'enchaînent selon le protocole d'exécution (inclus), avec les formats de sortie par phase ci-dessous.
 
 ---
 
@@ -159,9 +153,7 @@ question({
 
 ### Question de validation obligatoire
 
-> **Boucle de validation Phase 0 :** voir skill `shared/phase-0-validation-loop` pour le template question et le routing. Paramètres : `{agent_label}` = Auditeur, `{context_noun}` = Projet.
->
-> Options spécifiques : Démarrer = "Charger le contexte", Préciser = "Préciser le périmètre", destination Phase 1 = "Chargement contexte projet".
+> **Boucle de validation Phase 0 :** protocole d'exécution (inclus). Options : « Charger le contexte » (recommandé, Phase 1), « Préciser le périmètre » (rester en Phase 0), « Arrêter ».
 
 ---
 
@@ -436,7 +428,7 @@ Pour chaque sous-agent à invoquer, préparer un prompt complet avec :
 ---
 
 Produis un rapport d'audit structuré selon le skill `audit-protocol-light`,
-puis le bloc `## Retour vers auditor` (skill `audit-handoff-format`).
+dépose-le, puis rends ton enveloppe de retour.
 ```
 
 #### ÉTAPE 3.2 — Invoquer le sous-agent
@@ -469,9 +461,9 @@ Charge et applique le skill : audit-security
 
 #### ÉTAPE 3.3 — Collecter les rapports
 
-Chaque sous-agent rend un bloc `## Retour vers auditor` (règles « auditor » du skill
-`audit-handoff-format`). Pour chaque invocation, collecter :
-- Le rapport d'audit complet (format `audit-protocol-light`)
+Chaque sous-agent rend son enveloppe de retour et son rapport `rp-…`, lu avec `workflow_report_get`
+(ou inclus sous l'enveloppe). Pour chaque invocation, collecter :
+- Le rapport d'audit complet (format `audit-protocol-light`), cité par son identifiant
 - Le score global /10
 - Le nombre de problèmes par criticité (🔴 Critique, 🟠 Majeur, 🟡 Mineur)
 - Le plan d'action priorisé

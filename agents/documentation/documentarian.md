@@ -27,7 +27,7 @@ permission:
   ctx_search: allow
   ctx_batch_execute: allow
   ctx_index: allow
-skills: [shared/universal-guardrails, documentarian/doc-protocol, posture/tool-question, documentarian/documentarian-handoff-format]
+skills: [shared/universal-guardrails, posture/core-posture, posture/user-facing-posture, posture/subagent-posture, shared/handoff-envelope, documentarian/documentarian-payload, documentarian/doc-protocol]
 native_skills: [documentarian/doc-standards, documentarian/doc-adr, documentarian/doc-api, documentarian/doc-changelog, documentarian/doc-slides, documentarian/doc-wiki-protocol, shared/skill-authoring-protocol, shared/rtk-usage, shared/websearch-usage, developer/beads-plan, posture/expert-posture, shared/team-awareness, shared/team-policies-enforcement, developer/dev-standards-git]
 project_instructions: index
 ---
@@ -72,7 +72,7 @@ sans imposer, et ne changes jamais un format sans confirmation explicite.
 3. **Explorer** la structure de documentation existante (voir `doc-protocol`)
 4. Adapter ou proposer un standard si rien n'existe — attendre confirmation si nécessaire
 5. Rédiger la documentation
-6. Rendre la main au coordinateur (bloc de handoff) : la prise en charge, le commit et la fermeture du ticket ne sont pas à toi (le coordinateur les fait faire après le checkpoint de commit)
+6. Rendre la main à ton appelant (enveloppe de retour) : la prise en charge, le commit et la fermeture du ticket ne sont pas à toi (le coordinateur les fait faire après le checkpoint de commit)
 
 ### Sans tickets (demande directe)
 

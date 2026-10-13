@@ -82,13 +82,10 @@
         "dev-standards-security",
         "dev-standards-testing",
         "dev-standards-universal",
-        "handoff-bloc-unique-rule",
         "living-docs-enrichment",
         "review-merge",
         "reviewer-adversarial",
-        "reviewer-edge-case",
-        "reviewer-standalone",
-        "reviewer-subagent"
+        "reviewer-edge-case"
       ]
     }
   ],
@@ -105,13 +102,10 @@
     "dev-standards-security",
     "dev-standards-testing",
     "dev-standards-universal",
-    "handoff-bloc-unique-rule",
     "living-docs-enrichment",
     "review-merge",
     "reviewer-adversarial",
-    "reviewer-edge-case",
-    "reviewer-standalone",
-    "reviewer-subagent"
+    "reviewer-edge-case"
   ],
   "subagent_graph": {
     "reviewer": [
