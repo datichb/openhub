@@ -602,6 +602,7 @@ func launchRecap(p *preparedRun) (rows [][2]string, warnings []string) {
 	add(i18n.T("cmd.run.recap.beads"), recapBeads(p.plan.Request.Base.BeadsAllow))
 	if p.bundle.Spec.Workflow != nil && len(p.bundle.Spec.Workflow.Checkpoints) > 0 {
 		add(i18n.T("cmd.run.recap.checkpoints"), recapCheckpoints(p.bundle.Spec.Workflow.Checkpoints, p.resolution.Mode))
+		add(i18n.T("cmd.run.recap.pauses"), recapPauses(p.bundle.Spec.Workflow, p.resolution.Mode))
 	}
 	isolation := string(r.Isolation)
 	if r.StrictIsolation {
