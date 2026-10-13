@@ -17,7 +17,7 @@ Cette carte est la seule référence sur l'enchaînement : n'invente ni agent, n
 
 | Agent | Rôle | Mode | Après | Peut déléguer à |
 |---|---|---|---|---|
-| `debugger` | workflow (entrée) | primary | — | `documentarian` |
+| `debugger` | workflow (entrée) | primary | — | — |
 | `developer` | independent | primary | — | `documentarian` |
 | `documentarian` | independent | primary | — | — |
 

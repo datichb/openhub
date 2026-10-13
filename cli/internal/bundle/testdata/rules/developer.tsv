@@ -3,17 +3,10 @@ developer	Ce que tu fais	Ce que tu NE fais PAS
 developer	Workflow	Écrire les tests — lancer les tests avec l'environnement du projet : Python `.venv/bin/python -m pytest` (ou `uv run pytest`, `poetry run pytest`) ; sans environnement, `python3 -m venv .venv` puis `.venv/bin/pip install -r requirements.txt` (jamais `source …/activate` ni `pip install` direct : refusés)
 developer	Workflow	Sur instruction de commit de ton appelant (après le checkpoint « Commit ou correction ») : `git add` des fichiers du ticket, `git commit -m "<type>(<scope>): <description> (<ID>)"` (hooks du dépôt compris, jamais `--no-verify`), puis `bd close <ID> --reason "Implemented in commit <hash>" --suggest-next`. Si le commit échoue, ne clos pas le ticket : signale l'erreur dans ton retour
 developer	Workflow	**Sans ticket** (workflows `sweep`, `quick`, `debug` : la demande ou la sous-tâche t'est donnée dans le prompt, aucun ID Beads) : saute toutes les étapes `bd` (pas de `bd ready`, `bd show`, `--claim`, label ni fermeture) ; ne touche que les fichiers du périmètre qui t'est donné ; lance les tests du projet. **Pas de commit avant le checkpoint qui déverrouille `commit`** : sous-agent, rends la main au coordinateur avec la liste des fichiers modifiés et commite seulement sur son instruction ; agent d'entrée (`quick`), appelle toi-même `workflow_checkpoint` sur ce checkpoint (tableau « Modes de workflow et checkpoints » de ta carte du workflow) et commite après la validation. Commit : `git add` des fichiers de ton périmètre, `git commit -m "<type>(<scope>): <description>"`, hooks compris, jamais `--no-verify`.
-developer	frontend	Jamais de logique métier dans les composants UI
-developer	backend	Jamais de détails techniques dans les réponses client
 developer	mobile	Stockage sécurisé obligatoire (Keychain iOS / Keystore Android / flutter_secure_storage)
 developer	mobile	Jamais de données sensibles dans AsyncStorage ou UserDefaults non chiffrés
 developer	data	Ne jamais modifier les données sources brutes
 developer	data	Tests avec fixtures de données connues (jamais de données réelles en test)
-developer	devops	Jamais de tag `latest` en production
-developer	platform	Jamais d'apply direct en production sans pipeline approuvé
-developer	platform	Ressources K8s toujours avec `requests`/`limits` définis
-developer	platform	Secrets uniquement via External Secrets Operator ou Vault — jamais en clair dans Git
-developer	security	Jamais de cryptographie maison — uniquement les bibliothèques éprouvées
 beads-dev	(intro)	Workflow obligatoire
 beads-dev	Workflow obligatoire	`bd update <ID> --claim` est atomique (il échoue si un autre acteur a déjà réclamé le ticket) : il met le statut à `in_progress` et t'assigne le ticket. Le label `ready-for-review` signale la review (Beads n'a pas de statut `review` sans configuration du projet).
 beads-dev	Commit et fermeture (instruction de commit de ton coordinateur)	Jamais de commit ni de clôture avant cette instruction : oh refuse `git commit` et `bd close` tant que le checkpoint n'est pas validé, et refuse la clôture tant que le travail n'est pas commité. Si le commit échoue (hook, conflit), ne clos pas le ticket et ne contourne pas les hooks : signale l'erreur à ton coordinateur. `--suggest-next` affiche les tickets débloqués par la clôture.
@@ -44,6 +37,7 @@ dev-standards-api	Cursor-based (recommandé pour les grandes collections)	Cursor
 dev-standards-api	Codes HTTP sémantiques	Ne jamais retourner 200 avec un corps contenant `{ success: false }`.
 dev-standards-api	Breaking changes	Contrainte plus stricte | Validation ajoutée, champ devenu obligatoire
 dev-standards-api	Rate limiting (côté API exposée)	Ce que tu ne fais PAS
+dev-standards-backend	Règles du domaine `backend`	Jamais de détails techniques dans les réponses client
 dev-standards-backend	🔒 Migrations destructrices	ticket bloqué et escalade. Ne pas générer ni exécuter la migration avant l'autorisation de l'utilisateur.
 dev-standards-backend	Architecture	Pas de saut de couche — un controller n'appelle pas directement un repository
 dev-standards-backend	Sécurité	Jamais de secrets, tokens ou credentials dans le code source
@@ -52,6 +46,10 @@ dev-standards-database	Migrations sans interruption	nouvelle colonne obligatoire
 dev-standards-database	Requêtes	Mesure avant d'optimiser : `EXPLAIN ANALYZE` sur des volumes réalistes. Tu n'as pas de client de
 dev-standards-database	ORM	Requêtes brutes toujours paramétrées : jamais de concaténation de valeurs dans le SQL.
 dev-standards-database	Sécurité	Les logs de requêtes ne contiennent pas les valeurs sensibles.
+dev-standards-devops	Règles du domaine `devops`	Jamais de tag `latest` en production
+dev-standards-devops	Règles du domaine `platform`	Jamais d'apply direct en production sans pipeline approuvé
+dev-standards-devops	Règles du domaine `platform`	Ressources K8s toujours avec `requests`/`limits` définis
+dev-standards-devops	Règles du domaine `platform`	Secrets uniquement via External Secrets Operator ou Vault — jamais en clair dans Git
 dev-standards-devops	🔒 Règles absolues	❌ Jamais de secrets, tokens ou credentials dans le code, les configs ou les pipelines
 dev-standards-devops	🔒 Règles absolues	❌ Jamais de `latest` comme tag d'image en production — toujours une version épinglée
 dev-standards-devops	🔒 Règles absolues	❌ Ne jamais pousser directement sur `main`/`master` depuis un pipeline sans validation
@@ -62,6 +60,7 @@ dev-standards-devops	Gestion des secrets	Les secrets ne sont jamais dans le code
 dev-standards-devops	Registries d'images	`myapp:abc1234` (toujours)
 dev-standards-devops	Registries d'images	`myapp:latest` (uniquement en développement local, jamais en production)
 dev-standards-devops	Infrastructure as Code	Ce que tu ne fais PAS
+dev-standards-frontend	Règles du domaine `frontend`	Jamais de logique métier dans les composants UI
 dev-standards-frontend	Architecture & Organisation	La logique métier ne réside jamais dans les composants UI
 dev-standards-frontend	CSS & Styles	Pas de valeurs magiques — toute valeur doit être une variable ou justifiée
 dev-standards-frontend-a11y	Niveau de conformité	**WCAG 2.1 Niveau A** — Obligatoire sur tous les projets, sans exception
@@ -212,6 +211,7 @@ dev-standards-security	Logs et gestion des erreurs	Ne jamais logger de données 
 dev-standards-security	Logs et gestion des erreurs	❌ `logger.info("Connexion de " + user.password)` — ne jamais logger un mot de passe
 dev-standards-security	Logs et gestion des erreurs	✅ `logger.info("Connexion de l'utilisateur", { userId: user.id })`
 dev-standards-security	Dépendances	Ce que ce skill ne remplace pas
+dev-standards-security-hardening	Règles du domaine `security`	Jamais de cryptographie maison — uniquement les bibliothèques éprouvées
 dev-standards-security-hardening	Headers HTTP de sécurité	**CSP** : définir une politique stricte dès le départ — ne pas utiliser `unsafe-inline` ni `unsafe-eval`
 dev-standards-security-hardening	CORS	Jamais de `origin: '*'` avec `credentials: true` — interdit par la spec
 dev-standards-security-hardening	Hashing des mots de passe	**bcrypt** (ou argon2id) uniquement — jamais MD5, SHA-1, SHA-256 seuls pour les mots de passe

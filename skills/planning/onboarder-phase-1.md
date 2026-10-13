@@ -96,6 +96,7 @@ bd list -s open --json
 bd list -s closed --limit 10 --json
 ```
 
+Beads se lit seulement avec `bd` (`bd list`, `bd show`, `bd search`) : jamais les fichiers de `.beads/` avec `read`, `grep` ou `glob` (format interne, pas une API).
 Identifier :
 - Y a-t-il des tickets de dette / bug / chore non traités en nombre inhabituel ?
 - Y a-t-il des patterns récurrents (ex: concentration de bugs sur un module) ?

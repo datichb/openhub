@@ -13,7 +13,7 @@ Agent d'entrée : `orchestrator-dev`. Seuls les agents ci-dessous existent dans 
 |---|---|---|---|---|
 | `orchestrator-dev` | workflow (entrée) | primary | — | `developer`, `documentarian`, `reviewer` |
 | `developer` | workflow | subagent | `cp-1` | `documentarian` |
-| `reviewer` | workflow | subagent | — | `documentarian` |
+| `reviewer` | workflow | subagent | — | — |
 | `documentarian` | independent | primary | — | — |
 
 Règles de délégation :

@@ -40,7 +40,6 @@ permission:
   webfetch: allow
   task:
     "*": deny
-    "documentarian": allow
     "designer": allow
   ctx_search: allow
   ctx_stats: allow

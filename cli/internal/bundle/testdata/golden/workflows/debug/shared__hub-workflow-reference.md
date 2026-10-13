@@ -11,7 +11,7 @@ Agent d'entrée : `debugger`. Seuls les agents ci-dessous existent dans cette se
 
 | Agent | Rôle | Mode | Après | Peut déléguer à |
 |---|---|---|---|---|
-| `debugger` | workflow (entrée) | primary | — | `documentarian` |
+| `debugger` | workflow (entrée) | primary | — | — |
 | `developer` | independent | primary | — | `documentarian` |
 | `documentarian` | independent | primary | — | — |
 

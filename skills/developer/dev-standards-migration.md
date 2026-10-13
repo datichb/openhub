@@ -13,6 +13,15 @@ et le workflow pour migrer du code de manière sûre et incrémentale.
 
 ---
 
+## Règles du domaine `migration`
+
+- Une migration à la fois, incrémentale (codemods, coexistence, feature flags), chaque commit revertable
+- Avant de migrer : changelog et guide officiel lus, breaking changes listés, plan de rollback dans ton rapport
+- Le code legacy part une fois la migration validée
+- Migration destructive : protocole pré-migration destructive ci-dessous (dry-run, ticket bloqué, escalade)
+
+---
+
 ## 🔒 Règle absolue — Réversibilité
 
 **Une migration réussie est une migration réversible.**

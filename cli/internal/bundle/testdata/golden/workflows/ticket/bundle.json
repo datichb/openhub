@@ -330,7 +330,6 @@
         "skill * allow",
         "subagent * deny",
         "subagent reviewer allow",
-        "subagent documentarian allow",
         "shell *git* checkout * deny",
         "shell *git* restore * deny",
         "shell *git* reset --hard* deny",
@@ -535,9 +534,6 @@
       "developer",
       "documentarian",
       "reviewer"
-    ],
-    "reviewer": [
-      "documentarian"
     ]
   },
   "max_depth": 2,

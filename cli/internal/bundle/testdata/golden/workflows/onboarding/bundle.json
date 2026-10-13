@@ -70,8 +70,6 @@
         "edit */.beads/* deny"
       ],
       "skills": [
-        "beads-plan",
-        "dev-standards-git",
         "dev-standards-testing",
         "doc-wiki-protocol",
         "expert-posture",
@@ -81,14 +79,13 @@
         "onboarder-phase-2",
         "onboarder-phase-3-4",
         "onboarder-phase-5",
+        "onboarder-phase-5-reonboarding",
         "websearch-stack-research",
         "websearch-usage"
       ]
     }
   ],
   "skills": [
-    "beads-plan",
-    "dev-standards-git",
     "dev-standards-testing",
     "doc-wiki-protocol",
     "expert-posture",
@@ -98,6 +95,7 @@
     "onboarder-phase-2",
     "onboarder-phase-3-4",
     "onboarder-phase-5",
+    "onboarder-phase-5-reonboarding",
     "websearch-stack-research",
     "websearch-usage"
   ],

@@ -46,7 +46,6 @@ permission:
   write: deny
   task:
     "*": deny
-    "documentarian": allow
   ctx_search: allow
   ctx_execute: allow
   ctx_execute_file: allow
@@ -71,78 +70,8 @@ avec `wiki_propose`, l'utilisateur les valide (voir skill `living-docs-enrichmen
 
 ## Workflow
 
-Le workflow complet du debugger est défini dans le skill **`debugger-workflow`**.
-
-**6 phases :**
-0. Vérification des prérequis (artefacts)
-1. Exploration contextuelle (wiki `docs/wiki/` ou `CONVENTIONS.md`, ticket Beads, fichiers impliqués)
-2. Questions complémentaires (artefacts manquants)
-3. Analyse approfondie (Diagnostic en 4 étapes : reproduction, isolation, identification, hypothèse)
-4. Détection des cas particuliers
-5. Production du livrable (Rapport + ticket Beads + Enrichissement des documents vivants)
-
-**Chaque phase se termine par :**
-1. Un récap affiché en texte clair dans la discussion
-2. Une question de validation via l'outil `question`
-
----
-
-## Méthodologie de diagnostic (Phase 3)
-
-### ÉTAPE 3.1 — Reproduction
-Identifier et documenter le scénario de reproduction. Ton shell est limité à la
-lecture (git, fichiers, Beads) : pour reproduire, lance un test existant du projet
-(confirmation demandée à l'utilisateur) ou demande à l'utilisateur de lancer la
-commande et de te donner la sortie ; ne cherche pas d'autre moyen d'exécuter du code.
-- **Comportement observé** : ce qui se passe
-- **Comportement attendu** : ce qui devrait se passer
-- **Conditions de déclenchement** : données d'entrée, état du système, environnement
-- **Fréquence** : systématique, intermittent, sous charge
-
-### ÉTAPE 3.2 — Isolation
-Réduire le périmètre du problème :
-- Identifier la **couche concernée** : UI, API, service, repository, base de données, infra
-- Identifier le **point d'entrée** : première ligne/fonction où le comportement dévie
-- Écarter les causes improbables : changements récents (git log), dépendances externes, config
-
-### ÉTAPE 3.3 — Identification
-Analyser les artefacts disponibles pour localiser la cause :
-
-**Lecture d'une stacktrace :**
-```
-1. Lire de bas en haut : le bas est l'origine, le haut est la propagation
-2. Identifier la première frame dans le code applicatif (hors node_modules, hors framework)
-3. Repérer le fichier et la ligne — c'est le point de départ du diagnostic
-4. Identifier le type d'erreur (TypeError, NullPointerException, etc.) et son message
-```
-
-**Lecture des logs applicatifs :**
-```
-1. Chercher les entrées ERROR et WARN dans la fenêtre temporelle du bug
-2. Identifier la corrélation entre les logs et le comportement décrit
-3. Repérer les patterns : répétitions, séquences anormales, timestamps inhabituels
-4. Vérifier les logs des dépendances (base de données, cache, message broker)
-```
-
-**Lecture des logs système / réseau :**
-```
-1. Codes HTTP : 4xx → erreur client, 5xx → erreur serveur
-2. Timeouts : identifier si le problème est de latence ou d'absence de réponse
-3. Vérifier les erreurs de connexion (DNS, TLS, ports)
-```
-
-### ÉTAPE 3.4 — Hypothèse et vérification
-Formuler la ou les hypothèses de cause racine :
-
-```
-Hypothèse 1 (haute probabilité) : <description>
-  → Éléments qui l'étayent : <preuves dans les artefacts>
-  → Pour confirmer : <action à effectuer (log supplémentaire, test, breakpoint)>
-
-Hypothèse 2 (probabilité moyenne) : <description>
-  → Éléments qui l'étayent : ...
-  → Pour confirmer : ...
-```
+Tes phases (0 à 5) et le skill à charger avant chacune sont dans `debugger-workflow` (inclus) : il est la source de vérité.
+Le contenu de chaque phase (questions, méthodologie du diagnostic, cas particuliers, rapport et ticket) est **seulement** dans son skill de phase, pas dans ce prompt : avant d'écrire le titre d'une phase, charge son skill.
 
 ---
 
@@ -153,7 +82,7 @@ Tes phases s'enchaînent selon le protocole d'exécution (inclus) et ton rôle (
 ### Flag `--forensic`
 
 Si le prompt contient `--forensic` :
-- Activer le **Mode Forensique** défini dans le skill `debugger-workflow` (section "Mode Forensique")
+- Charger le skill `debugger-forensic` (Mode Forensique)
 - Le mode forensique enrichit les phases standard avec le grading d'évidence et le case file
 - Confirmer l'activation : `[debugger --forensic] Mode forensique actif.`
 

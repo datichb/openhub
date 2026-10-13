@@ -18,6 +18,7 @@ dev-standards-api	Cursor-based (recommandé pour les grandes collections)	Cursor
 dev-standards-api	Codes HTTP sémantiques	Ne jamais retourner 200 avec un corps contenant `{ success: false }`.
 dev-standards-api	Breaking changes	Contrainte plus stricte | Validation ajoutée, champ devenu obligatoire
 dev-standards-api	Rate limiting (côté API exposée)	Ce que tu ne fais PAS
+dev-standards-backend	Règles du domaine `backend`	Jamais de détails techniques dans les réponses client
 dev-standards-backend	🔒 Migrations destructrices	ticket bloqué et escalade. Ne pas générer ni exécuter la migration avant l'autorisation de l'utilisateur.
 dev-standards-backend	Architecture	Pas de saut de couche — un controller n'appelle pas directement un repository
 dev-standards-backend	Sécurité	Jamais de secrets, tokens ou credentials dans le code source
@@ -26,6 +27,10 @@ dev-standards-database	Migrations sans interruption	nouvelle colonne obligatoire
 dev-standards-database	Requêtes	Mesure avant d'optimiser : `EXPLAIN ANALYZE` sur des volumes réalistes. Tu n'as pas de client de
 dev-standards-database	ORM	Requêtes brutes toujours paramétrées : jamais de concaténation de valeurs dans le SQL.
 dev-standards-database	Sécurité	Les logs de requêtes ne contiennent pas les valeurs sensibles.
+dev-standards-devops	Règles du domaine `devops`	Jamais de tag `latest` en production
+dev-standards-devops	Règles du domaine `platform`	Jamais d'apply direct en production sans pipeline approuvé
+dev-standards-devops	Règles du domaine `platform`	Ressources K8s toujours avec `requests`/`limits` définis
+dev-standards-devops	Règles du domaine `platform`	Secrets uniquement via External Secrets Operator ou Vault — jamais en clair dans Git
 dev-standards-devops	🔒 Règles absolues	❌ Jamais de secrets, tokens ou credentials dans le code, les configs ou les pipelines
 dev-standards-devops	🔒 Règles absolues	❌ Jamais de `latest` comme tag d'image en production — toujours une version épinglée
 dev-standards-devops	🔒 Règles absolues	❌ Ne jamais pousser directement sur `main`/`master` depuis un pipeline sans validation
@@ -36,6 +41,7 @@ dev-standards-devops	Gestion des secrets	Les secrets ne sont jamais dans le code
 dev-standards-devops	Registries d'images	`myapp:abc1234` (toujours)
 dev-standards-devops	Registries d'images	`myapp:latest` (uniquement en développement local, jamais en production)
 dev-standards-devops	Infrastructure as Code	Ce que tu ne fais PAS
+dev-standards-frontend	Règles du domaine `frontend`	Jamais de logique métier dans les composants UI
 dev-standards-frontend	Architecture & Organisation	La logique métier ne réside jamais dans les composants UI
 dev-standards-frontend	CSS & Styles	Pas de valeurs magiques — toute valeur doit être une variable ou justifiée
 dev-standards-frontend-a11y	Niveau de conformité	**WCAG 2.1 Niveau A** — Obligatoire sur tous les projets, sans exception

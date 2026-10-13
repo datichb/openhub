@@ -3,11 +3,10 @@
 > Généré par oh à partir du workflow `libre`.
 
 - **Rôle** : agent d'entrée : tu échanges directement avec l'utilisateur.
-- **Agents que tu peux lancer** (outil `task`) : `debugger`, `designer`, `documentarian`, `onboarder`, `orchestrator-dev`, `pathfinder`, `planner`, `reviewer`.
+- **Agents que tu peux lancer** (outil `task`) : `debugger`, `designer`, `onboarder`, `orchestrator-dev`, `pathfinder`, `planner`, `reviewer`.
 - **Statuts de leurs retours** (ligne `Statut` de leur enveloppe) :
   - `debugger` : `diagnostiqué`, `partiellement-diagnostiqué`, `non-reproductible`
   - `designer` : `spec-complète`, `spec-partielle`, `choix-requis`, `prototype-livré`, `bloqué`
-  - `documentarian` : `documenté`, `partiellement-documenté`, `bloqué`
   - `onboarder` : `contexte-établi`, `contexte-partiel`, `bloqué`
   - `orchestrator-dev` : `succès`, `partiel`, `bloqué`
   - `pathfinder` : `direct`, `escalade-planner`, `reconnaissance-partielle`

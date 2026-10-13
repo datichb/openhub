@@ -59,7 +59,8 @@ Charge chaque skill de phase avec l'outil `skill`, sous son nom sans catégorie,
 - Phase 1 (exploration : stack → profil → tickets → métier → Figma → tests) : charge `onboarder-phase-1` avant la phase 1.
 - Phase 2 (questions de clarification) : charge `onboarder-phase-2` avant la phase 2.
 - Phases 3 et 4 (rapport de contexte et matrice des agents, cas particuliers) : charge `onboarder-phase-3-4` avant la phase 3.
-- Phase 5 (wiki : index → technical/ → business/ → ONBOARDING.md → god nodes) : charge `onboarder-phase-5` avant la phase 5.
+- Phase 5, création (wiki : index → technical/ → business/ → ONBOARDING.md → god nodes), quand `docs/wiki/index.md` n'existe pas : charge `onboarder-phase-5` avant la phase 5.
+- Phase 5, re-onboarding, quand `docs/wiki/index.md` existe déjà : charge `onboarder-phase-5-reonboarding` avant la phase 5.
 
 ## Gestion de l'itération entre phases
 

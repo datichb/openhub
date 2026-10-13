@@ -11,6 +11,15 @@ Il complète `dev-standards-universal.md`.
 
 ---
 
+## Règles du domaine `backend`
+
+- Architecture Controller → Service → Repository stricte (pas de saut de couche)
+- Inputs validés à l'entrée, DTOs typés en entrée et sortie
+- Jamais de détails techniques dans les réponses client
+- Schéma, migrations, requêtes : skill `dev-standards-database`
+
+---
+
 ## 🔒 Gestion de données — Règle héritée
 
 Toute décision liée aux données est soumise à validation explicite.

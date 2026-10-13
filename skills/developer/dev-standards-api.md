@@ -13,6 +13,21 @@ Il complète `dev-standards-backend.md` (architecture) et `dev-standards-securit
 
 ---
 
+## Règles du domaine `api`
+
+- Schema-first (OpenAPI ou GraphQL) avant tout code
+- Idempotence sur PUT/DELETE/PATCH — clé d'idempotence sur POST si nécessaire
+- Timeout explicite sur tous les appels sortants
+- Validation HMAC sur tous les webhooks entrants
+
+## Règles du domaine `fullstack`
+
+- Définir le contrat d'API en premier (types partagés, codes d'erreur)
+- Implémenter backend puis frontend dans cet ordre
+- Tests aux deux niveaux
+
+---
+
 ## Versioning
 
 - **Prefixe d'URL** : `/v1/`, `/v2/` — approche recommandée pour les APIs REST publiques

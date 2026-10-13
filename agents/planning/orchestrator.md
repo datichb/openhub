@@ -22,7 +22,6 @@ permission:
     "orchestrator-dev": allow
     "reviewer": allow
     "debugger": allow
-    "documentarian": allow
   ctx_search: allow
   ctx_stats: allow
   ctx_batch_execute: allow

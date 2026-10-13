@@ -85,28 +85,7 @@ te sont listés explicitement dans le prompt d'invocation. Charge-les tous avant
 
 ## Règles transverses par domaine
 
-### frontend
-- Jamais de logique métier dans les composants UI
-- Accessibilité (WCAG AA) non négociable sur tout composant interactif
-- Tests sur le comportement rendu, les émissions d'événements, les états loading/error
-- Toute décision de gestion de données (store, context, queries, storage) soumise à validation explicite — voir `dev-standards-frontend-data`
-
-### backend
-- Architecture Controller → Service → Repository stricte (pas de saut de couche)
-- Inputs validés à l'entrée, DTOs typés en entrée et sortie
-- Jamais de détails techniques dans les réponses client
-- Schéma, migrations, requêtes : skill `dev-standards-database`
-
-### fullstack
-- Définir le contrat d'API en premier (types partagés, codes d'erreur)
-- Implémenter backend puis frontend dans cet ordre
-- Tests aux deux niveaux
-
-### api
-- Schema-first (OpenAPI ou GraphQL) avant tout code
-- Idempotence sur PUT/DELETE/PATCH — clé d'idempotence sur POST si nécessaire
-- Timeout explicite sur tous les appels sortants
-- Validation HMAC sur tous les webhooks entrants
+Les règles de chaque domaine sont dans sa skill de domaine (section « Règles du domaine ») : `frontend` dans `dev-standards-frontend`, `backend` dans `dev-standards-backend`, `api` et `fullstack` dans `dev-standards-api`, `devops` et `platform` dans `dev-standards-devops`, `security` dans `dev-standards-security-hardening`, `refactor` dans `dev-standards-refactoring`, `migration` dans `dev-standards-migration`, `tests` dans `test-generation`. Domaines sans skill générique :
 
 ### mobile
 - Stockage sécurisé obligatoire (Keychain iOS / Keystore Android / flutter_secure_storage)
@@ -118,38 +97,6 @@ te sont listés explicitement dans le prompt d'invocation. Charge-les tous avant
 - Pipelines idempotents et atomiques
 - Tests avec fixtures de données connues (jamais de données réelles en test)
 - Schéma ou requêtes SQL touchés : skill `dev-standards-database`
-
-### devops
-- Multi-stage build, utilisateur non-root, `.dockerignore` exhaustif
-- Jamais de tag `latest` en production
-- `set -euo pipefail` sur tous les scripts shell
-
-### platform
-- Jamais d'apply direct en production sans pipeline approuvé
-- Ressources K8s toujours avec `requests`/`limits` définis
-- Secrets uniquement via External Secrets Operator ou Vault — jamais en clair dans Git
-
-### security
-- Intervient après un audit `auditor` (domaine security) pour corriger les failles identifiées
-- Chaque correction est accompagnée d'un test qui prouve que la faille est corrigée
-- Soumettre au `reviewer` avant de clore — même en invocation directe
-- Jamais de cryptographie maison — uniquement les bibliothèques éprouvées
-
-### refactor
-- Comportement observable inchangé : les mêmes tests passent avant et après ; ni feature ni correction de bug dans le même ticket
-- Code non couvert : tests de caractérisation d'abord (skill `dev-standards-refactoring`)
-- Petits pas, tests relancés après chacun
-- Signature d'API publique à changer, scope qui grossit, tests rouges qui durent : arrête-toi et signale-le dans ton rapport (ticket séparé)
-
-### migration
-- Une migration à la fois, incrémentale (codemods, coexistence, feature flags), chaque commit revertable
-- Avant de migrer : changelog et guide officiel lus, breaking changes listés, plan de rollback dans ton rapport
-- Le code legacy part une fois la migration validée
-- Migration destructive : protocole de `dev-standards-migration` (dry-run, ticket bloqué, escalade)
-
-### tests
-- Méthode de la skill `test-generation` : gaps de couverture, priorités, puis tests dans le style du projet
-- Le code de production reste tel quel ; code non testable : signale-le (ticket `refactor` séparé)
 
 ## Enrichissement wiki
 
