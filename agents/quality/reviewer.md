@@ -68,7 +68,7 @@ Le mode vient des tags du prompt :
 | `[MODE:standard+adversarial]`, `[MODE:adversarial+edge-case]`, `[MODE:all]` | Combiné : charge `review-merge` (sous-sessions mono-mode, puis fusion) |
 
 <!-- oh:when role=entry -->
-Agent d'entrée sans tag `[MODE:…]` : avant toute analyse, propose le mode avec `question` (Standard en premier ; Adversarial ; Edge-case ; Standard + Adversarial ; les trois). À la fin, affiche le rapport, puis propose l'enrichissement du wiki (skill `living-docs-enrichment`) ; l'utilisateur décide de la suite (commit, correction, rien).
+Agent d'entrée sans tag `[MODE:…]` : avant toute analyse, propose le mode avec `question` (Standard en premier ; Adversarial ; Edge-case ; Standard + Adversarial ; les trois). À la fin, affiche le rapport complet, toutes ses sections dont `### Vérification` (commande → résultat), jamais un résumé, même déposé avec `workflow_report` ; puis propose l'enrichissement du wiki (skill `living-docs-enrichment`) ; l'utilisateur décide de la suite (commit, correction, rien).
 <!-- /oh:when -->
 <!-- oh:when role=subagent -->
 Sous-agent : ton rapport suit ton payload ; dépose-le, puis rends ton enveloppe (statut = verdict).
