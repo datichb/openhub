@@ -168,3 +168,32 @@ func (memWiki) GetWikiProposal(context.Context, string, int) (*domain.WikiPropos
 	return nil, domain.ErrNotFound
 }
 func (memWiki) UpdateWikiProposal(context.Context, *domain.WikiProposal) error { return nil }
+
+// p3-remote-wiki: the daemon of a remote job serves the wiki of the clone
+// (read, check, propose) but refuses wiki_apply to every agent, the
+// documentarian included: the proposals go back to the machine.
+func TestWikiRoutesInRemoteJob(t *testing.T) {
+	d, wk, project, _ := wikiEnv(t)
+	d.opts.WikiNoApply = true
+	h := d.routes()
+
+	var ix WikiIndex
+	require.Equal(t, http.StatusOK, wikiDo(t, h, http.MethodGet, "/wiki/index?tool_session=ses_rev", "", &ix))
+	assert.Equal(t, "Atlas", ix.Title)
+	require.Equal(t, http.StatusOK, wikiDo(t, h, http.MethodGet, "/wiki/page?tool_session=ses_rev&page=technical/stack.md", "", nil))
+	require.Equal(t, http.StatusOK, wikiDo(t, h, http.MethodGet, "/wiki/check?tool_session=ses_rev", "", nil))
+	var p WikiProposal
+	require.Equal(t, http.StatusCreated, wikiDo(t, h, http.MethodPost, "/wiki/propose",
+		`{"tool_session":"ses_rev","page":"technical/stack.md","section":"Librairies clés","content":"zod pour la validation","tag":"DÉDUIT","source":"package.json"}`, &p))
+
+	var e struct {
+		Error string `json:"error"`
+	}
+	assert.Equal(t, http.StatusForbidden, wikiDo(t, h, http.MethodPost, "/wiki/apply", `{"tool_session":"ses_doc","ids":["wp-1"]}`, &e))
+	assert.Contains(t, e.Error, "wiki_apply")
+	text, _ := wiki.ReadPage(project, "technical/stack.md", "")
+	assert.NotContains(t, text, "zod", "nothing written in the clone")
+	got, err := wk.Get(context.Background(), "p1", p.ID)
+	require.NoError(t, err)
+	assert.Equal(t, domain.WikiPending, got.Status)
+}

@@ -345,6 +345,9 @@ func TestRunCompleted(t *testing.T) {
 	in.Reports = func(_ context.Context, sid string) ([]remote.ReportEntry, error) {
 		return []remote.ReportEntry{{Seq: 1, Agent: "developer", Title: "Fait", CreatedAt: at, Body: "## Tests\nok " + sid}}, nil
 	}
+	in.Wiki = func(_ context.Context, sid string) ([]remote.WikiEntry, error) {
+		return []remote.WikiEntry{{ID: "wp-1", Agent: "reviewer", Page: "technical/conventions.md", Content: "Vu dans " + sid, Tag: "DÉDUIT", CreatedAt: at}}, nil
+	}
 
 	sum, err := Run(context.Background(), in)
 	require.NoError(t, err)
@@ -372,6 +375,14 @@ func TestRunCompleted(t *testing.T) {
 	assert.Equal(t, remote.ReportsSchema, rs.Schema)
 	require.Len(t, rs.Reports, 1)
 	assert.Equal(t, "## Tests\nok ses_1", rs.Reports[0].Body)
+	data, err = os.ReadFile(filepath.Join(out, remote.WikiFile))
+	require.NoError(t, err)
+	var wk remote.Wiki
+	require.NoError(t, json.Unmarshal(data, &wk))
+	assert.Equal(t, remote.WikiSchema, wk.Schema)
+	require.Len(t, wk.Proposals, 1)
+	assert.Equal(t, "wp-1", wk.Proposals[0].ID)
+	assert.Equal(t, "Vu dans ses_1", wk.Proposals[0].Content)
 }
 
 func TestRunDeferredAndFailures(t *testing.T) {
@@ -387,6 +398,7 @@ func TestRunDeferredAndFailures(t *testing.T) {
 	assert.True(t, sess.intr, "the session is interrupted at the deferred checkpoint")
 	assert.True(t, repo.finished, "the work is pushed: MR ready")
 	assert.Equal(t, remote.OutcomeDeferred, readSummary(t, out).Outcome)
+	assert.NoFileExists(t, filepath.Join(out, remote.WikiFile), "no proposal, no wiki.json")
 
 	// Error raised as the turn ends: failed, with the message.
 	fd = &fakeDecisions{}

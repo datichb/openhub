@@ -51,3 +51,29 @@ func TestWikiMCPInBundle(t *testing.T) {
 		assert.NotContains(t, a.Body, "wiki_propose` met", a.ID)
 	}
 }
+
+// p3-remote-wiki: the bundle of a remote session is the one built on the
+// machine (the job runs it as is): every shipped workflow that runs
+// remotely gets the wiki MCP server with the same tools and rules as in a
+// local session; the job daemon serves them on its clone.
+func TestWikiMCPInRemoteWorkflows(t *testing.T) {
+	hub, cat, env := shippedWorkflows(t)
+	project := instructionsFixture(t, true)
+	propose := sessionspec.MCPToolAction(sessionspec.WikiMCPServer, sessionspec.WikiToolPropose)
+	n := 0
+	for _, ref := range cat.Refs() {
+		r, diags := workflow.Check(cat, ref, nil, env)
+		require.False(t, diags.HasErrors(), "%v", diags)
+		if !r.Spec.AllowsRuntime(workflow.RuntimeRemote) {
+			continue
+		}
+		n++
+		b, err := Build(Request{HubDir: hub, OutDir: t.TempDir(), ProjectPath: project, Spec: r.Spec})
+		require.NoError(t, err, ref.ID)
+		i := slices.IndexFunc(b.Spec.MCP, func(m sessionspec.MCPServerDef) bool { return m.Name == sessionspec.WikiMCPServer })
+		require.GreaterOrEqual(t, i, 0, "%s: wiki MCP server", ref.ID)
+		assert.Equal(t, sessionspec.WikiMCPDef(), b.Spec.MCP[i], ref.ID)
+		assert.Equal(t, sessionspec.EffectAllow, ToolEffect(b.Spec.Permissions, propose, "*"), ref.ID)
+	}
+	assert.GreaterOrEqual(t, n, 3, "audit, review, ticket… run remotely")
+}

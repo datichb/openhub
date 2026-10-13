@@ -20,6 +20,7 @@ const (
 	SummaryFile = "summary.json"
 	ExportFile  = "session.export"
 	ReportsFile = "reports.json"
+	WikiFile    = "wiki.json"
 )
 
 // WorkRoot is where the job clones the target project
@@ -240,4 +241,29 @@ type ReportEntry struct {
 	Title       string    `json:"title"`
 	CreatedAt   time.Time `json:"created_at"`
 	Body        string    `json:"body"`
+}
+
+// WikiSchema is the version of wiki.json.
+const WikiSchema = 1
+
+// Wiki is the wiki.json artifact: the proposals the agents filed with
+// wiki_propose in the job (never applied there), queued on the machine when
+// the session is fetched, to be validated there (cleaned and bounded again:
+// the artifact is not trusted).
+type Wiki struct {
+	Schema    int         `json:"schema"`
+	Proposals []WikiEntry `json:"proposals"`
+}
+
+// WikiEntry is a proposal of wiki.json.
+type WikiEntry struct {
+	ID          string    `json:"id"` // wp-<n> in the job
+	Agent       string    `json:"agent"`
+	ToolSession string    `json:"tool_session,omitempty"`
+	Page        string    `json:"page"`
+	Section     string    `json:"section,omitempty"`
+	Content     string    `json:"content"`
+	Tag         string    `json:"tag"`
+	Source      string    `json:"source,omitempty"`
+	CreatedAt   time.Time `json:"created_at"`
 }

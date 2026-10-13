@@ -63,6 +63,9 @@ type Input struct {
 	// Reports returns the reports filed in the session (workflow_report),
 	// written to reports.json; nil: none.
 	Reports func(ctx context.Context, sessionID string) ([]remote.ReportEntry, error)
+	// Wiki returns the proposals filed in the session (wiki_propose, never
+	// applied in the job), written to wiki.json; nil: none.
+	Wiki func(ctx context.Context, sessionID string) ([]remote.WikiEntry, error)
 	// WaitVerify waits for the checkpoint verifications oh runs in the
 	// background, in the clone and as the agent account (R3-remote), and
 	// Verifications returns them for summary.json; nil: none.
@@ -250,6 +253,15 @@ func Run(ctx context.Context, in Input) (*remote.Summary, error) {
 		} else if len(list) > 0 {
 			if err := writeJSON(filepath.Join(in.OutDir, remote.ReportsFile), remote.Reports{Schema: remote.ReportsSchema, Reports: list}); err != nil {
 				slog.Warn("runner: writing the reports", "err", err)
+			}
+		}
+	}
+	if in.Wiki != nil {
+		if list, err := in.Wiki(ctx, sid); err != nil {
+			slog.Warn("runner: reading the wiki proposals", "err", err)
+		} else if len(list) > 0 {
+			if err := writeJSON(filepath.Join(in.OutDir, remote.WikiFile), remote.Wiki{Schema: remote.WikiSchema, Proposals: list}); err != nil {
+				slog.Warn("runner: writing the wiki proposals", "err", err)
 			}
 		}
 	}

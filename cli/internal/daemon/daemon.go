@@ -69,6 +69,10 @@ type Options struct {
 	// Wiki keeps the proposals of the wiki MCP server of the projects
 	// (LD-J; nil = wiki MCP unavailable).
 	Wiki *wiki.Service
+	// WikiNoApply refuses wiki_apply to every agent (remote job: the
+	// proposals go back to the machine, where the user validates them;
+	// nothing is written in the clone without that validation).
+	WikiNoApply bool
 	// Adapter returns the tool adapter for a server's adapter name (nil = no watcher).
 	Adapter func(name string) adapters.ToolAdapter
 	// GatewayView returns how the runtime of a server group sees the

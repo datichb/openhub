@@ -33,6 +33,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/services/remote/runner"
 	"github.com/datichb/openhub/cli/internal/services/report"
 	sessionsvc "github.com/datichb/openhub/cli/internal/services/session"
+	"github.com/datichb/openhub/cli/internal/services/wiki"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 	"github.com/datichb/openhub/cli/internal/storage/sqlite"
 )
@@ -147,6 +148,11 @@ func runRunnerJob(cmd *cobra.Command, _ []string) error {
 		checkpoints.Account = &checkpoint.Account{UID: user.UID, GID: user.GID, Home: serverHome}
 		gitutil.RegisterOwner(checkpoints.Account.Owner())
 	}
+	// The wiki of the clone is served to the agents (read, check, propose);
+	// the proposals are never applied in the job (no CommitPassed,
+	// wiki_apply refused): they go back to the machine in wiki.json and
+	// the user validates them there (p3-remote-wiki).
+	wk := newWikiService()
 	secrets := runner.CISecrets{LLMKey: job.Secrets.LLMKey}
 	paths := daemon.Paths{Dir: ohRunDir()}
 	dctx, stopDaemon := context.WithCancel(context.WithoutCancel(ctx))
@@ -161,7 +167,7 @@ func runRunnerJob(cmd *cobra.Command, _ []string) error {
 			BeadsBinary: bd, MCPCommand: gatewayMCPCommand(ohBundlesDir()),
 			Sessions: a.Sessions, Decisions: sqlite.NewDecisionStore(store),
 			SessionsDir: ohSessionsDir(), ServersDir: ohServersDir(),
-			Checkpoints: checkpoints, Reports: newReportService(), Secrets: secrets,
+			Checkpoints: checkpoints, Reports: newReportService(), Wiki: wk, WikiNoApply: true, Secrets: secrets,
 			IdleAfter: 24 * time.Hour, IdleSleep: 24 * time.Hour,
 			Adapter: func(name string) adapters.ToolAdapter {
 				if name == ad.Name() {
@@ -205,6 +211,7 @@ func runRunnerJob(cmd *cobra.Command, _ []string) error {
 		Session:    &jobSession{a: a, rs: rs, ss: ss, ad: ad, region: job.Region},
 		Responder:  runner.NewResponder(sqlite.NewDecisionStore(store), ss.Decide, m),
 		Reports:    runnerReports(newReportService()),
+		Wiki:       runnerWiki(wk, m.Project.OhID),
 		WaitVerify: checkpoints.WaitVerify,
 		Verifications: func(ctx context.Context, sid string) ([]remote.SummaryVerification, error) {
 			list, err := checkpoints.Verifications(ctx, sid)
@@ -385,6 +392,22 @@ func (j *jobSession) Outputs(ctx context.Context, sid string) map[string]any {
 		return sess.Outputs
 	}
 	return nil
+}
+
+// runnerWiki reads the wiki proposals of the job session for wiki.json.
+func runnerWiki(wk *wiki.Service, projectID string) func(ctx context.Context, sid string) ([]remote.WikiEntry, error) {
+	return func(ctx context.Context, sid string) ([]remote.WikiEntry, error) {
+		list, err := wk.List(ctx, projectID, sid)
+		if err != nil {
+			return nil, err
+		}
+		out := make([]remote.WikiEntry, 0, len(list))
+		for _, p := range list {
+			out = append(out, remote.WikiEntry{ID: p.ID(), Agent: p.Agent, ToolSession: p.ToolSession, Page: p.Page, Section: p.Section,
+				Content: p.Content, Tag: p.Tag, Source: p.Source, CreatedAt: p.CreatedAt})
+		}
+		return out, nil
+	}
 }
 
 // runnerReports reads the reports of the job session for reports.json.

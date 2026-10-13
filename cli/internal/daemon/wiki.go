@@ -214,6 +214,10 @@ func (d *Daemon) handleWikiApply(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	if d.opts.WikiNoApply {
+		writeErr(w, http.StatusForbidden, i18n.T("cmd.daemon.wiki.apply_remote"))
+		return
+	}
 	agent := d.callerAgent(r.Context(), root, req.ToolSession)
 	if agent != sessionspec.WikiApplier {
 		if agent == "" {

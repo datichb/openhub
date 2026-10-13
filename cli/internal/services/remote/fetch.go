@@ -9,9 +9,11 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 	"path"
 	"path/filepath"
+	"regexp"
 	"sort"
 
 	"github.com/datichb/openhub/cli/internal/bundle"
@@ -20,6 +22,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/gateway/beadswire"
 	"github.com/datichb/openhub/cli/internal/remote"
 	"github.com/datichb/openhub/cli/internal/services/report"
+	"github.com/datichb/openhub/cli/internal/services/wiki"
 )
 
 // Errors of a fetch.
@@ -42,6 +45,9 @@ type FetchResult struct {
 	Dir       string // local copy of the artifacts
 	Imported  bool
 	Reports   int // reports of workflow_report imported
+	// Wiki is the number of wiki proposals of the job queued on the
+	// machine (p3-remote-wiki).
+	Wiki int
 	// Verifications are the verifications of the job imported (R3-remote).
 	Verifications int
 	Location      string // where the session continues locally
@@ -49,7 +55,7 @@ type FetchResult struct {
 }
 
 // artifactNames are the files kept from the run job artifacts.
-var artifactNames = map[string]bool{remote.JournalFile: true, remote.SummaryFile: true, remote.ExportFile: true, remote.ReportsFile: true}
+var artifactNames = map[string]bool{remote.JournalFile: true, remote.SummaryFile: true, remote.ExportFile: true, remote.ReportsFile: true, remote.WikiFile: true}
 
 // Fetch downloads the artifacts of a finished remote session and imports the
 // session into a local server group so that it can be resumed (P5-T16). The
@@ -117,7 +123,12 @@ func (s *Service) Fetch(ctx context.Context, sid string, opts FetchOptions) (*Fe
 	}
 	res.Location = sess.LaunchPath
 	if !opts.NoImport {
-		if res.Reports, err = s.importReports(ctx, sid, dir); err != nil {
+		// The proposals first: the reports cite them by their local id.
+		var ids map[string]string
+		if res.Wiki, ids, err = s.importWiki(ctx, sess, dir); err != nil {
+			return res, err
+		}
+		if res.Reports, err = s.importReports(ctx, sid, dir, ids); err != nil {
 			return res, err
 		}
 		if s.Verifications != nil && len(res.Summary.Verifications) > 0 {
@@ -256,8 +267,9 @@ func (s *Service) ensureBundle(ctx context.Context, ref domain.RemoteRef, hash s
 }
 
 // importReports records the reports of the job (reports.json, absent when
-// none was filed) in the local session.
-func (s *Service) importReports(ctx context.Context, sid, dir string) (int, error) {
+// none was filed) in the local session; the wiki proposals they cite get
+// their local id (wikiIDs: id in the job → id on the machine).
+func (s *Service) importReports(ctx context.Context, sid, dir string, wikiIDs map[string]string) (int, error) {
 	if s.Reports == nil {
 		return 0, nil
 	}
@@ -274,12 +286,61 @@ func (s *Service) importReports(ctx context.Context, sid, dir string) (int, erro
 	}
 	list := make([]report.Exported, 0, len(rs.Reports))
 	for _, e := range rs.Reports {
-		list = append(list, report.Exported{Report: domain.Report{Seq: e.Seq, Agent: e.Agent, ToolSession: e.ToolSession, Title: e.Title, CreatedAt: e.CreatedAt}, Body: e.Body})
+		list = append(list, report.Exported{Report: domain.Report{Seq: e.Seq, Agent: e.Agent, ToolSession: e.ToolSession,
+			Title: renumberWiki(e.Title, wikiIDs), CreatedAt: e.CreatedAt}, Body: renumberWiki(e.Body, wikiIDs)})
 	}
 	return s.Reports.Import(ctx, sid, list)
 }
 
-// extractArtifacts keeps oh-out/{journal.jsonl,summary.json,session.export,reports.json}.
+// importWiki queues the wiki proposals of the job (wiki.json, absent when
+// none was filed) in the queue of the project of the session, to be
+// validated on the machine (p3-remote-wiki). A full queue does not fail
+// the fetch: what fits is queued, the rest is reported.
+func (s *Service) importWiki(ctx context.Context, sess *domain.Session, dir string) (queued int, ids map[string]string, err error) {
+	if s.Wiki == nil {
+		return 0, nil, nil
+	}
+	data, err := os.ReadFile(filepath.Join(dir, remote.WikiFile))
+	if errors.Is(err, os.ErrNotExist) {
+		return 0, nil, nil
+	}
+	if err != nil {
+		return 0, nil, err
+	}
+	var wk remote.Wiki
+	if err := json.Unmarshal(data, &wk); err != nil {
+		return 0, nil, fmt.Errorf("%s: %w", remote.WikiFile, err)
+	}
+	list := make([]wiki.Imported, 0, len(wk.Proposals))
+	for _, e := range wk.Proposals {
+		list = append(list, wiki.Imported{ID: e.ID, Agent: e.Agent, ToolSession: e.ToolSession, CreatedAt: e.CreatedAt,
+			Proposal: wiki.Proposal{Page: e.Page, Section: e.Section, Content: e.Content, Tag: e.Tag, Source: e.Source}})
+	}
+	ids, queued, err = s.Wiki.Import(ctx, sess.ProjectID, sess.ID, list)
+	if errors.Is(err, domain.ErrWikiLimit) {
+		slog.Warn("remote: wiki queue full, proposals of the job left out", "session", sess.ID, "queued", queued, "filed", len(list))
+		err = nil
+	}
+	return queued, ids, err
+}
+
+var wikiIDRe = regexp.MustCompile(`\bwp-(\d+)\b`)
+
+// renumberWiki replaces, in one pass, the ids of the job queue by those of
+// the machine.
+func renumberWiki(text string, ids map[string]string) string {
+	if len(ids) == 0 {
+		return text
+	}
+	return wikiIDRe.ReplaceAllStringFunc(text, func(id string) string {
+		if local, ok := ids[id]; ok {
+			return local
+		}
+		return id
+	})
+}
+
+// extractArtifacts keeps oh-out/{journal.jsonl,summary.json,session.export,reports.json,wiki.json}.
 func extractArtifacts(data []byte, dir string) error {
 	zr, err := zip.NewReader(bytes.NewReader(data), int64(len(data)))
 	if err != nil {
