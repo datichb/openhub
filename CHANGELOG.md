@@ -9,6 +9,12 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ## [Unreleased]
 
+### Changed — mesure de référence après L6/LD (lot eval-baseline-2)
+
+- **Nouvelle référence `oh eval`** (Haiku ×3, 15 cas, 7,77 $) : S1 2/3, S2 3/3, S3 1/3, S4 2/3, S5 3/3, S6 3/3, S7 3/3, S8 3/3, S9 3/3, S10 2/3, S11 à S15 3/3. Par rapport à la référence d'avant P1 : S4 1/3 → 2/3, S6 1/3 → 3/3, S9 0/3 → 3/3, S10 0/3 → 2/3 ; S1 3/3 → 2/3 (bruit : une passe ne cite pas le test en échec) et S3 3/3 → 1/3 (le pathfinder relancé pour créer le ticket avant `cp-tickets` voit la création refusée, puis appelle `question`).
+- **S4** vérifie aussi que l'auditor charge `auditor-phase-0-1`, `auditor-phase-3` et `auditor-phase-4` avant leur phase.
+- Tous les cas actifs sont dans la référence (`notInBaseline` retiré).
+
 ### Fixed — nettoyage après L6 (lot L6 cleanup)
 
 - **`libre`** lance les agents atteints par l'agent d'entrée comme sous-agents : un agent resté `primary` par son frontmatter (onboarder, designer, planner, pathfinder…) était refusé par OpenCode (« cannot run as a subagent »).
