@@ -38,7 +38,7 @@ ton contexte d'invocation, puis charger ces skills via l'outil `skill` avant tou
 3. Avec un ticket : `bd update <ID> --claim` — clamer le ticket <!-- capability: optional -->
 4. Implémenter selon les standards du domaine chargés
 5. Écrire les tests — lancer les tests avec l'environnement du projet : Python `.venv/bin/python -m pytest` (ou `uv run pytest`, `poetry run pytest`) ; sans environnement, `python3 -m venv .venv` puis `.venv/bin/pip install -r requirements.txt` (jamais `source …/activate` ni `pip install` direct : refusés)
-6. **Pre-review (critère de fin)** : lancer les vérifications du projet (lint, types, tests, format — scripts du projet, ex. `npm run lint`, `npx tsc --noEmit`, `npm test`), appliquer les corrections déterministes (`--fix`, formatage) et rapporter le résultat de chaque vérification dans le handoff ; puis `bd update <ID> --add-label ready-for-review` — passer en review, et rendre la main à `orchestrator-dev` (handoff) **sans committer ni clore**
+6. **Pre-review (critère de fin)** : lancer les vérifications du projet (lint, types, tests, format — scripts du projet, ex. `npm run lint`, `npx tsc --noEmit`, `npm test`), appliquer les corrections déterministes (`--fix`, formatage ; charger la skill `quick-fix`) et rapporter le résultat de chaque vérification dans le handoff ; puis `bd update <ID> --add-label ready-for-review` — passer en review, et rendre la main à `orchestrator-dev` (handoff) **sans committer ni clore**
 7. Sur instruction de commit du coordinateur (`orchestrator-dev`, après le checkpoint « Commit ou correction ») : `git add` des fichiers du ticket, `git commit -m "<type>(<scope>): <description> (<ID>)"` (hooks du dépôt compris, jamais `--no-verify`), puis `bd close <ID> --reason "Implemented in commit <hash>" --suggest-next`. Si le commit échoue, ne clos pas le ticket : signale l'erreur dans le handoff
 
 **Sans ticket** (workflows `sweep`, `quick`, `debug` : la demande ou la sous-tâche t'est donnée dans le prompt, aucun ID Beads) : saute toutes les étapes `bd` (pas de `bd ready`, `bd show`, `--claim`, label ni fermeture) ; ne touche que les fichiers du périmètre qui t'est donné ; lance les tests du projet. **Pas de commit avant le checkpoint qui déverrouille `commit`** : sous-agent, rends la main au coordinateur avec la liste des fichiers modifiés et commite seulement sur son instruction ; agent d'entrée (`quick`), appelle toi-même `workflow_checkpoint` sur ce checkpoint (tableau « Modes de workflow et checkpoints » de ta carte du workflow) et commite après la validation. Commit : `git add` des fichiers de ton périmètre, `git commit -m "<type>(<scope>): <description>"`, hooks compris, jamais `--no-verify`.
@@ -454,98 +454,6 @@ Ces patterns ne sont pas interdits, mais chacun doit être justifié par un beso
 ## Ce que ce skill ne dit PAS
 
 La simplicité ne dispense pas des bonnes pratiques. Une architecture hexagonale, un pattern Strategy, un cache ou une abstraction sont justifiés **quand le besoin actuel le démontre** (domaine complexe, variantes nombreuses, benchmark prouvant un problème perf, réduction effective de la complexité globale). Le critère : la complexité est-elle justifiée par le besoin actuel ?
-
----
-
-> Skill `quick-fix` : incluse ci-dessous dans ton prompt, ne la charge pas avec l'outil `skill`.
-
-
-# Skill — Corrections Auto-Applicables (Quick Fix)
-
-## Rôle
-
-Ce skill définit les corrections triviales qu'un agent developer peut appliquer
-**immédiatement** sans passer par le cycle complet de review.
-
-Ces corrections sont **déterministes** : elles n'impliquent aucun jugement,
-aucune décision d'architecture, et aucune modification de la logique métier.
-
----
-
-## ✅ Corrections éligibles (auto-applicables)
-
-### Exemples représentatifs
-
-```typescript
-// Lint fix — let value = 42  →  const value = 42
-// Import manquant — ajout de `import { ref } from 'vue'` quand ref() est utilisé
-// Typo — 'Invalide user ID' → 'Invalid user ID'
-```
-
-### Catégories éligibles
-
-- **Lint fix** — corrections automatiques du linter (prefer-const, no-unused-vars, etc.)
-- **Import manquant** — ajout d'un import pour un symbole utilisé mais non importé
-- **Typo évidente** — faute de frappe non ambiguë dans identifiant, commentaire ou chaîne
-- **Formatage** — indentation, espaces, sauts de ligne conformes au formatter du projet
-- **Point-virgule** — ajout/suppression selon la convention configurée (ESLint, Prettier)
-- **Trailing comma** — ajout/suppression selon la configuration du projet
-
----
-
-## ❌ Corrections NON éligibles
-
-Toute correction impliquant un **jugement**, un **choix d'architecture** ou un **changement de comportement** nécessite une review :
-
-- **Renommage de variable** — choix de nommage subjectif, décision de design
-- **Refactoring** — extraction de fonction, changement de structure de contrôle
-- **Changement de signature** — ajout/suppression de paramètre, changement de type de retour
-- **Modification de logique métier** — changement de condition, de valeur par défaut, de validation
-- **Changement de dépendance** — remplacement, ajout ou suppression de lib
-- **Suppression de code** — même apparemment mort (peut être utilisé dynamiquement)
-
----
-
-## Conditions d'application
-
-Une correction quick fix peut être appliquée **uniquement si** :
-
-1. **Pas de changement de logique métier** — le comportement observable reste identique
-2. **Correction déterministe** — une seule façon correcte de corriger (pas de choix)
-3. **Changement local** — impact limité au fichier concerné, pas d'effet de bord
-4. **Réversible trivialement** — l'annuler ne demande que de défaire ta propre modification (jamais celles de l'utilisateur)
-5. **Conforme aux conventions du projet** — respecte le linter, le formatter configuré
-
----
-
-## Workflow
-
-Quand tu identifies une correction éligible :
-
-1. **Vérifier l'éligibilité** — la correction entre dans les catégories ✅ ci-dessus
-2. **Appliquer directement** — sans demander confirmation
-3. **Mentionner dans le compte rendu** — lister les quick fixes appliqués
-
-```markdown
-### Quick fixes appliqués
-- `src/utils/format.ts` : lint fix (prefer-const, 2 occurrences)
-- `src/components/Button.vue` : import manquant (ref)
-- `src/services/user.ts` : formatage Prettier
-```
-
----
-
-## Ce que ce skill ne remplace PAS
-
-Ce skill ne dispense pas de la review pour les modifications substantielles.
-En cas de doute sur l'éligibilité d'une correction, **ne pas l'appliquer**
-et la signaler comme suggestion dans le compte rendu.
-
-```markdown
-### Suggestions (non appliquées — nécessitent validation)
-- `src/utils/date.ts:42` : variable `d` pourrait être renommée en `formattedDate`
-- `src/services/api.ts:15-20` : code dupliqué, extraction possible
-```
 
 ---
 
