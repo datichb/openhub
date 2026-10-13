@@ -60,6 +60,24 @@
         "shell *.beads/dolt/* deny",
         "edit .beads/* deny",
         "edit */.beads/* deny"
+      ],
+      "skills": [
+        "audit-accessibility",
+        "audit-architecture",
+        "audit-database",
+        "audit-ecodesign",
+        "audit-infra",
+        "audit-observability",
+        "audit-performance",
+        "audit-privacy",
+        "audit-security",
+        "auditor-execution-modes",
+        "handoff-bloc-unique-rule",
+        "living-docs-enrichment",
+        "phase-0-validation-loop",
+        "planner-handoff-format",
+        "standalone-execution-protocol",
+        "subagent-execution-protocol"
       ]
     },
     {
@@ -137,6 +155,27 @@
         "shell *.beads/dolt/* deny",
         "edit .beads/* deny",
         "edit */.beads/* deny"
+      ],
+      "skills": [
+        "audit-accessibility",
+        "audit-architecture",
+        "audit-database",
+        "audit-ecodesign",
+        "audit-infra",
+        "audit-observability",
+        "audit-performance",
+        "audit-privacy",
+        "audit-security",
+        "concision-posture",
+        "expert-posture",
+        "handoff-bloc-unique-rule",
+        "living-docs-enrichment",
+        "phase-0-validation-loop",
+        "planner-handoff-format",
+        "subagent-execution-protocol",
+        "websearch-cve-lookup",
+        "websearch-performance-research",
+        "websearch-usage"
       ]
     }
   ],

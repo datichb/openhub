@@ -159,12 +159,17 @@ func TestE2EPluginInjectsAgentPrompt(t *testing.T) {
 	assert.True(t, strings.HasPrefix(tr.Parts[1], "You are LEAD."), "agent body injected after the base prompt")
 }
 
+// The model sees only the skills of the bundle and, among them, only the
+// catalogue of its agent (L2).
 func TestE2EModelSeesOnlyBundleSkills(t *testing.T) {
-	r := startE2E(t, e2eBundle(t), false)
+	b := e2eBundle(t)
+	b.Agents[0].Skills = []string{"alpha"}
+	b.Agents[1].Skills = []string{"beta"}
+	r := startE2E(t, b, false)
 	reply := r.ask(t, "lead", "Without calling any tool, list the exact IDs of every skill available in your skill tool description, comma separated, nothing else.")
 	low := strings.ToLower(reply)
 	assert.Contains(t, low, "alpha", reply)
-	assert.Contains(t, low, "beta", reply)
+	assert.NotContains(t, low, "beta", "another agent's skill: %s", reply)
 	assert.NotContains(t, low, "opencode", reply)
 	assert.NotContains(t, low, "report", reply)
 }

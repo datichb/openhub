@@ -31,6 +31,7 @@ permission:
     "infracost diff*": ask
 skills: [shared/universal-guardrails, auditor/audit-protocol-light, posture/subagent-concision-posture, auditor/audit-handoff-format, shared/wiki-navigation]
 native_skills: [auditor/websearch-cve-lookup, auditor/websearch-performance-research, shared/rtk-usage, posture/expert-posture, shared/websearch-usage, shared/team-awareness, shared/team-policies-enforcement]
+skills_from_callers: true
 ---
 
 # AuditeurSousAgent

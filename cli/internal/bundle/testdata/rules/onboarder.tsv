@@ -35,6 +35,35 @@ dev-standards-git	Committer	Vérifier avec `git diff --staged` avant chaque comm
 dev-standards-git	Committer	Les hooks du dépôt font partie du commit : ne jamais les contourner (`--no-verify`, `-c core.hooksPath=…`, `git config core.hooksPath`, `GIT_CONFIG_*`, modification de `.git/`). Si un hook échoue, corriger la cause ou signaler l'erreur ; dans une session oh, ces contournements sont refusés. Pour changer de branche : `git switch` (ou `git checkout -b` pour en créer une) ; ne jamais annuler une modification qu'on n'a pas faite.
 dev-standards-git	Review	Ne pas merger sa propre PR sans review (sauf urgence hotfix documentée)
 dev-standards-git	Règles de merge	`.gitignore` — Ce qui ne doit jamais être commité
+dev-standards-testing	🔒 Règles absolues	❌ Tu ne livres JAMAIS une fonctionnalité sans tests unitaires sur la logique métier
+dev-standards-testing	🔒 Règles absolues	❌ Tu ne livres JAMAIS une implémentation sans couvrir les critères d'acceptance du ticket par au moins un test chacun
+dev-standards-testing	🔒 Règles absolues	❌ Tu ne supprimes JAMAIS un test existant sans justification explicite de l'utilisateur
+dev-standards-testing	🔒 Règles absolues	❌ Tu n'utilises JAMAIS le typage dynamique non contrôlé dans les types de test pour contourner des erreurs
+dev-standards-testing	🔒 Règles absolues	❌ Tu ne testes JAMAIS l'implémentation interne (détails d'implémentation, appels de méthodes privées) — teste le **comportement observable** : entrées → sorties, états, effets de bord publics
+dev-standards-testing	🔒 Règles absolues	✅ Si une fonctionnalité n'est pas testable telle qu'elle est conçue, tu le signales avant d'implémenter
+dev-standards-testing	🔒 Règles absolues	✅ Chaque test doit échouer pour la bonne raison avant d'être vert (red → green vérifiable)
+dev-standards-testing	Exemples	API endpoint | Requête HTTP → réponse | Appel direct au controller | Le test doit vérifier le contrat HTTP, pas l'implémentation
+dev-standards-testing	Exemples	**Quand la frontière n'est pas identifiable** (code legacy, module en cours de création) : tester au niveau le plus haut disponible et documenter le choix dans le test. Le reviewer évalue le choix, pas son absence.
+dev-standards-testing	Quand écrire un test unitaire	Tout comportement qui doit rester stable à l'avenir
+dev-standards-testing	Nommage	Format : `doit <comportement attendu> quand <condition>`
+dev-standards-testing	Nommage	Le nom du test est la documentation du comportement — il doit être lisible seul
+dev-standards-testing	Tests d'intégration	Chaque appel API exposé doit avoir au moins un test d'intégration couvrant :
+dev-standards-testing	Tests E2E	Chaque test E2E doit être **idempotent** : nettoyage en beforeEach/afterEach
+dev-standards-testing	Ce qu'on mocke	Ce qu'on ne mocke pas
+dev-standards-testing	Test couplé à l'implémentation	Le test casse quand on renomme une fonction interne ou qu'on refactorise, alors que le **comportement observable n'a pas changé**.
+dev-standards-testing	Test tautologique	**Correction :** les valeurs attendues doivent venir d'une source indépendante :
+dev-standards-testing	Exécution des tests	Lance les tests avec les commandes du projet (voir « Tests incrémentaux pendant l'implémentation »). Si le workflow charge le plugin RTK, la skill `rtk-usage` décrit ses commandes à la sortie réduite ; sinon, n'utilise pas `rtk`.
+dev-standards-testing	Workflow TDD en contexte Beads	❌ Ne jamais écrire l'implémentation avant que les tests rouges existent
+dev-standards-testing	Workflow TDD en contexte Beads	❌ Ne jamais modifier un test pour le faire passer — modifier l'implémentation
+dev-standards-testing	Workflow TDD en contexte Beads	❌ Ne jamais supprimer un test rouge "gênant" — s'il échoue, l'implémentation est incomplète
+dev-standards-testing	Workflow TDD en contexte Beads	✅ Les tests rouges sont le contrat — l'implémentation les satisfait, pas l'inverse
+dev-standards-testing	Critère de "done" en TDD	Le refactor n'a pas introduit de régression (tous les tests passent après refactor)
+dev-standards-testing	Principe	Ne pas attendre d'avoir terminé toute l'implémentation pour lancer les tests.
+dev-standards-testing	Non-régression	Tout bug corrigé **doit** avoir un test qui le reproduit avant le fix
+dev-standards-testing	Non-régression	Ticket issu d'un diagnostic (`from-diagnostic`) : le test de reproduction décrit en texte dans le ticket devient ce test. Si ton prompt contient la ligne « Brouillons de session (oh) », lis le brouillon du `debugger` (entrée `oh.scratch` du contexte de session) sans le modifier : il n'est qu'une source, le test définitif s'écrit dans le dépôt, sans citer le brouillon (jamais dans la documentation ni le wiki).
+dev-standards-testing	🔎 Mode Auditeur	Signaler les mocks qui masquent du code jamais exécuté
+dev-standards-testing	Couverture des critères d'acceptance	Les critères négatifs ("ne doit pas faire X") sont couverts
+dev-standards-testing	Qualité des tests	Nommage expressif : `doit <faire quoi> quand <contexte>`
 doc-wiki-protocol	Rôle	que le `documentarian` doit respecter pour maintenir la cohérence du système.
 doc-wiki-protocol	Structure du wiki	Frontmatter obligatoire
 doc-wiki-protocol	Frontmatter obligatoire	Chaque page wiki doit commencer par un frontmatter YAML :
@@ -156,29 +185,6 @@ onboarder-workflow	Règles d'usage	✅ Vide plutôt qu'inventé : une section vi
 onboarder-workflow	Règles d'usage	❌ Ne jamais écrire les pages wiki avant Phase 5
 onboarder-workflow	Règles d'usage	❌ Ne jamais modifier `.gitignore` ni `.git/` — proposer l'ajout de `docs/wiki/` au `.gitignore` dans la passation si besoin
 onboarder-workflow	Règles d'usage	❌ Aucune écriture hors de `docs/wiki/`, `ONBOARDING.md`, `CONVENTIONS.md` (refusée par tes permissions)
-retranscription-coordinateur	Règle fondamentale (perspective consommateur)	**Séquence obligatoire — sans exception :**
-retranscription-coordinateur	Règle fondamentale (perspective consommateur)	❌ Ne jamais omettre le bloc structuré
-retranscription-coordinateur	Règle fondamentale (perspective consommateur)	❌ Ne jamais sauter les blocs intermédiaires s'ils sont présents
-retranscription-coordinateur	Cas spécial : rapport de review dans une question montante	Quand le bloc `## Question pour l'orchestrator` contient un `### Rapport de review complet` (ping-pong reviewer), ce rapport DOIT être affiché intégralement dans la discussion AVANT de poser la question. Les checkpoints (dont la validation avant commit) ne passent jamais par ce bloc : l'agent qui les atteint appelle lui-même `workflow_checkpoint`.
-retranscription-coordinateur	Cas spécial : rapport de review dans une question montante	Vérification obligatoire avant question
-retranscription-coordinateur	Vérification obligatoire avant question	✅ Les blocs `## Retour intermédiaire vers orchestrator` sont affichés (si présents)
-retranscription-coordinateur	Vérification obligatoire avant question	✅ Les champs du bloc structuré sont affichés dans la discussion (retranscription formatée)
-retranscription-coordinateur	Vérification obligatoire avant question	✅ Les sections critiques sont présentes (voir tableau ci-dessous)
-retranscription-coordinateur	Vérification obligatoire avant question	✅ Le contenu est affiché AVANT cet appel à `question`, PAS après
-retranscription-coordinateur	Vérification obligatoire avant question	✅ Le contenu n'est PAS inclus dans le champ `question` de l'outil
-retranscription-coordinateur	Vérification obligatoire avant question	✅ Checklist visuelle — AVANT CHAQUE APPEL À `question`
-retranscription-coordinateur	✅ Checklist visuelle — AVANT CHAQUE APPEL À `question`	✅ Les blocs `## Retour intermédiaire vers orchestrator` sont affichés en texte (si présents) | ⬜
-retranscription-coordinateur	✅ Checklist visuelle — AVANT CHAQUE APPEL À `question`	✅ J'ai affiché les champs du bloc structuré de manière formatée (retranscription mécanique, non résumée) | ⬜
-retranscription-coordinateur	✅ Checklist visuelle — AVANT CHAQUE APPEL À `question`	✅ Les sections critiques de ce type de retour sont présentes (voir tableau "Sections critiques par agent") | ⬜
-retranscription-coordinateur	✅ Checklist visuelle — AVANT CHAQUE APPEL À `question`	✅ Le contenu est affiché AVANT cet appel à `question`, PAS après | ⬜
-retranscription-coordinateur	✅ Checklist visuelle — AVANT CHAQUE APPEL À `question`	✅ Le contenu n'est PAS inclus dans le champ `question` de l'outil | ⬜
-retranscription-coordinateur	Sections critiques par agent source	Ce que tu NE fais JAMAIS
-retranscription-coordinateur	Ce que tu NE fais JAMAIS	❌ Résumer ou abréger les champs du bloc avant de les afficher
-retranscription-coordinateur	Ce que tu NE fais JAMAIS	❌ Inclure les champs du bloc dans le champ `question` de l'outil
-retranscription-coordinateur	Ce que tu NE fais JAMAIS	❌ Omettre des sections du bloc "parce qu'elles sont vides" (afficher la mention explicite si vide)
-retranscription-coordinateur	Ce que tu NE fais JAMAIS	❌ Reformuler le contenu reçu — le copier tel quel
-retranscription-coordinateur	Rappel d'application	❌ Appeler `question` sans avoir affiché le bloc structuré = l'utilisateur décide sans contexte.
-retranscription-coordinateur	Rappel d'application	✅ Toujours : retranscrire le bloc complet (template standard ci-dessus) → puis seulement `question`.
 standalone-execution-protocol	Ordering — récap → question	**TOUJOURS** produire le récap complet en texte **AVANT** d'appeler l'outil `question`
 standalone-execution-protocol	Ordering — récap → question	**JAMAIS** l'inverse — l'utilisateur doit voir le récap avant de décider
 standalone-execution-protocol	Checklist de vérification (avant chaque appel `question`)	Le récap n'est PAS résumé — il est complet et détaillé | ⬜

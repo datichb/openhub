@@ -59,6 +59,10 @@ type Request struct {
 	// identifiers for DenySkills). Requirements of extra skills are added.
 	ExtraSkills []string
 	DenySkills  []string
+	// PromptTemplate is the template of the workflow prompt (its source,
+	// before rendering): the skills it names join the catalogue of the entry
+	// agent. Empty: the inline text of Spec, or the hub template file.
+	PromptTemplate string
 
 	ExtraInstructionFiles []string
 	MCP                   []sessionspec.MCPServerDef
@@ -177,6 +181,11 @@ func Build(req Request) (*Bundle, error) {
 	mentionIndex := hubSkillIndex(req.HubDir, generated)
 	ids := skillIndex{}
 	callers := callersOf(bundleGraph(graph, selected))
+	agentIDs := make(map[string]bool, len(files))
+	for id := range files {
+		agentIDs[id] = true
+	}
+	cats := map[string]*agentCatalogue{}
 	for _, id := range selected {
 		fm, err := bricks.ParseAgentFrontmatter(files[id])
 		if err != nil {
@@ -206,20 +215,39 @@ func Build(req Request) (*Bundle, error) {
 		if err != nil {
 			return nil, err
 		}
+		cat := newAgentCatalogue(inlined, fm.SkillsFromCallers)
+		cats[id] = cat
 		var absent []string
-		for _, ref := range mentionedSkills(a.Body, mentionIndex) {
-			d, err := loader.load(ref)
-			if err != nil || inlined[d.ID] {
-				continue
+		// named adds the skills text invites the agent to load (self) and
+		// offers every skill it names to the callees (offered).
+		named := func(text string, self func(string, map[string]string) []string, offered bool) {
+			invited := map[string]bool{}
+			for _, ref := range self(text, mentionIndex) {
+				invited[ref] = true
 			}
-			if !keep(ref) {
-				absent = append(absent, d.ID)
-				continue
-			}
-			if deliverable(loader, ref, denied) {
-				skillRefs[ref] = true
+			for _, ref := range mentionedSkills(text, mentionIndex) {
+				d, err := loader.load(ref)
+				if err != nil || inlined[d.ID] || (!invited[ref] && !offered) {
+					continue
+				}
+				if !keep(ref) {
+					if invited[ref] {
+						absent = append(absent, d.ID)
+					}
+					continue
+				}
+				if !deliverable(loader, ref, denied) {
+					continue
+				}
+				if invited[ref] && !bricks.IsStackSkill(ref) {
+					cat.add(ref)
+				}
+				if offered {
+					cat.named = append(cat.named, ref)
+				}
 			}
 		}
+		named(invitingText(a.Body, id, agentIDs), selfMentionedSkills, true)
 		a.Body += absentSkillsNote(absent)
 		a.Body += sessionRoleNote(id, req.EntryAgent, callers[id])
 		a.Body += scratchNote(id, spec.Workflow)
@@ -228,8 +256,13 @@ func Build(req Request) (*Bundle, error) {
 			return nil, err
 		}
 		spec.Agents = append(spec.Agents, def)
-		for _, ref := range keepRoots(a.Frontmatter.NativeSkills, keep) {
-			skillRefs[ref] = true
+		cat.addNatives(keepRoots(a.Frontmatter.NativeSkills, keep))
+		if fm.StackSkills && req.ProjectPath != "" {
+			cat.add(keepRoots(bricks.StackSkillsFor(signals), keep)...)
+		}
+		if id == req.EntryAgent {
+			cat.add(req.ExtraSkills...)
+			named(req.promptTemplate(), mentionedSkills, false)
 		}
 		if err := os.MkdirAll(filepath.Join(tmp, agentsDir), 0o755); err != nil {
 			return nil, err
@@ -238,13 +271,20 @@ func Build(req Request) (*Bundle, error) {
 			return nil, err
 		}
 	}
-	if req.ProjectPath != "" {
-		for _, ref := range keepRoots(bricks.StackSkillsFor(signals), keep) {
+	addCallerSkills(cats, callers)
+	for i := range spec.Agents {
+		cat := cats[spec.Agents[i].ID]
+		if err := cat.expand(loader, denied, keep, mentionIndex, spec.Agents[i].ID, agentIDs); err != nil {
+			return nil, fmt.Errorf("agent %s: %w", spec.Agents[i].ID, err)
+		}
+		list, err := cat.skillIDs(loader, denied)
+		if err != nil {
+			return nil, fmt.Errorf("agent %s: %w", spec.Agents[i].ID, err)
+		}
+		spec.Agents[i].Skills = list
+		for _, ref := range cat.refs {
 			skillRefs[ref] = true
 		}
-	}
-	for _, ref := range req.ExtraSkills {
-		skillRefs[ref] = true
 	}
 	native, err := loader.closure(sortedKeys(skillRefs), denied)
 	if err != nil {

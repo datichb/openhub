@@ -15,8 +15,6 @@ import (
 // by the agents of the bundle (C0.3 review): the reason is kept with each.
 var crossReferences = map[string]string{
 	"living-docs-enrichment → onboarder-workflow":             "where the onboarder writes the wiki, for the reader",
-	"living-docs-enrichment → doc-wiki-protocol":              "the documentarian applies it, the caller only delegates",
-	"retranscription-coordinateur → planner-handoff-format":   "example of a critical section, the planner format ships with the planner",
 	"handoff-bloc-unique-rule → retranscription-coordinateur": "consumer side, inlined in the coordinators",
 	"onboarder-phase-3-4 → dev-standards-testing":             "agent recommendation written in the report",
 	"expert-posture → concision-posture":                      "relation between postures",

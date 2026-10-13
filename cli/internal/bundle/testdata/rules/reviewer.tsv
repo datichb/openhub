@@ -32,6 +32,11 @@ dev-standards-api	Rate limiting (côté API exposée)	Ce que tu ne fais PAS
 dev-standards-backend	🔒 Migrations destructrices	ticket bloqué et escalade. Ne pas générer ni exécuter la migration avant l'autorisation de l'utilisateur.
 dev-standards-backend	Architecture	Pas de saut de couche — un controller n'appelle pas directement un repository
 dev-standards-backend	Sécurité	Jamais de secrets, tokens ou credentials dans le code source
+dev-standards-database	Schéma	Types natifs adaptés : `uuid`, `timestamptz`, `numeric` pour les montants (jamais de flottant),
+dev-standards-database	Migrations sans interruption	nouvelle colonne obligatoire : ajout nullable → backfill par lots → `NOT NULL` ;
+dev-standards-database	Requêtes	Mesure avant d'optimiser : `EXPLAIN ANALYZE` sur des volumes réalistes. Tu n'as pas de client de
+dev-standards-database	ORM	Requêtes brutes toujours paramétrées : jamais de concaténation de valeurs dans le SQL.
+dev-standards-database	Sécurité	Les logs de requêtes ne contiennent pas les valeurs sensibles.
 dev-standards-devops	🔒 Règles absolues	❌ Jamais de secrets, tokens ou credentials dans le code, les configs ou les pipelines
 dev-standards-devops	🔒 Règles absolues	❌ Jamais de `latest` comme tag d'image en production — toujours une version épinglée
 dev-standards-devops	🔒 Règles absolues	❌ Ne jamais pousser directement sur `main`/`master` depuis un pipeline sans validation
@@ -143,6 +148,19 @@ dev-standards-git	Committer	Vérifier avec `git diff --staged` avant chaque comm
 dev-standards-git	Committer	Les hooks du dépôt font partie du commit : ne jamais les contourner (`--no-verify`, `-c core.hooksPath=…`, `git config core.hooksPath`, `GIT_CONFIG_*`, modification de `.git/`). Si un hook échoue, corriger la cause ou signaler l'erreur ; dans une session oh, ces contournements sont refusés. Pour changer de branche : `git switch` (ou `git checkout -b` pour en créer une) ; ne jamais annuler une modification qu'on n'a pas faite.
 dev-standards-git	Review	Ne pas merger sa propre PR sans review (sauf urgence hotfix documentée)
 dev-standards-git	Règles de merge	`.gitignore` — Ce qui ne doit jamais être commité
+dev-standards-migration	🔒 Règle absolue — Réversibilité	Chaque étape de migration doit :
+dev-standards-migration	🔒 Règle absolue — Réversibilité	Ne pas bloquer le développement des autres features
+dev-standards-migration	🔒 Règle absolue — Réversibilité	❌ Tu ne migres JAMAIS sans plan de rollback documenté
+dev-standards-migration	🔒 Règle absolue — Réversibilité	❌ Tu ne migres JAMAIS plusieurs composants majeurs en même temps
+dev-standards-migration	🔒 Règle absolue — Réversibilité	❌ Tu ne supprimes JAMAIS le code legacy avant validation complète
+dev-standards-migration	🔒 Règle absolue — Réversibilité	❌ Tu ne fais JAMAIS de "big bang migration" — toujours incrémental
+dev-standards-migration	🔒 Règle absolue — Réversibilité	✅ Chaque étape doit laisser l'application fonctionnelle
+dev-standards-migration	🛑 Protocole pré-migration destructive	Workflow OBLIGATOIRE si migration destructive détectée
+dev-standards-migration	Workflow OBLIGATOIRE si migration destructive détectée	Le developer n'exécute pas une migration destructive de manière autonome :
+dev-standards-migration	Analyse pré-migration	Checklist obligatoire
+dev-standards-migration	Guides de migration officiels	Toujours consulter en premier :
+dev-standards-migration	Guides de migration officiels	Ce que tu NE fais PAS
+dev-standards-migration	🔎 Mode Auditeur Migration	Ne jamais migrer sans validation explicite
 dev-standards-security	Rôle	Ce skill ne remplace pas un audit de sécurité approfondi.
 dev-standards-security	Secrets et configuration	Les secrets (clés API, tokens, mots de passe, DSN) sont **toujours** dans des variables d'environnement — jamais en dur dans le code
 dev-standards-security	Secrets et configuration	Les valeurs par défaut dans le code ne doivent jamais être des secrets de production

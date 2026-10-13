@@ -107,6 +107,8 @@ permission:
     "documentarian": allow
 skills: [path/to/skill, ...]          # Bucket A — assembled inline when the session bundle is built
 native_skills: [path/to/skill, ...]   # Bucket B — delivered in the session bundle skills/, loaded on-demand
+stack_skills: true        # optional — the project's stack skills in the agent catalogue
+skills_from_callers: true # optional — the skills named by its callers in its catalogue
 ---
 
 # <Title>
@@ -123,10 +125,12 @@ native_skills: [path/to/skill, ...]   # Bucket B — delivered in the session bu
 | `model` | Default model, last level of the cascade (workflow·agent > workflow > project·agent > … > frontmatter) |
 | `permission_base` | Permission base (`permissions/<base>.yaml`) merged with `permission:`; single-level inheritance |
 | `permission.question` | `allow` — enables OpenCode's `question` tool for this agent. Reserved for interactive `primary` agents. Always paired with the `posture/tool-question` skill. |
-| `permission.skill` | `allow` — enables the native `skill` tool so the agent can load Bucket B skills on-demand. In the closed world, only the bundle skills are allowed. |
+| `permission.skill` | `allow` — enables the native `skill` tool so the agent can load Bucket B skills on-demand. In the closed world, only the skills of the agent's catalogue are allowed (see [Per-agent catalogue](./skills.en.md#per-agent-catalogue)). |
 | `permission.task` | Agents this agent may launch. In a session, the list is restricted to the workflow members (or replaced by `calls:`). |
 | `skills` | **Bucket A** — paths relative to `skills/`, injected inline when the session bundle is built, always active from the first token. Workflow protocols, handoff formats, universal principles. |
 | `native_skills` | **Bucket B** — paths relative to `skills/`, delivered in the session bundle as `skills/<name>/SKILL.md`, loaded on-demand by the LLM via the `skill` tool. Domain standards, stack skills, checklists. |
+| `stack_skills` | `true` — the stack skills of the detected project enter the agent's catalogue (`developer`, `reviewer`, `debugger`, `operator`). Without it, the agent does not see them. |
+| `skills_from_callers` | `true` — the skills its callers name in their prompt (except their own `native_skills:`) enter its catalogue: the caller picks the skill to load (`developer` and its domain standards, `auditor-subagent` and its audit checklist). |
 
 See [ADR-010](./adr/010-hybrid-skills-architecture.en.md) for the rationale behind the Bucket A / Bucket B split.
 

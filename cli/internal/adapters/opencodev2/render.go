@@ -35,7 +35,8 @@ const ConfigFileName = "config.json"
 //
 // Closed world rules (D13):
 //   - every native agent (natives) is disabled;
-//   - skills: deny "*" then allow the bundle skills (hides built-in skills);
+//   - skills: deny "*" then allow the bundle skills (hides built-in skills),
+//     and per agent deny "*" then allow its catalogue (AgentDef.Skills);
 //   - subagents: per agent, deny "*" then allow the targets of SubagentGraph;
 //   - project config is excluded by the server environment (StartServer).
 func Render(b sessionspec.BundleSpec, p sessionspec.ProviderSpec, natives []string) (adapters.RenderedConfig, error) {
@@ -168,9 +169,13 @@ func agentRules(a sessionspec.AgentDef, b sessionspec.BundleSpec, bundleSkills [
 		}
 		rules = append(rules, r)
 	}
-	// Skills: the agent's own skill rules filter the bundle skills.
+	// Skills: the agent's catalogue (Skills, every bundle skill when nil),
+	// filtered by its own skill rules.
 	rules = append(rules, sessionspec.PermissionRule{Action: sessionspec.ActionSkill, Resource: "*", Effect: sessionspec.EffectDeny})
 	for _, id := range bundleSkills {
+		if !a.SkillVisible(id) {
+			continue
+		}
 		if effect := evaluate(a.Permissions, sessionspec.ActionSkill, id, sessionspec.EffectAllow); effect != sessionspec.EffectDeny {
 			rules = append(rules, sessionspec.PermissionRule{Action: sessionspec.ActionSkill, Resource: id, Effect: effect})
 		}

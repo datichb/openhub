@@ -46,6 +46,13 @@ func (r *Resolution) HasPrompt() bool {
 	return p != nil && (p.Text != "" || p.Template != "")
 }
 
+// PromptTemplate returns the template of the initial prompt, before
+// rendering ("" without `prompt:`): the bundle gives the skills it names to
+// the entry agent.
+func (r *Resolution) PromptTemplate() (string, error) {
+	return r.ReadPromptSource(r.env.Prompts)
+}
+
 // RenderPrompt renders the initial prompt ("" without `prompt:`). The line
 // « Mode de workflow : <mode> » read by the generated workflow skills is
 // added when the template does not write it.

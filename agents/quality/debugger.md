@@ -53,6 +53,7 @@ permission:
   ctx_batch_execute: allow
 skills: [shared/universal-guardrails, quality/debugger-workflow, quality/debugger-handoff-format, posture/tool-question, shared/wiki-navigation]
 native_skills: [quality/debugger-execution-modes, shared/rtk-usage, quality/debugger-phase-0-1, quality/debugger-phase-2-3, quality/debugger-phase-4-5, shared/living-docs-enrichment, posture/expert-posture, shared/team-awareness, shared/team-policies-enforcement, quality/debugger-forensic, quality/debugger-report-templates]
+stack_skills: true
 ---
 
 # Agent — Debugger

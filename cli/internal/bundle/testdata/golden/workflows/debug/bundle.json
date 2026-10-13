@@ -97,6 +97,19 @@
         "glob *.oh/sessions/*/scratch/debugger/* allow",
         "grep *.oh/sessions/*/scratch/debugger/* allow",
         "list *.oh/sessions/*/scratch/debugger/* allow"
+      ],
+      "skills": [
+        "debugger-execution-modes",
+        "debugger-forensic",
+        "debugger-phase-0-1",
+        "debugger-phase-2-3",
+        "debugger-phase-4-5",
+        "debugger-report-templates",
+        "expert-posture",
+        "handoff-bloc-unique-rule",
+        "living-docs-enrichment",
+        "standalone-execution-protocol",
+        "subagent-execution-protocol"
       ]
     },
     {
@@ -291,6 +304,22 @@
         "glob *.oh/sessions/*/scratch/debugger/* allow",
         "grep *.oh/sessions/*/scratch/debugger/* allow",
         "list *.oh/sessions/*/scratch/debugger/* allow"
+      ],
+      "skills": [
+        "beads-plan",
+        "concision-posture",
+        "dev-standards-database",
+        "dev-standards-frontend-data",
+        "dev-standards-git",
+        "dev-standards-migration",
+        "dev-standards-refactoring",
+        "dev-standards-security",
+        "dev-standards-testing",
+        "handoff-bloc-unique-rule",
+        "living-docs-enrichment",
+        "quick-fix",
+        "reviewer-reception",
+        "test-generation"
       ]
     },
     {
@@ -375,6 +404,21 @@
         "grep *.oh/sessions/*/scratch/* deny",
         "list *.oh/sessions/*/scratch/* deny",
         "external_directory *.oh/sessions/*/scratch/* deny"
+      ],
+      "skills": [
+        "beads-plan",
+        "dev-standards-git",
+        "doc-adr",
+        "doc-api",
+        "doc-changelog",
+        "doc-slides",
+        "doc-standards",
+        "doc-wiki-protocol",
+        "expert-posture",
+        "handoff-bloc-unique-rule",
+        "skill-authoring-protocol",
+        "websearch-usage",
+        "wiki-navigation"
       ]
     }
   ],
@@ -404,13 +448,13 @@
     "handoff-bloc-unique-rule",
     "living-docs-enrichment",
     "quick-fix",
-    "retranscription-coordinateur",
     "reviewer-reception",
     "skill-authoring-protocol",
     "standalone-execution-protocol",
     "subagent-execution-protocol",
     "test-generation",
-    "websearch-usage"
+    "websearch-usage",
+    "wiki-navigation"
   ],
   "subagent_graph": {
     "debugger": [

@@ -132,6 +132,24 @@ type AgentDef struct {
 	Model       *ModelRef        `json:"model,omitempty"`
 	Permissions []PermissionRule `json:"permissions,omitempty"`
 	Hidden      bool             `json:"hidden,omitempty"`
+	// Skills are the IDs of the bundle skills the agent may load (its
+	// catalogue). nil: every bundle skill (bundles built before the
+	// per-agent catalogue); empty: none.
+	Skills []string `json:"skills"`
+}
+
+// SkillVisible reports whether the agent's catalogue holds the skill (any
+// bundle skill when Skills is nil).
+func (a AgentDef) SkillVisible(id string) bool {
+	if a.Skills == nil {
+		return true
+	}
+	for _, s := range a.Skills {
+		if s == id {
+			return true
+		}
+	}
+	return false
 }
 
 // SkillDef points to a skill directory (SKILL.md + resources) inside the bundle.

@@ -21,6 +21,7 @@ permission:
     "infracost*": ask
 skills: [shared/universal-guardrails, posture/tool-question, shared/wiki-navigation]
 native_skills: [developer/dev-standards-security, shared/rtk-usage, shared/living-docs-enrichment, shared/team-awareness, shared/team-policies-enforcement]
+stack_skills: true
 ---
 
 # Opérateur infra

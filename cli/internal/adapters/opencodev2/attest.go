@@ -14,7 +14,8 @@ import (
 // the model can see at location must come from the bundle.
 //
 //   - agents: non-hidden agents ⊆ bundle agents; hidden agents ⊆ system agents ∪ bundle;
-//   - skills: listed skills (the list honours global permission rules) ⊆ bundle skills;
+//   - skills: listed skills (the list honours global permission rules) ⊆ bundle skills,
+//     and each agent sees only the skills of its catalogue (AgentDef.Skills);
 //   - MCP: configured servers ⊆ bundle MCP servers.
 func Attest(ctx context.Context, c *Client, b sessionspec.BundleSpec, location string) (adapters.VisibilityReport, error) {
 	rep := adapters.VisibilityReport{Level: sessionspec.IsolationFull}
@@ -54,6 +55,9 @@ func Attest(ctx context.Context, c *Client, b sessionspec.BundleSpec, location s
 	for _, s := range skills {
 		if skillSet[s.ID] {
 			rep.Skills = append(rep.Skills, s.ID)
+			for _, a := range outsideCatalogue(agents, b, s.ID) {
+				rep.Unexpected = append(rep.Unexpected, "skill:"+s.ID+"@"+a)
+			}
 			continue
 		}
 		visibleTo := skillVisibleOnServer(agents, b, s.ID)
@@ -199,6 +203,27 @@ func skillVisibleTo(b sessionspec.BundleSpec, skill string) []string {
 		}
 	}
 	return out
+}
+
+// outsideCatalogue returns the bundle agents to which the server exposes a
+// bundle skill that is not in their catalogue (AgentDef.Skills, L2).
+func outsideCatalogue(agents []Agent, b sessionspec.BundleSpec, skill string) []string {
+	var out []string
+	for _, a := range skillVisibleOnServer(agents, b, skill) {
+		if def := findAgentDef(b, a); def != nil && !def.SkillVisible(skill) {
+			out = append(out, a)
+		}
+	}
+	return out
+}
+
+func findAgentDef(b sessionspec.BundleSpec, id string) *sessionspec.AgentDef {
+	for i := range b.Agents {
+		if b.Agents[i].ID == id {
+			return &b.Agents[i]
+		}
+	}
+	return nil
 }
 
 // UnexpectedAgents returns the agent IDs reported as unexpected.

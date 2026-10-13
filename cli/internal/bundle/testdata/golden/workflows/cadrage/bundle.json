@@ -59,6 +59,11 @@
         "shell *.beads/dolt/* deny",
         "edit .beads/* deny",
         "edit */.beads/* deny"
+      ],
+      "skills": [
+        "handoff-bloc-unique-rule",
+        "planner-handoff-format",
+        "subagent-concision-posture"
       ]
     },
     {
@@ -137,6 +142,17 @@
         "shell *.beads/dolt/* deny",
         "edit .beads/* deny",
         "edit */.beads/* deny"
+      ],
+      "skills": [
+        "beads-plan",
+        "handoff-bloc-unique-rule",
+        "living-docs-enrichment",
+        "pathfinder-execution-modes",
+        "standalone-execution-protocol",
+        "subagent-concision-posture",
+        "subagent-execution-protocol",
+        "websearch-stack-research",
+        "websearch-usage"
       ]
     },
     {
@@ -220,6 +236,29 @@
         "shell *.beads/dolt/* deny",
         "edit .beads/* deny",
         "edit */.beads/* deny"
+      ],
+      "skills": [
+        "beads-plan",
+        "design-planner-format",
+        "elicitation-techniques",
+        "expert-posture",
+        "handoff-bloc-unique-rule",
+        "living-docs-enrichment",
+        "phase-0-validation-loop",
+        "planner-beads-templates",
+        "planner-design-templates",
+        "planner-execution-modes",
+        "planner-patterns-protocol",
+        "planner-phase-0",
+        "planner-phase-1",
+        "planner-phase-2",
+        "planner-phase-3-4",
+        "planner-phase-5-6",
+        "standalone-execution-protocol",
+        "subagent-concision-posture",
+        "subagent-execution-protocol",
+        "websearch-stack-research",
+        "websearch-usage"
       ]
     },
     {
@@ -282,6 +321,25 @@
         "shell *.beads/dolt/* deny",
         "edit .beads/* deny",
         "edit */.beads/* deny"
+      ],
+      "skills": [
+        "beads-plan",
+        "content-design",
+        "design-principles",
+        "designer-standalone",
+        "designer-subagent",
+        "expert-posture",
+        "figma-deep-protocol",
+        "figma-recon-protocol",
+        "handoff-bloc-unique-rule",
+        "prototype-protocol",
+        "subagent-execution-protocol",
+        "tui-patterns",
+        "ui-patterns-reference",
+        "ui-protocol",
+        "ux-protocol",
+        "websearch-design-patterns",
+        "websearch-usage"
       ]
     }
   ],
@@ -311,7 +369,6 @@
     "planner-phase-3-4",
     "planner-phase-5-6",
     "prototype-protocol",
-    "retranscription-coordinateur",
     "standalone-execution-protocol",
     "subagent-concision-posture",
     "subagent-execution-protocol",

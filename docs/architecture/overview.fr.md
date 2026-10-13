@@ -98,7 +98,7 @@ Voir [Workflows livrés](../reference/workflows.fr.md), [Workflows d'équipe](..
 
 ### Paquet de session
 
-À chaque lancement, `internal/bundle` construit le **paquet de session** `~/.oh/bundles/<hash>/` à partir du workflow résolu : agents membres (skills Bucket A intégrées), skills à la demande (Bucket B, skills de stack, `skills.extra`, skills générées depuis le YAML comme `workflow/workflow-map`), permissions, graphe de délégation et profondeur maximale, serveurs MCP (dont le serveur `workflow` d'oh) et plugin oh. Le paquet est **immuable** et adressé par son hash : les sessions d'un même groupe le partagent, une reprise repart du même paquet.
+À chaque lancement, `internal/bundle` construit le **paquet de session** `~/.oh/bundles/<hash>/` à partir du workflow résolu : agents membres (skills Bucket A intégrées), skills à la demande (Bucket B, skills de stack, `skills.extra`, skills générées depuis le YAML comme `workflow/workflow-map` ; chaque agent n'en voit que son catalogue, voir [Catalogue par agent](skills.fr.md#catalogue-par-agent)), permissions, graphe de délégation et profondeur maximale, serveurs MCP (dont le serveur `workflow` d'oh) et plugin oh. Le paquet est **immuable** et adressé par son hash : les sessions d'un même groupe le partagent, une reprise repart du même paquet.
 
 Commandes : `oh bundle show <workflow> [--budget]`, `oh bundle build <workflow>`. Décision : [ADR-043](./adr/043-session-bundle-deploy-removal.fr.md).
 

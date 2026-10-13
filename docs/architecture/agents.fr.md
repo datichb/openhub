@@ -107,6 +107,8 @@ permission:
     "documentarian": allow
 skills: [chemin/vers/skill, ...]          # Bucket A — assemblées inline à la construction du paquet de session
 native_skills: [chemin/vers/skill, ...]   # Bucket B — livrées dans skills/ du paquet de session, chargées à la demande
+stack_skills: true        # optionnel — skills de stack du projet dans le catalogue de l'agent
+skills_from_callers: true # optionnel — skills nommées par ses appelants dans son catalogue
 ---
 
 # <Titre>
@@ -123,10 +125,12 @@ native_skills: [chemin/vers/skill, ...]   # Bucket B — livrées dans skills/ d
 | `model` | Modèle par défaut, dernier niveau de la cascade (workflow·agent > workflow > projet·agent > … > frontmatter) |
 | `permission_base` | Base de permissions (`permissions/<base>.yaml`) fusionnée avec `permission:` ; un seul niveau d'héritage |
 | `permission.question` | `allow` — active l'outil `question` d'OpenCode pour cet agent. Réservé aux agents `primary` interactifs. Toujours associé à la skill `posture/tool-question`. |
-| `permission.skill` | `allow` — active l'outil `skill` natif pour que l'agent puisse charger les skills Bucket B à la demande. En monde fermé, seules les skills du paquet sont autorisées. |
+| `permission.skill` | `allow` — active l'outil `skill` natif pour que l'agent puisse charger les skills Bucket B à la demande. En monde fermé, seules les skills du catalogue de l'agent sont autorisées (voir [Catalogue par agent](./skills.fr.md#catalogue-par-agent)). |
 | `permission.task` | Agents que cet agent peut lancer. Dans une session, la liste est restreinte aux membres du workflow (ou remplacée par `calls:`). |
 | `skills` | **Bucket A** — chemins relatifs à `skills/`, injectés inline à la construction du paquet de session, toujours actifs dès le premier token. Protocoles de workflow, formats de handoff, principes universels. |
 | `native_skills` | **Bucket B** — chemins relatifs à `skills/`, livrés dans le paquet de session sous `skills/<name>/SKILL.md`, chargés à la demande par le LLM via l'outil `skill`. Standards de domaine, stack skills, checklists. |
+| `stack_skills` | `true` — les skills de stack du projet détecté entrent dans le catalogue de l'agent (`developer`, `reviewer`, `debugger`, `operator`). Sans ce champ, l'agent ne les voit pas. |
+| `skills_from_callers` | `true` — les skills que ses appelants nomment dans leur prompt (hors leurs propres `native_skills:`) entrent dans son catalogue : l'appelant choisit la skill à charger (`developer` et ses standards de domaine, `auditor-subagent` et sa checklist d'audit). |
 
 Voir [ADR-010](./adr/010-hybrid-skills-architecture.fr.md) pour le raisonnement derrière la séparation Bucket A / Bucket B.
 

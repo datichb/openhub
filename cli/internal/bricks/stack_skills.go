@@ -66,6 +66,19 @@ var stackSkillMapping = map[string][]string{
 	"argocd":         {"developer/stacks/dev-standards-argocd"},
 }
 
+// IsStackSkill reports whether ref is a stack skill (StackSkillsFor): it
+// reaches an agent only through the detected stack, never by a mention.
+func IsStackSkill(ref string) bool {
+	for _, refs := range stackSkillMapping {
+		for _, r := range refs {
+			if r == ref {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 // ResolveStackSkills detects the project's tech stack (DetectSignals) and
 // returns the skill refs that should be deployed as native skills (Bucket B)
 // for it: the union of the refs of its signals, sorted and deduplicated.

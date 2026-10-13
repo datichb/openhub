@@ -68,12 +68,33 @@
         "shell *.beads/dolt/* deny",
         "edit .beads/* deny",
         "edit */.beads/* deny"
+      ],
+      "skills": [
+        "beads-plan",
+        "dev-standards-git",
+        "dev-standards-testing",
+        "doc-wiki-protocol",
+        "expert-posture",
+        "handoff-bloc-unique-rule",
+        "living-docs-enrichment",
+        "onboarder-execution-modes",
+        "onboarder-phase-0",
+        "onboarder-phase-1",
+        "onboarder-phase-2",
+        "onboarder-phase-3-4",
+        "onboarder-phase-5",
+        "phase-0-validation-loop",
+        "standalone-execution-protocol",
+        "subagent-execution-protocol",
+        "websearch-stack-research",
+        "websearch-usage"
       ]
     }
   ],
   "skills": [
     "beads-plan",
     "dev-standards-git",
+    "dev-standards-testing",
     "doc-wiki-protocol",
     "expert-posture",
     "handoff-bloc-unique-rule",
@@ -85,7 +106,6 @@
     "onboarder-phase-3-4",
     "onboarder-phase-5",
     "phase-0-validation-loop",
-    "retranscription-coordinateur",
     "standalone-execution-protocol",
     "subagent-execution-protocol",
     "websearch-stack-research",

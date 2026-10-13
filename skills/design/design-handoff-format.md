@@ -15,7 +15,7 @@ Il est injecté dans `designer` et `orchestrator` — producteur et consommateur
 
 > **Contrat de handoff :** voir skill `shared/handoff-bloc-unique-rule` pour les règles universelles producer/consumer.
 
-### Détection du contexte d'invocation
+### Détection du contexte d'invocation (producteur : designer)
 
 Au démarrage, charger le skill de parcours selon le contexte :
 
@@ -78,13 +78,13 @@ Accompagne toujours un `## Retour intermédiaire vers orchestrator`.
 - **Retranscription** : afficher les champs du bloc de manière formatée dans la discussion (voir skill `retranscription-coordinateur`). La `### Spec complète` est affichée intégralement.
 - **Délégation** : intégrer `### Contraintes d'implémentation` dans le prompt de délégation à `orchestrator-dev`.
 - **cp-spec** : signaler `### Points ouverts` à l'utilisateur pour décision avant implémentation. <!-- capability: optional -->
-- **Statut** : `spec-complète` ou `spec-partielle` → cp-spec normal · `bloqué` → ne pas router vers `orchestrator-dev` · `prototype-livré` → la réponse est dans le bloc, pas de spec à implémenter · `choix-requis` → le designer propose 2-3 variations UI et attend un choix (voir Design It Twice dans `ui-protocol`) — l'orchestrateur relaie le choix à l'utilisateur et ré-invoque le designer avec la réponse. <!-- capability: optional -->
+- **Statut** : `spec-complète` ou `spec-partielle` → cp-spec normal · `bloqué` → ne pas router vers `orchestrator-dev` · `prototype-livré` → la réponse est dans le bloc, pas de spec à implémenter · `choix-requis` → le designer propose 2-3 variations UI et attend un choix (méthode Design It Twice du designer) — l'orchestrateur relaie le choix à l'utilisateur et ré-invoque le designer avec la réponse. <!-- capability: optional -->
 
 ---
 
 ## Bloc `## Retour prototype vers orchestrator` (mode prototype uniquement)
 
-Produit quand le skill `prototype-protocol` est chargé. Ce bloc remplace le bloc standard `## Retour vers orchestrator` — il ne contient pas de spec complète mais un artefact ciblé répondant à une question précise.
+Produit par le designer en mode prototype (sa skill prototype-protocol). Ce bloc remplace le bloc standard `## Retour vers orchestrator` — il ne contient pas de spec complète mais un artefact ciblé répondant à une question précise.
 
 > **Template :** format défini dans `templates/designer-handoff-blocks.md` (section « Bloc Prototype ») — charger via `read` quand tu produis ce bloc.
 
