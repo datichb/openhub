@@ -1,11 +1,12 @@
 {
-  "started_at": "2026-10-13T09:06:31.880654+02:00",
-  "finished_at": "2026-10-13T09:51:46.436326+02:00",
+  "started_at": "2026-10-13T20:10:01.782855+02:00",
+  "finished_at": "2026-10-13T20:35:23.268843+02:00",
   "models": [
     "claude-haiku-4-5"
   ],
   "reps": 3,
   "budget_usd_per_pass": 1,
+  "budget_usd_total": 8,
   "cases": [
     {
       "id": "S1",
@@ -38,7 +39,7 @@
     {
       "id": "S5",
       "key": "cadrage/S5",
-      "title": "Cadrage : le planner suit la variante sous-agent",
+      "title": "Cadrage : le planner suit la variante sous-agent (enveloppe vers conductor)",
       "workflow": "cadrage",
       "active": true
     },
@@ -61,8 +62,7 @@
       "key": "ticket/S8",
       "title": "Ticket sans démon : retour au rapport complet inclus dans le bloc",
       "workflow": "ticket",
-      "active": false,
-      "inactive_reason": "actif après L4 (workflow_report) : il faut pouvoir couper le dépôt des rapports par le démon pour vérifier le repli sur le rapport complet dans le bloc"
+      "active": true
     },
     {
       "id": "S9",
@@ -74,8 +74,43 @@
     {
       "id": "S10",
       "key": "quick/S10",
-      "title": "Quick : une décision sur les données est posée en « Questions bloquantes », pas via question",
+      "title": "Quick : une décision sur les données est laissée à l'utilisateur (question de l'agent d'entrée ou question ouverte), sans commit",
       "workflow": "quick",
+      "active": true
+    },
+    {
+      "id": "S11",
+      "key": "ticket/S11",
+      "title": "Ticket avec wiki : une proposition wiki_propose est validée à la carte de cp-2 et appliquée par oh",
+      "workflow": "ticket",
+      "active": true
+    },
+    {
+      "id": "S12",
+      "key": "doc-sync/S12",
+      "title": "doc-sync : la dérive d'une page CONFIRMÉ est corrigée, oh note la synchronisation, le wiki seul est commité",
+      "workflow": "doc-sync",
+      "active": true
+    },
+    {
+      "id": "S13",
+      "key": "onboarding/S13",
+      "title": "Onboarding : skills de phase chargés avant leur phase, écritures limitées au wiki et à ONBOARDING.md",
+      "workflow": "onboarding",
+      "active": true
+    },
+    {
+      "id": "S14",
+      "key": "libre/S14",
+      "title": "Libre : l'onboarder lancé en sous-agent ne pose pas de question et rend son enveloppe à orchestrator",
+      "workflow": "libre",
+      "active": true
+    },
+    {
+      "id": "S15",
+      "key": "cadrage/S15",
+      "title": "Cadrage : une demande d'interface fait invoquer le designer (ui-protocol chargé, sans question, enveloppe vers l'appelant)",
+      "workflow": "cadrage",
       "active": true
     }
   ],
@@ -86,10 +121,10 @@
       "rep": 1,
       "outcome": "completed",
       "pass": true,
-      "cost_usd": 0.085244555,
-      "tokens_in": 37,
-      "tokens_out": 2554,
-      "seconds": 63.791448625,
+      "cost_usd": 0.09709986,
+      "tokens_in": 77,
+      "tokens_out": 4159,
+      "seconds": 93.58305175,
       "assertions": [
         {
           "type": "ran",
@@ -139,10 +174,10 @@
       "rep": 2,
       "outcome": "completed",
       "pass": true,
-      "cost_usd": 0.08493930499999999,
-      "tokens_in": 37,
-      "tokens_out": 2817,
-      "seconds": 66.459673375,
+      "cost_usd": 0.041985515,
+      "tokens_in": 30,
+      "tokens_out": 1836,
+      "seconds": 67.630973791,
       "assertions": [
         {
           "type": "ran",
@@ -191,11 +226,11 @@
       "model": "claude-haiku-4-5",
       "rep": 3,
       "outcome": "completed",
-      "pass": true,
-      "cost_usd": 0.08861187499999999,
-      "tokens_in": 42,
-      "tokens_out": 2391,
-      "seconds": 62.181122084,
+      "pass": false,
+      "cost_usd": 0.04883934,
+      "tokens_in": 35,
+      "tokens_out": 2347,
+      "seconds": 71.256849666,
       "assertions": [
         {
           "type": "ran",
@@ -210,7 +245,8 @@
         {
           "type": "text_matches",
           "name": "le test en échec est signalé",
-          "pass": true
+          "pass": false,
+          "detail": "never written"
         },
         {
           "type": "changed_within",
@@ -245,10 +281,10 @@
       "rep": 1,
       "outcome": "completed",
       "pass": true,
-      "cost_usd": 0.31183416,
-      "tokens_in": 164,
-      "tokens_out": 8696,
-      "seconds": 133.705069375,
+      "cost_usd": 0.23196024499999998,
+      "tokens_in": 236,
+      "tokens_out": 8717,
+      "seconds": 140.554980208,
       "assertions": [
         {
           "type": "no_question_in_subagent",
@@ -301,10 +337,10 @@
       "rep": 2,
       "outcome": "completed",
       "pass": true,
-      "cost_usd": 0.302028265,
-      "tokens_in": 185,
-      "tokens_out": 7657,
-      "seconds": 125.574743375,
+      "cost_usd": 0.272877,
+      "tokens_in": 265,
+      "tokens_out": 11127,
+      "seconds": 155.16122675,
       "assertions": [
         {
           "type": "no_question_in_subagent",
@@ -345,10 +381,6 @@
       ],
       "decisions": [
         {
-          "kind": "permission",
-          "decision": "once"
-        },
-        {
           "kind": "checkpoint",
           "checkpoint": "cp-2",
           "decision": "approve"
@@ -361,10 +393,10 @@
       "rep": 3,
       "outcome": "completed",
       "pass": true,
-      "cost_usd": 0.31564126000000003,
-      "tokens_in": 179,
-      "tokens_out": 8782,
-      "seconds": 114.373369833,
+      "cost_usd": 0.224677365,
+      "tokens_in": 212,
+      "tokens_out": 9842,
+      "seconds": 134.81019025,
       "assertions": [
         {
           "type": "no_question_in_subagent",
@@ -417,10 +449,10 @@
       "rep": 1,
       "outcome": "completed",
       "pass": true,
-      "cost_usd": 0.171032675,
-      "tokens_in": 43,
-      "tokens_out": 6827,
-      "seconds": 93.079192667,
+      "cost_usd": 0.14011756,
+      "tokens_in": 101,
+      "tokens_out": 8477,
+      "seconds": 105.76902625,
       "assertions": [
         {
           "type": "no_question_in_subagent",
@@ -450,6 +482,13 @@
         }
       ],
       "decisions": [
+        {
+          "kind": "question"
+        },
+        {
+          "kind": "permission",
+          "decision": "once"
+        },
         {
           "kind": "question"
         },
@@ -470,16 +509,17 @@
       "model": "claude-haiku-4-5",
       "rep": 2,
       "outcome": "completed",
-      "pass": true,
-      "cost_usd": 0.20446448,
-      "tokens_in": 50,
-      "tokens_out": 6965,
-      "seconds": 101.894702708,
+      "pass": false,
+      "cost_usd": 0.083440555,
+      "tokens_in": 60,
+      "tokens_out": 4287,
+      "seconds": 79.285457125,
       "assertions": [
         {
           "type": "no_question_in_subagent",
           "name": "no_question_in_subagent",
-          "pass": true
+          "pass": false,
+          "detail": "question asked by pathfinder (event 34)"
         },
         {
           "type": "text_matches",
@@ -508,6 +548,9 @@
           "kind": "question"
         },
         {
+          "kind": "question"
+        },
+        {
           "kind": "checkpoint",
           "checkpoint": "cp-tickets",
           "decision": "reject"
@@ -524,16 +567,17 @@
       "model": "claude-haiku-4-5",
       "rep": 3,
       "outcome": "completed",
-      "pass": true,
-      "cost_usd": 0.205122995,
-      "tokens_in": 81,
-      "tokens_out": 6781,
-      "seconds": 101.115330417,
+      "pass": false,
+      "cost_usd": 0.101228435,
+      "tokens_in": 84,
+      "tokens_out": 5544,
+      "seconds": 92.197979333,
       "assertions": [
         {
           "type": "no_question_in_subagent",
           "name": "no_question_in_subagent",
-          "pass": true
+          "pass": false,
+          "detail": "question asked by pathfinder (event 33)"
         },
         {
           "type": "text_matches",
@@ -558,6 +602,9 @@
         }
       ],
       "decisions": [
+        {
+          "kind": "question"
+        },
         {
           "kind": "question"
         },
@@ -578,23 +625,36 @@
       "model": "claude-haiku-4-5",
       "rep": 1,
       "outcome": "completed",
-      "pass": false,
-      "cost_usd": 0.076874215,
-      "tokens_in": 21,
-      "tokens_out": 3579,
-      "seconds": 57.984201667,
+      "pass": true,
+      "cost_usd": 0.15007921500000002,
+      "tokens_in": 89,
+      "tokens_out": 9310,
+      "seconds": 118.129571125,
       "assertions": [
         {
+          "type": "text_matches",
+          "name": "le sous-agent rend son enveloppe à auditor",
+          "pass": true
+        },
+        {
           "type": "skill_loaded_before",
-          "name": "auditor-execution-modes chargé avant la délégation (phase 3)",
-          "pass": false,
-          "detail": "skill never loaded"
+          "name": "auditor-phase-0-1 avant les phases 0 et 1",
+          "pass": true
+        },
+        {
+          "type": "skill_loaded_before",
+          "name": "auditor-phase-3 avant la délégation",
+          "pass": true
+        },
+        {
+          "type": "skill_loaded_before",
+          "name": "auditor-phase-4 avant la synthèse",
+          "pass": true
         },
         {
           "type": "skill_loaded_before",
           "name": "le skill de domaine est chargé avant l'analyse du code",
-          "pass": false,
-          "detail": "skill never loaded"
+          "pass": true
         },
         {
           "type": "text_matches",
@@ -617,6 +677,17 @@
           "name": "no_denied_loop",
           "pass": true
         }
+      ],
+      "decisions": [
+        {
+          "kind": "question"
+        },
+        {
+          "kind": "question"
+        },
+        {
+          "kind": "question"
+        }
       ]
     },
     {
@@ -625,15 +696,96 @@
       "rep": 2,
       "outcome": "completed",
       "pass": true,
-      "cost_usd": 0.208625725,
-      "tokens_in": 72,
-      "tokens_out": 11969,
-      "seconds": 147.556740458,
+      "cost_usd": 0.12128875,
+      "tokens_in": 65,
+      "tokens_out": 9596,
+      "seconds": 110.324914625,
       "assertions": [
         {
-          "type": "skill_loaded_before",
-          "name": "auditor-execution-modes chargé avant la délégation (phase 3)",
+          "type": "text_matches",
+          "name": "le sous-agent rend son enveloppe à auditor",
           "pass": true
+        },
+        {
+          "type": "skill_loaded_before",
+          "name": "auditor-phase-0-1 avant les phases 0 et 1",
+          "pass": true
+        },
+        {
+          "type": "skill_loaded_before",
+          "name": "auditor-phase-3 avant la délégation",
+          "pass": true
+        },
+        {
+          "type": "skill_loaded_before",
+          "name": "auditor-phase-4 avant la synthèse",
+          "pass": true
+        },
+        {
+          "type": "skill_loaded_before",
+          "name": "le skill de domaine est chargé avant l'analyse du code",
+          "pass": true,
+          "detail": "first read *.go never happened"
+        },
+        {
+          "type": "text_matches",
+          "name": "l'injection de commande est relevée",
+          "pass": true
+        },
+        {
+          "type": "changed_within",
+          "name": "aucune modification (lecture seule)",
+          "pass": true,
+          "detail": "0 file(s) changed"
+        },
+        {
+          "type": "no_question_in_subagent",
+          "name": "no_question_in_subagent",
+          "pass": true
+        },
+        {
+          "type": "no_denied_loop",
+          "name": "no_denied_loop",
+          "pass": true
+        }
+      ],
+      "decisions": [
+        {
+          "kind": "question"
+        }
+      ]
+    },
+    {
+      "case": "S4",
+      "model": "claude-haiku-4-5",
+      "rep": 3,
+      "outcome": "completed",
+      "pass": false,
+      "cost_usd": 0.16296159,
+      "tokens_in": 80,
+      "tokens_out": 14590,
+      "seconds": 156.655896875,
+      "assertions": [
+        {
+          "type": "text_matches",
+          "name": "le sous-agent rend son enveloppe à auditor",
+          "pass": true
+        },
+        {
+          "type": "skill_loaded_before",
+          "name": "auditor-phase-0-1 avant les phases 0 et 1",
+          "pass": true
+        },
+        {
+          "type": "skill_loaded_before",
+          "name": "auditor-phase-3 avant la délégation",
+          "pass": true
+        },
+        {
+          "type": "skill_loaded_before",
+          "name": "auditor-phase-4 avant la synthèse",
+          "pass": false,
+          "detail": "loaded at event 48, after text /#+[^\\n]*Phase 4\\b/ (event 47)"
         },
         {
           "type": "skill_loaded_before",
@@ -672,58 +824,6 @@
         },
         {
           "kind": "question"
-        },
-        {
-          "kind": "question"
-        },
-        {
-          "kind": "question"
-        }
-      ]
-    },
-    {
-      "case": "S4",
-      "model": "claude-haiku-4-5",
-      "rep": 3,
-      "outcome": "completed",
-      "pass": false,
-      "cost_usd": 0.15632969000000002,
-      "tokens_in": 20,
-      "tokens_out": 3928,
-      "seconds": 60.117840917,
-      "assertions": [
-        {
-          "type": "skill_loaded_before",
-          "name": "auditor-execution-modes chargé avant la délégation (phase 3)",
-          "pass": false,
-          "detail": "skill never loaded"
-        },
-        {
-          "type": "skill_loaded_before",
-          "name": "le skill de domaine est chargé avant l'analyse du code",
-          "pass": false,
-          "detail": "skill never loaded"
-        },
-        {
-          "type": "text_matches",
-          "name": "l'injection de commande est relevée",
-          "pass": true
-        },
-        {
-          "type": "changed_within",
-          "name": "aucune modification (lecture seule)",
-          "pass": true,
-          "detail": "0 file(s) changed"
-        },
-        {
-          "type": "no_question_in_subagent",
-          "name": "no_question_in_subagent",
-          "pass": true
-        },
-        {
-          "type": "no_denied_loop",
-          "name": "no_denied_loop",
-          "pass": true
         }
       ]
     },
@@ -733,14 +833,14 @@
       "rep": 1,
       "outcome": "completed",
       "pass": true,
-      "cost_usd": 0.25172697,
-      "tokens_in": 104,
-      "tokens_out": 7832,
-      "seconds": 118.955995417,
+      "cost_usd": 0.141218275,
+      "tokens_in": 113,
+      "tokens_out": 6542,
+      "seconds": 98.597467458,
       "assertions": [
         {
-          "type": "skill_loaded_before",
-          "name": "planner-execution-modes chargé avant son retour",
+          "type": "text_matches",
+          "name": "le planner adresse son retour à conductor",
           "pass": true
         },
         {
@@ -799,14 +899,14 @@
       "rep": 2,
       "outcome": "completed",
       "pass": true,
-      "cost_usd": 0.18893193,
-      "tokens_in": 57,
-      "tokens_out": 7134,
-      "seconds": 108.571218792,
+      "cost_usd": 0.14622332999999998,
+      "tokens_in": 115,
+      "tokens_out": 7043,
+      "seconds": 105.259651125,
       "assertions": [
         {
-          "type": "skill_loaded_before",
-          "name": "planner-execution-modes chargé avant son retour",
+          "type": "text_matches",
+          "name": "le planner adresse son retour à conductor",
           "pass": true
         },
         {
@@ -865,14 +965,14 @@
       "rep": 3,
       "outcome": "completed",
       "pass": true,
-      "cost_usd": 0.19146297499999998,
-      "tokens_in": 61,
-      "tokens_out": 6483,
-      "seconds": 111.396824375,
+      "cost_usd": 0.15576923999999998,
+      "tokens_in": 117,
+      "tokens_out": 9464,
+      "seconds": 128.647449292,
       "assertions": [
         {
-          "type": "skill_loaded_before",
-          "name": "planner-execution-modes chargé avant son retour",
+          "type": "text_matches",
+          "name": "le planner adresse son retour à conductor",
           "pass": true
         },
         {
@@ -915,6 +1015,21 @@
         },
         {
           "kind": "checkpoint",
+          "checkpoint": "cp-recap",
+          "decision": "approve"
+        },
+        {
+          "kind": "checkpoint",
+          "checkpoint": "cp-tickets",
+          "decision": "reject"
+        },
+        {
+          "kind": "checkpoint",
+          "checkpoint": "cp-recap",
+          "decision": "approve"
+        },
+        {
+          "kind": "checkpoint",
           "checkpoint": "cp-tickets",
           "decision": "reject"
         },
@@ -931,55 +1046,10 @@
       "rep": 1,
       "outcome": "completed",
       "pass": true,
-      "cost_usd": 0.08420131500000001,
-      "tokens_in": 43,
-      "tokens_out": 4384,
-      "seconds": 72.308595584,
-      "assertions": [
-        {
-          "type": "skill_loaded_before",
-          "name": "debugger-phase-0-1 avant les phases 0 et 1",
-          "pass": true
-        },
-        {
-          "type": "skill_loaded_before",
-          "name": "debugger-phase-2-3 avant les phases 2 et 3",
-          "pass": true
-        },
-        {
-          "type": "skill_loaded_before",
-          "name": "debugger-phase-4-5 avant les phases 4 et 5",
-          "pass": true
-        },
-        {
-          "type": "skill_loaded_before",
-          "name": "debugger-phase-4-5 avant le ticket de correction",
-          "pass": true
-        },
-        {
-          "type": "no_denied_loop",
-          "name": "no_denied_loop",
-          "pass": true
-        }
-      ],
-      "decisions": [
-        {
-          "kind": "checkpoint",
-          "checkpoint": "cp-ticket",
-          "decision": "approve"
-        }
-      ]
-    },
-    {
-      "case": "S6",
-      "model": "claude-haiku-4-5",
-      "rep": 2,
-      "outcome": "completed",
-      "pass": false,
-      "cost_usd": 0.08925322999999999,
+      "cost_usd": 0.071243755,
       "tokens_in": 53,
-      "tokens_out": 4089,
-      "seconds": 79.518675792,
+      "tokens_out": 4713,
+      "seconds": 75.509248625,
       "assertions": [
         {
           "type": "skill_loaded_before",
@@ -989,20 +1059,17 @@
         {
           "type": "skill_loaded_before",
           "name": "debugger-phase-2-3 avant les phases 2 et 3",
-          "pass": false,
-          "detail": "skill never loaded"
+          "pass": true
         },
         {
           "type": "skill_loaded_before",
           "name": "debugger-phase-4-5 avant les phases 4 et 5",
-          "pass": false,
-          "detail": "skill never loaded"
+          "pass": true
         },
         {
           "type": "skill_loaded_before",
           "name": "debugger-phase-4-5 avant le ticket de correction",
-          "pass": false,
-          "detail": "skill never loaded"
+          "pass": true
         },
         {
           "type": "no_denied_loop",
@@ -1021,13 +1088,13 @@
     {
       "case": "S6",
       "model": "claude-haiku-4-5",
-      "rep": 3,
+      "rep": 2,
       "outcome": "completed",
-      "pass": false,
-      "cost_usd": 0.08040807500000002,
-      "tokens_in": 46,
-      "tokens_out": 3580,
-      "seconds": 71.242813167,
+      "pass": true,
+      "cost_usd": 0.084077895,
+      "tokens_in": 70,
+      "tokens_out": 5278,
+      "seconds": 83.085539125,
       "assertions": [
         {
           "type": "skill_loaded_before",
@@ -1037,20 +1104,17 @@
         {
           "type": "skill_loaded_before",
           "name": "debugger-phase-2-3 avant les phases 2 et 3",
-          "pass": false,
-          "detail": "skill never loaded"
+          "pass": true
         },
         {
           "type": "skill_loaded_before",
           "name": "debugger-phase-4-5 avant les phases 4 et 5",
-          "pass": false,
-          "detail": "skill never loaded"
+          "pass": true
         },
         {
           "type": "skill_loaded_before",
           "name": "debugger-phase-4-5 avant le ticket de correction",
-          "pass": false,
-          "detail": "skill never loaded"
+          "pass": true
         },
         {
           "type": "no_denied_loop",
@@ -1059,6 +1123,58 @@
         }
       ],
       "decisions": [
+        {
+          "kind": "question"
+        },
+        {
+          "kind": "checkpoint",
+          "checkpoint": "cp-ticket",
+          "decision": "approve"
+        }
+      ]
+    },
+    {
+      "case": "S6",
+      "model": "claude-haiku-4-5",
+      "rep": 3,
+      "outcome": "completed",
+      "pass": true,
+      "cost_usd": 0.07920962499999999,
+      "tokens_in": 71,
+      "tokens_out": 4973,
+      "seconds": 83.762519875,
+      "assertions": [
+        {
+          "type": "skill_loaded_before",
+          "name": "debugger-phase-0-1 avant les phases 0 et 1",
+          "pass": true
+        },
+        {
+          "type": "skill_loaded_before",
+          "name": "debugger-phase-2-3 avant les phases 2 et 3",
+          "pass": true
+        },
+        {
+          "type": "skill_loaded_before",
+          "name": "debugger-phase-4-5 avant les phases 4 et 5",
+          "pass": true
+        },
+        {
+          "type": "skill_loaded_before",
+          "name": "debugger-phase-4-5 avant le ticket de correction",
+          "pass": true
+        },
+        {
+          "type": "no_denied_loop",
+          "name": "no_denied_loop",
+          "pass": true
+        }
+      ],
+      "decisions": [
+        {
+          "kind": "permission",
+          "decision": "once"
+        },
         {
           "kind": "checkpoint",
           "checkpoint": "cp-ticket",
@@ -1072,10 +1188,10 @@
       "rep": 1,
       "outcome": "completed",
       "pass": true,
-      "cost_usd": 0.10765897999999999,
-      "tokens_in": 76,
-      "tokens_out": 2484,
-      "seconds": 56.705140625,
+      "cost_usd": 0.07645291499999998,
+      "tokens_in": 63,
+      "tokens_out": 2009,
+      "seconds": 42.902591208,
       "assertions": [
         {
           "type": "no_denied_loop",
@@ -1118,10 +1234,10 @@
       "rep": 2,
       "outcome": "completed",
       "pass": true,
-      "cost_usd": 0.10882151500000001,
-      "tokens_in": 58,
-      "tokens_out": 2312,
-      "seconds": 46.288202042,
+      "cost_usd": 0.09499555999999999,
+      "tokens_in": 83,
+      "tokens_out": 2393,
+      "seconds": 46.847965583,
       "assertions": [
         {
           "type": "no_denied_loop",
@@ -1164,10 +1280,10 @@
       "rep": 3,
       "outcome": "completed",
       "pass": true,
-      "cost_usd": 0.1003717,
-      "tokens_in": 61,
-      "tokens_out": 2680,
-      "seconds": 41.869905083,
+      "cost_usd": 0.08023796,
+      "tokens_in": 69,
+      "tokens_out": 2163,
+      "seconds": 44.922408042,
       "assertions": [
         {
           "type": "no_denied_loop",
@@ -1205,21 +1321,125 @@
       ]
     },
     {
+      "case": "S8",
+      "model": "claude-haiku-4-5",
+      "rep": 1,
+      "outcome": "completed",
+      "pass": true,
+      "cost_usd": 0.276898545,
+      "tokens_in": 263,
+      "tokens_out": 11690,
+      "seconds": 160.743450333,
+      "assertions": [
+        {
+          "type": "text_matches",
+          "name": "le developer inclut son rapport complet dans le bloc",
+          "pass": true
+        },
+        {
+          "type": "text_matches",
+          "name": "le reviewer inclut son rapport complet dans le bloc",
+          "pass": true
+        },
+        {
+          "type": "hidden_tests",
+          "name": "hidden_tests",
+          "pass": true
+        }
+      ],
+      "decisions": [
+        {
+          "kind": "checkpoint",
+          "checkpoint": "cp-2",
+          "decision": "approve"
+        }
+      ]
+    },
+    {
+      "case": "S8",
+      "model": "claude-haiku-4-5",
+      "rep": 2,
+      "outcome": "completed",
+      "pass": true,
+      "cost_usd": 0.228673335,
+      "tokens_in": 235,
+      "tokens_out": 8838,
+      "seconds": 135.5843025,
+      "assertions": [
+        {
+          "type": "text_matches",
+          "name": "le developer inclut son rapport complet dans le bloc",
+          "pass": true
+        },
+        {
+          "type": "text_matches",
+          "name": "le reviewer inclut son rapport complet dans le bloc",
+          "pass": true
+        },
+        {
+          "type": "hidden_tests",
+          "name": "hidden_tests",
+          "pass": true
+        }
+      ],
+      "decisions": [
+        {
+          "kind": "checkpoint",
+          "checkpoint": "cp-2",
+          "decision": "approve"
+        }
+      ]
+    },
+    {
+      "case": "S8",
+      "model": "claude-haiku-4-5",
+      "rep": 3,
+      "outcome": "completed",
+      "pass": true,
+      "cost_usd": 0.27687066000000005,
+      "tokens_in": 254,
+      "tokens_out": 12864,
+      "seconds": 166.936455375,
+      "assertions": [
+        {
+          "type": "text_matches",
+          "name": "le developer inclut son rapport complet dans le bloc",
+          "pass": true
+        },
+        {
+          "type": "text_matches",
+          "name": "le reviewer inclut son rapport complet dans le bloc",
+          "pass": true
+        },
+        {
+          "type": "hidden_tests",
+          "name": "hidden_tests",
+          "pass": true
+        }
+      ],
+      "decisions": [
+        {
+          "kind": "checkpoint",
+          "checkpoint": "cp-2",
+          "decision": "approve"
+        }
+      ]
+    },
+    {
       "case": "S9",
       "model": "claude-haiku-4-5",
       "rep": 1,
       "outcome": "completed",
-      "pass": false,
-      "cost_usd": 0.41176960000000007,
-      "tokens_in": 238,
-      "tokens_out": 14474,
-      "seconds": 201.958856542,
+      "pass": true,
+      "cost_usd": 0.340742215,
+      "tokens_in": 291,
+      "tokens_out": 16113,
+      "seconds": 172.93274325,
       "assertions": [
         {
           "type": "text_matches",
           "name": "le developer adresse son retour à conductor",
-          "pass": false,
-          "detail": "never written"
+          "pass": true
         },
         {
           "type": "text_matches",
@@ -1229,8 +1449,7 @@
         {
           "type": "text_matches",
           "name": "aucun retour adressé à orchestrator-dev",
-          "pass": false,
-          "detail": "written by developer (event 50)"
+          "pass": true
         },
         {
           "type": "checkpoint_order",
@@ -1259,123 +1478,908 @@
           "kind": "checkpoint",
           "checkpoint": "cp-plan",
           "decision": "approve"
+        },
+        {
+          "kind": "checkpoint",
+          "checkpoint": "cp-commit",
+          "decision": "approve"
+        },
+        {
+          "kind": "checkpoint",
+          "checkpoint": "cp-recap",
+          "decision": "approve"
+        }
+      ]
+    },
+    {
+      "case": "S9",
+      "model": "claude-haiku-4-5",
+      "rep": 2,
+      "outcome": "completed",
+      "pass": true,
+      "cost_usd": 0.36175953,
+      "tokens_in": 310,
+      "tokens_out": 18709,
+      "seconds": 176.052958292,
+      "assertions": [
+        {
+          "type": "text_matches",
+          "name": "le developer adresse son retour à conductor",
+          "pass": true
+        },
+        {
+          "type": "text_matches",
+          "name": "le reviewer adresse son retour à conductor",
+          "pass": true
+        },
+        {
+          "type": "text_matches",
+          "name": "aucun retour adressé à orchestrator-dev",
+          "pass": true
+        },
+        {
+          "type": "checkpoint_order",
+          "name": "checkpoints cp-plan → cp-commit",
+          "pass": true
+        },
+        {
+          "type": "no_question_in_subagent",
+          "name": "no_question_in_subagent",
+          "pass": true
+        },
+        {
+          "type": "changed_within",
+          "name": "changed within strx/**",
+          "pass": true,
+          "detail": "2 file(s) changed"
+        },
+        {
+          "type": "hidden_tests",
+          "name": "hidden_tests",
+          "pass": true
+        }
+      ],
+      "decisions": [
+        {
+          "kind": "checkpoint",
+          "checkpoint": "cp-plan",
+          "decision": "approve"
+        },
+        {
+          "kind": "checkpoint",
+          "checkpoint": "cp-commit",
+          "decision": "approve"
+        },
+        {
+          "kind": "checkpoint",
+          "checkpoint": "cp-recap",
+          "decision": "approve"
+        }
+      ]
+    },
+    {
+      "case": "S9",
+      "model": "claude-haiku-4-5",
+      "rep": 3,
+      "outcome": "completed",
+      "pass": true,
+      "cost_usd": 0.299841905,
+      "tokens_in": 280,
+      "tokens_out": 15901,
+      "seconds": 163.554288625,
+      "assertions": [
+        {
+          "type": "text_matches",
+          "name": "le developer adresse son retour à conductor",
+          "pass": true
+        },
+        {
+          "type": "text_matches",
+          "name": "le reviewer adresse son retour à conductor",
+          "pass": true
+        },
+        {
+          "type": "text_matches",
+          "name": "aucun retour adressé à orchestrator-dev",
+          "pass": true
+        },
+        {
+          "type": "checkpoint_order",
+          "name": "checkpoints cp-plan → cp-commit",
+          "pass": true
+        },
+        {
+          "type": "no_question_in_subagent",
+          "name": "no_question_in_subagent",
+          "pass": true
+        },
+        {
+          "type": "changed_within",
+          "name": "changed within strx/**",
+          "pass": true,
+          "detail": "2 file(s) changed"
+        },
+        {
+          "type": "hidden_tests",
+          "name": "hidden_tests",
+          "pass": true
+        }
+      ],
+      "decisions": [
+        {
+          "kind": "checkpoint",
+          "checkpoint": "cp-plan",
+          "decision": "approve"
+        },
+        {
+          "kind": "checkpoint",
+          "checkpoint": "cp-commit",
+          "decision": "approve"
+        },
+        {
+          "kind": "checkpoint",
+          "checkpoint": "cp-recap",
+          "decision": "approve"
+        }
+      ]
+    },
+    {
+      "case": "S10",
+      "model": "claude-haiku-4-5",
+      "rep": 1,
+      "outcome": "completed",
+      "pass": true,
+      "cost_usd": 0.04584998,
+      "tokens_in": 23,
+      "tokens_out": 900,
+      "seconds": 37.840085583,
+      "assertions": [
+        {
+          "type": "no_question_in_subagent",
+          "name": "aucun sous-agent n'appelle question",
+          "pass": true
+        },
+        {
+          "type": "text_matches",
+          "name": "la décision est posée à l'utilisateur (outil question, « Questions bloquantes » ou question ouverte)",
+          "pass": true
+        },
+        {
+          "type": "ran",
+          "name": "aucun commit",
+          "pass": true
+        },
+        {
+          "type": "no_denied_loop",
+          "name": "no_denied_loop",
+          "pass": true
+        }
+      ]
+    },
+    {
+      "case": "S10",
+      "model": "claude-haiku-4-5",
+      "rep": 2,
+      "outcome": "completed",
+      "pass": false,
+      "cost_usd": 0.04882042,
+      "tokens_in": 23,
+      "tokens_out": 1095,
+      "seconds": 40.320314458,
+      "assertions": [
+        {
+          "type": "no_question_in_subagent",
+          "name": "aucun sous-agent n'appelle question",
+          "pass": true
+        },
+        {
+          "type": "text_matches",
+          "name": "la décision est posée à l'utilisateur (outil question, « Questions bloquantes » ou question ouverte)",
+          "pass": false,
+          "detail": "never written"
+        },
+        {
+          "type": "ran",
+          "name": "aucun commit",
+          "pass": true
+        },
+        {
+          "type": "no_denied_loop",
+          "name": "no_denied_loop",
+          "pass": true
+        }
+      ]
+    },
+    {
+      "case": "S10",
+      "model": "claude-haiku-4-5",
+      "rep": 3,
+      "outcome": "completed",
+      "pass": true,
+      "cost_usd": 0.05209968499999999,
+      "tokens_in": 30,
+      "tokens_out": 1378,
+      "seconds": 40.122013833,
+      "assertions": [
+        {
+          "type": "no_question_in_subagent",
+          "name": "aucun sous-agent n'appelle question",
+          "pass": true
+        },
+        {
+          "type": "text_matches",
+          "name": "la décision est posée à l'utilisateur (outil question, « Questions bloquantes » ou question ouverte)",
+          "pass": true
+        },
+        {
+          "type": "ran",
+          "name": "aucun commit",
+          "pass": true
+        },
+        {
+          "type": "no_denied_loop",
+          "name": "no_denied_loop",
+          "pass": true
+        }
+      ]
+    },
+    {
+      "case": "S11",
+      "model": "claude-haiku-4-5",
+      "rep": 1,
+      "outcome": "completed",
+      "pass": true,
+      "cost_usd": 0.30691930500000003,
+      "tokens_in": 259,
+      "tokens_out": 10675,
+      "seconds": 148.838667042,
+      "assertions": [
+        {
+          "type": "called",
+          "name": "une proposition du wiki est faite avant la validation de cp-2",
+          "pass": true
+        },
+        {
+          "type": "called",
+          "name": "aucun agent n'écrit lui-même dans le wiki par wiki_apply",
+          "pass": true
+        },
+        {
+          "type": "checkpoint_order",
+          "name": "checkpoints cp-2",
+          "pass": true
+        },
+        {
+          "type": "changed_within",
+          "name": "la page du wiki est modifiée (proposition appliquée par oh), avec le code seulement",
+          "pass": true,
+          "detail": "3 file(s) changed"
+        },
+        {
+          "type": "ran",
+          "name": "commit après la validation de cp-2",
+          "pass": true
+        },
+        {
+          "type": "hidden_tests",
+          "name": "hidden_tests",
+          "pass": true
+        },
+        {
+          "type": "no_denied_loop",
+          "name": "no_denied_loop",
+          "pass": true
+        }
+      ],
+      "decisions": [
+        {
+          "kind": "wiki",
+          "checkpoint": "cp-2",
+          "decision": "accept wp-1"
+        },
+        {
+          "kind": "checkpoint",
+          "checkpoint": "cp-2",
+          "decision": "approve"
+        }
+      ]
+    },
+    {
+      "case": "S11",
+      "model": "claude-haiku-4-5",
+      "rep": 2,
+      "outcome": "completed",
+      "pass": true,
+      "cost_usd": 0.2825757,
+      "tokens_in": 307,
+      "tokens_out": 11418,
+      "seconds": 166.243808958,
+      "assertions": [
+        {
+          "type": "called",
+          "name": "une proposition du wiki est faite avant la validation de cp-2",
+          "pass": true
+        },
+        {
+          "type": "called",
+          "name": "aucun agent n'écrit lui-même dans le wiki par wiki_apply",
+          "pass": true
+        },
+        {
+          "type": "checkpoint_order",
+          "name": "checkpoints cp-2",
+          "pass": true
+        },
+        {
+          "type": "changed_within",
+          "name": "la page du wiki est modifiée (proposition appliquée par oh), avec le code seulement",
+          "pass": true,
+          "detail": "3 file(s) changed"
+        },
+        {
+          "type": "ran",
+          "name": "commit après la validation de cp-2",
+          "pass": true
+        },
+        {
+          "type": "hidden_tests",
+          "name": "hidden_tests",
+          "pass": true
+        },
+        {
+          "type": "no_denied_loop",
+          "name": "no_denied_loop",
+          "pass": true
+        }
+      ],
+      "decisions": [
+        {
+          "kind": "wiki",
+          "checkpoint": "cp-2",
+          "decision": "accept wp-1"
+        },
+        {
+          "kind": "checkpoint",
+          "checkpoint": "cp-2",
+          "decision": "approve"
+        }
+      ]
+    },
+    {
+      "case": "S11",
+      "model": "claude-haiku-4-5",
+      "rep": 3,
+      "outcome": "completed",
+      "pass": true,
+      "cost_usd": 0.27855223,
+      "tokens_in": 251,
+      "tokens_out": 12294,
+      "seconds": 178.073987041,
+      "assertions": [
+        {
+          "type": "called",
+          "name": "une proposition du wiki est faite avant la validation de cp-2",
+          "pass": true
+        },
+        {
+          "type": "called",
+          "name": "aucun agent n'écrit lui-même dans le wiki par wiki_apply",
+          "pass": true
+        },
+        {
+          "type": "checkpoint_order",
+          "name": "checkpoints cp-2",
+          "pass": true
+        },
+        {
+          "type": "changed_within",
+          "name": "la page du wiki est modifiée (proposition appliquée par oh), avec le code seulement",
+          "pass": true,
+          "detail": "3 file(s) changed"
+        },
+        {
+          "type": "ran",
+          "name": "commit après la validation de cp-2",
+          "pass": true
+        },
+        {
+          "type": "hidden_tests",
+          "name": "hidden_tests",
+          "pass": true
+        },
+        {
+          "type": "no_denied_loop",
+          "name": "no_denied_loop",
+          "pass": true
+        }
+      ],
+      "decisions": [
+        {
+          "kind": "question"
+        },
+        {
+          "kind": "wiki",
+          "checkpoint": "cp-2",
+          "decision": "accept wp-1"
+        },
+        {
+          "kind": "checkpoint",
+          "checkpoint": "cp-2",
+          "decision": "approve"
+        }
+      ]
+    },
+    {
+      "case": "S12",
+      "model": "claude-haiku-4-5",
+      "rep": 1,
+      "outcome": "completed",
+      "pass": true,
+      "cost_usd": 0.04952826999999999,
+      "tokens_in": 41,
+      "tokens_out": 2180,
+      "seconds": 30.560627584,
+      "assertions": [
+        {
+          "type": "called",
+          "name": "wiki_check est appelé avant le checkpoint",
+          "pass": true
+        },
+        {
+          "type": "checkpoint_order",
+          "name": "checkpoints cp-sync",
+          "pass": true
+        },
+        {
+          "type": "changed_within",
+          "name": "seul le wiki change, la page en dérive et l'index (synced) compris",
+          "pass": true,
+          "detail": "2 file(s) changed"
+        },
+        {
+          "type": "text_matches",
+          "name": "la dérive est vue",
+          "pass": true
+        },
+        {
+          "type": "ran",
+          "name": "le wiki est commité après la validation",
+          "pass": true
+        },
+        {
+          "type": "ran",
+          "name": "aucun commit avant la validation de cp-sync",
+          "pass": true
+        },
+        {
+          "type": "no_denied_loop",
+          "name": "no_denied_loop",
+          "pass": true
+        }
+      ],
+      "decisions": [
+        {
+          "kind": "checkpoint",
+          "checkpoint": "cp-sync",
+          "decision": "approve"
+        }
+      ]
+    },
+    {
+      "case": "S12",
+      "model": "claude-haiku-4-5",
+      "rep": 2,
+      "outcome": "completed",
+      "pass": true,
+      "cost_usd": 0.046474175,
+      "tokens_in": 49,
+      "tokens_out": 2186,
+      "seconds": 33.504825167,
+      "assertions": [
+        {
+          "type": "called",
+          "name": "wiki_check est appelé avant le checkpoint",
+          "pass": true
+        },
+        {
+          "type": "checkpoint_order",
+          "name": "checkpoints cp-sync",
+          "pass": true
+        },
+        {
+          "type": "changed_within",
+          "name": "seul le wiki change, la page en dérive et l'index (synced) compris",
+          "pass": true,
+          "detail": "2 file(s) changed"
+        },
+        {
+          "type": "text_matches",
+          "name": "la dérive est vue",
+          "pass": true
+        },
+        {
+          "type": "ran",
+          "name": "le wiki est commité après la validation",
+          "pass": true
+        },
+        {
+          "type": "ran",
+          "name": "aucun commit avant la validation de cp-sync",
+          "pass": true
+        },
+        {
+          "type": "no_denied_loop",
+          "name": "no_denied_loop",
+          "pass": true
+        }
+      ],
+      "decisions": [
+        {
+          "kind": "checkpoint",
+          "checkpoint": "cp-sync",
+          "decision": "approve"
+        }
+      ]
+    },
+    {
+      "case": "S12",
+      "model": "claude-haiku-4-5",
+      "rep": 3,
+      "outcome": "completed",
+      "pass": true,
+      "cost_usd": 0.05645805,
+      "tokens_in": 60,
+      "tokens_out": 2682,
+      "seconds": 46.421662458,
+      "assertions": [
+        {
+          "type": "called",
+          "name": "wiki_check est appelé avant le checkpoint",
+          "pass": true
+        },
+        {
+          "type": "checkpoint_order",
+          "name": "checkpoints cp-sync",
+          "pass": true
+        },
+        {
+          "type": "changed_within",
+          "name": "seul le wiki change, la page en dérive et l'index (synced) compris",
+          "pass": true,
+          "detail": "2 file(s) changed"
+        },
+        {
+          "type": "text_matches",
+          "name": "la dérive est vue",
+          "pass": true
+        },
+        {
+          "type": "ran",
+          "name": "le wiki est commité après la validation",
+          "pass": true
+        },
+        {
+          "type": "ran",
+          "name": "aucun commit avant la validation de cp-sync",
+          "pass": true
+        },
+        {
+          "type": "no_denied_loop",
+          "name": "no_denied_loop",
+          "pass": true
+        }
+      ],
+      "decisions": [
+        {
+          "kind": "checkpoint",
+          "checkpoint": "cp-sync",
+          "decision": "approve"
+        }
+      ]
+    },
+    {
+      "case": "S13",
+      "model": "claude-haiku-4-5",
+      "rep": 1,
+      "outcome": "completed",
+      "pass": true,
+      "cost_usd": 0.21788437000000002,
+      "tokens_in": 172,
+      "tokens_out": 11627,
+      "seconds": 146.434679875,
+      "assertions": [
+        {
+          "type": "skill_loaded_before",
+          "name": "onboarder-phase-1 chargé avant l'exploration du code",
+          "pass": true
+        },
+        {
+          "type": "skill_loaded_before",
+          "name": "onboarder-phase-5 chargé avant l'écriture du wiki",
+          "pass": true
+        },
+        {
+          "type": "changed_within",
+          "name": "écritures limitées au wiki et à ONBOARDING.md",
+          "pass": true,
+          "detail": "7 file(s) changed"
+        },
+        {
+          "type": "no_denied_loop",
+          "name": "no_denied_loop",
+          "pass": true
+        }
+      ],
+      "decisions": [
+        {
+          "kind": "question"
         },
         {
           "kind": "question"
         },
         {
-          "kind": "checkpoint",
-          "checkpoint": "cp-commit",
-          "decision": "approve"
+          "kind": "question"
         },
         {
-          "kind": "checkpoint",
-          "checkpoint": "cp-recap",
-          "decision": "approve"
+          "kind": "question"
         }
       ]
     },
     {
-      "case": "S9",
+      "case": "S13",
       "model": "claude-haiku-4-5",
       "rep": 2,
       "outcome": "completed",
-      "pass": false,
-      "cost_usd": 0.42329061500000004,
-      "tokens_in": 285,
-      "tokens_out": 14583,
-      "seconds": 166.982429084,
+      "pass": true,
+      "cost_usd": 0.21177596,
+      "tokens_in": 172,
+      "tokens_out": 11882,
+      "seconds": 151.422220917,
       "assertions": [
         {
-          "type": "text_matches",
-          "name": "le developer adresse son retour à conductor",
-          "pass": false,
-          "detail": "never written"
-        },
-        {
-          "type": "text_matches",
-          "name": "le reviewer adresse son retour à conductor",
-          "pass": false,
-          "detail": "never written"
-        },
-        {
-          "type": "text_matches",
-          "name": "aucun retour adressé à orchestrator-dev",
-          "pass": false,
-          "detail": "written by developer (event 95)"
-        },
-        {
-          "type": "checkpoint_order",
-          "name": "checkpoints cp-plan → cp-commit",
+          "type": "skill_loaded_before",
+          "name": "onboarder-phase-1 chargé avant l'exploration du code",
           "pass": true
         },
         {
-          "type": "no_question_in_subagent",
-          "name": "no_question_in_subagent",
+          "type": "skill_loaded_before",
+          "name": "onboarder-phase-5 chargé avant l'écriture du wiki",
           "pass": true
         },
         {
           "type": "changed_within",
-          "name": "changed within strx/**",
+          "name": "écritures limitées au wiki et à ONBOARDING.md",
           "pass": true,
-          "detail": "2 file(s) changed"
+          "detail": "8 file(s) changed"
         },
         {
-          "type": "hidden_tests",
-          "name": "hidden_tests",
+          "type": "no_denied_loop",
+          "name": "no_denied_loop",
           "pass": true
         }
       ],
       "decisions": [
         {
-          "kind": "checkpoint",
-          "checkpoint": "cp-plan",
-          "decision": "approve"
+          "kind": "question"
         },
         {
-          "kind": "checkpoint",
-          "checkpoint": "cp-commit",
-          "decision": "approve"
+          "kind": "question"
         },
         {
-          "kind": "checkpoint",
-          "checkpoint": "cp-recap",
-          "decision": "approve"
+          "kind": "question"
+        },
+        {
+          "kind": "question"
+        },
+        {
+          "kind": "question"
+        },
+        {
+          "kind": "question"
+        },
+        {
+          "kind": "question"
         }
       ]
     },
     {
-      "case": "S9",
+      "case": "S13",
       "model": "claude-haiku-4-5",
       "rep": 3,
       "outcome": "completed",
-      "pass": false,
-      "cost_usd": 0.410938275,
-      "tokens_in": 248,
-      "tokens_out": 13489,
-      "seconds": 166.493477375,
+      "pass": true,
+      "cost_usd": 0.24437765,
+      "tokens_in": 145,
+      "tokens_out": 16600,
+      "seconds": 173.987816459,
+      "assertions": [
+        {
+          "type": "skill_loaded_before",
+          "name": "onboarder-phase-1 chargé avant l'exploration du code",
+          "pass": true
+        },
+        {
+          "type": "skill_loaded_before",
+          "name": "onboarder-phase-5 chargé avant l'écriture du wiki",
+          "pass": true
+        },
+        {
+          "type": "changed_within",
+          "name": "écritures limitées au wiki et à ONBOARDING.md",
+          "pass": true,
+          "detail": "9 file(s) changed"
+        },
+        {
+          "type": "no_denied_loop",
+          "name": "no_denied_loop",
+          "pass": true
+        }
+      ],
+      "decisions": [
+        {
+          "kind": "question"
+        },
+        {
+          "kind": "question"
+        },
+        {
+          "kind": "question"
+        },
+        {
+          "kind": "question"
+        },
+        {
+          "kind": "question"
+        }
+      ]
+    },
+    {
+      "case": "S14",
+      "model": "claude-haiku-4-5",
+      "rep": 1,
+      "outcome": "completed",
+      "pass": true,
+      "cost_usd": 0.20154837999999997,
+      "tokens_in": 141,
+      "tokens_out": 9717,
+      "seconds": 125.93822875,
+      "assertions": [
+        {
+          "type": "no_question_in_subagent",
+          "name": "no_question_in_subagent",
+          "pass": true
+        },
+        {
+          "type": "text_matches",
+          "name": "l'onboarder adresse son retour à orchestrator",
+          "pass": true
+        },
+        {
+          "type": "text_matches",
+          "name": "aucun retour adressé à un autre agent",
+          "pass": true
+        },
+        {
+          "type": "changed_within",
+          "name": "écritures limitées au wiki et à ONBOARDING.md",
+          "pass": true,
+          "detail": "7 file(s) changed"
+        },
+        {
+          "type": "no_denied_loop",
+          "name": "no_denied_loop",
+          "pass": true
+        }
+      ]
+    },
+    {
+      "case": "S14",
+      "model": "claude-haiku-4-5",
+      "rep": 2,
+      "outcome": "completed",
+      "pass": true,
+      "cost_usd": 0.169666035,
+      "tokens_in": 137,
+      "tokens_out": 7794,
+      "seconds": 106.3627285,
+      "assertions": [
+        {
+          "type": "no_question_in_subagent",
+          "name": "no_question_in_subagent",
+          "pass": true
+        },
+        {
+          "type": "text_matches",
+          "name": "l'onboarder adresse son retour à orchestrator",
+          "pass": true
+        },
+        {
+          "type": "text_matches",
+          "name": "aucun retour adressé à un autre agent",
+          "pass": true
+        },
+        {
+          "type": "changed_within",
+          "name": "écritures limitées au wiki et à ONBOARDING.md",
+          "pass": true,
+          "detail": "6 file(s) changed"
+        },
+        {
+          "type": "no_denied_loop",
+          "name": "no_denied_loop",
+          "pass": true
+        }
+      ]
+    },
+    {
+      "case": "S14",
+      "model": "claude-haiku-4-5",
+      "rep": 3,
+      "outcome": "completed",
+      "pass": true,
+      "cost_usd": 0.16361394499999998,
+      "tokens_in": 140,
+      "tokens_out": 7897,
+      "seconds": 106.556190125,
+      "assertions": [
+        {
+          "type": "no_question_in_subagent",
+          "name": "no_question_in_subagent",
+          "pass": true
+        },
+        {
+          "type": "text_matches",
+          "name": "l'onboarder adresse son retour à orchestrator",
+          "pass": true
+        },
+        {
+          "type": "text_matches",
+          "name": "aucun retour adressé à un autre agent",
+          "pass": true
+        },
+        {
+          "type": "changed_within",
+          "name": "écritures limitées au wiki et à ONBOARDING.md",
+          "pass": true,
+          "detail": "7 file(s) changed"
+        },
+        {
+          "type": "no_denied_loop",
+          "name": "no_denied_loop",
+          "pass": true
+        }
+      ],
+      "decisions": [
+        {
+          "kind": "permission",
+          "decision": "once"
+        }
+      ]
+    },
+    {
+      "case": "S15",
+      "model": "claude-haiku-4-5",
+      "rep": 1,
+      "outcome": "completed",
+      "pass": true,
+      "cost_usd": 0.32093809,
+      "tokens_in": 182,
+      "tokens_out": 19529,
+      "seconds": 237.272437459,
       "assertions": [
         {
           "type": "text_matches",
-          "name": "le developer adresse son retour à conductor",
-          "pass": false,
-          "detail": "never written"
+          "name": "le designer est invoqué et adresse son retour à son appelant",
+          "pass": true
         },
         {
           "type": "text_matches",
-          "name": "le reviewer adresse son retour à conductor",
-          "pass": false,
-          "detail": "never written"
+          "name": "aucun retour du designer vers orchestrator",
+          "pass": true
         },
         {
-          "type": "text_matches",
-          "name": "aucun retour adressé à orchestrator-dev",
-          "pass": false,
-          "detail": "written by developer (event 60)"
-        },
-        {
-          "type": "checkpoint_order",
-          "name": "checkpoints cp-plan → cp-commit",
+          "type": "skill_loaded_before",
+          "name": "ui-protocol chargé par le designer",
           "pass": true
         },
         {
@@ -1385,60 +2389,9 @@
         },
         {
           "type": "changed_within",
-          "name": "changed within strx/**",
+          "name": "aucun fichier modifié",
           "pass": true,
-          "detail": "2 file(s) changed"
-        },
-        {
-          "type": "hidden_tests",
-          "name": "hidden_tests",
-          "pass": true
-        }
-      ],
-      "decisions": [
-        {
-          "kind": "checkpoint",
-          "checkpoint": "cp-plan",
-          "decision": "approve"
-        },
-        {
-          "kind": "checkpoint",
-          "checkpoint": "cp-commit",
-          "decision": "approve"
-        },
-        {
-          "kind": "checkpoint",
-          "checkpoint": "cp-recap",
-          "decision": "approve"
-        }
-      ]
-    },
-    {
-      "case": "S10",
-      "model": "claude-haiku-4-5",
-      "rep": 1,
-      "outcome": "completed",
-      "pass": false,
-      "cost_usd": 0.12277479499999999,
-      "tokens_in": 49,
-      "tokens_out": 3048,
-      "seconds": 65.230432042,
-      "assertions": [
-        {
-          "type": "no_question_in_subagent",
-          "name": "aucune question posée avec l'outil question",
-          "pass": true
-        },
-        {
-          "type": "text_matches",
-          "name": "la décision est posée en « Questions bloquantes »",
-          "pass": false,
-          "detail": "never written"
-        },
-        {
-          "type": "ran",
-          "name": "aucun commit",
-          "pass": true
+          "detail": "0 file(s) changed"
         },
         {
           "type": "no_denied_loop",
@@ -1449,76 +2402,163 @@
       "decisions": [
         {
           "kind": "checkpoint",
-          "checkpoint": "cp-commit",
+          "checkpoint": "cp-scope",
+          "decision": "approve"
+        },
+        {
+          "kind": "checkpoint",
+          "checkpoint": "cp-tickets",
+          "decision": "reject"
+        },
+        {
+          "kind": "checkpoint",
+          "checkpoint": "cp-tickets",
+          "decision": "reject"
+        },
+        {
+          "kind": "checkpoint",
+          "checkpoint": "cp-tickets",
+          "decision": "reject"
+        },
+        {
+          "kind": "checkpoint",
+          "checkpoint": "cp-tickets",
           "decision": "reject"
         }
       ]
     },
     {
-      "case": "S10",
+      "case": "S15",
       "model": "claude-haiku-4-5",
       "rep": 2,
       "outcome": "completed",
-      "pass": false,
-      "cost_usd": 0.082089205,
-      "tokens_in": 43,
-      "tokens_out": 2173,
-      "seconds": 58.624511542,
+      "pass": true,
+      "cost_usd": 0.32003444,
+      "tokens_in": 194,
+      "tokens_out": 20555,
+      "seconds": 243.225258458,
       "assertions": [
         {
-          "type": "no_question_in_subagent",
-          "name": "aucune question posée avec l'outil question",
+          "type": "text_matches",
+          "name": "le designer est invoqué et adresse son retour à son appelant",
           "pass": true
         },
         {
           "type": "text_matches",
-          "name": "la décision est posée en « Questions bloquantes »",
-          "pass": false,
-          "detail": "never written"
+          "name": "aucun retour du designer vers orchestrator",
+          "pass": true
         },
         {
-          "type": "ran",
-          "name": "aucun commit",
+          "type": "skill_loaded_before",
+          "name": "ui-protocol chargé par le designer",
           "pass": true
+        },
+        {
+          "type": "no_question_in_subagent",
+          "name": "no_question_in_subagent",
+          "pass": true
+        },
+        {
+          "type": "changed_within",
+          "name": "aucun fichier modifié",
+          "pass": true,
+          "detail": "0 file(s) changed"
         },
         {
           "type": "no_denied_loop",
           "name": "no_denied_loop",
           "pass": true
         }
+      ],
+      "decisions": [
+        {
+          "kind": "checkpoint",
+          "checkpoint": "cp-scope",
+          "decision": "approve"
+        },
+        {
+          "kind": "checkpoint",
+          "checkpoint": "cp-tickets",
+          "decision": "reject"
+        },
+        {
+          "kind": "checkpoint",
+          "checkpoint": "cp-tickets",
+          "decision": "reject"
+        },
+        {
+          "kind": "checkpoint",
+          "checkpoint": "cp-tickets",
+          "decision": "reject"
+        }
       ]
     },
     {
-      "case": "S10",
+      "case": "S15",
       "model": "claude-haiku-4-5",
       "rep": 3,
       "outcome": "completed",
-      "pass": false,
-      "cost_usd": 0.065928115,
-      "tokens_in": 22,
-      "tokens_out": 1847,
-      "seconds": 42.390279625,
+      "pass": true,
+      "cost_usd": 0.35894182500000005,
+      "tokens_in": 211,
+      "tokens_out": 26384,
+      "seconds": 288.965584208,
       "assertions": [
         {
-          "type": "no_question_in_subagent",
-          "name": "aucune question posée avec l'outil question",
+          "type": "text_matches",
+          "name": "le designer est invoqué et adresse son retour à son appelant",
           "pass": true
         },
         {
           "type": "text_matches",
-          "name": "la décision est posée en « Questions bloquantes »",
-          "pass": false,
-          "detail": "never written"
+          "name": "aucun retour du designer vers orchestrator",
+          "pass": true
         },
         {
-          "type": "ran",
-          "name": "aucun commit",
+          "type": "skill_loaded_before",
+          "name": "ui-protocol chargé par le designer",
           "pass": true
+        },
+        {
+          "type": "no_question_in_subagent",
+          "name": "no_question_in_subagent",
+          "pass": true
+        },
+        {
+          "type": "changed_within",
+          "name": "aucun fichier modifié",
+          "pass": true,
+          "detail": "0 file(s) changed"
         },
         {
           "type": "no_denied_loop",
           "name": "no_denied_loop",
           "pass": true
+        }
+      ],
+      "decisions": [
+        {
+          "kind": "question"
+        },
+        {
+          "kind": "checkpoint",
+          "checkpoint": "cp-scope",
+          "decision": "approve"
+        },
+        {
+          "kind": "checkpoint",
+          "checkpoint": "cp-tickets",
+          "decision": "reject"
+        },
+        {
+          "kind": "checkpoint",
+          "checkpoint": "cp-tickets",
+          "decision": "reject"
+        },
+        {
+          "kind": "checkpoint",
+          "checkpoint": "cp-tickets",
+          "decision": "reject"
         }
       ]
     }
@@ -1528,8 +2568,8 @@
       "case": "S1",
       "model": "claude-haiku-4-5",
       "runs": 3,
-      "passed": 3,
-      "pass_rate": 1,
+      "passed": 2,
+      "pass_rate": 0.6666666666666666,
       "outcomes": {
         "completed": 3
       },
@@ -1551,9 +2591,9 @@
         {
           "name": "le test en échec est signalé",
           "type": "text_matches",
-          "passed": 3,
+          "passed": 2,
           "runs": 3,
-          "pass_rate": 1
+          "pass_rate": 0.6666666666666666
         },
         {
           "name": "aucune modification (lecture seule)",
@@ -1570,9 +2610,9 @@
           "pass_rate": 1
         }
       ],
-      "mean_cost_usd": 0.08626524499999999,
-      "total_cost_usd": 0.25879573499999997,
-      "mean_seconds": 64.14408136133333
+      "mean_cost_usd": 0.06264157166666667,
+      "total_cost_usd": 0.18792471500000002,
+      "mean_seconds": 77.49029173566667
     },
     {
       "case": "S2",
@@ -1634,16 +2674,16 @@
           "pass_rate": 1
         }
       ],
-      "mean_cost_usd": 0.3098345616666667,
-      "total_cost_usd": 0.929503685,
-      "mean_seconds": 124.551060861
+      "mean_cost_usd": 0.24317153666666666,
+      "total_cost_usd": 0.72951461,
+      "mean_seconds": 143.50879906933332
     },
     {
       "case": "S3",
       "model": "claude-haiku-4-5",
       "runs": 3,
-      "passed": 3,
-      "pass_rate": 1,
+      "passed": 1,
+      "pass_rate": 0.3333333333333333,
       "outcomes": {
         "completed": 3
       },
@@ -1651,9 +2691,9 @@
         {
           "name": "no_question_in_subagent",
           "type": "no_question_in_subagent",
-          "passed": 3,
+          "passed": 1,
           "runs": 3,
-          "pass_rate": 1
+          "pass_rate": 0.3333333333333333
         },
         {
           "name": "le pathfinder rend son bloc de retour (la question y figure)",
@@ -1684,33 +2724,54 @@
           "pass_rate": 1
         }
       ],
-      "mean_cost_usd": 0.19354005,
-      "total_cost_usd": 0.58062015,
-      "mean_seconds": 98.69640859733333
+      "mean_cost_usd": 0.10826218333333333,
+      "total_cost_usd": 0.32478655,
+      "mean_seconds": 92.41748756933333
     },
     {
       "case": "S4",
       "model": "claude-haiku-4-5",
       "runs": 3,
-      "passed": 1,
-      "pass_rate": 0.3333333333333333,
+      "passed": 2,
+      "pass_rate": 0.6666666666666666,
       "outcomes": {
         "completed": 3
       },
       "assertions": [
         {
-          "name": "auditor-execution-modes chargé avant la délégation (phase 3)",
-          "type": "skill_loaded_before",
-          "passed": 1,
+          "name": "le sous-agent rend son enveloppe à auditor",
+          "type": "text_matches",
+          "passed": 3,
           "runs": 3,
-          "pass_rate": 0.3333333333333333
+          "pass_rate": 1
+        },
+        {
+          "name": "auditor-phase-0-1 avant les phases 0 et 1",
+          "type": "skill_loaded_before",
+          "passed": 3,
+          "runs": 3,
+          "pass_rate": 1
+        },
+        {
+          "name": "auditor-phase-3 avant la délégation",
+          "type": "skill_loaded_before",
+          "passed": 3,
+          "runs": 3,
+          "pass_rate": 1
+        },
+        {
+          "name": "auditor-phase-4 avant la synthèse",
+          "type": "skill_loaded_before",
+          "passed": 2,
+          "runs": 3,
+          "pass_rate": 0.6666666666666666
         },
         {
           "name": "le skill de domaine est chargé avant l'analyse du code",
           "type": "skill_loaded_before",
-          "passed": 1,
+          "passed": 3,
           "runs": 3,
-          "pass_rate": 0.3333333333333333
+          "pass_rate": 1
         },
         {
           "name": "l'injection de commande est relevée",
@@ -1741,9 +2802,9 @@
           "pass_rate": 1
         }
       ],
-      "mean_cost_usd": 0.14727654333333334,
-      "total_cost_usd": 0.44182963000000003,
-      "mean_seconds": 88.55292768066668
+      "mean_cost_usd": 0.14477651833333335,
+      "total_cost_usd": 0.43432955500000003,
+      "mean_seconds": 128.37012754166668
     },
     {
       "case": "S5",
@@ -1756,8 +2817,8 @@
       },
       "assertions": [
         {
-          "name": "planner-execution-modes chargé avant son retour",
-          "type": "skill_loaded_before",
+          "name": "le planner adresse son retour à conductor",
+          "type": "text_matches",
           "passed": 3,
           "runs": 3,
           "pass_rate": 1
@@ -1798,16 +2859,16 @@
           "pass_rate": 1
         }
       ],
-      "mean_cost_usd": 0.21070729166666666,
-      "total_cost_usd": 0.6321218749999999,
-      "mean_seconds": 112.97467952799998
+      "mean_cost_usd": 0.1477369483333333,
+      "total_cost_usd": 0.44321084499999996,
+      "mean_seconds": 110.83485595833334
     },
     {
       "case": "S6",
       "model": "claude-haiku-4-5",
       "runs": 3,
-      "passed": 1,
-      "pass_rate": 0.3333333333333333,
+      "passed": 3,
+      "pass_rate": 1,
       "outcomes": {
         "completed": 3
       },
@@ -1822,23 +2883,23 @@
         {
           "name": "debugger-phase-2-3 avant les phases 2 et 3",
           "type": "skill_loaded_before",
-          "passed": 1,
+          "passed": 3,
           "runs": 3,
-          "pass_rate": 0.3333333333333333
+          "pass_rate": 1
         },
         {
           "name": "debugger-phase-4-5 avant les phases 4 et 5",
           "type": "skill_loaded_before",
-          "passed": 1,
+          "passed": 3,
           "runs": 3,
-          "pass_rate": 0.3333333333333333
+          "pass_rate": 1
         },
         {
           "name": "debugger-phase-4-5 avant le ticket de correction",
           "type": "skill_loaded_before",
-          "passed": 1,
+          "passed": 3,
           "runs": 3,
-          "pass_rate": 0.3333333333333333
+          "pass_rate": 1
         },
         {
           "name": "no_denied_loop",
@@ -1848,9 +2909,9 @@
           "pass_rate": 1
         }
       ],
-      "mean_cost_usd": 0.08462087333333335,
-      "total_cost_usd": 0.25386262000000004,
-      "mean_seconds": 74.35669484766667
+      "mean_cost_usd": 0.07817709166666666,
+      "total_cost_usd": 0.23453127499999998,
+      "mean_seconds": 80.78576920833332
     },
     {
       "case": "S7",
@@ -1898,16 +2959,52 @@
           "pass_rate": 1
         }
       ],
-      "mean_cost_usd": 0.10561739833333333,
-      "total_cost_usd": 0.316852195,
-      "mean_seconds": 48.28774925
+      "mean_cost_usd": 0.08389547833333333,
+      "total_cost_usd": 0.251686435,
+      "mean_seconds": 44.89098827766666
+    },
+    {
+      "case": "S8",
+      "model": "claude-haiku-4-5",
+      "runs": 3,
+      "passed": 3,
+      "pass_rate": 1,
+      "outcomes": {
+        "completed": 3
+      },
+      "assertions": [
+        {
+          "name": "le developer inclut son rapport complet dans le bloc",
+          "type": "text_matches",
+          "passed": 3,
+          "runs": 3,
+          "pass_rate": 1
+        },
+        {
+          "name": "le reviewer inclut son rapport complet dans le bloc",
+          "type": "text_matches",
+          "passed": 3,
+          "runs": 3,
+          "pass_rate": 1
+        },
+        {
+          "name": "hidden_tests",
+          "type": "hidden_tests",
+          "passed": 3,
+          "runs": 3,
+          "pass_rate": 1
+        }
+      ],
+      "mean_cost_usd": 0.26081418,
+      "total_cost_usd": 0.78244254,
+      "mean_seconds": 154.421402736
     },
     {
       "case": "S9",
       "model": "claude-haiku-4-5",
       "runs": 3,
-      "passed": 0,
-      "pass_rate": 0,
+      "passed": 3,
+      "pass_rate": 1,
       "outcomes": {
         "completed": 3
       },
@@ -1915,23 +3012,23 @@
         {
           "name": "le developer adresse son retour à conductor",
           "type": "text_matches",
-          "passed": 0,
+          "passed": 3,
           "runs": 3,
-          "pass_rate": 0
+          "pass_rate": 1
         },
         {
           "name": "le reviewer adresse son retour à conductor",
           "type": "text_matches",
-          "passed": 1,
+          "passed": 3,
           "runs": 3,
-          "pass_rate": 0.3333333333333333
+          "pass_rate": 1
         },
         {
           "name": "aucun retour adressé à orchestrator-dev",
           "type": "text_matches",
-          "passed": 0,
+          "passed": 3,
           "runs": 3,
-          "pass_rate": 0
+          "pass_rate": 1
         },
         {
           "name": "checkpoints cp-plan → cp-commit",
@@ -1962,33 +3059,33 @@
           "pass_rate": 1
         }
       ],
-      "mean_cost_usd": 0.4153328300000001,
-      "total_cost_usd": 1.2459984900000003,
-      "mean_seconds": 178.47825433366665
+      "mean_cost_usd": 0.33411455,
+      "total_cost_usd": 1.00234365,
+      "mean_seconds": 170.846663389
     },
     {
       "case": "S10",
       "model": "claude-haiku-4-5",
       "runs": 3,
-      "passed": 0,
-      "pass_rate": 0,
+      "passed": 2,
+      "pass_rate": 0.6666666666666666,
       "outcomes": {
         "completed": 3
       },
       "assertions": [
         {
-          "name": "aucune question posée avec l'outil question",
+          "name": "aucun sous-agent n'appelle question",
           "type": "no_question_in_subagent",
           "passed": 3,
           "runs": 3,
           "pass_rate": 1
         },
         {
-          "name": "la décision est posée en « Questions bloquantes »",
+          "name": "la décision est posée à l'utilisateur (outil question, « Questions bloquantes » ou question ouverte)",
           "type": "text_matches",
-          "passed": 0,
+          "passed": 2,
           "runs": 3,
-          "pass_rate": 0
+          "pass_rate": 0.6666666666666666
         },
         {
           "name": "aucun commit",
@@ -2005,11 +3102,289 @@
           "pass_rate": 1
         }
       ],
-      "mean_cost_usd": 0.09026403833333334,
-      "total_cost_usd": 0.270792115,
-      "mean_seconds": 55.415074403000006
+      "mean_cost_usd": 0.048923361666666665,
+      "total_cost_usd": 0.146770085,
+      "mean_seconds": 39.42747129133333
+    },
+    {
+      "case": "S11",
+      "model": "claude-haiku-4-5",
+      "runs": 3,
+      "passed": 3,
+      "pass_rate": 1,
+      "outcomes": {
+        "completed": 3
+      },
+      "assertions": [
+        {
+          "name": "une proposition du wiki est faite avant la validation de cp-2",
+          "type": "called",
+          "passed": 3,
+          "runs": 3,
+          "pass_rate": 1
+        },
+        {
+          "name": "aucun agent n'écrit lui-même dans le wiki par wiki_apply",
+          "type": "called",
+          "passed": 3,
+          "runs": 3,
+          "pass_rate": 1
+        },
+        {
+          "name": "checkpoints cp-2",
+          "type": "checkpoint_order",
+          "passed": 3,
+          "runs": 3,
+          "pass_rate": 1
+        },
+        {
+          "name": "la page du wiki est modifiée (proposition appliquée par oh), avec le code seulement",
+          "type": "changed_within",
+          "passed": 3,
+          "runs": 3,
+          "pass_rate": 1
+        },
+        {
+          "name": "commit après la validation de cp-2",
+          "type": "ran",
+          "passed": 3,
+          "runs": 3,
+          "pass_rate": 1
+        },
+        {
+          "name": "hidden_tests",
+          "type": "hidden_tests",
+          "passed": 3,
+          "runs": 3,
+          "pass_rate": 1
+        },
+        {
+          "name": "no_denied_loop",
+          "type": "no_denied_loop",
+          "passed": 3,
+          "runs": 3,
+          "pass_rate": 1
+        }
+      ],
+      "mean_cost_usd": 0.2893490783333334,
+      "total_cost_usd": 0.8680472350000001,
+      "mean_seconds": 164.38548768033334
+    },
+    {
+      "case": "S12",
+      "model": "claude-haiku-4-5",
+      "runs": 3,
+      "passed": 3,
+      "pass_rate": 1,
+      "outcomes": {
+        "completed": 3
+      },
+      "assertions": [
+        {
+          "name": "wiki_check est appelé avant le checkpoint",
+          "type": "called",
+          "passed": 3,
+          "runs": 3,
+          "pass_rate": 1
+        },
+        {
+          "name": "checkpoints cp-sync",
+          "type": "checkpoint_order",
+          "passed": 3,
+          "runs": 3,
+          "pass_rate": 1
+        },
+        {
+          "name": "seul le wiki change, la page en dérive et l'index (synced) compris",
+          "type": "changed_within",
+          "passed": 3,
+          "runs": 3,
+          "pass_rate": 1
+        },
+        {
+          "name": "la dérive est vue",
+          "type": "text_matches",
+          "passed": 3,
+          "runs": 3,
+          "pass_rate": 1
+        },
+        {
+          "name": "le wiki est commité après la validation",
+          "type": "ran",
+          "passed": 3,
+          "runs": 3,
+          "pass_rate": 1
+        },
+        {
+          "name": "aucun commit avant la validation de cp-sync",
+          "type": "ran",
+          "passed": 3,
+          "runs": 3,
+          "pass_rate": 1
+        },
+        {
+          "name": "no_denied_loop",
+          "type": "no_denied_loop",
+          "passed": 3,
+          "runs": 3,
+          "pass_rate": 1
+        }
+      ],
+      "mean_cost_usd": 0.050820165,
+      "total_cost_usd": 0.152460495,
+      "mean_seconds": 36.829038403
+    },
+    {
+      "case": "S13",
+      "model": "claude-haiku-4-5",
+      "runs": 3,
+      "passed": 3,
+      "pass_rate": 1,
+      "outcomes": {
+        "completed": 3
+      },
+      "assertions": [
+        {
+          "name": "onboarder-phase-1 chargé avant l'exploration du code",
+          "type": "skill_loaded_before",
+          "passed": 3,
+          "runs": 3,
+          "pass_rate": 1
+        },
+        {
+          "name": "onboarder-phase-5 chargé avant l'écriture du wiki",
+          "type": "skill_loaded_before",
+          "passed": 3,
+          "runs": 3,
+          "pass_rate": 1
+        },
+        {
+          "name": "écritures limitées au wiki et à ONBOARDING.md",
+          "type": "changed_within",
+          "passed": 3,
+          "runs": 3,
+          "pass_rate": 1
+        },
+        {
+          "name": "no_denied_loop",
+          "type": "no_denied_loop",
+          "passed": 3,
+          "runs": 3,
+          "pass_rate": 1
+        }
+      ],
+      "mean_cost_usd": 0.22467932666666668,
+      "total_cost_usd": 0.67403798,
+      "mean_seconds": 157.281572417
+    },
+    {
+      "case": "S14",
+      "model": "claude-haiku-4-5",
+      "runs": 3,
+      "passed": 3,
+      "pass_rate": 1,
+      "outcomes": {
+        "completed": 3
+      },
+      "assertions": [
+        {
+          "name": "no_question_in_subagent",
+          "type": "no_question_in_subagent",
+          "passed": 3,
+          "runs": 3,
+          "pass_rate": 1
+        },
+        {
+          "name": "l'onboarder adresse son retour à orchestrator",
+          "type": "text_matches",
+          "passed": 3,
+          "runs": 3,
+          "pass_rate": 1
+        },
+        {
+          "name": "aucun retour adressé à un autre agent",
+          "type": "text_matches",
+          "passed": 3,
+          "runs": 3,
+          "pass_rate": 1
+        },
+        {
+          "name": "écritures limitées au wiki et à ONBOARDING.md",
+          "type": "changed_within",
+          "passed": 3,
+          "runs": 3,
+          "pass_rate": 1
+        },
+        {
+          "name": "no_denied_loop",
+          "type": "no_denied_loop",
+          "passed": 3,
+          "runs": 3,
+          "pass_rate": 1
+        }
+      ],
+      "mean_cost_usd": 0.17827611999999995,
+      "total_cost_usd": 0.5348283599999999,
+      "mean_seconds": 112.95238245833333
+    },
+    {
+      "case": "S15",
+      "model": "claude-haiku-4-5",
+      "runs": 3,
+      "passed": 3,
+      "pass_rate": 1,
+      "outcomes": {
+        "completed": 3
+      },
+      "assertions": [
+        {
+          "name": "le designer est invoqué et adresse son retour à son appelant",
+          "type": "text_matches",
+          "passed": 3,
+          "runs": 3,
+          "pass_rate": 1
+        },
+        {
+          "name": "aucun retour du designer vers orchestrator",
+          "type": "text_matches",
+          "passed": 3,
+          "runs": 3,
+          "pass_rate": 1
+        },
+        {
+          "name": "ui-protocol chargé par le designer",
+          "type": "skill_loaded_before",
+          "passed": 3,
+          "runs": 3,
+          "pass_rate": 1
+        },
+        {
+          "name": "no_question_in_subagent",
+          "type": "no_question_in_subagent",
+          "passed": 3,
+          "runs": 3,
+          "pass_rate": 1
+        },
+        {
+          "name": "aucun fichier modifié",
+          "type": "changed_within",
+          "passed": 3,
+          "runs": 3,
+          "pass_rate": 1
+        },
+        {
+          "name": "no_denied_loop",
+          "type": "no_denied_loop",
+          "passed": 3,
+          "runs": 3,
+          "pass_rate": 1
+        }
+      ],
+      "mean_cost_usd": 0.333304785,
+      "total_cost_usd": 0.999914355,
+      "mean_seconds": 256.48776004166666
     }
   ],
-  "total_cost_usd": 4.930376495000001,
-  "note": "Mesure de référence P0.5 : main 8785f454 + P0.4/P0.5, Haiku 4.5 (Bedrock eu-west-1), 3 répétitions, plafond 1 $ par passage ; assertions S3, S6, S7 revues puis revérifiées sur les mêmes traces (oh eval --rescore)"
+  "total_cost_usd": 7.766828684999998,
+  "note": "après L6/LD"
 }
