@@ -13,6 +13,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/datichb/openhub/cli/internal/bricks"
+	"github.com/datichb/openhub/cli/internal/sessionspec"
 	"github.com/datichb/openhub/cli/internal/workflow"
 )
 
@@ -23,16 +25,23 @@ import (
 // -update); an agent prompt growing by more than budgetGrowth over the
 // golden is reported on its own.
 
+// budgetGrowth is the growth of an agent prompt tolerated over the golden:
+// 10 % until the end of P1 (content trimming), then 2 % (modernisation plan
+// P0.2).
 const budgetGrowth = 0.10
 
 type budgetLine struct {
 	project, workflow, agent                              string
 	prompt, inlined, inlinedCount, catalog, catalogTokens int
+	reach, reachTokens                                    int
 }
 
 func (l budgetLine) key() string { return l.project + " " + l.workflow + " " + l.agent }
 
-const budgetRow = "%-8s %-22s %-28s %8d %8d %4d %4d %6d\n"
+const budgetRow = "%-8s %-22s %-28s %8d %8d %4d %4d %6d %4d %6d\n"
+
+// budgetColumns is the field count of a budget row.
+const budgetColumns = 10
 
 func TestBudgetBaseline(t *testing.T) {
 	hub, cat, env := shippedWorkflows(t)
@@ -55,6 +64,8 @@ func TestBudgetBaseline(t *testing.T) {
 			for _, sk := range b.Spec.Skills {
 				tot.catalogTokens += SkillCatalogTokens(sk)
 			}
+			reach := reachableSkills(t, hub, r.Spec, b)
+			reachedByOne := map[string]bool{}
 			for _, a := range b.Spec.Agents {
 				l := budgetLine{project: p.name, workflow: ref.ID, agent: a.ID, prompt: EstimateTokens(a.Body)}
 				for _, in := range InlinedSkills(a.Body) {
@@ -72,6 +83,15 @@ func TestBudgetBaseline(t *testing.T) {
 					l.catalog++
 					l.catalogTokens += SkillCatalogTokens(sk)
 				}
+				for _, sk := range reach[a.ID] {
+					l.reach++
+					l.reachTokens += SkillCatalogTokens(sk)
+					if !reachedByOne[sk.ID] {
+						reachedByOne[sk.ID] = true
+						tot.reach++
+						tot.reachTokens += SkillCatalogTokens(sk)
+					}
+				}
 				lines = append(lines, l)
 				tot.prompt += l.prompt
 				tot.inlined += l.inlined
@@ -86,15 +106,18 @@ func TestBudgetBaseline(t *testing.T) {
 	out.WriteString("# Budget baseline: estimated tokens (runes/4, as oh bundle show --budget).\n")
 	out.WriteString("# prompt = composed system prompt; inlined = part taken by the inlined skills (count);\n")
 	out.WriteString("# catalog = on-demand skills visible to the agent and their catalogue entries (id: description).\n")
-	out.WriteString("# TOTAL: sums of the agents; catalog = every skill of the bundle.\n")
+	out.WriteString("# reach = on-demand skills the agent can reach (native skills, skills named in its prompt,\n")
+	out.WriteString("# their requires closure) and their catalogue entries; the stack skills of the project are not\n")
+	out.WriteString("# counted (shipped for the project, named by no agent).\n")
+	out.WriteString("# TOTAL: sums of the agents; catalog = every skill of the bundle; reach = skills reached by an agent.\n")
 	out.WriteString("# Regenerate: go test ./internal/bundle -run TestBudgetBaseline -update\n\n")
-	fmt.Fprintf(&out, "%-8s %-22s %-28s %8s %8s %4s %4s %6s\n", "project", "workflow", "agent",
-		"prompt", "inlined", "n", "cat", "cat_tk")
+	fmt.Fprintf(&out, "%-8s %-22s %-28s %8s %8s %4s %4s %6s %4s %6s\n", "project", "workflow", "agent",
+		"prompt", "inlined", "n", "cat", "cat_tk", "rch", "rch_tk")
 	for i, l := range lines {
-		fmt.Fprintf(&out, budgetRow, l.project, l.workflow, l.agent, l.prompt, l.inlined, l.inlinedCount, l.catalog, l.catalogTokens)
+		fmt.Fprintf(&out, budgetRow, l.project, l.workflow, l.agent, l.prompt, l.inlined, l.inlinedCount, l.catalog, l.catalogTokens, l.reach, l.reachTokens)
 		if i+1 == len(lines) || lines[i+1].project != l.project || lines[i+1].workflow != l.workflow {
 			tot := totals[l.project+" "+l.workflow+" TOTAL"]
-			fmt.Fprintf(&out, budgetRow, tot.project, tot.workflow, tot.agent, tot.prompt, tot.inlined, tot.inlinedCount, tot.catalog, tot.catalogTokens)
+			fmt.Fprintf(&out, budgetRow, tot.project, tot.workflow, tot.agent, tot.prompt, tot.inlined, tot.inlinedCount, tot.catalog, tot.catalogTokens, tot.reach, tot.reachTokens)
 		}
 	}
 	out.WriteString("\n# Inlined skills: largest section (tokens) and the agents inlining it.\n")
@@ -142,7 +165,7 @@ func readBudgetGolden(t *testing.T, name string) map[string]int {
 	sc := bufio.NewScanner(f)
 	for sc.Scan() {
 		fields := strings.Fields(sc.Text())
-		if len(fields) != 8 || fields[2] == "TOTAL" {
+		if len(fields) != budgetColumns || fields[2] == "TOTAL" {
 			continue
 		}
 		if n, err := strconv.Atoi(fields[3]); err == nil {
@@ -150,6 +173,53 @@ func readBudgetGolden(t *testing.T, name string) map[string]int {
 		}
 	}
 	require.NoError(t, sc.Err())
+	return out
+}
+
+// reachableSkills returns, by agent, the bundle skills the agent can reach
+// on demand: its native skills, the skills named in its composed prompt
+// (inlined ones aside) and their requires closure, among the skills it may
+// load. The build ships the union over the agents; an agent only reaches
+// this part (the per-agent catalogue of L2).
+func reachableSkills(t *testing.T, hub string, spec *workflow.Spec, b *Bundle) map[string][]sessionspec.SkillDef {
+	t.Helper()
+	generated, err := specSkills(hub, spec)
+	require.NoError(t, err)
+	loader := newSkillLoader(hub, generated)
+	index := hubSkillIndex(hub, generated)
+	files, err := bricks.FindAgentFiles(hub)
+	require.NoError(t, err)
+	out := map[string][]sessionspec.SkillDef{}
+	for _, a := range b.Spec.Agents {
+		fm, err := bricks.ParseAgentFrontmatter(files[a.ID])
+		require.NoError(t, err)
+		inlined := map[string]bool{}
+		for _, in := range InlinedSkills(a.Body) {
+			inlined[in.ID] = true
+		}
+		roots := append([]string(nil), fm.NativeSkills...)
+		for _, ref := range mentionedSkills(a.Body, index) {
+			if !inlined[skillID(ref)] {
+				roots = append(roots, ref)
+			}
+		}
+		reached := map[string]bool{}
+		for _, root := range roots {
+			// An undeliverable mention is not shipped: its closure may fail.
+			docs, err := loader.closure([]string{root}, denyList(nil))
+			if err != nil {
+				continue
+			}
+			for _, d := range docs {
+				reached[d.ID] = true
+			}
+		}
+		for _, sk := range VisibleSkills(a, b.Spec.Skills) {
+			if reached[sk.ID] {
+				out[a.ID] = append(out[a.ID], sk)
+			}
+		}
+	}
 	return out
 }
 

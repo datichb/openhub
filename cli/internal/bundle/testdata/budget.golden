@@ -1,126 +1,129 @@
 # Budget baseline: estimated tokens (runes/4, as oh bundle show --budget).
 # prompt = composed system prompt; inlined = part taken by the inlined skills (count);
 # catalog = on-demand skills visible to the agent and their catalogue entries (id: description).
-# TOTAL: sums of the agents; catalog = every skill of the bundle.
+# reach = on-demand skills the agent can reach (native skills, skills named in its prompt,
+# their requires closure) and their catalogue entries; the stack skills of the project are not
+# counted (shipped for the project, named by no agent).
+# TOTAL: sums of the agents; catalog = every skill of the bundle; reach = skills reached by an agent.
 # Regenerate: go test ./internal/bundle -run TestBudgetBaseline -update
 
-project  workflow               agent                          prompt  inlined    n  cat cat_tk
-none     audit                  auditor                         16924    15644    7   24   1333
-none     audit                  auditor-subagent                 6963     5927    5   24   1333
-none     audit                  TOTAL                           23887    21571   12   24   1333
-none     benchmark              benchmarker                      3760     2546    3    3    171
-none     benchmark              TOTAL                            3760     2546    3    3    171
-none     brief-enrich           brief-enricher                    429        0    0    2     71
-none     brief-enrich           TOTAL                             429        0    0    2     71
-none     cadrage                conductor                        7880     7013    7   37   2372
-none     cadrage                designer                         6587     4845    5   37   2372
-none     cadrage                pathfinder                      13741    12465    8   37   2372
-none     cadrage                planner                          8666     7289    7   37   2372
-none     cadrage                TOTAL                           36874    31612   27   37   2372
-none     debug                  debugger                         7406     6110    7   31   1812
-none     debug                  developer                       13101    10471    8   31   1812
-none     debug                  documentarian                    6404     5052    5   31   1812
-none     debug                  TOTAL                           26911    21633   20   31   1812
-none     feature                designer                         6588     4845    5   81   5453
-none     feature                developer                       13138    10471    8   81   5453
-none     feature                documentarian                    6419     5052    5   81   5453
-none     feature                orchestrator                    15036    13077   11   81   5453
-none     feature                orchestrator-dev                17052    15572   12   81   5453
-none     feature                pathfinder                      13742    12465    8   81   5453
-none     feature                planner                          8755     7377    7   81   5453
-none     feature                reviewer                        14424    11820    7   81   5453
-none     feature                TOTAL                           95154    80679   63   81   5453
-none     infra-change           operator                         3713     2546    3    4    216
-none     infra-change           TOTAL                            3713     2546    3    4    216
-none     libre                  debugger                         7434     6110    7   91   5992
-none     libre                  designer                         6588     4845    5   91   5992
-none     libre                  developer                       13138    10471    8   91   5992
-none     libre                  documentarian                    6422     5052    5   91   5992
-none     libre                  onboarder                        6096     4679    6   91   5992
-none     libre                  orchestrator                    14218    12259   11   91   5992
-none     libre                  orchestrator-dev                16204    14724   12   91   5992
-none     libre                  pathfinder                      13742    12465    8   91   5992
-none     libre                  planner                          8785     7407    7   91   5992
-none     libre                  reviewer                        14427    11820    7   91   5992
-none     libre                  TOTAL                          107054    89832   76   91   5992
-none     onboarding             onboarder                        6067     4679    6   20   1109
-none     onboarding             TOTAL                            6067     4679    6   20   1109
-none     quick                  developer                       13109    10471    8   22   1309
-none     quick                  TOTAL                           13109    10471    8   22   1309
-none     review                 reviewer                        14418    11820    7   20   1467
-none     review                 TOTAL                           14418    11820    7   20   1467
-none     review-feedback        developer                       13138    10471    8   40   2787
-none     review-feedback        orchestrator-dev                16728    15277   12   40   2787
-none     review-feedback        reviewer                        14420    11820    7   40   2787
-none     review-feedback        TOTAL                           44286    37568   27   40   2787
-none     sweep                  conductor                        7917     7050    7   33   2567
-none     sweep                  developer                       13137    10471    8   33   2567
-none     sweep                  pathfinder                      13741    12465    8   33   2567
-none     sweep                  reviewer                        14419    11820    7   33   2567
-none     sweep                  TOTAL                           49214    41806   30   33   2567
-none     ticket                 developer                       13138    10471    8   47   3088
-none     ticket                 documentarian                    6409     5052    5   47   3088
-none     ticket                 orchestrator-dev                16799    15348   12   47   3088
-none     ticket                 reviewer                        14420    11820    7   47   3088
-none     ticket                 TOTAL                           50766    42691   32   47   3088
-stacks   audit                  auditor                         16924    15644    7   30   1569
-stacks   audit                  auditor-subagent                 6963     5927    5   30   1569
-stacks   audit                  TOTAL                           23887    21571   12   30   1569
-stacks   benchmark              benchmarker                      3760     2546    3    9    407
-stacks   benchmark              TOTAL                            3760     2546    3    9    407
-stacks   brief-enrich           brief-enricher                    429        0    0    8    307
-stacks   brief-enrich           TOTAL                             429        0    0    8    307
-stacks   cadrage                conductor                        7880     7013    7   43   2608
-stacks   cadrage                designer                         6587     4845    5   43   2608
-stacks   cadrage                pathfinder                      13741    12465    8   43   2608
-stacks   cadrage                planner                          8666     7289    7   43   2608
-stacks   cadrage                TOTAL                           36874    31612   27   43   2608
-stacks   debug                  debugger                         7406     6110    7   37   2048
-stacks   debug                  developer                       13101    10471    8   37   2048
-stacks   debug                  documentarian                    6404     5052    5   37   2048
-stacks   debug                  TOTAL                           26911    21633   20   37   2048
-stacks   feature                designer                         6588     4845    5   87   5689
-stacks   feature                developer                       13138    10471    8   87   5689
-stacks   feature                documentarian                    6419     5052    5   87   5689
-stacks   feature                orchestrator                    15036    13077   11   87   5689
-stacks   feature                orchestrator-dev                17052    15572   12   87   5689
-stacks   feature                pathfinder                      13742    12465    8   87   5689
-stacks   feature                planner                          8755     7377    7   87   5689
-stacks   feature                reviewer                        14424    11820    7   87   5689
-stacks   feature                TOTAL                           95154    80679   63   87   5689
-stacks   infra-change           operator                         3713     2546    3   10    452
-stacks   infra-change           TOTAL                            3713     2546    3   10    452
-stacks   libre                  debugger                         7434     6110    7   97   6228
-stacks   libre                  designer                         6588     4845    5   97   6228
-stacks   libre                  developer                       13138    10471    8   97   6228
-stacks   libre                  documentarian                    6422     5052    5   97   6228
-stacks   libre                  onboarder                        6096     4679    6   97   6228
-stacks   libre                  orchestrator                    14218    12259   11   97   6228
-stacks   libre                  orchestrator-dev                16204    14724   12   97   6228
-stacks   libre                  pathfinder                      13742    12465    8   97   6228
-stacks   libre                  planner                          8785     7407    7   97   6228
-stacks   libre                  reviewer                        14427    11820    7   97   6228
-stacks   libre                  TOTAL                          107054    89832   76   97   6228
-stacks   onboarding             onboarder                        6067     4679    6   26   1345
-stacks   onboarding             TOTAL                            6067     4679    6   26   1345
-stacks   quick                  developer                       13109    10471    8   28   1545
-stacks   quick                  TOTAL                           13109    10471    8   28   1545
-stacks   review                 reviewer                        14418    11820    7   26   1703
-stacks   review                 TOTAL                           14418    11820    7   26   1703
-stacks   review-feedback        developer                       13138    10471    8   46   3023
-stacks   review-feedback        orchestrator-dev                16728    15277   12   46   3023
-stacks   review-feedback        reviewer                        14420    11820    7   46   3023
-stacks   review-feedback        TOTAL                           44286    37568   27   46   3023
-stacks   sweep                  conductor                        7917     7050    7   39   2803
-stacks   sweep                  developer                       13137    10471    8   39   2803
-stacks   sweep                  pathfinder                      13741    12465    8   39   2803
-stacks   sweep                  reviewer                        14419    11820    7   39   2803
-stacks   sweep                  TOTAL                           49214    41806   30   39   2803
-stacks   ticket                 developer                       13138    10471    8   53   3324
-stacks   ticket                 documentarian                    6409     5052    5   53   3324
-stacks   ticket                 orchestrator-dev                16799    15348   12   53   3324
-stacks   ticket                 reviewer                        14420    11820    7   53   3324
-stacks   ticket                 TOTAL                           50766    42691   32   53   3324
+project  workflow               agent                          prompt  inlined    n  cat cat_tk  rch rch_tk
+none     audit                  auditor                         16924    15644    7   24   1333   18   1008
+none     audit                  auditor-subagent                 6963     5927    5   24   1333   19   1004
+none     audit                  TOTAL                           23887    21571   12   24   1333   24   1333
+none     benchmark              benchmarker                      3760     2546    3    3    171    3    171
+none     benchmark              TOTAL                            3760     2546    3    3    171    3    171
+none     brief-enrich           brief-enricher                    429        0    0    2     71    2     71
+none     brief-enrich           TOTAL                             429        0    0    2     71    2     71
+none     cadrage                conductor                        7880     7013    7   37   2372    5    283
+none     cadrage                designer                         6587     4845    5   37   2372   20   1079
+none     cadrage                pathfinder                      13741    12465    8   37   2372   11    784
+none     cadrage                planner                          8666     7289    7   37   2372   23   1421
+none     cadrage                TOTAL                           36874    31612   27   37   2372   37   2372
+none     debug                  debugger                         7406     6110    7   31   1812   12    653
+none     debug                  developer                       13101    10471    8   31   1812   16   1034
+none     debug                  documentarian                    6404     5052    5   31   1812   13    606
+none     debug                  TOTAL                           26911    21633   20   31   1812   31   1812
+none     feature                designer                         6588     4845    5   81   5453   20   1079
+none     feature                developer                       13138    10471    8   81   5453   16   1034
+none     feature                documentarian                    6419     5052    5   81   5453   13    606
+none     feature                orchestrator                    15036    13077   11   81   5453   13    822
+none     feature                orchestrator-dev                17052    15572   12   81   5453   28   1548
+none     feature                pathfinder                      13742    12465    8   81   5453   11    784
+none     feature                planner                          8755     7377    7   81   5453   23   1421
+none     feature                reviewer                        14424    11820    7   81   5453   20   1467
+none     feature                TOTAL                           95154    80679   63   81   5453   81   5453
+none     infra-change           operator                         3713     2546    3    4    216    4    216
+none     infra-change           TOTAL                            3713     2546    3    4    216    4    216
+none     libre                  debugger                         7434     6110    7   91   5992   12    653
+none     libre                  designer                         6588     4845    5   91   5992   20   1079
+none     libre                  developer                       13138    10471    8   91   5992   16   1034
+none     libre                  documentarian                    6422     5052    5   91   5992   13    606
+none     libre                  onboarder                        6096     4679    6   91   5992   20   1109
+none     libre                  orchestrator                    14218    12259   11   91   5992   13    822
+none     libre                  orchestrator-dev                16204    14724   12   91   5992   28   1548
+none     libre                  pathfinder                      13742    12465    8   91   5992   11    784
+none     libre                  planner                          8785     7407    7   91   5992   23   1421
+none     libre                  reviewer                        14427    11820    7   91   5992   20   1467
+none     libre                  TOTAL                          107054    89832   76   91   5992   91   5992
+none     onboarding             onboarder                        6067     4679    6   20   1109   20   1109
+none     onboarding             TOTAL                            6067     4679    6   20   1109   20   1109
+none     quick                  developer                       13109    10471    8   22   1309   16   1034
+none     quick                  TOTAL                           13109    10471    8   22   1309   16   1034
+none     review                 reviewer                        14418    11820    7   20   1467   20   1467
+none     review                 TOTAL                           14418    11820    7   20   1467   20   1467
+none     review-feedback        developer                       13138    10471    8   40   2787   16   1034
+none     review-feedback        orchestrator-dev                16728    15277   12   40   2787   28   1548
+none     review-feedback        reviewer                        14420    11820    7   40   2787   20   1467
+none     review-feedback        TOTAL                           44286    37568   27   40   2787   39   2701
+none     sweep                  conductor                        7917     7050    7   33   2567    5    283
+none     sweep                  developer                       13137    10471    8   33   2567   16   1034
+none     sweep                  pathfinder                      13741    12465    8   33   2567   11    784
+none     sweep                  reviewer                        14419    11820    7   33   2567   20   1467
+none     sweep                  TOTAL                           49214    41806   30   33   2567   33   2567
+none     ticket                 developer                       13138    10471    8   47   3088   16   1034
+none     ticket                 documentarian                    6409     5052    5   47   3088   13    606
+none     ticket                 orchestrator-dev                16799    15348   12   47   3088   28   1548
+none     ticket                 reviewer                        14420    11820    7   47   3088   20   1467
+none     ticket                 TOTAL                           50766    42691   32   47   3088   47   3088
+stacks   audit                  auditor                         16924    15644    7   30   1569   18   1008
+stacks   audit                  auditor-subagent                 6963     5927    5   30   1569   19   1004
+stacks   audit                  TOTAL                           23887    21571   12   30   1569   24   1333
+stacks   benchmark              benchmarker                      3760     2546    3    9    407    3    171
+stacks   benchmark              TOTAL                            3760     2546    3    9    407    3    171
+stacks   brief-enrich           brief-enricher                    429        0    0    8    307    2     71
+stacks   brief-enrich           TOTAL                             429        0    0    8    307    2     71
+stacks   cadrage                conductor                        7880     7013    7   43   2608    5    283
+stacks   cadrage                designer                         6587     4845    5   43   2608   20   1079
+stacks   cadrage                pathfinder                      13741    12465    8   43   2608   11    784
+stacks   cadrage                planner                          8666     7289    7   43   2608   23   1421
+stacks   cadrage                TOTAL                           36874    31612   27   43   2608   37   2372
+stacks   debug                  debugger                         7406     6110    7   37   2048   12    653
+stacks   debug                  developer                       13101    10471    8   37   2048   16   1034
+stacks   debug                  documentarian                    6404     5052    5   37   2048   13    606
+stacks   debug                  TOTAL                           26911    21633   20   37   2048   31   1812
+stacks   feature                designer                         6588     4845    5   87   5689   20   1079
+stacks   feature                developer                       13138    10471    8   87   5689   16   1034
+stacks   feature                documentarian                    6419     5052    5   87   5689   13    606
+stacks   feature                orchestrator                    15036    13077   11   87   5689   13    822
+stacks   feature                orchestrator-dev                17052    15572   12   87   5689   28   1548
+stacks   feature                pathfinder                      13742    12465    8   87   5689   11    784
+stacks   feature                planner                          8755     7377    7   87   5689   23   1421
+stacks   feature                reviewer                        14424    11820    7   87   5689   20   1467
+stacks   feature                TOTAL                           95154    80679   63   87   5689   81   5453
+stacks   infra-change           operator                         3713     2546    3   10    452    4    216
+stacks   infra-change           TOTAL                            3713     2546    3   10    452    4    216
+stacks   libre                  debugger                         7434     6110    7   97   6228   12    653
+stacks   libre                  designer                         6588     4845    5   97   6228   20   1079
+stacks   libre                  developer                       13138    10471    8   97   6228   16   1034
+stacks   libre                  documentarian                    6422     5052    5   97   6228   13    606
+stacks   libre                  onboarder                        6096     4679    6   97   6228   20   1109
+stacks   libre                  orchestrator                    14218    12259   11   97   6228   13    822
+stacks   libre                  orchestrator-dev                16204    14724   12   97   6228   28   1548
+stacks   libre                  pathfinder                      13742    12465    8   97   6228   11    784
+stacks   libre                  planner                          8785     7407    7   97   6228   23   1421
+stacks   libre                  reviewer                        14427    11820    7   97   6228   20   1467
+stacks   libre                  TOTAL                          107054    89832   76   97   6228   91   5992
+stacks   onboarding             onboarder                        6067     4679    6   26   1345   20   1109
+stacks   onboarding             TOTAL                            6067     4679    6   26   1345   20   1109
+stacks   quick                  developer                       13109    10471    8   28   1545   16   1034
+stacks   quick                  TOTAL                           13109    10471    8   28   1545   16   1034
+stacks   review                 reviewer                        14418    11820    7   26   1703   20   1467
+stacks   review                 TOTAL                           14418    11820    7   26   1703   20   1467
+stacks   review-feedback        developer                       13138    10471    8   46   3023   16   1034
+stacks   review-feedback        orchestrator-dev                16728    15277   12   46   3023   28   1548
+stacks   review-feedback        reviewer                        14420    11820    7   46   3023   20   1467
+stacks   review-feedback        TOTAL                           44286    37568   27   46   3023   39   2701
+stacks   sweep                  conductor                        7917     7050    7   39   2803    5    283
+stacks   sweep                  developer                       13137    10471    8   39   2803   16   1034
+stacks   sweep                  pathfinder                      13741    12465    8   39   2803   11    784
+stacks   sweep                  reviewer                        14419    11820    7   39   2803   20   1467
+stacks   sweep                  TOTAL                           49214    41806   30   39   2803   33   2567
+stacks   ticket                 developer                       13138    10471    8   53   3324   16   1034
+stacks   ticket                 documentarian                    6409     5052    5   53   3324   13    606
+stacks   ticket                 orchestrator-dev                16799    15348   12   53   3324   28   1548
+stacks   ticket                 reviewer                        14420    11820    7   53   3324   20   1467
+stacks   ticket                 TOTAL                           50766    42691   32   53   3324   47   3088
 
 # Inlined skills: largest section (tokens) and the agents inlining it.
 auditor-workflow                           8685 auditor
