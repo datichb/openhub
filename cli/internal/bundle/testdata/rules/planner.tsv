@@ -60,22 +60,11 @@ living-docs-enrichment	Règles de qualité des enrichissements	❌ Ne pas mettre
 living-docs-enrichment	Règles de qualité des enrichissements	❌ Ne pas ajouter d'enrichissements subjectifs ou spéculatifs
 living-docs-enrichment	Règles de qualité des enrichissements	❌ Ne pas proposer de changement de structure des pages (titres, sections existantes) — uniquement du contenu
 living-docs-enrichment	Règles de qualité des enrichissements	❌ Ne pas omettre le tag de confiance — chaque enrichissement doit en porter un
-planner-beads-templates	Règles impératives	Toujours utiliser `--json` sur `bd create`
-planner-beads-templates	Règles impératives	Toujours capturer l'ID via `jq -r '.id'`
-planner-beads-templates	Règles impératives	Ne jamais utiliser `bd edit`
-planner-beads-templates	Règles impératives	Les descriptions sont en langage naturel, jamais en code
-planner-beads-templates	Règles impératives	**Toujours renseigner `--estimate`** — même approximatif
-planner-beads-templates	Règles impératives	**Toujours renseigner `--design`** pour tout ticket touchant un composant UI
-planner-beads-templates	Règles impératives	**Toujours enrichir les epics** avec `--description`, `--acceptance` (critères de succès) et `--notes` immédiatement après création
-planner-beads-templates	Règles impératives	**Toujours inclure une section "Approches alternatives"** dans les notes quand un choix technique existe
-planner-beads-templates	Gestion des aléas en cours de création	Erreur sur un `bd create` | Signaler, ne pas créer de doublon, reprendre proprement.
-planner-design-templates	Phase 1.5 — Délégation design (optionnelle)	Elle se traite en sessions séparées — le planner ne continue pas tant que l'utilisateur n'a pas rapporté les specs (ou explicitement décidé de les ignorer).
+planner-design-templates	Phase 1.5 — Délégation design (optionnelle)	Sous-agent : n'expose pas d'options ; invoque directement le designer (une spec UX pour le parcours, une spec UI par composant) et intègre ses specs.
+planner-design-templates	Réception du retour du designer	Son enveloppe porte un statut (`spec-complète`, `spec-partielle`, `choix-requis`, `prototype-livré`, `bloqué`) et l'identifiant de son rapport. Affiche la spec complète (lue avec `workflow_report_get`, jamais résumée) avant toute question ; reprends `### Composants à créer` et `### Tokens design requis` dans les questions de phase 2 si une validation est utile, et ajoute ses `### Questions pour l'utilisateur` à celles de la phase 2. `spec-partielle` : les questions design rejoignent le questionnaire ; `bloqué` : demande à l'utilisateur comment débloquer avant de continuer. Sans spec (enveloppe seule, sans rapport) : demande au designer de la produire.
 planner-design-templates	Prototype rapide (signal ambigu)	**Identifier la question précise** que le prototype doit résoudre (ex : "Comment organiser les 3 zones d'information sur l'écran principal ?")
 planner-design-templates	Récap de fin de Phase 1.5	Question de validation obligatoire
-planner-design-templates	Réception du retour du designer	Son enveloppe porte un statut (`spec-complète`, `spec-partielle`, `choix-requis`, `prototype-livré`, `bloqué`) et l'identifiant de son rapport. Affiche la spec complète (lue avec `workflow_report_get`, jamais résumée) avant toute question ; reprends `### Composants à créer` et `### Tokens design requis` dans les questions de phase 2 si une validation est utile, et ajoute ses `### Questions pour l'utilisateur` à celles de la phase 2. `spec-partielle` : les questions design rejoignent le questionnaire ; `bloqué` : demande à l'utilisateur comment débloquer avant de continuer. Sans spec (enveloppe seule, sans rapport) : demande au designer de la produire.
-planner-patterns-protocol	Consultation avant decomposition	ADAPTER au contexte specifique du ticket (ne pas copier aveuglement)
-planner-patterns-protocol	Criteres pour proposer un pattern	NE PAS proposer si :
-planner-patterns-protocol	Vertical slicing	Un ticket avec une valeur testable isolement est toujours preferable
+planner-phase-0	Déclencheur de pause ⏸️	Sous-agent : les éléments manquants vont dans tes `### Questions bloquantes` (statut `en-attente`), avec l'impact de leur absence ; ou, s'ils ne bloquent pas, deviennent des hypothèses de ton rapport.
 planner-phase-0	Récap de fin de Phase 0	Question de validation obligatoire
 planner-phase-0	Objectif	Calibrer la profondeur de planification avant l'exploration. Un projet simple mérite un plan léger ; un projet enterprise mérite toutes les phases obligatoires.
 planner-phase-0	Tiers et comportement conditionnel	**Large** | 11–13 | Pathfinder obligatoire + audit pré-implem recommandé, tickets structurés
@@ -106,16 +95,16 @@ planner-phase-2	Questions techniques contextualisées (adapter selon l'explorati
 planner-phase-2	Questions techniques contextualisées (adapter selon l'exploration)	Questions librairies externes (si comportements ⚠️ ou ❌ en étape 1.2bis)
 planner-phase-2	Questions librairies externes (si comportements ⚠️ ou ❌ en étape 1.2bis)	"La doc de `[lib]` indique que [comportement partiel] mais ne précise pas [point d'ambiguïté]. Faut-il traiter ce cas dans ce périmètre ?"
 planner-phase-2	Questions librairies externes (si comportements ⚠️ ou ❌ en étape 1.2bis)	**Règle** : ne poser cette question que si au moins un comportement est classé ⚠️ ou ❌ dans l'étape 1.2bis. Si tout est ✅ vérifié, skip.
+planner-phase-2	Questions impacts en cascade (si "ticket séparé nécessaire" dans l'impact map de l'étape 1.2ter)	Une question par fichier partagé dont l'impact n'est pas couvert :
 planner-phase-2	Questions impacts en cascade (si "ticket séparé nécessaire" dans l'impact map de l'étape 1.2ter)	"La modification de `[fichier partagé]` impacte [N] consommateurs : [liste courte — ex : AuthController, ProfileUseCase, AdminController]. Tous doivent-ils être mis à jour dans ce périmètre, ou certains sont hors scope de cette itération ?"
 planner-phase-2	Mode frontier — Rounds par prérequis	En mode frontier, les questions `[DECISION]` ne sont PAS toutes posées d'un coup. Elles sont organisées en **rounds** basés sur un arbre de dépendances entre décisions.
 planner-phase-2	Mode frontier — Rounds par prérequis	**Frontier vide avant le max** : si les réponses du Round 1 résolvent tout, passer directement au récap. Ne pas forcer 3 rounds.
-planner-phase-2	Format de la question	⚠️ **En mode sous-agent** : **NE PAS appeler l'outil `question`**. Mets ces questions, avec leurs options, dans les `### Questions bloquantes` de ton enveloppe (statut `en-attente`), précédées dans ton rapport du condensé de la phase 1. Les questions ci-dessous servent de **modèle de contenu**.
-planner-phase-2	Format de la question	**Note :** L'option "Type your own answer" est ajoutée automatiquement par OpenCode à chaque question — ne pas la dupliquer. L'utilisateur peut toujours saisir une réponse libre si aucune option ne convient.
+planner-phase-2	Format de la question	⚠️ **En mode sous-agent** : **NE PAS appeler l'outil `question`**. Mets ces questions, avec leurs options, dans les `### Questions bloquantes` de ton enveloppe (statut `en-attente`), précédées dans ton rapport du condensé de la phase 1. Les questions de la section « Questions à poser » servent de **modèle de contenu**.
 planner-phase-2	Déduction des priorités	Ne pas imposer un cadre (pas de MoSCoW explicite). Déduire depuis le contexte et justifier :
 planner-phase-2	Déduction des priorités	Toujours expliquer le raisonnement :
-planner-phase-2	Déclenchement	**Complexité >= Large (11+ pts)** : gate **obligatoire** — toujours produire le résumé de compréhension et demander validation avant Phase 3
-planner-phase-2	Comportement en subagent	Question de validation obligatoire (sans understanding gate)
+planner-phase-2	Récap de fin de Phase 2	Question de validation obligatoire (sans understanding gate)
 planner-phase-2	Question de validation obligatoire (sans understanding gate)	❌ Ne jamais appeler l'outil `question` en mode subagent.
+planner-phase-2-5	Déclenchement	**Complexité >= Large (11+ pts)** : gate **obligatoire** — toujours produire le résumé de compréhension et demander validation avant Phase 3
 planner-phase-3-4	Règle — Granularité des tickets	**Un ticket unique est toujours acceptable** si la demande est clairement délimitée (bug isolé, ajout UI simple, tâche technique ciblée, etc.). Ne pas découper par défaut.
 planner-phase-3-4	Règle — Granularité des tickets	Un découpage peut être **suggéré** (jamais imposé) si **plusieurs** de ces critères sont vrais simultanément :
 planner-phase-3-4	Règle — Granularité des tickets	Un seul critère ne suffit pas à proposer un découpage. Si un découpage semble pertinent, le **signaler comme option** à l'utilisateur sans l'inclure dans le plan par défaut. L'utilisateur décide toujours.
@@ -123,9 +112,8 @@ planner-phase-3-4	Règle — Tracer bullet (premier ticket)	**Objectif :** prouv
 planner-phase-3-4	Règle — Tracer bullet (premier ticket)	Le premier ticket n'a pas de valeur testable isolément
 planner-phase-3-4	Règle — Tracer bullet (premier ticket)	Un ticket technique fondation (migration DB, setup CI, config infra) peut précéder le tracer bullet si l'intégration n'est pas possible sans ce prérequis
 planner-phase-3-4	Règle — Tracer bullet (premier ticket)	Un epic mono-couche (ex : refactoring pur backend) n'a pas besoin de tracer bullet — le premier ticket est le cas nominal de cette couche
-planner-phase-3-4	Récap de fin de Phase 3	⚠️ **RAPPEL** : En Phase 6, le récapitulatif de planification doit reprendre tous ces éléments (plan hiérarchique + dépendances + hypothèses + risques) sous forme narrative détaillée — ne pas se limiter au tableau structuré du bloc handoff.
+planner-phase-3-4	Récap de fin de Phase 3	⚠️ **RAPPEL** : En Phase 6, le récapitulatif de planification doit reprendre tous ces éléments (plan hiérarchique + dépendances + hypothèses + risques) sous forme narrative détaillée — ne pas se limiter au tableau des tickets.
 planner-phase-3-4	Récap de fin de Phase 3	Question de validation obligatoire
-planner-phase-3-4	Question de validation obligatoire	**Ne pas continuer tant que le plan n'est pas validé.**
 planner-phase-3-4	Ce qu'on vérifie	✅ **Tickets trop gros** : Y a-t-il des tickets à scinder en 2-3 sous-tickets ?
 planner-phase-3-4	Ce qu'on vérifie	✅ **Doublons avec tickets existants** : Y a-t-il des tickets qui font doublon avec des tickets déjà ouverts ?
 planner-phase-3-4	Ce qu'on vérifie	✅ **Dépendances circulaires** : Y a-t-il des dépendances qui forment un cycle ?
@@ -145,7 +133,8 @@ planner-phase-5-6	Règles impératives	**Toujours renseigner `--design`** pour t
 planner-phase-5-6	Règles impératives	**Toujours enrichir les epics** avec `--description`, `--acceptance` (critères de succès) et `--notes` immédiatement après création
 planner-phase-5-6	Règles impératives	**Toujours inclure une section "Approches alternatives"** dans les notes quand un choix technique existe
 planner-phase-5-6	Gestion des aléas en cours de création	Erreur sur un `bd create` | Signaler, ne pas créer de doublon, reprendre proprement.
-planner-phase-5-6	Récap avant question	Question de validation obligatoire
+planner-phase-5-6	Phase 5.5 — Délégation ai-delegated (optionnelle)	Question de validation obligatoire
+planner-phase-5-6	Question de validation obligatoire	Sous-agent : n'ajoute pas le label ; liste les tickets éligibles dans ta `### Suite proposée`, l'utilisateur tranche par ton appelant.
 planner-phase-5-6	Question de validation obligatoire	Ne jamais ajouter `ai-delegated` sans validation explicite
 planner-phase-5-6	Question de validation obligatoire	Ne jamais déléguer un ticket bloqué par un ticket non terminé
 planner-phase-5-6	Commandes de vérification	La méthode `--method ai` est refusée par oh (les tickets ne partent pas vers un modèle externe). Pour chaque paire qui contient un ticket créé dans cette session : vrai doublon d'un ticket existant → le signaler dans « Points d'attention » avec la commande à lancer après validation (`bd duplicate <nouveau> --of <existant>`) ; simple proximité de titre → ignorer.
@@ -155,12 +144,7 @@ planner-workflow	Rôle	Tu n'as PAS accès aux outils de code.
 planner-workflow	Rôle	Tu ne CODES JAMAIS, tu PLANIFIES uniquement.
 planner-workflow	CONTRAINTES ABSOLUES — NON NÉGOCIABLES	Tu ne dois JAMAIS :
 planner-workflow	Commandes bd autorisées :	✅ Si une information manquante critique est détectée en Phase 0, 1 ou 2, la mettre dans les `### Questions bloquantes` de ton enveloppe (statut `en-attente`) et t'arrêter, sans appeler l'outil `question`
-planner-workflow	Responsabilité du planner	Champs obligatoires dans le retour
-planner-workflow	Champs obligatoires dans le retour	**Colonne `Agent prévu`** dans le tableau `### Tickets créés` — pour chaque ticket, indiquer l'agent qui doit le traiter
-planner-workflow	Règle prescriptive	**Le champ `Agent prévu` est obligatoire et prescriptif — l'agent orchestrator ne devine plus rien.**
-planner-workflow	Règle prescriptive	✅ Utilise directement le champ `Agent prévu` du tableau
-planner-workflow	Règle prescriptive	✅ Suit l'`### Ordre de traitement` tel quel
-planner-workflow	Exemple de routing	Sans jamais analyser les labels ou le contenu des tickets.
+planner-workflow	Routing des tickets	**Le champ `Agent prévu` est obligatoire et prescriptif.**
 planner-workflow	Parcours de ton rôle	Le parcours de ton rôle (contrat de session) suit le protocole d'exécution (inclus). Sous-agent : la validation du plan (Phase 3) est celle de ton appelant : arrête-toi avant la Phase 5 avec le statut `découpage-à-valider`. **Ne pas dupliquer** les règles de parcours dans ce skill.
 planner-workflow	Règles d'usage de ce workflow	✅ **Toujours produire le récap** à la fin de chaque phase, même si la phase a été répétée
 planner-workflow	Règles d'usage de ce workflow	✅ **Enchaîner les phases sans arrêt** (protocole d'exécution), jamais l'outil `question` ; s'arrêter seulement sur une question bloquante ou avant la Phase 5
