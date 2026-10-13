@@ -9,6 +9,15 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ## [Unreleased]
 
+### Added — documentation vivante (lot LD)
+
+- **`wiki_check` restreint à un changement** (`paths`, `base`/`head`, `since_sync`, et les mêmes options dans `oh wiki check`) : pages concernées et dérives calculées par oh (`drift_confirmed` : page `CONFIRMÉ` qui cite un fichier modifié ; `drift_god_node` : god node touché sans page à jour). Le reviewer gagne un **axe « documentation »** : chaque dérive devient un finding 🟡 (avec un wiki seulement).
+- **Workflow `doc-sync`** : commits depuis la dernière synchronisation (`synced:` dans `docs/wiki/index.md`, écrit par oh), file des propositions à la carte de `cp-sync` (nouveau champ de checkpoint `wiki: sync`), application par oh, commit du wiki seul par le documentarian.
+- **Arborescence unique du wiki** (`glossary.md` à la racine, `specs/`, `decisions/`, `postmortems/`), vérifiée par `wiki_check` ; formats dans une nouvelle annexe de `doc-wiki-protocol`.
+- **Métriques du wiki** (couverture des domaines, âge médian, part de `INCERTAIN`, propositions en attente, dernière synchronisation) : `oh wiki stats` et vue « Wiki » du mode projet de la TUI.
+- **God nodes** : libellés, mots d'insistance, noms de produits, métadonnées des tags et cartes du wiki ne comptent plus. **`oh gc`** purge les propositions appliquées ou refusées au-delà de `history_days`.
+- **`oh eval`** : assertion `called`, option `include` de `changed_within`, réponse `answers.wiki` ; cas S11 (wiki dans `ticket`) et S12 (`doc-sync`).
+
 ### Changed — phases de l'onboarder par rôle (lot L6 onboarder)
 
 - Les skills de phase de l'onboarder ont des variantes par rôle : les appels à `question` sont réservés à l'agent d'entrée. En sous-agent, l'onboarder enchaîne ses phases, met ce qui bloque dans les « Questions bloquantes » de son enveloppe, enrichit un wiki existant par défaut et note ses choix comme hypothèses.
