@@ -26,6 +26,9 @@ const (
 	verifyPass    = "pass"
 	verifyFail    = "fail"
 	verifyNone    = "none"
+	// verifyUnavailable: the verification cannot run where the work is
+	// (R3-remote): passed only overridden, like a failure.
+	verifyUnavailable = "unavailable"
 )
 
 // checkpointExcerptLines is the number of output lines shown on the card.
@@ -33,7 +36,7 @@ const checkpointExcerptLines = 12
 
 // CheckpointVerifyView is the verification part of a checkpoint card.
 type CheckpointVerifyView struct {
-	// Status: "" (no verification) | running | pass | fail | none.
+	// Status: "" (no verification) | running | pass | fail | none | unavailable.
 	Status  string
 	Summary string
 	Excerpt string
@@ -41,6 +44,10 @@ type CheckpointVerifyView struct {
 	Evidence []CheckpointEvidenceView
 	// Unresolved is the ticket whose fix rounds reached the cap.
 	Unresolved string
+	// Remote is the result of the verification run in the remote job of
+	// the session (R3-remote); RemoteOK tells whether it let it pass.
+	Remote   string
+	RemoteOK bool
 }
 
 // CheckpointEvidenceView is an evidence of the agent.
@@ -51,11 +58,14 @@ type CheckpointEvidenceView struct {
 	Contradicted bool
 }
 
-// Failed reports whether the verification failed.
-func (v CheckpointVerifyView) Failed() bool { return v.Status == verifyFail }
+// Failed reports whether only an override passes the checkpoint: the
+// verification failed or cannot run.
+func (v CheckpointVerifyView) Failed() bool {
+	return v.Status == verifyFail || v.Status == verifyUnavailable
+}
 
 func (v CheckpointVerifyView) empty() bool {
-	return v.Status == "" && len(v.Evidence) == 0 && v.Unresolved == ""
+	return v.Status == "" && len(v.Evidence) == 0 && v.Unresolved == "" && v.Remote == ""
 }
 
 // writeCheckpointVerify renders the verification part of the card.
@@ -73,6 +83,8 @@ func writeCheckpointVerify(b *strings.Builder, v CheckpointVerifyView, section f
 		switch v.Status {
 		case verifyFail:
 			color, icon = theme.ErrorHex, theme.IconError
+		case verifyUnavailable:
+			color, icon = theme.WarningHex, theme.IconWarning
 		case verifyRunning, verifyNone:
 			color, icon = theme.TextMutedHex, "…"
 		}
@@ -89,6 +101,19 @@ func writeCheckpointVerify(b *strings.Builder, v CheckpointVerifyView, section f
 		if v.Failed() {
 			b.WriteString("  " + muted(i18n.T("tui.checkpoint.verify.override_hint")) + "\n")
 		}
+	}
+	if v.Remote != "" {
+		if v.Status == "" {
+			section(i18n.T("tui.checkpoint.verify.title"))
+		}
+		color, icon := theme.SuccessHex, theme.IconSuccess
+		if !v.RemoteOK {
+			color, icon = theme.WarningHex, theme.IconWarning
+		}
+		fmt.Fprintf(b, "  %s%s %s%s\n", theme.ColorTag(color), icon,
+			tview.Escape(i18n.Tf("tui.checkpoint.verify.remote", v.Remote)), theme.TagColor)
+	}
+	if v.Status != "" || v.Remote != "" {
 		b.WriteString("\n")
 	}
 	if len(v.Evidence) > 0 {

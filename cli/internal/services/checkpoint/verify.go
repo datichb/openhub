@@ -35,10 +35,14 @@ import (
 // and a bounded output. A result is tied to the state of the work verified
 // (HEAD, uncommitted changes): it is reused only for the same state.
 
-// Verification errors (VerifyError matches them).
+// Verification errors (VerifyError matches them). ErrOverrideRequired
+// refuses a validation without override of a checkpoint whose verification
+// failed or cannot run.
 var (
-	ErrVerifyFailed  = errors.New("checkpoint verification failed")
-	ErrVerifyPending = errors.New("checkpoint verification running")
+	ErrVerifyFailed      = errors.New("checkpoint verification failed")
+	ErrVerifyPending     = errors.New("checkpoint verification running")
+	ErrVerifyUnavailable = errors.New("checkpoint verification cannot run where the work is")
+	ErrOverrideRequired  = errors.New("checkpoint verification must be overridden")
 )
 
 // VerifyError is a checkpoint refused by its verification (message for the
@@ -48,11 +52,16 @@ type VerifyError struct {
 	Label   string
 	Result  domain.CheckpointVerify
 	Pending bool
+	// Unavailable: the verification cannot run (only the user passes it).
+	Unavailable bool
 }
 
 func (e *VerifyError) Error() string {
 	if e.Pending {
 		return i18n.Tf("cmd.daemon.workflow.verify_pending", e.ID, e.Label)
+	}
+	if e.Unavailable {
+		return i18n.Tf("cmd.daemon.workflow.verify_unavailable", e.ID, e.Label, VerifySummary(e.Result))
 	}
 	msg := i18n.Tf("cmd.daemon.workflow.verify_failed", e.ID, e.Label, VerifySummary(e.Result))
 	if e.Result.Excerpt != "" {
@@ -61,13 +70,33 @@ func (e *VerifyError) Error() string {
 	return msg
 }
 
-// Is matches ErrVerifyFailed or ErrVerifyPending.
+// Is matches ErrVerifyFailed, ErrVerifyPending or ErrVerifyUnavailable.
 func (e *VerifyError) Is(target error) bool {
-	if e.Pending {
+	switch {
+	case e.Pending:
 		return target == ErrVerifyPending
+	case e.Unavailable:
+		return target == ErrVerifyUnavailable
 	}
 	return target == ErrVerifyFailed
 }
+
+// OverrideError refuses a validation without override (Resolve): the
+// verification of the checkpoint failed or cannot run.
+type OverrideError struct {
+	ID     string
+	Result domain.CheckpointVerify
+}
+
+func (e *OverrideError) Error() string {
+	if e.Result.Status == domain.VerifyUnavailable {
+		return i18n.Tf("tui.checkpoint.verify.override_required_unavailable", e.ID)
+	}
+	return i18n.Tf("tui.checkpoint.verify.override_required", e.ID)
+}
+
+// Is matches ErrOverrideRequired.
+func (e *OverrideError) Is(target error) bool { return target == ErrOverrideRequired }
 
 // Bounds of a verification.
 const (
@@ -94,6 +123,25 @@ type verifier struct {
 	inflight map[string]bool
 }
 
+// WaitVerify waits for the verifications running in the background to end,
+// at most until ctx ends (remote job: before the agent processes are
+// stopped and the work pushed, so that their results travel with it).
+func (s *Service) WaitVerify(ctx context.Context) {
+	for {
+		s.verifier.mu.Lock()
+		n := len(s.verifier.inflight)
+		s.verifier.mu.Unlock()
+		if n == 0 {
+			return
+		}
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(100 * time.Millisecond):
+		}
+	}
+}
+
 func (s *Service) verifyWait() time.Duration {
 	if s.VerifyWait > 0 {
 		return s.VerifyWait
@@ -116,6 +164,18 @@ func verifyDir(sess *domain.Session, v *sessionspec.VerifyDef) string {
 	return dir
 }
 
+// verifyBlocked reports whether checkpoint c has a verification that cannot
+// run where the work of sess is (R3-remote): the checkpoint then waits for
+// the user in every mode, and passes only overridden (traced).
+func verifyBlocked(sess *domain.Session, c sessionspec.CheckpointDef) bool {
+	return c.Verify != nil && verifyDir(sess, c.Verify) == ""
+}
+
+// unavailable is the result of a verification that cannot run.
+func unavailable() domain.CheckpointVerify {
+	return domain.CheckpointVerify{Status: domain.VerifyUnavailable, Reason: i18n.T("tui.checkpoint.verify.no_location")}
+}
+
 // StartVerify starts the verification of checkpoint c of sess in the
 // background, unless it already ran or runs for the current state of the
 // work (called when a paused checkpoint is asked: the card shows it).
@@ -124,6 +184,10 @@ func (s *Service) StartVerify(sess *domain.Session, c sessionspec.CheckpointDef)
 		return
 	}
 	ctx := context.Background()
+	if verifyBlocked(sess, c) {
+		s.recordUnavailable(ctx, sess.ID, c)
+		return
+	}
 	fp := s.fingerprint(ctx, sess)
 	if r, ok := s.currentVerify(ctx, sess.ID, c, fp); ok && (r.Done() || !s.stale(r, c)) {
 		return
@@ -131,10 +195,33 @@ func (s *Service) StartVerify(sess *domain.Session, c sessionspec.CheckpointDef)
 	s.launchVerify(sess, c, fp)
 }
 
+// recordUnavailable records, once per round, that the verification of c
+// cannot run (shown on the card, traced in the timeline).
+func (s *Service) recordUnavailable(ctx context.Context, sessionID string, c sessionspec.CheckpointDef) domain.CheckpointVerify {
+	r := unavailable()
+	r.Expect, r.Started = c.Verify.Expect, s.now()
+	r.Finished = &r.Started
+	_, _ = s.update(ctx, sessionID, func(st *domain.CheckpointState) error {
+		if cur, ok := st.Verify[c.ID]; ok && cur.Status == domain.VerifyUnavailable {
+			return errUnchanged
+		}
+		if st.Verify == nil {
+			st.Verify = map[string]domain.CheckpointVerify{}
+		}
+		st.Verify[c.ID] = r
+		s.record(st, domain.CheckpointVerifyFail, c.ID, "oh", VerifySummary(r))
+		return nil
+	})
+	return r
+}
+
 // verification returns the verification of c for the current state of the
 // work, running it when needed and waiting at most wait for its end
 // (ErrVerifyPending after that).
 func (s *Service) verification(ctx context.Context, sess *domain.Session, c sessionspec.CheckpointDef, wait time.Duration) (domain.CheckpointVerify, error) {
+	if verifyBlocked(sess, c) {
+		return s.recordUnavailable(ctx, sess.ID, c), nil
+	}
 	fp := s.fingerprint(ctx, sess)
 	r, ok := s.currentVerify(ctx, sess.ID, c, fp)
 	if !ok || (!r.Done() && s.stale(r, c)) {
@@ -242,9 +329,9 @@ func (s *Service) runVerify(ctx context.Context, sess *domain.Session, c session
 	v := c.Verify
 	dir := verifyDir(sess, v)
 	if dir == "" {
-		// The location is not on this machine (remote runner) or is gone:
-		// nothing to verify here, shown on the card.
-		return domain.CheckpointVerify{Status: domain.VerifyNone, Reason: i18n.T("tui.checkpoint.verify.no_location")}
+		// The location is gone (or not on this machine): the verification
+		// cannot run, the checkpoint waits for an override (R3-remote).
+		return unavailable()
 	}
 	if len(v.MustTouch) > 0 {
 		paths, err := s.changedPaths(ctx, sess)
@@ -261,9 +348,12 @@ func (s *Service) runVerify(ctx context.Context, sess *domain.Session, c session
 	defer cancel()
 	run := s.Exec
 	if run == nil {
-		run = execVerify
+		acct := s.Account
+		run = func(ctx context.Context, dir string, args, env []string, out *TailBuffer) (int, error) {
+			return execVerify(ctx, dir, args, env, out, acct)
+		}
 	}
-	env := verifyEnv(os.Environ())
+	env := verifyEnv(os.Environ(), s.Account)
 	r := domain.CheckpointVerify{}
 	var failed *TailBuffer
 	for _, cmd := range runs {
@@ -334,26 +424,58 @@ var verifyEnvKeys = map[string]bool{
 	"VIRTUAL_ENV": true, "PYENV_ROOT": true, "UV_CACHE_DIR": true, "POETRY_HOME": true, "PIPX_HOME": true,
 }
 
-// verifyEnv returns the environment of a verification.
-func verifyEnv(parent []string) []string {
-	out := make([]string, 0, len(verifyEnvKeys)+3)
+// verifyEnv returns the environment of a verification. Run as acct, the
+// home, cache, configuration and temporary folders are those of acct (the
+// ones of its tool server), and the identity of oh is dropped.
+func verifyEnv(parent []string, acct *Account) []string {
+	out := make([]string, 0, len(verifyEnvKeys)+8)
 	for _, kv := range parent {
 		k, _, _ := strings.Cut(kv, "=")
-		if verifyEnvKeys[k] {
-			out = append(out, kv)
+		if !verifyEnvKeys[k] {
+			continue
 		}
+		if acct != nil && accountEnvKeys[k] {
+			continue
+		}
+		out = append(out, kv)
+	}
+	if acct != nil {
+		out = append(out, acct.env()...)
 	}
 	return append(out, "CI=true", "NO_COLOR=1", "TERM=dumb")
 }
 
+// accountEnvKeys are replaced by the folders of the account.
+var accountEnvKeys = map[string]bool{
+	"HOME": true, "USER": true, "LOGNAME": true, "TMPDIR": true,
+	"XDG_CACHE_HOME": true, "XDG_CONFIG_HOME": true, "XDG_DATA_HOME": true,
+}
+
+// Account is the account a verification runs as (R3-remote: the oh
+// account of a remote job, which runs the tool server and the agents).
+type Account struct {
+	UID, GID uint32
+	// Home is HOME of the account (configuration, cache and temporary
+	// folders below it, as for its tool server).
+	Home string
+}
+
+func (a *Account) env() []string {
+	return []string{"HOME=" + a.Home, "XDG_CONFIG_HOME=" + filepath.Join(a.Home, ".config"),
+		"XDG_CACHE_HOME=" + filepath.Join(a.Home, ".cache"), "TMPDIR=" + filepath.Join(a.Home, "tmp")}
+}
+
 // execVerify runs a command in its own process group, killed with it on
-// timeout; stdin is empty.
-func execVerify(ctx context.Context, dir string, args, env []string, out *TailBuffer) (int, error) {
+// timeout, as acct when set; stdin is empty.
+func execVerify(ctx context.Context, dir string, args, env []string, out *TailBuffer, acct *Account) (int, error) {
 	cmd := exec.CommandContext(ctx, args[0], args[1:]...)
 	cmd.Dir, cmd.Env, cmd.Stdout, cmd.Stderr = dir, env, out, out
 	cmd.Stdin = bytes.NewReader(nil)
 	cmd.WaitDelay = 5 * time.Second
 	setProcessGroup(cmd)
+	if err := runAs(cmd, acct); err != nil {
+		return -1, err
+	}
 	err := cmd.Run()
 	var exit *exec.ExitError
 	if errors.As(err, &exit) {
@@ -437,11 +559,39 @@ func (s *Service) fingerprint(ctx context.Context, sess *domain.Session) string 
 	if s.Fingerprint != nil {
 		return s.Fingerprint(ctx, sess.LaunchPath)
 	}
-	return GitFingerprint(ctx, sess.LaunchPath)
+	return gitFingerprint(ctx, sess.LaunchPath, s.Account)
 }
 
 // GitFingerprint is the git fingerprint of the work in dir.
 func GitFingerprint(ctx context.Context, dir string) string {
+	return gitFingerprint(ctx, dir, nil)
+}
+
+// gitAs is git in dir (gitutil.Command), run as acct when set: in a remote
+// job the work tree belongs to the agent account, and oh never runs git in
+// it as root (S-01).
+func gitAs(ctx context.Context, dir string, acct *Account, args ...string) *exec.Cmd {
+	cmd := gitutil.Command(ctx, dir, args...)
+	if acct != nil {
+		cmd.Env = append(withoutKeys(cmd.Env, accountEnvKeys), acct.env()...)
+		if err := runAs(cmd, acct); err != nil {
+			cmd.Err = err
+		}
+	}
+	return cmd
+}
+
+func withoutKeys(env []string, drop map[string]bool) []string {
+	out := make([]string, 0, len(env))
+	for _, kv := range env {
+		if k, _, _ := strings.Cut(kv, "="); !drop[k] {
+			out = append(out, kv)
+		}
+	}
+	return out
+}
+
+func gitFingerprint(ctx context.Context, dir string, acct *Account) string {
 	if dir == "" {
 		return ""
 	}
@@ -451,11 +601,11 @@ func GitFingerprint(ctx context.Context, dir string) string {
 		{"diff", "HEAD", "--", ".", ":(exclude).beads"},
 		{"status", "--porcelain", "-uall", "--", ".", ":(exclude).beads"},
 	} {
-		out, _ := gitutil.Command(ctx, dir, args...).Output()
+		out, _ := gitAs(ctx, dir, acct, args...).Output()
 		h.Write(out)
 		h.Write([]byte{0})
 	}
-	out, _ := gitutil.Command(ctx, dir, "ls-files", "-o", "--exclude-standard", "-z").Output()
+	out, _ := gitAs(ctx, dir, acct, "ls-files", "-o", "--exclude-standard", "-z").Output()
 	for _, f := range strings.Split(string(out), "\x00") {
 		if f == "" {
 			continue
@@ -473,23 +623,27 @@ func (s *Service) changedPaths(ctx context.Context, sess *domain.Session) ([]str
 	if s.Changed != nil {
 		return s.Changed(ctx, sess.LaunchPath, sess.StartRef)
 	}
-	return GitChanged(ctx, sess.LaunchPath, sess.StartRef)
+	return gitChanged(ctx, sess.LaunchPath, sess.StartRef, s.Account)
 }
 
 // GitChanged lists the paths changed in dir since the commit since ("" =
 // HEAD), untracked files included.
 func GitChanged(ctx context.Context, dir, since string) ([]string, error) {
+	return gitChanged(ctx, dir, since, nil)
+}
+
+func gitChanged(ctx context.Context, dir, since string, acct *Account) ([]string, error) {
 	if dir == "" {
 		return nil, errors.New("no location")
 	}
 	if since == "" {
 		since = "HEAD"
 	}
-	diff, err := gitutil.Command(ctx, dir, "diff", "--name-only", since, "--", ".", ":(exclude).beads").Output()
+	diff, err := gitAs(ctx, dir, acct, "diff", "--name-only", since, "--", ".", ":(exclude).beads").Output()
 	if err != nil {
 		return nil, err
 	}
-	untracked, err := gitutil.Command(ctx, dir, "ls-files", "-o", "--exclude-standard").Output()
+	untracked, err := gitAs(ctx, dir, acct, "ls-files", "-o", "--exclude-standard").Output()
 	if err != nil {
 		return nil, err
 	}
@@ -543,15 +697,16 @@ func (s *Service) verifyGate(ctx context.Context, sess *domain.Session, c sessio
 		return err
 	}
 	_, _ = s.update(ctx, sess.ID, func(st *domain.CheckpointState) error {
-		// The validation was given on a failed verification: the agent
-		// fixes the work and asks again.
+		// The validation was given on a failed (or impossible)
+		// verification: the agent fixes the work and asks again, or the
+		// user overrides it.
 		delete(st.Approved, c.ID)
 		if st.Waiting == c.ID {
 			st.Waiting = ""
 		}
 		return nil
 	})
-	return &VerifyError{ID: c.ID, Label: label, Result: r}
+	return &VerifyError{ID: c.ID, Label: label, Result: r, Unavailable: r.Status == domain.VerifyUnavailable}
 }
 
 // VerifyResult returns the verification of a checkpoint of a session (the

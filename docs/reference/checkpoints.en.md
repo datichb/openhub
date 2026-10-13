@@ -81,13 +81,28 @@ Before a checkpoint passes, hence before its unlocks open, oh runs the verificat
 
 **At an automatic checkpoint**, the verification runs during the agent call; past 20 seconds, the call answers "verification running" and the agent calls again a bit later (the result is kept).
 
-A project without a detected stack, or a location not on the machine (remote session): "nothing to verify", the checkpoint passes and the card says so.
+A project without a detected stack: "nothing to verify", the checkpoint passes and the card says so.
+
+**Verification impossible: never a silent pass.** When the work location cannot be found (folder deleted, `in` subfolder missing), the verification cannot run: the checkpoint **pauses in every mode**, `auto` included, even when it would usually pass on its own. The card shows "cannot run here"; "Validate" is refused and only **"Override the verification"** lets it pass, traced like a failure (`⚑`, `overridden` event). The agent call fails with `ErrVerifyUnavailable` and nothing is unlocked.
 
 In a read-only workflow (`risk: read`), a verified checkpoint always asks the user: the commands only run once validated.
 
 **Loosening**: a team or project layer may harden an inherited verification (more kinds, commands, `must_touch` paths, a longer timeout), never remove nor weaken it (`loosening`); removing a verified checkpoint is refused (`verified_checkpoint_removed`).
 
 The shipped workflows verify `cp-2` (`ticket`, `feature`, `review-feedback`) and `cp-commit` (`quick`, `debug`, `sweep`) this way.
+
+### Remote sessions
+
+In a [remote session](../guides/remote-runners.en.md), the verification runs **where the work is**: in the job, on the clone of the project, with the same commands and the same guarantees (filtered environment, timeout, bounded output, process group killed at the deadline), as the `oh` account of the agents (the one of the tool server), never as root; the git reads of the verification too. Without an `oh` account in the image, it runs as the user of the job, like the server.
+
+| Situation in the job | What oh does |
+|---|---|
+| `remote: auto` checkpoint, verification passed | approved by the policy responder, then passed |
+| `remote: auto` checkpoint, verification failed | never overridden in the job: the agent call is refused with the failure and the excerpt, nothing is unlocked (when the verification already ended as the responder answers, the decision is refused: "fix first"); the agent fixes the work and asks again |
+| verification impossible (location not found) | the checkpoint is **deferred**: the session stops cleanly, the rest (and the choice to override) happens on the machine |
+| `remote: defer` checkpoint | deferred, as before; the verification started when it was asked ends before the push, and its result comes back |
+
+The job waits for the running verifications before it stops the agent processes and pushes the branch. The last result of each checkpoint travels in `summary.json` (`verifications`); `oh session fetch` prints and imports it, cleaned and bounded: the checkpoint card shows "In the remote job: …" and the timeline keeps the entry (author `remote`). This result **never counts** as a verification on the machine: when the session resumes locally and asks the checkpoint again, oh verifies again, in the worktree of the pushed branch.
 
 ---
 
@@ -151,8 +166,8 @@ Conditions (one is enough): `entry` (entry agent of the session), `labels` (labe
 
 For a paused checkpoint, the TUI card shows, besides the agent summary, the changes, the last messages and the timeline:
 
-- **Verification run by oh**: status, commands and exit code, output excerpt on failure;
+- **Verification run by oh**: status, commands and exit code, output excerpt on failure; for a fetched remote session, the result obtained in the job;
 - **Evidence of the agent**: each command reported, observed or not;
 - **Unresolved**: the ticket whose fix rounds reached the limit.
 
-Choices: Validate · Fix first · Other instruction · **Override the verification** (only when it failed).
+Choices: Validate · Fix first · Other instruction · **Override the verification** (only when it failed or cannot run).

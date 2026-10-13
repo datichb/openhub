@@ -119,7 +119,7 @@ func (s *Service) Asked(ctx context.Context, root, toolSession string, p adapter
 	}
 	c, known := wf.Checkpoint(id)
 	behavior := s.behavior(ctx, sess, c)
-	if !known || !bundle.NeedsDecision(behavior) {
+	if !known || !s.needsDecision(ctx, sess, c) {
 		return nil, true, false, nil
 	}
 	id = c.ID
@@ -177,6 +177,13 @@ func (s *Service) Settled(ctx context.Context, d domain.Decision) {
 	})
 }
 
+// needsDecision reports whether checkpoint c waits for the user: in the
+// mode of the session, or because its verification cannot run where the
+// work is (R3-remote: never passed without verification, even in auto).
+func (s *Service) needsDecision(ctx context.Context, sess *domain.Session, c sessionspec.CheckpointDef) bool {
+	return bundle.NeedsDecision(s.behavior(ctx, sess, c)) || verifyBlocked(sess, c)
+}
+
 // ErrNotApproved refuses a checkpoint that waits for the user in the mode
 // of the session but was not validated (v5 critical N1): neither in oh nor
 // by an answer of the tool observed by oh. The call cannot pass it by
@@ -216,7 +223,7 @@ func (s *Service) ToolReplied(ctx context.Context, d domain.Decision, approved b
 // one of oh, or the answer of the tool observed by oh, possibly a little
 // after the call (approvalWait, while the checkpoint waits).
 func (s *Service) pass(ctx context.Context, sess *domain.Session, c sessionspec.CheckpointDef) (domain.CheckpointApproval, error) {
-	needs := bundle.NeedsDecision(s.behavior(ctx, sess, c))
+	needs := s.needsDecision(ctx, sess, c)
 	deadline := time.Now().Add(s.approvalWait())
 	for {
 		ap, err := s.tryPass(ctx, sess, c, needs)
@@ -424,9 +431,10 @@ func (s *Service) Resolve(ctx context.Context, tool Tool, d domain.Decision, cho
 	case ChoiceApprove, "once", "", ChoiceOverride:
 		override := choice == ChoiceOverride
 		if _, err := s.update(ctx, d.SessionID, func(st *domain.CheckpointState) error {
-			if r, ok := st.Verify[id]; ok && r.Status == domain.VerifyFailed && !override {
-				// A failed verification is passed only on purpose (traced).
-				return errors.New(i18n.Tf("tui.checkpoint.verify.override_required", id))
+			if r, ok := st.Verify[id]; ok && r.NeedsOverride() && !override {
+				// A failed (or impossible) verification is passed only on
+				// purpose (traced).
+				return &OverrideError{ID: id, Result: r}
 			}
 			if st.Approved == nil {
 				st.Approved = map[string]domain.CheckpointApproval{}
@@ -505,7 +513,7 @@ func (s *Service) Evaluate(ctx context.Context, root, action string, input map[s
 	}
 	id, _ := input["id"].(string)
 	c, known := wf.Checkpoint(strings.TrimSpace(id))
-	if !known || !bundle.NeedsDecision(s.behavior(ctx, sess, c)) {
+	if !known || !s.needsDecision(ctx, sess, c) {
 		return string(sessionspec.EffectAllow), nil
 	}
 	// Asked even when the tool would let it run (an "always" answer saved

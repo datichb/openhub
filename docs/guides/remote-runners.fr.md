@@ -198,7 +198,7 @@ Puis, pour chaque session :
 
 Si le déclenchement échoue, les réservations faites par oh sont annulées. `--headless` ne s'applique pas au distant.
 
-Politique des checkpoints dans le job (jamais d'approbation aveugle) : `remote: auto` est validé par le répondeur de politique d'oh ; `remote: defer` arrête proprement la session quand la MR est prête, la suite se fait en local après récupération.
+Politique des checkpoints dans le job (jamais d'approbation aveugle) : `remote: auto` est validé par le répondeur de politique d'oh ; `remote: defer` arrête proprement la session quand la MR est prête, la suite se fait en local après récupération. Un checkpoint vérifié (`verify:`) n'est jamais passé sans sa vérification : elle tourne dans le job (section 6, « Vérification des checkpoints »).
 
 ## 6. Dans le job : `oh runner`
 
@@ -212,15 +212,18 @@ Le job `oh-run` exécute `oh runner run` dans l'image du projet :
 
    | Demande | Réponse |
    |---|---|
-   | checkpoint `remote: auto` | validé |
+   | checkpoint `remote: auto` | validé ; s'il est vérifié (`verify:`), il ne passe qu'une fois la vérification réussie |
+   | checkpoint `remote: auto` dont la vérification a échoué | refusé (« corriger d'abord »), jamais passé outre : l'agent corrige et redemande |
+   | checkpoint dont la vérification ne peut pas tourner | différé : la session s'arrête proprement, vous décidez en local |
    | checkpoint `remote: defer` | la session s'arrête proprement : branche et MR poussées, suite en local |
    | autre permission (`ask`) | refusée, avec un message à l'agent |
    | question d'un agent | la session s'arrête (« question en attente »), à reprendre en local |
    | erreur, budget, coupe-circuit | la session s'arrête (échec) |
 
-6. **Beads** : `bd` est le faux bd d'oh ; il passe par la passerelle Beads du démon du job, qui applique `beads.allow`. Les lectures viennent de l'instantané ; les écritures sont enregistrées dans `journal.jsonl` (et visibles par les lectures suivantes), puis rejouées sur votre machine à la récupération.
-7. **Branche et MR** : tous les processus du compte `oh` sont d'abord tués ; oh ne lance jamais git dans le dépôt de l'agent (ses hooks, son `core.fsmonitor`, ses filtres et ses remotes ne servent pas) : il copie les objets et les références dans un dépôt neuf à lui. Ce qui n'est pas commité l'est (sans les dépôts imbriqués ni les fichiers qui n'appartiennent pas au compte `oh`), la branche est poussée et une **MR en brouillon** est ouverte par les options de `git push`. L'avancement est publié dans le claim du ticket (`OH_TEAMSTATE_TOKEN`).
-8. **Artefacts** (`oh-out/`, 7 jours) : `journal.jsonl` (écritures Beads), `summary.json` (issue, coût, décisions, MR, sorties), `session.export` (transcription de la session et de ses sous-agents, pour la reprendre en local), `reports.json` (rapports déposés par les agents avec `workflow_report`, schéma de pipeline 5).
+6. **Vérification des checkpoints** (`verify:`) : lancée par le démon du job dans le clone, avec les mêmes commandes et les mêmes garanties que sur votre machine (environnement filtré, délai, sortie bornée, groupe de processus), **sous le compte `oh`** des agents, jamais sous root ; ses lectures git (état du travail, chemins modifiés) aussi. Le job attend la fin des vérifications en cours avant l'étape 8. Voir [Checkpoints › Sessions distantes](../reference/checkpoints.fr.md#sessions-distantes).
+7. **Beads** : `bd` est le faux bd d'oh ; il passe par la passerelle Beads du démon du job, qui applique `beads.allow`. Les lectures viennent de l'instantané ; les écritures sont enregistrées dans `journal.jsonl` (et visibles par les lectures suivantes), puis rejouées sur votre machine à la récupération.
+8. **Branche et MR** : tous les processus du compte `oh` sont d'abord tués ; oh ne lance jamais git dans le dépôt de l'agent (ses hooks, son `core.fsmonitor`, ses filtres et ses remotes ne servent pas) : il copie les objets et les références dans un dépôt neuf à lui. Ce qui n'est pas commité l'est (sans les dépôts imbriqués ni les fichiers qui n'appartiennent pas au compte `oh`), la branche est poussée et une **MR en brouillon** est ouverte par les options de `git push`. L'avancement est publié dans le claim du ticket (`OH_TEAMSTATE_TOKEN`).
+9. **Artefacts** (`oh-out/`, 7 jours) : `journal.jsonl` (écritures Beads), `summary.json` (issue, coût, décisions, MR, sorties, résultat des vérifications de checkpoint), `session.export` (transcription de la session et de ses sous-agents, pour la reprendre en local), `reports.json` (rapports déposés par les agents avec `workflow_report`, schéma de pipeline 5).
 
 Limites : les serveurs MCP qui ont besoin d'un jeton de votre machine (gitlab, jira, figma…) ne sont pas disponibles dans le job ; le serveur `workflow` d'oh l'est. Si le job est annulé ou dépasse sa durée, la session est exportée et le travail poussé avant l'arrêt quand c'est possible.
 
@@ -231,7 +234,7 @@ Limites : les serveurs MCP qui ont besoin d'un jeton de votre machine (gitlab, j
 **Récupération** — `oh session fetch <id>` ou `g` dans la vue Sessions :
 
 1. téléchargement des artefacts du job `oh-run` (`journal.jsonl`, `summary.json`, `session.export`, `reports.json`) dans `~/.oh/sessions/<id>/remote/` ;
-2. résumé : issue (terminée, checkpoint différé, question, échec), coût, MR, demandes refusées par la politique ;
+2. résumé : issue (terminée, checkpoint différé, question, échec), coût, MR, demandes refusées par la politique, vérifications faites dans le job (importées pour la carte du checkpoint et la frise ; elles ne remplacent pas la vérification locale, relancée quand la session reprend) ;
 3. **import de la session** (et de ses sous-agents) dans un serveur local, dans un worktree de la branche poussée par le job : `oh session attach <id>` la reprend là où elle s'est arrêtée (checkpoint différé à valider, question à répondre, suite du travail) ; les rapports du job sont importés dans la session (nettoyés et bornés de nouveau) : `oh session report <id>` et la carte du checkpoint les montrent.
 
 `--no-import` ne télécharge que les artefacts.

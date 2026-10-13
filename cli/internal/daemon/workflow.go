@@ -110,7 +110,8 @@ func (d *Daemon) authorizeWorkflow(w http.ResponseWriter, r *http.Request, toolS
 
 func (d *Daemon) workflowErr(w http.ResponseWriter, err error) {
 	switch {
-	case errors.Is(err, checkpoint.ErrNotApproved), errors.Is(err, checkpoint.ErrVerifyFailed), errors.Is(err, checkpoint.ErrVerifyPending):
+	case errors.Is(err, checkpoint.ErrNotApproved), errors.Is(err, checkpoint.ErrVerifyFailed), errors.Is(err, checkpoint.ErrVerifyPending),
+		errors.Is(err, checkpoint.ErrVerifyUnavailable):
 		writeErr(w, http.StatusConflict, err.Error())
 	case errors.Is(err, domain.ErrNotFound), errors.Is(err, checkpoint.ErrNoWorkflow):
 		writeErr(w, http.StatusNotFound, err.Error())

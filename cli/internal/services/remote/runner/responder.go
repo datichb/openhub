@@ -11,6 +11,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/provider"
 	"github.com/datichb/openhub/cli/internal/remote"
+	"github.com/datichb/openhub/cli/internal/services/checkpoint"
 	sessionsvc "github.com/datichb/openhub/cli/internal/services/session"
 )
 
@@ -49,7 +50,9 @@ type Decisions interface {
 
 // Responder answers the decisions of a remote session by the workflow
 // policy (S5), never by approving everything (--auto):
-//   - checkpoint waiting in the mode, `remote: auto` → approved;
+//   - checkpoint waiting in the mode, `remote: auto` → approved; when its
+//     verification failed → refused, the agent fixes the work; when its
+//     verification cannot run in the job → deferred (R3-remote);
 //   - checkpoint `remote: defer` → the session stops cleanly (MR ready, the
 //     user continues locally after fetching);
 //   - any other permission → rejected with a message;
@@ -87,6 +90,10 @@ func NewResponder(d Decisions, decide func(context.Context, sessionsvc.Reply) er
 
 // RejectMessage is sent to the agent with a refused permission.
 const RejectMessage = "Refused by the remote policy of oh: this action needs a human and nobody can approve it on the runner. Continue without it, or stop and say what you need."
+
+// VerifyFixMessage is sent to the agent when the verification run by oh at
+// a `remote: auto` checkpoint failed (never overridden on the runner).
+const VerifyFixMessage = "The verification run by oh failed (see the result of workflow_checkpoint): fix the work, then ask this checkpoint again. Nobody can override a verification on the runner."
 
 func (r *Responder) now() time.Time {
 	if r.Now != nil {
@@ -165,8 +172,28 @@ func (r *Responder) answer(ctx context.Context, d domain.Decision) *Stop {
 		sd.ID = id
 		pol, ok := r.Policies[strings.ToLower(id)]
 		if ok && pol.Policy == "auto" {
-			if err := r.Decide(ctx, sessionsvc.Reply{DecisionID: d.ID, Decision: "approve",
-				Message: "Approved by the remote policy of the workflow (remote: auto)."}); err != nil && !isResolved(err) {
+			err := r.Decide(ctx, sessionsvc.Reply{DecisionID: d.ID, Decision: "approve",
+				Message: "Approved by the remote policy of the workflow (remote: auto)."})
+			var oe *checkpoint.OverrideError
+			switch {
+			case errors.As(err, &oe) && oe.Result.Status == domain.VerifyUnavailable:
+				// R3-remote: never passed without its verification; only
+				// the user may override it, on the machine.
+				sd.Answer = "deferred"
+				r.record(sd)
+				return &Stop{Outcome: remote.OutcomeDeferred, Decision: sd,
+					Reason: "checkpoint " + id + ": its verification cannot run in the job, the user decides on the machine"}
+			case errors.As(err, &oe):
+				// The verification run by oh failed: never overridden here,
+				// the agent fixes the work and asks again.
+				if err := r.Decide(ctx, sessionsvc.Reply{DecisionID: d.ID, Decision: "fix", Message: VerifyFixMessage}); err != nil && !isResolved(err) {
+					sd.Answer = "pending"
+					return &Stop{Outcome: remote.OutcomeFailed, Decision: sd, Reason: fmt.Sprintf("checkpoint %s: %v", id, err)}
+				}
+				sd.Answer = "rejected"
+				r.record(sd)
+				return nil
+			case err != nil && !isResolved(err):
 				sd.Answer = "pending"
 				return &Stop{Outcome: remote.OutcomeFailed, Decision: sd, Reason: fmt.Sprintf("checkpoint %s: %v", id, err)}
 			}

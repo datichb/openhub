@@ -76,6 +76,9 @@ type Service struct {
 	// Reports receives the reports of the job (workflow_report) at fetch
 	// time (nil: not imported).
 	Reports *report.Service
+	// Verifications receives the verifications run by oh in the job
+	// (summary.json, R3-remote) at fetch time (nil: not imported).
+	Verifications func(ctx context.Context, sessionID string, list []remote.SummaryVerification) (int, error)
 }
 
 func (s *Service) client(t config.RemoteTarget, token string) *gitlab.Client {

@@ -11,6 +11,8 @@ import (
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/remote"
+	"github.com/datichb/openhub/cli/internal/services/checkpoint"
 	remotesvc "github.com/datichb/openhub/cli/internal/services/remote"
 	"github.com/datichb/openhub/cli/internal/sysnotify"
 	"github.com/datichb/openhub/cli/internal/termtext"
@@ -36,6 +38,9 @@ func newRemoteReturnService(ctx context.Context, a *app.App) *remotesvc.Service 
 	svc := newRemoteSendService(a)
 	svc.SessionsDir, svc.BundlesDir = ohSessionsDir(), ohBundlesDir()
 	svc.Reports = newReportService()
+	svc.Verifications = func(ctx context.Context, sid string, list []remote.SummaryVerification) (int, error) {
+		return newCheckpointService(a).ImportRemoteVerify(ctx, sid, checkpoint.FromSummary(list))
+	}
 	svc.Target = func(name string) (*config.RemoteTarget, bool) {
 		t := a.Config.Remote.Target(name)
 		return t, t != nil
@@ -117,6 +122,13 @@ func runSessionFetch(cmd *cobra.Command, args []string) error {
 	}
 	if s.Question != nil {
 		fmt.Fprintf(out, "  %s %s\n", theme.IconArrow, i18n.Tf("cmd.session.fetch.question", termtext.Clean(s.Question.Label)))
+	}
+	for _, v := range checkpoint.FromSummary(s.Verifications) {
+		icon := theme.SuccessStyle.Render(theme.IconSuccess)
+		if !v.Result.OK() {
+			icon = theme.WarningStyle.Render(theme.IconWarning)
+		}
+		fmt.Fprintf(out, "  %s %s\n", icon, i18n.Tf("cmd.session.fetch.verified", termtext.Clean(v.ID), termtext.Clean(checkpoint.VerifySummary(v.Result))))
 	}
 	for _, d := range s.Decisions {
 		if d.Answer == "rejected" {

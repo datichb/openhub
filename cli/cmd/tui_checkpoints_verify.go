@@ -12,6 +12,9 @@ func cardVerify(r checkpoint.CardR3) views.CheckpointVerifyView {
 	if r.Verify != nil {
 		v.Status, v.Summary, v.Excerpt = r.Verify.Status, checkpoint.VerifySummary(*r.Verify), r.Verify.Excerpt
 	}
+	if r.Remote != nil {
+		v.Remote, v.RemoteOK = checkpoint.VerifySummary(*r.Remote), r.Remote.OK()
+	}
 	for _, e := range r.Evidence {
 		v.Evidence = append(v.Evidence, views.CheckpointEvidenceView{Cmd: e.Cmd, Exit: e.Exit, Observed: e.Observed, Contradicted: e.Contradicted})
 	}
