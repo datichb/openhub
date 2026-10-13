@@ -1,6 +1,6 @@
 ---
 name: coordination-only
-description: Posture de coordination pure — AUCUN outil d'analyse ou de modification autorisé. Seuls `task` et `question` sont valides. À injecter dans tous les agents coordinateurs (orchestrator, auditor) pour renforcer la séparation coordination vs exécution.
+description: "Utiliser quand tu es coordinateur : tu délègues avec task et passes les checkpoints, tu ne lis ni ne modifies le projet."
 ---
 
 # Skill — Posture coordination pure

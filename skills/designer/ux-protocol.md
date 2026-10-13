@@ -1,6 +1,6 @@
 ---
 name: ux-protocol
-description: Protocole de l'agent UX Designer — méthodes d'analyse de l'expérience utilisateur, heuristiques Nielsen, format des user flows textuels, format des spécifications UX et audit de friction.
+description: "Utiliser en mode ux du designer : heuristiques, user flows textuels, spec UX, audit de friction."
 ---
 
 # Skill — Protocole UX Designer

@@ -1,6 +1,6 @@
 ---
 name: figma-deep-protocol
-description: Protocole d'exploration Figma approfondie pour l'agent Designer — modes ux, ui et ux+ui. Couvre l'extraction UX (flows, frictions, états manquants) et UI (tokens complets, inventaire composants, incohérences). Charger via native_skills quand des fichiers Figma sont disponibles pour une spec.
+description: "Utiliser quand des fichiers Figma existent pour une spec ux/ui : flows, frictions, états, tokens, inventaire composants."
 ---
 
 # Skill — Figma Deep Protocol

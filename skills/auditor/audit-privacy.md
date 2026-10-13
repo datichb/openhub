@@ -1,6 +1,6 @@
 ---
 name: audit-privacy
-description: Référentiel de protection des données personnelles — RGPD, lignes directrices EDPB, minimisation, consentement, droits des personnes et Privacy Impact Assessment (PIA).
+description: "Utiliser quand l'audit porte sur les données personnelles : RGPD, EDPB, minimisation, consentement, droits, PIA."
 ---
 
 # Skill — Audit Privacy (RGPD)

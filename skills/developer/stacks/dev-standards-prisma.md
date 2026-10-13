@@ -1,6 +1,6 @@
 ---
 name: dev-standards-prisma
-description: Standards Prisma — schema, migrations, client, relations, transactions, performances et bonnes pratiques.
+description: "Utiliser quand le projet utilise Prisma (schema, migrations, relations, transactions) et que le ticket touche ce code."
 ---
 
 # Skill — Standards Prisma

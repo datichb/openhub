@@ -1,6 +1,6 @@
 ---
 name: audit-ecodesign
-description: Référentiel d'éco-conception numérique — RGESN, GreenIT, sobriété numérique, impact environnemental du code et des ressources.
+description: "Utiliser quand l'audit porte sur l'éco-conception : RGESN, GreenIT, sobriété, poids et requêtes inutiles."
 ---
 
 # Skill — Audit Éco-conception

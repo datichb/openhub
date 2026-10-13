@@ -1,6 +1,6 @@
 ---
 name: dev-standards-flutter
-description: Standards Flutter — architecture, widgets, état (BLoC/Riverpod), performance, sécurité et conventions Dart.
+description: "Utiliser quand le projet utilise Flutter (widgets, BLoC/Riverpod, performance, Dart) et que le ticket touche ce code."
 ---
 
 # Skill — Standards Flutter

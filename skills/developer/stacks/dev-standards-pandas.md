@@ -1,6 +1,6 @@
 ---
 name: dev-standards-pandas
-description: Standards pandas — vectorisation, validation de schéma, bonnes pratiques de transformation et tests sur DataFrames.
+description: "Utiliser quand le projet utilise pandas (vectorisation, schéma, transformations, tests) et que le ticket touche ce code."
 ---
 
 # Skill — Standards pandas

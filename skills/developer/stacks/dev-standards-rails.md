@@ -1,6 +1,6 @@
 ---
 name: dev-standards-rails
-description: Standards Ruby on Rails — MVC, ActiveRecord, concerns, services objects, callbacks, tests RSpec et bonnes pratiques.
+description: "Utiliser quand le projet utilise Rails (ActiveRecord, concerns, services, RSpec) et que le ticket touche ce code."
 ---
 
 # Skill — Standards Ruby on Rails

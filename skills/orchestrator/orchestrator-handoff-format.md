@@ -1,6 +1,6 @@
 ---
 name: orchestrator-handoff-format
-description: Source de vérité unique pour les formats de communication entre orchestrator-dev et orchestrator — le bloc de retour en fin de session (succès/partiel/bloqué) et le bloc de question montante pour les vraies clarifications (blocage 3 cycles, dépendance, ticket bloqué, agent manquant). Les checkpoints ne passent jamais par ces blocs (workflow_checkpoint). Injecté dans orchestrator et orchestrator-dev pour garantir que le producteur et le consommateur partagent le même contrat de communication.
+description: "Utiliser pour le bloc retour/question entre orchestrator-dev (producteur) et orchestrator (lecteur)."
 annexes: [templates/orchestrator-dev-handoff-blocks.md]
 ---
 

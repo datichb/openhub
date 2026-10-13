@@ -1,6 +1,6 @@
 ---
 name: orchestrator-dev-parallel
-description: Workflow parallèle de l'orchestrator-dev — implémentation simultanée de tickets aux domaines disjoints dans l'arborescence de la session, pre-review et review en parallèle, puis un checkpoint cp-2 et un commit par ticket, l'un après l'autre.
+description: "Utiliser quand les 4 critères de parallélisme sont remplis et acceptés : tickets en parallèle, un cp-2 et un commit par ticket."
 ---
 
 ## Workflow parallèle

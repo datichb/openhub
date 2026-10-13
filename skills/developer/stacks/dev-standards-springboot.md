@@ -1,6 +1,6 @@
 ---
 name: dev-standards-springboot
-description: Standards Spring Boot — beans, JPA/Hibernate, REST controllers, validation, sécurité, tests et bonnes pratiques Java.
+description: "Utiliser quand le projet utilise Spring Boot (beans, JPA, REST, validation, tests) et que le ticket touche ce code."
 ---
 
 # Skill — Standards Spring Boot

@@ -1,6 +1,6 @@
 ---
 name: handoff-bloc-unique-rule
-description: "Contrat universel de handoff — règles producer/consumer communes à tous les agents produisant un bloc structuré pour un orchestrator."
+description: "Utiliser quand tu produis un bloc de retour vers un coordinateur : un seul bloc, Questions bloquantes, task_id."
 ---
 
 # Règle du bloc unique — Contrat universel de handoff

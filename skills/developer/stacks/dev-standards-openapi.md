@@ -1,6 +1,6 @@
 ---
 name: dev-standards-openapi
-description: Standards OpenAPI 3.x — structure du document, $ref, schémas réutilisables, sécurité, génération de code et bonnes pratiques.
+description: "Utiliser quand le projet utilise OpenAPI 3.x ($ref, schémas, sécurité, génération) et que le ticket touche ce code."
 ---
 
 # Skill — Standards OpenAPI

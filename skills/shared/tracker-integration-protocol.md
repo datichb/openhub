@@ -1,6 +1,6 @@
 ---
 name: tracker-integration-protocol
-description: "Protocole d'intégration tracker (GitLab/GitHub) — triggers, workflow lecture ticket, table d'impact, gestion erreurs."
+description: "Utiliser avec une skill adaptateur gitlab/github : lecture de ticket, table d'impact, gestion d'erreurs."
 ---
 
 # Protocole d'intégration tracker

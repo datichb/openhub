@@ -1,6 +1,6 @@
 ---
 name: tui-patterns
-description: Patterns de design spécifiques aux interfaces TUI (terminal) — contraintes terminales, patterns d'interaction clavier-first, catalogue des widgets Aurum/OpenHub, anti-patterns TUI. Référence obligatoire quand le designer travaille sur le TUI OpenHub.
+description: "Utiliser quand la spec porte sur une interface terminal (TUI OpenHub) : contraintes, clavier d'abord, widgets, anti-patterns."
 ---
 
 # Patterns TUI — référence

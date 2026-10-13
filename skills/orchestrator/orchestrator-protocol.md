@@ -1,6 +1,6 @@
 ---
 name: orchestrator-protocol
-description: Protocole complet de l'orchestrator feature — index, règles, entrées de session et démarrage de la feature (cp-0). L'enchaînement vient du workflow de la session.
+description: "Utiliser comme fil conducteur de l'orchestrator : règles, entrées de session, démarrage et cp-0."
 ---
 
 # Protocole Orchestrator — Index

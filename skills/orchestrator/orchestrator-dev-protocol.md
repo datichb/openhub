@@ -1,6 +1,6 @@
 ---
 name: orchestrator-dev-protocol
-description: "Protocole complet de l'orchestrator-dev — index, matrice de routing, modes de workflow. Les phases détaillées sont chargées à la demande."
+description: "Utiliser comme fil conducteur d'orchestrator-dev : règles, matrice de routing, prompt du developer, démarrage."
 ---
 
 # Protocole OrchestratorDev — Index

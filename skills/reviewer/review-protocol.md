@@ -1,6 +1,6 @@
 ---
 name: review-protocol
-description: Protocole de review de PR/MR — format de rapport structuré, niveaux de sévérité, score de confiance, checklist systématique, scope enforcement, auto-vérification et règles de comportement du Reviewer.
+description: "Utiliser pour toute review de diff : vérification build/tests, sévérités, score de confiance, checklist, rapport."
 annexes: [templates/review-report-format.md]
 ---
 

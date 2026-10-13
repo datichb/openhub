@@ -1,6 +1,6 @@
 ---
 name: reviewer-standalone
-description: Parcours d'exécution du reviewer en mode standalone (invoqué directement par l'utilisateur) — sélection interactive du mode de review (standard, adversarial, edge-case, combinaisons), préparation du contexte wiki pour injection dans les sous-sessions parallèles, fusion via review-merge, enrichissement des documents vivants proposé en fin de session, sans bloc handoff orchestrator-dev.
+description: "Utiliser quand le reviewer est l'agent d'entrée : choix du mode, contexte wiki, sous-sessions, fusion."
 ---
 
 # Skill — Parcours Reviewer Standalone

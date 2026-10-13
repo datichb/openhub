@@ -1,6 +1,6 @@
 ---
 name: pathfinder-protocol
-description: Protocole de reconnaissance rapide pour l'agent pathfinder — exploration contextuelle légère, estimation de complexité, format de rapport structuré exploitable par l'utilisateur et le planner.
+description: "Utiliser comme fil conducteur du pathfinder : comprendre, explorer, estimer XS–XL, structurer, recommander."
 ---
 
 # Skill — Pathfinder Protocol

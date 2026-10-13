@@ -43,25 +43,6 @@ living-docs-enrichment	Règles de qualité des enrichissements	❌ Ne pas transm
 living-docs-enrichment	Règles de qualité des enrichissements	❌ Ne pas ajouter d'enrichissements subjectifs ou spéculatifs
 living-docs-enrichment	Règles de qualité des enrichissements	❌ Ne pas modifier la structure des pages via le documentarian — uniquement le contenu
 living-docs-enrichment	Règles de qualité des enrichissements	❌ Ne pas omettre le tag de confiance — chaque enrichissement doit en porter un
-team-awareness	Tools disponibles	`team_policies` | Règles d'équipe actives (conventions, limites, patterns interdits) | read
-team-awareness	Tools disponibles	Les autres agents n'y ont pas accès et ne doivent pas tenter de les appeler.
-team-awareness	Avant de travailler sur un ticket	Ne commence PAS à travailler sur un ticket déjà claimé sans confirmation explicite de l'utilisateur
-team-awareness	Règles	Ne JAMAIS modifier le wiki partagé sans passer par `team_wiki_write` (propositions)
-team-awareness	Règles	Ne pas inclure de données sensibles dans les notifications
-team-awareness	En cas d'indisponibilité des outils team	Si les outils `team_*` ne sont pas disponibles dans la session courante
-team-awareness	En cas d'indisponibilité des outils team	**Informer l'utilisateur** : "Les données d'équipe ne sont pas disponibles dans cette session."
-team-awareness	En cas d'indisponibilité des outils team	**Continuer normalement** sans les données d'équipe — ne pas bloquer le workflow
-team-awareness	En cas d'indisponibilité des outils team	Ne pas inventer de données team (claims, membres, policies) en l'absence de réponse des outils
-team-policies-enforcement	Team Policies Enforcement Protocol	Ce skill definit comment les agents doivent respecter les team policies.
-team-policies-enforcement	Matrice agent / policy	`conductor` | `branch_naming` (avant de déléguer à un developer), `review_required` (avant le checkpoint qui déverrouille le commit : une étape de review de la carte doit avoir rendu son retour)
-team-policies-enforcement	`enforcement = "refuse"`	L'agent DOIT :
-team-policies-enforcement	`enforcement = "refuse"`	L'agent NE DOIT PAS :
-team-policies-enforcement	`enforcement = "warn"`	L'agent DOIT :
-team-policies-enforcement	`enforcement = "warn"`	CONTINUER le travail si l'utilisateur ne reagit pas
-team-policies-enforcement	`forbidden_patterns` (type: forbidden_pattern)	**Comment** : scanner le diff pour les patterns interdits
-team-policies-enforcement	`forbidden_patterns` (type: forbidden_pattern)	**Si violation** : supprimer ou commenter les patterns interdits
-team-policies-enforcement	`review_required` (type: boolean)	**Si violation** : informer que le ticket ne peut pas etre ferme sans review
-team-policies-enforcement	`max_ticket_wip` (type: limit)	**Si violation** : ne pas proposer de nouveau ticket, suggerer de terminer un ticket en cours
 tool-question	Quand utiliser `question`	Quand NE PAS utiliser `question`
 tool-question	Quand NE PAS utiliser `question`	**Checkpoints du workflow** : chaque checkpoint de la table des checkpoints passe par l'outil `workflow_checkpoint`, jamais par `question`. Une question qui nomme un checkpoint (son identifiant `cp-<id>`, « CP 2 », son libellé) est fermée par oh sans effet.
 tool-question	Quand NE PAS utiliser `question`	Quand la réponse n'influence pas le résultat final

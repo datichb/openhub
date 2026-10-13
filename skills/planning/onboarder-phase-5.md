@@ -1,6 +1,6 @@
 ---
 name: onboarder-phase-5
-description: Phase 5 du workflow onboarder — production du wiki documentaire vivant (étapes 5.1 à 5.6 + récap final).
+description: "Utiliser avant la phase 5 de l'onboarder : écriture du wiki (5.1 à 5.6) et récap final."
 ---
 
 ## Phase 5 — Production du livrable

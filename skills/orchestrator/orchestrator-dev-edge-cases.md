@@ -1,6 +1,6 @@
 ---
 name: orchestrator-dev-edge-cases
-description: Gestion des cas particuliers de l'orchestrator-dev — drift détecté, review échouée, conflits, pannes agent.
+description: "Utiliser quand un ticket dérive, qu'une review échoue, qu'un conflit ou une panne d'agent survient (orchestrator-dev)."
 ---
 
 ## Gestion des cas particuliers

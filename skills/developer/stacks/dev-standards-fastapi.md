@@ -1,6 +1,6 @@
 ---
 name: dev-standards-fastapi
-description: Standards FastAPI — Pydantic, async/await, dépendances, routeurs, gestion des erreurs, tests et bonnes pratiques.
+description: "Utiliser quand le projet utilise FastAPI (Pydantic, async, dépendances, routeurs, tests) et que le ticket touche ce code."
 ---
 
 # Skill — Standards FastAPI

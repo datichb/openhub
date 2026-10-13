@@ -1,9 +1,6 @@
 ---
 name: skill-authoring-protocol
-description: Protocole condensé d'authoring skills — TDD RED/GREEN/REFACTOR, SDO checklist
-  (description discriminante, keyword coverage, token efficiency), 5 anti-patterns, rationalization
-  table template, checklist de validation 12 points. Charger quand le documentarian crée ou
-  améliore un skill.
+description: "Utiliser pour écrire ou modifier une skill du hub : TDD RED/GREEN/REFACTOR, checklist SDO."
 ---
 
 # Skill — Authoring Protocol

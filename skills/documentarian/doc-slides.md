@@ -1,6 +1,6 @@
 ---
 name: doc-slides
-description: Protocole de génération de présentations Marp — format source Markdown, structure par type de présentation, bonnes pratiques de slides, détection et compilation HTML/PDF.
+description: "Utiliser pour produire une présentation Marp : branding, structure par type, compilation HTML/PDF."
 ---
 
 # Skill — Présentations Marp

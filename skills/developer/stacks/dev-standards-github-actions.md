@@ -1,6 +1,6 @@
 ---
 name: dev-standards-github-actions
-description: Standards GitHub Actions — structure des workflows, permissions, cache, concurrency, sécurité des pipelines et bonnes pratiques CI/CD.
+description: "Utiliser quand le projet utilise GitHub Actions (permissions, cache, concurrency, sécurité) et que le ticket touche ce code."
 ---
 
 # Skill — Standards GitHub Actions

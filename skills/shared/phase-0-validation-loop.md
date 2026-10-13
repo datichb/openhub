@@ -1,6 +1,6 @@
 ---
 name: phase-0-validation-loop
-description: "Boucle de validation Phase 0 — question 3 options (Démarrer/Préciser/Arrêter), routing, variante sub-agent."
+description: "Utiliser à la fin de la phase 0 d'un agent à phases : question Démarrer/Préciser/Arrêter et routage."
 requires: [shared/subagent-execution-protocol]
 ---
 

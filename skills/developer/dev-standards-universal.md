@@ -1,6 +1,6 @@
 ---
 name: dev-standards-universal
-description: Socle commun de qualité applicables à tous les projets — Clean Code, SOLID, gestion de données avec validation explicite.
+description: "Utiliser pour tout code produit : Clean Code, SOLID, décisions de données à faire valider, gate de complétion."
 ---
 
 # Skill — Standards Universels de Développement

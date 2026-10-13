@@ -1,6 +1,6 @@
 ---
 name: onboarder-phase-2
-description: Phase 2 du workflow onboarder — questions complémentaires (stratégie, conventions, zones d'ombre).
+description: "Utiliser avant la phase 2 de l'onboarder : questions sur stratégie, conventions, zones d'ombre."
 ---
 
 ## Phase 2 — Questions complémentaires

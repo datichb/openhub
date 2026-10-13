@@ -1,6 +1,6 @@
 ---
 name: quick-fix
-description: Corrections auto-applicables sans review — lint fix, import manquant, typo évidente, formatage. Ces corrections déterministes ne modifient pas la logique métier et peuvent être appliquées immédiatement.
+description: "Utiliser en pre-review pour les corrections déterministes (lint --fix, import, typo, formatage) sans logique métier."
 ---
 
 # Skill — Corrections Auto-Applicables (Quick Fix)

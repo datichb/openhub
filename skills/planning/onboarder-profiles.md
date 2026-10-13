@@ -1,6 +1,6 @@
 ---
 name: onboarder-profiles
-description: Profils d'exploration adaptative pour l'onboarder — profils par technologie (Vue.js, React/Next.js, Backend Node.js, Backend Python, API REST/GraphQL, Data/ML, DevOps/Platform, Mobile) et complément transversal. Chargé à la demande après détection du profil applicatif en Phase 1.1.
+description: "Utiliser en phase 1.1 de l'onboarder, une fois le profil applicatif détecté : profils d'exploration par technologie et complément transversal."
 annexes: [templates/onboarder-profiles.md]
 ---
 

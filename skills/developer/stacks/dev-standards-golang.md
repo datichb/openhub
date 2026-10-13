@@ -1,6 +1,6 @@
 ---
 name: dev-standards-golang
-description: Standards Go — idiomes, gestion des erreurs, interfaces, concurrence, tests, performance, sécurité. S'applique à tout projet avec un go.mod détecté.
+description: "Utiliser quand le projet utilise Go (erreurs, interfaces, concurrence, tests) et que le ticket touche ce code."
 ---
 
 # Skill — Standards Go

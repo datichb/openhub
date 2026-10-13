@@ -1,6 +1,6 @@
 ---
 name: audit-architecture
-description: Référentiel d'architecture logicielle — principes SOLID, couplage, cohésion, dette technique, patterns, maintenabilité et évolutivité du code.
+description: "Utiliser quand l'audit porte sur l'architecture : SOLID, couplage, cohésion, dette technique, maintenabilité."
 ---
 
 # Skill — Audit Architecture

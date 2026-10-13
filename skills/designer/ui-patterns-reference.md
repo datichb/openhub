@@ -1,6 +1,6 @@
 ---
 name: ui-patterns-reference
-description: Référence de patterns UI par type de composant — navigation, dashboard, états (vide, erreur, chargement), formulaires, modals, menus. Chaque pattern inclut description, quand utiliser, checklist et anti-patterns. Inclut aussi les checklists de validation UXLoom et les niveaux Atomic Design.
+description: "Utiliser pour spécifier un composant courant : navigation, dashboard, états vide/erreur/chargement, formulaires, modals."
 ---
 
 # Patterns UI — référence

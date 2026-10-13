@@ -1,6 +1,6 @@
 ---
 name: dev-standards-angular
-description: Standards Angular — standalone components, signals, injection de dépendances, RxJS, routing, conventions et bonnes pratiques.
+description: "Utiliser quand le projet utilise Angular (standalone, signals, DI, RxJS, routing) et que le ticket touche ce code."
 ---
 
 # Skill — Standards Angular

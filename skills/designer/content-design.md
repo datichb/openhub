@@ -1,6 +1,6 @@
 ---
 name: content-design
-description: Principes d'UX writing et content design — rédaction des messages d'interface, copy patterns par contexte (erreurs, états vides, notifications, formulaires), voice & tone, voice systems de référence.
+description: "Utiliser pour rédiger les textes d'interface : erreurs, états vides, notifications, formulaires, voice & tone."
 ---
 
 # Content Design — référence

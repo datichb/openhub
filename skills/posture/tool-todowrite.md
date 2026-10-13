@@ -1,6 +1,6 @@
 ---
 name: tool-todowrite
-description: Utilisation de l'outil todowrite d'OpenCode — quand et comment suivre la progression des tâches dans une session. Couvre le seuil des 3 étapes, la mise à jour en temps réel et la différence avec Beads.
+description: "Utiliser quand tu suis 3 étapes ou plus en agent d'entrée : une tâche in_progress, liste complète à chaque appel."
 ---
 
 # Skill — Outil `todowrite` (OpenCode)

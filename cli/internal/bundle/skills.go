@@ -50,6 +50,13 @@ const (
 	maxSkillDescriptionLen = 1024
 )
 
+// maxHubDescriptionLen is the description limit of the hub catalogue (P1.3):
+// every description is in the catalogue of the agents, at each session.
+const maxHubDescriptionLen = 200
+
+// triggerPrefixes open a description that says when to load the skill.
+var triggerPrefixes = []string{"Utiliser ", "Use "}
+
 var skillNamePattern = regexp.MustCompile(`^[a-z0-9]+(-[a-z0-9]+)*$`)
 
 type skillFront struct {
@@ -384,7 +391,7 @@ const (
 	SkillInvalidFrontmatter SkillProblemKind = "invalid_frontmatter" // error
 	SkillNameMismatch       SkillProblemKind = "name_mismatch"       // error
 	SkillInvalidName        SkillProblemKind = "invalid_name"        // error: Agent Skills name rule
-	SkillLongDescription    SkillProblemKind = "long_description"    // error: over 1024 characters
+	SkillLongDescription    SkillProblemKind = "long_description"    // error: over 200 characters (hub; team: warning), over 1024 (spec)
 	SkillUnknownKey         SkillProblemKind = "unknown_key"         // error: key neither delivered nor read by oh
 	SkillNoDescription      SkillProblemKind = "no_description"      // warning
 	SkillMissingAgentSkill  SkillProblemKind = "missing_agent_skill" // warning
@@ -392,6 +399,10 @@ const (
 	SkillMissingAnnex       SkillProblemKind = "missing_annex"       // error
 	SkillUndeclaredAnnex    SkillProblemKind = "undeclared_annex"    // warning: referenced in the text, not in annexes:
 	SkillOrphanAnnex        SkillProblemKind = "orphan_annex"        // warning: file of skills/templates/ used by no skill
+
+	// SkillNotTrigger is a warning: the description does not open with
+	// « Utiliser … » (when to load the skill), generated skills aside.
+	SkillNotTrigger SkillProblemKind = "description_not_trigger"
 )
 
 // SkillProblem is one finding of CheckSkills.
@@ -407,15 +418,27 @@ type SkillProblem struct {
 func problem(kind SkillProblemKind, ref, detail string) SkillProblem {
 	isErr := true
 	switch kind {
-	case SkillNoDescription, SkillMissingAgentSkill, SkillLegacyBucket, SkillUndeclaredAnnex, SkillOrphanAnnex:
+	case SkillNoDescription, SkillMissingAgentSkill, SkillLegacyBucket, SkillUndeclaredAnnex, SkillOrphanAnnex, SkillNotTrigger:
 		isErr = false
 	}
 	return SkillProblem{Kind: kind, Error: isErr, Ref: ref, Detail: detail}
 }
 
+// SkillCheckOptions tunes CheckSkillsWith.
+type SkillCheckOptions struct {
+	// Team tells whether a skill comes from the team catalogue: a description
+	// over the hub limit is then a warning (the spec limit stays an error).
+	Team func(ref string) bool
+}
+
 // CheckSkills inspects the whole skill catalogue (hub skills) and the skill
 // references of the hub agents.
 func CheckSkills(hubDir string) ([]SkillProblem, error) {
+	return CheckSkillsWith(hubDir, SkillCheckOptions{})
+}
+
+// CheckSkillsWith is CheckSkills with options.
+func CheckSkillsWith(hubDir string, opts SkillCheckOptions) ([]SkillProblem, error) {
 	var problems []SkillProblem
 	docs := map[string]*skillDoc{} // ref → doc
 	byID := map[string][]string{}
@@ -474,12 +497,16 @@ func CheckSkills(hubDir string) ([]SkillProblem, error) {
 		}
 		if strings.TrimSpace(d.Front.Description) == "" {
 			problems = append(problems, problem(SkillNoDescription, ref, ""))
+		} else if _, generated := generatedTemplates[ref]; !generated && !isTrigger(d.Front.Description) {
+			problems = append(problems, problem(SkillNotTrigger, ref, ""))
 		}
 		if len(d.Front.Name) > maxSkillNameLen || !skillNamePattern.MatchString(d.Front.Name) {
 			problems = append(problems, problem(SkillInvalidName, ref, d.Front.Name))
 		}
-		if n := utf8.RuneCountInString(d.Front.Description); n > maxSkillDescriptionLen {
-			problems = append(problems, problem(SkillLongDescription, ref, strconv.Itoa(n)))
+		if n := utf8.RuneCountInString(d.Front.Description); n > maxHubDescriptionLen {
+			p := problem(SkillLongDescription, ref, strconv.Itoa(n))
+			p.Error = n > maxSkillDescriptionLen || opts.Team == nil || !opts.Team(ref)
+			problems = append(problems, p)
 		}
 		if d.Front.Bucket != "" {
 			problems = append(problems, problem(SkillLegacyBucket, ref, d.Front.Bucket))
@@ -528,6 +555,16 @@ func CheckSkills(hubDir string) ([]SkillProblem, error) {
 		}
 	}
 	return problems, nil
+}
+
+func isTrigger(description string) bool {
+	d := strings.TrimSpace(description)
+	for _, p := range triggerPrefixes {
+		if strings.HasPrefix(d, p) {
+			return true
+		}
+	}
+	return false
 }
 
 func sortedKeys[V any](m map[string]V) []string {

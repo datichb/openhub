@@ -1,6 +1,6 @@
 ---
 name: dev-drift-detection
-description: Détecte et gère la dérive architecturale en cours d'implémentation — signaux de déclenchement, 3 options de décision (réviser scope / revert / bifurquer), template de rapport de dérive vers l'orchestrateur. Invocable quand un `developer` (sous-agent) signale un blocage architectural ou une contradiction spec/réalité.
+description: "Utiliser quand la spec ne colle pas au code réel (abstraction absente, >3 fichiers imprévus) : signal, 3 options, rapport de dérive."
 ---
 
 # Skill — Détection de dérive architecturale

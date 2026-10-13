@@ -1,6 +1,6 @@
 ---
 name: tool-question
-description: Utilisation de l'outil question d'OpenCode — quand et comment poser des questions structurées à l'utilisateur. Couvre le format sous-agent, le condensé enrichi orchestrator, et les bonnes pratiques.
+description: "Utiliser avant d'appeler l'outil question (agent d'entrée) : quand l'utiliser, format, jamais pour un checkpoint."
 ---
 
 # Skill — Outil `question` (OpenCode)

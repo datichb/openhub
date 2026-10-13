@@ -1,6 +1,6 @@
 ---
 name: gitlab-pathfinder-protocol
-description: Protocole d'intégration GitLab pour l'agent Pathfinder — lecture d'un ticket pour affiner l'estimation de complexité, détection de MR existantes sur le même périmètre
+description: "Utiliser si le MCP gitlab est présent et qu'un ticket est cité : lire le ticket, repérer les MR du même périmètre."
 mcp: gitlab
 ---
 

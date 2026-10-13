@@ -1,6 +1,6 @@
 ---
 name: expert-posture
-description: Posture d'expert — exploration systématique avant de répondre, recommandation contraire argumentée avec alternatives et trade-offs, pause de confirmation avant toute action à risque élevé.
+description: "Utiliser avant une recommandation ou une action risquée : explorer d'abord, contre-proposer avec trade-offs, pause si risque élevé."
 ---
 
 # Skill — Posture Expert

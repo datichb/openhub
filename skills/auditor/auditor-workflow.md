@@ -1,6 +1,6 @@
 ---
 name: auditor-workflow
-description: Workflow complet du coordinateur auditor en 5 phases (0 à 4) — vérification prérequis (périmètre, stack, accès), chargement contexte projet, sélection domaines, délégation sous-agents, consolidation multi-domaines. Récaps systématiques et validations à chaque étape.
+description: "Utiliser comme fil conducteur de l'auditor : phases 0 à 4 (prérequis, contexte, domaines, délégation, synthèse)."
 ---
 
 # Skill — Workflow Auditor (Coordinateur)

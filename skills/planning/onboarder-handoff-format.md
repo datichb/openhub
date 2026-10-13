@@ -1,6 +1,6 @@
 ---
 name: onboarder-handoff-format
-description: Source de vérité pour le format de retour de l'onboarder vers l'orchestrator. Définit le bloc structuré unique à produire quand l'onboarder termine son exploration et est invoqué par un agent coordinateur (dans un workflow qui délègue à l'onboarder). Le rapport d'onboarding est intégré dans le bloc. Injecté dans l'onboarder et dans l'orchestrator pour garantir que producteur et consommateur partagent le même contrat.
+description: "Utiliser en fin d'onboarding invoqué par un coordinateur : bloc « Retour vers <appelant> » avec rapport intégré."
 annexes: [templates/onboarder-handoff-block.md]
 ---
 

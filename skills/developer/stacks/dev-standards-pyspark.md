@@ -1,6 +1,6 @@
 ---
 name: dev-standards-pyspark
-description: Standards PySpark — DataFrames API, partitionnement, éviter les UDFs, ML lifecycle avec pipelines sklearn/MLflow, tests locaux.
+description: "Utiliser quand le projet utilise PySpark (DataFrames, partitions, pas d'UDF, MLflow) et que le ticket touche ce code."
 ---
 
 # Skill — Standards PySpark / Spark

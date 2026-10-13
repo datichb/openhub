@@ -1,6 +1,6 @@
 ---
 name: planner-patterns-protocol
-description: Utilisation de la bibliothèque de patterns par le planner pour accélérer et améliorer la décomposition des tickets.
+description: "Utiliser en phase 3 du planner : réutiliser la bibliothèque de patterns pour décomposer les tickets."
 ---
 
 # Planner Patterns Protocol

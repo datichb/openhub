@@ -1,6 +1,6 @@
 ---
 name: universal-guardrails
-description: Garde-fous transverses appliqués à tous les agents — git push, ordering récap/question, commandes non terminantes, nettoyage des process background.
+description: "Utiliser à chaque commande shell et avant chaque question : commandes non terminantes en arrière-plan, nettoyage, récap (inclus dans chaque agent)."
 ---
 
 # Garde-fous transverses

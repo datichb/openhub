@@ -29,7 +29,7 @@ func agentMD(id, skills, native string) string {
 }
 
 func skillMD(name, extra, body string) string {
-	return "---\nname: " + name + "\ndescription: " + name + " skill\n" + extra + "---\n\n" + body + "\n"
+	return "---\nname: " + name + "\ndescription: Utiliser pour tester " + name + "\n" + extra + "---\n\n" + body + "\n"
 }
 
 func buildSolo(t *testing.T, hub string, mutate ...func(*Request)) (*Bundle, error) {
@@ -164,6 +164,9 @@ func TestCheckSkills(t *testing.T) {
 		"skills/c/Bad_Name.md":      skillMD("Bad_Name", "", "x"),
 		"skills/c/" + long + ".md":  skillMD(long, "", "x"),
 		"skills/c/verbose.md":       "---\nname: verbose\ndescription: " + strings.Repeat("é", 1025) + "\n---\nx\n",
+		"skills/c/wordy.md":         "---\nname: wordy\ndescription: Utiliser " + strings.Repeat("é", 192) + "\n---\nx\n",
+		"skills/c/fits.md":          "---\nname: fits\ndescription: Utiliser " + strings.Repeat("é", 191) + "\n---\nx\n",
+		"skills/c/vague.md":         "---\nname: vague\ndescription: Règles de la chose.\n---\nx\n",
 		"skills/c/broken.md":        "---\nname: [\n---\nx\n",
 		"skills/templates/annex.md": "# not a skill\n",
 	})
@@ -184,11 +187,44 @@ func TestCheckSkills(t *testing.T) {
 		"invalid_name c/Bad_Name Bad_Name":          true,
 		"invalid_name c/" + long + " " + long:       true,
 		"long_description c/verbose 1025":           true,
+		"long_description c/wordy 201":              true,
+		"description_not_trigger c/verbose ":        false,
+		"description_not_trigger c/vague ":          false,
 		"no_description c/nodesc ":                  false,
 		"missing_agent_skill b/ghost solo":          false,
 		"orphan_annex templates/annex.md ":          false,
 	}, withoutKind(got, SkillInvalidFrontmatter))
 	assert.True(t, hasKind(problems, SkillInvalidFrontmatter, "c/broken"))
+}
+
+// The hub limit of the descriptions (200) is a warning for the team
+// catalogue; the Agent Skills limit (1024) stays an error.
+func TestCheckSkillsTeamDescriptionLimit(t *testing.T) {
+	hub := fakeHub(t, map[string]string{
+		"skills/t/wordy.md":   "---\nname: wordy\ndescription: Utiliser " + strings.Repeat("é", 300) + "\n---\nx\n",
+		"skills/t/verbose.md": "---\nname: verbose\ndescription: Utiliser " + strings.Repeat("é", 1100) + "\n---\nx\n",
+		"skills/h/wordy2.md":  "---\nname: wordy2\ndescription: Utiliser " + strings.Repeat("é", 300) + "\n---\nx\n",
+	})
+	problems, err := CheckSkillsWith(hub, SkillCheckOptions{Team: func(ref string) bool { return strings.HasPrefix(ref, "t/") }})
+	require.NoError(t, err)
+	got := map[string]bool{}
+	for _, p := range problems {
+		got[string(p.Kind)+" "+p.Ref+" "+p.Detail] = p.Error
+	}
+	assert.Equal(t, map[string]bool{
+		"long_description t/wordy 309":    false,
+		"long_description t/verbose 1109": true,
+		"long_description h/wordy2 309":   true,
+	}, got)
+}
+
+func TestCheckSkillsGeneratedNeedNoTrigger(t *testing.T) {
+	hub := fakeHub(t, map[string]string{
+		"skills/" + WorkflowMapSkill + ".md": "---\nname: workflow-map\ndescription: Généré depuis le workflow.\n---\nx\n",
+	})
+	problems, err := CheckSkills(hub)
+	require.NoError(t, err)
+	assert.Empty(t, problems)
 }
 
 func TestCheckSkillsHubIsClean(t *testing.T) {

@@ -1,6 +1,6 @@
 ---
 name: debugger-phase-2-3
-description: Phase 2 (questions complémentaires sur artefacts manquants) et Phase 3 (diagnostic en 4 étapes — reproduction, isolation, identification, hypothèse) du workflow debugger.
+description: "Utiliser avant les phases 2 et 3 du debugger : questions sur artefacts manquants, diagnostic en 4 étapes."
 ---
 
 # Phase 2 — Questions complémentaires (artefacts manquants)

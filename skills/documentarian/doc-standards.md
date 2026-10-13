@@ -1,6 +1,6 @@
 ---
 name: doc-standards
-description: Bonnes pratiques de documentation — framework Diataxis, principes de lisibilité, anti-patterns courants, critères de qualité par type de document.
+description: "Utiliser pour juger ou structurer une documentation : Diataxis, lisibilité, anti-patterns, critères par type."
 ---
 
 # Skill — Standards de Documentation

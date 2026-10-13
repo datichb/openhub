@@ -1,6 +1,6 @@
 ---
 name: dev-standards-migration
-description: Standards de migration — frameworks, versions, dépendances, DB/ORM, build tools. Stratégies (Strangler Fig, Bridge Pattern), analyse pré-migration, workflow incrémental avec rollback toujours possible.
+description: "Utiliser pour une montée de version ou un changement de framework/ORM : stratégies, analyse, rollback, migration destructive."
 ---
 
 # Skill — Standards de Migration

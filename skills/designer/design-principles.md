@@ -1,6 +1,6 @@
 ---
 name: design-principles
-description: Principes de design fondamentaux — heuristiques Nielsen enrichies, principes Gestalt, Laws of UX, accessibilité opérationnelle, grille Tenets & Traps. Référence partagée entre les modes ux et ui.
+description: "Utiliser pour évaluer ou justifier un choix UX/UI : Nielsen, Gestalt, Laws of UX, accessibilité, Tenets & Traps."
 ---
 
 # Principes de design — référence

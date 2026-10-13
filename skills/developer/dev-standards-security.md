@@ -1,6 +1,6 @@
 ---
 name: dev-standards-security
-description: Pratiques de sécurité préventives à appliquer pendant le développement — secrets, validation des inputs, injections, auth/autorisation, logs, dépendances.
+description: "Utiliser pendant tout développement touchant secrets, entrées, auth, logs ou dépendances : pratiques préventives."
 ---
 
 # Skill — Standards de Sécurité Développement

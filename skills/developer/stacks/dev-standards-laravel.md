@@ -1,6 +1,6 @@
 ---
 name: dev-standards-laravel
-description: Standards Laravel — Eloquent, controllers, Form Requests, services, middlewares, queues et bonnes pratiques.
+description: "Utiliser quand le projet utilise Laravel (Eloquent, Form Requests, services, queues) et que le ticket touche ce code."
 ---
 
 # Skill — Standards Laravel

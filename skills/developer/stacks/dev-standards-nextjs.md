@@ -1,6 +1,6 @@
 ---
 name: dev-standards-nextjs
-description: Standards Next.js — App Router, Server Components, Server Actions, rendering strategies, gestion du cache, conventions de fichiers.
+description: "Utiliser quand le projet utilise Next.js (App Router, Server Components/Actions, cache) et que le ticket touche ce code."
 ---
 
 # Skill — Standards Next.js

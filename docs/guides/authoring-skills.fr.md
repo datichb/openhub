@@ -101,7 +101,7 @@ Exemple pour un skill de complétion :
 
 **Token efficiency**
 
-- ≤ 2 phrases dans `description:` — au-delà, la description est tronquée ou ignorée
+- `description:` : un déclencheur « Utiliser quand… », 200 caractères au plus — elle est dans le catalogue de chaque agent, à chaque session
 - Condenser sans perdre les keywords discriminants
 - Mettre les keywords les plus importants en premier
 
@@ -139,9 +139,9 @@ Le frontmatter n'accepte que deux sortes de clés :
 Toute autre clé (hors `bucket:`, signalé comme obsolète) est une **erreur** `unknown_key` d'`oh skill check` : la supprimer, ou porter l'information dans le corps. Limites de la spécification Agent Skills, erreurs elles aussi :
 
 - `name:` — 64 caractères au plus, minuscules, chiffres et tirets simples (`planner-phase-0` ; ni `Planner_Phase0`, ni `-x`, ni `a--b`) : `invalid_name` ;
-- `description:` — 1024 caractères au plus : `long_description`.
+- `description:` — 200 caractères au plus pour le hub (`long_description` ; avertissement pour le catalogue d'équipe ; 1024 reste la limite du standard). Elle dit **quand** charger la skill : commencer par « Utiliser quand… » (ou « Utiliser pour… », « Utiliser en phase… »), sinon avertissement `description_not_trigger`.
 
-`plugin: <id>` ne livre la skill que si le workflow charge ce plugin (`plugins:`) ; `mcp: <serveur>` ne la livre que si la session a ce serveur MCP (adaptateurs de tracker : `mcp: gitlab` pour `adapters/gitlab-*`, `mcp: github` pour `adapters/github-*` — un agent peut lister les deux adaptateurs, seul celui du tracker configuré est livré).
+`plugin: <id>` ne livre la skill que si le workflow charge ce plugin (`plugins:`) ; `mcp: <serveur>` ne la livre que si la session a ce serveur MCP (adaptateurs de tracker : `mcp: gitlab` pour `adapters/gitlab-*`, `mcp: github` pour `adapters/github-*` — un agent peut lister les deux adaptateurs, seul celui du tracker configuré est livré ; skills d'équipe : `mcp: team`).
 
 ### Gabarits et annexes (`annexes:`)
 
@@ -263,7 +263,7 @@ Avant de merger ou de déclarer un skill terminé :
 - [ ] Anti-patterns vérifiés (narrative, bilingue, générique, code flowchart, over-spec)
 
 **SDO**
-- [ ] `description:` ≤ 2 phrases (1024 caractères au plus), keywords discriminants, cross-refs si nécessaire
+- [ ] `description:` en déclencheur « Utiliser quand… », 200 caractères au plus, keywords discriminants, cross-refs si nécessaire
 - [ ] `name:` identique au nom du fichier (sans `.md`), en kebab-case, 64 caractères au plus : c'est l'identifiant de la skill dans le paquet de session, unique dans tout le catalogue
 - [ ] Aucune clé de frontmatter hors des clés Agent Skills et de `requires`/`annexes`/`plugin`/`mcp`
 - [ ] `requires:` liste les skills indispensables (références `<catégorie>/<nom>`), si besoin ; pas de champ `bucket:` (le bucket est décidé par le frontmatter de l'agent : `skills:` = A, `native_skills:` = B)

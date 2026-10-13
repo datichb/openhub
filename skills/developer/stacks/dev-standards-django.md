@@ -1,6 +1,6 @@
 ---
 name: dev-standards-django
-description: Standards Django — models, views, serializers, DRF, migrations, permissions, tests et bonnes pratiques.
+description: "Utiliser quand le projet utilise Django/DRF (models, views, serializers, migrations, permissions) et que le ticket touche ce code."
 ---
 
 # Skill — Standards Django

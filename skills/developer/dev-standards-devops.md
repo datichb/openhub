@@ -1,6 +1,6 @@
 ---
 name: dev-standards-devops
-description: Standards DevOps généraux — scripts shell, gestion des secrets, registries d'images, observabilité et principes d'infrastructure as code. Les standards spécifiques aux outils (Docker, GitHub Actions, GitLab CI, Terraform, Kubernetes) sont dans les skills dédiés.
+description: "Utiliser quand le ticket touche scripts shell, CI/CD, secrets ou images : principes généraux (outils : stacks dédiées)."
 ---
 
 # Skill — Standards DevOps

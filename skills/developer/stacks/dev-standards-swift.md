@@ -1,6 +1,6 @@
 ---
 name: dev-standards-swift
-description: Standards Swift / iOS natif — SwiftUI, MVVM, Swift Concurrency, sécurité Keychain, conventions de nommage.
+description: "Utiliser quand le projet utilise Swift/iOS (SwiftUI, MVVM, concurrency, Keychain) et que le ticket touche ce code."
 ---
 
 # Skill — Standards Swift (iOS natif)

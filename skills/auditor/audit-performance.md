@@ -1,6 +1,6 @@
 ---
 name: audit-performance
-description: Référentiel de performance web — Web Vitals, N+1, bundle size, cache, lazy loading, requêtes base de données.
+description: "Utiliser quand l'audit porte sur la performance : Web Vitals, N+1, bundle, cache, lazy loading, requêtes."
 ---
 
 # Skill — Audit Performance

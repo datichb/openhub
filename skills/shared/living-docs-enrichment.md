@@ -1,6 +1,6 @@
 ---
 name: living-docs-enrichment
-description: Compétence d'enrichissement du wiki documentaire vivant (docs/wiki/) — à activer après chaque rapport d'audit, diagnostic, planification, implémentation de ticket ou review. L'agent identifie les découvertes à capitaliser avec leur niveau de confiance, demande confirmation à l'utilisateur, puis délègue l'écriture au documentarian via l'outil task. Aucune écriture directe.
+description: "Utiliser après un rapport, diagnostic, plan, ticket ou review : proposer les découvertes à capitaliser dans docs/wiki/."
 ---
 
 # Skill — Enrichissement du Wiki Documentaire Vivant

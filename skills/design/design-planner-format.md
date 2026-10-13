@@ -1,6 +1,6 @@
 ---
 name: design-planner-format
-description: Source de vérité pour le format de handoff planner → designer. Définit le contexte obligatoire à transmettre lors de la délégation design en Phase 1.5. Injecté dans planner et designer pour garantir que le producteur et les consommateurs partagent le même contrat.
+description: "Utiliser quand le planner délègue au designer (phase 1.5) : contexte à transmettre et bloc « Retour vers planner »."
 annexes: [templates/design-planner-prompts.md]
 ---
 

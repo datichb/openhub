@@ -1,6 +1,6 @@
 ---
 name: dev-standards-security-hardening
-description: Standards d'implémentation sécurisée avancés — CORS, CSP, headers HTTP, hashing, chiffrement, gestion des sessions et tokens, rate limiting, hardening applicatif.
+description: "Utiliser pour un ticket de hardening : CORS, CSP, headers, hashing, chiffrement, sessions, rate limiting."
 ---
 
 # Skill — Standards de Sécurité Hardening

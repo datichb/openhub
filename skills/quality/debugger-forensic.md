@@ -1,6 +1,6 @@
 ---
 name: debugger-forensic
-description: Mode forensique du debugger — activé par le flag --forensic, grading d'évidence (Confirmed/Deduced/Hypothesized), format du case file, protocole Stronghold-first, règles forensiques et intégration avec le workflow standard. Chargé à la demande quand --forensic est présent dans le prompt.
+description: "Utiliser quand le prompt contient --forensic : grading d'évidence, case file, protocole Stronghold-first."
 annexes: [templates/debugger-case-file.md]
 ---
 

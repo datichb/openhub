@@ -1,6 +1,6 @@
 ---
 name: dev-standards-cypress
-description: Standards Cypress — configuration, commandes custom, cy.intercept, sélecteurs, fixtures et bonnes pratiques E2E.
+description: "Utiliser quand le projet utilise Cypress (commandes, cy.intercept, sélecteurs, fixtures) et que le ticket touche ce code."
 ---
 
 # Skill — Standards Cypress

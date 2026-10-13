@@ -1,6 +1,6 @@
 ---
 name: designer-subagent
-description: Parcours d'exécution du Designer en mode sous-agent (invoqué via task depuis l'agent orchestrator) — session unique sans interruption de phase sauf clarification critique, seul output = le bloc Retour vers orchestrator (spec intégrée dans le bloc), outil question interdit.
+description: "Utiliser quand le designer est invoqué via task : session unique, seul output le bloc de retour, pas d'outil question."
 requires: [shared/subagent-execution-protocol]
 ---
 

@@ -1,6 +1,6 @@
 ---
 name: dev-standards-playwright
-description: Standards Playwright — configuration, locators sémantiques, fixtures, waits, Page Object Model et bonnes pratiques E2E.
+description: "Utiliser quand le projet utilise Playwright (locators, fixtures, waits, POM) et que le ticket touche ce code."
 ---
 
 # Skill — Standards Playwright

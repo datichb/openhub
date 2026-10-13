@@ -1,6 +1,6 @@
 ---
 name: onboarder-phase-0
-description: Phase 0 du workflow onboarder — vérification des prérequis (projet accessible, fichiers structurants détectés).
+description: "Utiliser avant la phase 0 de l'onboarder : projet accessible, fichiers structurants."
 requires: [shared/phase-0-validation-loop]
 ---
 

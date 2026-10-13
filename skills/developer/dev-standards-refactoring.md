@@ -1,6 +1,6 @@
 ---
 name: dev-standards-refactoring
-description: Standards de refactoring — patterns (Extract, Rename, Move), analyse d'impact, stratégie par petits pas, workflow sûr avec filet de tests. Le comportement observable ne change jamais.
+description: "Utiliser pour un ticket de refactoring : Extract/Rename/Move, analyse d'impact, petits pas sous filet de tests."
 ---
 
 # Skill — Standards de Refactoring

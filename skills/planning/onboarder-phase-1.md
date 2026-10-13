@@ -1,6 +1,6 @@
 ---
 name: onboarder-phase-1
-description: Phase 1 du workflow onboarder — exploration contextuelle adaptative (stack, profil, tickets, contexte métier, Figma, tests).
+description: "Utiliser avant la phase 1 de l'onboarder : exploration (stack, profil, tickets, métier, Figma, tests)."
 ---
 
 ## Phase 1 — Exploration contextuelle

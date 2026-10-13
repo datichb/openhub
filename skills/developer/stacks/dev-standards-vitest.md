@@ -1,6 +1,6 @@
 ---
 name: dev-standards-vitest
-description: Standards Vitest — configuration, mocking (vi.mock, vi.fn, vi.spyOn), matchers, coverage et bonnes pratiques.
+description: "Utiliser quand le projet utilise Vitest (vi.mock, matchers, coverage) et que le ticket touche ce code."
 ---
 
 # Skill — Standards Vitest

@@ -1,6 +1,6 @@
 ---
 name: doc-wiki-protocol
-description: Format canonique du wiki documentaire vivant — structure de chaque page, frontmatter obligatoire, tags de confiance, règles d'enrichissement incrémental, algorithme de mise à jour des god nodes, templates de création de nouvelles pages.
+description: "Utiliser pour écrire dans docs/wiki/ : formats canoniques, frontmatter, tags de confiance, god nodes."
 ---
 
 # Skill — Protocole du Wiki Documentaire Vivant

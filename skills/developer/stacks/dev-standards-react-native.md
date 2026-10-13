@@ -1,6 +1,6 @@
 ---
 name: dev-standards-react-native
-description: Standards React Native — architecture, composants, navigation, état, performance, sécurité et conventions de nommage.
+description: "Utiliser quand le projet utilise React Native (navigation, état, performance, sécurité) et que le ticket touche ce code."
 ---
 
 # Skill — Standards React Native

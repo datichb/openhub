@@ -1,6 +1,6 @@
 ---
 name: dev-standards-mongodb
-description: Standards MongoDB / Mongoose — schemas, indexes, validation, agrégations, transactions et bonnes pratiques.
+description: "Utiliser quand le projet utilise MongoDB/Mongoose (schemas, index, agrégations, transactions) et que le ticket touche ce code."
 ---
 
 # Skill — Standards MongoDB / Mongoose

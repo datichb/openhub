@@ -1,6 +1,6 @@
 ---
 name: dev-standards-kubernetes
-description: Standards Kubernetes — structure des manifests, Deployments, RBAC, Network Policies, probes, resource quotas et Kustomize.
+description: "Utiliser quand le projet utilise Kubernetes (manifests, RBAC, NetworkPolicy, probes, Kustomize) et que le ticket touche ce code."
 ---
 
 # Skill — Standards Kubernetes
