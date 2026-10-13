@@ -3889,7 +3889,7 @@
   "tui.doctor.container.probe_failed": "vérification impossible : %s",
   "cmd.doctor.agents_md": "AGENTS.md hors du paquet de session",
   "cmd.doctor.agents_md.none": "aucun AGENTS.md de sous-dossier dans les projets (celui de la racine n'est pas lu par les sessions oh)",
-  "cmd.doctor.agents_md.nested": "AGENTS.md de sous-dossiers : %s. opencode les ajoute au prompt quand un agent lit un fichier de ces dossiers, hors du paquet de session. Déplacez leurs consignes dans CONVENTIONS.md ou une skill d'équipe, ou retirez-les",
+  "cmd.doctor.agents_md.nested": "AGENTS.md de sous-dossiers : %s. %s les ajoute au prompt quand un agent lit un fichier de ces dossiers, hors du paquet de session. Déplacez leurs consignes dans CONVENTIONS.md ou une skill d'équipe, ou retirez-les",
   "cmd.doctor.agents_md.global": "%s est ajouté au prompt des sessions locales : videz-le ou déplacez-le si ses consignes ne valent pas pour oh, ou activez [execution] strict_isolation (oh config set execution.strict_isolation true)",
   "cmd.doctor.gateway.bd": "Passerelle Beads : bd sur la machine",
   "cmd.doctor.gateway.bd_missing": "bd introuvable : en conteneur, les commandes bd de l'agent échoueront",

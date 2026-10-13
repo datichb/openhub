@@ -1,4 +1,4 @@
-package cmd
+package opencodev2
 
 import (
 	"context"
@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestNestedAgentsMD(t *testing.T) {
+func TestProjectAmbientInstructions(t *testing.T) {
 	dir := t.TempDir()
 	for rel, content := range map[string]string{
 		"AGENTS.md":              "root",
@@ -25,22 +25,23 @@ func TestNestedAgentsMD(t *testing.T) {
 		require.NoError(t, os.MkdirAll(filepath.Dir(p), 0o755))
 		require.NoError(t, os.WriteFile(p, []byte(content), 0o644))
 	}
-	git := exec.Command("git", "init", "-q", dir)
-	require.NoError(t, git.Run())
-	add := exec.Command("git", "-C", dir, "add", "AGENTS.md", "packages", ".gitignore")
-	require.NoError(t, add.Run())
+	require.NoError(t, exec.Command("git", "init", "-q", dir).Run())
+	require.NoError(t, exec.Command("git", "-C", dir, "add", "AGENTS.md", "packages", ".gitignore").Run())
 
-	assert.Equal(t, []string{"packages/web/AGENTS.md", "tools/AGENTS.md"}, nestedAgentsMD(context.Background(), dir))
-	assert.Nil(t, nestedAgentsMD(context.Background(), t.TempDir()), "not a git work tree")
-	assert.Nil(t, nestedAgentsMD(context.Background(), ""))
+	a := &Adapter{}
+	ctx := context.Background()
+	assert.Equal(t, []string{"packages/web/AGENTS.md", "tools/AGENTS.md"}, a.ProjectAmbientInstructions(ctx, dir))
+	assert.Nil(t, a.ProjectAmbientInstructions(ctx, t.TempDir()), "not a git work tree")
+	assert.Nil(t, a.ProjectAmbientInstructions(ctx, ""))
 }
 
-func TestGlobalAgentsMD(t *testing.T) {
+func TestUserAmbientInstructions(t *testing.T) {
 	cfg := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", cfg)
-	assert.Empty(t, globalAgentsMD())
+	a := &Adapter{}
+	assert.Empty(t, a.UserAmbientInstructions())
 	p := filepath.Join(cfg, "opencode", "AGENTS.md")
 	require.NoError(t, os.MkdirAll(filepath.Dir(p), 0o755))
 	require.NoError(t, os.WriteFile(p, []byte("x"), 0o644))
-	assert.Equal(t, p, globalAgentsMD())
+	assert.Equal(t, []string{p}, a.UserAmbientInstructions())
 }
