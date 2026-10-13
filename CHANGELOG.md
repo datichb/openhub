@@ -9,6 +9,19 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ## [Unreleased]
 
+### Added — restes P3, wiki et hygiène (lot p3-leftovers-wiki)
+
+- **`oh wiki decide <id>… --accept | --edit | --content | --file | --refuse | --pending`** : décider des propositions du wiki hors de la TUI, avec les mêmes choix et le même service que la carte du checkpoint de commit (modification dans `$EDITOR`, original conservé, décision signée `oh`).
+- **Carte du checkpoint de commit** : « Modifier dans l'éditeur » édite une proposition du wiki sur plusieurs lignes dans `$EDITOR`. La vue « Wiki » d'équipe de la TUI est couverte par des tests.
+- **Proxy d'identifiants** : les réponses 429 (limite de débit) du fournisseur sont journalisées dans `ohd.log` (avertissement au premier 429 d'une série : fournisseur, session, modèle, `Retry-After`, identifiant de requête, message ; jamais de secret).
+- **Corrigé** : « git stash apply <commit> » proposé après une mise de côté donne le commit complet (un hash abrégé fait de chiffres était lu par git comme un index de stash) ; quand le port choisi par oh est pris avant que le serveur ne s'y lie, oh en essaie un autre (trois fois au plus) ; une commande `bd` qui dépasse son délai le dit (« deadline exceeded »).
+- **Tests instables sous charge** : budget (attente de la lecture du coût), contrats bd (délai), rendu Mermaid (navigateur tué avec mmdc), team-state et publication de workflows (maintenance automatique de git coupée dans les tests, `internal/gitutil/gittest`).
+- **Docs** : `docs/dev/architecture.md` (pré-v5, périmé) remplacé par un renvoi vers l'architecture actuelle ; conventions de code dans le guide de contribution ; dépannage « limite de débit du fournisseur (429) ».
+
+### Fixed — liens périmés vers le documentarian (lot p3-doc-links)
+
+- L'orchestrator de `feature` n'appelle plus le `documentarian` (seul `orchestrator-dev` le délègue, pour le CHANGELOG) ; le diagramme `agent-hierarchy.mermaid` perd les arêtes ORCH, AUD, PLAN, PATH et BENCH → DOC.
+
 ### Changed — restes P3, contenu (lot p3-leftovers-content)
 
 - **Délégations au `documentarian`** : retirées du frontmatter de `planner`, `pathfinder`, `debugger`, `reviewer`, `benchmarker` et `orchestrator` (depuis LD-J, le wiki s'enrichit avec `wiki_propose`) ; seul `orchestrator-dev` délègue encore au `documentarian` (CHANGELOG des tickets). Docs `agents.*` mises à jour (règles communes, hiérarchie, paragraphes d'enrichissement).
