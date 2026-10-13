@@ -9,6 +9,13 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ## [Unreleased]
 
+### Changed — découpage par phase : planning (lot L6 planning)
+
+- **`planner-phase-2`** est découpée en un cœur et `planner-phase-2-5` (compréhension partagée et decision map Enterprise, chargée seulement à partir de la complexité Large) ; **`planner-beads-templates`** est fusionnée dans `planner-phase-5-6`.
+- Les blocs de question de l'agent d'entrée sont filtrés par rôle dans toutes les phases du planner, avec une consigne pour le sous-agent ; quatre consignes qui ne fonctionnaient pas en sous-agent sont corrigées.
+- **`planner-patterns-protocol`** n'est livrée qu'avec le serveur MCP `team` ; chaque skill de phase a sa phrase de déclenchement dans `planner-workflow`.
+- **Budget** : parcours complet des phases du planner 19 692 → 11 171 tokens à charger ; prompt du planner −495 tokens.
+
 ### Changed — découpage par phase : audit (lot L6 audit)
 
 - **`auditor-workflow`** est réduit à un cœur (table des phases, domaines, retours en arrière) ; les phases 0-1, 3 et 4 deviennent des skills chargées à la demande (`auditor-phase-0-1`, `auditor-phase-3`, `auditor-phase-4`), et le prompt de délégation n'existe plus qu'en un exemplaire.
