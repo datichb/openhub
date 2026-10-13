@@ -405,17 +405,6 @@ func TestRunnerAndReport(t *testing.T) {
 	assert.False(t, rep.Passes[0].Pass)
 }
 
-// notInBaseline are the active cases activated after the reference measure
-// (measured at the next make test-eval OH_EVAL_RECORD=1).
-var notInBaseline = map[string]string{
-	"S8":  "activated by L4 (workflow_report)",
-	"S11": "added by LD (wiki proposals on the card)",
-	"S12": "added by LD (doc-sync)",
-	"S13": "added by L6 cleanup (onboarding phase skills)",
-	"S14": "added by L6 cleanup (onboarder as a subagent in libre)",
-	"S15": "added by L6 cleanup (designer in cadrage)",
-}
-
 // The reference measure kept in the repository (make test-eval
 // OH_EVAL_RECORD=1) covers every active case, with three repetitions, and
 // holds no session id nor trace path.
@@ -431,10 +420,6 @@ func TestShippedBaseline(t *testing.T) {
 			s, ok := base.Stat(c.ID, m)
 			if !c.IsActive() {
 				assert.False(t, ok, "%s is inactive", c.ID)
-				continue
-			}
-			if why, pending := notInBaseline[c.ID]; pending && !ok {
-				t.Logf("%s not in the baseline yet: %s", c.ID, why)
 				continue
 			}
 			require.True(t, ok, "%s measured with %s", c.ID, m)
