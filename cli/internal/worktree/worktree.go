@@ -393,13 +393,15 @@ func Checkout(path, branch string) error {
 
 // Stash puts the uncommitted changes of the working tree at path aside
 // (untracked files included) with the given message and returns the commit
-// of the new stash entry, for `git stash apply <commit>`.
+// of the new stash entry, for `git stash apply <commit>`. The commit is
+// given in full: git reads an abbreviated hash made of digits only
+// (« 9873002 ») as the index of an entry, stash@{9873002}.
 func Stash(path, message string) (string, error) {
 	out, err := gitutil.Command(context.Background(), path, "stash", "push", "--include-untracked", "-m", message).CombinedOutput()
 	if err != nil {
 		return "", fmt.Errorf("git stash: %s", strings.TrimSpace(string(out)))
 	}
-	ref, err := gitutil.Command(context.Background(), path, "rev-parse", "--short", "stash@{0}").Output()
+	ref, err := gitutil.Command(context.Background(), path, "rev-parse", "stash@{0}").Output()
 	if err != nil {
 		return "", fmt.Errorf("git stash: %w", err)
 	}

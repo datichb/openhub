@@ -4,6 +4,7 @@ package docstest
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io/fs"
 	"os"
@@ -247,13 +248,20 @@ func TestMermaidRenders(t *testing.T) {
 	}
 
 	dir := t.TempDir()
+	// A render that times out says so (errTimeout): on a loaded machine the
+	// browser is slow, which is not a broken diagram.
 	run := func(in, out string) error {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 		defer cancel()
 		cmd := exec.CommandContext(ctx, mmdc, "-q", "-i", in, "-o", out)
+		setProcessGroup(cmd)
+		cmd.WaitDelay = 10 * time.Second
 		var log bytes.Buffer
 		cmd.Stdout, cmd.Stderr = &log, &log
 		if err := cmd.Run(); err != nil {
+			if ctx.Err() != nil {
+				return fmt.Errorf("%w (%v): %s", errTimeout, err, firstLines(log.String(), 5))
+			}
 			return fmt.Errorf("%w: %s", err, firstLines(log.String(), 5))
 		}
 		return nil
@@ -279,7 +287,8 @@ func TestMermaidRenders(t *testing.T) {
 	if err := os.WriteFile(batch, []byte(all.String()), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if err := run(batch, filepath.Join(dir, "all.out.md")); err == nil {
+	batchErr := run(batch, filepath.Join(dir, "all.out.md"))
+	if batchErr == nil {
 		return
 	}
 	var wg sync.WaitGroup
@@ -295,6 +304,12 @@ func TestMermaidRenders(t *testing.T) {
 		}()
 	}
 	wg.Wait()
+	// A diagram that timed out among four browsers gets one more try, alone.
+	for i, err := range errs {
+		if errors.Is(err, errTimeout) {
+			errs[i] = render(fmt.Sprintf("r%03d", i), diagrams[i].body)
+		}
+	}
 	failed := false
 	for i, err := range errs {
 		if err != nil {
@@ -302,10 +317,17 @@ func TestMermaidRenders(t *testing.T) {
 			t.Errorf("%s: the Mermaid diagram does not render: %v", diagrams[i].where, err)
 		}
 	}
-	if !failed {
-		t.Error("the diagrams render one by one but not together (mmdc on all the blocks failed)")
+	switch {
+	case failed:
+	case errors.Is(batchErr, errTimeout):
+		t.Logf("all the diagrams at once timed out; they render one by one: %v", batchErr)
+	default:
+		t.Errorf("the diagrams render one by one but not together (mmdc on all the blocks failed): %v", batchErr)
 	}
 }
+
+// errTimeout marks a render stopped by its time limit.
+var errTimeout = errors.New("mmdc timed out")
 
 func firstLines(s string, n int) string {
 	lines := strings.Split(strings.TrimSpace(s), "\n")

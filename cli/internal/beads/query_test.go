@@ -1,11 +1,13 @@
 package beads
 
 import (
+	"context"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -28,11 +30,22 @@ func TestQueryExpr(t *testing.T) {
 	assert.Error(t, err)
 }
 
+// patientBd gives bd the time it takes on a loaded machine: the contract
+// tests check what bd answers, not how fast (the embedded Dolt of bd may
+// take more than the 10 s of oh when several suites run at once).
+func patientBd(t *testing.T) {
+	t.Helper()
+	prev := bdTimeout
+	bdTimeout = 2 * time.Minute
+	t.Cleanup(func() { bdTimeout = prev })
+}
+
 // Contract with the real bd: a quoted value is read as one value.
 func TestQueryRealBd(t *testing.T) {
 	if _, err := exec.LookPath("bd"); err != nil {
 		t.Skip("bd is not installed")
 	}
+	patientBd(t)
 	dir, err := filepath.EvalSymlinks(t.TempDir())
 	require.NoError(t, err)
 	run := func(args ...string) {
@@ -62,6 +75,7 @@ func TestQueryRealBd(t *testing.T) {
 
 // bd lists 50 tickets (ready: 100) by default: oh asks for all of them.
 func TestListsAreNotTruncated(t *testing.T) {
+	patientBd(t)
 	dir := t.TempDir()
 	log := filepath.Join(dir, "args")
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "bd"), []byte("#!/bin/sh\necho \"$*\" >> "+log+"\necho '[]'\n"), 0o755))
@@ -83,6 +97,7 @@ func TestLintRealBd(t *testing.T) {
 	if _, err := exec.LookPath("bd"); err != nil {
 		t.Skip("bd is not installed")
 	}
+	patientBd(t)
 	dir, err := filepath.EvalSymlinks(t.TempDir())
 	require.NoError(t, err)
 	out := func(args ...string) string {
@@ -118,6 +133,7 @@ func TestTrackingRealBd(t *testing.T) {
 	if _, err := exec.LookPath("bd"); err != nil {
 		t.Skip("bd is not installed")
 	}
+	patientBd(t)
 	dir, err := filepath.EvalSymlinks(t.TempDir())
 	require.NoError(t, err)
 	out := func(args ...string) string {
@@ -160,4 +176,17 @@ func TestTrackingRealBd(t *testing.T) {
 	m, err = Memories(dir)
 	require.NoError(t, err)
 	assert.Equal(t, "- Les tests e2e tournent avec make e2e\n- Ne pas toucher au module billing", m)
+}
+
+// A bd that does not answer in time: the error says so.
+func TestQueryTimeout(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "bd"), []byte("#!/bin/sh\nexec sleep 5\n"), 0o755))
+	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
+	prev := bdTimeout
+	bdTimeout = 100 * time.Millisecond
+	t.Cleanup(func() { bdTimeout = prev })
+	_, err := Query("/p", `label="x"`, false)
+	assert.ErrorIs(t, err, context.DeadlineExceeded)
+	assert.ErrorContains(t, err, `bd --readonly query label="x"`)
 }

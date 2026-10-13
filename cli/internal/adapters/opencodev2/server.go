@@ -159,7 +159,9 @@ func RandomPassword() string {
 	return hex.EncodeToString(b)
 }
 
-// FreePort returns a free TCP port on 127.0.0.1.
+// FreePort returns a free TCP port on 127.0.0.1. The port is free when it
+// returns: another process may take it before the server binds it
+// (StartServer then tries another one).
 func FreePort() (int, error) {
 	l, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
@@ -187,14 +189,38 @@ func StartServer(ctx context.Context, opts ServerOptions) (*Server, error) {
 	if err := os.MkdirAll(opts.DataDir, 0o700); err != nil {
 		return nil, fmt.Errorf("creating data dir: %w", err)
 	}
-	port := opts.Port
-	if port == 0 {
-		p, err := FreePort()
+	if opts.Port != 0 {
+		return startServer(ctx, opts, bin, opts.Port)
+	}
+	for attempt := 1; ; attempt++ {
+		port, err := FreePort()
 		if err != nil {
 			return nil, fmt.Errorf("allocating port: %w", err)
 		}
-		port = p
+		s, err := startServer(ctx, opts, bin, port)
+		if !errors.Is(err, errPortTaken) || attempt == portAttempts {
+			return s, err
+		}
+		slog.Warn("opencode serve: port taken before the server bound it, trying another one", "port", port)
 	}
+}
+
+// portAttempts bounds the ports StartServer tries when it picks them.
+const portAttempts = 3
+
+// errPortTaken: the server exited during startup, its port being in use.
+var errPortTaken = errors.New("port already in use")
+
+// portTaken reports whether a startup log says the port was in use (Bun:
+// EADDRINUSE, « Is port … in use? »; Docker: « port is already allocated »).
+func portTaken(log string) bool {
+	l := strings.ToLower(log)
+	return strings.Contains(l, "eaddrinuse") || strings.Contains(l, "address already in use") ||
+		(strings.Contains(l, "port") && strings.Contains(l, "in use")) || strings.Contains(l, "port is already allocated")
+}
+
+// startServer starts the server on port.
+func startServer(ctx context.Context, opts ServerOptions, bin string, port int) (*Server, error) {
 	password := opts.Password
 	if password == "" {
 		password = RandomPassword()
@@ -211,6 +237,10 @@ func StartServer(ctx context.Context, opts ServerOptions) (*Server, error) {
 	logFile, err := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o600)
 	if err != nil {
 		return nil, fmt.Errorf("opening server log: %w", err)
+	}
+	var logStart int64 // what this start writes to the log comes after
+	if fi, err := logFile.Stat(); err == nil {
+		logStart = fi.Size()
 	}
 
 	readyDir := opts.ReadyDir
@@ -272,10 +302,25 @@ func StartServer(ctx context.Context, opts ServerOptions) (*Server, error) {
 	}
 	if err := s.waitReady(ctx, readyDir, opts.ReadyAgent, timeout); err != nil {
 		_ = s.Stop(context.Background(), 3*time.Second)
+		if errors.Is(err, errServerExited) && portTaken(logSince(logPath, logStart)) {
+			err = fmt.Errorf("%w (%d): %w", errPortTaken, port, err)
+		}
 		return nil, fmt.Errorf("%w%s", err, logTail(logPath))
 	}
 	return s, nil
 }
+
+// logSince returns what the log at path holds after offset.
+func logSince(path string, offset int64) string {
+	data, err := os.ReadFile(path)
+	if err != nil || offset > int64(len(data)) {
+		return ""
+	}
+	return string(data[offset:])
+}
+
+// errServerExited: the server process ended before it was ready.
+var errServerExited = errors.New("opencode serve exited during startup")
 
 // AttachServer reconnects to a server started earlier (e.g. by a previous oh process).
 func AttachServer(url, password string, pid int) *Server {
@@ -300,7 +345,7 @@ func (s *Server) waitReady(ctx context.Context, dir, agent string, timeout time.
 		}
 		select {
 		case <-s.exited:
-			return fmt.Errorf("opencode serve exited during startup: %v", s.exitError())
+			return fmt.Errorf("%w: %v", errServerExited, s.exitError())
 		case <-ctx.Done():
 			return fmt.Errorf("opencode serve not ready after %s: %w", timeout, lastErr)
 		case <-time.After(150 * time.Millisecond):

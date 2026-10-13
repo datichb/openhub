@@ -235,7 +235,7 @@ func TestStash(t *testing.T) {
 
 	ref, err := Stash(repoDir, "oh: ticket")
 	require.NoError(t, err)
-	assert.NotEmpty(t, ref)
+	assert.Regexp(t, `^[0-9a-f]{40}([0-9a-f]{24})?$`, ref, "the full commit: an abbreviated one made of digits is read as an index")
 	assert.False(t, IsDirty(repoDir), "untracked files are stashed too")
 
 	runGit(t, repoDir, "stash", "apply", ref)
