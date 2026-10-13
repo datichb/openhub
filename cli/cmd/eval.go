@@ -22,6 +22,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/daemon"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/evalrun"
+	"github.com/datichb/openhub/cli/internal/hubcontent"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/runsvc"
 	sessionsvc "github.com/datichb/openhub/cli/internal/services/session"
@@ -81,6 +82,7 @@ func init() {
 	f.Bool("list", false, i18n.T("cmd.eval.flags.list"))
 	f.Bool("strict", false, i18n.T("cmd.eval.flags.strict"))
 	f.String("rescore", "", i18n.T("cmd.eval.flags.rescore"))
+	f.StringArray("variant", nil, i18n.T("cmd.eval.flags.variant"))
 	// The orchestrator only reads files: the passes have their own home.
 	withInitLevel(cmd, levelLight)
 
@@ -139,9 +141,12 @@ func runEval(cmd *cobra.Command, _ []string) error {
 	if total <= 0 {
 		total = envFloat(envEvalTotal, 0)
 	}
-	token, err := evalBedrockToken(ctx)
+	variants, err := evalrun.ParseVariants(mustStringArray(cmd, "variant"))
 	if err != nil {
 		return err
+	}
+	if len(variants) > 0 && flagString(cmd, "record-baseline") != "" {
+		return errors.New(i18n.T("cmd.eval.variant_baseline"))
 	}
 	exe, err := os.Executable()
 	if err != nil {
@@ -163,13 +168,20 @@ func runEval(cmd *cobra.Command, _ []string) error {
 		defer func() { _ = evalrun.RemoveAll(work) }()
 	}
 	errOut := cmd.ErrOrStderr()
+	if err := prepareEvalVariants(variants, sel, work, errOut); err != nil {
+		return err
+	}
+	token, err := evalBedrockToken(ctx)
+	if err != nil {
+		return err
+	}
 	fmt.Fprintln(errOut, i18n.Tf("cmd.eval.start", len(sel), strings.Join(models, ", "), reps, budget, out))
 	if total > 0 {
 		fmt.Fprintln(errOut, i18n.Tf("cmd.eval.budget_total", total))
 	}
 	r := &evalrun.Runner{
 		Exec: &childEvalExecutor{exe: exe, token: token, goEnv: goEnvironment(ctx)}, Models: models, Reps: reps, BudgetUSD: budget,
-		WorkRoot: work, OutDir: out, Keep: keep, Parallel: parallel, BudgetTotalUSD: total, Retry: evalrun.DefaultRetry,
+		WorkRoot: work, OutDir: out, Keep: keep, Parallel: parallel, Variants: variants, BudgetTotalUSD: total, Retry: evalrun.DefaultRetry,
 		Log: func(format string, args ...any) { fmt.Fprintf(errOut, "  "+format+"\n", args...) },
 	}
 	rep, runErr := r.Run(ctx, sel)
@@ -238,6 +250,55 @@ func rescoreEval(cmd *cobra.Command, dir string, cases []*evalrun.Case) error {
 		out.Note = note
 	}
 	return writeEvalReports(cmd, out, dir)
+}
+
+// prepareEvalVariants writes the hub of each variant in work and checks it
+// (skills, workflows of the cases, bundles) before any pass: a variant that
+// breaks the hub stops the run here.
+func prepareEvalVariants(variants []evalrun.Variant, cases []*evalrun.Case, work string, errOut io.Writer) error {
+	if len(variants) == 0 {
+		return nil
+	}
+	embedded := ""
+	for _, v := range variants {
+		if v.Source == "" {
+			embedded = filepath.Join(work, "variants", "_embedded")
+			if err := hubcontent.Extract(embedded); err != nil {
+				return err
+			}
+			break
+		}
+	}
+	var workflows []string
+	for _, c := range cases {
+		if c.IsActive() {
+			workflows = append(workflows, c.Workflow)
+		}
+	}
+	for i := range variants {
+		v := &variants[i]
+		if err := evalrun.PrepareVariant(v, embedded, work); err != nil {
+			return err
+		}
+		if err := evalrun.CheckHub(v.Hub, workflows); err != nil {
+			return fmt.Errorf("%s\n%w", i18n.Tf("cmd.eval.variant_invalid", v.Name), err)
+		}
+		src := v.Source
+		if src == "" {
+			src = i18n.T("cmd.eval.variant_embedded")
+		}
+		line := i18n.Tf("cmd.eval.variant", v.Name, src)
+		if len(v.Removed) > 0 {
+			line += " · " + strings.Join(v.Removed, " ; ")
+		}
+		fmt.Fprintln(errOut, line)
+	}
+	return nil
+}
+
+func mustStringArray(cmd *cobra.Command, name string) []string {
+	v, _ := cmd.Flags().GetStringArray(name)
+	return v
 }
 
 func flagString(cmd *cobra.Command, name string) string {
@@ -436,6 +497,11 @@ func (e *childEvalExecutor) Execute(ctx context.Context, p evalrun.Pass) (*evalr
 	gitcfg := "[user]\n\tname = oh eval\n\temail = eval@oh.invalid\n[commit]\n\tgpgsign = false\n[init]\n\tdefaultBranch = main\n"
 	if err := os.WriteFile(filepath.Join(user, ".gitconfig"), []byte(gitcfg), 0o600); err != nil {
 		return nil, err
+	}
+	if p.HubDir != "" {
+		if err := hubcontent.Install(p.HubDir, filepath.Join(home, "hub")); err != nil {
+			return nil, err
+		}
 	}
 	c := p.Case
 	spec := evalPassSpec{CaseID: c.ID, Workflow: c.Workflow, Mode: c.Mode, Inputs: c.Inputs, Text: c.Text, Tickets: c.Tickets,

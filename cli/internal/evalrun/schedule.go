@@ -42,20 +42,31 @@ func (p RetryPolicy) Wait(n, slot int) time.Duration {
 // SkippedPass is a pass not started because the cost cap of the run was
 // reached.
 type SkippedPass struct {
-	Case  string `json:"case"`
-	Model string `json:"model"`
-	Rep   int    `json:"rep"`
+	Case    string `json:"case"`
+	Variant string `json:"variant,omitempty"`
+	Model   string `json:"model"`
+	Rep     int    `json:"rep"`
 }
 
 type passJob struct {
-	c     *Case
-	model string
-	rep   int
+	c       *Case
+	variant Variant
+	model   string
+	rep     int
+}
+
+// label names the pass in the logs.
+func (j passJob) label() string {
+	if j.variant.Name != "" {
+		return fmt.Sprintf("%s [%s] %s #%d", j.c.ID, j.variant.Name, j.model, j.rep)
+	}
+	return fmt.Sprintf("%s %s #%d", j.c.ID, j.model, j.rep)
 }
 
 // Run runs every pass, up to Parallel at the same time, and returns the
 // report: the passes in the order of a sequential run (case, model,
-// repetition) whatever the order they end in. The run goes on after a
+// repetition, variant: the variants of a repetition run side by side)
+// whatever the order they end in. The run goes on after a
 // failed pass; ctx cancellation stops it (the passes not started are left
 // out).
 func (r *Runner) Run(ctx context.Context, cases []*Case) (*Report, error) {
@@ -70,7 +81,11 @@ func (r *Runner) Run(ctx context.Context, cases []*Case) (*Report, error) {
 	if now == nil {
 		now = time.Now
 	}
-	rep := &Report{StartedAt: now(), Models: r.Models, Reps: reps, BudgetUSD: r.BudgetUSD, BudgetTotalUSD: r.BudgetTotalUSD}
+	rep := &Report{StartedAt: now(), Models: r.Models, Reps: reps, BudgetUSD: r.BudgetUSD, BudgetTotalUSD: r.BudgetTotalUSD, Variants: r.Variants}
+	variants := r.Variants
+	if len(variants) == 0 {
+		variants = []Variant{{}}
+	}
 	var jobs []passJob
 	for _, c := range cases {
 		rep.Cases = append(rep.Cases, CaseInfo{ID: c.ID, Key: c.Key(), Title: c.Title, Workflow: c.Workflow, Active: c.IsActive(), InactiveReason: c.InactiveReason})
@@ -79,7 +94,9 @@ func (r *Runner) Run(ctx context.Context, cases []*Case) (*Report, error) {
 		}
 		for _, m := range r.Models {
 			for i := 1; i <= reps; i++ {
-				jobs = append(jobs, passJob{c, m, i})
+				for _, v := range variants {
+					jobs = append(jobs, passJob{c, v, m, i})
+				}
 			}
 		}
 	}
@@ -122,7 +139,7 @@ func (r *Runner) Run(ctx context.Context, cases []*Case) (*Report, error) {
 					continue
 				}
 				if workers > 1 {
-					r.logf("→ %s %s #%d", j.c.ID, j.model, j.rep)
+					r.logf("→ %s", j.label())
 				}
 				res := r.runPass(ctx, i, j, func(cost float64) bool {
 					mu.Lock()
@@ -134,7 +151,7 @@ func (r *Runner) Run(ctx context.Context, cases []*Case) (*Report, error) {
 				done++
 				n := done
 				mu.Unlock()
-				r.logf("[%d/%d] %s %s #%d: %s %s ($%.3f, %.0fs)", n, len(jobs), j.c.ID, j.model, j.rep, res.Outcome, passWord(res.Pass), res.CostUSD, res.Seconds)
+				r.logf("[%d/%d] %s: %s %s ($%.3f, %.0fs)", n, len(jobs), j.label(), res.Outcome, passWord(res.Pass), res.CostUSD, res.Seconds)
 				results[i] = &res
 			}
 		}()
@@ -155,7 +172,7 @@ feed:
 		case res != nil:
 			rep.Passes = append(rep.Passes, *res)
 		case skipped[i]:
-			rep.Skipped = append(rep.Skipped, SkippedPass{Case: jobs[i].c.ID, Model: jobs[i].model, Rep: jobs[i].rep})
+			rep.Skipped = append(rep.Skipped, SkippedPass{Case: jobs[i].c.ID, Variant: jobs[i].variant.Name, Model: jobs[i].model, Rep: jobs[i].rep})
 		}
 	}
 	if n := len(rep.Skipped); n > 0 {
@@ -172,7 +189,7 @@ feed:
 func (r *Runner) runPass(ctx context.Context, slot int, j passJob, spend func(cost float64) bool) PassResult {
 	var retries []RetriedAttempt
 	for attempt := 1; ; attempt++ {
-		res, throttle := r.runAttempt(ctx, j.c, j.model, j.rep)
+		res, throttle := r.runAttempt(ctx, j)
 		canSpend := spend(res.CostUSD)
 		if throttle == "" || attempt > r.Retry.Max || ctx.Err() != nil || !canSpend {
 			if throttle != "" {
@@ -191,11 +208,11 @@ func (r *Runner) runPass(ctx context.Context, slot int, j passJob, spend func(co
 		wait := r.Retry.Wait(attempt, slot)
 		dir, err := r.setAside(j, attempt)
 		if err != nil {
-			r.logf("%s %s #%d: keeping the files of attempt %d: %v", j.c.ID, j.model, j.rep, attempt, err)
+			r.logf("%s: keeping the files of attempt %d: %v", j.label(), attempt, err)
 		}
 		retries = append(retries, RetriedAttempt{Attempt: attempt, Outcome: res.Outcome, Throttle: throttle, CostUSD: res.CostUSD,
 			Seconds: res.Seconds, WaitSecs: wait.Seconds(), Dir: dir})
-		r.logf("%s %s #%d: rate limited (%s), attempt %d in %s", j.c.ID, j.model, j.rep, oneLine(throttle, 120), attempt+1, wait)
+		r.logf("%s: rate limited (%s), attempt %d in %s", j.label(), oneLine(throttle, 120), attempt+1, wait)
 		if err := r.sleep(ctx, wait); err != nil {
 			res.Retries = retries
 			return res
@@ -217,15 +234,20 @@ func (r *Runner) sleep(ctx context.Context, d time.Duration) error {
 	}
 }
 
-// passOutDir is the output directory of a pass.
-func (r *Runner) passOutDir(c *Case, model string, rep int) string {
-	return filepath.Join(r.OutDir, "passes", c.ID, safeName(model), fmt.Sprintf("%d", rep))
+// passOutDir is the output directory of a pass:
+// passes/<case>/[<variant>/]<model>/<rep>.
+func (r *Runner) passOutDir(j passJob) string {
+	parts := []string{r.OutDir, "passes", j.c.ID}
+	if j.variant.Name != "" {
+		parts = append(parts, safeName(j.variant.Name))
+	}
+	return filepath.Join(append(parts, safeName(j.model), fmt.Sprintf("%d", j.rep))...)
 }
 
 // setAside moves the files of a throttled attempt to attempt-<n>/ in the
 // pass output directory; it returns that directory relative to OutDir.
 func (r *Runner) setAside(j passJob, attempt int) (string, error) {
-	out := r.passOutDir(j.c, j.model, j.rep)
+	out := r.passOutDir(j)
 	dst := filepath.Join(out, fmt.Sprintf("attempt-%d", attempt))
 	if err := os.MkdirAll(dst, 0o755); err != nil {
 		return "", err

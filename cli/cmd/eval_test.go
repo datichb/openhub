@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"bytes"
 	"os"
 	"path/filepath"
 	"strings"
@@ -11,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/datichb/openhub/cli/internal/config"
+	"github.com/datichb/openhub/cli/internal/evalrun"
 )
 
 func TestEvalSettings(t *testing.T) {
@@ -81,4 +83,25 @@ func TestEvalPassEnv(t *testing.T) {
 	for _, bad := range []string{"/real/oh", "OH_PASSPHRASE", "/real/xdg", "/real/tmp"} {
 		assert.NotContains(t, env, bad)
 	}
+}
+
+// The variants are prepared from the embedded hub and checked before any
+// pass: a variant that breaks a workflow of the cases stops the run.
+func TestPrepareEvalVariants(t *testing.T) {
+	work := t.TempDir()
+	cases := []*evalrun.Case{{ID: "S6", Workflow: "debug"}}
+	vs, err := evalrun.ParseVariants([]string{"base", "sans-23=-skill:debugger-phase-2-3"})
+	require.NoError(t, err)
+	var log bytes.Buffer
+	require.NoError(t, prepareEvalVariants(vs, cases, work, &log))
+	assert.Equal(t, filepath.Join(work, "variants", "base"), vs[0].Hub)
+	assert.FileExists(t, filepath.Join(vs[0].Hub, "skills", "quality", "debugger-phase-2-3.md"))
+	assert.NoFileExists(t, filepath.Join(vs[1].Hub, "skills", "quality", "debugger-phase-2-3.md"))
+	assert.Contains(t, log.String(), "debugger-phase-2-3")
+
+	vs, err = evalrun.ParseVariants([]string{"base", "sans-mode=-skill:orchestrator-dev-feedback-mode"})
+	require.NoError(t, err)
+	err = prepareEvalVariants(vs, []*evalrun.Case{{ID: "S9", Workflow: "review-feedback"}}, work, &log)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "sans-mode")
 }

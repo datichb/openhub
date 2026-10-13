@@ -482,14 +482,22 @@ func skillMatches(got, want string) bool {
 
 func checkSkillBefore(a Assertion, evs []sessionsvc.TraceEvent) (pass bool, detail string) {
 	anchor := anchorIndex(a.Before, evs)
-	first := -1
+	first, failed := -1, 0
 	for i, e := range evs {
-		if e.Kind == sessionsvc.TraceSkill && skillMatches(e.Skill, a.Skill) && (a.Agent == "" || e.Agent == a.Agent) {
-			first = i
-			break
+		if e.Kind != sessionsvc.TraceSkill || !skillMatches(e.Skill, a.Skill) || (a.Agent != "" && e.Agent != a.Agent) {
+			continue
 		}
+		// A load that failed (unknown skill, refused) does not count.
+		if e.Denied || e.Error != "" || e.Status == "failed" {
+			failed++
+			continue
+		}
+		first = i
+		break
 	}
 	switch {
+	case first < 0 && failed > 0:
+		return false, fmt.Sprintf("skill never loaded (%d failed attempt(s))", failed)
 	case first < 0:
 		return false, "skill never loaded"
 	case anchor < 0:

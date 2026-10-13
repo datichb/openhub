@@ -112,6 +112,8 @@ embed-bd:
 # (S1,S2), OH_EVAL_PARALLEL passes at the same time, OH_EVAL_BUDGET_TOTAL cap
 # of the whole run. OH_EVAL_RECORD=1 records the reference measure
 # (OH_EVAL_NOTE: its note); OH_EVAL_OUT keeps the traces and reports there.
+# OH_EVAL_VARIANTS compares versions of the hub, separated by spaces, the
+# first one being the reference (e.g. "base sans-23=-skill:debugger-phase-2-3").
 OH_EVAL_REPS ?= 1
 EVAL_BASELINE := internal/evalrun/testdata/evals/baseline.json
 
@@ -124,4 +126,5 @@ test-eval:
 		$(if $(OH_EVAL_BUDGET_TOTAL),--budget-total $(OH_EVAL_BUDGET_TOTAL)) \
 		$(if $(OH_EVAL_OUT),--out $(OH_EVAL_OUT)) \
 		$(if $(OH_EVAL_NOTE),--note "$(OH_EVAL_NOTE)") \
+		$(foreach v,$(OH_EVAL_VARIANTS),--variant '$(v)') \
 		$(if $(OH_EVAL_RECORD),--record-baseline $(EVAL_BASELINE))

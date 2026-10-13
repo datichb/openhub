@@ -52,7 +52,7 @@ oh skill check [--json]
 Measures the behaviour of the shipped workflows with a real model, before and after a content change. Each case of `evals/<workflow>/<case>/` describes a session (workflow, mode, inputs, Beads tickets), a fixture (the starting project), optional hidden tests and the assertions checked on the session trace ([`oh session trace`](cli-sessions.en.md#oh-session-trace)). The case format is described in [`evals/README.en.md`](../../evals/README.en.md).
 
 ```
-oh eval [--case S1,S2] [--reps N] [--models m1,m2] [--budget USD] [--parallel N] [--budget-total USD] [--out <dir>] [--baseline <file>] [--record-baseline <file>] [--list] [--strict]
+oh eval [--case S1,S2] [--reps N] [--models m1,m2] [--budget USD] [--parallel N] [--budget-total USD] [--out <dir>] [--baseline <file>] [--record-baseline <file>] [--variant <name>[=<definition>]]… [--rescore <dir>] [--list] [--strict]
 ```
 
 Each pass runs isolated: a temporary `OH_HOME` and `HOME` (your sessions, database, keychain and daemon are never touched), a throwaway clone of the fixture, a dedicated oh daemon. The session runs without interface; its checkpoints, permissions and questions get the answers written in the case, through the oh decision API (`answers.wiki`: `accept`, `refuse` or `pending` first decides the wiki proposals on the card of a commit checkpoint). Once the session is done (idle with no decision waiting), oh reads its trace, copies the hidden tests over the clone and checks the assertions.
@@ -62,7 +62,7 @@ Each pass runs isolated: a temporary `OH_HOME` and `HOME` (your sessions, databa
 | `ran` | A shell command ran (before an event with `before`, or never with `absent`); refused calls do not count |
 | `checkpoint_order` | The checkpoints are reached in this order |
 | `no_question_in_subagent` | No subagent (or those of `agents`) calls the `question` tool; `include_entry` also checks the entry agent |
-| `skill_loaded_before` | A skill is loaded (before an event with `before`) |
+| `skill_loaded_before` | A skill is loaded (before an event with `before`); a failed load (skill missing from the bundle) does not count |
 | `changed_within` | The clone changed only within `paths` (`max_files`, `min_files`; each pattern of `include` matches at least one changed file; nothing at all without parameter) |
 | `called` | A tool was called (pattern of `tool`, for instance `*wiki/propose`; before an event with `before`, or never with `absent`, restricted to `agent`); refused calls do not count |
 | `hidden_tests` | The hidden tests pass on the clone |
@@ -91,9 +91,12 @@ A pass stopped by a provider rate limit (Bedrock throttling: `ThrottlingExceptio
 | `--keep` | bool | Keep the work directories of the passes |
 | `--list` | bool | List the cases without running anything |
 | `--strict` | bool | Exit with code 1 when a pass fails |
-| `--rescore` | string | Check the assertions again on the traces of a previous run (its `--out` directory), without calling a model; `changed_within` and `hidden_tests` keep their result |
+| `--rescore` | string | Check the assertions again on the traces of a previous run (its `--out` directory), without calling a model; `changed_within` and `hidden_tests` keep their result; the variants and their comparison are computed again |
+| `--variant` | string, repeatable | Hub variant: `name` (embedded hub), `name=-skill:<id>` (without this skill), `name=<hub directory>[,-skill:<id>…]`; the first one is the reference of the verdict. Not with `--record-baseline` |
 
-From `cli/`: `make test-eval` (one repetition), `make test-eval OH_EVAL_REPS=3`, `make test-eval OH_EVAL_REPS=3 OH_EVAL_PARALLEL=4 OH_EVAL_BUDGET_TOTAL=5` (four passes at a time, $5 at most), or `make test-eval OH_EVAL_REPS=3 OH_EVAL_RECORD=1` to record the reference measure again (`cli/internal/evalrun/testdata/evals/baseline.json`). The tests of `go test ./...` never call a model.
+**Hub variants** (`--variant`, two or more): every case runs with every variant, to measure the effect of a content change, a skill for instance. `-skill:<id>` (name or category/name) removes the file of the skill and its mentions in `skills` and `native_skills` of the agents' frontmatter; the body of the agents and skills is not rewritten. A `<hub directory>` holds `agents/`, `skills/`, `workflows/` (and `permissions/`), for example the repository root (`--variant repo=..`, without `make sync-content`). Before any pass, the hub of each variant is checked: skill catalogue (errors of `oh skill check`), validation of the workflows of the cases and composition of their bundle; a variant that breaks the hub stops the evaluation with the list of errors. Each pass installs the hub of its variant in its temporary `OH_HOME`. The repetitions alternate the variants (case, model, repetition, variant), `--parallel` and `--budget-total` cover the whole run, and the traces go to `passes/<case>/<variant>/<model>/<n>/`. The report adds a « Variante » column and a « Comparaison avec la référence » section: per case, pass rate, mean cost and duration of each variant, gap with the reference and verdict (`gain`, `no_gain`, `ambiguous`, `incomplete` in `report.json`); the same comparison without the `skill_loaded_before` assertions (« Résultat hors chargement des skills », `outcome` in `report.json`), then a verdict per variant over every case and the pass rate of each assertion in both variants. The rule is described in [`evals/README.en.md`](../../evals/README.en.md#comparing-with-and-without-a-skill).
+
+From `cli/`: `make test-eval` (one repetition), `make test-eval OH_EVAL_REPS=3`, `make test-eval OH_EVAL_REPS=3 OH_EVAL_PARALLEL=4 OH_EVAL_BUDGET_TOTAL=5` (four passes at a time, $5 at most), `make test-eval OH_EVAL_REPS=3 OH_EVAL_CASES=S6 OH_EVAL_VARIANTS="base without-23=-skill:debugger-phase-2-3"` (with and without a skill), or `make test-eval OH_EVAL_REPS=3 OH_EVAL_RECORD=1` to record the reference measure again (`cli/internal/evalrun/testdata/evals/baseline.json`). The tests of `go test ./...` never call a model.
 
 ---
 

@@ -145,6 +145,16 @@ func TestAssertions(t *testing.T) {
 		ev(sessionsvc.TraceSkill, func(e *sessionsvc.TraceEvent) { e.Agent, e.Skill = "debugger", "debugger-phase-2-3" }),
 	}}
 	assert.False(t, one(t, Assertion{Type: AssertSkillLoadedBefore, Skill: "debugger-phase-2-3", Before: &Anchor{Text: `#+[^\n]*Phase [23]`}}, late).Pass, "loaded after its phase")
+	// A load that failed (skill absent from the bundle) is not a load.
+	missing := Evidence{Events: []sessionsvc.TraceEvent{
+		ev(sessionsvc.TraceSkill, func(e *sessionsvc.TraceEvent) {
+			e.Agent, e.Skill, e.Status, e.Error = "auditor", "auditor-phase-3", "failed", "Unable to load skill auditor-phase-3"
+		}),
+		ev(sessionsvc.TraceSubagent, func(e *sessionsvc.TraceEvent) { e.Agent, e.Subagent = "auditor", "auditor-subagent" }),
+	}}
+	res := one(t, Assertion{Type: AssertSkillLoadedBefore, Skill: "auditor-phase-3", Before: &Anchor{Subagent: "auditor-subagent"}}, missing)
+	assert.False(t, res.Pass)
+	assert.Equal(t, "skill never loaded (1 failed attempt(s))", res.Detail)
 }
 
 func TestHiddenTestsAssertion(t *testing.T) {
