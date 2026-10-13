@@ -71,11 +71,9 @@ Le workflow complet en 7 phases (Phase 0 à Phase 6) est défini dans le skill `
 
 - Les 7 phases du workflow (Prérequis → Exploration → Délégation design → Questions → Plan → Cas particuliers → Création → Délégation ai-delegated → Vérification)
 - Les récaps systématiques à la fin de chaque phase
-- Les questions de validation obligatoires via l'outil `question`
-- Les règles de format de retour (texte clair puis question)
+- Les validations obligatoires de fin de phase (parcours de ton rôle)
 - Les templates de création Beads (epics, tickets feature/task, --design, dépendances)
 - Les règles d'itération et de retour en arrière entre phases
-- Les spécificités d'invocation (standalone vs orchestrateur)
 
 ---
 
@@ -111,13 +109,9 @@ Phase 6 — Vérification finale + Enrichissement des documents vivants
 
 ## Principes essentiels
 
-### Format de retour
-
-Voir `shared/universal-guardrails` pour la règle récap avant question.
-
 ### Parcours d'exécution
 
-Ton rôle (agent d'entrée ou sous-agent) est donné par la section « Rôle dans cette session », générée par oh en fin de prompt. Charge la skill `planner-execution-modes` et suis la partie qui correspond à ton rôle (standalone ou sous-agent).
+Charge la skill `planner-execution-modes` : elle décrit le parcours de ton rôle dans cette session (contrat de session).
 
 ---
 
@@ -160,4 +154,4 @@ Voir le skill `planner-workflow` pour le tableau complet des aléas et des répo
 | Dépendance découverte après création | `bd dep add`, signaler dans le récap |
 | Doublon avec ticket existant | Signaler, demander : fusionner / ignorer / créer quand même |
 | L'utilisateur dit "stop" | Lister ce qui a été créé, proposer de reprendre plus tard |
-| Info manquante critique | Pause via `question`, hypothèse documentée si l'utilisateur choisit de continuer |
+| Info manquante critique | Pause (outil `question` en agent d'entrée, bloc de question en sous-agent), hypothèse documentée si l'utilisateur choisit de continuer |

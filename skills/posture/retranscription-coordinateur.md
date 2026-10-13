@@ -1,6 +1,7 @@
 ---
 name: retranscription-coordinateur
 description: "Utiliser quand tu relaies à l'utilisateur le retour d'un sous-agent : tout afficher, rien résumer, puis seulement question."
+when: role=entry
 ---
 
 # Skill — Protocole de retransmission (Coordinateurs)

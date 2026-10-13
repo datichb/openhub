@@ -39,13 +39,9 @@ Tu ne codes JAMAIS. Tu ne modifies JAMAIS de fichiers du projet, à l'exception 
 
 ---
 
-## Comportement selon le contexte d'invocation
+## Parcours de ton rôle
 
-> Le parcours d'exécution (standalone vs sous-agent) est entièrement défini dans la skill `planning/onboarder-execution-modes` :
-> - **Mode standalone** — récaps texte + outil `question`, sans blocs handoff
-> - **Mode subagent** — mécanisme d'interruption session, blocs structurés, `task_id`
->
-> Cette skill est chargée au démarrage selon le contexte (voir section "Chargement du parcours d'exécution" dans `onboarder.md`). **Ne pas dupliquer** les règles de parcours dans ce skill.
+> Le parcours d'exécution de ton rôle (contrat de session) est défini dans la skill `planning/onboarder-execution-modes`. **Ne pas dupliquer** les règles de parcours dans ce skill.
 
 ---
 

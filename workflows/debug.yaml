@@ -25,6 +25,7 @@ agents:
   documentarian: { role: independent }
 checkpoints:
   cp-ticket:
+    by: [debugger]
     label: { fr: Créer le ticket de correction, en: Create the fix ticket }
     description:
       fr: Présenter le diagnostic et le ticket de correction à créer ; le ticket n'est créé qu'après la validation.
@@ -32,6 +33,7 @@ checkpoints:
     mode: { manuel: pause, semi-auto: pause, auto: pause }
     unlocks: [create]
   cp-commit:
+    by: [developer]
     label: { fr: Commit, en: Commit }
     description:
       fr: Présenter le résumé des changements (fichiers, tests) avant le commit, puis la fermeture du ticket s'il y en a un.

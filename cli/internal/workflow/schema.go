@@ -159,6 +159,13 @@ type Spec struct {
 	Limits  *Limits      `yaml:"limits,omitempty"`
 	// Preconditions are checked before launch, in declaration order.
 	Preconditions OrderedMap[Precondition] `yaml:"preconditions,omitempty"`
+
+	// L3 (schema_contract.go): session contract.
+
+	// Headless marks a session nobody follows (no interface: brief-enrich):
+	// no agent asks a question, a missing piece of information goes in its
+	// output.
+	Headless bool `yaml:"headless,omitempty"`
 }
 
 // Entry selects the agent the session starts on.
@@ -274,6 +281,14 @@ type CheckpointSpec struct {
 	// in the mode (auto, conditional) pauses when one condition holds. It
 	// never removes a pause.
 	When *CheckpointWhen `yaml:"when,omitempty"`
+
+	// L3 (schema_contract.go): session contract.
+
+	// By lists the agents that pass the checkpoint (workflow members). Each
+	// agent's session contract names only its own checkpoints (CP-R11), and
+	// oh warns when another agent passes it. Empty: deduced from the
+	// delegation graph (CheckpointBy).
+	By []string `yaml:"by,omitempty"`
 }
 
 // UnlockOp is an operation a checkpoint unlocks.

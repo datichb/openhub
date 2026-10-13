@@ -2,6 +2,7 @@
 name: reviewer-handoff-format
 description: "Utiliser en fin de review invoquée par un coordinateur : bloc « Retour vers <appelant> » (verdict, corrections)."
 annexes: [templates/reviewer-handoff-block.md]
+when: role=subagent | calls=reviewer
 ---
 
 # Skill — Format de handoff reviewer → orchestrator-dev
@@ -41,6 +42,7 @@ Il est injecté dans le `reviewer` et dans `orchestrator-dev` — producteur et 
 
 ---
 
+<!-- oh:when agent=reviewer -->
 ## Règles pour le producteur (reviewer)
 
 - **Toujours inclure `### Rapport complet`** même si la review ne trouve aucun problème (review propre) — le rapport minimal comporte `### Walkthrough`, `### Résumé`, `### Périmètre et contexte`, `### Vérification`, `### Couverture des critères d'acceptance` (si ticket Beads avec critères disponible) et `### ✅ Points positifs`
@@ -49,9 +51,11 @@ Il est injecté dans le `reviewer` et dans `orchestrator-dev` — producteur et 
 - **`### Routing recommandé`** détermine vers quel developer le ticket est renvoyé — `domaine-security` uniquement pour les problèmes de sécurité nécessitant une expertise spécifique
 - **`### Questions bloquantes`** (obligatoire) — liste numérotée des questions nécessitant une réponse avant de poursuivre. Si aucune : écrire `Aucune.`. Le coordinateur **doit** résoudre ces questions avant de continuer le workflow.
 - Ne jamais résumer le rapport dans `### Rapport complet` — il doit être exhaustif
+<!-- /oh:when -->
 
 ---
 
+<!-- oh:when calls=reviewer -->
 ## Règles pour le consommateur (orchestrator-dev)
 
 ### À la réception du bloc `## Retour vers orchestrator-dev` du reviewer
@@ -71,3 +75,4 @@ Il est injecté dans le `reviewer` et dans `orchestrator-dev` — producteur et 
 > ❌ Ne jamais passer au cp-2 sans `### Rapport complet` dans le bloc — le rapport est nécessaire pour la décision utilisateur. <!-- capability: optional -->
 > ❌ Ne jamais résumer le rapport quand il est transmis à l'orchestrator — le copier tel quel.
 > ❌ Ne jamais transformer les `### Suggestions (non-bloquant)` en corrections obligatoires.
+<!-- /oh:when -->

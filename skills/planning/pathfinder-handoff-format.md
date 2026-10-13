@@ -1,6 +1,7 @@
 ---
 name: pathfinder-handoff-format
 description: "Utiliser pour rédiger le rapport pathfinder et son bloc « Retour vers <appelant> » (direct ou escalade-planner)."
+when: role=subagent | calls=pathfinder
 ---
 
 # Skill — Pathfinder Handoff Format
@@ -221,12 +222,14 @@ En standalone, le rapport est produit directement (sans le bloc `## Retour vers 
 
 ---
 
+<!-- oh:when agent=pathfinder -->
 ## Règles pour le producteur (pathfinder)
 
 - **En mode sous-agent** : le rapport complet est DANS le bloc `### Rapport pathfinder complet`.
 - **En standalone** : produire le rapport directement (sans le bloc `## Retour vers orchestrator`)
 - Le rapport intégré dans `### Rapport pathfinder complet` suit exactement le format défini ci-dessus
 - Ne jamais résumer le rapport dans le bloc — il doit être complet et exhaustif
+<!-- /oh:when -->
 
 ---
 
@@ -301,6 +304,7 @@ Accompagne toujours un `## Retour intermédiaire vers orchestrator`. Permet à l
 
 ---
 
+<!-- oh:when calls=pathfinder -->
 ## Règles pour le consommateur (orchestrator)
 
 **Spécificités pathfinder à vérifier :**
@@ -310,3 +314,4 @@ Accompagne toujours un `## Retour intermédiaire vers orchestrator`. Permet à l
 - **Si `direct`** : transmettre le rapport au `orchestrator-dev` comme contexte.
 - **Si `escalade-planner`** : transmettre au planner la section `## 📦 Handoff vers planner` du rapport.
 - **Statut** : `reconnaissance-complète` → relais normal · `reconnaissance-partielle` → signaler qu'une clarification est en attente.
+<!-- /oh:when -->

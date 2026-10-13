@@ -1,11 +1,12 @@
 ---
 name: designer-standalone
 description: "Utiliser quand le designer est l'agent d'entrée : checkpoints par question, enrichissement du wiki proposé."
+when: role=entry
 ---
 
 # Skill — Parcours Designer Standalone
 
-> Partie à suivre quand tu es **agent d'entrée** ou lancé directement par l'utilisateur (section « Rôle dans cette session » de ton prompt, générée par oh).
+> Partie de l'agent d'entrée (tu échanges avec l'utilisateur).
 
 ## Principe fondamental
 

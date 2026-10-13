@@ -110,6 +110,9 @@ type Call struct {
 	// Reports are the reports (rp-…) the agent cites; those filed since the
 	// last checkpoint are attached to its card anyway.
 	Reports []string `json:"reports,omitempty"`
+	// Agent is the agent oh saw make the call (set by the daemon, never
+	// read from the request; "" = unknown).
+	Agent string `json:"-"`
 }
 
 // Result answers a workflow_checkpoint call (the tool already let it run:
@@ -128,6 +131,9 @@ type Result struct {
 	Verify string `json:"verify,omitempty"`
 	// Unobserved lists the evidence oh did not observe (R3, E2).
 	Unobserved []string `json:"unobserved,omitempty"`
+	// Warning tells the agent it passed a checkpoint of another agent (L3,
+	// `by:`).
+	Warning string `json:"warning,omitempty"`
 }
 
 // Output is a typed value declared by workflow_outputs (O7).
@@ -216,6 +222,7 @@ func (s *Service) Reached(ctx context.Context, sessionID string, call Call) (Res
 		return Result{}, fmt.Errorf("%w %q (%s)", ErrUnknownCP, call.ID, strings.Join(checkpointIDs(wf), ", "))
 	}
 	res := Result{ID: c.ID, Label: c.LabelFor(i18n.Locale()), Behavior: c.Behavior(sess.Mode)}
+	res.Warning = byWarning(sess.ID, c, call.Agent)
 	if s.States != nil {
 		ap, err := s.pass(ctx, sess, c)
 		if err != nil {

@@ -10,10 +10,12 @@ description: "Utiliser à chaque commande shell et avant chaque question : comma
 Tu ne lances jamais `git push` sous aucune forme, option ou alias.
 Si un push est nécessaire, l'indiquer à l'utilisateur qui l'exécutera manuellement.
 
+<!-- oh:when role=entry -->
 ## Ordering : récap → question
 
 À chaque fin de phase ou checkpoint, afficher le récap en texte clair dans la discussion
 AVANT d'appeler l'outil `question`. Ne jamais inverser cet ordre.
+<!-- /oh:when -->
 
 ## Commandes non-terminantes
 

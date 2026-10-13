@@ -2,6 +2,7 @@
 name: developer-handoff-format
 description: "Utiliser en fin d'implémentation invoquée par un coordinateur : bloc « Retour vers <appelant> » (statut, diff, critères)."
 annexes: [templates/developer-handoff-block.md]
+when: role=subagent | calls=developer
 ---
 
 # Skill — Format de handoff developer → orchestrator-dev
@@ -58,6 +59,7 @@ C'est la liste unique des statuts du developer.
 
 ---
 
+<!-- oh:when agent=developer -->
 ## Règles pour le producteur (developer)
 
 - **`### Contexte et décisions`** est le champ qui capture le "pourquoi" — minimum 2 entrées pour toute implémentation non triviale, chaque entrée = choix + raison
@@ -70,9 +72,11 @@ C'est la liste unique des statuts du developer.
 - **Toujours ajouter le label `ready-for-review`** avant de produire ce bloc (sauf si statut = `bloqué` ou `BLOCKED_ARCHITECTURE`)
 - Si statut = `bloqué` : exécuter `bd update <ID> -s blocked` + `bd comments add <ID> "Bloqué par : <raison>"` avant de produire le bloc <!-- capability: relay -->
 - Ne jamais dupliquer dans du texte libre ce qui est déjà dans les champs structurés du bloc
+<!-- /oh:when -->
 
 ---
 
+<!-- oh:when calls=developer -->
 ## Règles pour le consommateur (orchestrator-dev)
 
 ### À la réception du bloc `## Retour vers orchestrator-dev` d'un developer
@@ -97,3 +101,4 @@ C'est la liste unique des statuts du developer.
 > ❌ Ne jamais passer à la review sans avoir reçu le `### Statut` — une implémentation `bloqué` ou `BLOCKED_ARCHITECTURE` ne doit pas être soumise au reviewer.
 > ❌ Ne jamais ignorer les `### Points d'attention` — les transmettre intégralement au reviewer.
 > ❌ Ne jamais transmettre les `**Changements par fichier**` au reviewer à la place d'un vrai diff — toujours passer le nom de branche pour que le reviewer récupère lui-même le diff complet.
+<!-- /oh:when -->

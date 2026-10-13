@@ -1,6 +1,7 @@
 ---
 name: tool-question
 description: "Utiliser avant d'appeler l'outil question (agent d'entrée) : quand l'utiliser, format, jamais pour un checkpoint."
+when: role=entry
 ---
 
 # Skill — Outil `question` (OpenCode)
@@ -34,9 +35,3 @@ description: "Utiliser avant d'appeler l'outil question (agent d'entrée) : quan
 | Ajouter une option "Autre" ou "Personnalisé" (redondant avec la saisie libre auto) | ❌ |
 | Dépasser 5 options par question | ❌ |
 | Poser une question déjà répondue dans la session | ❌ |
-
----
-
-## En sous-agent
-
-Si tu es **sous-agent** (section « Rôle dans cette session » de ton prompt), n'appelle pas `question` : l'utilisateur ne voit pas ces appels. Mets chaque décision dans la section `### Questions bloquantes` de ton bloc de retour (2 à 3 options, la recommandée en premier, avec le contexte qui permet de trancher) ; ton appelant la pose à l'utilisateur.

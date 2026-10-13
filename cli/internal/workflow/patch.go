@@ -128,6 +128,9 @@ func (p *patcher) apply() {
 	if p.has("outputs") {
 		d.Outputs = s.Outputs
 	}
+	if p.has("headless") {
+		d.Headless = s.Headless
+	}
 	p.limits()
 	p.preconditions()
 }
@@ -349,6 +352,9 @@ func (p *patcher) checkpoints() {
 			}
 		}
 		p.checkpointVerify(base, &old, v)
+		if h("by") {
+			old.By = v.By
+		}
 		p.dst.Checkpoints.Set(k, old)
 	}
 }

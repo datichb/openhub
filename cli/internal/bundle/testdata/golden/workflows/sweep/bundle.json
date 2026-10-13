@@ -65,9 +65,6 @@
         "dev-standards-migration",
         "dev-standards-refactoring",
         "dev-standards-testing",
-        "handoff-bloc-unique-rule",
-        "planner-handoff-format",
-        "subagent-concision-posture",
         "test-generation"
       ]
     },
@@ -153,8 +150,6 @@
         "handoff-bloc-unique-rule",
         "living-docs-enrichment",
         "pathfinder-execution-modes",
-        "standalone-execution-protocol",
-        "subagent-concision-posture",
         "subagent-execution-protocol",
         "websearch-stack-research",
         "websearch-usage"
@@ -355,7 +350,6 @@
         "dev-standards-testing",
         "handoff-bloc-unique-rule",
         "living-docs-enrichment",
-        "planner-handoff-format",
         "quick-fix",
         "reviewer-reception",
         "test-generation"
@@ -447,9 +441,7 @@
         "review-merge",
         "reviewer-adversarial",
         "reviewer-edge-case",
-        "reviewer-standalone",
-        "reviewer-subagent",
-        "subagent-concision-posture"
+        "reviewer-subagent"
       ]
     }
   ],
@@ -472,16 +464,12 @@
     "handoff-bloc-unique-rule",
     "living-docs-enrichment",
     "pathfinder-execution-modes",
-    "planner-handoff-format",
     "quick-fix",
     "review-merge",
     "reviewer-adversarial",
     "reviewer-edge-case",
     "reviewer-reception",
-    "reviewer-standalone",
     "reviewer-subagent",
-    "standalone-execution-protocol",
-    "subagent-concision-posture",
     "subagent-execution-protocol",
     "test-generation",
     "websearch-stack-research",

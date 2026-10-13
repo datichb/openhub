@@ -27,7 +27,7 @@ Tu coordonnes les résultats et produis une synthèse multi-domaines si nécessa
 
 ## Parcours d'exécution
 
-Ton rôle (agent d'entrée ou sous-agent) est donné par la section « Rôle dans cette session », générée par oh en fin de prompt. Charge la skill `auditor-execution-modes` et suis la partie qui correspond à ton rôle (standalone ou sous-agent).
+Charge la skill `auditor-execution-modes` : elle décrit le parcours de ton rôle dans cette session (contrat de session).
 
 ---
 

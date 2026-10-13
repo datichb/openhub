@@ -420,7 +420,7 @@ The `task_id` is not a proprietary LLM identifier — it is a **standard OpenCod
 
 ### Execution path loading convention
 
-The path (standalone or sub-agent) is no longer guessed from the prompt: oh appends to every agent of the bundle a generated **« Rôle dans cette session »** section, computed from the workflow graph (`calls:` of the members, entry agent):
+The path (standalone or sub-agent) is no longer guessed from the prompt: oh appends to every agent of the bundle a generated **« Contrat de session »** (session contract) section, computed from the workflow graph (`calls:` of the members, entry agent):
 
 | Position in the workflow | Generated role | Path |
 |--------------------------|----------------|------|
@@ -429,7 +429,7 @@ The path (standalone or sub-agent) is no longer guessed from the prompt: oh appe
 | Reached only through `task` | sub-agent, callers listed; the user does not see its `question` calls | sub-agent (intermediate return and question blocks to the caller, then final return block) |
 | Neither (e.g. `developer` in `debug`, which the user switches to) | launched directly by the user | standalone |
 
-The agents load their path skill from this section. The `[SKILL:<ref>]` markers that some skills still write in a `task` prompt (`[SKILL:reviewer/reviewer-subagent]`, `[SKILL:designer/prototype-protocol]`, `[SKILL:orchestrator/orchestrator-dev-feedback-mode]` of `review-feedback`) name an extra skill to load; they no longer decide the path.
+Role-specific passages are filtered at build time (`when: role=…`, [Variants by role](./skills.en.md#variants-by-role-and-by-session-when)): a sub-agent gets neither the `-standalone` skill nor the standalone part of the `*-execution-modes`, an entry agent no one launches does not get the sub-agent part; only an agent with both roles reads both and decides from its invocation prompt. The `[SKILL:<ref>]` markers that some skills still write in a `task` prompt (`[SKILL:reviewer/reviewer-subagent]`, `[SKILL:designer/prototype-protocol]`, `[SKILL:orchestrator/orchestrator-dev-feedback-mode]` of `review-feedback`) name an extra skill to load; they no longer decide the path.
 
 > **Available path skills:** some agents have two separate skills, others a single `*-execution-modes` skill
 > covering both paths.
@@ -449,7 +449,7 @@ The agents load their path skill from this section. The `[SKILL:<ref>]` markers 
 
 | Aspect | Standalone | From orchestrator |
 |--------|-----------|-------------------|
-| Path skill | `-standalone` | `-subagent` (both chosen from « Rôle dans cette session ») |
+| Path skill | `-standalone` | `-subagent` (chosen at build time from the role of the session contract) |
 | Workflow mode | Set at launch (`oh run … --mode`), `Mode de workflow : <mode>` line of the initial prompt | Passed in the delegation prompt |
 | CP questions | Asked via `question` | `## Question for the orchestrator` block |
 | Global recap | Displayed to the user | Transmitted to the orchestrator |
@@ -471,7 +471,7 @@ The following agents implement the session interruption mechanism when the sub-a
 
 ### Re-invocation with task_id
 
-A re-invocation with `task_id` resumes the child session: the sub-agent keeps its path (its « Rôle dans cette session » section does not change, and a resumption with `task_id` is itself a sub-agent signal for an agent that may also be the entry agent).
+A re-invocation with `task_id` resumes the child session: the sub-agent keeps its path (its session contract does not change, and a resumption with `task_id` is itself a sub-agent signal for an agent that may also be the entry agent).
 
 ```
 task(

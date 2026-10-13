@@ -146,29 +146,6 @@ func callersOf(graph map[string][]string) map[string][]string {
 	return out
 }
 
-// sessionRoleNote tells an agent how it runs in this session, as the
-// workflow graph says: the entry agent talks to the user, an agent only
-// reached through `task` is a subagent (its `question` calls are not seen
-// by the user), an agent that is both decides from its invocation prompt.
-func sessionRoleNote(id, entry string, callers []string) string {
-	by := ""
-	if len(callers) > 0 {
-		by = "`" + strings.Join(callers, "`, `") + "`"
-	}
-	var role string
-	switch {
-	case id == entry && by == "":
-		role = "Tu es l'**agent d'entrée** : tu échanges directement avec l'utilisateur. Suis le parcours standalone (outil `question` pour les validations)."
-	case id == entry:
-		role = "Tu es l'**agent d'entrée** et tu peux aussi être invoqué via l'outil `task` par " + by + ". Si ton prompt vient d'un autre agent (marqueur `[CONTEXTE]`, `[REVIEW:single]` ou reprise avec `task_id`) → parcours sous-agent ; sinon → parcours standalone."
-	case by != "":
-		role = "Tu es **sous-agent** : tu es invoqué via l'outil `task` par " + by + ". L'utilisateur ne voit pas tes appels à l'outil `question` : suis le parcours sous-agent (blocs de retour intermédiaire et de question vers ton appelant, puis bloc de retour final)."
-	default:
-		role = "Tu es lancé directement par l'utilisateur : suis le parcours standalone (outil `question` pour les validations)."
-	}
-	return "\n\n## Rôle dans cette session\n\n> Généré par oh à partir du workflow. " + role + "\n"
-}
-
 // applyWorkflowModes applies `agents.<id>.mode` of the workflow.
 func applyWorkflowModes(agents []sessionspec.AgentDef, spec *workflow.Spec) {
 	if spec == nil {

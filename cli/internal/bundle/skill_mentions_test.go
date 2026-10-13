@@ -55,10 +55,15 @@ func TestShippedWorkflowSkillMentionsResolve(t *testing.T) {
 				}
 			}
 			keep := rootFilter(newSkillLoader(hub, generated), b.Spec.Plugins, b.Spec.MCP, "")
+			envs := bundleWhenEnvs(r.Spec, "", b.Spec)
+			whenLoader := newSkillLoader(hub, generated)
 			check := func(where, agent, text string, mentions func(string, map[string]string) []string) {
 				for _, ref := range mentions(text, index) {
 					if !keep(ref) || bricks.IsStackSkill(ref) {
 						continue // skill of a plugin the workflow does not load (A8), stack skill (detected stack)
+					}
+					if d, err := whenLoader.load(ref); err == nil && !skillWhen(d, envs[agent]) {
+						continue // its when: fails for the agent (L3): named in the absent skills note
 					}
 					id := skillID(ref)
 					if !loadable[agent][id] && !headed[agent][id] {
@@ -84,7 +89,8 @@ func TestShippedWorkflowSkillMentionsResolve(t *testing.T) {
 			for _, a := range b.Spec.Agents {
 				fm, err := bricks.ParseAgentFrontmatter(files[a.ID])
 				require.NoError(t, err)
-				docs, err := loader.closure(keepRoots(fm.Skills, keep), denyList(deny))
+				env := envs[a.ID]
+				docs, err := loader.closureFor(keepRoots(fm.Skills, keep), denyList(deny), func(d *skillDoc) bool { return !skillWhen(d, env) })
 				require.NoError(t, err)
 				for _, d := range docs {
 					assert.True(t, headed[a.ID][d.ID], "agent %s: inlined skill %s has no heading", a.ID, d.ID)

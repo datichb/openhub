@@ -6,19 +6,12 @@ requires: [shared/standalone-execution-protocol, shared/subagent-execution-proto
 
 # Modes d'exécution — Planner
 
-## Détection du mode d'invocation
+Le contrat de session (fin de ton prompt) donne ton rôle : suis la partie de ce rôle.
 
-Le mode est donné par la section « Rôle dans cette session » de ton prompt (générée par oh à partir du workflow) :
-
-- agent d'entrée, ou lancé directement par l'utilisateur → **MODE STANDALONE**
-- sous-agent (invoqué via `task`) → **MODE SUBAGENT**
-- les deux : un prompt venu d'un autre agent (marqueur `[CONTEXTE]`, reprise avec `task_id`) → **MODE SUBAGENT**, sinon **MODE STANDALONE**
-
----
-
+<!-- oh:when role=entry -->
 ## Mode standalone
 
-> Partie à suivre quand tu es **agent d'entrée** ou lancé directement par l'utilisateur (section « Rôle dans cette session » de ton prompt, générée par oh).
+> Partie de l'agent d'entrée (tu échanges avec l'utilisateur).
 
 > **Protocole standalone :** voir skill `shared/standalone-execution-protocol` pour le mode detection, l'ordering recap→question, et la checklist.
 
@@ -179,12 +172,12 @@ Produire uniquement le récapitulatif de planification complet (voir section Pha
 **Selon la réponse à la validation finale :**
 - **C'est bon** → Fin de session
 - **Ajustements** → rester en Phase 6, appliquer les ajustements via `bd update`, re-produire le récap
+<!-- /oh:when -->
 
----
-
+<!-- oh:when role=subagent -->
 ## Mode subagent
 
-> Partie à suivre quand tu es **sous-agent** (section « Rôle dans cette session » de ton prompt, générée par oh) : tu es invoqué via `task` et l'utilisateur ne voit pas l'outil `question`.
+> Partie du sous-agent : tu es invoqué via `task` et l'utilisateur ne voit pas l'outil `question`.
 
 > **Protocole sub-agent :** voir skill `shared/subagent-execution-protocol` pour le mécanisme d'interruption, la checklist, et les erreurs fréquentes.
 
@@ -757,3 +750,4 @@ Phase 6 est le **retour final** — pas de question intermédiaire. Produire dan
 > **Erreurs fréquentes :** voir skill `shared/subagent-execution-protocol`.
 >
 > **Erreur spécifique planner :** utiliser `## Question pour l'orchestrator` en Phase 2 au lieu de `## Question batch pour l'orchestrator` → les N questions sont comprimées en 1.
+<!-- /oh:when -->

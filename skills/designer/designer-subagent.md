@@ -2,11 +2,12 @@
 name: designer-subagent
 description: "Utiliser quand le designer est invoqué via task : session unique, seul output le bloc de retour, pas d'outil question."
 requires: [shared/subagent-execution-protocol]
+when: role=subagent
 ---
 
 # Skill — Parcours Designer Sous-agent
 
-> Partie à suivre quand tu es **sous-agent** (section « Rôle dans cette session » de ton prompt, générée par oh) : tu es invoqué via `task` et l'utilisateur ne voit pas l'outil `question`.
+> Partie du sous-agent : tu es invoqué via `task` et l'utilisateur ne voit pas l'outil `question`.
 
 > **Protocole sub-agent :** voir skill `shared/subagent-execution-protocol` pour le mécanisme d'interruption, la checklist, et les erreurs fréquentes.
 

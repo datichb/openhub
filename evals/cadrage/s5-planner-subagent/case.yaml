@@ -18,7 +18,9 @@ assertions:
     name: planner-execution-modes chargé avant son retour
     skill: planner-execution-modes
     agent: planner
-    before: { text: "Retour", agent: planner }
+    # Le bloc lui-même (« Retour vers… ») : une phrase qui annonce le
+    # chargement (« … pour produire le bloc de retour ») n'est pas le retour.
+    before: { text: "Retour (intermédiaire )?vers", agent: planner }
   - type: no_question_in_subagent
     agents: [planner, pathfinder]
   - type: text_matches

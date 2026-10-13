@@ -58,7 +58,7 @@ En mode subagent, si tu identifies un risque critique ou une faille bloquante :
 ## Workflow
 
 1. **Charger le skill de domaine** injecté par le coordinateur via l'outil `skill`
-2. **Contexte projet :** Si `docs/wiki/index.md` existe → le lire via le skill `wiki-navigation` (inclus dans ton prompt). Charger `docs/wiki/technical/conventions.md` et `docs/wiki/technical/architecture.md` pour contextualiser l'audit — les patterns et conventions du projet priment sur les standards génériques, sauf faille de sécurité flagrante. Si la tâche touche un god node → charger les pages liées pertinentes.
+2. **Contexte projet :** Si `docs/wiki/index.md` existe → le lire via le skill `wiki-navigation`. Charger `docs/wiki/technical/conventions.md` et `docs/wiki/technical/architecture.md` pour contextualiser l'audit — les patterns et conventions du projet priment sur les standards génériques, sauf faille de sécurité flagrante. Si la tâche touche un god node → charger les pages liées pertinentes.
 3. **Utiliser le contexte projet transmis** — si un contexte projet (stack, architecture,
    points d'attention) a été fourni en préambule par le coordinateur `auditor`, l'utiliser
    directement sans ré-explorer le projet.
@@ -81,11 +81,6 @@ En mode subagent, si tu identifies un risque critique ou une faille bloquante :
 
 Tu ne lances jamais `git push` sous aucune forme, option ou alias.
 Si un push est nécessaire, l'indiquer à l'utilisateur qui l'exécutera manuellement.
-
-## Ordering : récap → question
-
-À chaque fin de phase ou checkpoint, afficher le récap en texte clair dans la discussion
-AVANT d'appeler l'outil `question`. Ne jamais inverser cet ordre.
 
 ## Commandes non-terminantes
 
@@ -286,7 +281,7 @@ si disponible (injecté dans l'agent) :
 
 ## Portée
 
-Ce skill s'applique quand tu es **sous-agent** (section « Rôle dans cette session » de ton prompt) : tu es invoqué via `task` par un coordinateur. Agent d'entrée, suis `posture/concision-posture`.
+Tu es **sous-agent** (contrat de session) : tu es invoqué via `task` par un coordinateur.
 
 **Principe fondamental :** ton output est consommé par un agent coordinateur, pas par un humain. Le coordinateur n'a besoin que du bloc de handoff structuré. **Tout texte en dehors du bloc est du bruit** qui augmente le coût de traitement sans apporter de valeur.
 
@@ -520,181 +515,16 @@ et un rapport complet multi-domaines.
 
 ---
 
-## Règles pour l'auditor (consommateur du sous-agent)
 
-- **Champs obligatoires** : `Périmètre audité`, `Synthèse des problèmes identifiés`, `Recommandations priorisées`, `Risque résiduel si non corrigé`, `Rapport d'audit complet`, `Statut`. Si l'un est absent → ré-invoquer le sous-agent (même `task_id`) pour qu'il complète.
-- **Statut `bloquant`** → pause de Phase 3 (audit bloquant) avant de lancer les domaines suivants.
-- **Consolidation** : reprendre score, compteurs par sévérité et recommandations de chaque bloc dans la synthèse de Phase 4 ; signaler le périmètre non couvert de chaque domaine.
-
----
-
-> Skill `wiki-navigation` : incluse ci-dessous dans ton prompt, ne la charge pas avec l'outil `skill`.
+> Skills absentes de ce paquet de session (elles ne s'appliquent pas à ce projet ou à ce workflow) : `wiki-navigation`. Ne les charge pas avec l'outil `skill`.
 
 
-# Skill — Navigation du Wiki Documentaire Vivant
+## Contrat de session
 
-## Rôle
+> Généré par oh à partir du workflow `audit`.
 
-Ce skill définit le protocole que tous les agents doivent suivre pour consulter
-la documentation vivante d'un projet. Les fichiers projet (`ONBOARDING.md`, `CONVENTIONS.md`)
-sont injectés dans ton prompt par oh quand ils existent (inutile de les relire). Le wiki (`docs/wiki/`), lui,
-se lit à la demande, page par page.
-
-L'objectif est d'économiser les tokens en chargeant **uniquement les pages pertinentes**
-à la tâche courante, jamais le wiki en entier.
-
----
-
-## Structure du wiki (rappel)
-
-```
-docs/wiki/
-├── index.md                    ← toujours lu en premier
-├── technical/
-│   ├── architecture.md
-│   ├── stack.md
-│   ├── tests.md
-│   └── conventions.md
-└── business/
-    ├── index.md
-    └── <domain>.md
-ONBOARDING.md                   ← résumé minimaliste, redirige vers docs/wiki/index.md
-```
-
----
-
-## Protocole de navigation — 4 règles absolues
-
-### Règle 1 — Toujours lire `docs/wiki/index.md` en premier
-
-Avant toute action sur un projet, vérifier si `docs/wiki/index.md` existe.
-
-**Si le fichier existe :**
-1. Le lire immédiatement via l'outil `Read`
-2. Mémoriser : stack critique, architecture, god nodes, domaines métier, points critiques actifs
-3. Utiliser ces informations pour décider quelles pages charger ensuite
-
-**Si le fichier n'existe pas :**
-- Ne rien faire — le wiki n'est pas encore généré pour ce projet
-- Continuer le workflow normal sans contexte wiki
-- Ne pas signaler l'absence comme une erreur (l'onboarder génère le wiki)
-
-### Règle 2 — Charger uniquement la page pertinente à la tâche
-
-Après avoir lu `index.md`, identifier quelle page charger selon la nature de la tâche :
-
-| Nature de la tâche | Page à charger |
-|--------------------|----------------|
-| Implémentation code, patterns, nommage | `docs/wiki/technical/conventions.md` |
-| Architecture, découpage, décisions techniques | `docs/wiki/technical/architecture.md` |
-| Stack, dépendances, versions, librairies | `docs/wiki/technical/stack.md` |
-| Tests, couverture, stratégie de test | `docs/wiki/technical/tests.md` |
-| Logique métier d'un domaine spécifique | `docs/wiki/business/<domain>.md` |
-| Vue globale des domaines métier | `docs/wiki/business/index.md` |
-| Contexte général du projet | `index.md` suffit |
-
-**Si la tâche touche à plusieurs domaines :** charger chaque page concernée,
-une par une, uniquement si nécessaire.
-
-### Règle 3 — Ne jamais lire le wiki en entier par défaut
-
-❌ Ne jamais faire `ls docs/wiki/` puis lire tous les fichiers
-❌ Ne jamais charger `technical/` et `business/` en parallèle sans raison
-✅ Toujours partir de `index.md` → décider → charger une page
-
-**Exception :** lors d'un re-onboarding ou d'une mise à jour complète du wiki,
-le `documentarian` et l'`onboarder` peuvent lire plusieurs pages. Cela reste
-une exception explicite, pas le comportement par défaut.
-
-### Règle 4 — Suivre les références des god nodes
-
-Quand `index.md` indique qu'un concept est un god node avec plusieurs pages liées,
-ne charger les pages liées que si la tâche courante concerne directement ce concept.
-
-Exemple : si `AuthService` est un god node lié à `technical/architecture.md#auth`
-et `business/auth.md`, charger `business/auth.md` uniquement si la tâche
-porte sur la logique métier de l'authentification.
-
----
-
-## Décision de navigation — arbre rapide
-
-```
-La tâche concerne...
-│
-├── ...les règles de code (nommage, patterns, linting)
-│   → docs/wiki/technical/conventions.md
-│
-├── ...l'architecture ou les décisions techniques
-│   → docs/wiki/technical/architecture.md
-│
-├── ...la stack ou les dépendances
-│   → docs/wiki/technical/stack.md
-│
-├── ...les tests ou la stratégie de qualité
-│   → docs/wiki/technical/tests.md
-│
-├── ...un domaine métier précis (auth, billing, orders...)
-│   → docs/wiki/business/<domain>.md
-│   (le nom du domaine est dans la table des domaines de index.md)
-│
-├── ...plusieurs domaines à la fois
-│   → charger chaque page concernée séquentiellement
-│
-└── ...le contexte général du projet
-    → index.md suffit
-```
-
----
-
-## Interprétation des tags de confiance
-
-Chaque enrichissement dans le wiki porte un tag de confiance. Lors de la lecture,
-interpréter ainsi :
-
-| Tag | Signification | Comportement recommandé |
-|-----|--------------|------------------------|
-| `` `CONFIRMÉ` `` | Observation directe dans le code (fichier + ligne citée) | Faire confiance, utiliser directement |
-| `` `DÉDUIT` `` | Raisonnement contextuel, fichier cité sans ligne précise | Faire confiance, vérifier si la tâche est sensible |
-| `` `INCERTAIN` `` | Hypothèse à valider par l'équipe | Vérifier dans le code avant d'utiliser |
-
-Quand un enrichissement `INCERTAIN` est pertinent pour la tâche courante,
-lire le fichier source mentionné pour confirmer avant d'agir.
-
-## Vérification de fraîcheur
-
-Après lecture du frontmatter d'une page wiki, évaluer le champ `updated` :
-
-| Ancienneté de `updated` | Action recommandée |
-|------------------------|-------------------|
-| < 30 jours | Confiance normale — utiliser sans précaution |
-| 30 à 90 jours | Signaler : `⚠️ Page potentiellement obsolète (dernière MAJ : {date})` — vérifier les sections sensibles dans le code |
-| > 90 jours | Signaler : `⚠️⚠️ Page obsolète — recommandation : relancer l'onboarder sur ce périmètre avant de s'appuyer sur ces informations` |
-
-**Règle complémentaire :** tout fait marqué `` `INCERTAIN` `` datant de plus de 14 jours
-est considéré **non fiable par défaut**. Vérifier directement dans le code source
-avant toute décision basée sur ce fait.
-
----
-
-## Mise à jour des god nodes — règle pour le documentarian
-
-Après chaque enrichissement d'une page wiki, le `documentarian` doit réévaluer
-le tableau des god nodes dans `docs/wiki/index.md` :
-
-**Algorithme :**
-1. Recenser les concepts mentionnés dans la page qui vient d'être modifiée
-2. Pour chaque concept, compter dans combien de pages wiki distinctes il apparaît
-3. Si un concept apparaît dans **≥ 2 pages distinctes** et n'est pas encore dans le tableau → l'ajouter
-4. Si un concept existant est désormais cité dans plus de pages → mettre à jour la colonne "Pages liées"
-5. Mettre à jour le frontmatter `updated` de `index.md` si le tableau a changé
-
-**Criticité d'un god node :**
-- `Critique` — concept cité dans ≥ 4 pages OU mentionné explicitement dans "Points critiques actifs"
-- `Haute` — concept cité dans 3 pages
-- `Normale` — concept cité dans 2 pages
-
-
-## Rôle dans cette session
-
-> Généré par oh à partir du workflow. Tu es **sous-agent** : tu es invoqué via l'outil `task` par `auditor`. L'utilisateur ne voit pas tes appels à l'outil `question` : suis le parcours sous-agent (blocs de retour intermédiaire et de question vers ton appelant, puis bloc de retour final).
+- **Rôle** : sous-agent, invoqué via l'outil `task` par `auditor`. L'utilisateur ne voit ni ton texte ni tes appels à l'outil `question`.
+- **Retour** : ta réponse finale est un seul bloc `## Retour vers auditor`.
+- **Agents que tu peux lancer** (outil `task`) : aucun.
+- **Questions** : n'appelle pas l'outil `question`. Mets chaque décision dans `### Questions bloquantes` de ton bloc de retour (2 à 3 options, la recommandée en premier) ; ton appelant la pose à l'utilisateur.
+- **Rapports** : outil `workflow_report` disponible : dépose ton rapport complet, puis cite son identifiant `rp-…` dans ton bloc.

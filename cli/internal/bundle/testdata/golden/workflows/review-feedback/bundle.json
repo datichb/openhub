@@ -94,12 +94,9 @@
         "orchestrator-dev-parallel",
         "orchestrator-dev-recap",
         "orchestrator-dev-standalone",
-        "orchestrator-dev-subagent",
         "orchestrator-dev-ticket-workflow",
-        "planner-handoff-format",
         "quick-fix",
         "reviewer-reception",
-        "subagent-concision-posture",
         "test-generation"
       ]
     },
@@ -304,7 +301,6 @@
         "dev-standards-testing",
         "handoff-bloc-unique-rule",
         "living-docs-enrichment",
-        "planner-handoff-format",
         "quick-fix",
         "reviewer-reception",
         "test-generation"
@@ -396,9 +392,7 @@
         "review-merge",
         "reviewer-adversarial",
         "reviewer-edge-case",
-        "reviewer-standalone",
-        "reviewer-subagent",
-        "subagent-concision-posture"
+        "reviewer-subagent"
       ]
     }
   ],
@@ -428,17 +422,13 @@
     "orchestrator-dev-parallel",
     "orchestrator-dev-recap",
     "orchestrator-dev-standalone",
-    "orchestrator-dev-subagent",
     "orchestrator-dev-ticket-workflow",
-    "planner-handoff-format",
     "quick-fix",
     "review-merge",
     "reviewer-adversarial",
     "reviewer-edge-case",
     "reviewer-reception",
-    "reviewer-standalone",
     "reviewer-subagent",
-    "subagent-concision-posture",
     "test-generation"
   ],
   "subagent_graph": {

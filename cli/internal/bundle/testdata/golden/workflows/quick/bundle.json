@@ -186,7 +186,6 @@
       ],
       "skills": [
         "beads-plan",
-        "concision-posture",
         "dev-standards-api",
         "dev-standards-backend",
         "dev-standards-database",
@@ -200,7 +199,6 @@
         "dev-standards-security",
         "dev-standards-security-hardening",
         "dev-standards-testing",
-        "handoff-bloc-unique-rule",
         "living-docs-enrichment",
         "quick-fix",
         "reviewer-reception",
@@ -210,7 +208,6 @@
   ],
   "skills": [
     "beads-plan",
-    "concision-posture",
     "dev-standards-api",
     "dev-standards-backend",
     "dev-standards-database",
@@ -224,7 +221,6 @@
     "dev-standards-security",
     "dev-standards-security-hardening",
     "dev-standards-testing",
-    "handoff-bloc-unique-rule",
     "living-docs-enrichment",
     "quick-fix",
     "reviewer-reception",

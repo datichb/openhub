@@ -238,6 +238,7 @@ func reachableSkills(t *testing.T, hub string, spec *workflow.Spec, b *Bundle, p
 		byID[a.ID] = ar
 	}
 	callers := callersOf(b.Spec.SubagentGraph)
+	envs := bundleWhenEnvs(spec, projectPath, b.Spec)
 	out := map[string][]sessionspec.SkillDef{}
 	for _, a := range b.Spec.Agents {
 		ar := byID[a.ID]
@@ -268,7 +269,8 @@ func reachableSkills(t *testing.T, hub string, spec *workflow.Spec, b *Bundle, p
 			root := queue[0]
 			queue = queue[1:]
 			// An undeliverable mention is not shipped: its closure may fail.
-			docs, err := loader.closure([]string{root}, denyList(nil))
+			env := envs[a.ID]
+			docs, err := loader.closureFor([]string{root}, denyList(nil), func(d *skillDoc) bool { return !skillWhen(d, env) })
 			if err != nil {
 				continue
 			}
@@ -278,7 +280,8 @@ func reachableSkills(t *testing.T, hub string, spec *workflow.Spec, b *Bundle, p
 				}
 				reached[d.ID] = true
 				// Skills named by an on-demand skill it loads reach it too.
-				for _, ref := range selfMentionedSkills(invitingText(string(d.body()), a.ID, agentIDs), index) {
+				body := filterFor(d.Ref, string(d.body()), env)
+				for _, ref := range selfMentionedSkills(invitingText(body, a.ID, agentIDs), index) {
 					if !bricks.IsStackSkill(ref) {
 						queue = append(queue, ref)
 					}
@@ -296,7 +299,7 @@ func reachableSkills(t *testing.T, hub string, spec *workflow.Spec, b *Bundle, p
 
 func TestInlinedSkills(t *testing.T) {
 	body := "agent\n\n---\n\n" + inlinedSkillHeading("a") + "aaaa\n\n---\n\n" + inlinedSkillHeading("b") + "bb" +
-		absentSkillsNote([]string{"c"}) + sessionRoleNote("x", "x", nil) + "\n\n---\n\n# Project instructions\n"
+		absentSkillsNote([]string{"c"}) + contractHeading + " à partir du workflow `w`." + "\n\n---\n\n# Project instructions\n"
 	got := InlinedSkills(body)
 	require.Len(t, got, 2)
 	assert.Equal(t, "a", got[0].ID)

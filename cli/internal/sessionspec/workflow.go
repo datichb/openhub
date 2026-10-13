@@ -126,6 +126,10 @@ type CheckpointDef struct {
 	// passes, and conditions that make it pause.
 	Verify *VerifyDef `json:"verify,omitempty"`
 	When   *WhenDef   `json:"when,omitempty"`
+
+	// L3: the agents that pass the checkpoint (workflow `by:`, or deduced
+	// from the delegation graph); oh warns when another agent passes it.
+	By []string `json:"by,omitempty"`
 }
 
 // Operations a checkpoint unlocks (copied from the oh/v1 schema).

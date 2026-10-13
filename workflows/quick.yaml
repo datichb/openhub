@@ -23,6 +23,7 @@ agents:
   developer: { role: workflow, mode: primary }
 checkpoints:
   cp-commit:
+    by: [developer]
     label: { fr: Commit, en: Commit }
     description:
       fr: Présenter le résumé des changements (fichiers, tests) avant le commit, puis la fermeture du ticket s'il y en a un.

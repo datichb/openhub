@@ -23,7 +23,8 @@ Avec une équipe active (espace solo compris), il applique aussi la règle `unkn
 | `name_mismatch` | erreur | `name:` différent du nom du fichier |
 | `invalid_name` | erreur | `name:` de plus de 64 caractères ou pas en kebab-case (minuscules, chiffres, tirets simples) |
 | `long_description` | erreur | `description:` de plus de 200 caractères (limite du catalogue du hub ; avertissement pour une skill du catalogue d'équipe, erreur au-delà de 1024, limite du standard Agent Skills) |
-| `unknown_key` | erreur | Clé de frontmatter qui n'est ni une clé Agent Skills (`name`, `description`, `license`, `compatibility`, `metadata`, `allowed-tools`) ni une clé du hub (`requires`, `annexes`, `plugin`, `mcp`) |
+| `unknown_key` | erreur | Clé de frontmatter qui n'est ni une clé Agent Skills (`name`, `description`, `license`, `compatibility`, `metadata`, `allowed-tools`) ni une clé du hub (`requires`, `annexes`, `plugin`, `mcp`, `when`) |
+| `invalid_when` | erreur | Condition `when:` ou marqueurs `<!-- oh:when … -->` invalides : clé ou rôle inconnu, marqueur qui n'est pas seul sur sa ligne, blocs non équilibrés |
 | `missing_annex` | erreur | `annexes:` nomme un fichier introuvable |
 | `no_description` | avertissement | `description:` absente |
 | `legacy_bucket` | avertissement | Champ `bucket:` obsolète |

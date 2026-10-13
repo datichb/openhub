@@ -1,6 +1,7 @@
 ---
 name: audit-handoff-format
 description: "Utiliser en fin d'audit de domaine pour produire le bloc « Retour vers auditor » (sous-agent) ou le lire (auditor)."
+when: role=subagent | calls=auditor-subagent
 ---
 
 # Skill — Format de handoff d'audit
@@ -115,6 +116,7 @@ et un rapport complet multi-domaines.
 
 ---
 
+<!-- oh:when agent=auditor-subagent -->
 ## Règles pour le producteur (auditor-subagent)
 
 - **Toujours inclure `### Rapport d'audit complet`** même si aucun problème n'est identifié — le rapport documente le périmètre audité et les bonnes pratiques observées
@@ -122,11 +124,14 @@ et un rapport complet multi-domaines.
 - **Toujours renseigner le `### Risque résiduel`** — même si nul, l'indiquer explicitement
 - Si aucun problème n'est identifié, renseigner chaque section avec la mention explicite correspondante
 - Ne jamais minimiser les preuves ou chemins d'exploitation dans le rapport
+<!-- /oh:when -->
 
 ---
 
+<!-- oh:when calls=auditor-subagent -->
 ## Règles pour l'auditor (consommateur du sous-agent)
 
 - **Champs obligatoires** : `Périmètre audité`, `Synthèse des problèmes identifiés`, `Recommandations priorisées`, `Risque résiduel si non corrigé`, `Rapport d'audit complet`, `Statut`. Si l'un est absent → ré-invoquer le sous-agent (même `task_id`) pour qu'il complète.
 - **Statut `bloquant`** → pause de Phase 3 (audit bloquant) avant de lancer les domaines suivants.
 - **Consolidation** : reprendre score, compteurs par sévérité et recommandations de chaque bloc dans la synthèse de Phase 4 ; signaler le périmètre non couvert de chaque domaine.
+<!-- /oh:when -->

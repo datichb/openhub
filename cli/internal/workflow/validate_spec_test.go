@@ -154,6 +154,10 @@ func TestValidate_Rules(t *testing.T) {
 		{"checkpoint condition", "risk: write\ncheckpoints:\n  cp-1: { mode: { manuel: pause, semi-auto: conditional, auto: pause } }\n", "checkpoint_condition_missing", "checkpoints.cp-1.mode.semi-auto", SeverityError},
 		{"checkpoint mode missing", "risk: write\ncheckpoints:\n  cp-1: { mode: { manuel: pause } }\n", "checkpoint_mode_missing", "checkpoints.cp-1.mode", SeverityWarning},
 		{"checkpoint remote", "risk: write\ncheckpoints:\n  cp-1: { remote: later, mode: { manuel: pause, semi-auto: pause, auto: pause } }\n", "enum_invalid", "checkpoints.cp-1.remote", SeverityError},
+		// session contract (L3)
+		{"checkpoint by unknown", "risk: write\ncheckpoints:\n  cp-1: { by: [ghost], mode: { manuel: pause, semi-auto: pause, auto: pause } }\n", "checkpoint_by_unknown", "checkpoints.cp-1.by[0]", SeverityError},
+		{"checkpoint by duplicate", "risk: write\ncheckpoints:\n  cp-1: { by: [conductor, conductor], mode: { manuel: pause, semi-auto: pause, auto: pause } }\n", "checkpoint_by_duplicate", "checkpoints.cp-1.by[1]", SeverityWarning},
+		{"headless pause", "risk: write\nheadless: true\ncheckpoints:\n  cp-1: { mode: { manuel: auto, semi-auto: pause, auto: auto } }\n", "headless_checkpoint_pause", "checkpoints.cp-1", SeverityWarning},
 		// modes
 		{"mode default", "risk: write\nmodes: { default: auto, allowed: [manuel] }\n", "mode_default_not_allowed", "modes.default", SeverityError},
 		{"mode duplicate", "risk: write\nmodes: { allowed: [manuel, manuel] }\n", "duplicate_entry", "modes.allowed[1]", SeverityError},

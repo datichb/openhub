@@ -134,7 +134,7 @@ The frontmatter accepts two kinds of keys only:
 | Kind | Keys | In the delivered `SKILL.md` |
 |------|------|-----------------------------|
 | [Agent Skills](https://agentskills.io/specification) keys | `name`, `description`, `license`, `compatibility`, `metadata`, `allowed-tools` | Kept |
-| Hub keys, read by oh | `requires`, `annexes`, `plugin`, `mcp` | Removed |
+| Hub keys, read by oh | `requires`, `annexes`, `plugin`, `mcp`, `when` | Removed |
 
 Any other key (`bucket:` aside, reported as obsolete) is an `unknown_key` **error** of `oh skill check`: remove it, or move the information into the body. The rule also applies to the skills of the team catalogue (`catalog/skills/`), where `extends:` is allowed too. Limits of the Agent Skills specification, also errors:
 
@@ -142,6 +142,8 @@ Any other key (`bucket:` aside, reported as obsolete) is an `unknown_key` **erro
 - `description:` — at most 200 characters for the hub (`long_description`; a warning for the team catalogue; 1024 stays the standard limit). It says **when** to load the skill: open with « Utiliser quand… » (or « Utiliser pour… », « Utiliser en phase… »), otherwise a `description_not_trigger` warning.
 
 `plugin: <id>` ships the skill only when the workflow loads that plugin (`plugins:`); `mcp: <server>` ships it only when the session has that MCP server (tracker adapters: `mcp: gitlab` for `adapters/gitlab-*`, `mcp: github` for `adapters/github-*` — an agent may list both adapters, only the one of the configured tracker is shipped; team skills: `mcp: team`).
+
+`when: <condition>` and the `<!-- oh:when … -->` / `<!-- /oh:when -->` blocks reserve a skill or a passage for some agents of the session (role `entry` or `subagent`, producer `agent=` or consumer `calls=` of a shared format, available tools and servers): see [Variants by role and by session](../architecture/skills.en.md#variants-by-role-and-by-session-when). Prefer one block per role to a sentence asking the model to guess its role: the [session contract](../architecture/agents.en.md) gives it, and each agent reads only its branch. A sub-agent block never calls `question`.
 
 ### Templates and annexes (`annexes:`)
 

@@ -72,6 +72,7 @@ agents:
   reviewer: { role: workflow, mode: subagent, after: cp-plan }
 checkpoints:
   cp-plan:
+    by: [conductor]
     label: { fr: Valider le découpage, en: Approve the decomposition }
     description:
       fr: Présenter la liste des sous-tâches (description, périmètre de fichiers disjoint, domaine du developer, parallélisable ou non) avant toute exécution.
@@ -79,6 +80,7 @@ checkpoints:
     mandatory: true
     mode: { manuel: pause, semi-auto: pause, auto: pause }
   cp-commit:
+    by: [conductor]
     label: { fr: Commit du sweep, en: Commit the sweep }
     description:
       fr: Présenter le diff, le résultat de la vérification (PASS ou FAIL ; un summary qui commence par VÉRIFICATION ÉCHOUÉE si elle échoue encore) et la review avant le commit (un commit, ou un par sous-tâche à la suite).
@@ -88,6 +90,7 @@ checkpoints:
     unlocks: [commit]
     verify: { from: stack, expect: pass }
   cp-recap:
+    by: [conductor]
     label: { fr: Récap du sweep, en: Sweep recap }
     description:
       fr: Résultat par sous-tâche, vérification, review et commits.

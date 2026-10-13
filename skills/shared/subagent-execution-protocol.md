@@ -1,6 +1,7 @@
 ---
 name: subagent-execution-protocol
 description: "Utiliser quand tu es sous-agent d'un agent à phases : interruption de session, checklist, erreurs fréquentes."
+when: role=subagent
 ---
 
 # Protocole d'exécution — mode sub-agent

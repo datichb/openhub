@@ -88,8 +88,7 @@
         "reviewer-adversarial",
         "reviewer-edge-case",
         "reviewer-standalone",
-        "reviewer-subagent",
-        "subagent-concision-posture"
+        "reviewer-subagent"
       ]
     }
   ],
@@ -112,8 +111,7 @@
     "reviewer-adversarial",
     "reviewer-edge-case",
     "reviewer-standalone",
-    "reviewer-subagent",
-    "subagent-concision-posture"
+    "reviewer-subagent"
   ],
   "subagent_graph": {
     "reviewer": [

@@ -2,6 +2,7 @@
 name: onboarder-handoff-format
 description: "Utiliser en fin d'onboarding invoqué par un coordinateur : bloc « Retour vers <appelant> » avec rapport intégré."
 annexes: [templates/onboarder-handoff-block.md]
+when: role=subagent | calls=onboarder
 ---
 
 # Skill — Format de handoff onboarder → orchestrator
@@ -33,6 +34,7 @@ Il est injecté dans l'`onboarder` et dans l'`orchestrator` — producteur et co
 
 ---
 
+<!-- oh:when agent=onboarder -->
 ## Règles pour le producteur (onboarder)
 
 - **`### Rapport d'onboarding`** doit capturer les observations qualitatives — minimum 3-5 phrases
@@ -42,9 +44,11 @@ Il est injecté dans l'`onboarder` et dans l'`orchestrator` — producteur et co
 - Ce bloc est produit **après** l'écriture des fichiers (ou après refus explicite de les écrire)
 - Ne jamais omettre `### Rapport d'onboarding` — les listes structurées seules ne suffisent pas
 - **`### Questions bloquantes`** (obligatoire) — liste numérotée des questions nécessitant une réponse avant de poursuivre. Si aucune : écrire `Aucune.`. Le coordinateur **doit** résoudre ces questions avant de continuer le workflow.
+<!-- /oh:when -->
 
 ---
 
+<!-- oh:when calls=onboarder -->
 ## Règles pour le consommateur (orchestrator)
 
 **Spécificités onboarder à vérifier :**
@@ -54,3 +58,4 @@ Il est injecté dans l'`onboarder` et dans l'`orchestrator` — producteur et co
 - **Relais à l'utilisateur** : présenter `### Zones d'incertitude` à l'utilisateur pour décision, signaler les éléments 🔴 de `### Dette technique détectée`.
 - **Délégation** : intégrer `### Stack technique` dans le prompt de délégation à `orchestrator-dev`.
 - **Statut** : `contexte-établi` → relais normal · `contexte-partiel` → signaler les incertitudes · `bloqué` → ne pas démarrer la feature.
+<!-- /oh:when -->

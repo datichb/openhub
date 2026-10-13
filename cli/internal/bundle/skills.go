@@ -34,12 +34,13 @@ import (
 //	annexes:  [<path>, …]  files shipped next to the skill (see annexes.go)
 //	plugin:   <id>         shipped only when the workflow loads this plugin
 //	mcp:      <server>     shipped only when the session has this MCP server
+//	when:     <condition>  kept only for the agents it holds for (when.go)
 //
 // The delivered SKILL.md keeps only the Agent Skills spec keys; any other key
 // is reported by CheckSkills.
 
 // hubSkillKeys are frontmatter keys consumed by oh, never delivered to the tool.
-var hubSkillKeys = []string{"requires", "annexes", "plugin", "mcp"}
+var hubSkillKeys = []string{"requires", "annexes", "plugin", "mcp", "when"}
 
 // deliveredSkillKeys are the Agent Skills spec keys, the only ones delivered.
 var deliveredSkillKeys = []string{"name", "description", "license", "compatibility", "metadata", "allowed-tools"}
@@ -66,6 +67,7 @@ type skillFront struct {
 	Annexes     []string `yaml:"annexes"`
 	Plugin      string   `yaml:"plugin"`
 	MCP         string   `yaml:"mcp"`
+	When        string   `yaml:"when"`
 	Bucket      string   `yaml:"bucket"` // legacy (B17), reported by CheckSkills
 }
 
@@ -225,6 +227,12 @@ func denyList(entries []string) skillDenied {
 // A missing or denied root is skipped (missing: warning); a missing or
 // denied requirement and a requirement cycle are errors.
 func (l *skillLoader) closure(roots []string, denied skillDenied) ([]*skillDoc, error) {
+	return l.closureFor(roots, denied, nil)
+}
+
+// closureFor is closure for an agent: a skill (root or requirement) whose
+// `when:` fails (skip) is left out with what only it requires.
+func (l *skillLoader) closureFor(roots []string, denied skillDenied, skip func(*skillDoc) bool) ([]*skillDoc, error) {
 	var out []*skillDoc
 	done := map[string]bool{}
 	onStack := map[string]bool{}
@@ -254,6 +262,10 @@ func (l *skillLoader) closure(roots []string, denied skillDenied) ([]*skillDoc, 
 				return nil
 			}
 			return fmt.Errorf("bundle: skill %s requires %s, which is denied by the workflow", stack[len(stack)-1], ref)
+		}
+		if skip != nil && skip(d) {
+			done[ref] = true
+			return nil
 		}
 		onStack[ref] = true
 		for _, req := range d.Front.Requires {
@@ -399,6 +411,7 @@ const (
 	SkillMissingAnnex       SkillProblemKind = "missing_annex"       // error
 	SkillUndeclaredAnnex    SkillProblemKind = "undeclared_annex"    // warning: referenced in the text, not in annexes:
 	SkillOrphanAnnex        SkillProblemKind = "orphan_annex"        // warning: file of skills/templates/ used by no skill
+	SkillInvalidWhen        SkillProblemKind = "invalid_when"        // error: `when:` or oh:when markers (when.go)
 
 	// SkillNotTrigger is a warning: the description does not open with
 	// « Utiliser … » (when to load the skill), generated skills aside.
@@ -510,6 +523,14 @@ func CheckSkillsWith(hubDir string, opts SkillCheckOptions) ([]SkillProblem, err
 		}
 		if d.Front.Bucket != "" {
 			problems = append(problems, problem(SkillLegacyBucket, ref, d.Front.Bucket))
+		}
+		if w := strings.TrimSpace(d.Front.When); w != "" {
+			if _, err := parseWhen(w); err != nil {
+				problems = append(problems, problem(SkillInvalidWhen, ref, "when: "+err.Error()))
+			}
+		}
+		if _, err := scanWhen(string(d.body())); err != nil {
+			problems = append(problems, problem(SkillInvalidWhen, ref, err.Error()))
 		}
 		for _, k := range d.Keys {
 			if k != "bucket" && !slices.Contains(deliveredSkillKeys, k) && !slices.Contains(hubSkillKeys, k) {

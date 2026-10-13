@@ -103,6 +103,7 @@ Souhaitez-vous adopter ces standards, en modifier certains,
 ou utiliser une structure différente ?
 ```
 
+<!-- oh:when role=entry -->
 ⏸️ Utiliser l'outil `question` avant d'écrire le moindre fichier :
 
 ```
@@ -118,6 +119,10 @@ question({
   }]
 })
 ```
+<!-- /oh:when -->
+<!-- oh:when role=subagent -->
+⏸️ Avant d'écrire le moindre fichier, mets ce choix (standards proposés, ajustements, autre structure) dans `### Questions bloquantes` de ton bloc de retour et arrête-toi.
+<!-- /oh:when -->
 
 ---
 

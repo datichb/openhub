@@ -1,14 +1,10 @@
 ---
 name: standalone-execution-protocol
 description: "Utiliser quand tu es l'agent d'entrée d'un agent à phases : récap puis question, checklist commune."
+when: role=entry
 ---
 
 # Protocole d'exécution — mode standalone
-
-## Détection du mode d'invocation
-
-- Section « Rôle dans cette session » de ton prompt (générée par oh) : sous-agent → **MODE SUBAGENT** (voir skill `shared/subagent-execution-protocol`)
-- Agent d'entrée, ou lancé directement par l'utilisateur → **MODE STANDALONE** (ce protocole)
 
 ## Principe fondamental
 

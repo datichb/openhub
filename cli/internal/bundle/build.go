@@ -17,6 +17,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -167,7 +168,6 @@ func Build(req Request) (*Bundle, error) {
 		)
 	}
 
-	skillRefs := map[string]bool{}
 	loader := newSkillLoader(req.HubDir, generated)
 	denied := denyList(req.DenySkills)
 	// The project is scanned once: stack skills, frontend filter and
@@ -180,18 +180,34 @@ func Build(req Request) (*Bundle, error) {
 	keep := frontendFilter(rootFilter(loader, req.Plugins, req.MCP, ""), req.ProjectPath, signals)
 	mentionIndex := hubSkillIndex(req.HubDir, generated)
 	ids := skillIndex{}
-	callers := callersOf(bundleGraph(graph, selected))
+	shipped := bundleGraph(graph, selected)
+	callers := callersOf(shipped)
+	session := newSessionEnv(req.Spec, req.ProjectPath, spec, shipped)
+	fillCheckpointBy(spec.Workflow, req.Spec, shipped)
 	agentIDs := make(map[string]bool, len(files))
 	for id := range files {
 		agentIDs[id] = true
 	}
 	cats := map[string]*agentCatalogue{}
+	envs := map[string]whenEnv{}
 	for _, id := range selected {
 		fm, err := bricks.ParseAgentFrontmatter(files[id])
 		if err != nil {
 			return nil, err
 		}
-		inline, err := loader.closure(keepRoots(fm.Skills, keep), denied)
+		perms := req.agentPermissions(fm)
+		env := session.agentEnv(id, perms)
+		envs[id] = env
+		// keepFor drops, for this agent, the skills whose when: fails.
+		keepFor := func(ref string) bool {
+			if !keep(ref) {
+				return false
+			}
+			d, err := loader.load(ref)
+			return err != nil || skillWhen(d, env)
+		}
+		skip := func(d *skillDoc) bool { return !skillWhen(d, env) }
+		inline, err := loader.closureFor(keepRoots(fm.Skills, keepFor), denied, skip)
 		if err != nil {
 			return nil, fmt.Errorf("agent %s: %w", id, err)
 		}
@@ -209,13 +225,17 @@ func Build(req Request) (*Bundle, error) {
 				return nil, err
 			}
 			inlined[d.ID] = true
-			bodies = append(bodies, append([]byte(inlinedSkillHeading(d.ID)), inlineAnnexRefs(d.body(), d, files)...))
+			body := filterFor(d.Ref, string(d.body()), env)
+			bodies = append(bodies, append([]byte(inlinedSkillHeading(d.ID)), inlineAnnexRefs([]byte(body), d, files)...))
 		}
 		a, err := bricks.AssembleAgentInline(req.HubDir, files[id], bodies)
 		if err != nil {
 			return nil, err
 		}
+		// The agent body is filtered too; mentions are read afterwards.
+		a.Body = filterFor(id, a.Body, env)
 		cat := newAgentCatalogue(inlined, fm.SkillsFromCallers)
+		cat.env, cat.skip, cat.keep = env, skip, keepFor
 		cats[id] = cat
 		var absent []string
 		// named adds the skills text invites the agent to load (self) and
@@ -230,7 +250,7 @@ func Build(req Request) (*Bundle, error) {
 				if err != nil || inlined[d.ID] || (!invited[ref] && !offered) {
 					continue
 				}
-				if !keep(ref) {
+				if !keepFor(ref) {
 					if invited[ref] {
 						absent = append(absent, d.ID)
 					}
@@ -249,19 +269,19 @@ func Build(req Request) (*Bundle, error) {
 		}
 		named(invitingText(a.Body, id, agentIDs), selfMentionedSkills, true)
 		a.Body += absentSkillsNote(absent)
-		a.Body += sessionRoleNote(id, req.EntryAgent, callers[id])
+		a.Body += sessionContract(req, spec.Workflow, id, shipped, callers, env)
 		a.Body += scratchNote(id, spec.Workflow)
-		def, err := agentDef(req, a, instructions)
-		if err != nil {
-			return nil, err
-		}
+		def := agentDef(req, a, instructions, perms)
 		spec.Agents = append(spec.Agents, def)
-		cat.addNatives(keepRoots(a.Frontmatter.NativeSkills, keep))
+		cat.addNatives(keepRoots(a.Frontmatter.NativeSkills, keepFor))
 		if fm.StackSkills && req.ProjectPath != "" {
-			cat.add(keepRoots(bricks.StackSkillsFor(signals), keep)...)
+			cat.add(keepRoots(bricks.StackSkillsFor(signals), keepFor)...)
 		}
 		if id == req.EntryAgent {
-			cat.add(req.ExtraSkills...)
+			cat.add(keepRoots(req.ExtraSkills, func(ref string) bool {
+				d, err := loader.load(ref)
+				return err != nil || skillWhen(d, env)
+			})...)
 			named(req.promptTemplate(), mentionedSkills, false)
 		}
 		if err := os.MkdirAll(filepath.Join(tmp, agentsDir), 0o755); err != nil {
@@ -272,25 +292,37 @@ func Build(req Request) (*Bundle, error) {
 		}
 	}
 	addCallerSkills(cats, callers)
+	// readers are the agents whose catalogue holds each on-demand skill: its
+	// text is filtered for them.
+	readers := map[string][]whenEnv{}
+	var native []*skillDoc
+	shippedSkill := map[string]bool{}
 	for i := range spec.Agents {
-		cat := cats[spec.Agents[i].ID]
-		if err := cat.expand(loader, denied, keep, mentionIndex, spec.Agents[i].ID, agentIDs); err != nil {
-			return nil, fmt.Errorf("agent %s: %w", spec.Agents[i].ID, err)
+		id := spec.Agents[i].ID
+		cat := cats[id]
+		if err := cat.expand(loader, denied, mentionIndex, id, agentIDs); err != nil {
+			return nil, fmt.Errorf("agent %s: %w", id, err)
 		}
-		list, err := cat.skillIDs(loader, denied)
+		docs, err := cat.docs(loader, denied)
 		if err != nil {
-			return nil, fmt.Errorf("agent %s: %w", spec.Agents[i].ID, err)
+			return nil, fmt.Errorf("agent %s: %w", id, err)
 		}
+		list := []string{}
+		for _, d := range docs {
+			if !cat.inlined[d.ID] && !slices.Contains(list, d.ID) {
+				list = append(list, d.ID)
+				readers[d.Ref] = append(readers[d.Ref], envs[id])
+			}
+			if !shippedSkill[d.Ref] {
+				shippedSkill[d.Ref] = true
+				native = append(native, d)
+			}
+		}
+		sort.Strings(list)
 		spec.Agents[i].Skills = list
-		for _, ref := range cat.refs {
-			skillRefs[ref] = true
-		}
 	}
-	native, err := loader.closure(sortedKeys(skillRefs), denied)
-	if err != nil {
-		return nil, err
-	}
-	for _, d := range native {
+	sort.Slice(native, func(i, j int) bool { return native[i].Ref < native[j].Ref })
+	for i, d := range native {
 		if err := ids.add(d); err != nil {
 			return nil, err
 		}
@@ -303,6 +335,11 @@ func Build(req Request) (*Bundle, error) {
 		}
 		if err := writeAnnexes(filepath.Join(tmp, skillsDir), d, files); err != nil {
 			return nil, err
+		}
+		if strings.Contains(string(d.Content), "oh:when") {
+			fd := *d
+			fd.Content = []byte(filterFor(d.Ref, string(d.Content), readers[d.Ref]...))
+			native[i] = &fd
 		}
 	}
 	skills, err := writeSkills(filepath.Join(tmp, skillsDir), native)
@@ -407,7 +444,7 @@ func readSpec(dir string) (sessionspec.BundleSpec, error) {
 	return spec, err
 }
 
-func agentDef(req Request, a *bricks.AssembledAgent, instructions string) (sessionspec.AgentDef, error) {
+func agentDef(req Request, a *bricks.AssembledAgent, instructions string, perms []sessionspec.PermissionRule) sessionspec.AgentDef {
 	fm := a.Frontmatter
 	def := sessionspec.AgentDef{
 		ID:          fm.ID,
@@ -429,6 +466,13 @@ func agentDef(req Request, a *bricks.AssembledAgent, instructions string) (sessi
 		def.Model = req.modelRef(m)
 	}
 
+	def.Permissions = perms
+	return def
+}
+
+// agentPermissions returns the rules of an agent: its own, the verification
+// commands, then the guards.
+func (req Request) agentPermissions(fm *bricks.AgentFrontmatter) []sessionspec.PermissionRule {
 	perms, err := bricks.ResolvePermissions(req.HubDir, fm)
 	if err != nil {
 		slog.Warn("bundle: permission base resolution failed, using inline permissions", "agent", fm.ID, "error", err)
@@ -441,10 +485,9 @@ func agentDef(req Request, a *bricks.AssembledAgent, instructions string) (sessi
 		// After the agent's own rules ("*": deny first), before the guards.
 		verify = VerifyRules(req.verifyCommands, req.Spec.Risk)
 	}
-	def.Permissions = append(append(append(append(append(append(append(own, verify...), InfraGuard(own)...), GitShellGuard(own)...), BeadsShellGuard()...), HookGuard()...), HookEditGuard(own)...), BeadsDirGuard()...)
+	rules := append(append(append(append(append(append(append(own, verify...), InfraGuard(own)...), GitShellGuard(own)...), BeadsShellGuard()...), HookGuard()...), HookEditGuard(own)...), BeadsDirGuard()...)
 	// Last: the session scratch folders (globalguard.go).
-	def.Permissions = append(def.Permissions, ScratchAgentGuard(fm.ID, &sessionspec.WorkflowRuntime{Scratch: scratchDefs(req.Spec)}, req.OhHome)...)
-	return def, nil
+	return append(rules, ScratchAgentGuard(fm.ID, &sessionspec.WorkflowRuntime{Scratch: scratchDefs(req.Spec)}, req.OhHome)...)
 }
 
 // fallbackModel is the session model when neither the entry agent nor the

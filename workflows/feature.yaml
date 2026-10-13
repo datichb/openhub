@@ -37,6 +37,7 @@ agents:
   documentarian: { role: independent }
 checkpoints:
   cp-tickets:
+    by: [orchestrator]
     label: { fr: Valider les tickets à créer, en: Approve the tickets to create }
     description:
       fr: Présenter le découpage proposé par l'agent de planning ; les tickets ne sont créés qu'après la validation. Avec des tickets existants seulement, confirmer la liste (aucune création).
@@ -45,6 +46,7 @@ checkpoints:
     mode: { manuel: pause, semi-auto: pause, auto: pause }
     unlocks: [create]
   cp-0:
+    by: [orchestrator]
     label: { fr: Valider le plan, en: Approve the plan }
     description:
       fr: Afficher le tableau des tickets (ordre de traitement, agent prévu) et attendre la confirmation avant toute implémentation.
@@ -52,23 +54,28 @@ checkpoints:
     mandatory: true
     mode: { manuel: pause, semi-auto: pause, auto: pause }
   cp-spec:
+    by: [orchestrator]
     label: { fr: Valider la spec UX/UI, en: Approve the UX/UI spec }
     condition:
       le designer a produit une spécification UX ou UI pour la feature
     mode: { manuel: conditional, semi-auto: conditional, auto: conditional }
   cp-1:
+    by: [orchestrator-dev]
     label: { fr: Démarrer le ticket, en: Start the ticket }
     mode: { manuel: pause, semi-auto: auto, auto: auto }
   cp-2:
+    by: [orchestrator-dev]
     label: { fr: Commit ou correction, en: Commit or fix }
     mandatory: true
     mode: { manuel: pause, semi-auto: pause, auto: pause }
     unlocks: [commit, close]
     verify: { from: stack, expect: pass }
   cp-3:
+    by: [orchestrator-dev]
     label: { fr: Ticket suivant, en: Next ticket }
     mode: { manuel: pause, semi-auto: auto, auto: auto }
   cp-feature:
+    by: [orchestrator]
     label: { fr: Récap de la feature, en: Feature recap }
     description:
       fr: Récap global en fin de feature (tickets traités, commits, points ouverts).

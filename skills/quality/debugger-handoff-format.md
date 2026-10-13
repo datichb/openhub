@@ -2,6 +2,7 @@
 name: debugger-handoff-format
 description: "Utiliser en fin de diagnostic invoqué par un coordinateur : bloc « Retour vers <appelant> » avec rapport intégré."
 annexes: [templates/debugger-handoff-block.md]
+when: role=subagent | calls=debugger
 ---
 
 # Skill — Format de handoff debugger → orchestrator
@@ -33,6 +34,7 @@ Il est injecté dans le `debugger` et dans l'`orchestrator` — producteur et co
 
 ---
 
+<!-- oh:when agent=debugger -->
 ## Règles pour le producteur (debugger)
 
 - **Toujours inclure `### Rapport de diagnostic complet`** même si le diagnostic est `non-reproductible` — le rapport documente ce qui a été tenté
@@ -42,9 +44,11 @@ Il est injecté dans le `debugger` et dans l'`orchestrator` — producteur et co
 - Ce bloc est produit **après** la création du ticket (ou après refus explicite de l'utilisateur)
 - Ne jamais minimiser l'impact si des régressions sont possibles
 - **`### Questions bloquantes`** (obligatoire) — liste numérotée des questions nécessitant une réponse avant de poursuivre. Si aucune : écrire `Aucune.`. Le coordinateur **doit** résoudre ces questions avant de continuer le workflow.
+<!-- /oh:when -->
 
 ---
 
+<!-- oh:when calls=debugger -->
 ## Règles pour le consommateur (orchestrator)
 
 **Spécificités debugger à vérifier :**
@@ -55,3 +59,4 @@ Il est injecté dans le `debugger` et dans l'`orchestrator` — producteur et co
 - **Suite** : si des tickets ont été créés → proposer à l'utilisateur de les implémenter (étape suivante du workflow de la session, ou workflow `ticket` sur ces tickets). Si aucun ticket (cause non déterminée) → informer et proposer les options.
 - **Statut** : `diagnostiqué` → cause établie · `partiellement-diagnostiqué` → signaler l'incertitude · `non-reproductible` → ne pas créer de ticket sans plus d'information.
 - **Transmission** : ne jamais passer les tickets créés directement à `orchestrator-dev` sans les présenter à l'utilisateur d'abord.
+<!-- /oh:when -->

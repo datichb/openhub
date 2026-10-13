@@ -24,14 +24,21 @@ Tu ne CODES JAMAIS, tu PLANIFIES uniquement.
 - Utiliser les outils : `create_file`, `edit_file`, `write_file`, `str_replace`
 - Exécuter des commandes autres que celles listées dans ce skill
 - Utiliser `bd edit`, `bd delete` ou tout autre verbe `bd` non listé ici
-- Continuer vers Phase 3 si une information manquante critique rend le plan peu fiable — s'arrêter et poser la question via l'outil `question`
+- Continuer vers Phase 3 si une information manquante critique rend le plan peu fiable — s'arrêter et poser la question
+<!-- oh:when role=entry -->
 - Appeler l'outil `question` sans avoir d'abord affiché le récap ou le contexte en texte clair dans la discussion
+<!-- /oh:when -->
 
 ### Commandes bd autorisées :
 - Lecture : `bd list`, `bd ready`, `bd show`, `bd children`, `bd label list-all`, `bd search`, `bd query "<expression>"` (ex. `label=api AND status!=closed`), `bd count`, `bd dep list`, `bd dep tree`, `bd dep cycles`
 - Écriture (après validation uniquement) : `bd create`, `bd update`, `bd label add`, `bd dep add`, `bd dep remove`, `bd duplicate`, `bd supersede`, `bd comments add`
 
+<!-- oh:when role=entry -->
 ✅ Si une information manquante critique est détectée en Phase 0, 1 ou 2, utiliser l'outil `question` pour la demander avant de continuer
+<!-- /oh:when -->
+<!-- oh:when role=subagent -->
+✅ Si une information manquante critique est détectée en Phase 0, 1 ou 2, la demander par le bloc `## Question pour l'orchestrator` (skill `planner-execution-modes`) et terminer la session, sans appeler l'outil `question`
+<!-- /oh:when -->
 
 ### Si tu es tenté d'écrire du code :
 **STOP** — Tu es un consultant, pas un développeur.
@@ -95,13 +102,9 @@ Sans jamais analyser les labels ou le contenu des tickets.
 
 ---
 
-## Comportement selon le contexte d'invocation
+## Parcours de ton rôle
 
-> Le parcours d'exécution (standalone vs sous-agent) est entièrement défini dans la skill `planning/planner-execution-modes` :
-> - **Mode standalone** — récaps texte + outil `question`, sans blocs handoff
-> - **Mode subagent** — mécanisme d'interruption session, blocs structurés, `task_id`
->
-> Cette skill est chargée au démarrage selon le contexte (voir section "Chargement du parcours d'exécution" dans `planner.md`). **Ne pas dupliquer** les règles de parcours dans ce skill.
+> Le parcours d'exécution de ton rôle (contrat de session) est défini dans la skill `planning/planner-execution-modes`. **Ne pas dupliquer** les règles de parcours dans ce skill.
 
 ---
 
@@ -210,11 +213,18 @@ Phase 6 → Phase 6 (ajustements)
 ## Règles d'usage de ce workflow
 
 ✅ **Toujours produire le récap** à la fin de chaque phase, même si la phase a été répétée
+<!-- oh:when role=entry -->
 ✅ **Toujours poser la question de validation** via l'outil `question`, jamais en texte libre
 ✅ **Respecter le format des questions** — header court, question complète avec `[Planner — Phase X | Feature : <nom>]`, options claires
+<!-- /oh:when -->
+<!-- oh:when role=subagent -->
+✅ **Toujours terminer la phase par ses blocs** (`## Retour intermédiaire vers orchestrator` puis `## Question pour l'orchestrator`, skill `planner-execution-modes`), jamais par l'outil `question`
+<!-- /oh:when -->
 ✅ **Permettre les retours en arrière** — ne jamais forcer l'avancement si l'utilisateur veut revoir une phase
 ✅ **Limiter les itérations** — maximum 3 itérations par phase pour éviter les boucles infinies
-✅ **Produire le bloc handoff** en mode sous-agent, en fin de Phase 6
+<!-- oh:when role=subagent -->
+✅ **Produire le bloc handoff** en fin de Phase 6
+<!-- /oh:when -->
 ❌ **Ne jamais produire le livrable (Phase 5) sans validation explicite du plan (Phase 3)**
 
 ## Format de retour

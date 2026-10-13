@@ -3,7 +3,6 @@ package bundle
 import (
 	"os"
 	"path/filepath"
-	"sort"
 
 	"github.com/datichb/openhub/cli/internal/bricks"
 )
@@ -41,6 +40,11 @@ type agentCatalogue struct {
 	// inlined are the IDs of the skills inlined in the prompt.
 	inlined     map[string]bool
 	fromCallers bool
+	// env is the session of the agent (L3); skip and keep drop the skills
+	// whose when: fails for it (keep also applies the session filters).
+	env  whenEnv
+	skip func(*skillDoc) bool
+	keep func(string) bool
 }
 
 func newAgentCatalogue(inlined map[string]bool, fromCallers bool) *agentCatalogue {
@@ -63,33 +67,20 @@ func (c *agentCatalogue) add(refs ...string) {
 	}
 }
 
-// skillIDs returns the catalogue of the agent: the IDs of the closure of its
-// refs, the inlined skills aside, sorted. Never nil (an empty catalogue
-// means no skill).
-func (c *agentCatalogue) skillIDs(l *skillLoader, denied skillDenied) ([]string, error) {
-	docs, err := l.closure(c.refs, denied)
-	if err != nil {
-		return nil, err
-	}
-	ids := []string{}
-	seen := map[string]bool{}
-	for _, d := range docs {
-		if !c.inlined[d.ID] && !seen[d.ID] {
-			seen[d.ID] = true
-			ids = append(ids, d.ID)
-		}
-	}
-	sort.Strings(ids)
-	return ids, nil
+// docs returns the closure of the refs of the agent, the skills whose
+// when: fails for it aside (inlined skills included).
+func (c *agentCatalogue) docs(l *skillLoader, denied skillDenied) ([]*skillDoc, error) {
+	return l.closureFor(c.refs, denied, c.skip)
 }
 
 // expand adds, until nothing changes, the deliverable skills named in the
 // on-demand skills of the catalogue (sections that do not invite agent
-// aside): the agent loading a skill may be told to load another one.
-func (c *agentCatalogue) expand(l *skillLoader, denied skillDenied, keep func(string) bool, index map[string]string, agent string, agents map[string]bool) error {
+// aside, blocks whose when: fails for it aside): the agent loading a skill
+// may be told to load another one.
+func (c *agentCatalogue) expand(l *skillLoader, denied skillDenied, index map[string]string, agent string, agents map[string]bool) error {
 	scanned := map[string]bool{}
 	for {
-		docs, err := l.closure(c.refs, denied)
+		docs, err := c.docs(l, denied)
 		if err != nil {
 			return err
 		}
@@ -99,9 +90,10 @@ func (c *agentCatalogue) expand(l *skillLoader, denied skillDenied, keep func(st
 				continue
 			}
 			scanned[d.Ref] = true
-			for _, ref := range selfMentionedSkills(invitingText(string(d.body()), agent, agents), index) {
+			body := filterFor(d.Ref, string(d.body()), c.env)
+			for _, ref := range selfMentionedSkills(invitingText(body, agent, agents), index) {
 				m, err := l.load(ref)
-				if err != nil || c.inlined[m.ID] || c.seen[ref] || bricks.IsStackSkill(ref) || !keep(ref) || !deliverable(l, ref, denied) {
+				if err != nil || c.inlined[m.ID] || c.seen[ref] || bricks.IsStackSkill(ref) || !c.keep(ref) || !deliverable(l, ref, denied) {
 					continue
 				}
 				c.add(ref)
@@ -127,7 +119,7 @@ func addCallerSkills(cats map[string]*agentCatalogue, callers map[string][]strin
 				continue
 			}
 			for _, ref := range cc.named {
-				if !cc.natives[ref] {
+				if !cc.natives[ref] && (c.keep == nil || c.keep(ref)) {
 					c.add(ref)
 				}
 			}

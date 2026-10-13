@@ -49,10 +49,6 @@ audit-ecodesign	CSS	`will-change` n'est pas utilisé de façon abusive (surcoût
 audit-ecodesign	Checklist — Éléments DOM	Les composants hors viewport ne sont pas rendus avant interaction (lazy rendering)
 audit-ecodesign	Thématique 8 — Hébergement	Ce que tu ne fais PAS dans ce domaine
 audit-ecodesign	Ce que tu ne fais PAS dans ce domaine	Confondre éco-conception et optimisation de performance — les objectifs se recoupent mais ne sont pas identiques
-audit-handoff-format	Règles pour le producteur (auditor-subagent)	**Toujours inclure `### Rapport d'audit complet`** même si aucun problème n'est identifié — le rapport documente le périmètre audité et les bonnes pratiques observées
-audit-handoff-format	Règles pour le producteur (auditor-subagent)	**Toujours renseigner le `### Périmètre audité`** — même si le périmètre est complet, l'indiquer explicitement
-audit-handoff-format	Règles pour le producteur (auditor-subagent)	**Toujours renseigner le `### Risque résiduel`** — même si nul, l'indiquer explicitement
-audit-handoff-format	Règles pour le producteur (auditor-subagent)	Ne jamais minimiser les preuves ou chemins d'exploitation dans le rapport
 audit-handoff-format	Règles pour l'auditor (consommateur du sous-agent)	**Champs obligatoires** : `Périmètre audité`, `Synthèse des problèmes identifiés`, `Recommandations priorisées`, `Risque résiduel si non corrigé`, `Rapport d'audit complet`, `Statut`. Si l'un est absent → ré-invoquer le sous-agent (même `task_id`) pour qu'il complète.
 audit-infra	Méthode	demandée à l'utilisateur. Un outil absent n'est pas bloquant : le noter dans le périmètre
 audit-infra	Terraform / OpenTofu	État dans un backend distant avec verrouillage (S3 `use_lockfile`, GCS, azurerm, Terraform Cloud), jamais local pour un environnement partagé
@@ -106,7 +102,6 @@ audit-security	A07 — Identification and Authentication Failures	La réinitiali
 audit-security	A09 — Security Logging and Monitoring Failures	Les logs ne contiennent pas de données sensibles (mots de passe, tokens, données perso)
 audit-security	A10 — Server-Side Request Forgery (SSRF)	Les URLs fournies par l'utilisateur ne sont pas utilisées pour des requêtes serveur sans validation
 audit-security	Analyse des dépendances	Ce que tu ne fais PAS dans ce domaine
-auditor-execution-modes	Mode subagent	Partie à suivre quand tu es **sous-agent** (section « Rôle dans cette session » de ton prompt, générée par oh) : tu es invoqué via `task` et l'utilisateur ne voit pas l'outil `question`.
 auditor-workflow	Rôle	**Tu ne réalises JAMAIS d'audit technique toi-même — tu coordonnes.**
 auditor-workflow	CONTRAINTES ABSOLUES — NON NÉGOCIABLES	Tu ne dois JAMAIS :
 auditor-workflow	Tu ne dois JAMAIS :	Tu dois TOUJOURS :
@@ -182,19 +177,6 @@ living-docs-enrichment	Règles de qualité des enrichissements	❌ Ne pas transm
 living-docs-enrichment	Règles de qualité des enrichissements	❌ Ne pas ajouter d'enrichissements subjectifs ou spéculatifs
 living-docs-enrichment	Règles de qualité des enrichissements	❌ Ne pas modifier la structure des pages via le documentarian — uniquement le contenu
 living-docs-enrichment	Règles de qualité des enrichissements	❌ Ne pas omettre le tag de confiance — chaque enrichissement doit en porter un
-planner-handoff-format	Format du bloc `## Retour vers orchestrator`	`bloqué` | La planification ne peut pas être finalisée — un blocage empêche la création des tickets
-planner-handoff-format	Règles pour le producteur (planner)	**`### Récapitulatif de planification`** doit capturer le raisonnement et les décisions — minimum 3-5 phrases
-planner-handoff-format	Règles pour le producteur (planner)	**Lister tous les tickets créés** dans le tableau — ne pas en omettre, même les tickets mineurs
-planner-handoff-format	Règles pour le producteur (planner)	**Renseigner la colonne `Agent prévu`** pour chaque ticket — cette colonne est la **source de vérité pour le routing**, l'orchestrator ne doit pas avoir à deviner l'agent depuis les labels ou le contenu du ticket. Valeur : `developer (<domaine>)` (frontend, backend, fullstack, api, mobile, data, devops, platform, security, refactor, migration, tests) — par exemple `developer (refactor)` pour un refactoring, `developer (migration)` pour une migration, `developer (tests)` pour ajouter des tests
-planner-handoff-format	Règles pour le producteur (planner)	**Renseigner obligatoirement la section `### Ordre de traitement`** — cette section définit la séquence exacte d'exécution, l'orchestrator la suivra sans recalculer l'ordre depuis les dépendances
-planner-handoff-format	Règles pour le producteur (planner)	**Signaler toute hypothèse** faite lors de la planification — l'orchestrator doit pouvoir la valider avec l'utilisateur
-planner-handoff-format	Règles pour le producteur (planner)	Ne jamais omettre `### Récapitulatif de planification` — le tableau seul ne suffit pas, le "pourquoi" est nécessaire
-planner-handoff-format	Règles pour le producteur (planner)	**`### Questions bloquantes`** (obligatoire) — liste numérotée des questions nécessitant une réponse avant de poursuivre. Si aucune : écrire `Aucune.`. Le coordinateur **doit** résoudre ces questions avant de continuer le workflow.
-planner-handoff-format	Règles pour le consommateur (orchestrator)	**Champs obligatoires** : `Récapitulatif de planification`, `Tickets créés`, `Dépendances`, `Ordre de traitement`, `Hypothèses et ambiguïtés`, `Risques identifiés`, `Questions bloquantes`, `Statut`. Si l'un est absent → demander au planner de compléter avant de continuer.
-planner-handoff-format	Règles pour le consommateur (orchestrator)	**Routing** : utiliser la colonne `Agent prévu` du tableau comme source de vérité — ne jamais analyser les labels ou le contenu du ticket pour deviner l'agent.
-planner-handoff-format	Règles pour le consommateur (orchestrator)	**Séquençage** : suivre `### Ordre de traitement` tel quel — ne jamais recalculer depuis les dépendances.
-planner-handoff-format	Règles pour le consommateur (orchestrator)	**Statut** : `planification-complète` → cp-0 normal · `planification-partielle` → signaler les incomplétudes · `bloqué` → ne pas continuer.
-planner-handoff-format	Règles pour le consommateur (orchestrator)	**Optimisation** : ne pas relire les tickets un par un avec `bd show` si le tableau `### Tickets créés` est complet.
 retranscription-coordinateur	Règle fondamentale (perspective consommateur)	**Séquence obligatoire — sans exception :**
 retranscription-coordinateur	Règle fondamentale (perspective consommateur)	❌ Ne jamais omettre le bloc structuré
 retranscription-coordinateur	Règle fondamentale (perspective consommateur)	❌ Ne jamais sauter les blocs intermédiaires s'ils sont présents
@@ -221,11 +203,6 @@ retranscription-coordinateur	Rappel d'application	✅ Toujours : retranscrire le
 standalone-execution-protocol	Ordering — récap → question	**TOUJOURS** produire le récap complet en texte **AVANT** d'appeler l'outil `question`
 standalone-execution-protocol	Ordering — récap → question	**JAMAIS** l'inverse — l'utilisateur doit voir le récap avant de décider
 standalone-execution-protocol	Checklist de vérification (avant chaque appel `question`)	Le récap n'est PAS résumé — il est complet et détaillé | ⬜
-subagent-execution-protocol	Principe fondamental	Quand invoqué via `task`, le texte de la session enfant **n'est PAS visible** par l'utilisateur dans la session parent. La seule façon de remonter du contenu est de **terminer la session** avec les blocs structurés que l'agent orchestrator retranscrira.
-subagent-execution-protocol	Mécanisme d'interruption — à chaque fin de phase	**TERMINER LA SESSION** — ne pas appeler l'outil `question`, ne pas continuer
-subagent-execution-protocol	Message de confirmation au démarrage	`✅ [{agent_label}] Mode sub-agent activé. Contexte reçu : {résumé_1_ligne}. Démarrage Phase {N}.`
-subagent-execution-protocol	Erreurs fréquentes à éviter	Continuer vers la phase suivante sans produire les blocs | L'orchestrator ne reçoit rien | **Toujours interrompre** à chaque fin de phase
-subagent-execution-protocol	Erreurs fréquentes à éviter	Omettre le `task_id` | L'orchestrator ne peut pas reprendre | **Toujours inclure** le sessionID
 tool-question	Quand utiliser `question`	Quand NE PAS utiliser `question`
 tool-question	Quand NE PAS utiliser `question`	**Checkpoints du workflow** : chaque checkpoint de la table des checkpoints passe par l'outil `workflow_checkpoint`, jamais par `question`. Une question qui nomme un checkpoint (son identifiant `cp-<id>`, « CP 2 », son libellé) est fermée par oh sans effet.
 tool-question	Quand NE PAS utiliser `question`	Quand la réponse n'influence pas le résultat final
@@ -236,7 +213,6 @@ tool-question	Bonnes pratiques	Prévoir la gestion des réponses libres (toujour
 tool-question	Bonnes pratiques	Ajouter une option "Autre" ou "Personnalisé" (redondant avec la saisie libre auto) | ❌
 tool-question	Bonnes pratiques	Dépasser 5 options par question | ❌
 tool-question	Bonnes pratiques	Poser une question déjà répondue dans la session | ❌
-tool-question	En sous-agent	Si tu es **sous-agent** (section « Rôle dans cette session » de ton prompt), n'appelle pas `question` : l'utilisateur ne voit pas ces appels. Mets chaque décision dans la section `### Questions bloquantes` de ton bloc de retour (2 à 3 options, la recommandée en premier, avec le contexte qui permet de trancher) ; ton appelant la pose à l'utilisateur.
 universal-guardrails	Garde-fous transverses	Git push — interdit
 universal-guardrails	Git push — interdit	Tu ne lances jamais `git push` sous aucune forme, option ou alias.
 universal-guardrails	Ordering : récap → question	AVANT d'appeler l'outil `question`. Ne jamais inverser cet ordre.

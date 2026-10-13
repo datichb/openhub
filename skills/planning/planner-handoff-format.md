@@ -2,6 +2,7 @@
 name: planner-handoff-format
 description: "Utiliser en fin de planification invoquée par un coordinateur : bloc « Retour vers <appelant> » (tickets, ordre)."
 annexes: [templates/planner-handoff-block.md]
+when: role=subagent | calls=planner
 ---
 
 # Skill — Format de handoff planner → orchestrator
@@ -35,6 +36,7 @@ En standalone, le bloc est également le seul output après la Phase 4 (vérific
 
 ---
 
+<!-- oh:when agent=planner -->
 ## Règles pour le producteur (planner)
 
 - **`### Récapitulatif de planification`** doit capturer le raisonnement et les décisions — minimum 3-5 phrases
@@ -45,9 +47,11 @@ En standalone, le bloc est également le seul output après la Phase 4 (vérific
 - Ce bloc est produit **après** la validation explicite du plan par l'utilisateur (après Phase 4)
 - Ne jamais omettre `### Récapitulatif de planification` — le tableau seul ne suffit pas, le "pourquoi" est nécessaire
 - **`### Questions bloquantes`** (obligatoire) — liste numérotée des questions nécessitant une réponse avant de poursuivre. Si aucune : écrire `Aucune.`. Le coordinateur **doit** résoudre ces questions avant de continuer le workflow.
+<!-- /oh:when -->
 
 ---
 
+<!-- oh:when calls=planner -->
 ## Règles pour le consommateur (orchestrator)
 
 **Spécificités planner à vérifier :**
@@ -59,3 +63,4 @@ En standalone, le bloc est également le seul output après la Phase 4 (vérific
 - **cp-0** : présenter `### Hypothèses et ambiguïtés` à l'utilisateur pour validation, signaler `### Risques identifiés`. <!-- capability: optional -->
 - **Statut** : `planification-complète` → cp-0 normal · `planification-partielle` → signaler les incomplétudes · `bloqué` → ne pas continuer. <!-- capability: optional -->
 - **Optimisation** : ne pas relire les tickets un par un avec `bd show` si le tableau `### Tickets créés` est complet.
+<!-- /oh:when -->
