@@ -27,9 +27,9 @@ import (
 // golden is reported on its own.
 
 // budgetGrowth is the growth of an agent prompt tolerated over the golden:
-// 10 % until the end of P1 (content trimming), then 2 % (modernisation plan
-// P0.2).
-const budgetGrowth = 0.10
+// 2 % since the end of P1 (modernisation plan P0.2; 10 % during the content
+// trimming).
+const budgetGrowth = 0.02
 
 type budgetLine struct {
 	project, workflow, agent                              string
