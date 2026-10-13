@@ -208,6 +208,33 @@ func TestSkillVisibilityIgnoresAgentAllowOutsideBundle(t *testing.T) {
 	assert.ElementsMatch(t, []string{"orchestrator-dev", "developer"}, skillVisibleTo(b, "beads-dev"))
 }
 
+// L2: an agent with a catalogue sees only its skills, its own rules still
+// filter them; an agent without catalogue (older bundle) sees every bundle
+// skill its rules allow.
+func TestRenderAgentCatalogue(t *testing.T) {
+	b := sampleBundle()
+	b.Agents[0].Skills = []string{"orchestrator-protocol"} // orchestrator-dev
+	b.Agents[1].Skills = []string{}                        // developer
+	assert.Equal(t, []string{"orchestrator-dev"}, skillVisibleTo(b, "orchestrator-protocol"))
+	assert.Empty(t, skillVisibleTo(b, "beads-dev"), "in no catalogue")
+
+	b.Agents[1].Skills = []string{"beads-dev", "orchestrator-protocol"}
+	assert.Equal(t, []string{"developer"}, skillVisibleTo(b, "beads-dev"))
+	assert.Equal(t, []string{"orchestrator-dev"}, skillVisibleTo(b, "orchestrator-protocol"), "the developer's own rules deny orchestrator-*")
+
+	rules := agentRules(b.Agents[0], b, b.SkillIDs())
+	var skills []string
+	for _, r := range rules {
+		if r.Action == sessionspec.ActionSkill {
+			skills = append(skills, r.Resource+" "+string(r.Effect))
+		}
+	}
+	assert.Equal(t, []string{"* deny", "orchestrator-protocol allow"}, skills)
+
+	b.Agents[1].Skills = nil
+	assert.Equal(t, []string{"developer"}, skillVisibleTo(b, "beads-dev"), "nil: every bundle skill")
+}
+
 func TestModelIDBedrockGeoPrefix(t *testing.T) {
 	m := sessionspec.ParseModelRef("amazon-bedrock/anthropic.claude-haiku-4-5-20251001-v1:0")
 	assert.Equal(t, "amazon-bedrock/eu.anthropic.claude-haiku-4-5-20251001-v1:0", ModelID(m, "eu-west-1"))

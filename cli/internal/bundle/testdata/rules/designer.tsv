@@ -155,29 +155,6 @@ prototype-protocol	Ce que ce skill change	Spec complète obligatoire | **Overrid
 prototype-protocol	Contrainte fondamentale	Le designer en mode prototype **ne produit PAS de code**. L'artefact est un artefact de spec rapide :
 prototype-protocol	Contrainte fondamentale	❌ Pas de HTML, pas de code, pas de branche git. Le designer reste un agent de spec.
 prototype-protocol	Compatibilité	**Incompatible avec** : `Mode: recon` (la reconnaissance Figma n'a pas de question à résoudre par prototype)
-retranscription-coordinateur	Règle fondamentale (perspective consommateur)	**Séquence obligatoire — sans exception :**
-retranscription-coordinateur	Règle fondamentale (perspective consommateur)	❌ Ne jamais omettre le bloc structuré
-retranscription-coordinateur	Règle fondamentale (perspective consommateur)	❌ Ne jamais sauter les blocs intermédiaires s'ils sont présents
-retranscription-coordinateur	Cas spécial : rapport de review dans une question montante	Quand le bloc `## Question pour l'orchestrator` contient un `### Rapport de review complet` (ping-pong reviewer), ce rapport DOIT être affiché intégralement dans la discussion AVANT de poser la question. Les checkpoints (dont la validation avant commit) ne passent jamais par ce bloc : l'agent qui les atteint appelle lui-même `workflow_checkpoint`.
-retranscription-coordinateur	Cas spécial : rapport de review dans une question montante	Vérification obligatoire avant question
-retranscription-coordinateur	Vérification obligatoire avant question	✅ Les blocs `## Retour intermédiaire vers orchestrator` sont affichés (si présents)
-retranscription-coordinateur	Vérification obligatoire avant question	✅ Les champs du bloc structuré sont affichés dans la discussion (retranscription formatée)
-retranscription-coordinateur	Vérification obligatoire avant question	✅ Les sections critiques sont présentes (voir tableau ci-dessous)
-retranscription-coordinateur	Vérification obligatoire avant question	✅ Le contenu est affiché AVANT cet appel à `question`, PAS après
-retranscription-coordinateur	Vérification obligatoire avant question	✅ Le contenu n'est PAS inclus dans le champ `question` de l'outil
-retranscription-coordinateur	Vérification obligatoire avant question	✅ Checklist visuelle — AVANT CHAQUE APPEL À `question`
-retranscription-coordinateur	✅ Checklist visuelle — AVANT CHAQUE APPEL À `question`	✅ Les blocs `## Retour intermédiaire vers orchestrator` sont affichés en texte (si présents) | ⬜
-retranscription-coordinateur	✅ Checklist visuelle — AVANT CHAQUE APPEL À `question`	✅ J'ai affiché les champs du bloc structuré de manière formatée (retranscription mécanique, non résumée) | ⬜
-retranscription-coordinateur	✅ Checklist visuelle — AVANT CHAQUE APPEL À `question`	✅ Les sections critiques de ce type de retour sont présentes (voir tableau "Sections critiques par agent") | ⬜
-retranscription-coordinateur	✅ Checklist visuelle — AVANT CHAQUE APPEL À `question`	✅ Le contenu est affiché AVANT cet appel à `question`, PAS après | ⬜
-retranscription-coordinateur	✅ Checklist visuelle — AVANT CHAQUE APPEL À `question`	✅ Le contenu n'est PAS inclus dans le champ `question` de l'outil | ⬜
-retranscription-coordinateur	Sections critiques par agent source	Ce que tu NE fais JAMAIS
-retranscription-coordinateur	Ce que tu NE fais JAMAIS	❌ Résumer ou abréger les champs du bloc avant de les afficher
-retranscription-coordinateur	Ce que tu NE fais JAMAIS	❌ Inclure les champs du bloc dans le champ `question` de l'outil
-retranscription-coordinateur	Ce que tu NE fais JAMAIS	❌ Omettre des sections du bloc "parce qu'elles sont vides" (afficher la mention explicite si vide)
-retranscription-coordinateur	Ce que tu NE fais JAMAIS	❌ Reformuler le contenu reçu — le copier tel quel
-retranscription-coordinateur	Rappel d'application	❌ Appeler `question` sans avoir affiché le bloc structuré = l'utilisateur décide sans contexte.
-retranscription-coordinateur	Rappel d'application	✅ Toujours : retranscrire le bloc complet (template standard ci-dessus) → puis seulement `question`.
 subagent-execution-protocol	Principe fondamental	Quand invoqué via `task`, le texte de la session enfant **n'est PAS visible** par l'utilisateur dans la session parent. La seule façon de remonter du contenu est de **terminer la session** avec les blocs structurés que l'agent orchestrator retranscrira.
 subagent-execution-protocol	Mécanisme d'interruption — à chaque fin de phase	**TERMINER LA SESSION** — ne pas appeler l'outil `question`, ne pas continuer
 subagent-execution-protocol	Message de confirmation au démarrage	`✅ [{agent_label}] Mode sub-agent activé. Contexte reçu : {résumé_1_ligne}. Démarrage Phase {N}.`

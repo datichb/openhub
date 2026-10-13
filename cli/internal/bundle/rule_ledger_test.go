@@ -23,9 +23,9 @@ import (
 //
 // For every agent of the shipped workflows (built without project), the
 // ledger collects the text it can see: its own body, the skills inlined in
-// its prompt and the on-demand skills it can reach (reachableSkills: native
-// skills, skills it names, requires closure), over all the workflows that
-// ship it. The generated blocks of the prompt (absent skills, session role,
+// its prompt and the on-demand skills it can reach (reachableSkills: its
+// catalogue of L2, natives, skills it names, requires closure), over all
+// the workflows that ship it. The generated blocks of the prompt (absent skills, session role,
 // project instructions) are left out. Every normative line (JAMAIS,
 // TOUJOURS, NE … PAS, DOIT, OBLIGATOIRE, ❌, ✅, ⛔, MUST, NEVER, interdit),
 // outside code fences, is pinned in testdata/rules/<agent>.tsv:
@@ -171,7 +171,7 @@ func agentLedgers(t *testing.T) map[string][]ledgerRule {
 		require.False(t, diags.HasErrors(), "%v", diags)
 		b, err := Build(Request{HubDir: hub, OutDir: t.TempDir(), Spec: r.Spec})
 		require.NoError(t, err)
-		reach := reachableSkills(t, hub, r.Spec, b)
+		reach := reachableSkills(t, hub, r.Spec, b, "")
 		for _, a := range b.Spec.Agents {
 			ac := all[a.ID]
 			if ac == nil {

@@ -67,6 +67,17 @@
         "shell *.beads/dolt/* deny",
         "edit .beads/* deny",
         "edit */.beads/* deny"
+      ],
+      "skills": [
+        "beads-plan",
+        "debugger-handoff-format",
+        "design-handoff-format",
+        "documentarian-handoff-format",
+        "handoff-bloc-unique-rule",
+        "onboarder-handoff-format",
+        "orchestrator-recap-edge",
+        "pathfinder-handoff-format",
+        "subagent-concision-posture"
       ]
     },
     {
@@ -154,6 +165,19 @@
         "shell *.beads/dolt/* deny",
         "edit .beads/* deny",
         "edit */.beads/* deny"
+      ],
+      "skills": [
+        "debugger-execution-modes",
+        "debugger-forensic",
+        "debugger-phase-0-1",
+        "debugger-phase-2-3",
+        "debugger-phase-4-5",
+        "debugger-report-templates",
+        "expert-posture",
+        "handoff-bloc-unique-rule",
+        "living-docs-enrichment",
+        "standalone-execution-protocol",
+        "subagent-execution-protocol"
       ]
     },
     {
@@ -216,6 +240,25 @@
         "shell *.beads/dolt/* deny",
         "edit .beads/* deny",
         "edit */.beads/* deny"
+      ],
+      "skills": [
+        "beads-plan",
+        "content-design",
+        "design-principles",
+        "designer-standalone",
+        "designer-subagent",
+        "expert-posture",
+        "figma-deep-protocol",
+        "figma-recon-protocol",
+        "handoff-bloc-unique-rule",
+        "prototype-protocol",
+        "subagent-execution-protocol",
+        "tui-patterns",
+        "ui-patterns-reference",
+        "ui-protocol",
+        "ux-protocol",
+        "websearch-design-patterns",
+        "websearch-usage"
       ]
     },
     {
@@ -294,6 +337,20 @@
         "shell *.beads/dolt/* deny",
         "edit .beads/* deny",
         "edit */.beads/* deny"
+      ],
+      "skills": [
+        "beads-plan",
+        "dev-standards-git",
+        "doc-adr",
+        "doc-api",
+        "doc-changelog",
+        "doc-slides",
+        "doc-standards",
+        "doc-wiki-protocol",
+        "expert-posture",
+        "handoff-bloc-unique-rule",
+        "skill-authoring-protocol",
+        "websearch-usage"
       ]
     },
     {
@@ -363,6 +420,25 @@
         "shell *.beads/dolt/* deny",
         "edit .beads/* deny",
         "edit */.beads/* deny"
+      ],
+      "skills": [
+        "beads-plan",
+        "dev-standards-git",
+        "doc-wiki-protocol",
+        "expert-posture",
+        "handoff-bloc-unique-rule",
+        "living-docs-enrichment",
+        "onboarder-execution-modes",
+        "onboarder-phase-0",
+        "onboarder-phase-1",
+        "onboarder-phase-2",
+        "onboarder-phase-3-4",
+        "onboarder-phase-5",
+        "phase-0-validation-loop",
+        "standalone-execution-protocol",
+        "subagent-execution-protocol",
+        "websearch-stack-research",
+        "websearch-usage"
       ]
     },
     {
@@ -437,6 +513,31 @@
         "shell *.beads/dolt/* deny",
         "edit .beads/* deny",
         "edit */.beads/* deny"
+      ],
+      "skills": [
+        "dev-drift-detection",
+        "dev-standards-api",
+        "dev-standards-backend",
+        "dev-standards-database",
+        "dev-standards-devops",
+        "dev-standards-frontend",
+        "dev-standards-frontend-a11y",
+        "dev-standards-frontend-data",
+        "dev-standards-migration",
+        "dev-standards-refactoring",
+        "dev-standards-security-hardening",
+        "dev-standards-testing",
+        "error-recovery-protocol",
+        "handoff-bloc-unique-rule",
+        "orchestrator-dev-edge-cases",
+        "orchestrator-dev-parallel",
+        "orchestrator-dev-recap",
+        "orchestrator-dev-standalone",
+        "orchestrator-dev-subagent",
+        "orchestrator-dev-ticket-workflow",
+        "planner-handoff-format",
+        "subagent-concision-posture",
+        "test-generation"
       ]
     },
     {
@@ -515,6 +616,17 @@
         "shell *.beads/dolt/* deny",
         "edit .beads/* deny",
         "edit */.beads/* deny"
+      ],
+      "skills": [
+        "beads-plan",
+        "handoff-bloc-unique-rule",
+        "living-docs-enrichment",
+        "pathfinder-execution-modes",
+        "standalone-execution-protocol",
+        "subagent-concision-posture",
+        "subagent-execution-protocol",
+        "websearch-stack-research",
+        "websearch-usage"
       ]
     },
     {
@@ -598,6 +710,29 @@
         "shell *.beads/dolt/* deny",
         "edit .beads/* deny",
         "edit */.beads/* deny"
+      ],
+      "skills": [
+        "beads-plan",
+        "design-planner-format",
+        "elicitation-techniques",
+        "expert-posture",
+        "handoff-bloc-unique-rule",
+        "living-docs-enrichment",
+        "phase-0-validation-loop",
+        "planner-beads-templates",
+        "planner-design-templates",
+        "planner-execution-modes",
+        "planner-patterns-protocol",
+        "planner-phase-0",
+        "planner-phase-1",
+        "planner-phase-2",
+        "planner-phase-3-4",
+        "planner-phase-5-6",
+        "standalone-execution-protocol",
+        "subagent-concision-posture",
+        "subagent-execution-protocol",
+        "websearch-stack-research",
+        "websearch-usage"
       ]
     },
     {
@@ -667,6 +802,26 @@
         "shell *.beads/dolt/* deny",
         "edit .beads/* deny",
         "edit */.beads/* deny"
+      ],
+      "skills": [
+        "dev-standards-api",
+        "dev-standards-backend",
+        "dev-standards-devops",
+        "dev-standards-frontend",
+        "dev-standards-frontend-a11y",
+        "dev-standards-frontend-data",
+        "dev-standards-git",
+        "dev-standards-security",
+        "dev-standards-testing",
+        "dev-standards-universal",
+        "handoff-bloc-unique-rule",
+        "living-docs-enrichment",
+        "review-merge",
+        "reviewer-adversarial",
+        "reviewer-edge-case",
+        "reviewer-standalone",
+        "reviewer-subagent",
+        "subagent-concision-posture"
       ]
     },
     {
@@ -851,6 +1006,29 @@
         "shell *.beads/dolt/* deny",
         "edit .beads/* deny",
         "edit */.beads/* deny"
+      ],
+      "skills": [
+        "beads-plan",
+        "concision-posture",
+        "dev-standards-api",
+        "dev-standards-backend",
+        "dev-standards-database",
+        "dev-standards-devops",
+        "dev-standards-frontend",
+        "dev-standards-frontend-a11y",
+        "dev-standards-frontend-data",
+        "dev-standards-git",
+        "dev-standards-migration",
+        "dev-standards-refactoring",
+        "dev-standards-security",
+        "dev-standards-security-hardening",
+        "dev-standards-testing",
+        "handoff-bloc-unique-rule",
+        "living-docs-enrichment",
+        "planner-handoff-format",
+        "quick-fix",
+        "reviewer-reception",
+        "test-generation"
       ]
     }
   ],
@@ -928,7 +1106,6 @@
     "planner-phase-5-6",
     "prototype-protocol",
     "quick-fix",
-    "retranscription-coordinateur",
     "review-merge",
     "reviewer-adversarial",
     "reviewer-edge-case",

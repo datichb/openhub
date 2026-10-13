@@ -176,6 +176,11 @@ func buildWorkflowBundleIn(a *app.App, project *domain.Project, res *workflowsvc
 	if ids, set := res.MCPSelection(); set {
 		req.MCP, missing = selectMCP(req.MCP, ids)
 	}
+	if tmpl, perr := res.PromptTemplate(); perr == nil {
+		req.PromptTemplate = tmpl
+	} else {
+		slog.Warn("bundle: prompt template not read, its skills are not given to the entry agent", "workflow", res.Spec.ID, "error", perr)
+	}
 	b, err = bundle.Build(req)
 	return b, missing, err
 }

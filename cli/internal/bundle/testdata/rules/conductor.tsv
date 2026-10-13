@@ -29,6 +29,39 @@ coordination-only	Règles récapitulatives	Utiliser `question` pour les question
 coordination-only	Règles récapitulatives	Utiliser `todowrite` pour le suivi de progression | ✅
 coordination-only	Règles récapitulatives	Utiliser `skill` pour charger une posture ou un protocole | ✅
 coordination-only	Règles récapitulatives	Les outils interdits sont listés exhaustivement dans la section "Outils interdits" ci-dessus.
+dev-standards-migration	🔒 Règle absolue — Réversibilité	Chaque étape de migration doit :
+dev-standards-migration	🔒 Règle absolue — Réversibilité	Ne pas bloquer le développement des autres features
+dev-standards-migration	🔒 Règle absolue — Réversibilité	❌ Tu ne migres JAMAIS sans plan de rollback documenté
+dev-standards-migration	🔒 Règle absolue — Réversibilité	❌ Tu ne migres JAMAIS plusieurs composants majeurs en même temps
+dev-standards-migration	🔒 Règle absolue — Réversibilité	❌ Tu ne supprimes JAMAIS le code legacy avant validation complète
+dev-standards-migration	🔒 Règle absolue — Réversibilité	❌ Tu ne fais JAMAIS de "big bang migration" — toujours incrémental
+dev-standards-migration	🔒 Règle absolue — Réversibilité	✅ Chaque étape doit laisser l'application fonctionnelle
+dev-standards-migration	🛑 Protocole pré-migration destructive	Workflow OBLIGATOIRE si migration destructive détectée
+dev-standards-migration	Workflow OBLIGATOIRE si migration destructive détectée	Le developer n'exécute pas une migration destructive de manière autonome :
+dev-standards-migration	Analyse pré-migration	Checklist obligatoire
+dev-standards-migration	Guides de migration officiels	Toujours consulter en premier :
+dev-standards-migration	Guides de migration officiels	Ce que tu NE fais PAS
+dev-standards-migration	🔎 Mode Auditeur Migration	Ne jamais migrer sans validation explicite
+dev-standards-refactoring	🔒 Règle absolue — Invariant comportemental	**Le comportement observable du code ne doit JAMAIS changer après un refactoring.**
+dev-standards-refactoring	🔒 Règle absolue — Invariant comportemental	❌ Tu ne refactores JAMAIS du code sans couverture de tests — demander les tests d'abord
+dev-standards-refactoring	🔒 Règle absolue — Invariant comportemental	❌ Tu ne changes JAMAIS une signature d'API publique dans un refactoring
+dev-standards-refactoring	🔒 Règle absolue — Invariant comportemental	❌ Tu ne fais JAMAIS de "big bang refactoring" — toujours par petits pas testables
+dev-standards-refactoring	🔒 Règle absolue — Invariant comportemental	✅ Chaque micro-refactoring doit laisser les tests verts
+dev-standards-refactoring	Questions de réflexion avant refactoring	Si la suppression disperse la complexité dans N endroits : le code centralise utilement → ne pas supprimer
+dev-standards-refactoring	Questions de réflexion avant refactoring	Ces questions sont des **lentilles d'analyse**, pas des règles. La convention projet prévaut toujours si elle documente un choix intentionnel contraire.
+dev-standards-refactoring	Rename	Ne révèle pas l'intention
+dev-standards-refactoring	Inline	L'abstraction n'apporte pas de clarté
+dev-standards-refactoring	Inline	Le nom n'est pas plus expressif que le corps
+dev-standards-refactoring	Inline	La fonction n'a qu'un seul appelant et n'est pas testée séparément
+dev-standards-refactoring	Replace Conditional with Polymorphism	Les cas sont stables et ne changeront pas fréquemment
+dev-standards-refactoring	Replace Conditional with Polymorphism	**Attention :** ne pas appliquer ce pattern pour 2-3 cas simples — un if/else reste plus lisible.
+dev-standards-refactoring	Replace Loop with Pipeline	**Attention :** ne pas appliquer si la boucle a des effets de bord complexes ou si la performance est critique (une seule itération vs plusieurs passes).
+dev-standards-refactoring	Avec filet de tests (Characterization Tests)	Si le code n'est pas testé :
+dev-standards-refactoring	Avec filet de tests (Characterization Tests)	Ces tests ne définissent pas le comportement correct — ils documentent l'existant
+dev-standards-refactoring	Workflow de refactoring sûr	Pré-conditions obligatoires
+dev-standards-refactoring	Cycle de refactoring	c'est qu'il n'est pas assez micro. Annuler et découper plus finement.
+dev-standards-refactoring	Post-conditions	Ce que tu NE fais PAS
+dev-standards-refactoring	🔎 Mode Auditeur Refactoring	Ne jamais appliquer sans validation explicite
 planner-handoff-format	Format du bloc `## Retour vers orchestrator`	`bloqué` | La planification ne peut pas être finalisée — un blocage empêche la création des tickets
 planner-handoff-format	Règles pour le producteur (planner)	**`### Récapitulatif de planification`** doit capturer le raisonnement et les décisions — minimum 3-5 phrases
 planner-handoff-format	Règles pour le producteur (planner)	**Lister tous les tickets créés** dans le tableau — ne pas en omettre, même les tickets mineurs

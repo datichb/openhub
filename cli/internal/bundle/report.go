@@ -43,6 +43,10 @@ type AgentReport struct {
 	Tokens int `json:"tokens"`
 	// InlinedTokens is the part of Tokens taken by the inlined skills.
 	InlinedTokens int `json:"inlined_tokens,omitempty"`
+	// Skills is the number of skills in the catalogue of the agent and
+	// CatalogTokens their catalogue entries.
+	Skills        int `json:"skills"`
+	CatalogTokens int `json:"catalog_tokens"`
 }
 
 // SkillReport is an on-demand skill of the bundle.
@@ -61,7 +65,8 @@ type Budget struct {
 	// Agents sums every agent prompt (each one loaded when the agent runs).
 	Agents int `json:"agents"`
 	// SkillCatalog is the list of skill names and descriptions shown to the
-	// model at every turn.
+	// model at every turn: the catalogue of the entry agent (each agent sees
+	// its own, AgentReport.CatalogTokens).
 	SkillCatalog int `json:"skill_catalog"`
 	// Skills sums the on-demand skill bodies (loaded only when opened).
 	Skills int `json:"skills"`
@@ -119,12 +124,13 @@ func SkillCatalogTokens(sk sessionspec.SkillDef) int {
 	return EstimateTokens(sk.ID + ": " + sk.Description)
 }
 
-// VisibleSkills returns the bundle skills an agent may load: every one its
+// VisibleSkills returns the bundle skills an agent may load: those of its
+// catalogue (every one for a bundle without per-agent catalogue) that its
 // own skill rules do not deny (as the opencode adapter renders them).
 func VisibleSkills(a sessionspec.AgentDef, skills []sessionspec.SkillDef) []sessionspec.SkillDef {
 	out := make([]sessionspec.SkillDef, 0, len(skills))
 	for _, sk := range skills {
-		if ToolEffect(a.Permissions, sessionspec.ActionSkill, sk.ID) != sessionspec.EffectDeny {
+		if a.SkillVisible(sk.ID) && ToolEffect(a.Permissions, sessionspec.ActionSkill, sk.ID) != sessionspec.EffectDeny {
 			out = append(out, sk)
 		}
 	}
@@ -146,6 +152,10 @@ func Show(b *Bundle) *Report {
 		for _, in := range InlinedSkills(a.Body) {
 			ar.InlinedTokens += in.Tokens
 		}
+		for _, sk := range VisibleSkills(a, s.Skills) {
+			ar.Skills++
+			ar.CatalogTokens += SkillCatalogTokens(sk)
+		}
 		if a.Model != nil {
 			ar.Model = a.Model.String()
 		}
@@ -153,6 +163,7 @@ func Show(b *Bundle) *Report {
 		r.Budget.Agents += ar.Tokens
 		if ar.Entry {
 			r.Budget.EntryAgent = ar.Tokens
+			r.Budget.SkillCatalog = ar.CatalogTokens
 		}
 	}
 	sort.SliceStable(r.Agents, func(i, j int) bool { return r.Agents[i].Entry && !r.Agents[j].Entry })
@@ -164,7 +175,6 @@ func Show(b *Bundle) *Report {
 		}
 		r.Skills = append(r.Skills, sr)
 		r.Budget.Skills += sr.Tokens
-		r.Budget.SkillCatalog += SkillCatalogTokens(sk)
 	}
 	for _, m := range s.MCP {
 		r.MCP = append(r.MCP, m.Name)

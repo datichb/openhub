@@ -17,12 +17,20 @@ import (
 var inlinedHeadingRe = regexp.MustCompile("(?m)^> Skill `([a-z0-9_-]+)` : incluse ci-dessous")
 
 // Every skill named in an agent body or a prompt template of a shipped
-// workflow is loadable (shipped on demand) or inlined in the agent under a
-// heading that names it: otherwise the model calls the skill tool and gets
-// « Unable to load skill » (v5 finalisation, Q3-1: cp-1 never declared in
-// ticket).
+// workflow is in the catalogue of the agent (shipped on demand for it) or
+// inlined in the agent under a heading that names it: otherwise the model
+// calls the skill tool and gets « Unable to load skill » (v5 finalisation,
+// Q3-1: cp-1 never declared in ticket). Sections that do not invite the
+// agent to load a skill (rules for the consumer of a handoff…) are left out
+// (L2, invitingText).
 func TestShippedWorkflowSkillMentionsResolve(t *testing.T) {
 	hub, cat, env := shippedWorkflows(t)
+	files, err := bricks.FindAgentFiles(hub)
+	require.NoError(t, err)
+	agentIDs := map[string]bool{}
+	for id := range files {
+		agentIDs[id] = true
+	}
 	for _, ref := range cat.Refs() {
 		t.Run(ref.ID, func(t *testing.T) {
 			r, diags := workflow.Check(cat, ref, nil, env)
@@ -33,12 +41,14 @@ func TestShippedWorkflowSkillMentionsResolve(t *testing.T) {
 			require.NoError(t, err)
 			index := hubSkillIndex(hub, generated)
 
-			loadable := map[string]bool{}
-			for _, sk := range b.Spec.Skills {
-				loadable[sk.ID] = true
-			}
+			loadable := map[string]map[string]bool{}
 			headed := map[string]map[string]bool{}
 			for _, a := range b.Spec.Agents {
+				require.NotNil(t, a.Skills, "agent %s has a catalogue", a.ID)
+				loadable[a.ID] = map[string]bool{}
+				for _, id := range a.Skills {
+					loadable[a.ID][id] = true
+				}
 				headed[a.ID] = map[string]bool{}
 				for _, m := range inlinedHeadingRe.FindAllStringSubmatch(a.Body, -1) {
 					headed[a.ID][m[1]] = true
@@ -51,13 +61,13 @@ func TestShippedWorkflowSkillMentionsResolve(t *testing.T) {
 						continue // skill of a plugin the workflow does not load (A8)
 					}
 					id := skillID(ref)
-					if !loadable[id] && !headed[agent][id] {
-						t.Errorf("%s names skill %q, neither inlined in %s nor shipped on demand", where, id, agent)
+					if !loadable[agent][id] && !headed[agent][id] {
+						t.Errorf("%s names skill %q, neither inlined in %s nor in its catalogue", where, id, agent)
 					}
 				}
 			}
 			for _, a := range b.Spec.Agents {
-				check("agent "+a.ID, a.ID, a.Body)
+				check("agent "+a.ID, a.ID, invitingText(a.Body, a.ID, agentIDs))
 			}
 			if r.Spec.Prompt != nil && r.Spec.Prompt.Template != "" {
 				src, err := os.ReadFile(filepath.Join(hub, "workflows", r.Spec.Prompt.Template))
@@ -66,8 +76,6 @@ func TestShippedWorkflowSkillMentionsResolve(t *testing.T) {
 			}
 
 			// Each inlined skill carries its heading.
-			files, err := bricks.FindAgentFiles(hub)
-			require.NoError(t, err)
 			loader := newSkillLoader(hub, generated)
 			var deny []string
 			if r.Spec.Skills != nil {
@@ -173,7 +181,8 @@ func TestHubSkillReferencesExist(t *testing.T) {
 }
 
 // QB3: the audit bundle ships every domain checklist of the hub
-// (auditor/audit-<domain>, loaded by auditor-subagent).
+// (auditor/audit-<domain>), in the catalogue of auditor-subagent that loads
+// it (L2: named by its caller auditor, skills_from_callers).
 func TestAuditBundleShipsDomainChecklists(t *testing.T) {
 	hub, cat, env := shippedWorkflows(t)
 	r, diags := workflow.Check(cat, workflow.Ref{Layer: workflow.LayerHub, ID: "audit"}, nil, env)
@@ -184,6 +193,12 @@ func TestAuditBundleShipsDomainChecklists(t *testing.T) {
 	for _, s := range b.Spec.Skills {
 		shipped[s.ID] = true
 	}
+	var sub []string
+	for _, a := range b.Spec.Agents {
+		if a.ID == "auditor-subagent" {
+			sub = a.Skills
+		}
+	}
 	files, err := filepath.Glob(filepath.Join(hub, "skills", "auditor", "audit-*.md"))
 	require.NoError(t, err)
 	require.NotEmpty(t, files)
@@ -193,6 +208,7 @@ func TestAuditBundleShipsDomainChecklists(t *testing.T) {
 			continue // formats and light protocol, not domain checklists
 		}
 		assert.True(t, shipped[id], "audit bundle does not ship %s", id)
+		assert.Contains(t, sub, id, "auditor-subagent cannot load %s", id)
 	}
 }
 

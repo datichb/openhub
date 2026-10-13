@@ -229,6 +229,8 @@ type agentSummary struct {
 	Mode        string   `json:"mode"`
 	Model       string   `json:"model,omitempty"`
 	Permissions []string `json:"permissions"`
+	// Skills is the catalogue of the agent (L2).
+	Skills []string `json:"skills"`
 }
 
 func TestShippedWorkflowBundles(t *testing.T) {
@@ -246,7 +248,7 @@ func TestShippedWorkflowBundles(t *testing.T) {
 			s := b.Spec
 			sum := bundleSummary{EntryAgent: s.EntryAgent, SubagentGraph: s.SubagentGraph, MaxDepth: s.MaxDepth, CodeMode: s.CodeMode}
 			for _, a := range s.Agents {
-				as := agentSummary{ID: a.ID, Mode: a.Mode, Permissions: []string{}}
+				as := agentSummary{ID: a.ID, Mode: a.Mode, Permissions: []string{}, Skills: a.Skills}
 				if a.Model != nil {
 					as.Model = a.Model.Provider + "/" + a.Model.Model
 				}

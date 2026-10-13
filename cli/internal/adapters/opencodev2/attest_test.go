@@ -24,3 +24,18 @@ func TestSkillVisibleOnServerUsesServerRules(t *testing.T) {
 	assert.Equal(t, []string{"helper"}, skillVisibleOnServer(agents, b, "report"))
 	assert.Empty(t, skillVisibleOnServer(agents[:1], b, "report"))
 }
+
+// L2: a bundle skill the server exposes to an agent outside its catalogue
+// breaks the closed world of that agent.
+func TestOutsideCatalogue(t *testing.T) {
+	b := sessionspec.BundleSpec{
+		Agents: []sessionspec.AgentDef{{ID: "lead", Skills: []string{"alpha"}}, {ID: "helper", Skills: []string{}}, {ID: "old"}},
+		Skills: []sessionspec.SkillDef{{ID: "alpha"}},
+	}
+	open := []sessionspec.PermissionRule{{Action: "skill", Resource: "alpha", Effect: sessionspec.EffectAllow}}
+	agents := []Agent{{ID: "lead", Permissions: open}, {ID: "helper", Permissions: open}, {ID: "old", Permissions: open}}
+	assert.Equal(t, []string{"helper"}, outsideCatalogue(agents, b, "alpha"), "old: no catalogue, every bundle skill")
+	assert.Empty(t, outsideCatalogue(agents[:1], b, "alpha"))
+	// Rendered rules (server listing no rules) follow the catalogue.
+	assert.Empty(t, outsideCatalogue([]Agent{{ID: "lead"}, {ID: "helper"}}, b, "alpha"))
+}

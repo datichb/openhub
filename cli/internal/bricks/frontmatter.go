@@ -24,6 +24,13 @@ type AgentFrontmatter struct {
 	// Verify grants the build, test, lint and type check commands of the
 	// project's stack (VerifyCommands), asked in a read-only workflow.
 	Verify bool `yaml:"verify"`
+	// StackSkills puts the stack skills of the project (StackSkillsFor) in
+	// the skill catalogue of the agent (agents that write or judge code).
+	StackSkills bool `yaml:"stack_skills"`
+	// SkillsFromCallers puts in the skill catalogue of the agent the skills
+	// its callers name in their prompt: a caller tells it which skill to
+	// load (auditor-subagent and its domain checklist).
+	SkillsFromCallers bool `yaml:"skills_from_callers"`
 }
 
 // ParseAgentFrontmatter reads an agent .md file and extracts its YAML frontmatter.

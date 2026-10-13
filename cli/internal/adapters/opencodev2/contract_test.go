@@ -274,6 +274,35 @@ func TestContractRenderAndAttest(t *testing.T) {
 	assert.True(t, active, "oh plugin active")
 }
 
+// L2: each agent of the bundle gets only its catalogue, as the server
+// applies it (effective rules listed per agent), and Attest accepts it.
+func TestContractPerAgentCatalogue(t *testing.T) {
+	a := newContractAdapter(t)
+	root := t.TempDir()
+	project := filepath.Join(root, "proj")
+	require.NoError(t, os.MkdirAll(project, 0o755))
+	b := contractBundle(t, root)
+	b.Agents[0].Skills = []string{"alpha"}
+	b.Agents[1].Skills = []string{"beta"}
+
+	h, err := a.StartServer(context.Background(), adapters.ServerGroup{
+		Bundle:   b,
+		Provider: sessionspec.ProviderSpec{ID: "amazon-bedrock", Region: "eu-west-1"},
+		DataDir:  filepath.Join(root, "data"),
+		WorkDir:  project,
+	})
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = a.StopServer(context.Background(), h) })
+
+	rep, err := a.Attest(context.Background(), h, b, project)
+	require.NoError(t, err)
+	assert.True(t, rep.OK(), "unexpected: %v", rep.Unexpected)
+	agents, err := NewClient(h.URL, h.Password).Agents(context.Background(), project)
+	require.NoError(t, err)
+	assert.Equal(t, []string{"lead"}, skillVisibleOnServer(agents, b, "alpha"))
+	assert.Equal(t, []string{"helper"}, skillVisibleOnServer(agents, b, "beta"))
+}
+
 func TestContractAttestDetectsParasiteAgent(t *testing.T) {
 	a := newContractAdapter(t)
 	root := t.TempDir()

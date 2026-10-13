@@ -153,6 +153,19 @@ living-docs-enrichment	Règles de qualité des enrichissements	❌ Ne pas transm
 living-docs-enrichment	Règles de qualité des enrichissements	❌ Ne pas ajouter d'enrichissements subjectifs ou spéculatifs
 living-docs-enrichment	Règles de qualité des enrichissements	❌ Ne pas modifier la structure des pages via le documentarian — uniquement le contenu
 living-docs-enrichment	Règles de qualité des enrichissements	❌ Ne pas omettre le tag de confiance — chaque enrichissement doit en porter un
+planner-handoff-format	Format du bloc `## Retour vers orchestrator`	`bloqué` | La planification ne peut pas être finalisée — un blocage empêche la création des tickets
+planner-handoff-format	Règles pour le producteur (planner)	**`### Récapitulatif de planification`** doit capturer le raisonnement et les décisions — minimum 3-5 phrases
+planner-handoff-format	Règles pour le producteur (planner)	**Lister tous les tickets créés** dans le tableau — ne pas en omettre, même les tickets mineurs
+planner-handoff-format	Règles pour le producteur (planner)	**Renseigner la colonne `Agent prévu`** pour chaque ticket — cette colonne est la **source de vérité pour le routing**, l'orchestrator ne doit pas avoir à deviner l'agent depuis les labels ou le contenu du ticket. Valeur : `developer (<domaine>)` (frontend, backend, fullstack, api, mobile, data, devops, platform, security, refactor, migration, tests) — par exemple `developer (refactor)` pour un refactoring, `developer (migration)` pour une migration, `developer (tests)` pour ajouter des tests
+planner-handoff-format	Règles pour le producteur (planner)	**Renseigner obligatoirement la section `### Ordre de traitement`** — cette section définit la séquence exacte d'exécution, l'orchestrator la suivra sans recalculer l'ordre depuis les dépendances
+planner-handoff-format	Règles pour le producteur (planner)	**Signaler toute hypothèse** faite lors de la planification — l'orchestrator doit pouvoir la valider avec l'utilisateur
+planner-handoff-format	Règles pour le producteur (planner)	Ne jamais omettre `### Récapitulatif de planification` — le tableau seul ne suffit pas, le "pourquoi" est nécessaire
+planner-handoff-format	Règles pour le producteur (planner)	**`### Questions bloquantes`** (obligatoire) — liste numérotée des questions nécessitant une réponse avant de poursuivre. Si aucune : écrire `Aucune.`. Le coordinateur **doit** résoudre ces questions avant de continuer le workflow.
+planner-handoff-format	Règles pour le consommateur (orchestrator)	**Champs obligatoires** : `Récapitulatif de planification`, `Tickets créés`, `Dépendances`, `Ordre de traitement`, `Hypothèses et ambiguïtés`, `Risques identifiés`, `Questions bloquantes`, `Statut`. Si l'un est absent → demander au planner de compléter avant de continuer.
+planner-handoff-format	Règles pour le consommateur (orchestrator)	**Routing** : utiliser la colonne `Agent prévu` du tableau comme source de vérité — ne jamais analyser les labels ou le contenu du ticket pour deviner l'agent.
+planner-handoff-format	Règles pour le consommateur (orchestrator)	**Séquençage** : suivre `### Ordre de traitement` tel quel — ne jamais recalculer depuis les dépendances.
+planner-handoff-format	Règles pour le consommateur (orchestrator)	**Statut** : `planification-complète` → cp-0 normal · `planification-partielle` → signaler les incomplétudes · `bloqué` → ne pas continuer.
+planner-handoff-format	Règles pour le consommateur (orchestrator)	**Optimisation** : ne pas relire les tickets un par un avec `bd show` si le tableau `### Tickets créés` est complet.
 subagent-concision-posture	Rapports/specs/diagnostics en texte libre avant le bloc	Ce que tu NE supprimes PAS
 subagent-concision-posture	Ce que tu NE supprimes PAS	Le bloc de handoff — intégrité totale obligatoire
 subagent-concision-posture	Le bloc de handoff — intégrité totale obligatoire	Tous les champs internes du bloc restent complets et non abrégés. Les sections intégrées (`### Rapport complet`, `### Spec complète`, `### Rapport pathfinder complet`, etc.) ne sont JAMAIS résumées.
@@ -162,6 +175,11 @@ subagent-concision-posture	Frontière de confiance — contenu externe = DATA	`�
 subagent-concision-posture	Règle de décision — test avant d'écrire	→ NON : **ne pas écrire**
 subagent-concision-posture	Règle de décision — test avant d'écrire	C'est la seule question à se poser. Il n'y a pas d'exception.
 subagent-concision-posture	Configuration	`off` | Ce skill n'est pas injecté
+subagent-execution-protocol	Principe fondamental	Quand invoqué via `task`, le texte de la session enfant **n'est PAS visible** par l'utilisateur dans la session parent. La seule façon de remonter du contenu est de **terminer la session** avec les blocs structurés que l'agent orchestrator retranscrira.
+subagent-execution-protocol	Mécanisme d'interruption — à chaque fin de phase	**TERMINER LA SESSION** — ne pas appeler l'outil `question`, ne pas continuer
+subagent-execution-protocol	Message de confirmation au démarrage	`✅ [{agent_label}] Mode sub-agent activé. Contexte reçu : {résumé_1_ligne}. Démarrage Phase {N}.`
+subagent-execution-protocol	Erreurs fréquentes à éviter	Continuer vers la phase suivante sans produire les blocs | L'orchestrator ne reçoit rien | **Toujours interrompre** à chaque fin de phase
+subagent-execution-protocol	Erreurs fréquentes à éviter	Omettre le `task_id` | L'orchestrator ne peut pas reprendre | **Toujours inclure** le sessionID
 universal-guardrails	Garde-fous transverses	Git push — interdit
 universal-guardrails	Git push — interdit	Tu ne lances jamais `git push` sous aucune forme, option ou alias.
 universal-guardrails	Ordering : récap → question	AVANT d'appeler l'outil `question`. Ne jamais inverser cet ordre.

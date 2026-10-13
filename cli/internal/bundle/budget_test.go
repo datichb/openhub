@@ -64,7 +64,7 @@ func TestBudgetBaseline(t *testing.T) {
 			for _, sk := range b.Spec.Skills {
 				tot.catalogTokens += SkillCatalogTokens(sk)
 			}
-			reach := reachableSkills(t, hub, r.Spec, b)
+			reach := reachableSkills(t, hub, r.Spec, b, p.path)
 			reachedByOne := map[string]bool{}
 			for _, a := range b.Spec.Agents {
 				l := budgetLine{project: p.name, workflow: ref.ID, agent: a.ID, prompt: EstimateTokens(a.Body)}
@@ -106,9 +106,10 @@ func TestBudgetBaseline(t *testing.T) {
 	out.WriteString("# Budget baseline: estimated tokens (runes/4, as oh bundle show --budget).\n")
 	out.WriteString("# prompt = composed system prompt; inlined = part taken by the inlined skills (count);\n")
 	out.WriteString("# catalog = on-demand skills visible to the agent and their catalogue entries (id: description).\n")
-	out.WriteString("# reach = on-demand skills the agent can reach (native skills, skills named in its prompt,\n")
-	out.WriteString("# their requires closure) and their catalogue entries; the stack skills of the project are not\n")
-	out.WriteString("# counted (shipped for the project, named by no agent).\n")
+	out.WriteString("# reach = on-demand skills the agent can reach (native skills, skills named in its prompt, stack\n")
+	out.WriteString("# skills for the agents with stack_skills, extra and prompt skills for the entry agent, skills\n")
+	out.WriteString("# named by its callers for the agents with skills_from_callers, their requires closure) and their\n")
+	out.WriteString("# catalogue entries. Per-agent catalogue (L2): catalog = reach.\n")
 	out.WriteString("# TOTAL: sums of the agents; catalog = every skill of the bundle; reach = skills reached by an agent.\n")
 	out.WriteString("# Regenerate: go test ./internal/bundle -run TestBudgetBaseline -update\n\n")
 	fmt.Fprintf(&out, "%-8s %-22s %-28s %8s %8s %4s %4s %6s %4s %6s\n", "project", "workflow", "agent",
@@ -177,11 +178,14 @@ func readBudgetGolden(t *testing.T, name string) map[string]int {
 }
 
 // reachableSkills returns, by agent, the bundle skills the agent can reach
-// on demand: its native skills, the skills named in its composed prompt
-// (inlined ones aside) and their requires closure, among the skills it may
-// load. The build ships the union over the agents; an agent only reaches
-// this part (the per-agent catalogue of L2).
-func reachableSkills(t *testing.T, hub string, spec *workflow.Spec, b *Bundle) map[string][]sessionspec.SkillDef {
+// on demand (L2): its native skills, the skills named in its composed prompt
+// (inlined ones and sections that do not invite it aside), the stack skills
+// of the project when it sets stack_skills, for the entry agent the workflow
+// `skills.extra` and the skills named in the prompt template, for an agent
+// that sets skills_from_callers the skills its callers name (their natives
+// aside), and their requires closure, among the skills it may load. It is
+// written apart from the build: the catalogue of each agent must match it.
+func reachableSkills(t *testing.T, hub string, spec *workflow.Spec, b *Bundle, projectPath string) map[string][]sessionspec.SkillDef {
 	t.Helper()
 	generated, err := specSkills(hub, spec)
 	require.NoError(t, err)
@@ -189,18 +193,63 @@ func reachableSkills(t *testing.T, hub string, spec *workflow.Spec, b *Bundle) m
 	index := hubSkillIndex(hub, generated)
 	files, err := bricks.FindAgentFiles(hub)
 	require.NoError(t, err)
-	out := map[string][]sessionspec.SkillDef{}
+	agentIDs := map[string]bool{}
+	for id := range files {
+		agentIDs[id] = true
+	}
+	var extra []string
+	if spec.Skills != nil {
+		extra = spec.Skills.Extra
+	}
+	prompt := ""
+	if spec.Prompt != nil && spec.Prompt.Template != "" {
+		data, err := os.ReadFile(filepath.Join(hub, "workflows", spec.Prompt.Template))
+		require.NoError(t, err)
+		prompt = string(data)
+	}
+	type agentReach struct {
+		fm      *bricks.AgentFrontmatter
+		inlined map[string]bool
+		named   []string // skills named in the prompt of the agent
+	}
+	byID := map[string]*agentReach{}
 	for _, a := range b.Spec.Agents {
 		fm, err := bricks.ParseAgentFrontmatter(files[a.ID])
 		require.NoError(t, err)
-		inlined := map[string]bool{}
+		ar := &agentReach{fm: fm, inlined: map[string]bool{}}
 		for _, in := range InlinedSkills(a.Body) {
-			inlined[in.ID] = true
+			ar.inlined[in.ID] = true
 		}
-		roots := append([]string(nil), fm.NativeSkills...)
-		for _, ref := range mentionedSkills(a.Body, index) {
-			if !inlined[skillID(ref)] {
-				roots = append(roots, ref)
+		for _, ref := range mentionedSkills(invitingText(a.Body, a.ID, agentIDs), index) {
+			if !ar.inlined[skillID(ref)] {
+				ar.named = append(ar.named, ref)
+			}
+		}
+		byID[a.ID] = ar
+	}
+	callers := callersOf(b.Spec.SubagentGraph)
+	out := map[string][]sessionspec.SkillDef{}
+	for _, a := range b.Spec.Agents {
+		ar := byID[a.ID]
+		roots := append(append([]string(nil), ar.fm.NativeSkills...), ar.named...)
+		if ar.fm.StackSkills && projectPath != "" {
+			roots = append(roots, bricks.ResolveStackSkills(projectPath)...)
+		}
+		if a.ID == b.Spec.EntryAgent {
+			roots = append(roots, extra...)
+			roots = append(roots, mentionedSkills(prompt, index)...)
+		}
+		if ar.fm.SkillsFromCallers {
+			for _, c := range callers[a.ID] {
+				natives := map[string]bool{}
+				for _, n := range byID[c].fm.NativeSkills {
+					natives[n] = true
+				}
+				for _, ref := range byID[c].named {
+					if !natives[ref] {
+						roots = append(roots, ref)
+					}
+				}
 			}
 		}
 		reached := map[string]bool{}
@@ -211,11 +260,13 @@ func reachableSkills(t *testing.T, hub string, spec *workflow.Spec, b *Bundle) m
 				continue
 			}
 			for _, d := range docs {
-				reached[d.ID] = true
+				if !ar.inlined[d.ID] {
+					reached[d.ID] = true
+				}
 			}
 		}
-		for _, sk := range VisibleSkills(a, b.Spec.Skills) {
-			if reached[sk.ID] {
+		for _, sk := range b.Spec.Skills {
+			if reached[sk.ID] && ToolEffect(a.Permissions, sessionspec.ActionSkill, sk.ID) != sessionspec.EffectDeny {
 				out[a.ID] = append(out[a.ID], sk)
 			}
 		}
