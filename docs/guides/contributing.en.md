@@ -112,6 +112,16 @@ The CLI is a single Go binary (`cli/main.go` -> `cli/cmd/root.go`). Internal arc
 The binary embeds agents, skills, and permissions via `go:embed` (`internal/hubcontent/`).
 `CGO_ENABLED=0` — no C dependencies, static binary.
 
+### Code conventions
+
+- **Thin commands**: a Cobra command (`cmd/<domain>.go`, `cmd/<domain>_<action>.go`) reads its flags, calls a service or a package of `internal/` and formats the output (`cmd.OutOrStdout()`); it returns its errors, never `os.Exit`. Its startup level is declared when it is registered (`withInitDB`, `withInitLevel(cmd, levelNone)`); stores come from `MustApp()` (or `TryApp()`).
+- **Logic shared by the CLI and the TUI** in `internal/services/<domain>/`: the TUI does not call the commands.
+- **Contracts in `internal/domain/`** (types, `XxxStore` interfaces, `ErrXxx` sentinel errors), implementations in `internal/storage/sqlite/` (migrations in `migrate.go`), checked at compile time (`var _ domain.XxxStore = (*XxxStore)(nil)`).
+- **Independence from the agentic tool**: only `internal/adapters/<tool>/` and the composition root (`cmd/v5_adapters.go`) name the tool; `internal/archtest/` checks it.
+- **Displayed texts** through `i18n.T` / `i18n.Tf`, keys in `internal/i18n/locales/fr.json` and `en.json` (a test checks they match).
+- **Errors** wrapped with their context (`fmt.Errorf("creating project %s: %w", id, err)`), tested with `errors.Is` / `errors.As`.
+- **Tests** in the same package, with `testify` (`require` for preconditions), table-driven cases, `t.TempDir()` and `t.Helper()` helpers. A test that starts processes (git, bd, servers) waits for them to end before its directory is cleaned up; the tests that push to bare repositories turn git's automatic maintenance off (`internal/gitutil/gittest`).
+
 ---
 
 ## Adding an agent

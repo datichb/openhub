@@ -218,7 +218,7 @@ Internal development notes (mostly monolingual, not translated). Some describe t
 
 | Document | Description |
 |----------|-------------|
-| [Architecture](dev/architecture.md) | Internal architecture notes |
+| [Architecture](dev/architecture.md) | Moved: points to the [architecture overview](architecture/overview.en.md) and the code conventions of [Contributing](guides/contributing.en.md#code-conventions) |
 | [v5 Audit](dev/audit-v5.md) | v5 audit (security, design, ergonomics, functional, architecture) and correction plan (P0/P1/P2) |
 | [CLI Migration Analysis](dev/cli-migration-analysis.md) | Bash-to-Go migration analysis |
 | [CLI Migration Plan v2](dev/cli-migration-plan-v2.md) | Migration implementation plan |

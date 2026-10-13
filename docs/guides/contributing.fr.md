@@ -112,6 +112,16 @@ Le CLI est un binaire Go unique (`cli/main.go` -> `cli/cmd/root.go`). L'architec
 Le binaire embarque les agents, skills et permissions via `go:embed` (`internal/hubcontent/`).
 `CGO_ENABLED=0` — pas de dependance C, binaire statique.
 
+### Conventions de code
+
+- **Commandes minces** : une commande Cobra (`cmd/<domaine>.go`, `cmd/<domaine>_<action>.go`) lit ses flags, appelle un service ou un package de `internal/` et met en forme la sortie (`cmd.OutOrStdout()`) ; elle retourne ses erreurs, jamais `os.Exit`. Le niveau de démarrage se déclare à l'enregistrement (`withInitDB`, `withInitLevel(cmd, levelNone)`) ; les stores s'obtiennent par `MustApp()` (ou `TryApp()`).
+- **Logique partagée CLI / TUI** dans `internal/services/<domaine>/` : la TUI n'appelle pas les commandes.
+- **Contrats dans `internal/domain/`** (types, interfaces `XxxStore`, erreurs sentinelles `ErrXxx`), implémentations dans `internal/storage/sqlite/` (migrations dans `migrate.go`), vérifiées à la compilation (`var _ domain.XxxStore = (*XxxStore)(nil)`).
+- **Indépendance de l'outil agentique** : seul `internal/adapters/<outil>/` et la racine de composition (`cmd/v5_adapters.go`) nomment l'outil ; `internal/archtest/` le vérifie.
+- **Textes affichés** par `i18n.T` / `i18n.Tf`, clés dans `internal/i18n/locales/fr.json` et `en.json` (un test vérifie la parité).
+- **Erreurs** enveloppées avec leur contexte (`fmt.Errorf("creating project %s: %w", id, err)`), testées par `errors.Is` / `errors.As`.
+- **Tests** dans le même package, avec `testify` (`require` pour les préconditions), des cas en table, `t.TempDir()` et des helpers `t.Helper()`. Un test qui lance des processus (git, bd, serveurs) attend leur fin avant le nettoyage de son dossier ; les tests qui poussent vers des dépôts nus coupent la maintenance automatique de git (`internal/gitutil/gittest`).
+
 ---
 
 ## Ajouter un agent
