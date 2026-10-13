@@ -1,0 +1,30 @@
+id: S8
+title: "Ticket sans démon : retour au rapport complet inclus dans le bloc"
+workflow: ticket
+active: false
+inactive_reason: "actif après L4 (workflow_report) : il faut pouvoir couper le dépôt des rapports par le démon pour vérifier le repli sur le rapport complet dans le bloc"
+mode: semi-auto
+tickets: [ev-1]
+beads:
+  prefix: ev
+  tickets:
+    - id: ev-1
+      title: "Corriger Sub qui additionne au lieu de soustraire"
+      type: bug
+      labels: [ai-delegated]
+      description: "calc.Sub(a, b) renvoie a + b au lieu de a - b."
+      acceptance: "Sub(5, 3) == 2 ; go test ./... passe."
+timeout: 25m
+answers:
+  checkpoints:
+    "*": approve
+assertions:
+  - type: text_matches
+    name: le developer inclut son rapport complet dans le bloc
+    agent: developer
+    pattern: "Retour vers orchestrator-dev[\\s\\S]*Changements par fichier"
+  - type: text_matches
+    name: le reviewer inclut son rapport complet dans le bloc
+    agent: reviewer
+    pattern: "Retour vers orchestrator-dev[\\s\\S]*Verdict"
+  - type: hidden_tests

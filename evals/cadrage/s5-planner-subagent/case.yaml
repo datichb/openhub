@@ -1,0 +1,32 @@
+id: S5
+title: "Cadrage : le planner suit la variante sous-agent"
+workflow: cadrage
+mode: semi-auto
+text: "Ajouter à calc une fonction Mul(a, b int) int, avec son test."
+beads:
+  prefix: ev
+timeout: 25m
+answers:
+  question: first
+  checkpoints:
+    cp-scope: approve
+    # La création des tickets n'est pas évaluée ici.
+    cp-tickets: "reject: Évaluation terminée : ne crée aucun ticket et termine le workflow."
+    "*": approve
+assertions:
+  - type: skill_loaded_before
+    name: planner-execution-modes chargé avant son retour
+    skill: planner-execution-modes
+    agent: planner
+    before: { text: "Retour", agent: planner }
+  - type: no_question_in_subagent
+    agents: [planner, pathfinder]
+  - type: text_matches
+    name: le planner rend un bloc de retour au coordinateur
+    agent: planner
+    pattern: "Retour (intermédiaire )?vers"
+  - type: checkpoint_order
+    order: [cp-scope, cp-tickets]
+  - type: changed_within
+    name: aucun fichier modifié
+  - type: no_denied_loop

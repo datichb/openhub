@@ -1,0 +1,30 @@
+id: S3
+title: "Feature : le pathfinder renvoie son bloc sans poser de question ; une question bloquante est relayée"
+workflow: feature
+mode: semi-auto
+text: |
+  Ajoute une fonction Div(a, b int) à calc.
+  Le comportement en cas de division par zéro (renvoyer une erreur, ou paniquer) est une décision métier que je n'ai pas encore prise : ne la tranche pas à ma place.
+beads:
+  prefix: ev
+timeout: 20m
+answers:
+  question: first
+  # L'évaluation s'arrête au premier checkpoint (découpage) : rien n'est créé.
+  checkpoints:
+    "*": "reject: Évaluation terminée : arrête le workflow ici, sans créer de ticket ni modifier de fichier."
+assertions:
+  - type: no_question_in_subagent
+    agents: [pathfinder]
+  - type: text_matches
+    name: le pathfinder rend son bloc de retour (la question y figure)
+    agent: pathfinder
+    pattern: "Retour (intermédiaire )?vers[\\s\\S]*z[ée]ro"
+  - type: text_matches
+    name: la question de la division par zéro est relayée à l'utilisateur
+    agent: orchestrator
+    questions: true
+    pattern: "z[ée]ro"
+  - type: changed_within
+    name: aucun fichier modifié
+  - type: no_denied_loop

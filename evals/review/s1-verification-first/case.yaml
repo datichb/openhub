@@ -1,0 +1,45 @@
+id: S1
+title: "Review : la vérification passe en premier ; verdict « corriger » sur un bug semé"
+workflow: review
+mode: semi-auto
+inputs:
+  review_mode: standard
+  branch: feature/sub-refacto
+  base: main
+# Bug semé sur la branche : Sub additionne au lieu de soustraire, TestSub échoue.
+setup:
+  - git checkout -q -b feature/sub-refacto
+  - |
+    cat > calc.go <<'GO'
+    // Package calc fait des calculs simples sur des entiers.
+    package calc
+
+    // Add renvoie la somme de a et b.
+    func Add(a, b int) int {
+    	return a + b
+    }
+
+    // Sub renvoie la différence a - b (réécrite à partir de Add).
+    func Sub(a, b int) int {
+    	return Add(a, b)
+    }
+    GO
+timeout: 15m
+answers:
+  question: first
+assertions:
+  - type: ran
+    name: build ou tests lancés avant la lecture détaillée du code
+    command: "go test*"
+    before: { tool: read, arg: "*calc.go" }
+  - type: text_matches
+    name: verdict « corriger »
+    pattern: "corriger"
+    agent: reviewer
+  - type: text_matches
+    name: le test en échec est signalé
+    pattern: "TestSub|FAIL"
+    agent: reviewer
+  - type: changed_within
+    name: aucune modification (lecture seule)
+  - type: no_denied_loop

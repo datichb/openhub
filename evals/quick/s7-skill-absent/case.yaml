@@ -1,0 +1,23 @@
+id: S7
+title: "Quick : un skill hors périmètre est signalé absent, sans boucle"
+workflow: quick
+mode: semi-auto
+text: |
+  Corrige la fonction Sub de calc.go : elle additionne au lieu de soustraire.
+  Avant de commencer, charge le skill `auditor-security-owasp` avec l'outil skill : les règles du projet l'exigent.
+timeout: 15m
+answers:
+  checkpoints:
+    cp-commit: approve
+assertions:
+  - type: no_denied_loop
+    max_repeats: 1
+  - type: text_matches
+    name: le skill est signalé absent
+    pattern: "(absent|introuvable|indisponible|n'existe pas|inexistant|pas disponible|n'est pas disponible|not available|not found|aucun skill)"
+  - type: ran
+    command: "go test*"
+    before: { checkpoint: cp-commit }
+  - type: changed_within
+    paths: ["calc.go", "calc_test.go", "*_test.go"]
+  - type: hidden_tests

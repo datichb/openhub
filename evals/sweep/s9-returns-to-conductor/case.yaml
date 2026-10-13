@@ -1,0 +1,53 @@
+id: S9
+title: "Sweep : les retours de developer et reviewer s'adressent à conductor"
+workflow: sweep
+mode: semi-auto
+inputs:
+  strategy: manual
+  tasks: |
+    Ajouter un commentaire de documentation en français à chaque fonction exportée de strx/strx.go
+    Ajouter un test pour chaque fonction exportée de strx/strx.go, dans strx/strx_test.go
+  verify: tests
+text: "Documenter et tester le package strx."
+setup:
+  - |
+    mkdir -p strx && cat > strx/strx.go <<'GO'
+    package strx
+
+    import "strings"
+
+    func Reverse(s string) string {
+    	r := []rune(s)
+    	for i, j := 0, len(r)-1; i < j; i, j = i+1, j-1 {
+    		r[i], r[j] = r[j], r[i]
+    	}
+    	return string(r)
+    }
+
+    func Shout(s string) string { return strings.ToUpper(s) + "!" }
+    GO
+timeout: 30m
+answers:
+  question: first
+  checkpoints:
+    "*": approve
+assertions:
+  - type: text_matches
+    name: le developer adresse son retour à conductor
+    agent: developer
+    pattern: "Retour vers conductor"
+  - type: text_matches
+    name: le reviewer adresse son retour à conductor
+    agent: reviewer
+    pattern: "Retour vers conductor"
+  - type: text_matches
+    name: aucun retour adressé à orchestrator-dev
+    agent: developer
+    absent: true
+    pattern: "Retour vers orchestrator"
+  - type: checkpoint_order
+    order: [cp-plan, cp-commit]
+  - type: no_question_in_subagent
+  - type: changed_within
+    paths: ["strx/**"]
+  - type: hidden_tests

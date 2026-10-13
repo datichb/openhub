@@ -1,0 +1,29 @@
+id: S6
+title: "Debug : le skill de phase est chargé avant chaque phase"
+workflow: debug
+mode: semi-auto
+text: "go test ./... échoue sur TestSub : Sub(5, 3) renvoie 8 au lieu de 2."
+beads:
+  prefix: ev
+timeout: 20m
+answers:
+  question: first
+  checkpoints:
+    "*": approve
+assertions:
+  - type: skill_loaded_before
+    name: debugger-phase-0-1 avant la première validation de phase
+    skill: debugger-phase-0-1
+    before: { tool: question }
+  - type: skill_loaded_before
+    name: debugger-phase-2-3 avant la reproduction
+    skill: debugger-phase-2-3
+    before: { command: "go test*" }
+  - type: skill_loaded_before
+    name: debugger-phase-4-5 avant le ticket de correction
+    skill: debugger-phase-4-5
+    before: { checkpoint: cp-ticket }
+  - type: ran
+    name: le bug est reproduit
+    command: "go test*"
+  - type: no_denied_loop
