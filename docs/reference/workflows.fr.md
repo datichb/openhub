@@ -223,6 +223,8 @@ Diagnostic d'un bug ou d'un problème isolé par le `debugger` : rapport de diag
 
 Le ticket de correction n'est créé qu'après `cp-ticket` (« Créer le ticket de correction », en pause dans tous les modes, déverrouille `create`) : le `debugger` y présente le diagnostic et le ticket, au lieu de demander la confirmation avec l'outil `question` (qu'il garde dans une session `libre`). Une correction faite dans la session se termine par `cp-commit` (obligatoire, en pause dans tous les modes, déverrouille `commit` et `close`). Sortie : `tickets`. Commandes Beads autorisées : `show`, `list`, `ready`, `search`, `query`, `lint`, `children`, `comments`, `count`, `status`, `graph`, `history`, `create`, `update`, `close`, `dep`, `label`.
 
+**Brouillons de session** (`debugger: { scratch: { readers: [developer] } }`, voir [`scratch`](workflow-schema.fr.md#scratch-brouillons-de-session)) : en phase de reproduction, le `debugger` écrit son test ou script de reproduction dans `~/.oh/sessions/<session>/scratch/debugger/` (chemin donné dans l'entrée `oh.scratch` de l'état de session), hors dépôt et supprimé avec la session ; il décrit ce test en texte dans le ticket de correction. Le `developer`, lecteur déclaré, peut lire ce brouillon dans la même session, sans le modifier, et en fait le test définitif du projet. Le `documentarian` n'y a pas accès, ni aucun agent d'une autre session.
+
 ## `benchmark`
 
 Mesure des performances d'une cible par le `benchmarker` (modes `frontend` : Lighthouse, `api` : k6, `go` : go bench et pprof, `python` : py-spy), comparée à une référence. Le code n'est pas modifié : le `benchmarker` n'écrit que dans `reports/benchmarks/` (permission) ; les optimisations deviennent des recommandations pour le `developer`.
