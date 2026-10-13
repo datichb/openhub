@@ -177,3 +177,42 @@ func TestHubContentDir_ReturnsNonEmpty(t *testing.T) {
 		t.Errorf("HubContentDir() = %q, expected to end with 'hub'", dir)
 	}
 }
+
+// Install puts a variant of the hub in an oh home (oh eval --variant): the
+// startup keeps it instead of extracting the embedded hub.
+func TestInstall_KeepsAVariantInPlace(t *testing.T) {
+	src := t.TempDir()
+	for _, f := range []string{"agents/a/x.md", "skills/c/s.md", "workflows/w.yaml"} {
+		p := filepath.Join(src, f)
+		if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(p, []byte(f), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	home := t.TempDir()
+	t.Setenv("OH_HOME", home)
+	dest := HubContentDir()
+	if err := os.MkdirAll(filepath.Join(dest, "skills", "old"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := Install(src, dest); err != nil {
+		t.Fatalf("Install() failed: %v", err)
+	}
+	if NeedsExtract() {
+		t.Fatal("an installed variant needs no extraction")
+	}
+	if err := Extract(dest); err != nil {
+		t.Fatal(err)
+	}
+	if data, err := os.ReadFile(filepath.Join(dest, "skills", "c", "s.md")); err != nil || string(data) != "skills/c/s.md" {
+		t.Errorf("variant replaced: %q %v", data, err)
+	}
+	if _, err := os.Stat(filepath.Join(dest, "skills", "old")); !os.IsNotExist(err) {
+		t.Errorf("previous content left: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(dest, "permissions")); !os.IsNotExist(err) {
+		t.Errorf("no permissions/ in the source: none installed (%v)", err)
+	}
+}

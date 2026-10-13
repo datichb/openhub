@@ -34,6 +34,11 @@ type Pass struct {
 	Model     string
 	Rep       int // 1-based
 	BudgetUSD float64
+	// Variant is the name of the hub variant of the pass ("" = none);
+	// HubDir its prepared hub, installed in the home of the pass ("" =
+	// the hub embedded in oh).
+	Variant string
+	HubDir  string
 	// Dir is the work directory of the pass (removed afterwards unless
 	// kept); Project is the throwaway clone of the fixture in it.
 	Dir     string
@@ -81,6 +86,7 @@ func (f ExecutorFunc) Execute(ctx context.Context, p Pass) (*PassOutput, error) 
 // PassResult is the outcome of a pass and of its assertions.
 type PassResult struct {
 	Case       string             `json:"case"`
+	Variant    string             `json:"variant,omitempty"`
 	Model      string             `json:"model"`
 	Rep        int                `json:"rep"`
 	Outcome    string             `json:"outcome"`
@@ -125,6 +131,9 @@ type Runner struct {
 	OutDir   string
 	// Keep leaves the work directories in place (debugging).
 	Keep bool
+	// Variants are the versions of the hub each case runs with (none: the
+	// embedded hub); the first one is the reference of the comparison.
+	Variants []Variant
 	// Parallel is the number of passes run at the same time (< 1: one).
 	Parallel int
 	// BudgetTotalUSD caps the cost of the run (0: none): once the passes
@@ -157,8 +166,9 @@ func passWord(ok bool) string {
 
 // runAttempt runs one attempt of a pass on a fresh clone. It also returns
 // the evidence of a provider rate limit that stopped it ("" = none).
-func (r *Runner) runAttempt(ctx context.Context, c *Case, model string, rep int) (res PassResult, throttle string) {
-	res = PassResult{Case: c.ID, Model: model, Rep: rep}
+func (r *Runner) runAttempt(ctx context.Context, j passJob) (res PassResult, throttle string) {
+	c, model, rep := j.c, j.model, j.rep
+	res = PassResult{Case: c.ID, Variant: j.variant.Name, Model: model, Rep: rep}
 	budget := c.BudgetUSD
 	if budget <= 0 {
 		budget = r.BudgetUSD
@@ -175,12 +185,12 @@ func (r *Runner) runAttempt(ctx context.Context, c *Case, model string, rep int)
 	if !r.Keep {
 		defer func() { _ = RemoveAll(dir) }()
 	}
-	out := r.passOutDir(c, model, rep)
+	out := r.passOutDir(j)
 	if err := os.MkdirAll(out, 0o755); err != nil {
 		res.Outcome, res.Error = OutcomeError, err.Error()
 		return res, ""
 	}
-	p := Pass{Case: c, Model: model, Rep: rep, BudgetUSD: budget, Dir: dir, Project: filepath.Join(dir, "project"), OutDir: out}
+	p := Pass{Case: c, Model: model, Rep: rep, BudgetUSD: budget, Variant: j.variant.Name, HubDir: j.variant.Hub, Dir: dir, Project: filepath.Join(dir, "project"), OutDir: out}
 	base, err := PrepareClone(ctx, c, p.Project)
 	if err != nil {
 		res.Outcome, res.Error = OutcomeError, "setup: "+err.Error()

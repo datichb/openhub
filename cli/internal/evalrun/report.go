@@ -31,6 +31,12 @@ type Report struct {
 	TotalCost float64 `json:"total_cost_usd"`
 	// Note is free text recorded with a baseline (environment, caveats).
 	Note string `json:"note,omitempty"`
+	// Variants are the versions of the hub of the run (oh eval --variant),
+	// the first one being the reference; Comparisons and Verdicts compare
+	// each other variant with it.
+	Variants    []Variant        `json:"variants,omitempty"`
+	Comparisons []Comparison     `json:"comparisons,omitempty"`
+	Verdicts    []VariantVerdict `json:"verdicts,omitempty"`
 }
 
 // CaseInfo describes a case of the run.
@@ -43,9 +49,11 @@ type CaseInfo struct {
 	InactiveReason string `json:"inactive_reason,omitempty"`
 }
 
-// CaseStats aggregates the passes of a case with a model.
+// CaseStats aggregates the passes of a case with a model (and a variant
+// of the hub).
 type CaseStats struct {
 	Case     string         `json:"case"`
+	Variant  string         `json:"variant,omitempty"`
 	Model    string         `json:"model"`
 	Runs     int            `json:"runs"`
 	Passed   int            `json:"passed"`
@@ -68,15 +76,15 @@ type AssertionStat struct {
 }
 
 func (r *Report) compute() {
-	type key struct{ c, m string }
+	type key struct{ c, v, m string }
 	idx := map[key]*CaseStats{}
 	var order []key
 	r.TotalCost = 0
 	for _, p := range r.Passes {
-		k := key{p.Case, p.Model}
+		k := key{p.Case, p.Variant, p.Model}
 		s := idx[k]
 		if s == nil {
-			s = &CaseStats{Case: p.Case, Model: p.Model, Outcomes: map[string]int{}}
+			s = &CaseStats{Case: p.Case, Variant: p.Variant, Model: p.Model, Outcomes: map[string]int{}}
 			idx[k] = s
 			order = append(order, k)
 		}
@@ -112,6 +120,7 @@ func (r *Report) compute() {
 		}
 		r.Stats = append(r.Stats, *s)
 	}
+	r.compare()
 }
 
 func rate(n, d int) float64 {
@@ -121,10 +130,15 @@ func rate(n, d int) float64 {
 	return float64(n) / float64(d)
 }
 
-// Stat returns the stats of a case with a model.
+// Stat returns the stats of a case with a model (passes without variant).
 func (r *Report) Stat(caseID, model string) (CaseStats, bool) {
+	return r.VariantStat(caseID, "", model)
+}
+
+// VariantStat returns the stats of a case with a variant and a model.
+func (r *Report) VariantStat(caseID, variant, model string) (CaseStats, bool) {
 	for _, s := range r.Stats {
-		if s.Case == caseID && s.Model == model {
+		if s.Case == caseID && s.Variant == variant && s.Model == model {
 			return s, true
 		}
 	}
@@ -188,10 +202,19 @@ func (r *Report) Markdown(base *Report) string {
 		fmt.Fprintf(&b, "- Note : %s\n", r.Note)
 	}
 	b.WriteString("\n## Taux de réussite\n\n")
+	withVariants := len(r.Variants) > 0
+	head, sep := "| Cas | Workflow |", "|---|---|"
+	if withVariants {
+		head, sep = head+" Variante |", sep+"---|"
+	}
+	head, sep = head+" Modèle | Réussite |", sep+"---|---|"
 	if base != nil {
-		b.WriteString("| Cas | Workflow | Modèle | Réussite | Référence | Issues | Coût moyen | Durée moyenne |\n|---|---|---|---|---|---|---|---|\n")
-	} else {
-		b.WriteString("| Cas | Workflow | Modèle | Réussite | Issues | Coût moyen | Durée moyenne |\n|---|---|---|---|---|---|---|\n")
+		head, sep = head+" Référence |", sep+"---|"
+	}
+	b.WriteString(head + " Issues | Coût moyen | Durée moyenne |\n" + sep + "---|---|---|\n")
+	plain := map[string]bool{"": true}
+	for _, v := range r.Variants {
+		plain[v.Name] = v.Plain()
 	}
 	wf := map[string]string{}
 	for _, c := range r.Cases {
@@ -201,7 +224,7 @@ func (r *Report) Markdown(base *Report) string {
 		ref := ""
 		if base != nil {
 			ref = "—"
-			if bs, ok := base.Stat(s.Case, s.Model); ok {
+			if bs, ok := base.Stat(s.Case, s.Model); ok && plain[s.Variant] {
 				ref = fmt.Sprintf("%d/%d", bs.Passed, bs.Runs)
 				if d := s.PassRate - bs.PassRate; d < -0.001 {
 					ref += " ▼"
@@ -211,7 +234,11 @@ func (r *Report) Markdown(base *Report) string {
 			}
 			ref = " " + ref + " |"
 		}
-		fmt.Fprintf(&b, "| %s | %s | %s | %d/%d (%.0f %%) |%s %s | $%.3f | %.0f s |\n", s.Case, wf[s.Case], shortModel(s.Model),
+		variant := ""
+		if withVariants {
+			variant = " " + s.Variant + " |"
+		}
+		fmt.Fprintf(&b, "| %s | %s |%s %s | %d/%d (%.0f %%) |%s %s | $%.3f | %.0f s |\n", s.Case, wf[s.Case], variant, shortModel(s.Model),
 			s.Passed, s.Runs, 100*s.PassRate, ref, outcomes(s.Outcomes), s.MeanCost, s.MeanSecs)
 	}
 	var inactive []CaseInfo
@@ -226,9 +253,10 @@ func (r *Report) Markdown(base *Report) string {
 			fmt.Fprintf(&b, "- %s (%s) : %s\n", c.ID, c.Workflow, c.InactiveReason)
 		}
 	}
+	r.markdownComparison(&b)
 	b.WriteString("\n## Assertions\n")
 	for _, s := range r.Stats {
-		fmt.Fprintf(&b, "\n### %s · %s\n\n| Assertion | Réussite |\n|---|---|\n", s.Case, shortModel(s.Model))
+		fmt.Fprintf(&b, "\n### %s · %s%s\n\n| Assertion | Réussite |\n|---|---|\n", s.Case, variantTag(s.Variant), shortModel(s.Model))
 		for _, a := range s.Assertions {
 			fmt.Fprintf(&b, "| %s | %d/%d |\n", strings.ReplaceAll(a.Name, "|", "\\|"), a.Passed, a.Runs)
 		}
@@ -250,7 +278,7 @@ func (r *Report) Markdown(base *Report) string {
 				why = append(why, a.Name+" : "+oneLine(a.Detail, 200))
 			}
 		}
-		failures = append(failures, fmt.Sprintf("- %s · %s · #%d : %s", p.Case, shortModel(p.Model), p.Rep, strings.Join(why, " ; ")))
+		failures = append(failures, fmt.Sprintf("- %s · %s%s · #%d : %s", p.Case, variantTag(p.Variant), shortModel(p.Model), p.Rep, strings.Join(why, " ; ")))
 	}
 	if len(failures) > 0 {
 		b.WriteString("\n## Échecs\n\n")
@@ -260,7 +288,7 @@ func (r *Report) Markdown(base *Report) string {
 	var retried []string
 	for _, p := range r.Passes {
 		for _, a := range p.Retries {
-			retried = append(retried, fmt.Sprintf("- %s · %s · #%d, tentative %d : %s (issue %s, $%.3f, attente %.0f s)", p.Case, shortModel(p.Model), p.Rep,
+			retried = append(retried, fmt.Sprintf("- %s · %s%s · #%d, tentative %d : %s (issue %s, $%.3f, attente %.0f s)", p.Case, variantTag(p.Variant), shortModel(p.Model), p.Rep,
 				a.Attempt, oneLine(a.Throttle, 200), a.Outcome, a.CostUSD, a.WaitSecs))
 		}
 	}
@@ -272,10 +300,19 @@ func (r *Report) Markdown(base *Report) string {
 	if len(r.Skipped) > 0 {
 		b.WriteString("\n## Passages non lancés (plafond global atteint)\n\n")
 		for _, p := range r.Skipped {
-			fmt.Fprintf(&b, "- %s · %s · #%d\n", p.Case, shortModel(p.Model), p.Rep)
+			fmt.Fprintf(&b, "- %s · %s%s · #%d\n", p.Case, variantTag(p.Variant), shortModel(p.Model), p.Rep)
 		}
 	}
 	return b.String()
+}
+
+// variantTag names the variant of a pass in a heading or a list ("" when
+// the run has none).
+func variantTag(v string) string {
+	if v == "" {
+		return ""
+	}
+	return v + " · "
 }
 
 func outcomes(m map[string]int) string {

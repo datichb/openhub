@@ -98,3 +98,27 @@ func Extract(destDir string) error {
 	// Write version marker
 	return os.WriteFile(versionFile, []byte(buildinfo.Version), 0o644)
 }
+
+// Install copies a prepared hub (agents/, skills/, permissions/, workflows/
+// of srcDir) to destDir and marks it as the content of this binary, so that
+// the startup leaves it in place instead of extracting the embedded hub.
+// Evaluation only: oh eval runs a pass with a variant of the hub this way,
+// in a temporary OH_HOME.
+func Install(srcDir, destDir string) error {
+	if err := os.RemoveAll(destDir); err != nil {
+		return err
+	}
+	if err := os.MkdirAll(destDir, 0o755); err != nil {
+		return fmt.Errorf("creating hub content dir: %w", err)
+	}
+	for _, part := range []string{"agents", "skills", "permissions", "workflows"} {
+		src := filepath.Join(srcDir, part)
+		if _, err := os.Stat(src); os.IsNotExist(err) {
+			continue
+		}
+		if err := os.CopyFS(filepath.Join(destDir, part), os.DirFS(src)); err != nil {
+			return fmt.Errorf("installing hub content: %w", err)
+		}
+	}
+	return os.WriteFile(filepath.Join(destDir, ".version"), []byte(buildinfo.Version), 0o644)
+}
