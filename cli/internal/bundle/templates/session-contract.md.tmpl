@@ -20,7 +20,7 @@
 {{- if .Own }}
 - **Checkpoints** : tu passes {{ range $i, $c := .Own }}{{ if $i }}, {{ end }}`{{ $c.ID }}`{{ if $c.Label }} ({{ $c.Label }}){{ end }}{{ end }}, avec l'outil `workflow_checkpoint`. Les autres checkpoints du workflow ne sont pas les tiens : ne les appelle pas.
 {{- else }}
-- **Checkpoints** : aucun n'est à toi : n'appelle pas `workflow_checkpoint`.
+- **Checkpoints** : aucun n'est à toi : n'appelle pas `workflow_checkpoint`, même si ton prompt d'invocation en nomme un.{{ if .Subagent }} Mets ce qui est à valider dans ton bloc de retour : ton appelant passe le checkpoint.{{ end }}
 {{- end }}
 {{- end }}
 {{- if .MaxFixRounds }}

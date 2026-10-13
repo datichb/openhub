@@ -20,7 +20,7 @@ assertions:
   - type: text_matches
     name: la décision est posée à l'utilisateur (outil question, « Questions bloquantes » ou question ouverte)
     questions: true
-    pattern: "(Questions bloquantes|question ouverte|décision (à prendre|ouverte|en attente)|\"question\")[\\s\\S]*(z[ée]ro|b ?== ?0)|(z[ée]ro|b ?== ?0)[^.\\n]*\\?"
+    pattern: "(Questions? bloquantes?|question ouverte|décision (à prendre|ouverte|en attente)|\"question\")[\\s\\S]*(z[ée]ro|b ?== ?0|\\(a, ?0\\))|(z[ée]ro|b ?== ?0|\\(a, ?0\\))[^.\\n]*\\?"
   - type: ran
     name: aucun commit
     command: "git commit*"
