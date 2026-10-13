@@ -9,6 +9,12 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ## [Unreleased]
 
+### Changed — phases de l'onboarder par rôle (lot L6 onboarder)
+
+- Les skills de phase de l'onboarder ont des variantes par rôle : les appels à `question` sont réservés à l'agent d'entrée. En sous-agent, l'onboarder enchaîne ses phases, met ce qui bloque dans les « Questions bloquantes » de son enveloppe, enrichit un wiki existant par défaut et note ses choix comme hypothèses.
+- Les contraintes d'`onboarder-workflow` dépendent du rôle, et chaque phase indique quand charger son skill. Les doublons des prompts de l'onboarder et du planner sont retirés.
+- **Budget** : phases chargées en sous-agent 11 536 → 8 487 tokens ; prompt du planner −350. La documentation d'architecture est à jour pour les skills du planner, de l'auditor et de l'onboarder.
+
 ### Changed — découpage : design et doc (lot L6 design-doc)
 
 - **`doc-wiki-protocol`** ne garde que les règles ; les formats canoniques des pages du wiki passent en annexes lues avant de créer une page (`wiki-pages-index`, `wiki-pages-technical`, `wiki-pages-business`).
