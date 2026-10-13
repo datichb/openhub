@@ -123,17 +123,20 @@ func (e *limitEnv) openBudget(id string) []domain.Decision {
 }
 
 // turn runs a step of a session that ends with the cost reported; it
-// returns once the daemon read that cost (ledger), so the next step cannot
-// change it before: under load, the end of a step read late would see the
-// cost of the next one (events are handled in order, the rest of the end
-// of the step — the budget decision — comes before the next event).
+// returns once the daemon accounted it (the ledger of the tool session
+// grew), so the next step cannot change the cost before it is read: under
+// load, the end of a step read late would see the cost of the next one.
+// Events are handled in order: the rest of the end of the step (the budget
+// decision) comes before the next event.
 func (e *limitEnv) turn(id string, cost float64) {
+	before, err := e.usage.ToolSessionTotal(e.ctx, id)
+	require.NoError(e.t, err)
 	e.ad.set(func() { e.ad.usage[id] = adapters.SessionResult{Cost: cost, TokensIn: int64(cost * 1000)} })
 	e.events <- adapters.ToolEvent{Kind: adapters.EventExecStarted, SessionID: id}
 	e.events <- adapters.ToolEvent{Kind: adapters.EventExecEnded, SessionID: id, Outcome: "succeeded"}
 	require.Eventually(e.t, func() bool {
 		tot, err := e.usage.ToolSessionTotal(e.ctx, id)
-		return err == nil && tot.CostUSD >= cost-1e-9
+		return err == nil && tot.CostUSD > before.CostUSD
 	}, 10*time.Second, 10*time.Millisecond, "the step of %s accounted", id)
 }
 
