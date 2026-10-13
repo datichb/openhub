@@ -67,8 +67,11 @@ Les assertions sont décrites dans la [référence d'`oh eval`](../docs/referenc
 | S13 | onboarding | Skills de phase 1 et 5 chargés avant l'exploration et avant l'écriture du wiki ; écritures limitées à `docs/wiki/` et `ONBOARDING.md` |
 | S14 | libre | L'onboarder lancé en sous-agent ne pose pas de question et rend son enveloppe à `orchestrator` |
 | S15 | cadrage | Une demande d'interface fait invoquer le designer : `ui-protocol` chargé, pas de question, enveloppe vers son appelant |
+| S16 | skill-refresh | Hub réduit : seule la skill périmée est retenue, proposée à `cp-refresh` sans écriture avant, puis mise à jour (`versions`, `reviewed`) et commitée ; les notes de veille rendent le cas déterministe sans recherche web |
+| S17 | skill-refresh | Proposition refusée à `cp-refresh` : aucune écriture ni commit, avant comme après |
+| S18 | skill-refresh | Toutes les skills de stack sont récentes : ni checkpoint, ni écriture, ni commit |
 
-S8 et S11 à S15 ne sont pas encore dans la mesure de référence (`notInBaseline` dans `cli/internal/evalrun/evalrun_test.go`) : ils y entreront au prochain enregistrement.
+S16 à S18 ne sont pas encore dans la mesure de référence (`notInBaseline` dans `cli/internal/evalrun/evalrun_test.go`) : ils y entreront au prochain enregistrement.
 
 La mesure de référence (Haiku, trois répétitions) est enregistrée dans `cli/internal/evalrun/testdata/evals/baseline.json` ; `make test-eval` la compare au passage courant.
 
