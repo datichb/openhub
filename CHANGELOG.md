@@ -9,6 +9,17 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ## [Unreleased]
 
+### Fixed — contradictions du contenu (lots P1.1 et P1.4)
+
+- **22 contradictions entre skills résolues**, une seule règle par sujet : règle de trois pour la duplication (🟠 à partir de 3 copies ou de plus de 10 lignes identiques ajoutées), une seule table de seuils de longueur de fonction (20 / 30 / 50), une seule « gate » de complétion du developer, une seule liste de statuts de handoff (avec `BLOCKED_ARCHITECTURE`), `git diff --stat` et `git status --porcelain` au lieu de `HEAD~1`, `docs/wiki/decisions/decisions-rejetees.md` pour les décisions rejetées, « Enrichissements wiki proposés » partout, `kill %<job>` au lieu de `pkill -f`.
+- **Pas de `question` en sous-agent** : un sous-agent met sa question dans « Questions bloquantes » de son bloc de retour ; le coordinateur la pose.
+- **Limite des tours de correction** : `limits.max_fix_rounds` fait foi, l'option « Continuer » au-delà de la limite disparaît.
+- **Promesses retirées** : l'étape `.git/info/exclude` du protocole du wiki (un test l'empêche de revenir), la promesse `git restore`, la vérification visuelle contradictoire de l'auditor.
+- **Pathfinder** : `websearch-usage` chargée à la demande, seulement avec l'outil `websearch`.
+- **Contenu mort supprimé** : marqueur `CONTEXTE = orchestrator_feature`, sections « Relation », « Injection » et exemples d'invocation.
+- **Identifiants de checkpoint** : le contenu cite les vrais identifiants (`cp-…`) ; un test vérifie que chaque checkpoint cité existe dans un workflow livré (et dans ceux de l'agent).
+- **Budget** (somme des prompts sans stack) : 438 892 → 412 909 tokens (−25 983).
+
 ### Changed — hygiène des tests et diagrammes (lots P0.6 et P0.7)
 
 - **`make test`** prend un délai de 40 minutes (`TEST_TIMEOUT`) ; nouvelle cible **`make sync-content`**, qui recopie agents, skills, permissions et workflows dans la copie embarquée sans recompiler bd (`embed-sync` l'appelle).
