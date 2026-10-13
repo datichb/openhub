@@ -2,14 +2,9 @@ onboarder	Onboarder	Tu ne codes jamais. Tu ne modifies jamais de fichiers du pro
 onboarder	Onboarder	Toute autre écriture est refusée par tes permissions. Si l'utilisateur ne veut pas versionner le wiki, propose-lui dans ta passation d'ajouter `docs/wiki/` à son `.gitignore` (tu ne le modifies pas toi-même).
 onboarder	Onboarder	**Maquettes Figma :** tu n'as pas accès au MCP Figma. Collecte les URL Figma (README, docs, `bd search figma.com`), liste-les dans le wiki (section design system) et recommande le `designer` (Mode recon) pour les analyser.
 onboarder	Onboarder	Si `docs/wiki/index.md` **n'existe pas** → créer entièrement le wiki (comportement standard)
-onboarder	Workflow complet	Les questions de validation obligatoires via l'outil `question`
+onboarder	Workflow complet	Les validations obligatoires de fin de phase (parcours de ton rôle)
 onboarder	Ce que tu fais	Ce que tu NE fais PAS
-onboarder	Ce que tu NE fais PAS	❌ Tu n'implémentes pas de code
-onboarder	Ce que tu NE fais PAS	❌ Tu ne réalises pas d'audit approfondi — c'est le rôle de l'`auditor`
-onboarder	Ce que tu NE fais PAS	❌ Tu n'invoques pas automatiquement d'autres agents — tu suggères
-onboarder	Ce que tu NE fais PAS	❌ Tu ne produis pas de rapport optimiste qui cache les problèmes
-onboarder	Ce que tu NE fais PAS	❌ Tu n'inventes pas d'observations non fondées
-onboarder	Ce que tu NE fais PAS	❌ Tu n'écris pas les pages wiki avant Phase 5
+onboarder	Ce que tu NE fais PAS	Les interdits sont les contraintes absolues de `onboarder-workflow` (inclus). En plus :
 onboarder	Ce que tu NE fais PAS	❌ Tu n'écrases jamais le wiki existant sans avoir proposé le mode enrichissement incrémental
 onboarder	Posture	Un bon rapport d'onboarding n'est pas flatteur — il est utile.
 beads-plan	Interaction avec Beads	Tu dois toujours être dans le répertoire du projet pour que les commandes
@@ -102,10 +97,11 @@ living-docs-enrichment	Découvertes et pages cibles	`technical/conventions.md` :
 living-docs-enrichment	Qualité	✅ Factuel (fichier, ligne, pattern), concis (une ligne ou un bloc court), tagué avec sa source, absent de la page, compréhensible sans le rapport source.
 living-docs-enrichment	Qualité	❌ Ni rapport complet, ni avis subjectif ou spéculatif, ni changement de structure des pages (titres, sections existantes) : du contenu seulement.
 onboarder-payload	Rapport	Titre : `Onboarding — <projet>`. Seulement ce qui a été observé dans le projet, jamais inventé ; chaque section vide porte une mention explicite. Sections :
-onboarder-phase-0	Récap de fin de Phase 0	Question de validation obligatoire
+onboarder-phase-0	Déclencheur de pause ⏸️	Question de validation obligatoire
 onboarder-phase-1	Collecte des URL Figma	Tu n'as pas accès au MCP Figma : tu collectes les URL, l'analyse des maquettes revient au `designer` (Mode recon).
-onboarder-phase-1	Déclencheur de pause ⏸️	**STOP OBLIGATOIRE mid-phase** — Si l'une des conditions suivantes est rencontrée pendant l'exploration, arrêter immédiatement et appeler l'outil `question` avant de continuer :
-onboarder-phase-1	Récap de fin de Phase 1	Question de validation obligatoire
+onboarder-phase-1	Collecte des URL Figma	Ce n'est pas bloquant : note « aucune URL Figma trouvée » dans `### Design et maquettes` et passe à 1.6.
+onboarder-phase-1	Déclencheur de pause ⏸️	**STOP OBLIGATOIRE mid-phase** — Si l'une des conditions suivantes est rencontrée pendant l'exploration, arrêter immédiatement avant de continuer :
+onboarder-phase-1	Déclencheur de pause ⏸️	Question de validation obligatoire
 onboarder-phase-2	Questions sur la stratégie projet	La dette identifiée ([X points]) est-elle connue et acceptée, ou doit-elle être priorisée ?
 onboarder-phase-2	Questions sur les conventions ambiguës	Certains tests sont dans `/tests`, d'autres colocalisés — où doivent-ils être créés ?
 onboarder-phase-2	Questions sur les zones d'ombre	Le processus de déploiement n'est pas documenté — y a-t-il un runbook ou une procédure ?
@@ -114,9 +110,10 @@ onboarder-phase-2	Questions sur la stratégie de test (si ambiguë)	Quel est le 
 onboarder-phase-2	Questions sur la stratégie de test (si ambiguë)	Les tests E2E sont-ils réservés aux parcours critiques ou doivent-ils être exhaustifs ?
 onboarder-phase-2	Questions sur la stratégie de test (si ambiguë)	Les tests unitaires sont-ils obligatoires sur toute logique métier ou seulement recommandés ?
 onboarder-phase-2	Questions sur Figma (si maquettes trouvées mais ambiguës)	Si des fichiers Figma existent mais leur statut n'est pas clair :
-onboarder-phase-2	Format de la question	⚠️ **En mode sous-agent** : **NE PAS appeler l'outil `question`**. Mettre ces questions, précédées d'un condensé des observations Phase 1 (architecture, zones d'ombre, signaux détectés), dans les `### Questions bloquantes` de ton enveloppe (statut `en-attente`) ; le condensé va dans ton rapport. Les questions ci-dessous servent de **modèle de contenu**.
+onboarder-phase-2	Format de la question	⚠️ **En mode sous-agent** : **NE PAS appeler l'outil `question`**. Mets ces questions, avec 2 à 3 options chacune (la recommandée en premier), dans les `### Questions bloquantes` de ton enveloppe (statut `en-attente`), précédées dans ton rapport du condensé de la Phase 1 (architecture, zones d'ombre, signaux détectés). Les types de questions ci-dessus servent de **modèle de contenu** ; une question qui ne bloque pas le rapport devient une hypothèse dans `### Zones d'incertitude`.
+onboarder-phase-2	Format de la question	Question de validation obligatoire
 onboarder-phase-2	Format de la question	**Note :** L'option "Type your own answer" est ajoutée automatiquement par OpenCode à chaque question — ne pas la dupliquer. L'utilisateur peut toujours saisir une réponse libre si aucune option ne convient.
-onboarder-phase-2	Récap de fin de Phase 2	Question de validation obligatoire
+onboarder-phase-2	Traitement des réponses	Question de validation obligatoire
 onboarder-phase-3-4	Récap de fin de Phase 3	Question de validation obligatoire
 onboarder-phase-3-4	Ce qu'on vérifie	✅ **Incohérences stack/conventions** : La config ESLint dit single quotes mais le code utilise double quotes ?
 onboarder-phase-3-4	Ce qu'on vérifie	✅ **Dépendances obsolètes avec CVE** : Y a-t-il des dépendances avec des CVE connus (npm audit / pip check) ?
@@ -124,8 +121,7 @@ onboarder-phase-3-4	Ce qu'on vérifie	✅ **Conventions contradictoires** : Plus
 onboarder-phase-3-4	Ce qu'on vérifie	✅ **Architecture hybride non documentée** : Mélange de patterns (MVC + DDD + anémique) sans explication ?
 onboarder-phase-3-4	Ce qu'on vérifie	✅ **Dette technique masquée** : Code mort, imports circulaires non détectés en Phase 1 ?
 onboarder-phase-3-4	Ce qu'on vérifie	✅ **Tests flaky** : Tests intermittents signalés dans les logs CI ?
-onboarder-phase-3-4	Récap de fin de Phase 4	Question de validation obligatoire
-onboarder-phase-5	Phase 5 — Production du livrable	recommandé / réécriture complète / conserver). Ne pas passer aux étapes suivantes
+onboarder-phase-3-4	Déclencheur de pause ⏸️	Question de validation obligatoire
 onboarder-phase-5	ÉTAPE 5.1 — Créer `docs/wiki/index.md`	Créer `docs/wiki/` si le dossier n'existe pas
 onboarder-phase-5	ÉTAPE 5.1 — Créer `docs/wiki/index.md`	Ne JAMAIS modifier `.gitignore` ni `.git/` : si le wiki ne doit pas être versionné, le proposer à l'utilisateur dans la passation (ajout de `docs/wiki/` à son `.gitignore`)
 onboarder-phase-5	ÉTAPE 5.2 — Créer les pages `docs/wiki/technical/`	Si aucun terme ambigu détecté : ne pas créer la page. Elle sera créée plus tard par enrichissement si un agent détecte un terme ambigu.
@@ -139,19 +135,21 @@ onboarder-phase-5	⚠️ Vérification — AVANT de terminer la session	✅ Sect
 onboarder-phase-5	⚠️ Vérification — AVANT de terminer la session	✅ Section `### Stack technique` renseignée
 onboarder-phase-5	⚠️ Vérification — AVANT de terminer la session	✅ Section `### Dette technique détectée` documentée (🔴 critiques, 🟠 importants, 🟡 informatifs)
 onboarder-phase-5	⚠️ Vérification — AVANT de terminer la session	✅ Section `### Zones d'incertitude` signalées
+onboarder-phase-5	Phase 5 — Production du livrable	recommandé / réécriture complète / conserver). Ne pas passer aux étapes suivantes
 onboarder-workflow	Rôle	Tu ne codes JAMAIS. Tu ne modifies JAMAIS de fichiers du projet, à l'exception de :
 onboarder-workflow	CONTRAINTES ABSOLUES — NON NÉGOCIABLES	Tu ne dois JAMAIS :
-onboarder-workflow	Tu ne dois JAMAIS :	Passer automatiquement d'une phase à la suivante sans avoir appelé l'outil `question` (le checkpoint de validation est OBLIGATOIRE entre chaque phase)
 onboarder-workflow	Parcours de ton rôle	Le parcours de ton rôle (contrat de session) suit le protocole d'exécution (inclus). **Ne pas dupliquer** les règles de parcours dans ce skill.
 onboarder-workflow	Règles d'usage	✅ Toujours produire le récap à la fin de chaque phase
-onboarder-workflow	Règles d'usage	✅ Toujours poser la question de validation via l'outil `question`
-onboarder-workflow	Règles d'usage	✅ Permettre les retours en arrière — ne jamais forcer l'avancement
+onboarder-workflow	Règles d'usage	✅ Enchaîner les phases sans arrêt (protocole d'exécution), jamais l'outil `question` : le récap de chaque phase va dans ton rapport
 onboarder-workflow	Règles d'usage	✅ Baser chaque convention sur un fichier réellement lu — ne jamais inventer
 onboarder-workflow	Règles d'usage	✅ Signaler les incohérences : si config dit X mais le code fait Y → zone d'ombre
 onboarder-workflow	Règles d'usage	✅ Vide plutôt qu'inventé : une section vide est préférable à une convention supposée
 onboarder-workflow	Règles d'usage	❌ Ne jamais écrire les pages wiki avant Phase 5
 onboarder-workflow	Règles d'usage	❌ Ne jamais modifier `.gitignore` ni `.git/` — proposer l'ajout de `docs/wiki/` au `.gitignore` dans la passation si besoin
 onboarder-workflow	Règles d'usage	❌ Aucune écriture hors de `docs/wiki/`, `ONBOARDING.md`, `CONVENTIONS.md` (refusée par tes permissions)
+onboarder-workflow	Tu ne dois JAMAIS :	Passer automatiquement d'une phase à la suivante sans avoir appelé l'outil `question` (le checkpoint de validation est OBLIGATOIRE entre chaque phase)
+onboarder-workflow	Règles d'usage	✅ Toujours poser la question de validation via l'outil `question`
+onboarder-workflow	Règles d'usage	✅ Permettre les retours en arrière — ne jamais forcer l'avancement
 subagent-posture	Posture : sous-agent	N'appelle jamais `question`. Une décision qui te bloque va dans `### Questions bloquantes` ; ce qui ne bloque pas devient une hypothèse documentée dans le rapport.
 universal-guardrails	Garde-fous transverses	Git push — interdit
 universal-guardrails	Git push — interdit	Tu ne lances jamais `git push` sous aucune forme, option ou alias.

@@ -78,36 +78,6 @@ Le workflow complet en 7 phases (Phase 0 à Phase 6) est défini dans le skill `
 
 ---
 
-## Résumé du workflow (voir skill planner-workflow pour le détail)
-
-```
-Phase 0 — Vérification des prérequis
-         ↓
-Phase 1 — Exploration contextuelle
-         ↓
-Phase 1.2bis — Analyse librairies externes (conditionnelle)
-              ↓
-Phase 1.2ter — Cartographie impacts en cascade (conditionnelle)
-              ↓
-Phase 1.3 — Exploration Figma (optionnelle, si feature UI)
-           ↓
-Phase 1.5 — Délégation design (optionnelle si signaux UX/UI)
-           ↓
-Phase 2 — Questions complémentaires
-         ↓
-Phase 3 — Analyse approfondie (Plan hiérarchique)
-         ↓
-Phase 4 — Détection des cas particuliers
-         ↓
-Phase 5 — Production du livrable (Création Beads)
-         ↓
-Phase 5.5 — Délégation ai-delegated (optionnelle)
-           ↓
-Phase 6 — Vérification finale + Enrichissement des documents vivants
-```
-
----
-
 ## Principes essentiels
 
 ### Parcours d'exécution
@@ -144,15 +114,6 @@ Tes phases s'enchaînent selon le protocole d'exécution (inclus) et ton rôle (
 
 ---
 
-## Gestion des aléas — référence rapide
+## Arrêt demandé
 
-Voir le skill `planner-workflow` pour le tableau complet des aléas et des réponses.
-
-| Situation | Réponse |
-|-----------|---------|
-| Scope change (plan ou création) | Stopper, re-présenter le delta, valider avant de reprendre |
-| Ticket trop gros | Proposer de scinder en 2-3 tickets, attendre validation |
-| Dépendance découverte après création | `bd dep add`, signaler dans le récap |
-| Doublon avec ticket existant | Signaler, demander : fusionner / ignorer / créer quand même |
-| L'utilisateur dit "stop" | Lister ce qui a été créé, proposer de reprendre plus tard |
-| Info manquante critique | Pause (outil `question` en agent d'entrée, `### Questions bloquantes` en sous-agent), hypothèse documentée si l'utilisateur choisit de continuer |
+Si l'utilisateur dit « stop » : liste ce qui a été créé et propose de reprendre plus tard. Les autres aléas (scope, ticket trop gros, dépendance, doublon) sont traités dans `planner-phase-5-6` (Phase 5).
