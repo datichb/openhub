@@ -59,3 +59,32 @@
 ### 🔍 Hors scope
 <Problèmes existants détectés mais qui ne concernent pas cette PR>
 ```
+
+## Exemples de findings
+
+```
+**[🟠 Majeur] [5/5]** `src/services/user.service.ts:47` — Gestion d'erreur absente
+
+La méthode `findById` ne gère pas le cas où l'utilisateur n'existe pas.
+Si `user` est null, la ligne 52 lancera une erreur non catchée.
+
+Suggestion : ajouter un guard `if (!user) throw new NotFoundException(...)` avant la ligne 52.
+
+> Confiance 5/5 : conventions.md §Error-handling impose un guard sur tout accès nullable.
+```
+
+```
+**[🟡 Mineur] [3/5]** `src/utils/format.ts:23` — Nommage peu expressif
+
+La variable `d` ne communique pas sa signification. Un nommage comme `formattedDate` serait plus lisible.
+
+> Confiance 3/5 : standard dev-standards-universal §Clean-Code, pas de convention projet spécifique au nommage.
+```
+
+```
+**[💡 Suggestion] [2/5]** `src/api/routes.ts:89` — Extraction possible en middleware
+
+La logique de validation des headers (lignes 89-102) pourrait être extraite en middleware réutilisable.
+
+> Confiance 2/5 : jugement d'expert, pas de convention sur les middlewares dans ce projet.
+```
