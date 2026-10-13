@@ -32,6 +32,8 @@
 //   guard         deny/ask rules of oh in force last for every agent (global
 //                 guard, applied when a permission is evaluated instead of
 //                 being rendered in every agent)
+//   scopedGuard   deny rules of oh in force last for every agent but those
+//                 of their `except` list (session scratch folders)
 
 import { appendFileSync, readFileSync } from "fs"
 import { join } from "path"
@@ -47,9 +49,11 @@ type Options = {
   gated?: string[]
   scrubEnv?: string[]
   guard?: Rule[]
+  scopedGuard?: ScopedRule[]
 }
 
 type Rule = { action: string; resource: string; effect: string }
+type ScopedRule = Rule & { except?: string[] }
 
 const hookTimeoutMs = 2000
 const maxCalls = 500
@@ -134,6 +138,13 @@ export default {
     }
 
     const guard = (opts.guard ?? []).filter((r) => r.effect === "deny" || r.effect === "ask")
+    const scoped = (opts.scopedGuard ?? []).filter((r) => r.effect === "deny")
+    // The scoped rules that apply to an agent (not in their except list).
+    const guardOf = (agent: any): Rule[] => {
+      if (scoped.length === 0) return guard
+      const id = typeof agent === "string" ? agent : agent?.id
+      return [...guard, ...scoped.filter((r) => !(r.except ?? []).includes(id))]
+    }
     const relay = opts.hookURL && opts.tokenEnv
     const gated = new Set(opts.gated ?? [])
     // The permission event does not carry the tool input: keep it by call id.
@@ -145,13 +156,13 @@ export default {
         if (inputs.size > maxCalls) inputs.delete(inputs.keys().next().value as string)
       })
     }
-    if (relay || guard.length > 0) {
+    if (relay || guard.length > 0 || scoped.length > 0) {
       await ctx.permission.hook("evaluate", async (event: any) => {
         if (relay && (event?.effect === "ask" || (event?.effect === "allow" && gated.has(event?.action)))) {
           await relayToOh(event)
         }
         // The guard of oh, last of every agent: never loosened by the relay.
-        const restricted = guardEffect(guard, event?.action, event?.resources ?? [])
+        const restricted = guardEffect(guardOf(event?.agent), event?.action, event?.resources ?? [])
         if (restricted === "deny" || (restricted === "ask" && event.effect === "allow")) event.effect = restricted
       })
     }

@@ -279,7 +279,7 @@ func (s *Service) StartSession(ctx context.Context, req StartRequest) (*StartRes
 		SessionEnv: env,
 		// Checkpoints and agent locks of the workflow (P3-T02/T04); the
 		// daemon replaces them as the session moves on.
-		SessionRules: bundle.SessionRules(spec.Workflow, req.Mode, nil),
+		SessionRules: append(bundle.SessionRules(spec.Workflow, req.Mode, nil), bundle.ScratchSessionRules(spec.Workflow, s.SessionsDir, sid)...),
 	}
 	if err := s.saveStaticEnv(sid, static); err != nil {
 		return nil, fmt.Errorf("saving session environment: %w", err)
@@ -310,6 +310,7 @@ func (s *Service) StartSession(ctx context.Context, req StartRequest) (*StartRes
 	}
 	res.SessionID = sid
 	s.setInitialContext(ctx, h, sid, spec.Workflow, req.Mode)
+	s.setScratchContext(ctx, h, sid, spec.Workflow)
 	if req.Handoff != "" {
 		s.setHandoffContext(ctx, h, sid, req.Handoff)
 	}

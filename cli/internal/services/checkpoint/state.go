@@ -96,7 +96,7 @@ func (s *Service) Rules(ctx context.Context, sessionID string) ([]sessionspec.Pe
 	if err != nil {
 		return nil, err
 	}
-	return bundle.SessionRules(wf, sess.Mode, &st), nil
+	return append(bundle.SessionRules(wf, sess.Mode, &st), bundle.ScratchSessionRules(wf, s.SessionsDir, sess.ID)...), nil
 }
 
 // Asked handles a workflow_checkpoint permission request of root (asked by

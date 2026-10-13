@@ -2,9 +2,11 @@ package bundle
 
 import (
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/datichb/openhub/cli/internal/sessionspec"
+	"github.com/datichb/openhub/cli/internal/workflow"
 )
 
 // Global guard (v5 critical N3, DC2): shell and edit rules added last to
@@ -121,7 +123,7 @@ func GlobalShellGuard(ohHome string) []sessionspec.PermissionRule {
 	add := func(p string, eff sessionspec.Effect) {
 		out = append(out, sessionspec.PermissionRule{Action: sessionspec.ActionShell, Resource: p, Effect: eff})
 	}
-	lists := [][]string{controlPlaneDeny, gitEnvDeny, hookDeny, commitNoVerifyDeny(), execDeny, outsideDeny, installDeny, dockerDeny, credentialDeny}
+	lists := [][]string{controlPlaneDeny, gitEnvDeny, hookDeny, commitNoVerifyDeny(), execDeny, outsideDeny, installDeny, dockerDeny, credentialDeny, scratchShellDeny}
 	for _, l := range lists {
 		for _, p := range l {
 			add(p, sessionspec.EffectDeny)
@@ -131,6 +133,7 @@ func GlobalShellGuard(ohHome string) []sessionspec.PermissionRule {
 		for _, sub := range []string{"run", "servers", "bundles", "oh.db"} {
 			add("*"+filepath.ToSlash(filepath.Join(home, sub))+"*", sessionspec.EffectDeny)
 		}
+		add("*"+filepath.ToSlash(filepath.Join(home, "sessions"))+"/*/"+ScratchDirName+"*", sessionspec.EffectDeny)
 	}
 	return out
 }
@@ -189,4 +192,255 @@ func HookEditGuard(own []sessionspec.PermissionRule) []sessionspec.PermissionRul
 		}
 	}
 	return out
+}
+
+// ── Session scratch (SCR) ───────────────────────────────────────────────────
+//
+// A workflow gives an agent a scratch folder for the session
+// (`agents.<id>.scratch: { readers: […] }`, ScratchDir): outside the
+// repository and the documentation, deleted with the session (oh gc). Its
+// owner reads and writes it, the declared readers only read it, and only in
+// this session: never another session's, parallel sessions included.
+//
+// The tool asks two permissions before a file tool touches a path outside
+// the project: the outside directory (ActionOutsideDir, on `<dir>/*`), then
+// the tool action on the path. The agent rules know the agent and not the
+// session (a bundle is shared by the sessions of its group), the session
+// rules know the session and not the agent, and they come last: so the
+// agent is checked on the tool action, the session on the outside
+// directory. The guards, in this order, each after the rules of the agent:
+//
+//  0. sessionDataDeny (empty for now, L4): a broader refusal of the session
+//     data of oh (`*.oh/sessions*`) for the file tools goes there; it is
+//     emitted first of scratchDeny (ScratchGuard, ScratchAgentGuard) and of
+//     ScratchSessionRules, so that the scratch exceptions still come after
+//     it. Added to GlobalEditGuard or to any rule of the global guard
+//     (applied by the oh plugin whatever the order, a deny first) it would
+//     refuse the owner too: only its shell part may go in GlobalShellGuard
+//     (the scratch folders are refused to the shell anyway);
+//  1. global refusal of `*.oh/sessions/*/scratch/*`: file tools and outside
+//     directory (in a workflow with scratch folders, ScratchAgentGuard for
+//     every agent and ScratchSessionRules for every agent of the session;
+//     without, ScratchGuard in the global guard), shell (scratchShellDeny
+//     in GlobalShellGuard, the owner included: the tool matches a command
+//     on its raw text, a shell allow by path would allow any command naming
+//     the folder);
+//  2. owner: read and write of its folder (ScratchAgentGuard), outside
+//     directory of the folder of this session only (ScratchSessionRules);
+//  3. readers: read only of the same folder (ScratchAgentGuard), same
+//     outside directory (this session only).
+//
+// A search (glob, grep, list) names a pattern, not a path: only its outside
+// directory names the folder, and the session rules allow it to every agent
+// of the session. ScratchScopedGuard refuses it to the agents that are
+// neither owner nor reader (oh plugin, applied per agent, last); without the
+// plugin, an agent of the same session could search the folder (never one
+// of another session).
+
+// ActionOutsideDir is the permission asked before a tool touches a path
+// outside the project (on the directory, `<dir>/*`).
+const ActionOutsideDir = "external_directory"
+
+// Search tools: their resource is a pattern, their path is checked as an
+// outside directory.
+const (
+	actionGlob = "glob"
+	actionGrep = "grep"
+	actionList = "list"
+)
+
+// ScratchDirName is the folder of the scratch folders in a session folder.
+const ScratchDirName = "scratch"
+
+// ScratchDir is the scratch folder of an agent for a session:
+// <sessionsDir>/<session>/scratch/<agent>.
+func ScratchDir(sessionsDir, sessionID, agent string) string {
+	return filepath.Join(sessionsDir, sessionID, ScratchDirName, agent)
+}
+
+// sessionDataDeny: refusals of the session data of oh broader than the
+// scratch folders (layer 0 above), for the file tools and the outside
+// directory. Empty for now.
+var sessionDataDeny []string
+
+// scratchShellDeny: shell commands naming a scratch folder (layer 1).
+var scratchShellDeny = []string{"*.oh/sessions/*/scratch*"}
+
+// scratchFileActions are the actions refused on any scratch folder; the
+// owner and the readers get all but edit back on theirs.
+var scratchFileActions = []string{sessionspec.ActionRead, sessionspec.ActionEdit, actionGlob, actionGrep, actionList, ActionOutsideDir}
+
+// scratchRoots are the patterns of the session folders of oh: generic, and
+// the custom oh home when it is not ~/.oh.
+func scratchRoots(ohHome string) []string {
+	roots := []string{"*.oh/sessions/"}
+	if home := customOhHome(ohHome); home != "" {
+		roots = append(roots, "*"+filepath.ToSlash(filepath.Join(home, "sessions"))+"/")
+	}
+	return roots
+}
+
+// scratchDeny returns the refusal of every scratch folder (layers 0 and 1)
+// on the file tools and the outside directory.
+func scratchDeny(ohHome string) []sessionspec.PermissionRule {
+	var out []sessionspec.PermissionRule
+	patterns := append([]string(nil), sessionDataDeny...)
+	for _, root := range scratchRoots(ohHome) {
+		patterns = append(patterns, root+"*/"+ScratchDirName+"/*")
+	}
+	for _, p := range patterns {
+		for _, a := range scratchFileActions {
+			out = append(out, sessionspec.PermissionRule{Action: a, Resource: p, Effect: sessionspec.EffectDeny})
+		}
+	}
+	return out
+}
+
+// ScratchGuard returns the scratch rules of the global guard of a bundle:
+// in a workflow without scratch folder, no agent has an exception, so the
+// refusal (layers 0 and 1) is given once for all agents. Nil otherwise
+// (ScratchAgentGuard).
+func ScratchGuard(wf *sessionspec.WorkflowRuntime, ohHome string) []sessionspec.PermissionRule {
+	if len(scratchOf(wf)) > 0 {
+		return nil
+	}
+	return scratchDeny(ohHome)
+}
+
+// ScratchAgentGuard returns, in a workflow with scratch folders, the scratch
+// rules of an agent (layers 0 to 3), appended last to its rules: every
+// agent is refused the scratch folders; the owner of a folder reads and
+// writes it, its readers read it. The session is checked by
+// ScratchSessionRules. Nil without scratch folder (ScratchGuard).
+func ScratchAgentGuard(agent string, wf *sessionspec.WorkflowRuntime, ohHome string) []sessionspec.PermissionRule {
+	if len(scratchOf(wf)) == 0 {
+		return nil
+	}
+	out := scratchDeny(ohHome)
+	for _, sc := range scratchOf(wf) {
+		owner := sc.Owner == agent
+		if !owner && !slices.Contains(sc.Readers, agent) {
+			continue
+		}
+		for _, root := range scratchRoots(ohHome) {
+			dir := root + "*/" + ScratchDirName + "/" + sc.Owner + "/*"
+			for _, a := range scratchFileActions {
+				if a == ActionOutsideDir || (a == sessionspec.ActionEdit && !owner) {
+					continue // outside directory: ScratchSessionRules
+				}
+				out = append(out, sessionspec.PermissionRule{Action: a, Resource: dir, Effect: sessionspec.EffectAllow})
+			}
+		}
+	}
+	return out
+}
+
+// ScratchSessionRules returns the scratch rules of a session (layers 0 to
+// 3 on the outside directory), appended last to its session rules: the
+// folders of this session are reachable, those of the other sessions are
+// not. Nil for a workflow without scratch folder (ScratchAgentGuard
+// already refuses them all).
+func ScratchSessionRules(wf *sessionspec.WorkflowRuntime, sessionsDir, sessionID string) []sessionspec.PermissionRule {
+	scratch := scratchOf(wf)
+	if len(scratch) == 0 {
+		return nil
+	}
+	var out []sessionspec.PermissionRule
+	add := func(p string, eff sessionspec.Effect) {
+		out = append(out, sessionspec.PermissionRule{Action: ActionOutsideDir, Resource: p, Effect: eff})
+	}
+	for _, p := range sessionDataDeny {
+		add(p, sessionspec.EffectDeny)
+	}
+	add("*.oh/sessions/*/"+ScratchDirName+"/*", sessionspec.EffectDeny)
+	if sessionsDir == "" || sessionID == "" {
+		return out
+	}
+	add(filepath.ToSlash(filepath.Join(sessionsDir, "*", ScratchDirName))+"/*", sessionspec.EffectDeny)
+	for _, sc := range scratch {
+		add(filepath.ToSlash(ScratchDir(sessionsDir, sessionID, sc.Owner))+"/*", sessionspec.EffectAllow)
+	}
+	return out
+}
+
+// ScratchScopedGuard returns the per-agent refusals of the scratch folders
+// of wf (searches by an agent that is neither owner nor reader, edits by
+// another agent than the owner), applied last by the oh plugin.
+func ScratchScopedGuard(wf *sessionspec.WorkflowRuntime, ohHome string) []sessionspec.ScopedRule {
+	var out []sessionspec.ScopedRule
+	for _, sc := range scratchOf(wf) {
+		readers := append([]string{sc.Owner}, sc.Readers...)
+		for _, root := range scratchRoots(ohHome) {
+			dir := root + "*/" + ScratchDirName + "/" + sc.Owner + "/*"
+			for _, a := range scratchFileActions {
+				except := readers
+				if a == sessionspec.ActionEdit {
+					except = []string{sc.Owner}
+				}
+				out = append(out, sessionspec.ScopedRule{
+					PermissionRule: sessionspec.PermissionRule{Action: a, Resource: dir, Effect: sessionspec.EffectDeny},
+					Except:         except,
+				})
+			}
+		}
+	}
+	return out
+}
+
+// ScopedGuardFor returns the scoped guard rules that apply to agent.
+func ScopedGuardFor(agent string, rules []sessionspec.ScopedRule) []sessionspec.PermissionRule {
+	var out []sessionspec.PermissionRule
+	for _, r := range rules {
+		if !slices.Contains(r.Except, agent) {
+			out = append(out, r.PermissionRule)
+		}
+	}
+	return out
+}
+
+// scratchDefs returns the scratch folders of a workflow (nil = none).
+func scratchDefs(s *workflow.Spec) []sessionspec.ScratchDef {
+	if s == nil {
+		return nil
+	}
+	var out []sessionspec.ScratchDef
+	for _, id := range s.ScratchOwners() {
+		a, _ := s.Agents.Get(id)
+		out = append(out, sessionspec.ScratchDef{Owner: id, Readers: append([]string(nil), a.Scratch.Readers...)})
+	}
+	return out
+}
+
+func scratchOf(wf *sessionspec.WorkflowRuntime) []sessionspec.ScratchDef {
+	if wf == nil {
+		return nil
+	}
+	return wf.Scratch
+}
+
+// scratchNote tells the owner and the readers of a scratch folder where to
+// find it (the path depends on the session: session context entry
+// oh.scratch). "" for the other agents.
+func scratchNote(agent string, wf *sessionspec.WorkflowRuntime) string {
+	var owns bool
+	var reads []string
+	for _, sc := range scratchOf(wf) {
+		if sc.Owner == agent {
+			owns = true
+		} else if slices.Contains(sc.Readers, agent) {
+			reads = append(reads, "`"+sc.Owner+"`")
+		}
+	}
+	var parts []string
+	if owns {
+		parts = append(parts, "tu as un dossier de brouillons pour cette session (lecture et écriture)")
+	}
+	if len(reads) > 0 {
+		parts = append(parts, "tu peux lire, sans les modifier, les brouillons de "+strings.Join(reads, ", ")+" de cette session")
+	}
+	if len(parts) == 0 {
+		return ""
+	}
+	return "\n\n> Brouillons de session (oh) : " + strings.Join(parts, " ; ") +
+		". Chemin : entrée `oh.scratch` du contexte de session. Hors dépôt, supprimés avec la session : jamais cités dans la documentation ni le wiki.\n"
 }

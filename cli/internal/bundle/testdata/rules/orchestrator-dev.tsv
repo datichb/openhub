@@ -220,6 +220,7 @@ dev-standards-testing	Workflow TDD en contexte Beads	✅ Les tests rouges sont l
 dev-standards-testing	Critère de "done" en TDD	Le refactor n'a pas introduit de régression (tous les tests passent après refactor)
 dev-standards-testing	Principe	Ne pas attendre d'avoir terminé toute l'implémentation pour lancer les tests.
 dev-standards-testing	Non-régression	Tout bug corrigé **doit** avoir un test qui le reproduit avant le fix
+dev-standards-testing	Non-régression	Ticket issu d'un diagnostic (`from-diagnostic`) : le test de reproduction décrit en texte dans le ticket devient ce test. Si ton prompt contient la ligne « Brouillons de session (oh) », lis le brouillon du `debugger` (entrée `oh.scratch` du contexte de session) sans le modifier : il n'est qu'une source, le test définitif s'écrit dans le dépôt, sans citer le brouillon (jamais dans la documentation ni le wiki).
 dev-standards-testing	🔎 Mode Auditeur	Signaler les mocks qui masquent du code jamais exécuté
 dev-standards-testing	Couverture des critères d'acceptance	Les critères négatifs ("ne doit pas faire X") sont couverts
 dev-standards-testing	Qualité des tests	Nommage expressif : `doit <faire quoi> quand <contexte>`

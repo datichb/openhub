@@ -20,10 +20,10 @@ none     cadrage                designer                         6397     4831  
 none     cadrage                pathfinder                       9345     7992    6   36   1198   10    349
 none     cadrage                planner                          6813     5425    6   36   1198   22    725
 none     cadrage                TOTAL                           29755    24580   24   36   1198   36   1198
-none     debug                  debugger                         5576     4282    5   32   1063   12    409
-none     debug                  developer                       12257     9614    7   32   1063   14    486
+none     debug                  debugger                         5637     4282    5   32   1063   12    409
+none     debug                  developer                       12320     9614    7   32   1063   14    486
 none     debug                  documentarian                    4721     3632    4   32   1063   12    371
-none     debug                  TOTAL                           22554    17528   16   32   1063   32   1063
+none     debug                  TOTAL                           22678    17528   16   32   1063   32   1063
 none     feature                designer                         6398     4831    5   80   2684   18    605
 none     feature                developer                       12294     9614    7   80   2684   14    486
 none     feature                documentarian                    4737     3632    4   80   2684   12    371
@@ -78,10 +78,10 @@ stacks   cadrage                designer                         6397     4831  
 stacks   cadrage                pathfinder                       9345     7992    6   43   1445   10    349
 stacks   cadrage                planner                          6813     5425    6   43   1445   22    725
 stacks   cadrage                TOTAL                           29755    24580   24   43   1445   36   1198
-stacks   debug                  debugger                         5576     4282    5   39   1310   12    409
-stacks   debug                  developer                       12257     9614    7   39   1310   14    486
+stacks   debug                  debugger                         5637     4282    5   39   1310   12    409
+stacks   debug                  developer                       12320     9614    7   39   1310   14    486
 stacks   debug                  documentarian                    4721     3632    4   39   1310   12    371
-stacks   debug                  TOTAL                           22554    17528   16   39   1310   32   1063
+stacks   debug                  TOTAL                           22678    17528   16   39   1310   32   1063
 stacks   feature                designer                         6398     4831    5   87   2931   18    605
 stacks   feature                developer                       12294     9614    7   87   2931   14    486
 stacks   feature                documentarian                    4737     3632    4   87   2931   12    371

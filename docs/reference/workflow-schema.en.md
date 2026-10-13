@@ -286,9 +286,30 @@ The key is the id of an agent of the brick catalogue (hub + team), in kebab-case
 | `mode` | text | `primary`, `subagent` | mode of the agent in the catalogue | `primary`: the user may pick it; `subagent`: only called by delegation |
 | `after` | text | checkpoint or agent id | no gate | the agent can only be called after this checkpoint or agent (`after_unknown`, `after_cycle`) |
 | `calls` | list | agent ids of the workflow | `task` permission of the agent, restricted to the workflow | allowed delegations (`calls_unknown`, `graph_cycle`) |
+| `scratch` | table | `{ readers: [<agent>…] }` | no scratch folder | session scratch folder of the agent (see [below](#scratch-session-scratch-folders)) |
 
 - **Graph**: `calls` when written, otherwise the agent's `task` permission, limited to the members. A self-delegation is only kept when written (`reviewer: { calls: [reviewer] }`). The maximum depth of the graph becomes opencode's `experimental.subagent_depth`.
 - **Patch**: merged by id, field by field; `role: disabled` removes the agent (except the entry agent) and drops it from the `calls` lists of the others. `after` cannot be removed nor moved earlier (only to a checkpoint declared later); `calls` written by the parent may only shrink (subset); an added agent is accepted.
+
+### `scratch` (session scratch folders)
+
+```yaml
+agents:
+  debugger: { role: workflow, scratch: { readers: [developer] } }
+```
+
+The agent gets a scratch folder for the session: `~/.oh/sessions/<session>/scratch/<agent>/`, outside the repository and the documentation, created 0700 at launch and deleted with the session (`oh gc`, `oh session delete`). Its path is given to the agents by the `oh.scratch` entry of the [session state](../guides/sessions-v5.en.md#session-state), and a line of their prompt points to it.
+
+| Who | Read | Write | Shell |
+|---|---|---|---|
+| the owner (the agent that declares `scratch`) | its folder, in this session | its folder, in this session | no |
+| a reader (`readers`) | the owner's folder, in this session | no | no |
+| any other agent, and any agent of another session (parallel sessions included) | no | no | no |
+
+- `readers`: other agents of the workflow, each once (`scratch_reader_unknown`, `scratch_reader_owner`, `duplicate_entry`). `scratch: {}`: the owner only.
+- The rules are oh guards, placed after the rules of each agent (see [security](../../SECURITY.md)): an agent rule that allows everything does not loosen them. The shell never reaches the folder, the owner included: a shell rule follows the raw text of the command, an allow by path would allow any command naming it.
+- A scratch file is never cited in the documentation or the wiki: a content lint checks it (`TestScratchNeverInTheDocs`).
+- Patch: `scratch: null` removes the folder, a shorter `readers` list hardens, a reader the parent does not declare is a loosening (`loosening`); a folder added by the layer is accepted. A disabled agent leaves the readers.
 
 ---
 
@@ -427,6 +448,7 @@ A diagnostic has a severity (error or warning), a code, the field path, the sour
 | `enforced_field`, `enforce_unknown_field` | field locked by a parent; unknown `enforce` value |
 | `entry_not_primary`, `entry_role`, `entry_disabled`, `agent_unknown`, `agent_unreachable` | invalid entry agent or member |
 | `after_unknown`, `after_cycle`, `calls_unknown`, `graph_cycle` | `after` gates and delegations |
+| `scratch_reader_unknown`, `scratch_reader_owner` | scratch reader not in the workflow, or the owner itself |
 | `checkpoint_agent_clash`, `checkpoint_mode_unknown`, `checkpoint_mode_missing`, `checkpoint_condition_missing`, `mandatory_checkpoint_removed`, `unlocking_checkpoint_removed`, `unlock_duplicate`, `unlock_unknown`, `unlock_skip`, `unlock_push_without_publish`, `patch_unknown_checkpoint` | checkpoints |
 | `precondition_check_invalid`, `precondition_path_invalid`, `precondition_self`, `precondition_unknown_workflow`, `patch_unknown_precondition` | preconditions |
 | `prompt_both`, `prompt_empty`, `prompt_template_path`, `prompt_template_missing`, `prompt_parse`, `prompt_unknown_variable` | prompt |

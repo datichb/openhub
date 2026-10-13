@@ -286,9 +286,30 @@ La clé est l'id d'un agent du catalogue de briques (hub + équipe), en kebab-ca
 | `mode` | texte | `primary`, `subagent` | mode de l'agent dans le catalogue | `primary` : l'utilisateur peut le choisir ; `subagent` : appelé seulement par délégation |
 | `after` | texte | id de checkpoint ou d'agent | aucun verrou | l'agent ne peut être appelé qu'après ce checkpoint ou cet agent (`after_unknown`, `after_cycle`) |
 | `calls` | liste | ids d'agents du workflow | permission `task` de l'agent, restreinte au workflow | délégations permises (`calls_unknown`, `graph_cycle`) |
+| `scratch` | table | `{ readers: [<agent>…] }` | pas de brouillons | dossier de brouillons de session de l'agent (voir [ci-dessous](#scratch-brouillons-de-session)) |
 
 - **Graphe** : `calls` quand il est écrit, sinon la permission `task` de l'agent, limitée aux membres. L'auto-délégation n'est retenue que si elle est écrite (`reviewer: { calls: [reviewer] }`). La profondeur maximale du graphe devient `experimental.subagent_depth` d'opencode.
 - **Patch** : fusion par id, champ par champ ; `role: disabled` retire l'agent (sauf l'agent d'entrée) et le retire des listes `calls` des autres. `after` ne peut pas être retiré ni avancé (seulement reporté à un checkpoint déclaré plus loin) ; `calls` écrit par le parent ne peut que se réduire (sous-ensemble) ; un agent ajouté est accepté.
+
+### `scratch` (brouillons de session)
+
+```yaml
+agents:
+  debugger: { role: workflow, scratch: { readers: [developer] } }
+```
+
+L'agent reçoit un dossier de brouillons pour la session : `~/.oh/sessions/<session>/scratch/<agent>/`, hors du dépôt et de la documentation, créé en 0700 au lancement et supprimé avec la session (`oh gc`, `oh session delete`). Son chemin est donné aux agents par l'entrée `oh.scratch` de l'[état de session](../guides/sessions-v5.fr.md#état-de-session), et une ligne de leur prompt la signale.
+
+| Qui | Lecture | Écriture | Shell |
+|---|---|---|---|
+| le propriétaire (l'agent qui déclare `scratch`) | son dossier, dans cette session | son dossier, dans cette session | non |
+| un lecteur (`readers`) | le dossier du propriétaire, dans cette session | non | non |
+| tout autre agent, et tout agent d'une autre session (sessions parallèles comprises) | non | non | non |
+
+- `readers` : d'autres agents du workflow, chacun une fois (`scratch_reader_unknown`, `scratch_reader_owner`, `duplicate_entry`). `scratch: {}` : le propriétaire seul.
+- Les règles sont des gardes d'oh, placées après les règles de chaque agent (voir [sécurité](../../SECURITY.fr.md)) : une règle de l'agent qui autorise tout ne les assouplit pas. Le shell n'y accède jamais, propriétaire compris : une règle shell suit le texte brut de la commande, une autorisation par chemin autoriserait n'importe quelle commande qui le cite.
+- Un brouillon n'est jamais cité dans la documentation ni le wiki : un lint du contenu le vérifie (`TestScratchNeverInTheDocs`).
+- Patch : `scratch: null` retire le dossier, une liste `readers` plus courte durcit, un lecteur que le parent ne déclare pas est un assouplissement (`loosening`) ; un dossier ajouté par la couche est accepté. Un agent désactivé sort des lecteurs.
 
 ---
 
@@ -427,6 +448,7 @@ Un diagnostic a une gravité (erreur ou avertissement), un code, le chemin du ch
 | `enforced_field`, `enforce_unknown_field` | champ verrouillé par un parent ; valeur d'`enforce` inconnue |
 | `entry_not_primary`, `entry_role`, `entry_disabled`, `agent_unknown`, `agent_unreachable` | agent d'entrée ou membre invalide |
 | `after_unknown`, `after_cycle`, `calls_unknown`, `graph_cycle` | verrous `after` et délégations |
+| `scratch_reader_unknown`, `scratch_reader_owner` | lecteur de brouillons absent du workflow, ou propriétaire lui-même |
 | `checkpoint_agent_clash`, `checkpoint_mode_unknown`, `checkpoint_mode_missing`, `checkpoint_condition_missing`, `mandatory_checkpoint_removed`, `unlocking_checkpoint_removed`, `unlock_duplicate`, `unlock_unknown`, `unlock_skip`, `unlock_push_without_publish`, `patch_unknown_checkpoint` | checkpoints |
 | `precondition_check_invalid`, `precondition_path_invalid`, `precondition_self`, `precondition_unknown_workflow`, `patch_unknown_precondition` | préconditions |
 | `prompt_both`, `prompt_empty`, `prompt_template_path`, `prompt_template_missing`, `prompt_parse`, `prompt_unknown_variable` | prompt |

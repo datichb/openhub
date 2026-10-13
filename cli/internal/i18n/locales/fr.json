@@ -2207,6 +2207,8 @@
   "workflow.diag.agent_unreachable.hint": "Ajoutez-le aux calls d'un agent du workflow, ou passez-le en role: independent.",
   "workflow.diag.api_version": "apiVersion %q non pris en charge (attendu : %s)",
   "workflow.diag.calls_unknown": "Délégation vers %q impossible : agent absent du workflow",
+  "workflow.diag.scratch_reader_owner": "%q est déjà propriétaire de ce brouillon : un lecteur est un autre agent",
+  "workflow.diag.scratch_reader_unknown": "Lecteur de brouillon %q impossible : agent absent du workflow",
   "workflow.diag.checkpoint_agent_clash": "L'identifiant %s désigne à la fois un checkpoint et un agent",
   "workflow.diag.checkpoint_condition_missing": "Le checkpoint %s est conditionnel en mode %s mais n'a pas de condition",
   "workflow.diag.checkpoint_id_invalid": "Identifiant de checkpoint invalide : %q (kebab-case attendu)",
@@ -4607,6 +4609,8 @@
   "cmd.root.flags.no-tui": "Désactiver l'interface riche (questions en ligne seulement)",
   "cmd.session.open.unsupported": "%s ne permet pas d'ouvrir une session dans le navigateur",
   "cmd.session.resume.context": "La session a été reprise après une mise en veille (son serveur a redémarré) : reprends l'étape en cours là où tu t'étais arrêté.",
+  "cmd.session.scratch.context": "Brouillons de session : hors dépôt, supprimés avec la session, jamais cités dans la documentation ni le wiki ; seul le propriétaire écrit, les lecteurs déclarés lisent, dans cette session seulement.",
+  "cmd.session.scratch.folder": "- `%s` : %s (lecture : %s)",
   "cmd.workflow.input.no_team_space": "Pas d'espace d'équipe pour ce projet : le brief de reprise ne peut pas être lu",
   "cmd.workflow.input.no_brief": "Aucun brief de reprise pour %s/%s : effectuez d'abord un transfert"
 }

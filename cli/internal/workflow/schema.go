@@ -242,6 +242,8 @@ type AgentRef struct {
 	// Calls lists the agents this agent may delegate to. Omitted: derived
 	// from the agent's own task permissions, restricted to the workflow.
 	Calls []string `yaml:"calls,omitempty"`
+	// Scratch gives the agent a session scratch folder (ScratchSpec).
+	Scratch *ScratchSpec `yaml:"scratch,omitempty"`
 }
 
 // CheckpointSpec is a gate of the workflow.
@@ -514,3 +516,27 @@ func (s *Spec) EntryAgent() string {
 
 // DefaultEntryAgent is the generic orchestrator used when entry.agent is empty.
 const DefaultEntryAgent = "conductor"
+
+// ── Session scratch (SCR) ───────────────────────────────────────────────────
+
+// ScratchSpec (`agents.<id>.scratch`) gives an agent a scratch folder for
+// the session, ~/.oh/sessions/<session>/scratch/<agent>/: outside the
+// repository and the documentation, deleted with the session. The owner
+// reads and writes it; the readers (agents of the workflow) only read it,
+// and only in the same session. Everyone else is refused (bundle global
+// guard, ScratchAgentGuard and ScratchSessionRules).
+type ScratchSpec struct {
+	Readers []string `yaml:"readers,omitempty"`
+}
+
+// ScratchOwners returns the agents of the workflow that own a scratch
+// folder, in declaration order.
+func (s *Spec) ScratchOwners() []string {
+	var out []string
+	for _, id := range s.Agents.Keys() {
+		if a, _ := s.Agents.Get(id); a.Scratch != nil && a.Role != RoleDisabled {
+			out = append(out, id)
+		}
+	}
+	return out
+}

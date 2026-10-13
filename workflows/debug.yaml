@@ -20,7 +20,7 @@ inputs:
 prompt:
   template: prompts/debug.md.tmpl
 agents:
-  debugger: { role: workflow }
+  debugger: { role: workflow, scratch: { readers: [developer] } }
   developer: { role: independent, mode: primary }
   documentarian: { role: independent }
 checkpoints:

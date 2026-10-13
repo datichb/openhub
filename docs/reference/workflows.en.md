@@ -223,6 +223,8 @@ Diagnosis of a bug or isolated problem by the `debugger`: diagnostic report (urg
 
 The fix ticket is only created after `cp-ticket` (« Create the fix ticket », paused in every mode, unlocks `create`): the `debugger` presents the diagnosis and the ticket there, instead of asking for confirmation with the `question` tool (which it keeps in a `libre` session). A fix made in the session ends with `cp-commit` (mandatory, paused in every mode, unlocks `commit` and `close`). Output: `tickets`. Allowed Beads commands: `show`, `list`, `ready`, `search`, `query`, `lint`, `children`, `comments`, `count`, `status`, `graph`, `history`, `create`, `update`, `close`, `dep`, `label`.
 
+**Session scratch folders** (`debugger: { scratch: { readers: [developer] } }`, see [`scratch`](workflow-schema.en.md#scratch-session-scratch-folders)): in the reproduction phase, the `debugger` writes its reproduction test or script in `~/.oh/sessions/<session>/scratch/debugger/` (path given in the `oh.scratch` entry of the session state), outside the repository and deleted with the session; it describes this test in text in the fix ticket. The `developer`, declared reader, may read this scratch file in the same session, without changing it, and makes it the final test of the project. The `documentarian` has no access to it, nor any agent of another session.
+
 ## `benchmark`
 
 Performance measurement of a target by the `benchmarker` (modes `frontend`: Lighthouse, `api`: k6, `go`: go bench and pprof, `python`: py-spy), compared with a baseline. The code is not modified: the `benchmarker` only writes in `reports/benchmarks/` (permission); optimisations become recommendations for the `developer`.

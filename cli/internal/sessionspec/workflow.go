@@ -88,6 +88,15 @@ type WorkflowRuntime struct {
 	// MaxConsecutiveSubagents trips the circuit breaker (0 = disabled).
 	MaxConsecutiveSubagents int         `json:"max_consecutive_subagents,omitempty"`
 	Outputs                 []OutputDef `json:"outputs,omitempty"`
+	// Scratch are the session scratch folders of the workflow (SCR).
+	Scratch []ScratchDef `json:"scratch,omitempty"`
+}
+
+// ScratchDef is the scratch folder of an agent for a session: written by
+// Owner, read by Readers, in that session only.
+type ScratchDef struct {
+	Owner   string   `json:"owner"`
+	Readers []string `json:"readers,omitempty"`
 }
 
 // CheckpointDef is a checkpoint and its behavior in each workflow mode.

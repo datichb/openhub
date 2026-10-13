@@ -129,6 +129,7 @@ oh keeps, for the entry agent of the session, a **session state** up to date (S8
 | `oh.budget` | session budget (raises included), spent, remaining | at the `$` decision and as soon as a raise is answered |
 | `oh.resume` | resume instruction | after `oh session resume` when the server restarted; removed after the next step |
 | `oh.handoff` | handoff brief: work of the replaced session (objective, results, decisions, commits, changed files); copy in `~/.oh/sessions/<id>/handoff.md` | when a session launched with "Replace (keep the work)" (`--on-existing=keep`) starts |
+| `oh.scratch` | scratch folders of the session (owner → path `~/.oh/sessions/<id>/scratch/<agent>/`, readers); see [`scratch`](../reference/workflow-schema.en.md#scratch-session-scratch-folders) | when a session whose workflow declares scratch folders is created (folders created 0700) |
 
 - An entry is written again only when its value changes: the tool announces each change at the next step, with a message in the session history. A change that happens while the agent works is written once its step ended (announced at the next turn): written during the step, it would make the agent run one more step that replaces its answer.
 - **Subagents** do not receive this state (tool limit); they read the workflow state with the `workflow_status` tool.

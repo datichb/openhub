@@ -129,6 +129,7 @@ oh tient à jour, pour l'agent d'entrée de la session, un **état de session** 
 | `oh.budget` | budget de la session (relèvements compris), dépensé, restant | à la décision `$` et dès la réponse à un relèvement |
 | `oh.resume` | consigne de reprise | après `oh session resume` quand le serveur a redémarré ; retirée après l'étape suivante |
 | `oh.handoff` | brief de passation : travail de la session remplacée (objectif, résultats, décisions, commits, fichiers modifiés) ; copie dans `~/.oh/sessions/<id>/handoff.md` | au démarrage d'une session lancée avec « Remplacer (garder le travail) » (`--on-existing=keep`) |
+| `oh.scratch` | dossiers de brouillons de la session (propriétaire → chemin `~/.oh/sessions/<id>/scratch/<agent>/`, lecteurs) ; voir [`scratch`](../reference/workflow-schema.fr.md#scratch-brouillons-de-session) | à la création d'une session dont le workflow déclare des brouillons (dossiers créés en 0700) |
 
 - Une entrée n'est réécrite que si sa valeur change : l'outil annonce chaque changement à l'étape suivante, par un message dans l'historique de la session. Un changement survenu pendant que l'agent travaille est écrit à la fin de son étape (annoncé au tour suivant) : écrit pendant l'étape, il ferait faire à l'agent une étape de plus qui remplacerait sa réponse.
 - Les **sous-agents** ne reçoivent pas cet état (limite de l'outil) ; ils lisent l'état du workflow avec l'outil `workflow_status`.

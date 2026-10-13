@@ -28,6 +28,8 @@ const (
 	KeyResume      = "oh.resume"
 	// KeyHandoff is the brief of the session a new one continues.
 	KeyHandoff = "oh.handoff"
+	// KeyScratch gives the session scratch folders (owner → path).
+	KeyScratch = "oh.scratch"
 )
 
 // Entry is a state entry to set.

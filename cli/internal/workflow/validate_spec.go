@@ -475,6 +475,7 @@ func (v *validator) agents() {
 				v.err("calls_unknown", fmt.Sprintf("%s.calls[%d]", base, i), c)
 			}
 		}
+		v.scratch(base, k, a, members)
 	}
 	if cycle := findCycle(s.Agents.Keys(), afterGraph); cycle != nil {
 		v.err("after_cycle", "agents."+cycle[0]+".after", strings.Join(cycle, " → "))
@@ -492,6 +493,27 @@ func (v *validator) agents() {
 		if a, _ := s.Agents.Get(k); a.Role == RoleWorkflow && !reach[k] {
 			v.err("agent_unreachable", "agents."+k, k, s.EntryAgent())
 		}
+	}
+}
+
+// scratch checks the scratch folder of an agent (SCR): its readers are
+// other agents of the workflow, each named once.
+func (v *validator) scratch(base, owner string, a AgentRef, members []string) {
+	if a.Scratch == nil || a.Role == RoleDisabled {
+		return
+	}
+	seen := map[string]bool{}
+	for i, r := range a.Scratch.Readers {
+		p := fmt.Sprintf("%s.scratch.readers[%d]", base, i)
+		switch {
+		case r == owner:
+			v.err("scratch_reader_owner", p, r)
+		case !containsStr(members, r):
+			v.err("scratch_reader_unknown", p, r)
+		case seen[r]:
+			v.err("duplicate_entry", p, r)
+		}
+		seen[r] = true
 	}
 }
 

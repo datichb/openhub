@@ -382,6 +382,7 @@ Le feedback immédiat du watch mode renforce la boucle Red/Green/Refactor.
   it('doit [comportement] — non-régression #<ID-ticket>', () => { ... })
   ```
 - Ce test reste dans le code définitivement
+- Ticket issu d'un diagnostic (`from-diagnostic`) : le test de reproduction décrit en texte dans le ticket devient ce test. Si ton prompt contient la ligne « Brouillons de session (oh) », lis le brouillon du `debugger` (entrée `oh.scratch` du contexte de session) sans le modifier : il n'est qu'une source, le test définitif s'écrit dans le dépôt, sans citer le brouillon (jamais dans la documentation ni le wiki).
 
 ---
 

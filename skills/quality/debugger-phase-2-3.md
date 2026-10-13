@@ -60,6 +60,8 @@ Identifier et documenter le scénario de reproduction :
 
 Si les informations sont insuffisantes pour reproduire, lister explicitement ce qui manque.
 
+**Brouillon de reproduction** — seulement si ton prompt contient la ligne « Brouillons de session (oh) » (workflow `debug`) : écris ton test ou script de reproduction et tes notes dans ton dossier de brouillons (chemin dans l'entrée `oh.scratch` du contexte de session), avec l'outil d'écriture de fichiers : le shell n'y a pas accès. Ce dossier est hors dépôt et supprimé avec la session : décris ce test **en texte** dans le ticket de correction (étapes de reproduction, entrées, résultat attendu), sans le chemin du brouillon. Le `developer`, lecteur déclaré, en fait le test définitif du projet. Le chemin d'un brouillon n'est jamais cité dans le rapport, la documentation ni le wiki.
+
 ---
 
 ## ÉTAPE 3.2 — Isolation

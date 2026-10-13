@@ -241,6 +241,7 @@ func (p *patcher) agents() {
 			p.dst.Agents.Delete(k)
 			p.removed = append(p.removed, base)
 			p.dropCalls(k)
+			p.dropScratchReader(k)
 			continue
 		}
 		if !exists {
@@ -265,6 +266,9 @@ func (p *patcher) agents() {
 			} else {
 				old.Calls = v.Calls
 			}
+		}
+		if h("scratch") {
+			p.scratch(base+".scratch", &old, v.Scratch)
 		}
 		p.dst.Agents.Set(k, old)
 	}
@@ -425,6 +429,33 @@ func (p *patcher) dropCalls(agent string) {
 			continue
 		}
 		a.Calls = slices.DeleteFunc(slices.Clone(a.Calls), func(c string) bool { return c == agent })
+		p.dst.Agents.Set(k, a)
+	}
+}
+
+// scratch patches the scratch folder of an agent (SCR): removing it
+// (`scratch: null`) or narrowing its readers hardens; a reader the parent
+// did not declare is a loosening. A folder declared by the patch only is
+// accepted, like a new agent.
+func (p *patcher) scratch(path string, old *AgentRef, v *ScratchSpec) {
+	if v != nil && old.Scratch != nil {
+		if extra := missingFrom(v.Readers, old.Scratch.Readers); len(extra) > 0 {
+			p.loosening(path+".readers", strings.Join(extra, ","), strings.Join(old.Scratch.Readers, ","))
+			return
+		}
+	}
+	old.Scratch = v
+}
+
+// dropScratchReader removes a disabled agent from the scratch readers of
+// the others.
+func (p *patcher) dropScratchReader(agent string) {
+	for _, k := range p.dst.Agents.Keys() {
+		a, _ := p.dst.Agents.Get(k)
+		if a.Scratch == nil || !slices.Contains(a.Scratch.Readers, agent) {
+			continue
+		}
+		a.Scratch = &ScratchSpec{Readers: slices.DeleteFunc(slices.Clone(a.Scratch.Readers), func(r string) bool { return r == agent })}
 		p.dst.Agents.Set(k, a)
 	}
 }
