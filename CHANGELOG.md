@@ -9,6 +9,17 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ## [Unreleased]
 
+### Added — vérification par oh et checkpoints (lot R3) — ⚠ changement de comportement
+
+- **`verify:` sur un checkpoint** : oh lance lui-même la vérification avant d'ouvrir les déverrouillages (`from: stack` avec les commandes de la stack détectée, ou `cmd` écrit dans le workflow ; `kinds`, `expect: pass|fail`, `in`, `timeout`, `must_touch`). Environnement filtré, délai et sortie bornés. Livré sur `cp-2` (ticket, feature, review-feedback) et `cp-commit` (quick, debug, sweep). En cas d'échec, le checkpoint est refusé avec un extrait ; au checkpoint en pause, « Passer outre » est possible et tracé. Retirer ou affaiblir une vérification héritée est un assouplissement.
+- **Preuves** : `workflow_checkpoint` accepte `evidence: [{cmd, exit}]`, recoupé avec les commandes observées (observée, non observée, contredite).
+- **Limite des tours de correction** : au-delà de `limits.max_fix_rounds`, oh refuse les nouvelles délégations au developer et marque le checkpoint de commit « non résolu ».
+- **Conditions `when:`** sur un checkpoint (agent d'entrée, label de ticket, chemins modifiés, sortie déclarée) : elles peuvent seulement ajouter une pause, jamais retirer une décision obligatoire.
+- **Fenêtres bornées** : la fenêtre `create` se referme au checkpoint obligatoire suivant, la fenêtre `commit` une fois le travail commité.
+- **Budget de pauses** : en semi-auto, 2 décisions plus 1 par checkpoint qui déverrouille une action ; lint sur les workflows livrés, avertissement `pause_budget_exceeded` dans `oh workflow validate`. **`cp-feature` passe en `auto` en semi-auto** (récap simple ; il reste en pause en manuel).
+- **Carte et lancement** : la carte de checkpoint montre la vérification, les preuves et le ticket non résolu ; `oh run` et la TUI affichent les pauses prévues pour le mode choisi. Nouvelle référence `docs/reference/checkpoints.*`.
+- **Limite connue** : dans une session distante, la vérification n'a pas accès au dépôt et le checkpoint passe sans vérification (à traiter juste après).
+
 ### Changed — catalogue de skills par agent (lot L2)
 
 - **Chaque agent ne voit plus que ses skills** : ses skills natives, celles que son texte l'invite à charger (et, de proche en proche, celles que ses skills à la demande nomment), la fermeture `requires`, les skills de stack seulement pour les agents `stack_skills: true` (developer, reviewer, debugger, operator), les skills nommées dans le prompt du workflow pour l'agent d'entrée, et celles qu'un appelant nomme dans ses délégations pour les agents `skills_from_callers: true` (developer, auditor-subagent). Le paquet ne livre plus que l'union de ces catalogues.
