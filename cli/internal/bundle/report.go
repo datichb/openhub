@@ -92,7 +92,7 @@ var inlinedSkillRe = regexp.MustCompile("(?m)^> Skill `([a-z0-9_-]+)` : incluse 
 var inlinedTail = []string{
 	"\n\n> Skills absentes de ce paquet de session",
 	contractHeading,
-	"\n\n---\n\n# Project instructions\n",
+	instructionsHeading,
 }
 
 // InlinedSkills splits a composed agent prompt by its inlined-skill headings:
