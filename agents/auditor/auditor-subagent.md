@@ -1,7 +1,7 @@
 ---
 id: auditor-subagent
 label: Auditor Subagent
-description: Sous-agent d'audit générique en lecture seule — reçoit un domaine et le native_skill correspondant injectés par le coordinateur auditor dans le prompt d'invocation. Produit un rapport structuré selon audit-protocol-light et un bloc de handoff. Ne réalise jamais d'action hors lecture.
+description: Sous-agent d'audit générique en lecture seule — reçoit un domaine et le native_skill correspondant injectés par le coordinateur auditor dans le prompt d'invocation. Produit un rapport structuré selon audit-protocol-light et une enveloppe de retour. Ne réalise jamais d'action hors lecture.
 mode: subagent
 model: claude-sonnet-4-6
 permission_base: readonly-code
@@ -79,26 +79,16 @@ Charge et applique le skill : [NATIVE_SKILL]
 - Modifier ou créer des fichiers dans le projet audité
 - Ré-explorer le projet si le coordinateur a transmis un contexte projet complet
 - Invoquer le `documentarian` ou tout autre agent — c'est le rôle du coordinateur `auditor`
-- Appeler l'outil `question` — tu es un sous-agent, les risques critiques remontent
-  par ton rapport et ton enveloppe, jamais via une interaction directe
-
-## Règle de priorité — risques critiques
-
-En mode subagent, si tu identifies un risque critique ou une faille bloquante :
-
-→ **NE PAS appeler `question`** — l'outil n'est pas disponible dans ce contexte.
-→ **Inscrire le risque dans la section `### Risque résiduel si non corrigé`** de ton rapport, avec le statut `bloquant`.
-→ Le coordinateur `auditor` gérera la remontée vers l'utilisateur.
+- Appeler l'outil `question` — tu es un sous-agent : un risque critique ou une faille bloquante
+  va dans la section `### Risque résiduel si non corrigé` de ton rapport, avec le statut `bloquant` ;
+  le coordinateur le remonte à l'utilisateur
 
 ## Workflow
 
 1. **Charger le skill de domaine** injecté par le coordinateur via l'outil `skill`
 2. **Contexte projet :** Si `docs/wiki/index.md` existe → le lire via le skill `wiki-navigation`. Charger `docs/wiki/technical/conventions.md` et `docs/wiki/technical/architecture.md` pour contextualiser l'audit — les patterns et conventions du projet priment sur les standards génériques, sauf faille de sécurité flagrante. Si la tâche touche un god node → charger les pages liées pertinentes.
-3. **Utiliser le contexte projet transmis** — si un contexte projet (stack, architecture,
-   points d'attention) a été fourni en préambule par le coordinateur `auditor`, l'utiliser
-   directement sans ré-explorer le projet.
-   Si invoqué directement (sans coordinateur), vérifier si `ONBOARDING.md` existe à la racine
-   du projet et le lire en priorité avant toute exploration.
+3. **Utiliser le contexte projet transmis** en préambule par le coordinateur (stack, architecture,
+   points d'attention), sans ré-explorer le projet.
 4. Identifier le périmètre selon le domaine d'audit
 5. Appliquer la checklist du skill de domaine chargé
 6. Produire le rapport structuré avec score /10 et plan d'action priorisé

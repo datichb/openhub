@@ -10,9 +10,9 @@
 # Regenerate: go test ./internal/bundle -run TestBudgetBaseline -update
 
 project  workflow               agent                          prompt  inlined    n  cat cat_tk  rch rch_tk
-instruct audit                  auditor                         11852    10315    7   10    352   10    352
-instruct audit                  auditor-subagent                 9472     4307    7   14    486   14    486
-instruct audit                  TOTAL                           21324    14622   14   14    486   14    486
+instruct audit                  auditor                          3821     2640    7   13    466   13    466
+instruct audit                  auditor-subagent                 8947     3915    7   14    486   14    486
+instruct audit                  TOTAL                           12768     6555   14   17    600   17    600
 instruct benchmark              benchmarker                      7527     2226    4    1     36    1     36
 instruct benchmark              TOTAL                            7527     2226    4    1     36    1     36
 instruct brief-enrich           brief-enricher                   4516        0    0    0      0    0      0
@@ -68,9 +68,9 @@ instruct ticket                 documentarian                    4859     3158  
 instruct ticket                 orchestrator-dev                 7436     5389    6   16    568   16    568
 instruct ticket                 reviewer                        15204     8129    7   13    447   13    447
 instruct ticket                 TOTAL                           42256    24523   28   34   1143   34   1143
-none     audit                  auditor                         11454    10315    7   10    352   10    352
-none     audit                  auditor-subagent                 4060     2858    6   14    486   14    486
-none     audit                  TOTAL                           15514    13173   13   14    486   14    486
+none     audit                  auditor                          3423     2640    7   13    466   13    466
+none     audit                  auditor-subagent                 3468     2399    6   13    450   13    450
+none     audit                  TOTAL                            6891     5039   13   17    600   17    600
 none     benchmark              benchmarker                      2115      777    3    1     36    1     36
 none     benchmark              TOTAL                            2115      777    3    1     36    1     36
 none     brief-enrich           brief-enricher                    513        0    0    0      0    0      0
@@ -126,9 +126,9 @@ none     ticket                 documentarian                    4443     3158  
 none     ticket                 orchestrator-dev                 6980     5389    6   19    672   19    672
 none     ticket                 reviewer                         9734     6680    6   16    551   16    551
 none     ticket                 TOTAL                           30459    21625   26   37   1247   37   1247
-stacks   audit                  auditor                         11454    10315    7   10    352   10    352
-stacks   audit                  auditor-subagent                 4060     2858    6   14    486   14    486
-stacks   audit                  TOTAL                           15514    13173   13   14    486   14    486
+stacks   audit                  auditor                          3423     2640    7   13    466   13    466
+stacks   audit                  auditor-subagent                 3468     2399    6   13    450   13    450
+stacks   audit                  TOTAL                            6891     5039   13   17    600   17    600
 stacks   benchmark              benchmarker                      2115      777    3    1     36    1     36
 stacks   benchmark              TOTAL                            2115      777    3    1     36    1     36
 stacks   brief-enrich           brief-enricher                    513        0    0    0      0    0      0
@@ -186,7 +186,6 @@ stacks   ticket                 reviewer                         9734     6680  
 stacks   ticket                 TOTAL                           30459    21625   26   44   1494   44   1494
 
 # Inlined skills: largest section (tokens) and the agents inlining it.
-auditor-workflow                           7305 auditor
 review-protocol                            5308 reviewer
 orchestrator-dev-protocol                  3253 orchestrator-dev
 orchestrator-protocol                      3152 orchestrator
@@ -195,14 +194,15 @@ planner-workflow                           2170 planner
 pathfinder-protocol                        1911 pathfinder
 doc-protocol                               1841 documentarian
 wiki-navigation                            1699 auditor-subagent,benchmarker,debugger,developer,onboarder,operator,pathfinder,reviewer
-audit-protocol-light                       1514 auditor,auditor-subagent
 dev-standards-simplicity                   1375 developer
 dev-standards-universal                    1287 developer
 workflow-map                               1130 conductor
+audit-protocol-light                       1122 auditor,auditor-subagent
 onboarder-workflow                         1099 onboarder
 designer-protocol                          1001 designer
 debugger-workflow                           984 debugger
 orchestrator-workflow-modes                 870 orchestrator,orchestrator-dev
+auditor-workflow                            740 auditor
 coordinator-posture                         523 auditor,conductor,orchestrator,orchestrator-dev
 developer-payload                           404 developer
 universal-guardrails                        404 auditor,auditor-subagent,benchmarker,conductor,debugger,designer,developer,documentarian,onboarder,operator,orchestrator,orchestrator-dev,pathfinder,planner,reviewer

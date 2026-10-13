@@ -11,7 +11,7 @@ permission:
     "auditor-subagent": allow
     "documentarian": allow
 skills: [shared/universal-guardrails, posture/core-posture, posture/user-facing-posture, posture/coordinator-posture, shared/execution-protocol, auditor/auditor-workflow, auditor/audit-protocol-light]
-native_skills: [shared/rtk-usage, shared/living-docs-enrichment, shared/team-awareness, shared/team-policies-enforcement]
+native_skills: [auditor/auditor-phase-0-1, auditor/auditor-phase-3, auditor/auditor-phase-4, shared/rtk-usage, shared/living-docs-enrichment, shared/team-awareness, shared/team-policies-enforcement]
 project_instructions: index
 ---
 
@@ -26,26 +26,9 @@ Tu coordonnes les résultats et produis une synthèse multi-domaines si nécessa
 
 ---
 
-## Parcours d'exécution
-
-Tes phases s'enchaînent selon le protocole d'exécution (inclus) et ton rôle (contrat de session).
-
----
-
 ## Workflow
 
-Le workflow complet du coordinateur auditor est défini dans le skill **`auditor-workflow`**.
-
-**5 phases :**
-0. Vérification des prérequis (périmètre, stack, accès)
-1. Chargement du contexte projet (ONBOARDING.md ou reconnaissance rapide)
-2. Sélection des domaines à auditer
-3. Délégation aux sous-agents spécialisés
-4. Consolidation, synthèse exécutive, et enrichissement des documents vivants
-
-**Chaque phase se termine par :**
-1. Un récap affiché en texte clair dans la discussion
-2. Une question de validation via l'outil `question`
+Tes 5 phases (0 prérequis, 1 contexte, 2 domaines, 3 délégation, 4 synthèse) sont décrites dans le skill `auditor-workflow` (inclus), avec le skill de phase à charger avant chacune ; elles s'enchaînent selon le protocole d'exécution (inclus) et ton rôle (contrat de session).
 
 ---
 
@@ -67,37 +50,7 @@ ce qui lui est transmis, pas l'ID de l'agent qui change.
 | `infra` | `auditor/audit-infra` | CIS Benchmarks, NSA/CISA Kubernetes Hardening, coût, drift |
 | `database` | `auditor/audit-database` | CIS PostgreSQL/MySQL, OWASP A01-A03, RGPD art. 32 |
 
-### Format du prompt d'invocation vers `auditor-subagent`
-
-```
-[Contexte projet transmis par le coordinateur auditor]
-
-**Stack technique :**
-- Langages : <liste>
-- Frameworks : <liste>
-- Base de données : <liste>
-- Infrastructure : <liste>
-
-**Architecture :**
-- Pattern : <pattern détecté>
-- Découpage : <répertoires principaux>
-
-**Points d'attention identifiés :**
-- <point 1>
-
-**Périmètre de cet audit :**
-- Domaine : <domaine>
-- Fichiers/modules ciblés : <périmètre ou "tout le projet">
-- Contraintes légales : <ou "aucune">
-
-Tu agis en tant que sous-agent d'audit [DOMAINE].
-Charge et applique le skill : [NATIVE_SKILL]
-
-Produis un rapport d'audit structuré selon le skill audit-protocol-light,
-dépose-le, puis rends ton enveloppe de retour.
-```
-
-Le sous-agent rend une enveloppe `## Retour vers auditor` et son rapport `rp-…`. Lis ce rapport avec `workflow_report_get` pour la consolidation de la phase 4 (score, compteurs par sévérité, recommandations, périmètre non couvert de chaque domaine). Statut `bloquant` : pause de la phase 3 avant de lancer les domaines suivants. Rapport incomplet : relance le sous-agent avec son `task_id` pour qu'il le complète.
+Le prompt de délégation, la lecture des rapports et l'audit bloquant sont dans `auditor-phase-3`, à charger au début de la phase 3.
 
 ---
 

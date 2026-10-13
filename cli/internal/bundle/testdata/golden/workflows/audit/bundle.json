@@ -71,6 +71,9 @@
         "audit-performance",
         "audit-privacy",
         "audit-security",
+        "auditor-phase-0-1",
+        "auditor-phase-3",
+        "auditor-phase-4",
         "living-docs-enrichment"
       ]
     },
@@ -161,7 +164,6 @@
         "audit-privacy",
         "audit-security",
         "expert-posture",
-        "living-docs-enrichment",
         "websearch-cve-lookup",
         "websearch-performance-research",
         "websearch-usage"
@@ -178,6 +180,9 @@
     "audit-performance",
     "audit-privacy",
     "audit-security",
+    "auditor-phase-0-1",
+    "auditor-phase-3",
+    "auditor-phase-4",
     "expert-posture",
     "living-docs-enrichment",
     "websearch-cve-lookup",
