@@ -9,6 +9,14 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ## [Unreleased]
 
+### Changed — instructions du projet par niveau (lot L7)
+
+- **`project_instructions`** d'un agent (`full` par défaut, `index`, `none`) décide de ce qu'il reçoit d'`ONBOARDING.md`, `CONVENTIONS.md`, `.claude/CLAUDE.md` et des `instruction_files`.
+  - **`index`** (orchestrator-dev, auditor, pathfinder, planner, designer, documentarian, onboarder) : le chemin, le titre, la taille et les sections de chaque fichier, l'index du wiki (`docs/wiki/index.md`) et ses god nodes. oh accorde à l'agent la lecture, et seulement la lecture, de ces fichiers exacts, sous toutes les gardes ; un refus explicite de l'agent est conservé et signalé dans l'index.
+  - **`none`** (orchestrator, conductor) : rien, sauf une ligne qui dit que les agents lancés reçoivent les instructions.
+  - **`full`** : rendu inchangé.
+- **Budget** : sur un projet de 3 928 tokens d'instructions, `feature` coûte 21 933 tokens de moins par exécution (105 497 → 83 564) ; −91 258 sur l'ensemble des workflows. Inchangé sans instructions.
+
 ### Changed — variantes par rôle et contrat de session (lot L3) — ⚠ changement de comportement
 
 - **`when:`** sur une skill et **marqueurs `<!-- oh:when … -->…<!-- /oh:when -->`** dans le texte : conditions `role`, `agent`, `calls`, `websearch`, `mcp`, `plugin`, `beads_write`, `ticket`, `wiki`, `shell`, `headless`, alternatives avec `|`. Les skills incluses et le corps des agents sont filtrés avant l'inclusion, les skills à la demande sur l'union de leurs lecteurs ; le catalogue par agent est calculé après le filtrage. Erreur `invalid_when` dans `oh skill check`.
