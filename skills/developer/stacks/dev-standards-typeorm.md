@@ -1,6 +1,10 @@
 ---
 name: dev-standards-typeorm
 description: "Utiliser quand le projet utilise TypeORM (entities, repositories, migrations, QueryBuilder) et que le ticket touche ce code."
+versions:
+  typeorm: "1.1"
+  node: "20+"
+reviewed: 2026-10-12
 ---
 
 # Skill — Standards TypeORM

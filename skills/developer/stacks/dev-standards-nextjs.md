@@ -1,6 +1,11 @@
 ---
 name: dev-standards-nextjs
 description: "Utiliser quand le projet utilise Next.js (App Router, Server Components/Actions, cache) et que le ticket touche ce code."
+versions:
+  nextjs: "16.4"
+  react: "19"
+  zod: "4"
+reviewed: 2026-10-12
 ---
 
 # Skill — Standards Next.js

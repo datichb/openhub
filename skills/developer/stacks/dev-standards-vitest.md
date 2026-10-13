@@ -1,6 +1,11 @@
 ---
 name: dev-standards-vitest
 description: "Utiliser quand le projet utilise Vitest (vi.mock, matchers, coverage) et que le ticket touche ce code."
+versions:
+  vitest: "5"
+  vite: "6.4+"
+  node: "22.12+"
+reviewed: 2026-10-12
 ---
 
 # Skill — Standards Vitest

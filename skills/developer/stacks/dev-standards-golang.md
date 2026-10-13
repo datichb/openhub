@@ -1,6 +1,10 @@
 ---
 name: dev-standards-golang
 description: "Utiliser quand le projet utilise Go (erreurs, interfaces, concurrence, tests) et que le ticket touche ce code."
+versions:
+  go: "1.27"
+  golangci-lint: "2.14"
+reviewed: 2026-10-12
 ---
 
 # Skill — Standards Go

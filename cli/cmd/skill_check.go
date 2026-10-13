@@ -2,7 +2,9 @@ package cmd
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
+	"time"
 
 	"github.com/spf13/cobra"
 
@@ -13,6 +15,7 @@ import (
 
 func skillCheckCmd() *cobra.Command {
 	var asJSON bool
+	var stale staleOptions
 	cmd := &cobra.Command{
 		Use:   "check",
 		Short: i18n.T("cmd.skill.check.short"),
@@ -20,9 +23,23 @@ func skillCheckCmd() *cobra.Command {
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			a := MustApp()
-			hubDir := findHubDir()
+			if !stale.enabled && (cmd.Flags().Changed("max-age") || stale.strict) {
+				return fmt.Errorf("%s", i18n.T("cmd.skill.check.stale_only"))
+			}
+			hubDir := stale.hub
+			if hubDir == "" {
+				hubDir = findHubDir()
+			}
 			if hubDir == "" {
 				return fmt.Errorf("%s", i18n.T("cmd.skill.check.no_hub"))
+			}
+			if stale.enabled {
+				err := runSkillStale(a.IO.Out, hubDir, time.Now(), stale, asJSON)
+				var staleErr *staleSkillsError
+				if errors.As(err, &staleErr) {
+					cmd.SilenceUsage = true
+				}
+				return err
 			}
 			problems, err := bundle.CheckSkills(hubDir)
 			if err != nil {
@@ -57,6 +74,10 @@ func skillCheckCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().BoolVar(&asJSON, "json", false, i18n.T("cmd.skill.check.flags.json"))
+	cmd.Flags().BoolVar(&stale.enabled, "stale", false, i18n.T("cmd.skill.check.flags.stale"))
+	cmd.Flags().StringVar(&stale.maxAge, "max-age", fmt.Sprintf("%dd", bundle.DefaultMaxAgeDays), i18n.T("cmd.skill.check.flags.max_age"))
+	cmd.Flags().BoolVar(&stale.strict, "strict", false, i18n.T("cmd.skill.check.flags.strict"))
+	cmd.Flags().StringVar(&stale.hub, "hub", "", i18n.T("cmd.skill.check.flags.hub"))
 	return cmd
 }
 

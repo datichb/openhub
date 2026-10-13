@@ -23,9 +23,11 @@ With an active team (solo space included), it also applies the `unknown_key` rul
 | `name_mismatch` | error | `name:` different from the file name |
 | `invalid_name` | error | `name:` over 64 characters or not kebab-case (lowercase letters, digits, single hyphens) |
 | `long_description` | error | `description:` over 200 characters (hub catalogue limit; a warning for a skill of the team catalogue, an error over 1024, the Agent Skills standard limit) |
-| `unknown_key` | error | Frontmatter key that is neither an Agent Skills key (`name`, `description`, `license`, `compatibility`, `metadata`, `allowed-tools`) nor a hub key (`requires`, `annexes`, `plugin`, `mcp`, `when`) |
+| `unknown_key` | error | Frontmatter key that is neither an Agent Skills key (`name`, `description`, `license`, `compatibility`, `metadata`, `allowed-tools`) nor a hub key (`requires`, `annexes`, `plugin`, `mcp`, `when`, `statuses`, `versions`, `reviewed`) |
 | `invalid_when` | error | Invalid `when:` condition or `<!-- oh:when … -->` markers: unknown key or role, marker not alone on its line, unbalanced blocks |
 | `missing_annex` | error | `annexes:` names a file not found |
+| `missing_freshness` | error | Stack skill (`developer/stacks/`) without `versions:` or without `reviewed:` (see [Stack skill freshness](../guides/skill-refresh.en.md)) |
+| `invalid_freshness` | error | Empty `versions:`, key not in lowercase (`react`, `spring-boot`) or empty version; `reviewed:` that is not a `YYYY-MM-DD` date or is in the future |
 | `no_description` | warning | Missing `description:` |
 | `legacy_bucket` | warning | Obsolete `bucket:` field |
 | `missing_agent_skill` | warning | Skill named in an agent's `skills:` or `native_skills:` but not found |
@@ -36,12 +38,33 @@ With an active team (solo space included), it also applies the `unknown_key` rul
 Only the Agent Skills keys reach the delivered `SKILL.md`; the hub keys are read by oh (`plugin:` and `mcp:` ship the skill only when the workflow loads that plugin or the session has that MCP server). See [Skill format](../architecture/skills.en.md#skill-format).
 
 ```
-oh skill check [--json]
+oh skill check [--json] [--hub <dir>]
+oh skill check --stale [--max-age 90d] [--strict] [--json] [--hub <dir>]
 ```
 
 | Flag | Type | Description |
 |------|------|-------------|
-| `--json` | bool | Problems as JSON (`kind`, `error`, `ref`, `detail`) |
+| `--json` | bool | Problems as JSON (`kind`, `error`, `ref`, `detail`); with `--stale`, the freshness report |
+| `--hub` | path | Hub directory to check, for instance a checkout of the repository (`--hub .`); default: the installed hub (`~/.oh/hub`) |
+| `--stale` | bool | Lists the stack skills to review instead of checking the catalogue |
+| `--max-age` | duration | With `--stale`: maximum age of a review, in days (`90`, `90d`) or weeks (`12w`); default `90d` |
+| `--strict` | bool | With `--stale`: exit code 1 when a skill is to review (scheduled task, CI) |
+
+#### oh skill check --stale
+
+Lists the stack skills (`developer/stacks/`, and any other skill that carries `versions:` or `reviewed:`) whose last review (`reviewed:`) is older than `--max-age` days, and those whose metadata is missing or unreadable: the latter first, then the oldest review first, with the versions covered. Without `--strict`, the exit code stays 0. No network call: the command compares dates, not the published versions.
+
+```
+$ oh skill check --stale --hub .
+Stack skills to review (41 checked, review every 90 days at most, today 2026-10-13):
+
+  ! developer/stacks/dev-standards-cypress: reviewed on 2026-04-30 (166 days ago), covers cypress 12+
+  ! developer/stacks/dev-standards-kubernetes: reviewed on 2026-04-30 (166 days ago), covers kubernetes 1.21+
+
+  2 skill(s) to review: oh run skill-refresh (docs/guides/skill-refresh.en.md)
+```
+
+With `--json`: `today`, `max_age_days`, `checked` (skills checked) and `skills` (the skills to review: `ref`, `status` `stale` or `missing`, `reviewed`, `age_days`, `versions`, `detail`). The 90-day default is one review per quarter; the update is done with the [`skill-refresh`](../guides/skill-refresh.en.md) workflow.
 
 ---
 

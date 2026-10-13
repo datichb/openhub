@@ -1,0 +1,49 @@
+name: Stack skill freshness
+
+# Monthly review reminder for the stack skills (modernisation R13): lists the
+# stack skills whose last review (`reviewed:`) is older than 90 days, or that
+# lack their freshness metadata, and fails when there is one. The refresh
+# itself is a supervised session: `oh run skill-refresh` on a checkout of
+# the hub (docs/guides/skill-refresh.en.md).
+
+on:
+  schedule:
+    - cron: "0 6 1 * *" # the 1st of each month, 06:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  stale-skills:
+    name: Stack skills to review
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: cli
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Go
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+        with:
+          go-version: "1.26"
+          cache-dependency-path: cli/go.sum
+
+      - name: Build oh
+        run: |
+          make embed-sync
+          go build -o bin/oh .
+
+      - name: oh skill check --stale
+        env:
+          OH_HOME: ${{ runner.temp }}/oh-home
+          NO_COLOR: "1"
+        run: |
+          {
+            echo '```'
+            ./bin/oh skill check --stale --hub .. || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          ./bin/oh skill check --stale --hub .. --strict

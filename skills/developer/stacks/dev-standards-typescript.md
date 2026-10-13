@@ -1,6 +1,9 @@
 ---
 name: dev-standards-typescript
 description: "Utiliser quand le projet utilise TypeScript (typage strict, types utilitaires, erreurs typées) et que le ticket touche ce code."
+versions:
+  typescript: "7.0"
+reviewed: 2026-10-12
 ---
 
 # Skill — Standards TypeScript

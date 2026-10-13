@@ -1,6 +1,10 @@
 ---
 name: dev-standards-kotlin
 description: "Utiliser quand le projet utilise Kotlin/Android (Compose, MVVM, Coroutines, Hilt) et que le ticket touche ce code."
+versions:
+  kotlin: "2.4"
+  ksp: "2.3"
+reviewed: 2026-10-12
 ---
 
 # Skill — Standards Kotlin (Android natif)

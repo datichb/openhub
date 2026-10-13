@@ -1,6 +1,12 @@
 ---
 name: dev-standards-docker
 description: "Utiliser quand le projet utilise Docker (multi-stage, non-root, Compose, healthchecks) et que le ticket touche ce code."
+versions:
+  docker-engine: "29"
+  docker-compose: "5"
+  node: "24"
+  postgresql: "18"
+reviewed: 2026-10-12
 ---
 
 # Skill — Standards Docker

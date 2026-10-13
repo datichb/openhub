@@ -14,6 +14,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 	"unicode/utf8"
 
 	"gopkg.in/yaml.v3"
@@ -37,12 +38,15 @@ import (
 //	when:     <condition>  kept only for the agents it holds for (when.go)
 //	statuses: [<status>, …] statuses of the return of an agent, on its
 //	                       payload skill <agent>-payload (L5, contract.go)
+//	versions: {<tech>: <version>, …} versions a stack skill covers (R13,
+//	                       freshness.go)
+//	reviewed: <YYYY-MM-DD> date of the last review of a stack skill (R13)
 //
 // The delivered SKILL.md keeps only the Agent Skills spec keys; any other key
 // is reported by CheckSkills.
 
 // hubSkillKeys are frontmatter keys consumed by oh, never delivered to the tool.
-var hubSkillKeys = []string{"requires", "annexes", "plugin", "mcp", "when", "statuses"}
+var hubSkillKeys = []string{"requires", "annexes", "plugin", "mcp", "when", "statuses", "versions", "reviewed"}
 
 // deliveredSkillKeys are the Agent Skills spec keys, the only ones delivered.
 var deliveredSkillKeys = []string{"name", "description", "license", "compatibility", "metadata", "allowed-tools"}
@@ -71,7 +75,10 @@ type skillFront struct {
 	MCP         string   `yaml:"mcp"`
 	When        string   `yaml:"when"`
 	Statuses    []string `yaml:"statuses"`
-	Bucket      string   `yaml:"bucket"` // legacy (B17), reported by CheckSkills
+	// Versions and Reviewed are the freshness metadata (R13, freshness.go).
+	Versions map[string]string `yaml:"versions"`
+	Reviewed string            `yaml:"reviewed"`
+	Bucket   string            `yaml:"bucket"` // legacy (B17), reported by CheckSkills
 }
 
 type skillDoc struct {
@@ -415,6 +422,8 @@ const (
 	SkillUndeclaredAnnex    SkillProblemKind = "undeclared_annex"    // warning: referenced in the text, not in annexes:
 	SkillOrphanAnnex        SkillProblemKind = "orphan_annex"        // warning: file of skills/templates/ used by no skill
 	SkillInvalidWhen        SkillProblemKind = "invalid_when"        // error: `when:` or oh:when markers (when.go)
+	SkillMissingFreshness   SkillProblemKind = "missing_freshness"   // error: stack skill without versions: or reviewed: (R13)
+	SkillInvalidFreshness   SkillProblemKind = "invalid_freshness"   // error: versions: or reviewed: malformed (R13)
 
 	// SkillNotTrigger is a warning: the description does not open with
 	// « Utiliser … » (when to load the skill), generated skills aside.
@@ -521,6 +530,7 @@ func CheckSkills(hubDir string) ([]SkillProblem, error) {
 		if _, err := scanWhen(string(d.body())); err != nil {
 			problems = append(problems, problem(SkillInvalidWhen, ref, err.Error()))
 		}
+		problems = append(problems, checkFreshnessFields(d, time.Now())...)
 		for _, k := range d.Keys {
 			if k != "bucket" && !slices.Contains(deliveredSkillKeys, k) && !slices.Contains(hubSkillKeys, k) {
 				problems = append(problems, problem(SkillUnknownKey, ref, k))

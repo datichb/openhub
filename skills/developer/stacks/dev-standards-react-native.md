@@ -1,6 +1,11 @@
 ---
 name: dev-standards-react-native
 description: "Utiliser quand le projet utilise React Native (navigation, état, performance, sécurité) et que le ticket touche ce code."
+versions:
+  react-native: "0.87"
+  expo-sdk: "57"
+  react: "19"
+reviewed: 2026-10-12
 ---
 
 # Skill — Standards React Native

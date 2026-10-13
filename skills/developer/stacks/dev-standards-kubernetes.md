@@ -1,6 +1,9 @@
 ---
 name: dev-standards-kubernetes
 description: "Utiliser quand le projet utilise Kubernetes (manifests, RBAC, NetworkPolicy, probes, Kustomize) et que le ticket touche ce code."
+versions:
+  kubernetes: "1.21+"
+reviewed: 2026-04-30
 ---
 
 # Skill — Standards Kubernetes

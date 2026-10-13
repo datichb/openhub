@@ -1,6 +1,10 @@
 ---
 name: dev-standards-laravel
 description: "Utiliser quand le projet utilise Laravel (Eloquent, Form Requests, services, queues) et que le ticket touche ce code."
+versions:
+  laravel: "13"
+  php: "8.3+"
+reviewed: 2026-10-12
 ---
 
 # Skill — Standards Laravel

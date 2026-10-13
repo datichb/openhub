@@ -23,9 +23,11 @@ Avec une équipe active (espace solo compris), il applique aussi la règle `unkn
 | `name_mismatch` | erreur | `name:` différent du nom du fichier |
 | `invalid_name` | erreur | `name:` de plus de 64 caractères ou pas en kebab-case (minuscules, chiffres, tirets simples) |
 | `long_description` | erreur | `description:` de plus de 200 caractères (limite du catalogue du hub ; avertissement pour une skill du catalogue d'équipe, erreur au-delà de 1024, limite du standard Agent Skills) |
-| `unknown_key` | erreur | Clé de frontmatter qui n'est ni une clé Agent Skills (`name`, `description`, `license`, `compatibility`, `metadata`, `allowed-tools`) ni une clé du hub (`requires`, `annexes`, `plugin`, `mcp`, `when`) |
+| `unknown_key` | erreur | Clé de frontmatter qui n'est ni une clé Agent Skills (`name`, `description`, `license`, `compatibility`, `metadata`, `allowed-tools`) ni une clé du hub (`requires`, `annexes`, `plugin`, `mcp`, `when`, `statuses`, `versions`, `reviewed`) |
 | `invalid_when` | erreur | Condition `when:` ou marqueurs `<!-- oh:when … -->` invalides : clé ou rôle inconnu, marqueur qui n'est pas seul sur sa ligne, blocs non équilibrés |
 | `missing_annex` | erreur | `annexes:` nomme un fichier introuvable |
+| `missing_freshness` | erreur | Skill de stack (`developer/stacks/`) sans `versions:` ou sans `reviewed:` (voir [Fraîcheur des skills de stack](../guides/skill-refresh.fr.md)) |
+| `invalid_freshness` | erreur | `versions:` vide, clé qui n'est pas en minuscules (`react`, `spring-boot`) ou version vide ; `reviewed:` qui n'est pas une date `AAAA-MM-JJ` ou qui est dans le futur |
 | `no_description` | avertissement | `description:` absente |
 | `legacy_bucket` | avertissement | Champ `bucket:` obsolète |
 | `missing_agent_skill` | avertissement | Skill nommée dans les `skills:` ou `native_skills:` d'un agent mais introuvable |
@@ -36,12 +38,33 @@ Avec une équipe active (espace solo compris), il applique aussi la règle `unkn
 Seules les clés Agent Skills arrivent dans le `SKILL.md` livré ; les clés du hub sont lues par oh (`plugin:` et `mcp:` ne livrent la skill que si le workflow charge ce plugin ou si la session a ce serveur MCP). Voir [Format d'un skill](../architecture/skills.fr.md#format-dun-skill).
 
 ```
-oh skill check [--json]
+oh skill check [--json] [--hub <dossier>]
+oh skill check --stale [--max-age 90d] [--strict] [--json] [--hub <dossier>]
 ```
 
 | Flag | Type | Description |
 |------|------|-------------|
-| `--json` | bool | Problèmes au format JSON (`kind`, `error`, `ref`, `detail`) |
+| `--json` | bool | Problèmes au format JSON (`kind`, `error`, `ref`, `detail`) ; avec `--stale`, le rapport de fraîcheur |
+| `--hub` | chemin | Dossier du hub à vérifier, par exemple une copie de travail du dépôt (`--hub .`) ; par défaut, le hub installé (`~/.oh/hub`) |
+| `--stale` | bool | Liste les skills de stack à revoir au lieu de vérifier le catalogue |
+| `--max-age` | durée | Avec `--stale` : âge maximal d'une revue, en jours (`90`, `90d`) ou en semaines (`12w`) ; défaut `90d` |
+| `--strict` | bool | Avec `--stale` : code de sortie 1 quand une skill est à revoir (tâche planifiée, CI) |
+
+#### oh skill check --stale
+
+Liste les skills de stack (`developer/stacks/`, et toute autre skill qui porte `versions:` ou `reviewed:`) dont la dernière revue (`reviewed:`) date de plus de `--max-age` jours, et celles dont les métadonnées manquent ou sont illisibles : les secondes d'abord, puis la revue la plus ancienne d'abord, avec les versions couvertes. Sans `--strict`, le code de sortie reste 0. Aucun appel réseau : la commande compare des dates, pas les versions publiées.
+
+```
+$ oh skill check --stale --hub .
+Skills de stack à revoir (41 vérifiées, revue tous les 90 jours au plus, aujourd'hui 2026-10-13) :
+
+  ! developer/stacks/dev-standards-cypress : revue le 2026-04-30 (il y a 166 jours), couvre cypress 12+
+  ! developer/stacks/dev-standards-kubernetes : revue le 2026-04-30 (il y a 166 jours), couvre kubernetes 1.21+
+
+  2 skill(s) à revoir : oh run skill-refresh (docs/guides/skill-refresh.fr.md)
+```
+
+Avec `--json` : `today`, `max_age_days`, `checked` (skills vérifiées) et `skills` (les skills à revoir : `ref`, `status` `stale` ou `missing`, `reviewed`, `age_days`, `versions`, `detail`). Le défaut de 90 jours correspond à une revue par trimestre ; la mise à jour se fait avec le workflow [`skill-refresh`](../guides/skill-refresh.fr.md).
 
 ---
 

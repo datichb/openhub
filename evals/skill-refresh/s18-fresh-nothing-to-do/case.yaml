@@ -1,0 +1,38 @@
+id: S18
+title: "skill-refresh : toutes les skills de stack sont récentes, rien à faire (ni checkpoint, ni écriture, ni commit)"
+workflow: skill-refresh
+mode: semi-auto
+# Les deux skills du hub réduit sont revues le jour du passage (setup) :
+# aucune ne dépasse l'âge maximal (90 jours), la session s'arrête.
+setup:
+  - |
+    for f in skills/developer/stacks/*.md; do sed -i.bak "s/^reviewed: TODAY$/reviewed: $(date +%Y-%m-%d)/" "$f" && rm "$f.bak"; done
+timeout: 15m
+answers:
+  checkpoints:
+    "*": approve
+  question: first
+assertions:
+  - type: called
+    name: pas de checkpoint
+    tool: "*checkpoint"
+    absent: true
+  - type: called
+    name: aucune modification de fichier
+    tool: edit
+    absent: true
+  - type: called
+    name: aucune écriture de fichier
+    tool: write
+    absent: true
+  - type: changed_within
+    name: aucun fichier ne change
+  - type: ran
+    name: aucun commit
+    command: "git commit*"
+    absent: true
+  - type: text_matches
+    name: l'agent dit qu'il n'y a rien à revoir
+    agent: documentarian
+    pattern: "aucune skill|rien à (revoir|faire)|à jour|no stack skill|nothing to"
+  - type: no_denied_loop

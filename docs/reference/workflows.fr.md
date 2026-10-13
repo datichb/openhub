@@ -29,6 +29,7 @@ On lance un workflow avec `oh run <workflow>` ou la fiche de lancement de la TUI
 | `cadrage` | `conductor` | `pathfinder`, `planner`, `designer` | plan | local | ancien mode A sans implémentation |
 | `onboarding` | `onboarder` | — | write (`docs/wiki/`) | local, distant | `oh start --onboard` (ancien mode C) |
 | `doc-sync` | `documentarian` | — | write (`docs/wiki/`) | local | — |
+| `skill-refresh` | `documentarian` | — | write (skills de stack du hub) | local | — |
 | `review` | `reviewer` | — | read | local, distant | `oh review` |
 | `review-feedback` | `orchestrator-dev` | `developer`, `reviewer` | write | local | `oh review feedback` |
 | `audit` | `auditor` | `auditor-subagent` | read | local, distant | `oh audit`, anciens agents `infra` et `database` (partie analyse) |
@@ -171,6 +172,22 @@ Met le wiki à jour avec les commits depuis la dernière synchronisation, puis t
 | `cp-sync` Commit du wiki (obligatoire, déverrouille `commit`, `wiki: sync`) | pause | pause | pause | attend l'utilisateur |
 
 Le `documentarian` appelle `wiki_check` avec `since_sync` (commits, fichiers modifiés, pages concernées et dérives calculés par oh), met à jour les pages, vérifie chaque proposition en file, puis présente `cp-sync`. La carte montre toute la file du projet : l'utilisateur accepte, modifie ou refuse chaque proposition. Au passage, oh applique les acceptées et note la synchronisation (`synced:` dans `docs/wiki/index.md`) ; le `documentarian` commite le wiki seul. Une pause en semi-auto (budget CP-R2 : une action irréversible). Commandes Beads autorisées (lecture seule) : `show`, `list`, `ready`, `search`, `query`. Détails : [Wiki documentaire vivant](../architecture/living-wiki.fr.md#synchronisation--workflow-doc-sync-ld-d).
+
+## `skill-refresh`
+
+Revoit les skills de stack du hub dont la dernière revue est ancienne, avec les nouveautés de leurs technologies, puis met à jour leur contenu, `versions:` et `reviewed:`. Se lance dans une copie de travail du hub (précondition : `skills/developer/stacks/` existe). Guide : [Fraîcheur des skills de stack](../guides/skill-refresh.fr.md).
+
+| Entrée | Type | Obligatoire | Rôle |
+|---|---|---|---|
+| `skills` | `text` (2 000 caractères max) | non | Skills à revoir (noms ou chemins, par exemple la sortie d'`oh skill check --stale`) ; vide : les skills de stack dont la revue dépasse `max_age_days` (5 au plus, les plus anciennes d'abord) |
+| `notes` | `text` (8 000 caractères max) | non | Notes de version ou changelogs fournis par l'utilisateur, pris comme source en plus de la recherche web |
+| `max_age_days` | `int` (défaut 90) | non | Âge maximal d'une revue, en jours |
+
+| Checkpoint | manuel | semi-auto | auto | distant |
+|---|---|---|---|---|
+| `cp-refresh` Mise à jour des skills (obligatoire, déverrouille `commit`) | pause | pause | pause | — (local seulement) |
+
+Le `documentarian` lit les skills retenues, fait la veille de chaque technologie de `versions:` (notes de l'utilisateur, puis recherche web sur les sources officielles), et présente à `cp-refresh` sa proposition : versions avant → après, changements avec leurs sources, nouvelle date `reviewed`. **Rien n'est écrit avant la validation** ; un refus avec une consigne porte sur la proposition, jamais sur les fichiers. Après la validation, il applique la proposition et commite les skills seules. Sans skill à revoir, la session s'arrête sans checkpoint. Le contenu ajouté est en français, inspiré des sources et jamais recopié. Une pause en semi-auto (budget CP-R2 : une action irréversible). Commandes Beads autorisées (lecture seule) : `show`, `list`, `ready`, `search`, `query`.
 
 ## `review`
 

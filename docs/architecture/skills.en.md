@@ -381,6 +381,8 @@ annexes: [templates/<f>.md]   # optional — files copied next to the SKILL.md
 plugin: <id>                  # optional — shipped only when the workflow loads this plugin
 mcp: <server>                 # optional — shipped only when the session has this MCP server
 when: <condition>             # optional — kept only for the agents it applies to
+versions: { <tech>: "<version>" }  # stack skills — versions covered
+reviewed: <YYYY-MM-DD>        # stack skills — date of the last review
 ---
 
 # Skill — <Title>
@@ -390,8 +392,8 @@ when: <condition>             # optional — kept only for the agents it applies
 
 > `name:` must equal the file name: opencode identifies skills by name. `requires:`, `annexes:`, `plugin:`, `mcp:` and `when:` are read by oh and stripped from the delivered `SKILL.md`. A `plugin: context-mode` skill (instructions for tools provided by a plugin) enters the bundle only when the workflow declares that plugin (`plugins:`). An `mcp: gitlab` skill (tracker adapter: `adapters/gitlab-*`, and `adapters/github-*` with `mcp: github`) enters the bundle only when the session has that MCP server (configured for the project): planner, pathfinder and onboarder list both adapters, only the one of the configured tracker is shipped. The team skills (`team-awareness`, `team-policies-enforcement`, `team-coordination`, `takeover-context-protocol`, `planner-patterns-protocol`) have `mcp: team`: shipped only when the session has the `team` MCP server. Likewise, the permissions of a plugin (context-mode `ctx_*` tools, `rtk` commands; listed in `permissions/plugin-tools.yaml`) are removed from the agents when the plugin is not loaded. An agent that names a skill absent from the bundle (plugin not loaded, MCP server missing, frontend skills in a project without frontend) gets a line naming it: it does not try to load it. A skill named by an on-demand skill and absent from the bundle is named in a line closing that skill, where the model reads the mention; when it is absent for some of the agents loading that skill only (`when:`), the line goes in the prompt of those agents. The `bucket:` field is obsolete: the bucket is decided in the agent frontmatter.
 > The reference used in agent frontmatter is the path relative to `skills/`, without `.md` (`developer/beads-plan`).
-> **Allowed keys.** The delivered `SKILL.md` keeps only the [Agent Skills](https://agentskills.io/specification) keys: `name`, `description`, `license`, `compatibility`, `metadata`, `allowed-tools`. The hub keys `requires`, `annexes`, `plugin`, `mcp`, `when` and `statuses` (return statuses of a payload `<agent>-payload`, shown in the session contract of its callers) are read by oh and never delivered. Any other key is an `unknown_key` error of `oh skill check` (the obsolete `bucket:` is a `legacy_bucket` warning). `name:` is at most 64 characters, lowercase letters, digits and single hyphens (`^[a-z0-9]+(-[a-z0-9]+)*$`, `invalid_name`); `description:` is at most 200 characters (`long_description`; 1024 is the standard limit) and opens with a trigger « Utiliser quand… » (`description_not_trigger`, warning).
-> `oh skill check` checks the catalog. Errors: duplicate identifiers, missing or cyclic `requires:`, invalid frontmatter, `name:` different from the file name, `invalid_name`, `long_description`, `unknown_key`, missing annex, `invalid_when`. Warnings: missing description, obsolete `bucket:`, skills referenced by an agent but not found, templates referenced in the text but not declared in `annexes:`, templates no skill uses, description without a « Utiliser … » trigger. Non-zero exit code on errors.
+> **Allowed keys.** The delivered `SKILL.md` keeps only the [Agent Skills](https://agentskills.io/specification) keys: `name`, `description`, `license`, `compatibility`, `metadata`, `allowed-tools`. The hub keys `requires`, `annexes`, `plugin`, `mcp`, `when`, `statuses` (return statuses of a payload `<agent>-payload`, shown in the session contract of its callers), `versions` and `reviewed` (freshness of the stack skills) are read by oh and never delivered. Any other key is an `unknown_key` error of `oh skill check` (the obsolete `bucket:` is a `legacy_bucket` warning). `name:` is at most 64 characters, lowercase letters, digits and single hyphens (`^[a-z0-9]+(-[a-z0-9]+)*$`, `invalid_name`); `description:` is at most 200 characters (`long_description`; 1024 is the standard limit) and opens with a trigger « Utiliser quand… » (`description_not_trigger`, warning).
+> `oh skill check` checks the catalog. Errors: duplicate identifiers, missing or cyclic `requires:`, invalid frontmatter, `name:` different from the file name, `invalid_name`, `long_description`, `unknown_key`, missing annex, `invalid_when`, `missing_freshness` and `invalid_freshness` (freshness metadata of a stack skill). Warnings: missing description, obsolete `bucket:`, skills referenced by an agent but not found, templates referenced in the text but not declared in `annexes:`, templates no skill uses, description without a « Utiliser … » trigger. Non-zero exit code on errors.
 
 ### Variants by role and by session (`when:`)
 
@@ -470,6 +472,19 @@ These skills are delivered **on demand** (like Bucket B). At launch, `ResolveSta
 | A YAML with `apiVersion: argoproj.io/…` in the same folders | `dev-standards-argocd` |
 
 The other signals (Java, Ruby, PHP, Dart, Svelte, Fastify, Flask, package managers, `Makefile`…) add no skill; they are kept for the project context (`prompt.DetectStack`: primary language = the first one found at the root, in the order Go, TypeScript, JavaScript, Python, Ruby, Rust, Kotlin (Android), Java, PHP, Dart, Swift; else the first one found anywhere). The frontend domain skills (`dev-standards-frontend*`) are kept only in a project with a web frontend: a React Native app alone is not one. A stack missed by the detection is added by a (team or project) workflow through `skills.extra`. `oh bundle show <workflow> -p <project>` shows the ones that are kept.
+
+### Freshness (`versions:`, `reviewed:`)
+
+Each stack skill declares in its frontmatter the versions it covers and the date of its last review, two hub keys never delivered to the agents (the prompt budget does not change):
+
+```yaml
+versions:
+  react: "19.3"           # lowercase technology → version described ("12+": a minimum only)
+  react-compiler: "1.0"
+reviewed: 2026-10-12      # last review against the published versions
+```
+
+`oh skill check` requires them on every stack skill (`missing_freshness`, `invalid_freshness`); the hub tests also check that each version is on the « Versions de référence » line of the skill. `oh skill check --stale` lists the skills whose review is older than 90 days, and the `skill-refresh` workflow updates them: see [Stack skill freshness](../guides/skill-refresh.en.md).
 
 ### Catalog of the 40 stack skills
 

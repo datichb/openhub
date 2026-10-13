@@ -1,6 +1,10 @@
 ---
 name: dev-standards-terraform
 description: "Utiliser quand le projet utilise Terraform (modules, variables, state remote, drift) et que le ticket touche ce code."
+versions:
+  terraform: "1.16"
+  opentofu: "1.13"
+reviewed: 2026-10-12
 ---
 
 # Skill — Standards Terraform

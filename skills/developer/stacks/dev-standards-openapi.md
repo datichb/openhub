@@ -1,6 +1,9 @@
 ---
 name: dev-standards-openapi
 description: "Utiliser quand le projet utilise OpenAPI 3.x ($ref, schémas, sécurité, génération) et que le ticket touche ce code."
+versions:
+  openapi: "3.1"
+reviewed: 2026-10-12
 ---
 
 # Skill — Standards OpenAPI

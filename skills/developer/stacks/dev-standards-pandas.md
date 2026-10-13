@@ -1,6 +1,11 @@
 ---
 name: dev-standards-pandas
 description: "Utiliser quand le projet utilise pandas (vectorisation, schéma, transformations, tests) et que le ticket touche ce code."
+versions:
+  pandas: "3.0"
+  python: "3.11+"
+  pandera: "0.34"
+reviewed: 2026-10-12
 ---
 
 # Skill — Standards pandas

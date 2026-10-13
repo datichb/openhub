@@ -1,0 +1,49 @@
+id: S16
+title: "skill-refresh : la skill périmée est retenue, proposée au checkpoint, puis mise à jour (versions, reviewed) et commitée"
+workflow: skill-refresh
+mode: semi-auto
+# La fixture est un hub réduit : dev-standards-vitest revue le 2025-03-03
+# (toujours périmée), dev-standards-jest revue le jour du passage (setup).
+# Les notes de veille rendent le cas déterministe sans recherche web.
+setup:
+  - |
+    sed -i.bak "s/^reviewed: TODAY$/reviewed: $(date +%Y-%m-%d)/" skills/developer/stacks/dev-standards-jest.md && rm skills/developer/stacks/dev-standards-jest.md.bak
+inputs:
+  notes: |
+    Vitest 4.0 est la version stable actuelle.
+    - L'option coverage.all est retirée : seuls les fichiers chargés par les tests comptent, sauf ceux que coverage.include désigne explicitement.
+    - Le fichier vitest.workspace.ts est remplacé par l'option test.projects dans la configuration.
+timeout: 20m
+answers:
+  checkpoints:
+    "*": approve
+  question: first
+assertions:
+  - type: checkpoint_order
+    order: [cp-refresh]
+  - type: called
+    name: aucune modification avant la validation de cp-refresh
+    tool: edit
+    absent: true
+    before: { checkpoint_passed: cp-refresh }
+  - type: called
+    name: aucune écriture avant la validation de cp-refresh
+    tool: write
+    absent: true
+    before: { checkpoint_passed: cp-refresh }
+  - type: changed_within
+    name: seule la skill périmée change
+    paths: ["skills/developer/stacks/dev-standards-vitest.md"]
+    include: ["skills/developer/stacks/dev-standards-vitest.md"]
+  - type: hidden_tests
+    name: reviewed avance, versions passe à Vitest 4 ou plus, coverage.all disparaît
+  - type: ran
+    name: la skill est commitée après la validation
+    command: "git commit*"
+  - type: ran
+    name: aucun commit avant la validation de cp-refresh
+    command: "git commit*"
+    absent: true
+    before: { checkpoint_passed: cp-refresh }
+  - type: no_denied_loop
+hidden_tests: "sh check_refresh.sh"

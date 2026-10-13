@@ -1,6 +1,10 @@
 ---
 name: dev-standards-fastapi
 description: "Utiliser quand le projet utilise FastAPI (Pydantic, async, dépendances, routeurs, tests) et que le ticket touche ce code."
+versions:
+  fastapi: "0.143"
+  pydantic: "2.14"
+reviewed: 2026-10-12
 ---
 
 # Skill — Standards FastAPI

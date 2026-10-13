@@ -1,6 +1,10 @@
 ---
 name: dev-standards-nestjs
 description: "Utiliser quand le projet utilise NestJS (modules, providers, guards, pipes, DTO) et que le ticket touche ce code."
+versions:
+  nestjs: "12"
+  node: "20.19+"
+reviewed: 2026-10-12
 ---
 
 # Skill — Standards NestJS

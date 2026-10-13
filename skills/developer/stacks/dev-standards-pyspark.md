@@ -1,6 +1,10 @@
 ---
 name: dev-standards-pyspark
 description: "Utiliser quand le projet utilise PySpark (DataFrames, partitions, pas d'UDF, MLflow) et que le ticket touche ce code."
+versions:
+  pyspark: "4.2"
+  python: "3.10+"
+reviewed: 2026-10-12
 ---
 
 # Skill — Standards PySpark / Spark

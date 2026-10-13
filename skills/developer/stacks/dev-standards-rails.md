@@ -1,6 +1,10 @@
 ---
 name: dev-standards-rails
 description: "Utiliser quand le projet utilise Rails (ActiveRecord, concerns, services, RSpec) et que le ticket touche ce code."
+versions:
+  rails: "8.1"
+  ruby: "3.4 / 4.0"
+reviewed: 2026-10-12
 ---
 
 # Skill — Standards Ruby on Rails

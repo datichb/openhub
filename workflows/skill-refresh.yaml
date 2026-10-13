@@ -1,0 +1,53 @@
+apiVersion: oh/v1
+kind: Workflow
+id: skill-refresh
+category: knowledge
+label: { fr: Fraîcheur des skills de stack, en: Stack skill refresh }
+description:
+  fr: Revoir les skills de stack du hub dont la dernière revue est ancienne, avec les nouveautés de leurs technologies, puis mettre à jour leurs versions
+  en: Review the stack skills of the hub whose last review is old against the news of their technologies, then update their versions
+risk: write
+entry:
+  agent: documentarian
+inputs:
+  skills:
+    type: text
+    label: { fr: Skills à revoir, en: Skills to review }
+    help:
+      fr: "Noms ou chemins des skills (par exemple la sortie de oh skill check --stale) ; vide : les skills de stack dont la revue dépasse l'âge maximal"
+      en: "Names or paths of the skills (for instance the output of oh skill check --stale); empty: the stack skills whose review is older than the maximum age"
+    max_length: 2000
+  notes:
+    type: text
+    label: { fr: Notes de veille, en: Release notes }
+    help:
+      fr: Notes de version, changelogs ou points relevés par vous, pris comme source en plus de la recherche web (facultatif)
+      en: Release notes, changelogs or points you collected, used as a source besides the web search (optional)
+    max_length: 8000
+  max_age_days:
+    type: int
+    default: 90
+    label: { fr: Âge maximal d'une revue (jours), en: Maximum age of a review (days) }
+prompt:
+  template: prompts/skill-refresh.md.tmpl
+agents:
+  documentarian: { role: workflow }
+checkpoints:
+  cp-refresh:
+    by: [documentarian]
+    label: { fr: Mise à jour des skills, en: Skill update }
+    description:
+      fr: Présenter, pour chaque skill, les nouveautés trouvées avec leurs sources, les changements proposés et les nouvelles valeurs de versions et reviewed, avant toute écriture et avant le commit.
+      en: Present, for each skill, the news found with their sources, the proposed changes and the new versions and reviewed values, before any write and before the commit.
+    mandatory: true
+    mode: { manuel: pause, semi-auto: pause, auto: pause }
+    unlocks: [commit]
+preconditions:
+  hub-checkout:
+    label:
+      fr: Ce projet n'est pas une copie de travail du hub (skills/developer/stacks/)
+      en: This project is not a checkout of the hub (skills/developer/stacks/)
+    check: { path_exists: [skills/developer/stacks] }
+beads:
+  allow: [show, list, ready, search, query]
+runtime: { default: local, allowed: [local] }

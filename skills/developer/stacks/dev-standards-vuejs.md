@@ -1,6 +1,10 @@
 ---
 name: dev-standards-vuejs
 description: "Utiliser quand le projet utilise Vue.js (Composition API, composables, watchers, a11y) et que le ticket touche ce code."
+versions:
+  vue: "3.5"
+  pinia: "4"
+reviewed: 2026-10-12
 ---
 
 # Skill — Standards Vue.js

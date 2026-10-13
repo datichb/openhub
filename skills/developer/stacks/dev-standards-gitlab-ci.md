@@ -1,6 +1,11 @@
 ---
 name: dev-standards-gitlab-ci
 description: "Utiliser quand le projet utilise GitLab CI (stages, rules, variables masquées, déploiements) et que le ticket touche ce code."
+versions:
+  gitlab: "19"
+  docker: "29"
+  node: "24"
+reviewed: 2026-10-12
 ---
 
 # Skill — Standards GitLab CI

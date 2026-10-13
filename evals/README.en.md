@@ -67,8 +67,11 @@ The assertions are described in the [`oh eval` reference](../docs/reference/cli-
 | S13 | onboarding | Phase 1 and 5 skills loaded before the exploration and before writing the wiki; writes limited to `docs/wiki/` and `ONBOARDING.md` |
 | S14 | libre | The onboarder launched as a subagent asks no question and returns its envelope to `orchestrator` |
 | S15 | cadrage | A UI request has the designer invoked: `ui-protocol` loaded, no question, envelope to its caller |
+| S16 | skill-refresh | Reduced hub: only the stale skill is selected, proposed at `cp-refresh` with no write before, then updated (`versions`, `reviewed`) and committed; the release notes input keeps the case deterministic without web search |
+| S17 | skill-refresh | Proposal refused at `cp-refresh`: no write nor commit, before or after |
+| S18 | skill-refresh | Every stack skill is recent: no checkpoint, no write, no commit |
 
-S8 and S11 to S15 are not in the reference measure yet (`notInBaseline` in `cli/internal/evalrun/evalrun_test.go`): they enter it at the next recording.
+S16 to S18 are not in the reference measure yet (`notInBaseline` in `cli/internal/evalrun/evalrun_test.go`): they enter it at the next recording.
 
 The reference measure (Haiku, three repetitions) is recorded in `cli/internal/evalrun/testdata/evals/baseline.json`; `make test-eval` compares the current run with it.
 

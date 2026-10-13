@@ -1,0 +1,38 @@
+id: S17
+title: "skill-refresh : proposition refusée au checkpoint, aucune écriture ni commit"
+workflow: skill-refresh
+mode: semi-auto
+# Même hub réduit que S16 ; la skill est nommée et l'utilisateur refuse la
+# proposition à cp-refresh : rien n'est écrit, avant comme après.
+setup:
+  - |
+    sed -i.bak "s/^reviewed: TODAY$/reviewed: $(date +%Y-%m-%d)/" skills/developer/stacks/dev-standards-jest.md && rm skills/developer/stacks/dev-standards-jest.md.bak
+inputs:
+  skills: dev-standards-vitest
+  notes: |
+    Vitest 4.0 est la version stable actuelle.
+    - L'option coverage.all est retirée : seuls les fichiers chargés par les tests comptent, sauf ceux que coverage.include désigne explicitement.
+timeout: 20m
+answers:
+  checkpoints:
+    cp-refresh: "reject: Pas de mise à jour maintenant : ne modifie aucun fichier, ne commite rien et termine le workflow."
+    "*": approve
+  question: first
+assertions:
+  - type: checkpoint_order
+    order: [cp-refresh]
+  - type: called
+    name: aucune modification de fichier
+    tool: edit
+    absent: true
+  - type: called
+    name: aucune écriture de fichier
+    tool: write
+    absent: true
+  - type: changed_within
+    name: aucun fichier ne change
+  - type: ran
+    name: aucun commit
+    command: "git commit*"
+    absent: true
+  - type: no_denied_loop

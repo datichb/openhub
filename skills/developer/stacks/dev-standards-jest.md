@@ -1,6 +1,10 @@
 ---
 name: dev-standards-jest
 description: "Utiliser quand le projet utilise Jest (mocks, matchers, coverage) et que le ticket touche ce code."
+versions:
+  jest: "30"
+  ts-jest: "29.4"
+reviewed: 2026-10-12
 ---
 
 # Skill — Standards Jest

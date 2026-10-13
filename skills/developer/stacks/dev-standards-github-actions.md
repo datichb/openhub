@@ -1,6 +1,12 @@
 ---
 name: dev-standards-github-actions
 description: "Utiliser quand le projet utilise GitHub Actions (permissions, cache, concurrency, sécurité) et que le ticket touche ce code."
+versions:
+  actions-checkout: "v7"
+  actions-setup-node: "v7"
+  configure-aws-credentials: "v6"
+  node: "24"
+reviewed: 2026-10-12
 ---
 
 # Skill — Standards GitHub Actions
