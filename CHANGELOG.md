@@ -9,6 +9,12 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ## [Unreleased]
 
+### Added — trace des sessions et évaluations (lots P0.4 et P0.5)
+
+- **`oh session trace <session> [--json] [-o fichier]`** : la trace complète d'une session — prompts, textes, appels d'outils, skills chargées, sous-agents, décisions et leurs réponses (permissions, questions, checkpoints, budget), chronologie des checkpoints, commandes de vérification, appels refusés, sorties déclarées, coût et tokens par tour. Les secrets sont masqués (motifs de jetons et de clés, noms de clés, valeurs connues). Un instantané masqué de l'historique est gardé avec la session pour la relire une fois le serveur arrêté.
+- **`oh eval`** et **`make test-eval`** : évaluations du comportement avec un vrai modèle. Chaque passage tourne sans interface, dans un `OH_HOME` et un clone jetables, avec un démon dédié ; le cas répond aux checkpoints, permissions et questions par l'API de décisions ; plafond de coût par passage. Assertions `ran`, `checkpoint_order`, `no_question_in_subagent`, `skill_loaded_before`, `changed_within`, `hidden_tests`, `no_denied_loop`, `text_matches` ; rapports JSON et Markdown comparés à la mesure de référence ; `--rescore` revérifie les traces sans rappeler de modèle. Haiku par défaut, `OH_EVAL_MODELS` pour un autre modèle.
+- **Cas S1 à S10** (`evals/`) et **mesure de référence** (Haiku 4.5, ×3, contenu d'avant P1) dans `cli/internal/evalrun/testdata/evals/baseline.json`.
+
 ### Changed — points divers (lot P1.5)
 
 - **Java** : nouvelle skill de stack `dev-standards-java`, livrée quand le projet est détecté en Java (Maven, Gradle hors Android ; un projet Spring Boot la reçoit aussi).
