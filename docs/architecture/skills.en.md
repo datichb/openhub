@@ -26,8 +26,8 @@ At each launch (`oh run <workflow>`), `internal/bundle` builds the session bundl
 |---------|--------|---------------------|
 | **Member agents of the workflow** | The workflow `agents:` block | `agents/<id>.md` |
 | **Bucket A skills** | `skills:` in each member agent's frontmatter (+ `requires:` closure) | Inlined into the agent body |
-| **Bucket B skills** | `native_skills:` of the member agents, `requires:` closure resolved | `skills/<id>/SKILL.md` (+ `annexes:` files) |
-| **Stack skills** | Detected in the project at launch (`ResolveStackSkills`) | `skills/<id>/SKILL.md` |
+| **Bucket B skills** | `native_skills:` of the member agents and the skills they name, `requires:` closure resolved (see [Per-agent catalogue](#per-agent-catalogue)) | `skills/<id>/SKILL.md` (+ `annexes:` files) |
+| **Stack skills** | Detected in the project at launch (`ResolveStackSkills`), for the `stack_skills: true` agents | `skills/<id>/SKILL.md` |
 | **`skills.extra` / `skills.deny`** | The workflow `skills:` block: `extra` adds skills (hub, team catalog, community), `deny` removes some | Added to or removed from `skills/` |
 | **Skills generated from the YAML** | The workflow itself | Replace the static skill with the same reference |
 
@@ -42,15 +42,30 @@ Build rules:
 - a `requires:` dependency that is missing, denied by `skills.deny` or cyclic is a build error;
 - a skill referenced by an agent but missing from the hub is skipped (warning); `oh skill check` reports these cases.
 
+### Per-agent catalogue
+
+Each agent sees in its `skill` tool only **its** catalogue (`AgentDef.Skills` of the bundle), not every skill of the bundle. An agent's catalogue holds:
+
+- its `native_skills:`;
+- the deliverable skills named in its composed prompt (body and inlined skills). Sections that do not invite it to load a skill are ignored: « Relation avec … », « Injection … » and the rules for the consumer of a handoff format when they name another agent;
+- the project's stack skills, only when its frontmatter sets `stack_skills: true` (`developer`, `reviewer`, `debugger`, `operator`);
+- for the entry agent: the `skills.extra` skills and those named in the workflow prompt template;
+- for an agent that sets `skills_from_callers: true` (`developer`, `auditor-subagent`): the skills named by its callers, except their own `native_skills:` (the domain and its standards, the audit checklist);
+- the `requires:` closure of all of these, without the skills already inlined in its prompt.
+
+The bundle ships the union of the catalogues: a skill no agent can reach is no longer shipped (for example the stack skills in a workflow without a `stack_skills` agent). A skill named only inside an on-demand skill does not enter the catalogue: declare it in `native_skills:` or `requires:`. `TestAgentSkillReachability` and `TestNoSpuriousCatalogue` (`cli/internal/bundle/catalogue_test.go`) check these rules on the shipped workflows; `budget.golden` gives, per agent, the visible catalogue (`cat`) and the reachable skills (`rch`), equal.
+
+Compatibility: a bundle built before the per-agent catalogue (no `skills` on the agents of `bundle.json`) keeps the former behaviour, every agent sees every skill of the bundle.
+
 ### Closed world
 
 The model only sees the skills of the bundle ([ADR-041](./adr/041-closed-world-isolation.en.md)):
 
-- the `skill` tool is denied on `*`, then allowed for the bundle skills only;
+- the `skill` tool is denied on `*`, then allowed for the bundle skills only, and for each agent for the skills of its catalogue only;
 - opencode built-in skills (`opencode`, `report`) are therefore denied;
 - at start, `Attest` compares what the server exposes (agents, skills visible to each agent, MCP) with the bundle. Any difference makes the launch fail.
 
-Consequence: a skill requested in a prompt (for example a `[SKILL:...]` marker injected by a coordinator) is only available if it is in the bundle.
+Consequence: a skill requested in a prompt (for example a `[SKILL:...]` marker injected by a coordinator) is only available if it is in the catalogue of the agent that receives it.
 
 ### Bundle cost
 
@@ -241,7 +256,7 @@ The last six are in no agent frontmatter. Four reach the bundle through the `req
 | `dev-drift-detection` | B: orchestrator-dev | Architectural drift: signals, 3 options (revise scope / revert / branch off), report |
 | `dev-standards-security-hardening` | — | CORS, HTTP headers, hashing, JWT, sessions, rate limiting, encryption |
 
-Domain standards (`dev-standards-frontend`, `-backend`, `-api`…) are requested from `developer` by `orchestrator-dev` in the delegation prompt (matrix in `orchestrator-dev-protocol`). They are in the bundles that contain `reviewer`, which declares them as Bucket B.
+Domain standards (`dev-standards-frontend`, `-backend`, `-api`…) are requested from `developer` by `orchestrator-dev` in the delegation prompt (matrix in `orchestrator-dev-protocol`). `developer` gets them in its catalogue because it sets `skills_from_callers: true`; `reviewer` declares them as Bucket B.
 
 The **40 stack skills** in `developer/stacks/` are described in [Stack skills](#stack-skills--developerstacks).
 
@@ -394,7 +409,7 @@ mcp: <server>                 # optional — shipped only when the session has t
 
 ## Stack skills — `developer/stacks/`
 
-These skills are delivered **on demand** (like Bucket B). At launch, `ResolveStackSkills()` (`cli/internal/bricks/stack_skills.go`) detects the project stack and adds the matching skills to the bundle. They are shared by the whole bundle, not reserved to one agent. See [ADR-008](./adr/008-stack-skills-dynamic-injection.en.md) (evolved by 043).
+These skills are delivered **on demand** (like Bucket B). At launch, `ResolveStackSkills()` (`cli/internal/bricks/stack_skills.go`) detects the project stack and adds the matching skills to the catalogue of the agents that set `stack_skills: true` (`developer`, `reviewer`, `debugger`, `operator`); a bundle without any of these agents does not ship them. See [ADR-008](./adr/008-stack-skills-dynamic-injection.en.md) (evolved by 043).
 
 ### Automatic detection
 

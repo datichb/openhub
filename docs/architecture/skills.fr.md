@@ -26,8 +26,8 @@ Depuis la v5, rien n'est plus déployé dans le projet : les skills arrivent dan
 |---------|---------|-------------------|
 | **Agents membres du workflow** | Bloc `agents:` du workflow | `agents/<id>.md` |
 | **Skills Bucket A** | `skills:` du frontmatter de chaque agent membre (+ fermeture `requires:`) | Inlinées dans le corps de l'agent |
-| **Skills Bucket B** | `native_skills:` des agents membres, fermeture `requires:` résolue | `skills/<id>/SKILL.md` (+ annexes `annexes:`) |
-| **Skills de stack** | Détectées dans le projet au lancement (`ResolveStackSkills`) | `skills/<id>/SKILL.md` |
+| **Skills Bucket B** | `native_skills:` des agents membres et skills qu'ils nomment, fermeture `requires:` résolue (voir [Catalogue par agent](#catalogue-par-agent)) | `skills/<id>/SKILL.md` (+ annexes `annexes:`) |
+| **Skills de stack** | Détectées dans le projet au lancement (`ResolveStackSkills`), pour les agents `stack_skills: true` | `skills/<id>/SKILL.md` |
 | **`skills.extra` / `skills.deny`** | Bloc `skills:` du workflow : `extra` ajoute des skills (hub, catalogue de l'équipe, communautaires), `deny` en retire | Ajout ou retrait dans `skills/` |
 | **Skills générées depuis le YAML** | Le workflow lui-même | Remplacent la version statique de même référence |
 
@@ -42,15 +42,30 @@ Règles de construction :
 - une dépendance `requires:` introuvable, refusée par `skills.deny` ou cyclique est une erreur au build ;
 - une skill référencée par un agent mais absente du hub est ignorée (avertissement) ; `oh skill check` signale ces cas.
 
+### Catalogue par agent
+
+Chaque agent ne voit dans son outil `skill` que **son** catalogue (`AgentDef.Skills` du paquet), pas toutes les skills du paquet. Le catalogue d'un agent contient :
+
+- ses `native_skills:` ;
+- les skills livrables nommées dans son prompt composé (corps et skills inlinées). Les sections qui ne l'invitent pas à charger une skill sont ignorées : « Relation avec … », « Injection … » et les règles pour le consommateur d'un format de handoff quand elles nomment un autre agent que lui ;
+- les skills de stack du projet, seulement si son frontmatter porte `stack_skills: true` (`developer`, `reviewer`, `debugger`, `operator`) ;
+- pour l'agent d'entrée : les skills de `skills.extra` et celles nommées dans le modèle du prompt du workflow ;
+- pour un agent qui porte `skills_from_callers: true` (`developer`, `auditor-subagent`) : les skills nommées par ses appelants, sauf leurs propres `native_skills:` (le domaine et ses standards, la checklist d'audit) ;
+- la fermeture `requires:` de tout cela, sans les skills déjà inlinées dans son prompt.
+
+Le paquet livre l'union des catalogues : une skill qu'aucun agent ne peut atteindre n'est plus livrée (par exemple les skills de stack dans un workflow sans agent `stack_skills`). Une skill nommée seulement dans une skill chargée à la demande n'entre pas dans le catalogue : elle doit être déclarée en `native_skills:` ou en `requires:`. `TestAgentSkillReachability` et `TestNoSpuriousCatalogue` (`cli/internal/bundle/catalogue_test.go`) vérifient ces règles sur les workflows livrés ; `budget.golden` donne par agent le catalogue visible (`cat`) et les skills atteignables (`rch`), égaux.
+
+Compatibilité : un paquet construit avant le catalogue par agent (`skills` absent des agents de `bundle.json`) garde l'ancien comportement, chaque agent voit toutes les skills du paquet.
+
 ### Monde fermé
 
 Le modèle ne voit que les skills du paquet ([ADR-041](./adr/041-closed-world-isolation.fr.md)) :
 
-- l'outil `skill` est refusé sur `*`, puis autorisé pour les seules skills du paquet ;
+- l'outil `skill` est refusé sur `*`, puis autorisé pour les seules skills du paquet, et pour chaque agent pour les seules skills de son catalogue ;
 - les skills intégrées d'opencode (`opencode`, `report`) sont donc refusées ;
 - au démarrage, `Attest` compare ce que le serveur expose (agents, skills visibles pour chaque agent, MCP) au paquet. Un écart fait échouer le lancement.
 
-Conséquence : une skill que l'on demande dans un prompt (par exemple `[SKILL:...]` injecté par un coordinateur) n'est disponible que si elle est dans le paquet.
+Conséquence : une skill que l'on demande dans un prompt (par exemple `[SKILL:...]` injecté par un coordinateur) n'est disponible que si elle est dans le catalogue de l'agent qui la reçoit.
 
 ### Coût d'un paquet
 
@@ -241,7 +256,7 @@ Les six dernières ne sont dans aucun frontmatter d'agent. Quatre entrent dans l
 | `dev-drift-detection` | B : orchestrator-dev | Dérive architecturale : signaux, 3 options (réviser scope / revert / bifurquer), rapport |
 | `dev-standards-security-hardening` | — | CORS, headers HTTP, hashing, JWT, sessions, rate limiting, chiffrement |
 
-Les standards de domaine (`dev-standards-frontend`, `-backend`, `-api`…) sont demandés à `developer` par `orchestrator-dev` dans le prompt de délégation (matrice de `orchestrator-dev-protocol`). Ils sont dans les paquets qui contiennent `reviewer`, qui les déclare en Bucket B.
+Les standards de domaine (`dev-standards-frontend`, `-backend`, `-api`…) sont demandés à `developer` par `orchestrator-dev` dans le prompt de délégation (matrice de `orchestrator-dev-protocol`). `developer` les reçoit dans son catalogue parce qu'il porte `skills_from_callers: true` ; `reviewer` les déclare en Bucket B.
 
 Les **40 skills de stack** de `developer/stacks/` sont décrites dans [Skills de stack](#skills-de-stack--developerstacks).
 
@@ -394,7 +409,7 @@ mcp: <serveur>                # facultatif — livrée seulement si la session a
 
 ## Skills de stack — `developer/stacks/`
 
-Ces skills sont livrées **à la demande** (comme le Bucket B). Au lancement, `ResolveStackSkills()` (`cli/internal/bricks/stack_skills.go`) détecte la stack du projet et ajoute les skills correspondantes au paquet. Elles sont communes au paquet, pas réservées à un agent. Voir [ADR-008](./adr/008-stack-skills-dynamic-injection.fr.md) (évolué par 043).
+Ces skills sont livrées **à la demande** (comme le Bucket B). Au lancement, `ResolveStackSkills()` (`cli/internal/bricks/stack_skills.go`) détecte la stack du projet et ajoute les skills correspondantes au catalogue des agents qui portent `stack_skills: true` (`developer`, `reviewer`, `debugger`, `operator`) ; un paquet sans aucun de ces agents ne les livre pas. Voir [ADR-008](./adr/008-stack-skills-dynamic-injection.fr.md) (évolué par 043).
 
 ### Détection automatique
 

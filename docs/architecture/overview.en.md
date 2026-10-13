@@ -98,7 +98,7 @@ See [Shipped workflows](../reference/workflows.en.md), [Team workflows](../guide
 
 ### Session Bundle
 
-At each launch, `internal/bundle` builds the **session bundle** `~/.oh/bundles/<hash>/` from the resolved workflow: member agents (Bucket A skills inlined), on-demand skills (Bucket B, stack skills, `skills.extra`, skills generated from the YAML such as `workflow/workflow-map`), permissions, delegation graph and maximum depth, MCP servers (including oh's `workflow` server) and the oh plugin. The bundle is **immutable** and addressed by its hash: the sessions of a group share it, and a resume starts again from the same bundle.
+At each launch, `internal/bundle` builds the **session bundle** `~/.oh/bundles/<hash>/` from the resolved workflow: member agents (Bucket A skills inlined), on-demand skills (Bucket B, stack skills, `skills.extra`, skills generated from the YAML such as `workflow/workflow-map`; each agent sees only its own catalogue of them, see [Per-agent catalogue](skills.en.md#per-agent-catalogue)), permissions, delegation graph and maximum depth, MCP servers (including oh's `workflow` server) and the oh plugin. The bundle is **immutable** and addressed by its hash: the sessions of a group share it, and a resume starts again from the same bundle.
 
 Commands: `oh bundle show <workflow> [--budget]`, `oh bundle build <workflow>`. Decision: [ADR-043](./adr/043-session-bundle-deploy-removal.en.md).
 
