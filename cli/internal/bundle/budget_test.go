@@ -19,8 +19,9 @@ import (
 )
 
 // Budget baseline (C4): the estimated context cost of every agent of every
-// shipped workflow, built without project and with the common-stack project
-// of the capability lint (stack skills count). Pinned in
+// shipped workflow, built without project, with the common-stack project
+// of the capability lint (stack skills count) and with a project of about
+// 4 000 tokens of instructions and a wiki index (L7: instruction levels). Pinned in
 // testdata/budget.golden (go test ./internal/bundle -run TestBudgetBaseline
 // -update); an agent prompt growing by more than budgetGrowth over the
 // golden is reported on its own.
@@ -45,7 +46,7 @@ const budgetColumns = 10
 
 func TestBudgetBaseline(t *testing.T) {
 	hub, cat, env := shippedWorkflows(t)
-	projects := []struct{ name, path string }{{"none", ""}, {"stacks", capProject(t)}}
+	projects := []struct{ name, path string }{{"none", ""}, {"stacks", capProject(t)}, {"instruct", instructProject(t)}}
 
 	var lines []budgetLine
 	totals := map[string]budgetLine{}
@@ -153,6 +154,16 @@ func TestBudgetBaseline(t *testing.T) {
 		}
 	}
 	assertGoldenFile(t, name, out.String())
+}
+
+// instructProject copies testdata/instructions-project: about 4 000 tokens
+// of instruction files (ONBOARDING.md, CONVENTIONS.md, .claude/CLAUDE.md)
+// and docs/wiki/index.md.
+func instructProject(t *testing.T) string {
+	t.Helper()
+	dir := t.TempDir()
+	require.NoError(t, os.CopyFS(dir, os.DirFS(filepath.Join("testdata", "instructions-project"))))
+	return dir
 }
 
 // readBudgetGolden returns the pinned prompt tokens by "project workflow agent".

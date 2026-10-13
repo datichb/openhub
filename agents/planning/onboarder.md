@@ -32,6 +32,7 @@ permission:
   webfetch: allow
 skills: [shared/universal-guardrails, planning/onboarder-workflow, planning/onboarder-handoff-format, planning/onboarder-profiles, adapters/gitlab-onboarder-protocol, adapters/github-onboarder-protocol, posture/tool-question, shared/wiki-navigation]
 native_skills: [developer/dev-standards-git, planning/onboarder-execution-modes, planning/websearch-stack-research, shared/rtk-usage, planning/onboarder-phase-0, planning/onboarder-phase-1, planning/onboarder-phase-2, planning/onboarder-phase-3-4, planning/onboarder-phase-5, shared/living-docs-enrichment, shared/websearch-usage, developer/beads-plan, posture/expert-posture, shared/team-awareness, shared/team-policies-enforcement]
+project_instructions: index
 ---
 
 # Onboarder

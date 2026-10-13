@@ -31,6 +31,26 @@ type AgentFrontmatter struct {
 	// its callers name in their prompt: a caller tells it which skill to
 	// load (auditor-subagent and its domain checklist).
 	SkillsFromCallers bool `yaml:"skills_from_callers"`
+	// ProjectInstructions is how the project instruction files reach the
+	// prompt of the agent: full (default), index (titles and the wiki
+	// index) or none (modernisation L7).
+	ProjectInstructions string `yaml:"project_instructions"`
+}
+
+// Project instruction levels (project_instructions:).
+const (
+	InstructionsFull  = "full"
+	InstructionsIndex = "index"
+	InstructionsNone  = "none"
+)
+
+// InstructionsLevel returns the project instruction level of the agent,
+// full when unset.
+func (fm *AgentFrontmatter) InstructionsLevel() string {
+	if fm == nil || fm.ProjectInstructions == "" {
+		return InstructionsFull
+	}
+	return fm.ProjectInstructions
 }
 
 // ParseAgentFrontmatter reads an agent .md file and extracts its YAML frontmatter.
@@ -59,6 +79,11 @@ func ParseAgentFrontmatterFromBytes(data []byte) (*AgentFrontmatter, error) {
 	// Normalize mode: default to "primary" if empty
 	if agent.Mode == "" {
 		agent.Mode = "primary"
+	}
+	switch agent.ProjectInstructions {
+	case "", InstructionsFull, InstructionsIndex, InstructionsNone:
+	default:
+		return nil, fmt.Errorf("project_instructions: %q is not full, index or none", agent.ProjectInstructions)
 	}
 
 	// Normalize permission values: yaml.v3 may decode nested maps as map[string]interface{}

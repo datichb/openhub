@@ -43,6 +43,7 @@ permission:
 model: claude-sonnet-4-6
 skills: [shared/universal-guardrails, planning/pathfinder-protocol, planning/pathfinder-handoff-format, adapters/gitlab-pathfinder-protocol, adapters/github-pathfinder-protocol, posture/concision-posture, posture/tool-question, shared/wiki-navigation]
 native_skills: [planning/pathfinder-execution-modes, shared/websearch-usage, planning/websearch-stack-research, shared/rtk-usage, shared/living-docs-enrichment, shared/team-awareness, shared/team-policies-enforcement, developer/beads-plan]
+project_instructions: index
 ---
 
 # Pathfinder

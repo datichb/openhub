@@ -1,0 +1,1 @@
+- **Instructions du projet** : absentes de ton prompt (`project_instructions: none`) ; les agents que tu lances les reçoivent : ne les recopie pas dans leurs prompts.

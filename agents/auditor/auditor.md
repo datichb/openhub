@@ -12,6 +12,7 @@ permission:
     "documentarian": allow
 skills: [shared/universal-guardrails, posture/coordination-only, posture/retranscription-coordinateur, auditor/auditor-workflow, auditor/audit-protocol-light, auditor/audit-handoff-format, posture/tool-question]
 native_skills: [auditor/auditor-execution-modes, shared/rtk-usage, shared/living-docs-enrichment, shared/team-awareness, shared/team-policies-enforcement]
+project_instructions: index
 ---
 
 # Auditeur

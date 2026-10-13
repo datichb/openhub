@@ -1,0 +1,172 @@
+package bundle
+
+import (
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	"github.com/datichb/openhub/cli/internal/bricks"
+	"github.com/datichb/openhub/cli/internal/sessionspec"
+	"github.com/datichb/openhub/cli/internal/workflow"
+)
+
+// instructionsFixture writes a small project with instruction files and a
+// wiki index.
+func instructionsFixture(t *testing.T, wiki bool) string {
+	t.Helper()
+	dir := t.TempDir()
+	files := map[string]string{
+		"CONVENTIONS.md":    "# Conventions Atlas\n\nRègles de code.\n\n## Nommage\n\n- snake_case.\n\n```md\n## Pas une section\n```\n\n## Tests\n\n- Table-driven.\n",
+		"ONBOARDING.md":     "---\nupdated: 2026-10-01\n---\n\n# Onboarding Atlas\n\n## Démarrer\n\nmake dev.\n",
+		".claude/CLAUDE.md": "Sans titre : réponds en français.\n",
+	}
+	if wiki {
+		files["docs/wiki/index.md"] = "---\nupdated: 2026-10-01\n---\n\n# Atlas — Index Wiki\n\n## Stack critique\nGo.\n\n" +
+			"## God nodes — concepts les plus connectés\n\n| Concept | Pages liées | Criticité |\n|---|---|---|\n" +
+			"| Commande | [business/orders.md](business/orders.md) | Critique |\n\n*(Vide si aucun concept)*\n\n## Zones d'ombre\n\n- Rétention.\n"
+	}
+	for name, content := range files {
+		p := filepath.Join(dir, name)
+		require.NoError(t, os.MkdirAll(filepath.Dir(p), 0o755))
+		require.NoError(t, os.WriteFile(p, []byte(content), 0o644))
+	}
+	return dir
+}
+
+// instructionsOf returns the project instructions of a composed prompt: the
+// session contract line (level none) and the instructions block.
+func instructionsOf(body string) string {
+	var out string
+	for line := range strings.SplitSeq(body, "\n") {
+		if strings.HasPrefix(line, "- **Instructions du projet**") {
+			out += line + "\n"
+		}
+	}
+	if i := strings.Index(body, instructionsHeading); i >= 0 {
+		out += body[i:]
+	}
+	return out
+}
+
+// L7: the project instructions of every agent of the feature workflow, at
+// its level, are pinned in testdata/golden/instructions/feature/<agent>.md
+// (go test ./internal/bundle -run ProjectInstructions -update).
+func TestProjectInstructionsGolden(t *testing.T) {
+	hub, cat, env := shippedWorkflows(t)
+	r, diags := workflow.Check(cat, workflow.Ref{Layer: workflow.LayerHub, ID: "feature"}, nil, env)
+	require.False(t, diags.HasErrors(), "%v", diags)
+	b, err := Build(Request{HubDir: hub, OutDir: t.TempDir(), ProjectPath: instructionsFixture(t, true), Spec: r.Spec})
+	require.NoError(t, err)
+	files, err := bricks.FindAgentFiles(hub)
+	require.NoError(t, err)
+	levels := map[string]bool{}
+	for _, a := range b.Spec.Agents {
+		fm, err := bricks.ParseAgentFrontmatter(files[a.ID])
+		require.NoError(t, err)
+		levels[fm.InstructionsLevel()] = true
+		got := instructionsOf(a.Body)
+		switch fm.InstructionsLevel() {
+		case bricks.InstructionsFull:
+			assert.Contains(t, got, "## CONVENTIONS.md\n\n# Conventions Atlas", a.ID)
+			assert.NotContains(t, got, "God nodes", a.ID)
+		case bricks.InstructionsIndex:
+			assert.NotContains(t, got, "Règles de code.", a.ID)
+			assert.Contains(t, got, "| Commande |", a.ID)
+		case bricks.InstructionsNone:
+			assert.NotContains(t, got, instructionsHeading, a.ID)
+			assert.Contains(t, got, "`project_instructions: none`", a.ID)
+		}
+		assertGolden(t, filepath.Join("instructions", "feature", a.ID+".md"), got)
+	}
+	assert.Len(t, levels, 3, "feature covers the three levels")
+}
+
+// The levels of the shipped agents (modernisation plan, L7).
+func TestShippedInstructionLevels(t *testing.T) {
+	files, err := bricks.FindAgentFiles(repoHub(t))
+	require.NoError(t, err)
+	want := map[string]string{
+		"orchestrator": "none", "conductor": "none",
+		"orchestrator-dev": "index", "auditor": "index", "pathfinder": "index", "planner": "index",
+		"designer": "index", "documentarian": "index", "onboarder": "index",
+	}
+	for id, path := range files {
+		fm, err := bricks.ParseAgentFrontmatter(path)
+		require.NoError(t, err)
+		level := want[id]
+		if level == "" {
+			level = bricks.InstructionsFull
+		}
+		assert.Equal(t, level, fm.InstructionsLevel(), id)
+	}
+}
+
+func TestInstructionsRender(t *testing.T) {
+	p, err := readInstructions(instructionsFixture(t, false), nil)
+	require.NoError(t, err)
+	require.Len(t, p.Files, 3)
+	assert.Nil(t, p.Wiki, "no docs/wiki/index.md")
+	conv := p.Files[1]
+	assert.Equal(t, "CONVENTIONS.md", conv.Path)
+	assert.Equal(t, "Conventions Atlas", conv.Title)
+	assert.Equal(t, []string{"Nommage", "Tests"}, conv.Sections, "code fences aside")
+	assert.Equal(t, "Onboarding Atlas", p.Files[0].Title, "frontmatter aside")
+	assert.Empty(t, p.Files[2].Title)
+
+	allow := []sessionspec.PermissionRule{{Action: "*", Resource: "*", Effect: sessionspec.EffectAllow}}
+	full := p.render(bricks.InstructionsFull, allow)
+	assert.True(t, strings.HasPrefix(full, instructionsHeading))
+	assert.Contains(t, full, "\n## CONVENTIONS.md\n\n"+conv.Body+"\n")
+	assert.Empty(t, p.render(bricks.InstructionsNone, allow))
+
+	index := p.render(bricks.InstructionsIndex, allow)
+	assert.Contains(t, index, "- `CONVENTIONS.md` : Conventions Atlas (≈ ")
+	assert.Contains(t, index, "; sections : Nommage · Tests\n")
+	assert.NotContains(t, index, "Wiki du projet")
+	assert.NotContains(t, index, "lecture")
+
+	rules := append(allow, sessionspec.PermissionRule{Action: sessionspec.ActionRead, Resource: ".claude/*", Effect: sessionspec.EffectDeny})
+	assert.Contains(t, p.render(bricks.InstructionsIndex, rules), "- `.claude/CLAUDE.md` (≈ 9 tokens) — lecture non autorisée pour toi")
+	ask := []sessionspec.PermissionRule{{Action: "*", Resource: "*", Effect: sessionspec.EffectAsk}}
+	assert.Contains(t, p.render(bricks.InstructionsIndex, ask), "— lecture soumise à confirmation")
+
+	assert.Empty(t, projectInstructions{}.render(bricks.InstructionsIndex, allow), "no instructions, no wiki")
+	assert.Empty(t, instructionsContract(bricks.InstructionsNone, projectInstructions{}))
+	assert.Empty(t, instructionsContract(bricks.InstructionsIndex, p))
+	assert.NotEmpty(t, instructionsContract(bricks.InstructionsNone, p))
+}
+
+func TestParseWikiIndex(t *testing.T) {
+	w := parseWikiIndex("# W\n\n## God nodes\n\n| C | P | X |\n|---|---|---|\n\n*(Vide)*\n\n## Autre\n")
+	assert.Equal(t, "W", w.Title)
+	assert.Equal(t, []string{"God nodes", "Autre"}, w.Sections)
+	assert.Nil(t, w.GodNodes, "a header without a row")
+
+	var rows strings.Builder
+	for range indexMaxGodNodes + 3 {
+		rows.WriteString("| c | p | x |\n")
+	}
+	w = parseWikiIndex("## God nodes — concepts\n\n| C | P | X |\n|---|---|---|\n" + rows.String() + "\n## Carte\n\n| pas | un | god node |\n")
+	assert.Len(t, w.GodNodes, 2+indexMaxGodNodes)
+
+	// Wiki without instruction files: the index carries the wiki alone.
+	p := projectInstructions{Wiki: w}
+	allow := []sessionspec.PermissionRule{{Action: "*", Resource: "*", Effect: sessionspec.EffectAllow}}
+	assert.Contains(t, p.render(bricks.InstructionsIndex, allow), "## Wiki du projet")
+	assert.Empty(t, p.render(bricks.InstructionsFull, allow), "full: the instruction files only")
+}
+
+func TestFrontmatterProjectInstructions(t *testing.T) {
+	fm, err := bricks.ParseAgentFrontmatterFromBytes([]byte("---\nid: a\n---\n"))
+	require.NoError(t, err)
+	assert.Equal(t, bricks.InstructionsFull, fm.InstructionsLevel(), "default")
+	fm, err = bricks.ParseAgentFrontmatterFromBytes([]byte("---\nid: a\nproject_instructions: index\n---\n"))
+	require.NoError(t, err)
+	assert.Equal(t, bricks.InstructionsIndex, fm.InstructionsLevel())
+	_, err = bricks.ParseAgentFrontmatterFromBytes([]byte("---\nid: a\nproject_instructions: some\n---\n"))
+	assert.ErrorContains(t, err, "project_instructions")
+}

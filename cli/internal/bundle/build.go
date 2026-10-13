@@ -270,6 +270,7 @@ func Build(req Request) (*Bundle, error) {
 		named(invitingText(a.Body, id, agentIDs), selfMentionedSkills, true)
 		a.Body += absentSkillsNote(absent)
 		a.Body += sessionContract(req, spec.Workflow, id, shipped, callers, env)
+		a.Body += instructionsContract(fm.InstructionsLevel(), instructions)
 		a.Body += scratchNote(id, spec.Workflow)
 		def := agentDef(req, a, instructions, perms)
 		spec.Agents = append(spec.Agents, def)
@@ -444,13 +445,13 @@ func readSpec(dir string) (sessionspec.BundleSpec, error) {
 	return spec, err
 }
 
-func agentDef(req Request, a *bricks.AssembledAgent, instructions string, perms []sessionspec.PermissionRule) sessionspec.AgentDef {
+func agentDef(req Request, a *bricks.AssembledAgent, instructions projectInstructions, perms []sessionspec.PermissionRule) sessionspec.AgentDef {
 	fm := a.Frontmatter
 	def := sessionspec.AgentDef{
 		ID:          fm.ID,
 		Description: fm.Description,
 		Mode:        fm.Mode,
-		Body:        a.Body + instructions,
+		Body:        a.Body + instructions.render(fm.InstructionsLevel(), perms),
 	}
 	if def.ID == "" {
 		def.ID = strings.TrimSuffix(filepath.Base(a.Path), ".md")
@@ -503,25 +504,27 @@ func findAgent(agents []sessionspec.AgentDef, id string) *sessionspec.AgentDef {
 	return nil
 }
 
-// readInstructions concatenates the project instruction files (ONBOARDING.md,
-// CONVENTIONS.md, .claude/CLAUDE.md + configured extras). the tool ignores
-// the `instructions` config key, so they are embedded in every agent body.
-func readInstructions(projectPath string, extra []string) (string, error) {
+// readInstructions reads the project instruction files (ONBOARDING.md,
+// CONVENTIONS.md, .claude/CLAUDE.md + configured extras) with their
+// titles, and the wiki index. the tool ignores the `instructions` config
+// key, so they are embedded in the agent bodies, at the level of each
+// agent (renderInstructions).
+func readInstructions(projectPath string, extra []string) (projectInstructions, error) {
+	var out projectInstructions
 	if projectPath == "" {
-		return "", nil
+		return out, nil
 	}
-	var b strings.Builder
 	for _, rel := range bricks.InstructionFiles(projectPath, extra) {
 		data, err := os.ReadFile(filepath.Join(projectPath, rel))
 		if err != nil {
-			return "", fmt.Errorf("reading instruction file %s: %w", rel, err)
+			return out, fmt.Errorf("reading instruction file %s: %w", rel, err)
 		}
-		if b.Len() == 0 {
-			b.WriteString("\n\n---\n\n# Project instructions\n")
-		}
-		fmt.Fprintf(&b, "\n## %s\n\n%s\n", rel, strings.TrimSpace(string(data)))
+		out.Files = append(out.Files, newInstructionFile(rel, string(data)))
 	}
-	return b.String(), nil
+	if data, err := os.ReadFile(filepath.Join(projectPath, wikiIndexFile)); err == nil {
+		out.Wiki = parseWikiIndex(string(data))
+	}
+	return out, nil
 }
 
 // hashBundle hashes the spec (without absolute paths) and every file of dir.

@@ -10,6 +10,64 @@
 # Regenerate: go test ./internal/bundle -run TestBudgetBaseline -update
 
 project  workflow               agent                          prompt  inlined    n  cat cat_tk  rch rch_tk
+instruct audit                  auditor                         15197    13779    7   14    492   14    492
+instruct audit                  auditor-subagent                10611     5537    5   18    627   18    627
+instruct audit                  TOTAL                           25808    19316   12   20    700   20    700
+instruct benchmark              benchmarker                      7486     2238    3    1     36    1     36
+instruct benchmark              TOTAL                            7486     2238    3    1     36    1     36
+instruct brief-enrich           brief-enricher                   4465        0    0    0      0    0      0
+instruct brief-enrich           TOTAL                            4465        0    0    0      0    0      0
+instruct cadrage                conductor                        7093     6061    7    2     70    2     70
+instruct cadrage                designer                         6059     4029    4   16    534   16    534
+instruct cadrage                pathfinder                       8655     6885    5    7    242    7    242
+instruct cadrage                planner                          6215     4389    5   19    618   19    618
+instruct cadrage                TOTAL                           28022    21364   21   32   1059   32   1059
+instruct debug                  debugger                         8590     3212    4    9    300    9    300
+instruct debug                  developer                       13523     6763    5   11    376   11    376
+instruct debug                  documentarian                    4479     2881    3   13    402   13    402
+instruct debug                  TOTAL                           26592    12856   12   29    945   29    945
+instruct feature                designer                         6061     4029    4   16    534   16    534
+instruct feature                developer                       15730     8933    7   17    586   17    586
+instruct feature                documentarian                    4555     2881    3   13    402   13    402
+instruct feature                orchestrator                    13908    11713   11    7    237    7    237
+instruct feature                orchestrator-dev                12759    10781   10   18    635   18    635
+instruct feature                pathfinder                       8660     6885    5    7    242    7    242
+instruct feature                planner                          6309     4477    5   19    618   19    618
+instruct feature                reviewer                        15600     8732    5   15    512   15    512
+instruct feature                TOTAL                           83582    58431   50   69   2300   69   2300
+instruct infra-change           operator                         7428     2238    3    2     71    2     71
+instruct infra-change           TOTAL                            7428     2238    3    2     71    2     71
+instruct libre                  debugger                         8728     3375    4   10    337   10    337
+instruct libre                  designer                         6009     4029    4   16    534   16    534
+instruct libre                  developer                       15678     8933    7   17    586   17    586
+instruct libre                  documentarian                    4519     2881    3   13    402   13    402
+instruct libre                  onboarder                        5615     3890    5   17    546   17    546
+instruct libre                  orchestrator                    13133    11053   11    9    307    9    307
+instruct libre                  orchestrator-dev                12045    10162   10   18    635   18    635
+instruct libre                  pathfinder                       8608     6885    5    7    242    7    242
+instruct libre                  planner                          6286     4507    5   19    618   19    618
+instruct libre                  reviewer                        15910     9075    5   15    512   15    512
+instruct libre                  TOTAL                           96531    64790   59   83   2745   83   2745
+instruct onboarding             onboarder                        5354     3725    5   16    509   16    509
+instruct onboarding             TOTAL                            5354     3725    5   16    509   16    509
+instruct quick                  developer                       13428     6763    5   18    616   18    616
+instruct quick                  TOTAL                           13428     6763    5   18    616   18    616
+instruct review                 reviewer                        16471     9649    6   16    543   16    543
+instruct review                 TOTAL                           16471     9649    6   16    543   16    543
+instruct review-feedback        developer                       15714     8933    7   17    586   17    586
+instruct review-feedback        orchestrator-dev                13330    11437   10   20    702   20    702
+instruct review-feedback        reviewer                        15555     8732    5   15    512   15    512
+instruct review-feedback        TOTAL                           44599    29102   22   30   1038   30   1038
+instruct sweep                  conductor                        7171     6099    7    5    181    5    181
+instruct sweep                  developer                       15708     8933    7   13    450   13    450
+instruct sweep                  pathfinder                       8637     6885    5    7    242    7    242
+instruct sweep                  reviewer                        15549     8732    5   15    512   15    512
+instruct sweep                  TOTAL                           47065    30649   24   25    857   25    857
+instruct ticket                 developer                       15730     8933    7   17    586   17    586
+instruct ticket                 documentarian                    4501     2881    3   13    402   13    402
+instruct ticket                 orchestrator-dev                14123    12222   11   18    633   18    633
+instruct ticket                 reviewer                        15571     8732    5   15    512   15    512
+instruct ticket                 TOTAL                           49925    32768   26   39   1308   39   1308
 none     audit                  auditor                         14850    13779    7   14    492   14    492
 none     audit                  auditor-subagent                 5291     4130    4   18    627   18    627
 none     audit                  TOTAL                           20141    17909   11   20    700   20    700
@@ -138,7 +196,7 @@ planner-workflow                           2152 planner
 pathfinder-protocol                        2038 pathfinder
 doc-protocol                               1841 documentarian
 retranscription-coordinateur               1653 auditor,conductor,orchestrator,orchestrator-dev
-wiki-navigation                            1624 onboarder
+wiki-navigation                            1624 auditor-subagent,benchmarker,debugger,developer,onboarder,operator,pathfinder,reviewer
 orchestrator-handoff-format                1562 orchestrator,orchestrator-dev
 design-planner-format                      1505 designer
 audit-protocol-light                       1482 auditor,auditor-subagent
