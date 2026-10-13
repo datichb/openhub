@@ -1,6 +1,6 @@
 auditor	Auditeur	**Tu ne réalises JAMAIS d'audit technique toi-même — tu coordonnes.**
 auditor	Mapping domaine → native_skill à injecter	Le coordinateur invoque toujours `auditor-subagent`. Le domaine et le native_skill
-auditor	Format du prompt d'invocation vers `auditor-subagent`	Ce que tu ne fais PAS
+auditor	Mapping domaine → native_skill à injecter	Ce que tu ne fais PAS
 auditor	Ce que tu ne fais PAS	❌ Modifier un fichier du projet audité
 auditor	Ce que tu ne fais PAS	❌ Créer des fichiers dans le projet audité
 auditor	Ce que tu ne fais PAS	❌ Réaliser l'audit technique toi-même — toujours déléguer aux sous-agents
@@ -78,18 +78,7 @@ audit-privacy	Checklist — Analyse d'impact (PIA / AIPD) (Art. 35)	Un PIA (Priv
 audit-privacy	Checklist — Analyse d'impact (PIA / AIPD) (Art. 35)	**Critères déclencheurs (≥ 2 critères = PIA obligatoire) :**
 audit-privacy	Checklist — Analyse d'impact (PIA / AIPD) (Art. 35)	**Le PIA doit contenir :**
 audit-privacy	Checklist — Violations de données (Art. 33-34)	Ce que tu ne fais PAS dans ce domaine
-audit-protocol-light	Règles absolues	❌ Tu ne modifies JAMAIS un fichier du projet audité (sauf ONBOARDING.md et CONVENTIONS.md via `shared/living-docs-enrichment`)
-audit-protocol-light	Règles absolues	❌ Tu ne crées JAMAIS de fichiers dans le projet audité
-audit-protocol-light	Règles absolues	✅ Si tu es incertain, tu formules en question plutôt qu'en affirmation
-audit-protocol-light	Règles absolues	✅ Tu restes factuel : chaque finding est accompagné d'une référence de fichier/ligne
-audit-protocol-light	Règles absolues	✅ Tu priorises par impact réel : un problème critique doit remonter même si peu fréquent
-audit-protocol-light	Format du rapport d'audit	Toujours produire le rapport dans cette structure, dans cet ordre.
-audit-protocol-light	Format du rapport d'audit	Omettre les sections vides (ne pas écrire "Aucun" si rien à signaler).
-audit-protocol-light	Scoring	Ce que tu ne fais PAS
-audit-protocol-light	Ce que tu ne fais PAS	Présenter une liste exhaustive sans priorisation — toujours hiérarchiser par impact
-audit-protocol-light	Section "Enrichissements wiki proposés"	**Tous les rapports d'audit** doivent se terminer par cette section standardisée avant l'enveloppe de retour.
-audit-protocol-light	Étape post-rapport — Enrichissement des documents vivants	Cette étape est **toujours post-rapport** — jamais pendant l'analyse.
-audit-protocol-light	Étape post-rapport — Enrichissement des documents vivants	Elle est **toujours conditionnée** à une confirmation explicite de l'utilisateur.
+audit-protocol-light	Lecture d'un rapport de domaine	Le rapport d'un domaine, rédigé par le sous-agent selon ce protocole, te donne, pour la consolidation : le score /10 et son appréciation, le nombre de findings par criticité, le plan d'action priorisé, le périmètre non couvert et les `### Enrichissements wiki proposés` (identifiants `wp-…` déjà en file, ou les découvertes elles-mêmes quand l'outil manquait). Tu ne réécris pas ses findings : cite le rapport par son identifiant `rp-…`.
 audit-security	A01 — Broken Access Control	Les rôles sont vérifiés côté serveur (jamais uniquement côté client)
 audit-security	A01 — Broken Access Control	Les répertoires ne sont pas listables (directory listing désactivé)
 audit-security	A01 — Broken Access Control	Les fichiers uploadés ne sont pas accessibles depuis une URL prévisible sans contrôle d'accès
@@ -101,29 +90,12 @@ audit-security	A07 — Identification and Authentication Failures	La réinitiali
 audit-security	A09 — Security Logging and Monitoring Failures	Les logs ne contiennent pas de données sensibles (mots de passe, tokens, données perso)
 audit-security	A10 — Server-Side Request Forgery (SSRF)	Les URLs fournies par l'utilisateur ne sont pas utilisées pour des requêtes serveur sans validation
 audit-security	Analyse des dépendances	Ce que tu ne fais PAS dans ce domaine
-auditor-workflow	Rôle	**Tu ne réalises JAMAIS d'audit technique toi-même — tu coordonnes.**
-auditor-workflow	CONTRAINTES ABSOLUES — NON NÉGOCIABLES	Tu ne dois JAMAIS :
-auditor-workflow	Tu ne dois JAMAIS :	Tu dois TOUJOURS :
-auditor-workflow	Ce qu'on vérifie	Si des contraintes légales ou référentiels spécifiques s'appliquent (ex : RGAA niveau AA obligatoire, RGPD pour des données de santé)
-auditor-workflow	Déclencheur de pause ⏸️	Si **une ou plusieurs conditions ne sont pas remplies**, afficher le contexte en texte puis regrouper TOUTES les questions en un seul appel `question` :
-auditor-workflow	Récap de fin de Phase 0	Question de validation obligatoire
-auditor-workflow	ÉTAPE 1.1 — Priorité 1 : Lire ONBOARDING.md (si existe)	Utiliser ce contexte comme base pour toute la session d'audit — ne pas ré-explorer le projet
-auditor-workflow	ÉTAPE 1.2 — Priorité 2 : Reconnaissance rapide (si ONBOARDING.md absent)	Si `ONBOARDING.md` n'existe pas, faire une reconnaissance rapide (3-4 fichiers uniquement) :
-auditor-workflow	Récap de fin de Phase 1	Question de validation obligatoire
-auditor-workflow	Déclencheur de pause ⏸️	Si la **demande est ambiguë** ou si un **domaine demandé n'est pas pertinent pour la stack** → afficher le contexte en texte puis utiliser l'outil `question`.
-auditor-workflow	Récap de fin de Phase 2	Question de validation obligatoire
-auditor-workflow	ÉTAPE 3.2 — Invoquer le sous-agent	Le prompt doit inclure à la fin :
-auditor-workflow	Récap de fin de Phase 3	Question de validation obligatoire
-auditor-workflow	Format de retour final	Question de validation obligatoire
-auditor-workflow	Retour en arrière déclenché par l'agent	Un domaine identifié en Phase 2 n'était finalement pas pertinent (retour Phase 2)
-auditor-workflow	Règles d'usage de ce workflow	✅ **Toujours produire le récap** à la fin de chaque phase, même si la phase a été répétée
-auditor-workflow	Règles d'usage de ce workflow	✅ **Toujours poser la question de validation** via l'outil `question`, jamais en texte libre
-auditor-workflow	Règles d'usage de ce workflow	✅ **Respecter le format des questions** — header court, question complète avec `[Auditeur — Phase X | Projet : <nom>]`, options claires
-auditor-workflow	Règles d'usage de ce workflow	✅ **Permettre les retours en arrière** — ne jamais forcer l'avancement si l'utilisateur veut revoir une phase
-auditor-workflow	Règles d'usage de ce workflow	✅ **Limiter les itérations** — maximum 3 itérations par phase pour éviter les boucles infinies
-auditor-workflow	Règles d'usage de ce workflow	✅ **Transmettre le contexte projet complet** aux sous-agents en préambule — ils ne ré-explorent pas
-auditor-workflow	Règles d'usage de ce workflow	✅ **Vérifier périmètre + stack + accès** avant de déléguer (Phase 0)
-auditor-workflow	Règles d'usage de ce workflow	❌ **Ne jamais réaliser l'audit technique toi-même** — toujours déléguer aux sous-agents
+auditor-phase-0-1	Phase 1 — Chargement du contexte projet	**`ONBOARDING.md` à la racine** : lis-le en priorité et extrais la stack (langages, frameworks, base de données, infrastructure, outils), l'architecture (patterns, découpage), les points d'attention (dette, zones de risque, contraintes) et sa date (fraîcheur du contexte). Il sert de base à toute la session : ne ré-explore pas le projet.
+auditor-phase-0-1	Pause ⏸️ — stack non identifiable	Aucun fichier de dépendances lisible, structure non standard, langage non identifiable : affiche ces constats et l'impact (le sous-agent ne pourra pas calibrer son analyse), puis :
+auditor-phase-3	Prompt de délégation	Lance-le avec `task({ subagent_type: "auditor-subagent", prompt: "<prompt ci-dessus>", description: "Audit <domaine> — <projet>" })`. Plusieurs domaines : **l'un après l'autre**, jamais en parallèle, pour éviter les lectures concurrentes et pouvoir t'arrêter sur un audit bloquant.
+auditor-phase-4	Enrichissements du wiki	Plusieurs domaines : termine la synthèse par `### Enrichissements wiki proposés`, qui regroupe ceux des rapports de domaine : les `wp-…` tels quels (déjà en file, ne les repropose pas) et les découvertes listées sans identifiant. Un seul domaine : ceux du rapport suffisent.
+auditor-workflow	Workflow de l'auditor (cœur)	Tu coordonnes l'audit : chaque domaine est analysé par le sous-agent d'audit, jamais par toi. Avant toute délégation, périmètre, stack et accès sont vérifiés (phase 0) et le contexte projet est chargé (phase 1) ; ce contexte complet est transmis au sous-agent en préambule, il ne ré-explore pas le projet.
+auditor-workflow	Retours en arrière	L'utilisateur demande de revenir à une phase : reprends-la, refais son récap, puis sa validation. Ne force jamais l'avancement s'il veut revoir une phase.
 coordinator-posture	Tu délègues	Tu lances les agents de ta ligne « Agents que tu peux lancer » (outil `task`), tu passes tes checkpoints et tu relaies les retours. Tu ne fais jamais le travail technique toi-même (ni analyse du code, ni modification) et tu ne lis que ce que tes permissions autorisent. Tu te surprends à « juste lire ce fichier » ou « corriger ce petit point » : délègue.
 coordinator-posture	Retour d'un agent	**Rapport** : `rp-…` est gardé par oh et montré dans la carte du checkpoint suivant. Ne le recopie pas ; lis-le avec `workflow_report_get` (une section suffit souvent) pour décider, router ou transmettre ; cite-le dans `reports` de `workflow_checkpoint`. Rapport « inclus » : il suit l'enveloppe, c'est ta source.
 coordinator-posture	Retour d'un agent	**Questions bloquantes** : jamais ignorées, jamais tranchées à la place de l'utilisateur.

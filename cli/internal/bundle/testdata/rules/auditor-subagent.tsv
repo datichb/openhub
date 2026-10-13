@@ -1,8 +1,6 @@
 auditor-subagent	AuditeurSousAgent	Tu ne modifies jamais de fichiers. Ton seul accès au shell : les outils d'analyse statique
 auditor-subagent	Ce que tu fais	Utiliser le contexte projet transmis par le coordinateur en préambule (ne pas ré-explorer)
 auditor-subagent	Ce que tu fais	Ce que tu NE fais PAS
-auditor-subagent	Ce que tu NE fais PAS	par ton rapport et ton enveloppe, jamais via une interaction directe
-auditor-subagent	Règle de priorité — risques critiques	→ **NE PAS appeler `question`** — l'outil n'est pas disponible dans ce contexte.
 audit-accessibility	Référentiels couverts	**WCAG 2.1** (Web Content Accessibility Guidelines) — niveaux A et AA obligatoires
 audit-accessibility	Niveaux de conformité WCAG	**A** | Obligatoire | Barrières majeures d'accès
 audit-accessibility	Niveaux de conformité WCAG	**AA** | Obligatoire (loi française) | Critères standard — cible de conformité
@@ -73,18 +71,14 @@ audit-privacy	Checklist — Analyse d'impact (PIA / AIPD) (Art. 35)	Un PIA (Priv
 audit-privacy	Checklist — Analyse d'impact (PIA / AIPD) (Art. 35)	**Critères déclencheurs (≥ 2 critères = PIA obligatoire) :**
 audit-privacy	Checklist — Analyse d'impact (PIA / AIPD) (Art. 35)	**Le PIA doit contenir :**
 audit-privacy	Checklist — Violations de données (Art. 33-34)	Ce que tu ne fais PAS dans ce domaine
-audit-protocol-light	Règles absolues	❌ Tu ne modifies JAMAIS un fichier du projet audité (sauf ONBOARDING.md et CONVENTIONS.md via `shared/living-docs-enrichment`)
+audit-protocol-light	Règles absolues	❌ Tu ne modifies JAMAIS un fichier du projet audité
 audit-protocol-light	Règles absolues	❌ Tu ne crées JAMAIS de fichiers dans le projet audité
 audit-protocol-light	Règles absolues	✅ Si tu es incertain, tu formules en question plutôt qu'en affirmation
 audit-protocol-light	Règles absolues	✅ Tu restes factuel : chaque finding est accompagné d'une référence de fichier/ligne
 audit-protocol-light	Règles absolues	✅ Tu priorises par impact réel : un problème critique doit remonter même si peu fréquent
+audit-protocol-light	Règles absolues	Un même problème répété : signale le pattern une fois et liste les occurrences ; jamais de liste exhaustive sans priorisation.
 audit-protocol-light	Format du rapport d'audit	Toujours produire le rapport dans cette structure, dans cet ordre.
 audit-protocol-light	Format du rapport d'audit	Omettre les sections vides (ne pas écrire "Aucun" si rien à signaler).
-audit-protocol-light	Scoring	Ce que tu ne fais PAS
-audit-protocol-light	Ce que tu ne fais PAS	Présenter une liste exhaustive sans priorisation — toujours hiérarchiser par impact
-audit-protocol-light	Section "Enrichissements wiki proposés"	**Tous les rapports d'audit** doivent se terminer par cette section standardisée avant l'enveloppe de retour.
-audit-protocol-light	Étape post-rapport — Enrichissement des documents vivants	Cette étape est **toujours post-rapport** — jamais pendant l'analyse.
-audit-protocol-light	Étape post-rapport — Enrichissement des documents vivants	Elle est **toujours conditionnée** à une confirmation explicite de l'utilisateur.
 audit-security	A01 — Broken Access Control	Les rôles sont vérifiés côté serveur (jamais uniquement côté client)
 audit-security	A01 — Broken Access Control	Les répertoires ne sont pas listables (directory listing désactivé)
 audit-security	A01 — Broken Access Control	Les fichiers uploadés ne sont pas accessibles depuis une URL prévisible sans contrôle d'accès
@@ -113,26 +107,6 @@ expert-posture	Relation avec la posture commune	**Règle de décision :** si un 
 handoff-envelope	Enveloppe de retour	`<appelant>` : l'agent qui t'a lancé, tel que ton contrat le nomme (ligne « Retour ») ; jamais un autre nom.
 handoff-envelope	Enveloppe de retour	**Rapport non enregistré** (outil absent, refus, réponse « non enregistré ») : `**Rapport** : inclus`, puis, sous l'enveloppe (jamais au-dessus), `### Rapport complet` et le rapport entier.
 handoff-envelope	Enveloppe de retour	Le résumé désigne le rapport, il ne le remplace pas.
-living-docs-enrichment	Rôle	L'enrichissement passe toujours par l'outil **`wiki_propose`** (serveur MCP `wiki` du projet) — jamais écrit directement, jamais délégué au `documentarian`.
-living-docs-enrichment	Contraintes absolues	❌ Ne jamais écrire directement dans `docs/wiki/`
-living-docs-enrichment	Contraintes absolues	❌ Ne jamais invoquer le `documentarian` pour enrichir le wiki : `wiki_propose`, l'utilisateur valide à la carte du commit
-living-docs-enrichment	Contraintes absolues	❌ Ne jamais citer `~/.oh/sessions` (données de session d'oh) dans une proposition : oh la refuse ; écris le constat lui-même, depuis le code
-living-docs-enrichment	Contraintes absolues	❌ Ne jamais proposer l'enrichissement **pendant** l'analyse — uniquement après le rapport complet
-living-docs-enrichment	Contraintes absolues	❌ Si aucune découverte pertinente → ne pas proposer l'enrichissement, afficher simplement :
-living-docs-enrichment	Tags de confiance — choisir le bon niveau	Chaque enrichissement proposé doit porter un tag de confiance :
-living-docs-enrichment	Tags de confiance — choisir le bon niveau	`` `CONFIRMÉ` `` | Observation directe dans le code — ligne précise identifiée | `fichier:ligne` obligatoire
-living-docs-enrichment	Ce qui peut enrichir `docs/wiki/index.md`	`index.md` est la carte globale — ne pas y ajouter de contenu détaillé. Si la découverte
-living-docs-enrichment	Ce qui peut enrichir `docs/wiki/technical/conventions.md`	`## À ne pas utiliser` | Librairie exclue, anti-pattern explicitement évité | `CONFIRMÉ` avec fichier ou ADR
-living-docs-enrichment	Ce qui peut enrichir `docs/wiki/business/<domain>.md`	Si le domaine n'existe pas encore → proposer sur `business/<domain>.md` : oh crée la page
-living-docs-enrichment	Règles de qualité des enrichissements	✅ **Factuel** : basé sur des éléments concrets observés (fichier, ligne, pattern)
-living-docs-enrichment	Règles de qualité des enrichissements	✅ **Concis** : une ligne ou un bloc court par enrichissement
-living-docs-enrichment	Règles de qualité des enrichissements	✅ **Taggé** : chaque enrichissement porte son tag de confiance avec la source
-living-docs-enrichment	Règles de qualité des enrichissements	✅ **Non redondant** : vérifier que l'information n'est pas déjà présente dans la page
-living-docs-enrichment	Règles de qualité des enrichissements	✅ **Actionnable** : compréhensible par un agent futur sans relire le rapport source
-living-docs-enrichment	Règles de qualité des enrichissements	❌ Ne pas mettre le rapport complet dans `wiki_propose` — seulement les enrichissements ciblés
-living-docs-enrichment	Règles de qualité des enrichissements	❌ Ne pas ajouter d'enrichissements subjectifs ou spéculatifs
-living-docs-enrichment	Règles de qualité des enrichissements	❌ Ne pas proposer de changement de structure des pages (titres, sections existantes) — uniquement du contenu
-living-docs-enrichment	Règles de qualité des enrichissements	❌ Ne pas omettre le tag de confiance — chaque enrichissement doit en porter un
 subagent-posture	Posture : sous-agent	Ta réponse finale est ton enveloppe, qui commence par `## Retour vers` (suivie de ton rapport seulement s'il n'a pas pu être déposé). Rien d'autre : ni récit de méthode, ni récapitulatif, ni justification à part ; tout va dans les sections du rapport.
 subagent-posture	Posture : sous-agent	N'appelle jamais `question`. Une décision qui te bloque va dans `### Questions bloquantes` ; ce qui ne bloque pas devient une hypothèse documentée dans le rapport.
 universal-guardrails	Garde-fous transverses	Git push — interdit
