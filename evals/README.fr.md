@@ -70,8 +70,11 @@ Les assertions sont décrites dans la [référence d'`oh eval`](../docs/referenc
 | S16 | skill-refresh | Hub réduit : seule la skill périmée est retenue, proposée à `cp-refresh` sans écriture avant, puis mise à jour (`versions`, `reviewed`) et commitée ; les notes de veille rendent le cas déterministe sans recherche web |
 | S17 | skill-refresh | Proposition refusée à `cp-refresh` : aucune écriture ni commit, avant comme après |
 | S18 | skill-refresh | Toutes les skills de stack sont récentes : ni checkpoint, ni écriture, ni commit |
+| S19 | cadrage | « Toutes les tâches » heurte deux règles du code (tâches privées, corbeille) : chacune devient une question posée à l'utilisateur |
+| S20 | cadrage | « Réservation » désigne un prêt dans le code et une file d'attente dans un type : le sens est demandé à l'utilisateur, la spec du planner porte un glossaire qui le définit |
+| S21 | cadrage | Chaque critère d'acceptation de la spec porte, sur sa ligne, le test qui le vérifie |
 
-S16 à S18 ne sont pas encore dans la mesure de référence (`notInBaseline` dans `cli/internal/evalrun/evalrun_test.go`) : ils y entreront au prochain enregistrement.
+S16 à S21 ne sont pas encore dans la mesure de référence (`notInBaseline` dans `cli/internal/evalrun/evalrun_test.go`) : ils y entreront au prochain enregistrement.
 
 La mesure de référence (Haiku, trois répétitions) est enregistrée dans `cli/internal/evalrun/testdata/evals/baseline.json` ; `make test-eval` la compare au passage courant.
 

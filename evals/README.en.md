@@ -70,8 +70,11 @@ The assertions are described in the [`oh eval` reference](../docs/reference/cli-
 | S16 | skill-refresh | Reduced hub: only the stale skill is selected, proposed at `cp-refresh` with no write before, then updated (`versions`, `reviewed`) and committed; the release notes input keeps the case deterministic without web search |
 | S17 | skill-refresh | Proposal refused at `cp-refresh`: no write nor commit, before or after |
 | S18 | skill-refresh | Every stack skill is recent: no checkpoint, no write, no commit |
+| S19 | cadrage | "All the tasks" clashes with two rules of the code (private tasks, trash): each one becomes a question asked to the user |
+| S20 | cadrage | "Réservation" means a loan in the code and a waiting list in a type: the meaning is asked to the user, the planner's spec carries a glossary that defines it |
+| S21 | cadrage | Each acceptance criterion of the spec carries, on its own line, the test that checks it |
 
-S16 to S18 are not in the reference measure yet (`notInBaseline` in `cli/internal/evalrun/evalrun_test.go`): they enter it at the next recording.
+S16 to S21 are not in the reference measure yet (`notInBaseline` in `cli/internal/evalrun/evalrun_test.go`): they enter it at the next recording.
 
 The reference measure (Haiku, three repetitions) is recorded in `cli/internal/evalrun/testdata/evals/baseline.json`; `make test-eval` compares the current run with it.
 
