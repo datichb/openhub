@@ -9,6 +9,13 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ## [Unreleased]
 
+### Added — fraîcheur des skills de stack (lot R13)
+
+- **Métadonnées de fraîcheur** : chaque skill de stack (`skills/developer/stacks/`) déclare les versions qu'elle couvre (`versions:`, par exemple `react: "19.3"`) et la date de sa dernière revue (`reviewed: 2026-10-12`). Ces clés du hub ne sont jamais livrées aux agents (budget des prompts inchangé). `oh skill check` les exige sur toute skill de stack (`missing_freshness`, `invalid_freshness`) ; les tests vérifient qu'elles concordent avec la ligne « Versions de référence ». Les 41 skills de stack les portent ; Cypress et Kubernetes, sans revue depuis avril 2026, sont signalées à revoir.
+- **`oh skill check --stale [--max-age 90d] [--strict] [--json]`** : liste les skills de stack dont la revue date de plus de 90 jours ou qui n'ont pas de métadonnées, sans appel réseau. `--hub <dossier>` vérifie une copie de travail du hub au lieu du hub installé.
+- **Workflow `skill-refresh`** : le `documentarian` fait la veille des skills à revoir (notes de l'utilisateur, recherche web sur les sources officielles), présente sa proposition à `cp-refresh` avant toute écriture (versions avant → après, changements et sources, nouvelle date `reviewed`), puis l'applique et commite les skills seules. Contenu en français, inspiré des sources et jamais recopié ; une pause en semi-auto. Cas d'évaluation S16 (skill périmée mise à jour), S17 (proposition refusée, rien d'écrit) et S18 (rien à revoir) : 3/3 chacun (Haiku ×3), hors mesure de référence.
+- **Vérification mensuelle** : `.github/workflows/skill-freshness.yml` (le 1er du mois) liste les skills à revoir dans le résumé du job et échoue s'il y en a. Guide : `docs/guides/skill-refresh.fr.md`.
+
 ### Added — mode TDD, mécanisme (lot R7)
 
 - **Méthode de la session** : entrée `method` (`standard` par défaut, `tdd`) sur `ticket` et `feature` (`oh run ticket -i method=tdd`, fiche de lancement). Un checkpoint `method: tdd` n'existe que dans les sessions de cette méthode : oh l'évalue au lancement et le paquet ne contient que ses checkpoints. Une session `standard` garde exactement le paquet d'avant (prompts, goldens et `budget.golden` inchangés). Un checkpoint de méthode n'ajoute qu'une étape : jamais obligatoire, jamais déverrouillant, aucun agent ne l'attend ; dans une couche d'équipe ou de projet, le poser sur un checkpoint hérité est un assouplissement.
