@@ -55,8 +55,7 @@ func SiblingPath(projectPath, branch string) string {
 // if "main" or "master" exist.
 func DetectBaseBranch(projectPath string) string {
 	// Try symbolic-ref
-	cmd := gitutil.Command(context.Background(), "", "symbolic-ref", "refs/remotes/origin/HEAD")
-	cmd.Dir = projectPath
+	cmd := gitutil.Command(context.Background(), projectPath, "symbolic-ref", "refs/remotes/origin/HEAD")
 	if out, err := cmd.Output(); err == nil {
 		ref := strings.TrimSpace(string(out))
 		// refs/remotes/origin/main → main
@@ -67,15 +66,13 @@ func DetectBaseBranch(projectPath string) string {
 	}
 
 	// Fallback: check if "main" branch exists
-	cmd = gitutil.Command(context.Background(), "", "rev-parse", "--verify", "refs/heads/main")
-	cmd.Dir = projectPath
+	cmd = gitutil.Command(context.Background(), projectPath, "rev-parse", "--verify", "refs/heads/main")
 	if err := cmd.Run(); err == nil {
 		return "main"
 	}
 
 	// Fallback: check if "master" branch exists
-	cmd = gitutil.Command(context.Background(), "", "rev-parse", "--verify", "refs/heads/master")
-	cmd.Dir = projectPath
+	cmd = gitutil.Command(context.Background(), projectPath, "rev-parse", "--verify", "refs/heads/master")
 	if err := cmd.Run(); err == nil {
 		return "master"
 	}
@@ -86,8 +83,7 @@ func DetectBaseBranch(projectPath string) string {
 // ExistsOnRemote checks whether a branch exists on the remote (origin).
 // Returns true if git ls-remote reports the branch ref.
 func ExistsOnRemote(projectPath, branch string) bool {
-	cmd := gitutil.Command(context.Background(), "", "ls-remote", "--heads", "origin", branch)
-	cmd.Dir = projectPath
+	cmd := gitutil.Command(context.Background(), projectPath, "ls-remote", "--heads", "origin", branch)
 	out, err := cmd.Output()
 	if err != nil {
 		return false
@@ -140,12 +136,10 @@ func ResolveOrCreate(projectPath, branch string) (string, error) {
 	// Check if the branch exists on remote — if so, fetch it first so the
 	// local worktree tracks the remote work instead of creating a diverging branch.
 	if ExistsOnRemote(projectPath, branch) {
-		fetchCmd := gitutil.Command(context.Background(), "", "fetch", "origin", branch+":"+branch)
-		fetchCmd.Dir = projectPath
+		fetchCmd := gitutil.Command(context.Background(), projectPath, "fetch", "origin", branch+":"+branch)
 		_ = fetchCmd.Run() // best-effort; if fetch fails we fall through to local creation
 
-		cmd := gitutil.Command(context.Background(), "", "worktree", "add", wtPath, branch)
-		cmd.Dir = projectPath
+		cmd := gitutil.Command(context.Background(), projectPath, "worktree", "add", wtPath, branch)
 		if out, err := cmd.CombinedOutput(); err == nil {
 			return wtPath, nil
 		} else {
@@ -154,15 +148,13 @@ func ResolveOrCreate(projectPath, branch string) (string, error) {
 	}
 
 	// Create worktree — try new branch first
-	cmd := gitutil.Command(context.Background(), "", "worktree", "add", "-b", branch, wtPath)
-	cmd.Dir = projectPath
+	cmd := gitutil.Command(context.Background(), projectPath, "worktree", "add", "-b", branch, wtPath)
 	if _, err := cmd.CombinedOutput(); err == nil {
 		return wtPath, nil
 	}
 
 	// Fallback: branch already exists locally, just create worktree for it
-	cmd = gitutil.Command(context.Background(), "", "worktree", "add", wtPath, branch)
-	cmd.Dir = projectPath
+	cmd = gitutil.Command(context.Background(), projectPath, "worktree", "add", wtPath, branch)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		return "", fmt.Errorf("git worktree add: %s", strings.TrimSpace(string(out)))
@@ -272,8 +264,7 @@ func CleanupMerged(projectPath, baseBranch string, force bool) (CleanupResult, e
 
 // Prune removes stale worktree administrative metadata (git worktree prune).
 func Prune(projectPath string) error {
-	cmd := gitutil.Command(context.Background(), "", "worktree", "prune")
-	cmd.Dir = projectPath
+	cmd := gitutil.Command(context.Background(), projectPath, "worktree", "prune")
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("git worktree prune: %s", strings.TrimSpace(string(out)))
@@ -283,8 +274,7 @@ func Prune(projectPath string) error {
 
 // List returns all worktrees for the given project.
 func List(projectPath string) ([]Entry, error) {
-	cmd := gitutil.Command(context.Background(), "", "worktree", "list", "--porcelain")
-	cmd.Dir = projectPath
+	cmd := gitutil.Command(context.Background(), projectPath, "worktree", "list", "--porcelain")
 	out, err := cmd.Output()
 	if err != nil {
 		return nil, fmt.Errorf("git worktree list: %w", err)
@@ -321,16 +311,14 @@ func List(projectPath string) ([]Entry, error) {
 // If HEAD is detached, it returns "(detached) <short-sha>".
 // Returns an empty string and error if not a git repo or git fails.
 func CurrentBranch(dir string) (string, error) {
-	cmd := gitutil.Command(context.Background(), "", "symbolic-ref", "--short", "HEAD")
-	cmd.Dir = dir
+	cmd := gitutil.Command(context.Background(), dir, "symbolic-ref", "--short", "HEAD")
 	out, err := cmd.Output()
 	if err == nil {
 		return strings.TrimSpace(string(out)), nil
 	}
 
 	// Detached HEAD — return short SHA
-	cmd = gitutil.Command(context.Background(), "", "rev-parse", "--short", "HEAD")
-	cmd.Dir = dir
+	cmd = gitutil.Command(context.Background(), dir, "rev-parse", "--short", "HEAD")
 	out, err = cmd.Output()
 	if err != nil {
 		return "", fmt.Errorf("not a git repo or git failed: %w", err)
@@ -340,8 +328,7 @@ func CurrentBranch(dir string) (string, error) {
 
 // IsGitRepo checks if the given path is inside a git repository.
 func IsGitRepo(path string) bool {
-	cmd := gitutil.Command(context.Background(), "", "rev-parse", "--git-dir")
-	cmd.Dir = path
+	cmd := gitutil.Command(context.Background(), path, "rev-parse", "--git-dir")
 	return cmd.Run() == nil
 }
 
@@ -352,8 +339,7 @@ func Remove(projectPath, wtPath string, force bool) error {
 		args = append(args, "--force")
 	}
 	args = append(args, "--", wtPath)
-	cmd := gitutil.Command(context.Background(), "", args...)
-	cmd.Dir = projectPath
+	cmd := gitutil.Command(context.Background(), projectPath, args...)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("git worktree remove: %s", strings.TrimSpace(string(out)))

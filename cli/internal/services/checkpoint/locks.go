@@ -147,9 +147,7 @@ func GitWork(ctx context.Context, dir, since string, at time.Time) (Work, error)
 	if head == "" || head == since {
 		return w, nil
 	}
-	git := func(args ...string) *exec.Cmd {
-		return exec.CommandContext(ctx, "git", append([]string{"-C", dir}, args...)...)
-	}
+	git := func(args ...string) *exec.Cmd { return gitutil.Command(ctx, dir, args...) }
 	from := since
 	if since == "" {
 		// No commit at the checkpoint: every commit must be newer.

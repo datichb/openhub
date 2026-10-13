@@ -3,6 +3,7 @@ package checkpoint
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
@@ -176,6 +177,14 @@ func unavailable() domain.CheckpointVerify {
 	return domain.CheckpointVerify{Status: domain.VerifyUnavailable, Reason: i18n.T("tui.checkpoint.verify.no_location")}
 }
 
+// unknownPrefix starts the fingerprint of a work git cannot read.
+const unknownPrefix = "unknown-"
+
+// unreadable reports whether fp is the fingerprint of a work git cannot
+// read (R3-remote-git): no result can be tied to it, the verification
+// cannot run as for a missing location.
+func unreadable(fp string) bool { return strings.HasPrefix(fp, unknownPrefix) }
+
 // StartVerify starts the verification of checkpoint c of sess in the
 // background, unless it already ran or runs for the current state of the
 // work (called when a paused checkpoint is asked: the card shows it).
@@ -185,10 +194,14 @@ func (s *Service) StartVerify(sess *domain.Session, c sessionspec.CheckpointDef)
 	}
 	ctx := context.Background()
 	if verifyBlocked(sess, c) {
-		s.recordUnavailable(ctx, sess.ID, c)
+		s.recordUnavailable(ctx, sess.ID, c, unavailable())
 		return
 	}
 	fp := s.fingerprint(ctx, sess)
+	if unreadable(fp) {
+		s.recordUnavailable(ctx, sess.ID, c, unreadableWork())
+		return
+	}
 	if r, ok := s.currentVerify(ctx, sess.ID, c, fp); ok && (r.Done() || !s.stale(r, c)) {
 		return
 	}
@@ -197,12 +210,11 @@ func (s *Service) StartVerify(sess *domain.Session, c sessionspec.CheckpointDef)
 
 // recordUnavailable records, once per round, that the verification of c
 // cannot run (shown on the card, traced in the timeline).
-func (s *Service) recordUnavailable(ctx context.Context, sessionID string, c sessionspec.CheckpointDef) domain.CheckpointVerify {
-	r := unavailable()
+func (s *Service) recordUnavailable(ctx context.Context, sessionID string, c sessionspec.CheckpointDef, r domain.CheckpointVerify) domain.CheckpointVerify {
 	r.Expect, r.Started = c.Verify.Expect, s.now()
 	r.Finished = &r.Started
 	_, _ = s.update(ctx, sessionID, func(st *domain.CheckpointState) error {
-		if cur, ok := st.Verify[c.ID]; ok && cur.Status == domain.VerifyUnavailable {
+		if cur, ok := st.Verify[c.ID]; ok && cur.Status == domain.VerifyUnavailable && cur.Reason == r.Reason {
 			return errUnchanged
 		}
 		if st.Verify == nil {
@@ -220,9 +232,12 @@ func (s *Service) recordUnavailable(ctx context.Context, sessionID string, c ses
 // (ErrVerifyPending after that).
 func (s *Service) verification(ctx context.Context, sess *domain.Session, c sessionspec.CheckpointDef, wait time.Duration) (domain.CheckpointVerify, error) {
 	if verifyBlocked(sess, c) {
-		return s.recordUnavailable(ctx, sess.ID, c), nil
+		return s.recordUnavailable(ctx, sess.ID, c, unavailable()), nil
 	}
 	fp := s.fingerprint(ctx, sess)
+	if unreadable(fp) {
+		return s.recordUnavailable(ctx, sess.ID, c, unreadableWork()), nil
+	}
 	r, ok := s.currentVerify(ctx, sess.ID, c, fp)
 	if !ok || (!r.Done() && s.stale(r, c)) {
 		s.launchVerify(sess, c, fp)
@@ -460,6 +475,9 @@ type Account struct {
 	Home string
 }
 
+// Owner is the account for gitutil.
+func (a *Account) Owner() gitutil.Owner { return gitutil.Owner{UID: a.UID, GID: a.GID, Home: a.Home} }
+
 func (a *Account) env() []string {
 	return []string{"HOME=" + a.Home, "XDG_CONFIG_HOME=" + filepath.Join(a.Home, ".config"),
 		"XDG_CACHE_HOME=" + filepath.Join(a.Home, ".cache"), "TMPDIR=" + filepath.Join(a.Home, "tmp")}
@@ -571,24 +589,10 @@ func GitFingerprint(ctx context.Context, dir string) string {
 // job the work tree belongs to the agent account, and oh never runs git in
 // it as root (S-01).
 func gitAs(ctx context.Context, dir string, acct *Account, args ...string) *exec.Cmd {
-	cmd := gitutil.Command(ctx, dir, args...)
-	if acct != nil {
-		cmd.Env = append(withoutKeys(cmd.Env, accountEnvKeys), acct.env()...)
-		if err := runAs(cmd, acct); err != nil {
-			cmd.Err = err
-		}
+	if acct == nil {
+		return gitutil.Command(ctx, dir, args...)
 	}
-	return cmd
-}
-
-func withoutKeys(env []string, drop map[string]bool) []string {
-	out := make([]string, 0, len(env))
-	for _, kv := range env {
-		if k, _, _ := strings.Cut(kv, "="); !drop[k] {
-			out = append(out, kv)
-		}
-	}
-	return out
+	return gitutil.CommandAs(ctx, dir, acct.Owner(), args...)
 }
 
 func gitFingerprint(ctx context.Context, dir string, acct *Account) string {
@@ -596,16 +600,23 @@ func gitFingerprint(ctx context.Context, dir string, acct *Account) string {
 		return ""
 	}
 	h := sha256.New()
+	failed := false
 	for _, args := range [][]string{
-		{"rev-parse", "-q", "--verify", "HEAD"},
+		{"rev-parse", "-q", "--verify", "HEAD"}, // fails before the first commit
 		{"diff", "HEAD", "--", ".", ":(exclude).beads"},
 		{"status", "--porcelain", "-uall", "--", ".", ":(exclude).beads"},
 	} {
-		out, _ := gitAs(ctx, dir, acct, args...).Output()
+		out, err := gitAs(ctx, dir, acct, args...).Output()
+		failed = failed || (err != nil && args[0] == "status")
 		h.Write(out)
 		h.Write([]byte{0})
 	}
-	out, _ := gitAs(ctx, dir, acct, "ls-files", "-o", "--exclude-standard", "-z").Output()
+	out, err := gitAs(ctx, dir, acct, "ls-files", "-o", "--exclude-standard", "-z").Output()
+	if (failed || err != nil) && gitutil.LooksLikeRepository(dir) {
+		// git refuses a repository that is there: the state of the work
+		// is unknown, no result is tied to it (fails closed).
+		return unknownFingerprint()
+	}
 	for _, f := range strings.Split(string(out), "\x00") {
 		if f == "" {
 			continue
@@ -615,6 +626,17 @@ func gitFingerprint(ctx context.Context, dir string, acct *Account) string {
 		}
 	}
 	return hex.EncodeToString(h.Sum(nil))[:16]
+}
+
+// unknownFingerprint is a fingerprint no other state of the work has.
+func unknownFingerprint() string {
+	b := make([]byte, 8)
+	_, _ = rand.Read(b)
+	return unknownPrefix + hex.EncodeToString(b)
+}
+
+func unreadableWork() domain.CheckpointVerify {
+	return domain.CheckpointVerify{Status: domain.VerifyUnavailable, Reason: i18n.T("tui.checkpoint.verify.unreadable")}
 }
 
 // changedPaths are the paths the session changed: committed since it

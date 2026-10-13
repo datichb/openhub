@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/datichb/openhub/cli/internal/gitutil"
 	"github.com/datichb/openhub/cli/internal/procinfo"
 )
 
@@ -109,7 +110,11 @@ func CheckHookCaller(ctx context.Context, pid int, location, hook string, read f
 func hookPath(ctx context.Context, location, hook string) (file, top string, err error) {
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
-	out, err := exec.CommandContext(ctx, "git", "-C", location, "rev-parse", "--show-toplevel", "--git-path", "hooks").Output()
+	// Not gitutil.Command: the hooks path of the repository is what is
+	// asked (rev-parse runs nothing of it); as its owner in a remote job.
+	cmd := exec.CommandContext(ctx, "git", "-C", location, "rev-parse", "--show-toplevel", "--git-path", "hooks")
+	gitutil.AsOwner(cmd, location)
+	out, err := cmd.Output()
 	if err != nil {
 		return "", "", fmt.Errorf("%w: %v", ErrNotFromGit, err)
 	}

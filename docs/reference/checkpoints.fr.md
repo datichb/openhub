@@ -83,7 +83,7 @@ Avant qu'un checkpoint passe, et donc avant d'ouvrir ses déverrouillages, oh la
 
 Projet sans stack détectée : « rien à vérifier », le checkpoint passe et la carte l'indique.
 
-**Vérification impossible : jamais de passage en silence.** Si l'emplacement de travail est introuvable (dossier supprimé, sous-dossier `in` absent), la vérification ne peut pas tourner : le checkpoint **se met en pause dans tous les modes**, `auto` compris, même s'il passerait seul d'ordinaire. La carte affiche « impossible ici » ; « Valider » est refusé et seul **« Passer outre la vérification »** le laisse passer, tracé comme un échec (`⚑`, événement `overridden`). L'appel de l'agent échoue avec `ErrVerifyUnavailable` et rien n'est déverrouillé.
+**Vérification impossible : jamais de passage en silence.** Si l'emplacement de travail est introuvable (dossier supprimé, sous-dossier `in` absent), la vérification ne peut pas tourner : le checkpoint **se met en pause dans tous les modes**, `auto` compris, même s'il passerait seul d'ordinaire. La carte affiche « impossible ici » ; « Valider » est refusé et seul **« Passer outre la vérification »** le laisse passer, tracé comme un échec (`⚑`, événement `overridden`). L'appel de l'agent échoue avec `ErrVerifyUnavailable` et rien n'est déverrouillé. Il en va de même quand l'emplacement est un dépôt git que git refuse de lire (dépôt d'un autre propriétaire, par exemple) : sans état du travail connu, aucun résultat ne peut y être rattaché, la carte affiche « git ne peut pas lire l'état du travail » et aucune commande ne tourne.
 
 Dans un workflow en lecture seule (`risk: read`), un checkpoint vérifié demande toujours l'utilisateur : les commandes ne tournent qu'après sa validation.
 
@@ -93,13 +93,13 @@ Les workflows livrés vérifient ainsi `cp-2` (`ticket`, `feature`, `review-feed
 
 ### Sessions distantes
 
-Dans une [session distante](../guides/remote-runners.fr.md), la vérification tourne **là où est le travail** : dans le job, sur le clone du projet, avec les mêmes commandes et les mêmes garanties (environnement filtré, délai, sortie bornée, groupe de processus tué à l'échéance), sous le compte `oh` des agents (celui du serveur de l'outil), jamais sous root ; les lectures git de la vérification aussi. Sans compte `oh` dans l'image, elle tourne sous l'utilisateur du job, comme le serveur.
+Dans une [session distante](../guides/remote-runners.fr.md), la vérification tourne **là où est le travail** : dans le job, sur le clone du projet, avec les mêmes commandes et les mêmes garanties (environnement filtré, délai, sortie bornée, groupe de processus tué à l'échéance), sous le compte `oh` des agents (celui du serveur de l'outil), jamais sous root ; les lectures git de la vérification aussi, comme toutes les autres lectures git d'oh dans le clone (fenêtre `commit`, garde de fermeture, contrôle de la configuration git…, voir [Exécution distante › Lectures git d'oh](../guides/remote-runners.fr.md#6-dans-le-job--oh-runner)). Sans compte `oh` dans l'image, elle tourne sous l'utilisateur du job, comme le serveur.
 
 | Situation dans le job | Ce que fait oh |
 |---|---|
 | checkpoint `remote: auto`, vérification réussie | validé par le répondeur de politique, puis passé |
 | checkpoint `remote: auto`, vérification échouée | jamais passé outre dans le job : l'appel de l'agent est refusé avec l'échec et l'extrait, rien n'est déverrouillé (si la vérification est déjà finie quand le répondeur répond, la décision est refusée : « corriger d'abord ») ; l'agent corrige et redemande |
-| vérification impossible (emplacement introuvable) | le checkpoint est **différé** : la session s'arrête proprement, la suite (et le choix de passer outre) se fait sur la machine |
+| vérification impossible (emplacement introuvable, dépôt que git ne peut pas lire) | le checkpoint est **différé** : la session s'arrête proprement, la suite (et le choix de passer outre) se fait sur la machine |
 | checkpoint `remote: defer` | différé, comme avant ; la vérification lancée à la demande se termine avant le push, et son résultat remonte |
 
 Le job attend la fin des vérifications en cours avant d'arrêter les processus des agents et de pousser la branche. Le dernier résultat de chaque checkpoint voyage dans `summary.json` (`verifications`) ; `oh session fetch` l'affiche et l'importe, nettoyé et borné : la carte du checkpoint montre « Dans le job distant : … » et la frise garde l'entrée (auteur `remote`). Ce résultat **ne vaut jamais** vérification sur la machine : quand la session reprend en local et redemande le checkpoint, oh vérifie de nouveau, dans le worktree de la branche poussée.
@@ -147,7 +147,7 @@ Conditions (une suffit) : `entry` (agent d'entrée de la session), `labels` (ét
 | `pause`, checkpoint obligatoire ou qui déverrouille | pause | **pause** |
 | `skip` | sauté | sauté |
 
-`when:` ne peut qu'**ajouter** une pause, jamais retirer une pause obligatoire. Sans `when:`, un checkpoint `conditional` demande toujours l'utilisateur (oh ne sait pas évaluer la phrase `condition`). Une couche ne peut pas retirer une condition héritée (`loosening`).
+Si les chemins modifiés ne peuvent pas être lus (git refuse le dépôt), une condition `paths` est tenue pour vraie : la pause est ajoutée plutôt que perdue. `when:` ne peut qu'**ajouter** une pause, jamais retirer une pause obligatoire. Sans `when:`, un checkpoint `conditional` demande toujours l'utilisateur (oh ne sait pas évaluer la phrase `condition`). Une couche ne peut pas retirer une condition héritée (`loosening`).
 
 ---
 
@@ -159,6 +159,8 @@ Conditions (une suffit) : `entry` (agent d'entrée de la session), `labels` (ét
 | `commit` | son checkpoint (`cp-2`, `cp-commit`) | **une fois le travail commité** (HEAD a avancé et il ne reste rien à committer : un commit, ou plusieurs à la suite), quand le checkpoint est redemandé, ou à la fermeture du ticket |
 | `close` | son checkpoint | à la fermeture d'un ticket, ou quand le checkpoint est redemandé |
 | `apply`, `push` | leur checkpoint | quand le checkpoint est redemandé |
+
+En cas d'échec de lecture git, ces protections restent **fermées** : si l'état du travail ne peut pas être lu après un appel shell, la fenêtre `commit` se referme (la frise en garde la raison ; redemander le checkpoint la rouvre) au lieu de rester ouverte ; la fermeture d'un ticket (`bd close`) est refusée tant qu'oh ne peut pas constater un commit non vide depuis le checkpoint et un arbre propre.
 
 ---
 

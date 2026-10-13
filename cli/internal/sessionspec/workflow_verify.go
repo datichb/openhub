@@ -51,6 +51,9 @@ type WhenFacts struct {
 	Labels  []string
 	Paths   []string
 	Outputs []string
+	// PathsUnknown: the changed paths could not be read (git refuses the
+	// repository): a paths condition holds (fails closed, a pause added).
+	PathsUnknown bool
 }
 
 // Holds reports whether one condition holds for facts, and which one.
@@ -69,6 +72,9 @@ func (w *WhenDef) Holds(f WhenFacts) (holds bool, why string) {
 				return true, "label: " + l
 			}
 		}
+	}
+	if len(w.Paths) > 0 && f.PathsUnknown {
+		return true, "paths: unknown"
 	}
 	for _, p := range w.Paths {
 		for _, have := range f.Paths {

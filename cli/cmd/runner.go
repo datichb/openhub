@@ -23,6 +23,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/gateway"
 	"github.com/datichb/openhub/cli/internal/gateway/beadswire"
+	"github.com/datichb/openhub/cli/internal/gitutil"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/provider"
 	"github.com/datichb/openhub/cli/internal/remote"
@@ -137,9 +138,14 @@ func runRunnerJob(cmd *cobra.Command, _ []string) error {
 	}
 	// Checkpoint verifications run in the clone as the account of the
 	// agents (the one of the tool server), never above it (R3-remote).
+	// Every other git read of oh in the clone (commit window, closing
+	// guard, configuration check, provenance…) runs as that account too
+	// once the clone is its own: never as root in a repository the agent
+	// configures, never with safe.directory (R3-remote-git).
 	checkpoints := newCheckpointService(a)
 	if user != nil {
 		checkpoints.Account = &checkpoint.Account{UID: user.UID, GID: user.GID, Home: serverHome}
+		gitutil.RegisterOwner(checkpoints.Account.Owner())
 	}
 	secrets := runner.CISecrets{LLMKey: job.Secrets.LLMKey}
 	paths := daemon.Paths{Dir: ohRunDir()}

@@ -83,7 +83,7 @@ Before a checkpoint passes, hence before its unlocks open, oh runs the verificat
 
 A project without a detected stack: "nothing to verify", the checkpoint passes and the card says so.
 
-**Verification impossible: never a silent pass.** When the work location cannot be found (folder deleted, `in` subfolder missing), the verification cannot run: the checkpoint **pauses in every mode**, `auto` included, even when it would usually pass on its own. The card shows "cannot run here"; "Validate" is refused and only **"Override the verification"** lets it pass, traced like a failure (`⚑`, `overridden` event). The agent call fails with `ErrVerifyUnavailable` and nothing is unlocked.
+**Verification impossible: never a silent pass.** When the work location cannot be found (folder deleted, `in` subfolder missing), the verification cannot run: the checkpoint **pauses in every mode**, `auto` included, even when it would usually pass on its own. The card shows "cannot run here"; "Validate" is refused and only **"Override the verification"** lets it pass, traced like a failure (`⚑`, `overridden` event). The agent call fails with `ErrVerifyUnavailable` and nothing is unlocked. The same goes when the location is a git repository git refuses to read (a repository of another owner, for one): with no known state of the work, no result can be tied to it, the card shows "git cannot read the state of the work" and no command runs.
 
 In a read-only workflow (`risk: read`), a verified checkpoint always asks the user: the commands only run once validated.
 
@@ -93,13 +93,13 @@ The shipped workflows verify `cp-2` (`ticket`, `feature`, `review-feedback`) and
 
 ### Remote sessions
 
-In a [remote session](../guides/remote-runners.en.md), the verification runs **where the work is**: in the job, on the clone of the project, with the same commands and the same guarantees (filtered environment, timeout, bounded output, process group killed at the deadline), as the `oh` account of the agents (the one of the tool server), never as root; the git reads of the verification too. Without an `oh` account in the image, it runs as the user of the job, like the server.
+In a [remote session](../guides/remote-runners.en.md), the verification runs **where the work is**: in the job, on the clone of the project, with the same commands and the same guarantees (filtered environment, timeout, bounded output, process group killed at the deadline), as the `oh` account of the agents (the one of the tool server), never as root; the git reads of the verification too, like every other git read of oh in the clone (`commit` window, closing guard, git configuration check…, see [Remote runs › Git reads of oh](../guides/remote-runners.en.md#6-in-the-job-oh-runner)). Without an `oh` account in the image, it runs as the user of the job, like the server.
 
 | Situation in the job | What oh does |
 |---|---|
 | `remote: auto` checkpoint, verification passed | approved by the policy responder, then passed |
 | `remote: auto` checkpoint, verification failed | never overridden in the job: the agent call is refused with the failure and the excerpt, nothing is unlocked (when the verification already ended as the responder answers, the decision is refused: "fix first"); the agent fixes the work and asks again |
-| verification impossible (location not found) | the checkpoint is **deferred**: the session stops cleanly, the rest (and the choice to override) happens on the machine |
+| verification impossible (location not found, repository git cannot read) | the checkpoint is **deferred**: the session stops cleanly, the rest (and the choice to override) happens on the machine |
 | `remote: defer` checkpoint | deferred, as before; the verification started when it was asked ends before the push, and its result comes back |
 
 The job waits for the running verifications before it stops the agent processes and pushes the branch. The last result of each checkpoint travels in `summary.json` (`verifications`); `oh session fetch` prints and imports it, cleaned and bounded: the checkpoint card shows "In the remote job: …" and the timeline keeps the entry (author `remote`). This result **never counts** as a verification on the machine: when the session resumes locally and asks the checkpoint again, oh verifies again, in the worktree of the pushed branch.
@@ -147,7 +147,7 @@ Conditions (one is enough): `entry` (entry agent of the session), `labels` (labe
 | `pause`, mandatory or unlocking checkpoint | pause | **pause** |
 | `skip` | skipped | skipped |
 
-`when:` can only **add** a pause, never remove a mandatory one. Without `when:`, a `conditional` checkpoint always asks the user (oh cannot evaluate the `condition` sentence). A layer cannot drop an inherited condition (`loosening`).
+When the changed paths cannot be read (git refuses the repository), a `paths` condition is taken as true: the pause is added rather than lost. `when:` can only **add** a pause, never remove a mandatory one. Without `when:`, a `conditional` checkpoint always asks the user (oh cannot evaluate the `condition` sentence). A layer cannot drop an inherited condition (`loosening`).
 
 ---
 
@@ -159,6 +159,8 @@ Conditions (one is enough): `entry` (entry agent of the session), `labels` (labe
 | `commit` | its checkpoint (`cp-2`, `cp-commit`) | **once the work is committed** (HEAD moved and nothing is left to commit: one commit, or several in a row), when the checkpoint is asked again, or when the ticket is closed |
 | `close` | its checkpoint | when a ticket is closed, or when the checkpoint is asked again |
 | `apply`, `push` | their checkpoint | when the checkpoint is asked again |
+
+When a git read fails, these protections stay **closed**: when the state of the work cannot be read after a shell call, the `commit` window closes (the timeline keeps the reason; asking the checkpoint again opens it) instead of staying open; closing a ticket (`bd close`) is refused as long as oh cannot see a non-empty commit since the checkpoint and a clean tree.
 
 ---
 
