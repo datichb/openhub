@@ -1,6 +1,7 @@
 ---
 name: doc-slides
 description: "Utiliser pour produire une présentation Marp : branding, structure par type, compilation HTML/PDF."
+annexes: [templates/marp-slide-templates.md]
 ---
 
 # Skill — Présentations Marp
@@ -18,7 +19,7 @@ tu t'adaptes à leur format et leur emplacement.
 
 ❌ Tu ne génères JAMAIS un fichier de slides sans avoir exploré l'existant au préalable
 ❌ Tu ne compiles JAMAIS en HTML/PDF sans confirmation explicite de l'utilisateur
-❌ Tu ne choisis JAMAIS le thème ou la structure sans avoir posé les questions de contexte minimales
+❌ Tu ne choisis JAMAIS le thème ou la structure sans avoir établi le contexte minimal (voir « Questions de contexte »)
 ✅ Explorer → branding entreprise → proposer → confirmer → écrire → proposer la compilation
 ✅ Si des slides existent déjà dans le projet, s'adapter à leur format et emplacement
 ✅ Le fichier `.md` Marp est toujours livrable, même sans compilation
@@ -50,7 +51,7 @@ SI l'outil get_template_branding est accessible :
     → Stocker le champ marpFrontmatter retourné (prêt à l'emploi)
   SINON :
     → Appeler list_presentations() pour afficher les templates accessibles
-    → Demander à l'utilisateur quel template utiliser via question()
+    → Faire choisir le template à l'utilisateur (voir « Questions de contexte »)
     → Appeler get_template_branding({ presentationId: <ID choisi> })
 SINON (MCP non configuré) :
   → Passer à l'Étape 0 (comportement standard avec thèmes Marp natifs)
@@ -59,33 +60,8 @@ SINON (MCP non configuré) :
 ### Injection du branding dans le frontmatter
 
 Quand un branding est disponible, utiliser le `marpFrontmatter` retourné par `get_template_branding`
-**à la place** du frontmatter standard (ne pas utiliser `theme: default|gaia|uncover`) :
-
-```markdown
----
-marp: true
-paginate: true
-style: |
-  section {
-    background: #1a1a2e;
-    color: #ffffff;
-    font-family: 'Montserrat', Arial, sans-serif;
-  }
-  h1, h2, h3 {
-    color: #e94560;
-  }
-  a {
-    color: #e94560;
-  }
-  section.lead {
-    background: #e94560;
-    color: #1a1a2e;
-  }
-  section.lead h1 {
-    color: #1a1a2e;
-  }
----
-```
+**à la place** du frontmatter standard (ne pas utiliser `theme: default|gaia|uncover`) : un bloc
+`marp: true`, `paginate: true` et `style: |` qui porte le CSS du branding (fond, couleurs, police).
 
 > **Note** : le champ `theme` est omis intentionnellement — Marp applique le CSS directement.
 > Le `marpFrontmatter` retourné par `get_template_branding` contient déjà le bloc complet.
@@ -103,18 +79,10 @@ Indiquer à l'utilisateur le template détecté :
 
 ## Étape 0 — Exploration obligatoire
 
-Avant de générer, explorer :
+Avant de générer, explorer avec `glob` (et `ls`) :
 
-```bash
-# Slides existants
-find . -name "*.md" -path "*/presentations/*" 2>/dev/null | head -10
-find . -name "*.md" -path "*/slides/*" 2>/dev/null | head -10
-ls docs/presentations/ 2>/dev/null || echo "Pas de docs/presentations/"
-
-# Vérifier si un thème Marp custom est déjà défini
-find . -name "*.css" -path "*marp*" -o -name "*.css" -path "*theme*" 2>/dev/null | head -5
-find . -name ".marprc*" -o -name "marp.config.*" 2>/dev/null | head -3
-```
+- slides existants : `**/presentations/**/*.md`, `**/slides/**/*.md`, le dossier `docs/presentations/` ;
+- thème Marp custom : `**/*marp*.css`, `**/theme*/*.css`, `.marprc*`, `marp.config.*`.
 
 Lire un fichier de slides existant s'il en existe un pour détecter :
 - Le thème utilisé (`theme: default | gaia | uncover | custom`)
@@ -125,6 +93,10 @@ Lire un fichier de slides existant s'il en existe un pour détecter :
 
 ## Questions de contexte
 
+Il te faut le type de présentation (démo technique, pitch stakeholders, retrospective, onboarding),
+et, avec un branding Google Slides sans template par défaut, le template à utiliser.
+
+<!-- oh:when role=entry -->
 Si la demande ne précise pas ces éléments, les demander via l'outil `question` :
 
 ```
@@ -141,9 +113,13 @@ question({
   }]
 })
 ```
+<!-- /oh:when -->
+<!-- oh:when role=subagent -->
+Sous-agent : déduis le type de la demande et du contexte, note-le comme hypothèse dans ton rapport ; seul un type impossible à déduire (ou le template de branding à choisir) devient une question bloquante.
+<!-- /oh:when -->
 
 Si l'audience, le nombre de slides souhaité ou un thème particulier ne sont pas précisés,
-utiliser les valeurs par défaut des templates ci-dessous et le signaler.
+utiliser les valeurs par défaut des templates et le signaler.
 
 ---
 
@@ -198,265 +174,9 @@ paginate: true
 
 ## Templates par type de présentation
 
-### Tech demo / feature
-
-```markdown
----
-marp: true
-theme: default
-paginate: true
----
-
-<!-- _class: lead -->
-<!-- _paginate: false -->
-
-# [Titre de la feature]
-
-**[Équipe / Auteur]** · [Date]
-
----
-
-## Contexte
-
-> [Problème ou besoin initial en 1-2 phrases]
-
-- [Contrainte ou enjeu clé 1]
-- [Contrainte ou enjeu clé 2]
-
----
-
-## Solution
-
-[Description en 1 phrase]
-
-```[langage]
-// Exemple de code représentatif (< 15 lignes)
-```
-
----
-
-## Architecture
-
-[Schéma ou liste structurée — éviter les phrases]
-
-```
-[Composant A] → [Composant B] → [Composant C]
-```
-
----
-
-## Démo
-
-> [Ce qu'on va montrer]
-
-1. [Étape 1]
-2. [Étape 2]
-3. [Résultat attendu]
-
----
-
-## Résultats / Métriques
-
-| Avant | Après |
-|-------|-------|
-| [valeur] | [valeur] |
-
----
-
-<!-- _class: lead -->
-
-## Next steps
-
-- [ ] [Action 1]
-- [ ] [Action 2]
-
-**Questions ?**
-```
-
----
-
-### Product pitch / stakeholders
-
-```markdown
----
-marp: true
-theme: gaia
-paginate: true
----
-
-<!-- _class: lead -->
-<!-- _paginate: false -->
-
-# [Nom du produit / feature]
-
-[Tagline en 1 phrase]
-
-**[Auteur]** · [Date]
-
----
-
-## Problème
-
-> [Douleur utilisateur en 1 phrase]
-
-[2-3 bullets factuels avec données si possible]
-
----
-
-## Solution
-
-[Description orientée valeur — pas technique]
-
----
-
-## Impact
-
-| Indicateur | Valeur |
-|------------|--------|
-| [KPI 1] | [Valeur] |
-| [KPI 2] | [Valeur] |
-
----
-
-## Roadmap
-
-| Phase | Périmètre | Timing |
-|-------|-----------|--------|
-| Phase 1 | [scope] | [date] |
-| Phase 2 | [scope] | [date] |
-
----
-
-<!-- _class: lead -->
-
-## Décision demandée
-
-> [Ce qu'on attend des participants]
-
-**Questions ?**
-```
-
----
-
-### Retrospective / bilan
-
-```markdown
----
-marp: true
-theme: default
-paginate: true
----
-
-<!-- _class: lead -->
-<!-- _paginate: false -->
-
-# Retrospective — [Sprint / Projet]
-
-[Période] · [Équipe]
-
----
-
-## Ce qui a bien fonctionné
-
-- [Point positif 1]
-- [Point positif 2]
-- [Point positif 3]
-
----
-
-## Ce qui peut s'améliorer
-
-- [Point d'amélioration 1]
-- [Point d'amélioration 2]
-
----
-
-## Actions décidées
-
-| Action | Responsable | Échéance |
-|--------|-------------|----------|
-| [action] | [qui] | [quand] |
-
----
-
-## Métriques du sprint
-
-| Indicateur | Valeur |
-|------------|--------|
-| Vélocité | [pts] |
-| Bugs ouverts | [n] |
-| Taux de complétion | [%] |
-```
-
----
-
-### Onboarding / formation
-
-```markdown
----
-marp: true
-theme: default
-paginate: true
----
-
-<!-- _class: lead -->
-<!-- _paginate: false -->
-
-# [Titre du sujet]
-
-Formation · [Audience] · [Date]
-
----
-
-## Objectifs
-
-À la fin de cette présentation, vous saurez :
-
-1. [Objectif 1]
-2. [Objectif 2]
-3. [Objectif 3]
-
----
-
-## Plan
-
-1. [Section 1]
-2. [Section 2]
-3. [Section 3]
-4. Questions
-
----
-
-<!-- Répéter ce pattern pour chaque section -->
-
-## [Section 1] — [Titre]
-
-[Concept principal en 1-2 phrases]
-
-```[langage]
-// Exemple concret si applicable
-```
-
----
-
-## Récapitulatif
-
-| Concept | En une phrase |
-|---------|---------------|
-| [A] | [définition] |
-| [B] | [définition] |
-
----
-
-<!-- _class: lead -->
-
-## Ressources
-
-- [Lien doc interne]
-- [Lien doc externe]
-
-**Questions ?**
-```
+Avant d'écrire le fichier, lis avec `read` le template du type retenu dans
+`templates/marp-slide-templates.md` (tech demo, product pitch, retrospective, onboarding)
+et remplis-le avec le contenu du projet.
 
 ---
 
@@ -508,35 +228,10 @@ Exemples : `demo-v2.0-2025-05.md`, `retro-sprint-42-2025-05.md`, `onboarding-bac
 
 ---
 
-## Workflow post-génération — détection et compilation
+## Après la génération — compilation
 
-Après avoir écrit le fichier `.md`, exécuter la détection :
-
-```bash
-# Détection Marp
-MARP_PATH=$(which marp 2>/dev/null)
-NPX_MARP=$(npx --no-install @marp-team/marp-cli --version 2>/dev/null && echo "ok")
-```
-
-### Si Marp est disponible
-
-Proposer la compilation via l'outil `question` :
-
-```
-question({
-  questions: [{
-    header: "Compilation Marp",
-    question: "Marp est disponible. Compiler le fichier en HTML maintenant ?",
-    options: [
-      { label: "Compiler en HTML (Recommandé)", description: "Génère un fichier .html autonome présentable dans un navigateur" },
-      { label: "Compiler en PDF", description: "Génère un fichier .pdf — nécessite Chromium ou Chrome installé" },
-      { label: "Non, garder uniquement le .md", description: "Le fichier Marp source est suffisant pour l'instant" }
-    ]
-  }]
-})
-```
-
-Commandes de compilation :
+Le fichier `.md` est le livrable. Tu ne lances pas Marp (ton shell ne le permet pas) : donne à
+l'utilisateur les commandes pour compiler, et signale que la compilation attend sa confirmation.
 
 <!-- capability: user -->
 ```bash
@@ -545,20 +240,14 @@ marp docs/presentations/[fichier].md -o docs/presentations/[fichier].html
 # ou avec npx
 npx @marp-team/marp-cli docs/presentations/[fichier].md -o docs/presentations/[fichier].html
 
-# PDF
+# PDF (Chromium ou Chrome requis)
 marp --pdf docs/presentations/[fichier].md -o docs/presentations/[fichier].pdf
 ```
 
-### Si Marp n'est pas disponible
-
-Informer sans bloquer :
+Sans Marp installé :
 
 <!-- capability: user -->
 ```
-Le fichier Marp a été généré : docs/presentations/[fichier].md
-
-Pour le convertir en HTML ou PDF, plusieurs options :
-
 | Option | Commande / Lien |
 |--------|-----------------|
 | npx (Node.js requis) | `npx @marp-team/marp-cli [fichier].md -o [fichier].html` |
@@ -566,15 +255,3 @@ Pour le convertir en HTML ou PDF, plusieurs options :
 | VS Code | Extension "Marp for VS Code" (prévisualisation + export) |
 | En ligne | https://web.marp.app (coller le contenu Markdown) |
 ```
-
----
-
-## Exemples d'invocation
-
-| Demande | Action |
-|---------|--------|
-| `"Crée une présentation pour la démo de la v2.0"` | Exploration → question contexte → template tech-demo → génération → détection Marp |
-| `"Slides de retrospective pour le sprint 42"` | Template retro → pré-rempli avec les infos disponibles → génération |
-| `"Fais un pitch pour les stakeholders sur la feature paiement"` | Template product-pitch → question audience → génération |
-| `"Onboarding slides pour les nouveaux devs backend"` | Template onboarding → exploration README/docs → contenu contextualisé |
-| `"Qu'est-ce qui existe comme slides dans ce projet ?"` | Exploration docs/presentations/ → rapport des slides existants |

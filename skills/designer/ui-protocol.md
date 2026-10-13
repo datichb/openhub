@@ -1,6 +1,7 @@
 ---
 name: ui-protocol
 description: "Utiliser en mode ui du designer : tokens, typographie, couleur, Design It Twice, format de spec de composant."
+annexes: [templates/design-it-twice.md]
 ---
 
 # Skill — Protocole UI Designer
@@ -214,51 +215,14 @@ Produire 2-3 variations UI structurellement différentes quand **toutes** ces co
 - L'interface est simple (1 action, 1 résultat, peu de données)
 - La spec UX a déjà prescrit la structure (les variations UI seraient cosmétiques, pas structurelles)
 
-### Ce que "structurellement différent" signifie
+### Produire les variations
 
-Les variations doivent différer sur **l'organisation de l'information**, pas sur les détails visuels :
-- Variation A : layout en grille avec filtres latéraux
-- Variation B : layout en liste avec filtres en barre supérieure
-- Variation C : layout en cards avec navigation par onglets
+Quand le Design It Twice est déclenché, lis avec `read` `templates/design-it-twice.md` avant de
+produire les variations : ce qui les rend structurellement différentes (organisation de
+l'information, pas détails visuels), leur format et la recommandation qui les conclut.
 
-❌ Ne sont PAS des variations structurelles :
-- Même layout avec des couleurs différentes
-- Même structure avec des icônes à la place du texte
-- Même organisation avec des tailles de composants différentes
-
-### Format des variations
-
-Pour chaque variation, produire un résumé structuré :
-
-```markdown
-### Variation A — <nom court : ex "Grille + filtres latéraux">
-**Organisation :** <description en 2-3 phrases>
-**Forces :** <ce que cette approche fait mieux>
-**Faiblesses :** <ce que cette approche fait moins bien>
-**Composants design system :** <liste>
-**Accessibilité :** <implications spécifiques>
-```
-
-Conclure avec une recommandation argumentée :
-```markdown
-### Recommandation
-**Variation recommandée :** <A/B/C> parce que <raison basée sur les forces/faiblesses>.
-```
-
-### Workflow en standalone
-
-1. Produire les variations → les afficher
-2. Question : "Quelle variation préférez-vous ? (Ou une combinaison ?)"
-3. Produire la spec finale basée sur le choix
-
-### Workflow en subagent
-
-1. Produire les variations dans ton rapport
-2. Ajouter `### Statut : choix-requis` (au lieu de `spec-complète`)
-3. Rendre l'enveloppe et terminer la session → ton appelant relaie le choix à l'utilisateur
-4. À la ré-invocation avec le choix → produire la spec finale avec `### Statut : spec-complète`
-
-> **Comptage** : le round de choix de variation + les corrections éventuelles comptent dans la review bornée (3 rounds max). Donc : 1 round variations + 1 round spec finale + 1 round corrections max.
+Le choix entre les variations suit ton parcours d'exécution (agent d'entrée : `question` ; sous-agent :
+statut `choix-requis`, puis spec finale à la relance).
 
 ### `### Alternatives écartées` enrichi
 
@@ -368,13 +332,11 @@ Avant de valider une spec de composant, vérifier :
 
 ---
 
-## Workflow
-
-### Si aucun design system n'existe
+## Si aucun design system n'existe
 
 Avant de spécifier le moindre composant, proposer de poser les fondations (tokens de base).
 
-**En mode standalone :**
+<!-- oh:when role=entry -->
 ```
 question({
   questions: [{
@@ -387,32 +349,7 @@ question({
   }]
 })
 ```
-
-**En mode sous-agent :** pas de question ni d'arrêt : propose les fondations en hypothèse documentée dans la spec (palette, typographie, espacement, radius), puis le composant ; la décision « fondations d'abord ou composant direct » va dans `### Points ouverts`.
-
-### Avec ticket Beads
-
-1. `bd show <ID>` — lire le détail
-2. Explorer le design system existant (tokens définis, composants existants)
-3. Identifier les composants concernés et les tokens à utiliser ou créer
-4. Produire la spécification
-5. Présenter avec les options de direction artistique si choix à faire — attendre validation
-6. Signaler la validation dans la passation : la fermeture du ticket de spécification revient au coordinateur
-
-### Sans ticket (demande directe)
-
-1. Explorer ce qui existe (design system, tokens, composants)
-2. Identifier le périmètre exact (composant, token, guideline, ou fondations)
-3. Produire la spécification
-4. Présenter et attendre la validation explicite
-
----
-
-## Ce que tu ne fais PAS
-
-- Décider seul de la palette de marque ou de la direction artistique — toujours proposer des options
-- Spécifier un composant qui existe déjà sans l'avoir lu
-- Utiliser des valeurs en dur dans les specs (`#3B82F6`, `16px`) — uniquement des tokens
-- Ignorer les états d'accessibilité (focus visible, contraste, ARIA)
-- Produire du code CSS, JavaScript ou tout autre fichier de code
-- Valider une spec toi-même — la validation est toujours explicite par l'utilisateur
+<!-- /oh:when -->
+<!-- oh:when role=subagent -->
+Sous-agent : pas de question ni d'arrêt : propose les fondations en hypothèse documentée dans la spec (palette, typographie, espacement, radius), puis le composant ; la décision « fondations d'abord ou composant direct » va dans `### Points ouverts`.
+<!-- /oh:when -->

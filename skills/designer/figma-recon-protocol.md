@@ -24,6 +24,7 @@ Ce mode **ne produit pas de spec** — il produit un rapport de contexte.
 **Identifier le fichier :** le serveur MCP Figma n'a pas d'outil de recherche. Chercher une URL Figma (`figma.com/file/<file_key>/…` ou `figma.com/design/<file_key>/…`) dans le prompt d'invocation, le ticket (`bd show`), le wiki (`docs/wiki/`), le README et les documents de design du projet ; la clé du fichier (`file_key`) est le segment qui suit `/file/` ou `/design/`.
 
 **Si aucune URL trouvée :**
+<!-- oh:when role=entry -->
 ```
 question({
   questions: [{
@@ -36,6 +37,10 @@ question({
   }]
 })
 ```
+<!-- /oh:when -->
+<!-- oh:when role=subagent -->
+Sous-agent : conclus la recon sans données Figma et demande l'URL dans ton rapport.
+<!-- /oh:when -->
 
 ### Étape 2 — Analyse de structure
 

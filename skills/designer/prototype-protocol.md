@@ -46,6 +46,7 @@ Le designer en mode prototype **ne produit PAS de code**. L'artefact est un arte
 
 ## Format de sortie
 
+<!-- oh:when role=entry -->
 ### Mode standalone
 
 Afficher l'artefact directement dans la discussion, puis :
@@ -63,10 +64,12 @@ question({
   }]
 })
 ```
-
+<!-- /oh:when -->
+<!-- oh:when role=subagent -->
 ### Mode subagent
 
 Rapport du mode prototype (`### Artefact`, `### Réponse à la question`, `### Recommandation`), enveloppe au statut `prototype-livré`, puis fin de la session.
+<!-- /oh:when -->
 
 ## Compatibilité
 

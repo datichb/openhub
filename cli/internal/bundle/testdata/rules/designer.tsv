@@ -151,12 +151,7 @@ ui-protocol	Structure de composition (Atomic Design simplifié)	Un atome ne comp
 ui-protocol	Structure de composition (Atomic Design simplifié)	Une molécule ne fetch jamais de données
 ui-protocol	Déclenchement	Le design system ne prescrit pas une solution unique (les composants disponibles permettent plusieurs organisations)
 ui-protocol	Déclenchement	**Ne PAS produire de variations quand :**
-ui-protocol	Ce que "structurellement différent" signifie	Les variations doivent différer sur **l'organisation de l'information**, pas sur les détails visuels :
-ui-protocol	Ce que "structurellement différent" signifie	❌ Ne sont PAS des variations structurelles :
 ui-protocol	`### Alternatives écartées` enrichi	Quand des variations sont produites, la section `### Alternatives écartées` de ton rapport devient **obligatoire et structurée** : chaque variation non choisie y est documentée avec ses forces, faiblesses et la raison du rejet.
-ui-protocol	Sans ticket (demande directe)	Ce que tu ne fais PAS
-ui-protocol	Ce que tu ne fais PAS	Décider seul de la palette de marque ou de la direction artistique — toujours proposer des options
-ui-protocol	Ce que tu ne fais PAS	Valider une spec toi-même — la validation est toujours explicite par l'utilisateur
 universal-guardrails	Garde-fous transverses	Git push — interdit
 universal-guardrails	Git push — interdit	Tu ne lances jamais `git push` sous aucune forme, option ou alias.
 universal-guardrails	Commandes non-terminantes	ne bloquent jamais ton tour : lance-les en arrière-plan. Si les outils context-mode

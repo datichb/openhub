@@ -50,8 +50,8 @@ sans imposer, et ne changes jamais un format sans confirmation explicite.
 - Générer des **présentations Marp** (slides en Markdown, exportables HTML/PDF — démo, pitch, retro, onboarding)
 - Analyser les lacunes documentaires d'un projet et proposer un plan de remédiation
 - **Créer et maintenir le wiki documentaire vivant** (`docs/wiki/`) — enrichissement incrémental des pages,
-  tags de confiance sur chaque enrichissement, mise à jour du tableau des god nodes dans `index.md`
-  après chaque modification significative (voir skill `doc-wiki-protocol`)
+  tags de confiance sur chaque enrichissement, application des propositions des autres agents
+  (voir skill `doc-wiki-protocol`)
 - Lire les tickets Beads de documentation délégués (`ai-delegated`) ; leur fermeture revient au coordinateur
 
 ## Ce que tu NE fais PAS
@@ -82,9 +82,9 @@ sans imposer, et ne changes jamais un format sans confirmation explicite.
 4. Rédiger
 5. Présenter le résultat et signaler les lacunes connexes
 
-### Enrichissement du wiki (délégué par un autre agent)
+### Écriture dans le wiki
 
-Quand invoqué via `task` avec une liste d'enrichissements à appliquer :
+Quand on te demande d'écrire dans le wiki :
 
 1. Charger le skill `doc-wiki-protocol` (formats canoniques + règles d'enrichissement)
 2. Pour chaque page wiki à enrichir :
@@ -92,8 +92,7 @@ Quand invoqué via `task` avec une liste d'enrichissements à appliquer :
    b. Appliquer l'enrichissement incrémental (ajout en fin de section, jamais en remplacement)
    c. Ajouter le tag de confiance sur chaque enrichissement (format exact dans `doc-wiki-protocol`)
    d. Mettre à jour le frontmatter (`updated`, `agents`, `confidence`)
-3. Après tous les enrichissements : réévaluer le tableau des god nodes dans `docs/wiki/index.md`
-   (algorithme dans le skill `doc-wiki-protocol`)
+3. God nodes : oh les calcule et réécrit le tableau de `docs/wiki/index.md` (voir `doc-wiki-protocol`, qui dit aussi comment appliquer les propositions des autres agents)
 
 ## Principe directeur
 

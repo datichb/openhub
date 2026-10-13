@@ -1,6 +1,7 @@
 ---
 name: doc-wiki-protocol
 description: "Utiliser pour écrire dans docs/wiki/ : formats canoniques, frontmatter, tags de confiance, god nodes."
+annexes: [templates/wiki-pages-index.md, templates/wiki-pages-technical.md, templates/wiki-pages-business.md]
 ---
 
 # Skill — Protocole du Wiki Documentaire Vivant
@@ -10,7 +11,8 @@ description: "Utiliser pour écrire dans docs/wiki/ : formats canoniques, frontm
 Ce skill définit le format exact de chaque page du wiki et les règles d'écriture
 que le `documentarian` doit respecter pour maintenir la cohérence du système.
 
-Il est chargé par le `documentarian` uniquement lors d'opérations d'écriture sur le wiki.
+Il est chargé par le `documentarian` lors d'opérations d'écriture sur le wiki, et par l'`onboarder`
+à la création du wiki.
 
 Les autres agents n'écrivent pas dans le wiki : ils proposent avec `wiki_propose` ; oh applique
 les propositions validées par l'utilisateur à la carte du checkpoint de commit, en suivant ce format
@@ -129,371 +131,23 @@ Chaque enrichissement doit porter un tag de confiance inline en fin de ligne ou 
 
 ---
 
-## Format canonique — `docs/wiki/index.md`
+## Formats canoniques des pages (annexes à la demande)
 
-```markdown
----
-updated: YYYY-MM-DD
-confidence: confirmed | mixed | uncertain
-agents: [<agents ayant contribué>]
----
+Avant de créer une page ou d'en réécrire la structure, lis avec `read` l'annexe qui donne son
+format canonique ; un enrichissement d'une page existante n'en a pas besoin (suis ses sections).
 
-# [Nom du projet] — Index Wiki
+| Page | Annexe à lire |
+|------|---------------|
+| `docs/wiki/index.md`, `ONBOARDING.md` | `templates/wiki-pages-index.md` |
+| `technical/conventions.md`, `architecture.md`, `stack.md`, `tests.md`, `review-rules.md` | `templates/wiki-pages-technical.md` |
+| `business/index.md`, `business/<domain>.md` | `templates/wiki-pages-business.md` |
 
-## Stack critique
-<3-5 lignes condensées : langages, frameworks principaux, BDD — les éléments
-qui conditionnent tout le reste>
-— `CONFIRMÉ` · <agent> · <date> · <fichier>
-
-## Architecture (résumé)
-<2-3 lignes : pattern dominant, découpage, communication entre couches>
-— `CONFIRMÉ` · <agent> · <date>
-
-## God nodes — concepts les plus connectés
-
-| Concept | Pages liées | Criticité |
-|---------|-------------|-----------|
-| <Concept A> | [technical/architecture.md#section](), [business/domain.md]() | Critique |
-| <Concept B> | [technical/conventions.md#section](), [business/other.md]() | Haute |
-
-*(Vide si aucun concept n'apparaît dans ≥ 2 pages)*
-
-## Carte des domaines métier
-
-- [<domain>](business/<domain>.md) — <description courte en 1 phrase>
-
-*(Vide si aucun domaine métier détecté)*
-
-## Points critiques actifs 🔴
-
-- <Point critique 1> — `CONFIRMÉ` · <agent> · <date>
-
-*(Vide si aucun point critique actif)*
-
-## Zones d'ombre
-
-- <Zone non résolue 1>
-- <Zone non résolue 2>
-
-*(Vide si tout est documenté)*
-```
-
-**Règles spécifiques à `index.md` :**
-- C'est la seule page que TOUS les agents lisent systématiquement
-- Elle doit rester compacte — 40-80 lignes maximum hors frontmatter
-- Ne jamais dupliquer le contenu détaillé des sous-pages
+**Règles des pages :**
+- `index.md` est la seule page que tous les agents lisent systématiquement. Elle doit rester compacte — 40-80 lignes maximum hors frontmatter
+- Ne jamais dupliquer le contenu détaillé des sous-pages dans `index.md`
 - Les liens vers les sous-pages sont obligatoires dans la table des god nodes
-
----
-
-## Format canonique — `docs/wiki/technical/conventions.md`
-
-```markdown
----
-updated: YYYY-MM-DD
-confidence: confirmed | mixed | uncertain
-agents: [<agents>]
----
-
-# Conventions — [Nom du projet]
-
-## Linting & formatage
-- <Convention 1> — `CONFIRMÉ` · <agent> · <date> · <fichier config>
-- <Convention 2> — `DÉDUIT` · <agent> · <date>
-
-## Nommage
-- <Convention fichiers/dossiers> — `CONFIRMÉ` · <agent> · <date>
-- <Convention variables/fonctions> — `CONFIRMÉ` · <agent> · <date>
-- <Convention classes/interfaces> — `CONFIRMÉ` · <agent> · <date>
-
-## Git
-- <Format des commits> — `CONFIRMÉ` · <agent> · <date>
-- <Convention de branches> — `DÉDUIT` · <agent> · <date>
-
-## Configuration & secrets
-- <Convention .env / secrets> — `CONFIRMÉ` · <agent> · <date>
-
-## Patterns spécifiques à l'équipe
-- <Pattern observé 1> — `CONFIRMÉ` · <agent> · <date> · <fichier:ligne>
-- <Pattern observé 2> — `DÉDUIT` · <agent> · <date>
-
-## À ne pas utiliser
-- <Librairie/pattern explicitement exclu> — `CONFIRMÉ` · <agent> · <date>
-```
-
----
-
-## Format canonique — `docs/wiki/technical/architecture.md`
-
-```markdown
----
-updated: YYYY-MM-DD
-confidence: confirmed | mixed | uncertain
-agents: [<agents>]
----
-
-# Architecture — [Nom du projet]
-
-## Structure globale
-<Monorepo / monolithe / microservices — avec justification observée>
-— `CONFIRMÉ` · <agent> · <date>
-
-## Découpage en couches
-<Description du découpage observé — ex: Controller → Service → Repository>
-— `CONFIRMÉ` · <agent> · <date> · <dossier>
-
-## Communication entre modules
-<HTTP, événements, queues, imports directs — selon ce qui est observé>
-— `DÉDUIT` · <agent> · <date>
-
-## Décisions architecturales notables
-- <Décision 1 : pourquoi ce pattern a été choisi si documenté>
-  — `CONFIRMÉ` · <agent> · <date> · <ADR ou fichier>
-- <Décision 2>
-  — `INCERTAIN` · <agent> · <date>
-
-## Points de fragilité connus
-- <Zone fragile 1> — `CONFIRMÉ` · <agent> · <date> · <fichier>
-```
-
----
-
-## Format canonique — `docs/wiki/technical/stack.md`
-
-```markdown
----
-updated: YYYY-MM-DD
-confidence: confirmed | mixed | uncertain
-agents: [<agents>]
----
-
-# Stack — [Nom du projet]
-
-## Dépendances principales
-
-| Catégorie | Technologie | Version | Notes |
-|-----------|-------------|---------|-------|
-| Langage | TypeScript | 5.x | |
-| Framework | Vue 3 | 3.4.x | |
-| BDD | PostgreSQL | 15 | ORM : Prisma |
-
-— `CONFIRMÉ` · <agent> · <date> · package.json
-
-## Librairies clés
-
-- `<lib>` — <rôle dans le projet> — `CONFIRMÉ` · <agent> · <date>
-- `<lib>` — <rôle dans le projet> — `CONFIRMÉ` · <agent> · <date>
-
-## Variables d'environnement requises
-
-- `<VAR>` — <description> — `CONFIRMÉ` · <agent> · <date> · .env.example
-
-## Contraintes de version
-
-- <Contrainte 1 si applicable> — `CONFIRMÉ` · <agent> · <date>
-```
-
----
-
-## Format canonique — `docs/wiki/technical/tests.md`
-
-```markdown
----
-updated: YYYY-MM-DD
-confidence: confirmed | mixed | uncertain
-agents: [<agents>]
----
-
-# Stratégie de tests — [Nom du projet]
-
-## Frameworks
-
-- Unitaires : <framework> — `CONFIRMÉ` · <agent> · <date> · <fichier config>
-- E2E : <framework ou "Aucun"> — `CONFIRMÉ` · <agent> · <date>
-
-## Organisation
-
-- <Co-localisés `.spec.ts` à côté du code / dossier `tests/` séparé>
-  — `CONFIRMÉ` · <agent> · <date>
-
-## Seuil de couverture
-
-- <X% configuré dans <fichier> / Non configuré>
-  — `CONFIRMÉ` · <agent> · <date> · <fichier config>
-
-## Philosophie
-
-- <TDD / test-after / BDD — avec signe observé>
-  — `DÉDUIT` · <agent> · <date>
-
-## Commandes
-
-```bash
-# Tests unitaires
-<commande>
-
-# Tests E2E
-<commande ou "Non configuré">
-
-# Couverture
-<commande ou "Non configuré">
-```
-— `CONFIRMÉ` · <agent> · <date> · package.json
-
-## Conventions de nommage des tests
-
-- <Convention observée> — `CONFIRMÉ` · <agent> · <date> · <fichier exemple>
-```
-
----
-
-## Format canonique — `docs/wiki/technical/review-rules.md`
-
-Page **optionnelle** — créée quand le projet a des règles de review spécifiques qui ne sont pas
-couvertes par les conventions générales ou les standards de développement. Consultée par l'agent
-`reviewer` à chaque review (si elle existe) pour éviter les faux positifs et calibrer les findings.
-
-```markdown
----
-updated: YYYY-MM-DD
-confidence: confirmed | mixed
-agents: [documentarian, reviewer]
----
-
-# Règles de review — [Nom du projet]
-
-## Fichiers exclus (supplémentaires)
-
-<Patterns de fichiers spécifiques au projet à exclure de la review, en complément
-des exclusions par défaut du review-protocol (lock files, generated, minified, build output)>
-
-- `<pattern>` — <raison>
-
-## Patterns intentionnels — ne pas signaler
-
-<Pratiques qui pourraient sembler inhabituelles ou contraires aux standards génériques
-mais qui sont des choix délibérés du projet. Le reviewer NE DOIT PAS les signaler comme findings.>
-
-- **<Pattern>** — <justification> — `CONFIRMÉ` · <agent> · <date> · <fichier(s) source>
-
-## Points d'attention spécifiques
-
-<Ce que le reviewer doit toujours vérifier sur ce projet, au-delà de la checklist standard.>
-
-- <Règle spécifique> — <contexte / raison>
-
-## Seuils du projet
-
-<Seuils spécifiques qui overrident les standards génériques du review-protocol.>
-
-| Seuil | Standard générique | Seuil projet | Raison |
-|-------|--------------------|-------------|--------|
-| <ex: Longueur max fonction> | <30 lignes> | <50 lignes> | <ex: handlers de migration complexes> |
-```
-
----
-
-## Format canonique — `docs/wiki/business/index.md`
-
-```markdown
----
-updated: YYYY-MM-DD
-confidence: confirmed | mixed | uncertain
-agents: [<agents>]
----
-
-# Domaines métier — [Nom du projet]
-
-## Vue d'ensemble
-
-<2-3 phrases décrivant le domaine principal et les utilisateurs cibles>
-— `CONFIRMÉ` · <agent> · <date>
-
-## Domaines documentés
-
-| Domaine | Fichier | Concepts clés |
-|---------|---------|---------------|
-| <domain> | [business/<domain>.md](business/<domain>.md) | <Concept A, Concept B> |
-
-## Concepts transversaux
-
-- <Concept présent dans plusieurs domaines> — lié à [<domain1>](business/<domain1>.md) et [<domain2>](business/<domain2>.md)
-  — `CONFIRMÉ` · <agent> · <date>
-
-## Utilisateurs cibles
-
-- <Rôle utilisateur 1> — <description courte>
-  — `CONFIRMÉ` · <agent> · <date>
-```
-
----
-
-## Format canonique — `docs/wiki/business/<domain>.md`
-
-```markdown
----
-updated: YYYY-MM-DD
-confidence: confirmed | mixed | uncertain
-agents: [<agents>]
----
-
-# [Domaine] — [Nom du projet]
-
-## Rôle de ce domaine
-<1-2 phrases : ce que ce domaine gère, son périmètre dans le projet>
-— `CONFIRMÉ` · <agent> · <date>
-
-## Entités clés
-
-- `<Entité>` — <description courte + où elle est définie>
-  — `CONFIRMÉ` · <agent> · <date> · <fichier>
-
-## Règles de gestion
-
-- <Règle 1 — ex: "Un utilisateur ne peut avoir qu'un seul rôle actif">
-  — `CONFIRMÉ` · <agent> · <date> · <fichier:ligne>
-
-- <Règle 2>
-  — `DÉDUIT` · <agent> · <date>
-
-## Flux principaux
-
-1. <Flux 1 — ex: "Inscription → Vérification email → Activation compte">
-   — `CONFIRMÉ` · <agent> · <date>
-
-## Risques et points d'attention
-
-- <Risque ou zone fragile identifiée>
-  — `CONFIRMÉ` · <agent> · <date> · <fichier>
-
-## Liens vers les autres domaines
-
-- Dépend de : [<domain>](business/<domain>.md) — <raison>
-- Utilisé par : [<domain>](business/<domain>.md) — <raison>
-```
-
----
-
-## Format canonique — `ONBOARDING.md` (racine, minimaliste)
-
-```markdown
-# [Nom du projet]
-
-> Documentation vivante disponible dans [`docs/wiki/index.md`](docs/wiki/index.md)
-
-## Démarrage rapide
-
-<Commande(s) de démarrage — 1-3 lignes maximum>
-
-## Liens
-
-- [Index wiki](docs/wiki/index.md) — vue globale, god nodes, points critiques
-- [Conventions](docs/wiki/technical/conventions.md)
-- [Architecture](docs/wiki/technical/architecture.md)
-```
-
-**Règles :** 15-25 lignes maximum. Pas de duplication du contenu du wiki.
-Son seul rôle est d'orienter un humain qui ouvre le projet vers le wiki.
+- `technical/review-rules.md` est optionnelle : elle n'existe que si le projet a des règles de review propres (exclusions, patterns intentionnels, seuils) ; le reviewer la consulte à chaque review
+- `ONBOARDING.md` (racine) : 15-25 lignes, sans dupliquer le wiki ; il oriente un humain vers `docs/wiki/index.md`
 
 ---
 
@@ -528,10 +182,10 @@ dans la section avec un tag `CONFIRMÉ`. Si oui :
 
 ---
 
-## Template de création d'une nouvelle page wiki
+## Création d'une nouvelle page wiki
 
-Quand une page n'existe pas encore, la créer à partir du template canonique correspondant
-(voir sections ci-dessus). Toujours :
+Quand une page n'existe pas encore, la créer à partir du format canonique de son annexe
+(tableau ci-dessus). Toujours :
 
 1. Créer le dossier parent si nécessaire (`docs/wiki/business/`, `docs/wiki/technical/` ou `docs/wiki/decisions/`)
 2. Écrire le frontmatter en premier
