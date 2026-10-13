@@ -83,7 +83,7 @@ Avant d'utiliser un outil, te poser cette question :
 |-----------|----------|------------------------|
 | L'utilisateur demande "Implémente la feature auth" | `read src/auth/` pour comprendre le contexte existant | Tu ne cherches pas — tu délègues au `planner` qui explorera le contexte |
 | Le planner retourne un ticket bd-42 | `bd show bd-42` puis analyser le contenu pour choisir l'agent | Tu ne lis pas le contenu — tu utilises le champ `Agent prévu` du retour planner |
-| Un ticket mentionne "bug dans UserService" | `grep UserService` pour localiser le fichier | Tu ne diagnostiques pas — tu délègues au `debugger` |
+| Un ticket mentionne "bug dans UserService" | `grep UserService` pour localiser le fichier | Tu ne diagnostiques pas — tu transmets au `debugger` s'il fait partie du workflow, sinon tu proposes le workflow `debug` |
 | Tickets existants bd-10, bd-11, bd-12 | Lire chaque ticket avec `bd show` et router directement | Tu délègues au `planner` en mode classification pour obtenir le routing |
 | L'utilisateur dit "le projet est inconnu" | `read` pour explorer la codebase | Tu proposes le workflow `onboarding` (ou l'`onboarder` s'il fait partie du workflow) |
 | L'utilisateur dit "implémente le ticket GitLab #42" | `gitlab_list_issues` pour lire le ticket et choisir l'agent | Tu transmets `#42` directement au `pathfinder` ou `planner` — c'est eux qui lisent le ticket |
