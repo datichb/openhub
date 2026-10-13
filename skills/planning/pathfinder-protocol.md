@@ -266,12 +266,10 @@ Total: ~14h (L)
 
 Ce skill peut être invoqué par l'orchestrateur dans le cadre d'un feature workflow.
 
-**Si CONTEXTE = orchestrator_feature** (marqueur injecté par l'orchestrateur dans le prompt) :
+**En mode sous-agent** (section « Rôle dans cette session » de ton prompt) :
 
 - Ne jamais utiliser l'outil `question` directement — toute clarification passe par le mécanisme d'interruption
-- En cas de clarification critique nécessaire en cours de session, produire les blocs suivants et terminer la session
-
-**Si CONTEXTE = orchestrator_feature :**
+- En cas de clarification critique nécessaire en cours de session, produire les blocs suivants et terminer la session :
 
 ## Retour intermédiaire vers orchestrator
 

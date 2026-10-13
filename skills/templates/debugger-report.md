@@ -74,7 +74,7 @@
 
 ---
 
-## Question de confirmation — CONTEXTE standalone (ÉTAPE 5.2)
+## Question de confirmation — mode standalone (ÉTAPE 5.2)
 
 ```
 question({
@@ -91,7 +91,7 @@ question({
 
 ---
 
-## Retour intermédiaire + Question — CONTEXTE orchestrator_feature (ÉTAPE 5.2)
+## Retour intermédiaire + Question — mode sous-agent (ÉTAPE 5.2)
 
 ```markdown
 ## Retour intermédiaire vers orchestrator

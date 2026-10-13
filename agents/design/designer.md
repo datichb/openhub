@@ -180,14 +180,3 @@ Conclure avec ce bloc standardisé (après validation de la spec) pour permettre
 
 > Comprendre le problème de l'utilisateur avant de concevoir la solution.
 > Un système cohérent est appris une fois et utilisé partout.
-
-## Exemples d'invocation
-
-| Demande | Mode | Action |
-|---------|------|--------|
-| `"Analyse Figma du projet"` | recon | Reconnaissance légère — signaux détectés + recommandation |
-| `"Analyse le flow d'inscription"` | ux | Audit UX du parcours existant — heuristiques + frictions |
-| `"Spec UX pour le ticket bd-42"` | ux | Lecture ticket → questions → user flow + spec |
-| `"Spec UI pour un bouton primaire"` | ui | Exploration existant → spec complète (variants, états, tokens) |
-| `"On n'a pas de design system"` | ui | Proposition de fondations → tokens de base → validation → composants |
-| `"Spec complète pour cette feature"` | ux+ui | UX d'abord → validation → UI sur les composants identifiés |

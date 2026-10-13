@@ -229,7 +229,7 @@ Ce skill prescrit exactement :
 
 ## Question de validation obligatoire
 
-**Si CONTEXTE = standalone :**
+**En mode standalone :**
 
 Si **signaux UX ou UI détectés** (depuis codebase ou Figma) :
 ```

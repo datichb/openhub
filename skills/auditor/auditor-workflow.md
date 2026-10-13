@@ -43,7 +43,7 @@ Tu coordonnes les résultats et produis une synthèse multi-domaines si nécessa
 >
 > Cette skill est chargée au démarrage selon le contexte (voir "Chargement du parcours d'exécution" dans `auditor.md`).
 >
-> Ce skill (`auditor-workflow`) contient les **formats de sortie par phase** selon le contexte (`Si CONTEXTE = standalone` / `Si CONTEXTE = orchestrator_feature`). Il ne redéfinit **pas** les règles de mécanisme de session (quand terminer, comment gérer le `task_id`, checklist de vérification) — celles-ci sont dans les skills dédiés ci-dessus.
+> Ce skill (`auditor-workflow`) contient les **formats de sortie par phase** du parcours standalone (l'auditor est l'agent d'entrée du workflow `audit`). Il ne redéfinit **pas** les règles de mécanisme de session (quand terminer, comment gérer le `task_id`, checklist de vérification) — celles-ci sont dans les skills dédiés ci-dessus.
 
 ---
 
@@ -268,7 +268,6 @@ question({
 ### Question de validation obligatoire
 
 
-**Si CONTEXTE = standalone :**
 ```
 question({
   questions: [{
@@ -282,37 +281,6 @@ question({
   }]
 })
 ```
-
-**Si CONTEXTE = orchestrator_feature :**
-```markdown
-## Retour intermédiaire vers orchestrator
-
-**Agent :** auditor
-**Phase :** 1 — Chargement du contexte projet
-**task_id :** <sessionID courant>
-
-**Résumé :** Contexte projet chargé — stack et architecture identifiées via <ONBOARDING.md | reconnaissance rapide>.
-**Points clés :** <langages/frameworks clés, pattern architectural, points d'attention identifiés>
-
----
-
-## Question pour l'orchestrator
-
-**Phase :** 1
-**task_id :** <sessionID courant>
-
-**Contexte :** Contexte projet chargé (ONBOARDING.md ou reconnaissance rapide). Stack et architecture identifiées.
-
-**Question :** Passer à la sélection des domaines à auditer (Phase 2) ?
-
-**Options :**
-- `selectionner-domaines` — Passer à la Phase 2 — Sélection des domaines
-- `recharger-contexte` — Relire ONBOARDING.md ou refaire la reconnaissance rapide
-- `arreter` — Annuler l'audit
-
-**Instruction de reprise :** "Réponse Phase 1 auditor : [option]. Reprendre depuis Phase 2 / sélection des domaines."
-```
-→ **TERMINER LA SESSION**
 
 **Selon la réponse (dans tous les contextes) :**
 - **Sélectionner les domaines** → Phase 2
@@ -407,7 +375,6 @@ Si la **demande est ambiguë** ou si un **domaine demandé n'est pas pertinent p
 ### Question de validation obligatoire
 
 
-**Si CONTEXTE = standalone :**
 ```
 question({
   questions: [{
@@ -421,37 +388,6 @@ question({
   }]
 })
 ```
-
-**Si CONTEXTE = orchestrator_feature :**
-```markdown
-## Retour intermédiaire vers orchestrator
-
-**Agent :** auditor
-**Phase :** 2 — Sélection des domaines à auditer
-**task_id :** <sessionID courant>
-
-**Résumé :** <N> domaines sélectionnés pour audit, <M> écartés.
-**Points clés :** <domaines retenus et leur ordre de délégation, domaines écartés et raison>
-
----
-
-## Question pour l'orchestrator
-
-**Phase :** 2
-**task_id :** <sessionID courant>
-
-**Contexte :** Domaines à auditer sélectionnés en fonction de la demande et de la stack projet.
-
-**Question :** Démarrer les audits (Phase 3) ?
-
-**Options :**
-- `demarrer-audits` — Passer à la Phase 3 — Délégation aux sous-agents
-- `ajuster-domaines` — Ajouter ou retirer des domaines avant de démarrer
-- `arreter` — Annuler l'audit
-
-**Instruction de reprise :** "Réponse Phase 2 auditor : [option]. Reprendre depuis Phase 3 / délégation aux sous-agents."
-```
-→ **TERMINER LA SESSION**
 
 **Selon la réponse (dans tous les contextes) :**
 - **Démarrer les audits** → Phase 3
@@ -593,7 +529,6 @@ Les audits suivants n'ont pas encore été lancés : <liste des domaines restant
 ### Question de validation obligatoire
 
 
-**Si CONTEXTE = standalone :**
 ```
 question({
   questions: [{
@@ -607,38 +542,6 @@ question({
   }]
 })
 ```
-
-**Si CONTEXTE = orchestrator_feature :**
-```markdown
-## Retour intermédiaire vers orchestrator
-
-**Agent :** auditor
-**Phase :** 3 — Délégation aux sous-agents spécialisés
-**task_id :** <sessionID courant>
-
-**Résumé :** <N> sous-agents invoqués, rapports reçus pour tous les domaines.
-**Points clés :** <synthèse par domaine : nombre de critiques/majeurs/mineurs, statut global par domaine>
-**Problèmes critiques détectés :** <liste courte des critiques bloquants, ou "Aucun problème critique">
-
----
-
-## Question pour l'orchestrator
-
-**Phase :** 3
-**task_id :** <sessionID courant>
-
-**Contexte :** Les sous-agents spécialisés ont été invoqués et ont retourné leurs rapports d'audit. Les résultats sont résumés dans le récap ci-dessus.
-
-**Question :** Passer à la consolidation (Phase 4) ?
-
-**Options :**
-- `consolider` — Passer à la Phase 4 — Consolidation et synthèse exécutive
-- `relancer-audit` — Relancer un sous-agent pour affiner son rapport
-- `arreter` — Stopper avant la consolidation — rapports disponibles individuellement
-
-**Instruction de reprise :** "Réponse Phase 3 auditor : [option]. Reprendre depuis Phase 4 / consolidation."
-```
-→ **TERMINER LA SESSION**
 
 **Selon la réponse (dans tous les contextes) :**
 - **Consolider** → Phase 4
@@ -745,41 +648,9 @@ Les signaler dans la section "Recommandations stratégiques" si applicable.
 
 ---
 
-### ⚠️ Vérification visuelle — AVANT de terminer la session
-
-**STOP — Question obligatoire à te poser MAINTENANT :**
-
-> « Mon output contient-il du texte en dehors du bloc `## Retour vers orchestrator` ? »
-> → **OUI** : STOP — supprimer le texte libre et vérifier que la synthèse est DANS le bloc (section `### Rapport d'audit complet`)
-> → **NON** : vérifier que tous les éléments ci-dessous sont présents dans le bloc, puis terminer la session
-
-**Vérifications obligatoires dans le bloc :**
-- ✅ Section `### Rapport d'audit complet` présente (observations détaillées, preuves, chemins d'exploitation)
-- ✅ Section `### Synthèse des problèmes identifiés` renseignée (🔴 critiques, 🟠 majeurs, 🟡 mineurs)
-- ✅ Section `### Recommandations priorisées` présente
-- ✅ Section `### Risque résiduel si non corrigé` documentée
-
-> ❌ Ne JAMAIS écrire de texte en dehors du bloc `## Retour vers orchestrator`
-> ❌ Ne JAMAIS produire la synthèse en texte libre avant le bloc — elle est DANS le bloc (section `### Rapport d'audit complet`)
-> ✅ Le bloc unique contient toutes les informations : rapport détaillé + données structurées
-
-**Si une section est manquante dans le bloc → la compléter MAINTENANT avant de terminer.**
-
----
-
 ### Format de retour final
 
-**Si CONTEXTE = orchestrator_feature :**
-
-Produire dans cet ordre :
-
-1. **La synthèse exécutive multi-domaines** (ci-dessus)
-
-2. **Le bloc `## Retour vers orchestrator`** (résumé structuré actionnable) — voir skill `audit-handoff-format`
-
-**Si CONTEXTE = standalone :**
-
-Produire uniquement la synthèse exécutive, **sans** le bloc `## Retour vers orchestrator`.
+Produire uniquement la synthèse exécutive, **sans** bloc `## Retour vers …` : l'auditor est l'agent d'entrée du workflow `audit`.
 
 ### Question de validation obligatoire
 
@@ -917,7 +788,6 @@ Phase 4 → Phase 4 (revoir consolidation)
 ✅ **Respecter le format des questions** — header court, question complète avec `[Auditeur — Phase X | Projet : <nom>]`, options claires
 ✅ **Permettre les retours en arrière** — ne jamais forcer l'avancement si l'utilisateur veut revoir une phase
 ✅ **Limiter les itérations** — maximum 3 itérations par phase pour éviter les boucles infinies
-✅ **Produire le bloc handoff** si CONTEXTE = orchestrator_feature en fin de Phase 4
 ✅ **Transmettre le contexte projet complet** aux sous-agents en préambule — ils ne ré-explorent pas
 ✅ **Vérifier périmètre + stack + accès** avant de déléguer (Phase 0)
 

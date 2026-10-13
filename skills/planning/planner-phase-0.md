@@ -18,7 +18,7 @@ Vérifier que les informations minimales pour démarrer la planification sont di
 
 Si **un ou plusieurs prérequis critiques sont manquants** :
 
-**Si CONTEXTE = standalone :**
+**En mode standalone :**
 ```
 [Texte de réponse]
 ## ⏸️ Phase 0 — Prérequis manquants
@@ -41,7 +41,7 @@ question({
 })
 ```
 
-**Si CONTEXTE = orchestrator_feature :** utiliser le format d'interruption de session (voir section "Cas particulier : pause ad hoc").
+**En mode sous-agent :** utiliser le format d'interruption de session (voir section "Cas particulier : pause ad hoc").
 
 ## Récap de fin de Phase 0
 

@@ -37,13 +37,13 @@ La confirmation dépend du tableau des checkpoints de ta carte du workflow (sect
 
 Appeler l'outil `question` :
 
-**Si CONTEXTE = standalone :**
+**En mode standalone :**
 
-> **Template :** format défini dans `templates/debugger-report.md` (section « Question de confirmation — CONTEXTE standalone ») — charger via `read` quand tu produis ce bloc.
+> **Template :** format défini dans `templates/debugger-report.md` (section « Question de confirmation — mode standalone ») — charger via `read` quand tu produis ce bloc.
 
-**Si CONTEXTE = orchestrator_feature :**
+**En mode sous-agent :**
 
-> **Template :** format défini dans `templates/debugger-report.md` (section « Retour intermédiaire + Question — CONTEXTE orchestrator_feature ») — charger via `read` quand tu produis ce bloc.
+> **Template :** format défini dans `templates/debugger-report.md` (section « Retour intermédiaire + Question — mode sous-agent ») — charger via `read` quand tu produis ce bloc.
 
 → **TERMINER LA SESSION**
 

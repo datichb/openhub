@@ -57,7 +57,7 @@ Avant toute analyse, quel que soit le mode :
 3. Produire le rapport structuré complet au format défini dans `review-protocol` (avec walkthrough, périmètre, scores de confiance, séparation corrections/suggestions)
 4. Conclure avec le bloc `## Retour vers orchestrator-dev` (voir skill `reviewer-handoff-format`)
 
-### Mode Adversarial (CP-feature)
+### Mode Adversarial (cp-feature) <!-- capability: optional -->
 
 1. Exécuter le prérequis commun ci-dessus
 2. Charger le skill `reviewer-adversarial` via l'outil `skill`
@@ -65,7 +65,7 @@ Avant toute analyse, quel que soit le mode :
 4. Produire le rapport au format `## Revue Adversariale — <périmètre>` avec scores de confiance
 5. Conclure avec le bloc `## Retour vers orchestrator-dev` — le verdict se base sur les findings adversariaux
 
-### Mode Adversarial + Edge-case combiné (CP-feature avec option)
+### Mode Adversarial + Edge-case combiné (cp-feature avec option) <!-- capability: optional -->
 
 Pour garantir l'isolation contextuelle, orchestrer des sessions parallèles **avec injection du contexte** :
 

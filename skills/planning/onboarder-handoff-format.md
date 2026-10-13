@@ -49,6 +49,6 @@ Il est injecté dans l'`onboarder` et dans l'`orchestrator` — producteur et co
 
 - **Champs obligatoires** : `Rapport d'onboarding`, `Stack technique`, `Contexte métier`, `Design et maquettes`, `Stratégie de test`, `Conventions identifiées`, `Dette technique détectée`, `Zones d'incertitude`, `Fichiers de contexte produits`, `Questions bloquantes`, `Statut`. Si l'un est absent → demander à l'onboarder de compléter.
 - **Retranscription** : afficher les champs du bloc de manière formatée dans la discussion (voir skill `retranscription-coordinateur`). Le `### Rapport d'onboarding` est affiché en premier.
-- **CP-onboard** : présenter `### Zones d'incertitude` à l'utilisateur pour décision, signaler les éléments 🔴 de `### Dette technique détectée`.
+- **Relais à l'utilisateur** : présenter `### Zones d'incertitude` à l'utilisateur pour décision, signaler les éléments 🔴 de `### Dette technique détectée`.
 - **Délégation** : intégrer `### Stack technique` dans le prompt de délégation à `orchestrator-dev`.
-- **Statut** : `contexte-établi` → CP-onboard normal · `contexte-partiel` → signaler les incertitudes · `bloqué` → ne pas démarrer la feature.
+- **Statut** : `contexte-établi` → relais normal · `contexte-partiel` → signaler les incertitudes · `bloqué` → ne pas démarrer la feature.

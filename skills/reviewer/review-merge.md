@@ -140,7 +140,7 @@ Avant de produire le rapport final :
 
 ## Intégration avec le handoff
 
-Quand invoqué en contexte subagent (depuis orchestrator-dev ou CP-feature) :
+Quand invoqué en contexte subagent (depuis orchestrator-dev ou cp-feature) : <!-- capability: optional -->
 - Le rapport unifié est suivi du bloc `## Retour vers orchestrator-dev` comme pour une review standard
 - Le verdict se base sur le rapport unifié (les sévérités les plus hautes post-fusion déterminent le verdict)
 - Le champ `### Corrections requises` inclut les tags de provenance pour traçabilité

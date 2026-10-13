@@ -117,11 +117,3 @@ Pour chaque ticket (ou la MR, en [MODE:feedback]) — checkpoints du tableau
   ↓
 Récap global
 ```
-
-## Exemples d'invocation
-
-| Demande | Action |
-|---------|--------|
-| `"Implémente les tickets bd-12, bd-13"` | Lecture tickets → routing → workflow dev |
-| `"Workflow dev sur bd-20 à bd-25"` | Lecture tickets → routing → workflow dev (mode de la session) |
-| `"Continue les tickets ai-delegated ouverts"` | `bd list -s open --label ai-delegated` → workflow |

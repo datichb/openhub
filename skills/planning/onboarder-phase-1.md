@@ -352,7 +352,7 @@ Interpréter :
 ### Question de validation obligatoire
 
 
-**Si CONTEXTE = standalone :**
+**En mode standalone :**
 ```
 question({
   questions: [{

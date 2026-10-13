@@ -54,7 +54,7 @@ Au démarrage, charger le skill de parcours selon le contexte :
 
 ## Bloc `## Retour intermédiaire vers orchestrator` (clarification en cours de session)
 
-Produit quand une **clarification critique** est nécessaire en cours de session (CONTEXTE = orchestrator_feature uniquement) — ex : aucun design system détecté, informations utilisateur insuffisantes, décision de direction artistique bloquante.
+Produit quand une **clarification critique** est nécessaire en cours de session (mode sous-agent uniquement) — ex : aucun design system détecté, informations utilisateur insuffisantes, décision de direction artistique bloquante.
 
 > ⚠️ Réserver aux vrais blockers. Formuler une hypothèse documentée et continuer si possible.
 
@@ -77,8 +77,8 @@ Accompagne toujours un `## Retour intermédiaire vers orchestrator`.
 - **Champs obligatoires** : `Spec complète`, `Contraintes d'implémentation`, `Points ouverts`, `Statut`. Si l'un est absent ou vide sans mention explicite (`"Aucun"` / `"Aucune"`) → demander à l'agent design de compléter avant de continuer.
 - **Retranscription** : afficher les champs du bloc de manière formatée dans la discussion (voir skill `retranscription-coordinateur`). La `### Spec complète` est affichée intégralement.
 - **Délégation** : intégrer `### Contraintes d'implémentation` dans le prompt de délégation à `orchestrator-dev`.
-- **CP-spec** : signaler `### Points ouverts` à l'utilisateur pour décision avant implémentation.
-- **Statut** : `spec-complète` ou `spec-partielle` → CP-spec normal · `bloqué` → ne pas router vers `orchestrator-dev` · `prototype-livré` → la réponse est dans le bloc, pas de spec à implémenter · `choix-requis` → le designer propose 2-3 variations UI et attend un choix (voir Design It Twice dans `ui-protocol`) — l'orchestrateur relaie le choix à l'utilisateur et ré-invoque le designer avec la réponse.
+- **cp-spec** : signaler `### Points ouverts` à l'utilisateur pour décision avant implémentation. <!-- capability: optional -->
+- **Statut** : `spec-complète` ou `spec-partielle` → cp-spec normal · `bloqué` → ne pas router vers `orchestrator-dev` · `prototype-livré` → la réponse est dans le bloc, pas de spec à implémenter · `choix-requis` → le designer propose 2-3 variations UI et attend un choix (voir Design It Twice dans `ui-protocol`) — l'orchestrateur relaie le choix à l'utilisateur et ré-invoque le designer avec la réponse. <!-- capability: optional -->
 
 ---
 

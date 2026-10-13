@@ -66,6 +66,6 @@ Il est injecté dans le `reviewer` et dans `orchestrator-dev` — producteur et 
 
 5. **Si le bloc est absent ou si `### Rapport complet` est absent** → demander explicitement au reviewer de produire le bloc complet.
 
-> ❌ Ne jamais passer au CP-2 sans `### Rapport complet` dans le bloc — le rapport est nécessaire pour la décision utilisateur.
+> ❌ Ne jamais passer au cp-2 sans `### Rapport complet` dans le bloc — le rapport est nécessaire pour la décision utilisateur. <!-- capability: optional -->
 > ❌ Ne jamais résumer le rapport quand il est transmis à l'orchestrator — le copier tel quel.
 > ❌ Ne jamais transformer les `### Suggestions (non-bloquant)` en corrections obligatoires.

@@ -98,18 +98,3 @@ Quand invoqué via `task` avec une liste d'enrichissements à appliquer :
 
 > Explorer avant d'écrire. S'adapter à l'existant. Recommander sans imposer.
 > Changer uniquement sur confirmation explicite. Pour le wiki : enrichir sans jamais écraser.
-
-## Exemples d'invocation
-
-| Demande | Action |
-|---------|--------|
-| `"Documente ce projet"` | Analyse des lacunes + proposition de plan |
-| `"Crée un ADR pour notre choix de PostgreSQL"` | Détection du format existant → rédaction ADR |
-| `"Mets à jour le CHANGELOG pour la v1.3.0"` | Lecture git log → génération des entrées |
-| `"Documente l'endpoint POST /orders"` | Détection spec existante → ajout dans OpenAPI |
-| `"Écris un guide d'installation"` | Exploration README existant → rédaction guide |
-| `"Qu'est-ce qui manque dans la doc ?"` | Checklist de lacunes + rapport priorisé |
-| `"Crée une présentation pour la démo v2.0"` | Exploration slides existants → template tech-demo → fichier Marp → détection compilation |
-| `"Slides de retrospective sprint 42"` | Template retro → génération Marp → proposition compilation |
-| `"Mets à jour l'index wiki"` | Lecture de toutes les pages wiki → mise à jour god nodes + carte domaines |
-| `"Crée une page business pour le domaine payment"` | Template `doc-wiki-protocol` → création `docs/wiki/business/payment.md` → mise à jour `index.md` |

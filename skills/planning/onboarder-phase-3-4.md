@@ -167,7 +167,7 @@ bd ready                  # Tickets prêts à travailler
 ### Question de validation obligatoire
 
 
-**Si CONTEXTE = standalone :**
+**En mode standalone :**
 ```
 question({
   questions: [{
@@ -218,7 +218,7 @@ Si un **cas particulier critique** est détecté (ex : CVE critiques, incohéren
 ### Question de validation obligatoire
 
 
-**Si CONTEXTE = standalone :**
+**En mode standalone :**
 ```
 question({
   questions: [{

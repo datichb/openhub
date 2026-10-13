@@ -221,7 +221,7 @@ En standalone, le rapport est produit directement (sans le bloc `## Retour vers 
 
 ## Règles pour le producteur (pathfinder)
 
-- **En CONTEXTE = orchestrator_feature** : le rapport complet est DANS le bloc `### Rapport pathfinder complet`.
+- **En mode sous-agent** : le rapport complet est DANS le bloc `### Rapport pathfinder complet`.
 - **En standalone** : produire le rapport directement (sans le bloc `## Retour vers orchestrator`)
 - Le rapport intégré dans `### Rapport pathfinder complet` suit exactement le format défini ci-dessus
 - Ne jamais résumer le rapport dans le bloc — il doit être complet et exhaustif
@@ -230,7 +230,7 @@ En standalone, le rapport est produit directement (sans le bloc `## Retour vers 
 
 ## Bloc `## Retour intermédiaire vers orchestrator` (clarification en cours de session)
 
-Produit quand le pathfinder détecte une **clarification critique** en cours d'exploration et doit interrompre sa session (CONTEXTE = orchestrator_feature uniquement).
+Produit quand le pathfinder détecte une **clarification critique** en cours d'exploration et doit interrompre sa session (mode sous-agent uniquement).
 
 Ce bloc précède toujours un `## Question pour l'orchestrator`.
 
@@ -291,11 +291,11 @@ Accompagne toujours un `## Retour intermédiaire vers orchestrator`. Permet à l
 
 | Bloc | Quand le produire | Contexte |
 |------|-------------------|----------|
-| `## Retour vers orchestrator` (avec `### Rapport pathfinder complet`) | Fin de session | orchestrator_feature uniquement |
+| `## Retour vers orchestrator` (avec `### Rapport pathfinder complet`) | Fin de session | mode sous-agent uniquement |
 | Rapport pathfinder seul (sans bloc wrapping) | Fin de session | standalone uniquement |
-| `## Retour intermédiaire vers orchestrator` | Clarification critique détectée | orchestrator_feature uniquement |
-| `## Question pour l'orchestrator` | Avec le bloc intermédiaire | orchestrator_feature uniquement |
-| Outil `question` | Clarifications ou décisions | **standalone UNIQUEMENT** — jamais en orchestrator_feature |
+| `## Retour intermédiaire vers orchestrator` | Clarification critique détectée | mode sous-agent uniquement |
+| `## Question pour l'orchestrator` | Avec le bloc intermédiaire | mode sous-agent uniquement |
+| Outil `question` | Clarifications ou décisions | **standalone UNIQUEMENT** — jamais en mode sous-agent |
 
 ---
 
@@ -307,4 +307,4 @@ Accompagne toujours un `## Retour intermédiaire vers orchestrator`. Permet à l
 - **Retranscription** : afficher les champs du bloc de manière formatée dans la discussion (voir skill `retranscription-coordinateur`). Le `### Rapport pathfinder complet` est affiché intégralement.
 - **Si `direct`** : transmettre le rapport au `orchestrator-dev` comme contexte.
 - **Si `escalade-planner`** : transmettre au planner la section `## 📦 Handoff vers planner` du rapport.
-- **Statut** : `reconnaissance-complète` → CP-path normal · `reconnaissance-partielle` → signaler qu'une clarification est en attente.
+- **Statut** : `reconnaissance-complète` → relais normal · `reconnaissance-partielle` → signaler qu'une clarification est en attente.
