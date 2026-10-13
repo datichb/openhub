@@ -9,6 +9,13 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ## [Unreleased]
 
+### Changed — catalogue de skills par agent (lot L2)
+
+- **Chaque agent ne voit plus que ses skills** : ses skills natives, celles que son texte l'invite à charger (et, de proche en proche, celles que ses skills à la demande nomment), la fermeture `requires`, les skills de stack seulement pour les agents `stack_skills: true` (developer, reviewer, debugger, operator), les skills nommées dans le prompt du workflow pour l'agent d'entrée, et celles qu'un appelant nomme dans ses délégations pour les agents `skills_from_callers: true` (developer, auditor-subagent). Le paquet ne livre plus que l'union de ces catalogues.
+- **Mentions non invitantes** : une skill citée dans une section « Relation… » ou « Injection… », dans les règles adressées à un autre agent (consommateur, producteur, « Pour le <agent> »), écrite sans code, ou une skill de stack citée par une autre, n'entre pas dans le catalogue.
+- **Rendu, rapport et attestation** : l'adaptateur n'autorise que les skills du catalogue de l'agent ; `bundle.json` donne les skills et le coût du catalogue de chaque agent ; l'attestation signale une skill exposée hors du catalogue. Les paquets déjà construits (sans liste par agent) gardent le comportement précédent.
+- **Budget** (`budget.golden`, somme des catalogues par agent, sans stack) : 77 959 → 23 046 tokens (−70 %) ; avec stacks : 88 827 → 26 998.
+
 ### Fixed — reviewer et debugger d'après l'évaluation après P1
 
 - **Reviewer** : il vérifie qu'une branche existe localement avant de la récupérer, ne lit aucun fichier du diff avant la vérification, et sait qu'une commande composée (`| head`, `&&`) est refusée en entier sans que le shell soit indisponible (cas S1 : trois refus de `git … | head` l'avaient convaincu de n'avoir aucun shell).
