@@ -17,6 +17,7 @@ const (
 	CheckpointDelegate = "delegate" // an agent of the workflow ran
 	CheckpointBreaker  = "breaker"  // circuit breaker tripped
 	CheckpointImitated = "imitated" // a question imitated a checkpoint (closed by oh)
+	CheckpointReport   = "report"   // a report was stored (workflow_report)
 )
 
 // CheckpointState is the workflow state of a session (sessions.checkpoint_state,

@@ -44,7 +44,22 @@ func (t *tuiSessions) CheckpointCard(ctx context.Context, decisionID string) (vi
 		out.Messages = append(out.Messages, cardMessage(m))
 	}
 	out.Verify = cardVerify(c.R3)
+	for _, r := range c.Reports {
+		out.Reports = append(out.Reports, views.CheckpointReport{ID: r.ID(), Agent: r.Agent, Title: r.Title, Bytes: r.Bytes, At: r.CreatedAt})
+	}
 	return out, nil
+}
+
+var _ views.CheckpointReportReader = (*tuiSessions)(nil)
+
+// CheckpointReport reads a report of a session (reader of the card).
+func (t *tuiSessions) CheckpointReport(ctx context.Context, sessionID, id string) (title, body string, err error) {
+	svc, err := t.service(ctx)
+	if err != nil {
+		return "", "", err
+	}
+	r, body, err := svc.Report(ctx, sessionID, id)
+	return r.Title, body, err
 }
 
 // cardMessage renders a message on the card: "agent › text", the whole text

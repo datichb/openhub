@@ -5,6 +5,8 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"io"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -16,6 +18,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/gateway/beadswire"
 	"github.com/datichb/openhub/cli/internal/remote"
 	"github.com/datichb/openhub/cli/internal/remote/gitlab/gitlabtest"
+	"github.com/datichb/openhub/cli/internal/services/report"
 	"github.com/datichb/openhub/cli/internal/storage/sqlite"
 )
 
@@ -245,4 +248,65 @@ func TestReplayApplyRemoteSubstitutesPlaceholders(t *testing.T) {
 	assert.Len(t, e.beads.execs, 4)
 	ref, _ = sqlite.NewRemoteStore(e.store).GetRemoteRef(ctx, e.sessionID)
 	assert.Equal(t, domain.RemoteResolved, ref.Status)
+}
+
+// L4: the reports filed in the job come back with the session (reports.json),
+// cleaned and bounded again on the machine; fetching again adds nothing.
+func TestFetchImportsReports(t *testing.T) {
+	ctx := context.Background()
+	e := newReturnEnv(t, remote.Summary{Schema: 1, Outcome: remote.OutcomeCompleted, Commit: "c9"}, nil)
+
+	// The job side: reports filed in the session of the job, then exported
+	// as the runner does.
+	jobDB, err := sqlite.Open(filepath.Join(t.TempDir(), "oh.db"))
+	require.NoError(t, err)
+	t.Cleanup(func() { jobDB.Close() })
+	_, err = jobDB.DB().Exec(`INSERT INTO projects (id, name, path) VALUES ('p1','p1','/p1')`)
+	require.NoError(t, err)
+	require.NoError(t, sqlite.NewSessionStore(jobDB).Create(ctx, &domain.Session{ID: e.sessionID, ProjectID: "p1", Status: domain.SessionStatusRunning}))
+	job := &report.Service{Store: sqlite.NewReportStore(jobDB), SessionsDir: t.TempDir()}
+	_, err = job.Add(ctx, e.sessionID, "developer", "ses_child", "Fait", "## Changements par fichier\n- calc.go")
+	require.NoError(t, err)
+	_, err = job.Add(ctx, e.sessionID, "reviewer", "ses_child2", "Review", "## Verdict\nvalidé")
+	require.NoError(t, err)
+	exported, err := job.Export(ctx, e.sessionID)
+	require.NoError(t, err)
+	var rs remote.Reports
+	rs.Schema = remote.ReportsSchema
+	for _, x := range exported {
+		rs.Reports = append(rs.Reports, remote.ReportEntry{Seq: x.Seq, Agent: x.Agent, ToolSession: x.ToolSession, Title: x.Title, CreatedAt: x.CreatedAt, Body: x.Body})
+	}
+	rs.Reports[1].Body += "\x1b[2J"                                                                           // not trusted
+	rs.Reports = append(rs.Reports, remote.ReportEntry{Seq: 3, Body: strings.Repeat("a", report.MaxBytes+1)}) // too large
+	rdata, _ := json.Marshal(rs)
+	files := map[string][]byte{"oh-out/reports.json": rdata}
+	zr, err := zip.NewReader(bytes.NewReader(e.pipeline.Artifacts[5]), int64(len(e.pipeline.Artifacts[5])))
+	require.NoError(t, err)
+	for _, f := range zr.File {
+		rc, _ := f.Open()
+		data, _ := io.ReadAll(rc)
+		rc.Close()
+		files[f.Name] = data
+	}
+	e.pipeline.Artifacts[5] = artifactsZip(t, files)
+	e.pipeline.Status = "success"
+
+	machine := &report.Service{Store: sqlite.NewReportStore(e.store), SessionsDir: e.svc.SessionsDir}
+	e.svc.Reports = machine
+	f, err := e.svc.Fetch(ctx, e.sessionID, FetchOptions{})
+	require.NoError(t, err)
+	assert.Equal(t, 2, f.Reports)
+	list, err := machine.List(ctx, e.sessionID)
+	require.NoError(t, err)
+	require.Len(t, list, 2)
+	assert.Equal(t, "developer", list[0].Agent)
+	assert.Equal(t, "ses_child", list[0].ToolSession)
+	assert.True(t, list[0].CreatedAt.Equal(exported[0].CreatedAt))
+	_, body, err := machine.Get(ctx, e.sessionID, "rp-2")
+	require.NoError(t, err)
+	assert.Equal(t, "## Verdict\nvalidé", body)
+
+	f, err = e.svc.Fetch(ctx, e.sessionID, FetchOptions{})
+	require.NoError(t, err)
+	assert.Zero(t, f.Reports, "fetched again: nothing added")
 }

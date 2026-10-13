@@ -28,6 +28,7 @@ Cette page couvre la **gestion des sessions v5** (`oh session …`), les **restr
 | [`oh session model`](#oh-session-model) | Changer le modèle des prochaines étapes |
 | [`oh session fork`](#oh-session-fork) | Créer une variante (copie de l'historique) |
 | [`oh session results`](#oh-session-results) | Fichiers modifiés, branche, coût, description de MR, diff |
+| [`oh session report`](#oh-session-report) | Rapports déposés par les agents (`workflow_report`) |
 | [`oh session resume`](#oh-session-resume) | Reprendre une session en veille sans interface |
 | [`oh session stop`](#oh-session-stop) | Arrêter une session |
 | [`oh session delete`](#oh-session-delete) | Supprimer définitivement une session (worktree, branche locale, fichiers) |
@@ -206,6 +207,22 @@ Sources : la session et ses décisions enregistrées par oh, la chronologie des 
 | `-o`, `--output` | string | Écrire la trace JSONL dans ce fichier |
 
 C'est l'entrée des évaluations ([`oh eval`](cli-tools.fr.md#oh-eval)) et des rétrospectives.
+
+### oh session report
+
+```
+oh session report <session> [rp-id] [--json]
+```
+
+Rapports que les agents de la session ont déposés avec l'outil `workflow_report` ([serveur MCP `workflow`](cli-mcp.fr.md#serveur-mcp-workflow)). Sans identifiant : la liste (identifiant `rp-<n>`, auteur, titre, taille, heure, sections). Avec un identifiant : le rapport complet.
+
+L'auteur est l'agent qu'oh a vu appeler l'outil, jamais une valeur donnée par l'agent. Les corps sont gardés dans `~/.oh/sessions/<session>/reports/` (fichiers 0600, dossier 0700) avec leur empreinte SHA-256 : un rapport modifié hors d'oh n'est pas affiché. Limites : 64 Ko par rapport, 100 rapports et 4 Mo par session ; les séquences de terminal et les caractères de contrôle sont retirés. Les rapports d'une session distante reviennent avec elle ([`oh session fetch`](#oh-session-fetch)). `oh gc` les garde aussi longtemps que l'historique de la session (comme ses résultats).
+
+| Flag | Type | Description |
+|------|------|-------------|
+| `--json` | bool | Sortie JSON : la liste, ou le rapport avec son corps (`body`) |
+
+Dans la TUI, la carte d'un checkpoint liste les rapports déposés depuis le checkpoint précédent (et ceux que l'agent cite) ; chacun s'ouvre dans un lecteur défilant.
 
 ### oh session resume
 

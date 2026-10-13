@@ -7,8 +7,8 @@
 //   - only stopped sessions are cleaned up (completed and failed ones can be
 //     resumed): a bundle, a server group, a session folder or a worktree used
 //     by a session that is not stopped is kept;
-//   - files of a stopped session are kept SessionAge, its results and the
-//     history HistoryAge, the usage ledger UsageAge;
+//   - files of a stopped session are kept SessionAge, its results, its
+//     reports and the history HistoryAge, the usage ledger UsageAge;
 //   - a bundle used less than BundleGrace ago is kept (Build touches it);
 //   - a server group is removed with its group lock held, its server dead;
 //   - a worktree is removed only when oh created it, clean, unlocked, with
@@ -61,8 +61,8 @@ type Item struct {
 	Path   string `json:"path,omitempty"` // removed path
 	Bytes  int64  `json:"bytes"`
 	Reason string `json:"reason,omitempty"`
-	// KeepResults: a session folder whose results/ stay (younger than the
-	// history).
+	// KeepResults: a session folder whose results/ and reports/ stay
+	// (younger than the history).
 	KeepResults bool `json:"keep_results,omitempty"`
 	// Repo is the project of a worktree; PID the process of an orphan.
 	Repo string `json:"repo,omitempty"`
@@ -394,10 +394,12 @@ func (e *Env) planSessions(u *usage, opts Options) ([]Item, error) {
 		if age < opts.SessionAge {
 			continue
 		}
-		keep := age < opts.HistoryAge && dirExists(filepath.Join(path, "results"))
+		keep := age < opts.HistoryAge && hasKept(path)
 		bytes := dirSize(path)
 		if keep {
-			bytes -= dirSize(filepath.Join(path, "results"))
+			for _, d := range keptDirs {
+				bytes -= dirSize(filepath.Join(path, d))
+			}
 			if bytes <= 0 && onlyResults(path) {
 				continue // nothing but the results left
 			}
@@ -407,13 +409,36 @@ func (e *Env) planSessions(u *usage, opts Options) ([]Item, error) {
 	return out, nil
 }
 
+// keptDirs are the folders of a stopped session kept as long as its
+// history: the results snapshot and the reports of workflow_report (their
+// rows go with the session row).
+var keptDirs = []string{"results", "reports"}
+
+func isKept(name string) bool {
+	for _, d := range keptDirs {
+		if name == d {
+			return true
+		}
+	}
+	return false
+}
+
+func hasKept(path string) bool {
+	for _, d := range keptDirs {
+		if dirExists(filepath.Join(path, d)) {
+			return true
+		}
+	}
+	return false
+}
+
 func onlyResults(path string) bool {
 	entries, err := os.ReadDir(path)
 	if err != nil {
 		return false
 	}
 	for _, e := range entries {
-		if e.Name() != "results" {
+		if !isKept(e.Name()) {
 			return false
 		}
 	}
@@ -557,7 +582,7 @@ func (e *Env) apply(ctx context.Context, it Item) error {
 			return err
 		}
 		for _, ent := range entries {
-			if ent.Name() != "results" {
+			if !isKept(ent.Name()) {
 				if err := removeAll(filepath.Join(it.Path, ent.Name())); err != nil {
 					return err
 				}

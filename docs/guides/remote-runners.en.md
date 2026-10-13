@@ -220,7 +220,7 @@ The `oh-run` job runs `oh runner run` in the project image:
 
 6. **Beads**: `bd` is oh's fake bd; it goes through the Beads gateway of the job's daemon, which applies `beads.allow`. Reads come from the snapshot; writes are recorded in `journal.jsonl` (and seen by later reads), then replayed on your machine when fetching.
 7. **Branch and MR**: every process of the `oh` account is killed first; oh never runs git in the agent's repository (its hooks, `core.fsmonitor`, filters and remotes are not used): it copies the objects and refs into a fresh repository of its own. What is not committed gets committed (without nested repositories nor files not owned by the `oh` account), the branch is pushed and a **draft MR** is opened through `git push` options. Progress is published in the ticket claim (`OH_TEAMSTATE_TOKEN`).
-8. **Artifacts** (`oh-out/`, 7 days): `journal.jsonl` (Beads writes), `summary.json` (outcome, cost, decisions, MR, outputs), `session.export` (transcript of the session and its sub-agents, to resume it locally).
+8. **Artifacts** (`oh-out/`, 7 days): `journal.jsonl` (Beads writes), `summary.json` (outcome, cost, decisions, MR, outputs), `session.export` (transcript of the session and its sub-agents, to resume it locally), `reports.json` (reports filed by the agents with `workflow_report`, pipeline schema 5).
 
 Limits: MCP servers that need a token of your machine (gitlab, jira, figma…) are not available in the job; oh's `workflow` server is. When the job is canceled or times out, the session is exported and the work pushed before stopping when possible.
 
@@ -230,9 +230,9 @@ Limits: MCP servers that need a token of your machine (gitlab, jira, figma…) a
 
 **Fetching** — `oh session fetch <id>` or `g` in the Sessions view:
 
-1. download of the artifacts of the `oh-run` job (`journal.jsonl`, `summary.json`, `session.export`) to `~/.oh/sessions/<id>/remote/`;
+1. download of the artifacts of the `oh-run` job (`journal.jsonl`, `summary.json`, `session.export`, `reports.json`) to `~/.oh/sessions/<id>/remote/`;
 2. summary: outcome (completed, deferred checkpoint, question, failed), cost, MR, requests refused by the policy;
-3. **import of the session** (and its sub-agents) into a local server, in a worktree of the branch pushed by the job: `oh session attach <id>` resumes it where it stopped (deferred checkpoint to approve, question to answer, rest of the work).
+3. **import of the session** (and its sub-agents) into a local server, in a worktree of the branch pushed by the job: `oh session attach <id>` resumes it where it stopped (deferred checkpoint to approve, question to answer, rest of the work); the reports of the job are imported into the session (cleaned and bounded again): `oh session report <id>` and the checkpoint card show them.
 
 `--no-import` only downloads the artifacts.
 

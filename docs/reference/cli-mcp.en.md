@@ -126,7 +126,7 @@ oh mcp serve <name> [--token-key <key>]
 
 Tools are exposed without the server name (`get_project`): the tool (opencode) prefixes it, the session sees `gitlab_get_project` (the name used by agents, skills and permission rules). A call under the former prefixed name (`gitlab_get_project` on the server side) is still accepted.
 
-`oh mcp serve workflow` is internal: the `workflow` MCP server (`workflow_status`, `workflow_checkpoint`, `workflow_outputs`) injected into every session bundle, absent from `list`, `setup` and `enable`.
+`oh mcp serve workflow` is internal: the `workflow` MCP server (see [workflow MCP server](#workflow-mcp-server)) injected into every session bundle, absent from `list`, `setup` and `enable`.
 
 **Example:**
 
@@ -134,6 +134,23 @@ Tools are exposed without the server name (`get_project`): the tool (opencode) p
 oh mcp serve gitlab
 oh mcp serve figma --token-key openhub.mcp.figma.token
 ```
+
+---
+
+### workflow MCP server
+
+Injected into every session started from a workflow; stateless, it passes each call to the oh daemon for the calling session (a subagent belongs to the oh session that delegated it). Agents see its tools as `workflow_<tool>`.
+
+| Tool | Parameters | Role |
+|------|------------|------|
+| `workflow_status` | — | Workflow state: mode, checkpoints, next checkpoint, locked agents and operations, outputs |
+| `workflow_checkpoint` | `id`, `summary`, `reports` (optional) | Passes a checkpoint (waits for the validation when it pauses in the mode); `reports` cites reports `rp-…` |
+| `workflow_outputs` | `type`, `value`, `id` | Declares a typed output |
+| `workflow_report` | `title`, `body` | Files the whole report of the agent; oh answers with its id `rp-<n>` |
+| `workflow_report_get` | `id`, `section` (optional) | Reads a report, whole or one section (Markdown heading) |
+| `workflow_reports` | — | Lists the reports of the session (id, author, title, size, time, sections) |
+
+**Reports (`workflow_report`).** The agent files its whole report; oh keeps it and the coordinators only pass its id on. The author is the agent oh sees calling the tool (an `agent` parameter would be ignored). The reports filed since the previous checkpoint, and those the agent cites in `reports`, are attached to the checkpoint card; each filing enters the timeline (`▤ rp-2 (developer)`). Limits: 64 KiB per report, 100 reports and 4 MiB per session; beyond them the tool refuses and the agent includes the report in its block. Without the daemon (or when it keeps no report: `OH_WORKFLOW_REPORTS=off`), the tool answers "not recorded" without an error and the agent falls back on the whole report in its block. Agents never read nor write the reports other than through these tools (`~/.oh/sessions` refused by the oh guards, before the exceptions of the session scratch folders). User side: [`oh session report`](cli-sessions.en.md#oh-session-report).
 
 ---
 

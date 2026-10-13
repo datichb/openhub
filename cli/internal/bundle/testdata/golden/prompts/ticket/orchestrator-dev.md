@@ -1034,6 +1034,8 @@ Il est injecté dans chaque `developer` et dans `orchestrator-dev` — producteu
 ## Principe fondamental — bloc unique
 
 > **Contrat de handoff :** voir skill `shared/handoff-bloc-unique-rule` pour les règles universelles producer/consumer.
+>
+> **Rapport déposé :** si l'outil `workflow_report` est disponible, dépose ton rapport complet avec lui **avant** le bloc, puis remplace la section du rapport par `Rapport : rp-N` (identifiant reçu) ; sinon (outil absent, réponse « non enregistré », refus), inclus le rapport complet. Côté coordinateur, `Rapport : rp-N` vaut rapport présent (oh le joint à la carte du checkpoint) : cite l'identifiant au lieu de recopier le rapport.
 
 ---
 
@@ -1131,6 +1133,8 @@ Il est injecté dans le `reviewer` et dans `orchestrator-dev` — producteur et 
 ## Principe fondamental — bloc unique
 
 > **Contrat de handoff :** voir skill `shared/handoff-bloc-unique-rule` pour les règles universelles producer/consumer.
+>
+> **Rapport déposé :** si l'outil `workflow_report` est disponible, dépose ton rapport complet avec lui **avant** le bloc, puis remplace la section du rapport par `Rapport : rp-N` (identifiant reçu) ; sinon (outil absent, réponse « non enregistré », refus), inclus le rapport complet. Côté coordinateur, `Rapport : rp-N` vaut rapport présent (oh le joint à la carte du checkpoint) : cite l'identifiant au lieu de recopier le rapport.
 
 ---
 
@@ -1202,6 +1206,8 @@ Il est injecté dans le `documentarian` et chez ses appelants — producteur et 
 ## Principe fondamental — bloc unique
 
 > **Contrat de handoff :** voir skill `shared/handoff-bloc-unique-rule` pour les règles universelles producer/consumer.
+>
+> **Rapport déposé :** si l'outil `workflow_report` est disponible, dépose ton rapport complet avec lui **avant** le bloc, puis remplace la section du rapport par `Rapport : rp-N` (identifiant reçu) ; sinon (outil absent, réponse « non enregistré », refus), inclus le rapport complet. Côté coordinateur, `Rapport : rp-N` vaut rapport présent (oh le joint à la carte du checkpoint) : cite l'identifiant au lieu de recopier le rapport.
 
 ---
 

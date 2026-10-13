@@ -341,6 +341,10 @@ func TestRunCompleted(t *testing.T) {
 	prog := &fakeProgress{}
 	in.Progress = prog
 	require.NoError(t, os.WriteFile(JournalPath(out), []byte("{}\n{}\n"), 0o600))
+	at := time.Date(2026, 10, 13, 10, 0, 0, 0, time.UTC)
+	in.Reports = func(_ context.Context, sid string) ([]remote.ReportEntry, error) {
+		return []remote.ReportEntry{{Seq: 1, Agent: "developer", Title: "Fait", CreatedAt: at, Body: "## Tests\nok " + sid}}, nil
+	}
 
 	sum, err := Run(context.Background(), in)
 	require.NoError(t, err)
@@ -361,6 +365,13 @@ func TestRunCompleted(t *testing.T) {
 	assert.Equal(t, "approved", s.Decisions[0].Answer)
 	assert.FileExists(t, filepath.Join(out, remote.ExportFile))
 	assert.Equal(t, []string{"running", "running", "mr_ready"}, prog.statuses)
+	data, err := os.ReadFile(filepath.Join(out, remote.ReportsFile))
+	require.NoError(t, err)
+	var rs remote.Reports
+	require.NoError(t, json.Unmarshal(data, &rs))
+	assert.Equal(t, remote.ReportsSchema, rs.Schema)
+	require.Len(t, rs.Reports, 1)
+	assert.Equal(t, "## Tests\nok ses_1", rs.Reports[0].Body)
 }
 
 func TestRunDeferredAndFailures(t *testing.T) {

@@ -28,6 +28,8 @@ const (
 	CaseFile       = "case.yaml"
 	FixtureDir     = "fixture"
 	HiddenTestsDir = "hidden_tests"
+	// ReportsOff is the value of Case.Reports that turns the reports off.
+	ReportsOff = "off"
 )
 
 // Case is one evaluation scenario (evals/<target>/<case>/case.yaml).
@@ -59,6 +61,10 @@ type Case struct {
 	// HiddenTests is the command run by the hidden_tests assertion
 	// (default: per stack, see HiddenTestCommand).
 	HiddenTests string `yaml:"hidden_tests" json:"hidden_tests,omitempty"`
+	// Reports: "off" makes the daemon of the pass keep no report
+	// (workflow_report answers "not recorded": the agents must fall back on
+	// their whole report); "" keeps them.
+	Reports string `yaml:"reports" json:"reports,omitempty"`
 
 	// Dir is the case directory.
 	Dir string `yaml:"-" json:"-"`
@@ -184,6 +190,11 @@ func (c *Case) Validate() error {
 	case "", "once", "reject":
 	default:
 		errs = append(errs, fmt.Errorf("answers.permission %q (once, reject)", c.Answers.Permission))
+	}
+	switch c.Reports {
+	case "", ReportsOff:
+	default:
+		errs = append(errs, fmt.Errorf("reports %q (off)", c.Reports))
 	}
 	return errors.Join(errs...)
 }

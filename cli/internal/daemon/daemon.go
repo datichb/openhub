@@ -21,6 +21,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/gateway"
 	"github.com/datichb/openhub/cli/internal/safego"
 	"github.com/datichb/openhub/cli/internal/services/checkpoint"
+	"github.com/datichb/openhub/cli/internal/services/report"
 )
 
 // SecretGetter reads secrets from the host secret store (keychain…).
@@ -61,6 +62,9 @@ type Options struct {
 	// Checkpoints is the CheckpointService (workflow MCP backend, checkpoint
 	// state). Nil = workflow API unavailable.
 	Checkpoints *checkpoint.Service
+	// Reports stores the reports of workflow_report (nil = not recorded:
+	// the agents keep their whole report in their handoff block).
+	Reports *report.Service
 	// Adapter returns the tool adapter for a server's adapter name (nil = no watcher).
 	Adapter func(name string) adapters.ToolAdapter
 	// GatewayView returns how the runtime of a server group sees the

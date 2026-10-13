@@ -21,7 +21,16 @@ const (
 	WorkflowToolStatus     = "status"
 	WorkflowToolCheckpoint = "checkpoint"
 	WorkflowToolOutputs    = "outputs"
+	// Reports (modernisation L4): workflow_report, workflow_report_get,
+	// workflow_reports.
+	WorkflowToolReport    = "report"
+	WorkflowToolReportGet = "report_get"
+	WorkflowToolReports   = "reports"
 )
+
+// WorkflowTools are the tools of the workflow MCP server.
+var WorkflowTools = []string{WorkflowToolStatus, WorkflowToolCheckpoint, WorkflowToolOutputs,
+	WorkflowToolReport, WorkflowToolReportGet, WorkflowToolReports}
 
 // LegacyWorkflowTools maps the tool names served before v5 finalisation
 // (Q3-2: the model saw workflow_workflow_checkpoint) to the current ones, so

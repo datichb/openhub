@@ -69,6 +69,9 @@ type CheckpointCard struct {
 	Timeline []checkpoint.Step
 	// R3 is the verification run by oh, the evidence and the fix rounds.
 	R3 checkpoint.CardR3
+	// Reports are the reports filed since the last checkpoint (and those
+	// the agent cited), oldest first.
+	Reports []domain.Report
 }
 
 // cardMessages is the number of messages shown on a checkpoint card.
@@ -97,6 +100,7 @@ func (s *Service) CheckpointCard(ctx context.Context, decisionID string) (*Check
 	if s.Checkpoints != nil {
 		c.R3 = s.Checkpoints.Card(ctx, d.SessionID, c.Checkpoint)
 	}
+	c.Reports = s.cardReports(ctx, *d)
 	return c, nil
 }
 

@@ -34,6 +34,8 @@ type sessionTrack struct {
 	deferred  []func(ctx context.Context)
 	lastUsage time.Time
 	agent     string // current agent shown in the live feed
+	// own is the agent of the session's own messages (its subagents aside).
+	own string
 }
 
 // waiting is the number of tool requests of the session and its subagents.
@@ -211,6 +213,11 @@ func (w *watcher) onEvent(ctx context.Context, ev adapters.ToolEvent) {
 	w.mu.Unlock()
 	if !checked {
 		go w.checkShellOnce(context.WithoutCancel(ctx), ev.SessionID)
+	}
+	if ev.Feed != nil && ev.Feed.Kind == domain.FeedAgent && ev.Feed.Agent != "" {
+		w.mu.Lock()
+		w.track(ev.SessionID).own = ev.Feed.Agent
+		w.mu.Unlock()
 	}
 	w.publish(ev.SessionID, ev.Feed)
 	if ev.Call != nil {

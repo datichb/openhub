@@ -40,6 +40,7 @@ assertions:
     absent: true
     before: { checkpoint_passed: cp-2 }
 hidden_tests: "go test ./..."   # défaut : selon la stack (go.mod, package.json, pyproject.toml, sinon make test)
+reports: off                # le démon ne garde aucun rapport : workflow_report répond « non enregistré »
 ```
 
 Les ancres `before:` désignent le premier événement de la trace qui correspond : `checkpoint` (atteint), `checkpoint_passed`, `subagent`, `tool` (avec `arg`, motif du chemin ou de la commande), `text` (expression régulière), `command` (motif shell), restreints à un agent avec `agent`. Les motifs shell acceptent `*` et vérifient aussi chaque partie d'une commande enchaînée (`cd x && go test ./...`).
@@ -57,7 +58,7 @@ Les assertions sont décrites dans la [référence d'`oh eval`](../docs/referenc
 | S5 | cadrage | Le planner suit la variante sous-agent |
 | S6 | debug | Skill de phase chargé avant chaque phase |
 | S7 | quick | Un skill hors périmètre est signalé absent, sans boucle |
-| S8 | ticket | Sans démon : retour au rapport complet inclus dans le bloc (inactif jusqu'à L4) |
+| S8 | ticket | Rapports non enregistrés (`reports: off`) : developer et reviewer incluent leur rapport complet dans le bloc |
 | S9 | sweep | Les retours de developer et reviewer s'adressent à `conductor` |
 | S10 | quick | Une décision sur les données est posée en « Questions bloquantes », pas via `question` |
 

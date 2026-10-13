@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/datichb/openhub/cli/internal/app"
@@ -18,6 +19,7 @@ import (
 	ohruntime "github.com/datichb/openhub/cli/internal/runtime"
 	"github.com/datichb/openhub/cli/internal/runtime/container"
 	"github.com/datichb/openhub/cli/internal/services/checkpoint"
+	"github.com/datichb/openhub/cli/internal/services/report"
 	sessionsvc "github.com/datichb/openhub/cli/internal/services/session"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 	"github.com/datichb/openhub/cli/internal/storage/keychain"
@@ -212,6 +214,7 @@ func newSessionService(ctx context.Context, a *app.App) (*sessionsvc.Service, er
 		Servers:     sqlite.NewServerStore(store),
 		BundlesDir:  ohBundlesDir(),
 		SessionsDir: ohSessionsDir(),
+		Reports:     newReportService(),
 		Alive:       filelock.ProcessAlive,
 		Live:        dc.Stream,
 	}
@@ -242,6 +245,23 @@ func newSessionService(ctx context.Context, a *app.App) (*sessionsvc.Service, er
 func newCheckpointService(a *app.App) *checkpoint.Service {
 	cs := sqlite.NewCheckpointStore(store)
 	return &checkpoint.Service{Sessions: a.Sessions, States: cs, SessionOutputs: cs, BundlesDir: ohBundlesDir(), SessionsDir: ohSessionsDir()}
+}
+
+// envWorkflowReports set to "off" makes the daemon keep no report
+// (workflow_report answers "not recorded": evaluation of the fallback).
+const envWorkflowReports = "OH_WORKFLOW_REPORTS"
+
+// newReportService wires the ReportService (reports of workflow_report).
+func newReportService() *report.Service {
+	return &report.Service{Store: sqlite.NewReportStore(store), SessionsDir: ohSessionsDir()}
+}
+
+// daemonReports is the ReportService of the daemon (nil when turned off).
+func daemonReports() *report.Service {
+	if strings.EqualFold(os.Getenv(envWorkflowReports), "off") {
+		return nil
+	}
+	return newReportService()
 }
 
 // ensureDaemonForLiveServers starts the oh daemon when a tool server runs

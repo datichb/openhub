@@ -195,7 +195,7 @@ func (f *feedDecoder) callOf(e Event) *adapters.ToolCall {
 // workflowTools are the oh workflow MCP tools, by opencode tool name.
 var workflowTools = func() map[string]string {
 	out := map[string]string{}
-	for _, t := range []string{sessionspec.WorkflowToolStatus, sessionspec.WorkflowToolCheckpoint, sessionspec.WorkflowToolOutputs} {
+	for _, t := range sessionspec.WorkflowTools {
 		a := sessionspec.MCPToolAction(sessionspec.WorkflowMCPServer, t)
 		out[ToolAction(a)] = a
 	}

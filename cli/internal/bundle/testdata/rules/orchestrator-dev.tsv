@@ -251,6 +251,7 @@ handoff-bloc-unique-rule	Prohibitions — producer	❌ Ne jamais omettre les cha
 handoff-bloc-unique-rule	Prohibitions — producer	Champ obligatoire — `### Questions bloquantes`
 handoff-bloc-unique-rule	Champ obligatoire — `### Questions bloquantes`	Chaque bloc de handoff **doit** contenir une section `### Questions bloquantes` juste avant `### Statut`.
 handoff-bloc-unique-rule	Champ obligatoire — `### Questions bloquantes`	Ce champ est **contractuellement bloquant** — le coordinateur ne peut pas poursuivre le workflow tant que les questions ne sont pas résolues
+handoff-bloc-unique-rule	Rapport déposé dans oh — `workflow_report`	Dans le bloc, remplace la section du rapport (`### Rapport complet`, `### Changements par fichier`…) par la ligne `Rapport : rp-N` (l'identifiant reçu). Garde les autres champs obligatoires : verdict, statut, corrections requises, questions bloquantes, état de la session.
 handoff-bloc-unique-rule	Contrat — consumer (orchestrator)	**Vérifier les champs obligatoires** — si l'un est absent, demander au sous-agent de compléter
 handoff-bloc-unique-rule	Contrat — consumer (orchestrator)	**Vérifier `### Questions bloquantes`** — si non-vide (pas `Aucune.`), **escalader les questions à l'utilisateur** avant de continuer. Ne jamais ignorer, ne jamais auto-résoudre.
 handoff-bloc-unique-rule	Contrat — consumer (orchestrator)	**Ne jamais résumer** les sections techniques — les transmettre telles quelles

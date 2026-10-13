@@ -60,6 +60,9 @@ type Input struct {
 	// git steps (KillUser); nil: nothing to stop. When it fails nothing is
 	// pushed.
 	Quiesce func(ctx context.Context) error
+	// Reports returns the reports filed in the session (workflow_report),
+	// written to reports.json; nil: none.
+	Reports func(ctx context.Context, sessionID string) ([]remote.ReportEntry, error)
 	Now     func() time.Time
 	// TurnPoll is how often the turn is awaited again after a decision.
 	TurnPoll time.Duration
@@ -214,6 +217,15 @@ func Run(ctx context.Context, in Input) (*remote.Summary, error) {
 		sum.TokensReasoning, sum.TokensCacheRead, sum.Model = r.TokensReasoning, r.TokensCacheRead, r.Model
 	}
 	sum.Outputs = in.Session.Outputs(ctx, sid)
+	if in.Reports != nil {
+		if list, err := in.Reports(ctx, sid); err != nil {
+			slog.Warn("runner: reading the reports", "err", err)
+		} else if len(list) > 0 {
+			if err := writeJSON(filepath.Join(in.OutDir, remote.ReportsFile), remote.Reports{Schema: remote.ReportsSchema, Reports: list}); err != nil {
+				slog.Warn("runner: writing the reports", "err", err)
+			}
+		}
+	}
 	var exportErr error
 	if trs, ids, err := in.Session.Export(ctx, sid); err == nil {
 		sum.Sessions = ids

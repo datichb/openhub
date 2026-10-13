@@ -103,6 +103,9 @@ type Call struct {
 	// Evidence are the commands the agent ran for this checkpoint (R3, E2),
 	// checked against the shell calls oh observed.
 	Evidence []Evidence `json:"evidence,omitempty"`
+	// Reports are the reports (rp-…) the agent cites; those filed since the
+	// last checkpoint are attached to its card anyway.
+	Reports []string `json:"reports,omitempty"`
 }
 
 // Result answers a workflow_checkpoint call (the tool already let it run:

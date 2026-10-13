@@ -40,6 +40,7 @@ assertions:
     absent: true
     before: { checkpoint_passed: cp-2 }
 hidden_tests: "go test ./..."   # default: by stack (go.mod, package.json, pyproject.toml, else make test)
+reports: off                # the daemon keeps no report: workflow_report answers "not recorded"
 ```
 
 The `before:` anchors name the first matching event of the trace: `checkpoint` (reached), `checkpoint_passed`, `subagent`, `tool` (with `arg`, a pattern of the path or command), `text` (regular expression), `command` (shell pattern), restricted to an agent with `agent`. Shell patterns accept `*` and also check each part of a chained command (`cd x && go test ./...`).
@@ -57,7 +58,7 @@ The assertions are described in the [`oh eval` reference](../docs/reference/cli-
 | S5 | cadrage | The planner follows the subagent variant |
 | S6 | debug | Phase skill loaded before each phase |
 | S7 | quick | A skill out of scope is reported missing, without loop |
-| S8 | ticket | Without daemon: back to the full report in the block (inactive until L4) |
+| S8 | ticket | Reports not recorded (`reports: off`): developer and reviewer include their whole report in the block |
 | S9 | sweep | The developer and reviewer returns are addressed to `conductor` |
 | S10 | quick | A data decision is asked in « Questions bloquantes », not with `question` |
 

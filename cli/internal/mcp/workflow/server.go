@@ -8,7 +8,13 @@
 //     before running it when the checkpoint pauses in this mode; once it
 //     runs, the checkpoint is validated and the answer carries the
 //     instruction given with the validation;
-//   - workflow_outputs     {type, value[, id]}: declares a typed output (O7).
+//   - workflow_outputs     {type, value[, id]}: declares a typed output (O7);
+//   - workflow_report      {title, body}: files the whole report of the
+//     agent (L4); oh stores it as rp-<n>, the author being the agent oh
+//     sees; without the daemon the answer says it is not recorded and the
+//     agent keeps its whole report in its handoff block;
+//   - workflow_report_get  {id[, section]}: reads a report, or one section;
+//   - workflow_reports     lists the reports of the session.
 //
 // The server holds no state: everything goes to the oh daemon
 // (CheckpointService), for the session that calls the tool.
@@ -34,6 +40,9 @@ type Backend interface {
 	WorkflowStatus(ctx context.Context, toolSession string) (checkpoint.Status, error)
 	WorkflowCheckpoint(ctx context.Context, toolSession string, call checkpoint.Call) (checkpoint.Result, error)
 	WorkflowOutput(ctx context.Context, toolSession string, o checkpoint.Output) error
+	WorkflowReport(ctx context.Context, toolSession, title, body string) (daemon.WorkflowReport, error)
+	WorkflowReports(ctx context.Context, toolSession string) ([]daemon.WorkflowReport, error)
+	WorkflowReportGet(ctx context.Context, toolSession, id, section string) (daemon.WorkflowReport, error)
 }
 
 // Serve runs the server on stdio against the oh daemon, with the token of
@@ -62,6 +71,7 @@ func New(b Backend) *protocol.Server {
 				"id":       map[string]any{"type": "string", "description": i18n.T("cmd.mcp.workflow.checkpoint_id")},
 				"summary":  map[string]any{"type": "string", "description": i18n.T("cmd.mcp.workflow.checkpoint_summary")},
 				"evidence": evidenceSchema(),
+				"reports":  map[string]any{"type": "array", "items": map[string]any{"type": "string"}, "description": i18n.T("cmd.mcp.workflow.checkpoint_reports")},
 			},
 			"required": []string{"id", "summary"},
 		},
@@ -79,6 +89,7 @@ func New(b Backend) *protocol.Server {
 			"required": []string{"type", "value"},
 		},
 	}, h.outputs)
+	registerReports(s, h)
 	return s
 }
 

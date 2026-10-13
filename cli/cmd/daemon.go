@@ -123,6 +123,7 @@ func daemonOptions(ctx context.Context, a *app.App, capability string) daemon.Op
 		SessionsDir: ohSessionsDir(),
 		ServersDir:  ohServersDir(),
 		Checkpoints: newCheckpointService(a),
+		Reports:     daemonReports(),
 		Notify:      daemonNotifier(a),
 		ProjectName: func(ctx context.Context, id string) string {
 			if p, err := a.Projects.Get(ctx, id); err == nil {

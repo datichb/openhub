@@ -130,6 +130,11 @@ func (s *Service) Asked(ctx context.Context, root, toolSession string, p adapter
 	if toolSession != "" && toolSession != root {
 		d.Payload.Data[domain.DataToolSession] = toolSession
 	}
+	if p.Call != nil {
+		if cited := citedReports(p.Call.Input[domain.DataReports]); len(cited) > 0 {
+			d.Payload.Data[domain.DataReports] = cited
+		}
+	}
 	d.ID = domain.DecisionID(d.Kind, root, p.ID)
 	var evidence []Evidence
 	if p.Call != nil {

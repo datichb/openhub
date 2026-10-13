@@ -21,6 +21,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/remote"
 	"github.com/datichb/openhub/cli/internal/remote/ciconfig"
 	"github.com/datichb/openhub/cli/internal/remote/gitlab"
+	"github.com/datichb/openhub/cli/internal/services/report"
 )
 
 // CIFile is the pipeline file of the oh-runner project.
@@ -72,6 +73,9 @@ type Service struct {
 	Worktree func(projectDir, branch string) (string, error)
 	// Notify tells the user that a remote session is ready (system notification).
 	Notify func(title, body string)
+	// Reports receives the reports of the job (workflow_report) at fetch
+	// time (nil: not imported).
+	Reports *report.Service
 }
 
 func (s *Service) client(t config.RemoteTarget, token string) *gitlab.Client {

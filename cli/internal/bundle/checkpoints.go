@@ -23,6 +23,10 @@ var (
 	actionCheckpoint = sessionspec.MCPToolAction(sessionspec.WorkflowMCPServer, sessionspec.WorkflowToolCheckpoint)
 	actionStatus     = sessionspec.MCPToolAction(sessionspec.WorkflowMCPServer, sessionspec.WorkflowToolStatus)
 	actionOutputs    = sessionspec.MCPToolAction(sessionspec.WorkflowMCPServer, sessionspec.WorkflowToolOutputs)
+	// Reports (L4): filing and reading the reports of the session.
+	actionReport    = sessionspec.MCPToolAction(sessionspec.WorkflowMCPServer, sessionspec.WorkflowToolReport)
+	actionReportGet = sessionspec.MCPToolAction(sessionspec.WorkflowMCPServer, sessionspec.WorkflowToolReportGet)
+	actionReports   = sessionspec.MCPToolAction(sessionspec.WorkflowMCPServer, sessionspec.WorkflowToolReports)
 )
 
 // CheckpointAction is the neutral permission action of workflow_checkpoint.
@@ -33,6 +37,9 @@ func BaseCheckpointRules() []sessionspec.PermissionRule {
 	return []sessionspec.PermissionRule{
 		{Action: actionStatus, Resource: "*", Effect: sessionspec.EffectAllow},
 		{Action: actionOutputs, Resource: "*", Effect: sessionspec.EffectAllow},
+		{Action: actionReport, Resource: "*", Effect: sessionspec.EffectAllow},
+		{Action: actionReportGet, Resource: "*", Effect: sessionspec.EffectAllow},
+		{Action: actionReports, Resource: "*", Effect: sessionspec.EffectAllow},
 		{Action: actionCheckpoint, Resource: "*", Effect: sessionspec.EffectAsk},
 	}
 }

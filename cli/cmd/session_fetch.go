@@ -35,6 +35,7 @@ func init() {
 func newRemoteReturnService(ctx context.Context, a *app.App) *remotesvc.Service {
 	svc := newRemoteSendService(a)
 	svc.SessionsDir, svc.BundlesDir = ohSessionsDir(), ohBundlesDir()
+	svc.Reports = newReportService()
 	svc.Target = func(name string) (*config.RemoteTarget, bool) {
 		t := a.Config.Remote.Target(name)
 		return t, t != nil
