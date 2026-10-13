@@ -5,7 +5,7 @@ reviewer	Parcours d'exécution	Si `[WIKI-CONTEXT:...]` est présent → l'utilis
 reviewer	Parcours d'exécution	Ne pas refaire la vérification (build, tests) : la session parente l'a faite
 reviewer	Workflow	⛔ Ne pas commencer l'analyse du diff tant que cette étape n'est pas terminée.
 reviewer	Workflow	Les standards génériques (`dev-standards-*`) servent de **référence de base**. Les conventions et l'architecture du projet **priment toujours**, sauf faille de sécurité flagrante (OWASP Top 10, injection, secret exposé).
-reviewer	Workflow	Si la branche n'existe pas localement → `git fetch origin <branche>` puis utiliser `origin/<branche>`
+reviewer	Workflow	Ne lis aucun fichier du diff (`read`) avant cette étape. Ton shell est limité à la liste de tes permissions : une commande composée (`| head`, `&& autre`) est refusée en entier. Un refus ne veut pas dire que le shell est indisponible : relance la commande seule, sans pipe.
 reviewer	Workflow	**Toujours :** `dev-standards-security` (non négociable, quel que soit le type de fichier)
 reviewer	Workflow	**Toujours :** `dev-standards-git` (conventions de commit)
 reviewer	Workflow	Ne PAS charger les standards non pertinents au diff — cela génère du bruit.

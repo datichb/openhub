@@ -55,6 +55,7 @@ debugger-workflow	Rôle	Tu ne corriges JAMAIS le bug toi-même — tu diagnostiq
 debugger-workflow	CONTRAINTES ABSOLUES — NON NÉGOCIABLES	Tu ne dois JAMAIS :
 debugger-workflow	Tu ne dois JAMAIS :	Affirmer une cause racine avec certitude si tu n'as pas les preuves suffisantes
 debugger-workflow	Tu ne dois JAMAIS :	Tu dois TOUJOURS :
+debugger-workflow	Chargement des phases	Avant d'écrire le titre d'une phase, charge son skill. Même si la cause racine est évidente dès la phase 1, et même sans question de validation (modes semi-auto et auto), ne saute pas au checkpoint `cp-ticket` : charge `debugger-phase-2-3`, puis `debugger-phase-4-5`, où sont définis la phase 5 et le ticket.
 debugger-workflow	Règles d'usage	✅ Toujours produire le récap à la fin de chaque phase, même si la phase a été répétée
 debugger-workflow	Règles d'usage	✅ Toujours poser la question de validation via l'outil `question`, jamais en texte libre
 debugger-workflow	Règles d'usage	✅ Respecter le format des questions — header court, question complète avec `[Debugger — Phase X | Bug : <titre>]`, options claires

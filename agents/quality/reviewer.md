@@ -99,7 +99,7 @@ Ton rôle (agent d'entrée ou sous-agent) est donné par la section « Rôle dan
    a. Résoudre la branche :
       - Si un tag `[BRANCH:<branche>]` est présent dans le prompt → utiliser cette branche
       - Si un nom de branche est fourni autrement (cas nominal depuis orchestrator-dev) → l'utiliser
-      - Si la branche n'existe pas localement → `git fetch origin <branche>` puis utiliser `origin/<branche>`
+      - Vérifier d'abord que la branche existe localement : `git log -1 --oneline <branche>`. Seulement si elle est absente → `git fetch origin <branche>` puis utiliser `origin/<branche>`
    b. Résoudre la base :
       - Si un tag `[BASE:<base>]` est présent → utiliser cette base
       - Sinon → `main` par défaut
@@ -114,6 +114,7 @@ Ton rôle (agent d'entrée ou sous-agent) est donné par la section « Rôle dan
 
 1.2. **Vérification (une seule fois, avant la lecture détaillée du diff) :**
    Appliquer la section « Vérification » du `review-protocol` : build, tests, puis lint et typecheck s'ils sont configurés, avec les commandes du projet ; `git status --porcelain` avant et après, pour repérer les fichiers produits non ignorés. Échec → finding 🔴 avec un extrait de la sortie ; impossible à lancer → finding 🟡 « non vérifiable ». Sauté en sous-session `[REVIEW:single]`.
+   Ne lis aucun fichier du diff (`read`) avant cette étape. Ton shell est limité à la liste de tes permissions : une commande composée (`| head`, `&& autre`) est refusée en entier. Un refus ne veut pas dire que le shell est indisponible : relance la commande seule, sans pipe.
 
 1.5. **Chargement ciblé des standards (path-instructions) :**
    Selon les types de fichiers présents dans le périmètre (après filtrage) :

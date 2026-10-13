@@ -103,5 +103,5 @@ Le récap de Phase 1 doit contenir :
 - **Observations préliminaires** : observations factuelles (ex : erreur de type TypeError, fonction appelée avec un paramètre null)
 
 **Selon la réponse à la question de validation :**
-- **Passer à Phase 2** → Phase 2 si questions détectées, sinon Phase 3 directement
+- **Passer à Phase 2** → charger `debugger-phase-2-3`, puis Phase 2 si questions détectées, sinon Phase 3 directement (sans question de validation : idem)
 - **Questions à poser** → Phase 2

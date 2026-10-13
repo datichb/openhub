@@ -133,6 +133,6 @@ Le récap de Phase 3 doit contenir :
 - **Fichiers impliqués** : tableau fichier / rôle dans le bug
 
 **Selon la réponse à la question de validation :**
-- **Passer à Phase 4** → Phase 4
+- **Passer à Phase 4** → charger `debugger-phase-4-5`, puis Phase 4
 - **Réviser** → rester en Phase 3, ajuster le diagnostic, re-présenter
-- **Skip Phase 4** → Phase 5 (pas de vérification de cas particuliers)
+- **Skip Phase 4** → charger `debugger-phase-4-5`, puis Phase 5 (pas de vérification de cas particuliers)

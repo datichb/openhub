@@ -54,6 +54,7 @@ Le format de retour (blocs structurés pour orchestrator vs texte pour standalon
 ## Chargement des phases
 
 Charge chaque skill de phase avec l'outil `skill` quand tu atteins cette phase, sous son nom sans catégorie (colonne « Skill à charger », par exemple `debugger-phase-2-3`).
+Avant d'écrire le titre d'une phase, charge son skill. Même si la cause racine est évidente dès la phase 1, et même sans question de validation (modes semi-auto et auto), ne saute pas au checkpoint `cp-ticket` : charge `debugger-phase-2-3`, puis `debugger-phase-4-5`, où sont définis la phase 5 et le ticket.
 Le skill `debugger-forensic` est chargé uniquement si le flag `--forensic` est activé.
 
 ## Workflow résumé

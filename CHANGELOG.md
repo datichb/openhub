@@ -9,6 +9,11 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ## [Unreleased]
 
+### Fixed — reviewer et debugger d'après l'évaluation après P1
+
+- **Reviewer** : il vérifie qu'une branche existe localement avant de la récupérer, ne lit aucun fichier du diff avant la vérification, et sait qu'une commande composée (`| head`, `&&`) est refusée en entier sans que le shell soit indisponible (cas S1 : trois refus de `git … | head` l'avaient convaincu de n'avoir aucun shell).
+- **Debugger** : il charge le skill d'une phase avant d'en écrire le titre, et ne saute plus au checkpoint `cp-ticket` quand la cause est évidente ou sans question de validation (modes semi-auto et auto) : les transitions nomment le skill suivant (cas S6).
+
 ### Added — brouillons de session (lot SCR)
 
 - **`agents.<id>.scratch: { readers: [<agent>] }`** dans un workflow : l'agent reçoit un dossier de brouillons `~/.oh/sessions/<session>/scratch/<agent>/` (0700), hors du dépôt et de la documentation, dont le chemin lui est donné dans le contexte de session (`oh.scratch`). Validation : lecteurs connus, différents du propriétaire, sans doublon ; en patch (`extends`), `scratch: null` retire le dossier et la liste des lecteurs ne peut que se réduire.
