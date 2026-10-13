@@ -152,15 +152,24 @@ func TestNoDiagramSVG(t *testing.T) {
 	for _, s := range svgs {
 		t.Errorf("%s: diagrams are .mermaid sources, embedded as ```mermaid blocks (no SVG)", s)
 	}
-	ref := regexp.MustCompile(`diagrams/[\w.-]+\.svg`)
+	// Only the references that resolve into docs/diagrams count: a slide
+	// deck may ship its own rendered images (docs/presentations/diagrams).
+	ref := regexp.MustCompile(`[\w./-]*diagrams/[\w.-]+\.svg`)
+	diagrams := filepath.Join("docs", "diagrams")
 	for _, f := range docFiles(t, root) {
 		data, err := os.ReadFile(filepath.Join(root, f))
 		if err != nil {
 			t.Fatal(err)
 		}
 		for i, l := range strings.Split(string(data), "\n") {
-			if m := ref.FindString(l); m != "" {
-				t.Errorf("%s:%d: reference to %s (use the .mermaid source or a ```mermaid block)", f, i+1, m)
+			for _, m := range ref.FindAllString(l, -1) {
+				target := filepath.Join(filepath.Dir(f), filepath.FromSlash(m))
+				if strings.HasPrefix(m, "/") {
+					target = filepath.FromSlash(strings.TrimPrefix(m, "/"))
+				}
+				if filepath.Dir(target) == diagrams {
+					t.Errorf("%s:%d: reference to %s (use the .mermaid source or a ```mermaid block)", f, i+1, m)
+				}
 			}
 		}
 	}
