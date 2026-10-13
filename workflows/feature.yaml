@@ -27,7 +27,7 @@ inputs:
 prompt:
   template: prompts/feature.md.tmpl
 agents:
-  orchestrator: { role: workflow, calls: [pathfinder, planner, designer, orchestrator-dev, reviewer, documentarian] }
+  orchestrator: { role: workflow, calls: [pathfinder, planner, designer, orchestrator-dev, reviewer] }
   pathfinder: { role: workflow, mode: subagent }
   planner: { role: workflow, mode: subagent }
   designer: { role: workflow, mode: subagent }

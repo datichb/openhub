@@ -59,20 +59,15 @@ flowchart TD
     ORCH -->|delegates| DES
     ORCH -->|delegates| ORCHDEV
     ORCH -->|delegates| DBG
-    ORCH -->|delegates| DOC
 
     ORCHDEV -->|routes to| DEV
     ORCHDEV -->|routes to| REV
     ORCHDEV -->|routes to| DOC
 
     AUD -->|delegates| AUDS
-    AUD -->|delegates| DOC
 
-    PLAN -->|delegates| DOC
     PLAN -->|delegates| DES
-    PATH -->|delegates| DOC
     PATH -->|delegates| DES
-    BENCH -->|delegates| DOC
 
     style Planning fill:#3498db15,stroke:#3498db
     style Developer fill:#2ecc7115,stroke:#2ecc71

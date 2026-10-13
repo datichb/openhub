@@ -11,7 +11,7 @@ Agent d'entrée : `orchestrator`. Seuls les agents ci-dessous existent dans cett
 
 | Agent | Rôle | Mode | Après | Peut déléguer à |
 |---|---|---|---|---|
-| `orchestrator` | workflow (entrée) | primary | — | `designer`, `documentarian`, `orchestrator-dev`, `pathfinder`, `planner`, `reviewer` |
+| `orchestrator` | workflow (entrée) | primary | — | `designer`, `orchestrator-dev`, `pathfinder`, `planner`, `reviewer` |
 | `pathfinder` | workflow | subagent | — | `designer` |
 | `planner` | workflow | subagent | — | `designer` |
 | `designer` | workflow | subagent | — | — |

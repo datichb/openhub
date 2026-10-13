@@ -422,7 +422,7 @@ Agent d'entrée : `orchestrator`. Seuls les agents ci-dessous existent dans cett
 
 | Agent | Rôle | Mode | Après | Peut déléguer à |
 |---|---|---|---|---|
-| `orchestrator` | workflow (entrée) | primary | — | `designer`, `documentarian`, `orchestrator-dev`, `pathfinder`, `planner`, `reviewer` |
+| `orchestrator` | workflow (entrée) | primary | — | `designer`, `orchestrator-dev`, `pathfinder`, `planner`, `reviewer` |
 | `pathfinder` | workflow | subagent | — | `designer` |
 | `planner` | workflow | subagent | — | `designer` |
 | `designer` | workflow | subagent | — | — |
@@ -442,10 +442,9 @@ Règles de délégation :
 > Généré par oh à partir du workflow `feature`.
 
 - **Rôle** : agent d'entrée : tu échanges directement avec l'utilisateur.
-- **Agents que tu peux lancer** (outil `task`) : `designer`, `documentarian`, `orchestrator-dev`, `pathfinder`, `planner`, `reviewer`.
+- **Agents que tu peux lancer** (outil `task`) : `designer`, `orchestrator-dev`, `pathfinder`, `planner`, `reviewer`.
 - **Statuts de leurs retours** (ligne `Statut` de leur enveloppe) :
   - `designer` : `spec-complète`, `spec-partielle`, `choix-requis`, `prototype-livré`, `bloqué`
-  - `documentarian` : `documenté`, `partiellement-documenté`, `bloqué`
   - `orchestrator-dev` : `succès`, `partiel`, `bloqué`
   - `pathfinder` : `direct`, `escalade-planner`, `reconnaissance-partielle`
   - `planner` : `découpage-à-valider`, `planification-complète`, `planification-partielle`, `bloqué`
