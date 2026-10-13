@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -194,8 +195,8 @@ func readBudgetGolden(t *testing.T, name string) map[string]int {
 // (inlined ones and sections that do not invite it aside), the stack skills
 // of the project when it sets stack_skills, for the entry agent the workflow
 // `skills.extra` and the skills named in the prompt template, for an agent
-// that sets skills_from_callers the skills its callers name (their natives
-// aside), their requires closure and, transitively, the skills named by the
+// that sets skills_from_callers the skills its callers name in their prompt
+// or in the on-demand skills they reach (their natives aside), their requires closure and, transitively, the skills named by the
 // on-demand skills reached, among the skills it may load ([SKILL:…] tags
 // invite the callee, stack skills come from the stack only). It is
 // written apart from the build: the catalogue of each agent must match it.
@@ -250,57 +251,83 @@ func reachableSkills(t *testing.T, hub string, spec *workflow.Spec, b *Bundle, p
 	}
 	callers := callersOf(b.Spec.SubagentGraph)
 	envs := bundleWhenEnvs(spec, projectPath, b.Spec)
-	out := map[string][]sessionspec.SkillDef{}
-	for _, a := range b.Spec.Agents {
-		ar := byID[a.ID]
-		roots := append(append([]string(nil), ar.fm.NativeSkills...), ar.self...)
-		if ar.fm.StackSkills && projectPath != "" {
-			roots = append(roots, bricks.ResolveStackSkills(projectPath)...)
-		}
-		if a.ID == b.Spec.EntryAgent {
-			roots = append(roots, extra...)
-			roots = append(roots, mentionedSkills(prompt, index)...)
-		}
-		if ar.fm.SkillsFromCallers {
-			for _, c := range callers[a.ID] {
-				natives := map[string]bool{}
-				for _, n := range byID[c].fm.NativeSkills {
-					natives[n] = true
-				}
-				for _, ref := range byID[c].named {
-					if !natives[ref] {
-						roots = append(roots, ref)
-					}
-				}
-			}
-		}
-		reached := map[string]bool{}
+	// reach returns the on-demand skills an agent reaches from roots.
+	reach := func(id string, roots []string) map[string]*skillDoc {
+		ar, env := byID[id], envs[id]
+		reached := map[string]*skillDoc{}
 		queue := roots
 		for len(queue) > 0 {
 			root := queue[0]
 			queue = queue[1:]
 			// An undeliverable mention is not shipped: its closure may fail.
-			env := envs[a.ID]
 			docs, err := loader.closureFor([]string{root}, denyList(nil), func(d *skillDoc) bool { return !skillWhen(d, env) })
 			if err != nil {
 				continue
 			}
 			for _, d := range docs {
-				if ar.inlined[d.ID] || reached[d.ID] {
+				if ar.inlined[d.ID] || reached[d.ID] != nil {
 					continue
 				}
-				reached[d.ID] = true
+				reached[d.ID] = d
 				// Skills named by an on-demand skill it loads reach it too.
 				body := filterFor(d.Ref, string(d.body()), env)
-				for _, ref := range selfMentionedSkills(invitingText(body, a.ID, agentIDs), index) {
+				for _, ref := range selfMentionedSkills(invitingText(body, id, agentIDs), index) {
 					if !bricks.IsStackSkill(ref) {
 						queue = append(queue, ref)
 					}
 				}
 			}
 		}
+		return reached
+	}
+	reached := map[string]map[string]*skillDoc{}
+	// The skills_from_callers agents also reach the skills named by the
+	// on-demand skills their callers reach: until nothing changes.
+	for changed := true; changed; {
+		changed = false
+		for _, a := range b.Spec.Agents {
+			ar := byID[a.ID]
+			roots := append(append([]string(nil), ar.fm.NativeSkills...), ar.self...)
+			if ar.fm.StackSkills && projectPath != "" {
+				roots = append(roots, bricks.ResolveStackSkills(projectPath)...)
+			}
+			if a.ID == b.Spec.EntryAgent {
+				roots = append(roots, extra...)
+				roots = append(roots, mentionedSkills(prompt, index)...)
+			}
+			if ar.fm.SkillsFromCallers {
+				for _, c := range callers[a.ID] {
+					natives := map[string]bool{}
+					for _, n := range byID[c].fm.NativeSkills {
+						natives[n] = true
+					}
+					named := slices.Clone(byID[c].named)
+					for _, d := range reached[c] {
+						body := filterFor(d.Ref, string(d.body()), envs[c])
+						for _, ref := range mentionedSkills(invitingText(body, a.ID, agentIDs), index) {
+							if !bricks.IsStackSkill(ref) {
+								named = append(named, ref)
+							}
+						}
+					}
+					for _, ref := range named {
+						if !natives[ref] {
+							roots = append(roots, ref)
+						}
+					}
+				}
+			}
+			r := reach(a.ID, roots)
+			if len(r) != len(reached[a.ID]) {
+				changed = true
+			}
+			reached[a.ID] = r
+		}
+	}
+	out := map[string][]sessionspec.SkillDef{}
+	for _, a := range b.Spec.Agents {
 		for _, sk := range b.Spec.Skills {
-			if reached[sk.ID] && ToolEffect(a.Permissions, sessionspec.ActionSkill, sk.ID) != sessionspec.EffectDeny {
+			if reached[a.ID][sk.ID] != nil && ToolEffect(a.Permissions, sessionspec.ActionSkill, sk.ID) != sessionspec.EffectDeny {
 				out[a.ID] = append(out[a.ID], sk)
 			}
 		}

@@ -91,6 +91,29 @@ func TestCheckpointCall(t *testing.T) {
 	assert.Contains(t, txt, "cp-2")
 }
 
+func TestCheckpointUnlockedTextFollowsTheOps(t *testing.T) {
+	i18n.SetLocale("fr")
+	both := unlockedText([]string{"commit", "close"})
+	assert.Contains(t, both, "commit, close")
+	assert.Contains(t, both, "commit, puis fermeture du ticket")
+
+	commit := unlockedText([]string{"commit"})
+	assert.Contains(t, commit, "Commite maintenant")
+	assert.NotContains(t, commit, "fermeture")
+	assert.NotContains(t, commit, "ticket")
+
+	closing := unlockedText([]string{"close"})
+	assert.Contains(t, closing, "Ferme le ticket maintenant")
+	assert.NotContains(t, closing, "commit")
+
+	create := unlockedText([]string{"create"})
+	assert.Contains(t, create, "Crée maintenant les tickets validés")
+	assert.NotContains(t, create, "fermeture")
+
+	push := unlockedText([]string{"push"})
+	assert.Equal(t, i18n.Tf("cmd.mcp.workflow.checkpoint_unlocked", "push"), push, "no instruction for the push alone")
+}
+
 func TestCheckpointWithoutDaemonStillLetsTheAgentGoOn(t *testing.T) {
 	out := call(t, &fakeBackend{err: daemon.ErrNotRunning}, "tools/call", `{"name":"checkpoint","arguments":{"id":"cp-1","summary":"x"},`+meta+`}`)
 	assert.False(t, out.Result.IsError)

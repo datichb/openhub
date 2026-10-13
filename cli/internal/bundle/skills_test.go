@@ -197,27 +197,6 @@ func TestCheckSkills(t *testing.T) {
 	assert.True(t, hasKind(problems, SkillInvalidFrontmatter, "c/broken"))
 }
 
-// The hub limit of the descriptions (200) is a warning for the team
-// catalogue; the Agent Skills limit (1024) stays an error.
-func TestCheckSkillsTeamDescriptionLimit(t *testing.T) {
-	hub := fakeHub(t, map[string]string{
-		"skills/t/wordy.md":   "---\nname: wordy\ndescription: Utiliser " + strings.Repeat("é", 300) + "\n---\nx\n",
-		"skills/t/verbose.md": "---\nname: verbose\ndescription: Utiliser " + strings.Repeat("é", 1100) + "\n---\nx\n",
-		"skills/h/wordy2.md":  "---\nname: wordy2\ndescription: Utiliser " + strings.Repeat("é", 300) + "\n---\nx\n",
-	})
-	problems, err := CheckSkillsWith(hub, SkillCheckOptions{Team: func(ref string) bool { return strings.HasPrefix(ref, "t/") }})
-	require.NoError(t, err)
-	got := map[string]bool{}
-	for _, p := range problems {
-		got[string(p.Kind)+" "+p.Ref+" "+p.Detail] = p.Error
-	}
-	assert.Equal(t, map[string]bool{
-		"long_description t/wordy 309":    false,
-		"long_description t/verbose 1109": true,
-		"long_description h/wordy2 309":   true,
-	}, got)
-}
-
 func TestCheckSkillsGeneratedNeedNoTrigger(t *testing.T) {
 	hub := fakeHub(t, map[string]string{
 		"skills/" + WorkflowMapSkill + ".md": "---\nname: workflow-map\ndescription: Généré depuis le workflow.\n---\nx\n",

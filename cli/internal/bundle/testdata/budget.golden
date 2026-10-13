@@ -52,8 +52,8 @@ instruct libre                  reviewer                        11497     5062  
 instruct libre                  TOTAL                           68361    37226   68   65   2147   65   2147
 instruct onboarding             onboarder                        4180     2757    7   13    408   13    408
 instruct onboarding             TOTAL                            4180     2757    7   13    408   13    408
-instruct quick                  developer                       11723     5013    7   18    616   18    616
-instruct quick                  TOTAL                           11723     5013    7   18    616   18    616
+instruct quick                  developer                       11737     5013    7   18    616   18    616
+instruct quick                  TOTAL                           11737     5013    7   18    616   18    616
 instruct review                 reviewer                        11812     5321    7   13    447   13    447
 instruct review                 TOTAL                           11812     5321    7   13    447   13    447
 instruct review-feedback        developer                       12384     5555    8   15    512   15    512

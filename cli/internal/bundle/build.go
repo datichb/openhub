@@ -196,6 +196,11 @@ func Build(req Request) (*Bundle, error) {
 	}
 	cats := map[string]*agentCatalogue{}
 	envs := map[string]whenEnv{}
+	// absents are the skills each agent is invited to load that are left
+	// out of the session; the note naming them goes at noteAt in its body,
+	// once the on-demand skills of its catalogue are known.
+	absents := map[string][]string{}
+	noteAt := map[string]int{}
 	for _, id := range selected {
 		fm, err := bricks.ParseAgentFrontmatter(files[id])
 		if err != nil {
@@ -274,7 +279,7 @@ func Build(req Request) (*Bundle, error) {
 			}
 		}
 		named(invitingText(a.Body, id, agentIDs), selfMentionedSkills, true)
-		a.Body += absentSkillsNote(absent)
+		noteAt[id] = len(a.Body)
 		a.Body += sessionContract(req, spec.Workflow, id, shipped, callers, env, hubPayloadStatuses(loader, mentionIndex))
 		a.Body += instructionsContract(fm.InstructionsLevel(), instructions)
 		a.Body += scratchNote(id, spec.Workflow)
@@ -291,34 +296,49 @@ func Build(req Request) (*Bundle, error) {
 			})...)
 			named(req.promptTemplate(), mentionedSkills, false)
 		}
-		if err := os.MkdirAll(filepath.Join(tmp, agentsDir), 0o755); err != nil {
-			return nil, err
-		}
-		if err := os.WriteFile(filepath.Join(tmp, agentsDir, id+".md"), []byte(def.Body), bundleFileMode); err != nil {
-			return nil, err
-		}
+		absents[id] = absent
 	}
 	addCallerSkills(cats, callers)
+	// The callees that accept the skills of their callers also get the
+	// skills named by the on-demand skills of their callers: both grow until
+	// nothing changes.
+	for {
+		for i := range spec.Agents {
+			id := spec.Agents[i].ID
+			if err := cats[id].expand(loader, denied, mentionIndex, id, agentIDs); err != nil {
+				return nil, fmt.Errorf("agent %s: %w", id, err)
+			}
+		}
+		grew, err := offerSkillMentions(cats, callers, loader, denied, mentionIndex, agentIDs)
+		if err != nil {
+			return nil, err
+		}
+		if !grew {
+			break
+		}
+	}
 	// readers are the agents whose catalogue holds each on-demand skill: its
 	// text is filtered for them.
 	readers := map[string][]whenEnv{}
+	readerIDs := map[string][]string{}
+	listed := map[string]map[string]bool{}
 	var native []*skillDoc
 	shippedSkill := map[string]bool{}
 	for i := range spec.Agents {
 		id := spec.Agents[i].ID
 		cat := cats[id]
-		if err := cat.expand(loader, denied, mentionIndex, id, agentIDs); err != nil {
-			return nil, fmt.Errorf("agent %s: %w", id, err)
-		}
 		docs, err := cat.docs(loader, denied)
 		if err != nil {
 			return nil, fmt.Errorf("agent %s: %w", id, err)
 		}
 		list := []string{}
+		listed[id] = map[string]bool{}
 		for _, d := range docs {
 			if !cat.inlined[d.ID] && !slices.Contains(list, d.ID) {
 				list = append(list, d.ID)
+				listed[id][d.ID] = true
 				readers[d.Ref] = append(readers[d.Ref], envs[id])
+				readerIDs[d.Ref] = append(readerIDs[d.Ref], id)
 			}
 			if !shippedSkill[d.Ref] {
 				shippedSkill[d.Ref] = true
@@ -327,6 +347,18 @@ func Build(req Request) (*Bundle, error) {
 		}
 		sort.Strings(list)
 		spec.Agents[i].Skills = list
+	}
+	skillNotes, ownAbsents := absentFromSkills(cats, readerIDs, listed, loader, mentionIndex, agentIDs)
+	if err := os.MkdirAll(filepath.Join(tmp, agentsDir), 0o755); err != nil {
+		return nil, err
+	}
+	for i := range spec.Agents {
+		def := &spec.Agents[i]
+		at := noteAt[def.ID]
+		def.Body = def.Body[:at] + absentSkillsNote(append(absents[def.ID], ownAbsents[def.ID]...)) + def.Body[at:]
+		if err := os.WriteFile(filepath.Join(tmp, agentsDir, def.ID+".md"), []byte(def.Body), bundleFileMode); err != nil {
+			return nil, err
+		}
 	}
 	sort.Slice(native, func(i, j int) bool { return native[i].Ref < native[j].Ref })
 	for i, d := range native {
@@ -343,9 +375,14 @@ func Build(req Request) (*Bundle, error) {
 		if err := writeAnnexes(filepath.Join(tmp, skillsDir), d, files); err != nil {
 			return nil, err
 		}
-		if strings.Contains(string(d.Content), "oh:when") {
+		note := skillNotes[d.Ref]
+		if note != "" || strings.Contains(string(d.Content), "oh:when") {
 			fd := *d
-			fd.Content = []byte(filterFor(d.Ref, string(d.Content), readers[d.Ref]...))
+			content := filterFor(d.Ref, string(d.Content), readers[d.Ref]...)
+			if note != "" {
+				content = strings.TrimRight(content, "\n") + note
+			}
+			fd.Content = []byte(content)
 			native[i] = &fd
 		}
 	}
