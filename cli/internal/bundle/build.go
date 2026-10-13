@@ -195,7 +195,7 @@ func Build(req Request) (*Bundle, error) {
 		if err != nil {
 			return nil, err
 		}
-		perms := req.agentPermissions(fm)
+		perms := req.agentPermissions(fm, instructions)
 		env := session.agentEnv(id, perms)
 		envs[id] = env
 		// keepFor drops, for this agent, the skills whose when: fails.
@@ -272,7 +272,7 @@ func Build(req Request) (*Bundle, error) {
 		a.Body += sessionContract(req, spec.Workflow, id, shipped, callers, env)
 		a.Body += instructionsContract(fm.InstructionsLevel(), instructions)
 		a.Body += scratchNote(id, spec.Workflow)
-		def := agentDef(req, a, instructions, perms)
+		def := agentDef(req, a, instructions, perms, spec.AgentGuard)
 		spec.Agents = append(spec.Agents, def)
 		cat.addNatives(keepRoots(a.Frontmatter.NativeSkills, keepFor))
 		if fm.StackSkills && req.ProjectPath != "" {
@@ -445,13 +445,15 @@ func readSpec(dir string) (sessionspec.BundleSpec, error) {
 	return spec, err
 }
 
-func agentDef(req Request, a *bricks.AssembledAgent, instructions projectInstructions, perms []sessionspec.PermissionRule) sessionspec.AgentDef {
+// guard is the bundle guard, in force after perms: the instructions index
+// reads the effect of both.
+func agentDef(req Request, a *bricks.AssembledAgent, instructions projectInstructions, perms, guard []sessionspec.PermissionRule) sessionspec.AgentDef {
 	fm := a.Frontmatter
 	def := sessionspec.AgentDef{
 		ID:          fm.ID,
 		Description: fm.Description,
 		Mode:        fm.Mode,
-		Body:        a.Body + instructions.render(fm.InstructionsLevel(), perms),
+		Body:        a.Body + instructions.render(fm.InstructionsLevel(), append(slices.Clip(perms), guard...)),
 	}
 	if def.ID == "" {
 		def.ID = strings.TrimSuffix(filepath.Base(a.Path), ".md")
@@ -472,8 +474,9 @@ func agentDef(req Request, a *bricks.AssembledAgent, instructions projectInstruc
 }
 
 // agentPermissions returns the rules of an agent: its own, the verification
-// commands, then the guards.
-func (req Request) agentPermissions(fm *bricks.AgentFrontmatter) []sessionspec.PermissionRule {
+// commands, the reading of the project instructions of its index, then the
+// guards.
+func (req Request) agentPermissions(fm *bricks.AgentFrontmatter, instructions projectInstructions) []sessionspec.PermissionRule {
 	perms, err := bricks.ResolvePermissions(req.HubDir, fm)
 	if err != nil {
 		slog.Warn("bundle: permission base resolution failed, using inline permissions", "agent", fm.ID, "error", err)
@@ -486,6 +489,8 @@ func (req Request) agentPermissions(fm *bricks.AgentFrontmatter) []sessionspec.P
 		// After the agent's own rules ("*": deny first), before the guards.
 		verify = VerifyRules(req.verifyCommands, req.Spec.Risk)
 	}
+	// The guards follow the instruction reads: they always win.
+	verify = append(verify, instructionReadRules(fm.InstructionsLevel(), own, instructions)...)
 	rules := append(append(append(append(append(append(append(own, verify...), InfraGuard(own)...), GitShellGuard(own)...), BeadsShellGuard()...), HookGuard()...), HookEditGuard(own)...), BeadsDirGuard()...)
 	// Last: the session scratch folders (globalguard.go).
 	return append(rules, ScratchAgentGuard(fm.ID, &sessionspec.WorkflowRuntime{Scratch: scratchDefs(req.Spec)}, req.OhHome)...)

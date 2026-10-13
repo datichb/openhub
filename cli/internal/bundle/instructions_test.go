@@ -3,6 +3,7 @@ package bundle
 import (
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -169,4 +170,90 @@ func TestFrontmatterProjectInstructions(t *testing.T) {
 	assert.Equal(t, bricks.InstructionsIndex, fm.InstructionsLevel())
 	_, err = bricks.ParseAgentFrontmatterFromBytes([]byte("---\nid: a\nproject_instructions: some\n---\n"))
 	assert.ErrorContains(t, err, "project_instructions")
+}
+
+// L7: an agent at the level index may read each file of its index, on its
+// exact path only; an explicit refusal of the agent and the guards win.
+func TestIndexReadRules(t *testing.T) {
+	hub, cat, env := shippedWorkflows(t)
+	r, diags := workflow.Check(cat, workflow.Ref{Layer: workflow.LayerHub, ID: "feature"}, nil, env)
+	require.False(t, diags.HasErrors(), "%v", diags)
+	project := instructionsFixture(t, true)
+	for _, f := range []string{"docs/team.md", ".oh/sessions/notes.md"} {
+		require.NoError(t, os.MkdirAll(filepath.Dir(filepath.Join(project, f)), 0o755))
+		require.NoError(t, os.WriteFile(filepath.Join(project, f), []byte("# Équipe\n"), 0o644))
+	}
+	extra := []string{"docs/team.md", ".oh/sessions/notes.md"}
+	b, err := Build(Request{HubDir: hub, OutDir: t.TempDir(), ProjectPath: project, Spec: r.Spec, ExtraInstructionFiles: extra})
+	require.NoError(t, err)
+	dev := findAgent(b.Spec.Agents, "orchestrator-dev")
+	require.NotNil(t, dev)
+	rules := append(slices.Clip(dev.Permissions), b.Spec.AgentGuard...)
+	read := func(f string) sessionspec.Effect { return ToolEffect(rules, sessionspec.ActionRead, f) }
+	for _, f := range []string{".claude/CLAUDE.md", "docs/team.md", "ONBOARDING.md", "CONVENTIONS.md", wikiIndexFile} {
+		assert.Equal(t, sessionspec.EffectAllow, read(f), f)
+	}
+	for _, f := range []string{"src/main.go", "docs/other.md", ".claude/settings.json", "README.md"} {
+		assert.Equal(t, sessionspec.EffectDeny, read(f), "%s: no wider read", f)
+	}
+	assert.Equal(t, sessionspec.EffectDeny, ToolEffect(rules, sessionspec.ActionEdit, ".claude/CLAUDE.md"), "read only")
+	assert.Equal(t, sessionspec.EffectDeny, read(".oh/sessions/notes.md"), "the session data guard wins")
+	idx := instructionsOf(dev.Body)
+	assert.Contains(t, idx, "- `.oh/sessions/notes.md` : Équipe (≈ 2 tokens) — lecture non autorisée pour toi")
+	assert.Contains(t, idx, "- `.claude/CLAUDE.md` (≈ 9 tokens)\n")
+	assert.Contains(t, idx, "- `docs/team.md` : Équipe (≈ 2 tokens)\n")
+
+	// The generated reads sit after the agent's own rules, before every guard.
+	files, err := bricks.FindAgentFiles(hub)
+	require.NoError(t, err)
+	fm, err := bricks.ParseAgentFrontmatter(files["orchestrator-dev"])
+	require.NoError(t, err)
+	req := Request{HubDir: hub, Spec: r.Spec}
+	p, err := readInstructions(project, extra)
+	require.NoError(t, err)
+	without := req.agentPermissions(fm, projectInstructions{})
+	with := req.agentPermissions(fm, p)
+	gen := instructionReadRules(bricks.InstructionsIndex, ConvertPermissions(fm.Permission), p)
+	require.Len(t, with, len(without)+len(gen))
+	k := -1
+	for i := 0; i+len(gen) <= len(with); i++ {
+		if slices.Equal(with[i:i+len(gen)], gen) {
+			k = i
+		}
+	}
+	require.GreaterOrEqual(t, k, 0)
+	assert.Equal(t, sessionspec.EffectDeny, ToolEffect(without[:k], sessionspec.ActionRead, "src/main.go"), "after the own rules")
+	assert.Equal(t, gen, with[k:k+len(gen)])
+	assert.Equal(t, without, slices.Concat(with[:k], with[k+len(gen):]))
+	assert.Equal(t, without[k:], with[k+len(gen):], "the guards follow")
+
+	// Other levels: no generated read.
+	assert.Empty(t, instructionReadRules(bricks.InstructionsFull, nil, p))
+	assert.Empty(t, instructionReadRules(bricks.InstructionsNone, nil, p))
+}
+
+func TestInstructionReadRulesKeepExplicit(t *testing.T) {
+	p := projectInstructions{Files: []instructionFile{{Path: "CONVENTIONS.md"}, {Path: ".claude/CLAUDE.md"}, {Path: "../outside.md"}, {Path: "docs/*.md"}}}
+	paths := func(rules []sessionspec.PermissionRule) []string {
+		var out []string
+		for _, r := range rules {
+			assert.Equal(t, sessionspec.ActionRead, r.Action)
+			assert.Equal(t, sessionspec.EffectAllow, r.Effect)
+			out = append(out, r.Resource)
+		}
+		return out
+	}
+	closed := []sessionspec.PermissionRule{{Action: sessionspec.ActionRead, Resource: "*", Effect: sessionspec.EffectDeny}}
+	assert.Equal(t, []string{"CONVENTIONS.md", ".claude/CLAUDE.md"}, paths(instructionReadRules(bricks.InstructionsIndex, closed, p)),
+		"a closed default is opened on the exact paths; never outside the project or a pattern")
+
+	deny := append(slices.Clip(closed), sessionspec.PermissionRule{Action: sessionspec.ActionRead, Resource: ".claude/*", Effect: sessionspec.EffectDeny})
+	gen := instructionReadRules(bricks.InstructionsIndex, deny, p)
+	assert.Equal(t, []string{"CONVENTIONS.md"}, paths(gen), "an explicit deny stays")
+	idx := p.render(bricks.InstructionsIndex, append(deny, gen...))
+	assert.Contains(t, idx, "- `.claude/CLAUDE.md` (≈ 0 tokens) — lecture non autorisée pour toi")
+	assert.NotContains(t, idx, "- `CONVENTIONS.md` (≈ 0 tokens) —")
+
+	ask := []sessionspec.PermissionRule{{Action: "*", Resource: ".claude/CLAUDE.md", Effect: sessionspec.EffectAsk}}
+	assert.Equal(t, []string{"CONVENTIONS.md"}, paths(instructionReadRules(bricks.InstructionsIndex, ask, p)), "an explicit ask stays")
 }

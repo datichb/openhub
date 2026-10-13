@@ -8,7 +8,7 @@
 
 - `ONBOARDING.md` : Onboarding Atlas (≈ 18 tokens) ; sections : Démarrer
 - `CONVENTIONS.md` : Conventions Atlas (≈ 30 tokens) ; sections : Nommage · Tests
-- `.claude/CLAUDE.md` (≈ 9 tokens) — lecture non autorisée pour toi : si ta tâche en dépend, signale-le
+- `.claude/CLAUDE.md` (≈ 9 tokens)
 
 ## Wiki du projet
 

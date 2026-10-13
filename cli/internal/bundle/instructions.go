@@ -2,6 +2,8 @@ package bundle
 
 import (
 	"fmt"
+	"path"
+	"path/filepath"
 	"slices"
 	"strings"
 
@@ -185,8 +187,9 @@ func joinSections(ss []string) string {
 	return strings.Join(ss, " · ")
 }
 
-// readNote tells the agent when its rules do not let it read file; without
-// a matching rule, the tool default applies (no note).
+// readNote tells the agent when its rules (guards included) do not let it
+// read file; without a matching rule, the tool default applies (allow, no
+// note).
 func readNote(perms []sessionspec.PermissionRule, file string) string {
 	matched := slices.ContainsFunc(perms, func(r sessionspec.PermissionRule) bool {
 		return toolMatch(sessionspec.ActionRead, r.Action) && toolMatch(file, r.Resource)
@@ -201,6 +204,56 @@ func readNote(perms []sessionspec.PermissionRule, file string) string {
 		return " — lecture soumise à confirmation"
 	}
 	return ""
+}
+
+// paths returns the files of the index (instruction files, wiki index).
+func (p projectInstructions) paths() []string {
+	out := make([]string, 0, len(p.Files)+1)
+	for _, f := range p.Files {
+		out = append(out, f.Path)
+	}
+	if p.Wiki != nil {
+		out = append(out, wikiIndexFile)
+	}
+	return out
+}
+
+// instructionReadRules returns, for an agent at the level index, the read
+// of each file of its index on its exact path, so that "read it on demand"
+// holds: a read only, never a pattern, a path outside the project or a
+// path that a rule of the agent other than "*" refuses or asks for (own:
+// its own rules). They go after its own rules and before the guards,
+// which always win.
+func instructionReadRules(level string, own []sessionspec.PermissionRule, p projectInstructions) []sessionspec.PermissionRule {
+	if level != bricks.InstructionsIndex {
+		return nil
+	}
+	var out []sessionspec.PermissionRule
+	for _, file := range p.paths() {
+		rel := filepath.ToSlash(file)
+		if rel != path.Clean(rel) || path.IsAbs(rel) || filepath.IsAbs(file) || rel == ".." || strings.HasPrefix(rel, "../") ||
+			strings.ContainsAny(rel, "*?") {
+			continue
+		}
+		if e, ok := explicitRead(own, rel); ok && e != sessionspec.EffectAllow {
+			continue
+		}
+		out = append(out, sessionspec.PermissionRule{Action: sessionspec.ActionRead, Resource: rel, Effect: sessionspec.EffectAllow})
+	}
+	return out
+}
+
+// explicitRead returns the effect of the last rule of own on reading file
+// whose resource is not "*" (the default of the agent is not explicit).
+func explicitRead(own []sessionspec.PermissionRule, file string) (sessionspec.Effect, bool) {
+	var eff sessionspec.Effect
+	ok := false
+	for _, r := range own {
+		if r.Resource != "*" && toolMatch(sessionspec.ActionRead, r.Action) && toolMatch(file, r.Resource) {
+			eff, ok = r.Effect, true
+		}
+	}
+	return eff, ok
 }
 
 // instructionsContract is the session contract line of an agent at the
