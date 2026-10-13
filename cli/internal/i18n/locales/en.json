@@ -688,6 +688,7 @@
   "tui.checkpoint.verify.status.unavailable": "cannot run here",
   "tui.checkpoint.verify.expect_fail": "(failure expected)",
   "tui.checkpoint.verify.no_location": "work location not found: the verification cannot run where the work is",
+  "tui.checkpoint.verify.unreadable": "git cannot read the state of the work (repository refused): the verification cannot be tied to it",
   "tui.checkpoint.verify.remote": "In the remote job: %s (the work is verified again here before it passes)",
   "tui.checkpoint.verify.no_command": "no verification command detected for this project",
   "tui.checkpoint.verify.must_touch": "the changes touch none of these paths: %s",

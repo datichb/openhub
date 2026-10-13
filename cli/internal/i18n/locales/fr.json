@@ -688,6 +688,7 @@
   "tui.checkpoint.verify.status.unavailable": "impossible ici",
   "tui.checkpoint.verify.expect_fail": "(échec attendu)",
   "tui.checkpoint.verify.no_location": "emplacement de travail introuvable : la vérification ne peut pas tourner là où est le travail",
+  "tui.checkpoint.verify.unreadable": "git ne peut pas lire l’état du travail (dépôt refusé) : la vérification ne peut pas y être rattachée",
   "tui.checkpoint.verify.remote": "Dans le job distant : %s (le travail est revérifié ici avant de passer)",
   "tui.checkpoint.verify.no_command": "aucune commande de vérification détectée pour ce projet",
   "tui.checkpoint.verify.must_touch": "les changements ne touchent aucun de ces chemins : %s",

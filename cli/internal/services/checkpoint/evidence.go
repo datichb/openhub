@@ -149,10 +149,14 @@ func (s *Service) onShell(ctx context.Context, sess *domain.Session, call adapte
 		return false, err
 	}
 	head, dirty, herr := s.headErr(ctx, sess.LaunchPath)
-	if herr != nil {
-		return false, nil //nolint:nilerr // git unavailable: the window stays as it is
-	}
-	if head == "" || head == commitWindow.Head || dirty {
+	reason := sessionspec.UnlockCommit
+	switch {
+	case herr != nil:
+		// The state of the work cannot be read (git refuses, the
+		// configuration changed): the window closes rather than stay open
+		// without end (fails closed; the checkpoint asked again opens it).
+		reason += " (git: " + herr.Error() + ")"
+	case head == "" || head == commitWindow.Head || dirty:
 		return false, nil // not committed, or more to commit (one commit per subtask)
 	}
 	_, err = s.update(ctx, sess.ID, func(st *domain.CheckpointState) error {
@@ -161,7 +165,7 @@ func (s *Service) onShell(ctx context.Context, sess *domain.Session, call adapte
 			return errUnchanged
 		}
 		delete(st.Unlocks, sessionspec.UnlockCommit)
-		s.record(st, domain.CheckpointWindow, u.Checkpoint, "", sessionspec.UnlockCommit)
+		s.record(st, domain.CheckpointWindow, u.Checkpoint, "", reason)
 		changed = true
 		return nil
 	})

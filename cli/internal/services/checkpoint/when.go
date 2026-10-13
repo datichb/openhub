@@ -6,6 +6,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/beads"
 	"github.com/datichb/openhub/cli/internal/domain"
+	"github.com/datichb/openhub/cli/internal/gitutil"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 )
 
@@ -33,7 +34,9 @@ func (s *Service) whenFacts(ctx context.Context, sess *domain.Session, w *sessio
 	}
 	sort.Strings(f.Outputs)
 	if len(w.Paths) > 0 {
-		f.Paths, _ = s.changedPaths(ctx, sess)
+		var err error
+		f.Paths, err = s.changedPaths(ctx, sess)
+		f.PathsUnknown = err != nil && gitutil.LooksLikeRepository(sess.LaunchPath)
 	}
 	if len(w.Labels) > 0 {
 		tickets := append([]string(nil), sess.Tickets...)

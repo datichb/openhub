@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"os"
 	"os/exec"
@@ -157,8 +158,12 @@ func insertAfter(args []string, from int, sub string, flags ...string) []string 
 
 // Command returns git running args in the repository at dir (working
 // directory), through SafeArgs, without any terminal prompt and with no
-// optional lock taken.
+// optional lock taken. As root, in a repository of a registered account, it
+// runs as that account (OwnerOf, CommandAs).
 func Command(ctx context.Context, dir string, args ...string) *exec.Cmd {
+	if o, ok := OwnerOf(dir); ok {
+		return CommandAs(ctx, dir, o, args...)
+	}
 	cmd := exec.CommandContext(ctx, "git", SafeArgs(args...)...)
 	cmd.Dir = dir
 	cmd.Env = safeEnv(os.Environ())
@@ -277,7 +282,7 @@ func fingerprintFiles(ctx context.Context, dir string) (common, fingerprint stri
 	files = map[string]string{}
 	h := sha256.New()
 	add := func(name string) {
-		data, err := os.ReadFile(name)
+		data, err := readRegular(name)
 		if err != nil {
 			fmt.Fprintf(h, "%s\x00-\x00", name)
 			files[name] = "-"
@@ -389,4 +394,26 @@ func recorded(common string) (trust, bool) {
 		return trust{}, false
 	}
 	return t, true
+}
+
+// errNotRegular: a FIFO, a device or a directory where a configuration file
+// is expected (never read: it could block oh).
+var errNotRegular = errors.New("not a regular file")
+
+// readRegular reads a regular file (through a symbolic link), never
+// blocking on a FIFO an agent put in place of a file of the repository.
+func readRegular(name string) ([]byte, error) {
+	f, err := openNoBlock(name)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = f.Close() }()
+	fi, err := f.Stat()
+	if err != nil {
+		return nil, err
+	}
+	if !fi.Mode().IsRegular() {
+		return nil, errNotRegular
+	}
+	return io.ReadAll(f)
 }

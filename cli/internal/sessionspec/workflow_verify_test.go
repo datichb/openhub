@@ -48,4 +48,10 @@ func TestEffectiveBehavior(t *testing.T) {
 	ok, why := (&WhenDef{Entry: []string{"debugger"}, Paths: []string{"*.sql"}, Outputs: []string{"mr"}}).Holds(WhenFacts{Paths: []string{"db/1.sql"}})
 	assert.True(t, ok)
 	assert.Equal(t, "path: db/1.sql", why)
+
+	ok, why = (&WhenDef{Paths: []string{"*.sql"}}).Holds(WhenFacts{PathsUnknown: true})
+	assert.True(t, ok, "changed paths unknown: the condition holds (fails closed)")
+	assert.Equal(t, "paths: unknown", why)
+	ok, _ = (&WhenDef{Entry: []string{"debugger"}}).Holds(WhenFacts{PathsUnknown: true})
+	assert.False(t, ok, "only a paths condition")
 }

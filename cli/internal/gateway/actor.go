@@ -6,6 +6,8 @@ import (
 	"os/exec"
 	"strings"
 	"time"
+
+	"github.com/datichb/openhub/cli/internal/gitutil"
 )
 
 // actorMarker separates the person from the oh agent in a Beads actor
@@ -54,7 +56,9 @@ func cleanActorPart(s string) string {
 func ResolveHuman(ctx context.Context, location string) string {
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
-	if out, err := exec.CommandContext(ctx, "git", "-C", location, "config", "user.name").Output(); err == nil {
+	cmd := exec.CommandContext(ctx, "git", "-C", location, "config", "user.name")
+	gitutil.AsOwner(cmd, location)
+	if out, err := cmd.Output(); err == nil {
 		if name := cleanActorPart(string(out)); name != "" {
 			return name
 		}
