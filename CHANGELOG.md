@@ -9,6 +9,13 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ## [Unreleased]
 
+### Changed — découpage par phase : audit (lot L6 audit)
+
+- **`auditor-workflow`** est réduit à un cœur (table des phases, domaines, retours en arrière) ; les phases 0-1, 3 et 4 deviennent des skills chargées à la demande (`auditor-phase-0-1`, `auditor-phase-3`, `auditor-phase-4`), et le prompt de délégation n'existe plus qu'en un exemplaire.
+- **`audit-protocol-light`** est découpé par rôle : le sous-agent garde la rédaction du rapport (et, avec le serveur wiki, propose ses découvertes avec `wiki_propose`), l'auditor n'en voit que la lecture (criticités, score, champs à consolider).
+- **Lint `TestPhaseSkillsHaveTrigger`** : toute skill de phase est citée dans le prompt de son agent avec la phase où la charger.
+- **Budget** : prompt de l'auditor 11 454 → 3 423 tokens ; somme des prompts 277 663 → 269 040.
+
 ### Added — MCP du wiki du projet (lot LD-J)
 
 - **Serveur MCP `wiki`** (`wiki_index`, `wiki_read`, `wiki_propose`, `wiki_pending`, `wiki_apply`, `wiki_check`), servi par le démon dans les workflows d'un projet doté de `docs/wiki/`. Index et god nodes calculés par oh, aussi dans l'index injecté aux agents de niveau `index`.
