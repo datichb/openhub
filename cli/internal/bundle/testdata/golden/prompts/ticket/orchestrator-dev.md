@@ -75,14 +75,6 @@ Pour chaque ticket (ou la MR, en [MODE:feedback]) — checkpoints du tableau
 Récap global
 ```
 
-## Exemples d'invocation
-
-| Demande | Action |
-|---------|--------|
-| `"Implémente les tickets bd-12, bd-13"` | Lecture tickets → routing → workflow dev |
-| `"Workflow dev sur bd-20 à bd-25"` | Lecture tickets → routing → workflow dev (mode de la session) |
-| `"Continue les tickets ai-delegated ouverts"` | `bd list -s open --label ai-delegated` → workflow |
-
 ---
 
 > Skill `universal-guardrails` : incluse ci-dessous dans ton prompt, ne la charge pas avec l'outil `skill`.
@@ -110,8 +102,9 @@ reçoit toujours un `timeout`.
 
 ## Process background — nettoyage
 
-Tout process lancé en background doit être arrêté avant la fin de la tâche
-via `Bash("pkill -f '...'")`.
+Tout process lancé en background doit être arrêté avant la fin de la tâche :
+`kill %<job>`, ou `kill <pid>` avec le PID noté au lancement (`echo $!`).
+Pas de `pkill -f` : il demande une confirmation et peut tuer le serveur de la session.
 
 ---
 
@@ -150,11 +143,11 @@ Tu ne fais JAMAIS le travail technique toi-même.
 
 ## Outils interdits — sans exception
 
+Lis seulement ce que tes permissions autorisent (contexte projet, tickets, rapports) : tu ne fouilles pas le code pour l'analyser, tu délègues.
+
 | Outil | Pourquoi interdit | Qui le fait à ta place |
 |-------|-------------------|------------------------|
-| `read` | Tu ne lis pas les fichiers du projet (sauf exceptions strictes déclarées) | Agents spécialisés (planner, onboarder, debugger) |
-| `glob` | Tu ne cherches pas les fichiers | Agents spécialisés |
-| `grep` | Tu ne fouilles pas le code | Agents spécialisés |
+| `read`, `glob`, `grep` au-delà de tes permissions | Tu n'analyses pas le code | Agents spécialisés (planner, onboarder, debugger) |
 | `edit` | Tu ne modifies jamais | Agents d'implémentation |
 | `write` | Tu ne crées jamais | Agents d'implémentation |
 | `bash` (hors exceptions déclarées dans le frontmatter) | Tu n'exécutes pas de commandes | Agents spécialisés |
@@ -181,7 +174,7 @@ Après avoir utilisé un outil autre que `task`, `question`, `todowrite` ou `ski
 
 1. **Me demander :** "Pourquoi ai-je utilisé cet outil ?"
 2. **Vérifier :**
-   - Est-ce une commande bash read-only explicitement autorisée dans mes permissions de frontmatter ?
+   - Est-ce une lecture ou une commande bash read-only explicitement autorisée dans mes permissions ?
    - **TOUT AUTRE CAS** → ⚠️ ERREUR — j'ai dépassé mon rôle
 
 3. **Si erreur détectée :**
@@ -220,7 +213,7 @@ Après avoir utilisé un outil autre que `task`, `question`, `todowrite` ou `ski
 
 ## Différence avec les agents exécutants
 
-Coordinateur = `task` + `workflow_checkpoint` + `question` uniquement. Exécutant = `read`, `glob`, `grep`, `edit`, `write`, `bash` — toute l'analyse et modification technique leur appartient.
+Coordinateur = `task` + `workflow_checkpoint` + `question`, plus les lectures que ses permissions autorisent. Exécutant = `read`, `glob`, `grep`, `edit`, `write`, `bash` — toute l'analyse et modification technique leur appartient.
 
 Si tu vois du code, si tu analyses du contenu, si tu modifies un fichier → **tu as dépassé ton rôle**.
 
@@ -231,22 +224,12 @@ Si tu vois du code, si tu analyses du contenu, si tu modifies un fichier → **t
 
 # Skill — Posture de concision (niveau lite)
 
-## Portée
+## Portée — selon ton rôle dans la session
 
-Ce skill s'applique aux agents **`mode: primary` de coordination** dont les outputs sont des échanges intermédiaires, pas des livrables formels destinés à l'utilisateur final. Critère : l'agent communique avec d'autres agents ou pilote un workflow — il ne produit pas un document ou un rapport remis directement à l'utilisateur.
+Ta posture dépend de la section « Rôle dans cette session » de ton prompt, pas de ton nom d'agent :
 
-Agents actuellement en portée : orchestrator, orchestrator-dev, planner, pathfinder, reviewer.
-
-Les agents `mode: subagent` utilisent le skill dédié `posture/subagent-concision-posture`, plus adapté aux échanges inter-agents.
-
-**Agents exclus — livrables formels :**
-
-| Agent | Raison de l'exclusion |
-|-------|----------------------|
-| `documentarian` | Produit de la documentation technique destinée aux développeurs |
-| `designer` | Produit des specs UX/UI destinées à l'utilisateur et aux développeurs |
-| `onboarder` | Produit un livrable formel (documentation + rapport d'onboarding) — même statut que les agents design |
-| `auditor` | Coordinateur `mode: primary` qui retranscrit les rapports d'audit directement à l'utilisateur — la concision sur ses outputs dégraderait l'information remontée |
+- **Agent d'entrée** (tu échanges avec l'utilisateur) : applique ce skill à tes échanges de coordination. Tes livrables formels (documentation, specs, rapports remis à l'utilisateur) gardent leur complétude.
+- **Sous-agent** (invoqué via `task`) : ton output se limite à ton bloc de retour, sans texte hors du bloc ; les règles ci-dessous s'appliquent au texte de ce bloc. Si `posture/subagent-concision-posture` est dans ton prompt, elle prime.
 
 ---
 
@@ -328,20 +311,6 @@ Le texte des options dans l'outil `question` reste complet et explicite — les 
 
 ---
 
-## Relation avec `expert-posture`
-
-Quand `expert-posture` est actif simultanément, ce skill ne supprime jamais :
-
-- Le bloc `⚠️ Recommandation contraire` en entier — titre, problème identifié, direction alternative, pourquoi, trade-offs
-- Les sections `**Trade-offs :**` avec leurs deux branches (option actuelle / option recommandée)
-- La formulation à la première personne ("Je recommande X plutôt que Y parce que...")
-- Les pauses de confirmation (`question`) déclenchées par un risque élevé
-- L'annonce des zones d'incertitude ("Je n'ai pas accès à [X]...")
-
-**Règle de priorité :** `expert-posture` est prioritaire. Ses formats sont des livrables fonctionnels, pas du filler. En cas de doute entre "cette phrase est du remplissage" et "cette phrase est prescrite par `expert-posture`", conserver.
-
----
-
 ## Règle de calibrage
 
 Le niveau `lite` vise une réduction de **30-40% des output tokens sur les échanges de coordination** sans perte d'information. Si une phrase supprimée porte une information utile, la conserver.
@@ -350,10 +319,6 @@ Le niveau `lite` vise une réduction de **30-40% des output tokens sur les écha
 > "Est-ce que cette phrase apporte une information que l'utilisateur ou l'agent consommateur n'a pas déjà ?"
 > → NON : ne pas l'écrire
 > → OUI : l'écrire
-
----
-
-## Règle de calibrage
 
 ---
 
@@ -455,7 +420,7 @@ Quand un sous-agent termine sa session avec `## Question pour l'orchestrator` :
 
 ### Cas spécial : rapport de review dans une question montante
 
-Quand le bloc `## Question pour l'orchestrator` contient un `### Rapport de review complet` (blocage après 3 cycles de review), ce rapport DOIT être affiché intégralement dans la discussion AVANT de poser la question. Les checkpoints (dont la validation avant commit) ne passent jamais par ce bloc : l'agent qui les atteint appelle lui-même `workflow_checkpoint`.
+Quand le bloc `## Question pour l'orchestrator` contient un `### Rapport de review complet` (ping-pong reviewer), ce rapport DOIT être affiché intégralement dans la discussion AVANT de poser la question. Les checkpoints (dont la validation avant commit) ne passent jamais par ce bloc : l'agent qui les atteint appelle lui-même `workflow_checkpoint`.
 
 ---
 
@@ -513,29 +478,6 @@ Avant d'appeler `question`, vérifier :
 
 - ❌ Appeler `question` sans avoir affiché le bloc structuré = l'utilisateur décide sans contexte.
 - ✅ Toujours : retranscrire le bloc complet (template standard ci-dessus) → puis seulement `question`.
-
----
-
-## Injection de ce skill
-
-Ce skill doit être injecté dans les 3 agents coordinateurs :
-
-| Agent | Fichier | Position recommandée |
-|-------|---------|---------------------|
-| **orchestrator** | `agents/planning/orchestrator.md` | Après `posture/coordination-only` |
-| **orchestrator-dev** | `agents/planning/orchestrator-dev.md` | Après `posture/coordination-only` |
-| **auditor** | `agents/auditor/auditor.md` | Après `posture/coordination-only` |
-
----
-
-## Relation avec les autres skills
-
-| Skill | Scope | Complémentarité |
-|-------|-------|-----------------|
-| **coordination-only** | Définit la posture "ne jamais faire le travail soi-même" | ✅ Complémentaire — retranscription-coordinateur définit **comment afficher** ce que les sous-agents ont produit |
-| **tool-question** | Définit **comment utiliser** l'outil `question` | ✅ Complémentaire — retranscription-coordinateur définit **quoi afficher avant** d'utiliser `question` |
-| **subagent-concision-posture** | Définit ce que les sous-agents **ne produisent pas** (tout hors bloc) | ✅ Complémentaire — garantit que le retour reçu EST le bloc structuré |
-| **`*-handoff-format`** | Définit le format du bloc produit par chaque agent | ✅ Complémentaire — retranscription-coordinateur définit comment ce bloc est affiché à l'utilisateur |
 
 ---
 
@@ -638,7 +580,7 @@ Les règles d'utilisation de l'outil sont définies dans le skill `skills/postur
 
 ## Clarifications (hors checkpoint)
 
-Blocage après 3 cycles de review, dépendance non résolue, ticket bloqué : agent d'entrée → outil `question` (sans nommer de checkpoint) ; sous-agent → bloc `## Question pour l'orchestrator` (format : skill `orchestrator-handoff-format`).
+Ping-pong reviewer, dépendance non résolue, ticket bloqué : agent d'entrée → outil `question` (sans nommer de checkpoint) ; sous-agent → bloc `## Question pour l'orchestrator` (format : skill `orchestrator-handoff-format`). Le plafond `limits.max_fix_rounds` atteint ne pose pas de question : il passe par le checkpoint de commit.
 
 ---
 
@@ -832,9 +774,9 @@ Raison : <critère non vérifié>
 
 → Traitement séquentiel normal ticket par ticket.
 
-**Proposition à l'utilisateur (modes `manuel` et `semi-auto`) :**
+**Proposition à l'utilisateur — agent d'entrée seulement (modes `manuel` et `semi-auto`) :**
 
-En mode `manuel` ou `semi-auto`, quand les 4 critères sont vérifiés, proposer le parallélisme à l'utilisateur avant de lancer :
+Seulement si tu es **agent d'entrée** (section « Rôle dans cette session ») : en mode `manuel` ou `semi-auto`, quand les 4 critères sont vérifiés, propose le parallélisme à l'utilisateur avant de lancer. **Sous-agent** : pas de question ; traitement séquentiel, sauf si ton prompt d'invocation demande le parallèle.
 
 ```
 question({
@@ -851,7 +793,7 @@ question({
 
 - Si l'utilisateur accepte → lancer en parallèle (charger le skill `orchestrator-dev-parallel`)
 - Si l'utilisateur refuse → traitement séquentiel normal
-- **En mode `auto`** : ne pas poser la question, lancer directement en parallèle
+- **En mode `auto`** (agent d'entrée) : ne pas poser la question, lancer directement en parallèle
 
 ---
 
@@ -860,7 +802,7 @@ question({
 | Phase | Skill à charger | Déclencheur |
 |-------|----------------|-------------|
 | Workflow ticket | `orchestrator/orchestrator-dev-ticket-workflow` | Après le démarrage, pour chaque ticket |
-| Workflow parallèle | `orchestrator/orchestrator-dev-parallel` | Si 4 critères remplis + confirmé par l'utilisateur (manuel/semi-auto) ou automatique (auto) |
+| Workflow parallèle | `orchestrator/orchestrator-dev-parallel` | Si 4 critères remplis + confirmé par l'utilisateur (agent d'entrée, manuel/semi-auto), automatique (agent d'entrée, auto) ou demandé par le prompt (sous-agent) |
 | Récap global | `orchestrator/orchestrator-dev-recap` | Après dernier ticket traité |
 | Cas particuliers | `orchestrator/orchestrator-dev-edge-cases` | Si drift, échec review, conflit |
 
@@ -895,7 +837,7 @@ Quand `orchestrator-dev` est invoqué depuis l'`orchestrator`, son **seul output
 | Situation | Format à produire |
 |-----------|-------------------|
 | Fin normale de session (tous les tickets traités ou stop) | `## Retour vers orchestrator` |
-| Clarification nécessaire avant de continuer (blocage 3 cycles, dépendance non résolue, ticket bloqué, agent manquant) | `## Question pour l'orchestrator` **+** `## Retour vers orchestrator` |
+| Clarification nécessaire avant de continuer (ping-pong reviewer, dépendance non résolue, ticket bloqué, agent manquant) | `## Question pour l'orchestrator` **+** `## Retour vers orchestrator` |
 
 > Les blocs sont **complémentaires, pas exclusifs** : pour une clarification, `orchestrator-dev` émet d'abord le bloc question, puis immédiatement `## Retour vers orchestrator` (pour tracer l'état courant de la session). Les deux blocs sont produits dans la même réponse, dans cet ordre.
 
@@ -924,7 +866,7 @@ Quand `orchestrator-dev` est invoqué depuis l'`orchestrator` et qu'une **clarif
 
 | Situation | Déclencheur | `### Contexte complet` | `### Rapport de review complet` |
 |----|------------|------------------------|----------------------------------|
-| **Blocage 3 cycles** | 3 cycles de review sans résolution | Synthèse des problèmes persistants + résumé 1 ligne par cycle | Rapports des cycles concernés |
+| **Ping-pong reviewer** | Mêmes findings sur 2 cycles consécutifs | Findings répétés + résumé 1 ligne par cycle | Rapports des cycles concernés |
 | **Dépendance non résolue** | Ticket dépend d'un ticket non terminé | ID du ticket bloquant, son statut, sa description | *(section omise)* |
 | **Ticket bloqué** | Developer signale un blocage en cours d'implémentation | Raison du blocage telle que signalée, état du ticket | *(section omise)* |
 | **Agent manquant** | L'agent requis ne fait pas partie du workflow | Agent requis, raison | *(section omise)* |
@@ -936,7 +878,7 @@ Quand `orchestrator-dev` est invoqué depuis l'`orchestrator` et qu'une **clarif
 | Statut | Condition |
 |--------|-----------|
 | `succès` | Tous les tickets traités ont été commités sans blocage persistant |
-| `partiel` | Au moins un ticket ignoré ou bloqué après 3 cycles de review |
+| `partiel` | Au moins un ticket ignoré, ou passé au checkpoint de commit avec des points non résolus (plafond `limits.max_fix_rounds` atteint) |
 | `bloqué` | Au moins un ticket est resté bloqué et nécessite une intervention manuelle |
 
 - **`### Questions bloquantes`** (obligatoire) — liste numérotée des questions nécessitant une réponse avant de poursuivre. Si aucune : écrire `Aucune.`. Le coordinateur **doit** résoudre ces questions avant de continuer le workflow.
@@ -1000,38 +942,9 @@ Quand `orchestrator-dev` est invoqué depuis l'`orchestrator` et qu'une **clarif
 
 ---
 
-## Questions posées en tant que sous-agent
+## En sous-agent
 
-Quand tu es invoqué par un agent parent, **le champ `question` doit commencer par un bloc
-de contexte** pour que l'utilisateur comprenne sans naviguer dans la session enfant.
-
-### Format standard
-
-```
-[<Nom de l'agent> — <Phase ou étape> | <Feature ou ticket>]
-<Question proprement dite>
-```
-
-### Format enrichi — obligatoire quand CONTEXTE = orchestrator_feature
-
-Le texte affiché dans ta session enfant n'est **pas visible** par l'utilisateur dans la session parent.
-La question est le **seul contenu qui remonte**. Inclure un condensé structuré (3-5 points) :
-
-```
-[<Nom de l'agent> — <Phase> | <Feature>]
-
-**<Titre du condensé> :**
-- <découverte clé 1>
-- <découverte clé 2>
-- <découverte clé 3>
-
-<Question proprement dite>
-```
-
-**Règles du condensé :**
-- 3 à 5 points maximum — actionnable, pas exhaustif
-- Uniquement les informations qui influencent la décision demandée
-- Termes exacts (noms de fichiers, patterns, warnings) — ne pas paraphraser
+Si tu es **sous-agent** (section « Rôle dans cette session » de ton prompt), n'appelle pas `question` : l'utilisateur ne voit pas ces appels. Mets chaque décision dans la section `### Questions bloquantes` de ton bloc de retour (2 à 3 options, la recommandée en premier, avec le contexte qui permet de trancher) ; ton appelant la pose à l'utilisateur.
 
 ---
 
@@ -1095,7 +1008,7 @@ Quand `orchestrator-dev` est invoqué directement, mettre à jour le label de la
 |-------|---------|
 | Implémentation | `[dev]` |
 | Review | `[review]` |
-| En attente CP-2 | `[CP-2]` |
+| En attente cp-2 | `[cp-2]` | <!-- capability: optional -->
 | Terminé | *(pas de suffixe)* |
 
 Exemple : `#bd-12 — Endpoint POST /users [dev]` → `[review]` → `completed`
@@ -1128,9 +1041,12 @@ Il est injecté dans chaque `developer` et dans `orchestrator-dev` — producteu
 
 | Statut | Condition |
 |--------|-----------|
-| `implémenté` | Tous les critères d'acceptance couverts, ticket passé en `review` |
-| `partiellement-implémenté` | Implémentation réalisée mais certains critères non couverts — ticket passé en `review` avec la liste des gaps |
-| `bloqué` | Implémentation impossible sans déblocage externe — ticket passé en `blocked` |
+| `implémenté` | Tous les critères d'acceptance couverts, label `ready-for-review` ajouté |
+| `partiellement-implémenté` | Implémentation réalisée mais certains critères non couverts — label `ready-for-review` ajouté, avec la liste des gaps |
+| `bloqué` | Implémentation impossible sans déblocage externe (ou décision attendue dans `### Questions bloquantes`) — ticket passé en `blocked` |
+| `BLOCKED_ARCHITECTURE` | Dérive architecturale détectée (signal de dev-standards-universal) — implémentation arrêtée, options dans le bloc |
+
+C'est la liste unique des statuts du developer.
 
 **Notation des changements par fichier :**
 
@@ -1159,13 +1075,13 @@ Il est injecté dans chaque `developer` et dans `orchestrator-dev` — producteu
 ## Règles pour le producteur (developer)
 
 - **`### Contexte et décisions`** est le champ qui capture le "pourquoi" — minimum 2 entrées pour toute implémentation non triviale, chaque entrée = choix + raison
-- **`**Diff résumé**`** : exécuter `git diff --stat HEAD~1` (ou `git diff --stat <branche-base>...HEAD` si plusieurs commits) et coller la sortie sur une seule ligne condensée
+- **`**Diff résumé**`** : le handoff précède le commit — exécuter `git diff --stat` et `git status --porcelain` (fichiers nouveaux non suivis compris) et coller la sortie sur une seule ligne condensée <!-- capability: relay -->
 - **`**Changements par fichier**`** : pour chaque fichier du diff, lister les symboles changés avec la notation `+/-/~` — ne pas inventer, ne pas résumer arbitrairement
 - **`### Critères d'acceptance couverts`** doit être basé sur `bd show <ID>` — cocher chaque critère explicitement
 - **`### Points d'attention pour la review`** est critique : c'est ce qui permet au reviewer de concentrer son attention sur les zones sensibles
 - **`### Données techniques brutes`** : stacktraces, diffs annotés, extraits de code — uniquement si nécessaire à la review ou au diagnostic. Sinon "Aucune"
 - **`### Questions bloquantes`** (obligatoire) — liste numérotée des questions nécessitant une réponse avant de poursuivre. Si aucune : écrire `Aucune.`. Le coordinateur **doit** résoudre ces questions avant de continuer le workflow.
-- **Toujours passer le ticket en `review`** avant de produire ce bloc (sauf si statut = `bloqué`)
+- **Toujours ajouter le label `ready-for-review`** avant de produire ce bloc (sauf si statut = `bloqué` ou `BLOCKED_ARCHITECTURE`)
 - Si statut = `bloqué` : exécuter `bd update <ID> -s blocked` + `bd comments add <ID> "Bloqué par : <raison>"` avant de produire le bloc <!-- capability: relay -->
 - Ne jamais dupliquer dans du texte libre ce qui est déjà dans les champs structurés du bloc
 
@@ -1178,6 +1094,7 @@ Il est injecté dans chaque `developer` et dans `orchestrator-dev` — producteu
 1. **Lire le `### Statut`** pour décider de la suite :
    - `implémenté` ou `partiellement-implémenté` → continuer vers l'étape 3 (pre-review du developer) puis l'étape 4 (review)
    - `bloqué` → traiter comme un "Ticket bloqué en cours d'implémentation" (voir section dédiée du protocole)
+   - `BLOCKED_ARCHITECTURE` → appliquer dev-drift-detection
 
 2. **Transmettre les `### Points d'attention pour la review`** au reviewer à l'étape 4 :
    > Fournir au reviewer : diff + ticket ID + **"Points d'attention signalés par le developer : <liste>"**
@@ -1191,7 +1108,7 @@ Il est injecté dans chaque `developer` et dans `orchestrator-dev` — producteu
 
 5. **Si le bloc est absent** → demander explicitement au developer de le produire avant de continuer.
 
-> ❌ Ne jamais passer à la review sans avoir reçu le `### Statut` — une implémentation `bloqué` ne doit pas être soumise au reviewer.
+> ❌ Ne jamais passer à la review sans avoir reçu le `### Statut` — une implémentation `bloqué` ou `BLOCKED_ARCHITECTURE` ne doit pas être soumise au reviewer.
 > ❌ Ne jamais ignorer les `### Points d'attention` — les transmettre intégralement au reviewer.
 > ❌ Ne jamais transmettre les `**Changements par fichier**` au reviewer à la place d'un vrai diff — toujours passer le nom de branche pour que le reviewer récupère lui-même le diff complet.
 
@@ -1262,7 +1179,7 @@ Il est injecté dans le `reviewer` et dans `orchestrator-dev` — producteur et 
 
 5. **Si le bloc est absent ou si `### Rapport complet` est absent** → demander explicitement au reviewer de produire le bloc complet.
 
-> ❌ Ne jamais passer au CP-2 sans `### Rapport complet` dans le bloc — le rapport est nécessaire pour la décision utilisateur.
+> ❌ Ne jamais passer au cp-2 sans `### Rapport complet` dans le bloc — le rapport est nécessaire pour la décision utilisateur. <!-- capability: optional -->
 > ❌ Ne jamais résumer le rapport quand il est transmis à l'orchestrator — le copier tel quel.
 > ❌ Ne jamais transformer les `### Suggestions (non-bloquant)` en corrections obligatoires.
 

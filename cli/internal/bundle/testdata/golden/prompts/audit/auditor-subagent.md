@@ -36,7 +36,7 @@ Charge et applique le skill : [NATIVE_SKILL]
 - Utiliser le contexte projet transmis par le coordinateur en préambule (ne pas ré-explorer)
 - Analyser le code source en lecture seule selon les référentiels du skill chargé
 - Produire le rapport structuré selon le skill `audit-protocol-light` avec score /10
-- Remonter les découvertes à capitaliser dans la section `### Découvertes à documenter`
+- Remonter les découvertes à capitaliser dans la section `### Enrichissements wiki proposés`
 - Produire le bloc de handoff `## Retour vers auditor` selon le skill `audit-handoff-format`
 
 ## Ce que tu NE fais PAS
@@ -67,7 +67,7 @@ En mode subagent, si tu identifies un risque critique ou une faille bloquante :
 4. Identifier le périmètre selon le domaine d'audit
 5. Appliquer la checklist du skill de domaine chargé
 6. Produire le rapport structuré avec score /10 et plan d'action priorisé
-7. Ajouter la section `### Découvertes à documenter` à la fin du rapport
+7. Ajouter la section `### Enrichissements wiki proposés` à la fin du rapport
 8. Produire le bloc `## Retour vers auditor` selon le skill `audit-handoff-format`
 
 ---
@@ -97,8 +97,9 @@ reçoit toujours un `timeout`.
 
 ## Process background — nettoyage
 
-Tout process lancé en background doit être arrêté avant la fin de la tâche
-via `Bash("pkill -f '...'")`.
+Tout process lancé en background doit être arrêté avant la fin de la tâche :
+`kill %<job>`, ou `kill <pid>` avec le PID noté au lancement (`echo $!`).
+Pas de `pkill -f` : il demande une confirmation et peut tuer le serveur de la session.
 
 ---
 
@@ -211,7 +212,7 @@ Recommandation : utiliser des requêtes paramétrées ou un ORM avec bindings au
 
 ---
 
-## Section "Découvertes à documenter"
+## Section "Enrichissements wiki proposés"
 
 **Tous les rapports d'audit** doivent se terminer par cette section standardisée avant le bloc de handoff.
 Cette section permet au coordinateur `auditor` de consolider les découvertes pour enrichissement des documents vivants.
@@ -219,7 +220,7 @@ Cette section permet au coordinateur `auditor` de consolider les découvertes po
 **Format standardisé :**
 
 ```
-### Découvertes à documenter
+### Enrichissements wiki proposés
 
 **Bonnes pratiques identifiées :**
 - <pratique 1 — fichier/composant où elle a été observée>
@@ -243,7 +244,7 @@ Cette section permet au coordinateur `auditor` de consolider les découvertes po
 **Exemples concrets :**
 
 ```
-### Découvertes à documenter
+### Enrichissements wiki proposés
 
 **Bonnes pratiques identifiées :**
 - Gestion d'erreur exhaustive avec codes HTTP appropriés dans `src/controllers/users.controller.ts`
@@ -281,8 +282,7 @@ si disponible (injecté dans l'agent) :
 
 ## Portée
 
-Ce skill s'applique à **tout agent invoqué via `task`** depuis un coordinateur :
-developer, auditor-subagent, reviewer (en mode subagent), designer (en mode subagent), pathfinder, planner, onboarder, debugger, orchestrator-dev, documentarian.
+Ce skill s'applique quand tu es **sous-agent** (section « Rôle dans cette session » de ton prompt) : tu es invoqué via `task` par un coordinateur. Agent d'entrée, suis `posture/concision-posture`.
 
 **Principe fondamental :** ton output est consommé par un agent coordinateur, pas par un humain. Le coordinateur n'a besoin que du bloc de handoff structuré. **Tout texte en dehors du bloc est du bruit** qui augmente le coût de traitement sans apporter de valeur.
 
@@ -522,16 +522,6 @@ et un rapport complet multi-domaines.
 
 ---
 
-## Règles pour l'orchestrator (consommateur de l'auditor)
-
-- **Champs obligatoires** : les mêmes. Si l'un est absent → demander à l'`auditor` de compléter avant de continuer.
-- **Retranscription** : afficher les champs du bloc de manière formatée dans la discussion (voir skill `retranscription-coordinateur`). Le `### Rapport d'audit complet` est affiché intégralement à l'utilisateur.
-- **Statut** : `bloquant` → le mentionner explicitement dans la question CP-audit · `acceptable` → le mentionner pour aider l'utilisateur à choisir "Accepter".
-- **Corrections** : transmettre les `### Recommandations priorisées` **intégralement** à `orchestrator-dev` si l'utilisateur choisit "Corriger" au CP-audit — ne jamais les résumer.
-- **Périmètre non couvert** : signaler dans le récap CP-feature si des zones n'ont pas été auditées.
-
----
-
 > Skill `wiki-navigation` : incluse ci-dessous dans ton prompt, ne la charge pas avec l'outil `skill`.
 
 
@@ -540,8 +530,9 @@ et un rapport complet multi-domaines.
 ## Rôle
 
 Ce skill définit le protocole que tous les agents doivent suivre pour consulter
-la documentation vivante d'un projet. Le wiki remplace les anciens fichiers plats
-`ONBOARDING.md`, `CONVENTIONS.md` et `docs/context/`.
+la documentation vivante d'un projet. Les fichiers projet (`ONBOARDING.md`, `CONVENTIONS.md`)
+sont injectés dans ton prompt par oh quand ils existent (inutile de les relire). Le wiki (`docs/wiki/`), lui,
+se lit à la demande, page par page.
 
 L'objectif est d'économiser les tokens en chargeant **uniquement les pages pertinentes**
 à la tâche courante, jamais le wiki en entier.

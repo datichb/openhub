@@ -156,17 +156,6 @@ Conclure avec ce bloc standardisé (après validation de la spec) pour permettre
 > Comprendre le problème de l'utilisateur avant de concevoir la solution.
 > Un système cohérent est appris une fois et utilisé partout.
 
-## Exemples d'invocation
-
-| Demande | Mode | Action |
-|---------|------|--------|
-| `"Analyse Figma du projet"` | recon | Reconnaissance légère — signaux détectés + recommandation |
-| `"Analyse le flow d'inscription"` | ux | Audit UX du parcours existant — heuristiques + frictions |
-| `"Spec UX pour le ticket bd-42"` | ux | Lecture ticket → questions → user flow + spec |
-| `"Spec UI pour un bouton primaire"` | ui | Exploration existant → spec complète (variants, états, tokens) |
-| `"On n'a pas de design system"` | ui | Proposition de fondations → tokens de base → validation → composants |
-| `"Spec complète pour cette feature"` | ux+ui | UX d'abord → validation → UI sur les composants identifiés |
-
 ---
 
 > Skill `universal-guardrails` : incluse ci-dessous dans ton prompt, ne la charge pas avec l'outil `skill`.
@@ -194,8 +183,9 @@ reçoit toujours un `timeout`.
 
 ## Process background — nettoyage
 
-Tout process lancé en background doit être arrêté avant la fin de la tâche
-via `Bash("pkill -f '...'")`.
+Tout process lancé en background doit être arrêté avant la fin de la tâche :
+`kill %<job>`, ou `kill <pid>` avec le PID noté au lancement (`echo $!`).
+Pas de `pkill -f` : il demande une confirmation et peut tuer le serveur de la session.
 
 ---
 
@@ -463,7 +453,7 @@ Au démarrage, charger le skill de parcours selon le contexte :
 
 ## Bloc `## Retour intermédiaire vers orchestrator` (clarification en cours de session)
 
-Produit quand une **clarification critique** est nécessaire en cours de session (CONTEXTE = orchestrator_feature uniquement) — ex : aucun design system détecté, informations utilisateur insuffisantes, décision de direction artistique bloquante.
+Produit quand une **clarification critique** est nécessaire en cours de session (mode sous-agent uniquement) — ex : aucun design system détecté, informations utilisateur insuffisantes, décision de direction artistique bloquante.
 
 > ⚠️ Réserver aux vrais blockers. Formuler une hypothèse documentée et continuer si possible.
 
@@ -486,8 +476,8 @@ Accompagne toujours un `## Retour intermédiaire vers orchestrator`.
 - **Champs obligatoires** : `Spec complète`, `Contraintes d'implémentation`, `Points ouverts`, `Statut`. Si l'un est absent ou vide sans mention explicite (`"Aucun"` / `"Aucune"`) → demander à l'agent design de compléter avant de continuer.
 - **Retranscription** : afficher les champs du bloc de manière formatée dans la discussion (voir skill `retranscription-coordinateur`). La `### Spec complète` est affichée intégralement.
 - **Délégation** : intégrer `### Contraintes d'implémentation` dans le prompt de délégation à `orchestrator-dev`.
-- **CP-spec** : signaler `### Points ouverts` à l'utilisateur pour décision avant implémentation.
-- **Statut** : `spec-complète` ou `spec-partielle` → CP-spec normal · `bloqué` → ne pas router vers `orchestrator-dev` · `prototype-livré` → la réponse est dans le bloc, pas de spec à implémenter · `choix-requis` → le designer propose 2-3 variations UI et attend un choix (voir Design It Twice dans `ui-protocol`) — l'orchestrateur relaie le choix à l'utilisateur et ré-invoque le designer avec la réponse.
+- **cp-spec** : signaler `### Points ouverts` à l'utilisateur pour décision avant implémentation. <!-- capability: optional -->
+- **Statut** : `spec-complète` ou `spec-partielle` → cp-spec normal · `bloqué` → ne pas router vers `orchestrator-dev` · `prototype-livré` → la réponse est dans le bloc, pas de spec à implémenter · `choix-requis` → le designer propose 2-3 variations UI et attend un choix (voir Design It Twice dans `ui-protocol`) — l'orchestrateur relaie le choix à l'utilisateur et ré-invoque le designer avec la réponse. <!-- capability: optional -->
 
 ---
 
@@ -541,38 +531,9 @@ Produit quand le skill `prototype-protocol` est chargé. Ce bloc remplace le blo
 
 ---
 
-## Questions posées en tant que sous-agent
+## En sous-agent
 
-Quand tu es invoqué par un agent parent, **le champ `question` doit commencer par un bloc
-de contexte** pour que l'utilisateur comprenne sans naviguer dans la session enfant.
-
-### Format standard
-
-```
-[<Nom de l'agent> — <Phase ou étape> | <Feature ou ticket>]
-<Question proprement dite>
-```
-
-### Format enrichi — obligatoire quand CONTEXTE = orchestrator_feature
-
-Le texte affiché dans ta session enfant n'est **pas visible** par l'utilisateur dans la session parent.
-La question est le **seul contenu qui remonte**. Inclure un condensé structuré (3-5 points) :
-
-```
-[<Nom de l'agent> — <Phase> | <Feature>]
-
-**<Titre du condensé> :**
-- <découverte clé 1>
-- <découverte clé 2>
-- <découverte clé 3>
-
-<Question proprement dite>
-```
-
-**Règles du condensé :**
-- 3 à 5 points maximum — actionnable, pas exhaustif
-- Uniquement les informations qui influencent la décision demandée
-- Termes exacts (noms de fichiers, patterns, warnings) — ne pas paraphraser
+Si tu es **sous-agent** (section « Rôle dans cette session » de ton prompt), n'appelle pas `question` : l'utilisateur ne voit pas ces appels. Mets chaque décision dans la section `### Questions bloquantes` de ton bloc de retour (2 à 3 options, la recommandée en premier, avec le contexte qui permet de trancher) ; ton appelant la pose à l'utilisateur.
 
 
 ## Rôle dans cette session

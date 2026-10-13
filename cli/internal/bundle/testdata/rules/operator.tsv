@@ -53,17 +53,14 @@ tool-question	Bonnes pratiques	Prévoir la gestion des réponses libres (toujour
 tool-question	Bonnes pratiques	Ajouter une option "Autre" ou "Personnalisé" (redondant avec la saisie libre auto) | ❌
 tool-question	Bonnes pratiques	Dépasser 5 options par question | ❌
 tool-question	Bonnes pratiques	Poser une question déjà répondue dans la session | ❌
-tool-question	Questions posées en tant que sous-agent	Quand tu es invoqué par un agent parent, **le champ `question` doit commencer par un bloc
-tool-question	Format standard	Format enrichi — obligatoire quand CONTEXTE = orchestrator_feature
-tool-question	Format enrichi — obligatoire quand CONTEXTE = orchestrator_feature	Le texte affiché dans ta session enfant n'est **pas visible** par l'utilisateur dans la session parent.
-tool-question	Format enrichi — obligatoire quand CONTEXTE = orchestrator_feature	Termes exacts (noms de fichiers, patterns, warnings) — ne pas paraphraser
+tool-question	En sous-agent	Si tu es **sous-agent** (section « Rôle dans cette session » de ton prompt), n'appelle pas `question` : l'utilisateur ne voit pas ces appels. Mets chaque décision dans la section `### Questions bloquantes` de ton bloc de retour (2 à 3 options, la recommandée en premier, avec le contexte qui permet de trancher) ; ton appelant la pose à l'utilisateur.
 universal-guardrails	Garde-fous transverses	Git push — interdit
 universal-guardrails	Git push — interdit	Tu ne lances jamais `git push` sous aucune forme, option ou alias.
 universal-guardrails	Ordering : récap → question	AVANT d'appeler l'outil `question`. Ne jamais inverser cet ordre.
 universal-guardrails	Commandes non-terminantes	ne bloquent jamais ton tour : lance-les en arrière-plan. Si les outils context-mode
 universal-guardrails	Commandes non-terminantes	(`ctx_*`, plugin `context-mode` du workflow) sont disponibles, elles ne passent jamais dans
 universal-guardrails	Commandes non-terminantes	reçoit toujours un `timeout`.
-universal-guardrails	Process background — nettoyage	Tout process lancé en background doit être arrêté avant la fin de la tâche
+universal-guardrails	Process background — nettoyage	Tout process lancé en background doit être arrêté avant la fin de la tâche :
 wiki-navigation	Rôle	Ce skill définit le protocole que tous les agents doivent suivre pour consulter
 wiki-navigation	Rôle	à la tâche courante, jamais le wiki en entier.
 wiki-navigation	Protocole de navigation — 4 règles absolues	Règle 1 — Toujours lire `docs/wiki/index.md` en premier
