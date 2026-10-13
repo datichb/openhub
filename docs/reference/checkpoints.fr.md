@@ -81,13 +81,28 @@ Avant qu'un checkpoint passe, et donc avant d'ouvrir ses déverrouillages, oh la
 
 **Au checkpoint automatique**, la vérification tourne pendant l'appel de l'agent ; au-delà de 20 secondes, l'appel répond « vérification en cours » et l'agent le rappelle un peu plus tard (le résultat est conservé).
 
-Projet sans stack détectée, ou emplacement absent de la machine (session distante) : « rien à vérifier », le checkpoint passe et la carte l'indique.
+Projet sans stack détectée : « rien à vérifier », le checkpoint passe et la carte l'indique.
+
+**Vérification impossible : jamais de passage en silence.** Si l'emplacement de travail est introuvable (dossier supprimé, sous-dossier `in` absent), la vérification ne peut pas tourner : le checkpoint **se met en pause dans tous les modes**, `auto` compris, même s'il passerait seul d'ordinaire. La carte affiche « impossible ici » ; « Valider » est refusé et seul **« Passer outre la vérification »** le laisse passer, tracé comme un échec (`⚑`, événement `overridden`). L'appel de l'agent échoue avec `ErrVerifyUnavailable` et rien n'est déverrouillé.
 
 Dans un workflow en lecture seule (`risk: read`), un checkpoint vérifié demande toujours l'utilisateur : les commandes ne tournent qu'après sa validation.
 
 **Assouplissement** : une couche d'équipe ou de projet peut renforcer une vérification héritée (ajouter des types, des commandes, des chemins `must_touch`, allonger le délai), jamais la retirer ni l'affaiblir (`loosening`) ; retirer un checkpoint vérifié est refusé (`verified_checkpoint_removed`).
 
 Les workflows livrés vérifient ainsi `cp-2` (`ticket`, `feature`, `review-feedback`) et `cp-commit` (`quick`, `debug`, `sweep`).
+
+### Sessions distantes
+
+Dans une [session distante](../guides/remote-runners.fr.md), la vérification tourne **là où est le travail** : dans le job, sur le clone du projet, avec les mêmes commandes et les mêmes garanties (environnement filtré, délai, sortie bornée, groupe de processus tué à l'échéance), sous le compte `oh` des agents (celui du serveur de l'outil), jamais sous root ; les lectures git de la vérification aussi. Sans compte `oh` dans l'image, elle tourne sous l'utilisateur du job, comme le serveur.
+
+| Situation dans le job | Ce que fait oh |
+|---|---|
+| checkpoint `remote: auto`, vérification réussie | validé par le répondeur de politique, puis passé |
+| checkpoint `remote: auto`, vérification échouée | jamais passé outre dans le job : l'appel de l'agent est refusé avec l'échec et l'extrait, rien n'est déverrouillé (si la vérification est déjà finie quand le répondeur répond, la décision est refusée : « corriger d'abord ») ; l'agent corrige et redemande |
+| vérification impossible (emplacement introuvable) | le checkpoint est **différé** : la session s'arrête proprement, la suite (et le choix de passer outre) se fait sur la machine |
+| checkpoint `remote: defer` | différé, comme avant ; la vérification lancée à la demande se termine avant le push, et son résultat remonte |
+
+Le job attend la fin des vérifications en cours avant d'arrêter les processus des agents et de pousser la branche. Le dernier résultat de chaque checkpoint voyage dans `summary.json` (`verifications`) ; `oh session fetch` l'affiche et l'importe, nettoyé et borné : la carte du checkpoint montre « Dans le job distant : … » et la frise garde l'entrée (auteur `remote`). Ce résultat **ne vaut jamais** vérification sur la machine : quand la session reprend en local et redemande le checkpoint, oh vérifie de nouveau, dans le worktree de la branche poussée.
 
 ---
 
@@ -151,8 +166,8 @@ Conditions (une suffit) : `entry` (agent d'entrée de la session), `labels` (ét
 
 Pour un checkpoint en pause, la carte de la TUI affiche, en plus du résumé de l'agent, des changements, des derniers messages et de la frise :
 
-- **Vérification lancée par oh** : statut, commandes et code de sortie, extrait de la sortie en cas d'échec ;
+- **Vérification lancée par oh** : statut, commandes et code de sortie, extrait de la sortie en cas d'échec ; pour une session distante récupérée, le résultat obtenu dans le job ;
 - **Preuves de l'agent** : chaque commande annoncée, observée ou non ;
 - **Non résolu** : le ticket dont les tours de correction ont atteint la limite.
 
-Choix : Valider · Corriger d'abord · Autre consigne · **Passer outre la vérification** (seulement si elle a échoué).
+Choix : Valider · Corriger d'abord · Autre consigne · **Passer outre la vérification** (seulement si elle a échoué ou ne peut pas tourner).

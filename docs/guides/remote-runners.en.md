@@ -198,7 +198,7 @@ Then, for each session:
 
 When the trigger fails, the reservations made by oh are undone. `--headless` does not apply to remote runs.
 
-Checkpoint policy in the job (never blind approval): `remote: auto` is approved by oh's policy responder; `remote: defer` stops the session cleanly once the MR is ready, the rest happens locally after fetching.
+Checkpoint policy in the job (never blind approval): `remote: auto` is approved by oh's policy responder; `remote: defer` stops the session cleanly once the MR is ready, the rest happens locally after fetching. A verified checkpoint (`verify:`) never passes without its verification: it runs in the job (section 6, "Checkpoint verification").
 
 ## 6. In the job: `oh runner`
 
@@ -212,15 +212,18 @@ The `oh-run` job runs `oh runner run` in the project image:
 
    | Request | Answer |
    |---|---|
-   | checkpoint `remote: auto` | approved |
+   | checkpoint `remote: auto` | approved; when verified (`verify:`), it passes only once the verification succeeded |
+   | checkpoint `remote: auto` whose verification failed | refused ("fix first"), never overridden: the agent fixes the work and asks again |
+   | checkpoint whose verification cannot run | deferred: the session stops cleanly, you decide locally |
    | checkpoint `remote: defer` | the session stops cleanly: branch and MR pushed, continued locally |
    | other permission (`ask`) | refused, with a message to the agent |
    | agent question | the session stops ("question pending"), resumed locally |
    | error, budget, circuit breaker | the session stops (failed) |
 
-6. **Beads**: `bd` is oh's fake bd; it goes through the Beads gateway of the job's daemon, which applies `beads.allow`. Reads come from the snapshot; writes are recorded in `journal.jsonl` (and seen by later reads), then replayed on your machine when fetching.
-7. **Branch and MR**: every process of the `oh` account is killed first; oh never runs git in the agent's repository (its hooks, `core.fsmonitor`, filters and remotes are not used): it copies the objects and refs into a fresh repository of its own. What is not committed gets committed (without nested repositories nor files not owned by the `oh` account), the branch is pushed and a **draft MR** is opened through `git push` options. Progress is published in the ticket claim (`OH_TEAMSTATE_TOKEN`).
-8. **Artifacts** (`oh-out/`, 7 days): `journal.jsonl` (Beads writes), `summary.json` (outcome, cost, decisions, MR, outputs), `session.export` (transcript of the session and its sub-agents, to resume it locally), `reports.json` (reports filed by the agents with `workflow_report`, pipeline schema 5).
+6. **Checkpoint verification** (`verify:`): run by the daemon of the job in the clone, with the same commands and guarantees as on your machine (filtered environment, timeout, bounded output, process group), **as the `oh` account** of the agents, never as root; its git reads (state of the work, changed paths) too. The job waits for the running verifications before step 8. See [Checkpoints › Remote sessions](../reference/checkpoints.en.md#remote-sessions).
+7. **Beads**: `bd` is oh's fake bd; it goes through the Beads gateway of the job's daemon, which applies `beads.allow`. Reads come from the snapshot; writes are recorded in `journal.jsonl` (and seen by later reads), then replayed on your machine when fetching.
+8. **Branch and MR**: every process of the `oh` account is killed first; oh never runs git in the agent's repository (its hooks, `core.fsmonitor`, filters and remotes are not used): it copies the objects and refs into a fresh repository of its own. What is not committed gets committed (without nested repositories nor files not owned by the `oh` account), the branch is pushed and a **draft MR** is opened through `git push` options. Progress is published in the ticket claim (`OH_TEAMSTATE_TOKEN`).
+9. **Artifacts** (`oh-out/`, 7 days): `journal.jsonl` (Beads writes), `summary.json` (outcome, cost, decisions, MR, outputs, results of the checkpoint verifications), `session.export` (transcript of the session and its sub-agents, to resume it locally), `reports.json` (reports filed by the agents with `workflow_report`, pipeline schema 5).
 
 Limits: MCP servers that need a token of your machine (gitlab, jira, figma…) are not available in the job; oh's `workflow` server is. When the job is canceled or times out, the session is exported and the work pushed before stopping when possible.
 
@@ -231,7 +234,7 @@ Limits: MCP servers that need a token of your machine (gitlab, jira, figma…) a
 **Fetching** — `oh session fetch <id>` or `g` in the Sessions view:
 
 1. download of the artifacts of the `oh-run` job (`journal.jsonl`, `summary.json`, `session.export`, `reports.json`) to `~/.oh/sessions/<id>/remote/`;
-2. summary: outcome (completed, deferred checkpoint, question, failed), cost, MR, requests refused by the policy;
+2. summary: outcome (completed, deferred checkpoint, question, failed), cost, MR, requests refused by the policy, verifications run in the job (imported for the checkpoint card and the timeline; they do not replace the local verification, run again when the session resumes);
 3. **import of the session** (and its sub-agents) into a local server, in a worktree of the branch pushed by the job: `oh session attach <id>` resumes it where it stopped (deferred checkpoint to approve, question to answer, rest of the work); the reports of the job are imported into the session (cleaned and bounded again): `oh session report <id>` and the checkpoint card show them.
 
 `--no-import` only downloads the artifacts.
