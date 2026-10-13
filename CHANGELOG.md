@@ -9,6 +9,15 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ## [Unreleased]
 
+### Changed — restes P3, contenu (lot p3-leftovers-content)
+
+- **Délégations au `documentarian`** : retirées du frontmatter de `planner`, `pathfinder`, `debugger`, `reviewer`, `benchmarker` et `orchestrator` (depuis LD-J, le wiki s'enrichit avec `wiki_propose`) ; seul `orchestrator-dev` délègue encore au `documentarian` (CHANGELOG des tickets). Docs `agents.*` mises à jour (règles communes, hiérarchie, paragraphes d'enrichissement).
+- **`onboarder`** : `beads-plan` et `dev-standards-git` retirés (agent en lecture seule ; lecture de Beads par `bd` seulement, rappelée en phase 1) ; phase 5 découpée en `onboarder-phase-5` (création du wiki) et `onboarder-phase-5-reonboarding` (wiki existant), chacune avec son déclencheur.
+- **`developer`** : les règles transverses par domaine passent dans une section « Règles du domaine » des `dev-standards-*` concernées (`frontend`, `backend`, `api`/`fullstack`, `devops`/`platform`, `security-hardening`, `refactoring`, `migration`) ; seules `mobile` et `data`, sans skill générique, restent dans le corps (≈ −576 tokens par prompt du developer).
+- **`debugger`** : la méthodologie de la phase 3, déjà dans `debugger-phase-2-3`, sort du corps ; `--forensic` charge `debugger-forensic` (≈ −785 tokens). S6 3/3, S2 3/3, S13 3/3, S14 3/3 (Haiku ×3).
+- Découpage d'une skill à la demande par rôle : non fait, aucune skill à branches entrée/sous-agent n'est portée par les deux rôles dans un même workflow.
+- Somme des prompts (projet sans instructions) : 226 629 → 220 644 (−2,6 %).
+
 ### Changed — restes P3, paquet de session (lot p3-leftovers-bundle)
 
 - **Skills absentes citées par une skill à la demande** : une skill citée par une skill à la demande et absente du paquet de session (plugin non chargé, skill frontend sans frontend, `when:`) est nommée dans une note à la fin de cette skill, là où le modèle lit la mention ; si elle n'est absente que pour certains des agents qui chargent la skill, la note va dans leur prompt. Les skills absentes citées par le modèle de prompt du workflow, perdues jusqu'ici, rejoignent la note de l'agent d'entrée (+14 tokens pour le developer de `quick` sur un projet avec instructions et sans frontend).
