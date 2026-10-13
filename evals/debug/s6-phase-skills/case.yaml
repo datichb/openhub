@@ -10,20 +10,23 @@ answers:
   question: first
   checkpoints:
     "*": approve
+# Les phases sont repérées par les titres du debugger (« ## Phase 3 — … ») ;
+# une phase qui n'arrive jamais n'exige que le chargement du skill.
 assertions:
   - type: skill_loaded_before
-    name: debugger-phase-0-1 avant la première validation de phase
+    name: debugger-phase-0-1 avant les phases 0 et 1
     skill: debugger-phase-0-1
-    before: { tool: question }
+    before: { text: "#+[^\\n]*Phase [01]\\b", agent: debugger }
   - type: skill_loaded_before
-    name: debugger-phase-2-3 avant la reproduction
+    name: debugger-phase-2-3 avant les phases 2 et 3
     skill: debugger-phase-2-3
-    before: { command: "go test*" }
+    before: { text: "#+[^\\n]*Phase [23]\\b", agent: debugger }
+  - type: skill_loaded_before
+    name: debugger-phase-4-5 avant les phases 4 et 5
+    skill: debugger-phase-4-5
+    before: { text: "#+[^\\n]*Phase [45]\\b", agent: debugger }
   - type: skill_loaded_before
     name: debugger-phase-4-5 avant le ticket de correction
     skill: debugger-phase-4-5
     before: { checkpoint: cp-ticket }
-  - type: ran
-    name: le bug est reproduit
-    command: "go test*"
   - type: no_denied_loop

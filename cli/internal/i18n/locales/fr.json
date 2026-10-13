@@ -406,6 +406,7 @@
   "cmd.eval.flags.keep": "garder les dossiers de travail des passages (débogage)",
   "cmd.eval.flags.list": "lister les cas sans rien lancer",
   "cmd.eval.flags.strict": "sortir en erreur si un passage échoue",
+  "cmd.eval.flags.rescore": "vérifier de nouveau les assertions sur les traces d'un passage précédent (dossier de --out), sans appeler de modèle",
   "cmd.eval.no_cases": "dossier evals/ introuvable : lancez depuis la racine du dépôt ou cli/, ou passez --cases",
   "cmd.eval.no_credential": "aucune clé Bedrock pour les évaluations : définissez OH_EVAL_BEDROCK_TOKEN ou enregistrez une clé amazon-bedrock avec opencode auth login",
   "cmd.eval.inactive": "inactif : %s",

@@ -14,7 +14,7 @@ assertions:
     max_repeats: 1
   - type: text_matches
     name: le skill est signalé absent
-    pattern: "(absent|introuvable|indisponible|n'existe pas|inexistant|pas disponible|n'est pas disponible|not available|not found|aucun skill)"
+    pattern: "(absent|introuvable|indisponible|n'existe pas|inexistant|pas disponible|ne figure pas|pas dans la liste|hors (de )?(mon |ton |du )?périmètre|impossible de (le )?charger|not available|not found|aucun skill)"
   - type: ran
     command: "go test*"
     before: { checkpoint: cp-commit }

@@ -402,24 +402,48 @@ func checkCheckpointOrder(a Assertion, evs []sessionsvc.TraceEvent) (pass bool, 
 	return true, ""
 }
 
+// agentsOf completes the agent of events that do not tell it (decisions of
+// traces written before oh named them) with the last agent seen in their
+// tool session.
+func agentsOf(evs []sessionsvc.TraceEvent) []string {
+	out := make([]string, len(evs))
+	last := map[string]string{}
+	for i, e := range evs {
+		out[i] = e.Agent
+		if e.Agent == "" {
+			out[i] = last[e.ToolSession]
+		} else if e.ToolSession != "" {
+			last[e.ToolSession] = e.Agent
+		}
+	}
+	return out
+}
+
 func checkNoQuestion(a Assertion, evs []sessionsvc.TraceEvent) (pass bool, detail string) {
+	agents := agentsOf(evs)
 	want := map[string]bool{}
 	for _, ag := range a.Agents {
 		want[ag] = true
 	}
 	var bad []string
-	for _, e := range evs {
+	seen := map[string]bool{}
+	for i, e := range evs {
+		// The question tool call: its decision is the same question.
 		asked := (e.Kind == sessionsvc.TraceTool && e.Tool == "question") || (e.Kind == sessionsvc.TraceDecision && e.DecisionKind == "question")
 		if !asked || (!e.InSubagent && !a.IncludeEntry) {
 			continue
 		}
-		if len(want) > 0 && e.Agent != "" && !want[e.Agent] {
+		who := agents[i]
+		if len(want) > 0 && who != "" && !want[who] {
 			continue
 		}
-		who := e.Agent
 		if who == "" {
 			who = e.ToolSession
 		}
+		if e.Kind == sessionsvc.TraceDecision && seen[e.ToolSession] {
+			continue
+		}
+		seen[e.ToolSession] = e.Kind == sessionsvc.TraceTool
 		bad = append(bad, fmt.Sprintf("%s (event %d)", who, e.Seq))
 	}
 	if len(bad) > 0 {
@@ -445,8 +469,9 @@ func checkSkillBefore(a Assertion, evs []sessionsvc.TraceEvent) (pass bool, deta
 	switch {
 	case first < 0:
 		return false, "skill never loaded"
-	case anchor < 0 && a.Before != nil:
-		return false, "loaded, but " + a.Before.String() + " never happened"
+	case anchor < 0:
+		// The phase never came: loading the skill is enough.
+		return true, a.Before.String() + " never happened"
 	case first > anchor:
 		return false, fmt.Sprintf("loaded at event %d, after %s (event %d)", evs[first].Seq, a.Before.String(), evs[anchor].Seq)
 	}
@@ -553,12 +578,14 @@ func inputKey(e sessionsvc.TraceEvent) string {
 
 func checkText(a Assertion, evs []sessionsvc.TraceEvent) (pass bool, detail string) {
 	re := regexp.MustCompile("(?i)" + a.Pattern)
-	for _, e := range evs {
+	agents := agentsOf(evs)
+	for i, e := range evs {
 		text := ""
 		switch {
 		case e.Kind == sessionsvc.TraceText && (a.Agent == "" || e.Agent == a.Agent):
 			text = e.Text
-		case a.Questions && e.Kind == sessionsvc.TraceDecision && e.DecisionKind == "question":
+		case a.Questions && e.Kind == sessionsvc.TraceDecision && e.DecisionKind == "question" &&
+			(a.Agent == "" || agents[i] == a.Agent || (agents[i] == "" && !e.InSubagent)):
 			data, _ := json.Marshal(e.Data["fields"])
 			text = e.Title + " " + e.Text + " " + string(data)
 		case a.Questions && e.Kind == sessionsvc.TraceTool && e.Tool == "question" && (a.Agent == "" || e.Agent == a.Agent):

@@ -71,6 +71,7 @@ func init() {
 	f.Bool("keep", false, i18n.T("cmd.eval.flags.keep"))
 	f.Bool("list", false, i18n.T("cmd.eval.flags.list"))
 	f.Bool("strict", false, i18n.T("cmd.eval.flags.strict"))
+	f.String("rescore", "", i18n.T("cmd.eval.flags.rescore"))
 	// The orchestrator only reads files: the passes have their own home.
 	withInitLevel(cmd, levelLight)
 
@@ -100,6 +101,9 @@ func runEval(cmd *cobra.Command, _ []string) error {
 	if list, _ := cmd.Flags().GetBool("list"); list {
 		printEvalCases(cmd.OutOrStdout(), cases)
 		return nil
+	}
+	if dir := flagString(cmd, "rescore"); dir != "" {
+		return rescoreEval(cmd, dir, cases)
 	}
 	ids, _ := cmd.Flags().GetStringSlice("case")
 	sel, err := evalrun.Select(cases, ids)
@@ -152,30 +156,10 @@ func runEval(cmd *cobra.Command, _ []string) error {
 	if rep == nil {
 		return runErr
 	}
-	var base *evalrun.Report
-	if p := flagString(cmd, "baseline"); p != "" {
-		if b, err := evalrun.ReadReport(p); err == nil {
-			base = b
-		} else if !errors.Is(err, os.ErrNotExist) {
-			return err
-		}
-	}
 	rep.Note = flagString(cmd, "note")
-	if err := rep.WriteJSON(filepath.Join(out, "report.json")); err != nil {
+	if err := writeEvalReports(cmd, rep, out); err != nil {
 		return err
 	}
-	md := rep.Markdown(base)
-	if err := os.WriteFile(filepath.Join(out, "report.md"), []byte(md), 0o644); err != nil {
-		return err
-	}
-	if p := flagString(cmd, "record-baseline"); p != "" {
-		if err := rep.Baseline(rep.Note).WriteJSON(p); err != nil {
-			return err
-		}
-		fmt.Fprintln(errOut, i18n.Tf("cmd.eval.baseline_written", p))
-	}
-	fmt.Fprint(cmd.OutOrStdout(), md)
-	fmt.Fprintln(errOut, i18n.Tf("cmd.eval.done", filepath.Join(out, "report.md"), rep.TotalCost))
 	if runErr != nil {
 		return runErr
 	}
@@ -187,6 +171,53 @@ func runEval(cmd *cobra.Command, _ []string) error {
 		}
 	}
 	return nil
+}
+
+// writeEvalReports writes report.json and report.md in out (compared with
+// --baseline), records the baseline when asked, and prints the report.
+func writeEvalReports(cmd *cobra.Command, rep *evalrun.Report, out string) error {
+	var base *evalrun.Report
+	if p := flagString(cmd, "baseline"); p != "" {
+		if b, err := evalrun.ReadReport(p); err == nil {
+			base = b
+		} else if !errors.Is(err, os.ErrNotExist) {
+			return err
+		}
+	}
+	if err := rep.WriteJSON(filepath.Join(out, "report.json")); err != nil {
+		return err
+	}
+	md := rep.Markdown(base)
+	if err := os.WriteFile(filepath.Join(out, "report.md"), []byte(md), 0o644); err != nil {
+		return err
+	}
+	errOut := cmd.ErrOrStderr()
+	if p := flagString(cmd, "record-baseline"); p != "" {
+		if err := rep.Baseline(rep.Note).WriteJSON(p); err != nil {
+			return err
+		}
+		fmt.Fprintln(errOut, i18n.Tf("cmd.eval.baseline_written", p))
+	}
+	fmt.Fprint(cmd.OutOrStdout(), md)
+	fmt.Fprintln(errOut, i18n.Tf("cmd.eval.done", filepath.Join(out, "report.md"), rep.TotalCost))
+	return nil
+}
+
+// rescoreEval checks the assertions again on the traces of a previous run
+// (no model call).
+func rescoreEval(cmd *cobra.Command, dir string, cases []*evalrun.Case) error {
+	rep, err := evalrun.ReadReport(filepath.Join(dir, "report.json"))
+	if err != nil {
+		return err
+	}
+	out, err := evalrun.Rescore(rep, dir, cases)
+	if err != nil {
+		return err
+	}
+	if note := flagString(cmd, "note"); note != "" {
+		out.Note = note
+	}
+	return writeEvalReports(cmd, out, dir)
 }
 
 func flagString(cmd *cobra.Command, name string) string {

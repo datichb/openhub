@@ -8,6 +8,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	sessionsvc "github.com/datichb/openhub/cli/internal/services/session"
 )
 
 // Report is the outcome of an evaluation run.
@@ -90,7 +92,7 @@ func (r *Report) compute() {
 			}
 		}
 	}
-	r.Stats = r.Stats[:0]
+	r.Stats = nil
 	for _, k := range order {
 		s := idx[k]
 		s.PassRate = rate(s.Passed, s.Runs)
@@ -268,4 +270,76 @@ func oneLine(s string, n int) string {
 		s = s[:n] + "…"
 	}
 	return s
+}
+
+// cloneAssertion tells the assertions that look at the clone of a pass
+// (gone after the run): they are not checked again by Rescore.
+func cloneAssertion(t string) bool { return t == AssertChangedWithin || t == AssertHiddenTests }
+
+// Rescore checks the assertions of the cases again on the traces of a
+// report (outDir holds them), without running anything: tuning an assertion
+// costs no model call. The assertions that need the clone keep their result
+// (matched by type and rank).
+func Rescore(r *Report, outDir string, cases []*Case) (*Report, error) {
+	by := map[string]*Case{}
+	for _, c := range cases {
+		by[c.ID] = c
+	}
+	out := *r
+	out.Passes = make([]PassResult, len(r.Passes))
+	for i, p := range r.Passes {
+		c, ok := by[p.Case]
+		if !ok {
+			return nil, fmt.Errorf("pass of an unknown case %s", p.Case)
+		}
+		var events []sessionsvc.TraceEvent
+		if p.Trace != "" {
+			path := p.Trace
+			if !filepath.IsAbs(path) {
+				path = filepath.Join(outDir, path)
+			}
+			f, err := os.Open(path)
+			if err != nil {
+				return nil, err
+			}
+			events, err = sessionsvc.ReadTraceJSONL(f)
+			f.Close()
+			if err != nil {
+				return nil, fmt.Errorf("%s: %w", path, err)
+			}
+		}
+		prev := map[string][]AssertionResult{}
+		for _, a := range p.Assertions {
+			prev[a.Type] = append(prev[a.Type], a)
+		}
+		rank := map[string]int{}
+		p.Assertions = make([]AssertionResult, len(c.Assertions))
+		for j, a := range c.Assertions {
+			k := rank[a.Type]
+			rank[a.Type]++
+			switch {
+			case cloneAssertion(a.Type) && k < len(prev[a.Type]):
+				res := prev[a.Type][k]
+				res.Name = a.Label()
+				p.Assertions[j] = res
+			case cloneAssertion(a.Type):
+				p.Assertions[j] = AssertionResult{Type: a.Type, Name: a.Label(), Detail: "not checked again (needs the clone)"}
+			case len(events) == 0:
+				p.Assertions[j] = AssertionResult{Type: a.Type, Name: a.Label(), Detail: "no trace"}
+			default:
+				p.Assertions[j] = Check([]Assertion{a}, Evidence{Events: events})[0]
+			}
+		}
+		p.Pass = p.Outcome == OutcomeCompleted
+		for _, a := range p.Assertions {
+			p.Pass = p.Pass && a.Pass
+		}
+		out.Passes[i] = p
+	}
+	out.Cases = nil
+	for _, c := range cases {
+		out.Cases = append(out.Cases, CaseInfo{ID: c.ID, Key: c.Key(), Title: c.Title, Workflow: c.Workflow, Active: c.IsActive(), InactiveReason: c.InactiveReason})
+	}
+	out.compute()
+	return &out, nil
 }

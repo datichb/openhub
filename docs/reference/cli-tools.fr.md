@@ -83,6 +83,7 @@ Le modèle est Haiku par défaut ; `OH_EVAL_MODELS` (séparés par des virgules)
 | `--keep` | bool | Garder les dossiers de travail des passages |
 | `--list` | bool | Lister les cas sans rien lancer |
 | `--strict` | bool | Sortir avec le code 1 si un passage échoue |
+| `--rescore` | string | Vérifier de nouveau les assertions sur les traces d'un passage précédent (son dossier `--out`), sans appeler de modèle ; `changed_within` et `hidden_tests` gardent leur résultat |
 
 Depuis `cli/` : `make test-eval` (une répétition), `make test-eval OH_EVAL_REPS=3`, ou `make test-eval OH_EVAL_REPS=3 OH_EVAL_RECORD=1` pour réenregistrer la mesure de référence (`cli/internal/evalrun/testdata/evals/baseline.json`). Les tests de `go test ./...` n'appellent jamais de modèle.
 

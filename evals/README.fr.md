@@ -44,7 +44,7 @@ hidden_tests: "go test ./..."   # défaut : selon la stack (go.mod, package.json
 
 Les ancres `before:` désignent le premier événement de la trace qui correspond : `checkpoint` (atteint), `checkpoint_passed`, `subagent`, `tool` (avec `arg`, motif du chemin ou de la commande), `text` (expression régulière), `command` (motif shell), restreints à un agent avec `agent`. Les motifs shell acceptent `*` et vérifient aussi chaque partie d'une commande enchaînée (`cd x && go test ./...`).
 
-Les assertions sont décrites dans la [référence d'`oh eval`](../docs/reference/cli-tools.fr.md#oh-eval).
+Les assertions sont décrites dans la [référence d'`oh eval`](../docs/reference/cli-tools.fr.md#oh-eval). Après une retouche d'assertion, `oh eval --rescore <dossier>` revérifie les traces déjà obtenues sans repayer les passages.
 
 ## Cas livrés
 

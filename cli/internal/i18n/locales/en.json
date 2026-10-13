@@ -406,6 +406,7 @@
   "cmd.eval.flags.keep": "keep the work directories of the passes (debugging)",
   "cmd.eval.flags.list": "list the cases without running anything",
   "cmd.eval.flags.strict": "exit with an error when a pass fails",
+  "cmd.eval.flags.rescore": "check the assertions again on the traces of a previous run (--out directory), without calling a model",
   "cmd.eval.no_cases": "evals/ directory not found: run from the repository root or cli/, or pass --cases",
   "cmd.eval.no_credential": "no Bedrock key for the evaluations: set OH_EVAL_BEDROCK_TOKEN or store an amazon-bedrock key with opencode auth login",
   "cmd.eval.inactive": "inactive: %s",

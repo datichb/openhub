@@ -99,7 +99,7 @@ func TestAssertions(t *testing.T) {
 		{"skill before delegation", Assertion{Type: AssertSkillLoadedBefore, Skill: "dev-standards-backend", Before: &Anchor{Subagent: "developer"}}, true},
 		{"skill by another agent", Assertion{Type: AssertSkillLoadedBefore, Skill: "dev-standards-backend", Agent: "developer"}, false},
 		{"skill never", Assertion{Type: AssertSkillLoadedBefore, Skill: "audit-security"}, false},
-		{"skill anchor missing", Assertion{Type: AssertSkillLoadedBefore, Skill: "dev-standards-backend", Before: &Anchor{Subagent: "reviewer"}}, false},
+		{"skill anchor missing", Assertion{Type: AssertSkillLoadedBefore, Skill: "dev-standards-backend", Before: &Anchor{Subagent: "reviewer"}}, true},
 		{"changed within", Assertion{Type: AssertChangedWithin, Paths: []string{"*.go"}}, true},
 		{"changed outside", Assertion{Type: AssertChangedWithin, Paths: []string{"calc.go"}}, false},
 		{"changed max", Assertion{Type: AssertChangedWithin, MaxFiles: 1}, false},
@@ -121,6 +121,23 @@ func TestAssertions(t *testing.T) {
 		})
 	}
 	assert.True(t, one(t, Assertion{Type: AssertChangedWithin}, Evidence{}).Pass, "nothing changed")
+	// A decision without agent belongs to the last agent of its tool session.
+	planner := Evidence{Events: []sessionsvc.TraceEvent{
+		ev(sessionsvc.TraceTool, func(e *sessionsvc.TraceEvent) {
+			e.Agent, e.Tool, e.InSubagent, e.ToolSession = "planner", "read", true, "ses_p"
+		}),
+		ev(sessionsvc.TraceDecision, func(e *sessionsvc.TraceEvent) {
+			e.DecisionKind, e.InSubagent, e.ToolSession, e.Data = "question", true, "ses_p", map[string]any{"fields": []any{"zéro"}}
+		}),
+	}}
+	assert.True(t, one(t, Assertion{Type: AssertNoQuestionInSubagent, Agents: []string{"pathfinder"}}, planner).Pass)
+	assert.False(t, one(t, Assertion{Type: AssertNoQuestionInSubagent, Agents: []string{"planner"}}, planner).Pass)
+	assert.False(t, one(t, Assertion{Type: AssertTextMatches, Pattern: "z[ée]ro", Questions: true, Agent: "orchestrator"}, planner).Pass, "asked by the planner, not relayed")
+	late := Evidence{Events: []sessionsvc.TraceEvent{
+		ev(sessionsvc.TraceText, func(e *sessionsvc.TraceEvent) { e.Agent, e.Text = "debugger", "## Phase 3 — Analyse" }),
+		ev(sessionsvc.TraceSkill, func(e *sessionsvc.TraceEvent) { e.Agent, e.Skill = "debugger", "debugger-phase-2-3" }),
+	}}
+	assert.False(t, one(t, Assertion{Type: AssertSkillLoadedBefore, Skill: "debugger-phase-2-3", Before: &Anchor{Text: `#+[^\n]*Phase [23]`}}, late).Pass, "loaded after its phase")
 }
 
 func TestHiddenTestsAssertion(t *testing.T) {
@@ -355,10 +372,51 @@ func TestRunnerAndReport(t *testing.T) {
 		assert.Contains(t, md, want)
 	}
 
+	// Rescoring with another assertion: the trace one is checked again, the
+	// clone one keeps its result.
+	cases[0].Assertions[0].Command = "make lint*"
+	again, err := Rescore(rep, out, cases)
+	require.NoError(t, err)
+	assert.False(t, again.Passes[0].Pass)
+	assert.Equal(t, "ran make lint*", again.Passes[0].Assertions[0].Name)
+	assert.False(t, again.Passes[0].Assertions[0].Pass)
+	assert.Equal(t, rep.Passes[0].Assertions[1], again.Passes[0].Assertions[1], "changed_within kept")
+	assert.True(t, rep.Passes[0].Pass, "the report rescored is not changed")
+	s2, _ := again.Stat("S1", "claude-haiku-4-5")
+	assert.Zero(t, s2.Passed)
+
 	// An executor error is a failed pass, the run goes on.
 	r.Exec = ExecutorFunc(func(context.Context, Pass) (*PassOutput, error) { return nil, os.ErrPermission })
 	rep, err = r.Run(context.Background(), cases)
 	require.NoError(t, err)
 	assert.Equal(t, OutcomeError, rep.Passes[0].Outcome)
 	assert.False(t, rep.Passes[0].Pass)
+}
+
+// The reference measure kept in the repository (make test-eval
+// OH_EVAL_RECORD=1) covers every active case, with three repetitions, and
+// holds no session id nor trace path.
+func TestShippedBaseline(t *testing.T) {
+	base, err := ReadReport(filepath.Join("testdata", "evals", "baseline.json"))
+	require.NoError(t, err)
+	cases, err := LoadCases(filepath.Join("..", "..", "..", "evals"))
+	require.NoError(t, err)
+	assert.GreaterOrEqual(t, base.Reps, 3)
+	assert.NotEmpty(t, base.Note)
+	for _, m := range base.Models {
+		for _, c := range cases {
+			s, ok := base.Stat(c.ID, m)
+			if !c.IsActive() {
+				assert.False(t, ok, "%s is inactive", c.ID)
+				continue
+			}
+			require.True(t, ok, "%s measured with %s", c.ID, m)
+			assert.Equal(t, base.Reps, s.Runs, c.ID)
+			assert.Len(t, s.Assertions, len(c.Assertions), "%s: the baseline matches its assertions (oh eval --rescore)", c.ID)
+		}
+	}
+	for _, p := range base.Passes {
+		assert.Empty(t, p.SessionID)
+		assert.Empty(t, p.Trace)
+	}
 }

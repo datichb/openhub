@@ -44,7 +44,7 @@ hidden_tests: "go test ./..."   # default: by stack (go.mod, package.json, pypro
 
 The `before:` anchors name the first matching event of the trace: `checkpoint` (reached), `checkpoint_passed`, `subagent`, `tool` (with `arg`, a pattern of the path or command), `text` (regular expression), `command` (shell pattern), restricted to an agent with `agent`. Shell patterns accept `*` and also check each part of a chained command (`cd x && go test ./...`).
 
-The assertions are described in the [`oh eval` reference](../docs/reference/cli-tools.en.md#oh-eval).
+The assertions are described in the [`oh eval` reference](../docs/reference/cli-tools.en.md#oh-eval). After an assertion is tuned, `oh eval --rescore <dir>` checks the traces already obtained again without paying the passes again.
 
 ## Shipped cases
 
