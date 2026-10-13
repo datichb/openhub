@@ -180,3 +180,10 @@ Règle 3 — Ne jamais lire le wiki en entier par défaut	merged:wiki-navigation
 ❌ Ne jamais charger `technical/` et `business/` en parallèle sans raison	merged:wiki-navigation point 3 « ni `technical/` et `business/` en parallèle sans raison »
 ✅ Toujours partir de `index.md` → décider → charger une page	merged:wiki-navigation points 1 et 2 (l'index d'abord, puis seulement la page utile)
 Si un concept apparaît dans **≥ 2 pages distinctes** et n'est pas encore dans le tableau → l'ajouter	merged:wiki-navigation §Tableau des god nodes « un concept cité dans au moins 2 pages distinctes est un god node, avec ses pages liées » ; guard:oh calcule les god nodes et réécrit le tableau (services/wiki/godnodes.go, LD-J)
+
+# L6 design-doc : formats des pages du wiki de doc-wiki-protocol en annexes à la demande.
+Elle doit rester compacte — 40-80 lignes maximum hors frontmatter	merged:doc-wiki-protocol §Règles des pages « `index.md` est la seule page que tous les agents lisent systématiquement. Elle doit rester compacte — 40-80 lignes maximum hors frontmatter » (L6 : formats des pages en annexes)
+Ne jamais dupliquer le contenu détaillé des sous-pages	merged:doc-wiki-protocol §Règles des pages « Ne jamais dupliquer le contenu détaillé des sous-pages dans `index.md` »
+Page **optionnelle** — créée quand le projet a des règles de review spécifiques qui ne sont pas	merged:doc-wiki-protocol §Règles des pages « `technical/review-rules.md` est optionnelle : elle n'existe que si le projet a des règles de review propres » (texte complet dans l'annexe templates/wiki-pages-technical.md)
+Quand une page n'existe pas encore, la créer à partir du template canonique correspondant	merged:doc-wiki-protocol §Création d'une nouvelle page wiki « la créer à partir du format canonique de son annexe » (L6 : templates/wiki-pages-index.md, wiki-pages-technical.md, wiki-pages-business.md, lus avec read)
+(voir sections ci-dessus). Toujours :	merged:doc-wiki-protocol §Création d'une nouvelle page wiki « (tableau ci-dessus). Toujours : »

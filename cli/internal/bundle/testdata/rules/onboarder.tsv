@@ -72,18 +72,18 @@ doc-wiki-protocol	Structure du wiki	Frontmatter obligatoire
 doc-wiki-protocol	Frontmatter obligatoire	Chaque page wiki doit commencer par un frontmatter YAML :
 doc-wiki-protocol	Format des tags de confiance	Chaque enrichissement doit porter un tag de confiance inline en fin de ligne ou de bloc :
 doc-wiki-protocol	Les 3 niveaux	`` `CONFIRMÉ` `` | Observation directe dans le code — ligne précise identifiée | `fichier:ligne` obligatoire
-doc-wiki-protocol	Format canonique — `docs/wiki/index.md`	Elle doit rester compacte — 40-80 lignes maximum hors frontmatter
-doc-wiki-protocol	Format canonique — `docs/wiki/index.md`	Ne jamais dupliquer le contenu détaillé des sous-pages
-doc-wiki-protocol	Format canonique — `docs/wiki/index.md`	Les liens vers les sous-pages sont obligatoires dans la table des god nodes
-doc-wiki-protocol	Format canonique — `docs/wiki/technical/review-rules.md`	Page **optionnelle** — créée quand le projet a des règles de review spécifiques qui ne sont pas
+doc-wiki-protocol	Formats canoniques des pages (annexes à la demande)	format canonique ; un enrichissement d'une page existante n'en a pas besoin (suis ses sections).
+doc-wiki-protocol	Formats canoniques des pages (annexes à la demande)	`index.md` est la seule page que tous les agents lisent systématiquement. Elle doit rester compacte — 40-80 lignes maximum hors frontmatter
+doc-wiki-protocol	Formats canoniques des pages (annexes à la demande)	Ne jamais dupliquer le contenu détaillé des sous-pages dans `index.md`
+doc-wiki-protocol	Formats canoniques des pages (annexes à la demande)	Les liens vers les sous-pages sont obligatoires dans la table des god nodes
 doc-wiki-protocol	Règle fondamentale	❌ Ne jamais écraser une page wiki existante en entier
 doc-wiki-protocol	Règle fondamentale	✅ Toujours lire la page avant d'écrire
 doc-wiki-protocol	Règle fondamentale	✅ Ajouter les nouveaux enrichissements à la fin de la section concernée
 doc-wiki-protocol	Règle fondamentale	✅ Si une section n'existe pas, la créer à la fin de la page
 doc-wiki-protocol	Règle fondamentale	✅ Si un enrichissement contredit un existant `CONFIRMÉ`, le signaler à l'utilisateur
 doc-wiki-protocol	Procédure d'enrichissement	Ajouter en fin de section — jamais au début, jamais en remplacement
-doc-wiki-protocol	Template de création d'une nouvelle page wiki	Quand une page n'existe pas encore, la créer à partir du template canonique correspondant
-doc-wiki-protocol	Template de création d'une nouvelle page wiki	(voir sections ci-dessus). Toujours :
+doc-wiki-protocol	Création d'une nouvelle page wiki	Quand une page n'existe pas encore, la créer à partir du format canonique de son annexe
+doc-wiki-protocol	Création d'une nouvelle page wiki	(tableau ci-dessus). Toujours :
 execution-protocol	Agent d'entrée	**Fin de phase** : récap complet en texte (observations, décisions, hypothèses), puis validation avec `question` : continuer (recommandé), préciser, arrêter. Une phase qui finit sur un de tes checkpoints passe par `workflow_checkpoint`, jamais par `question`.
 expert-posture	Exploration avant de répondre	"Je n'ai pas accès à [X] — cette partie de l'analyse repose sur [Y] uniquement."
 expert-posture	Exploration avant de répondre	Ne pas produire de conclusion définitive sur une base partielle sans signaler

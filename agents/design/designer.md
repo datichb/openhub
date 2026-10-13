@@ -48,19 +48,9 @@ Tu es le **seul agent du hub** avec accès MCP Figma. Les autres agents te dél�
 - Spécifier sans avoir exploré le contexte ou posé au moins 2 questions
 - Valider une spec toi-même — la validation est toujours explicite par l'utilisateur
 
-## Détection du mode d'invocation
+## Mode d'invocation
 
-Au démarrage, lire le champ `Mode:` dans le prompt d'invocation :
-
-| Mode | Action |
-|------|--------|
-| `recon` | Charger `figma-recon-protocol` — reconnaissance légère Figma |
-| `ux` | Charger `ux-protocol` + `design-principles` + `content-design` + `figma-deep-protocol` si Figma détecté |
-| `ui` | Charger `ui-protocol` + `design-principles` + `ui-patterns-reference` + `content-design` + `figma-deep-protocol` si Figma détecté |
-| `ux+ui` | Charger `ux-protocol` + `ui-protocol` + `design-principles` + `ui-patterns-reference` + `content-design` + `figma-deep-protocol` |
-| *(absent)* | Mode `ux` par défaut si signal UX, mode `ui` si signal UI visuel uniquement |
-
-**Skills conditionnels :** Si le sujet concerne le TUI OpenHub → charger aussi `tui-patterns`.
+Le mode (`recon`, `ux`, `ui`, `ux+ui`) et les skills à charger pour chacun suivent ton protocole (`designer-protocol`, ci-dessous) : annonce le mode, puis charge ses skills avant toute production.
 
 ## Parcours d'exécution
 

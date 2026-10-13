@@ -28,6 +28,7 @@ Charger ce skill (via l'outil `skill`) dès qu'une des conditions suivantes est 
 **Identifier le fichier :** le serveur MCP Figma n'a pas d'outil de recherche. Chercher une URL Figma (`figma.com/file/<file_key>/…` ou `figma.com/design/<file_key>/…`) dans le prompt d'invocation, le ticket (`bd show`), le retour de la recon, le wiki (`docs/wiki/`) et le README ; la clé du fichier (`file_key`) est le segment qui suit `/file/` ou `/design/`.
 
 **Si aucune URL trouvée :**
+<!-- oh:when role=entry -->
 ```
 question({
   questions: [{
@@ -40,6 +41,10 @@ question({
   }]
 })
 ```
+<!-- /oh:when -->
+<!-- oh:when role=subagent -->
+Sous-agent : continue sans données Figma et note l'absence d'URL comme hypothèse dans ta spec ; demande l'URL dans `### Points ouverts`.
+<!-- /oh:when -->
 
 ### Exploration de la structure
 
