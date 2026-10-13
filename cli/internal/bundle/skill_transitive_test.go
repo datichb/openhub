@@ -16,7 +16,6 @@ import (
 var crossReferences = map[string]string{
 	"living-docs-enrichment → onboarder-workflow":             "where the onboarder writes the wiki, for the reader",
 	"living-docs-enrichment → doc-wiki-protocol":              "the documentarian applies it, the caller only delegates",
-	"team-awareness → takeover-context-protocol":              "team mode only (MCP team)",
 	"retranscription-coordinateur → planner-handoff-format":   "example of a critical section, the planner format ships with the planner",
 	"retranscription-coordinateur → coordination-only":        "relation between postures, inlined in the coordinators",
 	"handoff-bloc-unique-rule → retranscription-coordinateur": "consumer side, inlined in the coordinators",
@@ -30,8 +29,8 @@ var crossReferences = map[string]string{
 // only reads agent bodies: a skill named only by an on-demand skill must be
 // pulled in by `requires:`, otherwise the agent following that skill gets
 // « Unable to load skill ». Skills gated by a plugin the workflow does not
-// load, and stack skills (shipped when the project uses the stack), are
-// absent on purpose.
+// load or by an MCP server the session does not have, and stack skills
+// (shipped when the project uses the stack), are absent on purpose.
 func TestShippedSkillMentionsResolveTransitively(t *testing.T) {
 	hub, cat, _ := shippedWorkflows(t)
 	index := hubSkillIndex(hub, nil)
@@ -59,7 +58,7 @@ func TestShippedSkillMentionsResolveTransitively(t *testing.T) {
 				require.NoError(t, err)
 				for _, m := range mentionedSkills(string(body), index) {
 					d, err := loader.load(m)
-					if err != nil || d.Front.Plugin != "" || d.ID == s.ID || strings.HasPrefix(d.Ref, "developer/stacks/") {
+					if err != nil || d.Front.Plugin != "" || d.Front.MCP != "" || d.ID == s.ID || strings.HasPrefix(d.Ref, "developer/stacks/") {
 						continue
 					}
 					pair := s.ID + " → " + d.ID

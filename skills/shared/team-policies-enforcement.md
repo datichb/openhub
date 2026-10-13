@@ -1,6 +1,7 @@
 ---
 name: team-policies-enforcement
 description: Respect des politiques d'équipe (team policies) par les agents, en complément de team-awareness.
+mcp: team
 ---
 
 # Team Policies Enforcement Protocol

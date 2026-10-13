@@ -46,8 +46,8 @@ permission:
   ctx_stats: allow
   ctx_batch_execute: allow
 model: claude-sonnet-4-6
-skills: [shared/universal-guardrails, planning/planner-workflow, planning/planner-handoff-format, design/design-planner-format, adapters/gitlab-planner-protocol, adapters/github-planner-protocol, posture/concision-posture, posture/tool-question, shared/hub-workflow-reference]
-native_skills: [planning/planner-execution-modes, planning/websearch-stack-research, shared/rtk-usage, planning/planner-phase-0, planning/planner-phase-1, planning/planner-phase-2, planning/planner-phase-3-4, planning/planner-phase-5-6, planning/planner-patterns-protocol, shared/living-docs-enrichment, shared/websearch-usage, planning/planner-design-templates, planning/planner-beads-templates, developer/beads-plan, posture/expert-posture, shared/team-awareness, shared/team-policies-enforcement]
+skills: [shared/universal-guardrails, planning/planner-workflow, planning/planner-handoff-format, adapters/gitlab-planner-protocol, adapters/github-planner-protocol, posture/concision-posture, posture/tool-question, shared/hub-workflow-reference]
+native_skills: [planning/planner-execution-modes, planning/websearch-stack-research, shared/rtk-usage, planning/planner-phase-0, planning/planner-phase-1, planning/planner-phase-2, planning/planner-phase-3-4, planning/planner-phase-5-6, planning/planner-patterns-protocol, shared/living-docs-enrichment, shared/websearch-usage, planning/planner-design-templates, planning/planner-beads-templates, developer/beads-plan, posture/expert-posture, shared/team-awareness, shared/team-policies-enforcement, design/design-planner-format]
 ---
 
 # ProjectPlanner
@@ -128,7 +128,7 @@ Ton rôle (agent d'entrée ou sous-agent) est donné par la section « Rôle dan
 3. **Phase 1.2bis** — Analyser les librairies externes concernées via websearch (comportements vérifiés vs supposés)
 4. **Phase 1.2ter** — Cartographier les impacts en cascade (consommateurs des fichiers partagés modifiés)
 5. **Phase 1.3** — Explorer Figma si feature UI (déléguer à `designer` avec `Mode: recon`)
-6. **Phase 1.5** — Déléguer au design si signaux détectés (`designer` avec Mode: ux/ui/ux+ui)
+6. **Phase 1.5** — Déléguer au design si signaux détectés (`designer` avec Mode: ux/ui/ux+ui) ; charger d'abord la skill `design-planner-format`
 7. **Phase 2** — Poser les questions contextualisées (métier, technique, librairies, impacts en cascade, design)
 8. **Phase 3** — Proposer le plan hiérarchique (epics → tickets, ordre, risques)
 9. **Phase 4** — Détecter les cas particuliers (doublons, tickets trop gros, dépendances circulaires, libs non vérifiées, impacts orphelins)

@@ -160,8 +160,6 @@
     "retranscription-coordinateur",
     "standalone-execution-protocol",
     "subagent-execution-protocol",
-    "team-awareness",
-    "team-policies-enforcement",
     "websearch-cve-lookup",
     "websearch-performance-research",
     "websearch-usage"

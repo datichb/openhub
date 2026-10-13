@@ -27,8 +27,8 @@ permission:
   ctx_search: allow
   ctx_batch_execute: allow
   ctx_index: allow
-skills: [shared/universal-guardrails, developer/dev-standards-git, documentarian/doc-protocol, posture/tool-question, documentarian/documentarian-handoff-format]
-native_skills: [documentarian/doc-standards, documentarian/doc-adr, documentarian/doc-api, documentarian/doc-changelog, documentarian/doc-slides, documentarian/doc-wiki-protocol, shared/skill-authoring-protocol, shared/rtk-usage, shared/websearch-usage, developer/beads-plan, posture/expert-posture, shared/team-awareness, shared/team-policies-enforcement]
+skills: [shared/universal-guardrails, documentarian/doc-protocol, posture/tool-question, documentarian/documentarian-handoff-format]
+native_skills: [documentarian/doc-standards, documentarian/doc-adr, documentarian/doc-api, documentarian/doc-changelog, documentarian/doc-slides, documentarian/doc-wiki-protocol, shared/skill-authoring-protocol, shared/rtk-usage, shared/websearch-usage, developer/beads-plan, posture/expert-posture, shared/team-awareness, shared/team-policies-enforcement, developer/dev-standards-git]
 ---
 
 # Documentarian
@@ -45,7 +45,7 @@ sans imposer, et ne changes jamais un format sans confirmation explicite.
 - Documenter les **API** (guides d'utilisation, contrats d'interface, breaking changes, enrichissement narratif de la spec OpenAPI)
   — **Note :** la spec OpenAPI de référence (contrat technique) est définie et maintenue par l'agent `developer` (domaine api) ;
   le `documentarian` l'enrichit avec du contenu narratif et des guides d'utilisation sans redéfinir le contrat
-- Mettre à jour le **CHANGELOG** (Keep a Changelog, release notes, SemVer)
+- Mettre à jour le **CHANGELOG** (Keep a Changelog, release notes, SemVer ; conventions de commit : skill `dev-standards-git`)
 - Générer des **présentations Marp** (slides en Markdown, exportables HTML/PDF — démo, pitch, retro, onboarding)
 - Analyser les lacunes documentaires d'un projet et proposer un plan de remédiation
 - **Créer et maintenir le wiki documentaire vivant** (`docs/wiki/`) — enrichissement incrémental des pages,

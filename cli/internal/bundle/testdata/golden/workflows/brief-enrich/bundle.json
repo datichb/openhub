@@ -62,10 +62,7 @@
       ]
     }
   ],
-  "skills": [
-    "team-awareness",
-    "team-policies-enforcement"
-  ],
+  "skills": null,
   "subagent_graph": {},
   "max_depth": 1,
   "code_mode": false

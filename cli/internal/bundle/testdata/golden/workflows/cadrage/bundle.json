@@ -288,6 +288,7 @@
   "skills": [
     "beads-plan",
     "content-design",
+    "design-planner-format",
     "design-principles",
     "designer-standalone",
     "designer-subagent",
@@ -314,8 +315,6 @@
     "standalone-execution-protocol",
     "subagent-concision-posture",
     "subagent-execution-protocol",
-    "team-awareness",
-    "team-policies-enforcement",
     "tui-patterns",
     "ui-patterns-reference",
     "ui-protocol",

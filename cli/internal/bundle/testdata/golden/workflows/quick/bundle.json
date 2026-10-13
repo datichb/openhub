@@ -205,9 +205,8 @@
     "expert-posture",
     "handoff-bloc-unique-rule",
     "living-docs-enrichment",
+    "quick-fix",
     "reviewer-reception",
-    "team-awareness",
-    "team-policies-enforcement",
     "test-generation"
   ],
   "subagent_graph": {},

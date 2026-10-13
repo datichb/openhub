@@ -299,9 +299,7 @@
   ],
   "skills": [
     "dev-standards-security",
-    "living-docs-enrichment",
-    "team-awareness",
-    "team-policies-enforcement"
+    "living-docs-enrichment"
   ],
   "subagent_graph": {},
   "max_depth": 1,

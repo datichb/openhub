@@ -43,6 +43,30 @@ func TestTrackerAdaptersFollowSessionMCP(t *testing.T) {
 	assert.NotContains(t, withGithub["planner"], gitlab)
 }
 
+// The team skills (`mcp: team`) are shipped on demand only when the session
+// has the team MCP server.
+func TestTeamSkillsFollowSessionMCP(t *testing.T) {
+	hub, cat, env := shippedWorkflows(t)
+	r, diags := workflow.Check(cat, workflow.Ref{Layer: workflow.LayerHub, ID: "feature"}, nil, env)
+	require.False(t, diags.HasErrors(), "%v", diags)
+	shipped := func(mcp []sessionspec.MCPServerDef) map[string]bool {
+		b, err := Build(Request{HubDir: hub, OutDir: t.TempDir(), Spec: r.Spec, MCP: mcp})
+		require.NoError(t, err)
+		out := map[string]bool{}
+		for _, s := range b.Spec.Skills {
+			out[s.ID] = true
+		}
+		return out
+	}
+	team := []string{"team-awareness", "team-policies-enforcement", "team-coordination", "takeover-context-protocol"}
+	none := shipped(nil)
+	withTeam := shipped([]sessionspec.MCPServerDef{{Name: "team", Type: "local", Command: []string{"oh", "mcp", "serve", "team"}}})
+	for _, id := range team {
+		assert.False(t, none[id], "%s without the team MCP server", id)
+		assert.True(t, withTeam[id], "%s with the team MCP server", id)
+	}
+}
+
 func TestRootFilterMCP(t *testing.T) {
 	hub := repoHub(t)
 	l := newSkillLoader(hub, nil)
