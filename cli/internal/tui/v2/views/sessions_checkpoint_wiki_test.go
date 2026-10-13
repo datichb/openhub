@@ -2,6 +2,7 @@ package views
 
 import (
 	"context"
+	"errors"
 	"sync"
 	"testing"
 	"time"
@@ -103,4 +104,90 @@ func TestCheckpointCardWikiWithoutDecider(t *testing.T) {
 	v := NewSessionsView(SessionsViewConfig{Backend: &cardSessions{}})
 	assert.Nil(t, v.wikiActions(nil, &SessionDecision{SessionID: "ses_a"}, []CheckpointWikiProposal{{ID: "wp-1"}}), "listed only")
 	assert.NotContains(t, checkpointBody(CheckpointCardView{}), "wiki")
+}
+
+type wikiEditSessions struct {
+	wikiSessions
+	edits  []string
+	result string
+	err    error
+}
+
+func (w *wikiEditSessions) CheckpointWikiEdit(name, content string) (string, error) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	w.edits = append(w.edits, name+"|"+content)
+	return w.result, w.err
+}
+
+// The content of a proposal edited on several lines in $EDITOR, from the
+// form of the card; an untouched or emptied text records nothing.
+func TestCheckpointCardWikiEditor(t *testing.T) {
+	withFrench(t)
+	be := &wikiEditSessions{wikiSessions: wikiSessions{cardSessions: cardSessions{fakeSessions: fakeSessions{rows: checkpointRows()}, card: CheckpointCardView{
+		Checkpoint: "cp-2", Label: "Commit", Summary: "prêt",
+		Wiki: []CheckpointWikiProposal{{ID: "wp-1", Agent: "reviewer", Page: "index.md", Tag: "DÉDUIT", Status: "pending", Content: "ligne 1\nligne 2"}},
+	}}}}
+	sh := &cardShell{}
+	v := NewSessionsView(SessionsViewConfig{Backend: be})
+	v.SetShell(sh)
+	sim := tcell.NewSimulationScreen("")
+	require.NoError(t, sim.Init())
+	app := tview.NewApplication().SetScreen(sim)
+	content := tview.NewFlex()
+	app.SetRoot(content, true)
+	done := make(chan struct{})
+	go func() { _ = app.Run(); close(done) }()
+	t.Cleanup(func() { app.Stop(); <-done })
+	onLoop := func(fn func()) {
+		ch := make(chan struct{})
+		app.QueueUpdateDraw(func() { fn(); close(ch) })
+		<-ch
+	}
+	onLoop(func() { v.Mount(content, app); v.rows = checkpointRows(); v.render() })
+	onLoop(func() {
+		v.selectKey(refKey(decisionRef{id: "checkpoint:ses_a:per_2", session: "ses_a"}))
+		v.HandleKey(tcell.NewEventKey(tcell.KeyEnter, 0, 0))
+	})
+	require.Eventually(t, func() bool { title, _, _ := sh.modal(); return title != "" }, 3*time.Second, 20*time.Millisecond)
+	_, _, actions := sh.modal()
+	var wp1 *ModalAction
+	for i := range actions {
+		if actions[i].Label == "Wiki wp-1" {
+			wp1 = &actions[i]
+		}
+	}
+	require.NotNil(t, wp1)
+	onLoop(func() { wp1.Callback() })
+	sh.mu.Lock()
+	form := sh.form
+	sh.mu.Unlock()
+	require.NotNil(t, form)
+	var values []string
+	for _, o := range form.Fields[0].Options {
+		values = append(values, o.Value)
+	}
+	assert.Equal(t, []string{wikiAccept, wikiEdit, wikiEditor, wikiRefuse, wikiPend}, values, "the editor offered by the backend")
+
+	// Several lines from the editor, starting from the field.
+	be.result = "ligne 1\n\nligne 2 corrigée\nligne 3\n"
+	onLoop(func() { form.OnSubmit(map[string]string{"choice": wikiEditor, "content": form.Fields[1].Default}, nil) })
+	require.Eventually(t, func() bool { return len(be.got()) == 1 }, 3*time.Second, 20*time.Millisecond)
+	assert.Equal(t, "ses_a/wp-1/edit/ligne 1\n\nligne 2 corrigée\nligne 3", be.got()[0])
+	be.mu.Lock()
+	assert.Equal(t, []string{"wp-1.md|ligne 1\nligne 2\n"}, be.edits)
+	be.mu.Unlock()
+
+	// Untouched, emptied, or the editor failed: nothing recorded.
+	for _, res := range []string{"ligne 1\nligne 2\n", "  \n"} {
+		be.result = res
+		onLoop(func() { form.OnSubmit(map[string]string{"choice": wikiEditor, "content": form.Fields[1].Default}, nil) })
+	}
+	be.result, be.err = "x", errors.New("éditeur absent")
+	onLoop(func() { form.OnSubmit(map[string]string{"choice": wikiEditor, "content": form.Fields[1].Default}, nil) })
+	be.mu.Lock()
+	assert.Len(t, be.edits, 4)
+	be.mu.Unlock()
+	assert.Len(t, be.got(), 1)
+	onLoop(func() { v.Unmount() })
 }

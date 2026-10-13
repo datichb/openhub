@@ -177,7 +177,27 @@ oh wiki pending [dir] [--all] [--session <id>] [--json]
 | `--session` | string | Only those of a session |
 | `--json` | bool | JSON output |
 
-The project is the one oh knows for the folder (or a parent folder).
+The project is the one oh knows for the folder (or a parent folder). To decide on a proposal outside the TUI: [`oh wiki decide`](#oh-wiki-decide).
+
+### oh wiki decide
+
+Records the decision of the user on proposals of the queue, outside the TUI: the same choices as on the card of the commit checkpoint, the same service.
+
+```
+oh wiki decide <id>... (--accept | --edit | --content <text> | --file <file|-> | --refuse | --pending) [--dir <folder>]
+```
+
+| Flag | Type | Description |
+|------|------|-------------|
+| `--accept` | bool | Accept: oh applies it when the commit checkpoint of its session is passed, else `doc-sync` |
+| `--edit` | bool | Edit the content in `$EDITOR` (several lines), then accept; an emptied or unchanged content records nothing |
+| `--content` | string | Edit without an editor: the new content |
+| `--file` | string | Edit without an editor: file of the new content (`-`: standard input) |
+| `--refuse` | bool | Refuse (alias `--reject`) |
+| `--pending` | bool | Put back to pending |
+| `--dir` | string | Folder of the project (default: the current folder) |
+
+Exactly one decision; an edit is about one proposal. The edited content is cleaned like a proposal and the original is kept. The ids (`wp-<n>`) are those of the project, given by `oh wiki pending`; a proposal already applied or refused can no longer be changed. With several ids, oh decides on each one and reports those that fail (non-zero exit code). The decision is signed `oh` (`decided_by`).
 
 ### oh wiki stats
 

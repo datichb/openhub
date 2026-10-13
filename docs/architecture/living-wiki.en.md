@@ -155,7 +155,8 @@ flowchart LR
 1. The agent calls `wiki_propose(page, content, tag, source[, section])`. oh sets the author (the agent it sees
    calling the tool), cleans the content and queues it (`wp-<n>`, per project).
 2. At the commit checkpoint (`cp-2` of `ticket`, `feature`, `review-feedback`; `cp-commit` of `quick`, `debug`,
-   `sweep`), the decision card shows the proposals of the session: the user accepts, edits or refuses each one.
+   `sweep`), the decision card shows the proposals of the session: the user accepts, edits or refuses each one (or,
+   outside the TUI, `oh wiki decide`).
 3. When the checkpoint is passed, **oh applies** the accepted proposals itself, before giving control back to the
    agent: they are committed with the code. The application is traced (status `applied`, `applied_by: oh`, date,
    `✎` entry in the timeline) and the agent gets the list of the files to commit.

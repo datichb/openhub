@@ -177,7 +177,27 @@ oh wiki pending [dir] [--all] [--session <id>] [--json]
 | `--session` | string | Seulement celles d'une session |
 | `--json` | bool | Sortie JSON |
 
-Le projet est celui qu'oh connaît pour le dossier (ou un dossier parent).
+Le projet est celui qu'oh connaît pour le dossier (ou un dossier parent). Pour décider d'une proposition hors de la TUI : [`oh wiki decide`](#oh-wiki-decide).
+
+### oh wiki decide
+
+Enregistre la décision de l'utilisateur sur des propositions de la file, hors de la TUI : mêmes choix que sur la carte du checkpoint de commit, même service.
+
+```
+oh wiki decide <id>... (--accept | --edit | --content <texte> | --file <fichier|-> | --refuse | --pending) [--dir <dossier>]
+```
+
+| Flag | Type | Description |
+|------|------|-------------|
+| `--accept` | bool | Accepter : oh l'applique au passage du checkpoint de commit de sa session, sinon `doc-sync` |
+| `--edit` | bool | Modifier le contenu dans `$EDITOR` (plusieurs lignes), puis accepter ; un contenu vidé ou inchangé n'enregistre rien |
+| `--content` | string | Modifier sans éditeur : le nouveau contenu |
+| `--file` | string | Modifier sans éditeur : fichier du nouveau contenu (`-` : entrée standard) |
+| `--refuse` | bool | Refuser (alias `--reject`) |
+| `--pending` | bool | Remettre en attente |
+| `--dir` | string | Dossier du projet (défaut : le dossier courant) |
+
+Une décision et une seule ; une modification porte sur une seule proposition. Le contenu modifié est nettoyé comme une proposition et l'original est conservé. Les identifiants (`wp-<n>`) sont ceux du projet, donnés par `oh wiki pending` ; une proposition déjà appliquée ou refusée n'est plus modifiable. Avec plusieurs identifiants, oh décide de chacun et signale ceux qui échouent (code de sortie non nul). La décision est signée `oh` (`decided_by`).
 
 ### oh wiki stats
 

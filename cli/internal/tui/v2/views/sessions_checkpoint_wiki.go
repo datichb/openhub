@@ -30,6 +30,8 @@ const (
 	wikiEdit   = "edit"
 	wikiRefuse = "refuse"
 	wikiPend   = "pending"
+	// wikiEditor edits the content in $EDITOR (an edit for the service).
+	wikiEditor = "editor"
 )
 
 // CheckpointWikiProposal is a wiki proposal on a checkpoint card.
@@ -49,6 +51,13 @@ type CheckpointWikiProposal struct {
 // only lists them).
 type CheckpointWikiDecider interface {
 	CheckpointWikiDecide(ctx context.Context, sessionID, id, choice, content string) error
+}
+
+// CheckpointWikiEditor is implemented by session backends that can edit
+// the content of a proposal on several lines in $EDITOR (the terminal is
+// suspended); it is called on the event loop.
+type CheckpointWikiEditor interface {
+	CheckpointWikiEdit(name, content string) (string, error)
 }
 
 // writeCheckpointWiki renders the wiki section of the card.
@@ -120,7 +129,8 @@ func (v *SessionsView) wikiActions(r *SessionRow, d *SessionDecision, list []Che
 }
 
 // wikiForm asks for the decision on a proposal: accept, edit (the content
-// on one line, ⏎ for a line break), refuse, or leave it pending.
+// on one line, ⏎ for a line break, or on several lines in $EDITOR when the
+// backend can), refuse, or leave it pending.
 func (v *SessionsView) wikiForm(wd CheckpointWikiDecider, r *SessionRow, d *SessionDecision, p CheckpointWikiProposal) {
 	if v.shell == nil {
 		return
@@ -128,21 +138,32 @@ func (v *SessionsView) wikiForm(wd CheckpointWikiDecider, r *SessionRow, d *Sess
 	dec := *d
 	choice := wikiAccept
 	content := strings.ReplaceAll(p.Content, "\n", wikiNewline)
+	options := []SelectOption{
+		{Label: i18n.T("tui.checkpoint.wiki_choice.accept"), Value: wikiAccept},
+		{Label: i18n.T("tui.checkpoint.wiki_choice.edit"), Value: wikiEdit},
+	}
+	ed, canEdit := v.cfg.Backend.(CheckpointWikiEditor)
+	if canEdit {
+		options = append(options, SelectOption{Label: i18n.T("tui.checkpoint.wiki_choice.editor"), Value: wikiEditor})
+	}
+	options = append(options,
+		SelectOption{Label: i18n.T("tui.checkpoint.wiki_choice.refuse"), Value: wikiRefuse},
+		SelectOption{Label: i18n.T("tui.checkpoint.wiki_choice.pending"), Value: wikiPend})
 	v.shell.ShowInlineForm(InlineFormConfig{
 		Title: tview.Escape(i18n.Tf("tui.checkpoint.wiki_form_title", p.ID, p.Page)),
 		Fields: []FormField{
-			{Key: "choice", Label: i18n.T("tui.inbox.decision"), Type: FieldSelect, Default: choice, Options: []SelectOption{
-				{Label: i18n.T("tui.checkpoint.wiki_choice.accept"), Value: wikiAccept},
-				{Label: i18n.T("tui.checkpoint.wiki_choice.edit"), Value: wikiEdit},
-				{Label: i18n.T("tui.checkpoint.wiki_choice.refuse"), Value: wikiRefuse},
-				{Label: i18n.T("tui.checkpoint.wiki_choice.pending"), Value: wikiPend},
-			}},
+			{Key: "choice", Label: i18n.T("tui.inbox.decision"), Type: FieldSelect, Default: choice, Options: options},
 			{Key: "content", Label: i18n.T("tui.checkpoint.wiki_content"), Type: FieldText, Default: content,
 				Hint: i18n.T("tui.checkpoint.wiki_content_hint")},
 		},
 		OnSubmit: func(values map[string]string, _ map[string][]string) {
 			ch := values["choice"]
 			text := fromWikiField(values["content"])
+			if ch == wikiEditor && canEdit {
+				// The field (perhaps already changed) is the starting text.
+				v.wikiEdit(ed, wd, r, &dec, p, text)
+				return
+			}
 			if ch == wikiAccept && text != fromWikiField(content) {
 				ch = wikiEdit // the content was changed: an edit
 			}
@@ -156,6 +177,27 @@ func (v *SessionsView) wikiForm(wd CheckpointWikiDecider, r *SessionRow, d *Sess
 		OnCancel: func() { v.openCheckpoint(r, &dec) },
 	})
 	v.trackDecision(dec.ID)
+}
+
+// wikiEdit edits the content of a proposal in $EDITOR, then records it as
+// an edit; an emptied or untouched text records nothing.
+func (v *SessionsView) wikiEdit(ed CheckpointWikiEditor, wd CheckpointWikiDecider, r *SessionRow, d *SessionDecision, p CheckpointWikiProposal, text string) {
+	dec := *d
+	out, err := ed.CheckpointWikiEdit(p.ID+".md", text+"\n")
+	if err != nil {
+		v.toast(err.Error(), false)
+		v.openCheckpoint(r, &dec)
+		return
+	}
+	edited := strings.TrimSpace(out)
+	if edited == "" || edited == strings.TrimSpace(p.Content) {
+		v.toast(i18n.T("tui.checkpoint.wiki_unchanged"), true)
+		v.openCheckpoint(r, &dec)
+		return
+	}
+	v.wikiDecide(r, &dec, func(ctx context.Context) error {
+		return wd.CheckpointWikiDecide(ctx, dec.SessionID, p.ID, wikiEdit, edited)
+	})
 }
 
 // fromWikiField restores the line breaks of the one-line content field.
