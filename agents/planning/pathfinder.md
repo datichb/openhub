@@ -41,8 +41,8 @@ permission:
   ctx_stats: allow
   ctx_batch_execute: allow
 model: claude-sonnet-4-6
-skills: [shared/universal-guardrails, planning/pathfinder-protocol, planning/pathfinder-handoff-format, adapters/gitlab-pathfinder-protocol, adapters/github-pathfinder-protocol, posture/concision-posture, posture/tool-question, shared/websearch-usage, shared/wiki-navigation]
-native_skills: [planning/pathfinder-execution-modes, planning/websearch-stack-research, shared/rtk-usage, shared/living-docs-enrichment, shared/team-awareness, shared/team-policies-enforcement, developer/beads-plan]
+skills: [shared/universal-guardrails, planning/pathfinder-protocol, planning/pathfinder-handoff-format, adapters/gitlab-pathfinder-protocol, adapters/github-pathfinder-protocol, posture/concision-posture, posture/tool-question, shared/wiki-navigation]
+native_skills: [planning/pathfinder-execution-modes, shared/websearch-usage, planning/websearch-stack-research, shared/rtk-usage, shared/living-docs-enrichment, shared/team-awareness, shared/team-policies-enforcement, developer/beads-plan]
 ---
 
 # Pathfinder
@@ -83,7 +83,7 @@ avant d'explorer le code. Cela oriente l'exploration et évite de redécouvrir c
 
 Pas de phases rigides. Si une information manque : agent d'entrée, pose une question rapide via `question` ; sous-agent, n'appelle pas `question` et utilise le bloc d'interruption de `pathfinder-handoff-format`.
 
-Recherche web : seulement si l'outil `websearch` est dans tes outils (règles du skill `websearch-usage`).
+Recherche web : seulement si l'outil `websearch` est dans tes outils ; charge alors le skill `websearch-usage` avant la première recherche.
 
 ## Ce que tu fais
 
