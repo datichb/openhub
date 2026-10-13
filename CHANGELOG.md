@@ -9,6 +9,12 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ## [Unreleased]
 
+### Added — wiki en session distante (lot p3-remote-wiki)
+
+- **Sessions distantes** : le démon du job sert aux agents les mêmes outils `wiki_*` qu'en local, sur le wiki de son clone (lecture, `wiki_check` et ses lectures git sous le compte `oh` des agents). Les propositions (`wiki_propose`) sont mises en file dans le job et **jamais appliquées** : le checkpoint de commit n'en applique aucune et `wiki_apply` y est refusé à tous les agents, documentarian compris.
+- **Retour sur la machine** : artefact `wiki.json` ; `oh session fetch` met les propositions **en attente** dans la file du projet, nettoyées et bornées de nouveau, renumérotées par la file locale ; les rapports du job les citent sous leur nouvel identifiant ; un second fetch n'ajoute rien. Validation sur la carte du checkpoint de commit à la reprise, ou avec `doc-sync`. Schéma de pipeline inchangé (5) : pas besoin de relancer `oh remote setup`.
+- **Sécurité** : oh lit les pages du wiki et examine les fichiers qu'elles citent sans jamais sortir du projet (`os.Root`), même si un lien symbolique est posé pendant la lecture. Un `docs` qui pointe hors du projet n'est plus suivi, en local comme dans le job.
+
 ### Fixed — le pathfinder ne crée qu'après la validation du découpage (lot s3-pathfinder)
 
 - **Pathfinder** : il ne crée les tickets que relancé par son appelant après la validation du découpage ; une création refusée par oh se signale dans son enveloppe, jamais par l'outil `question` (les anciennes consignes « demander confirmation, permissions ask » le poussaient à interroger l'utilisateur depuis un sous-agent). Le prompt de `feature` relance l'agent de planning avec la réponse pour terminer son découpage, jamais pour créer. S3 1/3 → 3/3 (Haiku ×3), S5 3/3 ; pathfinder +34 tokens.
