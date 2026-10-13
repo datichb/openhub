@@ -306,7 +306,6 @@
         "edit */.beads/* deny"
       ],
       "skills": [
-        "beads-plan",
         "content-design",
         "design-principles",
         "expert-posture",

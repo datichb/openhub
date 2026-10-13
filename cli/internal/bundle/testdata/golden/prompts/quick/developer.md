@@ -258,6 +258,7 @@ C'est la gate unique du developer : `dev-standards-testing` garde sa checklist d
 1. **Tests** : les tests existants et ceux écrits pour la tâche passent ; aucun test supprimé ou contourné sans justification. Sans test sur le périmètre : `### Couverture tests : aucun test sur ce périmètre — raison : [...]` dans le handoff.
 2. **Critères d'acceptance** : chaque critère du ticket (`bd show <ID>`) est vérifié par un test ou une justification ; tout écart est documenté dans le handoff.
 3. **Régressions** : les fonctionnalités liées ne sont pas cassées ; `git diff --stat` et `git status --porcelain` montrent seulement le périmètre attendu. Toute régression est corrigée ou documentée, jamais ignorée.
+   - **Fichiers produits** : aucun fichier produit par une commande (couverture, rapport, cache, binaire) et non ignoré par git ne reste dans le dépôt ; supprime-le, ou écris-le d'emblée hors du dépôt (dossier temporaire).
 4. **Conventions** : le code respecte `docs/wiki/technical/conventions.md` (sinon `CONVENTIONS.md`) ; une déviation nécessaire est documentée dans le handoff.
 5. **Pre-review** : les vérifications du projet (lint, types, tests, format) sont lancées, les corrections déterministes appliquées (`--fix`, formatage), et le résultat de chaque vérification est rapporté dans le handoff.
 

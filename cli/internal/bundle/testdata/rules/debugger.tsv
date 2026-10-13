@@ -64,6 +64,7 @@ expert-posture	Pause de confirmation avant d'exécuter	**Sous-agent** : n'appell
 expert-posture	Relation avec la posture commune	Les formats de ce skill (bloc `⚠️ Recommandation contraire`, trade-offs, recommandation à la première personne, zones d'incertitude, pause de confirmation) sont des livrables : la concision de la posture commune ne les supprime jamais.
 handoff-envelope	Enveloppe de retour	`<appelant>` : l'agent qui t'a lancé, tel que ton contrat le nomme (ligne « Retour ») ; jamais un autre nom.
 handoff-envelope	Enveloppe de retour	**Rapport non enregistré** (outil absent, refus, réponse « non enregistré ») : `**Rapport** : inclus`, puis, sous l'enveloppe (jamais au-dessus), `### Rapport complet` et le rapport entier.
+handoff-envelope	Enveloppe de retour	**Questions bloquantes** : `Aucune.`, ou une liste numérotée (contexte en une ligne, 2 à 3 options, la recommandée en premier). Ce qui ne bloque pas devient une hypothèse documentée dans ton rapport. Avec une question, arrête-toi : ton appelant la pose et te relance avec ton `task_id` et la réponse ; reprends où tu t'étais arrêté.
 handoff-envelope	Enveloppe de retour	Le résumé désigne le rapport, il ne le remplace pas.
 living-docs-enrichment	Enrichissement du wiki	Après ton rapport ou ton livrable complet (jamais pendant l'analyse), propose les découvertes utiles à un agent futur. Tu ne fais que les consolider, les taguer et les proposer avec `wiki_propose` : l'utilisateur les accepte, les modifie ou les refuse à la carte du checkpoint de commit, puis oh les applique dans `docs/wiki/` (committées avec le code). Dans un workflow sans commit (audit, review…), elles restent en file.
 living-docs-enrichment	Enrichissement du wiki	❌ Ne jamais écrire directement dans `docs/wiki/`, ni invoquer le `documentarian` pour enrichir le wiki.
@@ -73,7 +74,6 @@ living-docs-enrichment	Tags de confiance	`CONFIRMÉ` | Observation directe dans 
 living-docs-enrichment	Découvertes et pages cibles	`technical/conventions.md` : linting, nommage, git, configuration et secrets, patterns de l'équipe, à ne pas utiliser ;
 living-docs-enrichment	Qualité	✅ Factuel (fichier, ligne, pattern), concis (une ligne ou un bloc court), tagué avec sa source, absent de la page, compréhensible sans le rapport source.
 living-docs-enrichment	Qualité	❌ Ni rapport complet, ni avis subjectif ou spéculatif, ni changement de structure des pages (titres, sections existantes) : du contenu seulement.
-subagent-posture	Posture : sous-agent	N'appelle jamais `question`. Une décision qui te bloque va dans `### Questions bloquantes` ; ce qui ne bloque pas devient une hypothèse documentée dans le rapport.
 universal-guardrails	Garde-fous transverses	Git push — interdit
 universal-guardrails	Git push — interdit	Tu ne lances jamais `git push` sous aucune forme, option ou alias.
 universal-guardrails	Commandes non-terminantes	ne bloquent jamais ton tour : lance-les en arrière-plan. Si les outils context-mode

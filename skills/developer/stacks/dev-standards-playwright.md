@@ -52,6 +52,8 @@ export default defineConfig({
 })
 ```
 
+`playwright-report/` et `test-results/` sont produits à chaque exécution : s'ils ne sont pas ignorés par git, envoie-les hors du dépôt (`--reporter=list --output="${TMPDIR:-/tmp}/pw-results"`).
+
 ---
 
 ## Locators — sélecteurs sémantiques

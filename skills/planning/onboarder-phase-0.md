@@ -13,6 +13,8 @@ Vérifier que les informations minimales pour démarrer l'onboarding sont dispon
 - La racine du projet est identifiable (présence de fichiers structurants)
 - Au moins un fichier de dépendances est présent pour détecter la stack
 
+Phase 0 : liste la racine et lis au plus les manifestes (`go.mod`, `package.json`…) et le README. Aucun fichier source ni test : leur lecture est l'exploration, après le chargement de `onboarder-phase-1`.
+
 ### Déclencheur de pause ⏸️
 
 Si **un ou plusieurs prérequis critiques sont manquants** :

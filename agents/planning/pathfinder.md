@@ -41,7 +41,7 @@ permission:
   ctx_stats: allow
   ctx_batch_execute: allow
 model: claude-sonnet-4-6
-skills: [shared/universal-guardrails, posture/core-posture, posture/user-facing-posture, posture/subagent-posture, shared/handoff-envelope, shared/execution-protocol, planning/pathfinder-payload, planning/pathfinder-protocol, adapters/gitlab-pathfinder-protocol, adapters/github-pathfinder-protocol, shared/wiki-navigation]
+skills: [shared/universal-guardrails, posture/core-posture, posture/user-facing-posture, shared/handoff-envelope, shared/execution-protocol, planning/pathfinder-payload, planning/pathfinder-protocol, adapters/gitlab-pathfinder-protocol, adapters/github-pathfinder-protocol, shared/wiki-navigation]
 native_skills: [shared/websearch-usage, planning/websearch-stack-research, shared/rtk-usage, shared/living-docs-enrichment, shared/team-awareness, shared/team-policies-enforcement, developer/beads-plan]
 project_instructions: index
 ---

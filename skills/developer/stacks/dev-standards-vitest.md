@@ -223,6 +223,7 @@ npx vitest run --coverage src/services/user.service.ts
 ```
 
 > **Conseil :** Activer `--coverage` avant de commit pour s'assurer que les nouvelles fonctions sont testées.
+> Le rapport s'écrit dans `coverage/` : si ce dossier n'est pas ignoré par git (`git check-ignore coverage`), écris-le hors du dépôt (`--coverage.reportsDirectory="${TMPDIR:-/tmp}/coverage"`).
 
 ---
 

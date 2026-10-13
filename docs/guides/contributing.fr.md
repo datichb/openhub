@@ -230,7 +230,7 @@ Les skills sont organisés par domaine dans `skills/` :
 | `skills/designer/` | Protocoles de design (designer) |
 | `skills/design/` | Contrats de handoff design |
 | `skills/quality/` | Contrats de handoff qualité (debugger et agents hors `qa/` et `reviewer/`) |
-| `skills/posture/` | Posture et comportement transversal (`expert-posture`, `user-facing-posture`, `subagent-posture`) |
+| `skills/posture/` | Posture et comportement transversal (`expert-posture`, `core-posture`, `user-facing-posture`, `coordinator-posture`) |
 
 Pour un nouveau domaine, créer un nouveau sous-dossier.
 

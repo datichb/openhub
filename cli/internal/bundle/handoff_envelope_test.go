@@ -97,9 +97,7 @@ func TestPayloadSkills(t *testing.T) {
 			fm, err := bricks.ParseAgentFrontmatter(files[agent])
 			require.NoError(t, err)
 			assert.Contains(t, fm.Skills, ref, "%s does not inline %s", agent, ref)
-			for _, s := range []string{"shared/handoff-envelope", "posture/subagent-posture"} {
-				assert.Contains(t, fm.Skills, s, "%s does not inline %s", agent, s)
-			}
+			assert.Contains(t, fm.Skills, "shared/handoff-envelope", "%s does not inline the envelope", agent)
 		})
 	}
 }

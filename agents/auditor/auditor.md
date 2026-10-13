@@ -9,7 +9,6 @@ permission:
   task:
     "*": deny
     "auditor-subagent": allow
-    "documentarian": allow
 skills: [shared/universal-guardrails, posture/core-posture, posture/user-facing-posture, posture/coordinator-posture, shared/execution-protocol, auditor/auditor-workflow, auditor/audit-protocol-light]
 native_skills: [auditor/auditor-phase-0-1, auditor/auditor-phase-3, auditor/auditor-phase-4, shared/rtk-usage, shared/living-docs-enrichment, shared/team-awareness, shared/team-policies-enforcement]
 project_instructions: index

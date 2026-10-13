@@ -223,7 +223,7 @@ Skills are organised by domain in `skills/`:
 | `skills/auditor/` | Audit protocols |
 | `skills/orchestrator/` | Coordination protocols |
 | `skills/planning/` | Planning protocols |
-| `skills/posture/` | Posture and cross-cutting behavior (`expert-posture`, `user-facing-posture`, `subagent-posture`) |
+| `skills/posture/` | Posture and cross-cutting behavior (`expert-posture`, `core-posture`, `user-facing-posture`, `coordinator-posture`) |
 | `skills/qa/` | Quality protocols |
 | `skills/debugger/` | Diagnostic protocols |
 | `skills/reviewer/` | Review protocols |

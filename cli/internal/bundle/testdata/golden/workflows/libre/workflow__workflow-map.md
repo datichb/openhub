@@ -18,14 +18,14 @@ Cette carte est la seule référence sur l'enchaînement : n'invente ni agent, n
 | Agent | Rôle | Mode | Après | Peut déléguer à |
 |---|---|---|---|---|
 | `orchestrator` | workflow (entrée) | primary | — | `debugger`, `designer`, `documentarian`, `onboarder`, `orchestrator-dev`, `pathfinder`, `planner`, `reviewer` |
-| `debugger` | workflow | primary | — | `documentarian` |
-| `designer` | workflow | primary | — | — |
-| `documentarian` | workflow | primary | — | — |
-| `onboarder` | workflow | primary | — | — |
-| `orchestrator-dev` | workflow | primary | — | `developer`, `documentarian`, `reviewer` |
-| `pathfinder` | workflow | primary | — | `designer`, `documentarian` |
-| `planner` | workflow | primary | — | `designer`, `documentarian` |
-| `reviewer` | workflow | primary | — | `documentarian`, `reviewer` |
+| `debugger` | workflow | subagent | — | `documentarian` |
+| `designer` | workflow | subagent | — | — |
+| `documentarian` | workflow | subagent | — | — |
+| `onboarder` | workflow | subagent | — | — |
+| `orchestrator-dev` | workflow | subagent | — | `developer`, `documentarian`, `reviewer` |
+| `pathfinder` | workflow | subagent | — | `designer`, `documentarian` |
+| `planner` | workflow | subagent | — | `designer`, `documentarian` |
+| `reviewer` | workflow | subagent | — | `documentarian`, `reviewer` |
 | `developer` | workflow | subagent | — | `documentarian` |
 
 Règles de délégation :

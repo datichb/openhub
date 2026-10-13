@@ -351,7 +351,7 @@ The path is not guessed from the prompt: oh appends to each agent a **session co
 | Entry agent that a member may also call | both | sub-agent when the prompt comes from an agent (`[CONTEXTE]` marker, `[REVIEW:single]` or resumption with `task_id`), entry agent otherwise |
 | Reached only via `task` | sub-agent | a single session, stops only on a blocking question, final envelope |
 
-A single protocol for phased agents (`shared/execution-protocol`), one section per role, filtered at build time (`when: role=…`, [Variants by role](./skills.en.md#variants-by-role-and-by-session-when)). The postures follow the same rule: `posture/user-facing-posture` for the entry agent; `posture/subagent-posture`, `shared/handoff-envelope` and the payload for the sub-agent. The former path skills (`*-execution-modes`, `-standalone` / `-subagent` pairs) were removed in L5. The `[SKILL:<ref>]` markers left in a `task` prompt (`[SKILL:designer/prototype-protocol]`, `[SKILL:orchestrator/orchestrator-dev-feedback-mode]`) name an extra skill to load.
+A single protocol for phased agents (`shared/execution-protocol`), one section per role, filtered at build time (`when: role=…`, [Variants by role](./skills.en.md#variants-by-role-and-by-session-when)). The postures follow the same rule: `posture/user-facing-posture` for the entry agent; `shared/handoff-envelope` and the payload for the sub-agent. The former path skills (`*-execution-modes`, `-standalone` / `-subagent` pairs) were removed in L5. The `[SKILL:<ref>]` markers left in a `task` prompt (`[SKILL:designer/prototype-protocol]`, `[SKILL:orchestrator/orchestrator-dev-feedback-mode]`) name an extra skill to load.
 
 ```
 task(

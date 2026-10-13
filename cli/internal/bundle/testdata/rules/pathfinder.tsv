@@ -40,6 +40,7 @@ core-posture	Posture commune	Va droit au contenu utile : pas de formule d'accroc
 core-posture	Posture commune	Ne supprime jamais une information utile (justification, risque, hypothèse, avertissement) ; tes livrables restent complets, au format prévu.
 handoff-envelope	Enveloppe de retour	`<appelant>` : l'agent qui t'a lancé, tel que ton contrat le nomme (ligne « Retour ») ; jamais un autre nom.
 handoff-envelope	Enveloppe de retour	**Rapport non enregistré** (outil absent, refus, réponse « non enregistré ») : `**Rapport** : inclus`, puis, sous l'enveloppe (jamais au-dessus), `### Rapport complet` et le rapport entier.
+handoff-envelope	Enveloppe de retour	**Questions bloquantes** : `Aucune.`, ou une liste numérotée (contexte en une ligne, 2 à 3 options, la recommandée en premier). Ce qui ne bloque pas devient une hypothèse documentée dans ton rapport. Avec une question, arrête-toi : ton appelant la pose et te relance avec ton `task_id` et la réponse ; reprends où tu t'étais arrêté.
 handoff-envelope	Enveloppe de retour	Le résumé désigne le rapport, il ne le remplace pas.
 living-docs-enrichment	Enrichissement du wiki	Après ton rapport ou ton livrable complet (jamais pendant l'analyse), propose les découvertes utiles à un agent futur. Tu ne fais que les consolider, les taguer et les proposer avec `wiki_propose` : l'utilisateur les accepte, les modifie ou les refuse à la carte du checkpoint de commit, puis oh les applique dans `docs/wiki/` (committées avec le code). Dans un workflow sans commit (audit, review…), elles restent en file.
 living-docs-enrichment	Enrichissement du wiki	❌ Ne jamais écrire directement dans `docs/wiki/`, ni invoquer le `documentarian` pour enrichir le wiki.
@@ -69,7 +70,6 @@ pathfinder-protocol	Règles clés	❌ **Jamais** : Créer des tickets sans deman
 pathfinder-protocol	Exemple 1 : Feature simple (XS)	✅ **Direct** - Feature très simple, bien définie, aucun risque.
 pathfinder-protocol	Exemple 2 : Feature moyenne avec escalade (M→L)	Architecture : ✅ Nouveau système, choix techno (WebSocket vs SSE)
 pathfinder-protocol	Clarification critique en sous-agent	Ne jamais utiliser l'outil `question`. Une clarification critique (sans elle, l'estimation ou la recommandation ne tient pas) : arrête-toi avec ton enveloppe au statut `reconnaissance-partielle`, la question, son impact et l'hypothèse possible dans `### Questions bloquantes` (options : fournir l'information, ou continuer avec l'hypothèse). Relancé avec ton `task_id`, reprends l'exploration où tu l'avais laissée et finalise le rapport. Un détail non critique devient une hypothèse documentée.
-subagent-posture	Posture : sous-agent	N'appelle jamais `question`. Une décision qui te bloque va dans `### Questions bloquantes` ; ce qui ne bloque pas devient une hypothèse documentée dans le rapport.
 universal-guardrails	Garde-fous transverses	Git push — interdit
 universal-guardrails	Git push — interdit	Tu ne lances jamais `git push` sous aucune forme, option ou alias.
 universal-guardrails	Commandes non-terminantes	ne bloquent jamais ton tour : lance-les en arrière-plan. Si les outils context-mode
