@@ -83,12 +83,8 @@ helm/                                     → Helm charts
 
 ### ÉTAPE 1.2 — Explorer adaptativement selon le profil
 
-Une fois le profil identifié, cibler les fichiers structurants.
+Une fois le profil identifié, cibler les fichiers structurants du profil : skill `onboarder-profiles` (incluse dans ton prompt), dont le template liste les fichiers par profil.
 **Annoncer ce qui va être lu avant chaque section.**
-
-#### Profil Frontend Vue.js
-
-SI profil détecté → charger le skill `onboarder-profiles` via `skill` pour les fichiers structurants à explorer selon le profil applicatif.
 
 ### ÉTAPE 1.3 — Lire les tickets Beads et ADRs
 
@@ -213,6 +209,7 @@ Tu n'as pas accès au MCP Figma : tu collectes les URL, l'analyse des maquettes 
 Cherche les URL Figma (`figma.com/file/<file_key>/…` ou `figma.com/design/<file_key>/…`) dans le README, `docs/`, le wiki et les tickets Beads (`bd search figma.com`).
 
 **Si aucune URL trouvée :**
+<!-- oh:when role=entry -->
 
 Afficher :
 > "Je n'ai trouvé aucune URL de fichier Figma dans le README, la documentation, le wiki ni les tickets."
@@ -232,6 +229,10 @@ question({
   }]
 })
 ```
+<!-- /oh:when -->
+<!-- oh:when role=subagent -->
+Ce n'est pas bloquant : note « aucune URL Figma trouvée » dans `### Design et maquettes` et passe à 1.6.
+<!-- /oh:when -->
 
 #### Design system côté code
 
@@ -336,7 +337,7 @@ Interpréter :
 
 ### Déclencheur de pause ⏸️
 
-**STOP OBLIGATOIRE mid-phase** — Si l'une des conditions suivantes est rencontrée pendant l'exploration, arrêter immédiatement et appeler l'outil `question` avant de continuer :
+**STOP OBLIGATOIRE mid-phase** — Si l'une des conditions suivantes est rencontrée pendant l'exploration, arrêter immédiatement avant de continuer :
 
 - Dépendance critique non documentée (version majeure bloquante, breaking change visible)
 - Contradiction directe entre deux fichiers de configuration, conventions ou architectures
@@ -344,31 +345,17 @@ Interpréter :
 - Accès impossible à un répertoire ou fichier structurant (permissions, fichier absent)
 - Décision d'architecture ou de stratégie qui rendrait le rapport incomplet sans clarification
 
+<!-- oh:when role=entry -->
 > Afficher le contexte en texte clair (ce qui a été trouvé, pourquoi c'est bloquant), puis appeler `question`. Reprendre l'exploration après réponse.
-
-### Récap de fin de Phase 1
-
 
 ### Question de validation obligatoire
 
+> **Boucle de validation Phase 1 :** protocole d'exécution (inclus) : « Passer à Phase 2 (Recommandé) » (poser les questions de clarification), « Explorer davantage » (rester en Phase 1, explorer plus, re-produire le récap).
+<!-- /oh:when -->
+<!-- oh:when role=subagent -->
+> Mets le contexte (ce qui a été trouvé, pourquoi c'est bloquant) et 2 à 3 options dans les `### Questions bloquantes` de ton enveloppe (statut `en-attente`). Relancé avec la réponse, reprends l'exploration.
 
-**En mode standalone :**
-```
-question({
-  questions: [{
-    header: "Questions complémentaires",
-    question: "[Onboarder — Phase 1 complétée | Projet : <nom>]\nPasser aux questions complémentaires (Phase 2) ?",
-    options: [
-      { label: "Passer à Phase 2 (Recommandé)", description: "Poser les questions de clarification identifiées" },
-      { label: "Explorer davantage", description: "Lire d'autres fichiers avant de poser des questions" }
-    ]
-  }]
-})
-```
-
-
-**Selon la réponse (dans tous les contextes) :**
-- **Passer à Phase 2** → Phase 2
-- **Explorer davantage** → rester en Phase 1, explorer plus, re-produire le récap
+Pas de validation de phase : enchaîne sur la Phase 2.
+<!-- /oh:when -->
 
 ---

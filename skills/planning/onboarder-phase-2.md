@@ -10,7 +10,7 @@ Poser les questions de clarification identifiées en Phase 1 pour lever les zone
 
 ### Ce qu'on fait
 
-1. **Regrouper TOUTES les questions** de clarification en un seul appel `question`
+1. **Regrouper TOUTES les questions** de clarification en un seul envoi
 2. **Formuler les questions en s'appuyant sur les observations de Phase 1** — pas de questions génériques
 3. **Prioriser les questions par impact** — les plus impactantes en premier (5 questions maximum)
 
@@ -55,20 +55,14 @@ Si des fichiers Figma existent mais leur statut n'est pas clair :
 - Y a-t-il une convention de synchronisation Figma → code ? (manuelle, plugin, aucune)
 
 ### Format de la question
+<!-- oh:when role=entry -->
 
-Afficher d'abord le contexte en texte :
+Afficher d'abord le contexte en texte (condensé de la Phase 1 : architecture, zones d'ombre, points d'attention), puis appeler l'outil `question` avec **une question par clarification** :
 
-
-Puis appeler l'outil `question` avec **une question par clarification** :
-
-
-> ⚠️ **En mode sous-agent** : **NE PAS appeler l'outil `question`**. Mettre ces questions, précédées d'un condensé des observations Phase 1 (architecture, zones d'ombre, signaux détectés), dans les `### Questions bloquantes` de ton enveloppe (statut `en-attente`) ; le condensé va dans ton rapport. Les questions ci-dessous servent de **modèle de contenu**.
-
-**En mode standalone :**
 ```
 question({
   questions: [
-    // Question stratégie — Architecture (avec condensé Phase 1 si orchestrateur)
+    // Question stratégie — Architecture (avec le condensé de la Phase 1)
     {
       header: "Architecture cible",
       question: "[Onboarder — Phase 2 | Projet : <nom>]\n\n**Contexte de l'exploration (Phase 1) :**\n- Architecture détectée : <pattern détecté>\n- Zones d'ombre : <liste courte ou 'Aucune'>\n- Points d'attention : <liste courte ou 'Aucun'>\n\nL'architecture actuelle (<pattern détecté>) est-elle celle à conserver ?",
@@ -148,68 +142,25 @@ question({
 
 ### Traitement des réponses
 
-Les réponses sont retournées dans l'ordre des questions posées, sous forme de tableau de labels :
-```
-["Conserver (Recommandé)", "Connue et acceptée", "<Convention A>", "CI/CD automatisée", "TDD systématique", "À jour — ready-for-dev", "J'ai répondu"]
-```
-
-**Règles de traitement :**
+Les réponses sont retournées dans l'ordre des questions posées :
 
 | Réponse | Action |
 |---------|--------|
 | Label prédéfini | Utiliser directement dans le récap de fin de Phase 2 |
 | Réponse libre (texte saisi) | Intégrer le texte complet dans le récap |
-| "Skip toutes" (dernière question) | Marquer toutes les questions précédentes comme "non répondu" — l'analyse restera partielle |
+| "Skip toutes" (dernière question) | Marquer toutes les questions précédentes comme "non répondu" — l'analyse restera partielle ; ajouter « Questions de clarification non traitées » aux zones d'ombre persistantes |
+<!-- /oh:when -->
+<!-- oh:when role=subagent -->
 
-**Mapping réponses → récap :**
-
-```typescript
-// Pseudo-code de traitement
-const [architecture, dette, convention, deploiement, tests, figma, skipStatus] = reponses;
-
-// Si l'utilisateur a choisi "Skip toutes"
-if (skipStatus === "Skip toutes") {
-  recapPhase2.questions.forEach(q => q.reponse = "non répondu");
-  recapPhase2.zonesOmbrePersistantes.push("Questions de clarification non traitées");
-} else {
-  recapPhase2.questions = [
-    { question: "Architecture cible", reponse: architecture },
-    { question: "Dette technique", reponse: dette },
-    { question: "Convention de code", reponse: convention },
-    { question: "Processus de déploiement", reponse: deploiement },
-    { question: "Stratégie de test", reponse: tests },
-    { question: "Statut des maquettes", reponse: figma } // si applicable
-  ];
-}
-```
-
-> **Note :** Adapter le mapping selon les questions effectivement posées (certaines sont conditionnelles à ce qui a été détecté en Phase 1).
-
-### Récap de fin de Phase 2
-
+⚠️ **En mode sous-agent** : **NE PAS appeler l'outil `question`**. Mets ces questions, avec 2 à 3 options chacune (la recommandée en premier), dans les `### Questions bloquantes` de ton enveloppe (statut `en-attente`), précédées dans ton rapport du condensé de la Phase 1 (architecture, zones d'ombre, signaux détectés). Les types de questions ci-dessus servent de **modèle de contenu** ; une question qui ne bloque pas le rapport devient une hypothèse dans `### Zones d'incertitude`.
+<!-- /oh:when -->
 
 ### Question de validation obligatoire
+<!-- oh:when role=entry -->
 
+> **Boucle de validation Phase 2 :** protocole d'exécution (inclus) : « Passer à Phase 3 (Recommandé) » (rapport de contexte), « Poser d'autres questions » (rester en Phase 2, re-produire le récap), « Revenir à Phase 1 » (les réponses modifient le périmètre d'exploration).
+<!-- /oh:when -->
+<!-- oh:when role=subagent -->
 
-**En mode standalone :**
-```
-question({
-  questions: [{
-    header: "Rapport de contexte",
-    question: "[Onboarder — Phase 2 complétée | Projet : <nom>]\nQuestions traitées. Passer à l'analyse approfondie (Phase 3 — Rapport de contexte) ?",
-    options: [
-      { label: "Passer à Phase 3 (Recommandé)", description: "Produire le rapport de contexte structuré" },
-      { label: "Poser d'autres questions", description: "Rester en Phase 2 pour préciser d'autres points" },
-      { label: "Revenir à Phase 1", description: "Explorer à nouveau avec les nouvelles informations reçues" }
-    ]
-  }]
-})
-```
-
-
-**Selon la réponse (dans tous les contextes) :**
-- **Passer à Phase 3** → Phase 3
-- **Poser d'autres questions** → rester en Phase 2, poser de nouvelles questions, re-produire le récap
-- **Revenir à Phase 1** → Phase 1 (les réponses reçues modifient le périmètre d'exploration)
-
----
+Pas de validation de phase : une fois les réponses intégrées (ou sans question bloquante), enchaîne sur la Phase 3.
+<!-- /oh:when -->

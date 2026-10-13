@@ -165,28 +165,14 @@ bd ready                  # Tickets prêts à travailler
 (Le récap est le rapport lui-même tel que présenté ci-dessus)
 
 ### Question de validation obligatoire
+<!-- oh:when role=entry -->
 
+> **Boucle de validation Phase 3 :** protocole d'exécution (inclus) : « Passer à Phase 4 (Recommandé) » (cas particuliers), « Réviser le rapport » (rester en Phase 3, ajuster, re-présenter), « Revenir à Phase 1 » (le rapport révèle des zones à explorer davantage).
+<!-- /oh:when -->
+<!-- oh:when role=subagent -->
 
-**En mode standalone :**
-```
-question({
-  questions: [{
-    header: "Détection cas particuliers",
-    question: "[Onboarder — Phase 3 complétée | Projet : <nom>]\nRapport de contexte produit. Passer à la détection des cas particuliers (Phase 4) ?",
-    options: [
-      { label: "Passer à Phase 4 (Recommandé)", description: "Vérifier les incohérences et cas particuliers" },
-      { label: "Réviser le rapport", description: "Rester en Phase 3 pour ajuster le rapport" },
-      { label: "Revenir à Phase 1", description: "Explorer à nouveau après avoir produit le rapport" }
-    ]
-  }]
-})
-```
-
-
-**Selon la réponse (dans tous les contextes) :**
-- **Passer à Phase 4** → Phase 4
-- **Réviser** → rester en Phase 3, ajuster le rapport, re-présenter
-- **Revenir à Phase 1** → Phase 1 (le rapport révèle des zones à explorer davantage)
+Pas de validation de phase : le rapport va dans ton rapport final (sections de ton payload) ; enchaîne sur la Phase 4.
+<!-- /oh:when -->
 
 ---
 
@@ -209,34 +195,18 @@ Vérifier les incohérences et cas limites qui pourraient avoir été manqués.
 ### Déclencheur de pause ⏸️
 
 Si un **cas particulier critique** est détecté (ex : CVE critiques, incohérences majeures) :
+<!-- oh:when role=entry -->
 - Afficher le contexte en texte (description du cas, impact, options)
 - Puis utiliser l'outil `question` pour demander comment le traiter
 
-### Récap de fin de Phase 4
-
-
 ### Question de validation obligatoire
 
+> **Boucle de validation Phase 4 :** protocole d'exécution (inclus) : « Générer le wiki (Recommandé) » (Phase 5 : docs/wiki/ et ONBOARDING.md minimaliste), « Vérifier d'autres cas » (rester en Phase 4, re-produire le récap), « Revenir à Phase 3 » (les cas particuliers nécessitent une refonte du rapport).
+<!-- /oh:when -->
+<!-- oh:when role=subagent -->
+- Le consigner en 🔴 dans `### Dette technique détectée`, avec son impact ; si son traitement demande une décision qui bloque la suite, mets le contexte et 2 à 3 options dans les `### Questions bloquantes` de ton enveloppe (statut `en-attente`).
 
-**En mode standalone :**
-```
-question({
-  questions: [{
-    header: "Génération des fichiers",
-    question: "[Onboarder — Phase 4 complétée | Projet : <nom>]\nDétection des cas particuliers terminée. Passer à la génération des fichiers (Phase 5) ?",
-    options: [
-      { label: "Générer le wiki (Recommandé)", description: "Passer à la Phase 5 — Génération du wiki documentaire vivant (docs/wiki/ + ONBOARDING.md minimaliste)" },
-      { label: "Vérifier d'autres cas", description: "Rester en Phase 4 pour vérifier d'autres cas particuliers" },
-      { label: "Revenir à Phase 3", description: "Revoir le rapport après détection de cas particuliers critiques" }
-    ]
-  }]
-})
-```
-
-
-**Selon la réponse (dans tous les contextes) :**
-- **Générer** → Phase 5
-- **Vérifier d'autres cas** → rester en Phase 4, vérifier d'autres cas, re-produire le récap
-- **Revenir à Phase 3** → Phase 3 (les cas particuliers nécessitent une refonte du rapport)
+Pas de validation de phase : enchaîne sur la Phase 5.
+<!-- /oh:when -->
 
 ---

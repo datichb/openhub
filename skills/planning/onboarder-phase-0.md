@@ -16,8 +16,8 @@ Vérifier que les informations minimales pour démarrer l'onboarding sont dispon
 ### Déclencheur de pause ⏸️
 
 Si **un ou plusieurs prérequis critiques sont manquants** :
+<!-- oh:when role=entry -->
 
-**En mode standalone :**
 ```
 [Texte de réponse]
 ## ⏸️ Phase 0 — Prérequis manquants
@@ -41,10 +41,14 @@ question({
 })
 ```
 
-
-### Récap de fin de Phase 0
-
-
 ### Question de validation obligatoire
 
-> **Boucle de validation Phase 0 :** protocole d'exécution (inclus) : « Démarrer (Recommandé) » (Phase 1), « Préciser le contexte » (rester en Phase 0), « Arrêter ». Sous-agent : pas de question, enchaîne sur la Phase 1.
+> **Boucle de validation Phase 0 :** protocole d'exécution (inclus) : « Démarrer (Recommandé) » (Phase 1), « Préciser le contexte » (rester en Phase 0), « Arrêter ».
+<!-- /oh:when -->
+<!-- oh:when role=subagent -->
+
+- Projet illisible ou sans racine identifiable : statut `bloqué`, le manque dans ton rapport.
+- Autre manque : continue avec ce qui est disponible (statut `contexte-partiel`) et liste-le dans `### Zones d'incertitude`.
+
+Pas de validation de phase : enchaîne sur la Phase 1.
+<!-- /oh:when -->

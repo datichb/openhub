@@ -5,16 +5,28 @@ description: "Utiliser avant la phase 5 de l'onboarder : écriture du wiki (5.1 
 
 ## Phase 5 — Production du livrable
 
+<!-- oh:when role=entry -->
 **Uniquement après validation explicite.**
+<!-- /oh:when -->
+<!-- oh:when role=subagent -->
+La demande de ton appelant vaut validation : écris le wiki, sauf si ton prompt demande de t'arrêter avant.
+<!-- /oh:when -->
 
 Charger le skill `doc-wiki-protocol` avant d'écrire quoi que ce soit — il définit
 les formats canoniques de chaque page wiki.
 
 **Vérifier si `docs/wiki/index.md` existe déjà :**
 - **Si oui** → mode re-onboarding : appliquer le skill `shared/living-docs-enrichment`
-  avec les découvertes du rapport, puis proposer les 3 options (enrichissement incrémental
+  avec les découvertes du rapport, puis
+<!-- oh:when role=entry -->
+  proposer les 3 options (enrichissement incrémental
   recommandé / réécriture complète / conserver). Ne pas passer aux étapes suivantes
   sans confirmation.
+<!-- /oh:when -->
+<!-- oh:when role=subagent -->
+  enrichissement incrémental, sans question ; réécriture complète seulement si ton prompt
+  la demande. Le mode retenu va dans `### Fichiers de contexte produits`.
+<!-- /oh:when -->
 - **Si non** → mode création : suivre les étapes 5.1 à 5.5 dans l'ordre.
 
 ---
@@ -202,6 +214,7 @@ identifier les domaines métier du projet.
 **Workflow :**
 
 1. Analyser la sémantique de la codebase pour déduire les grands domaines
+<!-- oh:when role=entry -->
 2. Afficher la proposition en texte :
 
 ```
@@ -233,6 +246,10 @@ question({
    - **Valider** → Créer `docs/wiki/business/index.md` + `docs/wiki/business/<domain>.md` pour chaque domaine
    - **Modifier** → Intégrer les ajustements de l'utilisateur, puis créer les fichiers
    - **Passer** → Créer uniquement `docs/wiki/business/general.md`
+<!-- /oh:when -->
+<!-- oh:when role=subagent -->
+2. Créer `docs/wiki/business/index.md` et une page `docs/wiki/business/<domain>.md` par domaine détecté, sans question ; le découpage retenu va dans `### Contexte métier` (hypothèse à valider par ton appelant).
+<!-- /oh:when -->
 
 Utiliser les formats canoniques du skill `doc-wiki-protocol` pour chaque page créée.
 
@@ -297,11 +314,6 @@ Aucune autre écriture : ni `projects.md`, ni cache de contexte (`.opencode/cont
 
 ---
 
-### Récap de fin de Phase 5
-
-
----
-
 ### ⚠️ Vérification — AVANT de terminer la session
 
 **Vérifications obligatoires dans ton rapport final :**
@@ -310,10 +322,8 @@ Aucune autre écriture : ni `projects.md`, ni cache de contexte (`.opencode/cont
 - ✅ Section `### Dette technique détectée` documentée (🔴 critiques, 🟠 importants, 🟡 informatifs)
 - ✅ Section `### Zones d'incertitude` signalées
 
-Sous-agent : le rapport est déposé (`workflow_report`), puis ta réponse finale est l'enveloppe ; aucun texte libre à côté.
+<!-- oh:when role=subagent -->
+Le rapport est déposé (`workflow_report`), puis ta réponse finale est l'enveloppe ; aucun texte libre à côté.
+<!-- /oh:when -->
 
 **Si une section est manquante → la compléter MAINTENANT avant de terminer.**
-
----
-
-### Format de retour final
