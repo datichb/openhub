@@ -108,8 +108,9 @@ func TestBudgetBaseline(t *testing.T) {
 	out.WriteString("# catalog = on-demand skills visible to the agent and their catalogue entries (id: description).\n")
 	out.WriteString("# reach = on-demand skills the agent can reach (native skills, skills named in its prompt, stack\n")
 	out.WriteString("# skills for the agents with stack_skills, extra and prompt skills for the entry agent, skills\n")
-	out.WriteString("# named by its callers for the agents with skills_from_callers, their requires closure) and their\n")
-	out.WriteString("# catalogue entries. Per-agent catalogue (L2): catalog = reach.\n")
+	out.WriteString("# named by its callers for the agents with skills_from_callers, their requires closure, then the\n")
+	out.WriteString("# skills named by the on-demand skills reached, transitively) and their catalogue entries.\n")
+	out.WriteString("# Per-agent catalogue (L2): catalog = reach.\n")
 	out.WriteString("# TOTAL: sums of the agents; catalog = every skill of the bundle; reach = skills reached by an agent.\n")
 	out.WriteString("# Regenerate: go test ./internal/bundle -run TestBudgetBaseline -update\n\n")
 	fmt.Fprintf(&out, "%-8s %-22s %-28s %8s %8s %4s %4s %6s %4s %6s\n", "project", "workflow", "agent",
@@ -183,7 +184,9 @@ func readBudgetGolden(t *testing.T, name string) map[string]int {
 // of the project when it sets stack_skills, for the entry agent the workflow
 // `skills.extra` and the skills named in the prompt template, for an agent
 // that sets skills_from_callers the skills its callers name (their natives
-// aside), and their requires closure, among the skills it may load. It is
+// aside), their requires closure and, transitively, the skills named by the
+// on-demand skills reached, among the skills it may load ([SKILL:…] tags
+// invite the callee, stack skills come from the stack only). It is
 // written apart from the build: the catalogue of each agent must match it.
 func reachableSkills(t *testing.T, hub string, spec *workflow.Spec, b *Bundle, projectPath string) map[string][]sessionspec.SkillDef {
 	t.Helper()
@@ -211,6 +214,7 @@ func reachableSkills(t *testing.T, hub string, spec *workflow.Spec, b *Bundle, p
 		fm      *bricks.AgentFrontmatter
 		inlined map[string]bool
 		named   []string // skills named in the prompt of the agent
+		self    []string // skills the prompt invites the agent to load
 	}
 	byID := map[string]*agentReach{}
 	for _, a := range b.Spec.Agents {
@@ -220,9 +224,15 @@ func reachableSkills(t *testing.T, hub string, spec *workflow.Spec, b *Bundle, p
 		for _, in := range InlinedSkills(a.Body) {
 			ar.inlined[in.ID] = true
 		}
-		for _, ref := range mentionedSkills(invitingText(a.Body, a.ID, agentIDs), index) {
+		text := invitingText(a.Body, a.ID, agentIDs)
+		for _, ref := range mentionedSkills(text, index) {
 			if !ar.inlined[skillID(ref)] {
 				ar.named = append(ar.named, ref)
+			}
+		}
+		for _, ref := range selfMentionedSkills(text, index) {
+			if !ar.inlined[skillID(ref)] && !bricks.IsStackSkill(ref) {
+				ar.self = append(ar.self, ref)
 			}
 		}
 		byID[a.ID] = ar
@@ -231,7 +241,7 @@ func reachableSkills(t *testing.T, hub string, spec *workflow.Spec, b *Bundle, p
 	out := map[string][]sessionspec.SkillDef{}
 	for _, a := range b.Spec.Agents {
 		ar := byID[a.ID]
-		roots := append(append([]string(nil), ar.fm.NativeSkills...), ar.named...)
+		roots := append(append([]string(nil), ar.fm.NativeSkills...), ar.self...)
 		if ar.fm.StackSkills && projectPath != "" {
 			roots = append(roots, bricks.ResolveStackSkills(projectPath)...)
 		}
@@ -253,15 +263,25 @@ func reachableSkills(t *testing.T, hub string, spec *workflow.Spec, b *Bundle, p
 			}
 		}
 		reached := map[string]bool{}
-		for _, root := range roots {
+		queue := roots
+		for len(queue) > 0 {
+			root := queue[0]
+			queue = queue[1:]
 			// An undeliverable mention is not shipped: its closure may fail.
 			docs, err := loader.closure([]string{root}, denyList(nil))
 			if err != nil {
 				continue
 			}
 			for _, d := range docs {
-				if !ar.inlined[d.ID] {
-					reached[d.ID] = true
+				if ar.inlined[d.ID] || reached[d.ID] {
+					continue
+				}
+				reached[d.ID] = true
+				// Skills named by an on-demand skill it loads reach it too.
+				for _, ref := range selfMentionedSkills(invitingText(string(d.body()), a.ID, agentIDs), index) {
+					if !bricks.IsStackSkill(ref) {
+						queue = append(queue, ref)
+					}
 				}
 			}
 		}

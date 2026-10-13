@@ -47,13 +47,13 @@ Build rules:
 Each agent sees in its `skill` tool only **its** catalogue (`AgentDef.Skills` of the bundle), not every skill of the bundle. An agent's catalogue holds:
 
 - its `native_skills:`;
-- the deliverable skills named in its composed prompt (body and inlined skills). Sections that do not invite it to load a skill are ignored: « Relation avec … », « Injection … » and the rules for the consumer of a handoff format when they name another agent;
+- the deliverable skills named in its composed prompt (body and inlined skills). Sections that do not invite it to load a skill are ignored: « Relation avec … », « Injection … », and the sections addressed to another agent (rules for the consumer or the producer of a handoff format, « Pour le <agent> »). `[SKILL:…]` tags invite the agent receiving the delegation prompt, not the one writing it;
 - the project's stack skills, only when its frontmatter sets `stack_skills: true` (`developer`, `reviewer`, `debugger`, `operator`);
 - for the entry agent: the `skills.extra` skills and those named in the workflow prompt template;
 - for an agent that sets `skills_from_callers: true` (`developer`, `auditor-subagent`): the skills named by its callers, except their own `native_skills:` (the domain and its standards, the audit checklist);
-- the `requires:` closure of all of these, without the skills already inlined in its prompt.
+- the `requires:` closure of all of these, then, step by step, the skills named with the same rules in the on-demand skills of its catalogue (`reviewer` loads `dev-standards-backend`, which points to `dev-standards-migration`), without the skills already inlined in its prompt. A stack skill never enters through a mention: only through the detected stack and `stack_skills`.
 
-The bundle ships the union of the catalogues: a skill no agent can reach is no longer shipped (for example the stack skills in a workflow without a `stack_skills` agent). A skill named only inside an on-demand skill does not enter the catalogue: declare it in `native_skills:` or `requires:`. `TestAgentSkillReachability` and `TestNoSpuriousCatalogue` (`cli/internal/bundle/catalogue_test.go`) check these rules on the shipped workflows; `budget.golden` gives, per agent, the visible catalogue (`cat`) and the reachable skills (`rch`), equal.
+The bundle ships the union of the catalogues: a skill no agent can reach is no longer shipped (for example the stack skills in a workflow without a `stack_skills` agent). To cite a skill without inviting the reader to load it (a pointer for information), write it without code (`its doc-wiki-protocol skill`) or put it in a « Relation avec … » section. `TestAgentSkillReachability` and `TestNoSpuriousCatalogue` (`cli/internal/bundle/catalogue_test.go`) check these rules on the shipped workflows; `budget.golden` gives, per agent, the visible catalogue (`cat`) and the reachable skills (`rch`), equal.
 
 Compatibility: a bundle built before the per-agent catalogue (no `skills` on the agents of `bundle.json`) keeps the former behaviour, every agent sees every skill of the bundle.
 

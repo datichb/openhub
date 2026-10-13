@@ -28,12 +28,15 @@ func TestInvitingText(t *testing.T) {
 		"## Injection des skills", "voir `h`",
 		inlinedSkillHeading("next"), "voir `i`",
 		"## Règles pour le consommateur (agent appelant)", "voir `j`",
+		"## Règles pour le producteur (orchestrator)", "voir `k`",
+		"## Pour l'orchestrator", "voir `l`",
+		"## Pour les developer", "voir `m`",
 	}, "\n")
 	got := invitingText(body, "developer", agents)
-	for _, kept := range []string{"`a`", "`d`", "`i`", "`j`"} {
+	for _, kept := range []string{"`a`", "`d`", "`i`", "`j`", "`m`"} {
 		assert.Contains(t, got, kept)
 	}
-	for _, dropped := range []string{"`b`", "`c`", "`e`", "`f`", "`g`", "`h`"} {
+	for _, dropped := range []string{"`b`", "`c`", "`e`", "`f`", "`g`", "`h`", "`k`", "`l`"} {
 		assert.NotContains(t, got, dropped)
 	}
 	// The consumer named reads its own rules.
@@ -54,9 +57,13 @@ func delegatingAgentMD(id, mode, extra, native, callee, body string) string {
 func TestBuildAgentCatalogues(t *testing.T) {
 	hub := fakeHub(t, map[string]string{
 		"agents/test/solo.md": delegatingAgentMD("solo", "primary", "", "a/lead-native", "helper",
-			"Délègue à `helper` : charge la skill `a/domain`.\n\n## Règles pour le consommateur (helper)\n\nVoir `a/consumer`."),
+			"Délègue à `helper` : charge la skill `a/domain`, prompt [SKILL:a/tagged].\n\n## Règles pour le consommateur (helper)\n\nVoir `a/consumer`."),
 		"agents/test/helper.md":                           delegatingAgentMD("helper", "subagent", "skills_from_callers: true\nstack_skills: true\n", "a/helper-native", "", "Aide."),
-		"skills/a/lead-native.md":                         skillMD("lead-native", "requires: [a/dep]\n", "x"),
+		"skills/a/lead-native.md":                         skillMD("lead-native", "requires: [a/dep]\n", "Voir aussi `a/further` et `dev-standards-golang`.\n\n## Relation avec `a/related`\n\nx"),
+		"skills/a/further.md":                             skillMD("further", "", "Puis `a/furthest`."),
+		"skills/a/furthest.md":                            skillMD("furthest", "", "x"),
+		"skills/a/related.md":                             skillMD("related", "", "x"),
+		"skills/a/tagged.md":                              skillMD("tagged", "", "x"),
 		"skills/a/dep.md":                                 skillMD("dep", "", "x"),
 		"skills/a/domain.md":                              skillMD("domain", "", "x"),
 		"skills/a/consumer.md":                            skillMD("consumer", "", "x"),
@@ -76,13 +83,14 @@ func TestBuildAgentCatalogues(t *testing.T) {
 	solo, helper := findAgent(b.Spec.Agents, "solo"), findAgent(b.Spec.Agents, "helper")
 	require.NotNil(t, solo)
 	require.NotNil(t, helper)
-	assert.Equal(t, []string{"dep", "domain", "extra", "lead-native", "prompted"}, solo.Skills,
-		"natives and their requires, mentions, extra and prompt skills; consumer rules naming another agent left out")
-	assert.Equal(t, []string{"dev-standards-golang", "domain", "helper-native"}, helper.Skills,
+	assert.Equal(t, []string{"dep", "domain", "extra", "further", "furthest", "lead-native", "prompted"}, solo.Skills,
+		"natives and their requires, mentions, extra and prompt skills, skills named by its on-demand skills (transitively); "+
+			"consumer rules naming another agent, Relation sections, delegation tags and stack skills left out")
+	assert.Equal(t, []string{"dev-standards-golang", "domain", "helper-native", "tagged"}, helper.Skills,
 		"its natives, the stack skills and the skills its caller names (not the caller's natives)")
-	assert.Equal(t, []string{"dep", "dev-standards-golang", "domain", "extra", "helper-native", "lead-native", "prompted"}, b.Spec.SkillIDs(),
+	assert.Equal(t, []string{"dep", "dev-standards-golang", "domain", "extra", "further", "furthest", "helper-native", "lead-native", "prompted", "tagged"}, b.Spec.SkillIDs(),
 		"the bundle ships the union of the catalogues")
-	assert.Equal(t, []string{"dep", "domain", "extra", "lead-native", "prompted"}, idsOf(VisibleSkills(*solo, b.Spec.Skills)))
+	assert.Equal(t, []string{"dep", "domain", "extra", "further", "furthest", "lead-native", "prompted"}, idsOf(VisibleSkills(*solo, b.Spec.Skills)))
 	assert.Equal(t, "", absentNote(solo.Body))
 
 	// Without stack_skills, skills_from_callers nor PromptTemplate.
@@ -157,7 +165,8 @@ var skillTagLineRe = regexp.MustCompile(`subagent_type:\s*"([a-z0-9-]+)"`)
 // inlined in its prompt): its native skills, the skills named in its
 // prompt, the stack skills for the agents with stack_skills, the workflow
 // extra and prompt skills for the entry agent, the [SKILL:…] tags its
-// callers put in the delegation prompts written for it.
+// callers put in the delegation prompts written for it, and the skills
+// named by the on-demand skills of its catalogue (transitive closure).
 func TestAgentSkillReachability(t *testing.T) {
 	hub, cases := shippedCatalogues(t)
 	files, err := bricks.FindAgentFiles(hub)
@@ -207,8 +216,10 @@ func TestAgentSkillReachability(t *testing.T) {
 			for _, ref := range fm.NativeSkills {
 				invited[ref] = "native"
 			}
-			for _, ref := range mentionedSkills(invitingText(a.Body, a.ID, agentIDs), index) {
-				invited[ref] = "named in its prompt"
+			for _, ref := range selfMentionedSkills(invitingText(a.Body, a.ID, agentIDs), index) {
+				if !bricks.IsStackSkill(ref) {
+					invited[ref] = "named in its prompt"
+				}
 			}
 			if fm.StackSkills && c.project != "" {
 				for _, ref := range bricks.ResolveStackSkills(c.project) {
@@ -230,6 +241,21 @@ func TestAgentSkillReachability(t *testing.T) {
 					if m := skillTagLineRe.FindStringSubmatch(ln); m != nil && m[1] == a.ID {
 						for _, tag := range skillTagRe.FindAllStringSubmatch(ln, -1) {
 							invited[tag[1]] = "tag of a delegation prompt of " + caller
+						}
+					}
+				}
+			}
+			// The skills named by an on-demand skill of its catalogue (L2,
+			// reviewer → dev-standards-backend → dev-standards-migration).
+			for _, id := range a.Skills {
+				d, err := loader.load(index[id])
+				if err != nil {
+					continue
+				}
+				for _, ref := range selfMentionedSkills(invitingText(string(d.body()), a.ID, agentIDs), index) {
+					if !bricks.IsStackSkill(ref) {
+						if _, ok := invited[ref]; !ok {
+							invited[ref] = "named by the on-demand skill " + id
 						}
 					}
 				}

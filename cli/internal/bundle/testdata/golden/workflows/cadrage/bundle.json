@@ -61,6 +61,7 @@
         "edit */.beads/* deny"
       ],
       "skills": [
+        "handoff-bloc-unique-rule",
         "planner-handoff-format",
         "subagent-concision-posture"
       ]

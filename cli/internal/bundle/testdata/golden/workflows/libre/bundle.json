@@ -74,6 +74,7 @@
         "design-handoff-format",
         "documentarian-handoff-format",
         "handoff-bloc-unique-rule",
+        "living-docs-enrichment",
         "onboarder-handoff-format",
         "orchestrator-recap-edge",
         "pathfinder-handoff-format",
@@ -350,7 +351,8 @@
         "expert-posture",
         "handoff-bloc-unique-rule",
         "skill-authoring-protocol",
-        "websearch-usage"
+        "websearch-usage",
+        "wiki-navigation"
       ]
     },
     {
@@ -424,6 +426,7 @@
       "skills": [
         "beads-plan",
         "dev-standards-git",
+        "dev-standards-testing",
         "doc-wiki-protocol",
         "expert-posture",
         "handoff-bloc-unique-rule",
@@ -536,6 +539,7 @@
         "orchestrator-dev-subagent",
         "orchestrator-dev-ticket-workflow",
         "planner-handoff-format",
+        "quick-fix",
         "subagent-concision-posture",
         "test-generation"
       ]
@@ -806,11 +810,13 @@
       "skills": [
         "dev-standards-api",
         "dev-standards-backend",
+        "dev-standards-database",
         "dev-standards-devops",
         "dev-standards-frontend",
         "dev-standards-frontend-a11y",
         "dev-standards-frontend-data",
         "dev-standards-git",
+        "dev-standards-migration",
         "dev-standards-security",
         "dev-standards-testing",
         "dev-standards-universal",
@@ -1123,7 +1129,8 @@
     "ux-protocol",
     "websearch-design-patterns",
     "websearch-stack-research",
-    "websearch-usage"
+    "websearch-usage",
+    "wiki-navigation"
   ],
   "subagent_graph": {
     "debugger": [

@@ -47,13 +47,13 @@ Règles de construction :
 Chaque agent ne voit dans son outil `skill` que **son** catalogue (`AgentDef.Skills` du paquet), pas toutes les skills du paquet. Le catalogue d'un agent contient :
 
 - ses `native_skills:` ;
-- les skills livrables nommées dans son prompt composé (corps et skills inlinées). Les sections qui ne l'invitent pas à charger une skill sont ignorées : « Relation avec … », « Injection … » et les règles pour le consommateur d'un format de handoff quand elles nomment un autre agent que lui ;
+- les skills livrables nommées dans son prompt composé (corps et skills inlinées). Les sections qui ne l'invitent pas à charger une skill sont ignorées : « Relation avec … », « Injection … », et les sections adressées à un autre agent que lui (règles pour le consommateur ou le producteur d'un format de handoff, « Pour le <agent> »). Les balises `[SKILL:…]` invitent l'agent qui reçoit le prompt de délégation, pas celui qui l'écrit ;
 - les skills de stack du projet, seulement si son frontmatter porte `stack_skills: true` (`developer`, `reviewer`, `debugger`, `operator`) ;
 - pour l'agent d'entrée : les skills de `skills.extra` et celles nommées dans le modèle du prompt du workflow ;
 - pour un agent qui porte `skills_from_callers: true` (`developer`, `auditor-subagent`) : les skills nommées par ses appelants, sauf leurs propres `native_skills:` (le domaine et ses standards, la checklist d'audit) ;
-- la fermeture `requires:` de tout cela, sans les skills déjà inlinées dans son prompt.
+- la fermeture `requires:` de tout cela, puis, de proche en proche, les skills nommées avec les mêmes règles dans les skills à la demande de son catalogue (le `reviewer` charge `dev-standards-backend`, qui renvoie à `dev-standards-migration`), sans les skills déjà inlinées dans son prompt. Une skill de stack n'entre jamais par une mention : seulement par la pile détectée et `stack_skills`.
 
-Le paquet livre l'union des catalogues : une skill qu'aucun agent ne peut atteindre n'est plus livrée (par exemple les skills de stack dans un workflow sans agent `stack_skills`). Une skill nommée seulement dans une skill chargée à la demande n'entre pas dans le catalogue : elle doit être déclarée en `native_skills:` ou en `requires:`. `TestAgentSkillReachability` et `TestNoSpuriousCatalogue` (`cli/internal/bundle/catalogue_test.go`) vérifient ces règles sur les workflows livrés ; `budget.golden` donne par agent le catalogue visible (`cat`) et les skills atteignables (`rch`), égaux.
+Le paquet livre l'union des catalogues : une skill qu'aucun agent ne peut atteindre n'est plus livrée (par exemple les skills de stack dans un workflow sans agent `stack_skills`). Pour citer une skill sans inviter le lecteur à la charger (renvoi pour information), l'écrire sans code (`sa skill doc-wiki-protocol`) ou la placer dans une section « Relation avec … ». `TestAgentSkillReachability` et `TestNoSpuriousCatalogue` (`cli/internal/bundle/catalogue_test.go`) vérifient ces règles sur les workflows livrés ; `budget.golden` donne par agent le catalogue visible (`cat`) et les skills atteignables (`rch`), égaux.
 
 Compatibilité : un paquet construit avant le catalogue par agent (`skills` absent des agents de `bundle.json`) garde l'ancien comportement, chaque agent voit toutes les skills du paquet.
 

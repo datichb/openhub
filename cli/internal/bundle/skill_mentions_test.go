@@ -55,10 +55,10 @@ func TestShippedWorkflowSkillMentionsResolve(t *testing.T) {
 				}
 			}
 			keep := rootFilter(newSkillLoader(hub, generated), b.Spec.Plugins, b.Spec.MCP, "")
-			check := func(where, agent, text string) {
-				for _, ref := range mentionedSkills(text, index) {
-					if !keep(ref) {
-						continue // skill of a plugin the workflow does not load (A8)
+			check := func(where, agent, text string, mentions func(string, map[string]string) []string) {
+				for _, ref := range mentions(text, index) {
+					if !keep(ref) || bricks.IsStackSkill(ref) {
+						continue // skill of a plugin the workflow does not load (A8), stack skill (detected stack)
 					}
 					id := skillID(ref)
 					if !loadable[agent][id] && !headed[agent][id] {
@@ -67,12 +67,12 @@ func TestShippedWorkflowSkillMentionsResolve(t *testing.T) {
 				}
 			}
 			for _, a := range b.Spec.Agents {
-				check("agent "+a.ID, a.ID, invitingText(a.Body, a.ID, agentIDs))
+				check("agent "+a.ID, a.ID, invitingText(a.Body, a.ID, agentIDs), selfMentionedSkills)
 			}
 			if r.Spec.Prompt != nil && r.Spec.Prompt.Template != "" {
 				src, err := os.ReadFile(filepath.Join(hub, "workflows", r.Spec.Prompt.Template))
 				require.NoError(t, err)
-				check("prompt "+r.Spec.Prompt.Template, b.Spec.EntryAgent, string(src))
+				check("prompt "+r.Spec.Prompt.Template, b.Spec.EntryAgent, string(src), mentionedSkills)
 			}
 
 			// Each inlined skill carries its heading.

@@ -72,6 +72,7 @@
       "skills": [
         "beads-plan",
         "dev-standards-git",
+        "dev-standards-testing",
         "doc-wiki-protocol",
         "expert-posture",
         "handoff-bloc-unique-rule",
@@ -93,6 +94,7 @@
   "skills": [
     "beads-plan",
     "dev-standards-git",
+    "dev-standards-testing",
     "doc-wiki-protocol",
     "expert-posture",
     "handoff-bloc-unique-rule",

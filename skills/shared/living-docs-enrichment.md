@@ -52,7 +52,7 @@ docs/wiki/technical/architecture.md  (patterns dominants, décisions…)
 docs/wiki/business/<domain>.md  (règles de gestion, flux…)
 ```
 
-Chaque maillon a un rôle distinct : ce skill consolide et propose, le `documentarian` écrit, `wiki-navigation` localise.
+Chaque maillon a un rôle distinct : ce skill consolide et propose, le `documentarian` localise les pages (sa skill wiki-navigation) et écrit.
 
 ---
 
@@ -207,7 +207,7 @@ Pour chaque enrichissement, identifier le tag de confiance approprié.
 Avant de router vers un fichier de domaine, identifier le domaine concerné :
 - Si la découverte correspond à un domaine existant → router vers ce fichier
 - Si le domaine n'existe pas encore → le mentionner dans la proposition ; le `documentarian`
-  crée le fichier avec le template standard du skill `doc-wiki-protocol` si l'utilisateur confirme
+  crée le fichier avec le template standard de sa skill doc-wiki-protocol si l'utilisateur confirme
 - Si le domaine est indéterminable → noter dans `index.md > ## Zones d'ombre`
 
 | Section cible | Découverte typique | Tag recommandé |

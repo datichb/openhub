@@ -218,25 +218,36 @@ func Build(req Request) (*Bundle, error) {
 		cat := newAgentCatalogue(inlined, fm.SkillsFromCallers)
 		cats[id] = cat
 		var absent []string
-		named := func(text string, offered bool) {
+		// named adds the skills text invites the agent to load (self) and
+		// offers every skill it names to the callees (offered).
+		named := func(text string, self func(string, map[string]string) []string, offered bool) {
+			invited := map[string]bool{}
+			for _, ref := range self(text, mentionIndex) {
+				invited[ref] = true
+			}
 			for _, ref := range mentionedSkills(text, mentionIndex) {
 				d, err := loader.load(ref)
-				if err != nil || inlined[d.ID] {
+				if err != nil || inlined[d.ID] || (!invited[ref] && !offered) {
 					continue
 				}
 				if !keep(ref) {
-					absent = append(absent, d.ID)
+					if invited[ref] {
+						absent = append(absent, d.ID)
+					}
 					continue
 				}
-				if deliverable(loader, ref, denied) {
+				if !deliverable(loader, ref, denied) {
+					continue
+				}
+				if invited[ref] && !bricks.IsStackSkill(ref) {
 					cat.add(ref)
-					if offered {
-						cat.named = append(cat.named, ref)
-					}
+				}
+				if offered {
+					cat.named = append(cat.named, ref)
 				}
 			}
 		}
-		named(invitingText(a.Body, id, agentIDs), true)
+		named(invitingText(a.Body, id, agentIDs), selfMentionedSkills, true)
 		a.Body += absentSkillsNote(absent)
 		a.Body += sessionRoleNote(id, req.EntryAgent, callers[id])
 		a.Body += scratchNote(id, spec.Workflow)
@@ -251,7 +262,7 @@ func Build(req Request) (*Bundle, error) {
 		}
 		if id == req.EntryAgent {
 			cat.add(req.ExtraSkills...)
-			named(req.promptTemplate(), false)
+			named(req.promptTemplate(), mentionedSkills, false)
 		}
 		if err := os.MkdirAll(filepath.Join(tmp, agentsDir), 0o755); err != nil {
 			return nil, err
@@ -263,6 +274,9 @@ func Build(req Request) (*Bundle, error) {
 	addCallerSkills(cats, callers)
 	for i := range spec.Agents {
 		cat := cats[spec.Agents[i].ID]
+		if err := cat.expand(loader, denied, keep, mentionIndex, spec.Agents[i].ID, agentIDs); err != nil {
+			return nil, fmt.Errorf("agent %s: %w", spec.Agents[i].ID, err)
+		}
 		list, err := cat.skillIDs(loader, denied)
 		if err != nil {
 			return nil, fmt.Errorf("agent %s: %w", spec.Agents[i].ID, err)

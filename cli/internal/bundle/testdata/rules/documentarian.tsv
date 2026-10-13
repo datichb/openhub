@@ -171,3 +171,15 @@ websearch-usage	Résumé	❌ Se fier à un seul résultat
 websearch-usage	Résumé	❌ Multiplier les recherches redondantes
 websearch-usage	Résumé	❌ Ignorer les erreurs
 websearch-usage	Résumé	**À retenir** : WebSearch est un **outil de découverte** d'informations récentes. Toujours valider les constats et rester transparent sur les sources.
+wiki-navigation	Rôle	Ce skill définit le protocole que tous les agents doivent suivre pour consulter
+wiki-navigation	Rôle	à la tâche courante, jamais le wiki en entier.
+wiki-navigation	Protocole de navigation — 4 règles absolues	Règle 1 — Toujours lire `docs/wiki/index.md` en premier
+wiki-navigation	Règle 1 — Toujours lire `docs/wiki/index.md` en premier	**Si le fichier n'existe pas :**
+wiki-navigation	Règle 1 — Toujours lire `docs/wiki/index.md` en premier	Ne rien faire — le wiki n'est pas encore généré pour ce projet
+wiki-navigation	Règle 1 — Toujours lire `docs/wiki/index.md` en premier	Ne pas signaler l'absence comme une erreur (l'onboarder génère le wiki)
+wiki-navigation	Règle 2 — Charger uniquement la page pertinente à la tâche	Règle 3 — Ne jamais lire le wiki en entier par défaut
+wiki-navigation	Règle 3 — Ne jamais lire le wiki en entier par défaut	❌ Ne jamais faire `ls docs/wiki/` puis lire tous les fichiers
+wiki-navigation	Règle 3 — Ne jamais lire le wiki en entier par défaut	❌ Ne jamais charger `technical/` et `business/` en parallèle sans raison
+wiki-navigation	Règle 3 — Ne jamais lire le wiki en entier par défaut	✅ Toujours partir de `index.md` → décider → charger une page
+wiki-navigation	Mise à jour des god nodes — règle pour le documentarian	Après chaque enrichissement d'une page wiki, le `documentarian` doit réévaluer
+wiki-navigation	Mise à jour des god nodes — règle pour le documentarian	Si un concept apparaît dans **≥ 2 pages distinctes** et n'est pas encore dans le tableau → l'ajouter

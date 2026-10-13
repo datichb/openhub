@@ -4,6 +4,8 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+
+	"github.com/datichb/openhub/cli/internal/bricks"
 )
 
 // Per-agent skill catalogue (modernisation L2). Each agent may load only
@@ -20,8 +22,12 @@ import (
 //     name in their prompt, their own native skills aside (a caller names
 //     those for itself);
 //
-// and the `requires:` closure of these, the skills inlined in its prompt
-// aside. The bundle ships the union of the catalogues.
+// and the `requires:` closure of these, then, transitively, the deliverable
+// skills named (invitingText) by an on-demand skill of the catalogue, the
+// skills inlined in its prompt aside. A [SKILL:…] tag invites the agent
+// that receives the delegation prompt (callee, entry agent of the prompt
+// template), not the one writing it; a stack skill enters only through the
+// detected stack. The bundle ships the union of the catalogues.
 
 // agentCatalogue collects the on-demand skill refs of an agent.
 type agentCatalogue struct {
@@ -75,6 +81,37 @@ func (c *agentCatalogue) skillIDs(l *skillLoader, denied skillDenied) ([]string,
 	}
 	sort.Strings(ids)
 	return ids, nil
+}
+
+// expand adds, until nothing changes, the deliverable skills named in the
+// on-demand skills of the catalogue (sections that do not invite agent
+// aside): the agent loading a skill may be told to load another one.
+func (c *agentCatalogue) expand(l *skillLoader, denied skillDenied, keep func(string) bool, index map[string]string, agent string, agents map[string]bool) error {
+	scanned := map[string]bool{}
+	for {
+		docs, err := l.closure(c.refs, denied)
+		if err != nil {
+			return err
+		}
+		added := false
+		for _, d := range docs {
+			if scanned[d.Ref] || c.inlined[d.ID] {
+				continue
+			}
+			scanned[d.Ref] = true
+			for _, ref := range selfMentionedSkills(invitingText(string(d.body()), agent, agents), index) {
+				m, err := l.load(ref)
+				if err != nil || c.inlined[m.ID] || c.seen[ref] || bricks.IsStackSkill(ref) || !keep(ref) || !deliverable(l, ref, denied) {
+					continue
+				}
+				c.add(ref)
+				added = true
+			}
+		}
+		if !added {
+			return nil
+		}
+	}
 }
 
 // addCallerSkills gives the agents that accept them the skills their callers

@@ -61,8 +61,11 @@
         "edit */.beads/* deny"
       ],
       "skills": [
+        "dev-standards-database",
         "dev-standards-migration",
         "dev-standards-refactoring",
+        "dev-standards-testing",
+        "handoff-bloc-unique-rule",
         "planner-handoff-format",
         "subagent-concision-posture",
         "test-generation"
@@ -429,11 +432,13 @@
       "skills": [
         "dev-standards-api",
         "dev-standards-backend",
+        "dev-standards-database",
         "dev-standards-devops",
         "dev-standards-frontend",
         "dev-standards-frontend-a11y",
         "dev-standards-frontend-data",
         "dev-standards-git",
+        "dev-standards-migration",
         "dev-standards-security",
         "dev-standards-testing",
         "dev-standards-universal",

@@ -66,11 +66,25 @@ func hubSkillIndex(hubDir string, generated map[string]string) map[string]string
 // mentionedSkills returns the references of the skills named in body, in
 // order of first mention.
 func mentionedSkills(body string, index map[string]string) []string {
+	return skillMentions(body, index, true)
+}
+
+// selfMentionedSkills returns the skills body invites its reader to load:
+// the code spans, not the [SKILL:…] tags (written by an agent in the
+// delegation prompt of another one, they invite the callee).
+func selfMentionedSkills(body string, index map[string]string) []string {
+	return skillMentions(body, index, false)
+}
+
+func skillMentions(body string, index map[string]string, tags bool) []string {
 	seen := map[string]bool{}
 	var out []string
 	for _, m := range skillMentionRe.FindAllStringSubmatch(body, -1) {
 		name := m[1]
 		if name == "" {
+			if !tags {
+				continue
+			}
 			name = m[2]
 		}
 		if ref, ok := index[name]; ok && !seen[ref] {
@@ -89,15 +103,19 @@ var titleWordRe = regexp.MustCompile(`[a-z0-9][a-z0-9-]*`)
 
 // ignoredSection reports whether the mentions of a section do not invite
 // agent to load a skill (L2): the « Relation avec … » and « Injection … »
-// notes, and the rules for the consumer of a handoff when they name other
-// agents than this one (they apply to the caller that reads the handoff; a
+// notes, and the sections addressed to other agents than this one: rules
+// for the consumer or the producer of a handoff, « Pour le <agent> » (a
 // title naming no agent, « agent appelant », is kept).
 func ignoredSection(title, agent string, agents map[string]bool) bool {
 	t := strings.ToLower(title)
 	if strings.HasPrefix(t, "relation") || strings.HasPrefix(t, "injection") {
 		return true
 	}
-	if !strings.Contains(t, "consommateur") && !strings.Contains(t, "consumer") {
+	addressed := strings.HasPrefix(t, "pour ")
+	for _, w := range []string{"consommateur", "consumer", "producteur", "producer"} {
+		addressed = addressed || strings.Contains(t, w)
+	}
+	if !addressed {
 		return false
 	}
 	named := false

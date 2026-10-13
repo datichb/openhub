@@ -29,6 +29,11 @@ coordination-only	Règles récapitulatives	Utiliser `question` pour les question
 coordination-only	Règles récapitulatives	Utiliser `todowrite` pour le suivi de progression | ✅
 coordination-only	Règles récapitulatives	Utiliser `skill` pour charger une posture ou un protocole | ✅
 coordination-only	Règles récapitulatives	Les outils interdits sont listés exhaustivement dans la section "Outils interdits" ci-dessus.
+dev-standards-database	Schéma	Types natifs adaptés : `uuid`, `timestamptz`, `numeric` pour les montants (jamais de flottant),
+dev-standards-database	Migrations sans interruption	nouvelle colonne obligatoire : ajout nullable → backfill par lots → `NOT NULL` ;
+dev-standards-database	Requêtes	Mesure avant d'optimiser : `EXPLAIN ANALYZE` sur des volumes réalistes. Tu n'as pas de client de
+dev-standards-database	ORM	Requêtes brutes toujours paramétrées : jamais de concaténation de valeurs dans le SQL.
+dev-standards-database	Sécurité	Les logs de requêtes ne contiennent pas les valeurs sensibles.
 dev-standards-migration	🔒 Règle absolue — Réversibilité	Chaque étape de migration doit :
 dev-standards-migration	🔒 Règle absolue — Réversibilité	Ne pas bloquer le développement des autres features
 dev-standards-migration	🔒 Règle absolue — Réversibilité	❌ Tu ne migres JAMAIS sans plan de rollback documenté
@@ -62,6 +67,45 @@ dev-standards-refactoring	Workflow de refactoring sûr	Pré-conditions obligatoi
 dev-standards-refactoring	Cycle de refactoring	c'est qu'il n'est pas assez micro. Annuler et découper plus finement.
 dev-standards-refactoring	Post-conditions	Ce que tu NE fais PAS
 dev-standards-refactoring	🔎 Mode Auditeur Refactoring	Ne jamais appliquer sans validation explicite
+dev-standards-testing	🔒 Règles absolues	❌ Tu ne livres JAMAIS une fonctionnalité sans tests unitaires sur la logique métier
+dev-standards-testing	🔒 Règles absolues	❌ Tu ne livres JAMAIS une implémentation sans couvrir les critères d'acceptance du ticket par au moins un test chacun
+dev-standards-testing	🔒 Règles absolues	❌ Tu ne supprimes JAMAIS un test existant sans justification explicite de l'utilisateur
+dev-standards-testing	🔒 Règles absolues	❌ Tu n'utilises JAMAIS le typage dynamique non contrôlé dans les types de test pour contourner des erreurs
+dev-standards-testing	🔒 Règles absolues	❌ Tu ne testes JAMAIS l'implémentation interne (détails d'implémentation, appels de méthodes privées) — teste le **comportement observable** : entrées → sorties, états, effets de bord publics
+dev-standards-testing	🔒 Règles absolues	✅ Si une fonctionnalité n'est pas testable telle qu'elle est conçue, tu le signales avant d'implémenter
+dev-standards-testing	🔒 Règles absolues	✅ Chaque test doit échouer pour la bonne raison avant d'être vert (red → green vérifiable)
+dev-standards-testing	Exemples	API endpoint | Requête HTTP → réponse | Appel direct au controller | Le test doit vérifier le contrat HTTP, pas l'implémentation
+dev-standards-testing	Exemples	**Quand la frontière n'est pas identifiable** (code legacy, module en cours de création) : tester au niveau le plus haut disponible et documenter le choix dans le test. Le reviewer évalue le choix, pas son absence.
+dev-standards-testing	Quand écrire un test unitaire	Tout comportement qui doit rester stable à l'avenir
+dev-standards-testing	Nommage	Format : `doit <comportement attendu> quand <condition>`
+dev-standards-testing	Nommage	Le nom du test est la documentation du comportement — il doit être lisible seul
+dev-standards-testing	Tests d'intégration	Chaque appel API exposé doit avoir au moins un test d'intégration couvrant :
+dev-standards-testing	Tests E2E	Chaque test E2E doit être **idempotent** : nettoyage en beforeEach/afterEach
+dev-standards-testing	Ce qu'on mocke	Ce qu'on ne mocke pas
+dev-standards-testing	Test couplé à l'implémentation	Le test casse quand on renomme une fonction interne ou qu'on refactorise, alors que le **comportement observable n'a pas changé**.
+dev-standards-testing	Test tautologique	**Correction :** les valeurs attendues doivent venir d'une source indépendante :
+dev-standards-testing	Exécution des tests	Lance les tests avec les commandes du projet (voir « Tests incrémentaux pendant l'implémentation »). Si le workflow charge le plugin RTK, la skill `rtk-usage` décrit ses commandes à la sortie réduite ; sinon, n'utilise pas `rtk`.
+dev-standards-testing	Workflow TDD en contexte Beads	❌ Ne jamais écrire l'implémentation avant que les tests rouges existent
+dev-standards-testing	Workflow TDD en contexte Beads	❌ Ne jamais modifier un test pour le faire passer — modifier l'implémentation
+dev-standards-testing	Workflow TDD en contexte Beads	❌ Ne jamais supprimer un test rouge "gênant" — s'il échoue, l'implémentation est incomplète
+dev-standards-testing	Workflow TDD en contexte Beads	✅ Les tests rouges sont le contrat — l'implémentation les satisfait, pas l'inverse
+dev-standards-testing	Critère de "done" en TDD	Le refactor n'a pas introduit de régression (tous les tests passent après refactor)
+dev-standards-testing	Principe	Ne pas attendre d'avoir terminé toute l'implémentation pour lancer les tests.
+dev-standards-testing	Non-régression	Tout bug corrigé **doit** avoir un test qui le reproduit avant le fix
+dev-standards-testing	🔎 Mode Auditeur	Signaler les mocks qui masquent du code jamais exécuté
+dev-standards-testing	Couverture des critères d'acceptance	Les critères négatifs ("ne doit pas faire X") sont couverts
+dev-standards-testing	Qualité des tests	Nommage expressif : `doit <faire quoi> quand <contexte>`
+handoff-bloc-unique-rule	Principe fondamental — producer	Le bloc est **auto-suffisant** — l'orchestrator doit pouvoir le traiter sans contexte supplémentaire
+handoff-bloc-unique-rule	Prohibitions — producer	❌ Ne jamais écrire de texte en dehors du bloc de handoff
+handoff-bloc-unique-rule	Prohibitions — producer	❌ Ne jamais produire le rapport/spec comme texte libre avant le bloc
+handoff-bloc-unique-rule	Prohibitions — producer	❌ Ne jamais omettre le `task_id` dans `### État de la session`
+handoff-bloc-unique-rule	Prohibitions — producer	❌ Ne jamais omettre les champs obligatoires définis dans le skill `*-handoff-format`
+handoff-bloc-unique-rule	Prohibitions — producer	Champ obligatoire — `### Questions bloquantes`
+handoff-bloc-unique-rule	Champ obligatoire — `### Questions bloquantes`	Chaque bloc de handoff **doit** contenir une section `### Questions bloquantes` juste avant `### Statut`.
+handoff-bloc-unique-rule	Champ obligatoire — `### Questions bloquantes`	Ce champ est **contractuellement bloquant** — le coordinateur ne peut pas poursuivre le workflow tant que les questions ne sont pas résolues
+handoff-bloc-unique-rule	Contrat — consumer (orchestrator)	**Vérifier les champs obligatoires** — si l'un est absent, demander au sous-agent de compléter
+handoff-bloc-unique-rule	Contrat — consumer (orchestrator)	**Vérifier `### Questions bloquantes`** — si non-vide (pas `Aucune.`), **escalader les questions à l'utilisateur** avant de continuer. Ne jamais ignorer, ne jamais auto-résoudre.
+handoff-bloc-unique-rule	Contrat — consumer (orchestrator)	**Ne jamais résumer** les sections techniques — les transmettre telles quelles
 planner-handoff-format	Format du bloc `## Retour vers orchestrator`	`bloqué` | La planification ne peut pas être finalisée — un blocage empêche la création des tickets
 planner-handoff-format	Règles pour le producteur (planner)	**`### Récapitulatif de planification`** doit capturer le raisonnement et les décisions — minimum 3-5 phrases
 planner-handoff-format	Règles pour le producteur (planner)	**Lister tous les tickets créés** dans le tableau — ne pas en omettre, même les tickets mineurs

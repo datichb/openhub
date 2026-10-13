@@ -97,6 +97,8 @@
         "orchestrator-dev-subagent",
         "orchestrator-dev-ticket-workflow",
         "planner-handoff-format",
+        "quick-fix",
+        "reviewer-reception",
         "subagent-concision-posture",
         "test-generation"
       ]
@@ -379,11 +381,13 @@
       "skills": [
         "dev-standards-api",
         "dev-standards-backend",
+        "dev-standards-database",
         "dev-standards-devops",
         "dev-standards-frontend",
         "dev-standards-frontend-a11y",
         "dev-standards-frontend-data",
         "dev-standards-git",
+        "dev-standards-migration",
         "dev-standards-security",
         "dev-standards-testing",
         "dev-standards-universal",

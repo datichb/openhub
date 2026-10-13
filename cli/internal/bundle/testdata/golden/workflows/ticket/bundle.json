@@ -96,6 +96,7 @@
         "orchestrator-dev-subagent",
         "orchestrator-dev-ticket-workflow",
         "planner-handoff-format",
+        "quick-fix",
         "subagent-concision-posture",
         "test-generation"
       ]
@@ -378,11 +379,13 @@
       "skills": [
         "dev-standards-api",
         "dev-standards-backend",
+        "dev-standards-database",
         "dev-standards-devops",
         "dev-standards-frontend",
         "dev-standards-frontend-a11y",
         "dev-standards-frontend-data",
         "dev-standards-git",
+        "dev-standards-migration",
         "dev-standards-security",
         "dev-standards-testing",
         "dev-standards-universal",
@@ -485,7 +488,8 @@
         "expert-posture",
         "handoff-bloc-unique-rule",
         "skill-authoring-protocol",
-        "websearch-usage"
+        "websearch-usage",
+        "wiki-navigation"
       ]
     }
   ],
@@ -534,7 +538,8 @@
     "skill-authoring-protocol",
     "subagent-concision-posture",
     "test-generation",
-    "websearch-usage"
+    "websearch-usage",
+    "wiki-navigation"
   ],
   "subagent_graph": {
     "developer": [
