@@ -9,6 +9,10 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ## [Unreleased]
 
+### Fixed — le pathfinder ne crée qu'après la validation du découpage (lot s3-pathfinder)
+
+- **Pathfinder** : il ne crée les tickets que relancé par son appelant après la validation du découpage ; une création refusée par oh se signale dans son enveloppe, jamais par l'outil `question` (les anciennes consignes « demander confirmation, permissions ask » le poussaient à interroger l'utilisateur depuis un sous-agent). Le prompt de `feature` relance l'agent de planning avec la réponse pour terminer son découpage, jamais pour créer. S3 1/3 → 3/3 (Haiku ×3), S5 3/3 ; pathfinder +34 tokens.
+
 ### Changed — mesure de référence après L6/LD (lot eval-baseline-2)
 
 - **Nouvelle référence `oh eval`** (Haiku ×3, 15 cas, 7,77 $) : S1 2/3, S2 3/3, S3 1/3, S4 2/3, S5 3/3, S6 3/3, S7 3/3, S8 3/3, S9 3/3, S10 2/3, S11 à S15 3/3. Par rapport à la référence d'avant P1 : S4 1/3 → 2/3, S6 1/3 → 3/3, S9 0/3 → 3/3, S10 0/3 → 2/3 ; S1 3/3 → 2/3 (bruit : une passe ne cite pas le test en échec) et S3 3/3 → 1/3 (le pathfinder relancé pour créer le ticket avant `cp-tickets` voit la création refusée, puis appelle `question`).
