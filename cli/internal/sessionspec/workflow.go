@@ -90,6 +90,10 @@ type WorkflowRuntime struct {
 	Outputs                 []OutputDef `json:"outputs,omitempty"`
 	// Scratch are the session scratch folders of the workflow (SCR).
 	Scratch []ScratchDef `json:"scratch,omitempty"`
+
+	// R3 (workflow_verify.go): developer → reviewer rounds per ticket
+	// (`limits.max_fix_rounds`, 0 = no cap).
+	MaxFixRounds int `json:"max_fix_rounds,omitempty"`
 }
 
 // ScratchDef is the scratch folder of an agent for a session: written by
@@ -108,6 +112,11 @@ type CheckpointDef struct {
 	Mandatory bool              `json:"mandatory,omitempty"`
 	// Unlocks lists the operations locked until this checkpoint is passed.
 	Unlocks []string `json:"unlocks,omitempty"`
+
+	// R3 (workflow_verify.go): verification run by oh before the checkpoint
+	// passes, and conditions that make it pause.
+	Verify *VerifyDef `json:"verify,omitempty"`
+	When   *WhenDef   `json:"when,omitempty"`
 }
 
 // Operations a checkpoint unlocks (copied from the oh/v1 schema).
@@ -130,6 +139,9 @@ func (c CheckpointDef) Behavior(mode string) string {
 	b := c.Behaviors[mode]
 	if b == "" || ((c.Mandatory || len(c.Unlocks) > 0) && b == CheckpointSkip) {
 		return CheckpointPause
+	}
+	if c.Verify != nil && c.Verify.Ask && b != CheckpointSkip {
+		return CheckpointPause // risk: read: the commands run once validated
 	}
 	return b
 }

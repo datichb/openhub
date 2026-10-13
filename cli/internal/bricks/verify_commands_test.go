@@ -61,3 +61,51 @@ func TestVerifyCommandsNeverInstall(t *testing.T) {
 		assert.False(t, strings.HasPrefix(p, "*"), "anchored at the command: %s", p)
 	}
 }
+
+// R3: the concrete commands oh runs at a checkpoint, by kind; each one is
+// allowed by VerifyCommands (never an install).
+func TestVerifyRuns(t *testing.T) {
+	all := []string{"build", "test", "lint", "typecheck"}
+	cases := []struct {
+		name  string
+		files map[string]string
+		kinds []string
+		want  []string
+	}{
+		{"go", map[string]string{"go.mod": "module x\n"}, all, []string{"go build ./...", "go test ./...", "go vet ./..."}},
+		{"go default kinds", map[string]string{"go.mod": "module x\n"}, []string{"build", "test", "typecheck"}, []string{"go build ./...", "go test ./..."}},
+		{"make target first", map[string]string{"go.mod": "module x\n", "Makefile": "test:\n\tgo test ./...\nVAR := 1\n"}, []string{"build", "test"},
+			[]string{"go build ./...", "make test"}},
+		{"pnpm scripts", map[string]string{"package.json": `{"scripts":{"test":"vitest run","build":"vite build"},"devDependencies":{"typescript":"6"}}`, "pnpm-lock.yaml": ""}, all,
+			[]string{"pnpm run build", "pnpm test", "pnpm exec tsc --noEmit"}},
+		{"npm init test", map[string]string{"package.json": `{"scripts":{"test":"echo \"Error: no test specified\" && exit 1","typecheck":"tsc -b"}}`}, all,
+			[]string{"npm run typecheck"}},
+		{"python uv", map[string]string{"pyproject.toml": "[project]\nname = 'x'\ndependencies = ['pytest']\n", "uv.lock": ""}, all, []string{"uv run --no-sync pytest"}},
+		{"rust", map[string]string{"Cargo.toml": "[package]\n"}, []string{"test"}, []string{"cargo test"}},
+		{"gradle without wrapper", map[string]string{"build.gradle.kts": ""}, all, nil},
+		{"gradle", map[string]string{"build.gradle.kts": "", "gradlew": "#!/bin/sh\n"}, []string{"test"}, []string{"./gradlew test"}},
+		{"nothing", map[string]string{"README.md": "x"}, all, nil},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			dir := mkProject(t, c.files)
+			sig := DetectSignals(dir)
+			runs := VerifyRuns(dir, sig, ".", c.kinds)
+			var got []string
+			for _, r := range runs {
+				got = append(got, r.String())
+				allowed := false
+				for _, p := range VerifyCommands(sig) {
+					allowed = allowed || wildcardOK(p, r.String())
+				}
+				assert.True(t, allowed, "%s is not allowed by VerifyCommands", r)
+			}
+			assert.Equal(t, c.want, got)
+		})
+	}
+}
+
+// wildcardOK matches a VerifyCommands pattern (a trailing * only).
+func wildcardOK(pattern, cmd string) bool {
+	return strings.HasPrefix(cmd, strings.TrimSuffix(pattern, "*"))
+}

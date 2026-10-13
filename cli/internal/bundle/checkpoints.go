@@ -2,9 +2,11 @@ package bundle
 
 import (
 	"sort"
+	"strings"
 
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
+	"github.com/datichb/openhub/cli/internal/workflow"
 )
 
 // Checkpoint rules (P3-T02, P3-T04, P3-T06). The bundle is shared by every
@@ -58,7 +60,7 @@ func SessionRules(wf *sessionspec.WorkflowRuntime, mode string, st *domain.Check
 	}
 	effect := sessionspec.EffectAllow
 	for _, c := range wf.Checkpoints {
-		if NeedsDecision(c.Behavior(mode)) {
+		if MayAsk(c, mode) {
 			effect = sessionspec.EffectAsk
 			break
 		}
@@ -73,6 +75,7 @@ func SessionRules(wf *sessionspec.WorkflowRuntime, mode string, st *domain.Check
 			rules = append(rules, sessionspec.PermissionRule{Action: sessionspec.ActionSubagent, Resource: a, Effect: sessionspec.EffectDeny})
 		}
 	}
+	rules = append(rules, fixLockRules(wf, st)...)
 	for _, op := range LockedOps(wf, mode, st) {
 		for _, p := range lockPatterns[op] {
 			rules = append(rules, sessionspec.PermissionRule{Action: sessionspec.ActionShell, Resource: p, Effect: sessionspec.EffectDeny})
@@ -209,4 +212,93 @@ func gateOpen(wf *sessionspec.WorkflowRuntime, mode string, st *domain.Checkpoin
 		return st.HasPassed(after) || c.Behavior(mode) == sessionspec.CheckpointSkip
 	}
 	return st.HasRun(after)
+}
+
+// ---------------------------------------------------------------------------
+// R3: verification run by oh, conditions, fix rounds and pauses.
+// ---------------------------------------------------------------------------
+
+// applyCheckpointVerify copies into rt the R3 fields of the checkpoints of
+// s (verify:, when:) and the cap of the fix rounds. In a read-only workflow
+// (risk: read) a verification is asked: its checkpoint pauses.
+func applyCheckpointVerify(rt *sessionspec.WorkflowRuntime, s *workflow.Spec) {
+	if s.Limits != nil && s.Limits.MaxFixRounds != nil {
+		rt.MaxFixRounds = *s.Limits.MaxFixRounds
+	}
+	for i := range rt.Checkpoints {
+		def := &rt.Checkpoints[i]
+		cp, ok := s.Checkpoints.Get(def.ID)
+		if !ok {
+			continue
+		}
+		if v := cp.Verify; v != nil {
+			d := &sessionspec.VerifyDef{From: string(v.From), Cmd: append([]string(nil), v.Cmd...), Expect: string(v.ExpectOrPass()),
+				In: v.In, TimeoutSec: int(v.TimeoutOrDefault().Seconds()), MustTouch: append([]string(nil), v.MustTouch...),
+				Ask: s.Risk == workflow.RiskRead}
+			if v.From != "" {
+				for _, k := range v.EffectiveKinds() {
+					d.Kinds = append(d.Kinds, string(k))
+				}
+			}
+			def.Verify = d
+		}
+		if w := cp.When; !w.IsZero() {
+			def.When = &sessionspec.WhenDef{Entry: append([]string(nil), w.Entry...), Labels: append([]string(nil), w.Labels...),
+				Paths: append([]string(nil), w.Paths...), Outputs: append([]string(nil), w.Outputs...)}
+		}
+	}
+}
+
+// MayAsk reports whether a checkpoint may wait for the user in mode: it
+// pauses, or a condition evaluated by oh (when:) can make it pause.
+func MayAsk(c sessionspec.CheckpointDef, mode string) bool {
+	b := c.Behavior(mode)
+	return NeedsDecision(b) || (c.When != nil && b == sessionspec.CheckpointAuto)
+}
+
+// IsDeveloper and IsReviewer name the agents whose rounds are counted
+// (developer → reviewer, limits.max_fix_rounds).
+func IsDeveloper(agent string) bool { return strings.HasPrefix(agent, "developer") }
+
+// IsReviewer reports whether agent reviews the work of the developer.
+func IsReviewer(agent string) bool { return strings.HasPrefix(agent, "reviewer") }
+
+// fixLockRules deny the developers while the fix rounds of a ticket
+// reached the cap (until the user steps in at the commit checkpoint).
+func fixLockRules(wf *sessionspec.WorkflowRuntime, st *domain.CheckpointState) []sessionspec.PermissionRule {
+	if st == nil || st.Unresolved == "" || wf.MaxFixRounds <= 0 {
+		return nil
+	}
+	return []sessionspec.PermissionRule{{Action: sessionspec.ActionSubagent, Resource: "developer*", Effect: sessionspec.EffectDeny}}
+}
+
+// PlannedPause is a checkpoint that waits for the user in a mode.
+type PlannedPause struct {
+	ID        string
+	Mandatory bool
+	// Conditional: it pauses only when its condition holds.
+	Conditional bool
+}
+
+// PlannedPauses returns the checkpoints that pause in mode, in declaration
+// order (CP-R10): shown when a session is launched. In auto, only the
+// mandatory decisions remain.
+func PlannedPauses(wf *sessionspec.WorkflowRuntime, mode string) []PlannedPause {
+	if wf == nil {
+		return nil
+	}
+	if mode == "" {
+		mode = wf.DefaultMode
+	}
+	var out []PlannedPause
+	for _, c := range wf.Checkpoints {
+		if !MayAsk(c, mode) {
+			continue
+		}
+		mandatory := c.Mandatory || len(c.Unlocks) > 0
+		b := c.Behavior(mode)
+		out = append(out, PlannedPause{ID: c.ID, Mandatory: mandatory,
+			Conditional: !mandatory && (b == sessionspec.CheckpointConditional || (c.When != nil && b == sessionspec.CheckpointAuto))})
+	}
+	return out
 }

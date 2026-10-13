@@ -209,9 +209,12 @@ func (s *Service) BeadsDone(ctx context.Context, root, op string, ids []string) 
 			st.Closed = appendNew(st.Closed, ids...)
 			for _, id := range ids {
 				s.record(st, timelineClosed, id, "", "")
+				if resetRounds(st, id) && st.Unresolved == "" {
+					changed = true // the developer is unlocked (E5)
+				}
 			}
 			if c, ok := bundle.UnlockingCheckpoint(wf, sessionspec.UnlockClose); ok {
-				changed = relockOnClose(st, c.ID)
+				changed = relockOnClose(st, c.ID) || changed
 			}
 		default:
 			return errUnchanged

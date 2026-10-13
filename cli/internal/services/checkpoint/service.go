@@ -40,6 +40,18 @@ type Service struct {
 	// ApprovalWait bounds the wait for the tool approval of a paused
 	// checkpoint (0 = 3 s).
 	ApprovalWait time.Duration
+
+	// R3 (verify.go, when.go): verification run by oh and conditions.
+	// Exec runs a verification command (nil = exec); Fingerprint and
+	// Changed read the state of the work (nil = git); Labels reads the
+	// labels of a ticket (nil = bd show); VerifyWait bounds the wait of a
+	// call for a verification still running (0 = 20 s).
+	Exec        ExecFunc
+	Fingerprint func(ctx context.Context, dir string) string
+	Changed     func(ctx context.Context, dir, since string) ([]string, error)
+	Labels      func(ctx context.Context, dir, ticket string) ([]string, error)
+	VerifyWait  time.Duration
+	verifier    verifier
 }
 
 // Errors.
@@ -88,6 +100,9 @@ type CheckpointStatus struct {
 type Call struct {
 	ID      string `json:"id"`
 	Summary string `json:"summary,omitempty"`
+	// Evidence are the commands the agent ran for this checkpoint (R3, E2),
+	// checked against the shell calls oh observed.
+	Evidence []Evidence `json:"evidence,omitempty"`
 }
 
 // Result answers a workflow_checkpoint call (the tool already let it run:
@@ -102,6 +117,10 @@ type Result struct {
 	// Unlocked lists the operations the checkpoint unlocked (commit, push,
 	// close), until a ticket is closed or the checkpoint is asked again.
 	Unlocked []string `json:"unlocked,omitempty"`
+	// Verify is the result of the verification run by oh (R3).
+	Verify string `json:"verify,omitempty"`
+	// Unobserved lists the evidence oh did not observe (R3, E2).
+	Unobserved []string `json:"unobserved,omitempty"`
 }
 
 // Output is a typed value declared by workflow_outputs (O7).
@@ -197,6 +216,7 @@ func (s *Service) Reached(ctx context.Context, sessionID string, call Call) (Res
 		}
 		res.Message = ap.Message
 		res.Unlocked = c.Unlocks
+		s.reachedR3(ctx, sess.ID, c, call, &res)
 	}
 	for i, cp := range wf.Checkpoints {
 		if cp.ID == c.ID && i+1 < len(wf.Checkpoints) {
