@@ -234,7 +234,8 @@ func TestVerifyWithoutCommandOrLocation(t *testing.T) {
 	_, _ = svc.Sessions.Get(ctx, "ses_v")
 	sess := &domain.Session{ID: "ses_v", LaunchPath: "/no/such/dir"}
 	r = svc.runVerify(ctx, sess, sessionspec.CheckpointDef{ID: "cp-2", Verify: &sessionspec.VerifyDef{Cmd: []string{"make"}}})
-	assert.Equal(t, domain.VerifyNone, r.Status, "remote location: nothing to verify on this machine")
+	assert.Equal(t, domain.VerifyUnavailable, r.Status, "location missing: the verification cannot run, never « nothing to verify » (R3-remote)")
+	assert.False(t, r.OK())
 }
 
 func TestVerifyStackGo(t *testing.T) {
@@ -251,13 +252,19 @@ func TestVerifyStackGo(t *testing.T) {
 }
 
 func TestVerifyEnv(t *testing.T) {
-	env := verifyEnv([]string{"PATH=/bin", "HOME=/h", "GOPATH=/g", sessionspec.EnvGroupToken + "=t", "GITLAB_TOKEN=x", "AWS_SECRET_ACCESS_KEY=y", "TOOL_SERVER_PASSWORD=z"})
+	parent := []string{"PATH=/bin", "HOME=/h", "GOPATH=/g", sessionspec.EnvGroupToken + "=t", "GITLAB_TOKEN=x", "AWS_SECRET_ACCESS_KEY=y", "TOOL_SERVER_PASSWORD=z"}
+	env := verifyEnv(parent, nil)
 	assert.Equal(t, []string{"PATH=/bin", "HOME=/h", "GOPATH=/g", "CI=true", "NO_COLOR=1", "TERM=dumb"}, env)
+
+	// R3-remote: run as the account of the agents, with its own folders.
+	env = verifyEnv(append(parent, "USER=root", "TMPDIR=/root/tmp", "XDG_CACHE_HOME=/root/.cache"), &Account{UID: 1000, GID: 1000, Home: "/home/oh"})
+	assert.Equal(t, []string{"PATH=/bin", "GOPATH=/g", "HOME=/home/oh", "XDG_CONFIG_HOME=/home/oh/.config", "XDG_CACHE_HOME=/home/oh/.cache",
+		"TMPDIR=/home/oh/tmp", "CI=true", "NO_COLOR=1", "TERM=dumb"}, env)
 }
 
 func TestExecVerifyAndTail(t *testing.T) {
 	out := &TailBuffer{Max: 8}
-	exit, err := execVerify(context.Background(), t.TempDir(), []string{"sh", "-c", "echo 0123456789abcdef; exit 3"}, verifyEnv(nil), out)
+	exit, err := execVerify(context.Background(), t.TempDir(), []string{"sh", "-c", "echo 0123456789abcdef; exit 3"}, verifyEnv(nil, nil), out, nil)
 	require.NoError(t, err)
 	assert.Equal(t, 3, exit)
 	assert.Equal(t, "9abcdef\n", string(out.Bytes()), "the end of the output is kept")
@@ -265,7 +272,7 @@ func TestExecVerifyAndTail(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
 	defer cancel()
 	start := time.Now()
-	_, _ = execVerify(ctx, t.TempDir(), []string{"sh", "-c", "sleep 30 & sleep 30"}, verifyEnv([]string{"PATH=/bin:/usr/bin"}), &TailBuffer{})
+	_, _ = execVerify(ctx, t.TempDir(), []string{"sh", "-c", "sleep 30 & sleep 30"}, verifyEnv([]string{"PATH=/bin:/usr/bin"}, nil), &TailBuffer{}, nil)
 	assert.Less(t, time.Since(start), 10*time.Second, "the process group is killed on timeout")
 
 	long := strings.Repeat("line\n", 100) + "last"

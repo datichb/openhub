@@ -19,6 +19,9 @@ const (
 	VerifyFailed  = "fail"
 	// VerifyNone: no verification command for this project (passes, shown).
 	VerifyNone = "none"
+	// VerifyUnavailable: the verification cannot run where the work is
+	// (location missing): never passes on its own, only overridden (traced).
+	VerifyUnavailable = "unavailable"
 )
 
 // CheckpointVerify is the result of the verification of a checkpoint.
@@ -45,6 +48,12 @@ func (v CheckpointVerify) Done() bool { return v.Status != "" && v.Status != Ver
 
 // OK reports whether the verification lets the checkpoint pass.
 func (v CheckpointVerify) OK() bool { return v.Status == VerifyPassed || v.Status == VerifyNone }
+
+// NeedsOverride reports whether only an override passes the checkpoint
+// (failed or unavailable verification).
+func (v CheckpointVerify) NeedsOverride() bool {
+	return v.Status == VerifyFailed || v.Status == VerifyUnavailable
+}
 
 // VerifyCommandResult is a command run by the verification.
 type VerifyCommandResult struct {

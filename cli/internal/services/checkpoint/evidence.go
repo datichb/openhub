@@ -281,7 +281,10 @@ func (s *Service) reachedR3(ctx context.Context, sessionID string, c sessionspec
 // the verification run by oh, the evidence checked and the ticket whose
 // fix rounds reached the cap.
 type CardR3 struct {
-	Verify     *domain.CheckpointVerify
+	Verify *domain.CheckpointVerify
+	// Remote is the verification run in the remote job of the session
+	// (R3-remote, imported at fetch).
+	Remote     *domain.CheckpointVerify
 	Evidence   []domain.CheckpointEvidence
 	Unresolved string
 }
@@ -295,6 +298,9 @@ func (s *Service) Card(ctx context.Context, sessionID, id string) CardR3 {
 	var c CardR3
 	if r, ok := st.Verify[id]; ok {
 		c.Verify = &r
+	}
+	if r, ok := st.RemoteVerify[id]; ok {
+		c.Remote = &r
 	}
 	c.Evidence = st.Evidence[id]
 	if _, wf, err := s.session(ctx, sessionID); err == nil {

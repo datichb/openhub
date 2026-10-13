@@ -28,6 +28,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/remote"
 	"github.com/datichb/openhub/cli/internal/runsvc"
 	ohruntime "github.com/datichb/openhub/cli/internal/runtime"
+	"github.com/datichb/openhub/cli/internal/services/checkpoint"
 	"github.com/datichb/openhub/cli/internal/services/remote/runner"
 	"github.com/datichb/openhub/cli/internal/services/report"
 	sessionsvc "github.com/datichb/openhub/cli/internal/services/session"
@@ -126,6 +127,20 @@ func runRunnerJob(cmd *cobra.Command, _ []string) error {
 	if err != nil {
 		return fmt.Errorf("%s: %w", info.DisplayName, err)
 	}
+	user := runner.LookupServerUser()
+	if user == nil && os.Geteuid() == 0 {
+		fmt.Fprintln(out, i18n.T("cmd.runner.run.no_server_user"))
+	}
+	serverHome := filepath.Join(home, "server-home")
+	if user != nil && user.Home != "" {
+		serverHome = user.Home
+	}
+	// Checkpoint verifications run in the clone as the account of the
+	// agents (the one of the tool server), never above it (R3-remote).
+	checkpoints := newCheckpointService(a)
+	if user != nil {
+		checkpoints.Account = &checkpoint.Account{UID: user.UID, GID: user.GID, Home: serverHome}
+	}
 	secrets := runner.CISecrets{LLMKey: job.Secrets.LLMKey}
 	paths := daemon.Paths{Dir: ohRunDir()}
 	dctx, stopDaemon := context.WithCancel(context.WithoutCancel(ctx))
@@ -140,7 +155,7 @@ func runRunnerJob(cmd *cobra.Command, _ []string) error {
 			BeadsBinary: bd, MCPCommand: gatewayMCPCommand(ohBundlesDir()),
 			Sessions: a.Sessions, Decisions: sqlite.NewDecisionStore(store),
 			SessionsDir: ohSessionsDir(), ServersDir: ohServersDir(),
-			Checkpoints: newCheckpointService(a), Reports: newReportService(), Secrets: secrets,
+			Checkpoints: checkpoints, Reports: newReportService(), Secrets: secrets,
 			IdleAfter: 24 * time.Hour, IdleSleep: 24 * time.Hour,
 			Adapter: func(name string) adapters.ToolAdapter {
 				if name == ad.Name() {
@@ -162,14 +177,6 @@ func runRunnerJob(cmd *cobra.Command, _ []string) error {
 		return err
 	}
 
-	user := runner.LookupServerUser()
-	if user == nil && os.Geteuid() == 0 {
-		fmt.Fprintln(out, i18n.T("cmd.runner.run.no_server_user"))
-	}
-	serverHome := filepath.Join(home, "server-home")
-	if user != nil && user.Home != "" {
-		serverHome = user.Home
-	}
 	rs := &runsvc.Service{
 		Adapter: ad, AdapterVer: info.Version, Servers: sqlite.NewServerStore(store), Sessions: a.Sessions, Secrets: secrets,
 		ServersDir: ohServersDir(), BundlesDir: ohBundlesDir(), SessionsDir: ohSessionsDir(),
@@ -183,15 +190,20 @@ func runRunnerJob(cmd *cobra.Command, _ []string) error {
 	ss := &sessionsvc.Service{Sessions: a.Sessions, Projects: a.Projects, Decisions: sqlite.NewDecisionStore(store),
 		Servers: sqlite.NewServerStore(store), BundlesDir: ohBundlesDir(), SessionsDir: ohSessionsDir(), Adapter: ad,
 		Alive: func(int) bool { return true }}
-	ss.UseCheckpoints(newCheckpointService(a), dc.WorkflowRefresh)
+	ss.UseCheckpoints(checkpoints, dc.WorkflowRefresh)
 
 	in := runner.Input{
 		Job: job, Fetched: f, OutDir: outDir,
-		Git:       runner.Git{Token: job.Secrets.ProjectToken, Secrets: job.Secrets, Scratch: filepath.Join(private, "git"), Agent: user},
-		Quiesce:   func(context.Context) error { return runner.KillUser(user) },
-		Session:   &jobSession{a: a, rs: rs, ss: ss, ad: ad, region: job.Region},
-		Responder: runner.NewResponder(sqlite.NewDecisionStore(store), ss.Decide, m),
-		Reports:   runnerReports(newReportService()),
+		Git:        runner.Git{Token: job.Secrets.ProjectToken, Secrets: job.Secrets, Scratch: filepath.Join(private, "git"), Agent: user},
+		Quiesce:    func(context.Context) error { return runner.KillUser(user) },
+		Session:    &jobSession{a: a, rs: rs, ss: ss, ad: ad, region: job.Region},
+		Responder:  runner.NewResponder(sqlite.NewDecisionStore(store), ss.Decide, m),
+		Reports:    runnerReports(newReportService()),
+		WaitVerify: checkpoints.WaitVerify,
+		Verifications: func(ctx context.Context, sid string) ([]remote.SummaryVerification, error) {
+			list, err := checkpoints.Verifications(ctx, sid)
+			return checkpoint.SummaryVerifications(list), err
+		},
 	}
 	if m.Team != nil {
 		if repo, err := runner.OpenTeamState(ctx, m.Team, job.Secrets.TeamStateToken, filepath.Join(private, "team-state"), job.Secrets); err == nil {

@@ -60,6 +60,10 @@ type CheckpointState struct {
 	// Unresolved is the ticket whose fix rounds reached the cap ("" = none):
 	// the developer is locked and the commit checkpoint shows it.
 	Unresolved string `json:"unresolved,omitempty"`
+	// RemoteVerify are the verifications run by oh in the remote job of
+	// the session (R3-remote, imported at fetch): shown on the card, never
+	// taken for a verification of the work on this machine.
+	RemoteVerify map[string]CheckpointVerify `json:"remote_verify,omitempty"`
 }
 
 // CheckpointUnlock is an operation unlocked by a checkpoint.

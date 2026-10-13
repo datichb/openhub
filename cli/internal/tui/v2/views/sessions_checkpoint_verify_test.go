@@ -31,4 +31,14 @@ func TestCheckpointCardVerify(t *testing.T) {
 	assert.Empty(t, checkpointExtraChoices(passed))
 	assert.Equal(t, checkpointApprove, checkpointDefaultChoice(passed))
 	assert.Equal(t, checkpointBody(CheckpointCardView{}), checkpointBody(CheckpointCardView{Verify: CheckpointVerifyView{}}), "nothing without a verification")
+
+	// R3-remote: a verification that cannot run is passed only overridden.
+	blocked := CheckpointVerifyView{Status: verifyUnavailable, Summary: "impossible ici — emplacement de travail introuvable"}
+	body = checkpointBody(CheckpointCardView{Verify: blocked})
+	assert.Contains(t, body, "emplacement de travail introuvable")
+	assert.True(t, blocked.Failed())
+	assert.Equal(t, checkpointFix, checkpointDefaultChoice(blocked), "never passed by default")
+	extra = checkpointExtraChoices(blocked)
+	assert.Len(t, extra, 1)
+	assert.Equal(t, checkpointOverride, extra[0].Value)
 }

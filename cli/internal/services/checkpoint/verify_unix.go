@@ -18,3 +18,15 @@ func setProcessGroup(cmd *exec.Cmd) {
 		return syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
 	}
 }
+
+// runAs runs cmd as acct (nil: the account of oh), its group only.
+func runAs(cmd *exec.Cmd, acct *Account) error {
+	if acct == nil {
+		return nil
+	}
+	if cmd.SysProcAttr == nil {
+		cmd.SysProcAttr = &syscall.SysProcAttr{}
+	}
+	cmd.SysProcAttr.Credential = &syscall.Credential{Uid: acct.UID, Gid: acct.GID, Groups: []uint32{}}
+	return nil
+}

@@ -41,9 +41,11 @@ type FetchResult struct {
 	Journal   []beadswire.JournalEntry
 	Dir       string // local copy of the artifacts
 	Imported  bool
-	Reports   int    // reports of workflow_report imported
-	Location  string // where the session continues locally
-	Ref       domain.RemoteRef
+	Reports   int // reports of workflow_report imported
+	// Verifications are the verifications of the job imported (R3-remote).
+	Verifications int
+	Location      string // where the session continues locally
+	Ref           domain.RemoteRef
 }
 
 // artifactNames are the files kept from the run job artifacts.
@@ -117,6 +119,11 @@ func (s *Service) Fetch(ctx context.Context, sid string, opts FetchOptions) (*Fe
 	if !opts.NoImport {
 		if res.Reports, err = s.importReports(ctx, sid, dir); err != nil {
 			return res, err
+		}
+		if s.Verifications != nil && len(res.Summary.Verifications) > 0 {
+			if res.Verifications, err = s.Verifications(ctx, sid, res.Summary.Verifications); err != nil {
+				return res, err
+			}
 		}
 	}
 	if !opts.NoImport && sess.Runtime == "remote" {

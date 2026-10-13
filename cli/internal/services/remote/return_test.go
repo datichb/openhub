@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -309,4 +310,34 @@ func TestFetchImportsReports(t *testing.T) {
 	f, err = e.svc.Fetch(ctx, e.sessionID, FetchOptions{})
 	require.NoError(t, err)
 	assert.Zero(t, f.Reports, "fetched again: nothing added")
+}
+
+// R3-remote: the verifications run in the job come back with summary.json
+// and are handed over to the checkpoints of the machine (not with
+// --no-import).
+func TestFetchImportsVerifications(t *testing.T) {
+	ctx := context.Background()
+	at := time.Date(2026, 10, 13, 10, 0, 0, 0, time.UTC)
+	ver := []remote.SummaryVerification{{Checkpoint: "cp-2", Status: "fail", Expect: "pass", Excerpt: "--- FAIL: TestSub", Started: at,
+		Commands: []remote.SummaryVerifyCommand{{Kind: "test", Cmd: "go test ./...", Exit: 1, Millis: 1200}}}}
+	e := newReturnEnv(t, remote.Summary{Schema: remote.SummarySchema, Outcome: remote.OutcomeDeferred, Commit: "c9", Verifications: ver}, nil)
+	e.pipeline.Status = "success"
+	var got []remote.SummaryVerification
+	calls := 0
+	e.svc.Verifications = func(_ context.Context, sid string, list []remote.SummaryVerification) (int, error) {
+		assert.Equal(t, e.sessionID, sid)
+		calls++
+		got = list
+		return len(list), nil
+	}
+	f, err := e.svc.Fetch(ctx, e.sessionID, FetchOptions{NoImport: true})
+	require.NoError(t, err)
+	assert.Zero(t, calls, "--no-import: artifacts only")
+	assert.Len(t, f.Summary.Verifications, 1)
+
+	f, err = e.svc.Fetch(ctx, e.sessionID, FetchOptions{})
+	require.NoError(t, err)
+	assert.Equal(t, 1, calls)
+	assert.Equal(t, 1, f.Verifications)
+	assert.Equal(t, ver, got)
 }

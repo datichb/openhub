@@ -51,7 +51,11 @@ type Service struct {
 	Changed     func(ctx context.Context, dir, since string) ([]string, error)
 	Labels      func(ctx context.Context, dir, ticket string) ([]string, error)
 	VerifyWait  time.Duration
-	verifier    verifier
+	// Account runs the verifications and their git reads as the account
+	// of the agents (remote job: the oh account of the image, never root;
+	// R3-remote); nil = the account of oh.
+	Account  *Account
+	verifier verifier
 }
 
 // Errors.

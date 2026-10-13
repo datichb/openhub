@@ -63,10 +63,19 @@ type Input struct {
 	// Reports returns the reports filed in the session (workflow_report),
 	// written to reports.json; nil: none.
 	Reports func(ctx context.Context, sessionID string) ([]remote.ReportEntry, error)
-	Now     func() time.Time
+	// WaitVerify waits for the checkpoint verifications oh runs in the
+	// background, in the clone and as the agent account (R3-remote), and
+	// Verifications returns them for summary.json; nil: none.
+	WaitVerify    func(ctx context.Context)
+	Verifications func(ctx context.Context, sessionID string) ([]remote.SummaryVerification, error)
+	Now           func() time.Time
 	// TurnPoll is how often the turn is awaited again after a decision.
 	TurnPoll time.Duration
 }
+
+// verifyWaitMax bounds the wait for the verifications at the end of a job
+// (their timeout is 30 minutes at most).
+const verifyWaitMax = 31 * time.Minute
 
 // JournalPath is the Beads journal of a job.
 func JournalPath(outDir string) string { return filepath.Join(outDir, remote.JournalFile) }
@@ -186,6 +195,7 @@ func Run(ctx context.Context, in Input) (*remote.Summary, error) {
 	}
 	sum.Decisions = in.Responder.Answers()
 
+	canceled := false
 	switch st := in.Responder.Stopped(); {
 	case st != nil:
 		sum.Outcome = st.Outcome
@@ -203,12 +213,29 @@ func Run(ctx context.Context, in Input) (*remote.Summary, error) {
 		}
 	case ctx.Err() != nil:
 		sum.Outcome, sum.Error = remote.OutcomeFailed, "job canceled or timed out"
+		canceled = true
 		ctx = context.WithoutCancel(ctx)
 		_ = in.Session.Interrupt(ctx, sid)
 	case turnErr != nil:
 		sum.Outcome, sum.Error = remote.OutcomeFailed, in.Job.Secrets.Redact(turnErr.Error())
 	default:
 		sum.Outcome = remote.OutcomeCompleted
+	}
+
+	// Verifications still running end before the agent processes are
+	// stopped (their results travel with the work), bounded by their own
+	// timeout; not on a canceled job.
+	if in.WaitVerify != nil && !canceled {
+		wctx, cancel := context.WithTimeout(ctx, verifyWaitMax)
+		in.WaitVerify(wctx)
+		cancel()
+	}
+	if in.Verifications != nil {
+		if list, err := in.Verifications(ctx, sid); err != nil {
+			slog.Warn("runner: reading the verifications", "err", err)
+		} else {
+			sum.Verifications = list
+		}
 	}
 
 	// T14 (part): results and export before the server stops.

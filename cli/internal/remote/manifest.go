@@ -127,7 +127,7 @@ type Snapshot struct {
 }
 
 // SummarySchema is the version of summary.json.
-const SummarySchema = 1
+const SummarySchema = 2 // 2: verifications run by oh in the job (R3-remote)
 
 // Outcomes of a remote session.
 const (
@@ -152,6 +152,9 @@ type Summary struct {
 	Question *SummaryDecision `json:"question,omitempty"`
 	// Decisions are the answers of the policy responder.
 	Decisions []SummaryDecision `json:"decisions,omitempty"`
+	// Verifications are the last verification run by oh in the job for
+	// each verified checkpoint (R3-remote), by checkpoint id.
+	Verifications []SummaryVerification `json:"verifications,omitempty"`
 
 	Branch     string `json:"branch,omitempty"`
 	BaseCommit string `json:"base_commit,omitempty"`
@@ -183,6 +186,29 @@ type SummaryDecision struct {
 	Resources []string  `json:"resources,omitempty"` // permission resources
 	Answer    string    `json:"answer"`              // approved | rejected | deferred | pending | stopped
 	At        time.Time `json:"at"`
+}
+
+// SummaryVerification is the verification of a checkpoint run by oh in the
+// job, where the work is (same commands, account of the agents, filtered
+// environment, timeout and bounded output as on the machine).
+type SummaryVerification struct {
+	Checkpoint string                 `json:"checkpoint"`
+	Status     string                 `json:"status"` // pass | fail | none | unavailable | running
+	Expect     string                 `json:"expect,omitempty"`
+	Reason     string                 `json:"reason,omitempty"`
+	Excerpt    string                 `json:"excerpt,omitempty"`
+	Commands   []SummaryVerifyCommand `json:"commands,omitempty"`
+	Started    time.Time              `json:"started"`
+	Finished   *time.Time             `json:"finished,omitempty"`
+}
+
+// SummaryVerifyCommand is a command of a verification and its result.
+type SummaryVerifyCommand struct {
+	Kind     string `json:"kind,omitempty"`
+	Cmd      string `json:"cmd"`
+	Exit     int    `json:"exit"`
+	TimedOut bool   `json:"timed_out,omitempty"`
+	Millis   int64  `json:"ms"`
 }
 
 // ExportSchema is the version of session.export.
