@@ -185,6 +185,11 @@ func TestPauseBudget(t *testing.T) {
 	if c := resolveYAML(t, manual).Spec.PauseBudget(); c.Mode != ModeManual || len(c.Pauses) != 2 || c.Exceeded() {
 		t.Fatalf("count = %+v", c)
 	}
+	// risk: read: a verified checkpoint asks.
+	read := vHeader + "risk: read\ncheckpoints:\n  cp-a: { label: A, mode: { semi-auto: auto }, verify: { cmd: [make] } }\n"
+	if c := resolveYAML(t, read).Spec.PauseBudget(); !reflect.DeepEqual(c.Pauses, []string{"cp-a"}) {
+		t.Fatalf("count = %+v", c)
+	}
 }
 
 func resolveYAML(t *testing.T, doc string) *Resolved {

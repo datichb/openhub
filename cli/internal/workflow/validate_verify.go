@@ -42,7 +42,9 @@ func (s *Spec) PauseBudget() PauseCount {
 	c := PauseCount{Mode: mode}
 	for _, k := range s.Checkpoints.Keys() {
 		cp, _ := s.Checkpoints.Get(k)
-		if cp.Disabled || !cp.MayPause(mode) {
+		// In a read-only workflow, a verified checkpoint asks (bundle).
+		asked := cp.Verify != nil && s.Risk == RiskRead && cp.Behavior(mode) != BehaviorSkip
+		if cp.Disabled || (!cp.MayPause(mode) && !asked) {
 			continue
 		}
 		c.Pauses = append(c.Pauses, k)
