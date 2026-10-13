@@ -44,6 +44,51 @@ oh skill check [--json]
 
 ---
 
+## Evaluations
+
+### oh eval
+
+Measures the behaviour of the shipped workflows with a real model, before and after a content change. Each case of `evals/<workflow>/<case>/` describes a session (workflow, mode, inputs, Beads tickets), a fixture (the starting project), optional hidden tests and the assertions checked on the session trace ([`oh session trace`](cli-sessions.en.md#oh-session-trace)). The case format is described in [`evals/README.en.md`](../../evals/README.en.md).
+
+```
+oh eval [--case S1,S2] [--reps N] [--models m1,m2] [--budget USD] [--out <dir>] [--baseline <file>] [--record-baseline <file>] [--list] [--strict]
+```
+
+Each pass runs isolated: a temporary `OH_HOME` and `HOME` (your sessions, database, keychain and daemon are never touched), a throwaway clone of the fixture, a dedicated oh daemon. The session runs without interface; its checkpoints, permissions and questions get the answers written in the case, through the oh decision API. Once the session is done (idle with no decision waiting), oh reads its trace, copies the hidden tests over the clone and checks the assertions.
+
+| Assertion | Checks |
+|-----------|--------|
+| `ran` | A shell command ran (before an event with `before`, or never with `absent`); refused calls do not count |
+| `checkpoint_order` | The checkpoints are reached in this order |
+| `no_question_in_subagent` | No subagent (or those of `agents`) calls the `question` tool; `include_entry` also checks the entry agent |
+| `skill_loaded_before` | A skill is loaded (before an event with `before`) |
+| `changed_within` | The clone changed only within `paths` (`max_files`, `min_files`; nothing at all without parameter) |
+| `hidden_tests` | The hidden tests pass on the clone |
+| `no_denied_loop` | A refused call (rule, rejected permission, unknown skill) is not repeated more than `max_repeats` times |
+| `text_matches` | An agent wrote (or never, with `absent`) a text; `questions` also looks at the questions asked |
+
+The model is Haiku by default; `OH_EVAL_MODELS` (comma separated) adds others, for example `claude-sonnet-4-6`. Each pass is capped by the session budget the credential proxy enforces (`--budget` or `OH_EVAL_BUDGET_USD`, $1 by default): beyond it, the session is stopped and the pass counts as `budget`. The Bedrock key comes from `OH_EVAL_BEDROCK_TOKEN`, else from `opencode auth`.
+
+| Flag | Type | Description |
+|------|------|-------------|
+| `--cases` | string | Cases directory (default: `evals/` or `../evals`) |
+| `--case` | strings | Cases to run (default: every active case) |
+| `--models` | strings | Models (default: `OH_EVAL_MODELS`, else Haiku) |
+| `--reps` | int | Repetitions per case and model (default: `OH_EVAL_REPS`, else 1) |
+| `--budget` | float | Cost cap of a pass, in dollars |
+| `--out` | string | Directory of the traces (`passes/<case>/<model>/<n>/trace.jsonl`) and of the `report.json` and `report.md` reports |
+| `--baseline` | string | Reference measure to compare with (« Référence » column of the report) |
+| `--record-baseline` | string | Record this run as the reference measure |
+| `--note` | string | Note recorded with the report |
+| `--keep` | bool | Keep the work directories of the passes |
+| `--list` | bool | List the cases without running anything |
+| `--strict` | bool | Exit with code 1 when a pass fails |
+| `--rescore` | string | Check the assertions again on the traces of a previous run (its `--out` directory), without calling a model; `changed_within` and `hidden_tests` keep their result |
+
+From `cli/`: `make test-eval` (one repetition), `make test-eval OH_EVAL_REPS=3`, or `make test-eval OH_EVAL_REPS=3 OH_EVAL_RECORD=1` to record the reference measure again (`cli/internal/evalrun/testdata/evals/baseline.json`). The tests of `go test ./...` never call a model.
+
+---
+
 ## Git Worktree
 
 `oh worktree` manages the git worktrees of the project. **Alias:** `oh wt`. `oh run --location new` also creates one worktree per session (see [`oh run`](cli-workflows.en.md#oh-run)).

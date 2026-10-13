@@ -190,6 +190,23 @@ Résultats de **toute la session**, sous la forme d'une description de MR prête
 | `--patch` | bool | Diff complet |
 | `--json` | bool | Sortie JSON (`results`, `live`) |
 
+### oh session trace
+
+```
+oh session trace <session> [--json] [-o <fichier>]
+```
+
+Trace complète d'une session, dans l'ordre : prompts reçus, messages et appels d'outils de l'agent d'entrée et de ses sous-agents (chaque événement d'un sous-agent porte `in_subagent`), skills chargés, délégations, décisions (permissions accordées ou refusées avec `granted`, questions, checkpoints, budget) et leur réponse, chronologie des checkpoints, vérifications (les commandes de build, de tests et de lint de la stack détectée portent `verification`), appels refusés par les règles (`denied`), sorties déclarées, coûts et tokens par tour, puis un résumé (totaux, par agent, registre d'usage d'oh).
+
+Sources : la session et ses décisions enregistrées par oh, la chronologie des checkpoints tenue par le démon, et l'historique de l'outil, lu en direct tant que le serveur tourne (un instantané masqué est alors gardé dans `~/.oh/sessions/<id>/transcript.json`), sinon depuis ce dernier instantané. Les secrets sont masqués partout (jetons d'oh, clés AWS, Bedrock, GitHub, GitLab, Slack, JWT, clés privées, valeurs de `password`, `token`, `api_key`…, mots de passe des URL).
+
+| Flag | Type | Description |
+|------|------|-------------|
+| `--json` | bool | Un événement JSON par ligne (JSONL) : `seq`, `time`, `kind` (`session`, `prompt`, `text`, `tool`, `skill`, `subagent`, `decision`, `checkpoint`, `usage`, `end`, `output`, `summary`) et les champs du type |
+| `-o`, `--output` | string | Écrire la trace JSONL dans ce fichier |
+
+C'est l'entrée des évaluations ([`oh eval`](cli-tools.fr.md#oh-eval)) et des rétrospectives.
+
 ### oh session resume
 
 ```

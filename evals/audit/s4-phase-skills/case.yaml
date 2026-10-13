@@ -1,0 +1,49 @@
+id: S4
+title: "Audit : chaque skill de phase est chargé avant sa phase"
+workflow: audit
+mode: semi-auto
+inputs:
+  type: security
+  focus: "Le fichier auth.go (jeton et commande shell)."
+setup:
+  - |
+    cat > auth.go <<'GO'
+    package calc
+
+    import (
+    	"os/exec"
+    	"strings"
+    )
+
+    // apiToken est le jeton du service de facturation.
+    const apiToken = "tok_live_9f8e7d6c5b4a"
+
+    // Check vérifie un jeton.
+    func Check(token string) bool { return strings.TrimSpace(token) == apiToken }
+
+    // Archive compresse le fichier demandé par l'utilisateur.
+    func Archive(name string) error {
+    	return exec.Command("sh", "-c", "tar czf /tmp/archive.tgz "+name).Run()
+    }
+    GO
+timeout: 20m
+answers:
+  question: first
+assertions:
+  - type: skill_loaded_before
+    name: auditor-execution-modes chargé avant la délégation (phase 3)
+    skill: auditor-execution-modes
+    agent: auditor
+    before: { subagent: auditor-subagent }
+  - type: skill_loaded_before
+    name: le skill de domaine est chargé avant l'analyse du code
+    skill: audit-security
+    agent: auditor-subagent
+    before: { tool: read, agent: auditor-subagent, arg: "*.go" }
+  - type: text_matches
+    name: l'injection de commande est relevée
+    pattern: "injection|sh -c"
+  - type: changed_within
+    name: aucune modification (lecture seule)
+  - type: no_question_in_subagent
+  - type: no_denied_loop

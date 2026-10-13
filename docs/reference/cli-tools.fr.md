@@ -44,6 +44,51 @@ oh skill check [--json]
 
 ---
 
+## Évaluations
+
+### oh eval
+
+Mesure le comportement des workflows livrés avec un vrai modèle, avant et après un changement de contenu. Chaque cas de `evals/<workflow>/<cas>/` décrit une session (workflow, mode, entrées, tickets Beads), une fixture (le projet de départ), d'éventuels tests cachés et les assertions à vérifier sur la trace de la session ([`oh session trace`](cli-sessions.fr.md#oh-session-trace)). Le format des cas est décrit dans [`evals/README.fr.md`](../../evals/README.fr.md).
+
+```
+oh eval [--case S1,S2] [--reps N] [--models m1,m2] [--budget USD] [--out <dossier>] [--baseline <fichier>] [--record-baseline <fichier>] [--list] [--strict]
+```
+
+Chaque passage tourne isolé : un `OH_HOME` et un `HOME` temporaires (vos sessions, votre base, votre trousseau et votre démon ne sont jamais touchés), un clone jetable de la fixture, un démon oh dédié. La session est lancée sans interface ; ses checkpoints, permissions et questions reçoivent les réponses écrites dans le cas, par l'API de décisions d'oh. Une fois la session terminée (inactive sans décision en attente), oh lit sa trace, copie les tests cachés sur le clone et vérifie les assertions.
+
+| Assertion | Vérifie |
+|-----------|---------|
+| `ran` | Une commande shell a tourné (avant un événement avec `before`, ou jamais avec `absent`) ; les appels refusés ne comptent pas |
+| `checkpoint_order` | Les checkpoints sont atteints dans cet ordre |
+| `no_question_in_subagent` | Aucun sous-agent (ou ceux d'`agents`) n'appelle l'outil `question` ; `include_entry` vérifie aussi l'agent d'entrée |
+| `skill_loaded_before` | Un skill est chargé (avant un événement avec `before`) |
+| `changed_within` | Le clone n'a changé que dans `paths` (`max_files`, `min_files` ; rien du tout sans paramètre) |
+| `hidden_tests` | Les tests cachés passent sur le clone |
+| `no_denied_loop` | Un appel refusé (règle, permission refusée, skill inconnu) n'est pas répété plus de `max_repeats` fois |
+| `text_matches` | Un agent a écrit (ou jamais, avec `absent`) un texte ; `questions` regarde aussi les questions posées |
+
+Le modèle est Haiku par défaut ; `OH_EVAL_MODELS` (séparés par des virgules) en ajoute d'autres, par exemple `claude-sonnet-4-6`. Chaque passage est plafonné par le budget de session qu'applique le proxy d'identifiants (`--budget` ou `OH_EVAL_BUDGET_USD`, 1 $ par défaut) : au-delà, la session est arrêtée et le passage compte comme `budget`. La clé Bedrock vient de `OH_EVAL_BEDROCK_TOKEN`, sinon d'`opencode auth`.
+
+| Flag | Type | Description |
+|------|------|-------------|
+| `--cases` | string | Dossier des cas (défaut : `evals/` ou `../evals`) |
+| `--case` | strings | Cas à lancer (défaut : tous les cas actifs) |
+| `--models` | strings | Modèles (défaut : `OH_EVAL_MODELS`, sinon Haiku) |
+| `--reps` | int | Répétitions par cas et par modèle (défaut : `OH_EVAL_REPS`, sinon 1) |
+| `--budget` | float | Plafond de coût d'un passage, en dollars |
+| `--out` | string | Dossier des traces (`passes/<cas>/<modèle>/<n>/trace.jsonl`) et des rapports `report.json` et `report.md` |
+| `--baseline` | string | Mesure de référence à comparer (colonne « Référence » du rapport) |
+| `--record-baseline` | string | Enregistrer ce passage comme mesure de référence |
+| `--note` | string | Note enregistrée avec le rapport |
+| `--keep` | bool | Garder les dossiers de travail des passages |
+| `--list` | bool | Lister les cas sans rien lancer |
+| `--strict` | bool | Sortir avec le code 1 si un passage échoue |
+| `--rescore` | string | Vérifier de nouveau les assertions sur les traces d'un passage précédent (son dossier `--out`), sans appeler de modèle ; `changed_within` et `hidden_tests` gardent leur résultat |
+
+Depuis `cli/` : `make test-eval` (une répétition), `make test-eval OH_EVAL_REPS=3`, ou `make test-eval OH_EVAL_REPS=3 OH_EVAL_RECORD=1` pour réenregistrer la mesure de référence (`cli/internal/evalrun/testdata/evals/baseline.json`). Les tests de `go test ./...` n'appellent jamais de modèle.
+
+---
+
 ## Git Worktree
 
 `oh worktree` gere les git worktrees du projet. **Alias :** `oh wt`. `oh run --location new` cree aussi un worktree par session (voir [`oh run`](cli-workflows.fr.md#oh-run)).

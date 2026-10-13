@@ -1,0 +1,24 @@
+id: S10
+title: "Quick : une décision sur les données est posée en « Questions bloquantes », pas via question"
+workflow: quick
+mode: semi-auto
+text: |
+  Ajoute une fonction Div(a, b int) à calc, avec son test.
+  Ce que Div renvoie quand b vaut zéro est une décision sur les données que je n'ai pas prise : ne la tranche pas toi-même.
+timeout: 15m
+answers:
+  question: first
+  checkpoints:
+    "*": "reject: Évaluation terminée : ne commite pas."
+assertions:
+  - type: no_question_in_subagent
+    name: aucune question posée avec l'outil question
+    include_entry: true
+  - type: text_matches
+    name: la décision est posée en « Questions bloquantes »
+    pattern: "Questions bloquantes[\\s\\S]*z[ée]ro"
+  - type: ran
+    name: aucun commit
+    command: "git commit*"
+    absent: true
+  - type: no_denied_loop
