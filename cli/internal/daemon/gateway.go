@@ -312,7 +312,7 @@ func (d *Daemon) resolveMCP(ctx context.Context, group, name string) (gateway.MC
 		return gateway.MCPCommand{}, err
 	}
 	c, err := d.opts.MCPCommand(ctx, *srv, name)
-	if err != nil || name != sessionspec.WorkflowMCPServer {
+	if err != nil || !sessionspec.OhDaemonMCPServer(name) {
 		return c, err
 	}
 	env := maps.Clone(c.Env)
