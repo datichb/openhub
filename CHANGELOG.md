@@ -9,6 +9,14 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ## [Unreleased]
 
+### Changed — catalogue des skills allégé (lots P1.2 et P1.3)
+
+- **Skills rarement utiles passées à la demande** : `debugger-forensic` et `debugger-report-templates` (debugger), `quick-fix` (developer), `design-planner-format` (planner ; le designer la garde incluse), `dev-standards-universal` (reviewer), `dev-standards-git` (documentarian), `beads-plan` (pathfinder). Chaque agent est invité à les charger à l'étape qui en a besoin.
+- **Skills d'équipe liées au serveur MCP `team`** (`mcp: team`) : `team-awareness`, `team-policies-enforcement`, `team-coordination` et `takeover-context-protocol` ne sont livrées que dans les sessions où ce serveur est présent.
+- **Les 184 descriptions de skills réécrites** en déclencheurs « Utiliser quand… », 200 caractères au plus (−45,7 % de caractères).
+- **`oh skill check`** : nouvelle règle `description_not_trigger` (avertissement, la description doit commencer par « Utiliser » ou « Use ») ; `long_description` en erreur au-delà de 200 caractères pour les skills du hub, en avertissement pour celles de l'équipe (1024 reste la limite du standard).
+- **Budget** (`budget.golden`, somme des prompts sans stack) : 475 642 → 438 892 tokens (−36 750) ; entrées de catalogue 29 747 → 14 818 tokens (−50 %).
+
 ### Added — filets de sécurité de la modernisation (lots P0.1 à P0.3)
 
 - **Registre des règles** (`TestRuleLedger`) : pour chacun des 16 agents, les lignes normatives (JAMAIS, TOUJOURS, NE … PAS, DOIT, OBLIGATOIRE, ❌, ✅, ⛔, MUST, NEVER, interdit) de tout ce qu'il peut voir dans les workflows livrés (corps, skills incluses, skills à la demande atteignables) sont figées dans `cli/internal/bundle/testdata/rules/<agent>.tsv` (4 142 règles). Une règle qui disparaît sans justification dans `<agent>.moved` (`moved:`, `guard:`, `merged:`, `dropped:`) fait échouer le test, comme une justification obsolète ; `-update` ne réécrit jamais les `.moved`.
