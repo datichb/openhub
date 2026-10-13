@@ -1,6 +1,6 @@
 ---
 name: debugger-phase-4-5
-description: Phase 4 (détection des cas particuliers) et Phase 5 (production du livrable — rapport structuré + ticket Beads de correction) du workflow debugger.
+description: "Utiliser avant les phases 4 et 5 du debugger : cas particuliers, rapport et ticket de correction."
 ---
 
 # Phase 4 — Détection des cas particuliers

@@ -1,6 +1,6 @@
 ---
 name: dev-standards-typeorm
-description: Standards TypeORM — entities, repositories, migrations, relations, QueryBuilder et bonnes pratiques.
+description: "Utiliser quand le projet utilise TypeORM (entities, repositories, migrations, QueryBuilder) et que le ticket touche ce code."
 ---
 
 # Skill — Standards TypeORM

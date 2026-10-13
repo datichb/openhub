@@ -1,6 +1,6 @@
 ---
 name: dev-standards-helm
-description: Standards Helm — structure d'un chart, valeurs par environnement, secrets via External Secrets, helm diff, versioning SemVer.
+description: "Utiliser quand le projet utilise Helm (chart, values par env, External Secrets, helm diff) et que le ticket touche ce code."
 ---
 
 # Skill — Standards Helm

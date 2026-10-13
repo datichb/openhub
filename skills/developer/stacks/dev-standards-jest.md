@@ -1,6 +1,6 @@
 ---
 name: dev-standards-jest
-description: Standards Jest — configuration, mocking (jest.mock, jest.fn, jest.spyOn), matchers, coverage et bonnes pratiques.
+description: "Utiliser quand le projet utilise Jest (mocks, matchers, coverage) et que le ticket touche ce code."
 ---
 
 # Skill — Standards Jest

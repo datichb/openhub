@@ -1,6 +1,6 @@
 ---
 name: planner-phase-5-6
-description: Phase 5 (création tickets dans Beads), Phase 5.5 (délégation ai-delegated) et Phase 6 (vérification finale) du workflow planner.
+description: "Utiliser avant les phases 5 et 6 du planner : création dans Beads, ai-delegated, vérification finale."
 ---
 
 # Phase 5 — Production du livrable : Création dans Beads

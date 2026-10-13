@@ -1,6 +1,6 @@
 ---
 name: developer-handoff-format
-description: Source de vérité pour le format de retour des agents developer vers orchestrator-dev. Définit le bloc structuré unique à produire en fin d'implémentation quand invoqué depuis orchestrator-dev. Injecté dans tous les developer et dans orchestrator-dev pour garantir que producteur et consommateur partagent le même contrat.
+description: "Utiliser en fin d'implémentation invoquée par un coordinateur : bloc « Retour vers <appelant> » (statut, diff, critères)."
 annexes: [templates/developer-handoff-block.md]
 ---
 

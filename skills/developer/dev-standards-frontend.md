@@ -1,6 +1,6 @@
 ---
 name: dev-standards-frontend
-description: Bonnes pratiques frontend agnostiques du framework — architecture, composants, CSS, performance, gestion des erreurs.
+description: "Utiliser quand le ticket touche du frontend : architecture, composants, CSS, performance, erreurs."
 ---
 
 # Skill — Standards Frontend (Agnostique)

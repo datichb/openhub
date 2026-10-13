@@ -1,6 +1,6 @@
 ---
 name: audit-protocol-light
-description: Format du rapport d'audit des sous-agents auditor — structure du rapport, niveaux de criticité, format des findings et score /10.
+description: "Utiliser pour rédiger un rapport d'audit de domaine : structure, criticités, format des findings, score /10."
 ---
 
 # Skill — Protocole d'Audit (light)

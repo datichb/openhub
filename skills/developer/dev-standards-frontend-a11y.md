@@ -1,6 +1,6 @@
 ---
 name: dev-standards-frontend-a11y
-description: Règles d'accessibilité frontend — WCAG 2.1 A/AA, HTML sémantique, ARIA, navigation clavier, formulaires.
+description: "Utiliser quand le ticket touche des composants interactifs : WCAG A/AA, HTML sémantique, ARIA, clavier, formulaires."
 ---
 
 # Skill — Standards Accessibilité Frontend

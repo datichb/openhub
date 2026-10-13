@@ -1,6 +1,6 @@
 ---
 name: rtk-usage
-description: Guide d'utilisation de RTK (Rust Token Killer) — commandes token-optimisées pour réduire la consommation contextuelle de 60-90%.
+description: "Utiliser quand le plugin RTK est chargé : formes rtk compactes des commandes courantes."
 plugin: rtk
 ---
 

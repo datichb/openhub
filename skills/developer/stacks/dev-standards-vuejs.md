@@ -1,6 +1,6 @@
 ---
 name: dev-standards-vuejs
-description: Bonnes pratiques Vue.js — Composition API, typage, templates, composables, watchers, performances, accessibilité, conventions de nommage.
+description: "Utiliser quand le projet utilise Vue.js (Composition API, composables, watchers, a11y) et que le ticket touche ce code."
 ---
 
 # Skill — Standards Vue.js

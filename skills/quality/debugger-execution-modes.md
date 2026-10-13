@@ -1,6 +1,6 @@
 ---
 name: debugger-execution-modes
-description: Parcours d'exécution du debugger — mode standalone (invoqué directement par l'utilisateur, récaps en texte clair avant chaque appel question, validation via outil question, rapport de diagnostic sans bloc handoff orchestrateur) et mode sous-agent (invoqué via task depuis l'agent orchestrator feature, mécanisme d'interruption de session, blocs structurés Retour intermédiaire + Question pour l'agent orchestrator, task_id obligatoire, ne jamais appeler l'outil question).
+description: "Utiliser au démarrage du debugger : parcours agent d'entrée (récap puis question) ou sous-agent (blocs de retour par phase)."
 requires: [shared/standalone-execution-protocol, shared/subagent-execution-protocol]
 ---
 

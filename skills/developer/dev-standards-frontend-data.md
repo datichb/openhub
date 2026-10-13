@@ -1,6 +1,6 @@
 ---
 name: dev-standards-frontend-data
-description: Gestion des données côté frontend — choisir entre état local, Context Provider, Store centralisé, Queries, Cookies, Web Storage, IndexedDB ou Query String selon les caractéristiques de la donnée. Utiliser quand on parle de state management, cache, persistance, props drilling, fetch de données, localStorage, sessionStorage, cookies, IndexedDB, TanStack Query, Redux, Pinia, Vuex, Context API.
+description: "Utiliser quand il faut choisir où vit une donnée front : état local, store, query, cookie, storage, IndexedDB, URL."
 ---
 
 # Skill — Gestion des Données dans le Front

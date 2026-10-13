@@ -1,6 +1,6 @@
 ---
 name: team-coordination
-description: Règles de coordination d'équipe pour l'orchestrator-dev (claims, conflits, passage de relais) quand le contexte d'équipe est pertinent.
+description: "Utiliser quand les outils team_* sont présents et qu'orchestrator-dev gère claims, conflits ou relais."
 mcp: team
 ---
 

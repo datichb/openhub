@@ -1,6 +1,6 @@
 ---
 name: audit-security
-description: Référentiel de sécurité applicative — OWASP Top 10, CVE des dépendances, secrets dans le code, headers HTTP, et checklist infra RGS (à vérifier manuellement).
+description: "Utiliser quand l'audit porte sur la sécurité applicative : OWASP Top 10, CVE des dépendances, secrets, headers HTTP, RGS."
 ---
 
 # Skill — Audit Sécurité

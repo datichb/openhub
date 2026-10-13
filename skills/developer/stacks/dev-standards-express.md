@@ -1,6 +1,6 @@
 ---
 name: dev-standards-express
-description: Standards Express / Fastify — routing, middleware, validation, gestion des erreurs, structure du projet et bonnes pratiques.
+description: "Utiliser quand le projet utilise Express/Fastify (routing, middleware, validation, erreurs) et que le ticket touche ce code."
 ---
 
 # Skill — Standards Express / Fastify

@@ -1,6 +1,6 @@
 ---
 name: orchestrator-dev-standalone
-description: Parcours d'exécution de l'agent orchestrator dev comme agent d'entrée de la session (workflow ticket, review-feedback) — récap des tickets au démarrage (mode fixé au lancement), checkpoints par workflow_checkpoint, confirmations hors checkpoint par l'outil question, todo list visible par l'utilisateur.
+description: "Utiliser quand orchestrator-dev est l'agent d'entrée : récap des tickets, todo visible, question hors checkpoint."
 ---
 
 # Skill — Parcours Orchestrator-dev agent d'entrée

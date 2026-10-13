@@ -1,6 +1,6 @@
 ---
 name: wiki-navigation
-description: Protocole de navigation du wiki documentaire vivant — lecture de l'index en premier, chargement ciblé des pages pertinentes, jamais le wiki en entier. Actif pour tous les agents qui consultent le contexte d'un projet.
+description: "Utiliser quand docs/wiki/index.md existe : lire l'index d'abord, puis seulement la page utile à la tâche."
 ---
 
 # Skill — Navigation du Wiki Documentaire Vivant

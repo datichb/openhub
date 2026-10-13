@@ -1,6 +1,6 @@
 ---
 name: dev-standards-rust
-description: Standards Rust — ownership, borrowing, gestion des erreurs, async/tokio, clippy, tests, sécurité mémoire. S'applique à tout projet avec un Cargo.toml détecté.
+description: "Utiliser quand le projet utilise Rust (ownership, erreurs, async/tokio, clippy) et que le ticket touche ce code."
 ---
 
 # Skill — Standards Rust

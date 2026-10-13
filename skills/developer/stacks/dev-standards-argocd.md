@@ -1,6 +1,6 @@
 ---
 name: dev-standards-argocd
-description: Standards ArgoCD / GitOps — principes GitOps, Applications ArgoCD, External Secrets, Vault, sync policies par environnement.
+description: "Utiliser quand le projet utilise ArgoCD/GitOps (Applications, External Secrets, Vault, sync) et que le ticket touche ce code."
 ---
 
 # Skill — Standards ArgoCD / GitOps

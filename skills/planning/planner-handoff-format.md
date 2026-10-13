@@ -1,6 +1,6 @@
 ---
 name: planner-handoff-format
-description: Source de vérité pour le format de retour du planner vers l'orchestrator. Définit le bloc structuré unique à produire quand le planner termine sa session de planification et est invoqué depuis l'orchestrator. Le récapitulatif de planification est intégré dans le bloc. Injecté dans le planner et dans l'orchestrator pour garantir que producteur et consommateur partagent le même contrat.
+description: "Utiliser en fin de planification invoquée par un coordinateur : bloc « Retour vers <appelant> » (tickets, ordre)."
 annexes: [templates/planner-handoff-block.md]
 ---
 

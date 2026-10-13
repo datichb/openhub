@@ -1,6 +1,6 @@
 ---
 name: dev-standards-testing
-description: Stratégie de tests — unitaires, intégration, E2E. Couverture obligatoire des critères d'acceptance, TDD, mocking, checklist systématique, gate de complétion et règles de non-régression.
+description: "Utiliser pour écrire ou juger des tests : pyramide, frontières, mocking, anti-patterns, TDD, couverture des critères."
 ---
 
 # Skill — Standards de Tests

@@ -1,6 +1,6 @@
 ---
 name: dev-standards-typescript
-description: Standards TypeScript — typage strict, inférence, types utilitaires, gestion des erreurs typées, patterns avancés.
+description: "Utiliser quand le projet utilise TypeScript (typage strict, types utilitaires, erreurs typées) et que le ticket touche ce code."
 ---
 
 # Skill — Standards TypeScript

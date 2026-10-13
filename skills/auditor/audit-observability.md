@@ -1,6 +1,6 @@
 ---
 name: audit-observability
-description: Référentiel d'audit de l'observabilité — métriques (méthode RED), logs structurés, traces distribuées, SLOs/SLAs, qualité de l'alerting et dashboards. Grille des 5 questions pour évaluer si une application est opérable en production.
+description: "Utiliser quand l'audit porte sur l'observabilité : métriques RED, logs structurés, traces, SLO, alerting, dashboards."
 ---
 
 # Skill — Audit Observabilité

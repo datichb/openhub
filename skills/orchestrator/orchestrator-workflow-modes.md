@@ -1,6 +1,6 @@
 ---
 name: orchestrator-workflow-modes
-description: "Modes de workflow et comportement des checkpoints. GÉNÉRÉ AUTOMATIQUEMENT : le paquet de session remplace ce fichier par la version tirée du YAML du workflow (gabarits `orchestrator-workflow-modes.md.tmpl` et `partials.md.tmpl` du paquet `cli/internal/bundle`)."
+description: "Généré : checkpoints du workflow, comportement par mode, passage par workflow_checkpoint (déjà inclus)."
 ---
 
 # Modes de workflow et checkpoints

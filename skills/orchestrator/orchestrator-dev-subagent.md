@@ -1,6 +1,6 @@
 ---
 name: orchestrator-dev-subagent
-description: Parcours d'exécution de l'agent orchestrator dev en mode sous-agent (invoqué via task depuis l'agent orchestrator feature) — checkpoints de ticket par workflow_checkpoint (comme en agent d'entrée), bloc Question pour l'orchestrator réservé aux vraies clarifications, bloc Retour vers orchestrator (final) obligatoire en fin de session.
+description: "Utiliser quand orchestrator-dev est invoqué via task : clarifications par bloc question, bloc de retour final obligatoire."
 ---
 
 # Skill — Parcours Orchestrator-dev Sous-agent

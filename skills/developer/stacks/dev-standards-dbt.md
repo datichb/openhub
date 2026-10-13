@@ -1,6 +1,6 @@
 ---
 name: dev-standards-dbt
-description: Standards dbt — layers staging/intermediate/mart, documentation schema.yml, tests natifs et personnalisés, matérialisations.
+description: "Utiliser quand le projet utilise dbt (staging/mart, schema.yml, tests, matérialisations) et que le ticket touche ce code."
 ---
 
 # Skill — Standards dbt

@@ -1,6 +1,6 @@
 ---
 name: planner-workflow
-description: Workflow complet du planner en 7 phases — index et principes. Les phases détaillées sont chargées à la demande via les skills natifs.
+description: "Utiliser comme fil conducteur du planner : 7 phases, skill à charger avant chacune, itérations."
 ---
 
 # Workflow Planner — Index

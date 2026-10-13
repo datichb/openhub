@@ -1,6 +1,6 @@
 ---
 name: hub-workflow-reference
-description: "Agents et délégations du workflow de la session. GÉNÉRÉ AUTOMATIQUEMENT : le paquet de session remplace ce fichier par la version tirée du YAML du workflow (gabarits `hub-workflow-reference.md.tmpl` et `partials.md.tmpl` du paquet `cli/internal/bundle`)."
+description: "Généré : agents de la session et délégations autorisées (déjà inclus dans le prompt des agents concernés)."
 ---
 
 # Référence du workflow

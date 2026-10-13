@@ -1,6 +1,6 @@
 ---
 name: team-policies-enforcement
-description: Respect des politiques d'équipe (team policies) par les agents, en complément de team-awareness.
+description: "Utiliser quand les outils team_* sont présents : respecter les politiques d'équipe."
 mcp: team
 ---
 

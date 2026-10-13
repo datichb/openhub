@@ -1,6 +1,6 @@
 ---
 name: debugger-phase-0-1
-description: Phase 0 (vérification des prérequis/artefacts) et Phase 1 (exploration contextuelle) du workflow debugger.
+description: "Utiliser avant les phases 0 et 1 du debugger : vérification des artefacts, exploration contextuelle."
 ---
 
 # Phase 0 — Vérification des prérequis (artefacts)

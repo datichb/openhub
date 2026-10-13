@@ -1,6 +1,6 @@
 ---
 name: documentarian-handoff-format
-description: Source de vérité pour le format de retour du documentarian vers l'agent qui l'a invoqué (orchestrator-dev, orchestrator, auditor, debugger, pathfinder…). Définit le bloc structuré unique à produire en fin de session de documentation quand il est invoqué via task. Injecté dans le documentarian et chez ses appelants pour garantir que producteur et consommateur partagent le même contrat.
+description: "Utiliser en fin de session de documentation invoquée via task : bloc « Retour vers <appelant> »."
 annexes: [templates/documentarian-handoff-block.md]
 ---
 

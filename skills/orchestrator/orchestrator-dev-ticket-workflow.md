@@ -1,6 +1,6 @@
 ---
 name: orchestrator-dev-ticket-workflow
-description: Workflow ticket par ticket de l'orchestrator-dev — étapes 1a à 6 (présentation, branche, délégation, pre-review, review, décision, compte rendu).
+description: "Utiliser pour chaque ticket : étapes 1a à 6 (présentation, branche, délégation, pre-review, review, décision, compte rendu)."
 ---
 
 ## Workflow ticket par ticket

@@ -1,6 +1,6 @@
 ---
 name: pathfinder-handoff-format
-description: Format de rapport pathfinder et format d'escalade vers le planner — le rapport complet est intégré dans le bloc structuré. Structure exploitable par l'utilisateur, orchestrator-dev et planner.
+description: "Utiliser pour rédiger le rapport pathfinder et son bloc « Retour vers <appelant> » (direct ou escalade-planner)."
 ---
 
 # Skill — Pathfinder Handoff Format

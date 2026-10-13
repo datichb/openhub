@@ -1,6 +1,6 @@
 ---
 name: debugger-workflow
-description: Workflow complet du debugger en 6 phases — index et principes. Les phases détaillées sont chargées à la demande via les skills natifs.
+description: "Utiliser comme fil conducteur du debugger : 6 phases, skill à charger avant chacune."
 ---
 
 # Workflow Debugger — Index

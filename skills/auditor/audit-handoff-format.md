@@ -1,6 +1,6 @@
 ---
 name: audit-handoff-format
-description: Source de vérité pour le format de retour d'audit — bloc `## Retour vers auditor` de l'`auditor-subagent` vers l'`auditor`, et même structure pour le bloc `## Retour vers orchestrator` de l'`auditor` quand l'orchestrator l'invoque. Le rapport d'audit complet est intégré dans le bloc. Injecté dans `auditor-subagent` et dans `auditor` pour que producteur et consommateur partagent le même contrat.
+description: "Utiliser en fin d'audit de domaine pour produire le bloc « Retour vers auditor » (sous-agent) ou le lire (auditor)."
 ---
 
 # Skill — Format de handoff d'audit

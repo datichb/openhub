@@ -1,6 +1,6 @@
 ---
 name: beads-dev
-description: Workflow exécuteur Beads (bd) — clamer, implémenter, passer en review, gérer les blocages, clore les tickets. Règles ai-delegated. Référence complète dans docs/reference/beads-model.md.
+description: "Utiliser pour travailler un ticket Beads en tant que developer : réserver, passer en review, bloquer, commenter, commit puis fermeture."
 ---
 
 ## Workflow obligatoire

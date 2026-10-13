@@ -1,6 +1,6 @@
 ---
 name: doc-api
-description: Documentation d'API — détection de l'existant, format OpenAPI 3.x, contrats d'interface, documentation des breaking changes, guide d'utilisation narratif.
+description: "Utiliser pour documenter une API : existant, OpenAPI 3.x, contrats, breaking changes, guide narratif."
 ---
 
 # Skill — Documentation API

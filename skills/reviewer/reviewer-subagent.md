@@ -1,6 +1,6 @@
 ---
 name: reviewer-subagent
-description: Parcours d'exécution du reviewer en mode sous-agent (invoqué via task depuis orchestrator-dev ou orchestrator feature) — chargement wiki obligatoire, préparation du contexte pour sous-sessions, rapport de review complet obligatoire suivi du bloc Retour vers orchestrator-dev. Supporte les modes standard (ticket), adversarial (CP-feature), et combiné adversarial + edge-case (CP-feature avec option).
+description: "Utiliser quand le reviewer est invoqué via task : wiki obligatoire, rapport complet, bloc de retour."
 ---
 
 # Skill — Parcours Reviewer Sous-agent

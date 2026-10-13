@@ -1,6 +1,6 @@
 ---
 name: planner-phase-3-4
-description: Phase 3 (plan hiérarchique — epics, tickets, ordre, risques) et Phase 4 (détection des cas particuliers) du workflow planner.
+description: "Utiliser avant les phases 3 et 4 du planner : plan hiérarchique, ordre, risques, cas particuliers."
 ---
 
 # Phase 3 — Analyse approfondie : Plan hiérarchique

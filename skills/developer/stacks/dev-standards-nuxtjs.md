@@ -1,6 +1,6 @@
 ---
 name: dev-standards-nuxtjs
-description: Standards Nuxt.js — auto-imports, composables, useFetch/useAsyncData, Nitro, stores Pinia, conventions de fichiers.
+description: "Utiliser quand le projet utilise Nuxt (composables, useFetch, Nitro, Pinia) et que le ticket touche ce code."
 ---
 
 # Skill — Standards Nuxt.js

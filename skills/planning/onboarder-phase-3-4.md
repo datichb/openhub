@@ -1,6 +1,6 @@
 ---
 name: onboarder-phase-3-4
-description: Phase 3 (rapport de contexte + matrice agents) et Phase 4 (détection cas particuliers) du workflow onboarder.
+description: "Utiliser avant les phases 3 et 4 de l'onboarder : rapport de contexte, matrice agents, cas particuliers."
 ---
 
 ## Phase 3 — Analyse approfondie : Rapport de contexte

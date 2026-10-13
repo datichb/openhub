@@ -1,6 +1,6 @@
 ---
 name: error-recovery-protocol
-description: "Protocole de retry/recovery pour les échecs de subagents — classification des erreurs, budget de retry, fallbacks systémiques."
+description: "Utiliser quand un sous-agent échoue ou rend un retour invalide : classification, budget de retry, repli."
 ---
 
 # Protocole de retry/recovery

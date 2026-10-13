@@ -1,6 +1,6 @@
 ---
 name: context-mode-usage
-description: Règles d'usage des outils context-mode — choix du bon outil selon la nature de la commande, timeout obligatoire, gestion des processus non-terminants (serveurs dev, watchers).
+description: "Utiliser quand les outils ctx_* (plugin context-mode) sont présents : choix de l'outil, timeout obligatoire, commandes non terminantes."
 plugin: context-mode
 ---
 

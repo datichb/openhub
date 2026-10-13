@@ -1,6 +1,6 @@
 ---
 name: test-generation
-description: Génération de tests sur du code existant — analyse des gaps de couverture, priorisation par criticité, tests unitaires, d'intégration et property-based dans le style du projet. Domaine `tests` du developer (« ajouter des tests sur X »).
+description: "Utiliser pour le domaine tests (« ajouter des tests sur X ») : gaps de couverture, priorités, tests dans le style du projet."
 ---
 
 # Skill — Génération de tests

@@ -1,6 +1,6 @@
 ---
 name: debugger-handoff-format
-description: Source de vérité pour le format de retour du debugger vers l'orchestrator. Définit le bloc structuré unique à produire quand le debugger termine son diagnostic et est invoqué par un agent coordinateur (l'orchestrator, dans un workflow qui délègue au debugger). Le rapport de diagnostic complet est intégré dans le bloc. Injecté dans le debugger et dans l'orchestrator pour garantir que producteur et consommateur partagent le même contrat.
+description: "Utiliser en fin de diagnostic invoqué par un coordinateur : bloc « Retour vers <appelant> » avec rapport intégré."
 annexes: [templates/debugger-handoff-block.md]
 ---
 

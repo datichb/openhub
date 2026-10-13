@@ -1,6 +1,6 @@
 ---
 name: dev-standards-react
-description: Standards React — hooks, composition, gestion d'état (Context/Zustand/Redux), performance, accessibilité et conventions.
+description: "Utiliser quand le projet utilise React (hooks, composition, état, performance) et que le ticket touche ce code."
 ---
 
 # Skill — Standards React

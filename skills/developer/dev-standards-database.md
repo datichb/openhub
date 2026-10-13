@@ -1,6 +1,6 @@
 ---
 name: dev-standards-database
-description: Standards base de données — conception de schéma (contraintes, index, types), migrations sûres sans interruption, optimisation des requêtes avec EXPLAIN, pièges des ORM (N+1). À charger quand un ticket touche le schéma, les migrations ou les requêtes.
+description: "Utiliser quand le ticket touche schéma, migrations ou requêtes : contraintes, index, migrations sans coupure, EXPLAIN, N+1."
 ---
 
 # Skill — Standards base de données

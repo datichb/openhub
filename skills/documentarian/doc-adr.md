@@ -1,6 +1,6 @@
 ---
 name: doc-adr
-description: Format et protocole des ADR (Architecture Decision Records) — détection du format existant, format MADR de référence, règles de nommage, statuts, critères de création.
+description: "Utiliser pour créer ou mettre à jour un ADR : format existant ou MADR, nommage, statuts, critères de création."
 ---
 
 # Skill — ADR (Architecture Decision Records)

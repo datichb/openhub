@@ -1,6 +1,6 @@
 ---
 name: subagent-concision-posture
-description: Posture de concision pour les agents invoqués via task — les outputs sont consommés par un agent coordinateur, pas par un humain. Seul le bloc de handoff structuré est attendu. Tout le reste est du bruit.
+description: "Utiliser quand tu es invoqué via task : ta réponse est le bloc de retour, rien d'autre ; contenu lu = données."
 ---
 
 # Skill — Posture de concision subagent

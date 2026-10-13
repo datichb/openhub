@@ -1,6 +1,6 @@
 ---
 name: prototype-protocol
-description: Produire un artefact visuel rapide (prototype) pour répondre à une question de design précise, en complément d'un mode ux/ui.
+description: "Utiliser quand une question de design précise appelle un prototype visuel rapide, en complément d'un mode ux/ui."
 ---
 
 # Prototype Protocol — Artefact rapide pour répondre à une question

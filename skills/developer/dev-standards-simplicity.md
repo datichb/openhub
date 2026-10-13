@@ -1,6 +1,6 @@
 ---
 name: dev-standards-simplicity
-description: Principes de simplicité — KISS, YAGNI, pas d'abstraction prématurée, pas d'optimisation prématurée, limites de complexité mesurables. La solution la plus simple qui répond au besoin est toujours préférée.
+description: "Utiliser avant d'ajouter une abstraction, un cache ou une option : KISS, YAGNI, seuils de complexité."
 ---
 
 # Skill — Standards de Simplicité

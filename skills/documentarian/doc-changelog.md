@@ -1,6 +1,6 @@
 ---
 name: doc-changelog
-description: Documentation du changelog — détection du format existant, Keep a Changelog, Conventional Commits, SemVer, génération depuis git log.
+description: "Utiliser pour mettre à jour le CHANGELOG : format existant, Keep a Changelog, Conventional Commits, SemVer, git log."
 ---
 
 # Skill — Changelog et Release Notes

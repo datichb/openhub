@@ -1,6 +1,6 @@
 ---
 name: audit-infra
-description: Référentiel d'audit de l'infrastructure as code en lecture seule — revue Terraform/OpenTofu, Kubernetes, Helm et ArgoCD, sécurité IaC (CIS, NSA/CISA Kubernetes Hardening), estimation de coût et détection de drift. Outils d'analyse statique lancés après confirmation (tflint, tfsec, checkov, trivy config, kube-score, kubesec, helm lint, infracost).
+description: "Utiliser quand l'audit porte sur l'IaC (Terraform, Kubernetes, Helm, ArgoCD) : sécurité CIS/NSA, coût, drift ; outils statiques après confirmation."
 ---
 
 # Skill — Audit Infrastructure (IaC)

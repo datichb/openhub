@@ -1,6 +1,6 @@
 ---
 name: dev-standards-gitlab-ci
-description: Standards GitLab CI — structure .gitlab-ci.yml, stages, rules, variables masquées, approbations de déploiement et bonnes pratiques CI/CD.
+description: "Utiliser quand le projet utilise GitLab CI (stages, rules, variables masquées, déploiements) et que le ticket touche ce code."
 ---
 
 # Skill — Standards GitLab CI

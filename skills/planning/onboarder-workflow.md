@@ -1,6 +1,6 @@
 ---
 name: onboarder-workflow
-description: Workflow complet de l'onboarder en 6 phases — index et principes. Les phases détaillées sont chargées à la demande via les skills natifs.
+description: "Utiliser comme fil conducteur de l'onboarder : 6 phases, skill à charger avant chacune."
 ---
 
 # Workflow Onboarder — Index

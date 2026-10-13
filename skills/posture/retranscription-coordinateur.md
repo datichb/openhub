@@ -1,6 +1,6 @@
 ---
 name: retranscription-coordinateur
-description: Protocole de retransmission des retours de sous-agents par les agents coordinateurs (orchestrator, auditor, orchestrator-dev). Les sous-agents produisent uniquement des blocs structurés. Ce skill définit comment les coordinateurs retranscrivent ces blocs de manière formatée à l'utilisateur.
+description: "Utiliser quand tu relaies à l'utilisateur le retour d'un sous-agent : tout afficher, rien résumer, puis seulement question."
 ---
 
 # Skill — Protocole de retransmission (Coordinateurs)

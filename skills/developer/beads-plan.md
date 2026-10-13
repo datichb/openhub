@@ -1,6 +1,6 @@
 ---
 name: beads-plan
-description: Guide pour lire, créer et organiser les tickets Beads (bd) — lecture, statuts, labels système, création de tickets/epics, dépendances, relations, liens externes. Référence complète dans docs/reference/beads-model.md.
+description: "Utiliser pour lire, créer ou organiser des tickets Beads : statuts, labels, epics, dépendances, liens externes."
 ---
 
 ## Interaction avec Beads

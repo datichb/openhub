@@ -1,6 +1,6 @@
 ---
 name: dev-standards-docker
-description: Standards Docker — Dockerfile multi-stage, utilisateur non-root, Docker Compose, healthchecks, gestion des images et registries.
+description: "Utiliser quand le projet utilise Docker (multi-stage, non-root, Compose, healthchecks) et que le ticket touche ce code."
 ---
 
 # Skill — Standards Docker

@@ -1,6 +1,6 @@
 ---
 name: dev-standards-airflow
-description: Standards Apache Airflow — DAGs, TaskFlow API, idempotence, secrets, tests de DAGs et bonnes pratiques d'orchestration.
+description: "Utiliser quand le projet utilise Apache Airflow (DAGs, TaskFlow, idempotence, secrets, tests) et que le ticket touche ce code."
 ---
 
 # Skill — Standards Apache Airflow

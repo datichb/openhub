@@ -1,6 +1,6 @@
 ---
 name: audit-accessibility
-description: Référentiel d'accessibilité numérique — WCAG 2.1 niveau AA et RGAA 4.1, couvrant le code HTML/CSS/JS et les composants d'interface.
+description: "Utiliser quand l'audit porte sur l'accessibilité : grille WCAG 2.1 AA / RGAA 4.1 pour HTML, CSS, JS et composants d'interface."
 ---
 
 # Skill — Audit Accessibilité

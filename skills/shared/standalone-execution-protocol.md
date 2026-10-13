@@ -1,6 +1,6 @@
 ---
 name: standalone-execution-protocol
-description: "Protocole d'exécution standalone — mode detection, ordering recap→question, checklist universelle."
+description: "Utiliser quand tu es l'agent d'entrée d'un agent à phases : récap puis question, checklist commune."
 ---
 
 # Protocole d'exécution — mode standalone

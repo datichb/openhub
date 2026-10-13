@@ -1,6 +1,6 @@
 ---
 name: websearch-usage
-description: Bonnes pratiques d'utilisation de l'outil websearch — requêtes ciblées, vérification des sources, comportements de librairies.
+description: "Utiliser avant un appel websearch/webfetch : requêtes ciblées, vérification des sources, restitution."
 ---
 
 # Utilisation de WebSearch — bonnes pratiques

@@ -1,6 +1,6 @@
 ---
 name: github-planner-protocol
-description: Protocole d'intégration GitHub pour l'agent Planner — lecture du ticket source, exploitation des labels et milestones pour contextualiser la décomposition en sous-tickets
+description: "Utiliser en phase 1 du planner si le MCP github est présent : ticket source, labels, milestones."
 mcp: github
 ---
 

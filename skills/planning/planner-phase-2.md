@@ -1,6 +1,6 @@
 ---
 name: planner-phase-2
-description: Phase 2 du workflow planner — questions complémentaires contextualisées (métier, technique, librairies, impacts, design).
+description: "Utiliser avant la phase 2 du planner : questions [DECISION], batch ou frontier, understanding gate."
 ---
 
 # Phase 2 — Questions complémentaires

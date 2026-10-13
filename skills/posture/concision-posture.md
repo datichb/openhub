@@ -1,6 +1,6 @@
 ---
 name: concision-posture
-description: Posture de concision niveau "lite" pour les agents primaires — supprime les formules de remplissage sans valeur (intro, reformulation du contexte connu, transitions redondantes) sans altérer la complétude technique ni le formalisme des livrables. Pour les agents mode:subagent, voir posture/subagent-concision-posture.
+description: "Utiliser quand tu échanges directement avec l'utilisateur : supprimer le remplissage sans toucher aux livrables ni aux blocs de retour."
 ---
 
 # Skill — Posture de concision (niveau lite)

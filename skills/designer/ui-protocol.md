@@ -1,6 +1,6 @@
 ---
 name: ui-protocol
-description: Protocole de l'agent UI Designer — principes de design system, tokens de design, règles typographiques et de couleur, format de spécification de composants visuels et guidelines d'interface.
+description: "Utiliser en mode ui du designer : tokens, typographie, couleur, Design It Twice, format de spec de composant."
 ---
 
 # Skill — Protocole UI Designer

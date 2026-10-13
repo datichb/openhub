@@ -1,6 +1,6 @@
 ---
 name: dev-standards-terraform
-description: Standards Terraform — structure des modules, variables, state remote, cycle de vie des changements, drift detection.
+description: "Utiliser quand le projet utilise Terraform (modules, variables, state remote, drift) et que le ticket touche ce code."
 ---
 
 # Skill — Standards Terraform

@@ -1,6 +1,6 @@
 ---
 name: workflow-map
-description: "Carte du workflow de la session (agents, délégations, checkpoints, modes, sorties). GÉNÉRÉ AUTOMATIQUEMENT : le paquet de session remplace ce fichier par la carte tirée du YAML du workflow (gabarit `workflow-map.md.tmpl` du paquet `cli/internal/bundle`)."
+description: "Généré : carte du workflow (agents, délégations, checkpoints, modes, sorties), incluse dans le prompt du conductor."
 ---
 
 # Carte du workflow

@@ -1,6 +1,6 @@
 ---
 name: designer-protocol
-description: Protocole central de l'agent Designer unifié — détection du mode d'invocation, table de routage vers les skills spécialisés, règles universelles applicables à tous les modes.
+description: "Utiliser au démarrage du designer : détection du mode (recon, ux, ui, ux+ui), skills à charger, règles communes."
 ---
 
 # Skill — Protocole Designer unifié

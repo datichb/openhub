@@ -1,6 +1,6 @@
 ---
 name: orchestrator-dev-recap
-description: Récap global et retour vers orchestrator — format du récap d'implémentation, bloc retour structuré.
+description: "Utiliser après le dernier ticket : récap d'implémentation et bloc de retour."
 ---
 
 ## Récap global — Fin de session

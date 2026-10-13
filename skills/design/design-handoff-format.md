@@ -1,6 +1,6 @@
 ---
 name: design-handoff-format
-description: Source de vérité pour le format de retour de l'agent designer vers l'orchestrator. Définit le bloc structuré unique à produire quand le designer termine sa spec et est invoqué depuis l'orchestrator. La spec complète est intégrée dans le bloc. Injecté dans designer et orchestrator pour garantir que le producteur et le consommateur partagent le même contrat.
+description: "Utiliser en fin de mission design invoquée par un agent : bloc « Retour vers <appelant> » avec spec intégrée."
 annexes: [templates/designer-handoff-blocks.md]
 ---
 

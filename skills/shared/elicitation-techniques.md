@@ -1,6 +1,6 @@
 ---
 name: elicitation-techniques
-description: "Utiliser quand une ambiguité est détectée dans les requirements, quand le périmètre est flou, quand plusieurs parties prenantes ont des visions divergentes, ou quand une décision de conception est difficile à trancher. Référence de 25 techniques d'élicitation structurées avec critères de sélection contextuelle. Livré à la demande avec planner-phase-1 (requires:), à charger avec l'outil `skill` quand des clarifications sont nécessaires. Couvre : convergence/divergence, exploration des contraintes, gestion des parties prenantes, prise de décision sous incertitude. Mots-clés : elicitation, requirements, ambiguity, stakeholders, design thinking, brainstorming, decision making, clarification techniques."
+description: "Utiliser quand les besoins sont flous ou contradictoires : 25 techniques d'élicitation et comment choisir."
 ---
 
 # Skill — Techniques d'Élicitation

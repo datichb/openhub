@@ -1,6 +1,6 @@
 ---
 name: audit-database
-description: Référentiel d'audit de la sécurité des bases de données en lecture seule — rôles et privilèges, Row-Level Security, surfaces d'injection, chiffrement au repos et en transit, sauvegardes, sûreté des migrations et exposition des données sensibles (PostgreSQL, MySQL, SQLite, ORMs courants).
+description: "Utiliser quand l'audit porte sur une base de données (lecture seule) : rôles, RLS, injections, chiffrement, sauvegardes, migrations, données sensibles."
 ---
 
 # Skill — Audit Base de données

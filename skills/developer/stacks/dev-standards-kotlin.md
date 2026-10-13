@@ -1,6 +1,6 @@
 ---
 name: dev-standards-kotlin
-description: Standards Kotlin / Android natif — Jetpack Compose, MVVM + Clean, Coroutines/Flow, Hilt, sécurité Android, conventions de nommage.
+description: "Utiliser quand le projet utilise Kotlin/Android (Compose, MVVM, Coroutines, Hilt) et que le ticket touche ce code."
 ---
 
 # Skill — Standards Kotlin (Android natif)

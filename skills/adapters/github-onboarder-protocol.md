@@ -1,6 +1,6 @@
 ---
 name: github-onboarder-protocol
-description: Protocole d'intégration GitHub pour l'agent Onboarder — cartographie du projet via labels, milestones actifs et tickets récents pour enrichir ONBOARDING.md et CONVENTIONS.md
+description: "Utiliser en phase 1 de l'onboarder si le MCP github est présent : labels, milestones, tickets récents."
 mcp: github
 ---
 

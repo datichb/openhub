@@ -1,6 +1,6 @@
 ---
 name: dev-standards-python
-description: Standards Python — style, typage, environnements, gestion des erreurs, organisation du code, bonnes pratiques générales indépendantes du domaine métier.
+description: "Utiliser quand le projet utilise Python (style, typage, environnements, erreurs) et que le ticket touche ce code."
 ---
 
 # Skill — Standards Python

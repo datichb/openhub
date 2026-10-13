@@ -1,6 +1,6 @@
 ---
 name: dev-standards-git
-description: Conventions Git — commits Conventional Commits, branches, PR/MR, et règles de collaboration. Applicable sur tous les projets.
+description: "Utiliser pour rédiger un commit ou nommer une branche : Conventional Commits, branches, PR/MR."
 ---
 
 # Skill — Standards Git et Conventions de Collaboration

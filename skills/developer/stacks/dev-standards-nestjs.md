@@ -1,6 +1,6 @@
 ---
 name: dev-standards-nestjs
-description: Standards NestJS — modules, providers, controllers, guards, pipes, interceptors, validation DTO, injection de dépendances.
+description: "Utiliser quand le projet utilise NestJS (modules, providers, guards, pipes, DTO) et que le ticket touche ce code."
 ---
 
 # Skill — Standards NestJS

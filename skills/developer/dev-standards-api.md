@@ -1,6 +1,6 @@
 ---
 name: dev-standards-api
-description: Standards spécifiques aux APIs publiques et d'intégration — versioning, pagination, gestion des erreurs, rate limiting, idempotence, contrat schema-first, breaking changes, webhooks.
+description: "Utiliser quand le ticket touche une API publique : versioning, pagination, erreurs, rate limiting, idempotence, webhooks."
 ---
 
 # Skill — Standards API

@@ -1,6 +1,6 @@
 ---
 name: dev-standards-sqlalchemy
-description: Standards SQLAlchemy — models, sessions, Alembic, requêtes async, transactions et bonnes pratiques.
+description: "Utiliser quand le projet utilise SQLAlchemy (sessions, Alembic, async, transactions) et que le ticket touche ce code."
 ---
 
 # Skill — Standards SQLAlchemy

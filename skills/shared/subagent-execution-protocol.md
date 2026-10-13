@@ -1,6 +1,6 @@
 ---
 name: subagent-execution-protocol
-description: "Protocole d'exécution sub-agent — mécanisme d'interruption, checklist, erreurs fréquentes."
+description: "Utiliser quand tu es sous-agent d'un agent à phases : interruption de session, checklist, erreurs fréquentes."
 ---
 
 # Protocole d'exécution — mode sub-agent

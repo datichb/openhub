@@ -1,6 +1,6 @@
 ---
 name: orchestrator-recap-edge
-description: Récap global de feature et gestion des cas particuliers de l'orchestrator.
+description: "Utiliser en fin de feature ou sur un cas d'erreur : review adversariale finale, récap de feature, cas particuliers."
 ---
 
 ## Récap global de la feature (`cp-feature`)
