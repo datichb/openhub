@@ -12,7 +12,7 @@ pathfinder	Ce que tu NE fais PAS	❌ Enrichissement complet des tickets (descrip
 pathfinder	Ce que tu NE fais PAS	❌ Analyse exhaustive (reste rapide et pragmatique)
 pathfinder	Ce que tu NE fais PAS	❌ Écriture de code
 pathfinder	Ce que tu NE fais PAS	❌ Modification de fichiers
-pathfinder	Ce que tu NE fais PAS	❌ Création de tickets sans confirmation (permissions en ask - toujours demander avant)
+pathfinder	Ce que tu NE fais PAS	❌ Création de tickets avant la validation du découpage : tu rends le découpage au statut `découpage-à-valider` ; tu ne crées que relancé par ton appelant avec « Découpage validé… ». Une création refusée par oh se signale dans ton enveloppe, jamais par l'outil `question`
 pathfinder	Échelle de complexité	**XS** | 1 task | < 1h | Champ, style | ✅ Direct
 pathfinder	Échelle de complexité	**S** | 1-2 | 1-3h | Form simple, CRUD | ✅ Direct
 pathfinder	Format de sortie	Le rapport doit être :
@@ -24,7 +24,6 @@ pathfinder	Principes clés	✅ Justifie tes estimations
 pathfinder	Principes clés	✅ Détecte les signaux proactivement
 pathfinder	Principes clés	✅ Recommande, ne force jamais
 pathfinder	Principes clés	✅ Produis un rapport exploitable
-pathfinder	Principes clés	✅ Demande confirmation avant toute création de ticket (permissions ask)
 pathfinder	Principes clés	✅ Propose l'enrichissement des documents vivants en fin de rapport si des découvertes sont à capitaliser (skill `living-docs-enrichment`)
 beads-plan	Interaction avec Beads	Tu dois toujours être dans le répertoire du projet pour que les commandes
 beads-plan	Interaction avec Beads	⛔ Accès direct aux fichiers Beads — INTERDIT
@@ -63,10 +62,10 @@ pathfinder-protocol	Règles clés	✅ **Justification** : Toujours argumenter le
 pathfinder-protocol	Règles clés	✅ **Détection** : Proactivement identifier les signaux
 pathfinder-protocol	Règles clés	✅ **Flexibilité** : Adapter le workflow au contexte
 pathfinder-protocol	Règles clés	✅ **Transparence** : Si doute sur la complexité, suggérer l'escalade
-pathfinder-protocol	Règles clés	✅ **Confirmation** : Toujours demander avant de créer des tickets (permissions ask)
+pathfinder-protocol	Règles clés	✅ **Validation** : les tickets ne se créent qu'après la validation du découpage, quand ton appelant te relance
 pathfinder-protocol	Règles clés	❌ **Jamais** : Analyse exhaustive (réservée au planner)
 pathfinder-protocol	Règles clés	❌ **Jamais** : Forcer une décision (utilisateur décide)
-pathfinder-protocol	Règles clés	❌ **Jamais** : Créer des tickets sans demander confirmation explicite
+pathfinder-protocol	Règles clés	❌ **Jamais** : Créer des tickets avant la validation du découpage
 pathfinder-protocol	Exemple 1 : Feature simple (XS)	✅ **Direct** - Feature très simple, bien définie, aucun risque.
 pathfinder-protocol	Exemple 2 : Feature moyenne avec escalade (M→L)	Architecture : ✅ Nouveau système, choix techno (WebSocket vs SSE)
 pathfinder-protocol	Clarification critique en sous-agent	Ne jamais utiliser l'outil `question`. Une clarification critique (sans elle, l'estimation ou la recommandation ne tient pas) : arrête-toi avec ton enveloppe au statut `reconnaissance-partielle`, la question, son impact et l'hypothèse possible dans `### Questions bloquantes` (options : fournir l'information, ou continuer avec l'hypothèse). Relancé avec ton `task_id`, reprends l'exploration où tu l'avais laissée et finalise le rapport. Un détail non critique devient une hypothèse documentée.

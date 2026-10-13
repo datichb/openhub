@@ -29,7 +29,7 @@ Déroulé :
    - feature simple ou phase exploratoire → `pathfinder` ; s'il recommande `direct`, il propose le ou les tickets ; s'il recommande `escalade-planner`, invoquer le `planner` avec l'identifiant de son rapport (section `### Handoff vers planner`) ;
    - feature à découper en plusieurs tickets → `planner` ;
    - en cas de doute, poser la question avec l'outil `question`.
-   Relayer chaque question bloquante de l'agent de planning à l'utilisateur, sauf la validation du découpage avant création (étape 2).
+   Relayer chaque question bloquante de l'agent de planning à l'utilisateur, sauf la validation du découpage avant création (étape 2) ; relancer ensuite l'agent avec la réponse pour qu'il termine son découpage, jamais pour créer les tickets.
 2. `cp-tickets` : quand l'agent de planning rend les tickets à créer au statut `découpage-à-valider` (ou demande leur validation), ne relaie pas de question : passe `cp-tickets` (`workflow_checkpoint`, résumé du découpage), puis relance l'agent avec son `task_id` : « Découpage validé par l'utilisateur : crée les tickets. » (ou la consigne reçue). Avant `cp-tickets`, oh refuse toute création de ticket.
 {{- end }}
 3. `cp-0` : afficher le tableau des tickets (`### Ordre de traitement`, agent prévu) et attendre la confirmation de l'utilisateur.
