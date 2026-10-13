@@ -9,6 +9,17 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ## [Unreleased]
 
+### Added — filets de sécurité de la modernisation (lots P0.1 à P0.3)
+
+- **Registre des règles** (`TestRuleLedger`) : pour chacun des 16 agents, les lignes normatives (JAMAIS, TOUJOURS, NE … PAS, DOIT, OBLIGATOIRE, ❌, ✅, ⛔, MUST, NEVER, interdit) de tout ce qu'il peut voir dans les workflows livrés (corps, skills incluses, skills à la demande atteignables) sont figées dans `cli/internal/bundle/testdata/rules/<agent>.tsv` (4 142 règles). Une règle qui disparaît sans justification dans `<agent>.moved` (`moved:`, `guard:`, `merged:`, `dropped:`) fait échouer le test, comme une justification obsolète ; `-update` ne réécrit jamais les `.moved`.
+- **Budget par agent** : `budget.golden` donne, à côté du catalogue visible, le nombre de skills que chaque agent peut réellement atteindre (`rch`) et le coût de leurs entrées (`rch_tk`). Seuil de hausse : 10 %.
+- **Snapshots des prompts composés** de `feature`, `ticket`, `audit`, `review` et `quick` (`testdata/golden/prompts/<workflow>/<agent>.md`), pour relire en diff ce qui change réellement dans les prompts.
+
+### Fixed — Beads sans impact sur le dépôt (lot Beads A)
+
+- **`/.beads.gate.lock`** (verrou que bd 1.3 laisse à la racine du projet) est ajouté à `.git/info/exclude` avec `.beads/`, y compris dans les projets déjà configurés ; un motif équivalent (`*.gate.lock*` de `bd doctor --fix`) suffit.
+- **`oh doctor`** signale le verrou non exclu dans la vérification « Beads zero-impact » et le répare avec `--fix`. Si `.beads/` est partagé dans git, il avertit que le verrou doit être dans le `.gitignore` de l'équipe, sans y écrire.
+
 ### Fixed — consolidation des agents, skills et workflows (lot C0)
 
 - **Rôle de l'agent généré depuis le workflow** : chaque agent reçoit une section « Rôle dans cette session » (agent d'entrée, sous-agent invoqué par `<appelants>`, ou les deux). Les agents et les skills de modes d'exécution ne déduisent plus leur mode d'un tag `[SKILL:…]` que les appelants n'envoyaient pas : un planner, pathfinder ou designer lancé en sous-agent ne suit plus le parcours standalone, où ses appels à l'outil `question` restaient invisibles pour l'utilisateur.
