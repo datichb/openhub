@@ -1,11 +1,12 @@
 ---
 name: reviewer-standalone
 description: "Utiliser quand le reviewer est l'agent d'entrée : choix du mode, contexte wiki, sous-sessions, fusion."
+when: role=entry
 ---
 
 # Skill — Parcours Reviewer Standalone
 
-> Partie à suivre quand tu es **agent d'entrée** ou lancé directement par l'utilisateur (section « Rôle dans cette session » de ton prompt, générée par oh).
+> Partie de l'agent d'entrée (tu échanges avec l'utilisateur).
 
 ## Principe fondamental
 

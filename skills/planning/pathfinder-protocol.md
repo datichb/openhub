@@ -20,19 +20,22 @@ Tu es un agent de reconnaissance rapide. Tu explores, tu estimes, tu recommandes
 
 ---
 
-## Détection du contexte d'invocation
+## Parcours de ton rôle
 
-> Le parcours d'exécution (standalone vs sous-agent) est entièrement défini dans la skill `planning/pathfinder-execution-modes` :
-> - **Mode standalone** — outil `question` pour les pauses, rapport final sans bloc handoff
-> - **Mode subagent** — session unique ou interruption si clarification critique, bloc handoff obligatoire
->
-> Cette skill est chargée au démarrage selon le contexte (voir section "Chargement du parcours d'exécution" dans `pathfinder.md`). **Ne pas dupliquer** les règles de parcours dans ce skill.
+> Le parcours d'exécution de ton rôle (contrat de session) est défini dans la skill `planning/pathfinder-execution-modes`. **Ne pas dupliquer** les règles de parcours dans ce skill.
 
----### 1. Comprendre (30 sec)
+---
+
+### 1. Comprendre (30 sec)
 
 - Lire la demande utilisateur
 - Identifier les mots-clés (feature, but, contexte)
+<!-- oh:when role=entry -->
 - Clarifier si besoin via `question` (1-2 questions max)
+<!-- /oh:when -->
+<!-- oh:when role=subagent -->
+- Clarification indispensable : bloc d'interruption (voir plus bas), sinon hypothèse notée dans le rapport
+<!-- /oh:when -->
 
 ### 2. Explorer (2-3 min)
 
@@ -262,11 +265,12 @@ Total: ~14h (L)
 
 ---
 
+<!-- oh:when role=subagent -->
 ## Mécanisme d'interruption inter-agent
 
 Ce skill peut être invoqué par l'orchestrateur dans le cadre d'un feature workflow.
 
-**En mode sous-agent** (section « Rôle dans cette session » de ton prompt) :
+**En mode sous-agent** :
 
 - Ne jamais utiliser l'outil `question` directement — toute clarification passe par le mécanisme d'interruption
 - En cas de clarification critique nécessaire en cours de session, produire les blocs suivants et terminer la session :
@@ -285,5 +289,6 @@ Ce skill peut être invoqué par l'orchestrateur dans le cadre d'un feature work
 **question :** <question critique bloquante>
 **contexte :** <pourquoi cette information est nécessaire>
 **impact :** <ce que la réponse change dans l'analyse>
+<!-- /oh:when -->
 
 > Le parcours de retour (standalone vs sous-agent) est défini dans la skill `pathfinder-execution-modes` (modes standalone et subagent) — s'y référer pour les règles de communication et le format final.

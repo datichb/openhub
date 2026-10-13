@@ -2,6 +2,7 @@
 name: orchestrator-handoff-format
 description: "Utiliser pour le bloc retour/question entre orchestrator-dev (producteur) et orchestrator (lecteur)."
 annexes: [templates/orchestrator-dev-handoff-blocks.md]
+when: role=subagent | calls=orchestrator-dev
 ---
 
 # Skill — Format de handoff orchestrator-dev → orchestrator
@@ -74,6 +75,7 @@ Quand `orchestrator-dev` est invoqué depuis l'`orchestrator` et qu'une **clarif
 
 ---
 
+<!-- oh:when calls=orchestrator-dev -->
 ## Règles pour l'orchestrator (consommateur)
 
 ### À la réception d'un `## Retour vers orchestrator`
@@ -91,3 +93,4 @@ Quand `orchestrator-dev` est invoqué depuis l'`orchestrator` et qu'une **clarif
 - Ne jamais construire une réponse à la place de l'utilisateur.
 - Ne jamais ignorer le bloc — toute question montante doit être traitée avant de continuer.
 - Le `## Retour vers orchestrator` qui l'accompagne est `partiel` : afficher son `### État de la session` (progression), sans en tirer le récap de la feature.
+<!-- /oh:when -->

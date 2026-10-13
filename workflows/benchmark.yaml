@@ -38,6 +38,7 @@ agents:
   benchmarker: { role: workflow }
 checkpoints:
   cp-target:
+    by: [benchmarker]
     label: { fr: Valider la cible et le profil de charge, en: Approve the target and the load profile }
     description:
       fr: Avant toute mesure, confirmer la cible, l'environnement (jamais la production sans confirmation explicite), le profil de charge et la durée.
@@ -45,6 +46,7 @@ checkpoints:
     mandatory: true
     mode: { manuel: pause, semi-auto: pause, auto: pause }
   cp-recap:
+    by: [benchmarker]
     label: { fr: Récap du benchmark, en: Benchmark recap }
     description:
       fr: Présenter les résultats (métriques, régressions, chemin du rapport) avant de terminer.

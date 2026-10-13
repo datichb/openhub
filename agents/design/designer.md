@@ -63,7 +63,12 @@ Au démarrage, lire le champ `Mode:` dans le prompt d'invocation :
 
 ## Parcours d'exécution
 
-Ton rôle (agent d'entrée ou sous-agent) est donné par la section « Rôle dans cette session », générée par oh en fin de prompt. Agent d'entrée → skill `designer-standalone` (outil `question` pour les validations) ; sous-agent → skill `designer-subagent` : l'utilisateur ne voit pas l'outil `question`, passe par les blocs de retour intermédiaire.
+<!-- oh:when role=entry -->
+Agent d'entrée : suis la skill `designer-standalone` (outil `question` pour les validations).
+<!-- /oh:when -->
+<!-- oh:when role=subagent -->
+Sous-agent : suis la skill `designer-subagent` (blocs de retour intermédiaire à la place de `question`).
+<!-- /oh:when -->
 
 ---
 

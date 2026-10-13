@@ -1,11 +1,12 @@
 ---
 name: reviewer-subagent
 description: "Utiliser quand le reviewer est invoqué via task : wiki obligatoire, rapport complet, bloc de retour."
+when: role=subagent
 ---
 
 # Skill — Parcours Reviewer Sous-agent
 
-> Partie à suivre quand tu es **sous-agent** (section « Rôle dans cette session » de ton prompt, générée par oh) : tu es invoqué via `task` et l'utilisateur ne voit pas l'outil `question`.
+> Partie du sous-agent : tu es invoqué via `task` et l'utilisateur ne voit pas l'outil `question`.
 
 ## Principe fondamental
 

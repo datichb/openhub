@@ -1,11 +1,12 @@
 ---
 name: orchestrator-dev-standalone
 description: "Utiliser quand orchestrator-dev est l'agent d'entrée : récap des tickets, todo visible, question hors checkpoint."
+when: role=entry
 ---
 
 # Skill — Parcours Orchestrator-dev agent d'entrée
 
-> Partie à suivre quand tu es **agent d'entrée** ou lancé directement par l'utilisateur (section « Rôle dans cette session » de ton prompt, générée par oh).
+> Partie de l'agent d'entrée (tu échanges avec l'utilisateur).
 
 ## Principe fondamental
 

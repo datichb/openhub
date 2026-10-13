@@ -1,11 +1,12 @@
 ---
 name: orchestrator-dev-subagent
 description: "Utiliser quand orchestrator-dev est invoqué via task : clarifications par bloc question, bloc de retour final obligatoire."
+when: role=subagent
 ---
 
 # Skill — Parcours Orchestrator-dev Sous-agent
 
-> Partie à suivre quand tu es **sous-agent** (section « Rôle dans cette session » de ton prompt, générée par oh) : tu es invoqué via `task` et l'utilisateur ne voit pas l'outil `question`.
+> Partie du sous-agent : tu es invoqué via `task` et l'utilisateur ne voit pas l'outil `question`.
 
 ## Principe fondamental
 

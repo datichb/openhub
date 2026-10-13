@@ -266,8 +266,11 @@ Avant tout appel à `question`, afficher en texte clair :
 
 ### ÉTAPE 3 — Demander confirmation (si nécessaire)
 
-**Sous-agent** (section « Rôle dans cette session » de ton prompt) : n'appelle ni `question` ni le `documentarian`. Liste les enrichissements, avec leur tag, dans `### Enrichissements wiki proposés` de ton bloc de retour et arrête ce skill ici : ton coordinateur les propose.
+<!-- oh:when role=subagent -->
+**Sous-agent** : n'appelle ni `question` ni le `documentarian`. Liste les enrichissements, avec leur tag, dans `### Enrichissements wiki proposés` de ton bloc de retour et arrête ce skill ici : ton coordinateur les propose.
+<!-- /oh:when -->
 
+<!-- oh:when role=entry -->
 **Workflow sans documentarian** (workflows en lecture seule comme `audit` ou `review`) : Si `documentarian` n'est pas dans ta colonne « Peut déléguer à » (carte du workflow), ne l'invoque pas : liste les enrichissements dans `### Enrichissements wiki proposés` de ton rapport et propose une session `oh run libre --agent documentarian`. Ne pose pas la question de délégation ci-dessous et arrête ce skill ici.
 
 **Règle de triage automatique :**
@@ -371,6 +374,7 @@ Le `documentarian` a enrichi les pages suivantes :
 > Ces informations seront automatiquement utilisées par les agents futurs
 > (developer, orchestrator-dev, auditors) lors de leurs prochains accès au projet.
 ```
+<!-- /oh:when -->
 
 ---
 

@@ -24,12 +24,14 @@ agents:
   designer: { role: workflow, mode: subagent }
 checkpoints:
   cp-scope:
+    by: [conductor]
     label: { fr: Valider le périmètre, en: Approve the scope }
     description:
       fr: Présenter le rapport d'exploration et confirmer le périmètre avant la planification.
       en: Present the exploration report and confirm the scope before planning.
     mode: { manuel: pause, semi-auto: pause, auto: auto }
   cp-tickets:
+    by: [conductor]
     label: { fr: Valider le découpage, en: Approve the breakdown }
     description:
       fr: Les tickets ne sont créés qu'après validation du découpage par l'utilisateur.
@@ -38,6 +40,7 @@ checkpoints:
     mode: { manuel: pause, semi-auto: pause, auto: pause }
     unlocks: [create]
   cp-recap:
+    by: [conductor]
     label: { fr: Récap du cadrage, en: Scoping recap }
     mode: { manuel: pause, semi-auto: pause, auto: auto }
 modes: { default: semi-auto, allowed: [manuel, semi-auto, auto] }

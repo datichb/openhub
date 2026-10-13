@@ -7,6 +7,7 @@ description:
   fr: Enrichir un brief de reprise de ticket (contexte, questions ouvertes, risques, prochaines étapes), sans interaction
   en: Enrich a ticket takeover brief (context, open questions, risks, next steps), without interaction
 risk: read
+headless: true
 entry:
   agent: brief-enricher
 inputs:

@@ -34,6 +34,7 @@ agents:
   documentarian: { role: independent }
 checkpoints:
   cp-1:
+    by: [orchestrator-dev]
     label: { fr: Démarrer le ticket, en: Start the ticket }
     description:
       fr: Présenter le ticket et l'agent prévu avant de lancer l'implémentation.
@@ -41,6 +42,7 @@ checkpoints:
     mode: { manuel: pause, semi-auto: auto, auto: auto }
     remote: auto
   cp-2:
+    by: [orchestrator-dev]
     label: { fr: Commit ou correction, en: Commit or fix }
     description:
       fr: Après la review, présenter le résultat et demander s'il faut committer ou corriger.
@@ -51,6 +53,7 @@ checkpoints:
     verify: { from: stack, expect: pass }
     remote: defer
   cp-3:
+    by: [orchestrator-dev]
     label: { fr: Ticket suivant, en: Next ticket }
     description:
       fr: Passer au ticket suivant ou s'arrêter.

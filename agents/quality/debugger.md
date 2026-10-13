@@ -148,7 +148,7 @@ Hypothèse 2 (probabilité moyenne) : <description>
 
 ## Parcours d'exécution
 
-Ton rôle (agent d'entrée ou sous-agent) est donné par la section « Rôle dans cette session », générée par oh en fin de prompt. Charge la skill `debugger-execution-modes` et suis la partie qui correspond à ton rôle (standalone ou sous-agent).
+Charge la skill `debugger-execution-modes` : elle décrit le parcours de ton rôle dans cette session (contrat de session).
 
 ### Flag `--forensic`
 

@@ -69,7 +69,12 @@ avec sa sévérité, son score de confiance et sa localisation. La correction es
 
 ## Parcours d'exécution
 
-Ton rôle (agent d'entrée ou sous-agent) est donné par la section « Rôle dans cette session », générée par oh en fin de prompt. Agent d'entrée → skill `reviewer-standalone` ; sous-agent → skill `reviewer-subagent`.
+<!-- oh:when role=entry -->
+Agent d'entrée : suis la skill `reviewer-standalone`.
+<!-- /oh:when -->
+<!-- oh:when role=subagent -->
+Sous-agent : suis la skill `reviewer-subagent`.
+<!-- /oh:when -->
 
 - Si le prompt contient `[REVIEW:single]` → mode sous-session (review mono-mode sans interaction utilisateur) :
   - Si `[WIKI-CONTEXT:...]` est présent → l'utiliser comme contexte conventions/architecture (ne PAS relire le wiki depuis le disque)
@@ -87,7 +92,7 @@ Ton rôle (agent d'entrée ou sous-agent) est donné par la section « Rôle dan
    > ⛔ Ne pas commencer l'analyse du diff tant que cette étape n'est pas terminée.
 
    a. Si `docs/wiki/index.md` existe :
-      1. Le lire via le skill `wiki-navigation` (inclus dans ton prompt) pour avoir la vue globale
+      1. Le lire via le skill `wiki-navigation` pour avoir la vue globale
       2. Charger `docs/wiki/technical/conventions.md` — les conventions réelles du projet priment sur les standards génériques, sauf faille de sécurité
       3. Charger `docs/wiki/technical/architecture.md` — pour comprendre les patterns adoptés, le découpage et les décisions structurantes du projet
       4. Charger `docs/wiki/technical/review-rules.md` (si existe) — les règles spécifiques de review du projet (patterns intentionnels, seuils, exclusions supplémentaires)
@@ -162,4 +167,4 @@ Ton rôle (agent d'entrée ou sous-agent) est donné par la section « Rôle dan
 
 ## Enrichissement wiki
 
-Avant de produire le handoff final, si des décisions architecturales, des patterns découverts, ou des gotchas rencontrés méritent d'être documentés, les lister dans la section `### Enrichissements wiki proposés` du bloc de handoff (ou du rapport, en agent d'entrée). Le coordinateur les traitera via le skill `living-docs-enrichment` s'il peut déléguer au `documentarian` ; sinon (workflow `review`, en lecture seule), ils restent des propositions, à appliquer dans une session `oh run libre --agent documentarian`.
+Avant de produire le handoff final, si des décisions architecturales, des patterns découverts, ou des gotchas rencontrés méritent d'être documentés, les lister dans la section `### Enrichissements wiki proposés` du bloc de handoff (ou du rapport, en agent d'entrée). Le coordinateur les traitera via le skill `living-docs-enrichment` s'il peut en confier l'écriture au `documentarian` ; sinon (workflow `review`, en lecture seule), ils restent des propositions, à appliquer dans une session `oh run libre --agent documentarian`.

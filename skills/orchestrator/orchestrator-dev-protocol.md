@@ -44,11 +44,12 @@ Les règles d'utilisation de l'outil sont définies dans le skill `skills/postur
 
 ### Comportement selon le contexte d'invocation
 
-> Le parcours d'exécution (agent d'entrée vs sous-agent) est entièrement défini dans les skills dédiés :
-> - **`orchestrator/orchestrator-dev-standalone`** — agent d'entrée de la session : récap des tickets au démarrage (mode lu dans le premier message), checkpoints par `workflow_checkpoint`, todo list visible
-> - **`orchestrator/orchestrator-dev-subagent`** — invoqué via `task` par l'orchestrator : checkpoints par `workflow_checkpoint` aussi, bloc `## Question pour l'orchestrator` pour les seules clarifications, todo list isolée
->
-> Ces skills sont chargés automatiquement au démarrage selon le contexte (voir section "Chargement du parcours d'exécution" dans `orchestrator-dev.md`). **Ne pas dupliquer** les règles de parcours dans ce skill.
+<!-- oh:when role=entry -->
+> Agent d'entrée : parcours de la skill `orchestrator/orchestrator-dev-standalone` (récap des tickets au démarrage, mode lu dans le premier message, checkpoints par `workflow_checkpoint`, todo list visible).
+<!-- /oh:when -->
+<!-- oh:when role=subagent -->
+> Sous-agent : parcours de la skill `orchestrator/orchestrator-dev-subagent` (checkpoints par `workflow_checkpoint` aussi, bloc `## Question pour l'orchestrator` pour les seules clarifications, todo list isolée).
+<!-- /oh:when -->
 
 > ⚠️ **Contrainte d'isolation des sessions :** dans OpenCode, chaque agent invoqué via `task`
 > dispose de sa propre session isolée. La todo list est strictement per-session — un sous-agent
@@ -61,13 +62,22 @@ Les règles d'utilisation de l'outil sont définies dans le skill `skills/postur
 
 ## Clarifications (hors checkpoint)
 
-Ping-pong reviewer, dépendance non résolue, ticket bloqué : agent d'entrée → outil `question` (sans nommer de checkpoint) ; sous-agent → bloc `## Question pour l'orchestrator` (format : skill `orchestrator-handoff-format`). Le plafond `limits.max_fix_rounds` atteint ne pose pas de question : il passe par le checkpoint de commit.
+Ping-pong reviewer, dépendance non résolue, ticket bloqué :
+<!-- oh:when role=entry -->
+outil `question` (sans nommer de checkpoint).
+<!-- /oh:when -->
+<!-- oh:when role=subagent -->
+bloc `## Question pour l'orchestrator` (format : skill `orchestrator-handoff-format`).
+<!-- /oh:when -->
+Le plafond `limits.max_fix_rounds` atteint ne pose pas de question : il passe par le checkpoint de commit.
 
 ---
 
 ## Protocole de retransmission
 
-Ce protocole suit les règles du skill `posture/retranscription-coordinateur` pour garantir la transparence de communication avec l'orchestrator.
+<!-- oh:when role=entry -->
+Ce protocole suit les règles du skill `posture/retranscription-coordinateur` pour garantir la transparence de communication avec l'utilisateur.
+<!-- /oh:when -->
 
 **Format de sortie :** Les sous-agents (developer, reviewer) produisent uniquement des blocs de handoff structurés (voir leurs skills `*-handoff-format` respectifs). Ces blocs contiennent toutes les informations nécessaires (rapport, contexte, décisions) — aucun texte libre n'est attendu avant ou après les blocs.
 
@@ -162,9 +172,12 @@ Ticket :
 
 ## Démarrage
 
-### Agent d'entrée de la session
-
-Afficher les tickets à traiter. Le mode est donné par la ligne `Mode de workflow : <mode>` du premier message.
+<!-- oh:when role=entry -->
+Afficher les tickets à traiter. Le mode est donné par la ligne `Mode de workflow : <mode>` du premier message ; ne le redemande pas, il est fixé au lancement.
+<!-- /oh:when -->
+<!-- oh:when role=subagent -->
+Invoqué par l'orchestrator (comportement détaillé : skill `orchestrator-dev-subagent`) : le mode (`Mode de workflow : <mode>`) et la liste des tickets sont transmis dans le prompt ; sans ligne de mode, appliquer le mode par défaut de la carte du workflow. Afficher le récapitulatif des tickets reçus et démarrer directement.
+<!-- /oh:when -->
 
 Pour chaque ticket, lire ses labels via `bd show <ID>` et noter la présence du label `tdd`.
 
@@ -181,8 +194,6 @@ Afficher le tableau récapitulatif :
 
 <NB_TICKETS> tickets identifiés. <NB_TDD> en TDD (tests écrits avant l'implémentation).
 ```
-
-Ne redemande pas le mode : il est fixé au lancement.
 
 **Initialiser todowrite** avec 1 tâche par ticket (toutes en `pending`) :
 
@@ -206,14 +217,6 @@ todowrite({
 | P1 (haute)     | `high`            |
 | P2 (normale)   | `medium`          |
 | P3 (basse)     | `low`             |
-
-### Invoqué depuis l'agent orchestrator feature
-
-> Le comportement détaillé est défini dans le skill `orchestrator-dev-subagent` — à charger quand la section « Rôle dans cette session » de ton prompt dit que tu es sous-agent.
-
-Le mode (`Mode de workflow : <mode>`) et la liste des tickets sont transmis dans le prompt ; sans ligne de mode, appliquer le mode par défaut de la carte du workflow. Afficher le récapitulatif des tickets reçus et démarrer directement.
-
-**Initialiser todowrite** avec 1 tâche par ticket (toutes en `pending`) — même format qu'en agent d'entrée.
 
 ---
 
@@ -255,9 +258,10 @@ Raison : <critère non vérifié>
 
 → Traitement séquentiel normal ticket par ticket.
 
+<!-- oh:when role=entry -->
 **Proposition à l'utilisateur — agent d'entrée seulement (modes `manuel` et `semi-auto`) :**
 
-Seulement si tu es **agent d'entrée** (section « Rôle dans cette session ») : en mode `manuel` ou `semi-auto`, quand les 4 critères sont vérifiés, propose le parallélisme à l'utilisateur avant de lancer. **Sous-agent** : pas de question ; traitement séquentiel, sauf si ton prompt d'invocation demande le parallèle.
+En mode `manuel` ou `semi-auto`, quand les 4 critères sont vérifiés, propose le parallélisme à l'utilisateur avant de lancer.
 
 ```
 question({
@@ -275,6 +279,10 @@ question({
 - Si l'utilisateur accepte → lancer en parallèle (charger le skill `orchestrator-dev-parallel`)
 - Si l'utilisateur refuse → traitement séquentiel normal
 - **En mode `auto`** (agent d'entrée) : ne pas poser la question, lancer directement en parallèle
+<!-- /oh:when -->
+<!-- oh:when role=subagent -->
+**Sous-agent** : pas de question ; traitement séquentiel, sauf si ton prompt d'invocation demande le parallèle.
+<!-- /oh:when -->
 
 ---
 
@@ -289,4 +297,9 @@ question({
 
 ## Format de retour
 
-Invoqué via `task` : bloc `## Retour vers orchestrator` (skills `orchestrator-dev-subagent` et `orchestrator-handoff-format`). Agent d'entrée : récap global en texte clair.
+<!-- oh:when role=subagent -->
+Bloc `## Retour vers orchestrator` (skills `orchestrator-dev-subagent` et `orchestrator-handoff-format`).
+<!-- /oh:when -->
+<!-- oh:when role=entry -->
+Récap global en texte clair.
+<!-- /oh:when -->

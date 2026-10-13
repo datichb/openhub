@@ -1,6 +1,7 @@
 ---
 name: wiki-navigation
 description: "Utiliser quand docs/wiki/index.md existe : lire l'index d'abord, puis seulement la page utile à la tâche."
+when: wiki | agent=onboarder
 ---
 
 # Skill — Navigation du Wiki Documentaire Vivant
@@ -149,6 +150,7 @@ avant toute décision basée sur ce fait.
 
 ---
 
+<!-- oh:when agent=documentarian,onboarder -->
 ## Mise à jour des god nodes — règle pour le documentarian
 
 Après chaque enrichissement d'une page wiki, le `documentarian` doit réévaluer
@@ -165,5 +167,4 @@ le tableau des god nodes dans `docs/wiki/index.md` :
 - `Critique` — concept cité dans ≥ 4 pages OU mentionné explicitement dans "Points critiques actifs"
 - `Haute` — concept cité dans 3 pages
 - `Normale` — concept cité dans 2 pages
-
-
+<!-- /oh:when -->

@@ -48,12 +48,14 @@ agents:
   reviewer: { role: workflow, mode: subagent, after: cp-fix }
 checkpoints:
   cp-fix:
+    by: [orchestrator-dev]
     label: { fr: Corrections à appliquer, en: Fixes to apply }
     description:
       fr: Présenter les corrections classées (critiques, majeures, suggestions) et confirmer lesquelles appliquer.
       en: Present the classified fixes (critical, major, suggestions) and confirm which ones to apply.
     mode: { manuel: pause, semi-auto: pause, auto: auto }
   cp-2:
+    by: [orchestrator-dev]
     label: { fr: Commit ou correction, en: Commit or fix }
     description:
       fr: Présenter les corrections appliquées, les tests et la nouvelle review avant le commit.

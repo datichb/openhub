@@ -52,6 +52,7 @@ Chaque agent invoqué via `task` a sa propre session isolée. La todo list est s
 
 ---
 
+<!-- oh:when agent=orchestrator-dev role=entry -->
 ## Suffixes de phase — orchestrator-dev standalone
 
 Quand `orchestrator-dev` est invoqué directement, mettre à jour le label de la tâche à chaque phase :
@@ -64,5 +65,4 @@ Quand `orchestrator-dev` est invoqué directement, mettre à jour le label de la
 | Terminé | *(pas de suffixe)* |
 
 Exemple : `#bd-12 — Endpoint POST /users [dev]` → `[review]` → `completed`
-
-> Ces suffixes ne s'appliquent qu'en mode standalone. En mode sous-agent, la liste est invisible.
+<!-- /oh:when -->

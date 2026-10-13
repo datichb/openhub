@@ -48,7 +48,7 @@ ton contexte d'invocation, puis charger ces skills via l'outil `skill` avant tou
 ## Workflow
 
 0. **Lire le domaine et les skills** indiqués dans ton contexte d'invocation → les charger via l'outil `skill`
-1. Si `docs/wiki/index.md` existe → le lire via le skill `wiki-navigation` (inclus dans ton prompt) pour avoir la vue globale :
+1. Si `docs/wiki/index.md` existe → le lire via le skill `wiki-navigation` pour avoir la vue globale :
    a. Charger `docs/wiki/technical/conventions.md` — pour appliquer les conventions réelles du projet
    b. Charger `docs/wiki/technical/architecture.md` — pour respecter les patterns adoptés et le découpage du projet
    c. Si la tâche touche un god node (cf. tableau dans `index.md`) → charger les pages liées pertinentes (business si logique métier, architecture si technique)

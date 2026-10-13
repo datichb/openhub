@@ -93,7 +93,7 @@ En mode subagent, si tu identifies un risque critique ou une faille bloquante :
 ## Workflow
 
 1. **Charger le skill de domaine** injecté par le coordinateur via l'outil `skill`
-2. **Contexte projet :** Si `docs/wiki/index.md` existe → le lire via le skill `wiki-navigation` (inclus dans ton prompt). Charger `docs/wiki/technical/conventions.md` et `docs/wiki/technical/architecture.md` pour contextualiser l'audit — les patterns et conventions du projet priment sur les standards génériques, sauf faille de sécurité flagrante. Si la tâche touche un god node → charger les pages liées pertinentes.
+2. **Contexte projet :** Si `docs/wiki/index.md` existe → le lire via le skill `wiki-navigation`. Charger `docs/wiki/technical/conventions.md` et `docs/wiki/technical/architecture.md` pour contextualiser l'audit — les patterns et conventions du projet priment sur les standards génériques, sauf faille de sécurité flagrante. Si la tâche touche un god node → charger les pages liées pertinentes.
 3. **Utiliser le contexte projet transmis** — si un contexte projet (stack, architecture,
    points d'attention) a été fourni en préambule par le coordinateur `auditor`, l'utiliser
    directement sans ré-explorer le projet.

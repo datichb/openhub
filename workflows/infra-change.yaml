@@ -33,12 +33,14 @@ agents:
   operator: { role: workflow }
 checkpoints:
   cp-plan:
+    by: [operator]
     label: { fr: Plan, en: Plan }
     description:
       fr: Présenter la cible vérifiée, le plan (créations, modifications, destructions), le delta de coût, les risques et le retour arrière.
       en: Present the verified target, the plan (creations, changes, destructions), the cost delta, the risks and the rollback.
     mode: { manuel: pause, semi-auto: pause, auto: pause }
   cp-apply:
+    by: [operator]
     label: { fr: Application, en: Apply }
     description:
       fr: Confirmer la cible et le plan validé avant de l'appliquer ; les modifications de l'infrastructure restent refusées avant.

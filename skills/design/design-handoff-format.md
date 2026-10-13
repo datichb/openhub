@@ -2,6 +2,7 @@
 name: design-handoff-format
 description: "Utiliser en fin de mission design invoquée par un agent : bloc « Retour vers <appelant> » avec spec intégrée."
 annexes: [templates/designer-handoff-blocks.md]
+when: role=subagent | calls=designer
 ---
 
 # Skill — Format de handoff design → orchestrator
@@ -19,15 +20,19 @@ Il est injecté dans `designer` et `orchestrator` — producteur et consommateur
 
 ### Détection du contexte d'invocation (producteur : designer)
 
-Au démarrage, charger le skill de parcours selon le contexte :
+Au démarrage, charger le skill de parcours de ton rôle (contrat de session) :
 
-- Section « Rôle dans cette session » de ton prompt (générée par oh) : **sous-agent** → charger le skill `designer-subagent` via l'outil `skill`
+<!-- oh:when role=subagent -->
+- **Sous-agent** → charger le skill `designer-subagent` via l'outil `skill`
   - Ne jamais utiliser l'outil `question` : l'utilisateur ne le voit pas, toute interaction passe par les blocs structurés
   - En fin de session : produire **uniquement** le bloc `## Retour vers orchestrator` (titre identique quel que soit l'agent appelant)
   - En cas de clarification critique nécessaire en cours de session : produire `## Retour intermédiaire vers orchestrator` + `## Question pour l'orchestrator` et **terminer la session**
+<!-- /oh:when -->
+<!-- oh:when role=entry -->
 - **Agent d'entrée** ou lancé directement par l'utilisateur :
   - Utiliser l'outil `question` normalement
   - Produire la spec sans le bloc `## Retour vers orchestrator`
+<!-- /oh:when -->
 
 ---
 
@@ -45,12 +50,14 @@ Au démarrage, charger le skill de parcours selon le contexte :
 
 ---
 
+<!-- oh:when agent=designer -->
 ## Règles pour le producteur (designer)
 
 - **`### Spec complète`** ne doit JAMAIS être résumée ou abrégée, même si longue — c'est le livrable principal
 - Le bloc est produit **après** la validation explicite de l'utilisateur, pas avant
 - Si invoqué depuis l'orchestrator via `Task`, utiliser ce format à la place de la fermeture habituelle du ticket
 - Le `task_id` n'est pas requis dans ce format (contrairement au format `orchestrator-dev`) — l'orchestrator reprend naturellement après réception
+<!-- /oh:when -->
 
 ---
 
@@ -72,6 +79,7 @@ Accompagne toujours un `## Retour intermédiaire vers orchestrator`.
 
 ---
 
+<!-- oh:when calls=designer -->
 ## Règles pour le consommateur (orchestrator)
 
 **Spécificités design à vérifier :**
@@ -81,6 +89,7 @@ Accompagne toujours un `## Retour intermédiaire vers orchestrator`.
 - **Délégation** : intégrer `### Contraintes d'implémentation` dans le prompt de délégation à `orchestrator-dev`.
 - **cp-spec** : signaler `### Points ouverts` à l'utilisateur pour décision avant implémentation. <!-- capability: optional -->
 - **Statut** : `spec-complète` ou `spec-partielle` → cp-spec normal · `bloqué` → ne pas router vers `orchestrator-dev` · `prototype-livré` → la réponse est dans le bloc, pas de spec à implémenter · `choix-requis` → le designer propose 2-3 variations UI et attend un choix (méthode Design It Twice du designer) — l'orchestrateur relaie le choix à l'utilisateur et ré-invoque le designer avec la réponse. <!-- capability: optional -->
+<!-- /oh:when -->
 
 ---
 

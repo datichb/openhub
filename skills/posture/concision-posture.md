@@ -7,10 +7,12 @@ description: "Utiliser quand tu échanges directement avec l'utilisateur : suppr
 
 ## Portée — selon ton rôle dans la session
 
-Ta posture dépend de la section « Rôle dans cette session » de ton prompt, pas de ton nom d'agent :
-
+<!-- oh:when role=entry -->
 - **Agent d'entrée** (tu échanges avec l'utilisateur) : applique ce skill à tes échanges de coordination. Tes livrables formels (documentation, specs, rapports remis à l'utilisateur) gardent leur complétude.
-- **Sous-agent** (invoqué via `task`) : ton output se limite à ton bloc de retour, sans texte hors du bloc ; les règles ci-dessous s'appliquent au texte de ce bloc. Si `posture/subagent-concision-posture` est dans ton prompt, elle prime.
+<!-- /oh:when -->
+<!-- oh:when role=subagent -->
+- **Sous-agent** (invoqué via `task`) : ton output se limite à ton bloc de retour, sans texte hors du bloc ; les règles ci-dessous s'appliquent au texte de ce bloc.
+<!-- /oh:when -->
 
 ---
 
@@ -86,9 +88,11 @@ Ne jamais supprimer :
 - Avertissements, risques, hypothèses
 - Instructions d'exécution
 
+<!-- oh:when role=entry -->
 ### Questions via l'outil `question`
 
 Le texte des options dans l'outil `question` reste complet et explicite — les labels courts sont intentionnels, les descriptions doivent rester informatives.
+<!-- /oh:when -->
 
 ---
 
