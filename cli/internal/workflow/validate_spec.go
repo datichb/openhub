@@ -126,6 +126,7 @@ func (r *Resolved) Validate(env Env) Diagnostics {
 	v.agents()
 	v.checkpoints()
 	v.checkpointsVerify()
+	v.checkpointsBy()
 	v.preconditions()
 	v.modes()
 	v.resources()
@@ -587,6 +588,41 @@ func (v *validator) checkpoints() {
 				v.err("unlock_duplicate", at, string(op), prev, k)
 			} else {
 				unlockedBy[op] = k
+			}
+		}
+	}
+}
+
+// checkpointsBy checks `by:` of each checkpoint (L3): workflow members,
+// once each. A headless workflow (nobody follows it) warns about a
+// checkpoint that may wait for the user.
+func (v *validator) checkpointsBy() {
+	s := v.s
+	members := map[string]bool{}
+	for _, id := range s.Members() {
+		if a, ok := s.Agents.Get(id); !ok || a.Role != RoleDisabled {
+			members[id] = true
+		}
+	}
+	for _, k := range s.Checkpoints.Keys() {
+		cp, _ := s.Checkpoints.Get(k)
+		seen := map[string]bool{}
+		for i, id := range cp.By {
+			at := fmt.Sprintf("checkpoints.%s.by[%d]", k, i)
+			switch {
+			case !members[id]:
+				v.err("checkpoint_by_unknown", at, id, k)
+			case seen[id]:
+				v.warn("checkpoint_by_duplicate", at, id, k)
+			}
+			seen[id] = true
+		}
+		if s.Headless && !cp.Disabled {
+			for _, mode := range s.AllowedModes() {
+				if b := cp.Behavior(mode); b == BehaviorPause || b == BehaviorConditional {
+					v.warn("headless_checkpoint_pause", "checkpoints."+k, k, mode)
+					break
+				}
 			}
 		}
 	}
