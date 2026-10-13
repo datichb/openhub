@@ -111,7 +111,7 @@ func TestCheckpointUnlockedTextFollowsTheOps(t *testing.T) {
 	assert.NotContains(t, create, "fermeture")
 
 	push := unlockedText([]string{"push"})
-	assert.Equal(t, "Opérations désormais permises : push.", push)
+	assert.Equal(t, i18n.Tf("cmd.mcp.workflow.checkpoint_unlocked", "push"), push, "no instruction for the push alone")
 }
 
 func TestCheckpointWithoutDaemonStillLetsTheAgentGoOn(t *testing.T) {
