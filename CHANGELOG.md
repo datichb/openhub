@@ -9,6 +9,16 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ## [Unreleased]
 
+### Added — rapports stockés par oh (lot L4) — ⚠ `oh remote setup` à relancer
+
+- **Outils `report`, `report_get(id, section)` et `reports`** du serveur MCP `workflow` : un agent dépose son rapport complet, reçoit un identifiant `rp-<n>` et le cite dans son bloc de retour ; l'auteur est fixé par oh (l'agent appelant), jamais par l'agent. Limites : 64 Ko par rapport, 100 rapports et 4 Mo par session ; séquences de terminal et caractères de contrôle retirés.
+- **Stockage** : table `session_reports` (migration 44), corps dans `~/.oh/sessions/<racine>/reports/` (fichiers 0600, dossier 0700), vérifiés par empreinte SHA-256 : un rapport modifié hors d'oh est refusé.
+- **Carte de checkpoint** : les rapports déposés depuis le dernier passage, et ceux cités par l'agent, avec un lecteur défilant (après la vérification et les preuves) ; entrée `▤ rp-N` dans la frise ; **`oh session report <session> [rp-id] [--json]`**.
+- **Sans démon** : l'outil répond « non enregistré » et l'agent inclut le rapport complet dans son bloc (`OH_WORKFLOW_REPORTS=off` coupe le stockage). Consigne de dépôt dans les formats de retour des agents (+1,2 % sur la somme des prompts).
+- **Mode distant** : artefact `reports.json` (`PipelineSchema` 5), réimporté au fetch, nettoyé et borné de nouveau. **Relancer `oh remote setup`.** gc : les rapports suivent l'historique de la session.
+- **Garde des données de session** (couche 0, avant les gardes de brouillons) : aucun agent ne lit, n'écrit, ne fouille ni ne lit en shell `~/.oh/sessions` (rapports, transcriptions), `OH_HOME` personnalisé compris ; le propriétaire d'un brouillon garde l'accès au sien.
+- **Évaluations** : le cas S8 (repli sans démon) est actif.
+
 ### Added — vérification par oh et checkpoints (lot R3) — ⚠ changement de comportement
 
 - **`verify:` sur un checkpoint** : oh lance lui-même la vérification avant d'ouvrir les déverrouillages (`from: stack` avec les commandes de la stack détectée, ou `cmd` écrit dans le workflow ; `kinds`, `expect: pass|fail`, `in`, `timeout`, `must_touch`). Environnement filtré, délai et sortie bornés. Livré sur `cp-2` (ticket, feature, review-feedback) et `cp-commit` (quick, debug, sweep). En cas d'échec, le checkpoint est refusé avec un extrait ; au checkpoint en pause, « Passer outre » est possible et tracé. Retirer ou affaiblir une vérification héritée est un assouplissement.
