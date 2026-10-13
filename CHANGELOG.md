@@ -9,6 +9,13 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ## [Unreleased]
 
+### Changed — découpage : design et doc (lot L6 design-doc)
+
+- **`doc-wiki-protocol`** ne garde que les règles ; les formats canoniques des pages du wiki passent en annexes lues avant de créer une page (`wiki-pages-index`, `wiki-pages-technical`, `wiki-pages-business`).
+- **`doc-slides`** met ses modèles Marp en annexe, ne pose sa question de contexte qu'en agent d'entrée et donne à l'utilisateur les commandes de compilation, que le documentarian ne peut pas lancer.
+- **`ui-protocol`** met les détails du Design It Twice en annexe et perd ses doublons ; les skills Figma et prototype ne posent leur question qu'en agent d'entrée. Le prompt du designer perd la table des modes en double ; la section wiki du documentarian suit LD-J.
+- **Budget** : −1 980 tokens à charger pour `doc-wiki-protocol`, −1 070 pour `doc-slides`, −620 pour `ui-protocol`.
+
 ### Changed — skills partagées allégées (lot L6 commun)
 
 - **`wiki-navigation`** réduit à son cœur (index d'abord, seulement la page utile, confiance et fraîcheur ; calcul des god nodes réservé à l'onboarder) et **`living-docs-enrichment`** recentré sur `wiki_propose` (interdits, tags, pages cibles, repli dans `### Enrichissements wiki proposés`).
