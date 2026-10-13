@@ -237,8 +237,12 @@ func TestRunnerWithVariants(t *testing.T) {
 	assert.InDelta(t, 0.1/0.12-1, c.CostGap, 1e-9)
 	require.Len(t, c.Assertions, 2)
 	assert.Equal(t, AssertionGap{Name: "diagnostic", RefPassed: 3, RefRuns: 3, Passed: 3, Runs: 3}, c.Assertions[1], "same business result")
+	require.NotNil(t, c.Outcome, "the case has a loading assertion")
+	assert.Equal(t, OutcomeGap{RefPassed: 3, Passed: 3, Verdict: VerdictGain, Reason: "réussite égale, coût moyen -17 %"}, *c.Outcome,
+		"same business result, the reference is cheaper")
 	require.Len(t, rep.Verdicts, 1)
-	assert.Equal(t, VariantVerdict{Model: "m", Reference: "base", Variant: "sans", Verdict: VerdictGain, Reason: "gain sur S6"}, rep.Verdicts[0])
+	assert.Equal(t, VariantVerdict{Model: "m", Reference: "base", Variant: "sans", Verdict: VerdictGain, Reason: "gain sur S6",
+		OutcomeVerdict: VerdictGain, OutcomeReason: "gain sur S6"}, rep.Verdicts[0])
 
 	md := rep.Markdown(&Report{Stats: []CaseStats{{Case: "S6", Model: "m", Passed: 2, Runs: 3, PassRate: 2.0 / 3}}})
 	for _, want := range []string{
@@ -247,7 +251,8 @@ func TestRunnerWithVariants(t *testing.T) {
 		"## Comparaison avec la référence",
 		"- **sans** : hub embarqué sans dbg-2",
 		"| S6 | m | sans | 0/3 | 3/3 | +100 % | $0.120 | $0.100 | -17 % | 0 s | 0 s | **gain** : réussite +100 % |",
-		"- base contre sans · m : **gain** (gain sur S6)",
+		"- base contre sans · m : **gain** (gain sur S6) ; hors chargement des skills : **gain** (gain sur S6)",
+		"| S6 | m | sans | 3/3 | 3/3 | +0 % | **gain** : réussite égale, coût moyen -17 % |",
 		"| skill dbg-2 ◆ | 3/3 | 0/3 |",
 		"| diagnostic | 3/3 | 3/3 |",
 		"### S6 · sans · m",
@@ -272,6 +277,8 @@ func TestRunnerWithVariants(t *testing.T) {
 	assert.Equal(t, VerdictGain, again.Comparisons[0].Verdict)
 	assert.Contains(t, again.Comparisons[0].Reason, "coût moyen -17 %")
 	assert.Equal(t, "sans", again.Passes[1].Variant)
+	assert.Nil(t, again.Comparisons[0].Outcome, "no loading assertion left")
+	assert.Empty(t, again.Verdicts[0].OutcomeVerdict)
 }
 
 // Without variants the report is the same as before: no variant column, no

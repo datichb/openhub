@@ -49,6 +49,20 @@ type Comparison struct {
 	// Assertions compares the pass rate of each assertion (business
 	// result versus loading of a skill).
 	Assertions []AssertionGap `json:"assertions,omitempty"`
+	// Outcome is the same comparison on the other assertions than
+	// skill_loaded_before (the business result: diagnosis, flaw found,
+	// tests), when the case has some: removing a skill fails its loading
+	// assertion by construction.
+	Outcome *OutcomeGap `json:"outcome,omitempty"`
+}
+
+// OutcomeGap compares the passes of a case on their business assertions.
+type OutcomeGap struct {
+	RefPassed int     `json:"reference_passed"`
+	Passed    int     `json:"passed"`
+	RateGap   float64 `json:"rate_gap"`
+	Verdict   string  `json:"verdict"`
+	Reason    string  `json:"reason"`
 }
 
 // AssertionGap is an assertion in both variants.
@@ -67,6 +81,36 @@ type VariantVerdict struct {
 	Variant   string `json:"variant"`
 	Verdict   string `json:"verdict"`
 	Reason    string `json:"reason"`
+	// OutcomeVerdict is the verdict on the business assertions only
+	// (Comparison.Outcome), "" when no case has a loading assertion.
+	OutcomeVerdict string `json:"outcome_verdict,omitempty"`
+	OutcomeReason  string `json:"outcome_reason,omitempty"`
+}
+
+// outcomeStats counts the passes of a case (variant, model) that pass on
+// their other assertions than skill_loaded_before; ok is false when the
+// case has none of those.
+func (r *Report) outcomeStats(s CaseStats) (out CaseStats, ok bool) {
+	out = s
+	out.Passed = 0
+	for _, p := range r.Passes {
+		if p.Case != s.Case || p.Variant != s.Variant || p.Model != s.Model {
+			continue
+		}
+		pass := p.Outcome == OutcomeCompleted
+		for _, a := range p.Assertions {
+			if a.Type == AssertSkillLoadedBefore {
+				ok = true
+				continue
+			}
+			pass = pass && a.Pass
+		}
+		if pass {
+			out.Passed++
+		}
+	}
+	out.PassRate = rate(out.Passed, out.Runs)
+	return out, ok
 }
 
 // passGap is the gap of pass rate as a number of passes (on the smaller
@@ -183,14 +227,44 @@ func (r *Report) compare() {
 				}
 				rs.Case, rs.Model, rs.Variant = c.ID, m, ref
 				vs.Case, vs.Model, vs.Variant = c.ID, m, v.Name
-				cmps = append(cmps, CompareStats(rs, vs))
+				cmp := CompareStats(rs, vs)
+				ro, ok1 := r.outcomeStats(rs)
+				vo, ok2 := r.outcomeStats(vs)
+				if ok1 || ok2 {
+					oc := CompareStats(ro, vo)
+					cmp.Outcome = &OutcomeGap{RefPassed: oc.RefPassed, Passed: oc.Passed, RateGap: oc.RateGap, Verdict: oc.Verdict, Reason: oc.Reason}
+				}
+				cmps = append(cmps, cmp)
 			}
 			r.Comparisons = append(r.Comparisons, cmps...)
 			vv := VerdictOf(cmps)
 			vv.Model, vv.Reference, vv.Variant = m, ref, v.Name
+			var outcomes []Comparison
+			for _, c := range cmps {
+				if c.Outcome != nil {
+					o := c
+					o.RefPassed, o.Passed, o.RateGap, o.Verdict, o.Reason = c.Outcome.RefPassed, c.Outcome.Passed, c.Outcome.RateGap, c.Outcome.Verdict, c.Outcome.Reason
+					outcomes = append(outcomes, o)
+				} else {
+					outcomes = append(outcomes, c)
+				}
+			}
+			if len(outcomes) > 0 && hasOutcome(cmps) {
+				ov := VerdictOf(outcomes)
+				vv.OutcomeVerdict, vv.OutcomeReason = ov.Verdict, ov.Reason
+			}
 			r.Verdicts = append(r.Verdicts, vv)
 		}
 	}
+}
+
+func hasOutcome(cmps []Comparison) bool {
+	for _, c := range cmps {
+		if c.Outcome != nil {
+			return true
+		}
+	}
+	return false
 }
 
 // verdictText is the verdict in the Markdown report.
@@ -213,7 +287,7 @@ func (r *Report) markdownComparison(b *strings.Builder) {
 	}
 	ref := r.Variants[0].Name
 	b.WriteString("\n## Comparaison avec la référence\n\n")
-	fmt.Fprintf(b, "Référence : **%s**, la variante qui contient ce qu'on évalue. Gain : au moins +1/3 de réussite sur un cas sans recul ailleurs, ou réussite égale et coût moyen inférieur d'au moins 10 %% ; un écart d'un seul passage est ambigu (relancer ×3).\n\n", ref)
+	fmt.Fprintf(b, "Référence : **%s**, la variante qui contient ce qu'on évalue. Gain : au moins +1/3 de réussite sur un cas sans recul ailleurs, ou réussite égale et coût moyen inférieur d'au moins 10 %% ; un écart d'un seul passage est ambigu (relancer ×3). Écart : la référence moins la variante ; écart de coût : le coût moyen de la référence rapporté à celui de la variante.\n\n", ref)
 	for i, v := range r.Variants {
 		role := ""
 		if i == 0 {
@@ -236,9 +310,23 @@ func (r *Report) markdownComparison(b *strings.Builder) {
 			c.Case, shortModel(c.Model), c.Variant, c.Passed, c.Runs, c.RefPassed, c.RefRuns, 100*c.RateGap,
 			c.MeanCost, c.RefMeanCost, cost, c.MeanSecs, c.RefMeanSecs, verdictText(c.Verdict), c.Reason)
 	}
+	if hasOutcome(r.Comparisons) {
+		b.WriteString("\n### Résultat hors chargement des skills\n\nLes mêmes passages, sans les assertions `skill_loaded_before` (forcément en échec sans le skill) : le résultat métier.\n\n")
+		b.WriteString("| Cas | Modèle | Variante | Réussite | " + ref + " | Écart | Verdict |\n|---|---|---|---|---|---|---|\n")
+		for _, c := range r.Comparisons {
+			if o := c.Outcome; o != nil {
+				fmt.Fprintf(b, "| %s | %s | %s | %d/%d | %d/%d | %+.0f %% | %s : %s |\n", c.Case, shortModel(c.Model), c.Variant, o.Passed, c.Runs, o.RefPassed, c.RefRuns,
+					100*o.RateGap, verdictText(o.Verdict), o.Reason)
+			}
+		}
+	}
 	b.WriteString("\n### Verdict\n\n")
 	for _, v := range r.Verdicts {
-		fmt.Fprintf(b, "- %s contre %s · %s : %s (%s)\n", v.Reference, v.Variant, shortModel(v.Model), verdictText(v.Verdict), v.Reason)
+		fmt.Fprintf(b, "- %s contre %s · %s : %s (%s)", v.Reference, v.Variant, shortModel(v.Model), verdictText(v.Verdict), v.Reason)
+		if v.OutcomeVerdict != "" {
+			fmt.Fprintf(b, " ; hors chargement des skills : %s (%s)", verdictText(v.OutcomeVerdict), v.OutcomeReason)
+		}
+		b.WriteString("\n")
 	}
 	b.WriteString("\n### Assertions par variante\n")
 	for _, c := range r.Comparisons {
