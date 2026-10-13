@@ -19,9 +19,9 @@ instruct brief-enrich           brief-enricher                   4516        0  
 instruct brief-enrich           TOTAL                            4516        0    0    0      0    0      0
 instruct cadrage                conductor                        3568     2377    5    0      0    0      0
 instruct cadrage                designer                         4497     2427    6   12    398   12    398
-instruct cadrage                pathfinder                       5701     3826    7    4    132    4    132
+instruct cadrage                pathfinder                       5735     3832    7    4    132    4    132
 instruct cadrage                planner                          4964     3319    7   13    422   13    422
-instruct cadrage                TOTAL                           18730    11949   25   23    753   23    753
+instruct cadrage                TOTAL                           18764    11955   25   23    753   23    753
 instruct debug                  debugger                         7979     2415    6    7    229    7    229
 instruct debug                  developer                       11875     5013    7   15    512   15    512
 instruct debug                  documentarian                    4706     3021    5    9    276    9    276
@@ -33,10 +33,10 @@ instruct feature                developer                       12458     5555  
 instruct feature                documentarian                    4782     3021    5    9    276    9    276
 instruct feature                orchestrator                     7681     5628    7    3    102    3    102
 instruct feature                orchestrator-dev                 5173     3562    7   17    617   17    617
-instruct feature                pathfinder                       5725     3826    7    4    132    4    132
+instruct feature                pathfinder                       5758     3832    7    4    132    4    132
 instruct feature                planner                          5075     3407    7   13    422   13    422
 instruct feature                reviewer                        11530     5062    6   13    447   13    447
-instruct feature                TOTAL                           56924    32488   53   55   1846   55   1846
+instruct feature                TOTAL                           56957    32494   53   55   1846   55   1846
 instruct infra-change           operator                         6487     1236    4    2     71    2     71
 instruct infra-change           TOTAL                            6487     1236    4    2     71    2     71
 instruct libre                  debugger                         8405     2858    7    7    229    7    229
@@ -46,10 +46,10 @@ instruct libre                  documentarian                    4746     3021  
 instruct libre                  onboarder                        4645     3119    8   13    408   13    408
 instruct libre                  orchestrator                     6995     4970    7    3    102    3    102
 instruct libre                  orchestrator-dev                 4459     2943    7   17    617   17    617
-instruct libre                  pathfinder                       5672     3826    7    4    132    4    132
+instruct libre                  pathfinder                       5706     3832    7    4    132    4    132
 instruct libre                  planner                          5055     3439    7   13    422   13    422
 instruct libre                  reviewer                        11497     5062    6   13    447   13    447
-instruct libre                  TOTAL                           68327    37220   68   65   2147   65   2147
+instruct libre                  TOTAL                           68361    37226   68   65   2147   65   2147
 instruct onboarding             onboarder                        4180     2757    7   13    408   13    408
 instruct onboarding             TOTAL                            4180     2757    7   13    408   13    408
 instruct quick                  developer                       11723     5013    7   18    616   18    616
@@ -62,9 +62,9 @@ instruct review-feedback        reviewer                        11428     5062  
 instruct review-feedback        TOTAL                           28367    13677   20   27    953   27    953
 instruct sweep                  conductor                        3592     2415    5    5    181    5    181
 instruct sweep                  developer                       12378     5555    8   15    512   15    512
-instruct sweep                  pathfinder                       5620     3826    7    4    132    4    132
+instruct sweep                  pathfinder                       5654     3832    7    4    132    4    132
 instruct sweep                  reviewer                        11422     5062    6   13    447   13    447
-instruct sweep                  TOTAL                           33012    16858   26   21    713   21    713
+instruct sweep                  TOTAL                           33046    16864   26   21    713   21    713
 instruct ticket                 developer                       12458     5555    8   15    512   15    512
 instruct ticket                 documentarian                    4729     3021    5    9    276    9    276
 instruct ticket                 orchestrator-dev                 4651     3133    6   17    617   17    617
@@ -79,9 +79,9 @@ none     brief-enrich           brief-enricher                    513        0  
 none     brief-enrich           TOTAL                             513        0    0    0      0    0      0
 none     cadrage                conductor                        3475     2377    5    0      0    0      0
 none     cadrage                designer                         4099     2427    6   12    398   12    398
-none     cadrage                pathfinder                       4833     3352    6    4    132    4    132
+none     cadrage                pathfinder                       4867     3358    6    4    132    4    132
 none     cadrage                planner                          4566     3319    7   13    422   13    422
-none     cadrage                TOTAL                           16973    11475   24   23    753   23    753
+none     cadrage                TOTAL                           17007    11481   24   23    753   23    753
 none     debug                  debugger                         3502     1942    5    7    229    7    229
 none     debug                  developer                        7395     4540    6   18    616   18    616
 none     debug                  documentarian                    4290     3021    5    9    276    9    276
@@ -93,10 +93,10 @@ none     feature                developer                        7978     5082  
 none     feature                documentarian                    4366     3021    5    9    276    9    276
 none     feature                orchestrator                     7589     5628    7    3    102    3    102
 none     feature                orchestrator-dev                 4775     3562    7   20    721   20    721
-none     feature                pathfinder                       4857     3352    6    4    132    4    132
+none     feature                pathfinder                       4890     3358    6    4    132    4    132
 none     feature                planner                          4677     3407    7   13    422   13    422
 none     feature                reviewer                         6718     4506    5   16    551   16    551
-none     feature                TOTAL                           45062    30985   50   58   1950   58   1950
+none     feature                TOTAL                           45095    30991   50   58   1950   58   1950
 none     infra-change           operator                         2010      762    3    2     71    2     71
 none     infra-change           TOTAL                            2010      762    3    2     71    2     71
 none     libre                  debugger                         3928     2385    6    7    229    7    229
@@ -106,10 +106,10 @@ none     libre                  documentarian                    4330     3021  
 none     libre                  onboarder                        4205     3077    8   13    408   13    408
 none     libre                  orchestrator                     6902     4970    7    3    102    3    102
 none     libre                  orchestrator-dev                 4061     2943    7   20    721   20    721
-none     libre                  pathfinder                       4804     3352    6    4    132    4    132
+none     libre                  pathfinder                       4838     3358    6    4    132    4    132
 none     libre                  planner                          4657     3439    7   13    422   13    422
 none     libre                  reviewer                         6685     4506    5   16    551   16    551
-none     libre                  TOTAL                           51547    35202   64   68   2251   68   2251
+none     libre                  TOTAL                           51581    35208   64   68   2251   68   2251
 none     onboarding             onboarder                        3740     2715    7   13    408   13    408
 none     onboarding             TOTAL                            3740     2715    7   13    408   13    408
 none     quick                  developer                        7243     4540    6   18    616   18    616
@@ -122,9 +122,9 @@ none     review-feedback        reviewer                         6616     4506  
 none     review-feedback        TOTAL                           18677    12648   18   30   1057   30   1057
 none     sweep                  conductor                        3500     2415    5    5    181    5    181
 none     sweep                  developer                        7898     5082    7   18    616   18    616
-none     sweep                  pathfinder                       4752     3352    6    4    132    4    132
+none     sweep                  pathfinder                       4786     3358    6    4    132    4    132
 none     sweep                  reviewer                         6610     4506    5   16    551   16    551
-none     sweep                  TOTAL                           22760    15355   23   24    817   24    817
+none     sweep                  TOTAL                           22794    15361   23   24    817   24    817
 none     ticket                 developer                        7978     5082    7   18    616   18    616
 none     ticket                 documentarian                    4313     3021    5    9    276    9    276
 none     ticket                 orchestrator-dev                 4253     3133    6   20    721   20    721
@@ -139,9 +139,9 @@ stacks   brief-enrich           brief-enricher                    513        0  
 stacks   brief-enrich           TOTAL                             513        0    0    0      0    0      0
 stacks   cadrage                conductor                        3475     2377    5    0      0    0      0
 stacks   cadrage                designer                         4099     2427    6   12    398   12    398
-stacks   cadrage                pathfinder                       4833     3352    6    4    132    4    132
+stacks   cadrage                pathfinder                       4867     3358    6    4    132    4    132
 stacks   cadrage                planner                          4566     3319    7   13    422   13    422
-stacks   cadrage                TOTAL                           16973    11475   24   23    753   23    753
+stacks   cadrage                TOTAL                           17007    11481   24   23    753   23    753
 stacks   debug                  debugger                         3502     1942    5   14    476   14    476
 stacks   debug                  developer                        7395     4540    6   25    863   25    863
 stacks   debug                  documentarian                    4290     3021    5    9    276    9    276
@@ -153,10 +153,10 @@ stacks   feature                developer                        7978     5082  
 stacks   feature                documentarian                    4366     3021    5    9    276    9    276
 stacks   feature                orchestrator                     7589     5628    7    3    102    3    102
 stacks   feature                orchestrator-dev                 4775     3562    7   20    721   20    721
-stacks   feature                pathfinder                       4857     3352    6    4    132    4    132
+stacks   feature                pathfinder                       4890     3358    6    4    132    4    132
 stacks   feature                planner                          4677     3407    7   13    422   13    422
 stacks   feature                reviewer                         6718     4506    5   23    798   23    798
-stacks   feature                TOTAL                           45062    30985   50   65   2197   65   2197
+stacks   feature                TOTAL                           45095    30991   50   65   2197   65   2197
 stacks   infra-change           operator                         2010      762    3    9    318    9    318
 stacks   infra-change           TOTAL                            2010      762    3    9    318    9    318
 stacks   libre                  debugger                         3928     2385    6   14    476   14    476
@@ -166,10 +166,10 @@ stacks   libre                  documentarian                    4330     3021  
 stacks   libre                  onboarder                        4205     3077    8   13    408   13    408
 stacks   libre                  orchestrator                     6902     4970    7    3    102    3    102
 stacks   libre                  orchestrator-dev                 4061     2943    7   20    721   20    721
-stacks   libre                  pathfinder                       4804     3352    6    4    132    4    132
+stacks   libre                  pathfinder                       4838     3358    6    4    132    4    132
 stacks   libre                  planner                          4657     3439    7   13    422   13    422
 stacks   libre                  reviewer                         6685     4506    5   23    798   23    798
-stacks   libre                  TOTAL                           51547    35202   64   75   2498   75   2498
+stacks   libre                  TOTAL                           51581    35208   64   75   2498   75   2498
 stacks   onboarding             onboarder                        3740     2715    7   13    408   13    408
 stacks   onboarding             TOTAL                            3740     2715    7   13    408   13    408
 stacks   quick                  developer                        7243     4540    6   25    863   25    863
@@ -182,9 +182,9 @@ stacks   review-feedback        reviewer                         6616     4506  
 stacks   review-feedback        TOTAL                           18677    12648   18   37   1304   37   1304
 stacks   sweep                  conductor                        3500     2415    5    5    181    5    181
 stacks   sweep                  developer                        7898     5082    7   25    863   25    863
-stacks   sweep                  pathfinder                       4752     3352    6    4    132    4    132
+stacks   sweep                  pathfinder                       4786     3358    6    4    132    4    132
 stacks   sweep                  reviewer                         6610     4506    5   23    798   23    798
-stacks   sweep                  TOTAL                           22760    15355   23   31   1064   31   1064
+stacks   sweep                  TOTAL                           22794    15361   23   31   1064   31   1064
 stacks   ticket                 developer                        7978     5082    7   25    863   25    863
 stacks   ticket                 documentarian                    4313     3021    5    9    276    9    276
 stacks   ticket                 orchestrator-dev                 4253     3133    6   20    721   20    721
@@ -195,7 +195,7 @@ stacks   ticket                 TOTAL                           23233    15742  
 review-protocol                            3353 reviewer
 orchestrator-protocol                      3152 orchestrator
 doc-protocol                               1951 documentarian
-pathfinder-protocol                        1911 pathfinder
+pathfinder-protocol                        1917 pathfinder
 planner-workflow                           1675 planner
 dev-standards-simplicity                   1375 developer
 dev-standards-universal                    1343 developer
