@@ -17,6 +17,10 @@ answers:
   checkpoints:
     "*": "reject: Évaluation terminée : ne commite pas."
 assertions:
+  # L'agent d'entrée peut appeler question (contrat) ; un sous-agent qu'il
+  # lancerait (documentarian), non.
+  - type: no_question_in_subagent
+    name: aucun sous-agent n'appelle question
   - type: text_matches
     name: la décision est posée à l'utilisateur (outil question, « Questions bloquantes » ou question ouverte)
     questions: true
