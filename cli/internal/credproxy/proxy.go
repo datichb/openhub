@@ -78,6 +78,8 @@ type grantState struct {
 	mu       sync.Mutex
 	usage    Usage
 	rejected *AuthRejection // last credential refusal not followed by a success
+	// rateLimited counts the 429 answers in a row (checkRateLimit).
+	rateLimited int
 }
 
 // Proxy is a local HTTP proxy. Routes: /<provider>/... → upstream /... .
@@ -556,6 +558,7 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		},
 		ModifyResponse: func(resp *http.Response) error {
 			p.checkAuth(g, provider, resp)
+			p.checkRateLimit(g, provider, model, resp)
 			resp.Body = &usageReader{rc: resp.Body, g: g, frames: base64Frames(provider, escapedRest),
 				onReport: func(in, out int64) { p.account(g, Usage{InputTokens: in, OutputTokens: out}) }}
 			return nil

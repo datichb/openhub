@@ -156,7 +156,7 @@ flowchart LR
    appeler l'outil), nettoie le contenu et le met en file (`wp-<n>`, par projet).
 2. Au checkpoint de commit (`cp-2` de `ticket`, `feature`, `review-feedback` ; `cp-commit` de `quick`, `debug`,
    `sweep`), la carte de décision affiche les propositions de la session : l'utilisateur accepte, modifie
-   ou refuse chacune.
+   ou refuse chacune (ou, hors de la TUI, `oh wiki decide`).
 3. Quand le checkpoint passe, **oh applique lui-même** les propositions acceptées, avant de rendre la main à
    l'agent : elles sont donc committées avec le code. L'application est tracée (statut `applied`, `applied_by: oh`,
    date, entrée `✎` dans la chronologie) et l'agent reçoit la liste des fichiers à committer.

@@ -14,6 +14,10 @@ import (
 	"time"
 )
 
+// bdTimeout bounds a bd command (Lint has twice as long); the contract
+// tests with the real bd raise it, as bd is slow on a loaded machine.
+var bdTimeout = 10 * time.Second
+
 // Ticket represents a bd ticket.
 type Ticket struct {
 	ID          string   `json:"id"`
@@ -96,7 +100,7 @@ type LintResult struct {
 // bd exits 1 when it finds some: only an unreadable answer is an error.
 // Runs: bd -C <path> --readonly lint [ids…] --json
 func Lint(projectPath string, ids ...string) ([]LintResult, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 2*bdTimeout)
 	defer cancel()
 	cmd := BdCommand(ctx, append(append([]string{"-C", projectPath, "--readonly", "lint"}, ids...), "--json")...)
 	out, err := cmd.Output()
@@ -212,7 +216,7 @@ func Init(projectPath, prefix string) error {
 	if err := Available(); err != nil {
 		return err
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), bdTimeout)
 	defer cancel()
 	cmd := BdCommand(ctx, "-C", projectPath, "init",
 		"--prefix", prefix,
@@ -236,7 +240,7 @@ func Init(projectPath, prefix string) error {
 
 	// Register default labels used by the hub agents
 	for _, label := range []string{"ai-delegated", "feature", "fix"} {
-		lctx, lcancel := context.WithTimeout(context.Background(), 10*time.Second)
+		lctx, lcancel := context.WithTimeout(context.Background(), bdTimeout)
 		BdCommand(lctx, "-C", projectPath, "label", "create", label).Run() //nolint:errcheck // best-effort label creation, failure is non-fatal
 		lcancel()
 	}
@@ -453,7 +457,7 @@ func Show(projectPath, ticketID string) (*TicketDetail, error) {
 	if err := Available(); err != nil {
 		return nil, err
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), bdTimeout)
 	defer cancel()
 	cmd := BdCommand(ctx, "-C", projectPath, "show", ticketID, "--json")
 	output, err := cmd.Output()
@@ -480,11 +484,14 @@ func Show(projectPath, ticketID string) (*TicketDetail, error) {
 
 // runBdJSON executes a bd command and parses the JSON output.
 func runBdJSON(args []string) ([]Ticket, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), bdTimeout)
 	defer cancel()
 	cmd := BdCommand(ctx, args...)
 	output, err := cmd.Output()
 	if err != nil {
+		if ctx.Err() != nil {
+			return nil, fmt.Errorf("bd %s: %w", strings.Join(args[2:], " "), ctx.Err())
+		}
 		if exitErr, ok := err.(*exec.ExitError); ok {
 			return nil, fmt.Errorf("bd %s: %s", strings.Join(args[2:], " "), strings.TrimSpace(string(exitErr.Stderr)))
 		}
@@ -625,7 +632,7 @@ func CreateFromGitLab(projectPath, gitlabRef, title string, priority int) (strin
 	}
 	args = append(args, "--json")
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), bdTimeout)
 	defer cancel()
 	cmd := BdCommand(ctx, args...)
 	output, err := cmd.CombinedOutput()
@@ -649,7 +656,7 @@ func CreateFromGitLab(projectPath, gitlabRef, title string, priority int) (strin
 func CreateSubtask(projectPath, parentID, title string, priority int) (string, error) {
 	// Create the ticket
 	args := []string{"-C", projectPath, "create", title, "-p", fmt.Sprintf("%d", priority), "--json"}
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), bdTimeout)
 	defer cancel()
 	cmd := BdCommand(ctx, args...)
 	output, err := cmd.CombinedOutput()
@@ -666,7 +673,7 @@ func CreateSubtask(projectPath, parentID, title string, priority int) (string, e
 
 	// Link as dependency
 	depArgs := []string{"-C", projectPath, "dep", "add", created.ID, parentID}
-	depCtx, depCancel := context.WithTimeout(context.Background(), 10*time.Second)
+	depCtx, depCancel := context.WithTimeout(context.Background(), bdTimeout)
 	defer depCancel()
 	depCmd := BdCommand(depCtx, depArgs...)
 	if depOut, err := depCmd.CombinedOutput(); err != nil {
@@ -688,7 +695,7 @@ func RememberGitLabContext(projectPath, gitlabRef, title, description string) er
 		msg += "\nContext: " + description
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), bdTimeout)
 	defer cancel()
 	cmd := BdCommand(ctx, "-C", projectPath, "remember", msg)
 	output, err := cmd.CombinedOutput()
@@ -701,7 +708,7 @@ func RememberGitLabContext(projectPath, gitlabRef, title, description string) er
 // ClaimTicket atomically claims a bead ticket (sets assignee + in_progress).
 // Runs: bd -C <path> update <ticketID> --claim
 func ClaimTicket(projectPath, ticketID string) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), bdTimeout)
 	defer cancel()
 	cmd := BdCommand(ctx, "-C", projectPath, "update", ticketID, "--claim")
 	output, err := cmd.CombinedOutput()
@@ -714,7 +721,7 @@ func ClaimTicket(projectPath, ticketID string) error {
 // CloseTicket closes a bead ticket with a message.
 // Runs: bd -C <path> close <ticketID> "<message>"
 func CloseTicket(projectPath, ticketID, message string) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), bdTimeout)
 	defer cancel()
 	cmd := BdCommand(ctx, "-C", projectPath, "close", ticketID, message)
 	output, err := cmd.CombinedOutput()
@@ -728,7 +735,7 @@ func CloseTicket(projectPath, ticketID, message string) error {
 // external tracker ticket (ADR-032).
 // Runs: bd -C <path> update <ticketID> --external-ref <ref>
 func LinkToTracker(projectPath, ticketID, externalRef string) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), bdTimeout)
 	defer cancel()
 	cmd := BdCommand(ctx, "-C", projectPath, "update", ticketID, "--external-ref", externalRef)
 	output, err := cmd.CombinedOutput()

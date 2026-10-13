@@ -95,6 +95,10 @@ oh provider setup bedrock              # ou saisir une nouvelle cle
 ```
 puis relancez la session. Avec `auth_mode = "profile"` ou `"env"`, oh signe en SigV4 et n'utilise aucune cle enregistree : renouvelez les identifiants AWS (par ex. `aws sso login`).
 
+**Session lente : limite de débit du fournisseur (429)**
+
+L'outil réessaie seul quand le fournisseur répond 429 ; la session semble alors figée. Le proxy d'identifiants du démon le note dans `~/.oh/run/ohd.log` : un avertissement `credproxy: upstream rate limit` au premier 429 d'une série (fournisseur, session, modèle, `retry_after`, identifiant de requête du fournisseur, message), puis des lignes de débogage (`in_a_row=<n>`, absentes du journal par défaut) jusqu'à la première réponse qui n'est pas un 429. Attendez, réduisez le parallélisme (`oh session list`), ou demandez un quota plus élevé au fournisseur.
+
 **Commande lancee hors du dossier d'un projet**
 ```
 vous n'êtes dans le dossier d'aucun projet : lancez la commande depuis le dossier du projet ou utilisez -p <projet>

@@ -2,8 +2,10 @@ package cmd
 
 import (
 	"context"
+	"errors"
 
 	"github.com/datichb/openhub/cli/internal/domain"
+	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
 
@@ -29,4 +31,21 @@ func (t *tuiSessions) CheckpointWikiDecide(ctx context.Context, sessionID, id, c
 	}
 	_, err = svc.WikiDecide(ctx, sessionID, id, choice, content)
 	return err
+}
+
+var _ views.CheckpointWikiEditor = (*tuiSessions)(nil)
+
+// CheckpointWikiEdit edits the content of a proposal in $EDITOR, the TUI
+// suspended (called on the event loop).
+func (t *tuiSessions) CheckpointWikiEdit(name, content string) (string, error) {
+	sh := tuiShell
+	if sh == nil {
+		return "", errors.New(i18n.T("tui.shell.suspend_failed"))
+	}
+	var out string
+	err := sh.SuspendAndExec(func() (err error) {
+		out, err = wikiEditText(name, content)
+		return err
+	})
+	return out, err
 }

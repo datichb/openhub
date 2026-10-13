@@ -1,10 +1,14 @@
 package opencodev2
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func envMap(env []string) map[string]string {
@@ -62,4 +66,46 @@ func TestRandomPasswordAndFreePort(t *testing.T) {
 func TestStartServerValidatesOptions(t *testing.T) {
 	_, err := StartServer(t.Context(), ServerOptions{})
 	assert.Error(t, err)
+}
+
+// A port picked by oh and taken before the server binds it: another port,
+// three times at most; any other startup failure, or a port given, is not
+// tried again.
+func TestStartServerRetriesATakenPort(t *testing.T) {
+	dir := t.TempDir()
+	calls := filepath.Join(dir, "calls")
+	fake := func(name, msg string) string {
+		bin := filepath.Join(dir, name)
+		script := "#!/bin/sh\necho \"$5\" >> " + calls + "\necho \"" + msg + "\" >&2\nexit 1\n"
+		require.NoError(t, os.WriteFile(bin, []byte(script), 0o755))
+		return bin
+	}
+	ports := func() []string {
+		data, _ := os.ReadFile(calls)
+		_ = os.Remove(calls)
+		return strings.Fields(string(data))
+	}
+	opts := func(bin string) ServerOptions {
+		return ServerOptions{Binary: bin, WorkDir: dir, DataDir: filepath.Join(dir, "data"), ReadyTimeout: 20 * time.Second}
+	}
+
+	_, err := StartServer(t.Context(), opts(fake("taken", "error: Failed to start server. Is port in use? (EADDRINUSE)")))
+	require.ErrorIs(t, err, errPortTaken)
+	assert.Len(t, ports(), portAttempts)
+
+	_, err = StartServer(t.Context(), opts(fake("broken", "error: no provider")))
+	require.ErrorIs(t, err, errServerExited)
+	assert.NotErrorIs(t, err, errPortTaken)
+	assert.Contains(t, err.Error(), "no provider", "the log tail")
+	assert.Len(t, ports(), 1)
+
+	o := opts(filepath.Join(dir, "taken"))
+	o.Port = 4321
+	_, err = StartServer(t.Context(), o)
+	require.ErrorIs(t, err, errPortTaken)
+	assert.Equal(t, []string{"4321"}, ports(), "a port given is not changed")
+
+	assert.True(t, portTaken("Error: listen EADDRINUSE: address already in use 127.0.0.1:4096"))
+	assert.True(t, portTaken("Bind for 0.0.0.0:4096 failed: port is already allocated"))
+	assert.False(t, portTaken("error: no provider"))
 }

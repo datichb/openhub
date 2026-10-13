@@ -29,6 +29,9 @@ type WikiView struct {
 	proposalIndices map[int]int
 	// pageIndices maps SectionedList item indices to pages slice indices.
 	pageIndices map[int]int
+
+	// openRepo replaces the clone of the team-state (tests).
+	openRepo func() teamstate.TeamStateWriter
 }
 
 var _ View = (*WikiView)(nil)
@@ -126,6 +129,9 @@ func (v *WikiView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 }
 
 func (v *WikiView) getRepo() teamstate.TeamStateWriter {
+	if v.openRepo != nil {
+		return v.openRepo()
+	}
 	tc := v.resolveTeam()
 	if !tc.Enabled {
 		return nil
