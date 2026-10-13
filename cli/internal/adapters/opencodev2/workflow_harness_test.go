@@ -83,6 +83,19 @@ type workflowEnv struct {
 // servers of adapter a.
 func newWorkflowEnv(t *testing.T, a *Adapter) *workflowEnv {
 	t.Helper()
+	return newWorkflowEnvFor(t, a, false)
+}
+
+// newJobWorkflowEnv is newWorkflowEnv with the daemon of a remote job
+// (p3-remote-wiki): the wiki is served, its proposals are never applied
+// (no CommitPassed, wiki_apply refused).
+func newJobWorkflowEnv(t *testing.T, a *Adapter) *workflowEnv {
+	t.Helper()
+	return newWorkflowEnvFor(t, a, true)
+}
+
+func newWorkflowEnvFor(t *testing.T, a *Adapter, job bool) *workflowEnv {
+	t.Helper()
 	home, err := os.MkdirTemp("/tmp", "ohw-")
 	require.NoError(t, err)
 	t.Cleanup(func() { os.RemoveAll(home) })
@@ -98,7 +111,9 @@ func newWorkflowEnv(t *testing.T, a *Adapter) *workflowEnv {
 	e.reports = &report.Service{Store: sqlite.NewReportStore(st), SessionsDir: filepath.Join(home, "sessions")}
 	// LD-J: proposals of the wiki MCP server, applied at the commit checkpoint.
 	e.wiki = &wiki.Service{Store: sqlite.NewWikiProposalStore(st), SessionsDir: filepath.Join(home, "sessions")}
-	e.cp.CommitPassed = e.wiki.CommitPassed
+	if !job {
+		e.cp.CommitPassed = e.wiki.CommitPassed
+	}
 
 	paths := daemon.Paths{Dir: filepath.Join(home, "run")}
 	ctx, cancel := context.WithCancel(context.Background())
@@ -107,7 +122,7 @@ func newWorkflowEnv(t *testing.T, a *Adapter) *workflowEnv {
 		// Guarded like the real daemon (capability): the workflow routes
 		// need the group token (v5 critical N1).
 		done <- daemon.Run(ctx, daemon.Options{Paths: paths, Version: "test", Servers: e.servers, Sessions: e.sessions, Capability: harnessCapability,
-			Decisions: e.decisions, Checkpoints: e.cp, Reports: e.reports, Wiki: e.wiki, Tick: 200 * time.Millisecond, IdleAfter: time.Hour, IdleSleep: time.Hour,
+			Decisions: e.decisions, Checkpoints: e.cp, Reports: e.reports, Wiki: e.wiki, WikiNoApply: job, Tick: 200 * time.Millisecond, IdleAfter: time.Hour, IdleSleep: time.Hour,
 			Adapter: func(name string) adapters.ToolAdapter {
 				if name == Name {
 					return a
