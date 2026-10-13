@@ -33,13 +33,16 @@ Séquence : {{ .Sequence }} (entre crochets, les opérations que le checkpoint d
 <!-- /oh:when -->
 {{- end }}
 {{ range .Checkpoints }}
-{{- if or .Description .Condition (unlockText .ID .Unlocks) }}
+{{- if or .Description .Condition (unlockText .ID .Unlocks) .Check }}
 <!-- oh:when agent={{ join .By "," }} -->
 {{- if .Description }}
 - **{{ .ID }}** : {{ .Description }}
 {{- end }}
 {{- if .Condition }}
 - **{{ .ID }}** (conditional) : {{ .Condition }}
+{{- end }}
+{{- if .Check }}
+- **{{ .ID }}** : {{ .Check }}
 {{- end }}
 {{- $rule := unlockText .ID .Unlocks }}
 {{- if $rule }}

@@ -206,6 +206,9 @@ func printWorkflowShow(w io.Writer, res *workflowsvc.Resolution, withOrigin bool
 			if c.IsMandatory() {
 				parts = append(parts, i18n.T("cmd.workflow.show.mandatory"))
 			}
+			if c.Method != "" {
+				parts = append(parts, i18n.Tf("cmd.workflow.show.method", string(c.Method)))
+			}
 			line(k, strings.Join(parts, " · "), "checkpoints."+k)
 		}
 	}

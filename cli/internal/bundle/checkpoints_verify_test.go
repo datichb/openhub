@@ -53,7 +53,7 @@ func TestPlannedPauses(t *testing.T) {
 	_, cat, _ := shippedWorkflows(t)
 	r, diags := workflow.ResolveSpec(cat, workflow.Ref{Layer: workflow.LayerHub, ID: "feature"}, nil)
 	require.Empty(t, diags.Errors())
-	rt := WorkflowRuntime(r.Spec)
+	rt := WorkflowRuntime(r.Spec.ForMethod(workflow.MethodStandard))
 	ids := func(mode string) []string {
 		var out []string
 		for _, p := range PlannedPauses(rt, mode) {

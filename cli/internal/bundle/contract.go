@@ -37,6 +37,8 @@ type contractData struct {
 	WikiMCP, WikiApply bool
 	// Statuses: the return statuses of the agents it may launch (L5).
 	Statuses []contractStatuses
+	// Method: the method of the session (R7) and its steps, in order.
+	Method contractMethod
 }
 
 var (
@@ -90,6 +92,7 @@ func contractFor(req Request, wf *sessionspec.WorkflowRuntime, id string, graph,
 		d.MaxFixRounds = *l.MaxFixRounds
 	}
 	d.Statuses = calleeStatuses(id, d.Callees, statuses)
+	d.Method = methodContract(req, wf, id)
 	return d
 }
 

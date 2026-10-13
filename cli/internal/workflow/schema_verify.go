@@ -40,6 +40,37 @@ type VerifySpec struct {
 	// MustTouch requires the changes of the session to touch at least one
 	// of these paths (wildcards: *, **).
 	MustTouch []string `yaml:"must_touch,omitempty"`
+
+	// R7 (TDD): the changes and the test files.
+
+	// MustTouchTests requires the changes to touch a test file of the
+	// stack (bricks.TestFilePatterns).
+	MustTouchTests bool `yaml:"must_touch_tests,omitempty"`
+	// OutsideTests is what a change outside the test files does (with
+	// must_touch_tests): "" nothing, warn (noted on the result), refuse.
+	OutsideTests OutsideTests `yaml:"outside_tests,omitempty"`
+	// Since counts the changes from the commit of the location when this
+	// checkpoint was last passed ("" = from the start of the session).
+	Since string `yaml:"since,omitempty"`
+}
+
+// OutsideTests is what a change outside the test files does.
+type OutsideTests string
+
+const (
+	OutsideTestsWarn   OutsideTests = "warn"
+	OutsideTestsRefuse OutsideTests = "refuse"
+)
+
+// rank orders the values by strictness ("" < warn < refuse).
+func (o OutsideTests) rank() int {
+	switch o {
+	case OutsideTestsWarn:
+		return 1
+	case OutsideTestsRefuse:
+		return 2
+	}
+	return 0
 }
 
 // VerifyFrom is the source of the verification commands.
@@ -126,6 +157,9 @@ func (v *VerifySpec) Covers(parent *VerifySpec) bool {
 		return false
 	}
 	if parent.From != "" && !containsAll(v.EffectiveKinds(), parent.EffectiveKinds()) {
+		return false
+	}
+	if (parent.MustTouchTests && !v.MustTouchTests) || v.OutsideTests.rank() < parent.OutsideTests.rank() || v.Since != parent.Since {
 		return false
 	}
 	return containsAll(v.Cmd, parent.Cmd) && containsAll(v.MustTouch, parent.MustTouch) &&

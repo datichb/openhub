@@ -82,6 +82,10 @@ type Request struct {
 	// and fills EntryAgent, WorkflowModels, ExtraSkills, DenySkills and
 	// Plugins when they are not set; its `code_mode` sets CodeMode (P1-T15).
 	Spec *workflow.Spec
+
+	// Method is the method of the session (R7, input `method`; "" =
+	// standard): the bundle keeps the checkpoints of this method only.
+	Method workflow.Method
 }
 
 // loadedPlugins returns the ids of the plugins of the session.
@@ -111,6 +115,7 @@ func Build(req Request) (*Bundle, error) {
 	if req.Spec == nil {
 		return nil, fmt.Errorf("bundle: a workflow (Spec) is required")
 	}
+	req.applyMethod()
 	if err := req.applySpec(); err != nil {
 		return nil, err
 	}
@@ -162,6 +167,7 @@ func Build(req Request) (*Bundle, error) {
 		StrictIsolation: req.StrictIsolation,
 	}
 	applyWorkflowRuntime(&spec, req.Spec)
+	spec.Workflow.Method = string(req.Method)
 	if req.wikiMCP = wantsWikiMCP(req.Spec, req.ProjectPath); req.wikiMCP {
 		applyWikiRuntime(&spec)
 	}

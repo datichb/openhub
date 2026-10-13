@@ -83,6 +83,9 @@ type checkpointRow struct {
 	Unlocks                           []string
 	// By are the agents that pass it (L3): the other agents do not see it.
 	By []string
+	// Check is what oh checks before it passes, for a test written first
+	// (R7, testCheckText; "" otherwise).
+	Check string
 }
 
 type outputRow struct {
@@ -220,6 +223,7 @@ func buildMapData(spec *workflow.Spec, graph map[string][]string, modeOf func(st
 			Mandatory:   cp.IsMandatory(),
 			Remote:      cp.RemotePolicy(),
 			By:          spec.CheckpointBy(id, graph),
+			Check:       testCheckText(cp.Verify),
 		}
 		for _, a := range row.By {
 			if !slices.Contains(d.CheckpointAgents, a) {

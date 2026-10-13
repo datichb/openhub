@@ -111,6 +111,11 @@ func Check(cat Catalog, ref Ref, opts *SessionOptions, env Env) (*Resolved, Diag
 		env.Workflows = wc
 	}
 	diags = append(diags, r.Validate(env)...)
+	if opts != nil {
+		// R7: the session keeps the checkpoints of its method only
+		// (validated above with the others).
+		r.Spec = r.Spec.ForMethod(r.Method)
+	}
 	return r, diags
 }
 
@@ -126,6 +131,7 @@ func (r *Resolved) Validate(env Env) Diagnostics {
 	v.agents()
 	v.checkpoints()
 	v.checkpointsVerify()
+	v.methods()
 	v.checkpointsBy()
 	v.preconditions()
 	v.modes()

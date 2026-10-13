@@ -266,6 +266,10 @@ func (s *Service) tryPass(ctx context.Context, sess *domain.Session, c sessionsp
 			return domain.CheckpointApproval{}, err
 		}
 	}
+	base := ""
+	if c.Base {
+		base = s.baseHead(ctx, sess.LaunchPath)
+	}
 	var ap domain.CheckpointApproval
 	_, err := s.update(ctx, sessionID, func(st *domain.CheckpointState) error {
 		var ok bool
@@ -293,6 +297,9 @@ func (s *Service) tryPass(ctx context.Context, sess *domain.Session, c sessionsp
 				st.Unlocks = map[string]domain.CheckpointUnlock{}
 			}
 			st.Unlocks[op] = domain.CheckpointUnlock{Checkpoint: id, At: s.now(), Head: head}
+		}
+		if c.Base {
+			setBase(st, id, base)
 		}
 		s.record(st, domain.CheckpointPassed, id, ap.By, ap.Message)
 		return nil

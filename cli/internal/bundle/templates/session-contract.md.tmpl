@@ -30,6 +30,12 @@
 - **Checkpoints** : aucun n'est à toi : n'appelle pas `workflow_checkpoint`, même si ton prompt d'invocation en nomme un.{{ if .Subagent }} Mets ce qui est à valider dans ton bloc de retour : ton appelant passe le checkpoint.{{ end }}
 {{- end }}
 {{- end }}
+{{- if .Method.ID }}
+- **Méthode de la session** : `{{ .Method.ID }}`, choisie au lancement{{ if .Method.Text }} : {{ .Method.Text }}{{ end }}.{{ if .Method.Steps }} Checkpoints de la méthode, dans l'ordre, avant l'implémentation : {{ range $i, $s := .Method.Steps }}{{ if $i }} → {{ end }}`{{ $s.ID }}`{{ if $s.By }} ({{ codes $s.By }}){{ end }}{{ end }} ; une seule fois par ticket, jamais pendant les corrections.{{ end }}
+{{- range .Method.Steps }}{{ if .Detail }}
+  - `{{ .ID }}` : {{ .Detail }}
+{{- end }}{{ end }}
+{{- end }}
 {{- if .MaxFixRounds }}
 - **Tours de correction** : au plus {{ .MaxFixRounds }} (developer → reviewer) par ticket ; au-delà, passe le checkpoint de commit en signalant les points non résolus.
 {{- end }}

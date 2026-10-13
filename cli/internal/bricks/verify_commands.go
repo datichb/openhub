@@ -222,3 +222,97 @@ func fileExists(p string) bool {
 	_, err := os.Stat(p)
 	return err == nil
 }
+
+// R7 (TDD): test files of a stack and the reason a test run failed.
+
+// testFilePatterns are the test files of each signal (sessionspec.PathMatch
+// patterns: without a slash, the base name; `**` any folders).
+var testFilePatterns = []struct {
+	signal   string
+	patterns []string
+}{
+	{"golang", []string{"*_test.go", "**/testdata/**"}},
+	{"javascript", []string{"*.test.*", "*.spec.*", "**/__tests__/**", "**/__mocks__/**", "**/__snapshots__/**"}},
+	{"python", []string{"test_*.py", "*_test.py", "conftest.py"}},
+	{"rust", []string{"**/tests/**", "**/benches/**"}},
+	{"maven", []string{"**/src/test/**"}},
+	{"gradle", []string{"**/src/test/**"}},
+}
+
+// commonTestPatterns are test folders of every stack.
+var commonTestPatterns = []string{"**/test/**", "**/tests/**", "**/spec/**", "**/fixtures/**"}
+
+// TestFilePatterns returns the patterns of the test files of a project of
+// signals: those of its stacks and the usual test folders; those of every
+// known stack when no signal is detected. Sorted, without duplicates.
+func TestFilePatterns(s Signals) []string {
+	seen := map[string]bool{}
+	var out []string
+	add := func(ps []string) {
+		for _, p := range ps {
+			if !seen[p] {
+				seen[p] = true
+				out = append(out, p)
+			}
+		}
+	}
+	found := false
+	for _, t := range testFilePatterns {
+		if s.Has(t.signal) {
+			add(t.patterns)
+			found = true
+		}
+	}
+	if !found {
+		for _, t := range testFilePatterns {
+			add(t.patterns)
+		}
+	}
+	add(commonTestPatterns)
+	sort.Strings(out)
+	return out
+}
+
+// Reasons a test command failed for another reason than a failing test
+// (RedFailure): the tests do not build, or none ran.
+const (
+	RedCompile = "compile"
+	RedCollect = "collect"
+	RedNoTests = "no_tests"
+)
+
+// compileMarkers are what the test tools print when the tests do not build:
+// go test (`FAIL pkg [build failed]`, `[setup failed]`), cargo, tsc.
+var compileMarkers = regexp.MustCompile(`\[build failed\]|\[setup failed\]|error: could not compile|(?m)error TS\d+:`)
+
+// RedFailure tells why a test command written first failed: "" for a test
+// that runs and fails (the expected red), else RedCompile (the tests or the
+// code do not build), RedCollect (pytest cannot import the tests) or
+// RedNoTests (pytest collected none). What a tool does not tell apart
+// (jest, vitest, mvn: a failure is a failure) counts as a failing test.
+func RedFailure(args []string, exit int, output []byte) string {
+	if exit == 0 {
+		return ""
+	}
+	if compileMarkers.Match(output) {
+		return RedCompile
+	}
+	for _, a := range args {
+		if a == "pytest" || strings.HasSuffix(a, "/pytest") {
+			// pytest: 1 = tests failed, 2 = interrupted (collection
+			// errors), 5 = no test collected.
+			switch exit {
+			case 1:
+				return ""
+			case 5:
+				return RedNoTests
+			default:
+				return RedCollect
+			}
+		}
+	}
+	if strings.Contains(string(output), "ERROR collecting") {
+		return RedCollect // pytest behind make or a script
+	}
+	return ""
+}
