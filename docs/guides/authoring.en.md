@@ -93,6 +93,10 @@ Stack skills are **always Bucket B**. When the session bundle is built (at launc
 
 **Adding a new stack:** add the detection in `DetectSignals()` and the entry in `stackSkillMapping`. Create the skill file in `skills/developer/stacks/`. No agent frontmatter changes needed — the skill will be automatically shipped in the bundle of the relevant projects (`oh bundle show <workflow>` to check).
 
+### Project instructions
+
+The `project_instructions` field decides what the agent gets of the project instructions (`ONBOARDING.md`, `CONVENTIONS.md`, `.claude/CLAUDE.md`, `[deploy] instruction_files`): `full` (default) for an agent that writes or judges code against the conventions, `index` (file titles, wiki index and god nodes) for an agent that scopes, plans or coordinates and reads the details on demand, `none` for a pure coordinator that reads no file. An `index` agent must be able to read the listed files (`read`): otherwise the line of the file tells it. Details: [Project instructions by level](../architecture/agents.en.md#project-instructions-by-level).
+
 ---
 
 ## Designing a skill
@@ -178,6 +182,7 @@ This skill defines... It complements <other-skill> if applicable.
 - [ ] The `description` fits in one sentence without an excessive "and"
 - [ ] The family is correct (placed in the right sub-folder)
 - [ ] The `mode:` field is defined: `primary` for a directly invocable agent, `subagent` for a delegated specialist
+- [ ] `project_instructions` is chosen (`full` by default, `index` for an agent that reads the details on demand and may read them, `none` for a pure coordinator)
 - [ ] `permission: skill: allow` is set if the agent uses native skills (Bucket B); `skill: deny` for coordinators
 - [ ] ctx permissions are declared according to the agent type (ctx tools are NOT inherited — they must be explicit): orchestrators → `ctx_search`, `ctx_stats`, `ctx_batch_execute`; developers → add `ctx_execute`, `ctx_execute_file`, `ctx_fetch_and_index`, `ctx_index`; quality/audit → `ctx_search`, `ctx_execute`, `ctx_execute_file`, `ctx_batch_execute`; design/planning → `ctx_search`, `ctx_batch_execute`
 - [ ] Bucket A skills (`skills:`) are consistent with the agent type: workflow protocol, handoff formats, universal principles

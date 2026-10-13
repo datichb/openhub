@@ -109,6 +109,7 @@ skills: [path/to/skill, ...]          # Bucket A — assembled inline when the s
 native_skills: [path/to/skill, ...]   # Bucket B — delivered in the session bundle skills/, loaded on-demand
 stack_skills: true        # optional — the project's stack skills in the agent catalogue
 skills_from_callers: true # optional — the skills named by its callers in its catalogue
+project_instructions: index # optional — full (default) | index | none
 ---
 
 # <Title>
@@ -131,8 +132,21 @@ skills_from_callers: true # optional — the skills named by its callers in its 
 | `native_skills` | **Bucket B** — paths relative to `skills/`, delivered in the session bundle as `skills/<name>/SKILL.md`, loaded on-demand by the LLM via the `skill` tool. Domain standards, stack skills, checklists. |
 | `stack_skills` | `true` — the stack skills of the detected project enter the agent's catalogue (`developer`, `reviewer`, `debugger`, `operator`). Without it, the agent does not see them. |
 | `skills_from_callers` | `true` — the skills its callers name in their prompt (except their own `native_skills:`) enter its catalogue: the caller picks the skill to load (`developer` and its domain standards, `auditor-subagent` and its audit checklist). |
+| `project_instructions` | What the agent gets of the project instructions (see [Project instructions by level](#project-instructions-by-level)): `full` (default, also for a team agent without the field), `index` or `none`. |
 
 See [ADR-010](./adr/010-hybrid-skills-architecture.en.md) for the rationale behind the Bucket A / Bucket B split.
+
+### Project instructions by level
+
+The project instruction files (`ONBOARDING.md`, `CONVENTIONS.md`, `.claude/CLAUDE.md` and `[deploy] instruction_files`) are appended to the prompt of each agent, under `# Project instructions`, according to its `project_instructions` field:
+
+| Level | Content | Shipped agents |
+|-------|---------|----------------|
+| `full` (default) | The whole text of each file | `developer`, `reviewer`, `debugger`, `benchmarker`, `operator`, `auditor-subagent`, `brief-enricher` and the team agents without the field |
+| `index` | For each file: its path, its title, its estimated size and its `##` sections. Then, when `docs/wiki/index.md` exists: its title, its sections and the god nodes table (15 rows at most). The agent reads a file with `read` when its task depends on it; when its permissions deny that read (or ask for it), the line says so | `orchestrator-dev`, `auditor`, `pathfinder`, `planner`, `designer`, `documentarian`, `onboarder` |
+| `none` | Nothing; the session contract says the instructions exist and that the launched agents get them | `orchestrator`, `conductor` |
+
+The wiki is read directly from `docs/wiki/index.md` (format of `doc-wiki-protocol`). Without instruction files or wiki, no level adds anything. On a project with 4,000 tokens of instructions, the `feature` workflow costs about 22,000 tokens less per run than with `full` everywhere (`testdata/budget.golden`, project `instruct`).
 
 ### Primary / Subagent Modes
 
@@ -296,7 +310,7 @@ Never routes directly to the `developer` — always delegates to `orchestrator-d
 
 **Technical permissions:** `bash`, `read`, `edit`, `write`, `glob`, `grep` all disabled. Acts only via `task` (delegation), `question` and `workflow_checkpoint` (checkpoints). Invocable agents: `pathfinder`, `planner`, `onboarder`, `designer`, `orchestrator-dev`, `debugger`, `documentarian`, restricted to the workflow members.
 
-**Context injection:** project context (stack, conventions) is automatically injected into the session: the project instructions (`ONBOARDING.md`, `CONVENTIONS.md`, `[deploy] instruction_files`) are embedded in the agents of the session bundle. The orchestrator never reads files directly — if context is missing, the `project-context` precondition of `feature` offers to run the `onboarding` workflow first.
+**Context injection:** project context (stack, conventions) is automatically injected into the session: the project instructions (`ONBOARDING.md`, `CONVENTIONS.md`, `[deploy] instruction_files`) are embedded in the agents of the session bundle, at the level of each one (see [Project instructions by level](#project-instructions-by-level)): the orchestrator gets none of them (`none`), the agents it launches get them. The orchestrator never reads files directly — if context is missing, the `project-context` precondition of `feature` offers to run the `onboarding` workflow first.
 
 **Missing agent handling:** if a required agent is not part of the session (the agents of a session are those of its workflow), the orchestrator asks a structured question with options: use a substitute (substitution table by domain) / skip the ticket. To make the agent available, add it to the workflow and relaunch the session (`oh deploy` removed in v5). Never silently falls back to another agent.
 

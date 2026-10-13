@@ -109,6 +109,7 @@ skills: [chemin/vers/skill, ...]          # Bucket A — assemblées inline à l
 native_skills: [chemin/vers/skill, ...]   # Bucket B — livrées dans skills/ du paquet de session, chargées à la demande
 stack_skills: true        # optionnel — skills de stack du projet dans le catalogue de l'agent
 skills_from_callers: true # optionnel — skills nommées par ses appelants dans son catalogue
+project_instructions: index # optionnel — full (défaut) | index | none
 ---
 
 # <Titre>
@@ -131,8 +132,21 @@ skills_from_callers: true # optionnel — skills nommées par ses appelants dans
 | `native_skills` | **Bucket B** — chemins relatifs à `skills/`, livrés dans le paquet de session sous `skills/<name>/SKILL.md`, chargés à la demande par le LLM via l'outil `skill`. Standards de domaine, stack skills, checklists. |
 | `stack_skills` | `true` — les skills de stack du projet détecté entrent dans le catalogue de l'agent (`developer`, `reviewer`, `debugger`, `operator`). Sans ce champ, l'agent ne les voit pas. |
 | `skills_from_callers` | `true` — les skills que ses appelants nomment dans leur prompt (hors leurs propres `native_skills:`) entrent dans son catalogue : l'appelant choisit la skill à charger (`developer` et ses standards de domaine, `auditor-subagent` et sa checklist d'audit). |
+| `project_instructions` | Ce que l'agent reçoit des instructions du projet (voir [Instructions du projet par niveau](#instructions-du-projet-par-niveau)) : `full` (défaut, aussi pour un agent d'équipe sans le champ), `index` ou `none`. |
 
 Voir [ADR-010](./adr/010-hybrid-skills-architecture.fr.md) pour le raisonnement derrière la séparation Bucket A / Bucket B.
+
+### Instructions du projet par niveau
+
+Les fichiers d'instructions du projet (`ONBOARDING.md`, `CONVENTIONS.md`, `.claude/CLAUDE.md` et `[deploy] instruction_files`) sont ajoutés à la fin du prompt de chaque agent, sous `# Project instructions`, selon son champ `project_instructions` :
+
+| Niveau | Contenu | Agents livrés |
+|--------|---------|---------------|
+| `full` (défaut) | Le texte complet de chaque fichier | `developer`, `reviewer`, `debugger`, `benchmarker`, `operator`, `auditor-subagent`, `brief-enricher` et les agents d'équipe sans le champ |
+| `index` | Pour chaque fichier : son chemin, son titre, sa taille estimée et ses sections `##`. Puis, si `docs/wiki/index.md` existe : son titre, ses sections et le tableau des god nodes (15 lignes au plus). L'agent lit un fichier avec `read` quand sa tâche en dépend ; si ses permissions refusent cette lecture (ou la soumettent à confirmation), la ligne le dit | `orchestrator-dev`, `auditor`, `pathfinder`, `planner`, `designer`, `documentarian`, `onboarder` |
+| `none` | Rien ; le contrat de session dit que les instructions existent et que les agents lancés les reçoivent | `orchestrator`, `conductor` |
+
+Le wiki est lu directement dans `docs/wiki/index.md` (format de `doc-wiki-protocol`). Sans fichier d'instructions ni wiki, aucun niveau n'ajoute rien. Sur un projet de 4 000 tokens d'instructions, le workflow `feature` coûte environ 22 000 tokens de moins par exécution qu'avec `full` partout (`testdata/budget.golden`, projet `instruct`).
 
 ### Modes primary / subagent
 
@@ -296,7 +310,7 @@ Ne route jamais directement vers le `developer` — délègue toujours à `orche
 
 **Permissions techniques :** `bash`, `read`, `edit`, `write`, `glob`, `grep` tous désactivés. Agit uniquement via `task` (délégation), `question` et `workflow_checkpoint` (checkpoints). Agents invocables : `pathfinder`, `planner`, `onboarder`, `designer`, `orchestrator-dev`, `debugger`, `documentarian`, restreints aux membres du workflow.
 
-**Injection de contexte :** le contexte projet (stack, conventions) est injecté automatiquement dans la session : les instructions du projet (`ONBOARDING.md`, `CONVENTIONS.md`, `[deploy] instruction_files`) sont intégrées aux agents du paquet de session. L'orchestrateur ne lit jamais de fichiers directement — si le contexte est absent, la précondition `project-context` de `feature` propose de lancer d'abord le workflow `onboarding`.
+**Injection de contexte :** le contexte projet (stack, conventions) est injecté automatiquement dans la session : les instructions du projet (`ONBOARDING.md`, `CONVENTIONS.md`, `[deploy] instruction_files`) sont intégrées aux agents du paquet de session, au niveau de chacun (voir [Instructions du projet par niveau](#instructions-du-projet-par-niveau)) : l'orchestrateur n'en reçoit rien (`none`), les agents qu'il lance les reçoivent. L'orchestrateur ne lit jamais de fichiers directement — si le contexte est absent, la précondition `project-context` de `feature` propose de lancer d'abord le workflow `onboarding`.
 
 **Gestion des agents manquants :** si un agent requis ne fait pas partie de la session (les agents d'une session sont ceux de son workflow), l'agent orchestrator pose une question structurée avec les options : utiliser un substitut (table de substitution par domaine) / ignorer le ticket. Pour rendre l'agent disponible, l'ajouter au workflow et relancer la session (`oh deploy` supprimé en v5). Ne bascule jamais silencieusement vers un autre agent.
 

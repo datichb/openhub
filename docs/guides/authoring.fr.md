@@ -93,6 +93,10 @@ Les stack skills sont **toujours Bucket B**. À la construction du paquet de ses
 
 **Ajouter une nouvelle stack :** ajouter la détection dans `DetectSignals()` et l'entrée dans `stackSkillMapping`. Créer le fichier skill dans `skills/developer/stacks/`. Aucun changement de frontmatter d'agent nécessaire — le skill sera automatiquement livré dans le paquet des projets concernés (`oh bundle show <workflow>` pour vérifier).
 
+### Instructions du projet
+
+Le champ `project_instructions` décide de ce que l'agent reçoit des instructions du projet (`ONBOARDING.md`, `CONVENTIONS.md`, `.claude/CLAUDE.md`, `[deploy] instruction_files`) : `full` (défaut) pour un agent qui écrit ou juge du code selon les conventions, `index` (titres des fichiers, index du wiki et god nodes) pour un agent qui cadre, planifie ou coordonne et lit le détail à la demande, `none` pour un coordinateur pur qui ne lit aucun fichier. Un agent `index` doit pouvoir lire les fichiers listés (`read`) : sinon la ligne du fichier le lui dit. Détail : [Instructions du projet par niveau](../architecture/agents.fr.md#instructions-du-projet-par-niveau).
+
 ---
 
 ## Concevoir un skill
@@ -178,6 +182,7 @@ Ce skill définit... Il complète <autre-skill> si applicable.
 - [ ] La `description` tient en une phrase sans "et" abusif
 - [ ] La famille est correcte (placement dans le bon sous-dossier)
 - [ ] Le champ `mode:` est défini : `primary` pour un agent invocable directement, `subagent` pour un spécialiste délégué
+- [ ] `project_instructions` est choisi (`full` par défaut, `index` pour un agent qui lit le détail à la demande et peut le lire, `none` pour un coordinateur pur)
 - [ ] `permission: skill: allow` est défini si l'agent utilise des skills natives (Bucket B) ; `skill: deny` pour les coordinateurs
 - [ ] Les permissions ctx sont déclarées selon le type d'agent (les outils ctx ne sont PAS hérités — ils doivent être explicites) : orchestrateurs → `ctx_search`, `ctx_stats`, `ctx_batch_execute` ; développeurs → ajouter `ctx_execute`, `ctx_execute_file`, `ctx_fetch_and_index`, `ctx_index` ; qualité/audit → `ctx_search`, `ctx_execute`, `ctx_execute_file`, `ctx_batch_execute` ; design/planning → `ctx_search`, `ctx_batch_execute`
 - [ ] Les skills Bucket A (`skills:`) sont cohérents avec le type d'agent : protocoles de workflow, formats de handoff, principes universels
