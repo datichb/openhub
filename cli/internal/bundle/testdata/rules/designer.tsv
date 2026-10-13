@@ -104,13 +104,14 @@ figma-recon-protocol	Règles	✅ Recommander l'escalade quand les signaux sont c
 figma-recon-protocol	Règles	❌ Ne pas analyser en profondeur les composants individuels (mode recon uniquement)
 figma-recon-protocol	Règles	❌ Ne pas déduire des flows sans frames liées visibles
 handoff-envelope	Enveloppe de retour	`<appelant>` : l'agent qui t'a lancé, tel que ton contrat le nomme (ligne « Retour ») ; jamais un autre nom.
+handoff-envelope	Enveloppe de retour	**Rapport non enregistré** (outil absent, refus, réponse « non enregistré ») : `**Rapport** : inclus`, puis, sous l'enveloppe (jamais au-dessus), `### Rapport complet` et le rapport entier.
 handoff-envelope	Enveloppe de retour	Le résumé désigne le rapport, il ne le remplace pas.
 prototype-protocol	Quand ce skill est chargé	Ce skill est injecté dans le prompt du designer par l'orchestrateur (ou le planner via l'orchestrateur) quand une **question spécifique** nécessite un artefact visuel pour être résolue. Il est toujours chargé **en complément** d'un mode existant (ux, ui, ou ux+ui) — jamais seul.
 prototype-protocol	Ce que ce skill change	Spec complète obligatoire | **Override** — artefact minimal ciblé sur 1 question
 prototype-protocol	Contrainte fondamentale	Le designer en mode prototype **ne produit PAS de code**. L'artefact est un artefact de spec rapide :
 prototype-protocol	Contrainte fondamentale	❌ Pas de HTML, pas de code, pas de branche git. Le designer reste un agent de spec.
 prototype-protocol	Compatibilité	**Incompatible avec** : `Mode: recon` (la reconnaissance Figma n'a pas de question à résoudre par prototype)
-subagent-posture	Posture : sous-agent	Ta réponse finale est ton enveloppe (suivie de ton rapport seulement s'il n'a pas pu être déposé). Rien d'autre : ni récit de méthode, ni récapitulatif, ni justification à part ; tout va dans les sections du rapport.
+subagent-posture	Posture : sous-agent	Ta réponse finale est ton enveloppe, qui commence par `## Retour vers` (suivie de ton rapport seulement s'il n'a pas pu être déposé). Rien d'autre : ni récit de méthode, ni récapitulatif, ni justification à part ; tout va dans les sections du rapport.
 subagent-posture	Posture : sous-agent	N'appelle jamais `question`. Une décision qui te bloque va dans `### Questions bloquantes` ; ce qui ne bloque pas devient une hypothèse documentée dans le rapport.
 tui-patterns	Patterns TUI — référence	Les TUI ne sont pas des interfaces web en monochrome. Elles ont leurs propres contraintes,
 tui-patterns	Couleurs	**Ne jamais se fier uniquement à la couleur** : toujours doubler avec une icône Unicode ou du texte

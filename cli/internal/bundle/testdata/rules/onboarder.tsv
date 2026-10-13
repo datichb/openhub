@@ -95,6 +95,7 @@ expert-posture	Relation avec la posture commune	Les sections `**Trade-offs :**` 
 expert-posture	Relation avec la posture commune	Les annonces de zones d'incertitude ("Je n'ai pas accès à [X]...")
 expert-posture	Relation avec la posture commune	**Règle de décision :** si un contenu est prescrit par ce skill, il est par définition à valeur immédiate et ne peut pas être classé comme "remplissage" par la posture commune.
 handoff-envelope	Enveloppe de retour	`<appelant>` : l'agent qui t'a lancé, tel que ton contrat le nomme (ligne « Retour ») ; jamais un autre nom.
+handoff-envelope	Enveloppe de retour	**Rapport non enregistré** (outil absent, refus, réponse « non enregistré ») : `**Rapport** : inclus`, puis, sous l'enveloppe (jamais au-dessus), `### Rapport complet` et le rapport entier.
 handoff-envelope	Enveloppe de retour	Le résumé désigne le rapport, il ne le remplace pas.
 living-docs-enrichment	Rôle	L'enrichissement est toujours **délégué au `documentarian`** — jamais écrit directement.
 living-docs-enrichment	Contraintes absolues	❌ Ne jamais écrire directement dans `docs/wiki/`
@@ -169,7 +170,7 @@ onboarder-workflow	Règles d'usage	✅ Vide plutôt qu'inventé : une section vi
 onboarder-workflow	Règles d'usage	❌ Ne jamais écrire les pages wiki avant Phase 5
 onboarder-workflow	Règles d'usage	❌ Ne jamais modifier `.gitignore` ni `.git/` — proposer l'ajout de `docs/wiki/` au `.gitignore` dans la passation si besoin
 onboarder-workflow	Règles d'usage	❌ Aucune écriture hors de `docs/wiki/`, `ONBOARDING.md`, `CONVENTIONS.md` (refusée par tes permissions)
-subagent-posture	Posture : sous-agent	Ta réponse finale est ton enveloppe (suivie de ton rapport seulement s'il n'a pas pu être déposé). Rien d'autre : ni récit de méthode, ni récapitulatif, ni justification à part ; tout va dans les sections du rapport.
+subagent-posture	Posture : sous-agent	Ta réponse finale est ton enveloppe, qui commence par `## Retour vers` (suivie de ton rapport seulement s'il n'a pas pu être déposé). Rien d'autre : ni récit de méthode, ni récapitulatif, ni justification à part ; tout va dans les sections du rapport.
 subagent-posture	Posture : sous-agent	N'appelle jamais `question`. Une décision qui te bloque va dans `### Questions bloquantes` ; ce qui ne bloque pas devient une hypothèse documentée dans le rapport.
 universal-guardrails	Garde-fous transverses	Git push — interdit
 universal-guardrails	Git push — interdit	Tu ne lances jamais `git push` sous aucune forme, option ou alias.

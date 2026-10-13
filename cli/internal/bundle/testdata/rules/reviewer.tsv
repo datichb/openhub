@@ -214,6 +214,7 @@ dev-standards-universal	Signal de dérive architecturale	❌ Ne jamais continuer
 dev-standards-universal	Signal de dérive architecturale	❌ Ne jamais choisir une option seul : présente-les à ton appelant.
 dev-standards-universal	Mode Auditeur	Proposer des corrections — ne jamais les appliquer sans validation
 handoff-envelope	Enveloppe de retour	`<appelant>` : l'agent qui t'a lancé, tel que ton contrat le nomme (ligne « Retour ») ; jamais un autre nom.
+handoff-envelope	Enveloppe de retour	**Rapport non enregistré** (outil absent, refus, réponse « non enregistré ») : `**Rapport** : inclus`, puis, sous l'enveloppe (jamais au-dessus), `### Rapport complet` et le rapport entier.
 handoff-envelope	Enveloppe de retour	Le résumé désigne le rapport, il ne le remplace pas.
 living-docs-enrichment	Rôle	L'enrichissement est toujours **délégué au `documentarian`** — jamais écrit directement.
 living-docs-enrichment	Contraintes absolues	❌ Ne jamais écrire directement dans `docs/wiki/`
@@ -324,7 +325,7 @@ reviewer-edge-case	Usage en mode multi-mode (sessions parallèles)	**Findings ta
 reviewer-payload	Rapport	Rapport de review complet au format de `review-protocol` (titre `## Review — <branche>` ou celui du mode), toujours produit, même sans problème. Sections en tête, dans l'ordre :
 reviewer-payload	Rapport	`### Suggestions (non-bloquant)` : les findings 🟡 et 💡, jamais transmis comme corrections.
 reviewer-payload	Rapport	Puis le rapport : `### Walkthrough`, `### Résumé`, `### Périmètre et contexte`, `### Vérification`, `### Couverture des critères d'acceptance` (ticket avec critères), les findings par sévérité, `### ✅ Points positifs`, `### 🔍 Hors scope`, `### Enrichissements wiki proposés`.
-subagent-posture	Posture : sous-agent	Ta réponse finale est ton enveloppe (suivie de ton rapport seulement s'il n'a pas pu être déposé). Rien d'autre : ni récit de méthode, ni récapitulatif, ni justification à part ; tout va dans les sections du rapport.
+subagent-posture	Posture : sous-agent	Ta réponse finale est ton enveloppe, qui commence par `## Retour vers` (suivie de ton rapport seulement s'il n'a pas pu être déposé). Rien d'autre : ni récit de méthode, ni récapitulatif, ni justification à part ; tout va dans les sections du rapport.
 subagent-posture	Posture : sous-agent	N'appelle jamais `question`. Une décision qui te bloque va dans `### Questions bloquantes` ; ce qui ne bloque pas devient une hypothèse documentée dans le rapport.
 universal-guardrails	Garde-fous transverses	Git push — interdit
 universal-guardrails	Git push — interdit	Tu ne lances jamais `git push` sous aucune forme, option ou alias.
