@@ -24,4 +24,4 @@ Titre : `Audit <domaine> — <périmètre>`, au format de `audit-protocol-light`
 - `### Recommandations priorisées` : action concrète et effort estimé.
 - `### Risque résiduel si non corrigé`.
 - `### Observations détaillées` : par problème, localisation, description, preuve ou chemin d'exploitation (jamais minimisé), impact, recommandation.
-- `### Points positifs`, `### Enrichissements wiki proposés`.
+- `### Points positifs`, `### Enrichissements wiki proposés` : les identifiants `wp-…` de tes `wiki_propose` (sans l'outil, les découvertes elles-mêmes).

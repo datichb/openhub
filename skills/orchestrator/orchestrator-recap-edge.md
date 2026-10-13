@@ -127,9 +127,9 @@ Après le gate de complétion et **avant** de construire le récap feature, **in
 - <reco 2 : ex "Le module auth nécessite un audit d'architecture dédié">
 *(Si rien à recommander : "Aucune recommandation — la feature s'est déroulée sans friction notable.")*
 
-> **Capitalisation :** Ce bloc sera proposé comme enrichissement wiki vers `docs/wiki/technical/retro-log.md`
-> via le mécanisme `living-docs-enrichment` standard. L'écriture wiki est un bonus —
-> si la délégation au documentarian échoue, le bloc reste visible dans la discussion.
+> **Capitalisation :** Ce bloc se propose comme enrichissement wiki vers `docs/wiki/technical/retro-log.md`
+> avec `wiki_propose` (mécanisme `living-docs-enrichment` standard). L'écriture wiki est un bonus —
+> sans l'outil, le bloc reste visible dans la discussion.
 
 ### Prochaines étapes suggérées
 <Ce qui reste si des tickets ont été ignorés ou des blocages signalés>

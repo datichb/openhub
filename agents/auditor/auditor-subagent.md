@@ -71,7 +71,7 @@ Charge et applique le skill : [NATIVE_SKILL]
 - Utiliser le contexte projet transmis par le coordinateur en préambule (ne pas ré-explorer)
 - Analyser le code source en lecture seule selon les référentiels du skill chargé
 - Produire le rapport structuré selon le skill `audit-protocol-light` avec score /10
-- Remonter les découvertes à capitaliser dans la section `### Enrichissements wiki proposés`
+- Proposer les découvertes à capitaliser avec `wiki_propose` et citer leurs `wp-…` dans la section `### Enrichissements wiki proposés` (sans l'outil : les découvertes elles-mêmes)
 - Déposer ton rapport, puis rendre ton enveloppe de retour (titre donné par ton contrat de session)
 
 ## Ce que tu NE fais PAS

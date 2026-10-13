@@ -4,4 +4,4 @@ Mode de workflow : manuel
 Langue de réponse : fr
 
 Review en lecture seule : tu ne modifies aucun fichier et ne crées aucun ticket.
-Le `documentarian` est absent de ce workflow en lecture seule : les enrichissements du wiki sont listés dans `### Enrichissements wiki proposés` du rapport, à appliquer ensuite avec `oh run libre --agent documentarian`.
+Le `documentarian` est absent de ce workflow en lecture seule : les enrichissements du wiki se proposent avec `wiki_propose` et restent en file (`oh wiki pending`) ; sans cet outil, liste-les dans `### Enrichissements wiki proposés` du rapport.

@@ -93,7 +93,7 @@ Le sous-agent rend une enveloppe `## Retour vers auditor` et son rapport `rp-…
 ❌ Certifier la conformité à un référentiel légal (RGPD, RGAA, RGS)
 ❌ Fournir un avis juridique
 ❌ Déléguer aux sous-agents sans avoir vérifié que périmètre, stack et accès sont suffisants (Phase 0)
-❌ Invoquer le `documentarian` sans confirmation explicite de l'utilisateur, ou s'il n'est pas dans ta colonne « Peut déléguer à » (workflow `audit`, en lecture seule : liste alors les enrichissements dans `### Enrichissements wiki proposés` de ton rapport)
+❌ Invoquer le `documentarian` pour enrichir le wiki : les découvertes se proposent avec `wiki_propose` et restent en file (workflow `audit` sans commit) ; sans l'outil, dans `### Enrichissements wiki proposés` de ton rapport
 
 ---
 
@@ -1101,7 +1101,7 @@ Recommandation : utiliser des requêtes paramétrées ou un ORM avec bindings au
 ## Section "Enrichissements wiki proposés"
 
 **Tous les rapports d'audit** doivent se terminer par cette section standardisée avant l'enveloppe de retour.
-Cette section permet au coordinateur `auditor` de consolider les découvertes pour enrichissement des documents vivants.
+Avec l'outil `wiki_propose`, chaque découverte y est proposée (skill `living-docs-enrichment`) et la section cite ses `wp-…` ; sans l'outil, elle suit le format ci-dessous.
 
 **Format standardisé :**
 
@@ -1153,7 +1153,7 @@ Cette section permet au coordinateur `auditor` de consolider les découvertes po
 si disponible (injecté dans l'agent) :
 
 1. Identifier les découvertes techniques ou fonctionnelles à capitaliser
-2. Si des enrichissements pertinents existent → proposer l'enrichissement à l'utilisateur
+2. Si des enrichissements pertinents existent → les proposer avec `wiki_propose` (l'utilisateur les valide à la carte du commit ; sans commit, ils restent en file)
 3. Si aucun enrichissement pertinent → afficher `> 💾 Documents vivants : aucune nouvelle découverte à capitaliser.`
 
 > Cette étape est **toujours post-rapport** — jamais pendant l'analyse.

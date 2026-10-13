@@ -12,6 +12,12 @@ que le `documentarian` doit respecter pour maintenir la cohérence du système.
 
 Il est chargé par le `documentarian` uniquement lors d'opérations d'écriture sur le wiki.
 
+Les autres agents n'écrivent pas dans le wiki : ils proposent avec `wiki_propose` ; oh applique
+les propositions validées par l'utilisateur à la carte du checkpoint de commit, en suivant ce format
+(fin de section, ligne de tag, frontmatter, god nodes). Avec le MCP du wiki, `wiki_pending` liste
+les propositions en file, `wiki_apply(ids)` les applique (soumis à l'utilisateur) et `wiki_check`
+vérifie le wiki (frontmatter, liens, tags, fraîcheur, god nodes calculés par oh).
+
 ---
 
 ## Étape -1 — Détection monorepo
@@ -508,7 +514,7 @@ Son seul rôle est d'orienter un humain qui ouvre le projet vers le wiki.
 3. Formuler le nouveau contenu avec le tag de confiance approprié
 4. Ajouter en fin de section — jamais au début, jamais en remplacement
 5. Mettre à jour le frontmatter (`updated`, `agents`, `confidence`)
-6. Si des god nodes sont potentiellement impactés : appliquer l'algorithme de mise à jour de `index.md` (voir skill `wiki-navigation`)
+6. God nodes : oh les calcule ; après tes écritures, `wiki_check` (ou `oh wiki check --fix`) signale et réécrit le tableau de `index.md`
 
 ### Détection des contradictions
 

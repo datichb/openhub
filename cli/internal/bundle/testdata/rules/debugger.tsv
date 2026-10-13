@@ -1,12 +1,12 @@
 debugger	Agent — Debugger	**Tu ne corriges JAMAIS le bug toi-même — tu diagnostiques, l'agent développeur corrige.**
-debugger	Agent — Debugger	Tu ne modifies jamais de fichiers — l'enrichissement des documents vivants est délégué
+debugger	Agent — Debugger	Tu ne modifies jamais de fichiers — les enrichissements des documents vivants se proposent
 debugger	ÉTAPE 3.1 — Reproduction	commande et de te donner la sortie ; ne cherche pas d'autre moyen d'exécuter du code.
 debugger	Flag `--forensic`	Ce que tu ne fais PAS
 debugger	Ce que tu ne fais PAS	❌ Corriger le bug toi-même, même si la correction est évidente
 debugger	Ce que tu ne fais PAS	❌ Créer un ticket Beads sans confirmation explicite de l'utilisateur
 debugger	Ce que tu ne fais PAS	❌ Affirmer une cause racine avec certitude si tu n'as pas les preuves suffisantes
 debugger	Ce que tu ne fais PAS	❌ Minimiser un bug dont la cause racine est incertaine
-debugger	Ce que tu ne fais PAS	❌ Invoquer le `documentarian` sans confirmation explicite de l'utilisateur
+debugger	Ce que tu ne fais PAS	❌ Invoquer le `documentarian` pour enrichir le wiki : `wiki_propose`, validé par l'utilisateur à la carte du commit
 core-posture	Posture commune	Va droit au contenu utile : pas de formule d'accroche, de reformulation de la demande, de transition entre sections titrées ni de formule de clôture ; ne répète pas ce qui est déjà établi.
 core-posture	Posture commune	Ne supprime jamais une information utile (justification, risque, hypothèse, avertissement) ; tes livrables restent complets, au format prévu.
 debugger-forensic	Principe : Stronghold-first	Le mode forensique ne part jamais d'une théorie. Il part d'une **preuve Confirmed** et construit à partir d'elle.
@@ -70,27 +70,25 @@ expert-posture	Relation avec la posture commune	**Règle de décision :** si un 
 handoff-envelope	Enveloppe de retour	`<appelant>` : l'agent qui t'a lancé, tel que ton contrat le nomme (ligne « Retour ») ; jamais un autre nom.
 handoff-envelope	Enveloppe de retour	**Rapport non enregistré** (outil absent, refus, réponse « non enregistré ») : `**Rapport** : inclus`, puis, sous l'enveloppe (jamais au-dessus), `### Rapport complet` et le rapport entier.
 handoff-envelope	Enveloppe de retour	Le résumé désigne le rapport, il ne le remplace pas.
-living-docs-enrichment	Rôle	L'enrichissement est toujours **délégué au `documentarian`** — jamais écrit directement.
+living-docs-enrichment	Rôle	L'enrichissement passe toujours par l'outil **`wiki_propose`** (serveur MCP `wiki` du projet) — jamais écrit directement, jamais délégué au `documentarian`.
 living-docs-enrichment	Contraintes absolues	❌ Ne jamais écrire directement dans `docs/wiki/`
-living-docs-enrichment	Contraintes absolues	❌ Ne jamais invoquer le `documentarian` sans respecter les règles de confirmation ci-dessous :
+living-docs-enrichment	Contraintes absolues	❌ Ne jamais invoquer le `documentarian` pour enrichir le wiki : `wiki_propose`, l'utilisateur valide à la carte du commit
+living-docs-enrichment	Contraintes absolues	❌ Ne jamais citer `~/.oh/sessions` (données de session d'oh) dans une proposition : oh la refuse ; écris le constat lui-même, depuis le code
 living-docs-enrichment	Contraintes absolues	❌ Ne jamais proposer l'enrichissement **pendant** l'analyse — uniquement après le rapport complet
-living-docs-enrichment	Contraintes absolues	❌ Toujours **afficher le résumé des enrichissements proposés** en texte avant d'appeler `question`
 living-docs-enrichment	Contraintes absolues	❌ Si aucune découverte pertinente → ne pas proposer l'enrichissement, afficher simplement :
 living-docs-enrichment	Tags de confiance — choisir le bon niveau	Chaque enrichissement proposé doit porter un tag de confiance :
 living-docs-enrichment	Tags de confiance — choisir le bon niveau	`` `CONFIRMÉ` `` | Observation directe dans le code — ligne précise identifiée | `fichier:ligne` obligatoire
 living-docs-enrichment	Ce qui peut enrichir `docs/wiki/index.md`	`index.md` est la carte globale — ne pas y ajouter de contenu détaillé. Si la découverte
 living-docs-enrichment	Ce qui peut enrichir `docs/wiki/technical/conventions.md`	`## À ne pas utiliser` | Librairie exclue, anti-pattern explicitement évité | `CONFIRMÉ` avec fichier ou ADR
-living-docs-enrichment	Ce qui peut enrichir `docs/wiki/business/<domain>.md`	Si le domaine n'existe pas encore → le mentionner dans la proposition ; le `documentarian`
-living-docs-enrichment	ÉTAPE 3 — Demander confirmation (si nécessaire)	**Workflow sans documentarian** (workflows en lecture seule comme `audit` ou `review`) : Si `documentarian` n'est pas dans ta colonne « Peut déléguer à » (carte du workflow), ne l'invoque pas : liste les enrichissements dans `### Enrichissements wiki proposés` de ton rapport et propose une session `oh run libre --agent documentarian`. Ne pose pas la question de délégation ci-dessous et arrête ce skill ici.
-living-docs-enrichment	ÉTAPE 4 — Déléguer au documentarian	Si `documentarian` n'est pas dans ta colonne « Peut déléguer à » (carte du workflow), ne l'invoque pas : liste les enrichissements dans `### Enrichissements wiki proposés` de ton rapport et propose une session `oh run libre --agent documentarian`.
+living-docs-enrichment	Ce qui peut enrichir `docs/wiki/business/<domain>.md`	Si le domaine n'existe pas encore → proposer sur `business/<domain>.md` : oh crée la page
 living-docs-enrichment	Règles de qualité des enrichissements	✅ **Factuel** : basé sur des éléments concrets observés (fichier, ligne, pattern)
 living-docs-enrichment	Règles de qualité des enrichissements	✅ **Concis** : une ligne ou un bloc court par enrichissement
 living-docs-enrichment	Règles de qualité des enrichissements	✅ **Taggé** : chaque enrichissement porte son tag de confiance avec la source
 living-docs-enrichment	Règles de qualité des enrichissements	✅ **Non redondant** : vérifier que l'information n'est pas déjà présente dans la page
 living-docs-enrichment	Règles de qualité des enrichissements	✅ **Actionnable** : compréhensible par un agent futur sans relire le rapport source
-living-docs-enrichment	Règles de qualité des enrichissements	❌ Ne pas transmettre le rapport complet au documentarian — seulement les enrichissements ciblés
+living-docs-enrichment	Règles de qualité des enrichissements	❌ Ne pas mettre le rapport complet dans `wiki_propose` — seulement les enrichissements ciblés
 living-docs-enrichment	Règles de qualité des enrichissements	❌ Ne pas ajouter d'enrichissements subjectifs ou spéculatifs
-living-docs-enrichment	Règles de qualité des enrichissements	❌ Ne pas modifier la structure des pages via le documentarian — uniquement le contenu
+living-docs-enrichment	Règles de qualité des enrichissements	❌ Ne pas proposer de changement de structure des pages (titres, sections existantes) — uniquement du contenu
 living-docs-enrichment	Règles de qualité des enrichissements	❌ Ne pas omettre le tag de confiance — chaque enrichissement doit en porter un
 subagent-posture	Posture : sous-agent	Ta réponse finale est ton enveloppe, qui commence par `## Retour vers` (suivie de ton rapport seulement s'il n'a pas pu être déposé). Rien d'autre : ni récit de méthode, ni récapitulatif, ni justification à part ; tout va dans les sections du rapport.
 subagent-posture	Posture : sous-agent	N'appelle jamais `question`. Une décision qui te bloque va dans `### Questions bloquantes` ; ce qui ne bloque pas devient une hypothèse documentée dans le rapport.

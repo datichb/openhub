@@ -85,6 +85,7 @@ doc-standards	Jargon sans glossaire	Ne jamais supposer que le lecteur connaît l
 doc-standards	Critères de qualité — checklist finale	Le document ne mélange pas les quadrants Diataxis (tutoriel ≠ référence)
 doc-standards	Principes spécifiques	Glossaire métier obligatoire si le domaine est spécialisé
 doc-wiki-protocol	Rôle	que le `documentarian` doit respecter pour maintenir la cohérence du système.
+doc-wiki-protocol	Rôle	Les autres agents n'écrivent pas dans le wiki : ils proposent avec `wiki_propose` ; oh applique
 doc-wiki-protocol	Structure du wiki	Frontmatter obligatoire
 doc-wiki-protocol	Frontmatter obligatoire	Chaque page wiki doit commencer par un frontmatter YAML :
 doc-wiki-protocol	Format des tags de confiance	Chaque enrichissement doit porter un tag de confiance inline en fin de ligne ou de bloc :

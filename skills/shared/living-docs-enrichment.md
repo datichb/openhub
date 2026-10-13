@@ -27,43 +27,34 @@ docs/wiki/
     └── <domain>.md             ← règles de gestion, flux, entités, risques
 ```
 
-L'enrichissement est toujours **délégué au `documentarian`** — jamais écrit directement.
+L'enrichissement passe toujours par l'outil **`wiki_propose`** (serveur MCP `wiki` du projet) — jamais écrit directement, jamais délégué au `documentarian`.
 L'agent qui applique ce skill ne fait que :
 1. Consolider les découvertes issues de son travail
 2. Formuler le tag de confiance approprié pour chaque enrichissement
-3. Proposer l'enrichissement à l'utilisateur
-4. Invoquer le `documentarian` si l'utilisateur accepte — et seulement s'il figure dans ta colonne « Peut déléguer à » de la carte du workflow (sinon, ÉTAPE 3)
+3. Proposer chaque enrichissement avec `wiki_propose` (ÉTAPE 3)
 
-**Chaîne de dépendances complète :**
+**Chaîne complète :**
 
 ```
 Agent (auditor, planner, debugger, developer, reviewer…)
   │  applique ce skill après son rapport/livrable
   ↓
-living-docs-enrichment
-  │  consolide les découvertes + propose à l'utilisateur
-  ↓  (sur confirmation)
-documentarian  ←  invoqué via task
-  │  charge wiki-navigation pour localiser les pages concernées
+wiki_propose  →  file de propositions (wp-<n>), auteur fixé par oh
   ↓
-docs/wiki/index.md  (god nodes, points critiques, carte des domaines)
-docs/wiki/technical/conventions.md  (patterns, nommage, git…)
-docs/wiki/technical/architecture.md  (patterns dominants, décisions…)
-docs/wiki/business/<domain>.md  (règles de gestion, flux…)
+carte du checkpoint de commit : l'utilisateur accepte, modifie ou refuse
+  ↓  (acceptées)
+oh applique dans docs/wiki/ au passage du checkpoint (committé avec le code)
+   — workflow sans commit : la proposition reste en file (doc-sync)
 ```
-
-Chaque maillon a un rôle distinct : ce skill consolide et propose, le `documentarian` localise les pages (sa skill wiki-navigation) et écrit.
 
 ---
 
 ## Contraintes absolues
 
 ❌ Ne jamais écrire directement dans `docs/wiki/`
-❌ Ne jamais invoquer le `documentarian` sans respecter les règles de confirmation ci-dessous :
-   - Enrichissements **CONFIRMÉ** (faits observés dans le code, patterns vérifiés, résultats de tests) : auto-approuvés — délégation directe au documentarian sans confirmation
-   - Enrichissements **DÉDUIT** ou **INCERTAIN** (hypothèses, inférences, patterns supposés) : confirmation requise avant délégation (comportement actuel)
+❌ Ne jamais invoquer le `documentarian` pour enrichir le wiki : `wiki_propose`, l'utilisateur valide à la carte du commit
+❌ Ne jamais citer `~/.oh/sessions` (données de session d'oh) dans une proposition : oh la refuse ; écris le constat lui-même, depuis le code
 ❌ Ne jamais proposer l'enrichissement **pendant** l'analyse — uniquement après le rapport complet
-❌ Toujours **afficher le résumé des enrichissements proposés** en texte avant d'appeler `question`
 ❌ Si aucune découverte pertinente → ne pas proposer l'enrichissement, afficher simplement :
    `> 💾 Wiki documentaire : aucune nouvelle découverte à capitaliser.`
 
@@ -206,8 +197,8 @@ Pour chaque enrichissement, identifier le tag de confiance approprié.
 
 Avant de router vers un fichier de domaine, identifier le domaine concerné :
 - Si la découverte correspond à un domaine existant → router vers ce fichier
-- Si le domaine n'existe pas encore → le mentionner dans la proposition ; le `documentarian`
-  crée le fichier avec le template standard de sa skill doc-wiki-protocol si l'utilisateur confirme
+- Si le domaine n'existe pas encore → proposer sur `business/<domain>.md` : oh crée la page
+  (frontmatter et titre) quand l'utilisateur accepte
 - Si le domaine est indéterminable → noter dans `index.md > ## Zones d'ombre`
 
 | Section cible | Découverte typique | Tag recommandé |
@@ -222,158 +213,32 @@ Avant de router vers un fichier de domaine, identifier le domaine concerné :
 
 ### ÉTAPE 2 — Construire le résumé des enrichissements proposés
 
-Avant tout appel à `question`, afficher en texte clair :
+Un tableau par page cible, à reprendre dans ton rapport :
 
-```markdown
-## 💾 Enrichissement du wiki documentaire — Découvertes à capitaliser
-
-### Enrichissements proposés pour `docs/wiki/index.md`
-
-| Section | Action | Contenu proposé | Confiance |
-|---------|--------|-----------------|-----------|
-| `## Points critiques actifs 🔴` | Ajouter | "<titre court>" | `CONFIRMÉ` · src/auth/jwt.service.ts:42 |
-| `## Zones d'ombre` | Retirer | "<zone levée>" | `CONFIRMÉ` |
-
-### Enrichissements proposés pour `docs/wiki/technical/conventions.md`
-
-| Section | Action | Contenu proposé | Confiance |
-|---------|--------|-----------------|-----------|
-| `## Patterns spécifiques à l'équipe` | Ajouter | "<pattern observé>" | `CONFIRMÉ` · src/services/user.service.ts:17 |
-
-### Enrichissements proposés pour `docs/wiki/technical/architecture.md`
-
-| Section | Action | Contenu proposé | Confiance |
-|---------|--------|-----------------|-----------|
-| `## Points de fragilité connus` | Ajouter | "<zone fragile>" | `CONFIRMÉ` · src/controllers/auth.controller.ts:23 |
-
-### Enrichissements proposés pour `docs/wiki/technical/stack.md`
-
-| Section | Action | Contenu proposé | Confiance |
-|---------|--------|-----------------|-----------|
-| `## Librairies clés` | Ajouter "À éviter" | "lodash 4.17.20 — CVE-2024-1234" | `CONFIRMÉ` · package.json |
-
-### Enrichissements proposés pour `docs/wiki/business/<domain>.md`
-
-| Fichier | Section | Action | Contenu proposé | Confiance |
-|---------|---------|--------|-----------------|-----------|
-| `auth.md` | `## Règles de gestion` | Ajouter | "<règle métier>" | `CONFIRMÉ` · src/auth/auth.service.ts:89 |
-
-> Si aucun enrichissement pour une page, ne pas afficher la section correspondante.
-> Si une page `business/<domain>.md` n'existe pas encore, l'indiquer explicitement.
-```
+| Page | Section | Contenu proposé | Confiance |
+|------|---------|-----------------|-----------|
+| `technical/conventions.md` | `## Patterns spécifiques à l'équipe` | "<pattern observé>" | `CONFIRMÉ` · src/services/user.service.ts:17 |
 
 ---
 
-### ÉTAPE 3 — Demander confirmation (si nécessaire)
+### ÉTAPE 3 — Proposer avec `wiki_propose`
 
-<!-- oh:when role=subagent -->
-**Sous-agent** : n'appelle ni `question` ni le `documentarian`. Liste les enrichissements, avec leur tag, dans `### Enrichissements wiki proposés` de ton bloc de retour et arrête ce skill ici : ton coordinateur les propose.
+<!-- oh:when mcp=wiki -->
+Un appel par enrichissement :
+
+```
+wiki_propose({ page: "technical/conventions.md", section: "Patterns spécifiques à l'équipe",
+  content: "<constat factuel, une ligne ou un bloc court>", tag: "CONFIRMÉ", source: "src/services/user.service.ts:17" })
+```
+
+- `page` : relative à `docs/wiki/` ; `section` : titre de la section cible (créée à la fin si absente).
+- `content` : le constat seul, sans titre ni ligne de tag : oh écrit le tag, ton nom (vu par oh), la date et la source.
+- Cite les identifiants `wp-…` rendus dans ton rapport, au lieu de recopier les propositions.
+- Ne pose pas de question : l'utilisateur décide à la carte du checkpoint de commit. Sans commit dans le workflow (audit, review…), la proposition reste en file.
+- Réponse « non enregistrée » (démon oh indisponible) : liste les enrichissements dans `### Enrichissements wiki proposés` de ton rapport.
 <!-- /oh:when -->
-
-<!-- oh:when role=entry -->
-**Workflow sans documentarian** (workflows en lecture seule comme `audit` ou `review`) : Si `documentarian` n'est pas dans ta colonne « Peut déléguer à » (carte du workflow), ne l'invoque pas : liste les enrichissements dans `### Enrichissements wiki proposés` de ton rapport et propose une session `oh run libre --agent documentarian`. Ne pose pas la question de délégation ci-dessous et arrête ce skill ici.
-
-**Règle de triage automatique :**
-- Si **tous** les enrichissements proposés sont tagués `CONFIRMÉ` → **auto-délégation** : passer directement à l'ÉTAPE 4 sans poser de question. Afficher :
-  `> 💾 Wiki documentaire : X enrichissements CONFIRMÉ — délégation automatique au documentarian.`
-- Si **au moins un** enrichissement est tagué `DÉDUIT` ou `INCERTAIN` → demander confirmation via `question` (comportement ci-dessous).
-
-Après affichage du résumé, si confirmation requise, utiliser l'outil `question` :
-
-```
-question({
-  questions: [{
-    header: "Enrichir le wiki",
-    question: "[<Nom de l'agent> — Post-<audit/diagnostic/planification/implémentation/review> | Projet : <nom>]\nJ'ai identifié X enrichissements à capitaliser dans le wiki, dont Y tagués DÉDUIT/INCERTAIN (voir résumé ci-dessus). Déléguer l'écriture au documentarian ?",
-    options: [
-      { label: "Oui — déléguer au documentarian (Recommandé)", description: "Invoquer le documentarian pour enrichir le wiki de manière incrémentale" },
-      { label: "Oui — uniquement les CONFIRMÉ", description: "Déléguer seulement les enrichissements CONFIRMÉ, écarter les DÉDUIT/INCERTAIN" },
-      { label: "Non — passer", description: "Conserver le wiki tel quel" }
-    ]
-  }]
-})
-```
-
-**Selon la réponse :**
-- **Oui (tous)** → ÉTAPE 4 (déléguer au documentarian avec tous les enrichissements)
-- **Oui (uniquement CONFIRMÉ)** → ÉTAPE 4 (déléguer au documentarian en excluant les DÉDUIT/INCERTAIN)
-- **Non** → Fin — afficher `> 💾 Wiki documentaire conservé tel quel.`
-
----
-
-### ÉTAPE 4 — Déléguer au documentarian
-
-Si `documentarian` n'est pas dans ta colonne « Peut déléguer à » (carte du workflow), ne l'invoque pas : liste les enrichissements dans `### Enrichissements wiki proposés` de ton rapport et propose une session `oh run libre --agent documentarian`.
-
-Invoquer le `documentarian` via l'outil `task` avec un prompt structuré :
-
-```
-task({
-  subagent_type: "documentarian",
-  description: "Enrichissement incrémental wiki documentaire",
-  prompt: `
-Enrichis de manière incrémentale les pages du wiki documentaire du projet listées ci-dessous,
-avec les découvertes issues d'un <audit <domaine> / diagnostic de bug / planification de feature
-/ implémentation de ticket / code review / reconnaissance>.
-
-## Règles impératives
-
-- Charger le skill doc-wiki-protocol avant d'écrire (il définit les formats canoniques)
-- Enrichissement incrémental uniquement — NE PAS écraser le contenu existant
-- Lire chaque page wiki avant de l'enrichir
-- Ajouter le contenu à la fin de la section cible concernée
-- Chaque enrichissement doit porter le tag de confiance fourni ci-dessous (format exact : voir doc-wiki-protocol)
-- Si une page docs/wiki/business/<domain>.md doit être créée : l'initialiser avec le template standard du skill doc-wiki-protocol
-- Mettre à jour le frontmatter (updated, agents, confidence) de chaque page modifiée
-- Après tout enrichissement : réévaluer le tableau des god nodes dans docs/wiki/index.md
-  (algorithme dans le skill wiki-navigation — un concept cité dans ≥ 2 pages devient god node)
-- Ne pas modifier la structure des pages (sections, titres existants)
-
-## Enrichissements à appliquer
-
-### docs/wiki/index.md
-<liste des enrichissements identifiés à l'ÉTAPE 2, avec section cible, action, contenu et tag de confiance>
-
-### docs/wiki/technical/conventions.md
-<liste des enrichissements identifiés à l'ÉTAPE 2>
-
-### docs/wiki/technical/architecture.md
-<liste des enrichissements identifiés à l'ÉTAPE 2>
-
-### docs/wiki/technical/stack.md
-<liste des enrichissements identifiés à l'ÉTAPE 2>
-
-### docs/wiki/technical/tests.md
-<liste des enrichissements identifiés à l'ÉTAPE 2>
-
-### docs/wiki/business/<domain>.md
-<liste des enrichissements identifiés à l'ÉTAPE 2, avec fichier cible, section cible, action, contenu et tag>
-
-> Si une page n'a aucun enrichissement, ne pas la modifier.
-`
-})
-```
-
----
-
-### ÉTAPE 5 — Confirmer la délégation
-
-Après le retour du `documentarian`, afficher :
-
-```markdown
-## ✅ Wiki documentaire enrichi
-
-Le `documentarian` a enrichi les pages suivantes :
-- `docs/wiki/index.md` — X modifications (god nodes mis à jour : oui/non)
-- `docs/wiki/technical/conventions.md` — Y modifications
-- `docs/wiki/technical/architecture.md` — Z modifications
-- `docs/wiki/technical/stack.md` — W modifications
-- `docs/wiki/technical/tests.md` — V modifications
-- `docs/wiki/business/<domain>.md` — U modifications
-
-> Ces informations seront automatiquement utilisées par les agents futurs
-> (developer, orchestrator-dev, auditors) lors de leurs prochains accès au projet.
-```
+<!-- oh:when mcp!=wiki -->
+Sans l'outil `wiki_propose` dans cette session : liste les enrichissements, avec leur tag et leur source, dans `### Enrichissements wiki proposés` de ton rapport, et arrête ce skill ici.
 <!-- /oh:when -->
 
 ---
@@ -406,7 +271,7 @@ Le `documentarian` a enrichi les pages suivantes :
 ✅ **Non redondant** : vérifier que l'information n'est pas déjà présente dans la page
 ✅ **Actionnable** : compréhensible par un agent futur sans relire le rapport source
 
-❌ Ne pas transmettre le rapport complet au documentarian — seulement les enrichissements ciblés
+❌ Ne pas mettre le rapport complet dans `wiki_propose` — seulement les enrichissements ciblés
 ❌ Ne pas ajouter d'enrichissements subjectifs ou spéculatifs
-❌ Ne pas modifier la structure des pages via le documentarian — uniquement le contenu
+❌ Ne pas proposer de changement de structure des pages (titres, sections existantes) — uniquement du contenu
 ❌ Ne pas omettre le tag de confiance — chaque enrichissement doit en porter un

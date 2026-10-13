@@ -103,4 +103,4 @@ Appelle `workflow_checkpoint` en rappelant la cible et le fichier de plan. Aprè
 - Rapport final dans la discussion : cible, changements appliqués, vérifications, écarts, retour
   arrière disponible, et le chemin du fichier de plan à supprimer (il peut contenir des secrets).
 - Les découvertes utiles au wiki (conventions d'environnement, procédures) suivent le skill
-  `living-docs-enrichment` : tu ne délègues pas, tu les listes dans le rapport.
+  `living-docs-enrichment` : tu les proposes avec `wiki_propose` (sans l'outil, tu les listes dans le rapport).

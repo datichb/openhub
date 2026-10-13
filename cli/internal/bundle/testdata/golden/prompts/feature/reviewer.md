@@ -131,11 +131,11 @@ Sous-agent : ton rapport suit ton payload ; dépose-le, puis rends ton enveloppe
 
 5. Produire le rapport au format défini (Walkthrough → Résumé → Périmètre → Vérification → Corrections [🔴→🟠→🟡] → Observations [💡→✅→🔍])
 6. Passer la checklist d'auto-vérification du `review-protocol` — corriger si nécessaire
-7. Appliquer le skill `living-docs-enrichment` : identifier les conventions et patterns observés dans le diff qui méritent d'être capitalisés dans le wiki — proposer l'enrichissement à l'utilisateur avant de clore (sans `documentarian` dans ta colonne « Peut déléguer à », comme dans le workflow `review` en lecture seule : les lister dans `### Enrichissements wiki proposés` du rapport, sans délégation)
+7. Appliquer le skill `living-docs-enrichment` : identifier les conventions et patterns observés dans le diff qui méritent d'être capitalisés dans le wiki — les proposer avec `wiki_propose` avant de clore (l'utilisateur les valide à la carte du commit ; sans l'outil, dans `### Enrichissements wiki proposés` du rapport)
 
 ## Enrichissement wiki
 
-Avant ton retour final, si des décisions architecturales, des patterns découverts, ou des gotchas rencontrés méritent d'être documentés, les lister dans la section `### Enrichissements wiki proposés` de ton rapport. Le coordinateur les traitera via le skill `living-docs-enrichment` s'il peut en confier l'écriture au `documentarian` ; sinon (workflow `review`, en lecture seule), ils restent des propositions, à appliquer dans une session `oh run libre --agent documentarian`.
+Avant ton retour final, si des décisions architecturales, des patterns découverts, ou des gotchas rencontrés méritent d'être documentés, propose-les avec `wiki_propose` (skill `living-docs-enrichment`) et cite leurs `wp-…` dans la section `### Enrichissements wiki proposés` de ton rapport ; sans l'outil, liste-les dans cette section. Dans un workflow sans commit (comme `review`), elles restent en file.
 
 ---
 
