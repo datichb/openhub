@@ -1003,7 +1003,7 @@ func isBeadsAgentContent(content string) bool {
 
 // DiagIssue describes a single zero-impact violation found in a project.
 type DiagIssue struct {
-	Kind   string // "hook", "gitignore", "exclude_missing", "agent_file"
+	Kind   string // "hook", "gitignore", "exclude_missing", "exclude_lock_missing", "agent_file"
 	Detail string // human-readable description
 }
 
@@ -1038,6 +1038,8 @@ func DiagnoseBeadsImpact(projectPath string) []DiagIssue {
 		switch {
 		case a.Kind == CleanExclude:
 			issues = append(issues, DiagIssue{Kind: "exclude_missing", Detail: ".git/info/exclude does not contain .beads/ entry"})
+		case a.Kind == CleanExcludeLock:
+			issues = append(issues, DiagIssue{Kind: "exclude_lock_missing", Detail: ".git/info/exclude does not contain /.beads.gate.lock entry"})
 		case a.Path == ".gitignore":
 			issues = append(issues, DiagIssue{Kind: "gitignore", Detail: ".gitignore contains entries added by bd"})
 		default:

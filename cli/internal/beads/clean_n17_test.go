@@ -192,3 +192,149 @@ func TestSharedBeadsNotExcluded(t *testing.T) {
 		t.Fatalf("changes: %+v", report)
 	}
 }
+
+func countLines(content, line string) int {
+	n := 0
+	for _, l := range strings.Split(content, "\n") {
+		if strings.TrimSpace(l) == line {
+			n++
+		}
+	}
+	return n
+}
+
+// Q31: the lock bd 1.3 leaves at the root of the project is excluded with
+// .beads/, once, also in a project initialized before bd 1.3.
+func TestExcludeAddsGateLock(t *testing.T) {
+	r := gitRepo{t, t.TempDir()}
+	r.git("init", "-q", "-b", "main")
+	exclude := filepath.Join(r.dir, ".git", "info", "exclude")
+	writeProject(t, r.dir, map[string]string{".beads/config.yaml": "", ".git/info/exclude": "# mine\n.beads/\n"})
+
+	plan, err := CleanImpact(r.dir, CleanOptions{DryRun: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	k := kinds(plan)
+	if _, ok := k[CleanExcludeLock]; !ok {
+		t.Fatalf("missing lock not planned: %+v", plan)
+	}
+	if _, ok := k[CleanExclude]; ok {
+		t.Fatalf(".beads/ planned again: %+v", plan)
+	}
+	if got, _ := os.ReadFile(exclude); strings.Contains(string(got), gateLockPattern) {
+		t.Fatal("dry run wrote the exclude file")
+	}
+
+	for range 2 {
+		if _, err := CleanImpact(r.dir, CleanOptions{}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	got, _ := os.ReadFile(exclude)
+	if countLines(string(got), gateLockPattern) != 1 || countLines(string(got), ".beads/") != 1 || !strings.HasPrefix(string(got), "# mine\n") {
+		t.Fatalf("exclude:\n%s", got)
+	}
+	if out := r.git("status", "--porcelain", "--ignored=no"); out != "" {
+		t.Fatalf("status not clean: %q", out)
+	}
+	writeProject(t, r.dir, map[string]string{".beads.gate.lock": ""})
+	if out := r.git("status", "--porcelain"); out != "" {
+		t.Fatalf("lock not ignored: %q", out)
+	}
+	report, err := CleanImpact(r.dir, CleanOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if report.Changed() {
+		t.Fatalf("not idempotent: %+v", report)
+	}
+}
+
+// A fresh project gets both entries; an equivalent pattern (bd doctor --fix
+// writes *.gate.lock*) is not doubled.
+func TestExcludeGateLockFreshAndEquivalent(t *testing.T) {
+	r := gitRepo{t, t.TempDir()}
+	r.git("init", "-q", "-b", "main")
+	writeProject(t, r.dir, map[string]string{".beads/config.yaml": ""})
+	report, err := CleanImpact(r.dir, CleanOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	k := kinds(report)
+	if _, ok := k[CleanExclude]; !ok {
+		t.Fatalf(".beads/ not added: %+v", report)
+	}
+	if _, ok := k[CleanExcludeLock]; !ok {
+		t.Fatalf("lock not added: %+v", report)
+	}
+	got, _ := os.ReadFile(filepath.Join(r.dir, ".git", "info", "exclude"))
+	if countLines(string(got), gateLockPattern) != 1 || countLines(string(got), ".beads/") != 1 {
+		t.Fatalf("exclude:\n%s", got)
+	}
+
+	other := gitRepo{t, t.TempDir()}
+	other.git("init", "-q", "-b", "main")
+	writeProject(t, other.dir, map[string]string{".beads/config.yaml": "", ".git/info/exclude": "/.beads\n*.gate.lock*\n"})
+	report, err = CleanImpact(other.dir, CleanOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if report.Changed() {
+		t.Fatalf("equivalent patterns not recognized: %+v", report)
+	}
+}
+
+// A .beads/ shared through git: oh writes neither .git/info/exclude nor the
+// .gitignore of the team, it reports the missing entry until the team's
+// .gitignore has it (a local exclude does not count).
+func TestSharedGateLockUnignored(t *testing.T) {
+	r := gitRepo{t, t.TempDir()}
+	r.git("init", "-q", "-b", "main")
+	writeProject(t, r.dir, map[string]string{".beads/issues.jsonl": "{}\n", ".gitignore": "node_modules/\n"})
+	r.git("add", ".")
+	r.git("commit", "-qm", "share beads")
+	exclude := filepath.Join(r.dir, ".git", "info", "exclude")
+	before, _ := os.ReadFile(exclude)
+
+	report, err := CleanImpact(r.dir, CleanOptions{Tracked: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if report.Changed() {
+		t.Fatalf("changes while shared: %+v", report)
+	}
+	if got, _ := os.ReadFile(exclude); string(got) != string(before) {
+		t.Fatalf("exclude written while shared:\n%s", got)
+	}
+	if got, _ := os.ReadFile(filepath.Join(r.dir, ".gitignore")); string(got) != "node_modules/\n" {
+		t.Fatalf(".gitignore written: %q", got)
+	}
+	if !SharedGateLockUnignored(r.dir) {
+		t.Fatal("missing team entry not reported")
+	}
+	writeProject(t, r.dir, map[string]string{".git/info/exclude": gateLockPattern + "\n"})
+	if !SharedGateLockUnignored(r.dir) {
+		t.Fatal("a local exclude counted as the team's .gitignore")
+	}
+	writeProject(t, r.dir, map[string]string{".gitignore": "node_modules/\n/.beads.gate.lock\n", ".git/info/exclude": ""})
+	if SharedGateLockUnignored(r.dir) {
+		t.Fatal("reported with the entry in .gitignore")
+	}
+	writeProject(t, r.dir, map[string]string{".gitignore": "*.gate.lock\n!.beads.gate.lock\n"})
+	if !SharedGateLockUnignored(r.dir) {
+		t.Fatal("a negated pattern counted")
+	}
+}
+
+func TestSharedGateLockUnignoredLocalBeads(t *testing.T) {
+	r := gitRepo{t, t.TempDir()}
+	r.git("init", "-q", "-b", "main")
+	writeProject(t, r.dir, map[string]string{".beads/config.yaml": ""})
+	if SharedGateLockUnignored(r.dir) {
+		t.Fatal("local .beads/ reported as shared")
+	}
+	if SharedGateLockUnignored(t.TempDir()) {
+		t.Fatal("not a repository reported")
+	}
+}

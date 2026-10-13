@@ -290,7 +290,7 @@ The hub supports two trackers: **Jira** and **GitLab**.
 
 #### Local exclusion of `.beads/`
 
-`oh beads init` automatically adds `.beads/` to the target project's `.git/info/exclude` file.
+`oh beads init` automatically adds `.beads/` and `/.beads.gate.lock` (the lock bd 1.3 writes at the project root and never removes) to the target project's `.git/info/exclude` file; `oh doctor --fix` adds what is missing, without duplicates. A `.beads/` tracked by git is not excluded: `oh doctor` then reports the `/.beads.gate.lock` entry to add to the team's `.gitignore`.
 This file is local to the machine and never versioned — tracker credentials (GitLab token, Jira token) stored by `bd config set` are never exposed in the shared repository.
 
 > This behaviour mirrors the exclusion of `opencode.json` and `.opencode/` formerly applied by `oh init` / `oh deploy` (removed in v5: nothing is deployed into the project anymore).
