@@ -423,6 +423,9 @@ func (e *childEvalExecutor) Execute(ctx context.Context, p evalrun.Pass) (*evalr
 	}
 	defer logf.Close()
 	env := e.passEnv(home, user)
+	if c.Reports == evalrun.ReportsOff {
+		env = append(env, envWorkflowReports+"=off")
+	}
 	// The child stops its session and its daemon itself; this margin lets it.
 	cctx, cancel := context.WithTimeout(ctx, c.TimeoutOrDefault()+5*time.Minute)
 	defer cancel()

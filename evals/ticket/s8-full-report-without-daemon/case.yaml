@@ -1,8 +1,9 @@
 id: S8
 title: "Ticket sans démon : retour au rapport complet inclus dans le bloc"
 workflow: ticket
-active: false
-inactive_reason: "actif après L4 (workflow_report) : il faut pouvoir couper le dépôt des rapports par le démon pour vérifier le repli sur le rapport complet dans le bloc"
+# Le démon ne garde aucun rapport (OH_WORKFLOW_REPORTS=off) : workflow_report
+# répond « non enregistré » et chaque agent doit inclure son rapport complet.
+reports: off
 mode: semi-auto
 tickets: [ev-1]
 beads:

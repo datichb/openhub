@@ -28,6 +28,16 @@ Chaque bloc de handoff **doit** contenir une section `### Questions bloquantes` 
 - **Si des questions existent :** liste numérotée, chaque entrée avec contexte + options si possible
 - Ce champ est **contractuellement bloquant** — le coordinateur ne peut pas poursuivre le workflow tant que les questions ne sont pas résolues
 
+## Rapport déposé dans oh — `workflow_report`
+
+Si l'outil `workflow_report` est disponible :
+
+1. Dépose ton rapport complet **avant** d'écrire le bloc : `workflow_report` avec `title` et `body` (Markdown, avec les sections de ton format).
+2. Dans le bloc, remplace la section du rapport (`### Rapport complet`, `### Changements par fichier`…) par la ligne `Rapport : rp-N` (l'identifiant reçu). Garde les autres champs obligatoires : verdict, statut, corrections requises, questions bloquantes, état de la session.
+3. Si l'outil est absent, ou s'il répond « non enregistré » ou refuse le rapport : inclus le rapport complet dans le bloc, sans identifiant.
+
+Côté consumer, `Rapport : rp-N` vaut section présente : oh joint ce rapport à la carte du checkpoint suivant. Cite l'identifiant (et passe-le dans `reports` de `workflow_checkpoint`) au lieu de le recopier ; `workflow_report_get` le relit au besoin, section par section.
+
 ## Contrat — consumer (orchestrator)
 
 À la réception d'un bloc de handoff :
