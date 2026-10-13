@@ -9,6 +9,14 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ## [Unreleased]
 
+### Added — évaluations en parallèle (lot eval-parallel)
+
+- **`oh eval --parallel N`** (`OH_EVAL_PARALLEL`, aussi dans `make test-eval`) lance jusqu'à N passages en même temps, chacun isolé (`OH_HOME`, `HOME`, `TMPDIR`, clone, démon, proxy) ; les rapports sont identiques à un lancement séquentiel. S7 et S10 ×2 : 1 min 17 s au lieu d'environ 3 min.
+- **`oh eval --budget-total`** (`OH_EVAL_BUDGET_TOTAL`) : plafond de coût de toute l'évaluation ; une fois atteint, aucun nouveau passage ne démarre et le rapport liste les passages non lancés.
+- **Limites de débit** : un passage arrêté par une limite de débit du fournisseur est relancé jusqu'à trois fois après une attente croissante ; le rapport liste les relances et compte leur coût.
+- **Sonnet** : plafond par passage par défaut de 2,50 $ dès qu'un modèle Sonnet est évalué (1 $ sinon), sauf `--budget` ou `OH_EVAL_BUDGET_USD`.
+- **Corrigé** : `oh eval` supprime bien les dossiers de travail des passages (les paquets en lecture seule les faisaient rester).
+
 ### Changed — enveloppe de retour et protocole unique (lot L5) — ⚠ changement de comportement
 
 - **Enveloppe de retour** : un agent lancé par un autre rend une enveloppe de 15 lignes au plus — `## Retour vers <appelant>` (titre pris dans le contrat de session, jamais écrit en dur), statut, rapport `rp-…`, questions bloquantes, suite proposée, résumé, `task_id`. Son rapport complet est déposé avec `workflow_report`, ou inclus sous l'enveloppe sans démon.
