@@ -1,6 +1,9 @@
 ---
 name: dev-standards-playwright
 description: "Utiliser quand le projet utilise Playwright (locators, fixtures, waits, POM) et que le ticket touche ce code."
+versions:
+  playwright: "1.64"
+reviewed: 2026-10-12
 ---
 
 # Skill — Standards Playwright

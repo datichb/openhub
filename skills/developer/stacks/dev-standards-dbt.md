@@ -1,6 +1,9 @@
 ---
 name: dev-standards-dbt
 description: "Utiliser quand le projet utilise dbt (staging/mart, schema.yml, tests, matérialisations) et que le ticket touche ce code."
+versions:
+  dbt-core: "1.12"
+reviewed: 2026-10-12
 ---
 
 # Skill — Standards dbt

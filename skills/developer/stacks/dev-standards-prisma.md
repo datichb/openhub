@@ -1,6 +1,9 @@
 ---
 name: dev-standards-prisma
 description: "Utiliser quand le projet utilise Prisma (schema, migrations, relations, transactions) et que le ticket touche ce code."
+versions:
+  prisma: "7.10"
+reviewed: 2026-10-12
 ---
 
 # Skill — Standards Prisma

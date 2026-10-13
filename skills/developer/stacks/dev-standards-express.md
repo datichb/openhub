@@ -1,6 +1,11 @@
 ---
 name: dev-standards-express
 description: "Utiliser quand le projet utilise Express/Fastify (routing, middleware, validation, erreurs) et que le ticket touche ce code."
+versions:
+  express: "5.3"
+  fastify: "5.12"
+  zod: "4"
+reviewed: 2026-10-12
 ---
 
 # Skill — Standards Express / Fastify

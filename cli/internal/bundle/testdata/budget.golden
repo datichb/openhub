@@ -60,6 +60,8 @@ instruct review-feedback        developer                       11807     5555  
 instruct review-feedback        orchestrator-dev                 4555     3060    6   19    686   19    686
 instruct review-feedback        reviewer                        11428     5062    6   13    447   13    447
 instruct review-feedback        TOTAL                           27790    13677   20   27    953   27    953
+instruct skill-refresh          documentarian                    4267     2713    4    9    276    9    276
+instruct skill-refresh          TOTAL                            4267     2713    4    9    276    9    276
 instruct sweep                  conductor                        3592     2415    5    5    181    5    181
 instruct sweep                  developer                       11801     5555    8   15    512   15    512
 instruct sweep                  pathfinder                       5654     3832    7    4    132    4    132
@@ -120,6 +122,8 @@ none     review-feedback        developer                        7329     5082  
 none     review-feedback        orchestrator-dev                 4157     3060    6   22    790   22    790
 none     review-feedback        reviewer                         6616     4506    5   16    551   16    551
 none     review-feedback        TOTAL                           18102    12648   18   30   1057   30   1057
+none     skill-refresh          documentarian                    3851     2713    4    9    276    9    276
+none     skill-refresh          TOTAL                            3851     2713    4    9    276    9    276
 none     sweep                  conductor                        3500     2415    5    5    181    5    181
 none     sweep                  developer                        7323     5082    7   18    616   18    616
 none     sweep                  pathfinder                       4786     3358    6    4    132    4    132
@@ -180,6 +184,8 @@ stacks   review-feedback        developer                        7329     5082  
 stacks   review-feedback        orchestrator-dev                 4157     3060    6   22    790   22    790
 stacks   review-feedback        reviewer                         6616     4506    5   23    798   23    798
 stacks   review-feedback        TOTAL                           18102    12648   18   37   1304   37   1304
+stacks   skill-refresh          documentarian                    3851     2713    4    9    276    9    276
+stacks   skill-refresh          TOTAL                            3851     2713    4    9    276    9    276
 stacks   sweep                  conductor                        3500     2415    5    5    181    5    181
 stacks   sweep                  developer                        7323     5082    7   25    863   25    863
 stacks   sweep                  pathfinder                       4786     3358    6    4    132    4    132

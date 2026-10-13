@@ -1,6 +1,10 @@
 ---
 name: dev-standards-helm
 description: "Utiliser quand le projet utilise Helm (chart, values par env, External Secrets, helm diff) et que le ticket touche ce code."
+versions:
+  helm: "4.3"
+  external-secrets-api: "v1"
+reviewed: 2026-10-12
 ---
 
 # Skill — Standards Helm

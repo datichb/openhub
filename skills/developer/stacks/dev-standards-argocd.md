@@ -1,6 +1,10 @@
 ---
 name: dev-standards-argocd
 description: "Utiliser quand le projet utilise ArgoCD/GitOps (Applications, External Secrets, Vault, sync) et que le ticket touche ce code."
+versions:
+  argocd: "3.5"
+  external-secrets-api: "v1"
+reviewed: 2026-10-12
 ---
 
 # Skill — Standards ArgoCD / GitOps

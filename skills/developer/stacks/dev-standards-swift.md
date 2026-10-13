@@ -1,6 +1,10 @@
 ---
 name: dev-standards-swift
 description: "Utiliser quand le projet utilise Swift/iOS (SwiftUI, MVVM, concurrency, Keychain) et que le ticket touche ce code."
+versions:
+  swift: "6.4"
+  ios: "17+"
+reviewed: 2026-10-12
 ---
 
 # Skill — Standards Swift (iOS natif)

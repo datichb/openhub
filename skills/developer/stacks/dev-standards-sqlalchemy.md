@@ -1,6 +1,11 @@
 ---
 name: dev-standards-sqlalchemy
 description: "Utiliser quand le projet utilise SQLAlchemy (sessions, Alembic, async, transactions) et que le ticket touche ce code."
+versions:
+  sqlalchemy: "2.1"
+  alembic: "1.20"
+  python: "3.11+"
+reviewed: 2026-10-12
 ---
 
 # Skill — Standards SQLAlchemy

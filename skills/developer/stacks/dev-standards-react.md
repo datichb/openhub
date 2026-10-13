@@ -1,6 +1,10 @@
 ---
 name: dev-standards-react
 description: "Utiliser quand le projet utilise React (hooks, composition, état, performance) et que le ticket touche ce code."
+versions:
+  react: "19.3"
+  react-compiler: "1.0"
+reviewed: 2026-10-12
 ---
 
 # Skill — Standards React

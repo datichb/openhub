@@ -1,6 +1,12 @@
 ---
 name: dev-standards-java
 description: Utiliser quand le projet contient du Java (Maven ou Gradle) — Java moderne, records, null, exceptions, concurrence, tests JUnit 5, conventions de nommage.
+versions:
+  java: "25"
+  maven: "3.9"
+  gradle: "9"
+  junit: "5"
+reviewed: 2026-10-13
 ---
 
 # Skill — Standards Java

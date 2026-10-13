@@ -1,6 +1,10 @@
 ---
 name: dev-standards-mongodb
 description: "Utiliser quand le projet utilise MongoDB/Mongoose (schemas, index, agrégations, transactions) et que le ticket touche ce code."
+versions:
+  mongodb: "8.x / 9.0"
+  mongoose: "9"
+reviewed: 2026-10-12
 ---
 
 # Skill — Standards MongoDB / Mongoose

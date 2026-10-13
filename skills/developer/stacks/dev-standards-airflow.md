@@ -1,6 +1,9 @@
 ---
 name: dev-standards-airflow
 description: "Utiliser quand le projet utilise Apache Airflow (DAGs, TaskFlow, idempotence, secrets, tests) et que le ticket touche ce code."
+versions:
+  airflow: "3.3"
+reviewed: 2026-10-12
 ---
 
 # Skill — Standards Apache Airflow

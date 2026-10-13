@@ -1,6 +1,10 @@
 ---
 name: dev-standards-django
 description: "Utiliser quand le projet utilise Django/DRF (models, views, serializers, migrations, permissions) et que le ticket touche ce code."
+versions:
+  django: "5.2 LTS / 6.1"
+  djangorestframework: "3.18"
+reviewed: 2026-10-12
 ---
 
 # Skill — Standards Django

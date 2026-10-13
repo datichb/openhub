@@ -1,6 +1,9 @@
 ---
 name: dev-standards-cypress
 description: "Utiliser quand le projet utilise Cypress (commandes, cy.intercept, sélecteurs, fixtures) et que le ticket touche ce code."
+versions:
+  cypress: "12+"
+reviewed: 2026-04-30
 ---
 
 # Skill — Standards Cypress

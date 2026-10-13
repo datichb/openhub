@@ -1,6 +1,9 @@
 ---
 name: dev-standards-angular
 description: "Utiliser quand le projet utilise Angular (standalone, signals, DI, RxJS, routing) et que le ticket touche ce code."
+versions:
+  angular: "22"
+reviewed: 2026-10-12
 ---
 
 # Skill — Standards Angular

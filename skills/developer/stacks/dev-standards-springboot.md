@@ -1,6 +1,11 @@
 ---
 name: dev-standards-springboot
 description: "Utiliser quand le projet utilise Spring Boot (beans, JPA, REST, validation, tests) et que le ticket touche ce code."
+versions:
+  spring-boot: "4.1"
+  spring-framework: "7"
+  java: "25"
+reviewed: 2026-10-12
 ---
 
 # Skill — Standards Spring Boot

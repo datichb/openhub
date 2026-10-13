@@ -1,6 +1,10 @@
 ---
 name: dev-standards-rust
 description: "Utiliser quand le projet utilise Rust (ownership, erreurs, async/tokio, clippy) et que le ticket touche ce code."
+versions:
+  rust: "1.99"
+  edition: "2024"
+reviewed: 2026-10-12
 ---
 
 # Skill — Standards Rust

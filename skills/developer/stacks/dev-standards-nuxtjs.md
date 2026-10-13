@@ -1,6 +1,9 @@
 ---
 name: dev-standards-nuxtjs
 description: "Utiliser quand le projet utilise Nuxt (composables, useFetch, Nitro, Pinia) et que le ticket touche ce code."
+versions:
+  nuxt: "4.6"
+reviewed: 2026-10-12
 ---
 
 # Skill — Standards Nuxt.js

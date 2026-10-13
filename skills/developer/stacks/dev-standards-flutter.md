@@ -1,6 +1,12 @@
 ---
 name: dev-standards-flutter
 description: "Utiliser quand le projet utilise Flutter (widgets, BLoC/Riverpod, performance, Dart) et que le ticket touche ce code."
+versions:
+  flutter: "3.47"
+  dart: "3.13"
+  flutter-bloc: "9"
+  riverpod: "3"
+reviewed: 2026-10-12
 ---
 
 # Skill — Standards Flutter

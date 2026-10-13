@@ -1,6 +1,11 @@
 ---
 name: dev-standards-python
 description: "Utiliser quand le projet utilise Python (style, typage, environnements, erreurs) et que le ticket touche ce code."
+versions:
+  python: "3.14"
+  uv: "0.13"
+  ruff: "0.17"
+reviewed: 2026-10-12
 ---
 
 # Skill — Standards Python
