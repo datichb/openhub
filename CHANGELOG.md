@@ -9,6 +9,14 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ## [Unreleased]
 
+### Fixed — nettoyage après L6 (lot L6 cleanup)
+
+- **`libre`** lance les agents atteints par l'agent d'entrée comme sous-agents : un agent resté `primary` par son frontmatter (onboarder, designer, planner, pathfinder…) était refusé par OpenCode (« cannot run as a subagent »).
+- **Developer** : la couverture et les rapports de test ne laissent plus de fichier dans le dépôt (`go test -cover`, profils dans le dossier temporaire ; jest, vitest, playwright) ; la gate de complétion interdit tout fichier produit non ignoré par git.
+- **Frontmatters** : `beads-plan` retiré du designer et du documentarian (lecture seule de Beads), `dev-standards-git` du documentarian, délégation au documentarian retirée de l'auditor ; **`subagent-posture` supprimée**, ses règles portées par le contrat de session et `handoff-envelope`. L'appelant d'auditor-subagent est désigné par le contrat de session. La phase 0 de l'onboarder ne lit aucun fichier source.
+- **Évaluations** : cas S13 (onboarding : skills de phase, écritures limitées au wiki), S14 (onboarder en sous-agent dans `libre`) et S15 (designer dans `cadrage`), hors mesure de référence ; S9 3/3 (référence 0/3).
+- **Test** : les fausses clés du test de la trace sont découpées pour que la protection anti-secrets de GitHub ne les prenne plus pour des fuites.
+
 ### Added — documentation vivante (lot LD)
 
 - **`wiki_check` restreint à un changement** (`paths`, `base`/`head`, `since_sync`, et les mêmes options dans `oh wiki check`) : pages concernées et dérives calculées par oh (`drift_confirmed` : page `CONFIRMÉ` qui cite un fichier modifié ; `drift_god_node` : god node touché sans page à jour). Le reviewer gagne un **axe « documentation »** : chaque dérive devient un finding 🟡 (avec un wiki seulement).
