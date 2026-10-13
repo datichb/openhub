@@ -88,7 +88,9 @@ const (
 	CleanRemoved = "removed"
 	CleanEdited  = "edited"
 	CleanExclude = "exclude"
-	CleanSkipped = "skipped"
+	// CleanExcludeLock: /.beads.gate.lock added to .git/info/exclude.
+	CleanExcludeLock = "exclude_lock"
+	CleanSkipped     = "skipped"
 	// CleanUncommit: the commit of `bd init`, not pushed, was undone (the
 	// files stay in the working tree); Path is "commit <hash>".
 	CleanUncommit = "uncommit"
@@ -171,7 +173,8 @@ type cleaner struct {
 }
 
 // CleanImpact removes from a project what `bd init` wrote outside .beads/
-// and makes sure .beads/ is in .git/info/exclude. It never touches .beads/
+// and makes sure .beads/ and /.beads.gate.lock are in .git/info/exclude. It
+// never touches .beads/
 // nor the git hooks set by bd (core.hooksPath), which oh supports.
 func CleanImpact(projectPath string, opts CleanOptions) (CleanReport, error) {
 	c := &cleaner{root: projectPath, opts: opts}
@@ -528,19 +531,71 @@ func (c *cleaner) gitignore() error {
 	return nil
 }
 
-// exclude makes sure .beads/ is ignored locally (.git/info/exclude).
+// exclude makes sure .beads/ and the lock bd leaves beside it at the root
+// of the project (/.beads.gate.lock, bd 1.3) are ignored locally
+// (.git/info/exclude). Idempotent: an entry already there, or an
+// equivalent pattern, is not added again.
 func (c *cleaner) exclude() {
 	if !c.git || c.shared {
 		return
 	}
 	p := filepath.Join(c.root, ".git", "info", "exclude")
-	if data, err := os.ReadFile(p); err == nil && excludesBeads(string(data)) {
-		return
+	data, _ := os.ReadFile(p)
+	rel := filepath.Join(".git", "info", "exclude")
+	var missing []string
+	if !excludesBeads(string(data)) {
+		c.report.Actions = append(c.report.Actions, CleanAction{Path: rel, Kind: CleanExclude})
+		missing = append(missing, ".beads/")
 	}
-	c.report.Actions = append(c.report.Actions, CleanAction{Path: filepath.Join(".git", "info", "exclude"), Kind: CleanExclude})
-	if !c.opts.DryRun {
-		_ = addToExclude(p, []string{".beads/"})
+	if !excludesGateLock(string(data)) {
+		c.report.Actions = append(c.report.Actions, CleanAction{Path: rel, Kind: CleanExcludeLock})
+		missing = append(missing, gateLockPattern)
 	}
+	if len(missing) > 0 && !c.opts.DryRun {
+		_ = addToExclude(p, missing)
+	}
+}
+
+// gateLockPattern ignores the flock file bd 1.3 writes, and never removes,
+// beside .beads/ at the root of the project.
+const gateLockPattern = "/.beads.gate.lock"
+
+// excludesGateLock reports an ignore file with a line that covers
+// /.beads.gate.lock (bd doctor --fix writes *.gate.lock*).
+func excludesGateLock(content string) bool {
+	for _, l := range strings.Split(content, "\n") {
+		switch strings.TrimSpace(l) {
+		case gateLockPattern, ".beads.gate.lock", "*.gate.lock", "*.gate.lock*":
+			return true
+		}
+	}
+	return false
+}
+
+// SharedGateLockUnignored reports a project whose .beads/ is tracked by git
+// (shared with the team) while /.beads.gate.lock is not ignored by a
+// .gitignore of the repository: oh writes neither .git/info/exclude nor the
+// .gitignore of the team then, the entry is for the team to add.
+func SharedGateLockUnignored(projectPath string) bool {
+	run := func(args ...string) (string, error) {
+		out, err := gitutil.Command(context.Background(), projectPath, args...).Output()
+		return strings.TrimSpace(string(out)), err
+	}
+	if tracked, err := run("ls-files", "--", ".beads"); err != nil || tracked == "" {
+		return false
+	}
+	// <source>:<line>:<pattern>\t<path>; no output when nothing matches.
+	out, err := run("check-ignore", "-v", "--no-index", ".beads.gate.lock")
+	if err != nil || out == "" {
+		return true
+	}
+	source, rest, _ := strings.Cut(out, ":")
+	_, pattern, _ := strings.Cut(rest, ":")
+	if strings.HasPrefix(pattern, "!") {
+		return true
+	}
+	source = filepath.ToSlash(source)
+	return filepath.IsAbs(source) || strings.HasPrefix(source, ".git/") || source == ""
 }
 
 // excludesBeads reports an exclude file with a .beads/ (or .beads) line.

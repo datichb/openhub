@@ -117,7 +117,7 @@ func TestCleanImpactAfterRealBdInit(t *testing.T) {
 			t.Errorf("still reported: %+v", issues)
 		}
 		exclude, _ := os.ReadFile(filepath.Join(dir, ".git", "info", "exclude"))
-		if !strings.Contains(string(exclude), ".beads") || !strings.Contains(string(exclude), ".dolt/") {
+		if !strings.Contains(string(exclude), ".beads") || !strings.Contains(string(exclude), ".dolt/") || !excludesGateLock(string(exclude)) {
 			t.Errorf("exclude:\n%s", exclude)
 		}
 	}

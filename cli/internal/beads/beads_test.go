@@ -568,6 +568,19 @@ bd hook post-checkout
 	assert.True(t, kinds["hook"], "should detect hook issue")
 	assert.True(t, kinds["gitignore"], "should detect gitignore issue")
 	assert.True(t, kinds["exclude_missing"], "should detect missing exclude")
+	assert.True(t, kinds["exclude_lock_missing"], "should detect missing gate lock exclude")
+}
+
+// Q31: a project excluding .beads/ but not the lock bd 1.3 leaves beside it.
+func TestDiagnoseBeadsImpact_GateLockMissing(t *testing.T) {
+	dir := setupTempGitDir(t)
+	require.NoError(t, os.MkdirAll(filepath.Join(dir, ".beads"), 0o755))
+	writeFile(t, filepath.Join(dir, ".git", "info", "exclude"), ".beads/\n")
+
+	issues := DiagnoseBeadsImpact(dir)
+	require.Len(t, issues, 1)
+	assert.Equal(t, "exclude_lock_missing", issues[0].Kind)
+	assert.Contains(t, issues[0].Detail, "/.beads.gate.lock")
 }
 
 func TestDiagnoseBeadsImpact_CleanProject(t *testing.T) {
@@ -576,9 +589,9 @@ func TestDiagnoseBeadsImpact_CleanProject(t *testing.T) {
 	// Create .beads/ so IsInitialized returns true
 	require.NoError(t, os.MkdirAll(filepath.Join(dir, ".beads"), 0o755))
 
-	// Proper setup: .beads/ in exclude, not in gitignore, no hooks
+	// Proper setup: .beads/ and its lock in exclude, not in gitignore, no hooks
 	excludePath := filepath.Join(dir, ".git", "info", "exclude")
-	writeFile(t, excludePath, ".beads/\n")
+	writeFile(t, excludePath, ".beads/\n/.beads.gate.lock\n")
 
 	issues := DiagnoseBeadsImpact(dir)
 	assert.Empty(t, issues, "clean project should have no issues")

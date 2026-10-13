@@ -13,6 +13,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/beads"
 	"github.com/datichb/openhub/cli/internal/buildinfo"
+	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/selfupdate"
 	"github.com/datichb/openhub/cli/internal/tui/progress"
@@ -74,7 +75,7 @@ func doctorRegistry() []check {
 		{i18n.T("cmd.doctor.check.credentials"), one(checkProviderCredentials)},
 		{i18n.T("cmd.doctor.check.database"), one(checkDatabase)},
 		{i18n.T("cmd.doctor.check.api_keys"), single(checkAPIKeys)},
-		{i18n.T("cmd.doctor.check.beads"), single(checkBeadsSanity)},
+		{i18n.T("cmd.doctor.check.beads"), checkBeadsSanity},
 		{i18n.T("cmd.doctor.check.beads_tracking"), beadsTrackingChecks},
 		{i18n.T("cmd.doctor.check.runtime"), v5DoctorChecks},
 	}
@@ -307,57 +308,59 @@ func ohUpdateResult(current, latest string) views.DoctorCheck {
 }
 
 // checkBeadsSanity verifies that beads-initialized projects have no side effects
-// (hooks, .gitignore entries, agent files) that should have been prevented.
-// Projects without .beads/ are silently skipped (pass).
-func checkBeadsSanity() (string, bool) {
+// (hooks, .gitignore entries, agent files, missing exclude entries) that
+// should have been prevented. Projects without .beads/ are silently skipped
+// (pass). A project sharing .beads/ through git whose .gitignore does not
+// cover /.beads.gate.lock is a warning: the entry is for the team to add.
+func checkBeadsSanity() []views.DoctorCheck {
 	a := TryApp()
 	if a == nil || a.Projects == nil {
-		return i18n.T("cmd.doctor.beads.no_project"), true
+		return []views.DoctorCheck{{OK: true, Detail: i18n.T("cmd.doctor.beads.no_project")}}
 	}
 
 	ctx := context.Background()
 	projects, err := a.Projects.List(ctx, "")
 	if err != nil {
-		return i18n.T("cmd.doctor.beads.list_failed"), true
+		return []views.DoctorCheck{{OK: true, Detail: i18n.T("cmd.doctor.beads.list_failed")}}
 	}
+	return beadsSanityResults(projects)
+}
 
-	var totalIssues int
+// beadsSanityResults checks the Beads projects among projects.
+func beadsSanityResults(projects []domain.Project) []views.DoctorCheck {
+	var totalIssues, checkedCount int
 	var details []string
+	var warnings []views.DoctorCheck
 
 	for _, p := range projects {
-		if p.Path == "" {
+		if p.Path == "" || !beads.IsInitialized(p.Path) {
 			continue
 		}
-		if !beads.IsInitialized(p.Path) {
-			continue
-		}
+		checkedCount++
 		issues := beads.DiagnoseBeadsImpact(p.Path)
-		if len(issues) > 0 {
-			totalIssues += len(issues)
-			for _, issue := range issues {
-				details = append(details, fmt.Sprintf("[%s] %s: %s", p.Name, issue.Kind, issue.Detail))
-			}
+		totalIssues += len(issues)
+		for _, issue := range issues {
+			details = append(details, fmt.Sprintf("[%s] %s: %s", p.Name, issue.Kind, issue.Detail))
+		}
+		if beads.SharedGateLockUnignored(p.Path) {
+			warnings = append(warnings, views.DoctorCheck{OK: true, Warn: true, Detail: i18n.Tf("cmd.doctor.beads.shared_gate_lock", p.Name)})
 		}
 	}
 
-	if totalIssues == 0 {
-		checkedCount := 0
-		for _, p := range projects {
-			if p.Path != "" && beads.IsInitialized(p.Path) {
-				checkedCount++
-			}
+	var res views.DoctorCheck
+	switch {
+	case totalIssues > 0:
+		summary := i18n.Tf("cmd.doctor.beads.issues", totalIssues)
+		if len(details) <= 3 {
+			summary += ": " + strings.Join(details, "; ")
+		} else {
+			summary += ": " + strings.Join(details[:3], "; ") + " " + i18n.Tf("cmd.doctor.beads.more", len(details)-3)
 		}
-		if checkedCount == 0 {
-			return i18n.T("cmd.doctor.beads.none"), true
-		}
-		return i18n.Tf("cmd.doctor.beads.ok", checkedCount), true
+		res = views.DoctorCheck{Detail: summary + " — " + i18n.T("cmd.doctor.beads.fix_hint")}
+	case checkedCount == 0:
+		res = views.DoctorCheck{OK: true, Detail: i18n.T("cmd.doctor.beads.none")}
+	default:
+		res = views.DoctorCheck{OK: true, Detail: i18n.Tf("cmd.doctor.beads.ok", checkedCount)}
 	}
-
-	summary := i18n.Tf("cmd.doctor.beads.issues", totalIssues)
-	if len(details) <= 3 {
-		summary += ": " + strings.Join(details, "; ")
-	} else {
-		summary += ": " + strings.Join(details[:3], "; ") + " " + i18n.Tf("cmd.doctor.beads.more", len(details)-3)
-	}
-	return summary + " — " + i18n.T("cmd.doctor.beads.fix_hint"), false
+	return append([]views.DoctorCheck{res}, warnings...)
 }
