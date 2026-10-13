@@ -98,7 +98,7 @@ flowchart TD
     P1 & P2 & P3 & P4 & P5 --> AGENT["Agents de la session<br/>ne voient que les skills du paquet<br/>(skills intégrées d'opencode refusées,<br/>vérifié par Attest au démarrage)"]
 ```
 
-> Source du diagramme : [`docs/diagrams/skill-injection-flow.mermaid`](../diagrams/skill-injection-flow.mermaid)
+> Diagramme détaillé (en anglais) : [`docs/diagrams/skill-injection-flow.mermaid`](../diagrams/skill-injection-flow.mermaid)
 
 ---
 

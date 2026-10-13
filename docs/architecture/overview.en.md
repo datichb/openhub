@@ -8,9 +8,61 @@
 
 `oh` is the **control tower**, opencode the **cockpit**: `oh` picks the workflow, builds the session bundle, starts one opencode server per group and follows the sessions; opencode runs the agents and is the conversation interface. Closing the opencode window does not stop the session.
 
-![System view](../diagrams/system-overview.svg)
+```mermaid
+%% OpenHub -- System Overview (v5)
+%% oh is the control tower: it resolves a workflow, builds a session bundle,
+%% starts one opencode server per group and supervises the sessions through
+%% its daemon (credential proxy, gateways, decisions). See ADR-038 to ADR-048.
 
-> Standalone diagram source: [`docs/diagrams/system-overview.mermaid`](../diagrams/system-overview.mermaid)
+flowchart LR
+    U["fa:fa-user User"] -->|"oh run &lt;workflow&gt;<br/>TUI · oh session …"| CLI["fa:fa-terminal oh<br/>CLI + TUI"]
+
+    subgraph Hub ["~/.oh/ (hub)"]
+        TOML["hub.toml"]
+        DB["oh.db<br/>projects · sessions · decisions · usage"]
+        HC["hub/<br/>agents · skills · workflows"]
+    end
+
+    TS[("team-state (git)<br/>team / project workflows<br/>catalog · claims")]
+
+    CLI -->|reads| Hub
+    CLI -->|"resolves workflow<br/>(hub &lt; team &lt; project)"| TS
+    CLI -->|builds| BUN["~/.oh/bundles/&lt;hash&gt;/<br/>session bundle (immutable)"]
+    CLI -->|"Render · Launch · Attest<br/>(opencode V2 adapter)"| OC
+
+    subgraph RT ["Execution environment: local · container · remote"]
+        OC["fa:fa-robot opencode serve<br/>one server per group<br/>closed world"]
+        S1["session 1"]
+        S2["session 2"]
+        OC --- S1
+        OC --- S2
+    end
+
+    BUN -->|"config + agents + skills + plugin"| OC
+
+    subgraph D ["ohd daemon (on the machine)"]
+        PX["credential proxy<br/>ohs_ tokens · allow-lists"]
+        GW["gateways<br/>Beads · MCP"]
+        SUP["supervision<br/>events · decisions · sleep"]
+    end
+
+    CLI <-->|socket| D
+    OC -->|"LLM calls (session token)"| PX
+    PX -->|"real key (keychain)"| LLM["fa:fa-cloud LLM provider<br/>Bedrock · Anthropic · OpenRouter"]
+    OC <-->|"SSE events · permissions"| SUP
+    OC <-->|"bd · oh MCP servers"| GW
+    GW --> BD[("Beads (bd)<br/>on the machine")]
+
+    subgraph MCP ["oh MCP servers"]
+        WF["workflow<br/>checkpoints · outputs"]
+        INT["gitlab · github · figma<br/>jira · linear · gslides · team"]
+    end
+
+    OC <-->|"tool calls"| MCP
+    CLIENT["opencode client<br/>iTerm2 · Terminal.app · tmux · browser"] -->|"--server · -s &lt;id&gt;"| OC
+```
+
+> Diagram source: [`docs/diagrams/system-overview.mermaid`](../diagrams/system-overview.mermaid)
 
 ## Session Flow
 
@@ -28,7 +80,7 @@ oh run <workflow> (or "Start" in the TUI)
 
 Nothing is written into the project anymore: `oh deploy` and `oh sync` are removed in v5 (they are aliases that explain the migration; leftovers of former deployments are removed with `oh migrate deploy-cleanup`).
 
-Session lifecycle: [`session-lifecycle.svg`](../diagrams/session-lifecycle.svg); user guide: [v5 sessions](../guides/sessions-v5.en.md).
+Session lifecycle: [`session-lifecycle.mermaid`](../diagrams/session-lifecycle.mermaid); user guide: [v5 sessions](../guides/sessions-v5.en.md).
 
 ## Core Concepts
 
@@ -42,7 +94,7 @@ A **workflow** is a declarative YAML file (`apiVersion: oh/v1`) describing a use
 
 Workflows are resolved **by layers**: hub, then team and project (in the team-state repository), then session options. A more specific layer extends the previous one (`extends`); security can only be tightened, and a layer can lock fields (`enforce`). Each resolved value keeps its origin (`oh workflow show --origin`).
 
-See [Shipped workflows](../reference/workflows.en.md), [Team workflows](../guides/team-workflows.en.md), [workflow map](../diagrams/workflow-scenarios-map.svg) and [layered resolution](../diagrams/config-resolution.svg). Decisions: [ADR-039](./adr/039-declarative-workflows-oh-v1.en.md), [ADR-040](./adr/040-workflows-team-state-governance.en.md).
+See [Shipped workflows](../reference/workflows.en.md), [Team workflows](../guides/team-workflows.en.md), [workflow map](../diagrams/workflow-scenarios-map.mermaid) and [layered resolution](../diagrams/config-resolution.mermaid). Decisions: [ADR-039](./adr/039-declarative-workflows-oh-v1.en.md), [ADR-040](./adr/040-workflows-team-state-governance.en.md).
 
 ### Session Bundle
 
@@ -87,7 +139,7 @@ Decisions (⏸ checkpoint, ? question, ! permission, $ budget, ✗ error) can be
 | ▣ container | one container per group (Colima, Podman or Docker CLI); image = project dev Dockerfile + oh layer; bundle mounted read-only | keys (proxy), Beads (gateway), oh MCP servers (gateway) |
 | ☁ remote | GitLab CI job of the `oh-runner` project (`oh runner run`) | machine keys; Beads: snapshot in, journal out, replayed locally (`oh session resolve`) |
 
-The runtime is chosen at launch (`--runtime`, else project config, Settings, workflow), within `runtime.allowed`. See [topology](../diagrams/execution-topology.svg), [Container](../guides/container.en.md), [Remote runners](../guides/remote-runners.en.md). Decisions: [ADR-045](./adr/045-execution-environments.en.md), [ADR-046](./adr/046-beads-gateways.en.md).
+The runtime is chosen at launch (`--runtime`, else project config, Settings, workflow), within `runtime.allowed`. See [topology](../diagrams/execution-topology.mermaid), [Container](../guides/container.en.md), [Remote runners](../guides/remote-runners.en.md). Decisions: [ADR-045](./adr/045-execution-environments.en.md), [ADR-046](./adr/046-beads-gateways.en.md).
 
 ### team-state
 
@@ -106,7 +158,7 @@ A **skill** is an injectable protocol block (report format, checklist, rules). T
 | **Bucket A — Inline** | `skills: [...]` | Always — assembled into the agent body when the bundle is built |
 | **Bucket B — On demand** | `native_skills: [...]` | The model loads it from the bundle's `skills/` via the `skill` tool |
 
-See [skills.en.md](./skills.en.md), [delivery flow](../diagrams/skill-injection-flow.svg), [ADR-001](./adr/001-agent-skill-separation.en.md), [ADR-010](./adr/010-hybrid-skills-architecture.en.md).
+See [skills.en.md](./skills.en.md), [delivery flow](../diagrams/skill-injection-flow.mermaid), [ADR-001](./adr/001-agent-skill-separation.en.md), [ADR-010](./adr/010-hybrid-skills-architecture.en.md).
 
 ### MCP Server
 

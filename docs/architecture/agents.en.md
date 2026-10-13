@@ -85,7 +85,7 @@ flowchart TD
     REV -->|calls: reviewer| REV
 ```
 
-> Standalone diagram source: [`docs/diagrams/agent-hierarchy.mermaid`](../diagrams/agent-hierarchy.mermaid)
+> Detailed diagram: [`docs/diagrams/agent-hierarchy.mermaid`](../diagrams/agent-hierarchy.mermaid)
 
 ---
 

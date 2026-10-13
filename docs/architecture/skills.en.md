@@ -98,7 +98,7 @@ flowchart TD
     P1 & P2 & P3 & P4 & P5 --> AGENT["Session agents<br/>see only the bundle skills<br/>(opencode built-in skills denied,<br/>checked by Attest at start)"]
 ```
 
-> Diagram source: [`docs/diagrams/skill-injection-flow.mermaid`](../diagrams/skill-injection-flow.mermaid)
+> Detailed diagram: [`docs/diagrams/skill-injection-flow.mermaid`](../diagrams/skill-injection-flow.mermaid)
 
 ---
 

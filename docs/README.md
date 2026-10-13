@@ -173,20 +173,20 @@ The `workflow` MCP server (`workflow_status`, `workflow_checkpoint`, `workflow_o
 
 ## Diagrams
 
-Sources (`.mermaid`) and rendered SVG files live in [`diagrams/`](diagrams/).
+Diagram sources (`.mermaid`, one diagram per file) live in [`diagrams/`](diagrams/); GitHub and most editors render them. A doc that shows a diagram embeds it as a ` ```mermaid ` block, identical to its source when followed by a “Diagram source” line (checked by `cli/internal/docstest`). No SVG is generated anymore.
 
 | Diagram | Description |
 |---------|-------------|
-| [System overview](diagrams/system-overview.svg) | oh (control tower), daemon, group servers, opencode (cockpit) |
-| [Session lifecycle](diagrams/session-lifecycle.svg) | Launch, bundle, `Attest`, work, decisions, sleep, resume, stop |
-| [Execution topology](diagrams/execution-topology.svg) | Local, container and remote: what runs where, what stays on the machine |
-| [Workflow scenarios map](diagrams/workflow-scenarios-map.svg) | Which workflow for which situation |
-| [Workflow layers](diagrams/config-resolution.svg) | Hub < team < project < session options |
-| [Model resolution cascade](diagrams/model-resolution-cascade.svg) | From workflow·agent down to frontmatter |
-| [Skill delivery](diagrams/skill-injection-flow.svg) | Bucket A / Bucket B through the session bundle |
-| [CLI command tree](diagrams/cli-command-tree.svg) | Main `oh` commands |
-| [TUI navigation](diagrams/tui-navigation-modes.svg) | TUI views and omnibar |
-| [Agent hierarchy](diagrams/agent-hierarchy.svg) | Agents and delegations |
+| [System overview](diagrams/system-overview.mermaid) | oh (control tower), daemon, group servers, opencode (cockpit) |
+| [Session lifecycle](diagrams/session-lifecycle.mermaid) | Launch, bundle, `Attest`, work, decisions, sleep, resume, stop |
+| [Execution topology](diagrams/execution-topology.mermaid) | Local, container and remote: what runs where, what stays on the machine |
+| [Workflow scenarios map](diagrams/workflow-scenarios-map.mermaid) | Which workflow for which situation |
+| [Workflow layers](diagrams/config-resolution.mermaid) | Hub < team < project < session options |
+| [Model resolution cascade](diagrams/model-resolution-cascade.mermaid) | From workflow·agent down to frontmatter |
+| [Skill delivery](diagrams/skill-injection-flow.mermaid) | Bucket A / Bucket B through the session bundle |
+| [CLI command tree](diagrams/cli-command-tree.mermaid) | Main `oh` commands |
+| [TUI navigation](diagrams/tui-navigation-modes.mermaid) | TUI views and omnibar |
+| [Agent hierarchy](diagrams/agent-hierarchy.mermaid) | Agents and delegations |
 
 ---
 
