@@ -9,6 +9,12 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ## [Unreleased]
 
+### Security — lectures git d'oh dans le clone distant (lot R3-remote-git)
+
+- **Jobs distants** : toutes les lectures git d'oh dans le clone (fenêtre de commit, garde de fermeture des tickets, contrôle de la configuration git, référence de départ, provenance, auteur Beads, jeton des hooks) tournent sous le compte `oh` des agents, propriétaire du clone, au lieu de root, que git refusait (« dubious ownership »). `safe.directory` n'est jamais posé : un filtre ou un réglage écrit par l'agent dans le dépôt ne tourne jamais avec plus de droits que lui.
+- **Fermé en cas d'échec** : une lecture git qui échoue garde la protection fermée — la fenêtre de commit se referme (tracé, redemander le checkpoint la rouvre), `bd close` est refusé, la vérification est « impossible » (jamais de résultat réutilisé sur un travail illisible), une condition `when: paths` illisible est tenue pour vraie. Avant, la fenêtre de commit restait ouverte et une modification de la configuration git n'était plus détectée.
+- La garde de fermeture passe par la commande git sécurisée d'oh ; le contrôle de la configuration git ne se bloque plus sur une FIFO posée dans le dépôt.
+
 ### Added — rapports stockés par oh (lot L4) — ⚠ `oh remote setup` à relancer
 
 - **Outils `report`, `report_get(id, section)` et `reports`** du serveur MCP `workflow` : un agent dépose son rapport complet, reçoit un identifiant `rp-<n>` et le cite dans son bloc de retour ; l'auteur est fixé par oh (l'agent appelant), jamais par l'agent. Limites : 64 Ko par rapport, 100 rapports et 4 Mo par session ; séquences de terminal et caractères de contrôle retirés.
