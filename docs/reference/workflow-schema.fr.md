@@ -166,6 +166,7 @@ limits:
 ### `modes`
 
 - Le mode est fixé au lancement (`--mode`, fiche de lancement) et n'est plus demandé par l'agent. Le prompt contient toujours `Mode de workflow : <mode>`.
+- Sens des trois modes des workflows du hub : `manuel` s'arrête à chaque checkpoint ; `semi-auto` passe seul les checkpoints courants et s'arrête sur les décisions clés ; **`auto` = tout sauf les décisions obligatoires** : seuls s'arrêtent les checkpoints `mandatory` et ceux qui déverrouillent une action (`unlocks` : `create`, `commit`, `close`, `apply`), un `conditional` s'arrête quand il est signalé. Un workflow dont chaque étape doit être validée se limite à `manuel` (`infra-change`).
 - Patch : `modes.allowed` ne peut que se restreindre (`loosening` pour un mode absent du parent) ; le résumé d'impact signale tout mode ajouté comme un assouplissement.
 - Un mode en double : `duplicate_entry` ; un défaut absent de la liste : `mode_default_not_allowed` ; `--mode` non autorisé : `session_mode_not_allowed`.
 
