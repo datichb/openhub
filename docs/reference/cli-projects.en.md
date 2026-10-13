@@ -138,3 +138,38 @@ oh project configure api -P anthropic -m claude-sonnet-4-20250514
 oh project configure api -l go
 oh project configure
 ```
+
+---
+
+## Project wiki
+
+### oh wiki check
+
+Checks the project wiki (`docs/wiki/` of the closest parent folder that has one): frontmatter (`updated` a YYYY-MM-DD date, `confidence` in `confirmed | mixed | uncertain` and consistent with the tags of the page, `agents`), relative links and anchors, tag lines (`` — `TAG` · agent · YYYY-MM-DD[ · source] ``, a source for `CONFIRMÉ`), pages without a tag, freshness (a page older than the last commit of a file it cites; a missing cited file) and god nodes computed by oh against the table of `index.md`. Also shows the computed god nodes. Non-zero exit code on errors (usable in CI).
+
+```
+oh wiki check [dir] [--fix] [--json]
+```
+
+| Flag | Type | Description |
+|------|------|-------------|
+| `--fix` | bool | Repairs what oh can compute: `confidence` of the pages, god nodes table of `index.md` (and its `updated`) |
+| `--json` | bool | JSON report (`pages`, `god_nodes`, `issues` with `page`, `line`, `kind`, `severity`, `message`, `fixable`) |
+
+oh never follows a symbolic link in `docs/wiki/`; a page larger than 256 KiB, or over 400 pages, is not read (warning).
+
+### oh wiki pending
+
+Lists the agents' proposals for the project wiki ([`wiki_propose`](cli-mcp.en.md#wiki-mcp-server)) still to apply: accepted on the commit card (oh applies them when the checkpoint is passed) or pending (workflows without a commit, for `doc-sync`).
+
+```
+oh wiki pending [dir] [--all] [--session <id>] [--json]
+```
+
+| Flag | Type | Description |
+|------|------|-------------|
+| `--all` | bool | Every proposal, applied and refused ones included |
+| `--session` | string | Only those of a session |
+| `--json` | bool | JSON output |
+
+The project is the one oh knows for the folder (or a parent folder).
