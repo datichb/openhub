@@ -34,6 +34,9 @@ type Request struct {
 	// verifyCommands are the verification commands of the project (set by
 	// Build, VerifyRules).
 	verifyCommands []string
+	// wikiMCP: the bundle has the wiki MCP server of the project (LD-J,
+	// set by Build).
+	wikiMCP bool
 
 	HubDir string // ~/.oh/hub (agents/, skills/, permissions/)
 	OutDir string // ~/.oh/bundles
@@ -159,6 +162,9 @@ func Build(req Request) (*Bundle, error) {
 		StrictIsolation: req.StrictIsolation,
 	}
 	applyWorkflowRuntime(&spec, req.Spec)
+	if req.wikiMCP = wantsWikiMCP(req.Spec, req.ProjectPath); req.wikiMCP {
+		applyWikiRuntime(&spec)
+	}
 	spec.AgentGuard = append(append(GlobalShellGuard(req.OhHome), GlobalEditGuard()...), ScratchGuard(spec.Workflow, req.OhHome)...)
 	spec.ScopedGuard = ScratchScopedGuard(spec.Workflow, req.OhHome)
 	if req.WebsearchEnabled {
@@ -492,6 +498,10 @@ func (req Request) agentPermissions(fm *bricks.AgentFrontmatter, instructions pr
 	// The guards follow the instruction reads: they always win.
 	verify = append(verify, instructionReadRules(fm.InstructionsLevel(), own, instructions)...)
 	rules := append(append(append(append(append(append(append(own, verify...), InfraGuard(own)...), GitShellGuard(own)...), BeadsShellGuard()...), HookGuard()...), HookEditGuard(own)...), BeadsDirGuard()...)
+	if req.wikiMCP {
+		// wiki_apply: the documentarian only (LD-J).
+		rules = append(rules, WikiApplyRules(fm.ID)...)
+	}
 	// Last: the session scratch folders (globalguard.go).
 	return append(rules, ScratchAgentGuard(fm.ID, &sessionspec.WorkflowRuntime{Scratch: scratchDefs(req.Spec)}, req.OhHome)...)
 }
@@ -526,9 +536,7 @@ func readInstructions(projectPath string, extra []string) (projectInstructions, 
 		}
 		out.Files = append(out.Files, newInstructionFile(rel, string(data)))
 	}
-	if data, err := os.ReadFile(filepath.Join(projectPath, wikiIndexFile)); err == nil {
-		out.Wiki = parseWikiIndex(string(data))
-	}
+	out.Wiki = wikiIndexOf(projectPath)
 	return out, nil
 }
 

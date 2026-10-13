@@ -32,8 +32,9 @@ type contractData struct {
 	MaxFixRounds     int
 	Headless         bool
 	Report           bool
-	// WikiMCP: the project wiki server (LD-J), not shipped yet.
-	WikiMCP bool
+	// WikiMCP: the wiki MCP server of the project (LD-J); WikiApply: the
+	// agent may apply proposals (wiki_apply).
+	WikiMCP, WikiApply bool
 	// Statuses: the return statuses of the agents it may launch (L5).
 	Statuses []contractStatuses
 }
@@ -68,7 +69,9 @@ func contractFor(req Request, wf *sessionspec.WorkflowRuntime, id string, graph,
 		Callees:  graph[id],
 		Headless: env.flags["headless"],
 		Report:   env.mcp[sessionspec.WorkflowMCPServer],
+		WikiMCP:  env.mcp[sessionspec.WikiMCPServer],
 	}
+	d.WikiApply = d.WikiMCP && id == sessionspec.WikiApplier
 	if req.Spec != nil {
 		d.Workflow = req.Spec.ID
 	}

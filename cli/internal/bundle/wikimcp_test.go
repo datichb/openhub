@@ -1,0 +1,53 @@
+package bundle
+
+import (
+	"slices"
+	"strings"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	"github.com/datichb/openhub/cli/internal/sessionspec"
+	"github.com/datichb/openhub/cli/internal/workflow"
+)
+
+// LD-J: a workflow bundle for a project with a wiki gets the wiki MCP
+// server; every agent reads and proposes, only the documentarian applies
+// (asked), and the session contract says so.
+func TestWikiMCPInBundle(t *testing.T) {
+	hub, cat, env := shippedWorkflows(t)
+	r, diags := workflow.Check(cat, workflow.Ref{Layer: workflow.LayerHub, ID: "feature"}, nil, env)
+	require.False(t, diags.HasErrors(), "%v", diags)
+	b, err := Build(Request{HubDir: hub, OutDir: t.TempDir(), ProjectPath: instructionsFixture(t, true), Spec: r.Spec})
+	require.NoError(t, err)
+	spec := b.Spec
+	assert.True(t, slices.ContainsFunc(spec.MCP, func(m sessionspec.MCPServerDef) bool { return m.Name == sessionspec.WikiMCPServer }))
+	apply := sessionspec.MCPToolAction(sessionspec.WikiMCPServer, sessionspec.WikiToolApply)
+	propose := sessionspec.MCPToolAction(sessionspec.WikiMCPServer, sessionspec.WikiToolPropose)
+	assert.Equal(t, sessionspec.EffectDeny, ToolEffect(spec.Permissions, apply, "*"), "refused in the bundle")
+	assert.Equal(t, sessionspec.EffectAllow, ToolEffect(spec.Permissions, propose, "*"))
+	seen := 0
+	for _, a := range spec.Agents {
+		eff := ToolEffect(append(slices.Clone(spec.Permissions), a.Permissions...), apply, "*")
+		contract := a.Body[strings.Index(a.Body, contractHeading):]
+		assert.Contains(t, contract, "`wiki_propose` met une découverte en file", a.ID)
+		if a.ID == sessionspec.WikiApplier {
+			assert.Equal(t, sessionspec.EffectAsk, eff, "the documentarian applies, asked to the user")
+			assert.Contains(t, contract, "`wiki_apply` applique des propositions", a.ID)
+			seen++
+			continue
+		}
+		assert.Equal(t, sessionspec.EffectDeny, eff, a.ID)
+		assert.NotContains(t, contract, "wiki_apply", a.ID)
+	}
+	assert.Equal(t, 1, seen, "feature ships the documentarian")
+
+	// Without docs/wiki/: no wiki server.
+	b, err = Build(Request{HubDir: hub, OutDir: t.TempDir(), ProjectPath: instructionsFixture(t, false), Spec: r.Spec})
+	require.NoError(t, err)
+	assert.False(t, slices.ContainsFunc(b.Spec.MCP, func(m sessionspec.MCPServerDef) bool { return m.Name == sessionspec.WikiMCPServer }))
+	for _, a := range b.Spec.Agents {
+		assert.NotContains(t, a.Body, "wiki_propose` met", a.ID)
+	}
+}
