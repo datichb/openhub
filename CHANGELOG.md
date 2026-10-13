@@ -9,6 +9,13 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ## [Unreleased]
 
+### Changed — restes P3, paquet de session (lot p3-leftovers-bundle)
+
+- **Skills absentes citées par une skill à la demande** : une skill citée par une skill à la demande et absente du paquet de session (plugin non chargé, skill frontend sans frontend, `when:`) est nommée dans une note à la fin de cette skill, là où le modèle lit la mention ; si elle n'est absente que pour certains des agents qui chargent la skill, la note va dans leur prompt. Les skills absentes citées par le modèle de prompt du workflow, perdues jusqu'ici, rejoignent la note de l'agent d'entrée (+14 tokens pour le developer de `quick` sur un projet avec instructions et sans frontend).
+- **Skills transmises par l'appelant** : un agent `skills_from_callers` (developer, auditor-subagent) reçoit aussi les skills nommées par les skills à la demande de son appelant (hors natives de l'appelant et sections adressées à un autre agent). Aucun catalogue livré ne change avec le contenu actuel.
+- **Réponse de `workflow_checkpoint`** : elle ne nomme que les opérations déverrouillées ; « commit, puis fermeture du ticket » seulement quand les deux le sont, des consignes propres au commit seul, à la fermeture seule et à la création de tickets.
+- **Nettoyage** : `prompt/onboard.go` (sans appelant) et `SkillCheckOptions` supprimés ; `.goreleaser.yml` appelle `make sync-content` et `make embed-bd`.
+
 ### Added — wiki en session distante (lot p3-remote-wiki)
 
 - **Sessions distantes** : le démon du job sert aux agents les mêmes outils `wiki_*` qu'en local, sur le wiki de son clone (lecture, `wiki_check` et ses lectures git sous le compte `oh` des agents). Les propositions (`wiki_propose`) sont mises en file dans le job et **jamais appliquées** : le checkpoint de commit n'en applique aucune et `wiki_apply` y est refusé à tous les agents, documentarian compris.
