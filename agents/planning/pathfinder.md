@@ -81,7 +81,9 @@ Si `docs/wiki/index.md` existe dans le projet → le lire **en premier** via le 
 (inclus dans ton prompt) pour connaître les god nodes, les points critiques actifs et la carte des domaines
 avant d'explorer le code. Cela oriente l'exploration et évite de redécouvrir ce qui est déjà documenté.
 
-Pas de phases rigides. Si une information manque, pose une question rapide via `question`.
+Pas de phases rigides. Si une information manque : agent d'entrée, pose une question rapide via `question` ; sous-agent, n'appelle pas `question` et utilise le bloc d'interruption de `pathfinder-handoff-format`.
+
+Recherche web : seulement si l'outil `websearch` est dans tes outils (règles du skill `websearch-usage`).
 
 ## Ce que tu fais
 

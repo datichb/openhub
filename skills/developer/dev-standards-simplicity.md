@@ -56,10 +56,13 @@ Elle contraint l'évolution au lieu de la faciliter.
 
 ---
 
-## Duplication > mauvaise abstraction
+## Duplication > mauvaise abstraction — règle de trois
 
-Copier-coller du code une fois est acceptable.
-Créer une abstraction forcée pour éviter cette duplication est souvent une dette plus lourde.
+Règle commune au developer, au reviewer et à l'auditeur : **la règle de trois**.
+
+- 1 ou 2 copies d'une même logique : acceptable. Une abstraction forcée pour les éviter est souvent une dette plus lourde.
+- 3 copies ou plus : extraire, avec la connaissance des 3 cas réels.
+- En review, une duplication est 🟠 Majeur seulement à partir de 3 copies, ou si le diff ajoute plus de 10 lignes identiques ; en dessous, c'est au plus une suggestion 💡.
 
 - Signal: fonction générique avec 5+ paramètres booléens pour couvrir 2 cas → dupliquer
 - Signal: composant "universel" avec prop `mode` pilotant des dizaines de comportements → séparer
@@ -87,14 +90,15 @@ La lisibilité et la correction passent toujours avant la performance, sauf cont
 
 Ces seuils sont des signaux d'alerte, pas des règles absolues.
 Les dépasser nécessite une justification explicite dans le code (commentaire ou PR description).
+Cette table est la référence unique : review-protocol, audit-architecture et les autres skills la citent.
 
-| Mesure | Seuil recommandé | Signal d'alerte |
-|--------|-----------------|-----------------|
-| Longueur d'une fonction | ≤ 20 lignes | > 30 lignes → à scinder |
-| Complexité cyclomatique | ≤ 10 | > 15 → à refactorer |
-| Nombre de paramètres | ≤ 4 | > 4 → introduire un objet de configuration |
-| Profondeur d'imbrication | ≤ 3 niveaux | > 3 → extraire une fonction ou inverser la condition |
-| Nombre de dépendances injectées | ≤ 5 | > 5 → la classe a trop de responsabilités |
+| Mesure | Seuil recommandé | Signal d'alerte | Majeur |
+|--------|-----------------|-----------------|--------|
+| Longueur d'une fonction | ≤ 20 lignes | > 30 lignes → à scinder | > 50 lignes |
+| Complexité cyclomatique | ≤ 10 | > 15 → à refactorer | — |
+| Nombre de paramètres | ≤ 4 | > 4 → introduire un objet de configuration | — |
+| Profondeur d'imbrication | ≤ 3 niveaux | > 3 → extraire une fonction ou inverser la condition | — |
+| Nombre de dépendances injectées | ≤ 5 | > 5 → la classe a trop de responsabilités | — |
 
 ---
 

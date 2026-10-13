@@ -426,29 +426,9 @@ Pour chaque unité de code implémentée ou modifiée, vérifier dans l'ordre :
 
 ---
 
-## Gate de complétion — Avant de déclarer l'implémentation terminée
+## Gate de complétion
 
-Avant de produire le compte rendu ou le bloc de handoff, passer les 3 checks suivants **dans l'ordre** :
-
-### Check 1 — Tests passent
-
-✅ Tous les tests écrits dans cette session passent (green)
-✅ Les tests existants du projet ne sont pas cassés (aucune régression introduite)
-❌ Si un test est rouge : corriger l'implémentation ou documenter pourquoi dans le compte rendu
-
-### Check 2 — Comportement observable conforme à la spec
-
-✅ Chaque critère d'acceptance du ticket a au moins un test associé (ou une justification documentée)
-✅ Les critères négatifs ("ne doit pas faire X") sont couverts
-❌ Critère non couvert → signaler dans le compte rendu comme point d'attention
-
-### Check 3 — Aucune régression connue non documentée
-
-✅ Aucun test existant n'a été supprimé ou contourné sans justification
-✅ Les tests écrits testent bien le comportement observable, pas les détails d'implémentation
-❌ Si une zone non testable est identifiée : signaler dans le compte rendu
-
-**Règle absolue :** les 3 checks doivent être passés ou leur impossibilité explicitement documentée dans le compte rendu.
+La gate de complétion du developer est unique : celle de dev-standards-universal (tests, critères d'acceptance, régressions, conventions, pre-review). La checklist ci-dessus est ce que son check « Tests » vérifie.
 
 ---
 

@@ -94,7 +94,8 @@ Problèmes qui introduisent un risque réel ou cassent des invariants du projet 
 Problèmes qui dégradent la qualité ou la maintenabilité à court terme :
 
 - Logique métier non testée (cas nominal manquant)
-- Duplication significative de code (>10 lignes identiques)
+- Duplication (règle de trois de dev-standards-simplicity) : 3 copies ou plus d'une même logique, ou plus de 10 lignes identiques ajoutées par le diff
+- Fonction de plus de 50 lignes
 - Nommage trompeur sur une fonction ou variable publique
 - Violation d'un principe SOLID (responsabilité trop large, dépendance sur une implémentation concrète)
 - Gestion d'erreur absente sur un chemin critique (appel réseau, accès fichier)
@@ -106,7 +107,7 @@ Petits écarts qui n'impactent pas le fonctionnement mais réduisent la lisibili
 
 - Nommage perfectible (variable trop courte, abréviation non standard)
 - Commentaire qui explique CE QUE fait le code au lieu du POURQUOI
-- Fonction légèrement trop longue (>30 lignes) sans raison évidente
+- Fonction de plus de 30 lignes sans raison évidente (seuils de dev-standards-simplicity : cible 20, alerte 30, majeur 50)
 - Test avec nom peu descriptif
 - Import inutilisé laissé en place
 
@@ -115,7 +116,7 @@ Petits écarts qui n'impactent pas le fonctionnement mais réduisent la lisibili
 Observations sans urgence, pistes d'amélioration futures :
 
 - Alternative d'implémentation potentiellement plus lisible
-- Opportunité d'extraction en helper réutilisable
+- Opportunité d'extraction en helper réutilisable (1 ou 2 copies : en dessous de la règle de trois)
 - Considération de performance non critique
 - Idée pour améliorer la couverture de tests
 

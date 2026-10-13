@@ -26,7 +26,7 @@ description: "Utiliser quand l'audit porte sur l'architecture : SOLID, couplage,
 
 **Anti-patterns à détecter :**
 - Classes > 300 lignes sans justification claire
-- Méthodes > 50 lignes qui font plusieurs choses
+- Méthodes qui font plusieurs choses au-delà des seuils de longueur (alerte > 30 lignes, majeur > 50 : table de dev-standards-simplicity)
 - Noms de classe vagues : `Manager`, `Helper`, `Utils`, `Misc`
 
 ### O — Open/Closed Principle (OCP)
@@ -169,7 +169,7 @@ src/
   - Complexité = 1 + nombre de branches (if, for, while, case, catch, &&, ||)
   - > 10 : difficile à tester et à maintenir → refactoriser
   - > 20 : critique → refactorisation obligatoire
-- [ ] Les fonctions font ≤ 30 lignes (hors commentaires et lignes vides)
+- [ ] Les fonctions respectent les seuils de longueur de dev-standards-simplicity : cible ≤ 20 lignes, alerte > 30, majeur > 50 (hors commentaires et lignes vides)
 - [ ] L'imbrication (indentation) ne dépasse pas 3-4 niveaux
 
 ### Tests et testabilité

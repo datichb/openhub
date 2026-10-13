@@ -17,7 +17,7 @@
 ### Implémentation
 
 **Diff résumé :** <N fichiers modifiés, X insertions, Y suppressions>
-<Sortie de `git diff --stat HEAD~1` ou `git diff --stat <base-branch>...HEAD`>
+<Sortie de `git diff --stat` et `git status --porcelain` (le handoff précède le commit)>
 
 **Changements par fichier :**
 
@@ -40,7 +40,7 @@
 <Répéter pour chaque fichier modifié>
 
 **Tests écrits :** <oui — N tests (X unitaires, Y intégration) | non — raison>
-**Statut Beads :** `review`
+**Label Beads :** `ready-for-review`
 
 ### Critères d'acceptance couverts
 - [x] <critère 1 du ticket — vérifié>
@@ -84,4 +84,4 @@ Aucun.
 Aucune.
 
 ### Statut
-`implémenté` | `partiellement-implémenté` | `bloqué`
+`implémenté` | `partiellement-implémenté` | `bloqué` | `BLOCKED_ARCHITECTURE`
