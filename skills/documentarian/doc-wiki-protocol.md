@@ -45,6 +45,8 @@ docs/wiki/
 │   ├── stack.md                ← stack complète, versions, librairies clés
 │   ├── tests.md                ← stratégie, conventions, seuils, frameworks
 │   └── conventions.md          ← nommage, git, linting, config, patterns équipe
+├── decisions/
+│   └── decisions-rejetees.md   ← concepts rejetés avec raison et cycle de vie (ACTIVE/EXPIRED/SUPERSEDED)
 └── business/
     ├── index.md                ← carte des domaines métier
     └── <domain>.md             ← règles de gestion, flux, entités, risques
@@ -525,11 +527,10 @@ dans la section avec un tag `CONFIRMÉ`. Si oui :
 Quand une page n'existe pas encore, la créer à partir du template canonique correspondant
 (voir sections ci-dessus). Toujours :
 
-1. Créer le dossier parent si nécessaire (`docs/wiki/business/` ou `docs/wiki/technical/`)
+1. Créer le dossier parent si nécessaire (`docs/wiki/business/`, `docs/wiki/technical/` ou `docs/wiki/decisions/`)
 2. Écrire le frontmatter en premier
 3. Remplir les sections avec les informations disponibles
 4. Marquer les informations manquantes avec `*(À documenter)*`
-5. Ajouter le nouveau fichier dans `.git/info/exclude` s'il n'est pas déjà exclu
-6. Mettre à jour `docs/wiki/index.md` :
+5. Mettre à jour `docs/wiki/index.md` :
    - Pour une nouvelle page `business/<domain>.md` : ajouter dans la carte des domaines
    - Pour toute nouvelle page : réévaluer le tableau des god nodes

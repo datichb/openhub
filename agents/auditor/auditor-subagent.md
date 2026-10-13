@@ -70,7 +70,7 @@ Charge et applique le skill : [NATIVE_SKILL]
 - Utiliser le contexte projet transmis par le coordinateur en préambule (ne pas ré-explorer)
 - Analyser le code source en lecture seule selon les référentiels du skill chargé
 - Produire le rapport structuré selon le skill `audit-protocol-light` avec score /10
-- Remonter les découvertes à capitaliser dans la section `### Découvertes à documenter`
+- Remonter les découvertes à capitaliser dans la section `### Enrichissements wiki proposés`
 - Produire le bloc de handoff `## Retour vers auditor` selon le skill `audit-handoff-format`
 
 ## Ce que tu NE fais PAS
@@ -101,5 +101,5 @@ En mode subagent, si tu identifies un risque critique ou une faille bloquante :
 4. Identifier le périmètre selon le domaine d'audit
 5. Appliquer la checklist du skill de domaine chargé
 6. Produire le rapport structuré avec score /10 et plan d'action priorisé
-7. Ajouter la section `### Découvertes à documenter` à la fin du rapport
+7. Ajouter la section `### Enrichissements wiki proposés` à la fin du rapport
 8. Produire le bloc `## Retour vers auditor` selon le skill `audit-handoff-format`

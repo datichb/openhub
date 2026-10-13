@@ -45,7 +45,7 @@ La commande se termine toute seule ?
 │
 └── NON → ctx_execute avec background: true
           (yarn dev, vite, nodemon, watchers, tail -f, etc.)
-          ⚠️  Arrêter le process en fin de tâche : Bash("pkill -f '...'")
+          ⚠️  Arrêter le process en fin de tâche : Bash("kill <pid>")
 ```
 
 ---
@@ -76,7 +76,7 @@ La commande se termine toute seule ?
 | Commande non-terminante dans `ctx_batch_execute` | Process tué au timeout, jamais démarré | `ctx_execute` avec `background: true` |
 | Watcher dans un batch parallèle | Bloque le worker indéfiniment | Séparer : batch pour les terminantes, `ctx_execute` pour le watcher |
 | `timeout`/`gtimeout` dans le champ `code` | Indisponible sur macOS, mauvaise couche | Utiliser le paramètre `timeout` de l'outil MCP |
-| Fin de tâche sans `pkill` du process background | Port occupé, process zombie | `Bash("pkill -f '<cmd>'")` avant de clore |
+| Fin de tâche sans arrêter le process background | Port occupé, process zombie | `Bash("kill <pid>")` avant de clore |
 
 ---
 
@@ -97,7 +97,6 @@ La commande se termine toute seule ?
 **Tout process lancé en background doit être arrêté avant la fin de la tâche, sans exception.**
 Un process oublié occupe le port pour la session suivante et consomme des ressources.
 
-**Arrêt par nom :** `Bash("pkill -f 'yarn dev'")`
-**Arrêt par PID (plus précis) :** capturer le PID au démarrage avec `& echo "PID:$!"`, puis `Bash("kill <pid>")`.
+**Arrêt par PID :** capturer le PID au démarrage avec `& echo "PID:$!"`, puis `Bash("kill <pid>")`. Pas de `pkill -f` : il demande une confirmation et peut tuer le serveur de la session.
 
-**Séquence obligatoire :** démarrer → utiliser → `pkill` AVANT de clore la tâche.
+**Séquence obligatoire :** démarrer → utiliser → `kill <pid>` AVANT de clore la tâche.

@@ -25,5 +25,6 @@ reçoit toujours un `timeout`.
 
 ## Process background — nettoyage
 
-Tout process lancé en background doit être arrêté avant la fin de la tâche
-via `Bash("pkill -f '...'")`.
+Tout process lancé en background doit être arrêté avant la fin de la tâche :
+`kill %<job>`, ou `kill <pid>` avec le PID noté au lancement (`echo $!`).
+Pas de `pkill -f` : il demande une confirmation et peut tuer le serveur de la session.
