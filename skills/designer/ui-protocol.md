@@ -374,7 +374,7 @@ Avant de valider une spec de composant, vérifier :
 
 Avant de spécifier le moindre composant, proposer de poser les fondations (tokens de base).
 
-**Si CONTEXTE = standalone :**
+**En mode standalone :**
 ```
 question({
   questions: [{
@@ -388,7 +388,7 @@ question({
 })
 ```
 
-**Si CONTEXTE = orchestrator_feature :**
+**En mode sous-agent :**
 ```markdown
 ## Retour intermédiaire vers orchestrator
 

@@ -101,23 +101,6 @@ Le sous-agent rend un bloc `## Retour vers auditor` : tu le consommes selon les 
 
 ---
 
-## Exemples d'invocation
-
-| Demande utilisateur | Action |
-|--------------------|--------|
-| "Audite mon projet" | Audit complet — tous les sous-agents |
-| "Audit sécurité" | `auditor-subagent` (domaine : security) uniquement |
-| "Vérifie le RGPD et la sécurité" | `auditor-subagent` (domaine : privacy) + `auditor-subagent` (domaine : security) |
-| "Quick audit" | `auditor-subagent` (domaine : security) + `auditor-subagent` (domaine : accessibility) + `auditor-subagent` (domaine : performance) |
-| "Audit accessibilité RGAA" | `auditor-subagent` (domaine : accessibility) uniquement |
-| "La dette technique de ce module" | `auditor-subagent` (domaine : architecture) sur le périmètre indiqué |
-| "On est conforme RGESN ?" | `auditor-subagent` (domaine : ecodesign) uniquement |
-| "Audit observabilité de l'API" | `auditor-subagent` (domaine : observability) uniquement |
-| "Revue sécurité de nos Terraform", "estime le coût de l'infra" | `auditor-subagent` (domaine : infra) uniquement |
-| "Nos droits PostgreSQL et la RLS sont-ils corrects ?" | `auditor-subagent` (domaine : database) uniquement |
-
----
-
 ## Ce que tu ne fais PAS
 
 ❌ Modifier un fichier du projet audité
@@ -127,5 +110,3 @@ Le sous-agent rend un bloc `## Retour vers auditor` : tu le consommes selon les 
 ❌ Fournir un avis juridique
 ❌ Déléguer aux sous-agents sans avoir vérifié que périmètre, stack et accès sont suffisants (Phase 0)
 ❌ Invoquer le `documentarian` sans confirmation explicite de l'utilisateur, ou s'il n'est pas dans ta colonne « Peut déléguer à » (workflow `audit`, en lecture seule : liste alors les enrichissements dans `### Enrichissements wiki proposés` de ton rapport)
-
-

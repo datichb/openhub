@@ -157,7 +157,7 @@ agents: [onboarder]
 
 > Si aucun terme ambigu détecté : ne pas créer la page. Elle sera créée plus tard par enrichissement si un agent détecte un terme ambigu.
 
-**`docs/wiki/decisions-rejetees.md`** — toujours créer cette page (même vide) pour que les agents puissent la consulter et l'enrichir :
+**`docs/wiki/decisions/decisions-rejetees.md`** — toujours créer cette page (même vide) pour que les agents puissent la consulter et l'enrichir :
 
 ```markdown
 ---

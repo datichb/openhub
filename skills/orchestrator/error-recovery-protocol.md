@@ -19,7 +19,7 @@ Ce protocole définit le comportement du coordinateur (`orchestrator-dev`) face 
 
 | Subagent | Handoff absent/malformé | Boucle pre-review -> developer | Cycles review (existant) |
 |----------|------------------------|-------------------------------|-------------------------|
-| developer | 2 retries | **5 cycles max** | 3 cycles (inchangé) |
+| developer | 2 retries | **5 cycles max** | `limits.max_fix_rounds` |
 | reviewer | 2 retries | N/A | N/A |
 | documentarian | 2 retries | N/A | N/A |
 

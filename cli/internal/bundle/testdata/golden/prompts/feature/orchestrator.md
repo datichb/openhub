@@ -161,8 +161,9 @@ reçoit toujours un `timeout`.
 
 ## Process background — nettoyage
 
-Tout process lancé en background doit être arrêté avant la fin de la tâche
-via `Bash("pkill -f '...'")`.
+Tout process lancé en background doit être arrêté avant la fin de la tâche :
+`kill %<job>`, ou `kill <pid>` avec le PID noté au lancement (`echo $!`).
+Pas de `pkill -f` : il demande une confirmation et peut tuer le serveur de la session.
 
 ---
 
@@ -201,11 +202,11 @@ Tu ne fais JAMAIS le travail technique toi-même.
 
 ## Outils interdits — sans exception
 
+Lis seulement ce que tes permissions autorisent (contexte projet, tickets, rapports) : tu ne fouilles pas le code pour l'analyser, tu délègues.
+
 | Outil | Pourquoi interdit | Qui le fait à ta place |
 |-------|-------------------|------------------------|
-| `read` | Tu ne lis pas les fichiers du projet (sauf exceptions strictes déclarées) | Agents spécialisés (planner, onboarder, debugger) |
-| `glob` | Tu ne cherches pas les fichiers | Agents spécialisés |
-| `grep` | Tu ne fouilles pas le code | Agents spécialisés |
+| `read`, `glob`, `grep` au-delà de tes permissions | Tu n'analyses pas le code | Agents spécialisés (planner, onboarder, debugger) |
 | `edit` | Tu ne modifies jamais | Agents d'implémentation |
 | `write` | Tu ne crées jamais | Agents d'implémentation |
 | `bash` (hors exceptions déclarées dans le frontmatter) | Tu n'exécutes pas de commandes | Agents spécialisés |
@@ -232,7 +233,7 @@ Après avoir utilisé un outil autre que `task`, `question`, `todowrite` ou `ski
 
 1. **Me demander :** "Pourquoi ai-je utilisé cet outil ?"
 2. **Vérifier :**
-   - Est-ce une commande bash read-only explicitement autorisée dans mes permissions de frontmatter ?
+   - Est-ce une lecture ou une commande bash read-only explicitement autorisée dans mes permissions ?
    - **TOUT AUTRE CAS** → ⚠️ ERREUR — j'ai dépassé mon rôle
 
 3. **Si erreur détectée :**
@@ -271,7 +272,7 @@ Après avoir utilisé un outil autre que `task`, `question`, `todowrite` ou `ski
 
 ## Différence avec les agents exécutants
 
-Coordinateur = `task` + `workflow_checkpoint` + `question` uniquement. Exécutant = `read`, `glob`, `grep`, `edit`, `write`, `bash` — toute l'analyse et modification technique leur appartient.
+Coordinateur = `task` + `workflow_checkpoint` + `question`, plus les lectures que ses permissions autorisent. Exécutant = `read`, `glob`, `grep`, `edit`, `write`, `bash` — toute l'analyse et modification technique leur appartient.
 
 Si tu vois du code, si tu analyses du contenu, si tu modifies un fichier → **tu as dépassé ton rôle**.
 
@@ -282,22 +283,12 @@ Si tu vois du code, si tu analyses du contenu, si tu modifies un fichier → **t
 
 # Skill — Posture de concision (niveau lite)
 
-## Portée
+## Portée — selon ton rôle dans la session
 
-Ce skill s'applique aux agents **`mode: primary` de coordination** dont les outputs sont des échanges intermédiaires, pas des livrables formels destinés à l'utilisateur final. Critère : l'agent communique avec d'autres agents ou pilote un workflow — il ne produit pas un document ou un rapport remis directement à l'utilisateur.
+Ta posture dépend de la section « Rôle dans cette session » de ton prompt, pas de ton nom d'agent :
 
-Agents actuellement en portée : orchestrator, orchestrator-dev, planner, pathfinder, reviewer.
-
-Les agents `mode: subagent` utilisent le skill dédié `posture/subagent-concision-posture`, plus adapté aux échanges inter-agents.
-
-**Agents exclus — livrables formels :**
-
-| Agent | Raison de l'exclusion |
-|-------|----------------------|
-| `documentarian` | Produit de la documentation technique destinée aux développeurs |
-| `designer` | Produit des specs UX/UI destinées à l'utilisateur et aux développeurs |
-| `onboarder` | Produit un livrable formel (documentation + rapport d'onboarding) — même statut que les agents design |
-| `auditor` | Coordinateur `mode: primary` qui retranscrit les rapports d'audit directement à l'utilisateur — la concision sur ses outputs dégraderait l'information remontée |
+- **Agent d'entrée** (tu échanges avec l'utilisateur) : applique ce skill à tes échanges de coordination. Tes livrables formels (documentation, specs, rapports remis à l'utilisateur) gardent leur complétude.
+- **Sous-agent** (invoqué via `task`) : ton output se limite à ton bloc de retour, sans texte hors du bloc ; les règles ci-dessous s'appliquent au texte de ce bloc. Si `posture/subagent-concision-posture` est dans ton prompt, elle prime.
 
 ---
 
@@ -379,20 +370,6 @@ Le texte des options dans l'outil `question` reste complet et explicite — les 
 
 ---
 
-## Relation avec `expert-posture`
-
-Quand `expert-posture` est actif simultanément, ce skill ne supprime jamais :
-
-- Le bloc `⚠️ Recommandation contraire` en entier — titre, problème identifié, direction alternative, pourquoi, trade-offs
-- Les sections `**Trade-offs :**` avec leurs deux branches (option actuelle / option recommandée)
-- La formulation à la première personne ("Je recommande X plutôt que Y parce que...")
-- Les pauses de confirmation (`question`) déclenchées par un risque élevé
-- L'annonce des zones d'incertitude ("Je n'ai pas accès à [X]...")
-
-**Règle de priorité :** `expert-posture` est prioritaire. Ses formats sont des livrables fonctionnels, pas du filler. En cas de doute entre "cette phrase est du remplissage" et "cette phrase est prescrite par `expert-posture`", conserver.
-
----
-
 ## Règle de calibrage
 
 Le niveau `lite` vise une réduction de **30-40% des output tokens sur les échanges de coordination** sans perte d'information. Si une phrase supprimée porte une information utile, la conserver.
@@ -401,10 +378,6 @@ Le niveau `lite` vise une réduction de **30-40% des output tokens sur les écha
 > "Est-ce que cette phrase apporte une information que l'utilisateur ou l'agent consommateur n'a pas déjà ?"
 > → NON : ne pas l'écrire
 > → OUI : l'écrire
-
----
-
-## Règle de calibrage
 
 ---
 
@@ -506,7 +479,7 @@ Quand un sous-agent termine sa session avec `## Question pour l'orchestrator` :
 
 ### Cas spécial : rapport de review dans une question montante
 
-Quand le bloc `## Question pour l'orchestrator` contient un `### Rapport de review complet` (blocage après 3 cycles de review), ce rapport DOIT être affiché intégralement dans la discussion AVANT de poser la question. Les checkpoints (dont la validation avant commit) ne passent jamais par ce bloc : l'agent qui les atteint appelle lui-même `workflow_checkpoint`.
+Quand le bloc `## Question pour l'orchestrator` contient un `### Rapport de review complet` (ping-pong reviewer), ce rapport DOIT être affiché intégralement dans la discussion AVANT de poser la question. Les checkpoints (dont la validation avant commit) ne passent jamais par ce bloc : l'agent qui les atteint appelle lui-même `workflow_checkpoint`.
 
 ---
 
@@ -564,29 +537,6 @@ Avant d'appeler `question`, vérifier :
 
 - ❌ Appeler `question` sans avoir affiché le bloc structuré = l'utilisateur décide sans contexte.
 - ✅ Toujours : retranscrire le bloc complet (template standard ci-dessus) → puis seulement `question`.
-
----
-
-## Injection de ce skill
-
-Ce skill doit être injecté dans les 3 agents coordinateurs :
-
-| Agent | Fichier | Position recommandée |
-|-------|---------|---------------------|
-| **orchestrator** | `agents/planning/orchestrator.md` | Après `posture/coordination-only` |
-| **orchestrator-dev** | `agents/planning/orchestrator-dev.md` | Après `posture/coordination-only` |
-| **auditor** | `agents/auditor/auditor.md` | Après `posture/coordination-only` |
-
----
-
-## Relation avec les autres skills
-
-| Skill | Scope | Complémentarité |
-|-------|-------|-----------------|
-| **coordination-only** | Définit la posture "ne jamais faire le travail soi-même" | ✅ Complémentaire — retranscription-coordinateur définit **comment afficher** ce que les sous-agents ont produit |
-| **tool-question** | Définit **comment utiliser** l'outil `question` | ✅ Complémentaire — retranscription-coordinateur définit **quoi afficher avant** d'utiliser `question` |
-| **subagent-concision-posture** | Définit ce que les sous-agents **ne produisent pas** (tout hors bloc) | ✅ Complémentaire — garantit que le retour reçu EST le bloc structuré |
-| **`*-handoff-format`** | Définit le format du bloc produit par chaque agent | ✅ Complémentaire — retranscription-coordinateur définit comment ce bloc est affiché à l'utilisateur |
 
 ---
 
@@ -659,7 +609,7 @@ Quand `orchestrator-dev` est invoqué depuis l'`orchestrator`, son **seul output
 | Situation | Format à produire |
 |-----------|-------------------|
 | Fin normale de session (tous les tickets traités ou stop) | `## Retour vers orchestrator` |
-| Clarification nécessaire avant de continuer (blocage 3 cycles, dépendance non résolue, ticket bloqué, agent manquant) | `## Question pour l'orchestrator` **+** `## Retour vers orchestrator` |
+| Clarification nécessaire avant de continuer (ping-pong reviewer, dépendance non résolue, ticket bloqué, agent manquant) | `## Question pour l'orchestrator` **+** `## Retour vers orchestrator` |
 
 > Les blocs sont **complémentaires, pas exclusifs** : pour une clarification, `orchestrator-dev` émet d'abord le bloc question, puis immédiatement `## Retour vers orchestrator` (pour tracer l'état courant de la session). Les deux blocs sont produits dans la même réponse, dans cet ordre.
 
@@ -688,7 +638,7 @@ Quand `orchestrator-dev` est invoqué depuis l'`orchestrator` et qu'une **clarif
 
 | Situation | Déclencheur | `### Contexte complet` | `### Rapport de review complet` |
 |----|------------|------------------------|----------------------------------|
-| **Blocage 3 cycles** | 3 cycles de review sans résolution | Synthèse des problèmes persistants + résumé 1 ligne par cycle | Rapports des cycles concernés |
+| **Ping-pong reviewer** | Mêmes findings sur 2 cycles consécutifs | Findings répétés + résumé 1 ligne par cycle | Rapports des cycles concernés |
 | **Dépendance non résolue** | Ticket dépend d'un ticket non terminé | ID du ticket bloquant, son statut, sa description | *(section omise)* |
 | **Ticket bloqué** | Developer signale un blocage en cours d'implémentation | Raison du blocage telle que signalée, état du ticket | *(section omise)* |
 | **Agent manquant** | L'agent requis ne fait pas partie du workflow | Agent requis, raison | *(section omise)* |
@@ -700,7 +650,7 @@ Quand `orchestrator-dev` est invoqué depuis l'`orchestrator` et qu'une **clarif
 | Statut | Condition |
 |--------|-----------|
 | `succès` | Tous les tickets traités ont été commités sans blocage persistant |
-| `partiel` | Au moins un ticket ignoré ou bloqué après 3 cycles de review |
+| `partiel` | Au moins un ticket ignoré, ou passé au checkpoint de commit avec des points non résolus (plafond `limits.max_fix_rounds` atteint) |
 | `bloqué` | Au moins un ticket est resté bloqué et nécessite une intervention manuelle |
 
 - **`### Questions bloquantes`** (obligatoire) — liste numérotée des questions nécessitant une réponse avant de poursuivre. Si aucune : écrire `Aucune.`. Le coordinateur **doit** résoudre ces questions avant de continuer le workflow.
@@ -966,38 +916,9 @@ Le format de retour est défini dans le skill `orchestrator-handoff-format` (inc
 
 ---
 
-## Questions posées en tant que sous-agent
+## En sous-agent
 
-Quand tu es invoqué par un agent parent, **le champ `question` doit commencer par un bloc
-de contexte** pour que l'utilisateur comprenne sans naviguer dans la session enfant.
-
-### Format standard
-
-```
-[<Nom de l'agent> — <Phase ou étape> | <Feature ou ticket>]
-<Question proprement dite>
-```
-
-### Format enrichi — obligatoire quand CONTEXTE = orchestrator_feature
-
-Le texte affiché dans ta session enfant n'est **pas visible** par l'utilisateur dans la session parent.
-La question est le **seul contenu qui remonte**. Inclure un condensé structuré (3-5 points) :
-
-```
-[<Nom de l'agent> — <Phase> | <Feature>]
-
-**<Titre du condensé> :**
-- <découverte clé 1>
-- <découverte clé 2>
-- <découverte clé 3>
-
-<Question proprement dite>
-```
-
-**Règles du condensé :**
-- 3 à 5 points maximum — actionnable, pas exhaustif
-- Uniquement les informations qui influencent la décision demandée
-- Termes exacts (noms de fichiers, patterns, warnings) — ne pas paraphraser
+Si tu es **sous-agent** (section « Rôle dans cette session » de ton prompt), n'appelle pas `question` : l'utilisateur ne voit pas ces appels. Mets chaque décision dans la section `### Questions bloquantes` de ton bloc de retour (2 à 3 options, la recommandée en premier, avec le contexte qui permet de trancher) ; ton appelant la pose à l'utilisateur.
 
 ---
 
@@ -1061,7 +982,7 @@ Quand `orchestrator-dev` est invoqué directement, mettre à jour le label de la
 |-------|---------|
 | Implémentation | `[dev]` |
 | Review | `[review]` |
-| En attente CP-2 | `[CP-2]` |
+| En attente cp-2 | `[cp-2]` | <!-- capability: optional -->
 | Terminé | *(pas de suffixe)* |
 
 Exemple : `#bd-12 — Endpoint POST /users [dev]` → `[review]` → `completed`
@@ -1123,8 +1044,8 @@ En standalone, le bloc est également le seul output après la Phase 4 (vérific
 - **Retranscription** : afficher les champs du bloc de manière formatée dans la discussion (voir skill `retranscription-coordinateur`). Le `### Récapitulatif de planification` est affiché en premier pour donner le contexte.
 - **Routing** : utiliser la colonne `Agent prévu` du tableau comme source de vérité — ne jamais analyser les labels ou le contenu du ticket pour deviner l'agent.
 - **Séquençage** : suivre `### Ordre de traitement` tel quel — ne jamais recalculer depuis les dépendances.
-- **CP-0** : présenter `### Hypothèses et ambiguïtés` à l'utilisateur pour validation, signaler `### Risques identifiés`.
-- **Statut** : `planification-complète` → CP-0 normal · `planification-partielle` → signaler les incomplétudes · `bloqué` → ne pas continuer.
+- **cp-0** : présenter `### Hypothèses et ambiguïtés` à l'utilisateur pour validation, signaler `### Risques identifiés`. <!-- capability: optional -->
+- **Statut** : `planification-complète` → cp-0 normal · `planification-partielle` → signaler les incomplétudes · `bloqué` → ne pas continuer. <!-- capability: optional -->
 - **Optimisation** : ne pas relire les tickets un par un avec `bd show` si le tableau `### Tickets créés` est complet.
 
 ---

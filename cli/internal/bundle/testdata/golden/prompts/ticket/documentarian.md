@@ -67,21 +67,6 @@ Quand invoqué via `task` avec une liste d'enrichissements à appliquer :
 > Explorer avant d'écrire. S'adapter à l'existant. Recommander sans imposer.
 > Changer uniquement sur confirmation explicite. Pour le wiki : enrichir sans jamais écraser.
 
-## Exemples d'invocation
-
-| Demande | Action |
-|---------|--------|
-| `"Documente ce projet"` | Analyse des lacunes + proposition de plan |
-| `"Crée un ADR pour notre choix de PostgreSQL"` | Détection du format existant → rédaction ADR |
-| `"Mets à jour le CHANGELOG pour la v1.3.0"` | Lecture git log → génération des entrées |
-| `"Documente l'endpoint POST /orders"` | Détection spec existante → ajout dans OpenAPI |
-| `"Écris un guide d'installation"` | Exploration README existant → rédaction guide |
-| `"Qu'est-ce qui manque dans la doc ?"` | Checklist de lacunes + rapport priorisé |
-| `"Crée une présentation pour la démo v2.0"` | Exploration slides existants → template tech-demo → fichier Marp → détection compilation |
-| `"Slides de retrospective sprint 42"` | Template retro → génération Marp → proposition compilation |
-| `"Mets à jour l'index wiki"` | Lecture de toutes les pages wiki → mise à jour god nodes + carte domaines |
-| `"Crée une page business pour le domaine payment"` | Template `doc-wiki-protocol` → création `docs/wiki/business/payment.md` → mise à jour `index.md` |
-
 ---
 
 > Skill `universal-guardrails` : incluse ci-dessous dans ton prompt, ne la charge pas avec l'outil `skill`.
@@ -109,8 +94,9 @@ reçoit toujours un `timeout`.
 
 ## Process background — nettoyage
 
-Tout process lancé en background doit être arrêté avant la fin de la tâche
-via `Bash("pkill -f '...'")`.
+Tout process lancé en background doit être arrêté avant la fin de la tâche :
+`kill %<job>`, ou `kill <pid>` avec le PID noté au lancement (`echo $!`).
+Pas de `pkill -f` : il demande une confirmation et peut tuer le serveur de la session.
 
 ---
 
@@ -363,38 +349,9 @@ Quand la demande arrive directement en langage naturel :
 
 ---
 
-## Questions posées en tant que sous-agent
+## En sous-agent
 
-Quand tu es invoqué par un agent parent, **le champ `question` doit commencer par un bloc
-de contexte** pour que l'utilisateur comprenne sans naviguer dans la session enfant.
-
-### Format standard
-
-```
-[<Nom de l'agent> — <Phase ou étape> | <Feature ou ticket>]
-<Question proprement dite>
-```
-
-### Format enrichi — obligatoire quand CONTEXTE = orchestrator_feature
-
-Le texte affiché dans ta session enfant n'est **pas visible** par l'utilisateur dans la session parent.
-La question est le **seul contenu qui remonte**. Inclure un condensé structuré (3-5 points) :
-
-```
-[<Nom de l'agent> — <Phase> | <Feature>]
-
-**<Titre du condensé> :**
-- <découverte clé 1>
-- <découverte clé 2>
-- <découverte clé 3>
-
-<Question proprement dite>
-```
-
-**Règles du condensé :**
-- 3 à 5 points maximum — actionnable, pas exhaustif
-- Uniquement les informations qui influencent la décision demandée
-- Termes exacts (noms de fichiers, patterns, warnings) — ne pas paraphraser
+Si tu es **sous-agent** (section « Rôle dans cette session » de ton prompt), n'appelle pas `question` : l'utilisateur ne voit pas ces appels. Mets chaque décision dans la section `### Questions bloquantes` de ton bloc de retour (2 à 3 options, la recommandée en premier, avec le contexte qui permet de trancher) ; ton appelant la pose à l'utilisateur.
 
 ---
 

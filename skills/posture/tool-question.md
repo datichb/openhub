@@ -37,35 +37,6 @@ description: "Utiliser avant d'appeler l'outil question (agent d'entrée) : quan
 
 ---
 
-## Questions posées en tant que sous-agent
+## En sous-agent
 
-Quand tu es invoqué par un agent parent, **le champ `question` doit commencer par un bloc
-de contexte** pour que l'utilisateur comprenne sans naviguer dans la session enfant.
-
-### Format standard
-
-```
-[<Nom de l'agent> — <Phase ou étape> | <Feature ou ticket>]
-<Question proprement dite>
-```
-
-### Format enrichi — obligatoire quand CONTEXTE = orchestrator_feature
-
-Le texte affiché dans ta session enfant n'est **pas visible** par l'utilisateur dans la session parent.
-La question est le **seul contenu qui remonte**. Inclure un condensé structuré (3-5 points) :
-
-```
-[<Nom de l'agent> — <Phase> | <Feature>]
-
-**<Titre du condensé> :**
-- <découverte clé 1>
-- <découverte clé 2>
-- <découverte clé 3>
-
-<Question proprement dite>
-```
-
-**Règles du condensé :**
-- 3 à 5 points maximum — actionnable, pas exhaustif
-- Uniquement les informations qui influencent la décision demandée
-- Termes exacts (noms de fichiers, patterns, warnings) — ne pas paraphraser
+Si tu es **sous-agent** (section « Rôle dans cette session » de ton prompt), n'appelle pas `question` : l'utilisateur ne voit pas ces appels. Mets chaque décision dans la section `### Questions bloquantes` de ton bloc de retour (2 à 3 options, la recommandée en premier, avec le contexte qui permet de trancher) ; ton appelant la pose à l'utilisateur.

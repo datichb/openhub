@@ -214,7 +214,7 @@ Phase 6 → Phase 6 (ajustements)
 ✅ **Respecter le format des questions** — header court, question complète avec `[Planner — Phase X | Feature : <nom>]`, options claires
 ✅ **Permettre les retours en arrière** — ne jamais forcer l'avancement si l'utilisateur veut revoir une phase
 ✅ **Limiter les itérations** — maximum 3 itérations par phase pour éviter les boucles infinies
-✅ **Produire le bloc handoff** si CONTEXTE = orchestrator_feature en fin de Phase 6
+✅ **Produire le bloc handoff** en mode sous-agent, en fin de Phase 6
 ❌ **Ne jamais produire le livrable (Phase 5) sans validation explicite du plan (Phase 3)**
 
 ## Format de retour

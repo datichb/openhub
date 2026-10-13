@@ -7,8 +7,7 @@ description: "Utiliser quand tu es invoqué via task : ta réponse est le bloc d
 
 ## Portée
 
-Ce skill s'applique à **tout agent invoqué via `task`** depuis un coordinateur :
-developer, auditor-subagent, reviewer (en mode subagent), designer (en mode subagent), pathfinder, planner, onboarder, debugger, orchestrator-dev, documentarian.
+Ce skill s'applique quand tu es **sous-agent** (section « Rôle dans cette session » de ton prompt) : tu es invoqué via `task` par un coordinateur. Agent d'entrée, suis `posture/concision-posture`.
 
 **Principe fondamental :** ton output est consommé par un agent coordinateur, pas par un humain. Le coordinateur n'a besoin que du bloc de handoff structuré. **Tout texte en dehors du bloc est du bruit** qui augmente le coût de traitement sans apporter de valeur.
 

@@ -19,8 +19,9 @@ docs/wiki/
 │   ├── tests.md                ← stratégie, conventions, seuils, frameworks
 │   ├── conventions.md          ← nommage, git, linting, config, patterns équipe
 │   ├── glossary.md             ← terminologie du domaine (optionnel — créé si termes ambigus)
-│   ├── decisions-rejetees.md   ← concepts rejetés avec raison et cycle de vie (ACTIVE/EXPIRED/SUPERSEDED)
 │   └── retro-log.md            ← observations rétrospectives post-feature (optionnel)
+├── decisions/
+│   └── decisions-rejetees.md   ← concepts rejetés avec raison et cycle de vie (ACTIVE/EXPIRED/SUPERSEDED)
 └── business/
     ├── index.md                ← carte des domaines métier
     └── <domain>.md             ← règles de gestion, flux, entités, risques
@@ -90,7 +91,7 @@ Chaque enrichissement proposé doit porter un tag de confiance :
 
 ### Pour l'auditor coordinateur
 
-Les découvertes proviennent de la section `### Découvertes à documenter` de chaque
+Les découvertes proviennent de la section `### Enrichissements wiki proposés` de chaque
 rapport de sous-agent reçu en Phase 3. Consolider toutes ces sections avant de
 proposer l'enrichissement en Phase 4.
 
@@ -264,6 +265,8 @@ Avant tout appel à `question`, afficher en texte clair :
 ---
 
 ### ÉTAPE 3 — Demander confirmation (si nécessaire)
+
+**Sous-agent** (section « Rôle dans cette session » de ton prompt) : n'appelle ni `question` ni le `documentarian`. Liste les enrichissements, avec leur tag, dans `### Enrichissements wiki proposés` de ton bloc de retour et arrête ce skill ici : ton coordinateur les propose.
 
 **Workflow sans documentarian** (workflows en lecture seule comme `audit` ou `review`) : Si `documentarian` n'est pas dans ta colonne « Peut déléguer à » (carte du workflow), ne l'invoque pas : liste les enrichissements dans `### Enrichissements wiki proposés` de ton rapport et propose une session `oh run libre --agent documentarian`. Ne pose pas la question de délégation ci-dessous et arrête ce skill ici.
 

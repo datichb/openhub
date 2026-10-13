@@ -153,8 +153,9 @@ reçoit toujours un `timeout`.
 
 ## Process background — nettoyage
 
-Tout process lancé en background doit être arrêté avant la fin de la tâche
-via `Bash("pkill -f '...'")`.
+Tout process lancé en background doit être arrêté avant la fin de la tâche :
+`kill %<job>`, ou `kill <pid>` avec le PID noté au lancement (`echo $!`).
+Pas de `pkill -f` : il demande une confirmation et peut tuer le serveur de la session.
 
 ---
 
@@ -251,7 +252,8 @@ Problèmes qui introduisent un risque réel ou cassent des invariants du projet 
 Problèmes qui dégradent la qualité ou la maintenabilité à court terme :
 
 - Logique métier non testée (cas nominal manquant)
-- Duplication significative de code (>10 lignes identiques)
+- Duplication (règle de trois de dev-standards-simplicity) : 3 copies ou plus d'une même logique, ou plus de 10 lignes identiques ajoutées par le diff
+- Fonction de plus de 50 lignes
 - Nommage trompeur sur une fonction ou variable publique
 - Violation d'un principe SOLID (responsabilité trop large, dépendance sur une implémentation concrète)
 - Gestion d'erreur absente sur un chemin critique (appel réseau, accès fichier)
@@ -263,7 +265,7 @@ Petits écarts qui n'impactent pas le fonctionnement mais réduisent la lisibili
 
 - Nommage perfectible (variable trop courte, abréviation non standard)
 - Commentaire qui explique CE QUE fait le code au lieu du POURQUOI
-- Fonction légèrement trop longue (>30 lignes) sans raison évidente
+- Fonction de plus de 30 lignes sans raison évidente (seuils de dev-standards-simplicity : cible 20, alerte 30, majeur 50)
 - Test avec nom peu descriptif
 - Import inutilisé laissé en place
 
@@ -272,7 +274,7 @@ Petits écarts qui n'impactent pas le fonctionnement mais réduisent la lisibili
 Observations sans urgence, pistes d'amélioration futures :
 
 - Alternative d'implémentation potentiellement plus lisible
-- Opportunité d'extraction en helper réutilisable
+- Opportunité d'extraction en helper réutilisable (1 ou 2 copies : en dessous de la règle de trois)
 - Considération de performance non critique
 - Idée pour améliorer la couverture de tests
 
@@ -540,22 +542,12 @@ Si la review n'a accédé à aucun wiki (projet non onboardé), le bloc `### Pé
 
 # Skill — Posture de concision (niveau lite)
 
-## Portée
+## Portée — selon ton rôle dans la session
 
-Ce skill s'applique aux agents **`mode: primary` de coordination** dont les outputs sont des échanges intermédiaires, pas des livrables formels destinés à l'utilisateur final. Critère : l'agent communique avec d'autres agents ou pilote un workflow — il ne produit pas un document ou un rapport remis directement à l'utilisateur.
+Ta posture dépend de la section « Rôle dans cette session » de ton prompt, pas de ton nom d'agent :
 
-Agents actuellement en portée : orchestrator, orchestrator-dev, planner, pathfinder, reviewer.
-
-Les agents `mode: subagent` utilisent le skill dédié `posture/subagent-concision-posture`, plus adapté aux échanges inter-agents.
-
-**Agents exclus — livrables formels :**
-
-| Agent | Raison de l'exclusion |
-|-------|----------------------|
-| `documentarian` | Produit de la documentation technique destinée aux développeurs |
-| `designer` | Produit des specs UX/UI destinées à l'utilisateur et aux développeurs |
-| `onboarder` | Produit un livrable formel (documentation + rapport d'onboarding) — même statut que les agents design |
-| `auditor` | Coordinateur `mode: primary` qui retranscrit les rapports d'audit directement à l'utilisateur — la concision sur ses outputs dégraderait l'information remontée |
+- **Agent d'entrée** (tu échanges avec l'utilisateur) : applique ce skill à tes échanges de coordination. Tes livrables formels (documentation, specs, rapports remis à l'utilisateur) gardent leur complétude.
+- **Sous-agent** (invoqué via `task`) : ton output se limite à ton bloc de retour, sans texte hors du bloc ; les règles ci-dessous s'appliquent au texte de ce bloc. Si `posture/subagent-concision-posture` est dans ton prompt, elle prime.
 
 ---
 
@@ -637,20 +629,6 @@ Le texte des options dans l'outil `question` reste complet et explicite — les 
 
 ---
 
-## Relation avec `expert-posture`
-
-Quand `expert-posture` est actif simultanément, ce skill ne supprime jamais :
-
-- Le bloc `⚠️ Recommandation contraire` en entier — titre, problème identifié, direction alternative, pourquoi, trade-offs
-- Les sections `**Trade-offs :**` avec leurs deux branches (option actuelle / option recommandée)
-- La formulation à la première personne ("Je recommande X plutôt que Y parce que...")
-- Les pauses de confirmation (`question`) déclenchées par un risque élevé
-- L'annonce des zones d'incertitude ("Je n'ai pas accès à [X]...")
-
-**Règle de priorité :** `expert-posture` est prioritaire. Ses formats sont des livrables fonctionnels, pas du filler. En cas de doute entre "cette phrase est du remplissage" et "cette phrase est prescrite par `expert-posture`", conserver.
-
----
-
 ## Règle de calibrage
 
 Le niveau `lite` vise une réduction de **30-40% des output tokens sur les échanges de coordination** sans perte d'information. Si une phrase supprimée porte une information utile, la conserver.
@@ -659,10 +637,6 @@ Le niveau `lite` vise une réduction de **30-40% des output tokens sur les écha
 > "Est-ce que cette phrase apporte une information que l'utilisateur ou l'agent consommateur n'a pas déjà ?"
 > → NON : ne pas l'écrire
 > → OUI : l'écrire
-
----
-
-## Règle de calibrage
 
 ---
 
@@ -703,38 +677,9 @@ Le niveau `lite` vise une réduction de **30-40% des output tokens sur les écha
 
 ---
 
-## Questions posées en tant que sous-agent
+## En sous-agent
 
-Quand tu es invoqué par un agent parent, **le champ `question` doit commencer par un bloc
-de contexte** pour que l'utilisateur comprenne sans naviguer dans la session enfant.
-
-### Format standard
-
-```
-[<Nom de l'agent> — <Phase ou étape> | <Feature ou ticket>]
-<Question proprement dite>
-```
-
-### Format enrichi — obligatoire quand CONTEXTE = orchestrator_feature
-
-Le texte affiché dans ta session enfant n'est **pas visible** par l'utilisateur dans la session parent.
-La question est le **seul contenu qui remonte**. Inclure un condensé structuré (3-5 points) :
-
-```
-[<Nom de l'agent> — <Phase> | <Feature>]
-
-**<Titre du condensé> :**
-- <découverte clé 1>
-- <découverte clé 2>
-- <découverte clé 3>
-
-<Question proprement dite>
-```
-
-**Règles du condensé :**
-- 3 à 5 points maximum — actionnable, pas exhaustif
-- Uniquement les informations qui influencent la décision demandée
-- Termes exacts (noms de fichiers, patterns, warnings) — ne pas paraphraser
+Si tu es **sous-agent** (section « Rôle dans cette session » de ton prompt), n'appelle pas `question` : l'utilisateur ne voit pas ces appels. Mets chaque décision dans la section `### Questions bloquantes` de ton bloc de retour (2 à 3 options, la recommandée en premier, avec le contexte qui permet de trancher) ; ton appelant la pose à l'utilisateur.
 
 ---
 
@@ -803,7 +748,7 @@ Il est injecté dans le `reviewer` et dans `orchestrator-dev` — producteur et 
 
 5. **Si le bloc est absent ou si `### Rapport complet` est absent** → demander explicitement au reviewer de produire le bloc complet.
 
-> ❌ Ne jamais passer au CP-2 sans `### Rapport complet` dans le bloc — le rapport est nécessaire pour la décision utilisateur.
+> ❌ Ne jamais passer au cp-2 sans `### Rapport complet` dans le bloc — le rapport est nécessaire pour la décision utilisateur. <!-- capability: optional -->
 > ❌ Ne jamais résumer le rapport quand il est transmis à l'orchestrator — le copier tel quel.
 > ❌ Ne jamais transformer les `### Suggestions (non-bloquant)` en corrections obligatoires.
 
@@ -817,8 +762,9 @@ Il est injecté dans le `reviewer` et dans `orchestrator-dev` — producteur et 
 ## Rôle
 
 Ce skill définit le protocole que tous les agents doivent suivre pour consulter
-la documentation vivante d'un projet. Le wiki remplace les anciens fichiers plats
-`ONBOARDING.md`, `CONVENTIONS.md` et `docs/context/`.
+la documentation vivante d'un projet. Les fichiers projet (`ONBOARDING.md`, `CONVENTIONS.md`)
+sont injectés dans ton prompt par oh quand ils existent (inutile de les relire). Le wiki (`docs/wiki/`), lui,
+se lit à la demande, page par page.
 
 L'objectif est d'économiser les tokens en chargeant **uniquement les pages pertinentes**
 à la tâche courante, jamais le wiki en entier.

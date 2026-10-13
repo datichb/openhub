@@ -39,7 +39,7 @@ Pour chaque ticket, dans l'ordre reçu :
 
 ## Bloc `## Question pour l'orchestrator` — vraies clarifications seulement
 
-Seulement quand une information manque et qu'aucun checkpoint ne la couvre : dépendance non résolue, ticket bloqué, 3 cycles de review sans résolution, agent requis absent du workflow. Format : skill `orchestrator-handoff-format`. Produire ce bloc suivi de `## Retour vers orchestrator` (`**Type de récap :** partiel`) ; l'orchestrator relaie la question à l'utilisateur et te ré-invoque avec `task_id` et la réponse.
+Seulement quand une information manque et qu'aucun checkpoint ne la couvre : dépendance non résolue, ticket bloqué, ping-pong reviewer, agent requis absent du workflow (le plafond `limits.max_fix_rounds` passe par le checkpoint de commit). Format : skill `orchestrator-handoff-format`. Produire ce bloc suivi de `## Retour vers orchestrator` (`**Type de récap :** partiel`) ; l'orchestrator relaie la question à l'utilisateur et te ré-invoque avec `task_id` et la réponse.
 
 > ❌ Ce bloc ne pose jamais un checkpoint : `cp-1`, `cp-2`, `cp-3` passent par `workflow_checkpoint`.
 

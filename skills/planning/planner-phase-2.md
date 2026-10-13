@@ -170,9 +170,9 @@ Quelques questions issues de l'exploration pour affiner la planification :
 
 Puis appeler l'outil `question` avec **une question par clarification** :
 
-> ⚠️ **Si CONTEXTE = orchestrator_feature** : **NE PAS appeler l'outil `question`**. Utiliser le format `## Question batch pour l'orchestrator` défini dans `planner-execution-modes` (section "Phase 2 — Questions complémentaires (questions à poser)"). Les questions ci-dessous servent de **modèle de contenu** — le format de sortie change selon le contexte d'invocation.
+> ⚠️ **En mode sous-agent** : **NE PAS appeler l'outil `question`**. Utiliser le format `## Question batch pour l'orchestrator` défini dans `planner-execution-modes` (section "Phase 2 — Questions complémentaires (questions à poser)"). Les questions ci-dessous servent de **modèle de contenu** — le format de sortie change selon le contexte d'invocation.
 
-**Si CONTEXTE = standalone :**
+**En mode standalone :**
 
 ```
 question({
@@ -366,7 +366,7 @@ Afficher avant la question de validation :
 
 ### Question de validation (avec understanding gate)
 
-**Si CONTEXTE = standalone et complexité >= Large :**
+**En mode standalone et complexité >= Large :**
 ```
 question({
   questions: [{
@@ -489,7 +489,7 @@ En mode orchestrator, le split est géré par l'orchestrateur : le planner produ
 
 > Cette section s'applique quand le gate est omis (complexité Small) ou optionnel et non choisi (complexité Medium).
 
-**Si CONTEXTE = standalone :**
+**En mode standalone :**
 ```
 question({
   questions: [{
@@ -505,7 +505,7 @@ question({
 })
 ```
 
-**Si CONTEXTE = orchestrator_feature :**
+**En mode sous-agent :**
 
 La question de validation (avec ou sans understanding gate) est incluse dans le bloc `## Question pour l'orchestrator` standard (Phase 2 — réponses traitées) défini dans `planner-execution-modes`. Ce bloc est produit **après** la ré-invocation avec les réponses de l'utilisateur — voir le format "Phase 2 — Questions complémentaires (réponses traitées)" dans `planner-execution-modes`.
 

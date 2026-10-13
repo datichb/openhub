@@ -225,7 +225,7 @@ Si l'utilisateur choisit **"Prototype rapide"** dans la question de délégation
 
 ### Question de validation obligatoire
 
-**Si CONTEXTE = standalone :**
+**En mode standalone :**
 ```
 question({
   questions: [{
@@ -239,7 +239,7 @@ question({
 })
 ```
 
-**Si CONTEXTE = orchestrator_feature :**
+**En mode sous-agent :**
 ```markdown
 ## Retour intermédiaire vers orchestrator
 

@@ -105,7 +105,7 @@ Le premier ticket de chaque epic devrait être un **tracer bullet** : une tranch
 
 ## Question de validation obligatoire
 
-**Si CONTEXTE = standalone :**
+**En mode standalone :**
 ```
 question({
   questions: [{
@@ -146,7 +146,7 @@ Vérifier les cas limites qui pourraient avoir été manqués lors de la décomp
 - ✅ **Configurations spécifiques** : Y a-t-il des configurations (env, feature flags) qui changent le comportement ?
 - ✅ **Comportements de librairies vérifiés** : Les suppositions de Phase 1.2bis ont-elles toutes été validées (✅) ou documentées comme hypothèses (`needs-clarification`) ? Y a-t-il des risques liés à des comportements non documentés ou version-dépendants ?
 - ✅ **Impact en cascade complet** : Tous les consommateurs des fichiers partagés modifiés (Phase 1.2ter) ont-ils un ticket prévu ou une justification explicite d'exclusion ? Aucun consommateur classé "ticket séparé nécessaire" ne doit rester sans traitement dans le plan.
-- ✅ **Concepts déjà rejetés** : Consulter `docs/wiki/decisions-rejetees.md` (si le fichier existe) et vérifier qu'aucun ticket du plan ne re-propose un concept avec statut `ACTIVE`. Pour chaque match détecté, afficher le concept rejeté avec sa raison et demander confirmation : "Ce concept a été rejeté le [date] parce que [raison]. Le contexte a-t-il changé ?" Si oui, l'entrée peut être mise à jour ou supprimée. Si le fichier n'existe pas, skip silencieusement.
+- ✅ **Concepts déjà rejetés** : Consulter `docs/wiki/decisions/decisions-rejetees.md` (si le fichier existe) et vérifier qu'aucun ticket du plan ne re-propose un concept avec statut `ACTIVE`. Pour chaque match détecté, afficher le concept rejeté avec sa raison et demander confirmation : "Ce concept a été rejeté le [date] parce que [raison]. Le contexte a-t-il changé ?" Si oui, l'entrée peut être mise à jour ou supprimée. Si le fichier n'existe pas, skip silencieusement.
 
 ## Déclencheur de pause ⏸️
 
@@ -176,7 +176,7 @@ Si un **cas particulier critique** est détecté (ex : doublon avéré, dépenda
 
 ## Question de validation obligatoire
 
-**Si CONTEXTE = standalone :**
+**En mode standalone :**
 ```
 question({
   questions: [{

@@ -61,7 +61,7 @@ Les règles d'utilisation de l'outil sont définies dans le skill `skills/postur
 
 ## Clarifications (hors checkpoint)
 
-Blocage après 3 cycles de review, dépendance non résolue, ticket bloqué : agent d'entrée → outil `question` (sans nommer de checkpoint) ; sous-agent → bloc `## Question pour l'orchestrator` (format : skill `orchestrator-handoff-format`).
+Ping-pong reviewer, dépendance non résolue, ticket bloqué : agent d'entrée → outil `question` (sans nommer de checkpoint) ; sous-agent → bloc `## Question pour l'orchestrator` (format : skill `orchestrator-handoff-format`). Le plafond `limits.max_fix_rounds` atteint ne pose pas de question : il passe par le checkpoint de commit.
 
 ---
 
@@ -255,9 +255,9 @@ Raison : <critère non vérifié>
 
 → Traitement séquentiel normal ticket par ticket.
 
-**Proposition à l'utilisateur (modes `manuel` et `semi-auto`) :**
+**Proposition à l'utilisateur — agent d'entrée seulement (modes `manuel` et `semi-auto`) :**
 
-En mode `manuel` ou `semi-auto`, quand les 4 critères sont vérifiés, proposer le parallélisme à l'utilisateur avant de lancer :
+Seulement si tu es **agent d'entrée** (section « Rôle dans cette session ») : en mode `manuel` ou `semi-auto`, quand les 4 critères sont vérifiés, propose le parallélisme à l'utilisateur avant de lancer. **Sous-agent** : pas de question ; traitement séquentiel, sauf si ton prompt d'invocation demande le parallèle.
 
 ```
 question({
@@ -274,7 +274,7 @@ question({
 
 - Si l'utilisateur accepte → lancer en parallèle (charger le skill `orchestrator-dev-parallel`)
 - Si l'utilisateur refuse → traitement séquentiel normal
-- **En mode `auto`** : ne pas poser la question, lancer directement en parallèle
+- **En mode `auto`** (agent d'entrée) : ne pas poser la question, lancer directement en parallèle
 
 ---
 
@@ -283,7 +283,7 @@ question({
 | Phase | Skill à charger | Déclencheur |
 |-------|----------------|-------------|
 | Workflow ticket | `orchestrator/orchestrator-dev-ticket-workflow` | Après le démarrage, pour chaque ticket |
-| Workflow parallèle | `orchestrator/orchestrator-dev-parallel` | Si 4 critères remplis + confirmé par l'utilisateur (manuel/semi-auto) ou automatique (auto) |
+| Workflow parallèle | `orchestrator/orchestrator-dev-parallel` | Si 4 critères remplis + confirmé par l'utilisateur (agent d'entrée, manuel/semi-auto), automatique (agent d'entrée, auto) ou demandé par le prompt (sous-agent) |
 | Récap global | `orchestrator/orchestrator-dev-recap` | Après dernier ticket traité |
 | Cas particuliers | `orchestrator/orchestrator-dev-edge-cases` | Si drift, échec review, conflit |
 

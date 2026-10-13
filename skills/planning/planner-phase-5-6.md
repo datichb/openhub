@@ -383,7 +383,7 @@ Le label `ai-delegated` indique qu'un ticket peut être délégué à un agent I
 
 ## Question de validation obligatoire
 
-**Si CONTEXTE = standalone :**
+**En mode standalone :**
 ```
 question({
   questions: [{
@@ -535,7 +535,7 @@ La méthode `--method ai` est refusée par oh (les tickets ne partent pas vers u
 
 ## Question de validation obligatoire
 
-**Si CONTEXTE = standalone :**
+**En mode standalone :**
 
 ```
 question({

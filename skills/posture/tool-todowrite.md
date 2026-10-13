@@ -60,7 +60,7 @@ Quand `orchestrator-dev` est invoqué directement, mettre à jour le label de la
 |-------|---------|
 | Implémentation | `[dev]` |
 | Review | `[review]` |
-| En attente CP-2 | `[CP-2]` |
+| En attente cp-2 | `[cp-2]` | <!-- capability: optional -->
 | Terminé | *(pas de suffixe)* |
 
 Exemple : `#bd-12 — Endpoint POST /users [dev]` → `[review]` → `completed`

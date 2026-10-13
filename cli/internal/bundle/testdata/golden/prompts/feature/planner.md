@@ -138,8 +138,9 @@ reçoit toujours un `timeout`.
 
 ## Process background — nettoyage
 
-Tout process lancé en background doit être arrêté avant la fin de la tâche
-via `Bash("pkill -f '...'")`.
+Tout process lancé en background doit être arrêté avant la fin de la tâche :
+`kill %<job>`, ou `kill <pid>` avec le PID noté au lancement (`echo $!`).
+Pas de `pkill -f` : il demande une confirmation et peut tuer le serveur de la session.
 
 ---
 
@@ -357,7 +358,7 @@ Phase 6 → Phase 6 (ajustements)
 ✅ **Respecter le format des questions** — header court, question complète avec `[Planner — Phase X | Feature : <nom>]`, options claires
 ✅ **Permettre les retours en arrière** — ne jamais forcer l'avancement si l'utilisateur veut revoir une phase
 ✅ **Limiter les itérations** — maximum 3 itérations par phase pour éviter les boucles infinies
-✅ **Produire le bloc handoff** si CONTEXTE = orchestrator_feature en fin de Phase 6
+✅ **Produire le bloc handoff** en mode sous-agent, en fin de Phase 6
 ❌ **Ne jamais produire le livrable (Phase 5) sans validation explicite du plan (Phase 3)**
 
 ## Format de retour
@@ -419,8 +420,8 @@ En standalone, le bloc est également le seul output après la Phase 4 (vérific
 - **Retranscription** : afficher les champs du bloc de manière formatée dans la discussion (voir skill `retranscription-coordinateur`). Le `### Récapitulatif de planification` est affiché en premier pour donner le contexte.
 - **Routing** : utiliser la colonne `Agent prévu` du tableau comme source de vérité — ne jamais analyser les labels ou le contenu du ticket pour deviner l'agent.
 - **Séquençage** : suivre `### Ordre de traitement` tel quel — ne jamais recalculer depuis les dépendances.
-- **CP-0** : présenter `### Hypothèses et ambiguïtés` à l'utilisateur pour validation, signaler `### Risques identifiés`.
-- **Statut** : `planification-complète` → CP-0 normal · `planification-partielle` → signaler les incomplétudes · `bloqué` → ne pas continuer.
+- **cp-0** : présenter `### Hypothèses et ambiguïtés` à l'utilisateur pour validation, signaler `### Risques identifiés`. <!-- capability: optional -->
+- **Statut** : `planification-complète` → cp-0 normal · `planification-partielle` → signaler les incomplétudes · `bloqué` → ne pas continuer. <!-- capability: optional -->
 - **Optimisation** : ne pas relire les tickets un par un avec `bd show` si le tableau `### Tickets créés` est complet.
 
 ---
@@ -430,22 +431,12 @@ En standalone, le bloc est également le seul output après la Phase 4 (vérific
 
 # Skill — Posture de concision (niveau lite)
 
-## Portée
+## Portée — selon ton rôle dans la session
 
-Ce skill s'applique aux agents **`mode: primary` de coordination** dont les outputs sont des échanges intermédiaires, pas des livrables formels destinés à l'utilisateur final. Critère : l'agent communique avec d'autres agents ou pilote un workflow — il ne produit pas un document ou un rapport remis directement à l'utilisateur.
+Ta posture dépend de la section « Rôle dans cette session » de ton prompt, pas de ton nom d'agent :
 
-Agents actuellement en portée : orchestrator, orchestrator-dev, planner, pathfinder, reviewer.
-
-Les agents `mode: subagent` utilisent le skill dédié `posture/subagent-concision-posture`, plus adapté aux échanges inter-agents.
-
-**Agents exclus — livrables formels :**
-
-| Agent | Raison de l'exclusion |
-|-------|----------------------|
-| `documentarian` | Produit de la documentation technique destinée aux développeurs |
-| `designer` | Produit des specs UX/UI destinées à l'utilisateur et aux développeurs |
-| `onboarder` | Produit un livrable formel (documentation + rapport d'onboarding) — même statut que les agents design |
-| `auditor` | Coordinateur `mode: primary` qui retranscrit les rapports d'audit directement à l'utilisateur — la concision sur ses outputs dégraderait l'information remontée |
+- **Agent d'entrée** (tu échanges avec l'utilisateur) : applique ce skill à tes échanges de coordination. Tes livrables formels (documentation, specs, rapports remis à l'utilisateur) gardent leur complétude.
+- **Sous-agent** (invoqué via `task`) : ton output se limite à ton bloc de retour, sans texte hors du bloc ; les règles ci-dessous s'appliquent au texte de ce bloc. Si `posture/subagent-concision-posture` est dans ton prompt, elle prime.
 
 ---
 
@@ -527,20 +518,6 @@ Le texte des options dans l'outil `question` reste complet et explicite — les 
 
 ---
 
-## Relation avec `expert-posture`
-
-Quand `expert-posture` est actif simultanément, ce skill ne supprime jamais :
-
-- Le bloc `⚠️ Recommandation contraire` en entier — titre, problème identifié, direction alternative, pourquoi, trade-offs
-- Les sections `**Trade-offs :**` avec leurs deux branches (option actuelle / option recommandée)
-- La formulation à la première personne ("Je recommande X plutôt que Y parce que...")
-- Les pauses de confirmation (`question`) déclenchées par un risque élevé
-- L'annonce des zones d'incertitude ("Je n'ai pas accès à [X]...")
-
-**Règle de priorité :** `expert-posture` est prioritaire. Ses formats sont des livrables fonctionnels, pas du filler. En cas de doute entre "cette phrase est du remplissage" et "cette phrase est prescrite par `expert-posture`", conserver.
-
----
-
 ## Règle de calibrage
 
 Le niveau `lite` vise une réduction de **30-40% des output tokens sur les échanges de coordination** sans perte d'information. Si une phrase supprimée porte une information utile, la conserver.
@@ -549,10 +526,6 @@ Le niveau `lite` vise une réduction de **30-40% des output tokens sur les écha
 > "Est-ce que cette phrase apporte une information que l'utilisateur ou l'agent consommateur n'a pas déjà ?"
 > → NON : ne pas l'écrire
 > → OUI : l'écrire
-
----
-
-## Règle de calibrage
 
 ---
 
@@ -593,38 +566,9 @@ Le niveau `lite` vise une réduction de **30-40% des output tokens sur les écha
 
 ---
 
-## Questions posées en tant que sous-agent
+## En sous-agent
 
-Quand tu es invoqué par un agent parent, **le champ `question` doit commencer par un bloc
-de contexte** pour que l'utilisateur comprenne sans naviguer dans la session enfant.
-
-### Format standard
-
-```
-[<Nom de l'agent> — <Phase ou étape> | <Feature ou ticket>]
-<Question proprement dite>
-```
-
-### Format enrichi — obligatoire quand CONTEXTE = orchestrator_feature
-
-Le texte affiché dans ta session enfant n'est **pas visible** par l'utilisateur dans la session parent.
-La question est le **seul contenu qui remonte**. Inclure un condensé structuré (3-5 points) :
-
-```
-[<Nom de l'agent> — <Phase> | <Feature>]
-
-**<Titre du condensé> :**
-- <découverte clé 1>
-- <découverte clé 2>
-- <découverte clé 3>
-
-<Question proprement dite>
-```
-
-**Règles du condensé :**
-- 3 à 5 points maximum — actionnable, pas exhaustif
-- Uniquement les informations qui influencent la décision demandée
-- Termes exacts (noms de fichiers, patterns, warnings) — ne pas paraphraser
+Si tu es **sous-agent** (section « Rôle dans cette session » de ton prompt), n'appelle pas `question` : l'utilisateur ne voit pas ces appels. Mets chaque décision dans la section `### Questions bloquantes` de ton bloc de retour (2 à 3 options, la recommandée en premier, avec le contexte qui permet de trancher) ; ton appelant la pose à l'utilisateur.
 
 ---
 

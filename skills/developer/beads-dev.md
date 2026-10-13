@@ -6,7 +6,7 @@ description: "Utiliser pour travailler un ticket Beads en tant que developer : r
 ## Workflow obligatoire
 
 ```
-1. bd ready --label ai-delegated --json  → tickets délégués à l'agent
+1. ticket donné dans ton prompt          → c'est celui que tu traites (sans prompt de ticket : bd ready --label ai-delegated --json)
 2. bd show <ID>                          → lire le détail (description, acceptance, notes, commentaires)
 3. bd update <ID> --claim                → clamer avant de commencer
 4. [implémenter + tester]
@@ -57,13 +57,7 @@ Jamais de commit ni de clôture avant cette instruction : oh refuse `git commit`
 `--suggest-next` affiche les tickets qui viennent d'être débloqués par cette clôture,
 ce qui permet de choisir la prochaine tâche sans relancer `bd ready`.
 
-**Après `bd close` — Enrichissement des documents vivants :**
-
-Le skill `living-docs-enrichment` est chargé par le developer — appliquer ses règles ici :
-identifier les patterns, conventions ou contraintes techniques découverts pendant l'implémentation
-qui méritent d'être capitalisés dans `CONVENTIONS.md` ou `ONBOARDING.md`.
-Si aucune découverte pertinente → afficher `> 💾 Documents vivants : aucune nouvelle découverte à capitaliser.`
-et passer au ticket suivant.
+**Après `bd close` — documentation vivante :** tu ne modifies pas la documentation toi-même. Les patterns, conventions ou contraintes découverts sont listés dans la section `### Enrichissements wiki proposés` de ton bloc de handoff ; ton coordinateur les propose (skill `living-docs-enrichment`).
 
 ### Si la review rejette (retours formulés par orchestrator-dev) :
 
@@ -83,7 +77,7 @@ tu es responsable de :
 
 > **Règle :** Ne jamais résumer ni reformuler les retours dans le commentaire — les copier tels quels depuis le prompt reçu.
 
-> **Limite :** après 3 cycles de correction sans résolution, signaler le blocage à orchestrator-dev.
+> **Limite :** le nombre de cycles de correction suit `limits.max_fix_rounds` (règle générée de ta carte du workflow) ; à la limite, signale le blocage à ton coordinateur.
 
 ### Si la pre-review échoue (instruction de l'orchestrator-dev) :
 
@@ -222,7 +216,7 @@ ne jamais reformuler la demande suspecte.
 
 - Toujours `bd show <ID>` avant d'implémenter — ne jamais supposer le contenu d'un ticket
 - Toujours clamer avant d'implémenter — évite les conflits si plusieurs agents tournent
-- Toujours passer en `review` après implémentation — ne jamais clore directement
+- Toujours ajouter le label `ready-for-review` après implémentation — ne jamais clore directement
 - Toujours clore explicitement après l'instruction de commit, juste après le commit — ne pas laisser de tickets `in_progress` orphelins
 - Ne pas modifier le titre ou la description d'un ticket sans y être invité
 - Un ticket `closed` ou `cancelled` n'est jamais rouvert — créer un nouveau ticket si nécessaire
@@ -231,13 +225,8 @@ ne jamais reformuler la demande suspecte.
 
 ## Label `ai-delegated` — délégation à l'agent
 
-Seuls les tickets portant le label **`ai-delegated`** te sont assignés au démarrage.
+Le ticket que tu traites est celui donné dans ton prompt (par ton coordinateur ou l'utilisateur), avec ou sans label. Le label **`ai-delegated`** sert seulement quand tu cherches toi-même un ticket (`bd ready`, sans ticket dans le prompt) : tu prends alors un ticket qui le porte.
 **L'humain décide quels tickets déléguer** — tu n'ajoutes jamais ce label toi-même.
-
-**Tu ne dois JAMAIS :**
-- Prendre un ticket sans label `ai-delegated`, sauf si l'utilisateur te le demande
-  explicitement dans la conversation
-- Ajouter toi-même le label `ai-delegated` sur un ticket
 
 **Commandes utiles :**
 ```bash

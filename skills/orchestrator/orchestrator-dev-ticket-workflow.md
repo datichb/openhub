@@ -159,7 +159,7 @@ Action requise :
 3. Relancer les vérifications du projet et repasser en review (bd update <ID> --add-label ready-for-review)
 ```
 
-> **Compteur de cycles :** les boucles « pre-review échoue → retour developer » ne comptent **pas** dans la limite des 3 cycles de review (étape 4). Après **5 cycles** sans résolution, escalader à l'utilisateur (skill `orchestrator/error-recovery-protocol`, « Boucle pre-review infinie ») : intervenir manuellement / passer à la review malgré les erreurs / passer ce ticket / stop.
+> **Compteur de cycles :** les boucles « pre-review échoue → retour developer » ne comptent **pas** dans le plafond `limits.max_fix_rounds` des tours de review (étape 4). Après **5 cycles** sans résolution, escalader à l'utilisateur (skill `orchestrator/error-recovery-protocol`, « Boucle pre-review infinie ») : intervenir manuellement / passer à la review malgré les erreurs / passer ce ticket / stop.
 
 ---
 
@@ -263,7 +263,7 @@ X = nombre de 🔴 Critique + 🟠 Majeur de `### Synthèse des problèmes` (san
   > « Je retourne le ticket à `developer` (domaine <xxx>) avec les corrections demandées. »
   > Puis repasser étape 3 (pre-review rapportée par le developer) → étape 4 (review).
 
-  ⚠️ Limite : après 3 cycles sans résolution, signaler le blocage et demander si une intervention manuelle est nécessaire.
+  ⚠️ Limite : au plus `limits.max_fix_rounds` tours (règle générée de ta carte) ; au-delà, pas de nouveau tour : passe le checkpoint de commit en signalant les points non résolus (`orchestrator-dev-edge-cases`, « Plafond des tours de correction atteint »).
 
 ⏸️ **Attendre la réponse de `workflow_checkpoint`** : c'est la décision de l'utilisateur.
 

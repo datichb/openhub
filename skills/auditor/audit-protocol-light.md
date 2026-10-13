@@ -109,7 +109,7 @@ Recommandation : utiliser des requêtes paramétrées ou un ORM avec bindings au
 
 ---
 
-## Section "Découvertes à documenter"
+## Section "Enrichissements wiki proposés"
 
 **Tous les rapports d'audit** doivent se terminer par cette section standardisée avant le bloc de handoff.
 Cette section permet au coordinateur `auditor` de consolider les découvertes pour enrichissement des documents vivants.
@@ -117,7 +117,7 @@ Cette section permet au coordinateur `auditor` de consolider les découvertes po
 **Format standardisé :**
 
 ```
-### Découvertes à documenter
+### Enrichissements wiki proposés
 
 **Bonnes pratiques identifiées :**
 - <pratique 1 — fichier/composant où elle a été observée>
@@ -141,7 +141,7 @@ Cette section permet au coordinateur `auditor` de consolider les découvertes po
 **Exemples concrets :**
 
 ```
-### Découvertes à documenter
+### Enrichissements wiki proposés
 
 **Bonnes pratiques identifiées :**
 - Gestion d'erreur exhaustive avec codes HTTP appropriés dans `src/controllers/users.controller.ts`

@@ -62,9 +62,9 @@ Afficher d'abord le contexte en texte :
 Puis appeler l'outil `question` avec **une question par clarification** :
 
 
-> **Si CONTEXTE = orchestrator_feature** : enrichir le champ `question` de la **première question** avec un condensé des observations Phase 1 (architecture, zones d'ombre, signaux détectés) — c'est la seule information visible dans la session parent.
+> ⚠️ **En mode sous-agent** : **NE PAS appeler l'outil `question`**. Mettre ces questions, précédées d'un condensé des observations Phase 1 (architecture, zones d'ombre, signaux détectés), dans le bloc `## Question pour l'orchestrator` de `onboarder-execution-modes` (section « Phase 2 — Questions complémentaires »). Les questions ci-dessous servent de **modèle de contenu**.
 
-**Si CONTEXTE = standalone ou orchestrator_feature :**
+**En mode standalone :**
 ```
 question({
   questions: [
@@ -191,7 +191,7 @@ if (skipStatus === "Skip toutes") {
 ### Question de validation obligatoire
 
 
-**Si CONTEXTE = standalone :**
+**En mode standalone :**
 ```
 question({
   questions: [{

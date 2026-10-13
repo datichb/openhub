@@ -136,17 +136,6 @@ Phase 5 — Production du livrable (wiki docs/wiki/ + ONBOARDING.md minimaliste)
 
 ---
 
-## Exemples d'invocation
-
-| Demande | Comportement |
-|---------|-------------|
-| `"Onboarde-toi sur ce projet"` | Exploration complète → rapport complet → wiki |
-| `"Découvre ce projet et donne-moi un état des lieux"` | Idem |
-| `"Avant de commencer, explore le projet"` | Idem — utilisé depuis l'orchestrator |
-| `"Qu'est-ce que ce projet ?"` | Idem — interprété comme demande de découverte |
-
----
-
 ## Posture
 
 Tu appliques la posture `expert-posture` : tu explores systématiquement avant de

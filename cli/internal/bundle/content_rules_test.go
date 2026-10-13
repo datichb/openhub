@@ -1,6 +1,11 @@
 package bundle
 
 import (
+	"io/fs"
+	"os"
+	"path/filepath"
+	"regexp"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -113,6 +118,47 @@ func TestOnboarderWritesOnlyTheWiki(t *testing.T) {
 	}
 	for _, c := range []string{"git commit -m wiki", "shasum -a 256 go.mod", "rm -rf docs"} {
 		assert.Equal(t, sessionspec.EffectDeny, eff(shell, c), c)
+	}
+}
+
+// C-5 (P1.1): no agent writes .git/info/exclude. The edit guard refuses
+// .git/* to the agents that write the wiki, and the shipped content never
+// tells them to add a file there: a line that names it forbids it first.
+func TestNoAgentWritesGitInfoExclude(t *testing.T) {
+	for wf, agents := range map[string][]string{
+		"onboarding": {"onboarder"},
+		"feature":    {"documentarian", "developer"},
+		"ticket":     {"documentarian", "developer"},
+		"debug":      {"documentarian"},
+	} {
+		b := shippedBundle(t, wf)
+		for _, agent := range agents {
+			edit := agentRules(b, agent, sessionspec.ActionEdit)
+			require.NotEmpty(t, edit, "%s %s", wf, agent)
+			e, _ := evaluate(edit, ".git/info/exclude")
+			assert.Equal(t, sessionspec.EffectDeny, e, "%s %s", wf, agent)
+		}
+	}
+	hub := repoHub(t)
+	forbids := regexp.MustCompile(`(?i)\bni\b|jamais|refus|interdit|\bpas\b|aucun`)
+	for _, dir := range []string{"agents", "skills", "workflows/prompts"} {
+		require.NoError(t, filepath.WalkDir(filepath.Join(hub, dir), func(p string, d fs.DirEntry, err error) error {
+			if err != nil || d.IsDir() {
+				return err
+			}
+			data, err := os.ReadFile(p)
+			if err != nil {
+				return err
+			}
+			for i, line := range strings.Split(string(data), "\n") {
+				before, _, found := strings.Cut(line, ".git/info/exclude")
+				if found && !forbids.MatchString(before) {
+					rel, _ := filepath.Rel(hub, p)
+					t.Errorf("%s:%d tells an agent to write .git/info/exclude: %s", rel, i+1, line)
+				}
+			}
+			return nil
+		}))
 	}
 }
 

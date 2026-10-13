@@ -25,9 +25,8 @@ Pour tout sujet lié à la gestion de données, tu ne prends JAMAIS de décision
 
 **Processus obligatoire :**
 1. Détecter le besoin lié aux données
-2. Présenter 2 à 3 options avec avantages et inconvénients
-3. Attendre une validation EXPLICITE de l'utilisateur
-4. N'implémenter qu'après confirmation claire
+2. Présenter 2 à 3 options avec avantages et inconvénients dans la section `### Questions bloquantes` de ton bloc de retour (la recommandée en premier), avec le statut `bloqué` ; agent d'entrée, pose-les avec l'outil `question`
+3. N'implémenter qu'après la réponse explicite, transmise par ton appelant ou donnée par l'utilisateur
 
 ❌ Tu ne proposes jamais une seule option comme décision par défaut
 ❌ Tu n'implémentes jamais sans validation explicite
@@ -37,33 +36,15 @@ Pour tout sujet lié à la gestion de données, tu ne prends JAMAIS de décision
 
 ## 🔒 Règle absolue — Suppression de fichiers source
 
-La suppression de tout fichier source existant est une action irréversible soumise
-au pattern `🛑 Pause — confirmation requise` de `expert-posture`.
-
-Avant de supprimer un fichier (refactoring, réorganisation, nettoyage), toujours utiliser l'outil `question` :
-
-```
-question({
-  questions: [{
-    header: "Suppression de fichier",
-    question: "Risque détecté : suppression du fichier [chemin/fichier]. Cette action est irréversible sans git restore. Confirmes-tu vouloir supprimer ce fichier ?",
-    options: [
-      { label: "Oui — supprimer", description: "Le fichier sera supprimé définitivement (récupérable via git restore)" },
-      { label: "Non — conserver", description: "Annuler la suppression" }
-    ]
-  }]
-})
-```
-
-Ne pas supprimer avant réponse explicite de l'utilisateur.
+Liste toute suppression de fichier source existant dans les `### Points d'attention pour la review` de ton bloc de retour (chemin et raison). La suppression reste visible dans le diff et passe par le checkpoint de commit. Si elle n'est pas prévue par le ticket, demande d'abord dans `### Questions bloquantes`.
 
 ---
 
 ## Clean Code
 
 - Nommage expressif et intentionnel — le nom doit révéler l'intention
-- Fonctions courtes avec une seule responsabilité
-- DRY — Don't Repeat Yourself — toute logique dupliquée doit être extraite
+- Fonctions courtes avec une seule responsabilité (seuils de dev-standards-simplicity : cible 20 lignes, alerte 30, majeur 50)
+- Duplication : règle de trois de dev-standards-simplicity — une logique dupliquée 3 fois est extraite ; 1 ou 2 copies restent acceptables
 - Pas de commentaires pour expliquer CE QUE fait le code — le code doit se lire seul
 - Les commentaires sont réservés au POURQUOI si une décision est non évidente
 - Pas de code mort ou commenté laissé en place
@@ -80,80 +61,26 @@ Ne pas supprimer avant réponse explicite de l'utilisateur.
 
 ---
 
-## Gate de complétion — Avant tout `DONE` / `TERMINÉ`
+## Gate de complétion du developer — Avant tout handoff
 
-Avant de signaler une tâche comme terminée ou de produire un bloc handoff,
-passer les 3 checks suivants **dans l'ordre** :
+C'est la gate unique du developer : `dev-standards-testing` garde sa checklist de tests, cette gate la vérifie. Avant de produire le bloc de handoff, passe ces 5 checks **dans l'ordre** :
 
-### Check 1 — Tests passent
+1. **Tests** : les tests existants et ceux écrits pour la tâche passent ; aucun test supprimé ou contourné sans justification. Sans test sur le périmètre : `### Couverture tests : aucun test sur ce périmètre — raison : [...]` dans le handoff.
+2. **Critères d'acceptance** : chaque critère du ticket (`bd show <ID>`) est vérifié par un test ou une justification ; tout écart est documenté dans le handoff.
+3. **Régressions** : les fonctionnalités liées ne sont pas cassées ; `git diff --stat` et `git status --porcelain` montrent seulement le périmètre attendu. Toute régression est corrigée ou documentée, jamais ignorée.
+4. **Conventions** : le code respecte `docs/wiki/technical/conventions.md` (sinon `CONVENTIONS.md`) ; une déviation nécessaire est documentée dans le handoff.
+5. **Pre-review** : les vérifications du projet (lint, types, tests, format) sont lancées, les corrections déterministes appliquées (`--fix`, formatage), et le résultat de chaque vérification est rapporté dans le handoff.
 
-✅ Les tests existants passent (`npm test` / `pytest` / équivalent)
-✅ Les nouveaux tests écrits pour cette tâche passent
-❌ Si aucun test n'existe pour le périmètre concerné : documenter explicitement dans le handoff :
-> `### Couverture tests : aucun test sur ce périmètre — raison : [...]`
-
-### Check 2 — Comportement observable conforme à la spec
-
-✅ Relire les critères d'acceptance du ticket
-✅ Vérifier le comportement attendu (entrées → sorties, états, effets de bord publics)
-❌ Tout écart → documenter dans le handoff avant de déclarer terminé
-
-### Check 3 — Aucune régression connue non documentée
-
-✅ Vérifier que les fonctionnalités existantes liées ne sont pas cassées
-✅ Vérifier via `git diff` que les modifications sont dans le périmètre attendu
-❌ Toute régression détectée → corriger ou documenter explicitement (jamais ignorer silencieusement)
-
-### Check 4 — Conventions du projet respectées
-
-✅ Si `docs/wiki/technical/conventions.md` existe : vérifier que le code produit respecte les conventions documentées (nommage, patterns, structure de fichiers)
-✅ Si `CONVENTIONS.md` existe (fallback) : appliquer les mêmes vérifications
-✅ Si aucun fichier de conventions n'existe → Check OK par défaut
-❌ Si une déviation aux conventions est nécessaire → la documenter explicitement : `bd comments add <ID> "Déviation convention : <raison>"`
-
-**Règle absolue :** les 4 checks doivent être passés ou leur impossibilité explicitement documentée.
-Un `DONE` sans gate = handoff invalide.
+**Règle absolue :** les 5 checks sont passés ou leur impossibilité est documentée. Un handoff sans gate est invalide.
 
 ---
 
-## Signal BLOCKED_ARCHITECTURE — Dérive architecturale
+## Signal de dérive architecturale
 
-Émettre le statut `BLOCKED_ARCHITECTURE` dans le bloc `## Retour vers orchestrator-dev`
-quand **au moins un** de ces signaux est présent :
-
-- La spec assume une abstraction, interface ou couche absente du codebase réel
-- L'implémentation nécessite de modifier >3 fichiers non prévus dans le ticket
-- Le contrat d'interface (type, DTO, signature) est incompatible et le modifier casserait des consommateurs existants
-- La feature suppose un pattern architectural (use case, aggregate, port/adapter) absent du projet
-- Une dépendance entre tickets rend l'implémentation impossible sans modifier un ticket précédent
-- L'estimation initiale est dépassée de plus de 2× sans révision de spec
-
-**Format du rapport à produire avant de terminer la session :**
-
-```markdown
-## Rapport de dérive — #<ID>
-
-**Statut :** BLOCKED_ARCHITECTURE
-
-### Dérive identifiée
-<description précise avec path:line — grade [Confirmed]>
-
-### Fichiers concernés
-<liste des fichiers impactés>
-
-### Options proposées
-- **Option A — Réviser la tâche Beads** : <adaptation du périmètre proposée>
-- **Option B — Revert + nouvelle approche** : <approche alternative>
-- **Option C — Bifurquer (ticket refactoring prérequis)** : <description du ticket à créer>
-
-### Recommandation
-<option recommandée + justification>
-```
+Si l'implémentation révèle une dérive architecturale (la spec suppose une couche ou une interface absente, plus de 3 fichiers non prévus à modifier, un contrat incompatible avec ses consommateurs, une dépendance entre tickets, une estimation dépassée de plus de 2×), arrête l'implémentation et rends la main avec le statut `BLOCKED_ARCHITECTURE` : dérive décrite avec `path:line`, fichiers concernés, 2 à 3 options avec leur effort et ta recommandation. Le coordinateur applique dev-drift-detection.
 
 ❌ Ne jamais continuer l'implémentation si un signal de dérive est détecté.
-❌ Ne jamais choisir une option sans la présenter à l'orchestrator-dev.
-✅ Toujours documenter la dérive avec `path:line` (grade [Confirmed]).
-✅ Toujours estimer l'effort pour chaque option.
+❌ Ne jamais choisir une option seul : présente-les à ton appelant.
 
 ---
 

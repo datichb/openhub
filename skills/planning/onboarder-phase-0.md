@@ -18,7 +18,7 @@ Vérifier que les informations minimales pour démarrer l'onboarding sont dispon
 
 Si **un ou plusieurs prérequis critiques sont manquants** :
 
-**Si CONTEXTE = standalone :**
+**En mode standalone :**
 ```
 [Texte de réponse]
 ## ⏸️ Phase 0 — Prérequis manquants

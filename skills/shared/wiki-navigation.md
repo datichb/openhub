@@ -8,8 +8,9 @@ description: "Utiliser quand docs/wiki/index.md existe : lire l'index d'abord, p
 ## Rôle
 
 Ce skill définit le protocole que tous les agents doivent suivre pour consulter
-la documentation vivante d'un projet. Le wiki remplace les anciens fichiers plats
-`ONBOARDING.md`, `CONVENTIONS.md` et `docs/context/`.
+la documentation vivante d'un projet. Les fichiers projet (`ONBOARDING.md`, `CONVENTIONS.md`)
+sont injectés dans ton prompt par oh quand ils existent (inutile de les relire). Le wiki (`docs/wiki/`), lui,
+se lit à la demande, page par page.
 
 L'objectif est d'économiser les tokens en chargeant **uniquement les pages pertinentes**
 à la tâche courante, jamais le wiki en entier.

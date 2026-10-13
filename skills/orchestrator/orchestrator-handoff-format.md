@@ -26,7 +26,7 @@ Quand `orchestrator-dev` est invoqué depuis l'`orchestrator`, son **seul output
 | Situation | Format à produire |
 |-----------|-------------------|
 | Fin normale de session (tous les tickets traités ou stop) | `## Retour vers orchestrator` |
-| Clarification nécessaire avant de continuer (blocage 3 cycles, dépendance non résolue, ticket bloqué, agent manquant) | `## Question pour l'orchestrator` **+** `## Retour vers orchestrator` |
+| Clarification nécessaire avant de continuer (ping-pong reviewer, dépendance non résolue, ticket bloqué, agent manquant) | `## Question pour l'orchestrator` **+** `## Retour vers orchestrator` |
 
 > Les blocs sont **complémentaires, pas exclusifs** : pour une clarification, `orchestrator-dev` émet d'abord le bloc question, puis immédiatement `## Retour vers orchestrator` (pour tracer l'état courant de la session). Les deux blocs sont produits dans la même réponse, dans cet ordre.
 
@@ -55,7 +55,7 @@ Quand `orchestrator-dev` est invoqué depuis l'`orchestrator` et qu'une **clarif
 
 | Situation | Déclencheur | `### Contexte complet` | `### Rapport de review complet` |
 |----|------------|------------------------|----------------------------------|
-| **Blocage 3 cycles** | 3 cycles de review sans résolution | Synthèse des problèmes persistants + résumé 1 ligne par cycle | Rapports des cycles concernés |
+| **Ping-pong reviewer** | Mêmes findings sur 2 cycles consécutifs | Findings répétés + résumé 1 ligne par cycle | Rapports des cycles concernés |
 | **Dépendance non résolue** | Ticket dépend d'un ticket non terminé | ID du ticket bloquant, son statut, sa description | *(section omise)* |
 | **Ticket bloqué** | Developer signale un blocage en cours d'implémentation | Raison du blocage telle que signalée, état du ticket | *(section omise)* |
 | **Agent manquant** | L'agent requis ne fait pas partie du workflow | Agent requis, raison | *(section omise)* |
@@ -67,7 +67,7 @@ Quand `orchestrator-dev` est invoqué depuis l'`orchestrator` et qu'une **clarif
 | Statut | Condition |
 |--------|-----------|
 | `succès` | Tous les tickets traités ont été commités sans blocage persistant |
-| `partiel` | Au moins un ticket ignoré ou bloqué après 3 cycles de review |
+| `partiel` | Au moins un ticket ignoré, ou passé au checkpoint de commit avec des points non résolus (plafond `limits.max_fix_rounds` atteint) |
 | `bloqué` | Au moins un ticket est resté bloqué et nécessite une intervention manuelle |
 
 - **`### Questions bloquantes`** (obligatoire) — liste numérotée des questions nécessitant une réponse avant de poursuivre. Si aucune : écrire `Aucune.`. Le coordinateur **doit** résoudre ces questions avant de continuer le workflow.

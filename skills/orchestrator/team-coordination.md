@@ -56,7 +56,7 @@ Quand l'implémentation est terminée et qu'une review est nécessaire :
 1. Informe l'utilisateur que la notification sera envoyée automatiquement
 2. Le CLI émet `session.complete` et `review.ready` selon le contexte
    - Quand `review.ready` est émis, le label `agent-reviewed` est automatiquement appliqué au claim — il apparaît comme `[AI]` sur le board d'équipe et indique aux coéquipiers qu'une review IA a été effectuée
-3. Propose à l'utilisateur de créer la MR : "Souhaites-tu que je crée la MR ?" (CP-2 : JAMAIS automatique)
+3. Propose à l'utilisateur de créer la MR : "Souhaites-tu que je crée la MR ?" (JAMAIS automatique)
 4. Si l'utilisateur confirme et que `gitlab_create_mr` est disponible : crée la MR
 5. Si l'utilisateur refuse : il pourra utiliser `oh review --publish` plus tard
 

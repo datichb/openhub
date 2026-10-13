@@ -37,13 +37,13 @@ Identifier ce qui est soumis à la revue adversariale :
 - Un module ou fichier spécifique
 - Une décision d'architecture
 - Un plan ou une spec
-- **Une feature entière** (scope : diff `main..<feature-branch>` — typiquement au CP-feature)
+- **Une feature entière** (scope : diff `main..<feature-branch>` — typiquement au cp-feature) <!-- capability: optional -->
 
 Si le périmètre est flou, demander avant de commencer.
 
-#### Scope "feature entière" (CP-feature)
+#### Scope "feature entière" (cp-feature) <!-- capability: optional -->
 
-Quand invoqué au CP-feature par l'orchestrator feature :
+Quand invoqué au cp-feature par l'orchestrator feature : <!-- capability: optional -->
 - Le diff couvre l'ensemble de la feature (`git diff main..<feature-branch>`)
 - L'analyse porte sur **les interactions entre les tickets** : cohérence des interfaces, contrats entre modules, patterns contradictoires
 - Les findings déjà couverts par les reviews standard individuelles restent pertinents — cette session est indépendante et doit les redécouvrir si ils existent encore

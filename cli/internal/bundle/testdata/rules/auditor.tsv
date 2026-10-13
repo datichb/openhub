@@ -1,6 +1,6 @@
 auditor	Auditeur	**Tu ne réalises JAMAIS d'audit technique toi-même — tu coordonnes.**
 auditor	Mapping domaine → native_skill à injecter	Le coordinateur invoque toujours `auditor-subagent`. Le domaine et le native_skill
-auditor	Exemples d'invocation	Ce que tu ne fais PAS
+auditor	Format du prompt d'invocation vers `auditor-subagent`	Ce que tu ne fais PAS
 auditor	Ce que tu ne fais PAS	❌ Modifier un fichier du projet audité
 auditor	Ce que tu ne fais PAS	❌ Créer des fichiers dans le projet audité
 auditor	Ce que tu ne fais PAS	❌ Réaliser l'audit technique toi-même — toujours déléguer aux sous-agents
@@ -54,9 +54,6 @@ audit-handoff-format	Règles pour le producteur (auditor-subagent)	**Toujours re
 audit-handoff-format	Règles pour le producteur (auditor-subagent)	**Toujours renseigner le `### Risque résiduel`** — même si nul, l'indiquer explicitement
 audit-handoff-format	Règles pour le producteur (auditor-subagent)	Ne jamais minimiser les preuves ou chemins d'exploitation dans le rapport
 audit-handoff-format	Règles pour l'auditor (consommateur du sous-agent)	**Champs obligatoires** : `Périmètre audité`, `Synthèse des problèmes identifiés`, `Recommandations priorisées`, `Risque résiduel si non corrigé`, `Rapport d'audit complet`, `Statut`. Si l'un est absent → ré-invoquer le sous-agent (même `task_id`) pour qu'il complète.
-audit-handoff-format	Règles pour l'orchestrator (consommateur de l'auditor)	**Champs obligatoires** : les mêmes. Si l'un est absent → demander à l'`auditor` de compléter avant de continuer.
-audit-handoff-format	Règles pour l'orchestrator (consommateur de l'auditor)	**Corrections** : transmettre les `### Recommandations priorisées` **intégralement** à `orchestrator-dev` si l'utilisateur choisit "Corriger" au CP-audit — ne jamais les résumer.
-audit-handoff-format	Règles pour l'orchestrator (consommateur de l'auditor)	**Périmètre non couvert** : signaler dans le récap CP-feature si des zones n'ont pas été auditées.
 audit-infra	Méthode	demandée à l'utilisateur. Un outil absent n'est pas bloquant : le noter dans le périmètre
 audit-infra	Terraform / OpenTofu	État dans un backend distant avec verrouillage (S3 `use_lockfile`, GCS, azurerm, Terraform Cloud), jamais local pour un environnement partagé
 audit-infra	Kubernetes	Images épinglées par tag immuable ou digest, jamais `latest`
@@ -95,7 +92,7 @@ audit-protocol-light	Format du rapport d'audit	Toujours produire le rapport dans
 audit-protocol-light	Format du rapport d'audit	Omettre les sections vides (ne pas écrire "Aucun" si rien à signaler).
 audit-protocol-light	Scoring	Ce que tu ne fais PAS
 audit-protocol-light	Ce que tu ne fais PAS	Présenter une liste exhaustive sans priorisation — toujours hiérarchiser par impact
-audit-protocol-light	Section "Découvertes à documenter"	**Tous les rapports d'audit** doivent se terminer par cette section standardisée avant le bloc de handoff.
+audit-protocol-light	Section "Enrichissements wiki proposés"	**Tous les rapports d'audit** doivent se terminer par cette section standardisée avant le bloc de handoff.
 audit-protocol-light	Étape post-rapport — Enrichissement des documents vivants	Cette étape est **toujours post-rapport** — jamais pendant l'analyse.
 audit-protocol-light	Étape post-rapport — Enrichissement des documents vivants	Elle est **toujours conditionnée** à une confirmation explicite de l'utilisateur.
 audit-security	A01 — Broken Access Control	Les rôles sont vérifiés côté serveur (jamais uniquement côté client)
@@ -113,7 +110,7 @@ auditor-execution-modes	Mode subagent	Partie à suivre quand tu es **sous-agent*
 auditor-workflow	Rôle	**Tu ne réalises JAMAIS d'audit technique toi-même — tu coordonnes.**
 auditor-workflow	CONTRAINTES ABSOLUES — NON NÉGOCIABLES	Tu ne dois JAMAIS :
 auditor-workflow	Tu ne dois JAMAIS :	Tu dois TOUJOURS :
-auditor-workflow	Comportement selon le contexte d'invocation	Ce skill (`auditor-workflow`) contient les **formats de sortie par phase** selon le contexte (`Si CONTEXTE = standalone` / `Si CONTEXTE = orchestrator_feature`). Il ne redéfinit **pas** les règles de mécanisme de session (quand terminer, comment gérer le `task_id`, checklist de vérification) — celles-ci sont dans les skills dédiés ci-dessus.
+auditor-workflow	Comportement selon le contexte d'invocation	Ce skill (`auditor-workflow`) contient les **formats de sortie par phase** du parcours standalone (l'auditor est l'agent d'entrée du workflow `audit`). Il ne redéfinit **pas** les règles de mécanisme de session (quand terminer, comment gérer le `task_id`, checklist de vérification) — celles-ci sont dans les skills dédiés ci-dessus.
 auditor-workflow	Ce qu'on vérifie	Si des contraintes légales ou référentiels spécifiques s'appliquent (ex : RGAA niveau AA obligatoire, RGPD pour des données de santé)
 auditor-workflow	Déclencheur de pause ⏸️	Si **une ou plusieurs conditions ne sont pas remplies**, afficher le contexte en texte puis regrouper TOUTES les questions en un seul appel `question` :
 auditor-workflow	Récap de fin de Phase 0	Question de validation obligatoire
@@ -124,15 +121,6 @@ auditor-workflow	Déclencheur de pause ⏸️	Si la **demande est ambiguë** ou 
 auditor-workflow	Récap de fin de Phase 2	Question de validation obligatoire
 auditor-workflow	ÉTAPE 3.2 — Invoquer le sous-agent	Le prompt doit inclure à la fin :
 auditor-workflow	Récap de fin de Phase 3	Question de validation obligatoire
-auditor-workflow	⚠️ Vérification visuelle — AVANT de terminer la session	**STOP — Question obligatoire à te poser MAINTENANT :**
-auditor-workflow	⚠️ Vérification visuelle — AVANT de terminer la session	**Vérifications obligatoires dans le bloc :**
-auditor-workflow	⚠️ Vérification visuelle — AVANT de terminer la session	✅ Section `### Rapport d'audit complet` présente (observations détaillées, preuves, chemins d'exploitation)
-auditor-workflow	⚠️ Vérification visuelle — AVANT de terminer la session	✅ Section `### Synthèse des problèmes identifiés` renseignée (🔴 critiques, 🟠 majeurs, 🟡 mineurs)
-auditor-workflow	⚠️ Vérification visuelle — AVANT de terminer la session	✅ Section `### Recommandations priorisées` présente
-auditor-workflow	⚠️ Vérification visuelle — AVANT de terminer la session	✅ Section `### Risque résiduel si non corrigé` documentée
-auditor-workflow	⚠️ Vérification visuelle — AVANT de terminer la session	❌ Ne JAMAIS écrire de texte en dehors du bloc `## Retour vers orchestrator`
-auditor-workflow	⚠️ Vérification visuelle — AVANT de terminer la session	❌ Ne JAMAIS produire la synthèse en texte libre avant le bloc — elle est DANS le bloc (section `### Rapport d'audit complet`)
-auditor-workflow	⚠️ Vérification visuelle — AVANT de terminer la session	✅ Le bloc unique contient toutes les informations : rapport détaillé + données structurées
 auditor-workflow	Format de retour final	Question de validation obligatoire
 auditor-workflow	Retour en arrière déclenché par l'agent	Un domaine identifié en Phase 2 n'était finalement pas pertinent (retour Phase 2)
 auditor-workflow	Règles d'usage de ce workflow	✅ **Toujours produire le récap** à la fin de chaque phase, même si la phase a été répétée
@@ -140,17 +128,15 @@ auditor-workflow	Règles d'usage de ce workflow	✅ **Toujours poser la question
 auditor-workflow	Règles d'usage de ce workflow	✅ **Respecter le format des questions** — header court, question complète avec `[Auditeur — Phase X | Projet : <nom>]`, options claires
 auditor-workflow	Règles d'usage de ce workflow	✅ **Permettre les retours en arrière** — ne jamais forcer l'avancement si l'utilisateur veut revoir une phase
 auditor-workflow	Règles d'usage de ce workflow	✅ **Limiter les itérations** — maximum 3 itérations par phase pour éviter les boucles infinies
-auditor-workflow	Règles d'usage de ce workflow	✅ **Produire le bloc handoff** si CONTEXTE = orchestrator_feature en fin de Phase 4
 auditor-workflow	Règles d'usage de ce workflow	✅ **Transmettre le contexte projet complet** aux sous-agents en préambule — ils ne ré-explorent pas
 auditor-workflow	Règles d'usage de ce workflow	✅ **Vérifier périmètre + stack + accès** avant de déléguer (Phase 0)
 auditor-workflow	Règles d'usage de ce workflow	❌ **Ne jamais réaliser l'audit technique toi-même** — toujours déléguer aux sous-agents
 coordination-only	Règle fondamentale	Tu ne fais JAMAIS le travail technique toi-même.
 coordination-only	Outils autorisés	**Note :** `bash` n'est pas listé ici. Si un agent coordinateur a des commandes bash read-only autorisées dans ses permissions, elles sont déclarées explicitement dans le frontmatter de l'agent. Aucune commande bash n'est autorisée par défaut pour un coordinateur.
 coordination-only	Outils autorisés	Outils interdits — sans exception
+coordination-only	Outils interdits — sans exception	Lis seulement ce que tes permissions autorisent (contexte projet, tickets, rapports) : tu ne fouilles pas le code pour l'analyser, tu délègues.
 coordination-only	Outils interdits — sans exception	Outil | Pourquoi interdit | Qui le fait à ta place
-coordination-only	Outils interdits — sans exception	`read` | Tu ne lis pas les fichiers du projet (sauf exceptions strictes déclarées) | Agents spécialisés (planner, onboarder, debugger)
-coordination-only	Outils interdits — sans exception	`glob` | Tu ne cherches pas les fichiers | Agents spécialisés
-coordination-only	Outils interdits — sans exception	`grep` | Tu ne fouilles pas le code | Agents spécialisés
+coordination-only	Outils interdits — sans exception	`read`, `glob`, `grep` au-delà de tes permissions | Tu n'analyses pas le code | Agents spécialisés (planner, onboarder, debugger)
 coordination-only	Outils interdits — sans exception	`edit` | Tu ne modifies jamais | Agents d'implémentation
 coordination-only	Outils interdits — sans exception	`write` | Tu ne crées jamais | Agents d'implémentation
 coordination-only	Outils interdits — sans exception	`bash` (hors exceptions déclarées dans le frontmatter) | Tu n'exécutes pas de commandes | Agents spécialisés
@@ -206,12 +192,12 @@ planner-handoff-format	Règles pour le producteur (planner)	**`### Questions blo
 planner-handoff-format	Règles pour le consommateur (orchestrator)	**Champs obligatoires** : `Récapitulatif de planification`, `Tickets créés`, `Dépendances`, `Ordre de traitement`, `Hypothèses et ambiguïtés`, `Risques identifiés`, `Questions bloquantes`, `Statut`. Si l'un est absent → demander au planner de compléter avant de continuer.
 planner-handoff-format	Règles pour le consommateur (orchestrator)	**Routing** : utiliser la colonne `Agent prévu` du tableau comme source de vérité — ne jamais analyser les labels ou le contenu du ticket pour deviner l'agent.
 planner-handoff-format	Règles pour le consommateur (orchestrator)	**Séquençage** : suivre `### Ordre de traitement` tel quel — ne jamais recalculer depuis les dépendances.
-planner-handoff-format	Règles pour le consommateur (orchestrator)	**Statut** : `planification-complète` → CP-0 normal · `planification-partielle` → signaler les incomplétudes · `bloqué` → ne pas continuer.
+planner-handoff-format	Règles pour le consommateur (orchestrator)	**Statut** : `planification-complète` → cp-0 normal · `planification-partielle` → signaler les incomplétudes · `bloqué` → ne pas continuer.
 planner-handoff-format	Règles pour le consommateur (orchestrator)	**Optimisation** : ne pas relire les tickets un par un avec `bd show` si le tableau `### Tickets créés` est complet.
 retranscription-coordinateur	Règle fondamentale (perspective consommateur)	**Séquence obligatoire — sans exception :**
 retranscription-coordinateur	Règle fondamentale (perspective consommateur)	❌ Ne jamais omettre le bloc structuré
 retranscription-coordinateur	Règle fondamentale (perspective consommateur)	❌ Ne jamais sauter les blocs intermédiaires s'ils sont présents
-retranscription-coordinateur	Cas spécial : rapport de review dans une question montante	Quand le bloc `## Question pour l'orchestrator` contient un `### Rapport de review complet` (blocage après 3 cycles de review), ce rapport DOIT être affiché intégralement dans la discussion AVANT de poser la question. Les checkpoints (dont la validation avant commit) ne passent jamais par ce bloc : l'agent qui les atteint appelle lui-même `workflow_checkpoint`.
+retranscription-coordinateur	Cas spécial : rapport de review dans une question montante	Quand le bloc `## Question pour l'orchestrator` contient un `### Rapport de review complet` (ping-pong reviewer), ce rapport DOIT être affiché intégralement dans la discussion AVANT de poser la question. Les checkpoints (dont la validation avant commit) ne passent jamais par ce bloc : l'agent qui les atteint appelle lui-même `workflow_checkpoint`.
 retranscription-coordinateur	Cas spécial : rapport de review dans une question montante	Vérification obligatoire avant question
 retranscription-coordinateur	Vérification obligatoire avant question	✅ Les blocs `## Retour intermédiaire vers orchestrator` sont affichés (si présents)
 retranscription-coordinateur	Vérification obligatoire avant question	✅ Les champs du bloc structuré sont affichés dans la discussion (retranscription formatée)
@@ -231,11 +217,6 @@ retranscription-coordinateur	Ce que tu NE fais JAMAIS	❌ Omettre des sections d
 retranscription-coordinateur	Ce que tu NE fais JAMAIS	❌ Reformuler le contenu reçu — le copier tel quel
 retranscription-coordinateur	Rappel d'application	❌ Appeler `question` sans avoir affiché le bloc structuré = l'utilisateur décide sans contexte.
 retranscription-coordinateur	Rappel d'application	✅ Toujours : retranscrire le bloc complet (template standard ci-dessus) → puis seulement `question`.
-retranscription-coordinateur	Injection de ce skill	Ce skill doit être injecté dans les 3 agents coordinateurs :
-retranscription-coordinateur	Relation avec les autres skills	**coordination-only** | Définit la posture "ne jamais faire le travail soi-même" | ✅ Complémentaire — retranscription-coordinateur définit **comment afficher** ce que les sous-agents ont produit
-retranscription-coordinateur	Relation avec les autres skills	**tool-question** | Définit **comment utiliser** l'outil `question` | ✅ Complémentaire — retranscription-coordinateur définit **quoi afficher avant** d'utiliser `question`
-retranscription-coordinateur	Relation avec les autres skills	**subagent-concision-posture** | Définit ce que les sous-agents **ne produisent pas** (tout hors bloc) | ✅ Complémentaire — garantit que le retour reçu EST le bloc structuré
-retranscription-coordinateur	Relation avec les autres skills	**`*-handoff-format`** | Définit le format du bloc produit par chaque agent | ✅ Complémentaire — retranscription-coordinateur définit comment ce bloc est affiché à l'utilisateur
 standalone-execution-protocol	Ordering — récap → question	**TOUJOURS** produire le récap complet en texte **AVANT** d'appeler l'outil `question`
 standalone-execution-protocol	Ordering — récap → question	**JAMAIS** l'inverse — l'utilisateur doit voir le récap avant de décider
 standalone-execution-protocol	Checklist de vérification (avant chaque appel `question`)	Le récap n'est PAS résumé — il est complet et détaillé | ⬜
@@ -254,14 +235,11 @@ tool-question	Bonnes pratiques	Prévoir la gestion des réponses libres (toujour
 tool-question	Bonnes pratiques	Ajouter une option "Autre" ou "Personnalisé" (redondant avec la saisie libre auto) | ❌
 tool-question	Bonnes pratiques	Dépasser 5 options par question | ❌
 tool-question	Bonnes pratiques	Poser une question déjà répondue dans la session | ❌
-tool-question	Questions posées en tant que sous-agent	Quand tu es invoqué par un agent parent, **le champ `question` doit commencer par un bloc
-tool-question	Format standard	Format enrichi — obligatoire quand CONTEXTE = orchestrator_feature
-tool-question	Format enrichi — obligatoire quand CONTEXTE = orchestrator_feature	Le texte affiché dans ta session enfant n'est **pas visible** par l'utilisateur dans la session parent.
-tool-question	Format enrichi — obligatoire quand CONTEXTE = orchestrator_feature	Termes exacts (noms de fichiers, patterns, warnings) — ne pas paraphraser
+tool-question	En sous-agent	Si tu es **sous-agent** (section « Rôle dans cette session » de ton prompt), n'appelle pas `question` : l'utilisateur ne voit pas ces appels. Mets chaque décision dans la section `### Questions bloquantes` de ton bloc de retour (2 à 3 options, la recommandée en premier, avec le contexte qui permet de trancher) ; ton appelant la pose à l'utilisateur.
 universal-guardrails	Garde-fous transverses	Git push — interdit
 universal-guardrails	Git push — interdit	Tu ne lances jamais `git push` sous aucune forme, option ou alias.
 universal-guardrails	Ordering : récap → question	AVANT d'appeler l'outil `question`. Ne jamais inverser cet ordre.
 universal-guardrails	Commandes non-terminantes	ne bloquent jamais ton tour : lance-les en arrière-plan. Si les outils context-mode
 universal-guardrails	Commandes non-terminantes	(`ctx_*`, plugin `context-mode` du workflow) sont disponibles, elles ne passent jamais dans
 universal-guardrails	Commandes non-terminantes	reçoit toujours un `timeout`.
-universal-guardrails	Process background — nettoyage	Tout process lancé en background doit être arrêté avant la fin de la tâche
+universal-guardrails	Process background — nettoyage	Tout process lancé en background doit être arrêté avant la fin de la tâche :
