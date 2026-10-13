@@ -39,6 +39,7 @@ checkpoints:
     mandatory: true
     mode: { manuel: pause, semi-auto: pause, auto: pause }
     unlocks: [commit, close]
+    verify: { from: stack, expect: pass }
 beads:
   allow: [show, list, ready, search, query, lint, children, comments, count, status, graph, history, create, update, close, dep, label]
 runtime: { default: local, allowed: [local] }

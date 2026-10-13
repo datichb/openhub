@@ -4,7 +4,7 @@
 
 A workflow is a YAML file `apiVersion: oh/v1`, `kind: Workflow`, named `<id>.yaml`. This page describes every field: type, values, effective value when the field is absent, behavior in a patch (`extends`) and locking (`enforce`).
 
-The schema is **frozen** (`cli/internal/workflow/schema.go`, type `Spec`): it only changes through optional additions. Additions made after the freeze: `risk: plan`, `preconditions`, `enforce`, `limits.models`, `limits.max_fix_rounds`, `entry.selectable`. Decision: [ADR-039](../architecture/adr/039-declarative-workflows-oh-v1.en.md).
+The schema is **frozen** (`cli/internal/workflow/schema.go`, type `Spec`): it only changes through optional additions. Additions made after the freeze: `risk: plan`, `preconditions`, `enforce`, `limits.models`, `limits.max_fix_rounds`, `entry.selectable`, `checkpoints.<id>.verify` and `checkpoints.<id>.when` (R3). Decision: [ADR-039](../architecture/adr/039-declarative-workflows-oh-v1.en.md).
 
 See also: [shipped workflows](workflows.en.md) · [team workflows](../guides/team-workflows.en.md) · [workflows CLI](cli-workflows.en.md).
 
@@ -82,6 +82,8 @@ enforce: [checkpoints, modes]   # or ["*"] for the whole document
 | `limits.budget_usd` | number ≥ 0 | USD per session | no budget at workflow level | hardens (lower or equal value) |
 | `limits.models` | list | patterns (`*` wildcard) | no list at workflow level | hardens (patterns covered by the parent) |
 | `limits.max_fix_rounds` | integer ≥ 0 | fix rounds per ticket | `0` (no cap) | hardens (lower or equal value, never `0` or absent under a capped parent) |
+| `checkpoints.<id>.verify` | object | see [Checkpoints](#verify--verification-run-by-oh) | no verification | hardens (never removed nor weakened) |
+| `checkpoints.<id>.when` | object | see [Checkpoints](#when--conditions-evaluated-by-oh) | no condition | hardens (inherited conditions kept) |
 
 ### `risk`
 
@@ -142,7 +144,7 @@ limits:
 - Adds up with the I6 restrictions of the hub, the team and the project (`oh budget show`): the most specific value wins (workflow > project > hub > team recommendation); a value enforced by the team stays a ceiling. See [ADR-044](../architecture/adr/044-credential-proxy-session-limits.en.md).
 - `budget_usd`: soft cap, checked between two steps; beyond it, a `$` decision asks to raise it or stop. Negative value: `negative_value`.
 - `models`: patterns on the id sent to the provider; the credential proxy refuses the others. An empty pattern: `field_required`.
-- `max_fix_rounds`: cap on the fix rounds (developer → reviewer) per ticket. It is an instruction, not a lock: it is written in the « Mode de workflow » section of the generated skills (« Au plus N tours de correction… ; au-delà, passe le checkpoint de commit en signalant les points non résolus. »). `0` or absent: no cap. A layer may only lower it (`loosening` otherwise). Negative value: `negative_value`. The hub `feature`, `ticket` and `review-feedback` workflows set `3`.
+- `max_fix_rounds`: cap on the fix rounds (developer → reviewer) per ticket. It is an instruction, written in the « Mode de workflow » section of the generated skills (« Au plus N tours de correction… ; au-delà, passe le checkpoint de commit en signalant les points non résolus. »), **and a lock** (R3): oh counts the developer → reviewer pairs of the current ticket; past the cap, it refuses delegations to the `developer*` agents and marks the commit checkpoint "unresolved", until the user gives an instruction at that checkpoint or the ticket is closed ([Checkpoints](checkpoints.en.md#fix-rounds-limit-limitsmax_fix_rounds)). `0` or absent: no cap. A layer may only lower it (`loosening` otherwise). Negative value: `negative_value`. The hub `feature`, `ticket` and `review-feedback` workflows set `3`.
 
 ---
 
@@ -336,14 +338,46 @@ The id is in kebab-case (`checkpoint_id_invalid`) and must not be an agent id (`
 | `mandatory` | boolean | `true`, `false` | `false` | hardens (`true` does not go back to `false`) |
 | `remote` | text | `auto` < `defer` < `forbid` | `defer` | hardens |
 | `unlocks` | list | `commit`, `push`, `close`, `create`, `apply` | — (nothing locked) | added to the inherited list (never removed) |
-| `disabled` | boolean | `true` | — | removes the inherited checkpoint (patch only) |
+| `disabled` | boolean | `true` | — | removes the inherited checkpoint (patch only; refused when it carries `verify`) |
+| `verify` | object | `from`, `kinds`, `cmd`, `expect`, `in`, `timeout`, `must_touch` | no verification | hardens (an inherited verification is never removed nor weakened) |
+| `when` | object | `entry`, `labels`, `paths`, `outputs` | no condition | hardens (inherited conditions kept) |
 
-- **Behaviors**: `pause` always asks the user; `auto` goes on alone; `skip` skips the checkpoint; `conditional` asks depending on `condition`. oh does not evaluate the condition: a `conditional` checkpoint always asks the user when it is reported.
+- **Behaviors**: `pause` always asks the user; `auto` goes on alone; `skip` skips the checkpoint; `conditional` asks depending on `condition`. oh does not evaluate the `condition` sentence: without `when:`, a `conditional` checkpoint always asks the user when it is reported; with `when:`, oh evaluates it (see below).
 - **Strictness order**: `skip` < `auto` < `conditional` < `pause`. On a `mandatory` checkpoint, a patch cannot choose a less strict behavior, nor remove it (`mandatory_checkpoint_removed`); `skip` on a mandatory checkpoint counts as a pause.
 - **`remote`** (remote session): `auto` approved automatically; `defer` the session stops cleanly and waits for the user on the machine; `forbid` the workflow cannot run remotely.
-- **`unlocks`**: until the checkpoint is passed, oh refuses these operations to **every agent** of the session, whatever the model: `commit` (`git commit`, including `env git commit`, `git -c … commit`, `/usr/bin/git commit`, `sh -c '…'`, an alias defined on the command line, and the commands that commit: `revert`, `cherry-pick`, `merge`, `pull`, `am`; the patterns are anchored on the subcommand: `git log --grep commit`, `git diff src/pushX.ts`, `bd list --status closed` stay allowed), `push` (`git push`; warning `unlock_push_without_publish` outside `risk: publish`: no shipped agent pushes, pushing is left to the user), `close` (closing a Beads ticket, also refused by the Beads gateway), `create` (creating Beads tickets: `bd create`, `bd q`, `bd create-form`, `bd duplicate`, `bd supersede`; creation is also refused by the Beads gateway, and the window does not close when a ticket is closed, only when the checkpoint is asked again), `apply` (changing infrastructure: `terraform apply|destroy`, `kubectl apply|delete|…`, `helm install|upgrade|…`, `aws|gcloud|az` create/delete/update commands, `pulumi up|destroy`). Once the checkpoint is passed, closing a ticket is accepted only if a non-empty commit (tracked files outside `.beads/`) was made since and nothing is left to commit; in a workflow where no checkpoint unlocks `close`, closing is not locked. The window closes again when the checkpoint is asked again (next ticket, another fix) and, for a checkpoint that unlocks `close`, when a ticket is closed. An operation is unlocked by one checkpoint only (`unlock_duplicate`); a checkpoint that unlocks cannot be removed (`unlocking_checkpoint_removed`). A checkpoint with `unlocks` is treated as mandatory: it is never skipped (`skip` means `pause`, warning `unlock_skip`) and a patch cannot relax it (`loosening`). An operation unknown to the running oh (written by a newer version) is a warning (`unlock_unknown`) and locks nothing: update oh on every machine of the team.
+- **`unlocks`**: until the checkpoint is passed, oh refuses these operations to **every agent** of the session, whatever the model: `commit` (`git commit`, including `env git commit`, `git -c … commit`, `/usr/bin/git commit`, `sh -c '…'`, an alias defined on the command line, and the commands that commit: `revert`, `cherry-pick`, `merge`, `pull`, `am`; the patterns are anchored on the subcommand: `git log --grep commit`, `git diff src/pushX.ts`, `bd list --status closed` stay allowed), `push` (`git push`; warning `unlock_push_without_publish` outside `risk: publish`: no shipped agent pushes, pushing is left to the user), `close` (closing a Beads ticket, also refused by the Beads gateway), `create` (creating Beads tickets: `bd create`, `bd q`, `bd create-form`, `bd duplicate`, `bd supersede`; creation is also refused by the Beads gateway, and the window does not close when a ticket is closed, but at the next mandatory checkpoint or when the checkpoint is asked again), `apply` (changing infrastructure: `terraform apply|destroy`, `kubectl apply|delete|…`, `helm install|upgrade|…`, `aws|gcloud|az` create/delete/update commands, `pulumi up|destroy`). Once the checkpoint is passed, closing a ticket is accepted only if a non-empty commit (tracked files outside `.beads/`) was made since and nothing is left to commit; in a workflow where no checkpoint unlocks `close`, closing is not locked. The window closes again when the checkpoint is asked again (next ticket, another fix), for `commit` once the work is committed (HEAD moved and nothing is left to commit) and, for a checkpoint that unlocks `close`, when a ticket is closed (bounded windows, CP-R8). An operation is unlocked by one checkpoint only (`unlock_duplicate`); a checkpoint that unlocks cannot be removed (`unlocking_checkpoint_removed`). A checkpoint with `unlocks` is treated as mandatory: it is never skipped (`skip` means `pause`, warning `unlock_skip`) and a patch cannot relax it (`loosening`). An operation unknown to the running oh (written by a newer version) is a warning (`unlock_unknown`) and locks nothing: update oh on every machine of the team.
 - A mode that is neither allowed nor one of the three shipped modes: `checkpoint_mode_unknown`; `conditional` without `condition`: `checkpoint_condition_missing`.
-- Checkpoint execution (3 levels: prompt, MCP tool `workflow_checkpoint`, oh plugin): [ADR-042](../architecture/adr/042-checkpoints-headless-decisions.en.md).
+- Checkpoint execution (3 levels: prompt, MCP tool `workflow_checkpoint`, oh plugin): [ADR-042](../architecture/adr/042-checkpoints-headless-decisions.en.md). Modes, planned pauses, verification, evidence and windows: [Checkpoints](checkpoints.en.md).
+
+### `verify` — verification run by oh
+
+```yaml
+    verify:
+      from: stack                 # commands of the stack detected by oh
+      kinds: [build, test]        # default: build, test, typecheck (lint on request)
+      cmd: ["make e2e"]           # commands written here, run without a shell
+      expect: pass                # pass (default) | fail (test written first)
+      in: services/api            # subfolder of the session location
+      timeout: 15m                # Go duration, default 10m, at most 30m
+      must_touch: ["*_test.go"]   # the changes of the session touch one of these paths
+```
+
+Before the checkpoint passes, and before its unlocks open, oh runs the commands (cleaned environment, bounded timeout and output); a failure refuses it (`ErrVerifyFailed`, with an output excerpt). At a paused checkpoint, the user sees the result on the card and may **override** it (traced choice). `cmd` only comes from the workflow document: never from the agent nor from an input. In a `risk: read` workflow, a verified checkpoint always asks the user. Details: [Checkpoints](checkpoints.en.md#verification-run-by-oh-verify).
+
+Diagnostics: `verify_empty` (neither `from` nor `cmd`), `enum_invalid` (`from`, `kinds`, `expect`), `field_ignored` (`kinds` without `from`), `verify_cmd_template`, `verify_in_invalid`, `verify_timeout_invalid`, `field_required` (empty command or path). In a patch, the inherited verification may only be hardened (same `from`, `expect` and `in`, kinds, commands and paths kept, a timeout at least as long): otherwise `loosening`; removing the checkpoint: `verified_checkpoint_removed`.
+
+### `when` — conditions evaluated by oh
+
+```yaml
+    mode: { manuel: pause, semi-auto: conditional, auto: auto }
+    when: { entry: [debugger], labels: [ux], paths: ["docs/specs/**"], outputs: [mr] }
+```
+
+One condition is enough. An `auto` checkpoint pauses when a condition holds; a `conditional` one pauses only then; a `pause`, mandatory or unlocking checkpoint always pauses: `when:` can only add a pause. With `when:`, `condition` is no longer required. Diagnostics: `when_empty`, `when_mandatory` (warning: no effect), `when_unknown_agent`, `when_unknown_output` (warnings), `field_required`.
+
+### Pause budget
+
+In semi-auto (or in the default mode when semi-auto is not allowed), a workflow pauses at most **twice for human decisions, plus once per checkpoint that unlocks an irreversible action**; a `conditional` checkpoint or one with `when:` counts as a pause. Over it: warning `pause_budget_exceeded` (blocking for the shipped workflows, `TestCheckpointPauseBudget` test). See [Checkpoints](checkpoints.en.md#pause-budget-cp-r2).
 
 ---
 
@@ -450,6 +484,7 @@ A diagnostic has a severity (error or warning), a code, the field path, the sour
 | `after_unknown`, `after_cycle`, `calls_unknown`, `graph_cycle` | `after` gates and delegations |
 | `scratch_reader_unknown`, `scratch_reader_owner` | scratch reader not in the workflow, or the owner itself |
 | `checkpoint_agent_clash`, `checkpoint_mode_unknown`, `checkpoint_mode_missing`, `checkpoint_condition_missing`, `mandatory_checkpoint_removed`, `unlocking_checkpoint_removed`, `unlock_duplicate`, `unlock_unknown`, `unlock_skip`, `unlock_push_without_publish`, `patch_unknown_checkpoint` | checkpoints |
+| `verify_empty`, `verify_cmd_template`, `verify_in_invalid`, `verify_timeout_invalid`, `verified_checkpoint_removed`, `when_empty`, `when_mandatory`, `when_unknown_agent`, `when_unknown_output`, `pause_budget_exceeded` | verification run by oh, conditions, pause budget (R3) |
 | `precondition_check_invalid`, `precondition_path_invalid`, `precondition_self`, `precondition_unknown_workflow`, `patch_unknown_precondition` | preconditions |
 | `prompt_both`, `prompt_empty`, `prompt_template_path`, `prompt_template_missing`, `prompt_parse`, `prompt_unknown_variable` | prompt |
 | `read_agent_writes`, `read_beads_unrestricted`, `read_beads_write`, `read_plugin_exec` | `risk: read` rules |

@@ -139,14 +139,14 @@ func unlockText(id string, ops []string) string {
 	fmt.Fprintf(&b, "avant son passage, oh refuse à tous les agents de la session %s, quel que soit le mode.", strings.Join(names, ", "))
 	switch {
 	case has[sessionspec.UnlockCommit] && has[sessionspec.UnlockClose]:
-		fmt.Fprintf(&b, " Une fois passé, fais-les aussitôt, dans l'ordre : commit, puis fermeture du ticket (oh refuse la fermeture tant que le travail n'est pas commité). Le ticket fermé, elles sont de nouveau verrouillées jusqu'au prochain passage de **%s**.", id)
+		fmt.Fprintf(&b, " Une fois passé, fais-les aussitôt, dans l'ordre : commit, puis fermeture du ticket (oh refuse la fermeture tant que le travail n'est pas commité). Le travail commité, le commit est de nouveau verrouillé ; le ticket fermé, la fermeture aussi, jusqu'au prochain passage de **%s**.", id)
 	case has[sessionspec.UnlockCommit]:
-		fmt.Fprintf(&b, " Une fois passé, commite aussitôt ; la fenêtre se referme quand **%s** est demandé de nouveau.", id)
+		fmt.Fprintf(&b, " Une fois passé, commite aussitôt ; la fenêtre se referme une fois tout le travail commité, ou quand **%s** est demandé de nouveau.", id)
 	case has[sessionspec.UnlockClose]:
 		fmt.Fprintf(&b, " Le ticket fermé, la fermeture est de nouveau verrouillée jusqu'au prochain passage de **%s**.", id)
 	}
 	if has[sessionspec.UnlockCreate] {
-		fmt.Fprintf(&b, " Une fois passé, crée les tickets validés : la création reste possible jusqu'à ce que **%s** soit demandé de nouveau.", id)
+		fmt.Fprintf(&b, " Une fois passé, crée les tickets validés aussitôt : la création se referme au checkpoint obligatoire suivant, ou quand **%s** est demandé de nouveau.", id)
 	}
 	if !has[sessionspec.UnlockPush] && (has[sessionspec.UnlockCommit] || has[sessionspec.UnlockClose]) {
 		b.WriteString(" Le push revient à l'utilisateur : ne pousse pas.")

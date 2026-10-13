@@ -47,6 +47,18 @@ type CheckpointState struct {
 	Finished *time.Time `json:"finished,omitempty"`
 	// Timeline is the history shown in the session detail (oldest first, capped).
 	Timeline []CheckpointEvent `json:"timeline,omitempty"`
+
+	// R3 (checkpoint_verify.go): verification run by oh, evidence, shell
+	// calls observed and developer → reviewer rounds.
+	Verify   map[string]CheckpointVerify     `json:"verify,omitempty"`
+	Evidence map[string][]CheckpointEvidence `json:"evidence,omitempty"`
+	Shell    []ShellCall                     `json:"shell,omitempty"`
+	Rounds   map[string]int                  `json:"rounds,omitempty"`
+	// LastDelegate is the last agent delegated to (fix rounds).
+	LastDelegate string `json:"last_delegate,omitempty"`
+	// Unresolved is the ticket whose fix rounds reached the cap ("" = none):
+	// the developer is locked and the commit checkpoint shows it.
+	Unresolved string `json:"unresolved,omitempty"`
 }
 
 // CheckpointUnlock is an operation unlocked by a checkpoint.
@@ -62,6 +74,8 @@ type CheckpointUnlock struct {
 type CheckpointApproval struct {
 	By      string `json:"by"`
 	Message string `json:"message,omitempty"`
+	// Override: the user validated despite a failed verification (traced).
+	Override bool `json:"override,omitempty"`
 }
 
 // CheckpointEvent is an entry of the checkpoint timeline.

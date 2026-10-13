@@ -86,6 +86,7 @@ checkpoints:
     mandatory: true
     mode: { manuel: pause, semi-auto: pause, auto: pause }
     unlocks: [commit]
+    verify: { from: stack, expect: pass }
   cp-recap:
     label: { fr: Récap du sweep, en: Sweep recap }
     description:

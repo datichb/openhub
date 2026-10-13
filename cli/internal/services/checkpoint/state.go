@@ -35,6 +35,8 @@ const (
 	ChoiceOther   = "other"   // other instruction (reject + instruction)
 	ChoiceReject  = "reject"
 	ChoiceDismiss = "dismiss" // circuit breaker
+	// ChoiceOverride validates despite a failed verification (R3, traced).
+	ChoiceOverride = "override"
 )
 
 // Data keys of a checkpoint decision payload.
@@ -116,7 +118,7 @@ func (s *Service) Asked(ctx context.Context, root, toolSession string, p adapter
 		summary, _ = p.Call.Input["summary"].(string)
 	}
 	c, known := wf.Checkpoint(id)
-	behavior := c.Behavior(sess.Mode)
+	behavior := s.behavior(ctx, sess, c)
 	if !known || !bundle.NeedsDecision(behavior) {
 		return nil, true, false, nil
 	}
@@ -129,9 +131,16 @@ func (s *Service) Asked(ctx context.Context, root, toolSession string, p adapter
 		d.Payload.Data[domain.DataToolSession] = toolSession
 	}
 	d.ID = domain.DecisionID(d.Kind, root, p.ID)
+	var evidence []Evidence
+	if p.Call != nil {
+		evidence = evidenceOf(p.Call.Input)
+	}
 	_, err = s.update(ctx, root, func(st *domain.CheckpointState) error {
 		relocked = relock(st, id) // asked again: a new round
 		changed := relocked
+		if s.askedR3(st, d, c, evidence) {
+			changed = true
+		}
 		if st.Waiting != id {
 			st.Waiting = id
 			s.record(st, domain.CheckpointWaiting, id, "", summary)
@@ -144,6 +153,9 @@ func (s *Service) Asked(ctx context.Context, root, toolSession string, p adapter
 	})
 	if errors.Is(err, errUnchanged) {
 		err = nil
+	}
+	if err == nil {
+		s.StartVerify(sess, c)
 	}
 	return d, false, relocked, err
 }
@@ -199,7 +211,7 @@ func (s *Service) ToolReplied(ctx context.Context, d domain.Decision, approved b
 // one of oh, or the answer of the tool observed by oh, possibly a little
 // after the call (approvalWait, while the checkpoint waits).
 func (s *Service) pass(ctx context.Context, sess *domain.Session, c sessionspec.CheckpointDef) (domain.CheckpointApproval, error) {
-	needs := bundle.NeedsDecision(c.Behavior(sess.Mode))
+	needs := bundle.NeedsDecision(s.behavior(ctx, sess, c))
 	deadline := time.Now().Add(s.approvalWait())
 	for {
 		ap, err := s.tryPass(ctx, sess, c, needs)
@@ -226,6 +238,12 @@ func (s *Service) approvalWait() time.Duration {
 
 func (s *Service) tryPass(ctx context.Context, sess *domain.Session, c sessionspec.CheckpointDef, needs bool) (domain.CheckpointApproval, error) {
 	sessionID, id := sess.ID, c.ID
+	if c.Verify != nil {
+		// Before any window opens (E1).
+		if err := s.verifyGate(ctx, sess, c, needs); err != nil {
+			return domain.CheckpointApproval{}, err
+		}
+	}
 	head := ""
 	if len(c.Unlocks) > 0 {
 		var err error
@@ -257,6 +275,7 @@ func (s *Service) tryPass(ctx context.Context, sess *domain.Session, c sessionsp
 		if ap.By != "mode" {
 			st.Consecutive = 0 // a validation is a user intervention
 		}
+		s.closeCreateWindow(st, c)
 		for _, op := range c.Unlocks {
 			if st.Unlocks == nil {
 				st.Unlocks = map[string]domain.CheckpointUnlock{}
@@ -286,7 +305,7 @@ func relock(st *domain.CheckpointState, id string) bool {
 // changed reports that the session rules changed; raised is a circuit
 // breaker decision to record.
 func (s *Service) OnCall(ctx context.Context, root string, call adapters.ToolCall) (changed bool, raised *domain.Decision, err error) {
-	if call.Action != sessionspec.ActionSubagent {
+	if call.Action != sessionspec.ActionSubagent && call.Action != sessionspec.ActionShell {
 		return false, nil, nil
 	}
 	sess, wf, err := s.session(ctx, root)
@@ -296,12 +315,17 @@ func (s *Service) OnCall(ctx context.Context, root string, call adapters.ToolCal
 		}
 		return false, nil, err
 	}
+	if call.Action == sessionspec.ActionShell {
+		changed, err = s.onShell(ctx, sess, call)
+		return changed, nil, err
+	}
 	agent, _ := call.Input["agent"].(string)
 	switch call.Status {
 	case adapters.CallCalled:
-		var tripped bool
+		var tripped, fixLimit bool
 		var count int
 		_, err = s.update(ctx, root, func(st *domain.CheckpointState) error {
+			fixLimit = agent != "" && s.countRound(wf, sess, st, agent)
 			st.Consecutive++
 			count = st.Consecutive
 			if wf.MaxConsecutiveSubagents > 0 && st.Consecutive >= wf.MaxConsecutiveSubagents && !st.Breaker {
@@ -311,7 +335,7 @@ func (s *Service) OnCall(ctx context.Context, root string, call adapters.ToolCal
 			return nil
 		})
 		if err != nil || !tripped {
-			return false, nil, err
+			return fixLimit, nil, err
 		}
 		d := &domain.Decision{SessionID: root, GroupKey: sess.GroupKey, Kind: domain.DecisionCircuit, ToolRef: fmt.Sprintf("%d", s.now().UnixNano()),
 			Payload: domain.DecisionPayload{Title: i18n.Tf("tui.checkpoint.breaker_title", count),
@@ -392,12 +416,17 @@ func (s *Service) Resolve(ctx context.Context, tool Tool, d domain.Decision, cho
 	id, _ := d.Payload.Data[DataCheckpoint].(string)
 	label := d.Payload.Title
 	switch choice {
-	case ChoiceApprove, "once", "":
+	case ChoiceApprove, "once", "", ChoiceOverride:
+		override := choice == ChoiceOverride
 		if _, err := s.update(ctx, d.SessionID, func(st *domain.CheckpointState) error {
+			if r, ok := st.Verify[id]; ok && r.Status == domain.VerifyFailed && !override {
+				// A failed verification is passed only on purpose (traced).
+				return errors.New(i18n.Tf("tui.checkpoint.verify.override_required", id))
+			}
 			if st.Approved == nil {
 				st.Approved = map[string]domain.CheckpointApproval{}
 			}
-			st.Approved[id] = domain.CheckpointApproval{By: string(domain.ResolvedByOh), Message: message}
+			st.Approved[id] = domain.CheckpointApproval{By: string(domain.ResolvedByOh), Message: message, Override: override}
 			return nil
 		}); err != nil {
 			return err
@@ -410,14 +439,22 @@ func (s *Service) Resolve(ctx context.Context, tool Tool, d domain.Decision, cho
 		if err := tool.ReplyPermission(ctx, d, "reject"); err != nil {
 			return err
 		}
+		unlocked := false
 		_, _ = s.update(ctx, d.SessionID, func(st *domain.CheckpointState) error {
 			if st.Waiting == id {
 				st.Waiting = ""
 			}
 			st.Consecutive = 0
+			if choice != ChoiceReject {
+				// More work asked for: new fix rounds (E5).
+				unlocked = resetRounds(st, "")
+			}
 			s.record(st, domain.CheckpointRefused, id, string(domain.ResolvedByOh), message)
 			return nil
 		})
+		if unlocked {
+			_ = tool.Refresh(ctx, d.SessionID)
+		}
 		// The tool does not forward the refusal message to the agent.
 		text := i18n.Tf("tui.checkpoint.refused_steer", id, label)
 		if message != "" {
@@ -425,7 +462,7 @@ func (s *Service) Resolve(ctx context.Context, tool Tool, d domain.Decision, cho
 		}
 		return tool.Steer(ctx, d.SessionID, text)
 	}
-	return fmt.Errorf("invalid choice %q (approve | fix | other | reject)", choice)
+	return fmt.Errorf("invalid choice %q (approve | override | fix | other | reject)", choice)
 }
 
 // State returns the checkpoint state of a session.
@@ -463,7 +500,7 @@ func (s *Service) Evaluate(ctx context.Context, root, action string, input map[s
 	}
 	id, _ := input["id"].(string)
 	c, known := wf.Checkpoint(strings.TrimSpace(id))
-	if !known || !bundle.NeedsDecision(c.Behavior(sess.Mode)) {
+	if !known || !bundle.NeedsDecision(s.behavior(ctx, sess, c)) {
 		return string(sessionspec.EffectAllow), nil
 	}
 	// Asked even when the tool would let it run (an "always" answer saved

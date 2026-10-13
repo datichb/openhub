@@ -1,6 +1,14 @@
 package bricks
 
-import "sort"
+import (
+	"encoding/json"
+	"io"
+	"os"
+	"path/filepath"
+	"regexp"
+	"sort"
+	"strings"
+)
 
 // jsManagers are the package managers whose scripts run the build, tests,
 // lint and type check, with the form that runs the local tsc without ever
@@ -63,4 +71,154 @@ func VerifyCommands(s Signals) []string {
 	}
 	sort.Strings(out)
 	return out
+}
+
+// VerifyRun is a concrete verification command run by oh at a checkpoint
+// (`verify: { from: stack }`), of one kind (build, test, lint, typecheck).
+type VerifyRun struct {
+	Kind string
+	Args []string
+}
+
+// String returns the command line.
+func (r VerifyRun) String() string { return strings.Join(r.Args, " ") }
+
+// Verification kinds of VerifyRuns.
+const (
+	VerifyKindBuild     = "build"
+	VerifyKindTest      = "test"
+	VerifyKindLint      = "lint"
+	VerifyKindTypecheck = "typecheck"
+)
+
+// verifyRunsBySignal are the concrete commands of the signals without
+// scripts, by kind. Each one is allowed by the patterns of VerifyCommands.
+var verifyRunsBySignal = []struct {
+	signal string
+	kind   string
+	cmd    string
+}{
+	{"golang", VerifyKindBuild, "go build ./..."},
+	{"golang", VerifyKindTest, "go test ./..."},
+	{"golang", VerifyKindLint, "go vet ./..."},
+	{"rust", VerifyKindBuild, "cargo build"},
+	{"rust", VerifyKindTest, "cargo test"},
+	{"rust", VerifyKindLint, "cargo clippy"},
+	{"maven", VerifyKindTest, "mvn -q verify"},
+	{"gradle", VerifyKindTest, "./gradlew test"},
+	{"gradle", VerifyKindBuild, "./gradlew build"},
+}
+
+// VerifyRuns returns the commands oh runs to verify the project folder dir
+// (absolute) for kinds, from its signals at rel (the folder relative to
+// the project, "." for the root): a Makefile target of the kind first (it
+// knows the project), else the scripts of package.json (with the package
+// manager of the lockfile), tsc for the type check of a TypeScript project
+// without a typecheck script, the Python tests and the tools of the other
+// stacks. Every command is allowed by VerifyCommands(s): never an install.
+func VerifyRuns(dir string, s Signals, rel string, kinds []string) []VerifyRun {
+	if rel == "" {
+		rel = "."
+	}
+	targets := makeTargets(filepath.Join(dir, "Makefile"))
+	scripts := packageScripts(filepath.Join(dir, "package.json"))
+	mgr := "npm"
+	for _, m := range jsManagers[1:] {
+		if s.At(m.name, rel) {
+			mgr = m.name
+			break
+		}
+	}
+	var out []VerifyRun
+	add := func(kind, cmd string) { out = append(out, VerifyRun{Kind: kind, Args: strings.Fields(cmd)}) }
+	for _, kind := range kinds {
+		if s.At("make", rel) && targets[kind] {
+			add(kind, "make "+kind)
+			continue
+		}
+		if s.At("javascript", rel) {
+			switch {
+			case scripts[kind] && kind == VerifyKindTest:
+				add(kind, mgr+" test")
+			case scripts[kind]:
+				add(kind, mgr+" run "+kind)
+			case kind == VerifyKindTypecheck && s.At("typescript", rel):
+				for _, m := range jsManagers {
+					if m.name == mgr {
+						add(kind, strings.TrimSuffix(m.tsc, "*"))
+					}
+				}
+			}
+		}
+		if kind == VerifyKindTest && s.At("python", rel) && s.Has("pytest") {
+			switch {
+			case s.At("uv", rel):
+				add(kind, "uv run --no-sync pytest")
+			case s.At("poetry", rel):
+				add(kind, "poetry run pytest")
+			default:
+				add(kind, "python3 -m pytest")
+			}
+		}
+		for _, r := range verifyRunsBySignal {
+			if r.kind == kind && s.At(r.signal, rel) {
+				if r.signal == "gradle" && !fileExists(filepath.Join(dir, "gradlew")) {
+					continue
+				}
+				add(kind, r.cmd)
+			}
+		}
+	}
+	return out
+}
+
+var makeTarget = regexp.MustCompile(`(?m)^([A-Za-z][A-Za-z0-9_-]*)\s*:([^=]|$)`)
+
+// makeTargets returns the targets of a Makefile (nil when unreadable).
+func makeTargets(file string) map[string]bool {
+	data, err := readBounded(file)
+	if err != nil {
+		return nil
+	}
+	out := map[string]bool{}
+	for _, m := range makeTarget.FindAllStringSubmatch(string(data), -1) {
+		out[m[1]] = true
+	}
+	return out
+}
+
+// packageScripts returns the scripts of a package.json (nil when unreadable).
+func packageScripts(file string) map[string]bool {
+	data, err := readBounded(file)
+	if err != nil {
+		return nil
+	}
+	var pkg struct {
+		Scripts map[string]string `json:"scripts"`
+	}
+	if json.Unmarshal(data, &pkg) != nil {
+		return nil
+	}
+	out := map[string]bool{}
+	for k, v := range pkg.Scripts {
+		// npm init writes a test script that always fails.
+		if strings.TrimSpace(v) != "" && !strings.Contains(v, "no test specified") {
+			out[k] = true
+		}
+	}
+	return out
+}
+
+func readBounded(file string) ([]byte, error) {
+	f, err := os.Open(file)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	return io.ReadAll(io.LimitReader(f, signalMaxFileSize))
+}
+
+func fileExists(p string) bool {
+	_, err := os.Stat(p)
+	return err == nil
 }

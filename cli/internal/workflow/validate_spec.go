@@ -125,6 +125,7 @@ func (r *Resolved) Validate(env Env) Diagnostics {
 	v.prompt()
 	v.agents()
 	v.checkpoints()
+	v.checkpointsVerify()
 	v.preconditions()
 	v.modes()
 	v.resources()
@@ -548,7 +549,7 @@ func (v *validator) checkpoints() {
 				v.err("checkpoint_mode_unknown", base+".mode."+mode, mode, strings.Join(allowed, ", "))
 			}
 			v.enum(base+".mode."+mode, string(b), b.Valid(), "pause", "auto", "skip", "conditional")
-			if b == BehaviorConditional && strings.TrimSpace(cp.Condition) == "" {
+			if b == BehaviorConditional && strings.TrimSpace(cp.Condition) == "" && cp.When.IsZero() {
 				v.err("checkpoint_condition_missing", base+".mode."+mode, k, mode)
 			}
 		}

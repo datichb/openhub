@@ -290,6 +290,8 @@ func (p *patcher) checkpoints() {
 				p.report(errDiag("unlocking_checkpoint_removed", base+".disabled", k))
 			case old.IsMandatory():
 				p.report(errDiag("mandatory_checkpoint_removed", base+".disabled", k))
+			case old.Verify != nil:
+				p.report(errDiag("verified_checkpoint_removed", base+".disabled", k))
 			default:
 				p.dst.Checkpoints.Delete(k)
 				p.removed = append(p.removed, base)
@@ -346,6 +348,7 @@ func (p *patcher) checkpoints() {
 				}
 			}
 		}
+		p.checkpointVerify(base, &old, v)
 		p.dst.Checkpoints.Set(k, old)
 	}
 }

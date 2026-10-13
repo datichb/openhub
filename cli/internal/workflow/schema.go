@@ -263,6 +263,17 @@ type CheckpointSpec struct {
 	Unlocks []UnlockOp `yaml:"unlocks,omitempty"`
 	// Disabled removes an inherited checkpoint (patch only).
 	Disabled bool `yaml:"disabled,omitempty"`
+
+	// R3 (schema_verify.go): verification run by oh and conditions.
+
+	// Verify is the verification oh runs before the checkpoint passes
+	// (build, tests, lint): it opens no window while it fails. Removing or
+	// weakening an inherited one is a loosening.
+	Verify *VerifySpec `yaml:"verify,omitempty"`
+	// When adds a pause, evaluated by oh: a checkpoint that does not pause
+	// in the mode (auto, conditional) pauses when one condition holds. It
+	// never removes a pause.
+	When *CheckpointWhen `yaml:"when,omitempty"`
 }
 
 // UnlockOp is an operation a checkpoint unlocks.

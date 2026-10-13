@@ -48,6 +48,7 @@ checkpoints:
     mandatory: true
     mode: { manuel: pause, semi-auto: pause, auto: pause }
     unlocks: [commit, close]
+    verify: { from: stack, expect: pass }
     remote: defer
   cp-3:
     label: { fr: Ticket suivant, en: Next ticket }

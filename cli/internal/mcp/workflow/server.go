@@ -59,8 +59,9 @@ func New(b Backend) *protocol.Server {
 		InputSchema: map[string]any{
 			"type": "object",
 			"properties": map[string]any{
-				"id":      map[string]any{"type": "string", "description": i18n.T("cmd.mcp.workflow.checkpoint_id")},
-				"summary": map[string]any{"type": "string", "description": i18n.T("cmd.mcp.workflow.checkpoint_summary")},
+				"id":       map[string]any{"type": "string", "description": i18n.T("cmd.mcp.workflow.checkpoint_id")},
+				"summary":  map[string]any{"type": "string", "description": i18n.T("cmd.mcp.workflow.checkpoint_summary")},
+				"evidence": evidenceSchema(),
 			},
 			"required": []string{"id", "summary"},
 		},
@@ -156,6 +157,7 @@ func (h handlers) checkpoint(ctx context.Context, params json.RawMessage) (*prot
 		b.WriteString("\n")
 		b.WriteString(i18n.Tf("cmd.mcp.workflow.checkpoint_next", res.Next))
 	}
+	writeVerify(&b, res)
 	return text(b.String()), nil
 }
 

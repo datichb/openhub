@@ -12,8 +12,9 @@ import (
 
 // GuardCreate checks that root may create tickets now: the checkpoint that
 // unlocks `create` is passed (N9). Unlike closing, creating does not close
-// the window: it stays open until the checkpoint is asked again. nil when
-// the workflow locks nothing.
+// the window: it stays open until the next mandatory checkpoint passes
+// (CP-R8) or the checkpoint is asked again. nil when the workflow locks
+// nothing.
 func (s *Service) GuardCreate(ctx context.Context, root string) error {
 	_, wf, err := s.session(ctx, root)
 	if errors.Is(err, ErrNoWorkflow) {

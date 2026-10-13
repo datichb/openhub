@@ -38,6 +38,7 @@ type CheckpointCardView struct {
 	Patch      string
 	Messages   []string // "agent › text", oldest first
 	Timeline   string
+	Verify     CheckpointVerifyView // R3 (sessions_checkpoint_verify.go)
 }
 
 // CheckpointFile is a changed file of the session.
@@ -82,7 +83,9 @@ func (v *SessionsView) showCheckpoint(r *SessionRow, d *SessionDecision, c Check
 		id = r.ID
 	}
 	actions := []ModalAction{
-		{Label: i18n.T("tui.checkpoint.decide"), Callback: func() { v.checkpointForm(r, &dec, checkpointApprove) }},
+		{Label: i18n.T("tui.checkpoint.decide"), Callback: func() {
+			v.checkpointForm(r, &dec, checkpointDefaultChoice(c.Verify), checkpointExtraChoices(c.Verify)...)
+		}},
 	}
 	if c.Patch != "" {
 		patch := c.Patch
@@ -120,6 +123,7 @@ func checkpointBody(c CheckpointCardView) string {
 	if c.Summary != "" {
 		b.WriteString(tview.Escape(c.Summary) + "\n\n")
 	}
+	writeCheckpointVerify(&b, c.Verify, section)
 	section(i18n.T("tui.checkpoint.changes"))
 	if len(c.Files) == 0 {
 		b.WriteString("  " + muted(i18n.T("tui.checkpoint.no_changes")) + "\n")
@@ -151,7 +155,7 @@ func checkpointBody(c CheckpointCardView) string {
 }
 
 // checkpointForm asks for the decision and the message to the agent.
-func (v *SessionsView) checkpointForm(r *SessionRow, d *SessionDecision, choice string) {
+func (v *SessionsView) checkpointForm(r *SessionRow, d *SessionDecision, choice string, extra ...SelectOption) {
 	if v.shell == nil {
 		return
 	}
@@ -164,11 +168,11 @@ func (v *SessionsView) checkpointForm(r *SessionRow, d *SessionDecision, choice 
 		Title: tview.Escape(title),
 		Fields: []FormField{
 			{Key: "decision", Label: i18n.T("tui.inbox.decision"), Type: FieldSelect, Default: choice,
-				Options: []SelectOption{
+				Options: append([]SelectOption{
 					{Label: i18n.T("tui.checkpoint.choice.approve"), Value: checkpointApprove},
 					{Label: i18n.T("tui.checkpoint.choice.fix"), Value: checkpointFix},
 					{Label: i18n.T("tui.checkpoint.choice.other"), Value: checkpointOther},
-				}},
+				}, extra...)},
 			{Key: "message", Label: i18n.T("tui.checkpoint.message"), Type: FieldText},
 		},
 		OnSubmit: func(values map[string]string, _ map[string][]string) {

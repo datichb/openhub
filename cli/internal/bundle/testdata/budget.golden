@@ -17,11 +17,11 @@ none     benchmark              benchmarker                      3762     2548  
 none     benchmark              TOTAL                            3762     2548    3    1     36    1     36
 none     brief-enrich           brief-enricher                    483        0    0    0      0    0      0
 none     brief-enrich           TOTAL                             483        0    0    0      0    0      0
-none     cadrage                conductor                        7200     6332    7    3    105    3    105
+none     cadrage                conductor                        7208     6340    7    3    105    3    105
 none     cadrage                designer                         6407     4840    5   17    566   17    566
 none     cadrage                pathfinder                       9345     7992    6    9    310    9    310
 none     cadrage                planner                          6813     5425    6   21    686   21    686
-none     cadrage                TOTAL                           29765    24589   24   35   1159   35   1159
+none     cadrage                TOTAL                           29773    24597   24   35   1159   35   1159
 none     debug                  debugger                         5714     4359    5   11    370   11    370
 none     debug                  developer                       12320     9614    7   14    486   14    486
 none     debug                  documentarian                    4721     3632    4   13    402   13    402
@@ -29,12 +29,12 @@ none     debug                  TOTAL                           22755    17605  
 none     feature                designer                         6407     4840    5   17    566   17    566
 none     feature                developer                       12294     9614    7   21    725   21    725
 none     feature                documentarian                    4737     3632    4   13    402   13    402
-none     feature                orchestrator                    14402    12443   11   10    342   10    342
-none     feature                orchestrator-dev                16510    15121   12   24    845   24    845
+none     feature                orchestrator                    14421    12461   11   10    342   10    342
+none     feature                orchestrator-dev                16529    15139   12   24    845   24    845
 none     feature                pathfinder                       9345     7992    6    9    310    9    310
 none     feature                planner                          6902     5513    6   21    686   21    686
 none     feature                reviewer                        12611     9894    6   20    682   20    682
-none     feature                TOTAL                           83208    69049   57   80   2676   80   2676
+none     feature                TOTAL                           83246    69085   57   80   2676   80   2676
 none     infra-change           operator                         3715     2548    3    2     71    2     71
 none     infra-change           TOTAL                            3715     2548    3    2     71    2     71
 none     libre                  debugger                         5682     4359    5   11    370   11    370
@@ -55,19 +55,19 @@ none     quick                  TOTAL                           12264     9614  
 none     review                 reviewer                        12604     9894    6   20    682   20    682
 none     review                 TOTAL                           12604     9894    6   20    682   20    682
 none     review-feedback        developer                       12294     9614    7   21    725   21    725
-none     review-feedback        orchestrator-dev                16187    14826   12   26    914   26    914
+none     review-feedback        orchestrator-dev                16196    14835   12   26    914   26    914
 none     review-feedback        reviewer                        12607     9894    6   20    682   20    682
-none     review-feedback        TOTAL                           41088    34334   25   37   1281   37   1281
-none     sweep                  conductor                        7236     6369    7    8    286    8    286
+none     review-feedback        TOTAL                           41097    34343   25   37   1281   37   1281
+none     sweep                  conductor                        7246     6378    7    8    286    8    286
 none     sweep                  developer                       12292     9614    7   15    521   15    521
 none     sweep                  pathfinder                       9345     7992    6    9    310    9    310
 none     sweep                  reviewer                        12605     9894    6   20    682   20    682
-none     sweep                  TOTAL                           41478    33869   26   32   1095   32   1095
+none     sweep                  TOTAL                           41488    33878   26   32   1095   32   1095
 none     ticket                 developer                       12294     9614    7   21    725   21    725
 none     ticket                 documentarian                    4726     3632    4   13    402   13    402
-none     ticket                 orchestrator-dev                16258    14897   12   24    845   24    845
+none     ticket                 orchestrator-dev                16268    14908   12   24    845   24    845
 none     ticket                 reviewer                        12607     9894    6   20    682   20    682
-none     ticket                 TOTAL                           45885    38037   29   46   1551   46   1551
+none     ticket                 TOTAL                           45895    38048   29   46   1551   46   1551
 stacks   audit                  auditor                         14907    13904    7   16    562   16    562
 stacks   audit                  auditor-subagent                 6908     5870    5   19    662   19    662
 stacks   audit                  TOTAL                           21815    19774   12   21    735   21    735
@@ -75,11 +75,11 @@ stacks   benchmark              benchmarker                      3762     2548  
 stacks   benchmark              TOTAL                            3762     2548    3    1     36    1     36
 stacks   brief-enrich           brief-enricher                    483        0    0    0      0    0      0
 stacks   brief-enrich           TOTAL                             483        0    0    0      0    0      0
-stacks   cadrage                conductor                        7200     6332    7    3    105    3    105
+stacks   cadrage                conductor                        7208     6340    7    3    105    3    105
 stacks   cadrage                designer                         6407     4840    5   17    566   17    566
 stacks   cadrage                pathfinder                       9345     7992    6    9    310    9    310
 stacks   cadrage                planner                          6813     5425    6   21    686   21    686
-stacks   cadrage                TOTAL                           29765    24589   24   35   1159   35   1159
+stacks   cadrage                TOTAL                           29773    24597   24   35   1159   35   1159
 stacks   debug                  debugger                         5714     4359    5   18    617   18    617
 stacks   debug                  developer                       12320     9614    7   21    733   21    733
 stacks   debug                  documentarian                    4721     3632    4   13    402   13    402
@@ -87,12 +87,12 @@ stacks   debug                  TOTAL                           22755    17605  
 stacks   feature                designer                         6407     4840    5   17    566   17    566
 stacks   feature                developer                       12294     9614    7   28    972   28    972
 stacks   feature                documentarian                    4737     3632    4   13    402   13    402
-stacks   feature                orchestrator                    14402    12443   11   10    342   10    342
-stacks   feature                orchestrator-dev                16510    15121   12   24    845   24    845
+stacks   feature                orchestrator                    14421    12461   11   10    342   10    342
+stacks   feature                orchestrator-dev                16529    15139   12   24    845   24    845
 stacks   feature                pathfinder                       9345     7992    6    9    310    9    310
 stacks   feature                planner                          6902     5513    6   21    686   21    686
 stacks   feature                reviewer                        12611     9894    6   27    929   27    929
-stacks   feature                TOTAL                           83208    69049   57   87   2923   87   2923
+stacks   feature                TOTAL                           83246    69085   57   87   2923   87   2923
 stacks   infra-change           operator                         3715     2548    3    9    318    9    318
 stacks   infra-change           TOTAL                            3715     2548    3    9    318    9    318
 stacks   libre                  debugger                         5682     4359    5   18    617   18    617
@@ -113,19 +113,19 @@ stacks   quick                  TOTAL                           12264     9614  
 stacks   review                 reviewer                        12604     9894    6   27    929   27    929
 stacks   review                 TOTAL                           12604     9894    6   27    929   27    929
 stacks   review-feedback        developer                       12294     9614    7   28    972   28    972
-stacks   review-feedback        orchestrator-dev                16187    14826   12   26    914   26    914
+stacks   review-feedback        orchestrator-dev                16196    14835   12   26    914   26    914
 stacks   review-feedback        reviewer                        12607     9894    6   27    929   27    929
-stacks   review-feedback        TOTAL                           41088    34334   25   44   1528   44   1528
-stacks   sweep                  conductor                        7236     6369    7    8    286    8    286
+stacks   review-feedback        TOTAL                           41097    34343   25   44   1528   44   1528
+stacks   sweep                  conductor                        7246     6378    7    8    286    8    286
 stacks   sweep                  developer                       12292     9614    7   22    768   22    768
 stacks   sweep                  pathfinder                       9345     7992    6    9    310    9    310
 stacks   sweep                  reviewer                        12605     9894    6   27    929   27    929
-stacks   sweep                  TOTAL                           41478    33869   26   39   1342   39   1342
+stacks   sweep                  TOTAL                           41488    33878   26   39   1342   39   1342
 stacks   ticket                 developer                       12294     9614    7   28    972   28    972
 stacks   ticket                 documentarian                    4726     3632    4   13    402   13    402
-stacks   ticket                 orchestrator-dev                16258    14897   12   24    845   24    845
+stacks   ticket                 orchestrator-dev                16268    14908   12   24    845   24    845
 stacks   ticket                 reviewer                        12607     9894    6   27    929   27    929
-stacks   ticket                 TOTAL                           45885    38037   29   53   1798   53   1798
+stacks   ticket                 TOTAL                           45895    38048   29   53   1798   53   1798
 
 # Inlined skills: largest section (tokens) and the agents inlining it.
 auditor-workflow                           7491 auditor
@@ -148,10 +148,10 @@ dev-standards-simplicity                   1375 developer
 dev-standards-universal                    1292 developer
 audit-handoff-format                       1270 auditor,auditor-subagent
 onboarder-workflow                         1180 onboarder
-workflow-map                               1103 conductor
+workflow-map                               1112 conductor
 subagent-concision-posture                 1090 auditor-subagent,developer
 coordination-only                          1084 auditor,conductor,orchestrator,orchestrator-dev
-orchestrator-workflow-modes                1031 orchestrator,orchestrator-dev
+orchestrator-workflow-modes                1049 orchestrator,orchestrator-dev
 planner-handoff-format                     1022 orchestrator,planner
 designer-protocol                          1000 designer
 reviewer-handoff-format                     992 orchestrator-dev,reviewer

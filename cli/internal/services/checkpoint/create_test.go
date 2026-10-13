@@ -11,7 +11,8 @@ import (
 )
 
 // N9: creating tickets waits for the checkpoint that unlocks `create`; a
-// closed ticket does not lock it again (only asking the checkpoint again).
+// closed ticket does not lock it again, the next mandatory checkpoint does
+// (CP-R8).
 func TestGuardCreate(t *testing.T) {
 	svc, ctx := newTestService(t)
 	wf := lockWorkflow()
@@ -34,11 +35,16 @@ func TestGuardCreate(t *testing.T) {
 	require.NoError(t, err)
 	assert.NoError(t, svc.GuardCreate(ctx, "ses_c"))
 
-	_, err = reachValidated(t, svc, ctx, "ses_c", "cp-2")
-	require.NoError(t, err)
-	_, err = svc.BeadsDone(ctx, "ses_c", BeadsClose, []string{"pt-1"})
+	_, err = svc.BeadsDone(ctx, "ses_c", BeadsClose, []string{"pt-0"})
 	require.NoError(t, err)
 	assert.NoError(t, svc.GuardCreate(ctx, "ses_c"), "a closed ticket does not lock creation again")
+
+	// CP-R8: the next mandatory checkpoint closes the create window.
+	_, err = reachValidated(t, svc, ctx, "ses_c", "cp-2")
+	require.NoError(t, err)
+	require.ErrorAs(t, svc.GuardCreate(ctx, "ses_c"), &lock, "the window closed at cp-2")
+	_, err = svc.BeadsDone(ctx, "ses_c", BeadsClose, []string{"pt-1"})
+	require.NoError(t, err)
 	st, _ := svc.State(ctx, "ses_c")
 	_, commitOpen := st.Unlocks[sessionspec.UnlockCommit]
 	assert.False(t, commitOpen, "but it locks the commit again")

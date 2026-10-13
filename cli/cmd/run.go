@@ -213,6 +213,7 @@ func runWorkflowCLI(cmd *cobra.Command, opts runOptions, recap bool) error {
 			return nil
 		}
 	} else {
+		printRunPauses(out, p)
 		printRunWarnings(out, p.plan.Warnings)
 	}
 	_, err = p.start(ctx, a, launcher.NewCLIUI(out))

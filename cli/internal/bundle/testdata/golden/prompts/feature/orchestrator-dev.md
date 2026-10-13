@@ -508,15 +508,15 @@ Avant d'appeler `question`, vérifier :
 | **cp-1** — Démarrer le ticket | pause | auto | auto |
 | **cp-2** — Commit ou correction (obligatoire) | pause | pause | pause |
 | **cp-3** — Ticket suivant | pause | auto | auto |
-| **cp-feature** — Récap de la feature | pause | pause | auto |
+| **cp-feature** — Récap de la feature | pause | auto | auto |
 
 Séquence : `cp-tickets` [create] → `cp-0` → `cp-spec` → `cp-1` → `cp-2` [commit, close] → `cp-3` → `cp-feature` (entre crochets, les opérations que le checkpoint déverrouille).
 
 - **cp-tickets** : Présenter le découpage proposé par l'agent de planning ; les tickets ne sont créés qu'après la validation. Avec des tickets existants seulement, confirmer la liste (aucune création).
-- **cp-tickets** déverrouille `create` : avant son passage, oh refuse à tous les agents de la session la création de tickets, quel que soit le mode. Une fois passé, crée les tickets validés : la création reste possible jusqu'à ce que **cp-tickets** soit demandé de nouveau.
+- **cp-tickets** déverrouille `create` : avant son passage, oh refuse à tous les agents de la session la création de tickets, quel que soit le mode. Une fois passé, crée les tickets validés aussitôt : la création se referme au checkpoint obligatoire suivant, ou quand **cp-tickets** est demandé de nouveau.
 - **cp-0** : Afficher le tableau des tickets (ordre de traitement, agent prévu) et attendre la confirmation avant toute implémentation.
 - **cp-spec** (conditional) : le designer a produit une spécification UX ou UI pour la feature
-- **cp-2** déverrouille `commit`, `close` : avant son passage, oh refuse à tous les agents de la session `git commit` (et les commandes qui commitent : revert, cherry-pick, merge, pull), la fermeture d'un ticket, quel que soit le mode. Une fois passé, fais-les aussitôt, dans l'ordre : commit, puis fermeture du ticket (oh refuse la fermeture tant que le travail n'est pas commité). Le ticket fermé, elles sont de nouveau verrouillées jusqu'au prochain passage de **cp-2**. Le push revient à l'utilisateur : ne pousse pas.
+- **cp-2** déverrouille `commit`, `close` : avant son passage, oh refuse à tous les agents de la session `git commit` (et les commandes qui commitent : revert, cherry-pick, merge, pull), la fermeture d'un ticket, quel que soit le mode. Une fois passé, fais-les aussitôt, dans l'ordre : commit, puis fermeture du ticket (oh refuse la fermeture tant que le travail n'est pas commité). Le travail commité, le commit est de nouveau verrouillé ; le ticket fermé, la fermeture aussi, jusqu'au prochain passage de **cp-2**. Le push revient à l'utilisateur : ne pousse pas.
 - **cp-feature** : Récap global en fin de feature (tickets traités, commits, points ouverts).
 
 Passage d'un checkpoint : appelle l'outil `workflow_checkpoint` avec `id` (identifiant du tableau) et `summary` (ce qui est fait, ce qui va suivre, points d'attention), **avant** de lancer l'étape suivante. C'est oh qui applique le comportement du mode :

@@ -42,6 +42,8 @@ func gitLog(t *testing.T, dir string) string {
 //     whatever it tries;
 //   - a question imitating cp-2 is answered by oh with the instruction to
 //     call workflow_checkpoint, and validates nothing;
+//   - oh runs the verification of cp-2 (R3, E1): it fails, a plain
+//     approval is refused, the override is traced;
 //   - once cp-2 is approved from oh, the commit goes through.
 func TestE2ETicketCommitGate(t *testing.T) {
 	for _, model := range e2eTicketModels() {
@@ -63,7 +65,9 @@ func ticketCommitGate(t *testing.T, model string) {
 	wf := sessionspec.WorkflowRuntime{ID: "ticket", DefaultMode: "manuel",
 		Checkpoints: []sessionspec.CheckpointDef{
 			{ID: "cp-2", Label: map[string]string{"": "Commit ou correction"}, Behaviors: map[string]string{"manuel": "pause"}, Mandatory: true,
-				Unlocks: []string{sessionspec.UnlockCommit, sessionspec.UnlockPush, sessionspec.UnlockClose}},
+				Unlocks: []string{sessionspec.UnlockCommit, sessionspec.UnlockPush, sessionspec.UnlockClose},
+				// R3: a verification that fails (verified.txt is never written).
+				Verify: &sessionspec.VerifyDef{Cmd: []string{"test -f verified.txt"}, Expect: sessionspec.VerifyPass, TimeoutSec: 60}},
 		}}
 	b := workflowBundle(t, wf)
 	b.Agents[0].Body = "You are LEAD, a coordinator. Follow the user's steps exactly. You never run shell commands yourself: you delegate them to the subagent helper, passing the commands verbatim. Never retry a refused command and never try another way."
@@ -131,9 +135,28 @@ func ticketCommitGate(t *testing.T, model string) {
 		dec = l[0]
 		return dec.Kind == domain.DecisionCheckpoint
 	}, 3*time.Minute, 300*time.Millisecond, "cp-2 raised by the daemon")
-	require.NoError(t, svc.Decide(ctx, sessionsvc.Reply{DecisionID: dec.ID, Decision: checkpoint.ChoiceApprove}))
+	// R3: the verification run by oh fails; a plain approval is refused.
+	require.Eventually(t, func() bool {
+		r, ok := e.cp.VerifyResult(ctx, id, "cp-2")
+		return ok && r.Done()
+	}, time.Minute, 200*time.Millisecond, "verification of cp-2 run by oh")
+	card, err := svc.CheckpointCard(ctx, dec.ID)
+	require.NoError(t, err)
+	require.NotNil(t, card.R3.Verify)
+	assert.Equal(t, domain.VerifyFailed, card.R3.Verify.Status, "the card shows the failed verification")
+	require.Error(t, svc.Decide(ctx, sessionsvc.Reply{DecisionID: dec.ID, Decision: checkpoint.ChoiceApprove}))
+	require.NoError(t, svc.Decide(ctx, sessionsvc.Reply{DecisionID: dec.ID, Decision: checkpoint.ChoiceOverride, Message: "e2e: known failure"}))
 	require.NoError(t, c.Wait(ctx, id))
 	assert.Contains(t, gitLog(t, project), "feat: hello", "committed after cp-2: %s", r2text(t, ctx, c, id))
 	data, _ := os.ReadFile(closed)
 	assert.Contains(t, string(data), "close pt-1", "ticket closed after the commit")
+	st, err = e.cp.State(ctx, id)
+	require.NoError(t, err)
+	overridden := false
+	for _, ev := range st.Timeline {
+		overridden = overridden || (ev.Kind == domain.CheckpointOverridden && ev.ID == "cp-2")
+	}
+	assert.True(t, overridden, "the override is traced: %+v", st.Timeline)
+	_, commitOpen := st.Unlocks[sessionspec.UnlockCommit]
+	assert.False(t, commitOpen, "the commit window of cp-2 is closed again (CP-R8)")
 }

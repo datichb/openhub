@@ -55,6 +55,7 @@ func WorkflowRuntime(s *workflow.Spec) *sessionspec.WorkflowRuntime {
 		rt.Outputs = append(rt.Outputs, sessionspec.OutputDef{ID: o.ID, Type: string(o.Type), Label: localized(o.Label)})
 	}
 	rt.Scratch = scratchDefs(s)
+	applyCheckpointVerify(rt, s)
 	return rt
 }
 

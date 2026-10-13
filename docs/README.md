@@ -112,6 +112,7 @@ In v5, plugins are declared per workflow (`plugins:`) and delivered in the sessi
 | [CLI — Tools](reference/cli-tools.en.md) | `oh skill *`, `oh worktree *`, `oh secrets *`, `oh metrics` |
 | [Shipped Workflows](reference/workflows.en.md) | The 14 `oh/v1` workflows shipped by the hub: entry agents, inputs, checkpoints, prompt templates |
 | [Workflow Schema](reference/workflow-schema.en.md) | `apiVersion: oh/v1` schema: fields, validation, layers, `extends`, `enforce` |
+| [Checkpoints](reference/checkpoints.en.md) | Modes and planned pauses, pause budget, verification run by oh, evidence, fix rounds, conditions, unlock windows |
 | [Configuration](reference/config.en.md) | hub.toml, project settings, team config |
 | [Beads Model](reference/beads-model.en.md) | Ticket system data model |
 | [Glossary](reference/glossary.en.md) | Terms and definitions |
