@@ -63,6 +63,7 @@ The assertions are described in the [`oh eval` reference](../docs/reference/cli-
 | S9 | sweep | The developer and reviewer returns are addressed to `conductor` |
 | S10 | quick | A data decision is asked in « Questions bloquantes », not with `question` |
 | S11 | ticket | Project with a wiki: a `wiki_propose` proposal is accepted on the card of `cp-2`, applied by oh and committed with the code |
+| S12 | doc-sync | A drifting `CONFIRMÉ` page is fixed; oh records the synchronization; only the wiki is committed, after `cp-sync` |
 
 The reference measure (Haiku, three repetitions) is recorded in `cli/internal/evalrun/testdata/evals/baseline.json`; `make test-eval` compares the current run with it.
 

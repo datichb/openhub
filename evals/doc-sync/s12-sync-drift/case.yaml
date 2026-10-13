@@ -1,0 +1,66 @@
+id: S12
+title: "doc-sync : la dérive d'une page CONFIRMÉ est corrigée, oh note la synchronisation, le wiki seul est commité"
+workflow: doc-sync
+mode: semi-auto
+# Après la fixture (wiki commité), un commit ajoute Div, qui renvoie une
+# erreur : la convention « jamais d'erreur » (CONFIRMÉ, calc.go:5) est
+# fausse. wiki_check(since_sync) la signale (drift_confirmed).
+setup:
+  - |
+    cat > calc.go <<'GO'
+    // Package calc fait des calculs simples sur des entiers.
+    package calc
+
+    import "errors"
+
+    // ErrDivZero est renvoyée par Div quand b vaut zéro.
+    var ErrDivZero = errors.New("division par zéro")
+
+    // Add renvoie la somme de a et b.
+    func Add(a, b int) int {
+    	return a + b
+    }
+
+    // Sub renvoie la différence a - b.
+    func Sub(a, b int) int {
+    	return a - b
+    }
+
+    // Div renvoie le quotient de a par b, ou ErrDivZero quand b vaut zéro.
+    func Div(a, b int) (int, error) {
+    	if b == 0 {
+    		return 0, ErrDivZero
+    	}
+    	return a / b, nil
+    }
+    GO
+timeout: 20m
+answers:
+  checkpoints:
+    "*": approve
+  question: first
+  wiki: accept
+assertions:
+  - type: called
+    name: wiki_check est appelé avant le checkpoint
+    tool: "*wiki/check"
+    before: { checkpoint: cp-sync }
+  - type: checkpoint_order
+    order: [cp-sync]
+  - type: changed_within
+    name: seul le wiki change, la page en dérive et l'index (synced) compris
+    paths: ["docs/wiki/**"]
+    include: ["docs/wiki/technical/conventions.md", "docs/wiki/index.md"]
+  - type: text_matches
+    name: la dérive est vue
+    agent: documentarian
+    pattern: "Div|erreur|error"
+  - type: ran
+    name: le wiki est commité après la validation
+    command: "git commit*"
+  - type: ran
+    name: aucun commit avant la validation de cp-sync
+    command: "git commit*"
+    absent: true
+    before: { checkpoint_passed: cp-sync }
+  - type: no_denied_loop

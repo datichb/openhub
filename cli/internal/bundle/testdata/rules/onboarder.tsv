@@ -63,6 +63,7 @@ dev-standards-testing	Couverture des critères d'acceptance	Les critères négat
 dev-standards-testing	Qualité des tests	Nommage expressif : `doit <faire quoi> quand <contexte>`
 doc-wiki-protocol	Rôle	que le `documentarian` doit respecter pour maintenir la cohérence du système.
 doc-wiki-protocol	Rôle	Les autres agents n'écrivent pas dans le wiki : ils proposent avec `wiki_propose` ; oh applique
+doc-wiki-protocol	Structure du wiki	Un seul référentiel : specs, glossaire, décisions et postmortems vivent dans `docs/wiki/`. `wiki_check` signale une page hors de cette arborescence (`layout`). Le champ `synced:` du frontmatter d'`index.md` est écrit par oh (`doc-sync`) : ne le modifie jamais.
 doc-wiki-protocol	Structure du wiki	Frontmatter obligatoire
 doc-wiki-protocol	Frontmatter obligatoire	Chaque page wiki doit commencer par un frontmatter YAML :
 doc-wiki-protocol	Format des tags de confiance	Chaque enrichissement doit porter un tag de confiance inline en fin de ligne ou de bloc :
@@ -124,7 +125,8 @@ onboarder-phase-3-4	Ce qu'on vérifie	✅ **Tests flaky** : Tests intermittents 
 onboarder-phase-3-4	Déclencheur de pause ⏸️	Question de validation obligatoire
 onboarder-phase-5	ÉTAPE 5.1 — Créer `docs/wiki/index.md`	Créer `docs/wiki/` si le dossier n'existe pas
 onboarder-phase-5	ÉTAPE 5.1 — Créer `docs/wiki/index.md`	Ne JAMAIS modifier `.gitignore` ni `.git/` : si le wiki ne doit pas être versionné, le proposer à l'utilisateur dans la passation (ajout de `docs/wiki/` à son `.gitignore`)
-onboarder-phase-5	ÉTAPE 5.2 — Créer les pages `docs/wiki/technical/`	Si aucun terme ambigu détecté : ne pas créer la page. Elle sera créée plus tard par enrichissement si un agent détecte un terme ambigu.
+onboarder-phase-5	ÉTAPE 5.2 — Créer les pages `docs/wiki/technical/`	**`docs/wiki/glossary.md`** (racine du wiki) — **optionnel**, créer uniquement si des termes de domaine ambigus sont détectés en Phase 1 (entités avec noms similaires, abréviations non évidentes, termes métier spécifiques au projet), au format du glossaire de `doc-wiki-protocol` (`- **Terme** : définition`, tagué). Sinon, ne pas la créer : un agent la proposera plus tard.
+onboarder-phase-5	ÉTAPE 5.2 — Créer les pages `docs/wiki/technical/`	ADR existants du projet (`docs/adr/`, `adr/`…) : ne pas les déplacer, les citer dans `## Décisions architecturales notables` d'`architecture.md`. `specs/` et `postmortems/` se créent plus tard (workflows `spec`, `incident`) : pas de dossier vide.
 onboarder-phase-5	ÉTAPE 5.2 — Créer les pages `docs/wiki/technical/`	**`docs/wiki/decisions/decisions-rejetees.md`** — toujours créer cette page (même vide) pour que les agents puissent la consulter et l'enrichir :
 onboarder-phase-5	ÉTAPE 5.2 — Créer les pages `docs/wiki/technical/`	`ACTIVE` : le rejet tient toujours — le planner filtre uniquement sur ce statut
 onboarder-phase-5	ÉTAPE 5.3 — Créer les pages `docs/wiki/business/`	Créer `docs/wiki/business/` si le dossier n'existe pas

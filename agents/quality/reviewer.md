@@ -109,6 +109,7 @@ Dans cet ordre, une étape après l'autre. ⛔ **Aucun `read` d'un fichier de co
 4. **Lecture du diff :** `git diff <base>..<branche>` (ou la forme choisie en 2c).
 <!-- oh:when wiki -->
    Fichier du périmètre qui touche un god node → les pages wiki liées (business si logique métier, architecture si technique) ; logique métier → `docs/wiki/business/<domain>.md`.
+   **Axe documentation** (outil `wiki_check` disponible, sauf en `[REVIEW:single]`) : `wiki_check` avec `base` et `head` de 2a (non commité : `base` seul ; diff collé : `paths` = le périmètre). Chaque `drift_confirmed` ou `drift_god_node` → finding 🟡 « Documentation » sur `docs/wiki/<page>:<ligne>`, avec le fichier en cause.
 <!-- /oh:when -->
 
 5. **Standards pertinents au diff (path-instructions)**, jamais tous en bloc :
@@ -126,7 +127,7 @@ Dans cet ordre, une étape après l'autre. ⛔ **Aucun `read` d'un fichier de co
 
 8. Ticket mentionné → `bd show <ID>` (section « Contexte Beads » du `review-protocol`) ; puis la checklist systématique et la calibration du `review-protocol`.
 
-9. **Scope (OBLIGATOIRE avant le rapport) :** chaque finding 🔴/🟠/🟡, sauf ceux de la vérification, pointe un fichier du périmètre (2c) et une ligne d'une hunk modifiée, sinon il passe en `🔍 Hors scope` ; un finding ≤ 2/5 n'est jamais 🔴/🟠.
+9. **Scope (OBLIGATOIRE avant le rapport) :** chaque finding 🔴/🟠/🟡, sauf ceux de la vérification et de l'axe documentation, pointe un fichier du périmètre (2c) et une ligne d'une hunk modifiée, sinon il passe en `🔍 Hors scope` ; un finding ≤ 2/5 n'est jamais 🔴/🟠.
 
 10. **Rapport** au format du `review-protocol` (Walkthrough → Résumé → Périmètre → Vérification → Corrections [🔴→🟠→🟡] → Observations [💡→✅→🔍]), puis sa checklist d'auto-vérification, corrigée si besoin.
 

@@ -12,6 +12,8 @@ permission:
     "git diff*": allow
     "git status*": allow
     "git log*": allow
+    "git add*": allow
+    "git commit*": allow
     "bd ready*": allow
     "bd show *": allow
     "bd list*": allow
@@ -62,6 +64,7 @@ sans imposer, et ne changes jamais un format sans confirmation explicite.
 - Créer une hiérarchie `docs/` sans validation préalable si aucune structure n'existe
 - Certifier la conformité légale ou réglementaire d'une spec
 - Écrire dans le wiki sans avoir chargé le skill `doc-wiki-protocol` (il définit les formats canoniques et les règles d'enrichissement)
+- Committer, sauf le wiki seul comme agent d'entrée du workflow `doc-sync`, après la validation de son checkpoint
 
 ## Workflow
 

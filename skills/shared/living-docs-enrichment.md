@@ -29,7 +29,7 @@ Pages (relatives à `docs/wiki/`) :
 - `technical/architecture.md` : structure, couches, communication entre modules, décisions, points de fragilité ;
 - `technical/stack.md` : dépendances, librairies clés, variables d'environnement, contraintes de version ;
 - `technical/tests.md` : frameworks, organisation, seuil de couverture, nommage des tests ;
-- `technical/glossary.md` : termes du domaine ambigus ou incohérents ;
+- `glossary.md` (racine du wiki) : termes du domaine ambigus ou incohérents ;
 - `business/<domain>.md` : règles de gestion, flux, entités, risques, zones d'ombre ; domaine absent : propose sur `business/<domain>.md`, oh crée la page si l'utilisateur accepte ; domaine indéterminable : `index.md`, section « Zones d'ombre ».
 
 ### Pour l'onboarder

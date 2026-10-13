@@ -1,4 +1,4 @@
-# Template — Pages racine du wiki (`index.md`, `ONBOARDING.md`)
+# Template — Pages racine du wiki (`index.md`, `ONBOARDING.md` ; `glossary.md` : `wiki-pages-reference.md`)
 
 ## Format canonique — `docs/wiki/index.md`
 

@@ -1,7 +1,7 @@
 ---
 name: doc-wiki-protocol
 description: "Utiliser pour écrire dans docs/wiki/ : formats canoniques, frontmatter, tags de confiance, god nodes."
-annexes: [templates/wiki-pages-index.md, templates/wiki-pages-technical.md, templates/wiki-pages-business.md]
+annexes: [templates/wiki-pages-index.md, templates/wiki-pages-technical.md, templates/wiki-pages-business.md, templates/wiki-pages-reference.md]
 ---
 
 # Skill — Protocole du Wiki Documentaire Vivant
@@ -48,17 +48,21 @@ cat Cargo.toml 2>/dev/null | head -5  # [workspace] section
 ```
 docs/wiki/
 ├── index.md                    ← carte globale obligatoire
+├── glossary.md                 ← termes du domaine
 ├── technical/
 │   ├── architecture.md         ← patterns dominants, découpage, décisions structurantes
 │   ├── stack.md                ← stack complète, versions, librairies clés
 │   ├── tests.md                ← stratégie, conventions, seuils, frameworks
 │   └── conventions.md          ← nommage, git, linting, config, patterns équipe
-├── decisions/
-│   └── decisions-rejetees.md   ← concepts rejetés avec raison et cycle de vie (ACTIVE/EXPIRED/SUPERSEDED)
-└── business/
-    ├── index.md                ← carte des domaines métier
-    └── <domain>.md             ← règles de gestion, flux, entités, risques
+├── business/
+│   ├── index.md                ← carte des domaines métier
+│   └── <domain>.md             ← règles de gestion, flux, entités, risques
+├── specs/<sujet>.md            ← spécifications
+├── decisions/                  ← ADR (NNN-<titre>.md) et decisions-rejetees.md (cycle ACTIVE/EXPIRED/SUPERSEDED)
+└── postmortems/YYYY-MM-DD-<incident>.md
 ```
+
+Un seul référentiel : specs, glossaire, décisions et postmortems vivent dans `docs/wiki/`. `wiki_check` signale une page hors de cette arborescence (`layout`). Le champ `synced:` du frontmatter d'`index.md` est écrit par oh (`doc-sync`) : ne le modifie jamais.
 
 À la racine du projet :
 ```
@@ -141,6 +145,7 @@ format canonique ; un enrichissement d'une page existante n'en a pas besoin (sui
 | `docs/wiki/index.md`, `ONBOARDING.md` | `templates/wiki-pages-index.md` |
 | `technical/conventions.md`, `architecture.md`, `stack.md`, `tests.md`, `review-rules.md` | `templates/wiki-pages-technical.md` |
 | `business/index.md`, `business/<domain>.md` | `templates/wiki-pages-business.md` |
+| `glossary.md`, `specs/`, `decisions/`, `postmortems/` | `templates/wiki-pages-reference.md` |
 
 **Règles des pages :**
 - `index.md` est la seule page que tous les agents lisent systématiquement. Elle doit rester compacte — 40-80 lignes maximum hors frontmatter
@@ -187,7 +192,7 @@ dans la section avec un tag `CONFIRMÉ`. Si oui :
 Quand une page n'existe pas encore, la créer à partir du format canonique de son annexe
 (tableau ci-dessus). Toujours :
 
-1. Créer le dossier parent si nécessaire (`docs/wiki/business/`, `docs/wiki/technical/` ou `docs/wiki/decisions/`)
+1. Créer le dossier parent si nécessaire (`docs/wiki/business/`, `technical/`, `specs/`, `decisions/` ou `postmortems/`)
 2. Écrire le frontmatter en premier
 3. Remplir les sections avec les informations disponibles
 4. Marquer les informations manquantes avec `*(À documenter)*`

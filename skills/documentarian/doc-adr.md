@@ -57,6 +57,8 @@ Lire au moins **2 ADR existants** pour identifier :
 
 **S'y conformer strictement**, sauf si l'utilisateur demande explicitement un changement.
 
+Aucun ADR existant et un wiki dans le projet (`docs/wiki/index.md`) : les ADR vont dans `docs/wiki/decisions/NNN-titre.md` (référentiel unique, `doc-wiki-protocol`).
+
 ---
 
 ## Formats courants — identification

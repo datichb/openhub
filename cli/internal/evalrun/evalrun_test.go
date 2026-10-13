@@ -269,11 +269,11 @@ func TestShippedCases(t *testing.T) {
 		if c.ID == "S8" {
 			assert.Equal(t, ReportsOff, c.Reports)
 		}
-		if c.ID == "S11" {
+		if c.ID == "S11" || c.ID == "S12" {
 			assert.Equal(t, "accept", c.Answers.Wiki, "the proposals on the card are accepted")
 		}
 	}
-	assert.Equal(t, []string{"S1", "S2", "S3", "S4", "S5", "S6", "S7", "S8", "S9", "S10", "S11"}, ids)
+	assert.Equal(t, []string{"S1", "S2", "S3", "S4", "S5", "S6", "S7", "S8", "S9", "S10", "S11", "S12"}, ids)
 }
 
 func requireGit(t *testing.T) {
@@ -406,7 +406,7 @@ func TestRunnerAndReport(t *testing.T) {
 
 // notInBaseline are the active cases activated after the reference measure
 // (measured at the next make test-eval OH_EVAL_RECORD=1).
-var notInBaseline = map[string]string{"S8": "activated by L4 (workflow_report)", "S11": "added by LD (wiki proposals on the card)"}
+var notInBaseline = map[string]string{"S8": "activated by L4 (workflow_report)", "S11": "added by LD (wiki proposals on the card)", "S12": "added by LD (doc-sync)"}
 
 // The reference measure kept in the repository (make test-eval
 // OH_EVAL_RECORD=1) covers every active case, with three repetitions, and
