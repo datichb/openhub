@@ -9,6 +9,13 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ## [Unreleased]
 
+### Added — comparer des variantes du hub (lot eval-ab)
+
+- **`oh eval --variant`** (`OH_EVAL_VARIANTS` avec `make test-eval`) : chaque cas tourne avec plusieurs versions du hub — `base` (hub embarqué), `nom=-skill:<id>` (sans ce skill : fichier et mentions dans `skills`/`native_skills` des agents), `nom=<dossier de hub>[,-skill:<id>…]`. Le hub de chaque variante est vérifié avant tout passage (skills, workflows des cas, composition des bundles) ; chaque passage l'installe dans son `OH_HOME` temporaire. `--parallel`, `--budget-total` et `--rescore` couvrent les variantes.
+- **Rapport comparatif** : par cas, réussite, coût moyen et durée de chaque variante, écart avec la première (la référence) et verdict selon le critère de P4 (`gain` : +1/3 de réussite sans recul ailleurs, ou réussite égale et coût −10 % ; `ambiguous` : écart d'un seul passage, relancer ×3 ; `no_gain` ; `incomplete`), même comparaison hors assertions `skill_loaded_before` (résultat métier) et assertions côte à côte. `baseline.json` inchangé ; `--record-baseline` refuse les variantes.
+- **Corrigé** : `skill_loaded_before` ne compte plus un chargement en échec (skill absent du bundle).
+- **Mesure** (Haiku ×3, 1,90 $) : sans `debugger-phase-2-3` (S6) ou `auditor-phase-3` (S4), seule l'assertion de chargement échoue ; le diagnostic et l'injection relevée sont inchangés (3/3) et les passages coûtent 17 à 19 % de moins.
+
 ### Added — restes P3, wiki et hygiène (lot p3-leftovers-wiki)
 
 - **`oh wiki decide <id>… --accept | --edit | --content | --file | --refuse | --pending`** : décider des propositions du wiki hors de la TUI, avec les mêmes choix et le même service que la carte du checkpoint de commit (modification dans `$EDITOR`, original conservé, décision signée `oh`).
