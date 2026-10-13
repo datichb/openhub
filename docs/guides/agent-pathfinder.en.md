@@ -344,7 +344,7 @@ Pathfinder can **escalate** to the planner, but does not replace it.
 
 - **Pathfinder Agent**: `/agents/planning/pathfinder.md`
 - **Pathfinder Protocol**: `/skills/planning/pathfinder-protocol.md`
-- **Handoff Format**: `/skills/planning/pathfinder-handoff-format.md`
+- **Handoff Format**: `/skills/planning/pathfinder-payload.md` (statuses and report sections; envelope: `/skills/shared/handoff-envelope.md`)
 - **Planner Agent**: `/agents/planning/planner.md`
 - **Orchestrator**: `/agents/planning/orchestrator.md`
 

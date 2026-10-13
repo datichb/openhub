@@ -258,92 +258,51 @@ This indirection allows:
 
 ## Inter-agent communication protocols
 
-### The general pattern
+### Return envelope and filed report (L5)
 
-Each sub-agent, when invoked via `task`, produces **only** a structured block
-`## Return to <parent>` which is its **sole output**:
-
-1. **Single structured block `## Return to <parent>`** — contains all information
-   needed by the coordinator: actionable metadata (status, routing, verdict,
-   summary tables) AND detailed content embedded in a dedicated section
-   (`### Full report`, `### Full spec`, `### Full pathfinder report`, etc.).
-   This block is self-contained — the coordinator can relay its fields directly
-   to the user without loss of information.
-
-No free text (narrative report, introduction, summary, conclusion) is produced
-before or after the block. The single block is the only communication interface
-between the child agent and its parent coordinator.
+An agent launched with `task` returns a **short envelope** (skill `shared/handoff-envelope`, at most 15 lines) and files its **whole report** in oh with the `workflow_report` tool:
 
 ```markdown
-## Return to orchestrator
-
-**Agent:** <name>
-**Ticket:** #<ID> — <title>
-
----
-
-## Return to orchestrator-dev
-
-**Agent:** developer (backend domain)
-**Ticket:** #bd-42 — Fix null guard
-
-### Implementation
-**Diff summary:** 3 files, +85 / -5
-[...]
-
-### Status
-`implemented`
+## Retour vers conductor
+**Agent** : developer · **Statut** : implémenté
+**Rapport** : rp-3
+### Questions bloquantes
+Aucune.
+### Suite proposée
+Lancer la review du ticket bd-42.
+### Résumé
+Null guard ajouté dans UserService ; 2 tests ; go test ./... passe.
+task_id : ses_abc123
 ```
 
-### The two handoff blocks toward the orchestrator
+- **Title**: the real caller, as named by the generated session contract (`## Retour vers <appelant>`); no skill writes an agent name in it.
+- **Status**: a value of the agent's payload (`<agent>-payload`, frontmatter `statuses:`), or `en-attente` when a blocking question stops it.
+- **Report**: `rp-<n>`, kept by oh and shown on the card of the next checkpoint. Without the daemon (answer « non enregistré »), `**Rapport** : inclus` and the whole report follows the envelope under `### Rapport complet`.
+- **Payload**: each agent launched by another inlines its payload (200 to 400 tokens): the statuses of its return and the sections of its report.
 
-When `orchestrator-dev` is invoked from the `orchestrator`, it uses
-two distinct blocks depending on the situation:
+### Caller side: no more transcription
 
-| Situation | Block produced |
-|-----------|----------------|
-| Normal end (all tickets processed or stop) | `## Return to orchestrator` |
-| High-stakes CP — decision required | `## Question for the orchestrator` **+** `## Return to orchestrator` |
+The caller reads the envelope with its coordinator posture (`posture/coordinator-posture`):
 
-The `## Question for the orchestrator` block contains:
-- Full context (review report, cycle history...)
-- The question to ask the user
-- The available options
-- The session state (`task_id` for resumption)
+- it finds the statuses of the agents it launches in its **session contract** (table « Statuts de leurs retours », generated from their payloads);
+- it reads the report with `workflow_report_get` (whole or one section) when it needs it to decide, route or pass on, and cites it in `reports` of `workflow_checkpoint`; it does not copy it;
+- as entry agent, it shows the user the agent, the status, the summary, the report id and the blocking questions; the whole report is on the card;
+- it never summarises a report itself: it passes the id, or the useful section verbatim (the reviewer's corrections are copied verbatim into Beads).
 
-### Handoff contract table
+| Payload | Agent | Statuses |
+|---------|-------|----------|
+| `developer/developer-payload` | `developer` | `implémenté`, `partiellement-implémenté`, `bloqué`, `BLOCKED_ARCHITECTURE` |
+| `reviewer/reviewer-payload` | `reviewer` | `commit`, `corriger`, `corriger-sécurité` |
+| `documentarian/documentarian-payload` | `documentarian` | `documenté`, `partiellement-documenté`, `bloqué` |
+| `orchestrator/orchestrator-dev-payload` | `orchestrator-dev` | `succès`, `partiel`, `bloqué` |
+| `auditor/auditor-subagent-payload` | `auditor-subagent` | `corrections-requises`, `acceptable`, `bloquant` |
+| `designer/designer-payload` | `designer` | `spec-complète`, `spec-partielle`, `choix-requis`, `prototype-livré`, `bloqué` |
+| `planning/planner-payload` | `planner` | `découpage-à-valider`, `planification-complète`, `planification-partielle`, `bloqué` |
+| `planning/pathfinder-payload` | `pathfinder` | `direct`, `escalade-planner`, `reconnaissance-partielle` |
+| `planning/onboarder-payload` | `onboarder` | `contexte-établi`, `contexte-partiel`, `bloqué` |
+| `quality/debugger-payload` | `debugger` | `diagnostiqué`, `partiellement-diagnostiqué`, `non-reproductible` |
 
-| Skill | Producer | Consumer | Key fields |
-|-------|----------|----------|------------|
-| `developer/developer-handoff-format` | `developer` | `orchestrator-dev` | Modified files, checked criteria, attention points, status |
-| `reviewer/reviewer-handoff-format` | `reviewer` | `orchestrator-dev` | Verdict, verbatim corrections, recommended routing |
-| `documentarian/documentarian-handoff-format` | `documentarian` | its caller (`## Retour vers <caller>`) | Type, modified files, summary |
-| `orchestrator/orchestrator-handoff-format` | `orchestrator-dev` | `orchestrator` | Processed tickets, per-ticket detail, attention points, global status |
-| `auditor/audit-handoff-format` | `auditor-subagent` | `auditor` | Vulnerabilities, recommendations, residual risk |
-| `design/design-handoff-format` | `designer` | `orchestrator` | Full spec, constraints, open points |
-| `planning/planner-handoff-format` | `planner` | `orchestrator` | Ticket table, planned agents, dependencies |
-| `planning/onboarder-handoff-format` | `onboarder` | `orchestrator` | Stack, conventions, debt, uncertainties |
-| `quality/debugger-handoff-format` | `debugger` | `orchestrator` | Root cause, certainty, impact, urgent actions |
-
-### The no-summary and no-duplication rule
-
-> **Never summarize content produced by a sub-agent.**
-> **Never re-encode in the narrative content data already present in the structured block.**
-
-These two rules are repeated in every handoff skill because they are critical:
-
-- The consumer displays the condensed summary (status, key files, attention points per ticket) before presenting
-  a checkpoint to the user
-- Reviewer corrections are copied **verbatim** into Beads comments
-- The review report is transmitted **as-is** to the user at CP-2
-- The narrative provides what the structured block cannot: evidence,
-  context, reasoning — not a repetition of the block's tables and fields
-
-A summary loses information and can lead to incorrect decisions.
-Duplication between narrative and structured block produces redundant feedback
-visible to the user.
-
-→ [ADR-009](./adr/009-inter-agent-handoff-contracts.en.md)
+→ [ADR-009](./adr/009-inter-agent-handoff-contracts.en.md) (handoff contracts, replaced in L5 by the envelope and the payloads)
 
 ---
 
@@ -351,136 +310,56 @@ visible to the user.
 
 ### Mechanism
 
-When a high-stakes CP occurs, `orchestrator-dev` does not ask the question
-itself — it produces a `## Question for the orchestrator` block and ends its
-session. The `orchestrator`:
+A subagent never calls `question`. A decision that blocks it goes into the `### Questions bloquantes` of its envelope (status `en-attente`) and it stops. The caller:
 
-1. Receives the block with the `task_id` of the suspended session
-2. Displays the full context to the user
-3. Asks the question via the `question` tool
-4. Re-invokes `orchestrator-dev` with the same `task_id` + the response
+1. shows the context to the user (or, when it is a subagent itself, puts the question in its own envelope);
+2. asks the question with the `question` tool;
+3. relaunches the subagent with the same `task_id` and the answer (« Réponse de l'utilisateur : … »); the subagent resumes where it stopped.
 
-### Resumption flow
+Checkpoints never go through this mechanism: the agent that passes a checkpoint (its session contract says so) calls `workflow_checkpoint` itself, even when launched via `task`.
 
 ```mermaid
 sequenceDiagram
     participant U as User
     participant O as Orchestrator
     participant OD as OrchestratorDev
-    participant R as Reviewer
 
     O->>+OD: task(prompt: "...", subagent_type: "orchestrator-dev")
-
-    OD->>+R: task(subagent_type: "reviewer")
-    R-->>-OD: Review report + handoff block
-
-    Note over OD: CP-2 reached — high stakes
-    OD-->>-O: ## Question for the orchestrator<br/>task_id: "abc-123"<br/>+ ## Return to orchestrator
-
-    Note over O: Displays report + context
-    O->>U: [CP-2] Commit or fix?
-    U-->>O: "Commit"
-
-    O->>+OD: task(task_id: "abc-123", prompt: "Response: Commit")
-    Note over OD: Resumes existing session
-    OD-->>-O: Session complete + final handoff block
+    Note over OD: unresolved dependency on bd-43
+    OD-->>-O: ## Retour vers orchestrator<br/>Statut : en-attente<br/>Questions bloquantes : 1. …
+    O->>U: question (same options)
+    U-->>O: "Process the parent first"
+    O->>+OD: task(task_id, "Réponse de l'utilisateur : …")
+    OD-->>-O: ## Retour vers orchestrator<br/>Statut : succès · Rapport : rp-7
 ```
-
-### High-stakes CPs triggering this mechanism
-
-| CP | Trigger | Context transmitted |
-|----|---------|---------------------|
-| **CP-2** | Review report received | Summary + full report |
-| **3-cycle blockage** | 3 reviews without resolution | Reports from the 3 cycles |
-| **Unresolved dependency** | Ticket blocked by a parent | ID and status of the blocker |
-| **Blocked ticket** | Developer signals a blockage | Reason for the blockage |
 
 ### The `task_id` is an OpenCode session ID
 
-The `task_id` is not a proprietary LLM identifier — it is a **standard OpenCode session ID**. When a parent agent invokes `task(subagent_type, prompt)`, OpenCode creates a child session navigable in the TUI (`session_child_first`, `session_child_cycle`) and accessible via the SDK (`session.children()`). The ID returned by the `task` tool is this session's ID.
+The `task_id` is not a proprietary LLM identifier — it is a **standard OpenCode session ID**, returned by the `task` tool to the caller. Resuming with `task_id` reconnects the child session, its history intact. A subagent does not always know its own id: the `task_id` line of the envelope is optional, the caller keeps the one `task` returned.
 
-**Direct consequences:**
-- Resumption via `task_id` is **reliable**: it is not an LLM context replay, it is a reconnection to an existing server-side session with its full message history intact
-- The risk of "LLM context loss" during a resumption does not exist — context is persisted server-side by OpenCode
-
-**What remains unknown:**
-
-| Point | Status |
-|-------|--------|
-| How the child agent knows its own `task_id` | Probably injected into the system context by OpenCode — not publicly documented |
-| Session lifetime | Sessions persist server-side (`session.delete()` exists) — TTL not documented |
-| Behavior if `task_id` is invalid | `session.get()` throws an error — behavior of the `task` tool unspecified |
-| `task` absent from the `/docs/tools` docs | The tool exists (listed in the permissions schema) but is not documented in the built-ins list — gap or intentional |
-
-**Residual risk — server restart:** if the opencode server restarts between the moment `orchestrator-dev` produces the upstream question and the moment the orchestrator agent re-invokes with the `task_id`, the child session may no longer be reachable. In v5, the server is started and supervised by oh (one server per group); a session put to sleep resumes with the same bundle (`oh session resume`). This case is not handled in the skills — see `### task_id — session not found` in the Attention Points section.
+**Residual risk — server restart:** if the opencode server restarts between the `en-attente` envelope and the resumption, the child session may no longer be reachable. In v5, the server is started and supervised by oh (one server per group); a paused session resumes with the same bundle (`oh session resume`). See `### task_id — session not found` in Attention points.
 
 ---
 
-## Execution path: standalone or sub-agent
+## Execution path: entry agent or sub-agent
 
-### Execution path loading convention
-
-The path (standalone or sub-agent) is no longer guessed from the prompt: oh appends to every agent of the bundle a generated **« Contrat de session »** (session contract) section, computed from the workflow graph (`calls:` of the members, entry agent):
+The path is not guessed from the prompt: oh appends to each agent a **session contract** generated from the workflow graph (role, callers and return title, callable agents and the statuses of their returns, own checkpoints, `question` allowed or not, `workflow_report`).
 
 | Position in the workflow | Generated role | Path |
 |--------------------------|----------------|------|
-| Entry agent, called by no member | entry agent, talks to the user | standalone (`question` tool for validations) |
-| Entry agent that a member may also call | entry agent that may be invoked through `task` by the listed callers | sub-agent if the prompt comes from another agent (`[CONTEXTE]`, `[REVIEW:single]` marker or resumption with `task_id`), standalone otherwise |
-| Reached only through `task` | sub-agent, callers listed; the user does not see its `question` calls | sub-agent (intermediate return and question blocks to the caller, then final return block) |
-| Neither (e.g. `developer` in `debug`, which the user switches to) | launched directly by the user | standalone |
+| Entry agent, called by no member | entry agent | recap then `question` at the end of each phase, deliverable as text |
+| Entry agent that a member may also call | both | sub-agent when the prompt comes from an agent (`[CONTEXTE]` marker, `[REVIEW:single]` or resumption with `task_id`), entry agent otherwise |
+| Reached only via `task` | sub-agent | a single session, stops only on a blocking question, final envelope |
 
-Role-specific passages are filtered at build time (`when: role=…`, [Variants by role](./skills.en.md#variants-by-role-and-by-session-when)): a sub-agent gets neither the `-standalone` skill nor the standalone part of the `*-execution-modes`, an entry agent no one launches does not get the sub-agent part; only an agent with both roles reads both and decides from its invocation prompt. The `[SKILL:<ref>]` markers that some skills still write in a `task` prompt (`[SKILL:reviewer/reviewer-subagent]`, `[SKILL:designer/prototype-protocol]`, `[SKILL:orchestrator/orchestrator-dev-feedback-mode]` of `review-feedback`) name an extra skill to load; they no longer decide the path.
-
-> **Available path skills:** some agents have two separate skills, others a single `*-execution-modes` skill
-> covering both paths.
->
-> | Agent | Standalone | Sub-agent |
-> |-------|-----------|-----------|
-> | planner | `planning/planner-execution-modes` | `planning/planner-execution-modes` |
-> | pathfinder | `planning/pathfinder-execution-modes` | `planning/pathfinder-execution-modes` |
-> | onboarder | `planning/onboarder-execution-modes` | `planning/onboarder-execution-modes` |
-> | auditor | `auditor/auditor-execution-modes` | `auditor/auditor-execution-modes` |
-> | debugger | `quality/debugger-execution-modes` | `quality/debugger-execution-modes` |
-> | designer | `designer/designer-standalone` | `designer/designer-subagent` |
-> | orchestrator-dev | `orchestrator/orchestrator-dev-standalone` | `orchestrator/orchestrator-dev-subagent` |
-> | reviewer | `reviewer/reviewer-standalone` | `reviewer/reviewer-subagent` |
-
-### Standalone vs. from-orchestrator behavior
-
-| Aspect | Standalone | From orchestrator |
-|--------|-----------|-------------------|
-| Path skill | `-standalone` | `-subagent` (chosen at build time from the role of the session contract) |
-| Workflow mode | Set at launch (`oh run … --mode`), `Mode de workflow : <mode>` line of the initial prompt | Passed in the delegation prompt |
-| CP questions | Asked via `question` | `## Question for the orchestrator` block |
-| Global recap | Displayed to the user | Transmitted to the orchestrator |
-| Handoff block | Not produced | **Required** |
-
-### Agents implementing the interruption mechanism
-
-The following agents implement the session interruption mechanism when the sub-agent skill is loaded:
-
-| Agent | Interruption granularity | Interruption type |
-|-------|--------------------------|-------------------|
-| **orchestrator-dev** | High-stakes CPs (CP-2, blockage, blocked ticket) + intermediate CPs (CP-1, CP-3, branch) in `manual` mode | Systematic at each CP |
-| **planner** | End of each phase (0 to 5) + ad hoc pauses | Systematic |
-| **pathfinder** | Critical clarification detected | Ad hoc only |
-| **onboarder** | End of each phase (0 to 4) + ad hoc pauses | Systematic |
-| **auditor** (coordinator) | End of each phase (0 to 3) + ad hoc pauses | Systematic |
-| **debugger** | End of each phase + irreversible action confirmations | Systematic |
-| **designer** | Critical clarification (design system, user information, ambiguous mode) | Ad hoc only |
-
-### Re-invocation with task_id
-
-A re-invocation with `task_id` resumes the child session: the sub-agent keeps its path (its session contract does not change, and a resumption with `task_id` is itself a sub-agent signal for an agent that may also be the entry agent).
+A single protocol for phased agents (`shared/execution-protocol`), one section per role, filtered at build time (`when: role=…`, [Variants by role](./skills.en.md#variants-by-role-and-by-session-when)). The postures follow the same rule: `posture/user-facing-posture` for the entry agent; `posture/subagent-posture`, `shared/handoff-envelope` and the payload for the sub-agent. The former path skills (`*-execution-modes`, `-standalone` / `-subagent` pairs) were removed in L5. The `[SKILL:<ref>]` markers left in a `task` prompt (`[SKILL:designer/prototype-protocol]`, `[SKILL:orchestrator/orchestrator-dev-feedback-mode]`) name an extra skill to load.
 
 ```
 task(
   subagent_type: "planner",
   task_id: "<task_id>",
-  prompt: "Phase 1 response: [option]."
+  prompt: "Réponse de l'utilisateur : [option]."
 )
 ```
-
 
 ---
 
@@ -520,16 +399,9 @@ and `pause` in all three modes: a team or project layer cannot relax it. Justifi
 
 → [ADR-042](./adr/042-checkpoints-headless-decisions.en.md) (supersedes [ADR-006](./adr/006-orchestrator-configurable-mode.en.md))
 
-### Note: Two variants of the upstream question block
+### Note: upstream questions
 
-Two block names coexist depending on the producing agent — they are semantically equivalent but the orchestrator agent must detect both:
-
-| Block | Producers | Detection |
-|-------|-----------|-----------|
-| `## Question pour l'orchestrator` (with accent) | planner, pathfinder, onboarder, auditor, debugger, designer | Contains `task_id` for resumption |
-| `## Question pour l'orchestrator` (without accent) | orchestrator-dev | Contains `task_id` for resumption |
-
-Both trigger the same behavior on the orchestrator side: display the intermediate recap, relay the question via `question`, re-invoke with `task_id`.
+Since L5, a single form: the envelope with status `en-attente`, its `### Questions bloquantes`, then the resumption with `task_id`. The « Retour intermédiaire » and « Question pour l'orchestrator » blocks are gone.
 
 ### Anti-loop counters
 
@@ -554,7 +426,7 @@ The `task_id` is a standard OpenCode session ID — session resumption is reliab
 | Cause | Probability | Impact |
 |-------|-------------|--------|
 | OpenCode restart between upstream question and resumption | Low — requires a restart during the wait window | Workflow interrupted — resumption impossible via `task_id` |
-| `task_id` incorrectly copied in the `### Session state` block | Very low — LLM error | Same impact |
+| `task_id` mistaken by the caller | Very low — LLM error | Same impact |
 
 **Safety net in `orchestrator-protocol.md`:** if re-invocation with `task_id` fails (no result, error), the orchestrator must detect the case and offer the user the option to restart `orchestrator-dev` from scratch with the remaining tickets — see the dedicated section in `orchestrator-protocol.md`.
 
@@ -562,76 +434,9 @@ The `task_id` is a standard OpenCode session ID — session resumption is reliab
 - How the child agent knows its own `task_id` during execution (not publicly documented)
 - Session TTL (probably unlimited but unspecified)
 
-### Partial vs. final recap
+### `en-attente` envelope vs final return
 
-When `orchestrator-dev` reaches a high-stakes CP, it produces **in the same response** two blocks:
-
-```
-## Question for the orchestrator     ← decision required
-[context, question, options, session state, task_id]
-
-## Return to orchestrator            ← current session state
-[tickets processed so far, partial status]
-```
-
-The second block is **structurally almost identical** to the final recap — the only explicit distinction is the `**Recap type:**` field: `partial` when emitted with an upstream question, `final` when emitted alone at end of session.
-
-#### What each recap type contains
-
-| Field | **Partial** recap | **Final** recap |
-|-------|-------------------|-----------------|
-| `Processed tickets` | Those completed up to instant T | All committed tickets |
-| `Skipped tickets` | Those skipped up to instant T | All skipped tickets |
-| `Per-ticket detail` | Processed tickets only — the current ticket and remaining ones are absent | Full table |
-| `Attention points` | Partial aggregation | Full aggregation |
-| `Global status` | Technically incorrect — `success` possible while tickets remain | Correct — based on the full set |
-
-#### Detection signal
-
-```
-Result contains ## Question for the orchestrator?
-  ├── YES → PARTIAL recap
-  │         Display ### Session state in the discussion
-  │         Do not build the CP-feature
-  │         Ask the question → re-invoke with task_id
-  └── NO  → FINAL recap
-            Build the CP-feature
-```
-
-#### State diagram
-
-```mermaid
-stateDiagram-v2
-    [*] --> InvocationOD : task(orchestrator-dev)
-
-    InvocationOD --> HighStakesCP : High-stakes CP reached
-    InvocationOD --> NormalEnd    : All tickets processed or stop
-
-    HighStakesCP --> QuestionPlusPartialRecap : Produces both blocks in the same response
-    QuestionPlusPartialRecap --> DisplayState : Orchestrator displays ### Session state
-    DisplayState --> AskQuestion : via question tool
-    AskQuestion --> UserResponse : User responds
-    UserResponse --> ResumeOD : task(task_id, response)
-
-    ResumeOD --> HighStakesCP : New high-stakes CP
-    ResumeOD --> NormalEnd    : Session complete
-
-    NormalEnd --> FinalRecapAlone : ## Return to orchestrator alone
-    FinalRecapAlone --> BuildCPFeature : CP-feature built
-    BuildCPFeature --> [*]
-```
-
-#### What can go wrong
-
-| Error | Consequence |
-|-------|-------------|
-| Building the CP-feature from the partial recap | Ongoing and remaining tickets absent from the global recap |
-| Using the `Global status` from the partial recap | `success` displayed while tickets remain unprocessed |
-| Not displaying `### Session state` | User responds without knowing where the workflow stands |
-| Not re-invoking with `task_id` | `orchestrator-dev` session lost, workflow interrupted |
-
-> ❌ **Never build the CP-feature from a partial recap.**
-> A recap is partial if and only if the `task(orchestrator-dev)` response also contains `## Question for the orchestrator`.
+An envelope with status `en-attente` is not a final return: the caller relays the blocking questions, relaunches with `task_id`, and waits for the final return (payload status, report `rp-…`) before building its recap or passing the next checkpoint (for instance `cp-feature` after orchestrator-dev).
 
 ### Conditional parallelism (mode `auto` only)
 

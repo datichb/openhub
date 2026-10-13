@@ -7,7 +7,7 @@ the isolation constraints that follow from it, and the architectural decisions
 made to adapt todo list usage in the multi-agent hub.
 
 > See also: [task-delegation.en.md](task-delegation.en.md) (delegation mechanism),
-> [`skills/posture/tool-todowrite.md`](../../skills/posture/tool-todowrite.md) (usage rules).
+> [`skills/posture/coordinator-posture.md`](../../skills/posture/coordinator-posture.md) (usage rules, « Suivi » section; `tool-todowrite` was merged into it in L5).
 
 ---
 
@@ -206,7 +206,7 @@ so the user knows where the implementation stands:
 
 ## What Does Not Change
 
-- The fundamental rules of `tool-todowrite.md` apply without exception: exactly
+- The fundamental rules of the coordinator posture apply without exception: exactly
   1 task `in_progress` at a time, real-time updates, full list on every call.
 - Agents `developer`, `reviewer`, `documentarian` do not use
   `todowrite` when invoked as subagents: their sessions are invisible.
@@ -217,7 +217,7 @@ so the user knows where the implementation stands:
 
 ## References
 
-- [`skills/posture/tool-todowrite.md`](../../skills/posture/tool-todowrite.md) — Usage rules and phase suffixes
+- [`skills/posture/coordinator-posture.md`](../../skills/posture/coordinator-posture.md) — Usage rules (phase suffixes are in `orchestrator-dev-ticket-workflow`)
 - [`skills/orchestrator/orchestrator-protocol.md`](../../skills/orchestrator/orchestrator-protocol.md) — Update rules for the feature orchestrator
 - [`skills/orchestrator/orchestrator-dev-protocol.md`](../../skills/orchestrator/orchestrator-dev-protocol.md) — Dynamic labels for standalone orchestrator-dev
 - [`docs/architecture/task-delegation.en.md`](task-delegation.en.md) — Delegation via `task`, session isolation, `task_id`

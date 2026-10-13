@@ -7,6 +7,8 @@ description: Reference guide for the mechanism that allows agents invoked via ta
 
 # Inter-agent session interruption mechanism
 
+> **Replaced in L5 (modernisation, October 2026).** A subagent no longer stops at the end of each phase: it chains its phases in a single session and returns an envelope of at most 15 lines (skill `shared/handoff-envelope`); a blocking decision stops it with status `en-attente`, then the caller relaunches it with `task_id`. The « Retour intermédiaire » and « Question pour l'orchestrator » blocks described below no longer exist. Up-to-date reference: [Inter-agent delegation](../architecture/task-delegation.en.md#inter-agent-communication-protocols). This guide is kept for the record.
+
 ## Why this mechanism
 
 When an agent is invoked via the `task` tool, only the **last text message** from the child session is returned to the parent agent. Everything the agent displays during the session (phase recaps, pause contexts, intermediate results) is invisible to the parent agent and to the user in the parent session.

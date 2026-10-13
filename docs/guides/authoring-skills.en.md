@@ -14,9 +14,9 @@ Before writing a skill, identify its type. The type determines the expected form
 | Type | Role | Dominant format | Examples |
 |------|------|----------------|---------|
 | **Technical** | Procedural workflow — guides the agent step by step | Numbered phases, templates, self-checks | `debugger-workflow`, `planner-workflow`, `auditor-workflow` |
-| **Pattern** | Recurring constraint — enforces a behavior at all times | ✅/❌ rules, violation examples, triggers | `posture/tool-question`, `posture/coordination-only` |
+| **Pattern** | Recurring constraint — enforces a behavior at all times | ✅/❌ rules, violation examples, triggers | `posture/user-facing-posture`, `posture/coordinator-posture` |
 | **Reference** | Catalog / lookup — consulted on demand | Tables, structured lists, source of truth | `shared/hub-workflow-reference`, `developer/dev-standards-*` |
-| **Discipline** | Cross-cutting behavioral norm — shapes the overall posture | Principles, absolute prohibitions, examples | `posture/expert-posture`, `posture/retranscription-coordinateur` |
+| **Discipline** | Cross-cutting behavioral norm — shapes the overall posture | Principles, absolute prohibitions, examples | `posture/expert-posture`, `posture/core-posture` |
 
 > A skill can be hybrid (e.g.: Technical + Reference), but one type always dominates. Identify the dominant type to choose the main format.
 
@@ -109,8 +109,8 @@ Example for a completion skill:
 
 If two skills could be confused, the description should point to the other:
 ```yaml
-description: Transcription protocol for coordinators — verbatim display rules
-  for agent results. Complementary to posture/coordination-only (tool restrictions).
+description: Use when you chain phases — recap and validation per phase as entry agent,
+  single session as subagent. Complementary to shared/handoff-envelope (return).
 ```
 
 ### Dependencies between skills (`requires:`)
@@ -119,9 +119,9 @@ A skill can declare the skills it makes no sense without:
 
 ```yaml
 ---
-name: planner-phase-0
+name: planner-phase-1
 description: …
-requires: [shared/phase-0-validation-loop]
+requires: [shared/elicitation-techniques]
 ---
 ```
 

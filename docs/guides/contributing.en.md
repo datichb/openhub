@@ -223,7 +223,7 @@ Skills are organised by domain in `skills/`:
 | `skills/auditor/` | Audit protocols |
 | `skills/orchestrator/` | Coordination protocols |
 | `skills/planning/` | Planning protocols |
-| `skills/posture/` | Posture and cross-cutting behavior (`expert-posture`, `tool-question`) |
+| `skills/posture/` | Posture and cross-cutting behavior (`expert-posture`, `user-facing-posture`, `subagent-posture`) |
 | `skills/qa/` | Quality protocols |
 | `skills/debugger/` | Diagnostic protocols |
 | `skills/reviewer/` | Review protocols |
@@ -283,7 +283,7 @@ native_skills: [path/to/my-skill]
 ```
 Also add a row to the "## Available skills" guide section in the agent body with the loading trigger.
 
-**Handoff skills:** if your skill defines a structured return format between two agents (a `## Return to ...` block), it is always **Bucket A** — inject it in **both** the producing agent and the consuming agent. This guarantees the two agents share the same contract. See `skills/reviewer/reviewer-handoff-format.md` or `skills/auditor/audit-handoff-format.md` as examples.
+**Returns between agents:** an agent launched by another inlines `shared/handoff-envelope` (common envelope) and its payload `<family>/<agent>-payload` (Bucket A, `when: role=subagent`, 200 to 400 tokens, statuses in the `statuses:` frontmatter). The caller inlines no format: the statuses of the agents it launches are generated in its session contract. Never write `## Retour vers <agent>` with an agent name in a skill: the title comes from the contract. Examples: `skills/developer/developer-payload.md`, `skills/reviewer/reviewer-payload.md`.
 
 ---
 
