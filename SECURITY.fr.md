@@ -93,7 +93,7 @@ Le démon oh (`ohd`) fait tourner un proxy d'identifiants sur `127.0.0.1` (une �
 Une session ne voit que les agents et les skills de son paquet. C'est obligatoire et non réglable.
 
 - Les agents natifs d'opencode sont désactivés ; les skills intégrées sont refusées ; pour chaque agent, la délégation n'est permise que vers les cibles du graphe du workflow.
-- La configuration et les données opencode du projet sont exclues (`OPENCODE_DISABLE_PROJECT_CONFIG=1`, dossier de données propre au groupe).
+- La configuration et les données opencode du projet sont exclues (`OPENCODE_DISABLE_PROJECT_CONFIG=1`, dossier de données propre au groupe). Cette variable écarte aussi l'`AGENTS.md` de la racine du projet et de ses parents. Deux sources restent hors de ce contrôle, signalées par `oh doctor` : un `AGENTS.md` de sous-dossier, ajouté au prompt par l'outil de lecture d'opencode quand un agent lit un fichier de ce dossier, et `~/.config/opencode/AGENTS.md` en local sans `[execution] strict_isolation`.
 - Le plugin oh retire tout agent ou skill hors paquet (deuxième barrière).
 - **`Attest`** s'exécute après chaque démarrage de serveur et pour chaque nouveau dossier : il compare au paquet les agents, les skills visibles pour chaque agent (sur les règles effectives que renvoie l'outil) et les serveurs MCP. Tout élément inattendu fait échouer le lancement ; le serveur est arrêté et son jeton révoqué.
 - `[execution] strict_isolation` masque en plus votre configuration opencode d'utilisateur en local. En conteneur et à distance, elle n'est jamais visible.
