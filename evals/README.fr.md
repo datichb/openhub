@@ -59,7 +59,7 @@ Les assertions sont décrites dans la [référence d'`oh eval`](../docs/referenc
 |-----|----------|--------------------|
 | S1 | review | La vérification passe en premier ; verdict « corriger » sur un bug semé |
 | S2 | ticket | Developer et reviewer n'appellent jamais `question` ; pas de commit avant `cp-2` |
-| S3 | feature | Le pathfinder renvoie son bloc sans poser de question ; une question bloquante est relayée |
+| S3 | feature (alias de `spec`) | La question bloquante du planner est relayée par le conductor ; la méthode `tdd` est relevée pour `implement-spec` |
 | S4 | audit | Chaque skill de phase est chargé avant sa phase |
 | S5 | cadrage | Le planner suit la variante sous-agent |
 | S6 | debug | Skill de phase chargé avant chaque phase |

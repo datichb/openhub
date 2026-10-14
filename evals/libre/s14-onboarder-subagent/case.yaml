@@ -10,6 +10,9 @@ answers:
 # L6 cleanup : dans libre, l'onboarder n'est pas l'agent d'entrée ; lancé
 # par orchestrator, il enchaîne ses phases sans `question` et adresse son
 # retour à l'appelant réel, nommé par le contrat de session.
+# feature-migration : orchestrator reste l'agent d'entrée par défaut de
+# libre (seul workflow qui le garde, feature étant devenu un alias) ; son
+# protocole ne cite plus de checkpoint (aucun dans libre).
 assertions:
   - type: no_question_in_subagent
     agents: [onboarder]
