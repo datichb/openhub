@@ -35,6 +35,8 @@ answers:
   permission: once          # once | reject
   question: first           # first option, or a free answer
   wiki: accept              # wiki proposals on the card of a commit checkpoint: accept | refuse | pending (default: left queued)
+  sequence:                 # answers to the first asks of a checkpoint, in order; then checkpoints
+    cp-spec: ["reject: add a rule…"]
 assertions:
   - type: ran
     command: "git commit*"
@@ -71,8 +73,8 @@ The assertions are described in the [`oh eval` reference](../docs/reference/cli-
 | S17 | skill-refresh | Proposal refused at `cp-refresh`: no write nor commit, before or after |
 | S18 | skill-refresh | Every stack skill is recent: no checkpoint, no write, no commit |
 | S19 | cadrage | "All the tasks" clashes with two rules of the code (private tasks, trash): each one becomes a question asked to the user |
-| S20 | cadrage | "Réservation" means a loan in the code and a waiting list in a type: the meaning is asked to the user, the planner's spec carries a glossary that defines it |
-| S21 | cadrage | Each acceptance criterion of the spec carries, on its own line, the test that checks it |
+| S20 | spec | "Réservation" means a loan in the code and a waiting list in a type: the meaning is asked to the user, the spec written under `docs/wiki/specs/` carries a glossary that defines it (a `cadrage` case until R4) |
+| S21 | spec | Each acceptance criterion of the written spec carries, on its own line, the test that checks it (a `cadrage` case until R4) |
 | S22 | ticket | `tdd` method: `cp-seams`, then `cp-red` passed (tests failing for the right reason) before the commit, `cp-2` green, hidden tests |
 | S23 | quick | Mutex asked for without changing the API: `go vet ./...` (a CI step, outside the package changed) and hidden tests pass; a naive implementation passes `go test` |
 | S24 | debug | Misleading lead: the stack points to `report/format.go`, the fix ticket names the real cause (`splitRecord`, `ledger/parse.go`) |
@@ -80,8 +82,11 @@ The assertions are described in the [`oh eval` reference](../docs/reference/cli-
 | S26 | review | Two-axis review: the forgotten ticket criterion (`ErrDivByZero`) is raised under « conformity to the request », the debug print under « code quality »; reports off (`reports: off`) |
 | S27 | cadrage | Two designs, only one respects the `depguard` rule of `.golangci.yml` (the domain imports no other package): that option is recommended, the constraint cited, despite the user's preference |
 | S28 | skill-refresh | Stack skill without metadata rewritten: `oh skill check --hub .` clean (when `oh` is on the `PATH` of the hidden tests), « Utiliser quand… » description, locators, and nothing of the excerpt given in the notes copied verbatim |
+| S29 | spec | The spec is only written under `docs/wiki/specs/`, committed alone by the planner after `cp-spec`; the tickets, created after `cp-tickets`, cite it |
+| S30 | spec | A rule added by the user at `cp-spec` becomes a criterion with its test point, covered by the breakdown before the tickets are created |
+| S31 | spec | A slice asked outside the spec at `cp-tickets` (the CI) is refused by oh (convergence pass) until a criterion of the spec covers it |
 
-S16 to S28 are not in the reference measure yet (`notInBaseline` in `cli/internal/evalrun/evalrun_test.go`): they enter it at the next recording.
+S16 to S31 are not in the reference measure yet (`notInBaseline` in `cli/internal/evalrun/evalrun_test.go`): they enter it at the next recording.
 
 The reference measure (Haiku, three repetitions) is recorded in `cli/internal/evalrun/testdata/evals/baseline.json`; `make test-eval` compares the current run with it.
 

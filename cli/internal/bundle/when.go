@@ -42,6 +42,8 @@ import (
 //	wiki         the project has a wiki (docs/wiki/)
 //	shell        the agent may run shell commands
 //	headless     nobody follows the session (workflow `headless: true`)
+//	writes       the workflow opens documentation paths to the agent (R4,
+//	             `agents.<id>.writes`)
 //
 // Inlined skills and the agent body are filtered for the agent; an
 // on-demand skill for the union of the agents whose catalogue holds it (a
@@ -67,7 +69,7 @@ const (
 
 var (
 	whenSetKeys  = []string{"role", "agent", "calls", "mcp", "plugin", "method"}
-	whenFlagKeys = []string{"websearch", "beads_write", "ticket", "wiki", "shell", "headless"}
+	whenFlagKeys = []string{"websearch", "beads_write", "ticket", "wiki", "shell", "headless", "writes"}
 	whenRoles    = []string{roleEntry, roleSubagent}
 )
 
@@ -331,6 +333,8 @@ type sessionEnv struct {
 	ticket, wiki, headless bool
 	entry, method          string
 	graph, callers         map[string][]string
+	// writes: the agents given documentation paths (R4, `writes:`).
+	writes map[string]bool
 }
 
 // newSessionEnv reads the session of a bundle being built (spec: its MCP
@@ -350,6 +354,14 @@ func newSessionEnv(w *workflow.Spec, projectPath string, spec sessionspec.Bundle
 	s.websearch = ToolEffect(spec.Permissions, sessionspec.ActionWebSrch, "*") == sessionspec.EffectAllow
 	if w != nil {
 		s.headless = w.Headless
+		for _, id := range w.Agents.Keys() {
+			if len(w.WritesOf(id)) > 0 {
+				if s.writes == nil {
+					s.writes = map[string]bool{}
+				}
+				s.writes[id] = true
+			}
+		}
 		for _, k := range w.Inputs.Keys() {
 			if in, _ := w.Inputs.Get(k); in.Type == workflow.InputBeadsID || in.Type == workflow.InputBeadsIDs {
 				s.ticket = true
@@ -403,5 +415,6 @@ func (s sessionEnv) agentEnv(id string, perms []sessionspec.PermissionRule) when
 	env.flags["ticket"] = s.ticket
 	env.flags["wiki"] = s.wiki
 	env.flags["headless"] = s.headless
+	env.flags["writes"] = s.writes[id]
 	return env
 }

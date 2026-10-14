@@ -28,6 +28,7 @@ Complete index of all openhub documentation (oh v5). Guides and references are b
 |-------|-------------|
 | [Workflows](guides/workflows.en.md) | Usage scenarios: feature, ticket, audit, debug, review… |
 | [v5 Sessions](guides/sessions-v5.en.md) | Sessions driven from oh: opening, decisions, sleep, resume, results, LLM keys |
+| [Spec workflow](guides/spec-workflow.en.md) | Spec written in the wiki (`docs/wiki/specs/`), checked by oh (glossary, test points, breakdown), then tickets |
 | [Team Workflows](guides/team-workflows.en.md) | Team and project workflows in team-state: drafts, publication, history, locks, solo space |
 | [Container runtime](guides/container.en.md) | Sessions in a container (Colima, Podman, Docker CLI): project dev image, settings, secrets |
 | [Remote runners](guides/remote-runners.en.md) | Remote sessions on GitLab CI: runners, `oh-runner` project, `oh remote setup`, fetch and resolve |

@@ -8,6 +8,11 @@ references:
   - developer/beads-dev
 conditional:
 commands:
+  # R4 (writes:): the planner of spec stages and commits its spec,
+  # docs/wiki/specs/<slug>.md (a placeholder here), allowed for that path
+  # only (writes_test.go).
+  - "spec/planner: git add x"
+  - 'spec/planner: git commit -m "x" -- x'
 tasks:
   # orchestrator-dev-protocol (inlined): its invocation table names the
   # documentarian, absent from review-feedback (feedback mode, no

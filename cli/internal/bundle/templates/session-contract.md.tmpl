@@ -36,6 +36,9 @@
   - `{{ .ID }}` : {{ .Detail }}
 {{- end }}{{ end }}
 {{- end }}
+{{- if .Writes }}
+- **Écritures** (`writes:` du workflow) : tu peux créer et modifier {{ codes .Writes }}, et seulement ces chemins (outils `edit` et `write`) ; tout autre fichier reste en lecture seule. Commit, une fois déverrouillé par son checkpoint : `git add <chemin>`, puis `git commit -m "<message>" -- <chemin>` (les seuls chemins commités).
+{{- end }}
 {{- if .MaxFixRounds }}
 - **Tours de correction** : au plus {{ .MaxFixRounds }} (developer → reviewer) par ticket ; au-delà, passe le checkpoint de commit en signalant les points non résolus.
 {{- end }}

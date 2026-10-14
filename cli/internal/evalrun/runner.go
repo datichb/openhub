@@ -235,6 +235,8 @@ func (r *Runner) runAttempt(ctx context.Context, j passJob) (res PassResult, thr
 	}
 	ev := Evidence{Events: events, Changed: changed, HiddenTests: func() (bool, string, error) {
 		return RunHiddenTests(ctx, c, p.Project)
+	}, ReadFile: func(rel string) ([]byte, error) {
+		return os.ReadFile(filepath.Join(p.Project, filepath.FromSlash(rel)))
 	}}
 	if len(events) == 0 {
 		res.Assertions = make([]AssertionResult, len(c.Assertions))

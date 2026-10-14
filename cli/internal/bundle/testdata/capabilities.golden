@@ -1,5 +1,7 @@
 cp     review-feedback/orchestrator-dev: cp-1
 cp     review-feedback/orchestrator-dev: cp-3
+deny   spec/planner: git add x
+deny   spec/planner: git commit -m "x" -- x
 locked cadrage/planner: bd create
 locked cadrage/planner: bd create -t epic
 locked cadrage/planner: bd duplicate
@@ -21,4 +23,10 @@ locked libre@operator: helm upgrade x x -f x
 locked libre@operator: kubectl apply
 locked libre@operator: kubectl apply -f x
 locked libre@operator: terraform apply
+locked spec/planner: bd create
+locked spec/planner: bd create -t epic
+locked spec/planner: bd duplicate
+locked spec/planner: bd duplicate x --of x
+locked spec/planner: bd supersede
+locked spec/planner: git commit -m "docs(spec): x" -- docs/wiki/specs/x.md
 prose  review-feedback/orchestrator-dev: documentarian

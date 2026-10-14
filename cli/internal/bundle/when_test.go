@@ -22,7 +22,7 @@ func roleEnv(agent string, roles ...string) whenEnv {
 }
 
 func TestParseWhen(t *testing.T) {
-	for _, ok := range []string{"", "role=subagent", "role=entry,subagent", "agent!=developer", "calls=developer mcp=gitlab", "websearch", "!headless shell", "plugin=context-mode", "role=subagent | calls=developer", "method=tdd", "method!=standard"} {
+	for _, ok := range []string{"", "role=subagent", "role=entry,subagent", "agent!=developer", "calls=developer mcp=gitlab", "websearch", "!headless shell", "plugin=context-mode", "role=subagent | calls=developer", "method=tdd", "method!=standard", "!writes", "writes role=subagent"} {
 		_, err := parseWhen(ok)
 		assert.NoError(t, err, ok)
 	}
@@ -276,6 +276,10 @@ func TestNoDeadRoleBlocksInAgents(t *testing.T) {
 					env := withAllFlags(roleEnv(id, r))
 					env.method = string(m)
 					alive = alive || e.holds(env)
+					// R4: a negated flag (`!writes`) holds without the flag.
+					bare := roleEnv(id, r)
+					bare.agent, bare.method = "*", string(m)
+					alive = alive || e.holds(bare)
 				}
 			}
 			assert.True(t, alive, "%s: block %q never kept (roles of %s: %v)", rel, strings.TrimSpace(m[2]), id, has)

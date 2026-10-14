@@ -1,9 +1,8 @@
 id: S21
-title: "Cadrage : chaque critère d'acceptation de la spec porte son point de test"
-workflow: cadrage
+title: "Spec : chaque critère d'acceptation de la spec écrite porte son point de test, vérifié par oh avant cp-spec"
+workflow: spec
 mode: semi-auto
-# Le démon ne garde aucun rapport : le planner inclut son rapport complet
-# dans son retour, où les assertions le lisent.
+# Le démon ne garde aucun rapport : le planner rend son retour complet.
 reports: off
 text: |
   Ajouter à calc une fonction Percent(part, total int) (int, error) : le pourcentage de part dans total, arrondi à l'entier inférieur.
@@ -14,27 +13,33 @@ timeout: 25m
 answers:
   question: first
   checkpoints:
-    cp-scope: approve
     # La création des tickets n'est pas évaluée ici.
     cp-tickets: "reject: Évaluation terminée : ne crée aucun ticket et termine le workflow."
     "*": approve
-# R1-a (CP-R1) : chaque critère d'acceptation porte, sur sa propre ligne, le
-# test qui le vérifie (nom d'un test Go, ou commande go test -run).
+# R1-a, cible de R4 (CP-R1, 0/3 sur cadrage) : chaque critère d'acceptation
+# porte, sur sa propre ligne de la spec écrite, le test qui le vérifie (nom
+# d'un test Go, ou commande go test -run) ; oh vérifie la spec (cp-converge)
+# avant de la montrer (cp-spec).
 assertions:
-  - type: text_matches
+  - type: file_matches
     name: le critère « total nul » porte son point de test
-    agent: planner
+    paths: ["docs/wiki/specs/**"]
     pattern: "(?m)^[^\\n]*(z[ée]ro|total ?== ?0|total vaut 0|, ?0\\))[^\\n]*((?-i:Test[A-Z_]\\w*)|go test -run)"
-  - type: text_matches
+  - type: file_matches
     name: le critère « plafonné à 100 » porte son point de test
-    agent: planner
+    paths: ["docs/wiki/specs/**"]
     pattern: "(?m)^[^\\n]*(plafon|100)[^\\n]*((?-i:Test[A-Z_]\\w*)|go test -run)"
-  - type: text_matches
+  - type: file_matches
     name: le critère « négatif » porte son point de test
-    agent: planner
+    paths: ["docs/wiki/specs/**"]
     pattern: "(?m)^[^\\n]*n[ée]gati[^\\n]*((?-i:Test[A-Z_]\\w*)|go test -run)"
+  - type: checkpoint_order
+    order: [cp-understanding, cp-converge, cp-spec, cp-tickets]
   - type: no_question_in_subagent
-    agents: [planner, pathfinder]
+    agents: [planner, designer]
   - type: changed_within
-    name: aucun fichier modifié
+    name: seule la spec est écrite
+    paths: ["docs/wiki/specs/**"]
+    min_files: 1
+    max_files: 1
   - type: no_denied_loop

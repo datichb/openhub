@@ -540,6 +540,8 @@ func (req Request) agentPermissions(fm *bricks.AgentFrontmatter, instructions pr
 	}
 	// The guards follow the instruction reads: they always win.
 	verify = append(verify, instructionReadRules(fm.InstructionsLevel(), own, instructions)...)
+	// R4: the documentation paths of the workflow (writes:), before the guards.
+	verify = append(verify, WritesRules(req.writesOf(fm.ID))...)
 	rules := append(append(append(append(append(append(append(own, verify...), InfraGuard(own)...), GitShellGuard(own)...), BeadsShellGuard()...), HookGuard()...), HookEditGuard(own)...), BeadsDirGuard()...)
 	if req.wikiMCP {
 		// wiki_apply: the documentarian only (LD-J).

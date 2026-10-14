@@ -554,6 +554,11 @@ func TestCapabilities(t *testing.T) {
 				able := false
 				for _, a := range b.Spec.Agents {
 					able = able || capEffect(a.Permissions, cmd) != sessionspec.EffectDeny
+					// R4: an agent given documentation paths commits them only.
+					for _, w := range r.Spec.WritesOf(a.ID) {
+						only := cmd + " -- " + strings.ReplaceAll(WritesPattern(w), "*", "x.md")
+						able = able || (op == sessionspec.UnlockCommit && capEffect(a.Permissions, only) != sessionspec.EffectDeny)
+					}
 				}
 				if !able {
 					errs = append(errs, fmt.Sprintf("%s: %s unlocks %s but no member may run %q", ref.ID, c.ID, op, cmd))

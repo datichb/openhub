@@ -33,11 +33,24 @@ type Answer struct {
 // EvalNote is the message given with an automatic answer of the evaluation.
 const EvalNote = "oh eval"
 
+// VerifyFailedNote rejects a checkpoint whose verification by oh failed: an
+// approval needs an override, which an evaluation never gives.
+const VerifyFailedNote = "Refusé par l'évaluation : la vérification d'oh a échoué. Redemande le checkpoint pour lire ce qui manque, corrige, puis redemande-le."
+
 // Decide returns the answer of a case to a decision.
-func (a Answers) Decide(d domain.Decision) Answer {
+func (a Answers) Decide(d domain.Decision) Answer { return a.DecideAt(d, -1) }
+
+// DecideAt returns the answer of a case to a decision, the n-th ask of its
+// checkpoint (from 0; the sequence of the checkpoint first, n < 0: none).
+func (a Answers) DecideAt(d domain.Decision, n int) Answer {
 	switch d.Kind {
 	case domain.DecisionCheckpoint:
 		id, _ := d.Payload.Data["checkpoint"].(string)
+		if seq := a.Sequence[id]; n >= 0 && n < len(seq) {
+			if choice, msg, err := ParseChoice(seq[n]); err == nil {
+				return Answer{Decision: choice, Message: msg}
+			}
+		}
 		v, ok := a.Checkpoints[id]
 		if !ok {
 			v, ok = a.Checkpoints["*"]

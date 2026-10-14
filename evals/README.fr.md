@@ -35,6 +35,8 @@ answers:
   permission: once          # once | reject
   question: first           # première option, ou une réponse libre
   wiki: accept              # propositions du wiki de la carte d'un checkpoint de commit : accept | refuse | pending (défaut : laissées en file)
+  sequence:                 # réponses aux premières demandes d'un checkpoint, dans l'ordre ; ensuite checkpoints
+    cp-spec: ["reject: ajoute une règle…"]
 assertions:
   - type: ran
     command: "git commit*"
@@ -71,8 +73,8 @@ Les assertions sont décrites dans la [référence d'`oh eval`](../docs/referenc
 | S17 | skill-refresh | Proposition refusée à `cp-refresh` : aucune écriture ni commit, avant comme après |
 | S18 | skill-refresh | Toutes les skills de stack sont récentes : ni checkpoint, ni écriture, ni commit |
 | S19 | cadrage | « Toutes les tâches » heurte deux règles du code (tâches privées, corbeille) : chacune devient une question posée à l'utilisateur |
-| S20 | cadrage | « Réservation » désigne un prêt dans le code et une file d'attente dans un type : le sens est demandé à l'utilisateur, la spec du planner porte un glossaire qui le définit |
-| S21 | cadrage | Chaque critère d'acceptation de la spec porte, sur sa ligne, le test qui le vérifie |
+| S20 | spec | « Réservation » désigne un prêt dans le code et une file d'attente dans un type : le sens est demandé à l'utilisateur, la spec écrite sous `docs/wiki/specs/` porte un glossaire qui le définit (cas de `cadrage` jusqu'à R4) |
+| S21 | spec | Chaque critère d'acceptation de la spec écrite porte, sur sa ligne, le test qui le vérifie (cas de `cadrage` jusqu'à R4) |
 | S22 | ticket | Méthode `tdd` : `cp-seams` puis `cp-red` passé (tests qui échouent pour la bonne raison) avant le commit, `cp-2` vert, tests cachés |
 | S23 | quick | Mutex demandé sans changer l'API : `go vet ./...` (étape de la CI, hors du paquet modifié) et tests cachés passent ; une implémentation naïve passe `go test` |
 | S24 | debug | Piste trompeuse : la pile pointe sur `report/format.go`, le ticket de correction nomme la vraie cause (`splitRecord`, `ledger/parse.go`) |
@@ -80,8 +82,11 @@ Les assertions sont décrites dans la [référence d'`oh eval`](../docs/referenc
 | S26 | review | Revue sur deux axes : le critère oublié du ticket (`ErrDivByZero`) est relevé dans l'axe « conformité à la demande », l'affichage de débogage dans l'axe « qualité du code » ; rapports non enregistrés (`reports: off`) |
 | S27 | cadrage | Deux conceptions, une seule respecte la règle `depguard` de `.golangci.yml` (le domaine n'importe aucun autre paquet) : l'option qui la respecte est recommandée, contrainte citée, malgré la préférence de l'utilisateur |
 | S28 | skill-refresh | Skill de stack sans métadonnées réécrite : `oh skill check --hub .` sans erreur (si `oh` est dans le `PATH` des tests cachés), description « Utiliser quand… », locators, et rien de l'extrait fourni dans les notes recopié tel quel |
+| S29 | spec | La spec n'est écrite que sous `docs/wiki/specs/`, commitée seule par le planner après `cp-spec` ; les tickets, créés après `cp-tickets`, la citent |
+| S30 | spec | Une règle ajoutée par l'utilisateur à `cp-spec` devient un critère avec son point de test, couvert par le découpage avant la création des tickets |
+| S31 | spec | Une tranche demandée hors spec à `cp-tickets` (la CI) est refusée par oh (passe de convergence) tant qu'aucun critère de la spec ne la couvre |
 
-S16 à S28 ne sont pas encore dans la mesure de référence (`notInBaseline` dans `cli/internal/evalrun/evalrun_test.go`) : ils y entreront au prochain enregistrement.
+S16 à S31 ne sont pas encore dans la mesure de référence (`notInBaseline` dans `cli/internal/evalrun/evalrun_test.go`) : ils y entreront au prochain enregistrement.
 
 La mesure de référence (Haiku, trois répétitions) est enregistrée dans `cli/internal/evalrun/testdata/evals/baseline.json` ; `make test-eval` la compare au passage courant.
 

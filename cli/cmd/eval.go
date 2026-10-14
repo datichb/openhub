@@ -25,6 +25,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/hubcontent"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/runsvc"
+	checkpointsvc "github.com/datichb/openhub/cli/internal/services/checkpoint"
 	sessionsvc "github.com/datichb/openhub/cli/internal/services/session"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 	"github.com/datichb/openhub/cli/internal/storage/sqlite"
@@ -769,6 +770,8 @@ func evalLoop(ctx context.Context, ssvc *sessionsvc.Service, sid string, answers
 		maxDecisions = defaultMaxDecisions
 	}
 	var idleSince time.Time
+	// asks counts the asks of each checkpoint (answers.sequence).
+	asks, counted := map[string]int{}, map[string]bool{}
 	t := time.NewTicker(evalPoll)
 	defer t.Stop()
 	for {
@@ -783,13 +786,25 @@ func evalLoop(ctx context.Context, ssvc *sessionsvc.Service, sid string, answers
 		}
 		for _, it := range items {
 			d := it.Decision
-			ans := answers.Decide(d)
 			cp, _ := d.Payload.Data["checkpoint"].(string)
+			ans := answers.DecideAt(d, asks[cp])
+			if d.Kind == domain.DecisionCheckpoint && !counted[d.ID] {
+				counted[d.ID] = true
+				asks[cp]++
+			}
 			if d.Kind == domain.DecisionCheckpoint && answers.Wiki != "" {
 				res.Decisions = append(res.Decisions, evalWiki(ctx, ssvc, sid, d.ID, cp, answers.Wiki, log)...)
 			}
 			rec := evalrun.AnsweredDecision{Kind: string(d.Kind), Checkpoint: cp, Decision: ans.Decision}
-			if err := ssvc.Decide(ctx, sessionsvc.Reply{DecisionID: d.ID, Decision: ans.Decision, Message: ans.Message, Answer: ans.Answer}); err != nil {
+			err := ssvc.Decide(ctx, sessionsvc.Reply{DecisionID: d.ID, Decision: ans.Decision, Message: ans.Message, Answer: ans.Answer})
+			if err != nil && d.Kind == domain.DecisionCheckpoint && errors.Is(err, checkpointsvc.ErrOverrideRequired) {
+				// As a user would: the verification of oh failed, so the
+				// approval is refused; the work goes back to the agent
+				// (never an override).
+				rec.Decision = "reject"
+				err = ssvc.Decide(ctx, sessionsvc.Reply{DecisionID: d.ID, Decision: "reject", Message: evalrun.VerifyFailedNote})
+			}
+			if err != nil {
 				rec.Error = err.Error()
 			}
 			fmt.Fprintf(log, "eval pass: %s %s → %s %s\n", d.Kind, cp, ans.Decision, rec.Error)

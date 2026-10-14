@@ -33,6 +33,7 @@ Un checkpoint conditionnel y figure avec la mention « si sa condition est vraie
 | `ticket` | `cp-2` | `cp-2` | 3 |
 | `ticket` en méthode `tdd` | `cp-seams`, `cp-2` | `cp-2` | 3 + 1 |
 | `cadrage` | `cp-scope`, `cp-tickets`, `cp-recap` | `cp-tickets` | 3 |
+| `spec` | `cp-understanding`, `cp-spec`, `cp-tickets` (`cp-converge` est vérifié par oh, sans pause) | `cp-spec`, `cp-tickets` | 4 |
 | `sweep` | `cp-plan`, `cp-commit`, `cp-recap` | `cp-commit` | 3 |
 | `review-feedback` | `cp-fix`, `cp-2` | `cp-2` | 3 |
 | `quick` | `cp-commit` | `cp-commit` | 3 |
@@ -94,6 +95,8 @@ Dans un workflow en lecture seule (`risk: read`), un checkpoint vérifié demand
 **Assouplissement** : une couche d'équipe ou de projet peut renforcer une vérification héritée (ajouter des types, des commandes, des chemins `must_touch`, allonger le délai), jamais la retirer ni l'affaiblir (`loosening`) ; retirer un checkpoint vérifié est refusé (`verified_checkpoint_removed`).
 
 Les workflows livrés vérifient ainsi `cp-2` (`ticket`, `feature`, `review-feedback`) et `cp-commit` (`quick`, `debug`, `sweep`).
+
+**Specs écrites (`verify.spec`, R4)** : au lieu de commandes, oh lit les specs que la session a modifiées sous les chemins donnés et vérifie leur glossaire, le point de test sur la ligne de chaque critère (`CA-n · Test : …`) et, avec `breakdown: true`, que le découpage couvre chaque critère sans tranche hors spec ([format](workflow-schema.fr.md#verify--vérification-lancée-par-oh)). Le workflow `spec` s'en sert trois fois : `cp-converge` (automatique dans tous les modes : la passe de convergence, qui renvoie un écart au planner sans pause), puis `cp-spec` et `cp-tickets` (même vérification avant le commit et la création des tickets).
 
 ### Sessions distantes
 

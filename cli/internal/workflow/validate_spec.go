@@ -484,6 +484,7 @@ func (v *validator) agents() {
 			}
 		}
 		v.scratch(base, k, a, members)
+		v.writes(base, a)
 	}
 	if cycle := findCycle(s.Agents.Keys(), afterGraph); cycle != nil {
 		v.err("after_cycle", "agents."+cycle[0]+".after", strings.Join(cycle, " → "))

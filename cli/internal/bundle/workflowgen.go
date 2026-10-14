@@ -62,6 +62,13 @@ type mapData struct {
 	// the sequence of their own checkpoints.
 	CheckpointAgents []string
 	Sequences        []agentSequence
+	// Writes are the documentation paths opened to agents (R4).
+	Writes []agentWrites
+}
+
+type agentWrites struct {
+	Agent string
+	Paths []string
 }
 
 type agentSequence struct{ Agent, Sequence string }
@@ -192,6 +199,11 @@ func buildMapData(spec *workflow.Spec, graph map[string][]string, modeOf func(st
 	}
 	if spec.Beads != nil {
 		d.Beads = spec.Beads.Allow
+	}
+	for _, id := range spec.Agents.Keys() {
+		if w := spec.WritesOf(id); len(w) > 0 {
+			d.Writes = append(d.Writes, agentWrites{Agent: id, Paths: w})
+		}
 	}
 	if cb := spec.CircuitBreaker; cb != nil && cb.MaxConsecutiveSubagents != nil {
 		d.MaxConsecutive = *cb.MaxConsecutiveSubagents

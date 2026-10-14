@@ -1,0 +1,42 @@
+id: S30
+title: "Spec : une règle ajoutée par l'utilisateur à cp-spec devient un critère avec son point de test, couvert par le découpage avant la création"
+workflow: spec
+mode: semi-auto
+reports: off
+text: "Ajouter à calc une fonction Mul(a, b int) int, avec son test."
+beads:
+  prefix: ev
+timeout: 25m
+answers:
+  question: first
+  sequence:
+    cp-spec:
+      - "reject: Ajoute une règle : Mul gère les nombres négatifs, par exemple Mul(-2, 3) vaut -6."
+  checkpoints:
+    "*": approve
+# R4 (passe de convergence) : la spec corrigée après cp-spec garde un point
+# de test par critère, et oh refuse cp-converge, puis cp-tickets, tant
+# qu'un critère n'est couvert par aucune tranche : une création de ticket
+# après cp-tickets prouve que la spec et le découpage convergent.
+assertions:
+  - type: file_matches
+    name: la règle ajoutée est un critère qui porte son point de test
+    paths: ["docs/wiki/specs/**"]
+    pattern: "(?m)^[^\\n]*(n[ée]gati|-6\\b|Mul\\(-2)[^\\n]*((?-i:Test[A-Z_]\\w*)|go test -run)"
+  - type: ran
+    name: pas de ticket avant cp-tickets
+    command: "bd create*"
+    absent: true
+    before: { checkpoint_passed: cp-tickets }
+  - type: ran
+    name: les tickets sont créés une fois la spec et le découpage vérifiés
+    agent: planner
+    command: "bd create*"
+  - type: no_question_in_subagent
+    agents: [planner, designer]
+  - type: changed_within
+    name: seule la spec est écrite
+    paths: ["docs/wiki/specs/**"]
+    min_files: 1
+    max_files: 1
+  - type: no_denied_loop

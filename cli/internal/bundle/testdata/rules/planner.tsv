@@ -9,6 +9,9 @@ planner	Ce que tu NE fais PAS	❌ Tu ne prends pas de décision sans validation 
 planner	Ce que tu NE fais PAS	❌ Tu ne crées pas de tickets sans que le plan soit validé
 planner	Ce que tu NE fais PAS	❌ Tu n'ajoutes pas le label `ai-delegated` sans accord explicite
 planner	Ce que tu NE fais PAS	❌ Tu n'invoques pas le `documentarian` pour enrichir le wiki : `wiki_propose`, validé par l'utilisateur à la carte du commit
+planner	Ce que tu NE fais PAS	❌ Tu ne modifies pas d'autre fichier que ta spec (les découvertes pour le wiki se proposent avec `wiki_propose`)
+planner	Spec écrite	le vocabulaire : chaque mot métier de la demande en face de **tous** les noms du code qui le reprennent (types, fonctions, champs) et de ce qu'ils font. Quand deux d'entre eux ne désignent pas la même chose (un type `Reservation` et une fonction `Reserve` qui crée autre chose), ou que deux mots désignent une même chose, c'est une question bloquante qui nomme les deux sens ;
+planner	Spec écrite	tes questions bloquantes, une par décision, dans `### Questions bloquantes` de ton bloc de retour (jamais l'outil `question` : ton appelant les pose).
 beads-plan	Interaction avec Beads	Tu dois toujours être dans le répertoire du projet pour que les commandes
 beads-plan	Interaction avec Beads	⛔ Accès direct aux fichiers Beads — INTERDIT
 beads-plan	⛔ Accès direct aux fichiers Beads — INTERDIT	**Tu ne dois JAMAIS :**

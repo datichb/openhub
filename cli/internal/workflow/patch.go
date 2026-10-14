@@ -248,6 +248,12 @@ func (p *patcher) agents() {
 			continue
 		}
 		if !exists {
+			if len(v.Writes) > 0 {
+				// R4: a layer may not open documentation paths to an agent
+				// it adds.
+				p.loosening(base+".writes", strings.Join(v.Writes, ","), "[]")
+				v.Writes = nil
+			}
 			p.dst.Agents.Set(k, v)
 			continue
 		}
@@ -272,6 +278,9 @@ func (p *patcher) agents() {
 		}
 		if h("scratch") {
 			p.scratch(base+".scratch", &old, v.Scratch)
+		}
+		if h("writes") {
+			p.writes(base+".writes", &old, v.Writes)
 		}
 		p.dst.Agents.Set(k, old)
 	}

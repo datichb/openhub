@@ -1,0 +1,42 @@
+id: S31
+title: "Spec : une tranche demandée hors spec à cp-tickets (la CI) est refusée par oh tant qu'aucun critère ne la couvre"
+workflow: spec
+mode: semi-auto
+reports: off
+text: "Ajouter à calc une fonction Mul(a, b int) int, avec son test."
+beads:
+  prefix: ev
+timeout: 25m
+answers:
+  question: first
+  sequence:
+    cp-tickets:
+      - "reject: Ajoute aussi une tranche : faire lancer go test ./... par la CI du dépôt (GitHub Actions)."
+  checkpoints:
+    "*": approve
+# R4 (passe de convergence) : aucun ticket hors spec. La tranche demandée à
+# cp-tickets ne couvre aucun critère : oh refuse cp-converge et cp-tickets
+# (« tranche hors spec ») jusqu'à ce que la spec porte un critère de la CI,
+# avec son point de test, que la tranche couvre ; les tickets sont créés
+# ensuite.
+assertions:
+  - type: file_matches
+    name: la CI est un critère de la spec, avec son point de test
+    paths: ["docs/wiki/specs/**"]
+    pattern: "(?m)^[^\\n]*CA-\\d[^\\n]*(\\bCI\\b|GitHub Actions|int[ée]gration continue|workflow)[^\\n]*test ?:"
+  - type: file_matches
+    name: une tranche du découpage couvre la CI
+    paths: ["docs/wiki/specs/**"]
+    pattern: "(?m)^#+[^\\n]*d[ée]coupage[\\s\\S]*\\n[^\\n]*(\\bCI\\b|GitHub Actions|int[ée]gration continue|workflow)[^\\n]*couvre ?:[^\\n]*CA-\\d"
+  - type: ran
+    name: les tickets sont créés une fois le découpage revenu dans la spec
+    agent: planner
+    command: "bd create*"
+  - type: no_question_in_subagent
+    agents: [planner, designer]
+  - type: changed_within
+    name: seule la spec est écrite
+    paths: ["docs/wiki/specs/**"]
+    min_files: 1
+    max_files: 1
+  - type: no_denied_loop

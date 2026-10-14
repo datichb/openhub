@@ -345,7 +345,9 @@ func oneLine(s string, n int) string {
 
 // cloneAssertion tells the assertions that look at the clone of a pass
 // (gone after the run): they are not checked again by Rescore.
-func cloneAssertion(t string) bool { return t == AssertChangedWithin || t == AssertHiddenTests }
+func cloneAssertion(t string) bool {
+	return t == AssertChangedWithin || t == AssertHiddenTests || t == AssertFileMatches
+}
 
 // Rescore checks the assertions of the cases again on the traces of a
 // report (outDir holds them), without running anything: tuning an assertion
