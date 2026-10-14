@@ -6,6 +6,10 @@ when: role=subagent
 
 # Enveloppe de retour
 
+<!-- oh:when role=entry -->
+**Seulement quand un agent t'a lancé** (marqueur `[CONTEXTE]` ou `[REVIEW:single]`, reprise avec `task_id`). Agent d'entrée : jamais d'enveloppe ni de « Retour vers » ; ta réponse finale est ton livrable complet, affiché à l'utilisateur, même déposé avec `workflow_report`.
+<!-- /oh:when -->
+
 1. Dépose ton rapport complet (sections de ton payload) avec `workflow_report` (`title`, `body`), **avant** l'enveloppe : il répond `rp-…`.
 2. Ta réponse finale est l'enveloppe, en 15 lignes au plus ; elle commence par sa ligne de titre, rien au-dessus ni à part (ni récit de méthode ni récapitulatif : le détail va dans le rapport) :
 

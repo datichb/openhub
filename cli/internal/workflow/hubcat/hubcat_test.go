@@ -27,7 +27,7 @@ func TestAgentInfo_FromRepositoryAgents(t *testing.T) {
 		edits, shell bool
 		task         string
 	}{
-		{"developer", workflow.ModeSubagent, true, false, "documentarian"},
+		{"developer", workflow.ModeSubagent, true, false, ""},
 		{"orchestrator-dev", workflow.ModePrimary, false, false, "developer"},
 		{"auditor-subagent", workflow.ModeSubagent, false, false, ""},
 		{"reviewer", workflow.ModePrimary, false, false, ""},
@@ -47,6 +47,9 @@ func TestAgentInfo_FromRepositoryAgents(t *testing.T) {
 		if len(a.Skills) == 0 {
 			t.Errorf("%s has no skills", tc.id)
 		}
+	}
+	if d, _ := c.Agent("developer"); len(d.Tasks) != 0 {
+		t.Errorf("developer tasks = %v, want none (it delegates to no one)", d.Tasks)
 	}
 	if r, _ := c.Agent("reviewer"); !r.SelfTask {
 		t.Error("reviewer: self-delegation (standard+adversarial) lost")

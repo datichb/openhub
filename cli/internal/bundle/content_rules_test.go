@@ -129,7 +129,7 @@ func TestNoAgentWritesGitInfoExclude(t *testing.T) {
 		"onboarding": {"onboarder"},
 		"feature":    {"documentarian", "developer"},
 		"ticket":     {"documentarian", "developer"},
-		"debug":      {"documentarian"},
+		"debug":      {"developer"},
 	} {
 		b := shippedBundle(t, wf)
 		for _, agent := range agents {

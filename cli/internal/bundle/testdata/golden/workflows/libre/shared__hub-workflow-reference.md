@@ -19,7 +19,7 @@ Agent d'entrée : `orchestrator`. Seuls les agents ci-dessous existent dans cett
 | `pathfinder` | workflow | subagent | — | `designer` |
 | `planner` | workflow | subagent | — | `designer` |
 | `reviewer` | workflow | subagent | — | `reviewer` |
-| `developer` | workflow | subagent | — | `documentarian` |
+| `developer` | workflow | subagent | — | — |
 | `documentarian` | workflow | subagent | — | — |
 
 Règles de délégation :

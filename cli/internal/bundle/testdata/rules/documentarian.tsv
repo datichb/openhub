@@ -46,13 +46,13 @@ doc-slides	Règles absolues	✅ Si des slides existent déjà dans le projet, s'
 doc-slides	Règles absolues	✅ Le fichier `.md` Marp est toujours livrable, même sans compilation
 doc-slides	Injection du branding dans le frontmatter	**à la place** du frontmatter standard (ne pas utiliser `theme: default|gaia|uncover`) : un bloc
 doc-slides	Signaler le branding utilisé	Étape 0 — Exploration obligatoire
+doc-slides	Questions de contexte	Si la demande ne précise pas ces éléments, les demander via l'outil `question` :
 doc-slides	Questions de contexte	Si l'audience, le nombre de slides souhaité ou un thème particulier ne sont pas précisés,
 doc-slides	Règle fondamentale : 1 slide = 1 idée	Chaque slide doit transmettre **une seule information principale**.
 doc-slides	Règle fondamentale : 1 slide = 1 idée	Si le titre ne suffit pas à résumer la slide, c'est qu'il faut la découper.
 doc-slides	Contenu	**1 exemple de code = 1 concept** — jamais plus de ~15 lignes par slide de code
 doc-slides	Structure	Slide 1 : titre + auteur + date (toujours `_paginate: false` + `_class: lead`)
 doc-slides	Après la génération — compilation	Le fichier `.md` est le livrable. Tu ne lances pas Marp (ton shell ne le permet pas) : donne à
-doc-slides	Questions de contexte	Si la demande ne précise pas ces éléments, les demander via l'outil `question` :
 doc-standards	Les 4 quadrants	**Règle principale : ne pas mélanger les quadrants dans un même document.**
 doc-standards	Les 4 quadrants	Un README peut référencer les 4 types, mais chaque section doit être clairement identifiée.
 doc-standards	Une page = un objectif	Chaque document doit répondre à une seule question principale.
@@ -84,8 +84,8 @@ documentarian-payload	Rapport	Titre : `Documentation — <sujet>` (avec `#<ID>` 
 expert-posture	Exploration avant de répondre	"Je n'ai pas accès à [X] — cette partie de l'analyse repose sur [Y] uniquement."
 expert-posture	Exploration avant de répondre	Ne pas produire de conclusion définitive sur une base partielle sans signaler
 expert-posture	Pause de confirmation avant d'exécuter	Ne pas continuer sans réponse explicite de l'utilisateur.
-expert-posture	Pause de confirmation avant d'exécuter	**Sous-agent** : n'appelle pas `question`. Arrête-toi et mets le risque et les deux options dans `### Questions bloquantes` de ton bloc de retour ; ton appelant pose la question à l'utilisateur.
 expert-posture	Relation avec la posture commune	Les formats de ce skill (bloc `⚠️ Recommandation contraire`, trade-offs, recommandation à la première personne, zones d'incertitude, pause de confirmation) sont des livrables : la concision de la posture commune ne les supprime jamais.
+expert-posture	Pause de confirmation avant d'exécuter	**Sous-agent** : n'appelle pas `question`. Arrête-toi et mets le risque et les deux options dans `### Questions bloquantes` de ton bloc de retour ; ton appelant pose la question à l'utilisateur.
 handoff-envelope	Enveloppe de retour	`<appelant>` : l'agent qui t'a lancé, tel que ton contrat le nomme (ligne « Retour ») ; jamais un autre nom.
 handoff-envelope	Enveloppe de retour	**Rapport non enregistré** (outil absent, refus, réponse « non enregistré ») : `**Rapport** : inclus`, puis, sous l'enveloppe (jamais au-dessus), `### Rapport complet` et le rapport entier.
 handoff-envelope	Enveloppe de retour	**Questions bloquantes** : `Aucune.`, ou une liste numérotée (contexte en une ligne, 2 à 3 options, la recommandée en premier). Ce qui ne bloque pas devient une hypothèse documentée dans ton rapport. Avec une question, arrête-toi : ton appelant la pose et te relance avec ton `task_id` et la réponse ; reprends où tu t'étais arrêté.

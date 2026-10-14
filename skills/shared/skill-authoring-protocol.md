@@ -51,7 +51,7 @@ Pour chaque règle : "Comment un modèle respecterait-il la lettre en violant l'
 |---------|-----------|------------|
 | **Discriminant** | Cite déclencheur + comportement imposé | "Guide de bonnes pratiques" |
 | **Keywords** | Synonymes + formulations alternatives | Un seul terme exact |
-| **Token efficiency** | ≤ 2 phrases, keywords en premier | Description > 3 lignes |
+| **Token efficiency** | ≤ 200 caractères, déclencheur en premier | Plus de 200 caractères |
 | **Cross-refs** | Pointe vers skills connexes si ambiguïté | Isolation silencieuse |
 
 ---
@@ -94,9 +94,9 @@ Pour chaque règle : "Comment un modèle respecterait-il la lettre en violant l'
 - [ ] Anti-patterns vérifiés
 
 **SDO**
-- [ ] `description:` ≤ 2 phrases, discriminante, keywords couverts (1024 caractères max.)
+- [ ] `description:` « Utiliser … », ≤ 200 caractères, discriminante
 - [ ] `name:` identique au nom du fichier (identifiant unique dans le catalogue), 64 caractères max., minuscules, chiffres et tirets
-- [ ] Frontmatter limité à `name`, `description`, `license`, `compatibility`, `metadata`, `allowed-tools` (livrés) et `requires`, `annexes`, `plugin` (lus par oh) — toute autre clé est une erreur
+- [ ] Frontmatter limité à `name`, `description`, `license`, `compatibility`, `metadata`, `allowed-tools` (livrés) et `requires`, `annexes`, `plugin`, `mcp`, `when`, `statuses`, `versions`, `reviewed` (lus par oh) ; toute autre clé : erreur
 - [ ] `requires:` si la skill dépend d'autres skills (pas de champ `bucket:`)
 - [ ] `oh skill check` sans erreur
 

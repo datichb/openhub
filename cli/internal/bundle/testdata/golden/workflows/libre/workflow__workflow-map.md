@@ -25,7 +25,7 @@ Cette carte est la seule référence sur l'enchaînement : n'invente ni agent, n
 | `pathfinder` | workflow | subagent | — | `designer` |
 | `planner` | workflow | subagent | — | `designer` |
 | `reviewer` | workflow | subagent | — | `reviewer` |
-| `developer` | workflow | subagent | — | `documentarian` |
+| `developer` | workflow | subagent | — | — |
 | `documentarian` | workflow | subagent | — | — |
 
 Règles de délégation :

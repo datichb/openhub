@@ -549,7 +549,6 @@
         "read * allow",
         "skill * allow",
         "subagent * deny",
-        "subagent documentarian allow",
         "shell *git* checkout * deny",
         "shell *git* restore * deny",
         "shell *git* reset --hard* deny",
@@ -880,9 +879,6 @@
     "websearch-design-patterns"
   ],
   "subagent_graph": {
-    "developer": [
-      "documentarian"
-    ],
     "orchestrator": [
       "designer",
       "orchestrator-dev",
@@ -902,6 +898,6 @@
       "designer"
     ]
   },
-  "max_depth": 3,
+  "max_depth": 2,
   "code_mode": false
 }

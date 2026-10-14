@@ -221,7 +221,6 @@
         "read * allow",
         "skill * allow",
         "subagent * deny",
-        "subagent documentarian allow",
         "shell *git* checkout * deny",
         "shell *git* restore * deny",
         "shell *git* reset --hard* deny",
@@ -531,15 +530,12 @@
     "verification-before-completion"
   ],
   "subagent_graph": {
-    "developer": [
-      "documentarian"
-    ],
     "orchestrator-dev": [
       "developer",
       "documentarian",
       "reviewer"
     ]
   },
-  "max_depth": 2,
+  "max_depth": 1,
   "code_mode": false
 }

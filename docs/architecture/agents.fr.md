@@ -38,8 +38,7 @@ Dans une session, seuls les agents du paquet sont joignables. Pour voir le conte
 ## Hierarchie des agents
 
 Le schéma montre les délégations permises par le frontmatter (`permission.task`). Dans une session, seules
-celles qui relient deux membres du workflow restent possibles. `documentarian` est aussi délégable par les agents
-de la base `developer-rw` : ces liens ne sont pas dessinés.
+celles qui relient deux membres du workflow restent possibles.
 
 ```mermaid
 flowchart TD
