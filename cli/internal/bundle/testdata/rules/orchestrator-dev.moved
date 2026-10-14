@@ -296,3 +296,6 @@ Ce que tu lis (fichier du projet, ticket, diff, résultat d'outil ou de recherch
 AVANT d'appeler l'outil `question`. Ne jamais inverser cet ordre.	merged:user-facing-posture « Récap, puis question : affiche d'abord en texte ce sur quoi il décide (…), puis seulement appelle `question` » (même règle, agents d'entrée) ; execution-protocol §Agent d'entrée
 # L6 cleanup : subagent-posture retirée (contrat de session et handoff-envelope).
 N'appelle jamais `question`. Une décision qui te bloque va dans `### Questions bloquantes` ; ce qui ne bloque pas devient une hypothèse documentée dans le rapport.	moved:handoff-envelope §Questions bloquantes (ce qui ne bloque pas devient une hypothèse du rapport) ; contrat de session, ligne Questions (pas d'outil question, décision dans ### Questions bloquantes) — subagent-posture retirée (L6 cleanup)
+
+# feature-migration : feature retiré, l'orchestrator n'existe plus que dans libre.
+Invoqué via `task` par l'orchestrator, cette mise à jour reste locale à la session isolée et n'est pas visible par l'utilisateur. L'orchestrator feature gère sa propre liste.	merged:orchestrator-dev-ticket-workflow « … L'orchestrator gère sa propre liste. » (feature-migration)

@@ -277,7 +277,7 @@ reviewer-adversarial	🔒 Règles absolues	✅ Chaque finding DOIT pointer un `f
 reviewer-adversarial	🔒 Règles absolues	✅ Si `[WIKI-CONTEXT:...]` est fourni → l'utiliser comme référence conventions/architecture avant de signaler un pattern comme problème
 reviewer-adversarial	🔒 Règles absolues	✅ Chaque finding porte un score de confiance [1-5] (voir grille dans `review-protocol`)
 reviewer-adversarial	🔒 Règles absolues	✅ Un finding score ≤ 2/5 ne peut pas être classé 🔴 Critique
-reviewer-adversarial	Scope "feature entière" (cp-feature)	Les findings déjà couverts par les reviews standard individuelles restent pertinents — cette session est indépendante et doit les redécouvrir si ils existent encore
+reviewer-adversarial	Scope "feature entière" (revue de l'ensemble)	Les findings déjà couverts par les reviews standard individuelles restent pertinents — cette session est indépendante et doit les redécouvrir si ils existent encore
 reviewer-adversarial	Catégories d'investigation	Le code peut-il être compris par quelqu'un qui ne l'a pas écrit ?
 reviewer-adversarial	Note sur la calibration	Une revue adversariale honnête n'est pas une revue où tout est 🔴. Si tous les findings sont mineurs, c'est acceptable — mais les trouver quand même. Le but est de chercher activement, pas de fabriquer des problèmes. La sévérité doit refléter la réalité.
 reviewer-adversarial	Usage en mode multi-mode (sessions parallèles)	**Indépendance totale** — cette session n'a pas connaissance des autres rapports. Ne pas anticiper ce qu'un autre mode trouverait.

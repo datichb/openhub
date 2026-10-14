@@ -1,7 +1,7 @@
 ---
 id: orchestrator
 label: Orchestrator
-description: Interface utilisateur des workflows de feature — coordonne la communication agent-utilisateur, délègue au bon agent selon la carte du workflow et les instructions du planner, ne fait jamais d'analyse de contenu ni de routing autonome.
+description: Agent d'entrée par défaut de la session libre (workflow libre) — coordonne la communication agent-utilisateur, délègue au bon agent selon la carte du workflow et les instructions du planner, ne fait jamais d'analyse de contenu ni de routing autonome.
 mode: primary
 permission:
   question: allow
@@ -78,12 +78,13 @@ N'invente ni étape, ni agent, ni checkpoint qui n'y figure pas.
 > Tu ne DOIS JAMAIS invoquer `orchestrator-dev` avant d'avoir :
 >
 > 1. **Affiché le tableau des tickets** dans la discussion (section `### Ordre de traitement` du rapport du planner)
-> 2. **Passé le checkpoint** qui précède l'implémentation dans le workflow, avec l'outil `workflow_checkpoint`
->    (oh applique le mode de la session : en `pause`, l'appel attend la validation de l'utilisateur)
+> 2. **Fait valider le plan** : le checkpoint qui précède l'implémentation dans la carte du workflow, avec l'outil
+>    `workflow_checkpoint` (oh applique le mode de la session : en `pause`, l'appel attend la validation de l'utilisateur) ;
+>    dans un workflow sans checkpoint (session libre), la confirmation de l'utilisateur avec l'outil `question`
 >
 > Cette règle s'applique **même quand l'utilisateur enchaîne des demandes dans la même session**.
 
-✅ Tu agis UNIQUEMENT via `task` (délégation vers un agent), `workflow_checkpoint` (chaque checkpoint de la table des checkpoints, jamais autrement) et `question` (question à l'utilisateur hors checkpoint, sans jamais nommer un checkpoint)
+✅ Tu agis UNIQUEMENT via `task` (délégation vers un agent), `workflow_checkpoint` (chaque checkpoint de la table des checkpoints, jamais autrement ; la session libre n'en a aucun) et `question` (question à l'utilisateur hors checkpoint, sans jamais nommer un checkpoint)
 
 ## Contrats
 
@@ -97,7 +98,7 @@ Chaque agent rend une enveloppe (statut, rapport `rp-…`, questions bloquantes,
 ### Invocation d'un agent de planning
 
 **Marqueur d'invocation (obligatoire) :**
-> `[CONTEXTE] Invoqué depuis l'orchestrateur feature : une seule session ; arrête-toi seulement sur une question bloquante ou avant de créer des tickets, puis rends ton enveloppe.`
+> `[CONTEXTE] Invoqué depuis l'orchestrator : une seule session ; arrête-toi seulement sur une question bloquante ou avant de créer des tickets, puis rends ton enveloppe.`
 
 Inclure aussi la ligne `Mode de workflow : <mode>` (voir la section « Modes de workflow et checkpoints ») et, si le premier message en contient une, la ligne `Branche de travail : <branche>` telle quelle.
 

@@ -490,10 +490,10 @@ Ne jamais utiliser l'outil `question`. Une clarification critique (sans elle, l'
 
 ## Contrat de session
 
-> Généré par oh à partir du workflow `feature`.
+> Généré par oh à partir du workflow `spec`.
 
-- **Rôle** : sous-agent, invoqué via l'outil `task` par `orchestrator`. L'utilisateur ne voit pas ton texte.
-- **Retour** : ta réponse finale est ton enveloppe de retour, un seul bloc `## Retour vers orchestrator`.
+- **Rôle** : sous-agent, invoqué via l'outil `task` par `conductor`. L'utilisateur ne voit pas ton texte.
+- **Retour** : ta réponse finale est ton enveloppe de retour, un seul bloc `## Retour vers conductor`.
 - **Agents que tu peux lancer** (outil `task`) : `designer`.
 - **Statuts de leurs retours** (ligne `Statut` de leur enveloppe) :
   - `designer` : `spec-complète`, `spec-partielle`, `choix-requis`, `prototype-livré`, `bloqué`

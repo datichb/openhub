@@ -466,7 +466,7 @@ Blocage résolu → `bd update <ID> -s in_progress`. Les commentaires (`bd comme
 
 ## Contrat de session
 
-> Généré par oh à partir du workflow `feature`.
+> Généré par oh à partir du workflow `implement-spec`.
 
 - **Rôle** : sous-agent, invoqué via l'outil `task` par `orchestrator-dev`. L'utilisateur ne voit pas ton texte.
 - **Retour** : ta réponse finale est ton enveloppe de retour, un seul bloc `## Retour vers orchestrator-dev`.

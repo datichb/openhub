@@ -22,15 +22,6 @@ instruct debug                  developer                       11236     5013  
 instruct debug                  TOTAL                           18430     7428   13   23    825   23    825
 instruct doc-sync               documentarian                    4263     2713    4    9    289    9    289
 instruct doc-sync               TOTAL                            4263     2713    4    9    289    9    289
-instruct feature                designer                         4498     2427    6   12    411   12    411
-instruct feature                developer                       11830     5555    8   17    621   17    621
-instruct feature                documentarian                    4685     3021    5    9    289    9    289
-instruct feature                orchestrator                     7651     5609    7    3    102    3    102
-instruct feature                orchestrator-dev                 5217     3607    7   17    617   17    617
-instruct feature                pathfinder                       5773     3832    7    4    160    4    160
-instruct feature                planner                          5052     3408    7   13    442   13    442
-instruct feature                reviewer                        11644     5185    6   13    447   13    447
-instruct feature                TOTAL                           56350    32644   53   58   2025   58   2025
 instruct implement-spec         developer                       11832     5555    8   17    621   17    621
 instruct implement-spec         documentarian                    4686     3021    5    9    289    9    289
 instruct implement-spec         orchestrator-dev                 4870     3332    6   17    617   17    617
@@ -46,12 +37,12 @@ instruct libre                  designer                         4445     2427  
 instruct libre                  developer                       11778     5555    8   17    621   17    621
 instruct libre                  documentarian                    4632     3021    5    9    289    9    289
 instruct libre                  onboarder                        4502     3163    8   11    381   11    381
-instruct libre                  orchestrator                     6960     4946    7    3    102    3    102
+instruct libre                  orchestrator                     7068     5013    7    3    102    3    102
 instruct libre                  orchestrator-dev                 4503     2988    7   17    617   17    617
 instruct libre                  pathfinder                       5721     3832    7    4    160    4    160
 instruct libre                  planner                          5027     3435    7   13    442   13    442
 instruct libre                  reviewer                        11648     5185    6   13    447   13    447
-instruct libre                  TOTAL                           66847    37410   68   69   2392   69   2392
+instruct libre                  TOTAL                           66955    37477   68   69   2392   69   2392
 instruct merge-conflicts        merger                           4995      503    2    3    138    3    138
 instruct merge-conflicts        TOTAL                            4995      503    2    3    138    3    138
 instruct onboarding             onboarder                        4141     2801    7   11    381   11    381
@@ -102,15 +93,6 @@ none     debug                  developer                        6757     4540  
 none     debug                  TOTAL                            9474     6482   11   26    929   26    929
 none     doc-sync               documentarian                    3847     2713    4    9    289    9    289
 none     doc-sync               TOTAL                            3847     2713    4    9    289    9    289
-none     feature                designer                         4100     2427    6   12    411   12    411
-none     feature                developer                        7352     5082    7   20    725   20    725
-none     feature                documentarian                    4269     3021    5    9    289    9    289
-none     feature                orchestrator                     7558     5609    7    3    102    3    102
-none     feature                orchestrator-dev                 4819     3607    7   20    721   20    721
-none     feature                pathfinder                       4905     3358    6    4    160    4    160
-none     feature                planner                          4654     3408    7   13    442   13    442
-none     feature                reviewer                         6832     4630    5   16    551   16    551
-none     feature                TOTAL                           44489    31142   50   61   2129   61   2129
 none     implement-spec         developer                        7353     5082    7   20    725   20    725
 none     implement-spec         documentarian                    4271     3021    5    9    289    9    289
 none     implement-spec         orchestrator-dev                 4472     3332    6   20    721   20    721
@@ -126,12 +108,12 @@ none     libre                  designer                         4047     2427  
 none     libre                  developer                        7299     5082    7   20    725   20    725
 none     libre                  documentarian                    4216     3021    5    9    289    9    289
 none     libre                  onboarder                        4062     3121    8   11    381   11    381
-none     libre                  orchestrator                     6867     4946    7    3    102    3    102
+none     libre                  orchestrator                     6975     5013    7    3    102    3    102
 none     libre                  orchestrator-dev                 4105     2988    7   20    721   20    721
 none     libre                  pathfinder                       4853     3358    6    4    160    4    160
 none     libre                  planner                          4629     3435    7   13    442   13    442
 none     libre                  reviewer                         6836     4630    5   16    551   16    551
-none     libre                  TOTAL                           50068    35393   64   72   2496   72   2496
+none     libre                  TOTAL                           50176    35460   64   72   2496   72   2496
 none     merge-conflicts        merger                            993      503    2    3    138    3    138
 none     merge-conflicts        TOTAL                             993      503    2    3    138    3    138
 none     onboarding             onboarder                        3701     2759    7   11    381   11    381
@@ -182,15 +164,6 @@ stacks   debug                  developer                        6757     4540  
 stacks   debug                  TOTAL                            9474     6482   11   33   1176   33   1176
 stacks   doc-sync               documentarian                    3847     2713    4    9    289    9    289
 stacks   doc-sync               TOTAL                            3847     2713    4    9    289    9    289
-stacks   feature                designer                         4100     2427    6   12    411   12    411
-stacks   feature                developer                        7352     5082    7   27    972   27    972
-stacks   feature                documentarian                    4269     3021    5    9    289    9    289
-stacks   feature                orchestrator                     7558     5609    7    3    102    3    102
-stacks   feature                orchestrator-dev                 4819     3607    7   20    721   20    721
-stacks   feature                pathfinder                       4905     3358    6    4    160    4    160
-stacks   feature                planner                          4654     3408    7   13    442   13    442
-stacks   feature                reviewer                         6832     4630    5   23    798   23    798
-stacks   feature                TOTAL                           44489    31142   50   68   2376   68   2376
 stacks   implement-spec         developer                        7353     5082    7   27    972   27    972
 stacks   implement-spec         documentarian                    4271     3021    5    9    289    9    289
 stacks   implement-spec         orchestrator-dev                 4472     3332    6   20    721   20    721
@@ -206,12 +179,12 @@ stacks   libre                  designer                         4047     2427  
 stacks   libre                  developer                        7299     5082    7   27    972   27    972
 stacks   libre                  documentarian                    4216     3021    5    9    289    9    289
 stacks   libre                  onboarder                        4062     3121    8   11    381   11    381
-stacks   libre                  orchestrator                     6867     4946    7    3    102    3    102
+stacks   libre                  orchestrator                     6975     5013    7    3    102    3    102
 stacks   libre                  orchestrator-dev                 4105     2988    7   20    721   20    721
 stacks   libre                  pathfinder                       4853     3358    6    4    160    4    160
 stacks   libre                  planner                          4629     3435    7   13    442   13    442
 stacks   libre                  reviewer                         6836     4630    5   23    798   23    798
-stacks   libre                  TOTAL                           50068    35393   64   79   2743   79   2743
+stacks   libre                  TOTAL                           50176    35460   64   79   2743   79   2743
 stacks   merge-conflicts        merger                            993      503    2   10    385   10    385
 stacks   merge-conflicts        TOTAL                             993      503    2   10    385   10    385
 stacks   onboarding             onboarder                        3701     2759    7   11    381   11    381
@@ -253,7 +226,7 @@ stacks   ticket                 TOTAL                           22723    15912  
 
 # Inlined skills: largest section (tokens) and the agents inlining it.
 review-protocol                            3476 reviewer
-orchestrator-protocol                      3152 orchestrator
+orchestrator-protocol                      3219 orchestrator
 doc-protocol                               1951 documentarian
 pathfinder-protocol                        1917 pathfinder
 planner-workflow                           1699 planner
