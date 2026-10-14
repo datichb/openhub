@@ -405,7 +405,8 @@
         "shell *.beads/embeddeddolt* deny",
         "shell *.beads/dolt/* deny",
         "edit .beads/* deny",
-        "edit */.beads/* deny"
+        "edit */.beads/* deny",
+        "mcp:workflow/outputs * deny"
       ],
       "skills": [
         "debugger-forensic",
@@ -852,7 +853,8 @@
         "shell *.beads/dolt/* deny",
         "edit .beads/* deny",
         "edit */.beads/* deny",
-        "question * deny"
+        "question * deny",
+        "mcp:workflow/outputs * deny"
       ],
       "skills": [
         "beads-plan",

@@ -272,3 +272,35 @@ func TestContractRestrictedShell(t *testing.T) {
 	assert.Equal(t, []string{"tail", "jq", "which", "cat"}, refusedShellHelpers([]sessionspec.PermissionRule{deny, allow("head*"), allow("echo *")}))
 	assert.Empty(t, refusedShellHelpers([]sessionspec.PermissionRule{allow("*")}))
 }
+
+// p5-fixes: workflow_outputs is hidden (deny on "*", last rule of the
+// action) in a workflow without an output the agents may declare: the
+// debugger of incident called it; it stays allowed where an output is
+// declarable (debug: tickets).
+func TestOutputsHiddenWithoutDeclarableOutput(t *testing.T) {
+	last := func(b *Bundle, id string) sessionspec.Effect {
+		for _, a := range b.Spec.Agents {
+			if a.ID != id {
+				continue
+			}
+			eff := sessionspec.Effect("")
+			for _, r := range a.Permissions {
+				if r.Action == actionOutputs && r.Resource == "*" {
+					eff = r.Effect
+				}
+			}
+			return eff
+		}
+		t.Fatalf("agent %s not in the bundle", id)
+		return ""
+	}
+	incident := shippedBundle(t, "incident")
+	for _, id := range []string{"debugger", "developer"} {
+		assert.Equal(t, sessionspec.EffectDeny, last(incident, id), "incident/%s", id)
+	}
+	assert.Equal(t, sessionspec.Effect(""), last(shippedBundle(t, "debug"), "debugger"), "debug declares its tickets")
+
+	recorded := &workflow.Spec{Outputs: []workflow.Output{{ID: "spec", Type: "path", Record: "spec"}}}
+	assert.Len(t, OutputsGuard(recorded), 1, "only outputs recorded by oh")
+	assert.Nil(t, OutputsGuard(nil))
+}

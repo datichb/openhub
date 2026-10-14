@@ -311,7 +311,8 @@
         "shell *.beads/embeddeddolt* deny",
         "shell *.beads/dolt/* deny",
         "edit .beads/* deny",
-        "edit */.beads/* deny"
+        "edit */.beads/* deny",
+        "mcp:workflow/outputs * deny"
       ],
       "skills": []
     },
@@ -643,7 +644,8 @@
         "shell *.beads/dolt/* deny",
         "edit .beads/* deny",
         "edit */.beads/* deny",
-        "question * deny"
+        "question * deny",
+        "mcp:workflow/outputs * deny"
       ],
       "skills": [
         "beads-plan",
@@ -1053,7 +1055,8 @@
         "shell *.beads/dolt/* deny",
         "edit .beads/* deny",
         "edit */.beads/* deny",
-        "question * deny"
+        "question * deny",
+        "mcp:workflow/outputs * deny"
       ],
       "skills": [
         "beads-plan",
@@ -1384,7 +1387,8 @@
         "shell *.beads/dolt/* deny",
         "edit .beads/* deny",
         "edit */.beads/* deny",
-        "question * deny"
+        "question * deny",
+        "mcp:workflow/outputs * deny"
       ],
       "skills": [
         "content-design",

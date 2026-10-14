@@ -595,7 +595,7 @@ Sans `record`, l'agent déclare la valeur avec l'outil MCP `workflow_outputs` (l
 
 ### Sorties relevées par oh (`record`)
 
-Une sortie `record:` est remplie par oh à partir de ce qu'il voit la session faire ; aucun agent ne peut la déclarer (`workflow_outputs` la refuse) et la carte du workflow ne la mentionne pas.
+Une sortie `record:` est remplie par oh à partir de ce qu'il voit la session faire ; aucun agent ne peut la déclarer (`workflow_outputs` la refuse) et la carte du workflow ne la mentionne pas. Un workflow sans sortie à déclarer (aucune, ou seulement des sorties `record:`) ne présente pas l'outil `workflow_outputs` à ses agents : oh le leur refuse, ce qui le retire de leurs outils.
 
 | `record` | Type | Ce que oh relève |
 |---|---|---|

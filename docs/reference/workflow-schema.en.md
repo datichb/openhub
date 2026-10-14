@@ -595,7 +595,7 @@ Without `record`, the agent declares the value with the MCP tool `workflow_outpu
 
 ### Outputs recorded by oh (`record`)
 
-A `record:` output is filled by oh from what it sees the session do; no agent can declare it (`workflow_outputs` refuses it) and the workflow map does not mention it.
+A `record:` output is filled by oh from what it sees the session do; no agent can declare it (`workflow_outputs` refuses it) and the workflow map does not mention it. A workflow without an output to declare (none, or only `record:` outputs) does not offer the `workflow_outputs` tool to its agents: oh refuses it to them, which removes it from their tools.
 
 | `record` | Type | What oh records |
 |---|---|---|
