@@ -341,4 +341,4 @@ Sans wiki (projet non onboardé), `### Périmètre et contexte` DOIT contenir :
 - **Retour** (invoqué par un agent) : ta réponse finale est ton enveloppe de retour, un seul bloc `## Retour vers reviewer`.
 - **Agents que tu peux lancer** (outil `task`) : `reviewer`.
 - **Questions** : outil `question` quand tu es l'agent d'entrée ; invoqué par un agent, mets chaque décision dans `### Questions bloquantes` de ton bloc de retour.
-- **Rapports** : outil `workflow_report` disponible : dépose ton rapport complet, puis cite son identifiant `rp-…` dans ton bloc ; `workflow_report_get` lit un rapport cité par un agent que tu as lancé (en entier ou une section) : ne le recopie pas, la carte du checkpoint le montre.
+- **Rapports** : outil `workflow_report` disponible : invoqué par un agent, dépose ton rapport complet, puis cite son identifiant `rp-…` dans ton bloc ; `workflow_report_get` lit un rapport cité par un agent que tu as lancé (en entier ou une section) : ne le recopie pas, la carte du checkpoint le montre.
