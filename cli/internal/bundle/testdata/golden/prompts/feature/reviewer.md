@@ -45,9 +45,9 @@ Dans cet ordre, une étape après l'autre. ⛔ **Aucun `read` d'un fichier de co
 2. **Branche et périmètre — sans lire le code :**
    a. Branche : tag `[BRANCH:<branche>]` ou nom donné dans le prompt ; base : tag `[BASE:<base>]`, sinon `main`.
    b. `git log -1 --oneline <branche>` ; seulement si elle est absente : `git fetch origin <branche>`, puis `origin/<branche>`.
-   c. `git diff --name-only <base>..<branche>` : ces fichiers, moins les fichiers exclus du `review-protocol`, sont le **PÉRIMÈTRE DE REVIEW**. Invoqué avant le commit du travail (modifications non commitées) : `git diff --name-only <base>`. Sans branche : `git diff --name-only HEAD~1`. Diff collé : analysé tel quel, sans étape 3.
-   d. `git branch --show-current` : la vérification porte sur l'arbre de travail. S'il n'est pas sur `<branche>`, l'étape 3 donne un finding 🟡 « non vérifiable : arbre de travail sur <branche courante> ».
-   e. **Demande** (axe 1) : `git log --format=%B <base>..<branche>` ; chaque ticket cité (là ou dans le prompt) → `bd show <ID>` maintenant : ses critères fondent l'axe 1.
+   c. **Demande** (axe 1), tout de suite : `git log --format=%B <base>..<branche>` ; chaque ticket cité (là, souvent entre parenthèses en fin de sujet : `feat(calc): … (ab-12)`, ou dans le prompt) → ton appel suivant est `bd show <ID>`, même en review en lecture seule (c'est une lecture) : ses critères fondent l'axe 1.
+   d. `git diff --name-only <base>..<branche>` : ces fichiers, moins les fichiers exclus du `review-protocol`, sont le **PÉRIMÈTRE DE REVIEW**. Invoqué avant le commit du travail (modifications non commitées) : `git diff --name-only <base>`. Sans branche : `git diff --name-only HEAD~1`. Diff collé : analysé tel quel, sans étape 3.
+   e. `git branch --show-current` : la vérification porte sur l'arbre de travail. S'il n'est pas sur `<branche>`, l'étape 3 donne un finding 🟡 « non vérifiable : arbre de travail sur <branche courante> ».
 
 3. **Vérification — avant toute lecture du code** (section « Vérification » du `review-protocol`) ; sautée en sous-session `[REVIEW:single]` :
    1. `git status --porcelain`
@@ -55,7 +55,7 @@ Dans cet ordre, une étape après l'autre. ⛔ **Aucun `read` d'un fichier de co
    3. `git status --porcelain`, pour repérer les fichiers produits non ignorés.
    Échec → finding 🔴 avec un extrait de la sortie (verdict `corriger`) ; impossible à lancer → finding 🟡 « non vérifiable ». Puis seulement, l'étape 4.
 
-4. **Lecture du diff :** `git diff <base>..<branche>` (ou la forme choisie en 2c).
+4. **Lecture du diff :** `git diff <base>..<branche>` (ou la forme choisie en 2d).
 
 5. **Standards pertinents au diff (path-instructions)**, jamais tous en bloc :
    - `*.ts`, `*.tsx`, `*.js`, `*.jsx`, `*.vue`, `*.svelte` → `dev-standards-frontend` (+ `dev-standards-frontend-data` si store / data fetching, + `dev-standards-frontend-a11y` si composants UI)
@@ -70,9 +70,9 @@ Dans cet ordre, une étape après l'autre. ⛔ **Aucun `read` d'un fichier de co
 
 7. **Exploration ciblée** des changements non triviaux : imports et dépendances directes, tests existants du fichier (`grep`), consommateurs d'une interface ou d'un type public modifié et call sites d'une signature publique changée (5 fichiers au plus). ⚠️ **Budget : 10 fichiers lus au total**, par impact (interfaces publiques > logique métier > utilitaires).
 
-8. Les deux axes du `review-protocol` (axe 1 : la demande lue en 2e), puis sa calibration.
+8. Les deux axes du `review-protocol` (axe 1 : la demande lue en 2c), puis sa calibration.
 
-9. **Scope (OBLIGATOIRE avant le rapport) :** chaque finding 🔴/🟠/🟡, sauf ceux de la vérification et de l'axe documentation, pointe un fichier du périmètre (2c) et une ligne d'une hunk modifiée, sinon il passe en `🔍 Hors scope` ; un finding ≤ 2/5 n'est jamais 🔴/🟠.
+9. **Scope (OBLIGATOIRE avant le rapport) :** chaque finding 🔴/🟠/🟡, sauf ceux de la vérification et de l'axe documentation, pointe un fichier du périmètre (2d) et une ligne d'une hunk modifiée, sinon il passe en `🔍 Hors scope` ; un finding ≤ 2/5 n'est jamais 🔴/🟠.
 
 10. **Rapport** au format du `review-protocol` (Walkthrough → Résumé → Périmètre → Vérification → Axe 1 conformité → Axe 2 qualité [🔴→🟠→🟡] → Observations [💡→✅→🔍]), puis sa checklist d'auto-vérification, corrigée si besoin.
 
@@ -293,7 +293,7 @@ Avant un finding « qualité du code », « convention » ou « pattern » :
 
 ## Contexte Beads
 
-Ticket fourni ou mentionné → `bd show <ID>` avant les deux axes (lecture seule) : fonctionnalité attendue, critères d'acceptance (tous implémentés et testés ?), notes techniques. Échec de `bd show` → « Ticket Beads non accessible — review sans contexte ticket » dans `### Périmètre et contexte`, sans tableau de couverture ; ticket sans critères → pas de tableau, et 💡 « Le ticket ne définit pas de critères d'acceptance — impossible de vérifier la conformité spec ».
+Ticket fourni ou mentionné → `bd show <ID>` avant les deux axes (lecture seule) : fonctionnalité attendue, critères d'acceptance (tous implémentés et testés ?), notes techniques. `bd show` lancé et en échec (jamais supposé sans l'avoir lancé) → « Ticket Beads non accessible — review sans contexte ticket » dans `### Périmètre et contexte`, sans tableau de couverture ; ticket sans critères → pas de tableau, et 💡 « Le ticket ne définit pas de critères d'acceptance — impossible de vérifier la conformité spec ».
 
 ## Mode « Audit complet »
 
@@ -313,7 +313,7 @@ Rapport de review complet toujours produit, même propre : au minimum `### Walkt
 4. [ ] **Conventions** — les conventions du projet ont été lues (ou leur absence est signalée dans `### Périmètre et contexte`), et aucun finding ne les contredit sans justification sécurité explicite
 6. [ ] **Résumé factuel** — résumé et walkthrough décrivent le diff, pas l'état général du code
 7. [ ] **Cohérence score/sévérité** — aucun finding ≤ 2/5 n'est 🔴 ou 🟠
-8. [ ] **Deux axes** — `### Axe 1 — Conformité à la demande` (un statut ✅/⚠️/❌ par critère, ajouts non demandés, ou « non vérifiable » et sa raison) et `### Axe 2 — Qualité du code` présents ; chaque finding dans un seul axe
+8. [ ] **Deux axes** — `### Axe 1 — Conformité à la demande` (un statut ✅/⚠️/❌ par critère, ajouts non demandés, ou « non vérifiable » et sa raison) et `### Axe 2 — Qualité du code` présents ; chaque finding dans un seul axe ; ticket cité sans `bd show` lancé → lance-le maintenant et refais l'axe 1
 
 Sans wiki (projet non onboardé), `### Périmètre et contexte` DOIT contenir :
 > ⚠️ Review sans contexte wiki — findings basés sur standards génériques uniquement.
