@@ -19,7 +19,7 @@ import (
 // reviewed as a diff of what the model reads
 // (go test ./internal/bundle -run ShippedWorkflowPromptSnapshots -update).
 
-var snapshotWorkflows = []string{"audit", "feature", "quick", "review", "ticket"}
+var snapshotWorkflows = []string{"audit", "implement-spec", "quick", "review", "spec", "ticket"}
 
 func TestShippedWorkflowPromptSnapshots(t *testing.T) {
 	hub, cat, env := shippedWorkflows(t)

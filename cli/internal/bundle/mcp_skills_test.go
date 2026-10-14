@@ -47,7 +47,7 @@ func TestTrackerAdaptersFollowSessionMCP(t *testing.T) {
 // has the team MCP server.
 func TestTeamSkillsFollowSessionMCP(t *testing.T) {
 	hub, cat, env := shippedWorkflows(t)
-	r, diags := workflow.Check(cat, workflow.Ref{Layer: workflow.LayerHub, ID: "feature"}, nil, env)
+	r, diags := workflow.Check(cat, workflow.Ref{Layer: workflow.LayerHub, ID: "libre"}, nil, env)
 	require.False(t, diags.HasErrors(), "%v", diags)
 	shipped := func(mcp []sessionspec.MCPServerDef) map[string]bool {
 		b, err := Build(Request{HubDir: hub, OutDir: t.TempDir(), Spec: r.Spec, MCP: mcp})

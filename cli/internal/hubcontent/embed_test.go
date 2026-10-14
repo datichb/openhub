@@ -38,7 +38,7 @@ func TestExtract_CreatesFilesAndVersionMarker(t *testing.T) {
 
 	// Shipped workflows and their prompt templates (<hub>/workflows, read by
 	// hubcat.LoadWorkflows).
-	for _, f := range []string{"workflows/ticket.yaml", "workflows/feature.yaml", "workflows/quick.yaml", "workflows/prompts/ticket.md.tmpl"} {
+	for _, f := range []string{"workflows/ticket.yaml", "workflows/spec.yaml", "workflows/quick.yaml", "workflows/prompts/ticket.md.tmpl"} {
 		if _, err := os.Stat(filepath.Join(destDir, f)); err != nil {
 			t.Errorf("expected %s to be extracted: %v", f, err)
 		}

@@ -112,19 +112,23 @@ func TestCheckpointByMembers(t *testing.T) {
 
 // CP-R11: an agent's contract and prompt name only its own checkpoints.
 func TestContractOwnCheckpointsOnly(t *testing.T) {
-	feature := shippedBundle(t, "feature")
-	dev := contractOf(agentBody(t, feature, "orchestrator-dev"))
-	for _, id := range []string{"cp-1", "cp-2", "cp-3"} {
+	impl := shippedBundle(t, "implement-spec")
+	dev := contractOf(agentBody(t, impl, "orchestrator-dev"))
+	for _, id := range []string{"cp-plan", "cp-1", "cp-2", "cp-3", "cp-final"} {
 		assert.Contains(t, dev, "`"+id+"`")
+		assert.NotContains(t, agentBody(t, impl, "developer"), "**"+id+"**", "developer sees the row of %s", id)
 	}
-	orch := agentBody(t, feature, "orchestrator")
-	for _, id := range []string{"cp-tickets", "cp-0", "cp-feature"} {
-		assert.Contains(t, contractOf(orch), "`"+id+"`")
-		assert.NotContains(t, agentBody(t, feature, "orchestrator-dev"), "**"+id+"**", "orchestrator-dev sees the row of %s", id)
+	spec := shippedBundle(t, "spec")
+	conductor := agentBody(t, spec, "conductor")
+	for _, id := range []string{"cp-understanding", "cp-spec", "cp-tickets"} {
+		assert.Contains(t, contractOf(conductor), "`"+id+"`")
+		assert.NotContains(t, agentBody(t, spec, "planner"), "**"+id+"** — ", "planner sees the row of %s", id)
 	}
-	assert.NotContains(t, orch, "**cp-2** — ", "orchestrator sees the row of cp-2")
-	assert.Contains(t, contractOf(agentBody(t, feature, "pathfinder")), "aucun n'est à toi")
-	assert.Contains(t, contractOf(agentBody(t, feature, "pathfinder")), "`## Retour vers orchestrator`")
+	assert.Contains(t, contractOf(agentBody(t, spec, "planner")), "aucun n'est à toi")
+	assert.Contains(t, contractOf(agentBody(t, spec, "planner")), "`## Retour vers conductor`")
+	// libre (orchestrator, feature-migration): no checkpoint at all.
+	libre := shippedBundle(t, "libre")
+	assert.Contains(t, contractOf(agentBody(t, libre, "pathfinder")), "`## Retour vers orchestrator`")
 }
 
 func TestCheckpointByDeduced(t *testing.T) {
@@ -182,7 +186,7 @@ func TestQuestionRefusedToPureSubagents(t *testing.T) {
 	}
 	for wf, ids := range map[string][]string{
 		"spec": {"planner", "pathfinder", "designer"}, "implement-spec": {"developer", "reviewer"},
-		"feature": {"pathfinder", "planner", "designer", "orchestrator-dev", "reviewer", "developer"}, "ticket": {"developer", "reviewer"},
+		"libre": {"pathfinder", "planner", "designer", "orchestrator-dev", "reviewer", "developer"}, "ticket": {"developer", "reviewer"},
 		"sweep": {"developer"}, "review-feedback": {"developer"},
 	} {
 		b := shippedBundle(t, wf)
@@ -193,7 +197,7 @@ func TestQuestionRefusedToPureSubagents(t *testing.T) {
 			assert.Contains(t, contractOf(agentBody(t, b, id)), "tu n'as pas l'outil `question`", "%s/%s", wf, id)
 		}
 	}
-	for wf, id := range map[string]string{"review": "reviewer", "feature": "orchestrator", "spec": "conductor", "implement-spec": "orchestrator-dev"} {
+	for wf, id := range map[string]string{"review": "reviewer", "libre": "orchestrator", "spec": "conductor", "implement-spec": "orchestrator-dev"} {
 		eff, _ := questionEffect(shippedBundle(t, wf), id)
 		assert.NotEqual(t, sessionspec.EffectDeny, eff, "%s/%s keeps the question tool", wf, id)
 	}

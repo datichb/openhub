@@ -105,8 +105,8 @@ func TestWritesPlannerOfSpec(t *testing.T) {
 		}
 	}
 
-	// The planner of feature (no writes:) keeps its refusal.
-	c := scratchBundle(t, "feature", "")
+	// The planner of libre (no writes:) keeps its refusal.
+	c := scratchBundle(t, "libre", "")
 	for _, a := range c.Spec.Agents {
 		if a.ID != "planner" {
 			continue

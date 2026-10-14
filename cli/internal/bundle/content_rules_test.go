@@ -126,10 +126,10 @@ func TestOnboarderWritesOnlyTheWiki(t *testing.T) {
 // tells them to add a file there: a line that names it forbids it first.
 func TestNoAgentWritesGitInfoExclude(t *testing.T) {
 	for wf, agents := range map[string][]string{
-		"onboarding": {"onboarder"},
-		"feature":    {"documentarian", "developer"},
-		"ticket":     {"documentarian", "developer"},
-		"debug":      {"developer"},
+		"onboarding":     {"onboarder"},
+		"implement-spec": {"documentarian", "developer"},
+		"ticket":         {"documentarian", "developer"},
+		"debug":          {"developer"},
 	} {
 		b := shippedBundle(t, wf)
 		for _, agent := range agents {
@@ -164,7 +164,7 @@ func TestNoAgentWritesGitInfoExclude(t *testing.T) {
 
 // N11: the instructions of the agents match their permissions (matrix).
 func TestAgentInstructionsMatchPermissions(t *testing.T) {
-	feature := shippedBundle(t, "feature")
+	feature := shippedBundle(t, "libre")
 	eff := func(rules []sessionspec.PermissionRule, s string) sessionspec.Effect {
 		e, _ := evaluate(rules, s)
 		return e

@@ -42,7 +42,7 @@ func TestShippedSpecOrder(t *testing.T) {
 // chains a command it may not run (echo, which, a pipe to head) is refused
 // as a whole, which its protocol says.
 func TestOrchestratorDevReadsTicketsAlone(t *testing.T) {
-	for _, wf := range []string{"ticket", "feature", "implement-spec"} {
+	for _, wf := range []string{"ticket", "implement-spec", "libre"} {
 		b := shippedBundle(t, wf)
 		rules := append(agentRules(b, "orchestrator-dev", sessionspec.ActionShell), b.Spec.AgentGuard...)
 		require.NotEmpty(t, rules, wf)

@@ -27,7 +27,7 @@ const (
 
 // DefaultSuggestions are shown when nothing is pinned nor recent; only the
 // IDs present in the catalogue are kept.
-var DefaultSuggestions = []string{"ticket", "feature", "review"}
+var DefaultSuggestions = []string{"ticket", "spec", "review"}
 
 // ErrPinLimit is returned when a scope already has MaxPins pinned workflows.
 var ErrPinLimit = errors.New("pinned workflow limit reached")
