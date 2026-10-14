@@ -12,4 +12,6 @@ oh run sweep -i goal="move logs to slog" -i strategy=by-package -i verify=tests
 
 `oh start --sweep <goal>` (and `--sweep-strategy`, `--sweep-tasks`, `--sweep-include`, `--sweep-exclude`, `--sweep-verify`, `--sweep-verify-cmd`, `--sweep-dry-run`) remains a deprecated alias that fills these inputs. `--sweep-branch-prefix` and `--max-sessions` no longer have any effect.
 
+**Fan-out (experimental)**: with `[fanout] experimental = true`, `oh run sweep … -i fanout=true` brings back one session and worktree per subtask (`sweep-task` session), merged by oh into an integration branch and validated together at `cp-merge`. In both versions, oh reads and checks the breakdown presented at `cp-plan`. See the [fan-out guide](fan-out.en.md#fan-out-sweep).
+
 See [Shipped workflows](../reference/workflows.en.md#sweep) and the [v5 migration guide](migration-v5.en.md).

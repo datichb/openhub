@@ -80,6 +80,11 @@ type Service struct {
 	// its verification); it returns the line for the agent (nil: no fix
 	// round).
 	RequestFix func(ctx context.Context, sess *domain.Session, wf *sessionspec.WorkflowRuntime, instruction, failure string) string
+
+	// sweep-fanout (tasks.go): Files lists the files of the repository in a
+	// directory (nil = git ls-files), to check the file scope of a
+	// breakdown.
+	Files func(ctx context.Context, dir string) ([]string, error)
 }
 
 // Errors.
@@ -142,6 +147,9 @@ type Call struct {
 	// Reports are the reports (rp-…) the agent cites; those filed since the
 	// last checkpoint are attached to its card anyway.
 	Reports []string `json:"reports,omitempty"`
+	// Tasks is the breakdown given with a checkpoint that has `tasks:`
+	// (sweep-fanout): read and checked by oh (tasks.go).
+	Tasks any `json:"tasks,omitempty"`
 	// Agent is the agent oh saw make the call (set by the daemon, never
 	// read from the request; "" = unknown).
 	Agent string `json:"-"`
@@ -173,6 +181,9 @@ type Result struct {
 	// (p5-fixes, unlock_again): this one allows one commit, or none when
 	// there was nothing to commit (commit absent from Unlocked).
 	CommitNext string `json:"commit_next,omitempty"`
+	// Tasks is the breakdown oh recorded at the checkpoint, one task per
+	// line (sweep-fanout).
+	Tasks string `json:"tasks,omitempty"`
 }
 
 // Output is a typed value declared by workflow_outputs (O7).
@@ -276,9 +287,17 @@ func (s *Service) Reached(ctx context.Context, sessionID string, call Call) (Res
 		if err := s.orderError(ctx, sess.ID, sess.Mode, wf, c); err != nil {
 			return res, err
 		}
+		tasks, err := s.tasksReached(ctx, sess, c, call.Tasks)
+		if err != nil {
+			return res, err
+		}
 		ap, err := s.pass(ctx, sess, c)
 		if err != nil {
 			return res, err
+		}
+		s.recordTasks(ctx, sess.ID, c.ID, tasks)
+		if len(tasks) > 0 {
+			res.Tasks = RenderTasks(tasks)
 		}
 		res.Message = ap.Message
 		s.recordWritten(ctx, sess, wf)

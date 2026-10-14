@@ -34,7 +34,7 @@ Séquence : `cp-plan` → `cp-commit` [commit] → `cp-recap` (entre crochets, l
 <!-- /oh:when -->
 
 <!-- oh:when agent=conductor -->
-- **cp-plan** : Présenter la liste des sous-tâches (description, périmètre de fichiers disjoint, domaine du developer, parallélisable ou non) avant toute exécution.
+- **cp-plan** : Passer le découpage dans tasks (une entrée par sous-tâche : titre, description, périmètre de fichiers, domaine du developer, parallélisable ou non) avant toute exécution : oh le vérifie (périmètres du dépôt, disjoints entre sous-tâches parallélisables, et entre toutes en fan-out), le présente et l'enregistre.
 <!-- /oh:when -->
 <!-- oh:when agent=conductor -->
 - **cp-commit** : Présenter le diff, le résultat de la vérification (PASS ou FAIL ; un summary qui commence par VÉRIFICATION ÉCHOUÉE si elle échoue encore) et la review avant le commit (un commit, ou un par sous-tâche à la suite).

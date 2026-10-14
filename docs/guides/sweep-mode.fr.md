@@ -12,4 +12,6 @@ oh run sweep -i goal="migrer les logs vers slog" -i strategy=by-package -i verif
 
 `oh start --sweep <objectif>` (et `--sweep-strategy`, `--sweep-tasks`, `--sweep-include`, `--sweep-exclude`, `--sweep-verify`, `--sweep-verify-cmd`, `--sweep-dry-run`) reste un alias déprécié qui remplit ces entrées. `--sweep-branch-prefix` et `--max-sessions` n'ont plus d'effet.
 
+**Fan-out (expérimental)** : avec `[fanout] experimental = true`, `oh run sweep … -i fanout=true` retrouve une session et un worktree par sous-tâche (session `sweep-task`), mergées par oh dans une branche d'intégration et validées ensemble à `cp-merge`. Dans les deux versions, oh relève et vérifie le découpage présenté à `cp-plan`. Voir le [guide du fan-out](fan-out.fr.md#sweep-en-fan-out).
+
 Voir [Workflows livrés](../reference/workflows.fr.md#sweep) et le [guide de migration v5](migration-v5.fr.md).

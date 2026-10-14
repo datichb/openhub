@@ -121,6 +121,10 @@ func (s *Service) Asked(ctx context.Context, root, toolSession string, p adapter
 	}
 	c, known := wf.Checkpoint(id)
 	behavior := s.behavior(ctx, sess, c)
+	var input map[string]any
+	if p.Call != nil {
+		input = p.Call.Input
+	}
 	if !known || !s.needsDecision(ctx, sess, c) || s.outOfOrder(ctx, sess, wf, c) || s.mergeNotReady(ctx, sess, c) {
 		// An unknown checkpoint, or one called before the checkpoint it
 		// waits for: the call then fails with the reason.
@@ -128,11 +132,24 @@ func (s *Service) Asked(ctx context.Context, root, toolSession string, p adapter
 		// at once and is refused with the reason (no decision to take).
 		return nil, true, false, nil
 	}
+	tasks, ok := s.tasksAsked(ctx, sess, c, input)
+	if !ok {
+		// sweep-fanout: a breakdown oh cannot take is no card; the call
+		// runs and is refused with the problems.
+		return nil, true, false, nil
+	}
 	id = c.ID
 	label := c.LabelFor(i18n.Locale())
+	message := summary
+	if len(tasks) > 0 {
+		message = strings.TrimSpace(summary + "\n\n" + i18n.Tf("cmd.daemon.workflow.tasks_card", len(tasks)) + "\n" + RenderTasks(tasks))
+	}
 	d = &domain.Decision{SessionID: root, GroupKey: sess.GroupKey, Kind: domain.DecisionCheckpoint, ToolRef: p.ID,
-		Payload: domain.DecisionPayload{Title: label, Message: summary, Data: map[string]any{
+		Payload: domain.DecisionPayload{Title: label, Message: message, Data: map[string]any{
 			DataCheckpoint: id, DataSummary: summary, DataBehavior: behavior}}}
+	if len(tasks) > 0 {
+		d.Payload.Data[DataTasks] = RenderTasks(tasks)
+	}
 	if toolSession != "" && toolSession != root {
 		d.Payload.Data[domain.DataToolSession] = toolSession
 	}
@@ -150,6 +167,9 @@ func (s *Service) Asked(ctx context.Context, root, toolSession string, p adapter
 		relocked = relock(st, id) // asked again: a new round
 		relocked = closeEarlierCommit(st, c, s.record) || relocked
 		changed := relocked
+		if c.Tasks != nil && !sameTasks(st.ShownTasks, tasks) {
+			st.ShownTasks, changed = tasks, true // what the user validates
+		}
 		if s.askedR3(st, d, c, evidence) {
 			changed = true
 		}
@@ -629,6 +649,9 @@ func (s *Service) Evaluate(ctx context.Context, root, action string, input map[s
 	c, known := wf.Checkpoint(strings.TrimSpace(id))
 	if !known || !s.needsDecision(ctx, sess, c) || s.outOfOrder(ctx, sess, wf, c) || s.mergeNotReady(ctx, sess, c) {
 		return string(sessionspec.EffectAllow), nil
+	}
+	if _, ok := s.tasksAsked(ctx, sess, c, input); !ok {
+		return string(sessionspec.EffectAllow), nil // refused with the problems
 	}
 	// Asked even when the tool would let it run (an "always" answer saved
 	// by the tool): only a validation passes it (N1).

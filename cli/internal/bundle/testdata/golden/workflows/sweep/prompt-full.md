@@ -17,5 +17,5 @@ Exemple de valeur pour exclude
 
 Déroulé :
 1. Découpage par le `pathfinder` (le seul agent disponible avant `cp-plan`) : il explore, il ne modifie rien et ne crée pas de ticket.
-2. Plan : pour chaque sous-tâche, une description, un **périmètre de fichiers**, le domaine du `developer` prévu (frontend, backend…, `refactor` pour une restructuration sans changement de comportement, `migration` pour un upgrade, `tests` pour ajouter des tests) et un drapeau « parallélisable ». Les périmètres de deux sous-tâches parallélisables sont **disjoints** ; sinon, elles s'exécutent l'une après l'autre.
+2. Plan : pour chaque sous-tâche, un titre, une description, un **périmètre de fichiers** (chemins, dossiers ou motifs du dépôt ; un fichier à créer, dans un dossier existant), le domaine du `developer` prévu (`frontend`, `backend`, `fullstack`, `api`, `data`, `mobile`, `devops`, `platform`, `security`, `refactor` pour une restructuration sans changement de comportement, `migration` pour un upgrade, `tests` pour ajouter des tests) et un drapeau « parallélisable ». Chaque sous-tâche devient une session enfant, peut-être en même temps que les autres : leurs périmètres sont tous **disjoints**.
 3. Mode plan seulement : affiche le plan, **n'appelle pas `cp-plan`** et ne lance aucun agent développeur. Termine par `cp-recap`, avec le plan comme résumé.

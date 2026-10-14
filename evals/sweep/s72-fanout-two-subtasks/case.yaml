@@ -1,0 +1,67 @@
+id: S72
+title: "Sweep en fan-out : deux sous-tâches validées à cp-plan, relevées par oh, une session enfant sweep-task chacune, cp-commit des enfants remplacé par cp-merge ; aucun ticket"
+workflow: sweep
+mode: semi-auto
+inputs:
+  strategy: manual
+  tasks: |
+    Corriger calc.Sub, qui additionne au lieu de soustraire (sub.go, avec un test dans sub_test.go)
+    Ajouter Mul(a, b int) int au package calc, dans un nouveau fichier mul.go, avec un test dans mul_test.go
+  verify: tests
+  fanout: "true"
+text: "Corriger Sub et ajouter Mul au package calc."
+fanout: { parallel: 2 }
+timeout: 45m
+budget_usd: 3.0
+answers:
+  checkpoints:
+    "*": approve
+  question: first
+# sweep-fanout : le conductor passe le découpage dans tasks à cp-plan ; oh
+# le vérifie (périmètres disjoints), l'enregistre et lance une session
+# sweep-task par sous-tâche, chacune dans son worktree avec sa sous-tâche
+# et son périmètre ; leur cp-commit passe sans pause (délégué au cp-merge,
+# CP-R3) mais vérifié ; oh merge les branches, la session parente fait
+# relire l'ensemble et passe cp-merge (vérifié sur la branche
+# d'intégration), puis oh merge ; rien n'est fermé.
+assertions:
+  - type: checkpoint_order
+    order: [cp-plan, cp-merge, cp-recap]
+  - type: called
+    name: aucun developer ni reviewer avant cp-plan
+    tool: task
+    absent: true
+    before: { checkpoint_passed: cp-plan }
+  - type: ran
+    name: la session parente ne commite ni ne merge rien
+    command: "git commit*"
+    absent: true
+  - type: output
+    name: découpage relevé par oh (deux sous-tâches)
+    output: tasks
+    pattern: "t1 [\\s\\S]*t2 "
+  - type: fanout
+    name: deux sessions enfants lancées
+    event: child
+    count: 2
+  - type: fanout
+    name: cp-commit de chaque enfant passé par délégation (CP-R3)
+    event: child_checkpoint
+    checkpoint: cp-commit
+    by: delegated
+    count: 2
+  - type: fanout
+    name: les deux branches mergées par oh
+    event: merged
+    count: 2
+  - type: fanout
+    name: branche d'intégration mergée par oh à cp-merge
+    event: integrated
+  - type: fanout
+    name: aucun ticket fermé
+    event: closed
+    absent: true
+  - type: changed_within
+    paths: ["sub.go", "mul.go", "*_test.go"]
+  - type: hidden_tests
+  - type: no_denied_loop

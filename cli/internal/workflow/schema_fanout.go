@@ -41,13 +41,30 @@ import (
 // checks the substitution again against the bundle of the parent
 // (services/checkpoint, fanout.go). The sessions launched without the
 // fan-out input keep exactly the checkpoints of before (ForFanout).
+//
+// sweep-fanout: the children may come from the breakdown of the session
+// instead of tickets (`source: tasks`): one child per task oh recorded at
+// the checkpoint with `tasks:` (schema_tasks.go), its task given by oh in
+// the inputs `task`, `files` and `domain` of the child workflow. No ticket:
+// nothing to close, no `tickets` output.
+//
+//	fanout:
+//	  input: fanout
+//	  source: tasks          # the tasks recorded at cp-plan, not a beads-ids input
+//	  child: sweep-task
+//	  merge: cp-merge
+//	  delegates: [cp-commit]
 
 // Fanout is the fan-out of a workflow.
 type Fanout struct {
 	// Input is the bool input that makes a session a fan-out.
 	Input string `yaml:"input"`
-	// Tickets is the beads-ids input whose tickets become the children.
-	Tickets string `yaml:"tickets"`
+	// Source is where the children come from: the tickets of the Tickets
+	// input (default), or the tasks oh recorded at the tasks checkpoint.
+	Source FanoutSource `yaml:"source,omitempty"`
+	// Tickets is the beads-ids input whose tickets become the children
+	// (source tickets only).
+	Tickets string `yaml:"tickets,omitempty"`
 	// Child is the workflow of each child session (one ticket each).
 	Child string `yaml:"child"`
 	// Parallel is the number of children at the same time (default 1, at
@@ -81,6 +98,37 @@ type FanoutFix struct {
 	Workflow string `yaml:"workflow"`
 	Input    string `yaml:"input"`
 }
+
+// FanoutSource is where the children of a fan-out come from.
+type FanoutSource string
+
+const (
+	// FanoutSourceTickets: one child per ticket of the tickets input.
+	FanoutSourceTickets FanoutSource = "tickets"
+	// FanoutSourceTasks: one child per task recorded by oh at the tasks
+	// checkpoint (no ticket).
+	FanoutSourceTasks FanoutSource = "tasks"
+)
+
+// Valid reports whether s is known ("" = tickets).
+func (s FanoutSource) Valid() bool {
+	return s == "" || s == FanoutSourceTickets || s == FanoutSourceTasks
+}
+
+// Tasks reports whether the children come from the recorded tasks.
+func (f *Fanout) Tasks() bool { return f != nil && f.Source == FanoutSourceTasks }
+
+// Inputs of the child workflow oh fills from a task (source tasks): the
+// task (title and description), its file scope (one entry per line) and
+// its domain (optional).
+const (
+	TaskInputTask   = "task"
+	TaskInputFiles  = "files"
+	TaskInputDomain = "domain"
+)
+
+// TaskInputs are the inputs of the child oh fills from a task.
+var TaskInputs = []string{TaskInputTask, TaskInputFiles, TaskInputDomain}
 
 // FanoutInputTypes are the types of the inputs a parent may give to its
 // children: a value, never a list of tickets (the child gets its own).
@@ -141,8 +189,12 @@ func (f *Fanout) String() string {
 	if f.Fix != nil {
 		fix = f.Fix.Workflow + "(" + f.Fix.Input + ")"
 	}
-	return fmt.Sprintf("{input: %s, tickets: %s, child: %s, parallel: %d, merge: %s, delegates: [%s], merger: %s, inputs: [%s], fix: %s}",
-		f.Input, f.Tickets, f.Child, f.EffectiveParallel(), f.Merge, strings.Join(f.Delegates, ","), f.Merger, strings.Join(f.Inputs, ","), fix)
+	source := string(f.Source)
+	if source == "" {
+		source = string(FanoutSourceTickets)
+	}
+	return fmt.Sprintf("{input: %s, source: %s, tickets: %s, child: %s, parallel: %d, merge: %s, delegates: [%s], merger: %s, inputs: [%s], fix: %s}",
+		f.Input, source, f.Tickets, f.Child, f.EffectiveParallel(), f.Merge, strings.Join(f.Delegates, ","), f.Merger, strings.Join(f.Inputs, ","), fix)
 }
 
 // FanoutOf reports whether a session with these inputs is a fan-out: the
@@ -169,28 +221,36 @@ func (s *Spec) FanoutOf(inputs map[string]any) bool {
 }
 
 // ForFanout returns s as a session sees it, fan-out or not: the
-// checkpoints of the other kind of session are dropped, and in a fan-out
-// session the agents gated on a dropped checkpoint (the developer, after
-// cp-1) are removed: the children do their work. A session that is not
-// a fan-out loses the fan-out block (same bundle as before R6). s itself
-// is never changed.
+// checkpoints and agents of the other kind of session are dropped, and in
+// a fan-out session the agents gated on a dropped checkpoint (the
+// developer, after cp-1) are removed: the children do their work. A
+// session that is not a fan-out loses the fan-out block (same bundle as
+// before R6). s itself is never changed.
 func (s *Spec) ForFanout(on bool) *Spec {
 	if s == nil {
 		return nil
 	}
-	var drop []string
+	dropped := func(f FanoutScope) bool { return (on && f == FanoutNever) || (!on && f == FanoutOnly) }
+	var drop, dropAgents []string
 	for _, k := range s.Checkpoints.Keys() {
-		cp, _ := s.Checkpoints.Get(k)
-		if (on && cp.Fanout == FanoutNever) || (!on && cp.Fanout == FanoutOnly) {
+		if cp, _ := s.Checkpoints.Get(k); dropped(cp.Fanout) {
 			drop = append(drop, k)
 		}
 	}
-	if len(drop) == 0 && (on || s.Fanout == nil) {
+	for _, k := range s.Agents.Keys() {
+		if a, _ := s.Agents.Get(k); dropped(a.Fanout) {
+			dropAgents = append(dropAgents, k)
+		}
+	}
+	if len(drop) == 0 && len(dropAgents) == 0 && (on || s.Fanout == nil) {
 		return s
 	}
 	c := s.Clone()
 	for _, k := range drop {
 		c.Checkpoints.Delete(k)
+	}
+	for _, k := range dropAgents {
+		c.Agents.Delete(k)
 	}
 	if !on {
 		c.Fanout = nil

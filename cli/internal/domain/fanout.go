@@ -76,9 +76,11 @@ func (s FanoutChildState) Done() bool { return s != ChildPending && s != ChildRu
 type SessionFanout struct {
 	Role FanoutRole `json:"role"`
 
-	// Child and merger.
-	Parent string `json:"parent,omitempty"`
-	Ticket string `json:"ticket,omitempty"`
+	// Child and merger. Ticket is the ticket of a child, or the id of its
+	// task (t1…) when the children are tasks (sweep-fanout), with Task.
+	Parent string    `json:"parent,omitempty"`
+	Ticket string    `json:"ticket,omitempty"`
+	Task   *PlanTask `json:"task,omitempty"`
 	// Branch is the branch of a child, or the branch a merger merges.
 	Branch string `json:"branch,omitempty"`
 
@@ -143,7 +145,10 @@ type FanoutIntegration struct {
 
 // FanoutChild is a child of a fan-out.
 type FanoutChild struct {
-	Ticket  string           `json:"ticket"`
+	// Ticket is the ticket of the child, or the id of its task.
+	Ticket string `json:"ticket"`
+	// Task is the task of the child (sweep-fanout; nil for a ticket).
+	Task    *PlanTask        `json:"task,omitempty"`
 	Session string           `json:"session,omitempty"`
 	Branch  string           `json:"branch,omitempty"`
 	Path    string           `json:"path,omitempty"`

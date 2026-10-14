@@ -40,7 +40,8 @@ A workflow is launched with `oh run <workflow>` or the TUI launch form; the form
 | `security-fix` | `conductor` | `developer`, `auditor-subagent` | write | local | — |
 | `spike` | `pathfinder` (writes `docs/wiki/decisions/`) | `developer` (throwaway prototype) | write | local | — |
 | `benchmark` | `benchmarker` | — | write (`reports/benchmarks/`) | local | `oh run libre --agent benchmarker` |
-| `sweep` | `conductor` | `pathfinder`, `developer`, `reviewer` | write | local | `oh start --sweep` |
+| `sweep` | `conductor` | `pathfinder`, `developer`, `reviewer`; in a fan-out: `pathfinder`, `reviewer` and one `sweep-task` child session per subtask | write | local | `oh start --sweep` |
+| `sweep-task` | `developer` | — | write | local | — (launched by oh in a fan-out sweep) |
 | `brief-enrich` | `brief-enricher` | — | read | local | `oh takeover-brief enrich` |
 | `libre` | your choice (`orchestrator` by default, its only workflow) | those the chosen agent may call | write | local, container | `oh start --agent`, TUI free session |
 
@@ -100,7 +101,7 @@ Default mode: `semi-auto`. Allowed Beads commands: `show`, `list`, `ready`, `chi
 
 With the `tdd` method (`-i method=tdd`), the `developer` passes `cp-seams` itself (it presents the seams, the interfaces and the planned tests), then `cp-red`, where oh checks that the tests written fail for the right reason (the code builds, the tests compile and fail) and that a test file changed since `cp-seams`; the other changed files are noted. Without this method nothing changes: no checkpoint, no text. See [TDD method](checkpoints.en.md#tdd-method-cp-seams-and-cp-red-r7).
 
-`cp-2` unlocks `commit` and `close`: until it is approved, oh refuses `git commit` (and `revert`, `cherry-pick`, `merge`, `pull`, which commit too) and closing the ticket to every agent. Pushing is left to the user (no shipped workflow unlocks it). Before `cp-2` passes, oh itself runs the build, tests and type check of the detected stack (`verify: { from: stack, expect: pass }`): the decision card shows the result, a failure opens nothing and the user may override it (traced choice). Same verification on `cp-2` of `implement-spec` and `review-feedback`, and on `cp-commit` of `quick`, `debug` and `sweep`; see [Checkpoints](checkpoints.en.md). Once `cp-2` is approved, `orchestrator-dev` hands back to the `developer`, who commits and then closes the ticket; oh refuses closing while the work is not committed. The `reviewer` runs the project's build and tests (and lint, type check) before its review, with the commands of the detected stack, allowed here: a failure is a 🔴 finding (verdict `corriger`); files produced by the build and not ignored are reported, since closing requires a clean tree. The same applies in `implement-spec`, `sweep`, `review-feedback` and `libre`. A question imitating a checkpoint ("CP-2 — commit?" asked with the `question` tool) is closed by oh, which reminds the agent to call `workflow_checkpoint`. When the ticket of the session is closed (or the last checkpoint passed) and the step ends, oh declares the missing outputs (`branch`, `tickets`) and the session becomes **completed**: "Chain with…" is offered.
+`cp-2` unlocks `commit` and `close`: until it is approved, oh refuses `git commit` (and `revert`, `cherry-pick`, `merge`, `pull`, which commit too) and closing the ticket to every agent. Pushing is left to the user (no shipped workflow unlocks it). Before `cp-2` passes, oh itself runs the build, tests and type check of the detected stack (`verify: { from: stack, expect: pass }`): the decision card shows the result, a failure opens nothing and the user may override it (traced choice). Same verification on `cp-2` of `implement-spec` and `review-feedback`, and on `cp-commit` of `quick`, `debug`, `sweep` and `sweep-task`; see [Checkpoints](checkpoints.en.md). Once `cp-2` is approved, `orchestrator-dev` hands back to the `developer`, who commits and then closes the ticket; oh refuses closing while the work is not committed. The `reviewer` runs the project's build and tests (and lint, type check) before its review, with the commands of the detected stack, allowed here: a failure is a 🔴 finding (verdict `corriger`); files produced by the build and not ignored are reported, since closing requires a clean tree. The same applies in `implement-spec`, `sweep`, `review-feedback` and `libre`. A question imitating a checkpoint ("CP-2 — commit?" asked with the `question` tool) is closed by oh, which reminds the agent to call `workflow_checkpoint`. When the ticket of the session is closed (or the last checkpoint passed) and the step ends, oh declares the missing outputs (`branch`, `tickets`) and the session becomes **completed**: "Chain with…" is offered.
 
 ## `feature` (alias of `spec` → `implement-spec`)
 
@@ -454,7 +455,7 @@ At `cp-target`, the `benchmarker` presents the target, the environment (producti
 
 ## `sweep`
 
-Reaches a cross-cutting goal by splitting it into independent subtasks: the `pathfinder` (read-only) splits, the `conductor` has the plan approved, launches the developer agents (in parallel only for disjoint file scopes), has the result verified and reviewed by the `reviewer`, then has it committed after approval. No Beads ticket.
+Reaches a cross-cutting goal by splitting it into independent subtasks: the `pathfinder` (read-only) splits, the `conductor` has the breakdown approved, **read and checked by oh**, then the subtasks are carried out, verified and reviewed. No Beads ticket. By default, **sequential** version in the session; with `fanout=true` (experimental), **one child session per subtask** (see below).
 
 | Input | Type | Required | Purpose |
 |---|---|---|---|
@@ -462,19 +463,41 @@ Reaches a cross-cutting goal by splitting it into independent subtasks: the `pat
 | `strategy` | `enum`: `llm` (default), `manual`, `by-file`, `by-package` | no | Decomposition |
 | `tasks` | `text` (8,000 characters max) | no | Tasks, one per line (`manual`) |
 | `include`, `exclude` | `string` (1,000 characters max) | no | Glob patterns, comma-separated |
-| `verify` | `enum`: `none` (default), `tests`, `lint`, `build`, `all`, `custom` | no | Final verification |
+| `verify` | `enum`: `none` (default), `tests`, `lint`, `build`, `all`, `custom` | no | Verification asked on top of oh's |
 | `verify_cmd` | `string` (500 characters max) | with `custom` | Verification command; `verify: custom` without it is refused at launch (`verify_cmd_missing`). Run by a `developer`: its permissions may refuse it |
-| `dry_run` | `bool` (default: no) | no | Show the decomposition without running anything: `cp-plan` is not called, the session ends with `cp-recap` |
+| `dry_run` | `bool` (default: no) | no | Show the decomposition without running anything: `cp-plan` is not called, the session ends with `cp-recap` (no child session in a fan-out) |
+| `fanout` | `bool` (default: no) | no | Experimental (`[fanout] experimental = true`): one `sweep-task` child session per approved subtask, each in its own worktree, merged by oh |
 
 | Checkpoint | manuel | semi-auto | auto |
 |---|---|---|---|
-| `cp-plan` Approve the decomposition (mandatory, before any execution) | pause | pause | pause |
-| `cp-commit` Commit the sweep (mandatory) | pause | pause | pause |
+| `cp-plan` Approve the decomposition (mandatory, read and checked by oh, before any execution) | pause | pause | pause |
+| `cp-commit` Commit the sweep (mandatory, verified by oh; outside a fan-out) | pause | pause | pause |
+| `cp-merge` Approve the merges (mandatory, verified by oh on the integration branch; fan-out) | pause | pause | pause |
 | `cp-recap` Sweep recap | pause | pause | auto |
 
-The developer agents and the `reviewer` only start after `cp-plan`; `cp-commit` unlocks `commit` (before it, oh refuses every `git commit`). Default mode: `semi-auto`; circuit breaker at 12 consecutive delegations. Allowed Beads commands: `show`, `list`, `search`, `query`. Output: `branch`. Difference with the former `--sweep`: subtasks run in the same session and location (no worktree per task); `--sweep-branch-prefix` and `--max-sessions` have no equivalent.
+**Breakdown read by oh** (`checkpoints.cp-plan.tasks`, [schema](workflow-schema.en.md#tasks--breakdown-read-by-oh)). The `conductor` gives the breakdown in the `tasks` argument of `workflow_checkpoint`: one entry `{ title, description, files, domain, parallel }` per subtask. oh checks it **before any card**: 1 to 12 subtasks; a one-line title; a domain among `frontend`, `backend`, `fullstack`, `api`, `data`, `mobile`, `devops`, `platform`, `security`, `refactor`, `migration`, `tests`; a scope whose every entry (path, folder or `*`, `**` pattern) names files of the repository, or a file to create in an existing folder (never absolute, outside the repository, an option or `.git`); two subtasks that may run at the same time (the parallel ones, or all of them in a fan-out) share no file. A refused breakdown makes no card: the call is refused with the list of problems, and the `conductor` fixes it. Accepted, the card shows the breakdown **as oh read it** (`t1`, `t2`… numbered by oh); the call that passes the checkpoint must bring the same one, otherwise it is refused. oh records it once `cp-plan` is passed: `tasks` output (`record: tasks`, one line per subtask) and, in a fan-out, the child sessions.
 
-**Planned migration onto the fan-out (design, not done in R6).** `sweep` will become a variant of `implement-spec` on the fan-out mechanism: `fanout.source: tasks` (instead of a `beads-ids` input), the subtasks validated at `cp-plan` becoming the children (one worktree and branch each, child workflow `quick` or a ticketless `sweep-task`), `cp-commit` replaced by `cp-merge` (the `verify` of the sweep run by oh on the integration branch), `dry_run` kept (no child). What the mechanism needs: a source of tasks without Beads tickets (the children have nothing to close, the `tickets` output goes away), a structured task handed by oh to the child (file scope, domain), and a `cp-plan` whose breakdown oh records (recorded output, like `record: spec`) instead of taking it on trust.
+Sequential version: the developer agents and the `reviewer` only start after `cp-plan` (in parallel only for parallel subtasks with disjoint scopes); `cp-commit` unlocks `commit` (before it, oh refuses every `git commit`) and oh runs the stack verification there. Default mode: `semi-auto`; circuit breaker at 12 consecutive delegations. Allowed Beads commands: `show`, `list`, `search`, `query`. Outputs: `branch`, `tasks` (recorded by oh). Difference with the former `--sweep`: without a fan-out, subtasks run in the same session and location; `--sweep-branch-prefix` and `--max-sessions` have no equivalent.
+
+### Fan-out sweep (`fanout=true`, experimental)
+
+`oh run sweep -i goal="…" -i fanout=true` (with `[fanout] experimental = true`): `sweep` uses the fan-out mechanism of [`implement-spec`](#fan-out-fanouttrue-experimental), its children being the subtasks recorded at `cp-plan` (`fanout.source: tasks`) instead of tickets. The parent session keeps `cp-plan`, `cp-merge` and `cp-recap`; `cp-commit` moves to the children and the `developer` is not in the bundle of the parent (`agents.developer.fanout: never`).
+
+1. Once `cp-plan` is approved, oh creates the integration branch `oh/fanout/<session>/integration`, then launches one [`sweep-task`](#sweep-task) session per subtask **recorded by oh** (never a list declared by an agent), on `oh/fanout/<session>/t<n>` in its own worktree, 1 to 3 at a time. oh gives it its subtask (`task` input: title and description), its scope (`files`) and its domain (`domain`), plus `goal`, `verify` and `verify_cmd` when the session got them (`fanout.inputs`), nothing else.
+2. Each child does its subtask, runs the verification asked, passes its `cp-commit` **without a pause** (delegated to `cp-merge`, CP-R3), verified by oh in its worktree, then commits. oh refuses this commit when a change is outside the **scope of the subtask** (what oh recorded): the scopes being disjoint, a child never touches the work of another. It does not merge nor push (oh refuses it); no ticket to close.
+3. Merge by oh into the integration branch, `merger` on a conflict, table of the subtasks to the parent, review of the whole by the `reviewer`, then **`cp-merge`** (pause in every mode): oh runs the stack verification there **on the integration branch**, never overridden; once approved, oh merges the integration branch into the branch of the session. Nothing is closed: there is no `tickets` output.
+4. `cp-merge` refused with an instruction: fix round (`fanout.fix`, a `quick` session on the integration branch, its `cp-commit` approved by the user), one round (no `limits.max_fix_rounds`), then `cp-merge` verified again.
+5. `cp-recap`: subtasks merged or not, and why. oh then cleans up the `oh/fanout/…` worktrees and branches as for `implement-spec`.
+
+Pause budget in semi-auto: `cp-plan`, `cp-merge`, `cp-recap`, i.e. 3 pauses whatever the number of subtasks (as the sequential version; two more per fix round). `dry_run`: `cp-plan` is not called, no child session starts.
+
+**Fan-out disabled** (`[fanout] experimental` set to `false`, the default): `sweep` keeps its sequential version, unchanged but for the breakdown read by oh; `-i fanout=true` is refused at launch, as for `implement-spec`. The fan-out is never chosen by default.
+
+**Team layers that extend `hub:sweep`**: nothing to migrate, the ids (`cp-plan`, `cp-commit`, `cp-recap`, agents, inputs) do not change. A layer may lower `tasks.max`, narrow `tasks.domains` or `fanout.parallel`, never the reverse, nor remove `tasks:`, change `fanout.source` or keep the `developer` in a fan-out (`loosening`). A layer that changes `cp-commit` (stricter verification, pause) keeps it outside a fan-out, but a fan-out session has no such checkpoint: `fanout_never_patched` warning at validation, and `oh doctor` lists these layers ("Layers and fan-out"); to harden the fan-out too, change `cp-merge`.
+
+## `sweep-task`
+
+One subtask of a sweep, without a ticket (`risk: write`): the `developer` (entry agent) does it within its file scope, runs the verification asked, passes `cp-commit` (mandatory, verified by oh, unlocks `commit`) and commits. Launched by oh for each subtask of a fan-out `sweep`, where its `cp-commit` is delegated to the `cp-merge` of the parent and oh refuses a change outside the recorded scope; usable by hand (`oh run sweep-task -i task="…" -i files="…"`), without that scope check. Inputs: `task` and `files` (required, one path, folder or pattern per line), `domain` (same list as `sweep`), `goal`, `verify`, `verify_cmd`. Allowed Beads commands: `show`, `list`, `search`, `query`. Default mode: `semi-auto` (in a fan-out, the parent's).
 
 ## `brief-enrich`
 

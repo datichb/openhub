@@ -1,0 +1,72 @@
+id: S74
+title: "Sweep en fan-out : deux tâches sur le même fichier, oh refuse leurs périmètres qui se recoupent ; le conductor les regroupe en une sous-tâche, une seule session enfant"
+workflow: sweep
+mode: semi-auto
+inputs:
+  strategy: manual
+  tasks: |
+    Ajouter un commentaire de documentation en français à Reverse, dans strx/strx.go
+    Ajouter un commentaire de documentation en français à Shout, dans strx/strx.go
+  fanout: "true"
+text: "Documenter les fonctions de strx."
+setup:
+  - |
+    mkdir -p strx && cat > strx/strx.go <<'GO'
+    package strx
+
+    import "strings"
+
+    func Reverse(s string) string {
+    	r := []rune(s)
+    	for i, j := 0, len(r)-1; i < j; i, j = i+1, j-1 {
+    		r[i], r[j] = r[j], r[i]
+    	}
+    	return string(r)
+    }
+
+    func Shout(s string) string { return strings.ToUpper(s) + "!" }
+    GO
+fanout: { parallel: 2 }
+timeout: 40m
+budget_usd: 2.5
+answers:
+  question: first
+  checkpoints:
+    "*": approve
+# sweep-fanout : en fan-out toutes les sous-tâches peuvent tourner en même
+# temps ; deux périmètres sur strx/strx.go sont refusés par oh avant toute
+# carte. Le conductor corrige (une seule sous-tâche pour le fichier) ; oh
+# n'enregistre et ne lance que ce découpage.
+assertions:
+  - type: checkpoint_order
+    order: [cp-plan, cp-merge, cp-recap]
+  - type: output
+    name: une seule sous-tâche relevée
+    output: tasks
+    pattern: "t1 [\\s\\S]*strx/strx\\.go"
+  - type: output
+    name: pas de seconde sous-tâche sur le même fichier
+    output: tasks
+    pattern: "(?m)^t2 "
+    absent: true
+  - type: fanout
+    name: une session enfant lancée
+    event: child
+    count: 1
+  - type: fanout
+    name: cp-commit de l'enfant passé par délégation
+    event: child_checkpoint
+    checkpoint: cp-commit
+    by: delegated
+  - type: fanout
+    name: branche d'intégration mergée par oh
+    event: integrated
+  - type: file_matches
+    name: les deux fonctions documentées
+    paths: ["strx/strx.go"]
+    pattern: "//\\s*Reverse[\\s\\S]*//\\s*Shout"
+  - type: changed_within
+    paths: ["strx/**"]
+  - type: hidden_tests
+  - type: no_denied_loop
+    max_repeats: 3

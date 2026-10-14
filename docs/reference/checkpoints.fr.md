@@ -35,7 +35,9 @@ Un checkpoint conditionnel y figure avec la mention « si sa condition est vraie
 | `implement-spec` en fan-out (expérimental) | `cp-plan`, `cp-merge`, `cp-final` (les `cp-2` des enfants sont délégués, CP-R3) | `cp-merge` | 3 |
 | `merge-conflicts` (lancé par oh dans un fan-out) | aucune | — | 2 |
 | `spec` | `cp-understanding`, `cp-spec`, `cp-tickets` (`cp-converge` est vérifié par oh, sans pause) | `cp-spec`, `cp-tickets` | 4 |
-| `sweep` | `cp-plan`, `cp-commit`, `cp-recap` | `cp-commit` | 3 |
+| `sweep` | `cp-plan` (découpage relevé et vérifié par oh), `cp-commit`, `cp-recap` | `cp-commit` | 3 |
+| `sweep` en fan-out (expérimental) | `cp-plan`, `cp-merge`, `cp-recap` (les `cp-commit` des enfants `sweep-task` sont délégués, CP-R3) | `cp-merge` | 3 |
+| `sweep-task` (hors fan-out) | `cp-commit` | `cp-commit` | 3 |
 | `review-feedback` | `cp-fix`, `cp-2` | `cp-2` | 3 |
 | `quick` | `cp-commit` | `cp-commit` | 3 |
 | `debug` | `cp-ticket`, `cp-commit` | `cp-ticket`, `cp-commit` | 4 |
@@ -96,7 +98,7 @@ Dans un workflow en lecture seule (`risk: read`), un checkpoint vérifié demand
 
 **Assouplissement** : une couche d'équipe ou de projet peut renforcer une vérification héritée (ajouter des types, des commandes, des chemins `must_touch`, allonger le délai), jamais la retirer ni l'affaiblir (`loosening`) ; retirer un checkpoint vérifié est refusé (`verified_checkpoint_removed`).
 
-Les workflows livrés vérifient ainsi `cp-2` (`ticket`, `implement-spec`, `review-feedback`) et `cp-commit` (`quick`, `debug`, `sweep`).
+Les workflows livrés vérifient ainsi `cp-2` (`ticket`, `implement-spec`, `review-feedback`) et `cp-commit` (`quick`, `debug`, `sweep`, `sweep-task`).
 
 **Specs écrites (`verify.spec`, R4)** : au lieu de commandes, oh lit les specs que la session a modifiées sous les chemins donnés et vérifie leur frontmatter (format du wiki), leur glossaire, le point de test sur la ligne de chaque critère (`CA-n · Test : …`) et, avec `breakdown: true`, que le découpage couvre chaque critère sans tranche hors spec ([format](workflow-schema.fr.md#verify--vérification-lancée-par-oh)). Le workflow `spec` s'en sert trois fois : `cp-converge` (automatique dans tous les modes : la passe de convergence, qui renvoie un écart au planner sans pause), puis `cp-spec` et `cp-tickets` (même vérification avant le commit et la création des tickets).
 
@@ -188,7 +190,7 @@ Refusé, l'appel de l'agent échoue avec `ErrVerifyFailed`, la raison et l'extra
 
 ## Fan-out : substitution de contrôle (CP-R3)
 
-Dans un fan-out (`implement-spec -i fanout=true`, expérimental, [guide](../guides/fan-out.fr.md)), chaque ticket a sa session enfant (`ticket`), et le `cp-2` de chaque enfant **ne fait pas de pause** : il est remplacé par le `cp-merge` de la session parente. Sans cette substitution, N tickets donneraient N pauses ; avec elle, une seule validation, mieux informée (tableau des enfants, revue de l'ensemble, vérification de la branche d'intégration). Elle ne relâche rien, grâce à ces garde-fous, chacun couvert par des tests de contournement :
+Dans un fan-out (`implement-spec -i fanout=true` ou `sweep -i fanout=true`, expérimental, [guide](../guides/fan-out.fr.md)), chaque ticket a sa session enfant (`ticket`), chaque sous-tâche d'un sweep la sienne (`sweep-task`), et le `cp-2` (ou le `cp-commit`) de chaque enfant **ne fait pas de pause** : il est remplacé par le `cp-merge` de la session parente. Sans cette substitution, N tickets donneraient N pauses ; avec elle, une seule validation, mieux informée (tableau des enfants, revue de l'ensemble, vérification de la branche d'intégration). Elle ne relâche rien, grâce à ces garde-fous, chacun couvert par des tests de contournement :
 
 | Garde-fou | Où |
 |---|---|
@@ -202,6 +204,9 @@ Dans un fan-out (`implement-spec -i fanout=true`, expérimental, [guide](../guid
 | Traçabilité : le passage délégué est écrit dans la frise de l'enfant (`delegated`, avec le checkpoint et la session parente) et dans la trace de la parente (`fanout`, `child_checkpoint`), avec chaque étape du fan-out | `oh session trace`, `oh fanout status` |
 | Drapeau expérimental, désactivé par défaut : sans lui, le lancement est refusé et le démon ne délègue rien | `[fanout] experimental`, `TestDriverRefusals` |
 | Tour de correction (`cp-merge` refusé avec une consigne) : la session de correction n'est jamais un enfant (rôle `fixer`, son `cp-commit` validé par l'utilisateur, aucune délégation), sans push, merge, fermeture ni déplacement de branche ; oh ne reprend que des commits par-dessus la branche d'intégration, sans merge ni rien de non commité ; `cp-merge` se repasse et se revérifie sur la nouvelle tête | `TestFanoutFixerNotDelegated`, `TestFanoutMergeRefusedAsksForAFix`, `TestFixRound`, `TestFixRoundRefused` |
+| Enfants issus du découpage (`sweep`, `fanout.source: tasks`) : les enfants sont les sous-tâches **enregistrées par oh** à `cp-plan` (`tasks:`), jamais une liste déclarée par un agent ; ce découpage est vérifié par oh avant la carte (fichiers du dépôt, périmètres disjoints, au plus `max`), et l'appel qui passe `cp-plan` doit apporter celui de la carte ; la vérification du `cp-commit` délégué d'un enfant échoue sur un changement hors du périmètre de sa sous-tâche ; aucun ticket, rien à fermer ; le `developer` n'est pas dans la parente (`agents.developer.fanout: never`) ; une couche ne change ni `source` ni ce scope, et ne retire pas `tasks:` | `TestFanoutTasks_*`, `TestShippedSweepFanout`, `TestShippedSweepFanoutTeamLayer`, `TestTasksRefusedBeforeAnyCard`, `TestTasksChangedAfterTheCardRefused`, `TestTaskScopeOfTheChild`, `TestDriverTasksBecomeChildren`, `TestDriverTasksNoneRecorded` |
+
+Une couche qui modifie le checkpoint délégué (`fanout: never` : `cp-2` d'`implement-spec`, `cp-commit` de `sweep`) le garde hors fan-out seulement : avertissement `fanout_never_patched`, listé par `oh doctor` ; pour durcir le fan-out, c'est `cp-merge` qu'elle modifie.
 
 Le `cp-2` des enfants n'est délégué que si la session parente porte le checkpoint de merge : dans une couche d'équipe qui déclare son propre fan-out sans `delegates`, chaque enfant garde sa pause, et ces pauses se valident par lot (ci-dessous).
 

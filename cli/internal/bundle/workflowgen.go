@@ -202,7 +202,7 @@ func unlockText(id string, ops []string, commitNext ...string) string {
 		fmt.Fprintf(&b, " L'ouverture de la merge request se referme au checkpoint obligatoire suivant, ou quand **%s** est demandé de nouveau.", id)
 	}
 	if has[sessionspec.UnlockMerge] {
-		b.WriteString(" Une fois validé, oh merge lui-même la branche d'intégration dans la branche de la session et ferme les tickets mergés : aucun agent ne merge, ne commite, ne pousse ni ne ferme de ticket.")
+		b.WriteString(" Une fois validé, oh merge lui-même la branche d'intégration dans la branche de la session (et ferme les tickets des enfants mergés, s'il y en a) : aucun agent ne merge, ne commite, ne pousse ni ne ferme de ticket.")
 		return b.String()
 	}
 	switch {

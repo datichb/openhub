@@ -41,11 +41,17 @@ Motifs à exclure (données) :
 
 Déroulé :
 1. Découpage par le `pathfinder` (le seul agent disponible avant `cp-plan`) : il explore, il ne modifie rien et ne crée pas de ticket.
-2. Plan : pour chaque sous-tâche, une description, un **périmètre de fichiers**, le domaine du `developer` prévu (frontend, backend…, `refactor` pour une restructuration sans changement de comportement, `migration` pour un upgrade, `tests` pour ajouter des tests) et un drapeau « parallélisable ». Les périmètres de deux sous-tâches parallélisables sont **disjoints** ; sinon, elles s'exécutent l'une après l'autre.
+2. Plan : pour chaque sous-tâche, un titre, une description, un **périmètre de fichiers** (chemins, dossiers ou motifs du dépôt ; un fichier à créer, dans un dossier existant), le domaine du `developer` prévu (`frontend`, `backend`, `fullstack`, `api`, `data`, `mobile`, `devops`, `platform`, `security`, `refactor` pour une restructuration sans changement de comportement, `migration` pour un upgrade, `tests` pour ajouter des tests) et un drapeau « parallélisable ». {{ if .fanout }}Chaque sous-tâche devient une session enfant, peut-être en même temps que les autres : leurs périmètres sont tous **disjoints**.{{ else }}Les périmètres de deux sous-tâches parallélisables sont **disjoints** ; sinon, elles s'exécutent l'une après l'autre.{{ end }}
 {{- if .dry_run }}
 3. Mode plan seulement : affiche le plan, **n'appelle pas `cp-plan`** et ne lance aucun agent développeur. Termine par `cp-recap`, avec le plan comme résumé.
 {{- else }}
-3. `cp-plan` : présente le plan (oh attend la validation de l'utilisateur, quel que soit le mode).
+3. `cp-plan` : passe le plan dans `tasks` de `workflow_checkpoint`, une entrée `{ title, description, files, domain, parallel }` par sous-tâche (`files` : la liste du périmètre). oh le vérifie avant de le montrer : un refus liste les problèmes (fichier inconnu, périmètres qui se recoupent…) ; corrige le plan, avec le `pathfinder` si un périmètre est en cause, puis rappelle `cp-plan`. oh attend ensuite la validation de l'utilisateur (quel que soit le mode), enregistre le plan validé et te le rend numéroté (`t1`, `t2`…) : c'est lui qui fait foi.
+{{- if .fanout }}
+4. Sessions enfants (fan-out) : oh lance lui-même une session `sweep-task` par sous-tâche enregistrée, chacune dans son worktree, avec sa sous-tâche, son périmètre, son domaine et la vérification demandée, et les merge dans une branche d'intégration. Ne lance aucun `developer` et ne commite rien : après `cp-plan`, termine ton tour par une phrase.
+5. Quand oh t'écrit (tableau des sous-tâches) : le `reviewer` relit l'ensemble des changements de la branche d'intégration (diff depuis sa base), sous-tâche par sous-tâche.
+6. `cp-merge` : présente le tableau et le verdict de la revue. oh y lance la vérification sur la branche d'intégration ; validé, il la merge lui-même dans la branche de la session. Refusé avec une consigne : oh lance un tour de correction ; quand il t'écrit, fais relire la correction par le `reviewer`, puis repasse `cp-merge`.
+7. `cp-recap` : résultat par sous-tâche (mergée ou non, et pourquoi), vérification, review et merge.
+{{- else }}
 4. Exécution par le `developer`, dans le domaine prévu. Consigne pour chaque sous-tâche : « Tu agis en tant que developer <domaine> : charge les skills de ce domaine (`dev-standards-refactoring`, `dev-standards-migration`, `test-generation`…). Pas de ticket : saute les étapes `bd`. Ne touche que les fichiers de ton périmètre : <périmètre>. Ne commite pas. » Lance en parallèle (plusieurs appels `task` dans le même message, sans `background` : tu attends leurs retours dans ce tour) seulement les sous-tâches parallélisables aux périmètres disjoints ; les autres, l'une après l'autre.
 5. Vérification : {{ if eq .verify "none" }}aucune.{{ else if eq .verify "custom" }}commande personnalisée, lancée par un `developer` (elle peut être refusée par ses permissions : signale-le alors, sans la contourner) :
 {{ data "verify_cmd" .verify_cmd }}{{ else if eq .verify "all" }}tests, lint et build du projet, lancés par un `developer`.{{ else }}`{{ .verify }}` du projet, lancé par un `developer`.{{ end }}
@@ -55,4 +61,5 @@ Déroulé :
 6. Review : le `reviewer` relit le diff de la session (`git diff` et fichiers non suivis), sous-tâche par sous-tâche.
 7. `cp-commit` : présente le diff, le résultat de la vérification (`PASS` ou `FAIL`) et la review. Une fois validé, fais commiter par un agent développeur : un commit, ou un par sous-tâche à la suite (`git add` du périmètre, puis `git commit`). Avant `cp-commit`, oh refuse tout `git commit`.
 8. `cp-recap` : résultat par sous-tâche, vérification, review et commits.
+{{- end }}
 {{- end }}

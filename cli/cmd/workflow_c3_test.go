@@ -10,6 +10,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/teamstate"
+	"github.com/datichb/openhub/cli/internal/workflow"
 )
 
 // A6: oh workflow show (and validate) resolve the chain down to the project
@@ -117,4 +118,24 @@ func TestRetiredExtendsCheck(t *testing.T) {
 	require.True(t, ok)
 	assert.False(t, c.OK)
 	assert.Contains(t, c.Detail, "team:feature extends hub:feature, now an alias of spec")
+}
+
+// sweep-fanout: oh doctor names the team and project workflows that change a
+// checkpoint the children of a hub fan-out pass (cp-commit of sweep).
+func TestFanoutNeverFindings(t *testing.T) {
+	useLocale(t, "en")
+	hub := workflow.NewMemCatalog()
+	require.Empty(t, hub.LoadDir(filepath.Join(repoRoot(t), "workflows"), workflow.LayerHub).Errors())
+	cat := workflow.NewMemCatalog()
+	add := func(src string) {
+		doc, diags := workflow.Parse([]byte(src), workflow.Source{Layer: workflow.LayerTeam, Path: "team/x.yaml"})
+		require.False(t, diags.HasErrors(), "%v", diags)
+		require.Empty(t, cat.Add(doc))
+	}
+	add("apiVersion: oh/v1\nkind: Workflow\nid: sweep\nextends: hub:sweep\ncheckpoints:\n  cp-commit: { verify: { from: stack, expect: pass, kinds: [build, test, typecheck, lint] } }\n  cp-recap: { mode: { auto: pause } }\n")
+	add("apiVersion: oh/v1\nkind: Workflow\nid: quick\nextends: hub:quick\ncheckpoints:\n  cp-commit: { mode: { auto: pause } }\n")
+	add("apiVersion: oh/v1\nkind: Workflow\nid: implement-spec\nextends: hub:implement-spec\ncheckpoints:\n  cp-final: { mode: { auto: pause } }\n")
+	found := fanoutNeverFindings(hub, "team", cat)
+	require.Len(t, found, 1, "%v", found)
+	assert.Equal(t, "team:sweep changes cp-commit of hub:sweep, absent from fan-out sessions (validated by cp-merge)", found[0])
 }

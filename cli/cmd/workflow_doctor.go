@@ -39,6 +39,9 @@ func workflowIntegrityChecks() []views.DoctorCheck {
 		if c, ok := retiredExtendsCheck(t.DisplayName(), repo, hubWorkflowsDir()); ok {
 			out = append(out, c)
 		}
+		if c, ok := fanoutNeverCheck(t.DisplayName(), repo, hubWorkflowsDir()); ok {
+			out = append(out, c)
+		}
 	}
 	return out
 }
@@ -77,6 +80,58 @@ func retiredExtendsCheck(name string, repo *teamstate.Repo, hubWorkflows string)
 	}
 	return views.DoctorCheck{Name: i18n.Tf("teamstate.workflow.doctor.retired_name", name), OK: false,
 		Detail: i18n.Tf("teamstate.workflow.doctor.retired", strings.Join(found, " · "))}, true
+}
+
+// fanoutNeverCheck reports the published team and project workflows that
+// change a checkpoint the children of a hub fan-out pass (fanout: never:
+// cp-commit of sweep, cp-2 of implement-spec): the change does not reach a
+// fan-out session (sweep-fanout); ok is false when there is none.
+func fanoutNeverCheck(name string, repo *teamstate.Repo, hubWorkflows string) (views.DoctorCheck, bool) {
+	hub := workflow.NewMemCatalog()
+	_ = hub.LoadDir(hubWorkflows, workflow.LayerHub)
+	scopes := []teamstate.WorkflowScope{teamstate.TeamScope()}
+	projects, _ := repo.WorkflowProjects()
+	for _, p := range projects {
+		scopes = append(scopes, teamstate.ProjectScope(p))
+	}
+	var found []string
+	for _, sc := range scopes {
+		cat := workflow.NewMemCatalog()
+		_ = repo.LoadWorkflowScopes(cat, sc)
+		found = append(found, fanoutNeverFindings(hub, sc.String(), cat)...)
+	}
+	if len(found) == 0 {
+		return views.DoctorCheck{}, false
+	}
+	return views.DoctorCheck{Name: i18n.Tf("teamstate.workflow.doctor.fanout_never_name", name), OK: false,
+		Detail: i18n.Tf("teamstate.workflow.doctor.fanout_never", strings.Join(found, " · "))}, true
+}
+
+// fanoutNeverFindings lists the documents of cat (scope) that extend a hub
+// workflow with a fan-out and patch one of its `fanout: never` checkpoints.
+func fanoutNeverFindings(hub *workflow.MemCatalog, scope string, cat *workflow.MemCatalog) []string {
+	var found []string
+	for _, ref := range cat.Refs() {
+		doc, _ := cat.Lookup(ref)
+		parent, err := workflow.ParseRef(doc.Spec.Extends)
+		if doc.Spec.Extends == "" || err != nil || parent.Layer != workflow.LayerHub {
+			continue
+		}
+		base, ok := hub.Lookup(parent)
+		if !ok || base.Spec.Fanout == nil {
+			continue
+		}
+		var cps []string
+		for _, k := range doc.Spec.Checkpoints.Keys() {
+			if cp, ok := base.Spec.Checkpoints.Get(k); ok && cp.Fanout == workflow.FanoutNever {
+				cps = append(cps, k)
+			}
+		}
+		if len(cps) > 0 {
+			found = append(found, i18n.Tf("teamstate.workflow.doctor.fanout_never_item", scope+":"+ref.ID, strings.Join(cps, ", "), parent.String(), base.Spec.Fanout.Merge))
+		}
+	}
+	return found
 }
 
 // workflowIntegrityCheck loads every scope of repo and summarizes the

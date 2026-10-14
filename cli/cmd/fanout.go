@@ -248,7 +248,7 @@ func printFanout(w io.Writer, id string, f *domain.SessionFanout) {
 		if detail == "" && len(c.Conflicts) > 0 {
 			detail = strings.Join(c.Conflicts, ", ")
 		}
-		fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\n", c.Ticket, c.State, c.Session, shortHash(c.Merge), detail)
+		fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\n", fanout.ChildLabel(c), c.State, c.Session, shortHash(c.Merge), detail)
 	}
 	_ = tw.Flush()
 	if n := len(f.Events); n > 0 {
@@ -304,8 +304,8 @@ func (l *fanoutLauncher) Start(ctx context.Context, req fanout.LaunchRequest) (s
 	opts := runOptions{Workflow: req.Workflow, Project: l.project, Mode: req.Parent.Mode, Location: req.Dir,
 		Attach: string(sessionspec.AttachNone), ParentSessionID: req.Parent.ID, Dirty: runsvc.DirtyAllow, OneSession: true,
 		OnExisting: runsvc.OnExistingParallel, LooseInputs: req.Inputs}
-	if req.Record.Role == domain.RoleChild && req.Ticket != "" {
-		opts.Tickets = []string{req.Ticket}
+	if req.Record.Role == domain.RoleChild && req.Ticket != "" && req.Task == nil {
+		opts.Tickets = []string{req.Ticket} // a task (sweep-fanout) has no ticket
 	}
 	if req.Record.Role == domain.RoleMerger {
 		opts.Mode = "" // the mode of its workflow (auto: nobody to answer)
@@ -320,6 +320,9 @@ func (l *fanoutLauncher) Start(ctx context.Context, req fanout.LaunchRequest) (s
 	switch req.Record.Role {
 	case domain.RoleChild:
 		note = i18n.Tf("cmd.fanout.child_note", req.Parent.ID, req.Record.Branch)
+		if req.Task != nil {
+			note = i18n.Tf("cmd.fanout.child_note_task", req.Parent.ID, req.Record.Branch, req.Task.ID, strings.Join(req.Task.Files, ", "))
+		}
 	case domain.RoleFixer:
 		note = i18n.Tf("cmd.fanout.fixer_note", req.Parent.ID, req.Record.Branch)
 	}

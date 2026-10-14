@@ -144,10 +144,13 @@ const (
 	// in those files (text): the postmortem of incident, the decision of
 	// spike and its verdict (B1).
 	RecordWritten OutputRecord = "written"
+	// RecordTasks: the breakdown oh read and checked at the checkpoint with
+	// `tasks:` (text, one task per line; sweep-fanout).
+	RecordTasks OutputRecord = "tasks"
 )
 
 // OutputRecords lists the valid record kinds.
-var OutputRecords = []OutputRecord{RecordCreated, RecordClosed, RecordSpec, RecordReport, RecordInput, RecordWritten}
+var OutputRecords = []OutputRecord{RecordCreated, RecordClosed, RecordSpec, RecordReport, RecordInput, RecordWritten, RecordTasks}
 
 // Valid reports whether r is known ("" = declared by the session).
 func (r OutputRecord) Valid() bool { return r == "" || slices.Contains(OutputRecords, r) }
@@ -161,7 +164,7 @@ func (r OutputRecord) OutputType() OutputType {
 		return OutputPath
 	case RecordReport:
 		return OutputReport
-	case RecordInput:
+	case RecordInput, RecordTasks:
 		return OutputText
 	case RecordWritten:
 		return OutputPath

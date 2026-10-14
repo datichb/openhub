@@ -10,7 +10,10 @@ type FanoutDef struct {
 	// Child is the workflow of the child sessions; Tickets the input that
 	// holds their tickets.
 	Child   string `json:"child"`
-	Tickets string `json:"tickets"`
+	Tickets string `json:"tickets,omitempty"`
+	// Source is "tasks" when the children are the tasks recorded at the
+	// tasks checkpoint (sweep-fanout), "" for the tickets.
+	Source string `json:"source,omitempty"`
 	// Parallel is the number of children at the same time (1 to 3).
 	Parallel int `json:"parallel"`
 	// Merge is the merge checkpoint of the parent.
@@ -25,6 +28,26 @@ type FanoutDef struct {
 	// that gets the instruction.
 	Fix      string `json:"fix,omitempty"`
 	FixInput string `json:"fix_input,omitempty"`
+}
+
+// FanoutSourceTasks is FanoutDef.Source when the children are tasks.
+const FanoutSourceTasks = "tasks"
+
+// Tasks reports whether the children of the fan-out are tasks.
+func (f *FanoutDef) Tasks() bool { return f != nil && f.Source == FanoutSourceTasks }
+
+// TasksCheckpoint returns the checkpoint of w that records the breakdown
+// ("" = none).
+func (w *WorkflowRuntime) TasksCheckpoint() string {
+	if w == nil {
+		return ""
+	}
+	for _, c := range w.Checkpoints {
+		if c.Tasks != nil {
+			return c.ID
+		}
+	}
+	return ""
 }
 
 // VerifyOnIntegration is VerifyDef.On for the integration branch.

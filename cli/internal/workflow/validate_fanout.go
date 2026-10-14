@@ -22,10 +22,34 @@ import (
 //     declares with the same type (and every value of an enum);
 //   - the fix workflow exists, is not a fan-out, takes the instruction in
 //     a text input and has a mandatory checkpoint that unlocks its commit
-//     (validated by the user: a fix round is never delegated).
+//     (validated by the user: a fix round is never delegated);
+//   - sweep-fanout, `source: tasks`: no tickets input, a mandatory tasks
+//     checkpoint of every session declared before the merge checkpoint
+//     (the children start once it passed), a child workflow that takes the
+//     task and its file scope in text inputs (`task`, `files`, and
+//     `domain` with every domain of the check), inputs oh fills itself
+//     (never in `inputs`); an agent scoped with `fanout:` needs a fan-out
+//     and is not the entry agent;
+//   - a checkpoint the children pass (`fanout: never`) patched by a team or
+//     project layer: warned, the patch does not reach a fan-out session.
 func (v *validator) fanout() {
 	s := v.s
 	f := s.Fanout
+	for _, k := range s.Agents.Keys() {
+		a, _ := s.Agents.Get(k)
+		if a.Fanout == "" {
+			continue
+		}
+		at := "agents." + k + ".fanout"
+		v.enum(at, string(a.Fanout), a.Fanout.Valid(), string(FanoutOnly), string(FanoutNever))
+		switch {
+		case f == nil:
+			v.err("agent_fanout_without_fanout", at, k)
+		case k == s.EntryAgent():
+			v.err("agent_fanout_entry", at, k)
+		}
+	}
+	v.fanoutNeverPatched()
 	for _, k := range s.Checkpoints.Keys() {
 		cp, _ := s.Checkpoints.Get(k)
 		base := "checkpoints." + k
@@ -52,6 +76,7 @@ func (v *validator) fanout() {
 		return
 	}
 	v.fanoutInputs(f)
+	v.fanoutTasks(f)
 	if f.Parallel < 0 || f.Parallel > MaxFanoutParallel {
 		v.err("fanout_parallel", "fanout.parallel", f.Parallel, MaxFanoutParallel)
 	}
@@ -72,10 +97,94 @@ func (v *validator) fanoutInputs(f *Fanout) {
 	} else if in, ok := s.Inputs.Get(f.Input); !ok || in.Type != InputBool {
 		v.err("fanout_input", "fanout.input", f.Input)
 	}
-	if f.Tickets == "" {
+	v.enum("fanout.source", string(f.Source), f.Source.Valid(), string(FanoutSourceTickets), string(FanoutSourceTasks))
+	switch {
+	case f.Tasks():
+		if f.Tickets != "" {
+			v.err("fanout_tasks_tickets", "fanout.tickets", f.Tickets)
+		}
+	case f.Tickets == "":
 		v.err("field_required", "fanout.tickets", "tickets")
-	} else if in, ok := s.Inputs.Get(f.Tickets); !ok || in.Type != InputBeadsIDs {
-		v.err("fanout_tickets", "fanout.tickets", f.Tickets)
+	default:
+		if in, ok := s.Inputs.Get(f.Tickets); !ok || in.Type != InputBeadsIDs {
+			v.err("fanout_tickets", "fanout.tickets", f.Tickets)
+		}
+	}
+}
+
+// fanoutTasks checks a fan-out whose children are the recorded tasks.
+func (v *validator) fanoutTasks(f *Fanout) {
+	if !f.Tasks() {
+		return
+	}
+	s := v.s
+	id := s.TasksCheckpoint()
+	if id == "" {
+		v.err("fanout_tasks_checkpoint", "fanout.source")
+		return
+	}
+	cp, _ := s.Checkpoints.Get(id)
+	base := "checkpoints." + id
+	if !cp.IsMandatory() {
+		v.err("fanout_tasks_mandatory", base+".mandatory", id)
+	}
+	if cp.Fanout != "" {
+		v.err("fanout_tasks_scope", base+".fanout", id)
+	}
+	if f.Merge != "" && slices.Index(s.Checkpoints.Keys(), id) > slices.Index(s.Checkpoints.Keys(), f.Merge) {
+		v.err("fanout_tasks_after_merge", base, id, f.Merge)
+	}
+	child := v.specOf(f.Child)
+	if child == nil || f.Child == s.ID {
+		return
+	}
+	for _, name := range []string{TaskInputTask, TaskInputFiles} {
+		if in, ok := child.Inputs.Get(name); !ok || (in.Type != InputText && in.Type != InputString) {
+			v.err("fanout_task_input", "fanout.child", f.Child, name)
+		}
+	}
+	in, ok := child.Inputs.Get(TaskInputDomain)
+	switch {
+	case !ok:
+	case in.Type == InputEnum:
+		for _, d := range cp.Tasks.Domains {
+			if !slices.Contains(in.Values, d) {
+				v.err("fanout_task_domain", "fanout.child", f.Child, d)
+			}
+		}
+	case in.Type != InputText && in.Type != InputString:
+		v.err("fanout_task_input", "fanout.child", f.Child, TaskInputDomain)
+	}
+}
+
+// fanoutNeverPatched warns about a checkpoint the children pass (`fanout:
+// never`) that a team or project layer patched: a fan-out session does not
+// have it, so the patch (a stricter verification, a pause) does not apply
+// there; the merge checkpoint is what to harden.
+func (v *validator) fanoutNeverPatched() {
+	s := v.s
+	if s.Fanout == nil {
+		return
+	}
+	for _, k := range s.Checkpoints.Keys() {
+		cp, _ := s.Checkpoints.Get(k)
+		if cp.Fanout != FanoutNever {
+			continue
+		}
+		prefix := "checkpoints." + k + "."
+		var layers []string
+		for p, o := range v.r.Origins {
+			if (p != prefix[:len(prefix)-1] && !strings.HasPrefix(p, prefix)) || strings.HasPrefix(p, prefix+"fanout") {
+				continue
+			}
+			if (o.Layer != LayerHub || o.Draft) && !slices.Contains(layers, o.Ref().String()) {
+				layers = append(layers, o.Ref().String())
+			}
+		}
+		slices.Sort(layers)
+		if len(layers) > 0 {
+			v.warn("fanout_never_patched", "checkpoints."+k, k, strings.Join(layers, ", "), s.Fanout.Merge)
+		}
 	}
 }
 
@@ -190,6 +299,10 @@ func (v *validator) fanoutChildInputs(f *Fanout) {
 			continue
 		}
 		seen[id] = true
+		if f.Tasks() && slices.Contains(TaskInputs, id) {
+			v.err("fanout_inputs_reserved", at, id)
+			continue
+		}
 		in, ok := v.s.Inputs.Get(id)
 		if !ok || id == f.Input || id == f.Tickets || !slices.Contains(FanoutInputTypes, in.Type) {
 			v.err("fanout_inputs_parent", at, id)

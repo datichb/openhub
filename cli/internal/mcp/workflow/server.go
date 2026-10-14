@@ -73,6 +73,7 @@ func New(b Backend) *protocol.Server {
 				"summary":  map[string]any{"type": "string", "description": i18n.T("cmd.mcp.workflow.checkpoint_summary")},
 				"evidence": evidenceSchema(),
 				"reports":  map[string]any{"type": "array", "items": map[string]any{"type": "string"}, "description": i18n.T("cmd.mcp.workflow.checkpoint_reports")},
+				"tasks":    tasksSchema(),
 			},
 			"required": []string{"id", "summary"},
 		},
@@ -92,6 +93,26 @@ func New(b Backend) *protocol.Server {
 	}, h.outputs)
 	registerReports(s, h)
 	return s
+}
+
+// tasksSchema is the breakdown of a checkpoint that records it
+// (sweep-fanout, checkpoint.tasksOf).
+func tasksSchema() map[string]any {
+	return map[string]any{
+		"type":        "array",
+		"description": i18n.T("cmd.mcp.workflow.checkpoint_tasks"),
+		"items": map[string]any{
+			"type": "object",
+			"properties": map[string]any{
+				"title":       map[string]any{"type": "string"},
+				"description": map[string]any{"type": "string"},
+				"files":       map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
+				"domain":      map[string]any{"type": "string"},
+				"parallel":    map[string]any{"type": "boolean"},
+			},
+			"required": []string{"title", "files"},
+		},
+	}
 }
 
 type handlers struct{ b Backend }
@@ -173,6 +194,10 @@ func (h handlers) checkpoint(ctx context.Context, params json.RawMessage) (*prot
 	if res.Next != "" {
 		b.WriteString("\n")
 		b.WriteString(i18n.Tf("cmd.mcp.workflow.checkpoint_next", res.Next))
+	}
+	if res.Tasks != "" {
+		b.WriteString("\n")
+		b.WriteString(i18n.Tf("cmd.mcp.workflow.checkpoint_tasks_recorded", res.Tasks))
 	}
 	writeVerify(&b, res)
 	if res.Wiki != "" {

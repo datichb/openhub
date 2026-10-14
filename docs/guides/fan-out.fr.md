@@ -1,8 +1,8 @@
 > [Read in English](fan-out.en.md)
 
-# Fan-out : une session enfant par ticket (expérimental)
+# Fan-out : une session enfant par ticket ou par sous-tâche (expérimental)
 
-Le fan-out fait implémenter les tickets d'une spec par des **sessions enfants**, une par ticket, chacune dans sa branche et son worktree, parfois en même temps. oh les merge lui-même dans une branche d'intégration, fait résoudre par le `merger` un conflit qu'il ne résout pas seul, et ne merge le tout dans votre branche qu'après **une seule validation**, `cp-merge`, vérifiée par oh sur la branche d'intégration. Il est **expérimental** et désactivé par défaut.
+Le fan-out fait implémenter les tickets d'une spec (`implement-spec`) ou les sous-tâches d'un sweep (`sweep`) par des **sessions enfants**, une par ticket ou sous-tâche, chacune dans sa branche et son worktree, parfois en même temps. oh les merge lui-même dans une branche d'intégration, fait résoudre par le `merger` un conflit qu'il ne résout pas seul, et ne merge le tout dans votre branche qu'après **une seule validation**, `cp-merge`, vérifiée par oh sur la branche d'intégration. Il est **expérimental** et désactivé par défaut.
 
 ## Activer
 
@@ -28,6 +28,7 @@ Sans `experimental`, un lancement avec `fanout=true` est refusé. Le fan-out ne 
 ```
 oh run implement-spec -i fanout=true                  # tickets et spec de la dernière session spec du projet
 oh run implement-spec -i fanout=true -t ev-1 -t ev-2  # ou des tickets donnés
+oh run sweep -i goal="migrer les logs vers slog" -i fanout=true   # une session enfant par sous-tâche validée à cp-plan
 ```
 
 `oh run` démarre aussi, en arrière-plan, le **pilote** du fan-out (`oh fanout drive <session>`, journal dans `~/.oh/sessions/<session>/fanout.log`) : c'est lui qui lance, suit et merge les sessions enfants, que vous gardiez ou non le client de la session parente ouvert. S'il s'est arrêté (machine éteinte), relancez-le : `oh fanout drive <session>` reprend là où il en était.
@@ -43,6 +44,17 @@ oh run implement-spec -i fanout=true -t ev-1 -t ev-2  # ou des tickets donnés
 7. **`cp-final`** : récap. Les tickets non mergés (conflit non résolu, échec, budget) restent ouverts : relancez `implement-spec` pour eux.
 
 En semi-auto, trois pauses quel que soit le nombre de tickets : `cp-plan`, `cp-merge`, `cp-final` (deux de plus par tour de correction : son `cp-commit` et le nouveau `cp-merge`).
+
+## Sweep en fan-out
+
+`sweep` suit le même déroulé, avec des sous-tâches au lieu de tickets (`fanout.source: tasks`) :
+
+1. **`cp-plan`** (pause) : le `conductor` passe le découpage du `pathfinder` dans l'argument `tasks` du checkpoint (titre, description, périmètre de fichiers, domaine par sous-tâche). oh le **vérifie avant de vous le montrer** : fichiers du dépôt (ou nouveaux fichiers dans un dossier existant), périmètres **disjoints** deux à deux, au plus 12 sous-tâches, domaine connu ; sinon l'appel est refusé et le `conductor` corrige. La carte montre le découpage tel qu'oh l'a lu, et oh n'enregistre que celui-là (sortie `tasks`).
+2. **Sessions enfants** : une session `sweep-task` par sous-tâche enregistrée, sur `oh/fanout/<session>/t1`, `t2`…, avec sa sous-tâche, son périmètre, son domaine, l'objectif et la vérification demandée (`verify`). Son `cp-commit` passe sans pause (remplacé par votre `cp-merge`), oh y lance la vérification dans son worktree et **refuse le commit d'un changement hors du périmètre** de la sous-tâche.
+3. **Merge par oh**, revue de l'ensemble, **`cp-merge`** vérifié sur la branche d'intégration, tour de correction si vous le refusez avec une consigne (un tour) : comme ci-dessus. Aucun ticket : rien à fermer.
+4. **`cp-recap`** : les sous-tâches mergées ou non.
+
+Sans `[fanout] experimental`, `sweep` garde sa version séquentielle (les sous-tâches dans la session, `cp-commit`) et `-i fanout=true` est refusé. Trois pauses en semi-auto dans les deux versions.
 
 ## Nettoyage
 
@@ -82,10 +94,10 @@ Dans la TUI, touche `B` de la vue Sessions : les checkpoints en attente du fan-o
 
 ## Garanties
 
-Les garde-fous de la substitution de contrôle (déclarée par la couche hub seulement, `cp-merge` obligatoire et vérifié par oh, enfants sans push, merge ni fermeture, merge par oh, traçabilité, drapeau) sont détaillés dans [Checkpoints](../reference/checkpoints.fr.md#fan-out--substitution-de-contrôle-cp-r3). Une couche d'équipe ne peut pas assouplir le fan-out d'`implement-spec` : elle peut seulement baisser `fanout.parallel`.
+Les garde-fous de la substitution de contrôle (déclarée par la couche hub seulement, `cp-merge` obligatoire et vérifié par oh, enfants sans push, merge ni fermeture, merge par oh, traçabilité, drapeau) sont détaillés dans [Checkpoints](../reference/checkpoints.fr.md#fan-out--substitution-de-contrôle-cp-r3). Une couche d'équipe ne peut pas assouplir le fan-out d'`implement-spec` ni celui de `sweep` : elle peut seulement baisser `fanout.parallel` (et, pour `sweep`, `tasks.max` ou la liste `tasks.domains`). Une couche qui durcit le `cp-2` d'`implement-spec` ou le `cp-commit` de `sweep` le garde hors fan-out, mais ces checkpoints n'existent pas dans une session en fan-out : `oh workflow validate` l'avertit (`fanout_never_patched`) et `oh doctor` liste ces couches ; durcissez aussi `cp-merge`.
 
 ## Limites (expérimental)
 
-- `sweep` n'utilise pas encore ce mécanisme. `feature` est un alias (`spec`, ou `implement-spec` avec `--tickets`) : `oh run feature --tickets … -i fanout=true` lance donc ce fan-out.
+- `feature` est un alias (`spec`, ou `implement-spec` avec `--tickets`) : `oh run feature --tickets … -i fanout=true` lance donc ce fan-out.
 - Un enfant qui attend une réponse dans son texte (sans l'outil `question`) n'est arrêté qu'au garde-fou de 10 minutes et reste non mergé.
 - Le pilote suit le fan-out jusqu'au passage de `cp-merge` (pour lancer les tours de correction) : s'il s'est arrêté, relancez `oh fanout drive <session>`.

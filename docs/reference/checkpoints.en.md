@@ -35,7 +35,9 @@ A conditional checkpoint is listed with "if its condition holds". Repeated check
 | `implement-spec` as a fan-out (experimental) | `cp-plan`, `cp-merge`, `cp-final` (the `cp-2` of the children are delegated, CP-R3) | `cp-merge` | 3 |
 | `merge-conflicts` (launched by oh in a fan-out) | none | — | 2 |
 | `spec` | `cp-understanding`, `cp-spec`, `cp-tickets` (`cp-converge` is checked by oh, without a pause) | `cp-spec`, `cp-tickets` | 4 |
-| `sweep` | `cp-plan`, `cp-commit`, `cp-recap` | `cp-commit` | 3 |
+| `sweep` | `cp-plan` (breakdown read and checked by oh), `cp-commit`, `cp-recap` | `cp-commit` | 3 |
+| `sweep` in a fan-out (experimental) | `cp-plan`, `cp-merge`, `cp-recap` (the `cp-commit` of the `sweep-task` children are delegated, CP-R3) | `cp-merge` | 3 |
+| `sweep-task` (outside a fan-out) | `cp-commit` | `cp-commit` | 3 |
 | `review-feedback` | `cp-fix`, `cp-2` | `cp-2` | 3 |
 | `quick` | `cp-commit` | `cp-commit` | 3 |
 | `debug` | `cp-ticket`, `cp-commit` | `cp-ticket`, `cp-commit` | 4 |
@@ -96,7 +98,7 @@ In a read-only workflow (`risk: read`), a verified checkpoint always asks the us
 
 **Loosening**: a team or project layer may harden an inherited verification (more kinds, commands, `must_touch` paths, a longer timeout), never remove nor weaken it (`loosening`); removing a verified checkpoint is refused (`verified_checkpoint_removed`).
 
-The shipped workflows verify `cp-2` (`ticket`, `implement-spec`, `review-feedback`) and `cp-commit` (`quick`, `debug`, `sweep`) this way.
+The shipped workflows verify `cp-2` (`ticket`, `implement-spec`, `review-feedback`) and `cp-commit` (`quick`, `debug`, `sweep`, `sweep-task`) this way.
 
 **Written specs (`verify.spec`, R4)**: instead of commands, oh reads the specs the session changed under the given paths and checks their frontmatter (wiki format), their glossary, the test point on the line of each criterion (`CA-n · Test : …`) and, with `breakdown: true`, that the breakdown covers every criterion with no slice outside the spec ([format](workflow-schema.en.md#verify--verification-run-by-oh)). The `spec` workflow uses it three times: `cp-converge` (automatic in every mode: the convergence pass, which sends a gap back to the planner without a pause), then `cp-spec` and `cp-tickets` (same check before the commit and the creation of the tickets).
 
@@ -188,7 +190,7 @@ When refused, the call of the agent fails with `ErrVerifyFailed`, the reason and
 
 ## Fan-out: control substitution (CP-R3)
 
-In a fan-out (`implement-spec -i fanout=true`, experimental, [guide](../guides/fan-out.en.md)), each ticket has its child session (`ticket`), and the `cp-2` of each child **does not pause**: the `cp-merge` of the parent session replaces it. Without this substitution, N tickets would make N pauses; with it, a single validation, better informed (table of the children, review of the whole, verification of the integration branch). It loosens nothing, thanks to these guards, each one covered by tests of getting around it:
+In a fan-out (`implement-spec -i fanout=true` or `sweep -i fanout=true`, experimental, [guide](../guides/fan-out.en.md)), each ticket has its child session (`ticket`), each subtask of a sweep its own (`sweep-task`), and the `cp-2` (or the `cp-commit`) of each child **does not pause**: the `cp-merge` of the parent session replaces it. Without this substitution, N tickets would make N pauses; with it, a single validation, better informed (table of the children, review of the whole, verification of the integration branch). It loosens nothing, thanks to these guards, each one covered by tests of getting around it:
 
 | Guard | Where |
 |---|---|
@@ -202,6 +204,9 @@ In a fan-out (`implement-spec -i fanout=true`, experimental, [guide](../guides/f
 | Traceability: the delegated pass is written in the timeline of the child (`delegated`, with the checkpoint and the parent session) and in the trace of the parent (`fanout`, `child_checkpoint`), with every step of the fan-out | `oh session trace`, `oh fanout status` |
 | Experimental flag, off by default: without it, the launch is refused and the daemon delegates nothing | `[fanout] experimental`, `TestDriverRefusals` |
 | Fix round (`cp-merge` refused with an instruction): the fix session is never a child (role `fixer`, its `cp-commit` validated by the user, no delegation), without push, merge, closing nor branch move; oh only takes commits on top of the integration branch, without merge nor anything uncommitted; `cp-merge` is passed again and verified again on the new head | `TestFanoutFixerNotDelegated`, `TestFanoutMergeRefusedAsksForAFix`, `TestFixRound`, `TestFixRoundRefused` |
+| Children from the breakdown (`sweep`, `fanout.source: tasks`): the children are the subtasks **recorded by oh** at `cp-plan` (`tasks:`), never a list declared by an agent; this breakdown is checked by oh before the card (files of the repository, disjoint scopes, at most `max`), and the call that passes `cp-plan` must bring the one of the card; the verification of the delegated `cp-commit` of a child fails on a change outside the scope of its subtask; no ticket, nothing to close; the `developer` is not in the parent (`agents.developer.fanout: never`); a layer changes neither `source` nor that scope, and does not remove `tasks:` | `TestFanoutTasks_*`, `TestShippedSweepFanout`, `TestShippedSweepFanoutTeamLayer`, `TestTasksRefusedBeforeAnyCard`, `TestTasksChangedAfterTheCardRefused`, `TestTaskScopeOfTheChild`, `TestDriverTasksBecomeChildren`, `TestDriverTasksNoneRecorded` |
+
+A layer that changes the delegated checkpoint (`fanout: never`: `cp-2` of `implement-spec`, `cp-commit` of `sweep`) keeps it outside a fan-out only: `fanout_never_patched` warning, listed by `oh doctor`; to harden the fan-out, it changes `cp-merge`.
 
 The `cp-2` of the children is delegated only when the parent session carries the merge checkpoint: in a team layer that declares its own fan-out without `delegates`, each child keeps its pause, and these pauses are validated by batch (below).
 

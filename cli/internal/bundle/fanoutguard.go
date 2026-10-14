@@ -85,10 +85,19 @@ func fanoutDef(s *workflow.Spec) *sessionspec.FanoutDef {
 	if f == nil {
 		return nil
 	}
-	d := &sessionspec.FanoutDef{Child: f.Child, Tickets: f.Tickets, Parallel: f.EffectiveParallel(), Merge: f.Merge,
+	d := &sessionspec.FanoutDef{Child: f.Child, Tickets: f.Tickets, Source: sourceOf(f), Parallel: f.EffectiveParallel(), Merge: f.Merge,
 		Delegates: append([]string(nil), f.Delegates...), Merger: f.Merger}
 	if f.Fix != nil {
 		d.Fix, d.FixInput = f.Fix.Workflow, f.Fix.Input
 	}
 	return d
+}
+
+// sourceOf is the source of the children as the bundle names it ("" for
+// the tickets: same bundle as before sweep-fanout).
+func sourceOf(f *workflow.Fanout) string {
+	if f.Tasks() {
+		return sessionspec.FanoutSourceTasks
+	}
+	return ""
 }

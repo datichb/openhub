@@ -170,6 +170,18 @@ type CheckpointDef struct {
 	// again (`unlock_again`): the commit window of this one holds one
 	// commit, and opens only when there is something to commit.
 	CommitNext string `json:"commit_next,omitempty"`
+
+	// sweep-fanout: Tasks makes oh read, check and record the breakdown
+	// given with the call (nil = none).
+	Tasks *TasksCheckDef `json:"tasks,omitempty"`
+}
+
+// TasksCheckDef is the check of the breakdown given at a checkpoint
+// (copied from the oh/v1 schema): at most Max tasks, each of a domain of
+// Domains (empty: any).
+type TasksCheckDef struct {
+	Max     int      `json:"max"`
+	Domains []string `json:"domains,omitempty"`
 }
 
 // WikiSync is the `wiki:` of a checkpoint that synchronizes the wiki.

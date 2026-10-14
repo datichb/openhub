@@ -39,7 +39,7 @@ Séquence : `cp-plan` → `cp-merge` [merge] → `cp-final` (entre crochets, les
 <!-- /oh:when -->
 <!-- oh:when agent=orchestrator-dev -->
 - **cp-merge** : Fan-out : les sessions enfants terminées et mergées par oh dans la branche d'intégration, la revue de l'ensemble faite — présenter le tableau des enfants (état, merge, conflits résolus par le merger) et le verdict de la revue. oh vérifie la branche d'intégration ; validé, oh la merge dans la branche de la session et ferme les tickets mergés. Remplace le cp-2 de chaque enfant.
-- **cp-merge** déverrouille `merge` : avant son passage, oh refuse à tous les agents de la session le merge des branches (`git merge`, `git pull`), quel que soit le mode. Une fois validé, oh merge lui-même la branche d'intégration dans la branche de la session et ferme les tickets mergés : aucun agent ne merge, ne commite, ne pousse ni ne ferme de ticket.
+- **cp-merge** déverrouille `merge` : avant son passage, oh refuse à tous les agents de la session le merge des branches (`git merge`, `git pull`), quel que soit le mode. Une fois validé, oh merge lui-même la branche d'intégration dans la branche de la session (et ferme les tickets des enfants mergés, s'il y en a) : aucun agent ne merge, ne commite, ne pousse ni ne ferme de ticket.
 <!-- /oh:when -->
 <!-- oh:when agent=orchestrator-dev -->
 - **cp-final** : Tous les tickets traités (ou arrêt), la revue de l'ensemble faite — présenter son verdict, les tickets traités et leurs commits, les points ouverts ; l'utilisateur décide d'un tour de correction ou de s'arrêter.
