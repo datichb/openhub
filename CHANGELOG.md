@@ -9,6 +9,15 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ## [Unreleased]
 
+### Added — skills de développement (lot R1-b)
+
+- **`verification-before-completion`** (developer, à la demande, à la gate de complétion et avant `cp-commit` en `quick`) : relever les vraies vérifications du projet (CI, Makefile, scripts, conventions), les lancer sur tout le dépôt avec les drapeaux de la CI, traiter chaque échec, revérifier la demande, montrer la sortie de chaque vérification. S23 (`go vet` de la CI hors du paquet modifié) : 3/6 contre 1/6 sans le skill (Haiku ×6).
+- **`resolving-merge-conflicts`** (developer, à la demande, conflit de merge ou de rebase) : intention de chaque côté depuis l'ancêtre, changement reporté là où le code a été déplacé, conflits sans marqueur, vérification. S25 : 2/6 contre 0/6, coût −11 %.
+- **Diagnostic** : `debugger-phase-2-3` réécrit (lieu du symptôme ≠ cause, provenance de la valeur fautive, contrats du producteur, au moins deux hypothèses vérifiées dont une en amont, cause nommée par fichier et fonction dans le ticket ; le sens de lecture des piles est corrigé). S24 (pile trompeuse) : 3/3 contre 0/3 avec l'ancien texte et 1/3 sans skill ; S6 2/2.
+- **Méthode TDD, contenu** : consignes du developer visibles seulement en session `tdd` (`<!-- oh:when method=tdd -->`), relais par `orchestrator-dev`, vérification par le reviewer demandée dans les prompts `ticket` et `feature` en méthode `tdd`. Le skill `tdd` évalué n'apporte rien (S22 3/6 avec et sans) : retiré.
+- **`when: method=`** : une skill ou un bloc peut viser la méthode de la session (`standard`, `tdd`) ; une session `standard` garde son paquet.
+- Cas d'évaluation S22 à S25, hors mesure de référence. Developer +27 tokens (catalogue 18 → 20 skills). Évaluations : 11,65 $ (Haiku).
+
 ### Added — skills de revue et de conception (lot R1-c)
 
 - **Revue sur deux axes** (`review-protocol`) : chaque review couvre et sépare la conformité à la demande (ticket lu avec `bd show`, ce qui manque, ce qui dépasse) et la qualité du code ; un finding appartient à un seul axe. Rapport, payload et auto-vérification suivent ce découpage ; le reviewer lit la demande (`git log --format=%B`, `bd show`) avant la vérification. Cas S26 : 3/3 contre 0/3 avec l'ancien protocole (Haiku ×3) ; reviewer +1,9 % de tokens.
