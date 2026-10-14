@@ -51,8 +51,8 @@ instruct quick                  developer                       11263     5013  
 instruct quick                  TOTAL                           11263     5013    7   20    725   20    725
 instruct release                release-manager                  1909      762    3    2     99    2     99
 instruct release                TOTAL                            1909      762    3    2     99    2     99
-instruct retro                  debugger                         7268     2366    6    7    240    7    240
-instruct retro                  TOTAL                            7268     2366    6    7    240    7    240
+instruct retro                  debugger                         7268     2366    6    8    290    8    290
+instruct retro                  TOTAL                            7268     2366    6    8    290    8    290
 instruct review                 reviewer                        12094     5513    7   13    447   13    447
 instruct review                 TOTAL                           12094     5513    7   13    447   13    447
 instruct review-feedback        developer                       11930     5577    8   17    621   17    621
@@ -128,8 +128,8 @@ none     quick                  developer                        6769     4540  
 none     quick                  TOTAL                            6769     4540    6   20    725   20    725
 none     release                release-manager                  1511      762    3    2     99    2     99
 none     release                TOTAL                            1511      762    3    2     99    2     99
-none     retro                  debugger                         2791     1893    5    7    240    7    240
-none     retro                  TOTAL                            2791     1893    5    7    240    7    240
+none     retro                  debugger                         2791     1893    5    8    290    8    290
+none     retro                  TOTAL                            2791     1893    5    8    290    8    290
 none     review                 reviewer                         7282     4958    6   16    551   16    551
 none     review                 TOTAL                            7282     4958    6   16    551   16    551
 none     review-feedback        developer                        7451     5104    7   20    725   20    725
@@ -205,8 +205,8 @@ stacks   quick                  developer                        6769     4540  
 stacks   quick                  TOTAL                            6769     4540    6   27    972   27    972
 stacks   release                release-manager                  1511      762    3    2     99    2     99
 stacks   release                TOTAL                            1511      762    3    2     99    2     99
-stacks   retro                  debugger                         2791     1893    5   14    487   14    487
-stacks   retro                  TOTAL                            2791     1893    5   14    487   14    487
+stacks   retro                  debugger                         2791     1893    5   15    537   15    537
+stacks   retro                  TOTAL                            2791     1893    5   15    537   15    537
 stacks   review                 reviewer                         7282     4958    6   23    798   23    798
 stacks   review                 TOTAL                            7282     4958    6   23    798   23    798
 stacks   review-feedback        developer                        7451     5104    7   27    972   27    972

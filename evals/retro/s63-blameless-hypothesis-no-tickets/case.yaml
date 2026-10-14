@@ -70,6 +70,9 @@ answers:
 assertions:
   - type: checkpoint_order
     order: [cp-retro, cp-actions]
+  - type: skill_loaded_before
+    skill: retro
+    before: { checkpoint: cp-retro }
   - type: file_matches
     name: aucune personne nommée (sans blâme)
     paths: ["docs/wiki/retros/**"]

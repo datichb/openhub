@@ -415,7 +415,8 @@
         "debugger-phase-4-5",
         "debugger-report-templates",
         "expert-posture",
-        "living-docs-enrichment"
+        "living-docs-enrichment",
+        "retro"
       ]
     }
   ],
@@ -426,7 +427,8 @@
     "debugger-phase-4-5",
     "debugger-report-templates",
     "expert-posture",
-    "living-docs-enrichment"
+    "living-docs-enrichment",
+    "retro"
   ],
   "subagent_graph": {},
   "max_depth": 1,

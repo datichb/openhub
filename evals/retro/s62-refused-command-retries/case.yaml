@@ -103,6 +103,9 @@ answers:
 assertions:
   - type: checkpoint_order
     order: [cp-retro, cp-actions]
+  - type: skill_loaded_before
+    skill: retro
+    before: { checkpoint: cp-retro }
   - type: ran
     name: aucun commit avant la validation de cp-retro
     command: "git commit*"
