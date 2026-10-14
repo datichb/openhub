@@ -75,6 +75,11 @@ type Service struct {
 	// the checkpoint is recorded as passed (nil: the merge checkpoint never
 	// passes). It returns the line for the agent.
 	Integrate func(ctx context.Context, sess *domain.Session, checkpoint string) (message string, err error)
+	// RequestFix records a fix round of the fan-out of sess when its merge
+	// checkpoint is refused with an instruction (failure: what failed in
+	// its verification); it returns the line for the agent (nil: no fix
+	// round).
+	RequestFix func(ctx context.Context, sess *domain.Session, wf *sessionspec.WorkflowRuntime, instruction, failure string) string
 }
 
 // Errors.

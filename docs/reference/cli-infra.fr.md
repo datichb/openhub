@@ -162,7 +162,7 @@ oh import ~/sauvegardes/oh-backup.tar.gz --merge
 
 ### oh gc
 
-Nettoie ce qu'oh laisse derrière lui, après un résumé (tailles par catégorie) et une confirmation : paquets de session qu'aucune session ne sert plus, données des groupes de serveurs arrêtés (verrou du groupe pris, serveur arrêté ; ses jetons du proxy révoqués), dossiers des sessions **arrêtées**, brouillons de session compris (`scratch/`, [schéma](workflow-schema.fr.md#scratch-brouillons-de-session) ; `results/` gardé jusqu'à `history_days`), worktrees **créés par oh** au lancement (propres, fichiers non suivis compris, non verrouillés, sans commit absent de toute autre branche, inutilisés ; leur branche supprimée seulement si elle est fusionnée), dossiers temporaires `.build-*`/`.fetch-*` de plus d'une heure, serveurs orphelins, historique ancien de la base (par lots, puis `PRAGMA optimize`). Les sessions terminées ou en échec, qui restent reprenables, ne sont jamais nettoyées ; les worktrees des sessions antérieures à la v5.0 non plus. Retentions : [`[gc]`](config.fr.md).
+Nettoie ce qu'oh laisse derrière lui, après un résumé (tailles par catégorie) et une confirmation : paquets de session qu'aucune session ne sert plus, données des groupes de serveurs arrêtés (verrou du groupe pris, serveur arrêté ; ses jetons du proxy révoqués), dossiers des sessions **arrêtées**, brouillons de session compris (`scratch/`, [schéma](workflow-schema.fr.md#scratch-brouillons-de-session) ; `results/` gardé jusqu'à `history_days`), worktrees **créés par oh** au lancement (propres, fichiers non suivis compris, non verrouillés, sans commit absent de toute autre branche, inutilisés ; leur branche supprimée seulement si elle est fusionnée), restes des fan-outs mergés ou dont la session parente est arrêtée (worktrees et branches `oh/fanout/…`, comme [`oh fanout clean`](cli-sessions.fr.md#oh-fanout) sans `--discard`), dossiers temporaires `.build-*`/`.fetch-*` de plus d'une heure, serveurs orphelins, historique ancien de la base (par lots, puis `PRAGMA optimize`). Les sessions terminées ou en échec, qui restent reprenables, ne sont jamais nettoyées ; les worktrees des sessions antérieures à la v5.0 non plus. Retentions : [`[gc]`](config.fr.md).
 
 ```
 oh gc [--dry-run] [--yes] [--json] [--only <catégories>] [--older-than <durée>]
@@ -173,7 +173,7 @@ oh gc [--dry-run] [--yes] [--json] [--only <catégories>] [--older-than <durée>
 | `--dry-run` | | bool | Afficher ce qui serait supprimé, sans rien supprimer |
 | `--yes` | `-y` | bool | Supprimer sans confirmation (obligatoire sans terminal) |
 | `--json` | | bool | Plan (ou résultat) au format JSON |
-| `--only` | | liste | `bundles`, `servers`, `sessions`, `worktrees`, `temp`, `orphans`, `history` |
+| `--only` | | liste | `bundles`, `servers`, `sessions`, `worktrees`, `fanout`, `temp`, `orphans`, `history` |
 | `--older-than` | | durée | Remplace `session_days` pour cette fois (`30d`, `12h`) |
 
 Le démon fait le même nettoyage toutes les `[gc] every_hours` (24 h) sans se garder éveillé pour autant. Son **premier passage est une simulation** : `oh doctor` affiche alors « N récupérables : lancez oh gc » ; après un premier `oh gc`, le démon nettoie tout seul. Un seul nettoyage à la fois (`~/.oh/run/gc.lock`).

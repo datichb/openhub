@@ -9,6 +9,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	sessionsvc "github.com/datichb/openhub/cli/internal/services/session"
@@ -35,7 +36,7 @@ func runApproveBatch(cmd *cobra.Command, svc *sessionsvc.Service) error {
 		if err != nil {
 			return sessionRefError(parent, err)
 		}
-		sel.Sessions = append(append(sel.Sessions, sess.ID), fanoutChildren(ctx, MustApp(), sess.ID)...)
+		sel.Sessions = append(sel.Sessions, fanoutFamily(ctx, MustApp(), sess)...)
 	}
 	items, err := svc.Inbox(ctx, domain.DecisionFilter{})
 	if err != nil {
@@ -55,12 +56,7 @@ func runApproveBatch(cmd *cobra.Command, svc *sessionsvc.Service) error {
 	fmt.Fprintln(tw, i18n.T("cmd.session.batch.header"))
 	failed := 0
 	for _, it := range batch {
-		verify := "—"
-		if svc.Checkpoints != nil {
-			if r, ok := svc.Checkpoints.VerifyResult(ctx, it.Decision.SessionID, it.Checkpoint); ok {
-				verify = string(r.Status)
-			}
-		}
+		verify := batchVerify(ctx, svc, it)
 		result := i18n.T("cmd.session.batch." + string(it.Action))
 		if dry {
 			result = i18n.Tf("cmd.session.batch.dry", result)
@@ -78,6 +74,27 @@ func runApproveBatch(cmd *cobra.Command, svc *sessionsvc.Service) error {
 		return errors.New(i18n.Tf("cmd.session.batch.some_failed", failed, len(batch)))
 	}
 	return nil
+}
+
+// fanoutFamily is the fan-out of sess for a batch: its parent and every
+// child and merger of it (sess alone when it is in no fan-out).
+func fanoutFamily(ctx context.Context, a *app.App, sess *domain.Session) []string {
+	parent := sess.ID
+	if f := sess.Fanout; f != nil && f.Role != domain.RoleParent && f.Parent != "" {
+		parent = f.Parent
+	}
+	return append([]string{parent}, fanoutChildren(ctx, a, parent)...)
+}
+
+// batchVerify is the state of the verification by oh of the checkpoint of
+// a batch item ("—" = none).
+func batchVerify(ctx context.Context, svc *sessionsvc.Service, it sessionsvc.BatchItem) string {
+	if svc.Checkpoints != nil {
+		if r, ok := svc.Checkpoints.VerifyResult(ctx, it.Decision.SessionID, it.Checkpoint); ok {
+			return string(r.Status)
+		}
+	}
+	return "—"
 }
 
 func truncate(s string, n int) string {

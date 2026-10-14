@@ -50,7 +50,7 @@ func addGCFlags(c *cobra.Command) {
 	f.Bool("dry-run", false, "Afficher ce qui serait supprimé, sans rien supprimer")
 	f.BoolP("yes", "y", false, "Supprimer sans confirmation (obligatoire sans terminal)")
 	f.Bool("json", false, "Plan (ou résultat) au format JSON")
-	f.StringSlice("only", nil, "Seulement ces catégories : bundles, servers, sessions, worktrees, temp, orphans, history")
+	f.StringSlice("only", nil, "Seulement ces catégories : bundles, servers, sessions, worktrees, fanout, temp, orphans, history")
 	f.String("older-than", "", "Garder les fichiers des sessions arrêtées moins longtemps que cette durée (ex. 30d, 12h ; défaut : [gc] session_days)")
 }
 
@@ -118,6 +118,7 @@ func gcEnv(a *app.App) (*gc.Env, error) {
 	if l := serverLister(); l != nil {
 		env.Processes = l
 	}
+	env.Fanout = fanoutCleaner{store: sqlite.NewSessionStore(store)}
 	return env, nil
 }
 

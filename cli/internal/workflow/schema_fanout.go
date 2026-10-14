@@ -22,6 +22,8 @@ import (
 //	  merge: cp-merge        # mandatory checkpoint of the parent, verified by oh on the integration branch
 //	  delegates: [cp-2]      # checkpoints of the child passed automatically (CP-R3, hub layer only)
 //	  merger: merge-conflicts  # workflow launched by oh on a conflict ("" = none)
+//	  inputs: [method, instructions]  # inputs of the parent given to each child (same name in the child)
+//	  fix: { workflow: quick, input: request }  # fix round on the integration branch when cp-merge is refused
 //	checkpoints:
 //	  cp-2:     { fanout: never, … }   # the children pass it
 //	  cp-merge:
@@ -59,7 +61,30 @@ type Fanout struct {
 	// Merger is the workflow oh launches in the integration worktree when
 	// it cannot merge a child by itself ("" = the child is left unmerged).
 	Merger string `yaml:"merger,omitempty"`
+	// Inputs are inputs of the parent given, when the session gets them,
+	// to each child under the same name (method, instructions); nothing
+	// else of the parent reaches the children.
+	Inputs []string `yaml:"inputs,omitempty"`
+	// Fix is the fix round on the integration branch (nil = none).
+	Fix *FanoutFix `yaml:"fix,omitempty"`
 }
+
+// FanoutFix is the fix round of a fan-out: when the merge checkpoint is
+// refused with an instruction (verification failed, review), oh launches
+// a session of Workflow in the integration worktree, the instruction in
+// its Input; once its commit checkpoint is validated (by the user, never
+// delegated) and its work committed, oh takes the new head of the
+// integration branch and the parent passes the merge checkpoint again,
+// verified again on that branch (CP-R3 unchanged). At most
+// `limits.max_fix_rounds` rounds.
+type FanoutFix struct {
+	Workflow string `yaml:"workflow"`
+	Input    string `yaml:"input"`
+}
+
+// FanoutInputTypes are the types of the inputs a parent may give to its
+// children: a value, never a list of tickets (the child gets its own).
+var FanoutInputTypes = []InputType{InputString, InputText, InputBool, InputInt, InputEnum, InputPath, InputBranch}
 
 // MaxFanoutParallel caps the children of a fan-out run at the same time.
 const MaxFanoutParallel = 3
@@ -99,6 +124,11 @@ func (f *Fanout) clone() *Fanout {
 	}
 	c := *f
 	c.Delegates = cloneSlice(f.Delegates)
+	c.Inputs = cloneSlice(f.Inputs)
+	if f.Fix != nil {
+		fx := *f.Fix
+		c.Fix = &fx
+	}
 	return &c
 }
 
@@ -107,8 +137,12 @@ func (f *Fanout) String() string {
 	if f == nil {
 		return "none"
 	}
-	return fmt.Sprintf("{input: %s, tickets: %s, child: %s, parallel: %d, merge: %s, delegates: [%s], merger: %s}",
-		f.Input, f.Tickets, f.Child, f.EffectiveParallel(), f.Merge, strings.Join(f.Delegates, ","), f.Merger)
+	fix := "none"
+	if f.Fix != nil {
+		fix = f.Fix.Workflow + "(" + f.Fix.Input + ")"
+	}
+	return fmt.Sprintf("{input: %s, tickets: %s, child: %s, parallel: %d, merge: %s, delegates: [%s], merger: %s, inputs: [%s], fix: %s}",
+		f.Input, f.Tickets, f.Child, f.EffectiveParallel(), f.Merge, strings.Join(f.Delegates, ","), f.Merger, strings.Join(f.Inputs, ","), fix)
 }
 
 // FanoutOf reports whether a session with these inputs is a fan-out: the
@@ -192,4 +226,25 @@ func (s *Spec) SubstitutesControl() bool {
 		return false
 	}
 	return containsOp(cp.Unlocks, UnlockMerge)
+}
+
+// ChildInputs returns the inputs of the parent given to each child: the
+// inputs listed in `fanout.inputs` that the session got (given, not
+// defaults: the child keeps its own).
+func (s *Spec) ChildInputs(given map[string]any) map[string]string {
+	if s == nil || s.Fanout == nil {
+		return nil
+	}
+	var out map[string]string
+	for _, id := range s.Fanout.Inputs {
+		v, ok := given[id]
+		if !ok || v == nil {
+			continue
+		}
+		if out == nil {
+			out = map[string]string{}
+		}
+		out[id] = fmt.Sprint(v)
+	}
+	return out
 }

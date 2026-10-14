@@ -203,6 +203,7 @@ Dans un fan-out (`implement-spec -i fanout=true`, expérimental, [guide](../guid
 | `cp-merge` ne passe que quand tous les enfants sont terminés, sur une branche d'intégration où oh l'a laissée (sinon le fan-out s'arrête : `tampered`), après sa vérification, **jamais forcée** (« passer outre » refusé) | `TestFanoutMergeCheckpoint`, `TestFanoutMergeCheckpointGuards`, `TestDriverTamperedIntegration` |
 | Traçabilité : le passage délégué est écrit dans la frise de l'enfant (`delegated`, avec le checkpoint et la session parente) et dans la trace de la parente (`fanout`, `child_checkpoint`), avec chaque étape du fan-out | `oh session trace`, `oh fanout status` |
 | Drapeau expérimental, désactivé par défaut : sans lui, le lancement est refusé et le démon ne délègue rien | `[fanout] experimental`, `TestDriverRefusals` |
+| Tour de correction (`cp-merge` refusé avec une consigne) : la session de correction n'est jamais un enfant (rôle `fixer`, son `cp-commit` validé par l'utilisateur, aucune délégation), sans push, merge, fermeture ni déplacement de branche ; oh ne reprend que des commits par-dessus la branche d'intégration, sans merge ni rien de non commité ; `cp-merge` se repasse et se revérifie sur la nouvelle tête | `TestFanoutFixerNotDelegated`, `TestFanoutMergeRefusedAsksForAFix`, `TestFixRound`, `TestFixRoundRefused` |
 
 Le `cp-2` des enfants n'est délégué que si la session parente porte le checkpoint de merge : dans une couche d'équipe qui déclare son propre fan-out sans `delegates`, chaque enfant garde sa pause, et ces pauses se valident par lot (ci-dessous).
 
@@ -216,7 +217,7 @@ oh session approve --batch --fanout <session parente> --except <décision> --rej
 oh session approve --batch --checkpoint cp-2,cp-merge
 ```
 
-Chaque validation passe par le même chemin qu'une validation seule : une vérification échouée refuse celle-là seulement (elle reste en attente, la commande le signale). Dans la TUI, la validation par lot n'est pas encore là (point ouvert) : chaque carte se valide une à une.
+Chaque validation passe par le même chemin qu'une validation seule : une vérification échouée refuse celle-là seulement (elle reste en attente, la commande le signale). Dans la TUI, touche `B` de la vue Sessions : les checkpoints en attente du fan-out de la session sélectionnée (sinon tous), chacun à valider, laisser en attente ou refuser avec sa consigne, puis une confirmation ; même service que la commande.
 
 ---
 

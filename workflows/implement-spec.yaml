@@ -56,7 +56,11 @@ prompt:
 # worktree). R6 (experimental, input fanout): one child session per ticket
 # (workflow ticket, its own worktree), merged by oh into an integration
 # branch; their cp-2 is replaced by cp-merge, verified by oh on that branch
-# (CP-R3, declared here, in the hub layer, only).
+# (CP-R3, declared here, in the hub layer, only). The children get the
+# method and the instructions of the parent (inputs), nothing else. A
+# cp-merge refused with an instruction gets a fix round: a quick session
+# on the integration branch, its cp-commit validated by the user, then
+# cp-merge again (fix, at most limits.max_fix_rounds).
 fanout:
   input: fanout
   tickets: tickets
@@ -65,6 +69,8 @@ fanout:
   merge: cp-merge
   delegates: [cp-2]
   merger: merge-conflicts
+  inputs: [method, instructions]
+  fix: { workflow: quick, input: request }
 agents:
   orchestrator-dev: { role: workflow }
   developer: { role: workflow, after: cp-1 }

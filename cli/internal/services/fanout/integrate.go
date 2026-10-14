@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"strings"
 	"time"
 
@@ -90,6 +91,13 @@ func (in *Integrator) Integrate(ctx context.Context, sess *domain.Session, check
 	}
 	if in.Record != nil && len(closed) > 0 {
 		in.Record(ctx, sess.ID, closed)
+	}
+	// Everything is on the branch of the parent now: the worktrees and the
+	// branches of the fan-out go (an unmerged child keeps its branch).
+	done := *sess
+	done.Fanout = &rec
+	if _, err := Clean(ctx, in.Sessions, &done, CleanOptions{}); err != nil {
+		slog.Warn("fan-out: clean-up after the merge", "session", sess.ID, "error", err)
 	}
 	msg := i18n.Tf("cmd.fanout.integrated", ig.Branch, short(merged), strings.Join(closed, ", "))
 	if len(failed) > 0 {

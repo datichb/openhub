@@ -20,6 +20,9 @@ const (
 	RoleParent FanoutRole = "parent"
 	RoleChild  FanoutRole = "child"
 	RoleMerger FanoutRole = "merger"
+	// RoleFixer: the fix round on the integration branch, after a refused
+	// merge checkpoint.
+	RoleFixer FanoutRole = "fixer"
 )
 
 // FanoutStatus is the progress of a fan-out (parent).
@@ -33,6 +36,9 @@ const (
 	FanoutRunning FanoutStatus = "running"
 	// FanoutReady: every child is done; the merge checkpoint may pass.
 	FanoutReady FanoutStatus = "ready"
+	// FanoutFixing: the merge checkpoint was refused with an instruction,
+	// a fix round runs on the integration branch.
+	FanoutFixing FanoutStatus = "fixing"
 	// FanoutMerged: the merge checkpoint passed, oh merged the integration
 	// branch into the branch of the parent.
 	FanoutMerged FanoutStatus = "merged"
@@ -94,6 +100,35 @@ type SessionFanout struct {
 	// Merged is the commit of the branch of the parent after the merge of
 	// the integration branch by oh.
 	Merged string `json:"merged,omitempty"`
+	// Cleaned: oh removed every worktree and branch of the fan-out; Kept
+	// lists those it kept at the last clean-up ("branch: reason").
+	Cleaned bool     `json:"cleaned,omitempty"`
+	Kept    []string `json:"kept,omitempty"`
+	// Fixes are the fix rounds on the integration branch, the last one
+	// first to run.
+	Fixes []FanoutFix `json:"fixes,omitempty"`
+}
+
+// FanoutFix is a fix round on the integration branch (merge checkpoint
+// refused with an instruction).
+type FanoutFix struct {
+	Round   int    `json:"round"`
+	Request string `json:"request"`
+	Session string `json:"session,omitempty"`
+	// Base is the head of the integration branch before the round, Head
+	// after (the fix taken by oh).
+	Base  string           `json:"base,omitempty"`
+	Head  string           `json:"head,omitempty"`
+	State FanoutChildState `json:"state"`
+	Error string           `json:"error,omitempty"`
+}
+
+// LastFix returns the last fix round.
+func (f *SessionFanout) LastFix() (*FanoutFix, bool) {
+	if f == nil || len(f.Fixes) == 0 {
+		return nil, false
+	}
+	return &f.Fixes[len(f.Fixes)-1], true
 }
 
 // FanoutIntegration is the integration branch of a fan-out and its
@@ -150,6 +185,11 @@ const (
 	FanoutEventFailed     = "failed"     // fan-out stopped on an error
 	FanoutEventDelegated  = "delegated"  // a delegated checkpoint passed without pause in a child (CP-R3)
 	FanoutEventResumed    = "resumed"    // parent told the result
+	FanoutEventCleaned    = "cleaned"    // worktrees and branches removed by oh
+	FanoutEventKept       = "kept"       // a branch or a worktree kept at the clean-up, and why
+	FanoutEventDiscarded  = "discarded"  // a branch not merged deleted on request (its commit)
+	FanoutEventFix        = "fix"        // fix round launched on the integration branch
+	FanoutEventFixed      = "fixed"      // fix round done (taken by oh, or not)
 )
 
 // fanoutEventsMax caps the stored events.
@@ -183,6 +223,11 @@ func (f *SessionFanout) HasChild(session string) bool {
 	}
 	for _, c := range f.Children {
 		if c.Session == session || c.Merger == session {
+			return true
+		}
+	}
+	for _, x := range f.Fixes {
+		if x.Session == session {
 			return true
 		}
 	}

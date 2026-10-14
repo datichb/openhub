@@ -203,6 +203,7 @@ In a fan-out (`implement-spec -i fanout=true`, experimental, [guide](../guides/f
 | `cp-merge` passes only once every child is done, on an integration branch where oh left it (otherwise the fan-out stops: `tampered`), after its verification, **never overridden** | `TestFanoutMergeCheckpoint`, `TestFanoutMergeCheckpointGuards`, `TestDriverTamperedIntegration` |
 | Traceability: the delegated pass is written in the timeline of the child (`delegated`, with the checkpoint and the parent session) and in the trace of the parent (`fanout`, `child_checkpoint`), with every step of the fan-out | `oh session trace`, `oh fanout status` |
 | Experimental flag, off by default: without it, the launch is refused and the daemon delegates nothing | `[fanout] experimental`, `TestDriverRefusals` |
+| Fix round (`cp-merge` refused with an instruction): the fix session is never a child (role `fixer`, its `cp-commit` validated by the user, no delegation), without push, merge, closing nor branch move; oh only takes commits on top of the integration branch, without merge nor anything uncommitted; `cp-merge` is passed again and verified again on the new head | `TestFanoutFixerNotDelegated`, `TestFanoutMergeRefusedAsksForAFix`, `TestFixRound`, `TestFixRoundRefused` |
 
 The `cp-2` of the children is delegated only when the parent session carries the merge checkpoint: in a team layer that declares its own fan-out without `delegates`, each child keeps its pause, and these pauses are validated by batch (below).
 
@@ -216,7 +217,7 @@ oh session approve --batch --fanout <parent session> --except <decision> --rejec
 oh session approve --batch --checkpoint cp-2,cp-merge
 ```
 
-Each approval goes through the same path as a single one: a failed verification refuses that one only (it stays waiting, the command says so). In the TUI, validation by batch is not there yet (open point): each card is validated one by one.
+Each approval goes through the same path as a single one: a failed verification refuses that one only (it stays waiting, the command says so). In the TUI, key `B` of the Sessions view: the waiting checkpoints of the fan-out of the selected session (else all of them), each one to validate, leave waiting or refuse with its instruction, then a confirmation; same service as the command.
 
 ---
 

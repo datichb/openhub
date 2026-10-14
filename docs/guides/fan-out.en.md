@@ -35,14 +35,25 @@ oh run implement-spec -i fanout=true -t ev-1 -t ev-2  # or given tickets
 ## Steps
 
 1. **`cp-plan`** (pause): the `orchestrator-dev` presents the tickets, their dependencies, those already closed. Nothing starts before.
-2. **Child sessions**: oh creates the integration branch `oh/fanout/<session>/integration` from your branch, then one `ticket` session per ticket, on `oh/fanout/<session>/<ticket>`, in a worktree next to the project. A ticket waits for those it depends on; no session for a closed ticket. The children get the mode and the method (`tdd`) of the parent session.
+2. **Child sessions**: oh creates the integration branch `oh/fanout/<session>/integration` from your branch, then one `ticket` session per ticket, on `oh/fanout/<session>/<ticket>`, in a worktree next to the project. A ticket waits for those it depends on; no session for a closed ticket. The children get the mode of the parent session and the inputs the workflow gives them (`fanout.inputs`: the `tdd` method and the instructions for `implement-spec`), nothing else.
 3. Each child implements, has its work reviewed and passes **its `cp-2` without pause**: your `cp-merge` replaces it (control substitution, CP-R3). oh still runs the verification (build, tests) in the worktree of the child; a failure sends the work back to the child. The child commits on its branch, but does not close its ticket, merge nor push: oh refuses it.
-4. **Merge by oh**: once a child is done, oh merges its branch into the integration branch. On a conflict, oh launches the `merger` (workflow `merge-conflicts`) in the integration worktree, then checks the result (merge committed, both sides present, no marker). Otherwise the child stays unmerged and the integration branch goes back where it was.
+4. **Merge by oh**: a child counts as done when its session ends, or when oh sees the end of its work, its turn over with no decision waiting: commit checkpoint passed (its delegated `cp-2`), at least one commit on its branch, nothing uncommitted. An idle child without this signal is only stopped after 10 minutes (guard). oh then merges its branch into the integration branch. On a conflict, oh launches the `merger` (workflow `merge-conflicts`) in the integration worktree, then checks the result (merge committed, both sides present, no marker). Otherwise the child stays unmerged and the integration branch goes back where it was.
 5. Once the children are done, oh writes to the parent session; the `reviewer` reviews the whole integration branch.
-6. **`cp-merge`** (pauses in every mode): the table of the children and the verdict of the review. oh runs the verification **on the integration branch**; it cannot be overridden. Once validated, oh merges the integration branch into your branch and closes the merged tickets.
+6. **`cp-merge`** (pauses in every mode): the table of the children and the verdict of the review. oh runs the verification **on the integration branch**; it cannot be overridden. Once validated, oh merges the integration branch into your branch and closes the merged tickets. **Refused with an instruction** ("Fix first", failed verification or review): oh launches a **fix round** on the integration branch, a `quick` session in its worktree with your instruction and what failed; you validate its `cp-commit` (never delegated), it commits, oh checks the result (commits on top of the integration branch, no merge, nothing uncommitted) and takes it, else the branch goes back where it was. The parent session has the fix reviewed and passes `cp-merge` again, verified again on the integration branch. At most `limits.max_fix_rounds` rounds (3).
 7. **`cp-final`**: recap. The unmerged tickets (unresolved conflict, failure, budget) stay open: launch `implement-spec` again for them.
 
-In semi-auto, three pauses whatever the number of tickets: `cp-plan`, `cp-merge`, `cp-final`. The `oh/fanout/…` branches and worktrees stay after the session: remove them when you no longer need them (`git worktree remove`, `git branch -D`).
+In semi-auto, three pauses whatever the number of tickets: `cp-plan`, `cp-merge`, `cp-final` (two more per fix round: its `cp-commit` and the new `cp-merge`).
+
+## Clean-up
+
+oh removes the `oh/fanout/…` worktrees and branches once `cp-merge` passed (everything is on your branch then), and when the parent session is stopped for good (abandon: it also stops the children still running); `oh gc` takes what is left (category `fanout`). A worktree stays while a session of the fan-out works in it or while it has uncommitted changes. A branch goes only when each of its commits is on another branch: after an abandon, the integration branch and the unmerged children stay, and the events of the fan-out say why (`kept`).
+
+```
+oh fanout clean <session> --dry-run    # what would be removed, what stays and why
+oh fanout clean <session> --discard    # also deletes the unmerged branches, their commit traced (event discarded)
+```
+
+A branch deleted with `--discard` comes back with `git branch <branch> <commit>` while git keeps the commit.
 
 ## Follow
 
@@ -67,13 +78,14 @@ oh session approve --batch --fanout <session> --dry-run
 oh session approve --batch --fanout <session> --except <decision> --reject <decision>=<instruction>
 ```
 
+In the TUI, key `B` of the Sessions view: the waiting checkpoints of the fan-out of the selected session (else all of them), each with its session, its summary and the verification by oh, to validate, leave waiting or refuse with an instruction; a confirmation, then the result of each one.
+
 ## Guarantees
 
 The guards of the control substitution (declared by the hub layer only, mandatory `cp-merge` verified by oh, children without push, merge nor closing, merge by oh, traceability, flag) are detailed in [Checkpoints](../reference/checkpoints.en.md#fan-out-control-substitution-cp-r3). A team layer cannot loosen the fan-out of `implement-spec`: it can only lower `fanout.parallel`.
 
 ## Limits (experimental)
 
-- No fix round in the parent session: a new `implement-spec` for the remaining tickets.
-- Validation by batch exists on the command line; in the TUI, each card is still validated one by one.
 - `sweep` does not use this mechanism yet, and `feature` is unchanged.
-- A child counts as done when it stays idle, with no decision waiting, for 20 seconds: a child that waits for an answer in its text (without the `question` tool) is stopped and stays unmerged.
+- A child that waits for an answer in its text (without the `question` tool) is only stopped by the 10-minute guard and stays unmerged.
+- The driver follows the fan-out until `cp-merge` passes (to launch the fix rounds): if it stopped, start `oh fanout drive <session>` again.

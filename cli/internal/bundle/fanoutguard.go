@@ -19,6 +19,7 @@ const (
 	FanoutParent = "parent"
 	FanoutChild  = "child"
 	FanoutMerger = "merger"
+	FanoutFixer  = "fixer"
 )
 
 // mergeLockPatterns refuse what merges a branch: git merge and git pull
@@ -40,9 +41,10 @@ var mrMergeMCPActions = []string{sessionspec.MCPToolAction("gitlab", "merge_mr")
 // FanoutRoleRules returns the session rules of a session of a fan-out:
 // push, merge, ticket closing and the branches of the fan-out refused to
 // every role; the commit too for the parent (oh merges, the children
-// commit their own work, the merger concludes the merge).
+// commit their own work, the merger concludes the merge, the fixer
+// commits its fix on the integration branch after its commit checkpoint).
 func FanoutRoleRules(role string) []sessionspec.PermissionRule {
-	if role != FanoutParent && role != FanoutChild && role != FanoutMerger {
+	if role != FanoutParent && role != FanoutChild && role != FanoutMerger && role != FanoutFixer {
 		return nil
 	}
 	var patterns []string
@@ -70,7 +72,7 @@ func FanoutLockedOps(role string) []string {
 	switch role {
 	case FanoutParent:
 		return []string{sessionspec.UnlockCommit, sessionspec.UnlockPush, sessionspec.UnlockMerge, sessionspec.UnlockClose}
-	case FanoutChild, FanoutMerger:
+	case FanoutChild, FanoutMerger, FanoutFixer:
 		return []string{sessionspec.UnlockPush, sessionspec.UnlockMerge, sessionspec.UnlockClose}
 	}
 	return nil
@@ -83,6 +85,10 @@ func fanoutDef(s *workflow.Spec) *sessionspec.FanoutDef {
 	if f == nil {
 		return nil
 	}
-	return &sessionspec.FanoutDef{Child: f.Child, Tickets: f.Tickets, Parallel: f.EffectiveParallel(), Merge: f.Merge,
+	d := &sessionspec.FanoutDef{Child: f.Child, Tickets: f.Tickets, Parallel: f.EffectiveParallel(), Merge: f.Merge,
 		Delegates: append([]string(nil), f.Delegates...), Merger: f.Merger}
+	if f.Fix != nil {
+		d.Fix, d.FixInput = f.Fix.Workflow, f.Fix.Input
+	}
+	return d
 }

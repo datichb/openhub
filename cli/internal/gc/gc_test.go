@@ -361,3 +361,42 @@ func TestRunRemovesScratch(t *testing.T) {
 	assert.DirExists(t, filepath.Join(f.env.SessionsDir, "s-old", "results"), "results kept until the history goes")
 	assert.FileExists(t, filepath.Join(f.env.SessionsDir, "s-open", "scratch", "debugger", "repro.sh"))
 }
+
+type fakeFanout struct {
+	planned []string
+	cleaned []string
+}
+
+func (c *fakeFanout) Plan(_ context.Context, s domain.Session) (string, []string) {
+	c.planned = append(c.planned, s.ID)
+	return "2 worktrees", nil
+}
+
+func (c *fakeFanout) Clean(_ context.Context, id string) error {
+	c.cleaned = append(c.cleaned, id)
+	return nil
+}
+
+// R6: oh gc cleans up the fan-outs merged or whose parent was stopped,
+// never one still running or waiting for its merge checkpoint.
+func TestFanoutLeftovers(t *testing.T) {
+	f := newFixture(t)
+	parent := func(id string, st domain.RunState, fs domain.FanoutStatus, cleaned bool) domain.Session {
+		return domain.Session{ID: id, State: st, StartedAt: now, Fanout: &domain.SessionFanout{Role: domain.RoleParent, Status: fs, Cleaned: cleaned,
+			Integration: &domain.FanoutIntegration{Branch: "oh/fanout/" + id + "/integration", Path: "/wt/" + id}}}
+	}
+	f.store.sessions = []domain.Session{
+		parent("merged", domain.RunIdle, domain.FanoutMerged, false),
+		parent("abandoned", domain.RunStopped, domain.FanoutReady, false),
+		parent("waiting", domain.RunIdle, domain.FanoutReady, false),
+		parent("running", domain.RunIdle, domain.FanoutRunning, false),
+		parent("done", domain.RunStopped, domain.FanoutMerged, true),
+		{ID: "child", State: domain.RunStopped, StartedAt: now, Fanout: &domain.SessionFanout{Role: domain.RoleChild, Parent: "merged"}},
+	}
+	c := &fakeFanout{}
+	f.env.Fanout = c
+	done, err := Run(context.Background(), f.env, Options{Only: []Kind{KindFanout}}, nil)
+	require.NoError(t, err)
+	assert.Equal(t, []string{"abandoned", "merged"}, ids(done, KindFanout))
+	assert.Equal(t, []string{"abandoned", "merged"}, c.cleaned)
+}

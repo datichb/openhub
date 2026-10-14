@@ -215,3 +215,41 @@ func (s *Service) isMergeDecision(ctx context.Context, sessionID, id string) boo
 	c, ok := wf.Checkpoint(id)
 	return ok && (isFanoutMerge(wf, c) || mergeCheckpoint(c))
 }
+
+// fanoutFix asks for a fix round when the merge checkpoint id of a fan-out
+// is refused with an instruction: oh runs it on the integration branch,
+// then the checkpoint is passed again, verified again (CP-R3 unchanged).
+// It returns the line for the agent ("" = no fix round).
+func (s *Service) fanoutFix(ctx context.Context, sessionID, id, instruction string) string {
+	if s.RequestFix == nil {
+		return ""
+	}
+	sess, wf, err := s.session(ctx, sessionID)
+	if err != nil || wf.Fanout == nil || wf.Fanout.Fix == "" {
+		return ""
+	}
+	c, ok := wf.Checkpoint(id)
+	if !ok || !isFanoutMerge(wf, c) {
+		return ""
+	}
+	failure := ""
+	if st, err := s.state(ctx, sessionID); err == nil {
+		if r, ok := st.Verify[id]; ok && r.Done() && !r.OK() {
+			lines := []string{r.Status}
+			for _, c := range r.Commands {
+				lines = append(lines, fmt.Sprintf("$ %s → %d", c.Cmd, c.Exit))
+			}
+			lines = append(lines, r.Reason, clipEnd(r.Excerpt, 2000))
+			failure = strings.TrimSpace(strings.Join(lines, "\n"))
+		}
+	}
+	return s.RequestFix(ctx, sess, wf, instruction, failure)
+}
+
+// clipEnd keeps the end of s (the end of an output says why it failed).
+func clipEnd(s string, n int) string {
+	if len(s) <= n {
+		return s
+	}
+	return "…" + strings.ToValidUTF8(s[len(s)-n:], "")
+}

@@ -163,6 +163,7 @@ Le panneau **Détail** montre la session selectionnee : workflow, mode, executio
 | `i` | interrompre l'etape en cours |
 | `M` | changer le modele des prochaines etapes (`fournisseur/modele`) |
 | `s` | arreter la session (confirmation) |
+| `B` | valider par lot : les checkpoints en attente du fan-out de la session sélectionnée (sinon tous), chacun à valider, laisser en attente ou refuser avec une consigne ; confirmation, puis le résultat de chacun (comme `oh session approve --batch`) |
 | `D` | supprimer definitivement la session : worktree, branche locale (jamais la distante), decisions, fichiers (confirmation, « Annuler » selectionne) |
 | `c` | reprendre une session en veille |
 | `o` | resultats et description de MR |

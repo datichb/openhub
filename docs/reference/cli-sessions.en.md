@@ -115,7 +115,7 @@ oh session approve 7f3a --decision fix -m "Add the tests first"
 |------|------|-------------|
 | `--batch` | bool | Approve at once the waiting checkpoints of the selection |
 | `--session` | string (repeatable) | Only these sessions |
-| `--fanout` | string | The parent session of a fan-out and its child sessions (and merger) |
+| `--fanout` | string | The fan-out of a session (parent or child): the parent session and its child, merger and fix sessions |
 | `--checkpoint` | list | Only these checkpoints (`cp-2,cp-merge`) |
 | `--except` | string (repeatable) | Decision left waiting |
 | `--reject` | string (repeatable) | Decision refused: `id` or `id=instruction` |
@@ -131,11 +131,12 @@ oh session approve --batch --checkpoint cp-2 --except checkpoint:ses_x:per_3 --r
 ```
 oh fanout status <session> [--json]
 oh fanout drive <session>
+oh fanout clean <session> [--dry-run] [--discard] [--json]
 ```
 
-Experimental fan-out (`[fanout] experimental = true`, [guide](../guides/fan-out.en.md)). `status`: integration branch and its worktree, each child session (ticket, state `pending`, `running`, `merged`, `conflict`, `failed`, `budget`, session, merge commit, detail), global budget spent and last events; for a child session or a merger, its parent session, its ticket and its branch. `drive`: drives the fan-out of a parent session (launches the child sessions once `cp-plan` is passed, follows them, merges them, launches the merger on a conflict, then tells the parent session); `oh run` starts it in the background (log `~/.oh/sessions/<session>/fanout.log`), start it again if it stopped: it goes on where it was. One driver per fan-out.
+Experimental fan-out (`[fanout] experimental = true`, [guide](../guides/fan-out.en.md)). `status`: integration branch and its worktree, each child session (ticket, state `pending`, `running`, `merged`, `conflict`, `failed`, `budget`, session, merge commit, detail), global budget spent and last events; for a child session or a merger, its parent session, its ticket and its branch. `drive`: drives the fan-out of a parent session (launches the child sessions once `cp-plan` is passed, follows them, merges them, launches the merger on a conflict, then tells the parent session); `oh run` starts it in the background (log `~/.oh/sessions/<session>/fanout.log`), start it again if it stopped: it goes on where it was, and follows the fan-out until `cp-merge` passes (fix rounds). One driver per fan-out. `clean`: removes the `oh/fanout/…` worktrees and branches of a fan-out merged or whose parent session is stopped (what oh already does by itself, and `oh gc` for the leftovers): a worktree where a session still works, or with uncommitted changes, stays; a branch goes only when each of its commits is on another branch, except with `--discard`, which traces the commit of each deleted branch in the events of the fan-out (`discarded`).
 
-In `oh session list` and the TUI, a child session is marked `↳` (with its ticket), a merger `↳ … (merge <ticket>)`, a parent session `⑂`; `oh session list --json` gives the `fanout` record. `oh session trace` of the parent holds the events of the fan-out and the checkpoints passed in each child (`fanout` events, `child_checkpoint` with `by: delegated` for a delegated `cp-2`).
+In `oh session list` and the TUI, a child session is marked `↳` (with its ticket), a merger `↳ … (merge <ticket>)`, a fix session `↳ … (fix)`, a parent session `⑂`; `oh session list --json` gives the `fanout` record. `oh session trace` of the parent holds the events of the fan-out and the checkpoints passed in each child (`fanout` events, `child_checkpoint` with `by: delegated` for a delegated `cp-2`).
 
 ### oh session answer
 
