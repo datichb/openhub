@@ -90,7 +90,6 @@ The assertions are described in the [`oh eval` reference](../docs/reference/cli-
 | S35 | release | Release refused at `cp-release`: no write, no commit, no tag |
 | S36 | release | Release MR asked on `release/1.3`, without a remote: no MR opened nor push, complete description (title, breaking changes, checks, rollback) and the command to open it after the push in the report (`reports: off`) |
 
-S16 to S31 and S33 to S36 are not in the reference measure yet (`notInBaseline` in `cli/internal/evalrun/evalrun_test.go`): they enter it at the next recording.
 
 The reference measure (Haiku, three repetitions) is recorded in `cli/internal/evalrun/testdata/evals/baseline.json`; `make test-eval` compares the current run with it.
 
