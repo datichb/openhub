@@ -39,8 +39,11 @@ type contractData struct {
 	Statuses []contractStatuses
 	// Method: the method of the session (R7) and its steps, in order.
 	Method contractMethod
-	// Writes: the documentation paths the workflow opens to the agent (R4).
-	Writes []string
+	// Writes: the documentation paths the workflow opens to the agent (R4);
+	// WritesOnly: they are the only files it may edit (its own rules edit
+	// none).
+	Writes     []string
+	WritesOnly bool
 }
 
 var (
@@ -96,6 +99,7 @@ func contractFor(req Request, wf *sessionspec.WorkflowRuntime, id string, graph,
 	d.Statuses = calleeStatuses(id, d.Callees, statuses)
 	d.Method = methodContract(req, wf, id, d.Callees)
 	d.Writes = req.writesOf(id)
+	d.WritesOnly = len(d.Writes) > 0 && !env.ownEdits
 	return d
 }
 

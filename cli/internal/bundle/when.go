@@ -59,6 +59,9 @@ type whenEnv struct {
 	plugin map[string]bool
 	method string
 	flags  map[string]bool // yes/no keys
+	// ownEdits: the agent's own rules let it edit files beyond its
+	// `writes:` paths (the onboarder: ONBOARDING.md), not a condition key.
+	ownEdits bool
 }
 
 // Role values of the `role` key.
@@ -333,8 +336,8 @@ type sessionEnv struct {
 	ticket, wiki, headless bool
 	entry, method          string
 	graph, callers         map[string][]string
-	// writes: the agents given documentation paths (R4, `writes:`).
-	writes map[string]bool
+	// writes: the documentation paths of each agent given some (R4, `writes:`).
+	writes map[string][]string
 }
 
 // newSessionEnv reads the session of a bundle being built (spec: its MCP
@@ -355,11 +358,11 @@ func newSessionEnv(w *workflow.Spec, projectPath string, spec sessionspec.Bundle
 	if w != nil {
 		s.headless = w.Headless
 		for _, id := range w.Agents.Keys() {
-			if len(w.WritesOf(id)) > 0 {
+			if paths := w.WritesOf(id); len(paths) > 0 {
 				if s.writes == nil {
-					s.writes = map[string]bool{}
+					s.writes = map[string][]string{}
 				}
-				s.writes[id] = true
+				s.writes[id] = paths
 			}
 		}
 		for _, k := range w.Inputs.Keys() {
@@ -391,6 +394,20 @@ func bundleWhenEnvs(w *workflow.Spec, projectPath string, spec sessionspec.Bundl
 	return out
 }
 
+// editsBeyond reports whether perms allow the edit of a file other than
+// the `writes:` paths (a rule of the agent's own, not one of WritesRules).
+func editsBeyond(perms []sessionspec.PermissionRule, paths []string) bool {
+	for _, r := range perms {
+		if r.Effect != sessionspec.EffectAllow || !toolMatch(sessionspec.ActionEdit, r.Action) {
+			continue
+		}
+		if !slices.ContainsFunc(paths, func(p string) bool { return WritesPattern(p) == r.Resource }) {
+			return true
+		}
+	}
+	return false
+}
+
 // agentEnv is the session of agent id, whose permissions are perms.
 func (s sessionEnv) agentEnv(id string, perms []sessionspec.PermissionRule) whenEnv {
 	env := whenEnv{agent: id, roles: map[string]bool{}, calls: map[string]bool{}, mcp: s.mcp, plugin: s.plugin, method: s.method, flags: map[string]bool{}}
@@ -415,6 +432,9 @@ func (s sessionEnv) agentEnv(id string, perms []sessionspec.PermissionRule) when
 	env.flags["ticket"] = s.ticket
 	env.flags["wiki"] = s.wiki
 	env.flags["headless"] = s.headless
-	env.flags["writes"] = s.writes[id]
+	env.flags["writes"] = len(s.writes[id]) > 0
+	if len(s.writes[id]) > 0 {
+		env.ownEdits = editsBeyond(perms, s.writes[id])
+	}
 	return env
 }
