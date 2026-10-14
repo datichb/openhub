@@ -43,6 +43,9 @@ type Proposal struct {
 	Content string
 	Tag     string
 	Source  string
+	// Replaces is the line of the page the content replaces (p5-fixes,
+	// replace.go); "" adds the content to its section.
+	Replaces string
 }
 
 // sessionDataRe finds a reference to the oh session data whatever the
@@ -93,6 +96,17 @@ func CleanProposal(in Proposal, sessionDirs ...string) (Proposal, error) {
 		return out, err
 	}
 	out.Content = content
+	if strings.TrimSpace(in.Replaces) != "" {
+		if out.Replaces, err = cleanReplaces(in.Replaces); err != nil {
+			return out, err
+		}
+		if strings.Count(content, "\n")+1 > MaxReplaceLines {
+			return out, ErrReplaceContent
+		}
+		if strings.TrimSpace(content) == out.Replaces {
+			return out, ErrReplaceSame
+		}
+	}
 	return out, nil
 }
 

@@ -19,7 +19,8 @@ import (
 // section), as a list item followed by its tag line written by oh (tag,
 // author seen by oh, date, source); a missing page is created with its
 // frontmatter and a title. The frontmatter of the page is updated
-// (updated, agents, confidence), then the god nodes table of the index.
+// (updated, agents, confidence), then the god nodes table of the index. A
+// replacement takes the place of its line (replace.go).
 
 // Entry is what is applied to a page.
 type Entry struct {
@@ -30,6 +31,8 @@ type Entry struct {
 	Source  string
 	Agent   string // author seen by oh
 	Date    time.Time
+	// Replaces is the line the entry replaces (replace.go).
+	Replaces string
 }
 
 // TagLine renders the tag line of an entry.
@@ -77,10 +80,19 @@ func Apply(root string, e Entry) error {
 	data, err := os.ReadFile(file)
 	var text string
 	switch {
+	case errors.Is(err, fs.ErrNotExist) && e.Replaces != "":
+		return ErrStale // the page of the line is gone
 	case errors.Is(err, fs.ErrNotExist):
 		text = newPageText(rel, e)
 	case err != nil:
 		return err
+	case e.Replaces != "":
+		if text, err = replaceEntry(strings.ReplaceAll(string(data), "\r\n", "\n"), e); err != nil {
+			if errors.Is(err, ErrNoSection) {
+				err = ErrStale
+			}
+			return err
+		}
 	default:
 		text = insertEntry(strings.ReplaceAll(string(data), "\r\n", "\n"), e)
 	}

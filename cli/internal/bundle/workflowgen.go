@@ -97,6 +97,9 @@ type checkpointRow struct {
 	Check string
 	// After is the checkpoint it waits for (r5-fixes): oh refuses it before.
 	After string
+	// CommitNext is the later checkpoint that unlocks the commit again
+	// (p5-fixes, unlock_again).
+	CommitNext string
 }
 
 type outputRow struct {
@@ -150,7 +153,14 @@ var unlockOpText = map[string]string{
 
 // unlockText is the rule of a checkpoint that unlocks ops: only the declared
 // operations are named (N10), in the order the agent should run them.
-func unlockText(id string, ops []string) string {
+//
+// commitNext (one at most) is the later checkpoint that unlocks the commit
+// again (unlock_again): this one allows one commit.
+func unlockText(id string, ops []string, commitNext ...string) string {
+	next := ""
+	if len(commitNext) > 0 {
+		next = commitNext[0]
+	}
 	has := map[string]bool{}
 	var names []string
 	for _, op := range ops {
@@ -167,6 +177,8 @@ func unlockText(id string, ops []string) string {
 	switch {
 	case has[sessionspec.UnlockCommit] && has[sessionspec.UnlockClose]:
 		fmt.Fprintf(&b, " Une fois passé, fais-les aussitôt, dans l'ordre : commit, puis fermeture du ticket (oh refuse la fermeture tant que le travail n'est pas commité). Le travail commité, le commit est de nouveau verrouillé ; le ticket fermé, la fermeture aussi, jusqu'au prochain passage de **%s**.", id)
+	case has[sessionspec.UnlockCommit] && next != "":
+		fmt.Fprintf(&b, " Une fois passé, commite aussitôt le travail validé, en un seul commit : la fenêtre se referme après ce commit (oh ne l'ouvre pas s'il n'y a rien à commiter), au plus tard quand **%[1]s** est demandé ; le commit suivant attend **%[1]s**.", next)
 	case has[sessionspec.UnlockCommit]:
 		fmt.Fprintf(&b, " Une fois passé, commite aussitôt ; la fenêtre se referme une fois tout le travail commité, ou quand **%s** est demandé de nouveau.", id)
 	case has[sessionspec.UnlockClose]:
@@ -266,6 +278,7 @@ func buildMapData(spec *workflow.Spec, graph map[string][]string, modeOf func(st
 			By:          spec.CheckpointBy(id, graph),
 			Check:       testCheckText(cp.Verify),
 			After:       cp.After,
+			CommitNext:  spec.CommitAgain(id),
 		}
 		for _, a := range row.By {
 			if !slices.Contains(d.CheckpointAgents, a) {

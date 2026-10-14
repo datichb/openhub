@@ -29,8 +29,7 @@ Prompt avec `[REVIEW:single]` → sous-session mono-mode, sans interaction : `[W
 
 ## Ton shell
 
-- **Une seule commande par appel.** Une ligne avec `|`, `;`, `&&`, `||`, `2>/dev/null` ou un programme hors de ta liste (`head`, `echo`, `ls`, `cat`) est refusée en entier.
-- Un refus vise cette ligne, pas ton shell : relance la commande seule, sans pipe ni redirection. Ne conclus jamais que tu n'as pas de shell, et ne demande pas le diff à l'utilisateur avant d'avoir lancé `git diff` seul.
+- Les refus et les commandes enchaînées : ligne « Shell » de ton contrat de session. Ne demande jamais le diff à l'utilisateur avant d'avoir lancé `git diff` seul.
 - Permises : `git log …`, `git diff …`, `git show …`, `git status --porcelain`, `git branch --show-current`, `git rev-parse …`, `git merge-base …`, `git ls-files …`, `git fetch origin <branche>`, `bd show <ID>`, et les commandes de vérification du projet (build, tests, lint, typecheck) : oh les autorise selon la stack, ou les demande à l'utilisateur dans le workflow `review`.
 - Lister ou lire des fichiers : `glob`, `grep`, `read`. Tu ne changes jamais de branche (`git checkout`, `git switch`, `git stash` : refusés).
 
@@ -327,5 +326,6 @@ Sans wiki (projet non onboardé), `### Périmètre et contexte` DOIT contenir :
 - **Retour** : ta réponse finale est ton enveloppe de retour, un seul bloc `## Retour vers orchestrator-dev`.
 - **Agents que tu peux lancer** (outil `task`) : aucun.
 - **Checkpoints** : aucun n'est à toi : n'appelle pas `workflow_checkpoint`, même si ton prompt d'invocation en nomme un. Mets ce qui est à valider dans ton bloc de retour : ton appelant passe le checkpoint.
+- **Shell** : `head`, `tail`, `jq`, `echo`, `which`, `cat` te sont refusés ; une ligne dont une commande est refusée (même après `|`, `&&` ou `;`) l'est en entier. Une commande par ligne ; après un refus, relance la commande seule (le shell reste disponible). Fichiers : `glob`, `grep`, `read`.
 - **Questions** : tu n'as pas l'outil `question` (réservé à l'agent d'entrée). Mets chaque décision dans `### Questions bloquantes` de ton bloc de retour (2 à 3 options, la recommandée en premier) ; ton appelant la pose à l'utilisateur.
 - **Rapports** : outil `workflow_report` disponible : dépose ton rapport complet, puis cite son identifiant `rp-…` dans ton bloc.

@@ -67,6 +67,9 @@ type Filed struct {
 	SessionID   string // the oh session (root of the delegations)
 	ToolSession string
 	Agent       string // seen by oh
+	// Root is the location of the session: the line a replacement
+	// replaces must be in its page ("" = not checked).
+	Root string
 	Proposal
 }
 
@@ -80,18 +83,23 @@ func (s *Service) Propose(ctx context.Context, f Filed) (domain.WikiProposal, er
 	if err != nil {
 		return domain.WikiProposal{}, err
 	}
+	if f.Root != "" {
+		if err := CheckReplaces(f.Root, clean); err != nil {
+			return domain.WikiProposal{}, err
+		}
+	}
 	open, err := s.Store.ListWikiProposals(ctx, domain.WikiProposalFilter{ProjectID: f.ProjectID, SessionID: f.SessionID,
 		Statuses: []string{domain.WikiPending, domain.WikiAccepted}})
 	if err != nil {
 		return domain.WikiProposal{}, err
 	}
 	for _, p := range open {
-		if p.Page == clean.Page && strings.EqualFold(p.Section, clean.Section) && p.Content == clean.Content {
+		if p.Page == clean.Page && strings.EqualFold(p.Section, clean.Section) && p.Content == clean.Content && p.Replaces == clean.Replaces {
 			return p, nil
 		}
 	}
 	p := domain.WikiProposal{ProjectID: f.ProjectID, SessionID: f.SessionID, ToolSession: f.ToolSession, Agent: f.Agent,
-		Page: clean.Page, Section: clean.Section, Content: clean.Content, Tag: clean.Tag, Source: clean.Source,
+		Page: clean.Page, Section: clean.Section, Content: clean.Content, Tag: clean.Tag, Source: clean.Source, Replaces: clean.Replaces,
 		Status: domain.WikiPending, CreatedAt: s.now()}
 	if err := s.Store.AddWikiProposal(ctx, &p, MaxPerSession, MaxPerProject); err != nil {
 		return domain.WikiProposal{}, err
@@ -145,7 +153,7 @@ func (s *Service) Decide(ctx context.Context, projectID, id, choice, content, by
 	case ChoiceAccept:
 		p.Status = domain.WikiAccepted
 	case ChoiceEdit:
-		clean, err := CleanProposal(Proposal{Page: p.Page, Section: p.Section, Content: content, Tag: p.Tag, Source: p.Source}, s.SessionsDir)
+		clean, err := CleanProposal(Proposal{Page: p.Page, Section: p.Section, Content: content, Tag: p.Tag, Source: p.Source, Replaces: p.Replaces}, s.SessionsDir)
 		if err != nil {
 			return p, err
 		}
@@ -218,16 +226,21 @@ func (s *Service) ApplyAccepted(ctx context.Context, root, projectID, sessionID 
 
 func (s *Service) apply(ctx context.Context, root string, p *domain.WikiProposal, by string) Result {
 	now := s.now()
-	err := Apply(root, Entry{Page: p.Page, Section: p.Section, Content: p.Content, Tag: p.Tag, Source: p.Source, Agent: p.Agent, Date: now})
+	err := Apply(root, Entry{Page: p.Page, Section: p.Section, Content: p.Content, Tag: p.Tag, Source: p.Source, Agent: p.Agent, Date: now, Replaces: p.Replaces})
 	res := Result{ID: p.ID(), Page: p.Page}
-	if err != nil && !errors.Is(err, ErrSymlink) && fileWritten(root, p) {
+	if err != nil && !errors.Is(err, ErrSymlink) && !errors.Is(err, ErrStale) && fileWritten(root, p) {
 		// The entry is in the page; only the god nodes refresh failed.
 		err = nil
 	}
-	if err != nil {
+	switch {
+	case errors.Is(err, ErrStale):
+		// p5-fixes: the replaced line is gone: never applied, closed.
+		p.Status, p.Error = domain.WikiStale, err.Error()
+		res.Err = p.Error
+	case err != nil:
 		p.Error = err.Error()
 		res.Err = p.Error
-	} else {
+	default:
 		p.Status, p.AppliedBy, p.AppliedAt, p.Error = domain.WikiApplied, by, &now, ""
 	}
 	if uerr := s.Store.UpdateWikiProposal(ctx, p); uerr != nil && res.Err == "" {

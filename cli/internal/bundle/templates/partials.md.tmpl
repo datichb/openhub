@@ -33,7 +33,7 @@ Séquence : {{ .Sequence }} (entre crochets, les opérations que le checkpoint d
 <!-- /oh:when -->
 {{- end }}
 {{ range .Checkpoints }}
-{{- if or .Description .Condition (unlockText .ID .Unlocks) .Check }}
+{{- if or .Description .Condition (unlockText .ID .Unlocks .CommitNext) .Check }}
 <!-- oh:when agent={{ join .By "," }} -->
 {{- if .Description }}
 - **{{ .ID }}** : {{ .Description }}
@@ -44,7 +44,7 @@ Séquence : {{ .Sequence }} (entre crochets, les opérations que le checkpoint d
 {{- if .Check }}
 - **{{ .ID }}** : {{ .Check }}
 {{- end }}
-{{- $rule := unlockText .ID .Unlocks }}
+{{- $rule := unlockText .ID .Unlocks .CommitNext }}
 {{- if $rule }}
 - **{{ .ID }}** déverrouille {{ codes .Unlocks }} : {{ $rule }}
 {{- end }}

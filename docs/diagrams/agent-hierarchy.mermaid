@@ -1,5 +1,5 @@
 %% OpenHub -- Agent Hierarchy (v5)
-%% 16 agents across 8 families, showing mode (primary/subagent)
+%% 18 agents across 9 families, showing mode (primary/subagent)
 %% and the delegations their permissions allow. In a session, the workflow
 %% decides which agents are members and which delegations are reachable
 %% (SubagentGraph, closed world): see ADR-039 and ADR-041.
@@ -45,6 +45,14 @@ flowchart TD
         DOC["fa:fa-file-text <strong>documentarian</strong><br/>Primary · Tech writer<br/>read-write"]
     end
 
+    subgraph Delivery ["Delivery Family (2 agents)"]
+        direction TB
+        REL["fa:fa-tag <strong>release-manager</strong><br/>Primary · Release entry (release)<br/>delegates nothing"]
+        MRG["fa:fa-code-fork <strong>merger</strong><br/>Primary · Merge conflicts (merge-conflicts)<br/>read-write"]
+    end
+
+    OHF(["oh · fan-out driver"])
+
     subgraph Utility ["Utility Family (1 agent)"]
         BRF["fa:fa-info-circle <strong>brief-enricher</strong><br/>Subagent · Analysis<br/>read-only"]
     end
@@ -69,6 +77,8 @@ flowchart TD
     PLAN -->|delegates| DES
     PATH -->|delegates| DES
 
+    OHF -.->|"conflict it cannot resolve (merge-conflicts session)"| MRG
+
     style Planning fill:#3498db15,stroke:#3498db
     style Developer fill:#2ecc7115,stroke:#2ecc71
     style Auditor fill:#e74c3c15,stroke:#e74c3c
@@ -76,4 +86,5 @@ flowchart TD
     style Quality fill:#f39c1215,stroke:#f39c12
     style Design fill:#9b59b615,stroke:#9b59b6
     style Documentation fill:#1abc9c15,stroke:#1abc9c
+    style Delivery fill:#e67e2215,stroke:#e67e22
     style Utility fill:#95a5a615,stroke:#95a5a6

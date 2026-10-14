@@ -31,17 +31,24 @@ func FormatIssues(rel, text string) []Issue {
 	var out []Issue
 	add := func(i Issue) { out = append(out, i) }
 	(&Wiki{}).checkFrontmatter(p, add)
-	for _, k := range p.Frontmatter.Keys {
-		if !slices.Contains(FrontmatterKeys, k) && (k != "synced" || rel != IndexPage) {
-			add(Issue{Page: rel, Line: 1, Kind: IssueFrontmatterKey, Severity: SeverityError, Message: i18n.Tf("wiki.check.frontmatter_key", k)})
-		}
-	}
+	checkFrontmatterKeys(p, SeverityError, add)
 	checkTags(p, func(i Issue) {
 		if i.Kind == IssueTag {
 			add(i)
 		}
 	})
 	return out
+}
+
+// checkFrontmatterKeys reports the keys of the frontmatter of p that the
+// format does not know, with severity (p5-fixes: wiki_check warns about
+// them on every page but the specs, verify.spec refuses them).
+func checkFrontmatterKeys(p Page, severity string, add func(Issue)) {
+	for _, k := range p.Frontmatter.Keys {
+		if !slices.Contains(FrontmatterKeys, k) && (k != "synced" || p.Path != IndexPage) {
+			add(Issue{Page: p.Path, Line: 1, Kind: IssueFrontmatterKey, Severity: severity, Message: i18n.Tf("wiki.check.frontmatter_key", k)})
+		}
+	}
 }
 
 // frontmatterKeys returns the top-level keys of a YAML mapping, in order.

@@ -262,7 +262,7 @@ func (v *WikiView) showItemDetail(idx int) {
 	if pi, ok := v.proposalIndices[idx]; ok && pi >= 0 && pi < len(v.proposals) {
 		p := v.proposals[pi]
 		var d detailText
-		d.title(tview.Escape(p.Page) + "  " + theme.ColorTag(theme.TextMutedHex) + "[" + tview.Escape(p.ID) + "]" + theme.TagReset)
+		d.title(tview.Escape(p.Page) + "  " + theme.ColorTag(theme.TextMutedHex) + tview.Escape("["+p.ID+"]") + theme.TagReset)
 		d.field(i18n.T("tui.wiki.detail_author"), tview.Escape(p.Author))
 		d.field(i18n.T("tui.wiki.detail_confidence"), tview.Escape(p.Confidence))
 		d.field(i18n.T("tui.wiki.detail_project"), tview.Escape(p.Project))
@@ -302,9 +302,9 @@ func (v *WikiView) buildProposalItem(p teamstate.WikiProposal) widgets.SectionIt
 
 	// Main line: icon + ID + page + author + relative date
 	relDate := wikiFormatTimeAgo(p.CreatedAt)
-	mainText := fmt.Sprintf("  %s [%s] %s %s%s · %s%s",
+	mainText := fmt.Sprintf("  %s %s %s %s%s · %s%s",
 		icon,
-		tview.Escape(p.ID),
+		tview.Escape("["+p.ID+"]"),
 		tview.Escape(p.Page),
 		muted, tview.Escape(p.Author),
 		tview.Escape(relDate), reset)
@@ -332,7 +332,7 @@ func (v *WikiView) showProposal(proposalIdx int) {
 		tview.Escape(p.Content),
 	)
 
-	v.shell.ShowScrollableModal(i18n.Tf("tui.wiki.proposal_title", p.Page), content, []ModalAction{
+	v.shell.ShowScrollableModal(tview.Escape(i18n.Tf("tui.wiki.proposal_title", p.Page)), content, []ModalAction{
 		{Label: i18n.T("tui.wiki.btn_accept"), Callback: func() {
 			v.doAcceptProposal(p)
 		}},

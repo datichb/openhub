@@ -366,19 +366,19 @@ Handles an ongoing incident: **mitigate first**, then write the blameless postmo
 
 | Checkpoint | manuel | semi-auto | auto |
 |---|---|---|---|
-| `cp-mitigated` Mitigation (mandatory, checked by oh: stack tests) | pause | pause | pause |
-| `cp-postmortem` Postmortem (mandatory, unlocks `commit`) | pause | pause | pause |
+| `cp-mitigated` Mitigation (mandatory, checked by oh: stack tests, unlocks `commit`: one commit) | pause | pause | pause |
+| `cp-postmortem` Postmortem (mandatory, unlocks `commit` again, `unlock_again`) | pause | pause | pause |
 | `cp-actions` Actions (mandatory, unlocks `create`) | pause | pause | pause |
 
 Flow:
 
 1. **Quick diagnosis**: impact, start time, triggering change (`git log` around the start time, then the diff of the suspect commit).
-2. **Mitigation**: the safest, preferably reversible measure (undo the triggering change, switch the feature off, configuration). A code measure is applied by the `developer` **in the work tree**, without a commit; a measure outside the repository (deployment, environment variable) is given as is to the user. At `cp-mitigated`, oh runs the stack tests, then the user chooses or confirms the measure.
+2. **Mitigation**: the safest, preferably reversible measure (undo the triggering change, switch the feature off, configuration). A code measure is applied by the `developer` **in the work tree**, without a commit; a measure outside the repository (deployment, environment variable) is given as is to the user. At `cp-mitigated`, oh runs the stack tests, then the user chooses or confirms the measure; once approved, the code fix (if any) is committed at once by the `developer`, on its own (`fix(incident): …`).
 3. **Postmortem**: `docs/wiki/postmortems/<YYYY-MM-DD>-<slug>.md` (wiki frontmatter; summary, timeline, root cause, mitigation, actions), **blameless**: no person's name, not even the one the report mentions. On-demand skill: `postmortem` (sourced timeline, impact and detection delay in figures, trigger and cause, verifiable actions).
-4. **`cp-postmortem`**: once approved, the mitigation fix (if any) is committed by the `developer`, then the postmortem alone by the debugger (`git commit -m "docs(postmortem): <slug>" -- <file>`).
+4. **`cp-postmortem`**: once approved, the postmortem is committed alone by the debugger (`git commit -m "docs(postmortem): <slug>" -- <file>`).
 5. **`cp-actions`**: one ticket per approved action (`bd create`, a description that cites the postmortem); a refusal: no ticket.
 
-Why the mitigation fix is only committed at `cp-postmortem`: an operation is unlocked by a single checkpoint (`unlock_duplicate`); `cp-mitigated` stays the decision on the mitigation, checked by oh, and the fix is in place in the work tree from then on (the user may ship it themselves if they cannot wait). Pause budget (CP-R2) in semi-auto: 3 pauses (1 decision, 2 irreversible actions), for a budget of 4. Allowed Beads commands: `show`, `list`, `ready`, `search`, `query`, `lint`, `children`, `comments`, `count`, `status`, `graph`, `history`, `create`, `update`, `dep`, `label`.
+Two commit checkpoints (`unlock_again`, see the [schema](workflow-schema.en.md#checkpoints)): the window of `cp-mitigated` holds one commit, the fix's (oh does not open it when there is nothing to commit, closes it after that commit and at the latest when `cp-postmortem` is asked); the postmortem waits for `cp-postmortem`. The fix can thus be shipped as soon as the mitigation is approved. Pause budget (CP-R2) in semi-auto: 3 pauses (1 decision, 2 irreversible actions: the repeated commit does not count), for a budget of 4. Allowed Beads commands: `show`, `list`, `ready`, `search`, `query`, `lint`, `children`, `comments`, `count`, `status`, `graph`, `history`, `create`, `update`, `dep`, `label`.
 
 ## `security-fix`
 

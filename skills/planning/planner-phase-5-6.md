@@ -24,11 +24,10 @@ Sous-agent : la création attend le checkpoint de ton appelant ; tu arrives ici 
 ## Template — Création et enrichissement d'un epic
 
 ```bash
-EPIC=$(bd create "Nom de l'epic" -t epic --json)
-EPIC_ID=$(echo $EPIC | jq -r '.id')
-bd update $EPIC_ID \
-  --description "$(cat <<'EOF'
-## Objectif métier
+bd create "Nom de l'epic" -t epic --json
+# l'id de la sortie JSON → <EPIC_ID>, dans la commande suivante (un appel par commande)
+bd update <EPIC_ID> \
+  --description "## Objectif métier
 [Valeur apportée à l'utilisateur — pourquoi cet epic existe]
 
 ## Périmètre
@@ -38,16 +37,10 @@ bd update $EPIC_ID \
 [Ce qui ne l'est pas pour cette itération]
 
 ## Risques
-[Principaux risques identifiés sur cet epic]
-EOF
-)" \
-  --acceptance "$(cat <<'EOF'
-## Critères de succès (Success Criteria)
-- [Résultat observable qui prouve que l'epic a atteint son objectif]
-EOF
-)" \
-  --notes "$(cat <<'EOF'
-## Ordre d'implémentation
+[Principaux risques identifiés sur cet epic]" \
+  --acceptance "## Critères de succès (Success Criteria)
+- [Résultat observable qui prouve que l'epic a atteint son objectif]" \
+  --notes "## Ordre d'implémentation
 1. [ticket X] — bloquant
 2. [tickets Y, Z] — parallélisables après X
 
@@ -55,9 +48,7 @@ EOF
 [Liens avec d'autres epics si applicable — sinon : aucun]
 
 ## Estimation
-~[X] heures au total
-EOF
-)"
+~[X] heures au total"
 ```
 
 ---
@@ -65,11 +56,10 @@ EOF
 ## Template — Création d'un ticket fonctionnel (feature)
 
 ```bash
-T=$(bd create "Titre du ticket" -t feature -p 1 --parent $EPIC_ID --estimate [minutes] --json)
-T_ID=$(echo $T | jq -r '.id')
-bd update $T_ID \
-  --description "$(cat <<'EOF'
-## Contexte métier
+bd create "Titre du ticket" -t feature -p 1 --parent <EPIC_ID> --estimate [minutes] --json
+# l'id de la sortie JSON → <T_ID>
+bd update <T_ID> \
+  --description "## Contexte métier
 [Pourquoi ce ticket existe — valeur pour l'utilisateur ou le système]
 
 ## État actuel
@@ -79,11 +69,8 @@ bd update $T_ID \
 [Ce qui doit exister après — comportement attendu, ce qui change]
 
 ## Contraintes et règles métier
-[Rétrocompatibilité, cas limites, règles de gestion à respecter]
-EOF
-)" \
-  --acceptance "$(cat <<'EOF'
-## Comportement fonctionnel
+[Rétrocompatibilité, cas limites, règles de gestion à respecter]" \
+  --acceptance "## Comportement fonctionnel
 - [Critère observable 1]
 - [Critère observable 2]
 - [Critère observable 3]
@@ -95,11 +82,8 @@ EOF
 
 ## Jeux de données représentatifs
 - Nominal : [exemple d'entrée → sortie attendue]
-- Limite : [exemple d'entrée limite → comportement attendu]
-EOF
-)" \
-  --notes "$(cat <<'EOF'
-## Dépendances
+- Limite : [exemple d'entrée limite → comportement attendu]" \
+  --notes "## Dépendances
 - Dépend de : [ID + titre des tickets bloquants]
 - Bloque : [ID + titre des tickets dépendants]
 
@@ -115,9 +99,7 @@ EOF
 | [Approche B] | ... | ... | ✗ |
 
 ## Risques et points d'attention
-- [Risque technique, couplage, impact sur d'autres modules]
-EOF
-)"
+- [Risque technique, couplage, impact sur d'autres modules]"
 ```
 
 ---
@@ -125,11 +107,10 @@ EOF
 ## Template — Création d'un ticket technique (task)
 
 ```bash
-T=$(bd create "Titre du ticket" -t task -p 2 --parent $EPIC_ID --estimate [minutes] --json)
-T_ID=$(echo $T | jq -r '.id')
-bd update $T_ID \
-  --description "$(cat <<'EOF'
-## Objectif technique
+bd create "Titre du ticket" -t task -p 2 --parent <EPIC_ID> --estimate [minutes] --json
+# l'id de la sortie JSON → <T_ID>
+bd update <T_ID> \
+  --description "## Objectif technique
 [Pourquoi ce ticket technique est nécessaire — problème résolu ou dette adressée]
 
 ## État actuel
@@ -139,11 +120,8 @@ bd update $T_ID \
 [Ce qui doit exister après — nouvelle structure, interface, contrat]
 
 ## Contraintes
-[Rétrocompatibilité, contrat d'interface à respecter, contraintes de performance]
-EOF
-)" \
-  --acceptance "$(cat <<'EOF'
-## Contrat technique
+[Rétrocompatibilité, contrat d'interface à respecter, contraintes de performance]" \
+  --acceptance "## Contrat technique
 - [Interface ou comportement observable 1]
 - [Interface ou comportement observable 2]
 
@@ -154,11 +132,8 @@ EOF
 
 ## Jeux de données représentatifs
 - Entrée : [structure d'entrée exemple]
-- Sortie : [structure de sortie attendue]
-EOF
-)" \
-  --notes "$(cat <<'EOF'
-## Dépendances
+- Sortie : [structure de sortie attendue]" \
+  --notes "## Dépendances
 - Dépend de : [ID + titre]
 - Bloque : [ID + titre]
 
@@ -174,9 +149,7 @@ EOF
 | [Approche B] | ... | ... | ✗ |
 
 ## Risques et points d'attention
-- [Couplages, impacts en cascade, migrations nécessaires]
-EOF
-)"
+- [Couplages, impacts en cascade, migrations nécessaires]"
 ```
 
 ---
@@ -188,9 +161,8 @@ Pour tout ticket touchant un composant Vue, une page ou un composable :
 **Cas A — spec UI disponible (rapportée par l'UI Designer en Phase 1.5) :**
 
 ```bash
-bd update $T_ID \
-  --design "$(cat <<'EOF'
-## Composants du design system utilisés
+bd update <T_ID> \
+  --design "## Composants du design system utilisés
 - [Nom du composant DSFR ou interne — variante utilisée]
 - [Autre composant si applicable]
 
@@ -207,9 +179,7 @@ bd update $T_ID \
 - [Contrastes et lisibilité si applicable]
 
 ## Responsive
-- [Comportement mobile / tablette si différent du desktop]
-EOF
-)"
+- [Comportement mobile / tablette si différent du desktop]"
 ```
 
 **Cas B — spec UI non disponible (Phase 1.5 ignorée ou non déclenchée) :**
@@ -217,19 +187,16 @@ EOF
 Remplir `--design` avec le contexte disponible (partiel), puis tracer la spec manquante via un commentaire :
 
 ```bash
-bd update $T_ID \
-  --design "$(cat <<'EOF'
-## À compléter par l'UI Designer
+bd update <T_ID> \
+  --design "## À compléter par l'UI Designer
 Voir commentaire sur ce ticket pour les instructions d'invocation.
 
 ## Contexte disponible
 - Composant(s) concerné(s) : [NomComposant.vue]
 - Comportement attendu : [description fonctionnelle extraite de la description du ticket]
-- Design system : [DSFR / autre]
-EOF
-)"
+- Design system : [DSFR / autre]"
 
-bd comments add $T_ID "⚠️ Spec UI à compléter — ce ticket nécessite une spécification visuelle.
+bd comments add <T_ID> "⚠️ Spec UI à compléter — ce ticket nécessite une spécification visuelle.
 
 Invoquer l'agent designer (Mode: ui) avec ce contexte :
 ---
@@ -242,8 +209,8 @@ Spec UX associée : [coller le user flow si disponible]
 Demander : 'Spec UI pour [NomComposant]'
 
 Après la spec, mettre à jour ce ticket :
-  bd update $T_ID --design '...' (remplacer le contenu existant par la spec complète)
-  bd update $T_ID --acceptance '...' (compléter avec les critères visuels issus de la spec)"
+  bd update <T_ID> --design '...' (remplacer le contenu existant par la spec complète)
+  bd update <T_ID> --acceptance '...' (compléter avec les critères visuels issus de la spec)"
 ```
 
 ---
@@ -251,13 +218,13 @@ Après la spec, mettre à jour ce ticket :
 ## Template — Création d'un ticket avec dépendance
 
 ```bash
-T=$(bd create "Titre" -t task -p 2 --parent $EPIC_ID --estimate [minutes] --json)
-T_ID=$(echo $T | jq -r '.id')
-bd dep add $T_ID $T_PRECEDENT_ID
-bd update $T_ID \
+bd create "Titre" -t task -p 2 --parent <EPIC_ID> --estimate [minutes] --json
+# l'id de la sortie JSON → <T_ID>
+bd dep add <T_ID> <T_PRECEDENT_ID>
+bd update <T_ID> \
   --description "[...template selon type...]" \
   --acceptance "[...template selon type...]" \
-  --notes "[...template selon type — dans la section Dépendances, indiquer explicitement : 'Ne pas démarrer avant que $T_PRECEDENT_ID soit clos.']"
+  --notes "[...template selon type — dans la section Dépendances, indiquer explicitement : 'Ne pas démarrer avant que <T_PRECEDENT_ID> soit clos.']"
 ```
 
 ---
@@ -265,7 +232,7 @@ bd update $T_ID \
 ## Template — Ticket issu d'une scission
 
 ```bash
-T=$(bd create "Titre" -t task -p 2 -l split-from-$ORIGINAL_ID --parent $EPIC_ID --estimate [minutes] --json)
+bd create "Titre" -t task -p 2 -l split-from-<ORIGINAL_ID> --parent <EPIC_ID> --estimate [minutes] --json
 ```
 
 ---
@@ -307,7 +274,8 @@ Si l'estimation est incertaine, utiliser la borne haute et signaler dans les not
 ## Règles impératives
 
 - Toujours utiliser `--json` sur `bd create`
-- Toujours capturer l'ID via `jq -r '.id'`
+- Toujours lire l'ID dans la sortie JSON de `bd create` et l'écrire en clair dans les commandes suivantes : chaque commande est lancée seule (pas de variable shell, ni `echo`, ni `jq`, ni `cat <<EOF`)
+- Texte des champs entre guillemets doubles, sur plusieurs lignes si besoin : échappe `"`, `$` et les backquotes (`\"`, `\$`, `` \` ``)
 - Ne jamais utiliser `bd edit`
 - Les descriptions sont en langage naturel, jamais en code
 - Les critères d'acceptance sont observables et vérifiables

@@ -112,7 +112,7 @@ func unobservedOf(list []domain.CheckpointEvidence) []string {
 // commit window open, HEAD moved and nothing left to commit, the window
 // closes (CP-R8: the work was committed, in one commit or several in a
 // row). changed reports that the session rules changed.
-func (s *Service) onShell(ctx context.Context, sess *domain.Session, call adapters.ToolCall) (changed bool, err error) {
+func (s *Service) onShell(ctx context.Context, sess *domain.Session, wf *sessionspec.WorkflowRuntime, call adapters.ToolCall) (changed bool, err error) {
 	cmd, _ := call.Input["command"].(string)
 	var commitWindow *domain.CheckpointUnlock
 	_, err = s.update(ctx, sess.ID, func(st *domain.CheckpointState) error {
@@ -156,8 +156,10 @@ func (s *Service) onShell(ctx context.Context, sess *domain.Session, call adapte
 		// configuration changed): the window closes rather than stay open
 		// without end (fails closed; the checkpoint asked again opens it).
 		reason += " (git: " + herr.Error() + ")"
-	case head == "" || head == commitWindow.Head || dirty:
-		return false, nil // not committed, or more to commit (one commit per subtask)
+	case head == "" || head == commitWindow.Head:
+		return false, nil // not committed
+	case dirty && !oneCommit(wf, commitWindow.Checkpoint):
+		return false, nil // more to commit (one commit per subtask)
 	}
 	_, err = s.update(ctx, sess.ID, func(st *domain.CheckpointState) error {
 		u, ok := st.Unlocks[sessionspec.UnlockCommit]
@@ -179,6 +181,13 @@ func (s *Service) onShell(ctx context.Context, sess *domain.Session, call adapte
 		err = nil
 	}
 	return changed, err
+}
+
+// oneCommit reports whether the commit window of checkpoint id holds one
+// commit: a later checkpoint unlocks the commit again (unlock_again).
+func oneCommit(wf *sessionspec.WorkflowRuntime, id string) bool {
+	c, ok := wf.Checkpoint(id)
+	return ok && c.CommitNext != ""
 }
 
 // closedByNextCheckpoint are the windows that close when another mandatory

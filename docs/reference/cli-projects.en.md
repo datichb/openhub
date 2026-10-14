@@ -145,7 +145,7 @@ oh project configure
 
 ### oh wiki check
 
-Checks the project wiki (`docs/wiki/` of the closest parent folder that has one): frontmatter (`updated` a YYYY-MM-DD date, `confidence` in `confirmed | mixed | uncertain` and consistent with the tags of the page, `agents`), relative links and anchors, tag lines (`` — `TAG` · agent · YYYY-MM-DD[ · source] ``, a source for `CONFIRMÉ`), pages without a tag (but `specs/`, `decisions/`, `postmortems/`), layout (a page out of `index.md`, `glossary.md`, `technical/`, `business/`, `specs/`, `decisions/`, `postmortems/`), freshness (a page older than the last commit of a file it cites; a missing cited file) and god nodes computed by oh against the table of `index.md`. Also shows the computed god nodes. Non-zero exit code on errors (usable in CI).
+Checks the project wiki (`docs/wiki/` of the closest parent folder that has one): frontmatter (`updated` a YYYY-MM-DD date, `confidence` in `confirmed | mixed | uncertain` and consistent with the tags of the page, `agents`; no other key, but `synced` in `index.md`: unknown key `frontmatter_key`, a warning, an error in a spec of `specs/` as at `verify.spec`), relative links and anchors, tag lines (`` — `TAG` · agent · YYYY-MM-DD[ · source] ``, a source for `CONFIRMÉ`), pages without a tag (but `specs/`, `decisions/`, `postmortems/`), layout (a page out of `index.md`, `glossary.md`, `technical/`, `business/`, `specs/`, `decisions/`, `postmortems/`), freshness (a page older than the last commit of a file it cites; a missing cited file) and god nodes computed by oh against the table of `index.md`. Also shows the computed god nodes. Non-zero exit code on errors (usable in CI).
 
 ```
 oh wiki check [dir] [--fix] [--json] [--path <file>]… [--base <ref> [--head <ref>]] [--since-sync]
@@ -177,7 +177,7 @@ oh wiki pending [dir] [--all] [--session <id>] [--json]
 | `--session` | string | Only those of a session |
 | `--json` | bool | JSON output |
 
-The project is the one oh knows for the folder (or a parent folder). To decide on a proposal outside the TUI: [`oh wiki decide`](#oh-wiki-decide).
+The project is the one oh knows for the folder (or a parent folder). A line replacement (`replaces`) is shown "old line" → "new line"; a proposal whose line is gone when applied is `stale` (not applied, shown with `--all`). To decide on a proposal outside the TUI: [`oh wiki decide`](#oh-wiki-decide).
 
 ### oh wiki decide
 

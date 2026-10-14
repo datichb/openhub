@@ -266,4 +266,6 @@ type WikiEntry struct {
 	Tag         string    `json:"tag"`
 	Source      string    `json:"source,omitempty"`
 	CreatedAt   time.Time `json:"created_at"`
+	// Replaces is the line the proposal replaces (p5-fixes).
+	Replaces string `json:"replaces,omitempty"`
 }

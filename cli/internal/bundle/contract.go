@@ -46,6 +46,8 @@ type contractData struct {
 	WritesOnly bool
 	// WritesAfter: the checkpoint that opens them (r5-fixes).
 	WritesAfter string
+	// RefusedShell: the helpers its shell refuses (p5-fixes).
+	RefusedShell []string
 }
 
 var (
@@ -72,13 +74,14 @@ func contractTemplate() (*template.Template, error) {
 // contractFor returns the contract data of agent id.
 func contractFor(req Request, wf *sessionspec.WorkflowRuntime, id string, graph, callers map[string][]string, env whenEnv, statuses payloadStatuses) contractData {
 	d := contractData{
-		Entry:    env.roles[roleEntry],
-		Subagent: env.roles[roleSubagent],
-		Callers:  callers[id],
-		Callees:  graph[id],
-		Headless: env.flags["headless"],
-		Report:   env.mcp[sessionspec.WorkflowMCPServer],
-		WikiMCP:  env.mcp[sessionspec.WikiMCPServer],
+		Entry:        env.roles[roleEntry],
+		Subagent:     env.roles[roleSubagent],
+		Callers:      callers[id],
+		Callees:      graph[id],
+		Headless:     env.flags["headless"],
+		Report:       env.mcp[sessionspec.WorkflowMCPServer],
+		WikiMCP:      env.mcp[sessionspec.WikiMCPServer],
+		RefusedShell: env.refusedShell,
 	}
 	d.WikiApply = d.WikiMCP && id == sessionspec.WikiApplier
 	if req.Spec != nil {
@@ -186,4 +189,29 @@ func hubPayloadStatuses(loader *skillLoader, index map[string]string) payloadSta
 		}
 		return d.Front.Statuses
 	}
+}
+
+// Restricted shell (p5-fixes): the tool checks every command of a line on
+// its own (pipes, lists, substitutions) and refuses the whole line when
+// one is refused (shellsim.go). Agents allowed only a list of commands
+// chained a refused helper (`| head`, `echo`, `| jq`, `which`) and took
+// the refusal for a missing shell; the contract of an agent whose rules
+// refuse one of these helpers names those it is refused and tells it to
+// run each command alone. The refusal message is the tool's own: a line
+// denied by the rules of the agent never reaches the oh plugin.
+
+// restrictedShellProbes are the helpers agents chain to a command, in the
+// order the contract names them.
+var restrictedShellProbes = []string{"head", "tail", "jq", "echo", "which", "cat"}
+
+// refusedShellHelpers returns the helpers of restrictedShellProbes the
+// rules perms refuse.
+func refusedShellHelpers(perms []sessionspec.PermissionRule) []string {
+	var out []string
+	for _, h := range restrictedShellProbes {
+		if ShellEffect(perms, h+" x") == sessionspec.EffectDeny {
+			out = append(out, h)
+		}
+	}
+	return out
 }

@@ -250,3 +250,57 @@ func TestContractCalleeStatuses(t *testing.T) {
 	}
 	assert.NotContains(t, contractOf(agentBody(t, shippedBundle(t, "ticket"), "documentarian")), "Statuts de leurs retours")
 }
+
+// p5-fixes: an agent whose rules refuse the usual helpers of a command
+// line is told, in its contract, which ones and that a line holding one is
+// refused whole; an agent without shell is not.
+func TestContractRestrictedShell(t *testing.T) {
+	const line = "- **Shell** : "
+	planner := contractOf(agentBody(t, shippedBundle(t, "spec"), "planner"))
+	assert.Contains(t, planner, line+"`head`, `tail`, `jq`, `echo`, `which`, `cat` te sont refusés")
+	assert.Contains(t, planner, "relance la commande seule")
+
+	developer := contractOf(agentBody(t, shippedBundle(t, "ticket"), "developer"))
+	assert.Contains(t, developer, line+"`head`, `tail`, `jq` te sont refusés", "echo, which and cat are allowed to the developer")
+
+	assert.NotContains(t, contractOf(agentBody(t, shippedBundle(t, "spec"), "conductor")), line, "no shell")
+
+	allow := func(p string) sessionspec.PermissionRule {
+		return sessionspec.PermissionRule{Action: sessionspec.ActionShell, Resource: p, Effect: sessionspec.EffectAllow}
+	}
+	deny := sessionspec.PermissionRule{Action: sessionspec.ActionShell, Resource: "*", Effect: sessionspec.EffectDeny}
+	assert.Equal(t, []string{"tail", "jq", "which", "cat"}, refusedShellHelpers([]sessionspec.PermissionRule{deny, allow("head*"), allow("echo *")}))
+	assert.Empty(t, refusedShellHelpers([]sessionspec.PermissionRule{allow("*")}))
+}
+
+// p5-fixes: workflow_outputs is hidden (deny on "*", last rule of the
+// action) in a workflow without an output the agents may declare: the
+// debugger of incident called it; it stays allowed where an output is
+// declarable (debug: tickets).
+func TestOutputsHiddenWithoutDeclarableOutput(t *testing.T) {
+	last := func(b *Bundle, id string) sessionspec.Effect {
+		for _, a := range b.Spec.Agents {
+			if a.ID != id {
+				continue
+			}
+			eff := sessionspec.Effect("")
+			for _, r := range a.Permissions {
+				if r.Action == actionOutputs && r.Resource == "*" {
+					eff = r.Effect
+				}
+			}
+			return eff
+		}
+		t.Fatalf("agent %s not in the bundle", id)
+		return ""
+	}
+	incident := shippedBundle(t, "incident")
+	for _, id := range []string{"debugger", "developer"} {
+		assert.Equal(t, sessionspec.EffectDeny, last(incident, id), "incident/%s", id)
+	}
+	assert.Equal(t, sessionspec.Effect(""), last(shippedBundle(t, "debug"), "debugger"), "debug declares its tickets")
+
+	recorded := &workflow.Spec{Outputs: []workflow.Output{{ID: "spec", Type: "path", Record: "spec"}}}
+	assert.Len(t, OutputsGuard(recorded), 1, "only outputs recorded by oh")
+	assert.Nil(t, OutputsGuard(nil))
+}

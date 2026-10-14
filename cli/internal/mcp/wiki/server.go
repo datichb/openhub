@@ -6,9 +6,10 @@
 //   - wiki_index    the index of the wiki, the god nodes computed by oh and
 //     the proposals waiting;
 //   - wiki_read     {page[, section]}: a page, or one of its sections;
-//   - wiki_propose  {page, content, tag[, source, section]}: queues a
-//     proposal; oh sets its author (the agent it sees), the user validates
-//     it on the card of the commit checkpoint and oh applies it;
+//   - wiki_propose  {page, content, tag[, source, section, replaces]}:
+//     queues a proposal (an addition, or the replacement of a line of the
+//     page); oh sets its author (the agent it sees), the user validates it
+//     on the card of the commit checkpoint and oh applies it;
 //   - wiki_pending  the proposals waiting (of the project, or the session);
 //   - wiki_apply    {ids}: applies proposals (documentarian only);
 //   - wiki_check    {[paths, base, head, since_sync]}: checks the wiki
@@ -79,8 +80,9 @@ func New(b Backend) *protocol.Server {
 		Description: i18n.T("cmd.mcp.wiki.propose_desc"),
 		InputSchema: map[string]any{"type": "object", "properties": map[string]any{
 			"page": str("cmd.mcp.wiki.page"), "section": str("cmd.mcp.wiki.section"), "content": str("cmd.mcp.wiki.content"),
-			"tag":    map[string]any{"type": "string", "enum": wikisvc.Tags, "description": i18n.T("cmd.mcp.wiki.tag")},
-			"source": str("cmd.mcp.wiki.source"),
+			"tag":      map[string]any{"type": "string", "enum": wikisvc.Tags, "description": i18n.T("cmd.mcp.wiki.tag")},
+			"source":   str("cmd.mcp.wiki.source"),
+			"replaces": str("cmd.mcp.wiki.replaces"),
 		}, "required": []string{"page", "content", "tag"}},
 	}, h.propose)
 	s.RegisterTool(protocol.Tool{
@@ -216,11 +218,12 @@ func (h handlers) read(ctx context.Context, params json.RawMessage) (*protocol.T
 func (h handlers) propose(ctx context.Context, params json.RawMessage) (*protocol.ToolResult, error) {
 	// The author is never read from the call: oh knows who calls.
 	var in struct {
-		Page    string `json:"page"`
-		Section string `json:"section"`
-		Content string `json:"content"`
-		Tag     string `json:"tag"`
-		Source  string `json:"source"`
+		Page     string `json:"page"`
+		Section  string `json:"section"`
+		Content  string `json:"content"`
+		Tag      string `json:"tag"`
+		Source   string `json:"source"`
+		Replaces string `json:"replaces"`
 	}
 	if err := json.Unmarshal(params, &in); err != nil || strings.TrimSpace(in.Page) == "" || strings.TrimSpace(in.Content) == "" || strings.TrimSpace(in.Tag) == "" {
 		return nil, errors.New(i18n.T("cmd.mcp.wiki.propose_required"))
@@ -229,7 +232,8 @@ func (h handlers) propose(ctx context.Context, params json.RawMessage) (*protoco
 	if err != nil {
 		return nil, err
 	}
-	p, err := h.b.WikiPropose(ctx, daemon.WikiProposeRequest{ToolSession: id, Page: in.Page, Section: in.Section, Content: in.Content, Tag: in.Tag, Source: in.Source})
+	p, err := h.b.WikiPropose(ctx, daemon.WikiProposeRequest{ToolSession: id, Page: in.Page, Section: in.Section, Content: in.Content, Tag: in.Tag, Source: in.Source,
+		Replaces: in.Replaces})
 	if notRecorded(err) {
 		return text(i18n.T("cmd.mcp.wiki.not_recorded")), nil
 	}
@@ -240,7 +244,11 @@ func (h handlers) propose(ctx context.Context, params json.RawMessage) (*protoco
 	if err != nil {
 		return nil, unavailable(err)
 	}
-	return text(i18n.Tf("cmd.mcp.wiki.proposed", p.ID, firstText(p.Agent, "?"), p.Page, p.ID)), nil
+	key := "cmd.mcp.wiki.proposed"
+	if p.Replaces != "" {
+		key = "cmd.mcp.wiki.proposed_replace"
+	}
+	return text(i18n.Tf(key, p.ID, firstText(p.Agent, "?"), p.Page, p.ID)), nil
 }
 
 func (h handlers) pending(ctx context.Context, params json.RawMessage) (*protocol.ToolResult, error) {
@@ -398,17 +406,26 @@ func short(c string) string {
 }
 
 // proposalLine renders a proposal on one line (its content is a datum
-// written by an agent: its first line only, bounded).
+// written by an agent: its first line only, bounded); a replacement shows
+// the line it replaces, then the new one.
 func proposalLine(p daemon.WikiProposal) string {
-	first, _, _ := strings.Cut(p.Content, "\n")
-	if r := []rune(first); len(r) > 100 {
-		first = string(r[:99]) + "…"
-	}
 	page := p.Page
 	if p.Section != "" {
 		page += " § " + p.Section
 	}
-	return fmt.Sprintf("- %s · %s · %s · %s · %s · « %s »", p.ID, p.Status, firstText(p.Agent, "?"), page, p.Tag, first)
+	if p.Replaces != "" {
+		return fmt.Sprintf("- %s · %s · %s · %s · %s · « %s » → « %s »", p.ID, p.Status, firstText(p.Agent, "?"), page, p.Tag, clip(p.Replaces, 60), clip(p.Content, 60))
+	}
+	return fmt.Sprintf("- %s · %s · %s · %s · %s · « %s »", p.ID, p.Status, firstText(p.Agent, "?"), page, p.Tag, clip(p.Content, 100))
+}
+
+// clip returns the first line of s, bounded to n runes.
+func clip(s string, n int) string {
+	first, _, _ := strings.Cut(s, "\n")
+	if r := []rune(first); len(r) > n {
+		first = string(r[:n-1]) + "…"
+	}
+	return first
 }
 
 func firstText(ss ...string) string {

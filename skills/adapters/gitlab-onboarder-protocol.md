@@ -18,7 +18,7 @@ Ce skill enrichit la Phase 1 du workflow Onboarder avec les données GitLab pour
 ### Déclencheur
 
 Lancer Phase 1.4bis si :
-- Le projet est déclaré avec `Tracker: gitlab` dans `projects/projects.md`
+- Les outils MCP `gitlab` sont disponibles dans la session (tracker du projet)
 - OU un fichier `.gitlab-ci.yml` est détecté dans la codebase
 - OU l'utilisateur mentionne un projet GitLab pendant l'onboarding
 

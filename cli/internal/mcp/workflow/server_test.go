@@ -93,34 +93,41 @@ func TestCheckpointCall(t *testing.T) {
 
 func TestCheckpointUnlockedTextFollowsTheOps(t *testing.T) {
 	i18n.SetLocale("fr")
-	both := unlockedText([]string{"commit", "close"})
+	both := unlockedText([]string{"commit", "close"}, "")
 	assert.Contains(t, both, "commit, close")
 	assert.Contains(t, both, "commit, puis fermeture du ticket")
 
-	commit := unlockedText([]string{"commit"})
+	commit := unlockedText([]string{"commit"}, "")
 	assert.Contains(t, commit, "Commite maintenant")
 	assert.NotContains(t, commit, "fermeture")
 	assert.NotContains(t, commit, "ticket")
 
-	closing := unlockedText([]string{"close"})
+	closing := unlockedText([]string{"close"}, "")
 	assert.Contains(t, closing, "Ferme le ticket maintenant")
 	assert.NotContains(t, closing, "commit")
 
-	create := unlockedText([]string{"create"})
+	create := unlockedText([]string{"create"}, "")
 	assert.Contains(t, create, "Crée maintenant les tickets validés")
 	assert.NotContains(t, create, "fermeture")
 
-	release := unlockedText([]string{"commit", "tag", "mr"})
+	release := unlockedText([]string{"commit", "tag", "mr"}, "")
 	assert.Contains(t, release, "Commite d'abord la release")
 	assert.Contains(t, release, "Ouvre la merge request maintenant")
 	assert.Contains(t, release, "Ne pousse ni la branche ni le tag")
 	assert.NotContains(t, release, "fermeture")
-	tag := unlockedText([]string{"tag"})
+	tag := unlockedText([]string{"tag"}, "")
 	assert.Contains(t, tag, "Crée le tag maintenant")
 	assert.NotContains(t, tag, "merge request")
-	assert.NotContains(t, unlockedText([]string{"commit", "close"}), "tag")
+	assert.NotContains(t, unlockedText([]string{"commit", "close"}, ""), "tag")
 
-	push := unlockedText([]string{"push"})
+	// p5-fixes: an earlier commit checkpoint unlocked again later: one
+	// commit, never the closing of a ticket.
+	once := unlockedText([]string{"commit"}, "cp-postmortem")
+	assert.Contains(t, once, "en un seul commit")
+	assert.Contains(t, once, "le commit suivant attend cp-postmortem")
+	assert.NotContains(t, once, "fermeture")
+
+	push := unlockedText([]string{"push"}, "")
 	assert.Equal(t, i18n.Tf("cmd.mcp.workflow.checkpoint_unlocked", "push"), push, "no instruction for the push alone")
 }
 

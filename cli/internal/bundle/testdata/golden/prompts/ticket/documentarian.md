@@ -191,25 +191,11 @@ sans confirmation explicite. Tu explores toujours avant d'écrire.
 
 Avant d'écrire quoi que ce soit, explorer systématiquement :
 
-```bash
-# Structure de documentation existante
-ls docs/ 2>/dev/null || echo "Pas de docs/"
-ls -R docs/ 2>/dev/null
-
-# Fichiers de documentation racine
-ls README.md CHANGELOG.md CONTRIBUTING.md 2>/dev/null
-
-# ADR existants
-find . -name "*.md" -path "*/adr/*" 2>/dev/null | head -20
-find . -name "*.md" -path "*/decision*" 2>/dev/null | head -20
-find . -name "*.md" -path "*/decisions*" 2>/dev/null | head -20
-
-# Spec API existante
-find . -name "openapi.yaml" -o -name "openapi.json" -o -name "swagger.yaml" 2>/dev/null | head -5
-
-# Format de changelog
-head -30 CHANGELOG.md 2>/dev/null
-```
+- structure de la documentation : `glob` `docs/**` ;
+- fichiers racine : `glob` `{README,CHANGELOG,CONTRIBUTING}.md` ;
+- ADR : `glob` `**/adr/*.md`, `**/decision*/*.md` ;
+- spec API : `glob` `**/{openapi,swagger}.{yaml,json}` ;
+- format du changelog : `read` de `CHANGELOG.md` (30 premières lignes).
 
 Lire au moins **un fichier représentatif** de chaque type de documentation présent
 avant de commencer à rédiger.
@@ -366,5 +352,6 @@ Quand la demande arrive directement en langage naturel :
 - **Retour** : ta réponse finale est ton enveloppe de retour, un seul bloc `## Retour vers orchestrator-dev`.
 - **Agents que tu peux lancer** (outil `task`) : aucun.
 - **Checkpoints** : aucun n'est à toi : n'appelle pas `workflow_checkpoint`, même si ton prompt d'invocation en nomme un. Mets ce qui est à valider dans ton bloc de retour : ton appelant passe le checkpoint.
+- **Shell** : `head`, `tail`, `jq`, `echo`, `which`, `cat` te sont refusés ; une ligne dont une commande est refusée (même après `|`, `&&` ou `;`) l'est en entier. Une commande par ligne ; après un refus, relance la commande seule (le shell reste disponible). Fichiers : `glob`, `grep`, `read`.
 - **Questions** : tu n'as pas l'outil `question` (réservé à l'agent d'entrée). Mets chaque décision dans `### Questions bloquantes` de ton bloc de retour (2 à 3 options, la recommandée en premier) ; ton appelant la pose à l'utilisateur.
 - **Rapports** : outil `workflow_report` disponible : dépose ton rapport complet, puis cite son identifiant `rp-…` dans ton bloc.

@@ -14,8 +14,9 @@ import (
 // Pause budget (CP-R2, report 2026-10 §9.4): in semi-auto, a workflow pauses
 // at most for BudgetDecisionPauses human decisions (scope, understanding,
 // arbitration) plus one per checkpoint that unlocks an irreversible action
-// (commit, close, create, apply, push). A conditional checkpoint, or one
-// with `when:`, counts as a pause (the worst case).
+// (commit, close, create, apply, push); a commit unlocked again
+// (`unlock_again`) adds none. A conditional checkpoint, or one with
+// `when:`, counts as a pause (the worst case).
 const BudgetDecisionPauses = 2
 
 // PauseCount is the pause count of a workflow in its budget mode.
@@ -77,7 +78,7 @@ func (s *Spec) PauseBudget() PauseCount {
 			}
 			c.MethodPauses[cp.Method] = append(c.MethodPauses[cp.Method], k)
 		}
-		if len(cp.Unlocks) > 0 {
+		if len(cp.Unlocks) > 0 && (!cp.repeatsCommit() || len(cp.Unlocks) > 1) {
 			c.Irreversible = append(c.Irreversible, k)
 		}
 	}

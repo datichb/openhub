@@ -1,5 +1,5 @@
 id: S41
-title: "Incident : le commit déclencheur (refactor(money)) est retrouvé et annulé seul, le postmortem sans blâme n'est commité qu'après cp-postmortem, les actions après cp-actions"
+title: "Incident : le commit déclencheur (refactor(money)) est retrouvé et annulé seul, commité après cp-mitigated ; le postmortem sans blâme n'est commité qu'après cp-postmortem, les actions après cp-actions"
 workflow: incident
 mode: semi-auto
 reports: off
@@ -70,8 +70,17 @@ assertions:
   - type: checkpoint_order
     order: [cp-mitigated, cp-postmortem, cp-actions]
   - type: ran
-    name: aucun commit avant cp-postmortem
+    name: aucun commit avant cp-mitigated
     command: "git commit*"
+    absent: true
+    before: { checkpoint_passed: cp-mitigated }
+  - type: ran
+    name: le developer commite le correctif d'atténuation (p5-fixes, unlock_again)
+    agent: developer
+    command: "git commit*"
+  - type: ran
+    name: pas de commit du postmortem avant cp-postmortem
+    command: "git commit*postmortems*"
     absent: true
     before: { checkpoint_passed: cp-postmortem }
   - type: hidden_tests

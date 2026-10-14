@@ -28,7 +28,10 @@ type WikiProposal struct {
 	Content string `json:"content"`
 	Tag     string `json:"tag"` // CONFIRMÉ | DÉDUIT | INCERTAIN
 	Source  string `json:"source,omitempty"`
-	Status  string `json:"status"`
+	// Replaces is the line of the page the proposal replaces (p5-fixes):
+	// "" adds the content to its section.
+	Replaces string `json:"replaces,omitempty"`
+	Status   string `json:"status"`
 	// Edited: the content was changed by the user on the card (Original
 	// keeps the content of the agent).
 	Original  string     `json:"original,omitempty"`
@@ -49,6 +52,9 @@ const (
 	WikiAccepted = "accepted"
 	WikiRefused  = "refused"
 	WikiApplied  = "applied"
+	// WikiStale: the line a replacement replaces is no longer in the page
+	// (p5-fixes): not applied.
+	WikiStale = "stale"
 )
 
 // WikiProposalID returns the id of the proposal number seq ("wp-3").

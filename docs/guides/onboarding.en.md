@@ -18,7 +18,7 @@ an existing project: stack, architecture, risks, and agents to prioritise.
 | You launch `feature` or `cadrage` on a project without context | oh offers to run the `onboarding` workflow first — you can accept or go on |
 
 The onboarder is **read-only**. It writes no code, modifies no project
-files (except `docs/wiki/`, minimal `ONBOARDING.md` and `projects.md` — only after explicit confirmation).
+files, except `docs/wiki/` (creation of the wiki), a minimal `ONBOARDING.md` and, when it generates it, `CONVENTIONS.md`.
 
 When `docs/wiki/index.md` **already exists** (enriched by other agents),
 the onboarder changes no page: it **proposes** each update with `wiki_propose`
@@ -224,16 +224,9 @@ It then passes the `cp-wiki` checkpoint (pages created); once approved, it commi
 > The wiki replaces the old `CONVENTIONS.md`, `docs/context/technical.md` and `docs/context/business/` files. The `index.md` identifies "god nodes" — key concepts appearing in multiple pages — to guide agents to the essentials first.
 > Each enrichment carries a confidence tag: `` `CONFIRMÉ` `` (direct code observation), `` `DÉDUIT` `` (contextual reasoning) or `` `INCERTAIN` `` (hypothesis to validate).
 
-### 8. `projects.md` update proposal
+### 8. End of the session
 
-If the `Stack` field is absent or generic in `projects.md`:
-
-```
-I detected the following stack: TypeScript 5.3, Vue 3 + Nuxt 3, Fastify 4,
-PostgreSQL 15, Redis 7.
-
-Would you like me to update the `Stack` field in projects.md? (yes / no)
-```
+The detected stack is written in `docs/wiki/technical/stack.md`; the onboarder does not change the configuration of the project (the former `projects.md` no longer exists: the configuration is in `hub.toml`, changed with `oh project configure`). It ends with the summary of the session: pages created, commit of the wiki, what is left to you (`ONBOARDING.md`, `CONVENTIONS.md`, push).
 
 ---
 

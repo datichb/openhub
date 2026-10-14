@@ -1,0 +1,164 @@
+id: S54
+title: "Onboarding refresh : l'entrée périmée de la page d'architecture (paquet renommé) est remplacée (wiki_propose avec replaces), pas doublée d'une entrée corrigée"
+workflow: onboarding
+mode: semi-auto
+inputs: { refresh: true }
+# Le wiki de la fixture (commité) décrit le paquet internal/store ; un
+# commit le renomme ensuite en internal/storage (Repository, Put, All) :
+# la page technical/architecture.md (CONFIRMÉ, internal/store/store.go:2)
+# est périmée. En re-onboarding, l'onboarder ne modifie aucune page : il
+# propose la correction avec wiki_propose, l'utilisateur l'accepte à la
+# carte de cp-wiki (answers.wiki), oh l'applique au passage.
+# p5-fixes : même fixture que S47 ; la correction remplace la ligne de
+# l'entrée périmée (paramètre replaces) : l'ancienne entrée disparaît de
+# la page au lieu de rester à côté de la nouvelle.
+setup:
+  # Le wiki est plus récent que le code de la fixture (sinon wiki_check
+  # signale toutes les pages en retard sur un code commité le jour même).
+  - GIT_COMMITTER_DATE=2026-09-15T10:00:00 git commit -q --amend --no-edit --no-verify --date=2026-09-15T10:00:00
+  - |
+    # refactor : internal/store devient internal/storage (Repository, New, Put, All)
+    mkdir -p internal/storage
+    git mv internal/store/store_test.go internal/storage/storage_test.go
+    git rm -q internal/store/store.go
+    cat > internal/storage/storage.go <<'GO'
+    // Package storage garde les tâches dans un fichier texte, une tâche par ligne.
+    package storage
+
+    import (
+    	"errors"
+    	"os"
+    	"strings"
+    )
+
+    // Repository est le fichier des tâches.
+    type Repository struct{ path string }
+
+    // New renvoie le Repository du fichier path (créé au premier ajout).
+    func New(path string) *Repository { return &Repository{path: path} }
+
+    // Put ajoute une tâche à la fin du fichier.
+    func (r *Repository) Put(task string) error {
+    	if strings.TrimSpace(task) == "" {
+    		return errors.New("tâche vide")
+    	}
+    	f, err := os.OpenFile(r.path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
+    	if err != nil {
+    		return err
+    	}
+    	defer f.Close()
+    	_, err = f.WriteString(task + "\n")
+    	return err
+    }
+
+    // All renvoie les tâches dans l'ordre d'ajout (aucune si le fichier n'existe pas).
+    func (r *Repository) All() ([]string, error) {
+    	data, err := os.ReadFile(r.path)
+    	if errors.Is(err, os.ErrNotExist) {
+    		return nil, nil
+    	}
+    	if err != nil {
+    		return nil, err
+    	}
+    	return strings.Split(strings.TrimRight(string(data), "\n"), "\n"), nil
+    }
+    GO
+    cat > internal/storage/storage_test.go <<'GO'
+    package storage
+
+    import (
+    	"path/filepath"
+    	"testing"
+    )
+
+    func TestPutAll(t *testing.T) {
+    	r := New(filepath.Join(t.TempDir(), "todo.txt"))
+    	if err := r.Put("pain"); err != nil {
+    		t.Fatal(err)
+    	}
+    	got, err := r.All()
+    	if err != nil || len(got) != 1 || got[0] != "pain" {
+    		t.Fatalf("All() = %v, %v ; attendu [pain]", got, err)
+    	}
+    }
+    GO
+    cat > main.go <<'GO'
+    // Commande todo : ajoute et liste des tâches gardées dans todo.txt.
+    package main
+
+    import (
+    	"fmt"
+    	"os"
+    	"strings"
+
+    	"example.com/todo/internal/storage"
+    )
+
+    func main() {
+    	if len(os.Args) < 2 {
+    		fmt.Fprintln(os.Stderr, "usage : todo add <tâche> | todo list")
+    		os.Exit(2)
+    	}
+    	r := storage.New("todo.txt")
+    	switch os.Args[1] {
+    	case "add":
+    		if err := r.Put(strings.Join(os.Args[2:], " ")); err != nil {
+    			fmt.Fprintln(os.Stderr, err)
+    			os.Exit(1)
+    		}
+    	case "list":
+    		tasks, err := r.All()
+    		if err != nil {
+    			fmt.Fprintln(os.Stderr, err)
+    			os.Exit(1)
+    		}
+    		for i, t := range tasks {
+    			fmt.Printf("%d. %s\n", i+1, t)
+    		}
+    	default:
+    		fmt.Fprintln(os.Stderr, "commande inconnue :", os.Args[1])
+    		os.Exit(2)
+    	}
+    }
+    GO
+timeout: 25m
+answers:
+  checkpoints:
+    "*": approve
+  question: first
+  wiki: accept
+assertions:
+  - type: text_matches
+    name: la dérive est relevée (le paquet s'appelle maintenant internal/storage)
+    agent: onboarder
+    pattern: "internal/storage"
+  - type: called
+    name: la correction est proposée avec wiki_propose avant cp-wiki
+    tool: "*wiki/propose"
+    before: { checkpoint: cp-wiki }
+  - type: called
+    name: aucune modification directe (edit) avant la validation de cp-wiki
+    tool: edit
+    absent: true
+    before: { checkpoint_passed: cp-wiki }
+  - type: called
+    name: aucune écriture directe (write) avant la validation de cp-wiki
+    tool: write
+    absent: true
+    before: { checkpoint_passed: cp-wiki }
+  - type: checkpoint_order
+    order: [cp-wiki]
+  - type: file_matches
+    name: la page d'architecture cite le nouveau paquet après l'acceptation (appliquée par oh)
+    paths: ["docs/wiki/technical/architecture.md"]
+    pattern: "internal/storage"
+  - type: file_matches
+    name: l'entrée périmée (le paquet store) est remplacée, pas doublée
+    paths: ["docs/wiki/technical/architecture.md"]
+    pattern: "le paquet `store`, qui garde"
+    absent: true
+  - type: changed_within
+    name: seul le wiki change, la page d'architecture comprise
+    paths: ["docs/wiki/**"]
+    include: ["docs/wiki/technical/architecture.md"]
+  - type: no_denied_loop

@@ -69,7 +69,7 @@ const (
 	// The last proposal of a project stays: its number is the next one's
 	// base (a purged number is never given again).
 	oldWikiQuery = `SELECT project_id || char(31) || seq, applied_at, decided_at, created_at FROM wiki_proposals
-		WHERE status IN ('applied', 'refused') AND seq < (SELECT MAX(w.seq) FROM wiki_proposals w WHERE w.project_id = wiki_proposals.project_id)`
+		WHERE status IN ('applied', 'refused', 'stale') AND seq < (SELECT MAX(w.seq) FROM wiki_proposals w WHERE w.project_id = wiki_proposals.project_id)`
 )
 
 // deleteWiki removes the closed wiki proposals of ids (project US seq).
@@ -77,7 +77,7 @@ func (h *HistoryStore) deleteWiki(ctx context.Context, ids []string) (int, error
 	n := 0
 	for _, id := range ids {
 		project, seq, _ := strings.Cut(id, "\x1f")
-		res, err := h.db.ExecContext(ctx, `DELETE FROM wiki_proposals WHERE project_id = ? AND seq = ? AND status IN ('applied', 'refused')`, project, seq)
+		res, err := h.db.ExecContext(ctx, `DELETE FROM wiki_proposals WHERE project_id = ? AND seq = ? AND status IN ('applied', 'refused', 'stale')`, project, seq)
 		if err != nil {
 			return n, fmt.Errorf("deleting old wiki proposals: %w", err)
 		}

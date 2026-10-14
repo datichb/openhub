@@ -34,7 +34,7 @@ func WorkflowRuntime(s *workflow.Spec) *sessionspec.WorkflowRuntime {
 			continue
 		}
 		def := sessionspec.CheckpointDef{ID: id, Label: localized(cp.Label), Condition: cp.Condition, Mandatory: cp.IsMandatory(), Behaviors: map[string]string{},
-			Wiki: string(cp.Wiki), After: cp.After}
+			Wiki: string(cp.Wiki), After: cp.After, CommitNext: s.CommitAgain(id)}
 		for _, op := range cp.Unlocks {
 			def.Unlocks = append(def.Unlocks, string(op))
 		}

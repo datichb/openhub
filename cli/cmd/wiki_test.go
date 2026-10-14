@@ -79,6 +79,12 @@ func TestWikiPendingHelpers(t *testing.T) {
 		assert.Contains(t, b.String(), want)
 	}
 	assert.NotContains(t, b.String(), "suite")
+	// p5-fixes: a replacement, before → after.
+	b.Reset()
+	printWikiProposals(&b, []domain.WikiProposal{{Seq: 3, Status: domain.WikiStale, Page: "technical/stack.md", Tag: "CONFIRMÉ",
+		Replaces: "- HTTP dans internal/http", Content: "- HTTP dans internal/api"}})
+	assert.Contains(t, b.String(), "« - HTTP dans internal/http » → « - HTTP dans internal/api »")
+	assert.Contains(t, b.String(), "stale")
 	b.Reset()
 	printWikiProposals(&b, nil)
 	assert.Contains(t, b.String(), "Aucune proposition")

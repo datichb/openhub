@@ -25,7 +25,7 @@ En v5, ce n'est plus l'agent qui décide de l'enchaînement : c'est le **workflo
   oh tient l'état et pose les décisions ([ADR-042](./adr/042-checkpoints-headless-decisions.fr.md)).
 - **Agent d'entrée** : celui de `entry.agent` du workflow, ou `conductor` par défaut (workflows `cadrage`, `sweep`).
   Le workflow `libre` laisse choisir l'agent d'entrée (`oh run libre --agent <id>`).
-- **Contrat de session** : oh ajoute à chaque agent une section générée « Contrat de session » (gabarit `bundle/templates/session-contract.md.tmpl`), calculée depuis ce graphe et le workflow : rôle (agent d'entrée, sous-agent lancé par `task` par les appelants listés, ou les deux), titre de retour pour chaque appelant, agents qu'il peut lancer, **ses** checkpoints seulement (`by:` du checkpoint, CP-R11), plafond `max_fix_rounds` pour l'agent qui passe le checkpoint de commit, droit ou non à l'outil `question` (jamais pour un sous-agent, jamais en session `headless`), disponibilité de `workflow_report`. Les passages propres à un rôle sont filtrés au build (`when:`, voir [Variantes par rôle](./skills.fr.md#variantes-par-rôle-et-par-session-when)) : un sous-agent ne lit pas le parcours standalone — voir [Parcours d'exécution](./task-delegation.fr.md#parcours-dexécution--standalone-ou-sous-agent).
+- **Contrat de session** : oh ajoute à chaque agent une section générée « Contrat de session » (gabarit `bundle/templates/session-contract.md.tmpl`), calculée depuis ce graphe et le workflow : rôle (agent d'entrée, sous-agent lancé par `task` par les appelants listés, ou les deux), titre de retour pour chaque appelant, agents qu'il peut lancer, **ses** checkpoints seulement (`by:` du checkpoint, CP-R11), plafond `max_fix_rounds` pour l'agent qui passe le checkpoint de commit, droit ou non à l'outil `question` (jamais pour un sous-agent, jamais en session `headless`), disponibilité de `workflow_report`, et, pour un agent dont les règles refusent les utilitaires qu'on enchaîne d'habitude (`head`, `tail`, `jq`, `echo`, `which`, `cat`), lesquels lui sont refusés et la consigne de lancer chaque commande seule : l'outil vérifie chaque commande d'une ligne et refuse la ligne entière dès qu'une seule est refusée (le message de refus reste celui de l'outil : une ligne refusée par les règles de l'agent n'atteint pas le plugin d'oh). Les passages propres à un rôle sont filtrés au build (`when:`, voir [Variantes par rôle](./skills.fr.md#variantes-par-rôle-et-par-session-when)) : un sous-agent ne lit pas le parcours standalone — voir [Parcours d'exécution](./task-delegation.fr.md#parcours-dexécution--standalone-ou-sous-agent).
 - **Monde fermé** : un agent ne voit que les agents et les skills du **paquet de session** construit depuis le
   workflow ([ADR-043](./adr/043-session-bundle-deploy-removal.fr.md)). Les agents natifs d'opencode sont
   désactivés, et la vérification `Attest` bloque le démarrage si quelque chose d'autre est visible
@@ -50,7 +50,7 @@ flowchart TD
         PATH["pathfinder<br/>Recon"]
         ONB["onboarder<br/>Decouverte"]
     end
-    subgraph DV ["Developer (3)"]
+    subgraph DV ["Developer (1)"]
         DEV["developer<br/>Sous-agent"]
     end
     subgraph IN ["Infra (1)"]
@@ -74,6 +74,11 @@ flowchart TD
     subgraph UT ["Utility (1)"]
         BRF["brief-enricher<br/>Sous-agent"]
     end
+    subgraph DL ["Delivery (2)"]
+        REL["release-manager<br/>Entrée de release"]
+        MRG["merger<br/>Conflits de merge"]
+    end
+    OHF(["oh : fan-out"])
     COND -.->|membres du workflow| PATH & PLAN & DES
     ORCH --> PATH & PLAN & ONB & DES & ORCHDEV & REV & DBG
     ORCHDEV --> DEV & REV & DOC
@@ -81,6 +86,7 @@ flowchart TD
     PATH --> DES
     AUD --> AUDS
     REV -->|calls: reviewer| REV
+    OHF -.->|conflit non résolu, merge-conflicts| MRG
 ```
 
 > Diagramme détaillé (en anglais) : [`docs/diagrams/agent-hierarchy.mermaid`](../diagrams/agent-hierarchy.mermaid)

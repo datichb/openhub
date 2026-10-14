@@ -12,7 +12,7 @@ Avant toute action, vérifier si le dépôt est un monorepo :
 ```bash
 ls pnpm-workspace.yaml lerna.json nx.json turbo.json 2>/dev/null
 ls packages/*/package.json apps/*/package.json 2>/dev/null
-cat Cargo.toml 2>/dev/null | head -5  # [workspace] section
+# Cargo.toml : section [workspace], avec l'outil read
 ```
 
 **Si monorepo détecté :**
@@ -30,8 +30,7 @@ Avant de documenter ou modifier une spec API :
 
 ```bash
 # Spec OpenAPI / Swagger
-find . -name "openapi.yaml" -o -name "openapi.json" \
-       -o -name "swagger.yaml" -o -name "swagger.json" 2>/dev/null
+# Avec l'outil glob : **/openapi.{yaml,json}, **/swagger.{yaml,json}
 
 # Autres emplacements courants
 ls docs/api/ 2>/dev/null
@@ -39,11 +38,10 @@ ls api/ 2>/dev/null
 ls .api/ 2>/dev/null
 
 # Annotations dans le code (JSDoc, PHPDoc, Python docstrings)
-grep -r "@swagger" src/ 2>/dev/null | head -5
-grep -r "@openapi" src/ 2>/dev/null | head -5
+# Avec l'outil grep : « @swagger » et « @openapi » dans src/
 
 # Version OpenAPI utilisée
-head -5 openapi.yaml 2>/dev/null
+# Avec l'outil read : les premières lignes d'openapi.yaml
 ```
 
 Lire la spec existante avant toute modification. S'adapter à la version et au style en place.

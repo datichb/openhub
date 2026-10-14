@@ -3,6 +3,7 @@ package views
 import (
 	"context"
 	"errors"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -190,4 +191,18 @@ func TestCheckpointCardWikiEditor(t *testing.T) {
 	be.mu.Unlock()
 	assert.Len(t, be.got(), 1)
 	onLoop(func() { v.Unmount() })
+}
+
+// p5-fixes: a replacement shows the line of the page, then the new one,
+// both escaped.
+func TestCheckpointCardWikiReplacement(t *testing.T) {
+	withFrench(t)
+	var b strings.Builder
+	writeCheckpointWiki(&b, []CheckpointWikiProposal{{ID: "wp-3", Agent: "onboarder", Page: "technical/stack.md", Tag: "CONFIRMÉ", Status: "pending",
+		Replaces: "- HTTP dans `internal/http` [red]", Content: "- HTTP dans `internal/api`"}})
+	out := b.String()
+	assert.Contains(t, out, "Remplace une ligne de la page (avant, puis après)")
+	before, after := strings.Index(out, "− - HTTP dans `internal/http` [red[]"), strings.Index(out, "+ - HTTP dans `internal/api`")
+	require.GreaterOrEqual(t, before, 0, out)
+	assert.Greater(t, after, before, "before, then after")
 }

@@ -141,6 +141,23 @@ func TestWikiRoutes(t *testing.T) {
 	assert.Equal(t, http.StatusServiceUnavailable, wikiDo(t, h, http.MethodGet, "/wiki/index?tool_session=ses_rev", "", nil))
 }
 
+// p5-fixes: a replacement is checked against the page of the session
+// location when it is filed: a line not in the page is refused.
+func TestWikiProposeReplacement(t *testing.T) {
+	d, _, _, _ := wikiEnv(t)
+	h := d.routes()
+	var p WikiProposal
+	require.Equal(t, http.StatusCreated, wikiDo(t, h, http.MethodPost, "/wiki/propose", `{"tool_session":"ses_rev","page":"technical/stack.md",
+		"content":"- Go 1.23","tag":"CONFIRMÉ","source":"go.mod","replaces":"- Go — `+"`CONFIRMÉ`"+` · onboarder · 2026-09-01 · go.mod"}`, &p))
+	assert.Equal(t, "- Go — `CONFIRMÉ` · onboarder · 2026-09-01 · go.mod", p.Replaces)
+	for _, body := range []string{
+		`{"tool_session":"ses_rev","page":"technical/stack.md","content":"- x","tag":"DÉDUIT","replaces":"- absente"}`,
+		`{"tool_session":"ses_rev","page":"technical/stack.md","content":"- x","tag":"DÉDUIT","replaces":"## Librairies clés"}`,
+	} {
+		assert.Equal(t, http.StatusUnprocessableEntity, wikiDo(t, h, http.MethodPost, "/wiki/propose", body, nil), body)
+	}
+}
+
 // The wiki routes are workflow routes: the group token of the session.
 func TestWikiRoutesNeedTheGroupToken(t *testing.T) {
 	p := shortPaths(t)

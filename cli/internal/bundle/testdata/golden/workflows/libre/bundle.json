@@ -318,7 +318,8 @@
         "shell *.beads/embeddeddolt* deny",
         "shell *.beads/dolt/* deny",
         "edit .beads/* deny",
-        "edit */.beads/* deny"
+        "edit */.beads/* deny",
+        "mcp:workflow/outputs * deny"
       ],
       "skills": [
         "beads-plan",
@@ -663,7 +664,8 @@
         "shell *.beads/dolt/* deny",
         "edit .beads/* deny",
         "edit */.beads/* deny",
-        "question * deny"
+        "question * deny",
+        "mcp:workflow/outputs * deny"
       ],
       "skills": [
         "debugger-forensic",
@@ -988,7 +990,8 @@
         "shell *.beads/dolt/* deny",
         "edit .beads/* deny",
         "edit */.beads/* deny",
-        "question * deny"
+        "question * deny",
+        "mcp:workflow/outputs * deny"
       ],
       "skills": [
         "content-design",
@@ -1325,7 +1328,8 @@
         "shell *.beads/dolt/* deny",
         "edit .beads/* deny",
         "edit */.beads/* deny",
-        "question * deny"
+        "question * deny",
+        "mcp:workflow/outputs * deny"
       ],
       "skills": [
         "dev-standards-testing",
@@ -1666,7 +1670,8 @@
         "shell *.beads/dolt/* deny",
         "edit .beads/* deny",
         "edit */.beads/* deny",
-        "question * deny"
+        "question * deny",
+        "mcp:workflow/outputs * deny"
       ],
       "skills": [
         "dev-drift-detection",
@@ -2019,7 +2024,8 @@
         "shell *.beads/dolt/* deny",
         "edit .beads/* deny",
         "edit */.beads/* deny",
-        "question * deny"
+        "question * deny",
+        "mcp:workflow/outputs * deny"
       ],
       "skills": [
         "beads-plan",
@@ -2361,7 +2367,8 @@
         "shell *.beads/dolt/* deny",
         "edit .beads/* deny",
         "edit */.beads/* deny",
-        "question * deny"
+        "question * deny",
+        "mcp:workflow/outputs * deny"
       ],
       "skills": [
         "beads-plan",
@@ -2705,7 +2712,8 @@
         "shell *.beads/dolt/* deny",
         "edit .beads/* deny",
         "edit */.beads/* deny",
-        "question * deny"
+        "question * deny",
+        "mcp:workflow/outputs * deny"
       ],
       "skills": [
         "dev-standards-api",
@@ -3160,7 +3168,8 @@
         "shell *.beads/dolt/* deny",
         "edit .beads/* deny",
         "edit */.beads/* deny",
-        "question * deny"
+        "question * deny",
+        "mcp:workflow/outputs * deny"
       ],
       "skills": [
         "beads-plan",
@@ -3516,7 +3525,8 @@
         "shell *.beads/dolt/* deny",
         "edit .beads/* deny",
         "edit */.beads/* deny",
-        "question * deny"
+        "question * deny",
+        "mcp:workflow/outputs * deny"
       ],
       "skills": [
         "doc-adr",

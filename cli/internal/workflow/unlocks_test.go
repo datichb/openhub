@@ -107,3 +107,63 @@ func TestValidate_CheckpointWiki(t *testing.T) {
 	assertDiag(t, checkYAML(t, vHeader+"risk: write\ncheckpoints:\n  cp-sync: { wiki: all, unlocks: [commit], "+mode+" }\n", testEnv()),
 		"enum_invalid", "checkpoints.cp-sync.wiki", SeverityError)
 }
+
+// p5-fixes: a second commit checkpoint (`unlock_again`): only the commit,
+// on a checkpoint after the first one that unlocks it; the earlier one
+// knows the later (CommitAgain); the repeated commit adds no irreversible
+// pause to the budget.
+func TestValidate_UnlockAgain(t *testing.T) {
+	pause := "mode: { manuel: pause, semi-auto: pause, auto: pause }"
+	ok := "risk: write\ncheckpoints:\n  cp-a: { unlocks: [commit], " + pause + " }\n  cp-b: { " + pause + " }\n  cp-c: { unlocks: [commit], unlock_again: true, " + pause + " }\n"
+	diags := checkYAML(t, vHeader+ok, testEnv())
+	for _, d := range diags {
+		if d.Severity == SeverityError {
+			t.Fatalf("unexpected error: %v", diagList(diags))
+		}
+	}
+	doc, pd := Parse([]byte(vHeader+ok), Source{Layer: LayerHub, Path: "x.yaml"})
+	if pd.HasErrors() {
+		t.Fatal(pd)
+	}
+	s := doc.Spec
+	if got := s.CommitAgain("cp-a"); got != "cp-c" {
+		t.Fatalf("CommitAgain(cp-a) = %q", got)
+	}
+	if s.CommitAgain("cp-c") != "" || s.CommitAgain("cp-b") != "" {
+		t.Fatal("only the earlier commit checkpoint has a later one")
+	}
+	if b := s.PauseBudget(); !reflect.DeepEqual(b.Irreversible, []string{"cp-a"}) || b.Budget != BudgetDecisionPauses+1 {
+		t.Fatalf("budget = %+v", b)
+	}
+
+	cases := []struct{ name, body, code, path string }{
+		{"first", "risk: write\ncheckpoints:\n  cp-a: { unlocks: [commit], unlock_again: true, " + pause + " }\n", "unlock_again_first", "checkpoints.cp-a.unlock_again"},
+		{"without commit", "risk: write\ncheckpoints:\n  cp-a: { unlocks: [commit], " + pause + " }\n  cp-b: { unlocks: [create], unlock_again: true, " + pause + " }\n", "unlock_again_without_commit", "checkpoints.cp-b.unlock_again"},
+		{"close stays single", "risk: write\ncheckpoints:\n  cp-a: { unlocks: [commit, close], " + pause + " }\n  cp-b: { unlocks: [commit, close], unlock_again: true, " + pause + " }\n", "unlock_duplicate", "checkpoints.cp-b.unlocks[1]"},
+		{"declared", "risk: write\ncheckpoints:\n  cp-a: { unlocks: [commit], " + pause + " }\n  cp-b: { unlocks: [commit], " + pause + " }\n", "unlock_duplicate", "checkpoints.cp-b.unlocks[0]"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			assertDiag(t, checkYAML(t, vHeader+c.body, testEnv()), c.code, c.path, SeverityError)
+		})
+	}
+}
+
+// p5-fixes: only the hub layer sets unlock_again (a commit unlocked by one
+// more checkpoint): a team layer that sets it, on an inherited checkpoint
+// or a new one, is a loosening.
+func TestPatch_UnlockAgainHubOnly(t *testing.T) {
+	for _, patch := range []string{
+		"checkpoints:\n  cp-1: { unlocks: [commit], unlock_again: true }\n",
+		"checkpoints:\n  cp-9: { unlocks: [commit], unlock_again: true, mode: { manuel: pause, semi-auto: pause, auto: pause } }\n",
+	} {
+		_, diags := layeredDiags(t, patch)
+		found := false
+		for _, d := range diags {
+			found = found || (d.Code == "loosening" && strings.HasSuffix(d.Path, ".unlock_again"))
+		}
+		if !found {
+			t.Fatalf("%q: diags = %v", patch, diagList(diags))
+		}
+	}
+}

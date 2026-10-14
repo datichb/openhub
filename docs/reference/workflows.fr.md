@@ -366,19 +366,19 @@ Gère un incident en cours : **atténuer d'abord**, puis écrire le postmortem s
 
 | Checkpoint | manuel | semi-auto | auto |
 |---|---|---|---|
-| `cp-mitigated` Atténuation (obligatoire, vérifié par oh : tests de la stack) | pause | pause | pause |
-| `cp-postmortem` Postmortem (obligatoire, déverrouille `commit`) | pause | pause | pause |
+| `cp-mitigated` Atténuation (obligatoire, vérifié par oh : tests de la stack, déverrouille `commit` : un commit) | pause | pause | pause |
+| `cp-postmortem` Postmortem (obligatoire, déverrouille de nouveau `commit`, `unlock_again`) | pause | pause | pause |
 | `cp-actions` Actions (obligatoire, déverrouille `create`) | pause | pause | pause |
 
 Déroulé :
 
 1. **Diagnostic rapide** : impact, heure de début, changement déclencheur (`git log` autour de l'heure de début, puis le diff du commit suspect).
-2. **Atténuation** : la mesure la plus sûre et réversible (annuler le changement déclencheur, désactiver la fonction, configuration). Une mesure de code est appliquée par le `developer` **dans l'arbre de travail**, sans commit ; une mesure hors du dépôt (déploiement, variable d'environnement) est donnée telle quelle à l'utilisateur. À `cp-mitigated`, oh lance les tests de la stack, puis l'utilisateur choisit ou confirme la mesure.
+2. **Atténuation** : la mesure la plus sûre et réversible (annuler le changement déclencheur, désactiver la fonction, configuration). Une mesure de code est appliquée par le `developer` **dans l'arbre de travail**, sans commit ; une mesure hors du dépôt (déploiement, variable d'environnement) est donnée telle quelle à l'utilisateur. À `cp-mitigated`, oh lance les tests de la stack, puis l'utilisateur choisit ou confirme la mesure ; validé, le correctif de code (s'il y en a un) est commité aussitôt par le `developer`, seul (`fix(incident): …`).
 3. **Postmortem** : `docs/wiki/postmortems/<AAAA-MM-JJ>-<slug>.md` (frontmatter du wiki ; résumé, chronologie, cause racine, atténuation, actions), **sans blâme** : aucun nom de personne, pas même celui que cite le signalement. Skill à la demande : `postmortem` (chronologie sourcée, impact et délai de détection chiffrés, déclencheur et cause, actions vérifiables).
-4. **`cp-postmortem`** : une fois validé, le correctif d'atténuation (s'il y en a un) est commité par le `developer`, puis le postmortem seul par le debugger (`git commit -m "docs(postmortem): <slug>" -- <fichier>`).
+4. **`cp-postmortem`** : une fois validé, le postmortem est commité seul par le debugger (`git commit -m "docs(postmortem): <slug>" -- <fichier>`).
 5. **`cp-actions`** : un ticket par action validée (`bd create`, description qui cite le postmortem) ; un refus : aucun ticket.
 
-Pourquoi le correctif d'atténuation n'est commité qu'à `cp-postmortem` : une opération n'est déverrouillée que par un seul checkpoint (`unlock_duplicate`) ; `cp-mitigated` reste la décision sur l'atténuation, vérifiée par oh, et le correctif est en place dans l'arbre de travail dès ce moment (l'utilisateur peut le livrer lui-même s'il ne peut pas attendre). Budget de pauses (CP-R2) en semi-auto : 3 pauses (1 décision, 2 actions irréversibles), pour un budget de 4. Commandes Beads autorisées : `show`, `list`, `ready`, `search`, `query`, `lint`, `children`, `comments`, `count`, `status`, `graph`, `history`, `create`, `update`, `dep`, `label`.
+Deux checkpoints de commit (`unlock_again`, voir le [schéma](workflow-schema.fr.md#checkpoints)) : la fenêtre de `cp-mitigated` ne tient qu'un commit, celui du correctif (oh ne l'ouvre pas s'il n'y a rien à commiter, la referme après ce commit et au plus tard quand `cp-postmortem` est demandé) ; le postmortem attend `cp-postmortem`. Le correctif peut ainsi être livré dès l'atténuation validée. Budget de pauses (CP-R2) en semi-auto : 3 pauses (1 décision, 2 actions irréversibles : le commit répété ne compte pas), pour un budget de 4. Commandes Beads autorisées : `show`, `list`, `ready`, `search`, `query`, `lint`, `children`, `comments`, `count`, `status`, `graph`, `history`, `create`, `update`, `dep`, `label`.
 
 ## `security-fix`
 

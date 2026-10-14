@@ -17,7 +17,7 @@ import (
 var errNoWiki = errors.New("session: no wiki proposal store")
 
 // cardWiki returns the open proposals of the session when checkpoint id
-// unlocks the commit; those of the whole queue of the project when it
+// unlocks the commit (the last one, when another unlocks it again); those of the whole queue of the project when it
 // synchronizes the wiki (`wiki: sync`, doc-sync, LD-D).
 func (s *Service) cardWiki(ctx context.Context, d domain.Decision, id string) ([]domain.WikiProposal, bool) {
 	if s.Wiki == nil || s.Checkpoints == nil || s.Sessions == nil {
@@ -28,8 +28,8 @@ func (s *Service) cardWiki(ctx context.Context, d domain.Decision, id string) ([
 		return nil, false
 	}
 	c, ok := wf.Checkpoint(id)
-	if !ok || !slices.Contains(c.Unlocks, sessionspec.UnlockCommit) {
-		return nil, false
+	if !ok || !slices.Contains(c.Unlocks, sessionspec.UnlockCommit) || c.CommitNext != "" {
+		return nil, false // p5-fixes: the proposals wait for the last commit checkpoint
 	}
 	sess, err := s.Sessions.Get(ctx, d.SessionID)
 	if err != nil {

@@ -44,6 +44,9 @@ type CheckpointWikiProposal struct {
 	Source  string
 	Status  string // pending | accepted
 	Content string
+	// Replaces is the line of the page the content replaces (p5-fixes):
+	// the card shows it before the new one.
+	Replaces string
 }
 
 // CheckpointWikiDecider is implemented by session backends that can record
@@ -73,6 +76,13 @@ func writeCheckpointWiki(b *strings.Builder, list []CheckpointWikiProposal) {
 		}
 		head := fmt.Sprintf("%s · %s · %s · %s", p.ID, firstText(p.Agent, "?"), page, p.Tag)
 		fmt.Fprintf(b, "  %s  %s\n", tview.Escape(head), muted(tview.Escape(wikiStatus(p.Status))))
+		if p.Replaces != "" {
+			// A replacement: the line of the page, then the new one.
+			fmt.Fprintf(b, "    %s\n", muted(tview.Escape(i18n.T("tui.checkpoint.wiki_replaces"))))
+			fmt.Fprintf(b, "    %s%s%s\n", theme.ColorTag(theme.ErrorHex), tview.Escape("− "+clipText(p.Replaces, 160)), theme.TagColor)
+			fmt.Fprintf(b, "    %s%s%s\n", theme.ColorTag(theme.SuccessHex), tview.Escape("+ "+clipText(p.Content, 160)), theme.TagColor)
+			continue
+		}
 		lines := strings.Split(p.Content, "\n")
 		for i, l := range lines {
 			if i == 2 {

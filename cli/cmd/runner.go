@@ -404,7 +404,7 @@ func runnerWiki(wk *wiki.Service, projectID string) func(ctx context.Context, si
 		out := make([]remote.WikiEntry, 0, len(list))
 		for _, p := range list {
 			out = append(out, remote.WikiEntry{ID: p.ID(), Agent: p.Agent, ToolSession: p.ToolSession, Page: p.Page, Section: p.Section,
-				Content: p.Content, Tag: p.Tag, Source: p.Source, CreatedAt: p.CreatedAt})
+				Content: p.Content, Tag: p.Tag, Source: p.Source, CreatedAt: p.CreatedAt, Replaces: p.Replaces})
 		}
 		return out, nil
 	}

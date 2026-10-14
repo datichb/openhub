@@ -18,7 +18,7 @@ func cardWiki(list []domain.WikiProposal) []views.CheckpointWikiProposal {
 	out := make([]views.CheckpointWikiProposal, 0, len(list))
 	for _, p := range list {
 		out = append(out, views.CheckpointWikiProposal{ID: p.ID(), Agent: p.Agent, Page: p.Page, Section: p.Section, Tag: p.Tag,
-			Source: p.Source, Status: p.Status, Content: p.Content})
+			Source: p.Source, Status: p.Status, Content: p.Content, Replaces: p.Replaces})
 	}
 	return out
 }

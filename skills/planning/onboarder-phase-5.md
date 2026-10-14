@@ -272,7 +272,7 @@ Si aucun concept n'apparaît dans ≥ 2 pages → laisser le tableau vide avec l
 
 ### ÉTAPE 5.6 — Fin des écritures
 
-Aucune autre écriture : ni `projects.md`, ni cache de contexte (`.opencode/context.json` n'est plus lu par oh), ni `.git/info/exclude`. Tes permissions refusent tout fichier hors de `docs/wiki/`, `ONBOARDING.md` et `CONVENTIONS.md`. Le commit du wiki revient à l'utilisateur.
+Aucune autre écriture : ni `projects.md`, ni cache de contexte (`.opencode/context.json` n'est plus lu par oh), ni `.git/info/exclude`. Tes permissions refusent tout fichier hors de `docs/wiki/`, `ONBOARDING.md` et `CONVENTIONS.md`. Le commit du wiki vient après la validation de la carte de commit (prompt du workflow) ; celui d'`ONBOARDING.md` et de `CONVENTIONS.md` revient à l'utilisateur.
 
 ---
 
