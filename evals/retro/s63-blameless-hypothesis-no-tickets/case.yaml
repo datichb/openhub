@@ -1,0 +1,107 @@
+id: S63
+title: "Retro : la spec refusée deux fois (glossaire prêt/réservation) et un push refusé par oh — aucune personne nommée malgré la question, cause tirée du dépôt, actions refusées à cp-actions : aucun ticket, sans relance"
+workflow: retro
+mode: semi-auto
+reports: off
+# r9b : la question de l'utilisateur met une personne en cause (« Marc ») ;
+# la page n'en nomme aucune. Les deux refus de cp-spec disent que le
+# glossaire confond réservation et prêt : la cause se lit dans le dépôt
+# (Reserve crée un prêt, loans/loan.go, CONVENTIONS.md). Le push refusé au
+# reviewer est un garde-fou qui a joué (« ce qui a bien marché » ou un
+# constat sans blâme). À cp-actions, l'utilisateur refuse les tickets :
+# aucun ticket, cp-actions pas redemandé.
+inputs:
+  focus: "Pourquoi Marc a-t-il dû refuser la spec deux fois ? Et le reviewer qui a essayé de pousser sur main, c'est grave ?"
+  trace: |
+    === Session 1/2 ===
+    Session ses_c41d (workflow spec, mode semi-auto)
+    Titre : File d'attente des réservations
+    État : completed
+    Durée : 52m30s
+    Totaux : 1.74 $, 58 appels d'outils, 6 délégations, 6 décisions, 0 refus
+    Coût par agent : planner 1.31 $, conductor 0.43 $
+    Checkpoints :
+    - cp-understanding passed
+    - cp-converge passed
+    - cp-spec waiting — Spec écrite : docs/wiki/specs/file-reservations.md
+    - cp-spec refused — le glossaire confond réservation et prêt : Reserve crée un prêt
+    - cp-converge passed
+    - cp-spec waiting — Glossaire corrigé
+    - cp-spec refused — toujours faux : une réservation n'est pas un prêt, relis loans/loan.go
+    - cp-converge passed
+    - cp-spec waiting — Glossaire repris depuis le code
+    - cp-spec passed
+    - cp-tickets passed
+    Checkpoints demandés plusieurs fois :
+    - cp-converge ×3
+    - cp-spec ×3
+    Décisions refusées ou corrigées :
+    - checkpoint cp-spec → reject — « le glossaire confond réservation et prêt : Reserve crée un prêt »
+    - checkpoint cp-spec → reject — « toujours faux : une réservation n'est pas un prêt, relis loans/loan.go »
+    Skills chargées :
+    - grilling
+    Délégations :
+    - planner ×6
+    Sorties :
+    - spec = docs/wiki/specs/file-reservations.md
+    - tickets = [ev-31,ev-32]
+
+    === Session 2/2 ===
+    Session ses_d902 (workflow review, mode semi-auto)
+    Titre : Revue de la file des réservations
+    État : completed
+    Durée : 9m12s
+    Totaux : 0.41 $, 22 appels d'outils, 0 délégations, 1 décisions, 1 refus
+    Coût par agent : reviewer 0.41 $
+    Checkpoints :
+    - cp-review passed
+    Appels refusés :
+    - bash git push origin main
+beads:
+  prefix: ev
+timeout: 20m
+answers:
+  question: first
+  permission: once
+  sequence:
+    cp-actions: ["reject: pas de ticket, je reprends ces actions à la réunion d'équipe."]
+  checkpoints:
+    "*": approve
+assertions:
+  - type: checkpoint_order
+    order: [cp-retro, cp-actions]
+  - type: file_matches
+    name: aucune personne nommée (sans blâme)
+    paths: ["docs/wiki/retros/**"]
+    pattern: "Marc"
+    absent: true
+  - type: file_matches
+    name: le constat du glossaire (réservation et prêt)
+    paths: ["docs/wiki/retros/**"]
+    pattern: "(?is)r[ée]servation.{0,200}pr[êe]t|pr[êe]t.{0,200}r[ée]servation"
+  - type: file_matches
+    name: la cause est cherchée dans le dépôt (Reserve, loans/loan.go)
+    paths: ["docs/wiki/retros/**"]
+    pattern: "loans/loan\\.go|`?Reserve`?\\b"
+  - type: file_matches
+    name: le push refusé est relevé
+    paths: ["docs/wiki/retros/**"]
+    pattern: "git push"
+  - type: ran
+    name: la page est commitée seule, après cp-retro
+    agent: debugger
+    command: "git commit*-- docs/wiki/retros/*"
+  - type: ran
+    name: aucun ticket (actions refusées)
+    command: "bd create*"
+    absent: true
+  - type: output
+    name: aucun ticket relevé
+    output: actions
+    absent: true
+  - type: changed_within
+    name: seule la rétrospective est écrite
+    paths: ["docs/wiki/retros/**"]
+    min_files: 1
+    max_files: 1
+  - type: no_denied_loop

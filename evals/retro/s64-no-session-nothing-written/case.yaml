@@ -1,0 +1,33 @@
+id: S64
+title: "Retro : aucune session terminée dans le projet — le debugger le dit et donne la commande pour relancer, sans checkpoint, sans écriture ni ticket"
+workflow: retro
+mode: semi-auto
+reports: off
+# r9b : ni sessions ni résumé donnés, aucune session passée dans le projet
+# du passage : session.traces (valeur vide, donc session.trace()) ne trouve
+# rien, l'entrée reste vide ; le prompt dit de s'arrêter. Aucun checkpoint,
+# aucun fichier, aucun ticket ; la commande de relance est donnée.
+beads:
+  prefix: ev
+timeout: 10m
+answers:
+  question: first
+  permission: once
+  checkpoints:
+    "*": approve
+assertions:
+  - type: called
+    name: aucun checkpoint demandé
+    tool: "*workflow*checkpoint*"
+    absent: true
+  - type: text_matches
+    name: la commande pour relancer avec des sessions
+    agent: debugger
+    pattern: "oh run retro -i sessions"
+  - type: changed_within
+    name: rien n'est écrit
+  - type: ran
+    name: aucun ticket
+    command: "bd create*"
+    absent: true
+  - type: no_denied_loop

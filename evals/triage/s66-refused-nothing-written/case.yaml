@@ -1,0 +1,64 @@
+id: S66
+title: "Triage : changements refusés à cp-triage — rien n'est écrit dans Beads (ni priorité, ni étiquette, ni doublon, ni ticket), sans relance du checkpoint"
+workflow: triage
+mode: semi-auto
+reports: off
+# r9b : mêmes tickets que S65, moins le découpage. L'utilisateur refuse le
+# tri à cp-triage : aucune écriture Beads, avant comme après, et cp-triage
+# n'est pas redemandé en boucle ; oh ne relève rien.
+tickets: [ev-1, ev-2]
+beads:
+  prefix: ev
+  tickets:
+    - id: ev-1
+      title: "Crash de l'export CSV quand la liste d'écritures est vide"
+      type: bug
+      priority: 2
+      labels: [bug, export]
+      description: "L'export de nuit plante (index out of range, export/csv.go) dès qu'un client n'a aucune écriture dans la journée ; tous les clients en production sont concernés."
+    - id: ev-2
+      title: "Export qui plante parfois"
+      type: bug
+      priority: 2
+      description: "Parfois l'export CSV plante la nuit, quand il n'y a pas d'écriture."
+timeout: 15m
+answers:
+  question: first
+  permission: once
+  checkpoints:
+    cp-triage: "reject: ne change rien pour l'instant, on triera en réunion."
+    "*": approve
+assertions:
+  - type: checkpoint_order
+    order: [cp-triage]
+  - type: ran
+    name: aucune modification
+    command: "bd update*"
+    absent: true
+  - type: ran
+    name: aucun doublon marqué
+    command: "bd duplicate*"
+    absent: true
+  - type: ran
+    name: aucune étiquette, aucun lien, aucun commentaire
+    command: "bd label add*"
+    absent: true
+  - type: ran
+    name: aucun lien
+    command: "bd dep add*"
+    absent: true
+  - type: ran
+    name: aucun ticket
+    command: "bd create*"
+    absent: true
+  - type: output
+    name: rien de relevé (modifiés)
+    output: updated
+    absent: true
+  - type: output
+    name: rien de relevé (doublons)
+    output: duplicates
+    absent: true
+  - type: changed_within
+    name: aucun fichier modifié
+  - type: no_denied_loop

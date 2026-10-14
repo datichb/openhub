@@ -1,0 +1,79 @@
+id: S67
+title: "Triage de constats : le constat déjà couvert par un ticket y est rattaché par un commentaire (pas de nouveau ticket), l'autre devient un ticket après cp-triage ; oh relève le ticket créé et le commenté et propose ticket"
+workflow: triage
+mode: semi-auto
+reports: off
+# r9b : deux constats d'une revue. C1 (cache du profil jamais invalidé) est
+# déjà le ticket ev-1 : un commentaire sur ev-1, aucun ticket « cache ».
+# C2 (aucune limite de débit sur /api/export) n'est couvert par aucun
+# ticket : un ticket nouveau. Rien n'est écrit avant cp-triage ; oh relève
+# ev-1 (updated) et le ticket créé (created), et propose ticket sur lui.
+inputs:
+  query: "status=open"
+  findings: |
+    Constats de la revue du 2026-10-13 :
+    - C1 — Le cache des profils n'est jamais invalidé après une modification : `profile/cache.go`, `Update` ne touche pas au cache ; un utilisateur voit son ancien profil.
+    - C2 — La route `/api/export` n'a aucune limite de débit : un client peut lancer des exports en boucle et saturer la base.
+beads:
+  prefix: ev
+  tickets:
+    - id: ev-1
+      title: "Invalider le cache du profil après une modification"
+      type: bug
+      priority: 2
+      labels: [bug]
+      description: "Après Update, Get renvoie l'ancien profil (profile/cache.go)."
+    - id: ev-2
+      title: "Ajouter la photo de profil"
+      type: feature
+      priority: 3
+      labels: [ui]
+      description: "Téléverser et afficher une photo sur le profil."
+    - id: ev-3
+      title: "Journaliser les connexions échouées"
+      type: task
+      priority: 2
+      labels: [security]
+      description: "Une ligne de journal par connexion échouée (sans le mot de passe)."
+timeout: 20m
+answers:
+  question: first
+  permission: once
+  checkpoints:
+    "*": approve
+assertions:
+  - type: checkpoint_order
+    order: [cp-triage]
+  - type: ran
+    name: aucune écriture avant cp-triage (création)
+    command: "bd create*"
+    absent: true
+    before: { checkpoint_passed: cp-triage }
+  - type: ran
+    name: aucune écriture avant cp-triage (commentaire)
+    command: "bd comments add*"
+    absent: true
+    before: { checkpoint_passed: cp-triage }
+  - type: ran
+    name: le constat couvert est rattaché à ev-1
+    agent: planner
+    command: "bd comments add ev-1*"
+  - type: ran
+    name: pas de nouveau ticket pour le constat déjà couvert
+    command: "bd create*cache*"
+    absent: true
+  - type: output
+    name: un seul ticket créé, relevé par oh
+    output: created
+    pattern: "^ev-[^,]+$"
+  - type: output
+    name: ev-1 relevé comme modifié
+    output: updated
+    pattern: "(^|,)ev-1(,|$)"
+  - type: next
+    name: ticket proposé sur le ticket créé
+    workflow: ticket
+    pattern: "ev-"
+  - type: changed_within
+    name: aucun fichier modifié
+  - type: no_denied_loop
