@@ -9,6 +9,13 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ## [Unreleased]
 
+### Added — skills de revue et de conception (lot R1-c)
+
+- **Revue sur deux axes** (`review-protocol`) : chaque review couvre et sépare la conformité à la demande (ticket lu avec `bd show`, ce qui manque, ce qui dépasse) et la qualité du code ; un finding appartient à un seul axe. Rapport, payload et auto-vérification suivent ce découpage ; le reviewer lit la demande (`git log --format=%B`, `bd show`) avant la vérification. Cas S26 : 3/3 contre 0/3 avec l'ancien protocole (Haiku ×3) ; reviewer +1,9 % de tokens.
+- **`codebase-design`** (à la demande, pathfinder) : relever les contraintes du code (règles d'import outillées, tests d'architecture, règles écrites, sens réel des dépendances), comparer deux conceptions, recommander en citant la contrainte décisive. Cas S27 : 2/3 contre 0/3 sans le skill.
+- **`research`** fusionne `websearch-usage` et `websearch-stack-research` : partir de l'existant, requêtes ciblées, recoupement (deux sources ou la source officielle), comparaison d'options, sécurité, restitution. Réussite égale (S16 3/3) ; trois fichiers de moins à charger pour planner, pathfinder et onboarder.
+- Cas d'évaluation S26 à S28, hors mesure de référence. **Retirés faute de gain mesuré** : `writing-for-agents` et un nouveau `skill-authoring` (`skill-authoring-protocol` est conservé) ; `prototype-logic` n'a pas été créé (aucun agent du lot ne peut exécuter un prototype ; à revoir avec `spike`, R9). Coût des évaluations du lot : 10,02 $.
+
 ### Added — skills de cadrage (lot R1-a)
 
 - **Skill `grilling`** (planner, à la demande, chargée avant de formuler des questions) : confronter la demande au code et aux règles du projet (quantificateurs, acteurs, visibilité, cycle de vie, invariants, données sensibles, limites) pour faire remonter exigences implicites et contradictions ; une question par décision, autonome, priorisée (cinq au plus), jamais un questionnaire générique. Déclencheur dans `planner-workflow` et `planner-phase-2`. S19 2/3 contre 0/3 sans la skill (Haiku ×3) ; témoins S20 0/3 = 0/3, S5 3/3 = 3/3, S15 2/3 = 2/3. Planner : +20 tokens de prompt, +42 de catalogue (+1,2 %).
