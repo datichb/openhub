@@ -98,6 +98,8 @@ func TestMethodBundle(t *testing.T) {
 
 	dev := findAgent(tdd.Spec.Agents, "developer").Body
 	assert.Contains(t, dev, "**Méthode de la session** : `tdd`")
+	assert.Contains(t, dev, "**Méthode `tdd`** (ligne « Méthode de la session »", "the developer's TDD steps (oh:when method=tdd)")
+	assert.NotContains(t, findAgent(std.Spec.Agents, "developer").Body, "**Méthode `tdd`**", "only in a tdd session")
 	assert.Contains(t, dev, "`cp-seams` (`developer`) → `cp-red` (`developer`)")
 	assert.Contains(t, dev, "- **Checkpoints** : tu passes `cp-seams`")
 	assert.Contains(t, dev, "  - `cp-red` : Méthode TDD")
