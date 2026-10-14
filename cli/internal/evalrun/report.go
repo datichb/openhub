@@ -37,6 +37,15 @@ type Report struct {
 	Variants    []Variant        `json:"variants,omitempty"`
 	Comparisons []Comparison     `json:"comparisons,omitempty"`
 	Verdicts    []VariantVerdict `json:"verdicts,omitempty"`
+	// Plan are the repetitions of each case when they differ from Reps
+	// (oh eval --tiered, --reps-case); EscalateTo the repetitions a case
+	// that failed below it ran up to (0: no escalation).
+	Plan       []CasePlan `json:"plan,omitempty"`
+	EscalateTo int        `json:"escalate_to,omitempty"`
+	// History are the last measures of each case (a baseline only), the
+	// most recent first: the one of this report, then the previous
+	// baselines. The tiered plan reads it.
+	History []CaseHistory `json:"history,omitempty"`
 }
 
 // CaseInfo describes a case of the run.
@@ -47,6 +56,8 @@ type CaseInfo struct {
 	Workflow       string `json:"workflow"`
 	Active         bool   `json:"active"`
 	InactiveReason string `json:"inactive_reason,omitempty"`
+	// Hash is the content hash of the case directory (Case.ContentHash).
+	Hash string `json:"hash,omitempty"`
 }
 
 // CaseStats aggregates the passes of a case with a model (and a variant
@@ -181,6 +192,7 @@ func (r *Report) Baseline(note string) *Report {
 		p.SessionID, p.Trace = "", ""
 		b.Passes[i] = p
 	}
+	b.History = mergeHistory(b.ownHistory(), r.History)
 	return &b
 }
 
@@ -189,7 +201,7 @@ func (r *Report) Markdown(base *Report) string {
 	var b strings.Builder
 	b.WriteString("# oh eval\n\n")
 	fmt.Fprintf(&b, "- Début : %s · durée : %s\n", r.StartedAt.Format(time.RFC3339), r.FinishedAt.Sub(r.StartedAt).Round(time.Second))
-	fmt.Fprintf(&b, "- Modèles : %s · répétitions : %d · plafond par passage : $%.2f\n", strings.Join(r.Models, ", "), r.Reps, r.BudgetUSD)
+	fmt.Fprintf(&b, "- Modèles : %s · répétitions : %s · plafond par passage : $%.2f\n", strings.Join(r.Models, ", "), r.repsLine(), r.BudgetUSD)
 	fmt.Fprintf(&b, "- Coût total : $%.3f · passages : %d\n", r.TotalCost, len(r.Passes))
 	if r.BudgetTotalUSD > 0 {
 		fmt.Fprintf(&b, "- Plafond global : $%.2f", r.BudgetTotalUSD)
@@ -254,6 +266,7 @@ func (r *Report) Markdown(base *Report) string {
 		}
 	}
 	r.markdownComparison(&b)
+	r.markdownPlan(&b)
 	b.WriteString("\n## Assertions\n")
 	for _, s := range r.Stats {
 		fmt.Fprintf(&b, "\n### %s · %s%s\n\n| Assertion | Réussite |\n|---|---|\n", s.Case, variantTag(s.Variant), shortModel(s.Model))
@@ -411,7 +424,7 @@ func Rescore(r *Report, outDir string, cases []*Case) (*Report, error) {
 	}
 	out.Cases = nil
 	for _, c := range cases {
-		out.Cases = append(out.Cases, CaseInfo{ID: c.ID, Key: c.Key(), Title: c.Title, Workflow: c.Workflow, Active: c.IsActive(), InactiveReason: c.InactiveReason})
+		out.Cases = append(out.Cases, c.Info())
 	}
 	out.compute()
 	return &out, nil

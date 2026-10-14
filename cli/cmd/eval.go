@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 
 	"github.com/datichb/openhub/cli/internal/adapters"
 	"github.com/datichb/openhub/cli/internal/app"
@@ -69,7 +70,25 @@ func init() {
 		Args:  cobra.NoArgs,
 		RunE:  runEval,
 	}
-	f := cmd.Flags()
+	addEvalFlags(cmd.Flags())
+	// The orchestrator only reads files: the passes have their own home.
+	withInitLevel(cmd, levelLight)
+
+	pass := &cobra.Command{
+		Use:    "pass",
+		Short:  "Run one evaluation pass (internal, run by oh eval in a temporary OH_HOME)",
+		Hidden: true,
+		Args:   cobra.NoArgs,
+		RunE:   runEvalPass,
+	}
+	pass.Flags().String("spec", "", "pass specification (JSON)")
+	withInitLevel(pass, levelFull)
+	cmd.AddCommand(pass)
+	rootCmd.AddCommand(cmd)
+}
+
+// addEvalFlags defines the flags of oh eval.
+func addEvalFlags(f *pflag.FlagSet) {
 	f.String("cases", "", i18n.T("cmd.eval.flags.cases"))
 	f.StringSlice("case", nil, i18n.T("cmd.eval.flags.case"))
 	f.StringSlice("models", nil, i18n.T("cmd.eval.flags.models"))
@@ -86,20 +105,13 @@ func init() {
 	f.Bool("strict", false, i18n.T("cmd.eval.flags.strict"))
 	f.String("rescore", "", i18n.T("cmd.eval.flags.rescore"))
 	f.StringArray("variant", nil, i18n.T("cmd.eval.flags.variant"))
-	// The orchestrator only reads files: the passes have their own home.
-	withInitLevel(cmd, levelLight)
-
-	pass := &cobra.Command{
-		Use:    "pass",
-		Short:  "Run one evaluation pass (internal, run by oh eval in a temporary OH_HOME)",
-		Hidden: true,
-		Args:   cobra.NoArgs,
-		RunE:   runEvalPass,
-	}
-	pass.Flags().String("spec", "", "pass specification (JSON)")
-	withInitLevel(pass, levelFull)
-	cmd.AddCommand(pass)
-	rootCmd.AddCommand(cmd)
+	f.Bool("tiered", false, i18n.T("cmd.eval.flags.tiered"))
+	f.StringSlice("reps-case", nil, i18n.T("cmd.eval.flags.reps_case"))
+	f.Bool("escalate", false, i18n.T("cmd.eval.flags.escalate"))
+	f.Bool("plan", false, i18n.T("cmd.eval.flags.plan"))
+	f.StringArray("costs", nil, i18n.T("cmd.eval.flags.costs"))
+	f.StringArray("history", nil, i18n.T("cmd.eval.flags.history"))
+	f.Int("stable-measures", evalrun.DefaultStableMeasures, i18n.T("cmd.eval.flags.stable_measures"))
 }
 
 func runEval(cmd *cobra.Command, _ []string) error {
@@ -128,9 +140,10 @@ func runEval(cmd *cobra.Command, _ []string) error {
 	if len(models) == 0 {
 		models = evalModels()
 	}
+	tiered, _ := cmd.Flags().GetBool("tiered")
 	reps, _ := cmd.Flags().GetInt("reps")
 	if reps <= 0 {
-		reps = envInt(envEvalReps, 1)
+		reps = envInt(envEvalReps, defaultEvalReps(tiered))
 	}
 	budget, _ := cmd.Flags().GetFloat64("budget")
 	if budget <= 0 {
@@ -150,6 +163,24 @@ func runEval(cmd *cobra.Command, _ []string) error {
 	}
 	if len(variants) > 0 && flagString(cmd, "record-baseline") != "" {
 		return errors.New(i18n.T("cmd.eval.variant_baseline"))
+	}
+	history, err := evalCostSources(mustStringArray(cmd, "history"))
+	if err != nil {
+		return err
+	}
+	plan, escalateTo, base, err := evalPlan(cmd, cases, sel, models, reps, tiered, history)
+	if err != nil {
+		return err
+	}
+	if dry, _ := cmd.Flags().GetBool("plan"); dry {
+		costs, err := evalCostSources(mustStringArray(cmd, "costs"))
+		if err != nil {
+			return err
+		}
+		est := evalrun.EstimateRun(sel, plan, models, reps, len(variants), escalateTo, &evalrun.CostBook{Base: base, Extra: append(costs, history...), Budget: budget})
+		est.Tiered, est.BudgetTotal = tiered, total
+		fmt.Fprint(cmd.OutOrStdout(), est.Markdown())
+		return nil
 	}
 	exe, err := os.Executable()
 	if err != nil {
@@ -178,13 +209,18 @@ func runEval(cmd *cobra.Command, _ []string) error {
 	if err != nil {
 		return err
 	}
-	fmt.Fprintln(errOut, i18n.Tf("cmd.eval.start", len(sel), strings.Join(models, ", "), reps, budget, out))
+	if plan != nil {
+		fmt.Fprintln(errOut, i18n.Tf("cmd.eval.start_plan", len(sel), strings.Join(models, ", "), planSummary(plan, escalateTo), budget, out))
+	} else {
+		fmt.Fprintln(errOut, i18n.Tf("cmd.eval.start", len(sel), strings.Join(models, ", "), reps, budget, out))
+	}
 	if total > 0 {
 		fmt.Fprintln(errOut, i18n.Tf("cmd.eval.budget_total", total))
 	}
 	r := &evalrun.Runner{
 		Exec: &childEvalExecutor{exe: exe, token: token, goEnv: goEnvironment(ctx)}, Models: models, Reps: reps, BudgetUSD: budget,
 		WorkRoot: work, OutDir: out, Keep: keep, Parallel: parallel, Variants: variants, BudgetTotalUSD: total, Retry: evalrun.DefaultRetry,
+		Plan: plan, EscalateTo: escalateTo,
 		Log: func(format string, args ...any) { fmt.Fprintf(errOut, "  "+format+"\n", args...) },
 	}
 	rep, runErr := r.Run(ctx, sel)
@@ -228,7 +264,13 @@ func writeEvalReports(cmd *cobra.Command, rep *evalrun.Report, out string) error
 	}
 	errOut := cmd.ErrOrStderr()
 	if p := flagString(cmd, "record-baseline"); p != "" {
-		if err := rep.Baseline(rep.Note).WriteJSON(p); err != nil {
+		// The previous baseline at that path gives its measures to the
+		// history of the new one (tiered reference).
+		prev, err := evalrun.ReadReport(p)
+		if err != nil && !errors.Is(err, os.ErrNotExist) {
+			return err
+		}
+		if err := rep.Baseline(rep.Note).WithHistory(prev).WriteJSON(p); err != nil {
 			return err
 		}
 		fmt.Fprintln(errOut, i18n.Tf("cmd.eval.baseline_written", p))
@@ -297,6 +339,112 @@ func prepareEvalVariants(variants []evalrun.Variant, cases []*evalrun.Case, work
 		fmt.Fprintln(errOut, line)
 	}
 	return nil
+}
+
+// defaultEvalReps is the number of repetitions of a case when neither
+// --reps nor OH_EVAL_REPS sets it: 3 in a tiered reference (the
+// repetitions of an unstable case), else 1.
+func defaultEvalReps(tiered bool) int {
+	if tiered {
+		return 3
+	}
+	return 1
+}
+
+// evalPlan computes the repetitions per case of a run: from the baseline
+// with --tiered, then --reps-case; nil when every case runs reps times. It
+// also returns the escalation target (0: none) and the baseline read
+// (nil: none). The measures of the history reports count after those of
+// the baseline, by date.
+func evalPlan(cmd *cobra.Command, all, sel []*evalrun.Case, models []string, reps int, tiered bool, history []evalrun.CostSource) ([]evalrun.CasePlan, int, *evalrun.Report, error) {
+	var base *evalrun.Report
+	if p := flagString(cmd, "baseline"); p != "" {
+		b, err := evalrun.ReadReport(p)
+		switch {
+		case err == nil:
+			base = b
+		case tiered:
+			return nil, 0, nil, errors.New(i18n.Tf("cmd.eval.tiered_baseline", err))
+		case !errors.Is(err, os.ErrNotExist):
+			return nil, 0, nil, err
+		}
+	} else if tiered {
+		return nil, 0, nil, errors.New(i18n.Tf("cmd.eval.tiered_baseline", "no --baseline"))
+	}
+	forced, err := evalrun.ParseRepsCase(mustStringSlice(cmd, "reps-case"), all)
+	if err != nil {
+		return nil, 0, nil, err
+	}
+	var plan []evalrun.CasePlan
+	if tiered {
+		measured := base
+		if len(history) > 0 {
+			extra := make([]*evalrun.Report, len(history))
+			for i, h := range history {
+				extra[i] = h.Report
+			}
+			measured = base.WithReports(extra)
+		}
+		stable, _ := cmd.Flags().GetInt("stable-measures")
+		plan = evalrun.TieredPlan(measured, sel, models, reps, stable)
+	}
+	plan = evalrun.ApplyReps(plan, forced, sel, reps)
+	escalate := tiered
+	if cmd.Flags().Changed("escalate") {
+		escalate, _ = cmd.Flags().GetBool("escalate")
+	}
+	escalateTo := 0
+	if escalate {
+		escalateTo = reps
+	}
+	return plan, escalateTo, base, nil
+}
+
+// planSummary sums up the repetitions per case of a run (×1: 30 cases…).
+func planSummary(plan []evalrun.CasePlan, escalateTo int) string {
+	counts := map[int]int{}
+	maxReps := 0
+	for _, p := range plan {
+		counts[p.Reps]++
+		maxReps = max(maxReps, p.Reps)
+	}
+	var parts []string
+	for n := 1; n <= maxReps; n++ {
+		if counts[n] > 0 {
+			parts = append(parts, fmt.Sprintf("×%d : %d", n, counts[n]))
+		}
+	}
+	if escalateTo > 0 {
+		parts = append(parts, i18n.Tf("cmd.eval.plan_escalate", escalateTo))
+	}
+	return strings.Join(parts, ", ")
+}
+
+// evalCostSources reads the reports given with --costs (glob patterns).
+func evalCostSources(patterns []string) ([]evalrun.CostSource, error) {
+	var out []evalrun.CostSource
+	for _, pat := range patterns {
+		files, err := filepath.Glob(pat)
+		if err != nil {
+			return nil, err
+		}
+		if len(files) == 0 {
+			files = []string{pat}
+		}
+		for _, f := range files {
+			r, err := evalrun.ReadReport(f)
+			if err != nil {
+				return nil, err
+			}
+			out = append(out, evalrun.CostSource{Name: filepath.Base(filepath.Dir(f)) + "/" + filepath.Base(f), Report: r})
+		}
+	}
+	return out, nil
+}
+
+func mustStringSlice(cmd *cobra.Command, name string) []string {
+	v, _ := cmd.Flags().GetStringSlice(name)
+	return v
 }
 
 func mustStringArray(cmd *cobra.Command, name string) []string {

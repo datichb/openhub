@@ -74,6 +74,8 @@ type Case struct {
 
 	// Dir is the case directory.
 	Dir string `yaml:"-" json:"-"`
+	// hash caches ContentHash.
+	hash string
 }
 
 // PreviousSession is a session of the project recorded before the launch
