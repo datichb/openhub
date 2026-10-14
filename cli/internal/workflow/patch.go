@@ -135,16 +135,22 @@ func (p *patcher) apply() {
 	p.preconditions()
 }
 
-// preconditions are merged by id; `disabled: true` removes one.
+// preconditions are merged by id; `disabled: true` removes one. In a
+// `risk: publish` workflow, an inherited precondition is a security field
+// (publishPrecondition): it is never removed nor loosened.
 func (p *patcher) preconditions() {
+	publish := p.dst.Risk == RiskPublish
 	for _, k := range p.doc.Spec.Preconditions.Keys() {
 		v, _ := p.doc.Spec.Preconditions.Get(k)
 		base := "preconditions." + k
 		old, exists := p.dst.Preconditions.Get(k)
 		if v.Disabled {
-			if !exists {
+			switch {
+			case !exists:
 				p.report(warnDiag("patch_unknown_precondition", base, k, p.parent))
-			} else {
+			case publish:
+				p.loosening(base+".disabled", true, false)
+			default:
 				p.dst.Preconditions.Delete(k)
 				p.removed = append(p.removed, base)
 			}
@@ -158,10 +164,10 @@ func (p *patcher) preconditions() {
 		if h("label") {
 			old.Label = v.Label
 		}
-		if h("check") {
+		if h("check") && (!publish || !p.publishCheckLoosened(base+".check", v.Check, old.Check)) {
 			old.Check = v.Check
 		}
-		if h("on_fail") {
+		if h("on_fail") && (!publish || !p.publishOnFailLoosened(base+".on_fail", v.OnFail, old.OnFail)) {
 			old.OnFail = v.OnFail
 		}
 		if h("suggest") {

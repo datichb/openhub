@@ -32,7 +32,7 @@ Without a `CHANGELOG.md` at the root, oh only warns: the release-manager will cr
 | Operation | Before `cp-release` | After `cp-release` |
 |---|---|---|
 | `git commit` | refused | allowed until the release commit |
-| `git tag` (creation, listing included; `git push --tags`, `update-ref refs/tags/…`, `gh release create`, `glab release create`) | refused | allowed **once the release is committed**: the tag always marks the release commit |
+| `git tag` (creation, listing included; `git push --tags`, `update-ref refs/tags/…`, `gh release create`, `glab release create`) | refused | allowed **once the release is committed**: the tag always marks the release commit; a single tag, refused again after the first |
 | opening an MR (`glab mr create`, `gh pr create`, their APIs, MCP tool `create_mr`) | refused | allowed |
 | `git push` | refused | refused (the release-manager may not push) |
 | `git tag -f`, `git tag -d` | refused | refused |

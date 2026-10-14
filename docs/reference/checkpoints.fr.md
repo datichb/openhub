@@ -97,7 +97,7 @@ Dans un workflow en lecture seule (`risk: read`), un checkpoint vérifié demand
 
 Les workflows livrés vérifient ainsi `cp-2` (`ticket`, `feature`, `review-feedback`) et `cp-commit` (`quick`, `debug`, `sweep`).
 
-**Specs écrites (`verify.spec`, R4)** : au lieu de commandes, oh lit les specs que la session a modifiées sous les chemins donnés et vérifie leur glossaire, le point de test sur la ligne de chaque critère (`CA-n · Test : …`) et, avec `breakdown: true`, que le découpage couvre chaque critère sans tranche hors spec ([format](workflow-schema.fr.md#verify--vérification-lancée-par-oh)). Le workflow `spec` s'en sert trois fois : `cp-converge` (automatique dans tous les modes : la passe de convergence, qui renvoie un écart au planner sans pause), puis `cp-spec` et `cp-tickets` (même vérification avant le commit et la création des tickets).
+**Specs écrites (`verify.spec`, R4)** : au lieu de commandes, oh lit les specs que la session a modifiées sous les chemins donnés et vérifie leur frontmatter (format du wiki), leur glossaire, le point de test sur la ligne de chaque critère (`CA-n · Test : …`) et, avec `breakdown: true`, que le découpage couvre chaque critère sans tranche hors spec ([format](workflow-schema.fr.md#verify--vérification-lancée-par-oh)). Le workflow `spec` s'en sert trois fois : `cp-converge` (automatique dans tous les modes : la passe de convergence, qui renvoie un écart au planner sans pause), puis `cp-spec` et `cp-tickets` (même vérification avant le commit et la création des tickets).
 
 ### Sessions distantes
 
@@ -192,7 +192,7 @@ Refusé, l'appel de l'agent échoue avec `ErrVerifyFailed`, la raison et l'extra
 | `create` | son checkpoint (`cp-tickets`, `cp-ticket`) | au **checkpoint obligatoire suivant** (`cp-0`, `cp-commit`…) ou quand le checkpoint est redemandé ; pas à la fermeture d'un ticket |
 | `commit` | son checkpoint (`cp-2`, `cp-commit`) | **une fois le travail commité** (HEAD a avancé et il ne reste rien à committer : un commit, ou plusieurs à la suite), quand le checkpoint est redemandé, ou à la fermeture du ticket |
 | `close` | son checkpoint | à la fermeture d'un ticket, ou quand le checkpoint est redemandé |
-| `tag` | son checkpoint (`cp-release`) ; avec `commit` au même checkpoint, seulement **une fois la release commitée** | au checkpoint obligatoire suivant ou quand le checkpoint est redemandé |
+| `tag` | son checkpoint (`cp-release`) ; avec `commit` au même checkpoint, seulement **une fois la release commitée** | après le premier tag, au checkpoint obligatoire suivant ou quand le checkpoint est redemandé |
 | `mr` | son checkpoint (`cp-release`) | au checkpoint obligatoire suivant ou quand le checkpoint est redemandé |
 | `apply`, `push` | leur checkpoint | quand le checkpoint est redemandé |
 

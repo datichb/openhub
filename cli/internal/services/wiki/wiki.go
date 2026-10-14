@@ -79,6 +79,8 @@ type Frontmatter struct {
 	Synced string `yaml:"synced"`
 	// Err is the YAML error of a frontmatter oh could not read.
 	Err error `yaml:"-"`
+	// Keys are the keys of the frontmatter, in order (format.go).
+	Keys []string `yaml:"-"`
 }
 
 // UpdatedAt returns the date of the frontmatter (false when absent or not
@@ -216,8 +218,11 @@ func splitFrontmatter(text string) (fm Frontmatter, body string) {
 	for i := 1; i < len(lines); i++ {
 		if strings.TrimSpace(lines[i]) == "---" {
 			fm = Frontmatter{Present: true}
-			if err := yaml.Unmarshal([]byte(strings.Join(lines[1:i], "\n")), &fm); err != nil {
+			src := []byte(strings.Join(lines[1:i], "\n"))
+			if err := yaml.Unmarshal(src, &fm); err != nil {
 				fm = Frontmatter{Present: true, Err: err}
+			} else {
+				fm.Keys = frontmatterKeys(src)
 			}
 			return fm, strings.Join(lines[i+1:], "\n")
 		}

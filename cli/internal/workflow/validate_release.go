@@ -81,3 +81,71 @@ func (v *validator) publish() {
 		}
 	}
 }
+
+// publishCheckLoosened reports (as loosenings) the tests of the inherited
+// check old of a `risk: publish` workflow that the layer's check v weakens:
+// git_clean turned off, a branch pattern the parent's do not cover, a tool
+// or the last path removed, a path added (path_exists holds for one of
+// them). Any loosening keeps the parent's check as a whole.
+func (p *patcher) publishCheckLoosened(base string, v, old PreconditionCheck) bool {
+	loosened := false
+	report := func(f string, value, parentValue any) {
+		p.loosening(base+"."+f, value, parentValue)
+		loosened = true
+	}
+	if old.GitClean && !v.GitClean {
+		report("git_clean", false, true)
+	}
+	if len(old.Branch) > 0 {
+		var extra []string
+		for _, b := range v.Branch {
+			if !BranchMatches(b, old.Branch) {
+				extra = append(extra, b)
+			}
+		}
+		switch {
+		case len(v.Branch) == 0:
+			report("branch", "[]", strings.Join(old.Branch, ","))
+		case len(extra) > 0:
+			report("branch", strings.Join(extra, ","), strings.Join(old.Branch, ","))
+		}
+	}
+	var missing []string
+	for _, t := range old.Tools {
+		if !slices.Contains(v.Tools, t) {
+			missing = append(missing, t)
+		}
+	}
+	if len(missing) > 0 {
+		report("tools", strings.Join(v.Tools, ","), strings.Join(old.Tools, ","))
+	}
+	if len(old.PathExists) > 0 {
+		var extra []string
+		for _, e := range v.PathExists {
+			if !slices.Contains(old.PathExists, e) {
+				extra = append(extra, e)
+			}
+		}
+		switch {
+		case len(v.PathExists) == 0:
+			report("path_exists", "[]", strings.Join(old.PathExists, ","))
+		case len(extra) > 0:
+			report("path_exists", strings.Join(extra, ","), strings.Join(old.PathExists, ","))
+		}
+	}
+	return loosened
+}
+
+// publishOnFailLoosened reports a blocking precondition of a `risk:
+// publish` workflow turned into a suggestion.
+func (p *patcher) publishOnFailLoosened(at string, v, old PreconditionOnFail) bool {
+	if old != OnFailBlock || v == OnFailBlock {
+		return false
+	}
+	shown := string(v)
+	if shown == "" {
+		shown = string(OnFailSuggest)
+	}
+	p.loosening(at, shown, old)
+	return true
+}

@@ -158,7 +158,7 @@ func subcommandPatterns(tool string, subs ...string) []string {
 // checkpoint is not passed in the current window (an unlocking checkpoint is
 // never skipped, CheckpointDef.Behavior), in declaration order. A tag
 // unlocked with the commit waits for the release to be committed
-// (tagWaitsForCommit).
+// (TagWaitsForCommit).
 func LockedOps(wf *sessionspec.WorkflowRuntime, mode string, st *domain.CheckpointState) []string {
 	if wf == nil {
 		return nil
@@ -175,7 +175,7 @@ func LockedOps(wf *sessionspec.WorkflowRuntime, mode string, st *domain.Checkpoi
 			if _, known := lockPatterns[op]; !known {
 				continue // operation of a newer oh: locks nothing here
 			}
-			if _, open := unlocked(st, op); !open || (op == sessionspec.UnlockTag && tagWaitsForCommit(st)) {
+			if _, open := unlocked(st, op); !open || (op == sessionspec.UnlockTag && TagWaitsForCommit(st)) {
 				out = append(out, op)
 			}
 		}

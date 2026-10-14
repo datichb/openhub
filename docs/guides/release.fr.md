@@ -32,7 +32,7 @@ Sans `CHANGELOG.md` à la racine, oh avertit seulement : le release-manager le c
 | Opération | Avant `cp-release` | Après `cp-release` |
 |---|---|---|
 | `git commit` | refusé | permis jusqu'au commit de release |
-| `git tag` (création, liste comprise ; `git push --tags`, `update-ref refs/tags/…`, `gh release create`, `glab release create`) | refusé | permis **une fois la release commitée** : le tag marque toujours le commit de release |
+| `git tag` (création, liste comprise ; `git push --tags`, `update-ref refs/tags/…`, `gh release create`, `glab release create`) | refusé | permis **une fois la release commitée** : le tag marque toujours le commit de release ; un seul tag, refusé de nouveau après le premier |
 | ouverture de MR (`glab mr create`, `gh pr create`, leurs API, outil MCP `create_mr`) | refusée | permise |
 | `git push` | refusé | refusé (le release-manager n'a pas le droit de pousser) |
 | `git tag -f`, `git tag -d` | refusés | refusés |

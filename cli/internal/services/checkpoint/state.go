@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
@@ -266,6 +267,10 @@ func (s *Service) tryPass(ctx context.Context, sess *domain.Session, c sessionsp
 			return domain.CheckpointApproval{}, err
 		}
 	}
+	tags := ""
+	if slices.Contains(c.Unlocks, sessionspec.UnlockTag) {
+		tags = s.tagsOf(ctx, sess.LaunchPath)
+	}
 	base := ""
 	if c.Base {
 		base = s.baseHead(ctx, sess.LaunchPath)
@@ -296,7 +301,11 @@ func (s *Service) tryPass(ctx context.Context, sess *domain.Session, c sessionsp
 			if st.Unlocks == nil {
 				st.Unlocks = map[string]domain.CheckpointUnlock{}
 			}
-			st.Unlocks[op] = domain.CheckpointUnlock{Checkpoint: id, At: s.now(), Head: head}
+			u := domain.CheckpointUnlock{Checkpoint: id, At: s.now(), Head: head}
+			if op == sessionspec.UnlockTag {
+				u.Tags = tags
+			}
+			st.Unlocks[op] = u
 		}
 		if c.Base {
 			setBase(st, id, base)
@@ -336,6 +345,11 @@ func (s *Service) OnCall(ctx context.Context, root string, call adapters.ToolCal
 	}
 	if call.Action == sessionspec.ActionShell {
 		changed, err = s.onShell(ctx, sess, call)
+		if err == nil {
+			var tagged bool
+			tagged, err = s.onShellTag(ctx, sess, call)
+			changed = changed || tagged
+		}
 		return changed, nil, err
 	}
 	agent, _ := call.Input["agent"].(string)

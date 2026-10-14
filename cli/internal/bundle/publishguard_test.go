@@ -114,26 +114,27 @@ func TestPublishLocks(t *testing.T) {
 	// A commit window opened by another checkpoint does not hold the tag.
 	other := open(sessionspec.UnlockTag)
 	other.Unlocks[sessionspec.UnlockCommit] = domain.CheckpointUnlock{Checkpoint: "cp-commit", At: now}
-	assert.False(t, tagWaitsForCommit(other))
+	assert.False(t, TagWaitsForCommit(other))
 	// Passed again on the commit that closed its previous commit window:
 	// the tag does not wait; after a new commit window on another head, it does.
 	again := open(sessionspec.UnlockCommit, sessionspec.UnlockTag)
 	again.Unlocks[sessionspec.UnlockCommit] = domain.CheckpointUnlock{Checkpoint: "cp-release", At: now, Head: "c2"}
 	again.Committed = map[string]string{"cp-release": "c2"}
-	assert.False(t, tagWaitsForCommit(again))
+	assert.False(t, TagWaitsForCommit(again))
 	again.Committed["cp-release"] = "c1"
-	assert.True(t, tagWaitsForCommit(again))
+	assert.True(t, TagWaitsForCommit(again))
 }
 
 // The workflow map names the publishing operations and their order.
 func TestUnlockTextPublish(t *testing.T) {
 	text := unlockText("cp-release", []string{sessionspec.UnlockCommit, sessionspec.UnlockTag, sessionspec.UnlockMR})
-	for _, want := range []string{"`git tag`", "`glab mr create`", "Le tag vient après le commit", "La création du tag et l'ouverture de la merge request se referment", "Le push (branche et tags) revient à l'utilisateur"} {
+	for _, want := range []string{"`git tag`", "`glab mr create`", "Le tag vient après le commit", "La création du tag se referme après le premier tag ; elle et l'ouverture de la merge request, au checkpoint obligatoire suivant", "Le push (branche et tags) revient à l'utilisateur"} {
 		assert.Contains(t, text, want)
 	}
 	assert.NotContains(t, text, "fermeture du ticket")
 	tag := unlockText("cp-x", []string{sessionspec.UnlockTag})
 	assert.Contains(t, tag, "crée le tag aussitôt")
+	assert.Contains(t, tag, "La création du tag se referme après le premier tag, au checkpoint obligatoire suivant")
 	assert.NotContains(t, tag, "merge request")
 	assert.NotContains(t, unlockText("cp-x", []string{sessionspec.UnlockCommit}), "tag")
 }

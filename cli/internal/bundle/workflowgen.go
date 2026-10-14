@@ -178,9 +178,9 @@ func unlockText(id string, ops []string) string {
 	}
 	switch tag, mr := has[sessionspec.UnlockTag], has[sessionspec.UnlockMR]; {
 	case tag && mr:
-		fmt.Fprintf(&b, " La création du tag et l'ouverture de la merge request se referment au checkpoint obligatoire suivant, ou quand **%s** est demandé de nouveau.", id)
+		fmt.Fprintf(&b, " La création du tag se referme après le premier tag ; elle et l'ouverture de la merge request, au checkpoint obligatoire suivant ou quand **%s** est demandé de nouveau.", id)
 	case tag:
-		fmt.Fprintf(&b, " La création du tag se referme au checkpoint obligatoire suivant, ou quand **%s** est demandé de nouveau.", id)
+		fmt.Fprintf(&b, " La création du tag se referme après le premier tag, au checkpoint obligatoire suivant ou quand **%s** est demandé de nouveau.", id)
 	case mr:
 		fmt.Fprintf(&b, " L'ouverture de la merge request se referme au checkpoint obligatoire suivant, ou quand **%s** est demandé de nouveau.", id)
 	}

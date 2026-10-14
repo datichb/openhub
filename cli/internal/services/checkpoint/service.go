@@ -37,6 +37,9 @@ type Service struct {
 	// Work tells what a directory committed since a commit (nil = git,
 	// GitWork): the closing guard (S-09).
 	Work func(ctx context.Context, dir, since string, at time.Time) (Work, error)
+	// Tags returns a fingerprint of the local tags of a directory (nil =
+	// git, GitTags): the tag window closes after the first tag (CP-R8).
+	Tags func(ctx context.Context, dir string) (string, error)
 	Now  func() time.Time
 	// ApprovalWait bounds the wait for the tool approval of a paused
 	// checkpoint (0 = 3 s).

@@ -84,6 +84,9 @@ type CheckpointUnlock struct {
 	// Head is the commit of the session location when the checkpoint was
 	// passed ("" = unknown): a ticket is closed only once it moved.
 	Head string `json:"head,omitempty"`
+	// Tags is the fingerprint of the local tags when a tag window opened
+	// ("" = unknown): the window closes once they change (the first tag).
+	Tags string `json:"tags,omitempty"`
 }
 
 // CheckpointApproval is a validation waiting for the agent's call to run.
