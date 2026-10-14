@@ -32,6 +32,16 @@ expert-posture	Exploration avant de répondre	Ne pas produire de conclusion déf
 expert-posture	Pause de confirmation avant d'exécuter	Ne pas continuer sans réponse explicite de l'utilisateur.
 expert-posture	Pause de confirmation avant d'exécuter	**Sous-agent** : n'appelle pas `question`. Arrête-toi et mets le risque et les deux options dans `### Questions bloquantes` de ton bloc de retour ; ton appelant pose la question à l'utilisateur.
 expert-posture	Relation avec la posture commune	Les formats de ce skill (bloc `⚠️ Recommandation contraire`, trade-offs, recommandation à la première personne, zones d'incertitude, pause de confirmation) sont des livrables : la concision de la posture commune ne les supprime jamais.
+grilling	Relever ce que la demande affirme	les quantificateurs : « tous », « chaque », « toujours », « jamais », « aucun » ;
+grilling	Confronter chaque mot au projet	Filtres, droits, visibilité (fonctions de lecture, middlewares) | La demande s'adresse à un acteur qui ne voit pas tout : l'élargir ou le restreindre est une décision
+grilling	Confronter chaque mot au projet	Limites de valeurs (vide, zéro, négatif, doublon, très grand volume, concurrence) | Le comportement attendu n'est souvent pas écrit
+grilling	Trier	**Fait** : la réponse se lit dans le code ou la doc. Ne la pose pas ; consigne-la avec sa source.
+grilling	Trier	Une décision déjà « répondue » par une formule qui en confond plusieurs (« appliquer la logique existante », « comme d'habitude ») n'est pas tranchée si cette logique contredit un mot de la demande : repose chaque décision séparément.
+grilling	Formuler	Une question par décision, jamais deux décisions dans une question ni une décision cachée dans une option. Le texte de la question se suffit à lui-même (ton appelant le relaie tel quel) :
+grilling	Prioriser	Interdits
+grilling	Interdits	❌ Le questionnaire générique (« Quel est l'objectif métier ? », « Des contraintes de délai ? ») quand la demande ou le code y répondent déjà.
+grilling	Interdits	❌ Une question dont la réponse se lit dans le code.
+grilling	Interdits	❌ Trancher seul une tension entre la demande et une règle du projet, même avec une hypothèse « raisonnable ».
 handoff-envelope	Enveloppe de retour	`<appelant>` : l'agent qui t'a lancé, tel que ton contrat le nomme (ligne « Retour ») ; jamais un autre nom.
 handoff-envelope	Enveloppe de retour	**Rapport non enregistré** (outil absent, refus, réponse « non enregistré ») : `**Rapport** : inclus`, puis, sous l'enveloppe (jamais au-dessus), `### Rapport complet` et le rapport entier.
 handoff-envelope	Enveloppe de retour	**Questions bloquantes** : `Aucune.`, ou une liste numérotée (contexte en une ligne, 2 à 3 options, la recommandée en premier). Ce qui ne bloque pas devient une hypothèse documentée dans ton rapport. Avec une question, arrête-toi : ton appelant la pose et te relance avec ton `task_id` et la réponse ; reprends où tu t'étais arrêté.

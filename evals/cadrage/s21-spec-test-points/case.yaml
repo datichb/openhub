@@ -1,0 +1,40 @@
+id: S21
+title: "Cadrage : chaque critère d'acceptation de la spec porte son point de test"
+workflow: cadrage
+mode: semi-auto
+# Le démon ne garde aucun rapport : le planner inclut son rapport complet
+# dans son retour, où les assertions le lisent.
+reports: off
+text: |
+  Ajouter à calc une fonction Percent(part, total int) (int, error) : le pourcentage de part dans total, arrondi à l'entier inférieur.
+  Règles : erreur si total vaut zéro ; résultat plafonné à 100 quand part dépasse total ; erreur si part ou total est négatif.
+beads:
+  prefix: ev
+timeout: 25m
+answers:
+  question: first
+  checkpoints:
+    cp-scope: approve
+    # La création des tickets n'est pas évaluée ici.
+    cp-tickets: "reject: Évaluation terminée : ne crée aucun ticket et termine le workflow."
+    "*": approve
+# R1-a (CP-R1) : chaque critère d'acceptation porte, sur sa propre ligne, le
+# test qui le vérifie (nom d'un test Go, ou commande go test -run).
+assertions:
+  - type: text_matches
+    name: le critère « total nul » porte son point de test
+    agent: planner
+    pattern: "(?m)^[^\\n]*(z[ée]ro|total ?== ?0|total vaut 0|, ?0\\))[^\\n]*((?-i:Test[A-Z_]\\w*)|go test -run)"
+  - type: text_matches
+    name: le critère « plafonné à 100 » porte son point de test
+    agent: planner
+    pattern: "(?m)^[^\\n]*(plafon|100)[^\\n]*((?-i:Test[A-Z_]\\w*)|go test -run)"
+  - type: text_matches
+    name: le critère « négatif » porte son point de test
+    agent: planner
+    pattern: "(?m)^[^\\n]*n[ée]gati[^\\n]*((?-i:Test[A-Z_]\\w*)|go test -run)"
+  - type: no_question_in_subagent
+    agents: [planner, pathfinder]
+  - type: changed_within
+    name: aucun fichier modifié
+  - type: no_denied_loop

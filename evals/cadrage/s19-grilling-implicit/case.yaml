@@ -1,0 +1,37 @@
+id: S19
+title: "Cadrage : deux exigences implicites (tâches privées, corbeille) remontent en questions bloquantes relayées à l'utilisateur"
+workflow: cadrage
+mode: semi-auto
+text: "Ajouter un export CSV de toutes les tâches de l'équipe, pour que la manageuse suive l'avancement chaque lundi."
+beads:
+  prefix: ev
+timeout: 25m
+answers:
+  question: first
+  checkpoints:
+    cp-scope: approve
+    # La création des tickets n'est pas évaluée ici.
+    cp-tickets: "reject: Évaluation terminée : ne crée aucun ticket et termine le workflow."
+    "*": approve
+# R1-a : « toutes les tâches » heurte deux règles que seul le code dit : une
+# tâche privée n'est visible que de son autrice, une tâche supprimée reste
+# 30 jours dans la corbeille. Ni l'une ni l'autre ne se tranche par
+# exploration : ce sont des décisions, posées à l'utilisateur, chacune dans
+# le texte d'une question de l'outil question (une option « appliquer
+# Visible() » qui les confond ne suffit pas).
+assertions:
+  - type: text_matches
+    name: la visibilité des tâches privées est une question posée à l'utilisateur
+    agent: conductor
+    questions: true
+    pattern: "\"question\": ?\"[^\"]*priv[ée]"
+  - type: text_matches
+    name: le sort des tâches de la corbeille est une question posée à l'utilisateur
+    agent: conductor
+    questions: true
+    pattern: "\"question\": ?\"[^\"]*(corbeille|supprim[ée])"
+  - type: no_question_in_subagent
+    agents: [planner, pathfinder]
+  - type: changed_within
+    name: aucun fichier modifié
+  - type: no_denied_loop

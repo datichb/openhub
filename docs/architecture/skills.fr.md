@@ -7,7 +7,7 @@ Le hub utilise une **architecture hybride** avec deux chemins de livraison (Buck
 
 Sources de vérité :
 
-- le dossier `skills/` du hub (174 fichiers : 169 skills et 5 annexes dans `skills/templates/`) ;
+- le dossier `skills/` du hub (175 fichiers : 170 skills et 5 annexes dans `skills/templates/`) ;
 - le frontmatter des agents (`agents/**/*.md`) : `skills:` = Bucket A (inliné), `native_skills:` = Bucket B (à la demande).
 
 Depuis la v5, rien n'est plus déployé dans le projet : les skills arrivent dans la session par le **paquet de session**, construit à chaque lancement depuis le workflow (voir ci-dessous).
@@ -137,7 +137,7 @@ Tous les agents du hub ont `permission: skill: allow`, directement ou par leur `
 
 ## Inventaire des skills (source de vérité)
 
-**169 skills** dans 13 dossiers (128 skills de domaine + 41 skills de stack), plus **5 annexes** dans `skills/templates/`.
+**170 skills** dans 13 dossiers (129 skills de domaine + 41 skills de stack), plus **5 annexes** dans `skills/templates/`.
 
 Lecture des tableaux : la colonne **Agents** donne le bucket et les agents d'après leur frontmatter (`A` = `skills:`, `B` = `native_skills:`). `—` = aucun agent ne la référence : la skill n'est dans un paquet que si un workflow l'ajoute par `skills.extra`.
 
@@ -194,7 +194,7 @@ Les deux dernières ne sont dans aucun frontmatter d'agent : `elicitation-techni
 | `team-coordination` | B (`mcp: team`) : orchestrator-dev | Coordination d'équipe (claims, conflits, passage de relais) |
 | `takeover-context-protocol` | B (`mcp: team`) : orchestrator, orchestrator-dev | Utiliser un brief de reprise sur un ticket transféré par un autre membre |
 
-### `planning/` — 22 skills
+### `planning/` — 23 skills
 
 | Skill | Agents | Contenu |
 |-------|--------|---------|
@@ -204,6 +204,7 @@ Les deux dernières ne sont dans aucun frontmatter d'agent : `elicitation-techni
 | `planner-workflow` | A : planner | Workflow planner en 7 phases — index et principes (0 prérequis → 0.5 complexity scoring → 1 exploration + signaux UX/UI → 1.5 délégation design → 2 questions → 3 plan → 4 cas particuliers → 5 création Beads → 5.5 ai-delegated → 6 vérification) |
 | `planner-phase-0` | B : planner | Phase 0 (prérequis) et 0.5 (complexity scoring : 4 critères × 4 pts, tiers Small/Medium/Large/Enterprise) |
 | `planner-phase-1` | B : planner | Phase 1 (exploration) et 1.5 (délégation design) |
+| `grilling` | B : planner | Interroger la demande avant les questions : la confronter au code et aux règles (quantificateurs, acteurs, visibilité, cycle de vie, invariants), une question par décision, priorisée |
 | `planner-phase-2` | B : planner | Phase 2 — questions complémentaires ([FACT] / [DECISION], batch ou frontier) |
 | `planner-phase-2-5` | B : planner | Phase 2.5 (complexité Large ou Enterprise, Medium sur demande) — compréhension partagée, decision map Enterprise |
 | `planner-phase-3-4` | B : planner | Phase 3 (plan hiérarchique) et 4 (cas particuliers) |
