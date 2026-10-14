@@ -36,6 +36,9 @@ A workflow is launched with `oh run <workflow>` or the TUI launch form; the form
 | `review-feedback` | `orchestrator-dev` | `developer`, `reviewer` | write | local | `oh review feedback` |
 | `audit` | `auditor` | `auditor-subagent` | read | local, remote | `oh audit`, former `infra` and `database` agents (analysis part) |
 | `debug` | `debugger` | `developer` (on demand) | write | local | `oh debug` (former mode D) |
+| `incident` | `debugger` (writes `docs/wiki/postmortems/`) | `developer` | write | local | — |
+| `security-fix` | `conductor` | `developer`, `auditor-subagent` | write | local | — |
+| `spike` | `pathfinder` (writes `docs/wiki/decisions/`) | `developer` (throwaway prototype) | write | local | — |
 | `benchmark` | `benchmarker` | — | write (`reports/benchmarks/`) | local | `oh run libre --agent benchmarker` |
 | `sweep` | `conductor` | `pathfinder`, `developer`, `reviewer` | write | local | `oh start --sweep` |
 | `brief-enrich` | `brief-enricher` | — | read | local | `oh takeover-brief enrich` |
@@ -317,6 +320,79 @@ Diagnosis of a bug or isolated problem by the `debugger`: diagnostic report (urg
 The fix ticket is only created after `cp-ticket` (« Create the fix ticket », paused in every mode, unlocks `create`): the `debugger` presents the diagnosis and the ticket there, instead of asking for confirmation with the `question` tool (which it keeps in a `libre` session). A fix made in the session ends with `cp-commit` (mandatory, paused in every mode, unlocks `commit` and `close`). Output: `tickets`. Allowed Beads commands: `show`, `list`, `ready`, `search`, `query`, `lint`, `children`, `comments`, `count`, `status`, `graph`, `history`, `create`, `update`, `close`, `dep`, `label`.
 
 **Session scratch folders** (`debugger: { scratch: { readers: [developer] } }`, see [`scratch`](workflow-schema.en.md#scratch-session-scratch-folders)): in the reproduction phase, the `debugger` writes its reproduction test or script in `~/.oh/sessions/<session>/scratch/debugger/` (path given in the `oh.scratch` entry of the session state), outside the repository and deleted with the session; it describes this test in text in the fix ticket. The `developer`, declared reader, may read this scratch file in the same session, without changing it, and makes it the final test of the project. No agent of another session has access to it.
+
+## `incident`
+
+Handles an ongoing incident: **mitigate first**, then write the blameless postmortem in the wiki and create the actions as tickets. The `debugger` leads the session; it stays read-only, except for its postmortem (`agents.debugger.writes: ["docs/wiki/postmortems/**"]`); the code of a mitigation is left to the `developer`, which it launches. Guide: [Incident, security fix and spike](../guides/incident-security-spike.en.md).
+
+| Input | Type | Required | Role |
+|---|---|---|---|
+| `incident` | `text` (16,000 characters max) | yes | What is happening: symptoms, since when, impact, alerts, logs, last deployment |
+
+| Checkpoint | manuel | semi-auto | auto |
+|---|---|---|---|
+| `cp-mitigated` Mitigation (mandatory, checked by oh: stack tests) | pause | pause | pause |
+| `cp-postmortem` Postmortem (mandatory, unlocks `commit`) | pause | pause | pause |
+| `cp-actions` Actions (mandatory, unlocks `create`) | pause | pause | pause |
+
+Flow:
+
+1. **Quick diagnosis**: impact, start time, triggering change (`git log` around the start time, then the diff of the suspect commit).
+2. **Mitigation**: the safest, preferably reversible measure (undo the triggering change, switch the feature off, configuration). A code measure is applied by the `developer` **in the work tree**, without a commit; a measure outside the repository (deployment, environment variable) is given as is to the user. At `cp-mitigated`, oh runs the stack tests, then the user chooses or confirms the measure.
+3. **Postmortem**: `docs/wiki/postmortems/<YYYY-MM-DD>-<slug>.md` (wiki frontmatter; summary, timeline, root cause, mitigation, actions), **blameless**: no person's name, not even the one the report mentions. On-demand skill: `postmortem` (sourced timeline, impact and detection delay in figures, trigger and cause, verifiable actions).
+4. **`cp-postmortem`**: once approved, the mitigation fix (if any) is committed by the `developer`, then the postmortem alone by the debugger (`git commit -m "docs(postmortem): <slug>" -- <file>`).
+5. **`cp-actions`**: one ticket per approved action (`bd create`, a description that cites the postmortem); a refusal: no ticket.
+
+Why the mitigation fix is only committed at `cp-postmortem`: an operation is unlocked by a single checkpoint (`unlock_duplicate`); `cp-mitigated` stays the decision on the mitigation, checked by oh, and the fix is in place in the work tree from then on (the user may ship it themselves if they cannot wait). Pause budget (CP-R2) in semi-auto: 3 pauses (1 decision, 2 irreversible actions), for a budget of 4. Allowed Beads commands: `show`, `list`, `ready`, `search`, `query`, `lint`, `children`, `comments`, `count`, `status`, `graph`, `history`, `create`, `update`, `dep`, `label`.
+
+## `security-fix`
+
+Fixes the findings of a security audit: triage, fix with a regression test, targeted re-analysis **before** the commit. The `conductor` chains the `developer` and the `auditor-subagent`.
+
+| Input | Type | Required | Role |
+|---|---|---|---|
+| `findings` | `text` (30,000 characters max) | yes | The findings: audit report or excerpt, one finding per entry with its severity and location |
+
+| Checkpoint | manuel | semi-auto | auto |
+|---|---|---|---|
+| `cp-triage` Findings to fix | pause | pause | auto |
+| `cp-rescan` Re-analysis (checked by oh: stack tests, at least one test file changed) | pause | auto | auto |
+| `cp-2` Commit or fix (mandatory, same check, unlocks `commit`) | pause | pause | pause |
+
+Flow:
+
+1. **`cp-triage`**: the findings are presented as received, numbered `F1`, `F2`…; the answer says which ones to fix.
+2. **Fixes** (`developer`, domain `security`): only the kept findings, at the cause and for every affected input, each with a regression test; no commit. A false positive is reported, with no change.
+3. **Targeted re-analysis** (`auditor-subagent`): for each finding, `corrigé` (fixed), `encore présent` (still present) or `contournable` (bypassable: another path, a neighbouring prefix, a symbolic link, another encoding, another caller).
+4. **`cp-rescan`**: no pause in semi-auto; oh runs the tests and refuses a change without a test. A finding still present goes back to the developer (2 rounds at most, `limits.max_fix_rounds`).
+5. **`cp-2`**: fixes, tests and verdict of the re-analysis; once approved, the developer commits (`fix(security): …`).
+
+Why the re-analysis comes before the commit: a fix the auditor finds bypassable must not be committed; `cp-2` decides with the tests (oh) and the verdict at hand. Pause budget in semi-auto: 2 pauses (1 decision, 1 irreversible action), for a budget of 3. Allowed Beads commands (read only): `show`, `list`, `ready`, `search`, `query`, `children`, `comments`, `count`, `status`, `graph`, `history`.
+
+**From an audit**: the findings are given as input, for instance the audit report (`oh session report <session> <rp-…>`): `oh run security-fix -i findings="$(oh session report <session> rp-2)"`. Chaining `audit → security-fix` directly (`findings` output of the audit, `next:`) will come with workflow composition (R5).
+
+## `spike`
+
+Settles a technical question within a time box: sourced research, a throwaway prototype when needed, a **go**, **clarify** or **kill** decision written in the wiki. The `pathfinder` leads the session; it stays read-only, except for its decision (`agents.pathfinder.writes: ["docs/wiki/decisions/**"]`); the `developer` only writes the throwaway prototype.
+
+| Input | Type | Required | Role |
+|---|---|---|---|
+| `question` | `text` (8,000 characters max) | yes | The question, the decision criteria (what would mean go or kill) and the time allowed |
+
+| Checkpoint | manuel | semi-auto | auto |
+|---|---|---|---|
+| `cp-question` Question and criteria | pause | pause | auto |
+| `cp-decision` Spike decision (mandatory, checked by oh: `.oh-spike/` deleted, unlocks `commit`) | pause | pause | pause |
+
+Flow:
+
+1. **`cp-question`**: closed question, verifiable criteria, time box. No research nor prototype before it (the `developer` is locked until `cp-question`, `after:`).
+2. **Sourced research**, criterion by criterion: the repository first, then the official documentation (skill `research`); each fact cites `file:line` or its URL.
+3. **Throwaway prototype**, only when a criterion can only be settled by running code: the `developer` writes the smallest program that answers it, in `.oh-spike/<slug>/` only, with no dependency added, runs it, records its output, then deletes `.oh-spike/`. Never committed.
+4. **Decision**: `docs/wiki/decisions/<slug>.md` (`**Décision : go | clarify | kill**`, findings per criterion with their sources, prototype, next steps). `go`: every criterion holds; `kill`: one does not; `clarify`: one cannot be settled without a decision or information from the user.
+5. **`cp-decision`**: oh checks that `.oh-spike/` no longer exists (`verify.cmd: ["test ! -e .oh-spike"]`); once approved, the decision alone is committed.
+
+Pause budget in semi-auto: 2 pauses (1 decision, 1 irreversible action), for a budget of 3. Allowed Beads commands (read only): `show`, `list`, `search`, `query`, `count`.
 
 ## `benchmark`
 

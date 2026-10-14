@@ -33,6 +33,7 @@ Complete index of all openhub documentation (oh v5). Guides and references are b
 | [Container runtime](guides/container.en.md) | Sessions in a container (Colima, Podman, Docker CLI): project dev image, settings, secrets |
 | [Remote runners](guides/remote-runners.en.md) | Remote sessions on GitLab CI: runners, `oh-runner` project, `oh remote setup`, fetch and resolve |
 | [Review & Feedback](guides/review-feedback.en.md) | AI code review, MR publication, feedback processing |
+| [Incident, security fix and spike](guides/incident-security-spike.en.md) | `incident` (mitigate, blameless postmortem in `docs/wiki/postmortems/`, action tickets), `security-fix` (triage, fixes with regression tests, re-analysis before the commit), `spike` (sourced research, throwaway prototype, decision in `docs/wiki/decisions/`) |
 | [Preparing a release](guides/release.en.md) | `release` workflow: SemVer version, dated CHANGELOG, annotated tag after approval, release MR description; pushing stays with the user |
 | [Parallel Mode](guides/parallel-mode.en.md) | **Replaced in v5** by `oh run ticket --tickets a,b` |
 | [Sweep Mode](guides/sweep-mode.en.md) | **Replaced in v5** by the `sweep` workflow |

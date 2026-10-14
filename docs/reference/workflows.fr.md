@@ -36,6 +36,9 @@ On lance un workflow avec `oh run <workflow>` ou la fiche de lancement de la TUI
 | `review-feedback` | `orchestrator-dev` | `developer`, `reviewer` | write | local | `oh review feedback` |
 | `audit` | `auditor` | `auditor-subagent` | read | local, distant | `oh audit`, anciens agents `infra` et `database` (partie analyse) |
 | `debug` | `debugger` | `developer` (à la demande) | write | local | `oh debug` (ancien mode D) |
+| `incident` | `debugger` (écrit `docs/wiki/postmortems/`) | `developer` | write | local | — |
+| `security-fix` | `conductor` | `developer`, `auditor-subagent` | write | local | — |
+| `spike` | `pathfinder` (écrit `docs/wiki/decisions/`) | `developer` (prototype jetable) | write | local | — |
 | `benchmark` | `benchmarker` | — | write (`reports/benchmarks/`) | local | `oh run libre --agent benchmarker` |
 | `sweep` | `conductor` | `pathfinder`, `developer`, `reviewer` | write | local | `oh start --sweep` |
 | `brief-enrich` | `brief-enricher` | — | read | local | `oh takeover-brief enrich` |
@@ -317,6 +320,79 @@ Diagnostic d'un bug ou d'un problème isolé par le `debugger` : rapport de diag
 Le ticket de correction n'est créé qu'après `cp-ticket` (« Créer le ticket de correction », en pause dans tous les modes, déverrouille `create`) : le `debugger` y présente le diagnostic et le ticket, au lieu de demander la confirmation avec l'outil `question` (qu'il garde dans une session `libre`). Une correction faite dans la session se termine par `cp-commit` (obligatoire, en pause dans tous les modes, déverrouille `commit` et `close`). Sortie : `tickets`. Commandes Beads autorisées : `show`, `list`, `ready`, `search`, `query`, `lint`, `children`, `comments`, `count`, `status`, `graph`, `history`, `create`, `update`, `close`, `dep`, `label`.
 
 **Brouillons de session** (`debugger: { scratch: { readers: [developer] } }`, voir [`scratch`](workflow-schema.fr.md#scratch-brouillons-de-session)) : en phase de reproduction, le `debugger` écrit son test ou script de reproduction dans `~/.oh/sessions/<session>/scratch/debugger/` (chemin donné dans l'entrée `oh.scratch` de l'état de session), hors dépôt et supprimé avec la session ; il décrit ce test en texte dans le ticket de correction. Le `developer`, lecteur déclaré, peut lire ce brouillon dans la même session, sans le modifier, et en fait le test définitif du projet. Aucun agent d'une autre session n'y a accès.
+
+## `incident`
+
+Gère un incident en cours : **atténuer d'abord**, puis écrire le postmortem sans blâme dans le wiki et créer les actions en tickets. Le `debugger` mène la session ; il reste en lecture seule, sauf son postmortem (`agents.debugger.writes: ["docs/wiki/postmortems/**"]`) ; le code d'une atténuation revient au `developer`, qu'il lance. Guide : [Incident, correction de sécurité et spike](../guides/incident-security-spike.fr.md).
+
+| Entrée | Type | Obligatoire | Rôle |
+|---|---|---|---|
+| `incident` | `text` (16 000 caractères max) | oui | Ce qui se passe : symptômes, depuis quand, impact, alertes, logs, dernier déploiement |
+
+| Checkpoint | manuel | semi-auto | auto |
+|---|---|---|---|
+| `cp-mitigated` Atténuation (obligatoire, vérifié par oh : tests de la stack) | pause | pause | pause |
+| `cp-postmortem` Postmortem (obligatoire, déverrouille `commit`) | pause | pause | pause |
+| `cp-actions` Actions (obligatoire, déverrouille `create`) | pause | pause | pause |
+
+Déroulé :
+
+1. **Diagnostic rapide** : impact, heure de début, changement déclencheur (`git log` autour de l'heure de début, puis le diff du commit suspect).
+2. **Atténuation** : la mesure la plus sûre et réversible (annuler le changement déclencheur, désactiver la fonction, configuration). Une mesure de code est appliquée par le `developer` **dans l'arbre de travail**, sans commit ; une mesure hors du dépôt (déploiement, variable d'environnement) est donnée telle quelle à l'utilisateur. À `cp-mitigated`, oh lance les tests de la stack, puis l'utilisateur choisit ou confirme la mesure.
+3. **Postmortem** : `docs/wiki/postmortems/<AAAA-MM-JJ>-<slug>.md` (frontmatter du wiki ; résumé, chronologie, cause racine, atténuation, actions), **sans blâme** : aucun nom de personne, pas même celui que cite le signalement. Skill à la demande : `postmortem` (chronologie sourcée, impact et délai de détection chiffrés, déclencheur et cause, actions vérifiables).
+4. **`cp-postmortem`** : une fois validé, le correctif d'atténuation (s'il y en a un) est commité par le `developer`, puis le postmortem seul par le debugger (`git commit -m "docs(postmortem): <slug>" -- <fichier>`).
+5. **`cp-actions`** : un ticket par action validée (`bd create`, description qui cite le postmortem) ; un refus : aucun ticket.
+
+Pourquoi le correctif d'atténuation n'est commité qu'à `cp-postmortem` : une opération n'est déverrouillée que par un seul checkpoint (`unlock_duplicate`) ; `cp-mitigated` reste la décision sur l'atténuation, vérifiée par oh, et le correctif est en place dans l'arbre de travail dès ce moment (l'utilisateur peut le livrer lui-même s'il ne peut pas attendre). Budget de pauses (CP-R2) en semi-auto : 3 pauses (1 décision, 2 actions irréversibles), pour un budget de 4. Commandes Beads autorisées : `show`, `list`, `ready`, `search`, `query`, `lint`, `children`, `comments`, `count`, `status`, `graph`, `history`, `create`, `update`, `dep`, `label`.
+
+## `security-fix`
+
+Corrige les constats d'un audit de sécurité : tri, correction avec test de non-régression, nouvelle analyse ciblée **avant** le commit. Le `conductor` enchaîne le `developer` et l'`auditor-subagent`.
+
+| Entrée | Type | Obligatoire | Rôle |
+|---|---|---|---|
+| `findings` | `text` (30 000 caractères max) | oui | Les constats : rapport d'audit ou extrait, un constat par entrée avec sa gravité et son emplacement |
+
+| Checkpoint | manuel | semi-auto | auto |
+|---|---|---|---|
+| `cp-triage` Constats à corriger | pause | pause | auto |
+| `cp-rescan` Nouvelle analyse (vérifié par oh : tests de la stack, au moins un fichier de test modifié) | pause | auto | auto |
+| `cp-2` Commit ou correction (obligatoire, même vérification, déverrouille `commit`) | pause | pause | pause |
+
+Déroulé :
+
+1. **`cp-triage`** : les constats sont présentés tels que reçus, numérotés `F1`, `F2`… ; la réponse dit lesquels corriger.
+2. **Corrections** (`developer`, domaine `security`) : seulement les constats retenus, à la cause et pour toutes les entrées concernées, chacun avec un test de non-régression ; aucun commit. Un faux positif est signalé, sans changement.
+3. **Nouvelle analyse ciblée** (`auditor-subagent`) : pour chaque constat, `corrigé`, `encore présent` ou `contournable` (autre chemin, préfixe voisin, lien symbolique, autre encodage, autre appelant).
+4. **`cp-rescan`** : sans pause en semi-auto ; oh lance les tests et refuse un changement sans test. Un constat encore présent repart au developer (au plus 2 tours, `limits.max_fix_rounds`).
+5. **`cp-2`** : corrections, tests et verdict de la nouvelle analyse ; une fois validé, le developer commite (`fix(security): …`).
+
+Pourquoi la nouvelle analyse précède le commit : une correction que l'auditeur juge contournable ne doit pas être commitée ; `cp-2` décide avec les tests (oh) et le verdict sous les yeux. Budget de pauses en semi-auto : 2 pauses (1 décision, 1 action irréversible), pour un budget de 3. Commandes Beads autorisées (lecture seule) : `show`, `list`, `ready`, `search`, `query`, `children`, `comments`, `count`, `status`, `graph`, `history`.
+
+**Depuis un audit** : les constats sont donnés en entrée, par exemple le rapport de l'audit (`oh session report <session> <rp-…>`) : `oh run security-fix -i findings="$(oh session report <session> rp-2)"`. L'enchaînement direct `audit → security-fix` (sortie `findings` de l'audit, `next:`) viendra avec la composition des workflows (R5).
+
+## `spike`
+
+Tranche une question technique dans un temps borné : recherche sourcée, prototype jetable au besoin, décision **go**, **clarify** ou **kill** écrite dans le wiki. Le `pathfinder` mène la session ; il reste en lecture seule, sauf sa décision (`agents.pathfinder.writes: ["docs/wiki/decisions/**"]`) ; le `developer` n'écrit que le prototype jetable.
+
+| Entrée | Type | Obligatoire | Rôle |
+|---|---|---|---|
+| `question` | `text` (8 000 caractères max) | oui | La question, les critères de décision (ce qui ferait dire go ou kill) et la durée accordée |
+
+| Checkpoint | manuel | semi-auto | auto |
+|---|---|---|---|
+| `cp-question` Question et critères | pause | pause | auto |
+| `cp-decision` Décision du spike (obligatoire, vérifié par oh : `.oh-spike/` supprimé, déverrouille `commit`) | pause | pause | pause |
+
+Déroulé :
+
+1. **`cp-question`** : question fermée, critères vérifiables, durée. Aucune recherche ni prototype avant (le `developer` est verrouillé jusqu'à `cp-question`, `after:`).
+2. **Recherche sourcée**, critère par critère : le dépôt d'abord, puis la documentation officielle (skill `research`) ; chaque fait cite `fichier:ligne` ou son URL.
+3. **Prototype jetable**, seulement si un critère ne se tranche qu'en exécutant du code : le `developer` écrit le plus petit programme qui répond, dans `.oh-spike/<slug>/` seulement, sans dépendance ajoutée, le lance, relève sa sortie, puis supprime `.oh-spike/`. Jamais de commit.
+4. **Décision** : `docs/wiki/decisions/<slug>.md` (`**Décision : go | clarify | kill**`, constats par critère avec leurs sources, prototype, suites). `go` : tous les critères tiennent ; `kill` : l'un ne tient pas ; `clarify` : l'un ne se tranche pas sans une décision ou une information de l'utilisateur.
+5. **`cp-decision`** : oh vérifie que `.oh-spike/` n'existe plus (`verify.cmd: ["test ! -e .oh-spike"]`) ; une fois validée, la décision est commitée seule.
+
+Budget de pauses en semi-auto : 2 pauses (1 décision, 1 action irréversible), pour un budget de 3. Commandes Beads autorisées (lecture seule) : `show`, `list`, `search`, `query`, `count`.
 
 ## `benchmark`
 
