@@ -10,6 +10,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/services/wiki"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 	"github.com/datichb/openhub/cli/internal/specdoc"
 )
@@ -19,6 +20,7 @@ import (
 // (internal/specdoc) before the checkpoint passes:
 //
 //	no spec changed under the paths ─────────────── refused
+//	frontmatter, confidence tags (wiki format) ──── refused, each problem listed
 //	glossary, criteria with test points ─ missing ── refused, each problem listed
 //	breakdown (convergence) ─ a criterion uncovered,
 //	                          a slice outside the spec ── refused
@@ -49,6 +51,15 @@ func (s *Service) specCheck(ctx context.Context, sess *domain.Session, v *sessio
 			continue // deleted, or not a regular file
 		}
 		specs = append(specs, p)
+		// The format of the wiki first (p4-debts): frontmatter, its keys
+		// and values, the confidence tags (wiki.FormatIssues).
+		for _, is := range wiki.FormatIssues(strings.TrimPrefix(p, wiki.Dir+"/"), string(data)) {
+			at := p
+			if is.Line > 1 {
+				at = fmt.Sprintf("%s:%d", p, is.Line)
+			}
+			problems = append(problems, fmt.Sprintf("%s : %s", at, is.Message))
+		}
 		for _, pb := range specdoc.Check(data, c.Breakdown) {
 			msg := i18n.T("tui.checkpoint.verify.spec." + pb.Code)
 			if pb.Item != "" {

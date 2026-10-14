@@ -470,7 +470,7 @@
         "edit * allow",
         "glob * allow",
         "grep * allow",
-        "question * deny",
+        "question * allow",
         "read * allow",
         "skill * allow",
         "subagent * deny",

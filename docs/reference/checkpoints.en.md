@@ -97,7 +97,7 @@ In a read-only workflow (`risk: read`), a verified checkpoint always asks the us
 
 The shipped workflows verify `cp-2` (`ticket`, `feature`, `review-feedback`) and `cp-commit` (`quick`, `debug`, `sweep`) this way.
 
-**Written specs (`verify.spec`, R4)**: instead of commands, oh reads the specs the session changed under the given paths and checks their glossary, the test point on the line of each criterion (`CA-n · Test : …`) and, with `breakdown: true`, that the breakdown covers every criterion with no slice outside the spec ([format](workflow-schema.en.md#verify--verification-run-by-oh)). The `spec` workflow uses it three times: `cp-converge` (automatic in every mode: the convergence pass, which sends a gap back to the planner without a pause), then `cp-spec` and `cp-tickets` (same check before the commit and the creation of the tickets).
+**Written specs (`verify.spec`, R4)**: instead of commands, oh reads the specs the session changed under the given paths and checks their frontmatter (wiki format), their glossary, the test point on the line of each criterion (`CA-n · Test : …`) and, with `breakdown: true`, that the breakdown covers every criterion with no slice outside the spec ([format](workflow-schema.en.md#verify--verification-run-by-oh)). The `spec` workflow uses it three times: `cp-converge` (automatic in every mode: the convergence pass, which sends a gap back to the planner without a pause), then `cp-spec` and `cp-tickets` (same check before the commit and the creation of the tickets).
 
 ### Remote sessions
 
@@ -192,7 +192,7 @@ When refused, the call of the agent fails with `ErrVerifyFailed`, the reason and
 | `create` | its checkpoint (`cp-tickets`, `cp-ticket`) | at the **next mandatory checkpoint** (`cp-0`, `cp-commit`…) or when the checkpoint is asked again; not when a ticket is closed |
 | `commit` | its checkpoint (`cp-2`, `cp-commit`) | **once the work is committed** (HEAD moved and nothing is left to commit: one commit, or several in a row), when the checkpoint is asked again, or when the ticket is closed |
 | `close` | its checkpoint | when a ticket is closed, or when the checkpoint is asked again |
-| `tag` | its checkpoint (`cp-release`); with `commit` at the same checkpoint, only **once the release is committed** | at the next mandatory checkpoint or when the checkpoint is asked again |
+| `tag` | its checkpoint (`cp-release`); with `commit` at the same checkpoint, only **once the release is committed** | after the first tag, at the next mandatory checkpoint or when the checkpoint is asked again |
 | `mr` | its checkpoint (`cp-release`) | at the next mandatory checkpoint or when the checkpoint is asked again |
 | `apply`, `push` | their checkpoint | when the checkpoint is asked again |
 

@@ -162,3 +162,88 @@ func TestPublishPatchHardened(t *testing.T) {
 		t.Fatalf("remote loosened: %s (%v)", cpr.Remote, diags)
 	}
 }
+
+// p4-debts: in a `risk: publish` workflow, the inherited preconditions are
+// security fields: a layer adds or hardens them, never removes nor loosens
+// them (the parent's value is kept); elsewhere a layer may still do so.
+func TestPublishPreconditionsHardened(t *testing.T) {
+	hubPre := "preconditions:\n" +
+		"  clean: { check: { git_clean: true }, on_fail: block }\n" +
+		"  branch: { check: { branch: [main, \"release/*\"] }, on_fail: block }\n" +
+		"  tools: { check: { tools: [git, bd] }, on_fail: block }\n" +
+		"  file: { check: { path_exists: [CHANGELOG.md] }, on_fail: block }\n"
+	publishHub := vHeader + "risk: publish\nruntime: { default: local, allowed: [local] }\n" + hubPre
+	resolve := func(t *testing.T, hub, team string) (*Spec, Diagnostics) {
+		t.Helper()
+		cat := catalogOf(t, map[string]string{
+			"hub:x":  hub,
+			"team:x": "apiVersion: oh/v1\nkind: Workflow\nid: x\nextends: hub:x\n" + team,
+		})
+		r, diags := ResolveSpec(cat, Ref{LayerTeam, "x"}, nil)
+		if r == nil {
+			t.Fatalf("not resolved: %v", diags)
+		}
+		return r.Spec, diags
+	}
+	loosened := []struct{ name, team, path string }{
+		{"disabled", "preconditions:\n  clean: { disabled: true }\n", "preconditions.clean.disabled"},
+		{"git_clean off", "preconditions:\n  clean: { check: { git_clean: false } }\n", "preconditions.clean.check.git_clean"},
+		{"git_clean replaced", "preconditions:\n  clean: { check: { tools: [git] } }\n", "preconditions.clean.check.git_clean"},
+		{"on_fail", "preconditions:\n  clean: { on_fail: suggest }\n", "preconditions.clean.on_fail"},
+		{"branch widened", "preconditions:\n  branch: { check: { branch: [main, \"*\"] } }\n", "preconditions.branch.check.branch"},
+		{"branch dropped", "preconditions:\n  branch: { check: { git_clean: true } }\n", "preconditions.branch.check.branch"},
+		{"tool removed", "preconditions:\n  tools: { check: { tools: [git] } }\n", "preconditions.tools.check.tools"},
+		{"path added", "preconditions:\n  file: { check: { path_exists: [CHANGELOG.md, README.md] } }\n", "preconditions.file.check.path_exists"},
+	}
+	for _, c := range loosened {
+		t.Run(c.name, func(t *testing.T) {
+			s, diags := resolve(t, publishHub, c.team)
+			assertDiag(t, diags, "loosening", c.path, SeverityError)
+			parent, _ := resolve(t, publishHub, "")
+			for _, k := range parent.Preconditions.Keys() {
+				want, _ := parent.Preconditions.Get(k)
+				got, ok := s.Preconditions.Get(k)
+				if !ok || !reflect.DeepEqual(got.Check, want.Check) || got.OnFail != want.OnFail {
+					t.Fatalf("%s: parent value not kept: %+v, want %+v", k, got, want)
+				}
+			}
+		})
+	}
+
+	hardened := "preconditions:\n" +
+		"  clean: { check: { git_clean: true, tools: [make] }, label: { fr: Propre, en: Clean } }\n" +
+		"  branch: { check: { branch: [\"release/v*\"] } }\n" +
+		"  tools: { check: { tools: [git, bd, gh] } }\n" +
+		"  file: { check: { path_exists: [CHANGELOG.md] } }\n" +
+		"  extra: { check: { tools: [glab] }, on_fail: block }\n"
+	s, diags := resolve(t, publishHub, hardened)
+	for _, d := range diags {
+		if d.Severity == SeverityError {
+			t.Fatalf("hardening refused: %v", d)
+		}
+	}
+	if b, _ := s.Preconditions.Get("branch"); !reflect.DeepEqual(b.Check.Branch, []string{"release/v*"}) {
+		t.Fatalf("narrowed branch not applied: %v", b.Check.Branch)
+	}
+	if c, _ := s.Preconditions.Get("clean"); !c.Check.GitClean || !reflect.DeepEqual(c.Check.Tools, []string{"make"}) || c.Label.Text("fr") != "Propre" {
+		t.Fatalf("hardened check or label not applied: %+v", c)
+	}
+	if _, ok := s.Preconditions.Get("extra"); !ok {
+		t.Fatal("added precondition dropped")
+	}
+
+	// Outside publish, a layer still removes or replaces a precondition.
+	writeHub := vHeader + "risk: write\n" + hubPre
+	s, diags = resolve(t, writeHub, "preconditions:\n  clean: { disabled: true }\n  branch: { check: { branch: [\"*\"] }, on_fail: suggest }\n")
+	for _, d := range diags {
+		if d.Severity == SeverityError {
+			t.Fatalf("write workflow: %v", d)
+		}
+	}
+	if _, ok := s.Preconditions.Get("clean"); ok {
+		t.Fatal("write workflow: precondition not removed")
+	}
+	if b, _ := s.Preconditions.Get("branch"); b.OnFail != OnFailSuggest {
+		t.Fatalf("write workflow: on_fail not replaced: %s", b.OnFail)
+	}
+}

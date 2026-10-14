@@ -80,13 +80,13 @@ func PublishLockedByDefault(wf *sessionspec.WorkflowRuntime) []sessionspec.Permi
 	return out
 }
 
-// tagWaitsForCommit reports whether the tag stays locked although its
+// TagWaitsForCommit reports whether the tag stays locked although its
 // checkpoint was passed: the same checkpoint unlocked the commit and the
 // release is not committed yet (its window is open). The tag then always
 // marks the release commit, never the commit before it. A checkpoint
 // passed again right on the commit that closed its previous commit window
 // (the release is committed, nothing new) does not hold the tag back.
-func tagWaitsForCommit(st *domain.CheckpointState) bool {
+func TagWaitsForCommit(st *domain.CheckpointState) bool {
 	tag, tagOpen := unlocked(st, sessionspec.UnlockTag)
 	commit, commitOpen := unlocked(st, sessionspec.UnlockCommit)
 	if !tagOpen || !commitOpen || !strings.EqualFold(tag.Checkpoint, commit.Checkpoint) {

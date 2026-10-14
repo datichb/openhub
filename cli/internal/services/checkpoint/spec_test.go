@@ -17,6 +17,9 @@ import (
 
 // R4: cp-spec checks the spec written under docs/wiki/specs/ (glossary,
 // criteria with test points), cp-converge its breakdown; nothing else runs.
+// p4-debts: and the format of the wiki (frontmatter, confidence tags).
+
+const specFM = "---\nupdated: 2026-10-14\nconfidence: mixed\nagents: [planner]\n---\n"
 
 func specWorkflow() *sessionspec.WorkflowRuntime {
 	paths := []string{"docs/wiki/specs/**"}
@@ -54,14 +57,14 @@ func TestSpecChecks(t *testing.T) {
 	assert.Contains(t, err.Error(), "aucune spec modifiée sous docs/wiki/specs/**")
 
 	changed = []string{"docs/wiki/specs/percent.md"}
-	write("# Spec\n## Critères d'acceptation\n- CA-1 total nul : erreur\n- CA-2 plafond · Test : TestPercent_Cap\n")
+	write(specFM + "# Spec\n## Critères d'acceptation\n- CA-1 total nul : erreur\n- CA-2 plafond · Test : TestPercent_Cap\n")
 	_, err = svc.Reached(ctx, "ses_s", Call{ID: "cp-spec"})
 	require.ErrorIs(t, err, ErrVerifyFailed)
 	assert.Contains(t, err.Error(), "spec incomplète : 2 problème(s)")
 	assert.Contains(t, err.Error(), "docs/wiki/specs/percent.md : pas de section « Glossaire »")
 	assert.Contains(t, err.Error(), "CA-1 ne nomme pas son point de test")
 
-	body := "# Spec\n## Glossaire\n- **Part** : la valeur\n## Critères d'acceptation\n- CA-1 total nul · Test : TestPercent_Zero\n- CA-2 plafond · Test : TestPercent_Cap\n"
+	body := specFM + "# Spec\n## Glossaire\n- **Part** : la valeur\n## Critères d'acceptation\n- CA-1 total nul · Test : TestPercent_Zero\n- CA-2 plafond · Test : TestPercent_Cap\n"
 	write(body)
 	_, err = svc.Reached(ctx, "ses_s", Call{ID: "cp-spec"})
 	require.NoError(t, err)
@@ -69,6 +72,34 @@ func TestSpecChecks(t *testing.T) {
 	require.True(t, ok)
 	assert.Equal(t, domain.VerifyPassed, r.Status)
 	assert.Equal(t, 0, ex.count(), "no command run")
+
+	// The frontmatter of the wiki (p4-debts): keys and values of
+	// doc-wiki-protocol, confidence tags well formed.
+	glossary := strings.TrimPrefix(body, specFM)
+	for _, c := range []struct{ fm, want string }{
+		{"", "pas de frontmatter (updated, confidence, agents)"},
+		{"---\nupdated: 2026-10-14\nconfidence: high\nagents: [planner]\n---\n", "confidence « high » n'est ni confirmed, ni mixed, ni uncertain"},
+		{"---\nupdated: hier\nconfidence: mixed\nagents: [planner]\n---\n", "updated « hier » n'est pas une date AAAA-MM-JJ"},
+		{"---\nupdated: 2026-10-14\nconfidence: mixed\n---\n", "agents est vide"},
+		{"---\nupdated: 2026-10-14\nconfidence: mixed\nagents: [planner]\nstatus: draft\n---\n", "clé « status » hors du format du wiki"},
+		{"---\nupdated: 2026-10-14\nconfidence: [mixed\n---\n", "frontmatter illisible"},
+	} {
+		write(c.fm + glossary)
+		_, err = svc.Reached(ctx, "ses_s", Call{ID: "cp-spec"})
+		require.ErrorIs(t, err, ErrVerifyFailed, c.want)
+		assert.Contains(t, err.Error(), "docs/wiki/specs/percent.md : "+c.want)
+	}
+	write(specFM + glossary + "- CA-3 arrondi · Test : TestPercent_Round — `CONFIRMÉ` planner\n")
+	_, err = svc.Reached(ctx, "ses_s", Call{ID: "cp-spec"})
+	require.ErrorIs(t, err, ErrVerifyFailed, "a malformed confidence tag")
+	assert.Contains(t, err.Error(), "docs/wiki/specs/percent.md:12 : ")
+	write("---\nupdated: 2026-10-14\nconfidence: confirmed\nagents: [planner]\n---\n" + glossary + "- CA-3 arrondi · Test : TestPercent_Round — `DÉDUIT` · planner · 2026-10-14\n")
+	_, err = svc.Reached(ctx, "ses_s", Call{ID: "cp-spec"})
+	require.ErrorIs(t, err, ErrVerifyFailed, "confidence above the tags of the page")
+	assert.Contains(t, err.Error(), "confidence confirmed, les tags de la page donnent mixed")
+	write(body)
+	_, err = svc.Reached(ctx, "ses_s", Call{ID: "cp-spec"})
+	require.NoError(t, err)
 
 	write(body + "## Découpage\n- T1 · Couvre : CA-1\n- T2 · la doc\n")
 	_, err = svc.Reached(ctx, "ses_s", Call{ID: "cp-converge"})
