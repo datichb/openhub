@@ -1,0 +1,40 @@
+id: S20
+title: "Spec : « réservation » désigne deux choses (prêt et file d'attente) ; l'incohérence est relevée et la spec écrite porte un glossaire"
+workflow: spec
+mode: semi-auto
+# Le démon ne garde aucun rapport : le planner rend son retour complet.
+reports: off
+text: "Limiter à 3 le nombre de réservations en cours par abonné : au-delà, la réservation est refusée avec un message clair."
+beads:
+  prefix: ev
+timeout: 25m
+answers:
+  question: first
+  checkpoints:
+    # La création des tickets n'est pas évaluée ici.
+    cp-tickets: "reject: Évaluation terminée : ne crée aucun ticket et termine le workflow."
+    "*": approve
+# R1-a, cible de R4 (0/3 sur cadrage) : dans le code, Reserve crée un prêt
+# (Loan) alors que le type Reservation est une file d'attente sur un livre
+# déjà prêté ; l'abonné de la demande est l'adhérent (Member) du code,
+# appelé aussi emprunteur (BorrowerID). Le cas attend que le double sens de
+# « réservation » soit demandé à l'utilisateur, et que la spec écrite sous
+# docs/wiki/specs/ porte un glossaire qui le définit.
+assertions:
+  - type: text_matches
+    name: le sens de « réservation » (prêt ou file d'attente) est une question posée à l'utilisateur
+    agent: conductor
+    questions: true
+    pattern: "\"question\": ?\"[^\"]*(r[ée]serv[^\"]*(pr[êe]t|emprunt|Loan|file d|Queue)|(pr[êe]t|emprunt|Loan|file d|Queue)[^\"]*r[ée]serv)"
+  - type: file_matches
+    name: la spec écrite porte un glossaire qui définit « réservation »
+    paths: ["docs/wiki/specs/**"]
+    pattern: "glossa(ire|ry)[\\s\\S]*\\n[^\\n]*r[ée]servation[^\\n]*(pr[êe]t|emprunt|Loan|file|Queue)"
+  - type: no_question_in_subagent
+    agents: [planner, designer]
+  - type: changed_within
+    name: seule la spec est écrite
+    paths: ["docs/wiki/specs/**"]
+    min_files: 1
+    max_files: 1
+  - type: no_denied_loop

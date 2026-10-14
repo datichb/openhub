@@ -1,0 +1,51 @@
+id: S29
+title: "Spec : la spec n'est écrite que sous docs/wiki/specs/, commitée après cp-spec, et les tickets créés après cp-tickets la citent"
+workflow: spec
+mode: semi-auto
+reports: off
+text: "Ajouter à calc une fonction Mul(a, b int) int et une fonction Square(n int) int qui s'appuie sur Mul, chacune avec son test."
+beads:
+  prefix: ev
+timeout: 25m
+answers:
+  question: first
+  checkpoints:
+    "*": approve
+# R4 (E8, CP-R1) : le planner, en lecture seule ailleurs, écrit sa spec dans
+# le wiki et la commite seule (git commit -- <chemin>) une fois cp-spec
+# passé ; oh vérifie la spec avant de la montrer (cp-converge) ; les
+# tickets, un par tranche, ne sont créés qu'après cp-tickets et citent la
+# spec.
+assertions:
+  - type: checkpoint_order
+    order: [cp-understanding, cp-converge, cp-spec, cp-tickets]
+  - type: ran
+    name: pas de commit avant cp-spec
+    command: "git commit*"
+    absent: true
+    before: { checkpoint_passed: cp-spec }
+  - type: ran
+    name: le planner commite la spec seule
+    agent: planner
+    command: "git commit*-- docs/wiki/specs/*"
+  - type: ran
+    name: pas de ticket avant cp-tickets
+    command: "bd create*"
+    absent: true
+    before: { checkpoint_passed: cp-tickets }
+  - type: ran
+    name: les tickets créés citent la spec
+    agent: planner
+    command: "bd *docs/wiki/specs/*"
+  - type: file_matches
+    name: le découpage relie chaque tranche à ses critères
+    paths: ["docs/wiki/specs/**"]
+    pattern: "(?m)^#+[^\\n]*d[ée]coupage[\\s\\S]*\\n[^\\n]*couvre ?:[^\\n]*CA-\\d"
+  - type: no_question_in_subagent
+    agents: [planner, designer]
+  - type: changed_within
+    name: seule la spec est écrite
+    paths: ["docs/wiki/specs/**"]
+    min_files: 1
+    max_files: 1
+  - type: no_denied_loop
