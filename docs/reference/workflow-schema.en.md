@@ -4,7 +4,7 @@
 
 A workflow is a YAML file `apiVersion: oh/v1`, `kind: Workflow`, named `<id>.yaml`. This page describes every field: type, values, effective value when the field is absent, behavior in a patch (`extends`) and locking (`enforce`).
 
-The schema is **frozen** (`cli/internal/workflow/schema.go`, type `Spec`): it only changes through optional additions. Additions made after the freeze: `risk: plan`, `preconditions`, `enforce`, `limits.models`, `limits.max_fix_rounds`, `entry.selectable`, `checkpoints.<id>.verify` and `checkpoints.<id>.when` (R3), `checkpoints.<id>.by` (L3), `checkpoints.<id>.wiki` (LD-D), `checkpoints.<id>.method` and the `must_touch_tests`, `outside_tests`, `since` fields of `verify` (R7). Decision: [ADR-039](../architecture/adr/039-declarative-workflows-oh-v1.en.md).
+The schema is **frozen** (`cli/internal/workflow/schema.go`, type `Spec`): it only changes through optional additions. Additions made after the freeze: `risk: plan`, `preconditions`, `enforce`, `limits.models`, `limits.max_fix_rounds`, `entry.selectable`, `checkpoints.<id>.verify` and `checkpoints.<id>.when` (R3), `checkpoints.<id>.by` (L3), `checkpoints.<id>.wiki` (LD-D), `checkpoints.<id>.method` and the `must_touch_tests`, `outside_tests`, `since` fields of `verify` (R7), `agents.<id>.writes` and `verify.spec` (R4). Decision: [ADR-039](../architecture/adr/039-declarative-workflows-oh-v1.en.md).
 
 See also: [shipped workflows](workflows.en.md) · [team workflows](../guides/team-workflows.en.md) · [workflows CLI](cli-workflows.en.md).
 
@@ -296,6 +296,7 @@ The key is the id of an agent of the brick catalogue (hub + team), in kebab-case
 | `after` | text | checkpoint or agent id | no gate | the agent can only be called after this checkpoint or agent (`after_unknown`, `after_cycle`) |
 | `calls` | list | agent ids of the workflow | `task` permission of the agent, restricted to the workflow | allowed delegations (`calls_unknown`, `graph_cycle`) |
 | `scratch` | table | `{ readers: [<agent>…] }` | no scratch folder | session scratch folder of the agent (see [below](#scratch-session-scratch-folders)) |
+| `writes` | list | paths under `docs/`: a file, or a folder ending in `/**` | no write opened | documentation paths the agent may write and commit (see [below](#writes-documentation-paths)) |
 
 - **Graph**: `calls` when written, otherwise the agent's `task` permission, limited to the members. A self-delegation is only kept when written (`reviewer: { calls: [reviewer] }`). The maximum depth of the graph becomes opencode's `experimental.subagent_depth`.
 - **Patch**: merged by id, field by field; `role: disabled` removes the agent (except the entry agent) and drops it from the `calls` lists of the others. `after` cannot be removed nor moved earlier (only to a checkpoint declared later); `calls` written by the parent may only shrink (subset); an added agent is accepted.
@@ -319,6 +320,27 @@ The agent gets a scratch folder for the session: `~/.oh/sessions/<session>/scrat
 - The rules are oh guards, placed after the rules of each agent (see [security](../../SECURITY.md)): an agent rule that allows everything does not loosen them. The shell never reaches the folder, the owner included: a shell rule follows the raw text of the command, an allow by path would allow any command naming it.
 - A scratch file is never cited in the documentation or the wiki: a content lint checks it (`TestScratchNeverInTheDocs`).
 - Patch: `scratch: null` removes the folder, a shorter `readers` list hardens, a reader the parent does not declare is a loosening (`loosening`); a folder added by the layer is accepted. A disabled agent leaves the readers.
+
+### `writes` (documentation paths)
+
+```yaml
+risk: plan
+agents:
+  planner: { role: workflow, writes: ["docs/wiki/specs/**"] }
+```
+
+E8 (R4): an agent that changes no file (the `planner`) may write the declared documentation paths, and only them. The bundle adds, after the agent's own rules and before the guards of oh:
+
+| Action | Rule |
+|---|---|
+| `edit`, `write` | the declared paths (`docs/wiki/specs/**` becomes `docs/wiki/specs/*`) |
+| shell | `git add [--] <path>` and `git commit -m <message> -- <path>`: only these paths are committed |
+| shell, refused | `git commit --amend`, `-a`/`--all`, `--include`/`-i`, `--only`/`-o`, `-C`, `git add -A`/`--all`/`-u`/`.`/`-f` (they would take in the user's work) |
+
+- The commit stays locked until the checkpoint that unlocks it (`unlocks: [commit]`); the guards of oh (`.git/`, `.beads/`, hooks, `--no-verify`, scratch folders, global guard) come after and win. Like the other guards, rules on the raw text of the commands: a guard rail, not a sandbox.
+- The session contract of the agent lists its writes, the workflow map recalls them, and the `writes` condition of blocks (`<!-- oh:when writes -->`) keeps a text in those sessions only: the planner of `cadrage` keeps its “you never change files” prompt.
+- Paths: relative, under `docs/`, a file or a folder ending in `/**`, no other wildcard (`writes_path_invalid`), each once (`duplicate_entry`); refused in a `risk: read` workflow (`writes_read_only`).
+- Patch, **narrowing only**: a team or project layer keeps, removes or narrows the inherited paths (`docs/wiki/specs/team/**` under `docs/wiki/specs/**`, `writes: []`); a path the parent does not cover, or `writes` on an agent that had none or on an agent added by the layer, is a loosening (`loosening`), and the parent's list is kept.
 
 ---
 
@@ -346,7 +368,7 @@ The id is in kebab-case (`checkpoint_id_invalid`) and must not be an agent id (`
 | `remote` | text | `auto` < `defer` < `forbid` | `defer` | hardens |
 | `unlocks` | list | `commit`, `push`, `close`, `create`, `apply` | — (nothing locked) | added to the inherited list (never removed) |
 | `disabled` | boolean | `true` | — | removes the inherited checkpoint (patch only; refused when it carries `verify`) |
-| `verify` | object | `from`, `kinds`, `cmd`, `expect`, `in`, `timeout`, `must_touch`, `must_touch_tests`, `outside_tests`, `since` | no verification | hardens (an inherited verification is never removed nor weakened) |
+| `verify` | object | `from`, `kinds`, `cmd`, `expect`, `in`, `timeout`, `must_touch`, `must_touch_tests`, `outside_tests`, `since`, `spec` | no verification | hardens (an inherited verification is never removed nor weakened) |
 | `when` | object | `entry`, `labels`, `paths`, `outputs` | no condition | hardens (inherited conditions kept) |
 | `by` | list | member agents of the workflow | deduced from the graph: the agents that launch an agent gated by this checkpoint (`after:`), else the entry agent | replaces |
 | `wiki` | text | `sync` | the card shows the wiki proposals of the session | replaces |
@@ -373,13 +395,18 @@ The id is in kebab-case (`checkpoint_id_invalid`) and must not be an agent id (`
       must_touch_tests: true      # … and a test file of the stack (R7)
       outside_tests: warn         # files outside the tests: warn (noted) | refuse
       since: cp-seams             # changes counted from the last pass of this checkpoint
+      spec:                       # specs written by the session (R4)
+        paths: ["docs/wiki/specs/**"]
+        breakdown: true           # and their breakdown (convergence pass)
 ```
 
 Before the checkpoint passes, and before its unlocks open, oh runs the commands (cleaned environment, bounded timeout and output); a failure refuses it (`ErrVerifyFailed`, with an output excerpt). At a paused checkpoint, the user sees the result on the card and may **override** it (traced choice). `cmd` only comes from the workflow document: never from the agent nor from an input. In a `risk: read` workflow, a verified checkpoint always asks the user. Details: [Checkpoints](checkpoints.en.md#verification-run-by-oh-verify).
 
-Diagnostics: `verify_empty` (neither `from` nor `cmd`), `enum_invalid` (`from`, `kinds`, `expect`), `field_ignored` (`kinds` without `from`), `verify_cmd_template`, `verify_in_invalid`, `verify_timeout_invalid`, `field_required` (empty command or path). Fields of the test written first (R7): `must_touch_tests` requires a test file of the stack to be changed (patterns of `bricks.TestFilePatterns`: `*_test.go`, `*.test.*`, `*.spec.*`, `test_*.py`, `**/tests/**`, `**/src/test/**`…); `outside_tests` says what the other changed files do (`warn`: noted on the result; `refuse`: refused; absent: nothing); `since` counts the changes from the commit recorded at the last pass of a checkpoint declared before (else from the start of the session). With `expect: fail`, oh first runs the commands that build the code (`build`, `typecheck`, `lint`), which must pass, then the tests, which must fail when they run, not when they compile. Diagnostics: `verify_outside_tests_ignored` (warning: `outside_tests` without `must_touch_tests`), `verify_since_unknown`, `verify_since_method` (the `since` checkpoint only exists in a method this checkpoint does not have). Details: [Checkpoints](checkpoints.en.md#tdd-method-cp-seams-and-cp-red-r7).
+Diagnostics: `verify_empty` (neither `from`, nor `cmd`, nor `spec`), `enum_invalid` (`from`, `kinds`, `expect`), `field_ignored` (`kinds` without `from`), `verify_cmd_template`, `verify_in_invalid`, `verify_timeout_invalid`, `field_required` (empty command or path). Fields of the test written first (R7): `must_touch_tests` requires a test file of the stack to be changed (patterns of `bricks.TestFilePatterns`: `*_test.go`, `*.test.*`, `*.spec.*`, `test_*.py`, `**/tests/**`, `**/src/test/**`…); `outside_tests` says what the other changed files do (`warn`: noted on the result; `refuse`: refused; absent: nothing); `since` counts the changes from the commit recorded at the last pass of a checkpoint declared before (else from the start of the session). With `expect: fail`, oh first runs the commands that build the code (`build`, `typecheck`, `lint`), which must pass, then the tests, which must fail when they run, not when they compile. Diagnostics: `verify_outside_tests_ignored` (warning: `outside_tests` without `must_touch_tests`), `verify_since_unknown`, `verify_since_method` (the `since` checkpoint only exists in a method this checkpoint does not have). Details: [Checkpoints](checkpoints.en.md#tdd-method-cp-seams-and-cp-red-r7).
 
-In a patch, the inherited verification may only be hardened (same `from`, `expect`, `in` and `since`, kinds, commands and paths kept, `must_touch_tests` kept, `outside_tests` at least as strict — absent < `warn` < `refuse` —, a timeout at least as long): otherwise `loosening`; removing the checkpoint: `verified_checkpoint_removed`.
+Written specs (R4): with `spec`, oh reads the `.md` files the session changed under `paths` (a link is not followed) and checks (`internal/specdoc`) a “Glossaire” section that defines at least one term, “Critères d'acceptation” that each carry a `CA-n` id and, on their line, their test point (`· Test : <test or command>`, a real value: neither empty nor “à définir”) and, with `breakdown: true`, a “Découpage” section whose slices each cite the criteria they cover (`Couvre : CA-1, CA-2`): every criterion covered, no slice without a criterion nor an unknown criterion. Lists and tables are read, headings in French or English (`Glossary`, `Acceptance criteria`, `Breakdown`). No spec changed, or a problem: the verification fails with the list of problems. `spec` alone is enough (no `from` nor `cmd`); diagnostics `field_required` (empty `paths`), `verify_spec_path_invalid`.
+
+In a patch, the inherited verification may only be hardened (same `from`, `expect`, `in` and `since`, kinds, commands and paths kept, `must_touch_tests` kept, `outside_tests` at least as strict — absent < `warn` < `refuse` —, a timeout at least as long, the `spec` paths and `breakdown` kept): otherwise `loosening`; removing the checkpoint: `verified_checkpoint_removed`.
 
 ### `when` — conditions evaluated by oh
 
@@ -530,6 +557,8 @@ A diagnostic has a severity (error or warning), a code, the field path, the sour
 | `entry_not_primary`, `entry_role`, `entry_disabled`, `agent_unknown`, `agent_unreachable` | invalid entry agent or member |
 | `after_unknown`, `after_cycle`, `calls_unknown`, `graph_cycle` | `after` gates and delegations |
 | `scratch_reader_unknown`, `scratch_reader_owner` | scratch reader not in the workflow, or the owner itself |
+| `writes_path_invalid`, `writes_read_only` | write path outside `docs/` or with a wildcard other than `/**`; `writes` in a `risk: read` workflow |
+| `verify_spec_path_invalid` | `verify.spec` path absolute or outside the location |
 | `checkpoint_agent_clash`, `checkpoint_mode_unknown`, `checkpoint_mode_missing`, `checkpoint_condition_missing`, `mandatory_checkpoint_removed`, `unlocking_checkpoint_removed`, `unlock_duplicate`, `unlock_unknown`, `unlock_skip`, `unlock_push_without_publish`, `patch_unknown_checkpoint`, `checkpoint_by_unknown`, `checkpoint_by_duplicate`, `checkpoint_wiki_commit`, `headless_checkpoint_pause` | checkpoints |
 | `verify_empty`, `verify_cmd_template`, `verify_in_invalid`, `verify_timeout_invalid`, `verified_checkpoint_removed`, `when_empty`, `when_mandatory`, `when_unknown_agent`, `when_unknown_output`, `pause_budget_exceeded` | verification run by oh, conditions, pause budget (R3) |
 | `method_input_type`, `checkpoint_method_no_input`, `checkpoint_method_mandatory`, `checkpoint_method_after`, `verify_since_unknown`, `verify_since_method`, `verify_outside_tests_ignored` | method of the session and test written first (R7) |

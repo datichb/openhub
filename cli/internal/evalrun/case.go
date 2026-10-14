@@ -92,6 +92,9 @@ type Answers struct {
 	// Checkpoints by id ("*" = any other): approve | fix | reject | other,
 	// optionally with a message after a colon ("fix: add a test").
 	Checkpoints map[string]string `yaml:"checkpoints" json:"checkpoints,omitempty"`
+	// Sequence lists, by checkpoint id, the answers to its first asks, in
+	// order (same format); once they are used, Checkpoints answers.
+	Sequence map[string][]string `yaml:"sequence" json:"sequence,omitempty"`
 	// Permission: once (default) | reject.
 	Permission string `yaml:"permission" json:"permission,omitempty"`
 	// Question: "first" (default: first option) or a free answer.
@@ -188,6 +191,13 @@ func (c *Case) Validate() error {
 	for id, v := range c.Answers.Checkpoints {
 		if _, _, err := ParseChoice(v); err != nil {
 			errs = append(errs, fmt.Errorf("answers.checkpoints.%s: %w", id, err))
+		}
+	}
+	for id, vs := range c.Answers.Sequence {
+		for i, v := range vs {
+			if _, _, err := ParseChoice(v); err != nil {
+				errs = append(errs, fmt.Errorf("answers.sequence.%s[%d]: %w", id, i, err))
+			}
 		}
 	}
 	switch c.Answers.Permission {

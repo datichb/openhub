@@ -23,6 +23,7 @@ const (
 	AssertNoDeniedLoop         = "no_denied_loop"          // a refused call is not retried in a loop
 	AssertTextMatches          = "text_matches"            // an agent wrote (or never wrote) a text
 	AssertCalled               = "called"                  // a tool was called (before an event)
+	AssertFileMatches          = "file_matches"            // a file changed in the clone holds a text
 )
 
 // Assertion is a check of a case (`type:` and its parameters).
@@ -73,6 +74,9 @@ type Assertion struct {
 	// fields and options).
 	Pattern   string `yaml:"pattern" json:"pattern,omitempty"`
 	Questions bool   `yaml:"questions" json:"questions,omitempty"`
+	// file_matches: Pattern (case-insensitive) is searched in the files of
+	// the clone changed since the fixture that match Paths (globs); one
+	// match is enough, Absent inverts it.
 }
 
 // Anchor selects the first event of a kind in a trace.
@@ -163,6 +167,18 @@ func (a Assertion) Validate() error {
 		if _, err := regexp.Compile("(?i)" + a.Pattern); err != nil || a.Pattern == "" {
 			return fmt.Errorf("pattern: a regular expression (%v)", err)
 		}
+	case AssertFileMatches:
+		if len(a.Paths) == 0 {
+			return errors.New("paths lists the files")
+		}
+		for _, p := range a.Paths {
+			if _, err := path.Match(strings.ReplaceAll(p, "**", "*"), ""); err != nil {
+				return fmt.Errorf("path %q: %w", p, err)
+			}
+		}
+		if _, err := regexp.Compile("(?i)" + a.Pattern); err != nil || a.Pattern == "" {
+			return fmt.Errorf("pattern: a regular expression (%v)", err)
+		}
 	default:
 		return fmt.Errorf("unknown assertion type %q", a.Type)
 	}
@@ -211,6 +227,11 @@ func (a Assertion) Label() string {
 			return "never wrote /" + a.Pattern + "/"
 		}
 		return "wrote /" + a.Pattern + "/"
+	case AssertFileMatches:
+		if a.Absent {
+			return strings.Join(a.Paths, ", ") + " without /" + a.Pattern + "/"
+		}
+		return strings.Join(a.Paths, ", ") + " holds /" + a.Pattern + "/"
 	}
 	return a.Type
 }
@@ -223,6 +244,9 @@ type Evidence struct {
 	Changed []string
 	// HiddenTests runs the hidden tests on the clone (nil: not available).
 	HiddenTests func() (ok bool, detail string, err error)
+	// ReadFile reads a file of the clone, relative to its root (nil: not
+	// available).
+	ReadFile func(rel string) ([]byte, error)
 }
 
 // AssertionResult is the outcome of one assertion on one pass.
@@ -270,6 +294,8 @@ func check(a Assertion, ev Evidence) (pass bool, detail string) {
 		return checkText(a, ev.Events)
 	case AssertCalled:
 		return checkCalled(a, ev.Events)
+	case AssertFileMatches:
+		return checkFileMatches(a, ev)
 	}
 	return false, "unknown assertion type " + a.Type
 }
@@ -678,4 +704,41 @@ func checkText(a Assertion, evs []sessionsvc.TraceEvent) (pass bool, detail stri
 		return true, ""
 	}
 	return false, "never written"
+}
+
+// checkFileMatches looks for the pattern in the changed files of the clone
+// that match the paths.
+func checkFileMatches(a Assertion, ev Evidence) (pass bool, detail string) {
+	if ev.ReadFile == nil {
+		return false, "clone not available"
+	}
+	re := regexp.MustCompile("(?i)" + a.Pattern)
+	var seen []string
+	for _, f := range ev.Changed {
+		ok := false
+		for _, p := range a.Paths {
+			ok = ok || globMatch(p, f)
+		}
+		if !ok {
+			continue
+		}
+		data, err := ev.ReadFile(f)
+		if err != nil {
+			continue // deleted
+		}
+		seen = append(seen, f)
+		if re.Match(data) {
+			if a.Absent {
+				return false, "found in " + f
+			}
+			return true, f
+		}
+	}
+	switch {
+	case a.Absent:
+		return true, ""
+	case len(seen) == 0:
+		return false, "no changed file matches " + strings.Join(a.Paths, ", ")
+	}
+	return false, "not found in " + strings.Join(seen, ", ")
 }

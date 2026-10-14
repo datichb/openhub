@@ -50,7 +50,7 @@ type Risk string
 
 const (
 	RiskRead    Risk = "read"    // no file edits, no Beads writes
-	RiskPlan    Risk = "plan"    // no file edits, Beads writes limited to beads.allow
+	RiskPlan    Risk = "plan"    // no file edits (but the documentation paths of `writes:`), Beads writes limited to beads.allow
 	RiskWrite   Risk = "write"   // edits files and Beads
 	RiskPublish Risk = "publish" // may push branches or open merge requests
 )
@@ -251,6 +251,14 @@ type AgentRef struct {
 	Calls []string `yaml:"calls,omitempty"`
 	// Scratch gives the agent a session scratch folder (ScratchSpec).
 	Scratch *ScratchSpec `yaml:"scratch,omitempty"`
+
+	// R4 (schema_writes.go): documentation written by a planning agent.
+
+	// Writes lists the documentation paths the agent may write (E8): an
+	// agent refused the edit tools (planner) may edit these paths, and
+	// stage and commit them, and nothing else. A layer may only narrow an
+	// inherited list (WritesCovered).
+	Writes []string `yaml:"writes,omitempty"`
 }
 
 // CheckpointSpec is a gate of the workflow.

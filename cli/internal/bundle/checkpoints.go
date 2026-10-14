@@ -248,6 +248,9 @@ func applyCheckpointVerify(rt *sessionspec.WorkflowRuntime, s *workflow.Spec) {
 					d.Kinds = append(d.Kinds, string(k))
 				}
 			}
+			if c := v.Spec; c != nil {
+				d.Spec = &sessionspec.SpecCheckDef{Paths: append([]string(nil), c.Paths...), Breakdown: c.Breakdown}
+			}
 			def.Verify = d
 		}
 		if w := cp.When; !w.IsZero() {

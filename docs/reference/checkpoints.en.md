@@ -33,6 +33,7 @@ A conditional checkpoint is listed with "if its condition holds". Repeated check
 | `ticket` | `cp-2` | `cp-2` | 3 |
 | `ticket`, `tdd` method | `cp-seams`, `cp-2` | `cp-2` | 3 + 1 |
 | `cadrage` | `cp-scope`, `cp-tickets`, `cp-recap` | `cp-tickets` | 3 |
+| `spec` | `cp-understanding`, `cp-spec`, `cp-tickets` (`cp-converge` is checked by oh, without a pause) | `cp-spec`, `cp-tickets` | 4 |
 | `sweep` | `cp-plan`, `cp-commit`, `cp-recap` | `cp-commit` | 3 |
 | `review-feedback` | `cp-fix`, `cp-2` | `cp-2` | 3 |
 | `quick` | `cp-commit` | `cp-commit` | 3 |
@@ -94,6 +95,8 @@ In a read-only workflow (`risk: read`), a verified checkpoint always asks the us
 **Loosening**: a team or project layer may harden an inherited verification (more kinds, commands, `must_touch` paths, a longer timeout), never remove nor weaken it (`loosening`); removing a verified checkpoint is refused (`verified_checkpoint_removed`).
 
 The shipped workflows verify `cp-2` (`ticket`, `feature`, `review-feedback`) and `cp-commit` (`quick`, `debug`, `sweep`) this way.
+
+**Written specs (`verify.spec`, R4)**: instead of commands, oh reads the specs the session changed under the given paths and checks their glossary, the test point on the line of each criterion (`CA-n · Test : …`) and, with `breakdown: true`, that the breakdown covers every criterion with no slice outside the spec ([format](workflow-schema.en.md#verify--verification-run-by-oh)). The `spec` workflow uses it three times: `cp-converge` (automatic in every mode: the convergence pass, which sends a gap back to the planner without a pause), then `cp-spec` and `cp-tickets` (same check before the commit and the creation of the tickets).
 
 ### Remote sessions
 

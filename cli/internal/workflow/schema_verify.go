@@ -52,6 +52,13 @@ type VerifySpec struct {
 	// Since counts the changes from the commit of the location when this
 	// checkpoint was last passed ("" = from the start of the session).
 	Since string `yaml:"since,omitempty"`
+
+	// R4 (schema_writes.go): the specs written by the session.
+
+	// Spec checks the specs the session changed (SpecCheck): a glossary,
+	// acceptance criteria each with its test point and, with breakdown, a
+	// breakdown that covers every criterion and only them.
+	Spec *SpecCheck `yaml:"spec,omitempty"`
 }
 
 // OutsideTests is what a change outside the test files does.
@@ -162,6 +169,9 @@ func (v *VerifySpec) Covers(parent *VerifySpec) bool {
 	if (parent.MustTouchTests && !v.MustTouchTests) || v.OutsideTests.rank() < parent.OutsideTests.rank() || v.Since != parent.Since {
 		return false
 	}
+	if !v.Spec.Covers(parent.Spec) {
+		return false
+	}
 	return containsAll(v.Cmd, parent.Cmd) && containsAll(v.MustTouch, parent.MustTouch) &&
 		v.TimeoutOrDefault() >= parent.TimeoutOrDefault()
 }
@@ -174,6 +184,7 @@ func (v *VerifySpec) clone() *VerifySpec {
 	c.Kinds = cloneSlice(v.Kinds)
 	c.Cmd = cloneSlice(v.Cmd)
 	c.MustTouch = cloneSlice(v.MustTouch)
+	c.Spec = v.Spec.clone()
 	return &c
 }
 

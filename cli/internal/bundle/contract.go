@@ -39,6 +39,8 @@ type contractData struct {
 	Statuses []contractStatuses
 	// Method: the method of the session (R7) and its steps, in order.
 	Method contractMethod
+	// Writes: the documentation paths the workflow opens to the agent (R4).
+	Writes []string
 }
 
 var (
@@ -93,6 +95,7 @@ func contractFor(req Request, wf *sessionspec.WorkflowRuntime, id string, graph,
 	}
 	d.Statuses = calleeStatuses(id, d.Callees, statuses)
 	d.Method = methodContract(req, wf, id, d.Callees)
+	d.Writes = req.writesOf(id)
 	return d
 }
 

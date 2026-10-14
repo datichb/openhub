@@ -130,9 +130,10 @@ func (v *validator) checkpointsVerify() {
 }
 
 func (v *validator) verify(base string, vs *VerifySpec) {
-	if vs.From == "" && len(vs.Cmd) == 0 {
+	if vs.From == "" && len(vs.Cmd) == 0 && vs.Spec == nil {
 		v.err("verify_empty", base)
 	}
+	v.specCheck(base+".spec", vs.Spec)
 	if vs.From != "" {
 		v.enum(base+".from", string(vs.From), vs.From == VerifyFromStack, string(VerifyFromStack))
 	} else if len(vs.Kinds) > 0 {

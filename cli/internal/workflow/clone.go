@@ -27,6 +27,7 @@ func (s *Spec) Clone() *Spec {
 	c.Prompt = clonePtr(s.Prompt)
 	c.Agents = s.Agents.cloneWith(func(a AgentRef) AgentRef {
 		a.Calls = cloneSlice(a.Calls)
+		a.Writes = cloneSlice(a.Writes)
 		if a.Scratch != nil {
 			sc := ScratchSpec{Readers: cloneSlice(a.Scratch.Readers)}
 			a.Scratch = &sc

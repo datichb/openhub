@@ -352,8 +352,15 @@ func (s *Service) runVerify(ctx context.Context, sess *domain.Session, c session
 	if !ok {
 		return failedChanges
 	}
+	if failedSpec, ok := s.specCheck(ctx, sess, v); !ok {
+		return failedSpec
+	}
 	runs := verifyRuns(sess.LaunchPath, dir, v)
-	if len(runs) == 0 {
+	switch {
+	case len(runs) == 0 && v.Spec != nil:
+		// R4: the check of the specs is the verification.
+		return withNote(domain.CheckpointVerify{Status: domain.VerifyPassed}, note)
+	case len(runs) == 0:
 		return withNote(domain.CheckpointVerify{Status: domain.VerifyNone, Reason: i18n.T("tui.checkpoint.verify.no_command")}, note)
 	}
 	red := v.Expect == sessionspec.VerifyFail

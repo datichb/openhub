@@ -42,6 +42,18 @@ type VerifyDef struct {
 	MustTouchTests bool   `json:"must_touch_tests,omitempty"`
 	OutsideTests   string `json:"outside_tests,omitempty"`
 	Since          string `json:"since,omitempty"`
+
+	// R4: Spec checks the specs the session changed (internal/specdoc).
+	Spec *SpecCheckDef `json:"spec,omitempty"`
+}
+
+// SpecCheckDef is the check of the specs written by a session (copied
+// from the oh/v1 schema): the files changed under Paths have a glossary,
+// acceptance criteria each with its test point and, with Breakdown, a
+// breakdown that covers every criterion and only them.
+type SpecCheckDef struct {
+	Paths     []string `json:"paths"`
+	Breakdown bool     `json:"breakdown,omitempty"`
 }
 
 // What a change outside the test files does (copied from the oh/v1 schema).
