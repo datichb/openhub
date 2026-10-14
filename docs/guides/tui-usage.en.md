@@ -163,6 +163,7 @@ The **Detail** pane shows the selected session: workflow, mode, runtime, directo
 | `i` | interrupt the current step |
 | `M` | switch the model for the next steps (`provider/model`) |
 | `s` | stop the session (confirmation) |
+| `B` | validate by batch: the waiting checkpoints of the fan-out of the selected session (else all of them), each one to validate, leave waiting or refuse with an instruction; confirmation, then the result of each one (as `oh session approve --batch`) |
 | `D` | delete the session for good: worktree, local branch (never the remote one), decisions, files (confirmation, "Cancel" focused) |
 | `c` | resume a sleeping session |
 | `o` | results and MR description |
