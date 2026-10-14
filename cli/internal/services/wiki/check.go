@@ -19,7 +19,8 @@ import (
 //
 //   - frontmatter: present, readable, `updated` a date, `confidence` one of
 //     confirmed | mixed | uncertain and consistent with the tags of the
-//     page (the lowest one wins), `agents` set;
+//     page (the lowest one wins), `agents` set; no other key (`synced` in
+//     index.md), a warning, an error in a spec (format.go);
 //   - links: every relative link of a page leads to an existing file (its
 //     anchor to a heading of the page it targets);
 //   - tags: every enrichment line reads `— `TAG` · agent · YYYY-MM-DD[ ·
@@ -164,6 +165,11 @@ func (w *Wiki) Check(ctx context.Context, modified Modified) CheckReport {
 			add(Issue{Page: p.Path, Kind: IssueLayout, Severity: SeverityWarning, Message: i18n.T("wiki.check.layout")})
 		}
 		w.checkFrontmatter(p, add)
+		keys := SeverityWarning
+		if PageKind(p.Path) == KindSpec {
+			keys = SeverityError // the format verify.spec checks
+		}
+		checkFrontmatterKeys(p, keys, add)
 		w.checkLinks(p, anchors, add)
 		files := checkTags(p, add)
 		files = append(files, outLinks(p)...)
