@@ -162,7 +162,9 @@ type FanoutStatus struct {
 
 // FanoutChildStatus is a child in FanoutStatus.
 type FanoutChildStatus struct {
-	Ticket    string   `json:"ticket"`
+	Ticket string `json:"ticket"`
+	// Task is the title of the task of the child (sweep-fanout).
+	Task      string   `json:"task,omitempty"`
 	Session   string   `json:"session,omitempty"`
 	State     string   `json:"state"`
 	Merge     string   `json:"merge,omitempty"`
@@ -180,7 +182,11 @@ func fanoutStatus(sess *domain.Session) *FanoutStatus {
 		st.Branch = f.Integration.Branch
 	}
 	for _, c := range f.Children {
-		st.Children = append(st.Children, FanoutChildStatus{Ticket: c.Ticket, Session: c.Session, State: string(c.State), Merge: short(c.Merge), Conflicts: c.Conflicts, Error: c.Error})
+		task := ""
+		if c.Task != nil {
+			task = c.Task.Title
+		}
+		st.Children = append(st.Children, FanoutChildStatus{Ticket: c.Ticket, Task: task, Session: c.Session, State: string(c.State), Merge: short(c.Merge), Conflicts: c.Conflicts, Error: c.Error})
 	}
 	if f.BudgetUSD > 0 {
 		st.Budget = fmt.Sprintf("%.2f / %.2f USD", f.SpentUSD, f.BudgetUSD)

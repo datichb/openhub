@@ -357,6 +357,9 @@ func (s *Service) runVerify(ctx context.Context, sess *domain.Session, c session
 	if failedSpec, ok := s.specCheck(ctx, sess, v); !ok {
 		return failedSpec
 	}
+	if failedScope, ok := s.scopeCheck(ctx, sess); !ok {
+		return failedScope
+	}
 	runs := verifyRuns(sess.LaunchPath, dir, v)
 	switch {
 	case len(runs) == 0 && v.Spec != nil:
