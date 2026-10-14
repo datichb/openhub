@@ -9,6 +9,18 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ## [Unreleased]
 
+### Added — composition des workflows (lot R5)
+
+- **`next:`** (E4) : un workflow déclare les workflows qui peuvent le suivre (`when: { outputs: […] }`, entrées `session.output(<sortie>)`). oh les propose sans jamais les lancer : à la fermeture du client (`oh run`), avec `oh session next <id>` (nouvelle commande) et en tête de « Enchaîner avec… » dans la TUI. Contrôles : workflow connu, sorties déclarées, entrées existantes et de type compatible.
+- **Sorties relevées par oh** (`outputs[].record`) : `created` et `closed` (tickets créés ou fermés via la passerelle Beads), `spec` (specs validées à un checkpoint `verify.spec`), `report` (dernier rapport déposé). `workflow_outputs` les refuse, la carte du workflow et `workflow_status` ne les présentent plus aux agents. Nouveau type de sortie `report`.
+- **Sources d'entrée** `session.output(<workflow>.<sortie>)` (la session parente, sinon la dernière session du projet de ce workflow) et `session.trace([<workflow>])` (résumé de trace pour une rétrospective).
+- **`aliases:`** (avec `with:` pour router selon une entrée donnée) : ⚠ `cadrage` devient un **alias de `spec`** (`oh run cadrage` lance `spec`). Quand la demande compare des conceptions, `spec` lance d'abord le pathfinder.
+- **Workflow `implement-spec`**, version séquentielle : les tickets d'une spec l'un après l'autre (par défaut, ceux de la dernière session `spec`), `cp-plan` obligatoire, un `cp-2` par ticket, revue de l'ensemble à `cp-final` ; 3 pauses en semi-auto (N + 2 pour N tickets, contre N + 3 dans `feature`). Sessions enfants, parallélisme et merge : R6.
+- `spec` relève sa spec et ses tickets et propose `implement-spec`. Le planner rend son enveloppe à chaque étape.
+- `oh eval` : assertions `output` et `next`, champ de cas `previous:`. Cas S37 à S40 hors mesure de référence ; S5, S15, S19 et S27 lancent `spec` via l'alias (noms d'assertions changés, à remesurer).
+- Évaluations (Haiku ×3) : S3 3/3, S5 3/3, S15 2/3, S19 2/3 (référence 1/3), S27 0/3 (référence 1/3 ; contrainte citée 3/3, mais spec écrite avant `cp-understanding`), S37 2/3, S38 3/3, S39 1/3, S40 3/3. Coût : 7,82 $.
+- **Non fait** : `feature` comme enchaînement `spec` → `implement-spec` et retrait d'`orchestrator` (couches d'équipe migrées qui étendent `hub:feature`, transmission de `method`, `orchestrator` encore entrée de `libre`) ; conception dans `docs/reference/workflows.*`.
+
 ### Changed — re-onboarding par propositions (lot onboarding-refresh)
 
 - **Re-onboarding** (`oh run onboarding -i refresh=true`, ou un onboarding sur un projet qui a déjà `docs/wiki/index.md`) : l'onboarder ne modifie plus aucune page du wiki. Après `wiki_check`, il compare chaque page au code et propose avec `wiki_propose` seulement ce qui a changé (entrée périmée ou contredite, `EXPIRED`/`SUPERSEDED` d'une décision rejetée) ou un élément structurant absent ; un wiki fidèle au code ne reçoit aucune proposition. Plus de question à trois options ni de réécriture complète (supprimer `docs/wiki/` et relancer l'onboarding).
