@@ -20,8 +20,8 @@ import (
 //     in the prompt template;
 //   - for an agent that sets skills_from_callers, the skills its callers
 //     name in their prompt or in the on-demand skills of their catalogue
-//     (sections addressed to another agent aside), their own native skills
-//     aside (a caller names those for itself);
+//     (sections addressed to another agent aside), their own native and
+//     inlined skills aside (a caller names those for itself);
 //
 // and the `requires:` closure of these, then, transitively, the deliverable
 // skills named (invitingText) by an on-demand skill of the catalogue, the
@@ -121,7 +121,7 @@ func addCallerSkills(cats map[string]*agentCatalogue, callers map[string][]strin
 				continue
 			}
 			for _, ref := range cc.named {
-				if !cc.natives[ref] && (c.keep == nil || c.keep(ref)) {
+				if !cc.natives[ref] && !cc.inlined[skillID(ref)] && (c.keep == nil || c.keep(ref)) {
 					c.add(ref)
 				}
 			}
@@ -156,7 +156,7 @@ func offerSkillMentions(cats map[string]*agentCatalogue, callers map[string][]st
 				}
 				body := filterFor(d.Ref, string(d.body()), cc.env)
 				for _, ref := range mentionedSkills(invitingText(body, id, agents), index) {
-					if c.seen[ref] || cc.natives[ref] || bricks.IsStackSkill(ref) || (c.keep != nil && !c.keep(ref)) || !deliverable(l, ref, denied) {
+					if c.seen[ref] || cc.natives[ref] || cc.inlined[skillID(ref)] || bricks.IsStackSkill(ref) || (c.keep != nil && !c.keep(ref)) || !deliverable(l, ref, denied) {
 						continue
 					}
 					if m, err := l.load(ref); err != nil || c.inlined[m.ID] {
