@@ -9,6 +9,13 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ## [Unreleased]
 
+### Changed — re-onboarding par propositions (lot onboarding-refresh)
+
+- **Re-onboarding** (`oh run onboarding -i refresh=true`, ou un onboarding sur un projet qui a déjà `docs/wiki/index.md`) : l'onboarder ne modifie plus aucune page du wiki. Après `wiki_check`, il compare chaque page au code et propose avec `wiki_propose` seulement ce qui a changé (entrée périmée ou contredite, `EXPIRED`/`SUPERSEDED` d'une décision rejetée) ou un élément structurant absent ; un wiki fidèle au code ne reçoit aucune proposition. Plus de question à trois options ni de réécriture complète (supprimer `docs/wiki/` et relancer l'onboarding).
+- **`cp-wiki`**, nouveau checkpoint de commit d'`onboarding` (obligatoire, pause dans tous les modes, `remote: defer`) : la carte montre les propositions de la session (accepter, modifier, refuser), oh applique les acceptées au passage ; puis l'onboarder commite `docs/wiki/` seul (`writes: ["docs/wiki/**"]`). ⚠ La création d'un wiki reste en écriture directe, mais elle passe aussi par ce checkpoint et l'onboarder commite le wiki (avant, le commit revenait à l'utilisateur) ; `ONBOARDING.md`, `CONVENTIONS.md` et le push restent à l'utilisateur. Une pause en semi-auto (CP-R2).
+- **Contrat de session** : la ligne « Écritures » ne dit plus que les chemins `writes:` sont les seuls fichiers modifiables quand les règles propres de l'agent en ouvrent d'autres (onboarder : `ONBOARDING.md`).
+- **Évaluations** : cas S47 (page périmée après un renommage de paquet : dérive relevée, proposition faite, aucune écriture directe avant `cp-wiki`, page corrigée après acceptation) et S48 (wiki à jour : rien de proposé ni d'écrit), hors mesure de référence. S47 0/1 sur `main`, 3/3 puis 3/3 après ; S48 3/4 ; témoin S13 2/2. Onboarder −1,1 % de tokens (`onboarding`), −3,4 % (`libre`). Coût des évaluations du lot : 2,99 $ (Haiku).
+
 ### Fixed — petites dettes de P4 (lot p4-debts)
 
 - **`question` du developer agent d'entrée** : la base `developer-rw` ne refuse plus l'outil ; le developer le garde là où l'utilisateur lui parle (agent d'entrée de `quick`, agent principal indépendant de `debug`), et oh le lui refuse toujours en sous-agent (`ticket`, `feature`, `sweep`, `review-feedback`, `libre`). S10 3/3 (le developer pose sa question avec l'outil dans 2 passages sur 3), S7 3/3, S2 3/3 sans question du sous-agent.
