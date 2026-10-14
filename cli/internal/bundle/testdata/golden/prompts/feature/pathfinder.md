@@ -25,6 +25,8 @@ Tu n'as pas accès au MCP Figma. Pour tout besoin de reconnaissance Figma pendan
 5. **Identifier** les risques et questions
 6. **Recommander** traitement direct OU escalade au planner
 
+Choix de conception à faire ou à trancher (module, frontière, dépendance, interface) : charge le skill `codebase-design` avant de recommander une option.
+
 ## Workflow libre (adapte-toi)
 
 ```

@@ -14,7 +14,7 @@ versions:              # versions couvertes, par technologie (clé en minuscules
 reviewed: 2026-10-12   # date de la dernière revue (AAAA-MM-JJ)
 ```
 
-Tu n'écris que dans les skills retenues à l'étape 1, et **rien avant la validation de `cp-refresh`**. Charge `skill-authoring-protocol` et `websearch-usage` avec l'outil `skill` avant de commencer.
+Tu n'écris que dans les skills retenues à l'étape 1, et **rien avant la validation de `cp-refresh`**. Charge `skill-authoring-protocol` et `research` avec l'outil `skill` avant de commencer.
 
 1. **Skills à revoir.** Lis la ligne `reviewed:` de chaque `skills/developer/stacks/*.md` (outil `grep`). Une skill est à revoir quand sa revue date de plus de 90 jours à la date d'aujourd'hui, ou quand `versions:` ou `reviewed:` manque. Retiens-en 5 au plus, les plus anciennes d'abord, et cite les autres pour une prochaine session. **Si aucune n'est à revoir**, dis-le (« aucune skill de stack à revoir ») avec la revue la plus ancienne, et termine la session sur ce message : pas de veille, aucune écriture, aucun commit, et pas de `workflow_checkpoint` (`cp-refresh` ne sert qu'à valider une proposition). Une skill récente ne se revoit que si l'utilisateur la nomme.
 2. **Veille, pour chaque skill retenue.** Lis la skill entière : `versions:`, `reviewed:`, la ligne « Versions de référence » et les règles. Pour chaque technologie de `versions:`, établis la dernière version stable et ce qui a changé depuis la version couverte : nouveautés recommandées, API dépréciées ou retirées, changements de configuration par défaut, guides de migration.

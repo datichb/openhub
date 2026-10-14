@@ -284,7 +284,7 @@ func TestShippedCases(t *testing.T) {
 			assert.Equal(t, "accept", c.Answers.Wiki, "the proposals on the card are accepted")
 		}
 	}
-	assert.Equal(t, []string{"S1", "S2", "S3", "S4", "S5", "S6", "S7", "S8", "S9", "S10", "S11", "S12", "S13", "S14", "S15", "S16", "S17", "S18", "S19", "S20", "S21"}, ids)
+	assert.Equal(t, []string{"S1", "S2", "S3", "S4", "S5", "S6", "S7", "S8", "S9", "S10", "S11", "S12", "S13", "S14", "S15", "S16", "S17", "S18", "S19", "S20", "S21", "S26", "S27", "S28"}, ids)
 }
 
 func requireGit(t *testing.T) {
@@ -424,6 +424,9 @@ var notInBaseline = map[string]string{
 	"S19": "added by R1-a (cadrage: implicit requirements raised as questions)",
 	"S20": "added by R1-a (cadrage: inconsistent domain vocabulary, glossary)",
 	"S21": "added by R1-a (cadrage: each acceptance criterion has a test point)",
+	"S26": "added by R1-c (review: two axes, conformity and quality)",
+	"S27": "added by R1-c (cadrage: design constrained by depguard)",
+	"S28": "added by R1-c (skill-refresh: skill rewritten, source not copied)",
 }
 
 // The reference measure kept in the repository (make test-eval

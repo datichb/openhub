@@ -1,0 +1,34 @@
+id: S27
+title: "Cadrage : entre deux conceptions, celle qui respecte la frontière du domaine (internal/order sans import interne) est recommandée, contrainte citée"
+workflow: cadrage
+mode: semi-auto
+# La règle depguard de .golangci.yml interdit à internal/order d'importer un
+# autre paquet du module (contrainte écrite seulement là). L'option A (préférée par l'utilisateur) fait importer
+# internal/mail par order ; seule l'option B (interface déclarée dans order,
+# câblée dans cmd/shop) respecte la contrainte.
+text: |
+  Quand une commande est validée (order.Validate), envoyer un e-mail de confirmation au client. J'hésite entre deux conceptions :
+  - Option A : ajouter dans internal/mail une interface mail.Notifier et une fonction mail.Default() ; order.Validate appelle mail.Default().Notify(...). Tout ce qui touche à l'e-mail reste dans mail : c'est ma préférence.
+  - Option B : déclarer une interface Notifier dans internal/order, l'implémenter dans internal/mail et l'injecter depuis cmd/shop.
+  Recommande l'une des deux, en la justifiant par le code existant.
+beads:
+  prefix: ev
+timeout: 20m
+answers:
+  question: first
+  # L'évaluation s'arrête au premier checkpoint (périmètre) : le choix de
+  # conception est dans le rapport d'exploration.
+  checkpoints:
+    "*": "reject: Évaluation terminée : arrête le workflow ici, sans créer de ticket ni modifier de fichier."
+assertions:
+  - type: text_matches
+    name: l'option B est recommandée
+    pattern: "(recommand|préconis|retien|retenu|choisi|choix|privilégi|opte)[^\\n]{0,120}option\\s*B|option\\s*B[^\\n]{0,120}(recommand|préconis|retenu|choisi|privilégi)"
+  - type: text_matches
+    name: la contrainte du code existant est citée
+    pattern: "golangci|depguard"
+  - type: no_question_in_subagent
+    agents: [pathfinder, planner]
+  - type: changed_within
+    name: aucun fichier modifié
+  - type: no_denied_loop

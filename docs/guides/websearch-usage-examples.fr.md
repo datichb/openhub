@@ -465,7 +465,7 @@ oh metrics --period 30d
 ## Ressources
 
 - **Guide intégration** : `docs/guides/websearch-integration.fr.md`
-- **Skill agents** : `skills/shared/websearch-usage.md`
+- **Skill agents** : `skills/shared/research.md`
 - **Configuration** : `oh config websearch --help`
 
 ---

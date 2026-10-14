@@ -481,8 +481,8 @@
         "doc-standards",
         "doc-wiki-protocol",
         "expert-posture",
-        "skill-authoring-protocol",
-        "websearch-usage"
+        "research",
+        "skill-authoring-protocol"
       ]
     }
   ],
@@ -518,13 +518,13 @@
     "orchestrator-dev-routing",
     "orchestrator-dev-ticket-workflow",
     "quick-fix",
+    "research",
     "review-merge",
     "reviewer-adversarial",
     "reviewer-edge-case",
     "reviewer-reception",
     "skill-authoring-protocol",
-    "test-generation",
-    "websearch-usage"
+    "test-generation"
   ],
   "subagent_graph": {
     "developer": [

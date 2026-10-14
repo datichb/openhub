@@ -96,7 +96,7 @@ cd cli && make sync-content && go test ./internal/bundle -run 'Skill|Freshness|B
 
 The budget test (`budget.golden`) shows whether a stack skill grew; an increase is justified in the commit message or the MR.
 
-**Why the `documentarian`?** It already writes the documentation, has the web search (`websearch`, `webfetch`), writes files and commits, and loads `skill-authoring-protocol` (writing a hub skill) and `websearch-usage` (sources, security, reporting). No new agent is needed.
+**Why the `documentarian`?** It already writes the documentation, has the web search (`websearch`, `webfetch`), writes files and commits, and loads `skill-authoring-protocol` (writing a hub skill) and `research` (web research: sources, cross-checking, security, reporting). No new agent is needed.
 
 ## Monthly task
 

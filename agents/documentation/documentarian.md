@@ -30,7 +30,7 @@ permission:
   ctx_batch_execute: allow
   ctx_index: allow
 skills: [shared/universal-guardrails, posture/core-posture, posture/user-facing-posture, shared/handoff-envelope, documentarian/documentarian-payload, documentarian/doc-protocol]
-native_skills: [documentarian/doc-standards, documentarian/doc-adr, documentarian/doc-api, documentarian/doc-changelog, documentarian/doc-slides, documentarian/doc-wiki-protocol, shared/skill-authoring-protocol, shared/rtk-usage, shared/websearch-usage, posture/expert-posture, shared/team-awareness, shared/team-policies-enforcement]
+native_skills: [documentarian/doc-standards, documentarian/doc-adr, documentarian/doc-api, documentarian/doc-changelog, documentarian/doc-slides, documentarian/doc-wiki-protocol, shared/skill-authoring-protocol, shared/rtk-usage, shared/research, posture/expert-posture, shared/team-awareness, shared/team-policies-enforcement]
 project_instructions: index
 ---
 

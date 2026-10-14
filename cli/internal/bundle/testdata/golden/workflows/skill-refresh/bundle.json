@@ -88,8 +88,8 @@
         "doc-standards",
         "doc-wiki-protocol",
         "expert-posture",
-        "skill-authoring-protocol",
-        "websearch-usage"
+        "research",
+        "skill-authoring-protocol"
       ]
     }
   ],
@@ -101,8 +101,8 @@
     "doc-standards",
     "doc-wiki-protocol",
     "expert-posture",
-    "skill-authoring-protocol",
-    "websearch-usage"
+    "research",
+    "skill-authoring-protocol"
   ],
   "subagent_graph": {},
   "max_depth": 1,

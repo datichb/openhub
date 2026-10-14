@@ -1,0 +1,92 @@
+id: S26
+title: "Review sur deux axes : un critère du ticket oublié (conformité) et un affichage de débogage (qualité), chacun dans son axe"
+workflow: review
+mode: semi-auto
+inputs:
+  review_mode: standard
+  branch: feature/div
+  base: main
+# Le ticket ev-1 exige l'erreur exportée ErrDivByZero ; la branche renvoie une
+# erreur anonyme (critère 2 oublié) et laisse un fmt.Println de débogage. Les
+# tests passent : seule la lecture du diff contre le ticket trouve l'écart.
+beads:
+  prefix: ev
+  tickets:
+    - id: ev-1
+      title: "Ajouter la division entière Div"
+      type: feature
+      description: "La bibliothèque calc doit proposer la division entière."
+      acceptance: |
+        1. Div(a, b int) (int, error) renvoie le quotient entier a / b.
+        2. Quand b vaut 0, Div renvoie l'erreur exportée ErrDivByZero, comparable avec errors.Is.
+        3. Chaque cas a un test.
+setup:
+  - |
+    git checkout -q -b feature/div
+    cat > calc.go <<'GO'
+    // Package calc fait des calculs simples sur des entiers.
+    package calc
+
+    import (
+    	"errors"
+    	"fmt"
+    )
+
+    // Add renvoie la somme de a et b.
+    func Add(a, b int) int {
+    	return a + b
+    }
+
+    // Sub renvoie la différence a - b.
+    func Sub(a, b int) int {
+    	return a - b
+    }
+
+    // Div renvoie le quotient entier a / b, ou une erreur si b vaut 0.
+    func Div(a, b int) (int, error) {
+    	if b == 0 {
+    		return 0, errors.New("division par zéro")
+    	}
+    	fmt.Println("Div", a, b)
+    	return a / b, nil
+    }
+    GO
+    cat >> calc_test.go <<'GO'
+
+    func TestDiv(t *testing.T) {
+    	if got, err := Div(7, 2); err != nil || got != 3 {
+    		t.Fatalf("Div(7, 2) = %d, %v ; want 3, nil", got, err)
+    	}
+    	if _, err := Div(1, 0); err == nil {
+    		t.Fatal("Div(1, 0) : erreur attendue")
+    	}
+    }
+    GO
+    git add -A
+    git commit -q --no-verify -m "feat(calc): ajouter Div (ev-1)"
+timeout: 15m
+# Rapports non enregistrés : le rapport complet est dans le texte du reviewer,
+# là où les assertions le lisent.
+reports: off
+answers:
+  question: first
+assertions:
+  - type: text_matches
+    name: le critère oublié (ErrDivByZero) est relevé
+    agent: reviewer
+    pattern: "(?s)ErrDivByZero.{0,300}(❌|⚠️|manqu|absen|oubli|au lieu|non conforme|non (implément|identifi|respect|export)|n'est pas|pas (défini|déclar|implément|export))|(❌|⚠️|manqu|absen|oubli|au lieu|non conforme).{0,300}ErrDivByZero"
+  - type: text_matches
+    name: l'affichage de débogage est relevé
+    agent: reviewer
+    pattern: "Println|débogage|debug"
+  - type: text_matches
+    name: chacun dans son axe (conformité, puis qualité du code)
+    agent: reviewer
+    pattern: "(?s)#[^\\n]*Conformit[ée][^\\n]*\\n.*?ErrDivByZero.*?#[^\\n]*Qualit[ée] du code[^\\n]*\\n.*?(Println|débogage|debug)"
+  - type: text_matches
+    name: verdict « corriger »
+    agent: reviewer
+    pattern: "corriger"
+  - type: changed_within
+    name: aucune modification (lecture seule)
+  - type: no_denied_loop

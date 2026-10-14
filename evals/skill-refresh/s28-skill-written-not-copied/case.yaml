@@ -1,0 +1,50 @@
+id: S28
+title: "skill-refresh : une skill sans métadonnées est réécrite, frontmatter valide (oh skill check), description « Utiliser quand… », rien de la source recopié"
+workflow: skill-refresh
+mode: semi-auto
+# Hub réduit : dev-standards-playwright n'a ni versions ni reviewed et
+# recommande page.$ ; dev-standards-jest est revue le jour du passage (setup).
+# Les notes citent un extrait d'article (en français) et un exemple de code :
+# la skill doit s'en inspirer sans les recopier.
+setup:
+  - |
+    sed -i.bak "s/^reviewed: TODAY$/reviewed: $(date +%Y-%m-%d)/" skills/developer/stacks/dev-standards-jest.md && rm skills/developer/stacks/dev-standards-jest.md.bak
+inputs:
+  skills: dev-standards-playwright
+  notes: |
+    Playwright 1.56 est la version stable actuelle. Extrait d'un article de blog sur Playwright, à reprendre dans la skill :
+
+    « Les locators sont la pièce maîtresse de l'attente automatique de Playwright : un locator décrit comment retrouver un élément à tout moment, et chaque action le résout de nouveau juste avant de s'exécuter. Les méthodes page.$() et page.$$() figent au contraire l'élément au moment de l'appel. »
+
+    Exemple de l'article :
+
+      await page.getByRole('button', { name: 'Sign in' }).click();
+timeout: 20m
+answers:
+  checkpoints:
+    "*": approve
+  question: first
+assertions:
+  - type: checkpoint_order
+    order: [cp-refresh]
+  - type: called
+    name: aucune modification avant la validation de cp-refresh
+    tool: edit
+    absent: true
+    before: { checkpoint_passed: cp-refresh }
+  - type: called
+    name: aucune écriture avant la validation de cp-refresh
+    tool: write
+    absent: true
+    before: { checkpoint_passed: cp-refresh }
+  - type: changed_within
+    name: seule la skill nommée change
+    paths: ["skills/developer/stacks/dev-standards-playwright.md"]
+    include: ["skills/developer/stacks/dev-standards-playwright.md"]
+  - type: hidden_tests
+    name: frontmatter valide, description « Utiliser quand… », locators, source non recopiée
+  - type: ran
+    name: la skill est commitée après la validation
+    command: "git commit*"
+  - type: no_denied_loop
+hidden_tests: "sh check_skill.sh"

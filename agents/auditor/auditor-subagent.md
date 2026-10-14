@@ -30,7 +30,7 @@ permission:
     "infracost breakdown*": ask
     "infracost diff*": ask
 skills: [shared/universal-guardrails, posture/core-posture, shared/handoff-envelope, auditor/auditor-subagent-payload, auditor/audit-protocol-light, shared/wiki-navigation]
-native_skills: [auditor/websearch-cve-lookup, auditor/websearch-performance-research, shared/rtk-usage, posture/expert-posture, shared/websearch-usage, shared/team-awareness, shared/team-policies-enforcement]
+native_skills: [auditor/websearch-cve-lookup, auditor/websearch-performance-research, shared/rtk-usage, posture/expert-posture, shared/research, shared/team-awareness, shared/team-policies-enforcement]
 skills_from_callers: true
 ---
 

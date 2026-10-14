@@ -73,8 +73,11 @@ The assertions are described in the [`oh eval` reference](../docs/reference/cli-
 | S19 | cadrage | "All the tasks" clashes with two rules of the code (private tasks, trash): each one becomes a question asked to the user |
 | S20 | cadrage | "Réservation" means a loan in the code and a waiting list in a type: the meaning is asked to the user, the planner's spec carries a glossary that defines it |
 | S21 | cadrage | Each acceptance criterion of the spec carries, on its own line, the test that checks it |
+| S26 | review | Two-axis review: the forgotten ticket criterion (`ErrDivByZero`) is raised under « conformity to the request », the debug print under « code quality »; reports off (`reports: off`) |
+| S27 | cadrage | Two designs, only one respects the `depguard` rule of `.golangci.yml` (the domain imports no other package): that option is recommended, the constraint cited, despite the user's preference |
+| S28 | skill-refresh | Stack skill without metadata rewritten: `oh skill check --hub .` clean (when `oh` is on the `PATH` of the hidden tests), « Utiliser quand… » description, locators, and nothing of the excerpt given in the notes copied verbatim |
 
-S16 to S21 are not in the reference measure yet (`notInBaseline` in `cli/internal/evalrun/evalrun_test.go`): they enter it at the next recording.
+S16 to S21 and S26 to S28 are not in the reference measure yet (`notInBaseline` in `cli/internal/evalrun/evalrun_test.go`): they enter it at the next recording.
 
 The reference measure (Haiku, three repetitions) is recorded in `cli/internal/evalrun/testdata/evals/baseline.json`; `make test-eval` compares the current run with it.
 

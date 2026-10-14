@@ -14,7 +14,7 @@ versions:              # versions couvertes, par technologie (clé en minuscules
 reviewed: 2026-10-12   # date de la dernière revue (AAAA-MM-JJ)
 ```
 
-Tu n'écris que dans les skills retenues à l'étape 1, et **rien avant la validation de `cp-refresh`**. Charge `skill-authoring-protocol` et `websearch-usage` avec l'outil `skill` avant de commencer.
+Tu n'écris que dans les skills retenues à l'étape 1, et **rien avant la validation de `cp-refresh`**. Charge `skill-authoring-protocol` et `research` avec l'outil `skill` avant de commencer.
 
 1. **Skills à revoir.** Ce sont celles que l'utilisateur nomme ci-dessous (nom de fichier sans `.md`, ou chemin), même récentes ; une skill introuvable est signalée, puis ignorée.
 2. **Veille, pour chaque skill retenue.** Lis la skill entière : `versions:`, `reviewed:`, la ligne « Versions de référence » et les règles. Pour chaque technologie de `versions:`, établis la dernière version stable et ce qui a changé depuis la version couverte : nouveautés recommandées, API dépréciées ou retirées, changements de configuration par défaut, guides de migration.

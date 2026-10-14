@@ -41,7 +41,7 @@ permission:
   ctx_batch_execute: allow
 model: claude-sonnet-4-6
 skills: [shared/universal-guardrails, posture/core-posture, posture/user-facing-posture, shared/handoff-envelope, shared/execution-protocol, planning/pathfinder-payload, planning/pathfinder-protocol, adapters/gitlab-pathfinder-protocol, adapters/github-pathfinder-protocol, shared/wiki-navigation]
-native_skills: [shared/websearch-usage, planning/websearch-stack-research, shared/rtk-usage, shared/living-docs-enrichment, shared/team-awareness, shared/team-policies-enforcement, developer/beads-plan]
+native_skills: [shared/research, planning/codebase-design, shared/rtk-usage, shared/living-docs-enrichment, shared/team-awareness, shared/team-policies-enforcement, developer/beads-plan]
 project_instructions: index
 ---
 
@@ -71,6 +71,8 @@ Tu n'as pas accès au MCP Figma. Pour tout besoin de reconnaissance Figma pendan
 5. **Identifier** les risques et questions
 6. **Recommander** traitement direct OU escalade au planner
 
+Choix de conception à faire ou à trancher (module, frontière, dépendance, interface) : charge le skill `codebase-design` avant de recommander une option.
+
 ## Workflow libre (adapte-toi)
 
 ```
@@ -90,7 +92,7 @@ Pas de phases rigides. Si une information manque :
 <!-- /oh:when -->
 <!-- oh:when websearch -->
 
-Recherche web : charge le skill `websearch-usage` avant la première recherche.
+Recherche web : charge le skill `research` avant la première recherche.
 <!-- /oh:when -->
 
 ## Ce que tu fais

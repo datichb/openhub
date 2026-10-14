@@ -26,26 +26,29 @@
 
 - **Arbre de travail après exécution :** propre / fichiers produits non ignorés : <liste> (finding 🟡)
 
-### Couverture des critères d'acceptance
-*(Inclure uniquement si un ticket Beads avec critères d'acceptance est disponible. Omettre sinon.)*
+--- BLOC 1 : CORRECTIONS (workflow orchestrator → developer), en deux axes ---
+
+### Axe 1 — Conformité à la demande
+**Demande :** <ticket <ID> (`bd show`) | spec | description de la PR | conformité non vérifiable : <raison>>
 
 | Critère | Implémenté | Testé | Fichier(s) |
 |---------|-----------|-------|------------|
-| <critère 1 du ticket> | ✅/⚠️/❌ | ✅/❌ | `fichier:ligne` ou — |
-| <critère 2 du ticket> | ✅/⚠️/❌ | ✅/❌ | `fichier:ligne` ou — |
+| <critère 1 de la demande> | ✅/⚠️/❌ | ✅/❌ | `fichier:ligne` ou — |
 
-> Légende : ✅ = vérifié dans le diff, ⚠️ = partiellement implémenté ou ambigu, ❌ = non identifié dans le diff.
-> Les ❌ et ⚠️ sont repris comme findings dans les sections de corrections ci-dessous.
+> Légende : ✅ = vérifié dans le diff, ⚠️ = partiel ou à côté, ❌ = non identifié dans le diff. Sans critères : une ligne par exigence de la demande.
 
---- BLOC 1 : CORRECTIONS (workflow orchestrator → developer) ---
+**Ce qui manque :** <findings des ⚠️ et ❌, au format ci-dessous ; ou « rien »>
+**Ce qui dépasse :** <findings des ajouts non demandés ; ou « rien hors demande »>
 
-### 🔴 Critique — bloquant
+### Axe 2 — Qualité du code
+
+#### 🔴 Critique — bloquant
 <Problèmes qui doivent être résolus avant merge>
 
-### 🟠 Majeur — à corriger
+#### 🟠 Majeur — à corriger
 <Problèmes importants mais non-bloquants pour le merge immédiat>
 
-### 🟡 Mineur — amélioration recommandée
+#### 🟡 Mineur — amélioration recommandée
 <Petits écarts aux standards, nommage, lisibilité>
 
 --- BLOC 2 : OBSERVATIONS (pour le reviewer humain, non-bloquant) ---
