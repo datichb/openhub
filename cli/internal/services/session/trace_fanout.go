@@ -2,6 +2,7 @@ package session
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/datichb/openhub/cli/internal/domain"
 )
@@ -24,11 +25,19 @@ func (s *Service) fanoutEvents(ctx context.Context, sess *domain.Session) []Trac
 	if s.Checkpoints == nil {
 		return evs
 	}
+	type member struct{ title, session string }
+	var members []member
 	for _, c := range f.Children {
-		if c.Session == "" {
+		members = append(members, member{c.Ticket, c.Session})
+	}
+	for _, x := range f.Fixes {
+		members = append(members, member{fmt.Sprintf("fix %d", x.Round), x.Session}) // the fix rounds too
+	}
+	for _, m := range members {
+		if m.session == "" {
 			continue
 		}
-		st, err := s.Checkpoints.State(ctx, c.Session)
+		st, err := s.Checkpoints.State(ctx, m.session)
 		if err != nil {
 			continue
 		}
@@ -36,7 +45,7 @@ func (s *Service) fanoutEvents(ctx context.Context, sess *domain.Session) []Trac
 			if t.Kind != domain.CheckpointPassed {
 				continue
 			}
-			evs = append(evs, TraceEvent{Time: t.At, Kind: TraceFanout, Event: "child_checkpoint", Title: c.Ticket, ToolSession: c.Session,
+			evs = append(evs, TraceEvent{Time: t.At, Kind: TraceFanout, Event: "child_checkpoint", Title: m.title, ToolSession: m.session,
 				Checkpoint: t.ID, By: t.By, Text: t.Message})
 		}
 	}
