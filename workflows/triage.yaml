@@ -1,0 +1,64 @@
+apiVersion: oh/v1
+kind: Workflow
+id: triage
+category: frame
+label: { fr: Tri des tickets, en: Ticket triage }
+description:
+  fr: Trier un lot de tickets Beads ou de constats — priorités, doublons, étiquettes, ticket à découper — en montrant tous les changements avant la moindre écriture dans Beads
+  en: Triage a batch of Beads tickets or findings — priorities, duplicates, labels, ticket to split — showing every change before anything is written to Beads
+risk: plan
+entry:
+  agent: planner
+inputs:
+  tickets:
+    type: beads-ids
+    label: { fr: Tickets, en: Tickets }
+    help:
+      fr: Tickets à trier ; sans tickets ni filtre, les tickets ouverts du projet (30 au plus)
+      en: Tickets to triage; without tickets or filter, the open tickets of the project (30 at most)
+  query:
+    type: string
+    label: { fr: Filtre, en: Filter }
+    help:
+      fr: "Filtre `bd query` des tickets à trier (par exemple « status=open AND label=bug ») ; facultatif"
+      en: "`bd query` filter of the tickets to triage (for instance \"status=open AND label=bug\"); optional"
+    max_length: 400
+  findings:
+    type: text
+    label: { fr: Constats, en: Findings }
+    help:
+      fr: "Constats à trier (revue, audit, rétrospective…) : chacun est rattaché au ticket qui le couvre déjà ou devient un ticket ; facultatif"
+      en: "Findings to triage (review, audit, retrospective…): each is attached to the ticket that already covers it or becomes a ticket; optional"
+    max_length: 16000
+prompt:
+  template: prompts/triage.md.tmpl
+agents:
+  planner: { role: workflow }
+checkpoints:
+  # r9b: every write to Beads (creating, changing, marking a duplicate)
+  # waits for this checkpoint (unlocks update, guarded by the gateway too).
+  cp-triage:
+    by: [planner]
+    label: { fr: Changements du tri, en: Triage changes }
+    description:
+      fr: Présenter tous les changements proposés (ticket, champ, avant → après, raison), les tickets à créer et les doublons, avant toute écriture dans Beads ; une fois validés, ces changements seuls sont faits.
+      en: Present every proposed change (ticket, field, before → after, reason), the tickets to create and the duplicates, before anything is written to Beads; once approved, only those changes are made.
+    mandatory: true
+    mode: { manuel: pause, semi-auto: pause, auto: pause }
+    unlocks: [create, update]
+modes: { default: semi-auto, allowed: [manuel, semi-auto, auto] }
+circuit_breaker: { max_consecutive_subagents: 3 }
+beads:
+  allow: [show, list, ready, search, query, count, children, lint, find-duplicates, label, dep, comments, create, update, duplicate, supersede]
+runtime: { default: local, allowed: [local] }
+# r9b: recorded by oh from what the Beads gateway saw: the tickets changed,
+# created and closed as duplicates.
+outputs:
+  - { id: updated, type: beads-ids, record: updated, label: { fr: Tickets modifiés, en: Changed tickets } }
+  - { id: created, type: beads-ids, record: created, label: { fr: Tickets créés, en: Created tickets } }
+  - { id: duplicates, type: beads-ids, record: closed, label: { fr: Doublons fermés, en: Duplicates closed } }
+next:
+  - workflow: ticket
+    label: { fr: Implémenter les tickets créés, en: Implement the created tickets }
+    when: { outputs: [created] }
+    inputs: { ticket: session.output(created) }

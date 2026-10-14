@@ -1,0 +1,77 @@
+apiVersion: oh/v1
+kind: Workflow
+id: retro
+category: quality
+label: { fr: Rétrospective, en: Retrospective }
+description:
+  fr: Faire la rétrospective de sessions passées à partir de leur trace — constats sourcés (checkpoints refusés, commandes refusées, relances, coûts, durées), actions vérifiables, page écrite dans le wiki
+  en: Run the retrospective of past sessions from their trace — sourced findings (refused checkpoints, refused commands, retries, costs, durations), verifiable actions, a page written in the wiki
+risk: write
+entry:
+  agent: debugger
+inputs:
+  sessions:
+    type: string
+    label: { fr: Sessions, en: Sessions }
+    help:
+      fr: "Sessions à examiner : identifiants (ses_…), une période (7d, 24h, 2w, AAAA-MM-JJ) et des workflows (ticket), séparés par des espaces ou des virgules ; vide : la session dont on enchaîne (--parent), sinon la dernière session terminée du projet"
+      en: "Sessions to look at: ids (ses_…), a period (7d, 24h, 2w, YYYY-MM-DD) and workflows (ticket), separated by spaces or commas; empty: the session the launch is chained from (--parent), else the last finished session of the project"
+    max_length: 400
+  # r9b: computed by oh from the sessions above (session.traces); given at
+  # launch only to replay a retrospective on a saved summary.
+  trace:
+    type: text
+    from: session.traces(sessions)
+    label: { fr: Résumés des traces, en: Trace summaries }
+    help:
+      fr: Calculés par oh à partir des sessions (checkpoints, décisions refusées, appels refusés, relances, coûts, durées) ; à ne donner que pour rejouer une rétrospective
+      en: Computed by oh from the sessions (checkpoints, refused decisions, refused calls, retries, costs, durations); give them only to replay a retrospective
+    max_length: 20000
+  focus:
+    type: text
+    label: { fr: Question, en: Question }
+    help:
+      fr: Ce que vous voulez comprendre (par exemple « pourquoi les sessions ticket coûtent deux fois plus cette semaine ») ; facultatif
+      en: What you want to understand (for instance "why ticket sessions cost twice as much this week"); optional
+    max_length: 2000
+prompt:
+  template: prompts/retro.md.tmpl
+agents:
+  # r9b: the debugger stays read-only, except its retrospective in the wiki
+  # (a new page: writes:, like the postmortem of incident).
+  debugger: { role: workflow, writes: ["docs/wiki/retros/**"] }
+checkpoints:
+  cp-retro:
+    by: [debugger]
+    label: { fr: Rétrospective, en: Retrospective }
+    description:
+      fr: Présenter la rétrospective écrite sous docs/wiki/retros/ (sessions examinées, constats sourcés dans la trace, actions vérifiables) ; une fois validée, seule la page est commitée.
+      en: Present the retrospective written under docs/wiki/retros/ (sessions looked at, findings sourced in the trace, verifiable actions); once approved, only the page is committed.
+    mandatory: true
+    mode: { manuel: pause, semi-auto: pause, auto: pause }
+    unlocks: [commit]
+  cp-actions:
+    by: [debugger]
+    after: cp-retro
+    label: { fr: Actions, en: Actions }
+    description:
+      fr: Les actions de la rétrospective ne deviennent des tickets qu'après validation de la liste par l'utilisateur.
+      en: The actions of the retrospective only become tickets once the user has approved the list.
+    mandatory: true
+    mode: { manuel: pause, semi-auto: pause, auto: pause }
+    unlocks: [create]
+modes: { default: semi-auto, allowed: [manuel, semi-auto, auto] }
+circuit_breaker: { max_consecutive_subagents: 3 }
+beads:
+  allow: [show, list, search, query, count, create]
+runtime: { default: local, allowed: [local] }
+# r9b: recorded by oh: the page written under docs/wiki/retros/ and the
+# action tickets created.
+outputs:
+  - { id: retro, type: path, record: written, paths: ["docs/wiki/retros/**"], label: { fr: Rétrospective, en: Retrospective } }
+  - { id: actions, type: beads-ids, record: created, label: { fr: Tickets des actions, en: Action tickets } }
+next:
+  - workflow: triage
+    label: { fr: Trier les actions de la rétrospective, en: Triage the actions of the retrospective }
+    when: { outputs: [actions] }
+    inputs: { tickets: session.output(actions) }

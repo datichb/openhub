@@ -150,3 +150,54 @@ func TestNextStepsOfSpikeAndIncident(t *testing.T) {
 	require.Len(t, steps, 1, "no action ticket: spec only")
 	assert.Equal(t, "spec", steps[0].WorkflowID)
 }
+
+// r9b: retro proposes triage on its action tickets, triage proposes ticket
+// on the tickets it created; nothing without them.
+func TestNextStepsOfRetroAndTriage(t *testing.T) {
+	svc := shippedService(t)
+	ctx := context.Background()
+	steps, err := svc.NextSteps(ctx, Context{}, "retro", map[string]any{"retro": "docs/wiki/retros/2026-10-14-semaine.md", "actions": []any{"ev-7", "ev-8"}})
+	require.NoError(t, err)
+	require.Len(t, steps, 1)
+	assert.Equal(t, "triage", steps[0].WorkflowID)
+	assert.Equal(t, []string{"ev-7", "ev-8"}, steps[0].Tickets)
+	steps, err = svc.NextSteps(ctx, Context{}, "retro", map[string]any{"retro": "docs/wiki/retros/2026-10-14-semaine.md"})
+	require.NoError(t, err)
+	assert.Empty(t, steps)
+
+	steps, err = svc.NextSteps(ctx, Context{}, "triage", map[string]any{"updated": []any{"ev-1"}, "created": []any{"ev-9"}})
+	require.NoError(t, err)
+	require.Len(t, steps, 1)
+	assert.Equal(t, "ticket", steps[0].WorkflowID)
+	assert.Equal(t, []string{"ev-9"}, steps[0].Tickets)
+	steps, err = svc.NextSteps(ctx, Context{}, "triage", map[string]any{"updated": []any{"ev-1"}})
+	require.NoError(t, err)
+	assert.Empty(t, steps)
+}
+
+// r9b: the trace summaries of retro are computed from the sessions input
+// (session.traces), with the workflow launched in the context; a summary
+// given at launch wins.
+func TestComputeInputsOfRetro(t *testing.T) {
+	svc := shippedService(t)
+	ctx := context.Background()
+	res, err := svc.Resolve(ctx, Context{}, "retro", ResolveOpts{})
+	require.NoError(t, err)
+	var calls []string
+	svc.InputSources = map[string]InputSource{
+		wf.SourceSessionTraces: func(_ context.Context, c Context, arg string) (string, error) {
+			calls = append(calls, arg+"@"+c.Workflow)
+			return "=== Session 1/1 ===", nil
+		},
+	}
+	values := map[string]any{"sessions": "ticket 7d"}
+	require.NoError(t, svc.ComputeInputs(ctx, Context{ProjectID: "p"}, res.Spec, values))
+	assert.Equal(t, "=== Session 1/1 ===", values["trace"])
+	assert.Equal(t, []string{"ticket 7d@retro"}, calls)
+
+	values = map[string]any{"trace": "rejouée"}
+	calls = nil
+	require.NoError(t, svc.ComputeInputs(ctx, Context{ProjectID: "p"}, res.Spec, values))
+	assert.Equal(t, "rejouée", values["trace"])
+	assert.Empty(t, calls)
+}

@@ -51,6 +51,8 @@ instruct quick                  developer                       11263     5013  
 instruct quick                  TOTAL                           11263     5013    7   20    725   20    725
 instruct release                release-manager                  1909      762    3    2     99    2     99
 instruct release                TOTAL                            1909      762    3    2     99    2     99
+instruct retro                  debugger                         7261     2366    6    7    240    7    240
+instruct retro                  TOTAL                            7261     2366    6    7    240    7    240
 instruct review                 reviewer                        12094     5513    7   13    447   13    447
 instruct review                 TOTAL                           12094     5513    7   13    447   13    447
 instruct review-feedback        developer                       11930     5577    8   17    621   17    621
@@ -83,6 +85,8 @@ instruct ticket                 documentarian                    4686     2949  
 instruct ticket                 orchestrator-dev                 4746     3154    6   17    617   17    617
 instruct ticket                 reviewer                        11632     5185    6   13    447   13    447
 instruct ticket                 TOTAL                           32991    16865   25   37   1314   37   1314
+instruct triage                 planner                          4375     2849    6   13    442   13    442
+instruct triage                 TOTAL                            4375     2849    6   13    442   13    442
 none     audit                  auditor                          3408     2625    7   13    466   13    466
 none     audit                  auditor-subagent                 3401     2262    5   13    463   13    463
 none     audit                  TOTAL                            6809     4887   12   17    613   17    613
@@ -124,6 +128,8 @@ none     quick                  developer                        6769     4540  
 none     quick                  TOTAL                            6769     4540    6   20    725   20    725
 none     release                release-manager                  1511      762    3    2     99    2     99
 none     release                TOTAL                            1511      762    3    2     99    2     99
+none     retro                  debugger                         2784     1893    5    7    240    7    240
+none     retro                  TOTAL                            2784     1893    5    7    240    7    240
 none     review                 reviewer                         7282     4958    6   16    551   16    551
 none     review                 TOTAL                            7282     4958    6   16    551   16    551
 none     review-feedback        developer                        7451     5104    7   20    725   20    725
@@ -156,6 +162,8 @@ none     ticket                 documentarian                    4270     2949  
 none     ticket                 orchestrator-dev                 4348     3154    6   20    721   20    721
 none     ticket                 reviewer                         6820     4630    5   16    551   16    551
 none     ticket                 TOTAL                           22887    15837   23   40   1418   40   1418
+none     triage                 planner                          3977     2849    6   13    442   13    442
+none     triage                 TOTAL                            3977     2849    6   13    442   13    442
 stacks   audit                  auditor                          3408     2625    7   13    466   13    466
 stacks   audit                  auditor-subagent                 3401     2262    5   13    463   13    463
 stacks   audit                  TOTAL                            6809     4887   12   17    613   17    613
@@ -197,6 +205,8 @@ stacks   quick                  developer                        6769     4540  
 stacks   quick                  TOTAL                            6769     4540    6   27    972   27    972
 stacks   release                release-manager                  1511      762    3    2     99    2     99
 stacks   release                TOTAL                            1511      762    3    2     99    2     99
+stacks   retro                  debugger                         2784     1893    5   14    487   14    487
+stacks   retro                  TOTAL                            2784     1893    5   14    487   14    487
 stacks   review                 reviewer                         7282     4958    6   23    798   23    798
 stacks   review                 TOTAL                            7282     4958    6   23    798   23    798
 stacks   review-feedback        developer                        7451     5104    7   27    972   27    972
@@ -229,13 +239,15 @@ stacks   ticket                 documentarian                    4270     2949  
 stacks   ticket                 orchestrator-dev                 4348     3154    6   20    721   20    721
 stacks   ticket                 reviewer                         6820     4630    5   23    798   23    798
 stacks   ticket                 TOTAL                           22887    15837   23   47   1665   47   1665
+stacks   triage                 planner                          3977     2849    6   13    442   13    442
+stacks   triage                 TOTAL                            3977     2849    6   13    442   13    442
 
 # Inlined skills: largest section (tokens) and the agents inlining it.
 review-protocol                            3476 reviewer
 orchestrator-protocol                      3219 orchestrator
 pathfinder-protocol                        1917 pathfinder
 doc-protocol                               1878 documentarian
-planner-workflow                           1699 planner
+planner-workflow                           1708 planner
 dev-standards-simplicity                   1375 developer
 workflow-map                               1363 conductor
 dev-standards-universal                    1343 developer
@@ -262,7 +274,7 @@ debugger-payload                            321 debugger
 auditor-subagent-payload                    307 auditor-subagent
 onboarder-payload                           305 onboarder
 documentarian-payload                       280 documentarian
-user-facing-posture                         259 auditor,benchmarker,conductor,debugger,developer,documentarian,onboarder,operator,orchestrator,orchestrator-dev,pathfinder,release-manager,reviewer
+user-facing-posture                         259 auditor,benchmarker,conductor,debugger,developer,documentarian,onboarder,operator,orchestrator,orchestrator-dev,pathfinder,planner,release-manager,reviewer
 execution-protocol                          196 auditor,debugger,designer,onboarder,pathfinder,planner
 onboarder-profiles                          173 onboarder
 core-posture                                114 auditor,auditor-subagent,benchmarker,conductor,debugger,designer,developer,documentarian,merger,onboarder,operator,orchestrator,orchestrator-dev,pathfinder,planner,release-manager,reviewer
