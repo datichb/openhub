@@ -508,7 +508,15 @@ func TestDriverChildEndSignal(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			f := newFixture(t, "ev-1")
-			f.driver.IdleTimeout = 2 * time.Second
+			// No bound on the time taken (flaky under load): the reason
+			// tells which check stopped the wait. With the signal, the guard
+			// cannot fire before the end of the test (ctx of runDriver);
+			// without it, the guard is short and only a lower bound holds.
+			guard := time.Hour
+			if tc.want != DoneSignal {
+				guard = 300 * time.Millisecond
+			}
+			f.driver.IdleTimeout = guard
 			if tc.work {
 				f.launcher.work["ev-1"] = [2]string{"a.go", "package calc\n"}
 			}
@@ -526,10 +534,8 @@ func TestDriverChildEndSignal(t *testing.T) {
 			start := time.Now()
 			fo := f.runDriver(t)
 			assert.Equal(t, tc.want, doneReason(fo, "ev-1"))
-			if tc.want == DoneSignal {
-				assert.Less(t, time.Since(start), 1500*time.Millisecond, "no wait for the guard")
-			} else {
-				assert.GreaterOrEqual(t, time.Since(start), 2*time.Second, "stopped by the guard only")
+			if tc.want != DoneSignal {
+				assert.GreaterOrEqual(t, time.Since(start), guard, "stopped by the guard only")
 			}
 		})
 	}

@@ -28,7 +28,11 @@ projet : c'est le **workflow** de la session qui le fixe, et oh le fait respecte
 - sinon, ses cibles viennent de la permission `task` de son frontmatter, **restreinte aux membres du workflow**
   (`conductor` a `task: "*": allow` : il ne peut lancer que les membres de son workflow) ;
 - l'**auto-délégation** n'existe que si elle est explicite : `calls: [reviewer]` dans le workflow `review` (sessions
-  `reviewer` parallèles). Une permission `task` vers soi-même dans le frontmatter ne suffit pas.
+  `reviewer` parallèles). Une permission `task` vers soi-même dans le frontmatter ne suffit pas, sauf dans un workflow
+  à entrée au choix (`libre`) : oh y calcule les membres de proche en proche et traduit en `calls:` la permission
+  `task` qui nomme l'agent lui-même (le reviewer) ;
+- `calls:` peut aussi ouvrir une délégation que le frontmatter n'a pas : dans `incident` et `spike`, le `debugger`
+  et le `pathfinder` (sans permission `task` vers lui) lancent le `developer` (`calls: [developer]`).
 
 ```yaml
 agents:
@@ -40,7 +44,7 @@ agents:
 
 La profondeur maximale du graphe, depuis l'agent d'entrée, est écrite dans la config de session
 (`experimental.subagent_depth`, au moins 1). opencode V2 limite sinon la délégation à un seul niveau.
-Exemples : `feature` donne 3 (orchestrator → orchestrator-dev → developer → documentarian), `ticket` 2, `audit` 1.
+Exemples : `libre` donne 3 (orchestrator → orchestrator-dev → reviewer → reviewer), `spec` 2 (conductor → planner → designer), `ticket`, `implement-spec`, `audit` et `incident` 1.
 
 ### Refus hors graphe
 
@@ -53,7 +57,7 @@ d'opencode sont désactivés, et `Attest` vérifie au démarrage que rien d'autr
 
 - **Verrous** : un agent déclaré avec `after: <checkpoint>` (ou `after: <agent>`) est verrouillé. Tant que le checkpoint
   n'est pas passé, oh pose sur la session une règle `subagent <agent>` en `deny`, par l'API d'opencode, et la lève
-  au passage du checkpoint. Exemple : dans `feature`, `developer` est refusé avant `cp-1`.
+  au passage du checkpoint. Exemples : dans `ticket` et `implement-spec`, `developer` est refusé avant `cp-1` ; dans `spike`, avant `cp-question` ; dans `security-fix`, l'`auditor-subagent` attend que le `developer` ait tourné (`after: developer`).
 - **Coupe-circuit** : au-delà de `circuit_breaker.max_consecutive_subagents` délégations consécutives sans
   intervention de l'utilisateur, oh refuse `subagent *` et lève une décision ✗ dans « À traiter ». Classer la décision
   lève le refus.
@@ -129,8 +133,8 @@ permission:
     "onboarder": allow
     "designer": allow
     "orchestrator-dev": allow
+    "reviewer": allow
     "debugger": allow
-    "documentarian": allow
 ```
 
 ```yaml
@@ -163,17 +167,17 @@ flowchart TB
     end
 
     subgraph L2["Niveau 2 — Agents d'entrée primary"]
-        C[conductor]
-        O[orchestrator]
+        C["conductor<br/>spec, sweep, security-fix"]
+        O["orchestrator<br/>libre"]
+        OD["orchestrator-dev<br/>ticket, implement-spec, review-feedback"]
         A[auditor]
-        ON[onboarder]
-        DB[debugger]
+        DB["debugger<br/>debug, incident"]
         R[reviewer]
+        PA["pathfinder<br/>spike (entrée) · spec, sweep"]
+        OTH["onboarder · documentarian · operator<br/>benchmarker · release-manager · merger"]
     end
 
-    subgraph L3["Niveau 3 — Coordination et planification"]
-        OD[orchestrator-dev]
-        PA[pathfinder]
+    subgraph L3["Niveau 3 — Planification et conception"]
         PL[planner]
         DS[designer<br/>4 modes: recon/ux/ui/ux+ui]
     end
@@ -184,35 +188,16 @@ flowchart TB
         DOC[documentarian]
     end
 
-    U --> C
-    U --> O
-    U --> A
-    U --> ON
-    U --> DB
-    U --> R
-    U --> OD
+    U --> C & O & OD & A & DB & R & PA & OTH
 
-    C -.->|membres du workflow| PA
-    C -.->|membres du workflow| PL
-    C -.->|membres du workflow| DS
-
-    O -->|task| PA
-    O -->|task| PL
-    O -->|task| ON
-    O -->|task| DS
-    O -->|task| OD
-    O -->|task| DB
-
+    C -.->|membres du workflow| PA & PL & DS & DEV & R & AUD
+    O -->|task| PA & PL & DS & OD & DB & R
     PA -->|task| DS
     PL -->|task| DS
-
     A -->|task| AUD
-    A -->|task| DOC
-
-    OD -->|task| DEV
-    OD -->|task| R
-    OD -->|task| DOC
-    DEV -->|task| DOC
+    OD -->|task| DEV & R & DOC
+    DB -.->|"calls: (incident)"| DEV
+    PA -.->|"calls: (spike)"| DEV
 ```
 
 ### Matrice des droits d'invocation
@@ -223,15 +208,16 @@ restreinte aux membres du workflow, ou remplacée par `calls:`.
 | Agent appelant | Peut invoquer via `task` |
 |---------------|--------------------------|
 | `conductor` | `*` — en pratique les membres de son workflow |
-| `orchestrator` | `pathfinder`, `planner`, `onboarder`, `designer`, `orchestrator-dev`, `debugger`, `documentarian` |
+| `orchestrator` | `pathfinder`, `planner`, `onboarder`, `designer`, `orchestrator-dev`, `reviewer`, `debugger` |
 | `orchestrator-dev` | `developer`, `reviewer`, `documentarian` |
-| `auditor` | `auditor-subagent`, `documentarian` |
-| `planner` | `designer`, `documentarian` |
-| `pathfinder` | `designer`, `documentarian` |
-| `reviewer` | `documentarian` ; `reviewer` (lui-même) seulement avec `calls: [reviewer]` |
-| `debugger`, `benchmarker` | `documentarian` |
-| `developer` | `documentarian` |
-| `auditor-subagent`, `designer`, `documentarian`, `onboarder`, `brief-enricher` | *(aucun)* |
+| `auditor` | `auditor-subagent` |
+| `planner` | `designer` |
+| `pathfinder` | `designer` ; `developer` avec `calls:` (`spike`) |
+| `reviewer` | `reviewer` (lui-même) seulement avec `calls: [reviewer]` (`review`, et `libre`) |
+| `debugger` | *(aucun)* ; `developer` avec `calls:` (`incident`) |
+| `developer`, `merger`, `release-manager`, `benchmarker`, `operator`, `auditor-subagent`, `designer`, `documentarian`, `onboarder`, `brief-enricher` | *(aucun)* |
+
+Dans les fan-out, ce n'est pas un agent qui lance les sessions enfants, `merge-conflicts` ou le tour de correction : c'est oh (pilote du fan-out), hors du graphe de délégation.
 
 ### Modes `primary` vs `subagent`
 
@@ -242,13 +228,13 @@ restreinte aux membres du workflow, ou remplacée par `calls:`.
 
 Dans les frontmatter, `developer`, `auditor-subagent` et
 `brief-enricher` sont en mode `subagent`. Le workflow peut changer le mode d'un membre (`agents.<id>.mode`) :
-dans `feature`, `planner` et `reviewer` passent en `subagent` ; dans `quick`, `developer` passe en `primary`.
+dans `spec`, `pathfinder`, `planner` et `designer` passent en `subagent`, dans `implement-spec` le `reviewer` ; dans `quick` et `sweep-task`, `developer` passe en `primary`.
 
 ### Règle absolue — isolation des niveaux
 
 > **L'orchestrator ne route JAMAIS directement vers le `developer`.**
 
-Cette règle est fondamentale : l'`orchestrator` délègue toujours à
+Cette règle vaut dans `libre`, seul workflow de l'`orchestrator` : il délègue toujours à
 `orchestrator-dev`, qui lui-même délègue au `developer` avec le bon domaine.
 Cette indirection permet de :
 
@@ -304,6 +290,8 @@ L'appelant lit l'enveloppe selon sa posture de coordinateur (`posture/coordinato
 | `planning/onboarder-payload` | `onboarder` | `contexte-établi`, `contexte-partiel`, `bloqué` |
 | `quality/debugger-payload` | `debugger` | `diagnostiqué`, `partiellement-diagnostiqué`, `non-reproductible` |
 
+Les agents qui ne sont jamais lancés par un autre (`release-manager`, `merger`, `operator`, `benchmarker`, `conductor`, `orchestrator`) n'ont pas de payload. Dans `security-fix`, le contrat du `developer` (une ligne `F<n>` par constat retenu : corrigé ou faux positif, test, fichiers) passe à l'`auditor-subagent` avec son rapport.
+
 → [ADR-009](./adr/009-inter-agent-handoff-contracts.fr.md) (contrats de handoff, remplacés en L5 par l'enveloppe et les payloads)
 
 ---
@@ -312,7 +300,7 @@ L'appelant lit l'enveloppe selon sa posture de coordinateur (`posture/coordinato
 
 ### Mécanisme
 
-Un sous-agent n'appelle jamais `question` : un agent qui n'a aucun rôle d'entrée dans le workflow (le planner de `spec` et de `cadrage`, le pathfinder de `feature`…) ne reçoit pas l'outil (règle `question` refusée sur `*`, dernière de ses règles : opencode ne donne pas l'outil au modèle) ; un agent d'entrée qu'un autre agent peut aussi lancer (le reviewer de `review`) le garde. Une décision qui le bloque va dans les `### Questions bloquantes` de son enveloppe (statut `en-attente`) et il s'arrête. L'appelant :
+Un sous-agent n'appelle jamais `question` : un agent qui n'a aucun rôle d'entrée dans le workflow (le planner et le pathfinder de `spec`, le pathfinder de `sweep`…) ne reçoit pas l'outil (règle `question` refusée sur `*`, dernière de ses règles : opencode ne donne pas l'outil au modèle) ; un agent d'entrée qu'un autre agent peut aussi lancer (le reviewer de `review`) le garde. Une décision qui le bloque va dans les `### Questions bloquantes` de son enveloppe (statut `en-attente`) et il s'arrête. L'appelant :
 
 1. affiche le contexte à l'utilisateur (ou, s'il est lui-même sous-agent, reporte la question dans sa propre enveloppe) ;
 2. pose la question avec l'outil `question` ;
@@ -368,33 +356,31 @@ task(
 ## Checkpoints et points de décision
 
 > **v5.** Les checkpoints sont déclarés dans le YAML du workflow (`checkpoints:`), avec leur comportement par mode.
-> Exemple `feature` : `cp-tickets`, `cp-0`, `cp-spec`, `cp-1`, `cp-2`, `cp-3`, `cp-feature`. L'agent les signale avec l'outil MCP
+> Exemple `implement-spec` : `cp-plan`, `cp-1`, `cp-2`, `cp-3`, `cp-final` (`cp-seams` et `cp-red` en méthode `tdd`, `cp-merge` en fan-out). L'agent les signale avec l'outil MCP
 > `workflow_checkpoint` (pas avec `question`) ; oh tient la machine à états, répond seul aux checkpoints automatiques
 > et pose une décision ⏸ dans « À traiter » pour ceux qui attendent l'utilisateur. Les agents verrouillés par `after:`
 > restent refusés tant que leur checkpoint n'est pas passé
-> ([ADR-042](./adr/042-checkpoints-headless-decisions.fr.md)). Le tableau ci-dessous décrit le workflow `feature` ;
+> ([ADR-042](./adr/042-checkpoints-headless-decisions.fr.md)). Le tableau ci-dessous décrit le workflow `implement-spec` (version séquentielle) ;
 > le YAML du workflow fait foi (`oh workflow show <id>`).
 
-### Tableau complet des checkpoints (`feature`)
+### Tableau complet des checkpoints (`implement-spec`)
 
 | Checkpoint | Appelé par | Moment | Mode (manuel / semi-auto / auto) | Déverrouille |
 |------------|------------|--------|----------------------------------|--------------|
-| **cp-tickets** | `orchestrator` | Découpage de l'agent de planning, avant toute création de ticket (tickets existants seulement : confirme la liste) | pause / pause / pause (obligatoire) | `create` |
-| **cp-0** | `orchestrator` | Tableau des tickets, avant toute implémentation | pause / pause / pause (obligatoire) | — (`orchestrator-dev` verrouillé jusqu'à `cp-0` par `after:`) |
-| **cp-spec** | `orchestrator` | Après une spec UX/UI du designer | conditionnel dans tous les modes | — |
+| **cp-plan** | `orchestrator-dev` | Ordre des tickets, agent prévu, tickets écartés, avant toute délégation | pause / pause / pause (obligatoire) | — |
 | **cp-1** | `orchestrator-dev` | Avant chaque ticket | pause / auto / auto | — (`developer` verrouillé jusqu'à `cp-1` par `after:`) |
-| **cp-2** | `orchestrator-dev` | Après review — commit ou correction ? | **pause / pause / pause** (obligatoire) | `commit`, `close` |
+| **cp-2** | `orchestrator-dev` | Après review — commit ou correction ? Vérifié par oh (build, tests, typecheck de la stack) | **pause / pause / pause** (obligatoire) | `commit`, `close` |
 | **cp-3** | `orchestrator-dev` | Après commit — ticket suivant ? | pause / auto / auto | — |
-| **cp-feature** | `orchestrator` | Fin de feature | pause / pause / auto | — |
+| **cp-final** | `orchestrator-dev` | Revue de l'ensemble des commits par le reviewer, récap | pause / pause / auto | — |
 
-Les autres workflows déclarent leurs propres checkpoints (`grep -h '^  cp-' workflows/*.yaml`) : `cp-ticket` (debug, déverrouille `create`), `cp-commit` (debug, quick, sweep), `cp-plan` et `cp-apply` (infra-change, `cp-apply` déverrouille `apply`), `cp-target` (benchmark), `cp-scope`, `cp-fix`, `cp-recap`… Aucun workflow livré ne déverrouille `push`.
+Les autres workflows déclarent leurs propres checkpoints (`grep -h '^  cp-' workflows/*.yaml`) : `cp-understanding`, `cp-converge`, `cp-spec` et `cp-tickets` (`spec`, dans cet ordre, `after:`), `cp-ticket` (`debug`, déverrouille `create`), `cp-commit` (`quick`, `debug`, `sweep`, `sweep-task`), `cp-plan` et `cp-apply` (`infra-change`, `cp-apply` déverrouille `apply`), `cp-plan` de `sweep` (découpage relevé par oh, `tasks:`), `cp-merge` (fan-out), `cp-mitigated`, `cp-postmortem` et `cp-actions` (`incident`), `cp-triage` et `cp-rescan` (`security-fix`), `cp-question` et `cp-decision` (`spike`), `cp-wiki` (`onboarding`), `cp-sync` (`doc-sync`), `cp-refresh` (`skill-refresh`), `cp-release` (`release`, déverrouille `commit`, `tag`, `mr`), `cp-target` (`benchmark`), `cp-fix`, `cp-recap`… Aucun workflow livré ne déverrouille `push`. Vérification par oh, ordre, budget de pauses et fenêtres : [Checkpoints](../reference/checkpoints.fr.md).
 
 ### Règle absolue — CP-2 est non automatisable
 
 > **CP-2 (commit ou correction ?) est une pause dans TOUS les modes, sans exception.**
 
 Cette règle ne peut pas être outrepassée, même en mode `auto`. Dans les workflows livrés, `cp-2` est `mandatory: true`
-et en `pause` dans les trois modes : une couche équipe ou projet ne peut pas l'assouplir. Justification :
+et en `pause` dans les trois modes : une couche équipe ou projet ne peut pas l'assouplir. Seule exception, déclarée par la couche hub : dans un fan-out, le `cp-2` des enfants passe sans pause, remplacé par le `cp-merge` obligatoire de la parente, vérifié par oh et jamais forcé (substitution de contrôle, CP-R3, [ADR-053](./adr/053-fanout-control-substitution.fr.md)). Justification :
 
 - "Absence d'erreur technique" ≠ "conforme aux attentes fonctionnelles"
 - La décision de commiter engage la responsabilité de l'utilisateur
@@ -439,7 +425,7 @@ Le `task_id` est un ID de session OpenCode standard — la reprise de session es
 
 ### Enveloppe `en-attente` vs retour final
 
-Une enveloppe au statut `en-attente` n'est pas un retour final : l'appelant relaie les questions bloquantes, relance avec `task_id`, et attend le retour final (statut du payload, rapport `rp-…`) avant de construire son récap ou de passer le checkpoint qui suit (par exemple `cp-feature` après orchestrator-dev).
+Une enveloppe au statut `en-attente` n'est pas un retour final : l'appelant relaie les questions bloquantes, relance avec `task_id`, et attend le retour final (statut du payload, rapport `rp-…`) avant de construire son récap ou de passer le checkpoint qui suit (par exemple `cp-final` après le reviewer, ou le récap de l'`orchestrator` après orchestrator-dev dans `libre`).
 
 ### Parallélisme conditionnel (mode `auto` uniquement)
 
@@ -482,7 +468,9 @@ Si un seul critère n'est pas vérifié → **séquentiel forcé**.
 
 Ce parallélisme reste à l'intérieur d'une session oh, dans le même dossier. Pour traiter des tickets dans des
 sessions oh séparées (une session et un worktree par ticket), utiliser `oh run ticket --tickets a,b`
-(voir [Sessions v5](../guides/sessions-v5.fr.md)).
+(voir [Sessions v5](../guides/sessions-v5.fr.md)), ou le fan-out expérimental d'`implement-spec`
+(`-i fanout=true`) : une session enfant par ticket, pilotée et mergée par oh, une seule validation à `cp-merge`
+(voir [Fan-out](../guides/fan-out.fr.md)).
 
 #### Ce que le parallélisme ne résout pas
 
@@ -502,11 +490,11 @@ transmission du mode d'un agent à ses sous-agents.
 
 Trois valeurs exactes sont acceptées (insensible à la casse) :
 
-| Valeur | Mode appliqué (workflows `feature` et `ticket`) |
+| Valeur | Mode appliqué (workflows `ticket` et `implement-spec`) |
 |--------|---------------|
 | `manuel` | Toutes les pauses actives |
 | `semi-auto` | CP-1 et CP-3 automatiques, CP-2 manuels — défaut des workflows livrés |
-| `auto` | Tout automatique sauf CP-2 (pause absolue) et, dans `feature`, `cp-0` et `cp-spec` |
+| `auto` | Tout automatique sauf les checkpoints obligatoires : CP-2 (pause absolue) et, dans `implement-spec`, `cp-plan` |
 
 Ne jamais transmettre le label brut de l'option d'interface (`"Manuel (Recommandé)"`, `"Semi-auto"`) — normaliser en minuscule avant transmission.
 
@@ -524,7 +512,7 @@ Mode de workflow : semi-auto
 | Mode mal formaté (ex: `"automatique"`) | 🟡 Faible-Moyenne | Parsing non défini — risque de mode `auto` non demandé |
 | Modes contradictoires dans le prompt | 🟡 Faible | Comportement indéterminé — première occurrence appliquée |
 
-**Le cas le plus critique :** chaque CP-2 invoqué depuis l'orchestrator entraîne une reprise de session via `task_id`. Le prompt de reprise ne contient pas naturellement le mode — il doit être re-transmis explicitement.
+**Le cas le plus critique (session `libre`) :** chaque CP-2 invoqué depuis l'orchestrator entraîne une reprise de session via `task_id`. Le prompt de reprise ne contient pas naturellement le mode — il doit être re-transmis explicitement.
 
 #### Correctifs appliqués dans les skills
 

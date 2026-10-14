@@ -109,12 +109,12 @@ En méthode `tdd` (`-i method=tdd`), le `developer` passe lui-même `cp-seams` (
 
 | Lancement | Workflow lancé | Ancien mode |
 |---|---|---|
-| `oh run feature -m "…"` (et `oh start -m "…"`) ; sans `-m`, la session demande la feature | `spec` : `aliases: [cadrage, feature]` | A (feature en langage naturel) |
+| `oh run feature -i request="…"` (et `oh start -m "…"`) ; sans demande, la session la demande | `spec` : `aliases: [cadrage, feature]` | A (feature en langage naturel) |
 | `oh run feature --tickets bd-1,bd-2` | `implement-spec` : `aliases: [{ id: feature, with: tickets }]` ; `-m` va à son entrée `instructions` | B (tickets existants) |
 
 oh affiche la redirection (`feature → spec`). À la fin de `spec`, oh propose `implement-spec` sur les tickets créés et la spec écrite, sans le lancer (`oh session next <id>`, fermeture du client, « Enchaîner avec… » dans la TUI).
 
-**Méthode TDD transmise.** `spec` accepte l'entrée `method` (`standard` ou `tdd`) sans l'utiliser lui-même : oh la relève au lancement (sortie `method`, `record: input`) et la passe à `implement-spec` dans la suite proposée (`-i method=tdd`). `oh run feature -i method=tdd -m "…"` donne donc une spec, puis une implémentation en TDD.
+**Méthode TDD transmise.** `spec` accepte l'entrée `method` (`standard` ou `tdd`) sans l'utiliser lui-même : oh la relève au lancement (sortie `method`, `record: input`) et la passe à `implement-spec` dans la suite proposée (`-i method=tdd`). `oh run feature -i method=tdd -i request="…"` donne donc une spec, puis une implémentation en TDD.
 
 Ce qui change par rapport à l'ancien `feature` (⚠) :
 

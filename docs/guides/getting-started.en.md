@@ -18,7 +18,7 @@ flowchart LR
 ```
 
 **Key concepts** (see the full [Glossary](../reference/glossary.en.md)):
-- **Workflow** -- what a session does: entry agent, allowed agents, inputs, checkpoints, modes (`manuel`, `semi-auto`, `auto`). 14 workflows are shipped (see [Shipped workflows](../reference/workflows.en.md)).
+- **Workflow** -- what a session does: entry agent, allowed agents, inputs, checkpoints, modes (`manuel`, `semi-auto`, `auto`). 22 workflows are shipped (see [Shipped workflows](../reference/workflows.en.md)).
 - **Session** -- one run of a workflow on a project. It runs on an `opencode serve` server managed by oh.
 - **Session bundle** -- the agents, skills, permissions and MCP of a session, built at launch outside the project (`~/.oh/bundles/<hash>/`). Nothing is copied into the project. Only the bundle's agents are visible ("closed world").
 - **Decision** -- what the session waits for from you: `⏸` checkpoint, `?` question, `!` permission, `$` budget, `✗` error.
@@ -123,9 +123,9 @@ From the project directory:
 
 ```bash
 oh run quick -i request="Add a test for parseDate"   # small change, no checkpoint
-oh run feature -m "…"                                 # a complete feature: spec and tickets, then implementation proposed
+oh run feature -i request="…"                                 # a complete feature: spec and tickets, then implementation proposed
 oh run                                                # the project default workflow
-oh run feature -m "…" --recap                         # show the recap, then confirm
+oh run feature -i request="…" --recap                         # show the recap, then confirm
 ```
 
 oh resolves the workflow (hub, team, project layers), builds the session bundle, picks the location (an automatic worktree when another session already writes in the directory), starts the opencode server and opens the session window: a new iTerm2 or Terminal.app tab, tmux, or the browser, depending on your Settings.

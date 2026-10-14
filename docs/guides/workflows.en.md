@@ -119,7 +119,7 @@ sequenceDiagram
     participant DEV as developer
     participant R as Reviewer
 
-    U->>C: oh run feature -m "Implement JWT authentication"
+    U->>C: oh run feature -i request="Implement JWT authentication"
     C->>PL: Interview (code exploration, grilling)
     PL-->>C: Blocking questions
     C->>U: Questions (question tool)
@@ -151,8 +151,8 @@ sequenceDiagram
 #### 1. Launch `feature` (alias of `spec`)
 
 ```bash
-oh run feature -m "Implement JWT authentication for our REST API"   # mode: --mode manuel|semi-auto|auto
-oh run feature -i method=tdd -m "…"                                # the implementation that follows will be TDD
+oh run feature -i request="Implement JWT authentication for our REST API"   # mode: --mode manuel|semi-auto|auto
+oh run feature -i method=tdd -i request="…"                                # the implementation that follows will be TDD
 ```
 
 oh announces the redirection (`feature → spec`). Without a request (`oh run feature`, `oh start`), the session asks you for it first. With tickets already created, `oh run feature --tickets bd-1,bd-2` launches `implement-spec` directly (step 5).

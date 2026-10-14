@@ -139,21 +139,21 @@ In v5, plugins are declared per workflow (`plugins:`) and delivered in the sessi
 | [MCP Google Slides](reference/mcp-gslides.en.md) | Google Slides MCP tools |
 | [MCP Team](reference/mcp-team.en.md) | Team state MCP tools |
 
-The `workflow` MCP server (`workflow_status`, `workflow_checkpoint`, `workflow_outputs`) is added to every session bundle: see [Shipped Workflows](reference/workflows.en.md) and [ADR-042](architecture/adr/042-checkpoints-headless-decisions.en.md).
+The `workflow` MCP server (`workflow_status`, `workflow_checkpoint`, `workflow_outputs`, `workflow_report`, `workflow_report_get`, `workflow_reports`) is added to every session bundle, and the `wiki` server (`wiki_index`, `wiki_read`, `wiki_propose`, `wiki_pending`, `wiki_check`, `wiki_apply`) to the bundles of a project with a `docs/wiki/`: see [Shipped Workflows](reference/workflows.en.md), [CLI — MCP](reference/cli-mcp.en.md) and [ADR-042](architecture/adr/042-checkpoints-headless-decisions.en.md).
 
 ---
 
-## Architecture (6 docs + 51 ADRs)
+## Architecture (6 docs + 53 ADRs)
 
 | Document | Description |
 |----------|-------------|
-| [Overview](architecture/overview.en.md) | v5 concepts: workflow → session bundle → group server → session, daemon, credential proxy, gateways, closed world |
-| [Agents](architecture/agents.en.md) | The 16 agents (8 families, including `conductor` and `operator`) |
+| [Overview](architecture/overview.en.md) | v5 concepts: workflow → session bundle → group server → session, daemon, credential proxy, gateways, closed world, verification by oh, workflow composition, fan-out |
+| [Agents](architecture/agents.en.md) | The 18 agents (9 families, including `conductor`, `operator`, `release-manager` and `merger`) |
 | [Skills](architecture/skills.en.md) | Hybrid skill system (Bucket A/B), delivery through the session bundle |
 | [Task Delegation](architecture/task-delegation.en.md) | Inter-agent delegation model (`calls:`, `after:`) |
 | [Living Wiki](architecture/living-wiki.en.md) | Living documentation wiki architecture |
 | [TodoWrite Isolation](architecture/todowrite-session-isolation.en.md) | Session isolation design |
-| [ADRs](architecture/adr/) | 52 Architecture Decision Records (v5: 038 to 052) |
+| [ADRs](architecture/adr/) | 53 Architecture Decision Records (v5: 038 to 053) |
 
 ### v5 decisions
 
@@ -174,6 +174,7 @@ The `workflow` MCP server (`workflow_status`, `workflow_checkpoint`, `workflow_o
 | [050](architecture/adr/050-session-context-capability.en.md) | Evolving session state through an adapter capability |
 | [051](architecture/adr/051-community-skills-disconnection.en.md) | Community skills registry disconnected |
 | [052](architecture/adr/052-beads-identity-provenance.en.md) | Beads identity and provenance: `--readonly`, actor, provenance events |
+| [053](architecture/adr/053-fanout-control-substitution.en.md) | Fan-out: child sessions driven by oh and control substitution (CP-R3) |
 
 ---
 
@@ -187,6 +188,8 @@ Diagram sources (`.mermaid`, one diagram per file) live in [`diagrams/`](diagram
 | [Session lifecycle](diagrams/session-lifecycle.mermaid) | Launch, bundle, `Attest`, work, decisions, sleep, resume, stop |
 | [Execution topology](diagrams/execution-topology.mermaid) | Local, container and remote: what runs where, what stays on the machine |
 | [Workflow scenarios map](diagrams/workflow-scenarios-map.mermaid) | Which workflow for which situation |
+| [Workflow composition](diagrams/workflow-composition.mermaid) | Outputs recorded by oh and next steps (`next:`) |
+| [Fan-out](diagrams/fanout-flow.mermaid) | Child sessions, integration branch, `cp-merge` (experimental) |
 | [Workflow layers](diagrams/config-resolution.mermaid) | Hub < team < project < session options |
 | [Model resolution cascade](diagrams/model-resolution-cascade.mermaid) | From workflow·agent down to frontmatter |
 | [Skill delivery](diagrams/skill-injection-flow.mermaid) | Bucket A / Bucket B through the session bundle |

@@ -1,78 +1,97 @@
 %% OpenHub -- Workflow scenarios map (v5)
-%% "What do you need?" -> one of the workflows shipped by the hub
+%% "What do you need?" -> one of the 22 workflows shipped by the hub
 %% (workflows/*.yaml), grouped by category, with their entry agent, risk and
 %% allowed runtimes (⌂ local, ▣ container, ☁ remote).
+%% `feature` and `cadrage` are aliases, not workflows: `oh run feature` and
+%% `oh run cadrage` start spec, `oh run feature --tickets …` starts implement-spec.
+%% merge-conflicts and sweep-task are started by oh in a fan-out (fanout-flow.mermaid).
+%% Thick arrows: next steps declared by the workflow (`next:`), proposed by oh
+%% with the outputs it recorded as inputs; never launched by oh.
 %% Solid arrows: "Chain with…" suggestions at the end of a session (a typed output
 %% feeds an input of the next workflow: branch → branch, beads-ids → beads-id(s)).
-%% Thick arrows: steps declared by the workflow (`next:`, R5), proposed first,
-%% with the outputs recorded by oh as inputs; never launched by oh.
 %% Dotted arrows: preconditions (missing project context → run onboarding first, then resume).
 
 flowchart LR
     Start(["What do you need?"])
-    Start -->|"specify a need, create tickets"| SPEC
+    Start -->|"specify a need, create tickets<br/>(oh run feature, oh start)"| SPEC
+    Start -->|"answer a technical question"| SPIKE
     Start -->|"implement the tickets of a spec"| IMPL
-    Start -->|"new feature, end to end"| FEAT
     Start -->|"implement ready tickets"| TICK
     Start -->|"small change"| QUICK
-    Start -->|"repetitive change on many files"| SWEEP
-    Start -->|"apply an infrastructure change"| INFRA
+    Start -->|"cross-cutting change on many files"| SWEEP
     Start -->|"apply MR comments"| RF
+    Start -->|"apply an infrastructure change"| INFRA
     Start -->|"review a branch"| REV
     Start -->|"audit the code"| AUD
-    Start -->|"fix a bug"| DBG
+    Start -->|"fix security findings"| SECFIX
+    Start -->|"diagnose a bug"| DBG
+    Start -->|"handle an incident"| INC
     Start -->|"measure performance"| BENCH
     Start -->|"document the project"| ONB
-    Start -->|"one agent, no workflow"| LIB
+    Start -->|"catch the wiki up with the code"| DOCSYNC
+    Start -->|"prepare a release"| REL
+    Start -->|"one agent, no checkpoint"| LIB
 
     subgraph FRAME ["Frame"]
-        SPEC["<b>spec</b> (alias cadrage)<br/>conductor · plan · ⌂"]
+        SPEC["<b>spec</b> (aliases cadrage, feature)<br/>conductor · plan · ⌂<br/>spec in docs/wiki/specs/, tickets"]
+        SPIKE["<b>spike</b><br/>pathfinder · write · ⌂<br/>go / clarify / kill"]
     end
 
     subgraph DEVELOP ["Develop"]
-        FEAT["<b>feature</b><br/>orchestrator · write · ⌂"]
-        IMPL["<b>implement-spec</b><br/>orchestrator-dev · write · ⌂<br/>tickets one after the other"]
+        IMPL["<b>implement-spec</b> (alias feature --tickets)<br/>orchestrator-dev · write · ⌂<br/>fan-out: one child per ticket"]
         TICK["<b>ticket</b><br/>orchestrator-dev · write · ⌂ ▣ ☁<br/>one session per ticket"]
         QUICK["<b>quick</b><br/>developer · write · ⌂"]
-        SWEEP["<b>sweep</b><br/>conductor · write · ⌂"]
-        INFRA["<b>infra-change</b><br/>operator · write · ⌂<br/>plan → cp-plan → cp-apply"]
+        SWEEP["<b>sweep</b><br/>conductor · write · ⌂<br/>fan-out: one sweep-task per subtask"]
         RF["<b>review-feedback</b><br/>orchestrator-dev · write · ⌂"]
+        SECFIX["<b>security-fix</b><br/>conductor · write · ⌂"]
+        INFRA["<b>infra-change</b><br/>operator · write · ⌂<br/>plan → cp-plan → cp-apply"]
     end
 
     subgraph QUALITY ["Quality"]
         REV["<b>review</b><br/>reviewer · read · ⌂ ☁"]
         AUD["<b>audit</b><br/>auditor · read · ⌂ ☁"]
         DBG["<b>debug</b><br/>debugger · write · ⌂"]
+        INC["<b>incident</b><br/>debugger · write · ⌂<br/>postmortem in docs/wiki/postmortems/"]
         BENCH["<b>benchmark</b><br/>benchmarker · write · ⌂"]
     end
 
     subgraph KNOWLEDGE ["Knowledge"]
         ONB["<b>onboarding</b><br/>onboarder · write · ⌂ ☁"]
+        DOCSYNC["<b>doc-sync</b><br/>documentarian · write · ⌂"]
+        SKR["<b>skill-refresh</b><br/>documentarian · write · ⌂<br/>stack skills of the hub"]
         BRF["<b>brief-enrich</b><br/>brief-enricher · read · ⌂<br/>headless"]
     end
 
-    subgraph OTHER ["Other"]
-        LIB["<b>libre</b><br/>entry agent of your choice · write · ⌂ ▣"]
+    subgraph DELIVER ["Deliver"]
+        REL["<b>release</b><br/>release-manager · publish · ⌂<br/>no push"]
     end
 
-    SPEC ==>|"next: tickets, spec"| IMPL
+    subgraph OTHER ["Other"]
+        LIB["<b>libre</b><br/>entry agent of your choice<br/>(orchestrator by default) · write · ⌂ ▣"]
+    end
+
+    SPEC ==>|"next: tickets, spec, method"| IMPL
+    SPIKE ==>|"next (verdict go): source = decision"| SPEC
+    INC ==>|"next: source = postmortem"| SPEC
+    INC ==>|"next: action tickets"| TICK
+    AUD ==>|"next (type security): findings = report"| SECFIX
+
     SPEC -->|"tickets"| TICK
     SPEC -->|"tickets"| BRF
     IMPL -->|"branch"| REV
-    FEAT -->|"branch"| REV
-    FEAT -->|"tickets"| TICK
     TICK -->|"branch"| REV
     TICK -->|"branch"| RF
     SWEEP -->|"branch"| REV
     RF -->|"branch"| REV
     DBG -->|"tickets"| TICK
 
-    FEAT -.->|"no project context"| ONB
     SPEC -.->|"no project context"| ONB
     IMPL -.->|"no project context"| ONB
+    DOCSYNC -.->|"no wiki"| ONB
 
     style FRAME fill:#9b59b610,stroke:#9b59b6
     style DEVELOP fill:#2ecc7110,stroke:#2ecc71
     style QUALITY fill:#f39c1210,stroke:#f39c12
     style KNOWLEDGE fill:#3498db10,stroke:#3498db
+    style DELIVER fill:#e67e2210,stroke:#e67e22
     style OTHER fill:#95a5a610,stroke:#95a5a6

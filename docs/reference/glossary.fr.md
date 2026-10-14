@@ -12,7 +12,7 @@ Composant d'oh qui traduit un [SessionSpec](#sessionspec) dans le format d'un ou
 
 ### Agent
 
-Un rôle IA spécialisé (fichier Markdown avec frontmatter YAML) qui détermine le persona, les permissions, les skills et les règles de délégation d'une session IA. 16 agents, organisés en 8 familles : planning, developer, auditor, infra, quality, design, documentation, utility. Voir [Architecture des agents](../architecture/agents.fr.md).
+Un rôle IA spécialisé (fichier Markdown avec frontmatter YAML) qui détermine le persona, les permissions, les skills et les règles de délégation d'une session IA. 18 agents, organisés en 9 familles : planning, developer, auditor, infra, delivery, quality, design, documentation, utility. Voir [Architecture des agents](../architecture/agents.fr.md).
 
 ### Brique / Catalogue de briques
 

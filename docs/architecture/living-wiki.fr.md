@@ -154,10 +154,12 @@ flowchart LR
     W -->|"index et god nodes calculés par oh"| MCP
 ```
 
-1. L'agent appelle `wiki_propose(page, contenu, tag, source[, section])`. oh fixe l'auteur (l'agent qu'il voit
+1. L'agent appelle `wiki_propose(page, contenu, tag, source[, section, replaces])`. oh fixe l'auteur (l'agent qu'il voit
    appeler l'outil), nettoie le contenu et le met en file (`wp-<n>`, par projet).
-2. Au checkpoint de commit (`cp-2` de `ticket`, `feature`, `review-feedback` ; `cp-commit` de `quick`, `debug`,
-   `sweep`), la carte de décision affiche les propositions de la session : l'utilisateur accepte, modifie
+2. Au checkpoint de commit, celui qui déverrouille `commit` (`cp-2` de `ticket`, `implement-spec`,
+   `review-feedback`, `security-fix` ; `cp-commit` de `quick`, `debug`, `sweep`, `sweep-task` ; `cp-wiki`,
+   `cp-sync`, `cp-spec`, `cp-postmortem`, `cp-decision`… ; le dernier, quand un workflow déverrouille le commit deux
+   fois), la carte de décision affiche les propositions de la session : l'utilisateur accepte, modifie
    ou refuse chacune (ou, hors de la TUI, `oh wiki decide`).
 3. Quand le checkpoint passe, **oh applique lui-même** les propositions acceptées, avant de rendre la main à
    l'agent : elles sont donc committées avec le code. L'application est tracée (statut `applied`, `applied_by: oh`,
@@ -166,7 +168,7 @@ flowchart LR
    (`oh wiki pending`), pour le workflow `doc-sync`.
 
 **Pourquoi oh applique, et non le documentarian.** Le `documentarian` n'est membre (`independent`) que de
-`feature`, `ticket` et `debug`, jamais de `quick`, `sweep` ni `review-feedback`. Le lancer depuis oh demanderait un
+`ticket` et `implement-spec`, jamais de `quick`, `debug`, `sweep` ni `review-feedback`. Le lancer depuis oh demanderait un
 tour d'agent de plus (coût, non-déterminisme) au milieu du workflow. L'application est déterministe : le contenu a
 été validé par l'utilisateur, oh l'ajoute en fin de section avec la ligne de tag (tag, auteur vu par oh, date,
 source), met à jour le frontmatter (`updated`, `agents`, `confidence`) et recalcule la table des god nodes. Le
@@ -176,7 +178,7 @@ source), met à jour le frontmatter (`updated`, `agents`, `confidence`) et recal
 |---|---|---|
 | `wiki_index` | Index, pages, god nodes calculés par oh, propositions en attente | Tous les agents |
 | `wiki_read(page, section)` | Lecture ciblée d'une page ou d'une section | Tous les agents |
-| `wiki_propose(page, contenu, tag, source)` | Met une proposition en file ; fonctionne aussi dans les workflows en lecture seule | Tous les agents |
+| `wiki_propose(page, contenu, tag, source[, replaces])` | Met une proposition en file (ajout, ou remplacement d'une ligne : `replaces`, vérifiée à la proposition et à l'application, sinon `stale`) ; fonctionne aussi dans les workflows en lecture seule | Tous les agents |
 | `wiki_pending` | Propositions en attente (projet ou session) | Coordinateurs |
 | `wiki_apply(ids)` | Applique des propositions | **documentarian seulement**, soumis à l'utilisateur |
 | `wiki_check([paths, base, head, since_sync])` | Frontmatter, liens, tags, fraîcheur, arborescence, god nodes ; restreint à un changement : pages concernées et dérive | Tous les agents, `oh wiki check` |
@@ -295,14 +297,17 @@ code ne reçoit aucune proposition. Plus de réécriture complète : supprimer `
 - **Création** : workflow `onboarding`, dont le seul agent est l'`onboarder`. Il n'écrit que dans `docs/wiki/`,
   `ONBOARDING.md` et `CONVENTIONS.md` (ses permissions), puis commite `docs/wiki/` seul après `cp-wiki`
   ([ADR-039](./adr/039-declarative-workflows-oh-v1.fr.md)). Sortie déclarée : `wiki` (chemin).
-- **Précondition** : `feature` et `cadrage` vérifient qu'au moins un de `docs/wiki/index.md`, `ONBOARDING.md` ou
+- **Précondition** : `spec` (et ses alias `cadrage`, `feature`) et `implement-spec` vérifient qu'au moins un de `docs/wiki/index.md`, `ONBOARDING.md` ou
   `CONVENTIONS.md` existe. Sinon, oh propose de lancer d'abord `onboarding`, puis de revenir.
 - **Contexte injecté** : à la construction du paquet de session, `ONBOARDING.md`, `CONVENTIONS.md`,
   `.claude/CLAUDE.md` et les fichiers de `[deploy] instruction_files` sont intégrés au corps des agents
   ([ADR-043](./adr/043-session-bundle-deploy-removal.fr.md)). Le wiki lui-même n'est pas intégré : les agents le
   lisent à la demande, avec `wiki-navigation`. D'où un `ONBOARDING.md` court qui renvoie au wiki.
 - **Écritures** : l'`onboarder` (création seulement) et le `documentarian` écrivent le wiki dans le dossier de travail de la session
-  (projet ou worktree). oh n'y écrit que les propositions validées par l'utilisateur à la carte du commit, la
+  (projet ou worktree). Trois agents en lecture seule écrivent en plus une page déclarée par leur workflow
+  (`writes:`) et la commitent seule : le `planner` sa spec (`specs/`, `spec`), le `debugger` son postmortem
+  (`postmortems/`, `incident`), le `pathfinder` sa décision (`decisions/`, `spike`) ; oh relève ces pages comme
+  sorties de la session et les passe au workflow suivant (`next:`, entrée `source` de `spec`). oh n'y écrit que les propositions validées par l'utilisateur à la carte du commit, la
   table des god nodes qu'il calcule et la marque `synced:` de `doc-sync`.
 - **Enrichissement** : tous les agents proposent avec `wiki_propose` ; plus aucune délégation directe au
   `documentarian`. Les propositions des workflows sans commit restent en file.
@@ -317,5 +322,5 @@ code ne reçoit aucune proposition. Plus de réécriture complète : supprimer `
 - Skill `shared/wiki-navigation` — protocole de navigation + algorithme god nodes
 - Skill `documentarian/doc-wiki-protocol` — formats canoniques + règles d'enrichissement
 - Skill `shared/living-docs-enrichment` — propositions avec `wiki_propose`
-- [Serveur MCP `wiki`](../reference/cli-mcp.fr.md#serveur-mcp-wiki) et [`oh wiki`](../reference/cli-projects.fr.md#oh-wiki)
+- [Serveur MCP `wiki`](../reference/cli-mcp.fr.md#serveur-mcp-wiki) et [`oh wiki`](../reference/cli-projects.fr.md#oh-wiki-check)
 - ADR à venir : décision d'adoption du wiki documentaire vivant

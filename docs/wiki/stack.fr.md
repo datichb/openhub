@@ -49,9 +49,9 @@ last_updated: 2026-10-06
 | Protocole | MCP (Model Context Protocol) -- sous-processus stdin/stdout ; HTTP « streamable » via la passerelle du demon hors machine |
 | Identifiants | Proxy d'identifiants de `ohd` (jeton `ohs_` par groupe ; les vraies cles restent dans le trousseau ; SigV4 pour les profils AWS) |
 | Fournisseurs | Anthropic Claude, AWS Bedrock, OpenAI, OpenRouter (configurable) |
-| Workflows | 14 workflows déclaratifs `oh/v1` (YAML, embarqués via go:embed) |
-| Agents | 16 agents avec architecture de skills hybride (Bucket A/B), dont l'agent d'entree generique `conductor` |
-| Skills | 184 skills de protocole + 14 annexes (embarques via go:embed, livres par le paquet de session) |
+| Workflows | 22 workflows déclaratifs `oh/v1` (YAML, embarqués via go:embed) |
+| Agents | 18 agents avec architecture de skills hybride (Bucket A/B), dont l'agent d'entree generique `conductor` |
+| Skills | 179 skills de protocole + 11 annexes (embarques via go:embed, livres par le paquet de session) |
 | Plugin | Plugin oh pour opencode (TypeScript, embarque ; monde ferme et checkpoints) |
 
 ## Integrations externes (serveurs MCP)

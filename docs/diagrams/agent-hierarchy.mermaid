@@ -8,10 +8,10 @@ flowchart TD
     subgraph Planning ["Planning Family (6 agents)"]
         direction TB
         COND["fa:fa-random <strong>conductor</strong><br/>Primary · Generic workflow entry<br/>read-only"]
-        ORCH["fa:fa-sitemap <strong>orchestrator</strong><br/>Primary · Coordinator<br/>read-only"]
+        ORCH["fa:fa-sitemap <strong>orchestrator</strong><br/>Primary · Coordinator (libre only)<br/>read-only"]
         ORCHDEV["fa:fa-code-branch <strong>orchestrator-dev</strong><br/>Primary · Coordinator<br/>read-only"]
-        PLAN["fa:fa-tasks <strong>planner</strong><br/>Primary · Consultant<br/>read-only"]
-        PATH["fa:fa-compass <strong>pathfinder</strong><br/>Primary · Recon<br/>read-only"]
+        PLAN["fa:fa-tasks <strong>planner</strong><br/>Primary · Consultant<br/>read-only · writes: specs (spec)"]
+        PATH["fa:fa-compass <strong>pathfinder</strong><br/>Primary · Recon, spike<br/>read-only · writes: decisions"]
         ONB["fa:fa-book <strong>onboarder</strong><br/>Primary · Discovery<br/>read-write"]
     end
 
@@ -33,7 +33,7 @@ flowchart TD
     subgraph Quality ["Quality Family (3 agents)"]
         direction TB
         REV["fa:fa-check-circle <strong>reviewer</strong><br/>Primary · Code review<br/>read-only"]
-        DBG["fa:fa-bug <strong>debugger</strong><br/>Primary · Diagnostics<br/>read-only"]
+        DBG["fa:fa-bug <strong>debugger</strong><br/>Primary · Diagnostics, incident<br/>read-only · writes: postmortems"]
         BENCH["fa:fa-tachometer <strong>benchmarker</strong><br/>Primary · Performance<br/>read-write"]
     end
 
@@ -57,16 +57,21 @@ flowchart TD
         BRF["fa:fa-info-circle <strong>brief-enricher</strong><br/>Subagent · Analysis<br/>read-only"]
     end
 
-    %% Delegation edges
-    COND -.->|"workflow members only"| PATH
+    %% Delegation edges: frontmatter (permission.task), solid;
+    %% workflow `calls:` or "any workflow member" (conductor), dotted
+    COND -.->|"workflow members only (spec, sweep, security-fix)"| PATH
     COND -.->|"workflow members only"| PLAN
+    COND -.->|"workflow members only"| DES
     COND -.->|"workflow members only"| DEV
+    COND -.->|"workflow members only"| REV
+    COND -.->|"workflow members only"| AUDS
     ORCH -->|delegates| PATH
     ORCH -->|delegates| PLAN
     ORCH -->|delegates| ONB
     ORCH -->|delegates| DES
     ORCH -->|delegates| ORCHDEV
     ORCH -->|delegates| DBG
+    ORCH -->|delegates| REV
 
     ORCHDEV -->|routes to| DEV
     ORCHDEV -->|routes to| REV
@@ -76,6 +81,10 @@ flowchart TD
 
     PLAN -->|delegates| DES
     PATH -->|delegates| DES
+
+    DBG -.->|"calls: developer (incident)"| DEV
+    PATH -.->|"calls: developer (spike)"| DEV
+    REV -.->|"calls: reviewer (review)"| REV
 
     OHF -.->|"conflict it cannot resolve (merge-conflicts session)"| MRG
 

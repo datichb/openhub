@@ -10,12 +10,16 @@ Central hub to run AI coding sessions across your projects, with shared agents a
 
 ## What oh v5 does
 
-- **Declarative workflows.** Each use case (feature, ticket, review, audit…) is a YAML workflow (`apiVersion: oh/v1`): entry agent, member agents and their order, checkpoints per mode (`manuel`, `semi-auto`, `auto`), inputs, outputs, resources, risk level and limits. The hub ships 12 of them; a team or a project can extend them in its team-state repository.
+- **Declarative workflows.** Each use case (spec, ticket, review, audit, incident, release…) is a YAML workflow (`apiVersion: oh/v1`): entry agent, member agents and their order, checkpoints per mode (`manuel`, `semi-auto`, `auto`), inputs, outputs, resources, risk level and limits. The hub ships 22 of them; a team or a project can extend them in its team-state repository.
+- **Checked by oh.** Irreversible actions (commit, closing or creating tickets, tag, infrastructure apply) stay refused to the agents until the checkpoint that opens them is passed; before that, oh itself runs the tests of the stack, checks a spec or a breakdown, and records the outputs of the session itself.
+- **Composed workflows.** A session ends with the next step oh proposes, without launching it: `spec` → `implement-spec`, `audit` → `security-fix`, `spike` or `incident` → `spec`. `feature` is the chain `spec` then `implement-spec`.
+- **Living documentation wiki.** Agents read the project wiki (`docs/wiki/`) and propose their findings to it; you accept or refuse each proposal at the commit checkpoint, oh applies the accepted ones.
 - **Session bundle.** Nothing is written into your projects any more. At launch, oh builds a session bundle outside the project (`~/.oh/bundles/<hash>/`, immutable) from the workflow: agents, skills, permissions, MCP servers, oh plugin.
 - **Closed world.** A session sees only the agents and skills of its bundle (opencode's native agents are disabled). It is checked at each server start (`Attest`); if anything else is visible, the session does not start.
 - **Sessions driven from oh.** One `opencode serve` per group, several sessions per server (one per ticket, one worktree per writing session). Decisions (⏸ checkpoint, ? question, ! permission, $ budget, ✗ error) are answered from the TUI, the CLI, opencode or the browser; the first answer wins. Closing opencode does not stop the session; an idle server goes to sleep after 5 minutes and resumes on the same bundle.
 - **Secrets stay on the machine.** The `ohd` daemon hosts a credential proxy: opencode only gets a group token (`ohs_…`), the real LLM key stays in your keychain.
 - **Local, container or remote.** Run a session on your machine, in a container built from the project's dev Dockerfile (Colima, Podman, Docker CLI), or in a GitLab CI job. Beads always stays on the machine.
+- **Fan-out (experimental).** `implement-spec` and `sweep` can launch one child session per ticket or per subtask, each in its own worktree; oh merges them and you approve the whole once (`cp-merge`).
 
 ---
 
@@ -58,7 +62,10 @@ opencode V1 is no longer supported: oh refuses to start a session with a clear m
 ```bash
 oh init                              # First-time setup: language, opencode V2 check, project, MCP, workflow space
 oh run quick -i request="Fix the typo in the header"   # Small change, one agent
-oh run feature                       # Feature end-to-end (plan, checkpoints, implementation, review)
+oh run spec -i request="CSV export of the invoices"   # Spec in the wiki then Beads tickets, no implementation
+oh run feature                       # Alias of spec (like oh start): the session asks for the feature
+oh session next <session>            # Next step proposed by oh (here: implement-spec on the created tickets)
+oh run implement-spec --parent <session>   # Implement the tickets of the spec, review of the whole
 oh run ticket --tickets bd-42,bd-43  # One session per Beads ticket (one server, one worktree each)
 oh session inbox                     # Pending decisions of all sessions
 oh                                   # TUI: Start, Sessions, workflow catalogue, settings
@@ -85,6 +92,9 @@ In the TUI, **Start** lists the workflows (★ pinned, recent ones), opens the l
 | `oh session approve` · `answer` · `dismiss` | Answer a checkpoint or a permission, a question, dismiss an alert |
 | `oh session send` · `interrupt` · `model` · `compact` · `fork` | Steer a running session |
 | `oh session results <id>` | Changed files, branch, cost; `--mr` (MR description), `--patch` |
+| `oh session next <id>` · `report` · `trace` | Next step proposed by oh, reports filed by the agents, full trace of the session |
+| `oh session approve --batch` · `oh fanout status` · `clean` | Approve the checkpoints of a fan-out in a batch, status and cleanup of the fan-out (experimental) |
+| `oh wiki check` · `pending` · `decide` · `stats` | Project wiki: check, pending proposals, decisions, metrics |
 | `oh session resume` · `stop` | Resume a sleeping session, stop a session |
 | `oh session fetch` · `resolve` | Fetch a finished remote session, replay its Beads journal |
 | `oh daemon status` · `stop` | oh daemon (credential proxy, session supervision) |
@@ -100,10 +110,11 @@ In the TUI, **Start** lists the workflows (★ pinned, recent ones), opens the l
 | `oh metrics` · `oh dashboard` · `oh board` · `oh serve` | Usage and cost, TUI dashboard, Beads kanban, local web dashboard |
 | `oh export` · `oh import` | Backup and restore |
 | `oh upgrade oh` | Self-update of oh (non-Homebrew installs) |
-| `oh skill check` | Skill catalogue check (duplicates, `requires:`, frontmatter, annexes) |
+| `oh skill check` | Skill catalogue check (duplicates, `requires:`, frontmatter, annexes; `--stale`: freshness of the stack skills) |
+| `oh gc` · `oh eval` | Cleanup (sessions, wiki proposals, fan-out branches); behaviour evaluations with a real model |
 | `oh beads …` | Proxy to `bd` (Beads CLI) |
 
-**Deprecated aliases** (warning, then `oh run`): `oh start` → `oh run feature`, `oh start --agent X` → `oh run libre --agent X`, `oh start --dev` → `oh run ticket`, `oh audit` → `oh run audit`, `oh review` → `oh run review` (`--publish` stays an oh command), `oh debug` → `oh run debug`. `oh deploy` and `oh sync` only display a migration message.
+**Deprecated aliases** (warning, then `oh run`): `oh start` → `oh run feature` (alias of `spec`), `oh start --agent X` → `oh run libre --agent X`, `oh start --dev` → `oh run ticket`, `oh audit` → `oh run audit`, `oh review` → `oh run review` (`--publish` stays an oh command), `oh debug` → `oh run debug`. `oh deploy` and `oh sync` only display a migration message.
 
 > Full reference: [docs/reference/cli.en.md](docs/reference/cli.en.md) · [CLI — Workflows](docs/reference/cli-workflows.en.md) · [CLI — Sessions](docs/reference/cli-sessions.en.md) · [v5 Sessions](docs/guides/sessions-v5.en.md)
 
@@ -111,24 +122,32 @@ In the TUI, **Start** lists the workflows (★ pinned, recent ones), opens the l
 
 ## Workflows
 
-The 14 workflows shipped by the hub:
+The 22 workflows shipped by the hub:
 
 | Workflow | Entry agent | Use |
 |----------|-------------|-----|
-| `feature` | `orchestrator` | Feature end-to-end: plan, design, implementation, review |
+| `spec` (aliases `feature`, `cadrage`) | `conductor` | Understand a request, write its spec in the wiki (`docs/wiki/specs/`), slice it into tickets, without implementing |
+| `implement-spec` (alias `feature --tickets`) | `orchestrator-dev` | Implement the tickets of a spec one after the other, then review the whole (experimental fan-out: `-i fanout=true`) |
 | `ticket` | `orchestrator-dev` | Ready-to-code Beads tickets (`--tickets a,b`: one session per ticket) |
 | `quick` | `developer` | Small, well-defined change |
-| `infra-change` | `operator` | Apply an infrastructure change already written: plan, approval, apply (`-i target=staging`) |
-| `cadrage` | `conductor` | Plan without implementing |
-| `onboarding` | `onboarder` | Discover a project, write its wiki (`docs/wiki/`) |
+| `sweep` | `conductor` | Cross-cutting goal split into subtasks (`-i goal=…`), breakdown checked by oh |
 | `review` | `reviewer` | Review a branch (read only) |
-| `review-feedback` | `orchestrator-dev` | Process the feedback of a review |
+| `review-feedback` | `orchestrator-dev` | Process the feedback of a merge request |
 | `audit` | `auditor` | Multi-domain audit (`-i type=security`, `infra`, `database`…) |
+| `security-fix` | `conductor` | Fix the findings of a security audit, with a re-analysis before the commit |
 | `debug` | `debugger` | Diagnose a bug (`-i issue="…"`) |
+| `incident` | `debugger` | Mitigate an incident, blameless postmortem in the wiki, actions as tickets |
+| `spike` | `pathfinder` | Settle a technical question: research, throwaway prototype, go / clarify / kill decision |
 | `benchmark` | `benchmarker` | Measure performance, before/after (`-i target=…`) |
-| `sweep` | `conductor` | Goal-driven series of changes (`-i goal=…`) |
+| `infra-change` | `operator` | Apply an infrastructure change already written: plan, approval, apply (`-i target=staging`) |
+| `onboarding` | `onboarder` | Discover a project, create or update its wiki (`docs/wiki/`) |
+| `doc-sync` | `documentarian` | Bring the wiki up to date with the commits since the last synchronization |
+| `skill-refresh` | `documentarian` | Update the stack skills of the hub whose review is old |
+| `release` | `release-manager` | Prepare a release: SemVer version, CHANGELOG, annotated tag; pushing is left to you |
 | `brief-enrich` | `brief-enricher` | Enrich a takeover brief (headless) |
-| `libre` | your choice (`--agent`) | Free session with the agent of your choice |
+| `libre` | your choice (`--agent`, `orchestrator` by default) | Free session with the agent of your choice |
+| `merge-conflicts` | `merger` | Conclude a conflicting merge (started by oh in a fan-out) |
+| `sweep-task` | `developer` | One subtask of a sweep (started by oh in a fan-out) |
 
 Workflows resolve **by layers**: hub < team < project < session options. A layer can extend another (`extends`) and lock fields (`enforce`); security can only harden. See [Shipped workflows](docs/reference/workflows.en.md), [Workflow schema](docs/reference/workflow-schema.en.md) and [Team workflows](docs/guides/team-workflows.en.md).
 
@@ -136,35 +155,37 @@ Workflows resolve **by layers**: hub < team < project < session options. A layer
 
 ## Agents
 
-16 agents in 8 families. Their default mode comes from their frontmatter; a workflow decides which ones are members of a session and may change their mode.
+18 agents in 9 families. Their default mode comes from their frontmatter; a workflow decides which ones are members of a session and may change their mode.
 
 - **`primary`**: entry point of a session
 - **`subagent`**: delegated by another agent of the workflow
 
-### Primary agents (13)
+### Primary agents (15)
 
 | Agent | Family | Role |
 |-------|--------|------|
 | `conductor` | Planning | Generic entry agent: follows the workflow map, runs the agents in order, passes checkpoints |
-| `orchestrator` | Planning | Feature end-to-end coordinator |
+| `orchestrator` | Planning | Feature end-to-end coordinator, in a `libre` session |
 | `orchestrator-dev` | Planning | Ticket implementation (drives the developers) |
-| `planner` | Planning | Break down features into Beads tickets |
-| `pathfinder` | Planning | Fast reconnaissance, complexity estimation |
+| `planner` | Planning | Spec and breakdown of features into Beads tickets |
+| `pathfinder` | Planning | Fast reconnaissance, complexity estimation, spikes |
 | `onboarder` | Planning | Project discovery, wiki creation |
 | `auditor` | Auditor | Multi-domain audit coordinator (9 domains, infrastructure and database included) |
 | `designer` | Design | Figma analysis, UX/UI specs (recon, ux, ui, ux+ui) |
 | `reviewer` | Quality | PR/MR review by severity (standard, adversarial, edge-case) |
-| `debugger` | Quality | Bug diagnosis, root cause |
+| `debugger` | Quality | Bug diagnosis, root cause, incidents and postmortems |
 | `benchmarker` | Quality | Lighthouse, k6, pprof, py-spy performance benchmarks |
 | `operator` | Infra | Infrastructure change: plan, cost, risks, then apply of the approved plan (`infra-change`) |
-| `documentarian` | Documentation | README, CHANGELOG, ADR, API docs |
+| `documentarian` | Documentation | README, CHANGELOG, ADR, API docs, wiki synchronization |
+| `release-manager` | Delivery | Release preparation (`release`) |
+| `merger` | Delivery | Merge conflicts of a fan-out (`merge-conflicts`) |
 
 ### Subagents (3)
 
 | Agent | Delegated by | Domain |
 |-------|-------------|--------|
-| `developer` | `orchestrator-dev` | Implementation (frontend, backend, fullstack, api, mobile, data, devops, platform, security), refactoring (`refactor`), migrations (`migration`), test generation (`tests`) |
-| `auditor-subagent` | `auditor` | All audit domains (security, performance, accessibility, ecodesign, architecture, privacy, observability, infra, database) |
+| `developer` | `orchestrator-dev`, `conductor`, `debugger`, `pathfinder` (entry agent of `quick` and `sweep-task`) | Implementation (frontend, backend, fullstack, api, mobile, data, devops, platform, security), refactoring (`refactor`), migrations (`migration`), test generation (`tests`) |
+| `auditor-subagent` | `auditor`, `conductor` (`security-fix`) | All audit domains (security, performance, accessibility, ecodesign, architecture, privacy, observability, infra, database) |
 | `brief-enricher` | `brief-enrich` workflow | Read-only takeover brief enrichment |
 
 See [Agents](docs/architecture/agents.en.md).
@@ -187,7 +208,7 @@ Choose with `oh run --runtime …`, else the project setting, the Settings, then
 
 ```
 openhub/
-├── agents/              <- Agent definitions (16 agents, 8 families)
+├── agents/              <- Agent definitions (18 agents, 9 families)
 ├── skills/              <- Protocols: Bucket A (inline) + Bucket B (on demand)
 ├── workflows/           <- Shipped workflows (oh/v1) + prompt templates
 ├── permissions/         <- Permission bases of the agents
@@ -195,7 +216,7 @@ openhub/
 │   ├── cmd/             <- Cobra commands and TUI wiring (oh-bd: fake bd of containers)
 │   └── internal/
 │       ├── workflow/      <- oh/v1 schema, layered resolution, validation, prompts
-│       ├── services/      <- Services shared by CLI and TUI (workflow, session, checkpoint, remote)
+│       ├── services/      <- Services shared by CLI and TUI (workflow, session, checkpoint, report, wiki, fanout, remote)
 │       ├── bundle/        <- Session bundles (~/.oh/bundles/<hash>/)
 │       ├── bricks/        <- Agents, skills, permissions, model cascade
 │       ├── sessionspec/   <- Neutral model (SessionSpec, BundleSpec)
@@ -209,10 +230,11 @@ openhub/
 │       ├── remote/        <- Machine ↔ GitLab CI job contract, generated pipeline
 │       ├── limits/        <- Session limits (I6)
 │       ├── teamstate/     <- team-state repository (claims, workflows, catalogue, solo)
-│       ├── mcp/           <- Native MCP servers (figma, gitlab, gslides, github, jira, linear, team, workflow)
+│       ├── mcp/           <- Native MCP servers (figma, gitlab, gslides, github, jira, linear, team, workflow, wiki)
 │       ├── storage/       <- SQLite (oh.db), keychain, file encryption
 │       ├── tui/           <- tview/tcell TUI
 │       └── ...            <- beads, config, i18n, prompt, tracker, worktree, termlaunch, selfupdate…
+├── evals/               <- Behaviour evaluation cases (oh eval)
 └── docs/                <- Documentation (bilingual fr/en)
 ```
 
@@ -233,7 +255,8 @@ Built-in MCP servers, running natively in Go (stdio, `oh mcp serve <name>`). Tho
 | `jira` | Issues, transitions | `JIRA_URL` + `JIRA_TOKEN` |
 | `linear` | Issues/mutations via GraphQL | `LINEAR_API_KEY` |
 | `team` | Team coordination, claims, wiki | team-state repository |
-| `workflow` | Workflow status, checkpoints, typed outputs (added to every session) | — |
+| `workflow` | Workflow status, checkpoints, typed outputs, agent reports (added to every session) | — |
+| `wiki` | Project wiki: index, reading, proposals, check (added when the project has a `docs/wiki/`) | — |
 
 Configure them with `oh mcp setup` (tokens stored in the OS keychain; the server reads its token itself). Outside the machine (container), oh MCP servers run on the machine behind the daemon's MCP gateway.
 
@@ -244,10 +267,10 @@ Configure them with `oh mcp setup` (tokens stored in the OS keychain; the server
 | Topic | Documents |
 |-------|-----------|
 | Start | [Getting started](docs/guides/getting-started.en.md) · [Tutorial](docs/guides/tutorial.en.md) · [Migrating to oh v5](docs/guides/migration-v5.en.md) |
-| Sessions | [v5 Sessions](docs/guides/sessions-v5.en.md) · [Workflows (scenarios)](docs/guides/workflows.en.md) · [Review & Feedback](docs/guides/review-feedback.en.md) |
-| Workflows | [Shipped workflows](docs/reference/workflows.en.md) · [Workflow schema](docs/reference/workflow-schema.en.md) · [Team workflows](docs/guides/team-workflows.en.md) |
+| Sessions | [v5 Sessions](docs/guides/sessions-v5.en.md) · [Workflows (scenarios)](docs/guides/workflows.en.md) · [Spec](docs/guides/spec-workflow.en.md) · [Review & Feedback](docs/guides/review-feedback.en.md) · [Incident, security, spike](docs/guides/incident-security-spike.en.md) · [Release](docs/guides/release.en.md) · [Fan-out](docs/guides/fan-out.en.md) |
+| Workflows | [Shipped workflows](docs/reference/workflows.en.md) · [Workflow schema](docs/reference/workflow-schema.en.md) · [Checkpoints](docs/reference/checkpoints.en.md) · [Team workflows](docs/guides/team-workflows.en.md) |
 | Execution | [Container runtime](docs/guides/container.en.md) · [Remote runners](docs/guides/remote-runners.en.md) |
-| Architecture | [Overview](docs/architecture/overview.en.md) · [Agents](docs/architecture/agents.en.md) · [Skills](docs/architecture/skills.en.md) · [ADRs](docs/architecture/adr/) (52) |
+| Architecture | [Overview](docs/architecture/overview.en.md) · [Agents](docs/architecture/agents.en.md) · [Skills](docs/architecture/skills.en.md) · [Living wiki](docs/architecture/living-wiki.en.md) · [ADRs](docs/architecture/adr/) (53) |
 | Reference | [CLI](docs/reference/cli.en.md) · [Configuration](docs/reference/config.en.md) · [Glossary](docs/reference/glossary.en.md) · [Beads model](docs/reference/beads-model.en.md) |
 | Operations | [Troubleshooting](docs/guides/troubleshooting.en.md) · [Providers](docs/guides/providers.en.md) · [Backup & Restore](docs/guides/backup-restore.en.md) · [Dashboard](docs/guides/dashboard.en.md) |
 
