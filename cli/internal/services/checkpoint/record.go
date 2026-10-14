@@ -11,7 +11,7 @@ import (
 
 // Outputs recorded by oh (R5): an output declared with `record:` is filled
 // by oh from what it saw the session do, never by an agent (Declare refuses
-// it): tickets created or closed through the Beads gateway, specs checked
+// it): tickets created, closed or changed through the Beads gateway, specs checked
 // at a `verify.spec` checkpoint, reports deposited with workflow_report,
 // files written under paths (written.go).
 
@@ -19,6 +19,7 @@ import (
 const (
 	RecordCreated = "created"
 	RecordClosed  = "closed"
+	RecordUpdated = "updated" // r9b: tickets changed through the Beads gateway
 	RecordSpec    = "spec"
 	RecordReport  = "report"
 	RecordWritten = "written" // written.go

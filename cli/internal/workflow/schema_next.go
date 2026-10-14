@@ -128,6 +128,10 @@ const (
 	// RecordClosed: the tickets closed through the Beads gateway
 	// (beads-ids).
 	RecordClosed OutputRecord = "closed"
+	// RecordUpdated: the tickets changed through the Beads gateway, without
+	// being created or closed (priority, labels, dependencies…; beads-ids,
+	// r9b).
+	RecordUpdated OutputRecord = "updated"
 	// RecordSpec: the specs checked by oh at a checkpoint with
 	// `verify.spec` (path).
 	RecordSpec OutputRecord = "spec"
@@ -150,7 +154,7 @@ const (
 )
 
 // OutputRecords lists the valid record kinds.
-var OutputRecords = []OutputRecord{RecordCreated, RecordClosed, RecordSpec, RecordReport, RecordInput, RecordWritten, RecordTasks}
+var OutputRecords = []OutputRecord{RecordCreated, RecordClosed, RecordUpdated, RecordSpec, RecordReport, RecordInput, RecordWritten, RecordTasks}
 
 // Valid reports whether r is known ("" = declared by the session).
 func (r OutputRecord) Valid() bool { return r == "" || slices.Contains(OutputRecords, r) }
@@ -158,7 +162,7 @@ func (r OutputRecord) Valid() bool { return r == "" || slices.Contains(OutputRec
 // OutputType is the type of the outputs recorded this way.
 func (r OutputRecord) OutputType() OutputType {
 	switch r {
-	case RecordCreated, RecordClosed:
+	case RecordCreated, RecordClosed, RecordUpdated:
 		return OutputBeadsIDs
 	case RecordSpec:
 		return OutputPath

@@ -392,6 +392,7 @@ const (
 	UnlockPush   UnlockOp = "push"   // git push
 	UnlockClose  UnlockOp = "close"  // closing a Beads ticket
 	UnlockCreate UnlockOp = "create" // creating Beads tickets
+	UnlockUpdate UnlockOp = "update" // changing Beads tickets (priority, labels, dependencies…; r9b)
 	UnlockApply  UnlockOp = "apply"  // changing infrastructure (terraform apply, kubectl apply…)
 
 	// R8: publishing (risk: publish only; refused in every workflow that
@@ -405,7 +406,7 @@ const (
 )
 
 // UnlockOps lists the valid operations.
-var UnlockOps = []UnlockOp{UnlockCommit, UnlockPush, UnlockClose, UnlockCreate, UnlockApply, UnlockTag, UnlockMR, UnlockMerge}
+var UnlockOps = []UnlockOp{UnlockCommit, UnlockPush, UnlockClose, UnlockCreate, UnlockUpdate, UnlockApply, UnlockTag, UnlockMR, UnlockMerge}
 
 // PublishOps are the operations that publish outside the repository or
 // mark a release: only a `risk: publish` workflow unlocks them, at a

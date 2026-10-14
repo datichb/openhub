@@ -193,6 +193,8 @@ const (
 	UnlockPush   = "push"
 	UnlockClose  = "close"
 	UnlockCreate = "create"
+	// r9b: changing Beads tickets (triage).
+	UnlockUpdate = "update"
 	UnlockApply  = "apply"
 	// R8: publishing (risk: publish).
 	UnlockTag = "tag"

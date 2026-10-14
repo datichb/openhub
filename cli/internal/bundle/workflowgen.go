@@ -145,6 +145,7 @@ var unlockOpText = map[string]string{
 	sessionspec.UnlockPush:   "`git push`",
 	sessionspec.UnlockClose:  "la fermeture d'un ticket",
 	sessionspec.UnlockCreate: "la création de tickets",
+	sessionspec.UnlockUpdate: "la modification de tickets (priorité, étiquettes, dépendances, doublons…)",
 	sessionspec.UnlockApply:  "les modifications d'infrastructure (`terraform apply`, `kubectl apply`…)",
 	sessionspec.UnlockTag:    "la création d'un tag (`git tag`, `git push --tags`)",
 	sessionspec.UnlockMR:     "l'ouverture d'une merge request (`glab mr create`, `gh pr create`)",
@@ -184,8 +185,13 @@ func unlockText(id string, ops []string, commitNext ...string) string {
 	case has[sessionspec.UnlockClose]:
 		fmt.Fprintf(&b, " Le ticket fermé, la fermeture est de nouveau verrouillée jusqu'au prochain passage de **%s**.", id)
 	}
-	if has[sessionspec.UnlockCreate] {
+	switch create, update := has[sessionspec.UnlockCreate], has[sessionspec.UnlockUpdate]; {
+	case create && update:
+		fmt.Fprintf(&b, " Une fois passé, fais aussitôt les créations et les modifications validées, et elles seules : elles se referment au checkpoint obligatoire suivant, ou quand **%s** est demandé de nouveau.", id)
+	case create:
 		fmt.Fprintf(&b, " Une fois passé, crée les tickets validés aussitôt : la création se referme au checkpoint obligatoire suivant, ou quand **%s** est demandé de nouveau.", id)
+	case update:
+		fmt.Fprintf(&b, " Une fois passé, fais aussitôt les modifications validées, et elles seules : la modification se referme au checkpoint obligatoire suivant, ou quand **%s** est demandé de nouveau.", id)
 	}
 	switch {
 	case has[sessionspec.UnlockTag] && has[sessionspec.UnlockCommit]:

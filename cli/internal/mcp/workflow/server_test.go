@@ -109,6 +109,9 @@ func TestCheckpointUnlockedTextFollowsTheOps(t *testing.T) {
 	create := unlockedText([]string{"create"}, "")
 	assert.Contains(t, create, "Crée maintenant les tickets validés")
 	assert.NotContains(t, create, "fermeture")
+	triage := unlockedText([]string{"create", "update"}, "")
+	assert.Contains(t, triage, "Fais maintenant les modifications validées des tickets")
+	assert.NotContains(t, triage, "commit")
 
 	release := unlockedText([]string{"commit", "tag", "mr"}, "")
 	assert.Contains(t, release, "Commite d'abord la release")

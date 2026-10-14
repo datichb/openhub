@@ -22,3 +22,16 @@ func (d *Daemon) guardCreate(ctx context.Context, g gateway.Grant) error {
 	}
 	return err
 }
+
+// guardUpdate refuses to change tickets before the checkpoint that unlocks
+// `update` (r9b: triage shows its changes before any write). closing: the
+// change closes tickets (see checkpoint.GuardUpdate).
+func (d *Daemon) guardUpdate(ctx context.Context, g gateway.Grant, closing bool) error {
+	err := d.opts.Checkpoints.GuardUpdate(ctx, g.SessionID, closing)
+	var lock *checkpoint.LockError
+	if err != nil && !errors.As(err, &lock) {
+		slog.Debug("ohd: ticket change guard", "session", g.SessionID, "error", err)
+		return nil // no workflow state: the allow-list still applies
+	}
+	return err
+}

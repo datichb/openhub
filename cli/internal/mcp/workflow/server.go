@@ -234,6 +234,9 @@ func unlockedText(ops []string, commitNext string) string {
 	if has(sessionspec.UnlockCreate) {
 		b.WriteString(" " + i18n.T("cmd.mcp.workflow.checkpoint_unlocked_create"))
 	}
+	if has(sessionspec.UnlockUpdate) {
+		b.WriteString(" " + i18n.T("cmd.mcp.workflow.checkpoint_unlocked_update"))
+	}
 	switch tag, commit := has(sessionspec.UnlockTag), has(sessionspec.UnlockCommit); {
 	case tag && commit:
 		b.WriteString(" " + i18n.T("cmd.mcp.workflow.checkpoint_unlocked_tag_after_commit"))
