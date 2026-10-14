@@ -68,6 +68,9 @@ type Case struct {
 	// Previous are sessions recorded in the project before the launch, with
 	// their outputs (R5: the inputs read with `from: session.output(…)`).
 	Previous []PreviousSession `yaml:"previous" json:"previous,omitempty"`
+	// Fanout enables the experimental fan-out in the pass (R6), with its
+	// number of children at the same time (1 to 3).
+	Fanout *FanoutSetup `yaml:"fanout" json:"fanout,omitempty"`
 
 	// Dir is the case directory.
 	Dir string `yaml:"-" json:"-"`
@@ -75,6 +78,11 @@ type Case struct {
 
 // PreviousSession is a session of the project recorded before the launch
 // (finished, oldest first).
+// FanoutSetup is the fan-out configuration of a pass ([fanout] of oh).
+type FanoutSetup struct {
+	Parallel int `yaml:"parallel" json:"parallel,omitempty"`
+}
+
 type PreviousSession struct {
 	Workflow string         `yaml:"workflow" json:"workflow"`
 	Outputs  map[string]any `yaml:"outputs" json:"outputs,omitempty"`

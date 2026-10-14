@@ -26,6 +26,7 @@ const (
 	AssertFileMatches          = "file_matches"            // a file changed in the clone holds a text
 	AssertOutput               = "output"                  // oh recorded (or the session declared) an output (R5)
 	AssertNext                 = "next"                    // oh proposes a workflow after the session (R5, next:)
+	AssertFanout               = "fanout"                  // an event of the fan-out of the session, at least count times (R6)
 )
 
 // Assertion is a check of a case (`type:` and its parameters).
@@ -87,6 +88,16 @@ type Assertion struct {
 	// workflow); Pattern, optional, matches its inputs (« tickets=ev-1,ev-2
 	// spec=… »); Absent inverts it.
 	Workflow string `yaml:"workflow" json:"workflow,omitempty"`
+
+	// fanout (R6): Event is the kind of the fan-out event (child, merged,
+	// conflict, merger, resolved, ready, integrated, closed, budget,
+	// child_checkpoint…); Checkpoint and By restrict child_checkpoint (By
+	// "delegated": passed by delegation, CP-R3); Count is the minimum
+	// (default 1; with absent: none).
+	Event      string `yaml:"event" json:"event,omitempty"`
+	Checkpoint string `yaml:"checkpoint" json:"checkpoint,omitempty"`
+	By         string `yaml:"by" json:"by,omitempty"`
+	Count      int    `yaml:"count" json:"count,omitempty"`
 }
 
 // Anchor selects the first event of a kind in a trace.
@@ -199,6 +210,10 @@ func (a Assertion) Validate() error {
 		if _, err := regexp.Compile("(?i)" + a.Pattern); err != nil {
 			return fmt.Errorf("pattern: a regular expression (%v)", err)
 		}
+	case AssertFanout:
+		if a.Event == "" {
+			return errors.New("event is required")
+		}
 	default:
 		return fmt.Errorf("unknown assertion type %q", a.Type)
 	}
@@ -262,6 +277,18 @@ func (a Assertion) Label() string {
 			return "not proposed next: " + a.Workflow
 		}
 		return "proposed next: " + a.Workflow
+	case AssertFanout:
+		s := "fan-out " + a.Event
+		if a.Checkpoint != "" {
+			s += " " + a.Checkpoint
+		}
+		if a.By != "" {
+			s += " by " + a.By
+		}
+		if a.Absent {
+			return "no " + s
+		}
+		return fmt.Sprintf("%s ×%d", s, max(a.Count, 1))
 	}
 	return a.Type
 }
@@ -328,6 +355,8 @@ func check(a Assertion, ev Evidence) (pass bool, detail string) {
 		return checkFileMatches(a, ev)
 	case AssertOutput, AssertNext:
 		return checkComposition(a, ev.Events)
+	case AssertFanout:
+		return checkFanout(a, ev.Events)
 	}
 	return false, "unknown assertion type " + a.Type
 }
@@ -838,4 +867,28 @@ func checkFileMatches(a Assertion, ev Evidence) (pass bool, detail string) {
 		return false, "no changed file matches " + strings.Join(a.Paths, ", ")
 	}
 	return false, "not found in " + strings.Join(seen, ", ")
+}
+
+// checkFanout counts the fan-out events of the trace (R6).
+func checkFanout(a Assertion, evs []sessionsvc.TraceEvent) (pass bool, detail string) {
+	n, traced := 0, false
+	for _, e := range evs {
+		if e.Kind != sessionsvc.TraceFanout {
+			continue
+		}
+		traced = true
+		if e.Event != a.Event || (a.Checkpoint != "" && e.Checkpoint != a.Checkpoint) || (a.By != "" && e.By != a.By) {
+			continue
+		}
+		n++
+	}
+	want := max(a.Count, 1)
+	detail = fmt.Sprintf("%d of %d", n, want)
+	if !traced {
+		detail = "no fan-out event in the trace"
+	}
+	if a.Absent {
+		return n == 0, detail
+	}
+	return n >= want, detail
 }

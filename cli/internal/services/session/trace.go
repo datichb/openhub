@@ -41,7 +41,12 @@ const (
 	TraceEnd        = "end"        // an agent loop ended
 	TraceOutput     = "output"     // a typed output declared by the session (or recorded by oh)
 	TraceNext       = "next"       // a workflow oh proposes after the session (R5, `next:`), Title = workflow, Text = inputs
-	TraceSummary    = "summary"    // last event: totals
+	// TraceFanout is an event of the fan-out of the session (R6): Event =
+	// its kind (child, merged, conflict…), Title = ticket, ToolSession = the
+	// child or merger session; Event "child_checkpoint" is a checkpoint
+	// passed in a child (By "delegated" for a delegated one, CP-R3).
+	TraceFanout  = "fanout"
+	TraceSummary = "summary" // last event: totals
 )
 
 // TraceEvent is one line of a session trace.
@@ -165,6 +170,7 @@ func (s *Service) Trace(ctx context.Context, sessionID string, o TraceOptions) (
 			}
 		}
 	}
+	evs = append(evs, s.fanoutEvents(ctx, sess)...)
 	var keys []string
 	for k := range sess.Outputs {
 		keys = append(keys, k)

@@ -226,7 +226,9 @@ func TestDriverMergesIndependentChildren(t *testing.T) {
 		assert.Contains(t, reason, "Merged by oh")
 		closed = append(closed, ticket)
 		return nil
-	}, Record: func(_ context.Context, id string, tickets []string) { assert.Equal(t, []string{"ev-1", "ev-2"}, tickets) }}
+	}, Record: func(_ context.Context, id string, tickets []string) {
+		assert.Equal(t, []string{"ev-1", "ev-2"}, tickets)
+	}}
 	p, _ := f.store.Get(context.Background(), "ses_parent")
 	msg, err := in.Integrate(context.Background(), p, "cp-merge")
 	require.NoError(t, err)

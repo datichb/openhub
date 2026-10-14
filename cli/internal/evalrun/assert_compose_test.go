@@ -38,3 +38,23 @@ func TestCompositionAssertions(t *testing.T) {
 	assert.Error(t, Assertion{Type: AssertNext}.Validate())
 	assert.Error(t, Assertion{Type: AssertOutput, Output: "x", Pattern: "("}.Validate())
 }
+
+func TestCheckFanout(t *testing.T) {
+	evs := []sessionsvc.TraceEvent{
+		{Kind: sessionsvc.TraceFanout, Event: "merged", Title: "ev-1"},
+		{Kind: sessionsvc.TraceFanout, Event: "merged", Title: "ev-2"},
+		{Kind: sessionsvc.TraceFanout, Event: "child_checkpoint", Title: "ev-1", Checkpoint: "cp-2", By: "delegated"},
+		{Kind: sessionsvc.TraceFanout, Event: "child_checkpoint", Title: "ev-2", Checkpoint: "cp-1", By: "mode"},
+	}
+	ok, _ := checkFanout(Assertion{Type: AssertFanout, Event: "merged", Count: 2}, evs)
+	assert.True(t, ok)
+	ok, detail := checkFanout(Assertion{Type: AssertFanout, Event: "merged", Count: 3}, evs)
+	assert.False(t, ok)
+	assert.Equal(t, "2 of 3", detail)
+	ok, _ = checkFanout(Assertion{Type: AssertFanout, Event: "child_checkpoint", Checkpoint: "cp-2", By: "delegated", Count: 2}, evs)
+	assert.False(t, ok)
+	ok, _ = checkFanout(Assertion{Type: AssertFanout, Event: "conflict", Absent: true}, evs)
+	assert.True(t, ok)
+	assert.Error(t, Assertion{Type: AssertFanout}.Validate())
+	assert.Equal(t, "fan-out merged ×2", Assertion{Type: AssertFanout, Event: "merged", Count: 2}.Label())
+}

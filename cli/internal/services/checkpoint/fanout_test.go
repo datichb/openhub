@@ -19,7 +19,9 @@ import (
 // R6, CP-R3: the control substitution in the daemon, and every attempt to
 // get around it.
 
-var allPause = func() map[string]string { return map[string]string{"manuel": "pause", "semi-auto": "pause", "auto": "pause"} }
+var allPause = func() map[string]string {
+	return map[string]string{"manuel": "pause", "semi-auto": "pause", "auto": "pause"}
+}
 
 func fanoutParentWF() *sessionspec.WorkflowRuntime {
 	return &sessionspec.WorkflowRuntime{ID: "implement-spec", DefaultMode: "semi-auto",

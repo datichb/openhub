@@ -111,6 +111,12 @@ func prepareWorkflowRun(ctx context.Context, a *app.App, opts runOptions, errOut
 	if err != nil {
 		return nil, err
 	}
+	if res.Fanout {
+		// R6: experimental, local, one parent session for every ticket.
+		if err := checkFanoutLaunch(a, sessionspec.RuntimeKind(res.Runtime), perSession); err != nil {
+			return nil, err
+		}
+	}
 	// Credentials checked before anything is built or asked of the daemon
 	// (N12). A remote session gets its own from the runner.
 	if sessionspec.RuntimeKind(res.Runtime) != sessionspec.RuntimeRemote {
@@ -150,6 +156,9 @@ func prepareWorkflowRun(ctx context.Context, a *app.App, opts runOptions, errOut
 	base.Limits = sessionLimits(ctx, a, opts.Project, res.Spec)
 	if res.Spec.Beads != nil {
 		base.BeadsAllow = append([]string{}, res.Spec.Beads.Allow...) // non-nil: declared
+	}
+	if res.Fanout {
+		base.Fanout = fanoutParentRecord(a)
 	}
 	if kind == sessionspec.RuntimeContainer {
 		if id := gitIdentityEnv(opts.Project.Path); len(id) > 0 {
@@ -531,6 +540,16 @@ func (p *preparedRun) start(ctx context.Context, a *app.App, ui launcher.LaunchU
 	}
 	if err != nil {
 		return results, budgetError(err)
+	}
+	if p.plan.Request.Base.Fanout != nil {
+		// R6: the driver of the fan-out runs whatever the client does.
+		for _, res := range results {
+			if log, err := spawnFanoutDriver(res.SessionID); err != nil {
+				ui.Notify(i18n.Tf("cmd.fanout.spawn_failed", res.SessionID, err), launcher.LevelWarning)
+			} else {
+				ui.Notify(i18n.Tf("cmd.fanout.spawned", res.SessionID, log), launcher.LevelInfo)
+			}
+		}
 	}
 	attach := p.plan.Request.Base.Attach
 	for i, res := range results {
