@@ -9,6 +9,13 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ## [Unreleased]
 
+### Added — workflow `spec` et écritures de documentation (lot R4)
+
+- **Workflow `spec`** (`oh run spec`) : comprendre une demande, écrire sa spec dans le wiki (`docs/wiki/specs/<slug>.md`), la découper en tickets Beads, sans implémenter. `cp-understanding` (reformulation, vocabulaire, réponses aux questions de `grilling`), `cp-converge` (vérifié par oh, sans pause), `cp-spec` (obligatoire, déverrouille le commit de la spec seule), `cp-tickets` (obligatoire, déverrouille la création) ; 3 pauses en semi-auto pour un budget de 4 (CP-R2). Le modèle de spec (glossaire, critères `CA-n · Test : …`, découpage `Couvre : CA-…`) est dans le prompt du planner, visible seulement en session `spec`. `cadrage` est conservé tel quel (alias prévu avec R5).
+- **`agents.<id>.writes`** (E8) : un agent sans droit d'édition (le planner) écrit les chemins de documentation déclarés sous `docs/` et les commite seuls (`git commit -- <chemin>`) une fois le commit déverrouillé ; amend, `-a`, `--include`, `git add -A`/`.` refusés ; les gardes d'oh passent après. En réduction seulement : une couche d'équipe ou de projet restreint, n'élargit jamais (`loosening`). Condition de bloc `writes` (`<!-- oh:when writes -->`), ligne « Écritures » du contrat de session.
+- **`verify.spec: { paths, breakdown }`** : oh lit les specs modifiées par la session et vérifie le glossaire, le point de test de chaque critère et, avec `breakdown`, que le découpage couvre chaque critère sans tranche hors spec (passe de convergence) ; un écart refuse le checkpoint avec la liste des problèmes.
+- **Évaluations** : assertion `file_matches`, `answers.sequence` ; une validation refusée par une vérification échouée devient un refus avec consigne (plus de boucle). S20 et S21 passent sur `spec` (S20 2/3, S21 3/3, contre 0/3 chacun sur `cadrage`) ; nouveaux cas S29 (2/3), S30 (2/3), S31 (3/3), hors mesure de référence. `cadrage` : S5 3/3 = 3/3 ; S19 1/3 contre 2/3 (écart d'un passage, ambigu). Conductor de `cadrage` +0,3 % ; `spec` 13 290 tokens. Coût des évaluations du lot : 9,96 $ (Haiku).
+
 ### Fixed — restes P4 (lot p4-leftovers)
 
 - **Reviewer en agent d'entrée** : il affiche son rapport complet au lieu de rendre une enveloppe de sous-agent. Un agent d'entrée qu'un autre agent peut lancer reçoit, dans `handoff-envelope`, un bloc réservé à son rôle d'entrée (l'enveloppe ne sert que s'il est invoqué), et la ligne « Rapports » de son contrat ne vaut que s'il est invoqué. Rapport complet affiché 6/6 contre 1/6 ; S1 6/6 contre 5/6 (Haiku ×6) ; reviewer +1,0 %.
