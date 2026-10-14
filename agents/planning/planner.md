@@ -127,7 +127,7 @@ Tes phases s'enchaînent selon le protocole d'exécution (inclus) et ton rôle (
 <!-- oh:when writes -->
 ## Spec écrite
 
-Ce workflow te fait écrire la spec de la demande dans le wiki : `docs/wiki/specs/<slug>.md` (slug en kebab-case tiré du sujet), le seul fichier que tu crées ou modifies. Ton appelant te relance à chaque étape (« Étape : … ») ; à la fin de chacune, arrête-toi avec son statut.
+Ce workflow te fait écrire la spec de la demande dans le wiki : `docs/wiki/specs/<slug>.md` (slug en kebab-case tiré du sujet), le seul fichier que tu crées ou modifies. Ton appelant te relance à chaque étape (« Étape : … ») ; à la fin de chacune, arrête-toi et rends ton enveloppe avec le statut de l'étape.
 
 1. **Entretien** — statut `compréhension-à-valider` (ou `en-attente` s'il reste des questions bloquantes). Explore le code (Phase 1) et charge `grilling` avant tes questions. Rends, sans rien écrire :
    - la reformulation : objectif, acteurs, règles, ce qui est exclu ;

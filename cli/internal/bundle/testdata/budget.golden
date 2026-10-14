@@ -66,8 +66,8 @@ instruct skill-refresh          TOTAL                            4267     2713  
 instruct spec                   conductor                        3830     2613    5    0      0    0      0
 instruct spec                   designer                         4497     2427    6   12    411   12    411
 instruct spec                   pathfinder                       5773     3832    7    4    160    4    160
-instruct spec                   planner                          5857     3425    7   13    442   13    442
-instruct spec                   TOTAL                           19957    12297   25   24    823   24    823
+instruct spec                   planner                          5866     3425    7   13    442   13    442
+instruct spec                   TOTAL                           19966    12297   25   24    823   24    823
 instruct sweep                  conductor                        3592     2415    5    5    181    5    181
 instruct sweep                  developer                       11828     5555    8   17    621   17    621
 instruct sweep                  pathfinder                       5692     3832    7    4    160    4    160
@@ -134,8 +134,8 @@ none     skill-refresh          TOTAL                            3851     2713  
 none     spec                   conductor                        3738     2613    5    0      0    0      0
 none     spec                   designer                         4099     2427    6   12    411   12    411
 none     spec                   pathfinder                       4905     3358    6    4    160    4    160
-none     spec                   planner                          5459     3425    7   13    442   13    442
-none     spec                   TOTAL                           18201    11823   24   24    823   24    823
+none     spec                   planner                          5468     3425    7   13    442   13    442
+none     spec                   TOTAL                           18210    11823   24   24    823   24    823
 none     sweep                  conductor                        3500     2415    5    5    181    5    181
 none     sweep                  developer                        7349     5082    7   20    725   20    725
 none     sweep                  pathfinder                       4824     3358    6    4    160    4    160
@@ -202,8 +202,8 @@ stacks   skill-refresh          TOTAL                            3851     2713  
 stacks   spec                   conductor                        3738     2613    5    0      0    0      0
 stacks   spec                   designer                         4099     2427    6   12    411   12    411
 stacks   spec                   pathfinder                       4905     3358    6    4    160    4    160
-stacks   spec                   planner                          5459     3425    7   13    442   13    442
-stacks   spec                   TOTAL                           18201    11823   24   24    823   24    823
+stacks   spec                   planner                          5468     3425    7   13    442   13    442
+stacks   spec                   TOTAL                           18210    11823   24   24    823   24    823
 stacks   sweep                  conductor                        3500     2415    5    5    181    5    181
 stacks   sweep                  developer                        7349     5082    7   27    972   27    972
 stacks   sweep                  pathfinder                       4824     3358    6    4    160    4    160
