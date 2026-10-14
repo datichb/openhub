@@ -164,6 +164,10 @@ type Result struct {
 	// Wiki tells the agent the wiki proposals oh applied at the checkpoint
 	// of the commit (LD-J).
 	Wiki string `json:"wiki,omitempty"`
+	// CommitNext is the later checkpoint that unlocks the commit again
+	// (p5-fixes, unlock_again): this one allows one commit, or none when
+	// there was nothing to commit (commit absent from Unlocked).
+	CommitNext string `json:"commit_next,omitempty"`
 }
 
 // Output is a typed value declared by workflow_outputs (O7).
@@ -272,7 +276,7 @@ func (s *Service) Reached(ctx context.Context, sessionID string, call Call) (Res
 			return res, err
 		}
 		res.Message = ap.Message
-		res.Unlocked = c.Unlocks
+		res.Unlocked, res.CommitNext = s.unlockedBy(ctx, sess.ID, c)
 		s.reachedR3(ctx, sess.ID, c, call, &res)
 		res.Wiki = s.commitPassed(ctx, sess, c)
 	}
@@ -284,10 +288,26 @@ func (s *Service) Reached(ctx context.Context, sessionID string, call Call) (Res
 	return res, nil
 }
 
+// unlockedBy returns the operations checkpoint c unlocked once passed (the
+// commit of an earlier commit checkpoint is left out when oh did not open
+// it: nothing to commit) and the checkpoint that unlocks the commit again.
+func (s *Service) unlockedBy(ctx context.Context, sessionID string, c sessionspec.CheckpointDef) (unlocked []string, commitNext string) {
+	if c.CommitNext == "" || !slices.Contains(c.Unlocks, sessionspec.UnlockCommit) {
+		return c.Unlocks, c.CommitNext
+	}
+	st, err := s.state(ctx, sessionID)
+	if u, ok := st.Unlocks[sessionspec.UnlockCommit]; err != nil || (ok && strings.EqualFold(u.Checkpoint, c.ID)) {
+		return c.Unlocks, c.CommitNext
+	}
+	return slices.DeleteFunc(slices.Clone(c.Unlocks), func(op string) bool { return op == sessionspec.UnlockCommit }), c.CommitNext
+}
+
 // commitPassed runs CommitPassed for a checkpoint that unlocks the commit
-// and records what it applied in the timeline.
+// and records what it applied in the timeline. The wiki proposals wait for
+// the last commit checkpoint (an earlier one unlocked again holds one
+// commit).
 func (s *Service) commitPassed(ctx context.Context, sess *domain.Session, c sessionspec.CheckpointDef) string {
-	if s.CommitPassed == nil || !slices.Contains(c.Unlocks, sessionspec.UnlockCommit) {
+	if s.CommitPassed == nil || !slices.Contains(c.Unlocks, sessionspec.UnlockCommit) || c.CommitNext != "" {
 		return ""
 	}
 	msg, applied := s.CommitPassed(ctx, sess, c.ID, c.Wiki == sessionspec.WikiSync)

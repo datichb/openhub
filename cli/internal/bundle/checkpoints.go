@@ -1,6 +1,7 @@
 package bundle
 
 import (
+	"slices"
 	"sort"
 	"strings"
 
@@ -177,8 +178,8 @@ func LockedOps(wf *sessionspec.WorkflowRuntime, mode string, st *domain.Checkpoi
 			continue
 		}
 		for _, op := range c.Unlocks {
-			if _, known := lockPatterns[op]; !known {
-				continue // operation of a newer oh: locks nothing here
+			if _, known := lockPatterns[op]; !known || slices.Contains(out, op) {
+				continue // operation of a newer oh: locks nothing here; the commit of two checkpoints (unlock_again)
 			}
 			if _, open := unlocked(st, op); !open || (op == sessionspec.UnlockTag && TagWaitsForCommit(st)) {
 				out = append(out, op)

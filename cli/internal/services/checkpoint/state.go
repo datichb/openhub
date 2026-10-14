@@ -148,6 +148,7 @@ func (s *Service) Asked(ctx context.Context, root, toolSession string, p adapter
 	}
 	_, err = s.update(ctx, root, func(st *domain.CheckpointState) error {
 		relocked = relock(st, id) // asked again: a new round
+		relocked = closeEarlierCommit(st, c, s.record) || relocked
 		changed := relocked
 		if s.askedR3(st, d, c, evidence) {
 			changed = true
@@ -286,14 +287,19 @@ func (s *Service) tryPass(ctx context.Context, sess *domain.Session, c sessionsp
 		delegatedBy = i18n.Tf("cmd.fanout.delegated", mcp, parent)
 	}
 	head := ""
+	nothingToCommit := false
 	if len(c.Unlocks) > 0 {
 		var err error
-		head, _, err = s.headErr(ctx, sess.LaunchPath)
+		var dirty bool
+		head, dirty, err = s.headErr(ctx, sess.LaunchPath)
 		if errors.Is(err, gitutil.ErrConfigChanged) {
 			// The repository runs programs oh did not see at the start
 			// of the session (N5): nothing is unlocked.
 			return domain.CheckpointApproval{}, err
 		}
+		// p5-fixes: the commit of an earlier checkpoint unlocked again later
+		// (unlock_again) opens only when there is something to commit.
+		nothingToCommit = c.CommitNext != "" && err == nil && sess.LaunchPath != "" && !dirty
 	}
 	tags := ""
 	if slices.Contains(c.Unlocks, sessionspec.UnlockTag) {
@@ -332,6 +338,10 @@ func (s *Service) tryPass(ctx context.Context, sess *domain.Session, c sessionsp
 			if op == sessionspec.UnlockMerge {
 				continue // done by oh above (R6): no window for the agents
 			}
+			if op == sessionspec.UnlockCommit && nothingToCommit {
+				s.record(st, domain.CheckpointWindow, id, "oh", windowNothingToCommit)
+				continue
+			}
 			if st.Unlocks == nil {
 				st.Unlocks = map[string]domain.CheckpointUnlock{}
 			}
@@ -367,6 +377,26 @@ func (s *Service) mergeNotReady(ctx context.Context, sess *domain.Session, c ses
 	return mergeCheckpoint(c) && s.fanoutReady(ctx, sess) != nil
 }
 
+// windowNothingToCommit is the timeline message of a commit window oh did
+// not open (unlock_again: nothing to commit at the earlier checkpoint).
+const windowNothingToCommit = "commit (nothing to commit)"
+
+// closeEarlierCommit closes the commit window of another checkpoint when c,
+// which unlocks the commit too (unlock_again), is asked: the earlier
+// window ends there at the latest.
+func closeEarlierCommit(st *domain.CheckpointState, c sessionspec.CheckpointDef, record func(*domain.CheckpointState, string, string, string, string)) bool {
+	if !slices.Contains(c.Unlocks, sessionspec.UnlockCommit) {
+		return false
+	}
+	u, ok := st.Unlocks[sessionspec.UnlockCommit]
+	if !ok || strings.EqualFold(u.Checkpoint, c.ID) {
+		return false
+	}
+	delete(st.Unlocks, sessionspec.UnlockCommit)
+	record(st, domain.CheckpointWindow, u.Checkpoint, "", sessionspec.UnlockCommit)
+	return true
+}
+
 // relock closes the window of the operations unlocked by checkpoint id.
 func relock(st *domain.CheckpointState, id string) bool {
 	changed := false
@@ -395,7 +425,7 @@ func (s *Service) OnCall(ctx context.Context, root string, call adapters.ToolCal
 		return false, nil, err
 	}
 	if call.Action == sessionspec.ActionShell {
-		changed, err = s.onShell(ctx, sess, call)
+		changed, err = s.onShell(ctx, sess, wf, call)
 		if err == nil {
 			var tagged bool
 			tagged, err = s.onShellTag(ctx, sess, call)

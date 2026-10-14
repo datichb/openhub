@@ -154,4 +154,9 @@ func TestUnlockTextNamesDeclaredOperations(t *testing.T) {
 	merge := unlockText("cp-merge", []string{"merge"})
 	assert.Contains(t, merge, "oh merge lui-même")
 	assert.NotContains(t, merge, "Le push revient")
+	// p5-fixes: an earlier commit checkpoint unlocked again (unlock_again).
+	once := unlockText("cp-a", []string{"commit"}, "cp-b")
+	assert.Contains(t, once, "en un seul commit")
+	assert.Contains(t, once, "le commit suivant attend **cp-b**")
+	assert.NotContains(t, once, "fermeture")
 }

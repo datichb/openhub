@@ -330,6 +330,10 @@ func (p *patcher) checkpoints() {
 			continue
 		}
 		if !exists {
+			if v.UnlockAgain && !p.widens() {
+				p.loosening(base+".unlock_again", true, false)
+				v.UnlockAgain = false
+			}
 			p.dst.Checkpoints.Set(k, v)
 			continue
 		}
@@ -377,6 +381,14 @@ func (p *patcher) checkpoints() {
 				if !containsOp(old.Unlocks, op) {
 					old.Unlocks = append(old.Unlocks, op)
 				}
+			}
+		}
+		if h("unlock_again") && v.UnlockAgain != old.UnlockAgain {
+			// A commit unlocked by one more checkpoint: the hub layer only.
+			if p.widens() {
+				old.UnlockAgain = v.UnlockAgain
+			} else {
+				p.loosening(base+".unlock_again", v.UnlockAgain, old.UnlockAgain)
 			}
 		}
 		p.checkpointVerify(base, &old, v)

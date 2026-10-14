@@ -163,7 +163,12 @@ func (h handlers) checkpoint(ctx context.Context, params json.RawMessage) (*prot
 	}
 	if len(res.Unlocked) > 0 {
 		b.WriteString("\n")
-		b.WriteString(unlockedText(res.Unlocked))
+		b.WriteString(unlockedText(res.Unlocked, res.CommitNext))
+	}
+	if res.CommitNext != "" && !slices.Contains(res.Unlocked, sessionspec.UnlockCommit) {
+		// p5-fixes: an earlier commit checkpoint with nothing to commit.
+		b.WriteString("\n")
+		b.WriteString(i18n.Tf("cmd.mcp.workflow.checkpoint_commit_nothing", res.CommitNext))
 	}
 	if res.Next != "" {
 		b.WriteString("\n")
@@ -184,14 +189,18 @@ func (h handlers) checkpoint(ctx context.Context, params json.RawMessage) (*prot
 // unlockedText tells the agent what the passed checkpoint now allows and
 // what to do with it: the order "commit, then close" only when both are
 // unlocked, the closing never named when only the commit is (and the
-// reverse), like the workflow map (bundle.unlockText).
-func unlockedText(ops []string) string {
+// reverse), like the workflow map (bundle.unlockText). commitNext is the
+// later checkpoint that unlocks the commit again (unlock_again): this one
+// allows one commit.
+func unlockedText(ops []string, commitNext string) string {
 	has := func(op string) bool { return slices.Contains(ops, op) }
 	var b strings.Builder
 	b.WriteString(i18n.Tf("cmd.mcp.workflow.checkpoint_unlocked", strings.Join(ops, ", ")))
 	switch commit, closing := has(sessionspec.UnlockCommit), has(sessionspec.UnlockClose); {
 	case commit && closing:
 		b.WriteString(" " + i18n.T("cmd.mcp.workflow.checkpoint_unlocked_commit_close"))
+	case commit && commitNext != "":
+		b.WriteString(" " + i18n.Tf("cmd.mcp.workflow.checkpoint_unlocked_commit_once", commitNext))
 	case commit:
 		b.WriteString(" " + i18n.T("cmd.mcp.workflow.checkpoint_unlocked_commit"))
 	case closing:

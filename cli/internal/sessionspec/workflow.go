@@ -165,6 +165,11 @@ type CheckpointDef struct {
 	// checkpoint skipped in the mode, or absent from the session, counts as
 	// passed): oh refuses this one until then.
 	After string `json:"after,omitempty"`
+
+	// p5-fixes: CommitNext is the later checkpoint that unlocks the commit
+	// again (`unlock_again`): the commit window of this one holds one
+	// commit, and opens only when there is something to commit.
+	CommitNext string `json:"commit_next,omitempty"`
 }
 
 // WikiSync is the `wiki:` of a checkpoint that synchronizes the wiki.

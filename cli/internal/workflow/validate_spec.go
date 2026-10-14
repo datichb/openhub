@@ -606,11 +606,21 @@ func (v *validator) checkpoints() {
 				// lock opens nothing.
 				v.warn("unlock_push_without_publish", at, k)
 			}
-			if prev, dup := unlockedBy[op]; dup {
+			prev, dup := unlockedBy[op]
+			switch {
+			case dup && op == UnlockCommit && cp.UnlockAgain:
+				// p5-fixes: a second commit checkpoint (schema_unlock.go).
+			case dup:
 				v.err("unlock_duplicate", at, string(op), prev, k)
-			} else {
+			case op == UnlockCommit && cp.UnlockAgain:
+				v.err("unlock_again_first", base+".unlock_again", k)
+				unlockedBy[op] = k
+			default:
 				unlockedBy[op] = k
 			}
+		}
+		if cp.UnlockAgain && !containsOp(cp.Unlocks, UnlockCommit) {
+			v.err("unlock_again_without_commit", base+".unlock_again", k)
 		}
 	}
 }

@@ -351,6 +351,13 @@ type CheckpointSpec struct {
 	// Fanout keeps the checkpoint only in the fan-out sessions (`only`) or
 	// only in the others (`never`).
 	Fanout FanoutScope `yaml:"fanout,omitempty"`
+
+	// p5-fixes (schema_unlock.go): a second commit checkpoint.
+
+	// UnlockAgain lets the `commit` of `unlocks` repeat the one of an
+	// earlier checkpoint (incident: the mitigation, then the postmortem):
+	// the earlier window then holds one commit. Only the hub layer sets it.
+	UnlockAgain bool `yaml:"unlock_again,omitempty"`
 }
 
 // CheckpointWiki is the role of a checkpoint for the wiki of the project.
