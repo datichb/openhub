@@ -12,7 +12,7 @@ import (
 )
 
 // WikiProposalStore implements domain.WikiProposalStore on wiki_proposals
-// (v45).
+// (v45; replaces: v48).
 type WikiProposalStore struct {
 	db *sql.DB
 }
@@ -23,7 +23,7 @@ func NewWikiProposalStore(s *Store) *WikiProposalStore { return &WikiProposalSto
 var _ domain.WikiProposalStore = (*WikiProposalStore)(nil)
 
 const wikiColumns = `project_id, seq, session_id, tool_session, agent, page, section, content, tag, source, status, original,
-	decided_by, decided_at, applied_by, applied_at, error, created_at`
+	decided_by, decided_at, applied_by, applied_at, error, created_at, replaces`
 
 // AddWikiProposal implements domain.WikiProposalStore: number and limits
 // are read and the row written in one write transaction.
@@ -59,9 +59,9 @@ func (s *WikiProposalStore) AddWikiProposal(ctx context.Context, p *domain.WikiP
 		return domain.ErrWikiLimit
 	}
 	p.Seq = last + 1
-	if _, err := conn.ExecContext(ctx, `INSERT INTO wiki_proposals (`+wikiColumns+`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+	if _, err := conn.ExecContext(ctx, `INSERT INTO wiki_proposals (`+wikiColumns+`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		p.ProjectID, p.Seq, p.SessionID, p.ToolSession, p.Agent, p.Page, p.Section, p.Content, p.Tag, p.Source, p.Status, p.Original,
-		p.DecidedBy, p.DecidedAt, p.AppliedBy, p.AppliedAt, p.Error, p.CreatedAt); err != nil {
+		p.DecidedBy, p.DecidedAt, p.AppliedBy, p.AppliedAt, p.Error, p.CreatedAt, p.Replaces); err != nil {
 		return fmt.Errorf("adding a wiki proposal: %w", err)
 	}
 	if _, err := conn.ExecContext(ctx, `COMMIT`); err != nil {
@@ -75,7 +75,7 @@ func scanWikiProposal(sc interface{ Scan(...any) error }) (domain.WikiProposal, 
 	var p domain.WikiProposal
 	var decided, applied sql.NullTime
 	if err := sc.Scan(&p.ProjectID, &p.Seq, &p.SessionID, &p.ToolSession, &p.Agent, &p.Page, &p.Section, &p.Content, &p.Tag, &p.Source,
-		&p.Status, &p.Original, &p.DecidedBy, &decided, &p.AppliedBy, &applied, &p.Error, &p.CreatedAt); err != nil {
+		&p.Status, &p.Original, &p.DecidedBy, &decided, &p.AppliedBy, &applied, &p.Error, &p.CreatedAt, &p.Replaces); err != nil {
 		return p, err
 	}
 	if decided.Valid {

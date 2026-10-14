@@ -314,7 +314,7 @@ func (s *Service) importWiki(ctx context.Context, sess *domain.Session, dir stri
 	list := make([]wiki.Imported, 0, len(wk.Proposals))
 	for _, e := range wk.Proposals {
 		list = append(list, wiki.Imported{ID: e.ID, Agent: e.Agent, ToolSession: e.ToolSession, CreatedAt: e.CreatedAt,
-			Proposal: wiki.Proposal{Page: e.Page, Section: e.Section, Content: e.Content, Tag: e.Tag, Source: e.Source}})
+			Proposal: wiki.Proposal{Page: e.Page, Section: e.Section, Content: e.Content, Tag: e.Tag, Source: e.Source, Replaces: e.Replaces}})
 	}
 	ids, queued, err = s.Wiki.Import(ctx, sess.ProjectID, sess.ID, list)
 	if errors.Is(err, domain.ErrWikiLimit) {

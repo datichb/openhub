@@ -177,7 +177,7 @@ oh wiki pending [dir] [--all] [--session <id>] [--json]
 | `--session` | string | Only those of a session |
 | `--json` | bool | JSON output |
 
-The project is the one oh knows for the folder (or a parent folder). To decide on a proposal outside the TUI: [`oh wiki decide`](#oh-wiki-decide).
+The project is the one oh knows for the folder (or a parent folder). A line replacement (`replaces`) is shown "old line" → "new line"; a proposal whose line is gone when applied is `stale` (not applied, shown with `--all`). To decide on a proposal outside the TUI: [`oh wiki decide`](#oh-wiki-decide).
 
 ### oh wiki decide
 

@@ -34,6 +34,8 @@ type WikiProposeRequest struct {
 	Content     string `json:"content"`
 	Tag         string `json:"tag"`
 	Source      string `json:"source,omitempty"`
+	// Replaces is the line of the page the content replaces (p5-fixes).
+	Replaces string `json:"replaces,omitempty"`
 }
 
 // WikiApplyRequest is the body of POST /v1/wiki/apply.
@@ -104,7 +106,8 @@ func (d *Daemon) wikiErr(w http.ResponseWriter, err error) {
 	switch {
 	case errors.Is(err, wiki.ErrBadPage), errors.Is(err, wiki.ErrBadTag), errors.Is(err, wiki.ErrNoSource), errors.Is(err, wiki.ErrEmpty),
 		errors.Is(err, wiki.ErrTooLarge), errors.Is(err, wiki.ErrSessionData), errors.Is(err, wiki.ErrSymlink), errors.Is(err, wiki.ErrBadID),
-		errors.Is(err, wiki.ErrBadRef):
+		errors.Is(err, wiki.ErrBadRef), errors.Is(err, wiki.ErrReplaceLine), errors.Is(err, wiki.ErrReplaceStructure),
+		errors.Is(err, wiki.ErrReplaceContent), errors.Is(err, wiki.ErrReplaceSame), errors.Is(err, wiki.ErrStale):
 		writeErr(w, http.StatusUnprocessableEntity, err.Error())
 	case errors.Is(err, wiki.ErrNoWiki), errors.Is(err, wiki.ErrNoPage), errors.Is(err, wiki.ErrNoSection), errors.Is(err, domain.ErrNotFound):
 		writeErr(w, http.StatusNotFound, err.Error())
@@ -174,7 +177,8 @@ func (d *Daemon) handleWikiPropose(w http.ResponseWriter, r *http.Request) {
 	}
 	agent := d.callerAgent(r.Context(), root, req.ToolSession)
 	p, err := d.opts.Wiki.Propose(r.Context(), wiki.Filed{ProjectID: sess.ProjectID, SessionID: root, ToolSession: req.ToolSession, Agent: agent,
-		Proposal: wiki.Proposal{Page: req.Page, Section: req.Section, Content: req.Content, Tag: req.Tag, Source: req.Source}})
+		Root:     sess.LaunchPath,
+		Proposal: wiki.Proposal{Page: req.Page, Section: req.Section, Content: req.Content, Tag: req.Tag, Source: req.Source, Replaces: req.Replaces}})
 	if err != nil {
 		d.wikiErr(w, err)
 		return

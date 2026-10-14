@@ -702,4 +702,12 @@ DROP TABLE IF EXISTS wiki_proposals`,
 		up:      `ALTER TABLE sessions ADD COLUMN fanout TEXT NOT NULL DEFAULT ''`,
 		down:    `ALTER TABLE sessions DROP COLUMN fanout`,
 	},
+	{
+		// Modernisation p5-fixes (wiki_propose replaces a line): the line of
+		// the page a proposal replaces ('' = an addition). v47 is taken by
+		// another lot.
+		version: 48,
+		up:      `ALTER TABLE wiki_proposals ADD COLUMN replaces TEXT NOT NULL DEFAULT ''`,
+		down:    `ALTER TABLE wiki_proposals DROP COLUMN replaces`,
+	},
 }

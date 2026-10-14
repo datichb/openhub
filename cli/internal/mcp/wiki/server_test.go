@@ -188,3 +188,10 @@ func TestWikiWithoutDaemon(t *testing.T) {
 	assert.True(t, out.Result.IsError)
 	assert.Contains(t, out.Result.Content[0].Text, "réservé au documentarian")
 }
+
+// p5-fixes: a replacement is listed before → after.
+func TestProposalLineReplacement(t *testing.T) {
+	line := proposalLine(daemon.WikiProposal{ID: "wp-3", WikiProposal: domain.WikiProposal{Status: "pending", Agent: "onboarder", Page: "technical/stack.md",
+		Tag: "CONFIRMÉ", Replaces: "- HTTP dans internal/http", Content: "- HTTP dans internal/api"}})
+	assert.Contains(t, line, "« - HTTP dans internal/http » → « - HTTP dans internal/api »")
+}

@@ -177,7 +177,7 @@ oh wiki pending [dir] [--all] [--session <id>] [--json]
 | `--session` | string | Seulement celles d'une session |
 | `--json` | bool | Sortie JSON |
 
-Le projet est celui qu'oh connaît pour le dossier (ou un dossier parent). Pour décider d'une proposition hors de la TUI : [`oh wiki decide`](#oh-wiki-decide).
+Le projet est celui qu'oh connaît pour le dossier (ou un dossier parent). Un remplacement de ligne (`replaces`) s'affiche « ancienne ligne » → « nouvelle ligne » ; une proposition dont la ligne a disparu à l'application est `stale` (périmée, non appliquée, visible avec `--all`). Pour décider d'une proposition hors de la TUI : [`oh wiki decide`](#oh-wiki-decide).
 
 ### oh wiki decide
 

@@ -275,11 +275,21 @@ func printWikiProposals(w io.Writer, list []domain.WikiProposal) {
 		if p.Section != "" {
 			page += " § " + p.Section
 		}
-		first, _, _ := strings.Cut(p.Content, "\n")
-		if r := []rune(first); len(r) > 60 {
-			first = string(r[:59]) + "…"
+		first := clipLine(p.Content, 60)
+		if p.Replaces != "" {
+			// p5-fixes: a replacement, before → after.
+			first = "« " + clipLine(p.Replaces, 28) + " » → « " + clipLine(p.Content, 28) + " »"
 		}
 		fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\t%s\t%s\n", p.ID(), p.Status, firstNonEmpty(p.Agent, "?"), p.SessionID, page, p.Tag, first)
 	}
 	_ = tw.Flush()
+}
+
+// clipLine returns the first line of s, bounded to n runes.
+func clipLine(s string, n int) string {
+	first, _, _ := strings.Cut(s, "\n")
+	if r := []rune(first); len(r) > n {
+		first = string(r[:n-1]) + "…"
+	}
+	return first
 }

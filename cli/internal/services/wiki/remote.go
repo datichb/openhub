@@ -61,7 +61,7 @@ func (s *Service) Import(ctx context.Context, projectID, sessionID string, list 
 			agent = "?"
 		}
 		p := domain.WikiProposal{ProjectID: projectID, SessionID: sessionID, ToolSession: oneLine(e.ToolSession, MaxSection), Agent: agent,
-			Page: clean.Page, Section: clean.Section, Content: clean.Content, Tag: clean.Tag, Source: clean.Source,
+			Page: clean.Page, Section: clean.Section, Content: clean.Content, Tag: clean.Tag, Source: clean.Source, Replaces: clean.Replaces,
 			Status: domain.WikiPending, CreatedAt: at}
 		if err := s.Store.AddWikiProposal(ctx, &p, MaxPerSession, MaxPerProject); err != nil {
 			return ids, added, err // domain.ErrWikiLimit: the queue is full
@@ -79,7 +79,7 @@ func sameProposal(list []domain.WikiProposal, c Proposal) (domain.WikiProposal, 
 		if p.Original != "" {
 			content = p.Original // edited on the card: the agent's content
 		}
-		if p.Page == c.Page && strings.EqualFold(p.Section, c.Section) && content == c.Content {
+		if p.Page == c.Page && strings.EqualFold(p.Section, c.Section) && content == c.Content && p.Replaces == c.Replaces {
 			return p, true
 		}
 	}
