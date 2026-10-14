@@ -1,0 +1,62 @@
+id: S70
+title: "Implement-spec en fan-out : cp-merge refusé avec une consigne, tour de correction par oh sur la branche d'intégration (session quick, son cp-commit validé), cp-merge repassé et revérifié, puis merge par oh"
+workflow: implement-spec
+mode: semi-auto
+inputs: { fanout: "true" }
+tickets: [ev-1]
+fanout: { parallel: 1 }
+beads:
+  prefix: ev
+  tickets:
+    - id: ev-1
+      title: "Ajouter Mul(a, b int) int"
+      type: feature
+      labels: [ai-delegated]
+      description: "Ajouter à calc, dans un nouveau fichier mul.go, la fonction Mul(a, b int) int qui renvoie le produit a × b, avec son commentaire de documentation. Ne touche que mul.go et mul_test.go."
+      acceptance: "Mul(4, 3) == 12 ; Mul(-2, 3) == -6 ; un test TestMul dans mul_test.go couvre Mul ; go test ./... passe."
+timeout: 50m
+budget_usd: 3.0
+answers:
+  checkpoints:
+    "*": approve
+  sequence:
+    cp-merge:
+      - "fix: Ajoute dans mul_test.go une fonction de test TestMulZero qui vérifie Mul(0, 7) == 0."
+  question: first
+# Lot r6-leftovers : le premier cp-merge est refusé avec une consigne ; oh
+# lance une session quick dans le worktree d'intégration (rôle fixer), son
+# cp-commit est validé, elle commite ; oh reprend la correction, la session
+# parente fait relire et repasse cp-merge (revérifié sur la branche
+# d'intégration), puis oh merge et ferme le ticket.
+assertions:
+  - type: checkpoint_order
+    order: [cp-plan, cp-merge, cp-final]
+  - type: ran
+    name: la session parente ne commite, ne merge ni ne ferme rien
+    command: "git commit*"
+    absent: true
+  - type: fanout
+    name: un tour de correction demandé puis lancé par oh
+    event: fix
+    count: 2
+  - type: fanout
+    name: le tour de correction se termine
+    event: fixed
+  - type: fanout
+    name: cp-commit de la session de correction passé (validé, pas délégué)
+    event: child_checkpoint
+    checkpoint: cp-commit
+  - type: fanout
+    name: branche d'intégration mergée par oh à cp-merge
+    event: integrated
+  - type: fanout
+    name: ticket fermé par oh
+    event: closed
+  - type: file_matches
+    name: la correction est sur la branche de la session
+    paths: ["mul_test.go"]
+    pattern: "func TestMulZero"
+  - type: changed_within
+    paths: ["mul.go", "*_test.go", "CHANGELOG.md"]
+  - type: hidden_tests
+  - type: no_denied_loop

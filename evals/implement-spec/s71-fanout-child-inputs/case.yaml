@@ -1,0 +1,44 @@
+id: S71
+title: "Implement-spec en fan-out : les consignes de la session parente arrivent à la session enfant (fanout.inputs), rien d'autre"
+workflow: implement-spec
+mode: semi-auto
+inputs:
+  fanout: "true"
+  instructions: "Le test de Mul s'appelle TestProduit (pas TestMul)."
+tickets: [ev-1]
+fanout: { parallel: 1 }
+beads:
+  prefix: ev
+  tickets:
+    - id: ev-1
+      title: "Ajouter Mul(a, b int) int"
+      type: feature
+      labels: [ai-delegated]
+      description: "Ajouter à calc, dans un nouveau fichier mul.go, la fonction Mul(a, b int) int qui renvoie le produit a × b, avec son commentaire de documentation et un test dans mul_test.go. Ne touche que mul.go et mul_test.go."
+      acceptance: "Mul(4, 3) == 12 ; Mul(-2, 3) == -6 ; go test ./... passe."
+timeout: 40m
+budget_usd: 2.0
+answers:
+  checkpoints:
+    "*": approve
+  question: first
+# Lot r6-leftovers : implement-spec transmet method et instructions à ses
+# enfants (fanout.inputs) ; la consigne n'est que dans la session parente,
+# l'enfant doit la suivre.
+assertions:
+  - type: checkpoint_order
+    order: [cp-plan, cp-merge, cp-final]
+  - type: fanout
+    name: une session enfant lancée
+    event: child
+  - type: fanout
+    name: branche d'intégration mergée par oh à cp-merge
+    event: integrated
+  - type: file_matches
+    name: la consigne de la parente suivie dans l'enfant
+    paths: ["mul_test.go"]
+    pattern: "func TestProduit"
+  - type: changed_within
+    paths: ["mul.go", "*_test.go", "CHANGELOG.md"]
+  - type: hidden_tests
+  - type: no_denied_loop
