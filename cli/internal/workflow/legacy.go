@@ -10,10 +10,16 @@ import (
 
 // Migration of the legacy overrides (P2-T11, v38): a WorkflowOverride of
 // the former hard-coded workflow becomes an oh/v1 patch of the shipped
-// `feature` workflow, which kept the same checkpoint and agent ids.
+// `implement-spec` workflow, which kept its implementation checkpoints and
+// agents (cp-1, cp-2, cp-3; orchestrator-dev, developer, reviewer). Until
+// feature-migration the target was `feature`, now an alias.
 
 // LegacyWorkflowID is the shipped workflow the legacy overrides apply to.
-const LegacyWorkflowID = "feature"
+const LegacyWorkflowID = "implement-spec"
+
+// legacyCheckpointRenames maps a checkpoint of the former workflow to its
+// equivalent in LegacyWorkflowID (cp-0 « Valider le plan » → cp-plan).
+var legacyCheckpointRenames = map[string]string{"cp-0": "cp-plan"}
 
 // LegacyPatch is the translation of a legacy override.
 type LegacyPatch struct {
@@ -27,13 +33,18 @@ type LegacyPatch struct {
 // TranslateLegacyOverride turns ov into an oh/v1 document `id` extending
 // parent. enforce locks the whole workflow (former team `enforced`).
 // known lists the checkpoint ids of the parent (overrides of other
-// checkpoints are not translated).
-func TranslateLegacyOverride(ov *WorkflowOverride, id, parent string, enforce bool, known []string) LegacyPatch {
+// checkpoints are not translated); agents, when not nil, the agents of the
+// parent (overrides of other agents are not translated either).
+func TranslateLegacyOverride(ov *WorkflowOverride, id, parent string, enforce bool, known, agents []string) LegacyPatch {
 	var out LegacyPatch
 	var body strings.Builder
 	isKnown := map[string]bool{}
 	for _, k := range known {
 		isKnown[k] = true
+	}
+	isAgent := map[string]bool{}
+	for _, a := range agents {
+		isAgent[a] = true
 	}
 	skip := func(format string, args ...any) {
 		out.Untranslated = append(out.Untranslated, fmt.Sprintf(format, args...))
@@ -42,6 +53,9 @@ func TranslateLegacyOverride(ov *WorkflowOverride, id, parent string, enforce bo
 	if ov != nil && len(ov.CheckpointOverrides) > 0 {
 		var lines []string
 		for i, c := range ov.CheckpointOverrides {
+			if to, ok := legacyCheckpointRenames[c.ID]; ok && !isKnown[c.ID] && isKnown[to] {
+				c.ID = to
+			}
 			switch {
 			case c.ID == "":
 				skip("checkpoint_overrides[%d]: id missing", i)
@@ -98,6 +112,10 @@ func TranslateLegacyOverride(ov *WorkflowOverride, id, parent string, enforce bo
 		var lines []string
 		for _, a := range ov.AgentOverrides {
 			if a.AgentID == "" {
+				continue
+			}
+			if agents != nil && !isAgent[a.AgentID] {
+				skip("agent %s: no such agent in %s", a.AgentID, parent)
 				continue
 			}
 			var f []string

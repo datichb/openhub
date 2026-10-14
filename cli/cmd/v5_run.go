@@ -157,6 +157,8 @@ func prepareWorkflowRun(ctx context.Context, a *app.App, opts runOptions, errOut
 	if res.Spec.Beads != nil {
 		base.BeadsAllow = append([]string{}, res.Spec.Beads.Allow...) // non-nil: declared
 	}
+	// The inputs passed on by `next:` (the method of spec), recorded now.
+	base.Outputs = res.Spec.RecordedInputs(res.Inputs)
 	if res.Fanout {
 		base.Fanout = fanoutParentRecord(a)
 		if m, ok := res.Inputs[workflow.MethodInput]; ok {

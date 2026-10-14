@@ -751,7 +751,7 @@ func (v *validator) resources() {
 		if o.Type == "" {
 			v.err("field_required", p+".type", "type")
 		} else {
-			v.enum(p+".type", string(o.Type), o.Type.Valid(), "branch", "merge_request", "beads-ids", "path", "report")
+			v.enum(p+".type", string(o.Type), o.Type.Valid(), "branch", "merge_request", "beads-ids", "path", "report", "text")
 		}
 		v.outputRecord(p, o)
 	}

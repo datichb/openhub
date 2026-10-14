@@ -23,14 +23,15 @@ import (
 
 // Migration of the former workflow configurations to the team-state (v5
 // phase 2, P2-T11, migration v38). The former overrides modified the
-// hard-coded workflow, whose checkpoints and agents live on in the shipped
-// `feature` workflow:
+// hard-coded workflow, whose implementation checkpoints and agents live on
+// in the shipped `implement-spec` workflow (`feature` until
+// feature-migration, now an alias):
 //
-//   - team-state config.toml [workflow] → team draft `feature` (extends
-//     hub:feature; `enforced` → `enforce: ["*"]`), published when the team
-//     has no `feature` yet; [workflow] removed from config.toml;
+//   - team-state config.toml [workflow] → team draft `implement-spec`
+//     (extends hub:implement-spec; `enforced` → `enforce: ["*"]`), published
+//     when the team has none yet; [workflow] removed from config.toml;
 //   - projects.workflow_config (moved to workflow_config_legacy by v38) →
-//     project draft `feature` in the project's team-state (a solo space is
+//     project draft `implement-spec` in the project's team-state (a solo space is
 //     created for a project without team), published when valid;
 //   - hub.toml [workflow.overrides] (hub development only) → files under
 //     ~/.oh/migrated/, not loaded; the section is removed from hub.toml.
@@ -39,6 +40,9 @@ import (
 // (workflows/migrated/…), what has no oh/v1 equivalent is listed in the
 // draft. Every step is idempotent and retried at the next start when it
 // could not finish (offline, hub not extracted).
+
+// legacyTarget is what the overrides may change in LegacyWorkflowID.
+type legacyTarget struct{ checkpoints, agents []string }
 
 // legacyWorkflowStore reads the former project configurations.
 type legacyWorkflowStore interface {
@@ -177,12 +181,12 @@ func teamRepoOf(t config.TeamConfig) *teamstate.Repo {
 func migrateLegacyWorkflows(ctx context.Context, a *app.App, store legacyWorkflowStore) *workflowMigration {
 	m := &workflowMigration{}
 	svc := newWorkflowService(ctx)
-	feature, err := svc.Resolve(ctx, workflowsvc.Context{}, "hub:"+workflow.LegacyWorkflowID, workflowsvc.ResolveOpts{})
-	if feature == nil {
+	target, err := svc.Resolve(ctx, workflowsvc.Context{}, "hub:"+workflow.LegacyWorkflowID, workflowsvc.ResolveOpts{})
+	if target == nil {
 		m.Errors = append(m.Errors, fmt.Errorf("hub:%s unavailable, migration postponed: %w", workflow.LegacyWorkflowID, err))
 		return m
 	}
-	known := feature.Spec.Checkpoints.Keys()
+	known := legacyTarget{checkpoints: target.Spec.Checkpoints.Keys(), agents: append([]string{target.Spec.EntryAgent()}, target.Spec.Agents.Keys()...)}
 
 	migrateHubWorkflowConfig(a, m, known)
 	for _, t := range a.Config.Teams {
@@ -195,7 +199,7 @@ func migrateLegacyWorkflows(ctx context.Context, a *app.App, store legacyWorkflo
 }
 
 // migrateHubWorkflowConfig moves hub.toml [workflow] to ~/.oh/migrated/.
-func migrateHubWorkflowConfig(a *app.App, m *workflowMigration, known []string) {
+func migrateHubWorkflowConfig(a *app.App, m *workflowMigration, known legacyTarget) {
 	wc := hubWorkflowConfig(a)
 	if wc == nil {
 		return
@@ -208,7 +212,7 @@ func migrateHubWorkflowConfig(a *app.App, m *workflowMigration, known []string) 
 		if err == nil {
 			err = os.MkdirAll(dir, 0o755)
 		}
-		patch := workflow.TranslateLegacyOverride(wc.Overrides, workflow.LegacyWorkflowID, "hub:"+workflow.LegacyWorkflowID, wc.Overrides.Enforced, known)
+		patch := workflow.TranslateLegacyOverride(wc.Overrides, workflow.LegacyWorkflowID, "hub:"+workflow.LegacyWorkflowID, wc.Overrides.Enforced, known.checkpoints, known.agents)
 		if err == nil {
 			err = os.WriteFile(filepath.Join(dir, "hub-workflow-overrides.toml"), raw, 0o644)
 		}
@@ -229,7 +233,7 @@ func migrateHubWorkflowConfig(a *app.App, m *workflowMigration, known []string) 
 
 // migrateTeamWorkflowConfig moves config.toml [workflow] of a team-state to
 // a team draft `feature`, published when the team has none.
-func migrateTeamWorkflowConfig(ctx context.Context, svc *workflowsvc.Service, t config.TeamConfig, m *workflowMigration, known []string) {
+func migrateTeamWorkflowConfig(ctx context.Context, svc *workflowsvc.Service, t config.TeamConfig, m *workflowMigration, known legacyTarget) {
 	repo := teamRepoOf(t)
 	if repo == nil || t.MemberID == "" {
 		return
@@ -259,7 +263,7 @@ func migrateTeamWorkflowConfig(ctx context.Context, svc *workflowsvc.Service, t 
 		if err != nil {
 			return teamstate.TxResult{}, err
 		}
-		patch := workflow.TranslateLegacyOverride(section.Overrides, id, "hub:"+id, section.isEnforced(), known)
+		patch := workflow.TranslateLegacyOverride(section.Overrides, id, "hub:"+id, section.isEnforced(), known.checkpoints, known.agents)
 		dir := filepath.Join(teamstate.WorkflowsDirName, "migrated")
 		if err := tx.WriteFile(filepath.Join(dir, "team-config-workflow.toml"), raw); err != nil {
 			return teamstate.TxResult{}, err
@@ -288,7 +292,7 @@ func migrateTeamWorkflowConfig(ctx context.Context, svc *workflowsvc.Service, t 
 
 // migrateProjectWorkflowConfigs moves the former project configurations to
 // project drafts `feature`.
-func migrateProjectWorkflowConfigs(ctx context.Context, a *app.App, svc *workflowsvc.Service, store legacyWorkflowStore, m *workflowMigration, known []string) {
+func migrateProjectWorkflowConfigs(ctx context.Context, a *app.App, svc *workflowsvc.Service, store legacyWorkflowStore, m *workflowMigration, known legacyTarget) {
 	legacy, err := store.LegacyWorkflowConfigs(ctx)
 	if err != nil {
 		m.Errors = append(m.Errors, err)
@@ -335,7 +339,7 @@ func migrateProjectWorkflowConfigs(ctx context.Context, a *app.App, svc *workflo
 				parent = "team:" + id // must extend the nearest layer
 			}
 		}
-		patch := workflow.TranslateLegacyOverride(wc.Overrides, id, parent, false, known)
+		patch := workflow.TranslateLegacyOverride(wc.Overrides, id, parent, false, known.checkpoints, known.agents)
 		draftCreated := false
 		err = repo.Transact(ctx, func(_ context.Context, tx *teamstate.Tx) (teamstate.TxResult, error) {
 			wdir := filepath.Join("projects", project.ID, teamstate.WorkflowsDirName, "migrated")

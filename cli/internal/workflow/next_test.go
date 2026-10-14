@@ -161,6 +161,9 @@ func TestValidate_OutputRecord(t *testing.T) {
 		{"unknown kind", "  - { id: tickets, type: beads-ids, record: seen }\n", "enum_invalid"},
 		{"type", "  - { id: tickets, type: path, record: created }\n", "output_record_type"},
 		{"spec without check", "  - { id: spec, type: path, record: spec }\n", "output_record_spec_unchecked"},
+		{"input", "  - { id: method, type: text, record: input }\ninputs:\n  method: { type: enum, values: [standard, tdd] }\n", ""},
+		{"input unknown", "  - { id: method, type: text, record: input }\n", "output_record_input_unknown"},
+		{"input type", "  - { id: method, type: path, record: input }\ninputs:\n  method: { type: enum, values: [standard, tdd] }\n", "output_record_type"},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -270,5 +273,27 @@ func TestPatch_Next(t *testing.T) {
 	c.Next[0].Inputs["tickets"] = "x"
 	if parent.Spec.Next[0].Inputs["tickets"] == "x" {
 		t.Fatal("Clone shares next inputs")
+	}
+}
+
+// feature-migration: `record: input` records the value of an input (given,
+// else its default) so that `next:` passes it on (method of spec).
+func TestRecordedInputs(t *testing.T) {
+	doc, diags := Parse([]byte(vHeader+"risk: write\ninputs:\n  method: { type: enum, values: [standard, tdd], default: standard }\n  request: { type: text }\noutputs:\n  - { id: method, type: text, record: input }\n  - { id: tickets, type: beads-ids, record: created }\n"), Source{Layer: LayerHub})
+	if diags.HasErrors() {
+		t.Fatal(diagList(diags))
+	}
+	s := doc.Spec
+	if got := s.RecordedInputs(map[string]any{"method": "tdd", "request": "x"}); !reflect.DeepEqual(got, map[string]any{"method": "tdd"}) {
+		t.Fatalf("given = %v", got)
+	}
+	if got := s.RecordedInputs(nil); !reflect.DeepEqual(got, map[string]any{"method": "standard"}) {
+		t.Fatalf("default = %v", got)
+	}
+	if got := (&Spec{}).RecordedInputs(map[string]any{"method": "tdd"}); got != nil {
+		t.Fatalf("none = %v", got)
+	}
+	if !OutputFits(OutputText, InputEnum) || OutputFits(OutputText, InputBeadsIDs) {
+		t.Fatal("OutputFits(text)")
 	}
 }

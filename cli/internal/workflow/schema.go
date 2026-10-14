@@ -98,6 +98,9 @@ const (
 	// OutputReport is the id of a report deposited with workflow_report
 	// (R5).
 	OutputReport OutputType = "report"
+	// OutputText is a plain value, such as an input of the session
+	// recorded by oh (`record: input`, feature-migration).
+	OutputText OutputType = "text"
 )
 
 // Runtime names an execution environment.
@@ -621,7 +624,7 @@ func (t InputType) Valid() bool {
 // Valid reports whether t is a known output type.
 func (t OutputType) Valid() bool {
 	switch t {
-	case OutputBranch, OutputMergeRequest, OutputBeadsIDs, OutputPath, OutputReport:
+	case OutputBranch, OutputMergeRequest, OutputBeadsIDs, OutputPath, OutputReport, OutputText:
 		return true
 	}
 	return false

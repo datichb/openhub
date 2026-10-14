@@ -138,6 +138,11 @@ func (v *validator) outputRecord(base string, o Output) {
 	if o.Record == RecordSpec && !v.s.hasSpecCheck() {
 		v.warn("output_record_spec_unchecked", base+".record")
 	}
+	if o.Record == RecordInput {
+		if _, ok := v.s.Inputs.Get(o.ID); !ok {
+			v.err("output_record_input_unknown", base+".record", o.ID)
+		}
+	}
 }
 
 // hasSpecCheck reports whether a checkpoint checks the specs (verify.spec).

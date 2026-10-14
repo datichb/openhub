@@ -29,7 +29,7 @@ func TestTranslateLegacyOverride(t *testing.T) {
 		ModeOverrides:          &ModesOverride{Available: &modes, Default: str("manuel")},
 		CircuitBreakerOverride: &cb,
 	}
-	p := TranslateLegacyOverride(ov, "feature", "hub:feature", true, []string{"cp-0", "cp-1", "cp-2", "cp-3"})
+	p := TranslateLegacyOverride(ov, "feature", "hub:feature", true, []string{"cp-0", "cp-1", "cp-2", "cp-3"}, nil)
 	doc, diags := Parse(p.YAML, Source{Layer: LayerTeam})
 	if diags.HasErrors() {
 		t.Fatalf("%v\n%s", diags, p.YAML)
@@ -76,8 +76,38 @@ func TestTranslateLegacyOverride(t *testing.T) {
 		t.Errorf("comments missing:\n%s", p.YAML)
 	}
 
-	empty := TranslateLegacyOverride(nil, "feature", "team:feature", false, nil)
+	empty := TranslateLegacyOverride(nil, "feature", "team:feature", false, nil, nil)
 	if _, d := Parse(empty.YAML, Source{Layer: LayerProject}); d.HasErrors() {
 		t.Fatal(d)
+	}
+}
+
+// feature-migration: the overrides apply to implement-spec; cp-0 becomes
+// cp-plan, the agents implement-spec does not have are listed, not written.
+func TestTranslateLegacyOverrideImplementSpec(t *testing.T) {
+	str := func(s string) *string { return &s }
+	yes := true
+	role := RoleIndependent
+	ov := &WorkflowOverride{
+		CheckpointOverrides: []CheckpointOverride{{ID: "cp-0", Action: ActionModify, Label: str("Plan")}},
+		AgentOverrides:      []AgentOverride{{AgentID: "documentarian", Disabled: &yes}, {AgentID: "designer", Role: &role}},
+	}
+	p := TranslateLegacyOverride(ov, LegacyWorkflowID, "hub:"+LegacyWorkflowID, false,
+		[]string{"cp-plan", "cp-1", "cp-2", "cp-3", "cp-final"}, []string{"orchestrator-dev", "developer", "reviewer", "documentarian"})
+	doc, diags := Parse(p.YAML, Source{Layer: LayerTeam})
+	if diags.HasErrors() {
+		t.Fatalf("%v\n%s", diags, p.YAML)
+	}
+	if cp, ok := doc.Spec.Checkpoints.Get("cp-plan"); !ok || cp.Label.Text("fr") != "Plan" {
+		t.Fatalf("cp-plan = %+v\n%s", cp, p.YAML)
+	}
+	if _, ok := doc.Spec.Agents.Get("designer"); ok {
+		t.Fatalf("designer translated:\n%s", p.YAML)
+	}
+	if a, _ := doc.Spec.Agents.Get("documentarian"); a.Role != RoleDisabled {
+		t.Fatalf("documentarian = %+v", a)
+	}
+	if !strings.Contains(string(p.YAML), "# Not translated: agent designer: no such agent in hub:implement-spec") {
+		t.Fatalf("comments:\n%s", p.YAML)
 	}
 }

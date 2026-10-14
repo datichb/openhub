@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"fmt"
 	"regexp"
 	"slices"
 	"strings"
@@ -94,10 +95,14 @@ const (
 	// RecordReport: the last report deposited with workflow_report
 	// (report).
 	RecordReport OutputRecord = "report"
+	// RecordInput: the value of the input of the session with the same id,
+	// recorded at launch (text), so that `next:` passes it on (the method
+	// of spec to implement-spec, feature-migration).
+	RecordInput OutputRecord = "input"
 )
 
 // OutputRecords lists the valid record kinds.
-var OutputRecords = []OutputRecord{RecordCreated, RecordClosed, RecordSpec, RecordReport}
+var OutputRecords = []OutputRecord{RecordCreated, RecordClosed, RecordSpec, RecordReport, RecordInput}
 
 // Valid reports whether r is known ("" = declared by the session).
 func (r OutputRecord) Valid() bool { return r == "" || slices.Contains(OutputRecords, r) }
@@ -111,8 +116,36 @@ func (r OutputRecord) OutputType() OutputType {
 		return OutputPath
 	case RecordReport:
 		return OutputReport
+	case RecordInput:
+		return OutputText
 	}
 	return ""
+}
+
+// RecordedInputs returns the outputs recorded from the inputs of a session
+// (`record: input`): the value given at launch, else the default.
+func (s *Spec) RecordedInputs(inputs map[string]any) map[string]any {
+	out := map[string]any{}
+	for _, o := range s.Outputs {
+		if o.Record != RecordInput {
+			continue
+		}
+		in, ok := s.Inputs.Get(o.ID)
+		if !ok {
+			continue
+		}
+		v, given := inputs[o.ID]
+		if !given || v == nil || fmt.Sprint(v) == "" {
+			v = in.Default
+		}
+		if v != nil && fmt.Sprint(v) != "" {
+			out[o.ID] = fmt.Sprint(v)
+		}
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
 }
 
 // RecordedOutput returns the output recorded with kind r (first one).
@@ -202,6 +235,8 @@ func OutputFits(t OutputType, in InputType) bool {
 		return in == InputPath || in == InputString || in == InputText
 	case OutputReport, OutputMergeRequest:
 		return in == InputString || in == InputText
+	case OutputText:
+		return in == InputString || in == InputText || in == InputEnum
 	}
 	return false
 }

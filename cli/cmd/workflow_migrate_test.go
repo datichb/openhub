@@ -68,14 +68,14 @@ agent_id = "documentarian"
 disabled = true
 `
 	legacyProjectWeb  = `{"overrides":{"checkpoint_overrides":[{"id":"cp-3","action":"remove"}],"mode_overrides":{"default":"manuel"}}}`
-	legacyProjectSolo = `{"overrides":{"agent_overrides":[{"agent_id":"designer","role":"independent"}]}}`
+	legacyProjectSolo = `{"overrides":{"agent_overrides":[{"agent_id":"reviewer","mode":"primary"},{"agent_id":"designer","role":"independent"}]}}`
 )
 
 // Acceptance criterion 5: the former workflow configurations (team
 // config.toml, projects.workflow_config, hub.toml) migrate without loss.
 func TestMigrateLegacyWorkflows(t *testing.T) {
 	env := setupWorkflowCLI(t, "alice", "bob")
-	t.Setenv(workflowsDirEnv, filepath.Join(repoRoot(t), "workflows")) // the shipped feature workflow
+	t.Setenv(workflowsDirEnv, filepath.Join(repoRoot(t), "workflows")) // the shipped implement-spec workflow
 	ctx := t.Context()
 
 	alice := env.clones["alice"]
@@ -113,7 +113,7 @@ func TestMigrateLegacyWorkflows(t *testing.T) {
 	assert.Contains(t, string(raw), "Démarrer (équipe)", "nothing lost")
 	assert.Contains(t, string(raw), "cp-routing")
 	svc := newWorkflowService(ctx)
-	res, err := svc.Resolve(ctx, workflowsvcContext(""), "team:feature", resolveNone())
+	res, err := svc.Resolve(ctx, workflowsvcContext(""), "team:implement-spec", resolveNone())
 	require.NoError(t, err)
 	cp1, _ := res.Spec.Checkpoints.Get("cp-1")
 	assert.Equal(t, "Démarrer (équipe)", cp1.Label.Text("fr"))
@@ -121,15 +121,15 @@ func TestMigrateLegacyWorkflows(t *testing.T) {
 	_, hasDoc := res.Spec.Agents.Get("documentarian")
 	assert.False(t, hasDoc)
 	assert.Equal(t, 9, *res.Spec.CircuitBreaker.MaxConsecutiveSubagents)
-	published, err := os.ReadFile(filepath.Join(alice, "workflows", "published", "feature.yaml"))
+	published, err := os.ReadFile(filepath.Join(alice, "workflows", "published", "implement-spec.yaml"))
 	require.NoError(t, err)
 	assert.Contains(t, string(published), "# Not translated: checkpoint cp-routing")
 	assert.Contains(t, gitIn(t, env.bare, "log", "--format=%s"), "workflow: migrate the team workflow configuration")
 
-	// Project of the team: extends team:feature.
-	res, err = svc.Resolve(ctx, workflowsvcContext("web"), "project:feature", resolveNone())
+	// Project of the team: extends team:implement-spec.
+	res, err = svc.Resolve(ctx, workflowsvcContext("web"), "project:implement-spec", resolveNone())
 	require.NoError(t, err)
-	assert.Equal(t, "team:feature", res.Chain[1].String())
+	assert.Equal(t, "team:implement-spec", res.Chain[1].String())
 	_, hasCP3 := res.Spec.Checkpoints.Get("cp-3")
 	assert.False(t, hasCP3)
 	assert.Equal(t, "manuel", res.Spec.Modes.Default)
@@ -142,11 +142,13 @@ func TestMigrateLegacyWorkflows(t *testing.T) {
 	solo := a.Config.FindTeam(*lonely.TeamID)
 	require.NotNil(t, solo)
 	assert.True(t, solo.Solo)
-	res, err = svc.Resolve(ctx, workflowsvcContext("lonely"), "project:feature", resolveNone())
+	res, err = svc.Resolve(ctx, workflowsvcContext("lonely"), "project:implement-spec", resolveNone())
 	require.NoError(t, err)
-	assert.Equal(t, "hub:feature", res.Chain[0].String())
-	designer, _ := res.Spec.Agents.Get("designer")
-	assert.Equal(t, workflow.RoleIndependent, designer.Role)
+	assert.Equal(t, "hub:implement-spec", res.Chain[0].String())
+	reviewer, _ := res.Spec.Agents.Get("reviewer")
+	assert.Equal(t, workflow.ModePrimary, reviewer.Mode)
+	_, hasDesigner := res.Spec.Agents.Get("designer")
+	assert.False(t, hasDesigner, "not an agent of implement-spec: listed, not translated")
 	assert.Contains(t, notices, "solo")
 
 	// Hub: files under ~/.oh/migrated, section removed from hub.toml.
@@ -154,7 +156,7 @@ func TestMigrateLegacyWorkflows(t *testing.T) {
 	hubRaw, err := os.ReadFile(filepath.Join(config.HubDir(), "migrated", "hub-workflow-overrides.toml"))
 	require.NoError(t, err)
 	assert.Contains(t, string(hubRaw), "Démarrer (hub)")
-	assert.FileExists(t, filepath.Join(config.HubDir(), "migrated", "feature.hub.yaml"))
+	assert.FileExists(t, filepath.Join(config.HubDir(), "migrated", "implement-spec.hub.yaml"))
 	config.Reset()
 	_, err = config.Load()
 	require.NoError(t, err)
@@ -191,12 +193,12 @@ func TestMigrateLegacyEnforcedTeam(t *testing.T) {
 	// The team locks its workflow: the project overrides (ignored before)
 	// stay a draft, refused at publication.
 	notices := strings.Join(m.Notices, "\n")
-	assert.Contains(t, notices, "project:feature")
-	published, err := os.ReadFile(filepath.Join(alice, "workflows", "published", "feature.yaml"))
+	assert.Contains(t, notices, "project:implement-spec")
+	published, err := os.ReadFile(filepath.Join(alice, "workflows", "published", "implement-spec.yaml"))
 	require.NoError(t, err)
 	assert.Contains(t, string(published), `enforce: ["*"]`)
-	assert.FileExists(t, filepath.Join(alice, "projects", "web", "workflows", "drafts", "alice", "feature.yaml"))
-	assert.NoFileExists(t, filepath.Join(alice, "projects", "web", "workflows", "published", "feature.yaml"))
+	assert.FileExists(t, filepath.Join(alice, "projects", "web", "workflows", "drafts", "alice", "implement-spec.yaml"))
+	assert.NoFileExists(t, filepath.Join(alice, "projects", "web", "workflows", "published", "implement-spec.yaml"))
 	assert.Empty(t, legacy, "the configuration lives on as the draft")
 }
 
@@ -219,7 +221,7 @@ func TestMigrateHubOverridesFromFile(t *testing.T) {
 	require.True(t, legacyWorkflowPending(t.Context(), application, nil))
 	m := migrateLegacyWorkflows(t.Context(), application, nil)
 	require.Empty(t, m.Errors)
-	data, err := os.ReadFile(filepath.Join(config.HubDir(), "migrated", "feature.hub.yaml"))
+	data, err := os.ReadFile(filepath.Join(config.HubDir(), "migrated", "implement-spec.hub.yaml"))
 	require.NoError(t, err)
 	assert.Contains(t, string(data), `cp-1: { label: "Go" }`)
 	hub, _ := os.ReadFile(config.ConfigPath())
@@ -250,7 +252,7 @@ func TestMigrateUnknownProjectConfigArchived(t *testing.T) {
 		"p3": `{"overrides":{}}`,
 	}
 	m := &workflowMigration{}
-	migrateProjectWorkflowConfigs(t.Context(), a, nil, store, m, nil)
+	migrateProjectWorkflowConfigs(t.Context(), a, nil, store, m, legacyTarget{})
 	require.Empty(t, m.Errors)
 	assert.Empty(t, store, "archived or empty configurations are cleared")
 	require.Len(t, m.Notices, 2)

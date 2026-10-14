@@ -194,6 +194,11 @@ func buildChain(cat Catalog, ref Ref) ([]*Document, Diagnostics) {
 			if len(chain) == 0 {
 				return nil, Diagnostics{errDiag("unknown_workflow", "", cur.String())}
 			}
+			if targets := RetiredAliasTargets(cat, cur); len(targets) > 0 {
+				// feature-migration: the parent became an alias (hub:feature,
+				// hub:cadrage): say what to do instead of "not found".
+				return nil, at(chain[len(chain)-1], errDiag("extends_alias", "extends", cur.String(), strings.Join(targets, ", ")))
+			}
 			return nil, at(chain[len(chain)-1], errDiag("extends_not_found", "extends", cur.String()))
 		}
 		seen[cur] = true
