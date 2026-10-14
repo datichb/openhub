@@ -390,12 +390,11 @@ func (d *Driver) dependencies(ctx context.Context, p *domain.Session) map[string
 	return out
 }
 
-func bdTicket(_ context.Context, dir, ticket string) ([]string, bool, error) {
+func bdTicket(_ context.Context, dir, ticket string) (deps []string, closed bool, err error) {
 	t, err := beads.Show(dir, ticket)
 	if err != nil {
 		return nil, false, err
 	}
-	var deps []string
 	for _, dep := range t.Dependencies {
 		if dep.ID != "" && (dep.Type == "" || dep.Type == "blocks") {
 			deps = append(deps, dep.ID)
