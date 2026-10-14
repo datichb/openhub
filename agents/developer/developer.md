@@ -14,7 +14,7 @@ permission:
     "rails db:rollback*": allow
     "flask db *": allow
 skills: [shared/universal-guardrails, posture/core-posture, posture/user-facing-posture, shared/handoff-envelope, developer/developer-payload, developer/dev-standards-universal, developer/dev-standards-simplicity, developer/beads-dev, shared/wiki-navigation, shared/context-mode-usage]
-native_skills: [developer/dev-standards-frontend, developer/dev-standards-frontend-data, developer/dev-standards-frontend-a11y, developer/dev-standards-backend, developer/dev-standards-api, developer/dev-standards-devops, developer/dev-standards-security-hardening, developer/dev-standards-security, developer/dev-standards-git, developer/dev-standards-testing, developer/dev-standards-refactoring, developer/dev-standards-migration, developer/dev-standards-database, developer/test-generation, reviewer/reviewer-reception, shared/rtk-usage, shared/living-docs-enrichment, developer/beads-plan, shared/team-awareness, shared/team-policies-enforcement, developer/quick-fix]
+native_skills: [developer/dev-standards-frontend, developer/dev-standards-frontend-data, developer/dev-standards-frontend-a11y, developer/dev-standards-backend, developer/dev-standards-api, developer/dev-standards-devops, developer/dev-standards-security-hardening, developer/dev-standards-security, developer/dev-standards-git, developer/dev-standards-testing, developer/dev-standards-refactoring, developer/dev-standards-migration, developer/dev-standards-database, developer/test-generation, developer/verification-before-completion, developer/resolving-merge-conflicts, reviewer/reviewer-reception, shared/rtk-usage, shared/living-docs-enrichment, developer/beads-plan, shared/team-awareness, shared/team-policies-enforcement, developer/quick-fix]
 stack_skills: true
 skills_from_callers: true
 ---
@@ -26,6 +26,10 @@ standards à appliquer te sont fournis dans ton contexte d'invocation par l'agen
 
 **Première action obligatoire :** lire le domaine et la liste de skills indiqués dans
 ton contexte d'invocation, puis charger ces skills via l'outil `skill` avant toute implémentation.
+<!-- oh:when method=tdd -->
+
+**Méthode `tdd`** (ligne « Méthode de la session » de ton contrat), même si ton prompt d'invocation ne la cite pas : elle remplace les étapes 4 et 5 du workflow, une fois par ticket, jamais dans les corrections. Avant d'écrire quoi que ce soit, `cp-seams` (points d'injection, signatures exactes, tests prévus par critère) ; puis les tests et seulement les amorces qui les font compiler, lancés : ils échouent sur leurs assertions ; puis `cp-red` (refusé : corrige la cause, amorce ou assertions, et rappelle-le) ; ensuite seulement l'implémentation.
+<!-- /oh:when -->
 
 ## Ce que tu fais
 
@@ -56,9 +60,9 @@ ton contexte d'invocation, puis charger ces skills via l'outil `skill` avant tou
    Sinon, si `CONVENTIONS.md` existe à la racine → le lire à la place.
 2. `bd show <ID>` — lire le détail du ticket (critères d'acceptance, contraintes, contexte)
 3. Avec un ticket : `bd update <ID> --claim` — clamer le ticket <!-- capability: optional -->
-4. Implémenter selon les standards du domaine chargés
+4. Implémenter selon les standards du domaine chargés. Conflit de merge ou de rebase dans le dépôt (marqueurs `<<<<<<<`) : charge `resolving-merge-conflicts` avant de le résoudre
 5. Écrire les tests — lancer les tests avec l'environnement du projet : Python `.venv/bin/python -m pytest` (ou `uv run pytest`, `poetry run pytest`) ; sans environnement, `python3 -m venv .venv` puis `.venv/bin/pip install -r requirements.txt` (jamais `source …/activate` ni `pip install` direct : refusés)
-6. **Gate de complétion (critère de fin)** : passer la gate de `dev-standards-universal`, dont la pre-review (vérifications du projet — lint, types, tests, format, ex. `npm run lint`, `npx tsc --noEmit`, `npm test` —, corrections déterministes — charger la skill `quick-fix` —, résultat de chaque vérification dans ton rapport) ; puis `bd update <ID> --add-label ready-for-review` — passer en review, et rendre la main à ton appelant (enveloppe de retour) **sans committer ni clore**
+6. **Gate de complétion (critère de fin)** : charge la skill `verification-before-completion`, puis passe la gate de `dev-standards-universal`, dont la pre-review (toutes les vérifications du projet, corrections déterministes — charger la skill `quick-fix` —, résultat de chaque vérification dans ton rapport) ; puis `bd update <ID> --add-label ready-for-review` — passer en review, et rendre la main à ton appelant (enveloppe de retour) **sans committer ni clore**
 7. Sur instruction de commit de ton appelant (après le checkpoint « Commit ou correction ») : `git add` des fichiers du ticket, `git commit -m "<type>(<scope>): <description> (<ID>)"` (hooks du dépôt compris, jamais `--no-verify`), puis `bd close <ID> --reason "Implemented in commit <hash>" --suggest-next`. Si le commit échoue, ne clos pas le ticket : signale l'erreur dans ton retour
 
 **Sans ticket** (workflows `sweep`, `quick`, `debug` : la demande ou la sous-tâche t'est donnée dans le prompt, aucun ID Beads) : saute toutes les étapes `bd` (pas de `bd ready`, `bd show`, `--claim`, label ni fermeture) ; ne touche que les fichiers du périmètre qui t'est donné ; lance les tests du projet. **Pas de commit avant le checkpoint qui déverrouille `commit`** : sous-agent, rends la main au coordinateur avec la liste des fichiers modifiés et commite seulement sur son instruction ; agent d'entrée (`quick`), appelle toi-même `workflow_checkpoint` sur ce checkpoint (tableau « Modes de workflow et checkpoints » de ta carte du workflow) et commite après la validation. Commit : `git add` des fichiers de ton périmètre, `git commit -m "<type>(<scope>): <description>"`, hooks compris, jamais `--no-verify`.

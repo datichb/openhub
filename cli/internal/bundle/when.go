@@ -35,6 +35,7 @@ import (
 //	calls        an agent it may launch (consumer side of a shared format)
 //	mcp          an MCP server of the session (workflow, gitlab, team…)
 //	plugin       a plugin of the workflow
+//	method       the method of the session (R7: standard, tdd)
 //	websearch    the web search tools are on and the agent may use them
 //	beads_write  the workflow lets agents write to Beads and the agent may run bd
 //	ticket       the workflow takes a Beads ticket as input
@@ -54,6 +55,7 @@ type whenEnv struct {
 	calls  map[string]bool
 	mcp    map[string]bool
 	plugin map[string]bool
+	method string
 	flags  map[string]bool // yes/no keys
 }
 
@@ -64,7 +66,7 @@ const (
 )
 
 var (
-	whenSetKeys  = []string{"role", "agent", "calls", "mcp", "plugin"}
+	whenSetKeys  = []string{"role", "agent", "calls", "mcp", "plugin", "method"}
 	whenFlagKeys = []string{"websearch", "beads_write", "ticket", "wiki", "shell", "headless"}
 	whenRoles    = []string{roleEntry, roleSubagent}
 )
@@ -132,6 +134,13 @@ func parseWhenAll(s string) (whenAll, error) {
 				if key == "role" && !slices.Contains(whenRoles, v) {
 					return nil, fmt.Errorf("%q: unknown role %q (%s)", f, v, strings.Join(whenRoles, ", "))
 				}
+				if key == "method" && v != string(workflow.MethodStandard) && !workflow.Method(v).Valid() {
+					names := []string{string(workflow.MethodStandard)}
+					for _, m := range workflow.Methods {
+						names = append(names, string(m))
+					}
+					return nil, fmt.Errorf("%q: unknown method %q (%s)", f, v, strings.Join(names, ", "))
+				}
 			}
 		default:
 			return nil, fmt.Errorf("%q: unknown key %q (%s)", f, key, strings.Join(append(append([]string(nil), whenSetKeys...), whenFlagKeys...), ", "))
@@ -167,6 +176,8 @@ func (e whenAll) holds(env whenEnv) bool {
 			got = anyIn(t.values, env.mcp)
 		case "plugin":
 			got = anyIn(t.values, env.plugin)
+		case "method":
+			got = slices.Contains(t.values, env.method)
 		default:
 			got = env.flags[t.key]
 		}
@@ -318,7 +329,7 @@ type sessionEnv struct {
 	mcp, plugin            map[string]bool
 	websearch, beadsWrite  bool
 	ticket, wiki, headless bool
-	entry                  string
+	entry, method          string
 	graph, callers         map[string][]string
 }
 
@@ -326,7 +337,10 @@ type sessionEnv struct {
 // servers, plugins, permissions and entry agent) from the workflow w, the
 // project and the delegation graph of the bundle.
 func newSessionEnv(w *workflow.Spec, projectPath string, spec sessionspec.BundleSpec, graph map[string][]string) sessionEnv {
-	s := sessionEnv{mcp: map[string]bool{}, plugin: map[string]bool{}, entry: spec.EntryAgent, graph: graph, callers: callersOf(graph)}
+	s := sessionEnv{mcp: map[string]bool{}, plugin: map[string]bool{}, entry: spec.EntryAgent, method: string(workflow.MethodStandard), graph: graph, callers: callersOf(graph)}
+	if spec.Workflow != nil && spec.Workflow.Method != "" {
+		s.method = spec.Workflow.Method
+	}
 	for _, m := range spec.MCP {
 		s.mcp[m.Name] = true
 	}
@@ -367,7 +381,7 @@ func bundleWhenEnvs(w *workflow.Spec, projectPath string, spec sessionspec.Bundl
 
 // agentEnv is the session of agent id, whose permissions are perms.
 func (s sessionEnv) agentEnv(id string, perms []sessionspec.PermissionRule) whenEnv {
-	env := whenEnv{agent: id, roles: map[string]bool{}, calls: map[string]bool{}, mcp: s.mcp, plugin: s.plugin, flags: map[string]bool{}}
+	env := whenEnv{agent: id, roles: map[string]bool{}, calls: map[string]bool{}, mcp: s.mcp, plugin: s.plugin, method: s.method, flags: map[string]bool{}}
 	if id == s.entry || len(s.callers[id]) == 0 {
 		env.roles[roleEntry] = true
 	}

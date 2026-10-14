@@ -351,8 +351,10 @@
         "dev-standards-testing",
         "living-docs-enrichment",
         "quick-fix",
+        "resolving-merge-conflicts",
         "reviewer-reception",
-        "test-generation"
+        "test-generation",
+        "verification-before-completion"
       ]
     },
     {
@@ -469,11 +471,13 @@
     "living-docs-enrichment",
     "quick-fix",
     "research",
+    "resolving-merge-conflicts",
     "review-merge",
     "reviewer-adversarial",
     "reviewer-edge-case",
     "reviewer-reception",
-    "test-generation"
+    "test-generation",
+    "verification-before-completion"
   ],
   "subagent_graph": {
     "conductor": [

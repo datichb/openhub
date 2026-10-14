@@ -22,11 +22,11 @@ func roleEnv(agent string, roles ...string) whenEnv {
 }
 
 func TestParseWhen(t *testing.T) {
-	for _, ok := range []string{"", "role=subagent", "role=entry,subagent", "agent!=developer", "calls=developer mcp=gitlab", "websearch", "!headless shell", "plugin=context-mode", "role=subagent | calls=developer"} {
+	for _, ok := range []string{"", "role=subagent", "role=entry,subagent", "agent!=developer", "calls=developer mcp=gitlab", "websearch", "!headless shell", "plugin=context-mode", "role=subagent | calls=developer", "method=tdd", "method!=standard"} {
 		_, err := parseWhen(ok)
 		assert.NoError(t, err, ok)
 	}
-	for _, bad := range []string{"role=boss", "role", "colour=red", "websearch=true", "agent=", "agent=Dev", "role=entry |", "| role=entry"} {
+	for _, bad := range []string{"role=boss", "role", "colour=red", "websearch=true", "agent=", "agent=Dev", "role=entry |", "| role=entry", "method=waterfall", "method"} {
 		_, err := parseWhen(bad)
 		assert.Error(t, err, bad)
 	}
@@ -38,6 +38,8 @@ func TestWhenHolds(t *testing.T) {
 	sub.flags["shell"] = true
 	entry := roleEnv("orchestrator", roleEntry)
 	both := roleEnv("reviewer", roleEntry, roleSubagent)
+	tdd := roleEnv("developer", roleSubagent)
+	tdd.method = "tdd"
 	cases := []struct {
 		expr string
 		env  whenEnv
@@ -59,6 +61,9 @@ func TestWhenHolds(t *testing.T) {
 		{"mcp=gitlab", sub, false},
 		{"role=entry | calls=documentarian", sub, true},
 		{"role=entry | agent=reviewer", sub, false},
+		{"method=tdd", tdd, true},
+		{"method=tdd", sub, false},
+		{"method!=tdd", sub, true},
 	}
 	for _, c := range cases {
 		e, err := parseWhen(c.expr)
@@ -267,7 +272,11 @@ func TestNoDeadRoleBlocksInAgents(t *testing.T) {
 			e, _ := parseWhen(m[2])
 			alive := false
 			for r := range has {
-				alive = alive || e.holds(withAllFlags(roleEnv(id, r)))
+				for _, m := range append([]workflow.Method{workflow.MethodStandard}, workflow.Methods...) {
+					env := withAllFlags(roleEnv(id, r))
+					env.method = string(m)
+					alive = alive || e.holds(env)
+				}
 			}
 			assert.True(t, alive, "%s: block %q never kept (roles of %s: %v)", rel, strings.TrimSpace(m[2]), id, has)
 		}

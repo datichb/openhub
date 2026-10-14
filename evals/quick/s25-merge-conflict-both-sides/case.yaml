@@ -1,0 +1,148 @@
+id: S25
+title: "Quick : un conflit de merge est résolu sans perdre aucun des deux changements, sans marqueur restant"
+workflow: quick
+mode: semi-auto
+# Le setup prépare deux branches qui modifient les mêmes lignes de Total :
+# main arrondit la TVA et ramène un taux négatif à 0 (sans test) ; feature/sous-total extrait Subtotal et
+# VAT (le calcul de la TVA quitte Total) et ignore les quantités nulles ou
+# négatives (avec des tests). L'arrondi et le taux négatif doivent être
+# reportés dans le nouveau code ; TotalDiscounted, ajouté sur main et
+# fusionné sans conflit, recalcule le HT à sa façon (conflit sémantique,
+# sans marqueur) : il doit lui aussi ignorer les quantités nulles ou
+# négatives. Le merge en
+# conflit est commité tel quel par le setup (marqueurs compris) : garder un
+# seul côté compile et passe les tests visibles, seuls les tests cachés
+# voient le changement perdu.
+text: |
+  J'ai mergé `feature/sous-total` dans `main` mais le merge est parti avec les conflits non résolus (dernier commit). Résous-les.
+setup:
+  - |
+    git checkout -q -b feature/sous-total
+    cat > invoice/total.go <<'EOF'
+    // Package invoice calcule les totaux d'une facture.
+    package invoice
+
+    // Line est une ligne de facture.
+    type Line struct {
+    	Label     string
+    	UnitCents int64
+    	Qty       int
+    }
+
+    // Subtotal renvoie le total HT en centimes ; les lignes de quantité nulle ou négative (retours, lignes vides) sont ignorées.
+    func Subtotal(lines []Line) int64 {
+    	var ht int64
+    	for _, l := range lines {
+    		if l.Qty <= 0 {
+    			continue
+    		}
+    		ht += l.UnitCents * int64(l.Qty)
+    	}
+    	return ht
+    }
+
+    // VAT renvoie la TVA en centimes d'un montant HT ht, pour un taux rate (0.2 pour 20 %).
+    func VAT(ht int64, rate float64) int64 {
+    	return int64(float64(ht) * rate)
+    }
+
+    // Total renvoie le total TTC en centimes, pour un taux de TVA vatRate (0.2 pour 20 %).
+    func Total(lines []Line, vatRate float64) int64 {
+    	ht := Subtotal(lines)
+    	return ht + VAT(ht, vatRate)
+    }
+    EOF
+    cat >> invoice/total_test.go <<'EOF'
+
+    func TestSubtotalSkipsNonPositiveQty(t *testing.T) {
+    	lines := []Line{{Label: "a", UnitCents: 1000, Qty: 1}, {Label: "retour", UnitCents: 500, Qty: -1}}
+    	if got := Subtotal(lines); got != 1000 {
+    		t.Fatalf("Subtotal = %d, want 1000", got)
+    	}
+    }
+
+    func TestVAT(t *testing.T) {
+    	if got := VAT(1000, 0.2); got != 200 {
+    		t.Fatalf("VAT = %d, want 200", got)
+    	}
+    }
+    EOF
+    printf -- '- Sous-total HT (`Subtotal`) et TVA (`VAT`) séparés : les lignes de quantité nulle ou négative sont ignorées.\n' >> CHANGELOG.md
+    git add -A && git commit -q -m "refactor(invoice): extraire Subtotal et VAT, ignorer les lignes de quantité nulle ou négative"
+    git checkout -q main
+  - |
+    cat > invoice/total.go <<'EOF'
+    // Package invoice calcule les totaux d'une facture.
+    package invoice
+
+    // Line est une ligne de facture.
+    type Line struct {
+    	Label     string
+    	UnitCents int64
+    	Qty       int
+    }
+
+    // Total renvoie le total TTC en centimes, pour un taux de TVA vatRate (0.2 pour 20 %).
+    func Total(lines []Line, vatRate float64) int64 {
+    	var ht int64
+    	for _, l := range lines {
+    		ht += l.UnitCents * int64(l.Qty)
+    	}
+    	if vatRate < 0 {
+    		vatRate = 0
+    	}
+    	vat := int64(float64(ht)*vatRate + 0.5)
+    	return ht + vat
+    }
+    EOF
+    printf -- '- TVA arrondie au centime le plus proche (elle était tronquée) ; un taux négatif compte pour 0.\n' >> CHANGELOG.md
+    git add -A && git commit -q -m "fix(invoice): arrondir la TVA au centime le plus proche, taux négatif ramené à 0"
+  - |
+    cat > invoice/discount.go <<'EOF'
+    package invoice
+
+    // TotalDiscounted renvoie le total TTC en centimes après une remise de pct % sur le HT.
+    func TotalDiscounted(lines []Line, vatRate float64, pct int64) int64 {
+    	var ht int64
+    	for _, l := range lines {
+    		ht += l.UnitCents * int64(l.Qty)
+    	}
+    	ht -= ht * pct / 100
+    	if vatRate < 0 {
+    		vatRate = 0
+    	}
+    	return ht + int64(float64(ht)*vatRate+0.5)
+    }
+    EOF
+    cat > invoice/discount_test.go <<'EOF'
+    package invoice
+
+    import "testing"
+
+    func TestTotalDiscounted(t *testing.T) {
+    	lines := []Line{{Label: "a", UnitCents: 1000, Qty: 2}}
+    	if got := TotalDiscounted(lines, 0.2, 10); got != 2160 {
+    		t.Fatalf("TotalDiscounted = %d, want 2160", got)
+    	}
+    }
+    EOF
+    printf -- '- Total avec remise (`TotalDiscounted`).\n' >> CHANGELOG.md
+    git add -A && git commit -q -m "feat(invoice): total avec remise en pourcentage"
+  - git merge -q --no-ff feature/sous-total -m "Merge feature/sous-total" || true
+timeout: 15m
+answers:
+  checkpoints:
+    cp-commit: approve
+  question: first
+assertions:
+  - type: changed_within
+    paths: ["invoice/*.go", "CHANGELOG.md"]
+    include: ["invoice/total.go", "CHANGELOG.md"]
+  - type: hidden_tests
+  - type: no_denied_loop
+# Les deux changements survivent (tests cachés, lignes du CHANGELOG) et
+# aucun marqueur de conflit ne reste.
+hidden_tests: >-
+  go vet ./... && go test -count=1 ./... &&
+  grep -q 'Subtotal' CHANGELOG.md && grep -q 'arrondie' CHANGELOG.md && grep -q 'TotalDiscounted' CHANGELOG.md &&
+  ! grep -rIlE '^(<<<<<<<|=======$|>>>>>>>)' --exclude-dir=.git --exclude-dir=.beads .

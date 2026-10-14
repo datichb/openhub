@@ -98,6 +98,8 @@ question({
    - Le contexte de la feature si disponible (specs UX/UI validées, rapports d'audit)
    - Si le ticket porte le label `tdd` → préciser explicitement :
      > « Ce ticket est en TDD — écrire les tests rouges couvrant les critères d'acceptance **avant** d'implémenter. »
+   - Si la méthode de ta session est tdd (ligne « Méthode de la session » de ton contrat) → préciser explicitement :
+     > « Méthode TDD : passe les checkpoints de la méthode (points d'injection, puis tests en échec) avant d'implémenter. »
 
 3. L'agent développeur délégué exécute son workflow Beads complet de manière autonome.
    (bd claim → **[TDD : tests rouges d'abord]** → implémenter → tester → bd update --add-label ready-for-review)

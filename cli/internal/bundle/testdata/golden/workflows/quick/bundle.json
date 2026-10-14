@@ -201,8 +201,10 @@
         "dev-standards-testing",
         "living-docs-enrichment",
         "quick-fix",
+        "resolving-merge-conflicts",
         "reviewer-reception",
-        "test-generation"
+        "test-generation",
+        "verification-before-completion"
       ]
     }
   ],
@@ -223,8 +225,10 @@
     "dev-standards-testing",
     "living-docs-enrichment",
     "quick-fix",
+    "resolving-merge-conflicts",
     "reviewer-reception",
-    "test-generation"
+    "test-generation",
+    "verification-before-completion"
   ],
   "subagent_graph": {},
   "max_depth": 1,

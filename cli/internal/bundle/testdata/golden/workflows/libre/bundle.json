@@ -895,8 +895,10 @@
         "dev-standards-testing",
         "living-docs-enrichment",
         "quick-fix",
+        "resolving-merge-conflicts",
         "reviewer-reception",
-        "test-generation"
+        "test-generation",
+        "verification-before-completion"
       ]
     },
     {
@@ -1051,6 +1053,7 @@
     "prototype-protocol",
     "quick-fix",
     "research",
+    "resolving-merge-conflicts",
     "review-merge",
     "reviewer-adversarial",
     "reviewer-edge-case",
@@ -1061,6 +1064,7 @@
     "ui-patterns-reference",
     "ui-protocol",
     "ux-protocol",
+    "verification-before-completion",
     "websearch-design-patterns"
   ],
   "subagent_graph": {

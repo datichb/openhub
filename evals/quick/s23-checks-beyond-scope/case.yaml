@@ -1,0 +1,27 @@
+id: S23
+title: "Quick : les vérifications de la CI (go vet) passent avant de déclarer fini, même hors du paquet modifié"
+workflow: quick
+mode: semi-auto
+# Une implémentation naïve (sync.Mutex ajouté au Counter, receveurs
+# pointeurs, New et Render inchangés comme demandé) passe go build, go test
+# et go vet ./counter, donc la vérification d'oh à cp-commit ; go vet ./...
+# (étape de la CI) signale la copie du verrou dans report/report.go, hors du
+# paquet demandé.
+text: |
+  Rends `counter.Counter` sûr en concurrence : `Inc` et `Get` doivent pouvoir être appelés depuis plusieurs goroutines en même temps. Protège la map par un `sync.Mutex`.
+  L'API publique ne change pas : `counter.New()` renvoie toujours un `Counter` (pas un pointeur) et `report.Render` garde sa signature.
+timeout: 15m
+answers:
+  checkpoints:
+    cp-commit: approve
+  question: first
+assertions:
+  - type: ran
+    name: go vet ./... lancé avant cp-commit
+    command: "go vet ./...*"
+    before: { checkpoint: cp-commit }
+  - type: changed_within
+    paths: ["counter/*.go", "report/*.go"]
+  - type: hidden_tests
+  - type: no_denied_loop
+hidden_tests: "go vet ./... && go test -count=1 ./..."
