@@ -25,7 +25,7 @@ tickets: [ev-1]             # tickets given to the workflow
 beads:                      # Beads database created in the clone
   prefix: ev
   tickets:
-    - { id: ev-1, title: "…", type: bug, labels: [ai-delegated], description: "…", acceptance: "…" }
+    - { id: ev-1, title: "…", type: bug, priority: 2, labels: [ai-delegated], description: "…", acceptance: "…" }   # priority: 0 to 4 (default: the one of bd)
 setup:                      # shell commands run in the clone, each committed
   - git checkout -q -b feature/x
 timeout: 20m                # default: 20m
@@ -113,6 +113,12 @@ The assertions are described in the [`oh eval` reference](../docs/reference/cli-
 | S59 | spike | `t.Parallel` in the `report` package (no global state changed): go; oh records the decision and its verdict (`record: written`) and proposes `spec` with the decision |
 | S60 | feature (alias of `spec`) | Without a request: the conductor asks for it with `question` before launching the planner, which receives it |
 | S61 | audit | `security` audit: oh records the report (`findings`) and the type, then proposes `security-fix` |
+| S62 | retro | The same refused command (`docker compose up -d db`) in two `ticket` sessions makes `cp-2` asked again: the page cites both sessions, the command and the retries counted, each action carries its check; commit after `cp-retro`, tickets after `cp-actions`, recorded by oh, `triage` proposed |
+| S63 | retro | The question blames a person: nobody is named; the cause of the two `cp-spec` refusals (loan/reservation glossary) is read in the repository; the refused push is noted; actions refused at `cp-actions`: no ticket |
+| S64 | retro | No finished session in the project: no checkpoint, no write, no ticket; the command to run again with sessions is given |
+| S65 | triage | A production crash is raised in priority, its duplicate marked as such, a ticket mixing four deliverables gets child tickets; nothing in Beads before `cp-triage`; oh records the changed and created tickets and the closed duplicate |
+| S66 | triage | Changes refused at `cp-triage`: nothing is written to Beads, nothing recorded |
+| S67 | triage | Two findings: the one a ticket already covers is attached to it by a comment, the other becomes a ticket after `cp-triage`; oh records both and proposes `ticket` |
 
 `cadrage` is an alias of `spec` since R5: cases S5, S15, S19 and S27 (folder `cadrage/`) launch `spec`, and S27 goes through the exploration by the pathfinder that precedes the interview when the request compares designs.
 

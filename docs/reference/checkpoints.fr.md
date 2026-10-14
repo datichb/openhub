@@ -2,7 +2,7 @@
 
 # Référence — Checkpoints, modes et vérification par oh
 
-Un checkpoint est une pause du workflow : l'agent appelle `workflow_checkpoint`, oh applique le comportement du mode (attendre l'utilisateur ou laisser passer) et ouvre les opérations que le checkpoint déverrouille (`commit`, `close`, `create`, `apply`, `push`, `tag`, `mr`). Le schéma des champs est dans [Schéma des workflows](workflow-schema.fr.md#checkpoints) ; l'exécution à trois niveaux (prompt, outil MCP, plugin oh) dans l'[ADR-042](../architecture/adr/042-checkpoints-headless-decisions.fr.md).
+Un checkpoint est une pause du workflow : l'agent appelle `workflow_checkpoint`, oh applique le comportement du mode (attendre l'utilisateur ou laisser passer) et ouvre les opérations que le checkpoint déverrouille (`commit`, `close`, `create`, `update`, `apply`, `push`, `tag`, `mr`). Le schéma des champs est dans [Schéma des workflows](workflow-schema.fr.md#checkpoints) ; l'exécution à trois niveaux (prompt, outil MCP, plugin oh) dans l'[ADR-042](../architecture/adr/042-checkpoints-headless-decisions.fr.md).
 
 Chaque pause coûte du temps humain et, à force, une validation machinale : le nombre de pauses est un paramètre de sécurité. Les règles ci-dessous (rapport de modernisation d'octobre 2026, §9, règles CP-R1 à CP-R11) gardent peu de pauses, et mieux informées.
 
@@ -229,6 +229,7 @@ Chaque validation passe par le même chemin qu'une validation seule : une vérif
 | Opération | Ouverte par | Refermée |
 |---|---|---|
 | `create` | son checkpoint (`cp-tickets`, `cp-ticket`) | au **checkpoint obligatoire suivant** (`cp-spec`, `cp-commit`…) ou quand le checkpoint est redemandé ; pas à la fermeture d'un ticket |
+| `update` | son checkpoint (`cp-triage`) | comme `create` : au checkpoint obligatoire suivant ou quand le checkpoint est redemandé ; pas à la fermeture d'un ticket |
 | `commit` | son checkpoint (`cp-2`, `cp-commit`) | **une fois le travail commité** (HEAD a avancé et il ne reste rien à committer : un commit, ou plusieurs à la suite), quand le checkpoint est redemandé, ou à la fermeture du ticket |
 | `close` | son checkpoint | à la fermeture d'un ticket, ou quand le checkpoint est redemandé |
 | `tag` | son checkpoint (`cp-release`) ; avec `commit` au même checkpoint, seulement **une fois la release commitée** | après le premier tag, au checkpoint obligatoire suivant ou quand le checkpoint est redemandé |
