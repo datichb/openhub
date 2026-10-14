@@ -76,7 +76,7 @@ func TestTieredPlan(t *testing.T) {
 	ref2 := statsReport(day(2), m, cases, map[string][2]int{"S1": {3, 3}, "S2": {3, 3}, "S3": {3, 3}, "S4": {1, 1}})
 	base := ref2.Baseline("ref 2").WithHistory(ref1.Baseline("ref 1"))
 
-	plan := TieredPlan(base, cases, []string{m}, 3, 0)
+	plan := TieredPlan(base, cases, []string{m}, 3, -1)
 	assert.Equal(t, map[string]int{"S1": 1, "S2": 3, "S3": 3, "S4": 1}, planOf(plan), "the inactive case is left out")
 	assert.Equal(t, "100 % sur les deux dernières mesures (3/3, 3/3)", reasonOf(plan, "S1"))
 	assert.Equal(t, "dernières mesures 3/3, 2/3", reasonOf(plan, "S2"))
@@ -86,20 +86,21 @@ func TestTieredPlan(t *testing.T) {
 	// One stable measure is enough when asked.
 	assert.Equal(t, 1, planOf(TieredPlan(base, cases, []string{m}, 3, 1))["S3"])
 	assert.Equal(t, 3, planOf(TieredPlan(base, cases, []string{m}, 3, 3))["S1"])
+	assert.Equal(t, map[string]int{"S1": 1, "S2": 1, "S3": 1, "S4": 1}, planOf(TieredPlan(base, cases, []string{m}, 3, 0)), "every case once, the escalation decides")
 
 	// A case changed since a measure runs the full repetitions.
 	require.NoError(t, os.WriteFile(filepath.Join(cases[0].Dir, FixtureDir, "x.go"), []byte("package x\n"), 0o644))
 	changed, err := LoadCase(cases[0].Dir)
 	require.NoError(t, err)
-	plan = TieredPlan(base, []*Case{changed}, []string{m}, 3, 0)
+	plan = TieredPlan(base, []*Case{changed}, []string{m}, 3, -1)
 	assert.Equal(t, 3, plan[0].Reps)
 	assert.Equal(t, "cas modifié depuis la dernière mesure", plan[0].Reason)
 
 	// Every model must be stable; no baseline: every case runs in full.
-	plan = TieredPlan(base, cases[:1], []string{m, "claude-sonnet-4-6"}, 3, 0)
+	plan = TieredPlan(base, cases[:1], []string{m, "claude-sonnet-4-6"}, 3, -1)
 	assert.Equal(t, 3, plan[0].Reps)
 	assert.Equal(t, "claude-sonnet-4-6 : absent de la référence", plan[0].Reason)
-	assert.Equal(t, 3, planOf(TieredPlan(nil, cases, []string{m}, 3, 0))["S1"])
+	assert.Equal(t, 3, planOf(TieredPlan(nil, cases, []string{m}, 3, -1))["S1"])
 }
 
 // A baseline recorded before the history (no hash, no history): its stats
@@ -128,7 +129,7 @@ func TestTieredPlanLegacyBaseline(t *testing.T) {
 	assert.Equal(t, "1/1", b.Measures("S1", m)[0].String())
 	assert.NotEmpty(t, b.Measures("S1", m)[0].Hash)
 	assert.Empty(t, b.Measures("S1", m)[1].Hash)
-	assert.Equal(t, 1, planOf(TieredPlan(b, cases, []string{m}, 3, 0))["S1"])
+	assert.Equal(t, 1, planOf(TieredPlan(b, cases, []string{m}, 3, -1))["S1"])
 }
 
 // The history of a baseline: the new measure first, a rescore of the same
@@ -325,12 +326,20 @@ func TestEstimateRun(t *testing.T) {
 	assert.InDelta(t, 0.2+1.5+1.05+0.6, e.Cost, 1e-9)
 	assert.Equal(t, 12, e.WorstPasses)
 	assert.InDelta(t, 0.6+1.5+1.05+0.6, e.WorstCost, 1e-9)
+	// S1 (3/3 in the baseline) never escalates: the expected cost is the
+	// planned one.
+	assert.InDelta(t, e.Cost, e.ExpectedCost, 1e-9)
+	assert.InDelta(t, 0.5, book.FailRate(cases[2], m), 1e-9, "never measured")
+	assert.InDelta(t, 0, book.FailRate(cases[1], m), 1e-9, "1/1 in the lot")
+	once := EstimateRun(cases, []CasePlan{{Case: "S1", Reps: 1}, {Case: "S2", Reps: 1}, {Case: "S3", Reps: 1}, {Case: "S4", Reps: 1}}, []string{m}, 3, 0, 3, book)
+	assert.InDelta(t, 4+0.5*2+0.5*2, once.ExpectedPasses, 1e-9, "S3 and S4 never measured: one chance out of two")
 	md := e.Markdown()
 	for _, want := range []string{
 		"référence par niveaux : ×1 si 100 % sur les deux dernières mesures, ×3 sinon · escalade jusqu'à ×3",
 		"| S1 | quick | 1 | stable | $0.200 | référence du 2026-10-02 | $0.20 |",
 		"- Cas : 4 (×1 : 1 cas, ×3 : 3 cas)",
 		"- Total : 10 passages · ≈ $3.35",
+		"- Avec les escalades probables (taux d'échec de la dernière mesure, 50 % sans mesure) : ≈ 10 passages · ≈ $3.35",
 		"- Si tous les cas à moins de ×3 échouent (escalade) : 12 passages · ≈ $3.75",
 		"- Plafond global : $3.00 (dépassé : des passages ne seront pas lancés)",
 	} {

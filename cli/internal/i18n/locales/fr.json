@@ -495,7 +495,7 @@
   "cmd.eval.flags.plan": "afficher les passages prévus par cas et une estimation du coût, sans rien lancer",
   "cmd.eval.flags.costs": "rapport report.json (motif glob accepté, répétable) dont les coûts moyens complètent ceux de --baseline pour l'estimation de --plan",
   "cmd.eval.flags.history": "rapport report.json (motif glob accepté, répétable) dont les mesures comptent dans le calcul de --tiered après celles de --baseline, par date (passages des lots depuis la dernière référence), et dont les coûts servent à --plan",
-  "cmd.eval.flags.stable_measures": "avec --tiered, nombre de dernières mesures sans échec qui font passer un cas ×1",
+  "cmd.eval.flags.stable_measures": "avec --tiered, nombre de dernières mesures sans échec qui font passer un cas ×1 (0 : tous les cas ×1, l'escalade décide)",
   "cmd.eval.tiered_baseline": "--tiered calcule les répétitions depuis la mesure de référence : passez --baseline <fichier> (illisible : %v)",
   "cmd.eval.start_plan": "oh eval : %d cas · modèles %s · répétitions par cas (%s) · plafond $%.2f par passage · sorties dans %s",
   "cmd.eval.plan_escalate": "escalade jusqu'à ×%d",

@@ -495,7 +495,7 @@
   "cmd.eval.flags.plan": "print the passes planned per case and an estimate of the cost, without running anything",
   "cmd.eval.flags.costs": "report.json report (glob pattern accepted, repeatable) whose mean costs complete those of --baseline for the estimate of --plan",
   "cmd.eval.flags.history": "report.json report (glob pattern accepted, repeatable) whose measures count in the plan of --tiered after those of --baseline, by date (passes of the lots since the last reference), and whose costs feed --plan",
-  "cmd.eval.flags.stable_measures": "with --tiered, number of last measures without a failure that make a case run ×1",
+  "cmd.eval.flags.stable_measures": "with --tiered, number of last measures without a failure that make a case run ×1 (0: every case ×1, the escalation decides)",
   "cmd.eval.tiered_baseline": "--tiered computes the repetitions from the reference measure: pass --baseline <file> (unreadable: %v)",
   "cmd.eval.start_plan": "oh eval: %d case(s) · models %s · repetitions per case (%s) · $%.2f cap per pass · output in %s",
   "cmd.eval.plan_escalate": "escalation up to ×%d",

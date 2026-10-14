@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"math"
 	"os"
 	"path/filepath"
 	"sort"
@@ -277,10 +278,11 @@ func tierOf(ms []Measure, c *Case, n int) (once bool, reason string) {
 }
 
 // TieredPlan computes the repetitions of the active cases from the
-// baseline: once for a case at 100 % on its last stable measures (0: the
-// default, two) with every model, full otherwise.
+// baseline: once for a case at 100 % on its last stable measures with every
+// model, full otherwise. stable 0 runs every case once (the escalation then
+// decides), below 0 is the default (two).
 func TieredPlan(base *Report, cases []*Case, models []string, full, stable int) []CasePlan {
-	if stable < 1 {
+	if stable < 0 {
 		stable = DefaultStableMeasures
 	}
 	var out []CasePlan
@@ -289,6 +291,11 @@ func TieredPlan(base *Report, cases []*Case, models []string, full, stable int) 
 			continue
 		}
 		p := CasePlan{Case: c.ID, Reps: 1}
+		if stable == 0 {
+			p.Reason = "×1 pour tous les cas (--stable-measures 0)"
+			out = append(out, p)
+			continue
+		}
 		var full1, ok1 []string
 		for _, m := range models {
 			var ms []Measure
@@ -439,6 +446,33 @@ func (b *CostBook) Lookup(c *Case, model string) (cost float64, source string) {
 	return b.Budget, "plafond par passage"
 }
 
+// unknownFailRate is the failure rate assumed for a case never measured.
+const unknownFailRate = 0.5
+
+// FailRate is the share of failed passes of the last measure of the case
+// with the model: the baseline, then the other reports (most recent
+// first); unknownFailRate when none.
+func (b *CostBook) FailRate(c *Case, model string) float64 {
+	if b.Base != nil {
+		if ms := b.Base.Measures(c.ID, model); len(ms) > 0 && ms[0].Runs > 0 {
+			return 1 - float64(ms[0].Passed)/float64(ms[0].Runs)
+		}
+	}
+	var best *CaseStats
+	var at time.Time
+	for _, e := range b.Extra {
+		for i, s := range e.Report.Stats {
+			if s.Case == c.ID && s.Variant == "" && sameModel(s.Model, model) && s.Runs > 0 && (best == nil || e.Report.StartedAt.After(at)) {
+				best, at = &e.Report.Stats[i], e.Report.StartedAt
+			}
+		}
+	}
+	if best != nil {
+		return 1 - float64(best.Passed)/float64(best.Runs)
+	}
+	return unknownFailRate
+}
+
 // PlanLine is a case of an estimate.
 type PlanLine struct {
 	Case     string
@@ -449,24 +483,30 @@ type PlanLine struct {
 	MeanCost float64 // per pass, first model
 	Source   string
 	Cost     float64
-	// WorstPasses and WorstCost count the escalation of a failed case.
-	WorstPasses int
-	WorstCost   float64
+	// WorstPasses and WorstCost count the escalation of a failed case;
+	// ExpectedPasses and ExpectedCost weigh it by the failure rate of the
+	// last measure.
+	WorstPasses    int
+	WorstCost      float64
+	ExpectedPasses float64
+	ExpectedCost   float64
 }
 
 // Estimate is what a run would launch and cost (oh eval --plan).
 type Estimate struct {
-	Models      []string
-	Variants    int
-	Reps        int
-	EscalateTo  int
-	BudgetTotal float64
-	Tiered      bool
-	Lines       []PlanLine
-	Passes      int
-	Cost        float64
-	WorstPasses int
-	WorstCost   float64
+	Models         []string
+	Variants       int
+	Reps           int
+	EscalateTo     int
+	BudgetTotal    float64
+	Tiered         bool
+	Lines          []PlanLine
+	Passes         int
+	Cost           float64
+	WorstPasses    int
+	WorstCost      float64
+	ExpectedPasses float64
+	ExpectedCost   float64
 }
 
 // EstimateRun estimates the passes and the cost of a run of the active
@@ -500,12 +540,23 @@ func EstimateRun(cases []*Case, plan []CasePlan, models []string, reps, variants
 			l.Cost += float64(p.Reps*variants) * cost
 			l.WorstPasses += worst * variants
 			l.WorstCost += float64(worst*variants) * cost
+			// The escalation starts after the first failed pass: the
+			// chance that one of the planned passes fails.
+			fail := 0.0
+			if worst > p.Reps {
+				fail = 1 - math.Pow(1-book.FailRate(c, m), float64(p.Reps))
+			}
+			extra := fail * float64((worst-p.Reps)*variants)
+			l.ExpectedPasses += float64(p.Reps*variants) + extra
+			l.ExpectedCost += (float64(p.Reps*variants) + extra) * cost
 		}
 		e.Lines = append(e.Lines, l)
 		e.Passes += l.Passes
 		e.Cost += l.Cost
 		e.WorstPasses += l.WorstPasses
 		e.WorstCost += l.WorstCost
+		e.ExpectedPasses += l.ExpectedPasses
+		e.ExpectedCost += l.ExpectedCost
 	}
 	return e
 }
@@ -545,14 +596,18 @@ func (e *Estimate) Markdown() string {
 	fmt.Fprintf(&b, "\n- Cas : %d (%s)\n", len(e.Lines), strings.Join(parts, ", "))
 	fmt.Fprintf(&b, "- Total : %d passages · ≈ $%.2f\n", e.Passes, e.Cost)
 	if e.WorstPasses > e.Passes {
+		fmt.Fprintf(&b, "- Avec les escalades probables (taux d'échec de la dernière mesure, %.0f %% sans mesure) : ≈ %.0f passages · ≈ $%.2f\n", 100*unknownFailRate, e.ExpectedPasses, e.ExpectedCost)
 		fmt.Fprintf(&b, "- Si tous les cas à moins de ×%d échouent (escalade) : %d passages · ≈ $%.2f\n", e.EscalateTo, e.WorstPasses, e.WorstCost)
 	}
 	if e.BudgetTotal > 0 {
 		state := "suffisant"
-		if e.Cost > e.BudgetTotal {
+		switch {
+		case e.Cost > e.BudgetTotal:
 			state = "dépassé : des passages ne seront pas lancés"
-		} else if e.WorstCost > e.BudgetTotal {
-			state = "suffisant sans escalade, dépassé si toutes les escalades ont lieu"
+		case e.ExpectedCost > e.BudgetTotal:
+			state = "suffisant sans escalade, dépassé avec les escalades probables"
+		case e.WorstCost > e.BudgetTotal:
+			state = "suffisant avec les escalades probables, dépassé si toutes ont lieu"
 		}
 		fmt.Fprintf(&b, "- Plafond global : $%.2f (%s)\n", e.BudgetTotal, state)
 	}
