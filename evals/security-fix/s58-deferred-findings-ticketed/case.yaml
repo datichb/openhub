@@ -1,0 +1,58 @@
+id: S58
+title: "Security-fix : le constat écarté au tri (F2) devient un ticket avec sa raison, relevé par oh ; le developer rend un contrat par constat (F1, F3 : test et fichiers) à l'auditeur"
+workflow: security-fix
+mode: semi-auto
+reports: off
+# B1 : mêmes constats que S44. À cp-triage, l'utilisateur retient F1 et F3
+# et écarte F2 (« plus tard »). Le developer crée un ticket pour F2 après
+# cp-triage (avant, oh refuse bd create), avec la raison du tri ; oh le
+# relève (sortie deferred, record: created). Son rapport donne une ligne par
+# constat retenu (F1, F3 : corrigé, test, fichiers), transmise à l'auditeur.
+inputs:
+  findings: |
+    ## Constats — audit de sécurité du 2026-10-12
+
+    1. 🔴 Critique — Mot de passe écrit dans les journaux — `auth/login.go:17` — `Login` journalise le mot de passe en clair à chaque tentative.
+    2. 🟠 Majeur — Comparaison de jeton en temps non constant — `auth/token.go:5` — `ValidToken` compare avec `==`.
+    3. 🟠 Majeur — Redirection ouverte — `web/redirect.go:9` — `SafeNext` renvoie le paramètre `next` tel quel : `?next=https://evil.example` envoie l'utilisateur sur un autre site après la connexion.
+beads:
+  prefix: ev
+timeout: 25m
+answers:
+  question: first
+  permission: once
+  checkpoints:
+    cp-triage: "approve: corrige seulement F1 et F3 ; F2 est écarté pour plus tard (refonte des jetons prévue au prochain trimestre), n'y touche pas."
+    "*": approve
+assertions:
+  - type: checkpoint_order
+    order: [cp-triage, cp-rescan, cp-2]
+  - type: ran
+    name: aucun ticket avant cp-triage
+    command: "bd create*"
+    absent: true
+    before: { checkpoint_passed: cp-triage }
+  - type: ran
+    name: le constat écarté devient un ticket, avec la raison du tri
+    agent: developer
+    command: "bd create*trimestre*"
+  - type: output
+    name: le ticket du constat écarté, relevé par oh
+    output: deferred
+    pattern: "^ev-[^,]+$"
+  - type: text_matches
+    name: le developer rend une ligne par constat retenu (F1, F3) avec son test
+    agent: developer
+    pattern: "F1[^\\n]*test[\\s\\S]*F3[^\\n]*test|F3[^\\n]*test[\\s\\S]*F1[^\\n]*test"
+  - type: changed_within
+    name: F2 n'est pas touché (auth/token.go inchangé)
+    paths: ["auth/login*", "auth/auth_test.go", "web/**"]
+    include: ["web/*_test.go"]
+  - type: hidden_tests
+    name: mot de passe absent des journaux, redirections vers un autre site refusées
+  - type: called
+    name: aucune sortie déclarée par un agent
+    tool: "*workflow*outputs*"
+    absent: true
+  - type: no_question_in_subagent
+  - type: no_denied_loop

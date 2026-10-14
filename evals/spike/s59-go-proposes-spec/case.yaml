@@ -1,0 +1,44 @@
+id: S59
+title: "Spike : t.Parallel dans le paquet report (aucun état global changé) — go ; oh relève la décision et son verdict et propose spec avec la décision"
+workflow: spike
+mode: semi-auto
+reports: off
+# B1 : même dépôt que S51, question restreinte au paquet report, dont le
+# test ne change aucun état global du processus : décision go. oh relève la
+# décision écrite sous docs/wiki/decisions/ et son verdict (ligne
+# « **Décision : go** », record: written) quand cp-decision passe, puis
+# propose spec avec la décision pour page d'origine (next:, when.equals).
+text: |
+  Peut-on ajouter t.Parallel() aux tests du paquet report (report/) pour accélérer la CI ? Critère : go si aucun test de report/ ne modifie un état global du processus (variables d'environnement, dossier courant, variables de paquet) ; kill sinon. Durée : 10 minutes.
+beads:
+  prefix: ev
+timeout: 20m
+answers:
+  question: first
+  permission: once
+  checkpoints:
+    "*": approve
+assertions:
+  - type: checkpoint_order
+    order: [cp-question, cp-decision]
+  - type: output
+    name: la décision, relevée par oh
+    output: decision
+    pattern: "^docs/wiki/decisions/[^,]+\\.md$"
+  - type: output
+    name: le verdict go, relevé par oh
+    output: verdict
+    pattern: "(?i)^go$"
+  - type: next
+    name: spec proposé avec la décision
+    workflow: spec
+    pattern: "source=docs/wiki/decisions/"
+  - type: ran
+    name: la décision est commitée seule
+    agent: pathfinder
+    command: "git commit*-- docs/wiki/decisions/*"
+  - type: called
+    name: aucune sortie déclarée par un agent
+    tool: "*workflow*outputs*"
+    absent: true
+  - type: no_denied_loop
