@@ -131,8 +131,8 @@ make test-eval OH_EVAL_TIERED=1 OH_EVAL_RECORD=1 OH_EVAL_PARALLEL=4 OH_EVAL_BUDG
 
 - `OH_EVAL_REPS_CASE` (`--reps-case`) forces the repetitions of given cases: an assertion changed without any other change of the directory, a case to confirm.
 - `OH_EVAL_HISTORY` (`--history`, glob patterns separated by spaces) adds the `report.json` of the lots measured since the last reference: their measures count by date, after those of the baseline. The reports from before this lot have no fingerprint: only a difference of assertions sets them aside.
-- `OH_EVAL_STABLE_MEASURES=1` (`--stable-measures`) settles for the last measure; `OH_EVAL_ESCALATE=0` turns the escalation off.
-- `OH_EVAL_PLAN=1` (`--plan`) gives the passes of each case and the cost estimated from the recorded mean costs (baseline, then `OH_EVAL_HISTORY` and `OH_EVAL_COSTS`), with the worst case when every escalation happens. No key is asked for.
+- `OH_EVAL_STABLE_MEASURES=1` (`--stable-measures`) settles for the last measure, `0` runs every case ×1 and lets the escalation decide; `OH_EVAL_ESCALATE=0` turns the escalation off.
+- `OH_EVAL_PLAN=1` (`--plan`) gives the passes of each case and the cost estimated from the recorded mean costs (baseline, then `OH_EVAL_HISTORY` and `OH_EVAL_COSTS`), with the likely escalations and the worst case when they all happen. No key is asked for.
 - `TestShippedBaseline` checks that each active case has the number of passes of its plan (×3 when a pass at ×1 failed) and that its history starts with the recorded measure.
 
 ## Running faster, within a budget

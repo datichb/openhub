@@ -131,8 +131,8 @@ make test-eval OH_EVAL_TIERED=1 OH_EVAL_RECORD=1 OH_EVAL_PARALLEL=4 OH_EVAL_BUDG
 
 - `OH_EVAL_REPS_CASE` (`--reps-case`) impose les répétitions de cas précis : une assertion changée sans que le dossier change autrement, un cas à confirmer.
 - `OH_EVAL_HISTORY` (`--history`, motifs glob séparés par des espaces) ajoute les `report.json` des lots mesurés depuis la dernière référence : leurs mesures comptent par date, après celles de la référence. Les rapports d'avant ce lot n'ont pas d'empreinte : seule une différence d'assertions les écarte.
-- `OH_EVAL_STABLE_MEASURES=1` (`--stable-measures`) se contente de la dernière mesure ; `OH_EVAL_ESCALATE=0` coupe l'escalade.
-- `OH_EVAL_PLAN=1` (`--plan`) donne les passages de chaque cas et le coût estimé depuis les coûts moyens enregistrés (référence, puis `OH_EVAL_HISTORY` et `OH_EVAL_COSTS`), avec le pire cas si toutes les escalades ont lieu. Aucune clé n'est demandée.
+- `OH_EVAL_STABLE_MEASURES=1` (`--stable-measures`) se contente de la dernière mesure, `0` lance tous les cas ×1 et laisse l'escalade décider ; `OH_EVAL_ESCALATE=0` coupe l'escalade.
+- `OH_EVAL_PLAN=1` (`--plan`) donne les passages de chaque cas et le coût estimé depuis les coûts moyens enregistrés (référence, puis `OH_EVAL_HISTORY` et `OH_EVAL_COSTS`), avec les escalades probables et le pire cas si toutes ont lieu. Aucune clé n'est demandée.
 - `TestShippedBaseline` vérifie que chaque cas actif a le nombre de passages de son plan (×3 si un passage à ×1 a échoué) et que son historique commence par la mesure enregistrée.
 
 ## Lancer plus vite, sans dépasser un budget
