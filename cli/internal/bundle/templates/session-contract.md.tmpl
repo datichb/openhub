@@ -42,6 +42,9 @@
 {{- if .MaxFixRounds }}
 - **Tours de correction** : au plus {{ .MaxFixRounds }} (developer → reviewer) par ticket ; au-delà, passe le checkpoint de commit en signalant les points non résolus.
 {{- end }}
+{{- if .RefusedShell }}
+- **Shell** : {{ codes .RefusedShell }} te sont refusés ; une ligne dont une commande est refusée (même après `|`, `&&` ou `;`) l'est en entier. Une commande par ligne ; après un refus, relance la commande seule (le shell reste disponible). Fichiers : `glob`, `grep`, `read`.
+{{- end }}
 {{- if .Headless }}
 - **Questions** : session sans interface (headless) : personne ne lit ni ne répond. Ne pose aucune question ; une information manquante va dans ta sortie.
 {{- else if and .Entry .Subagent }}

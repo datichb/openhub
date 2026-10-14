@@ -62,6 +62,10 @@ type whenEnv struct {
 	// ownEdits: the agent's own rules let it edit files beyond its
 	// `writes:` paths (the onboarder: ONBOARDING.md), not a condition key.
 	ownEdits bool
+	// refusedShell: the usual helpers of a command line its own rules
+	// refuse while it has a shell (restrictedShellProbes), not a
+	// condition key.
+	refusedShell []string
 }
 
 // Role values of the `role` key.
@@ -427,6 +431,9 @@ func (s sessionEnv) agentEnv(id string, perms []sessionspec.PermissionRule) when
 		}
 	}
 	env.flags["shell"] = shell
+	if shell {
+		env.refusedShell = refusedShellHelpers(perms)
+	}
 	env.flags["websearch"] = s.websearch && ToolEffect(perms, sessionspec.ActionWebSrch, "*") != sessionspec.EffectDeny
 	env.flags["beads_write"] = s.beadsWrite && ShellEffect(perms, "bd update x") != sessionspec.EffectDeny
 	env.flags["ticket"] = s.ticket
