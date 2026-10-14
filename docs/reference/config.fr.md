@@ -96,6 +96,11 @@ keep_images = 2                    # images conservées par projet et par rôle
 tool_version = ""                  # version de l'outil (opencode) des images ; vide = celle de la machine
 strict_isolation = false           # masquer aussi la config personnelle d'opencode en local
 
+[fanout]
+experimental = false               # fan-out expérimental (R6) : sessions enfants d'implement-spec
+parallel = 1                       # sessions enfants en même temps (1 à 3)
+budget_usd = 10                    # budget global d'une session parente et de ses enfants
+
 [remote]
 experimental = false              # mode distant expérimental (5.0) : true pour l'essayer
 [[remote.targets]]                 # projets oh-runner (un par instance GitLab et groupe)
@@ -138,6 +143,9 @@ Supprimés en v5 (ignorés s'ils restent dans le fichier) : `[opencode] version`
 | | `keep_images` | `2` | Images conservées par projet et par rôle (base, dev) |
 | | `tool_version` | vide | Version d'opencode des images ; si elle diffère du client de la machine, le lancement en conteneur est refusé |
 | | `strict_isolation` | `false` | Masque aussi la configuration personnelle d'opencode (`XDG_CONFIG_HOME`) des serveurs locaux |
+| `[fanout]` | `experimental` | `false` | Active le fan-out, **expérimental** (R6) : sans lui, `oh run implement-spec -i fanout=true` est refusé et le démon ne délègue aucun checkpoint d'enfant ([guide](../guides/fan-out.fr.md)) |
+| | `parallel` | `1` | Sessions enfants en même temps (1 à 3 ; au plus le `fanout.parallel` du workflow) |
+| | `budget_usd` | `10` | Budget global d'une session parente et de toutes ses sessions (enfants, merger), en dollars (F-04) |
 | `[remote]` | `experimental` | `false` | Active le mode distant, **expérimental** en 5.0 (jamais validé sur un vrai runner) : sans lui, `oh remote setup`, `oh run --runtime remote`, l'option ☁, `oh session fetch` et `oh session resolve` sont refusés |
 | | `targets[]` | — | Cibles `oh-runner` (`oh remote setup`) : `name`, `url`, `group`, `runner_project`, `token_key`, `trigger_key`, `tag`, `builder` (`kaniko`\|`dind`), `arch` (`amd64`\|`arm64`), `timeout` |
 | | `projects` | — | Projet oh → nom de cible |

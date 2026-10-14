@@ -27,7 +27,8 @@ A workflow is launched with `oh run <workflow>` or the TUI launch form; the form
 | `quick` | `developer` | — | write | local | quick session |
 | `infra-change` | `operator` | — | write (infrastructure, no file) | local | former `infra` agent (application part) |
 | `spec` (alias `cadrage`) | `conductor` | `pathfinder` (when the request compares designs), `planner` (writes `docs/wiki/specs/`), `designer` | plan (+ `writes:`) | local | `cadrage` (former mode A without implementation), with a written and checked spec |
-| `implement-spec` | `orchestrator-dev` | `developer`, `reviewer`, `documentarian` (on demand) | write | local | implementation part of `feature` |
+| `implement-spec` | `orchestrator-dev` | `developer`, `reviewer`, `documentarian` (on demand); as a fan-out: `reviewer` and one `ticket` child session per ticket | write | local | implementation part of `feature` |
+| `merge-conflicts` | `merger` | — | write (concludes a merge in progress; never a push) | local | — (launched by oh in a fan-out) |
 | `onboarding` | `onboarder` | — | write (`docs/wiki/`) | local, remote | `oh start --onboard` (former mode C) |
 | `doc-sync` | `documentarian` | — | write (`docs/wiki/`) | local | — |
 | `skill-refresh` | `documentarian` | — | write (stack skills of the hub) | local | — |
@@ -170,13 +171,14 @@ Outputs **recorded by oh** (no agent declares them): `spec` (the spec checked at
 
 ## `implement-spec`
 
-Implements the tickets of a spec one after the other, in a single session (`risk: write`), then has the whole reviewed. It is the implementation part of `feature`, without planning: the `orchestrator-dev` reads the tickets itself (`bd show`) and sets the order (dependencies, then priority). **Sequential version**: child sessions in worktrees, parallelism and the merge by oh come with R6.
+Implements the tickets of a spec one after the other, in a single session (`risk: write`), then has the whole reviewed. It is the implementation part of `feature`, without planning: the `orchestrator-dev` reads the tickets itself (`bd show`) and sets the order (dependencies, then priority). By default, **sequential** version in the session; with `fanout=true` (experimental), **child sessions** (see below).
 
 | Input | Type | Required | Role |
 |---|---|---|---|
 | `tickets` | `beads-ids` | yes | Tickets to implement; by default `session.output(spec.tickets)`: those of the `spec` session the launch is chained from (`--parent`), otherwise of the last `spec` session of the project |
 | `spec` | `path` | no | Spec of the tickets; by default `session.output(spec.spec)` |
 | `method` | `enum`: `standard`, `tdd` | no (`standard`) | TDD method: `cp-seams` and `cp-red` for each ticket |
+| `fanout` | `bool` (default: no) | no | Experimental (`[fanout] experimental = true`): one child session per ticket, each in its own worktree, merged by oh |
 | `instructions` | `text` (4,000 characters max) | no | Details for the session |
 
 | Checkpoint | manual | semi-auto | auto |
@@ -191,6 +193,22 @@ Implements the tickets of a spec one after the other, in a single session (`risk
 No delegation before `cp-plan`. Each ticket goes through its `cp-2` (commit, then close, before the next one). Once every ticket is processed, the `reviewer` makes an adversarial review of all the commits of the session; `cp-final` presents its verdict, the tickets and their commits, the open points: the user decides on a fix round (one only, through `cp-2` again) or to stop.
 
 Pause budget (CP-R2) in semi-auto: `cp-plan`, `cp-2`, `cp-final`, i.e. 3 pauses for a budget of 3 (2 decisions, 1 irreversible action); the `tdd` method adds one (`cp-seams`). A feature of N tickets thus costs N + 2 pauses (instead of N + 3 in `feature`). Default mode: `semi-auto`. Runs: locally. Allowed Beads commands: `show`, `list`, `ready`, `children`, `dep`, `update`, `close`, `comments`, `label`. Outputs: `branch` (declared), `tickets` (closed tickets, recorded by oh).
+
+### Fan-out (`fanout=true`, experimental)
+
+`oh run implement-spec -i fanout=true` (with `[fanout] experimental = true`): the parent session keeps `cp-plan`, `cp-merge` and `cp-final`; `cp-1`, `cp-2`, `cp-3`, `cp-seams` and `cp-red` move to the children, and the developer is not in the bundle of the parent.
+
+1. Once `cp-plan` is validated, oh creates the integration branch `oh/fanout/<session>/integration` (sibling worktree) from the branch of the session, then launches one `ticket` child session per ticket (its branch `oh/fanout/<session>/<ticket>` from the integration branch, its worktree), 1 to 3 at a time (`fanout.parallel` of the workflow and `[fanout] parallel`), a ticket after those it depends on, none for a ticket already closed; the children get the mode and the method of the parent.
+2. Each child implements, has its work reviewed and passes its `cp-2` **without pause** (delegated to `cp-merge`, CP-R3), verified by oh in its worktree, then commits; it does not close its ticket, merge nor push (oh refuses it).
+3. Once a child is done (idle with no decision waiting), oh merges it into the integration branch (`--no-ff`). On a conflict, oh launches [`merge-conflicts`](#merge-conflicts) in the integration worktree, then checks the result (merge committed, both sides in the history, no marker); otherwise it puts the integration branch back where it was and the child stays unmerged. Without a commit, with uncommitted changes, or stopped by the global budget: unmerged.
+4. Once every child is done, oh writes to the parent session (table of the children); the `reviewer` reviews the whole integration branch, then `cp-merge` (mandatory, pauses in every mode): oh runs the verification **on the integration branch** there, never overridden; once validated, oh merges the integration branch into the branch of the session and closes the merged tickets itself (output `tickets`).
+5. `cp-final`: recap; no fix round in the session (a new `implement-spec` for the remaining tickets).
+
+Pause budget in semi-auto: `cp-plan`, `cp-merge`, `cp-final`, i.e. **3 pauses whatever the number of tickets**. Global budget (F-04): the parent and its children stay within `[fanout] budget_usd` (10 USD by default); beyond it, oh launches no more child and stops the running one (state `budget`), and each child gets what remains as its session budget. State: `oh fanout status <session>`; in `oh session list` and the TUI, a child is marked `↳` (with its ticket), the parent `⑂`. Guide: [Fan-out](../guides/fan-out.en.md).
+
+## `merge-conflicts`
+
+Finishes a merge stopped on conflicts (`risk: write`, `auto` mode only, no checkpoint): the `merger` loads `resolving-merge-conflicts`, keeps the intent of both sides, looks for conflicts without markers, verifies (build, tests), `git add` then `git commit --no-edit`. It does not start, abort nor push any merge, does not change branch and closes no ticket; when it cannot establish the intent of a side, it leaves the merge in progress and explains why. Inputs: `branch` (required, the merged branch), `into`, `files` (conflicted files). Launched by oh in a fan-out; usable by hand on a merge in progress (`oh run merge-conflicts -i branch=<branch>`).
 
 ## `onboarding`
 
@@ -370,6 +388,8 @@ Reaches a cross-cutting goal by splitting it into independent subtasks: the `pat
 | `cp-recap` Sweep recap | pause | pause | auto |
 
 The developer agents and the `reviewer` only start after `cp-plan`; `cp-commit` unlocks `commit` (before it, oh refuses every `git commit`). Default mode: `semi-auto`; circuit breaker at 12 consecutive delegations. Allowed Beads commands: `show`, `list`, `search`, `query`. Output: `branch`. Difference with the former `--sweep`: subtasks run in the same session and location (no worktree per task); `--sweep-branch-prefix` and `--max-sessions` have no equivalent.
+
+**Planned migration onto the fan-out (design, not done in R6).** `sweep` will become a variant of `implement-spec` on the fan-out mechanism: `fanout.source: tasks` (instead of a `beads-ids` input), the subtasks validated at `cp-plan` becoming the children (one worktree and branch each, child workflow `quick` or a ticketless `sweep-task`), `cp-commit` replaced by `cp-merge` (the `verify` of the sweep run by oh on the integration branch), `dry_run` kept (no child). What the mechanism needs: a source of tasks without Beads tickets (the children have nothing to close, the `tickets` output goes away), a structured task handed by oh to the child (file scope, domain), and a `cp-plan` whose breakdown oh records (recorded output, like `record: spec`) instead of taking it on trust.
 
 ## `brief-enrich`
 

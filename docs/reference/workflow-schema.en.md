@@ -386,13 +386,14 @@ The id is in kebab-case (`checkpoint_id_invalid`) and must not be an agent id (`
 | `condition` | text | sentence read by the agent | — (required with `conditional`) | replaces |
 | `mandatory` | boolean | `true`, `false` | `false` | hardens (`true` does not go back to `false`) |
 | `remote` | text | `auto` < `defer` < `forbid` | `defer` | hardens |
-| `unlocks` | list | `commit`, `push`, `close`, `create`, `apply`, `tag`, `mr` | — (nothing locked; `apply`, `tag` and `mr` stay refused) | added to the inherited list (never removed) |
+| `unlocks` | list | `commit`, `push`, `close`, `create`, `apply`, `tag`, `mr`, `merge` (merge checkpoint of a fan-out only) | — (nothing locked; `apply`, `tag` and `mr` stay refused) | added to the inherited list (never removed) |
 | `disabled` | boolean | `true` | — | removes the inherited checkpoint (patch only; refused when it carries `verify`) |
 | `verify` | object | `from`, `kinds`, `cmd`, `expect`, `in`, `timeout`, `must_touch`, `must_touch_tests`, `outside_tests`, `since`, `spec` | no verification | hardens (an inherited verification is never removed nor weakened) |
 | `when` | object | `entry`, `labels`, `paths`, `outputs` | no condition | hardens (inherited conditions kept) |
 | `by` | list | member agents of the workflow | deduced from the graph: the agents that launch an agent gated by this checkpoint (`after:`), else the entry agent | replaces |
 | `wiki` | text | `sync` | the card shows the wiki proposals of the session | replaces |
 | `method` | text | `tdd` | checkpoint of every session | not set on an inherited checkpoint (`loosening`); an added checkpoint may carry one |
+| `fanout` | text | `only` (fan-out sessions only), `never` (the other ones only) | checkpoint of every session | never set nor changed on an inherited checkpoint outside the hub layer (`loosening`) |
 
 - **Behaviors**: `pause` always asks the user; `auto` goes on alone; `skip` skips the checkpoint; `conditional` asks depending on `condition`. oh does not evaluate the `condition` sentence: without `when:`, a `conditional` checkpoint always asks the user when it is reported; with `when:`, oh evaluates it (see below).
 - **Strictness order**: `skip` < `auto` < `conditional` < `pause`. On a `mandatory` checkpoint, a patch cannot choose a less strict behavior, nor remove it (`mandatory_checkpoint_removed`); `skip` on a mandatory checkpoint counts as a pause.
@@ -468,6 +469,36 @@ checkpoints:
 ```
 
 A checkpoint with `method` only exists in the sessions launched with that method (`method` input, `oh run ticket -i method=tdd`, or the launch form): oh evaluates the method at launch and the session bundle holds only the checkpoints of the chosen method (CP-R7). A `standard` session therefore gets exactly the bundle of a workflow without those checkpoints. Only value today: `tdd` (`enum_invalid` otherwise). Such a checkpoint only adds a step: it can neither be mandatory nor unlock an operation (`checkpoint_method_mandatory`), no agent may wait for it (`after:`, `checkpoint_method_after`), and the `method` input must offer the method (`checkpoint_method_no_input`). In a patch, setting or changing `method` on an inherited checkpoint is a loosening (`loosening`): it would vanish from the other sessions.
+
+### `fanout` — child sessions (R6, experimental)
+
+```yaml
+inputs:
+  fanout: { type: bool, default: false }
+fanout:
+  input: fanout            # bool input that makes the session a fan-out
+  tickets: tickets         # beads-ids input: one child session per ticket
+  child: ticket            # workflow of each child session
+  parallel: 3              # child sessions at the same time (1 to 3)
+  merge: cp-merge          # merge checkpoint of the parent session
+  delegates: [cp-2]        # checkpoints of the children replaced by cp-merge (hub layer only)
+  merger: merge-conflicts  # workflow oh launches on a conflict it cannot resolve
+checkpoints:
+  cp-2: { fanout: never, … }
+  cp-merge:
+    fanout: only
+    mandatory: true
+    unlocks: [merge]
+    verify: { from: stack, expect: pass, on: integration }
+```
+
+A session launched with the `fanout` input set to `true` (`oh run implement-spec -i fanout=true`) is a **fan-out**: oh launches one child session per ticket, each on its own branch and worktree, merges it itself into an integration branch, hands a conflict it cannot resolve to the `merger`, and, once the merge checkpoint is validated and verified **on the integration branch**, merges that branch into the branch of the session and closes the merged tickets. The fan-out is experimental and off by default (`[fanout] experimental = true`, see the [guide](../guides/fan-out.en.md)). oh evaluates the input at launch: a fan-out session keeps only the checkpoints without `fanout` or with `fanout: only` (the agents locked by a `fanout: never` checkpoint, the developer after `cp-1`, are left out of the bundle); the other sessions keep exactly the bundle of before (`fanout: only` dropped, `fanout` block ignored).
+
+**Control substitution (CP-R3).** `delegates` lists checkpoints of the child workflow that no longer pause in the children: the merge checkpoint replaces them. The schema requires a **mandatory** merge checkpoint, `fanout: only`, that unlocks `merge` and whose verification run by oh runs on the integration branch (`verify.on: integration`, `expect: pass`); the delegation is declared by the **hub layer** only (a team or project layer, or a draft, that writes it: `fanout_delegates_layer`). A patch may only harden the fan-out: only `parallel` may go down; changing `input`, `tickets`, `child`, `merge`, `merger` or `delegates`, removing the block, or setting `fanout:` on an inherited checkpoint is a `loosening`. The daemon checks everything again at run time (see [Checkpoints](checkpoints.en.md#fan-out-control-substitution-cp-r3)).
+
+`merge` operation: `git merge`, `git pull` and the merges of the forges (`glab mr merge`, `gh pr merge`, their APIs, `gitlab` MCP tool `merge_mr`). Only the merge checkpoint of a fan-out unlocks it (`unlock_merge_fanout_only`), and oh merges when it passes: no window opens for the agents.
+
+Diagnostics: `fanout_input`, `fanout_tickets`, `fanout_parallel`, `fanout_unknown_workflow`, `fanout_child_self`, `fanout_child_nested` (one level of children), `fanout_delegate_unknown` (checkpoint missing from the child workflow), `fanout_merge_unknown`, `fanout_merge_scope`, `fanout_merge_mandatory`, `fanout_merge_unlocks`, `fanout_merge_verify`, `fanout_merge_verify_on`, `fanout_merge_verify_expect`, `fanout_delegates_layer`, `checkpoint_fanout_without_fanout`, `unlock_merge_fanout_only`, `verify_on_integration_merge_only`.
 
 ### Pause budget
 
@@ -648,6 +679,7 @@ A diagnostic has a severity (error or warning), a code, the field path, the sour
 | `verify_spec_path_invalid` | `verify.spec` path absolute or outside the location |
 | `checkpoint_agent_clash`, `checkpoint_mode_unknown`, `checkpoint_mode_missing`, `checkpoint_condition_missing`, `mandatory_checkpoint_removed`, `unlocking_checkpoint_removed`, `unlock_duplicate`, `unlock_unknown`, `unlock_skip`, `unlock_push_without_publish`, `unlock_requires_publish`, `publish_checkpoint_remote`, `publish_checkpoint_pause`, `patch_unknown_checkpoint`, `checkpoint_by_unknown`, `checkpoint_by_duplicate`, `checkpoint_wiki_commit`, `headless_checkpoint_pause` | checkpoints |
 | `verify_empty`, `verify_cmd_template`, `verify_in_invalid`, `verify_timeout_invalid`, `verified_checkpoint_removed`, `when_empty`, `when_mandatory`, `when_unknown_agent`, `when_unknown_output`, `pause_budget_exceeded` | verification run by oh, conditions, pause budget (R3) |
+| `fanout_input`, `fanout_tickets`, `fanout_parallel`, `fanout_unknown_workflow`, `fanout_child_self`, `fanout_child_nested`, `fanout_delegate_unknown`, `fanout_merge_unknown`, `fanout_merge_scope`, `fanout_merge_mandatory`, `fanout_merge_unlocks`, `fanout_merge_verify`, `fanout_merge_verify_on`, `fanout_merge_verify_expect`, `fanout_delegates_layer`, `checkpoint_fanout_without_fanout`, `unlock_merge_fanout_only`, `verify_on_integration_merge_only` | fan-out and control substitution (R6) |
 | `method_input_type`, `checkpoint_method_no_input`, `checkpoint_method_mandatory`, `checkpoint_method_after`, `verify_since_unknown`, `verify_since_method`, `verify_outside_tests_ignored` | method of the session and test written first (R7) |
 | `precondition_check_invalid`, `precondition_path_invalid`, `precondition_branch_invalid`, `precondition_tool_invalid`, `precondition_self`, `precondition_unknown_workflow`, `patch_unknown_precondition` | preconditions |
 | `prompt_both`, `prompt_empty`, `prompt_template_path`, `prompt_template_missing`, `prompt_parse`, `prompt_unknown_variable` | prompt |

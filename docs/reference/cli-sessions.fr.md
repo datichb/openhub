@@ -19,7 +19,8 @@ Cette page couvre la **gestion des sessions v5** (`oh session …`), les **restr
 | [`oh session inbox`](#oh-session-inbox) | Décisions en attente de toutes les sessions |
 | [`oh session attach`](#oh-session-attach) | Ouvrir l'interface d'une session (reprend une session en veille) |
 | [`oh session follow`](#oh-session-follow) | Suivre une session en direct, en lecture seule |
-| [`oh session approve`](#oh-session-approve) | Répondre à une permission ou à un checkpoint |
+| [`oh session approve`](#oh-session-approve) | Répondre à une permission ou à un checkpoint ; `--batch` : plusieurs checkpoints d'un coup |
+| [`oh fanout`](#oh-fanout) | Fan-out (expérimental) : état et pilote des sessions enfants |
 | [`oh session answer`](#oh-session-answer) | Répondre à une question de l'agent |
 | [`oh session dismiss`](#oh-session-dismiss) | Classer une alerte (erreur, coupe-circuit, budget) |
 | [`oh session send`](#oh-session-send) | Envoyer une consigne courte |
@@ -107,6 +108,34 @@ oh session approve 7f3a                                  # permission ou checkpo
 oh session approve dec_91 --decision reject
 oh session approve 7f3a --decision fix -m "Ajoute d'abord les tests"
 ```
+
+**Validation par lot** (CP-R6) : `oh session approve --batch` liste les checkpoints en attente (décision, session, checkpoint, résumé, résultat de la vérification lancée par oh) puis les valide un par un, chacun par le même chemin qu'une validation seule (une vérification échouée refuse celui-là seulement, qui reste en attente ; la commande finit en erreur et le dit).
+
+| Flag | Type | Description |
+|------|------|-------------|
+| `--batch` | bool | Valider d'un coup les checkpoints en attente de la sélection |
+| `--session` | string (répétable) | Seulement ces sessions |
+| `--fanout` | string | La session parente d'un fan-out et ses sessions enfants (et merger) |
+| `--checkpoint` | liste | Seulement ces checkpoints (`cp-2,cp-merge`) |
+| `--except` | string (répétable) | Décision laissée en attente |
+| `--reject` | string (répétable) | Décision refusée : `id` ou `id=consigne` |
+| `--dry-run` | bool | Lister sans répondre |
+
+```bash
+oh session approve --batch --fanout ses_ab12 --dry-run
+oh session approve --batch --checkpoint cp-2 --except checkpoint:ses_x:per_3 --reject checkpoint:ses_y:per_7="Ajoute le test d'erreur"
+```
+
+### oh fanout
+
+```
+oh fanout status <session> [--json]
+oh fanout drive <session>
+```
+
+Fan-out expérimental (`[fanout] experimental = true`, [guide](../guides/fan-out.fr.md)). `status` : branche d'intégration et son worktree, chaque session enfant (ticket, état `pending`, `running`, `merged`, `conflict`, `failed`, `budget`, session, commit de merge, détail), budget global dépensé et derniers événements ; pour une session enfant ou un merger, sa session parente, son ticket et sa branche. `drive` : pilote le fan-out d'une session parente (lance les sessions enfants une fois `cp-plan` passé, les suit, les merge, lance le merger sur un conflit, puis prévient la session parente) ; `oh run` le démarre en arrière-plan (journal `~/.oh/sessions/<session>/fanout.log`), relancez-le s'il s'est arrêté : il reprend où il en était. Un seul pilote par fan-out.
+
+Dans `oh session list` et la TUI, une session enfant est marquée `↳` (avec son ticket), un merger `↳ … (merge <ticket>)`, une session parente `⑂` ; `oh session list --json` donne l'enregistrement `fanout`. `oh session trace` de la parente contient les événements du fan-out et les checkpoints passés dans chaque enfant (événements `fanout`, `child_checkpoint` avec `by: delegated` pour un `cp-2` délégué).
 
 ### oh session answer
 

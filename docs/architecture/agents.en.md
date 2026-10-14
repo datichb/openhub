@@ -178,6 +178,7 @@ Taken from the frontmatter files in `agents/`.
 | auditor | `auditor-subagent` | `subagent` | `readonly-code` | — |
 | infra | `operator` | `primary` | `readonly-ops` | — |
 | delivery | `release-manager` | `primary` | — | — |
+| delivery | `merger` | `primary` | `developer-rw` | — |
 | quality | `reviewer` | `primary` | — | — |
 | quality | `debugger` | `primary` | — | — |
 | quality | `benchmarker` | `primary` | — | — |
@@ -230,6 +231,7 @@ This table is the authoritative reference for which skills each agent loads. It 
 | Agent | Bucket A (inline) | Bucket B (native / on demand) |
 |-------|-------------------|-------------------------------|
 | **release-manager** | `shared/universal-guardrails`, `posture/core-posture`, `posture/user-facing-posture` | `release/release-management`, `release/pr-description`, `shared/rtk-usage` |
+| **merger** | `shared/universal-guardrails`, `posture/core-posture` | `developer/resolving-merge-conflicts`, `developer/verification-before-completion`, `developer/dev-standards-git`, `shared/rtk-usage` (+ stack skills) |
 
 ### Quality family
 
@@ -466,6 +468,17 @@ Applies an infrastructure change already written in the repository. Checks the r
 | **Invocation** | Entry agent of the `release` workflow (`oh run release`) |
 
 Prepares a release: SemVer version deduced from the commits since the last tag and from the CHANGELOG, dated `[Unreleased]` section, notes, annotated tag and, on request, the description of the release merge request. Presents everything at `cp-release` without writing anything, then writes the CHANGELOG (version files are asked one by one), commits, tags the release commit and opens the MR when the branch is already on the remote. No delegation, no web; it reads the tags with `git describe` and `git for-each-ref`. oh refuses it the commit, the tag and the MR before `cp-release`, the tag before the release commit, and it never pushes. Guide: [Preparing a release](../guides/release.en.md).
+
+### `merger`
+
+| | |
+|--|--|
+| **Label** | Merger |
+| **File** | `agents/delivery/merger.md` |
+| **Skills** | See [Skill Assignment Matrix](#skill-assignment-matrix-source-of-truth) — merger row |
+| **Invocation** | Entry agent of the `merge-conflicts` workflow, launched by oh in a fan-out (`implement-spec -i fanout=true`) when the merge of a child session into the integration branch conflicts |
+
+Finishes a merge in progress without losing anything: intent of each side from the common ancestor, conflicts without markers, verification (build, tests), then `git add` and `git commit --no-edit`. Permissions of `developer-rw` minus everything that starts, aborts or pushes a merge (`git merge`, `pull`, `rebase`, `reset`, `push`), changes branch or worktree, or writes to Beads (`bd show` only); no delegation, no web. oh then checks the result itself (merge committed, both sides in the history, no marker). Guide: [Fan-out](../guides/fan-out.en.md).
 
 ---
 

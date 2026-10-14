@@ -27,7 +27,8 @@ On lance un workflow avec `oh run <workflow>` ou la fiche de lancement de la TUI
 | `quick` | `developer` | — | write | local | session rapide |
 | `infra-change` | `operator` | — | write (infrastructure, aucun fichier) | local | ancien agent `infra` (partie application) |
 | `spec` (alias `cadrage`) | `conductor` | `pathfinder` (si la demande compare des conceptions), `planner` (écrit `docs/wiki/specs/`), `designer` | plan (+ `writes:`) | local | `cadrage` (ancien mode A sans implémentation), avec une spec écrite et vérifiée |
-| `implement-spec` | `orchestrator-dev` | `developer`, `reviewer`, `documentarian` (à la demande) | write | local | partie implémentation de `feature` |
+| `implement-spec` | `orchestrator-dev` | `developer`, `reviewer`, `documentarian` (à la demande) ; en fan-out : `reviewer` et une session enfant `ticket` par ticket | write | local | partie implémentation de `feature` |
+| `merge-conflicts` | `merger` | — | write (conclut un merge en cours ; jamais de push) | local | — (lancé par oh dans un fan-out) |
 | `onboarding` | `onboarder` | — | write (`docs/wiki/`) | local, distant | `oh start --onboard` (ancien mode C) |
 | `doc-sync` | `documentarian` | — | write (`docs/wiki/`) | local | — |
 | `skill-refresh` | `documentarian` | — | write (skills de stack du hub) | local | — |
@@ -170,13 +171,14 @@ Sorties **relevées par oh** (aucun agent ne les déclare) : `spec` (la spec vé
 
 ## `implement-spec`
 
-Implémente les tickets d'une spec l'un après l'autre, dans une seule session (`risk: write`), puis fait revoir l'ensemble. C'est la partie implémentation de `feature`, sans planification : l'`orchestrator-dev` lit lui-même les tickets (`bd show`) et fixe l'ordre (dépendances, puis priorité). **Version séquentielle** : les sessions enfants dans des worktrees, le parallélisme et le merge par oh viendront avec R6.
+Implémente les tickets d'une spec l'un après l'autre, dans une seule session (`risk: write`), puis fait revoir l'ensemble. C'est la partie implémentation de `feature`, sans planification : l'`orchestrator-dev` lit lui-même les tickets (`bd show`) et fixe l'ordre (dépendances, puis priorité). Par défaut, version **séquentielle** dans la session ; avec `fanout=true` (expérimental), **sessions enfants** (voir plus bas).
 
 | Entrée | Type | Obligatoire | Rôle |
 |---|---|---|---|
 | `tickets` | `beads-ids` | oui | Tickets à implémenter ; par défaut `session.output(spec.tickets)` : ceux de la session `spec` dont le lancement découle (`--parent`), sinon de la dernière session `spec` du projet |
 | `spec` | `path` | non | Spec des tickets ; par défaut `session.output(spec.spec)` |
 | `method` | `enum` : `standard`, `tdd` | non (`standard`) | Méthode TDD : `cp-seams` et `cp-red` pour chaque ticket |
+| `fanout` | `bool` (défaut : non) | non | Expérimental (`[fanout] experimental = true`) : une session enfant par ticket, chacune dans son worktree, mergées par oh |
 | `instructions` | `text` (4 000 caractères max) | non | Précisions pour la session |
 
 | Checkpoint | manuel | semi-auto | auto |
@@ -191,6 +193,22 @@ Implémente les tickets d'une spec l'un après l'autre, dans une seule session (
 Aucune délégation avant `cp-plan`. Chaque ticket passe par son `cp-2` (commit, puis fermeture, avant le suivant). Tous les tickets traités, le `reviewer` fait une review adversariale de tous les commits de la session ; `cp-final` présente son verdict, les tickets et leurs commits, les points ouverts : l'utilisateur décide d'un tour de correction (un seul, repassé par `cp-2`) ou de s'arrêter.
 
 Budget de pauses (CP-R2) en semi-auto : `cp-plan`, `cp-2`, `cp-final`, soit 3 pauses pour un budget de 3 (2 décisions, 1 action irréversible) ; la méthode `tdd` en ajoute une (`cp-seams`). Une feature de N tickets coûte donc N + 2 pauses (au lieu de N + 3 dans `feature`). Mode par défaut : `semi-auto`. Exécution : locale. Commandes Beads autorisées : `show`, `list`, `ready`, `children`, `dep`, `update`, `close`, `comments`, `label`. Sorties : `branch` (déclarée), `tickets` (tickets fermés, relevés par oh).
+
+### Fan-out (`fanout=true`, expérimental)
+
+`oh run implement-spec -i fanout=true` (avec `[fanout] experimental = true`) : la session parente garde `cp-plan`, `cp-merge` et `cp-final` ; `cp-1`, `cp-2`, `cp-3`, `cp-seams` et `cp-red` passent dans les enfants, et le developer n'est pas dans le paquet de la parente.
+
+1. `cp-plan` validé, oh crée la branche d'intégration `oh/fanout/<session>/integration` (worktree voisin) depuis la branche de la session, puis lance une session enfant `ticket` par ticket (sa branche `oh/fanout/<session>/<ticket>` depuis la branche d'intégration, son worktree), 1 à 3 à la fois (`fanout.parallel` du workflow et `[fanout] parallel`), un ticket après ceux dont il dépend, aucun pour un ticket déjà fermé ; les enfants héritent du mode et de la méthode de la parente.
+2. Chaque enfant implémente, fait relire et passe son `cp-2` **sans pause** (délégué à `cp-merge`, CP-R3), vérifié par oh dans son worktree, puis commite ; il ne ferme pas son ticket, ne merge pas et ne pousse pas (oh le refuse).
+3. Un enfant terminé (inactif sans décision en attente), oh le merge dans la branche d'intégration (`--no-ff`). Un conflit : oh lance [`merge-conflicts`](#merge-conflicts) dans le worktree d'intégration, puis vérifie le résultat (merge commité, les deux côtés dans l'historique, aucun marqueur) ; sinon il remet la branche d'intégration où elle était et l'enfant reste non mergé. Sans commit, avec des modifications non commitées, ou arrêté par le budget global : non mergé.
+4. Tous les enfants terminés, oh écrit à la session parente (tableau des enfants) ; le `reviewer` revoit l'ensemble de la branche d'intégration, puis `cp-merge` (obligatoire, pause dans tous les modes) : oh y lance la vérification **sur la branche d'intégration**, jamais forcée ; validé, oh merge la branche d'intégration dans celle de la session et ferme lui-même les tickets mergés (sortie `tickets`).
+5. `cp-final` : récap ; pas de tour de correction dans la session (un nouvel `implement-spec` pour les tickets restants).
+
+Budget de pauses en semi-auto : `cp-plan`, `cp-merge`, `cp-final`, soit **3 pauses quel que soit le nombre de tickets**. Budget global (F-04) : la parente et ses enfants ne dépassent pas `[fanout] budget_usd` (10 $ par défaut) ; au-delà, oh ne lance plus d'enfant et arrête celui qui tourne (état `budget`), et chaque enfant reçoit ce qui reste comme budget de session. État : `oh fanout status <session>` ; dans `oh session list` et la TUI, un enfant est marqué `↳` (avec son ticket), la parente `⑂`. Guide : [Fan-out](../guides/fan-out.fr.md).
+
+## `merge-conflicts`
+
+Termine un merge arrêté sur des conflits (`risk: write`, mode `auto` seulement, aucun checkpoint) : le `merger` charge `resolving-merge-conflicts`, garde l'intention des deux côtés, cherche les conflits sans marqueur, vérifie (build, tests), `git add` puis `git commit --no-edit`. Il ne lance, n'annule ni ne pousse aucun merge, ne change pas de branche et ne ferme aucun ticket ; s'il ne peut pas établir l'intention d'un côté, il laisse le merge en cours et l'explique. Entrées : `branch` (obligatoire, la branche mergée), `into`, `files` (fichiers en conflit). Lancé par oh dans un fan-out ; utilisable à la main sur un merge en cours (`oh run merge-conflicts -i branch=<branche>`).
 
 ## `onboarding`
 
@@ -370,6 +388,8 @@ Atteint un objectif transverse en le découpant en sous-tâches indépendantes :
 | `cp-recap` Récap du sweep | pause | pause | auto |
 
 Les agents développeurs et le `reviewer` ne démarrent qu'après `cp-plan` ; `cp-commit` déverrouille `commit` (avant lui, oh refuse tout `git commit`). Mode par défaut : `semi-auto` ; coupe-circuit à 12 délégations consécutives. Commandes Beads autorisées : `show`, `list`, `search`, `query`. Sortie : `branch`. Différence avec l'ancien `--sweep` : les sous-tâches s'exécutent dans la même session et le même emplacement (pas un worktree par tâche) ; `--sweep-branch-prefix` et `--max-sessions` n'ont pas d'équivalent.
+
+**Migration prévue sur le fan-out (conception, non faite en R6).** `sweep` deviendra une variante d'`implement-spec` sur le mécanisme du fan-out : `fanout.source: tasks` (au lieu d'une entrée `beads-ids`), les sous-tâches validées à `cp-plan` devenant les enfants (un worktree et une branche chacune, workflow enfant `quick` ou un `sweep-task` sans ticket), `cp-commit` remplacé par `cp-merge` (vérification `verify` du sweep lancée par oh sur la branche d'intégration), `dry_run` gardé (aucun enfant). Ce qu'il faut ajouter au mécanisme : une source de tâches sans ticket Beads (les enfants n'ont rien à fermer, la sortie `tickets` disparaît), une tâche structurée transmise par oh à l'enfant (périmètre de fichiers, domaine), et un `cp-plan` dont oh relève le découpage (sortie relevée, comme `record: spec`) au lieu de le croire sur parole.
 
 ## `brief-enrich`
 

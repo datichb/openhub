@@ -34,6 +34,8 @@ Un checkpoint conditionnel y figure avec la mention « si sa condition est vraie
 | `ticket` en méthode `tdd` | `cp-seams`, `cp-2` | `cp-2` | 3 + 1 |
 | `implement-spec` | `cp-plan`, `cp-2`, `cp-final` | `cp-2` | 3 |
 | `implement-spec` en méthode `tdd` | les mêmes et `cp-seams` | `cp-2` | 3 + 1 |
+| `implement-spec` en fan-out (expérimental) | `cp-plan`, `cp-merge`, `cp-final` (les `cp-2` des enfants sont délégués, CP-R3) | `cp-merge` | 3 |
+| `merge-conflicts` (lancé par oh dans un fan-out) | aucune | — | 2 |
 | `spec` | `cp-understanding`, `cp-spec`, `cp-tickets` (`cp-converge` est vérifié par oh, sans pause) | `cp-spec`, `cp-tickets` | 4 |
 | `sweep` | `cp-plan`, `cp-commit`, `cp-recap` | `cp-commit` | 3 |
 | `review-feedback` | `cp-fix`, `cp-2` | `cp-2` | 3 |
@@ -183,6 +185,38 @@ La méthode est évaluée **au lancement** (CP-R7) : le paquet d'une session `td
 4. **Les tests échouent à l'exécution** : puis les tests. Ils doivent échouer, et pour la bonne raison ; sont refusés : des tests qui ne compilent pas (`go test` : `[build failed]`, `[setup failed]` ; `cargo` : `could not compile` ; `tsc` : `error TS…`), des tests que pytest ne peut pas charger (code de sortie 2, `ERROR collecting`) ou aucun test lancé (code 5) ; une suite qui passe (« un échec était attendu ») ; un dépassement de délai. Ce qu'un outil ne distingue pas (jest, vitest, `mvn`, un script) compte comme un échec de test : la détection est faite sur la sortie et le code de sortie, sans analyse du langage.
 
 Refusé, l'appel de l'agent échoue avec `ErrVerifyFailed`, la raison et l'extrait de la sortie ; il corrige et rappelle `cp-red`. Le checkpoint étant automatique, aucune carte ne s'ouvre : en `manuel`, `cp-seams` reste la décision humaine. En session distante, la vérification tourne dans le job, comme celle de `cp-2` (vérification impossible : checkpoint différé, jamais de passage en silence). Projet sans stack détectée : « rien à vérifier », seule l'étape 1 s'applique.
+
+---
+
+## Fan-out : substitution de contrôle (CP-R3)
+
+Dans un fan-out (`implement-spec -i fanout=true`, expérimental, [guide](../guides/fan-out.fr.md)), chaque ticket a sa session enfant (`ticket`), et le `cp-2` de chaque enfant **ne fait pas de pause** : il est remplacé par le `cp-merge` de la session parente. Sans cette substitution, N tickets donneraient N pauses ; avec elle, une seule validation, mieux informée (tableau des enfants, revue de l'ensemble, vérification de la branche d'intégration). Elle ne relâche rien, grâce à ces garde-fous, chacun couvert par des tests de contournement :
+
+| Garde-fou | Où |
+|---|---|
+| Déclarée par la couche hub seulement (`fanout.delegates`) ; une couche d'équipe ou de projet, ou un brouillon, qui l'écrit : refusée (`fanout_delegates_layer`) ; un patch ne peut que baisser `parallel` | schéma (`TestFanout_DelegatesHubOnly`, `TestFanout_PatchMayOnlyHarden`, `TestShippedImplementSpecFanoutTeamLayer`) |
+| Refusée sans `cp-merge` obligatoire, `fanout: only`, qui déverrouille `merge` et dont la vérification lancée par oh tourne sur la branche d'intégration (`verify.on: integration`, `expect: pass`) | schéma (`TestFanout_MergeCheckpointGuarantees`) et démon (`Substitutes`, `TestFanoutDelegationBypass`) |
+| Le démon relit tout à chaque appel, dans les enregistrements écrits par oh et jamais par un agent : l'enfant est enregistré comme enfant (pas seulement lancé avec `--parent`), la session parente le liste, en cours, du même projet, lancée avec le drapeau expérimental, et son paquet délègue ce checkpoint | `services/checkpoint/fanout.go` (`TestFanoutDelegationBypass` : 17 tentatives) |
+| La vérification du `cp-2` délégué tourne toujours dans le worktree de l'enfant : un échec le refuse | `TestFanoutDelegatedVerificationStillRefuses` |
+| Aucune session du fan-out (parente, enfant, merger) ne pousse, ne merge, ne ferme de ticket ni ne déplace les branches `oh/fanout/…` ; la parente ne commite pas | règles de session (`FanoutRoleRules`), passerelle Beads (`GuardClose`) ; `TestFanoutRoleRules`, `TestFanoutChildRestrictions` |
+| oh merge lui-même : chaque enfant dans la branche d'intégration (`--no-ff`), puis, au passage de `cp-merge`, la branche d'intégration dans celle de la session ; oh ferme les tickets mergés | `services/fanout` |
+| `cp-merge` ne passe que quand tous les enfants sont terminés, sur une branche d'intégration où oh l'a laissée (sinon le fan-out s'arrête : `tampered`), après sa vérification, **jamais forcée** (« passer outre » refusé) | `TestFanoutMergeCheckpoint`, `TestFanoutMergeCheckpointGuards`, `TestDriverTamperedIntegration` |
+| Traçabilité : le passage délégué est écrit dans la frise de l'enfant (`delegated`, avec le checkpoint et la session parente) et dans la trace de la parente (`fanout`, `child_checkpoint`), avec chaque étape du fan-out | `oh session trace`, `oh fanout status` |
+| Drapeau expérimental, désactivé par défaut : sans lui, le lancement est refusé et le démon ne délègue rien | `[fanout] experimental`, `TestDriverRefusals` |
+
+Le `cp-2` des enfants n'est délégué que si la session parente porte le checkpoint de merge : dans une couche d'équipe qui déclare son propre fan-out sans `delegates`, chaque enfant garde sa pause, et ces pauses se valident par lot (ci-dessous).
+
+## Validation par lot (CP-R6)
+
+Plusieurs checkpoints en attente (enfants d'un fan-out sans délégation, sessions distantes, `cp-merge` de plusieurs fan-outs) se valident en une fois, chacun restant listé et refusable :
+
+```
+oh session approve --batch --fanout <session parente> --dry-run     # liste : décision, session, checkpoint, résumé, vérification
+oh session approve --batch --fanout <session parente> --except <décision> --reject <décision>=<consigne>
+oh session approve --batch --checkpoint cp-2,cp-merge
+```
+
+Chaque validation passe par le même chemin qu'une validation seule : une vérification échouée refuse celle-là seulement (elle reste en attente, la commande le signale). Dans la TUI, la validation par lot n'est pas encore là (point ouvert) : chaque carte se valide une à une.
 
 ---
 

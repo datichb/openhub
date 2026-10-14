@@ -96,6 +96,11 @@ keep_images = 2                    # images kept per project and role
 tool_version = ""                  # tool (opencode) version of the images; empty = the machine's
 strict_isolation = false           # also hide the personal opencode config locally
 
+[fanout]
+experimental = false               # experimental fan-out (R6): child sessions of implement-spec
+parallel = 1                       # child sessions at the same time (1 to 3)
+budget_usd = 10                    # global budget of a parent session and its children
+
 [remote]
 experimental = false              # experimental remote mode (5.0): true to try it
 [[remote.targets]]                 # oh-runner projects (one per GitLab instance and group)
@@ -138,6 +143,9 @@ Removed in v5 (ignored if still in the file): `[opencode] version`, `channel`, `
 | | `keep_images` | `2` | Images kept per project and role (base, dev) |
 | | `tool_version` | empty | opencode version of the images; when it differs from the machine client, container launches are refused |
 | | `strict_isolation` | `false` | Also hides the personal opencode configuration (`XDG_CONFIG_HOME`) from local servers |
+| `[fanout]` | `experimental` | `false` | Enables the fan-out, **experimental** (R6): without it, `oh run implement-spec -i fanout=true` is refused and the daemon delegates no checkpoint of a child ([guide](../guides/fan-out.en.md)) |
+| | `parallel` | `1` | Child sessions at the same time (1 to 3; at most the `fanout.parallel` of the workflow) |
+| | `budget_usd` | `10` | Global budget of a parent session and all its sessions (children, merger), in dollars (F-04) |
 | `[remote]` | `experimental` | `false` | Enables the remote mode, **experimental** in 5.0 (never validated on a real runner): without it, `oh remote setup`, `oh run --runtime remote`, the ☁ option, `oh session fetch` and `oh session resolve` are refused |
 | | `targets[]` | — | `oh-runner` targets (`oh remote setup`): `name`, `url`, `group`, `runner_project`, `token_key`, `trigger_key`, `tag`, `builder` (`kaniko`\|`dind`), `arch` (`amd64`\|`arm64`), `timeout` |
 | | `projects` | — | oh project → target name |
