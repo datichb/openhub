@@ -18,7 +18,7 @@ flowchart LR
 ```
 
 **Concepts cles** (voir le [Glossaire](../reference/glossary.fr.md) complet) :
-- **Workflow** -- ce que fait une session : agent d'entrée, agents autorisés, entrées, checkpoints, modes (`manuel`, `semi-auto`, `auto`). 14 workflows sont livrés (voir [Workflows livrés](../reference/workflows.fr.md)).
+- **Workflow** -- ce que fait une session : agent d'entrée, agents autorisés, entrées, checkpoints, modes (`manuel`, `semi-auto`, `auto`). 22 workflows sont livrés (voir [Workflows livrés](../reference/workflows.fr.md)).
 - **Session** -- une execution d'un workflow sur un projet. Elle tourne sur un serveur `opencode serve` gere par oh.
 - **Paquet de session** -- agents, skills, permissions et MCP d'une session, construits au lancement hors du projet (`~/.oh/bundles/<hash>/`). Rien n'est copie dans le projet. Seuls les agents du paquet sont visibles (« monde ferme »).
 - **Decision** -- ce que la session attend de vous : `⏸` checkpoint, `?` question, `!` permission, `$` budget, `✗` erreur.
@@ -123,9 +123,9 @@ Depuis le dossier du projet :
 
 ```bash
 oh run quick -i request="Ajoute un test pour parseDate"   # petite modification, sans checkpoint
-oh run feature -m "…"                                      # une fonctionnalite complete : spec et tickets, puis implementation proposee
+oh run feature -i request="…"                                      # une fonctionnalite complete : spec et tickets, puis implementation proposee
 oh run                                                     # workflow par defaut du projet
-oh run feature -m "…" --recap                              # afficher le recapitulatif, puis confirmer
+oh run feature -i request="…" --recap                              # afficher le recapitulatif, puis confirmer
 ```
 
 oh resout le workflow (couches hub, equipe, projet), construit le paquet de session, choisit l'emplacement (un worktree automatique si une autre session ecrit deja dans le dossier), demarre le serveur opencode et ouvre la fenetre de session : nouvel onglet iTerm2 ou Terminal.app, tmux, ou navigateur selon vos Reglages.
