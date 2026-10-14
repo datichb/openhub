@@ -13,245 +13,280 @@
       "key": "review/S1",
       "title": "Review : la vérification passe en premier ; verdict « corriger » sur un bug semé",
       "workflow": "review",
-      "active": true
+      "active": true,
+      "hash": "25c60647ec9437c8"
     },
     {
       "id": "S2",
       "key": "ticket/S2",
       "title": "Ticket : developer et reviewer n'appellent jamais question ; pas de commit avant cp-2",
       "workflow": "ticket",
-      "active": true
+      "active": true,
+      "hash": "23bc3e420609269e"
     },
     {
       "id": "S3",
       "key": "feature/S3",
       "title": "Feature : le pathfinder renvoie son bloc sans poser de question ; une question bloquante est relayée",
       "workflow": "feature",
-      "active": true
+      "active": true,
+      "hash": "798e33e09675fd5f"
     },
     {
       "id": "S4",
       "key": "audit/S4",
       "title": "Audit : chaque skill de phase est chargé avant sa phase",
       "workflow": "audit",
-      "active": true
+      "active": true,
+      "hash": "60a01ac6ddafcdf9"
     },
     {
       "id": "S5",
       "key": "cadrage/S5",
       "title": "Cadrage : le planner suit la variante sous-agent (enveloppe vers conductor)",
       "workflow": "cadrage",
-      "active": true
+      "active": true,
+      "hash": "d28bae9fd52b5cee"
     },
     {
       "id": "S6",
       "key": "debug/S6",
       "title": "Debug : le skill de phase est chargé avant chaque phase",
       "workflow": "debug",
-      "active": true
+      "active": true,
+      "hash": "646bfb71ac5a8bc2"
     },
     {
       "id": "S7",
       "key": "quick/S7",
       "title": "Quick : un skill hors périmètre est signalé absent, sans boucle",
       "workflow": "quick",
-      "active": true
+      "active": true,
+      "hash": "ef7e7db92dd29b7c"
     },
     {
       "id": "S8",
       "key": "ticket/S8",
       "title": "Ticket sans démon : retour au rapport complet inclus dans le bloc",
       "workflow": "ticket",
-      "active": true
+      "active": true,
+      "hash": "0e91f0ec237a79b3"
     },
     {
       "id": "S9",
       "key": "sweep/S9",
       "title": "Sweep : les retours de developer et reviewer s'adressent à conductor",
       "workflow": "sweep",
-      "active": true
+      "active": true,
+      "hash": "22cfc256c9892b80"
     },
     {
       "id": "S10",
       "key": "quick/S10",
       "title": "Quick : une décision sur les données est laissée à l'utilisateur (question de l'agent d'entrée ou question ouverte), sans commit",
       "workflow": "quick",
-      "active": true
+      "active": true,
+      "hash": "e9f3239f087da24f"
     },
     {
       "id": "S11",
       "key": "ticket/S11",
       "title": "Ticket avec wiki : une proposition wiki_propose est validée à la carte de cp-2 et appliquée par oh",
       "workflow": "ticket",
-      "active": true
+      "active": true,
+      "hash": "318bbc42ec0113dc"
     },
     {
       "id": "S12",
       "key": "doc-sync/S12",
       "title": "doc-sync : la dérive d'une page CONFIRMÉ est corrigée, oh note la synchronisation, le wiki seul est commité",
       "workflow": "doc-sync",
-      "active": true
+      "active": true,
+      "hash": "78bc2351f210d143"
     },
     {
       "id": "S13",
       "key": "onboarding/S13",
       "title": "Onboarding : skills de phase chargés avant leur phase, écritures limitées au wiki et à ONBOARDING.md",
       "workflow": "onboarding",
-      "active": true
+      "active": true,
+      "hash": "88f43c6f90eba56a"
     },
     {
       "id": "S14",
       "key": "libre/S14",
       "title": "Libre : l'onboarder lancé en sous-agent ne pose pas de question et rend son enveloppe à orchestrator",
       "workflow": "libre",
-      "active": true
+      "active": true,
+      "hash": "e6b739fa621211ad"
     },
     {
       "id": "S15",
       "key": "cadrage/S15",
       "title": "Cadrage : une demande d'interface fait invoquer le designer (ui-protocol chargé, sans question, enveloppe vers l'appelant)",
       "workflow": "cadrage",
-      "active": true
+      "active": true,
+      "hash": "9994797161a245c2"
     },
     {
       "id": "S16",
       "key": "skill-refresh/S16",
       "title": "skill-refresh : la skill périmée est retenue, proposée au checkpoint, puis mise à jour (versions, reviewed) et commitée",
       "workflow": "skill-refresh",
-      "active": true
+      "active": true,
+      "hash": "7e70920f41a9ff6d"
     },
     {
       "id": "S17",
       "key": "skill-refresh/S17",
       "title": "skill-refresh : proposition refusée au checkpoint, aucune écriture ni commit",
       "workflow": "skill-refresh",
-      "active": true
+      "active": true,
+      "hash": "5f5695e482dfc7c3"
     },
     {
       "id": "S18",
       "key": "skill-refresh/S18",
       "title": "skill-refresh : toutes les skills de stack sont récentes, rien à faire (ni checkpoint, ni écriture, ni commit)",
       "workflow": "skill-refresh",
-      "active": true
+      "active": true,
+      "hash": "cd15d1570385314b"
     },
     {
       "id": "S19",
       "key": "cadrage/S19",
       "title": "Cadrage : deux exigences implicites (tâches privées, corbeille) remontent en questions bloquantes relayées à l'utilisateur",
       "workflow": "cadrage",
-      "active": true
+      "active": true,
+      "hash": "0a62bbf25f668fc1"
     },
     {
       "id": "S20",
       "key": "spec/S20",
       "title": "Spec : « réservation » désigne deux choses (prêt et file d'attente) ; l'incohérence est relevée et la spec écrite porte un glossaire",
       "workflow": "spec",
-      "active": true
+      "active": true,
+      "hash": "e9fec4bf2db1122c"
     },
     {
       "id": "S21",
       "key": "spec/S21",
       "title": "Spec : chaque critère d'acceptation de la spec écrite porte son point de test, vérifié par oh avant cp-spec",
       "workflow": "spec",
-      "active": true
+      "active": true,
+      "hash": "178d2715aa868870"
     },
     {
       "id": "S22",
       "key": "ticket/S22",
       "title": "Ticket en méthode TDD : cp-red passé (tests en échec pour la bonne raison) avant l'implémentation, puis cp-2 vert",
       "workflow": "ticket",
-      "active": true
+      "active": true,
+      "hash": "8d0ee4057c00b499"
     },
     {
       "id": "S23",
       "key": "quick/S23",
       "title": "Quick : les vérifications de la CI (go vet) passent avant de déclarer fini, même hors du paquet modifié",
       "workflow": "quick",
-      "active": true
+      "active": true,
+      "hash": "8b910511e83251e5"
     },
     {
       "id": "S24",
       "key": "debug/S24",
       "title": "Debug : la pile pointe sur report/format.go, la cause racine est splitRecord (ledger/parse.go)",
       "workflow": "debug",
-      "active": true
+      "active": true,
+      "hash": "7dd470243b23605a"
     },
     {
       "id": "S25",
       "key": "quick/S25",
       "title": "Quick : un conflit de merge est résolu sans perdre aucun des deux changements, sans marqueur restant",
       "workflow": "quick",
-      "active": true
+      "active": true,
+      "hash": "b9923345bd8925e2"
     },
     {
       "id": "S26",
       "key": "review/S26",
       "title": "Review sur deux axes : un critère du ticket oublié (conformité) et un affichage de débogage (qualité), chacun dans son axe",
       "workflow": "review",
-      "active": true
+      "active": true,
+      "hash": "0cf83c7c2605ed10"
     },
     {
       "id": "S27",
       "key": "cadrage/S27",
       "title": "Cadrage : entre deux conceptions, celle qui respecte la frontière du domaine (internal/order sans import interne) est recommandée, contrainte citée",
       "workflow": "cadrage",
-      "active": true
+      "active": true,
+      "hash": "5f3ed1f2a2ca9fb3"
     },
     {
       "id": "S28",
       "key": "skill-refresh/S28",
       "title": "skill-refresh : une skill sans métadonnées est réécrite, frontmatter valide (oh skill check), description « Utiliser quand… », rien de la source recopié",
       "workflow": "skill-refresh",
-      "active": true
+      "active": true,
+      "hash": "8a61976a96b3e8d9"
     },
     {
       "id": "S29",
       "key": "spec/S29",
       "title": "Spec : la spec n'est écrite que sous docs/wiki/specs/, commitée après cp-spec, et les tickets créés après cp-tickets la citent",
       "workflow": "spec",
-      "active": true
+      "active": true,
+      "hash": "551eabe4ee61c44a"
     },
     {
       "id": "S30",
       "key": "spec/S30",
       "title": "Spec : une règle ajoutée par l'utilisateur à cp-spec devient un critère avec son point de test, couvert par le découpage avant la création",
       "workflow": "spec",
-      "active": true
+      "active": true,
+      "hash": "ac607480cccdc330"
     },
     {
       "id": "S31",
       "key": "spec/S31",
       "title": "Spec : une tranche demandée hors spec à cp-tickets (la CI) est refusée par oh tant qu'aucun critère ne la couvre",
       "workflow": "spec",
-      "active": true
+      "active": true,
+      "hash": "101d251a8dd77ebd"
     },
     {
       "id": "S33",
       "key": "release/S33",
       "title": "Release : version mineure déduite, CHANGELOG daté avec ses liens, tag annoté sur le commit de release après cp-release, aucun push",
       "workflow": "release",
-      "active": true
+      "active": true,
+      "hash": "cc0380fc412722f8"
     },
     {
       "id": "S34",
       "key": "release/S34",
       "title": "Release : une rupture annoncée seulement dans le pied d'un commit (BREAKING CHANGE) donne une version majeure, documentée dans le CHANGELOG",
       "workflow": "release",
-      "active": true
+      "active": true,
+      "hash": "7206bcd963fa3a5b"
     },
     {
       "id": "S35",
       "key": "release/S35",
       "title": "Release : proposition refusée à cp-release, ni écriture, ni commit, ni tag",
       "workflow": "release",
-      "active": true
+      "active": true,
+      "hash": "558927d3692ad903"
     },
     {
       "id": "S36",
       "key": "release/S36",
       "title": "Release avec MR : la description de la merge request de release est complète (titre, ruptures, vérifications, retour arrière) et donnée à l'utilisateur, faute de branche sur un dépôt distant",
       "workflow": "release",
-      "active": true
+      "active": true,
+      "hash": "53ed44c48f33ff10"
     }
   ],
   "passes": [
@@ -8500,5 +8535,689 @@
     }
   ],
   "total_cost_usd": 18.633782035000003,
-  "note": "après la vague 2 de P4 (R1, R4, R7, R8, R13)"
+  "note": "après la vague 2 de P4 (R1, R4, R7, R8, R13)",
+  "history": [
+    {
+      "case": "S1",
+      "model": "claude-haiku-4-5",
+      "measures": [
+        {
+          "at": "2026-10-14T12:12:22.511516+02:00",
+          "note": "après la vague 2 de P4 (R1, R4, R7, R8, R13)",
+          "passed": 3,
+          "runs": 3,
+          "mean_cost_usd": 0.08107562833333333,
+          "hash": "25c60647ec9437c8"
+        },
+        {
+          "at": "2026-10-13T20:10:01.782855+02:00",
+          "note": "après L6/LD",
+          "passed": 2,
+          "runs": 3,
+          "mean_cost_usd": 0.06264157166666667,
+          "hash": "25c60647ec9437c8"
+        },
+        {
+          "at": "2026-10-13T09:06:31.880654+02:00",
+          "note": "Mesure de référence P0.5 : main 8785f454 + P0.4/P0.5, Haiku 4.5 (Bedrock eu-west-1), 3 répétitions, plafond 1 $ par passage ; assertions S3, S6, S7 revues puis revérifiées sur les mêmes traces (oh eval --rescore)",
+          "passed": 3,
+          "runs": 3,
+          "mean_cost_usd": 0.08626524499999999,
+          "hash": "25c60647ec9437c8"
+        }
+      ]
+    },
+    {
+      "case": "S2",
+      "model": "claude-haiku-4-5",
+      "measures": [
+        {
+          "at": "2026-10-14T12:12:22.511516+02:00",
+          "note": "après la vague 2 de P4 (R1, R4, R7, R8, R13)",
+          "passed": 3,
+          "runs": 3,
+          "mean_cost_usd": 0.2851334933333333,
+          "hash": "23bc3e420609269e"
+        },
+        {
+          "at": "2026-10-13T20:10:01.782855+02:00",
+          "note": "après L6/LD",
+          "passed": 3,
+          "runs": 3,
+          "mean_cost_usd": 0.24317153666666666,
+          "hash": "23bc3e420609269e"
+        },
+        {
+          "at": "2026-10-13T09:06:31.880654+02:00",
+          "note": "Mesure de référence P0.5 : main 8785f454 + P0.4/P0.5, Haiku 4.5 (Bedrock eu-west-1), 3 répétitions, plafond 1 $ par passage ; assertions S3, S6, S7 revues puis revérifiées sur les mêmes traces (oh eval --rescore)",
+          "passed": 3,
+          "runs": 3,
+          "mean_cost_usd": 0.3098345616666667,
+          "hash": "23bc3e420609269e"
+        }
+      ]
+    },
+    {
+      "case": "S3",
+      "model": "claude-haiku-4-5",
+      "measures": [
+        {
+          "at": "2026-10-14T12:12:22.511516+02:00",
+          "note": "après la vague 2 de P4 (R1, R4, R7, R8, R13)",
+          "passed": 3,
+          "runs": 3,
+          "mean_cost_usd": 0.09885980500000001,
+          "hash": "798e33e09675fd5f"
+        },
+        {
+          "at": "2026-10-13T20:10:01.782855+02:00",
+          "note": "après L6/LD",
+          "passed": 1,
+          "runs": 3,
+          "mean_cost_usd": 0.10826218333333333,
+          "hash": "798e33e09675fd5f"
+        },
+        {
+          "at": "2026-10-13T09:06:31.880654+02:00",
+          "note": "Mesure de référence P0.5 : main 8785f454 + P0.4/P0.5, Haiku 4.5 (Bedrock eu-west-1), 3 répétitions, plafond 1 $ par passage ; assertions S3, S6, S7 revues puis revérifiées sur les mêmes traces (oh eval --rescore)",
+          "passed": 3,
+          "runs": 3,
+          "mean_cost_usd": 0.19354005,
+          "hash": "798e33e09675fd5f"
+        }
+      ]
+    },
+    {
+      "case": "S4",
+      "model": "claude-haiku-4-5",
+      "measures": [
+        {
+          "at": "2026-10-14T12:12:22.511516+02:00",
+          "note": "après la vague 2 de P4 (R1, R4, R7, R8, R13)",
+          "passed": 3,
+          "runs": 3,
+          "mean_cost_usd": 0.12569291166666666,
+          "hash": "60a01ac6ddafcdf9"
+        },
+        {
+          "at": "2026-10-13T20:10:01.782855+02:00",
+          "note": "après L6/LD",
+          "passed": 2,
+          "runs": 3,
+          "mean_cost_usd": 0.14477651833333335,
+          "hash": "60a01ac6ddafcdf9"
+        },
+        {
+          "at": "2026-10-13T09:06:31.880654+02:00",
+          "note": "Mesure de référence P0.5 : main 8785f454 + P0.4/P0.5, Haiku 4.5 (Bedrock eu-west-1), 3 répétitions, plafond 1 $ par passage ; assertions S3, S6, S7 revues puis revérifiées sur les mêmes traces (oh eval --rescore)",
+          "passed": 1,
+          "runs": 3,
+          "mean_cost_usd": 0.14727654333333334,
+          "hash": "52bd6214a4c7a5eb"
+        }
+      ]
+    },
+    {
+      "case": "S5",
+      "model": "claude-haiku-4-5",
+      "measures": [
+        {
+          "at": "2026-10-14T12:12:22.511516+02:00",
+          "note": "après la vague 2 de P4 (R1, R4, R7, R8, R13)",
+          "passed": 3,
+          "runs": 3,
+          "mean_cost_usd": 0.14180829666666667,
+          "hash": "d28bae9fd52b5cee"
+        },
+        {
+          "at": "2026-10-13T20:10:01.782855+02:00",
+          "note": "après L6/LD",
+          "passed": 3,
+          "runs": 3,
+          "mean_cost_usd": 0.1477369483333333,
+          "hash": "d28bae9fd52b5cee"
+        },
+        {
+          "at": "2026-10-13T09:06:31.880654+02:00",
+          "note": "Mesure de référence P0.5 : main 8785f454 + P0.4/P0.5, Haiku 4.5 (Bedrock eu-west-1), 3 répétitions, plafond 1 $ par passage ; assertions S3, S6, S7 revues puis revérifiées sur les mêmes traces (oh eval --rescore)",
+          "passed": 3,
+          "runs": 3,
+          "mean_cost_usd": 0.21070729166666666,
+          "hash": "906d3463b1fa6be5"
+        }
+      ]
+    },
+    {
+      "case": "S6",
+      "model": "claude-haiku-4-5",
+      "measures": [
+        {
+          "at": "2026-10-14T12:12:22.511516+02:00",
+          "note": "après la vague 2 de P4 (R1, R4, R7, R8, R13)",
+          "passed": 3,
+          "runs": 3,
+          "mean_cost_usd": 0.0871486,
+          "hash": "646bfb71ac5a8bc2"
+        },
+        {
+          "at": "2026-10-13T20:10:01.782855+02:00",
+          "note": "après L6/LD",
+          "passed": 3,
+          "runs": 3,
+          "mean_cost_usd": 0.07817709166666666,
+          "hash": "646bfb71ac5a8bc2"
+        },
+        {
+          "at": "2026-10-13T09:06:31.880654+02:00",
+          "note": "Mesure de référence P0.5 : main 8785f454 + P0.4/P0.5, Haiku 4.5 (Bedrock eu-west-1), 3 répétitions, plafond 1 $ par passage ; assertions S3, S6, S7 revues puis revérifiées sur les mêmes traces (oh eval --rescore)",
+          "passed": 1,
+          "runs": 3,
+          "mean_cost_usd": 0.08462087333333335,
+          "hash": "646bfb71ac5a8bc2"
+        }
+      ]
+    },
+    {
+      "case": "S7",
+      "model": "claude-haiku-4-5",
+      "measures": [
+        {
+          "at": "2026-10-14T12:12:22.511516+02:00",
+          "note": "après la vague 2 de P4 (R1, R4, R7, R8, R13)",
+          "passed": 3,
+          "runs": 3,
+          "mean_cost_usd": 0.07042394333333332,
+          "hash": "ef7e7db92dd29b7c"
+        },
+        {
+          "at": "2026-10-13T20:10:01.782855+02:00",
+          "note": "après L6/LD",
+          "passed": 3,
+          "runs": 3,
+          "mean_cost_usd": 0.08389547833333333,
+          "hash": "ef7e7db92dd29b7c"
+        },
+        {
+          "at": "2026-10-13T09:06:31.880654+02:00",
+          "note": "Mesure de référence P0.5 : main 8785f454 + P0.4/P0.5, Haiku 4.5 (Bedrock eu-west-1), 3 répétitions, plafond 1 $ par passage ; assertions S3, S6, S7 revues puis revérifiées sur les mêmes traces (oh eval --rescore)",
+          "passed": 3,
+          "runs": 3,
+          "mean_cost_usd": 0.10561739833333333,
+          "hash": "ef7e7db92dd29b7c"
+        }
+      ]
+    },
+    {
+      "case": "S8",
+      "model": "claude-haiku-4-5",
+      "measures": [
+        {
+          "at": "2026-10-14T12:12:22.511516+02:00",
+          "note": "après la vague 2 de P4 (R1, R4, R7, R8, R13)",
+          "passed": 3,
+          "runs": 3,
+          "mean_cost_usd": 0.293889585,
+          "hash": "0e91f0ec237a79b3"
+        },
+        {
+          "at": "2026-10-13T20:10:01.782855+02:00",
+          "note": "après L6/LD",
+          "passed": 3,
+          "runs": 3,
+          "mean_cost_usd": 0.26081418,
+          "hash": "0e91f0ec237a79b3"
+        }
+      ]
+    },
+    {
+      "case": "S9",
+      "model": "claude-haiku-4-5",
+      "measures": [
+        {
+          "at": "2026-10-14T12:12:22.511516+02:00",
+          "note": "après la vague 2 de P4 (R1, R4, R7, R8, R13)",
+          "passed": 3,
+          "runs": 3,
+          "mean_cost_usd": 0.3276315166666666,
+          "hash": "22cfc256c9892b80"
+        },
+        {
+          "at": "2026-10-13T20:10:01.782855+02:00",
+          "note": "après L6/LD",
+          "passed": 3,
+          "runs": 3,
+          "mean_cost_usd": 0.33411455,
+          "hash": "22cfc256c9892b80"
+        },
+        {
+          "at": "2026-10-13T09:06:31.880654+02:00",
+          "note": "Mesure de référence P0.5 : main 8785f454 + P0.4/P0.5, Haiku 4.5 (Bedrock eu-west-1), 3 répétitions, plafond 1 $ par passage ; assertions S3, S6, S7 revues puis revérifiées sur les mêmes traces (oh eval --rescore)",
+          "passed": 0,
+          "runs": 3,
+          "mean_cost_usd": 0.4153328300000001,
+          "hash": "22cfc256c9892b80"
+        }
+      ]
+    },
+    {
+      "case": "S10",
+      "model": "claude-haiku-4-5",
+      "measures": [
+        {
+          "at": "2026-10-14T12:12:22.511516+02:00",
+          "note": "après la vague 2 de P4 (R1, R4, R7, R8, R13)",
+          "passed": 3,
+          "runs": 3,
+          "mean_cost_usd": 0.04428253499999999,
+          "hash": "e9f3239f087da24f"
+        },
+        {
+          "at": "2026-10-13T20:10:01.782855+02:00",
+          "note": "après L6/LD",
+          "passed": 2,
+          "runs": 3,
+          "mean_cost_usd": 0.048923361666666665,
+          "hash": "e9f3239f087da24f"
+        },
+        {
+          "at": "2026-10-13T09:06:31.880654+02:00",
+          "note": "Mesure de référence P0.5 : main 8785f454 + P0.4/P0.5, Haiku 4.5 (Bedrock eu-west-1), 3 répétitions, plafond 1 $ par passage ; assertions S3, S6, S7 revues puis revérifiées sur les mêmes traces (oh eval --rescore)",
+          "passed": 0,
+          "runs": 3,
+          "mean_cost_usd": 0.09026403833333334,
+          "hash": "7c3c31ed79b07745"
+        }
+      ]
+    },
+    {
+      "case": "S11",
+      "model": "claude-haiku-4-5",
+      "measures": [
+        {
+          "at": "2026-10-14T12:12:22.511516+02:00",
+          "note": "après la vague 2 de P4 (R1, R4, R7, R8, R13)",
+          "passed": 3,
+          "runs": 3,
+          "mean_cost_usd": 0.27651818333333333,
+          "hash": "318bbc42ec0113dc"
+        },
+        {
+          "at": "2026-10-13T20:10:01.782855+02:00",
+          "note": "après L6/LD",
+          "passed": 3,
+          "runs": 3,
+          "mean_cost_usd": 0.2893490783333334,
+          "hash": "318bbc42ec0113dc"
+        }
+      ]
+    },
+    {
+      "case": "S12",
+      "model": "claude-haiku-4-5",
+      "measures": [
+        {
+          "at": "2026-10-14T12:12:22.511516+02:00",
+          "note": "après la vague 2 de P4 (R1, R4, R7, R8, R13)",
+          "passed": 3,
+          "runs": 3,
+          "mean_cost_usd": 0.06168092333333333,
+          "hash": "78bc2351f210d143"
+        },
+        {
+          "at": "2026-10-13T20:10:01.782855+02:00",
+          "note": "après L6/LD",
+          "passed": 3,
+          "runs": 3,
+          "mean_cost_usd": 0.050820165,
+          "hash": "78bc2351f210d143"
+        }
+      ]
+    },
+    {
+      "case": "S13",
+      "model": "claude-haiku-4-5",
+      "measures": [
+        {
+          "at": "2026-10-14T12:12:22.511516+02:00",
+          "note": "après la vague 2 de P4 (R1, R4, R7, R8, R13)",
+          "passed": 3,
+          "runs": 3,
+          "mean_cost_usd": 0.25144815666666664,
+          "hash": "88f43c6f90eba56a"
+        },
+        {
+          "at": "2026-10-13T20:10:01.782855+02:00",
+          "note": "après L6/LD",
+          "passed": 3,
+          "runs": 3,
+          "mean_cost_usd": 0.22467932666666668,
+          "hash": "88f43c6f90eba56a"
+        }
+      ]
+    },
+    {
+      "case": "S14",
+      "model": "claude-haiku-4-5",
+      "measures": [
+        {
+          "at": "2026-10-14T12:12:22.511516+02:00",
+          "note": "après la vague 2 de P4 (R1, R4, R7, R8, R13)",
+          "passed": 3,
+          "runs": 3,
+          "mean_cost_usd": 0.1774043883333333,
+          "hash": "e6b739fa621211ad"
+        },
+        {
+          "at": "2026-10-13T20:10:01.782855+02:00",
+          "note": "après L6/LD",
+          "passed": 3,
+          "runs": 3,
+          "mean_cost_usd": 0.17827611999999995,
+          "hash": "e6b739fa621211ad"
+        }
+      ]
+    },
+    {
+      "case": "S15",
+      "model": "claude-haiku-4-5",
+      "measures": [
+        {
+          "at": "2026-10-14T12:12:22.511516+02:00",
+          "note": "après la vague 2 de P4 (R1, R4, R7, R8, R13)",
+          "passed": 2,
+          "runs": 3,
+          "mean_cost_usd": 0.3162067883333333,
+          "hash": "9994797161a245c2"
+        },
+        {
+          "at": "2026-10-13T20:10:01.782855+02:00",
+          "note": "après L6/LD",
+          "passed": 3,
+          "runs": 3,
+          "mean_cost_usd": 0.333304785,
+          "hash": "9994797161a245c2"
+        }
+      ]
+    },
+    {
+      "case": "S16",
+      "model": "claude-haiku-4-5",
+      "measures": [
+        {
+          "at": "2026-10-14T12:12:22.511516+02:00",
+          "note": "après la vague 2 de P4 (R1, R4, R7, R8, R13)",
+          "passed": 3,
+          "runs": 3,
+          "mean_cost_usd": 0.12026344,
+          "hash": "7e70920f41a9ff6d"
+        }
+      ]
+    },
+    {
+      "case": "S17",
+      "model": "claude-haiku-4-5",
+      "measures": [
+        {
+          "at": "2026-10-14T12:12:22.511516+02:00",
+          "note": "après la vague 2 de P4 (R1, R4, R7, R8, R13)",
+          "passed": 3,
+          "runs": 3,
+          "mean_cost_usd": 0.10771700499999999,
+          "hash": "5f5695e482dfc7c3"
+        }
+      ]
+    },
+    {
+      "case": "S18",
+      "model": "claude-haiku-4-5",
+      "measures": [
+        {
+          "at": "2026-10-14T12:12:22.511516+02:00",
+          "note": "après la vague 2 de P4 (R1, R4, R7, R8, R13)",
+          "passed": 3,
+          "runs": 3,
+          "mean_cost_usd": 0.03533729833333333,
+          "hash": "cd15d1570385314b"
+        }
+      ]
+    },
+    {
+      "case": "S19",
+      "model": "claude-haiku-4-5",
+      "measures": [
+        {
+          "at": "2026-10-14T12:12:22.511516+02:00",
+          "note": "après la vague 2 de P4 (R1, R4, R7, R8, R13)",
+          "passed": 1,
+          "runs": 3,
+          "mean_cost_usd": 0.24414835499999998,
+          "hash": "0a62bbf25f668fc1"
+        }
+      ]
+    },
+    {
+      "case": "S20",
+      "model": "claude-haiku-4-5",
+      "measures": [
+        {
+          "at": "2026-10-14T12:12:22.511516+02:00",
+          "note": "après la vague 2 de P4 (R1, R4, R7, R8, R13)",
+          "passed": 0,
+          "runs": 3,
+          "mean_cost_usd": 0.4822901783333334,
+          "hash": "e9fec4bf2db1122c"
+        }
+      ]
+    },
+    {
+      "case": "S21",
+      "model": "claude-haiku-4-5",
+      "measures": [
+        {
+          "at": "2026-10-14T12:12:22.511516+02:00",
+          "note": "après la vague 2 de P4 (R1, R4, R7, R8, R13)",
+          "passed": 1,
+          "runs": 3,
+          "mean_cost_usd": 0.20503213499999998,
+          "hash": "178d2715aa868870"
+        }
+      ]
+    },
+    {
+      "case": "S22",
+      "model": "claude-haiku-4-5",
+      "measures": [
+        {
+          "at": "2026-10-14T12:12:22.511516+02:00",
+          "note": "après la vague 2 de P4 (R1, R4, R7, R8, R13)",
+          "passed": 3,
+          "runs": 3,
+          "mean_cost_usd": 0.5147003950000001,
+          "hash": "8d0ee4057c00b499"
+        }
+      ]
+    },
+    {
+      "case": "S23",
+      "model": "claude-haiku-4-5",
+      "measures": [
+        {
+          "at": "2026-10-14T12:12:22.511516+02:00",
+          "note": "après la vague 2 de P4 (R1, R4, R7, R8, R13)",
+          "passed": 2,
+          "runs": 3,
+          "mean_cost_usd": 0.16516967500000002,
+          "hash": "8b910511e83251e5"
+        }
+      ]
+    },
+    {
+      "case": "S24",
+      "model": "claude-haiku-4-5",
+      "measures": [
+        {
+          "at": "2026-10-14T12:12:22.511516+02:00",
+          "note": "après la vague 2 de P4 (R1, R4, R7, R8, R13)",
+          "passed": 3,
+          "runs": 3,
+          "mean_cost_usd": 0.11555883166666665,
+          "hash": "7dd470243b23605a"
+        }
+      ]
+    },
+    {
+      "case": "S25",
+      "model": "claude-haiku-4-5",
+      "measures": [
+        {
+          "at": "2026-10-14T12:12:22.511516+02:00",
+          "note": "après la vague 2 de P4 (R1, R4, R7, R8, R13)",
+          "passed": 2,
+          "runs": 3,
+          "mean_cost_usd": 0.15582777833333333,
+          "hash": "b9923345bd8925e2"
+        }
+      ]
+    },
+    {
+      "case": "S26",
+      "model": "claude-haiku-4-5",
+      "measures": [
+        {
+          "at": "2026-10-14T12:12:22.511516+02:00",
+          "note": "après la vague 2 de P4 (R1, R4, R7, R8, R13)",
+          "passed": 0,
+          "runs": 3,
+          "mean_cost_usd": 0.068684605,
+          "hash": "0cf83c7c2605ed10"
+        }
+      ]
+    },
+    {
+      "case": "S27",
+      "model": "claude-haiku-4-5",
+      "measures": [
+        {
+          "at": "2026-10-14T12:12:22.511516+02:00",
+          "note": "après la vague 2 de P4 (R1, R4, R7, R8, R13)",
+          "passed": 1,
+          "runs": 3,
+          "mean_cost_usd": 0.091531495,
+          "hash": "5f3ed1f2a2ca9fb3"
+        }
+      ]
+    },
+    {
+      "case": "S28",
+      "model": "claude-haiku-4-5",
+      "measures": [
+        {
+          "at": "2026-10-14T12:12:22.511516+02:00",
+          "note": "après la vague 2 de P4 (R1, R4, R7, R8, R13)",
+          "passed": 0,
+          "runs": 3,
+          "mean_cost_usd": 0.13785176166666668,
+          "hash": "8a61976a96b3e8d9"
+        }
+      ]
+    },
+    {
+      "case": "S29",
+      "model": "claude-haiku-4-5",
+      "measures": [
+        {
+          "at": "2026-10-14T12:12:22.511516+02:00",
+          "note": "après la vague 2 de P4 (R1, R4, R7, R8, R13)",
+          "passed": 2,
+          "runs": 3,
+          "mean_cost_usd": 0.3010752433333333,
+          "hash": "551eabe4ee61c44a"
+        }
+      ]
+    },
+    {
+      "case": "S30",
+      "model": "claude-haiku-4-5",
+      "measures": [
+        {
+          "at": "2026-10-14T12:12:22.511516+02:00",
+          "note": "après la vague 2 de P4 (R1, R4, R7, R8, R13)",
+          "passed": 3,
+          "runs": 3,
+          "mean_cost_usd": 0.22655282833333334,
+          "hash": "ac607480cccdc330"
+        }
+      ]
+    },
+    {
+      "case": "S31",
+      "model": "claude-haiku-4-5",
+      "measures": [
+        {
+          "at": "2026-10-14T12:12:22.511516+02:00",
+          "note": "après la vague 2 de P4 (R1, R4, R7, R8, R13)",
+          "passed": 0,
+          "runs": 3,
+          "mean_cost_usd": 0.36967093166666665,
+          "hash": "101d251a8dd77ebd"
+        }
+      ]
+    },
+    {
+      "case": "S33",
+      "model": "claude-haiku-4-5",
+      "measures": [
+        {
+          "at": "2026-10-14T12:12:22.511516+02:00",
+          "note": "après la vague 2 de P4 (R1, R4, R7, R8, R13)",
+          "passed": 2,
+          "runs": 3,
+          "mean_cost_usd": 0.05793608333333334,
+          "hash": "cc0380fc412722f8"
+        }
+      ]
+    },
+    {
+      "case": "S34",
+      "model": "claude-haiku-4-5",
+      "measures": [
+        {
+          "at": "2026-10-14T12:12:22.511516+02:00",
+          "note": "après la vague 2 de P4 (R1, R4, R7, R8, R13)",
+          "passed": 2,
+          "runs": 3,
+          "mean_cost_usd": 0.05858931833333333,
+          "hash": "7206bcd963fa3a5b"
+        }
+      ]
+    },
+    {
+      "case": "S35",
+      "model": "claude-haiku-4-5",
+      "measures": [
+        {
+          "at": "2026-10-14T12:12:22.511516+02:00",
+          "note": "après la vague 2 de P4 (R1, R4, R7, R8, R13)",
+          "passed": 3,
+          "runs": 3,
+          "mean_cost_usd": 0.03400200833333333,
+          "hash": "558927d3692ad903"
+        }
+      ]
+    },
+    {
+      "case": "S36",
+      "model": "claude-haiku-4-5",
+      "measures": [
+        {
+          "at": "2026-10-14T12:12:22.511516+02:00",
+          "note": "après la vague 2 de P4 (R1, R4, R7, R8, R13)",
+          "passed": 2,
+          "runs": 3,
+          "mean_cost_usd": 0.08011655666666666,
+          "hash": "53ed44c48f33ff10"
+        }
+      ]
+    }
+  ]
 }
