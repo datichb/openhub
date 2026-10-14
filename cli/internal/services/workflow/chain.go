@@ -70,12 +70,14 @@ func (s *Service) NextSteps(ctx context.Context, c Context, fromID string, outpu
 }
 
 // nextSteps evaluates the `next:` of sp: a step is kept when every output
-// of its `when` was recorded; its inputs take the outputs named by
-// session.output(<id>).
+// of its `when` was recorded (with the value of `equals`); its inputs take
+// the outputs named by session.output(<id>). A report is not prefilled when
+// the input reads it from the session (`from:`, B1): the launch chained
+// from the session gives its content, not its id.
 func (s *Service) nextSteps(ctx context.Context, c Context, sp *wf.Spec, outputs map[string]any) []ChainSuggestion {
 	var out []ChainSuggestion
 	for _, n := range sp.Next {
-		if n.When != nil && !allGiven(n.When.Outputs, outputs) {
+		if !n.When.Holds(outputs) {
 			continue
 		}
 		target, _ := s.Resolve(ctx, c, n.Workflow, ResolveOpts{})
@@ -100,6 +102,9 @@ func (s *Service) nextSteps(ctx context.Context, c Context, sp *wf.Spec, outputs
 			o, _ := sp.Output(f.Output)
 			sg.Matched = append(sg.Matched, o.Type)
 			in, _ := target.Spec.Inputs.Get(k)
+			if o.Type == wf.OutputReport && readsFrom(in, sp.ID, f.Output) {
+				continue
+			}
 			if ticket, _ := TicketInput(target.Spec); ticket == k && (in.Type == wf.InputBeadsID || in.Type == wf.InputBeadsIDs) {
 				sg.Tickets = ticketList(v)
 				continue
@@ -111,14 +116,11 @@ func (s *Service) nextSteps(ctx context.Context, c Context, sp *wf.Spec, outputs
 	return out
 }
 
-func allGiven(ids []string, outputs map[string]any) bool {
-	for _, id := range ids {
-		v, ok := outputs[id]
-		if !ok || v == nil || valueText(v) == "" {
-			return false
-		}
-	}
-	return true
+// readsFrom reports whether input in is computed from output out of a
+// session of workflow wfID.
+func readsFrom(in wf.Input, wfID, out string) bool {
+	f, ok := wf.ParseSessionFrom(in.From)
+	return ok && f.Source == wf.SourceSessionOutput && f.Workflow == wfID && f.Output == out
 }
 
 // valueText is an output value as an input value (lists comma-joined).

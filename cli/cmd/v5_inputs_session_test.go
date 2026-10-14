@@ -66,3 +66,40 @@ func TestNextCommand(t *testing.T) {
 		Prefill: map[string]string{"spec": "docs/wiki/specs/a b.md"}}, "ses_1")
 	assert.Equal(t, "oh run implement-spec --parent ses_1 --tickets ev-1,ev-2 -i spec='docs/wiki/specs/a b.md'", got)
 }
+
+// B1: an output of type report reaches the input as the content of the
+// report (the findings of an audit for security-fix), not its id.
+func TestSessionOutputSourceReadsReports(t *testing.T) {
+	st, err := sqlite.Open(filepath.Join(t.TempDir(), "oh.db"))
+	require.NoError(t, err)
+	t.Cleanup(func() { st.Close() })
+	ctx := context.Background()
+	_, err = st.DB().Exec(`INSERT INTO projects (id, name, path) VALUES ('p1', 'p1', '/p1')`)
+	require.NoError(t, err)
+	sessions := sqlite.NewSessionStore(st)
+	require.NoError(t, sessions.Create(ctx, &domain.Session{ID: "ses_audit", ProjectID: "p1", WorkflowID: "audit", StartedAt: time.Now(),
+		Status: domain.SessionStatusCompleted, State: domain.RunCompleted, Outputs: map[string]any{"findings": "rp-2", "type": "security"}}))
+
+	oldType, oldBody := sessionOutputType, sessionReportBody
+	t.Cleanup(func() { sessionOutputType, sessionReportBody = oldType, oldBody })
+	sessionOutputType = func(_ context.Context, _ workflowsvc.Context, wfID, out string) workflow.OutputType {
+		if wfID == "audit" && out == "findings" {
+			return workflow.OutputReport
+		}
+		return workflow.OutputText
+	}
+	var asked []string
+	sessionReportBody = func(_ context.Context, _ *app.App, sessionID, id string) (string, error) {
+		asked = append(asked, sessionID+"/"+id)
+		return "## Audit security\n- F1 🔴 injection SQL — db.go:12", nil
+	}
+	var notes bytes.Buffer
+	src := inputSources(&app.App{Sessions: sessions}, noteTo(&notes))[workflow.SourceSessionOutput]
+	got, err := src(ctx, workflowsvc.Context{ProjectID: "p1", FromSession: "ses_audit"}, "audit.findings")
+	require.NoError(t, err)
+	assert.Equal(t, "## Audit security\n- F1 🔴 injection SQL — db.go:12", got)
+	assert.Equal(t, []string{"ses_audit/rp-2"}, asked)
+	got, err = src(ctx, workflowsvc.Context{ProjectID: "p1"}, "audit.type")
+	require.NoError(t, err)
+	assert.Equal(t, "security", got, "other outputs as they are")
+}

@@ -239,6 +239,10 @@ type OutputDef struct {
 	// Record is how oh records the output itself (R5: created, closed,
 	// spec, report); such an output is never declared by an agent.
 	Record string `json:"record,omitempty"`
+	// B1: with record "written", the files read (Paths) and the regular
+	// expression whose first group is recorded (Match, "" = the paths).
+	Paths []string `json:"paths,omitempty"`
+	Match string   `json:"match,omitempty"`
 }
 
 // Recorded returns the output recorded with kind record (first one).
