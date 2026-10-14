@@ -175,7 +175,8 @@ func TestQuestionRefusedToPureSubagents(t *testing.T) {
 	}
 	for wf, ids := range map[string][]string{
 		"spec": {"planner", "designer"}, "cadrage": {"planner", "pathfinder", "designer"},
-		"feature": {"pathfinder", "planner", "designer", "orchestrator-dev", "reviewer"}, "ticket": {"developer", "reviewer"},
+		"feature": {"pathfinder", "planner", "designer", "orchestrator-dev", "reviewer", "developer"}, "ticket": {"developer", "reviewer"},
+		"sweep": {"developer"}, "review-feedback": {"developer"},
 	} {
 		b := shippedBundle(t, wf)
 		for _, id := range ids {
@@ -188,6 +189,16 @@ func TestQuestionRefusedToPureSubagents(t *testing.T) {
 	for wf, id := range map[string]string{"review": "reviewer", "feature": "orchestrator", "cadrage": "conductor"} {
 		eff, _ := questionEffect(shippedBundle(t, wf), id)
 		assert.NotEqual(t, sessionspec.EffectDeny, eff, "%s/%s keeps the question tool", wf, id)
+	}
+	// p4-debts: the developer has the tool where the user talks to it (entry
+	// agent of quick, independent primary agent of debug), as its contract
+	// says; the base no longer refuses it.
+	for _, wf := range []string{"quick", "debug"} {
+		b := shippedBundle(t, wf)
+		eff, star := questionEffect(b, "developer")
+		assert.Equal(t, sessionspec.EffectAllow, eff, "%s/developer", wf)
+		assert.True(t, star, "%s/developer", wf)
+		assert.Contains(t, contractOf(agentBody(t, b, "developer")), "outil `question` pour les choix", "%s/developer", wf)
 	}
 }
 
