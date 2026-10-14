@@ -17,7 +17,7 @@ func TestSessionDataRefusedScratchKept(t *testing.T) {
 		{"custom oh home", "/data/oh", "/data/oh/sessions"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			b := scratchBundle(t, "debug", tc.ohHome)
+			b := scratchBundle(t, "debug", tc.ohHome, scratchOther)
 			scratch := ScratchDir(tc.sessions, "ses_a", "debugger") + "/repro_test.go"
 			data := []string{tc.sessions + "/ses_a/reports/rp-1.md", tc.sessions + "/ses_a/transcript.json", tc.sessions + "/ses_b/reports/rp-2.md"}
 			for _, plugin := range []bool{true, false} {

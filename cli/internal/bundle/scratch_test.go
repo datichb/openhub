@@ -17,11 +17,18 @@ import (
 
 const scratchSessions = "/home/u/.oh/sessions"
 
-func scratchBundle(t *testing.T, id, ohHome string) *Bundle {
+// scratchOther is a member added to the debug workflow, with neither scratch
+// folder nor reader rights, that reads and writes the project.
+const scratchOther = "documentarian"
+
+func scratchBundle(t *testing.T, id, ohHome string, others ...string) *Bundle {
 	t.Helper()
 	hub, cat, env := shippedWorkflows(t)
 	r, diags := workflow.Check(cat, workflow.Ref{Layer: workflow.LayerHub, ID: id}, nil, env)
 	require.False(t, diags.HasErrors(), "%v", diags)
+	for _, a := range others {
+		r.Spec.Agents.Set(a, workflow.AgentRef{Role: workflow.RoleIndependent})
+	}
 	b, err := Build(Request{HubDir: hub, OutDir: t.TempDir(), Spec: r.Spec, OhHome: ohHome})
 	require.NoError(t, err)
 	return b
@@ -92,7 +99,7 @@ func worst(effects ...sessionspec.Effect) sessionspec.Effect {
 }
 
 func TestScratchOwnerReaderOthers(t *testing.T) {
-	b := scratchBundle(t, "debug", "")
+	b := scratchBundle(t, "debug", "", scratchOther)
 	require.Equal(t, []sessionspec.ScratchDef{{Owner: "debugger", Readers: []string{"developer"}}}, b.Spec.Workflow.Scratch)
 	dir := ScratchDir(scratchSessions, "ses_a", "debugger")
 	file := dir + "/repro_test.go"
@@ -132,7 +139,7 @@ func TestScratchOwnerReaderOthers(t *testing.T) {
 // Another session is refused, the owner and the reader included (parallel
 // sessions of the same bundle share the agent rules).
 func TestScratchOtherSession(t *testing.T) {
-	b := scratchBundle(t, "debug", "")
+	b := scratchBundle(t, "debug", "", scratchOther)
 	file := ScratchDir(scratchSessions, "ses_a", "debugger") + "/repro_test.go"
 	for _, plugin := range []bool{true, false} {
 		for _, agent := range []string{"debugger", "developer", "documentarian"} {
@@ -228,7 +235,7 @@ func TestScratchWithoutFolder(t *testing.T) {
 func TestScratchCustomOhHome(t *testing.T) {
 	home := "/data/oh"
 	sessions := home + "/sessions"
-	b := scratchBundle(t, "debug", home)
+	b := scratchBundle(t, "debug", home, scratchOther)
 	file := ScratchDir(sessions, "ses_a", "debugger") + "/x.sh"
 	owner := scratchAgentOf(t, b, "debugger", sessions, "ses_a", true)
 	assert.Equal(t, sessionspec.EffectAllow, owner.file(sessionspec.ActionEdit, file))
@@ -246,7 +253,7 @@ func TestScratchCustomOhHome(t *testing.T) {
 // The owner and the readers are told where their folder is; the others
 // are not.
 func TestScratchNote(t *testing.T) {
-	b := scratchBundle(t, "debug", "")
+	b := scratchBundle(t, "debug", "", scratchOther)
 	for _, a := range b.Spec.Agents {
 		note := strings.Contains(a.Body, "Brouillons de session (oh)")
 		switch a.ID {

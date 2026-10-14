@@ -38,8 +38,7 @@ In a session, only the agents of the bundle can be reached. To see the actual co
 ## Agent Hierarchy
 
 The diagram shows the delegations allowed by the frontmatter (`permission.task`). In a session, only
-those linking two workflow members remain possible. `documentarian` can also be delegated to by the agents
-of the `developer-rw` base: these links are not drawn.
+those linking two workflow members remain possible.
 
 ```mermaid
 flowchart TD

@@ -33,7 +33,7 @@ A workflow is launched with `oh run <workflow>` or the TUI launch form; the form
 | `review` | `reviewer` | — | read | local, remote | `oh review` |
 | `review-feedback` | `orchestrator-dev` | `developer`, `reviewer` | write | local | `oh review feedback` |
 | `audit` | `auditor` | `auditor-subagent` | read | local, remote | `oh audit`, former `infra` and `database` agents (analysis part) |
-| `debug` | `debugger` | `developer`, `documentarian` (on demand) | write | local | `oh debug` (former mode D) |
+| `debug` | `debugger` | `developer` (on demand) | write | local | `oh debug` (former mode D) |
 | `benchmark` | `benchmarker` | — | write (`reports/benchmarks/`) | local | `oh run libre --agent benchmarker` |
 | `sweep` | `conductor` | `pathfinder`, `developer`, `reviewer` | write | local | `oh start --sweep` |
 | `brief-enrich` | `brief-enricher` | — | read | local | `oh takeover-brief enrich` |
@@ -255,7 +255,7 @@ Applies an infrastructure change already written in the repository (Terraform/Op
 
 ## `debug`
 
-Diagnosis of a bug or isolated problem by the `debugger`: diagnostic report (urgent actions first) and fix ticket. The `developer` and the `documentarian` (wiki enrichment asked by the `debugger`) are available on demand in the session.
+Diagnosis of a bug or isolated problem by the `debugger`: diagnostic report (urgent actions first) and fix ticket. The `developer` is available on demand in the session; wiki enrichments go through `wiki_propose`.
 
 | Input | Type | Required | Purpose |
 |---|---|---|---|
@@ -263,7 +263,7 @@ Diagnosis of a bug or isolated problem by the `debugger`: diagnostic report (urg
 
 The fix ticket is only created after `cp-ticket` (« Create the fix ticket », paused in every mode, unlocks `create`): the `debugger` presents the diagnosis and the ticket there, instead of asking for confirmation with the `question` tool (which it keeps in a `libre` session). A fix made in the session ends with `cp-commit` (mandatory, paused in every mode, unlocks `commit` and `close`). Output: `tickets`. Allowed Beads commands: `show`, `list`, `ready`, `search`, `query`, `lint`, `children`, `comments`, `count`, `status`, `graph`, `history`, `create`, `update`, `close`, `dep`, `label`.
 
-**Session scratch folders** (`debugger: { scratch: { readers: [developer] } }`, see [`scratch`](workflow-schema.en.md#scratch-session-scratch-folders)): in the reproduction phase, the `debugger` writes its reproduction test or script in `~/.oh/sessions/<session>/scratch/debugger/` (path given in the `oh.scratch` entry of the session state), outside the repository and deleted with the session; it describes this test in text in the fix ticket. The `developer`, declared reader, may read this scratch file in the same session, without changing it, and makes it the final test of the project. The `documentarian` has no access to it, nor any agent of another session.
+**Session scratch folders** (`debugger: { scratch: { readers: [developer] } }`, see [`scratch`](workflow-schema.en.md#scratch-session-scratch-folders)): in the reproduction phase, the `debugger` writes its reproduction test or script in `~/.oh/sessions/<session>/scratch/debugger/` (path given in the `oh.scratch` entry of the session state), outside the repository and deleted with the session; it describes this test in text in the fix ticket. The `developer`, declared reader, may read this scratch file in the same session, without changing it, and makes it the final test of the project. No agent of another session has access to it.
 
 ## `benchmark`
 

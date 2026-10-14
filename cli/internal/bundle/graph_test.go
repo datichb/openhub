@@ -26,7 +26,8 @@ agents:
   orchestrator-dev: { role: workflow, calls: [developer, reviewer] }
   developer: { role: workflow }
   reviewer: { role: workflow, mode: subagent }
-  documentarian: { role: independent }
+  pathfinder: { role: independent }
+  designer: { role: independent }
 `
 
 func TestBuildFromWorkflowSpec(t *testing.T) {
@@ -35,15 +36,15 @@ func TestBuildFromWorkflowSpec(t *testing.T) {
 	s := b.Spec
 
 	assert.Equal(t, "orchestrator-dev", s.EntryAgent, "entry taken from the workflow")
-	assert.Equal(t, []string{"orchestrator-dev", "developer", "reviewer", "documentarian"}, s.AgentIDs(),
+	assert.Equal(t, []string{"orchestrator-dev", "developer", "reviewer", "pathfinder", "designer"}, s.AgentIDs(),
 		"every workflow member is shipped, independent agents included")
 	assert.Equal(t, map[string][]string{
 		"orchestrator-dev": {"developer", "reviewer"}, // calls, not the broader task permission
-		"developer":        {"documentarian"},         // derived from developer's task permission
+		"pathfinder":       {"designer"},              // derived from pathfinder's task permission
 	}, s.SubagentGraph)
-	assert.Equal(t, 2, s.MaxDepth)
+	assert.Equal(t, 1, s.MaxDepth, "from the entry: pathfinder is not reachable")
 	assert.Equal(t, "subagent", findAgent(s.Agents, "reviewer").Mode, "workflow mode applied")
-	assert.Equal(t, "primary", findAgent(s.Agents, "documentarian").Mode, "agent mode kept")
+	assert.Equal(t, "primary", findAgent(s.Agents, "pathfinder").Mode, "agent mode kept")
 }
 
 func TestBuildFromWorkflowSpec_Errors(t *testing.T) {

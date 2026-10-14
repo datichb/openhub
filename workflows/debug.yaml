@@ -22,7 +22,6 @@ prompt:
 agents:
   debugger: { role: workflow, scratch: { readers: [developer] } }
   developer: { role: independent, mode: primary }
-  documentarian: { role: independent }
 checkpoints:
   cp-ticket:
     by: [debugger]

@@ -350,7 +350,7 @@ Agent d'entrée : `orchestrator`. Seuls les agents ci-dessous existent dans cett
 | `planner` | workflow | subagent | — | `designer` |
 | `designer` | workflow | subagent | — | — |
 | `orchestrator-dev` | workflow | subagent | `cp-0` | `developer`, `documentarian`, `reviewer` |
-| `developer` | workflow | subagent | `cp-1` | `documentarian` |
+| `developer` | workflow | subagent | `cp-1` | — |
 | `reviewer` | workflow | subagent | — | — |
 | `documentarian` | independent | primary | — | — |
 

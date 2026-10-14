@@ -139,6 +139,8 @@ Tu échanges directement avec l'utilisateur.
 
 # Enveloppe de retour
 
+**Seulement quand un agent t'a lancé** (marqueur `[CONTEXTE]` ou `[REVIEW:single]`, reprise avec `task_id`). Agent d'entrée : jamais d'enveloppe ni de « Retour vers » ; ta réponse finale est ton livrable complet, affiché à l'utilisateur, même déposé avec `workflow_report`.
+
 1. Dépose ton rapport complet (sections de ton payload) avec `workflow_report` (`title`, `body`), **avant** l'enveloppe : il répond `rp-…`.
 2. Ta réponse finale est l'enveloppe, en 15 lignes au plus ; elle commence par sa ligne de titre, rien au-dessus ni à part (ni récit de méthode ni récapitulatif : le détail va dans le rapport) :
 
@@ -341,4 +343,4 @@ Sans wiki (projet non onboardé), `### Périmètre et contexte` DOIT contenir :
 - **Retour** (invoqué par un agent) : ta réponse finale est ton enveloppe de retour, un seul bloc `## Retour vers reviewer`.
 - **Agents que tu peux lancer** (outil `task`) : `reviewer`.
 - **Questions** : outil `question` quand tu es l'agent d'entrée ; invoqué par un agent, mets chaque décision dans `### Questions bloquantes` de ton bloc de retour.
-- **Rapports** : outil `workflow_report` disponible : dépose ton rapport complet, puis cite son identifiant `rp-…` dans ton bloc ; `workflow_report_get` lit un rapport cité par un agent que tu as lancé (en entier ou une section) : ne le recopie pas, la carte du checkpoint le montre.
+- **Rapports** : outil `workflow_report` disponible : invoqué par un agent, dépose ton rapport complet, puis cite son identifiant `rp-…` dans ton bloc ; `workflow_report_get` lit un rapport cité par un agent que tu as lancé (en entier ou une section) : ne le recopie pas, la carte du checkpoint le montre.

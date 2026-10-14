@@ -18,7 +18,7 @@ Cette carte est la seule référence sur l'enchaînement : n'invente ni agent, n
 | Agent | Rôle | Mode | Après | Peut déléguer à |
 |---|---|---|---|---|
 | `orchestrator-dev` | workflow (entrée) | primary | — | `developer`, `documentarian`, `reviewer` |
-| `developer` | workflow | subagent | `cp-1` | `documentarian` |
+| `developer` | workflow | subagent | `cp-1` | — |
 | `reviewer` | workflow | subagent | — | — |
 | `documentarian` | independent | primary | — | — |
 
