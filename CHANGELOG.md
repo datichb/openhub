@@ -9,6 +9,10 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ## [Unreleased]
 
+### Changed — docs de synthèse (lot docs-synthesis)
+
+- **Architecture, README et diagrammes à jour** : 22 workflows (alias `feature`, `cadrage`), 18 agents en 9 familles, contrat de session, vérification par oh, écritures `writes:`, rapports, wiki par `wiki_propose`, composition (`next:`, sorties relevées) et fan-out ; nouveaux diagrammes `workflow-composition` et `fanout-flow` ; `docs/dev/architecture.md` devient un renvoi vers `docs/architecture/`. `oh run feature` prend `-i request=…` (pas de `-m`, docs corrigées). `TestDriverChildEndSignal` ne dépend plus d'un délai.
+
 ### Changed — `sweep` sur le fan-out (lot sweep-fanout)
 
 - **Découpage relevé par oh** (`checkpoints.<id>.tasks`, sortie `record: tasks`) : le `conductor` passe le découpage dans l'argument `tasks` de `workflow_checkpoint` à `cp-plan` (titre, description, périmètre, domaine, parallélisable). oh le vérifie avant toute carte (1 à 12 sous-tâches, domaine connu, périmètres du dépôt ou nouveaux fichiers d'un dossier existant, disjoints entre sous-tâches qui peuvent tourner ensemble), le montre tel qu'il l'a lu (`t1`, `t2`…), exige le même à l'appel qui passe le checkpoint et l'enregistre (sortie `tasks`). Un découpage refusé ne fait pas de carte : l'appel est refusé avec la liste des problèmes. Vaut aussi pour la version séquentielle.
