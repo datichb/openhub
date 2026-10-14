@@ -1,5 +1,7 @@
 cp     review-feedback/orchestrator-dev: cp-1
 cp     review-feedback/orchestrator-dev: cp-3
+deny   onboarding/onboarder: git add x
+deny   onboarding/onboarder: git commit -m "x" -- x
 deny   spec/planner: git add x
 deny   spec/planner: git commit -m "x" -- x
 locked cadrage/planner: bd create

@@ -118,6 +118,41 @@ func TestWritesPlannerOfSpec(t *testing.T) {
 	}
 }
 
+// onboarding-refresh: the onboarder of onboarding commits the wiki alone,
+// once cp-wiki is passed; it keeps its own edits (ONBOARDING.md), so its
+// contract does not say the wiki is the only file it may write.
+func TestWritesOnboarderOfOnboarding(t *testing.T) {
+	b := scratchBundle(t, "onboarding", "")
+	var own []sessionspec.PermissionRule
+	var body string
+	for _, a := range b.Spec.Agents {
+		if a.ID == "onboarder" {
+			own, body = a.Permissions, a.Body
+		}
+	}
+	require.NotNil(t, own)
+	open := &domain.CheckpointState{Unlocks: map[string]domain.CheckpointUnlock{sessionspec.UnlockCommit: {Checkpoint: "cp-wiki"}}}
+	agent := func(st *domain.CheckpointState) scratchAgent {
+		return scratchAgent{rules: append(append(append([]sessionspec.PermissionRule(nil), own...), b.Spec.AgentGuard...), SessionRules(b.Spec.Workflow, "semi-auto", st)...)}
+	}
+	o := agent(open)
+	for _, f := range []string{"docs/wiki/index.md", "docs/wiki/technical/architecture.md", "ONBOARDING.md", "CONVENTIONS.md"} {
+		assert.Equal(t, sessionspec.EffectAllow, o.effect(sessionspec.ActionEdit, f), f)
+	}
+	for _, f := range []string{"main.go", "README.md", ".gitignore"} {
+		assert.Equal(t, sessionspec.EffectDeny, o.effect(sessionspec.ActionEdit, f), f)
+	}
+	for _, cmd := range []string{"git add docs/wiki/", `git commit -m "docs(wiki): onboarding" -- docs/wiki/`} {
+		assert.Equal(t, sessionspec.EffectAllow, writesShell(o, cmd), cmd)
+	}
+	assert.Equal(t, sessionspec.EffectDeny, writesShell(agent(nil), `git commit -m "docs(wiki): onboarding" -- docs/wiki/`), "the commit waits for cp-wiki")
+	for _, cmd := range []string{"git add ONBOARDING.md", `git commit -m "x" -- ONBOARDING.md`, "git add -A", `git commit -am "x"`, "git push"} {
+		assert.Equal(t, sessionspec.EffectDeny, writesShell(o, cmd), cmd)
+	}
+	assert.Contains(t, body, "- **Écritures** (`writes:` du workflow) : commit de `docs/wiki/**`, une fois déverrouillé")
+	assert.NotContains(t, body, "et seulement ces chemins")
+}
+
 // writesShell is what the tool decides for a command line: the guard of the
 // plugin refuses first, then the rules of the agent.
 func writesShell(a scratchAgent, line string) sessionspec.Effect {
