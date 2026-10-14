@@ -441,8 +441,10 @@ var notInBaseline = map[string]string{
 }
 
 // The reference measure kept in the repository (make test-eval
-// OH_EVAL_RECORD=1) covers every active case, with three repetitions, and
-// holds no session id nor trace path.
+// OH_EVAL_RECORD=1) covers every active case, with three repetitions or
+// those of its tiered plan (a case run once and failed escalated to three),
+// holds no session id nor trace path, and its history starts with its own
+// measure.
 func TestShippedBaseline(t *testing.T) {
 	base, err := ReadReport(filepath.Join("testdata", "evals", "baseline.json"))
 	require.NoError(t, err)
@@ -462,8 +464,14 @@ func TestShippedBaseline(t *testing.T) {
 				continue
 			}
 			require.True(t, ok, "%s measured with %s", c.ID, m)
-			assert.Equal(t, base.Reps, s.Runs, c.ID)
+			assert.Equal(t, base.PlannedRuns(s), s.Runs, c.ID)
 			assert.Len(t, s.Assertions, len(c.Assertions), "%s: the baseline matches its assertions (oh eval --rescore)", c.ID)
+			ms := base.Measures(c.ID, m)
+			require.NotEmpty(t, ms, c.ID)
+			assert.Equal(t, [2]int{s.Passed, s.Runs}, [2]int{ms[0].Passed, ms[0].Runs}, "%s: the history starts with the baseline", c.ID)
+			for _, h := range ms {
+				assert.True(t, h.Runs > 0 && h.Passed <= h.Runs, "%s: %s", c.ID, h)
+			}
 		}
 	}
 	for _, p := range base.Passes {
