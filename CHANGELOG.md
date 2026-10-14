@@ -9,6 +9,12 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ## [Unreleased]
 
+### Fixed — défauts trouvés par R5 (lot r5-fixes)
+
+- **Spec écrite avant `cp-understanding`** : nouveau champ `agents.<id>.writes_after: <checkpoint>` ; les chemins `writes:` ne s'ouvrent qu'une fois ce checkpoint passé (un checkpoint sauté dans le mode compte comme passé). Avant, oh refuse l'écriture avec un message qui dit d'attendre ce checkpoint ; `workflow_status` liste `locked_writes`. En réduction seulement pour les couches. Le planner de `spec` écrit sa spec après `cp-understanding`. S27 : « aucun fichier modifié » 2/2 (0/3 en R5).
+- **Ordre des checkpoints imposé par oh** : nouveau champ `checkpoints.<id>.after: <checkpoint déclaré avant>` ; un checkpoint appelé avant celui qu'il attend est refusé (rien n'est déverrouillé, pas de pause) avec le checkpoint à passer d'abord. Dans `spec` : `cp-converge` après `cp-understanding`, `cp-spec` après `cp-converge`, `cp-tickets` après `cp-spec` ; le prompt rappelle qu'une réponse de l'utilisateur ne valide pas la compréhension. Ordre respecté : S39 2/2 (1/3 en R5), S29 2/2.
+- **`orchestrator-dev` et `bd show`** : le refus de S37 ne venait pas du `cd` (permis) mais des commandes enchaînées sur la même ligne (`echo`, `which`, `| head`) ; le protocole demande `bd show <ID> <ID>…` seul sur sa ligne (`ticket`, `feature`, `implement-spec`, `review-feedback`). S37 2/2. `orchestrator-dev` +1,1 % de tokens, conductor de `spec` +0,9 %, planner +0,7 %. Coût des évaluations du lot : 2,72 $ (Haiku).
+
 ### Added — workflows incident, security-fix et spike (lot R9-a)
 
 - **Workflow `incident`** (`debugger`, `developer`) : atténuer d'abord (diagnostic rapide, changement déclencheur, mesure réversible appliquée dans l'arbre de travail ou donnée à l'utilisateur), `cp-mitigated` obligatoire vérifié par oh (tests) ; postmortem sans blâme écrit par le debugger dans `docs/wiki/postmortems/<date>-<slug>.md` (`writes:`), `cp-postmortem` (déverrouille le commit : correctif d'atténuation puis postmortem, chacun seul) ; `cp-actions` (déverrouille la création des tickets). 3 pauses en semi-auto pour un budget de 4.
