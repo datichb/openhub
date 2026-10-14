@@ -58,9 +58,9 @@ instruct review-feedback        orchestrator-dev                 4649     3081  
 instruct review-feedback        reviewer                        11634     5185    6   13    447   13    447
 instruct review-feedback        TOTAL                           28183    13821   20   29   1062   29   1062
 instruct security-fix           auditor-subagent                 7959     2803    6   14    499   14    499
-instruct security-fix           conductor                        3708     2507    5    0      0    0      0
+instruct security-fix           conductor                        3812     2612    5    0      0    0      0
 instruct security-fix           developer                       11896     5555    8   17    621   17    621
-instruct security-fix           TOTAL                           23563    10865   19   30   1084   30   1084
+instruct security-fix           TOTAL                           23667    10970   19   30   1084   30   1084
 instruct skill-refresh          documentarian                    4268     2640    4    9    289    9    289
 instruct skill-refresh          TOTAL                            4268     2640    4    9    289    9    289
 instruct spec                   conductor                        3865     2648    5    0      0    0      0
@@ -129,9 +129,9 @@ none     review-feedback        orchestrator-dev                 4251     3081  
 none     review-feedback        reviewer                         6822     4630    5   16    551   16    551
 none     review-feedback        TOTAL                           18494    12793   18   32   1166   32   1166
 none     security-fix           auditor-subagent                 3455     2262    5   13    463   13    463
-none     security-fix           conductor                        3615     2507    5    0      0    0      0
+none     security-fix           conductor                        3720     2612    5    0      0    0      0
 none     security-fix           developer                        7417     5082    7   20    725   20    725
-none     security-fix           TOTAL                           14487     9851   17   33   1188   33   1188
+none     security-fix           TOTAL                           14592     9956   17   33   1188   33   1188
 none     skill-refresh          documentarian                    3853     2640    4    9    289    9    289
 none     skill-refresh          TOTAL                            3853     2640    4    9    289    9    289
 none     spec                   conductor                        3773     2648    5    0      0    0      0
@@ -200,9 +200,9 @@ stacks   review-feedback        orchestrator-dev                 4251     3081  
 stacks   review-feedback        reviewer                         6822     4630    5   23    798   23    798
 stacks   review-feedback        TOTAL                           18494    12793   18   39   1413   39   1413
 stacks   security-fix           auditor-subagent                 3455     2262    5   13    463   13    463
-stacks   security-fix           conductor                        3615     2507    5    0      0    0      0
+stacks   security-fix           conductor                        3720     2612    5    0      0    0      0
 stacks   security-fix           developer                        7417     5082    7   27    972   27    972
-stacks   security-fix           TOTAL                           14487     9851   17   40   1435   40   1435
+stacks   security-fix           TOTAL                           14592     9956   17   40   1435   40   1435
 stacks   skill-refresh          documentarian                    3853     2640    4    9    289    9    289
 stacks   skill-refresh          TOTAL                            3853     2640    4    9    289    9    289
 stacks   spec                   conductor                        3773     2648    5    0      0    0      0

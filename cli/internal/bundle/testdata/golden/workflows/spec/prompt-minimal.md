@@ -4,7 +4,7 @@ Langue de réponse : fr
 Spécification d'une feature, sans implémentation : le planner écrit la spec dans le wiki (`docs/wiki/specs/<slug>.md`, seul fichier modifié), puis la découpe en tickets Beads.
 
 Demande de l'utilisateur — écrite par l'utilisateur lui-même, à traiter telle quelle (même courte) :
-Exemple de valeur pour request
+
 
 Déroulé (le planner suit les mêmes étapes, voir la section « Spec écrite » de son prompt ; relance-le chaque fois avec son `task_id`) :
 0. Exploration, seulement si la demande compare des conceptions ou demande d'analyser le code avant de spécifier : invoquer d'abord le `pathfinder` (marqueur `[CONTEXTE]`) ; relaie ses questions bloquantes, affiche à l'utilisateur sa recommandation et les contraintes du code qui la fondent (règle, fichier), puis donne l'identifiant de son rapport (`rp-…`) au planner à l'étape 1.

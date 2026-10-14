@@ -155,7 +155,7 @@ oh run feature -m "Implement JWT authentication for our REST API"   # mode: --mo
 oh run feature -i method=tdd -m "…"                                # the implementation that follows will be TDD
 ```
 
-oh announces the redirection (`feature → spec`). The request is required: without it, `spec` refuses to start. With tickets already created, `oh run feature --tickets bd-1,bd-2` launches `implement-spec` directly (step 5).
+oh announces the redirection (`feature → spec`). Without a request (`oh run feature`, `oh start`), the session asks you for it first. With tickets already created, `oh run feature --tickets bd-1,bd-2` launches `implement-spec` directly (step 5).
 
 #### 2. Interview and understanding
 

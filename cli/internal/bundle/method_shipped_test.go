@@ -1,12 +1,15 @@
 package bundle
 
 import (
+	"regexp"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/datichb/openhub/cli/internal/sessionspec"
 	"github.com/datichb/openhub/cli/internal/workflow"
+	"github.com/datichb/openhub/cli/internal/workflow/hubcat"
 )
 
 // R7: ticket and implement-spec offer the tdd method: cp-seams then cp-red, passed
@@ -73,6 +76,43 @@ func TestShippedSpecPassesMethodOn(t *testing.T) {
 	assert.Equal(t, "implement-spec", ref.ID)
 	ref, _ = cat.ResolveAlias("cadrage", func(string) bool { return true })
 	assert.Equal(t, "spec", ref.ID)
+}
+
+// B1: spike records its decision and the verdict of the decision line its
+// prompt asks for; incident its postmortem; the session runtime carries the
+// paths and the expression.
+func TestShippedWrittenOutputs(t *testing.T) {
+	hub, cat, env := shippedWorkflows(t)
+	r, diags := workflow.Check(cat, workflow.Ref{Layer: workflow.LayerHub, ID: "spike"}, nil, env)
+	require.False(t, diags.HasErrors(), "%v", diags)
+	b, err := Build(Request{HubDir: hub, OutDir: t.TempDir(), Spec: r.Spec})
+	require.NoError(t, err)
+	var verdict sessionspec.OutputDef
+	for _, o := range b.Spec.Workflow.Outputs {
+		if o.ID == "verdict" {
+			verdict = o
+		}
+	}
+	require.Equal(t, "written", verdict.Record)
+	assert.Equal(t, []string{"docs/wiki/decisions/**"}, verdict.Paths)
+	re := regexp.MustCompile(verdict.Match)
+	for line, want := range map[string]string{"**Décision : go**": "go", "**Décision : Kill**": "Kill", "**Decision: clarify** (critère 2)": "clarify"} {
+		m := re.FindStringSubmatch("# Spike — x\n\n" + line + "\n")
+		require.NotNil(t, m, line)
+		assert.Equal(t, want, m[1])
+	}
+	hc, err := hubcat.New(hub)
+	require.NoError(t, err)
+	src, err := r.ReadPromptSource(hc)
+	require.NoError(t, err)
+	assert.Contains(t, string(src), "**Décision : go | clarify | kill**", "the line the verdict is read from")
+
+	r, diags = workflow.Check(cat, workflow.Ref{Layer: workflow.LayerHub, ID: "incident"}, nil, env)
+	require.False(t, diags.HasErrors(), "%v", diags)
+	pm, ok := r.Spec.Output("postmortem")
+	require.True(t, ok)
+	assert.Equal(t, workflow.RecordWritten, pm.Record)
+	assert.Equal(t, r.Spec.WritesOf("debugger"), pm.Paths, "the paths the debugger writes")
 }
 
 func indexOf(keys []string, k string) int {

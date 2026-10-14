@@ -47,3 +47,18 @@ circuit_breaker: { max_consecutive_subagents: 6 }
 beads:
   allow: [show, list, search, query, count]
 runtime: { default: local, allowed: [local] }
+# B1: recorded by oh when a checkpoint passes: the decision written under
+# docs/wiki/decisions/ and its verdict (the « **Décision : … ** » line).
+outputs:
+  - { id: decision, type: path, record: written, paths: ["docs/wiki/decisions/**"], label: { fr: Décision, en: Decision } }
+  - id: verdict
+    type: text
+    record: written
+    paths: ["docs/wiki/decisions/**"]
+    match: '(?mi)^\*\*D[ée]cision\s*:\s*(go|clarify|kill)\b'
+    label: { fr: Verdict, en: Verdict }
+next:
+  - workflow: spec
+    label: { fr: Spécifier la décision, en: Specify the decision }
+    when: { outputs: [decision], equals: { verdict: go } }
+    inputs: { source: session.output(decision) }

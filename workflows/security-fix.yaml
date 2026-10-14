@@ -11,11 +11,16 @@ inputs:
   findings:
     type: text
     required: true
+    # B1: by default, the report of the audit the launch is chained from
+    # (--parent, proposed by audit's next:), else of the last audit session
+    # of the project; the content of the report, not its id.
+    from: session.output(audit.findings)
     label: { fr: Constats, en: Findings }
     help:
-      fr: Les constats à traiter (rapport d'audit ou extrait — `oh session report <session> <rp-…>` —, un constat par entrée avec sa gravité et son emplacement)
-      en: The findings to handle (audit report or excerpt — `oh session report <session> <rp-…>` —, one finding per entry with its severity and location)
-    max_length: 30000
+      fr: Les constats à traiter (rapport d'audit ou extrait, un constat par entrée avec sa gravité et son emplacement ; par défaut, le rapport de la dernière session audit du projet)
+      en: The findings to handle (audit report or excerpt, one finding per entry with its severity and location; by default, the report of the last audit session of the project)
+    # A report holds up to 64 KiB.
+    max_length: 65536
 prompt:
   template: prompts/security-fix.md.tmpl
 agents:
@@ -26,9 +31,11 @@ checkpoints:
     by: [conductor]
     label: { fr: Constats à corriger, en: Findings to fix }
     description:
-      fr: Présenter les constats reçus, numérotés, avec leur gravité et leur emplacement ; la réponse dit lesquels corriger dans cette session.
-      en: Present the received findings, numbered, with their severity and location; the answer says which ones to fix in this session.
+      fr: Présenter les constats reçus, numérotés, avec leur gravité et leur emplacement ; la réponse dit lesquels corriger dans cette session. Une fois validé, chaque constat écarté devient un ticket, avec la raison du tri.
+      en: Present the received findings, numbered, with their severity and location; the answer says which ones to fix in this session. Once approved, each finding set aside becomes a ticket, with the reason of the triage.
     mode: { manuel: pause, semi-auto: pause, auto: auto }
+    # B1: the tickets of the findings set aside, created by the developer.
+    unlocks: [create]
   cp-rescan:
     by: [conductor]
     label: { fr: Nouvelle analyse, en: Re-analysis }
@@ -51,5 +58,8 @@ modes: { default: semi-auto, allowed: [manuel, semi-auto, auto] }
 circuit_breaker: { max_consecutive_subagents: 8 }
 limits: { max_fix_rounds: 2 }
 beads:
-  allow: [show, list, ready, search, query, children, comments, count, status, graph, history]
+  allow: [show, list, ready, search, query, children, comments, count, status, graph, history, create]
 runtime: { default: local, allowed: [local] }
+# B1: recorded by oh (tickets created through the Beads gateway).
+outputs:
+  - { id: deferred, type: beads-ids, record: created, label: { fr: Tickets des constats écartés, en: Tickets of the findings set aside } }

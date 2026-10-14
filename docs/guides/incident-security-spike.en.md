@@ -19,19 +19,24 @@ oh run incident -i incident="Since the 14:02 deployment, payments fail (429 from
 
 Three pauses in semi-auto, each mandatory: an incident is not run in automatic mode.
 
+At the end, oh shows the postmortem and the tickets created, and proposes (without launching them) `ticket` on those tickets and `spec` with the postmortem as source page, for actions that need a spec first.
+
 ## `security-fix`: fix findings
 
 ```bash
-oh run security-fix -i findings="$(oh session report <audit session> rp-2)"
+oh run audit -i type=security
+# at the end, oh proposes: oh run security-fix --parent <audit session>
+oh run security-fix --parent <audit session>
 ```
 
-1. **`cp-triage`**: the received findings are numbered (`F1`, `F2`…); you say which ones to fix now.
-2. The `developer` fixes only those, at the cause and for every affected input, each with a regression test, without a commit. A false positive is reported, with no change.
-3. The `auditor-subagent` runs a **targeted** re-analysis: each finding is `corrigé` (fixed), `encore présent` (still present) or `contournable` (bypassable: another path, a neighbouring prefix, a symbolic link…).
-4. **`cp-rescan`** (no pause in semi-auto): oh runs the tests and refuses a change without a test; a finding still present goes back to the developer (two rounds at most).
-5. **`cp-2`**: you see the fixes, the tests and the verdict; the commit only comes after.
+Launched from a `security` audit (the next step oh proposes), `security-fix` reads the report of that audit; an excerpt can be given as input (`-i findings="…"`).
 
-The findings are given as input today, copied from an audit report; chaining `audit → security-fix` directly will come with workflow composition.
+1. **`cp-triage`**: the received findings are numbered (`F1`, `F2`…); you say which ones to fix now, and why you set the others aside (later, accepted risk…).
+2. Each finding set aside becomes a Beads ticket (`-l security`), with the reason of the triage: nothing is lost. oh records these tickets.
+3. The `developer` fixes only the kept findings, at the cause and for every affected input, each with a regression test, without a commit. A false positive is reported, with no change. It returns, finding by finding, the fix, the test and the changed files.
+4. The `auditor-subagent` runs a **targeted** re-analysis: each finding is `corrigé` (fixed), `encore présent` (still present) or `contournable` (bypassable: another path, a neighbouring prefix, a symbolic link…).
+5. **`cp-rescan`** (no pause in semi-auto): oh runs the tests and refuses a change without a test; a finding still present goes back to the developer (two rounds at most).
+6. **`cp-2`**: you see the fixes, the tests and the verdict; the commit only comes after.
 
 ## `spike`: settle a question
 
@@ -45,12 +50,14 @@ oh run spike -i question="Can csvlite be replaced by encoding/csv? go if the rea
 4. The decision — **go**, **clarify** (a decision or information from you is missing) or **kill** — is written in `docs/wiki/decisions/<slug>.md`, with its sources.
 5. **`cp-decision`**: oh checks that `.oh-spike/` is gone; you approve or correct the decision; only the decision is committed.
 
+oh records the decision and its verdict. After a **go**, it proposes `spec` with the decision as source page (`oh run spec --parent <session> -i source=docs/wiki/decisions/<slug>.md`); after clarify or kill, nothing.
+
 ## What oh checks and locks
 
 | Workflow | Before the checkpoint | Checked by oh |
 |---|---|---|
 | `incident` | no commit before `cp-mitigated` (then one, the fix), the postmortem's after `cp-postmortem`, no ticket before `cp-actions`; the debugger only writes `docs/wiki/postmortems/` | stack tests at `cp-mitigated` |
-| `security-fix` | no commit before `cp-2`; the developer only starts after `cp-triage` | tests and at least one changed test file, at `cp-rescan` and `cp-2` |
+| `security-fix` | no ticket before `cp-triage`, no commit before `cp-2`; the developer only starts after `cp-triage` | tests and at least one changed test file, at `cp-rescan` and `cp-2` |
 | `spike` | no commit before `cp-decision`; the developer only starts after `cp-question`; the pathfinder only writes `docs/wiki/decisions/` | `.oh-spike/` deleted, at `cp-decision` |
 
 The evaluation cases S41 to S46 and S49 to S51 (`evals/incident`, `evals/security-fix`, `evals/spike`) check these behaviours with a real model.

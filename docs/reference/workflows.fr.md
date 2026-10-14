@@ -108,7 +108,7 @@ En méthode `tdd` (`-i method=tdd`), le `developer` passe lui-même `cp-seams` (
 
 | Lancement | Workflow lancé | Ancien mode |
 |---|---|---|
-| `oh run feature -m "…"` (et `oh start -m "…"`) | `spec` : `aliases: [cadrage, feature]` | A (feature en langage naturel) |
+| `oh run feature -m "…"` (et `oh start -m "…"`) ; sans `-m`, la session demande la feature | `spec` : `aliases: [cadrage, feature]` | A (feature en langage naturel) |
 | `oh run feature --tickets bd-1,bd-2` | `implement-spec` : `aliases: [{ id: feature, with: tickets }]` ; `-m` va à son entrée `instructions` | B (tickets existants) |
 
 oh affiche la redirection (`feature → spec`). À la fin de `spec`, oh propose `implement-spec` sur les tickets créés et la spec écrite, sans le lancer (`oh session next <id>`, fermeture du client, « Enchaîner avec… » dans la TUI).
@@ -117,7 +117,7 @@ oh affiche la redirection (`feature → spec`). À la fin de `spec`, oh propose 
 
 Ce qui change par rapport à l'ancien `feature` (⚠) :
 
-- la demande est **obligatoire** sans tickets (`spec` refuse de se lancer sans `request` ; avant, la session demandait quelle feature réaliser) ;
+- sans demande (`oh run feature`, `oh start`), la session la demande d'abord, comme l'ancien `feature` : le `conductor` la pose avec `question` ;
 - la spec est écrite et vérifiée dans le wiki (`docs/wiki/specs/`), les tickets créés à `cp-tickets` ; l'implémentation est une **seconde session**, proposée par oh ;
 - checkpoints : ceux de `spec` (`cp-understanding`, `cp-converge`, `cp-spec`, `cp-tickets`), puis ceux d'`implement-spec` (`cp-plan` remplace `cp-0`, `cp-final` remplace `cp-feature` et sa revue de l'ensemble) ; `cp-spec` (spec UX/UI conditionnelle) disparaît : le designer est appelé par le planner de `spec` ;
 - l'`orchestrator` n'est plus l'agent d'entrée que de [`libre`](#libre) ;
@@ -144,7 +144,8 @@ Comprend une demande, écrit sa spec dans le wiki et la découpe en tickets Bead
 
 | Entrée | Type | Obligatoire | Rôle |
 |---|---|---|---|
-| `request` | `text` (8 000 caractères max) | oui | La feature à spécifier |
+| `request` | `text` (8 000 caractères max) | non | La feature à spécifier ; sans elle (ni `source`), le `conductor` la demande à l'utilisateur avec `question` avant toute étape |
+| `source` | `path` | non | Page du wiki à l'origine de la demande (décision d'un `spike`, postmortem d'un `incident`), donnée par leur `next:` ; le planner la lit à l'entretien |
 | `method` | `enum` (`standard`, `tdd`) | non (`standard`) | Méthode de l'implémentation proposée ensuite : `spec` ne s'en sert pas, oh la relève et la passe à `implement-spec` |
 
 | Checkpoint | manuel | semi-auto | auto |
@@ -324,6 +325,8 @@ Audit en lecture seule : l'`auditor` coordonne des `auditor-subagent`, un par do
 - `infra` : revue IaC (Terraform/OpenTofu, Kubernetes, Helm, ArgoCD), sécurité IaC, coût cloud, drift. L'`auditor-subagent` peut lancer des outils d'analyse statique (`tflint`, `tfsec`, `checkov`, `trivy config`, `kube-score`, `kubesec`, `helm lint`, `helm template`, `infracost`, `terraform fmt -check`, `terraform validate`, `terraform plan`), chacun demandé ; toute autre commande, modifications comprises, est refusée. L'application d'un changement relève d'`infra-change`.
 - `database` : rôles et privilèges, Row-Level Security, surfaces d'injection, chiffrement au repos et en transit, sauvegardes, sûreté des migrations, exposition des données sensibles. Lecture statique uniquement : les requêtes sur une base réelle sont fournies à l'utilisateur.
 
+Sorties **relevées par oh** : `findings` (le dernier rapport déposé, `record: report`) et `type` (l'entrée du lancement, `record: input`). Suite proposée (`next:`) après un audit `security` qui a déposé son rapport : **`security-fix`**, qui lit les constats dans cette session (`oh run security-fix --parent <session>`), sans la lancer.
+
 ## `infra-change`
 
 Applique un changement d'infrastructure déjà écrit dans le dépôt (Terraform/OpenTofu, Kubernetes, Helm, Pulumi) : l'`operator` vérifie le contexte réel par rapport à la cible, produit le plan (`terraform plan -out`, `kubectl diff`, `helm diff upgrade`, `pulumi preview`), le delta de coût (`infracost` s'il est installé), les risques et le retour arrière, puis applique **exactement** le plan validé (`terraform apply <fichier de plan>`) et vérifie le résultat. Il ne modifie aucun fichier (base `readonly-ops`) et ne délègue à aucun agent : l'écriture du code IaC revient au `developer` (`quick`, `ticket`), l'analyse en lecture seule à `audit` (`type=infra`). `isolation: strict`, exécution locale uniquement. Commandes Beads autorisées : lecture seule.
@@ -376,6 +379,8 @@ Déroulé :
 4. **`cp-postmortem`** : une fois validé, le postmortem est commité seul par le debugger (`git commit -m "docs(postmortem): <slug>" -- <fichier>`).
 5. **`cp-actions`** : un ticket par action validée (`bd create`, description qui cite le postmortem) ; un refus : aucun ticket.
 
+Sorties **relevées par oh** : `postmortem` (le fichier écrit sous `docs/wiki/postmortems/`, relevé quand un checkpoint passe, `record: written`) et `actions` (les tickets créés). Suites proposées (`next:`), jamais lancées : **`ticket`** sur les tickets des actions, s'il y en a ; **`spec`** avec le postmortem pour page d'origine (`-i source=…`), pour des actions qui demandent d'abord une spec.
+
 Deux checkpoints de commit (`unlock_again`, voir le [schéma](workflow-schema.fr.md#checkpoints)) : la fenêtre de `cp-mitigated` ne tient qu'un commit, celui du correctif (oh ne l'ouvre pas s'il n'y a rien à commiter, la referme après ce commit et au plus tard quand `cp-postmortem` est demandé) ; le postmortem attend `cp-postmortem`. Le correctif peut ainsi être livré dès l'atténuation validée. Budget de pauses (CP-R2) en semi-auto : 3 pauses (1 décision, 2 actions irréversibles : le commit répété ne compte pas), pour un budget de 4. Commandes Beads autorisées : `show`, `list`, `ready`, `search`, `query`, `lint`, `children`, `comments`, `count`, `status`, `graph`, `history`, `create`, `update`, `dep`, `label`.
 
 ## `security-fix`
@@ -384,25 +389,26 @@ Corrige les constats d'un audit de sécurité : tri, correction avec test de non
 
 | Entrée | Type | Obligatoire | Rôle |
 |---|---|---|---|
-| `findings` | `text` (30 000 caractères max) | oui | Les constats : rapport d'audit ou extrait, un constat par entrée avec sa gravité et son emplacement |
+| `findings` | `text` (65 536 caractères max) | oui | Les constats : rapport d'audit ou extrait, un constat par entrée avec sa gravité et son emplacement ; par défaut, le rapport de la session `audit` dont le lancement est chaîné (`--parent`), sinon de la dernière session `audit` du projet qui en a déposé un (`from: session.output(audit.findings)`) |
 
 | Checkpoint | manuel | semi-auto | auto |
 |---|---|---|---|
-| `cp-triage` Constats à corriger | pause | pause | auto |
+| `cp-triage` Constats à corriger (déverrouille `create`) | pause | pause | auto |
 | `cp-rescan` Nouvelle analyse (vérifié par oh : tests de la stack, au moins un fichier de test modifié) | pause | auto | auto |
 | `cp-2` Commit ou correction (obligatoire, même vérification, déverrouille `commit`) | pause | pause | pause |
 
 Déroulé :
 
-1. **`cp-triage`** : les constats sont présentés tels que reçus, numérotés `F1`, `F2`… ; la réponse dit lesquels corriger.
-2. **Corrections** (`developer`, domaine `security`) : seulement les constats retenus, à la cause et pour toutes les entrées concernées, chacun avec un test de non-régression ; aucun commit. Un faux positif est signalé, sans changement.
-3. **Nouvelle analyse ciblée** (`auditor-subagent`) : pour chaque constat, `corrigé`, `encore présent` ou `contournable` (autre chemin, préfixe voisin, lien symbolique, autre encodage, autre appelant).
-4. **`cp-rescan`** : sans pause en semi-auto ; oh lance les tests et refuse un changement sans test. Un constat encore présent repart au developer (au plus 2 tours, `limits.max_fix_rounds`).
-5. **`cp-2`** : corrections, tests et verdict de la nouvelle analyse ; une fois validé, le developer commite (`fix(security): …`).
+1. **`cp-triage`** : les constats sont présentés tels que reçus, numérotés `F1`, `F2`… ; la réponse dit lesquels corriger, les autres sont écartés avec leur raison (plus tard, risque accepté, faux positif…).
+2. **Tickets des constats écartés** (`developer`) : un ticket par constat écarté (`bd create … -t bug -l security`), avec le constat tel que reçu et la raison du tri ; avant `cp-triage`, oh refuse la création. oh relève ces tickets (sortie `deferred`, `record: created`).
+3. **Corrections** (`developer`, domaine `security`) : seulement les constats retenus, à la cause et pour toutes les entrées concernées, chacun avec un test de non-régression ; aucun commit. Un faux positif est signalé, sans changement. Le developer rend un contrat précis, dans la section `### Critères d'acceptance couverts` de son rapport : une ligne par constat (`F<n>`, corrigé ou faux positif, test de non-régression, fichiers modifiés).
+4. **Nouvelle analyse ciblée** (`auditor-subagent`) : il reçoit le rapport du developer (`rp-…`) et ce contrat ; pour chaque constat, `corrigé`, `encore présent` ou `contournable` (autre chemin, préfixe voisin, lien symbolique, autre encodage, autre appelant).
+5. **`cp-rescan`** : sans pause en semi-auto ; oh lance les tests et refuse un changement sans test. Un constat encore présent repart au developer (au plus 2 tours, `limits.max_fix_rounds`).
+6. **`cp-2`** : corrections, tests et verdict de la nouvelle analyse ; une fois validé, le developer commite (`fix(security): …`).
 
-Pourquoi la nouvelle analyse précède le commit : une correction que l'auditeur juge contournable ne doit pas être commitée ; `cp-2` décide avec les tests (oh) et le verdict sous les yeux. Budget de pauses en semi-auto : 2 pauses (1 décision, 1 action irréversible), pour un budget de 3. Commandes Beads autorisées (lecture seule) : `show`, `list`, `ready`, `search`, `query`, `children`, `comments`, `count`, `status`, `graph`, `history`.
+Pourquoi la nouvelle analyse précède le commit : une correction que l'auditeur juge contournable ne doit pas être commitée ; `cp-2` décide avec les tests (oh) et le verdict sous les yeux. Budget de pauses en semi-auto : 2 pauses (2 actions irréversibles : la création des tickets à `cp-triage`, le commit à `cp-2`), pour un budget de 4. Commandes Beads autorisées : `show`, `list`, `ready`, `search`, `query`, `children`, `comments`, `count`, `status`, `graph`, `history`, `create`.
 
-**Depuis un audit** : les constats sont donnés en entrée, par exemple le rapport de l'audit (`oh session report <session> <rp-…>`) : `oh run security-fix -i findings="$(oh session report <session> rp-2)"`. L'enchaînement direct `audit → security-fix` (sortie `findings` de l'audit, `next:`) viendra avec la composition des workflows (R5).
+**Depuis un audit** : un audit `security` propose `security-fix` (`next:`) ; `oh run security-fix --parent <session d'audit>` lit le rapport de cet audit (son contenu, pas son identifiant). Sans `--parent` ni `-i findings=…`, oh prend le rapport de la dernière session `audit` du projet qui en a déposé un, quel que soit son type, et l'annonce au lancement. Un extrait se donne toujours en entrée : `oh run security-fix -i findings="…"`.
 
 ## `spike`
 
@@ -424,6 +430,8 @@ Déroulé :
 3. **Prototype jetable**, seulement si un critère ne se tranche qu'en exécutant du code : le `developer` écrit le plus petit programme qui répond, dans `.oh-spike/<slug>/` seulement, sans dépendance ajoutée, le lance, relève sa sortie, puis supprime `.oh-spike/`. Jamais de commit.
 4. **Décision** : `docs/wiki/decisions/<slug>.md` (`**Décision : go | clarify | kill**`, constats par critère avec leurs sources, prototype, suites). `go` : tous les critères tiennent ; `kill` : l'un ne tient pas ; `clarify` : l'un ne se tranche pas sans une décision ou une information de l'utilisateur.
 5. **`cp-decision`** : oh vérifie que `.oh-spike/` n'existe plus (`verify.cmd: ["test ! -e .oh-spike"]`) ; une fois validée, la décision est commitée seule.
+
+Sorties **relevées par oh** quand un checkpoint passe (`record: written`) : `decision` (le fichier écrit sous `docs/wiki/decisions/`) et `verdict` (`go`, `clarify` ou `kill`, lu sur la ligne `**Décision : …**`, `match:`). Suite proposée (`next:`) après un `go` seulement : **`spec`**, avec la décision pour page d'origine (`-i source=…`), sans la lancer.
 
 Budget de pauses en semi-auto : 2 pauses (1 décision, 1 action irréversible), pour un budget de 3. Commandes Beads autorisées (lecture seule) : `show`, `list`, `search`, `query`, `count`.
 

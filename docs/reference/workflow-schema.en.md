@@ -597,7 +597,9 @@ outputs:
 | `id` | text | unique in the list |
 | `type` | text | `branch`, `merge_request`, `beads-ids`, `path`, `report` (id of an `rp-…` report), `text` (a value, e.g. a recorded input) |
 | `label` | translatable text | displayed label |
-| `record` | text | absent: declared by the agent; otherwise **recorded by oh** (R5): `created`, `closed`, `spec`, `report`, `input` |
+| `record` | text | absent: declared by the agent; otherwise **recorded by oh** (R5): `created`, `closed`, `spec`, `report`, `input`, `written` |
+| `paths` | list of paths | with `record: written` only: the files read (patterns as in `writes:`, relative to the repository) |
+| `match` | regular expression | with `record: written` only: the value recorded is the first group of the expression in those files (`text` output) |
 
 Without `record`, the agent declares the value with the MCP tool `workflow_outputs` (the workflow map lists it under “Outputs to declare”, `workflow_status` under `expected_outputs`). At the end of the session, the outputs offer "Chain with…" (key `e` of the Sessions view), the [`next`](#composition-next-and-aliases) steps and `oh session results`. Patch: list replaced as a whole.
 
@@ -612,8 +614,11 @@ A `record:` output is filled by oh from what it sees the session do; no agent ca
 | `spec` | `path` | the specs checked by oh at a passed `verify.spec` checkpoint (several: joined by commas); without a `verify.spec` checkpoint, warning `output_record_spec_unchecked` |
 | `report` | `report` | the last report deposited with `workflow_report` |
 | `input` | `text` | the value of the input with the same id, at launch (else its default), to pass it on through `next:`: `spec` records `method` and passes it to `implement-spec`; without an input of that name, `output_record_input_unknown` |
+| `written` | `path`, or `text` with `match` | each time a checkpoint passes, the files the session changed under `paths` (committed since it started, modified or untracked; a deleted file does not count; several: joined by commas); with `match`, the first group of the expression in the first of those files where it is found (nothing found: the previous value stays). `incident` records its postmortem, `spike` its decision and its verdict |
 
 - The type must be the one of the table (`output_record_type`).
+- `record: written`: `paths` required (`output_written_paths`), clean relative paths (`output_written_path`), `match` with at least one group (`output_match_invalid`); `paths` or `match` without `record: written`: `output_written_only`.
+- A `report` output goes on to the next workflow **as its content**: an input `from: session.output(<workflow>.<output>)` receives the text of the report (cleaned), not its id; `next:` does not prefill it, the chained launch (`--parent`) reads it in the session.
 - At the end of the workflow, oh no longer fills a recorded output with the closed tickets (as it does for a declared `beads-ids` output).
 - A remote session does not record creations (tickets only have a provisional id there).
 
@@ -626,6 +631,7 @@ aliases: [cadrage, feature]        # oh run cadrage launches this workflow
 next:
   - workflow: implement-spec
     when: { outputs: [tickets] }   # proposed only when the session has this output
+    # when: { equals: { verdict: go } }  # … and with this value
     inputs:
       tickets: session.output(tickets)
       spec: session.output(spec)
@@ -639,11 +645,12 @@ next:
 | `workflow` | id | proposed workflow (or an alias) |
 | `label` | translatable text | label of the proposal (default: the workflow's) |
 | `when.outputs` | list of ids | the proposal is made only when the session has all these outputs |
+| `when.equals` | output → value | … and only when each of these outputs has this value (case ignored): `audit` proposes `security-fix` only after a `security` audit, `spike` proposes `spec` only after a `go` |
 | `inputs.<input>` | `session.output(<output>)` | input of the proposed workflow, prefilled with an output of the session that ends |
 
 - **A proposal, never a launch**: when the client of a session launched by `oh run` closes, oh shows the outputs of the session and the command of each step (`oh run implement-spec --parent ses_… --tickets ev-1,ev-2 -i spec=…`); `oh session next <id>` shows them again; the Sessions view of the TUI puts them first in “Chain with…” and in the end-of-session notification.
 - The proposed launch carries `--parent`: the `session.output(…)` sources of its inputs read that session first.
-- Checks: `next_unknown_workflow`, `next_self`, `duplicate_entry`, `next_unknown_output` (output of `when` or `inputs` not declared), `next_input_invalid` (another form than `session.output(<output>)`), `next_unknown_input` (input missing from the proposed workflow), `next_input_type` (incompatible type). Patch: list replaced as a whole.
+- Checks: `next_unknown_workflow`, `next_self`, `duplicate_entry`, `next_unknown_output` (output of `when` or `inputs` not declared), `next_input_invalid` (another form than `session.output(<output>)`), `next_unknown_input` (input missing from the proposed workflow), `next_input_type` (incompatible type), `next_input_report_from` (warning: a report given to an input without `from: session.output(<this workflow>.<output>)` only arrives as its id). Patch: list replaced as a whole.
 
 ### `aliases` — other names of the workflow
 
@@ -698,7 +705,7 @@ A diagnostic has a severity (error or warning), a code, the field path, the sour
 | `method_input_type`, `checkpoint_method_no_input`, `checkpoint_method_mandatory`, `checkpoint_method_after`, `verify_since_unknown`, `verify_since_method`, `verify_outside_tests_ignored` | method of the session and test written first (R7) |
 | `precondition_check_invalid`, `precondition_path_invalid`, `precondition_branch_invalid`, `precondition_tool_invalid`, `precondition_self`, `precondition_unknown_workflow`, `patch_unknown_precondition` | preconditions |
 | `prompt_both`, `prompt_empty`, `prompt_template_path`, `prompt_template_missing`, `prompt_parse`, `prompt_unknown_variable` | prompt |
-| `next_unknown_workflow`, `next_self`, `next_unknown_output`, `next_input_invalid`, `next_unknown_input`, `next_input_type`, `alias_self`, `alias_shadowed`, `alias_with_unknown_input`, `alias_ambiguous`, `alias_without_default`, `output_record_type`, `output_record_spec_unchecked`, `input_from_type`, `input_from_unknown_workflow`, `input_from_unknown_output`, `input_from_session_workflow` | composition: `next`, `aliases`, outputs recorded by oh, `session.*` sources (R5) |
+| `next_unknown_workflow`, `next_self`, `next_unknown_output`, `next_input_invalid`, `next_unknown_input`, `next_input_type`, `alias_self`, `alias_shadowed`, `alias_with_unknown_input`, `alias_ambiguous`, `alias_without_default`, `output_record_type`, `output_record_spec_unchecked`, `output_written_paths`, `output_written_path`, `output_match_invalid`, `output_written_only`, `next_input_report_from`, `input_from_type`, `input_from_unknown_workflow`, `input_from_unknown_output`, `input_from_session_workflow` | composition: `next`, `aliases`, outputs recorded by oh, `session.*` sources (R5) |
 | `read_agent_writes`, `read_beads_unrestricted`, `read_beads_write`, `read_plugin_exec` | `risk: read` rules |
 | `plan_agent_writes`, `plan_beads_unrestricted`, `plan_beads_delete`, `plan_without_beads_write` | `risk: plan` rules |
 | `remote_forbidden_checkpoint`, `publish_remote_runtime`, `runtime_default_not_allowed`, `mode_default_not_allowed`, `isolation_unsupported` | environments, modes, isolation |

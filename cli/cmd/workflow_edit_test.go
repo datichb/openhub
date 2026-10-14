@@ -270,3 +270,19 @@ func TestPrepareRunRequiredTicketInput(t *testing.T) {
 	assert.Equal(t, []string{"bd-1", "bd-2"}, perSession)
 	assert.Equal(t, "bd-1", res.Inputs["ticket"])
 }
+
+// B1: `oh run feature` (and `oh start`) without a request launches spec,
+// which asks for it at the start of the session: no missing-input error.
+func TestPrepareRunFeatureWithoutRequest(t *testing.T) {
+	setupWorkflowCLI(t, "alice")
+	t.Setenv(workflowsDirEnv, filepath.Join(repoRoot(t), "workflows")) // the shipped workflows
+	for _, id := range []string{"feature", "spec", "cadrage"} {
+		var errOut bytes.Buffer
+		opts := runOptions{Workflow: id, Project: &domain.Project{ID: "p1", Name: "p", Path: t.TempDir()}}
+		res, _, _, err := resolveLaunch(t.Context(), application, &opts, &errOut)
+		require.NoError(t, err, "%s: %s", id, errOut.String())
+		assert.Equal(t, "spec", res.Spec.ID, id)
+		_, given := res.Inputs["request"]
+		assert.False(t, given, id)
+	}
+}

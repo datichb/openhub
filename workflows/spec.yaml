@@ -12,14 +12,23 @@ risk: plan
 # --tickets …` implement-spec (feature.yaml removed).
 aliases: [cadrage, feature]
 inputs:
+  # B1: optional; without it (oh run feature, oh start), the session asks
+  # for it first.
   request:
     type: text
-    required: true
     label: { fr: Demande, en: Request }
     help:
-      fr: La feature à spécifier en langage naturel (ou l'identifiant d'un ticket ou d'une MR GitLab)
-      en: The feature to specify in natural language (or the id of a GitLab issue or merge request)
+      fr: La feature à spécifier en langage naturel (ou l'identifiant d'un ticket ou d'une MR GitLab) ; sans demande, la session la demande au début
+      en: The feature to specify in natural language (or the id of a GitLab issue or merge request); without one, the session asks for it first
     max_length: 8000
+  # B1: a wiki page the request comes from (the decision of a spike, a
+  # postmortem), given by their next:.
+  source:
+    type: path
+    label: { fr: Document d'origine, en: Source document }
+    help:
+      fr: Page du wiki à l'origine de la demande (décision d'un spike, postmortem d'un incident), lue par le planner (facultatif)
+      en: Wiki page the request comes from (the decision of a spike, the postmortem of an incident), read by the planner (optional)
   # feature-migration: not used by spec itself; recorded by oh and passed on
   # to implement-spec by `next:` (oh run feature -i method=tdd).
   method:
