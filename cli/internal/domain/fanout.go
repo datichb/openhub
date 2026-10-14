@@ -94,6 +94,10 @@ type SessionFanout struct {
 	// Merged is the commit of the branch of the parent after the merge of
 	// the integration branch by oh.
 	Merged string `json:"merged,omitempty"`
+	// Cleaned: oh removed every worktree and branch of the fan-out; Kept
+	// lists those it kept at the last clean-up ("branch: reason").
+	Cleaned bool     `json:"cleaned,omitempty"`
+	Kept    []string `json:"kept,omitempty"`
 }
 
 // FanoutIntegration is the integration branch of a fan-out and its
@@ -150,6 +154,9 @@ const (
 	FanoutEventFailed     = "failed"     // fan-out stopped on an error
 	FanoutEventDelegated  = "delegated"  // a delegated checkpoint passed without pause in a child (CP-R3)
 	FanoutEventResumed    = "resumed"    // parent told the result
+	FanoutEventCleaned    = "cleaned"    // worktrees and branches removed by oh
+	FanoutEventKept       = "kept"       // a branch or a worktree kept at the clean-up, and why
+	FanoutEventDiscarded  = "discarded"  // a branch not merged deleted on request (its commit)
 )
 
 // fanoutEventsMax caps the stored events.

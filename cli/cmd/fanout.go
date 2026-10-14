@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -48,7 +49,16 @@ func init() {
 		RunE:  runFanoutStatus,
 	}
 	status.Flags().Bool("json", false, "Sortie JSON")
-	fanoutCmd.AddCommand(drive, status)
+	clean := &cobra.Command{
+		Use:   "clean <session-id>",
+		Short: i18n.T("cmd.fanout.clean.short"),
+		Args:  cobra.ExactArgs(1),
+		RunE:  runFanoutClean,
+	}
+	clean.Flags().Bool("dry-run", false, i18n.T("cmd.fanout.clean.flags.dry_run"))
+	clean.Flags().Bool("discard", false, i18n.T("cmd.fanout.clean.flags.discard"))
+	clean.Flags().Bool("json", false, "Sortie JSON")
+	fanoutCmd.AddCommand(drive, status, clean)
 	rootCmd.AddCommand(fanoutCmd)
 }
 
@@ -125,6 +135,96 @@ func runFanoutStatus(cmd *cobra.Command, args []string) error {
 	}
 	printFanout(cmd.OutOrStdout(), sess.ID, f)
 	return nil
+}
+
+// runFanoutClean removes the worktrees and branches oh/fanout/… of a
+// fan-out merged or abandoned (--discard: the unmerged branches too, their
+// commit traced).
+func runFanoutClean(cmd *cobra.Command, args []string) error {
+	ctx := cmd.Context()
+	ssvc, err := sessionService(cmd)
+	if err != nil {
+		return err
+	}
+	sess, err := ssvc.Resolve(ctx, args[0])
+	if err != nil {
+		return sessionRefError(args[0], err)
+	}
+	if sess.Fanout == nil || sess.Fanout.Role != domain.RoleParent {
+		return errors.New(i18n.Tf("cmd.fanout.none", sess.ID))
+	}
+	if !fanout.Cleanable(sess) {
+		return errors.New(i18n.Tf("cmd.fanout.clean.not_done", sess.ID, string(sess.Fanout.Status)))
+	}
+	f := cmd.Flags()
+	dry, _ := f.GetBool("dry-run")
+	discard, _ := f.GetBool("discard")
+	res, err := fanout.Clean(ctx, sqlite.NewSessionStore(store), sess, fanout.CleanOptions{DryRun: dry, Discard: discard})
+	if err != nil {
+		return err
+	}
+	if asJSON, _ := f.GetBool("json"); asJSON {
+		return printJSON(cmd, res)
+	}
+	w := cmd.OutOrStdout()
+	key := "cmd.fanout.clean.done"
+	if dry {
+		key = "cmd.fanout.clean.plan"
+	}
+	fmt.Fprintln(w, i18n.Tf(key, len(res.Worktrees), len(res.Branches)+len(res.Discarded)))
+	for _, b := range res.Branches {
+		fmt.Fprintln(w, "  - "+b)
+	}
+	for _, d := range res.Discarded {
+		fmt.Fprintln(w, "  ✗ "+i18n.Tf("cmd.fanout.clean.discarded", d))
+	}
+	for _, k := range res.Kept {
+		fmt.Fprintln(w, "  = "+k)
+	}
+	if len(res.Kept) > 0 && !discard {
+		fmt.Fprintln(w, i18n.T("cmd.fanout.clean.kept_hint"))
+	}
+	return nil
+}
+
+// fanoutCleaner is the clean-up of the fan-outs for oh gc.
+type fanoutCleaner struct{ store *sqlite.SessionStore }
+
+func (c fanoutCleaner) Plan(ctx context.Context, s domain.Session) (what string, worktrees []string) {
+	res, err := fanout.Clean(ctx, c.store, &s, fanout.CleanOptions{DryRun: true})
+	if err != nil || res.Empty() {
+		return "", nil
+	}
+	return i18n.Tf("cmd.fanout.clean.plan", len(res.Worktrees), len(res.Branches)), res.Worktrees
+}
+
+func (c fanoutCleaner) Clean(ctx context.Context, id string) error {
+	s, err := c.store.Get(ctx, id)
+	if err != nil {
+		return err
+	}
+	_, err = fanout.Clean(ctx, c.store, s, fanout.CleanOptions{})
+	return err
+}
+
+// cleanFanoutOnEnd cleans up the fan-out of a parent stopped for good (or
+// merged), unless a session of it still runs: its driver does it then.
+func cleanFanoutOnEnd(ctx context.Context, a *app.App, s domain.Session) {
+	if store == nil || !fanout.Cleanable(&s) {
+		return
+	}
+	for _, id := range fanoutChildren(ctx, a, s.ID) {
+		if c, err := a.Sessions.Get(ctx, id); err == nil && !runsvcTerminal(c.State) {
+			return
+		}
+	}
+	if _, err := fanout.Clean(ctx, sqlite.NewSessionStore(store), &s, fanout.CleanOptions{}); err != nil {
+		slog.Warn("fan-out: clean-up at the end of the parent", "session", s.ID, "error", err)
+	}
+}
+
+func runsvcTerminal(st domain.RunState) bool {
+	return st == domain.RunCompleted || st == domain.RunStopped || st == domain.RunFailed
 }
 
 // printFanout prints the state of a fan-out (parent) or the parent of a

@@ -12,7 +12,11 @@
 //   - a bundle used less than BundleGrace ago is kept (Build touches it);
 //   - a server group is removed with its group lock held, its server dead;
 //   - a worktree is removed only when oh created it, clean, unlocked, with
-//     no commit that exists nowhere else; its branch only when merged.
+//     no commit that exists nowhere else; its branch only when merged;
+//   - the worktrees and branches oh/fanout/… of a fan-out go once its merge
+//     checkpoint passed or its parent was stopped, by the clean-up of the
+//     fan-out (services/fanout, Clean): never a branch whose commits are
+//     on no other branch.
 package gc
 
 import (
@@ -43,10 +47,12 @@ const (
 	KindTemp      Kind = "temp"
 	KindOrphans   Kind = "orphans"
 	KindHistory   Kind = "history"
+	// KindFanout: what a fan-out left (worktrees and branches oh/fanout/…).
+	KindFanout Kind = "fanout"
 )
 
 // Kinds lists every kind.
-var Kinds = []Kind{KindBundles, KindServers, KindSessions, KindWorktrees, KindTemp, KindOrphans, KindHistory}
+var Kinds = []Kind{KindBundles, KindServers, KindSessions, KindWorktrees, KindFanout, KindTemp, KindOrphans, KindHistory}
 
 // ErrBusy: another clean-up holds the lock.
 var ErrBusy = errors.New("another oh gc is running")
@@ -124,7 +130,19 @@ type Env struct {
 	Processes adapters.ServerProcessLister
 	// Git runs the git checks of the worktrees (default: real git).
 	Git Git
-	Now func() time.Time
+	// Fanout cleans up the fan-outs (nil: none looked for).
+	Fanout FanoutCleaner
+	Now    func() time.Time
+}
+
+// FanoutCleaner is the clean-up of the fan-outs (services/fanout).
+type FanoutCleaner interface {
+	// Plan describes what the clean-up of the fan-out of parent s would
+	// remove ("" = nothing) and the worktrees it would remove (only called
+	// for a parent whose merge checkpoint passed or which was stopped).
+	Plan(ctx context.Context, s domain.Session) (what string, worktrees []string)
+	// Clean removes it (never a branch not merged elsewhere).
+	Clean(ctx context.Context, sessionID string) error
 }
 
 // Options tune a clean-up.
@@ -286,6 +304,9 @@ func Plan(ctx context.Context, env *Env, opts Options) (Report, error) {
 	}
 	if opts.wants(KindWorktrees) && opts.AutoWorktrees {
 		add(env.planWorktrees(ctx, u, opts), nil)
+	}
+	if opts.wants(KindFanout) && env.Fanout != nil {
+		add(env.planFanout(ctx, u), nil)
 	}
 	if opts.wants(KindOrphans) && env.Processes != nil {
 		add(env.planOrphans(ctx, u))
@@ -492,6 +513,35 @@ func (e *Env) planWorktrees(ctx context.Context, u *usage, opts Options) []Item 
 	return out
 }
 
+// planFanout lists the fan-outs with something left to clean up: merged,
+// or whose parent was stopped.
+func (e *Env) planFanout(ctx context.Context, u *usage) []Item {
+	ids := make([]string, 0, len(u.sessions))
+	for id := range u.sessions {
+		ids = append(ids, id)
+	}
+	sort.Strings(ids)
+	var out []Item
+	for _, id := range ids {
+		s := u.sessions[id]
+		f := s.Fanout
+		if f == nil || f.Role != domain.RoleParent || f.Integration == nil || f.Cleaned {
+			continue
+		}
+		if f.Status != domain.FanoutMerged && s.State != domain.RunStopped {
+			continue
+		}
+		if what, paths := e.Fanout.Plan(ctx, s); what != "" {
+			var size int64
+			for _, p := range paths {
+				size += dirSize(p)
+			}
+			out = append(out, Item{Kind: KindFanout, ID: s.ID, Path: f.Integration.Path, Bytes: size, Reason: what})
+		}
+	}
+	return out
+}
+
 func (e *Env) planOrphans(ctx context.Context, u *usage) ([]Item, error) {
 	procs, err := e.Processes.ServerProcesses(ctx)
 	if err != nil {
@@ -598,6 +648,8 @@ func (e *Env) apply(ctx context.Context, it Item) error {
 		return e.git().Remove(ctx, it.Repo, it.Path, it.ID, e.baseBranch(it.Repo))
 	case KindOrphans:
 		return e.Processes.StopServerProcess(ctx, it.PID)
+	case KindFanout:
+		return e.Fanout.Clean(ctx, it.ID)
 	}
 	return fmt.Errorf("unknown kind %q", it.Kind)
 }

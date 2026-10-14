@@ -76,6 +76,9 @@ func sessionEndHook(a *app.App, async bool) func(context.Context, domain.Session
 		if a == nil || a.Projects == nil || s.ProjectID == "" {
 			return
 		}
+		if s.Fanout != nil && s.Fanout.Role == domain.RoleParent {
+			cleanFanoutOnEnd(ctx, a, s) // R6: the worktrees and branches of an abandoned fan-out
+		}
 		// The daemon writes the team-state in the background: it waits
 		// longer for the lock of the clone (N15).
 		ctx = teamstate.WithLockWait(ctx, teamstate.BackgroundLockWait)

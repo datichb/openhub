@@ -182,7 +182,44 @@ func (d *Driver) Run(ctx context.Context, parent string) error {
 	if err := d.runChildren(ctx, parent, wf); err != nil {
 		return err
 	}
+	if p, err := d.Sessions.Get(ctx, parent); err == nil && p.State == domain.RunStopped {
+		// Abandoned: what can go goes, the work merged so far stays on the
+		// integration branch.
+		if res, err := Clean(ctx, d.Sessions, p, CleanOptions{}); err != nil {
+			d.logf("fan-out %s: clean-up: %v", parent, err)
+		} else {
+			d.logf("fan-out %s: abandoned, %d worktree(s) and %d branch(es) removed, %d kept", parent, len(res.Worktrees), len(res.Branches), len(res.Kept))
+		}
+		return nil
+	}
 	return d.finish(ctx, parent)
+}
+
+// abandon stops the fan-out of a parent stopped for good: no child starts
+// any more and the running ones are stopped.
+func (d *Driver) abandon(ctx context.Context, p *domain.Session) {
+	for _, c := range p.Fanout.Children {
+		for _, id := range []string{c.Session, c.Merger} {
+			if id == "" {
+				continue
+			}
+			if s, err := d.Sessions.Get(ctx, id); err == nil && !terminal(s.State) {
+				_ = d.Launcher.Stop(ctx, id)
+			}
+		}
+	}
+	_, _ = d.update(ctx, p.ID, func(f *domain.SessionFanout) {
+		if f.Status == domain.FanoutRunning {
+			f.Status = domain.FanoutStopped
+			f.AddEvent(domain.FanoutEventFailed, "", p.ID, "parent stopped")
+		}
+		for i := range f.Children {
+			if c := &f.Children[i]; c.State == domain.ChildPending || c.State == domain.ChildRunning {
+				c.State, c.Error = domain.ChildFailed, i18n.T("cmd.fanout.parent_stopped")
+			}
+		}
+	})
+	d.logf("fan-out %s: the parent was stopped, children stopped", p.ID)
 }
 
 // waitStart waits until the parent passed every mandatory checkpoint
@@ -299,6 +336,10 @@ func (d *Driver) runChildren(ctx context.Context, parent string, wf *sessionspec
 			return err
 		}
 		f := p.Fanout
+		if p.State == domain.RunStopped && f.Status == domain.FanoutRunning {
+			d.abandon(ctx, p) // the parent was stopped for good
+			continue
+		}
 		if f.Status != domain.FanoutRunning {
 			wg.Wait()
 			return nil // failed or stopped meanwhile
@@ -570,6 +611,9 @@ func (d *Driver) follow(ctx context.Context, parent string, wf *sessionspec.Work
 		return
 	}
 	_ = d.Launcher.Stop(ctx, c.Session)
+	if p, err := d.Sessions.Get(ctx, parent); err != nil || p.Fanout.Status != domain.FanoutRunning {
+		return // abandoned or failed meanwhile: nothing more is merged
+	}
 	cost := 0.0
 	if s, err := d.Sessions.Get(ctx, c.Session); err == nil {
 		cost = s.Cost

@@ -123,9 +123,7 @@ func (l *fakeLauncher) Stop(ctx context.Context, id string) error {
 	if err != nil {
 		return err
 	}
-	if s.State != domain.RunIdle {
-		s.State = domain.RunStopped
-	}
+	s.State = domain.RunStopped
 	return l.store.Update(ctx, s)
 }
 
