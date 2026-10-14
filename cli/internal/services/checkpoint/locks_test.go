@@ -103,7 +103,7 @@ func TestGuardCloseAndWindow(t *testing.T) {
 	assert.Equal(t, "c1", st.Unlocks["close"].Head)
 	rules, _ = svc.Rules(ctx, "ses_l")
 	for _, r := range rules {
-		if !slices.Contains(bundle.ApplyLockPatterns, r.Resource) { // apply: nothing unlocks it here (N4)
+		if !slices.Contains(bundle.ApplyLockPatterns, r.Resource) && !slices.Contains(bundle.PublishLockPatterns(), r.Resource) { // apply, tag, mr: nothing unlocks them here (N4, E9)
 			assert.NotEqual(t, sessionspec.ActionShell, r.Action)
 		}
 	}

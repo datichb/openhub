@@ -264,7 +264,8 @@ type CheckpointSpec struct {
 	Remote    RemotePolicy `yaml:"remote,omitempty"`
 	Mandatory *bool        `yaml:"mandatory,omitempty"`
 	// Unlocks lists the operations refused to every agent of the session
-	// until this checkpoint is passed (commit, push, close, create, apply).
+	// until this checkpoint is passed (commit, push, close, create, apply,
+	// tag, mr).
 	// The window closes again when the checkpoint is asked again, and for a
 	// checkpoint that unlocks close, when a ticket is closed.
 	Unlocks []UnlockOp `yaml:"unlocks,omitempty"`
@@ -322,10 +323,20 @@ const (
 	UnlockClose  UnlockOp = "close"  // closing a Beads ticket
 	UnlockCreate UnlockOp = "create" // creating Beads tickets
 	UnlockApply  UnlockOp = "apply"  // changing infrastructure (terraform apply, kubectl apply…)
+
+	// R8: publishing (risk: publish only; refused in every workflow that
+	// declares no checkpoint unlocking them).
+	UnlockTag UnlockOp = "tag" // creating a git tag (git tag, git push --tags…)
+	UnlockMR  UnlockOp = "mr"  // opening a merge request (glab mr create, gh pr create…)
 )
 
 // UnlockOps lists the valid operations.
-var UnlockOps = []UnlockOp{UnlockCommit, UnlockPush, UnlockClose, UnlockCreate, UnlockApply}
+var UnlockOps = []UnlockOp{UnlockCommit, UnlockPush, UnlockClose, UnlockCreate, UnlockApply, UnlockTag, UnlockMR}
+
+// PublishOps are the operations that publish outside the repository or
+// mark a release: only a `risk: publish` workflow unlocks them, at a
+// checkpoint that never runs remotely (`remote: forbid`).
+var PublishOps = []UnlockOp{UnlockPush, UnlockTag, UnlockMR}
 
 // UnlockOpNames returns the valid operations, comma-separated (diagnostics).
 func UnlockOpNames() string {
@@ -431,11 +442,25 @@ type Precondition struct {
 	Disabled bool `yaml:"disabled,omitempty"`
 }
 
-// PreconditionCheck holds exactly one test.
+// PreconditionCheck holds at least one test; all of them must hold.
 type PreconditionCheck struct {
 	// PathExists is satisfied when one of the paths (relative to the
 	// session location) exists.
 	PathExists []string `yaml:"path_exists,omitempty"`
+
+	// R8 (preconditions.go): state of the repository and tools, checked by
+	// oh at launch (E7).
+
+	// GitClean is satisfied when the project is a git repository without
+	// uncommitted change (staged, unstaged or untracked and not ignored;
+	// .beads excluded, Beads writes its own files).
+	GitClean bool `yaml:"git_clean,omitempty"`
+	// Branch is satisfied when the current branch matches one of the
+	// patterns (`main`, `release/*`; path.Match). A detached HEAD matches
+	// none.
+	Branch []string `yaml:"branch,omitempty"`
+	// Tools is satisfied when every command is found in the PATH of oh.
+	Tools []string `yaml:"tools,omitempty"`
 }
 
 // PreconditionOnFail is what a failed precondition does.

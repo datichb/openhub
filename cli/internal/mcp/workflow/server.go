@@ -200,6 +200,18 @@ func unlockedText(ops []string) string {
 	if has(sessionspec.UnlockCreate) {
 		b.WriteString(" " + i18n.T("cmd.mcp.workflow.checkpoint_unlocked_create"))
 	}
+	switch tag, commit := has(sessionspec.UnlockTag), has(sessionspec.UnlockCommit); {
+	case tag && commit:
+		b.WriteString(" " + i18n.T("cmd.mcp.workflow.checkpoint_unlocked_tag_after_commit"))
+	case tag:
+		b.WriteString(" " + i18n.T("cmd.mcp.workflow.checkpoint_unlocked_tag"))
+	}
+	if has(sessionspec.UnlockMR) {
+		b.WriteString(" " + i18n.T("cmd.mcp.workflow.checkpoint_unlocked_mr"))
+	}
+	if (has(sessionspec.UnlockTag) || has(sessionspec.UnlockMR)) && !has(sessionspec.UnlockPush) {
+		b.WriteString(" " + i18n.T("cmd.mcp.workflow.checkpoint_unlocked_no_push"))
+	}
 	return b.String()
 }
 

@@ -157,6 +157,9 @@ const (
 	UnlockClose  = "close"
 	UnlockCreate = "create"
 	UnlockApply  = "apply"
+	// R8: publishing (risk: publish).
+	UnlockTag = "tag"
+	UnlockMR  = "mr"
 )
 
 // DefaultBeadsAllow is the `bd` allow-list of a workflow that declares no

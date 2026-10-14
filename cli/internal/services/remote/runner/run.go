@@ -128,6 +128,11 @@ func Run(ctx context.Context, in Input) (*remote.Summary, error) {
 	if err := os.MkdirAll(in.OutDir, 0o755); err != nil {
 		return finish(err)
 	}
+	if m.Workflow.Risk == "publish" {
+		// R8: a publishing workflow never runs remotely (refused by the
+		// machine already; checked again before the clone).
+		return finish(fmt.Errorf("workflow %s is risk: publish: it never runs remotely", m.Workflow.ID))
+	}
 	progress("running", "clone", "")
 
 	// T09: clone of the target project.

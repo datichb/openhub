@@ -33,7 +33,7 @@ func TestSessionRules(t *testing.T) {
 	// Without a checkpoint unlocking `apply`, infrastructure changes stay
 	// refused (N4): those rules come last.
 	locked := func(rules ...sessionspec.PermissionRule) []sessionspec.PermissionRule {
-		return append(rules, ApplyLockedByDefault(wf)...)
+		return append(append(rules, ApplyLockedByDefault(wf)...), PublishLockedByDefault(wf)...)
 	}
 	assert.Equal(t, locked(
 		rule(CheckpointAction(), "*", sessionspec.EffectAsk),
@@ -91,7 +91,7 @@ func TestSessionRulesLockedOperations(t *testing.T) {
 	open := &domain.CheckpointState{Passed: map[string]time.Time{"cp-2": time.Now()},
 		Unlocks: map[string]domain.CheckpointUnlock{"commit": {Checkpoint: "cp-2"}, "close": {Checkpoint: "cp-2"}}}
 	for _, r := range SessionRules(wf, "manuel", open) {
-		if !contains(ApplyLockPatterns, r.Resource) {
+		if !lockedByDefault(r.Resource) {
 			assert.NotEqual(t, shell, r.Action, "window open: %v", r)
 		}
 	}
@@ -120,7 +120,7 @@ func TestSessionRulesLockCreateAndApply(t *testing.T) {
 	// An operation unknown to this version locks nothing (DC9).
 	wf.Checkpoints[1].Unlocks = []string{"merge"}
 	for _, r := range SessionRules(wf, "manuel", nil) {
-		if !contains(ApplyLockPatterns, r.Resource) { // apply stays refused: nothing unlocks it (N4)
+		if !lockedByDefault(r.Resource) { // apply, tag and mr stay refused: nothing unlocks them (N4, E9)
 			assert.NotEqual(t, shell, r.Action, "unknown operation: %v", r)
 		}
 	}
@@ -184,6 +184,12 @@ func TestLockPatternsWithoutFalsePositives(t *testing.T) {
 	} {
 		assert.False(t, lockedLine(rules, line), "must stay allowed: %s", line)
 	}
+}
+
+// lockedByDefault: the patterns refused when no checkpoint unlocks their
+// operation (apply, tag, mr).
+func lockedByDefault(p string) bool {
+	return contains(ApplyLockPatterns, p) || contains(tagLockPatterns, p) || contains(mrLockPatterns, p)
 }
 
 func contains(list []string, s string) bool {

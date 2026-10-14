@@ -110,6 +110,16 @@ func TestCheckpointUnlockedTextFollowsTheOps(t *testing.T) {
 	assert.Contains(t, create, "Crée maintenant les tickets validés")
 	assert.NotContains(t, create, "fermeture")
 
+	release := unlockedText([]string{"commit", "tag", "mr"})
+	assert.Contains(t, release, "Commite d'abord la release")
+	assert.Contains(t, release, "Ouvre la merge request maintenant")
+	assert.Contains(t, release, "Ne pousse ni la branche ni le tag")
+	assert.NotContains(t, release, "fermeture")
+	tag := unlockedText([]string{"tag"})
+	assert.Contains(t, tag, "Crée le tag maintenant")
+	assert.NotContains(t, tag, "merge request")
+	assert.NotContains(t, unlockedText([]string{"commit", "close"}), "tag")
+
 	push := unlockedText([]string{"push"})
 	assert.Equal(t, i18n.Tf("cmd.mcp.workflow.checkpoint_unlocked", "push"), push, "no instruction for the push alone")
 }

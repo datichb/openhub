@@ -57,7 +57,8 @@ func NeedsDecision(behavior string) bool {
 //   - each gated agent (`after:`) is denied until its lock is released;
 //   - every delegation is denied while the circuit breaker holds;
 //   - the shell commands of the operations a checkpoint unlocks (commit,
-//     push, close) are denied until it is passed.
+//     push, close, create, apply, tag, mr) are denied until it is passed;
+//     apply, tag and mr are always denied when no checkpoint unlocks them.
 func SessionRules(wf *sessionspec.WorkflowRuntime, mode string, st *domain.CheckpointState) []sessionspec.PermissionRule {
 	if wf == nil {
 		return nil
@@ -84,11 +85,16 @@ func SessionRules(wf *sessionspec.WorkflowRuntime, mode string, st *domain.Check
 	}
 	rules = append(rules, fixLockRules(wf, st)...)
 	for _, op := range LockedOps(wf, mode, st) {
+		if op == sessionspec.UnlockMR {
+			rules = append(rules, publishLockRules(op)...) // shell and MCP
+			continue
+		}
 		for _, p := range lockPatterns[op] {
 			rules = append(rules, sessionspec.PermissionRule{Action: sessionspec.ActionShell, Resource: p, Effect: sessionspec.EffectDeny})
 		}
 	}
-	return append(rules, ApplyLockedByDefault(wf)...)
+	rules = append(rules, ApplyLockedByDefault(wf)...)
+	return append(rules, PublishLockedByDefault(wf)...)
 }
 
 // lockPatterns are the shell commands refused while an operation is locked.
@@ -108,6 +114,9 @@ var lockPatterns = map[string][]string{
 	sessionspec.UnlockClose:  append(subcommandPatterns("bd", "close", "done"), "bd update *closed*", "* bd update *closed*", "*/bd update *closed*"),
 	sessionspec.UnlockCreate: append(subcommandPatterns("bd", "create", "duplicate", "supersede"), "bd q *", "* bd q *", "*/bd q *"),
 	sessionspec.UnlockApply:  ApplyLockPatterns,
+	// R8 (publishguard.go)
+	sessionspec.UnlockTag: tagLockPatterns,
+	sessionspec.UnlockMR:  mrLockPatterns,
 }
 
 // wordOnly are the subcommands that prefix harmless ones (git merge-base).
@@ -147,7 +156,9 @@ func subcommandPatterns(tool string, subs ...string) []string {
 
 // LockedOps returns the operations (`unlocks:`) still locked: their
 // checkpoint is not passed in the current window (an unlocking checkpoint is
-// never skipped, CheckpointDef.Behavior), in declaration order.
+// never skipped, CheckpointDef.Behavior), in declaration order. A tag
+// unlocked with the commit waits for the release to be committed
+// (tagWaitsForCommit).
 func LockedOps(wf *sessionspec.WorkflowRuntime, mode string, st *domain.CheckpointState) []string {
 	if wf == nil {
 		return nil
@@ -164,7 +175,7 @@ func LockedOps(wf *sessionspec.WorkflowRuntime, mode string, st *domain.Checkpoi
 			if _, known := lockPatterns[op]; !known {
 				continue // operation of a newer oh: locks nothing here
 			}
-			if _, open := unlocked(st, op); !open {
+			if _, open := unlocked(st, op); !open || (op == sessionspec.UnlockTag && tagWaitsForCommit(st)) {
 				out = append(out, op)
 			}
 		}

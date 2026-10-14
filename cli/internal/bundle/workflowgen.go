@@ -132,6 +132,8 @@ var unlockOpText = map[string]string{
 	sessionspec.UnlockClose:  "la fermeture d'un ticket",
 	sessionspec.UnlockCreate: "la création de tickets",
 	sessionspec.UnlockApply:  "les modifications d'infrastructure (`terraform apply`, `kubectl apply`…)",
+	sessionspec.UnlockTag:    "la création d'un tag (`git tag`, `git push --tags`)",
+	sessionspec.UnlockMR:     "l'ouverture d'une merge request (`glab mr create`, `gh pr create`)",
 }
 
 // unlockText is the rule of a checkpoint that unlocks ops: only the declared
@@ -161,7 +163,24 @@ func unlockText(id string, ops []string) string {
 	if has[sessionspec.UnlockCreate] {
 		fmt.Fprintf(&b, " Une fois passé, crée les tickets validés aussitôt : la création se referme au checkpoint obligatoire suivant, ou quand **%s** est demandé de nouveau.", id)
 	}
-	if !has[sessionspec.UnlockPush] && (has[sessionspec.UnlockCommit] || has[sessionspec.UnlockClose]) {
+	switch {
+	case has[sessionspec.UnlockTag] && has[sessionspec.UnlockCommit]:
+		b.WriteString(" Le tag vient après le commit : oh le refuse tant que la release n'est pas commitée.")
+	case has[sessionspec.UnlockTag]:
+		b.WriteString(" Une fois passé, crée le tag aussitôt.")
+	}
+	switch tag, mr := has[sessionspec.UnlockTag], has[sessionspec.UnlockMR]; {
+	case tag && mr:
+		fmt.Fprintf(&b, " La création du tag et l'ouverture de la merge request se referment au checkpoint obligatoire suivant, ou quand **%s** est demandé de nouveau.", id)
+	case tag:
+		fmt.Fprintf(&b, " La création du tag se referme au checkpoint obligatoire suivant, ou quand **%s** est demandé de nouveau.", id)
+	case mr:
+		fmt.Fprintf(&b, " L'ouverture de la merge request se referme au checkpoint obligatoire suivant, ou quand **%s** est demandé de nouveau.", id)
+	}
+	switch {
+	case !has[sessionspec.UnlockPush] && (has[sessionspec.UnlockTag] || has[sessionspec.UnlockMR]):
+		b.WriteString(" Le push (branche et tags) revient à l'utilisateur : ne pousse pas.")
+	case !has[sessionspec.UnlockPush] && (has[sessionspec.UnlockCommit] || has[sessionspec.UnlockClose]):
 		b.WriteString(" Le push revient à l'utilisateur : ne pousse pas.")
 	}
 	return b.String()
