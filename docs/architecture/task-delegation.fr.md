@@ -312,7 +312,7 @@ L'appelant lit l'enveloppe selon sa posture de coordinateur (`posture/coordinato
 
 ### Mécanisme
 
-Un sous-agent n'appelle jamais `question`. Une décision qui le bloque va dans les `### Questions bloquantes` de son enveloppe (statut `en-attente`) et il s'arrête. L'appelant :
+Un sous-agent n'appelle jamais `question` : un agent qui n'a aucun rôle d'entrée dans le workflow (le planner de `spec` et de `cadrage`, le pathfinder de `feature`…) ne reçoit pas l'outil (règle `question` refusée sur `*`, dernière de ses règles : opencode ne donne pas l'outil au modèle) ; un agent d'entrée qu'un autre agent peut aussi lancer (le reviewer de `review`) le garde. Une décision qui le bloque va dans les `### Questions bloquantes` de son enveloppe (statut `en-attente`) et il s'arrête. L'appelant :
 
 1. affiche le contexte à l'utilisateur (ou, s'il est lui-même sous-agent, reporte la question dans sa propre enveloppe) ;
 2. pose la question avec l'outil `question` ;

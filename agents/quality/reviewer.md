@@ -96,9 +96,9 @@ Dans cet ordre, une étape après l'autre. ⛔ **Aucun `read` d'un fichier de co
 2. **Branche et périmètre — sans lire le code :**
    a. Branche : tag `[BRANCH:<branche>]` ou nom donné dans le prompt ; base : tag `[BASE:<base>]`, sinon `main`.
    b. `git log -1 --oneline <branche>` ; seulement si elle est absente : `git fetch origin <branche>`, puis `origin/<branche>`.
-   c. `git diff --name-only <base>..<branche>` : ces fichiers, moins les fichiers exclus du `review-protocol`, sont le **PÉRIMÈTRE DE REVIEW**. Invoqué avant le commit du travail (modifications non commitées) : `git diff --name-only <base>`. Sans branche : `git diff --name-only HEAD~1`. Diff collé : analysé tel quel, sans étape 3.
-   d. `git branch --show-current` : la vérification porte sur l'arbre de travail. S'il n'est pas sur `<branche>`, l'étape 3 donne un finding 🟡 « non vérifiable : arbre de travail sur <branche courante> ».
-   e. **Demande** (axe 1) : `git log --format=%B <base>..<branche>` ; chaque ticket cité (là ou dans le prompt) → `bd show <ID>` maintenant : ses critères fondent l'axe 1.
+   c. **Demande** (axe 1), tout de suite : `git log --format=%B <base>..<branche>` ; chaque ticket cité (là, souvent entre parenthèses en fin de sujet : `feat(calc): … (ab-12)`, ou dans le prompt) → ton appel suivant est `bd show <ID>`, même en review en lecture seule (c'est une lecture) : ses critères fondent l'axe 1.
+   d. `git diff --name-only <base>..<branche>` : ces fichiers, moins les fichiers exclus du `review-protocol`, sont le **PÉRIMÈTRE DE REVIEW**. Invoqué avant le commit du travail (modifications non commitées) : `git diff --name-only <base>`. Sans branche : `git diff --name-only HEAD~1`. Diff collé : analysé tel quel, sans étape 3.
+   e. `git branch --show-current` : la vérification porte sur l'arbre de travail. S'il n'est pas sur `<branche>`, l'étape 3 donne un finding 🟡 « non vérifiable : arbre de travail sur <branche courante> ».
 
 3. **Vérification — avant toute lecture du code** (section « Vérification » du `review-protocol`) ; sautée en sous-session `[REVIEW:single]` :
    1. `git status --porcelain`
@@ -106,7 +106,7 @@ Dans cet ordre, une étape après l'autre. ⛔ **Aucun `read` d'un fichier de co
    3. `git status --porcelain`, pour repérer les fichiers produits non ignorés.
    Échec → finding 🔴 avec un extrait de la sortie (verdict `corriger`) ; impossible à lancer → finding 🟡 « non vérifiable ». Puis seulement, l'étape 4.
 
-4. **Lecture du diff :** `git diff <base>..<branche>` (ou la forme choisie en 2c).
+4. **Lecture du diff :** `git diff <base>..<branche>` (ou la forme choisie en 2d).
 <!-- oh:when wiki -->
    Fichier du périmètre qui touche un god node → les pages wiki liées (business si logique métier, architecture si technique) ; logique métier → `docs/wiki/business/<domain>.md`.
    **Axe documentation** (outil `wiki_check` disponible, sauf en `[REVIEW:single]`) : `wiki_check` avec `base` et `head` de 2a (non commité : `base` seul ; diff collé : `paths` = le périmètre). Chaque `drift_confirmed` ou `drift_god_node` → finding 🟡 « Documentation » sur `docs/wiki/<page>:<ligne>`, avec le fichier en cause.
@@ -125,9 +125,9 @@ Dans cet ordre, une étape après l'autre. ⛔ **Aucun `read` d'un fichier de co
 
 7. **Exploration ciblée** des changements non triviaux : imports et dépendances directes, tests existants du fichier (`grep`), consommateurs d'une interface ou d'un type public modifié et call sites d'une signature publique changée (5 fichiers au plus). ⚠️ **Budget : 10 fichiers lus au total**, par impact (interfaces publiques > logique métier > utilitaires).
 
-8. Les deux axes du `review-protocol` (axe 1 : la demande lue en 2e), puis sa calibration.
+8. Les deux axes du `review-protocol` (axe 1 : la demande lue en 2c), puis sa calibration.
 
-9. **Scope (OBLIGATOIRE avant le rapport) :** chaque finding 🔴/🟠/🟡, sauf ceux de la vérification et de l'axe documentation, pointe un fichier du périmètre (2c) et une ligne d'une hunk modifiée, sinon il passe en `🔍 Hors scope` ; un finding ≤ 2/5 n'est jamais 🔴/🟠.
+9. **Scope (OBLIGATOIRE avant le rapport) :** chaque finding 🔴/🟠/🟡, sauf ceux de la vérification et de l'axe documentation, pointe un fichier du périmètre (2d) et une ligne d'une hunk modifiée, sinon il passe en `🔍 Hors scope` ; un finding ≤ 2/5 n'est jamais 🔴/🟠.
 
 10. **Rapport** au format du `review-protocol` (Walkthrough → Résumé → Périmètre → Vérification → Axe 1 conformité → Axe 2 qualité [🔴→🟠→🟡] → Observations [💡→✅→🔍]), puis sa checklist d'auto-vérification, corrigée si besoin.
 

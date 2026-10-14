@@ -544,7 +544,7 @@ func TestCapabilities(t *testing.T) {
 			}
 		}
 		// Every unlocked operation has a member able to run it.
-		probe := map[string]string{sessionspec.UnlockCommit: "git commit -m x", sessionspec.UnlockClose: "bd close x", sessionspec.UnlockCreate: "bd create x"}
+		probe := map[string]string{sessionspec.UnlockCommit: `git commit -m "x"`, sessionspec.UnlockClose: "bd close x", sessionspec.UnlockCreate: "bd create x"}
 		for _, c := range wf.Checkpoints {
 			for _, op := range c.Unlocks {
 				cmd, ok := probe[op]

@@ -127,7 +127,7 @@ Avant un finding « qualité du code », « convention » ou « pattern » :
 
 ## Contexte Beads
 
-Ticket fourni ou mentionné → `bd show <ID>` avant les deux axes (lecture seule) : fonctionnalité attendue, critères d'acceptance (tous implémentés et testés ?), notes techniques. Échec de `bd show` → « Ticket Beads non accessible — review sans contexte ticket » dans `### Périmètre et contexte`, sans tableau de couverture ; ticket sans critères → pas de tableau, et 💡 « Le ticket ne définit pas de critères d'acceptance — impossible de vérifier la conformité spec ».
+Ticket fourni ou mentionné → `bd show <ID>` avant les deux axes (lecture seule) : fonctionnalité attendue, critères d'acceptance (tous implémentés et testés ?), notes techniques. `bd show` lancé et en échec (jamais supposé sans l'avoir lancé) → « Ticket Beads non accessible — review sans contexte ticket » dans `### Périmètre et contexte`, sans tableau de couverture ; ticket sans critères → pas de tableau, et 💡 « Le ticket ne définit pas de critères d'acceptance — impossible de vérifier la conformité spec ».
 
 ## Mode « Audit complet »
 
@@ -152,7 +152,7 @@ Rapport de review complet toujours produit, même propre : au minimum `### Walkt
 <!-- /oh:when -->
 6. [ ] **Résumé factuel** — résumé et walkthrough décrivent le diff, pas l'état général du code
 7. [ ] **Cohérence score/sévérité** — aucun finding ≤ 2/5 n'est 🔴 ou 🟠
-8. [ ] **Deux axes** — `### Axe 1 — Conformité à la demande` (un statut ✅/⚠️/❌ par critère, ajouts non demandés, ou « non vérifiable » et sa raison) et `### Axe 2 — Qualité du code` présents ; chaque finding dans un seul axe
+8. [ ] **Deux axes** — `### Axe 1 — Conformité à la demande` (un statut ✅/⚠️/❌ par critère, ajouts non demandés, ou « non vérifiable » et sa raison) et `### Axe 2 — Qualité du code` présents ; chaque finding dans un seul axe ; ticket cité sans `bd show` lancé → lance-le maintenant et refais l'axe 1
 
 <!-- oh:when !wiki -->
 Sans wiki (projet non onboardé), `### Périmètre et contexte` DOIT contenir :

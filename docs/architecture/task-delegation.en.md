@@ -310,7 +310,7 @@ The caller reads the envelope with its coordinator posture (`posture/coordinator
 
 ### Mechanism
 
-A subagent never calls `question`. A decision that blocks it goes into the `### Questions bloquantes` of its envelope (status `en-attente`) and it stops. The caller:
+A subagent never calls `question`: an agent with no entry role in the workflow (the planner of `spec` and `cadrage`, the pathfinder of `feature`…) does not get the tool (`question` refused on `*`, last of its rules: opencode does not give the tool to the model); an entry agent that another agent may also launch (the reviewer of `review`) keeps it. A decision that blocks it goes into the `### Questions bloquantes` of its envelope (status `en-attente`) and it stops. The caller:
 
 1. shows the context to the user (or, when it is a subagent itself, puts the question in its own envelope);
 2. asks the question with the `question` tool;

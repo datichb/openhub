@@ -45,6 +45,9 @@ func TestWritesPlannerOfSpec(t *testing.T) {
 			"git add -- docs/wiki/specs/percent.md",
 			`git commit -m "docs(spec): percent" -- docs/wiki/specs/percent.md`,
 			`git add docs/wiki/specs/percent.md && git commit -m "docs(spec): percent" -- docs/wiki/specs/percent.md`,
+			`git commit -m 'docs(spec): percent' -- docs/wiki/specs/percent.md`,
+			`git commit -m "docs(spec): l'API de calcul" -- docs/wiki/specs/team/auth.md`,
+			`git commit -m "docs(spec): percent" -- docs/wiki/specs/`,
 		} {
 			assert.Equal(t, sessionspec.EffectAllow, writesShell(p, cmd), "%s (plugin %v)", cmd, plugin)
 		}
@@ -58,6 +61,29 @@ func TestWritesPlannerOfSpec(t *testing.T) {
 			"git add .", "git add -A", "git add calc.go", "git add docs/wiki/specs/percent.md .",
 			"git add -f docs/wiki/specs/percent.md",
 			"git push", "git checkout docs/wiki/specs/percent.md", "rm docs/wiki/specs/percent.md",
+			// p4-fixes: only the declared paths, before or after `--`
+			"git commit -m x src/a.go -- docs/wiki/specs/x.md",
+			`git commit -m "x" src/a.go -- docs/wiki/specs/x.md`,
+			`git commit -m "x" src/a.go "" -- docs/wiki/specs/x.md`,
+			`git commit -m 'x' src/a.go '' -- docs/wiki/specs/x.md`,
+			`git commit -m "x" src/a.go ' "' -- docs/wiki/specs/x.md`,
+			`git commit -m "x" -m "y" src/a.go -- docs/wiki/specs/x.md`,
+			`git commit -m "x" ':(glob)**' -- docs/wiki/specs/x.md`,
+			`git commit -m "x" -p -- docs/wiki/specs/x.md`,
+			`git commit -m "x" --pathspec-from-file=list -- docs/wiki/specs/x.md`,
+			`git commit --pathspec-from-file=list -m "x" -- docs/wiki/specs/x.md`,
+			`git commit -m "x" -- docs/wiki/specs/x.md src/a.go`,
+			`git commit -m "x" -- docs/wiki/specs/x.md docs/wiki/specs/y.md`,
+			`git commit -m "x" -- docs/wiki/specs/../../src/a.go`,
+			`git commit -m "x" -- docs/wiki/specs/\.\./\.\./src/a.go`,
+			`git commit -m "x" -- docs/wiki/specs/'..'/../src/a.go`,
+			`git commit -m "x" -- docs/wiki/specs/$(echo a)`,
+			`git commit -m "x" -- docs/wiki/specs/x.md>src/a.go`,
+			`git commit -m "x" -- ':(top)src/a.go'`,
+			`git commit -m "x" -- src/a.go`,
+			"git add docs/wiki/specs/x.md src/a.go", "git add -- docs/wiki/specs/x.md src/a.go",
+			"git add docs/wiki/specs/../../src/a.go", "git add docs/wiki/specs/x.md	src/a.go",
+			"git add ':(glob)**'", "git add --pathspec-from-file=list",
 		} {
 			assert.Equal(t, sessionspec.EffectDeny, writesShell(p, cmd), "%s (plugin %v)", cmd, plugin)
 		}

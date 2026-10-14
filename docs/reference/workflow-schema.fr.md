@@ -336,7 +336,8 @@ E8 (R4) : un agent qui ne modifie aucun fichier (le `planner`) peut écrire les 
 | Action | Règle |
 |---|---|
 | `edit`, `write` | les chemins déclarés (`docs/wiki/specs/**` devient `docs/wiki/specs/*`) |
-| shell | `git add [--] <chemin>` et `git commit -m <message> -- <chemin>` : seuls ces chemins sont commités |
+| shell | `git add [--] <chemin>` et `git commit -m "<message>" -- <chemin>` (message entre guillemets, un seul chemin déclaré ou son dossier) : seuls ces chemins sont commités |
+| shell, refusé (p4-fixes) | tout autre chemin, avant ou après `--` : argument entre le message et `--` (`-m x src/a.go -- …`, `-p`, `--pathspec-from-file`, `:(glob)…`, détecté par un guillemet de plus que le message), second chemin, `..`, `/.`, guillemet, `$`, accent grave ou redirection après le dossier déclaré ; un message qui contient lui-même un guillemet de son type est refusé aussi |
 | shell, refusé | `git commit --amend`, `-a`/`--all`, `--include`/`-i`, `--only`/`-o`, `-C`, `git add -A`/`--all`/`-u`/`.`/`-f` (ils prendraient le travail de l'utilisateur) |
 
 - Le commit reste verrouillé jusqu'au checkpoint qui le déverrouille (`unlocks: [commit]`) ; les gardes d'oh (`.git/`, `.beads/`, hooks, `--no-verify`, brouillons, garde globale) passent après et gagnent. Comme les autres gardes, des règles sur le texte brut des commandes : un garde-fou, pas un bac à sable.
