@@ -65,6 +65,10 @@ type Session struct {
 	// unused (v43). False for the sessions recorded before (unknown).
 	WorktreeAuto   bool
 	WorktreeBranch string
+
+	// Fanout is the fan-out record of the session (R6, v46): parent, child
+	// or merger; written by oh only (SessionFanoutStore).
+	Fanout *SessionFanout
 }
 
 // RunState is the fine-grained lifecycle of a v5 session.

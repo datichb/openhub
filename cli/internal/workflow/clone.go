@@ -25,6 +25,7 @@ func (s *Spec) Clone() *Spec {
 		return in
 	})
 	c.Prompt = clonePtr(s.Prompt)
+	c.Fanout = s.Fanout.clone() // R6
 	c.Agents = s.Agents.cloneWith(func(a AgentRef) AgentRef {
 		a.Calls = cloneSlice(a.Calls)
 		a.Writes = cloneSlice(a.Writes)

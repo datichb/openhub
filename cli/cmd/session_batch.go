@@ -1,0 +1,89 @@
+package cmd
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"strings"
+	"text/tabwriter"
+
+	"github.com/spf13/cobra"
+
+	"github.com/datichb/openhub/cli/internal/domain"
+	"github.com/datichb/openhub/cli/internal/i18n"
+	sessionsvc "github.com/datichb/openhub/cli/internal/services/session"
+)
+
+// Validation by batch (R6, CP-R6): `oh session approve --batch` lists the
+// checkpoints waiting (one line each: decision, session, checkpoint,
+// summary, verification by oh), then answers them one by one; --except
+// leaves one waiting, --reject refuses one, --dry-run only lists.
+
+func runApproveBatch(cmd *cobra.Command, svc *sessionsvc.Service) error {
+	ctx := cmd.Context()
+	sel := sessionsvc.BatchSelection{Reject: map[string]string{}}
+	sel.Sessions, _ = cmd.Flags().GetStringArray("session")
+	sel.Checkpoints, _ = cmd.Flags().GetStringSlice("checkpoint")
+	sel.Except, _ = cmd.Flags().GetStringArray("except")
+	rejects, _ := cmd.Flags().GetStringArray("reject")
+	for _, r := range rejects {
+		id, msg, _ := strings.Cut(r, "=")
+		sel.Reject[strings.TrimSpace(id)] = strings.TrimSpace(msg)
+	}
+	if parent, _ := cmd.Flags().GetString("fanout"); parent != "" {
+		sess, err := svc.Resolve(ctx, parent)
+		if err != nil {
+			return sessionRefError(parent, err)
+		}
+		sel.Sessions = append(append(sel.Sessions, sess.ID), fanoutChildren(ctx, MustApp(), sess.ID)...)
+	}
+	items, err := svc.Inbox(ctx, domain.DecisionFilter{})
+	if err != nil {
+		return err
+	}
+	batch := sessionsvc.SelectBatch(items, sel)
+	w := cmd.OutOrStdout()
+	if len(batch) == 0 {
+		fmt.Fprintln(w, i18n.T("cmd.session.batch.empty"))
+		return nil
+	}
+	dry, _ := cmd.Flags().GetBool("dry-run")
+	if !dry {
+		batch = sessionsvc.ApplyBatch(ctx, batch, func(ctx2 context.Context, r sessionsvc.Reply) error { return decisionError(svc.Decide(ctx2, r)) })
+	}
+	tw := tabwriter.NewWriter(w, 2, 4, 2, ' ', 0)
+	fmt.Fprintln(tw, i18n.T("cmd.session.batch.header"))
+	failed := 0
+	for _, it := range batch {
+		verify := "—"
+		if svc.Checkpoints != nil {
+			if r, ok := svc.Checkpoints.VerifyResult(ctx, it.Decision.SessionID, it.Checkpoint); ok {
+				verify = string(r.Status)
+			}
+		}
+		result := i18n.T("cmd.session.batch." + string(it.Action))
+		if dry {
+			result = i18n.Tf("cmd.session.batch.dry", result)
+		}
+		if it.Error != "" {
+			result, failed = i18n.Tf("cmd.session.batch.failed", it.Error), failed+1
+		}
+		fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\t%s\n", it.Decision.ID, it.Decision.SessionID, it.Checkpoint,
+			truncate(sessionsvc.DecisionSummary(it.Decision), 60), verify, result)
+	}
+	if err := tw.Flush(); err != nil {
+		return err
+	}
+	if failed > 0 {
+		return errors.New(i18n.Tf("cmd.session.batch.some_failed", failed, len(batch)))
+	}
+	return nil
+}
+
+func truncate(s string, n int) string {
+	r := []rune(s)
+	if len(r) <= n {
+		return s
+	}
+	return string(r[:n-1]) + "…"
+}

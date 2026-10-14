@@ -169,7 +169,7 @@ func verifyDir(sess *domain.Session, v *sessionspec.VerifyDef) string {
 // run where the work of sess is (R3-remote): the checkpoint then waits for
 // the user in every mode, and passes only overridden (traced).
 func verifyBlocked(sess *domain.Session, c sessionspec.CheckpointDef) bool {
-	return c.Verify != nil && verifyDir(sess, c.Verify) == ""
+	return c.Verify != nil && verifyDir(verifySession(sess, c), c.Verify) == ""
 }
 
 // unavailable is the result of a verification that cannot run.
@@ -192,6 +192,7 @@ func (s *Service) StartVerify(sess *domain.Session, c sessionspec.CheckpointDef)
 	if c.Verify == nil || s.States == nil {
 		return
 	}
+	sess = verifySession(sess, c) // R6: on the integration branch
 	ctx := context.Background()
 	if verifyBlocked(sess, c) {
 		s.recordUnavailable(ctx, sess.ID, c, unavailable())
@@ -231,6 +232,7 @@ func (s *Service) recordUnavailable(ctx context.Context, sessionID string, c ses
 // work, running it when needed and waiting at most wait for its end
 // (ErrVerifyPending after that).
 func (s *Service) verification(ctx context.Context, sess *domain.Session, c sessionspec.CheckpointDef, wait time.Duration) (domain.CheckpointVerify, error) {
+	sess = verifySession(sess, c) // R6: on the integration branch
 	if verifyBlocked(sess, c) {
 		return s.recordUnavailable(ctx, sess.ID, c, unavailable()), nil
 	}

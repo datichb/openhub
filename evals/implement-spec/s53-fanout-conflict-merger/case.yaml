@@ -1,0 +1,62 @@
+id: S53
+title: "Implement-spec en fan-out : deux tickets qui changent la même ligne, lancés en même temps ; le merge du second est en conflit, le merger le résout en gardant les deux changements, oh vérifie et merge"
+workflow: implement-spec
+mode: semi-auto
+inputs: { fanout: "true" }
+tickets: [ev-1, ev-2]
+fanout: { parallel: 2 }
+beads:
+  prefix: ev
+  tickets:
+    - id: ev-1
+      title: "Format : toujours deux décimales"
+      type: feature
+      labels: [ai-delegated]
+      description: "prix.Format(p) affiche le prix tel quel (%v). Il doit toujours afficher deux décimales, arrondies : 1234.5 → 1234.50, 9.999 → 10.00. Modifie la ligne de mise en forme de Format dans prix.go, ajoute ton test dans decimales_test.go."
+      acceptance: "Format(1234.5) commence par 1234.50 ; Format(9.999) commence par 10.00 ; go test ./... passe."
+    - id: ev-2
+      title: "Format : suffixe de devise"
+      type: feature
+      labels: [ai-delegated]
+      description: "prix.Format(p) doit finir par la devise, séparée par un espace : « 12 € ». Modifie la ligne de mise en forme de Format dans prix.go, ajoute ton test dans devise_test.go."
+      acceptance: "Format(12) finit par \" €\" ; go test ./... passe."
+timeout: 50m
+budget_usd: 2.5
+answers:
+  checkpoints:
+    "*": approve
+  question: first
+# R6 : les deux enfants partent de la même base et changent la même ligne
+# de prix.go : le second merge est en conflit ; oh lance le merger dans le
+# worktree d'intégration, qui garde les deux changements (« 1234.50 € ») ;
+# oh vérifie le résultat (merge commité, aucun marqueur) avant cp-merge.
+assertions:
+  - type: checkpoint_order
+    order: [cp-plan, cp-merge, cp-final]
+  - type: fanout
+    name: un conflit relevé par oh
+    event: conflict
+  - type: fanout
+    name: le merger lancé par oh
+    event: merger
+  - type: fanout
+    name: le conflit résolu par le merger
+    event: resolved
+  - type: fanout
+    name: branche d'intégration mergée par oh à cp-merge
+    event: integrated
+  - type: fanout
+    name: les deux tickets fermés par oh
+    event: closed
+    count: 2
+  - type: ran
+    name: la session parente ne commite rien
+    command: "git commit*"
+    absent: true
+  - type: file_matches
+    name: aucun marqueur de conflit
+    paths: ["prix.go"]
+    pattern: "(?m)^(<<<<<<<|>>>>>>>) "
+    absent: true
+  - type: hidden_tests
+  - type: no_denied_loop

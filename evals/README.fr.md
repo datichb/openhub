@@ -46,6 +46,7 @@ hidden_tests: "go test ./..."   # défaut : selon la stack (go.mod, package.json
 reports: off                # le démon ne garde aucun rapport : workflow_report répond « non enregistré »
 previous:                   # sessions terminées du projet, enregistrées avant le lancement (sources session.output)
   - { workflow: spec, outputs: { tickets: [ev-1], spec: docs/wiki/specs/x.md } }
+fanout: { parallel: 2 }     # fan-out (R6) : le passage active le fan-out ; assertion fanout (événements du fan-out, checkpoints des enfants)
 ```
 
 Les ancres `before:` désignent le premier événement de la trace qui correspond : `checkpoint` (atteint), `checkpoint_passed`, `subagent`, `tool` (avec `arg`, motif du chemin ou de la commande), `text` (expression régulière), `command` (motif shell), restreints à un agent avec `agent`. Les motifs shell acceptent `*` et vérifient aussi chaque partie d'une commande enchaînée (`cd x && go test ./...`).
@@ -106,6 +107,8 @@ Les assertions sont décrites dans la [référence d'`oh eval`](../docs/referenc
 | S49 | spike | encoding/csv sans `LazyQuotes` ne lit pas le relevé réel (guillemet nu) : décision kill écrite sous `docs/wiki/decisions/` avec sa raison, prototype jetable supprimé (vérifié par oh), seule la décision commitée après `cp-decision` |
 | S50 | spike | Décision go corrigée en clarify à `cp-decision` : le fichier est réécrit avec la raison, garde ses constats sourcés (`proxy_read_timeout 60s`, délai de 45 s de l'appelant) et n'est commité qu'après la seconde validation |
 | S51 | spike | `t.Parallel` partout ? `os.Setenv` et `os.Chdir` dans deux tests : kill, les deux fichiers cités, aucun test modifié |
+| S52 | implement-spec | Fan-out (`fanout=true`) : deux tickets indépendants, une session enfant chacun en même temps ; le `cp-2` de chaque enfant passe par délégation (CP-R3), oh merge les deux branches, `cp-merge` validé, oh merge la branche d'intégration et ferme les deux tickets ; la session parente ne commite ni ne ferme rien ; tests cachés |
+| S53 | implement-spec | Fan-out : deux tickets qui changent la même ligne, lancés en même temps ; le merge du second est en conflit, le `merger` lancé par oh garde les deux changements, oh vérifie le résultat ; aucun marqueur, tests cachés |
 
 `cadrage` est un alias de `spec` depuis R5 : les cas S5, S15, S19 et S27 (dossier `cadrage/`) lancent `spec`, et S27 passe par l'exploration du pathfinder qui précède l'entretien quand la demande compare des conceptions.
 

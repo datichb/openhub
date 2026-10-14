@@ -103,13 +103,21 @@ func since(t time.Time) string {
 }
 
 var sessionApproveCmd = &cobra.Command{
-	Use:   "approve <session-id|decision-id>",
-	Short: "Répond à une permission (ou à un checkpoint) en attente, sans attacher la session",
-	Args:  cobra.ExactArgs(1),
+	Use:   "approve <session-id|decision-id> | --batch [--fanout <session>] [--checkpoint cp-2,cp-merge] [--except <id>] [--reject <id>[=message]] [--dry-run]",
+	Short: "Répond à une permission (ou à un checkpoint) en attente, sans attacher la session ; --batch valide plusieurs checkpoints d'un coup",
+	Args: func(cmd *cobra.Command, args []string) error {
+		if batch, _ := cmd.Flags().GetBool("batch"); batch {
+			return cobra.MaximumNArgs(0)(cmd, args)
+		}
+		return cobra.ExactArgs(1)(cmd, args)
+	},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		svc, err := sessionService(cmd)
 		if err != nil {
 			return err
+		}
+		if batch, _ := cmd.Flags().GetBool("batch"); batch {
+			return runApproveBatch(cmd, svc)
 		}
 		d, err := svc.Pick(cmd.Context(), args[0], domain.DecisionPermission, domain.DecisionCheckpoint)
 		if err != nil {
@@ -438,6 +446,14 @@ func init() {
 	sessionInboxCmd.Flags().Bool("json", false, "Sortie JSON")
 	sessionApproveCmd.Flags().String("decision", "once", "once | always | reject ; checkpoint : once (valider) | fix (corriger d'abord) | other (autre consigne) | reject — fix/other exigent -m")
 	sessionApproveCmd.Flags().StringP("message", "m", "", "Message transmis à l'agent")
+	// R6, CP-R6: validation by batch.
+	sessionApproveCmd.Flags().Bool("batch", false, "Valider d'un coup les checkpoints en attente (chacun listé ; --except le laisse en attente, --reject le refuse)")
+	sessionApproveCmd.Flags().StringArray("session", nil, "Avec --batch : seulement ces sessions (répétable)")
+	sessionApproveCmd.Flags().String("fanout", "", "Avec --batch : la session parente d'un fan-out et ses sessions enfants")
+	sessionApproveCmd.Flags().StringSlice("checkpoint", nil, "Avec --batch : seulement ces checkpoints (cp-2,cp-merge)")
+	sessionApproveCmd.Flags().StringArray("except", nil, "Avec --batch : décision laissée en attente (répétable)")
+	sessionApproveCmd.Flags().StringArray("reject", nil, "Avec --batch : décision refusée, id ou id=message (répétable)")
+	sessionApproveCmd.Flags().Bool("dry-run", false, "Avec --batch : lister sans répondre")
 	sessionAnswerCmd.Flags().StringArray("field", nil, "Réponse clé=valeur (répétable ; liste : a,b)")
 	sessionSendCmd.Flags().Bool("synthetic", false, "Message d'oh (non utilisateur)")
 	sessionSendCmd.Flags().Bool("queue", false, "Après l'étape en cours (au lieu de la prochaine étape)")

@@ -46,6 +46,7 @@ hidden_tests: "go test ./..."   # default: by stack (go.mod, package.json, pypro
 reports: off                # the daemon keeps no report: workflow_report answers "not recorded"
 previous:                   # finished sessions of the project, recorded before the launch (session.output sources)
   - { workflow: spec, outputs: { tickets: [ev-1], spec: docs/wiki/specs/x.md } }
+fanout: { parallel: 2 }     # fan-out (R6): the pass enables the fan-out; fanout assertion (fan-out events, checkpoints of the children)
 ```
 
 The `before:` anchors name the first matching event of the trace: `checkpoint` (reached), `checkpoint_passed`, `subagent`, `tool` (with `arg`, a pattern of the path or command), `text` (regular expression), `command` (shell pattern), restricted to an agent with `agent`. Shell patterns accept `*` and also check each part of a chained command (`cd x && go test ./...`).
@@ -106,6 +107,8 @@ The assertions are described in the [`oh eval` reference](../docs/reference/cli-
 | S49 | spike | encoding/csv without `LazyQuotes` cannot read the real statement (bare quote): kill decision written under `docs/wiki/decisions/` with its reason, throwaway prototype deleted (checked by oh), only the decision committed after `cp-decision` |
 | S50 | spike | Go decision corrected to clarify at `cp-decision`: the file is rewritten with the reason, keeps its sourced findings (`proxy_read_timeout 60s`, the caller's 45 s deadline) and is only committed after the second approval |
 | S51 | spike | `t.Parallel` everywhere? `os.Setenv` and `os.Chdir` in two tests: kill, both files cited, no test changed |
+| S52 | implement-spec | Fan-out (`fanout=true`): two independent tickets, one child session each at the same time; the `cp-2` of each child passes by delegation (CP-R3), oh merges both branches, `cp-merge` validated, oh merges the integration branch and closes both tickets; the parent session commits nor closes anything; hidden tests |
+| S53 | implement-spec | Fan-out: two tickets that change the same line, launched at the same time; the merge of the second conflicts, the `merger` launched by oh keeps both changes, oh checks the result; no marker, hidden tests |
 
 `cadrage` is an alias of `spec` since R5: cases S5, S15, S19 and S27 (folder `cadrage/`) launch `spec`, and S27 goes through the exploration by the pathfinder that precedes the interview when the request compares designs.
 

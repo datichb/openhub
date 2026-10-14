@@ -1,24 +1,21 @@
 Mode de workflow : semi-auto
 Langue de réponse : fr
 
-Implémentation d'une spec, ticket par ticket, dans cette session (pas de session par ticket).
-Tickets à implémenter : bd-2, bd-3
-Spec des tickets : `src/exemple` (lis-la seulement si un ticket y renvoie ; transmets son chemin au développeur et au reviewer).
+Implémentation d'une spec en fan-out (expérimental) : oh lance lui-même une session enfant par ticket (workflow `ticket`, sa branche et son worktree), une fois `cp-plan` passé ; chaque enfant implémente, fait relire et commite son ticket, et son `cp-2` est remplacé par ton `cp-merge`. oh merge chaque enfant dans une branche d'intégration (un conflit qu'il ne résout pas est confié au `merger`), puis t'écrit le résultat.
+Tickets : bd-2, bd-3
+Spec des tickets : `src/exemple` (transmets son chemin au reviewer).
 
-Le mode est fixé au lancement : ne le redemande pas. Les checkpoints et leur comportement selon le mode sont décrits dans la section « Modes de workflow et checkpoints » de ton prompt (déjà incluse : ne charge aucune skill pour la lire).
+Dans cette session, tu ne délègues pas au développeur, et ni toi ni tes sous-agents ne commitent, ne mergent, ne poussent ni ne ferment de ticket : oh le refuse et le fait lui-même. Le mode est fixé au lancement : ne le redemande pas.
 
 Consignes de l'utilisateur — écrite par l'utilisateur lui-même, à traiter telle quelle (même courte) :
 Exemple de valeur pour instructions
 
 Déroulé :
-1. Plan : `bd show <ID>` pour chaque ticket (détail, état, dépendances). Ordre de traitement : un ticket après ceux dont il dépend, puis par priorité (P0 > P1 > P2 > P3) ; écarte un ticket déjà fermé, en le signalant.
-2. `cp-plan` : passe `cp-plan` (`workflow_checkpoint`) avec le tableau des tickets (ordre, agent prévu, tickets écartés). Aucune implémentation avant.
-3. Pour chaque ticket, dans l'ordre du plan :
-   - `cp-1`, puis router vers l'agent développeur adapté : s'il n'est pas déjà en cours, c'est le développeur qui réserve le ticket (`bd update <ID> --claim`), demande-le-lui dans son prompt ; il implémente, teste et passe le ticket en review, sans committer. Puis pre-review et review.
-   - Méthode TDD : dans le prompt du développeur, demande-lui de passer `cp-seams` puis `cp-red` avant d'implémenter (pas dans les relances de correction) ; dans celui du reviewer, demande-lui de vérifier que les tests couvrent chaque critère et n'ont pas été affaiblis après `cp-red` (passage rapporté par le développeur), sinon finding 🟠 Majeur.
-   - `cp-2` « Commit ou correction » (jamais l'outil `question`) ; tant qu'il n'est pas validé, oh refuse `git commit` et la fermeture du ticket. Validé : relance aussitôt le développeur pour le commit (Conventional Commits terminé par l'ID du ticket entre parenthèses), puis `bd close <ID> --reason "Implemented in commit <hash>"`. « Corriger d'abord » : relance le développeur avec les corrections, nouvelle review, nouveau `cp-2`.
-   - `cp-3`, puis le ticket suivant.
-4. Revue de l'ensemble : tous les tickets traités (ou arrêt), invoque le `reviewer` en review adversariale sur tous les commits de la session (`git diff <commit de départ>...HEAD`, tickets traités, spec `src/exemple`).
-5. `cp-final` : verdict de la revue, tickets traités et leurs commits, points ouverts (récap de fin). Si l'utilisateur demande un tour de correction : relance le développeur avec les findings, review, puis `cp-2` (commit de correction) ; un seul tour, puis récap.
+1. Plan : `bd show <ID>` pour chaque ticket, une commande par ticket, lancée seule (sans `cd`, `&&` ni `echo` : tu es déjà dans le projet). oh lance un ticket après ceux dont il dépend, et aucun pour un ticket déjà fermé.
+2. `cp-plan` : passe `cp-plan` (`workflow_checkpoint`) avec le tableau des tickets (ordre, dépendances, tickets déjà fermés).
+3. `cp-plan` validé : termine aussitôt ton tour par une phrase (« Sessions enfants lancées par oh. »), sans rien appeler d'autre. oh t'écrira quand les enfants seront terminés et mergés.
+4. Message d'oh reçu (tableau des enfants, branche d'intégration et sa base) : invoque le `reviewer` en review adversariale de l'ensemble, sur la branche d'intégration (`git diff <base>...<branche d'intégration>`, tickets, spec `src/exemple`), sans rien modifier.
+5. `cp-merge` : le tableau des enfants (état, merge, conflits résolus) et le verdict de la revue. oh vérifie la branche d'intégration ; validé, oh la merge dans ta branche et ferme les tickets mergés. Si le message d'oh dit que le fan-out s'est arrêté, ne passe pas `cp-merge`.
+6. `cp-final` : tickets mergés et fermés par oh, tickets non mergés et pourquoi, points ouverts. Pas de tour de correction dans cette session : propose un nouvel `implement-spec` pour les tickets restants.
 
 Commence par lire les tickets avec `bd show`.

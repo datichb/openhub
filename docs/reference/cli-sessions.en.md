@@ -19,7 +19,8 @@ This page covers **v5 session management** (`oh session …`), **restrictions** 
 | [`oh session inbox`](#oh-session-inbox) | Pending decisions of every session |
 | [`oh session attach`](#oh-session-attach) | Open the interface of a session (resumes a sleeping session) |
 | [`oh session follow`](#oh-session-follow) | Follow a session live, read-only |
-| [`oh session approve`](#oh-session-approve) | Answer a permission or a checkpoint |
+| [`oh session approve`](#oh-session-approve) | Answer a permission or a checkpoint; `--batch`: several checkpoints at once |
+| [`oh fanout`](#oh-fanout) | Fan-out (experimental): state and driver of the child sessions |
 | [`oh session answer`](#oh-session-answer) | Answer a question of the agent |
 | [`oh session dismiss`](#oh-session-dismiss) | Dismiss an alert (error, circuit breaker, budget) |
 | [`oh session send`](#oh-session-send) | Send a short instruction |
@@ -107,6 +108,34 @@ oh session approve 7f3a                                  # permission or checkpo
 oh session approve dec_91 --decision reject
 oh session approve 7f3a --decision fix -m "Add the tests first"
 ```
+
+**Validation by batch** (CP-R6): `oh session approve --batch` lists the waiting checkpoints (decision, session, checkpoint, summary, result of the verification run by oh) then approves them one by one, each through the same path as a single approval (a failed verification refuses that one only, which stays waiting; the command ends in error and says so).
+
+| Flag | Type | Description |
+|------|------|-------------|
+| `--batch` | bool | Approve at once the waiting checkpoints of the selection |
+| `--session` | string (repeatable) | Only these sessions |
+| `--fanout` | string | The parent session of a fan-out and its child sessions (and merger) |
+| `--checkpoint` | list | Only these checkpoints (`cp-2,cp-merge`) |
+| `--except` | string (repeatable) | Decision left waiting |
+| `--reject` | string (repeatable) | Decision refused: `id` or `id=instruction` |
+| `--dry-run` | bool | List without answering |
+
+```bash
+oh session approve --batch --fanout ses_ab12 --dry-run
+oh session approve --batch --checkpoint cp-2 --except checkpoint:ses_x:per_3 --reject checkpoint:ses_y:per_7="Add the error test"
+```
+
+### oh fanout
+
+```
+oh fanout status <session> [--json]
+oh fanout drive <session>
+```
+
+Experimental fan-out (`[fanout] experimental = true`, [guide](../guides/fan-out.en.md)). `status`: integration branch and its worktree, each child session (ticket, state `pending`, `running`, `merged`, `conflict`, `failed`, `budget`, session, merge commit, detail), global budget spent and last events; for a child session or a merger, its parent session, its ticket and its branch. `drive`: drives the fan-out of a parent session (launches the child sessions once `cp-plan` is passed, follows them, merges them, launches the merger on a conflict, then tells the parent session); `oh run` starts it in the background (log `~/.oh/sessions/<session>/fanout.log`), start it again if it stopped: it goes on where it was. One driver per fan-out.
+
+In `oh session list` and the TUI, a child session is marked `↳` (with its ticket), a merger `↳ … (merge <ticket>)`, a parent session `⑂`; `oh session list --json` gives the `fanout` record. `oh session trace` of the parent holds the events of the fan-out and the checkpoints passed in each child (`fanout` events, `child_checkpoint` with `by: delegated` for a delegated `cp-2`).
 
 ### oh session answer
 

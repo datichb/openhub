@@ -60,6 +60,7 @@ func WorkflowRuntime(s *workflow.Spec) *sessionspec.WorkflowRuntime {
 	}
 	rt.Scratch = scratchDefs(s)
 	applyCheckpointVerify(rt, s)
+	rt.Fanout = fanoutDef(s)
 	return rt
 }
 

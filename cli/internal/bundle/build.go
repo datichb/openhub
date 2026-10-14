@@ -86,6 +86,10 @@ type Request struct {
 	// Method is the method of the session (R7, input `method`; "" =
 	// standard): the bundle keeps the checkpoints of this method only.
 	Method workflow.Method
+
+	// Fanout makes the bundle the one of a fan-out session (R6): the
+	// fan-out checkpoints kept, the checkpoints the children pass dropped.
+	Fanout bool
 }
 
 // loadedPlugins returns the ids of the plugins of the session.
@@ -116,6 +120,7 @@ func Build(req Request) (*Bundle, error) {
 		return nil, fmt.Errorf("bundle: a workflow (Spec) is required")
 	}
 	req.applyMethod()
+	req.Spec = req.Spec.ForFanout(req.Fanout && req.Spec.Fanout != nil)
 	if err := req.applySpec(); err != nil {
 		return nil, err
 	}

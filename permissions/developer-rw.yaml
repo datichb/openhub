@@ -1,7 +1,7 @@
 # Permission base: developer-rw
 # Full read/write development permissions with safe git operations.
 # The agent adds its own commands in its frontmatter (DB migrations).
-# Used by: developer
+# Used by: developer, merger
 # question : agent d'entrée de quick ; oh le refuse au developer sous-agent
 # (ticket, feature, sweep…), comme à tout sous-agent pur.
 question: allow

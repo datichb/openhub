@@ -36,6 +36,13 @@ inputs:
     help:
       fr: "tdd : le développeur présente les points d'injection et les tests prévus (cp-seams), écrit d'abord des tests qui échouent, vérifiés par oh (cp-red), puis implémente"
       en: "tdd: the developer presents the seams and the planned tests (cp-seams), writes failing tests first, checked by oh (cp-red), then implements"
+  fanout:
+    type: bool
+    default: false
+    label: { fr: Sessions enfants (expérimental), en: Child sessions (experimental) }
+    help:
+      fr: "Une session enfant par ticket, chacune dans son worktree, mergées par oh dans une branche d'intégration et validées ensemble à cp-merge ([fanout] experimental = true)"
+      en: "One child session per ticket, each in its own worktree, merged by oh into an integration branch and validated together at cp-merge ([fanout] experimental = true)"
   instructions:
     type: text
     label: { fr: Consignes, en: Instructions }
@@ -46,7 +53,18 @@ inputs:
 prompt:
   template: prompts/implement-spec.md.tmpl
 # R5: sequential version (one ticket after the other, in the session's
-# worktree). Child sessions, parallelism and the merge by oh come with R6.
+# worktree). R6 (experimental, input fanout): one child session per ticket
+# (workflow ticket, its own worktree), merged by oh into an integration
+# branch; their cp-2 is replaced by cp-merge, verified by oh on that branch
+# (CP-R3, declared here, in the hub layer, only).
+fanout:
+  input: fanout
+  tickets: tickets
+  child: ticket
+  parallel: 3
+  merge: cp-merge
+  delegates: [cp-2]
+  merger: merge-conflicts
 agents:
   orchestrator-dev: { role: workflow }
   developer: { role: workflow, after: cp-1 }
@@ -63,6 +81,7 @@ checkpoints:
     mode: { manuel: pause, semi-auto: pause, auto: pause }
   cp-1:
     by: [orchestrator-dev]
+    fanout: never
     label: { fr: Démarrer le ticket, en: Start the ticket }
     description:
       fr: Présenter le ticket et l'agent prévu avant de lancer son implémentation.
@@ -71,6 +90,7 @@ checkpoints:
   cp-seams:
     by: [developer]
     method: tdd
+    fanout: never
     label: { fr: Points d'injection et tests prévus, en: Seams and planned tests }
     description:
       fr: "Méthode TDD, avant d'écrire un test : présenter les points d'injection, les interfaces et les tests prévus (comportement attendu, cas limites). Une fois par ticket."
@@ -79,6 +99,7 @@ checkpoints:
   cp-red:
     by: [developer]
     method: tdd
+    fanout: never
     label: { fr: Tests en échec, en: Failing tests }
     description:
       fr: "Méthode TDD, tests écrits et avant le code : oh vérifie que les tests échouent pour la bonne raison et que les changements depuis cp-seams sont des tests (et les seules amorces nécessaires). Une fois par ticket."
@@ -87,6 +108,7 @@ checkpoints:
     verify: { from: stack, expect: fail, must_touch_tests: true, outside_tests: warn, since: cp-seams }
   cp-2:
     by: [orchestrator-dev]
+    fanout: never
     label: { fr: Commit ou correction, en: Commit or fix }
     description:
       fr: Après la review du ticket, présenter le résultat et demander s'il faut committer ou corriger. Un ticket est commité puis fermé avant le suivant.
@@ -97,11 +119,23 @@ checkpoints:
     verify: { from: stack, expect: pass }
   cp-3:
     by: [orchestrator-dev]
+    fanout: never
     label: { fr: Ticket suivant, en: Next ticket }
     description:
       fr: Passer au ticket suivant du plan ou s'arrêter.
       en: Move on to the next ticket of the plan or stop.
     mode: { manuel: pause, semi-auto: auto, auto: auto }
+  cp-merge:
+    by: [orchestrator-dev]
+    fanout: only
+    label: { fr: Valider les merges, en: Approve the merges }
+    description:
+      fr: "Fan-out : les sessions enfants terminées et mergées par oh dans la branche d'intégration, la revue de l'ensemble faite — présenter le tableau des enfants (état, merge, conflits résolus par le merger) et le verdict de la revue. oh vérifie la branche d'intégration ; validé, oh la merge dans la branche de la session et ferme les tickets mergés. Remplace le cp-2 de chaque enfant."
+      en: "Fan-out: the child sessions done and merged by oh into the integration branch, the review of the whole done — present the table of the children (state, merge, conflicts resolved by the merger) and the verdict of the review. oh verifies the integration branch; once validated, oh merges it into the branch of the session and closes the merged tickets. Replaces the cp-2 of each child."
+    mandatory: true
+    mode: { manuel: pause, semi-auto: pause, auto: pause }
+    unlocks: [merge]
+    verify: { from: stack, expect: pass, on: integration }
   cp-final:
     by: [orchestrator-dev]
     label: { fr: Revue de l'ensemble et récap, en: Review of the whole and recap }

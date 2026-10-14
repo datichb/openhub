@@ -70,6 +70,7 @@ oh config set <key> <value>
 | Sessions | `session.attach` (`auto`, `iterm`, `terminal`, `tmux`, `browser`, `suspend`), `session.iterm_style` (`tab`, `split`, `window`), `session.idle_sleep_minutes` (1 à 1440), `session.notify` (`on`, `off`) |
 | Execution | `execution.runtime` (`local`, `container`), `execution.engine` (`auto`, `colima`, `podman`, `docker`), `execution.keep_images` (1 à 20), `execution.tool_version` (ex. `2.0.20`), `execution.strict_isolation` |
 | Restrictions | `limits.max_active_sessions`, `limits.session_budget_usd`, `limits.daily_budget_usd`, `limits.memory_mb`, `limits.models` (motifs separes par des virgules) ; `0` ou `off` retire la restriction (comme `oh budget set`) |
+| Fan-out | `fanout.experimental` (fan-out expérimental, `false` par défaut), `fanout.parallel` (1 à 3), `fanout.budget_usd` (budget global, dollars) |
 | Distant | `remote.experimental` (mode distant expérimental, `false` par défaut), `remote.projects.<id-projet>` (nom d'une cible existante), `remote.targets.<cible>.tag`, `.builder` (`kaniko`, `dind`), `.arch` (`amd64`, `arm64`), `.timeout` (duree GitLab : `3h`, `1h 30m`) ; les cibles se creent avec `oh remote setup` |
 
 Les valeurs par defaut (`auto`, `on`) sont enregistrees vides. `[[teams]]` se regle avec `oh team …`.

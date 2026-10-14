@@ -694,4 +694,12 @@ CREATE INDEX IF NOT EXISTS idx_wiki_proposals_status ON wiki_proposals(project_i
 DROP INDEX IF EXISTS idx_wiki_proposals_session;
 DROP TABLE IF EXISTS wiki_proposals`,
 	},
+	{
+		// Modernisation R6 (fan-out, experimental): the fan-out record of a
+		// session (parent, child or merger; children, integration branch,
+		// budget and events), JSON, written by oh only.
+		version: 46,
+		up:      `ALTER TABLE sessions ADD COLUMN fanout TEXT NOT NULL DEFAULT ''`,
+		down:    `ALTER TABLE sessions DROP COLUMN fanout`,
+	},
 }

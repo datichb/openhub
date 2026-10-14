@@ -68,6 +68,13 @@ type Service struct {
 	// nothing applied) and the proposals applied, for the timeline. sync:
 	// the checkpoint synchronizes the wiki (`wiki: sync`, doc-sync, LD-D).
 	CommitPassed func(ctx context.Context, sess *domain.Session, checkpoint string, sync bool) (message string, applied []string)
+
+	// R6 (fanout.go): Integrate merges the integration branch of the
+	// fan-out of sess into the branch of the session and closes the tickets
+	// merged, when its merge checkpoint is validated and verified, before
+	// the checkpoint is recorded as passed (nil: the merge checkpoint never
+	// passes). It returns the line for the agent.
+	Integrate func(ctx context.Context, sess *domain.Session, checkpoint string) (message string, err error)
 }
 
 // Errors.
@@ -106,6 +113,9 @@ type Status struct {
 	// LockedWrites lists the `writes:` paths still closed, with the
 	// checkpoint that opens them (r5-fixes, `writes_after`).
 	LockedWrites []sessionspec.WritesGate `json:"locked_writes,omitempty"`
+	// Fanout is the fan-out of the session (R6): its children for the
+	// parent, its parent for a child.
+	Fanout *FanoutStatus `json:"fanout,omitempty"`
 }
 
 // CheckpointStatus is a checkpoint of the workflow in the session mode.
@@ -205,6 +215,9 @@ func (s *Service) Status(ctx context.Context, sessionID string) (Status, error) 
 	}
 	for _, c := range wf.Checkpoints {
 		row := CheckpointStatus{ID: c.ID, Label: c.LabelFor(lang), Behavior: c.Behavior(sess.Mode), State: StateTodo}
+		if _, _, ok := s.delegation(ctx, sess, c); ok {
+			row.Behavior = sessionspec.CheckpointAuto // R6, CP-R3
+		}
 		switch {
 		case cs.HasPassed(c.ID):
 			at := cs.Passed[c.ID]
@@ -229,8 +242,9 @@ func (s *Service) Status(ctx context.Context, sessionID string) (Status, error) 
 		}
 	}
 	st.Breaker = cs.Breaker
-	st.LockedOps = bundle.LockedOps(wf, sess.Mode, &cs)
+	st.LockedOps = fanoutLockedOps(sess, bundle.LockedOps(wf, sess.Mode, &cs))
 	st.LockedWrites = bundle.LockedWrites(wf, sess.Mode, &cs)
+	st.Fanout = fanoutStatus(sess)
 	st.Outputs, _ = s.Outputs(ctx, sessionID)
 	return st, nil
 }

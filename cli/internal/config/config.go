@@ -52,6 +52,8 @@ type Config struct {
 	Execution ExecutionConfig `mapstructure:"execution" toml:"execution,omitempty"`
 	// Remote holds the GitLab CI targets of the remote runtime (v5 phase 5).
 	Remote RemoteConfig `mapstructure:"remote" toml:"remote,omitempty"`
+	// Fanout holds the fan-out settings (R6, experimental, off by default).
+	Fanout FanoutConfig `mapstructure:"fanout" toml:"fanout,omitempty"`
 	// Limits holds the optional session restrictions of the hub level (I6,
 	// off by default; cascade in internal/limits).
 	Limits limits.Limits `mapstructure:"limits" toml:"limits,omitempty"`

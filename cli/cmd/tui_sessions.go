@@ -231,7 +231,7 @@ func (t *tuiSessions) summary(scope views.SessionsScope) views.SessionsSummary {
 		if len(v.Decisions) > 0 {
 			desc = sessionsvc.KindIcon(v.Decisions[0].Kind) + " " + sessionsvc.DecisionSummary(v.Decisions[0])
 		}
-		label := firstNonEmpty(v.Session.WorkflowID, v.Session.EntryAgent)
+		label := fanoutLabel(&v.Session, firstNonEmpty(v.Session.WorkflowID, v.Session.EntryAgent))
 		if v.ProjectName != "" && scope.ProjectID == "" {
 			label += " · " + v.ProjectName
 		}
@@ -281,7 +281,7 @@ func (t *tuiSessions) List(ctx context.Context, projectID string, all bool) ([]v
 	for _, v := range list {
 		s := v.Session
 		r := views.SessionRow{
-			ID: s.ID, ProjectID: s.ProjectID, Project: v.ProjectName, Workflow: s.WorkflowID, Agent: s.EntryAgent,
+			ID: s.ID, ProjectID: s.ProjectID, Project: v.ProjectName, Workflow: fanoutLabel(&s, s.WorkflowID), Agent: s.EntryAgent,
 			Mode: s.Mode, Runtime: s.Runtime, Location: s.LaunchPath, Bundle: s.BundleHash, State: string(s.State),
 			StateLabel: stateLabel(s.State), StateIcon: sessionsvc.StateIcon(s.State), Cost: s.Cost, Started: s.StartedAt,
 			Finished: !v.Open(), Next: chainNext(s.ID),

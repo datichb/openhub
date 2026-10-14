@@ -108,6 +108,9 @@ type WorkflowRuntime struct {
 	// bundle holds only the checkpoints of this method.
 	Method string `json:"method,omitempty"`
 
+	// R6 (fanout.go): Fanout is the fan-out of a fan-out session (nil for
+	// the others).
+	Fanout *FanoutDef `json:"fanout,omitempty"`
 	// r5-fixes: WritesGates hold the `writes:` paths of an agent until a
 	// checkpoint is passed (`writes_after`).
 	WritesGates []WritesGate `json:"writes_gates,omitempty"`
@@ -177,6 +180,8 @@ const (
 	// R8: publishing (risk: publish).
 	UnlockTag = "tag"
 	UnlockMR  = "mr"
+	// R6: merging (fan-out: done by oh at the merge checkpoint).
+	UnlockMerge = "merge"
 )
 
 // DefaultBeadsAllow is the `bd` allow-list of a workflow that declares no

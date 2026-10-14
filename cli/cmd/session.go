@@ -129,6 +129,8 @@ type sessionJSON struct {
 	Decisions  []decisionJSON `json:"decisions"`
 	EndedAt    *time.Time     `json:"ended_at,omitempty"`
 	BundleHash string         `json:"bundle,omitempty"`
+	// R6: Fanout is the fan-out record (parent, child or merger).
+	Fanout *domain.SessionFanout `json:"fanout,omitempty"`
 }
 
 type decisionJSON struct {
@@ -172,7 +174,7 @@ var sessionListCmd = &cobra.Command{
 				j := sessionJSON{ID: s.ID, ProjectID: s.ProjectID, Project: v.ProjectName, Workflow: s.WorkflowID, Agent: s.EntryAgent,
 					Mode: s.Mode, State: string(s.State), Location: s.LaunchPath, Group: s.GroupKey, Cost: s.Cost, TokensIn: s.TokensIn,
 					TokensOut: s.TokensOut, StartedAt: s.StartedAt, ChangedAt: s.StateChangedAt, EndedAt: s.EndedAt, BundleHash: s.BundleHash,
-					Decisions: []decisionJSON{}}
+					Decisions: []decisionJSON{}, Fanout: s.Fanout}
 				if s.Title != nil {
 					j.Title = *s.Title
 				}
@@ -187,7 +189,7 @@ var sessionListCmd = &cobra.Command{
 		fmt.Fprintln(tw, i18n.T("cmd.session.list_header"))
 		for _, v := range views {
 			s := v.Session
-			fmt.Fprintf(tw, "%s\t%s\t%s\t%s %s\t%s\t$%.3f\t%s\n", s.ID, v.ProjectName, s.EntryAgent, sessionsvc.StateIcon(s.State), stateLabel(s.State),
+			fmt.Fprintf(tw, "%s\t%s\t%s\t%s %s\t%s\t$%.3f\t%s\n", fanoutLabel(&s, s.ID), v.ProjectName, s.EntryAgent, sessionsvc.StateIcon(s.State), stateLabel(s.State),
 				dash(sessionsvc.DecisionBadges(v.Decisions)), s.Cost, s.StartedAt.Format("02/01 15:04"))
 		}
 		_ = tw.Flush()

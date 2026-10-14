@@ -268,17 +268,24 @@ func commonDir(ctx context.Context, dir string) string {
 // the configuration files of its common directory and of the worktree, the
 // hooks, info/attributes and the `.git` pointer file of a worktree.
 func Fingerprint(ctx context.Context, dir string) (common, fingerprint string, err error) {
-	common, fingerprint, _, err = fingerprintFiles(ctx, dir)
+	common, _, fingerprint, _, err = fingerprintFiles(ctx, dir)
 	return common, fingerprint, err
 }
 
 // fingerprintFiles is Fingerprint with the hash of each file ("-" for a
 // missing one), to tell which file changed.
-func fingerprintFiles(ctx context.Context, dir string) (common, fingerprint string, files map[string]string, err error) {
+//
+// key is what the fingerprint is recorded under: the git directory of the
+// worktree of dir (the common directory for the main worktree). The files
+// of a linked worktree are part of its fingerprint, so that each worktree
+// keeps its own record: a session started in one worktree does not make
+// the sessions of the others look changed (R6, fan-out).
+func fingerprintFiles(ctx context.Context, dir string) (common, key, fingerprint string, files map[string]string, err error) {
 	common = commonDir(ctx, dir)
 	if common == "" {
-		return "", "", nil, fmt.Errorf("%s is not a git repository", dir)
+		return "", "", "", nil, fmt.Errorf("%s is not a git repository", dir)
 	}
+	key = common
 	files = map[string]string{}
 	h := sha256.New()
 	add := func(name string) {
@@ -309,6 +316,7 @@ func fingerprintFiles(ctx context.Context, dir string) (common, fingerprint stri
 	if out, err := Command(ctx, dir, "rev-parse", "--path-format=absolute", "--git-dir").Output(); err == nil {
 		gitDir := filepath.Clean(strings.TrimSpace(string(out)))
 		if gitDir != common {
+			key = gitDir
 			add(filepath.Join(gitDir, "config.worktree"))
 			add(filepath.Join(gitDir, "commondir"))
 			add(filepath.Join(gitDir, "gitdir"))
@@ -319,7 +327,7 @@ func fingerprintFiles(ctx context.Context, dir string) (common, fingerprint stri
 			add(p)
 		}
 	}
-	return common, hex.EncodeToString(h.Sum(nil)), files, nil
+	return common, key, hex.EncodeToString(h.Sum(nil)), files, nil
 }
 
 func isFile(p string) bool {
@@ -329,11 +337,11 @@ func isFile(p string) bool {
 
 // Trust records the fingerprint of the repository of dir (session start).
 func Trust(ctx context.Context, dir string) error {
-	common, fp, files, err := fingerprintFiles(ctx, dir)
+	common, key, fp, files, err := fingerprintFiles(ctx, dir)
 	if err != nil {
 		return err
 	}
-	f := trustFile(common)
+	f := trustFile(key)
 	if f == "" {
 		return nil
 	}
@@ -348,11 +356,11 @@ func Trust(ctx context.Context, dir string) error {
 // whose fingerprint differs from the one recorded by Trust; nil when nothing
 // was recorded (or dir is not a repository: the git call itself fails).
 func Check(ctx context.Context, dir string) error {
-	common, fp, files, ferr := fingerprintFiles(ctx, dir)
+	common, key, fp, files, ferr := fingerprintFiles(ctx, dir)
 	if ferr != nil {
-		common = ""
+		key = ""
 	}
-	if want, ok := recorded(common); ok && want.Fingerprint != fp {
+	if want, ok := recorded(key); ok && want.Fingerprint != fp {
 		return &ConfigChangedError{Common: common, Fingerprint: fp, Files: changedFiles(want.Files, files)}
 	}
 	return nil
@@ -379,7 +387,7 @@ func changedFiles(then, now map[string]string) []string {
 	return out
 }
 
-// recorded returns what Trust recorded for a common directory.
+// recorded returns what Trust recorded under key (fingerprintFiles).
 func recorded(common string) (trust, bool) {
 	f := trustFile(common)
 	if common == "" || f == "" {

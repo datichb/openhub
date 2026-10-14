@@ -20,6 +20,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/adapters"
 	"github.com/datichb/openhub/cli/internal/app"
+	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/daemon"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/evalrun"
@@ -429,6 +430,8 @@ type evalPassSpec struct {
 	OutDir    string            `json:"out_dir"`
 	// Previous are sessions recorded in the project before the launch (R5).
 	Previous []evalrun.PreviousSession `json:"previous,omitempty"`
+	// Fanout enables the fan-out in the pass (R6).
+	Fanout *evalrun.FanoutSetup `json:"fanout,omitempty"`
 }
 
 // Files written by the child in the pass output directory.
@@ -509,7 +512,7 @@ func (e *childEvalExecutor) Execute(ctx context.Context, p evalrun.Pass) (*evalr
 	}
 	c := p.Case
 	spec := evalPassSpec{CaseID: c.ID, Workflow: c.Workflow, Mode: c.Mode, Inputs: c.Inputs, Text: c.Text, Tickets: c.Tickets,
-		Project: p.Project, Model: p.Model, BudgetUSD: p.BudgetUSD, Timeout: c.TimeoutOrDefault(), Answers: c.Answers, OutDir: p.OutDir, Previous: c.Previous}
+		Project: p.Project, Model: p.Model, BudgetUSD: p.BudgetUSD, Timeout: c.TimeoutOrDefault(), Answers: c.Answers, OutDir: p.OutDir, Previous: c.Previous, Fanout: c.Fanout}
 	data, err := json.Marshal(spec)
 	if err != nil {
 		return nil, err
@@ -695,6 +698,10 @@ func runEvalSession(ctx context.Context, cmd *cobra.Command, spec evalPassSpec, 
 	if err := evalPrevious(ctx, a, project, spec.Previous); err != nil {
 		return fmt.Errorf("recording the previous sessions: %w", err)
 	}
+	if spec.Fanout != nil {
+		// R6: the fan-out of the pass, its global budget the one of the pass.
+		a.Config.Fanout = config.FanoutConfig{Experimental: true, Parallel: spec.Fanout.Parallel, BudgetUSD: spec.BudgetUSD}
+	}
 	opts := runOptions{Workflow: spec.Workflow, Project: project, Inputs: spec.Inputs, Mode: spec.Mode, Text: spec.Text, Tickets: spec.Tickets,
 		Attach: string(sessionspec.AttachNone), Location: "base", Dirty: runsvc.DirtyAllow, OneSession: true}
 	p, err := prepareWorkflowRun(ctx, a, opts, errOut)
@@ -718,7 +725,12 @@ func runEvalSession(ctx context.Context, cmd *cobra.Command, spec evalPassSpec, 
 	if err != nil {
 		return err
 	}
-	res.Outcome = evalLoop(ctx, ssvc, sid, spec.Answers, spec.BudgetUSD, res, errOut)
+	var fan *evalFanout
+	if p.plan.Request.Base.Fanout != nil {
+		fan = startEvalFanout(ctx, a, sid, spec, errOut)
+		defer fan.stop()
+	}
+	res.Outcome = evalLoop(ctx, ssvc, sid, spec.Answers, spec.BudgetUSD, res, errOut, fan)
 	if ctx.Err() != nil && res.Outcome == evalrun.OutcomeError {
 		res.Outcome = evalrun.OutcomeTimeout
 	}
@@ -728,6 +740,7 @@ func runEvalSession(ctx context.Context, cmd *cobra.Command, spec evalPassSpec, 
 	if sess, err := a.Sessions.Get(tctx, sid); err == nil {
 		res.CostUSD, res.TokensIn, res.TokensOut = sess.Cost, sess.TokensIn, sess.TokensOut
 	}
+	fan.collect(tctx, ssvc, res, spec.OutDir, token)
 	tr, err := ssvc.Trace(tctx, sid, sessionsvc.TraceOptions{Usage: sqlite.NewUsageStore(store), Secrets: []string{token}})
 	if err != nil {
 		return fmt.Errorf("trace: %w", err)
@@ -771,7 +784,7 @@ func evalWiki(ctx context.Context, ssvc *sessionsvc.Service, sid, decisionID, cp
 
 // evalLoop answers the decisions of the session until it is done (idle
 // without decision for evalSettle, or ended), out of time or out of budget.
-func evalLoop(ctx context.Context, ssvc *sessionsvc.Service, sid string, answers evalrun.Answers, budget float64, res *evalrun.PassOutput, log io.Writer) string {
+func evalLoop(ctx context.Context, ssvc *sessionsvc.Service, sid string, answers evalrun.Answers, budget float64, res *evalrun.PassOutput, log io.Writer, fan *evalFanout) string {
 	maxDecisions := answers.MaxDecisions
 	if maxDecisions <= 0 {
 		maxDecisions = defaultMaxDecisions
@@ -790,6 +803,12 @@ func evalLoop(ctx context.Context, ssvc *sessionsvc.Service, sid string, answers
 		items, err := ssvc.Inbox(ctx, domain.DecisionFilter{SessionID: sid})
 		if err != nil && ctx.Err() != nil {
 			return evalrun.OutcomeTimeout
+		}
+		// R6: the decisions of the children of a fan-out too.
+		for _, child := range fan.sessions(ctx) {
+			if more, err := ssvc.Inbox(ctx, domain.DecisionFilter{SessionID: child}); err == nil {
+				items = append(items, more...)
+			}
 		}
 		for _, it := range items {
 			d := it.Decision
@@ -829,8 +848,8 @@ func evalLoop(ctx context.Context, ssvc *sessionsvc.Service, sid string, answers
 		if err != nil {
 			continue
 		}
-		if budget > 0 && sess.Cost >= budget {
-			res.Error = fmt.Sprintf("pass budget spent ($%.3f of $%.2f)", sess.Cost, budget)
+		if spent := sess.Cost + fan.cost(ctx); budget > 0 && spent >= budget {
+			res.Error = fmt.Sprintf("pass budget spent ($%.3f of $%.2f)", spent, budget)
 			return evalrun.OutcomeBudget
 		}
 		switch sess.State {
@@ -839,7 +858,8 @@ func evalLoop(ctx context.Context, ssvc *sessionsvc.Service, sid string, answers
 		case domain.RunFailed:
 			return evalrun.OutcomeFailed
 		case domain.RunIdle:
-			if len(items) > 0 {
+			if len(items) > 0 || fan.running(ctx) {
+				// R6: the parent waits idle while its children run.
 				idleSince = time.Time{}
 				continue
 			}

@@ -140,6 +140,9 @@ type StartRequest struct {
 	WorktreeBranch string
 	// Headless marks a session run without interactive client.
 	Headless bool
+	// Fanout is the fan-out record of the session (R6): set by oh only,
+	// for the parent, the children and the mergers of a fan-out.
+	Fanout *domain.SessionFanout
 	// Handoff is the brief of the session this one continues (launch with
 	// OnExistingKeep), given to the entry agent before its first prompt.
 	Handoff string
@@ -280,6 +283,10 @@ func (s *Service) StartSession(ctx context.Context, req StartRequest) (*StartRes
 		// Checkpoints and agent locks of the workflow (P3-T02/T04); the
 		// daemon replaces them as the session moves on.
 		SessionRules: append(bundle.SessionRules(spec.Workflow, req.Mode, nil), bundle.ScratchSessionRules(spec.Workflow, s.SessionsDir, sid)...),
+	}
+	if req.Fanout != nil {
+		// R6: from the first call, whatever the checkpoints unlock.
+		ss.SessionRules = append(ss.SessionRules, bundle.FanoutRoleRules(string(req.Fanout.Role))...)
 	}
 	if err := s.saveStaticEnv(sid, static); err != nil {
 		return nil, fmt.Errorf("saving session environment: %w", err)
@@ -750,7 +757,7 @@ func (s *Service) persistSession(ctx context.Context, req StartRequest, srv *dom
 		WorkflowLayer: req.WorkflowLayer, WorkflowVersion: req.WorkflowVersion, WorkflowRisk: req.WorkflowRisk,
 		Location: req.LocationKind, ParentSessionID: req.ParentSessionID,
 		StartRef: worktree.StartRef(req.Location), Tickets: req.Tickets,
-		WorktreeAuto: req.WorktreeAuto, WorktreeBranch: req.WorktreeBranch,
+		WorktreeAuto: req.WorktreeAuto, WorktreeBranch: req.WorktreeBranch, Fanout: req.Fanout,
 	}
 	if title != "" {
 		sess.Title = &title

@@ -145,6 +145,7 @@ var unlockOpText = map[string]string{
 	sessionspec.UnlockApply:  "les modifications d'infrastructure (`terraform apply`, `kubectl apply`…)",
 	sessionspec.UnlockTag:    "la création d'un tag (`git tag`, `git push --tags`)",
 	sessionspec.UnlockMR:     "l'ouverture d'une merge request (`glab mr create`, `gh pr create`)",
+	sessionspec.UnlockMerge:  "le merge des branches (`git merge`, `git pull`)",
 }
 
 // unlockText is the rule of a checkpoint that unlocks ops: only the declared
@@ -187,6 +188,10 @@ func unlockText(id string, ops []string) string {
 		fmt.Fprintf(&b, " La création du tag se referme après le premier tag, au checkpoint obligatoire suivant ou quand **%s** est demandé de nouveau.", id)
 	case mr:
 		fmt.Fprintf(&b, " L'ouverture de la merge request se referme au checkpoint obligatoire suivant, ou quand **%s** est demandé de nouveau.", id)
+	}
+	if has[sessionspec.UnlockMerge] {
+		b.WriteString(" Une fois validé, oh merge lui-même la branche d'intégration dans la branche de la session et ferme les tickets mergés : aucun agent ne merge, ne commite, ne pousse ni ne ferme de ticket.")
+		return b.String()
 	}
 	switch {
 	case !has[sessionspec.UnlockPush] && (has[sessionspec.UnlockTag] || has[sessionspec.UnlockMR]):

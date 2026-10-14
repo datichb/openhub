@@ -242,7 +242,7 @@ func TestShippedWorkflowBundles(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			r, diags := workflow.Check(cat, ref, nil, env) // as the launch: selectable entries expanded
 			require.False(t, diags.HasErrors(), "%v", diags)
-			b, err := Build(Request{HubDir: hub, OutDir: t.TempDir(), Spec: r.Spec, Method: v.method})
+			b, err := Build(Request{HubDir: hub, OutDir: t.TempDir(), Spec: r.Spec, Method: v.method, Fanout: v.fanout})
 			require.NoError(t, err)
 			require.NoError(t, Verify(b.Dir, b.Spec.Hash), "N23: a built bundle verifies")
 
@@ -269,7 +269,9 @@ func TestShippedWorkflowBundles(t *testing.T) {
 			require.NoError(t, err)
 			assertGolden(t, filepath.Join("workflows", name, "bundle.json"), string(data)+"\n")
 
-			spec := r.Spec.ForMethod(v.method) // as Build: the checkpoints of the method only
+			// As Build: the checkpoints of the method only, and of the
+			// kind of session (fan-out or not, R6).
+			spec := r.Spec.ForMethod(v.method).ForFanout(v.fanout && r.Spec.Fanout != nil)
 			_, graph := workflow.SubagentGraph(spec, hc)
 			gen, err := GenerateWorkflowSkills(spec, graph, func(id string) workflow.AgentMode {
 				info, _ := hc.Agent(id)
@@ -290,6 +292,8 @@ type shippedVariant struct {
 	ref    workflow.Ref
 	name   string
 	method workflow.Method
+	// fanout: the fan-out session (R6), named <id>@fanout.
+	fanout bool
 }
 
 func shippedVariants(t *testing.T, cat *workflow.MemCatalog) []shippedVariant {
@@ -302,6 +306,9 @@ func shippedVariants(t *testing.T, cat *workflow.MemCatalog) []shippedVariant {
 			if r != nil && r.Spec.HasMethod(m) {
 				out = append(out, shippedVariant{ref: ref, name: ref.ID + "@" + string(m), method: m})
 			}
+		}
+		if r != nil && r.Spec.Fanout != nil {
+			out = append(out, shippedVariant{ref: ref, name: ref.ID + "@fanout", fanout: true})
 		}
 	}
 	return out

@@ -177,6 +177,13 @@ type Spec struct {
 	Next []NextStep `yaml:"next,omitempty"`
 	// Aliases are other ids that launch this workflow (`oh run cadrage`).
 	Aliases []Alias `yaml:"aliases,omitempty"`
+
+	// R6 (schema_fanout.go): fan-out (experimental).
+
+	// Fanout runs one child session per ticket, each in its own worktree,
+	// merged by oh into an integration branch and validated at a mandatory
+	// verified checkpoint of the parent (E3, CP-R3).
+	Fanout *Fanout `yaml:"fanout,omitempty"`
 }
 
 // Entry selects the agent the session starts on.
@@ -338,6 +345,12 @@ type CheckpointSpec struct {
 	// mode counts as passed). A layer may add it or move it to a later
 	// checkpoint, never remove it.
 	After string `yaml:"after,omitempty"`
+
+	// R6 (schema_fanout.go): fan-out.
+
+	// Fanout keeps the checkpoint only in the fan-out sessions (`only`) or
+	// only in the others (`never`).
+	Fanout FanoutScope `yaml:"fanout,omitempty"`
 }
 
 // CheckpointWiki is the role of a checkpoint for the wiki of the project.
@@ -363,10 +376,14 @@ const (
 	// declares no checkpoint unlocking them).
 	UnlockTag UnlockOp = "tag" // creating a git tag (git tag, git push --tags…)
 	UnlockMR  UnlockOp = "mr"  // opening a merge request (glab mr create, gh pr create…)
+
+	// R6: merging the children of a fan-out (done by oh itself, at the
+	// merge checkpoint of the fan-out only; schema_fanout.go).
+	UnlockMerge UnlockOp = "merge" // git merge, git pull, forge merges
 )
 
 // UnlockOps lists the valid operations.
-var UnlockOps = []UnlockOp{UnlockCommit, UnlockPush, UnlockClose, UnlockCreate, UnlockApply, UnlockTag, UnlockMR}
+var UnlockOps = []UnlockOp{UnlockCommit, UnlockPush, UnlockClose, UnlockCreate, UnlockApply, UnlockTag, UnlockMR, UnlockMerge}
 
 // PublishOps are the operations that publish outside the repository or
 // mark a release: only a `risk: publish` workflow unlocks them, at a

@@ -117,6 +117,20 @@ func v5ConfigFields() map[string]configField {
 		"execution.keep_images":      intField("execution.keep_images", func(c *config.Config) *int { return &c.Execution.KeepImages }, 1, 20),
 		"execution.strict_isolation": boolField("execution.strict_isolation", func(c *config.Config) *bool { return &c.Execution.StrictIsolation }),
 		"remote.experimental":        boolField("remote.experimental", func(c *config.Config) *bool { return &c.Remote.Experimental }),
+		// R6: fan-out (experimental).
+		"fanout.experimental": boolField("fanout.experimental", func(c *config.Config) *bool { return &c.Fanout.Experimental }),
+		"fanout.parallel":     intField("fanout.parallel", func(c *config.Config) *int { return &c.Fanout.Parallel }, 1, 3),
+		"fanout.budget_usd": {
+			Set: func(c *config.Config, v string) error {
+				f, err := strconv.ParseFloat(strings.TrimSpace(v), 64)
+				if err != nil || f <= 0 || f > 1000 {
+					return invalidConfigValue("fanout.budget_usd", v, "10")
+				}
+				c.Fanout.BudgetUSD = f
+				return nil
+			},
+			Unset: func(c *config.Config) { c.Fanout.BudgetUSD = 0 },
+		},
 		"execution.tool_version": {
 			Set: func(c *config.Config, v string) error {
 				v = strings.TrimSpace(v)

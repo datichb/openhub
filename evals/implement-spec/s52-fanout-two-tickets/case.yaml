@@ -1,0 +1,79 @@
+id: S52
+title: "Implement-spec en fan-out : deux tickets indépendants, une session enfant chacun (en parallèle), mergés par oh, cp-2 des enfants remplacé par un cp-merge validé ; oh ferme les tickets"
+workflow: implement-spec
+mode: semi-auto
+inputs: { fanout: "true" }
+tickets: [ev-1, ev-2]
+fanout: { parallel: 2 }
+beads:
+  prefix: ev
+  tickets:
+    - id: ev-1
+      title: "Corriger Sub qui additionne au lieu de soustraire"
+      type: bug
+      labels: [ai-delegated]
+      description: "calc.Sub(a, b), dans sub.go, renvoie a + b au lieu de a - b. Ne touche que sub.go et sub_test.go."
+      acceptance: "Sub(5, 3) == 2 ; un test TestSub dans sub_test.go couvre Sub ; go test ./... passe."
+    - id: ev-2
+      title: "Ajouter Mul(a, b int) int"
+      type: feature
+      labels: [ai-delegated]
+      description: "Ajouter à calc, dans un nouveau fichier mul.go, la fonction Mul(a, b int) int qui renvoie le produit a × b, avec son commentaire de documentation. Ne touche que mul.go et mul_test.go."
+      acceptance: "Mul(4, 3) == 12 ; Mul(-2, 3) == -6 ; un test TestMul dans mul_test.go couvre Mul ; go test ./... passe."
+timeout: 45m
+budget_usd: 3.0
+answers:
+  checkpoints:
+    "*": approve
+  question: first
+# R6 : fan-out expérimental. Après cp-plan, oh lance une session enfant
+# `ticket` par ticket (deux en même temps), chacune dans son worktree ;
+# leur cp-2 passe sans pause (délégué au cp-merge du parent, CP-R3) mais
+# vérifié ; oh merge chaque branche dans la branche d'intégration, la
+# session parente fait relire l'ensemble, passe cp-merge (vérifié par oh
+# sur la branche d'intégration), puis oh merge et ferme les deux tickets.
+assertions:
+  - type: checkpoint_order
+    order: [cp-plan, cp-merge, cp-final]
+  - type: called
+    name: aucune délégation avant cp-plan
+    tool: task
+    absent: true
+    before: { checkpoint_passed: cp-plan }
+  - type: ran
+    name: la session parente ne commite, ne merge ni ne ferme rien
+    command: "git commit*"
+    absent: true
+  - type: ran
+    name: aucun bd close dans la session parente
+    command: "bd close*"
+    absent: true
+  - type: fanout
+    name: deux sessions enfants lancées
+    event: child
+    count: 2
+  - type: fanout
+    name: cp-2 de chaque enfant passé par délégation (CP-R3)
+    event: child_checkpoint
+    checkpoint: cp-2
+    by: delegated
+    count: 2
+  - type: fanout
+    name: les deux branches mergées par oh
+    event: merged
+    count: 2
+  - type: fanout
+    name: branche d'intégration mergée par oh à cp-merge
+    event: integrated
+  - type: fanout
+    name: les deux tickets fermés par oh
+    event: closed
+    count: 2
+  - type: output
+    name: tickets fermés relevés par oh
+    output: tickets
+    pattern: "ev-1[\\s\\S]*ev-2|ev-2[\\s\\S]*ev-1"
+  - type: changed_within
+    paths: ["sub.go", "mul.go", "*_test.go", "CHANGELOG.md"]
+  - type: hidden_tests
+  - type: no_denied_loop

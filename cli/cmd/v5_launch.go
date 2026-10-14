@@ -171,6 +171,7 @@ func buildWorkflowBundleIn(a *app.App, project *domain.Project, res *workflowsvc
 	}
 	req.Spec = res.Spec
 	req.Method = res.Method
+	req.Fanout = res.Fanout
 	if dir := res.BricksDir(); dir != "" {
 		req.HubDir = dir // team catalogue bricks (v5 phase 2)
 	}
