@@ -17,6 +17,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/datichb/openhub/cli/internal/gitutil/gittest"
 	"github.com/datichb/openhub/cli/internal/mcp/protocol"
 )
 
@@ -48,7 +49,7 @@ func TestMain(m *testing.M) {
 		fmt.Fprintln(os.Stderr, "fake bd:", err)
 		os.Exit(1)
 	}
-	code := m.Run()
+	code := gittest.Main(m)
 	cleanup()
 	os.Exit(code)
 }

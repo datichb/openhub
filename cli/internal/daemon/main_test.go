@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/datichb/openhub/cli/internal/gateway/fakebd"
+	"github.com/datichb/openhub/cli/internal/gitutil/gittest"
 	"github.com/datichb/openhub/cli/internal/mcp/protocol"
 )
 
@@ -26,5 +27,5 @@ func TestMain(m *testing.M) {
 		_ = s.Serve()
 		os.Exit(0)
 	}
-	os.Exit(m.Run())
+	os.Exit(gittest.Main(m))
 }

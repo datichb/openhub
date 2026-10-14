@@ -9,19 +9,12 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/datichb/openhub/cli/internal/gitutil/gittest"
 )
 
 // testBinary is the path to the compiled oh binary for integration tests.
 var testBinary string
-
-// gitTestConfig turns off the automatic maintenance of git in the tests.
-var gitTestConfig = map[string]string{
-	"GIT_CONFIG_COUNT":   "2",
-	"GIT_CONFIG_KEY_0":   "maintenance.auto",
-	"GIT_CONFIG_VALUE_0": "false",
-	"GIT_CONFIG_KEY_1":   "gc.auto",
-	"GIT_CONFIG_VALUE_1": "0",
-}
 
 func TestMain(m *testing.M) {
 	// Build the binary into a temp directory
@@ -45,12 +38,6 @@ func TestMain(m *testing.M) {
 	}
 	defer os.RemoveAll(testHome)
 	os.Setenv("HOME", testHome)
-	// No background git maintenance (git pull/fetch start a detached
-	// `git maintenance run --auto` that keeps writing to .git/objects while
-	// t.TempDir is removed: flaky TestMigrateLegacyWorkflows).
-	for k, v := range gitTestConfig {
-		os.Setenv(k, v)
-	}
 
 	// Create minimal hub content structure so the init gate passes
 	hubDir := filepath.Join(testHome, ".oh", "hub")
@@ -64,7 +51,10 @@ func TestMain(m *testing.M) {
 		panic("failed to write hub version: " + err.Error())
 	}
 
-	os.Exit(m.Run())
+	// No background git maintenance (a commit, a fetch or a push starts a
+	// detached `git maintenance run --auto` that keeps writing to
+	// .git/objects while t.TempDir is removed: flaky TestMigrateLegacyWorkflows).
+	os.Exit(gittest.Main(m))
 }
 
 func runOh(t *testing.T, args ...string) (string, string, int) {
