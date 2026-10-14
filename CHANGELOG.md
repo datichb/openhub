@@ -9,6 +9,17 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ## [Unreleased]
 
+### Added — fan-out expérimental (lot R6)
+
+- **Sessions enfants** (E3, expérimental, `[fanout] experimental = true`, désactivé par défaut) : `oh run implement-spec -i fanout=true` lance une session `ticket` par ticket, chacune dans sa branche et son worktree, d'abord l'une après l'autre (`[fanout] parallel`, 3 au plus), un ticket après ceux dont il dépend. Le pilote (`oh fanout drive`, démarré par `oh run`) suit, merge et reprend où il en était ; `oh fanout status` ; enfants marqués `↳` et parente `⑂` dans `oh session list` et la TUI ; événements du fan-out et checkpoints des enfants dans la trace de la parente.
+- **Merge par oh** et **opération `merge`** : oh merge chaque enfant dans la branche d'intégration, puis, à `cp-merge`, cette branche dans celle de la session, et ferme lui-même les tickets mergés. Aucune session du fan-out ne pousse, ne merge, ne ferme de ticket ni ne déplace les branches `oh/fanout/…` ; la parente ne commite pas.
+- **Substitution de contrôle (CP-R3)** : le `cp-2` des enfants ne fait plus de pause, remplacé par le `cp-merge` obligatoire de la parente, vérifié par oh sur la branche d'intégration et jamais forcé. Déclarée par la couche hub seulement (`fanout.delegates` ; une couche d'équipe ou de projet ou un brouillon : `fanout_delegates_layer`), revérifiée par le démon à chaque appel, la vérification de l'enfant tourne toujours, passage tracé (`delegated`). `implement-spec` en fan-out : 3 pauses en semi-auto quel que soit le nombre de tickets. ADR-053.
+- **Agent `merger` et workflow `merge-conflicts`** : oh confie au merger un conflit qu'il ne résout pas et vérifie son résultat (merge commité, deux côtés, aucun marqueur) ; jamais de push.
+- **Budget global (F-04)** : `[fanout] budget_usd` (10 $) pour la parente et ses sessions ; au-delà, plus d'enfant et arrêt de celui en cours (état `budget`), tracé.
+- **Validation par lot (CP-R6)** : `oh session approve --batch` (`--fanout`, `--session`, `--checkpoint`, `--except`, `--reject id=consigne`, `--dry-run`), chaque élément listé et refusable. TUI : à venir.
+- **Corrigé** : l'empreinte de la configuration git d'une session est enregistrée par worktree ; une session lancée dans un autre worktree du dépôt ne la fait plus passer pour modifiée.
+- `oh eval` : assertion `fanout`, champ de cas `fanout: { parallel }` ; cas S52 et S53 hors mesure de référence. Évaluations : S52 2/2 et S53 2/2 (Haiku), S52 1/1 (Sonnet), témoin S37 1/1 ; 7,45 $. Migration v46. Non fait : validation par lot dans la TUI, migration de `sweep` (conception dans `docs/reference/workflows.*`) et de `feature`.
+
 ### Fixed — défauts trouvés par R5 (lot r5-fixes)
 
 - **Spec écrite avant `cp-understanding`** : nouveau champ `agents.<id>.writes_after: <checkpoint>` ; les chemins `writes:` ne s'ouvrent qu'une fois ce checkpoint passé (un checkpoint sauté dans le mode compte comme passé). Avant, oh refuse l'écriture avec un message qui dit d'attendre ce checkpoint ; `workflow_status` liste `locked_writes`. En réduction seulement pour les couches. Le planner de `spec` écrit sa spec après `cp-understanding`. S27 : « aucun fichier modifié » 2/2 (0/3 en R5).
