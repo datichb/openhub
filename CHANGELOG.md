@@ -9,6 +9,12 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ## [Unreleased]
 
+### Added — skills de cadrage (lot R1-a)
+
+- **Skill `grilling`** (planner, à la demande, chargée avant de formuler des questions) : confronter la demande au code et aux règles du projet (quantificateurs, acteurs, visibilité, cycle de vie, invariants, données sensibles, limites) pour faire remonter exigences implicites et contradictions ; une question par décision, autonome, priorisée (cinq au plus), jamais un questionnaire générique. Déclencheur dans `planner-workflow` et `planner-phase-2`. S19 2/3 contre 0/3 sans la skill (Haiku ×3) ; témoins S20 0/3 = 0/3, S5 3/3 = 3/3, S15 2/3 = 2/3. Planner : +20 tokens de prompt, +42 de catalogue (+1,2 %).
+- **Retirés faute de gain** : `domain-modeling` (glossaire, synonymes et homonymes ; jamais chargée, S20 0/3 = 0/3) et `spec-writing` (critères d'acceptation avec point de test ; S21 0/3 = 0/3), mesurées avec et sans (`oh eval --variant`).
+- **Évaluations** : cas S19 (exigences implicites posées en questions), S20 (vocabulaire incohérent, glossaire dans la spec) et S21 (point de test par critère d'acceptation), hors mesure de référence ; S20 et S21 échouent encore (0/3) et servent de cible à R4. Coût des évaluations du lot : 11,02 $.
+
 ### Added — fraîcheur des skills de stack (lot R13)
 
 - **Métadonnées de fraîcheur** : chaque skill de stack (`skills/developer/stacks/`) déclare les versions qu'elle couvre (`versions:`, par exemple `react: "19.3"`) et la date de sa dernière revue (`reviewed: 2026-10-12`). Ces clés du hub ne sont jamais livrées aux agents (budget des prompts inchangé). `oh skill check` les exige sur toute skill de stack (`missing_freshness`, `invalid_freshness`) ; les tests vérifient qu'elles concordent avec la ligne « Versions de référence ». Les 41 skills de stack les portent ; Cypress et Kubernetes, sans revue depuis avril 2026, sont signalées à revoir.
