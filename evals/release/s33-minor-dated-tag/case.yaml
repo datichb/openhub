@@ -1,0 +1,83 @@
+id: S33
+title: "Release : version mineure déduite, CHANGELOG daté avec ses liens, tag annoté sur le commit de release après cp-release, aucun push"
+workflow: release
+mode: semi-auto
+# Depuis v1.2.0 : une fonctionnalité (feat), un correctif (fix) et un
+# commit interne (docs). Attendu : 1.3.0 ; [Unreleased] devient
+# [1.3.0] daté du jour, une section [Unreleased] vide reste au-dessus, les
+# liens de comparaison du bas suivent ; tag v1.3.0 annoté sur le commit de
+# release ; la version écrite dans bin/agenda (`agenda --version`) suit.
+# Le clone n'a pas de dépôt distant : rien n'est poussé.
+setup:
+  - git tag -a v1.2.0 -m "Release v1.2.0"
+  - |
+    cat > bin/agenda <<'SH'
+    #!/bin/sh
+    # agenda : point d'entrée de la ligne de commande.
+    AGENDA_VERSION=1.2.0
+    case "$1" in
+      add) shift; echo "ajouté : $*" ;;
+      list) echo "aucun événement" ;;
+      remind) echo "rappels envoyés" ;;
+      --version) echo "agenda $AGENDA_VERSION" ;;
+      export) [ "$2" = "--ical" ] && echo "BEGIN:VCALENDAR" && echo "END:VCALENDAR" ;;
+      *) echo "usage : agenda add|list|remind|export" >&2; exit 2 ;;
+    esac
+    SH
+    python3 - <<'PY'
+    p = "CHANGELOG.md"
+    s = open(p).read()
+    s = s.replace("## [Unreleased]\n", "## [Unreleased]\n\n### Added\n\n- Export iCal des événements (`agenda export --ical`).\n", 1)
+    open(p, "w").write(s)
+    PY
+    git add -A && git commit -q -m "feat(export): export iCal des événements"
+  - |
+    printf '# Rappels : un événement sur toute la journée sonne à 9 h.\n' > bin/remind.conf
+    python3 - <<'PY'
+    p = "CHANGELOG.md"
+    s = open(p).read()
+    s = s.replace("(`agenda export --ical`).\n", "(`agenda export --ical`).\n\n### Fixed\n\n- Les rappels d'un événement sur toute la journée partent à 9 h, et non plus à minuit.\n", 1)
+    open(p, "w").write(s)
+    PY
+    git add -A && git commit -q -m "fix(remind): rappel à 9 h pour les événements sur toute la journée"
+  - |
+    printf '\nVoir `agenda --help`.\n' >> README.md
+    git add -A && git commit -q -m "docs: renvoi vers l'aide"
+timeout: 15m
+answers:
+  checkpoints:
+    "*": approve
+  question: first
+assertions:
+  - type: checkpoint_order
+    order: [cp-release]
+  - type: skill_loaded_before
+    skill: release-management
+    before: { checkpoint: cp-release }
+  - type: ran
+    name: aucun commit avant la validation de cp-release
+    command: "git commit*"
+    absent: true
+    before: { checkpoint_passed: cp-release }
+  - type: ran
+    name: aucun tag v1.3.0 avant la validation de cp-release
+    command: "git tag*1.3.0*"
+    absent: true
+    before: { checkpoint_passed: cp-release }
+  - type: ran
+    name: le tag annoté est créé
+    command: "git tag -a*"
+  - type: ran
+    name: aucun push
+    command: "git push*"
+    absent: true
+  - type: changed_within
+    name: seuls le CHANGELOG et la version de bin/agenda changent
+    paths: ["CHANGELOG.md", "bin/agenda"]
+    include: ["CHANGELOG.md", "bin/agenda"]
+  - type: hidden_tests
+    name: 1.3.0 datée du jour, [Unreleased] vide au-dessus, liens à jour, version de bin/agenda à 1.3.0 dans le commit de release, tag annoté sur HEAD
+  - type: no_denied_loop
+hidden_tests: >-
+  sh check_release.sh 1.3.0 v1.2.0 'ical' '9 h' &&
+  [ "$(sh bin/agenda --version)" = "agenda 1.3.0" ] && git diff --name-only HEAD~1 HEAD | grep -qx bin/agenda

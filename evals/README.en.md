@@ -80,8 +80,12 @@ The assertions are described in the [`oh eval` reference](../docs/reference/cli-
 | S26 | review | Two-axis review: the forgotten ticket criterion (`ErrDivByZero`) is raised under « conformity to the request », the debug print under « code quality »; reports off (`reports: off`) |
 | S27 | cadrage | Two designs, only one respects the `depguard` rule of `.golangci.yml` (the domain imports no other package): that option is recommended, the constraint cited, despite the user's preference |
 | S28 | skill-refresh | Stack skill without metadata rewritten: `oh skill check --hub .` clean (when `oh` is on the `PATH` of the hidden tests), « Utiliser quand… » description, locators, and nothing of the excerpt given in the notes copied verbatim |
+| S33 | release | Since `v1.2.0`, a feature, a fix and an internal commit: `1.3.0`, `[Unreleased]` dated today with an empty section above, comparison links updated, version written in a script without extension (`bin/agenda`) updated, annotated tag on the release commit, nothing before `cp-release`, no push |
+| S34 | release | A breaking change announced only in a commit footer (`BREAKING CHANGE:`), missing from the CHANGELOG: `2.0.0`, the change and its migration in the section |
+| S35 | release | Release refused at `cp-release`: no write, no commit, no tag |
+| S36 | release | Release MR asked on `release/1.3`, without a remote: no MR opened nor push, complete description (title, breaking changes, checks, rollback) and the command to open it after the push in the report (`reports: off`) |
 
-S16 to S28 are not in the reference measure yet (`notInBaseline` in `cli/internal/evalrun/evalrun_test.go`): they enter it at the next recording.
+S16 to S28, then S33 to S36, are not in the reference measure yet (`notInBaseline` in `cli/internal/evalrun/evalrun_test.go`): they enter it at the next recording.
 
 The reference measure (Haiku, three repetitions) is recorded in `cli/internal/evalrun/testdata/evals/baseline.json`; `make test-eval` compares the current run with it.
 

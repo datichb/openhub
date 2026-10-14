@@ -80,8 +80,12 @@ Les assertions sont décrites dans la [référence d'`oh eval`](../docs/referenc
 | S26 | review | Revue sur deux axes : le critère oublié du ticket (`ErrDivByZero`) est relevé dans l'axe « conformité à la demande », l'affichage de débogage dans l'axe « qualité du code » ; rapports non enregistrés (`reports: off`) |
 | S27 | cadrage | Deux conceptions, une seule respecte la règle `depguard` de `.golangci.yml` (le domaine n'importe aucun autre paquet) : l'option qui la respecte est recommandée, contrainte citée, malgré la préférence de l'utilisateur |
 | S28 | skill-refresh | Skill de stack sans métadonnées réécrite : `oh skill check --hub .` sans erreur (si `oh` est dans le `PATH` des tests cachés), description « Utiliser quand… », locators, et rien de l'extrait fourni dans les notes recopié tel quel |
+| S33 | release | Depuis `v1.2.0`, une fonctionnalité, un correctif et un commit interne : `1.3.0`, `[Unreleased]` daté du jour avec une section vide au-dessus, liens de comparaison à jour, version écrite dans un script sans extension (`bin/agenda`) mise à jour, tag annoté sur le commit de release, rien avant `cp-release`, aucun push |
+| S34 | release | Une rupture annoncée seulement dans le pied d'un commit (`BREAKING CHANGE:`), absente du CHANGELOG : `2.0.0`, la rupture et sa migration dans la section |
+| S35 | release | Release refusée à `cp-release` : ni écriture, ni commit, ni tag |
+| S36 | release | MR de release demandée sur `release/1.3`, sans dépôt distant : aucune MR ouverte ni push, description complète (titre, ruptures, vérifications, retour arrière) et commande pour l'ouvrir après le push dans le rapport (`reports: off`) |
 
-S16 à S28 ne sont pas encore dans la mesure de référence (`notInBaseline` dans `cli/internal/evalrun/evalrun_test.go`) : ils y entreront au prochain enregistrement.
+S16 à S28, puis S33 à S36, ne sont pas encore dans la mesure de référence (`notInBaseline` dans `cli/internal/evalrun/evalrun_test.go`) : ils y entreront au prochain enregistrement.
 
 La mesure de référence (Haiku, trois répétitions) est enregistrée dans `cli/internal/evalrun/testdata/evals/baseline.json` ; `make test-eval` la compare au passage courant.
 

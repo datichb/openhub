@@ -1,0 +1,48 @@
+id: S35
+title: "Release : proposition refusée à cp-release, ni écriture, ni commit, ni tag"
+workflow: release
+mode: semi-auto
+# Même projet que S33 ; l'utilisateur refuse la release au checkpoint.
+setup:
+  - git tag -a v1.2.0 -m "Release v1.2.0"
+  - |
+    python3 - <<'PY'
+    p = "CHANGELOG.md"
+    s = open(p).read()
+    s = s.replace("## [Unreleased]\n", "## [Unreleased]\n\n### Added\n\n- Export iCal des événements (`agenda export --ical`).\n", 1)
+    open(p, "w").write(s)
+    PY
+    printf '# export iCal\n' > bin/export.conf
+    git add -A && git commit -q -m "feat(export): export iCal des événements"
+timeout: 15m
+answers:
+  checkpoints:
+    cp-release: "reject: Pas de release maintenant : ne modifie aucun fichier, ne commite rien, ne crée aucun tag et termine le workflow."
+    "*": approve
+  question: first
+assertions:
+  - type: checkpoint_order
+    order: [cp-release]
+  - type: called
+    name: aucune modification de fichier
+    tool: edit
+    absent: true
+  - type: called
+    name: aucune écriture de fichier
+    tool: write
+    absent: true
+  - type: changed_within
+    name: aucun fichier ne change
+  - type: ran
+    name: aucun commit
+    command: "git commit*"
+    absent: true
+  - type: ran
+    name: aucun tag créé
+    command: "git tag*1.3*"
+    absent: true
+  - type: hidden_tests
+    name: un seul tag (v1.2.0), HEAD inchangé
+  - type: no_denied_loop
+hidden_tests: >-
+  [ "$(git tag -l)" = v1.2.0 ] && [ "$(git log -1 --format=%s)" = "feat(export): export iCal des événements" ]
