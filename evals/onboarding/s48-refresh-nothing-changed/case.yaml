@@ -1,0 +1,37 @@
+id: S48
+title: "Onboarding refresh : wiki à jour avec le code, aucune proposition wiki_propose, aucune écriture, cp-wiki passé avec un récap"
+workflow: onboarding
+mode: semi-auto
+inputs: { refresh: true }
+# Même projet que S47, sans le renommage : le wiki de la fixture décrit le
+# code tel qu'il est. Le re-onboarding ne doit rien proposer ni écrire.
+setup:
+  # Le wiki est plus récent que le code de la fixture (sinon wiki_check
+  # signale toutes les pages en retard sur un code commité le jour même).
+  - GIT_COMMITTER_DATE=2026-09-15T10:00:00 git commit -q --amend --no-edit --no-verify --date=2026-09-15T10:00:00
+timeout: 25m
+answers:
+  checkpoints:
+    "*": approve
+  # L'utilisateur n'apporte rien de nouveau (une première option peut être
+  # une information : « bug à traiter », « TDD » que le wiki n'a pas).
+  question: "Rien à ajouter, aucune information nouvelle : continue."
+  wiki: accept
+assertions:
+  - type: called
+    name: aucune proposition du wiki
+    tool: "*wiki/propose"
+    absent: true
+  - type: called
+    name: aucune modification directe (edit)
+    tool: edit
+    absent: true
+  - type: called
+    name: aucune écriture directe (write)
+    tool: write
+    absent: true
+  - type: checkpoint_order
+    order: [cp-wiki]
+  - type: changed_within
+    name: aucun fichier modifié
+  - type: no_denied_loop
