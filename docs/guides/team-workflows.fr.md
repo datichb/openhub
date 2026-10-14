@@ -158,16 +158,31 @@ Dans la TUI :
 
 ## Migration des anciennes surcharges de workflow (v5)
 
-Les surcharges de l'ancien workflow unique (onglet Workflow de la TUI) sont migrées **automatiquement** au premier lancement d'oh v5 (migration v38), vers des workflows qui étendent `hub:feature` (mêmes identifiants de checkpoints et d'agents) :
+Les surcharges de l'ancien workflow unique (onglet Workflow de la TUI) sont migrées **automatiquement** au premier lancement d'oh v5 (migration v38), vers des workflows qui étendent `hub:implement-spec` (`hub:feature` avant qu'il devienne un alias ; `cp-1`, `cp-2`, `cp-3` et leurs agents gardent leurs identifiants, `cp-0` devient `cp-plan`) :
 
 | Ancienne configuration | Devient |
 |---|---|
-| `config.toml` du team-state, section `[workflow]` | brouillon puis workflow d'équipe `feature` (`extends: hub:feature` ; `enforced = true` → `enforce: ["*"]`), publié si l'équipe n'en a pas encore ; section retirée de `config.toml` |
-| configuration de workflow d'un projet (base oh) | brouillon puis workflow de projet `feature` (étend `team:feature` si l'équipe en a un, sinon `hub:feature`) ; un **espace solo** est créé pour un projet sans équipe |
+| `config.toml` du team-state, section `[workflow]` | brouillon puis workflow d'équipe `implement-spec` (`extends: hub:implement-spec` ; `enforced = true` → `enforce: ["*"]`), publié si l'équipe n'en a pas encore ; section retirée de `config.toml` |
+| configuration de workflow d'un projet (base oh) | brouillon puis workflow de projet `implement-spec` (étend `team:implement-spec` si l'équipe en a un, sinon `hub:implement-spec`) ; un **espace solo** est créé pour un projet sans équipe |
 | `hub.toml`, section `[workflow.overrides]` (développement du hub) | fichiers `~/.oh/migrated/` (non chargés) ; section retirée de `hub.toml` |
 
-- **Rien n'est perdu** : la configuration d'origine est archivée (`workflows/migrated/…` du team-state, `~/.oh/migrated/`) ; ce qui n'a pas d'équivalent (`cp-routing`, agents d'un checkpoint, `insert_after`, `task_permissions`) est listé en commentaire en tête du workflow migré.
-- Un workflow migré invalide, ou une portée qui a déjà un `feature` publié, reste **votre brouillon** : `oh workflow diff feature`, `oh workflow edit feature`, puis `oh workflow publish`.
+- **Rien n'est perdu** : la configuration d'origine est archivée (`workflows/migrated/…` du team-state, `~/.oh/migrated/`) ; ce qui n'a pas d'équivalent (`cp-routing`, agents d'un checkpoint ou absents d'`implement-spec`, `insert_after`, `task_permissions`) est listé en commentaire en tête du workflow migré.
+- Un workflow migré invalide, ou une portée qui a déjà un `implement-spec` publié, reste **votre brouillon** : `oh workflow diff implement-spec`, `oh workflow edit implement-spec`, puis `oh workflow publish`.
 - Si l'équipe verrouillait son workflow, les surcharges de projet (ignorées auparavant) restent un brouillon : la publication est refusée par le verrou.
 - Hors ligne, la migration d'une équipe est simplement retentée au lancement suivant.
 - L'ancienne vue Workflow de la TUI et `oh deploy` ont été supprimés en v5 : les workflows se consultent dans le catalogue (`workflows`) et s'éditent dans l'éditeur.
+
+## Workflows retirés : `feature` et `cadrage`
+
+`feature` et `cadrage` ne sont plus des workflows du hub, mais des alias : `cadrage` et `feature` lancent `spec`, `feature --tickets …` lance `implement-spec`. Un workflow d'équipe ou de projet qui **étend** `hub:feature` ou `hub:cadrage` ne se résout plus : oh le refuse avec une erreur explicite (`extends_alias`), au lancement comme à `oh workflow validate`, et `oh doctor` le signale (« Workflows retirés »).
+
+oh ne le migre pas tout seul : ses changements visent des agents et des checkpoints (`orchestrator`, `cp-0`, `cp-spec`, `cp-feature`) qui n'existent pas dans les workflows cibles, et une redirection silencieuse pourrait perdre une règle de l'équipe. Pour le migrer :
+
+```bash
+oh doctor                                   # liste les workflows concernés
+oh workflow edit feature                    # extends: hub:spec ou hub:implement-spec, agents et checkpoints adaptés
+oh workflow publish team:feature
+# ou : oh workflow archive team:feature     # l'alias s'applique de nouveau
+```
+
+Un workflow réécrit qui garde l'id `feature` masque l'alias (`oh run feature` le lance, avertissement `alias_shadowed`) ; sous un autre id (`feature-equipe`), l'alias reste disponible. Détails : [Workflows livrés › `feature`](../reference/workflows.fr.md#feature-alias-de-spec--implement-spec).

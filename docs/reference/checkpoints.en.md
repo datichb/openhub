@@ -19,7 +19,7 @@ Every pause costs human time and, in the long run, rubber-stamping: the number o
 So `auto` is not full autonomy: a mandatory checkpoint (or one that unlocks an operation) is never skipped. At launch, `oh run` and the TUI recap show the **planned pauses** for the chosen mode, for instance:
 
 ```
-  Planned pauses 2 per run: cp-0 (mandatory) · cp-2 (mandatory) — auto = everything but the mandatory decisions
+  Planned pauses 2 per run: cp-plan (mandatory) · cp-2 (mandatory) — auto = everything but the mandatory decisions
 ```
 
 A conditional checkpoint is listed with "if its condition holds". Repeated checkpoints (one `cp-2` per ticket) count once per run.
@@ -28,8 +28,6 @@ A conditional checkpoint is listed with "if its condition holds". Repeated check
 
 | Workflow | Pauses in semi-auto | Irreversible ones | Budget |
 |---|---|---|---|
-| `feature` | `cp-tickets`, `cp-0`, `cp-spec` (if its condition holds), `cp-2` | `cp-tickets`, `cp-2` | 4 |
-| `feature`, `tdd` method | the same and `cp-seams` | `cp-tickets`, `cp-2` | 4 + 1 |
 | `ticket` | `cp-2` | `cp-2` | 3 |
 | `ticket`, `tdd` method | `cp-seams`, `cp-2` | `cp-2` | 3 + 1 |
 | `implement-spec` | `cp-plan`, `cp-2`, `cp-final` | `cp-2` | 3 |
@@ -45,7 +43,7 @@ A conditional checkpoint is listed with "if its condition holds". Repeated check
 | `release` | `cp-release` | `cp-release` | 3 |
 | `benchmark` | `cp-target` | — | 2 |
 
-`cp-feature` (feature recap) is automatic in semi-auto: a recap protects nothing (CP-R1); it stays a pause in `manuel`.
+`feature` is an alias (`spec`, or `implement-spec` with `--tickets`): its pauses are those of the workflow launched.
 
 ---
 
@@ -98,7 +96,7 @@ In a read-only workflow (`risk: read`), a verified checkpoint always asks the us
 
 **Loosening**: a team or project layer may harden an inherited verification (more kinds, commands, `must_touch` paths, a longer timeout), never remove nor weaken it (`loosening`); removing a verified checkpoint is refused (`verified_checkpoint_removed`).
 
-The shipped workflows verify `cp-2` (`ticket`, `feature`, `review-feedback`) and `cp-commit` (`quick`, `debug`, `sweep`) this way.
+The shipped workflows verify `cp-2` (`ticket`, `implement-spec`, `review-feedback`) and `cp-commit` (`quick`, `debug`, `sweep`) this way.
 
 **Written specs (`verify.spec`, R4)**: instead of commands, oh reads the specs the session changed under the given paths and checks their frontmatter (wiki format), their glossary, the test point on the line of each criterion (`CA-n · Test : …`) and, with `breakdown: true`, that the breakdown covers every criterion with no slice outside the spec ([format](workflow-schema.en.md#verify--verification-run-by-oh)). The `spec` workflow uses it three times: `cp-converge` (automatic in every mode: the convergence pass, which sends a gap back to the planner without a pause), then `cp-spec` and `cp-tickets` (same check before the commit and the creation of the tickets).
 
@@ -164,7 +162,7 @@ When the changed paths cannot be read (git refuses the repository), a `paths` co
 
 ## TDD method: `cp-seams` and `cp-red` (R7)
 
-`ticket`, `feature` and `implement-spec` have a **Method** input (`method`, `standard` by default). Launched with `tdd` (`oh run ticket -t <id> -i method=tdd`, or the launch form), they add two checkpoints, passed by the `developer`, once per ticket, before the implementation:
+`ticket` and `implement-spec` have a **Method** input (`method`, `standard` by default). Launched with `tdd` (`oh run ticket -t <id> -i method=tdd`, or the launch form), they add two checkpoints, passed by the `developer`, once per ticket, before the implementation:
 
 ```
 cp-1 → cp-seams (pause) → cp-red (verified by oh) → implementation → review → cp-2
@@ -224,7 +222,7 @@ Each approval goes through the same path as a single one: a failed verification 
 
 | Operation | Opened by | Closed |
 |---|---|---|
-| `create` | its checkpoint (`cp-tickets`, `cp-ticket`) | at the **next mandatory checkpoint** (`cp-0`, `cp-commit`…) or when the checkpoint is asked again; not when a ticket is closed |
+| `create` | its checkpoint (`cp-tickets`, `cp-ticket`) | at the **next mandatory checkpoint** (`cp-spec`, `cp-commit`…) or when the checkpoint is asked again; not when a ticket is closed |
 | `commit` | its checkpoint (`cp-2`, `cp-commit`) | **once the work is committed** (HEAD moved and nothing is left to commit: one commit, or several in a row), when the checkpoint is asked again, or when the ticket is closed |
 | `close` | its checkpoint | when a ticket is closed, or when the checkpoint is asked again |
 | `tag` | its checkpoint (`cp-release`); with `commit` at the same checkpoint, only **once the release is committed** | after the first tag, at the next mandatory checkpoint or when the checkpoint is asked again |

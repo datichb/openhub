@@ -56,6 +56,6 @@ Session outputs:
 
 `oh session next <session>` shows this proposal again; in the TUI, it comes first in “Chain with…” (key `e` of the Sessions view). `oh run implement-spec` without tickets also takes the tickets and the spec of the last `spec` session of the project. `implement-spec` processes the tickets one after the other (`cp-plan`, one `cp-2` per ticket, review of the whole at `cp-final`): see [Shipped workflows](../reference/workflows.en.md#implement-spec).
 
-## What about `cadrage`?
+## What about `cadrage` and `feature`?
 
-`cadrage` is now an alias of `spec`: `oh run cadrage` launches `spec`. When the request compares designs or asks for an analysis of the code, the pathfinder explores it first, as in the former `cadrage`. Details: [Shipped workflows](../reference/workflows.en.md#spec).
+`cadrage` and `feature` are now aliases of `spec`: `oh run cadrage` and `oh run feature` launch `spec` (`oh run feature --tickets …` launches `implement-spec`). `oh run feature -i method=tdd` passes the TDD method on to the `implement-spec` proposed at the end. When the request compares designs or asks for an analysis of the code, the pathfinder explores it first, as in the former `cadrage`. Details: [Shipped workflows](../reference/workflows.en.md#spec).

@@ -36,11 +36,11 @@ Skills listes dans le tableau `native_skills:` du frontmatter d'un agent. Ils so
 
 ### Checkpoint (CP)
 
-Un point de passage d'un [workflow](#workflow) (`checkpoints:`, ex. `cp-0`, `cp-2`) ou l'utilisateur valide, corrige ou donne une autre consigne avant la suite. Son comportement depend du [mode de workflow](#mode-de-workflow) (`pause`, `auto`, `skip`, `conditional`) ; un checkpoint `mandatory` ne peut pas etre assoupli. Il est tenu a **3 niveaux** : le prompt genere (skill `workflow/workflow-map`), l'outil MCP `workflow_checkpoint` (permission `ask` validee par oh) et le plugin oh ; la machine a etats est dans oh. Une pause devient une [decision](#decision) ⏸. Voir [schema `oh/v1`](workflow-schema.fr.md#checkpoints) et [ADR-042](../architecture/adr/042-checkpoints-headless-decisions.fr.md).
+Un point de passage d'un [workflow](#workflow) (`checkpoints:`, ex. `cp-plan`, `cp-2`) ou l'utilisateur valide, corrige ou donne une autre consigne avant la suite. Son comportement depend du [mode de workflow](#mode-de-workflow) (`pause`, `auto`, `skip`, `conditional`) ; un checkpoint `mandatory` ne peut pas etre assoupli. Il est tenu a **3 niveaux** : le prompt genere (skill `workflow/workflow-map`), l'outil MCP `workflow_checkpoint` (permission `ask` validee par oh) et le plugin oh ; la machine a etats est dans oh. Une pause devient une [decision](#decision) ⏸. Voir [schema `oh/v1`](workflow-schema.fr.md#checkpoints) et [ADR-042](../architecture/adr/042-checkpoints-headless-decisions.fr.md).
 
 ### Conductor
 
-Agent d'entree generique d'un workflow quand `entry.agent` est absent : sans ecriture ni shell, il suit la carte du workflow generee et delegue aux autres agents selon `after` et les checkpoints (workflows `cadrage`, `sweep`). Voir [ADR-039](../architecture/adr/039-declarative-workflows-oh-v1.fr.md).
+Agent d'entree generique d'un workflow quand `entry.agent` est absent : sans ecriture ni shell, il suit la carte du workflow generee et delegue aux autres agents selon `after` et les checkpoints (workflows `spec`, `sweep`). Voir [ADR-039](../architecture/adr/039-declarative-workflows-oh-v1.fr.md).
 
 ### Claim
 
@@ -176,14 +176,14 @@ Le tableau de bord terminal interactif lance en executant `oh` sans arguments. F
 
 Fixe au lancement (`--mode`, fiche de lancement), il determine le comportement de chaque [checkpoint](#checkpoint-cp), declare par le workflow pour chaque mode :
 - **Manuel** : la plupart des checkpoints s'arretent pour validation
-- **Semi-auto** (defaut des workflows livres) : les checkpoints courants passent seuls ; les points de decision cles (ex. `cp-0`, `cp-2`) s'arretent
-- **Auto** : tout sauf les décisions obligatoires — seuls s'arrêtent les checkpoints obligatoires (`mandatory`) et ceux qui déverrouillent une action (ex. `cp-0` validation du plan, `cp-2` commit)
+- **Semi-auto** (defaut des workflows livres) : les checkpoints courants passent seuls ; les points de decision cles (ex. `cp-plan`, `cp-2`) s'arretent
+- **Auto** : tout sauf les décisions obligatoires — seuls s'arrêtent les checkpoints obligatoires (`mandatory`) et ceux qui déverrouillent une action (ex. `cp-plan` validation du plan, `cp-2` commit)
 
 Un workflow peut restreindre les modes (`modes.allowed`). Voir [schema `oh/v1`](workflow-schema.fr.md#modes).
 
 ### Workflow
 
-La description declarative d'un cas d'usage (YAML `apiVersion: oh/v1`) : agent d'entree, agents, checkpoints, entrees, ressources, environnements et limites. 14 workflows livres par le hub (`feature`, `ticket`, `quick`, `infra-change`, `cadrage`, `onboarding`, `review`, `review-feedback`, `audit`, `debug`, `benchmark`, `sweep`, `brief-enrich`, `libre`), extensibles par l'equipe et le projet (`extends`, la securite ne pouvant que se durcir). Lance par `oh run <workflow>`. Voir [Workflows livres](workflows.fr.md) et [schema `oh/v1`](workflow-schema.fr.md).
+La description declarative d'un cas d'usage (YAML `apiVersion: oh/v1`) : agent d'entree, agents, checkpoints, entrees, ressources, environnements et limites. 21 workflows livrés par le hub (`ticket`, `quick`, `spec`, `implement-spec`, `infra-change`, `onboarding`, `review`, `review-feedback`, `audit`, `debug`, `incident`, `security-fix`, `spike`, `release`, `benchmark`, `sweep`, `doc-sync`, `skill-refresh`, `brief-enrich`, `merge-conflicts`, `libre` ; `feature` et `cadrage` sont des alias de `spec`), extensibles par l'equipe et le projet (`extends`, la securite ne pouvant que se durcir). Lance par `oh run <workflow>`. Voir [Workflows livres](workflows.fr.md) et [schema `oh/v1`](workflow-schema.fr.md).
 
 ### Worktree
 

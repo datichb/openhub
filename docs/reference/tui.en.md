@@ -102,7 +102,7 @@ The Command column gives the displayed label; an alias can be typed too. Each al
 
 | Command | Aliases | Mode | Description |
 |---------|---------|------|-------------|
-| `run <workflow>` | the workflow id; former names: `dev`, `start.dev` → `ticket` · `start`, `orchestrator` → `feature` · `fast` → `quick` · `secu`, `security`, `perf`, `archi`, `a11y` → `audit` · `rev`, `cr` → `review` · `dbg`, `debugger`, `diag` → `debug` · `onboard`, `start.onboard` → `onboarding` · `feedback`, `rf`, `retours` → `review-feedback` | — | Launch form of the workflow (one command per workflow of the catalogue) |
+| `run <workflow>` | the workflow id; former names: `dev`, `start.dev` → `ticket` · `start`, `feature`, `orchestrator`, `cadrage` → `spec` · `fast` → `quick` · `secu`, `security`, `perf`, `archi`, `a11y` → `audit` · `rev`, `cr` → `review` · `dbg`, `debugger`, `diag` → `debug` · `onboard`, `start.onboard` → `onboarding` · `feedback`, `rf`, `retours` → `review-feedback` | — | Launch form of the workflow (one command per workflow of the catalogue) |
 | Free session | `coder`, session, code, free | Project/Team | Launch form of the `libre` workflow (entry agent of your choice, `orchestrator` by default) |
 | Sessions | `sessions`, parallel, par, multi, inbox, à traiter, decisions | — | Sessions view |
 | Workflows | `workflows`, catalogue, catalog, wf, workflow | — | Workflow catalogue (drafts, publication, history) |
@@ -121,7 +121,7 @@ Generated from the workflow YAML (title "Launch · <workflow>"), in three steps:
 
 ### Start, board, catalogue
 
-- **Start** (home, project, team): ★ pinned (5 max per scope), **Recent** (3), suggestions when nothing is pinned nor recent (`ticket`, `feature`, `review`); the project default workflow comes first ("default" badge); in Project/Team mode, folded categories (Develop, Frame, Quality, Knowledge, Other; Enter = pick the workflow). `*` pins or unpins (scope: hub, project or team depending on the home). "All workflows (N)" opens the catalogue; "Free session" opens the `libre` form.
+- **Start** (home, project, team): ★ pinned (5 max per scope), **Recent** (3), suggestions when nothing is pinned nor recent (`ticket`, `spec`, `review`); the project default workflow comes first ("default" badge); in Project/Team mode, folded categories (Develop, Frame, Quality, Knowledge, Other; Enter = pick the workflow). `*` pins or unpins (scope: hub, project or team depending on the home). "All workflows (N)" opens the catalogue; "Free session" opens the `libre` form.
 - **Board**: `a` on a ticket opens "Launch on <ticket>" with the workflows that take a Beads ticket; the form opens at the Options step, ticket prefilled.
 - **Catalogue** (`workflows`): workflows by layer (Hub · built in, Team, Project; version, risk, ⌂ ▣ ☁, validity), detail on the right (entry, chain, inputs, runtimes). Enter launches, `*` pins. With a team-state (team or solo space), the catalogue is **editable**:
   - sections Hub (read only: `e` extend, `n` duplicate), Team, Project, **My drafts** (`✎`, error count, "new brick" badge for a team brick used for the first time) and **⚠ Integrity** (skipped published files, refused bricks); `✎` on a published workflow = you have a draft of it, `⏳` = publication waiting for the network;

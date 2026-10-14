@@ -19,7 +19,7 @@ Chaque pause coûte du temps humain et, à force, une validation machinale : le 
 Le mode `auto` n'est donc pas une autonomie complète : un checkpoint obligatoire (ou qui déverrouille une opération) n'est jamais sauté. Au lancement, `oh run` et le récapitulatif de la TUI affichent les **pauses prévues** pour le mode choisi, par exemple :
 
 ```
-  Pauses prévues 2 par passage : cp-0 (obligatoire) · cp-2 (obligatoire) — auto = tout sauf les décisions obligatoires
+  Pauses prévues 2 par passage : cp-plan (obligatoire) · cp-2 (obligatoire) — auto = tout sauf les décisions obligatoires
 ```
 
 Un checkpoint conditionnel y figure avec la mention « si sa condition est vraie ». Les checkpoints répétés (un `cp-2` par ticket) comptent une fois par passage.
@@ -28,8 +28,6 @@ Un checkpoint conditionnel y figure avec la mention « si sa condition est vraie
 
 | Workflow | Pauses en semi-auto | Dont irréversibles | Budget |
 |---|---|---|---|
-| `feature` | `cp-tickets`, `cp-0`, `cp-spec` (si la condition est vraie), `cp-2` | `cp-tickets`, `cp-2` | 4 |
-| `feature` en méthode `tdd` | les mêmes et `cp-seams` | `cp-tickets`, `cp-2` | 4 + 1 |
 | `ticket` | `cp-2` | `cp-2` | 3 |
 | `ticket` en méthode `tdd` | `cp-seams`, `cp-2` | `cp-2` | 3 + 1 |
 | `implement-spec` | `cp-plan`, `cp-2`, `cp-final` | `cp-2` | 3 |
@@ -45,7 +43,7 @@ Un checkpoint conditionnel y figure avec la mention « si sa condition est vraie
 | `release` | `cp-release` | `cp-release` | 3 |
 | `benchmark` | `cp-target` | — | 2 |
 
-`cp-feature` (récap de la feature) passe en automatique en semi-auto : un récapitulatif ne protège rien (CP-R1), il reste une pause en `manuel`.
+`feature` est un alias (`spec`, ou `implement-spec` avec `--tickets`) : ses pauses sont celles du workflow lancé.
 
 ---
 
@@ -98,7 +96,7 @@ Dans un workflow en lecture seule (`risk: read`), un checkpoint vérifié demand
 
 **Assouplissement** : une couche d'équipe ou de projet peut renforcer une vérification héritée (ajouter des types, des commandes, des chemins `must_touch`, allonger le délai), jamais la retirer ni l'affaiblir (`loosening`) ; retirer un checkpoint vérifié est refusé (`verified_checkpoint_removed`).
 
-Les workflows livrés vérifient ainsi `cp-2` (`ticket`, `feature`, `review-feedback`) et `cp-commit` (`quick`, `debug`, `sweep`).
+Les workflows livrés vérifient ainsi `cp-2` (`ticket`, `implement-spec`, `review-feedback`) et `cp-commit` (`quick`, `debug`, `sweep`).
 
 **Specs écrites (`verify.spec`, R4)** : au lieu de commandes, oh lit les specs que la session a modifiées sous les chemins donnés et vérifie leur frontmatter (format du wiki), leur glossaire, le point de test sur la ligne de chaque critère (`CA-n · Test : …`) et, avec `breakdown: true`, que le découpage couvre chaque critère sans tranche hors spec ([format](workflow-schema.fr.md#verify--vérification-lancée-par-oh)). Le workflow `spec` s'en sert trois fois : `cp-converge` (automatique dans tous les modes : la passe de convergence, qui renvoie un écart au planner sans pause), puis `cp-spec` et `cp-tickets` (même vérification avant le commit et la création des tickets).
 
@@ -164,7 +162,7 @@ Si les chemins modifiés ne peuvent pas être lus (git refuse le dépôt), une c
 
 ## Méthode TDD : `cp-seams` et `cp-red` (R7)
 
-`ticket`, `feature` et `implement-spec` ont une entrée **Méthode** (`method`, `standard` par défaut). Lancés avec `tdd` (`oh run ticket -t <id> -i method=tdd`, ou la fiche de lancement), ils ajoutent deux checkpoints, passés par le `developer`, une fois par ticket, avant l'implémentation :
+`ticket` et `implement-spec` ont une entrée **Méthode** (`method`, `standard` par défaut). Lancés avec `tdd` (`oh run ticket -t <id> -i method=tdd`, ou la fiche de lancement), ils ajoutent deux checkpoints, passés par le `developer`, une fois par ticket, avant l'implémentation :
 
 ```
 cp-1 → cp-seams (pause) → cp-red (vérifié par oh) → implémentation → review → cp-2
@@ -224,7 +222,7 @@ Chaque validation passe par le même chemin qu'une validation seule : une vérif
 
 | Opération | Ouverte par | Refermée |
 |---|---|---|
-| `create` | son checkpoint (`cp-tickets`, `cp-ticket`) | au **checkpoint obligatoire suivant** (`cp-0`, `cp-commit`…) ou quand le checkpoint est redemandé ; pas à la fermeture d'un ticket |
+| `create` | son checkpoint (`cp-tickets`, `cp-ticket`) | au **checkpoint obligatoire suivant** (`cp-spec`, `cp-commit`…) ou quand le checkpoint est redemandé ; pas à la fermeture d'un ticket |
 | `commit` | son checkpoint (`cp-2`, `cp-commit`) | **une fois le travail commité** (HEAD a avancé et il ne reste rien à committer : un commit, ou plusieurs à la suite), quand le checkpoint est redemandé, ou à la fermeture du ticket |
 | `close` | son checkpoint | à la fermeture d'un ticket, ou quand le checkpoint est redemandé |
 | `tag` | son checkpoint (`cp-release`) ; avec `commit` au même checkpoint, seulement **une fois la release commitée** | après le premier tag, au checkpoint obligatoire suivant ou quand le checkpoint est redemandé |

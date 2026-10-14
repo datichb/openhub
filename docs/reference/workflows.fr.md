@@ -23,11 +23,10 @@ On lance un workflow avec `oh run <workflow>` ou la fiche de lancement de la TUI
 | Workflow | Agent d'entrée | Agents | Risque | Exécution | Remplace |
 |---|---|---|---|---|---|
 | `ticket` | `orchestrator-dev` | `developer`, `reviewer`, `documentarian` (à la demande) | write | local, conteneur, distant | `oh start --dev`, `-t` |
-| `feature` | `orchestrator` | `pathfinder`, `planner`, `designer`, `orchestrator-dev`, `developer`, `reviewer`, `documentarian` (à la demande) | write | local | `oh start` (anciens modes A, B et E) |
 | `quick` | `developer` | — | write | local | session rapide |
 | `infra-change` | `operator` | — | write (infrastructure, aucun fichier) | local | ancien agent `infra` (partie application) |
-| `spec` (alias `cadrage`) | `conductor` | `pathfinder` (si la demande compare des conceptions), `planner` (écrit `docs/wiki/specs/`), `designer` | plan (+ `writes:`) | local | `cadrage` (ancien mode A sans implémentation), avec une spec écrite et vérifiée |
-| `implement-spec` | `orchestrator-dev` | `developer`, `reviewer`, `documentarian` (à la demande) ; en fan-out : `reviewer` et une session enfant `ticket` par ticket | write | local | partie implémentation de `feature` |
+| `spec` (alias `cadrage`, `feature`) | `conductor` | `pathfinder` (si la demande compare des conceptions), `planner` (écrit `docs/wiki/specs/`), `designer` | plan (+ `writes:`) | local | `cadrage` (ancien mode A sans implémentation), avec une spec écrite et vérifiée |
+| `implement-spec` (alias `feature` avec `--tickets`) | `orchestrator-dev` | `developer`, `reviewer`, `documentarian` (à la demande) ; en fan-out : `reviewer` et une session enfant `ticket` par ticket | write | local | partie implémentation de l'ancien `feature` (mode B : tickets existants) |
 | `merge-conflicts` | `merger` | — | write (conclut un merge en cours ; jamais de push) | local | — (lancé par oh dans un fan-out) |
 | `onboarding` | `onboarder` | — | write (`docs/wiki/`) | local, distant | `oh start --onboard` (ancien mode C) |
 | `doc-sync` | `documentarian` | — | write (`docs/wiki/`) | local | — |
@@ -43,7 +42,7 @@ On lance un workflow avec `oh run <workflow>` ou la fiche de lancement de la TUI
 | `benchmark` | `benchmarker` | — | write (`reports/benchmarks/`) | local | `oh run libre --agent benchmarker` |
 | `sweep` | `conductor` | `pathfinder`, `developer`, `reviewer` | write | local | `oh start --sweep` |
 | `brief-enrich` | `brief-enricher` | — | read | local | `oh takeover-brief enrich` |
-| `libre` | au choix (`orchestrator` par défaut) | ceux que l'agent choisi peut appeler | write | local, conteneur | `oh start --agent`, session libre de la TUI |
+| `libre` | au choix (`orchestrator` par défaut, son seul workflow) | ceux que l'agent choisi peut appeler | write | local, conteneur | `oh start --agent`, session libre de la TUI |
 
 ### Niveaux de risque
 
@@ -75,7 +74,7 @@ preconditions:
 - Autres tests : `git_clean: true` (aucune modification non commitée, `.beads/` exclu), `branch: [main, "release/*"]` (branche courante), `tools: [goreleaser]` (commandes dans le `PATH`) ; en cas d'échec, le message dit ce qui a été trouvé (modifications, branche, outils manquants). Voir le [schéma](workflow-schema.fr.md#préconditions).
 - Chemins relatifs, sans `..`. Un patch (`extends`) modifie une précondition par son identifiant ou la retire (`disabled: true`).
 
-`release` refuse de se lancer sur un arbre sale ou hors de `main`, `master` et `release/*`. `feature`, `spec` (et son alias `cadrage`) et `implement-spec` proposent `onboarding` quand le projet n'a ni wiki, ni `ONBOARDING.md`, ni `CONVENTIONS.md`.
+`release` refuse de se lancer sur un arbre sale ou hors de `main`, `master` et `release/*`. `spec` (et ses alias `cadrage` et `feature`) et `implement-spec` proposent `onboarding` quand le projet n'a ni wiki, ni `ONBOARDING.md`, ni `CONVENTIONS.md`.
 
 ---
 
@@ -101,37 +100,35 @@ Mode par défaut : `semi-auto`. Commandes Beads autorisées : `show`, `list`, `r
 
 En méthode `tdd` (`-i method=tdd`), le `developer` passe lui-même `cp-seams` (il présente les points d'injection, les interfaces et les tests prévus) puis `cp-red`, où oh vérifie que les tests écrits échouent pour la bonne raison (le code construit, les tests compilent et échouent) et qu'un fichier de test a changé depuis `cp-seams` ; les autres fichiers modifiés sont signalés. Sans cette méthode, rien ne change : ni checkpoint, ni texte. Voir [Méthode TDD](checkpoints.fr.md#méthode-tdd--cp-seams-et-cp-red-r7).
 
-`cp-2` déverrouille `commit` et `close` : avant sa validation, oh refuse à tous les agents `git commit` (et `revert`, `cherry-pick`, `merge`, `pull`, qui commitent aussi) et la fermeture du ticket. Le push revient à l'utilisateur (aucun workflow livré ne le déverrouille). Avant que `cp-2` passe, oh lance lui-même le build, les tests et le typecheck de la stack détectée (`verify: { from: stack, expect: pass }`) : la carte de décision affiche le résultat, un échec n'ouvre rien et l'utilisateur peut passer outre (choix tracé). Même vérification sur `cp-2` de `feature` et `review-feedback`, et sur `cp-commit` de `quick`, `debug` et `sweep` ; voir [Checkpoints](checkpoints.fr.md). Une fois `cp-2` validé, l'`orchestrator-dev` relance le `developer`, qui commite puis ferme le ticket ; oh refuse la fermeture tant que le travail n'est pas commité. Le `reviewer` lance le build et les tests du projet (et le lint, le typecheck) avant sa review, avec les commandes de la stack détectée, autorisées ici : un échec est un finding 🔴 (verdict `corriger`) ; les fichiers produits par le build et non ignorés sont signalés, la fermeture exigeant un arbre propre. Il en va de même dans `feature`, `sweep`, `review-feedback` et `libre`. Une question qui imite un checkpoint (« CP-2 — commit ? » posée avec l'outil `question`) est fermée par oh, qui rappelle à l'agent d'appeler `workflow_checkpoint`. Quand le ticket de la session est fermé (ou le dernier checkpoint passé) et que l'étape se termine, oh déclare les sorties manquantes (`branch`, `tickets`) et la session passe à **terminée** : « Enchaîner avec… » est proposé.
+`cp-2` déverrouille `commit` et `close` : avant sa validation, oh refuse à tous les agents `git commit` (et `revert`, `cherry-pick`, `merge`, `pull`, qui commitent aussi) et la fermeture du ticket. Le push revient à l'utilisateur (aucun workflow livré ne le déverrouille). Avant que `cp-2` passe, oh lance lui-même le build, les tests et le typecheck de la stack détectée (`verify: { from: stack, expect: pass }`) : la carte de décision affiche le résultat, un échec n'ouvre rien et l'utilisateur peut passer outre (choix tracé). Même vérification sur `cp-2` d'`implement-spec` et `review-feedback`, et sur `cp-commit` de `quick`, `debug` et `sweep` ; voir [Checkpoints](checkpoints.fr.md). Une fois `cp-2` validé, l'`orchestrator-dev` relance le `developer`, qui commite puis ferme le ticket ; oh refuse la fermeture tant que le travail n'est pas commité. Le `reviewer` lance le build et les tests du projet (et le lint, le typecheck) avant sa review, avec les commandes de la stack détectée, autorisées ici : un échec est un finding 🔴 (verdict `corriger`) ; les fichiers produits par le build et non ignorés sont signalés, la fermeture exigeant un arbre propre. Il en va de même dans `implement-spec`, `sweep`, `review-feedback` et `libre`. Une question qui imite un checkpoint (« CP-2 — commit ? » posée avec l'outil `question`) est fermée par oh, qui rappelle à l'agent d'appeler `workflow_checkpoint`. Quand le ticket de la session est fermé (ou le dernier checkpoint passé) et que l'étape se termine, oh déclare les sorties manquantes (`branch`, `tickets`) et la session passe à **terminée** : « Enchaîner avec… » est proposé.
 
-## `feature`
+## `feature` (alias de `spec` → `implement-spec`)
 
-Réalise une feature de bout en bout. L'orchestrator choisit l'agent de planning : `pathfinder` pour une feature simple ou exploratoire, `planner` pour une feature à découper (création des tickets) ou pour classer des tickets existants. Il passe ensuite la main à `orchestrator-dev` pour l'implémentation.
+`feature` n'est plus un workflow (`workflows/feature.yaml` est retiré) : c'est l'enchaînement [`spec`](#spec) puis [`implement-spec`](#implement-spec), routé par les entrées (voir [`aliases`](workflow-schema.fr.md#aliases--autres-noms-du-workflow)) :
 
-| Entrée | Type | Obligatoire | Rôle |
-|---|---|---|---|
-| `request` | `text` (8 000 caractères max) | non | La feature en langage naturel, ou l'identifiant d'un ticket ou d'une MR GitLab |
-| `tickets` | `beads-ids` | non | Tickets existants à prendre en charge (ancien mode B) |
-| `method` | `enum` (`standard`, `tdd`) | non (`standard`) | Méthode : `tdd` ajoute `cp-seams` et `cp-red` à chaque ticket |
+| Lancement | Workflow lancé | Ancien mode |
+|---|---|---|
+| `oh run feature -m "…"` (et `oh start -m "…"`) | `spec` : `aliases: [cadrage, feature]` | A (feature en langage naturel) |
+| `oh run feature --tickets bd-1,bd-2` | `implement-spec` : `aliases: [{ id: feature, with: tickets }]` ; `-m` va à son entrée `instructions` | B (tickets existants) |
 
-Sans demande ni ticket, la session commence par demander quelle feature réaliser.
+oh affiche la redirection (`feature → spec`). À la fin de `spec`, oh propose `implement-spec` sur les tickets créés et la spec écrite, sans le lancer (`oh session next <id>`, fermeture du client, « Enchaîner avec… » dans la TUI).
 
-| Checkpoint | manuel | semi-auto | auto |
-|---|---|---|---|
-| `cp-tickets` Valider les tickets à créer (obligatoire, déverrouille `create`) | pause | pause | pause |
-| `cp-0` Valider le plan (obligatoire) | pause | pause | pause |
-| `cp-spec` Valider la spec UX/UI | si une spec a été produite | idem | idem |
-| `cp-1` Démarrer le ticket | pause | auto | auto |
-| `cp-seams` Points d'injection et tests prévus (méthode `tdd`) | pause | pause | auto |
-| `cp-red` Tests en échec (méthode `tdd`, vérifié par oh) | auto | auto | auto |
-| `cp-2` Commit ou correction (obligatoire) | pause | pause | pause |
-| `cp-3` Ticket suivant | pause | auto | auto |
-| `cp-feature` Récap de la feature | pause | auto | auto |
+**Méthode TDD transmise.** `spec` accepte l'entrée `method` (`standard` ou `tdd`) sans l'utiliser lui-même : oh la relève au lancement (sortie `method`, `record: input`) et la passe à `implement-spec` dans la suite proposée (`-i method=tdd`). `oh run feature -i method=tdd -m "…"` donne donc une spec, puis une implémentation en TDD.
 
-Aucun ticket n'est créé avant `cp-tickets` (avec des tickets existants seulement, `cp-tickets` confirme la liste). `orchestrator-dev` ne démarre qu'après `cp-0` ; il passe lui-même `cp-1`, `cp-2` et `cp-3` (en méthode `tdd`, le `developer` passe `cp-seams` et `cp-red`, une fois par ticket), avec **un `cp-2` par ticket** (chaque ticket est commité puis fermé avant le suivant ; pas de validation groupée). En fin de feature, l'`orchestrator` fait relire l'ensemble par le `reviewer` (review adversariale sur la branche de travail), avant `cp-feature`. Mode par défaut : `semi-auto`. Sorties : `tickets`, `branch`. Commandes Beads autorisées : `show`, `list`, `ready`, `search`, `query`, `children`, `comments`, `count`, `lint`, `find-duplicates`, `status`, `graph`, `history`, `create`, `update`, `close`, `dep`, `label`, `duplicate`, `supersede`.
+Ce qui change par rapport à l'ancien `feature` (⚠) :
 
-L'ancienne pré-phase d'onboarding (mode C) n'est plus dans `feature` : la précondition `project-context` propose le workflow `onboarding`, puis le retour à `feature`.
+- la demande est **obligatoire** sans tickets (`spec` refuse de se lancer sans `request` ; avant, la session demandait quelle feature réaliser) ;
+- la spec est écrite et vérifiée dans le wiki (`docs/wiki/specs/`), les tickets créés à `cp-tickets` ; l'implémentation est une **seconde session**, proposée par oh ;
+- checkpoints : ceux de `spec` (`cp-understanding`, `cp-converge`, `cp-spec`, `cp-tickets`), puis ceux d'`implement-spec` (`cp-plan` remplace `cp-0`, `cp-final` remplace `cp-feature` et sa revue de l'ensemble) ; `cp-spec` (spec UX/UI conditionnelle) disparaît : le designer est appelé par le planner de `spec` ;
+- l'`orchestrator` n'est plus l'agent d'entrée que de [`libre`](#libre) ;
+- les commandes Beads, la vérification de `cp-2` et le verrou de commit sont ceux d'`implement-spec`.
 
-La même chaîne existe en deux workflows composés (R5) : [`spec`](#spec), qui propose à sa fin [`implement-spec`](#implement-spec) sur les tickets créés. `feature` reste inchangé dans cette version ; il deviendra l'enchaînement `spec` → `implement-spec` (un alias routé par les entrées : `aliases: [{ id: feature, with: tickets }]` dans `implement-spec`, `feature` dans `spec`) une fois les couches d'équipe qui l'étendent migrées.
+**Couches d'équipe et de projet.** Un document qui étend `hub:feature` (ou `hub:cadrage`) ne se résout plus : oh refuse avec une erreur explicite, `extends_alias` (« hub:feature n'est plus un workflow : c'est un alias de implement-spec, spec… »), au lancement comme à `oh workflow validate`, et `oh doctor` liste les workflows publiés concernés (« Workflows retirés »). Il n'y a pas de migration automatique : les patchs de `feature` visent des agents et des checkpoints (`orchestrator`, `cp-0`, `cp-spec`, `cp-feature`) qui n'existent ni dans `spec` ni dans `implement-spec`, et les rediriger en silence pourrait perdre une règle de l'équipe (`enforce`, checkpoint rendu obligatoire). Pour migrer, au choix :
+
+- **supprimer** le document : `oh run feature` reprend l'alias ;
+- le **réécrire** comme couche de `spec` ou d'`implement-spec` (`extends: hub:spec`, `extends: hub:implement-spec`), en portant les changements sur leurs agents et leurs checkpoints ; un document qui garde l'id `feature` masque l'alias (avertissement `alias_shadowed`).
+
+Un document `feature` complet, sans `extends`, reste un workflow d'équipe à part entière (il masque aussi l'alias). La migration des anciennes configurations (v38) écrit désormais un patch d'`implement-spec` (`cp-0` devient `cp-plan` ; les agents absents d'`implement-spec` sont listés en commentaire, non traduits).
 
 ## `quick`
 
@@ -148,6 +145,7 @@ Comprend une demande, écrit sa spec dans le wiki et la découpe en tickets Bead
 | Entrée | Type | Obligatoire | Rôle |
 |---|---|---|---|
 | `request` | `text` (8 000 caractères max) | oui | La feature à spécifier |
+| `method` | `enum` (`standard`, `tdd`) | non (`standard`) | Méthode de l'implémentation proposée ensuite : `spec` ne s'en sert pas, oh la relève et la passe à `implement-spec` |
 
 | Checkpoint | manuel | semi-auto | auto |
 |---|---|---|---|
@@ -170,13 +168,13 @@ Exploration : quand la demande compare des conceptions ou demande d'analyser le 
 
 Budget de pauses (CP-R2) en semi-auto : 3 pauses (1 décision, 2 actions irréversibles), pour un budget de 4. Mode par défaut : `semi-auto`. Commandes Beads autorisées : `show`, `list`, `ready`, `children`, `search`, `query`, `count`, `lint`, `find-duplicates`, `label`, `dep`, `create`, `update`, `comments`, `duplicate`, `supersede`.
 
-Sorties **relevées par oh** (aucun agent ne les déclare) : `spec` (la spec vérifiée à `cp-converge` et `cp-spec`) et `tickets` (les tickets créés après `cp-tickets`). Suite proposée (`next:`) quand des tickets ont été créés : **`implement-spec`** sur ces tickets et cette spec ; oh l'affiche à la fermeture du client (`oh run`), dans `oh session next <id>` et dans « Enchaîner avec… » de la TUI, sans la lancer.
+Sorties **relevées par oh** (aucun agent ne les déclare) : `spec` (la spec vérifiée à `cp-converge` et `cp-spec`), `tickets` (les tickets créés après `cp-tickets`) et `method` (l'entrée du lancement, `record: input`). Suite proposée (`next:`) quand des tickets ont été créés : **`implement-spec`** sur ces tickets, cette spec et cette méthode ; oh l'affiche à la fermeture du client (`oh run`), dans `oh session next <id>` et dans « Enchaîner avec… » de la TUI, sans la lancer.
 
-**`cadrage` est un alias de `spec`** (R5) : `oh run cadrage` lance `spec` (`aliases: [cadrage]`). L'ancien `cadrage` (exploration systématique, `cp-scope`, `cp-recap`, aucun fichier écrit) n'existe plus ; une couche d'équipe ou de projet qui définit un workflow `cadrage` l'emporte sur l'alias.
+**`cadrage` et `feature` sont des alias de `spec`** (R5, feature-migration) : `oh run cadrage` et `oh run feature` lancent `spec` (`aliases: [cadrage, feature]` ; `feature` avec `--tickets` lance `implement-spec`, voir [`feature`](#feature-alias-de-spec--implement-spec)). L'ancien `cadrage` (exploration systématique, `cp-scope`, `cp-recap`, aucun fichier écrit) n'existe plus ; une couche d'équipe ou de projet qui définit un workflow `cadrage` l'emporte sur l'alias, une couche qui étend `hub:cadrage` est refusée (`extends_alias`).
 
 ## `implement-spec`
 
-Implémente les tickets d'une spec l'un après l'autre, dans une seule session (`risk: write`), puis fait revoir l'ensemble. C'est la partie implémentation de `feature`, sans planification : l'`orchestrator-dev` lit lui-même les tickets (`bd show`) et fixe l'ordre (dépendances, puis priorité). Par défaut, version **séquentielle** dans la session ; avec `fanout=true` (expérimental), **sessions enfants** (voir plus bas).
+Implémente les tickets d'une spec l'un après l'autre, dans une seule session (`risk: write`), puis fait revoir l'ensemble. C'est la partie implémentation de l'ancien `feature` (alias `feature` avec `--tickets`), sans planification : l'`orchestrator-dev` lit lui-même les tickets (`bd show`) et fixe l'ordre (dépendances, puis priorité). Par défaut, version **séquentielle** dans la session ; avec `fanout=true` (expérimental), **sessions enfants** (voir plus bas).
 
 | Entrée | Type | Obligatoire | Rôle |
 |---|---|---|---|
@@ -197,7 +195,7 @@ Implémente les tickets d'une spec l'un après l'autre, dans une seule session (
 
 Aucune délégation avant `cp-plan`. Chaque ticket passe par son `cp-2` (commit, puis fermeture, avant le suivant). Tous les tickets traités, le `reviewer` fait une review adversariale de tous les commits de la session ; `cp-final` présente son verdict, les tickets et leurs commits, les points ouverts : l'utilisateur décide d'un tour de correction (un seul, repassé par `cp-2`) ou de s'arrêter.
 
-Budget de pauses (CP-R2) en semi-auto : `cp-plan`, `cp-2`, `cp-final`, soit 3 pauses pour un budget de 3 (2 décisions, 1 action irréversible) ; la méthode `tdd` en ajoute une (`cp-seams`). Une feature de N tickets coûte donc N + 2 pauses (au lieu de N + 3 dans `feature`). Mode par défaut : `semi-auto`. Exécution : locale. Commandes Beads autorisées : `show`, `list`, `ready`, `children`, `dep`, `update`, `close`, `comments`, `label`. Sorties : `branch` (déclarée), `tickets` (tickets fermés, relevés par oh).
+Budget de pauses (CP-R2) en semi-auto : `cp-plan`, `cp-2`, `cp-final`, soit 3 pauses pour un budget de 3 (2 décisions, 1 action irréversible) ; la méthode `tdd` en ajoute une (`cp-seams`). Une feature de N tickets coûte donc N + 2 pauses (au lieu de N + 3 dans l'ancien `feature`). Mode par défaut : `semi-auto`. Exécution : locale. Commandes Beads autorisées : `show`, `list`, `ready`, `children`, `dep`, `update`, `close`, `comments`, `label`. Sorties : `branch` (déclarée), `tickets` (tickets fermés, relevés par oh).
 
 ### Fan-out (`fanout=true`, expérimental)
 
@@ -480,7 +478,7 @@ Enrichit un brief de reprise de ticket, sans interaction (session sans interface
 
 ## `libre`
 
-Session avec l'agent de ton choix, sans checkpoint ni verrou de commit (l'agent demande confirmation avant toute action irréversible) : `oh run libre --agent debugger -i request="…"` (sans `--agent` : `orchestrator`). L'entrée du workflow est **au choix** (`entry.selectable: true`) : oh calcule les membres à partir de l'agent choisi et des agents qu'il peut appeler (permission `task` du catalogue, de proche en proche). Le monde reste fermé : rien d'autre n'est visible. Dans la TUI, la session libre (commande `coder`, ou « Démarrer » quand le catalogue est vide) ouvre la fiche avec l'agent par défaut. Commandes Beads autorisées : `show`, `list`, `ready`, `search`, `query`, `children`, `comments`, `count`, `lint`, `find-duplicates`, `status`, `graph`, `history`, `create`, `update`, `close`, `reopen`, `edit`, `comment`, `dep`, `label`, `duplicate`, `supersede` (tout sauf `delete`).
+Session avec l'agent de ton choix, sans checkpoint ni verrou de commit (l'agent demande confirmation avant toute action irréversible) : `oh run libre --agent debugger -i request="…"` (sans `--agent` : `orchestrator`, l'agent d'entrée de ce seul workflow depuis que `feature` est un alias : il coordonne sans lire ni modifier de fichier, route vers le `pathfinder` ou le `planner` puis l'`orchestrator-dev`, et fait valider le plan avec `question`, faute de checkpoint). L'entrée du workflow est **au choix** (`entry.selectable: true`) : oh calcule les membres à partir de l'agent choisi et des agents qu'il peut appeler (permission `task` du catalogue, de proche en proche). Le monde reste fermé : rien d'autre n'est visible. Dans la TUI, la session libre (commande `coder`, ou « Démarrer » quand le catalogue est vide) ouvre la fiche avec l'agent par défaut. Commandes Beads autorisées : `show`, `list`, `ready`, `search`, `query`, `children`, `comments`, `count`, `lint`, `find-duplicates`, `status`, `graph`, `history`, `create`, `update`, `close`, `reopen`, `edit`, `comment`, `dep`, `label`, `duplicate`, `supersede` (tout sauf `delete`).
 
 | Entrée | Type | Obligatoire | Rôle |
 |---|---|---|---|

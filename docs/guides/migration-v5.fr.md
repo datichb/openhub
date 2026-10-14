@@ -90,7 +90,7 @@ Dans `opencode.json`, seules les clés **écrites par oh et inchangées depuis l
 
 ## 9. Anciennes surcharges du workflow (migration v38)
 
-Les surcharges de l'ancien workflow unique (`hub.toml [workflow]`, `[workflow]` du `config.toml` d'équipe, configuration de workflow des projets) sont migrées **automatiquement** au démarrage vers des workflows `feature` du team-state (équipe, projet ; un espace solo est créé pour un projet sans équipe). Rien n'est perdu : la configuration d'origine est archivée à côté (`workflows/migrated/…`, `~/.oh/migrated/` pour `hub.toml`). Une configuration de projet illisible ou au format inconnu n'est pas migrée : elle est archivée dans `~/.oh/migrated/project-<id>-workflow-config.json`, avec un message au démarrage. Détails : [Workflows d'équipe › Migration des anciennes surcharges](team-workflows.fr.md).
+Les surcharges de l'ancien workflow unique (`hub.toml [workflow]`, `[workflow]` du `config.toml` d'équipe, configuration de workflow des projets) sont migrées **automatiquement** au démarrage vers des workflows `implement-spec` du team-state (`feature` jusqu'à ce qu'il devienne un alias) (équipe, projet ; un espace solo est créé pour un projet sans équipe). Rien n'est perdu : la configuration d'origine est archivée à côté (`workflows/migrated/…`, `~/.oh/migrated/` pour `hub.toml`). Une configuration de projet illisible ou au format inconnu n'est pas migrée : elle est archivée dans `~/.oh/migrated/project-<id>-workflow-config.json`, avec un message au démarrage. Détails : [Workflows d'équipe › Migration des anciennes surcharges](team-workflows.fr.md).
 
 ## 10. Skills communautaires et `oh skill budget` déconnectés
 

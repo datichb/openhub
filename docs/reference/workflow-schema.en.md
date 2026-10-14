@@ -55,6 +55,7 @@ Every top-level field can be locked by `enforce`, except `apiVersion`, `kind`, `
 - The parent must be in a **less specific or the same layer** (`extends_more_specific`).
 - A workflow with the same id as a workflow of a lower layer **must extend it** (`shadow_without_extends`), and extend **the nearest one** (`must_extend_nearest`): a `project:ticket` extends `team:ticket` when it exists, otherwise `hub:ticket`.
 - Another id is allowed: `team:ticket-hotfix` may extend `hub:ticket`.
+- A parent that became an **alias** (`hub:feature`, `hub:cadrage`) is no longer a workflow: `extends_alias`, with the workflows declaring the alias; `oh doctor` lists these documents (see [`feature`](workflows.en.md#feature-alias-of-spec--implement-spec)).
 
 ### `enforce`
 
@@ -148,7 +149,7 @@ limits:
 - Adds up with the I6 restrictions of the hub, the team and the project (`oh budget show`): the most specific value wins (workflow > project > hub > team recommendation); a value enforced by the team stays a ceiling. See [ADR-044](../architecture/adr/044-credential-proxy-session-limits.en.md).
 - `budget_usd`: soft cap, checked between two steps; beyond it, a `$` decision asks to raise it or stop. Negative value: `negative_value`.
 - `models`: patterns on the id sent to the provider; the credential proxy refuses the others. An empty pattern: `field_required`.
-- `max_fix_rounds`: cap on the fix rounds (developer → reviewer) per ticket. It is an instruction, written in the « Mode de workflow » section of the generated skills (« Au plus N tours de correction… ; au-delà, passe le checkpoint de commit en signalant les points non résolus. »), **and a lock** (R3): oh counts the developer → reviewer pairs of the current ticket; past the cap, it refuses delegations to the `developer*` agents and marks the commit checkpoint "unresolved", until the user gives an instruction at that checkpoint or the ticket is closed ([Checkpoints](checkpoints.en.md#fix-rounds-limit-limitsmax_fix_rounds)). `0` or absent: no cap. A layer may only lower it (`loosening` otherwise). Negative value: `negative_value`. The hub `feature`, `ticket` and `review-feedback` workflows set `3`.
+- `max_fix_rounds`: cap on the fix rounds (developer → reviewer) per ticket. It is an instruction, written in the « Mode de workflow » section of the generated skills (« Au plus N tours de correction… ; au-delà, passe le checkpoint de commit en signalant les points non résolus. »), **and a lock** (R3): oh counts the developer → reviewer pairs of the current ticket; past the cap, it refuses delegations to the `developer*` agents and marks the commit checkpoint "unresolved", until the user gives an instruction at that checkpoint or the ticket is closed ([Checkpoints](checkpoints.en.md#fix-rounds-limit-limitsmax_fix_rounds)). `0` or absent: no cap. A layer may only lower it (`loosening` otherwise). Negative value: `negative_value`. The hub `ticket`, `implement-spec` and `review-feedback` workflows set `3`.
 
 ---
 
@@ -359,7 +360,7 @@ E8 (R4): an agent that changes no file (the `planner`) may write the declared do
 | shell, refused | `git commit --amend`, `-a`/`--all`, `--include`/`-i`, `--only`/`-o`, `-C`, `git add -A`/`--all`/`-u`/`.`/`-f` (they would take in the user's work) |
 
 - The commit stays locked until the checkpoint that unlocks it (`unlocks: [commit]`); the guards of oh (`.git/`, `.beads/`, hooks, `--no-verify`, scratch folders, global guard) come after and win. Like the other guards, rules on the raw text of the commands: a guard rail, not a sandbox.
-- The session contract of the agent lists its writes, the workflow map recalls them, and the `writes` condition of blocks (`<!-- oh:when writes -->`) keeps a text in those sessions only: the planner of `feature` keeps its “you never change files” prompt.
+- The session contract of the agent lists its writes, the workflow map recalls them, and the `writes` condition of blocks (`<!-- oh:when writes -->`) keeps a text in those sessions only: the planner of `libre` keeps its “you never change files” prompt.
 - Paths: relative, under `docs/`, a file or a folder ending in `/**`, no other wildcard (`writes_path_invalid`), each once (`duplicate_entry`); refused in a `risk: read` workflow (`writes_read_only`).
 - **`writes_after`** (r5-fixes): until this checkpoint is passed (a checkpoint skipped in the mode counts as passed), writing the `writes` paths is refused to every agent of the session, with a message telling it to wait for that checkpoint: the session rule of these paths is “ask”, the oh plugin relays the request and oh refuses it with its message (without an answer from oh, the user is asked). A checkpoint of the workflow present in every session (`writes_after_unknown`, `order_method_after`), with `writes` (`writes_after_without_writes`). `workflow_status` lists the writes still closed (`locked_writes`). Patch: like `after`, it is added or moved to a checkpoint declared later, never removed nor moved earlier (`loosening`); `writes: []` removes it with the paths.
 - Patch, **narrowing only**: a team or project layer keeps, removes or narrows the inherited paths (`docs/wiki/specs/team/**` under `docs/wiki/specs/**`, `writes: []`); a path the parent does not cover, or `writes` on an agent that had none or on an agent added by the layer, is a loosening (`loosening`), and the parent's list is kept.
@@ -587,9 +588,9 @@ outputs:
 | Field | Type | Values |
 |---|---|---|
 | `id` | text | unique in the list |
-| `type` | text | `branch`, `merge_request`, `beads-ids`, `path`, `report` (id of an `rp-…` report) |
+| `type` | text | `branch`, `merge_request`, `beads-ids`, `path`, `report` (id of an `rp-…` report), `text` (a value, e.g. a recorded input) |
 | `label` | translatable text | displayed label |
-| `record` | text | absent: declared by the agent; otherwise **recorded by oh** (R5): `created`, `closed`, `spec`, `report` |
+| `record` | text | absent: declared by the agent; otherwise **recorded by oh** (R5): `created`, `closed`, `spec`, `report`, `input` |
 
 Without `record`, the agent declares the value with the MCP tool `workflow_outputs` (the workflow map lists it under “Outputs to declare”, `workflow_status` under `expected_outputs`). At the end of the session, the outputs offer "Chain with…" (key `e` of the Sessions view), the [`next`](#composition-next-and-aliases) steps and `oh session results`. Patch: list replaced as a whole.
 
@@ -603,6 +604,7 @@ A `record:` output is filled by oh from what it sees the session do; no agent ca
 | `closed` | `beads-ids` | the tickets the session closed through the Beads gateway |
 | `spec` | `path` | the specs checked by oh at a passed `verify.spec` checkpoint (several: joined by commas); without a `verify.spec` checkpoint, warning `output_record_spec_unchecked` |
 | `report` | `report` | the last report deposited with `workflow_report` |
+| `input` | `text` | the value of the input with the same id, at launch (else its default), to pass it on through `next:`: `spec` records `method` and passes it to `implement-spec`; without an input of that name, `output_record_input_unknown` |
 
 - The type must be the one of the table (`output_record_type`).
 - At the end of the workflow, oh no longer fills a recorded output with the closed tickets (as it does for a declared `beads-ids` output).
@@ -613,13 +615,14 @@ A `record:` output is filled by oh from what it sees the session do; no agent ca
 ## Composition (`next` and `aliases`)
 
 ```yaml
-aliases: [cadrage]                 # oh run cadrage launches this workflow
+aliases: [cadrage, feature]        # oh run cadrage launches this workflow
 next:
   - workflow: implement-spec
     when: { outputs: [tickets] }   # proposed only when the session has this output
     inputs:
       tickets: session.output(tickets)
       spec: session.output(spec)
+      method: session.output(method) # recorded at launch (record: input)
 ```
 
 ### `next` — what oh proposes next (E4)
@@ -672,7 +675,7 @@ A diagnostic has a severity (error or warning), a code, the field path, the sour
 | `multiple_documents`, `empty_document`, `id_filename_mismatch` | one workflow per file, named `<id>.yaml` |
 | `id_invalid`, `agent_id_invalid`, `checkpoint_id_invalid`, `precondition_id_invalid`, `input_id_invalid`, `input_id_reserved` | malformed or reserved id |
 | `enum_invalid`, `enum_values_missing`, `negative_value`, `duplicate_entry`, `field_ignored` | value out of list, `enum` without `values`, negative number, duplicate, field without effect for this type (warning) |
-| `unknown_workflow`, `extends_not_found`, `invalid_extends`, `extends_cycle`, `extends_more_specific`, `duplicate_workflow` | `extends` chain cannot be built |
+| `unknown_workflow`, `extends_not_found`, `extends_alias`, `invalid_extends`, `extends_cycle`, `extends_more_specific`, `duplicate_workflow` | `extends` chain cannot be built |
 | `shadow_without_extends`, `must_extend_nearest` | same id as a lower layer without extending it, or without extending the nearest one |
 | `loosening` | a security field is loosened: the parent value is kept |
 | `enforced_field`, `enforce_unknown_field` | field locked by a parent; unknown `enforce` value |

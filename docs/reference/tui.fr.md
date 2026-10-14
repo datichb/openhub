@@ -102,7 +102,7 @@ La colonne Commande donne le libellé affiché ; on peut aussi taper un alias. C
 
 | Commande | Alias | Mode | Description |
 |----------|-------|------|-------------|
-| `run <workflow>` | l'id du workflow ; anciens noms : `dev`, `start.dev` → `ticket` · `start`, `orchestrator` → `feature` · `fast` → `quick` · `secu`, `security`, `perf`, `archi`, `a11y` → `audit` · `rev`, `cr` → `review` · `dbg`, `debugger`, `diag` → `debug` · `onboard`, `start.onboard` → `onboarding` · `feedback`, `rf`, `retours` → `review-feedback` | — | Fiche de lancement du workflow (une commande par workflow du catalogue) |
+| `run <workflow>` | l'id du workflow ; anciens noms : `dev`, `start.dev` → `ticket` · `start`, `feature`, `orchestrator`, `cadrage` → `spec` · `fast` → `quick` · `secu`, `security`, `perf`, `archi`, `a11y` → `audit` · `rev`, `cr` → `review` · `dbg`, `debugger`, `diag` → `debug` · `onboard`, `start.onboard` → `onboarding` · `feedback`, `rf`, `retours` → `review-feedback` | — | Fiche de lancement du workflow (une commande par workflow du catalogue) |
 | Session libre | `coder`, session, code, free | Projet/Équipe | Fiche de lancement du workflow `libre` (agent d'entrée au choix, par défaut `orchestrator`) |
 | Sessions | `sessions`, parallel, par, multi, inbox, à traiter, decisions | — | Vue Sessions |
 | Workflows | `workflows`, catalogue, catalog, wf, workflow | — | Catalogue des workflows (brouillons, publication, historique) |
@@ -121,7 +121,7 @@ Générée depuis le YAML du workflow (titre « Lancer · <workflow> »), en tro
 
 ### Démarrer, board, catalogue
 
-- **Démarrer** (accueil, projet, équipe) : ★ épinglés (5 max par portée), **Récents** (3), suggestions si rien n'est épinglé ni récent (`ticket`, `feature`, `review`) ; le workflow par défaut du projet est en tête (badge « par défaut ») ; en mode Projet/Équipe, catégories repliées (Développer, Cadrer, Qualité, Connaissance, Autres ; Entrée = choix du workflow). `*` épingle ou désépingle (portée : hub, projet ou équipe selon l'accueil). « Tous les workflows (N) » ouvre le catalogue ; « Session libre » ouvre la fiche de `libre`.
+- **Démarrer** (accueil, projet, équipe) : ★ épinglés (5 max par portée), **Récents** (3), suggestions si rien n'est épinglé ni récent (`ticket`, `spec`, `review`) ; le workflow par défaut du projet est en tête (badge « par défaut ») ; en mode Projet/Équipe, catégories repliées (Développer, Cadrer, Qualité, Connaissance, Autres ; Entrée = choix du workflow). `*` épingle ou désépingle (portée : hub, projet ou équipe selon l'accueil). « Tous les workflows (N) » ouvre le catalogue ; « Session libre » ouvre la fiche de `libre`.
 - **Board** : `a` sur un ticket ouvre « Lancer sur <ticket> » avec les workflows qui prennent un ticket Beads ; la fiche s'ouvre à l'étape Options, ticket prérempli.
 - **Catalogue** (`workflows`) : workflows par couche (Hub · intégrés, Équipe, Projet ; version, risque, ⌂ ▣ ☁, validité), détail à droite (entrée, chaîne, entrées, exécution). Entrée lance, `*` épingle. Avec un team-state (équipe ou espace solo), le catalogue est **modifiable** :
   - sections Hub (lecture seule : `e` étendre, `n` dupliquer), Équipe, Projet, **Mes brouillons** (`✎`, nombre d'erreurs, badge « nouvelle brique » pour une brique d'équipe utilisée pour la première fois) et **⚠ Intégrité** (fichiers publiés ignorés, briques refusées) ; `✎` sur un workflow publié = vous en avez un brouillon, `⏳` = publication en attente du réseau ;

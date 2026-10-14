@@ -75,5 +75,5 @@ Les garde-fous de la substitution de contrôle (déclarée par la couche hub seu
 
 - Pas de tour de correction dans la session parente : un nouvel `implement-spec` pour les tickets restants.
 - La validation par lot existe en ligne de commande ; dans la TUI, chaque carte se valide encore une à une.
-- `sweep` n'utilise pas encore ce mécanisme, et `feature` reste inchangé.
+- `sweep` n'utilise pas encore ce mécanisme. `feature` est un alias (`spec`, ou `implement-spec` avec `--tickets`) : `oh run feature --tickets … -i fanout=true` lance donc ce fan-out.
 - Un enfant compte comme terminé quand il reste inactif, sans décision en attente, 20 secondes : un enfant qui attend une réponse dans son texte (sans l'outil `question`) est arrêté et reste non mergé.

@@ -75,5 +75,5 @@ The guards of the control substitution (declared by the hub layer only, mandator
 
 - No fix round in the parent session: a new `implement-spec` for the remaining tickets.
 - Validation by batch exists on the command line; in the TUI, each card is still validated one by one.
-- `sweep` does not use this mechanism yet, and `feature` is unchanged.
+- `sweep` does not use this mechanism yet. `feature` is an alias (`spec`, or `implement-spec` with `--tickets`): `oh run feature --tickets … -i fanout=true` thus launches this fan-out.
 - A child counts as done when it stays idle, with no decision waiting, for 20 seconds: a child that waits for an answer in its text (without the `question` tool) is stopped and stays unmerged.

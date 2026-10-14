@@ -36,7 +36,7 @@ Skills listed in an agent's `native_skills:` frontmatter array. These are delive
 
 ### Checkpoint (CP)
 
-A gate of a [workflow](#workflow) (`checkpoints:`, e.g. `cp-0`, `cp-2`) where the user approves, fixes or gives other instructions before going on. Its behavior depends on the [workflow mode](#workflow-mode) (`pause`, `auto`, `skip`, `conditional`); a `mandatory` checkpoint cannot be relaxed. It is held at **3 levels**: the generated prompt (skill `workflow/workflow-map`), the MCP tool `workflow_checkpoint` (`ask` permission approved by oh) and the oh plugin; the state machine lives in oh. A pause becomes a ⏸ [decision](#decision). See [`oh/v1` schema](workflow-schema.en.md#checkpoints) and [ADR-042](../architecture/adr/042-checkpoints-headless-decisions.en.md).
+A gate of a [workflow](#workflow) (`checkpoints:`, e.g. `cp-plan`, `cp-2`) where the user approves, fixes or gives other instructions before going on. Its behavior depends on the [workflow mode](#workflow-mode) (`pause`, `auto`, `skip`, `conditional`); a `mandatory` checkpoint cannot be relaxed. It is held at **3 levels**: the generated prompt (skill `workflow/workflow-map`), the MCP tool `workflow_checkpoint` (`ask` permission approved by oh) and the oh plugin; the state machine lives in oh. A pause becomes a ⏸ [decision](#decision). See [`oh/v1` schema](workflow-schema.en.md#checkpoints) and [ADR-042](../architecture/adr/042-checkpoints-headless-decisions.en.md).
 
 ### Closed world
 
@@ -44,7 +44,7 @@ v5 rule: a session only sees the agents and skills of its [bundle](#session-bund
 
 ### Conductor
 
-Generic entry agent of a workflow when `entry.agent` is absent: without write or shell, it follows the generated workflow map and delegates to the other agents according to `after` and the checkpoints (workflows `cadrage`, `sweep`). See [ADR-039](../architecture/adr/039-declarative-workflows-oh-v1.en.md).
+Generic entry agent of a workflow when `entry.agent` is absent: without write or shell, it follows the generated workflow map and delegates to the other agents according to `after` and the checkpoints (workflows `spec`, `sweep`). See [ADR-039](../architecture/adr/039-declarative-workflows-oh-v1.en.md).
 
 ### Credential proxy
 
@@ -176,14 +176,14 @@ The interactive terminal dashboard launched by running `oh` without arguments. P
 
 Set at launch (`--mode`, launch form), it determines the behavior of each [checkpoint](#checkpoint-cp), declared by the workflow for each mode:
 - **Manual** (`manuel`): most checkpoints pause for approval
-- **Semi-auto** (default of the shipped workflows): usual checkpoints pass on their own; key decision points (e.g. `cp-0`, `cp-2`) pause
-- **Auto**: everything except the mandatory decisions — only the mandatory checkpoints (`mandatory`) and those that unlock an action stop (e.g. `cp-0` plan approval, `cp-2` commit)
+- **Semi-auto** (default of the shipped workflows): usual checkpoints pass on their own; key decision points (e.g. `cp-plan`, `cp-2`) pause
+- **Auto**: everything except the mandatory decisions — only the mandatory checkpoints (`mandatory`) and those that unlock an action stop (e.g. `cp-plan` plan approval, `cp-2` commit)
 
 A workflow may restrict the modes (`modes.allowed`). See [`oh/v1` schema](workflow-schema.en.md#modes).
 
 ### Workflow
 
-The declarative description of a use case (YAML `apiVersion: oh/v1`): entry agent, agents, checkpoints, inputs, resources, environments and limits. 14 workflows shipped by the hub (`feature`, `ticket`, `quick`, `infra-change`, `cadrage`, `onboarding`, `review`, `review-feedback`, `audit`, `debug`, `benchmark`, `sweep`, `brief-enrich`, `libre`), extensible by the team and the project (`extends`, security may only be hardened). Launched with `oh run <workflow>`. See [Shipped workflows](workflows.en.md) and [`oh/v1` schema](workflow-schema.en.md).
+The declarative description of a use case (YAML `apiVersion: oh/v1`): entry agent, agents, checkpoints, inputs, resources, environments and limits. 21 workflows shipped by the hub (`ticket`, `quick`, `spec`, `implement-spec`, `infra-change`, `onboarding`, `review`, `review-feedback`, `audit`, `debug`, `incident`, `security-fix`, `spike`, `release`, `benchmark`, `sweep`, `doc-sync`, `skill-refresh`, `brief-enrich`, `merge-conflicts`, `libre`; `feature` and `cadrage` are aliases of `spec`), extensible by the team and the project (`extends`, security may only be hardened). Launched with `oh run <workflow>`. See [Shipped workflows](workflows.en.md) and [`oh/v1` schema](workflow-schema.en.md).
 
 ### Worktree
 

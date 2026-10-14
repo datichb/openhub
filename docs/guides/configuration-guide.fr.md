@@ -422,7 +422,7 @@ oh patterns validate         # valider les patterns
 
 ### Personnaliser les workflows
 
-Le bloc `[workflow]` de `hub.toml` n'existe plus en v5 : il est migre automatiquement vers un workflow `feature` du team-state (voir [Workflows d'equipe › Migration des anciennes surcharges](team-workflows.fr.md#migration-des-anciennes-surcharges-de-workflow-v5)). Pour adapter un workflow (checkpoints, mode, modeles, limites), creez une couche d'equipe ou de projet :
+Le bloc `[workflow]` de `hub.toml` n'existe plus en v5 : il est migre automatiquement vers un workflow `implement-spec` du team-state (voir [Workflows d'equipe › Migration des anciennes surcharges](team-workflows.fr.md#migration-des-anciennes-surcharges-de-workflow-v5)). Pour adapter un workflow (checkpoints, mode, modeles, limites), creez une couche d'equipe ou de projet :
 
 ```bash
 oh workflow list              # workflows disponibles (toutes les couches)

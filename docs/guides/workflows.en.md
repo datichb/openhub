@@ -15,7 +15,7 @@ Each session runs a **workflow** (see [Built-in workflows](../reference/workflow
 
 | Situation | v5 command | Entry agent | Typical prompt |
 |-----------|------------|-------------|----------------|
-| Feature to design + implement from scratch | `oh run feature` | `orchestrator` | `"Implement [feature]"` |
+| Feature to design + implement from scratch | `oh run feature` (alias: `spec`, then `implement-spec` proposed) | `conductor` → `planner`, then `orchestrator-dev` | `"Implement [feature]"` |
 | Beads tickets already planned, ready to code | `oh run ticket --tickets bd-X,bd-Y` | `orchestrator-dev` | `"Implement tickets bd-X to bd-Y"` |
 | UX/UI specifications only, without implementing | `oh run libre --agent designer` | `designer` | `"UX spec for [feature]"` (Mode: ux, ui, or ux+ui) |
 | Audit before going to production | `oh run audit` | `auditor` | `"Audit the project"` |
@@ -29,7 +29,7 @@ Each session runs a **workflow** (see [Built-in workflows](../reference/workflow
 | Document a delivered feature or a decision | `oh run libre --agent documentarian` | `documentarian` | `"Document [topic]"` |
 
 **Quick decision rule:**
-- You have an idea → `orchestrator` (it orchestrates everything, from spec to merge)
+- You have an idea → `oh run feature` (the spec and its tickets, then their implementation, proposed by oh)
 - You have ready tickets → `orchestrator-dev` (direct implementation)
 - You have a precise and bounded need → the specialised agent directly
 
@@ -98,176 +98,108 @@ sequenceDiagram
 
 **Key takeaway:** You can use any agent directly for a bounded task. The orchestrator is needed only when you want multi-agent coordination (planning + design + implementation + review).
 
-> **Ready for more?** See Scenario 1 for a full feature workflow with multiple agents.
+> **Ready for more?** See Scenario 1 for a full feature (`spec`, then `implement-spec`).
 
 ---
 
-## Scenario 1 — Full feature (orchestrator)
+## Scenario 1 — Full feature (`spec` → `implement-spec`)
 
-**Context:** you want to implement a new feature from A to Z,
-from design to merge, mobilising all necessary agents.
+**Context:** you want to implement a new feature end to end,
+from the specification to the commits. `oh run feature` is an alias: without tickets, it launches `spec`;
+when it ends, oh proposes `implement-spec` on the created tickets (see [`feature`](../reference/workflows.en.md#feature-alias-of-spec--implement-spec)).
 
 ### Diagram
 
 ```mermaid
 sequenceDiagram
     participant U as User
-    participant O as Orchestrator
+    participant C as Conductor (spec)
     participant PL as Planner
-    participant D as designer
-    participant OD as OrchestratorDev
+    participant OD as OrchestratorDev (implement-spec)
     participant DEV as developer
     participant R as Reviewer
 
-    U->>O: "Implement JWT authentication"
-    O->>PL: Delegates planning
-    PL->>PL: Clarification → proposed breakdown
-    PL-->>O: Tickets to create (approval requested)
-    O->>U: [cp-tickets] Approve the tickets to create?
-    U->>O: "validate"
-    O->>PL: Breakdown approved: create the tickets
-    PL->>PL: bd create
-    PL-->>O: 5 tickets created (bd-1 to bd-5)
-    O->>U: [cp-0] Approve the plan? (semi-auto mode set at launch)
-    U->>O: "validate"
+    U->>C: oh run feature -m "Implement JWT authentication"
+    C->>PL: Interview (code exploration, grilling)
+    PL-->>C: Blocking questions
+    C->>U: Questions (question tool)
+    PL-->>C: Restatement and vocabulary
+    C->>U: [cp-understanding] Approve the understanding
+    PL->>PL: Writes docs/wiki/specs/auth-jwt.md
+    C->>C: [cp-converge] checked by oh
+    C->>U: [cp-spec] Approve the spec (spec committed)
+    C->>U: [cp-tickets] Approve the breakdown
+    PL->>PL: bd create (one slice = one ticket)
+    C-->>U: Proposed next: oh run implement-spec --parent … --tickets bd-1,bd-2,bd-3
 
-    O->>D: Ticket spec-ux (bd-1) [Mode: ux]
-    D-->>O: UX spec — login/register flow
-    O->>U: [cp-spec] Approve the UX spec?
-    U->>O: "validate"
-
-    O->>D: Ticket spec-ui (bd-2) [Mode: ui]
-    D-->>O: UI spec — components + tokens
-    O->>U: [cp-spec] Approve the UI spec?
-    U->>O: "validate"
-
-    O->>OD: Dev tickets bd-3, bd-4, bd-5 (semi-auto mode passed)
+    U->>OD: oh run implement-spec … (method passed on)
+    OD->>U: [cp-plan] Approve the plan
     loop For each ticket
-        OD->>U: [cp-1] Start the ticket (auto in semi-auto)
-        OD->>DEV: Delegates implementation (domain in the prompt)
-        DEV-->>OD: Implementation complete (tests included)
+        OD->>DEV: Delegates the implementation (domain in the prompt)
+        DEV-->>OD: Implementation done (tests included)
         OD->>R: Automatic review (build and tests run)
         R-->>OD: Review report
-        OD->>U: [cp-2] Commit or fix? ← ALWAYS PAUSE
-        U->>OD: "commit"
-        OD->>DEV: Commit then close the ticket
-        OD->>U: [cp-3] Next ticket (auto in semi-auto)
+        OD->>U: [cp-2] Commit or fix? ← ALWAYS A PAUSE
+        OD->>DEV: Commits then closes the ticket
     end
-    OD-->>O: Condensed recap (per-ticket summary: status, key files, attention points) + structured block
-
-    O->>U: [cp-feature] Global feature recap
+    OD->>R: Review of the whole
+    OD->>U: [cp-final] Verdict and recap
 ```
 
 ### Detailed steps
 
-#### 1. Launch the `feature` workflow (entry agent: orchestrator)
+#### 1. Launch `feature` (alias of `spec`)
 
 ```bash
-oh run feature --mode semi-auto   # workflow mode: manuel, semi-auto (default) or auto
+oh run feature -m "Implement JWT authentication for our REST API"   # mode: --mode manuel|semi-auto|auto
+oh run feature -i method=tdd -m "…"                                # the implementation that follows will be TDD
 ```
 
-```
-Prompt: "Implement the JWT authentication feature for our REST API"
-```
+oh announces the redirection (`feature → spec`). The request is required: without it, `spec` refuses to start. With tickets already created, `oh run feature --tickets bd-1,bd-2` launches `implement-spec` directly (step 5).
 
-The orchestrator delegates to `planner` (complex feature) or `pathfinder` (simple or exploratory feature) to break down the feature.
+#### 2. Interview and understanding
 
-#### 2. The planner breaks it down
+The `conductor` launches the `planner`, which explores the code and raises its blocking questions (one per decision); the conductor asks them to you with the `question` tool. When the request compares designs, the `pathfinder` explores first. The planner returns its restatement and the vocabulary (each word of the request next to the names in the code), presented at **`cp-understanding`**.
 
-The planner explores the codebase (routes, models, components), asks clarification
-questions, then proposes a plan:
+#### 3. Spec and breakdown
 
-```
-## Breakdown plan — JWT Authentication
+Once the understanding is approved (before, oh refuses the write), the planner writes `docs/wiki/specs/<slug>.md`: goal, glossary, acceptance criteria with their test point, breakdown into vertical slices. oh checks the convergence (**`cp-converge`**, without a pause), then you approve the spec at **`cp-spec`** (the planner commits it alone) and the breakdown at **`cp-tickets`** (the planner creates one ticket per slice; oh refuses any `bd create` before). A UX/UI spec, when the feature has an interface, is produced by the `designer`, called by the planner.
 
-### Phase 0 — Specifications
-- [ ] UX spec — login / register / reset password flow (label:ux)
-- [ ] UI spec — form components + error feedback (label:ui)
+> A security, performance or accessibility audit is part of neither `spec` nor `implement-spec`: suggest the `audit` workflow (`oh run audit`), whose findings may then be handled by `security-fix`.
 
-### Phase 1 — Implementation
-- [ ] User model + migrations
-- [ ] JWT service (sign, verify, refresh)
-- [ ] Login / logout / refresh endpoints
-```
+#### 4. Proposed next step
 
-#### 3. [cp-tickets] Tickets to create
-
-No ticket exists yet: the planner asks for approval of the breakdown. The orchestrator does not relay this question, it passes the `cp-tickets` checkpoint (« Approve the tickets to create », mandatory), then relaunches the planner with « Breakdown approved by the user: create the tickets. ». oh refuses any `bd create` before `cp-tickets`. With existing tickets only (`tickets` input), `cp-tickets` just confirms the list (nothing created).
-
-> A security, performance or accessibility audit is not part of `feature` (the `auditor` is not a member): the orchestrator suggests the `audit` workflow (`oh run audit`), whose findings can then be planned as tickets.
-
-#### 4. [cp-0] Plan validation
-
-The orchestrator displays the ticket table **in the discussion**,
-then passes the `cp-0` checkpoint (`workflow_checkpoint` tool): you approve the plan from oh or from the tool interface.
-
-> **One checkpoint protocol**: every checkpoint of the workflow goes through the `workflow_checkpoint` tool, whether the agent is the entry agent or a subagent (`orchestrator-dev`, invoked by the orchestrator, calls `cp-1`, `cp-2`, `cp-3` itself). A question asked with the `question` tool that names a checkpoint (`cp-2`, « CP 2 », its label) is closed by oh without effect. One `cp-2` per ticket: there is no grouped approval of several commits.
+When the client closes, oh shows the recorded outputs (`spec`, `tickets`, `method`) and the command of the next step, without launching it:
 
 ```
-## Planned tickets — JWT Authentication
-
-| ID   | Title                           | Type          | Planned agent         |
-|------|---------------------------------|---------------|-----------------------|
-| bd-1 | UX spec — auth flow             | spec-ux       | designer              |
-| bd-2 | UI spec — auth components       | spec-ui       | designer              |
-| bd-3 | User model + migrations         | task          | developer (backend)   |
-| bd-4 | JWT service                     | feature       | developer (backend)   |
-| bd-5 | Login/logout/refresh endpoints  | feature       | developer (api)       |
-
-ℹ️ Processing order defined by the planner: specs → dev.
+→ Proposed next: implement-spec — Implement a spec
+    oh run implement-spec --parent ses_… --tickets bd-1,bd-2,bd-3 -i method=tdd -i spec=docs/wiki/specs/auth-jwt.md
 ```
 
-The workflow mode is not asked again: it is set at launch (`--mode`, or the Mode field of the launch form) and passed to `orchestrator-dev`.
+`oh session next <id>` shows it again; in the TUI, it comes first in "Chain with…".
 
-#### 5. Design phase
+#### 5. [cp-plan] Plan approval
 
-The orchestrator first handles `spec-*` tickets:
+The `orchestrator-dev` of `implement-spec` reads the tickets (`bd show`), sets the order (dependencies, then priority), shows the ticket table **in the discussion**, then passes **`cp-plan`** (`workflow_checkpoint` tool): you approve the plan from oh or the tool interface. Nothing is delegated before.
 
-- Invokes `designer` (Mode: ux) → UX spec produced → **[cp-spec]** validate / revise / skip
-  - The designer returns a structured block `## Return to orchestrator` with the complete spec, implementation constraints, and open points. The orchestrator validates the presence of this block before proceeding.
-- Invokes `designer` (Mode: ui) → UI spec produced → **[cp-spec]** validate / revise / skip
+> **A single checkpoint protocol**: every checkpoint of the workflow goes through the `workflow_checkpoint` tool. A question asked with the `question` tool that names a checkpoint (`cp-2`, "CP 2", its label) is closed by oh without effect. One `cp-2` per ticket: there is no grouped approval of several commits.
 
-#### 6. Implementation phase via orchestrator-dev
+#### 6. Implementation, ticket by ticket
 
-The orchestrator passes dev tickets to `orchestrator-dev` with the chosen mode.
-`orchestrator-dev` takes over:
+1. Presents each ticket `[cp-1]` (automatic in semi-auto/auto); with the `tdd` method, the developer passes `cp-seams` then `cp-red`
+2. Picks the domain through the routing matrix and delegates to the `developer` (the domain — `backend`, `refactor`, `migration`, `tests`… — goes in the invocation prompt)
+3. The developer returns a structured `## Retour vers orchestrator-dev` block — changed files, acceptance criteria checked, **points of attention for the review**
+4. Starts the review automatically — the reviewer first runs the build, the tests, the lint and the type check of the project
+5. The reviewer returns an **actionable verdict** (`commit` / `corriger` / `corriger-sécurité`) and the required fixes verbatim
+6. Passes `cp-2` ("Commit or fix", one call per ticket) — **always a pause**; oh first checks the build and the tests; `cp-2` unlocks `commit` and `close`: the developer commits then closes the ticket
+7. On "fix": fixes passed verbatim to the developer; developer → reviewer rounds are capped by `limits.max_fix_rounds` (3)
+8. Moves on to the next ticket `[cp-3]` (automatic in semi-auto/auto)
 
-1. Presents each ticket `[cp-1]` (automatic in semi-auto/auto)
-2. Picks the domain via the routing matrix and delegates to `developer` (the domain — `backend`, `refactor`, `migration`, `tests`… — is passed in the invocation prompt)
-3. Developer returns a structured `## Return to orchestrator-dev` block — files modified, acceptance criteria checked, **points of attention for the review** (fragile zones, technical trade-offs)
-4. Launches review automatically — passing the developer's points of attention to the reviewer, which first runs the project's build, tests, lint and type check
-5. Reviewer returns a structured block with an **actionable verdict** (`commit` / `corriger` / `corriger-sécurité`), problem summary by severity, and required corrections verbatim
-6. Presents the review report and passes `cp-2` (« Commit or fix », one call per ticket) — **always a pause, no exception**; `cp-2` unlocks `commit` and `close`: once approved, the developer commits then closes the ticket
-7. If "fix": the corrections are passed verbatim to the developer, who copies them into the Beads comment — no manual summary; routed to `developer` (domain `security`) if the reviewer's routing is `domaine-security`. The developer → reviewer fix rounds are capped by `limits.max_fix_rounds` (3 in `feature`)
-8. Moves to the next ticket `[cp-3]` (automatic in semi-auto/auto)
-9. After all tickets: `orchestrator-dev` emits a **condensed per-ticket summary** (status, key files, covered criteria, attention points + aggregated global attention points) followed by the **structured** `## Return to orchestrator` **block** (per-ticket detail table, statistics, global status) — the two are complementary; the orchestrator **displays this summary in its discussion thread** before presenting the [cp-feature] to the user
+> **Subagent questions:** a subagent has no `question` tool; its blocking questions come back in its return block and the entry agent asks them to you.
 
-> **Subagent questions:** when a subagent (planner, designer, reviewer…) asks a question,
-> it surfaces in the parent session with a context block identifying the agent and current phase —
-> e.g. `[Planner — Phase 0 | Feature: JWT authentication]`. No need to navigate to the child session.
+#### 7. [cp-final] Review of the whole and recap
 
-> **Missing agent:** if a required agent is not part of the session (the agents of a session are those
-> of its workflow), the orchestrator displays a structured question: use a substitute (table by domain) /
-> skip the ticket. To make the agent available, add it to the workflow and relaunch the session
-> (`oh deploy` removed in v5). Never falls back silently.
-
-#### 7. [cp-feature] Global recap
-
-```
-## Feature recap — JWT Authentication
-
-| ID   | Title                           | Phase  | Agent               | Status        |
-|------|---------------------------------|--------|---------------------|---------------|
-| bd-1 | UX spec — auth flow             | design | designer            | ✅ Validated   |
-| bd-2 | UI spec — auth components       | design | designer            | ✅ Validated   |
-| bd-3 | User model + migrations         | dev    | developer (backend) | ✅ Committed   |
-| bd-4 | JWT service                     | dev    | developer (backend) | ✅ Committed   |
-| bd-5 | Login/logout/refresh endpoints  | dev    | developer (api)     | ✅ Committed   |
-
-- Tickets handled: 5 / 5
-- Review cycles: 6
-- Corrections requested: 1 (bd-5, CORS misconfigured)
-```
+All tickets processed, the `reviewer` runs an adversarial review of every commit of the session; **`cp-final`** presents its verdict, the processed tickets and their commits, and the open points: you decide on a fix round or to stop.
 
 ---
 
@@ -569,7 +501,7 @@ After producing the review report, the reviewer identifies conventions worth cap
 The `review` workflow is read-only: the `documentarian` is not part of it. The reviewer
 lists the enrichments in `### Enrichissements wiki proposés` of its report, without delegation;
 apply them afterwards with `oh run libre --agent documentarian` (skill `shared/living-docs-enrichment`).
-In `feature` or `ticket`, where the `documentarian` is available, the coordinator may delegate them to it.
+In `implement-spec` or `ticket`, where the `documentarian` is available, the coordinator may delegate them to it.
 
 ---
 
