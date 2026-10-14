@@ -56,7 +56,8 @@ func WorkflowRuntime(s *workflow.Spec) *sessionspec.WorkflowRuntime {
 		rt.MaxConsecutiveSubagents = *s.CircuitBreaker.MaxConsecutiveSubagents
 	}
 	for _, o := range s.Outputs {
-		rt.Outputs = append(rt.Outputs, sessionspec.OutputDef{ID: o.ID, Type: string(o.Type), Label: localized(o.Label), Record: string(o.Record)})
+		rt.Outputs = append(rt.Outputs, sessionspec.OutputDef{ID: o.ID, Type: string(o.Type), Label: localized(o.Label), Record: string(o.Record),
+			Paths: append([]string(nil), o.Paths...), Match: o.Match})
 	}
 	rt.Scratch = scratchDefs(s)
 	applyCheckpointVerify(rt, s)

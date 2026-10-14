@@ -62,6 +62,7 @@ beads: { allow: [show, create] }
 outputs:
   - { id: tickets, type: beads-ids, record: created }
   - { id: notes, type: path }
+  - { id: report, type: report, record: report }
 `
 
 const composeTo = `apiVersion: oh/v1
@@ -72,6 +73,7 @@ inputs:
   tickets: { type: beads-ids, from: session.output(from.tickets) }
   notes: { type: text }
   count: { type: int }
+  findings: { type: text, from: session.output(from.report) }
 `
 
 // composeCheck validates hub:<id> of a catalog of the documents.
@@ -104,6 +106,10 @@ func TestValidate_Next(t *testing.T) {
 		{"unknown output", "next:\n  - { workflow: to, inputs: { notes: session.output(branch) } }\n", "next_unknown_output", "next[0].inputs.notes"},
 		{"unknown input", "next:\n  - { workflow: to, inputs: { ticket: session.output(tickets) } }\n", "next_unknown_input", "next[0].inputs.ticket"},
 		{"type", "next:\n  - { workflow: to, inputs: { count: session.output(tickets) } }\n", "next_input_type", "next[0].inputs.count"},
+		{"equals", "next:\n  - { workflow: to, when: { equals: { notes: x } } }\n", "", ""},
+		{"unknown equals output", "next:\n  - { workflow: to, when: { equals: { verdict: go } } }\n", "next_unknown_output", "next[0].when.equals.verdict"},
+		{"report from", "next:\n  - { workflow: to, inputs: { findings: session.output(report) } }\n", "", ""},
+		{"report by id", "next:\n  - { workflow: to, inputs: { notes: session.output(report) } }\n", "next_input_report_from", "next[0].inputs.notes"},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -164,6 +170,18 @@ func TestValidate_OutputRecord(t *testing.T) {
 		{"input", "  - { id: method, type: text, record: input }\ninputs:\n  method: { type: enum, values: [standard, tdd] }\n", ""},
 		{"input unknown", "  - { id: method, type: text, record: input }\n", "output_record_input_unknown"},
 		{"input type", "  - { id: method, type: path, record: input }\ninputs:\n  method: { type: enum, values: [standard, tdd] }\n", "output_record_type"},
+		// B1: files written under paths, or a value read in them.
+		{"written", "  - { id: decision, type: path, record: written, paths: [\"docs/wiki/decisions/**\"] }\n", ""},
+		{"written match", "  - { id: verdict, type: text, record: written, paths: [docs/a.md], match: 'Décision : (go|kill)' }\n", ""},
+		{"written type", "  - { id: verdict, type: path, record: written, paths: [docs/a.md], match: '(go)' }\n", "output_record_type"},
+		{"written text without match", "  - { id: verdict, type: text, record: written, paths: [docs/a.md] }\n", "output_record_type"},
+		{"written without paths", "  - { id: decision, type: path, record: written }\n", "output_written_paths"},
+		{"written absolute", "  - { id: decision, type: path, record: written, paths: [/etc/passwd] }\n", "output_written_path"},
+		{"written outside", "  - { id: decision, type: path, record: written, paths: [../x.md] }\n", "output_written_path"},
+		{"match without group", "  - { id: verdict, type: text, record: written, paths: [docs/a.md], match: 'go' }\n", "output_match_invalid"},
+		{"match invalid", "  - { id: verdict, type: text, record: written, paths: [docs/a.md], match: '(go' }\n", "output_match_invalid"},
+		{"paths without written", "  - { id: spec, type: path, paths: [docs/a.md] }\n", "output_written_only"},
+		{"match without written", "  - { id: tickets, type: beads-ids, record: created, match: '(x)' }\n", "output_written_only"},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -295,5 +313,30 @@ func TestRecordedInputs(t *testing.T) {
 	}
 	if !OutputFits(OutputText, InputEnum) || OutputFits(OutputText, InputBeadsIDs) {
 		t.Fatal("OutputFits(text)")
+	}
+}
+
+// B1: a step is proposed when its outputs were recorded, with the values of
+// equals (case ignored).
+func TestNextWhenHolds(t *testing.T) {
+	var none *NextWhen
+	if !none.Holds(nil) {
+		t.Fatal("no condition: always")
+	}
+	w := &NextWhen{Outputs: []string{"decision"}, Equals: map[string]string{"verdict": "go"}}
+	for _, c := range []struct {
+		outputs map[string]any
+		want    bool
+	}{
+		{map[string]any{"decision": "docs/wiki/decisions/a.md", "verdict": "go"}, true},
+		{map[string]any{"decision": "docs/wiki/decisions/a.md", "verdict": " Go "}, true},
+		{map[string]any{"decision": "docs/wiki/decisions/a.md", "verdict": "kill"}, false},
+		{map[string]any{"decision": "docs/wiki/decisions/a.md"}, false},
+		{map[string]any{"verdict": "go"}, false},
+		{map[string]any{"decision": []any{}, "verdict": "go"}, false},
+	} {
+		if got := w.Holds(c.outputs); got != c.want {
+			t.Errorf("Holds(%v) = %v, want %v", c.outputs, got, c.want)
+		}
 	}
 }

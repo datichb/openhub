@@ -22,6 +22,6 @@ Titre : `Implémentation #<ID> — <titre>` (ou la tâche reçue, sans ticket). 
 
 - `### Contexte et décisions` : au moins 2 entrées (choix et raison) pour un travail non trivial.
 - `### Changements par fichier` : d'abord la sortie condensée de `git diff --stat` et `git status --porcelain` (le retour précède le commit), puis, par fichier, les symboles `+` ajouté, `~` modifié, `-` supprimé ; tests : les cas ajoutés ; configuration ou migration : une ligne de prose.
-- `### Critères d'acceptance couverts` : chaque critère de `bd show <ID>`, coché ou non couvert avec sa raison.
+- `### Critères d'acceptance couverts` : chaque critère de `bd show <ID>`, coché ou non couvert avec sa raison. Sans ticket : chaque élément numéroté de la tâche (`F1`…), avec son test et ses fichiers.
 - `### Points d'attention pour la review` : zones fragiles, compromis, fichiers supprimés.
 - `### Migration destructive` (si présente), `### Blocages rencontrés`, `### Enrichissements wiki proposés` : les identifiants `wp-…` de tes `wiki_propose` (sans l'outil, les découvertes elles-mêmes).

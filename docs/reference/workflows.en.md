@@ -108,7 +108,7 @@ With the `tdd` method (`-i method=tdd`), the `developer` passes `cp-seams` itsel
 
 | Launch | Workflow launched | Former mode |
 |---|---|---|
-| `oh run feature -m "…"` (and `oh start -m "…"`) | `spec`: `aliases: [cadrage, feature]` | A (feature in natural language) |
+| `oh run feature -m "…"` (and `oh start -m "…"`); without `-m`, the session asks for the feature | `spec`: `aliases: [cadrage, feature]` | A (feature in natural language) |
 | `oh run feature --tickets bd-1,bd-2` | `implement-spec`: `aliases: [{ id: feature, with: tickets }]`; `-m` goes to its `instructions` input | B (existing tickets) |
 
 oh shows the redirection (`feature → spec`). When `spec` ends, oh proposes `implement-spec` on the created tickets and the written spec, without launching it (`oh session next <id>`, when the client closes, "Chain with…" in the TUI).
@@ -117,7 +117,7 @@ oh shows the redirection (`feature → spec`). When `spec` ends, oh proposes `im
 
 What changes compared with the former `feature` (⚠):
 
-- the request is **required** without tickets (`spec` refuses to start without `request`; before, the session asked which feature to deliver);
+- without a request (`oh run feature`, `oh start`), the session asks for it first, as the former `feature` did: the `conductor` asks with `question`;
 - the spec is written and checked in the wiki (`docs/wiki/specs/`), the tickets created at `cp-tickets`; the implementation is a **second session**, proposed by oh;
 - checkpoints: those of `spec` (`cp-understanding`, `cp-converge`, `cp-spec`, `cp-tickets`), then those of `implement-spec` (`cp-plan` replaces `cp-0`, `cp-final` replaces `cp-feature` and its review of the whole); `cp-spec` (conditional UX/UI spec) goes away: the designer is called by the planner of `spec`;
 - the `orchestrator` is now the entry agent of [`libre`](#libre) only;
@@ -144,7 +144,8 @@ Understands a request, writes its spec in the wiki and slices it into Beads tick
 
 | Input | Type | Required | Purpose |
 |---|---|---|---|
-| `request` | `text` (8,000 characters max) | yes | The feature to specify |
+| `request` | `text` (8,000 characters max) | no | The feature to specify; without it (nor `source`), the `conductor` asks the user with `question` before any step |
+| `source` | `path` | no | Wiki page the request comes from (the decision of a `spike`, the postmortem of an `incident`), given by their `next:`; the planner reads it at the interview |
 | `method` | `enum` (`standard`, `tdd`) | no (`standard`) | Method of the implementation proposed next: `spec` does not use it, oh records it and passes it to `implement-spec` |
 
 | Checkpoint | manuel | semi-auto | auto |
@@ -324,6 +325,8 @@ Read-only audit: the `auditor` coordinates `auditor-subagent`s, one per domain (
 - `infra`: IaC review (Terraform/OpenTofu, Kubernetes, Helm, ArgoCD), IaC security, cloud cost, drift. The `auditor-subagent` may run static analysis tools (`tflint`, `tfsec`, `checkov`, `trivy config`, `kube-score`, `kubesec`, `helm lint`, `helm template`, `infracost`, `terraform fmt -check`, `terraform validate`, `terraform plan`), each one asked; any other command, changes included, is refused. Applying a change is the job of `infra-change`.
 - `database`: roles and privileges, Row-Level Security, injection surfaces, encryption at rest and in transit, backups, migration safety, exposure of sensitive data. Static reading only: queries against a real database are given to the user.
 
+Outputs **recorded by oh**: `findings` (the last report deposited, `record: report`) and `type` (the launch input, `record: input`). Proposed next step (`next:`) after a `security` audit that deposited its report: **`security-fix`**, which reads the findings in this session (`oh run security-fix --parent <session>`), without launching it.
+
 ## `infra-change`
 
 Applies an infrastructure change already written in the repository (Terraform/OpenTofu, Kubernetes, Helm, Pulumi): the `operator` checks the real context against the target, produces the plan (`terraform plan -out`, `kubectl diff`, `helm diff upgrade`, `pulumi preview`), the cost delta (`infracost` when installed), the risks and the rollback, then applies **exactly** the approved plan (`terraform apply <planfile>`) and checks the result. It modifies no file (`readonly-ops` base) and delegates to no agent: writing IaC code belongs to the `developer` (`quick`, `ticket`), read-only analysis to `audit` (`type=infra`). `isolation: strict`, local runtime only. Allowed Beads commands: read only.
@@ -376,6 +379,8 @@ Flow:
 4. **`cp-postmortem`**: once approved, the postmortem is committed alone by the debugger (`git commit -m "docs(postmortem): <slug>" -- <file>`).
 5. **`cp-actions`**: one ticket per approved action (`bd create`, a description that cites the postmortem); a refusal: no ticket.
 
+Outputs **recorded by oh**: `postmortem` (the file written under `docs/wiki/postmortems/`, recorded when a checkpoint passes, `record: written`) and `actions` (the tickets created). Proposed next steps (`next:`), never launched: **`ticket`** on the action tickets, if any; **`spec`** with the postmortem as source page (`-i source=…`), for actions that need a spec first.
+
 Two commit checkpoints (`unlock_again`, see the [schema](workflow-schema.en.md#checkpoints)): the window of `cp-mitigated` holds one commit, the fix's (oh does not open it when there is nothing to commit, closes it after that commit and at the latest when `cp-postmortem` is asked); the postmortem waits for `cp-postmortem`. The fix can thus be shipped as soon as the mitigation is approved. Pause budget (CP-R2) in semi-auto: 3 pauses (1 decision, 2 irreversible actions: the repeated commit does not count), for a budget of 4. Allowed Beads commands: `show`, `list`, `ready`, `search`, `query`, `lint`, `children`, `comments`, `count`, `status`, `graph`, `history`, `create`, `update`, `dep`, `label`.
 
 ## `security-fix`
@@ -384,25 +389,26 @@ Fixes the findings of a security audit: triage, fix with a regression test, targ
 
 | Input | Type | Required | Role |
 |---|---|---|---|
-| `findings` | `text` (30,000 characters max) | yes | The findings: audit report or excerpt, one finding per entry with its severity and location |
+| `findings` | `text` (65,536 characters max) | yes | The findings: audit report or excerpt, one finding per entry with its severity and location; by default, the report of the `audit` session the launch is chained from (`--parent`), else of the last `audit` session of the project that deposited one (`from: session.output(audit.findings)`) |
 
 | Checkpoint | manuel | semi-auto | auto |
 |---|---|---|---|
-| `cp-triage` Findings to fix | pause | pause | auto |
+| `cp-triage` Findings to fix (unlocks `create`) | pause | pause | auto |
 | `cp-rescan` Re-analysis (checked by oh: stack tests, at least one test file changed) | pause | auto | auto |
 | `cp-2` Commit or fix (mandatory, same check, unlocks `commit`) | pause | pause | pause |
 
 Flow:
 
-1. **`cp-triage`**: the findings are presented as received, numbered `F1`, `F2`…; the answer says which ones to fix.
-2. **Fixes** (`developer`, domain `security`): only the kept findings, at the cause and for every affected input, each with a regression test; no commit. A false positive is reported, with no change.
-3. **Targeted re-analysis** (`auditor-subagent`): for each finding, `corrigé` (fixed), `encore présent` (still present) or `contournable` (bypassable: another path, a neighbouring prefix, a symbolic link, another encoding, another caller).
-4. **`cp-rescan`**: no pause in semi-auto; oh runs the tests and refuses a change without a test. A finding still present goes back to the developer (2 rounds at most, `limits.max_fix_rounds`).
-5. **`cp-2`**: fixes, tests and verdict of the re-analysis; once approved, the developer commits (`fix(security): …`).
+1. **`cp-triage`**: the findings are presented as received, numbered `F1`, `F2`…; the answer says which ones to fix, the others are set aside with their reason (later, accepted risk, false positive…).
+2. **Tickets of the findings set aside** (`developer`): one ticket per finding set aside (`bd create … -t bug -l security`), with the finding as received and the reason of the triage; before `cp-triage`, oh refuses the creation. oh records these tickets (output `deferred`, `record: created`).
+3. **Fixes** (`developer`, domain `security`): only the kept findings, at the cause and for every affected input, each with a regression test; no commit. A false positive is reported, with no change. The developer returns a precise contract, in the `### Critères d'acceptance couverts` section of its report: one line per finding (`F<n>`, fixed or false positive, regression test, changed files).
+4. **Targeted re-analysis** (`auditor-subagent`): it receives the developer's report (`rp-…`) and that contract; for each finding, `corrigé` (fixed), `encore présent` (still present) or `contournable` (bypassable: another path, a neighbouring prefix, a symbolic link, another encoding, another caller).
+5. **`cp-rescan`**: no pause in semi-auto; oh runs the tests and refuses a change without a test. A finding still present goes back to the developer (2 rounds at most, `limits.max_fix_rounds`).
+6. **`cp-2`**: fixes, tests and verdict of the re-analysis; once approved, the developer commits (`fix(security): …`).
 
-Why the re-analysis comes before the commit: a fix the auditor finds bypassable must not be committed; `cp-2` decides with the tests (oh) and the verdict at hand. Pause budget in semi-auto: 2 pauses (1 decision, 1 irreversible action), for a budget of 3. Allowed Beads commands (read only): `show`, `list`, `ready`, `search`, `query`, `children`, `comments`, `count`, `status`, `graph`, `history`.
+Why the re-analysis comes before the commit: a fix the auditor finds bypassable must not be committed; `cp-2` decides with the tests (oh) and the verdict at hand. Pause budget in semi-auto: 2 pauses (2 irreversible actions: the ticket creation at `cp-triage`, the commit at `cp-2`), for a budget of 4. Allowed Beads commands: `show`, `list`, `ready`, `search`, `query`, `children`, `comments`, `count`, `status`, `graph`, `history`, `create`.
 
-**From an audit**: the findings are given as input, for instance the audit report (`oh session report <session> <rp-…>`): `oh run security-fix -i findings="$(oh session report <session> rp-2)"`. Chaining `audit → security-fix` directly (`findings` output of the audit, `next:`) will come with workflow composition (R5).
+**From an audit**: a `security` audit proposes `security-fix` (`next:`); `oh run security-fix --parent <audit session>` reads the report of that audit (its content, not its id). Without `--parent` nor `-i findings=…`, oh takes the report of the last `audit` session of the project that deposited one, whatever its type, and says so at launch. An excerpt can always be given as input: `oh run security-fix -i findings="…"`.
 
 ## `spike`
 
@@ -424,6 +430,8 @@ Flow:
 3. **Throwaway prototype**, only when a criterion can only be settled by running code: the `developer` writes the smallest program that answers it, in `.oh-spike/<slug>/` only, with no dependency added, runs it, records its output, then deletes `.oh-spike/`. Never committed.
 4. **Decision**: `docs/wiki/decisions/<slug>.md` (`**Décision : go | clarify | kill**`, findings per criterion with their sources, prototype, next steps). `go`: every criterion holds; `kill`: one does not; `clarify`: one cannot be settled without a decision or information from the user.
 5. **`cp-decision`**: oh checks that `.oh-spike/` no longer exists (`verify.cmd: ["test ! -e .oh-spike"]`); once approved, the decision alone is committed.
+
+Outputs **recorded by oh** when a checkpoint passes (`record: written`): `decision` (the file written under `docs/wiki/decisions/`) and `verdict` (`go`, `clarify` or `kill`, read on the `**Décision : …**` line, `match:`). Proposed next step (`next:`) after a `go` only: **`spec`**, with the decision as source page (`-i source=…`), without launching it.
 
 Pause budget in semi-auto: 2 pauses (1 decision, 1 irreversible action), for a budget of 3. Allowed Beads commands (read only): `show`, `list`, `search`, `query`, `count`.
 

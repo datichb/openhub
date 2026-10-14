@@ -43,6 +43,45 @@ type NextStep struct {
 // NextWhen is the condition of a NextStep.
 type NextWhen struct {
 	Outputs []string `yaml:"outputs,omitempty"`
+	// Equals (B1): proposed only when each output listed was recorded with
+	// this value (case ignored): `equals: { verdict: go }`.
+	Equals map[string]string `yaml:"equals,omitempty"`
+}
+
+// Holds reports whether the condition holds for the outputs of a session
+// (a nil condition always holds).
+func (w *NextWhen) Holds(outputs map[string]any) bool {
+	if w == nil {
+		return true
+	}
+	for _, id := range w.Outputs {
+		if outputValue(outputs[id]) == "" {
+			return false
+		}
+	}
+	for id, want := range w.Equals {
+		if !strings.EqualFold(outputValue(outputs[id]), strings.TrimSpace(want)) {
+			return false
+		}
+	}
+	return true
+}
+
+// outputValue is a recorded output as text (lists comma-joined).
+func outputValue(v any) string {
+	switch x := v.(type) {
+	case nil:
+		return ""
+	case []string:
+		return strings.Join(x, ",")
+	case []any:
+		parts := make([]string, 0, len(x))
+		for _, e := range x {
+			parts = append(parts, fmt.Sprint(e))
+		}
+		return strings.Join(parts, ",")
+	}
+	return strings.TrimSpace(fmt.Sprint(v))
 }
 
 // Alias is another id that launches the workflow (`oh run <alias>`). A
@@ -99,10 +138,16 @@ const (
 	// recorded at launch (text), so that `next:` passes it on (the method
 	// of spec to implement-spec, feature-migration).
 	RecordInput OutputRecord = "input"
+	// RecordWritten: the files the session changed under the output's
+	// `paths:`, read each time a checkpoint passes (path; several joined by
+	// commas), or with `match:` the first group of that regular expression
+	// in those files (text): the postmortem of incident, the decision of
+	// spike and its verdict (B1).
+	RecordWritten OutputRecord = "written"
 )
 
 // OutputRecords lists the valid record kinds.
-var OutputRecords = []OutputRecord{RecordCreated, RecordClosed, RecordSpec, RecordReport, RecordInput}
+var OutputRecords = []OutputRecord{RecordCreated, RecordClosed, RecordSpec, RecordReport, RecordInput, RecordWritten}
 
 // Valid reports whether r is known ("" = declared by the session).
 func (r OutputRecord) Valid() bool { return r == "" || slices.Contains(OutputRecords, r) }
@@ -118,8 +163,19 @@ func (r OutputRecord) OutputType() OutputType {
 		return OutputReport
 	case RecordInput:
 		return OutputText
+	case RecordWritten:
+		return OutputPath
 	}
 	return ""
+}
+
+// RecordType is the type of output o recorded by oh (`record: written` with
+// `match:` records text).
+func (o Output) RecordType() OutputType {
+	if o.Record == RecordWritten && o.Match != "" {
+		return OutputText
+	}
+	return o.Record.OutputType()
 }
 
 // RecordedInputs returns the outputs recorded from the inputs of a session

@@ -30,3 +30,13 @@ agents:
   auditor-subagent: { role: workflow }
 beads: { allow: [show, list] }
 runtime: { default: local, allowed: [local, remote] }
+# B1: recorded by oh, never declared by an agent: the report of the audit
+# (the last one deposited) and its type; a security audit proposes
+# security-fix, which reads the report from this session (`from:`).
+outputs:
+  - { id: findings, type: report, record: report, label: { fr: Constats de l'audit, en: Audit findings } }
+  - { id: type, type: text, record: input, label: { fr: Type d'audit, en: Audit type } }
+next:
+  - workflow: security-fix
+    when: { outputs: [findings], equals: { type: security } }
+    inputs: { findings: session.output(findings) }

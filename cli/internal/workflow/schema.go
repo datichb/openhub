@@ -494,6 +494,11 @@ type Output struct {
 	// what it saw the session do (tickets created, spec checked…); the
 	// agents cannot declare it.
 	Record OutputRecord `yaml:"record,omitempty"`
+	// B1 (schema_next.go): with `record: written`, Paths are the files read
+	// (patterns, as `writes:`) and Match, when given, a regular expression
+	// whose first group is the value recorded (type text).
+	Paths []string `yaml:"paths,omitempty"`
+	Match string   `yaml:"match,omitempty"`
 }
 
 // Precondition is a check made before launch (in the session location).

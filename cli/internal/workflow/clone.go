@@ -91,6 +91,7 @@ func (s *Spec) Clone() *Spec {
 		c.Outputs = make([]Output, len(s.Outputs))
 		for i, o := range s.Outputs {
 			o.Label = o.Label.clone()
+			o.Paths = cloneSlice(o.Paths)
 			c.Outputs[i] = o
 		}
 	}
@@ -171,7 +172,7 @@ func cloneNext(steps []NextStep) []NextStep {
 	for i, n := range steps {
 		n.Label = n.Label.clone()
 		if n.When != nil {
-			n.When = &NextWhen{Outputs: cloneSlice(n.When.Outputs)}
+			n.When = &NextWhen{Outputs: cloneSlice(n.When.Outputs), Equals: cloneMap(n.When.Equals)}
 		}
 		n.Inputs = cloneMap(n.Inputs)
 		out[i] = n

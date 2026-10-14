@@ -9,7 +9,7 @@ Corriger les constats d'un audit de sécurité — choix des constats, correctio
 
 - Agent d'entrée : `conductor`
 - Risque : `write`
-- Commandes Beads autorisées : `show`, `list`, `ready`, `search`, `query`, `children`, `comments`, `count`, `status`, `graph`, `history`
+- Commandes Beads autorisées : `show`, `list`, `ready`, `search`, `query`, `children`, `comments`, `count`, `status`, `graph`, `history`, `create`
 
 Cette carte est la seule référence sur l'enchaînement : n'invente ni agent, ni étape, ni checkpoint qui n'y figure pas.
 
@@ -34,7 +34,7 @@ Seuls les checkpoints que tu passes figurent ici (contrat de session).
 | Checkpoint | manuel | semi-auto | auto |
 |---|---|---|---|
 <!-- oh:when agent=conductor -->
-| **cp-triage** — Constats à corriger | pause | pause | auto |
+| **cp-triage** — Constats à corriger (obligatoire) | pause | pause | auto |
 <!-- /oh:when -->
 <!-- oh:when agent=conductor -->
 | **cp-rescan** — Nouvelle analyse | pause | auto | auto |
@@ -44,11 +44,12 @@ Seuls les checkpoints que tu passes figurent ici (contrat de session).
 <!-- /oh:when -->
 
 <!-- oh:when agent=conductor -->
-Séquence : `cp-triage` → `cp-rescan` → `cp-2` [commit] (entre crochets, les opérations que le checkpoint déverrouille).
+Séquence : `cp-triage` [create] → `cp-rescan` → `cp-2` [commit] (entre crochets, les opérations que le checkpoint déverrouille).
 <!-- /oh:when -->
 
 <!-- oh:when agent=conductor -->
-- **cp-triage** : Présenter les constats reçus, numérotés, avec leur gravité et leur emplacement ; la réponse dit lesquels corriger dans cette session.
+- **cp-triage** : Présenter les constats reçus, numérotés, avec leur gravité et leur emplacement ; la réponse dit lesquels corriger dans cette session. Une fois validé, chaque constat écarté devient un ticket, avec la raison du tri.
+- **cp-triage** déverrouille `create` : avant son passage, oh refuse à tous les agents de la session la création de tickets, quel que soit le mode. Une fois passé, crée les tickets validés aussitôt : la création se referme au checkpoint obligatoire suivant, ou quand **cp-triage** est demandé de nouveau.
 <!-- /oh:when -->
 <!-- oh:when agent=conductor -->
 - **cp-rescan** : Vérifié par oh, sans pause en semi-auto, avant le commit — les tests passent et au moins un test a été écrit ou modifié ; le verdict de l'auditeur sur chaque constat corrigé accompagne le passage, un constat encore présent repart au developer.

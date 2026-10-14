@@ -109,6 +109,10 @@ The assertions are described in the [`oh eval` reference](../docs/reference/cli-
 | S51 | spike | `t.Parallel` everywhere? `os.Setenv` and `os.Chdir` in two tests: kill, both files cited, no test changed |
 | S52 | implement-spec | Fan-out (`fanout=true`): two independent tickets, one child session each at the same time; the `cp-2` of each child passes by delegation (CP-R3), oh merges both branches, `cp-merge` validated, oh merges the integration branch and closes both tickets; the parent session commits nor closes anything; hidden tests |
 | S53 | implement-spec | Fan-out: two tickets that change the same line, launched at the same time; the merge of the second conflicts, the `merger` launched by oh keeps both changes, oh checks the result; no marker, hidden tests |
+| S58 | security-fix | The finding set aside at `cp-triage` (F2) becomes a ticket with the reason of the triage, only after `cp-triage`, recorded by oh (output `deferred`); the developer returns one line per kept finding (F1, F3) with its test; hidden tests |
+| S59 | spike | `t.Parallel` in the `report` package (no global state changed): go; oh records the decision and its verdict (`record: written`) and proposes `spec` with the decision |
+| S60 | feature (alias of `spec`) | Without a request: the conductor asks for it with `question` before launching the planner, which receives it |
+| S61 | audit | `security` audit: oh records the report (`findings`) and the type, then proposes `security-fix` |
 
 `cadrage` is an alias of `spec` since R5: cases S5, S15, S19 and S27 (folder `cadrage/`) launch `spec`, and S27 goes through the exploration by the pathfinder that precedes the interview when the request compares designs.
 

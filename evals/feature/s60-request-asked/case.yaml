@@ -1,0 +1,32 @@
+id: S60
+title: "Feature (alias de spec) sans demande : le conductor la demande avec question avant toute étape, puis la transmet au planner"
+workflow: feature
+mode: semi-auto
+# B1 : `oh run feature` (ou `oh start`) sans demande lance spec, dont la
+# demande est facultative ; le conductor la demande d'abord à l'utilisateur
+# avec l'outil question, puis lance le planner avec la réponse. L'évaluation
+# s'arrête au premier checkpoint (compréhension).
+beads:
+  prefix: ev
+timeout: 15m
+answers:
+  question: "Ajouter à calc une fonction Mul(a, b int) int, avec son test."
+  checkpoints:
+    "*": "reject: Évaluation terminée : arrête le workflow ici, sans écrire la spec ni créer de ticket."
+assertions:
+  - type: called
+    name: le conductor demande la feature avec question, avant le planner
+    agent: conductor
+    tool: question
+    before: { subagent: planner }
+  - type: text_matches
+    name: le planner reçoit la demande donnée en réponse
+    agent: planner
+    pattern: "Mul"
+  - type: checkpoint_order
+    order: [cp-understanding]
+  - type: changed_within
+    name: rien d'écrit avant la validation
+  - type: no_question_in_subagent
+    agents: [planner, pathfinder]
+  - type: no_denied_loop

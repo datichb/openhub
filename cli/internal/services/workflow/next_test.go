@@ -92,3 +92,61 @@ func TestComputeInputsFromSession(t *testing.T) {
 	require.NoError(t, (&Service{}).ComputeInputs(ctx, Context{}, res.Spec, values))
 	assert.Empty(t, values)
 }
+
+// B1: a security audit proposes security-fix, which reads the report from
+// the audit session (not prefilled: its content, not its id); another audit
+// proposes nothing.
+func TestNextStepsOfAudit(t *testing.T) {
+	svc := shippedService(t)
+	ctx := context.Background()
+	steps, err := svc.NextSteps(ctx, Context{}, "audit", map[string]any{"findings": "rp-2", "type": "security"})
+	require.NoError(t, err)
+	require.Len(t, steps, 1)
+	assert.Equal(t, "security-fix", steps[0].WorkflowID)
+	assert.Empty(t, steps[0].Prefill, "the findings are read from the parent session")
+	assert.Equal(t, []wf.OutputType{wf.OutputReport}, steps[0].Matched)
+
+	steps, err = svc.NextSteps(ctx, Context{}, "audit", map[string]any{"findings": "rp-2", "type": "performance"})
+	require.NoError(t, err)
+	assert.Empty(t, steps)
+	steps, err = svc.NextSteps(ctx, Context{}, "audit", map[string]any{"type": "security"})
+	require.NoError(t, err)
+	assert.Empty(t, steps, "no report deposited")
+
+	res, err := svc.Resolve(ctx, Context{}, "security-fix", ResolveOpts{})
+	require.NoError(t, err)
+	in, _ := res.Spec.Inputs.Get("findings")
+	assert.Equal(t, "session.output(audit.findings)", in.From)
+}
+
+// B1: a spike decided go proposes spec with the decision; clarify or kill,
+// nothing. An incident proposes ticket on its action tickets and spec on its
+// postmortem.
+func TestNextStepsOfSpikeAndIncident(t *testing.T) {
+	svc := shippedService(t)
+	ctx := context.Background()
+	dec := "docs/wiki/decisions/cache.md"
+	steps, err := svc.NextSteps(ctx, Context{}, "spike", map[string]any{"decision": dec, "verdict": "go"})
+	require.NoError(t, err)
+	require.Len(t, steps, 1)
+	assert.Equal(t, "spec", steps[0].WorkflowID)
+	assert.Equal(t, map[string]string{"source": dec}, steps[0].Prefill)
+	for _, v := range []string{"clarify", "kill", ""} {
+		steps, err = svc.NextSteps(ctx, Context{}, "spike", map[string]any{"decision": dec, "verdict": v})
+		require.NoError(t, err)
+		assert.Empty(t, steps, v)
+	}
+
+	pm := "docs/wiki/postmortems/2026-10-14-panne.md"
+	steps, err = svc.NextSteps(ctx, Context{}, "incident", map[string]any{"postmortem": pm, "actions": []any{"ev-4", "ev-5"}})
+	require.NoError(t, err)
+	require.Len(t, steps, 2)
+	assert.Equal(t, "ticket", steps[0].WorkflowID)
+	assert.Equal(t, []string{"ev-4", "ev-5"}, steps[0].Tickets)
+	assert.Equal(t, "spec", steps[1].WorkflowID)
+	assert.Equal(t, map[string]string{"source": pm}, steps[1].Prefill)
+	steps, err = svc.NextSteps(ctx, Context{}, "incident", map[string]any{"postmortem": pm})
+	require.NoError(t, err)
+	require.Len(t, steps, 1, "no action ticket: spec only")
+	assert.Equal(t, "spec", steps[0].WorkflowID)
+}

@@ -2,6 +2,8 @@ package workflow
 
 import (
 	"fmt"
+	"path"
+	"regexp"
 	"sort"
 	"strings"
 )
@@ -60,6 +62,11 @@ func (v *validator) next() {
 					v.err("next_unknown_output", fmt.Sprintf("%s.when.outputs[%d]", base, j), o, outputIDs(s))
 				}
 			}
+			for _, o := range sortedKeys(n.When.Equals) {
+				if _, ok := s.Output(o); !ok {
+					v.err("next_unknown_output", base+".when.equals."+o, o, outputIDs(s))
+				}
+			}
 		}
 		target := v.specOf(n.Workflow)
 		keys := make([]string, 0, len(n.Inputs))
@@ -89,6 +96,13 @@ func (v *validator) next() {
 			}
 			if !OutputFits(out.Type, in.Type) {
 				v.err("next_input_type", at, f.Output, string(out.Type), k, string(in.Type))
+				continue
+			}
+			// B1: a report goes on as its content, read from the session the
+			// launch is chained from by the `from:` of the input; prefilled,
+			// the next session would only get its id (rp-…).
+			if want := SourceSessionOutput + "(" + s.ID + "." + f.Output + ")"; out.Type == OutputReport && strings.ReplaceAll(in.From, " ", "") != want {
+				v.warn("next_input_report_from", at, f.Output, n.Workflow, k, want)
 			}
 		}
 	}
@@ -122,6 +136,7 @@ func (v *validator) aliases() {
 // outputRecord checks the record kind of an output and its type.
 func (v *validator) outputRecord(base string, o Output) {
 	if o.Record == "" {
+		v.outputWritten(base, o)
 		return
 	}
 	if !o.Record.Valid() {
@@ -132,9 +147,10 @@ func (v *validator) outputRecord(base string, o Output) {
 		v.err("enum_invalid", base+".record", string(o.Record), strings.Join(names, ", "))
 		return
 	}
-	if want := o.Record.OutputType(); o.Type != "" && o.Type != want {
+	if want := o.RecordType(); o.Type != "" && o.Type != want {
 		v.err("output_record_type", base+".record", string(o.Record), string(want), string(o.Type))
 	}
+	v.outputWritten(base, o)
 	if o.Record == RecordSpec && !v.s.hasSpecCheck() {
 		v.warn("output_record_spec_unchecked", base+".record")
 	}
@@ -143,6 +159,50 @@ func (v *validator) outputRecord(base string, o Output) {
 			v.err("output_record_input_unknown", base+".record", o.ID)
 		}
 	}
+}
+
+// outputWritten checks `paths:` and `match:` of an output (B1): with
+// `record: written` only, paths required, match a regular expression with a
+// group.
+func (v *validator) outputWritten(base string, o Output) {
+	if o.Record != RecordWritten {
+		if len(o.Paths) > 0 {
+			v.err("output_written_only", base+".paths", "paths")
+		}
+		if o.Match != "" {
+			v.err("output_written_only", base+".match", "match")
+		}
+		return
+	}
+	if len(o.Paths) == 0 {
+		v.err("output_written_paths", base+".paths")
+	}
+	for i, p := range o.Paths {
+		if pb := RecordPathProblem(p); pb != "" {
+			v.err("output_written_path", fmt.Sprintf("%s.paths[%d]", base, i), p, pb)
+		}
+	}
+	if o.Match != "" {
+		re, err := regexp.Compile(o.Match)
+		switch {
+		case err != nil:
+			v.err("output_match_invalid", base+".match", o.Match, err.Error())
+		case re.NumSubexp() < 1:
+			v.err("output_match_invalid", base+".match", o.Match, "no group")
+		}
+	}
+}
+
+// RecordPathProblem returns why p is not a valid `paths:` pattern of a
+// recorded output ("" when it is): a clean relative path.
+func RecordPathProblem(p string) string {
+	switch {
+	case strings.TrimSpace(p) == "":
+		return "empty"
+	case strings.Contains(p, `\`) || path.IsAbs(p) || path.Clean(p) != p || p == "." || p == ".." || strings.HasPrefix(p, "../"):
+		return "not a clean relative path"
+	}
+	return ""
 }
 
 // hasSpecCheck reports whether a checkpoint checks the specs (verify.spec).

@@ -12,7 +12,8 @@ import (
 // Outputs recorded by oh (R5): an output declared with `record:` is filled
 // by oh from what it saw the session do, never by an agent (Declare refuses
 // it): tickets created or closed through the Beads gateway, specs checked
-// at a `verify.spec` checkpoint, reports deposited with workflow_report.
+// at a `verify.spec` checkpoint, reports deposited with workflow_report,
+// files written under paths (written.go).
 
 // Record kinds (workflow.OutputRecord).
 const (
@@ -20,6 +21,7 @@ const (
 	RecordClosed  = "closed"
 	RecordSpec    = "spec"
 	RecordReport  = "report"
+	RecordWritten = "written" // written.go
 )
 
 // outputBeadsIDs is the output type of a list of tickets.

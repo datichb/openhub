@@ -97,6 +97,7 @@ var extraSamples = map[string]map[string]map[string]any{
 	"review":     {"mode-only": {"review_mode": "adversarial"}},
 	"audit":      {"infra": {"type": "infra"}},
 	"onboarding": {"refresh": {"refresh": "true"}},
+	"spec":       {"source": {"source": "docs/wiki/decisions/cache.md"}},
 }
 
 func TestShippedWorkflowPrompts(t *testing.T) {

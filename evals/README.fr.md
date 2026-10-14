@@ -109,6 +109,10 @@ Les assertions sont décrites dans la [référence d'`oh eval`](../docs/referenc
 | S51 | spike | `t.Parallel` partout ? `os.Setenv` et `os.Chdir` dans deux tests : kill, les deux fichiers cités, aucun test modifié |
 | S52 | implement-spec | Fan-out (`fanout=true`) : deux tickets indépendants, une session enfant chacun en même temps ; le `cp-2` de chaque enfant passe par délégation (CP-R3), oh merge les deux branches, `cp-merge` validé, oh merge la branche d'intégration et ferme les deux tickets ; la session parente ne commite ni ne ferme rien ; tests cachés |
 | S53 | implement-spec | Fan-out : deux tickets qui changent la même ligne, lancés en même temps ; le merge du second est en conflit, le `merger` lancé par oh garde les deux changements, oh vérifie le résultat ; aucun marqueur, tests cachés |
+| S58 | security-fix | Le constat écarté à `cp-triage` (F2) devient un ticket avec la raison du tri, après `cp-triage` seulement, relevé par oh (sortie `deferred`) ; le developer rend une ligne par constat retenu (F1, F3) avec son test ; tests cachés |
+| S59 | spike | `t.Parallel` dans le paquet `report` (aucun état global changé) : go ; oh relève la décision et son verdict (`record: written`) et propose `spec` avec la décision |
+| S60 | feature (alias de `spec`) | Sans demande : le conductor la demande avec `question` avant de lancer le planner, qui la reçoit |
+| S61 | audit | Audit `security` : oh relève le rapport (`findings`) et le type, puis propose `security-fix` |
 
 `cadrage` est un alias de `spec` depuis R5 : les cas S5, S15, S19 et S27 (dossier `cadrage/`) lancent `spec`, et S27 passe par l'exploration du pathfinder qui précède l'entretien quand la demande compare des conceptions.
 

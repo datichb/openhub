@@ -11,6 +11,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/services/report"
 	sessionsvc "github.com/datichb/openhub/cli/internal/services/session"
 	workflowsvc "github.com/datichb/openhub/cli/internal/services/workflow"
 	"github.com/datichb/openhub/cli/internal/storage/sqlite"
@@ -38,6 +39,10 @@ func sessionInputSources(a *app.App, note func(string)) map[string]workflowsvc.I
 			}
 			v := outputText(sess.Outputs[out])
 			note(i18n.Tf("cmd.run.input_from_session", workflow.SourceSessionOutput+"("+arg+")", sess.ID, v))
+			// B1: a report goes on as its content (the findings of an audit).
+			if sessionOutputType(ctx, c, sess.WorkflowID, out) == workflow.OutputReport {
+				return sessionReportBody(ctx, a, sess.ID, v)
+			}
 			return v, nil
 		},
 		workflow.SourceSessionTrace: func(ctx context.Context, c workflowsvc.Context, wfID string) (string, error) {
@@ -61,6 +66,30 @@ func sessionInputSources(a *app.App, note func(string)) map[string]workflowsvc.I
 			return d, nil
 		},
 	}
+}
+
+// sessionOutputType returns the type of output out of workflow wfID ("" when
+// unknown).
+var sessionOutputType = func(ctx context.Context, c workflowsvc.Context, wfID, out string) workflow.OutputType {
+	res, _ := newWorkflowService(ctx).Resolve(ctx, workflowsvc.Context{ProjectID: c.ProjectID}, wfID, workflowsvc.ResolveOpts{})
+	if res == nil {
+		return ""
+	}
+	o, _ := res.Spec.Output(out)
+	return o.Type
+}
+
+// sessionReportBody returns the report id of a session, cleaned.
+var sessionReportBody = func(ctx context.Context, a *app.App, sessionID, id string) (string, error) {
+	ssvc, err := newSessionService(ctx, a)
+	if err != nil {
+		return "", err
+	}
+	_, body, err := ssvc.Report(ctx, sessionID, id)
+	if err != nil {
+		return "", fmt.Errorf("report %s of session %s: %w", id, sessionID, err)
+	}
+	return report.Clean(body), nil
 }
 
 // pickSession returns the parent session of the launch when it is a session
