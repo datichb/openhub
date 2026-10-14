@@ -298,6 +298,9 @@ func (p *patcher) agents() {
 		if h("writes_after") {
 			p.orderAfter(base+".writes_after", &old.WritesAfter, v.WritesAfter)
 		}
+		if h("fanout") {
+			p.agentFanout(base, &old, v)
+		}
 		if len(old.Writes) == 0 {
 			old.WritesAfter = "" // writes: [] — nothing left to gate
 		}
@@ -394,6 +397,7 @@ func (p *patcher) checkpoints() {
 		p.checkpointVerify(base, &old, v)
 		p.checkpointMethod(base, &old, v)
 		p.checkpointFanout(base, &old, v)
+		p.checkpointTasks(base, &old, v)
 		if h("by") {
 			old.By = v.By
 		}

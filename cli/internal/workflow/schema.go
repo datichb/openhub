@@ -288,6 +288,11 @@ type AgentRef struct {
 	// edit to every agent of the session, telling it to wait. A layer may
 	// add it or move it to a later checkpoint, never remove it.
 	WritesAfter string `yaml:"writes_after,omitempty"`
+
+	// sweep-fanout (schema_fanout.go): Fanout keeps the agent only in the
+	// fan-out sessions (`only`) or only in the others (`never`: the
+	// developer of sweep, whose work the children do).
+	Fanout FanoutScope `yaml:"fanout,omitempty"`
 }
 
 // CheckpointSpec is a gate of the workflow.
@@ -361,6 +366,13 @@ type CheckpointSpec struct {
 	// earlier checkpoint (incident: the mitigation, then the postmortem):
 	// the earlier window then holds one commit. Only the hub layer sets it.
 	UnlockAgain bool `yaml:"unlock_again,omitempty"`
+
+	// sweep-fanout (schema_tasks.go): the breakdown of the session.
+
+	// Tasks makes oh read the breakdown given with the call (`tasks` of
+	// workflow_checkpoint), check it, show it on the card and record it:
+	// the agents cannot pass the checkpoint on their word.
+	Tasks *TasksCheck `yaml:"tasks,omitempty"`
 }
 
 // CheckpointWiki is the role of a checkpoint for the wiki of the project.

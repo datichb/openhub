@@ -39,6 +39,7 @@ func (p *patcher) fanout() {
 		}
 	}
 	str("fanout.input", v.Input, old.Input)
+	str("fanout.source", string(v.Source), string(old.Source))
 	str("fanout.tickets", v.Tickets, old.Tickets)
 	str("fanout.child", v.Child, old.Child)
 	str("fanout.merge", v.Merge, old.Merge)
@@ -82,6 +83,9 @@ func (p *patcher) hubFanout(v, old *Fanout) *Fanout {
 	if p.has("fanout.input") {
 		c.Input = v.Input
 	}
+	if p.has("fanout.source") {
+		c.Source = v.Source
+	}
 	if p.has("fanout.tickets") {
 		c.Tickets = v.Tickets
 	}
@@ -119,6 +123,55 @@ func (p *patcher) checkpointFanout(base string, old *CheckpointSpec, v Checkpoin
 		return
 	}
 	p.loosening(base+".fanout", fanoutScopeText(v.Fanout), fanoutScopeText(old.Fanout))
+}
+
+// agentFanout merges `fanout:` of an agent patch: like the scope of a
+// checkpoint, only the hub layer changes it (an agent kept in a fan-out
+// parent would work beside its children).
+func (p *patcher) agentFanout(base string, old *AgentRef, v AgentRef) {
+	if v.Fanout == old.Fanout {
+		return
+	}
+	if p.widens() {
+		old.Fanout = v.Fanout
+		return
+	}
+	p.loosening(base+".fanout", fanoutScopeText(v.Fanout), fanoutScopeText(old.Fanout))
+}
+
+// checkpointTasks merges `tasks:` of a checkpoint patch (sweep-fanout): a
+// layer other than the hub may lower `max` and narrow `domains`; removing
+// the check, raising `max` or adding a domain is a loosening.
+func (p *patcher) checkpointTasks(base string, old *CheckpointSpec, v CheckpointSpec) {
+	if !p.has(base + ".tasks") {
+		return
+	}
+	if p.widens() || old.Tasks == nil {
+		if v.Tasks != nil || p.widens() {
+			old.Tasks = v.Tasks.clone()
+		}
+		return
+	}
+	if v.Tasks == nil {
+		p.loosening(base+".tasks", "null", "tasks")
+		return
+	}
+	c := old.Tasks.clone()
+	if p.has(base + ".tasks.max") {
+		if v.Tasks.Max < 1 || v.Tasks.EffectiveMax() > old.Tasks.EffectiveMax() {
+			p.loosening(base+".tasks.max", v.Tasks.Max, old.Tasks.EffectiveMax())
+		} else {
+			c.Max = v.Tasks.Max
+		}
+	}
+	if p.has(base + ".tasks.domains") {
+		if extra := missingFrom(v.Tasks.Domains, old.Tasks.Domains); (len(old.Tasks.Domains) > 0 && len(extra) > 0) || (len(old.Tasks.Domains) > 0 && len(v.Tasks.Domains) == 0) {
+			p.loosening(base+".tasks.domains", fmt.Sprint(v.Tasks.Domains), fmt.Sprint(old.Tasks.Domains))
+		} else {
+			c.Domains = slices.Clone(v.Tasks.Domains)
+		}
+	}
+	old.Tasks = c
 }
 
 func fanoutScopeText(f FanoutScope) string {

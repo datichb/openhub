@@ -99,10 +99,13 @@ const (
 	// recorded at launch (text), so that `next:` passes it on (the method
 	// of spec to implement-spec, feature-migration).
 	RecordInput OutputRecord = "input"
+	// RecordTasks: the breakdown oh read and checked at the checkpoint with
+	// `tasks:` (text, one task per line; sweep-fanout).
+	RecordTasks OutputRecord = "tasks"
 )
 
 // OutputRecords lists the valid record kinds.
-var OutputRecords = []OutputRecord{RecordCreated, RecordClosed, RecordSpec, RecordReport, RecordInput}
+var OutputRecords = []OutputRecord{RecordCreated, RecordClosed, RecordSpec, RecordReport, RecordInput, RecordTasks}
 
 // Valid reports whether r is known ("" = declared by the session).
 func (r OutputRecord) Valid() bool { return r == "" || slices.Contains(OutputRecords, r) }
@@ -116,7 +119,7 @@ func (r OutputRecord) OutputType() OutputType {
 		return OutputPath
 	case RecordReport:
 		return OutputReport
-	case RecordInput:
+	case RecordInput, RecordTasks:
 		return OutputText
 	}
 	return ""

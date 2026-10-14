@@ -270,6 +270,9 @@ func applyCheckpointVerify(rt *sessionspec.WorkflowRuntime, s *workflow.Spec) {
 			}
 			def.Verify = d
 		}
+		if t := cp.Tasks; t != nil {
+			def.Tasks = &sessionspec.TasksCheckDef{Max: t.EffectiveMax(), Domains: append([]string(nil), t.Domains...)}
+		}
 		if w := cp.When; !w.IsZero() {
 			def.When = &sessionspec.WhenDef{Entry: append([]string(nil), w.Entry...), Labels: append([]string(nil), w.Labels...),
 				Paths: append([]string(nil), w.Paths...), Outputs: append([]string(nil), w.Outputs...)}

@@ -19,6 +19,7 @@ const (
 	CheckpointImitated = "imitated" // a question imitated a checkpoint (closed by oh)
 	CheckpointReport   = "report"   // a report was stored (workflow_report)
 	CheckpointWiki     = "wiki"     // oh applied the wiki proposals accepted on the card (LD-J)
+	CheckpointTasks    = "tasks"    // oh recorded the breakdown checked at the checkpoint (sweep-fanout)
 )
 
 // CheckpointState is the workflow state of a session (sessions.checkpoint_state,
@@ -75,6 +76,29 @@ type CheckpointState struct {
 	// checkpoint, by checkpoint: a checkpoint passed again on that same
 	// commit (nothing new to commit) does not hold its tag back.
 	Committed map[string]string `json:"committed,omitempty"`
+
+	// sweep-fanout: the breakdown read by oh at the checkpoint with
+	// `tasks:`. Shown holds the one shown on the card of the checkpoint
+	// waiting (the call must give the same to pass), Tasks the one
+	// recorded once it passed (the children of a fan-out `source: tasks`).
+	ShownTasks []PlanTask `json:"shown_tasks,omitempty"`
+	Tasks      []PlanTask `json:"tasks,omitempty"`
+}
+
+// PlanTask is a task of a breakdown read and checked by oh (sweep-fanout):
+// never an agent's word, the record oh made of it.
+type PlanTask struct {
+	// ID is given by oh (t1, t2…), in the order of the breakdown.
+	ID          string `json:"id"`
+	Title       string `json:"title"`
+	Description string `json:"description,omitempty"`
+	// Files is the file scope of the task: paths, folders or patterns (*,
+	// **) of the repository, or new files in existing folders.
+	Files  []string `json:"files"`
+	Domain string   `json:"domain,omitempty"`
+	// Parallel: outside a fan-out, the task may run at the same time as
+	// the other parallel ones (their scopes are disjoint).
+	Parallel bool `json:"parallel,omitempty"`
 }
 
 // CheckpointUnlock is an operation unlocked by a checkpoint.

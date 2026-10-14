@@ -623,6 +623,29 @@ func (v *validator) checkpoints() {
 			v.err("unlock_again_without_commit", base+".unlock_again", k)
 		}
 	}
+	v.tasksChecks()
+}
+
+// tasksChecks checks the breakdowns read by oh (`tasks:`, sweep-fanout):
+// one checkpoint at most, a bounded number of tasks, domains named once.
+func (v *validator) tasksChecks() {
+	first := ""
+	for _, k := range v.s.Checkpoints.Keys() {
+		cp, _ := v.s.Checkpoints.Get(k)
+		if cp.Tasks == nil || cp.Disabled {
+			continue
+		}
+		base := "checkpoints." + k + ".tasks"
+		if first != "" {
+			v.err("tasks_duplicate", base, k, first)
+		} else {
+			first = k
+		}
+		if cp.Tasks.Max < 0 || cp.Tasks.Max > MaxTasks {
+			v.err("tasks_max", base+".max", cp.Tasks.Max, MaxTasks)
+		}
+		v.list(base+".domains", cp.Tasks.Domains, "")
+	}
 }
 
 // checkpointsBy checks `by:` of each checkpoint (L3): workflow members,
