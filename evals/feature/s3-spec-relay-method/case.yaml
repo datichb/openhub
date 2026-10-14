@@ -1,0 +1,41 @@
+id: S3
+title: "Feature (alias de spec) : la question bloquante du planner est relayée par le conductor ; la méthode TDD est relevée pour implement-spec"
+workflow: feature
+mode: semi-auto
+inputs:
+  method: tdd
+text: |
+  Ajoute une fonction Div(a, b int) à calc.
+  Le comportement en cas de division par zéro (renvoyer une erreur, ou paniquer) est une décision métier que je n'ai pas encore prise : ne la tranche pas à ma place.
+beads:
+  prefix: ev
+timeout: 20m
+answers:
+  question: first
+  # L'évaluation s'arrête au premier checkpoint (compréhension) : rien n'est
+  # écrit ni créé.
+  checkpoints:
+    "*": "reject: Évaluation terminée : arrête le workflow ici, sans écrire la spec ni créer de ticket."
+# feature-migration : `feature` sans tickets lance spec (alias). Le planner
+# met la décision de la division par zéro dans ses questions bloquantes, sans
+# appeler `question` ; le conductor la pose à l'utilisateur. oh relève la
+# méthode donnée au lancement (record: input), que `next:` transmet à
+# implement-spec.
+assertions:
+  - type: no_question_in_subagent
+    agents: [planner, pathfinder]
+  - type: text_matches
+    name: le planner rend son bloc de retour (la question y figure)
+    agent: planner
+    pattern: "Retour (intermédiaire )?vers[\\s\\S]*z[ée]ro"
+  - type: text_matches
+    name: la question de la division par zéro est relayée à l'utilisateur
+    agent: conductor
+    questions: true
+    pattern: "z[ée]ro"
+  - type: output
+    name: la méthode tdd, relevée par oh pour implement-spec
+    output: method
+    pattern: "^tdd$"
+  - type: changed_within
+    name: aucun fichier modifié

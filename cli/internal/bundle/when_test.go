@@ -287,7 +287,7 @@ func TestNoDeadRoleBlocksInAgents(t *testing.T) {
 	}
 	for _, id := range []string{"orchestrator", "conductor"} {
 		assert.False(t, roles[id][roleSubagent], "%s is always the entry agent", id)
-		b := agentBody(t, shippedBundle(t, map[string]string{"orchestrator": "feature", "conductor": "sweep"}[id]), id)
+		b := agentBody(t, shippedBundle(t, map[string]string{"orchestrator": "libre", "conductor": "sweep"}[id]), id)
 		assert.NotContains(t, b, "### Questions bloquantes` de ton bloc de retour", "%s: subagent text in an entry agent", id)
 	}
 }
@@ -295,7 +295,7 @@ func TestNoDeadRoleBlocksInAgents(t *testing.T) {
 // L3: the composed prompt of an agent that is only a subagent does not
 // invite it to call question.
 func TestSubagentPromptsDoNotCallQuestion(t *testing.T) {
-	for _, wf := range []string{"feature", "ticket", "sweep", "spec", "implement-spec"} {
+	for _, wf := range []string{"libre", "ticket", "sweep", "spec", "implement-spec"} {
 		b := shippedBundle(t, wf)
 		envs := bundleWhenEnvs(nil, "", b.Spec)
 		for _, a := range b.Spec.Agents {

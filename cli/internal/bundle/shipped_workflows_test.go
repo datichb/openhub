@@ -333,7 +333,7 @@ func TestShippedWorkflowPromptsWorkBranch(t *testing.T) {
 	hub, cat, _ := shippedWorkflows(t)
 	hc, err := hubcat.New(hub)
 	require.NoError(t, err)
-	for _, id := range []string{"ticket", "feature"} {
+	for _, id := range []string{"ticket", "implement-spec"} {
 		ref := workflow.Ref{Layer: workflow.LayerHub, ID: id}
 		doc, ok := cat.Lookup(ref)
 		require.True(t, ok, id)

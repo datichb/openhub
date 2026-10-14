@@ -9,12 +9,12 @@ import (
 	"github.com/datichb/openhub/cli/internal/workflow"
 )
 
-// R7: ticket and feature offer the tdd method: cp-seams then cp-red, passed
+// R7: ticket and implement-spec offer the tdd method: cp-seams then cp-red, passed
 // by the developer after cp-1 and before cp-2, cp-red verified by oh for a
 // test written first; a standard session has neither.
 func TestShippedTDD(t *testing.T) {
 	hub, cat, env := shippedWorkflows(t)
-	for _, id := range []string{"ticket", "feature"} {
+	for _, id := range []string{"ticket", "implement-spec"} {
 		r, diags := workflow.Check(cat, workflow.Ref{Layer: workflow.LayerHub, ID: id}, nil, env)
 		require.False(t, diags.HasErrors(), "%v", diags)
 		in, ok := r.Spec.Inputs.Get(workflow.MethodInput)
@@ -43,6 +43,36 @@ func TestShippedTDD(t *testing.T) {
 		_, ok = std.Spec.Workflow.Checkpoint("cp-red")
 		assert.False(t, ok, "%s: no TDD checkpoint in a standard session", id)
 	}
+}
+
+// feature-migration: spec takes the method of the implementation without
+// using it (no TDD checkpoint), records it (record: input) and passes it on
+// to implement-spec (next:); feature routes to both (aliases).
+func TestShippedSpecPassesMethodOn(t *testing.T) {
+	_, cat, env := shippedWorkflows(t)
+	r, diags := workflow.Check(cat, workflow.Ref{Layer: workflow.LayerHub, ID: "spec"}, nil, env)
+	require.False(t, diags.HasErrors(), "%v", diags)
+	in, ok := r.Spec.Inputs.Get(workflow.MethodInput)
+	require.True(t, ok)
+	assert.Equal(t, []string{"standard", "tdd"}, in.Values)
+	assert.False(t, r.Spec.HasMethod(workflow.MethodTDD), "no TDD checkpoint in spec")
+	out, ok := r.Spec.Output(workflow.MethodInput)
+	require.True(t, ok)
+	assert.Equal(t, workflow.RecordInput, out.Record)
+	assert.Equal(t, map[string]any{"method": "tdd"}, r.Spec.RecordedInputs(map[string]any{"method": "tdd"}))
+	require.Len(t, r.Spec.Next, 1)
+	assert.Equal(t, "session.output(method)", r.Spec.Next[0].Inputs["method"])
+
+	_, exists := cat.Top("feature")
+	assert.False(t, exists, "feature.yaml removed")
+	ref, ok := cat.ResolveAlias("feature", nil)
+	require.True(t, ok)
+	assert.Equal(t, "spec", ref.ID)
+	ref, ok = cat.ResolveAlias("feature", func(input string) bool { return input == "tickets" })
+	require.True(t, ok)
+	assert.Equal(t, "implement-spec", ref.ID)
+	ref, _ = cat.ResolveAlias("cadrage", func(string) bool { return true })
+	assert.Equal(t, "spec", ref.ID)
 }
 
 func indexOf(keys []string, k string) int {

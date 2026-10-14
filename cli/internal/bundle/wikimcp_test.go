@@ -17,7 +17,7 @@ import (
 // (asked), and the session contract says so.
 func TestWikiMCPInBundle(t *testing.T) {
 	hub, cat, env := shippedWorkflows(t)
-	r, diags := workflow.Check(cat, workflow.Ref{Layer: workflow.LayerHub, ID: "feature"}, nil, env)
+	r, diags := workflow.Check(cat, workflow.Ref{Layer: workflow.LayerHub, ID: "libre"}, nil, env)
 	require.False(t, diags.HasErrors(), "%v", diags)
 	b, err := Build(Request{HubDir: hub, OutDir: t.TempDir(), ProjectPath: instructionsFixture(t, true), Spec: r.Spec})
 	require.NoError(t, err)

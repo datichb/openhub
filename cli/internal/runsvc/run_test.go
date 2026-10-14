@@ -214,6 +214,7 @@ func TestStartRunsTheSessionsInOneGroup(t *testing.T) {
 	require.NoError(t, err)
 	plan.Sessions[0].Prompt, plan.Sessions[1].Prompt = "do bd-1", "do bd-2"
 	plan.Request.ParentSessionID = "ses_parent"
+	plan.Request.Base.Outputs = map[string]any{"method": "tdd"}
 
 	res, err := f.svc.Start(ctx, plan)
 	require.NoError(t, err)
@@ -233,6 +234,7 @@ func TestStartRunsTheSessionsInOneGroup(t *testing.T) {
 	assert.Equal(t, "write", sess.WorkflowRisk)
 	assert.Equal(t, "worktree", sess.Location)
 	assert.Equal(t, "ses_parent", sess.ParentSessionID)
+	assert.Equal(t, "tdd", sess.Outputs["method"], "recorded inputs (feature-migration)")
 	assert.Equal(t, "p1 · ticket bd-2", *sess.Title)
 	assert.True(t, sess.WorktreeAuto, "created by oh (N16, v43)")
 	assert.Equal(t, "feat/bd-2", sess.WorktreeBranch)

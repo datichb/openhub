@@ -30,7 +30,7 @@ func TestCheckpointPauseBudget(t *testing.T) {
 // oh (build, tests, type check of the stack), expecting a pass.
 func TestShippedWorkflowsVerifyCommit(t *testing.T) {
 	_, cat, _ := shippedWorkflows(t)
-	want := map[string]string{"ticket": "cp-2", "feature": "cp-2", "review-feedback": "cp-2", "quick": "cp-commit", "debug": "cp-commit", "sweep": "cp-commit"}
+	want := map[string]string{"ticket": "cp-2", "implement-spec": "cp-2", "review-feedback": "cp-2", "quick": "cp-commit", "debug": "cp-commit", "sweep": "cp-commit"}
 	for id, cpID := range want {
 		r, diags := workflow.ResolveSpec(cat, workflow.Ref{Layer: workflow.LayerHub, ID: id}, nil)
 		require.Empty(t, diags.Errors(), id)
@@ -51,9 +51,10 @@ func TestShippedWorkflowsVerifyCommit(t *testing.T) {
 // CP-R10: the pauses planned in each mode; auto keeps the mandatory ones.
 func TestPlannedPauses(t *testing.T) {
 	_, cat, _ := shippedWorkflows(t)
-	r, diags := workflow.ResolveSpec(cat, workflow.Ref{Layer: workflow.LayerHub, ID: "feature"}, nil)
+	r, diags := workflow.ResolveSpec(cat, workflow.Ref{Layer: workflow.LayerHub, ID: "implement-spec"}, nil)
 	require.Empty(t, diags.Errors())
-	rt := WorkflowRuntime(r.Spec.ForMethod(workflow.MethodStandard))
+	sp := r.Spec.ForFanout(false)
+	rt := WorkflowRuntime(sp.ForMethod(workflow.MethodStandard))
 	ids := func(mode string) []string {
 		var out []string
 		for _, p := range PlannedPauses(rt, mode) {
@@ -61,17 +62,20 @@ func TestPlannedPauses(t *testing.T) {
 		}
 		return out
 	}
-	assert.Equal(t, []string{"cp-tickets", "cp-0", "cp-spec", "cp-2"}, ids("semi-auto"))
-	tdd := ids
-	rt = WorkflowRuntime(r.Spec.ForMethod(workflow.MethodTDD))
-	assert.Equal(t, []string{"cp-tickets", "cp-0", "cp-spec", "cp-seams", "cp-2"}, tdd("semi-auto"), "R7: TDD adds cp-seams, cp-red passes on its own")
-	assert.Equal(t, []string{"cp-tickets", "cp-0", "cp-spec", "cp-2"}, tdd("auto"))
-	rt = WorkflowRuntime(r.Spec.ForMethod(workflow.MethodStandard))
-	assert.Equal(t, []string{"cp-tickets", "cp-0", "cp-spec", "cp-2"}, ids("auto"), "auto = everything but the mandatory decisions (and cp-spec when it applies)")
-	assert.Len(t, PlannedPauses(rt, "manuel"), 7)
+	assert.Equal(t, []string{"cp-plan", "cp-2", "cp-final"}, ids("semi-auto"))
+	assert.Equal(t, []string{"cp-plan", "cp-2"}, ids("auto"), "auto = everything but the mandatory decisions")
+	assert.Len(t, PlannedPauses(rt, "manuel"), 5)
+	rt = WorkflowRuntime(sp.ForMethod(workflow.MethodTDD))
+	assert.Equal(t, []string{"cp-plan", "cp-seams", "cp-2", "cp-final"}, ids("semi-auto"), "R7: TDD adds cp-seams, cp-red passes on its own")
+	assert.Equal(t, []string{"cp-plan", "cp-2"}, ids("auto"))
 	p := PlannedPauses(rt, "auto")
 	assert.True(t, p[0].Mandatory)
-	assert.True(t, p[2].Conditional)
+	// No shipped workflow has a conditional checkpoint any more (cp-spec
+	// left with feature, feature-migration).
+	cond := &sessionspec.WorkflowRuntime{DefaultMode: "auto", Checkpoints: []sessionspec.CheckpointDef{
+		{ID: "cp-ui", Behaviors: map[string]string{"auto": sessionspec.CheckpointConditional}, Condition: "une spec UI"}}}
+	require.Len(t, PlannedPauses(cond, ""), 1)
+	assert.True(t, PlannedPauses(cond, "")[0].Conditional)
 	assert.Nil(t, PlannedPauses(nil, "auto"))
 }
 

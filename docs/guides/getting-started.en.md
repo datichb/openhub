@@ -123,9 +123,9 @@ From the project directory:
 
 ```bash
 oh run quick -i request="Add a test for parseDate"   # small change, no checkpoint
-oh run feature                                        # a complete feature (plan, dev, review)
+oh run feature -m "…"                                 # a complete feature: spec and tickets, then implementation proposed
 oh run                                                # the project default workflow
-oh run feature --recap                                # show the recap, then confirm
+oh run feature -m "…" --recap                         # show the recap, then confirm
 ```
 
 oh resolves the workflow (hub, team, project layers), builds the session bundle, picks the location (an automatic worktree when another session already writes in the directory), starts the opencode server and opens the session window: a new iTerm2 or Terminal.app tab, tmux, or the browser, depending on your Settings.
@@ -266,7 +266,7 @@ oh run onboarding            # create the project wiki
 oh run libre --agent orchestrator
 ```
 
-The former `oh start`, `oh audit`, `oh review` and `oh debug` commands are deprecated aliases of `oh run feature|audit|review|debug`.
+The former `oh start`, `oh audit`, `oh review` and `oh debug` commands are deprecated aliases of `oh run feature|audit|review|debug`. `feature` is itself an alias: `spec` (without tickets), then `implement-spec`, proposed when it ends.
 
 ```bash
 oh provider setup            # provider credentials

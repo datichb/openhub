@@ -8,7 +8,9 @@ description:
   en: Understand a request, write its spec in the wiki (glossary, criteria and test points) and slice it into Beads tickets, without implementing it
 risk: plan
 # R5: `oh run cadrage` launches spec (cadrage.yaml removed).
-aliases: [cadrage]
+# feature-migration: `oh run feature` launches spec, `oh run feature
+# --tickets …` implement-spec (feature.yaml removed).
+aliases: [cadrage, feature]
 inputs:
   request:
     type: text
@@ -18,6 +20,16 @@ inputs:
       fr: La feature à spécifier en langage naturel (ou l'identifiant d'un ticket ou d'une MR GitLab)
       en: The feature to specify in natural language (or the id of a GitLab issue or merge request)
     max_length: 8000
+  # feature-migration: not used by spec itself; recorded by oh and passed on
+  # to implement-spec by `next:` (oh run feature -i method=tdd).
+  method:
+    type: enum
+    values: [standard, tdd]
+    default: standard
+    label: { fr: Méthode de l'implémentation, en: Implementation method }
+    help:
+      fr: "Méthode de l'implémentation proposée ensuite (implement-spec) ; tdd : tests écrits d'abord, vérifiés par oh. La spec elle-même ne change pas."
+      en: "Method of the implementation proposed next (implement-spec); tdd: tests written first, checked by oh. The spec itself does not change."
 prompt:
   template: prompts/spec.md.tmpl
 agents:
@@ -88,7 +100,8 @@ runtime: { default: local, allowed: [local] }
 outputs:
   - { id: spec, type: path, record: spec, label: { fr: Spec écrite, en: Written spec } }
   - { id: tickets, type: beads-ids, record: created, label: { fr: Tickets créés, en: Created tickets } }
+  - { id: method, type: text, record: input, label: { fr: Méthode de l'implémentation, en: Implementation method } }
 next:
   - workflow: implement-spec
     when: { outputs: [tickets] }
-    inputs: { tickets: session.output(tickets), spec: session.output(spec) }
+    inputs: { tickets: session.output(tickets), spec: session.output(spec), method: session.output(method) }

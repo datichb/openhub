@@ -15,7 +15,7 @@ un projet existant : stack, architecture, risques, et agents à prioriser.
 | Tu reprends un projet après une longue absence | Invoquer l'onboarder pour remettre à jour le contexte |
 | Tu vas démarrer une mission importante (feature, refactoring) | Invoquer avant de confier quoi que ce soit à l'orchestrator |
 | Tu veux savoir quels agents du hub sont pertinents pour ce projet | L'onboarder produit la carte des agents recommandés |
-| Tu lances `feature` ou `cadrage` sur un projet sans contexte | oh te propose de lancer d'abord le workflow `onboarding` — tu peux accepter ou continuer |
+| Tu lances `spec` (ou ses alias `feature`, `cadrage`) sur un projet sans contexte | oh te propose de lancer d'abord le workflow `onboarding` — tu peux accepter ou continuer |
 
 L'onboarder est en **lecture seule**. Il n'écrit aucun code, ne modifie aucun
 fichier du projet, sauf `docs/wiki/` (création du wiki), `ONBOARDING.md` minimaliste et, s'il le génère, `CONVENTIONS.md`.
@@ -292,25 +292,25 @@ les agents selon leur tâche courante — jamais toutes en même temps.
 
 ## Intégration avec les autres workflows
 
-L'onboarding est un workflow à part entière (`onboarding`, voir `docs/reference/workflows.fr.md`). Les workflows `feature` et `cadrage` déclarent une **précondition** `project-context` : si le projet n'a ni `docs/wiki/index.md`, ni `ONBOARDING.md`, ni `CONVENTIONS.md`, oh propose de lancer `onboarding` d'abord. Cette proposition est toujours optionnelle.
+L'onboarding est un workflow à part entière (`onboarding`, voir `docs/reference/workflows.fr.md`). Les workflows `spec` (et ses alias `feature`, `cadrage`) et `implement-spec` déclarent une **précondition** `project-context` : si le projet n'a ni `docs/wiki/index.md`, ni `ONBOARDING.md`, ni `CONVENTIONS.md`, oh propose de lancer `onboarding` d'abord. Cette proposition est toujours optionnelle.
 
 ### Enchaînement
 
 ```
-1. Tu lances feature : "Implémente la feature d'authentification JWT"
+1. Tu lances feature (alias de spec) : "Implémente la feature d'authentification JWT"
 2. oh vérifie la précondition : aucun contexte projet trouvé
 3. oh propose :
    "Aucun contexte projet trouvé"
-   → Lancer « onboarding » d'abord (puis revenir à feature)
+   → Lancer « onboarding » d'abord (puis revenir à spec)
    → Continuer quand même
 4. Tu choisis onboarding : l'onboarder explore le projet et crée le wiki
-5. À la fin, oh propose de relancer feature avec la même demande
-6. L'orchestrator dispose du contexte et passe à la planification
+5. À la fin, oh propose de relancer spec avec la même demande
+6. Le planner dispose du contexte et passe à l'entretien
 ```
 
 ### Continuer sans onboarding
 
-Si tu connais déjà le projet, choisis « Continuer quand même » : la session `feature` démarre directement (planification par le `pathfinder` ou le `planner`).
+Si tu connais déjà le projet, choisis « Continuer quand même » : la session `spec` démarre directement (entretien avec le `planner`, exploration par le `pathfinder` si la demande compare des conceptions).
 
 ---
 

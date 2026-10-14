@@ -71,6 +71,30 @@ func (c *MemCatalog) AliasTargets(id string) []AliasTarget {
 	return out
 }
 
+// RetiredAliasTargets returns the workflows of ref's layer that declare
+// ref.ID as an alias (read from the documents themselves, unresolved): a
+// document extending ref extends a retired workflow, now an alias.
+func RetiredAliasTargets(cat Catalog, ref Ref) []string {
+	c, ok := cat.(*MemCatalog)
+	if !ok {
+		return nil
+	}
+	var out []string
+	for r, doc := range c.docs {
+		if r.Layer != ref.Layer {
+			continue
+		}
+		for _, a := range doc.Spec.Aliases {
+			if a.ID == ref.ID {
+				out = append(out, r.ID)
+				break
+			}
+		}
+	}
+	sort.Strings(out)
+	return out
+}
+
 // ResolveAlias returns the workflow alias id launches when no document has
 // that id: a target whose `with` input is given (given may be nil: none
 // is), else the target without `with`.

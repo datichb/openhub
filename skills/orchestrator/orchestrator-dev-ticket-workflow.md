@@ -39,7 +39,7 @@ workflow_checkpoint({ id: "cp-1", summary: "Ticket #<ID> — <titre> : <résumé
 
 **Mise à jour todowrite au démarrage du ticket — agent d'entrée uniquement (exemple : premier ticket démarre) :**
 
-> Invoqué via `task` par l'orchestrator, cette mise à jour reste locale à la session isolée et n'est pas visible par l'utilisateur. L'orchestrator feature gère sa propre liste.
+> Invoqué via `task` par l'orchestrator, cette mise à jour reste locale à la session isolée et n'est pas visible par l'utilisateur. L'orchestrator gère sa propre liste.
 
 ```
 todowrite({
@@ -299,7 +299,7 @@ todowrite({
 })
 ```
 
-> Invoqué via `task` par l'orchestrator, cette mise à jour est locale à la session isolée. L'orchestrator feature met à jour sa propre liste à la réception de ton enveloppe.
+> Invoqué via `task` par l'orchestrator, cette mise à jour est locale à la session isolée. L'orchestrator met à jour sa propre liste à la réception de ton enveloppe.
 > Agent d'entrée de la session : cette mise à jour est immédiatement visible par l'utilisateur.
 
 **Checkpoint `cp-3`** (ticket suivant) :

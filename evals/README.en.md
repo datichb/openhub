@@ -59,7 +59,7 @@ The assertions are described in the [`oh eval` reference](../docs/reference/cli-
 |------|----------|-----------------|
 | S1 | review | The verification runs first; « corriger » verdict on a seeded bug |
 | S2 | ticket | Developer and reviewer never call `question`; no commit before `cp-2` |
-| S3 | feature | The pathfinder returns its block without asking; a blocking question is relayed |
+| S3 | feature (alias of `spec`) | The planner's blocking question is relayed by the conductor; the `tdd` method is recorded for `implement-spec` |
 | S4 | audit | Each phase skill is loaded before its phase |
 | S5 | cadrage | The planner follows the subagent variant |
 | S6 | debug | Phase skill loaded before each phase |

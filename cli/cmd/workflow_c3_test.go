@@ -2,12 +2,14 @@ package cmd
 
 import (
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/datichb/openhub/cli/internal/domain"
+	"github.com/datichb/openhub/cli/internal/teamstate"
 )
 
 // A6: oh workflow show (and validate) resolve the chain down to the project
@@ -83,4 +85,36 @@ func TestWorkflowNewFileWithoutPrompt(t *testing.T) {
 	require.NoError(t, err)
 	assert.Contains(t, string(txt.YAML), "template: prompts/nettoyage.md.tmpl")
 	assert.Contains(t, string(txt.Prompt), `{{ data "request" .request }}`)
+}
+
+// feature-migration: oh doctor names the published workflows that extend a
+// hub workflow retired as an alias (hub:feature → spec, implement-spec).
+func TestRetiredExtendsCheck(t *testing.T) {
+	env := setupWorkflowCLI(t, "alice")
+	useLocale(t, "en")
+	repo := teamstate.NewRepo(env.bare, env.clones["alice"])
+	hub := filepath.Join(repoRoot(t), "cli", "internal", "services", "workflow", "testdata", "workflows")
+	_, ok := retiredExtendsCheck("acme", repo, hub)
+	assert.False(t, ok, "nothing published")
+
+	doc := writeTemp(t, "apiVersion: oh/v1\nkind: Workflow\nid: feature\nextends: hub:feature\ndescription: Feature de l'équipe\n")
+	out, err := runWorkflowSub(t, workflowNewCmd, "feature", "--file", doc, "--no-edit")
+	require.NoError(t, err, out)
+	out, err = runWorkflowSub(t, workflowPublishCmd, "team:feature", "-m", "équipe", "--yes")
+	require.NoError(t, err, out)
+	_, ok = retiredExtendsCheck("acme", repo, hub)
+	assert.False(t, ok, "hub:feature still a workflow")
+
+	// The hub retires feature: spec declares it as an alias.
+	retired := t.TempDir()
+	for _, f := range []string{"quick.yaml", "review.yaml", "ticket.yaml"} {
+		data, err := os.ReadFile(filepath.Join(hub, f))
+		require.NoError(t, err)
+		require.NoError(t, os.WriteFile(filepath.Join(retired, f), data, 0o644))
+	}
+	require.NoError(t, os.WriteFile(filepath.Join(retired, "spec.yaml"), []byte("apiVersion: oh/v1\nkind: Workflow\nid: spec\naliases: [feature]\n"), 0o644))
+	c, ok := retiredExtendsCheck("acme", repo, retired)
+	require.True(t, ok)
+	assert.False(t, c.OK)
+	assert.Contains(t, c.Detail, "team:feature extends hub:feature, now an alias of spec")
 }

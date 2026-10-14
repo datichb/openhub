@@ -3,7 +3,7 @@ name: orchestrator-recap-edge
 description: "Utiliser en fin de feature ou sur un cas d'erreur : review adversariale finale, récap de feature, cas particuliers."
 ---
 
-## Récap global de la feature (`cp-feature`)
+## Récap global de la feature
 
 Afficher en fin de feature (tous les tickets traités ou après un **stop**).
 
@@ -72,7 +72,7 @@ Après le gate de complétion et **avant** de construire le récap feature, **in
 4. **À la réception du rapport** :
    - Afficher le rapport adversarial (ou unifié) intégralement dans la discussion
    - Intégrer les findings adversariaux dans le `### Points d'attention` du récap feature
-   - Si le verdict est `corriger` ou `corriger-sécurité` → rappeler `orchestrator-dev` avec les corrections (un ticket de correction par sujet) : chaque correction repasse par son propre `cp-2` (redemandé par orchestrator-dev), puis `cp-feature`
+   - Si le verdict est `corriger` ou `corriger-sécurité` → rappeler `orchestrator-dev` avec les corrections (un ticket de correction par sujet) : chaque correction repasse par son propre `cp-2` (redemandé par orchestrator-dev), puis le récap
 
 > `<branche de travail>` : ligne `Branche de travail` du premier message, sinon la branche courante ; `<base>` : la branche de départ de la feature si elle est connue (retour d'orchestrator-dev, demande de l'utilisateur), sinon écrire `Base : à déterminer` et laisser le reviewer la trouver (branche par défaut du dépôt) — jamais `main` en dur.
 >

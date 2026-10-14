@@ -534,7 +534,7 @@ const workflowCommandPrefix = "run."
 // their workflow (O15).
 var workflowCommandAliases = map[string][]string{
 	"ticket":          {"dev", "start.dev"},
-	"feature":         {"start", "orchestrator"},
+	"spec":            {"start", "feature", "orchestrator", "cadrage"},
 	"quick":           {"fast"},
 	"audit":           {"secu", "security", "perf", "archi", "a11y"},
 	"review":          {"rev", "cr"},

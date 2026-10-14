@@ -15,7 +15,7 @@ an existing project: stack, architecture, risks, and agents to prioritise.
 | You are resuming a project after a long absence | Invoke the onboarder to refresh context |
 | You are about to start an important mission (feature, refactoring) | Invoke before handing anything to the orchestrator |
 | You want to know which hub agents are relevant for this project | The onboarder produces the recommended agent map |
-| You launch `feature` or `cadrage` on a project without context | oh offers to run the `onboarding` workflow first — you can accept or go on |
+| You launch `spec` (or its aliases `feature`, `cadrage`) on a project without context | oh offers to run the `onboarding` workflow first — you can accept or go on |
 
 The onboarder is **read-only**. It writes no code, modifies no project
 files, except `docs/wiki/` (creation of the wiki), a minimal `ONBOARDING.md` and, when it generates it, `CONVENTIONS.md`.
@@ -292,25 +292,25 @@ agents according to their current task — never all at once.
 
 ## Integration with the other workflows
 
-Onboarding is a workflow of its own (`onboarding`, see `docs/reference/workflows.en.md`). The `feature` and `cadrage` workflows declare a `project-context` **precondition**: when the project has no `docs/wiki/index.md`, no `ONBOARDING.md` and no `CONVENTIONS.md`, oh offers to run `onboarding` first. This offer is always optional.
+Onboarding is a workflow of its own (`onboarding`, see `docs/reference/workflows.en.md`). The `spec` (and its aliases `feature`, `cadrage`) and `implement-spec` workflows declare a `project-context` **precondition**: when the project has no `docs/wiki/index.md`, no `ONBOARDING.md` and no `CONVENTIONS.md`, oh offers to run `onboarding` first. This offer is always optional.
 
 ### Chaining
 
 ```
-1. You launch feature: "Implement the JWT authentication feature"
+1. You launch feature (alias of spec): "Implement the JWT authentication feature"
 2. oh checks the precondition: no project context found
 3. oh offers:
    "No project context found"
-   → Run "onboarding" first (then come back to feature)
+   → Run "onboarding" first (then come back to spec)
    → Go on anyway
 4. You choose onboarding: the onboarder explores the project and creates the wiki
-5. At the end, oh offers to relaunch feature with the same request
-6. The orchestrator has the context and moves on to planning
+5. At the end, oh offers to relaunch spec with the same request
+6. The planner has the context and moves on to the interview
 ```
 
 ### Going on without onboarding
 
-If you already know the project, choose "Go on anyway": the `feature` session starts directly (planning by the `pathfinder` or the `planner`).
+If you already know the project, choose "Go on anyway": the `spec` session starts directly (interview with the `planner`, exploration by the `pathfinder` when the request compares designs).
 
 ---
 

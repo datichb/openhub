@@ -7,6 +7,9 @@ description:
   fr: Implémenter les tickets d'une spec l'un après l'autre (développement, review et commit par ticket), puis revoir l'ensemble
   en: Implement the tickets of a spec one after the other (development, review and commit per ticket), then review the whole
 risk: write
+# feature-migration: `oh run feature --tickets …` launches implement-spec
+# (without tickets, feature launches spec).
+aliases: [{ id: feature, with: tickets }]
 entry:
   agent: orchestrator-dev
 inputs:

@@ -158,16 +158,31 @@ In the TUI:
 
 ## Migration of the former workflow overrides (v5)
 
-The overrides of the former single workflow (TUI Workflow tab) are migrated **automatically** at the first start of oh v5 (migration v38), to workflows extending `hub:feature` (same checkpoint and agent ids):
+The overrides of the former single workflow (TUI Workflow tab) are migrated **automatically** at the first start of oh v5 (migration v38), to workflows extending `hub:implement-spec` (`hub:feature` before it became an alias; `cp-1`, `cp-2`, `cp-3` and their agents keep their ids, `cp-0` becomes `cp-plan`):
 
 | Former configuration | Becomes |
 |---|---|
-| team-state `config.toml`, `[workflow]` section | draft then team workflow `feature` (`extends: hub:feature`; `enforced = true` → `enforce: ["*"]`), published when the team has none yet; section removed from `config.toml` |
-| workflow configuration of a project (oh database) | draft then project workflow `feature` (extends `team:feature` when the team has one, else `hub:feature`); a **solo space** is created for a project without team |
+| team-state `config.toml`, `[workflow]` section | draft then team workflow `implement-spec` (`extends: hub:implement-spec`; `enforced = true` → `enforce: ["*"]`), published when the team has none yet; section removed from `config.toml` |
+| workflow configuration of a project (oh database) | draft then project workflow `implement-spec` (extends `team:implement-spec` when the team has one, else `hub:implement-spec`); a **solo space** is created for a project without team |
 | `hub.toml`, `[workflow.overrides]` section (hub development) | files in `~/.oh/migrated/` (not loaded); section removed from `hub.toml` |
 
-- **Nothing is lost**: the original configuration is archived (team-state `workflows/migrated/…`, `~/.oh/migrated/`); what has no equivalent (`cp-routing`, checkpoint agents, `insert_after`, `task_permissions`) is listed as a comment at the top of the migrated workflow.
-- An invalid migrated workflow, or a scope that already has a published `feature`, stays **your draft**: `oh workflow diff feature`, `oh workflow edit feature`, then `oh workflow publish`.
+- **Nothing is lost**: the original configuration is archived (team-state `workflows/migrated/…`, `~/.oh/migrated/`); what has no equivalent (`cp-routing`, checkpoint agents or agents missing from `implement-spec`, `insert_after`, `task_permissions`) is listed as a comment at the top of the migrated workflow.
+- An invalid migrated workflow, or a scope that already has a published `implement-spec`, stays **your draft**: `oh workflow diff implement-spec`, `oh workflow edit implement-spec`, then `oh workflow publish`.
 - When the team locked its workflow, the project overrides (ignored before) stay a draft: the lock refuses their publication.
 - Offline, the migration of a team is simply retried at the next start.
 - The former TUI Workflow view and `oh deploy` were removed in v5: workflows are browsed in the catalogue (`workflows`) and edited in the editor.
+
+## Retired workflows: `feature` and `cadrage`
+
+`feature` and `cadrage` are no longer hub workflows but aliases: `cadrage` and `feature` launch `spec`, `feature --tickets …` launches `implement-spec`. A team or project workflow that **extends** `hub:feature` or `hub:cadrage` no longer resolves: oh refuses it with an explicit error (`extends_alias`), at launch as with `oh workflow validate`, and `oh doctor` reports it ("Retired workflows").
+
+oh does not migrate it on its own: its changes target agents and checkpoints (`orchestrator`, `cp-0`, `cp-spec`, `cp-feature`) that do not exist in the target workflows, and a silent redirection could lose a rule of the team. To migrate it:
+
+```bash
+oh doctor                                   # lists the workflows concerned
+oh workflow edit feature                    # extends: hub:spec or hub:implement-spec, agents and checkpoints adapted
+oh workflow publish team:feature
+# or: oh workflow archive team:feature      # the alias applies again
+```
+
+A rewritten workflow that keeps the id `feature` shadows the alias (`oh run feature` launches it, warning `alias_shadowed`); under another id (`team-feature`), the alias stays available. Details: [Shipped workflows › `feature`](../reference/workflows.en.md#feature-alias-of-spec--implement-spec).

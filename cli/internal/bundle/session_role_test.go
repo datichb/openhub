@@ -26,7 +26,7 @@ func agentBody(t *testing.T, b *Bundle, id string) string {
 // the standalone path, where its `question` calls would stay invisible to
 // the user.
 func TestSessionRoleFromGraph(t *testing.T) {
-	feature := shippedBundle(t, "feature")
+	feature := shippedBundle(t, "libre")
 	assert.Contains(t, agentBody(t, feature, "orchestrator"), "- **Rôle** : agent d'entrée : tu échanges directement avec l'utilisateur.")
 	for _, id := range []string{"planner", "pathfinder", "designer", "orchestrator-dev", "reviewer"} {
 		body := agentBody(t, feature, id)

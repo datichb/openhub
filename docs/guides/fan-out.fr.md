@@ -86,6 +86,6 @@ Les garde-fous de la substitution de contrôle (déclarée par la couche hub seu
 
 ## Limites (expérimental)
 
-- `sweep` n'utilise pas encore ce mécanisme, et `feature` reste inchangé.
+- `sweep` n'utilise pas encore ce mécanisme. `feature` est un alias (`spec`, ou `implement-spec` avec `--tickets`) : `oh run feature --tickets … -i fanout=true` lance donc ce fan-out.
 - Un enfant qui attend une réponse dans son texte (sans l'outil `question`) n'est arrêté qu'au garde-fou de 10 minutes et reste non mergé.
 - Le pilote suit le fan-out jusqu'au passage de `cp-merge` (pour lancer les tours de correction) : s'il s'est arrêté, relancez `oh fanout drive <session>`.

@@ -86,6 +86,6 @@ The guards of the control substitution (declared by the hub layer only, mandator
 
 ## Limits (experimental)
 
-- `sweep` does not use this mechanism yet, and `feature` is unchanged.
+- `sweep` does not use this mechanism yet. `feature` is an alias (`spec`, or `implement-spec` with `--tickets`): `oh run feature --tickets … -i fanout=true` thus launches this fan-out.
 - A child that waits for an answer in its text (without the `question` tool) is only stopped by the 10-minute guard and stays unmerged.
 - The driver follows the fan-out until `cp-merge` passes (to launch the fix rounds): if it stopped, start `oh fanout drive <session>` again.

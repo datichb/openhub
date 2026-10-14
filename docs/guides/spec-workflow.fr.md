@@ -56,6 +56,6 @@ Sorties de la session :
 
 `oh session next <session>` redonne cette proposition ; dans la TUI, elle arrive en tête de « Enchaîner avec… » (touche `e` de la vue Sessions). `oh run implement-spec` sans ticket reprend d'ailleurs les tickets et la spec de la dernière session `spec` du projet. `implement-spec` traite les tickets l'un après l'autre (`cp-plan`, un `cp-2` par ticket, revue de l'ensemble à `cp-final`) : voir [Workflows livrés](../reference/workflows.fr.md#implement-spec).
 
-## Et `cadrage` ?
+## Et `cadrage`, `feature` ?
 
-`cadrage` est désormais un alias de `spec` : `oh run cadrage` lance `spec`. Quand la demande compare des conceptions ou demande d'analyser le code, le pathfinder l'explore d'abord, comme dans l'ancien `cadrage`. Détails : [Workflows livrés](../reference/workflows.fr.md#spec).
+`cadrage` et `feature` sont désormais des alias de `spec` : `oh run cadrage` et `oh run feature` lancent `spec` (`oh run feature --tickets …` lance `implement-spec`). `oh run feature -i method=tdd` transmet la méthode TDD à l'`implement-spec` proposé à la fin. Quand la demande compare des conceptions ou demande d'analyser le code, le pathfinder l'explore d'abord, comme dans l'ancien `cadrage`. Détails : [Workflows livrés](../reference/workflows.fr.md#spec).

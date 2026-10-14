@@ -57,12 +57,12 @@ func instructionsOf(body string) string {
 	return out
 }
 
-// L7: the project instructions of every agent of the feature workflow, at
-// its level, are pinned in testdata/golden/instructions/feature/<agent>.md
+// L7: the project instructions of every agent of the libre workflow, at
+// its level, are pinned in testdata/golden/instructions/libre/<agent>.md
 // (go test ./internal/bundle -run ProjectInstructions -update).
 func TestProjectInstructionsGolden(t *testing.T) {
 	hub, cat, env := shippedWorkflows(t)
-	r, diags := workflow.Check(cat, workflow.Ref{Layer: workflow.LayerHub, ID: "feature"}, nil, env)
+	r, diags := workflow.Check(cat, workflow.Ref{Layer: workflow.LayerHub, ID: "libre"}, nil, env)
 	require.False(t, diags.HasErrors(), "%v", diags)
 	b, err := Build(Request{HubDir: hub, OutDir: t.TempDir(), ProjectPath: instructionsFixture(t, true), Spec: r.Spec})
 	require.NoError(t, err)
@@ -85,9 +85,9 @@ func TestProjectInstructionsGolden(t *testing.T) {
 			assert.NotContains(t, got, instructionsHeading, a.ID)
 			assert.Contains(t, got, "`project_instructions: none`", a.ID)
 		}
-		assertGolden(t, filepath.Join("instructions", "feature", a.ID+".md"), got)
+		assertGolden(t, filepath.Join("instructions", "libre", a.ID+".md"), got)
 	}
-	assert.Len(t, levels, 3, "feature covers the three levels")
+	assert.Len(t, levels, 3, "libre covers the three levels")
 }
 
 // The levels of the shipped agents (modernisation plan, L7).
@@ -210,7 +210,7 @@ func TestFrontmatterProjectInstructions(t *testing.T) {
 // exact path only; an explicit refusal of the agent and the guards win.
 func TestIndexReadRules(t *testing.T) {
 	hub, cat, env := shippedWorkflows(t)
-	r, diags := workflow.Check(cat, workflow.Ref{Layer: workflow.LayerHub, ID: "feature"}, nil, env)
+	r, diags := workflow.Check(cat, workflow.Ref{Layer: workflow.LayerHub, ID: "libre"}, nil, env)
 	require.False(t, diags.HasErrors(), "%v", diags)
 	project := instructionsFixture(t, true)
 	for _, f := range []string{"docs/team.md", ".oh/sessions/notes.md"} {

@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -11,6 +12,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/teamstate"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 	"github.com/datichb/openhub/cli/internal/workflow"
+	"github.com/datichb/openhub/cli/internal/workflow/hubcat"
 )
 
 // workflowIntegrityChecks reports, for every configured team-state, the
@@ -34,8 +36,47 @@ func workflowIntegrityChecks() []views.DoctorCheck {
 			continue
 		}
 		out = append(out, workflowIntegrityCheck(t.DisplayName(), repo))
+		if c, ok := retiredExtendsCheck(t.DisplayName(), repo, hubWorkflowsDir()); ok {
+			out = append(out, c)
+		}
 	}
 	return out
+}
+
+// retiredExtendsCheck reports the published team and project workflows
+// that extend a hub workflow retired as an alias (hub:feature, hub:cadrage:
+// feature-migration); ok is false when there is none (no check shown).
+func retiredExtendsCheck(name string, repo *teamstate.Repo, hubWorkflows string) (views.DoctorCheck, bool) {
+	hub := workflow.NewMemCatalog()
+	_ = hub.LoadDir(hubWorkflows, workflow.LayerHub)
+	scopes := []teamstate.WorkflowScope{teamstate.TeamScope()}
+	projects, _ := repo.WorkflowProjects()
+	for _, p := range projects {
+		scopes = append(scopes, teamstate.ProjectScope(p))
+	}
+	var found []string
+	for _, sc := range scopes {
+		cat := workflow.NewMemCatalog()
+		_ = repo.LoadWorkflowScopes(cat, sc)
+		for _, ref := range cat.Refs() {
+			doc, _ := cat.Lookup(ref)
+			parent, err := workflow.ParseRef(doc.Spec.Extends)
+			if doc.Spec.Extends == "" || err != nil || parent.Layer != workflow.LayerHub {
+				continue
+			}
+			if _, exists := hub.Lookup(parent); exists {
+				continue
+			}
+			if targets := workflow.RetiredAliasTargets(hub, parent); len(targets) > 0 {
+				found = append(found, i18n.Tf("teamstate.workflow.doctor.retired_item", sc.String()+":"+ref.ID, parent.String(), strings.Join(targets, ", ")))
+			}
+		}
+	}
+	if len(found) == 0 {
+		return views.DoctorCheck{}, false
+	}
+	return views.DoctorCheck{Name: i18n.Tf("teamstate.workflow.doctor.retired_name", name), OK: false,
+		Detail: i18n.Tf("teamstate.workflow.doctor.retired", strings.Join(found, " · "))}, true
 }
 
 // workflowIntegrityCheck loads every scope of repo and summarizes the
@@ -70,4 +111,13 @@ func workflowIntegrityCheck(name string, repo *teamstate.Repo) views.DoctorCheck
 		check.Detail = i18n.Tf("teamstate.workflow.doctor.issues", len(cat.Refs()), len(skipped), strings.Join(skipped, ", "))
 	}
 	return check
+}
+
+// hubWorkflowsDir is the directory of the hub workflows (OH_WORKFLOWS_DIR
+// overrides it, as for oh run).
+func hubWorkflowsDir() string {
+	if d := os.Getenv(workflowsDirEnv); d != "" {
+		return d
+	}
+	return filepath.Join(findHubDir(), hubcat.WorkflowsDir)
 }

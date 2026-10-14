@@ -134,6 +134,9 @@ type StartRequest struct {
 	ParentSessionID string
 	// Tickets are the tickets the session works on (kept on the session).
 	Tickets []string
+	// Outputs are recorded on the session at its creation (the inputs of
+	// `record: input`, feature-migration).
+	Outputs map[string]any
 	// WorktreeAuto: oh created the worktree of Location for this launch,
 	// on WorktreeBranch (oh gc may remove it later, v43).
 	WorktreeAuto   bool
@@ -758,6 +761,7 @@ func (s *Service) persistSession(ctx context.Context, req StartRequest, srv *dom
 		Location: req.LocationKind, ParentSessionID: req.ParentSessionID,
 		StartRef: worktree.StartRef(req.Location), Tickets: req.Tickets,
 		WorktreeAuto: req.WorktreeAuto, WorktreeBranch: req.WorktreeBranch, Fanout: req.Fanout,
+		Outputs: req.Outputs,
 	}
 	if title != "" {
 		sess.Title = &title

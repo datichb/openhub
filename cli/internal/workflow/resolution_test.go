@@ -301,6 +301,8 @@ func TestResolve_ChainErrors(t *testing.T) {
 	}{
 		{"unknown", map[string]string{"hub:a": hdr("a", "")}, "hub:b", "unknown_workflow"},
 		{"parent missing", map[string]string{"team:a": hdr("a", "hub:zz")}, "team:a", "extends_not_found"},
+		// feature-migration: hub:feature became an alias of spec and implement-spec.
+		{"parent retired", map[string]string{"team:feature": hdr("feature", "hub:feature"), "hub:spec": hdr("spec", "") + "aliases: [feature]\n"}, "team:feature", "extends_alias"},
 		{"bad ref", map[string]string{"team:a": hdr("a", "ticket")}, "team:a", "invalid_extends"},
 		{"more specific", map[string]string{"team:a": hdr("a", "project:b"), "project:b": hdr("b", "")}, "team:a", "extends_more_specific"},
 		{"cycle", map[string]string{"team:a": hdr("a", "team:b"), "team:b": hdr("b", "team:a")}, "team:a", "extends_cycle"},
@@ -313,6 +315,9 @@ func TestResolve_ChainErrors(t *testing.T) {
 			r, diags := ResolveSpec(catalogOf(t, c.docs), mustRef(t, c.ref), nil)
 			if r != nil || len(diags) != 1 || diags[0].Code != c.code {
 				t.Fatalf("r=%v diags=%v, want %s", r != nil, diags, c.code)
+			}
+			if c.code == "extends_alias" && (!strings.Contains(diags[0].Message, "hub:feature") || !strings.Contains(diags[0].Message, "spec")) {
+				t.Fatalf("message = %s", diags[0].Message)
 			}
 		})
 	}

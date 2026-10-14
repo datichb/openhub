@@ -10,15 +10,6 @@ deny   spec/planner: git commit -m "x" -- x
 deny   spike/pathfinder: git add x
 deny   spike/pathfinder: git commit -m "x" -- x
 locked debug/debugger: bd create
-locked feature/planner: bd create
-locked feature/planner: bd create "Nom de l'epic" -t epic --json
-locked feature/planner: bd create "Titre du ticket" -t feature -p 1 --parent x --estimate [minutes] --json
-locked feature/planner: bd create "Titre du ticket" -t task -p 2 --parent x --estimate [minutes] --json
-locked feature/planner: bd create "Titre" -t task -p 2 --parent x --estimate [minutes] --json
-locked feature/planner: bd create -t epic
-locked feature/planner: bd duplicate
-locked feature/planner: bd duplicate x --of x
-locked feature/planner: bd supersede
 locked incident/debugger: bd create
 locked infra-change/operator: helm upgrade
 locked infra-change/operator: helm upgrade x x -f x

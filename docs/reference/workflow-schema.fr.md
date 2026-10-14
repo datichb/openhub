@@ -55,6 +55,7 @@ Tous les champs de premier niveau sont verrouillables par `enforce`, sauf `apiVe
 - Le parent doit être d'une couche **moins spécifique ou de la même couche** (`extends_more_specific`).
 - Un workflow qui porte le même id qu'un workflow d'une couche inférieure **doit l'étendre** (`shadow_without_extends`), et étendre **le plus proche** (`must_extend_nearest`) : un `project:ticket` étend `team:ticket` s'il existe, sinon `hub:ticket`.
 - Un autre id est permis : `team:ticket-hotfix` peut étendre `hub:ticket`.
+- Un parent devenu un **alias** (`hub:feature`, `hub:cadrage`) n'est plus un workflow : `extends_alias`, avec les workflows qui déclarent l'alias ; `oh doctor` liste ces documents (voir [`feature`](workflows.fr.md#feature-alias-de-spec--implement-spec)).
 
 ### `enforce`
 
@@ -148,7 +149,7 @@ limits:
 - S'ajoute aux restrictions I6 du hub, de l'équipe et du projet (`oh budget show`) : la valeur la plus précise l'emporte (workflow > projet > hub > recommandation de l'équipe) ; une valeur imposée par l'équipe reste un plafond. Voir [ADR-044](../architecture/adr/044-credential-proxy-session-limits.fr.md).
 - `budget_usd` : plafond souple, vérifié entre deux étapes ; au-delà, une décision `$` demande de relever ou d'arrêter. Valeur négative : `negative_value`.
 - `models` : motifs sur l'identifiant envoyé au fournisseur ; le proxy d'identifiants refuse les autres. Un motif vide : `field_required`.
-- `max_fix_rounds` : plafond de tours de correction (developer → reviewer) par ticket. C'est une consigne, écrite dans la section « Mode de workflow » des skills générées (« Au plus N tours de correction… ; au-delà, passe le checkpoint de commit en signalant les points non résolus. »), **et un verrou** (R3) : oh compte les paires developer → reviewer du ticket en cours ; au-delà du plafond, il refuse les délégations aux agents `developer*` et marque le checkpoint de commit « non résolu », jusqu'à une consigne de l'utilisateur à ce checkpoint ou la fermeture du ticket ([Checkpoints](checkpoints.fr.md#limite-des-tours-de-correction-limitsmax_fix_rounds)). `0` ou absent : pas de plafond. Une couche ne peut que l'abaisser (`loosening` sinon). Valeur négative : `negative_value`. Les workflows `feature`, `ticket` et `review-feedback` du hub fixent `3`.
+- `max_fix_rounds` : plafond de tours de correction (developer → reviewer) par ticket. C'est une consigne, écrite dans la section « Mode de workflow » des skills générées (« Au plus N tours de correction… ; au-delà, passe le checkpoint de commit en signalant les points non résolus. »), **et un verrou** (R3) : oh compte les paires developer → reviewer du ticket en cours ; au-delà du plafond, il refuse les délégations aux agents `developer*` et marque le checkpoint de commit « non résolu », jusqu'à une consigne de l'utilisateur à ce checkpoint ou la fermeture du ticket ([Checkpoints](checkpoints.fr.md#limite-des-tours-de-correction-limitsmax_fix_rounds)). `0` ou absent : pas de plafond. Une couche ne peut que l'abaisser (`loosening` sinon). Valeur négative : `negative_value`. Les workflows `ticket`, `implement-spec` et `review-feedback` du hub fixent `3`.
 
 ---
 
@@ -359,7 +360,7 @@ E8 (R4) : un agent qui ne modifie aucun fichier (le `planner`) peut écrire les 
 | shell, refusé | `git commit --amend`, `-a`/`--all`, `--include`/`-i`, `--only`/`-o`, `-C`, `git add -A`/`--all`/`-u`/`.`/`-f` (ils prendraient le travail de l'utilisateur) |
 
 - Le commit reste verrouillé jusqu'au checkpoint qui le déverrouille (`unlocks: [commit]`) ; les gardes d'oh (`.git/`, `.beads/`, hooks, `--no-verify`, brouillons, garde globale) passent après et gagnent. Comme les autres gardes, des règles sur le texte brut des commandes : un garde-fou, pas un bac à sable.
-- Le contrat de session de l'agent liste ses écritures, la carte du workflow les rappelle, et la condition `writes` des blocs (`<!-- oh:when writes -->`) ne garde un texte que dans ces sessions : le planner de `feature` garde son prompt « tu ne modifies jamais de fichiers ».
+- Le contrat de session de l'agent liste ses écritures, la carte du workflow les rappelle, et la condition `writes` des blocs (`<!-- oh:when writes -->`) ne garde un texte que dans ces sessions : le planner de `libre` garde son prompt « tu ne modifies jamais de fichiers ».
 - Chemins : relatifs, sous `docs/`, un fichier ou un dossier terminé par `/**`, aucun autre joker (`writes_path_invalid`), chacun une fois (`duplicate_entry`) ; refusé dans un workflow `risk: read` (`writes_read_only`).
 - **`writes_after`** (r5-fixes) : tant que ce checkpoint n'est pas passé (un checkpoint sauté dans le mode compte comme passé), l'écriture des chemins `writes` est refusée à tous les agents de la session, avec un message qui dit d'attendre ce checkpoint : la règle de session de ces chemins vaut « demander », le plugin d'oh transmet la demande et oh la refuse avec son message (sans réponse d'oh, l'utilisateur est sollicité). Un checkpoint du workflow présent dans toutes les sessions (`writes_after_unknown`, `order_method_after`), avec `writes` (`writes_after_without_writes`). `workflow_status` liste les écritures encore fermées (`locked_writes`). Patch : comme `after`, il s'ajoute ou se reporte à un checkpoint déclaré plus loin, jamais retiré ni avancé (`loosening`) ; `writes: []` le retire avec les chemins.
 - Patch, **en réduction seulement** : une couche d'équipe ou de projet garde, retire ou restreint les chemins hérités (`docs/wiki/specs/equipe/**` sous `docs/wiki/specs/**`, `writes: []`) ; un chemin que le parent ne couvre pas, `writes` sur un agent qui n'en avait pas ou sur un agent ajouté par la couche, est un assouplissement (`loosening`), et la liste du parent est gardée.
@@ -594,9 +595,9 @@ outputs:
 | Champ | Type | Valeurs |
 |---|---|---|
 | `id` | texte | unique dans la liste |
-| `type` | texte | `branch`, `merge_request`, `beads-ids`, `path`, `report` (identifiant d'un rapport `rp-…`) |
+| `type` | texte | `branch`, `merge_request`, `beads-ids`, `path`, `report` (identifiant d'un rapport `rp-…`), `text` (une valeur, par exemple une entrée relevée) |
 | `label` | texte traduisible | libellé affiché |
-| `record` | texte | absent : déclarée par l'agent ; sinon **relevée par oh** (R5) : `created`, `closed`, `spec`, `report` |
+| `record` | texte | absent : déclarée par l'agent ; sinon **relevée par oh** (R5) : `created`, `closed`, `spec`, `report`, `input` |
 
 Sans `record`, l'agent déclare la valeur avec l'outil MCP `workflow_outputs` (la carte du workflow la liste dans « Sorties à déclarer », `workflow_status` dans `expected_outputs`). En fin de session, les sorties proposent « Enchaîner avec… » (touche `e` de la vue Sessions), les étapes [`next`](#composition-next-et-aliases) et `oh session results`. Patch : liste remplacée en bloc.
 
@@ -610,6 +611,7 @@ Une sortie `record:` est remplie par oh à partir de ce qu'il voit la session fa
 | `closed` | `beads-ids` | les tickets fermés par la session à travers la passerelle Beads |
 | `spec` | `path` | les specs vérifiées par oh à un checkpoint `verify.spec` réussi (plusieurs : jointes par des virgules) ; sans checkpoint `verify.spec`, avertissement `output_record_spec_unchecked` |
 | `report` | `report` | le dernier rapport déposé avec `workflow_report` |
+| `input` | `text` | la valeur de l'entrée de même id, au lancement (sinon sa valeur par défaut), pour la transmettre par `next:` : `spec` relève `method` et la passe à `implement-spec` ; sans entrée de ce nom, `output_record_input_unknown` |
 
 - Le type doit être celui du tableau (`output_record_type`).
 - En fin de workflow, oh ne complète plus une sortie relevée avec les tickets fermés (comme il le fait pour une sortie `beads-ids` déclarée).
@@ -620,13 +622,14 @@ Une sortie `record:` est remplie par oh à partir de ce qu'il voit la session fa
 ## Composition (`next` et `aliases`)
 
 ```yaml
-aliases: [cadrage]                 # oh run cadrage lance ce workflow
+aliases: [cadrage, feature]        # oh run cadrage lance ce workflow
 next:
   - workflow: implement-spec
     when: { outputs: [tickets] }   # proposé seulement si la session a cette sortie
     inputs:
       tickets: session.output(tickets)
       spec: session.output(spec)
+      method: session.output(method) # relevée au lancement (record: input)
 ```
 
 ### `next` — ce que oh propose ensuite (E4)
@@ -679,7 +682,7 @@ Un diagnostic a une gravité (erreur ou avertissement), un code, le chemin du ch
 | `multiple_documents`, `empty_document`, `id_filename_mismatch` | un seul workflow par fichier, nommé `<id>.yaml` |
 | `id_invalid`, `agent_id_invalid`, `checkpoint_id_invalid`, `precondition_id_invalid`, `input_id_invalid`, `input_id_reserved` | identifiant mal formé ou réservé |
 | `enum_invalid`, `enum_values_missing`, `negative_value`, `duplicate_entry`, `field_ignored` | valeur hors liste, `enum` sans `values`, nombre négatif, doublon, champ sans effet pour ce type (avertissement) |
-| `unknown_workflow`, `extends_not_found`, `invalid_extends`, `extends_cycle`, `extends_more_specific`, `duplicate_workflow` | chaîne `extends` impossible |
+| `unknown_workflow`, `extends_not_found`, `extends_alias`, `invalid_extends`, `extends_cycle`, `extends_more_specific`, `duplicate_workflow` | chaîne `extends` impossible |
 | `shadow_without_extends`, `must_extend_nearest` | même id qu'une couche inférieure sans l'étendre, ou sans étendre la plus proche |
 | `loosening` | un champ de sécurité est assoupli : la valeur du parent est gardée |
 | `enforced_field`, `enforce_unknown_field` | champ verrouillé par un parent ; valeur d'`enforce` inconnue |
