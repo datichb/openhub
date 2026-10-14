@@ -6,7 +6,7 @@ Tri sur demo : trier un lot de tickets Beads — priorités, doublons, étiquett
 Tickets à trier : les tickets ouverts du projet (`bd list --status open`), 30 au plus.
 
 1. **Lecture** : `bd show <ID> <ID>…`, seul sur sa ligne (ni `| head`, ni `echo`, ni `&&`), puis `bd label list-all` (les étiquettes du projet) et `bd find-duplicates --status open` (des candidats, pas des preuves).
-2. **Tri**, ticket par ticket :
+2. **Tri** (charge `triage` avant), ticket par ticket :
    - **priorité** (échelle de Beads : 0 critique … 4 plus tard) : changée seulement si le contenu du ticket le justifie (impact, urgence, ce qu'il bloque), raison en une ligne ;
    - **doublon** : seulement si les deux tickets décrivent le même problème au même endroit (cite une phrase de chacun) ; on garde le plus complet, l'autre est marqué doublon ; proches sans être le même : un lien `related` ;
    - **étiquettes** : seulement parmi celles du projet ; une étiquette nouvelle seulement si l'utilisateur la demande ;

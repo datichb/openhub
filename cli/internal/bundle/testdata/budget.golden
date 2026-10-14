@@ -85,8 +85,8 @@ instruct ticket                 documentarian                    4686     2949  
 instruct ticket                 orchestrator-dev                 4746     3154    6   17    617   17    617
 instruct ticket                 reviewer                        11632     5185    6   13    447   13    447
 instruct ticket                 TOTAL                           32991    16865   25   37   1314   37   1314
-instruct triage                 planner                          4375     2849    6   13    442   13    442
-instruct triage                 TOTAL                            4375     2849    6   13    442   13    442
+instruct triage                 planner                          4375     2849    6   14    490   14    490
+instruct triage                 TOTAL                            4375     2849    6   14    490   14    490
 none     audit                  auditor                          3408     2625    7   13    466   13    466
 none     audit                  auditor-subagent                 3401     2262    5   13    463   13    463
 none     audit                  TOTAL                            6809     4887   12   17    613   17    613
@@ -162,8 +162,8 @@ none     ticket                 documentarian                    4270     2949  
 none     ticket                 orchestrator-dev                 4348     3154    6   20    721   20    721
 none     ticket                 reviewer                         6820     4630    5   16    551   16    551
 none     ticket                 TOTAL                           22887    15837   23   40   1418   40   1418
-none     triage                 planner                          3977     2849    6   13    442   13    442
-none     triage                 TOTAL                            3977     2849    6   13    442   13    442
+none     triage                 planner                          3977     2849    6   14    490   14    490
+none     triage                 TOTAL                            3977     2849    6   14    490   14    490
 stacks   audit                  auditor                          3408     2625    7   13    466   13    466
 stacks   audit                  auditor-subagent                 3401     2262    5   13    463   13    463
 stacks   audit                  TOTAL                            6809     4887   12   17    613   17    613
@@ -239,8 +239,8 @@ stacks   ticket                 documentarian                    4270     2949  
 stacks   ticket                 orchestrator-dev                 4348     3154    6   20    721   20    721
 stacks   ticket                 reviewer                         6820     4630    5   23    798   23    798
 stacks   ticket                 TOTAL                           22887    15837   23   47   1665   47   1665
-stacks   triage                 planner                          3977     2849    6   13    442   13    442
-stacks   triage                 TOTAL                            3977     2849    6   13    442   13    442
+stacks   triage                 planner                          3977     2849    6   14    490   14    490
+stacks   triage                 TOTAL                            3977     2849    6   14    490   14    490
 
 # Inlined skills: largest section (tokens) and the agents inlining it.
 review-protocol                            3476 reviewer

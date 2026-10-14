@@ -44,6 +44,9 @@ answers:
 assertions:
   - type: checkpoint_order
     order: [cp-triage]
+  - type: skill_loaded_before
+    skill: triage
+    before: { checkpoint: cp-triage }
   - type: ran
     name: aucune écriture avant cp-triage (création)
     command: "bd create*"

@@ -349,7 +349,8 @@
         "planner-phase-2-5",
         "planner-phase-3-4",
         "planner-phase-5-6",
-        "research"
+        "research",
+        "triage"
       ]
     }
   ],
@@ -366,7 +367,8 @@
     "planner-phase-2-5",
     "planner-phase-3-4",
     "planner-phase-5-6",
-    "research"
+    "research",
+    "triage"
   ],
   "subagent_graph": {},
   "max_depth": 1,
