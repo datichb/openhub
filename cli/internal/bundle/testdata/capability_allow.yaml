@@ -13,6 +13,10 @@ commands:
   # only (writes_test.go).
   - "spec/planner: git add x"
   - 'spec/planner: git commit -m "x" -- x'
+  # onboarding-refresh: the onboarder commits the wiki alone after cp-wiki
+  # (writes: docs/wiki/**).
+  - "onboarding/onboarder: git add x"
+  - 'onboarding/onboarder: git commit -m "x" -- x'
 tasks:
   # orchestrator-dev-protocol (inlined): its invocation table names the
   # documentarian, absent from review-feedback (feedback mode, no

@@ -15,7 +15,7 @@ La demande de ton appelant vaut validation : écris le wiki, sauf si ton prompt 
 Charger le skill `doc-wiki-protocol` avant d'écrire quoi que ce soit — il définit
 les formats canoniques de chaque page wiki.
 
-`docs/wiki/index.md` existe déjà → c'est un re-onboarding : charge `onboarder-phase-5-reonboarding` à la place (ce skill ne sert alors qu'en réécriture complète choisie). Sinon → mode création : suivre les étapes 5.1 à 5.5 dans l'ordre.
+`docs/wiki/index.md` existe déjà → c'est un re-onboarding : n'écris rien, charge `onboarder-phase-5-reonboarding` à la place. Sinon → mode création : suivre les étapes 5.1 à 5.5 dans l'ordre.
 
 ---
 
@@ -127,9 +127,6 @@ Chaque convention détectée porte le tag de confiance approprié :
 - Convention inférée de la codebase → `CONFIRMÉ` avec exemple de fichier:ligne
 - Convention supposée → `DÉDUIT` avec le fichier source
 
-**⚠️ Si des pages `docs/wiki/technical/` existent déjà (re-onboarding) :**
-Appliquer le skill `shared/living-docs-enrichment` avec les nouvelles découvertes.
-
 **`docs/wiki/glossary.md`** (racine du wiki) — **optionnel**, créer uniquement si des termes de domaine ambigus sont détectés en Phase 1 (entités avec noms similaires, abréviations non évidentes, termes métier spécifiques au projet), au format du glossaire de `doc-wiki-protocol` (`- **Terme** : définition`, tagué). Sinon, ne pas la créer : un agent la proposera plus tard.
 
 ADR existants du projet (`docs/adr/`, `adr/`…) : ne pas les déplacer, les citer dans `## Décisions architecturales notables` d'`architecture.md`. `specs/` et `postmortems/` se créent plus tard (workflows `spec`, `incident`) : pas de dossier vide.
@@ -166,7 +163,7 @@ agents: [onboarder]
 
 > **Cycle de vie des entrées :**
 > - `ACTIVE` : le rejet tient toujours — le planner filtre uniquement sur ce statut
-> - `EXPIRED` : le contexte a changé, le rejet n'est plus pertinent — marqué par le onboarder en re-onboarding si l'entrée a > 6 mois ou si le contexte technique a évolué
+> - `EXPIRED` : le contexte a changé, le rejet n'est plus pertinent — proposé par l'onboarder en re-onboarding (`wiki_propose`) si l'entrée a > 6 mois ou si le contexte technique a évolué
 > - `SUPERSEDED` : remplacé par une autre décision — avec référence au ticket/ADR qui a décidé autrement
 
 ---

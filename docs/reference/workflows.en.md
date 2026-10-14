@@ -184,10 +184,10 @@ Discovers the project and creates or enriches the `docs/wiki/` wiki (`doc-wiki-p
 
 | Input | Type | Required | Purpose |
 |---|---|---|---|
-| `refresh` | `bool` (default: no) | no | Rediscover the project and enrich the existing wiki, without deleting anything |
+| `refresh` | `bool` (default: no) | no | Rediscover the project and propose the updates of the existing wiki (validated one by one on the card of `cp-wiki`), without deleting anything |
 | `focus` | `text` (4,000 characters max) | no | Modules or topics to dig into |
 
-The onboarder only writes `docs/wiki/`, `ONBOARDING.md` and `CONVENTIONS.md`: it is a permission (any other write is refused, `.gitignore` and `.git/` included). It does not commit: committing the wiki is left to the user. Output: `wiki`. Allowed Beads commands (read only): `show`, `list`, `search`, `query`.
+The onboarder only writes `docs/wiki/`, `ONBOARDING.md` and `CONVENTIONS.md`: it is a permission (any other write is refused, `.gitignore` and `.git/` included). Without a wiki, it creates the pages; with a wiki (`docs/wiki/index.md`), it changes none and proposes each update with `wiki_propose` (nothing when the wiki is faithful to the code). It then passes `cp-wiki` (mandatory, unlocks the commit, `remote: defer`): the card shows its proposals, the user accepts, edits or refuses each one, oh applies the accepted ones; then the onboarder commits `docs/wiki/` alone (`writes: ["docs/wiki/**"]`). `ONBOARDING.md`, `CONVENTIONS.md` and the push are left to the user. One pause in semi-auto (CP-R2 budget: one irreversible action). Output: `wiki`. Allowed Beads commands (read only): `show`, `list`, `search`, `query`.
 
 ## `doc-sync`
 

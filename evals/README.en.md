@@ -89,6 +89,8 @@ The assertions are described in the [`oh eval` reference](../docs/reference/cli-
 | S34 | release | A breaking change announced only in a commit footer (`BREAKING CHANGE:`), missing from the CHANGELOG: `2.0.0`, the change and its migration in the section |
 | S35 | release | Release refused at `cp-release`: no write, no commit, no tag |
 | S36 | release | Release MR asked on `release/1.3`, without a remote: no MR opened nor push, complete description (title, breaking changes, checks, rollback) and the command to open it after the push in the report (`reports: off`) |
+| S47 | onboarding | Re-onboarding (`refresh`) of a wiki whose architecture page cites a package renamed since: the drift is raised, the fix proposed with `wiki_propose`, no direct write in `docs/wiki/` before `cp-wiki`, the page fixed by oh once accepted on the card |
+| S48 | onboarding | Re-onboarding of an up-to-date wiki: no proposal, no write, `cp-wiki` passed |
 
 
 The reference measure (Haiku, three repetitions) is recorded in `cli/internal/evalrun/testdata/evals/baseline.json`; `make test-eval` compares the current run with it.

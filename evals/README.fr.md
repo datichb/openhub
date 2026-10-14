@@ -89,6 +89,8 @@ Les assertions sont décrites dans la [référence d'`oh eval`](../docs/referenc
 | S34 | release | Une rupture annoncée seulement dans le pied d'un commit (`BREAKING CHANGE:`), absente du CHANGELOG : `2.0.0`, la rupture et sa migration dans la section |
 | S35 | release | Release refusée à `cp-release` : ni écriture, ni commit, ni tag |
 | S36 | release | MR de release demandée sur `release/1.3`, sans dépôt distant : aucune MR ouverte ni push, description complète (titre, ruptures, vérifications, retour arrière) et commande pour l'ouvrir après le push dans le rapport (`reports: off`) |
+| S47 | onboarding | Re-onboarding (`refresh`) d'un wiki dont la page d'architecture cite un paquet renommé depuis : la dérive est relevée, la correction proposée avec `wiki_propose`, aucune écriture directe dans `docs/wiki/` avant `cp-wiki`, la page corrigée par oh après l'acceptation à la carte |
+| S48 | onboarding | Re-onboarding d'un wiki à jour : aucune proposition, aucune écriture, `cp-wiki` passé |
 
 
 La mesure de référence (Haiku, trois répétitions) est enregistrée dans `cli/internal/evalrun/testdata/evals/baseline.json` ; `make test-eval` la compare au passage courant.

@@ -15,8 +15,8 @@ inputs:
     default: false
     label: { fr: Rafraîchir le wiki, en: Refresh the wiki }
     help:
-      fr: Re-découvrir le projet et enrichir le wiki existant, sans rien supprimer
-      en: Rediscover the project and enrich the existing wiki, without deleting anything
+      fr: Re-découvrir le projet et proposer les mises à jour du wiki existant (validées une à une à la carte de cp-wiki), sans rien supprimer
+      en: Rediscover the project and propose the updates of the existing wiki (validated one by one on the card of cp-wiki), without deleting anything
   focus:
     type: text
     label: { fr: Points d'attention, en: Focus }
@@ -27,7 +27,18 @@ inputs:
 prompt:
   template: prompts/onboarding.md.tmpl
 agents:
-  onboarder: { role: workflow }
+  onboarder: { role: workflow, writes: ["docs/wiki/**"] }
+checkpoints:
+  cp-wiki:
+    by: [onboarder]
+    label: { fr: Commit du wiki, en: Wiki commit }
+    description:
+      fr: Présenter les pages créées (nouveau wiki) ou les propositions de mise à jour du wiki existant (accepter, modifier, refuser) avant le commit du wiki.
+      en: Present the pages created (new wiki) or the proposed updates of the existing wiki (accept, edit, refuse) before the commit of the wiki.
+    mandatory: true
+    mode: { manuel: pause, semi-auto: pause, auto: pause }
+    unlocks: [commit]
+    remote: defer
 beads:
   allow: [show, list, search, query]
 runtime: { default: local, allowed: [local, remote] }
