@@ -97,7 +97,7 @@ func TestShippedInstructionLevels(t *testing.T) {
 	want := map[string]string{
 		"orchestrator": "none", "conductor": "none",
 		"orchestrator-dev": "index", "auditor": "index", "pathfinder": "index", "planner": "index",
-		"designer": "index", "documentarian": "index", "onboarder": "index",
+		"designer": "index", "documentarian": "index", "onboarder": "index", "release-manager": "index",
 	}
 	for id, path := range files {
 		fm, err := bricks.ParseAgentFrontmatter(path)
