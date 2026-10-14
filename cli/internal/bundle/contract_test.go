@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/datichb/openhub/cli/internal/sessionspec"
 	"github.com/datichb/openhub/cli/internal/workflow"
 )
 
@@ -140,12 +141,54 @@ func TestContractQuestion(t *testing.T) {
 	assert.NotContains(t, quick, "## Retour vers")
 
 	ticket := contractOf(agentBody(t, shippedBundle(t, "ticket"), "developer"))
-	assert.Contains(t, ticket, "n'appelle pas l'outil `question`")
+	assert.Contains(t, ticket, "tu n'as pas l'outil `question` (réservé à l'agent d'entrée). Mets chaque décision dans `### Questions bloquantes`")
 	assert.Contains(t, ticket, "`## Retour vers orchestrator-dev`")
 
 	brief := contractOf(agentBody(t, shippedBundle(t, "brief-enrich"), "brief-enricher"))
 	assert.Contains(t, brief, "headless")
 	assert.NotContains(t, brief, "outil `question` pour")
+}
+
+// p4-fixes: a pure subagent (no entry role in the workflow) is refused the
+// question tool by a deny on "*", the last rule of the action, so that the
+// tool hides it (Tool.snapshot of opencode 2.0.20); an entry agent, also
+// when other agents may launch it, keeps it.
+func TestQuestionRefusedToPureSubagents(t *testing.T) {
+	questionEffect := func(b *Bundle, id string) (sessionspec.Effect, bool) {
+		for _, a := range b.Spec.Agents {
+			if a.ID != id {
+				continue
+			}
+			var last *sessionspec.PermissionRule
+			for i, r := range a.Permissions {
+				if toolMatch(sessionspec.ActionQuestion, r.Action) {
+					last = &a.Permissions[i]
+				}
+			}
+			if last == nil {
+				return "", false
+			}
+			return last.Effect, last.Resource == "*"
+		}
+		t.Fatalf("agent %s not in the bundle", id)
+		return "", false
+	}
+	for wf, ids := range map[string][]string{
+		"spec": {"planner", "designer"}, "cadrage": {"planner", "pathfinder", "designer"},
+		"feature": {"pathfinder", "planner", "designer", "orchestrator-dev", "reviewer"}, "ticket": {"developer", "reviewer"},
+	} {
+		b := shippedBundle(t, wf)
+		for _, id := range ids {
+			eff, star := questionEffect(b, id)
+			assert.Equal(t, sessionspec.EffectDeny, eff, "%s/%s", wf, id)
+			assert.True(t, star, "%s/%s: the deny is on *, so the tool is hidden", wf, id)
+			assert.Contains(t, contractOf(agentBody(t, b, id)), "tu n'as pas l'outil `question`", "%s/%s", wf, id)
+		}
+	}
+	for wf, id := range map[string]string{"review": "reviewer", "feature": "orchestrator", "cadrage": "conductor"} {
+		eff, _ := questionEffect(shippedBundle(t, wf), id)
+		assert.NotEqual(t, sessionspec.EffectDeny, eff, "%s/%s keeps the question tool", wf, id)
+	}
 }
 
 func TestContractFixRounds(t *testing.T) {

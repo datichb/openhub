@@ -214,6 +214,7 @@ func Build(req Request) (*Bundle, error) {
 		}
 		perms := req.agentPermissions(fm, instructions)
 		env := session.agentEnv(id, perms)
+		perms = append(perms, QuestionGuard(env)...)
 		envs[id] = env
 		// keepFor drops, for this agent, the skills whose when: fails.
 		keepFor := func(ref string) bool {

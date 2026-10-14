@@ -336,7 +336,8 @@ E8 (R4): an agent that changes no file (the `planner`) may write the declared do
 | Action | Rule |
 |---|---|
 | `edit`, `write` | the declared paths (`docs/wiki/specs/**` becomes `docs/wiki/specs/*`) |
-| shell | `git add [--] <path>` and `git commit -m <message> -- <path>`: only these paths are committed |
+| shell | `git add [--] <path>` and `git commit -m "<message>" -- <path>` (quoted message, a single declared path or its folder): only these paths are committed |
+| shell, refused (p4-fixes) | any other path, before or after `--`: an argument between the message and `--` (`-m x src/a.go -- …`, `-p`, `--pathspec-from-file`, `:(glob)…`, caught by one quote more than the message), a second path, `..`, `/.`, a quote, `$`, a backquote or a redirection after the declared folder; a message that itself holds a quote of its kind is refused too |
 | shell, refused | `git commit --amend`, `-a`/`--all`, `--include`/`-i`, `--only`/`-o`, `-C`, `git add -A`/`--all`/`-u`/`.`/`-f` (they would take in the user's work) |
 
 - The commit stays locked until the checkpoint that unlocks it (`unlocks: [commit]`); the guards of oh (`.git/`, `.beads/`, hooks, `--no-verify`, scratch folders, global guard) come after and win. Like the other guards, rules on the raw text of the commands: a guard rail, not a sandbox.
